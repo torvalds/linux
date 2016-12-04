@@ -1114,9 +1114,15 @@ static int nfs_invalidate_mapping(struct inode *inode, struct address_space *map
 
 static bool nfs_mapping_need_revalidate_inode(struct inode *inode)
 {
-	if (nfs_have_delegated_attributes(inode))
-		return false;
-	return (NFS_I(inode)->cache_validity & NFS_INO_REVAL_PAGECACHE)
+	unsigned long cache_validity = NFS_I(inode)->cache_validity;
+
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ)) {
+		const unsigned long force_reval =
+			NFS_INO_REVAL_PAGECACHE|NFS_INO_REVAL_FORCED;
+		return (cache_validity & force_reval) == force_reval;
+	}
+
+	return (cache_validity & NFS_INO_REVAL_PAGECACHE)
 		|| nfs_attribute_timeout(inode)
 		|| NFS_STALE(inode);
 }
