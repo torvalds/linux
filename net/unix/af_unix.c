@@ -2488,10 +2488,11 @@ static int unix_stream_splice_actor(struct sk_buff *skb,
 			       state->pipe, chunk);
 }
 
-static ssize_t unix_stream_splice_read(struct socket *sock,  loff_t *ppos,
+static ssize_t unix_stream_splice_read(struct file *file,  loff_t *ppos,
 				       struct pipe_inode_info *pipe,
 				       size_t size, unsigned int flags)
 {
+	struct socket *sock = file->private_data;
 	struct unix_stream_read_state state = {
 		.recv_actor = unix_stream_splice_actor,
 		.socket = sock,

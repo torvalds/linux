@@ -1160,10 +1160,11 @@ out:
 	return copied ? : err;
 }
 
-static ssize_t kcm_splice_read(struct socket *sock, loff_t *ppos,
+static ssize_t kcm_splice_read(struct file *file, loff_t *ppos,
 			       struct pipe_inode_info *pipe, size_t len,
 			       unsigned int flags)
 {
+	struct socket *sock = file->private_data;
 	struct sock *sk = sock->sk;
 	struct kcm_sock *kcm = kcm_sk(sk);
 	long timeo;

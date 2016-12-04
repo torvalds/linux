@@ -715,10 +715,11 @@ static int __tcp_splice_read(struct sock *sk, struct tcp_splice_state *tss)
  *    Will read pages from given socket and fill them into a pipe.
  *
  **/
-ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
+ssize_t tcp_splice_read(struct file *file, loff_t *ppos,
 			struct pipe_inode_info *pipe, size_t len,
 			unsigned int flags)
 {
+	struct socket *sock = file->private_data;
 	struct sock *sk = sock->sk;
 	struct tcp_splice_state tss = {
 		.pipe = pipe,
