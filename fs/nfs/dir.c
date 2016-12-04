@@ -1030,8 +1030,6 @@ EXPORT_SYMBOL_GPL(nfs_force_lookup_revalidate);
 static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
 			      int rcu_walk)
 {
-	int ret;
-
 	if (IS_ROOT(dentry))
 		return 1;
 	if (NFS_SERVER(dir)->flags & NFS_MOUNT_LOOKUP_CACHE_NONE)
@@ -1039,12 +1037,12 @@ static int nfs_check_verifier(struct inode *dir, struct dentry *dentry,
 	if (!nfs_verify_change_attribute(dir, dentry->d_time))
 		return 0;
 	/* Revalidate nfsi->cache_change_attribute before we declare a match */
-	if (rcu_walk)
-		ret = nfs_revalidate_inode_rcu(NFS_SERVER(dir), dir);
-	else
-		ret = nfs_revalidate_inode(NFS_SERVER(dir), dir);
-	if (ret < 0)
-		return 0;
+	if (nfs_mapping_need_revalidate_inode(dir)) {
+		if (rcu_walk)
+			return 0;
+		if (__nfs_revalidate_inode(NFS_SERVER(dir), dir) < 0)
+			return 0;
+	}
 	if (!nfs_verify_change_attribute(dir, dentry->d_time))
 		return 0;
 	return 1;

@@ -1112,7 +1112,7 @@ static int nfs_invalidate_mapping(struct inode *inode, struct address_space *map
 	return 0;
 }
 
-static bool nfs_mapping_need_revalidate_inode(struct inode *inode)
+bool nfs_mapping_need_revalidate_inode(struct inode *inode)
 {
 	unsigned long cache_validity = NFS_I(inode)->cache_validity;
 
