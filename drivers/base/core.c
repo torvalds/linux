@@ -172,7 +172,7 @@ static int device_reorder_to_tail(struct device *dev, void *not_used)
  *
  * The supplier device is required to be registered when this function is called
  * and NULL will be returned if that is not the case.  The consumer device need
- * not be registerd, however.
+ * not be registered, however.
  */
 struct device_link *device_link_add(struct device *consumer,
 				    struct device *supplier, u32 flags)
@@ -225,7 +225,7 @@ struct device_link *device_link_add(struct device *consumer,
 	INIT_LIST_HEAD(&link->c_node);
 	link->flags = flags;
 
-	/* Deterine the initial link state. */
+	/* Determine the initial link state. */
 	if (flags & DL_FLAG_STATELESS) {
 		link->status = DL_STATE_NONE;
 	} else {
