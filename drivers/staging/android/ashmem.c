@@ -100,11 +100,15 @@ static DEFINE_MUTEX(ashmem_mutex);
 static struct kmem_cache *ashmem_area_cachep __read_mostly;
 static struct kmem_cache *ashmem_range_cachep __read_mostly;
 
-#define range_size(range) \
-	((range)->pgend - (range)->pgstart + 1)
+static inline unsigned long range_size(struct ashmem_range *range)
+{
+	return range->pgend - range->pgstart + 1;
+}
 
-#define range_on_lru(range) \
-	((range)->purged == ASHMEM_NOT_PURGED)
+static inline bool range_on_lru(struct ashmem_range *range)
+{
+	return range->purged == ASHMEM_NOT_PURGED;
+}
 
 static inline int page_range_subsumes_range(struct ashmem_range *range,
 					    size_t start, size_t end)
