@@ -667,7 +667,7 @@ static void cl_page_delete0(const struct lu_env *env, struct cl_page *pg)
 	PASSERT(env, pg, pg->cp_state != CPS_FREEING);
 
 	/*
-	 * Severe all ways to obtain new pointers to @pg.
+	 * Sever all ways to obtain new pointers to @pg.
 	 */
 	cl_page_owner_clear(pg);
 
