@@ -7112,7 +7112,8 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 
 	if (test_bit(MD_CLOSING, &mddev->flags)) {
 		mutex_unlock(&mddev->open_mutex);
-		return -ENODEV;
+		err = -ENODEV;
+		goto out;
 	}
 
 	err = 0;
@@ -7121,6 +7122,8 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 
 	check_disk_change(bdev);
  out:
+	if (err)
+		mddev_put(mddev);
 	return err;
 }
 
