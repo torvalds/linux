@@ -77,7 +77,8 @@ static const struct regulator_linear_range tps65086_10mv_ranges[] = {
 };
 
 static const struct regulator_linear_range tps65086_buck126_25mv_ranges[] = {
-	REGULATOR_LINEAR_RANGE(1000000, 0x0, 0x18, 0),
+	REGULATOR_LINEAR_RANGE(0, 0x0, 0x0, 0),
+	REGULATOR_LINEAR_RANGE(1000000, 0x1, 0x18, 0),
 	REGULATOR_LINEAR_RANGE(1025000, 0x19, 0x7F, 25000),
 };
 
