@@ -47,7 +47,10 @@ sctp_manip_pkt(struct sk_buff *skb,
 		hdr->dest = tuple->dst.u.sctp.port;
 	}
 
-	hdr->checksum = sctp_compute_cksum(skb, hdroff);
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		hdr->checksum = sctp_compute_cksum(skb, hdroff);
+		skb->ip_summed = CHECKSUM_NONE;
+	}
 
 	return true;
 }
