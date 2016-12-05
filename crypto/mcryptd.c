@@ -258,18 +258,22 @@ out_free_inst:
 	goto out;
 }
 
-static inline void mcryptd_check_internal(struct rtattr **tb, u32 *type,
+static inline bool mcryptd_check_internal(struct rtattr **tb, u32 *type,
 					  u32 *mask)
 {
 	struct crypto_attr_type *algt;
 
 	algt = crypto_get_attr_type(tb);
 	if (IS_ERR(algt))
-		return;
-	if ((algt->type & CRYPTO_ALG_INTERNAL))
-		*type |= CRYPTO_ALG_INTERNAL;
-	if ((algt->mask & CRYPTO_ALG_INTERNAL))
-		*mask |= CRYPTO_ALG_INTERNAL;
+		return false;
+
+	*type |= algt->type & CRYPTO_ALG_INTERNAL;
+	*mask |= algt->mask & CRYPTO_ALG_INTERNAL;
+
+	if (*type & *mask & CRYPTO_ALG_INTERNAL)
+		return true;
+	else
+		return false;
 }
 
 static int mcryptd_hash_init_tfm(struct crypto_tfm *tfm)
@@ -498,7 +502,8 @@ static int mcryptd_create_hash(struct crypto_template *tmpl, struct rtattr **tb,
 	u32 mask = 0;
 	int err;
 
-	mcryptd_check_internal(tb, &type, &mask);
+	if (!mcryptd_check_internal(tb, &type, &mask))
+		return -EINVAL;
 
 	salg = shash_attr_alg(tb[1], type, mask);
 	if (IS_ERR(salg))
