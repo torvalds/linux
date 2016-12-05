@@ -86,7 +86,8 @@ enum rc_filter_type {
  * @allowed_protocols: bitmask with the supported RC_BIT_* protocols
  * @enabled_protocols: bitmask with the enabled RC_BIT_* protocols
  * @allowed_wakeup_protocols: bitmask with the supported RC_BIT_* wakeup protocols
- * @enabled_wakeup_protocols: bitmask with the enabled RC_BIT_* wakeup protocols
+ * @wakeup_protocol: the enabled RC_TYPE_* wakeup protocol or
+ *	RC_TYPE_UNKNOWN if disabled.
  * @scancode_filter: scancode filter
  * @scancode_wakeup_filter: scancode wakeup filters
  * @scancode_mask: some hardware decoders are not capable of providing the full
@@ -110,8 +111,6 @@ enum rc_filter_type {
  * @rx_resolution : resolution (in ns) of input sampler
  * @tx_resolution: resolution (in ns) of output sampler
  * @change_protocol: allow changing the protocol used on hardware decoders
- * @change_wakeup_protocol: allow changing the protocol used for wakeup
- *	filtering
  * @open: callback to allow drivers to enable polling/irq when IR input device
  *	is opened.
  * @close: callback to allow drivers to disable polling/irq when IR input device
@@ -126,7 +125,9 @@ enum rc_filter_type {
  * @s_learning_mode: enable wide band receiver used for learning
  * @s_carrier_report: enable carrier reports
  * @s_filter: set the scancode filter
- * @s_wakeup_filter: set the wakeup scancode filter
+ * @s_wakeup_filter: set the wakeup scancode filter. If the mask is zero
+ *	then wakeup should be disabled. wakeup_protocol will be set to
+ *	a valid protocol if mask is nonzero.
  * @s_timeout: set hardware timeout in ns
  */
 struct rc_dev {
@@ -149,7 +150,7 @@ struct rc_dev {
 	u64				allowed_protocols;
 	u64				enabled_protocols;
 	u64				allowed_wakeup_protocols;
-	u64				enabled_wakeup_protocols;
+	enum rc_type			wakeup_protocol;
 	struct rc_scancode_filter	scancode_filter;
 	struct rc_scancode_filter	scancode_wakeup_filter;
 	u32				scancode_mask;
@@ -169,7 +170,6 @@ struct rc_dev {
 	u32				rx_resolution;
 	u32				tx_resolution;
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_type);
-	int				(*change_wakeup_protocol)(struct rc_dev *dev, u64 *rc_type);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);
 	int				(*s_tx_mask)(struct rc_dev *dev, u32 mask);
