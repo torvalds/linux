@@ -1399,5 +1399,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 	debugfs_create_file("tpc", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_tpc);
 
+	debugfs_create_u16("airtime_flags", S_IRUSR | S_IWUSR,
+			   sc->debug.debugfs_phy, &sc->airtime_flags);
+
 	return 0;
 }
