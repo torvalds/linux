@@ -939,7 +939,6 @@ xfs_file_clone_range(
 				     len, false);
 }
 
-#define XFS_MAX_DEDUPE_LEN	(16 * 1024 * 1024)
 STATIC ssize_t
 xfs_file_dedupe_range(
 	struct file	*src_file,
@@ -949,14 +948,6 @@ xfs_file_dedupe_range(
 	u64		dst_loff)
 {
 	int		error;
-
-	/*
-	 * Limit the total length we will dedupe for each operation.
-	 * This is intended to bound the total time spent in this
-	 * ioctl to something sane.
-	 */
-	if (len > XFS_MAX_DEDUPE_LEN)
-		len = XFS_MAX_DEDUPE_LEN;
 
 	error = xfs_reflink_remap_range(src_file, loff, dst_file, dst_loff,
 				     len, true);
