@@ -546,6 +546,21 @@ atusb_set_csma_params(struct ieee802154_hw *hw, u8 min_be, u8 max_be, u8 retries
 }
 
 static int
+atusb_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
+{
+	struct atusb *atusb = hw->priv;
+	struct device *dev = &atusb->usb_dev->dev;
+
+	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 3) {
+		dev_info(dev, "Automatic frame retransmission is only available from "
+			"firmware version 0.3. Please update if you want this feature.");
+		return -EINVAL;
+	}
+
+	return atusb_write_subreg(atusb, SR_MAX_FRAME_RETRIES, retries);
+}
+
+static int
 atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 {
 	struct atusb *atusb = hw->priv;
@@ -584,6 +599,7 @@ static const struct ieee802154_ops atusb_ops = {
 	.set_cca_mode		= atusb_set_cca_mode,
 	.set_cca_ed_level	= atusb_set_cca_ed_level,
 	.set_csma_params	= atusb_set_csma_params,
+	.set_frame_retries	= atusb_set_frame_retries,
 	.set_promiscuous_mode	= atusb_set_promiscuous_mode,
 };
 
@@ -754,7 +770,8 @@ static int atusb_probe(struct usb_interface *interface,
 
 	hw->parent = &usb_dev->dev;
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
-		    IEEE802154_HW_PROMISCUOUS | IEEE802154_HW_CSMA_PARAMS;
+		    IEEE802154_HW_PROMISCUOUS | IEEE802154_HW_CSMA_PARAMS |
+		    IEEE802154_HW_FRAME_RETRIES;
 
 	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER | WPAN_PHY_FLAG_CCA_ED_LEVEL |
 			 WPAN_PHY_FLAG_CCA_MODE;
