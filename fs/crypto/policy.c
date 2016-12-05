@@ -129,7 +129,7 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 		printk(KERN_WARNING
 		       "%s: Policy inconsistent with encryption context\n",
 		       __func__);
-		ret = -EINVAL;
+		ret = -EEXIST;
 	}
 
 	inode_unlock(inode);
