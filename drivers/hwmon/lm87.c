@@ -121,7 +121,7 @@ static u8 LM87_REG_TEMP_LOW[3] = { 0x3A, 0x38, 0x2C };
 
 #define IN_FROM_REG(reg, scale)	(((reg) * (scale) + 96) / 192)
 #define IN_TO_REG(val, scale)	((val) <= 0 ? 0 : \
-				 (val) * 192 >= (scale) * 255 ? 255 : \
+				 (val) >= (scale) * 255 / 192 ? 255 : \
 				 ((val) * 192 + (scale) / 2) / (scale))
 
 #define TEMP_FROM_REG(reg)	((reg) * 1000)
