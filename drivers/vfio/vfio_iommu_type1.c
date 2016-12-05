@@ -1361,6 +1361,8 @@ static void vfio_sanity_check_pfn_list(struct vfio_iommu *iommu)
 		if (WARN_ON(!RB_EMPTY_ROOT(&dma->pfn_list)))
 			break;
 	}
+	/* mdev vendor driver must unregister notifier */
+	WARN_ON(iommu->notifier.head);
 }
 
 static void vfio_iommu_type1_detach_group(void *iommu_data,
