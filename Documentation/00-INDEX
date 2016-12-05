@@ -47,8 +47,6 @@ SAK.txt
 	- info on Secure Attention Keys.
 SM501.txt
 	- Silicon Motion SM501 multimedia companion chip
-VGA-softcursor.txt
-	- how to change your VGA cursor from a blinking underscore.
 accounting/
 	- documentation on accounting and taskstats.
 acpi/
@@ -61,28 +59,18 @@ arm/
 	- directory with info about Linux on the ARM architecture.
 arm64/
 	- directory with info about Linux on the 64 bit ARM architecture.
-assoc_array.txt
-	- generic associative array intro.
-atomic_ops.txt
-	- semantics and behavior of atomic and bitmask operations.
 auxdisplay/
 	- misc. LCD driver documentation (cfag12864b, ks0108).
 backlight/
 	- directory with info on controlling backlights in flat panel displays
-basic_profiling.txt
-	- basic instructions for those who wants to profile Linux kernel.
 bcache.txt
 	- Block-layer cache on fast SSDs to improve slow (raid) I/O performance.
-binfmt_misc.txt
-	- info on the kernel support for extra binary formats.
 blackfin/
 	- directory with documentation for the Blackfin arch.
 block/
 	- info on the Block I/O (BIO) layer.
 blockdev/
 	- info on block devices & drivers
-braille-console.txt
-	- info on how to use serial devices for Braille support.
 bt8xxgpio.txt
 	- info on how to modify a bt8xx video card for GPIO usage.
 btmrvl.txt
@@ -105,8 +93,6 @@ clk.txt
 	- info on the common clock framework
 cma/
 	- Continuous Memory Area (CMA) debugfs interface.
-coccinelle.txt
-	- info on how to get and use the Coccinelle code checking tool.
 connector/
 	- docs on the netlink based userspace<->kernel space communication mod.
 console/
@@ -155,8 +141,6 @@ driver-api/
 	- the Linux driver implementer's API guide.
 driver-model/
 	- directory with info about Linux driver model.
-dynamic-debug-howto.txt
-	- how to use the dynamic debug (dyndbg) feature.
 early-userspace/
 	- info about initramfs, klibc, and userspace early during boot.
 edac.txt
@@ -191,8 +175,6 @@ futex-requeue-pi.txt
 	- info on requeueing of tasks from a non-PI futex to a PI futex
 gcc-plugins.txt
 	- GCC plugin infrastructure.
-gcov.txt
-	- use of GCC's coverage testing tool "gcov" with the Linux kernel
 gpio/
 	- gpio related documentation
 gpu/
@@ -201,8 +183,6 @@ hid/
 	- directory with information on human interface devices
 highuid.txt
 	- notes on the change from 16 bit to 32 bit user/group IDs.
-hsi.txt
-	- HSI subsystem overview.
 hwspinlock.txt
 	- hardware spinlock provides hardware assistance for synchronization
 timers/
@@ -213,8 +193,6 @@ hwmon/
 	- directory with docs on various hardware monitoring drivers.
 i2c/
 	- directory with info about the I2C bus/protocol (2 wire, kHz speed).
-i2o/
-	- directory with info about the Linux I2O subsystem.
 x86/i386/
 	- directory with info about Linux on Intel 32 bit architecture.
 ia64/
@@ -243,8 +221,6 @@ isapnp.txt
 	- info on Linux ISA Plug & Play support.
 isdn/
 	- directory with info on the Linux ISDN support, and supported cards.
-ja_JP/
-	- directory with Japanese translations of various documents
 kbuild/
 	- directory with info about the kernel build process.
 kernel-doc-nano-HOWTO.txt
@@ -255,12 +231,6 @@ doc-guide/
 	- how to write and format reStructuredText kernel documentation
 kernel-per-CPU-kthreads.txt
 	- List of all per-CPU kthreads and how they introduce jitter.
-kmemcheck.txt
-	- info on dynamic checker that detects uses of uninitialized memory.
-kmemleak.txt
-	- info on how to make use of the kernel memory leak detection system
-ko_KR/
-	- directory with Korean translations of various documents
 kobject.txt
 	- info of the kobject infrastructure of the Linux kernel.
 kprobes.txt
@@ -277,8 +247,6 @@ leds/
 	- directory with info about LED handling under Linux.
 livepatch/
 	- info on kernel live patching.
-local_ops.txt
-	- semantics and behavior of local atomic operations.
 locking/
 	- directory with info about kernel locking primitives
 lockup-watchdogs.txt
@@ -291,8 +259,6 @@ lzo.txt
 	- kernel LZO decompressor input formats
 m68k/
 	- directory with info about Linux on Motorola 68k architecture.
-magic-number.txt
-	- list of magic numbers used to mark/protect kernel data structures.
 mailbox.txt
 	- How to write drivers for the common mailbox framework (IPC).
 md-cluster.txt
@@ -319,8 +285,6 @@ mmc/
 	- directory with info about the MMC subsystem
 mn10300/
 	- directory with info about the mn10300 architecture port
-module-signing.txt
-	- Kernel module signing for increased security when loading modules.
 mtd/
 	- directory with info about memory technology devices (flash)
 namespaces/
@@ -347,8 +311,6 @@ padata.txt
 	- An introduction to the "padata" parallel execution API
 parisc/
 	- directory with info on using Linux on PA-RISC architecture.
-parport.txt
-	- how to use the parallel-port driver.
 parport-lowlevel.txt
 	- description and usage of the low level parallel port functions.
 pcmcia/
@@ -423,8 +385,6 @@ smsc_ece1099.txt
 	-info on the smsc Keyboard Scan Expansion/GPIO Expansion device.
 sound/
 	- directory with info on sound card support.
-sparse.txt
-	- info on how to obtain and use the sparse tool for typechecking.
 spi/
 	- overview of Linux kernel Serial Peripheral Interface (SPI) support.
 static-keys.txt
@@ -433,12 +393,8 @@ svga.txt
 	- short guide on selecting video modes at boot via VGA BIOS.
 sync_file.txt
 	- Sync file API guide.
-sysfs-rules.txt
-	- How not to use sysfs.
 sysctl/
 	- directory with info on the /proc/sys/* files.
-sysrq.txt
-	- info on the magic SysRq key.
 target/
 	- directory with info on generating TCM v4 fabric .ko modules
 this_cpu_ops.txt
@@ -455,20 +411,14 @@ unshare.txt
 	- description of the Linux unshare system call.
 usb/
 	- directory with info regarding the Universal Serial Bus.
-vDSO/
-	- directory with info regarding virtual dynamic shared objects
 vfio.txt
 	- info on Virtual Function I/O used in guest/hypervisor instances.
-vgaarbiter.txt
-	- info on enable/disable the legacy decoding on different VGA devices
 video-output.txt
 	- sysfs class driver interface to enable/disable a video output device.
 virtual/
 	- directory with information on the various linux virtualizations.
 vm/
 	- directory with info on the Linux vm code.
-vme_api.txt
-	- file relating info on the VME bus API in linux
 w1/
 	- directory with documents regarding the 1-wire (w1) subsystem.
 watchdog/
@@ -485,7 +435,5 @@ xtensa/
 	- directory with documents relating to arch/xtensa port/implementation
 xz.txt
 	- how to make use of the XZ data compression within linux kernel
-zh_CN/
-	- directory with Chinese translations of various documents
 zorro.txt
 	- info on writing drivers for Zorro bus devices found on Amigas.
