@@ -138,10 +138,52 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 	kfree(work);
 }
 
-int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
-				 struct drm_framebuffer *fb,
-				 struct drm_pending_vblank_event *event,
-				 uint32_t page_flip_flags, uint32_t target)
+
+static void amdgpu_flip_work_cleanup(struct amdgpu_flip_work *work)
+{
+	int i;
+
+	amdgpu_bo_unref(&work->old_abo);
+	dma_fence_put(work->excl);
+	for (i = 0; i < work->shared_count; ++i)
+		dma_fence_put(work->shared[i]);
+	kfree(work->shared);
+	kfree(work);
+}
+
+static void amdgpu_flip_cleanup_unreserve(struct amdgpu_flip_work *work,
+					  struct amdgpu_bo *new_abo)
+{
+	amdgpu_bo_unreserve(new_abo);
+	amdgpu_flip_work_cleanup(work);
+}
+
+static void amdgpu_flip_cleanup_unpin(struct amdgpu_flip_work *work,
+				      struct amdgpu_bo *new_abo)
+{
+	if (unlikely(amdgpu_bo_unpin(new_abo) != 0))
+		DRM_ERROR("failed to unpin new abo in error path\n");
+	amdgpu_flip_cleanup_unreserve(work, new_abo);
+}
+
+void amdgpu_crtc_cleanup_flip_ctx(struct amdgpu_flip_work *work,
+				  struct amdgpu_bo *new_abo)
+{
+	if (unlikely(amdgpu_bo_reserve(new_abo, false) != 0)) {
+		DRM_ERROR("failed to reserve new abo in error path\n");
+		amdgpu_flip_work_cleanup(work);
+		return;
+	}
+	amdgpu_flip_cleanup_unpin(work, new_abo);
+}
+
+int amdgpu_crtc_prepare_flip(struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb,
+			     struct drm_pending_vblank_event *event,
+			     uint32_t page_flip_flags,
+			     uint32_t target,
+			     struct amdgpu_flip_work **work_p,
+			     struct amdgpu_bo **new_abo_p)
 {
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -154,7 +196,7 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 	unsigned long flags;
 	u64 tiling_flags;
 	u64 base;
-	int i, r;
+	int r;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)
@@ -215,41 +257,79 @@ int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		r = -EBUSY;
 		goto pflip_cleanup;
+
 	}
-
-	amdgpu_crtc->pflip_status = AMDGPU_FLIP_PENDING;
-	amdgpu_crtc->pflip_works = work;
-
-
-	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_PENDING, work: %p,\n",
-					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
-	/* update crtc fb */
-	crtc->primary->fb = fb;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	amdgpu_flip_work_func(&work->flip_work.work);
+
+	*work_p = work;
+	*new_abo_p = new_abo;
+
 	return 0;
 
 pflip_cleanup:
-	if (unlikely(amdgpu_bo_reserve(new_abo, false) != 0)) {
-		DRM_ERROR("failed to reserve new abo in error path\n");
-		goto cleanup;
-	}
+	amdgpu_crtc_cleanup_flip_ctx(work, new_abo);
+	return r;
+
 unpin:
-	if (unlikely(amdgpu_bo_unpin(new_abo) != 0)) {
-		DRM_ERROR("failed to unpin new abo in error path\n");
-	}
+	amdgpu_flip_cleanup_unpin(work, new_abo);
+	return r;
+
 unreserve:
-	amdgpu_bo_unreserve(new_abo);
+	amdgpu_flip_cleanup_unreserve(work, new_abo);
+	return r;
 
 cleanup:
-	amdgpu_bo_unref(&work->old_abo);
-	dma_fence_put(work->excl);
-	for (i = 0; i < work->shared_count; ++i)
-		dma_fence_put(work->shared[i]);
-	kfree(work->shared);
-	kfree(work);
-
+	amdgpu_flip_work_cleanup(work);
 	return r;
+
+}
+
+void amdgpu_crtc_submit_flip(struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb,
+			     struct amdgpu_flip_work *work,
+			     struct amdgpu_bo *new_abo)
+{
+	unsigned long flags;
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+
+	spin_lock_irqsave(&crtc->dev->event_lock, flags);
+	amdgpu_crtc->pflip_status = AMDGPU_FLIP_PENDING;
+	amdgpu_crtc->pflip_works = work;
+
+	/* update crtc fb */
+	crtc->primary->fb = fb;
+	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+	DRM_DEBUG_DRIVER(
+			"crtc:%d[%p], pflip_stat:AMDGPU_FLIP_PENDING, work: %p,\n",
+			amdgpu_crtc->crtc_id, amdgpu_crtc, work);
+
+	amdgpu_flip_work_func(&work->flip_work.work);
+}
+
+int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_pending_vblank_event *event,
+				 uint32_t page_flip_flags,
+				 uint32_t target)
+{
+	struct amdgpu_bo *new_abo;
+	struct amdgpu_flip_work *work;
+	int r;
+
+	r = amdgpu_crtc_prepare_flip(crtc,
+				     fb,
+				     event,
+				     page_flip_flags,
+				     target,
+				     &work,
+				     &new_abo);
+	if (r)
+		return r;
+
+	amdgpu_crtc_submit_flip(crtc, fb, work, new_abo);
+
+	return 0;
 }
 
 int amdgpu_crtc_set_config(struct drm_mode_set *set)
