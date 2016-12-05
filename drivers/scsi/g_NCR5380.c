@@ -248,6 +248,13 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		}
 	}
 
+	/* Check for vacant slot */
+	NCR5380_write(MODE_REG, 0);
+	if (NCR5380_read(MODE_REG) != 0) {
+		ret = -ENODEV;
+		goto out_unregister;
+	}
+
 	ret = NCR5380_init(instance, flags | FLAG_LATE_DMA_SETUP);
 	if (ret)
 		goto out_unregister;
