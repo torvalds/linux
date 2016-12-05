@@ -582,7 +582,7 @@ int axp20x_match_device(struct axp20x_dev *axp20x);
 int axp20x_device_probe(struct axp20x_dev *axp20x);
 
 /**
- * axp20x_device_probe(): Remove a axp20x device
+ * axp20x_device_remove(): Remove a axp20x device
  *
  * @axp20x: axp20x device to remove
  *
