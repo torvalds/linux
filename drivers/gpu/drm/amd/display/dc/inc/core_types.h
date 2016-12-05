@@ -312,7 +312,7 @@ struct validate_context {
 
 	/* The output from BW and WM calculations. */
 	struct bw_calcs_output bw_results;
-	/* Note: this is a big structure, do *not* put on stack! */
+	/* Note: these are big structures, do *not* put on stack! */
 	struct dm_pp_display_configuration pp_display_cfg;
 };
 
