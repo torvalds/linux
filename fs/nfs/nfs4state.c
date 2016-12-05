@@ -2193,7 +2193,7 @@ void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 	case -NFS4ERR_CONN_NOT_BOUND_TO_SESSION:
 		set_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
 	}
-	nfs4_schedule_lease_recovery(clp);
+	nfs4_schedule_state_manager(clp);
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_session_recovery);
 
