@@ -1647,6 +1647,7 @@ static int  camsys_platform_remove(struct platform_device *pdev)
 
 static const struct of_device_id cif_of_match[] = {
 	{ .compatible = "rockchip,isp" },
+	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, cif_of_match);
 

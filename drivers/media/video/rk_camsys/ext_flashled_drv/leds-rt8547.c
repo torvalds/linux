@@ -36,6 +36,7 @@ struct rt8547_chip {
 	spinlock_t io_lock;
 	unsigned char suspend:1;
 	int in_use_mode;
+	struct platform_device rt_fled_pdev;
 #ifdef CONFIG_DEBUG_FS
 	struct flashlight_device *fled_dev;
 	unsigned char reg_addr;
@@ -776,10 +777,9 @@ static void rt8547_reg_init(struct rt8547_chip *chip)
 			 rt8547_reg_initval[RT8547_FLED_REG3 - 1]);
 }
 
-static struct platform_device rt_fled_pdev = {
-	.name = "rt-flash-led",
-	.id = -1,
-};
+static void rt8547_release(struct device *dev)
+{
+}
 
 static int rt8547_led_probe(struct platform_device *pdev)
 {
@@ -818,8 +818,11 @@ static int rt8547_led_probe(struct platform_device *pdev)
 
 	chip->base.hal = &rt8547_fled_hal;
 	chip->base.init_props = &rt8547_fled_props;
-	rt_fled_pdev.dev.parent = &pdev->dev;
-	ret = platform_device_register(&rt_fled_pdev);
+	chip->rt_fled_pdev.dev.parent = &pdev->dev;
+	chip->rt_fled_pdev.dev.release = rt8547_release;
+	chip->rt_fled_pdev.name = "rt-flash-led";
+	chip->rt_fled_pdev.id = -1;
+	ret = platform_device_register(&chip->rt_fled_pdev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "register rtfled fail\n");
 		goto err_io;
@@ -844,7 +847,7 @@ static int rt8547_led_remove(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	rt8547_remove_debugfs();
 #endif /* #ifdef CONFIG_DEBUG_FS */
-	platform_device_unregister(&rt_fled_pdev);
+	platform_device_unregister(&chip->rt_fled_pdev);
 	rt8547_io_deinit(chip->pdata);
 	return 0;
 }

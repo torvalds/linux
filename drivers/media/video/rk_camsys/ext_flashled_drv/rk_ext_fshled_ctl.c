@@ -42,6 +42,11 @@ int camsys_deinit_ext_fsh_module()
     INIT_LIST_HEAD(&g_ext_fsh_devs.dev_list);
     return 0;
 }
+
+static void camsys_ext_fsh_release(struct device *dev)
+{
+}
+
 void* camsys_register_ext_fsh_dev(camsys_flash_info_t *fsh_info)
 {
     ext_fsh_info_t* new_dev = NULL;
@@ -53,7 +58,7 @@ void* camsys_register_ext_fsh_dev(camsys_flash_info_t *fsh_info)
             goto fail0;
         }
         
-        new_rt_dev = kzalloc(sizeof(ext_fsh_info_t),GFP_KERNEL);
+		new_rt_dev = kzalloc(sizeof(*new_rt_dev), GFP_KERNEL);
         if(!new_rt_dev){
             camsys_err("register new ext flash dev erro !");
             goto fail1;
@@ -61,6 +66,7 @@ void* camsys_register_ext_fsh_dev(camsys_flash_info_t *fsh_info)
 
         new_dev->pdev.id = -1;
         new_dev->pdev.name = fsh_info->fl_drv_name;
+		new_dev->pdev.dev.release = camsys_ext_fsh_release;
         new_dev->pdev.dev.platform_data = (void*)new_rt_dev;
         new_dev->dev_model = "rt-flash-led";
 
@@ -107,6 +113,7 @@ int camsys_deregister_ext_fsh_dev(void* dev)
     	        /* free after unregister device ?*/
     	        kfree(cur_fsh_info->pdev.dev.platform_data);
     	        kfree(cur_fsh_info);
+				return 0;
             }
         }
     }

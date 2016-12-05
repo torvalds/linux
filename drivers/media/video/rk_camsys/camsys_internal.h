@@ -144,8 +144,10 @@
 		1) support drm iommu.
 *v0.0x21.7:
 *       1) remove memset function wrong called code.
+*v0.0x21.8:
+*       1) flash module exist risk, fix up it.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 7)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 8)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
