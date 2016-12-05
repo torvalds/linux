@@ -1993,6 +1993,25 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	if (context_present(context))
 		goto out_unlock;
 
+	/*
+	 * For kdump cases, old valid entries may be cached due to the
+	 * in-flight DMA and copied pgtable, but there is no unmapping
+	 * behaviour for them, thus we need an explicit cache flush for
+	 * the newly-mapped device. For kdump, at this point, the device
+	 * is supposed to finish reset at its driver probe stage, so no
+	 * in-flight DMA will exist, and we don't need to worry anymore
+	 * hereafter.
+	 */
+	if (context_copied(context)) {
+		u16 did_old = context_domain_id(context);
+
+		if (did_old >= 0 && did_old < cap_ndoms(iommu->cap))
+			iommu->flush.flush_context(iommu, did_old,
+						   (((u16)bus) << 8) | devfn,
+						   DMA_CCMD_MASK_NOBIT,
+						   DMA_CCMD_DEVICE_INVL);
+	}
+
 	pgd = domain->pgd;
 
 	context_clear_entry(context);
