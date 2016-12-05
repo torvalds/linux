@@ -702,7 +702,7 @@ device_initcall(xenbus_probe_initcall);
  */
 static int __init xenstored_local_init(void)
 {
-	int err = 0;
+	int err = -ENOMEM;
 	unsigned long page = 0;
 	struct evtchn_alloc_unbound alloc_unbound;
 
