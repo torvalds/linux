@@ -14,6 +14,8 @@ Following translations are available on the WWW:
 	- this file.
 ABI/
 	- info on kernel <-> userspace ABI and relative interface stability.
+CodingStyle
+	- nothing here, just a pointer to process/coding-style.rst.
 DMA-API.txt
 	- DMA API, pci_ API & extensions for non-consistent memory machines.
 DMA-API-HOWTO.txt
@@ -39,6 +41,9 @@ Intel-IOMMU.txt
 Makefile
 	- This file does nothing. Removing it breaks make htmldocs and
 	  make distclean.
+Makefile.sphinx
+	- This file does nothing. Removing it breaks make htmldocs and
+	  make distclean.
 PCI/
 	- info related to PCI drivers.
 RCU/
@@ -47,6 +52,8 @@ SAK.txt
 	- info on Secure Attention Keys.
 SM501.txt
 	- Silicon Motion SM501 multimedia companion chip
+SubmittingPatches
+	- nothing here, just a pointer to process/coding-style.rst.
 accounting/
 	- documentation on accounting and taskstats.
 acpi/
@@ -93,6 +100,8 @@ clk.txt
 	- info on the common clock framework
 cma/
 	- Continuous Memory Area (CMA) debugfs interface.
+conf.py
+	- nothing here. Just a configuration file for Sphinx.
 connector/
 	- docs on the netlink based userspace<->kernel space communication mod.
 console/
@@ -135,6 +144,8 @@ digsig.txt
 	-info on the Digital Signature Verification API
 dma-buf-sharing.txt
 	- the DMA Buffer Sharing API Guide
+docutils.conf
+	- nothing here. Just a configuration file for docutils.
 dontdiff
 	- file containing a list of files that should never be diff'ed.
 driver-api/
@@ -201,6 +212,8 @@ ide/
 	- Information regarding the Enhanced IDE drive.
 iio/
 	- info on industrial IIO configfs support.
+index.rst
+	- main index for the documentation at ReST format.
 infiniband/
 	- directory with documents concerning Linux InfiniBand support.
 input/
@@ -307,6 +320,8 @@ nvdimm/
 	- info on non-volatile devices.
 nvmem/
 	- info on non volatile memory framework.
+output/
+	- default directory where html/LaTeX/pdf files will be written.
 padata.txt
 	- An introduction to the "padata" parallel execution API
 parisc/
@@ -387,6 +402,10 @@ sound/
 	- directory with info on sound card support.
 spi/
 	- overview of Linux kernel Serial Peripheral Interface (SPI) support.
+sphinx/
+	- no doumentation here, just files required by Sphinx toolchain.
+sphinx-static/
+	- no doumentation here, just files required by Sphinx toolchain.
 static-keys.txt
 	- info on how static keys allow debug code in hotpaths via patching
 svga.txt
