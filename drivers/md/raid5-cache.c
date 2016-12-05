@@ -2077,7 +2077,6 @@ r5c_recovery_rewrite_data_only_stripes(struct r5l_log *log,
 		return -ENOMEM;
 	}
 
-	ctx->seq += 10;
 	list_for_each_entry_safe(sh, next, &ctx->cached_list, lru) {
 		struct r5l_meta_block *mb;
 		int i;
@@ -2137,6 +2136,8 @@ static int r5l_recovery_log(struct r5l_log *log)
 	struct mddev *mddev = log->rdev->mddev;
 	struct r5l_recovery_ctx ctx;
 	int ret;
+	sector_t pos;
+	struct stripe_head *sh;
 
 	ctx.pos = log->last_checkpoint;
 	ctx.seq = log->last_cp_seq;
@@ -2153,6 +2154,18 @@ static int r5l_recovery_log(struct r5l_log *log)
 
 	if (ret)
 		return ret;
+
+       pos = ctx.pos;
+       ctx.seq += 10;
+
+	if (ctx.data_only_stripes == 0) {
+		log->next_checkpoint = ctx.pos;
+		r5l_log_write_empty_meta_block(log, ctx.pos, ctx.seq++);
+		ctx.pos = r5l_ring_add(log, ctx.pos, BLOCK_SECTORS);
+	} else {
+		sh = list_last_entry(&ctx.cached_list, struct stripe_head, lru);
+		log->next_checkpoint = sh->log_start;
+	}
 
 	if ((ctx.data_only_stripes == 0) && (ctx.data_parity_stripes == 0))
 		pr_debug("md/raid:%s: starting from clean shutdown\n",
@@ -2171,10 +2184,9 @@ static int r5l_recovery_log(struct r5l_log *log)
 	}
 
 	log->log_start = ctx.pos;
-	log->next_checkpoint = ctx.pos;
 	log->seq = ctx.seq;
-	r5l_log_write_empty_meta_block(log, ctx.pos, ctx.seq);
-	r5l_write_super(log, ctx.pos);
+	log->last_checkpoint = pos;
+	r5l_write_super(log, pos);
 	return 0;
 }
 
