@@ -3341,7 +3341,8 @@ int __must_check i915_gem_evict_something(struct i915_address_space *vm,
 					  unsigned cache_level,
 					  u64 start, u64 end,
 					  unsigned flags);
-int __must_check i915_gem_evict_for_vma(struct i915_vma *target);
+int __must_check i915_gem_evict_for_vma(struct i915_vma *vma,
+					unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle);
 
 /* belongs in i915_gem_gtt.h */

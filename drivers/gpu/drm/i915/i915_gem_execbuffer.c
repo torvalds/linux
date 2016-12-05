@@ -274,6 +274,7 @@ static void eb_destroy(struct eb_vmas *eb)
 				       exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
+		vma->exec_entry = NULL;
 		i915_vma_put(vma);
 	}
 	kfree(eb);

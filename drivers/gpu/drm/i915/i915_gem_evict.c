@@ -212,45 +212,99 @@ found:
 	return ret;
 }
 
-int
-i915_gem_evict_for_vma(struct i915_vma *target)
+/**
+ * i915_gem_evict_for_vma - Evict vmas to make room for binding a new one
+ * @target: address space and range to evict for
+ * @flags: additional flags to control the eviction algorithm
+ *
+ * This function will try to evict vmas that overlap the target node.
+ *
+ * To clarify: This is for freeing up virtual address space, not for freeing
+ * memory in e.g. the shrinker.
+ */
+int i915_gem_evict_for_vma(struct i915_vma *target, unsigned int flags)
 {
-	struct drm_mm_node *node, *next;
+	LIST_HEAD(eviction_list);
+	struct drm_mm_node *node;
+	u64 start = target->node.start;
+	u64 end = start + target->node.size;
+	struct i915_vma *vma, *next;
+	bool check_color;
+	int ret = 0;
 
 	lockdep_assert_held(&target->vm->i915->drm.struct_mutex);
+	trace_i915_gem_evict_vma(target, flags);
 
-	list_for_each_entry_safe(node, next,
-			&target->vm->mm.head_node.node_list,
-			node_list) {
-		struct i915_vma *vma;
-		int ret;
+	check_color = target->vm->mm.color_adjust;
+	if (check_color) {
+		/* Expand search to cover neighbouring guard pages (or lack!) */
+		if (start > target->vm->start)
+			start -= 4096;
+		if (end < target->vm->start + target->vm->total)
+			end += 4096;
+	}
 
-		if (node->start + node->size <= target->node.start)
-			continue;
-		if (node->start >= target->node.start + target->node.size)
+	drm_mm_for_each_node_in_range(node, &target->vm->mm, start, end) {
+		/* If we find any non-objects (!vma), we cannot evict them */
+		if (node->color == I915_COLOR_UNEVICTABLE) {
+			ret = -ENOSPC;
 			break;
+		}
 
 		vma = container_of(node, typeof(*vma), node);
 
-		if (i915_vma_is_pinned(vma)) {
-			if (!vma->exec_entry || i915_vma_pin_count(vma) > 1)
-				/* Object is pinned for some other use */
-				return -EBUSY;
-
-			/* We need to evict a buffer in the same batch */
-			if (vma->exec_entry->flags & EXEC_OBJECT_PINNED)
-				/* Overlapping fixed objects in the same batch */
-				return -EINVAL;
-
-			return -ENOSPC;
+		/* If we are using coloring to insert guard pages between
+		 * different cache domains within the address space, we have
+		 * to check whether the objects on either side of our range
+		 * abutt and conflict. If they are in conflict, then we evict
+		 * those as well to make room for our guard pages.
+		 */
+		if (check_color) {
+			if (vma->node.start + vma->node.size == target->node.start) {
+				if (vma->node.color == target->node.color)
+					continue;
+			}
+			if (vma->node.start == target->node.start + target->node.size) {
+				if (vma->node.color == target->node.color)
+					continue;
+			}
 		}
 
-		ret = i915_vma_unbind(vma);
-		if (ret)
-			return ret;
+		if (flags & PIN_NONBLOCK &&
+		    (i915_vma_is_pinned(vma) || i915_vma_is_active(vma))) {
+			ret = -ENOSPC;
+			break;
+		}
+
+		/* Overlap of objects in the same batch? */
+		if (i915_vma_is_pinned(vma)) {
+			ret = -ENOSPC;
+			if (vma->exec_entry &&
+			    vma->exec_entry->flags & EXEC_OBJECT_PINNED)
+				ret = -EINVAL;
+			break;
+		}
+
+		/* Never show fear in the face of dragons!
+		 *
+		 * We cannot directly remove this node from within this
+		 * iterator and as with i915_gem_evict_something() we employ
+		 * the vma pin_count in order to prevent the action of
+		 * unbinding one vma from freeing (by dropping its active
+		 * reference) another in our eviction list.
+		 */
+		__i915_vma_pin(vma);
+		list_add(&vma->exec_list, &eviction_list);
 	}
 
-	return 0;
+	list_for_each_entry_safe(vma, next, &eviction_list, exec_list) {
+		list_del_init(&vma->exec_list);
+		__i915_vma_unpin(vma);
+		if (ret == 0)
+			ret = i915_vma_unbind(vma);
+	}
+
+	return ret;
 }
 
 /**

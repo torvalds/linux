@@ -401,7 +401,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		vma->node.color = obj->cache_level;
 		ret = drm_mm_reserve_node(&vma->vm->mm, &vma->node);
 		if (ret) {
-			ret = i915_gem_evict_for_vma(vma);
+			ret = i915_gem_evict_for_vma(vma, flags);
 			if (ret == 0)
 				ret = drm_mm_reserve_node(&vma->vm->mm, &vma->node);
 			if (ret)

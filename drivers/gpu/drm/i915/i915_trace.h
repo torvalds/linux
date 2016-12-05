@@ -450,6 +450,34 @@ TRACE_EVENT(i915_gem_evict_vm,
 	    TP_printk("dev=%d, vm=%p", __entry->dev, __entry->vm)
 );
 
+TRACE_EVENT(i915_gem_evict_vma,
+	    TP_PROTO(struct i915_vma *vma, unsigned int flags),
+	    TP_ARGS(vma, flags),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(struct i915_address_space *, vm)
+			     __field(u64, start)
+			     __field(u64, size)
+			     __field(unsigned long, color)
+			     __field(unsigned int, flags)
+			    ),
+
+	    TP_fast_assign(
+			   __entry->dev = vma->vm->i915->drm.primary->index;
+			   __entry->vm = vma->vm;
+			   __entry->start = vma->node.start;
+			   __entry->size = vma->node.size;
+			   __entry->color = vma->node.color;
+			   __entry->flags = flags;
+			  ),
+
+	    TP_printk("dev=%d, vm=%p, start=%llx size=%llx, color=%lx, flags=%x",
+		      __entry->dev, __entry->vm,
+		      __entry->start, __entry->size,
+		      __entry->color, __entry->flags)
+);
+
 TRACE_EVENT(i915_gem_ring_sync_to,
 	    TP_PROTO(struct drm_i915_gem_request *to,
 		     struct drm_i915_gem_request *from),
