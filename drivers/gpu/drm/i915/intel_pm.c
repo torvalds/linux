@@ -2964,24 +2964,10 @@ intel_enable_sagv(struct drm_i915_private *dev_priv)
 	return 0;
 }
 
-static int
-intel_do_sagv_disable(struct drm_i915_private *dev_priv)
-{
-	int ret;
-	uint32_t temp = GEN9_SAGV_DISABLE;
-
-	ret = sandybridge_pcode_read(dev_priv, GEN9_PCODE_SAGV_CONTROL,
-				     &temp);
-	if (ret)
-		return ret;
-	else
-		return temp & GEN9_SAGV_IS_DISABLED;
-}
-
 int
 intel_disable_sagv(struct drm_i915_private *dev_priv)
 {
-	int ret, result;
+	int ret;
 
 	if (!intel_has_sagv(dev_priv))
 		return 0;
@@ -2993,25 +2979,23 @@ intel_disable_sagv(struct drm_i915_private *dev_priv)
 	mutex_lock(&dev_priv->rps.hw_lock);
 
 	/* bspec says to keep retrying for at least 1 ms */
-	ret = wait_for(result = intel_do_sagv_disable(dev_priv), 1);
+	ret = skl_pcode_request(dev_priv, GEN9_PCODE_SAGV_CONTROL,
+				GEN9_SAGV_DISABLE,
+				GEN9_SAGV_IS_DISABLED, GEN9_SAGV_IS_DISABLED,
+				1);
 	mutex_unlock(&dev_priv->rps.hw_lock);
-
-	if (ret == -ETIMEDOUT) {
-		DRM_ERROR("Request to disable SAGV timed out\n");
-		return -ETIMEDOUT;
-	}
 
 	/*
 	 * Some skl systems, pre-release machines in particular,
 	 * don't actually have an SAGV.
 	 */
-	if (IS_SKYLAKE(dev_priv) && result == -ENXIO) {
+	if (IS_SKYLAKE(dev_priv) && ret == -ENXIO) {
 		DRM_DEBUG_DRIVER("No SAGV found on system, ignoring\n");
 		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
 		return 0;
-	} else if (result < 0) {
-		DRM_ERROR("Failed to disable the SAGV\n");
-		return result;
+	} else if (ret < 0) {
+		DRM_ERROR("Failed to disable the SAGV (%d)\n", ret);
+		return ret;
 	}
 
 	dev_priv->sagv_status = I915_SAGV_DISABLED;
