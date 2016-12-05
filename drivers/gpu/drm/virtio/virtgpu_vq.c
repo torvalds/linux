@@ -297,6 +297,8 @@ void virtio_gpu_dequeue_cursor_func(struct work_struct *work)
 
 static int virtio_gpu_queue_ctrl_buffer_locked(struct virtio_gpu_device *vgdev,
 					       struct virtio_gpu_vbuffer *vbuf)
+		__releases(&vgdev->ctrlq.qlock)
+		__acquires(&vgdev->ctrlq.qlock)
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
 	struct scatterlist *sgs[3], vcmd, vout, vresp;
