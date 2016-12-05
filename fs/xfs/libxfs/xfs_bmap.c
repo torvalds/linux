@@ -531,7 +531,7 @@ xfs_bmap_trace_exlist(
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 	ASSERT(cnt == xfs_iext_count(ifp));
 	for (idx = 0; idx < cnt; idx++)
-		trace_xfs_extlist(ip, idx, whichfork, caller_ip);
+		trace_xfs_extlist(ip, idx, state, caller_ip);
 }
 
 /*
