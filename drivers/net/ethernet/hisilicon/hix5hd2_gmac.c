@@ -14,6 +14,7 @@
 #include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
+#include <linux/reset.h>
 #include <linux/clk.h>
 #include <linux/circ_buf.h>
 
@@ -197,6 +198,15 @@
 #define GEMAC_V2			(GEMAC_V1 | HW_CAP_TSO)
 #define HAS_CAP_TSO(hw_cap)		((hw_cap) & HW_CAP_TSO)
 
+#define PHY_RESET_DELAYS_PROPERTY	"hisilicon,phy-reset-delays-us"
+
+enum phy_reset_delays {
+	PRE_DELAY,
+	PULSE,
+	POST_DELAY,
+	DELAYS_NUM,
+};
+
 struct hix5hd2_desc {
 	__le32 buff_addr;
 	__le32 cmd;
@@ -255,11 +265,25 @@ struct hix5hd2_priv {
 	unsigned int speed;
 	unsigned int duplex;
 
-	struct clk *clk;
+	struct clk *mac_core_clk;
+	struct clk *mac_ifc_clk;
+	struct reset_control *mac_core_rst;
+	struct reset_control *mac_ifc_rst;
+	struct reset_control *phy_rst;
+	u32 phy_reset_delays[DELAYS_NUM];
 	struct mii_bus *bus;
 	struct napi_struct napi;
 	struct work_struct tx_timeout_task;
 };
+
+static inline void hix5hd2_mac_interface_reset(struct hix5hd2_priv *priv)
+{
+	if (!priv->mac_ifc_rst)
+		return;
+
+	reset_control_assert(priv->mac_ifc_rst);
+	reset_control_deassert(priv->mac_ifc_rst);
+}
 
 static void hix5hd2_config_port(struct net_device *dev, u32 speed, u32 duplex)
 {
@@ -293,6 +317,7 @@ static void hix5hd2_config_port(struct net_device *dev, u32 speed, u32 duplex)
 	if (duplex)
 		val |= GMAC_FULL_DUPLEX;
 	writel_relaxed(val, priv->ctrl_base);
+	hix5hd2_mac_interface_reset(priv);
 
 	writel_relaxed(BIT_MODE_CHANGE_EN, priv->base + MODE_CHANGE_EN);
 	if (speed == SPEED_1000)
@@ -807,16 +832,26 @@ static int hix5hd2_net_open(struct net_device *dev)
 	struct phy_device *phy;
 	int ret;
 
-	ret = clk_prepare_enable(priv->clk);
+	ret = clk_prepare_enable(priv->mac_core_clk);
 	if (ret < 0) {
-		netdev_err(dev, "failed to enable clk %d\n", ret);
+		netdev_err(dev, "failed to enable mac core clk %d\n", ret);
+		return ret;
+	}
+
+	ret = clk_prepare_enable(priv->mac_ifc_clk);
+	if (ret < 0) {
+		clk_disable_unprepare(priv->mac_core_clk);
+		netdev_err(dev, "failed to enable mac ifc clk %d\n", ret);
 		return ret;
 	}
 
 	phy = of_phy_connect(dev, priv->phy_node,
 			     &hix5hd2_adjust_link, 0, priv->phy_mode);
-	if (!phy)
+	if (!phy) {
+		clk_disable_unprepare(priv->mac_ifc_clk);
+		clk_disable_unprepare(priv->mac_core_clk);
 		return -ENODEV;
+	}
 
 	phy_start(phy);
 	hix5hd2_hw_init(priv);
@@ -847,7 +882,8 @@ static int hix5hd2_net_close(struct net_device *dev)
 		phy_disconnect(dev->phydev);
 	}
 
-	clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->mac_ifc_clk);
+	clk_disable_unprepare(priv->mac_core_clk);
 
 	return 0;
 }
@@ -1015,6 +1051,48 @@ static void hix5hd2_destroy_sg_desc_queue(struct hix5hd2_priv *priv)
 	}
 }
 
+static inline void hix5hd2_mac_core_reset(struct hix5hd2_priv *priv)
+{
+	if (!priv->mac_core_rst)
+		return;
+
+	reset_control_assert(priv->mac_core_rst);
+	reset_control_deassert(priv->mac_core_rst);
+}
+
+static void hix5hd2_sleep_us(u32 time_us)
+{
+	u32 time_ms;
+
+	if (!time_us)
+		return;
+
+	time_ms = DIV_ROUND_UP(time_us, 1000);
+	if (time_ms < 20)
+		usleep_range(time_us, time_us + 500);
+	else
+		msleep(time_ms);
+}
+
+static void hix5hd2_phy_reset(struct hix5hd2_priv *priv)
+{
+	/* To make sure PHY hardware reset success,
+	 * we must keep PHY in deassert state first and
+	 * then complete the hardware reset operation
+	 */
+	reset_control_deassert(priv->phy_rst);
+	hix5hd2_sleep_us(priv->phy_reset_delays[PRE_DELAY]);
+
+	reset_control_assert(priv->phy_rst);
+	/* delay some time to ensure reset ok,
+	 * this depends on PHY hardware feature
+	 */
+	hix5hd2_sleep_us(priv->phy_reset_delays[PULSE]);
+	reset_control_deassert(priv->phy_rst);
+	/* delay some time to ensure later MDIO access */
+	hix5hd2_sleep_us(priv->phy_reset_delays[POST_DELAY]);
+}
+
 static const struct of_device_id hix5hd2_of_match[];
 
 static int hix5hd2_dev_probe(struct platform_device *pdev)
@@ -1060,23 +1138,55 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 		goto out_free_netdev;
 	}
 
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(priv->clk)) {
-		netdev_err(ndev, "failed to get clk\n");
+	priv->mac_core_clk = devm_clk_get(&pdev->dev, "mac_core");
+	if (IS_ERR(priv->mac_core_clk)) {
+		netdev_err(ndev, "failed to get mac core clk\n");
 		ret = -ENODEV;
 		goto out_free_netdev;
 	}
 
-	ret = clk_prepare_enable(priv->clk);
+	ret = clk_prepare_enable(priv->mac_core_clk);
 	if (ret < 0) {
-		netdev_err(ndev, "failed to enable clk %d\n", ret);
+		netdev_err(ndev, "failed to enable mac core clk %d\n", ret);
 		goto out_free_netdev;
+	}
+
+	priv->mac_ifc_clk = devm_clk_get(&pdev->dev, "mac_ifc");
+	if (IS_ERR(priv->mac_ifc_clk))
+		priv->mac_ifc_clk = NULL;
+
+	ret = clk_prepare_enable(priv->mac_ifc_clk);
+	if (ret < 0) {
+		netdev_err(ndev, "failed to enable mac ifc clk %d\n", ret);
+		goto out_disable_mac_core_clk;
+	}
+
+	priv->mac_core_rst = devm_reset_control_get(dev, "mac_core");
+	if (IS_ERR(priv->mac_core_rst))
+		priv->mac_core_rst = NULL;
+	hix5hd2_mac_core_reset(priv);
+
+	priv->mac_ifc_rst = devm_reset_control_get(dev, "mac_ifc");
+	if (IS_ERR(priv->mac_ifc_rst))
+		priv->mac_ifc_rst = NULL;
+
+	priv->phy_rst = devm_reset_control_get(dev, "phy");
+	if (IS_ERR(priv->phy_rst)) {
+		priv->phy_rst = NULL;
+	} else {
+		ret = of_property_read_u32_array(node,
+						 PHY_RESET_DELAYS_PROPERTY,
+						 priv->phy_reset_delays,
+						 DELAYS_NUM);
+		if (ret)
+			goto out_disable_clk;
+		hix5hd2_phy_reset(priv);
 	}
 
 	bus = mdiobus_alloc();
 	if (bus == NULL) {
 		ret = -ENOMEM;
-		goto out_free_netdev;
+		goto out_disable_clk;
 	}
 
 	bus->priv = priv;
@@ -1159,7 +1269,8 @@ static int hix5hd2_dev_probe(struct platform_device *pdev)
 		goto out_destroy_queue;
 	}
 
-	clk_disable_unprepare(priv->clk);
+	clk_disable_unprepare(priv->mac_ifc_clk);
+	clk_disable_unprepare(priv->mac_core_clk);
 
 	return ret;
 
@@ -1174,6 +1285,10 @@ err_mdiobus:
 	mdiobus_unregister(bus);
 err_free_mdio:
 	mdiobus_free(bus);
+out_disable_clk:
+	clk_disable_unprepare(priv->mac_ifc_clk);
+out_disable_mac_core_clk:
+	clk_disable_unprepare(priv->mac_core_clk);
 out_free_netdev:
 	free_netdev(ndev);
 
