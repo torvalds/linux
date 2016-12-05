@@ -39,6 +39,8 @@ Intel-IOMMU.txt
 Makefile
 	- This file does nothing. Removing it breaks make htmldocs and
 	  make distclean.
+PCI/
+	- info related to PCI drivers.
 RCU/
 	- directory with info on RCU (read-copy update).
 SAK.txt
@@ -93,12 +95,16 @@ cachetlb.txt
 	- describes the cache/TLB flushing interfaces Linux uses.
 cdrom/
 	- directory with information on the CD-ROM drivers that Linux has.
-cgroups/
-	- cgroups features, including cpusets and memory controller.
+cgroup-v1/
+	- cgroups v1 features, including cpusets and memory controller.
+cgroup-v2.txt
+	- cgroups v2 features, including cpusets and memory controller.
 circular-buffers.txt
 	- how to make use of the existing circular buffer infrastructure
 clk.txt
 	- info on the common clock framework
+cma/
+	- Continuous Memory Area (CMA) debugfs interface.
 coccinelle.txt
 	- info on how to get and use the Coccinelle code checking tool.
 connector/
@@ -131,8 +137,12 @@ debugging-via-ohci1394.txt
 	- how to use firewire like a hardware debugger memory reader.
 dell_rbu.txt
 	- document demonstrating the use of the Dell Remote BIOS Update driver.
+dev-tools/
+	- directory with info on development tools for the kernel.
 device-mapper/
 	- directory with info on Device Mapper.
+dmaengine/
+	- the DMA engine and controller API guides.
 devicetree/
 	- directory with info on device tree files used by OF/PowerPC/ARM
 digsig.txt
@@ -141,6 +151,8 @@ dma-buf-sharing.txt
 	- the DMA Buffer Sharing API Guide
 dontdiff
 	- file containing a list of files that should never be diff'ed.
+driver-api/
+	- the Linux driver implementer's API guide.
 driver-model/
 	- directory with info about Linux driver model.
 dynamic-debug-howto.txt
@@ -155,10 +167,14 @@ eisa.txt
 	- info on EISA bus support.
 extcon/
 	- directory with porting guide for Android kernel switch driver.
+isa.txt
+	- info on EISA bus support.
 fault-injection/
 	- dir with docs about the fault injection capabilities infrastructure.
 fb/
 	- directory with info on the frame buffer graphics abstraction layer.
+features/
+	- status of feature implementation on different architectures.
 filesystems/
 	- info on the vfs and the various filesystems that Linux supports.
 firmware_class/
@@ -167,14 +183,20 @@ flexible-arrays.txt
 	- how to make use of flexible sized arrays in linux
 fmc/
 	- information about the FMC bus abstraction
+fpga/
+	- FPGA Manager Core.
 frv/
 	- Fujitsu FR-V Linux documentation.
 futex-requeue-pi.txt
 	- info on requeueing of tasks from a non-PI futex to a PI futex
+gcc-plugins.txt
+	- GCC plugin infrastructure.
 gcov.txt
 	- use of GCC's coverage testing tool "gcov" with the Linux kernel
 gpio/
 	- gpio related documentation
+gpu/
+	- directory with information on GPU driver developer's guide.
 hid/
 	- directory with information on human interface devices
 highuid.txt
@@ -197,6 +219,10 @@ x86/i386/
 	- directory with info about Linux on Intel 32 bit architecture.
 ia64/
 	- directory with info about Linux on Intel 64 bit architecture.
+ide/
+	- Information regarding the Enhanced IDE drive.
+iio/
+	- info on industrial IIO configfs support.
 infiniband/
 	- directory with documents concerning Linux InfiniBand support.
 input/
@@ -221,6 +247,8 @@ ja_JP/
 	- directory with Japanese translations of various documents
 kbuild/
 	- directory with info about the kernel build process.
+kernel-doc-nano-HOWTO.txt
+	- outdated info about kernel-doc documentation.
 kdump/
 	- directory with mini HowTo on getting the crash dump code to work.
 doc-guide/
@@ -247,6 +275,8 @@ ldm.txt
 	- a brief description of LDM (Windows Dynamic Disks).
 leds/
 	- directory with info about LED handling under Linux.
+livepatch/
+	- info on kernel live patching.
 local_ops.txt
 	- semantics and behavior of local atomic operations.
 locking/
@@ -265,16 +295,22 @@ magic-number.txt
 	- list of magic numbers used to mark/protect kernel data structures.
 mailbox.txt
 	- How to write drivers for the common mailbox framework (IPC).
-media-framework.txt
-	- info on media framework, its data structures, functions and usage.
+md-cluster.txt
+	- info on shared-device RAID MD cluster.
+media/
+	- info on media drivers: uAPI, kAPI and driver documentation.
 memory-barriers.txt
 	- info on Linux kernel memory barriers.
 memory-devices/
 	- directory with info on parts like the Texas Instruments EMIF driver
 memory-hotplug.txt
 	- Hotpluggable memory support, how to use and current status.
+men-chameleon-bus.txt
+	- info on MEN chameleon bus.
 metag/
 	- directory with info about Linux on Meta architecture.
+mic/
+	- Intel Many Integrated Core (MIC) architecture device driver.
 mips/
 	- directory with info about Linux on MIPS architecture.
 misc-devices/
@@ -295,10 +331,18 @@ networking/
 	- directory with info on various aspects of networking with Linux.
 nfc/
 	- directory relating info about Near Field Communications support.
+nios2/
+	- Linux on the Nios II architecture.
 nommu-mmap.txt
 	- documentation about no-mmu memory mapping support.
 numastat.txt
 	- info on how to read Numa policy hit/miss statistics in sysfs.
+ntb.txt
+	- info on Non-Transparent Bridge (NTB) drivers.
+nvdimm/
+	- info on non-volatile devices.
+nvmem/
+	- info on non volatile memory framework.
 padata.txt
 	- An introduction to the "padata" parallel execution API
 parisc/
@@ -311,12 +355,18 @@ pcmcia/
 	- info on the Linux PCMCIA driver.
 percpu-rw-semaphore.txt
 	- RCU based read-write semaphore optimized for locking for reading
+perf/
+	- info about the APM X-Gene SoC Performance Monitoring Unit (PMU).
+phy/
+	- ino on Samsung USB 2.0 PHY adaptation layer.
 phy.txt
 	- Description of the generic PHY framework.
 pi-futex.txt
 	- documentation on lightweight priority inheritance futexes.
 pinctrl.txt
 	- info on pinctrl subsystem and the PINMUX/PINCONF and drivers
+platform/
+	- List of supported hardware by compal and Dell laptop.
 pnp.txt
 	- Linux Plug and Play documentation.
 power/
@@ -333,6 +383,8 @@ process/
 	- how to work with the mainline kernel development process.
 pps/
 	- directory with information on the pulse-per-second support
+pti/
+	- directory with info on Intel MID PTI.
 ptp/
 	- directory with info on support for IEEE 1588 PTP clocks in Linux.
 pwm.txt
@@ -379,6 +431,8 @@ static-keys.txt
 	- info on how static keys allow debug code in hotpaths via patching
 svga.txt
 	- short guide on selecting video modes at boot via VGA BIOS.
+sync_file.txt
+	- Sync file API guide.
 sysfs-rules.txt
 	- How not to use sysfs.
 sysctl/
@@ -393,6 +447,8 @@ thermal/
 	- directory with information on managing thermal issues (CPU/temp)
 trace/
 	- directory with info on tracing technologies within linux
+translations/
+	- translations of this document from English to another language
 unaligned-memory-access.txt
 	- info on how to avoid arch breaking unaligned memory access in code.
 unshare.txt
