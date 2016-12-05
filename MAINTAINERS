@@ -577,6 +577,11 @@ T:	git git://linuxtv.org/anttip/media_tree.git
 S:	Maintained
 F:	drivers/media/usb/airspy/
 
+ALACRITECH GIGABIT ETHERNET DRIVER
+M:	Lino Sanfilippo <LinoSanfilippo@gmx.de>
+S:	Maintained
+F:	drivers/net/ethernet/alacritech/*
+
 ALCATEL SPEEDTOUCH USB DRIVER
 M:	Duncan Sands <duncan.sands@free.fr>
 L:	linux-usb@vger.kernel.org
