@@ -5498,6 +5498,11 @@ unsigned int ar9003_get_paprd_scale_factor(struct ath_hw *ah,
 	}
 }
 
+static u8 ar9003_get_eepmisc(struct ath_hw *ah)
+{
+	return ah->eeprom.map4k.baseEepHeader.eepMisc;
+}
+
 const struct eeprom_ops eep_ar9300_ops = {
 	.check_eeprom = ath9k_hw_ar9300_check_eeprom,
 	.get_eeprom = ath9k_hw_ar9300_get_eeprom,
@@ -5508,5 +5513,6 @@ const struct eeprom_ops eep_ar9300_ops = {
 	.set_board_values = ath9k_hw_ar9300_set_board_values,
 	.set_addac = ath9k_hw_ar9300_set_addac,
 	.set_txpower = ath9k_hw_ar9300_set_txpower,
-	.get_spur_channel = ath9k_hw_ar9300_get_spur_channel
+	.get_spur_channel = ath9k_hw_ar9300_get_spur_channel,
+	.get_eepmisc = ar9003_get_eepmisc
 };

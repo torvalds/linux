@@ -1064,6 +1064,11 @@ static u16 ath9k_hw_4k_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 	return ah->eeprom.map4k.modalHeader.spurChans[i].spurChan;
 }
 
+static u8 ath9k_hw_4k_get_eepmisc(struct ath_hw *ah)
+{
+	return ah->eeprom.map4k.baseEepHeader.eepMisc;
+}
+
 const struct eeprom_ops eep_4k_ops = {
 	.check_eeprom		= ath9k_hw_4k_check_eeprom,
 	.get_eeprom		= ath9k_hw_4k_get_eeprom,
@@ -1073,5 +1078,6 @@ const struct eeprom_ops eep_4k_ops = {
 	.get_eeprom_rev		= ath9k_hw_4k_get_eeprom_rev,
 	.set_board_values	= ath9k_hw_4k_set_board_values,
 	.set_txpower		= ath9k_hw_4k_set_txpower,
-	.get_spur_channel	= ath9k_hw_4k_get_spur_channel
+	.get_spur_channel	= ath9k_hw_4k_get_spur_channel,
+	.get_eepmisc		= ath9k_hw_4k_get_eepmisc
 };

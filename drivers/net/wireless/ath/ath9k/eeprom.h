@@ -655,6 +655,7 @@ struct eeprom_ops {
 			   u16 cfgCtl, u8 twiceAntennaReduction,
 			   u8 powerLimit, bool test);
 	u16 (*get_spur_channel)(struct ath_hw *ah, u16 i, bool is2GHz);
+	u8 (*get_eepmisc)(struct ath_hw *ah);
 };
 
 void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val);

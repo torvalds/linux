@@ -986,6 +986,11 @@ static u16 ath9k_hw_ar9287_get_spur_channel(struct ath_hw *ah,
 	return ah->eeprom.map9287.modalHeader.spurChans[i].spurChan;
 }
 
+static u8 ath9k_hw_ar9287_get_eepmisc(struct ath_hw *ah)
+{
+	return ah->eeprom.map9287.baseEepHeader.eepMisc;
+}
+
 const struct eeprom_ops eep_ar9287_ops = {
 	.check_eeprom		= ath9k_hw_ar9287_check_eeprom,
 	.get_eeprom		= ath9k_hw_ar9287_get_eeprom,
@@ -995,5 +1000,6 @@ const struct eeprom_ops eep_ar9287_ops = {
 	.get_eeprom_rev		= ath9k_hw_ar9287_get_eeprom_rev,
 	.set_board_values	= ath9k_hw_ar9287_set_board_values,
 	.set_txpower		= ath9k_hw_ar9287_set_txpower,
-	.get_spur_channel	= ath9k_hw_ar9287_get_spur_channel
+	.get_spur_channel	= ath9k_hw_ar9287_get_spur_channel,
+	.get_eepmisc		= ath9k_hw_ar9287_get_eepmisc
 };
