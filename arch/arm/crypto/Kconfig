@@ -125,4 +125,9 @@ config CRYPTO_CRCT10DIF_ARM_CE
 	depends on KERNEL_MODE_NEON && CRC_T10DIF
 	select CRYPTO_HASH
 
+config CRYPTO_CRC32_ARM_CE
+	tristate "CRC32(C) digest algorithm using CRC and/or PMULL instructions"
+	depends on KERNEL_MODE_NEON && CRC32
+	select CRYPTO_HASH
+
 endif
