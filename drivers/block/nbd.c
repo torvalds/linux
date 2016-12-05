@@ -219,7 +219,7 @@ static int sock_xmit(struct nbd_device *nbd, int index, int send, void *buf,
 	unsigned long pflags = current->flags;
 
 	if (unlikely(!sock)) {
-		dev_err(disk_to_dev(nbd->disk),
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
 			"Attempted %s on closed socket in sock_xmit\n",
 			(send ? "send" : "recv"));
 		return -EINVAL;
@@ -302,7 +302,7 @@ static int nbd_send_cmd(struct nbd_device *nbd, struct nbd_cmd *cmd, int index)
 	result = sock_xmit(nbd, index, 1, &request, sizeof(request),
 			(type == NBD_CMD_WRITE) ? MSG_MORE : 0);
 	if (result <= 0) {
-		dev_err(disk_to_dev(nbd->disk),
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
 			"Send control failed (result %d)\n", result);
 		return -EIO;
 	}
@@ -501,14 +501,14 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 	struct nbd_sock *nsock;
 
 	if (index >= nbd->num_connections) {
-		dev_err(disk_to_dev(nbd->disk),
-			"Attempted send on invalid socket\n");
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
+				    "Attempted send on invalid socket\n");
 		goto error_out;
 	}
 
 	if (test_bit(NBD_DISCONNECTED, &nbd->runtime_flags)) {
-		dev_err(disk_to_dev(nbd->disk),
-			"Attempted send on closed socket\n");
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
+				    "Attempted send on closed socket\n");
 		goto error_out;
 	}
 
@@ -519,8 +519,8 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 	if (req->cmd_type == REQ_TYPE_FS &&
 	    rq_data_dir(req) == WRITE &&
 	    (nbd->flags & NBD_FLAG_READ_ONLY)) {
-		dev_err(disk_to_dev(nbd->disk),
-			"Write on read-only\n");
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
+				    "Write on read-only\n");
 		goto error_out;
 	}
 
@@ -530,13 +530,14 @@ static void nbd_handle_cmd(struct nbd_cmd *cmd, int index)
 	mutex_lock(&nsock->tx_lock);
 	if (unlikely(!nsock->sock)) {
 		mutex_unlock(&nsock->tx_lock);
-		dev_err(disk_to_dev(nbd->disk),
-			"Attempted send on closed socket\n");
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
+				    "Attempted send on closed socket\n");
 		goto error_out;
 	}
 
 	if (nbd_send_cmd(nbd, cmd, index) != 0) {
-		dev_err(disk_to_dev(nbd->disk), "Request send failed\n");
+		dev_err_ratelimited(disk_to_dev(nbd->disk),
+				    "Request send failed\n");
 		req->errors++;
 		nbd_end_request(cmd);
 	}
