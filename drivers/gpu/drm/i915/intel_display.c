@@ -15994,6 +15994,17 @@ intel_user_framebuffer_create(struct drm_device *dev,
 	return fb;
 }
 
+static void intel_atomic_state_free(struct drm_atomic_state *state)
+{
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+
+	drm_atomic_state_default_release(state);
+
+	i915_sw_fence_fini(&intel_state->commit_ready);
+
+	kfree(state);
+}
+
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,
 	.output_poll_changed = intel_fbdev_output_poll_changed,
@@ -16001,6 +16012,7 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.atomic_commit = intel_atomic_commit,
 	.atomic_state_alloc = intel_atomic_state_alloc,
 	.atomic_state_clear = intel_atomic_state_clear,
+	.atomic_state_free = intel_atomic_state_free,
 };
 
 /**
