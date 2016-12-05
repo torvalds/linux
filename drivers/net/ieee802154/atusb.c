@@ -58,6 +58,11 @@ struct atusb {
 	struct urb *tx_urb;
 	struct sk_buff *tx_skb;
 	uint8_t tx_ack_seq;		/* current TX ACK sequence number */
+
+	/* Firmware variable */
+	unsigned char fw_ver_maj;	/* Firmware major version number */
+	unsigned char fw_ver_min;	/* Firmware minor version number */
+	unsigned char fw_hw_type;	/* Firmware hardware type */
 };
 
 /* ----- USB commands without data ----------------------------------------- */
@@ -594,14 +599,19 @@ static int atusb_get_and_show_revision(struct atusb *atusb)
 	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
 				ATUSB_ID, ATUSB_REQ_FROM_DEV, 0, 0,
 				buffer, 3, 1000);
-	if (ret >= 0)
+	if (ret >= 0) {
+		atusb->fw_ver_maj = buffer[0];
+		atusb->fw_ver_min = buffer[1];
+		atusb->fw_hw_type = buffer[2];
+
 		dev_info(&usb_dev->dev,
 			 "Firmware: major: %u, minor: %u, hardware type: %u\n",
-			 buffer[0], buffer[1], buffer[2]);
-	if (buffer[0] == 0 && buffer[1] < 2) {
+			 atusb->fw_ver_maj, atusb->fw_ver_min, atusb->fw_hw_type);
+	}
+	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 2) {
 		dev_info(&usb_dev->dev,
-			 "Firmware version (%u.%u) is predates our first public release.",
-			 buffer[0], buffer[1]);
+			 "Firmware version (%u.%u) predates our first public release.",
+			 atusb->fw_ver_maj, atusb->fw_ver_min);
 		dev_info(&usb_dev->dev, "Please update to version 0.2 or newer");
 	}
 
