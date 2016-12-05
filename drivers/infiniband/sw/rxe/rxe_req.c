@@ -596,6 +596,8 @@ int rxe_requester(void *arg)
 	struct rxe_send_wqe rollback_wqe;
 	u32 rollback_psn;
 
+	rxe_add_ref(qp);
+
 next_wqe:
 	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
 		goto exit;
@@ -750,9 +752,10 @@ complete:
 		while (rxe_completer(qp) == 0)
 			;
 	}
-
+	rxe_drop_ref(qp);
 	return 0;
 
 exit:
+	rxe_drop_ref(qp);
 	return -EAGAIN;
 }

@@ -511,6 +511,8 @@ int rxe_completer(void *arg)
 	struct rxe_pkt_info *pkt = NULL;
 	enum comp_state state;
 
+	rxe_add_ref(qp);
+
 	if (!qp->valid) {
 		while ((skb = skb_dequeue(&qp->resp_pkts))) {
 			rxe_drop_ref(qp);
@@ -740,11 +742,13 @@ exit:
 	/* we come here if we are done with processing and want the task to
 	 * exit from the loop calling us
 	 */
+	rxe_drop_ref(qp);
 	return -EAGAIN;
 
 done:
 	/* we come here if we have processed a packet we want the task to call
 	 * us again to see if there is anything else to do
 	 */
+	rxe_drop_ref(qp);
 	return 0;
 }
