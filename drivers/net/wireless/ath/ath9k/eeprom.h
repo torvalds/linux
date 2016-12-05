@@ -161,6 +161,9 @@
 #define AR5416_EEP_TXGAIN_ORIGINAL         0
 #define AR5416_EEP_TXGAIN_HIGH_POWER       1
 
+/* Endianness of EEPROM content */
+#define AR5416_EEPMISC_BIG_ENDIAN          0x01
+
 #define AR5416_EEP4K_START_LOC                64
 #define AR5416_EEP4K_NUM_2G_CAL_PIERS         3
 #define AR5416_EEP4K_NUM_2G_CCK_TARGET_POWERS 3
@@ -191,7 +194,6 @@
 #define AR9287_NUM_CTLS              	12
 #define AR9287_NUM_BAND_EDGES        	4
 #define AR9287_PD_GAIN_ICEPTS           1
-#define AR9287_EEPMISC_BIG_ENDIAN       0x01
 #define AR9287_EEPMISC_WOW              0x02
 #define AR9287_MAX_CHAINS               2
 #define AR9287_ANT_16S                  32
