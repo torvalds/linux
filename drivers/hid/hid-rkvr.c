@@ -35,6 +35,7 @@
 #define RKVR_HIDRAW_BUFFER_SIZE 64
 #define RKVR_HIDRAW_MAX_DEVICES 8
 #define RKVR_FIRST_MINOR 0
+#define RK_HID_GEAR_TOUCH
 
 static struct class *rkvr_class;
 
@@ -564,6 +565,12 @@ static int rkvr_keys_event(struct hid_device *hdev, void *data, unsigned long le
 	} else if (rkvr_data->rkvr_data.key_map.key_enter_pressed) {
 		rkvr_send_key_event(input, KEY_ENTER, 1);
 		rkvr_send_key_event(input, KEY_ENTER, 0);
+#ifdef RK_HID_GEAR_TOUCH
+		input_event(input, EV_MSC, MSC_SCAN, 0x90001);
+		rkvr_send_key_event(input, 0x110, 1);
+		input_event(input, EV_MSC, MSC_SCAN, 0x90001);
+		rkvr_send_key_event(input, 0x110, 0);
+#endif
 	}
 
 	if (rkvr_data->rkvr_data.key_map.psensor_on) {
@@ -1063,6 +1070,14 @@ static int __must_check rkvr_keys_probe(struct hid_device *hdev)
 		hid_info(hdev, "input_set_capability %d\n", key_codes[i]);
 		input_set_capability(input, EV_KEY, key_codes[i]);
 	}
+
+#ifdef RK_HID_GEAR_TOUCH
+	set_bit(EV_REL, input->evbit);
+	input_set_capability(input, EV_REL, REL_X);
+	input_set_capability(input, EV_REL, REL_Y);
+	input_set_capability(input, EV_MSC, MSC_SCAN);
+	input_set_capability(input, EV_KEY, 0x110);
+#endif
 
 	error = input_register_device(input);
 	if (error) {
