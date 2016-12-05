@@ -32,16 +32,6 @@ config OMAP_REMOTEPROC
 	  It's safe to say n here if you're not interested in multimedia
 	  offloading or just want a bare minimum kernel.
 
-config STE_MODEM_RPROC
-	tristate "STE-Modem remoteproc support"
-	depends on HAS_DMA
-	depends on REMOTEPROC
-	default n
-	help
-	  Say y or m here to support STE-Modem shared memory driver.
-	  This can be either built-in or a loadable module.
-	  If unsure say N.
-
 config WKUP_M3_RPROC
 	tristate "AMx3xx Wakeup M3 remoteproc support"
 	depends on SOC_AM33XX || SOC_AM43XX
