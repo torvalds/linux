@@ -69,6 +69,9 @@
 #define AR9300_BASE_ADDR 0x3ff
 #define AR9300_BASE_ADDR_512 0x1ff
 
+/* AR5416_EEPMISC_BIG_ENDIAN not set indicates little endian */
+#define AR9300_EEPMISC_LITTLE_ENDIAN 0
+
 #define AR9300_OTP_BASE \
 		((AR_SREV_9340(ah) || AR_SREV_9550(ah)) ? 0x30000 : 0x14000)
 #define AR9300_OTP_STATUS \
