@@ -81,7 +81,11 @@ static inline bool aead_sufficient_data(struct aead_ctx *ctx)
 {
 	unsigned as = crypto_aead_authsize(crypto_aead_reqtfm(&ctx->aead_req));
 
-	return ctx->used >= ctx->aead_assoclen + as;
+	/*
+	 * The minimum amount of memory needed for an AEAD cipher is
+	 * the AAD and in case of decryption the tag.
+	 */
+	return ctx->used >= ctx->aead_assoclen + (ctx->enc ? 0 : as);
 }
 
 static void aead_reset_ctx(struct aead_ctx *ctx)
@@ -426,11 +430,14 @@ static int aead_recvmsg_async(struct socket *sock, struct msghdr *msg,
 			goto unlock;
 	}
 
-	used = ctx->used;
-	outlen = used;
-
 	if (!aead_sufficient_data(ctx))
 		goto unlock;
+
+	used = ctx->used;
+	if (ctx->enc)
+		outlen = used + as;
+	else
+		outlen = used - as;
 
 	req = sock_kmalloc(sk, reqlen, GFP_KERNEL);
 	if (unlikely(!req))
@@ -445,7 +452,7 @@ static int aead_recvmsg_async(struct socket *sock, struct msghdr *msg,
 	aead_request_set_ad(req, ctx->aead_assoclen);
 	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
 				  aead_async_cb, sk);
-	used -= ctx->aead_assoclen + (ctx->enc ? as : 0);
+	used -= ctx->aead_assoclen;
 
 	/* take over all tx sgls from ctx */
 	areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) * sgl->cur,
@@ -461,7 +468,7 @@ static int aead_recvmsg_async(struct socket *sock, struct msghdr *msg,
 	areq->tsgls = sgl->cur;
 
 	/* create rx sgls */
-	while (iov_iter_count(&msg->msg_iter)) {
+	while (outlen > usedpages && iov_iter_count(&msg->msg_iter)) {
 		size_t seglen = min_t(size_t, iov_iter_count(&msg->msg_iter),
 				      (outlen - usedpages));
 
@@ -491,16 +498,14 @@ static int aead_recvmsg_async(struct socket *sock, struct msghdr *msg,
 
 		last_rsgl = rsgl;
 
-		/* we do not need more iovecs as we have sufficient memory */
-		if (outlen <= usedpages)
-			break;
-
 		iov_iter_advance(&msg->msg_iter, err);
 	}
-	err = -EINVAL;
+
 	/* ensure output buffer is sufficiently large */
-	if (usedpages < outlen)
-		goto free;
+	if (usedpages < outlen) {
+		err = -EINVAL;
+		goto unlock;
+	}
 
 	aead_request_set_crypt(req, areq->tsgl, areq->first_rsgl.sgl.sg, used,
 			       areq->iv);
@@ -571,6 +576,7 @@ static int aead_recvmsg_sync(struct socket *sock, struct msghdr *msg, int flags)
 			goto unlock;
 	}
 
+	/* data length provided by caller via sendmsg/sendpage */
 	used = ctx->used;
 
 	/*
@@ -585,16 +591,27 @@ static int aead_recvmsg_sync(struct socket *sock, struct msghdr *msg, int flags)
 	if (!aead_sufficient_data(ctx))
 		goto unlock;
 
-	outlen = used;
+	/*
+	 * Calculate the minimum output buffer size holding the result of the
+	 * cipher operation. When encrypting data, the receiving buffer is
+	 * larger by the tag length compared to the input buffer as the
+	 * encryption operation generates the tag. For decryption, the input
+	 * buffer provides the tag which is consumed resulting in only the
+	 * plaintext without a buffer for the tag returned to the caller.
+	 */
+	if (ctx->enc)
+		outlen = used + as;
+	else
+		outlen = used - as;
 
 	/*
 	 * The cipher operation input data is reduced by the associated data
 	 * length as this data is processed separately later on.
 	 */
-	used -= ctx->aead_assoclen + (ctx->enc ? as : 0);
+	used -= ctx->aead_assoclen;
 
 	/* convert iovecs of output buffers into scatterlists */
-	while (iov_iter_count(&msg->msg_iter)) {
+	while (outlen > usedpages && iov_iter_count(&msg->msg_iter)) {
 		size_t seglen = min_t(size_t, iov_iter_count(&msg->msg_iter),
 				      (outlen - usedpages));
 
@@ -621,16 +638,14 @@ static int aead_recvmsg_sync(struct socket *sock, struct msghdr *msg, int flags)
 
 		last_rsgl = rsgl;
 
-		/* we do not need more iovecs as we have sufficient memory */
-		if (outlen <= usedpages)
-			break;
 		iov_iter_advance(&msg->msg_iter, err);
 	}
 
-	err = -EINVAL;
 	/* ensure output buffer is sufficiently large */
-	if (usedpages < outlen)
+	if (usedpages < outlen) {
+		err = -EINVAL;
 		goto unlock;
+	}
 
 	sg_mark_end(sgl->sg + sgl->cur - 1);
 	aead_request_set_crypt(&ctx->aead_req, sgl->sg, ctx->first_rsgl.sgl.sg,
