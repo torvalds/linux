@@ -35,6 +35,27 @@ int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
 
 /* Offset 0x00: Switch Global Status Register */
 
+static int mv88e6185_g1_wait_ppu_disabled(struct mv88e6xxx_chip *chip)
+{
+	u16 state;
+	int i, err;
+
+	for (i = 0; i < 16; i++) {
+		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &state);
+		if (err)
+			return err;
+
+		/* Check the value of the PPUState bits 15:14 */
+		state &= GLOBAL_STATUS_PPU_STATE_MASK;
+		if (state != GLOBAL_STATUS_PPU_STATE_POLLING)
+			return 0;
+
+		usleep_range(1000, 2000);
+	}
+
+	return -ETIMEDOUT;
+}
+
 static int mv88e6185_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
 {
 	u16 state;
@@ -152,6 +173,42 @@ int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
 		return err;
 
 	return mv88e6352_g1_wait_ppu_polling(chip);
+}
+
+int mv88e6185_g1_ppu_enable(struct mv88e6xxx_chip *chip)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	if (err)
+		return err;
+
+	val |= GLOBAL_CONTROL_PPU_ENABLE;
+
+	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	if (err)
+		return err;
+
+	return mv88e6185_g1_wait_ppu_polling(chip);
+}
+
+int mv88e6185_g1_ppu_disable(struct mv88e6xxx_chip *chip)
+{
+	u16 val;
+	int err;
+
+	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	if (err)
+		return err;
+
+	val &= ~GLOBAL_CONTROL_PPU_ENABLE;
+
+	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	if (err)
+		return err;
+
+	return mv88e6185_g1_wait_ppu_disabled(chip);
 }
 
 /* Offset 0x1a: Monitor Control */

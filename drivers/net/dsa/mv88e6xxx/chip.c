@@ -527,58 +527,18 @@ int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg, u16 update)
 
 static int mv88e6xxx_ppu_disable(struct mv88e6xxx_chip *chip)
 {
-	u16 val;
-	int i, err;
+	if (!chip->info->ops->ppu_disable)
+		return 0;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL,
-				 val & ~GLOBAL_CONTROL_PPU_ENABLE);
-	if (err)
-		return err;
-
-	for (i = 0; i < 16; i++) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &val);
-		if (err)
-			return err;
-
-		usleep_range(1000, 2000);
-		val &= GLOBAL_STATUS_PPU_STATE_MASK;
-		if (val != GLOBAL_STATUS_PPU_STATE_POLLING)
-			return 0;
-	}
-
-	return -ETIMEDOUT;
+	return chip->info->ops->ppu_disable(chip);
 }
 
 static int mv88e6xxx_ppu_enable(struct mv88e6xxx_chip *chip)
 {
-	u16 val;
-	int i, err;
+	if (!chip->info->ops->ppu_enable)
+		return 0;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
-	if (err)
-		return err;
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL,
-				 val | GLOBAL_CONTROL_PPU_ENABLE);
-	if (err)
-		return err;
-
-	for (i = 0; i < 16; i++) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &val);
-		if (err)
-			return err;
-
-		usleep_range(1000, 2000);
-		val &= GLOBAL_STATUS_PPU_STATE_MASK;
-		if (val == GLOBAL_STATUS_PPU_STATE_POLLING)
-			return 0;
-	}
-
-	return -ETIMEDOUT;
+	return chip->info->ops->ppu_enable(chip);
 }
 
 static void mv88e6xxx_ppu_reenable_work(struct work_struct *ugly)
@@ -2746,22 +2706,12 @@ static int mv88e6xxx_g1_setup(struct mv88e6xxx_chip *chip)
 {
 	struct dsa_switch *ds = chip->ds;
 	u32 upstream_port = dsa_upstream_port(ds);
-	u16 reg;
 	int err;
 
 	/* Enable the PHY Polling Unit if present, don't discard any packets,
 	 * and mask all interrupt sources.
 	 */
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &reg);
-	if (err < 0)
-		return err;
-
-	reg &= ~GLOBAL_CONTROL_PPU_ENABLE;
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU) ||
-	    mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU_ACTIVE))
-		reg |= GLOBAL_CONTROL_PPU_ENABLE;
-
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, reg);
+	err = mv88e6xxx_ppu_enable(chip);
 	if (err)
 		return err;
 
@@ -3223,6 +3173,8 @@ static const struct mv88e6xxx_ops mv88e6085_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.ppu_enable = mv88e6185_g1_ppu_enable,
+	.ppu_disable = mv88e6185_g1_ppu_disable,
 	.reset = mv88e6185_g1_reset,
 };
 
@@ -3241,6 +3193,8 @@ static const struct mv88e6xxx_ops mv88e6095_ops = {
 	.stats_get_strings = mv88e6095_stats_get_strings,
 	.stats_get_stats = mv88e6095_stats_get_stats,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.ppu_enable = mv88e6185_g1_ppu_enable,
+	.ppu_disable = mv88e6185_g1_ppu_disable,
 	.reset = mv88e6185_g1_reset,
 };
 
@@ -3311,6 +3265,8 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.ppu_enable = mv88e6185_g1_ppu_enable,
+	.ppu_disable = mv88e6185_g1_ppu_disable,
 	.reset = mv88e6185_g1_reset,
 };
 
@@ -3483,6 +3439,8 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.ppu_enable = mv88e6185_g1_ppu_enable,
+	.ppu_disable = mv88e6185_g1_ppu_disable,
 	.reset = mv88e6185_g1_reset,
 };
 
@@ -4263,13 +4221,13 @@ static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 
 static void mv88e6xxx_phy_init(struct mv88e6xxx_chip *chip)
 {
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU))
+	if (chip->info->ops->ppu_enable && chip->info->ops->ppu_disable)
 		mv88e6xxx_ppu_state_init(chip);
 }
 
 static void mv88e6xxx_phy_destroy(struct mv88e6xxx_chip *chip)
 {
-	if (mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU))
+	if (chip->info->ops->ppu_enable && chip->info->ops->ppu_disable)
 		mv88e6xxx_ppu_state_destroy(chip);
 }
 
