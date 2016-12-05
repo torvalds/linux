@@ -24,7 +24,7 @@ config DRM_I915_DEBUG
         select X86_MSR # used by igt/pm_rpm
         select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
         select DRM_DEBUG_MM if DRM=y
-        select DRM_I915_SW_FENCE_DEBUG_OBJECTS if DRM_I915=y
+	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
         default n
         help
           Choose this option to turn on extra driver debugging that may affect
@@ -48,7 +48,7 @@ config DRM_I915_DEBUG_GEM
 
 config DRM_I915_SW_FENCE_DEBUG_OBJECTS
         bool "Enable additional driver debugging for fence objects"
-        depends on DRM_I915=y
+        depends on DRM_I915
         select DEBUG_OBJECTS
         default n
         help
