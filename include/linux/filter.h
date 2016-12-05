@@ -14,6 +14,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/capability.h>
+#include <linux/cryptohash.h>
 
 #include <net/sch_generic.h>
 
@@ -55,6 +56,9 @@ struct bpf_prog_aux;
 
 /* BPF program can access up to 512 bytes of stack space. */
 #define MAX_BPF_STACK	512
+
+/* Maximum BPF program size in bytes. */
+#define MAX_BPF_SIZE	(BPF_MAXINSNS * sizeof(struct bpf_insn))
 
 /* Helper macros for filter block array initializers. */
 
@@ -404,8 +408,9 @@ struct bpf_prog {
 				cb_access:1,	/* Is control block accessed? */
 				dst_needed:1;	/* Do we need dst entry? */
 	kmemcheck_bitfield_end(meta);
-	u32			len;		/* Number of filter blocks */
 	enum bpf_prog_type	type;		/* Type of BPF program */
+	u32			len;		/* Number of filter blocks */
+	u32			digest[SHA_DIGEST_WORDS]; /* Program digest */
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
 	unsigned int		(*bpf_func)(const void *ctx,
