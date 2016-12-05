@@ -37,7 +37,7 @@
 #define MAX_CARDS 8
 
 /* old-style parameters for compatibility */
-static int ncr_irq;
+static int ncr_irq = -1;
 static int ncr_addr;
 static int ncr_5380;
 static int ncr_53c400;
@@ -52,9 +52,9 @@ module_param(ncr_53c400a, int, 0);
 module_param(dtc_3181e, int, 0);
 module_param(hp_c2502, int, 0);
 
-static int irq[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+static int irq[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 module_param_array(irq, int, NULL, 0);
-MODULE_PARM_DESC(irq, "IRQ number(s)");
+MODULE_PARM_DESC(irq, "IRQ number(s) (0=none, 254=auto [default])");
 
 static int base[] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 module_param_array(base, int, NULL, 0);
@@ -344,6 +344,8 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 	/* Compatibility with documented NCR5380 kernel parameters */
 	if (irq == 255 || irq == 0)
 		irq = NO_IRQ;
+	else if (irq == -1)
+		irq = IRQ_AUTO;
 
 	if (board == BOARD_HP_C2502) {
 		int *irq_table = hp_c2502_irqs;
@@ -370,22 +372,26 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		magic_configure(port_idx, board_irq, magic);
 	}
 
-	if (irq == IRQ_AUTO)
+	if (irq == IRQ_AUTO) {
 		instance->irq = g_NCR5380_probe_irq(instance);
-	else
+		if (instance->irq == NO_IRQ)
+			shost_printk(KERN_INFO, instance, "no irq detected\n");
+	} else {
 		instance->irq = irq;
+		if (instance->irq == NO_IRQ)
+			shost_printk(KERN_INFO, instance, "no irq provided\n");
+	}
 
 	if (instance->irq != NO_IRQ) {
 		if (request_irq(instance->irq, generic_NCR5380_intr,
 				0, "NCR5380", instance)) {
-			printk(KERN_WARNING "scsi%d : IRQ%d not free, interrupts disabled\n", instance->host_no, instance->irq);
 			instance->irq = NO_IRQ;
+			shost_printk(KERN_INFO, instance,
+			             "irq %d denied\n", instance->irq);
+		} else {
+			shost_printk(KERN_INFO, instance,
+			             "irq %d acquired\n", instance->irq);
 		}
-	}
-
-	if (instance->irq == NO_IRQ) {
-		printk(KERN_INFO "scsi%d : interrupts not enabled. for better interactive performance,\n", instance->host_no);
-		printk(KERN_INFO "scsi%d : please jumper the board for a free IRQ.\n", instance->host_no);
 	}
 
 	ret = scsi_add_host(instance, pdev);
@@ -698,7 +704,7 @@ static int __init generic_NCR5380_init(void)
 	int ret = 0;
 
 	/* compatibility with old-style parameters */
-	if (irq[0] == 0 && base[0] == 0 && card[0] == -1) {
+	if (irq[0] == -1 && base[0] == 0 && card[0] == -1) {
 		irq[0] = ncr_irq;
 		base[0] = ncr_addr;
 		if (ncr_5380)
