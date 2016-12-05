@@ -2356,6 +2356,26 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 	mutex_unlock(&chip->reg_lock);
 }
 
+static int mv88e6xxx_disable_ports(struct mv88e6xxx_chip *chip)
+{
+	int i, err;
+
+	/* Set all ports to the Disabled state */
+	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
+		err = mv88e6xxx_port_set_state(chip, i,
+					       PORT_CONTROL_STATE_DISABLED);
+		if (err)
+			return err;
+	}
+
+	/* Wait for transmit queues to drain,
+	 * i.e. 2ms for a maximum frame to be transmitted at 10 Mbps.
+	 */
+	usleep_range(2000, 4000);
+
+	return 0;
+}
+
 static int mv88e6xxx_switch_reset(struct mv88e6xxx_chip *chip)
 {
 	bool ppu_active = mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU_ACTIVE);
@@ -2364,18 +2384,10 @@ static int mv88e6xxx_switch_reset(struct mv88e6xxx_chip *chip)
 	unsigned long timeout;
 	u16 reg;
 	int err;
-	int i;
 
-	/* Set all ports to the disabled state. */
-	for (i = 0; i < mv88e6xxx_num_ports(chip); i++) {
-		err = mv88e6xxx_port_set_state(chip, i,
-					       PORT_CONTROL_STATE_DISABLED);
-		if (err)
-			return err;
-	}
-
-	/* Wait for transmit queues to drain. */
-	usleep_range(2000, 4000);
+	err = mv88e6xxx_disable_ports(chip);
+	if (err)
+		return err;
 
 	/* If there is a gpio connected to the reset pin, toggle it */
 	if (gpiod) {
