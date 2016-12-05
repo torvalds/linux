@@ -464,7 +464,8 @@ static int sm_ll_mutate(struct ll_disk *ll, dm_block_t b,
 		ll->nr_allocated--;
 		le32_add_cpu(&ie_disk.nr_free, 1);
 		ie_disk.none_free_before = cpu_to_le32(min(le32_to_cpu(ie_disk.none_free_before), bit));
-	}
+	} else
+		*ev = SM_NONE;
 
 	return ll->save_ie(ll, index, &ie_disk);
 }
