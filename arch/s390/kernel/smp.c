@@ -800,7 +800,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	pcpu = pcpu_devices + cpu;
 	if (pcpu->state != CPU_STATE_CONFIGURED)
 		return -EIO;
-	base = cpu - (cpu % (smp_cpu_mtid + 1));
+	base = smp_get_base_cpu(cpu);
 	for (i = 0; i <= smp_cpu_mtid; i++) {
 		if (base + i < nr_cpu_ids)
 			if (cpu_online(base + i))
@@ -966,7 +966,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 	rc = -EBUSY;
 	/* disallow configuration changes of online cpus and cpu 0 */
 	cpu = dev->id;
-	cpu -= cpu % (smp_cpu_mtid + 1);
+	cpu = smp_get_base_cpu(cpu);
 	if (cpu == 0)
 		goto out;
 	for (i = 0; i <= smp_cpu_mtid; i++)
