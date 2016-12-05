@@ -232,7 +232,6 @@ static const struct of_device_id xway_nand_match[] = {
 	{ .compatible = "lantiq,nand-xway" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, xway_nand_match);
 
 static struct platform_driver xway_nand_driver = {
 	.probe	= xway_nand_probe,
@@ -243,6 +242,4 @@ static struct platform_driver xway_nand_driver = {
 	},
 };
 
-module_platform_driver(xway_nand_driver);
-
-MODULE_LICENSE("GPL");
+builtin_platform_driver(xway_nand_driver);
