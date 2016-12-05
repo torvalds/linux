@@ -185,9 +185,8 @@ static int xlat_status(struct nvdimm *nvdimm, void *buf, unsigned int cmd,
 	return 0;
 }
 
-static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
-		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
-		unsigned int buf_len, int *cmd_rc)
+int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
+		unsigned int cmd, void *buf, unsigned int buf_len, int *cmd_rc)
 {
 	struct acpi_nfit_desc *acpi_desc = to_acpi_nfit_desc(nd_desc);
 	union acpi_object in_obj, in_buf, *out_obj;
@@ -364,6 +363,7 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(acpi_nfit_ctl);
 
 static const char *spa_type_name(u16 type)
 {
