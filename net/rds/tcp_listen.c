@@ -79,6 +79,7 @@ bail:
  * smaller ip address, we recycle conns in RDS_CONN_ERROR on the passive side
  * by moving them to CONNECTING in this function.
  */
+static
 struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 {
 	int i;

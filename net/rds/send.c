@@ -1169,7 +1169,7 @@ out:
  * or
  *   RDS_FLAG_HB_PONG|RDS_FLAG_ACK_REQUIRED
  */
-int
+static int
 rds_send_probe(struct rds_conn_path *cp, __be16 sport,
 	       __be16 dport, u8 h_flags)
 {
@@ -1238,7 +1238,7 @@ rds_send_pong(struct rds_conn_path *cp, __be16 dport)
 	return rds_send_probe(cp, 0, dport, 0);
 }
 
-void
+static void
 rds_send_ping(struct rds_connection *conn)
 {
 	unsigned long flags;
