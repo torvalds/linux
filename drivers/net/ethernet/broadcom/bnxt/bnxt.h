@@ -11,10 +11,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.5.0"
+#define DRV_MODULE_VERSION	"1.6.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	5
+#define DRV_VER_MIN	6
 #define DRV_VER_UPD	0
 
 struct tx_bd {
@@ -1010,6 +1010,7 @@ struct bnxt {
 	u32			rss_hash_cfg;
 
 	u8			max_tc;
+	u8			max_lltc;	/* lossless TCs */
 	struct bnxt_queue_info	q_info[BNXT_MAX_QUEUE];
 
 	unsigned int		current_interval;
@@ -1024,6 +1025,13 @@ struct bnxt {
 
 	struct bnxt_irq	*irq_tbl;
 	u8			mac_addr[ETH_ALEN];
+
+#ifdef CONFIG_BNXT_DCB
+	struct ieee_pfc		*ieee_pfc;
+	struct ieee_ets		*ieee_ets;
+	u8			dcbx_cap;
+	u8			default_pri;
+#endif /* CONFIG_BNXT_DCB */
 
 	u32			msg_enable;
 
@@ -1115,6 +1123,13 @@ struct bnxt {
 	u32			lpi_tmr_lo;
 	u32			lpi_tmr_hi;
 };
+
+#define BNXT_RX_STATS_OFFSET(counter)			\
+	(offsetof(struct rx_port_stats, counter) / 8)
+
+#define BNXT_TX_STATS_OFFSET(counter)			\
+	((offsetof(struct tx_port_stats, counter) +	\
+	  sizeof(struct rx_port_stats) + 512) / 8)
 
 #ifdef CONFIG_NET_RX_BUSY_POLL
 static inline void bnxt_enable_poll(struct bnxt_napi *bnapi)
@@ -1220,10 +1235,13 @@ int hwrm_send_message(struct bnxt *, void *, u32, int);
 int hwrm_send_message_silent(struct bnxt *, void *, u32, int);
 int bnxt_hwrm_set_coal(struct bnxt *);
 int bnxt_hwrm_func_qcaps(struct bnxt *);
+void bnxt_tx_disable(struct bnxt *bp);
+void bnxt_tx_enable(struct bnxt *bp);
 int bnxt_hwrm_set_pause(struct bnxt *);
 int bnxt_hwrm_set_link_setting(struct bnxt *, bool, bool);
 int bnxt_hwrm_fw_set_time(struct bnxt *);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_close_nic(struct bnxt *, bool, bool);
+int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 #endif

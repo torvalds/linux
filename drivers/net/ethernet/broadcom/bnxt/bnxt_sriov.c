@@ -34,8 +34,7 @@ static int bnxt_hwrm_fwd_async_event_cmpl(struct bnxt *bp,
 		/* broadcast this async event to all VFs */
 		req.encap_async_event_target_id = cpu_to_le16(0xffff);
 	async_cmpl = (struct hwrm_async_event_cmpl *)req.encap_async_event_cmpl;
-	async_cmpl->type =
-		cpu_to_le16(HWRM_ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT);
+	async_cmpl->type = cpu_to_le16(ASYNC_EVENT_CMPL_TYPE_HWRM_ASYNC_EVENT);
 	async_cmpl->event_id = cpu_to_le16(event_id);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
@@ -288,7 +287,7 @@ int bnxt_set_vf_link_state(struct net_device *dev, int vf_id, int link)
 	}
 	if (vf->flags & (BNXT_VF_LINK_UP | BNXT_VF_LINK_FORCED))
 		rc = bnxt_hwrm_fwd_async_event_cmpl(bp, vf,
-			HWRM_ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE);
+			ASYNC_EVENT_CMPL_EVENT_ID_LINK_STATUS_CHANGE);
 	return rc;
 }
 
@@ -578,8 +577,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 
 	if (pci_vfs_assigned(bp->pdev)) {
 		bnxt_hwrm_fwd_async_event_cmpl(
-			bp, NULL,
-			HWRM_ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
+			bp, NULL, ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
 		netdev_warn(bp->dev, "Unable to free %d VFs because some are assigned to VMs.\n",
 			    num_vfs);
 	} else {
