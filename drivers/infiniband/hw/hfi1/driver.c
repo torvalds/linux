@@ -599,7 +599,6 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 					 dd->rhf_offset;
 		struct rvt_qp *qp;
 		struct ib_header *hdr;
-		struct ib_other_headers *ohdr;
 		struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
 		u64 rhf = rhf_to_cpu(rhf_addr);
 		u32 etype = rhf_rcv_type(rhf), qpn, bth1;
@@ -615,18 +614,21 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 		if (etype != RHF_RCV_TYPE_IB)
 			goto next;
 
-		hdr = hfi1_get_msgheader(dd, rhf_addr);
+		packet->hdr = hfi1_get_msgheader(dd, rhf_addr);
+		hdr = packet->hdr;
 
 		lnh = be16_to_cpu(hdr->lrh[0]) & 3;
 
-		if (lnh == HFI1_LRH_BTH)
-			ohdr = &hdr->u.oth;
-		else if (lnh == HFI1_LRH_GRH)
-			ohdr = &hdr->u.l.oth;
-		else
+		if (lnh == HFI1_LRH_BTH) {
+			packet->ohdr = &hdr->u.oth;
+		} else if (lnh == HFI1_LRH_GRH) {
+			packet->ohdr = &hdr->u.l.oth;
+			packet->rcv_flags |= HFI1_HAS_GRH;
+		} else {
 			goto next; /* just in case */
+		}
 
-		bth1 = be32_to_cpu(ohdr->bth[1]);
+		bth1 = be32_to_cpu(packet->ohdr->bth[1]);
 		is_ecn = !!(bth1 & (HFI1_FECN_SMASK | HFI1_BECN_SMASK));
 
 		if (!is_ecn)
@@ -646,7 +648,7 @@ static void __prescan_rxq(struct hfi1_packet *packet)
 
 		/* turn off BECN, FECN */
 		bth1 &= ~(HFI1_FECN_SMASK | HFI1_BECN_SMASK);
-		ohdr->bth[1] = cpu_to_be32(bth1);
+		packet->ohdr->bth[1] = cpu_to_be32(bth1);
 next:
 		update_ps_mdata(&mdata, rcd);
 	}
@@ -1360,12 +1362,25 @@ int process_receive_ib(struct hfi1_packet *packet)
 
 int process_receive_bypass(struct hfi1_packet *packet)
 {
+	struct hfi1_devdata *dd = packet->rcd->dd;
+
 	if (unlikely(rhf_err_flags(packet->rhf)))
 		handle_eflags(packet);
 
-	dd_dev_err(packet->rcd->dd,
+	dd_dev_err(dd,
 		   "Bypass packets are not supported in normal operation. Dropping\n");
-	incr_cntr64(&packet->rcd->dd->sw_rcv_bypass_packet_errors);
+	incr_cntr64(&dd->sw_rcv_bypass_packet_errors);
+	if (!(dd->err_info_rcvport.status_and_code & OPA_EI_STATUS_SMASK)) {
+		u64 *flits = packet->ebuf;
+
+		if (flits && !(packet->rhf & RHF_LEN_ERR)) {
+			dd->err_info_rcvport.packet_flit1 = flits[0];
+			dd->err_info_rcvport.packet_flit2 =
+				packet->tlen > sizeof(flits[0]) ? flits[1] : 0;
+		}
+		dd->err_info_rcvport.status_and_code |=
+			(OPA_EI_STATUS_SMASK | BAD_L2_ERR);
+	}
 	return RHF_RCV_CONTINUE;
 }
 

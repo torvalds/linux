@@ -542,6 +542,13 @@ static inline bool nfs4_valid_open_stateid(const struct nfs4_state *state)
 	return test_bit(NFS_STATE_RECOVERY_FAILED, &state->flags) == 0;
 }
 
+static inline bool nfs4_state_match_open_stateid_other(const struct nfs4_state *state,
+		const nfs4_stateid *stateid)
+{
+	return test_bit(NFS_OPEN_STATE, &state->flags) &&
+		nfs4_stateid_match_other(&state->open_stateid, stateid);
+}
+
 #else
 
 #define nfs4_close_state(a, b) do { } while (0)

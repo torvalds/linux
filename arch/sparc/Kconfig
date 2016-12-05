@@ -43,6 +43,7 @@ config SPARC
 	select ARCH_HAS_SG_CHAIN
 	select CPU_NO_EFFICIENT_FFS
 	select HAVE_ARCH_HARDENED_USERCOPY
+	select PROVE_LOCKING_SMALL if PROVE_LOCKING
 
 config SPARC32
 	def_bool !64BIT
@@ -88,6 +89,14 @@ config ARCH_DEFCONFIG
 
 config ARCH_PROC_KCORE_TEXT
 	def_bool y
+
+config ARCH_ATU
+	bool
+	default y if SPARC64
+
+config ARCH_DMA_ADDR_T_64BIT
+	bool
+	default y if ARCH_ATU
 
 config IOMMU_HELPER
 	bool
@@ -303,6 +312,20 @@ config ARCH_SPARSEMEM_ENABLE
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y if SPARC64
+
+config FORCE_MAX_ZONEORDER
+	int "Maximum zone order"
+	default "13"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 13 means that the largest free memory block is 2^12 pages.
 
 source "mm/Kconfig"
 

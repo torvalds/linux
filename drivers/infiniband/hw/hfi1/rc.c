@@ -89,7 +89,7 @@ void hfi1_add_rnr_timer(struct rvt_qp *qp, u32 to)
 
 	lockdep_assert_held(&qp->s_lock);
 	qp->s_flags |= RVT_S_WAIT_RNR;
-	qp->s_timer.expires = jiffies + usecs_to_jiffies(to);
+	priv->s_rnr_timer.expires = jiffies + usecs_to_jiffies(to);
 	add_timer(&priv->s_rnr_timer);
 }
 

@@ -1456,15 +1456,20 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++) {
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
-				/* Get a reference to the sp and drop the lock.
-				 * The reference ensures this sp->done() call
-				 * - and not the call in qla2xxx_eh_abort() -
-				 * ends the SCSI command (with result 'res').
+				/* Don't abort commands in adapter during EEH
+				 * recovery as it's not accessible/responding.
 				 */
-				sp_get(sp);
-				spin_unlock_irqrestore(&ha->hardware_lock, flags);
-				qla2xxx_eh_abort(GET_CMD_SP(sp));
-				spin_lock_irqsave(&ha->hardware_lock, flags);
+				if (!ha->flags.eeh_busy) {
+					/* Get a reference to the sp and drop the lock.
+					 * The reference ensures this sp->done() call
+					 * - and not the call in qla2xxx_eh_abort() -
+					 * ends the SCSI command (with result 'res').
+					 */
+					sp_get(sp);
+					spin_unlock_irqrestore(&ha->hardware_lock, flags);
+					qla2xxx_eh_abort(GET_CMD_SP(sp));
+					spin_lock_irqsave(&ha->hardware_lock, flags);
+				}
 				req->outstanding_cmds[cnt] = NULL;
 				sp->done(vha, sp, res);
 			}

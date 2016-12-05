@@ -986,7 +986,7 @@ b_host:
 	}
 #endif
 
-	schedule_work(&musb->irq_work);
+	schedule_delayed_work(&musb->irq_work, 0);
 
 	return handled;
 }
@@ -1855,14 +1855,23 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		MUSB_DEVCTL_HR;
 	switch (devctl & ~s) {
 	case MUSB_QUIRK_B_INVALID_VBUS_91:
-		if (!musb->session && !musb->quirk_invalid_vbus) {
-			musb->quirk_invalid_vbus = true;
+		if (musb->quirk_retries--) {
 			musb_dbg(musb,
-				 "First invalid vbus, assume no session");
+				 "Poll devctl on invalid vbus, assume no session");
+			schedule_delayed_work(&musb->irq_work,
+					      msecs_to_jiffies(1000));
+
 			return;
 		}
-		break;
 	case MUSB_QUIRK_A_DISCONNECT_19:
+		if (musb->quirk_retries--) {
+			musb_dbg(musb,
+				 "Poll devctl on possible host mode disconnect");
+			schedule_delayed_work(&musb->irq_work,
+					      msecs_to_jiffies(1000));
+
+			return;
+		}
 		if (!musb->session)
 			break;
 		musb_dbg(musb, "Allow PM on possible host mode disconnect");
@@ -1886,9 +1895,9 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 		if (error < 0)
 			dev_err(musb->controller, "Could not enable: %i\n",
 				error);
+		musb->quirk_retries = 3;
 	} else {
 		musb_dbg(musb, "Allow PM with no session: %02x", devctl);
-		musb->quirk_invalid_vbus = false;
 		pm_runtime_mark_last_busy(musb->controller);
 		pm_runtime_put_autosuspend(musb->controller);
 	}
@@ -1899,7 +1908,7 @@ static void musb_pm_runtime_check_session(struct musb *musb)
 /* Only used to provide driver mode change events */
 static void musb_irq_work(struct work_struct *data)
 {
-	struct musb *musb = container_of(data, struct musb, irq_work);
+	struct musb *musb = container_of(data, struct musb, irq_work.work);
 
 	musb_pm_runtime_check_session(musb);
 
@@ -1969,6 +1978,7 @@ static struct musb *allocate_instance(struct device *dev,
 	INIT_LIST_HEAD(&musb->control);
 	INIT_LIST_HEAD(&musb->in_bulk);
 	INIT_LIST_HEAD(&musb->out_bulk);
+	INIT_LIST_HEAD(&musb->pending_list);
 
 	musb->vbuserr_retry = VBUSERR_RETRY_COUNT;
 	musb->a_wait_bcon = OTG_TIME_A_WAIT_BCON;
@@ -2018,6 +2028,84 @@ static void musb_free(struct musb *musb)
 	musb_host_free(musb);
 }
 
+struct musb_pending_work {
+	int (*callback)(struct musb *musb, void *data);
+	void *data;
+	struct list_head node;
+};
+
+/*
+ * Called from musb_runtime_resume(), musb_resume(), and
+ * musb_queue_resume_work(). Callers must take musb->lock.
+ */
+static int musb_run_resume_work(struct musb *musb)
+{
+	struct musb_pending_work *w, *_w;
+	unsigned long flags;
+	int error = 0;
+
+	spin_lock_irqsave(&musb->list_lock, flags);
+	list_for_each_entry_safe(w, _w, &musb->pending_list, node) {
+		if (w->callback) {
+			error = w->callback(musb, w->data);
+			if (error < 0) {
+				dev_err(musb->controller,
+					"resume callback %p failed: %i\n",
+					w->callback, error);
+			}
+		}
+		list_del(&w->node);
+		devm_kfree(musb->controller, w);
+	}
+	spin_unlock_irqrestore(&musb->list_lock, flags);
+
+	return error;
+}
+
+/*
+ * Called to run work if device is active or else queue the work to happen
+ * on resume. Caller must take musb->lock and must hold an RPM reference.
+ *
+ * Note that we cowardly refuse queuing work after musb PM runtime
+ * resume is done calling musb_run_resume_work() and return -EINPROGRESS
+ * instead.
+ */
+int musb_queue_resume_work(struct musb *musb,
+			   int (*callback)(struct musb *musb, void *data),
+			   void *data)
+{
+	struct musb_pending_work *w;
+	unsigned long flags;
+	int error;
+
+	if (WARN_ON(!callback))
+		return -EINVAL;
+
+	if (pm_runtime_active(musb->controller))
+		return callback(musb, data);
+
+	w = devm_kzalloc(musb->controller, sizeof(*w), GFP_ATOMIC);
+	if (!w)
+		return -ENOMEM;
+
+	w->callback = callback;
+	w->data = data;
+	spin_lock_irqsave(&musb->list_lock, flags);
+	if (musb->is_runtime_suspended) {
+		list_add_tail(&w->node, &musb->pending_list);
+		error = 0;
+	} else {
+		dev_err(musb->controller, "could not add resume work %p\n",
+			callback);
+		devm_kfree(musb->controller, w);
+		error = -EINPROGRESS;
+	}
+	spin_unlock_irqrestore(&musb->list_lock, flags);
+
+	return error;
+}
+EXPORT_SYMBOL_GPL(musb_queue_resume_work);
+
 static void musb_deassert_reset(struct work_struct *work)
 {
 	struct musb *musb;
@@ -2065,6 +2153,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	}
 
 	spin_lock_init(&musb->lock);
+	spin_lock_init(&musb->list_lock);
 	musb->board_set_power = plat->set_power;
 	musb->min_power = plat->min_power;
 	musb->ops = plat->platform_ops;
@@ -2208,7 +2297,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb_generic_disable(musb);
 
 	/* Init IRQ workqueue before request_irq */
-	INIT_WORK(&musb->irq_work, musb_irq_work);
+	INIT_DELAYED_WORK(&musb->irq_work, musb_irq_work);
 	INIT_DELAYED_WORK(&musb->deassert_reset_work, musb_deassert_reset);
 	INIT_DELAYED_WORK(&musb->finish_resume_work, musb_host_finish_resume);
 
@@ -2291,6 +2380,7 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	if (status)
 		goto fail5;
 
+	musb->is_initialized = 1;
 	pm_runtime_mark_last_busy(musb->controller);
 	pm_runtime_put_autosuspend(musb->controller);
 
@@ -2304,7 +2394,7 @@ fail4:
 	musb_host_cleanup(musb);
 
 fail3:
-	cancel_work_sync(&musb->irq_work);
+	cancel_delayed_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	if (musb->dma_controller)
@@ -2371,7 +2461,7 @@ static int musb_remove(struct platform_device *pdev)
 	 */
 	musb_exit_debugfs(musb);
 
-	cancel_work_sync(&musb->irq_work);
+	cancel_delayed_work_sync(&musb->irq_work);
 	cancel_delayed_work_sync(&musb->finish_resume_work);
 	cancel_delayed_work_sync(&musb->deassert_reset_work);
 	pm_runtime_get_sync(musb->controller);
@@ -2557,6 +2647,7 @@ static int musb_suspend(struct device *dev)
 
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
+	WARN_ON(!list_empty(&musb->pending_list));
 
 	spin_lock_irqsave(&musb->lock, flags);
 
@@ -2578,9 +2669,11 @@ static int musb_suspend(struct device *dev)
 
 static int musb_resume(struct device *dev)
 {
-	struct musb	*musb = dev_to_musb(dev);
-	u8		devctl;
-	u8		mask;
+	struct musb *musb = dev_to_musb(dev);
+	unsigned long flags;
+	int error;
+	u8 devctl;
+	u8 mask;
 
 	/*
 	 * For static cmos like DaVinci, register values were preserved
@@ -2614,6 +2707,13 @@ static int musb_resume(struct device *dev)
 
 	musb_start(musb);
 
+	spin_lock_irqsave(&musb->lock, flags);
+	error = musb_run_resume_work(musb);
+	if (error)
+		dev_err(musb->controller, "resume work failed with %i\n",
+			error);
+	spin_unlock_irqrestore(&musb->lock, flags);
+
 	return 0;
 }
 
@@ -2622,14 +2722,16 @@ static int musb_runtime_suspend(struct device *dev)
 	struct musb	*musb = dev_to_musb(dev);
 
 	musb_save_context(musb);
+	musb->is_runtime_suspended = 1;
 
 	return 0;
 }
 
 static int musb_runtime_resume(struct device *dev)
 {
-	struct musb	*musb = dev_to_musb(dev);
-	static int	first = 1;
+	struct musb *musb = dev_to_musb(dev);
+	unsigned long flags;
+	int error;
 
 	/*
 	 * When pm_runtime_get_sync called for the first time in driver
@@ -2640,15 +2742,24 @@ static int musb_runtime_resume(struct device *dev)
 	 * Also context restore without save does not make
 	 * any sense
 	 */
-	if (!first)
-		musb_restore_context(musb);
-	first = 0;
+	if (!musb->is_initialized)
+		return 0;
+
+	musb_restore_context(musb);
 
 	if (musb->need_finish_resume) {
 		musb->need_finish_resume = 0;
 		schedule_delayed_work(&musb->finish_resume_work,
 				msecs_to_jiffies(USB_RESUME_TIMEOUT));
 	}
+
+	spin_lock_irqsave(&musb->lock, flags);
+	error = musb_run_resume_work(musb);
+	if (error)
+		dev_err(musb->controller, "resume work failed with %i\n",
+			error);
+	musb->is_runtime_suspended = 0;
+	spin_unlock_irqrestore(&musb->lock, flags);
 
 	return 0;
 }

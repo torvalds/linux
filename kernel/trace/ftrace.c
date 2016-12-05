@@ -1862,6 +1862,10 @@ static int __ftrace_hash_update_ipmodify(struct ftrace_ops *ops,
 
 	/* Update rec->flags */
 	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_DISABLED)
+			continue;
+
 		/* We need to update only differences of filter_hash */
 		in_old = !!ftrace_lookup_ip(old_hash, rec->ip);
 		in_new = !!ftrace_lookup_ip(new_hash, rec->ip);
@@ -1884,6 +1888,10 @@ rollback:
 
 	/* Roll back what we did above */
 	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_DISABLED)
+			continue;
+
 		if (rec == end)
 			goto err_out;
 
@@ -2397,6 +2405,10 @@ void __weak ftrace_replace_code(int enable)
 		return;
 
 	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_DISABLED)
+			continue;
+
 		failed = __ftrace_replace_code(rec, enable);
 		if (failed) {
 			ftrace_bug(failed, rec);
@@ -2763,7 +2775,7 @@ static int ftrace_shutdown(struct ftrace_ops *ops, int command)
 		struct dyn_ftrace *rec;
 
 		do_for_each_ftrace_rec(pg, rec) {
-			if (FTRACE_WARN_ON_ONCE(rec->flags))
+			if (FTRACE_WARN_ON_ONCE(rec->flags & ~FTRACE_FL_DISABLED))
 				pr_warn("  %pS flags:%lx\n",
 					(void *)rec->ip, rec->flags);
 		} while_for_each_ftrace_rec();
@@ -3598,6 +3610,10 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 		goto out_unlock;
 
 	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_DISABLED)
+			continue;
+
 		if (ftrace_match_record(rec, &func_g, mod_match, exclude_mod)) {
 			ret = enter_record(hash, rec, clear_filter);
 			if (ret < 0) {
@@ -3792,6 +3808,9 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	mutex_lock(&ftrace_lock);
 
 	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_DISABLED)
+			continue;
 
 		if (!ftrace_match_record(rec, &func_g, NULL, 0))
 			continue;
@@ -4684,6 +4703,9 @@ ftrace_set_func(unsigned long *array, int *idx, int size, char *buffer)
 	}
 
 	do_for_each_ftrace_rec(pg, rec) {
+
+		if (rec->flags & FTRACE_FL_DISABLED)
+			continue;
 
 		if (ftrace_match_record(rec, &func_g, NULL, 0)) {
 			/* if it is in the array */

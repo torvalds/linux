@@ -1403,7 +1403,8 @@ static ssize_t hot_remove_store(struct class *class,
 	zram = idr_find(&zram_index_idr, dev_id);
 	if (zram) {
 		ret = zram_remove(zram);
-		idr_remove(&zram_index_idr, dev_id);
+		if (!ret)
+			idr_remove(&zram_index_idr, dev_id);
 	} else {
 		ret = -ENODEV;
 	}

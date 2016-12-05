@@ -668,19 +668,12 @@ void sc_set_cr_threshold(struct send_context *sc, u32 new_threshold)
 void set_pio_integrity(struct send_context *sc)
 {
 	struct hfi1_devdata *dd = sc->dd;
-	u64 reg = 0;
 	u32 hw_context = sc->hw_context;
 	int type = sc->type;
 
-	/*
-	 * No integrity checks if HFI1_CAP_NO_INTEGRITY is set, or if
-	 * we're snooping.
-	 */
-	if (likely(!HFI1_CAP_IS_KSET(NO_INTEGRITY)) &&
-	    dd->hfi1_snoop.mode_flag != HFI1_PORT_SNOOP_MODE)
-		reg = hfi1_pkt_default_send_ctxt_mask(dd, type);
-
-	write_kctxt_csr(dd, hw_context, SC(CHECK_ENABLE), reg);
+	write_kctxt_csr(dd, hw_context,
+			SC(CHECK_ENABLE),
+			hfi1_pkt_default_send_ctxt_mask(dd, type));
 }
 
 static u32 get_buffers_allocated(struct send_context *sc)
