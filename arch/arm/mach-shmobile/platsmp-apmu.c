@@ -216,21 +216,9 @@ static void __init shmobile_smp_apmu_prepare_cpus_dt(unsigned int max_cpus)
 	rcar_gen2_pm_init();
 }
 
-static int shmobile_smp_apmu_boot_secondary_md21(unsigned int cpu,
-						 struct task_struct *idle)
-{
-	/* Error out when hardware debug mode is enabled */
-	if (rcar_gen2_read_mode_pins() & BIT(21)) {
-		pr_warn("Unable to boot CPU%u when MD21 is set\n", cpu);
-		return -ENOTSUPP;
-	}
-
-	return shmobile_smp_apmu_boot_secondary(cpu, idle);
-}
-
 static struct smp_operations apmu_smp_ops __initdata = {
 	.smp_prepare_cpus	= shmobile_smp_apmu_prepare_cpus_dt,
-	.smp_boot_secondary	= shmobile_smp_apmu_boot_secondary_md21,
+	.smp_boot_secondary	= shmobile_smp_apmu_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_can_disable	= shmobile_smp_cpu_can_disable,
 	.cpu_die		= shmobile_smp_apmu_cpu_die,
