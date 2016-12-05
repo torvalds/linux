@@ -191,7 +191,7 @@ mxm_dcb_sanitise(struct nvkm_mxm *mxm)
 	u8  ver, hdr, cnt, len;
 	u16 dcb = dcb_table(bios, &ver, &hdr, &cnt, &len);
 	if (dcb == 0x0000 || (ver != 0x40 && ver != 0x41)) {
-		nvkm_debug(subdev, "unsupported DCB version\n");
+		nvkm_warn(subdev, "unsupported DCB version\n");
 		return;
 	}
 
