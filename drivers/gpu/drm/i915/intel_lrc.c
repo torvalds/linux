@@ -733,7 +733,7 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 			if (prio > READ_ONCE(p->signaler->priority))
 				list_move_tail(&p->dfs_link, &dfs);
 
-		p = list_next_entry(dep, dfs_link);
+		list_safe_reset_next(dep, p, dfs_link);
 		if (!RB_EMPTY_NODE(&pt->node))
 			continue;
 
