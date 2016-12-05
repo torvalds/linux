@@ -3037,7 +3037,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 {
 	struct wlandevice *wlandev = urb->context;
 	struct hfa384x *hw;
-	union hfa384x_usbin *usbin = (union hfa384x_usbin *)urb->transfer_buffer;
+	union hfa384x_usbin *usbin;
 	struct sk_buff *skb = NULL;
 	int result;
 	int urb_status;
@@ -3139,6 +3139,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 	/* Note: the check of the sw_support field, the type field doesn't
 	 *       have bit 12 set like the docs suggest.
 	 */
+	usbin = (union hfa384x_usbin *)urb->transfer_buffer;
 	type = le16_to_cpu(usbin->type);
 	if (HFA384x_USB_ISRXFRM(type)) {
 		if (action == HANDLE) {
