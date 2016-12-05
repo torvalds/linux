@@ -425,6 +425,11 @@ int kvm_timer_hyp_init(void)
 	info = arch_timer_get_kvm_info();
 	timecounter = &info->timecounter;
 
+	if (!timecounter->cc) {
+		kvm_err("kvm_arch_timer: uninitialized timecounter\n");
+		return -ENODEV;
+	}
+
 	if (info->virtual_irq <= 0) {
 		kvm_err("kvm_arch_timer: invalid virtual timer IRQ: %d\n",
 			info->virtual_irq);
