@@ -375,7 +375,7 @@ out_err:
 	return rc;
 }
 
-DEFINE_MUTEX(llog_process_lock);
+static DEFINE_MUTEX(llog_process_lock);
 
 /** Stop watching for updates on this log.
  */
