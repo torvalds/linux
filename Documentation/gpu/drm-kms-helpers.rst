@@ -63,6 +63,9 @@ Atomic State Reset and Initialization
 .. kernel-doc:: drivers/gpu/drm/drm_atomic_helper.c
    :doc: atomic state reset and initialization
 
+Helper Functions Reference
+--------------------------
+
 .. kernel-doc:: include/drm/drm_atomic_helper.h
    :internal:
 

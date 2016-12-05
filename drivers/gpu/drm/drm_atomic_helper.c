@@ -1006,12 +1006,20 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_modeset_enables);
  * drm_atomic_helper_wait_for_fences - wait for fences stashed in plane state
  * @dev: DRM device
  * @state: atomic state object with old state structures
- * @pre_swap: if true, do an interruptible wait
+ * @pre_swap: If true, do an interruptible wait, and @state is the new state.
+ * 	Otherwise @state is the old state.
  *
  * For implicit sync, driver should fish the exclusive fence out from the
  * incoming fb's and stash it in the drm_plane_state.  This is called after
  * drm_atomic_helper_swap_state() so it uses the current plane state (and
  * just uses the atomic state to find the changed planes)
+ *
+ * Note that @pre_swap is needed since the point where we block for fences moves
+ * around depending upon whether an atomic commit is blocking or
+ * non-blocking. For async commit all waiting needs to happen after
+ * drm_atomic_helper_swap_state() is called, but for synchronous commits we want
+ * to wait **before** we do anything that can't be easily rolled back. That is
+ * before we call drm_atomic_helper_swap_state().
  *
  * Returns zero if success or < 0 if dma_fence_wait() fails.
  */
@@ -1147,7 +1155,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
 
 /**
  * drm_atomic_helper_commit_tail - commit atomic update to hardware
- * @state: new modeset state to be committed
+ * @old_state: atomic state object with old state structures
  *
  * This is the default implemenation for the ->atomic_commit_tail() hook of the
  * &drm_mode_config_helper_funcs vtable.
@@ -1158,53 +1166,53 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_vblanks);
  *
  * For drivers supporting runtime PM the recommended sequence is instead ::
  *
- *     drm_atomic_helper_commit_modeset_disables(dev, state);
+ *     drm_atomic_helper_commit_modeset_disables(dev, old_state);
  *
- *     drm_atomic_helper_commit_modeset_enables(dev, state);
+ *     drm_atomic_helper_commit_modeset_enables(dev, old_state);
  *
- *     drm_atomic_helper_commit_planes(dev, state,
+ *     drm_atomic_helper_commit_planes(dev, old_state,
  *                                     DRM_PLANE_COMMIT_ACTIVE_ONLY);
  *
  * for committing the atomic update to hardware.  See the kerneldoc entries for
  * these three functions for more details.
  */
-void drm_atomic_helper_commit_tail(struct drm_atomic_state *state)
+void drm_atomic_helper_commit_tail(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_device *dev = old_state->dev;
 
-	drm_atomic_helper_commit_modeset_disables(dev, state);
+	drm_atomic_helper_commit_modeset_disables(dev, old_state);
 
-	drm_atomic_helper_commit_planes(dev, state, 0);
+	drm_atomic_helper_commit_planes(dev, old_state, 0);
 
-	drm_atomic_helper_commit_modeset_enables(dev, state);
+	drm_atomic_helper_commit_modeset_enables(dev, old_state);
 
-	drm_atomic_helper_commit_hw_done(state);
+	drm_atomic_helper_commit_hw_done(old_state);
 
-	drm_atomic_helper_wait_for_vblanks(dev, state);
+	drm_atomic_helper_wait_for_vblanks(dev, old_state);
 
-	drm_atomic_helper_cleanup_planes(dev, state);
+	drm_atomic_helper_cleanup_planes(dev, old_state);
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_tail);
 
-static void commit_tail(struct drm_atomic_state *state)
+static void commit_tail(struct drm_atomic_state *old_state)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_device *dev = old_state->dev;
 	struct drm_mode_config_helper_funcs *funcs;
 
 	funcs = dev->mode_config.helper_private;
 
-	drm_atomic_helper_wait_for_fences(dev, state, false);
+	drm_atomic_helper_wait_for_fences(dev, old_state, false);
 
-	drm_atomic_helper_wait_for_dependencies(state);
+	drm_atomic_helper_wait_for_dependencies(old_state);
 
 	if (funcs && funcs->atomic_commit_tail)
-		funcs->atomic_commit_tail(state);
+		funcs->atomic_commit_tail(old_state);
 	else
-		drm_atomic_helper_commit_tail(state);
+		drm_atomic_helper_commit_tail(old_state);
 
-	drm_atomic_helper_commit_cleanup_done(state);
+	drm_atomic_helper_commit_cleanup_done(old_state);
 
-	drm_atomic_state_put(state);
+	drm_atomic_state_put(old_state);
 }
 
 static void commit_work(struct work_struct *work)
@@ -1498,10 +1506,10 @@ static struct drm_crtc_commit *preceeding_commit(struct drm_crtc *crtc)
 
 /**
  * drm_atomic_helper_wait_for_dependencies - wait for required preceeding commits
- * @state: new modeset state to be committed
+ * @old_state: atomic state object with old state structures
  *
  * This function waits for all preceeding commits that touch the same CRTC as
- * @state to both be committed to the hardware (as signalled by
+ * @old_state to both be committed to the hardware (as signalled by
  * drm_atomic_helper_commit_hw_done) and executed by the hardware (as signalled
  * by calling drm_crtc_vblank_send_event on the event member of
  * &drm_crtc_state).
@@ -1509,7 +1517,7 @@ static struct drm_crtc_commit *preceeding_commit(struct drm_crtc *crtc)
  * This is part of the atomic helper support for nonblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
-void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state)
+void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -1517,7 +1525,7 @@ void drm_atomic_helper_wait_for_dependencies(struct drm_atomic_state *state)
 	int i;
 	long ret;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
+	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
 		spin_lock(&crtc->commit_lock);
 		commit = preceeding_commit(crtc);
 		if (commit)
@@ -1548,7 +1556,7 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
 
 /**
  * drm_atomic_helper_commit_hw_done - setup possible nonblocking commit
- * @state: new modeset state to be committed
+ * @old_state: atomic state object with old state structures
  *
  * This function is used to signal completion of the hardware commit step. After
  * this step the driver is not allowed to read or change any permanent software
@@ -1561,15 +1569,15 @@ EXPORT_SYMBOL(drm_atomic_helper_wait_for_dependencies);
  * This is part of the atomic helper support for nonblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
-void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *state)
+void drm_atomic_helper_commit_hw_done(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc_commit *commit;
 	int i;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		commit = state->crtcs[i].commit;
+	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
+		commit = old_state->crtcs[i].commit;
 		if (!commit)
 			continue;
 
@@ -1584,16 +1592,16 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_hw_done);
 
 /**
  * drm_atomic_helper_commit_cleanup_done - signal completion of commit
- * @state: new modeset state to be committed
+ * @old_state: atomic state object with old state structures
  *
- * This signals completion of the atomic update @state, including any cleanup
- * work. If used, it must be called right before calling
+ * This signals completion of the atomic update @old_state, including any
+ * cleanup work. If used, it must be called right before calling
  * drm_atomic_state_put().
  *
  * This is part of the atomic helper support for nonblocking commits, see
  * drm_atomic_helper_setup_commit() for an overview.
  */
-void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
+void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
@@ -1601,8 +1609,8 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *state)
 	int i;
 	long ret;
 
-	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		commit = state->crtcs[i].commit;
+	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
+		commit = old_state->crtcs[i].commit;
 		if (WARN_ON(!commit))
 			continue;
 

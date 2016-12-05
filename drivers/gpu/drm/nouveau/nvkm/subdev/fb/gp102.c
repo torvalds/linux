@@ -27,7 +27,7 @@
 #include <core/memory.h>
 
 static const struct nvkm_fb_func
-gp104_fb = {
+gp102_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
 	.init = gp100_fb_init,
@@ -37,7 +37,7 @@ gp104_fb = {
 };
 
 int
-gp104_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
+gp102_fb_new(struct nvkm_device *device, int index, struct nvkm_fb **pfb)
 {
-	return gf100_fb_new_(&gp104_fb, device, index, pfb);
+	return gf100_fb_new_(&gp102_fb, device, index, pfb);
 }

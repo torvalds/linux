@@ -408,17 +408,20 @@ struct drm_mode_fb_cmd2 {
 	 * offsets[1].  Note that offsets[0] will generally
 	 * be 0 (but this is not required).
 	 *
-	 * To accommodate tiled, compressed, etc formats, a per-plane
+	 * To accommodate tiled, compressed, etc formats, a
 	 * modifier can be specified.  The default value of zero
 	 * indicates "native" format as specified by the fourcc.
-	 * Vendor specific modifier token.  This allows, for example,
-	 * different tiling/swizzling pattern on different planes.
-	 * See discussion above of DRM_FORMAT_MOD_xxx.
+	 * Vendor specific modifier token.  Note that even though
+	 * it looks like we have a modifier per-plane, we in fact
+	 * do not. The modifier for each plane must be identical.
+	 * Thus all combinations of different data layouts for
+	 * multi plane formats must be enumerated as separate
+	 * modifiers.
 	 */
 	__u32 handles[4];
 	__u32 pitches[4]; /* pitch for each plane */
 	__u32 offsets[4]; /* offset of each plane */
-	__u64 modifier[4]; /* ie, tiling, compressed (per plane) */
+	__u64 modifier[4]; /* ie, tiling, compress */
 };
 
 #define DRM_MODE_FB_DIRTY_ANNOTATE_COPY 0x01

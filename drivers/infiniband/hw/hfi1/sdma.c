@@ -2009,11 +2009,6 @@ static void sdma_hw_start_up(struct sdma_engine *sde)
 	write_sde_csr(sde, SD(ENG_ERR_CLEAR), reg);
 }
 
-#define CLEAR_STATIC_RATE_CONTROL_SMASK(r) \
-(r &= ~SEND_DMA_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK)
-
-#define SET_STATIC_RATE_CONTROL_SMASK(r) \
-(r |= SEND_DMA_CHECK_ENABLE_DISALLOW_PBC_STATIC_RATE_CONTROL_SMASK)
 /*
  * set_sdma_integrity
  *
@@ -2022,19 +2017,9 @@ static void sdma_hw_start_up(struct sdma_engine *sde)
 static void set_sdma_integrity(struct sdma_engine *sde)
 {
 	struct hfi1_devdata *dd = sde->dd;
-	u64 reg;
 
-	if (unlikely(HFI1_CAP_IS_KSET(NO_INTEGRITY)))
-		return;
-
-	reg = hfi1_pkt_base_sdma_integrity(dd);
-
-	if (HFI1_CAP_IS_KSET(STATIC_RATE_CTRL))
-		CLEAR_STATIC_RATE_CONTROL_SMASK(reg);
-	else
-		SET_STATIC_RATE_CONTROL_SMASK(reg);
-
-	write_sde_csr(sde, SD(CHECK_ENABLE), reg);
+	write_sde_csr(sde, SD(CHECK_ENABLE),
+		      hfi1_pkt_base_sdma_integrity(dd));
 }
 
 static void init_sdma_regs(

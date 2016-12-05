@@ -1687,7 +1687,7 @@ nvkm_device_pci_new(struct pci_dev *pci_dev, const char *cfg, const char *dbg,
 	 * This is necessary for platforms where the default DMA mask of 32
 	 * does not cover any system memory, i.e., when all RAM is > 4 GB.
 	 */
-	if (subdev_mask & BIT(NVKM_SUBDEV_MMU))
+	if (pdev->device.mmu)
 		dma_set_mask_and_coherent(&pci_dev->dev,
 				DMA_BIT_MASK(pdev->device.mmu->dma_bits));
 

@@ -25,7 +25,7 @@
 #include "rootnv50.h"
 
 static void
-gp104_disp_intr_error(struct nv50_disp *disp, int chid)
+gp102_disp_intr_error(struct nv50_disp *disp, int chid)
 {
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
@@ -51,12 +51,12 @@ gp104_disp_intr_error(struct nv50_disp *disp, int chid)
 }
 
 static const struct nv50_disp_func
-gp104_disp = {
+gp102_disp = {
 	.intr = gf119_disp_intr,
-	.intr_error = gp104_disp_intr_error,
+	.intr_error = gp102_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_intr_supervisor,
-	.root = &gp104_disp_root_oclass,
+	.root = &gp102_disp_root_oclass,
 	.head.vblank_init = gf119_disp_vblank_init,
 	.head.vblank_fini = gf119_disp_vblank_fini,
 	.head.scanoutpos = gf119_disp_root_scanoutpos,
@@ -75,7 +75,7 @@ gp104_disp = {
 };
 
 int
-gp104_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+gp102_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return gf119_disp_new_(&gp104_disp, device, index, pdisp);
+	return gf119_disp_new_(&gp102_disp, device, index, pdisp);
 }

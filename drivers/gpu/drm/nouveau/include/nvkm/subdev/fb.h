@@ -95,7 +95,7 @@ int gm107_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm200_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gm20b_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 int gp100_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
-int gp104_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
+int gp102_fb_new(struct nvkm_device *, int, struct nvkm_fb **);
 
 #include <subdev/bios.h>
 #include <subdev/bios/ramcfg.h>

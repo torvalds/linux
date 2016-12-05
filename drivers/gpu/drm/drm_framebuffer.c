@@ -177,6 +177,13 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 			return -EINVAL;
 		}
 
+		if (r->flags & DRM_MODE_FB_MODIFIERS &&
+		    r->modifier[i] != r->modifier[0]) {
+			DRM_DEBUG_KMS("bad fb modifier %llu for plane %d\n",
+				      r->modifier[i], i);
+			return -EINVAL;
+		}
+
 		/* modifier specific checks: */
 		switch (r->modifier[i]) {
 		case DRM_FORMAT_MOD_SAMSUNG_64_32_TILE:

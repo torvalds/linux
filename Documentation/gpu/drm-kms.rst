@@ -260,6 +260,12 @@ Property Types and Blob Property Support
 .. kernel-doc:: drivers/gpu/drm/drm_property.c
    :export:
 
+Standard Connector Properties
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_connector.c
+   :doc: standard connector properties
+
 Plane Composition Properties
 ----------------------------
 
@@ -286,6 +292,12 @@ Tile Group Property
 
 .. kernel-doc:: drivers/gpu/drm/drm_connector.c
    :doc: Tile group
+
+Explicit Fencing Properties
+---------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_atomic.c
+   :doc: explicit fencing properties
 
 Existing KMS Properties
 -----------------------

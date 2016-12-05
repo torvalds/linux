@@ -588,6 +588,50 @@ static const struct drm_prop_enum_list drm_tv_subconnector_enum_list[] = {
 DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
 		 drm_tv_subconnector_enum_list)
 
+/**
+ * DOC: standard connector properties
+ *
+ * DRM connectors have a few standardized properties:
+ *
+ * EDID:
+ * 	Blob property which contains the current EDID read from the sink. This
+ * 	is useful to parse sink identification information like vendor, model
+ * 	and serial. Drivers should update this property by calling
+ * 	drm_mode_connector_update_edid_property(), usually after having parsed
+ * 	the EDID using drm_add_edid_modes(). Userspace cannot change this
+ * 	property.
+ * DPMS:
+ * 	Legacy property for setting the power state of the connector. For atomic
+ * 	drivers this is only provided for backwards compatibility with existing
+ * 	drivers, it remaps to controlling the "ACTIVE" property on the CRTC the
+ * 	connector is linked to. Drivers should never set this property directly,
+ * 	it is handled by the DRM core by calling the ->dpms() callback in
+ * 	&drm_connector_funcs. Atomic drivers should implement this hook using
+ * 	drm_atomic_helper_connector_dpms(). This is the only property standard
+ * 	connector property that userspace can change.
+ * PATH:
+ * 	Connector path property to identify how this sink is physically
+ * 	connected. Used by DP MST. This should be set by calling
+ * 	drm_mode_connector_set_path_property(), in the case of DP MST with the
+ * 	path property the MST manager created. Userspace cannot change this
+ * 	property.
+ * TILE:
+ * 	Connector tile group property to indicate how a set of DRM connector
+ * 	compose together into one logical screen. This is used by both high-res
+ * 	external screens (often only using a single cable, but exposing multiple
+ * 	DP MST sinks), or high-res integrated panels (like dual-link DSI) which
+ * 	are not gen-locked. Note that for tiled panels which are genlocked, like
+ * 	dual-link LVDS or dual-link DSI, the driver should try to not expose the
+ * 	tiling and virtualize both &drm_crtc and &drm_plane if needed. Drivers
+ * 	should update this value using drm_mode_connector_set_tile_property().
+ * 	Userspace cannot change this property.
+ *
+ * Connectors also have one standardized atomic property:
+ *
+ * CRTC_ID:
+ * 	Mode object ID of the &drm_crtc this connector should be connected to.
+ */
+
 int drm_connector_create_standard_properties(struct drm_device *dev)
 {
 	struct drm_property *prop;

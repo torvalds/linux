@@ -932,8 +932,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 		if (err)
 			goto err_create;
 	} else {
-		/* for now choose 64 bytes till we have a proper interface */
-		cqe_size = 64;
+		cqe_size = cache_line_size() == 128 ? 128 : 64;
 		err = create_cq_kernel(dev, cq, entries, cqe_size, &cqb,
 				       &index, &inlen);
 		if (err)

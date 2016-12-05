@@ -1743,8 +1743,10 @@ struct fib_table *fib_trie_unmerge(struct fib_table *oldtb)
 				local_l = fib_find_node(lt, &local_tp, l->key);
 
 			if (fib_insert_alias(lt, local_tp, local_l, new_fa,
-					     NULL, l->key))
+					     NULL, l->key)) {
+				kmem_cache_free(fn_alias_kmem, new_fa);
 				goto out;
+			}
 		}
 
 		/* stop loop if key wrapped back to 0 */
@@ -1758,6 +1760,71 @@ out:
 	fib_trie_free(local_tb);
 
 	return NULL;
+}
+
+/* Caller must hold RTNL */
+void fib_table_flush_external(struct fib_table *tb)
+{
+	struct trie *t = (struct trie *)tb->tb_data;
+	struct key_vector *pn = t->kv;
+	unsigned long cindex = 1;
+	struct hlist_node *tmp;
+	struct fib_alias *fa;
+
+	/* walk trie in reverse order */
+	for (;;) {
+		unsigned char slen = 0;
+		struct key_vector *n;
+
+		if (!(cindex--)) {
+			t_key pkey = pn->key;
+
+			/* cannot resize the trie vector */
+			if (IS_TRIE(pn))
+				break;
+
+			/* resize completed node */
+			pn = resize(t, pn);
+			cindex = get_index(pkey, pn);
+
+			continue;
+		}
+
+		/* grab the next available node */
+		n = get_child(pn, cindex);
+		if (!n)
+			continue;
+
+		if (IS_TNODE(n)) {
+			/* record pn and cindex for leaf walking */
+			pn = n;
+			cindex = 1ul << n->bits;
+
+			continue;
+		}
+
+		hlist_for_each_entry_safe(fa, tmp, &n->leaf, fa_list) {
+			/* if alias was cloned to local then we just
+			 * need to remove the local copy from main
+			 */
+			if (tb->tb_id != fa->tb_id) {
+				hlist_del_rcu(&fa->fa_list);
+				alias_free_mem_rcu(fa);
+				continue;
+			}
+
+			/* record local slen */
+			slen = fa->fa_slen;
+		}
+
+		/* update leaf slen */
+		n->slen = slen;
+
+		if (hlist_empty(&n->leaf)) {
+			put_child_root(pn, n->key, NULL);
+			node_free(n);
+		}
+	}
 }
 
 /* Caller must hold RTNL. */
@@ -2413,22 +2480,19 @@ static struct key_vector *fib_route_get_idx(struct fib_route_iter *iter,
 	struct key_vector *l, **tp = &iter->tnode;
 	t_key key;
 
-	/* use cache location of next-to-find key */
+	/* use cached location of previously found key */
 	if (iter->pos > 0 && pos >= iter->pos) {
-		pos -= iter->pos;
 		key = iter->key;
 	} else {
-		iter->pos = 0;
+		iter->pos = 1;
 		key = 0;
 	}
 
-	while ((l = leaf_walk_rcu(tp, key)) != NULL) {
+	pos -= iter->pos;
+
+	while ((l = leaf_walk_rcu(tp, key)) && (pos-- > 0)) {
 		key = l->key + 1;
 		iter->pos++;
-
-		if (--pos <= 0)
-			break;
-
 		l = NULL;
 
 		/* handle unlikely case of a key wrap */
@@ -2437,7 +2501,7 @@ static struct key_vector *fib_route_get_idx(struct fib_route_iter *iter,
 	}
 
 	if (l)
-		iter->key = key;	/* remember it */
+		iter->key = l->key;	/* remember it */
 	else
 		iter->pos = 0;		/* forget it */
 
@@ -2465,7 +2529,7 @@ static void *fib_route_seq_start(struct seq_file *seq, loff_t *pos)
 		return fib_route_get_idx(iter, *pos);
 
 	iter->pos = 0;
-	iter->key = 0;
+	iter->key = KEY_MAX;
 
 	return SEQ_START_TOKEN;
 }
@@ -2474,7 +2538,7 @@ static void *fib_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct fib_route_iter *iter = seq->private;
 	struct key_vector *l = NULL;
-	t_key key = iter->key;
+	t_key key = iter->key + 1;
 
 	++*pos;
 
@@ -2483,7 +2547,7 @@ static void *fib_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		l = leaf_walk_rcu(&iter->tnode, key);
 
 	if (l) {
-		iter->key = l->key + 1;
+		iter->key = l->key;
 		iter->pos++;
 	} else {
 		iter->pos = 0;

@@ -743,8 +743,8 @@ static int st_accel_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		*val2 = adata->current_fullscale->gain;
+		*val = adata->current_fullscale->gain / 1000000;
+		*val2 = adata->current_fullscale->gain % 1000000;
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		*val = adata->odr;
@@ -763,9 +763,13 @@ static int st_accel_write_raw(struct iio_dev *indio_dev,
 	int err;
 
 	switch (mask) {
-	case IIO_CHAN_INFO_SCALE:
-		err = st_sensors_set_fullscale_by_gain(indio_dev, val2);
+	case IIO_CHAN_INFO_SCALE: {
+		int gain;
+
+		gain = val * 1000000 + val2;
+		err = st_sensors_set_fullscale_by_gain(indio_dev, gain);
 		break;
+	}
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (val2)
 			return -EINVAL;

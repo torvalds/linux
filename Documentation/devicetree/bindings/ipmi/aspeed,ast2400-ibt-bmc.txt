@@ -6,7 +6,7 @@ perform in-band IPMI communication with their host.
 
 Required properties:
 
-- compatible : should be "aspeed,ast2400-bt-bmc"
+- compatible : should be "aspeed,ast2400-ibt-bmc"
 - reg: physical address and size of the registers
 
 Optional properties:
@@ -17,7 +17,7 @@ Optional properties:
 Example:
 
 	ibt@1e789140 {
-		compatible = "aspeed,ast2400-bt-bmc";
+		compatible = "aspeed,ast2400-ibt-bmc";
 		reg = <0x1e789140 0x18>;
 		interrupts = <8>;
 	};

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2016 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,26 +19,40 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
- * Authors: Ben Skeggs
+ * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "priv.h"
-#include <core/enum.h>
+#include "rootnv50.h"
+#include "dmacnv50.h"
 
 #include <nvif/class.h>
 
-static const struct nvkm_engine_func
-gp104_ce = {
-	.intr = gp100_ce_intr,
-	.sclass = {
-		{ -1, -1, PASCAL_DMA_COPY_B },
-		{ -1, -1, PASCAL_DMA_COPY_A },
-		{}
-	}
+static const struct nv50_disp_root_func
+gp102_disp_root = {
+	.init = gf119_disp_root_init,
+	.fini = gf119_disp_root_fini,
+	.dmac = {
+		&gp102_disp_core_oclass,
+		&gp102_disp_base_oclass,
+		&gp102_disp_ovly_oclass,
+	},
+	.pioc = {
+		&gp102_disp_oimm_oclass,
+		&gp102_disp_curs_oclass,
+	},
 };
 
-int
-gp104_ce_new(struct nvkm_device *device, int index,
-	     struct nvkm_engine **pengine)
+static int
+gp102_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
+		    void *data, u32 size, struct nvkm_object **pobject)
 {
-	return nvkm_engine_new_(&gp104_ce, device, index, true, pengine);
+	return nv50_disp_root_new_(&gp102_disp_root, disp, oclass,
+				   data, size, pobject);
 }
+
+const struct nvkm_disp_oclass
+gp102_disp_root_oclass = {
+	.base.oclass = GP102_DISP,
+	.base.minver = -1,
+	.base.maxver = -1,
+	.ctor = gp102_disp_root_new,
+};

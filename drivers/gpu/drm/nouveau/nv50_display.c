@@ -574,7 +574,7 @@ nv50_core_create(struct nvif_device *device, struct nvif_object *disp,
 		.pushbuf = 0xb0007d00,
 	};
 	static const s32 oclass[] = {
-		GP104_DISP_CORE_CHANNEL_DMA,
+		GP102_DISP_CORE_CHANNEL_DMA,
 		GP100_DISP_CORE_CHANNEL_DMA,
 		GM200_DISP_CORE_CHANNEL_DMA,
 		GM107_DISP_CORE_CHANNEL_DMA,
@@ -3343,12 +3343,15 @@ nv50_mstm_detect(struct nv50_mstm *mstm, u8 dpcd[8], int allow)
 	if (!mstm)
 		return 0;
 
-	if (dpcd[0] >= 0x12 && allow) {
+	if (dpcd[0] >= 0x12) {
 		ret = drm_dp_dpcd_readb(mstm->mgr.aux, DP_MSTM_CAP, &dpcd[1]);
 		if (ret < 0)
 			return ret;
 
-		state = dpcd[1] & DP_MST_CAP;
+		if (!(dpcd[1] & DP_MST_CAP))
+			dpcd[0] = 0x11;
+		else
+			state = allow;
 	}
 
 	ret = nv50_mstm_enable(mstm, dpcd[0], state);

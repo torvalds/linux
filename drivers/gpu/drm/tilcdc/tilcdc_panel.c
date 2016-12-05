@@ -240,8 +240,6 @@ static struct drm_connector *panel_connector_create(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	drm_connector_register(connector);
-
 	return connector;
 
 fail:

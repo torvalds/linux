@@ -1959,19 +1959,20 @@ static bool drm_target_preferred(struct drm_fb_helper *fb_helper,
 				 bool *enabled, int width, int height)
 {
 	struct drm_fb_helper_connector *fb_helper_conn;
-	int i;
-	uint64_t conn_configured = 0, mask;
+	const u64 mask = BIT_ULL(fb_helper->connector_count) - 1;
+	u64 conn_configured = 0;
 	int tile_pass = 0;
-	mask = (1 << fb_helper->connector_count) - 1;
+	int i;
+
 retry:
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		fb_helper_conn = fb_helper->connector_info[i];
 
-		if (conn_configured & (1 << i))
+		if (conn_configured & BIT_ULL(i))
 			continue;
 
 		if (enabled[i] == false) {
-			conn_configured |= (1 << i);
+			conn_configured |= BIT_ULL(i);
 			continue;
 		}
 
@@ -2012,7 +2013,7 @@ retry:
 		}
 		DRM_DEBUG_KMS("found mode %s\n", modes[i] ? modes[i]->name :
 			  "none");
-		conn_configured |= (1 << i);
+		conn_configured |= BIT_ULL(i);
 	}
 
 	if ((conn_configured & mask) != mask) {

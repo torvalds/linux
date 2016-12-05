@@ -185,7 +185,7 @@ int get_crypt_info(struct inode *inode)
 	struct crypto_skcipher *ctfm;
 	const char *cipher_str;
 	int keysize;
-	u8 raw_key[FS_MAX_KEY_SIZE];
+	u8 *raw_key = NULL;
 	int res;
 
 	res = fscrypt_initialize();
@@ -238,6 +238,15 @@ retry:
 	if (res)
 		goto out;
 
+	/*
+	 * This cannot be a stack buffer because it is passed to the scatterlist
+	 * crypto API as part of key derivation.
+	 */
+	res = -ENOMEM;
+	raw_key = kmalloc(FS_MAX_KEY_SIZE, GFP_NOFS);
+	if (!raw_key)
+		goto out;
+
 	if (fscrypt_dummy_context_enabled(inode)) {
 		memset(raw_key, 0x42, FS_AES_256_XTS_KEY_SIZE);
 		goto got_key;
@@ -276,7 +285,8 @@ got_key:
 	if (res)
 		goto out;
 
-	memzero_explicit(raw_key, sizeof(raw_key));
+	kzfree(raw_key);
+	raw_key = NULL;
 	if (cmpxchg(&inode->i_crypt_info, NULL, crypt_info) != NULL) {
 		put_crypt_info(crypt_info);
 		goto retry;
@@ -287,7 +297,7 @@ out:
 	if (res == -ENOKEY)
 		res = 0;
 	put_crypt_info(crypt_info);
-	memzero_explicit(raw_key, sizeof(raw_key));
+	kzfree(raw_key);
 	return res;
 }
 
