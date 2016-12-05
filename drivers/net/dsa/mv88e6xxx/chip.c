@@ -545,7 +545,8 @@ static int mv88e6xxx_ppu_disable(struct mv88e6xxx_chip *chip)
 			return err;
 
 		usleep_range(1000, 2000);
-		if ((val & GLOBAL_STATUS_PPU_MASK) != GLOBAL_STATUS_PPU_POLLING)
+		val &= GLOBAL_STATUS_PPU_STATE_MASK;
+		if (val != GLOBAL_STATUS_PPU_STATE_POLLING)
 			return 0;
 	}
 
@@ -572,7 +573,8 @@ static int mv88e6xxx_ppu_enable(struct mv88e6xxx_chip *chip)
 			return err;
 
 		usleep_range(1000, 2000);
-		if ((val & GLOBAL_STATUS_PPU_MASK) == GLOBAL_STATUS_PPU_POLLING)
+		val &= GLOBAL_STATUS_PPU_STATE_MASK;
+		if (val == GLOBAL_STATUS_PPU_STATE_POLLING)
 			return 0;
 	}
 
@@ -2356,6 +2358,14 @@ static void mv88e6xxx_port_bridge_leave(struct dsa_switch *ds, int port)
 	mutex_unlock(&chip->reg_lock);
 }
 
+static int mv88e6xxx_software_reset(struct mv88e6xxx_chip *chip)
+{
+	if (chip->info->ops->reset)
+		return chip->info->ops->reset(chip);
+
+	return 0;
+}
+
 static void mv88e6xxx_hardware_reset(struct mv88e6xxx_chip *chip)
 {
 	struct gpio_desc *gpiod = chip->reset;
@@ -2391,10 +2401,6 @@ static int mv88e6xxx_disable_ports(struct mv88e6xxx_chip *chip)
 
 static int mv88e6xxx_switch_reset(struct mv88e6xxx_chip *chip)
 {
-	bool ppu_active = mv88e6xxx_has(chip, MV88E6XXX_FLAG_PPU_ACTIVE);
-	u16 is_reset = (ppu_active ? 0x8800 : 0xc800);
-	unsigned long timeout;
-	u16 reg;
 	int err;
 
 	err = mv88e6xxx_disable_ports(chip);
@@ -2403,34 +2409,7 @@ static int mv88e6xxx_switch_reset(struct mv88e6xxx_chip *chip)
 
 	mv88e6xxx_hardware_reset(chip);
 
-	/* Reset the switch. Keep the PPU active if requested. The PPU
-	 * needs to be active to support indirect phy register access
-	 * through global registers 0x18 and 0x19.
-	 */
-	if (ppu_active)
-		err = mv88e6xxx_g1_write(chip, 0x04, 0xc000);
-	else
-		err = mv88e6xxx_g1_write(chip, 0x04, 0xc400);
-	if (err)
-		return err;
-
-	/* Wait up to one second for reset to complete. */
-	timeout = jiffies + 1 * HZ;
-	while (time_before(jiffies, timeout)) {
-		err = mv88e6xxx_g1_read(chip, 0x00, &reg);
-		if (err)
-			return err;
-
-		if ((reg & is_reset) == is_reset)
-			break;
-		usleep_range(1000, 2000);
-	}
-	if (time_after(jiffies, timeout))
-		err = -ETIMEDOUT;
-	else
-		err = 0;
-
-	return err;
+	return mv88e6xxx_software_reset(chip);
 }
 
 static int mv88e6xxx_serdes_power_on(struct mv88e6xxx_chip *chip)
@@ -3244,6 +3223,7 @@ static const struct mv88e6xxx_ops mv88e6085_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6185_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6095_ops = {
@@ -3261,6 +3241,7 @@ static const struct mv88e6xxx_ops mv88e6095_ops = {
 	.stats_get_strings = mv88e6095_stats_get_strings,
 	.stats_get_stats = mv88e6095_stats_get_stats,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6185_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6097_ops = {
@@ -3285,6 +3266,7 @@ static const struct mv88e6xxx_ops mv88e6097_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6123_ops = {
@@ -3304,6 +3286,7 @@ static const struct mv88e6xxx_ops mv88e6123_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6131_ops = {
@@ -3328,6 +3311,7 @@ static const struct mv88e6xxx_ops mv88e6131_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6185_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6161_ops = {
@@ -3352,6 +3336,7 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6165_ops = {
@@ -3369,6 +3354,7 @@ static const struct mv88e6xxx_ops mv88e6165_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6171_ops = {
@@ -3394,6 +3380,7 @@ static const struct mv88e6xxx_ops mv88e6171_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6172_ops = {
@@ -3421,6 +3408,7 @@ static const struct mv88e6xxx_ops mv88e6172_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6175_ops = {
@@ -3446,6 +3434,7 @@ static const struct mv88e6xxx_ops mv88e6175_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6176_ops = {
@@ -3473,6 +3462,7 @@ static const struct mv88e6xxx_ops mv88e6176_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6185_ops = {
@@ -3493,6 +3483,7 @@ static const struct mv88e6xxx_ops mv88e6185_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6185_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6190_ops = {
@@ -3517,6 +3508,7 @@ static const struct mv88e6xxx_ops mv88e6190_ops = {
 	.g1_set_cpu_port = mv88e6390_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6390_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6190x_ops = {
@@ -3541,6 +3533,7 @@ static const struct mv88e6xxx_ops mv88e6190x_ops = {
 	.g1_set_cpu_port = mv88e6390_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6390_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6191_ops = {
@@ -3565,6 +3558,7 @@ static const struct mv88e6xxx_ops mv88e6191_ops = {
 	.g1_set_cpu_port = mv88e6390_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6390_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6240_ops = {
@@ -3592,6 +3586,7 @@ static const struct mv88e6xxx_ops mv88e6240_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6290_ops = {
@@ -3616,6 +3611,7 @@ static const struct mv88e6xxx_ops mv88e6290_ops = {
 	.g1_set_cpu_port = mv88e6390_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6390_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6320_ops = {
@@ -3642,6 +3638,7 @@ static const struct mv88e6xxx_ops mv88e6320_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6321_ops = {
@@ -3667,6 +3664,7 @@ static const struct mv88e6xxx_ops mv88e6321_ops = {
 	.stats_get_stats = mv88e6320_stats_get_stats,
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6350_ops = {
@@ -3692,6 +3690,7 @@ static const struct mv88e6xxx_ops mv88e6350_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6351_ops = {
@@ -3717,6 +3716,7 @@ static const struct mv88e6xxx_ops mv88e6351_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6352_ops = {
@@ -3744,6 +3744,7 @@ static const struct mv88e6xxx_ops mv88e6352_ops = {
 	.g1_set_cpu_port = mv88e6095_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6095_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6095_g2_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6390_ops = {
@@ -3770,6 +3771,7 @@ static const struct mv88e6xxx_ops mv88e6390_ops = {
 	.g1_set_cpu_port = mv88e6390_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6390_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6390x_ops = {
@@ -3796,6 +3798,7 @@ static const struct mv88e6xxx_ops mv88e6390x_ops = {
 	.g1_set_cpu_port = mv88e6390_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6390_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static const struct mv88e6xxx_ops mv88e6391_ops = {
@@ -3820,6 +3823,7 @@ static const struct mv88e6xxx_ops mv88e6391_ops = {
 	.g1_set_cpu_port = mv88e6390_g1_set_cpu_port,
 	.g1_set_egress_port = mv88e6390_g1_set_egress_port,
 	.mgmt_rsvd2cpu = mv88e6390_g1_mgmt_rsvd2cpu,
+	.reset = mv88e6352_g1_reset,
 };
 
 static int mv88e6xxx_verify_madatory_ops(struct mv88e6xxx_chip *chip,
