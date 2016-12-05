@@ -66,20 +66,12 @@ static int create_encryption_context_from_policy(struct inode *inode,
 					FS_KEY_DESCRIPTOR_SIZE);
 
 	if (!fscrypt_valid_contents_enc_mode(
-				policy->contents_encryption_mode)) {
-		printk(KERN_WARNING
-		       "%s: Invalid contents encryption mode %d\n", __func__,
-			policy->contents_encryption_mode);
+				policy->contents_encryption_mode))
 		return -EINVAL;
-	}
 
 	if (!fscrypt_valid_filenames_enc_mode(
-				policy->filenames_encryption_mode)) {
-		printk(KERN_WARNING
-			"%s: Invalid filenames encryption mode %d\n", __func__,
-			policy->filenames_encryption_mode);
+				policy->filenames_encryption_mode))
 		return -EINVAL;
-	}
 
 	if (policy->flags & ~FS_POLICY_FLAGS_VALID)
 		return -EINVAL;
@@ -126,9 +118,6 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 								    &policy);
 	} else if (!is_encryption_context_consistent_with_policy(inode,
 								 &policy)) {
-		printk(KERN_WARNING
-		       "%s: Policy inconsistent with encryption context\n",
-		       __func__);
 		ret = -EEXIST;
 	}
 
