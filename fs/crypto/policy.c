@@ -116,7 +116,7 @@ int fscrypt_ioctl_set_policy(struct file *filp, const void __user *arg)
 
 	if (!inode_has_encryption_context(inode)) {
 		if (!S_ISDIR(inode->i_mode))
-			ret = -EINVAL;
+			ret = -ENOTDIR;
 		else if (!inode->i_sb->s_cop->empty_dir)
 			ret = -EOPNOTSUPP;
 		else if (!inode->i_sb->s_cop->empty_dir(inode))
