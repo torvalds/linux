@@ -155,17 +155,10 @@ bool ath9k_hw_nvram_read(struct ath_hw *ah, u32 off, u16 *data)
 	return ret;
 }
 
-#ifdef __BIG_ENDIAN
-#define EXPECTED_EEPMISC_ENDIAN AR5416_EEPMISC_BIG_ENDIAN
-#else
-#define EXPECTED_EEPMISC_ENDIAN 0
-#endif
-
 int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 {
 	u16 magic;
 	u16 *eepdata;
-	u8 eepmisc;
 	int i;
 	bool needs_byteswap = false;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -203,24 +196,16 @@ int ath9k_hw_nvram_swap_data(struct ath_hw *ah, bool *swap_needed, int size)
 		}
 	}
 
-	*swap_needed = false;
-
-	eepmisc = ah->eep_ops->get_eepmisc(ah);
-	if ((eepmisc & AR5416_EEPMISC_BIG_ENDIAN) != EXPECTED_EEPMISC_ENDIAN) {
-		if (ah->ah_flags & AH_NO_EEP_SWAP) {
-			ath_info(common,
-				 "Ignoring endianness difference in eepmisc register.\n");
-		} else {
-			*swap_needed = true;
-			ath_dbg(common, EEPROM,
-				"EEPROM needs swapping according to the eepmisc register.\n");
-		}
+	if (ah->eep_ops->get_eepmisc(ah) & AR5416_EEPMISC_BIG_ENDIAN) {
+		*swap_needed = true;
+		ath_dbg(common, EEPROM,
+			"Big Endian EEPROM detected according to EEPMISC register.\n");
+	} else {
+		*swap_needed = false;
 	}
 
 	return 0;
 }
-
-#undef EXPECTED_EEPMISC_VAL
 
 bool ath9k_hw_nvram_validate_checksum(struct ath_hw *ah, int size)
 {
