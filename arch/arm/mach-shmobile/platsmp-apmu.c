@@ -31,9 +31,15 @@ static struct {
 	int bit;
 } apmu_cpus[NR_CPUS];
 
-#define WUPCR_OFFS 0x10
-#define PSTR_OFFS 0x40
-#define CPUNCR_OFFS(n) (0x100 + (0x10 * (n)))
+#define WUPCR_OFFS	 0x10		/* Wake Up Control Register */
+#define PSTR_OFFS	 0x40		/* Power Status Register */
+#define CPUNCR_OFFS(n)	(0x100 + (0x10 * (n)))
+					/* CPUn Power Status Control Register */
+
+/* Power Status Register */
+#define CPUNST(r, n)	(((r) >> (n * 4)) & 3)	/* CPUn Status Bit */
+#define CPUST_RUN	0		/* Run Mode */
+#define CPUST_STANDBY	3		/* CoreStandby Mode */
 
 static int __maybe_unused apmu_power_on(void __iomem *p, int bit)
 {
@@ -59,7 +65,7 @@ static int __maybe_unused apmu_power_off_poll(void __iomem *p, int bit)
 	int k;
 
 	for (k = 0; k < 1000; k++) {
-		if (((readl_relaxed(p + PSTR_OFFS) >> (bit * 4)) & 0x03) == 3)
+		if (CPUNST(readl_relaxed(p + PSTR_OFFS), bit) == CPUST_STANDBY)
 			return 1;
 
 		mdelay(1);
