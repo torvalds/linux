@@ -99,7 +99,6 @@
 #define FBIN2FREQ(x, y)		((y) ? (2300 + x) : (4800 + 5 * x))
 #define ath9k_hw_use_flash(_ah)	(!(_ah->ah_flags & AH_USE_EEPROM))
 
-#define AR5416_VER_MASK (eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK)
 #define OLC_FOR_AR9280_20_LATER (AR_SREV_9280_20_OR_LATER(ah) && \
 				 ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
 #define OLC_FOR_AR9287_10_LATER (AR_SREV_9287_11_OR_LATER(ah) && \
@@ -121,6 +120,8 @@
 
 #define AR5416_EEP_NO_BACK_VER       0x1
 #define AR5416_EEP_VER               0xE
+#define AR5416_EEP_VER_MAJOR_SHIFT   12
+#define AR5416_EEP_VER_MAJOR_MASK    0xF000
 #define AR5416_EEP_VER_MINOR_MASK    0x0FFF
 #define AR5416_EEP_MINOR_VER_2       0x2
 #define AR5416_EEP_MINOR_VER_3       0x3
@@ -177,7 +178,6 @@
 #define AR9280_TX_GAIN_TABLE_SIZE 22
 
 #define AR9287_EEP_VER               0xE
-#define AR9287_EEP_VER_MINOR_MASK    0xFFF
 #define AR9287_EEP_MINOR_VER_1       0x1
 #define AR9287_EEP_MINOR_VER_2       0x2
 #define AR9287_EEP_MINOR_VER_3       0x3

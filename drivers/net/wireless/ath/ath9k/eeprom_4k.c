@@ -20,12 +20,17 @@
 
 static int ath9k_hw_4k_get_eeprom_ver(struct ath_hw *ah)
 {
-	return ((ah->eeprom.map4k.baseEepHeader.version >> 12) & 0xF);
+	u16 version = ah->eeprom.map4k.baseEepHeader.version;
+
+	return (version & AR5416_EEP_VER_MAJOR_MASK) >>
+		AR5416_EEP_VER_MAJOR_SHIFT;
 }
 
 static int ath9k_hw_4k_get_eeprom_rev(struct ath_hw *ah)
 {
-	return ((ah->eeprom.map4k.baseEepHeader.version) & 0xFFF);
+	u16 version = ah->eeprom.map4k.baseEepHeader.version;
+
+	return version & AR5416_EEP_VER_MINOR_MASK;
 }
 
 #define SIZE_EEPROM_4K (sizeof(struct ar5416_eeprom_4k) / sizeof(u16))
@@ -136,8 +141,8 @@ static u32 ath9k_hw_4k_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 		goto out;
 	}
 
-	PR_EEP("Major Version", pBase->version >> 12);
-	PR_EEP("Minor Version", pBase->version & 0xFFF);
+	PR_EEP("Major Version", ath9k_hw_4k_get_eeprom_ver(ah));
+	PR_EEP("Minor Version", ath9k_hw_4k_get_eeprom_rev(ah));
 	PR_EEP("Checksum", pBase->checksum);
 	PR_EEP("Length", pBase->length);
 	PR_EEP("RegDomain1", pBase->regDmn[0]);
@@ -314,14 +319,12 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 
 	xpdMask = pEepData->modalHeader.xpdGain;
 
-	if ((pEepData->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
-	    AR5416_EEP_MINOR_VER_2) {
+	if (ath9k_hw_4k_get_eeprom_rev(ah) >= AR5416_EEP_MINOR_VER_2)
 		pdGainOverlap_t2 =
 			pEepData->modalHeader.pdGainOverlap;
-	} else {
+	else
 		pdGainOverlap_t2 = (u16)(MS(REG_READ(ah, AR_PHY_TPCRG5),
 					    AR_PHY_TPCRG5_PD_GAIN_OVERLAP));
-	}
 
 	pCalBChans = pEepData->calFreqPier2G;
 	numPiers = AR5416_EEP4K_NUM_2G_CAL_PIERS;
@@ -607,10 +610,8 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 
 	memset(ratesArray, 0, sizeof(ratesArray));
 
-	if ((pEepData->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
-	    AR5416_EEP_MINOR_VER_2) {
+	if (ath9k_hw_4k_get_eeprom_rev(ah) >= AR5416_EEP_MINOR_VER_2)
 		ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
-	}
 
 	ath9k_hw_set_4k_power_per_rate_table(ah, chan,
 					     &ratesArray[0], cfgCtl,
@@ -730,8 +731,7 @@ static void ath9k_hw_4k_set_gain(struct ath_hw *ah,
 		SM(pModal->iqCalQCh[0], AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF),
 		AR_PHY_TIMING_CTRL4_IQCORR_Q_Q_COFF | AR_PHY_TIMING_CTRL4_IQCORR_Q_I_COFF);
 
-	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
-	    AR5416_EEP_MINOR_VER_3) {
+	if (ath9k_hw_4k_get_eeprom_rev(ah) >= AR5416_EEP_MINOR_VER_3) {
 		txRxAttenLocal = pModal->txRxAttenCh[0];
 
 		REG_RMW_FIELD(ah, AR_PHY_GAIN_2GHZ,
@@ -1009,16 +1009,14 @@ static void ath9k_hw_4k_set_board_values(struct ath_hw *ah,
 	REG_RMW_FIELD(ah, AR_PHY_EXT_CCA0, AR_PHY_EXT_CCA0_THRESH62,
 		      pModal->thresh62);
 
-	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
-						AR5416_EEP_MINOR_VER_2) {
+	if (ath9k_hw_4k_get_eeprom_rev(ah) >= AR5416_EEP_MINOR_VER_2) {
 		REG_RMW_FIELD(ah, AR_PHY_RF_CTL2, AR_PHY_TX_END_DATA_START,
 			      pModal->txFrameToDataStart);
 		REG_RMW_FIELD(ah, AR_PHY_RF_CTL2, AR_PHY_TX_END_PA_ON,
 			      pModal->txFrameToPaOn);
 	}
 
-	if ((eep->baseEepHeader.version & AR5416_EEP_VER_MINOR_MASK) >=
-						AR5416_EEP_MINOR_VER_3) {
+	if (ath9k_hw_4k_get_eeprom_rev(ah) >= AR5416_EEP_MINOR_VER_3) {
 		if (IS_CHAN_HT40(chan))
 			REG_RMW_FIELD(ah, AR_PHY_SETTLING,
 				      AR_PHY_SETTLING_SWITCH,

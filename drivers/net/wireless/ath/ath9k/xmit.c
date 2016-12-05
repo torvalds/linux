@@ -1151,8 +1151,9 @@ static u8 ath_get_rate_txpower(struct ath_softc *sc, struct ath_buf *bf,
 		if (is_40) {
 			u8 power_ht40delta;
 			struct ar5416_eeprom_def *eep = &ah->eeprom.def;
+			u16 eeprom_rev = ah->eep_ops->get_eeprom_rev(ah);
 
-			if (AR5416_VER_MASK >= AR5416_EEP_MINOR_VER_2) {
+			if (eeprom_rev >= AR5416_EEP_MINOR_VER_2) {
 				bool is_2ghz;
 				struct modal_eep_header *pmodal;
 

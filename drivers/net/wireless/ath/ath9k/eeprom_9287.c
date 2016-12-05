@@ -22,12 +22,17 @@
 
 static int ath9k_hw_ar9287_get_eeprom_ver(struct ath_hw *ah)
 {
-	return (ah->eeprom.map9287.baseEepHeader.version >> 12) & 0xF;
+	u16 version = ah->eeprom.map9287.baseEepHeader.version;
+
+	return (version & AR5416_EEP_VER_MAJOR_MASK) >>
+		AR5416_EEP_VER_MAJOR_SHIFT;
 }
 
 static int ath9k_hw_ar9287_get_eeprom_rev(struct ath_hw *ah)
 {
-	return (ah->eeprom.map9287.baseEepHeader.version) & 0xFFF;
+	u16 version = ah->eeprom.map9287.baseEepHeader.version;
+
+	return version & AR5416_EEP_VER_MINOR_MASK;
 }
 
 static bool __ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
@@ -132,8 +137,8 @@ static u32 ath9k_hw_ar9287_dump_eeprom(struct ath_hw *ah, bool dump_base_hdr,
 		goto out;
 	}
 
-	PR_EEP("Major Version", pBase->version >> 12);
-	PR_EEP("Minor Version", pBase->version & 0xFFF);
+	PR_EEP("Major Version", ath9k_hw_ar9287_get_eeprom_ver(ah));
+	PR_EEP("Minor Version", ath9k_hw_ar9287_get_eeprom_rev(ah));
 	PR_EEP("Checksum", pBase->checksum);
 	PR_EEP("Length", pBase->length);
 	PR_EEP("RegDomain1", pBase->regDmn[0]);
@@ -383,8 +388,7 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 
 	xpdMask = pEepData->modalHeader.xpdGain;
 
-	if ((pEepData->baseEepHeader.version & AR9287_EEP_VER_MINOR_MASK) >=
-	    AR9287_EEP_MINOR_VER_2)
+	if (ath9k_hw_ar9287_get_eeprom_rev(ah) >= AR9287_EEP_MINOR_VER_2)
 		pdGainOverlap_t2 = pEepData->modalHeader.pdGainOverlap;
 	else
 		pdGainOverlap_t2 = (u16)(MS(REG_READ(ah, AR_PHY_TPCRG5),
@@ -733,8 +737,7 @@ static void ath9k_hw_ar9287_set_txpower(struct ath_hw *ah,
 
 	memset(ratesArray, 0, sizeof(ratesArray));
 
-	if ((pEepData->baseEepHeader.version & AR9287_EEP_VER_MINOR_MASK) >=
-	    AR9287_EEP_MINOR_VER_2)
+	if (ath9k_hw_ar9287_get_eeprom_rev(ah) >= AR9287_EEP_MINOR_VER_2)
 		ht40PowerIncForPdadc = pModal->ht40PowerIncForPdadc;
 
 	ath9k_hw_set_ar9287_power_per_rate_table(ah, chan,
