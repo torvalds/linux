@@ -2071,15 +2071,15 @@ static int gen6_ppgtt_allocate_page_directories(struct i915_hw_ppgtt *ppgtt)
 		return ret;
 
 alloc:
-	ret = drm_mm_insert_node_in_range_generic(&ggtt->base.mm,
-						  &ppgtt->node, GEN6_PD_SIZE,
-						  GEN6_PD_ALIGN, 0,
+	ret = drm_mm_insert_node_in_range_generic(&ggtt->base.mm, &ppgtt->node,
+						  GEN6_PD_SIZE, GEN6_PD_ALIGN,
+						  I915_COLOR_UNEVICTABLE,
 						  0, ggtt->base.total,
 						  DRM_MM_TOPDOWN);
 	if (ret == -ENOSPC && !retried) {
 		ret = i915_gem_evict_something(&ggtt->base,
 					       GEN6_PD_SIZE, GEN6_PD_ALIGN,
-					       I915_CACHE_NONE,
+					       I915_COLOR_UNEVICTABLE,
 					       0, ggtt->base.total,
 					       0);
 		if (ret)
@@ -2755,7 +2755,8 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	/* Reserve a mappable slot for our lockless error capture */
 	ret = drm_mm_insert_node_in_range_generic(&ggtt->base.mm,
 						  &ggtt->error_capture,
-						  4096, 0, -1,
+						  4096, 0,
+						  I915_COLOR_UNEVICTABLE,
 						  0, ggtt->mappable_end,
 						  0, 0);
 	if (ret)

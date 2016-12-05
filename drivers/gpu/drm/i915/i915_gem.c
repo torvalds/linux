@@ -70,7 +70,8 @@ insert_mappable_node(struct i915_ggtt *ggtt,
 {
 	memset(node, 0, sizeof(*node));
 	return drm_mm_insert_node_in_range_generic(&ggtt->base.mm, node,
-						   size, 0, -1,
+						   size, 0,
+						   I915_COLOR_UNEVICTABLE,
 						   0, ggtt->mappable_end,
 						   DRM_MM_SEARCH_DEFAULT,
 						   DRM_MM_CREATE_DEFAULT);

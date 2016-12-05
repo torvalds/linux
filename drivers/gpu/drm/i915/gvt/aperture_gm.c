@@ -73,12 +73,15 @@ static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 	mutex_lock(&dev_priv->drm.struct_mutex);
 search_again:
 	ret = drm_mm_insert_node_in_range_generic(&dev_priv->ggtt.base.mm,
-						  node, size, 4096, 0,
+						  node, size, 4096,
+						  I915_COLOR_UNEVICTABLE,
 						  start, end, search_flag,
 						  alloc_flag);
 	if (ret) {
 		ret = i915_gem_evict_something(&dev_priv->ggtt.base,
-					       size, 4096, 0, start, end, 0);
+					       size, 4096,
+					       I915_COLOR_UNEVICTABLE,
+					       start, end, 0);
 		if (ret == 0 && ++retried < 3)
 			goto search_again;
 

@@ -437,7 +437,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 			memset(&cache->node, 0, sizeof(cache->node));
 			ret = drm_mm_insert_node_in_range_generic
 				(&ggtt->base.mm, &cache->node,
-				 4096, 0, 0,
+				 4096, 0, I915_COLOR_UNEVICTABLE,
 				 0, ggtt->mappable_end,
 				 DRM_MM_SEARCH_DEFAULT,
 				 DRM_MM_CREATE_DEFAULT);

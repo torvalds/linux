@@ -934,6 +934,8 @@ enum i915_cache_level {
 	I915_CACHE_WT, /* hsw:gt3e WriteThrough for scanouts */
 };
 
+#define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
+
 #define DEFAULT_CONTEXT_HANDLE 0
 
 /**
