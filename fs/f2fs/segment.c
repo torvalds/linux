@@ -381,12 +381,15 @@ void f2fs_balance_fs_bg(struct f2fs_sb_info *sbi)
 	else
 		build_free_nids(sbi, false);
 
+	if (!is_idle(sbi))
+		return;
+
 	/* checkpoint is the only way to shrink partial cached entries */
 	if (!available_free_memory(sbi, NAT_ENTRIES) ||
 			!available_free_memory(sbi, INO_ENTRIES) ||
 			excess_prefree_segs(sbi) ||
 			excess_dirty_nats(sbi) ||
-			(is_idle(sbi) && f2fs_time_over(sbi, CP_TIME))) {
+			f2fs_time_over(sbi, CP_TIME)) {
 		if (test_opt(sbi, DATA_FLUSH)) {
 			struct blk_plug plug;
 
