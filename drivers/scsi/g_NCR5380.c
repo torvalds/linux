@@ -67,6 +67,56 @@ MODULE_PARM_DESC(card, "card type (0=NCR5380, 1=NCR53C400, 2=NCR53C400A, 3=DTC31
 MODULE_ALIAS("g_NCR5380_mmio");
 MODULE_LICENSE("GPL");
 
+static void g_NCR5380_trigger_irq(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+
+	/*
+	 * An interrupt is triggered whenever BSY = false, SEL = true
+	 * and a bit set in the SELECT_ENABLE_REG is asserted on the
+	 * SCSI bus.
+	 *
+	 * Note that the bus is only driven when the phase control signals
+	 * (I/O, C/D, and MSG) match those in the TCR.
+	 */
+	NCR5380_write(TARGET_COMMAND_REG,
+	              PHASE_SR_TO_TCR(NCR5380_read(STATUS_REG) & PHASE_MASK));
+	NCR5380_write(SELECT_ENABLE_REG, hostdata->id_mask);
+	NCR5380_write(OUTPUT_DATA_REG, hostdata->id_mask);
+	NCR5380_write(INITIATOR_COMMAND_REG,
+	              ICR_BASE | ICR_ASSERT_DATA | ICR_ASSERT_SEL);
+
+	msleep(1);
+
+	NCR5380_write(INITIATOR_COMMAND_REG, ICR_BASE);
+	NCR5380_write(SELECT_ENABLE_REG, 0);
+	NCR5380_write(TARGET_COMMAND_REG, 0);
+}
+
+/**
+ * g_NCR5380_probe_irq - find the IRQ of a NCR5380 or equivalent
+ * @instance: SCSI host instance
+ *
+ * Autoprobe for the IRQ line used by the card by triggering an IRQ
+ * and then looking to see what interrupt actually turned up.
+ */
+
+static int g_NCR5380_probe_irq(struct Scsi_Host *instance)
+{
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	int irq_mask, irq;
+
+	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+	irq_mask = probe_irq_on();
+	g_NCR5380_trigger_irq(instance);
+	irq = probe_irq_off(irq_mask);
+	NCR5380_read(RESET_PARITY_INTERRUPT_REG);
+
+	if (irq <= 0)
+		return NO_IRQ;
+	return irq;
+}
+
 /*
  * Configure I/O address of 53C400A or DTC436 by writing magic numbers
  * to ports 0x779 and 0x379.
@@ -272,7 +322,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 	if (irq != IRQ_AUTO)
 		instance->irq = irq;
 	else
-		instance->irq = NCR5380_probe_irq(instance, 0xffff);
+		instance->irq = g_NCR5380_probe_irq(instance);
 
 	/* Compatibility with documented NCR5380 kernel parameters */
 	if (instance->irq == 255)

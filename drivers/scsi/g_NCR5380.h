@@ -51,4 +51,6 @@
 #define BOARD_DTC3181E	3
 #define BOARD_HP_C2502	4
 
+#define IRQ_AUTO	254
+
 #endif /* GENERIC_NCR5380_H */
