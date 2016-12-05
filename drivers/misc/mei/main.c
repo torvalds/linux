@@ -207,7 +207,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 
 		mutex_lock(&dev->device_lock);
 		if (!mei_cl_is_connected(cl)) {
-			rets = -EBUSY;
+			rets = -ENODEV;
 			goto out;
 		}
 	}

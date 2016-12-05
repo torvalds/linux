@@ -1258,8 +1258,14 @@ static bool mei_me_fw_type_nm(struct pci_dev *pdev)
 static bool mei_me_fw_type_sps(struct pci_dev *pdev)
 {
 	u32 reg;
-	/* Read ME FW Status check for SPS Firmware */
-	pci_read_config_dword(pdev, PCI_CFG_HFS_1, &reg);
+	unsigned int devfn;
+
+	/*
+	 * Read ME FW Status register to check for SPS Firmware
+	 * The SPS FW is only signaled in pci function 0
+	 */
+	devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
+	pci_bus_read_config_dword(pdev->bus, devfn, PCI_CFG_HFS_1, &reg);
 	/* if bits [19:16] = 15, running SPS Firmware */
 	return (reg & 0xf0000) == 0xf0000;
 }
