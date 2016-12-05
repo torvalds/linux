@@ -14,13 +14,6 @@ Following translations are available on the WWW:
 	- this file.
 ABI/
 	- info on kernel <-> userspace ABI and relative interface stability.
-
-admin-guide/bug-hunting.rst
-	- brute force method of doing binary search of patches to find bug.
-process/changes.rst
-	- list of changes that break older software packages.
-process/coding-style.rst
-	- how the maintainers expect the C code in the kernel to look.
 DMA-API.txt
 	- DMA API, pci_ API & extensions for non-consistent memory machines.
 DMA-API-HOWTO.txt
@@ -33,8 +26,6 @@ DocBook/
 	- directory with DocBook templates etc. for kernel documentation.
 EDID/
 	- directory with info on customizing EDID for broken gfx/displays.
-process/howto.rst
-	- the process and procedures of how to do Linux kernel development.
 IPMI.txt
 	- info on Linux Intelligent Platform Management Interface (IPMI) Driver.
 IRQ-affinity.txt
@@ -48,32 +39,22 @@ Intel-IOMMU.txt
 Makefile
 	- This file does nothing. Removing it breaks make htmldocs and
 	  make distclean.
-process/management-style.rst
-	- how to (attempt to) manage kernel hackers.
 RCU/
 	- directory with info on RCU (read-copy update).
 SAK.txt
 	- info on Secure Attention Keys.
 SM501.txt
 	- Silicon Motion SM501 multimedia companion chip
-admin-guide/security-bugs.rst
-	- procedure for reporting security bugs found in the kernel.
-process/submit-checklist.rst
-	- Linux kernel patch submission checklist.
-process/submitting-drivers.rst
-	- procedure to get a new driver source included into the kernel tree.
-process/submitting-patches.rst
-	- procedure to get a source patch included into the kernel tree.
 VGA-softcursor.txt
 	- how to change your VGA cursor from a blinking underscore.
 accounting/
 	- documentation on accounting and taskstats.
 acpi/
 	- info on ACPI-specific hooks in the kernel.
+admin-guide/
+	- info related to Linux users and system admins.
 aoe/
 	- description of AoE (ATA over Ethernet) along with config examples.
-process/applying-patches.rst
-	- description of various trees and how to apply their patches.
 arm/
 	- directory with info about Linux on the ARM architecture.
 arm64/
@@ -86,8 +67,6 @@ auxdisplay/
 	- misc. LCD driver documentation (cfag12864b, ks0108).
 backlight/
 	- directory with info on controlling backlights in flat panel displays
-admin-guide/bad-memory.rst
-	- how to use kernel parameters to exclude bad RAM regions.
 basic_profiling.txt
 	- basic instructions for those who wants to profile Linux kernel.
 bcache.txt
@@ -152,12 +131,8 @@ debugging-via-ohci1394.txt
 	- how to use firewire like a hardware debugger memory reader.
 dell_rbu.txt
 	- document demonstrating the use of the Dell Remote BIOS Update driver.
-process/
-	- how to work with the mainline kernel development process.
 device-mapper/
 	- directory with info on Device Mapper.
-admin-guide/devices.rst
-	- plain ASCII listing of all the nodes in /dev/ with major minor #'s.
 devicetree/
 	- directory with info on device tree files used by OF/PowerPC/ARM
 digsig.txt
@@ -178,8 +153,6 @@ efi-stub.txt
 	- How to use the EFI boot stub to bypass GRUB or elilo on EFI systems.
 eisa.txt
 	- info on EISA bus support.
-process/email-clients.rst
-	- info on how to use e-mail to send un-mangled (git) patches.
 extcon/
 	- directory with porting guide for Android kernel switch driver.
 fault-injection/
@@ -226,10 +199,6 @@ ia64/
 	- directory with info about Linux on Intel 64 bit architecture.
 infiniband/
 	- directory with documents concerning Linux InfiniBand support.
-admin-guide/init.rst
-	- what to do when the kernel can't find the 1st process to run.
-admin-guide/initrd.rst
-	- how to use the RAM disk as an initial/temporary root filesystem.
 input/
 	- info on Linux input device support.
 intel_txt.txt
@@ -248,20 +217,14 @@ isapnp.txt
 	- info on Linux ISA Plug & Play support.
 isdn/
 	- directory with info on the Linux ISDN support, and supported cards.
-admin-guide/java.rst
-	- info on the in-kernel binary support for Java(tm).
 ja_JP/
 	- directory with Japanese translations of various documents
 kbuild/
 	- directory with info about the kernel build process.
 kdump/
 	- directory with mini HowTo on getting the crash dump code to work.
-process/kernel-docs.rst
-	- listing of various WWW + books that document kernel internals.
 doc-guide/
 	- how to write and format reStructuredText kernel documentation
-admin-guide/kernel-parameters.rst
-	- summary listing of command line / boot prompt args for the kernel.
 kernel-per-CPU-kthreads.txt
 	- List of all per-CPU kthreads and how they introduce jitter.
 kmemcheck.txt
@@ -302,8 +265,6 @@ magic-number.txt
 	- list of magic numbers used to mark/protect kernel data structures.
 mailbox.txt
 	- How to write drivers for the common mailbox framework (IPC).
-admin-guide/md.rst
-	- info on boot arguments for the multiple devices driver.
 media-framework.txt
 	- info on media framework, its data structures, functions and usage.
 memory-barriers.txt
@@ -326,8 +287,6 @@ module-signing.txt
 	- Kernel module signing for increased security when loading modules.
 mtd/
 	- directory with info about memory technology devices (flash)
-admin-guide/mono.rst
-	- how to execute Mono-based .NET binaries with the help of BINFMT_MISC.
 namespaces/
 	- directory with various information about namespaces
 netlabel/
@@ -340,8 +299,6 @@ nommu-mmap.txt
 	- documentation about no-mmu memory mapping support.
 numastat.txt
 	- info on how to read Numa policy hit/miss statistics in sysfs.
-admin-guide/oops-tracing.rst
-	- how to decode those nasty internal kernel error dump messages.
 padata.txt
 	- An introduction to the "padata" parallel execution API
 parisc/
@@ -372,14 +329,14 @@ preempt-locking.txt
 	- info on locking under a preemptive kernel.
 printk-formats.txt
 	- how to get printk format specifiers right
+process/
+	- how to work with the mainline kernel development process.
 pps/
 	- directory with information on the pulse-per-second support
 ptp/
 	- directory with info on support for IEEE 1588 PTP clocks in Linux.
 pwm.txt
 	- info on the pulse width modulation driver subsystem
-admin-guide/ramoops.rst
-	- documentation of the ramoops oops/panic logging module.
 rapidio/
 	- directory with info on RapidIO packet-based fabric interconnect
 rbtree.txt
@@ -406,8 +363,6 @@ security/
 	- directory that contains security-related info
 serial/
 	- directory with info on the low level serial API.
-admin-guide/serial-console.rst
-	- how to set up Linux with a serial line console as the default.
 sgi-ioc4.txt
 	- description of the SGI IOC4 PCI (multi function) device.
 sh/
@@ -420,10 +375,6 @@ sparse.txt
 	- info on how to obtain and use the sparse tool for typechecking.
 spi/
 	- overview of Linux kernel Serial Peripheral Interface (SPI) support.
-process/stable-api-nonsense.rst
-	- info on why the kernel does not have a stable in-kernel api or abi.
-process/stable-kernel-rules.rst
-	- rules and procedures for the -stable kernel releases.
 static-keys.txt
 	- info on how static keys allow debug code in hotpaths via patching
 svga.txt
@@ -444,8 +395,6 @@ trace/
 	- directory with info on tracing technologies within linux
 unaligned-memory-access.txt
 	- info on how to avoid arch breaking unaligned memory access in code.
-admin-guide/unicode.rst
-	- info on the Unicode character/font mapping used in Linux.
 unshare.txt
 	- description of the Linux unshare system call.
 usb/
@@ -464,8 +413,6 @@ vm/
 	- directory with info on the Linux vm code.
 vme_api.txt
 	- file relating info on the VME bus API in linux
-process/volatile-considered-harmful.rst
-	- Why the "volatile" type class should not be used
 w1/
 	- directory with documents regarding the 1-wire (w1) subsystem.
 watchdog/
