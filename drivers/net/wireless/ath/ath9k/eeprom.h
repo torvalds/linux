@@ -230,7 +230,6 @@ enum eeprom_param {
 	EEP_DB_5,
 	EEP_OB_2,
 	EEP_DB_2,
-	EEP_MINOR_REV,
 	EEP_TX_MASK,
 	EEP_RX_MASK,
 	EEP_FSTCLK_5G,

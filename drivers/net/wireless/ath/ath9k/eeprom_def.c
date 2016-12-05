@@ -380,8 +380,6 @@ static u32 ath9k_hw_def_get_eeprom(struct ath_hw *ah,
 		return pModal[1].ob;
 	case EEP_DB_2:
 		return pModal[1].db;
-	case EEP_MINOR_REV:
-		return AR5416_VER_MASK;
 	case EEP_TX_MASK:
 		return pBase->txMask;
 	case EEP_RX_MASK:

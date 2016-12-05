@@ -250,9 +250,7 @@ static u32 ath9k_hw_ar9287_get_eeprom(struct ath_hw *ah,
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &eep->modalHeader;
 	struct base_eep_ar9287_header *pBase = &eep->baseEepHeader;
-	u16 ver_minor;
-
-	ver_minor = pBase->version & AR9287_EEP_VER_MINOR_MASK;
+	u16 ver_minor = ath9k_hw_ar9287_get_eeprom_rev(ah);
 
 	switch (param) {
 	case EEP_NFTHRESH_2:
@@ -271,8 +269,6 @@ static u32 ath9k_hw_ar9287_get_eeprom(struct ath_hw *ah,
 		return pBase->opCapFlags;
 	case EEP_RF_SILENT:
 		return pBase->rfSilent;
-	case EEP_MINOR_REV:
-		return ver_minor;
 	case EEP_TX_MASK:
 		return pBase->txMask;
 	case EEP_RX_MASK:

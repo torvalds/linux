@@ -254,9 +254,6 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 	struct ar5416_eeprom_4k *eep = &ah->eeprom.map4k;
 	struct modal_eep_4k_header *pModal = &eep->modalHeader;
 	struct base_eep_header_4k *pBase = &eep->baseEepHeader;
-	u16 ver_minor;
-
-	ver_minor = pBase->version & AR5416_EEP_VER_MINOR_MASK;
 
 	switch (param) {
 	case EEP_NFTHRESH_2:
@@ -279,8 +276,6 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 		return pModal->ob_0;
 	case EEP_DB_2:
 		return pModal->db1_1;
-	case EEP_MINOR_REV:
-		return ver_minor;
 	case EEP_TX_MASK:
 		return pBase->txMask;
 	case EEP_RX_MASK:
