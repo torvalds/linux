@@ -1,7 +1,12 @@
 Hisilicon hix5hd2 gmac controller
 
 Required properties:
-- compatible: should be "hisilicon,hix5hd2-gmac".
+- compatible: should contain one of the following SoC strings:
+	* "hisilicon,hix5hd2-gemac"
+	* "hisilicon,hi3798cv200-gemac"
+	and one of the following version string:
+	* "hisilicon,hisi-gemac-v1"
+	* "hisilicon,hisi-gemac-v2"
 - reg: specifies base physical address(s) and size of the device registers.
   The first region is the MAC register base and size.
   The second region is external interface control register.
@@ -20,7 +25,7 @@ Required properties:
 
 Example:
 	gmac0: ethernet@f9840000 {
-		compatible = "hisilicon,hix5hd2-gmac";
+		compatible = "hisilicon,hix5hd2-gemac", "hisilicon,hisi-gemac-v1";
 		reg = <0xf9840000 0x1000>,<0xf984300c 0x4>;
 		interrupts = <0 71 4>;
 		#address-cells = <1>;

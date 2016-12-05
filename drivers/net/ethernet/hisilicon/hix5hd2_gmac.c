@@ -189,6 +189,10 @@
 #define dma_cnt(n)			((n) >> 5)
 #define dma_byte(n)			((n) << 5)
 
+#define HW_CAP_TSO			BIT(0)
+#define GEMAC_V1			0
+#define GEMAC_V2			(GEMAC_V1 | HW_CAP_TSO)
+
 struct hix5hd2_desc {
 	__le32 buff_addr;
 	__le32 cmd;
@@ -1021,7 +1025,10 @@ static int hix5hd2_dev_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id hix5hd2_of_match[] = {
-	{.compatible = "hisilicon,hix5hd2-gmac",},
+	{ .compatible = "hisilicon,hisi-gemac-v1", .data = (void *)GEMAC_V1 },
+	{ .compatible = "hisilicon,hisi-gemac-v2", .data = (void *)GEMAC_V2 },
+	{ .compatible = "hisilicon,hix5hd2-gemac", .data = (void *)GEMAC_V1 },
+	{ .compatible = "hisilicon,hi3798cv200-gemac", .data = (void *)GEMAC_V2 },
 	{},
 };
 
@@ -1029,7 +1036,7 @@ MODULE_DEVICE_TABLE(of, hix5hd2_of_match);
 
 static struct platform_driver hix5hd2_dev_driver = {
 	.driver = {
-		.name = "hix5hd2-gmac",
+		.name = "hisi-gemac",
 		.of_match_table = hix5hd2_of_match,
 	},
 	.probe = hix5hd2_dev_probe,
@@ -1038,6 +1045,6 @@ static struct platform_driver hix5hd2_dev_driver = {
 
 module_platform_driver(hix5hd2_dev_driver);
 
-MODULE_DESCRIPTION("HISILICON HIX5HD2 Ethernet driver");
+MODULE_DESCRIPTION("HISILICON Gigabit Ethernet MAC driver");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:hix5hd2-gmac");
+MODULE_ALIAS("platform:hisi-gemac");
