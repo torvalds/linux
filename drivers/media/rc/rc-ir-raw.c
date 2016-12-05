@@ -235,7 +235,6 @@ static void ir_raw_disable_protocols(struct rc_dev *dev, u64 protocols)
 {
 	mutex_lock(&dev->lock);
 	dev->enabled_protocols &= ~protocols;
-	dev->enabled_wakeup_protocols &= ~protocols;
 	mutex_unlock(&dev->lock);
 }
 

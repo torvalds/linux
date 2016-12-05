@@ -830,11 +830,6 @@ struct rc_filter_attribute {
 };
 #define to_rc_filter_attr(a) container_of(a, struct rc_filter_attribute, attr)
 
-#define RC_PROTO_ATTR(_name, _mode, _show, _store, _type)		\
-	struct rc_filter_attribute dev_attr_##_name = {			\
-		.attr = __ATTR(_name, _mode, _show, _store),		\
-		.type = (_type),					\
-	}
 #define RC_FILTER_ATTR(_name, _mode, _show, _store, _type, _mask)	\
 	struct rc_filter_attribute dev_attr_##_name = {			\
 		.attr = __ATTR(_name, _mode, _show, _store),		\
@@ -860,13 +855,13 @@ static bool lirc_is_present(void)
 }
 
 /**
- * show_protocols() - shows the current/wakeup IR protocol(s)
+ * show_protocols() - shows the current IR protocol(s)
  * @device:	the device descriptor
  * @mattr:	the device attribute struct
  * @buf:	a pointer to the output buffer
  *
  * This routine is a callback routine for input read the IR protocol type(s).
- * it is trigged by reading /sys/class/rc/rc?/[wakeup_]protocols.
+ * it is trigged by reading /sys/class/rc/rc?/protocols.
  * It returns the protocol names of supported protocols.
  * Enabled protocols are printed in brackets.
  *
@@ -877,7 +872,6 @@ static ssize_t show_protocols(struct device *device,
 			      struct device_attribute *mattr, char *buf)
 {
 	struct rc_dev *dev = to_rc_dev(device);
-	struct rc_filter_attribute *fattr = to_rc_filter_attr(mattr);
 	u64 allowed, enabled;
 	char *tmp = buf;
 	int i;
@@ -891,15 +885,10 @@ static ssize_t show_protocols(struct device *device,
 
 	mutex_lock(&dev->lock);
 
-	if (fattr->type == RC_FILTER_NORMAL) {
-		enabled = dev->enabled_protocols;
-		allowed = dev->allowed_protocols;
-		if (dev->raw && !allowed)
-			allowed = ir_raw_get_allowed_protocols();
-	} else {
-		enabled = dev->enabled_wakeup_protocols;
-		allowed = dev->allowed_wakeup_protocols;
-	}
+	enabled = dev->enabled_protocols;
+	allowed = dev->allowed_protocols;
+	if (dev->raw && !allowed)
+		allowed = ir_raw_get_allowed_protocols();
 
 	mutex_unlock(&dev->lock);
 
@@ -1058,11 +1047,8 @@ static ssize_t store_protocols(struct device *device,
 			       const char *buf, size_t len)
 {
 	struct rc_dev *dev = to_rc_dev(device);
-	struct rc_filter_attribute *fattr = to_rc_filter_attr(mattr);
 	u64 *current_protocols;
-	int (*change_protocol)(struct rc_dev *dev, u64 *rc_type);
 	struct rc_scancode_filter *filter;
-	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
 	u64 old_protocols, new_protocols;
 	ssize_t rc;
 
@@ -1073,21 +1059,11 @@ static ssize_t store_protocols(struct device *device,
 	if (!atomic_read(&dev->initialized))
 		return -ERESTARTSYS;
 
-	if (fattr->type == RC_FILTER_NORMAL) {
-		IR_dprintk(1, "Normal protocol change requested\n");
-		current_protocols = &dev->enabled_protocols;
-		change_protocol = dev->change_protocol;
-		filter = &dev->scancode_filter;
-		set_filter = dev->s_filter;
-	} else {
-		IR_dprintk(1, "Wakeup protocol change requested\n");
-		current_protocols = &dev->enabled_wakeup_protocols;
-		change_protocol = dev->change_wakeup_protocol;
-		filter = &dev->scancode_wakeup_filter;
-		set_filter = dev->s_wakeup_filter;
-	}
+	IR_dprintk(1, "Normal protocol change requested\n");
+	current_protocols = &dev->enabled_protocols;
+	filter = &dev->scancode_filter;
 
-	if (!change_protocol) {
+	if (!dev->change_protocol) {
 		IR_dprintk(1, "Protocol switching not supported\n");
 		return -EINVAL;
 	}
@@ -1100,7 +1076,7 @@ static ssize_t store_protocols(struct device *device,
 	if (rc < 0)
 		goto out;
 
-	rc = change_protocol(dev, &new_protocols);
+	rc = dev->change_protocol(dev, &new_protocols);
 	if (rc < 0) {
 		IR_dprintk(1, "Error setting protocols to 0x%llx\n",
 			   (long long)new_protocols);
@@ -1123,16 +1099,16 @@ static ssize_t store_protocols(struct device *device,
 	 * Try setting the same filter with the new protocol (if any).
 	 * Fall back to clearing the filter.
 	 */
-	if (set_filter && filter->mask) {
+	if (dev->s_filter && filter->mask) {
 		if (new_protocols)
-			rc = set_filter(dev, filter);
+			rc = dev->s_filter(dev, filter);
 		else
 			rc = -1;
 
 		if (rc < 0) {
 			filter->data = 0;
 			filter->mask = 0;
-			set_filter(dev, filter);
+			dev->s_filter(dev, filter);
 		}
 	}
 
@@ -1221,7 +1197,6 @@ static ssize_t store_filter(struct device *device,
 	int ret;
 	unsigned long val;
 	int (*set_filter)(struct rc_dev *dev, struct rc_scancode_filter *filter);
-	u64 *enabled_protocols;
 
 	/* Device is being removed */
 	if (!dev)
@@ -1236,11 +1211,9 @@ static ssize_t store_filter(struct device *device,
 
 	if (fattr->type == RC_FILTER_NORMAL) {
 		set_filter = dev->s_filter;
-		enabled_protocols = &dev->enabled_protocols;
 		filter = &dev->scancode_filter;
 	} else {
 		set_filter = dev->s_wakeup_filter;
-		enabled_protocols = &dev->enabled_wakeup_protocols;
 		filter = &dev->scancode_wakeup_filter;
 	}
 
@@ -1255,7 +1228,16 @@ static ssize_t store_filter(struct device *device,
 	else
 		new_filter.data = val;
 
-	if (!*enabled_protocols && val) {
+	if (fattr->type == RC_FILTER_WAKEUP) {
+		/* refuse to set a filter unless a protocol is enabled */
+		if (dev->wakeup_protocol == RC_TYPE_UNKNOWN) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+	}
+
+	if (fattr->type == RC_FILTER_NORMAL && !dev->enabled_protocols &&
+	    val) {
 		/* refuse to set a filter unless a protocol is enabled */
 		ret = -EINVAL;
 		goto unlock;
@@ -1270,6 +1252,172 @@ static ssize_t store_filter(struct device *device,
 unlock:
 	mutex_unlock(&dev->lock);
 	return (ret < 0) ? ret : len;
+}
+
+/*
+ * This is the list of all variants of all protocols, which is used by
+ * the wakeup_protocols sysfs entry. In the protocols sysfs entry some
+ * some protocols are grouped together (e.g. nec = nec + necx + nec32).
+ *
+ * For wakeup we need to know the exact protocol variant so the hardware
+ * can be programmed exactly what to expect.
+ */
+static const char * const proto_variant_names[] = {
+	[RC_TYPE_UNKNOWN] = "unknown",
+	[RC_TYPE_OTHER] = "other",
+	[RC_TYPE_RC5] = "rc-5",
+	[RC_TYPE_RC5X_20] = "rc-5x-20",
+	[RC_TYPE_RC5_SZ] = "rc-5-sz",
+	[RC_TYPE_JVC] = "jvc",
+	[RC_TYPE_SONY12] = "sony-12",
+	[RC_TYPE_SONY15] = "sony-15",
+	[RC_TYPE_SONY20] = "sony-20",
+	[RC_TYPE_NEC] = "nec",
+	[RC_TYPE_NECX] = "nec-x",
+	[RC_TYPE_NEC32] = "nec-32",
+	[RC_TYPE_SANYO] = "sanyo",
+	[RC_TYPE_MCE_KBD] = "mce_kbd",
+	[RC_TYPE_RC6_0] = "rc-6-0",
+	[RC_TYPE_RC6_6A_20] = "rc-6-6a-20",
+	[RC_TYPE_RC6_6A_24] = "rc-6-6a-24",
+	[RC_TYPE_RC6_6A_32] = "rc-6-6a-32",
+	[RC_TYPE_RC6_MCE] = "rc-6-mce",
+	[RC_TYPE_SHARP] = "sharp",
+	[RC_TYPE_XMP] = "xmp",
+	[RC_TYPE_CEC] = "cec",
+};
+
+/**
+ * show_wakeup_protocols() - shows the wakeup IR protocol
+ * @device:	the device descriptor
+ * @mattr:	the device attribute struct
+ * @buf:	a pointer to the output buffer
+ *
+ * This routine is a callback routine for input read the IR protocol type(s).
+ * it is trigged by reading /sys/class/rc/rc?/wakeup_protocols.
+ * It returns the protocol names of supported protocols.
+ * The enabled protocols are printed in brackets.
+ *
+ * dev->lock is taken to guard against races between device
+ * registration, store_protocols and show_protocols.
+ */
+static ssize_t show_wakeup_protocols(struct device *device,
+				     struct device_attribute *mattr,
+				     char *buf)
+{
+	struct rc_dev *dev = to_rc_dev(device);
+	u64 allowed;
+	enum rc_type enabled;
+	char *tmp = buf;
+	int i;
+
+	/* Device is being removed */
+	if (!dev)
+		return -EINVAL;
+
+	if (!atomic_read(&dev->initialized))
+		return -ERESTARTSYS;
+
+	mutex_lock(&dev->lock);
+
+	allowed = dev->allowed_wakeup_protocols;
+	enabled = dev->wakeup_protocol;
+
+	mutex_unlock(&dev->lock);
+
+	IR_dprintk(1, "%s: allowed - 0x%llx, enabled - %d\n",
+		   __func__, (long long)allowed, enabled);
+
+	for (i = 0; i < ARRAY_SIZE(proto_variant_names); i++) {
+		if (allowed & (1ULL << i)) {
+			if (i == enabled)
+				tmp += sprintf(tmp, "[%s] ",
+						proto_variant_names[i]);
+			else
+				tmp += sprintf(tmp, "%s ",
+						proto_variant_names[i]);
+		}
+	}
+
+	if (tmp != buf)
+		tmp--;
+	*tmp = '\n';
+
+	return tmp + 1 - buf;
+}
+
+/**
+ * store_wakeup_protocols() - changes the wakeup IR protocol(s)
+ * @device:	the device descriptor
+ * @mattr:	the device attribute struct
+ * @buf:	a pointer to the input buffer
+ * @len:	length of the input buffer
+ *
+ * This routine is for changing the IR protocol type.
+ * It is trigged by writing to /sys/class/rc/rc?/wakeup_protocols.
+ * Returns @len on success or a negative error code.
+ *
+ * dev->lock is taken to guard against races between device
+ * registration, store_protocols and show_protocols.
+ */
+static ssize_t store_wakeup_protocols(struct device *device,
+				      struct device_attribute *mattr,
+				      const char *buf, size_t len)
+{
+	struct rc_dev *dev = to_rc_dev(device);
+	enum rc_type protocol;
+	ssize_t rc;
+	u64 allowed;
+	int i;
+
+	/* Device is being removed */
+	if (!dev)
+		return -EINVAL;
+
+	if (!atomic_read(&dev->initialized))
+		return -ERESTARTSYS;
+
+	mutex_lock(&dev->lock);
+
+	allowed = dev->allowed_wakeup_protocols;
+
+	if (sysfs_streq(buf, "none")) {
+		protocol = RC_TYPE_UNKNOWN;
+	} else {
+		for (i = 0; i < ARRAY_SIZE(proto_variant_names); i++) {
+			if ((allowed & (1ULL << i)) &&
+			    sysfs_streq(buf, proto_variant_names[i])) {
+				protocol = i;
+				break;
+			}
+		}
+
+		if (i == ARRAY_SIZE(proto_variant_names)) {
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
+	if (dev->wakeup_protocol != protocol) {
+		dev->wakeup_protocol = protocol;
+		IR_dprintk(1, "Wakeup protocol changed to %d\n", protocol);
+
+		if (protocol == RC_TYPE_RC6_MCE)
+			dev->scancode_wakeup_filter.data = 0x800f0000;
+		else
+			dev->scancode_wakeup_filter.data = 0;
+		dev->scancode_wakeup_filter.mask = 0;
+
+		rc = dev->s_wakeup_filter(dev, &dev->scancode_wakeup_filter);
+		if (rc == 0)
+			rc = len;
+	} else {
+		rc = len;
+	}
+
+out:
+	mutex_unlock(&dev->lock);
+	return rc;
 }
 
 static void rc_dev_release(struct device *device)
@@ -1301,10 +1449,9 @@ static int rc_dev_uevent(struct device *device, struct kobj_uevent_env *env)
 /*
  * Static device attribute struct with the sysfs attributes for IR's
  */
-static RC_PROTO_ATTR(protocols, S_IRUGO | S_IWUSR,
-		     show_protocols, store_protocols, RC_FILTER_NORMAL);
-static RC_PROTO_ATTR(wakeup_protocols, S_IRUGO | S_IWUSR,
-		     show_protocols, store_protocols, RC_FILTER_WAKEUP);
+static DEVICE_ATTR(protocols, 0644, show_protocols, store_protocols);
+static DEVICE_ATTR(wakeup_protocols, 0644, show_wakeup_protocols,
+		   store_wakeup_protocols);
 static RC_FILTER_ATTR(filter, S_IRUGO|S_IWUSR,
 		      show_filter, store_filter, RC_FILTER_NORMAL, false);
 static RC_FILTER_ATTR(filter_mask, S_IRUGO|S_IWUSR,
@@ -1315,21 +1462,12 @@ static RC_FILTER_ATTR(wakeup_filter_mask, S_IRUGO|S_IWUSR,
 		      show_filter, store_filter, RC_FILTER_WAKEUP, true);
 
 static struct attribute *rc_dev_protocol_attrs[] = {
-	&dev_attr_protocols.attr.attr,
+	&dev_attr_protocols.attr,
 	NULL,
 };
 
 static struct attribute_group rc_dev_protocol_attr_grp = {
 	.attrs	= rc_dev_protocol_attrs,
-};
-
-static struct attribute *rc_dev_wakeup_protocol_attrs[] = {
-	&dev_attr_wakeup_protocols.attr.attr,
-	NULL,
-};
-
-static struct attribute_group rc_dev_wakeup_protocol_attr_grp = {
-	.attrs	= rc_dev_wakeup_protocol_attrs,
 };
 
 static struct attribute *rc_dev_filter_attrs[] = {
@@ -1345,6 +1483,7 @@ static struct attribute_group rc_dev_filter_attr_grp = {
 static struct attribute *rc_dev_wakeup_filter_attrs[] = {
 	&dev_attr_wakeup_filter.attr.attr,
 	&dev_attr_wakeup_filter_mask.attr.attr,
+	&dev_attr_wakeup_protocols.attr,
 	NULL,
 };
 
@@ -1475,8 +1614,6 @@ int rc_register_device(struct rc_dev *dev)
 		dev->sysfs_groups[attr++] = &rc_dev_filter_attr_grp;
 	if (dev->s_wakeup_filter)
 		dev->sysfs_groups[attr++] = &rc_dev_wakeup_filter_attr_grp;
-	if (dev->change_wakeup_protocol)
-		dev->sysfs_groups[attr++] = &rc_dev_wakeup_protocol_attr_grp;
 	dev->sysfs_groups[attr++] = NULL;
 
 	rc = device_add(&dev->dev);
