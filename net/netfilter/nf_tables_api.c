@@ -111,12 +111,12 @@ static void nft_ctx_init(struct nft_ctx *ctx,
 	ctx->seq	= nlh->nlmsg_seq;
 }
 
-static struct nft_trans *nft_trans_alloc(const struct nft_ctx *ctx,
-					 int msg_type, u32 size)
+static struct nft_trans *nft_trans_alloc_gfp(const struct nft_ctx *ctx,
+					     int msg_type, u32 size, gfp_t gfp)
 {
 	struct nft_trans *trans;
 
-	trans = kzalloc(sizeof(struct nft_trans) + size, GFP_KERNEL);
+	trans = kzalloc(sizeof(struct nft_trans) + size, gfp);
 	if (trans == NULL)
 		return NULL;
 
@@ -124,6 +124,12 @@ static struct nft_trans *nft_trans_alloc(const struct nft_ctx *ctx,
 	trans->ctx	= *ctx;
 
 	return trans;
+}
+
+static struct nft_trans *nft_trans_alloc(const struct nft_ctx *ctx,
+					 int msg_type, u32 size)
+{
+	return nft_trans_alloc_gfp(ctx, msg_type, size, GFP_KERNEL);
 }
 
 static void nft_trans_destroy(struct nft_trans *trans)
@@ -3876,6 +3882,34 @@ err1:
 	return err;
 }
 
+static int nft_flush_set(const struct nft_ctx *ctx,
+			 const struct nft_set *set,
+			 const struct nft_set_iter *iter,
+			 const struct nft_set_elem *elem)
+{
+	struct nft_trans *trans;
+	int err;
+
+	trans = nft_trans_alloc_gfp(ctx, NFT_MSG_DELSETELEM,
+				    sizeof(struct nft_trans_elem), GFP_ATOMIC);
+	if (!trans)
+		return -ENOMEM;
+
+	if (!set->ops->deactivate_one(ctx->net, set, elem->priv)) {
+		err = -ENOENT;
+		goto err1;
+	}
+
+	nft_trans_elem_set(trans) = (struct nft_set *)set;
+	nft_trans_elem(trans) = *((struct nft_set_elem *)elem);
+	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
+
+	return 0;
+err1:
+	kfree(trans);
+	return err;
+}
+
 static int nf_tables_delsetelem(struct net *net, struct sock *nlsk,
 				struct sk_buff *skb, const struct nlmsghdr *nlh,
 				const struct nlattr * const nla[])
@@ -3885,9 +3919,6 @@ static int nf_tables_delsetelem(struct net *net, struct sock *nlsk,
 	struct nft_set *set;
 	struct nft_ctx ctx;
 	int rem, err = 0;
-
-	if (nla[NFTA_SET_ELEM_LIST_ELEMENTS] == NULL)
-		return -EINVAL;
 
 	err = nft_ctx_init_from_elemattr(&ctx, net, skb, nlh, nla, genmask);
 	if (err < 0)
@@ -3899,6 +3930,18 @@ static int nf_tables_delsetelem(struct net *net, struct sock *nlsk,
 		return PTR_ERR(set);
 	if (!list_empty(&set->bindings) && set->flags & NFT_SET_CONSTANT)
 		return -EBUSY;
+
+	if (nla[NFTA_SET_ELEM_LIST_ELEMENTS] == NULL) {
+		struct nft_set_dump_args args = {
+			.iter	= {
+				.genmask	= genmask,
+				.fn		= nft_flush_set,
+			},
+		};
+		set->ops->walk(&ctx, set, &args.iter);
+
+		return args.iter.err;
+	}
 
 	nla_for_each_nested(attr, nla[NFTA_SET_ELEM_LIST_ELEMENTS], rem) {
 		err = nft_del_setelem(&ctx, set, attr);
