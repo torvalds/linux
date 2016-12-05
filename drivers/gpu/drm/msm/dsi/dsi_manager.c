@@ -168,6 +168,16 @@ static enum drm_connector_status dsi_mgr_connector_detect(
 			msm_dsi->panel = msm_dsi_host_get_panel(
 					other_dsi->host, NULL);
 
+
+		if (msm_dsi->panel && kms->funcs->set_encoder_mode) {
+			bool cmd_mode = !(msm_dsi->device_flags &
+					  MIPI_DSI_MODE_VIDEO);
+			struct drm_encoder *encoder =
+					msm_dsi_get_encoder(msm_dsi);
+
+			kms->funcs->set_encoder_mode(kms, encoder, cmd_mode);
+		}
+
 		if (msm_dsi->panel && IS_DUAL_DSI())
 			drm_object_attach_property(&connector->base,
 				connector->dev->mode_config.tile_property, 0);
@@ -771,6 +781,33 @@ bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len)
 	msm_dsi_host_cmd_xfer_commit(host, dma_base, len);
 
 	return true;
+}
+
+void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct drm_device *dev = msm_dsi->dev;
+	struct msm_drm_private *priv;
+	struct msm_kms *kms;
+	struct drm_encoder *encoder;
+
+	/*
+	 * drm_device pointer is assigned to msm_dsi only in the modeset_init
+	 * path. If mipi_dsi_attach() happens in DSI driver's probe path
+	 * (generally the case when we're connected to a drm_panel of the type
+	 * mipi_dsi_device), this would be NULL. In such cases, try to set the
+	 * encoder mode in the DSI connector's detect() op.
+	 */
+	if (!dev)
+		return;
+
+	priv = dev->dev_private;
+	kms = priv->kms;
+	encoder = msm_dsi_get_encoder(msm_dsi);
+
+	if (encoder && kms->funcs->set_encoder_mode)
+		if (!(device_flags & MIPI_DSI_MODE_VIDEO))
+			kms->funcs->set_encoder_mode(kms, encoder, true);
 }
 
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi)

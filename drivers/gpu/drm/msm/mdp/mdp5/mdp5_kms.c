@@ -151,6 +151,13 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 		return mdp5_encoder_set_split_display(encoder, slave_encoder);
 }
 
+static void mdp5_set_encoder_mode(struct msm_kms *kms,
+				  struct drm_encoder *encoder,
+				  bool cmd_mode)
+{
+	mdp5_encoder_set_intf_mode(encoder, cmd_mode);
+}
+
 static void mdp5_kms_destroy(struct msm_kms *kms)
 {
 	struct mdp5_kms *mdp5_kms = to_mdp5_kms(to_mdp_kms(kms));
@@ -230,6 +237,7 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp5_round_pixclk,
 		.set_split_display = mdp5_set_split_display,
+		.set_encoder_mode = mdp5_set_encoder_mode,
 		.destroy         = mdp5_kms_destroy,
 #ifdef CONFIG_DEBUG_FS
 		.debugfs_init    = mdp5_kms_debugfs_init,

@@ -90,6 +90,7 @@ int msm_dsi_manager_phy_enable(int id,
 void msm_dsi_manager_phy_disable(int id);
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
 bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len);
+void msm_dsi_manager_attach_dsi_device(int id, u32 device_flags);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 

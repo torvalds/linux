@@ -342,6 +342,23 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 	return 0;
 }
 
+void mdp5_encoder_set_intf_mode(struct drm_encoder *encoder, bool cmd_mode)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	/* TODO: Expand this to set writeback modes too */
+	if (cmd_mode) {
+		WARN_ON(intf->type != INTF_DSI);
+		intf->mode = MDP5_INTF_DSI_MODE_COMMAND;
+	} else {
+		if (intf->type == INTF_DSI)
+			intf->mode = MDP5_INTF_DSI_MODE_VIDEO;
+		else
+			intf->mode = MDP5_INTF_MODE_NONE;
+	}
+}
+
 /* initialize encoder */
 struct drm_encoder *mdp5_encoder_init(struct drm_device *dev,
 			struct mdp5_interface *intf, struct mdp5_ctl *ctl)
