@@ -708,6 +708,87 @@ struct device_dma_parameters {
 };
 
 /**
+ * enum device_link_state - Device link states.
+ * @DL_STATE_NONE: The presence of the drivers is not being tracked.
+ * @DL_STATE_DORMANT: None of the supplier/consumer drivers is present.
+ * @DL_STATE_AVAILABLE: The supplier driver is present, but the consumer is not.
+ * @DL_STATE_CONSUMER_PROBE: The consumer is probing (supplier driver present).
+ * @DL_STATE_ACTIVE: Both the supplier and consumer drivers are present.
+ * @DL_STATE_SUPPLIER_UNBIND: The supplier driver is unbinding.
+ */
+enum device_link_state {
+	DL_STATE_NONE = -1,
+	DL_STATE_DORMANT = 0,
+	DL_STATE_AVAILABLE,
+	DL_STATE_CONSUMER_PROBE,
+	DL_STATE_ACTIVE,
+	DL_STATE_SUPPLIER_UNBIND,
+};
+
+/*
+ * Device link flags.
+ *
+ * STATELESS: The core won't track the presence of supplier/consumer drivers.
+ * AUTOREMOVE: Remove this link automatically on consumer driver unbind.
+ * PM_RUNTIME: If set, the runtime PM framework will use this link.
+ * RPM_ACTIVE: Run pm_runtime_get_sync() on the supplier during link creation.
+ */
+#define DL_FLAG_STATELESS	BIT(0)
+#define DL_FLAG_AUTOREMOVE	BIT(1)
+#define DL_FLAG_PM_RUNTIME	BIT(2)
+#define DL_FLAG_RPM_ACTIVE	BIT(3)
+
+/**
+ * struct device_link - Device link representation.
+ * @supplier: The device on the supplier end of the link.
+ * @s_node: Hook to the supplier device's list of links to consumers.
+ * @consumer: The device on the consumer end of the link.
+ * @c_node: Hook to the consumer device's list of links to suppliers.
+ * @status: The state of the link (with respect to the presence of drivers).
+ * @flags: Link flags.
+ * @rpm_active: Whether or not the consumer device is runtime-PM-active.
+ * @rcu_head: An RCU head to use for deferred execution of SRCU callbacks.
+ */
+struct device_link {
+	struct device *supplier;
+	struct list_head s_node;
+	struct device *consumer;
+	struct list_head c_node;
+	enum device_link_state status;
+	u32 flags;
+	bool rpm_active;
+#ifdef CONFIG_SRCU
+	struct rcu_head rcu_head;
+#endif
+};
+
+/**
+ * enum dl_dev_state - Device driver presence tracking information.
+ * @DL_DEV_NO_DRIVER: There is no driver attached to the device.
+ * @DL_DEV_PROBING: A driver is probing.
+ * @DL_DEV_DRIVER_BOUND: The driver has been bound to the device.
+ * @DL_DEV_UNBINDING: The driver is unbinding from the device.
+ */
+enum dl_dev_state {
+	DL_DEV_NO_DRIVER = 0,
+	DL_DEV_PROBING,
+	DL_DEV_DRIVER_BOUND,
+	DL_DEV_UNBINDING,
+};
+
+/**
+ * struct dev_links_info - Device data related to device links.
+ * @suppliers: List of links to supplier devices.
+ * @consumers: List of links to consumer devices.
+ * @status: Driver status information.
+ */
+struct dev_links_info {
+	struct list_head suppliers;
+	struct list_head consumers;
+	enum dl_dev_state status;
+};
+
+/**
  * struct device - The basic device structure
  * @parent:	The device's "parent" device, the device to which it is attached.
  * 		In most cases, a parent device is some sort of bus or host
@@ -799,6 +880,7 @@ struct device {
 					   core doesn't touch it */
 	void		*driver_data;	/* Driver data, set and get with
 					   dev_set/get_drvdata */
+	struct dev_links_info	links;
 	struct dev_pm_info	power;
 	struct dev_pm_domain	*pm_domain;
 
@@ -1116,6 +1198,10 @@ extern void device_shutdown(void);
 /* debugging and troubleshooting/diagnostic helpers. */
 extern const char *dev_driver_string(const struct device *dev);
 
+/* Device links interface. */
+struct device_link *device_link_add(struct device *consumer,
+				    struct device *supplier, u32 flags);
+void device_link_del(struct device_link *link);
 
 #ifdef CONFIG_PRINTK
 

@@ -127,6 +127,11 @@ extern void device_pm_move_after(struct device *, struct device *);
 extern void device_pm_move_last(struct device *);
 extern void device_pm_check_callbacks(struct device *dev);
 
+static inline bool device_pm_initialized(struct device *dev)
+{
+	return dev->power.in_dpm_list;
+}
+
 #else /* !CONFIG_PM_SLEEP */
 
 static inline void device_pm_sleep_init(struct device *dev) {}
@@ -145,6 +150,11 @@ static inline void device_pm_move_after(struct device *deva,
 static inline void device_pm_move_last(struct device *dev) {}
 
 static inline void device_pm_check_callbacks(struct device *dev) {}
+
+static inline bool device_pm_initialized(struct device *dev)
+{
+	return device_is_registered(dev);
+}
 
 #endif /* !CONFIG_PM_SLEEP */
 
