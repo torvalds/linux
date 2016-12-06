@@ -94,7 +94,7 @@ static struct acpi_device *to_acpi_dev(struct acpi_nfit_desc *acpi_desc)
 	return to_acpi_device(acpi_desc->dev);
 }
 
-static int xlat_status(void *buf, unsigned int cmd, u32 status)
+static int xlat_bus_status(void *buf, unsigned int cmd, u32 status)
 {
 	struct nd_cmd_clear_error *clear_err;
 	struct nd_cmd_ars_status *ars_status;
@@ -170,6 +170,16 @@ static int xlat_status(void *buf, unsigned int cmd, u32 status)
 	}
 
 	/* all other non-zero status results in an error */
+	if (status)
+		return -EIO;
+	return 0;
+}
+
+static int xlat_status(struct nvdimm *nvdimm, void *buf, unsigned int cmd,
+		u32 status)
+{
+	if (!nvdimm)
+		return xlat_bus_status(buf, cmd, status);
 	if (status)
 		return -EIO;
 	return 0;
@@ -335,7 +345,8 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			 */
 			rc = buf_len - offset - in_buf.buffer.length;
 			if (cmd_rc)
-				*cmd_rc = xlat_status(buf, cmd, fw_status);
+				*cmd_rc = xlat_status(nvdimm, buf, cmd,
+						fw_status);
 		} else {
 			dev_err(dev, "%s:%s underrun cmd: %s buf_len: %d out_len: %d\n",
 					__func__, dimm_name, cmd_name, buf_len,
@@ -345,7 +356,7 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	} else {
 		rc = 0;
 		if (cmd_rc)
-			*cmd_rc = xlat_status(buf, cmd, fw_status);
+			*cmd_rc = xlat_status(nvdimm, buf, cmd, fw_status);
 	}
 
  out:
