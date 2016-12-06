@@ -27,6 +27,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-disvr.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-edp.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-edp-next.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-sapphire-excavator-linux.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-tve1205g.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-vr-android.dtb
 
 always		:= $(dtb-y)
