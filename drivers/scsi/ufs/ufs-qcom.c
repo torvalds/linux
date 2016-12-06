@@ -1194,7 +1194,16 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	 */
 	host->generic_phy = devm_phy_get(dev, "ufsphy");
 
-	if (IS_ERR(host->generic_phy)) {
+	if (host->generic_phy == ERR_PTR(-EPROBE_DEFER)) {
+		/*
+		 * UFS driver might be probed before the phy driver does.
+		 * In that case we would like to return EPROBE_DEFER code.
+		 */
+		err = -EPROBE_DEFER;
+		dev_warn(dev, "%s: required phy device. hasn't probed yet. err = %d\n",
+			__func__, err);
+		goto out_variant_clear;
+	} else if (IS_ERR(host->generic_phy)) {
 		err = PTR_ERR(host->generic_phy);
 		dev_err(dev, "%s: PHY get failed %d\n", __func__, err);
 		goto out_variant_clear;
