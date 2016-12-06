@@ -3744,7 +3744,6 @@ static int __ext4_block_zero_page_range(handle_t *handle,
 			/* We expect the key to be set. */
 			BUG_ON(!fscrypt_has_encryption_key(inode));
 			BUG_ON(blocksize != PAGE_SIZE);
-			BUG_ON(!PageLocked(page));
 			WARN_ON_ONCE(fscrypt_decrypt_page(page->mapping->host,
 						page, PAGE_SIZE, 0, page->index));
 		}

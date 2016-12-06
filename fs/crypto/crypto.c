@@ -238,7 +238,7 @@ static struct page *alloc_bounce_page(struct fscrypt_ctx *ctx, gfp_t gfp_flags)
  * fscrypt_restore_control_page() on the returned ciphertext page to
  * release the bounce buffer and the encryption context.
  *
- * In-place encryption is used by setting the FS_CFLG_INPLACE_ENCRYPTION flag in
+ * In-place encryption is used by setting the FS_CFLG_OWN_PAGES flag in
  * fscrypt_operations. Here, the input-page is returned with its content
  * encrypted.
  *
@@ -258,7 +258,7 @@ struct page *fscrypt_encrypt_page(const struct inode *inode,
 
 	BUG_ON(len % FS_CRYPTO_BLOCK_SIZE != 0);
 
-	if (inode->i_sb->s_cop->flags & FS_CFLG_INPLACE_ENCRYPTION) {
+	if (inode->i_sb->s_cop->flags & FS_CFLG_OWN_PAGES) {
 		/* with inplace-encryption we just encrypt the page */
 		err = do_page_crypto(inode, FS_ENCRYPT, lblk_num,
 					page, ciphertext_page,
@@ -268,6 +268,8 @@ struct page *fscrypt_encrypt_page(const struct inode *inode,
 
 		return ciphertext_page;
 	}
+
+	BUG_ON(!PageLocked(page));
 
 	ctx = fscrypt_get_ctx(inode, gfp_flags);
 	if (IS_ERR(ctx))
@@ -301,7 +303,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
  * fscrypt_decrypt_page() - Decrypts a page in-place
  * @inode:     The corresponding inode for the page to decrypt.
  * @page:      The page to decrypt. Must be locked in case
- *             it is a writeback page.
+ *             it is a writeback page (FS_CFLG_OWN_PAGES unset).
  * @len:       Number of bytes in @page to be decrypted.
  * @offs:      Start of data in @page.
  * @lblk_num:  Logical block number.
@@ -315,6 +317,9 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
 int fscrypt_decrypt_page(const struct inode *inode, struct page *page,
 			unsigned int len, unsigned int offs, u64 lblk_num)
 {
+	if (!(inode->i_sb->s_cop->flags & FS_CFLG_OWN_PAGES))
+		BUG_ON(!PageLocked(page));
+
 	return do_page_crypto(inode, FS_DECRYPT, lblk_num, page, page, len,
 			offs, GFP_NOFS);
 }

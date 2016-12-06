@@ -80,7 +80,7 @@ struct fscrypt_name {
 /*
  * fscrypt superblock flags
  */
-#define FS_CFLG_INPLACE_ENCRYPTION (1U << 1)
+#define FS_CFLG_OWN_PAGES (1U << 1)
 
 /*
  * crypto opertions for filesystems
