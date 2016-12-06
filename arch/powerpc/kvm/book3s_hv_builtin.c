@@ -26,7 +26,6 @@
 #include <asm/dbell.h>
 #include <asm/cputhreads.h>
 #include <asm/io.h>
-#include <asm/asm-prototypes.h>
 #include <asm/opal.h>
 #include <asm/smp.h>
 
