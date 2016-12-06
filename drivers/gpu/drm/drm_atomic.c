@@ -1864,20 +1864,6 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	helpers and for the DRM event handling for existing userspace.
  */
 
-static struct dma_fence *get_crtc_fence(struct drm_crtc *crtc)
-{
-	struct dma_fence *fence;
-
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-	if (!fence)
-		return NULL;
-
-	dma_fence_init(fence, &drm_crtc_fence_ops, &crtc->fence_lock,
-		       crtc->fence_context, ++crtc->fence_seqno);
-
-	return fence;
-}
-
 struct drm_out_fence_state {
 	s64 __user *out_fence_ptr;
 	struct sync_file *sync_file;
@@ -1959,7 +1945,7 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 			f[*num_fences].out_fence_ptr = fence_ptr;
 			*fence_state = f;
 
-			fence = get_crtc_fence(crtc);
+			fence = drm_crtc_create_fence(crtc);
 			if (!fence)
 				return -ENOMEM;
 
