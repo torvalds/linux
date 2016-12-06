@@ -144,7 +144,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 		mutex_lock(&bus->device_lock);
 
 		if (!mei_cl_is_connected(cl)) {
-			rets = -EBUSY;
+			rets = -ENODEV;
 			goto out;
 		}
 	}

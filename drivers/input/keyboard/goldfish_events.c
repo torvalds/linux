@@ -17,11 +17,15 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/acpi.h>
+
+#define GOLDFISH_MAX_FINGERS 5
 
 enum {
 	REG_READ        = 0x00,
@@ -51,7 +55,21 @@ static irqreturn_t events_interrupt(int irq, void *dev_id)
 	value = __raw_readl(edev->addr + REG_READ);
 
 	input_event(edev->input, type, code, value);
-	input_sync(edev->input);
+	// Send an extra (EV_SYN, SYN_REPORT, 0x0) event
+	// if a key was pressed. Some keyboard device
+        // drivers may only send the EV_KEY event and
+        // not EV_SYN.
+        // Note that sending an extra SYN_REPORT is not
+        // necessary nor correct protocol with other
+        // devices such as touchscreens, which will send
+        // their own SYN_REPORT's when sufficient event
+        // information has been collected (e.g., for
+        // touchscreens, when pressure and X/Y coordinates
+	// have been received). Hence, we will only send
+	// this extra SYN_REPORT if type == EV_KEY.
+	if (type == EV_KEY) {
+		input_sync(edev->input);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -153,6 +171,15 @@ static int events_probe(struct platform_device *pdev)
 
 	input_dev->name = edev->name;
 	input_dev->id.bustype = BUS_HOST;
+	// Set the Goldfish Device to be multi-touch.
+	// In the Ranchu kernel, there is multi-touch-specific
+	// code for handling ABS_MT_SLOT events.
+	// See drivers/input/input.c:input_handle_abs_event.
+	// If we do not issue input_mt_init_slots,
+        // the kernel will filter out needed ABS_MT_SLOT
+        // events when we touch the screen in more than one place,
+        // preventing multi-touch with more than one finger from working.
+	input_mt_init_slots(input_dev, GOLDFISH_MAX_FINGERS, 0);
 
 	events_import_bits(edev, input_dev->evbit, EV_SYN, EV_MAX);
 	events_import_bits(edev, input_dev->keybit, EV_KEY, KEY_MAX);
@@ -178,10 +205,26 @@ static int events_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id goldfish_events_of_match[] = {
+	{ .compatible = "google,goldfish-events-keypad", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, goldfish_events_of_match);
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id goldfish_events_acpi_match[] = {
+	{ "GFSH0002", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, goldfish_events_acpi_match);
+#endif
+
 static struct platform_driver events_driver = {
 	.probe	= events_probe,
 	.driver	= {
 		.name	= "goldfish_events",
+		.of_match_table = goldfish_events_of_match,
+		.acpi_match_table = ACPI_PTR(goldfish_events_acpi_match),
 	},
 };
 
