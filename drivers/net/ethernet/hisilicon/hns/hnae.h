@@ -99,6 +99,8 @@ enum hnae_led_state {
 #define HNS_RX_FLAG_L3ID_IPV6 0x1
 #define HNS_RX_FLAG_L4ID_UDP 0x0
 #define HNS_RX_FLAG_L4ID_TCP 0x1
+#define HNS_RX_FLAG_L4ID_SCTP 0x3
+
 
 #define HNS_TXD_ASID_S 0
 #define HNS_TXD_ASID_M (0xff << HNS_TXD_ASID_S)
