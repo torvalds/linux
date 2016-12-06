@@ -406,9 +406,7 @@ stmmac_ethtool_set_link_ksettings(struct net_device *dev,
 		return 0;
 	}
 
-	spin_lock(&priv->lock);
 	rc = phy_ethtool_ksettings_set(phy, cmd);
-	spin_unlock(&priv->lock);
 
 	return rc;
 }
