@@ -25,13 +25,5 @@ ion/
    exposes existing cma regions and doesn't reserve unecessarily memory when
    booting a system which doesn't use ion.
 
-sync framework:
- - remove CONFIG_SW_SYNC_USER, it is used only for testing/debugging and
- should not be upstreamed.
- - port CONFIG_SW_SYNC_USER tests interfaces to use debugfs somehow
- - port libsync tests to kselftest
- - clean up and ABI check for security issues
- - move it to drivers/base/dma-buf
-
 Please send patches to Greg Kroah-Hartman <greg@kroah.com> and Cc:
 Arve Hjønnevåg <arve@android.com> and Riley Andrews <riandrews@android.com>
