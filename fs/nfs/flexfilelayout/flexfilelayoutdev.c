@@ -254,8 +254,9 @@ ff_layout_add_ds_error_locked(struct nfs4_flexfile_layout *flo,
 		}
 		/* Entries match, so merge "err" into "dserr" */
 		extend_ds_error(dserr, err->offset, err->length);
-		list_del(&err->list);
+		list_replace(&err->list, &dserr->list);
 		kfree(err);
+		return;
 	}
 
 	list_add_tail(&dserr->list, head);
