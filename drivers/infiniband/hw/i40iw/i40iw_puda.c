@@ -1132,7 +1132,7 @@ static enum i40iw_status_code i40iw_ieq_handle_partial(struct i40iw_puda_rsrc *i
 	list_add(&buf->list, &pbufl);
 
 	status = i40iw_ieq_create_pbufl(pfpdu, rxlist, &pbufl, buf, fpdu_len);
-	if (!status)
+	if (status)
 		goto error;
 
 	txbuf = i40iw_puda_get_bufpool(ieq);
