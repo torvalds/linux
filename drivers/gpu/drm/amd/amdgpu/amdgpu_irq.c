@@ -33,6 +33,7 @@
 #include "amdgpu_ih.h"
 #include "atom.h"
 #include "amdgpu_connectors.h"
+#include "amdgpu_trace.h"
 
 #include <linux/pm_runtime.h>
 
@@ -355,6 +356,8 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	unsigned src_id = entry->src_id;
 	struct amdgpu_irq_src *src;
 	int r;
+
+	trace_amdgpu_iv(entry);
 
 	if (client_id >= AMDGPU_IH_CLIENTID_MAX) {
 		DRM_DEBUG("Invalid client_id in IV: %d\n", client_id);
