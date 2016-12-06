@@ -112,9 +112,9 @@ static const struct drm_encoder_funcs mdp5_encoder_funcs = {
 	.destroy = mdp5_encoder_destroy,
 };
 
-static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
+static void mdp5_vid_encoder_mode_set(struct drm_encoder *encoder,
+				      struct drm_display_mode *mode,
+				      struct drm_display_mode *adjusted_mode)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
@@ -221,7 +221,7 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 				mdp5_encoder->ctl);
 }
 
-static void mdp5_encoder_disable(struct drm_encoder *encoder)
+static void mdp5_vid_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
@@ -256,7 +256,7 @@ static void mdp5_encoder_disable(struct drm_encoder *encoder)
 	mdp5_encoder->enabled = false;
 }
 
-static void mdp5_encoder_enable(struct drm_encoder *encoder)
+static void mdp5_vid_encoder_enable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
@@ -277,6 +277,23 @@ static void mdp5_encoder_enable(struct drm_encoder *encoder)
 	mdp5_ctl_set_encoder_state(ctl, true);
 
 	mdp5_encoder->enabled = true;
+}
+
+static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+	mdp5_vid_encoder_mode_set(encoder, mode, adjusted_mode);
+}
+
+static void mdp5_encoder_disable(struct drm_encoder *encoder)
+{
+	mdp5_vid_encoder_disable(encoder);
+}
+
+static void mdp5_encoder_enable(struct drm_encoder *encoder)
+{
+	mdp5_vid_encoder_enable(encoder);
 }
 
 static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
@@ -303,8 +320,8 @@ u32 mdp5_encoder_get_framecount(struct drm_encoder *encoder)
 	return mdp5_read(mdp5_kms, REG_MDP5_INTF_FRAME_COUNT(intf));
 }
 
-int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
-					struct drm_encoder *slave_encoder)
+int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
+				       struct drm_encoder *slave_encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_encoder *mdp5_slave_enc = to_mdp5_encoder(slave_encoder);

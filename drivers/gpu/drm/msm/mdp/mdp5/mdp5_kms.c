@@ -148,7 +148,8 @@ static int mdp5_set_split_display(struct msm_kms *kms,
 		return mdp5_cmd_encoder_set_split_display(encoder,
 							slave_encoder);
 	else
-		return mdp5_encoder_set_split_display(encoder, slave_encoder);
+		return mdp5_vid_encoder_set_split_display(encoder,
+							  slave_encoder);
 }
 
 static void mdp5_set_encoder_mode(struct msm_kms *kms,
