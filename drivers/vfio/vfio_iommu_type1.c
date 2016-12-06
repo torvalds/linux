@@ -581,7 +581,7 @@ static int vfio_iommu_type1_pin_pages(void *iommu_data,
 		struct vfio_pfn *vpfn;
 
 		iova = user_pfn[i] << PAGE_SHIFT;
-		dma = vfio_find_dma(iommu, iova, 0);
+		dma = vfio_find_dma(iommu, iova, PAGE_SIZE);
 		if (!dma) {
 			ret = -EINVAL;
 			goto pin_unwind;
@@ -622,7 +622,7 @@ pin_unwind:
 		dma_addr_t iova;
 
 		iova = user_pfn[j] << PAGE_SHIFT;
-		dma = vfio_find_dma(iommu, iova, 0);
+		dma = vfio_find_dma(iommu, iova, PAGE_SIZE);
 		vfio_unpin_page_external(dma, iova, do_accounting);
 		phys_pfn[j] = 0;
 	}
@@ -659,7 +659,7 @@ static int vfio_iommu_type1_unpin_pages(void *iommu_data,
 		dma_addr_t iova;
 
 		iova = user_pfn[i] << PAGE_SHIFT;
-		dma = vfio_find_dma(iommu, iova, 0);
+		dma = vfio_find_dma(iommu, iova, PAGE_SIZE);
 		if (!dma)
 			goto unpin_exit;
 		vfio_unpin_page_external(dma, iova, do_accounting);
