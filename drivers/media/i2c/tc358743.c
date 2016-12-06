@@ -368,29 +368,21 @@ static void tc358743_set_hdmi_hdcp(struct v4l2_subdev *sd, bool enable)
 	v4l2_dbg(2, debug, sd, "%s: %s\n", __func__, enable ?
 				"enable" : "disable");
 
-	i2c_wr8_and_or(sd, HDCP_REG1,
-			~(MASK_AUTH_UNAUTH_SEL | MASK_AUTH_UNAUTH),
-			MASK_AUTH_UNAUTH_SEL_16_FRAMES | MASK_AUTH_UNAUTH_AUTO);
+	if (enable) {
+		i2c_wr8_and_or(sd, HDCP_REG3, ~KEY_RD_CMD, KEY_RD_CMD);
 
-	i2c_wr8_and_or(sd, HDCP_REG2, ~MASK_AUTO_P3_RESET,
-			SET_AUTO_P3_RESET_FRAMES(0x0f));
+		i2c_wr8_and_or(sd, HDCP_MODE, ~MASK_MANUAL_AUTHENTICATION, 0);
 
-	/* HDCP is disabled by configuring the receiver as HDCP repeater. The
-	 * repeater mode require software support to work, so HDCP
-	 * authentication will fail.
-	 */
-	i2c_wr8_and_or(sd, HDCP_REG3, ~KEY_RD_CMD, enable ? KEY_RD_CMD : 0);
-	i2c_wr8_and_or(sd, HDCP_MODE, ~(MASK_AUTO_CLR | MASK_MODE_RST_TN),
-			enable ?  (MASK_AUTO_CLR | MASK_MODE_RST_TN) : 0);
+		i2c_wr8_and_or(sd, HDCP_REG1, 0xff,
+				MASK_AUTH_UNAUTH_SEL_16_FRAMES |
+				MASK_AUTH_UNAUTH_AUTO);
 
-	/* Apple MacBook Pro gen.8 has a bug that makes it freeze every fifth
-	 * second when HDCP is disabled, but the MAX_EXCED bit is handled
-	 * correctly and HDCP is disabled on the HDMI output.
-	 */
-	i2c_wr8_and_or(sd, BSTATUS1, ~MASK_MAX_EXCED,
-			enable ? 0 : MASK_MAX_EXCED);
-	i2c_wr8_and_or(sd, BCAPS, ~(MASK_REPEATER | MASK_READY),
-			enable ? 0 : MASK_REPEATER | MASK_READY);
+		i2c_wr8_and_or(sd, HDCP_REG2, ~MASK_AUTO_P3_RESET,
+				SET_AUTO_P3_RESET_FRAMES(0x0f));
+	} else {
+		i2c_wr8_and_or(sd, HDCP_MODE, ~MASK_MANUAL_AUTHENTICATION,
+				MASK_MANUAL_AUTHENTICATION);
+	}
 }
 
 static void tc358743_disable_edid(struct v4l2_subdev *sd)
