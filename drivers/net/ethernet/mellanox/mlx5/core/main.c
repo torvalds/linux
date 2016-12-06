@@ -62,13 +62,13 @@ MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
-int mlx5_core_debug_mask;
-module_param_named(debug_mask, mlx5_core_debug_mask, int, 0644);
+unsigned int mlx5_core_debug_mask;
+module_param_named(debug_mask, mlx5_core_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
 
 #define MLX5_DEFAULT_PROF	2
-static int prof_sel = MLX5_DEFAULT_PROF;
-module_param_named(prof_sel, prof_sel, int, 0444);
+static unsigned int prof_sel = MLX5_DEFAULT_PROF;
+module_param_named(prof_sel, prof_sel, uint, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
 
 enum {
@@ -1227,13 +1227,6 @@ static int init_one(struct pci_dev *pdev,
 
 	dev->pdev = pdev;
 	dev->event = mlx5_core_event;
-
-	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profile)) {
-		mlx5_core_warn(dev,
-			       "selected profile out of range, selecting default (%d)\n",
-			       MLX5_DEFAULT_PROF);
-		prof_sel = MLX5_DEFAULT_PROF;
-	}
 	dev->profile = &profile[prof_sel];
 
 	INIT_LIST_HEAD(&priv->ctx_list);
@@ -1450,10 +1443,22 @@ static struct pci_driver mlx5_core_driver = {
 	.sriov_configure   = mlx5_core_sriov_configure,
 };
 
+static void mlx5_core_verify_params(void)
+{
+	if (prof_sel >= ARRAY_SIZE(profile)) {
+		pr_warn("mlx5_core: WARNING: Invalid module parameter prof_sel %d, valid range 0-%zu, changing back to default(%d)\n",
+			prof_sel,
+			ARRAY_SIZE(profile) - 1,
+			MLX5_DEFAULT_PROF);
+		prof_sel = MLX5_DEFAULT_PROF;
+	}
+}
+
 static int __init init(void)
 {
 	int err;
 
+	mlx5_core_verify_params();
 	mlx5_register_debugfs();
 
 	err = pci_register_driver(&mlx5_core_driver);
