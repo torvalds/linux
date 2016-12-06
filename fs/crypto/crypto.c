@@ -246,16 +246,26 @@ struct page *fscrypt_encrypt_page(const struct inode *inode,
 
 	BUG_ON(plaintext_len % FS_CRYPTO_BLOCK_SIZE != 0);
 
+	if (inode->i_sb->s_cop->flags & FS_CFLG_INPLACE_ENCRYPTION) {
+		/* with inplace-encryption we just encrypt the page */
+		err = do_page_crypto(inode, FS_ENCRYPT, index,
+					plaintext_page, ciphertext_page,
+					plaintext_len, plaintext_offset,
+					gfp_flags);
+		if (err)
+			return ERR_PTR(err);
+
+		return ciphertext_page;
+	}
+
 	ctx = fscrypt_get_ctx(inode, gfp_flags);
 	if (IS_ERR(ctx))
 		return (struct page *)ctx;
 
-	if (!(inode->i_sb->s_cop->flags & FS_CFLG_INPLACE_ENCRYPTION)) {
-		/* The encryption operation will require a bounce page. */
-		ciphertext_page = alloc_bounce_page(ctx, gfp_flags);
-		if (IS_ERR(ciphertext_page))
-			goto errout;
-	}
+	/* The encryption operation will require a bounce page. */
+	ciphertext_page = alloc_bounce_page(ctx, gfp_flags);
+	if (IS_ERR(ciphertext_page))
+		goto errout;
 
 	ctx->w.control_page = plaintext_page;
 	err = do_page_crypto(inode, FS_ENCRYPT, index,
@@ -266,11 +276,9 @@ struct page *fscrypt_encrypt_page(const struct inode *inode,
 		ciphertext_page = ERR_PTR(err);
 		goto errout;
 	}
-	if (!(inode->i_sb->s_cop->flags & FS_CFLG_INPLACE_ENCRYPTION)) {
-		SetPagePrivate(ciphertext_page);
-		set_page_private(ciphertext_page, (unsigned long)ctx);
-		lock_page(ciphertext_page);
-	}
+	SetPagePrivate(ciphertext_page);
+	set_page_private(ciphertext_page, (unsigned long)ctx);
+	lock_page(ciphertext_page);
 	return ciphertext_page;
 
 errout:
