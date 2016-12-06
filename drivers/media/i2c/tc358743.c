@@ -404,6 +404,7 @@ static void tc358743_enable_edid(struct v4l2_subdev *sd)
 
 	if (state->edid_blocks_written == 0) {
 		v4l2_dbg(2, debug, sd, "%s: no EDID -> no hotplug\n", __func__);
+		tc358743_s_ctrl_detect_tx_5v(sd);
 		return;
 	}
 
