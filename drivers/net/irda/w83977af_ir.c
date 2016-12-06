@@ -263,7 +263,7 @@ static int w83977af_close(struct w83977af_ir *self)
 {
 	int iobase;
 
-        iobase = self->io.fir_base;
+	iobase = self->io.fir_base;
 
 #ifdef CONFIG_USE_W977_PNP
 	/* enter PnP configuration mode */
