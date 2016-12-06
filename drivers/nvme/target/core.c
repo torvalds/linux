@@ -264,7 +264,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	int ret = 0;
 
 	mutex_lock(&subsys->lock);
-	if (!list_empty(&ns->dev_link))
+	if (ns->enabled)
 		goto out_unlock;
 
 	ns->bdev = blkdev_get_by_path(ns->device_path, FMODE_READ | FMODE_WRITE,
@@ -309,6 +309,7 @@ int nvmet_ns_enable(struct nvmet_ns *ns)
 	list_for_each_entry(ctrl, &subsys->ctrls, subsys_entry)
 		nvmet_add_async_event(ctrl, NVME_AER_TYPE_NOTICE, 0, 0);
 
+	ns->enabled = true;
 	ret = 0;
 out_unlock:
 	mutex_unlock(&subsys->lock);
@@ -325,11 +326,11 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 	struct nvmet_ctrl *ctrl;
 
 	mutex_lock(&subsys->lock);
-	if (list_empty(&ns->dev_link)) {
-		mutex_unlock(&subsys->lock);
-		return;
-	}
-	list_del_init(&ns->dev_link);
+	if (!ns->enabled)
+		goto out_unlock;
+
+	ns->enabled = false;
+	list_del_rcu(&ns->dev_link);
 	mutex_unlock(&subsys->lock);
 
 	/*
@@ -351,6 +352,7 @@ void nvmet_ns_disable(struct nvmet_ns *ns)
 
 	if (ns->bdev)
 		blkdev_put(ns->bdev, FMODE_WRITE|FMODE_READ);
+out_unlock:
 	mutex_unlock(&subsys->lock);
 }
 

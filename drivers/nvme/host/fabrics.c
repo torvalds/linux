@@ -576,7 +576,7 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			nqnlen = strlen(opts->subsysnqn);
 			if (nqnlen >= NVMF_NQN_SIZE) {
 				pr_err("%s needs to be < %d bytes\n",
-				opts->subsysnqn, NVMF_NQN_SIZE);
+					opts->subsysnqn, NVMF_NQN_SIZE);
 				ret = -EINVAL;
 				goto out;
 			}
@@ -666,10 +666,12 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			if (nqnlen >= NVMF_NQN_SIZE) {
 				pr_err("%s needs to be < %d bytes\n",
 					p, NVMF_NQN_SIZE);
+				kfree(p);
 				ret = -EINVAL;
 				goto out;
 			}
 			opts->host = nvmf_host_add(p);
+			kfree(p);
 			if (!opts->host) {
 				ret = -ENOMEM;
 				goto out;
@@ -825,8 +827,7 @@ nvmf_create_ctrl(struct device *dev, const char *buf, size_t count)
 out_unlock:
 	mutex_unlock(&nvmf_transports_mutex);
 out_free_opts:
-	nvmf_host_put(opts->host);
-	kfree(opts);
+	nvmf_free_options(opts);
 	return ERR_PTR(ret);
 }
 

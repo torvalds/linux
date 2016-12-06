@@ -194,7 +194,6 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 		BUG_ON(iod->req.sg_cnt > req->nr_phys_segments);
 	}
 
-	iod->cmd.common.command_id = req->tag;
 	blk_mq_start_request(req);
 
 	schedule_work(&iod->work);
