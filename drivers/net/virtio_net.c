@@ -969,12 +969,17 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct virtio_device *vdev = vi->vdev;
 	int ret;
-	struct sockaddr *addr = p;
+	struct sockaddr *addr;
 	struct scatterlist sg;
 
-	ret = eth_prepare_mac_addr_change(dev, p);
+	addr = kmalloc(sizeof(*addr), GFP_KERNEL);
+	if (!addr)
+		return -ENOMEM;
+	memcpy(addr, p, sizeof(*addr));
+
+	ret = eth_prepare_mac_addr_change(dev, addr);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_MAC_ADDR)) {
 		sg_init_one(&sg, addr->sa_data, dev->addr_len);
@@ -982,7 +987,8 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 					  VIRTIO_NET_CTRL_MAC_ADDR_SET, &sg)) {
 			dev_warn(&vdev->dev,
 				 "Failed to set mac address by vq command.\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 	} else if (virtio_has_feature(vdev, VIRTIO_NET_F_MAC) &&
 		   !virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
@@ -996,8 +1002,11 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	}
 
 	eth_commit_mac_addr_change(dev, p);
+	ret = 0;
 
-	return 0;
+out:
+	kfree(addr);
+	return ret;
 }
 
 static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,

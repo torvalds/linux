@@ -10138,7 +10138,7 @@ static void __bnx2x_add_udp_port(struct bnx2x *bp, u16 port,
 {
 	struct bnx2x_udp_tunnel *udp_port = &bp->udp_tunnel_ports[type];
 
-	if (!netif_running(bp->dev) || !IS_PF(bp))
+	if (!netif_running(bp->dev) || !IS_PF(bp) || CHIP_IS_E1x(bp))
 		return;
 
 	if (udp_port->count && udp_port->dst_port == port) {
@@ -10163,7 +10163,7 @@ static void __bnx2x_del_udp_port(struct bnx2x *bp, u16 port,
 {
 	struct bnx2x_udp_tunnel *udp_port = &bp->udp_tunnel_ports[type];
 
-	if (!IS_PF(bp))
+	if (!IS_PF(bp) || CHIP_IS_E1x(bp))
 		return;
 
 	if (!udp_port->count || udp_port->dst_port != port) {
@@ -13505,6 +13505,7 @@ static int bnx2x_init_firmware(struct bnx2x *bp)
 
 	/* Initialize the pointers to the init arrays */
 	/* Blob */
+	rc = -ENOMEM;
 	BNX2X_ALLOC_AND_SET(init_data, request_firmware_exit, be32_to_cpu_n);
 
 	/* Opcodes */
