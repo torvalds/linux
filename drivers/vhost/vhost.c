@@ -719,7 +719,7 @@ static int memory_access_ok(struct vhost_dev *d, struct vhost_umem *umem,
 static int translate_desc(struct vhost_virtqueue *vq, u64 addr, u32 len,
 			  struct iovec iov[], int iov_size, int access);
 
-static int vhost_copy_to_user(struct vhost_virtqueue *vq, void *to,
+static int vhost_copy_to_user(struct vhost_virtqueue *vq, void __user *to,
 			      const void *from, unsigned size)
 {
 	int ret;
@@ -749,7 +749,7 @@ out:
 }
 
 static int vhost_copy_from_user(struct vhost_virtqueue *vq, void *to,
-				void *from, unsigned size)
+				void __user *from, unsigned size)
 {
 	int ret;
 
@@ -783,7 +783,7 @@ out:
 }
 
 static void __user *__vhost_get_user(struct vhost_virtqueue *vq,
-				     void *addr, unsigned size)
+				     void __user *addr, unsigned size)
 {
 	int ret;
 
@@ -934,8 +934,8 @@ static int umem_access_ok(u64 uaddr, u64 size, int access)
 	return 0;
 }
 
-int vhost_process_iotlb_msg(struct vhost_dev *dev,
-			    struct vhost_iotlb_msg *msg)
+static int vhost_process_iotlb_msg(struct vhost_dev *dev,
+				   struct vhost_iotlb_msg *msg)
 {
 	int ret = 0;
 
