@@ -53,9 +53,7 @@
 		compatible = "lg,lp079qx1-sp0v", "panel-simple";
 		backlight = <&backlight>;
 		power-supply = <&vcc3v3_s0>;
-		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&lcd_panel_reset>;
+		enable-gpios = <&gpio4 30 GPIO_ACTIVE_HIGH>;
 
 		ports {
 			panel_in_edp: endpoint {
@@ -113,4 +111,12 @@
 			rockchip,pins = <4 30 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
+};
+
+&backlight{
+	enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+};
+
+&route_edp {
+	status = "okay";
 };
