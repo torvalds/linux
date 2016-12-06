@@ -732,13 +732,15 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		u8 status;
 
 		mlx5_cmd_mbox_status(query_out, &status, &syndrome);
-		if (status == MLX5_CMD_STAT_BAD_OP_ERR) {
-			pr_debug("Only ISSI 0 is supported\n");
-			return 0;
+		if (!status || syndrome == MLX5_DRIVER_SYND) {
+			mlx5_core_err(dev, "Failed to query ISSI err(%d) status(%d) synd(%d)\n",
+				      err, status, syndrome);
+			return err;
 		}
 
-		pr_err("failed to query ISSI err(%d)\n", err);
-		return err;
+		mlx5_core_warn(dev, "Query ISSI is not supported by FW, ISSI is 0\n");
+		dev->issi = 0;
+		return 0;
 	}
 
 	sup_issi = MLX5_GET(query_issi_out, query_out, supported_issi_dw0);
@@ -752,7 +754,8 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		err = mlx5_cmd_exec(dev, set_in, sizeof(set_in),
 				    set_out, sizeof(set_out));
 		if (err) {
-			pr_err("failed to set ISSI=1 err(%d)\n", err);
+			mlx5_core_err(dev, "Failed to set ISSI to 1 err(%d)\n",
+				      err);
 			return err;
 		}
 

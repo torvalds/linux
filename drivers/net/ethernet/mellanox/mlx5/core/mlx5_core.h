@@ -75,6 +75,11 @@ enum {
 	MLX5_CMD_TIME, /* print command execution time */
 };
 
+enum {
+	MLX5_DRIVER_STATUS_ABORTED = 0xfe,
+	MLX5_DRIVER_SYND = 0xbadd00de,
+};
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev);
