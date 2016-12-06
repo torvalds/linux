@@ -72,6 +72,14 @@ static inline struct dwc2_hsotg_ep *index_to_ep(struct dwc2_hsotg *hsotg,
 /* forward declaration of functions */
 static void dwc2_hsotg_dump(struct dwc2_hsotg *hsotg);
 
+void dwc2_gadget_notify(struct dwc2_hsotg *hsotg)
+{
+	if (hsotg->extcon_id.state)
+		usb_gadget_vbus_connect(&hsotg->gadget);
+	else
+		usb_gadget_vbus_disconnect(&hsotg->gadget);
+}
+
 /**
  * using_dma - return the DMA status of the driver.
  * @hsotg: The driver state.

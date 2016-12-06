@@ -46,6 +46,7 @@
 #include <linux/phy/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
 #include <linux/reset.h>
+#include <linux/extcon.h>
 
 #include <linux/usb/of.h>
 
@@ -544,6 +545,7 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	struct dwc2_core_params defparams;
 	struct dwc2_hsotg *hsotg;
 	struct resource *res;
+	struct extcon_dev *ext_id, *ext_vbus;
 	int retval;
 
 	match = of_match_device(dwc2_of_match_table, &dev->dev);
@@ -620,6 +622,51 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	retval = dwc2_get_dr_mode(hsotg);
 	if (retval)
 		goto error;
+
+	ext_id = ERR_PTR(-ENODEV);
+	ext_vbus = ERR_PTR(-ENODEV);
+	/* Each one of them is not mandatory */
+	ext_vbus = extcon_get_edev_by_phandle(&dev->dev, 0);
+	if (IS_ERR(ext_vbus)) {
+		if (PTR_ERR(ext_vbus) != -ENODEV)
+			return PTR_ERR(ext_vbus);
+		ext_vbus = NULL;
+	}
+
+	ext_id = extcon_get_edev_by_phandle(&dev->dev, 1);
+	if (IS_ERR(ext_id)) {
+		if (PTR_ERR(ext_id) != -ENODEV)
+			return PTR_ERR(ext_id);
+		ext_id = NULL;
+	}
+
+	hsotg->extcon_vbus.extcon = ext_vbus;
+	if (ext_vbus) {
+		hsotg->extcon_vbus.nb.notifier_call = dwc2_extcon_vbus_notifier;
+		retval = devm_extcon_register_notifier(&dev->dev, ext_vbus,
+						       EXTCON_USB,
+						       &hsotg->extcon_vbus.nb);
+		if (retval < 0) {
+			dev_err(&dev->dev, "register VBUS notifier failed\n");
+			return retval;
+		}
+		hsotg->extcon_vbus.state = extcon_get_state(ext_vbus,
+							    EXTCON_USB);
+	}
+
+	hsotg->extcon_id.extcon = ext_id;
+	if (ext_id) {
+		hsotg->extcon_id.nb.notifier_call = dwc2_extcon_id_notifier;
+		retval = devm_extcon_register_notifier(&dev->dev, ext_id,
+						       EXTCON_USB_HOST,
+						       &hsotg->extcon_id.nb);
+		if (retval < 0) {
+			dev_err(&dev->dev, "register ID notifier failed\n");
+			return retval;
+		}
+		hsotg->extcon_id.state = extcon_get_state(ext_id,
+							  EXTCON_USB_HOST);
+	}
 
 	/*
 	 * Reset before dwc2_get_hwparams() then it could get power-on real

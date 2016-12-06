@@ -479,6 +479,28 @@ skip_power_saving:
 	}
 }
 
+int dwc2_extcon_vbus_notifier(struct notifier_block *nb, unsigned long event,
+			      void *ptr)
+{
+	struct dwc2_extcon *vbus = container_of(nb, struct dwc2_extcon, nb);
+	struct dwc2_hsotg *hsotg = container_of(vbus, struct dwc2_hsotg,
+						extcon_vbus);
+
+	schedule_delayed_work(&hsotg->extcon_work, msecs_to_jiffies(100));
+	return NOTIFY_DONE;
+}
+
+int dwc2_extcon_id_notifier(struct notifier_block *nb, unsigned long event,
+			    void *ptr)
+{
+	struct dwc2_extcon *id = container_of(nb, struct dwc2_extcon, nb);
+	struct dwc2_hsotg *hsotg = container_of(id, struct dwc2_hsotg,
+						extcon_id);
+
+	schedule_delayed_work(&hsotg->extcon_work, msecs_to_jiffies(100));
+	return NOTIFY_DONE;
+}
+
 #define GINTMSK_COMMON	(GINTSTS_WKUPINT | GINTSTS_SESSREQINT |		\
 			 GINTSTS_CONIDSTSCHNG | GINTSTS_OTGINT |	\
 			 GINTSTS_MODEMIS | GINTSTS_DISCONNINT |		\

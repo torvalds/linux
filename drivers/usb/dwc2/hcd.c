@@ -47,6 +47,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/extcon.h>
 
 #include <linux/usb/hcd.h>
 #include <linux/usb/ch11.h>
@@ -3256,6 +3257,23 @@ again:
 	}
 }
 
+static void dwc2_hcd_extcon_func(struct work_struct *work)
+{
+	struct dwc2_hsotg *hsotg = container_of(work, struct dwc2_hsotg,
+						extcon_work.work);
+
+	if (!IS_ERR(hsotg->extcon_vbus.extcon))
+		hsotg->extcon_vbus.state =
+				extcon_get_state(hsotg->extcon_vbus.extcon,
+						 EXTCON_USB);
+	if (!IS_ERR(hsotg->extcon_id.extcon))
+		hsotg->extcon_id.state =
+				extcon_get_state(hsotg->extcon_id.extcon,
+						 EXTCON_USB_HOST);
+
+	dwc2_gadget_notify(hsotg);
+}
+
 static void dwc2_wakeup_detected(unsigned long data)
 {
 	struct dwc2_hsotg *hsotg = (struct dwc2_hsotg *)data;
@@ -5157,6 +5175,8 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg, int irq)
 
 	/* Initialize port reset work */
 	INIT_DELAYED_WORK(&hsotg->reset_work, dwc2_hcd_reset_func);
+
+	INIT_DELAYED_WORK(&hsotg->extcon_work, dwc2_hcd_extcon_func);
 
 	/*
 	 * Allocate space for storing data on status transactions. Normally no
