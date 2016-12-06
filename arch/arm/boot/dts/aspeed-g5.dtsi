@@ -71,6 +71,12 @@
 				reg = <0x1e6e202c 0x4>;
 			};
 
+			gfx: display@1e6e6000 {
+				compatible = "aspeed,ast2500-gfx", "syscon";
+				reg = <0x1e6e6000 0x1000>;
+				reg-io-width = <4>;
+			};
+
 			sram@1e720000 {
 				compatible = "mmio-sram";
 				reg = <0x1e720000 0x9000>;	// 36K
