@@ -293,7 +293,6 @@ static struct drm_encoder *construct_encoder(struct mdp5_kms *mdp5_kms,
 		return encoder;
 	}
 
-	encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
 	priv->encoders[priv->num_encoders++] = encoder;
 
 	return encoder;
@@ -411,16 +410,35 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	struct drm_device *dev = mdp5_kms->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	const struct mdp5_cfg_hw *hw_cfg;
+	unsigned int num_crtcs;
 	int i, ret;
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
-	/* Construct planes equaling the number of hw pipes, and CRTCs
-	 * for the N layer-mixers (LM).  The first N planes become primary
+	/*
+	 * Construct encoders and modeset initialize connector devices
+	 * for each external display interface.
+	 */
+	for (i = 0; i < ARRAY_SIZE(hw_cfg->intf.connect); i++) {
+		ret = modeset_init_intf(mdp5_kms, i);
+		if (ret)
+			goto fail;
+	}
+
+	/*
+	 * We should ideally have less number of encoders (set up by parsing
+	 * the MDP5 interfaces) than the number of layer mixers present in HW,
+	 * but let's be safe here anyway
+	 */
+	num_crtcs = min(priv->num_encoders, mdp5_cfg->lm.count);
+
+	/*
+	 * Construct planes equaling the number of hw pipes, and CRTCs for the
+	 * N encoders set up by the driver. The first N planes become primary
 	 * planes for the CRTCs, with the remainder as overlay planes:
 	 */
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
-		bool primary = i < mdp5_cfg->lm.count;
+		bool primary = i < num_crtcs;
 		struct drm_plane *plane;
 		struct drm_crtc *crtc;
 
@@ -444,13 +462,14 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		priv->crtcs[priv->num_crtcs++] = crtc;
 	}
 
-	/* Construct encoders and modeset initialize connector devices
-	 * for each external display interface.
+	/*
+	 * Now that we know the number of crtcs we've created, set the possible
+	 * crtcs for the encoders
 	 */
-	for (i = 0; i < ARRAY_SIZE(hw_cfg->intf.connect); i++) {
-		ret = modeset_init_intf(mdp5_kms, i);
-		if (ret)
-			goto fail;
+	for (i = 0; i < priv->num_encoders; i++) {
+		struct drm_encoder *encoder = priv->encoders[i];
+
+		encoder->possible_crtcs = (1 << priv->num_crtcs) - 1;
 	}
 
 	return 0;
