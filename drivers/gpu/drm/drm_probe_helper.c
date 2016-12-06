@@ -392,7 +392,11 @@ static void output_poll_execute(struct work_struct *work)
 	if (!drm_kms_helper_poll)
 		goto out;
 
-	mutex_lock(&dev->mode_config.mutex);
+	if (!mutex_trylock(&dev->mode_config.mutex)) {
+		repoll = true;
+		goto out;
+	}
+
 	drm_for_each_connector(connector, dev) {
 
 		/* Ignore forced connectors. */
