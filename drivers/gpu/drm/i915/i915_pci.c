@@ -204,6 +204,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.has_rc6p = 1, \
 	.has_gmbus_irq = 1, \
 	.has_hw_contexts = 1, \
+	.has_aliasing_ppgtt = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	CURSOR_OFFSETS
 
@@ -226,6 +227,8 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_rc6p = 1, \
 	.has_gmbus_irq = 1, \
 	.has_hw_contexts = 1, \
+	.has_aliasing_ppgtt = 1, \
+	.has_full_ppgtt = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	IVB_CURSOR_OFFSETS
 
@@ -258,6 +261,8 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 	.has_hw_contexts = 1, \
 	.has_gmch_display = 1, \
 	.has_hotplug = 1, \
+	.has_aliasing_ppgtt = 1, \
+	.has_full_ppgtt = 1, \
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
 	.display_mmio_offset = VLV_DISPLAY_BASE, \
 	GEN_DEFAULT_PIPEOFFSETS, \
@@ -289,6 +294,7 @@ static const struct intel_device_info intel_haswell_info = {
 	HSW_FEATURES, \
 	BDW_COLORS, \
 	.has_logical_ring_contexts = 1, \
+	.has_full_48bit_ppgtt = 1, \
 	.has_64bit_reloc = 1
 
 static const struct intel_device_info intel_broadwell_info = {
@@ -318,6 +324,8 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_hw_contexts = 1,
 	.has_logical_ring_contexts = 1,
 	.has_gmch_display = 1,
+	.has_aliasing_ppgtt = 1,
+	.has_full_ppgtt = 1,
 	.display_mmio_offset = VLV_DISPLAY_BASE,
 	GEN_CHV_PIPEOFFSETS,
 	CURSOR_OFFSETS,
@@ -364,6 +372,9 @@ static const struct intel_device_info intel_skylake_gt3_info = {
 	.has_logical_ring_contexts = 1, \
 	.has_guc = 1, \
 	.has_decoupled_mmio = 1, \
+	.has_aliasing_ppgtt = 1, \
+	.has_full_ppgtt = 1, \
+	.has_full_48bit_ppgtt = 1, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	IVB_CURSOR_OFFSETS, \
 	BDW_COLORS

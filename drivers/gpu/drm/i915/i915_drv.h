@@ -710,11 +710,14 @@ struct intel_csr {
 	func(is_alpha_support); \
 	/* Keep has_* in alphabetical order */ \
 	func(has_64bit_reloc); \
+	func(has_aliasing_ppgtt); \
 	func(has_csr); \
 	func(has_ddi); \
 	func(has_dp_mst); \
 	func(has_fbc); \
 	func(has_fpga_dbg); \
+	func(has_full_ppgtt); \
+	func(has_full_48bit_ppgtt); \
 	func(has_gmbus_irq); \
 	func(has_gmch_display); \
 	func(has_guc); \

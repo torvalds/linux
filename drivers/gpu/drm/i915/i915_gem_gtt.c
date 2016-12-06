@@ -113,10 +113,9 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	bool has_full_ppgtt;
 	bool has_full_48bit_ppgtt;
 
-	has_aliasing_ppgtt = INTEL_GEN(dev_priv) >= 6;
-	has_full_ppgtt = INTEL_GEN(dev_priv) >= 7;
-	has_full_48bit_ppgtt =
-	       	IS_BROADWELL(dev_priv) || INTEL_GEN(dev_priv) >= 9;
+	has_aliasing_ppgtt = dev_priv->info.has_aliasing_ppgtt;
+	has_full_ppgtt = dev_priv->info.has_full_ppgtt;
+	has_full_48bit_ppgtt = dev_priv->info.has_full_48bit_ppgtt;
 
 	if (intel_vgpu_active(dev_priv)) {
 		/* emulation is too hard */
