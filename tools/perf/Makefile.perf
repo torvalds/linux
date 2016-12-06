@@ -164,11 +164,6 @@ BISON   = bison
 STRIP   = strip
 AWK     = awk
 
-LIB_DIR		= $(srctree)/tools/lib/api/
-TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
-BPF_DIR		= $(srctree)/tools/lib/bpf/
-SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
-
 # include Makefile.config by default and rule out
 # non-config cases
 config := 1
@@ -209,6 +204,11 @@ sub-make: fixdep
 	$(Q)$(MAKE) FIXDEP=1 -f Makefile.perf $(goals)
 
 else # force_fixdep
+
+LIB_DIR         = $(srctree)/tools/lib/api/
+TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
+BPF_DIR         = $(srctree)/tools/lib/bpf/
+SUBCMD_DIR      = $(srctree)/tools/lib/subcmd/
 
 # Set FEATURE_TESTS to 'all' so all possible feature checkers are executed.
 # Without this setting the output feature dump file misses some features, for
