@@ -732,6 +732,16 @@
 			regulator-always-on;
 		};
 
+		usb_vbus: usb-vbus {
+			compatible = "linux,extcon-usb-gpio";
+			id-gpio = <&gpio2 6 1>;
+		};
+
+		usb_id: usb-id {
+			compatible = "linux,extcon-usb-gpio";
+			id-gpio = <&gpio2 5 1>;
+		};
+
 		usb_phy: usbphy {
 			compatible = "hisilicon,hi6220-usb-phy";
 			#phy-cells = <0>;
@@ -745,6 +755,7 @@
 			phys = <&usb_phy>;
 			phy-names = "usb2-phy";
 			clocks = <&sys_ctrl HI6220_USBOTG_HCLK>;
+			extcon = <&usb_vbus>, <&usb_id>;
 			clock-names = "otg";
 			dr_mode = "otg";
 			g-use-dma;
