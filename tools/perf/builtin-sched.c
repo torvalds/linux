@@ -2118,7 +2118,9 @@ static struct thread *timehist_get_thread(struct perf_sched *sched,
 			pr_err("Failed to get idle thread for cpu %d.\n", sample->cpu);
 
 	} else {
-		thread = machine__findnew_thread(machine, sample->pid, sample->tid);
+		/* there were samples with tid 0 but non-zero pid */
+		thread = machine__findnew_thread(machine, sample->pid,
+						 sample->tid ?: sample->pid);
 		if (thread == NULL) {
 			pr_debug("Failed to get thread for tid %d. skipping sample.\n",
 				 sample->tid);
