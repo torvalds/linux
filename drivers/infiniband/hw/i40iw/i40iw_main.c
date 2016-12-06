@@ -237,14 +237,11 @@ static irqreturn_t i40iw_irq_handler(int irq, void *data)
  */
 static void i40iw_destroy_cqp(struct i40iw_device *iwdev, bool free_hwcqp)
 {
-	enum i40iw_status_code status = 0;
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
 	struct i40iw_cqp *cqp = &iwdev->cqp;
 
-	if (free_hwcqp && dev->cqp_ops->cqp_destroy)
-		status = dev->cqp_ops->cqp_destroy(dev->cqp);
-	if (status)
-		i40iw_pr_err("destroy cqp failed");
+	if (free_hwcqp)
+		dev->cqp_ops->cqp_destroy(dev->cqp);
 
 	i40iw_free_dma_mem(dev->hw, &cqp->sq);
 	kfree(cqp->scratch_array);
@@ -1475,7 +1472,7 @@ static void i40iw_deinit_device(struct i40iw_device *iwdev, bool reset)
 		i40iw_del_hmc_objects(dev, dev->hmc_info, true, reset);
 		/* fallthrough */
 	case CQP_CREATED:
-		i40iw_destroy_cqp(iwdev, !reset);
+		i40iw_destroy_cqp(iwdev, true);
 		/* fallthrough */
 	case INITIAL_STATE:
 		i40iw_cleanup_cm_core(&iwdev->cm_core);
