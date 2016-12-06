@@ -298,7 +298,8 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 
 	for (i = 0, offset = 0; i < desc->out_num; i++) {
 		u32 out_size = nd_cmd_out_size(nvdimm, cmd, desc, i, buf,
-				(u32 *) out_obj->buffer.pointer);
+				(u32 *) out_obj->buffer.pointer,
+				out_obj->buffer.length - offset);
 
 		if (offset + out_size > out_obj->buffer.length) {
 			dev_dbg(dev, "%s:%s output object underflow cmd: %s field: %d\n",
