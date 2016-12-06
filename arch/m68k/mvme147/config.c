@@ -63,7 +63,7 @@ int __init mvme147_parse_bootinfo(const struct bi_record *bi)
 
 void mvme147_reset(void)
 {
-	printk ("\r\n\nCalled mvme147_reset\r\n");
+	pr_info("\r\n\nCalled mvme147_reset\r\n");
 	m147_pcc->watchdog = 0x0a;	/* Clear timer */
 	m147_pcc->watchdog = 0xa5;	/* Enable watchdog - 100ms to reset */
 	while (1)
