@@ -460,9 +460,8 @@ static void dce_v6_0_resume_mc_access(struct amdgpu_device *adev,
 	for (i = 0; i < adev->mode_info.num_crtc; i++) {
 		if (save->crtc_enabled[i]) {
 			tmp = RREG32(mmMASTER_UPDATE_MODE + crtc_offsets[i]);
-			if ((tmp & 0x7) != 3) {
+			if ((tmp & 0x7) != 0) {
 				tmp &= ~0x7;
-				tmp |= 0x3;
 				WREG32(mmMASTER_UPDATE_MODE + crtc_offsets[i], tmp);
 			}
 			tmp = RREG32(mmGRPH_UPDATE + crtc_offsets[i]);
