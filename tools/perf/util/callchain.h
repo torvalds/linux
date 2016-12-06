@@ -216,6 +216,9 @@ static inline void callchain_cursor_advance(struct callchain_cursor *cursor)
 	cursor->pos++;
 }
 
+int callchain_cursor__copy(struct callchain_cursor *dst,
+			   struct callchain_cursor *src);
+
 struct option;
 struct hist_entry;
 

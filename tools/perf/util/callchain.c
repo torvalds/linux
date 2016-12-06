@@ -1234,3 +1234,30 @@ out:
 	}
 	return -ENOMEM;
 }
+
+int callchain_cursor__copy(struct callchain_cursor *dst,
+			   struct callchain_cursor *src)
+{
+	int rc = 0;
+
+	callchain_cursor_reset(dst);
+	callchain_cursor_commit(src);
+
+	while (true) {
+		struct callchain_cursor_node *node;
+
+		node = callchain_cursor_current(src);
+		if (node == NULL)
+			break;
+
+		rc = callchain_cursor_append(dst, node->ip, node->map, node->sym,
+					     node->branch, &node->branch_flags,
+					     node->nr_loop_iter, node->samples);
+		if (rc)
+			break;
+
+		callchain_cursor_advance(src);
+	}
+
+	return rc;
+}
