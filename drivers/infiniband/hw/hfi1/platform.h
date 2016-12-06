@@ -168,16 +168,6 @@ struct platform_config_cache {
 	struct platform_config_data config_tables[PLATFORM_CONFIG_TABLE_MAX];
 };
 
-static const u32 platform_config_table_limits[PLATFORM_CONFIG_TABLE_MAX] = {
-	0,
-	SYSTEM_TABLE_MAX,
-	PORT_TABLE_MAX,
-	RX_PRESET_TABLE_MAX,
-	TX_PRESET_TABLE_MAX,
-	QSFP_ATTEN_TABLE_MAX,
-	VARIABLE_SETTINGS_TABLE_MAX
-};
-
 /* This section defines default values and encodings for the
  * fields defined for each table above
  */

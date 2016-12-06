@@ -239,6 +239,16 @@ static const u8 all_fabric_serdes_broadcast = 0xe1;
 const u8 pcie_serdes_broadcast[2] = { 0xe2, 0xe3 };
 static const u8 all_pcie_serdes_broadcast = 0xe0;
 
+static const u32 platform_config_table_limits[PLATFORM_CONFIG_TABLE_MAX] = {
+	0,
+	SYSTEM_TABLE_MAX,
+	PORT_TABLE_MAX,
+	RX_PRESET_TABLE_MAX,
+	TX_PRESET_TABLE_MAX,
+	QSFP_ATTEN_TABLE_MAX,
+	VARIABLE_SETTINGS_TABLE_MAX
+};
+
 /* forwards */
 static void dispose_one_firmware(struct firmware_details *fdet);
 static int load_fabric_serdes_firmware(struct hfi1_devdata *dd,
