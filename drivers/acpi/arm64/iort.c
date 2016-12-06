@@ -547,6 +547,28 @@ static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 }
 
 /**
+ * iort_set_dma_mask - Set-up dma mask for a device.
+ *
+ * @dev: device to configure
+ */
+void iort_set_dma_mask(struct device *dev)
+{
+	/*
+	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
+	 * setup the correct supported mask.
+	 */
+	if (!dev->coherent_dma_mask)
+		dev->coherent_dma_mask = DMA_BIT_MASK(32);
+
+	/*
+	 * Set it to coherent_dma_mask by default if the architecture
+	 * code has not set it.
+	 */
+	if (!dev->dma_mask)
+		dev->dma_mask = &dev->coherent_dma_mask;
+}
+
+/**
  * iort_iommu_configure - Set-up IOMMU configuration for a device.
  *
  * @dev: device to configure
