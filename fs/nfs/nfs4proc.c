@@ -2955,8 +2955,10 @@ static int _nfs4_do_setattr(struct inode *inode,
 		l_ctx = nfs_get_lock_context(ctx);
 		if (IS_ERR(l_ctx))
 			return PTR_ERR(l_ctx);
-		if (nfs4_select_rw_stateid(ctx->state, FMODE_WRITE, l_ctx,
-				&arg->stateid, &delegation_cred) == -EIO)
+		status = nfs4_select_rw_stateid(ctx->state, FMODE_WRITE, l_ctx,
+						&arg->stateid, &delegation_cred);
+		nfs_put_lock_context(l_ctx);
+		if (status == -EIO)
 			return -EBADF;
 	} else
 		nfs4_stateid_copy(&arg->stateid, &zero_stateid);
