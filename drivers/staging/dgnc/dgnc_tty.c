@@ -376,9 +376,7 @@ static void dgnc_wmove(struct channel_t *ch, char *buf, uint n)
 	}
 
 	if (n > 0) {
-
 		/* Move rest of data. */
-
 		remain = n;
 		memcpy(ch->ch_wqueue + head, buf, remain);
 		head += remain;
@@ -1022,9 +1020,7 @@ static int dgnc_tty_open(struct tty_struct *tty, struct file *file)
 	/* Initialize if neither terminal or printer is open. */
 
 	if (!((ch->ch_tun.un_flags | ch->ch_pun.un_flags) & UN_ISOPEN)) {
-
 		/* Flush input queues. */
-
 		ch->ch_r_head = 0;
 		ch->ch_r_tail = 0;
 		ch->ch_e_head = 0;
@@ -1623,9 +1619,7 @@ static int dgnc_tty_write(struct tty_struct *tty,
 	}
 
 	if (n > 0) {
-
 		/* Move rest of data. */
-
 		remain = n;
 		memcpy(ch->ch_wqueue + head, buf, remain);
 		head += remain;
