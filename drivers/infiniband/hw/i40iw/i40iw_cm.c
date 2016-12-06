@@ -68,13 +68,13 @@ static void i40iw_disconnect_worker(struct work_struct *work);
 
 /**
  * i40iw_free_sqbuf - put back puda buffer if refcount = 0
- * @dev: FPK device
+ * @vsi: pointer to vsi structure
  * @buf: puda buffer to free
  */
-void i40iw_free_sqbuf(struct i40iw_sc_dev *dev, void *bufp)
+void i40iw_free_sqbuf(struct i40iw_sc_vsi *vsi, void *bufp)
 {
 	struct i40iw_puda_buf *buf = (struct i40iw_puda_buf *)bufp;
-	struct i40iw_puda_rsrc *ilq = dev->ilq;
+	struct i40iw_puda_rsrc *ilq = vsi->ilq;
 
 	if (!atomic_dec_return(&buf->refcount))
 		i40iw_puda_ret_bufpool(ilq, buf);
@@ -337,13 +337,13 @@ static struct i40iw_cm_event *i40iw_create_event(struct i40iw_cm_node *cm_node,
  */
 static void i40iw_free_retrans_entry(struct i40iw_cm_node *cm_node)
 {
-	struct i40iw_sc_dev *dev = cm_node->dev;
+	struct i40iw_device *iwdev = cm_node->iwdev;
 	struct i40iw_timer_entry *send_entry;
 
 	send_entry = cm_node->send_entry;
 	if (send_entry) {
 		cm_node->send_entry = NULL;
-		i40iw_free_sqbuf(dev, (void *)send_entry->sqbuf);
+		i40iw_free_sqbuf(&iwdev->vsi, (void *)send_entry->sqbuf);
 		kfree(send_entry);
 		atomic_dec(&cm_node->ref_count);
 	}
@@ -377,7 +377,7 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 						  u8 flags)
 {
 	struct i40iw_puda_buf *sqbuf;
-	struct i40iw_sc_dev *dev = cm_node->dev;
+	struct i40iw_sc_vsi *vsi = &cm_node->iwdev->vsi;
 	u8 *buf;
 
 	struct tcphdr *tcph;
@@ -391,7 +391,7 @@ static struct i40iw_puda_buf *i40iw_form_cm_frame(struct i40iw_cm_node *cm_node,
 	u32 hdr_len = 0;
 	u16 vtag;
 
-	sqbuf = i40iw_puda_get_bufpool(dev->ilq);
+	sqbuf = i40iw_puda_get_bufpool(vsi->ilq);
 	if (!sqbuf)
 		return NULL;
 	buf = sqbuf->mem.va;
@@ -1059,7 +1059,7 @@ int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
 			    int send_retrans,
 			    int close_when_complete)
 {
-	struct i40iw_sc_dev *dev = cm_node->dev;
+	struct i40iw_sc_vsi *vsi = &cm_node->iwdev->vsi;
 	struct i40iw_cm_core *cm_core = cm_node->cm_core;
 	struct i40iw_timer_entry *new_send;
 	int ret = 0;
@@ -1068,7 +1068,7 @@ int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
 
 	new_send = kzalloc(sizeof(*new_send), GFP_ATOMIC);
 	if (!new_send) {
-		i40iw_free_sqbuf(cm_node->dev, (void *)sqbuf);
+		i40iw_free_sqbuf(vsi, (void *)sqbuf);
 		return -ENOMEM;
 	}
 	new_send->retrycount = I40IW_DEFAULT_RETRYS;
@@ -1083,7 +1083,7 @@ int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
 		new_send->timetosend += (HZ / 10);
 		if (cm_node->close_entry) {
 			kfree(new_send);
-			i40iw_free_sqbuf(cm_node->dev, (void *)sqbuf);
+			i40iw_free_sqbuf(vsi, (void *)sqbuf);
 			i40iw_pr_err("already close entry\n");
 			return -EINVAL;
 		}
@@ -1098,7 +1098,7 @@ int i40iw_schedule_cm_timer(struct i40iw_cm_node *cm_node,
 		new_send->timetosend = jiffies + I40IW_RETRY_TIMEOUT;
 
 		atomic_inc(&sqbuf->refcount);
-		i40iw_puda_send_buf(dev->ilq, sqbuf);
+		i40iw_puda_send_buf(vsi->ilq, sqbuf);
 		if (!send_retrans) {
 			i40iw_cleanup_retrans_entry(cm_node);
 			if (close_when_complete)
@@ -1195,6 +1195,7 @@ static void i40iw_cm_timer_tick(unsigned long pass)
 	struct i40iw_cm_node *cm_node;
 	struct i40iw_timer_entry *send_entry, *close_entry;
 	struct list_head *list_core_temp;
+	struct i40iw_sc_vsi *vsi;
 	struct list_head *list_node;
 	struct i40iw_cm_core *cm_core = (struct i40iw_cm_core *)pass;
 	u32 settimer = 0;
@@ -1270,9 +1271,10 @@ static void i40iw_cm_timer_tick(unsigned long pass)
 		cm_node->cm_core->stats_pkt_retrans++;
 		spin_unlock_irqrestore(&cm_node->retrans_list_lock, flags);
 
+		vsi = &cm_node->iwdev->vsi;
 		dev = cm_node->dev;
 		atomic_inc(&send_entry->sqbuf->refcount);
-		i40iw_puda_send_buf(dev->ilq, send_entry->sqbuf);
+		i40iw_puda_send_buf(vsi->ilq, send_entry->sqbuf);
 		spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
 		if (send_entry->send_retrans) {
 			send_entry->retranscount--;
@@ -1373,10 +1375,11 @@ int i40iw_send_syn(struct i40iw_cm_node *cm_node, u32 sendack)
 static void i40iw_send_ack(struct i40iw_cm_node *cm_node)
 {
 	struct i40iw_puda_buf *sqbuf;
+	struct i40iw_sc_vsi *vsi = &cm_node->iwdev->vsi;
 
 	sqbuf = i40iw_form_cm_frame(cm_node, NULL, NULL, NULL, SET_ACK);
 	if (sqbuf)
-		i40iw_puda_send_buf(cm_node->dev->ilq, sqbuf);
+		i40iw_puda_send_buf(vsi->ilq, sqbuf);
 	else
 		i40iw_pr_err("no sqbuf\n");
 }
@@ -2179,7 +2182,7 @@ static struct i40iw_cm_node *i40iw_make_cm_node(
 			I40IW_CM_DEFAULT_RCV_WND_SCALED >> I40IW_CM_DEFAULT_RCV_WND_SCALE;
 	ts = current_kernel_time();
 	cm_node->tcp_cntxt.loc_seq_num = ts.tv_nsec;
-	cm_node->tcp_cntxt.mss = iwdev->mss;
+	cm_node->tcp_cntxt.mss = iwdev->vsi.mss;
 
 	cm_node->iwdev = iwdev;
 	cm_node->dev = &iwdev->sc_dev;
@@ -3059,10 +3062,10 @@ static int i40iw_cm_close(struct i40iw_cm_node *cm_node)
 /**
  * i40iw_receive_ilq - recv an ETHERNET packet, and process it
  * through CM
- * @dev: FPK dev struct
+ * @vsi: pointer to the vsi structure
  * @rbuf: receive buffer
  */
-void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf)
+void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf)
 {
 	struct i40iw_cm_node *cm_node;
 	struct i40iw_cm_listener *listener;
@@ -3070,6 +3073,7 @@ void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf)
 	struct ipv6hdr *ip6h;
 	struct tcphdr *tcph;
 	struct i40iw_cm_info cm_info;
+	struct i40iw_sc_dev *dev = vsi->dev;
 	struct i40iw_device *iwdev = (struct i40iw_device *)dev->back_dev;
 	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
 	struct vlan_ethhdr *ethh;

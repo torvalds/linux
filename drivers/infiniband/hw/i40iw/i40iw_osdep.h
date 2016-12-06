@@ -209,9 +209,9 @@ void i40iw_terminate_del_timer(struct i40iw_sc_qp *qp);
 enum i40iw_status_code i40iw_hw_manage_vf_pble_bp(struct i40iw_device *iwdev,
 						  struct i40iw_manage_vf_pble_info *info,
 						  bool wait);
-struct i40iw_dev_pestat;
-void i40iw_hw_stats_start_timer(struct i40iw_sc_dev *);
-void i40iw_hw_stats_del_timer(struct i40iw_sc_dev *);
+struct i40iw_sc_vsi;
+void i40iw_hw_stats_start_timer(struct i40iw_sc_vsi *vsi);
+void i40iw_hw_stats_stop_timer(struct i40iw_sc_vsi *vsi);
 #define i40iw_mmiowb() mmiowb()
 void i40iw_wr32(struct i40iw_hw *hw, u32 reg, u32 value);
 u32  i40iw_rd32(struct i40iw_hw *hw, u32 reg);

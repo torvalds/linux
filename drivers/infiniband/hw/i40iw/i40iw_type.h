@@ -61,7 +61,7 @@ struct i40iw_cq_shadow_area {
 
 struct i40iw_sc_dev;
 struct i40iw_hmc_info;
-struct i40iw_dev_pestat;
+struct i40iw_vsi_pestat;
 
 struct i40iw_cqp_ops;
 struct i40iw_ccq_ops;
@@ -191,7 +191,7 @@ enum i40iw_debug_flag {
 	I40IW_DEBUG_ALL		= 0xFFFFFFFF
 };
 
-enum i40iw_hw_stat_index_32b {
+enum i40iw_hw_stats_index_32b {
 	I40IW_HW_STAT_INDEX_IP4RXDISCARD = 0,
 	I40IW_HW_STAT_INDEX_IP4RXTRUNC,
 	I40IW_HW_STAT_INDEX_IP4TXNOROUTE,
@@ -204,7 +204,7 @@ enum i40iw_hw_stat_index_32b {
 	I40IW_HW_STAT_INDEX_MAX_32
 };
 
-enum i40iw_hw_stat_index_64b {
+enum i40iw_hw_stats_index_64b {
 	I40IW_HW_STAT_INDEX_IP4RXOCTS = 0,
 	I40IW_HW_STAT_INDEX_IP4RXPKTS,
 	I40IW_HW_STAT_INDEX_IP4RXFRAGS,
@@ -234,32 +234,23 @@ enum i40iw_hw_stat_index_64b {
 	I40IW_HW_STAT_INDEX_MAX_64
 };
 
-struct i40iw_dev_hw_stat_offsets {
-	u32 stat_offset_32[I40IW_HW_STAT_INDEX_MAX_32];
-	u32 stat_offset_64[I40IW_HW_STAT_INDEX_MAX_64];
+struct i40iw_dev_hw_stats_offsets {
+	u32 stats_offset_32[I40IW_HW_STAT_INDEX_MAX_32];
+	u32 stats_offset_64[I40IW_HW_STAT_INDEX_MAX_64];
 };
 
 struct i40iw_dev_hw_stats {
-	u64 stat_value_32[I40IW_HW_STAT_INDEX_MAX_32];
-	u64 stat_value_64[I40IW_HW_STAT_INDEX_MAX_64];
+	u64 stats_value_32[I40IW_HW_STAT_INDEX_MAX_32];
+	u64 stats_value_64[I40IW_HW_STAT_INDEX_MAX_64];
 };
 
-struct i40iw_device_pestat_ops {
-	void (*iw_hw_stat_init)(struct i40iw_dev_pestat *, u8, struct i40iw_hw *, bool);
-	void (*iw_hw_stat_read_32)(struct i40iw_dev_pestat *, enum i40iw_hw_stat_index_32b, u64 *);
-	void (*iw_hw_stat_read_64)(struct i40iw_dev_pestat *, enum i40iw_hw_stat_index_64b, u64 *);
-	void (*iw_hw_stat_read_all)(struct i40iw_dev_pestat *, struct i40iw_dev_hw_stats *);
-	void (*iw_hw_stat_refresh_all)(struct i40iw_dev_pestat *);
-};
-
-struct i40iw_dev_pestat {
+struct i40iw_vsi_pestat {
 	struct i40iw_hw *hw;
-	struct i40iw_device_pestat_ops ops;
 	struct i40iw_dev_hw_stats hw_stats;
 	struct i40iw_dev_hw_stats last_read_hw_stats;
-	struct i40iw_dev_hw_stat_offsets hw_stat_offsets;
+	struct i40iw_dev_hw_stats_offsets hw_stats_offsets;
 	struct timer_list stats_timer;
-	spinlock_t stats_lock; /* rdma stats lock */
+	spinlock_t lock; /* rdma stats lock */
 };
 
 struct i40iw_hw {
@@ -355,6 +346,7 @@ struct i40iw_sc_cq {
 	u64 cq_pa;
 	u64 shadow_area_pa;
 	struct i40iw_sc_dev *dev;
+	struct i40iw_sc_vsi *vsi;
 	void *pbl_list;
 	void *back_cq;
 	u32 ceq_id;
@@ -378,6 +370,7 @@ struct i40iw_sc_qp {
 	u64 shadow_area_pa;
 	u64 q2_pa;
 	struct i40iw_sc_dev *dev;
+	struct i40iw_sc_vsi *vsi;
 	struct i40iw_sc_pd *pd;
 	u64 *hw_host_ctx;
 	void *llp_stream_handle;
@@ -441,7 +434,7 @@ struct i40iw_qos {
 struct i40iw_vfdev {
 	struct i40iw_sc_dev *pf_dev;
 	u8 *hmc_info_mem;
-	struct i40iw_dev_pestat dev_pestat;
+	struct i40iw_vsi_pestat pestat;
 	struct i40iw_hmc_pble_info *pble_info;
 	struct i40iw_hmc_info hmc_info;
 	struct i40iw_vchnl_vf_msg_buffer vf_msg_buffer;
@@ -455,11 +448,28 @@ struct i40iw_vfdev {
 	bool stats_initialized;
 };
 
+#define I40IW_INVALID_FCN_ID 0xff
+struct i40iw_sc_vsi {
+	struct i40iw_sc_dev *dev;
+	void *back_vsi; /* Owned by OS */
+	u32 ilq_count;
+	struct i40iw_virt_mem ilq_mem;
+	struct i40iw_puda_rsrc *ilq;
+	u32 ieq_count;
+	struct i40iw_virt_mem ieq_mem;
+	struct i40iw_puda_rsrc *ieq;
+	u16 mss;
+	u8 fcn_id;
+	bool stats_fcn_id_alloc;
+	struct i40iw_qos qos[I40IW_MAX_USER_PRIORITY];
+	struct i40iw_vsi_pestat *pestat;
+};
+
 struct i40iw_sc_dev {
 	struct list_head cqp_cmd_head;	/* head of the CQP command list */
 	spinlock_t cqp_lock; /* cqp list sync */
 	struct i40iw_dev_uk dev_uk;
-	struct i40iw_dev_pestat dev_pestat;
+	bool fcn_id_array[I40IW_MAX_STATS_COUNT];
 	struct i40iw_dma_mem vf_fpm_query_buf[I40IW_MAX_PE_ENABLED_VF_COUNT];
 	u64 fpm_query_buf_pa;
 	u64 fpm_commit_buf_pa;
@@ -486,18 +496,9 @@ struct i40iw_sc_dev {
 	struct i40iw_cqp_misc_ops *cqp_misc_ops;
 	struct i40iw_hmc_ops *hmc_ops;
 	struct i40iw_vchnl_if vchnl_if;
-	u32 ilq_count;
-	struct i40iw_virt_mem ilq_mem;
-	struct i40iw_puda_rsrc *ilq;
-	u32 ieq_count;
-	struct i40iw_virt_mem ieq_mem;
-	struct i40iw_puda_rsrc *ieq;
-
 	const struct i40iw_vf_cqp_ops *iw_vf_cqp_ops;
 
 	struct i40iw_hmc_fpm_misc hmc_fpm_misc;
-	struct i40iw_qos qos[I40IW_MAX_USER_PRIORITY];
-	u16 mss;
 	u32 debug_mask;
 	u16 exception_lan_queue;
 	u8 hmc_fn_id;
@@ -571,6 +572,19 @@ struct i40iw_l2params {
 	u16 mss;
 };
 
+struct i40iw_vsi_init_info {
+	struct i40iw_sc_dev *dev;
+	void  *back_vsi;
+	struct i40iw_l2params *params;
+};
+
+struct i40iw_vsi_stats_info {
+	struct i40iw_vsi_pestat *pestat;
+	u8 fcn_id;
+	bool alloc_fcn_id;
+	bool stats_initialize;
+};
+
 struct i40iw_device_init_info {
 	u64 fpm_query_buf_pa;
 	u64 fpm_commit_buf_pa;
@@ -579,7 +593,6 @@ struct i40iw_device_init_info {
 	struct i40iw_hw *hw;
 	void __iomem *bar0;
 	enum i40iw_status_code (*vchnl_send)(struct i40iw_sc_dev *, u32, u8 *, u16);
-	struct i40iw_l2params l2params;
 	u16 exception_lan_queue;
 	u8 hmc_fn_id;
 	bool is_pf;
@@ -831,6 +844,7 @@ struct i40iw_register_shared_stag {
 struct i40iw_qp_init_info {
 	struct i40iw_qp_uk_init_info qp_uk_init_info;
 	struct i40iw_sc_pd *pd;
+	struct i40iw_sc_vsi *vsi;
 	u64 *host_ctx;
 	u8 *q2;
 	u64 sq_pa;
@@ -897,6 +911,7 @@ enum i40iw_quad_hash_manage_type {
 };
 
 struct i40iw_qhash_table_info {
+	struct i40iw_sc_vsi *vsi;
 	enum i40iw_quad_hash_manage_type manage;
 	enum i40iw_quad_entry_type entry_type;
 	bool vlan_valid;

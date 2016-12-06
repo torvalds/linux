@@ -542,6 +542,7 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 {
 	struct i40iw_qhash_table_info *info;
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
+	struct i40iw_sc_vsi *vsi = &iwdev->vsi;
 	enum i40iw_status_code status;
 	struct i40iw_cqp *iwcqp = &iwdev->cqp;
 	struct i40iw_cqp_request *cqp_request;
@@ -554,6 +555,7 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 	info = &cqp_info->in.u.manage_qhash_table_entry.info;
 	memset(info, 0, sizeof(*info));
 
+	info->vsi = &iwdev->vsi;
 	info->manage = mtype;
 	info->entry_type = etype;
 	if (cminfo->vlan_id != 0xFFFF) {
@@ -566,7 +568,7 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 	info->ipv4_valid = cminfo->ipv4;
 	info->user_pri = cminfo->user_pri;
 	ether_addr_copy(info->mac_addr, iwdev->netdev->dev_addr);
-	info->qp_num = cpu_to_le32(dev->ilq->qp_id);
+	info->qp_num = cpu_to_le32(vsi->ilq->qp_id);
 	info->dest_port = cpu_to_le16(cminfo->loc_port);
 	info->dest_ip[0] = cpu_to_le32(cminfo->loc_addr[0]);
 	info->dest_ip[1] = cpu_to_le32(cminfo->loc_addr[1]);

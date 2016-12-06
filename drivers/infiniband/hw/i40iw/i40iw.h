@@ -236,6 +236,7 @@ struct i40iw_device {
 	struct net_device *netdev;
 	wait_queue_head_t vchnl_waitq;
 	struct i40iw_sc_dev sc_dev;
+	struct i40iw_sc_vsi vsi;
 	struct i40iw_handler *hdl;
 	struct i40e_info *ldev;
 	struct i40e_client *client;
@@ -289,7 +290,6 @@ struct i40iw_device {
 	u32 sd_type;
 	struct workqueue_struct *param_wq;
 	atomic_t params_busy;
-	u32 mss;
 	enum init_completion_state init_state;
 	u16 mac_ip_table_idx;
 	atomic_t vchnl_msgs;
@@ -525,6 +525,7 @@ enum i40iw_status_code i40iw_handle_cqp_op(struct i40iw_device *iwdev,
 enum i40iw_status_code i40iw_add_mac_addr(struct i40iw_device *iwdev,
 					  u8 *mac_addr, u8 *mac_index);
 int i40iw_modify_qp(struct ib_qp *, struct ib_qp_attr *, int, struct ib_udata *);
+void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq);
 
 void i40iw_rem_pdusecount(struct i40iw_pd *iwpd, struct i40iw_device *iwdev);
 void i40iw_add_pdusecount(struct i40iw_pd *iwpd);
@@ -542,8 +543,8 @@ enum i40iw_status_code i40iw_manage_qhash(struct i40iw_device *iwdev,
 					  enum i40iw_quad_hash_manage_type mtype,
 					  void *cmnode,
 					  bool wait);
-void i40iw_receive_ilq(struct i40iw_sc_dev *dev, struct i40iw_puda_buf *rbuf);
-void i40iw_free_sqbuf(struct i40iw_sc_dev *dev, void *bufp);
+void i40iw_receive_ilq(struct i40iw_sc_vsi *vsi, struct i40iw_puda_buf *rbuf);
+void i40iw_free_sqbuf(struct i40iw_sc_vsi *vsi, void *bufp);
 void i40iw_free_qp_resources(struct i40iw_device *iwdev,
 			     struct i40iw_qp *iwqp,
 			     u32 qp_num);

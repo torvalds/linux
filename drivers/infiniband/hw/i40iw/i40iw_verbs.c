@@ -623,6 +623,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	sq_size = init_attr->cap.max_send_wr;
 	rq_size = init_attr->cap.max_recv_wr;
 
+	init_info.vsi = &iwdev->vsi;
 	init_info.qp_uk_init_info.sq_size = sq_size;
 	init_info.qp_uk_init_info.rq_size = rq_size;
 	init_info.qp_uk_init_info.max_sq_frag_cnt = init_attr->cap.max_send_sge;
@@ -1052,11 +1053,11 @@ static void cq_free_resources(struct i40iw_device *iwdev, struct i40iw_cq *iwcq)
 }
 
 /**
- * cq_wq_destroy - send cq destroy cqp
+ * i40iw_cq_wq_destroy - send cq destroy cqp
  * @iwdev: iwarp device
  * @cq: hardware control cq
  */
-static void cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq)
+void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq)
 {
 	enum i40iw_status_code status;
 	struct i40iw_cqp_request *cqp_request;
@@ -1095,7 +1096,7 @@ static int i40iw_destroy_cq(struct ib_cq *ib_cq)
 	iwcq = to_iwcq(ib_cq);
 	iwdev = to_iwdev(ib_cq->device);
 	cq = &iwcq->sc_cq;
-	cq_wq_destroy(iwdev, cq);
+	i40iw_cq_wq_destroy(iwdev, cq);
 	cq_free_resources(iwdev, iwcq);
 	kfree(iwcq);
 	i40iw_rem_devusecount(iwdev);
@@ -1253,7 +1254,7 @@ static struct ib_cq *i40iw_create_cq(struct ib_device *ibdev,
 	return (struct ib_cq *)iwcq;
 
 cq_destroy:
-	cq_wq_destroy(iwdev, cq);
+	i40iw_cq_wq_destroy(iwdev, cq);
 cq_free_resources:
 	cq_free_resources(iwdev, iwcq);
 error:
@@ -2632,15 +2633,11 @@ static int i40iw_get_hw_stats(struct ib_device *ibdev,
 {
 	struct i40iw_device *iwdev = to_iwdev(ibdev);
 	struct i40iw_sc_dev *dev = &iwdev->sc_dev;
-	struct i40iw_dev_pestat *devstat = &dev->dev_pestat;
+	struct i40iw_vsi_pestat *devstat = iwdev->vsi.pestat;
 	struct i40iw_dev_hw_stats *hw_stats = &devstat->hw_stats;
-	unsigned long flags;
 
 	if (dev->is_pf) {
-		spin_lock_irqsave(&devstat->stats_lock, flags);
-		devstat->ops.iw_hw_stat_read_all(devstat,
-			&devstat->hw_stats);
-		spin_unlock_irqrestore(&devstat->stats_lock, flags);
+		i40iw_hw_stats_read_all(devstat, &devstat->hw_stats);
 	} else {
 		if (i40iw_vchnl_vf_get_pe_stats(dev, &devstat->hw_stats))
 			return -ENOSYS;
