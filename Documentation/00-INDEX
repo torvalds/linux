@@ -39,11 +39,9 @@ IRQ.txt
 Intel-IOMMU.txt
 	- basic info on the Intel IOMMU virtualization support.
 Makefile
-	- This file does nothing. Removing it breaks make htmldocs and
-	  make distclean.
+	- It's not of interest for those who aren't touching the build system.
 Makefile.sphinx
-	- This file does nothing. Removing it breaks make htmldocs and
-	  make distclean.
+	- It's not of interest for those who aren't touching the build system.
 PCI/
 	- info related to PCI drivers.
 RCU/
@@ -101,7 +99,7 @@ clk.txt
 cma/
 	- Continuous Memory Area (CMA) debugfs interface.
 conf.py
-	- nothing here. Just a configuration file for Sphinx.
+	- It's not of interest for those who aren't touching the build system.
 connector/
 	- docs on the netlink based userspace<->kernel space communication mod.
 console/
@@ -403,9 +401,9 @@ sound/
 spi/
 	- overview of Linux kernel Serial Peripheral Interface (SPI) support.
 sphinx/
-	- no doumentation here, just files required by Sphinx toolchain.
+	- no documentation here, just files required by Sphinx toolchain.
 sphinx-static/
-	- no doumentation here, just files required by Sphinx toolchain.
+	- no documentation here, just files required by Sphinx toolchain.
 static-keys.txt
 	- info on how static keys allow debug code in hotpaths via patching
 svga.txt
