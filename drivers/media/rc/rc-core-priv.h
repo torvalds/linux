@@ -239,6 +239,26 @@ int ir_raw_gen_pd(struct ir_raw_event **ev, unsigned int max,
 		  const struct ir_raw_timings_pd *timings,
 		  unsigned int n, u64 data);
 
+/**
+ * struct ir_raw_timings_pl - pulse-length modulation timings
+ * @header_pulse:	duration of header pulse in ns (0 for none)
+ * @bit_space:		duration of bit space in ns
+ * @bit_pulse:		duration of bit pulse (for logic 0 and 1) in ns
+ * @trailer_space:	duration of trailer space in ns
+ * @msb_first:		1 if most significant bit is sent first
+ */
+struct ir_raw_timings_pl {
+	unsigned int header_pulse;
+	unsigned int bit_space;
+	unsigned int bit_pulse[2];
+	unsigned int trailer_space;
+	unsigned int msb_first:1;
+};
+
+int ir_raw_gen_pl(struct ir_raw_event **ev, unsigned int max,
+		  const struct ir_raw_timings_pl *timings,
+		  unsigned int n, u64 data);
+
 /*
  * Routines from rc-raw.c to be used internally and by decoders
  */
