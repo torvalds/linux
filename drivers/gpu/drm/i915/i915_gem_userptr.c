@@ -753,12 +753,13 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 int
 i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_userptr *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
 	u32 handle;
 
-	if (!HAS_LLC(dev) && !HAS_SNOOP(dev)) {
+	if (!HAS_LLC(dev_priv) && !HAS_SNOOP(dev_priv)) {
 		/* We cannot support coherent userptr objects on hw without
 		 * LLC and broken snooping.
 		 */

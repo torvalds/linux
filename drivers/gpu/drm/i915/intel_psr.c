@@ -427,7 +427,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
 
-	if (!HAS_PSR(dev)) {
+	if (!HAS_PSR(dev_priv)) {
 		DRM_DEBUG_KMS("PSR not supported on this platform\n");
 		return;
 	}
@@ -472,7 +472,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 		/* Enable PSR on the panel */
 		hsw_psr_enable_sink(intel_dp);
 
-		if (INTEL_INFO(dev)->gen >= 9)
+		if (INTEL_GEN(dev_priv) >= 9)
 			intel_psr_activate(intel_dp);
 	} else {
 		vlv_psr_setup_vsc(intel_dp);
@@ -498,7 +498,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 	 *     - On HSW/BDW we get a recoverable frozen screen until next
 	 *       exit-activate sequence.
 	 */
-	if (INTEL_INFO(dev)->gen < 9)
+	if (INTEL_GEN(dev_priv) < 9)
 		schedule_delayed_work(&dev_priv->psr.work,
 				      msecs_to_jiffies(intel_dp->panel_power_cycle_delay * 5));
 

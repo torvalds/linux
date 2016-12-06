@@ -838,23 +838,21 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu)
 }
 
 void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
-		unsigned long ring_bitmap)
+		unsigned long engine_mask)
 {
-	int bit;
-	struct list_head *pos, *n;
-	struct intel_vgpu_workload *workload = NULL;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
+	struct intel_engine_cs *engine;
+	struct intel_vgpu_workload *pos, *n;
+	unsigned int tmp;
 
-	for_each_set_bit(bit, &ring_bitmap, sizeof(ring_bitmap) * 8) {
-		if (bit >= I915_NUM_ENGINES)
-			break;
+	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
 		/* free the unsubmited workload in the queue */
-		list_for_each_safe(pos, n, &vgpu->workload_q_head[bit]) {
-			workload = container_of(pos,
-					struct intel_vgpu_workload, list);
-			list_del_init(&workload->list);
-			free_workload(workload);
+		list_for_each_entry_safe(pos, n,
+			&vgpu->workload_q_head[engine->id], list) {
+			list_del_init(&pos->list);
+			free_workload(pos);
 		}
 
-		init_vgpu_execlist(vgpu, bit);
+		init_vgpu_execlist(vgpu, engine->id);
 	}
 }

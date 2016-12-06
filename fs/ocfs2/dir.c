@@ -3699,7 +3699,7 @@ static void ocfs2_dx_dir_transfer_leaf(struct inode *dir, u32 split_hash,
 static int ocfs2_dx_dir_rebalance_credits(struct ocfs2_super *osb,
 					  struct ocfs2_dx_root_block *dx_root)
 {
-	int credits = ocfs2_clusters_to_blocks(osb->sb, 2);
+	int credits = ocfs2_clusters_to_blocks(osb->sb, 3);
 
 	credits += ocfs2_calc_extend_credits(osb->sb, &dx_root->dr_list);
 	credits += ocfs2_quota_trans_credits(osb->sb);

@@ -360,6 +360,18 @@ static void amdgpu_uvd_force_into_uvd_segment(struct amdgpu_bo *abo)
 	}
 }
 
+static u64 amdgpu_uvd_get_addr_from_ctx(struct amdgpu_uvd_cs_ctx *ctx)
+{
+	uint32_t lo, hi;
+	uint64_t addr;
+
+	lo = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data0);
+	hi = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data1);
+	addr = ((uint64_t)lo) | (((uint64_t)hi) << 32);
+
+	return addr;
+}
+
 /**
  * amdgpu_uvd_cs_pass1 - first parsing round
  *
@@ -372,13 +384,9 @@ static int amdgpu_uvd_cs_pass1(struct amdgpu_uvd_cs_ctx *ctx)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
-	uint32_t cmd, lo, hi;
-	uint64_t addr;
+	uint32_t cmd;
+	uint64_t addr = amdgpu_uvd_get_addr_from_ctx(ctx);
 	int r = 0;
-
-	lo = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data0);
-	hi = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data1);
-	addr = ((uint64_t)lo) | (((uint64_t)hi) << 32);
 
 	mapping = amdgpu_cs_find_mapping(ctx->parser, addr, &bo);
 	if (mapping == NULL) {
@@ -698,18 +706,16 @@ static int amdgpu_uvd_cs_pass2(struct amdgpu_uvd_cs_ctx *ctx)
 {
 	struct amdgpu_bo_va_mapping *mapping;
 	struct amdgpu_bo *bo;
-	uint32_t cmd, lo, hi;
+	uint32_t cmd;
 	uint64_t start, end;
-	uint64_t addr;
+	uint64_t addr = amdgpu_uvd_get_addr_from_ctx(ctx);
 	int r;
 
-	lo = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data0);
-	hi = amdgpu_get_ib_value(ctx->parser, ctx->ib_idx, ctx->data1);
-	addr = ((uint64_t)lo) | (((uint64_t)hi) << 32);
-
 	mapping = amdgpu_cs_find_mapping(ctx->parser, addr, &bo);
-	if (mapping == NULL)
+	if (mapping == NULL) {
+		DRM_ERROR("Can't find BO for addr 0x%08Lx\n", addr);
 		return -EINVAL;
+	}
 
 	start = amdgpu_bo_gpu_offset(bo);
 
@@ -893,10 +899,13 @@ int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx)
 	ctx.buf_sizes = buf_sizes;
 	ctx.ib_idx = ib_idx;
 
-	/* first round, make sure the buffers are actually in the UVD segment */
-	r = amdgpu_uvd_cs_packets(&ctx, amdgpu_uvd_cs_pass1);
-	if (r)
-		return r;
+	/* first round only required on chips without UVD 64 bit address support */
+	if (!parser->adev->uvd.address_64_bit) {
+		/* first round, make sure the buffers are actually in the UVD segment */
+		r = amdgpu_uvd_cs_packets(&ctx, amdgpu_uvd_cs_pass1);
+		if (r)
+			return r;
+	}
 
 	/* second round, patch buffer addresses into the command stream */
 	r = amdgpu_uvd_cs_packets(&ctx, amdgpu_uvd_cs_pass2);

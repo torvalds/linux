@@ -138,36 +138,6 @@ int intel_gvt_ggtt_h2g_index(struct intel_vgpu *vgpu, unsigned long h_index,
 	memcpy(&(e)->val64, &v, sizeof(v)); \
 } while (0)
 
-enum {
-	GTT_TYPE_INVALID = -1,
-
-	GTT_TYPE_GGTT_PTE,
-
-	GTT_TYPE_PPGTT_PTE_4K_ENTRY,
-	GTT_TYPE_PPGTT_PTE_2M_ENTRY,
-	GTT_TYPE_PPGTT_PTE_1G_ENTRY,
-
-	GTT_TYPE_PPGTT_PTE_ENTRY,
-
-	GTT_TYPE_PPGTT_PDE_ENTRY,
-	GTT_TYPE_PPGTT_PDP_ENTRY,
-	GTT_TYPE_PPGTT_PML4_ENTRY,
-
-	GTT_TYPE_PPGTT_ROOT_ENTRY,
-
-	GTT_TYPE_PPGTT_ROOT_L3_ENTRY,
-	GTT_TYPE_PPGTT_ROOT_L4_ENTRY,
-
-	GTT_TYPE_PPGTT_ENTRY,
-
-	GTT_TYPE_PPGTT_PTE_PT,
-	GTT_TYPE_PPGTT_PDE_PT,
-	GTT_TYPE_PPGTT_PDP_PT,
-	GTT_TYPE_PPGTT_PML4_PT,
-
-	GTT_TYPE_MAX,
-};
-
 /*
  * Mappings between GTT_TYPE* enumerations.
  * Following information can be found according to the given type:
@@ -842,13 +812,18 @@ static int ppgtt_invalidate_shadow_page_by_shadow_entry(struct intel_vgpu *vgpu,
 {
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	struct intel_vgpu_ppgtt_spt *s;
+	intel_gvt_gtt_type_t cur_pt_type;
 
 	if (WARN_ON(!gtt_type_is_pt(get_next_pt_type(e->type))))
 		return -EINVAL;
 
-	if (ops->get_pfn(e) == vgpu->gtt.scratch_page_mfn)
-		return 0;
-
+	if (e->type != GTT_TYPE_PPGTT_ROOT_L3_ENTRY
+		&& e->type != GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
+		cur_pt_type = get_next_pt_type(e->type) + 1;
+		if (ops->get_pfn(e) ==
+			vgpu->gtt.scratch_pt[cur_pt_type].page_mfn)
+			return 0;
+	}
 	s = ppgtt_find_shadow_page(vgpu, ops->get_pfn(e));
 	if (!s) {
 		gvt_err("vgpu%d: fail to find shadow page: mfn: 0x%lx\n",
@@ -999,7 +974,7 @@ fail:
 }
 
 static int ppgtt_handle_guest_entry_removal(struct intel_vgpu_guest_page *gpt,
-		struct intel_gvt_gtt_entry *we, unsigned long index)
+		unsigned long index)
 {
 	struct intel_vgpu_ppgtt_spt *spt = guest_page_to_ppgtt_spt(gpt);
 	struct intel_vgpu_shadow_page *sp = &spt->shadow_page;
@@ -1008,34 +983,35 @@ static int ppgtt_handle_guest_entry_removal(struct intel_vgpu_guest_page *gpt,
 	struct intel_gvt_gtt_entry e;
 	int ret;
 
-	trace_gpt_change(spt->vgpu->id, "remove", spt, sp->type,
-		we->val64, index);
-
 	ppgtt_get_shadow_entry(spt, &e, index);
+
+	trace_gpt_change(spt->vgpu->id, "remove", spt, sp->type, e.val64,
+			 index);
+
 	if (!ops->test_present(&e))
 		return 0;
 
-	if (ops->get_pfn(&e) == vgpu->gtt.scratch_page_mfn)
+	if (ops->get_pfn(&e) == vgpu->gtt.scratch_pt[sp->type].page_mfn)
 		return 0;
 
-	if (gtt_type_is_pt(get_next_pt_type(we->type))) {
-		struct intel_vgpu_guest_page *g =
-			intel_vgpu_find_guest_page(vgpu, ops->get_pfn(we));
-		if (!g) {
+	if (gtt_type_is_pt(get_next_pt_type(e.type))) {
+		struct intel_vgpu_ppgtt_spt *s =
+			ppgtt_find_shadow_page(vgpu, ops->get_pfn(&e));
+		if (!s) {
 			gvt_err("fail to find guest page\n");
 			ret = -ENXIO;
 			goto fail;
 		}
-		ret = ppgtt_invalidate_shadow_page(guest_page_to_ppgtt_spt(g));
+		ret = ppgtt_invalidate_shadow_page(s);
 		if (ret)
 			goto fail;
 	}
-	ops->set_pfn(&e, vgpu->gtt.scratch_page_mfn);
+	ops->set_pfn(&e, vgpu->gtt.scratch_pt[sp->type].page_mfn);
 	ppgtt_set_shadow_entry(spt, &e, index);
 	return 0;
 fail:
 	gvt_err("vgpu%d: fail: shadow page %p guest entry 0x%llx type %d\n",
-			vgpu->id, spt, we->val64, we->type);
+			vgpu->id, spt, e.val64, e.type);
 	return ret;
 }
 
@@ -1256,23 +1232,16 @@ static int ppgtt_handle_guest_write_page_table(
 	struct intel_vgpu_ppgtt_spt *spt = guest_page_to_ppgtt_spt(gpt);
 	struct intel_vgpu *vgpu = spt->vgpu;
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
-	struct intel_gvt_gtt_entry ge;
 
-	int old_present, new_present;
 	int ret;
+	int new_present;
 
-	ppgtt_get_guest_entry(spt, &ge, index);
-
-	old_present = ops->test_present(&ge);
 	new_present = ops->test_present(we);
 
-	ppgtt_set_guest_entry(spt, we, index);
+	ret = ppgtt_handle_guest_entry_removal(gpt, index);
+	if (ret)
+		goto fail;
 
-	if (old_present) {
-		ret = ppgtt_handle_guest_entry_removal(gpt, &ge, index);
-		if (ret)
-			goto fail;
-	}
 	if (new_present) {
 		ret = ppgtt_handle_guest_entry_add(gpt, we, index);
 		if (ret)
@@ -1318,7 +1287,7 @@ int intel_vgpu_flush_post_shadow(struct intel_vgpu *vgpu)
 {
 	struct list_head *pos, *n;
 	struct intel_vgpu_ppgtt_spt *spt;
-	struct intel_gvt_gtt_entry ge, e;
+	struct intel_gvt_gtt_entry ge;
 	unsigned long index;
 	int ret;
 
@@ -1329,9 +1298,6 @@ int intel_vgpu_flush_post_shadow(struct intel_vgpu *vgpu)
 		for_each_set_bit(index, spt->post_shadow_bitmap,
 				GTT_ENTRY_NUM_IN_ONE_PAGE) {
 			ppgtt_get_guest_entry(spt, &ge, index);
-			e = ge;
-			e.val64 = 0;
-			ppgtt_set_guest_entry(spt, &e, index);
 
 			ret = ppgtt_handle_guest_write_page_table(
 					&spt->guest_page, &ge, index);
@@ -1359,8 +1325,6 @@ static int ppgtt_handle_guest_write_page_table_bytes(void *gp,
 	index = (pa & (PAGE_SIZE - 1)) >> info->gtt_entry_size_shift;
 
 	ppgtt_get_guest_entry(spt, &we, index);
-	memcpy((void *)&we.val64 + (pa & (info->gtt_entry_size - 1)),
-			p_data, bytes);
 
 	ops->test_pse(&we);
 
@@ -1369,19 +1333,13 @@ static int ppgtt_handle_guest_write_page_table_bytes(void *gp,
 		if (ret)
 			return ret;
 	} else {
-		struct intel_gvt_gtt_entry ge;
-
-		ppgtt_get_guest_entry(spt, &ge, index);
-
 		if (!test_bit(index, spt->post_shadow_bitmap)) {
-			ret = ppgtt_handle_guest_entry_removal(gpt,
-					&ge, index);
+			ret = ppgtt_handle_guest_entry_removal(gpt, index);
 			if (ret)
 				return ret;
 		}
 
 		ppgtt_set_post_shadow(spt, index);
-		ppgtt_set_guest_entry(spt, &we, index);
 	}
 
 	if (!enable_out_of_sync)
@@ -1921,47 +1879,101 @@ int intel_vgpu_emulate_gtt_mmio_write(struct intel_vgpu *vgpu, unsigned int off,
 	return ret;
 }
 
-static int create_scratch_page(struct intel_vgpu *vgpu)
+static int alloc_scratch_pages(struct intel_vgpu *vgpu,
+		intel_gvt_gtt_type_t type)
 {
 	struct intel_vgpu_gtt *gtt = &vgpu->gtt;
-	void *p;
-	void *vaddr;
+	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
+	int page_entry_num = GTT_PAGE_SIZE >>
+				vgpu->gvt->device_info.gtt_entry_size_shift;
+	struct page *scratch_pt;
 	unsigned long mfn;
+	int i;
+	void *p;
 
-	gtt->scratch_page = alloc_page(GFP_KERNEL);
-	if (!gtt->scratch_page) {
-		gvt_err("Failed to allocate scratch page.\n");
+	if (WARN_ON(type < GTT_TYPE_PPGTT_PTE_PT || type >= GTT_TYPE_MAX))
+		return -EINVAL;
+
+	scratch_pt = alloc_page(GFP_KERNEL | GFP_ATOMIC | __GFP_ZERO);
+	if (!scratch_pt) {
+		gvt_err("fail to allocate scratch page\n");
 		return -ENOMEM;
 	}
 
-	/* set to zero */
-	p = kmap_atomic(gtt->scratch_page);
-	memset(p, 0, PAGE_SIZE);
-	kunmap_atomic(p);
-
-	/* translate page to mfn */
-	vaddr = page_address(gtt->scratch_page);
-	mfn = intel_gvt_hypervisor_virt_to_mfn(vaddr);
-
+	p = kmap_atomic(scratch_pt);
+	mfn = intel_gvt_hypervisor_virt_to_mfn(p);
 	if (mfn == INTEL_GVT_INVALID_ADDR) {
-		gvt_err("fail to translate vaddr: 0x%p\n", vaddr);
-		__free_page(gtt->scratch_page);
-		gtt->scratch_page = NULL;
-		return -ENXIO;
+		gvt_err("fail to translate vaddr:0x%llx\n", (u64)p);
+		kunmap_atomic(p);
+		__free_page(scratch_pt);
+		return -EFAULT;
+	}
+	gtt->scratch_pt[type].page_mfn = mfn;
+	gtt->scratch_pt[type].page = scratch_pt;
+	gvt_dbg_mm("vgpu%d create scratch_pt: type %d mfn=0x%lx\n",
+			vgpu->id, type, mfn);
+
+	/* Build the tree by full filled the scratch pt with the entries which
+	 * point to the next level scratch pt or scratch page. The
+	 * scratch_pt[type] indicate the scratch pt/scratch page used by the
+	 * 'type' pt.
+	 * e.g. scratch_pt[GTT_TYPE_PPGTT_PDE_PT] is used by
+	 * GTT_TYPE_PPGTT_PDE_PT level pt, that means this scatch_pt it self
+	 * is GTT_TYPE_PPGTT_PTE_PT, and full filled by scratch page mfn.
+	 */
+	if (type > GTT_TYPE_PPGTT_PTE_PT && type < GTT_TYPE_MAX) {
+		struct intel_gvt_gtt_entry se;
+
+		memset(&se, 0, sizeof(struct intel_gvt_gtt_entry));
+		se.type = get_entry_type(type - 1);
+		ops->set_pfn(&se, gtt->scratch_pt[type - 1].page_mfn);
+
+		/* The entry parameters like present/writeable/cache type
+		 * set to the same as i915's scratch page tree.
+		 */
+		se.val64 |= _PAGE_PRESENT | _PAGE_RW;
+		if (type == GTT_TYPE_PPGTT_PDE_PT)
+			se.val64 |= PPAT_CACHED_INDEX;
+
+		for (i = 0; i < page_entry_num; i++)
+			ops->set_entry(p, &se, i, false, 0, vgpu);
 	}
 
-	gtt->scratch_page_mfn = mfn;
-	gvt_dbg_core("vgpu%d create scratch page: mfn=0x%lx\n", vgpu->id, mfn);
+	kunmap_atomic(p);
+
 	return 0;
 }
 
-static void release_scratch_page(struct intel_vgpu *vgpu)
+static int release_scratch_page_tree(struct intel_vgpu *vgpu)
 {
-	if (vgpu->gtt.scratch_page != NULL) {
-		__free_page(vgpu->gtt.scratch_page);
-		vgpu->gtt.scratch_page = NULL;
-		vgpu->gtt.scratch_page_mfn = 0;
+	int i;
+
+	for (i = GTT_TYPE_PPGTT_PTE_PT; i < GTT_TYPE_MAX; i++) {
+		if (vgpu->gtt.scratch_pt[i].page != NULL) {
+			__free_page(vgpu->gtt.scratch_pt[i].page);
+			vgpu->gtt.scratch_pt[i].page = NULL;
+			vgpu->gtt.scratch_pt[i].page_mfn = 0;
+		}
 	}
+
+	return 0;
+}
+
+static int create_scratch_page_tree(struct intel_vgpu *vgpu)
+{
+	int i, ret;
+
+	for (i = GTT_TYPE_PPGTT_PTE_PT; i < GTT_TYPE_MAX; i++) {
+		ret = alloc_scratch_pages(vgpu, i);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	release_scratch_page_tree(vgpu);
+	return ret;
 }
 
 /**
@@ -1995,7 +2007,7 @@ int intel_vgpu_init_gtt(struct intel_vgpu *vgpu)
 
 	gtt->ggtt_mm = ggtt_mm;
 
-	return create_scratch_page(vgpu);
+	return create_scratch_page_tree(vgpu);
 }
 
 /**
@@ -2014,7 +2026,7 @@ void intel_vgpu_clean_gtt(struct intel_vgpu *vgpu)
 	struct intel_vgpu_mm *mm;
 
 	ppgtt_free_all_shadow_page(vgpu);
-	release_scratch_page(vgpu);
+	release_scratch_page_tree(vgpu);
 
 	list_for_each_safe(pos, n, &vgpu->gtt.mm_list_head) {
 		mm = container_of(pos, struct intel_vgpu_mm, list);

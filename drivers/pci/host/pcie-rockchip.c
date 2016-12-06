@@ -190,6 +190,9 @@ struct rockchip_pcie {
 	struct	reset_control *mgmt_rst;
 	struct	reset_control *mgmt_sticky_rst;
 	struct	reset_control *pipe_rst;
+	struct	reset_control *pm_rst;
+	struct	reset_control *aclk_rst;
+	struct	reset_control *pclk_rst;
 	struct	clk *aclk_pcie;
 	struct	clk *aclk_perf_pcie;
 	struct	clk *hclk_pcie;
@@ -407,6 +410,44 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	unsigned long timeout;
 
 	gpiod_set_value(rockchip->ep_gpio, 0);
+
+	err = reset_control_assert(rockchip->aclk_rst);
+	if (err) {
+		dev_err(dev, "assert aclk_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(rockchip->pclk_rst);
+	if (err) {
+		dev_err(dev, "assert pclk_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_assert(rockchip->pm_rst);
+	if (err) {
+		dev_err(dev, "assert pm_rst err %d\n", err);
+		return err;
+	}
+
+	udelay(10);
+
+	err = reset_control_deassert(rockchip->pm_rst);
+	if (err) {
+		dev_err(dev, "deassert pm_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(rockchip->aclk_rst);
+	if (err) {
+		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
+		return err;
+	}
+
+	err = reset_control_deassert(rockchip->pclk_rst);
+	if (err) {
+		dev_err(dev, "deassert mgmt_sticky_rst err %d\n", err);
+		return err;
+	}
 
 	err = phy_init(rockchip->phy);
 	if (err < 0) {
@@ -779,6 +820,27 @@ static int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 		if (PTR_ERR(rockchip->pipe_rst) != -EPROBE_DEFER)
 			dev_err(dev, "missing pipe reset property in node\n");
 		return PTR_ERR(rockchip->pipe_rst);
+	}
+
+	rockchip->pm_rst = devm_reset_control_get(dev, "pm");
+	if (IS_ERR(rockchip->pm_rst)) {
+		if (PTR_ERR(rockchip->pm_rst) != -EPROBE_DEFER)
+			dev_err(dev, "missing pm reset property in node\n");
+		return PTR_ERR(rockchip->pm_rst);
+	}
+
+	rockchip->pclk_rst = devm_reset_control_get(dev, "pclk");
+	if (IS_ERR(rockchip->pclk_rst)) {
+		if (PTR_ERR(rockchip->pclk_rst) != -EPROBE_DEFER)
+			dev_err(dev, "missing pclk reset property in node\n");
+		return PTR_ERR(rockchip->pclk_rst);
+	}
+
+	rockchip->aclk_rst = devm_reset_control_get(dev, "aclk");
+	if (IS_ERR(rockchip->aclk_rst)) {
+		if (PTR_ERR(rockchip->aclk_rst) != -EPROBE_DEFER)
+			dev_err(dev, "missing aclk reset property in node\n");
+		return PTR_ERR(rockchip->aclk_rst);
 	}
 
 	rockchip->ep_gpio = devm_gpiod_get(dev, "ep", GPIOD_OUT_HIGH);

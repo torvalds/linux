@@ -349,6 +349,19 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 	}                                                                      \
 } while(0)
 
+static void
+nouveau_display_hpd_work(struct work_struct *work)
+{
+	struct nouveau_drm *drm = container_of(work, typeof(*drm), hpd_work);
+
+	pm_runtime_get_sync(drm->dev->dev);
+
+	drm_helper_hpd_irq_event(drm->dev);
+
+	pm_runtime_mark_last_busy(drm->dev->dev);
+	pm_runtime_put_sync(drm->dev->dev);
+}
+
 #ifdef CONFIG_ACPI
 
 /*
@@ -359,19 +372,6 @@ static struct nouveau_drm_prop_enum_list dither_depth[] = {
 #ifndef ACPI_VIDEO_NOTIFY_PROBE
 #define ACPI_VIDEO_NOTIFY_PROBE			0x81
 #endif
-
-static void
-nouveau_display_acpi_work(struct work_struct *work)
-{
-	struct nouveau_drm *drm = container_of(work, typeof(*drm), acpi_work);
-
-	pm_runtime_get_sync(drm->dev->dev);
-
-	drm_helper_hpd_irq_event(drm->dev);
-
-	pm_runtime_mark_last_busy(drm->dev->dev);
-	pm_runtime_put_sync(drm->dev->dev);
-}
 
 static int
 nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
@@ -385,9 +385,9 @@ nouveau_display_acpi_ntfy(struct notifier_block *nb, unsigned long val,
 			/*
 			 * This may be the only indication we receive of a
 			 * connector hotplug on a runtime suspended GPU,
-			 * schedule acpi_work to check.
+			 * schedule hpd_work to check.
 			 */
-			schedule_work(&drm->acpi_work);
+			schedule_work(&drm->hpd_work);
 
 			/* acpi-video should not generate keypresses for this */
 			return NOTIFY_BAD;
@@ -582,8 +582,8 @@ nouveau_display_create(struct drm_device *dev)
 	}
 
 	nouveau_backlight_init(dev);
+	INIT_WORK(&drm->hpd_work, nouveau_display_hpd_work);
 #ifdef CONFIG_ACPI
-	INIT_WORK(&drm->acpi_work, nouveau_display_acpi_work);
 	drm->acpi_nb.notifier_call = nouveau_display_acpi_ntfy;
 	register_acpi_notifier(&drm->acpi_nb);
 #endif

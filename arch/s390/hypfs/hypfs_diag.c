@@ -363,11 +363,11 @@ out:
 static int diag224_get_name_table(void)
 {
 	/* memory must be below 2GB */
-	diag224_cpu_names = kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	diag224_cpu_names = (char *) __get_free_page(GFP_KERNEL | GFP_DMA);
 	if (!diag224_cpu_names)
 		return -ENOMEM;
 	if (diag224(diag224_cpu_names)) {
-		kfree(diag224_cpu_names);
+		free_page((unsigned long) diag224_cpu_names);
 		return -EOPNOTSUPP;
 	}
 	EBCASC(diag224_cpu_names + 16, (*diag224_cpu_names + 1) * 16);
@@ -376,7 +376,7 @@ static int diag224_get_name_table(void)
 
 static void diag224_delete_name_table(void)
 {
-	kfree(diag224_cpu_names);
+	free_page((unsigned long) diag224_cpu_names);
 }
 
 static int diag224_idx2name(int index, char *name)

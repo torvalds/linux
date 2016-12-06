@@ -6907,8 +6907,6 @@ static const struct hda_fixup alc662_fixups[] = {
 		.v.pins = (const struct hda_pintbl[]) {
 			{ 0x15, 0x40f000f0 }, /* disabled */
 			{ 0x16, 0x40f000f0 }, /* disabled */
-			{ 0x18, 0x01014011 }, /* LO */
-			{ 0x1a, 0x01014012 }, /* LO */
 			{ }
 		}
 	},

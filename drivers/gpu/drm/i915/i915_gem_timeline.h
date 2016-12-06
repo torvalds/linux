@@ -67,6 +67,7 @@ struct i915_gem_timeline {
 int i915_gem_timeline_init(struct drm_i915_private *i915,
 			   struct i915_gem_timeline *tl,
 			   const char *name);
+int i915_gem_timeline_init__global(struct drm_i915_private *i915);
 void i915_gem_timeline_fini(struct i915_gem_timeline *tl);
 
 #endif

@@ -267,6 +267,15 @@ struct intel_engine_cs {
 	 */
 	void		(*submit_request)(struct drm_i915_gem_request *req);
 
+	/* Call when the priority on a request has changed and it and its
+	 * dependencies may need rescheduling. Note the request itself may
+	 * not be ready to run!
+	 *
+	 * Called under the struct_mutex.
+	 */
+	void		(*schedule)(struct drm_i915_gem_request *request,
+				    int priority);
+
 	/* Some chipsets are not quite as coherent as advertised and need
 	 * an expensive kick to force a true read of the up-to-date seqno.
 	 * However, the up-to-date seqno is not always required and the last
@@ -335,12 +344,12 @@ struct intel_engine_cs {
 
 	/* Execlists */
 	struct tasklet_struct irq_tasklet;
-	spinlock_t execlist_lock; /* used inside tasklet, use spin_lock_bh */
 	struct execlist_port {
 		struct drm_i915_gem_request *request;
 		unsigned int count;
 	} execlist_port[2];
-	struct list_head execlist_queue;
+	struct rb_root execlist_queue;
+	struct rb_node *execlist_first;
 	unsigned int fw_domains;
 	bool disable_lite_restore_wa;
 	bool preempt_wa;
@@ -578,7 +587,6 @@ static inline bool intel_engine_wakeup(const struct intel_engine_cs *engine)
 
 void intel_engine_reset_breadcrumbs(struct intel_engine_cs *engine);
 void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine);
-unsigned int intel_kick_waiters(struct drm_i915_private *i915);
-unsigned int intel_kick_signalers(struct drm_i915_private *i915);
+unsigned int intel_breadcrumbs_busy(struct drm_i915_private *i915);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

@@ -76,7 +76,7 @@
 				compatible = "arm,idle-state";
 				arm,psci-suspend-param = <0x1010000>;
 				local-timer-stop;
-				entry-latency-us = <300>;
+				entry-latency-us = <400>;
 				exit-latency-us = <1200>;
 				min-residency-us = <2500>;
 			};

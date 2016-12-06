@@ -547,11 +547,11 @@ static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 					   pipe, plane);
 			}
 			if (work->flip_queued_req) {
-				struct intel_engine_cs *engine = i915_gem_request_get_engine(work->flip_queued_req);
+				struct intel_engine_cs *engine = work->flip_queued_req->engine;
 
 				seq_printf(m, "Flip queued on %s at seqno %x, next seqno %x [current breadcrumb %x], completed? %d\n",
 					   engine->name,
-					   i915_gem_request_get_seqno(work->flip_queued_req),
+					   work->flip_queued_req->global_seqno,
 					   atomic_read(&dev_priv->gt.global_timeline.next_seqno),
 					   intel_engine_get_seqno(engine),
 					   i915_gem_request_completed(work->flip_queued_req));
@@ -631,8 +631,9 @@ static void print_request(struct seq_file *m,
 			  struct drm_i915_gem_request *rq,
 			  const char *prefix)
 {
-	seq_printf(m, "%s%x [%x:%x] @ %d: %s\n", prefix,
+	seq_printf(m, "%s%x [%x:%x] prio=%d @ %dms: %s\n", prefix,
 		   rq->global_seqno, rq->ctx->hw_id, rq->fence.seqno,
+		   rq->priotree.priority,
 		   jiffies_to_msecs(jiffies - rq->emitted_jiffies),
 		   rq->timeline->common->name);
 }
@@ -1761,8 +1762,7 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 	intel_display_power_put(dev_priv, POWER_DOMAIN_INIT);
 	intel_runtime_pm_put(dev_priv);
 
-	seq_printf(m, "self-refresh: %s\n",
-		   sr_enabled ? "enabled" : "disabled");
+	seq_printf(m, "self-refresh: %s\n", enableddisabled(sr_enabled));
 
 	return 0;
 }
@@ -3216,6 +3216,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 		if (i915.enable_execlists) {
 			u32 ptr, read, write;
+			struct rb_node *rb;
 
 			seq_printf(m, "\tExeclist status: 0x%08x %08x\n",
 				   I915_READ(RING_EXECLIST_STATUS_LO(engine)),
@@ -3254,11 +3255,12 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 				seq_printf(m, "\t\tELSP[1] idle\n");
 			rcu_read_unlock();
 
-			spin_lock_irq(&engine->execlist_lock);
-			list_for_each_entry(rq, &engine->execlist_queue, execlist_link) {
+			spin_lock_irq(&engine->timeline->lock);
+			for (rb = engine->execlist_first; rb; rb = rb_next(rb)) {
+				rq = rb_entry(rb, typeof(*rq), priotree.node);
 				print_request(m, rq, "\t\tQ ");
 			}
-			spin_unlock_irq(&engine->execlist_lock);
+			spin_unlock_irq(&engine->timeline->lock);
 		} else if (INTEL_GEN(dev_priv) > 6) {
 			seq_printf(m, "\tPP_DIR_BASE: 0x%08x\n",
 				   I915_READ(RING_PP_DIR_BASE(engine)));

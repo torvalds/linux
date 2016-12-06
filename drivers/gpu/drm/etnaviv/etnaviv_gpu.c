@@ -639,6 +639,10 @@ int etnaviv_gpu_init(struct etnaviv_gpu *gpu)
 			gpu->memory_base = PHYS_OFFSET;
 		else
 			gpu->memory_base = dma_mask - SZ_2G + 1;
+	} else if (PHYS_OFFSET >= SZ_2G) {
+		dev_info(gpu->dev, "Need to move linear window on MC1.0, disabling TS\n");
+		gpu->memory_base = PHYS_OFFSET;
+		gpu->identity.features &= ~chipFeatures_FAST_CLEAR;
 	}
 
 	ret = etnaviv_hw_reset(gpu);

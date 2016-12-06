@@ -146,6 +146,8 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 	u32 id;
 	int i;
 
+	if (fsinfo->nlayouttypes == 0)
+		goto out_no_driver;
 	if (!(server->nfs_client->cl_exchange_flags &
 		 (EXCHGID4_FLAG_USE_NON_PNFS | EXCHGID4_FLAG_USE_PNFS_MDS))) {
 		printk(KERN_ERR "NFS: %s: cl_exchange_flags 0x%x\n",

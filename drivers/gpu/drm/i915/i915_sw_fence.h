@@ -40,7 +40,22 @@ typedef int (*i915_sw_fence_notify_t)(struct i915_sw_fence *,
 				      enum i915_sw_fence_notify state);
 #define __i915_sw_fence_call __aligned(4)
 
-void i915_sw_fence_init(struct i915_sw_fence *fence, i915_sw_fence_notify_t fn);
+void __i915_sw_fence_init(struct i915_sw_fence *fence,
+			  i915_sw_fence_notify_t fn,
+			  const char *name,
+			  struct lock_class_key *key);
+#ifdef CONFIG_LOCKDEP
+#define i915_sw_fence_init(fence, fn)				\
+do {								\
+	static struct lock_class_key __key;			\
+								\
+	__i915_sw_fence_init((fence), (fn), #fence, &__key);	\
+} while (0)
+#else
+#define i915_sw_fence_init(fence, fn)				\
+	__i915_sw_fence_init((fence), (fn), NULL, NULL)
+#endif
+
 void i915_sw_fence_commit(struct i915_sw_fence *fence);
 
 int i915_sw_fence_await_sw_fence(struct i915_sw_fence *fence,

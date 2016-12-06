@@ -47,11 +47,9 @@ enum {
  * Returns:
  * Zero on success, negative error code if failed.
  */
-int intel_vgpu_emulate_cfg_read(void *__vgpu, unsigned int offset,
+int intel_vgpu_emulate_cfg_read(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
-	struct intel_vgpu *vgpu = __vgpu;
-
 	if (WARN_ON(bytes > 4))
 		return -EINVAL;
 
@@ -82,9 +80,8 @@ static int map_aperture(struct intel_vgpu *vgpu, bool map)
 
 	ret = intel_gvt_hypervisor_map_gfn_to_mfn(vgpu, first_gfn,
 						  first_mfn,
-						  vgpu_aperture_sz(vgpu)
-						  >> PAGE_SHIFT, map,
-						  GVT_MAP_APERTURE);
+						  vgpu_aperture_sz(vgpu) >>
+						  PAGE_SHIFT, map);
 	if (ret)
 		return ret;
 
@@ -235,10 +232,9 @@ static int emulate_pci_bar_write(struct intel_vgpu *vgpu, unsigned int offset,
  * Returns:
  * Zero on success, negative error code if failed.
  */
-int intel_vgpu_emulate_cfg_write(void *__vgpu, unsigned int offset,
+int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	void *p_data, unsigned int bytes)
 {
-	struct intel_vgpu *vgpu = __vgpu;
 	int ret;
 
 	if (WARN_ON(bytes > 4))

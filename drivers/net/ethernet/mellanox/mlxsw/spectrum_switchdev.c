@@ -929,12 +929,12 @@ static int mlxsw_sp_port_smid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 mid,
 
 static struct mlxsw_sp_mid *__mlxsw_sp_mc_get(struct mlxsw_sp *mlxsw_sp,
 					      const unsigned char *addr,
-					      u16 vid)
+					      u16 fid)
 {
 	struct mlxsw_sp_mid *mid;
 
 	list_for_each_entry(mid, &mlxsw_sp->br_mids.list, list) {
-		if (ether_addr_equal(mid->addr, addr) && mid->vid == vid)
+		if (ether_addr_equal(mid->addr, addr) && mid->fid == fid)
 			return mid;
 	}
 	return NULL;
@@ -942,7 +942,7 @@ static struct mlxsw_sp_mid *__mlxsw_sp_mc_get(struct mlxsw_sp *mlxsw_sp,
 
 static struct mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 						const unsigned char *addr,
-						u16 vid)
+						u16 fid)
 {
 	struct mlxsw_sp_mid *mid;
 	u16 mid_idx;
@@ -958,7 +958,7 @@ static struct mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 
 	set_bit(mid_idx, mlxsw_sp->br_mids.mapped);
 	ether_addr_copy(mid->addr, addr);
-	mid->vid = vid;
+	mid->fid = fid;
 	mid->mid = mid_idx;
 	mid->ref_count = 0;
 	list_add_tail(&mid->list, &mlxsw_sp->br_mids.list);
@@ -991,9 +991,9 @@ static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
-	mid = __mlxsw_sp_mc_get(mlxsw_sp, mdb->addr, mdb->vid);
+	mid = __mlxsw_sp_mc_get(mlxsw_sp, mdb->addr, fid);
 	if (!mid) {
-		mid = __mlxsw_sp_mc_alloc(mlxsw_sp, mdb->addr, mdb->vid);
+		mid = __mlxsw_sp_mc_alloc(mlxsw_sp, mdb->addr, fid);
 		if (!mid) {
 			netdev_err(dev, "Unable to allocate MC group\n");
 			return -ENOMEM;
@@ -1137,7 +1137,7 @@ static int mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 mid_idx;
 	int err = 0;
 
-	mid = __mlxsw_sp_mc_get(mlxsw_sp, mdb->addr, mdb->vid);
+	mid = __mlxsw_sp_mc_get(mlxsw_sp, mdb->addr, fid);
 	if (!mid) {
 		netdev_err(dev, "Unable to remove port from MC DB\n");
 		return -EINVAL;

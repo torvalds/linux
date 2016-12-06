@@ -44,7 +44,7 @@
 #define GVT_AUX_I2C_READ			0x1
 #define GVT_AUX_I2C_STATUS			0x2
 #define GVT_AUX_I2C_MOT				0x4
-#define GVT_AUX_I2C_REPLY_ACK			(0x0 << 6)
+#define GVT_AUX_I2C_REPLY_ACK			0x0
 
 struct intel_vgpu_edid_data {
 	bool data_valid;

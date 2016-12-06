@@ -629,35 +629,28 @@ void intel_engine_fini_breadcrumbs(struct intel_engine_cs *engine)
 	cancel_fake_irq(engine);
 }
 
-unsigned int intel_kick_waiters(struct drm_i915_private *i915)
-{
-	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	unsigned int mask = 0;
-
-	/* To avoid the task_struct disappearing beneath us as we wake up
-	 * the process, we must first inspect the task_struct->state under the
-	 * RCU lock, i.e. as we call wake_up_process() we must be holding the
-	 * rcu_read_lock().
-	 */
-	for_each_engine(engine, i915, id)
-		if (unlikely(intel_engine_wakeup(engine)))
-			mask |= intel_engine_flag(engine);
-
-	return mask;
-}
-
-unsigned int intel_kick_signalers(struct drm_i915_private *i915)
+unsigned int intel_breadcrumbs_busy(struct drm_i915_private *i915)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	unsigned int mask = 0;
 
 	for_each_engine(engine, i915, id) {
-		if (unlikely(READ_ONCE(engine->breadcrumbs.first_signal))) {
-			wake_up_process(engine->breadcrumbs.signaler);
+		struct intel_breadcrumbs *b = &engine->breadcrumbs;
+
+		spin_lock_irq(&b->lock);
+
+		if (b->first_wait) {
+			wake_up_process(b->first_wait->tsk);
 			mask |= intel_engine_flag(engine);
 		}
+
+		if (b->first_signal) {
+			wake_up_process(b->signaler);
+			mask |= intel_engine_flag(engine);
+		}
+
+		spin_unlock_irq(&b->lock);
 	}
 
 	return mask;
