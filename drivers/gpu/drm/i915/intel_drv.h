@@ -906,6 +906,10 @@ struct intel_dp {
 	/* sink rates as reported by DP_SUPPORTED_LINK_RATES */
 	uint8_t num_sink_rates;
 	int sink_rates[DP_MAX_SUPPORTED_RATES];
+	/* Max lane count for the sink as per DPCD registers */
+	uint8_t max_sink_lane_count;
+	/* Max link BW for the sink as per DPCD registers */
+	int max_sink_link_bw;
 	/* sink or branch descriptor */
 	struct intel_dp_desc desc;
 	struct drm_dp_aux aux;
