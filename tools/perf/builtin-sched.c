@@ -2583,6 +2583,7 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	struct perf_data_file file = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = sched->force,
 	};
 
 	struct perf_session *session;
@@ -2988,6 +2989,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN('f', "force", &sched.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const struct option latency_options[] = {
@@ -2995,8 +2997,6 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "sort by key(s): runtime, switch, avg, max"),
 	OPT_INTEGER('C', "CPU", &sched.profile_cpu,
 		    "CPU to profile on"),
-	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
-		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('p', "pids", &sched.skip_merge,
 		    "latency stats per pid instead of per comm"),
 	OPT_PARENT(sched_options)
@@ -3004,9 +3004,6 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	const struct option replay_options[] = {
 	OPT_UINTEGER('r', "repeat", &sched.replay_repeat,
 		     "repeat the workload replay N times (-1: infinite)"),
-	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
-		    "dump raw trace in ASCII"),
-	OPT_BOOLEAN('f', "force", &sched.force, "don't complain, do it"),
 	OPT_PARENT(sched_options)
 	};
 	const struct option map_options[] = {
