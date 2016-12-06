@@ -85,6 +85,75 @@ static int kvm_trap_emul_handle_cop_unusable(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
+static int kvm_mips_bad_load(u32 cause, u32 *opc, struct kvm_run *run,
+			     struct kvm_vcpu *vcpu)
+{
+	enum emulation_result er;
+	union mips_instruction inst;
+	int err;
+
+	/* A code fetch fault doesn't count as an MMIO */
+	if (kvm_is_ifetch_fault(&vcpu->arch)) {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return RESUME_HOST;
+	}
+
+	/* Fetch the instruction. */
+	if (cause & CAUSEF_BD)
+		opc += 1;
+	err = kvm_get_badinstr(opc, vcpu, &inst.word);
+	if (err) {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return RESUME_HOST;
+	}
+
+	/* Emulate the load */
+	er = kvm_mips_emulate_load(inst, cause, run, vcpu);
+	if (er == EMULATE_FAIL) {
+		kvm_err("Emulate load from MMIO space failed\n");
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	} else {
+		run->exit_reason = KVM_EXIT_MMIO;
+	}
+	return RESUME_HOST;
+}
+
+static int kvm_mips_bad_store(u32 cause, u32 *opc, struct kvm_run *run,
+			      struct kvm_vcpu *vcpu)
+{
+	enum emulation_result er;
+	union mips_instruction inst;
+	int err;
+
+	/* Fetch the instruction. */
+	if (cause & CAUSEF_BD)
+		opc += 1;
+	err = kvm_get_badinstr(opc, vcpu, &inst.word);
+	if (err) {
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+		return RESUME_HOST;
+	}
+
+	/* Emulate the store */
+	er = kvm_mips_emulate_store(inst, cause, run, vcpu);
+	if (er == EMULATE_FAIL) {
+		kvm_err("Emulate store to MMIO space failed\n");
+		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+	} else {
+		run->exit_reason = KVM_EXIT_MMIO;
+	}
+	return RESUME_HOST;
+}
+
+static int kvm_mips_bad_access(u32 cause, u32 *opc, struct kvm_run *run,
+			       struct kvm_vcpu *vcpu, bool store)
+{
+	if (store)
+		return kvm_mips_bad_store(cause, opc, run, vcpu);
+	else
+		return kvm_mips_bad_load(cause, opc, run, vcpu);
+}
+
 static int kvm_trap_emul_handle_tlb_mod(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
@@ -178,28 +247,11 @@ static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
 		}
 	} else if (KVM_GUEST_KERNEL_MODE(vcpu)
 		   && (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1)) {
-		/* A code fetch fault doesn't count as an MMIO */
-		if (!store && kvm_is_ifetch_fault(&vcpu->arch)) {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			return RESUME_HOST;
-		}
-
 		/*
 		 * With EVA we may get a TLB exception instead of an address
 		 * error when the guest performs MMIO to KSeg1 addresses.
 		 */
-		kvm_debug("Emulate %s MMIO space\n",
-			  store ? "Store to" : "Load from");
-		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
-		if (er == EMULATE_FAIL) {
-			kvm_err("Emulate %s MMIO space failed\n",
-				store ? "Store to" : "Load from");
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		} else {
-			run->exit_reason = KVM_EXIT_MMIO;
-			ret = RESUME_HOST;
-		}
+		ret = kvm_mips_bad_access(cause, opc, run, vcpu, store);
 	} else {
 		kvm_err("Illegal TLB %s fault address , cause %#x, PC: %p, BadVaddr: %#lx\n",
 			store ? "ST" : "LD", cause, opc, badvaddr);
@@ -227,21 +279,11 @@ static int kvm_trap_emul_handle_addr_err_st(struct kvm_vcpu *vcpu)
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	u32 cause = vcpu->arch.host_cp0_cause;
-	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
 
 	if (KVM_GUEST_KERNEL_MODE(vcpu)
 	    && (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1)) {
-		kvm_debug("Emulate Store to MMIO space\n");
-		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
-		if (er == EMULATE_FAIL) {
-			kvm_err("Emulate Store to MMIO space failed\n");
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		} else {
-			run->exit_reason = KVM_EXIT_MMIO;
-			ret = RESUME_HOST;
-		}
+		ret = kvm_mips_bad_store(cause, opc, run, vcpu);
 	} else {
 		kvm_err("Address Error (STORE): cause %#x, PC: %p, BadVaddr: %#lx\n",
 			cause, opc, badvaddr);
@@ -257,32 +299,15 @@ static int kvm_trap_emul_handle_addr_err_ld(struct kvm_vcpu *vcpu)
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	u32 cause = vcpu->arch.host_cp0_cause;
-	enum emulation_result er = EMULATE_DONE;
 	int ret = RESUME_GUEST;
 
 	if (KSEGX(badvaddr) == CKSEG0 || KSEGX(badvaddr) == CKSEG1) {
-		/* A code fetch fault doesn't count as an MMIO */
-		if (kvm_is_ifetch_fault(&vcpu->arch)) {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			return RESUME_HOST;
-		}
-
-		kvm_debug("Emulate Load from MMIO space @ %#lx\n", badvaddr);
-		er = kvm_mips_emulate_inst(cause, opc, run, vcpu);
-		if (er == EMULATE_FAIL) {
-			kvm_err("Emulate Load from MMIO space failed\n");
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		} else {
-			run->exit_reason = KVM_EXIT_MMIO;
-			ret = RESUME_HOST;
-		}
+		ret = kvm_mips_bad_load(cause, opc, run, vcpu);
 	} else {
 		kvm_err("Address Error (LOAD): cause %#x, PC: %p, BadVaddr: %#lx\n",
 			cause, opc, badvaddr);
 		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		ret = RESUME_HOST;
-		er = EMULATE_FAIL;
 	}
 	return ret;
 }
