@@ -304,6 +304,130 @@ bool kvm_mips_flush_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn)
 				      end_gfn << PAGE_SHIFT);
 }
 
+#define BUILD_PTE_RANGE_OP(name, op)					\
+static int kvm_mips_##name##_pte(pte_t *pte, unsigned long start,	\
+				 unsigned long end)			\
+{									\
+	int ret = 0;							\
+	int i_min = __pte_offset(start);				\
+	int i_max = __pte_offset(end);					\
+	int i;								\
+	pte_t old, new;							\
+									\
+	for (i = i_min; i <= i_max; ++i) {				\
+		if (!pte_present(pte[i]))				\
+			continue;					\
+									\
+		old = pte[i];						\
+		new = op(old);						\
+		if (pte_val(new) == pte_val(old))			\
+			continue;					\
+		set_pte(pte + i, new);					\
+		ret = 1;						\
+	}								\
+	return ret;							\
+}									\
+									\
+/* returns true if anything was done */					\
+static int kvm_mips_##name##_pmd(pmd_t *pmd, unsigned long start,	\
+				 unsigned long end)			\
+{									\
+	int ret = 0;							\
+	pte_t *pte;							\
+	unsigned long cur_end = ~0ul;					\
+	int i_min = __pmd_offset(start);				\
+	int i_max = __pmd_offset(end);					\
+	int i;								\
+									\
+	for (i = i_min; i <= i_max; ++i, start = 0) {			\
+		if (!pmd_present(pmd[i]))				\
+			continue;					\
+									\
+		pte = pte_offset(pmd + i, 0);				\
+		if (i == i_max)						\
+			cur_end = end;					\
+									\
+		ret |= kvm_mips_##name##_pte(pte, start, cur_end);	\
+	}								\
+	return ret;							\
+}									\
+									\
+static int kvm_mips_##name##_pud(pud_t *pud, unsigned long start,	\
+				 unsigned long end)			\
+{									\
+	int ret = 0;							\
+	pmd_t *pmd;							\
+	unsigned long cur_end = ~0ul;					\
+	int i_min = __pud_offset(start);				\
+	int i_max = __pud_offset(end);					\
+	int i;								\
+									\
+	for (i = i_min; i <= i_max; ++i, start = 0) {			\
+		if (!pud_present(pud[i]))				\
+			continue;					\
+									\
+		pmd = pmd_offset(pud + i, 0);				\
+		if (i == i_max)						\
+			cur_end = end;					\
+									\
+		ret |= kvm_mips_##name##_pmd(pmd, start, cur_end);	\
+	}								\
+	return ret;							\
+}									\
+									\
+static int kvm_mips_##name##_pgd(pgd_t *pgd, unsigned long start,	\
+				 unsigned long end)			\
+{									\
+	int ret = 0;							\
+	pud_t *pud;							\
+	unsigned long cur_end = ~0ul;					\
+	int i_min = pgd_index(start);					\
+	int i_max = pgd_index(end);					\
+	int i;								\
+									\
+	for (i = i_min; i <= i_max; ++i, start = 0) {			\
+		if (!pgd_present(pgd[i]))				\
+			continue;					\
+									\
+		pud = pud_offset(pgd + i, 0);				\
+		if (i == i_max)						\
+			cur_end = end;					\
+									\
+		ret |= kvm_mips_##name##_pud(pud, start, cur_end);	\
+	}								\
+	return ret;							\
+}
+
+/*
+ * kvm_mips_mkclean_gpa_pt.
+ * Mark a range of guest physical address space clean (writes fault) in the VM's
+ * GPA page table to allow dirty page tracking.
+ */
+
+BUILD_PTE_RANGE_OP(mkclean, pte_mkclean)
+
+/**
+ * kvm_mips_mkclean_gpa_pt() - Make a range of guest physical addresses clean.
+ * @kvm:	KVM pointer.
+ * @start_gfn:	Guest frame number of first page in GPA range to flush.
+ * @end_gfn:	Guest frame number of last page in GPA range to flush.
+ *
+ * Make a range of GPA mappings clean so that guest writes will fault and
+ * trigger dirty page logging.
+ *
+ * The caller must hold the @kvm->mmu_lock spinlock.
+ *
+ * Returns:	Whether any GPA mappings were modified, which would require
+ *		derived mappings (GVA page tables & TLB enties) to be
+ *		invalidated.
+ */
+int kvm_mips_mkclean_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn)
+{
+	return kvm_mips_mkclean_pgd(kvm->arch.gpa_mm.pgd,
+				    start_gfn << PAGE_SHIFT,
+				    end_gfn << PAGE_SHIFT);
+}
+
 /**
  * kvm_mips_map_page() - Map a guest physical page.
  * @vcpu:		VCPU pointer.
