@@ -959,7 +959,7 @@ int i40iw_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				goto exit;
 			}
 			if (iwqp->sc_qp.term_flags)
-				del_timer(&iwqp->terminate_timer);
+				i40iw_terminate_del_timer(&iwqp->sc_qp);
 			info.next_iwarp_state = I40IW_QP_STATE_ERROR;
 			if ((iwqp->hw_tcp_state > I40IW_TCP_STATE_CLOSED) &&
 			    iwdev->iw_status &&

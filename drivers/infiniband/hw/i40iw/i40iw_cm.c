@@ -3471,7 +3471,7 @@ static void i40iw_cm_disconn_true(struct i40iw_qp *iwqp)
 		 *terminate-handler to issue cm_disconn which can re-free
 		 *a QP even after its refcnt=0.
 		 */
-		del_timer(&iwqp->terminate_timer);
+		i40iw_terminate_del_timer(qp);
 		if (!iwqp->flush_issued) {
 			iwqp->flush_issued = 1;
 			issue_flush = 1;
