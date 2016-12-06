@@ -197,9 +197,33 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   const struct kvm_memory_slot *new,
 				   enum kvm_mr_change change)
 {
+	int needs_flush;
+
 	kvm_debug("%s: kvm: %p slot: %d, GPA: %llx, size: %llx, QVA: %llx\n",
 		  __func__, kvm, mem->slot, mem->guest_phys_addr,
 		  mem->memory_size, mem->userspace_addr);
+
+	/*
+	 * If dirty page logging is enabled, write protect all pages in the slot
+	 * ready for dirty logging.
+	 *
+	 * There is no need to do this in any of the following cases:
+	 * CREATE:	No dirty mappings will already exist.
+	 * MOVE/DELETE:	The old mappings will already have been cleaned up by
+	 *		kvm_arch_flush_shadow_memslot()
+	 */
+	if (change == KVM_MR_FLAGS_ONLY &&
+	    (!(old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
+	     new->flags & KVM_MEM_LOG_DIRTY_PAGES)) {
+		spin_lock(&kvm->mmu_lock);
+		/* Write protect GPA page table entries */
+		needs_flush = kvm_mips_mkclean_gpa_pt(kvm, new->base_gfn,
+					new->base_gfn + new->npages - 1);
+		/* Let implementation do the rest */
+		if (needs_flush)
+			kvm_mips_callbacks->flush_shadow_memslot(kvm, new);
+		spin_unlock(&kvm->mmu_lock);
+	}
 }
 
 static inline void dump_handler(const char *symbol, void *start, void *end)
