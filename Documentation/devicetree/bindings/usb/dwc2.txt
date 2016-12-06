@@ -29,6 +29,11 @@ Refer to phy/phy-bindings.txt for generic phy consumer properties
 - g-rx-fifo-size: size of rx fifo size in gadget mode.
 - g-np-tx-fifo-size: size of non-periodic tx fifo size in gadget mode.
 - g-tx-fifo-size: size of periodic tx fifo per endpoint (except ep0) in gadget mode.
+- extcon: phandles to external connector devices. First phandle should point to
+  external connector, which provide "USB" cable events, the second should point
+  to external connector device, which provide "USB-HOST" cable events. If one
+  of the external connector devices is not required, empty <0> phandle should
+  be specified.
 
 Example:
 
