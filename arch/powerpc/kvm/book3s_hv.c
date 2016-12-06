@@ -773,12 +773,8 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
 		}
 		tvcpu->arch.prodded = 1;
 		smp_mb();
-		if (vcpu->arch.ceded) {
-			if (swait_active(&vcpu->wq)) {
-				swake_up(&vcpu->wq);
-				vcpu->stat.halt_wakeup++;
-			}
-		}
+		if (tvcpu->arch.ceded)
+			kvmppc_fast_vcpu_kick_hv(tvcpu);
 		break;
 	case H_CONFER:
 		target = kvmppc_get_gpr(vcpu, 4);
