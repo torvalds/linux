@@ -296,7 +296,7 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
 int fscrypt_decrypt_page(const struct inode *inode, struct page *page,
 			unsigned int len, unsigned int offs, pgoff_t index)
 {
-	return do_page_crypto(inode, FS_DECRYPT, page->index, page, page, len, offs,
+	return do_page_crypto(inode, FS_DECRYPT, index, page, page, len, offs,
 			GFP_NOFS);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_page);
