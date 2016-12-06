@@ -128,10 +128,6 @@ endif
 # (this improves performance and avoids hard-to-debug behaviour);
 MAKEFLAGS += -r
 
-$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
-	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
-	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
-
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
 # environment or command line. This is necessary for CC and AR
@@ -504,6 +500,10 @@ $(OUTPUT)common-cmds.h: $(wildcard Documentation/perf-*.txt)
 
 $(SCRIPTS) : % : %.sh
 	$(QUIET_GEN)$(INSTALL) '$@.sh' '$(OUTPUT)$@'
+
+$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
+	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
+	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
 
 # These can record PERF_VERSION
 perf.spec $(SCRIPTS) \
