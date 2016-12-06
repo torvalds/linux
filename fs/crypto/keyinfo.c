@@ -188,7 +188,7 @@ int fscrypt_get_crypt_info(struct inode *inode)
 	u8 *raw_key = NULL;
 	int res;
 
-	res = fscrypt_initialize();
+	res = fscrypt_initialize(inode->i_sb->s_cop->flags);
 	if (res)
 		return res;
 

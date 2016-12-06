@@ -85,7 +85,7 @@ struct fscrypt_completion_result {
 
 
 /* crypto.c */
-int fscrypt_initialize(void);
+int fscrypt_initialize(unsigned int cop_flags);
 
 /* keyinfo.c */
 extern int fscrypt_get_crypt_info(struct inode *);

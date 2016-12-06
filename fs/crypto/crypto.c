@@ -525,17 +525,22 @@ static void fscrypt_destroy(void)
 
 /**
  * fscrypt_initialize() - allocate major buffers for fs encryption.
+ * @cop_flags:  fscrypt operations flags
  *
  * We only call this when we start accessing encrypted files, since it
  * results in memory getting allocated that wouldn't otherwise be used.
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int fscrypt_initialize(void)
+int fscrypt_initialize(unsigned int cop_flags)
 {
 	int i, res = -ENOMEM;
 
-	if (fscrypt_bounce_page_pool)
+	/*
+	 * No need to allocate a bounce page pool if there already is one or
+	 * this FS won't use it.
+	 */
+	if (cop_flags & FS_CFLG_OWN_PAGES || fscrypt_bounce_page_pool)
 		return 0;
 
 	mutex_lock(&fscrypt_init_mutex);
