@@ -340,7 +340,7 @@ static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
 		sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
 		sq->db.ico_wqe[pi].num_wqebbs = 1;
-		mlx5e_send_nop(sq, true);
+		mlx5e_send_nop(sq, false);
 	}
 
 	wqe = mlx5_wq_cyc_get_wqe(wq, pi);
