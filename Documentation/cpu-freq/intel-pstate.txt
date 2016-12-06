@@ -139,6 +139,30 @@ architecture of the processor permits:
 - User can read write system wide turbo status
 	/sys/devices/system/cpu/no_turbo
 
+Support of energy performance hints
+It is possible to provide hints to the HWP algorithms in the processor
+to be more performance centric to more energy centric. When the driver
+is using HWP, two additional cpufreq sysfs attributes are presented for
+each logical CPU.
+These attributes are:
+	- energy_performance_available_preferences
+	- energy_performance_preference
+
+To get list of supported hints:
+$ cat energy_performance_available_preferences
+    default performance balance_performance balance_power power
+
+The current preference can be read or changed via cpufreq sysfs
+attribute "energy_performance_preference". Reading from this attribute
+will display current effective setting. User can write any of the valid
+preference string to this attribute. User can always restore to power-on
+default by writing "default".
+
+Since threads can migrate to different CPUs, this is possible that the
+new CPU may have different energy performance preference than the previous
+one. To avoid such issues, either threads can be pinned to specific CPUs
+or set the same energy performance preference value to all CPUs.
+
 Tuning Intel P-State driver
 
 When the performance can be tuned using PID (Proportional Integral
