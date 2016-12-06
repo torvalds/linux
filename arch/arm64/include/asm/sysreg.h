@@ -35,11 +35,32 @@
 #define sys_reg(op0, op1, crn, crm, op2) \
 	((((op0)&3)<<19)|((op1)<<16)|((crn)<<12)|((crm)<<8)|((op2)<<5))
 
+#ifndef CONFIG_BROKEN_GAS_INST
+
 #ifdef __ASSEMBLY__
 #define __emit_inst(x)			.inst (x)
 #else
 #define __emit_inst(x)			".inst " __stringify((x)) "\n\t"
 #endif
+
+#else  /* CONFIG_BROKEN_GAS_INST */
+
+#ifndef CONFIG_CPU_BIG_ENDIAN
+#define __INSTR_BSWAP(x)		(x)
+#else  /* CONFIG_CPU_BIG_ENDIAN */
+#define __INSTR_BSWAP(x)		((((x) << 24) & 0xff000000)	| \
+					 (((x) <<  8) & 0x00ff0000)	| \
+					 (((x) >>  8) & 0x0000ff00)	| \
+					 (((x) >> 24) & 0x000000ff))
+#endif	/* CONFIG_CPU_BIG_ENDIAN */
+
+#ifdef __ASSEMBLY__
+#define __emit_inst(x)			.long __INSTR_BSWAP(x)
+#else  /* __ASSEMBLY__ */
+#define __emit_inst(x)			".long " __stringify(__INSTR_BSWAP(x)) "\n\t"
+#endif	/* __ASSEMBLY__ */
+
+#endif	/* CONFIG_BROKEN_GAS_INST */
 
 #define SYS_MIDR_EL1			sys_reg(3, 0, 0, 0, 0)
 #define SYS_MPIDR_EL1			sys_reg(3, 0, 0, 0, 5)
@@ -232,11 +253,11 @@
 	.equ	.L__reg_num_xzr, 31
 
 	.macro	mrs_s, rt, sreg
-	.inst	0xd5200000|(\sreg)|(.L__reg_num_\rt)
+	 __emit_inst(0xd5200000|(\sreg)|(.L__reg_num_\rt))
 	.endm
 
 	.macro	msr_s, sreg, rt
-	.inst	0xd5000000|(\sreg)|(.L__reg_num_\rt)
+	__emit_inst(0xd5000000|(\sreg)|(.L__reg_num_\rt))
 	.endm
 
 #else
@@ -250,11 +271,11 @@ asm(
 "	.equ	.L__reg_num_xzr, 31\n"
 "\n"
 "	.macro	mrs_s, rt, sreg\n"
-"	.inst	0xd5200000|(\\sreg)|(.L__reg_num_\\rt)\n"
+	__emit_inst(0xd5200000|(\\sreg)|(.L__reg_num_\\rt))
 "	.endm\n"
 "\n"
 "	.macro	msr_s, sreg, rt\n"
-"	.inst	0xd5000000|(\\sreg)|(.L__reg_num_\\rt)\n"
+	__emit_inst(0xd5000000|(\\sreg)|(.L__reg_num_\\rt))
 "	.endm\n"
 );
 
