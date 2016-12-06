@@ -1181,7 +1181,6 @@ route_lookup:
 	if (err)
 		return err;
 
-	skb->protocol = htons(ETH_P_IPV6);
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	ipv6h = ipv6_hdr(skb);
