@@ -27,7 +27,7 @@ void perf_hooks__invoke(const struct perf_hook_desc *desc)
 		*(current_perf_hook->p_hook_func) = NULL;
 	} else {
 		current_perf_hook = desc;
-		(**desc->p_hook_func)();
+		(**desc->p_hook_func)(desc->hook_ctx);
 	}
 	current_perf_hook = NULL;
 }
@@ -41,7 +41,9 @@ void perf_hooks__recover(void)
 #define PERF_HOOK(name)					\
 perf_hook_func_t __perf_hook_func_##name = NULL;	\
 struct perf_hook_desc __perf_hook_desc_##name =		\
-	{.hook_name = #name, .p_hook_func = &__perf_hook_func_##name};
+	{.hook_name = #name,				\
+	 .p_hook_func = &__perf_hook_func_##name,	\
+	 .hook_ctx = NULL};
 #include "perf-hooks-list.h"
 #undef PERF_HOOK
 
@@ -54,7 +56,8 @@ static struct perf_hook_desc *perf_hooks[] = {
 #undef PERF_HOOK
 
 int perf_hooks__set_hook(const char *hook_name,
-			 perf_hook_func_t hook_func)
+			 perf_hook_func_t hook_func,
+			 void *hook_ctx)
 {
 	unsigned int i;
 
@@ -65,6 +68,7 @@ int perf_hooks__set_hook(const char *hook_name,
 		if (*(perf_hooks[i]->p_hook_func))
 			pr_warning("Overwrite existing hook: %s\n", hook_name);
 		*(perf_hooks[i]->p_hook_func) = hook_func;
+		perf_hooks[i]->hook_ctx = hook_ctx;
 		return 0;
 	}
 	return -ENOENT;

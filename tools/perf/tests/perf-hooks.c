@@ -15,13 +15,13 @@ static void sigsegv_handler(int sig __maybe_unused)
 	exit(-1);
 }
 
-static int hook_flags;
 
-static void the_hook(void)
+static void the_hook(void *_hook_flags)
 {
+	int *hook_flags = _hook_flags;
 	int *p = NULL;
 
-	hook_flags = 1234;
+	*hook_flags = 1234;
 
 	/* Generate a segfault, test perf_hooks__recover */
 	*p = 0;
@@ -29,13 +29,17 @@ static void the_hook(void)
 
 int test__perf_hooks(int subtest __maybe_unused)
 {
+	int hook_flags = 0;
+
 	signal(SIGSEGV, sigsegv_handler);
-	perf_hooks__set_hook("test", the_hook);
+	perf_hooks__set_hook("test", the_hook, &hook_flags);
 	perf_hooks__invoke_test();
 
 	/* hook is triggered? */
-	if (hook_flags != 1234)
+	if (hook_flags != 1234) {
+		pr_debug("Setting failed: %d (%p)\n", hook_flags, &hook_flags);
 		return TEST_FAIL;
+	}
 
 	/* the buggy hook is removed? */
 	if (perf_hooks__get_hook("test"))

@@ -5,10 +5,11 @@
 extern "C" {
 #endif
 
-typedef void (*perf_hook_func_t)(void);
+typedef void (*perf_hook_func_t)(void *ctx);
 struct perf_hook_desc {
 	const char * const hook_name;
 	perf_hook_func_t * const p_hook_func;
+	void *hook_ctx;
 };
 
 extern void perf_hooks__invoke(const struct perf_hook_desc *);
@@ -26,7 +27,8 @@ static inline void perf_hooks__invoke_##name(void)	\
 
 extern int
 perf_hooks__set_hook(const char *hook_name,
-		     perf_hook_func_t hook_func);
+		     perf_hook_func_t hook_func,
+		     void *hook_ctx);
 
 extern perf_hook_func_t
 perf_hooks__get_hook(const char *hook_name);
