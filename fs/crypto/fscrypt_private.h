@@ -72,7 +72,7 @@ struct fscrypt_info {
 };
 
 #define FS_CTX_REQUIRES_FREE_ENCRYPT_FL		0x00000001
-#define FS_WRITE_PATH_FL			0x00000002
+#define FS_CTX_HAS_BOUNCE_BUFFER_FL		0x00000002
 
 struct fscrypt_completion_result {
 	struct completion completion;

@@ -21,7 +21,6 @@
 #define FS_CRYPTO_BLOCK_SIZE		16
 
 struct fscrypt_info;
-struct fscrypt_ctx;
 
 struct fscrypt_ctx {
 	union {

@@ -63,7 +63,7 @@ void fscrypt_release_ctx(struct fscrypt_ctx *ctx)
 {
 	unsigned long flags;
 
-	if (ctx->flags & FS_WRITE_PATH_FL && ctx->w.bounce_page) {
+	if (ctx->flags & FS_CTX_HAS_BOUNCE_BUFFER_FL && ctx->w.bounce_page) {
 		mempool_free(ctx->w.bounce_page, fscrypt_bounce_page_pool);
 		ctx->w.bounce_page = NULL;
 	}
@@ -121,7 +121,7 @@ struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *inode, gfp_t gfp_flags)
 	} else {
 		ctx->flags &= ~FS_CTX_REQUIRES_FREE_ENCRYPT_FL;
 	}
-	ctx->flags &= ~FS_WRITE_PATH_FL;
+	ctx->flags &= ~FS_CTX_HAS_BOUNCE_BUFFER_FL;
 	return ctx;
 }
 EXPORT_SYMBOL(fscrypt_get_ctx);
@@ -210,7 +210,7 @@ static struct page *alloc_bounce_page(struct fscrypt_ctx *ctx, gfp_t gfp_flags)
 	ctx->w.bounce_page = mempool_alloc(fscrypt_bounce_page_pool, gfp_flags);
 	if (ctx->w.bounce_page == NULL)
 		return ERR_PTR(-ENOMEM);
-	ctx->flags |= FS_WRITE_PATH_FL;
+	ctx->flags |= FS_CTX_HAS_BOUNCE_BUFFER_FL;
 	return ctx->w.bounce_page;
 }
 
