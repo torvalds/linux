@@ -70,7 +70,7 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 		return false;
 	}
 	adev->bios = kmalloc(size, GFP_KERNEL);
-	if (adev->bios == NULL) {
+	if (!adev->bios) {
 		iounmap(bios);
 		return false;
 	}

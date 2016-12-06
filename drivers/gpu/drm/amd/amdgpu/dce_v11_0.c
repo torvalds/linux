@@ -3805,7 +3805,6 @@ static const struct amdgpu_display_funcs dce_v11_0_display_funcs = {
 	.bandwidth_update = &dce_v11_0_bandwidth_update,
 	.vblank_get_counter = &dce_v11_0_vblank_get_counter,
 	.vblank_wait = &dce_v11_0_vblank_wait,
-	.is_display_hung = &dce_v11_0_is_display_hung,
 	.backlight_set_level = &amdgpu_atombios_encoder_set_backlight_level,
 	.backlight_get_level = &amdgpu_atombios_encoder_get_backlight_level,
 	.hpd_sense = &dce_v11_0_hpd_sense,
