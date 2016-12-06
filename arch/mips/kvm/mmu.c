@@ -451,6 +451,58 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 }
 
 /**
+ * _kvm_mips_map_page_fast() - Fast path GPA fault handler.
+ * @vcpu:		VCPU pointer.
+ * @gpa:		Guest physical address of fault.
+ * @write_fault:	Whether the fault was due to a write.
+ * @out_entry:		New PTE for @gpa (written on success unless NULL).
+ * @out_buddy:		New PTE for @gpa's buddy (written on success unless
+ *			NULL).
+ *
+ * Perform fast path GPA fault handling, doing all that can be done without
+ * calling into KVM. This handles dirtying of clean pages (for dirty page
+ * logging).
+ *
+ * Returns:	0 on success, in which case we can update derived mappings and
+ *		resume guest execution.
+ *		-EFAULT on failure due to absent GPA mapping or write to
+ *		read-only page, in which case KVM must be consulted.
+ */
+static int _kvm_mips_map_page_fast(struct kvm_vcpu *vcpu, unsigned long gpa,
+				   bool write_fault,
+				   pte_t *out_entry, pte_t *out_buddy)
+{
+	struct kvm *kvm = vcpu->kvm;
+	gfn_t gfn = gpa >> PAGE_SHIFT;
+	pte_t *ptep;
+	int ret = 0;
+
+	spin_lock(&kvm->mmu_lock);
+
+	/* Fast path - just check GPA page table for an existing entry */
+	ptep = kvm_mips_pte_for_gpa(kvm, NULL, gpa);
+	if (!ptep || !pte_present(*ptep)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	if (write_fault && !pte_dirty(*ptep)) {
+		/* Track dirtying of pages */
+		set_pte(ptep, pte_mkdirty(*ptep));
+		mark_page_dirty(kvm, gfn);
+	}
+
+	if (out_entry)
+		*out_entry = *ptep;
+	if (out_buddy)
+		*out_buddy = *ptep_buddy(ptep);
+
+out:
+	spin_unlock(&kvm->mmu_lock);
+	return ret;
+}
+
+/**
  * kvm_mips_map_page() - Map a guest physical page.
  * @vcpu:		VCPU pointer.
  * @gpa:		Guest physical address of fault.
@@ -462,9 +514,9 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
  * Handle GPA faults by creating a new GPA mapping (or updating an existing
  * one).
  *
- * This takes care of asking KVM for the corresponding PFN, and creating a
- * mapping in the GPA page tables. Derived mappings (GVA page tables and TLBs)
- * must be handled by the caller.
+ * This takes care of marking pages dirty (dirty page tracking), asking KVM for
+ * the corresponding PFN, and creating a mapping in the GPA page tables. Derived
+ * mappings (GVA page tables and TLBs) must be handled by the caller.
  *
  * Returns:	0 on success, in which case the caller may use the @out_entry
  *		and @out_buddy PTEs to update derived mappings and resume guest
@@ -485,7 +537,12 @@ static int kvm_mips_map_page(struct kvm_vcpu *vcpu, unsigned long gpa,
 	pte_t *ptep, entry, old_pte;
 	unsigned long prot_bits;
 
+	/* Try the fast path to handle clean pages */
 	srcu_idx = srcu_read_lock(&kvm->srcu);
+	err = _kvm_mips_map_page_fast(vcpu, gpa, write_fault, out_entry,
+				      out_buddy);
+	if (!err)
+		goto out;
 
 	/* We need a minimum of cached pages ready for page table creation */
 	err = mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES,
@@ -493,6 +550,7 @@ static int kvm_mips_map_page(struct kvm_vcpu *vcpu, unsigned long gpa,
 	if (err)
 		goto out;
 
+	/* Slow path - ask KVM core whether we can access this GPA */
 	pfn = gfn_to_pfn(kvm, gfn);
 
 	if (is_error_noslot_pfn(pfn)) {
@@ -502,11 +560,19 @@ static int kvm_mips_map_page(struct kvm_vcpu *vcpu, unsigned long gpa,
 
 	spin_lock(&kvm->mmu_lock);
 
+	/* Ensure page tables are allocated */
 	ptep = kvm_mips_pte_for_gpa(kvm, memcache, gpa);
 
-	prot_bits = __READABLE | _PAGE_PRESENT | __WRITEABLE;
+	/* Set up the PTE */
+	prot_bits = __READABLE | _PAGE_PRESENT | _PAGE_WRITE |
+		_page_cachable_default;
+	if (write_fault) {
+		prot_bits |= __WRITEABLE;
+		mark_page_dirty(kvm, gfn);
+	}
 	entry = pfn_pte(pfn, __pgprot(prot_bits));
 
+	/* Write the PTE */
 	old_pte = *ptep;
 	set_pte(ptep, entry);
 	if (pte_present(old_pte))
