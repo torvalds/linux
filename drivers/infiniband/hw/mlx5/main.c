@@ -127,7 +127,7 @@ static int mlx5_netdev_event(struct notifier_block *this,
 
 		if ((upper == ndev || (!upper && ndev == ibdev->roce.netdev))
 		    && ibdev->ib_active) {
-			struct ib_event ibev = {0};
+			struct ib_event ibev = { };
 
 			ibev.device = &ibdev->ib_dev;
 			ibev.event = (event == NETDEV_UP) ?
