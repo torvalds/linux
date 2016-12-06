@@ -3359,21 +3359,33 @@ static void i40iw_cm_init_tsa_conn(struct i40iw_qp *iwqp,
  * i40iw_cm_disconn - when a connection is being closed
  * @iwqp: associate qp for the connection
  */
-int i40iw_cm_disconn(struct i40iw_qp *iwqp)
+void i40iw_cm_disconn(struct i40iw_qp *iwqp)
 {
 	struct disconn_work *work;
 	struct i40iw_device *iwdev = iwqp->iwdev;
 	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
+	unsigned long flags;
 
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work)
-		return -ENOMEM;	/* Timer will clean up */
+		return;	/* Timer will clean up */
 
+	spin_lock_irqsave(&iwdev->qptable_lock, flags);
+	if (!iwdev->qp_table[iwqp->ibqp.qp_num]) {
+		spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
+		i40iw_debug(&iwdev->sc_dev, I40IW_DEBUG_CM,
+			    "%s qp_id %d is already freed\n",
+			     __func__, iwqp->ibqp.qp_num);
+		kfree(work);
+		return;
+	}
 	i40iw_add_ref(&iwqp->ibqp);
+	spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
+
 	work->iwqp = iwqp;
 	INIT_WORK(&work->work, i40iw_disconnect_worker);
 	queue_work(cm_core->disconn_wq, &work->work);
-	return 0;
+	return;
 }
 
 /**

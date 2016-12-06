@@ -512,7 +512,7 @@ u32 i40iw_initialize_hw_resources(struct i40iw_device *iwdev);
 
 int i40iw_register_rdma_device(struct i40iw_device *iwdev);
 void i40iw_port_ibevent(struct i40iw_device *iwdev);
-int i40iw_cm_disconn(struct i40iw_qp *);
+void i40iw_cm_disconn(struct i40iw_qp *iwqp);
 void i40iw_cm_disconn_worker(void *);
 int mini_cm_recv_pkt(struct i40iw_cm_core *, struct i40iw_device *,
 		     struct sk_buff *);

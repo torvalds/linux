@@ -308,7 +308,9 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			iwqp = iwdev->qp_table[info->qp_cq_id];
 			if (!iwqp) {
 				spin_unlock_irqrestore(&iwdev->qptable_lock, flags);
-				i40iw_pr_err("qp_id %d is already freed\n", info->qp_cq_id);
+				i40iw_debug(dev, I40IW_DEBUG_AEQ,
+					    "%s qp_id %d is already freed\n",
+					    __func__, info->qp_cq_id);
 				continue;
 			}
 			i40iw_add_ref(&iwqp->ibqp);
