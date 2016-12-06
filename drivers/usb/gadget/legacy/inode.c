@@ -1783,7 +1783,8 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	}
 	spin_unlock_irq(&dev->lock);
 
-	if (len < (USB_DT_CONFIG_SIZE + USB_DT_DEVICE_SIZE + 4))
+	if ((len < (USB_DT_CONFIG_SIZE + USB_DT_DEVICE_SIZE + 4)) ||
+	    (len > PAGE_SIZE * 4))
 		return -EINVAL;
 
 	/* we might need to change message format someday */
