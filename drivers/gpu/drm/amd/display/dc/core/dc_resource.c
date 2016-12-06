@@ -1834,11 +1834,10 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_vendor_info_packet(
 			pipe_ctx->stream, &info_frame.vendor_info_packet);
 		set_spd_info_packet(pipe_ctx->stream, &info_frame.spd_packet);
-	}
-
-	else if (dc_is_dp_signal(signal))
+	} else if (dc_is_dp_signal(signal)) {
 		set_vsc_info_packet(pipe_ctx->stream, &info_frame.vsc_packet);
 		set_spd_info_packet(pipe_ctx->stream, &info_frame.spd_packet);
+	}
 
 	translate_info_frame(&info_frame,
 			&pipe_ctx->encoder_info_frame);

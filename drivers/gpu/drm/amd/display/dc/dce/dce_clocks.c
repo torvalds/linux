@@ -148,29 +148,6 @@ static int dce_divider_range_calc_divider(
 
 }
 
-static int dce_divider_range_calc_did(
-	struct dce_divider_range *div_range,
-	int div)
-{
-	int did;
-	/* Check before dividing.*/
-	if (div_range->div_range_step == 0) {
-		div_range->div_range_step = 1;
-		/*div_range_step cannot be zero*/
-		BREAK_TO_DEBUGGER();
-	}
-	/* Is this divider within our range?*/
-	if ((div < div_range->div_range_start)
-		|| (div >= div_range->div_range_end))
-		return INVALID_DID;
-/* did = (divider - range_start + (range_step-1)) / range_step) + did_min*/
-	did = div - div_range->div_range_start;
-	did += div_range->div_range_step - 1;
-	did /= div_range->div_range_step;
-	did += div_range->did_min;
-	return did;
-}
-
 static int dce_divider_range_get_divider(
 	struct dce_divider_range *div_range,
 	int ranges_num,
@@ -187,24 +164,6 @@ static int dce_divider_range_get_divider(
 			break;
 	}
 	return div;
-}
-
-static int dce_divider_range_get_did(
-	struct dce_divider_range *div_range,
-	int ranges_num,
-	int divider)
-{
-	int did = INVALID_DID;
-	int i;
-
-	for (i = 0; i < ranges_num; i++) {
-		/*  CalcDid returns InvalidDid if a divider ID isn't found*/
-		did = dce_divider_range_calc_did(&div_range[i], divider);
-		/* Found a valid return did*/
-		if (did != INVALID_DID)
-			break;
-	}
-	return did;
 }
 
 static int dce_clocks_get_dp_ref_freq(struct display_clock *clk)

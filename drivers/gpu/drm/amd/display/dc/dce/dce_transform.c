@@ -83,8 +83,6 @@ static bool setup_scaling_configuration(
 	struct dce_transform *xfm_dce,
 	const struct scaler_data *data)
 {
-	struct dc_context *ctx = xfm_dce->base.ctx;
-
 	if (data->taps.h_taps + data->taps.v_taps <= 2) {
 		/* Set bypass */
 		REG_UPDATE_2(SCL_MODE, SCL_MODE, 0, SCL_PSCL_EN, 0);

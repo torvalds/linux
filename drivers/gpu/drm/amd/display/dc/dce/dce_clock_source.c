@@ -465,7 +465,6 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 		struct pll_settings *pll_settings,
 		struct pixel_clk_params *pix_clk_params)
 {
-	uint32_t addr = 0;
 	uint32_t value = 0;
 	uint32_t field = 0;
 	uint32_t pll_calc_error = MAX_PLL_CALC_ERROR;
@@ -731,8 +730,6 @@ static void dce110_program_pixel_clk_resync(
 		enum signal_type signal_type,
 		enum dc_color_depth colordepth)
 {
-	uint32_t value = 0;
-
 	REG_UPDATE(RESYNC_CNTL,
 			DCCG_DEEP_COLOR_CNTL1, 0);
 	/*
@@ -772,8 +769,6 @@ static void dce112_program_pixel_clk_resync(
 		enum dc_color_depth colordepth,
 		bool enable_ycbcr420)
 {
-	uint32_t value = 0;
-
 	REG_UPDATE(PIXCLK_RESYNC_CNTL,
 			PHYPLLA_DCCG_DEEP_COLOR_CNTL, 0);
 	/*

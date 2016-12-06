@@ -621,7 +621,8 @@ static void dce110_xfmv_set_pixel_storage_depth(
 	const struct bit_depth_reduction_params *bit_depth_params)
 {
 	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
-	int pixel_depth, expan_mode;
+	int pixel_depth = 0;
+	int expan_mode = 0;
 	uint32_t reg_data = 0;
 
 	switch (depth) {
