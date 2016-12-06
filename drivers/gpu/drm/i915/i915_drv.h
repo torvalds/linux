@@ -713,6 +713,7 @@ struct intel_csr {
 	func(has_aliasing_ppgtt); \
 	func(has_csr); \
 	func(has_ddi); \
+	func(has_decoupled_mmio); \
 	func(has_dp_mst); \
 	func(has_fbc); \
 	func(has_fpga_dbg); \
@@ -738,8 +739,7 @@ struct intel_csr {
 	func(cursor_needs_physical); \
 	func(hws_needs_physical); \
 	func(overlay_needs_physical); \
-	func(supports_tv); \
-	func(has_decoupled_mmio)
+	func(supports_tv);
 
 struct sseu_dev_info {
 	u8 slice_mask;
