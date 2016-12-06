@@ -622,6 +622,7 @@ enum i40iw_status_code i40iw_hw_flush_wqes(struct i40iw_device *iwdev,
 	struct i40iw_qp_flush_info *hw_info;
 	struct i40iw_cqp_request *cqp_request;
 	struct cqp_commands_info *cqp_info;
+	struct i40iw_qp *iwqp = (struct i40iw_qp *)qp->back_qp;
 
 	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, wait);
 	if (!cqp_request)
@@ -636,9 +637,30 @@ enum i40iw_status_code i40iw_hw_flush_wqes(struct i40iw_device *iwdev,
 	cqp_info->in.u.qp_flush_wqes.qp = qp;
 	cqp_info->in.u.qp_flush_wqes.scratch = (uintptr_t)cqp_request;
 	status = i40iw_handle_cqp_op(iwdev, cqp_request);
-	if (status)
+	if (status) {
 		i40iw_pr_err("CQP-OP Flush WQE's fail");
-	return status;
+		complete(&iwqp->sq_drained);
+		complete(&iwqp->rq_drained);
+		return status;
+	}
+	if (!cqp_request->compl_info.maj_err_code) {
+		switch (cqp_request->compl_info.min_err_code) {
+		case I40IW_CQP_COMPL_RQ_WQE_FLUSHED:
+			complete(&iwqp->sq_drained);
+			break;
+		case I40IW_CQP_COMPL_SQ_WQE_FLUSHED:
+			complete(&iwqp->rq_drained);
+			break;
+		case I40IW_CQP_COMPL_RQ_SQ_WQE_FLUSHED:
+			break;
+		default:
+			complete(&iwqp->sq_drained);
+			complete(&iwqp->rq_drained);
+			break;
+		}
+	}
+
+	return 0;
 }
 
 /**
