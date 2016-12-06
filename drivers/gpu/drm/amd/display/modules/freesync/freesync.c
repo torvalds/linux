@@ -746,6 +746,9 @@ void mod_freesync_update_state(struct mod_freesync *mod_freesync,
 				freesync_program_required = true;
 			}
 			break;
+		case FREESYNC_STATE_NONE:
+			/* handle here to avoid warning */
+			break;
 		}
 	}
 
