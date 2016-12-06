@@ -47,8 +47,8 @@
 extern uint mlx5_core_debug_mask;
 
 #define mlx5_core_dbg(__dev, format, ...)				\
-	dev_dbg(&(__dev)->pdev->dev, "%s:%s:%d:(pid %d): " format,	\
-		 (__dev)->priv.name, __func__, __LINE__, current->pid,	\
+	dev_dbg(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,		\
+		 __func__, __LINE__, current->pid,			\
 		 ##__VA_ARGS__)
 
 #define mlx5_core_dbg_mask(__dev, mask, format, ...)			\
@@ -63,8 +63,8 @@ do {									\
 	       ##__VA_ARGS__)
 
 #define mlx5_core_warn(__dev, format, ...)				\
-	dev_warn(&(__dev)->pdev->dev, "%s:%s:%d:(pid %d): " format,	\
-		(__dev)->priv.name, __func__, __LINE__, current->pid,	\
+	dev_warn(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
+		 __func__, __LINE__, current->pid,			\
 		##__VA_ARGS__)
 
 #define mlx5_core_info(__dev, format, ...)				\
