@@ -186,7 +186,7 @@ static uint8_t dig_encoder_sel_to_atom(enum engine_id id)
 		break;
 	}
 
-	return atom_dig_encoder_sel;
+	return 0;
 }
 
 static bool clock_source_id_to_atom(
