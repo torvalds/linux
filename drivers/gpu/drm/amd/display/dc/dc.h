@@ -34,7 +34,7 @@
 #include "link_service_types.h"
 
 #define MAX_TARGETS 6
-#define MAX_SURFACES 6
+#define MAX_SURFACES 3
 #define MAX_SINKS_PER_LINK 4
 
 /*******************************************************************************
