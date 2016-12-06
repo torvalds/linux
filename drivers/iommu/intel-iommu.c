@@ -5020,6 +5020,25 @@ static void intel_iommu_remove_device(struct device *dev)
 }
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
+#define MAX_NR_PASID_BITS (20)
+static inline unsigned long intel_iommu_get_pts(struct intel_iommu *iommu)
+{
+	/*
+	 * Convert ecap_pss to extend context entry pts encoding, also
+	 * respect the soft pasid_max value set by the iommu.
+	 * - number of PASID bits = ecap_pss + 1
+	 * - number of PASID table entries = 2^(pts + 5)
+	 * Therefore, pts = ecap_pss - 4
+	 * e.g. KBL ecap_pss = 0x13, PASID has 20 bits, pts = 15
+	 */
+	if (ecap_pss(iommu->ecap) < 5)
+		return 0;
+
+	/* pasid_max is encoded as actual number of entries not the bits */
+	return find_first_bit((unsigned long *)&iommu->pasid_max,
+			MAX_NR_PASID_BITS) - 5;
+}
+
 int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sdev)
 {
 	struct device_domain_info *info;
@@ -5052,7 +5071,9 @@ int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sd
 
 	if (!(ctx_lo & CONTEXT_PASIDE)) {
 		context[1].hi = (u64)virt_to_phys(iommu->pasid_state_table);
-		context[1].lo = (u64)virt_to_phys(iommu->pasid_table) | ecap_pss(iommu->ecap);
+		context[1].lo = (u64)virt_to_phys(iommu->pasid_table) |
+			intel_iommu_get_pts(iommu);
+
 		wmb();
 		/* CONTEXT_TT_MULTI_LEVEL and CONTEXT_TT_DEV_IOTLB are both
 		 * extended to permit requests-with-PASID if the PASIDE bit
