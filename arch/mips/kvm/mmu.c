@@ -769,15 +769,27 @@ void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags)
 	}
 }
 
+static pte_t kvm_mips_gpa_pte_to_gva_unmapped(pte_t pte)
+{
+	/*
+	 * Don't leak writeable but clean entries from GPA page tables. We don't
+	 * want the normal Linux tlbmod handler to handle dirtying when KVM
+	 * accesses guest memory.
+	 */
+	if (!pte_dirty(pte))
+		pte = pte_wrprotect(pte);
+
+	return pte;
+}
+
 /* XXXKYMA: Must be called with interrupts disabled */
 int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 				    struct kvm_vcpu *vcpu,
 				    bool write_fault)
 {
 	unsigned long gpa;
-	kvm_pfn_t pfn0, pfn1;
-	unsigned long vaddr;
 	pte_t pte_gpa[2], *ptep_gva;
+	int idx;
 
 	if (KVM_GUEST_KSEGX(badvaddr) != KVM_GUEST_KSEG0) {
 		kvm_err("%s: Invalid BadVaddr: %#lx\n", __func__, badvaddr);
@@ -785,35 +797,26 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 		return -1;
 	}
 
-	/* Find host PFNs */
-
-	gpa = KVM_GUEST_CPHYSADDR(badvaddr & (PAGE_MASK << 1));
-	vaddr = badvaddr & (PAGE_MASK << 1);
-
-	if (kvm_mips_map_page(vcpu, gpa, write_fault, &pte_gpa[0], NULL) < 0)
+	/* Get the GPA page table entry */
+	gpa = KVM_GUEST_CPHYSADDR(badvaddr);
+	idx = (badvaddr >> PAGE_SHIFT) & 1;
+	if (kvm_mips_map_page(vcpu, gpa, write_fault, &pte_gpa[idx],
+			      &pte_gpa[!idx]) < 0)
 		return -1;
 
-	if (kvm_mips_map_page(vcpu, gpa | PAGE_SIZE, write_fault, &pte_gpa[1],
-			      NULL) < 0)
-		return -1;
-
-	pfn0 = pte_pfn(pte_gpa[0]);
-	pfn1 = pte_pfn(pte_gpa[1]);
-
-	/* Find GVA page table entry */
-
-	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, vaddr);
+	/* Get the GVA page table entry */
+	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, badvaddr & ~PAGE_SIZE);
 	if (!ptep_gva) {
-		kvm_err("No ptep for gva %lx\n", vaddr);
+		kvm_err("No ptep for gva %lx\n", badvaddr);
 		return -1;
 	}
 
-	/* Write host PFNs into GVA page table */
-	ptep_gva[0] = pte_mkyoung(pte_mkdirty(pfn_pte(pfn0, PAGE_SHARED)));
-	ptep_gva[1] = pte_mkyoung(pte_mkdirty(pfn_pte(pfn1, PAGE_SHARED)));
+	/* Copy a pair of entries from GPA page table to GVA page table */
+	ptep_gva[0] = kvm_mips_gpa_pte_to_gva_unmapped(pte_gpa[0]);
+	ptep_gva[1] = kvm_mips_gpa_pte_to_gva_unmapped(pte_gpa[1]);
 
 	/* Invalidate this entry in the TLB, guest kernel ASID only */
-	kvm_mips_host_tlb_inv(vcpu, vaddr, false, true);
+	kvm_mips_host_tlb_inv(vcpu, badvaddr, false, true);
 	return 0;
 }
 
