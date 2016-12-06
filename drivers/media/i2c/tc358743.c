@@ -96,6 +96,7 @@ struct tc358743_state {
 
 	struct v4l2_dv_timings timings;
 	u32 mbus_fmt_code;
+	u8 csi_lanes_in_use;
 
 	struct gpio_desc *reset_gpio;
 };
@@ -285,11 +286,6 @@ static int get_audio_sampling_rate(struct v4l2_subdev *sd)
 		return 0;
 
 	return code_to_rate[i2c_rd8(sd, FS_SET) & MASK_FS];
-}
-
-static unsigned tc358743_num_csi_lanes_in_use(struct v4l2_subdev *sd)
-{
-	return ((i2c_rd32(sd, CSI_CONTROL) & MASK_NOL) >> 1) + 1;
 }
 
 /* --------------- TIMINGS --------------- */
@@ -682,6 +678,8 @@ static void tc358743_set_csi(struct v4l2_subdev *sd)
 	unsigned lanes = tc358743_num_csi_lanes_needed(sd);
 
 	v4l2_dbg(3, debug, sd, "%s:\n", __func__);
+
+	state->csi_lanes_in_use = lanes;
 
 	tc358743_reset(sd, MASK_CTXRST);
 
@@ -1155,7 +1153,7 @@ static int tc358743_log_status(struct v4l2_subdev *sd)
 	v4l2_info(sd, "Lanes needed: %d\n",
 			tc358743_num_csi_lanes_needed(sd));
 	v4l2_info(sd, "Lanes in use: %d\n",
-			tc358743_num_csi_lanes_in_use(sd));
+			state->csi_lanes_in_use);
 	v4l2_info(sd, "Waiting for particular sync signal: %s\n",
 			(i2c_rd16(sd, CSI_STATUS) & MASK_S_WSYNC) ?
 			"yes" : "no");
@@ -1438,12 +1436,14 @@ static int tc358743_dv_timings_cap(struct v4l2_subdev *sd,
 static int tc358743_g_mbus_config(struct v4l2_subdev *sd,
 			     struct v4l2_mbus_config *cfg)
 {
+	struct tc358743_state *state = to_state(sd);
+
 	cfg->type = V4L2_MBUS_CSI2;
 
 	/* Support for non-continuous CSI-2 clock is missing in the driver */
 	cfg->flags = V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
-	switch (tc358743_num_csi_lanes_in_use(sd)) {
+	switch (state->csi_lanes_in_use) {
 	case 1:
 		cfg->flags |= V4L2_MBUS_CSI2_1_LANE;
 		break;
