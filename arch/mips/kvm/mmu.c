@@ -429,6 +429,28 @@ int kvm_mips_mkclean_gpa_pt(struct kvm *kvm, gfn_t start_gfn, gfn_t end_gfn)
 }
 
 /**
+ * kvm_arch_mmu_enable_log_dirty_pt_masked() - write protect dirty pages
+ * @kvm:	The KVM pointer
+ * @slot:	The memory slot associated with mask
+ * @gfn_offset:	The gfn offset in memory slot
+ * @mask:	The mask of dirty pages at offset 'gfn_offset' in this memory
+ *		slot to be write protected
+ *
+ * Walks bits set in mask write protects the associated pte's. Caller must
+ * acquire @kvm->mmu_lock.
+ */
+void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
+		struct kvm_memory_slot *slot,
+		gfn_t gfn_offset, unsigned long mask)
+{
+	gfn_t base_gfn = slot->base_gfn + gfn_offset;
+	gfn_t start = base_gfn +  __ffs(mask);
+	gfn_t end = base_gfn + __fls(mask);
+
+	kvm_mips_mkclean_gpa_pt(kvm, start, end);
+}
+
+/**
  * kvm_mips_map_page() - Map a guest physical page.
  * @vcpu:		VCPU pointer.
  * @gpa:		Guest physical address of fault.
