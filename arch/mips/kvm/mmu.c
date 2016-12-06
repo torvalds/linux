@@ -782,6 +782,15 @@ static pte_t kvm_mips_gpa_pte_to_gva_unmapped(pte_t pte)
 	return pte;
 }
 
+static pte_t kvm_mips_gpa_pte_to_gva_mapped(pte_t pte, long entrylo)
+{
+	/* Guest EntryLo overrides host EntryLo */
+	if (!(entrylo & ENTRYLO_D))
+		pte = pte_mkclean(pte);
+
+	return kvm_mips_gpa_pte_to_gva_unmapped(pte);
+}
+
 /* XXXKYMA: Must be called with interrupts disabled */
 int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 				    struct kvm_vcpu *vcpu,
@@ -825,39 +834,48 @@ int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 					 unsigned long gva,
 					 bool write_fault)
 {
-	kvm_pfn_t pfn;
-	long tlb_lo = 0;
-	pte_t pte_gpa, *ptep_gva;
-	unsigned int idx;
+	struct kvm *kvm = vcpu->kvm;
+	long tlb_lo[2];
+	pte_t pte_gpa[2], *ptep_buddy, *ptep_gva;
+	unsigned int idx = TLB_LO_IDX(*tlb, gva);
 	bool kernel = KVM_GUEST_KERNEL_MODE(vcpu);
+
+	tlb_lo[0] = tlb->tlb_lo[0];
+	tlb_lo[1] = tlb->tlb_lo[1];
 
 	/*
 	 * The commpage address must not be mapped to anything else if the guest
 	 * TLB contains entries nearby, or commpage accesses will break.
 	 */
-	idx = TLB_LO_IDX(*tlb, gva);
-	if ((gva ^ KVM_GUEST_COMMPAGE_ADDR) & VPN2_MASK & PAGE_MASK)
-		tlb_lo = tlb->tlb_lo[idx];
+	if (!((gva ^ KVM_GUEST_COMMPAGE_ADDR) & VPN2_MASK & (PAGE_MASK << 1)))
+		tlb_lo[TLB_LO_IDX(*tlb, KVM_GUEST_COMMPAGE_ADDR)] = 0;
 
-	/* Find host PFN */
-	if (kvm_mips_map_page(vcpu, mips3_tlbpfn_to_paddr(tlb_lo), write_fault,
-			      &pte_gpa, NULL) < 0)
+	/* Get the GPA page table entry */
+	if (kvm_mips_map_page(vcpu, mips3_tlbpfn_to_paddr(tlb_lo[idx]),
+			      write_fault, &pte_gpa[idx], NULL) < 0)
 		return -1;
-	pfn = pte_pfn(pte_gpa);
 
-	/* Find GVA page table entry */
-	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, gva);
+	/* And its GVA buddy's GPA page table entry if it also exists */
+	pte_gpa[!idx] = pfn_pte(0, __pgprot(0));
+	if (tlb_lo[!idx] & ENTRYLO_V) {
+		spin_lock(&kvm->mmu_lock);
+		ptep_buddy = kvm_mips_pte_for_gpa(kvm, NULL,
+					mips3_tlbpfn_to_paddr(tlb_lo[!idx]));
+		if (ptep_buddy)
+			pte_gpa[!idx] = *ptep_buddy;
+		spin_unlock(&kvm->mmu_lock);
+	}
+
+	/* Get the GVA page table entry pair */
+	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, gva & ~PAGE_SIZE);
 	if (!ptep_gva) {
 		kvm_err("No ptep for gva %lx\n", gva);
 		return -1;
 	}
 
-	/* Write PFN into GVA page table, taking attributes from Guest TLB */
-	*ptep_gva = pfn_pte(pfn, (!(tlb_lo & ENTRYLO_V)) ? __pgprot(0) :
-				 (tlb_lo & ENTRYLO_D) ? PAGE_SHARED :
-				 PAGE_READONLY);
-	if (pte_present(*ptep_gva))
-		*ptep_gva = pte_mkyoung(pte_mkdirty(*ptep_gva));
+	/* Copy a pair of entries from GPA page table to GVA page table */
+	ptep_gva[0] = kvm_mips_gpa_pte_to_gva_mapped(pte_gpa[0], tlb_lo[0]);
+	ptep_gva[1] = kvm_mips_gpa_pte_to_gva_mapped(pte_gpa[1], tlb_lo[1]);
 
 	/* Invalidate this entry in the TLB, current guest mode ASID only */
 	kvm_mips_host_tlb_inv(vcpu, gva, !kernel, kernel);
