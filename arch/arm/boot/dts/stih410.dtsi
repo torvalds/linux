@@ -221,6 +221,7 @@
 
 			sti-hda@8d02000 {
 				compatible = "st,stih407-hda";
+				status = "disabled";
 				reg = <0x8d02000 0x400>, <0x92b0120 0x4>;
 				reg-names = "hda-reg", "video-dacs-ctrl";
 				clock-names = "pix",
