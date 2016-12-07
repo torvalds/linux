@@ -1164,37 +1164,39 @@ static const int frag_sizes[] = {
 
 void mlx4_en_calc_rx_buf(struct net_device *dev)
 {
-	enum dma_data_direction dma_dir = PCI_DMA_FROMDEVICE;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int eff_mtu = MLX4_EN_EFF_MTU(dev->mtu);
-	int order = MLX4_EN_ALLOC_PREFER_ORDER;
-	u32 align = SMP_CACHE_BYTES;
-	int buf_size = 0;
 	int i = 0;
 
 	/* bpf requires buffers to be set up as 1 packet per page.
 	 * This only works when num_frags == 1.
 	 */
 	if (priv->tx_ring_num[TX_XDP]) {
-		dma_dir = PCI_DMA_BIDIRECTIONAL;
-		/* This will gain efficient xdp frame recycling at the expense
-		 * of more costly truesize accounting
+		priv->frag_info[0].order = 0;
+		priv->frag_info[0].frag_size = eff_mtu;
+		priv->frag_info[0].frag_prefix_size = 0;
+		/* This will gain efficient xdp frame recycling at the
+		 * expense of more costly truesize accounting
 		 */
-		align = PAGE_SIZE;
-		order = 0;
-	}
+		priv->frag_info[0].frag_stride = PAGE_SIZE;
+		priv->frag_info[0].dma_dir = PCI_DMA_BIDIRECTIONAL;
+		i = 1;
+	} else {
+		int buf_size = 0;
 
-	while (buf_size < eff_mtu) {
-		priv->frag_info[i].order = order;
-		priv->frag_info[i].frag_size =
-			(eff_mtu > buf_size + frag_sizes[i]) ?
-				frag_sizes[i] : eff_mtu - buf_size;
-		priv->frag_info[i].frag_prefix_size = buf_size;
-		priv->frag_info[i].frag_stride =
-				ALIGN(priv->frag_info[i].frag_size, align);
-		priv->frag_info[i].dma_dir = dma_dir;
-		buf_size += priv->frag_info[i].frag_size;
-		i++;
+		while (buf_size < eff_mtu) {
+			priv->frag_info[i].order = MLX4_EN_ALLOC_PREFER_ORDER;
+			priv->frag_info[i].frag_size =
+				(eff_mtu > buf_size + frag_sizes[i]) ?
+					frag_sizes[i] : eff_mtu - buf_size;
+			priv->frag_info[i].frag_prefix_size = buf_size;
+			priv->frag_info[i].frag_stride =
+				ALIGN(priv->frag_info[i].frag_size,
+				      SMP_CACHE_BYTES);
+			priv->frag_info[i].dma_dir = PCI_DMA_FROMDEVICE;
+			buf_size += priv->frag_info[i].frag_size;
+			i++;
+		}
 	}
 
 	priv->num_frags = i;

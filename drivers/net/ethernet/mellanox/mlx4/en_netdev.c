@@ -51,6 +51,8 @@
 #include "mlx4_en.h"
 #include "en_port.h"
 
+#define MLX4_EN_MAX_XDP_MTU ((int)(PAGE_SIZE - ETH_HLEN - (2 * VLAN_HLEN)))
+
 int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -2249,6 +2251,19 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 	free_netdev(dev);
 }
 
+static bool mlx4_en_check_xdp_mtu(struct net_device *dev, int mtu)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	if (mtu > MLX4_EN_MAX_XDP_MTU) {
+		en_err(priv, "mtu:%d > max:%d when XDP prog is attached\n",
+		       mtu, MLX4_EN_MAX_XDP_MTU);
+		return false;
+	}
+
+	return true;
+}
+
 static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -2258,11 +2273,10 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 	en_dbg(DRV, priv, "Change MTU called - current:%d new:%d\n",
 		 dev->mtu, new_mtu);
 
-	if (priv->tx_ring_num[TX_XDP] && MLX4_EN_EFF_MTU(new_mtu) > FRAG_SZ0) {
-		en_err(priv, "MTU size:%d requires frags but XDP running\n",
-		       new_mtu);
-		return -EOPNOTSUPP;
-	}
+	if (priv->tx_ring_num[TX_XDP] &&
+	    !mlx4_en_check_xdp_mtu(dev, new_mtu))
+		return -ENOTSUPP;
+
 	dev->mtu = new_mtu;
 
 	if (netif_running(dev)) {
@@ -2715,10 +2729,8 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 		return 0;
 	}
 
-	if (priv->num_frags > 1) {
-		en_err(priv, "Cannot set XDP if MTU requires multiple frags\n");
+	if (!mlx4_en_check_xdp_mtu(dev, dev->mtu))
 		return -EOPNOTSUPP;
-	}
 
 	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
 	if (!tmp)
