@@ -420,15 +420,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
 
 	/* Remaining rings are distributed equally amongs VF's for now */
-	/* TODO: the following workaroud is needed to restrict total number
-	 * of vf_cp_rings not exceed number of HW ring groups. This WA should
-	 * be removed once new HWRM provides HW ring groups capability in
-	 * hwrm_func_qcap.
-	 */
-	vf_cp_rings = min_t(u16, pf->max_cp_rings, pf->max_stat_ctxs);
-	vf_cp_rings = (vf_cp_rings - bp->cp_nr_rings) / num_vfs;
-	/* TODO: restore this logic below once the WA above is removed */
-	/* vf_cp_rings = (pf->max_cp_rings - bp->cp_nr_rings) / num_vfs; */
+	vf_cp_rings = (pf->max_cp_rings - bp->cp_nr_rings) / num_vfs;
 	vf_stat_ctx = (pf->max_stat_ctxs - bp->num_stat_ctxs) / num_vfs;
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings * 2) /
@@ -590,7 +582,9 @@ void bnxt_sriov_disable(struct bnxt *bp)
 
 	bp->pf.active_vfs = 0;
 	/* Reclaim all resources for the PF. */
-	bnxt_hwrm_func_qcaps(bp);
+	rtnl_lock();
+	bnxt_restore_pf_fw_resources(bp);
+	rtnl_unlock();
 }
 
 int bnxt_sriov_configure(struct pci_dev *pdev, int num_vfs)
