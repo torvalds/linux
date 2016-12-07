@@ -625,7 +625,14 @@ find_fw_domain(struct drm_i915_private *dev_priv, u32 offset)
 			dev_priv->uncore.fw_domains_table_entries,
 			fw_range_cmp);
 
-	return entry ? entry->domains : 0;
+	if (!entry)
+		return 0;
+
+	WARN(entry->domains & ~dev_priv->uncore.fw_domains,
+	     "Uninitialized forcewake domain(s) 0x%x accessed at 0x%x\n",
+	     entry->domains & ~dev_priv->uncore.fw_domains, offset);
+
+	return entry->domains;
 }
 
 static void
