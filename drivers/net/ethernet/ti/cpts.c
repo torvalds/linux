@@ -31,8 +31,6 @@
 
 #include "cpts.h"
 
-#ifdef CONFIG_TI_CPTS
-
 #define cpts_read32(c, r)	readl_relaxed(&c->reg->r)
 #define cpts_write32(c, v, r)	writel_relaxed(v, &c->reg->r)
 
@@ -334,6 +332,7 @@ void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 	memset(ssh, 0, sizeof(*ssh));
 	ssh->hwtstamp = ns_to_ktime(ns);
 }
+EXPORT_SYMBOL_GPL(cpts_rx_timestamp);
 
 void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
@@ -349,13 +348,11 @@ void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 	ssh.hwtstamp = ns_to_ktime(ns);
 	skb_tstamp_tx(skb, &ssh);
 }
-
-#endif /*CONFIG_TI_CPTS*/
+EXPORT_SYMBOL_GPL(cpts_tx_timestamp);
 
 int cpts_register(struct device *dev, struct cpts *cpts,
 		  u32 mult, u32 shift)
 {
-#ifdef CONFIG_TI_CPTS
 	int err, i;
 	unsigned long flags;
 
@@ -391,18 +388,21 @@ int cpts_register(struct device *dev, struct cpts *cpts,
 	schedule_delayed_work(&cpts->overflow_work, CPTS_OVERFLOW_PERIOD);
 
 	cpts->phc_index = ptp_clock_index(cpts->clock);
-#endif
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpts_register);
 
 void cpts_unregister(struct cpts *cpts)
 {
-#ifdef CONFIG_TI_CPTS
 	if (cpts->clock) {
 		ptp_clock_unregister(cpts->clock);
 		cancel_delayed_work_sync(&cpts->overflow_work);
 	}
 	if (cpts->refclk)
 		cpts_clk_release(cpts);
-#endif
 }
+EXPORT_SYMBOL_GPL(cpts_unregister);
+
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("TI CPTS driver");
+MODULE_AUTHOR("Richard Cochran <richardcochran@gmail.com>");

@@ -74,7 +74,7 @@ config TI_CPSW
 	  will be called cpsw.
 
 config TI_CPTS
-	bool "TI Common Platform Time Sync (CPTS) Support"
+	tristate "TI Common Platform Time Sync (CPTS) Support"
 	depends on TI_CPSW
 	select PTP_1588_CLOCK
 	---help---
