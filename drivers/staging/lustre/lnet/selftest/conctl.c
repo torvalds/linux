@@ -742,6 +742,10 @@ static int lst_test_add_ioctl(lstio_test_args_t *args)
 	     PAGE_SIZE - sizeof(struct lstcon_test)))
 		return -EINVAL;
 
+	/* Enforce zero parameter length if there's no parameter */
+	if (!args->lstio_tes_param && args->lstio_tes_param_len)
+		return -EINVAL;
+
 	LIBCFS_ALLOC(batch_name, args->lstio_tes_bat_nmlen + 1);
 	if (!batch_name)
 		return rc;
