@@ -394,7 +394,7 @@ lio_process_iq_request_list(struct octeon_device *oct,
 		case REQTYPE_SOFT_COMMAND:
 			sc = buf;
 
-			if (OCTEON_CN23XX_PF(oct))
+			if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct))
 				irh = (struct octeon_instr_irh *)
 					&sc->cmd.cmd3.irh;
 			else
@@ -607,7 +607,7 @@ octeon_prepare_soft_command(struct octeon_device *oct,
 
 	oct_cfg = octeon_get_conf(oct);
 
-	if (OCTEON_CN23XX_PF(oct)) {
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct)) {
 		ih3 = (struct octeon_instr_ih3 *)&sc->cmd.cmd3.ih3;
 
 		ih3->pkind = oct->instr_queue[sc->iq_no]->txpciq.s.pkind;
@@ -700,7 +700,7 @@ int octeon_send_soft_command(struct octeon_device *oct,
 	struct octeon_instr_irh *irh;
 	u32 len;
 
-	if (OCTEON_CN23XX_PF(oct)) {
+	if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct)) {
 		ih3 =  (struct octeon_instr_ih3 *)&sc->cmd.cmd3.ih3;
 		if (ih3->dlengsz) {
 			WARN_ON(!sc->dmadptr);
