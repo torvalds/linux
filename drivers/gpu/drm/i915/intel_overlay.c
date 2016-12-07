@@ -567,19 +567,17 @@ static int uv_vsubsampling(u32 format)
 
 static u32 calc_swidthsw(struct drm_i915_private *dev_priv, u32 offset, u32 width)
 {
-	u32 mask, shift, ret;
-	if (IS_GEN2(dev_priv)) {
-		mask = 0x1f;
-		shift = 5;
-	} else {
-		mask = 0x3f;
-		shift = 6;
-	}
-	ret = ((offset + width + mask) >> shift) - (offset >> shift);
-	if (!IS_GEN2(dev_priv))
-		ret <<= 1;
-	ret -= 1;
-	return ret << 2;
+	u32 sw;
+
+	if (IS_GEN2(dev_priv))
+		sw = ALIGN((offset & 31) + width, 32);
+	else
+		sw = ALIGN((offset & 63) + width, 64);
+
+	if (sw == 0)
+		return 0;
+
+	return (sw - 32) >> 3;
 }
 
 static const u16 y_static_hcoeffs[N_HORIZ_Y_TAPS * N_PHASES] = {
