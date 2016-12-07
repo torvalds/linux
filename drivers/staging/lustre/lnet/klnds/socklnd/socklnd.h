@@ -334,7 +334,7 @@ struct ksock_conn {
 	atomic_t           ksnc_conn_refcount;/* conn refcount */
 	atomic_t           ksnc_sock_refcount;/* sock refcount */
 	struct ksock_sched *ksnc_scheduler;	/* who schedules this connection
-					         */
+						 */
 	__u32              ksnc_myipaddr;     /* my IP */
 	__u32              ksnc_ipaddr;       /* peer's IP */
 	int                ksnc_port;         /* peer's port */
