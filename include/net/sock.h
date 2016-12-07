@@ -913,7 +913,17 @@ static inline void sock_rps_record_flow_hash(__u32 hash)
 static inline void sock_rps_record_flow(const struct sock *sk)
 {
 #ifdef CONFIG_RPS
-	sock_rps_record_flow_hash(sk->sk_rxhash);
+	/* Reading sk->sk_rxhash might incur an expensive cache line miss.
+	 *
+	 * TCP_ESTABLISHED does cover almost all states where RFS
+	 * might be useful, and is cheaper [1] than testing :
+	 *	IPv4: inet_sk(sk)->inet_daddr
+	 * 	IPv6: ipv6_addr_any(&sk->sk_v6_daddr)
+	 * OR	an additional socket flag
+	 * [1] : sk_state and sk_prot are in the same cache line.
+	 */
+	if (sk->sk_state == TCP_ESTABLISHED)
+		sock_rps_record_flow_hash(sk->sk_rxhash);
 #endif
 }
 
