@@ -3949,8 +3949,12 @@ static int gfx_v8_0_init_save_restore_list(struct amdgpu_device *adev)
 	temp = mmRLC_SRM_INDEX_CNTL_ADDR_0;
 	data = mmRLC_SRM_INDEX_CNTL_DATA_0;
 	for (i = 0; i < sizeof(unique_indices) / sizeof(int); i++) {
-		amdgpu_mm_wreg(adev, temp + i, unique_indices[i] & 0x3FFFF, false);
-		amdgpu_mm_wreg(adev, data + i, unique_indices[i] >> 20, false);
+		if (unique_indices[i] != 0) {
+			amdgpu_mm_wreg(adev, temp + i,
+					unique_indices[i] & 0x3FFFF, false);
+			amdgpu_mm_wreg(adev, data + i,
+					unique_indices[i] >> 20, false);
+		}
 	}
 	kfree(register_list_format);
 
