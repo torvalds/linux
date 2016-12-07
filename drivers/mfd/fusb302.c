@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/regmap.h>
+#include <linux/power_supply.h>
 
 #include "fusb302.h"
 
@@ -108,9 +109,84 @@ static const unsigned int fusb302_cable[] = {
 	EXTCON_CHG_USB_CDP,
 	EXTCON_CHG_USB_DCP,
 	EXTCON_CHG_USB_SLOW,
+	EXTCON_CHG_USB_FAST,
 	EXTCON_DISP_DP,
 	EXTCON_NONE,
 };
+
+static void fusb_set_pos_power(struct fusb30x_chip *chip, int max_vol,
+			       int max_cur)
+{
+	int i;
+	int pos_find;
+	int tmp;
+
+	pos_find = 0;
+	for (i = PD_HEADER_CNT(chip->rec_head) - 1; i >= 0; i--) {
+		switch (CAP_POWER_TYPE(chip->rec_load[i])) {
+		case 0:
+			/* Fixed Supply */
+			if ((CAP_FPDO_VOLTAGE(chip->rec_load[i]) * 50) <=
+			    max_vol &&
+			    (CAP_FPDO_CURRENT(chip->rec_load[i]) * 10) <=
+			    max_cur) {
+				chip->pos_power = i + 1;
+				tmp = CAP_FPDO_VOLTAGE(chip->rec_load[i]);
+				chip->pd_output_vol = tmp * 50;
+				tmp = CAP_FPDO_CURRENT(chip->rec_load[i]);
+				chip->pd_output_cur = tmp * 10;
+				pos_find = 1;
+			}
+			break;
+		case 1:
+			/* Battery */
+			if ((CAP_VPDO_VOLTAGE(chip->rec_load[i]) * 50) <=
+			    max_vol &&
+			    (CAP_VPDO_CURRENT(chip->rec_load[i]) * 10) <=
+			    max_cur) {
+				chip->pos_power = i + 1;
+				tmp = CAP_VPDO_VOLTAGE(chip->rec_load[i]);
+				chip->pd_output_vol = tmp * 50;
+				tmp = CAP_VPDO_CURRENT(chip->rec_load[i]);
+				chip->pd_output_cur = tmp * 10;
+				pos_find = 1;
+			}
+			break;
+		default:
+			/* not meet battery caps */
+			break;
+		}
+		if (pos_find)
+			break;
+	}
+}
+
+static int fusb302_set_pos_power_by_charge_ic(struct fusb30x_chip *chip)
+{
+	struct power_supply *psy = NULL;
+	union power_supply_propval val;
+	enum power_supply_property psp;
+	int max_vol, max_cur;
+
+	max_vol = 0;
+	max_cur = 0;
+	psy = power_supply_get_by_phandle(chip->dev->of_node, "charge-dev");
+	if (!psy || IS_ERR(psy))
+		return -1;
+
+	psp = POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX;
+	if (power_supply_get_property(psy, psp, &val) == 0)
+		max_vol = val.intval / 1000;
+
+	psp = POWER_SUPPLY_PROP_INPUT_CURRENT_LIMIT;
+	if (power_supply_get_property(psy, psp, &val) == 0)
+		max_cur = val.intval / 1000;
+
+	if (max_vol > 0 && max_cur > 0)
+		fusb_set_pos_power(chip, max_vol, max_cur);
+
+	return 0;
+}
 
 void fusb_irq_disable(struct fusb30x_chip *chip)
 {
@@ -193,6 +269,18 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 		extcon_sync(chip->extcon, EXTCON_USB);
 		extcon_sync(chip->extcon, EXTCON_USB_HOST);
 		extcon_sync(chip->extcon, EXTCON_DISP_DP);
+		if (chip->notify.power_role == 0 &&
+		    chip->notify.is_pd_connected &&
+		    chip->pd_output_vol > 0 && chip->pd_output_cur > 0) {
+			extcon_set_state(chip->extcon, EXTCON_CHG_USB_FAST, true);
+			property.intval =
+				(chip->pd_output_cur << 15 |
+				 chip->pd_output_vol);
+			extcon_set_property(chip->extcon, EXTCON_CHG_USB_FAST,
+					    EXTCON_PROP_USB_TYPEC_POLARITY,
+					    property);
+			extcon_sync(chip->extcon, EXTCON_CHG_USB_FAST);
+		}
 	}
 }
 
@@ -1770,6 +1858,7 @@ static void fusb_state_snk_evaluate_caps(struct fusb30x_chip *chip, int evt)
 			break;
 		}
 	}
+	fusb302_set_pos_power_by_charge_ic(chip);
 
 	if ((!chip->pos_power) || (chip->pos_power > 7)) {
 		chip->pos_power = 0;
@@ -2316,6 +2405,14 @@ static int fusb30x_probe(struct i2c_client *client,
 		dev_err(&client->dev,
 			"failed to set DISP_DP USB_SS property capability: %d\n",
 			ret);
+		return ret;
+	}
+
+	ret = extcon_set_property_capability(chip->extcon, EXTCON_CHG_USB_FAST,
+					     EXTCON_PROP_USB_TYPEC_POLARITY);
+	if (ret) {
+		dev_err(&client->dev,
+			"failed to set USB_PD property capability: %d\n", ret);
 		return ret;
 	}
 

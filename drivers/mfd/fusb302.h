@@ -420,6 +420,8 @@ struct fusb30x_chip {
 	u8 chip_id;
 	bool vconn_enabled;
 	int togdone_pullup;
+	int pd_output_vol;
+	int pd_output_cur;
 };
 
 #endif /* FUSB302_H */
