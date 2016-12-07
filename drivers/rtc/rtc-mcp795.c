@@ -110,7 +110,7 @@ static int mcp795_set_time(struct device *dev, struct rtc_time *tim)
 	data[1] = (data[1] & 0x80) | bin2bcd(tim->tm_min);
 	data[2] = bin2bcd(tim->tm_hour);
 	data[4] = bin2bcd(tim->tm_mday);
-	data[5] = (data[5] & MCP795_LP_BIT) | bin2bcd(tim->tm_mon);
+	data[5] = (data[5] & MCP795_LP_BIT) | bin2bcd(tim->tm_mon + 1);
 
 	if (tim->tm_year > 100)
 		tim->tm_year -= 100;
@@ -143,7 +143,7 @@ static int mcp795_read_time(struct device *dev, struct rtc_time *tim)
 	tim->tm_min	= bcd2bin(data[1] & 0x7F);
 	tim->tm_hour	= bcd2bin(data[2] & 0x3F);
 	tim->tm_mday	= bcd2bin(data[4] & 0x3F);
-	tim->tm_mon	= bcd2bin(data[5] & 0x1F);
+	tim->tm_mon	= bcd2bin(data[5] & 0x1F) - 1;
 	tim->tm_year	= bcd2bin(data[6]) + 100; /* Assume we are in 20xx */
 
 	dev_dbg(dev, "Read from mcp795: %04d-%02d-%02d %02d:%02d:%02d\n",
