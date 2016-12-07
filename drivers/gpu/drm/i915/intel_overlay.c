@@ -1076,33 +1076,6 @@ static int check_overlay_src(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-/**
- * Return the pipe currently connected to the panel fitter,
- * or -1 if the panel fitter is not present or not in use
- */
-static int intel_panel_fitter_pipe(struct drm_i915_private *dev_priv)
-{
-	u32  pfit_control;
-
-	/* i830 doesn't have a panel fitter */
-	if (INTEL_GEN(dev_priv) <= 3 &&
-	    (IS_I830(dev_priv) || !IS_MOBILE(dev_priv)))
-		return -1;
-
-	pfit_control = I915_READ(PFIT_CONTROL);
-
-	/* See if the panel fitter is in use */
-	if ((pfit_control & PFIT_ENABLE) == 0)
-		return -1;
-
-	/* 965 can place panel fitter on either pipe */
-	if (IS_GEN4(dev_priv))
-		return (pfit_control >> 29) & 0x3;
-
-	/* older chips can only use pipe 1 */
-	return 1;
-}
-
 int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv)
 {
@@ -1177,7 +1150,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 
 		/* line too wide, i.e. one-line-mode */
 		if (crtc->config->pipe_src_w > 1024 &&
-		    intel_panel_fitter_pipe(dev_priv) == crtc->pipe) {
+		    crtc->config->gmch_pfit.control & PFIT_ENABLE) {
 			overlay->pfit_active = true;
 			update_pfit_vscale_ratio(overlay);
 		} else
