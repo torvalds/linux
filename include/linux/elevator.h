@@ -108,6 +108,11 @@ struct elevator_type
 
 #define ELV_HASH_BITS 6
 
+void elv_rqhash_del(struct request_queue *q, struct request *rq);
+void elv_rqhash_add(struct request_queue *q, struct request *rq);
+void elv_rqhash_reposition(struct request_queue *q, struct request *rq);
+struct request *elv_rqhash_find(struct request_queue *q, sector_t offset);
+
 /*
  * each queue has an elevator_queue associated with it
  */
