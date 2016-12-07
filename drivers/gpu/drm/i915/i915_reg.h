@@ -110,6 +110,10 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   GRDOM_RESET_STATUS	(1 << 1)
 #define   GRDOM_RESET_ENABLE	(1 << 0)
 
+/* BSpec only has register offset, PCI device and bit found empirically */
+#define I830_CLOCK_GATE	0xc8 /* device 0 */
+#define   I830_L2_CACHE_CLOCK_GATE_DISABLE	(1 << 2)
+
 #define GCDGMBUS 0xcc
 
 #define GCFGC2	0xda

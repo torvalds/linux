@@ -187,6 +187,29 @@ struct intel_overlay {
 	struct i915_gem_active last_flip;
 };
 
+static void i830_overlay_clock_gating(struct drm_i915_private *dev_priv,
+				      bool enable)
+{
+	struct pci_dev *pdev = dev_priv->drm.pdev;
+	u8 val;
+
+	/* WA_OVERLAY_CLKGATE:alm */
+	if (enable)
+		I915_WRITE(DSPCLK_GATE_D, 0);
+	else
+		I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
+
+	/* WA_DISABLE_L2CACHE_CLOCK_GATING:alm */
+	pci_bus_read_config_byte(pdev->bus,
+				 PCI_DEVFN(0, 0), I830_CLOCK_GATE, &val);
+	if (enable)
+		val &= ~I830_L2_CACHE_CLOCK_GATE_DISABLE;
+	else
+		val |= I830_L2_CACHE_CLOCK_GATE_DISABLE;
+	pci_bus_write_config_byte(pdev->bus,
+				  PCI_DEVFN(0, 0), I830_CLOCK_GATE, val);
+}
+
 static struct overlay_registers __iomem *
 intel_overlay_map_regs(struct intel_overlay *overlay)
 {
@@ -261,6 +284,9 @@ static int intel_overlay_on(struct intel_overlay *overlay)
 	}
 
 	overlay->active = true;
+
+	if (IS_I830(dev_priv))
+		i830_overlay_clock_gating(dev_priv, false);
 
 	ring = req->ring;
 	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_ON);
@@ -366,12 +392,16 @@ static void intel_overlay_off_tail(struct i915_gem_active *active,
 {
 	struct intel_overlay *overlay =
 		container_of(active, typeof(*overlay), last_flip);
+	struct drm_i915_private *dev_priv = overlay->i915;
 
 	intel_overlay_release_old_vma(overlay);
 
 	overlay->crtc->overlay = NULL;
 	overlay->crtc = NULL;
 	overlay->active = false;
+
+	if (IS_I830(dev_priv))
+		i830_overlay_clock_gating(dev_priv, true);
 }
 
 /* overlay needs to be disabled in OCMD reg */

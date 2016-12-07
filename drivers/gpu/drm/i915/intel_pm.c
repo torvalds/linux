@@ -7603,8 +7603,6 @@ static void i85x_init_clock_gating(struct drm_i915_private *dev_priv)
 
 static void i830_init_clock_gating(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
-
 	I915_WRITE(MEM_MODE,
 		   _MASKED_BIT_ENABLE(MEM_DISPLAY_A_TRICKLE_FEED_DISABLE) |
 		   _MASKED_BIT_ENABLE(MEM_DISPLAY_B_TRICKLE_FEED_DISABLE));
