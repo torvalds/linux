@@ -67,9 +67,9 @@ void __init tx3927_setup(void)
 	/* do reset on watchdog */
 	tx3927_ccfgptr->ccfg |= TX3927_CCFG_WR;
 
-	printk(KERN_INFO "TX3927 -- CRIR:%08lx CCFG:%08lx PCFG:%08lx\n",
-	       tx3927_ccfgptr->crir,
-	       tx3927_ccfgptr->ccfg, tx3927_ccfgptr->pcfg);
+	pr_info("TX3927 -- CRIR:%08lx CCFG:%08lx PCFG:%08lx\n",
+		tx3927_ccfgptr->crir, tx3927_ccfgptr->ccfg,
+		tx3927_ccfgptr->pcfg);
 
 	/* TMR */
 	for (i = 0; i < TX3927_NR_TMR; i++)
