@@ -2766,8 +2766,6 @@ static struct obd_ops osc_obd_ops = {
 	.quotactl       = osc_quotactl,
 };
 
-extern struct lu_kmem_descr osc_caches[];
-
 static int __init osc_init(void)
 {
 	struct lprocfs_static_vars lvars = { NULL };
