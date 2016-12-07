@@ -528,6 +528,31 @@ static void mmu_spte_set(u64 *sptep, u64 new_spte)
 	__set_spte(sptep, new_spte);
 }
 
+/*
+ * Update the SPTE (excluding the PFN), but do not track changes in its
+ * accessed/dirty status.
+ */
+static u64 mmu_spte_update_no_track(u64 *sptep, u64 new_spte)
+{
+	u64 old_spte = *sptep;
+
+	WARN_ON(!is_shadow_present_pte(new_spte));
+
+	if (!is_shadow_present_pte(old_spte)) {
+		mmu_spte_set(sptep, new_spte);
+		return old_spte;
+	}
+
+	if (!spte_has_volatile_bits(old_spte))
+		__update_clear_spte_fast(sptep, new_spte);
+	else
+		old_spte = __update_clear_spte_slow(sptep, new_spte);
+
+	WARN_ON(spte_to_pfn(old_spte) != spte_to_pfn(new_spte));
+
+	return old_spte;
+}
+
 /* Rules for using mmu_spte_update:
  * Update the state bits, it means the mapped pfn is not changed.
  *
@@ -541,22 +566,11 @@ static void mmu_spte_set(u64 *sptep, u64 new_spte)
  */
 static bool mmu_spte_update(u64 *sptep, u64 new_spte)
 {
-	u64 old_spte = *sptep;
 	bool flush = false;
+	u64 old_spte = mmu_spte_update_no_track(sptep, new_spte);
 
-	WARN_ON(!is_shadow_present_pte(new_spte));
-
-	if (!is_shadow_present_pte(old_spte)) {
-		mmu_spte_set(sptep, new_spte);
-		return flush;
-	}
-
-	if (!spte_has_volatile_bits(old_spte))
-		__update_clear_spte_fast(sptep, new_spte);
-	else
-		old_spte = __update_clear_spte_slow(sptep, new_spte);
-
-	WARN_ON(spte_to_pfn(old_spte) != spte_to_pfn(new_spte));
+	if (!is_shadow_present_pte(old_spte))
+		return false;
 
 	/*
 	 * For the spte updated out of mmu-lock is safe, since
