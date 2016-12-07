@@ -737,9 +737,17 @@ void amdgpu_dm_update_connector_after_detect(
 		mutex_lock(&dev->mode_config.mutex);
 
 		if (sink) {
-			if (aconnector->dc_sink)
+			if (aconnector->dc_sink) {
 				amdgpu_dm_remove_sink_from_freesync_module(
 								connector);
+				/* retain and release bellow are used for
+				 * bump up refcount for sink because the link don't point
+				 * to it anymore after disconnect so on next crtc to connector
+				 * reshuffle by UMD we will get into unwanted dc_sink release
+				 */
+				if (aconnector->dc_sink != aconnector->dc_em_sink)
+					dc_sink_release(aconnector->dc_sink);
+			}
 			aconnector->dc_sink = sink;
 			amdgpu_dm_add_sink_to_freesync_module(
 						connector, aconnector->edid);
@@ -747,6 +755,8 @@ void amdgpu_dm_update_connector_after_detect(
 			amdgpu_dm_remove_sink_from_freesync_module(connector);
 			if (!aconnector->dc_sink)
 				aconnector->dc_sink = aconnector->dc_em_sink;
+			else if (aconnector->dc_sink != aconnector->dc_em_sink)
+				dc_sink_retain(aconnector->dc_sink);
 		}
 
 		mutex_unlock(&dev->mode_config.mutex);
