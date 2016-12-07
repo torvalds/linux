@@ -134,8 +134,7 @@ static struct phy_driver bcm_cygnus_phy_driver[] = {
 	.phy_id        = PHY_ID_BCM_CYGNUS,
 	.phy_id_mask   = 0xfffffff0,
 	.name          = "Broadcom Cygnus PHY",
-	.features      = PHY_GBIT_FEATURES |
-			SUPPORTED_Pause | SUPPORTED_Asym_Pause,
+	.features      = PHY_GBIT_FEATURES,
 	.config_init   = bcm_cygnus_config_init,
 	.config_aneg   = genphy_config_aneg,
 	.read_status   = genphy_read_status,

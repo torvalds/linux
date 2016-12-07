@@ -1719,6 +1719,25 @@ static int phy_probe(struct device *dev)
 	 */
 	of_set_phy_eee_broken(phydev);
 
+	/* The Pause Frame bits indicate that the PHY can support passing
+	 * pause frames. During autonegotiation, the PHYs will determine if
+	 * they should allow pause frames to pass.  The MAC driver should then
+	 * use that result to determine whether to enable flow control via
+	 * pause frames.
+	 *
+	 * Normally, PHY drivers should not set the Pause bits, and instead
+	 * allow phylib to do that.  However, there may be some situations
+	 * (e.g. hardware erratum) where the driver wants to set only one
+	 * of these bits.
+	 */
+	if (phydrv->features & (SUPPORTED_Pause | SUPPORTED_Asym_Pause)) {
+		phydev->supported &= ~(SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+		phydev->supported |= phydrv->features &
+				     (SUPPORTED_Pause | SUPPORTED_Asym_Pause);
+	} else {
+		phydev->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
+	}
+
 	/* Set the state to READY by default */
 	phydev->state = PHY_READY;
 

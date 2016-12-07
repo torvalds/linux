@@ -88,9 +88,7 @@ MODULE_DEVICE_TABLE(mdio, dp83848_tbl);
 		.phy_id		= _id,				\
 		.phy_id_mask	= 0xfffffff0,			\
 		.name		= _name,			\
-		.features	= (PHY_BASIC_FEATURES |		\
-				   SUPPORTED_Pause |		\
-				   SUPPORTED_Asym_Pause),	\
+		.features	= PHY_BASIC_FEATURES,		\
 		.flags		= PHY_HAS_INTERRUPT,		\
 								\
 		.soft_reset	= genphy_soft_reset,		\
