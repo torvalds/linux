@@ -1233,7 +1233,7 @@ void dce110_link_encoder_enable_tmds_output(
 	/* Enable the PHY */
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
-	cntl.engine_id = ENGINE_ID_UNKNOWN;
+	cntl.engine_id = enc->preferred_engine;
 	cntl.transmitter = enc110->base.transmitter;
 	cntl.pll_id = clock_source;
 	if (hdmi) {
