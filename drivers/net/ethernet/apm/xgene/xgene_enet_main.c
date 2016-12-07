@@ -635,6 +635,7 @@ static void xgene_enet_free_pagepool(struct xgene_enet_desc_ring *buf_pool,
 		return;
 
 	dev = ndev_to_dev(buf_pool->ndev);
+	slots = buf_pool->slots - 1;
 	head = buf_pool->head;
 
 	for (i = 0; i < 4; i++) {
