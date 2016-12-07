@@ -405,18 +405,52 @@ void cpts_unregister(struct cpts *cpts)
 }
 EXPORT_SYMBOL_GPL(cpts_unregister);
 
+static void cpts_calc_mult_shift(struct cpts *cpts)
+{
+	u64 frac, maxsec, ns;
+	u32 freq;
+
+	freq = clk_get_rate(cpts->refclk);
+
+	/* Calc the maximum number of seconds which we can run before
+	 * wrapping around.
+	 */
+	maxsec = cpts->cc.mask;
+	do_div(maxsec, freq);
+	/* limit conversation rate to 10 sec as higher values will produce
+	 * too small mult factors and so reduce the conversion accuracy
+	 */
+	if (maxsec > 10)
+		maxsec = 10;
+
+	if (cpts->cc.mult || cpts->cc.shift)
+		return;
+
+	clocks_calc_mult_shift(&cpts->cc.mult, &cpts->cc.shift,
+			       freq, NSEC_PER_SEC, maxsec);
+
+	frac = 0;
+	ns = cyclecounter_cyc2ns(&cpts->cc, freq, cpts->cc.mask, &frac);
+
+	dev_info(cpts->dev,
+		 "CPTS: ref_clk_freq:%u calc_mult:%u calc_shift:%u error:%lld nsec/sec\n",
+		 freq, cpts->cc.mult, cpts->cc.shift, (ns - NSEC_PER_SEC));
+}
+
 static int cpts_of_parse(struct cpts *cpts, struct device_node *node)
 {
 	int ret = -EINVAL;
 	u32 prop;
 
-	if (of_property_read_u32(node, "cpts_clock_mult", &prop))
-		goto  of_error;
-	cpts->cc.mult = prop;
+	if (!of_property_read_u32(node, "cpts_clock_mult", &prop))
+		cpts->cc.mult = prop;
 
-	if (of_property_read_u32(node, "cpts_clock_shift", &prop))
-		goto  of_error;
-	cpts->cc.shift = prop;
+	if (!of_property_read_u32(node, "cpts_clock_shift", &prop))
+		cpts->cc.shift = prop;
+
+	if ((cpts->cc.mult && !cpts->cc.shift) ||
+	    (!cpts->cc.mult && cpts->cc.shift))
+		goto of_error;
 
 	return 0;
 
@@ -454,11 +488,13 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 
 	cpts->cc.read = cpts_systim_read;
 	cpts->cc.mask = CLOCKSOURCE_MASK(32);
+	cpts->info = cpts_info;
+
+	cpts_calc_mult_shift(cpts);
 	/* save cc.mult original value as it can be modified
 	 * by cpts_ptp_adjfreq().
 	 */
 	cpts->cc_mult = cpts->cc.mult;
-	cpts->info = cpts_info;
 
 	return cpts;
 }
