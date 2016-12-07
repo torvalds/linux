@@ -337,21 +337,20 @@ static int tc3589x_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret =  gpiochip_irqchip_add(&tc3589x_gpio->chip,
-				    &tc3589x_gpio_irq_chip,
-				    0,
-				    handle_simple_irq,
-				    IRQ_TYPE_NONE);
+	ret =  gpiochip_irqchip_add_nested(&tc3589x_gpio->chip,
+					   &tc3589x_gpio_irq_chip,
+					   0,
+					   handle_simple_irq,
+					   IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"could not connect irqchip to gpiochip\n");
 		return ret;
 	}
 
-	gpiochip_set_chained_irqchip(&tc3589x_gpio->chip,
-				     &tc3589x_gpio_irq_chip,
-				     irq,
-				     NULL);
+	gpiochip_set_nested_irqchip(&tc3589x_gpio->chip,
+				    &tc3589x_gpio_irq_chip,
+				    irq);
 
 	platform_set_drvdata(pdev, tc3589x_gpio);
 

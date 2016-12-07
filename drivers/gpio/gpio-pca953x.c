@@ -635,20 +635,20 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 			return ret;
 		}
 
-		ret =  gpiochip_irqchip_add(&chip->gpio_chip,
-					    &pca953x_irq_chip,
-					    irq_base,
-					    handle_simple_irq,
-					    IRQ_TYPE_NONE);
+		ret =  gpiochip_irqchip_add_nested(&chip->gpio_chip,
+						   &pca953x_irq_chip,
+						   irq_base,
+						   handle_simple_irq,
+						   IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(&client->dev,
 				"could not connect irqchip to gpiochip\n");
 			return ret;
 		}
 
-		gpiochip_set_chained_irqchip(&chip->gpio_chip,
-					     &pca953x_irq_chip,
-					     client->irq, NULL);
+		gpiochip_set_nested_irqchip(&chip->gpio_chip,
+					    &pca953x_irq_chip,
+					    client->irq);
 	}
 
 	return 0;
