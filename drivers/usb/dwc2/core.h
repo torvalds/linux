@@ -1021,6 +1021,7 @@ struct dwc2_hsotg {
 	u16 frame_number;
 
 	struct phy *phy;
+	struct work_struct phy_rst_work;
 	struct usb_phy *uphy;
 	struct dwc2_hsotg_plat *plat;
 	struct regulator_bulk_data supplies[DWC2_NUM_SUPPLIES];

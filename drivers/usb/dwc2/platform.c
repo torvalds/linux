@@ -208,6 +208,14 @@ int dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 	return ret;
 }
 
+/* Only used to reset usb phy at interrupter runtime */
+static void dwc2_reset_phy_work(struct work_struct *data)
+{
+	struct dwc2_hsotg *hsotg = container_of(data, struct dwc2_hsotg,
+			phy_rst_work);
+	phy_reset(hsotg->phy);
+}
+
 static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 {
 	int i, ret;
@@ -252,6 +260,7 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 			return ret;
 		}
 	}
+	INIT_WORK(&hsotg->phy_rst_work, dwc2_reset_phy_work);
 
 	if (!hsotg->phy) {
 		hsotg->uphy = devm_usb_get_phy(hsotg->dev, USB_PHY_TYPE_USB2);
