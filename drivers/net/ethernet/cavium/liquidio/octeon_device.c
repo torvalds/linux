@@ -1221,6 +1221,9 @@ struct octeon_config *octeon_get_conf(struct octeon_device *oct)
 	} else if (OCTEON_CN23XX_PF(oct)) {
 		default_oct_conf = (struct octeon_config *)
 			(CHIP_CONF(oct, cn23xx_pf));
+	} else if (OCTEON_CN23XX_VF(oct)) {
+		default_oct_conf = (struct octeon_config *)
+			(CHIP_CONF(oct, cn23xx_vf));
 	}
 	return default_oct_conf;
 }
