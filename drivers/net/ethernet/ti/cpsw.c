@@ -2524,18 +2524,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->active_slave = prop;
 
-	if (of_property_read_u32(node, "cpts_clock_mult", &prop)) {
-		dev_err(&pdev->dev, "Missing cpts_clock_mult property in the DT.\n");
-		return -EINVAL;
-	}
-	data->cpts_clock_mult = prop;
-
-	if (of_property_read_u32(node, "cpts_clock_shift", &prop)) {
-		dev_err(&pdev->dev, "Missing cpts_clock_shift property in the DT.\n");
-		return -EINVAL;
-	}
-	data->cpts_clock_shift = prop;
-
 	data->slave_data = devm_kzalloc(&pdev->dev, data->slaves
 					* sizeof(struct cpsw_slave_data),
 					GFP_KERNEL);
@@ -2990,9 +2978,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_dma_ret;
 	}
 
-	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs,
-				 cpsw->data.cpts_clock_mult,
-				 cpsw->data.cpts_clock_shift);
+	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs, cpsw->dev->of_node);
 	if (IS_ERR(cpsw->cpts)) {
 		ret = PTR_ERR(cpsw->cpts);
 		goto clean_ale_ret;

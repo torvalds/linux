@@ -405,10 +405,31 @@ void cpts_unregister(struct cpts *cpts)
 }
 EXPORT_SYMBOL_GPL(cpts_unregister);
 
+static int cpts_of_parse(struct cpts *cpts, struct device_node *node)
+{
+	int ret = -EINVAL;
+	u32 prop;
+
+	if (of_property_read_u32(node, "cpts_clock_mult", &prop))
+		goto  of_error;
+	cpts->cc.mult = prop;
+
+	if (of_property_read_u32(node, "cpts_clock_shift", &prop))
+		goto  of_error;
+	cpts->cc.shift = prop;
+
+	return 0;
+
+of_error:
+	dev_err(cpts->dev, "CPTS: Missing property in the DT.\n");
+	return ret;
+}
+
 struct cpts *cpts_create(struct device *dev, void __iomem *regs,
-			 u32 mult, u32 shift)
+			 struct device_node *node)
 {
 	struct cpts *cpts;
+	int ret;
 
 	cpts = devm_kzalloc(dev, sizeof(*cpts), GFP_KERNEL);
 	if (!cpts)
@@ -418,6 +439,10 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 	cpts->reg = (struct cpsw_cpts __iomem *)regs;
 	spin_lock_init(&cpts->lock);
 	INIT_DELAYED_WORK(&cpts->overflow_work, cpts_overflow_check);
+
+	ret = cpts_of_parse(cpts, node);
+	if (ret)
+		return ERR_PTR(ret);
 
 	cpts->refclk = devm_clk_get(dev, "cpts");
 	if (IS_ERR(cpts->refclk)) {
@@ -429,9 +454,10 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 
 	cpts->cc.read = cpts_systim_read;
 	cpts->cc.mask = CLOCKSOURCE_MASK(32);
-	cpts->cc.shift = shift;
-	cpts->cc_mult = mult;
-	cpts->cc.mult = mult;
+	/* save cc.mult original value as it can be modified
+	 * by cpts_ptp_adjfreq().
+	 */
+	cpts->cc_mult = cpts->cc.mult;
 	cpts->info = cpts_info;
 
 	return cpts;
