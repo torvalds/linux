@@ -11,6 +11,7 @@ config DRM_MXSFB
 	select DRM_KMS_HELPER
 	select DRM_KMS_FB_HELPER
 	select DRM_KMS_CMA_HELPER
+	select DRM_PANEL
 	help
 	  Choose this option if you have an i.MX23/i.MX28/i.MX6SX MXSFB
 	  LCD controller.
