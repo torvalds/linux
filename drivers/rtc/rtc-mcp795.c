@@ -12,7 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * */
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -31,7 +31,7 @@
 #define MCP795_EEWREN	0x06
 #define MCP795_SRREAD	0x05
 #define MCP795_SRWRITE	0x01
-#define MCP795_READ		0x13
+#define MCP795_READ	0x13
 #define MCP795_WRITE	0x12
 #define MCP795_UNLOCK	0x14
 #define MCP795_IDWRITE	0x32
@@ -45,9 +45,9 @@
 #define MCP795_REG_MONTH	0x06
 #define MCP795_REG_CONTROL	0x08
 
-#define MCP795_ST_BIT	BIT(7)
-#define MCP795_24_BIT	BIT(6)
-#define MCP795_LP_BIT	BIT(5)
+#define MCP795_ST_BIT		BIT(7)
+#define MCP795_24_BIT		BIT(6)
+#define MCP795_LP_BIT		BIT(5)
 #define MCP795_EXTOSC_BIT	BIT(3)
 #define MCP795_OSCON_BIT	BIT(5)
 
@@ -253,7 +253,7 @@ static int mcp795_probe(struct spi_device *spi)
 	mcp795_rtcc_set_bits(&spi->dev, 0x03, MCP795_24_BIT, 0);
 
 	rtc = devm_rtc_device_register(&spi->dev, "rtc-mcp795",
-								&mcp795_rtc_ops, THIS_MODULE);
+					&mcp795_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
