@@ -5785,25 +5785,49 @@ static int gfx_v8_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
 					  enum amd_clockgating_state state)
 {
-	uint32_t msg_id, pp_state;
+	uint32_t msg_id, pp_state = 0;
+	uint32_t pp_support_state = 0;
 	void *pp_handle = adev->powerplay.pp_handle;
 
-	if (state == AMD_CG_STATE_UNGATE)
-		pp_state = 0;
-	else
-		pp_state = PP_STATE_CG | PP_STATE_LS;
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_CGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_CG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_CG,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_MG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_MGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
+
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_MG,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
 	return 0;
 }
@@ -5811,43 +5835,98 @@ static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
 static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
 					  enum amd_clockgating_state state)
 {
-	uint32_t msg_id, pp_state;
+
+	uint32_t msg_id, pp_state = 0;
+	uint32_t pp_support_state = 0;
 	void *pp_handle = adev->powerplay.pp_handle;
 
-	if (state == AMD_CG_STATE_UNGATE)
-		pp_state = 0;
-	else
-		pp_state = PP_STATE_CG | PP_STATE_LS;
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_CGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_CG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_CG,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_3D,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_3D_CGCG | AMD_CG_SUPPORT_GFX_3D_CGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_MG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_3D,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_RLC,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_MGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
+
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_MG,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
+
+	if (adev->cg_flags & AMD_CG_SUPPORT_GFX_RLC_LS) {
+		pp_support_state = PP_STATE_SUPPORT_LS;
+
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
+		else
+			pp_state = PP_STATE_LS;
+
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_RLC,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
+
+	if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CP_LS) {
+		pp_support_state = PP_STATE_SUPPORT_LS;
+
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
+		else
+			pp_state = PP_STATE_LS;
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
 			PP_BLOCK_GFX_CP,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_support_state,
 			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
 	return 0;
 }
