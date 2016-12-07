@@ -231,14 +231,18 @@ $(OUTPUT)test-jvmti.bin:
 	$(BUILD)
 
 $(OUTPUT)test-llvm.bin:
-	$(BUILDXX) -std=gnu++11 					\
+	$(BUILDXX) -std=gnu++11 				\
 		-I$(shell $(LLVM_CONFIG) --includedir) 		\
 		-L$(shell $(LLVM_CONFIG) --libdir)		\
 		$(shell $(LLVM_CONFIG) --libs Core BPF)		\
 		$(shell $(LLVM_CONFIG) --system-libs)
 
+$(OUTPUT)test-llvm-version.bin:
+	$(BUILDXX) -std=gnu++11 				\
+		-I$(shell $(LLVM_CONFIG) --includedir)
+
 $(OUTPUT)test-clang.bin:
-	$(BUILDXX) -std=gnu++11 					\
+	$(BUILDXX) -std=gnu++11 				\
 		-I$(shell $(LLVM_CONFIG) --includedir) 		\
 		-L$(shell $(LLVM_CONFIG) --libdir)		\
 		-Wl,--start-group -lclangBasic -lclangDriver	\

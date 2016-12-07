@@ -2010,7 +2010,7 @@ static int init_idle_threads(int ncpu)
 	if (!idle_threads)
 		return -ENOMEM;
 
-	idle_max_cpu = ncpu - 1;
+	idle_max_cpu = ncpu;
 
 	/* allocate the actual thread struct if needed */
 	for (i = 0; i < ncpu; ++i) {
@@ -2031,7 +2031,7 @@ static void free_idle_threads(void)
 	if (idle_threads == NULL)
 		return;
 
-	for (i = 0; i <= idle_max_cpu; ++i) {
+	for (i = 0; i < idle_max_cpu; ++i) {
 		if ((idle_threads[i]))
 			thread__delete(idle_threads[i]);
 	}
@@ -2054,8 +2054,7 @@ static struct thread *get_idle_thread(int cpu)
 			return NULL;
 
 		idle_threads = (struct thread **) p;
-		i = idle_max_cpu ? idle_max_cpu + 1 : 0;
-		for (; i < j; ++i)
+		for (i = idle_max_cpu; i < j; ++i)
 			idle_threads[i] = NULL;
 
 		idle_max_cpu = j;
@@ -2118,7 +2117,9 @@ static struct thread *timehist_get_thread(struct perf_sched *sched,
 			pr_err("Failed to get idle thread for cpu %d.\n", sample->cpu);
 
 	} else {
-		thread = machine__findnew_thread(machine, sample->pid, sample->tid);
+		/* there were samples with tid 0 but non-zero pid */
+		thread = machine__findnew_thread(machine, sample->pid,
+						 sample->tid ?: sample->pid);
 		if (thread == NULL) {
 			pr_debug("Failed to get thread for tid %d. skipping sample.\n",
 				 sample->tid);
@@ -2493,7 +2494,7 @@ static void timehist_print_summary(struct perf_sched *sched,
 		return;
 
 	printf("\nIdle stats:\n");
-	for (i = 0; i <= idle_max_cpu; ++i) {
+	for (i = 0; i < idle_max_cpu; ++i) {
 		t = idle_threads[i];
 		if (!t)
 			continue;
@@ -2583,6 +2584,7 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	struct perf_data_file file = {
 		.path = input_name,
 		.mode = PERF_DATA_MODE_READ,
+		.force = sched->force,
 	};
 
 	struct perf_session *session;
@@ -2629,8 +2631,12 @@ static int perf_sched__timehist(struct perf_sched *sched)
 	if (perf_session__set_tracepoints_handlers(session, handlers))
 		goto out;
 
-	if (!perf_session__has_traces(session, "record -R"))
+	/* sched_switch event at a minimum needs to exist */
+	if (!perf_evlist__find_tracepoint_by_name(session->evlist,
+						  "sched:sched_switch")) {
+		pr_err("No sched_switch events found. Have you run 'perf sched record'?\n");
 		goto out;
+	}
 
 	if (sched->show_migrations &&
 	    perf_session__set_tracepoints_handlers(session, migrate_handlers))
@@ -2984,6 +2990,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN('f', "force", &sched.force, "don't complain, do it"),
 	OPT_END()
 	};
 	const struct option latency_options[] = {
@@ -2991,8 +2998,6 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "sort by key(s): runtime, switch, avg, max"),
 	OPT_INTEGER('C', "CPU", &sched.profile_cpu,
 		    "CPU to profile on"),
-	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
-		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('p', "pids", &sched.skip_merge,
 		    "latency stats per pid instead of per comm"),
 	OPT_PARENT(sched_options)
@@ -3000,9 +3005,6 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	const struct option replay_options[] = {
 	OPT_UINTEGER('r', "repeat", &sched.replay_repeat,
 		     "repeat the workload replay N times (-1: infinite)"),
-	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
-		    "dump raw trace in ASCII"),
-	OPT_BOOLEAN('f', "force", &sched.force, "don't complain, do it"),
 	OPT_PARENT(sched_options)
 	};
 	const struct option map_options[] = {

@@ -128,10 +128,6 @@ endif
 # (this improves performance and avoids hard-to-debug behaviour);
 MAKEFLAGS += -r
 
-$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
-	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
-	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
-
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
 # environment or command line. This is necessary for CC and AR
@@ -168,11 +164,6 @@ BISON   = bison
 STRIP   = strip
 AWK     = awk
 
-LIB_DIR		= $(srctree)/tools/lib/api/
-TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
-BPF_DIR		= $(srctree)/tools/lib/bpf/
-SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
-
 # include Makefile.config by default and rule out
 # non-config cases
 config := 1
@@ -184,6 +175,40 @@ ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
   config := 0
 endif
 endif
+
+# The fixdep build - we force fixdep tool to be built as
+# the first target in the separate make session not to be
+# disturbed by any parallel make jobs. Once fixdep is done
+# we issue the requested build with FIXDEP=1 variable.
+#
+# The fixdep build is disabled for $(NON_CONFIG_TARGETS)
+# targets, because it's not necessary.
+
+ifdef FIXDEP
+  force_fixdep := 0
+else
+  force_fixdep := $(config)
+endif
+
+export srctree OUTPUT RM CC CXX LD AR CFLAGS CXXFLAGS V BISON FLEX AWK
+export HOSTCC HOSTLD HOSTAR
+
+include $(srctree)/tools/build/Makefile.include
+
+ifeq ($(force_fixdep),1)
+goals := $(filter-out all sub-make, $(MAKECMDGOALS))
+
+$(goals) all: sub-make
+
+sub-make: fixdep
+	$(Q)$(MAKE) FIXDEP=1 -f Makefile.perf $(goals)
+
+else # force_fixdep
+
+LIB_DIR         = $(srctree)/tools/lib/api/
+TRACE_EVENT_DIR = $(srctree)/tools/lib/traceevent/
+BPF_DIR         = $(srctree)/tools/lib/bpf/
+SUBCMD_DIR      = $(srctree)/tools/lib/subcmd/
 
 # Set FEATURE_TESTS to 'all' so all possible feature checkers are executed.
 # Without this setting the output feature dump file misses some features, for
@@ -369,10 +394,6 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 
 PERF_IN := $(OUTPUT)perf-in.o
 
-export srctree OUTPUT RM CC CXX LD AR CFLAGS CXXFLAGS V BISON FLEX AWK
-export HOSTCC HOSTLD HOSTAR
-include $(srctree)/tools/build/Makefile.include
-
 JEVENTS       := $(OUTPUT)pmu-events/jevents
 JEVENTS_IN    := $(OUTPUT)pmu-events/jevents-in.o
 
@@ -491,7 +512,7 @@ $(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(PMU_EVENTS_IN) $(LIBTRACEEVENT_DYNAMIC_L
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS) \
 		$(PERF_IN) $(PMU_EVENTS_IN) $(LIBS) -o $@
 
-$(GTK_IN): fixdep FORCE
+$(GTK_IN): FORCE
 	$(Q)$(MAKE) $(build)=gtk
 
 $(OUTPUT)libperf-gtk.so: $(GTK_IN) $(PERFLIBS)
@@ -504,6 +525,10 @@ $(OUTPUT)common-cmds.h: $(wildcard Documentation/perf-*.txt)
 
 $(SCRIPTS) : % : %.sh
 	$(QUIET_GEN)$(INSTALL) '$@.sh' '$(OUTPUT)$@'
+
+$(OUTPUT)PERF-VERSION-FILE: ../../.git/HEAD
+	$(Q)$(SHELL_PATH) util/PERF-VERSION-GEN $(OUTPUT)
+	$(Q)touch $(OUTPUT)PERF-VERSION-FILE
 
 # These can record PERF_VERSION
 perf.spec $(SCRIPTS) \
@@ -536,7 +561,7 @@ endif
 __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(if $(__build-dir),$(__build-dir),.)
 
-prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h fixdep archheaders
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders
 
 $(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
@@ -586,7 +611,7 @@ $(patsubst perf-%,%.o,$(PROGRAMS)): $(wildcard */*.h)
 
 LIBPERF_IN := $(OUTPUT)libperf-in.o
 
-$(LIBPERF_IN): prepare fixdep FORCE
+$(LIBPERF_IN): prepare FORCE
 	$(Q)$(MAKE) $(build)=libperf
 
 $(LIB_FILE): $(LIBPERF_IN)
@@ -594,10 +619,10 @@ $(LIB_FILE): $(LIBPERF_IN)
 
 LIBTRACEEVENT_FLAGS += plugin_dir=$(plugindir_SQ)
 
-$(LIBTRACEEVENT): fixdep FORCE
+$(LIBTRACEEVENT): FORCE
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) $(OUTPUT)libtraceevent.a
 
-libtraceevent_plugins: fixdep FORCE
+libtraceevent_plugins: FORCE
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) plugins
 
 $(LIBTRACEEVENT_DYNAMIC_LIST): libtraceevent_plugins
@@ -610,21 +635,21 @@ $(LIBTRACEEVENT)-clean:
 install-traceevent-plugins: libtraceevent_plugins
 	$(Q)$(MAKE) -C $(TRACE_EVENT_DIR) $(LIBTRACEEVENT_FLAGS) O=$(OUTPUT) install_plugins
 
-$(LIBAPI): fixdep FORCE
+$(LIBAPI): FORCE
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) $(OUTPUT)libapi.a
 
 $(LIBAPI)-clean:
 	$(call QUIET_CLEAN, libapi)
 	$(Q)$(MAKE) -C $(LIB_DIR) O=$(OUTPUT) clean >/dev/null
 
-$(LIBBPF): fixdep FORCE
+$(LIBBPF): FORCE
 	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(FEATURE_DUMP_EXPORT)
 
 $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
 	$(Q)$(MAKE) -C $(BPF_DIR) O=$(OUTPUT) clean >/dev/null
 
-$(LIBSUBCMD): fixdep FORCE
+$(LIBSUBCMD): FORCE
 	$(Q)$(MAKE) -C $(SUBCMD_DIR) O=$(OUTPUT) $(OUTPUT)libsubcmd.a
 
 $(LIBSUBCMD)-clean:
@@ -832,3 +857,4 @@ FORCE:
 .PHONY: $(GIT-HEAD-PHONY) TAGS tags cscope FORCE prepare
 .PHONY: libtraceevent_plugins archheaders
 
+endif # force_fixdep
