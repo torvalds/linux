@@ -12,6 +12,7 @@
  */
 
 #include "msm_gem.h"
+#include "msm_mmu.h"
 #include "a5xx_gpu.h"
 
 extern bool hang_debug;
@@ -573,6 +574,19 @@ static bool a5xx_idle(struct msm_gpu *gpu)
 	return true;
 }
 
+static int a5xx_fault_handler(void *arg, unsigned long iova, int flags)
+{
+	struct msm_gpu *gpu = arg;
+	pr_warn_ratelimited("*** gpu fault: iova=%08lx, flags=%d (%u,%u,%u,%u)\n",
+			iova, flags,
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(4)),
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(5)),
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(6)),
+			gpu_read(gpu, REG_A5XX_CP_SCRATCH_REG(7)));
+
+	return -EFAULT;
+}
+
 static void a5xx_cp_err_irq(struct msm_gpu *gpu)
 {
 	u32 status = gpu_read(gpu, REG_A5XX_CP_INTERRUPT_STATUS);
@@ -883,6 +897,9 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 		a5xx_destroy(&(a5xx_gpu->base.base));
 		return ERR_PTR(ret);
 	}
+
+	if (gpu->aspace)
+		msm_mmu_set_fault_handler(gpu->aspace->mmu, gpu, a5xx_fault_handler);
 
 	return gpu;
 }
