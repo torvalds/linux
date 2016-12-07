@@ -44,11 +44,11 @@
 
 #define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs(mdev->pdev))
 
-extern int mlx5_core_debug_mask;
+extern uint mlx5_core_debug_mask;
 
 #define mlx5_core_dbg(__dev, format, ...)				\
-	dev_dbg(&(__dev)->pdev->dev, "%s:%s:%d:(pid %d): " format,	\
-		 (__dev)->priv.name, __func__, __LINE__, current->pid,	\
+	dev_dbg(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,		\
+		 __func__, __LINE__, current->pid,			\
 		 ##__VA_ARGS__)
 
 #define mlx5_core_dbg_mask(__dev, mask, format, ...)			\
@@ -63,8 +63,8 @@ do {									\
 	       ##__VA_ARGS__)
 
 #define mlx5_core_warn(__dev, format, ...)				\
-	dev_warn(&(__dev)->pdev->dev, "%s:%s:%d:(pid %d): " format,	\
-		(__dev)->priv.name, __func__, __LINE__, current->pid,	\
+	dev_warn(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
+		 __func__, __LINE__, current->pid,			\
 		##__VA_ARGS__)
 
 #define mlx5_core_info(__dev, format, ...)				\
@@ -73,6 +73,11 @@ do {									\
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
 	MLX5_CMD_TIME, /* print command execution time */
+};
+
+enum {
+	MLX5_DRIVER_STATUS_ABORTED = 0xfe,
+	MLX5_DRIVER_SYND = 0xbadd00de,
 };
 
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);

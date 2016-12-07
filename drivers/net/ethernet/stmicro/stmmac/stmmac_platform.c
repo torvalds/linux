@@ -126,8 +126,10 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	axi->axi_mb = of_property_read_bool(np, "snps,axi_mb");
 	axi->axi_rb =  of_property_read_bool(np, "snps,axi_rb");
 
-	of_property_read_u32(np, "snps,wr_osr_lmt", &axi->axi_wr_osr_lmt);
-	of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt);
+	if (of_property_read_u32(np, "snps,wr_osr_lmt", &axi->axi_wr_osr_lmt))
+		axi->axi_wr_osr_lmt = 1;
+	if (of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt))
+		axi->axi_rd_osr_lmt = 1;
 	of_property_read_u32_array(np, "snps,blen", axi->axi_blen, AXI_BLEN);
 	of_node_put(np);
 
