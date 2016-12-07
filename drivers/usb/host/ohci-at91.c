@@ -68,8 +68,6 @@ static const struct ohci_driver_overrides ohci_at91_drv_overrides __initconst = 
 	.extra_priv_size = sizeof(struct ohci_at91_priv),
 };
 
-extern int usb_disabled(void);
-
 /*-------------------------------------------------------------------------*/
 
 static void at91_start_clock(struct ohci_at91_priv *ohci_at91)
