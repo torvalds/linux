@@ -4166,6 +4166,11 @@ static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	if (rc)
 		goto hwrm_func_qcaps_exit;
 
+	if (resp->flags & cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_ROCE_V1_SUPPORTED))
+		bp->flags |= BNXT_FLAG_ROCEV1_CAP;
+	if (resp->flags & cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_ROCE_V2_SUPPORTED))
+		bp->flags |= BNXT_FLAG_ROCEV2_CAP;
+
 	bp->tx_push_thresh = 0;
 	if (resp->flags &
 	    cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED))
@@ -4806,6 +4811,24 @@ static int bnxt_setup_int_mode(struct bnxt *bp)
 
 	rc = bnxt_set_real_num_queues(bp);
 	return rc;
+}
+
+unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		return bp->vf.max_stat_ctxs;
+#endif
+	return bp->pf.max_stat_ctxs;
+}
+
+unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		return bp->vf.max_cp_rings;
+#endif
+	return bp->pf.max_cp_rings;
 }
 
 static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
@@ -6832,6 +6855,39 @@ int bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx, bool shared)
 	return bnxt_trim_rings(bp, max_rx, max_tx, cp, shared);
 }
 
+static int bnxt_get_dflt_rings(struct bnxt *bp, int *max_rx, int *max_tx,
+			       bool shared)
+{
+	int rc;
+
+	rc = bnxt_get_max_rings(bp, max_rx, max_tx, shared);
+	if (rc)
+		return rc;
+
+	if (bp->flags & BNXT_FLAG_ROCE_CAP) {
+		int max_cp, max_stat, max_irq;
+
+		/* Reserve minimum resources for RoCE */
+		max_cp = bnxt_get_max_func_cp_rings(bp);
+		max_stat = bnxt_get_max_func_stat_ctxs(bp);
+		max_irq = bnxt_get_max_func_irqs(bp);
+		if (max_cp <= BNXT_MIN_ROCE_CP_RINGS ||
+		    max_irq <= BNXT_MIN_ROCE_CP_RINGS ||
+		    max_stat <= BNXT_MIN_ROCE_STAT_CTXS)
+			return 0;
+
+		max_cp -= BNXT_MIN_ROCE_CP_RINGS;
+		max_irq -= BNXT_MIN_ROCE_CP_RINGS;
+		max_stat -= BNXT_MIN_ROCE_STAT_CTXS;
+		max_cp = min_t(int, max_cp, max_irq);
+		max_cp = min_t(int, max_cp, max_stat);
+		rc = bnxt_trim_rings(bp, max_rx, max_tx, max_cp, shared);
+		if (rc)
+			rc = 0;
+	}
+	return rc;
+}
+
 static int bnxt_set_dflt_rings(struct bnxt *bp)
 {
 	int dflt_rings, max_rx_rings, max_tx_rings, rc;
@@ -6840,7 +6896,7 @@ static int bnxt_set_dflt_rings(struct bnxt *bp)
 	if (sh)
 		bp->flags |= BNXT_FLAG_SHARED_RINGS;
 	dflt_rings = netif_get_num_default_rss_queues();
-	rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
+	rc = bnxt_get_dflt_rings(bp, &max_rx_rings, &max_tx_rings, sh);
 	if (rc)
 		return rc;
 	bp->rx_nr_rings = min_t(int, dflt_rings, max_rx_rings);
