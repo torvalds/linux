@@ -3269,7 +3269,7 @@ kiblnd_disconnect_conn(struct kib_conn *conn)
 #define KIB_RECONN_HIGH_RACE	10
 /**
  * Allow connd to take a break and handle other things after consecutive
- * reconnection attemps.
+ * reconnection attempts.
  */
 #define KIB_RECONN_BREAK	100
 
