@@ -404,6 +404,10 @@ void cpts_unregister(struct cpts *cpts)
 		ptp_clock_unregister(cpts->clock);
 		cancel_delayed_work_sync(&cpts->overflow_work);
 	}
+
+	cpts_write32(cpts, 0, int_enable);
+	cpts_write32(cpts, 0, control);
+
 	if (cpts->refclk)
 		cpts_clk_release(cpts);
 }
