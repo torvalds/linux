@@ -30,6 +30,7 @@
  * Register locations derived from NVClock by Roderick Colenbrander
  */
 
+#include <linux/apple-gmux.h>
 #include <linux/backlight.h>
 #include <linux/idr.h>
 
@@ -266,6 +267,11 @@ nouveau_backlight_init(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->device;
 	struct drm_connector *connector;
+
+	if (apple_gmux_present()) {
+		NV_INFO(drm, "Apple GMUX detected: not registering Nouveau backlight interface\n");
+		return 0;
+	}
 
 	INIT_LIST_HEAD(&drm->bl_connectors);
 
