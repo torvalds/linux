@@ -646,6 +646,8 @@ static void kvm_trap_emul_flush_shadow_memslot(struct kvm *kvm,
 
 static u64 kvm_trap_emul_get_one_regs[] = {
 	KVM_REG_MIPS_CP0_INDEX,
+	KVM_REG_MIPS_CP0_ENTRYLO0,
+	KVM_REG_MIPS_CP0_ENTRYLO1,
 	KVM_REG_MIPS_CP0_CONTEXT,
 	KVM_REG_MIPS_CP0_USERLOCAL,
 	KVM_REG_MIPS_CP0_PAGEMASK,
@@ -705,6 +707,12 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 	switch (reg->id) {
 	case KVM_REG_MIPS_CP0_INDEX:
 		*v = (long)kvm_read_c0_guest_index(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYLO0:
+		*v = kvm_read_c0_guest_entrylo0(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYLO1:
+		*v = kvm_read_c0_guest_entrylo1(cop0);
 		break;
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		*v = (long)kvm_read_c0_guest_context(cop0);
@@ -816,6 +824,12 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 	switch (reg->id) {
 	case KVM_REG_MIPS_CP0_INDEX:
 		kvm_write_c0_guest_index(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYLO0:
+		kvm_write_c0_guest_entrylo0(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYLO1:
+		kvm_write_c0_guest_entrylo1(cop0, v);
 		break;
 	case KVM_REG_MIPS_CP0_CONTEXT:
 		kvm_write_c0_guest_context(cop0, v);
