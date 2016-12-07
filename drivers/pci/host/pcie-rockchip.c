@@ -533,7 +533,7 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 
 	/* Fix the transmitted FTS count desired to exit from L0s. */
 	status = rockchip_pcie_read(rockchip, PCIE_CORE_CTRL_PLC1);
-	status = (status & PCIE_CORE_CTRL_PLC1_FTS_MASK) |
+	status = (status & ~PCIE_CORE_CTRL_PLC1_FTS_MASK) |
 		 (PCIE_CORE_CTRL_PLC1_FTS_CNT << PCIE_CORE_CTRL_PLC1_FTS_SHIFT);
 	rockchip_pcie_write(rockchip, status, PCIE_CORE_CTRL_PLC1);
 
