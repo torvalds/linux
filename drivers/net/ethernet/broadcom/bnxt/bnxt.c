@@ -4743,6 +4743,80 @@ static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 	return 0;
 }
 
+static void bnxt_setup_msix(struct bnxt *bp)
+{
+	const int len = sizeof(bp->irq_tbl[0].name);
+	struct net_device *dev = bp->dev;
+	int tcs, i;
+
+	tcs = netdev_get_num_tc(dev);
+	if (tcs > 1) {
+		bp->tx_nr_rings_per_tc = bp->tx_nr_rings / tcs;
+		if (bp->tx_nr_rings_per_tc == 0) {
+			netdev_reset_tc(dev);
+			bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
+		} else {
+			int i, off, count;
+
+			bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs;
+			for (i = 0; i < tcs; i++) {
+				count = bp->tx_nr_rings_per_tc;
+				off = i * count;
+				netdev_set_tc_queue(dev, i, count, off);
+			}
+		}
+	}
+
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		char *attr;
+
+		if (bp->flags & BNXT_FLAG_SHARED_RINGS)
+			attr = "TxRx";
+		else if (i < bp->rx_nr_rings)
+			attr = "rx";
+		else
+			attr = "tx";
+
+		snprintf(bp->irq_tbl[i].name, len, "%s-%s-%d", dev->name, attr,
+			 i);
+		bp->irq_tbl[i].handler = bnxt_msix;
+	}
+}
+
+static void bnxt_setup_inta(struct bnxt *bp)
+{
+	const int len = sizeof(bp->irq_tbl[0].name);
+
+	if (netdev_get_num_tc(bp->dev))
+		netdev_reset_tc(bp->dev);
+
+	snprintf(bp->irq_tbl[0].name, len, "%s-%s-%d", bp->dev->name, "TxRx",
+		 0);
+	bp->irq_tbl[0].handler = bnxt_inta;
+}
+
+static int bnxt_setup_int_mode(struct bnxt *bp)
+{
+	int rc;
+
+	if (bp->flags & BNXT_FLAG_USING_MSIX)
+		bnxt_setup_msix(bp);
+	else
+		bnxt_setup_inta(bp);
+
+	rc = bnxt_set_real_num_queues(bp);
+	return rc;
+}
+
+static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		return bp->vf.max_irqs;
+#endif
+	return bp->pf.max_irqs;
+}
+
 void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
 {
 #if defined(CONFIG_BNXT_SRIOV)
@@ -4753,16 +4827,12 @@ void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
 		bp->pf.max_irqs = max_irqs;
 }
 
-static int bnxt_setup_msix(struct bnxt *bp)
+static int bnxt_init_msix(struct bnxt *bp)
 {
-	struct msix_entry *msix_ent;
-	struct net_device *dev = bp->dev;
 	int i, total_vecs, rc = 0, min = 1;
-	const int len = sizeof(bp->irq_tbl[0].name);
+	struct msix_entry *msix_ent;
 
-	bp->flags &= ~BNXT_FLAG_USING_MSIX;
-	total_vecs = bp->cp_nr_rings;
-
+	total_vecs = bnxt_get_max_func_irqs(bp);
 	msix_ent = kcalloc(total_vecs, sizeof(struct msix_entry), GFP_KERNEL);
 	if (!msix_ent)
 		return -ENOMEM;
@@ -4783,8 +4853,10 @@ static int bnxt_setup_msix(struct bnxt *bp)
 
 	bp->irq_tbl = kcalloc(total_vecs, sizeof(struct bnxt_irq), GFP_KERNEL);
 	if (bp->irq_tbl) {
-		int tcs;
+		for (i = 0; i < total_vecs; i++)
+			bp->irq_tbl[i].vector = msix_ent[i].vector;
 
+		bp->total_irqs = total_vecs;
 		/* Trim rings based upon num of vectors allocated */
 		rc = bnxt_trim_rings(bp, &bp->rx_nr_rings, &bp->tx_nr_rings,
 				     total_vecs, min == 1);
@@ -4792,43 +4864,10 @@ static int bnxt_setup_msix(struct bnxt *bp)
 			goto msix_setup_exit;
 
 		bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
-		tcs = netdev_get_num_tc(dev);
-		if (tcs > 1) {
-			bp->tx_nr_rings_per_tc = bp->tx_nr_rings / tcs;
-			if (bp->tx_nr_rings_per_tc == 0) {
-				netdev_reset_tc(dev);
-				bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
-			} else {
-				int i, off, count;
+		bp->cp_nr_rings = (min == 1) ?
+				  max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
+				  bp->tx_nr_rings + bp->rx_nr_rings;
 
-				bp->tx_nr_rings = bp->tx_nr_rings_per_tc * tcs;
-				for (i = 0; i < tcs; i++) {
-					count = bp->tx_nr_rings_per_tc;
-					off = i * count;
-					netdev_set_tc_queue(dev, i, count, off);
-				}
-			}
-		}
-		bp->cp_nr_rings = total_vecs;
-
-		for (i = 0; i < bp->cp_nr_rings; i++) {
-			char *attr;
-
-			bp->irq_tbl[i].vector = msix_ent[i].vector;
-			if (bp->flags & BNXT_FLAG_SHARED_RINGS)
-				attr = "TxRx";
-			else if (i < bp->rx_nr_rings)
-				attr = "rx";
-			else
-				attr = "tx";
-
-			snprintf(bp->irq_tbl[i].name, len,
-				 "%s-%s-%d", dev->name, attr, i);
-			bp->irq_tbl[i].handler = bnxt_msix;
-		}
-		rc = bnxt_set_real_num_queues(bp);
-		if (rc)
-			goto msix_setup_exit;
 	} else {
 		rc = -ENOMEM;
 		goto msix_setup_exit;
@@ -4838,50 +4877,52 @@ static int bnxt_setup_msix(struct bnxt *bp)
 	return 0;
 
 msix_setup_exit:
-	netdev_err(bp->dev, "bnxt_setup_msix err: %x\n", rc);
+	netdev_err(bp->dev, "bnxt_init_msix err: %x\n", rc);
+	kfree(bp->irq_tbl);
+	bp->irq_tbl = NULL;
 	pci_disable_msix(bp->pdev);
 	kfree(msix_ent);
 	return rc;
 }
 
-static int bnxt_setup_inta(struct bnxt *bp)
+static int bnxt_init_inta(struct bnxt *bp)
 {
-	int rc;
-	const int len = sizeof(bp->irq_tbl[0].name);
-
-	if (netdev_get_num_tc(bp->dev))
-		netdev_reset_tc(bp->dev);
-
 	bp->irq_tbl = kcalloc(1, sizeof(struct bnxt_irq), GFP_KERNEL);
-	if (!bp->irq_tbl) {
-		rc = -ENOMEM;
-		return rc;
-	}
+	if (!bp->irq_tbl)
+		return -ENOMEM;
+
+	bp->total_irqs = 1;
 	bp->rx_nr_rings = 1;
 	bp->tx_nr_rings = 1;
 	bp->cp_nr_rings = 1;
 	bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 	bp->flags |= BNXT_FLAG_SHARED_RINGS;
 	bp->irq_tbl[0].vector = bp->pdev->irq;
-	snprintf(bp->irq_tbl[0].name, len,
-		 "%s-%s-%d", bp->dev->name, "TxRx", 0);
-	bp->irq_tbl[0].handler = bnxt_inta;
-	rc = bnxt_set_real_num_queues(bp);
-	return rc;
+	return 0;
 }
 
-static int bnxt_setup_int_mode(struct bnxt *bp)
+static int bnxt_init_int_mode(struct bnxt *bp)
 {
 	int rc = 0;
 
 	if (bp->flags & BNXT_FLAG_MSIX_CAP)
-		rc = bnxt_setup_msix(bp);
+		rc = bnxt_init_msix(bp);
 
 	if (!(bp->flags & BNXT_FLAG_USING_MSIX) && BNXT_PF(bp)) {
 		/* fallback to INTA */
-		rc = bnxt_setup_inta(bp);
+		rc = bnxt_init_inta(bp);
 	}
 	return rc;
+}
+
+static void bnxt_clear_int_mode(struct bnxt *bp)
+{
+	if (bp->flags & BNXT_FLAG_USING_MSIX)
+		pci_disable_msix(bp->pdev);
+
+	kfree(bp->irq_tbl);
+	bp->irq_tbl = NULL;
+	bp->flags &= ~BNXT_FLAG_USING_MSIX;
 }
 
 static void bnxt_free_irq(struct bnxt *bp)
@@ -4902,10 +4943,6 @@ static void bnxt_free_irq(struct bnxt *bp)
 			free_irq(irq->vector, bp->bnapi[i]);
 		irq->requested = 0;
 	}
-	if (bp->flags & BNXT_FLAG_USING_MSIX)
-		pci_disable_msix(bp->pdev);
-	kfree(bp->irq_tbl);
-	bp->irq_tbl = NULL;
 }
 
 static int bnxt_request_irq(struct bnxt *bp)
@@ -6695,6 +6732,7 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	cancel_work_sync(&bp->sp_task);
 	bp->sp_event = 0;
 
+	bnxt_clear_int_mode(bp);
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_dcb_free(bp);
@@ -6990,9 +7028,13 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err;
 
-	rc = register_netdev(dev);
+	rc = bnxt_init_int_mode(bp);
 	if (rc)
 		goto init_err;
+
+	rc = register_netdev(dev);
+	if (rc)
+		goto init_err_clr_int;
 
 	netdev_info(dev, "%s found at mem %lx, node addr %pM\n",
 		    board_info[ent->driver_data].name,
@@ -7001,6 +7043,9 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_parse_log_pcie_link(bp);
 
 	return 0;
+
+init_err_clr_int:
+	bnxt_clear_int_mode(bp);
 
 init_err:
 	pci_iounmap(pdev, bp->bar0);

@@ -1024,6 +1024,7 @@ struct bnxt {
 #define BNXT_STATE_FN_RST_DONE	2
 
 	struct bnxt_irq	*irq_tbl;
+	int			total_irqs;
 	u8			mac_addr[ETH_ALEN];
 
 #ifdef CONFIG_BNXT_DCB
