@@ -40,7 +40,7 @@
 #define DRIVER_AUTHOR	"WOOJUNG HUH <woojung.huh@microchip.com>"
 #define DRIVER_DESC	"LAN78XX USB 3.0 Gigabit Ethernet Devices"
 #define DRIVER_NAME	"lan78xx"
-#define DRIVER_VERSION	"1.0.5"
+#define DRIVER_VERSION	"1.0.6"
 
 #define TX_TIMEOUT_JIFFIES		(5 * HZ)
 #define THROTTLE_JIFFIES		(HZ / 8)
@@ -67,6 +67,7 @@
 #define LAN78XX_USB_VENDOR_ID		(0x0424)
 #define LAN7800_USB_PRODUCT_ID		(0x7800)
 #define LAN7850_USB_PRODUCT_ID		(0x7850)
+#define LAN7801_USB_PRODUCT_ID		(0x7801)
 #define LAN78XX_EEPROM_MAGIC		(0x78A5)
 #define LAN78XX_OTP_MAGIC		(0x78F3)
 
@@ -390,6 +391,7 @@ struct lan78xx_net {
 	u32			chipid;
 	u32			chiprev;
 	struct mii_bus		*mdiobus;
+	phy_interface_t		interface;
 
 	int			fc_autoneg;
 	u8			fc_request_control;
@@ -399,6 +401,10 @@ struct lan78xx_net {
 
 	struct irq_domain_data	domain_data;
 };
+
+/* define external phy id */
+#define	PHY_LAN8835			(0x0007C130)
+#define	PHY_KSZ9031RNX			(0x00221620)
 
 /* use ethtool to change the level for any given device */
 static int msg_level = -1;
@@ -1697,6 +1703,7 @@ static int lan78xx_mdiobus_read(struct mii_bus *bus, int phy_id, int idx)
 done:
 	mutex_unlock(&dev->phy_mutex);
 	usb_autopm_put_interface(dev->intf);
+
 	return ret;
 }
 
@@ -1758,6 +1765,10 @@ static int lan78xx_mdio_init(struct lan78xx_net *dev)
 	case ID_REV_CHIP_ID_7850_:
 		/* set to internal PHY id */
 		dev->mdiobus->phy_mask = ~(1 << 1);
+		break;
+	case ID_REV_CHIP_ID_7801_:
+		/* scan thru PHYAD[2..0] */
+		dev->mdiobus->phy_mask = ~(0xFF);
 		break;
 	}
 
@@ -1933,6 +1944,47 @@ static void lan78xx_remove_irq_domain(struct lan78xx_net *dev)
 	dev->domain_data.irqdomain = NULL;
 }
 
+static int lan8835_fixup(struct phy_device *phydev)
+{
+	int buf;
+	int ret;
+	struct lan78xx_net *dev = netdev_priv(phydev->attached_dev);
+
+	/* LED2/PME_N/IRQ_N/RGMII_ID pin to IRQ_N mode */
+	buf = phy_read_mmd_indirect(phydev, 0x8010, 3);
+	buf &= ~0x1800;
+	buf |= 0x0800;
+	phy_write_mmd_indirect(phydev, 0x8010, 3, buf);
+
+	/* RGMII MAC TXC Delay Enable */
+	ret = lan78xx_write_reg(dev, MAC_RGMII_ID,
+				MAC_RGMII_ID_TXC_DELAY_EN_);
+
+	/* RGMII TX DLL Tune Adjust */
+	ret = lan78xx_write_reg(dev, RGMII_TX_BYP_DLL, 0x3D00);
+
+	dev->interface = PHY_INTERFACE_MODE_RGMII_TXID;
+
+	return 1;
+}
+
+static int ksz9031rnx_fixup(struct phy_device *phydev)
+{
+	struct lan78xx_net *dev = netdev_priv(phydev->attached_dev);
+
+	/* Micrel9301RNX PHY configuration */
+	/* RGMII Control Signal Pad Skew */
+	phy_write_mmd_indirect(phydev, 4, 2, 0x0077);
+	/* RGMII RX Data Pad Skew */
+	phy_write_mmd_indirect(phydev, 5, 2, 0x7777);
+	/* RGMII RX Clock Pad Skew */
+	phy_write_mmd_indirect(phydev, 8, 2, 0x1FF);
+
+	dev->interface = PHY_INTERFACE_MODE_RGMII_RXID;
+
+	return 1;
+}
+
 static int lan78xx_phy_init(struct lan78xx_net *dev)
 {
 	int ret;
@@ -1943,6 +1995,42 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	if (!phydev) {
 		netdev_err(dev->net, "no PHY found\n");
 		return -EIO;
+	}
+
+	if ((dev->chipid == ID_REV_CHIP_ID_7800_) ||
+	    (dev->chipid == ID_REV_CHIP_ID_7850_)) {
+		phydev->is_internal = true;
+		dev->interface = PHY_INTERFACE_MODE_GMII;
+
+	} else if (dev->chipid == ID_REV_CHIP_ID_7801_) {
+		if (!phydev->drv) {
+			netdev_err(dev->net, "no PHY driver found\n");
+			return -EIO;
+		}
+
+		dev->interface = PHY_INTERFACE_MODE_RGMII;
+
+		/* external PHY fixup for KSZ9031RNX */
+		ret = phy_register_fixup_for_uid(PHY_KSZ9031RNX, 0xfffffff0,
+						 ksz9031rnx_fixup);
+		if (ret < 0) {
+			netdev_err(dev->net, "fail to register fixup\n");
+			return ret;
+		}
+		/* external PHY fixup for LAN8835 */
+		ret = phy_register_fixup_for_uid(PHY_LAN8835, 0xfffffff0,
+						 lan8835_fixup);
+		if (ret < 0) {
+			netdev_err(dev->net, "fail to register fixup\n");
+			return ret;
+		}
+		/* add more external PHY fixup here if needed */
+
+		phydev->is_internal = false;
+	} else {
+		netdev_err(dev->net, "unknown ID found\n");
+		ret = -EIO;
+		goto error;
 	}
 
 	/* if phyirq is not set, use polling mode in phylib */
@@ -1957,7 +2045,7 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 
 	ret = phy_connect_direct(dev->net, phydev,
 				 lan78xx_link_status_change,
-				 PHY_INTERFACE_MODE_GMII);
+				 dev->interface);
 	if (ret) {
 		netdev_err(dev->net, "can't attach PHY to %s\n",
 			   dev->mdiobus->id);
@@ -1982,6 +2070,12 @@ static int lan78xx_phy_init(struct lan78xx_net *dev)
 	netif_dbg(dev, ifup, dev->net, "phy initialised successfully");
 
 	return 0;
+
+error:
+	phy_unregister_fixup_for_uid(PHY_KSZ9031RNX, 0xfffffff0);
+	phy_unregister_fixup_for_uid(PHY_LAN8835, 0xfffffff0);
+
+	return ret;
 }
 
 static int lan78xx_set_rx_max_frame_length(struct lan78xx_net *dev, int size)
@@ -2338,6 +2432,9 @@ static int lan78xx_reset(struct lan78xx_net *dev)
 	} while ((buf & PMT_CTL_PHY_RST_) || !(buf & PMT_CTL_READY_));
 
 	ret = lan78xx_read_reg(dev, MAC_CR, &buf);
+	/* LAN7801 only has RGMII mode */
+	if (dev->chipid == ID_REV_CHIP_ID_7801_)
+		buf &= ~MAC_CR_GMII_EN_;
 	buf |= MAC_CR_AUTO_DUPLEX_ | MAC_CR_AUTO_SPEED_;
 	ret = lan78xx_write_reg(dev, MAC_CR, buf);
 
@@ -2464,8 +2561,12 @@ static int lan78xx_stop(struct net_device *net)
 	if (timer_pending(&dev->stat_monitor))
 		del_timer_sync(&dev->stat_monitor);
 
+	phy_unregister_fixup_for_uid(PHY_KSZ9031RNX, 0xfffffff0);
+	phy_unregister_fixup_for_uid(PHY_LAN8835, 0xfffffff0);
+
 	phy_stop(net->phydev);
 	phy_disconnect(net->phydev);
+
 	net->phydev = NULL;
 
 	clear_bit(EVENT_DEV_OPEN, &dev->flags);
@@ -3887,6 +3988,10 @@ static const struct usb_device_id products[] = {
 	{
 	/* LAN7850 USB Gigabit Ethernet Device */
 	USB_DEVICE(LAN78XX_USB_VENDOR_ID, LAN7850_USB_PRODUCT_ID),
+	},
+	{
+	/* LAN7801 USB Gigabit Ethernet Device */
+	USB_DEVICE(LAN78XX_USB_VENDOR_ID, LAN7801_USB_PRODUCT_ID),
 	},
 	{},
 };
