@@ -1008,7 +1008,10 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	spin_unlock(&mvmsta->lock);
 
 	/* Increase pending frames count if this isn't AMPDU */
-	if (!is_ampdu)
+	if ((iwl_mvm_is_dqa_supported(mvm) &&
+	     mvmsta->tid_data[tx_cmd->tid_tspec].state != IWL_AGG_ON &&
+	     mvmsta->tid_data[tx_cmd->tid_tspec].state != IWL_AGG_STARTING) ||
+	    (!iwl_mvm_is_dqa_supported(mvm) && !is_ampdu))
 		atomic_inc(&mvm->pending_frames[mvmsta->sta_id]);
 
 	return 0;

@@ -1466,6 +1466,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_sta *mvm_sta = iwl_mvm_sta_from_mac80211(sta);
+	u8 sta_id = mvm_sta->sta_id;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -1474,7 +1475,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		kfree(mvm_sta->dup_data);
 
 	if ((vif->type == NL80211_IFTYPE_STATION &&
-	     mvmvif->ap_sta_id == mvm_sta->sta_id) ||
+	     mvmvif->ap_sta_id == sta_id) ||
 	    iwl_mvm_is_dqa_supported(mvm)){
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
 		if (ret)
@@ -1497,6 +1498,15 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 			iwl_mvm_disable_sta_queues(mvm, vif, mvm_sta);
 
 			/*
+			 * If pending_frames is set at this point - it must be
+			 * driver internal logic error, since queues are empty
+			 * and removed successuly.
+			 * warn on it but set it to 0 anyway to avoid station
+			 * not being removed later in the function
+			 */
+			WARN_ON(atomic_xchg(&mvm->pending_frames[sta_id], 0));
+
+			/*
 			 * If no traffic has gone through the reserved TXQ - it
 			 * is still marked as IWL_MVM_QUEUE_RESERVED, and
 			 * should be manually marked as free again
@@ -1506,7 +1516,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 			if (WARN((*status != IWL_MVM_QUEUE_RESERVED) &&
 				 (*status != IWL_MVM_QUEUE_FREE),
 				 "sta_id %d reserved txq %d status %d",
-				 mvm_sta->sta_id, reserved_txq, *status)) {
+				 sta_id, reserved_txq, *status)) {
 				spin_unlock_bh(&mvm->queue_info_lock);
 				return -EINVAL;
 			}
@@ -1516,7 +1526,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		}
 
 		if (vif->type == NL80211_IFTYPE_STATION &&
-		    mvmvif->ap_sta_id == mvm_sta->sta_id) {
+		    mvmvif->ap_sta_id == sta_id) {
 			/* if associated - we can't remove the AP STA now */
 			if (vif->bss_conf.assoc)
 				return ret;
@@ -1525,7 +1535,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 			mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
 
 			/* clear d0i3_ap_sta_id if no longer relevant */
-			if (mvm->d0i3_ap_sta_id == mvm_sta->sta_id)
+			if (mvm->d0i3_ap_sta_id == sta_id)
 				mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
 		}
 	}
@@ -1534,7 +1544,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	 * This shouldn't happen - the TDLS channel switch should be canceled
 	 * before the STA is removed.
 	 */
-	if (WARN_ON_ONCE(mvm->tdls_cs.peer.sta_id == mvm_sta->sta_id)) {
+	if (WARN_ON_ONCE(mvm->tdls_cs.peer.sta_id == sta_id)) {
 		mvm->tdls_cs.peer.sta_id = IWL_MVM_STATION_COUNT;
 		cancel_delayed_work(&mvm->tdls_cs.dwork);
 	}
@@ -1544,21 +1554,20 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	 * calls the drain worker.
 	 */
 	spin_lock_bh(&mvm_sta->lock);
+
 	/*
 	 * There are frames pending on the AC queues for this station.
 	 * We need to wait until all the frames are drained...
 	 */
-	if (atomic_read(&mvm->pending_frames[mvm_sta->sta_id])) {
-		rcu_assign_pointer(mvm->fw_id_to_mac_id[mvm_sta->sta_id],
+	if (atomic_read(&mvm->pending_frames[sta_id])) {
+		rcu_assign_pointer(mvm->fw_id_to_mac_id[sta_id],
 				   ERR_PTR(-EBUSY));
 		spin_unlock_bh(&mvm_sta->lock);
 
 		/* disable TDLS sta queues on drain complete */
 		if (sta->tdls) {
-			mvm->tfd_drained[mvm_sta->sta_id] =
-							mvm_sta->tfd_queue_msk;
-			IWL_DEBUG_TDLS(mvm, "Draining TDLS sta %d\n",
-				       mvm_sta->sta_id);
+			mvm->tfd_drained[sta_id] = mvm_sta->tfd_queue_msk;
+			IWL_DEBUG_TDLS(mvm, "Draining TDLS sta %d\n", sta_id);
 		}
 
 		ret = iwl_mvm_drain_sta(mvm, mvm_sta, true);
