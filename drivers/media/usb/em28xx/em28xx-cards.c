@@ -3236,8 +3236,7 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			   int minor)
 {
 	int retval;
-	static const char *default_chip_name = "em28xx";
-	const char *chip_name = default_chip_name;
+	const char *chip_name = NULL;
 
 	dev->udev = udev;
 	mutex_init(&dev->ctrl_urb_lock);
@@ -3324,14 +3323,9 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			break;
 		}
 	}
-
-	dev_set_name(&dev->udev->dev, "%d-%s: %s#%d",
-		     dev->udev->bus->busnum, dev->udev->devpath,
-		     chip_name, dev->devno);
-
-	if (chip_name == default_chip_name)
-			dev_info(&dev->udev->dev,
-				 "unknown em28xx chip ID (%d)\n", dev->chip_id);
+	if (!chip_name)
+		dev_info(&dev->udev->dev,
+			 "unknown em28xx chip ID (%d)\n", dev->chip_id);
 	else
 		dev_info(&dev->udev->dev, "chip ID is %s\n", chip_name);
 
