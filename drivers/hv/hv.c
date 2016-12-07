@@ -422,7 +422,7 @@ int hv_synic_alloc(void)
 		goto err;
 	}
 
-	for_each_online_cpu(cpu) {
+	for_each_present_cpu(cpu) {
 		hv_context.event_dpc[cpu] = kmalloc(size, GFP_ATOMIC);
 		if (hv_context.event_dpc[cpu] == NULL) {
 			pr_err("Unable to allocate event dpc\n");
@@ -485,7 +485,7 @@ void hv_synic_free(void)
 	int cpu;
 
 	kfree(hv_context.hv_numa_map);
-	for_each_online_cpu(cpu)
+	for_each_present_cpu(cpu)
 		hv_synic_free_cpu(cpu);
 }
 
