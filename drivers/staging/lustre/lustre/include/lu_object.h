@@ -1326,5 +1326,8 @@ void lu_buf_realloc(struct lu_buf *buf, size_t size);
 int lu_buf_check_and_grow(struct lu_buf *buf, size_t len);
 struct lu_buf *lu_buf_check_and_alloc(struct lu_buf *buf, size_t len);
 
+extern __u32 lu_context_tags_default;
+extern __u32 lu_session_tags_default;
+
 /** @} lu */
 #endif /* __LUSTRE_LU_OBJECT_H */
