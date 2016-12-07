@@ -79,6 +79,7 @@ static const char *amdgpu_asic_name[] = {
 	"POLARIS11",
 	"POLARIS12",
 	"VEGA10",
+	"RAVEN",
 	"LAST",
 };
 
@@ -1537,8 +1538,12 @@ static int amdgpu_early_init(struct amdgpu_device *adev)
 			return r;
 		break;
 #endif
-	case CHIP_VEGA10:
-		adev->family = AMDGPU_FAMILY_AI;
+	case  CHIP_VEGA10:
+	case  CHIP_RAVEN:
+		if (adev->asic_type == CHIP_RAVEN)
+			adev->family = AMDGPU_FAMILY_RV;
+		else
+			adev->family = AMDGPU_FAMILY_AI;
 
 		r = soc15_set_ip_blocks(adev);
 		if (r)

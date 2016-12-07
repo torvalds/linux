@@ -860,6 +860,7 @@ struct drm_amdgpu_info_vce_clock_table {
 #define AMDGPU_FAMILY_VI			130 /* Iceland, Tonga */
 #define AMDGPU_FAMILY_CZ			135 /* Carrizo, Stoney */
 #define AMDGPU_FAMILY_AI			141 /* Vega10 */
+#define AMDGPU_FAMILY_RV			142 /* Raven */
 
 #if defined(__cplusplus)
 }

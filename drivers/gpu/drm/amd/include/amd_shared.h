@@ -48,6 +48,7 @@ enum amd_asic_type {
 	CHIP_POLARIS11,
 	CHIP_POLARIS12,
 	CHIP_VEGA10,
+	CHIP_RAVEN,
 	CHIP_LAST,
 };
 
