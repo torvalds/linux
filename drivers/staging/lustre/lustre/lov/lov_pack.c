@@ -198,7 +198,8 @@ static int lov_verify_lmm(void *lmm, int lmm_bytes, __u16 *stripe_count)
 	return rc;
 }
 
-struct lov_stripe_md *lov_lsm_alloc(u16 stripe_count, u32 pattern, u32 magic)
+static struct lov_stripe_md *lov_lsm_alloc(u16 stripe_count, u32 pattern,
+					   u32 magic)
 {
 	struct lov_stripe_md *lsm;
 	unsigned int i;
