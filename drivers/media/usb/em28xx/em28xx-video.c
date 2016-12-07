@@ -360,6 +360,7 @@ static int em28xx_resolution_set(struct em28xx *dev)
 static int em28xx_set_alternate(struct em28xx *dev)
 {
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int errCode;
 	int i;
 	unsigned int min_pkt_size = v4l2->width * 2 + 4;
@@ -411,7 +412,7 @@ set_alt:
 	}
 	em28xx_videodbg("setting alternate %d with wMaxPacketSize=%u\n",
 			dev->alt, dev->max_pkt_size);
-	errCode = usb_set_interface(dev->udev, dev->ifnum, dev->alt);
+	errCode = usb_set_interface(udev, dev->ifnum, dev->alt);
 	if (errCode < 0) {
 		dev_err(&dev->intf->dev,
 			"cannot change alternate number to %d (error=%i)\n",
@@ -1859,10 +1860,11 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct video_device   *vdev = video_devdata(file);
 	struct em28xx         *dev  = video_drvdata(file);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 
 	strlcpy(cap->driver, "em28xx", sizeof(cap->driver));
 	strlcpy(cap->card, em28xx_boards[dev->model].name, sizeof(cap->card));
-	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
+	usb_make_path(udev, cap->bus_info, sizeof(cap->bus_info));
 
 	if (vdev->vfl_type == VFL_TYPE_GRABBER)
 		cap->device_caps = V4L2_CAP_READWRITE |
@@ -2187,6 +2189,7 @@ static int em28xx_v4l2_close(struct file *filp)
 {
 	struct em28xx         *dev  = video_drvdata(filp);
 	struct em28xx_v4l2    *v4l2 = dev->v4l2;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int              errCode;
 
 	em28xx_videodbg("users=%d\n", v4l2->users);
@@ -2208,7 +2211,7 @@ static int em28xx_v4l2_close(struct file *filp)
 		/* set alternate 0 */
 		dev->alt = 0;
 		em28xx_videodbg("setting alternate 0\n");
-		errCode = usb_set_interface(dev->udev, 0, 0);
+		errCode = usb_set_interface(udev, 0, 0);
 		if (errCode < 0) {
 			dev_err(&dev->intf->dev,
 				"cannot change alternate number to 0 (error=%i)\n",

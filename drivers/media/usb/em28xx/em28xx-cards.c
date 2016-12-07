@@ -3188,6 +3188,8 @@ static void em28xx_unregister_media_device(struct em28xx *dev)
 */
 static void em28xx_release_resources(struct em28xx *dev)
 {
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
+
 	/*FIXME: I2C IR should be disconnected */
 
 	mutex_lock(&dev->lock);
@@ -3198,7 +3200,7 @@ static void em28xx_release_resources(struct em28xx *dev)
 		em28xx_i2c_unregister(dev, 1);
 	em28xx_i2c_unregister(dev, 0);
 
-	usb_put_dev(dev->udev);
+	usb_put_dev(udev);
 
 	/* Mark device as unused */
 	clear_bit(dev->devno, em28xx_devused);
@@ -3238,7 +3240,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	int retval;
 	const char *chip_name = NULL;
 
-	dev->udev = udev;
 	dev->intf = interface;
 	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
@@ -3277,9 +3278,8 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 			break;
 		case CHIP_ID_EM2820:
 			chip_name = "em2710/2820";
-			if (le16_to_cpu(dev->udev->descriptor.idVendor)
-								    == 0xeb1a) {
-				__le16 idProd = dev->udev->descriptor.idProduct;
+			if (le16_to_cpu(udev->descriptor.idVendor) == 0xeb1a) {
+				__le16 idProd = udev->descriptor.idProduct;
 
 				if (le16_to_cpu(idProd) == 0x2710)
 					chip_name = "em2710";

@@ -566,6 +566,7 @@ static void em28xx_query_buttons(struct work_struct *work)
 
 static int em28xx_register_snapshot_button(struct em28xx *dev)
 {
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	struct input_dev *input_dev;
 	int err;
 
@@ -574,7 +575,7 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 	if (!input_dev)
 		return -ENOMEM;
 
-	usb_make_path(dev->udev, dev->snapshot_button_path,
+	usb_make_path(udev, dev->snapshot_button_path,
 		      sizeof(dev->snapshot_button_path));
 	strlcat(dev->snapshot_button_path, "/sbutton",
 		sizeof(dev->snapshot_button_path));
@@ -586,8 +587,8 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 	input_dev->keycodesize = 0;
 	input_dev->keycodemax = 0;
 	input_dev->id.bustype = BUS_USB;
-	input_dev->id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
-	input_dev->id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
+	input_dev->id.vendor = le16_to_cpu(udev->descriptor.idVendor);
+	input_dev->id.product = le16_to_cpu(udev->descriptor.idProduct);
 	input_dev->id.version = 1;
 	input_dev->dev.parent = &dev->intf->dev;
 
@@ -678,6 +679,7 @@ static void em28xx_shutdown_buttons(struct em28xx *dev)
 
 static int em28xx_ir_init(struct em28xx *dev)
 {
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	struct em28xx_IR *ir;
 	struct rc_dev *rc;
 	int err = -ENOMEM;
@@ -799,15 +801,15 @@ static int em28xx_ir_init(struct em28xx *dev)
 	snprintf(ir->name, sizeof(ir->name), "%s IR",
 		 dev_name(&dev->intf->dev));
 
-	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
+	usb_make_path(udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
 	rc->input_name = ir->name;
 	rc->input_phys = ir->phys;
 	rc->input_id.bustype = BUS_USB;
 	rc->input_id.version = 1;
-	rc->input_id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
-	rc->input_id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
+	rc->input_id.vendor = le16_to_cpu(udev->descriptor.idVendor);
+	rc->input_id.product = le16_to_cpu(udev->descriptor.idProduct);
 	rc->dev.parent = &dev->intf->dev;
 	rc->driver_name = MODULE_NAME;
 

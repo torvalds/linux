@@ -279,6 +279,8 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 
 	if (dev->adev.users == 0) {
 		if (dev->alt == 0 || dev->is_audio_only) {
+			struct usb_device *udev = interface_to_usbdev(dev->intf);
+
 			if (dev->is_audio_only)
 				/* audio is on a separate interface */
 				dev->alt = 1;
@@ -296,7 +298,7 @@ static int snd_em28xx_capture_open(struct snd_pcm_substream *substream)
 				 */
 			dprintk("changing alternate number on interface %d to %d\n",
 				dev->ifnum, dev->alt);
-			usb_set_interface(dev->udev, dev->ifnum, dev->alt);
+			usb_set_interface(udev, dev->ifnum, dev->alt);
 		}
 
 		/* Sets volume, mute, etc */
@@ -714,6 +716,7 @@ static const struct snd_pcm_ops snd_em28xx_pcm_capture = {
 
 static void em28xx_audio_free_urb(struct em28xx *dev)
 {
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int i;
 
 	for (i = 0; i < dev->adev.num_urb; i++) {
@@ -722,7 +725,7 @@ static void em28xx_audio_free_urb(struct em28xx *dev)
 		if (!urb)
 			continue;
 
-		usb_free_coherent(dev->udev, urb->transfer_buffer_length,
+		usb_free_coherent(udev, urb->transfer_buffer_length,
 				  dev->adev.transfer_buffer[i],
 				  urb->transfer_dma);
 
@@ -749,6 +752,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 {
 	struct usb_interface *intf;
 	struct usb_endpoint_descriptor *e, *ep = NULL;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	int                 i, ep_size, interval, num_urb, npackets;
 	int		    urb_size, bytes_per_transfer;
 	u8 alt;
@@ -758,7 +762,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 	else
 		alt = 7;
 
-	intf = usb_ifnum_to_if(dev->udev, dev->ifnum);
+	intf = usb_ifnum_to_if(udev, dev->ifnum);
 
 	if (intf->num_altsetting <= alt) {
 		dev_err(&dev->intf->dev, "alt %d doesn't exist on interface %d\n",
@@ -781,12 +785,12 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 		return -ENODEV;
 	}
 
-	ep_size = em28xx_audio_ep_packet_size(dev->udev, ep);
+	ep_size = em28xx_audio_ep_packet_size(udev, ep);
 	interval = 1 << (ep->bInterval - 1);
 
 	dev_info(&dev->intf->dev,
 		 "Endpoint 0x%02x %s on intf %d alt %d interval = %d, size %d\n",
-		 EM28XX_EP_AUDIO, usb_speed_string(dev->udev->speed),
+		 EM28XX_EP_AUDIO, usb_speed_string(udev->speed),
 		 dev->ifnum, alt, interval, ep_size);
 
 	/* Calculate the number and size of URBs to better fit the audio samples */
@@ -860,7 +864,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 		}
 		dev->adev.urb[i] = urb;
 
-		buf = usb_alloc_coherent(dev->udev, npackets * ep_size, GFP_ATOMIC,
+		buf = usb_alloc_coherent(udev, npackets * ep_size, GFP_ATOMIC,
 					 &urb->transfer_dma);
 		if (!buf) {
 			dev_err(&dev->intf->dev,
@@ -870,9 +874,9 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 		}
 		dev->adev.transfer_buffer[i] = buf;
 
-		urb->dev = dev->udev;
+		urb->dev = udev;
 		urb->context = dev;
-		urb->pipe = usb_rcvisocpipe(dev->udev, EM28XX_EP_AUDIO);
+		urb->pipe = usb_rcvisocpipe(udev, EM28XX_EP_AUDIO);
 		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_buffer = buf;
 		urb->interval = interval;
@@ -892,6 +896,7 @@ static int em28xx_audio_urb_init(struct em28xx *dev)
 static int em28xx_audio_init(struct em28xx *dev)
 {
 	struct em28xx_audio *adev = &dev->adev;
+	struct usb_device *udev = interface_to_usbdev(dev->intf);
 	struct snd_pcm      *pcm;
 	struct snd_card     *card;
 	static int          devnr;
@@ -920,7 +925,7 @@ static int em28xx_audio_init(struct em28xx *dev)
 
 	spin_lock_init(&adev->slock);
 	adev->sndcard = card;
-	adev->udev = dev->udev;
+	adev->udev = udev;
 
 	err = snd_pcm_new(card, "Em28xx Audio", 0, 0, 1, &pcm);
 	if (err < 0)

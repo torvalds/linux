@@ -677,7 +677,6 @@ struct em28xx {
 	spinlock_t slock;
 
 	/* usb transfer */
-	struct usb_device *udev;	/* the usb device */
 	struct usb_interface *intf;	/* the usb interface */
 	u8 ifnum;		/* number of the assigned usb interface */
 	u8 analog_ep_isoc;	/* address of isoc endpoint for analog */
