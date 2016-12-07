@@ -33,8 +33,8 @@
 
 #ifdef CONFIG_TI_CPTS
 
-#define cpts_read32(c, r)	__raw_readl(&c->reg->r)
-#define cpts_write32(c, v, r)	__raw_writel(v, &c->reg->r)
+#define cpts_read32(c, r)	readl_relaxed(&c->reg->r)
+#define cpts_write32(c, v, r)	writel_relaxed(v, &c->reg->r)
 
 static int event_expired(struct cpts_event *event)
 {
