@@ -3276,7 +3276,7 @@ kiblnd_disconnect_conn(struct kib_conn *conn)
 int
 kiblnd_connd(void *arg)
 {
-	spinlock_t *lock= &kiblnd_data.kib_connd_lock;
+	spinlock_t *lock = &kiblnd_data.kib_connd_lock;
 	wait_queue_t wait;
 	unsigned long flags;
 	struct kib_conn *conn;
