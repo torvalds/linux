@@ -41,6 +41,10 @@
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
 
+	aliases {
+		sg_2500_aqr105_phy4 = &sg_2500_aqr105_phy4;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
