@@ -63,7 +63,7 @@ struct common_obj {
 	struct vb2_queue buffer_queue;
 	/* Queue of filled frames */
 	struct list_head dma_queue;
-	/* Used in video-buf */
+	/* Protects the dma_queue field */
 	spinlock_t irqlock;
 	/* lock used to access this structure */
 	struct mutex lock;
