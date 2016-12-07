@@ -2479,6 +2479,33 @@ static int osc_disconnect(struct obd_export *exp)
 	return rc;
 }
 
+static int osc_ldlm_resource_invalidate(struct cfs_hash *hs,
+					struct cfs_hash_bd *bd,
+					struct hlist_node *hnode, void *arg)
+{
+	struct ldlm_resource *res = cfs_hash_object(hs, hnode);
+	struct osc_object *osc = NULL;
+	struct lu_env *env = arg;
+	struct ldlm_lock *lock;
+
+	lock_res(res);
+	list_for_each_entry(lock, &res->lr_granted, l_res_link) {
+		if (lock->l_ast_data && !osc) {
+			osc = lock->l_ast_data;
+			cl_object_get(osc2cl(osc));
+		}
+		lock->l_ast_data = NULL;
+	}
+	unlock_res(res);
+
+	if (osc) {
+		osc_object_invalidate(env, osc);
+		cl_object_put(env, osc2cl(osc));
+	}
+
+	return 0;
+}
+
 static int osc_import_event(struct obd_device *obd,
 			    struct obd_import *imp,
 			    enum obd_import_event event)
@@ -2506,17 +2533,18 @@ static int osc_import_event(struct obd_device *obd,
 		struct lu_env *env;
 		int refcheck;
 
+		ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
+
 		env = cl_env_get(&refcheck);
 		if (!IS_ERR(env)) {
-			/* Reset grants */
-			cli = &obd->u.cli;
-			/* all pages go to failing rpcs due to the invalid
-			 * import
-			 */
-			osc_io_unplug(env, cli, NULL);
+			osc_io_unplug(env, &obd->u.cli, NULL);
+
+			cfs_hash_for_each_nolock(ns->ns_rs_hash,
+						 osc_ldlm_resource_invalidate,
+						 env, 0);
+			cl_env_put(env, &refcheck);
 
 			ldlm_namespace_cleanup(ns, LDLM_FL_LOCAL_ONLY);
-			cl_env_put(env, &refcheck);
 		} else {
 			rc = PTR_ERR(env);
 		}

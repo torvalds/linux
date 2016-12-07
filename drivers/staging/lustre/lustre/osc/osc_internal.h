@@ -220,4 +220,6 @@ struct ldlm_lock *osc_dlmlock_at_pgoff(const struct lu_env *env,
 				       struct osc_object *obj, pgoff_t index,
 				       enum osc_dap_flags flags);
 
+int osc_object_invalidate(const struct lu_env *env, struct osc_object *osc);
+
 #endif /* OSC_INTERNAL_H */

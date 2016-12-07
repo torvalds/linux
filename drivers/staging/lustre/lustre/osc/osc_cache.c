@@ -247,7 +247,7 @@ static int osc_extent_sanity_check0(struct osc_extent *ext,
 		goto out;
 	}
 
-	if (ext->oe_dlmlock) {
+	if (ext->oe_dlmlock && !ldlm_is_failed(ext->oe_dlmlock)) {
 		struct ldlm_extent *extent;
 
 		extent = &ext->oe_dlmlock->l_policy_data.l_extent;
@@ -2710,8 +2710,8 @@ int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 /**
  * Called by osc_io_setattr_start() to freeze and destroy covering extents.
  */
-int osc_cache_truncate_start(const struct lu_env *env, struct osc_io *oio,
-			     struct osc_object *obj, __u64 size)
+int osc_cache_truncate_start(const struct lu_env *env, struct osc_object *obj,
+			     u64 size, struct osc_extent **extp)
 {
 	struct client_obd *cli = osc_cli(obj);
 	struct osc_extent *ext;
@@ -2808,9 +2808,11 @@ again:
 			/* we need to hold this extent in OES_TRUNC state so
 			 * that no writeback will happen. This is to avoid
 			 * BUG 17397.
+			 * Only partial truncate can reach here, if @size is
+			 * not zero, the caller should provide a valid @extp.
 			 */
-			LASSERT(!oio->oi_trunc);
-			oio->oi_trunc = osc_extent_get(ext);
+			LASSERT(!*extp);
+			*extp = osc_extent_get(ext);
 			OSC_EXTENT_DUMP(D_CACHE, ext,
 					"trunc at %llu\n", size);
 		}
@@ -2836,13 +2838,10 @@ again:
 /**
  * Called after osc_io_setattr_end to add oio->oi_trunc back to cache.
  */
-void osc_cache_truncate_end(const struct lu_env *env, struct osc_io *oio,
-			    struct osc_object *obj)
+void osc_cache_truncate_end(const struct lu_env *env, struct osc_extent *ext)
 {
-	struct osc_extent *ext = oio->oi_trunc;
-
-	oio->oi_trunc = NULL;
 	if (ext) {
+		struct osc_object *obj = ext->oe_obj;
 		bool unplug = false;
 
 		EASSERT(ext->oe_nr_pages > 0, ext);
@@ -3183,8 +3182,10 @@ static int discard_cb(const struct lu_env *env, struct cl_io *io,
 	/* page is top page. */
 	info->oti_next_index = osc_index(ops) + 1;
 	if (cl_page_own(env, io, page) == 0) {
-		KLASSERT(ergo(page->cp_type == CPT_CACHEABLE,
-			      !PageDirty(cl_page_vmpage(page))));
+		if (page->cp_type == CPT_CACHEABLE &&
+		    PageDirty(cl_page_vmpage(page)))
+			CL_PAGE_DEBUG(D_ERROR, env, page,
+				      "discard dirty page?\n");
 
 		/* discard the page */
 		cl_page_discard(env, io, page);

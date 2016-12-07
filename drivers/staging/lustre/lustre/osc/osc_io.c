@@ -330,8 +330,25 @@ static int osc_io_commit_async(const struct lu_env *env,
 	return result;
 }
 
-static int osc_io_rw_iter_init(const struct lu_env *env,
-			       const struct cl_io_slice *ios)
+static int osc_io_iter_init(const struct lu_env *env,
+			    const struct cl_io_slice *ios)
+{
+	struct osc_object *osc = cl2osc(ios->cis_obj);
+	struct obd_import *imp = osc_cli(osc)->cl_import;
+	int rc = -EIO;
+
+	spin_lock(&imp->imp_lock);
+	if (likely(!imp->imp_invalid)) {
+		atomic_inc(&osc->oo_nr_ios);
+		rc = 0;
+	}
+	spin_unlock(&imp->imp_lock);
+
+	return rc;
+}
+
+static int osc_io_write_iter_init(const struct lu_env *env,
+				  const struct cl_io_slice *ios)
 {
 	struct cl_io *io = ios->cis_io;
 	struct osc_io *oio = osc_env_io(env);
@@ -342,7 +359,7 @@ static int osc_io_rw_iter_init(const struct lu_env *env,
 	unsigned long max_pages;
 
 	if (cl_io_is_append(io))
-		return 0;
+		return osc_io_iter_init(env, ios);
 
 	npages = io->u.ci_rw.crw_count >> PAGE_SHIFT;
 	if (io->u.ci_rw.crw_pos & ~PAGE_MASK)
@@ -374,11 +391,21 @@ static int osc_io_rw_iter_init(const struct lu_env *env,
 		(void)ptlrpcd_queue_work(cli->cl_lru_work);
 	}
 
-	return 0;
+	return osc_io_iter_init(env, ios);
 }
 
-static void osc_io_rw_iter_fini(const struct lu_env *env,
-				const struct cl_io_slice *ios)
+static void osc_io_iter_fini(const struct lu_env *env,
+			     const struct cl_io_slice *ios)
+{
+	struct osc_object *osc = cl2osc(ios->cis_obj);
+
+	LASSERT(atomic_read(&osc->oo_nr_ios) > 0);
+	if (atomic_dec_and_test(&osc->oo_nr_ios))
+		wake_up_all(&osc->oo_io_waitq);
+}
+
+static void osc_io_write_iter_fini(const struct lu_env *env,
+				   const struct cl_io_slice *ios)
 {
 	struct osc_io *oio = osc_env_io(env);
 	struct osc_object *osc = cl2osc(ios->cis_obj);
@@ -389,6 +416,8 @@ static void osc_io_rw_iter_fini(const struct lu_env *env,
 		oio->oi_lru_reserved = 0;
 	}
 	oio->oi_write_osclock = NULL;
+
+	osc_io_iter_fini(env, ios);
 }
 
 static int osc_io_fault_start(const struct lu_env *env,
@@ -479,7 +508,8 @@ static int osc_io_setattr_start(const struct lu_env *env,
 
 	/* truncate cache dirty pages first */
 	if (cl_io_is_trunc(io))
-		result = osc_cache_truncate_start(env, oio, cl2osc(obj), size);
+		result = osc_cache_truncate_start(env, cl2osc(obj), size,
+						  &oio->oi_trunc);
 
 	if (result == 0 && oio->oi_lockless == 0) {
 		cl_object_attr_lock(obj);
@@ -589,10 +619,8 @@ static void osc_io_setattr_end(const struct lu_env *env,
 		__u64 size = io->u.ci_setattr.sa_attr.lvb_size;
 
 		osc_trunc_check(env, io, oio, size);
-		if (oio->oi_trunc) {
-			osc_cache_truncate_end(env, oio, cl2osc(obj));
-			oio->oi_trunc = NULL;
-		}
+		osc_cache_truncate_end(env, oio->oi_trunc);
+		oio->oi_trunc = NULL;
 	}
 }
 
@@ -832,17 +860,21 @@ static void osc_io_end(const struct lu_env *env,
 static const struct cl_io_operations osc_io_ops = {
 	.op = {
 		[CIT_READ] = {
+			.cio_iter_init	= osc_io_iter_init,
+			.cio_iter_fini	= osc_io_iter_fini,
 			.cio_start  = osc_io_read_start,
 			.cio_fini   = osc_io_fini
 		},
 		[CIT_WRITE] = {
-			.cio_iter_init = osc_io_rw_iter_init,
-			.cio_iter_fini = osc_io_rw_iter_fini,
+			.cio_iter_init	= osc_io_write_iter_init,
+			.cio_iter_fini	= osc_io_write_iter_fini,
 			.cio_start  = osc_io_write_start,
 			.cio_end    = osc_io_end,
 			.cio_fini   = osc_io_fini
 		},
 		[CIT_SETATTR] = {
+			.cio_iter_init	= osc_io_iter_init,
+			.cio_iter_fini	= osc_io_iter_fini,
 			.cio_start  = osc_io_setattr_start,
 			.cio_end    = osc_io_setattr_end
 		},
@@ -851,6 +883,8 @@ static const struct cl_io_operations osc_io_ops = {
 			.cio_end	= osc_io_data_version_end,
 		},
 		[CIT_FAULT] = {
+			.cio_iter_init	= osc_io_iter_init,
+			.cio_iter_fini	= osc_io_iter_fini,
 			.cio_start  = osc_io_fault_start,
 			.cio_end    = osc_io_end,
 			.cio_fini   = osc_io_fini
