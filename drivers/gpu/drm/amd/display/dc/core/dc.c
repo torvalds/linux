@@ -1336,6 +1336,7 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 	int i, j;
 	bool is_new_pipe_surface[MAX_PIPES];
 	const struct dc_surface *new_surfaces[MAX_SURFACES] = { 0 };
+	bool need_apply_clk_constraints = false;
 
 	update_surface_trace(dc, updates, surface_count);
 
@@ -1405,6 +1406,7 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 
 			if (updates[i].plane_info || updates[i].scaling_info
 					|| is_new_pipe_surface[j]) {
+				need_apply_clk_constraints = true;
 
 				if (updates[i].plane_info) {
 					surface->public.color_space =
