@@ -332,7 +332,7 @@ IF SOMETHING GOES WRONG:
 
      unable to handle kernel paging request at address C0000010
      Oops: 0002
-     EIP:   0010:XXXXXXXX
+     EIP: 0010:XXXXXXXX
      eax: xxxxxxxx   ebx: xxxxxxxx   ecx: xxxxxxxx   edx: xxxxxxxx
      esi: xxxxxxxx   edi: xxxxxxxx   ebp: xxxxxxxx
      ds: xxxx  es: xxxx  fs: xxxx  gs: xxxx
