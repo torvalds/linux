@@ -52,6 +52,7 @@
 
 #include "bnxt_hsi.h"
 #include "bnxt.h"
+#include "bnxt_ulp.h"
 #include "bnxt_sriov.h"
 #include "bnxt_ethtool.h"
 #include "bnxt_dcb.h"
@@ -1528,12 +1529,11 @@ static int bnxt_async_event_process(struct bnxt *bp,
 		set_bit(BNXT_RESET_TASK_SILENT_SP_EVENT, &bp->sp_event);
 		break;
 	default:
-		netdev_err(bp->dev, "unhandled ASYNC event (id 0x%x)\n",
-			   event_id);
 		goto async_event_process_exit;
 	}
 	schedule_work(&bp->sp_task);
 async_event_process_exit:
+	bnxt_ulp_async_events(bp, cmpl);
 	return 0;
 }
 
@@ -3547,7 +3547,7 @@ static int bnxt_hwrm_vnic_ctx_alloc(struct bnxt *bp, u16 vnic_id, u16 ctx_idx)
 	return rc;
 }
 
-static int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
+int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 {
 	unsigned int ring = 0, grp_idx;
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
@@ -3595,6 +3595,9 @@ static int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 #endif
 	if ((bp->flags & BNXT_FLAG_STRIP_VLAN) || def_vlan)
 		req.flags |= cpu_to_le32(VNIC_CFG_REQ_FLAGS_VLAN_STRIP_MODE);
+	if (!vnic_id && bnxt_ulp_registered(bp->edev, BNXT_ROCE_ULP))
+		req.flags |=
+			cpu_to_le32(VNIC_CFG_REQ_FLAGS_ROCE_DUAL_VNIC_MODE);
 
 	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 }
@@ -4842,6 +4845,16 @@ unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp)
 	return bp->pf.max_stat_ctxs;
 }
 
+void bnxt_set_max_func_stat_ctxs(struct bnxt *bp, unsigned int max)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		bp->vf.max_stat_ctxs = max;
+	else
+#endif
+		bp->pf.max_stat_ctxs = max;
+}
+
 unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
 {
 #if defined(CONFIG_BNXT_SRIOV)
@@ -4849,6 +4862,16 @@ unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
 		return bp->vf.max_cp_rings;
 #endif
 	return bp->pf.max_cp_rings;
+}
+
+void bnxt_set_max_func_cp_rings(struct bnxt *bp, unsigned int max)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		bp->vf.max_cp_rings = max;
+	else
+#endif
+		bp->pf.max_cp_rings = max;
 }
 
 static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
@@ -6767,6 +6790,8 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	pci_iounmap(pdev, bp->bar2);
 	pci_iounmap(pdev, bp->bar1);
 	pci_iounmap(pdev, bp->bar0);
+	kfree(bp->edev);
+	bp->edev = NULL;
 	free_netdev(dev);
 
 	pci_release_regions(pdev);
@@ -6936,6 +6961,7 @@ void bnxt_restore_pf_fw_resources(struct bnxt *bp)
 {
 	ASSERT_RTNL();
 	bnxt_hwrm_func_qcaps(bp);
+	bnxt_subtract_ulp_resources(bp, BNXT_ROCE_ULP);
 }
 
 static void bnxt_parse_log_pcie_link(struct bnxt *bp)
@@ -7047,6 +7073,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err;
 
+	bp->ulp_probe = bnxt_ulp_probe;
+
 	/* Get the MAX capabilities for this function */
 	rc = bnxt_hwrm_func_qcaps(bp);
 	if (rc) {
@@ -7144,11 +7172,14 @@ static pci_ers_result_t bnxt_io_error_detected(struct pci_dev *pdev,
 					       pci_channel_state_t state)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
+	struct bnxt *bp = netdev_priv(netdev);
 
 	netdev_info(netdev, "PCI I/O error detected\n");
 
 	rtnl_lock();
 	netif_device_detach(netdev);
+
+	bnxt_ulp_stop(bp);
 
 	if (state == pci_channel_io_perm_failure) {
 		rtnl_unlock();
@@ -7195,8 +7226,10 @@ static pci_ers_result_t bnxt_io_slot_reset(struct pci_dev *pdev)
 		if (!err && netif_running(netdev))
 			err = bnxt_open(netdev);
 
-		if (!err)
+		if (!err) {
 			result = PCI_ERS_RESULT_RECOVERED;
+			bnxt_ulp_start(bp);
+		}
 	}
 
 	if (result != PCI_ERS_RESULT_RECOVERED && netif_running(netdev))
