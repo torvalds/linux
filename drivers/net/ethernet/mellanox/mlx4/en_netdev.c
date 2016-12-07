@@ -51,7 +51,8 @@
 #include "mlx4_en.h"
 #include "en_port.h"
 
-#define MLX4_EN_MAX_XDP_MTU ((int)(PAGE_SIZE - ETH_HLEN - (2 * VLAN_HLEN)))
+#define MLX4_EN_MAX_XDP_MTU ((int)(PAGE_SIZE - ETH_HLEN - (2 * VLAN_HLEN) - \
+				   XDP_PACKET_HEADROOM))
 
 int mlx4_en_setup_tc(struct net_device *dev, u8 up)
 {
@@ -2699,11 +2700,6 @@ static int mlx4_xdp_set(struct net_device *dev, struct bpf_prog *prog)
 	int port_up = 0;
 	int err;
 	int i;
-
-	if (prog && prog->xdp_adjust_head) {
-		en_err(priv, "Does not support bpf_xdp_adjust_head()\n");
-		return -EOPNOTSUPP;
-	}
 
 	xdp_ring_num = prog ? priv->rx_ring_num : 0;
 

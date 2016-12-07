@@ -96,7 +96,6 @@ static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 	struct mlx4_en_rx_alloc page_alloc[MLX4_EN_MAX_RX_FRAGS];
 	const struct mlx4_en_frag_info *frag_info;
 	struct page *page;
-	dma_addr_t dma;
 	int i;
 
 	for (i = 0; i < priv->num_frags; i++) {
@@ -115,9 +114,10 @@ static int mlx4_en_alloc_frags(struct mlx4_en_priv *priv,
 
 	for (i = 0; i < priv->num_frags; i++) {
 		frags[i] = ring_alloc[i];
-		dma = ring_alloc[i].dma + ring_alloc[i].page_offset;
+		frags[i].page_offset += priv->frag_info[i].rx_headroom;
+		rx_desc->data[i].addr = cpu_to_be64(frags[i].dma +
+						    frags[i].page_offset);
 		ring_alloc[i] = page_alloc[i];
-		rx_desc->data[i].addr = cpu_to_be64(dma);
 	}
 
 	return 0;
@@ -250,7 +250,8 @@ static int mlx4_en_prepare_rx_desc(struct mlx4_en_priv *priv,
 
 	if (ring->page_cache.index > 0) {
 		frags[0] = ring->page_cache.buf[--ring->page_cache.index];
-		rx_desc->data[0].addr = cpu_to_be64(frags[0].dma);
+		rx_desc->data[0].addr = cpu_to_be64(frags[0].dma +
+						    frags[0].page_offset);
 		return 0;
 	}
 
@@ -889,6 +890,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		if (xdp_prog) {
 			struct xdp_buff xdp;
 			dma_addr_t dma;
+			void *orig_data;
 			u32 act;
 
 			dma = be64_to_cpu(rx_desc->data[0].addr);
@@ -896,11 +898,19 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 						priv->frag_info[0].frag_size,
 						DMA_FROM_DEVICE);
 
-			xdp.data = page_address(frags[0].page) +
-							frags[0].page_offset;
+			xdp.data_hard_start = page_address(frags[0].page);
+			xdp.data = xdp.data_hard_start + frags[0].page_offset;
 			xdp.data_end = xdp.data + length;
+			orig_data = xdp.data;
 
 			act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+			if (xdp.data != orig_data) {
+				length = xdp.data_end - xdp.data;
+				frags[0].page_offset = xdp.data -
+					xdp.data_hard_start;
+			}
+
 			switch (act) {
 			case XDP_PASS:
 				break;
@@ -1180,6 +1190,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 		 */
 		priv->frag_info[0].frag_stride = PAGE_SIZE;
 		priv->frag_info[0].dma_dir = PCI_DMA_BIDIRECTIONAL;
+		priv->frag_info[0].rx_headroom = XDP_PACKET_HEADROOM;
 		i = 1;
 	} else {
 		int buf_size = 0;
@@ -1194,6 +1205,7 @@ void mlx4_en_calc_rx_buf(struct net_device *dev)
 				ALIGN(priv->frag_info[i].frag_size,
 				      SMP_CACHE_BYTES);
 			priv->frag_info[i].dma_dir = PCI_DMA_FROMDEVICE;
+			priv->frag_info[i].rx_headroom = 0;
 			buf_size += priv->frag_info[i].frag_size;
 			i++;
 		}

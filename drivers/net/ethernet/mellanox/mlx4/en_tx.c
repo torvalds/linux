@@ -354,7 +354,7 @@ u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
 	struct mlx4_en_rx_alloc frame = {
 		.page = tx_info->page,
 		.dma = tx_info->map0_dma,
-		.page_offset = 0,
+		.page_offset = XDP_PACKET_HEADROOM,
 		.page_size = PAGE_SIZE,
 	};
 
@@ -1132,7 +1132,7 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	tx_info->page = frame->page;
 	frame->page = NULL;
 	tx_info->map0_dma = dma;
-	tx_info->map0_byte_count = length;
+	tx_info->map0_byte_count = PAGE_SIZE;
 	tx_info->nr_txbb = nr_txbb;
 	tx_info->nr_bytes = max_t(unsigned int, length, ETH_ZLEN);
 	tx_info->data_offset = (void *)data - (void *)tx_desc;
@@ -1141,9 +1141,10 @@ netdev_tx_t mlx4_en_xmit_frame(struct mlx4_en_rx_ring *rx_ring,
 	tx_info->linear = 1;
 	tx_info->inl = 0;
 
-	dma_sync_single_for_device(priv->ddev, dma, length, PCI_DMA_TODEVICE);
+	dma_sync_single_range_for_device(priv->ddev, dma, frame->page_offset,
+					 length, PCI_DMA_TODEVICE);
 
-	data->addr = cpu_to_be64(dma);
+	data->addr = cpu_to_be64(dma + frame->page_offset);
 	data->lkey = ring->mr_key;
 	dma_wmb();
 	data->byte_count = cpu_to_be32(length);
