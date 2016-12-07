@@ -200,6 +200,8 @@ struct gsl_ts {
 	u8 device_id;
 	int irq;
 	int rst;
+	int flag_irq_is_disable;
+	spinlock_t irq_lock;
 	struct tp_device  tp;
 };
 
@@ -739,6 +741,30 @@ static void report_data(struct gsl_ts *ts, u16 x, u16 y, u8 pressure, u8 id)
 #endif
 }
 
+void ts_irq_disable(struct gsl_ts *ts)
+{
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&ts->irq_lock, irqflags);
+	if (!ts->flag_irq_is_disable) {
+		disable_irq_nosync(ts->client->irq);
+		ts->flag_irq_is_disable = 1;
+	}
+	spin_unlock_irqrestore(&ts->irq_lock, irqflags);
+}
+
+void ts_irq_enable(struct gsl_ts *ts)
+{
+	unsigned long irqflags = 0;
+
+	spin_lock_irqsave(&ts->irq_lock, irqflags);
+	if (ts->flag_irq_is_disable) {
+		enable_irq(ts->client->irq);
+		ts->flag_irq_is_disable = 0;
+	}
+	spin_unlock_irqrestore(&ts->irq_lock, irqflags);
+}
+
 static void gsl3673_ts_worker(struct work_struct *work)
 {
 	int rc, i;
@@ -853,7 +879,8 @@ schedule:
 	i2c_lock_flag = 0;
 i2c_lock_schedule:
 #endif
-	enable_irq(ts->irq);
+	ts_irq_enable(ts);
+
 }
 
 #ifdef GSL_MONITOR
@@ -921,7 +948,7 @@ static irqreturn_t gsl_ts_irq(int irq, void *dev_id)
 {
 	struct gsl_ts *ts = (struct gsl_ts *)dev_id;
 
-	disable_irq_nosync(ts->irq);
+	ts_irq_disable(ts);
 	if (!work_pending(&ts->work))
 		queue_work(ts->wq, &ts->work);
 	return IRQ_HANDLED;
@@ -1009,7 +1036,9 @@ static int gsl_ts_suspend(struct device *dev)
 #ifdef GSL_MONITOR
 	cancel_delayed_work_sync(&gsl_monitor_work);
 #endif
-	disable_irq_nosync(ts->irq);
+	ts_irq_disable(ts);
+	cancel_work_sync(&ts->work);
+
 	gsl3673_shutdown_low();
 #ifdef SLEEP_CLEAR_POINT
 	msleep(10);
@@ -1058,8 +1087,8 @@ static int gsl_ts_resume(struct device *dev)
 #ifdef GSL_MONITOR
 	queue_delayed_work(gsl_monitor_workqueue, &gsl_monitor_work, 300);
 #endif
-	disable_irq_nosync(ts->irq);
-	enable_irq(ts->irq);
+	ts_irq_enable(ts);
+
 	return 0;
 }
 
@@ -1118,6 +1147,7 @@ static int  gsl_ts_probe(struct i2c_client *client,
 		goto error_init_chip_fail;
 	}
 	check_mem_data(ts->client);
+	spin_lock_init(&ts->irq_lock);
 	client->irq = gpio_to_irq(ts->irq);
 	rc = devm_request_irq(&client->dev, client->irq, gsl_ts_irq,
 				IRQF_TRIGGER_RISING, client->name, ts);

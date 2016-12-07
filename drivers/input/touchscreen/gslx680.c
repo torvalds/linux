@@ -1174,7 +1174,7 @@ static void gslX680_ts_worker(struct work_struct *work)
 	i2c_lock_flag = 0;
       i2c_lock_schedule:
 #endif
-	enable_irq(ts->irq);
+	enable_irq(ts->client->irq);
 
 }
 
@@ -1305,7 +1305,7 @@ static irqreturn_t gsl_ts_irq(int irq, void *dev_id)
 	struct gsl_ts *ts = (struct gsl_ts *)dev_id;
 	//print_info("========gslX680 Interrupt=========\n");
 
-	disable_irq_nosync(ts->irq);
+	disable_irq_nosync(ts->client->irq);
 
 	if (!work_pending(&ts->work)) {
 		queue_work(ts->wq, &ts->work);
@@ -1515,7 +1515,7 @@ static int gsl_ts_early_suspend(struct tp_device *tp_d)
 	cancel_delayed_work_sync(&ts->gsl_monitor_work);
 #endif
 
-	disable_irq_nosync(ts->irq);
+	disable_irq_nosync(ts->client->irq);
 
 #ifdef SLEEP_CLEAR_POINT
 	msleep(10);
@@ -1567,8 +1567,8 @@ static int gsl_ts_late_resume(struct tp_device *tp_d)
 	printk("gsl_ts_resume () : queue gsl_monitor_work\n");
 	queue_delayed_work(gsl_monitor_workqueue, &ts->gsl_monitor_work, 300);
 #endif
-	disable_irq_nosync(ts->irq);
-	enable_irq(ts->irq);
+	disable_irq_nosync(ts->client->irq);
+	enable_irq(ts->client->irq);
 
 	return 0;
 }
@@ -1585,7 +1585,7 @@ static void gsl_ts_early_suspend(struct early_suspend *h)
 	cancel_delayed_work_sync(&ts->gsl_monitor_work);
 #endif
 
-	disable_irq_nosync(ts->irq);
+	disable_irq_nosync(ts->client->irq);
 
 #ifdef SLEEP_CLEAR_POINT
 	msleep(10);
@@ -1638,8 +1638,9 @@ static void gsl_ts_late_resume(struct early_suspend *h)
 	printk("gsl_ts_resume () : queue gsl_monitor_work\n");
 	queue_delayed_work(gsl_monitor_workqueue, &ts->gsl_monitor_work, 300);
 #endif
-	disable_irq_nosync(ts->irq);
-	enable_irq(ts->irq);
+	disable_irq_nosync(ts->client->irq);
+	enable_irq(ts->client->irq);
+
 }
 #endif
 
@@ -1766,7 +1767,7 @@ static int gsl_ts_remove(struct i2c_client *client)
 
 	device_init_wakeup(&client->dev, 0);
 	cancel_work_sync(&ts->work);
-	free_irq(ts->irq, ts);
+	free_irq(ts->client->irq, ts);
 	destroy_workqueue(ts->wq);
 	//device_remove_file(&ts->input->dev, &dev_attr_debug_enable);
 
