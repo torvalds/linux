@@ -981,7 +981,12 @@ void format_name_convert(uint32_t *df, uint32_t sf)
 
 void RGA_MSG_2_RGA2_MSG(struct rga_req *req_rga, struct rga2_req *req)
 {
-    u16 alpha_mode_0, alpha_mode_1;
+	u16 alpha_mode_0, alpha_mode_1;
+
+	if (req_rga->render_mode & RGA_BUF_GEM_TYPE_MASK)
+		req->buf_type = RGA_BUF_GEM_TYPE_MASK & RGA_BUF_GEM_TYPE_DMA;
+
+	req_rga->render_mode &= (~RGA_BUF_GEM_TYPE_MASK);
 
     if (req_rga->render_mode == 6)
         req->render_mode = update_palette_table_mode;
@@ -1198,7 +1203,13 @@ void memcpy_img_info(struct rga_img_info_t *dst, struct rga_img_info_32_t *src)
 }
 void RGA_MSG_2_RGA2_MSG_32(struct rga_req_32 *req_rga, struct rga2_req *req)
 {
-    u16 alpha_mode_0, alpha_mode_1;
+	u16 alpha_mode_0, alpha_mode_1;
+
+	if (req_rga->render_mode & RGA_BUF_GEM_TYPE_MASK)
+		req->buf_type = RGA_BUF_GEM_TYPE_MASK & RGA_BUF_GEM_TYPE_DMA;
+
+	req_rga->render_mode &= (~RGA_BUF_GEM_TYPE_MASK);
+
     if (req_rga->render_mode == 6)
         req->render_mode = update_palette_table_mode;
     else if (req_rga->render_mode == 7)

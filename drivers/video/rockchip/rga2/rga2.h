@@ -3,7 +3,7 @@
 
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
-
+#include <linux/dma-buf.h>
 
 
 #define RGA_BLIT_SYNC	0x5017
@@ -31,6 +31,9 @@
 #define rgaIS_ERROR(status)			(status < 0)
 #define rgaNO_ERROR(status)			(status >= 0)
 #define rgaIS_SUCCESS(status)		(status == 0)
+
+#define RGA_BUF_GEM_TYPE_MASK      0xC0
+#define RGA_BUF_GEM_TYPE_DMA       0x80
 
 /* RGA2 process mode enum */
 enum
@@ -278,6 +281,7 @@ typedef struct rga_img_info_t
     unsigned short alpha_swap;
 }
 rga_img_info_t;
+
 typedef struct rga_img_info_32_t
 {
     uint32_t yrgb_addr;      /* yrgb    mem addr         */
@@ -522,10 +526,14 @@ struct rga2_req
 
     u8 rgb2yuv_mode;
 
-    struct sg_table *sg_src0;
-    struct sg_table *sg_src1;
-    struct sg_table *sg_dst;
-    struct sg_table *sg_els;
+	u8 buf_type;
+	struct sg_table *sg_src0;
+	struct sg_table *sg_src1;
+	struct sg_table *sg_dst;
+	struct sg_table *sg_els;
+	struct dma_buf_attachment *attach_src0;
+	struct dma_buf_attachment *attach_src1;
+	struct dma_buf_attachment *attach_dst;
 };
 
 struct rga2_mmu_buf_t {
@@ -646,20 +654,23 @@ typedef struct rga2_session {
 } rga2_session;
 
 struct rga2_reg {
-    rga2_session 		*session;
-	struct list_head	session_link;		/* link to rga service session */
-	struct list_head	status_link;		/* link to register set list */
+	rga2_session		*session;
+	struct list_head	session_link;
+	struct list_head	status_link;
 	uint32_t  sys_reg[8];
-    uint32_t  cmd_reg[32];
+	uint32_t  cmd_reg[32];
 
-    uint32_t *MMU_base;
-    uint32_t MMU_len;
-    //atomic_t int_enable;
+	uint32_t *MMU_base;
+	uint32_t MMU_len;
 
-    //struct rga_req      req;
+	struct sg_table *sg_src0;
+	struct sg_table *sg_src1;
+	struct sg_table *sg_dst;
+
+	struct dma_buf_attachment *attach_src0;
+	struct dma_buf_attachment *attach_src1;
+	struct dma_buf_attachment *attach_dst;
 };
-
-
 
 struct rga2_service_info {
     struct mutex	lock;
