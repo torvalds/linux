@@ -376,6 +376,25 @@ found_clock:
 	return 0;
 }
 
+void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable)
+{
+	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct clk *clk;
+	int i, ret;
+
+	for_each_rsnd_clk(clk, adg, i) {
+		ret = 0;
+		if (enable)
+			ret = clk_prepare_enable(clk);
+		else
+			clk_disable_unprepare(clk);
+
+		if (ret < 0)
+			dev_warn(dev, "can't use clk %d\n", i);
+	}
+}
+
 static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
 			       struct rsnd_adg *adg)
 {
@@ -387,20 +406,15 @@ static void rsnd_adg_get_clkin(struct rsnd_priv *priv,
 		[CLKC]	= "clk_c",
 		[CLKI]	= "clk_i",
 	};
-	int i, ret;
+	int i;
 
 	for (i = 0; i < CLKMAX; i++) {
 		clk = devm_clk_get(dev, clk_name[i]);
 		adg->clk[i] = IS_ERR(clk) ? NULL : clk;
 	}
 
-	for_each_rsnd_clk(clk, adg, i) {
-		ret = clk_prepare_enable(clk);
-		if (ret < 0)
-			dev_warn(dev, "can't use clk %d\n", i);
-
+	for_each_rsnd_clk(clk, adg, i)
 		dev_dbg(dev, "clk %d : %p : %ld\n", i, clk, clk_get_rate(clk));
-	}
 }
 
 static void rsnd_adg_get_clkout(struct rsnd_priv *priv,
@@ -565,16 +579,12 @@ int rsnd_adg_probe(struct rsnd_priv *priv)
 
 	priv->adg = adg;
 
+	rsnd_adg_clk_enable(priv);
+
 	return 0;
 }
 
 void rsnd_adg_remove(struct rsnd_priv *priv)
 {
-	struct rsnd_adg *adg = rsnd_priv_to_adg(priv);
-	struct clk *clk;
-	int i;
-
-	for_each_rsnd_clk(clk, adg, i) {
-		clk_disable_unprepare(clk);
-	}
+	rsnd_adg_clk_disable(priv);
 }

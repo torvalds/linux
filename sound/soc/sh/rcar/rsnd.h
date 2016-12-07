@@ -499,6 +499,9 @@ int rsnd_adg_set_src_timesel_gen2(struct rsnd_mod *src_mod,
 				  unsigned int out_rate);
 int rsnd_adg_set_cmd_timsel_gen2(struct rsnd_mod *mod,
 				 struct rsnd_dai_stream *io);
+#define rsnd_adg_clk_enable(priv)	rsnd_adg_clk_control(priv, 1)
+#define rsnd_adg_clk_disable(priv)	rsnd_adg_clk_control(priv, 0)
+void rsnd_adg_clk_control(struct rsnd_priv *priv, int enable);
 
 /*
  *	R-Car sound priv

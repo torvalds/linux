@@ -1308,9 +1308,33 @@ static int rsnd_remove(struct platform_device *pdev)
 	return ret;
 }
 
+static int rsnd_suspend(struct device *dev)
+{
+	struct rsnd_priv *priv = dev_get_drvdata(dev);
+
+	rsnd_adg_clk_disable(priv);
+
+	return 0;
+}
+
+static int rsnd_resume(struct device *dev)
+{
+	struct rsnd_priv *priv = dev_get_drvdata(dev);
+
+	rsnd_adg_clk_enable(priv);
+
+	return 0;
+}
+
+static struct dev_pm_ops rsnd_pm_ops = {
+	.suspend		= rsnd_suspend,
+	.resume			= rsnd_resume,
+};
+
 static struct platform_driver rsnd_driver = {
 	.driver	= {
 		.name	= "rcar_sound",
+		.pm	= &rsnd_pm_ops,
 		.of_match_table = rsnd_of_match,
 	},
 	.probe		= rsnd_probe,
