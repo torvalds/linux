@@ -1863,18 +1863,7 @@ static struct pci_driver slic_driver = {
 	.remove = slic_remove,
 };
 
-static int __init slic_init_module(void)
-{
-	return pci_register_driver(&slic_driver);
-}
-
-static void __exit slic_cleanup_module(void)
-{
-	pci_unregister_driver(&slic_driver);
-}
-
-module_init(slic_init_module);
-module_exit(slic_cleanup_module);
+module_pci_driver(slic_driver);
 
 MODULE_DESCRIPTION("Alacritech non-accelerated SLIC driver");
 MODULE_AUTHOR("Lino Sanfilippo <LinoSanfilippo@gmx.de>");
