@@ -367,6 +367,16 @@ static struct clk aemif_clk = {
 	.flags		= ALWAYS_ENABLED,
 };
 
+/*
+ * In order to avoid adding the aemif_clk to the clock lookup table twice (and
+ * screwing up the linked list in the process) create a separate clock for
+ * nand inheriting the rate from aemif_clk.
+ */
+static struct clk aemif_nand_clk = {
+	.name		= "nand",
+	.parent		= &aemif_clk,
+};
+
 static struct clk usb11_clk = {
 	.name		= "usb11",
 	.parent		= &pll0_sysclk4,
@@ -537,7 +547,15 @@ static struct clk_lookup da850_clks[] = {
 	CLK("da830-mmc.0",	NULL,		&mmcsd0_clk),
 	CLK("da830-mmc.1",	NULL,		&mmcsd1_clk),
 	CLK("ti-aemif",		NULL,		&aemif_clk),
-	CLK(NULL,		"aemif",	&aemif_clk),
+	/*
+	 * The only user of this clock is davinci_nand and it get's it through
+	 * con_id. The nand node itself is created from within the aemif
+	 * driver to guarantee that it's probed after the aemif timing
+	 * parameters are configured. of_dev_auxdata is not accessible from
+	 * the aemif driver and can't be passed to of_platform_populate(). For
+	 * that reason we're leaving the dev_id here as NULL.
+	 */
+	CLK(NULL,		"aemif",	&aemif_nand_clk),
 	CLK("ohci-da8xx",	"usb11",	&usb11_clk),
 	CLK("musb-da8xx",	"usb20",	&usb20_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
