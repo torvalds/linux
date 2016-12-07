@@ -1016,7 +1016,7 @@ static bool file_is_noatime(const struct file *file)
 	return false;
 }
 
-void ll_io_init(struct cl_io *io, const struct file *file, int write)
+static void ll_io_init(struct cl_io *io, const struct file *file, int write)
 {
 	struct inode *inode = file_inode(file);
 
