@@ -43,7 +43,7 @@ MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
 #define dprintk( fmt, arg...) do {					\
 	if (ir_debug)							\
-		dev_printk(KERN_DEBUG, &ir->dev->udev->dev,		\
+		dev_printk(KERN_DEBUG, &ir->dev->intf->dev,		\
 			   "input: %s: " fmt, __func__, ## arg);	\
 } while (0)
 
@@ -459,7 +459,7 @@ static int em28xx_ir_change_protocol(struct rc_dev *rc_dev, u64 *rc_type)
 	case CHIP_ID_EM28178:
 		return em2874_ir_change_protocol(rc_dev, rc_type);
 	default:
-		dev_err(&ir->dev->udev->dev,
+		dev_err(&ir->dev->intf->dev,
 			"Unrecognized em28xx chip id 0x%02x: IR not supported\n",
 			dev->chip_id);
 		return -EINVAL;
@@ -569,7 +569,7 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 	struct input_dev *input_dev;
 	int err;
 
-	dev_info(&dev->udev->dev, "Registering snapshot button...\n");
+	dev_info(&dev->intf->dev, "Registering snapshot button...\n");
 	input_dev = input_allocate_device();
 	if (!input_dev)
 		return -ENOMEM;
@@ -589,11 +589,11 @@ static int em28xx_register_snapshot_button(struct em28xx *dev)
 	input_dev->id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
 	input_dev->id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
 	input_dev->id.version = 1;
-	input_dev->dev.parent = &dev->udev->dev;
+	input_dev->dev.parent = &dev->intf->dev;
 
 	err = input_register_device(input_dev);
 	if (err) {
-		dev_err(&dev->udev->dev, "input_register_device failed\n");
+		dev_err(&dev->intf->dev, "input_register_device failed\n");
 		input_free_device(input_dev);
 		return err;
 	}
@@ -633,7 +633,7 @@ static void em28xx_init_buttons(struct em28xx *dev)
 		} else if (button->role == EM28XX_BUTTON_ILLUMINATION) {
 			/* Check sanity */
 			if (!em28xx_find_led(dev, EM28XX_LED_ILLUMINATION)) {
-				dev_err(&dev->udev->dev,
+				dev_err(&dev->intf->dev,
 					"BUG: illumination button defined, but no illumination LED.\n");
 				goto next_button;
 			}
@@ -670,7 +670,7 @@ static void em28xx_shutdown_buttons(struct em28xx *dev)
 	dev->num_button_polling_addresses = 0;
 	/* Deregister input devices */
 	if (dev->sbutton_input_dev != NULL) {
-		dev_info(&dev->udev->dev, "Deregistering snapshot button\n");
+		dev_info(&dev->intf->dev, "Deregistering snapshot button\n");
 		input_unregister_device(dev->sbutton_input_dev);
 		dev->sbutton_input_dev = NULL;
 	}
@@ -699,7 +699,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 		i2c_rc_dev_addr = em28xx_probe_i2c_ir(dev);
 		if (!i2c_rc_dev_addr) {
 			dev->board.has_ir_i2c = 0;
-			dev_warn(&dev->udev->dev,
+			dev_warn(&dev->intf->dev,
 				 "No i2c IR remote control device found.\n");
 			return -ENODEV;
 		}
@@ -707,12 +707,12 @@ static int em28xx_ir_init(struct em28xx *dev)
 
 	if (dev->board.ir_codes == NULL && !dev->board.has_ir_i2c) {
 		/* No remote control support */
-		dev_warn(&dev->udev->dev,
+		dev_warn(&dev->intf->dev,
 			 "Remote control support is not available for this card.\n");
 		return 0;
 	}
 
-	dev_info(&dev->udev->dev, "Registering input extension\n");
+	dev_info(&dev->intf->dev, "Registering input extension\n");
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
 	if (!ir)
@@ -797,7 +797,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 
 	/* init input device */
 	snprintf(ir->name, sizeof(ir->name), "%s IR",
-		 dev_name(&dev->udev->dev));
+		 dev_name(&dev->intf->dev));
 
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
@@ -808,7 +808,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	rc->input_id.version = 1;
 	rc->input_id.vendor = le16_to_cpu(dev->udev->descriptor.idVendor);
 	rc->input_id.product = le16_to_cpu(dev->udev->descriptor.idProduct);
-	rc->dev.parent = &dev->udev->dev;
+	rc->dev.parent = &dev->intf->dev;
 	rc->driver_name = MODULE_NAME;
 
 	/* all done */
@@ -816,7 +816,7 @@ static int em28xx_ir_init(struct em28xx *dev)
 	if (err)
 		goto error;
 
-	dev_info(&dev->udev->dev, "Input extension successfully initalized\n");
+	dev_info(&dev->intf->dev, "Input extension successfully initalized\n");
 
 	return 0;
 
@@ -837,7 +837,7 @@ static int em28xx_ir_fini(struct em28xx *dev)
 		return 0;
 	}
 
-	dev_info(&dev->udev->dev, "Closing input extension\n");
+	dev_info(&dev->intf->dev, "Closing input extension\n");
 
 	em28xx_shutdown_buttons(dev);
 
@@ -866,7 +866,7 @@ static int em28xx_ir_suspend(struct em28xx *dev)
 	if (dev->is_audio_only)
 		return 0;
 
-	dev_info(&dev->udev->dev, "Suspending input extension\n");
+	dev_info(&dev->intf->dev, "Suspending input extension\n");
 	if (ir)
 		cancel_delayed_work_sync(&ir->work);
 	cancel_delayed_work_sync(&dev->buttons_query_work);
@@ -883,7 +883,7 @@ static int em28xx_ir_resume(struct em28xx *dev)
 	if (dev->is_audio_only)
 		return 0;
 
-	dev_info(&dev->udev->dev, "Resuming input extension\n");
+	dev_info(&dev->intf->dev, "Resuming input extension\n");
 	/* if suspend calls ir_raw_event_unregister(), the should call
 	   ir_raw_event_register() */
 	if (ir)
