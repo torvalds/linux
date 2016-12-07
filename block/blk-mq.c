@@ -821,6 +821,88 @@ static inline unsigned int queued_to_index(unsigned int queued)
 	return min(BLK_MQ_MAX_DISPATCH_ORDER - 1, ilog2(queued) + 1);
 }
 
+bool blk_mq_dispatch_rq_list(struct blk_mq_hw_ctx *hctx, struct list_head *list)
+{
+	struct request_queue *q = hctx->queue;
+	struct request *rq;
+	LIST_HEAD(driver_list);
+	struct list_head *dptr;
+	int queued, ret = BLK_MQ_RQ_QUEUE_OK;
+
+	/*
+	 * Start off with dptr being NULL, so we start the first request
+	 * immediately, even if we have more pending.
+	 */
+	dptr = NULL;
+
+	/*
+	 * Now process all the entries, sending them to the driver.
+	 */
+	queued = 0;
+	while (!list_empty(list)) {
+		struct blk_mq_queue_data bd;
+
+		rq = list_first_entry(list, struct request, queuelist);
+		list_del_init(&rq->queuelist);
+
+		bd.rq = rq;
+		bd.list = dptr;
+		bd.last = list_empty(list);
+
+		ret = q->mq_ops->queue_rq(hctx, &bd);
+		switch (ret) {
+		case BLK_MQ_RQ_QUEUE_OK:
+			queued++;
+			break;
+		case BLK_MQ_RQ_QUEUE_BUSY:
+			list_add(&rq->queuelist, list);
+			__blk_mq_requeue_request(rq);
+			break;
+		default:
+			pr_err("blk-mq: bad return on queue: %d\n", ret);
+		case BLK_MQ_RQ_QUEUE_ERROR:
+			rq->errors = -EIO;
+			blk_mq_end_request(rq, rq->errors);
+			break;
+		}
+
+		if (ret == BLK_MQ_RQ_QUEUE_BUSY)
+			break;
+
+		/*
+		 * We've done the first request. If we have more than 1
+		 * left in the list, set dptr to defer issue.
+		 */
+		if (!dptr && list->next != list->prev)
+			dptr = &driver_list;
+	}
+
+	hctx->dispatched[queued_to_index(queued)]++;
+
+	/*
+	 * Any items that need requeuing? Stuff them into hctx->dispatch,
+	 * that is where we will continue on next queue run.
+	 */
+	if (!list_empty(list)) {
+		spin_lock(&hctx->lock);
+		list_splice(list, &hctx->dispatch);
+		spin_unlock(&hctx->lock);
+
+		/*
+		 * the queue is expected stopped with BLK_MQ_RQ_QUEUE_BUSY, but
+		 * it's possible the queue is stopped and restarted again
+		 * before this. Queue restart will dispatch requests. And since
+		 * requests in rq_list aren't added into hctx->dispatch yet,
+		 * the requests in rq_list might get lost.
+		 *
+		 * blk_mq_run_hw_queue() already checks the STOPPED bit
+		 **/
+		blk_mq_run_hw_queue(hctx, true);
+	}
+
+	return ret != BLK_MQ_RQ_QUEUE_BUSY;
+}
+
 /*
  * Run this hardware queue, pulling any software queues mapped to it in.
  * Note that this function currently has various problems around ordering
@@ -829,12 +911,8 @@ static inline unsigned int queued_to_index(unsigned int queued)
  */
 static void blk_mq_process_rq_list(struct blk_mq_hw_ctx *hctx)
 {
-	struct request_queue *q = hctx->queue;
-	struct request *rq;
 	LIST_HEAD(rq_list);
 	LIST_HEAD(driver_list);
-	struct list_head *dptr;
-	int queued;
 
 	if (unlikely(blk_mq_hctx_stopped(hctx)))
 		return;
@@ -857,76 +935,7 @@ static void blk_mq_process_rq_list(struct blk_mq_hw_ctx *hctx)
 		spin_unlock(&hctx->lock);
 	}
 
-	/*
-	 * Start off with dptr being NULL, so we start the first request
-	 * immediately, even if we have more pending.
-	 */
-	dptr = NULL;
-
-	/*
-	 * Now process all the entries, sending them to the driver.
-	 */
-	queued = 0;
-	while (!list_empty(&rq_list)) {
-		struct blk_mq_queue_data bd;
-		int ret;
-
-		rq = list_first_entry(&rq_list, struct request, queuelist);
-		list_del_init(&rq->queuelist);
-
-		bd.rq = rq;
-		bd.list = dptr;
-		bd.last = list_empty(&rq_list);
-
-		ret = q->mq_ops->queue_rq(hctx, &bd);
-		switch (ret) {
-		case BLK_MQ_RQ_QUEUE_OK:
-			queued++;
-			break;
-		case BLK_MQ_RQ_QUEUE_BUSY:
-			list_add(&rq->queuelist, &rq_list);
-			__blk_mq_requeue_request(rq);
-			break;
-		default:
-			pr_err("blk-mq: bad return on queue: %d\n", ret);
-		case BLK_MQ_RQ_QUEUE_ERROR:
-			rq->errors = -EIO;
-			blk_mq_end_request(rq, rq->errors);
-			break;
-		}
-
-		if (ret == BLK_MQ_RQ_QUEUE_BUSY)
-			break;
-
-		/*
-		 * We've done the first request. If we have more than 1
-		 * left in the list, set dptr to defer issue.
-		 */
-		if (!dptr && rq_list.next != rq_list.prev)
-			dptr = &driver_list;
-	}
-
-	hctx->dispatched[queued_to_index(queued)]++;
-
-	/*
-	 * Any items that need requeuing? Stuff them into hctx->dispatch,
-	 * that is where we will continue on next queue run.
-	 */
-	if (!list_empty(&rq_list)) {
-		spin_lock(&hctx->lock);
-		list_splice(&rq_list, &hctx->dispatch);
-		spin_unlock(&hctx->lock);
-		/*
-		 * the queue is expected stopped with BLK_MQ_RQ_QUEUE_BUSY, but
-		 * it's possible the queue is stopped and restarted again
-		 * before this. Queue restart will dispatch requests. And since
-		 * requests in rq_list aren't added into hctx->dispatch yet,
-		 * the requests in rq_list might get lost.
-		 *
-		 * blk_mq_run_hw_queue() already checks the STOPPED bit
-		 **/
-		blk_mq_run_hw_queue(hctx, true);
-	}
+	blk_mq_dispatch_rq_list(hctx, &rq_list);
 }
 
 static void __blk_mq_run_hw_queue(struct blk_mq_hw_ctx *hctx)
