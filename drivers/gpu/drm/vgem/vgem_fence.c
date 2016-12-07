@@ -126,7 +126,6 @@ static int attach_dmabuf(struct drm_device *dev,
 		return PTR_ERR(dmabuf);
 
 	obj->dma_buf = dmabuf;
-	drm_gem_object_reference(obj);
 	return 0;
 }
 
