@@ -840,8 +840,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret)
 		goto out_unpin;
 
-	i915_gem_track_fb(overlay->vma->obj, new_bo,
-			  INTEL_FRONTBUFFER_OVERLAY(pipe));
+	i915_gem_track_fb(overlay->vma ? overlay->vma->obj : NULL,
+			  vma->obj, INTEL_FRONTBUFFER_OVERLAY(pipe));
 
 	overlay->old_vma = overlay->vma;
 	overlay->vma = vma;
