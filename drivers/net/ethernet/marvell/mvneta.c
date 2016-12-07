@@ -3578,9 +3578,10 @@ static int mvneta_stop(struct net_device *dev)
 		mvneta_stop_dev(pp);
 		mvneta_mdio_remove(pp);
 
-	cpuhp_state_remove_instance_nocalls(online_hpstate, &pp->node_online);
-	cpuhp_state_remove_instance_nocalls(CPUHP_NET_MVNETA_DEAD,
-					    &pp->node_dead);
+		cpuhp_state_remove_instance_nocalls(online_hpstate,
+						    &pp->node_online);
+		cpuhp_state_remove_instance_nocalls(CPUHP_NET_MVNETA_DEAD,
+						    &pp->node_dead);
 		on_each_cpu(mvneta_percpu_disable, pp, true);
 		free_percpu_irq(dev->irq, pp->ports);
 	} else {
