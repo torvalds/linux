@@ -304,21 +304,22 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		plat->force_sf_dma_mode = 1;
 	}
 
-	if (of_find_property(np, "snps,pbl", NULL)) {
-		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
-				       GFP_KERNEL);
-		if (!dma_cfg) {
-			stmmac_remove_config_dt(pdev, plat);
-			return ERR_PTR(-ENOMEM);
-		}
-		plat->dma_cfg = dma_cfg;
-		of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
-		dma_cfg->aal = of_property_read_bool(np, "snps,aal");
-		dma_cfg->fixed_burst =
-			of_property_read_bool(np, "snps,fixed-burst");
-		dma_cfg->mixed_burst =
-			of_property_read_bool(np, "snps,mixed-burst");
+	dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
+			       GFP_KERNEL);
+	if (!dma_cfg) {
+		stmmac_remove_config_dt(pdev, plat);
+		return ERR_PTR(-ENOMEM);
 	}
+	plat->dma_cfg = dma_cfg;
+
+	of_property_read_u32(np, "snps,pbl", &dma_cfg->pbl);
+	if (!dma_cfg->pbl)
+		dma_cfg->pbl = DEFAULT_DMA_PBL;
+
+	dma_cfg->aal = of_property_read_bool(np, "snps,aal");
+	dma_cfg->fixed_burst = of_property_read_bool(np, "snps,fixed-burst");
+	dma_cfg->mixed_burst = of_property_read_bool(np, "snps,mixed-burst");
+
 	plat->force_thresh_dma_mode = of_property_read_bool(np, "snps,force_thresh_dma_mode");
 	if (plat->force_thresh_dma_mode) {
 		plat->force_sf_dma_mode = 0;

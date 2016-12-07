@@ -1581,8 +1581,8 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 	int atds = 0;
 	int ret = 0;
 
-	if (!priv->plat->dma_cfg) {
-		dev_err(priv->device, "DMA configuration not found\n");
+	if (!priv->plat->dma_cfg || !priv->plat->dma_cfg->pbl) {
+		dev_err(priv->device, "Invalid DMA configuration\n");
 		return -EINVAL;
 	}
 
