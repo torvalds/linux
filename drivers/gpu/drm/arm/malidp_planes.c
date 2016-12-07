@@ -135,8 +135,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	if ((state->crtc_w > mp->hwdev->max_line_size) ||
 	    (state->crtc_h > mp->hwdev->max_line_size) ||
 	    (state->crtc_w < mp->hwdev->min_line_size) ||
-	    (state->crtc_h < mp->hwdev->min_line_size) ||
-	    (state->crtc_w != src_w) || (state->crtc_h != src_h))
+	    (state->crtc_h < mp->hwdev->min_line_size))
 		return -EINVAL;
 
 	/* packed RGB888 / BGR888 can't be rotated or flipped */
