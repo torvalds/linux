@@ -230,18 +230,20 @@ static void cpts_overflow_check(struct work_struct *work)
 
 static void cpts_clk_init(struct device *dev, struct cpts *cpts)
 {
-	cpts->refclk = devm_clk_get(dev, "cpts");
-	if (IS_ERR(cpts->refclk)) {
-		dev_err(dev, "Failed to get cpts refclk\n");
-		cpts->refclk = NULL;
-		return;
+	if (!cpts->refclk) {
+		cpts->refclk = devm_clk_get(dev, "cpts");
+		if (IS_ERR(cpts->refclk)) {
+			dev_err(dev, "Failed to get cpts refclk\n");
+			cpts->refclk = NULL;
+			return;
+		}
 	}
 	clk_prepare_enable(cpts->refclk);
 }
 
 static void cpts_clk_release(struct cpts *cpts)
 {
-	clk_disable(cpts->refclk);
+	clk_disable_unprepare(cpts->refclk);
 }
 
 static int cpts_match(struct sk_buff *skb, unsigned int ptp_class,
