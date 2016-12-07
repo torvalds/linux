@@ -317,6 +317,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		dma_cfg->pbl = DEFAULT_DMA_PBL;
 	of_property_read_u32(np, "snps,txpbl", &dma_cfg->txpbl);
 	of_property_read_u32(np, "snps,rxpbl", &dma_cfg->rxpbl);
+	dma_cfg->pblx8 = !of_property_read_bool(np, "snps,no-pbl-x8");
 
 	dma_cfg->aal = of_property_read_bool(np, "snps,aal");
 	dma_cfg->fixed_burst = of_property_read_bool(np, "snps,fixed-burst");

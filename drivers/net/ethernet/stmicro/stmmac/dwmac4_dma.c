@@ -84,7 +84,8 @@ static void dwmac4_dma_init_channel(void __iomem *ioaddr,
 	 * on each channel
 	 */
 	value = readl(ioaddr + DMA_CHAN_CONTROL(channel));
-	value = value | DMA_BUS_MODE_PBL;
+	if (dma_cfg->pblx8)
+		value = value | DMA_BUS_MODE_PBL;
 	writel(value, ioaddr + DMA_CHAN_CONTROL(channel));
 
 	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(channel));

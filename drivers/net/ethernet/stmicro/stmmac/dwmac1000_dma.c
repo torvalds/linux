@@ -98,7 +98,8 @@ static void dwmac1000_dma_init(void __iomem *ioaddr,
 	 * Note: before stmmac core 3.50 this mode bit was 4xPBL, and
 	 * post 3.5 mode bit acts as 8*PBL.
 	 */
-	value |= DMA_BUS_MODE_MAXPBL;
+	if (dma_cfg->pblx8)
+		value |= DMA_BUS_MODE_MAXPBL;
 	value |= DMA_BUS_MODE_USP;
 	value &= ~(DMA_BUS_MODE_PBL_MASK | DMA_BUS_MODE_RPBL_MASK);
 	value |= (txpbl << DMA_BUS_MODE_PBL_SHIFT);
