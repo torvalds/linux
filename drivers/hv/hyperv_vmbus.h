@@ -505,9 +505,9 @@ extern int hv_synic_alloc(void);
 
 extern void hv_synic_free(void);
 
-extern void hv_synic_init(void *irqarg);
+extern int hv_synic_init(unsigned int cpu);
 
-extern void hv_synic_cleanup(void *arg);
+extern int hv_synic_cleanup(unsigned int cpu);
 
 extern void hv_synic_clockevents_cleanup(void);
 

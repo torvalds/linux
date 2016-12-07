@@ -496,7 +496,7 @@ void hv_synic_free(void)
  * retrieve the initialized message and event pages.  Otherwise, we create and
  * initialize the message and event pages.
  */
-void hv_synic_init(void *arg)
+int hv_synic_init(unsigned int cpu)
 {
 	u64 version;
 	union hv_synic_simp simp;
@@ -505,10 +505,8 @@ void hv_synic_init(void *arg)
 	union hv_synic_scontrol sctrl;
 	u64 vp_index;
 
-	int cpu = smp_processor_id();
-
 	if (!hv_context.hypercall_page)
-		return;
+		return -EFAULT;
 
 	/* Check the version */
 	rdmsrl(HV_X64_MSR_SVERSION, version);
@@ -563,7 +561,7 @@ void hv_synic_init(void *arg)
 						HV_TIMER_FREQUENCY,
 						HV_MIN_DELTA_TICKS,
 						HV_MAX_MAX_DELTA_TICKS);
-	return;
+	return 0;
 }
 
 /*
@@ -583,16 +581,15 @@ void hv_synic_clockevents_cleanup(void)
 /*
  * hv_synic_cleanup - Cleanup routine for hv_synic_init().
  */
-void hv_synic_cleanup(void *arg)
+int hv_synic_cleanup(unsigned int cpu)
 {
 	union hv_synic_sint shared_sint;
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
 	union hv_synic_scontrol sctrl;
-	int cpu = smp_processor_id();
 
 	if (!hv_context.synic_initialized)
-		return;
+		return -EFAULT;
 
 	/* Turn off clockevent device */
 	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE) {
@@ -624,4 +621,6 @@ void hv_synic_cleanup(void *arg)
 	rdmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
 	sctrl.enable = 0;
 	wrmsrl(HV_X64_MSR_SCONTROL, sctrl.as_uint64);
+
+	return 0;
 }
