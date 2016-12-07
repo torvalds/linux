@@ -230,9 +230,14 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 
 	req->value = 0;
 
-	/* Only one cap makes sense with a UMS driver: */
-	if (req->capability == DRM_CAP_TIMESTAMP_MONOTONIC) {
+	/* Only some caps make sense with UMS/render-only drivers. */
+	switch (req->capability) {
+	case DRM_CAP_TIMESTAMP_MONOTONIC:
 		req->value = drm_timestamp_monotonic;
+		return 0;
+	case DRM_CAP_PRIME:
+		req->value |= dev->driver->prime_fd_to_handle ? DRM_PRIME_CAP_IMPORT : 0;
+		req->value |= dev->driver->prime_handle_to_fd ? DRM_PRIME_CAP_EXPORT : 0;
 		return 0;
 	}
 
@@ -253,10 +258,6 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 		break;
 	case DRM_CAP_DUMB_PREFER_SHADOW:
 		req->value = dev->mode_config.prefer_shadow;
-		break;
-	case DRM_CAP_PRIME:
-		req->value |= dev->driver->prime_fd_to_handle ? DRM_PRIME_CAP_IMPORT : 0;
-		req->value |= dev->driver->prime_handle_to_fd ? DRM_PRIME_CAP_EXPORT : 0;
 		break;
 	case DRM_CAP_ASYNC_PAGE_FLIP:
 		req->value = dev->mode_config.async_page_flip;
