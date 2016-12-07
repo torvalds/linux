@@ -43,6 +43,7 @@ static inline void nft_quota_do_eval(struct nft_quota *priv,
 static const struct nla_policy nft_quota_policy[NFTA_QUOTA_MAX + 1] = {
 	[NFTA_QUOTA_BYTES]	= { .type = NLA_U64 },
 	[NFTA_QUOTA_FLAGS]	= { .type = NLA_U32 },
+	[NFTA_QUOTA_CONSUMED]	= { .type = NLA_U64 },
 };
 
 #define NFT_QUOTA_DEPLETED_BIT	1	/* From NFT_QUOTA_F_DEPLETED. */
@@ -68,7 +69,7 @@ static int nft_quota_do_init(const struct nlattr * const tb[],
 			     struct nft_quota *priv)
 {
 	unsigned long flags = 0;
-	u64 quota;
+	u64 quota, consumed = 0;
 
 	if (!tb[NFTA_QUOTA_BYTES])
 		return -EINVAL;
@@ -76,6 +77,12 @@ static int nft_quota_do_init(const struct nlattr * const tb[],
 	quota = be64_to_cpu(nla_get_be64(tb[NFTA_QUOTA_BYTES]));
 	if (quota > S64_MAX)
 		return -EOVERFLOW;
+
+	if (tb[NFTA_QUOTA_CONSUMED]) {
+		consumed = be64_to_cpu(nla_get_be64(tb[NFTA_QUOTA_CONSUMED]));
+		if (consumed > quota)
+			return -EINVAL;
+	}
 
 	if (tb[NFTA_QUOTA_FLAGS]) {
 		flags = ntohl(nla_get_be32(tb[NFTA_QUOTA_FLAGS]));
@@ -87,7 +94,7 @@ static int nft_quota_do_init(const struct nlattr * const tb[],
 
 	priv->quota = quota;
 	priv->flags = flags;
-	atomic64_set(&priv->consumed, 0);
+	atomic64_set(&priv->consumed, consumed);
 
 	return 0;
 }
