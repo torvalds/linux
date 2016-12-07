@@ -1487,9 +1487,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 		if (ret < 0)
 			goto err_cleanup;
 
-		if (cpts_register(cpsw->dev, cpsw->cpts,
-				  cpsw->data.cpts_clock_mult,
-				  cpsw->data.cpts_clock_shift))
+		if (cpts_register(cpsw->cpts))
 			dev_err(priv->dev, "error registering cpts device\n");
 
 	}
@@ -2796,6 +2794,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	struct cpdma_params		dma_params;
 	struct cpsw_ale_params		ale_params;
 	void __iomem			*ss_regs;
+	void __iomem			*cpts_regs;
 	struct resource			*res, *ss_res;
 	const struct of_device_id	*of_id;
 	struct gpio_descs		*mode;
@@ -2823,12 +2822,6 @@ static int cpsw_probe(struct platform_device *pdev)
 	priv->dev  = &ndev->dev;
 	priv->msg_enable = netif_msg_init(debug_level, CPSW_DEBUG);
 	cpsw->rx_packet_max = max(rx_packet_max, 128);
-	cpsw->cpts = devm_kzalloc(&pdev->dev, sizeof(struct cpts), GFP_KERNEL);
-	if (!cpsw->cpts) {
-		dev_err(&pdev->dev, "error allocating cpts\n");
-		ret = -ENOMEM;
-		goto clean_ndev_ret;
-	}
 
 	mode = devm_gpiod_get_array_optional(&pdev->dev, "mode", GPIOD_OUT_LOW);
 	if (IS_ERR(mode)) {
@@ -2916,7 +2909,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	switch (cpsw->version) {
 	case CPSW_VERSION_1:
 		cpsw->host_port_regs = ss_regs + CPSW1_HOST_PORT_OFFSET;
-		cpsw->cpts->reg      = ss_regs + CPSW1_CPTS_OFFSET;
+		cpts_regs		= ss_regs + CPSW1_CPTS_OFFSET;
 		cpsw->hw_stats	     = ss_regs + CPSW1_HW_STATS;
 		dma_params.dmaregs   = ss_regs + CPSW1_CPDMA_OFFSET;
 		dma_params.txhdp     = ss_regs + CPSW1_STATERAM_OFFSET;
@@ -2930,7 +2923,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	case CPSW_VERSION_3:
 	case CPSW_VERSION_4:
 		cpsw->host_port_regs = ss_regs + CPSW2_HOST_PORT_OFFSET;
-		cpsw->cpts->reg      = ss_regs + CPSW2_CPTS_OFFSET;
+		cpts_regs		= ss_regs + CPSW2_CPTS_OFFSET;
 		cpsw->hw_stats	     = ss_regs + CPSW2_HW_STATS;
 		dma_params.dmaregs   = ss_regs + CPSW2_CPDMA_OFFSET;
 		dma_params.txhdp     = ss_regs + CPSW2_STATERAM_OFFSET;
@@ -2995,6 +2988,14 @@ static int cpsw_probe(struct platform_device *pdev)
 		dev_err(priv->dev, "error initializing ale engine\n");
 		ret = -ENODEV;
 		goto clean_dma_ret;
+	}
+
+	cpsw->cpts = cpts_create(cpsw->dev, cpts_regs,
+				 cpsw->data.cpts_clock_mult,
+				 cpsw->data.cpts_clock_shift);
+	if (IS_ERR(cpsw->cpts)) {
+		ret = PTR_ERR(cpsw->cpts);
+		goto clean_ale_ret;
 	}
 
 	ndev->irq = platform_get_irq(pdev, 1);
@@ -3112,6 +3113,7 @@ static int cpsw_remove(struct platform_device *pdev)
 		unregister_netdev(cpsw->slaves[1].ndev);
 	unregister_netdev(ndev);
 
+	cpts_release(cpsw->cpts);
 	cpsw_ale_destroy(cpsw->ale);
 	cpdma_ctlr_destroy(cpsw->dma);
 	cpsw_remove_dt(pdev);

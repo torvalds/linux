@@ -248,24 +248,6 @@ static void cpts_overflow_check(struct work_struct *work)
 	schedule_delayed_work(&cpts->overflow_work, CPTS_OVERFLOW_PERIOD);
 }
 
-static void cpts_clk_init(struct device *dev, struct cpts *cpts)
-{
-	if (!cpts->refclk) {
-		cpts->refclk = devm_clk_get(dev, "cpts");
-		if (IS_ERR(cpts->refclk)) {
-			dev_err(dev, "Failed to get cpts refclk\n");
-			cpts->refclk = NULL;
-			return;
-		}
-	}
-	clk_prepare_enable(cpts->refclk);
-}
-
-static void cpts_clk_release(struct cpts *cpts)
-{
-	clk_disable_unprepare(cpts->refclk);
-}
-
 static int cpts_match(struct sk_buff *skb, unsigned int ptp_class,
 		      u16 ts_seqid, u8 ts_msgtype)
 {
@@ -372,34 +354,23 @@ void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(cpts_tx_timestamp);
 
-int cpts_register(struct device *dev, struct cpts *cpts,
-		  u32 mult, u32 shift)
+int cpts_register(struct cpts *cpts)
 {
 	int err, i;
-
-	cpts->info = cpts_info;
-	spin_lock_init(&cpts->lock);
-
-	cpts->cc.read = cpts_systim_read;
-	cpts->cc.mask = CLOCKSOURCE_MASK(32);
-	cpts->cc_mult = mult;
-	cpts->cc.mult = mult;
-	cpts->cc.shift = shift;
 
 	INIT_LIST_HEAD(&cpts->events);
 	INIT_LIST_HEAD(&cpts->pool);
 	for (i = 0; i < CPTS_MAX_EVENTS; i++)
 		list_add(&cpts->pool_data[i].list, &cpts->pool);
 
-	cpts_clk_init(dev, cpts);
+	clk_enable(cpts->refclk);
+
 	cpts_write32(cpts, CPTS_EN, control);
 	cpts_write32(cpts, TS_PEND_EN, int_enable);
 
 	timecounter_init(&cpts->tc, &cpts->cc, ktime_to_ns(ktime_get_real()));
 
-	INIT_DELAYED_WORK(&cpts->overflow_work, cpts_overflow_check);
-
-	cpts->clock = ptp_clock_register(&cpts->info, dev);
+	cpts->clock = ptp_clock_register(&cpts->info, cpts->dev);
 	if (IS_ERR(cpts->clock)) {
 		err = PTR_ERR(cpts->clock);
 		cpts->clock = NULL;
@@ -412,26 +383,72 @@ int cpts_register(struct device *dev, struct cpts *cpts,
 	return 0;
 
 err_ptp:
-	if (cpts->refclk)
-		cpts_clk_release(cpts);
+	clk_disable(cpts->refclk);
 	return err;
 }
 EXPORT_SYMBOL_GPL(cpts_register);
 
 void cpts_unregister(struct cpts *cpts)
 {
-	if (cpts->clock) {
-		ptp_clock_unregister(cpts->clock);
-		cancel_delayed_work_sync(&cpts->overflow_work);
-	}
+	if (WARN_ON(!cpts->clock))
+		return;
+
+	cancel_delayed_work_sync(&cpts->overflow_work);
+
+	ptp_clock_unregister(cpts->clock);
+	cpts->clock = NULL;
 
 	cpts_write32(cpts, 0, int_enable);
 	cpts_write32(cpts, 0, control);
 
-	if (cpts->refclk)
-		cpts_clk_release(cpts);
+	clk_disable(cpts->refclk);
 }
 EXPORT_SYMBOL_GPL(cpts_unregister);
+
+struct cpts *cpts_create(struct device *dev, void __iomem *regs,
+			 u32 mult, u32 shift)
+{
+	struct cpts *cpts;
+
+	cpts = devm_kzalloc(dev, sizeof(*cpts), GFP_KERNEL);
+	if (!cpts)
+		return ERR_PTR(-ENOMEM);
+
+	cpts->dev = dev;
+	cpts->reg = (struct cpsw_cpts __iomem *)regs;
+	spin_lock_init(&cpts->lock);
+	INIT_DELAYED_WORK(&cpts->overflow_work, cpts_overflow_check);
+
+	cpts->refclk = devm_clk_get(dev, "cpts");
+	if (IS_ERR(cpts->refclk)) {
+		dev_err(dev, "Failed to get cpts refclk\n");
+		return ERR_PTR(PTR_ERR(cpts->refclk));
+	}
+
+	clk_prepare(cpts->refclk);
+
+	cpts->cc.read = cpts_systim_read;
+	cpts->cc.mask = CLOCKSOURCE_MASK(32);
+	cpts->cc.shift = shift;
+	cpts->cc_mult = mult;
+	cpts->cc.mult = mult;
+	cpts->info = cpts_info;
+
+	return cpts;
+}
+EXPORT_SYMBOL_GPL(cpts_create);
+
+void cpts_release(struct cpts *cpts)
+{
+	if (!cpts)
+		return;
+
+	if (WARN_ON(!cpts->refclk))
+		return;
+
+	clk_unprepare(cpts->refclk);
+}
+EXPORT_SYMBOL_GPL(cpts_release);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("TI CPTS driver");

@@ -20,6 +20,8 @@
 #ifndef _TI_CPTS_H_
 #define _TI_CPTS_H_
 
+#if IS_ENABLED(CONFIG_TI_CPTS)
+
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
@@ -108,10 +110,10 @@ struct cpts_event {
 };
 
 struct cpts {
+	struct device *dev;
 	struct cpsw_cpts __iomem *reg;
 	int tx_enable;
 	int rx_enable;
-#if IS_ENABLED(CONFIG_TI_CPTS)
 	struct ptp_clock_info info;
 	struct ptp_clock *clock;
 	spinlock_t lock; /* protects time registers */
@@ -124,14 +126,15 @@ struct cpts {
 	struct list_head events;
 	struct list_head pool;
 	struct cpts_event pool_data[CPTS_MAX_EVENTS];
-#endif
 };
 
-#if IS_ENABLED(CONFIG_TI_CPTS)
 void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb);
 void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb);
-int cpts_register(struct device *dev, struct cpts *cpts, u32 mult, u32 shift);
+int cpts_register(struct cpts *cpts);
 void cpts_unregister(struct cpts *cpts);
+struct cpts *cpts_create(struct device *dev, void __iomem *regs,
+			 u32 mult, u32 shift);
+void cpts_release(struct cpts *cpts);
 
 static inline void cpts_rx_enable(struct cpts *cpts, int enable)
 {
@@ -154,6 +157,8 @@ static inline bool cpts_is_tx_enabled(struct cpts *cpts)
 }
 
 #else
+struct cpts;
+
 static inline void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
 }
@@ -161,8 +166,19 @@ static inline void cpts_tx_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
 }
 
+static inline
+struct cpts *cpts_create(struct device *dev, void __iomem *regs,
+			 u32 mult, u32 shift)
+{
+	return NULL;
+}
+
+static inline void cpts_release(struct cpts *cpts)
+{
+}
+
 static inline int
-cpts_register(struct device *dev, struct cpts *cpts, u32 mult, u32 shift)
+cpts_register(struct cpts *cpts)
 {
 	return 0;
 }
