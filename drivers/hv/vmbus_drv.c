@@ -1008,9 +1008,6 @@ static int vmbus_bus_init(void)
 	if (ret)
 		goto err_connect;
 
-	if (vmbus_proto_version > VERSION_WIN7)
-		cpu_hotplug_disable();
-
 	/*
 	 * Only register if the crash MSRs are available
 	 */
@@ -1486,6 +1483,9 @@ static void hv_kexec_handler(void)
 {
 	hv_synic_clockevents_cleanup();
 	vmbus_initiate_unload(false);
+	vmbus_connection.conn_state = DISCONNECTED;
+	/* Make sure conn_state is set as hv_synic_cleanup checks for it */
+	mb();
 	cpuhp_remove_state(hyperv_cpuhp_online);
 	hv_cleanup(false);
 };
@@ -1498,6 +1498,7 @@ static void hv_crash_handler(struct pt_regs *regs)
 	 * doing the cleanup for current CPU only. This should be sufficient
 	 * for kdump.
 	 */
+	vmbus_connection.conn_state = DISCONNECTED;
 	hv_synic_cleanup(smp_processor_id());
 	hv_cleanup(true);
 };
@@ -1566,8 +1567,6 @@ static void __exit vmbus_exit(void)
 	cpuhp_remove_state(hyperv_cpuhp_online);
 	hv_synic_free();
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
-	if (vmbus_proto_version > VERSION_WIN7)
-		cpu_hotplug_enable();
 }
 
 

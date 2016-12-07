@@ -587,9 +587,40 @@ int hv_synic_cleanup(unsigned int cpu)
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
 	union hv_synic_scontrol sctrl;
+	struct vmbus_channel *channel, *sc;
+	bool channel_found = false;
+	unsigned long flags;
 
 	if (!hv_context.synic_initialized)
 		return -EFAULT;
+
+	/*
+	 * Search for channels which are bound to the CPU we're about to
+	 * cleanup. In case we find one and vmbus is still connected we need to
+	 * fail, this will effectively prevent CPU offlining. There is no way
+	 * we can re-bind channels to different CPUs for now.
+	 */
+	mutex_lock(&vmbus_connection.channel_mutex);
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		if (channel->target_cpu == cpu) {
+			channel_found = true;
+			break;
+		}
+		spin_lock_irqsave(&channel->lock, flags);
+		list_for_each_entry(sc, &channel->sc_list, sc_list) {
+			if (sc->target_cpu == cpu) {
+				channel_found = true;
+				break;
+			}
+		}
+		spin_unlock_irqrestore(&channel->lock, flags);
+		if (channel_found)
+			break;
+	}
+	mutex_unlock(&vmbus_connection.channel_mutex);
+
+	if (channel_found && vmbus_connection.conn_state == CONNECTED)
+		return -EBUSY;
 
 	/* Turn off clockevent device */
 	if (ms_hyperv.features & HV_X64_MSR_SYNTIMER_AVAILABLE) {
