@@ -1812,7 +1812,7 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 		return ironlake_do_reset;
 	else if (IS_G4X(dev_priv))
 		return g4x_do_reset;
-	else if (IS_G33(dev_priv))
+	else if (IS_G33(dev_priv) || IS_PINEVIEW(dev_priv))
 		return g33_do_reset;
 	else if (INTEL_INFO(dev_priv)->gen >= 3)
 		return i915_do_reset;

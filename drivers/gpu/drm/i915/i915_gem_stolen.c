@@ -203,8 +203,8 @@ static unsigned long i915_stolen_to_physical(struct drm_i915_private *dev_priv)
 		return 0;
 
 	/* make sure we don't clobber the GTT if it's within stolen memory */
-	if (INTEL_GEN(dev_priv) <= 4 && !IS_G33(dev_priv) &&
-	    !IS_G4X(dev_priv)) {
+	if (INTEL_GEN(dev_priv) <= 4 &&
+	    !IS_G33(dev_priv) && !IS_PINEVIEW(dev_priv) && !IS_G4X(dev_priv)) {
 		struct {
 			u32 start, end;
 		} stolen[2] = {

@@ -141,7 +141,7 @@ static const struct intel_device_info intel_g33_info = {
 
 static const struct intel_device_info intel_pineview_info = {
 	GEN3_FEATURES,
-	.platform = INTEL_G33, .is_pineview = 1, .is_mobile = 1,
+	.platform = INTEL_PINEVIEW, .is_mobile = 1,
 	.has_hotplug = 1,
 	.has_overlay = 1,
 };

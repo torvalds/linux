@@ -1296,7 +1296,7 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	if (INTEL_GEN(dev_priv) >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
 	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
-		   IS_G33(dev_priv)) {
+		   IS_G33(dev_priv) || IS_PINEVIEW(dev_priv)) {
 		/* done in crtc_mode_set as it lives inside the dpll register */
 	} else {
 		sdvox |= (crtc_state->pixel_multiplier - 1)
