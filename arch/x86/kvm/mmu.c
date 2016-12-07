@@ -2891,6 +2891,10 @@ static bool page_fault_can_be_fast(u32 error_code)
 	return true;
 }
 
+/*
+ * Returns true if the SPTE was fixed successfully. Otherwise,
+ * someone else modified the SPTE from its original value.
+ */
 static bool
 fast_pf_fix_direct_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			u64 *sptep, u64 spte)
@@ -2917,8 +2921,10 @@ fast_pf_fix_direct_spte(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	 *
 	 * Compare with set_spte where instead shadow_dirty_mask is set.
 	 */
-	if (cmpxchg64(sptep, spte, spte | PT_WRITABLE_MASK) == spte)
-		kvm_vcpu_mark_page_dirty(vcpu, gfn);
+	if (cmpxchg64(sptep, spte, spte | PT_WRITABLE_MASK) != spte)
+		return false;
+
+	kvm_vcpu_mark_page_dirty(vcpu, gfn);
 
 	return true;
 }
@@ -2933,8 +2939,9 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
 {
 	struct kvm_shadow_walk_iterator iterator;
 	struct kvm_mmu_page *sp;
-	bool ret = false;
+	bool fault_handled = false;
 	u64 spte = 0ull;
+	uint retry_count = 0;
 
 	if (!VALID_PAGE(vcpu->arch.mmu.root_hpa))
 		return false;
@@ -2947,62 +2954,77 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
 		if (!is_shadow_present_pte(spte) || iterator.level < level)
 			break;
 
-	/*
-	 * If the mapping has been changed, let the vcpu fault on the
-	 * same address again.
-	 */
-	if (!is_shadow_present_pte(spte)) {
-		ret = true;
-		goto exit;
-	}
+	do {
+		/*
+		 * If the mapping has been changed, let the vcpu fault on the
+		 * same address again.
+		 */
+		if (!is_shadow_present_pte(spte)) {
+			fault_handled = true;
+			break;
+		}
 
-	sp = page_header(__pa(iterator.sptep));
-	if (!is_last_spte(spte, sp->role.level))
-		goto exit;
+		sp = page_header(__pa(iterator.sptep));
+		if (!is_last_spte(spte, sp->role.level))
+			break;
 
-	/*
-	 * Check if it is a spurious fault caused by TLB lazily flushed.
-	 *
-	 * Need not check the access of upper level table entries since
-	 * they are always ACC_ALL.
-	 */
-	 if (is_writable_pte(spte)) {
-		ret = true;
-		goto exit;
-	}
+		/*
+		 * Check if it is a spurious fault caused by TLB lazily flushed.
+		 *
+		 * Need not check the access of upper level table entries since
+		 * they are always ACC_ALL.
+		 */
+		if (is_writable_pte(spte)) {
+			fault_handled = true;
+			break;
+		}
 
-	/*
-	 * Currently, to simplify the code, only the spte write-protected
-	 * by dirty-log can be fast fixed.
-	 */
-	if (!spte_can_locklessly_be_made_writable(spte))
-		goto exit;
+		/*
+		 * Currently, to simplify the code, only the spte
+		 * write-protected by dirty-log can be fast fixed.
+		 */
+		if (!spte_can_locklessly_be_made_writable(spte))
+			break;
 
-	/*
-	 * Do not fix write-permission on the large spte since we only dirty
-	 * the first page into the dirty-bitmap in fast_pf_fix_direct_spte()
-	 * that means other pages are missed if its slot is dirty-logged.
-	 *
-	 * Instead, we let the slow page fault path create a normal spte to
-	 * fix the access.
-	 *
-	 * See the comments in kvm_arch_commit_memory_region().
-	 */
-	if (sp->role.level > PT_PAGE_TABLE_LEVEL)
-		goto exit;
+		/*
+		 * Do not fix write-permission on the large spte since we only
+		 * dirty the first page into the dirty-bitmap in
+		 * fast_pf_fix_direct_spte() that means other pages are missed
+		 * if its slot is dirty-logged.
+		 *
+		 * Instead, we let the slow page fault path create a normal spte
+		 * to fix the access.
+		 *
+		 * See the comments in kvm_arch_commit_memory_region().
+		 */
+		if (sp->role.level > PT_PAGE_TABLE_LEVEL)
+			break;
 
-	/*
-	 * Currently, fast page fault only works for direct mapping since
-	 * the gfn is not stable for indirect shadow page.
-	 * See Documentation/virtual/kvm/locking.txt to get more detail.
-	 */
-	ret = fast_pf_fix_direct_spte(vcpu, sp, iterator.sptep, spte);
-exit:
+		/*
+		 * Currently, fast page fault only works for direct mapping
+		 * since the gfn is not stable for indirect shadow page. See
+		 * Documentation/virtual/kvm/locking.txt to get more detail.
+		 */
+		fault_handled = fast_pf_fix_direct_spte(vcpu, sp,
+							iterator.sptep, spte);
+		if (fault_handled)
+			break;
+
+		if (++retry_count > 4) {
+			printk_once(KERN_WARNING
+				"kvm: Fast #PF retrying more than 4 times.\n");
+			break;
+		}
+
+		spte = mmu_spte_get_lockless(iterator.sptep);
+
+	} while (true);
+
 	trace_fast_page_fault(vcpu, gva, error_code, iterator.sptep,
-			      spte, ret);
+			      spte, fault_handled);
 	walk_shadow_page_lockless_end(vcpu);
 
-	return ret;
+	return fault_handled;
 }
 
 static bool try_async_pf(struct kvm_vcpu *vcpu, bool prefault, gfn_t gfn,
