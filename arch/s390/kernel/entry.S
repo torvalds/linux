@@ -808,13 +808,10 @@ ENTRY(save_fpu_regs)
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	bor	%r14
 	stfpc	__THREAD_FPU_fpc(%r2)
-.Lsave_fpu_regs_fpc_end:
 	lg	%r3,__THREAD_FPU_regs(%r2)
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
 	jz	.Lsave_fpu_regs_fp	  # no -> store FP regs
-.Lsave_fpu_regs_vx_low:
 	VSTM	%v0,%v15,0,%r3		  # vstm 0,15,0(3)
-.Lsave_fpu_regs_vx_high:
 	VSTM	%v16,%v31,256,%r3	  # vstm 16,31,256(3)
 	j	.Lsave_fpu_regs_done	  # -> set CIF_FPU flag
 .Lsave_fpu_regs_fp:
@@ -861,9 +858,7 @@ load_fpu_regs:
 	TSTMSK	__LC_MACHINE_FLAGS,MACHINE_FLAG_VX
 	lg	%r4,__THREAD_FPU_regs(%r4)	# %r4 <- reg save area
 	jz	.Lload_fpu_regs_fp		# -> no VX, load FP regs
-.Lload_fpu_regs_vx:
 	VLM	%v0,%v15,0,%r4
-.Lload_fpu_regs_vx_high:
 	VLM	%v16,%v31,256,%r4
 	j	.Lload_fpu_regs_done
 .Lload_fpu_regs_fp:
