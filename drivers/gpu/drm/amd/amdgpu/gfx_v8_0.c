@@ -3996,7 +3996,7 @@ static void cz_enable_sck_slow_down_on_power_down(struct amdgpu_device *adev,
 
 static void cz_enable_cp_power_gating(struct amdgpu_device *adev, bool enable)
 {
-	WREG32_FIELD(RLC_PG_CNTL, CP_PG_DISABLE, enable ? 1 : 0);
+	WREG32_FIELD(RLC_PG_CNTL, CP_PG_DISABLE, enable ? 0 : 1);
 }
 
 static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
