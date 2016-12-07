@@ -321,7 +321,7 @@ static bool _intel_set_memory_cxsr(struct drm_i915_private *dev_priv, bool enabl
 		was_enabled = I915_READ(FW_BLC_SELF_VLV) & FW_CSPWRDWNEN;
 		I915_WRITE(FW_BLC_SELF_VLV, enable ? FW_CSPWRDWNEN : 0);
 		POSTING_READ(FW_BLC_SELF_VLV);
-	} else if (IS_G4X(dev_priv) || IS_CRESTLINE(dev_priv)) {
+	} else if (IS_G4X(dev_priv) || IS_I965GM(dev_priv)) {
 		was_enabled = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
 		I915_WRITE(FW_BLC_SELF, enable ? FW_BLC_SELF_EN : 0);
 		POSTING_READ(FW_BLC_SELF);
@@ -7643,9 +7643,9 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = ironlake_init_clock_gating;
 	else if (IS_G4X(dev_priv))
 		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
-	else if (IS_CRESTLINE(dev_priv))
+	else if (IS_I965GM(dev_priv))
 		dev_priv->display.init_clock_gating = crestline_init_clock_gating;
-	else if (IS_BROADWATER(dev_priv))
+	else if (IS_I965G(dev_priv))
 		dev_priv->display.init_clock_gating = broadwater_init_clock_gating;
 	else if (IS_GEN3(dev_priv))
 		dev_priv->display.init_clock_gating = gen3_init_clock_gating;

@@ -2150,7 +2150,7 @@ static unsigned int intel_linear_alignment(const struct drm_i915_private *dev_pr
 {
 	if (INTEL_INFO(dev_priv)->gen >= 9)
 		return 256 * 1024;
-	else if (IS_BROADWATER(dev_priv) || IS_CRESTLINE(dev_priv) ||
+	else if (IS_I965G(dev_priv) || IS_I965GM(dev_priv) ||
 		 IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return 128 * 1024;
 	else if (INTEL_INFO(dev_priv)->gen >= 4)
@@ -7568,7 +7568,7 @@ static unsigned int intel_hpll_vco(struct drm_i915_private *dev_priv)
 		vco_table = ctg_vco;
 	else if (IS_G4X(dev_priv))
 		vco_table = elk_vco;
-	else if (IS_CRESTLINE(dev_priv))
+	else if (IS_I965GM(dev_priv))
 		vco_table = cl_vco;
 	else if (IS_PINEVIEW(dev_priv))
 		vco_table = pnv_vco;
@@ -16108,14 +16108,14 @@ void intel_init_display_hooks(struct drm_i915_private *dev_priv)
 	else if (IS_GEN5(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			ilk_get_display_clock_speed;
-	else if (IS_I945G(dev_priv) || IS_BROADWATER(dev_priv) ||
+	else if (IS_I945G(dev_priv) || IS_I965G(dev_priv) ||
 		 IS_GEN6(dev_priv) || IS_IVYBRIDGE(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
 	else if (IS_GM45(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			gm45_get_display_clock_speed;
-	else if (IS_CRESTLINE(dev_priv))
+	else if (IS_I965GM(dev_priv))
 		dev_priv->display.get_display_clock_speed =
 			i965gm_get_display_clock_speed;
 	else if (IS_PINEVIEW(dev_priv))

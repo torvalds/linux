@@ -3999,7 +3999,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 		goto fail;
 
 	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
-	if (IS_CRESTLINE(dev_priv) || IS_BROADWATER(dev_priv)) {
+	if (IS_I965GM(dev_priv) || IS_I965G(dev_priv)) {
 		/* 965gm cannot relocate objects above 4GiB. */
 		mask &= ~__GFP_HIGHMEM;
 		mask |= __GFP_DMA32;

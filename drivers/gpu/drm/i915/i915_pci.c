@@ -156,14 +156,14 @@ static const struct intel_device_info intel_pineview_info = {
 
 static const struct intel_device_info intel_i965g_info = {
 	GEN4_FEATURES,
-	.platform = INTEL_BROADWATER,
+	.platform = INTEL_I965G,
 	.has_overlay = 1,
 	.hws_needs_physical = 1,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
 	GEN4_FEATURES,
-	.platform = INTEL_CRESTLINE,
+	.platform = INTEL_I965GM,
 	.is_mobile = 1, .has_fbc = 1,
 	.has_overlay = 1,
 	.supports_tv = 1,

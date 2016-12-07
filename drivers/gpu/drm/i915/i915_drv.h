@@ -755,8 +755,8 @@ enum intel_platform {
 	INTEL_I945GM,
 	INTEL_G33,
 	INTEL_PINEVIEW,
-	INTEL_BROADWATER,
-	INTEL_CRESTLINE,
+	INTEL_I965G,
+	INTEL_I965GM,
 	INTEL_G4X,
 	INTEL_IRONLAKE,
 	INTEL_SANDYBRIDGE,
@@ -2522,8 +2522,8 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define IS_I915GM(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2592)
 #define IS_I945G(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2772)
 #define IS_I945GM(dev_priv)	((dev_priv)->info.platform == INTEL_I945GM)
-#define IS_BROADWATER(dev_priv)	((dev_priv)->info.platform == INTEL_BROADWATER)
-#define IS_CRESTLINE(dev_priv)	((dev_priv)->info.platform == INTEL_CRESTLINE)
+#define IS_I965G(dev_priv)	((dev_priv)->info.platform == INTEL_I965G)
+#define IS_I965GM(dev_priv)	((dev_priv)->info.platform == INTEL_I965GM)
 #define IS_GM45(dev_priv)	(INTEL_DEVID(dev_priv) == 0x2A42)
 #define IS_G4X(dev_priv)	((dev_priv)->info.platform == INTEL_G4X)
 #define IS_PINEVIEW_G(dev_priv)	(INTEL_DEVID(dev_priv) == 0xa001)

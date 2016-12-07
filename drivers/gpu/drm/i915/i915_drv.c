@@ -1033,7 +1033,7 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 	 * behaviour if any general state is accessed within a page above 4GB,
 	 * which also needs to be handled carefully.
 	 */
-	if (IS_BROADWATER(dev_priv) || IS_CRESTLINE(dev_priv)) {
+	if (IS_I965G(dev_priv) || IS_I965GM(dev_priv)) {
 		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 
 		if (ret) {
