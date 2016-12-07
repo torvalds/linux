@@ -417,11 +417,14 @@ static int rsnd_ssi_hw_params(struct rsnd_mod *mod,
 	int chan = params_channels(params);
 
 	/*
-	 * Already working.
-	 * It will happen if SSI has parent/child connection.
+	 * snd_pcm_ops::hw_params will be called *before*
+	 * snd_soc_dai_ops::trigger. Thus, ssi->usrcnt is 0
+	 * in 1st call.
 	 */
-	if (ssi->usrcnt > 1) {
+	if (ssi->usrcnt) {
 		/*
+		 * Already working.
+		 * It will happen if SSI has parent/child connection.
 		 * it is error if child <-> parent SSI uses
 		 * different channels.
 		 */
