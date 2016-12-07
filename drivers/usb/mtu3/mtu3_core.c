@@ -575,6 +575,8 @@ static void mtu3_regs_init(struct mtu3 *mtu)
 				SW_U1_REQUEST_ENABLE | SW_U2_REQUEST_ENABLE);
 		/* device responses to u3_exit from host automatically */
 		mtu3_clrbits(mbase, U3D_LTSSM_CTRL, SOFT_U3_EXIT_EN);
+		/* automatically build U2 link when U3 detect fail */
+		mtu3_setbits(mbase, U3D_USB2_TEST_MODE, U2U3_AUTO_SWITCH);
 	}
 
 	mtu3_set_speed(mtu);
