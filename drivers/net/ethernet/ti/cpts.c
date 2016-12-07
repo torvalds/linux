@@ -356,15 +356,8 @@ int cpts_register(struct device *dev, struct cpts *cpts,
 		  u32 mult, u32 shift)
 {
 	int err, i;
-	unsigned long flags;
 
 	cpts->info = cpts_info;
-	cpts->clock = ptp_clock_register(&cpts->info, dev);
-	if (IS_ERR(cpts->clock)) {
-		err = PTR_ERR(cpts->clock);
-		cpts->clock = NULL;
-		return err;
-	}
 	spin_lock_init(&cpts->lock);
 
 	cpts->cc.read = cpts_systim_read;
@@ -382,15 +375,26 @@ int cpts_register(struct device *dev, struct cpts *cpts,
 	cpts_write32(cpts, CPTS_EN, control);
 	cpts_write32(cpts, TS_PEND_EN, int_enable);
 
-	spin_lock_irqsave(&cpts->lock, flags);
 	timecounter_init(&cpts->tc, &cpts->cc, ktime_to_ns(ktime_get_real()));
-	spin_unlock_irqrestore(&cpts->lock, flags);
 
 	INIT_DELAYED_WORK(&cpts->overflow_work, cpts_overflow_check);
+
+	cpts->clock = ptp_clock_register(&cpts->info, dev);
+	if (IS_ERR(cpts->clock)) {
+		err = PTR_ERR(cpts->clock);
+		cpts->clock = NULL;
+		goto err_ptp;
+	}
+	cpts->phc_index = ptp_clock_index(cpts->clock);
+
 	schedule_delayed_work(&cpts->overflow_work, CPTS_OVERFLOW_PERIOD);
 
-	cpts->phc_index = ptp_clock_index(cpts->clock);
 	return 0;
+
+err_ptp:
+	if (cpts->refclk)
+		cpts_clk_release(cpts);
+	return err;
 }
 EXPORT_SYMBOL_GPL(cpts_register);
 
