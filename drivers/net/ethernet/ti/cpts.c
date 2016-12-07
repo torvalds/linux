@@ -57,6 +57,26 @@ static int cpts_fifo_pop(struct cpts *cpts, u32 *high, u32 *low)
 	return -1;
 }
 
+static int cpts_purge_events(struct cpts *cpts)
+{
+	struct list_head *this, *next;
+	struct cpts_event *event;
+	int removed = 0;
+
+	list_for_each_safe(this, next, &cpts->events) {
+		event = list_entry(this, struct cpts_event, list);
+		if (event_expired(event)) {
+			list_del_init(&event->list);
+			list_add(&event->list, &cpts->pool);
+			++removed;
+		}
+	}
+
+	if (removed)
+		pr_debug("cpts: event pool cleaned up %d\n", removed);
+	return removed ? 0 : -1;
+}
+
 /*
  * Returns zero if matching event type was found.
  */
@@ -69,10 +89,12 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 	for (i = 0; i < CPTS_FIFO_DEPTH; i++) {
 		if (cpts_fifo_pop(cpts, &hi, &lo))
 			break;
-		if (list_empty(&cpts->pool)) {
-			pr_err("cpts: event pool is empty\n");
+
+		if (list_empty(&cpts->pool) && cpts_purge_events(cpts)) {
+			pr_err("cpts: event pool empty\n");
 			return -1;
 		}
+
 		event = list_first_entry(&cpts->pool, struct cpts_event, list);
 		event->tmo = jiffies + 2;
 		event->high = hi;
