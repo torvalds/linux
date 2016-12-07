@@ -71,11 +71,14 @@ static void dwmac4_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	writel(value, ioaddr + DMA_SYS_BUS_MODE);
 }
 
-static void dwmac4_dma_init_channel(void __iomem *ioaddr, int pbl,
+static void dwmac4_dma_init_channel(void __iomem *ioaddr,
+				    struct stmmac_dma_cfg *dma_cfg,
 				    u32 dma_tx_phy, u32 dma_rx_phy,
 				    u32 channel)
 {
 	u32 value;
+	int txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
+	int rxpbl = dma_cfg->rxpbl ?: dma_cfg->pbl;
 
 	/* set PBL for each channels. Currently we affect same configuration
 	 * on each channel
@@ -85,11 +88,11 @@ static void dwmac4_dma_init_channel(void __iomem *ioaddr, int pbl,
 	writel(value, ioaddr + DMA_CHAN_CONTROL(channel));
 
 	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(channel));
-	value = value | (pbl << DMA_BUS_MODE_PBL_SHIFT);
+	value = value | (txpbl << DMA_BUS_MODE_PBL_SHIFT);
 	writel(value, ioaddr + DMA_CHAN_TX_CONTROL(channel));
 
 	value = readl(ioaddr + DMA_CHAN_RX_CONTROL(channel));
-	value = value | (pbl << DMA_BUS_MODE_RPBL_SHIFT);
+	value = value | (rxpbl << DMA_BUS_MODE_RPBL_SHIFT);
 	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(channel));
 
 	/* Mask interrupts by writing to CSR7 */
@@ -120,8 +123,7 @@ static void dwmac4_dma_init(void __iomem *ioaddr,
 	writel(value, ioaddr + DMA_SYS_BUS_MODE);
 
 	for (i = 0; i < DMA_CHANNEL_NB_MAX; i++)
-		dwmac4_dma_init_channel(ioaddr, dma_cfg->pbl,
-					dma_tx, dma_rx, i);
+		dwmac4_dma_init_channel(ioaddr, dma_cfg, dma_tx, dma_rx, i);
 }
 
 static void _dwmac4_dump_dma_regs(void __iomem *ioaddr, u32 channel)
