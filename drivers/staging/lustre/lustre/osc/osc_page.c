@@ -542,7 +542,6 @@ long osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
 	struct cl_object *clobj = NULL;
 	struct cl_page **pvec;
 	struct osc_page *opg;
-	struct osc_page *temp;
 	int maxscan = 0;
 	long count = 0;
 	int index = 0;
@@ -569,13 +568,15 @@ long osc_lru_shrink(const struct lu_env *env, struct client_obd *cli,
 
 	spin_lock(&cli->cl_lru_list_lock);
 	maxscan = min(target << 1, atomic_long_read(&cli->cl_lru_in_list));
-	list_for_each_entry_safe(opg, temp, &cli->cl_lru_list, ops_lru) {
+	while (!list_empty(&cli->cl_lru_list)) {
 		struct cl_page *page;
 		bool will_free = false;
 
 		if (--maxscan < 0)
 			break;
 
+		opg = list_entry(cli->cl_lru_list.next, struct osc_page,
+				 ops_lru);
 		page = opg->ops_cl.cpl_page;
 		if (lru_page_busy(cli, page)) {
 			list_move_tail(&opg->ops_lru, &cli->cl_lru_list);
