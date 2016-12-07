@@ -231,7 +231,6 @@ int __fsl_mc_driver_register(struct fsl_mc_driver *mc_driver,
 		return error;
 	}
 
-	pr_info("driver %s registered\n", mc_driver->driver.name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(__fsl_mc_driver_register);
@@ -731,8 +730,6 @@ static int fsl_mc_bus_probe(struct platform_device *pdev)
 	struct mc_version mc_version;
 	struct resource res;
 
-	dev_info(&pdev->dev, "root DPRC probed");
-
 	mc = devm_kzalloc(&pdev->dev, sizeof(*mc), GFP_KERNEL);
 	if (!mc)
 		return -ENOMEM;
@@ -822,7 +819,6 @@ static int fsl_mc_bus_remove(struct platform_device *pdev)
 	fsl_destroy_mc_io(mc->root_mc_bus_dev->mc_io);
 	mc->root_mc_bus_dev->mc_io = NULL;
 
-	dev_info(&pdev->dev, "root DPRC removed");
 	return 0;
 }
 
@@ -860,8 +856,6 @@ static int __init fsl_mc_bus_driver_init(void)
 		pr_err("bus type registration failed: %d\n", error);
 		goto error_cleanup_cache;
 	}
-
-	pr_info("bus type registered\n");
 
 	error = platform_driver_register(&fsl_mc_bus_driver);
 	if (error < 0) {
