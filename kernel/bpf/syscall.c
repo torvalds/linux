@@ -786,8 +786,8 @@ static int bpf_prog_load(union bpf_attr *attr)
 	/* eBPF programs must be GPL compatible to use GPL-ed functions */
 	is_gpl = license_is_gpl_compatible(license);
 
-	if (attr->insn_cnt >= BPF_MAXINSNS)
-		return -EINVAL;
+	if (attr->insn_cnt == 0 || attr->insn_cnt > BPF_MAXINSNS)
+		return -E2BIG;
 
 	if (type == BPF_PROG_TYPE_KPROBE &&
 	    attr->kern_version != LINUX_VERSION_CODE)
