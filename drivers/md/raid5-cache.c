@@ -2004,8 +2004,8 @@ static int r5c_recovery_flush_log(struct r5l_log *log,
  * happens again, new recovery will start from meta 1. Since meta 2n is
  * valid now, recovery will think meta 3 is valid, which is wrong.
  * The solution is we create a new meta in meta2 with its seq == meta
- * 1's seq + 10 and let superblock points to meta2. The same recovery will
- * not think meta 3 is a valid meta, because its seq doesn't match
+ * 1's seq + 10000 and let superblock points to meta2. The same recovery
+ * will not think meta 3 is a valid meta, because its seq doesn't match
  */
 
 /*
@@ -2035,7 +2035,7 @@ static int r5c_recovery_flush_log(struct r5l_log *log,
  *   ---------------------------------------------
  *   ^                              ^
  *   |- log->last_checkpoint        |- ctx->pos+1
- *   |- log->last_cp_seq            |- ctx->seq+11
+ *   |- log->last_cp_seq            |- ctx->seq+10001
  *
  * However, it is not safe to start the state machine yet, because data only
  * parities are not yet secured in RAID. To save these data only parities, we
@@ -2046,7 +2046,7 @@ static int r5c_recovery_flush_log(struct r5l_log *log,
  *   -----------------------------------------------------------------
  *   ^                                                ^
  *   |- log->last_checkpoint                          |- ctx->pos+n
- *   |- log->last_cp_seq                              |- ctx->seq+10+n
+ *   |- log->last_cp_seq                              |- ctx->seq+10000+n
  *
  * If failure happens again during this process, the recovery can safe start
  * again from log->last_checkpoint.
@@ -2058,7 +2058,7 @@ static int r5c_recovery_flush_log(struct r5l_log *log,
  *   -----------------------------------------------------------------
  *                        ^                         ^
  *                        |- log->last_checkpoint   |- ctx->pos+n
- *                        |- log->last_cp_seq       |- ctx->seq+10+n
+ *                        |- log->last_cp_seq       |- ctx->seq+10000+n
  *
  * Then we can safely start the state machine. If failure happens from this
  * point on, the recovery will start from new log->last_checkpoint.
@@ -2157,8 +2157,8 @@ static int r5l_recovery_log(struct r5l_log *log)
 	if (ret)
 		return ret;
 
-       pos = ctx.pos;
-       ctx.seq += 10;
+	pos = ctx.pos;
+	ctx.seq += 10000;
 
 	if (ctx.data_only_stripes == 0) {
 		log->next_checkpoint = ctx.pos;
