@@ -972,7 +972,7 @@ static void rproc_fw_config_virtio(const struct firmware *fw, void *context)
 
 	/* if rproc is marked always-on, request it to boot */
 	if (rproc->auto_boot)
-		rproc_boot_nowait(rproc);
+		rproc_boot(rproc);
 
 	release_firmware(fw);
 	/* allow rproc_del() contexts, if any, to proceed */
@@ -1070,7 +1070,6 @@ static void rproc_crash_handler_work(struct work_struct *work)
 /**
  * __rproc_boot() - boot a remote processor
  * @rproc: handle of a remote processor
- * @wait: wait for rproc registration completion
  *
  * Boot a remote processor (i.e. load its firmware, power it on, ...).
  *
@@ -1079,7 +1078,7 @@ static void rproc_crash_handler_work(struct work_struct *work)
  *
  * Returns 0 on success, and an appropriate error value otherwise.
  */
-static int __rproc_boot(struct rproc *rproc, bool wait)
+static int __rproc_boot(struct rproc *rproc)
 {
 	const struct firmware *firmware_p;
 	struct device *dev;
@@ -1113,10 +1112,6 @@ static int __rproc_boot(struct rproc *rproc, bool wait)
 		goto downref_rproc;
 	}
 
-	/* if rproc virtio is not yet configured, wait */
-	if (wait)
-		wait_for_completion(&rproc->firmware_loading_complete);
-
 	ret = rproc_fw_boot(rproc, firmware_p);
 
 	release_firmware(firmware_p);
@@ -1135,20 +1130,9 @@ unlock_mutex:
  */
 int rproc_boot(struct rproc *rproc)
 {
-	return __rproc_boot(rproc, true);
+	return __rproc_boot(rproc);
 }
 EXPORT_SYMBOL(rproc_boot);
-
-/**
- * rproc_boot_nowait() - boot a remote processor
- * @rproc: handle of a remote processor
- *
- * Same as rproc_boot() but don't wait for rproc registration completion
- */
-int rproc_boot_nowait(struct rproc *rproc)
-{
-	return __rproc_boot(rproc, false);
-}
 
 /**
  * rproc_shutdown() - power off the remote processor
