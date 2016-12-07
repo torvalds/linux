@@ -1174,14 +1174,28 @@ static int da850_set_armrate(struct clk *clk, unsigned long index)
 	return clk_set_rate(pllclk, index);
 }
 
-static int da850_set_pll0rate(struct clk *clk, unsigned long index)
+static int da850_set_pll0rate(struct clk *clk, unsigned long rate)
 {
-	unsigned int prediv, mult, postdiv;
-	struct da850_opp *opp;
 	struct pll_data *pll = clk->pll_data;
+	struct cpufreq_frequency_table *freq;
+	unsigned int prediv, mult, postdiv;
+	struct da850_opp *opp = NULL;
 	int ret;
 
-	opp = (struct da850_opp *) cpufreq_info.freq_table[index].driver_data;
+	rate /= 1000;
+
+	for (freq = da850_freq_table;
+	     freq->frequency != CPUFREQ_TABLE_END; freq++) {
+		/* rate is in Hz, freq->frequency is in KHz */
+		if (freq->frequency == rate) {
+			opp = (struct da850_opp *)freq->driver_data;
+			break;
+		}
+	}
+
+	if (!opp)
+		return -EINVAL;
+
 	prediv = opp->prediv;
 	mult = opp->mult;
 	postdiv = opp->postdiv;
