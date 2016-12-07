@@ -174,21 +174,35 @@ static struct sg_table *
 i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 {
 	struct address_space *mapping = obj->base.filp->f_mapping;
-	char *vaddr = obj->phys_handle->vaddr;
+	drm_dma_handle_t *phys;
 	struct sg_table *st;
 	struct scatterlist *sg;
+	char *vaddr;
 	int i;
 
 	if (WARN_ON(i915_gem_object_needs_bit17_swizzle(obj)))
 		return ERR_PTR(-EINVAL);
 
+	/* Always aligning to the object size, allows a single allocation
+	 * to handle all possible callers, and given typical object sizes,
+	 * the alignment of the buddy allocation will naturally match.
+	 */
+	phys = drm_pci_alloc(obj->base.dev,
+			     obj->base.size,
+			     roundup_pow_of_two(obj->base.size));
+	if (!phys)
+		return ERR_PTR(-ENOMEM);
+
+	vaddr = phys->vaddr;
 	for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
 		struct page *page;
 		char *src;
 
 		page = shmem_read_mapping_page(mapping, i);
-		if (IS_ERR(page))
-			return ERR_CAST(page);
+		if (IS_ERR(page)) {
+			st = ERR_CAST(page);
+			goto err_phys;
+		}
 
 		src = kmap_atomic(page);
 		memcpy(vaddr, src, PAGE_SIZE);
@@ -202,21 +216,29 @@ i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	i915_gem_chipset_flush(to_i915(obj->base.dev));
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
-	if (st == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (!st) {
+		st = ERR_PTR(-ENOMEM);
+		goto err_phys;
+	}
 
 	if (sg_alloc_table(st, 1, GFP_KERNEL)) {
 		kfree(st);
-		return ERR_PTR(-ENOMEM);
+		st = ERR_PTR(-ENOMEM);
+		goto err_phys;
 	}
 
 	sg = st->sgl;
 	sg->offset = 0;
 	sg->length = obj->base.size;
 
-	sg_dma_address(sg) = obj->phys_handle->busaddr;
+	sg_dma_address(sg) = phys->busaddr;
 	sg_dma_len(sg) = obj->base.size;
 
+	obj->phys_handle = phys;
+	return st;
+
+err_phys:
+	drm_pci_free(obj->base.dev, phys);
 	return st;
 }
 
@@ -272,12 +294,13 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 
 	sg_free_table(pages);
 	kfree(pages);
+
+	drm_pci_free(obj->base.dev, obj->phys_handle);
 }
 
 static void
 i915_gem_object_release_phys(struct drm_i915_gem_object *obj)
 {
-	drm_pci_free(obj->base.dev, obj->phys_handle);
 	i915_gem_object_unpin_pages(obj);
 }
 
@@ -538,15 +561,13 @@ int
 i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 			    int align)
 {
-	drm_dma_handle_t *phys;
 	int ret;
 
-	if (obj->phys_handle) {
-		if ((unsigned long)obj->phys_handle->vaddr & (align -1))
-			return -EBUSY;
+	if (align > obj->base.size)
+		return -EINVAL;
 
+	if (obj->ops == &i915_gem_phys_ops)
 		return 0;
-	}
 
 	if (obj->mm.madv != I915_MADV_WILLNEED)
 		return -EFAULT;
@@ -562,12 +583,6 @@ i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 	if (obj->mm.pages)
 		return -EBUSY;
 
-	/* create a new object */
-	phys = drm_pci_alloc(obj->base.dev, obj->base.size, align);
-	if (!phys)
-		return -ENOMEM;
-
-	obj->phys_handle = phys;
 	obj->ops = &i915_gem_phys_ops;
 
 	return i915_gem_object_pin_pages(obj);
