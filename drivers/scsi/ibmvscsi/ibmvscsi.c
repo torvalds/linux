@@ -993,7 +993,7 @@ static void handle_cmd_rsp(struct srp_event_struct *evt_struct)
 	if (unlikely(rsp->opcode != SRP_RSP)) {
 		if (printk_ratelimit())
 			dev_warn(evt_struct->hostdata->dev,
-				 "bad SRP RSP type %d\n", rsp->opcode);
+				 "bad SRP RSP type %#02x\n", rsp->opcode);
 	}
 	
 	if (cmnd) {
