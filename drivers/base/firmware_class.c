@@ -127,7 +127,7 @@ static inline bool __fw_state_is_done(enum fw_status status)
 	return status == FW_STATUS_DONE || status == FW_STATUS_ABORTED;
 }
 
-static long __fw_state_wait_common(struct fw_state *fw_st, long timeout)
+static int __fw_state_wait_common(struct fw_state *fw_st, long timeout)
 {
 	long ret;
 
@@ -136,8 +136,10 @@ static long __fw_state_wait_common(struct fw_state *fw_st, long timeout)
 				timeout);
 	if (ret != 0 && fw_st->status == FW_STATUS_ABORTED)
 		return -ENOENT;
+	if (!ret)
+		return -ETIMEDOUT;
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static void __fw_state_set(struct fw_state *fw_st,
@@ -1017,14 +1019,11 @@ static int _request_firmware_load(struct firmware_priv *fw_priv,
 		timeout = MAX_JIFFY_OFFSET;
 	}
 
-	timeout = fw_state_wait_timeout(&buf->fw_st, timeout);
-	if (timeout == -ERESTARTSYS || !timeout) {
-		retval = timeout;
+	retval = fw_state_wait_timeout(&buf->fw_st, timeout);
+	if (retval < 0) {
 		mutex_lock(&fw_lock);
 		fw_load_abort(fw_priv);
 		mutex_unlock(&fw_lock);
-	} else if (timeout > 0) {
-		retval = 0;
 	}
 
 	if (fw_state_is_aborted(&buf->fw_st))
