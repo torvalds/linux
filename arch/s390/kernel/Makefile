@@ -46,6 +46,7 @@ CFLAGS_als.o		+= -march=z900
 AFLAGS_REMOVE_head.o	+= $(CC_FLAGS_MARCH)
 AFLAGS_head.o		+= -march=z900
 endif
+GCOV_PROFILE_early.o := n
 GCOV_PROFILE_sclp.o := n
 GCOV_PROFILE_als.o := n
 UBSAN_SANITIZE_als.o := n
