@@ -97,9 +97,6 @@ enum {
 	CPTS_EV_TX,   /* Ethernet Transmit Event */
 };
 
-/* This covers any input clock up to about 500 MHz. */
-#define CPTS_OVERFLOW_PERIOD (HZ * 8)
-
 #define CPTS_FIFO_DEPTH 16
 #define CPTS_MAX_EVENTS 32
 
@@ -127,6 +124,7 @@ struct cpts {
 	struct list_head events;
 	struct list_head pool;
 	struct cpts_event pool_data[CPTS_MAX_EVENTS];
+	unsigned long ov_check_period;
 };
 
 void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb);
