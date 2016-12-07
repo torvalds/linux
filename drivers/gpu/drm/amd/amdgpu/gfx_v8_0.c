@@ -3970,20 +3970,17 @@ static void gfx_v8_0_init_power_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
-	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
-			      AMD_PG_SUPPORT_GFX_SMG |
-			      AMD_PG_SUPPORT_GFX_DMG)) {
-		WREG32_FIELD(CP_RB_WPTR_POLL_CNTL, IDLE_POLL_COUNT, 0x60);
+	WREG32_FIELD(CP_RB_WPTR_POLL_CNTL, IDLE_POLL_COUNT, 0x60);
 
-		data = REG_SET_FIELD(0, RLC_PG_DELAY, POWER_UP_DELAY, 0x10);
-		data = REG_SET_FIELD(data, RLC_PG_DELAY, POWER_DOWN_DELAY, 0x10);
-		data = REG_SET_FIELD(data, RLC_PG_DELAY, CMD_PROPAGATE_DELAY, 0x10);
-		data = REG_SET_FIELD(data, RLC_PG_DELAY, MEM_SLEEP_DELAY, 0x10);
-		WREG32(mmRLC_PG_DELAY, data);
+	data = REG_SET_FIELD(0, RLC_PG_DELAY, POWER_UP_DELAY, 0x10);
+	data = REG_SET_FIELD(data, RLC_PG_DELAY, POWER_DOWN_DELAY, 0x10);
+	data = REG_SET_FIELD(data, RLC_PG_DELAY, CMD_PROPAGATE_DELAY, 0x10);
+	data = REG_SET_FIELD(data, RLC_PG_DELAY, MEM_SLEEP_DELAY, 0x10);
+	WREG32(mmRLC_PG_DELAY, data);
 
-		WREG32_FIELD(RLC_PG_DELAY_2, SERDES_CMD_DELAY, 0x3);
-		WREG32_FIELD(RLC_AUTO_PG_CTRL, GRBM_REG_SAVE_GFX_IDLE_THRESHOLD, 0x55f0);
-	}
+	WREG32_FIELD(RLC_PG_DELAY_2, SERDES_CMD_DELAY, 0x3);
+	WREG32_FIELD(RLC_AUTO_PG_CTRL, GRBM_REG_SAVE_GFX_IDLE_THRESHOLD, 0x55f0);
+
 }
 
 static void cz_enable_sck_slow_down_on_power_up(struct amdgpu_device *adev,
@@ -4005,36 +4002,32 @@ static void cz_enable_cp_power_gating(struct amdgpu_device *adev, bool enable)
 
 static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 {
-	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
-			      AMD_PG_SUPPORT_GFX_SMG |
-			      AMD_PG_SUPPORT_GFX_DMG |
-			      AMD_PG_SUPPORT_CP |
-			      AMD_PG_SUPPORT_GDS |
-			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
+	if ((adev->asic_type == CHIP_CARRIZO) ||
+	    (adev->asic_type == CHIP_STONEY)) {
 		gfx_v8_0_init_csb(adev);
 		gfx_v8_0_init_save_restore_list(adev);
 		gfx_v8_0_enable_save_restore_machine(adev);
-
-		if ((adev->asic_type == CHIP_CARRIZO) ||
-		    (adev->asic_type == CHIP_STONEY)) {
-			WREG32(mmRLC_JUMP_TABLE_RESTORE, adev->gfx.rlc.cp_table_gpu_addr >> 8);
-			gfx_v8_0_init_power_gating(adev);
-			WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
-			if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
-				cz_enable_sck_slow_down_on_power_up(adev, true);
-				cz_enable_sck_slow_down_on_power_down(adev, true);
-			} else {
-				cz_enable_sck_slow_down_on_power_up(adev, false);
-				cz_enable_sck_slow_down_on_power_down(adev, false);
-			}
-			if (adev->pg_flags & AMD_PG_SUPPORT_CP)
-				cz_enable_cp_power_gating(adev, true);
-			else
-				cz_enable_cp_power_gating(adev, false);
-		} else if (adev->asic_type == CHIP_POLARIS11) {
-			gfx_v8_0_init_power_gating(adev);
+		WREG32(mmRLC_JUMP_TABLE_RESTORE, adev->gfx.rlc.cp_table_gpu_addr >> 8);
+		gfx_v8_0_init_power_gating(adev);
+		WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
+		if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
+			cz_enable_sck_slow_down_on_power_up(adev, true);
+			cz_enable_sck_slow_down_on_power_down(adev, true);
+		} else {
+			cz_enable_sck_slow_down_on_power_up(adev, false);
+			cz_enable_sck_slow_down_on_power_down(adev, false);
 		}
+		if (adev->pg_flags & AMD_PG_SUPPORT_CP)
+			cz_enable_cp_power_gating(adev, true);
+		else
+			cz_enable_cp_power_gating(adev, false);
+	} else if (adev->asic_type == CHIP_POLARIS11) {
+		gfx_v8_0_init_csb(adev);
+		gfx_v8_0_init_save_restore_list(adev);
+		gfx_v8_0_enable_save_restore_machine(adev);
+		gfx_v8_0_init_power_gating(adev);
 	}
+
 }
 
 static void gfx_v8_0_rlc_stop(struct amdgpu_device *adev)
