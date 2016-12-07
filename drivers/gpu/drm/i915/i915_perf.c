@@ -26,7 +26,7 @@
 
 
 /**
- * DOC: i915 Perf, streaming API for GPU metrics
+ * DOC: i915 Perf Overview
  *
  * Gen graphics supports a large number of performance counters that can help
  * driver and application developers understand and optimize their use of the
@@ -45,6 +45,10 @@
  * privileges by default, unless changed via the dev.i915.perf_event_paranoid
  * sysctl option.
  *
+ */
+
+/**
+ * DOC: i915 Perf History and Comparison with Core Perf
  *
  * The interface was initially inspired by the core Perf infrastructure but
  * some notable differences are:
@@ -75,8 +79,8 @@
  * gets copied from the GPU mapped buffers to userspace buffers.
  *
  *
- * Some notes regarding Linux Perf:
- * --------------------------------
+ * Issues hit with first prototype based on Core Perf
+ * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  * The first prototype of this driver was based on the core perf
  * infrastructure, and while we did make that mostly work, with some changes to
@@ -135,7 +139,7 @@
  *   for combining with the side-band raw reports it captures using
  *   MI_REPORT_PERF_COUNT commands.
  *
- *   _ As a side note on perf's grouping feature; there was also some concern
+ *   - As a side note on perf's grouping feature; there was also some concern
  *     that using PERF_FORMAT_GROUP as a way to pack together counter values
  *     would quite drastically inflate our sample sizes, which would likely
  *     lower the effective sampling resolutions we could use when the available
@@ -277,6 +281,20 @@ static struct i915_oa_format hsw_oa_formats[I915_OA_FORMAT_MAX] = {
 
 #define SAMPLE_OA_REPORT      (1<<0)
 
+/**
+ * struct perf_open_properties - for validated properties given to open a stream
+ * @sample_flags: `DRM_I915_PERF_PROP_SAMPLE_*` properties are tracked as flags
+ * @single_context: Whether a single or all gpu contexts should be monitored
+ * @ctx_handle: A gem ctx handle for use with @single_context
+ * @metrics_set: An ID for an OA unit metric set advertised via sysfs
+ * @oa_format: An OA unit HW report format
+ * @oa_periodic: Whether to enable periodic OA unit sampling
+ * @oa_period_exponent: The OA unit sampling period is derived from this
+ *
+ * As read_properties_unlocked() enumerates and validates the properties given
+ * to open a stream of metrics the configuration is built up in the structure
+ * which starts out zero initialized.
+ */
 struct perf_open_properties {
 	u32 sample_flags;
 
@@ -314,7 +332,19 @@ static bool gen7_oa_buffer_is_empty_fop_unlocked(struct drm_i915_private *dev_pr
 }
 
 /**
- * Appends a status record to a userspace read() buffer.
+ * append_oa_status - Appends a status record to a userspace read() buffer.
+ * @stream: An i915-perf stream opened for OA metrics
+ * @buf: destination buffer given by userspace
+ * @count: the number of bytes userspace wants to read
+ * @offset: (inout): the current position for writing into @buf
+ * @type: The kind of status to report to userspace
+ *
+ * Writes a status record (such as `DRM_I915_PERF_RECORD_OA_REPORT_LOST`)
+ * into the userspace read() buffer.
+ *
+ * The @buf @offset will only be updated on success.
+ *
+ * Returns: 0 on success, negative error code on failure.
  */
 static int append_oa_status(struct i915_perf_stream *stream,
 			    char __user *buf,
@@ -336,7 +366,21 @@ static int append_oa_status(struct i915_perf_stream *stream,
 }
 
 /**
- * Copies single OA report into userspace read() buffer.
+ * append_oa_sample - Copies single OA report into userspace read() buffer.
+ * @stream: An i915-perf stream opened for OA metrics
+ * @buf: destination buffer given by userspace
+ * @count: the number of bytes userspace wants to read
+ * @offset: (inout): the current position for writing into @buf
+ * @report: A single OA report to (optionally) include as part of the sample
+ *
+ * The contents of a sample are configured through `DRM_I915_PERF_PROP_SAMPLE_*`
+ * properties when opening a stream, tracked as `stream->sample_flags`. This
+ * function copies the requested components of a single sample to the given
+ * read() @buf.
+ *
+ * The @buf @offset will only be updated on success.
+ *
+ * Returns: 0 on success, negative error code on failure.
  */
 static int append_oa_sample(struct i915_perf_stream *stream,
 			    char __user *buf,
@@ -380,10 +424,8 @@ static int append_oa_sample(struct i915_perf_stream *stream,
  * @head_ptr: (inout): the current oa buffer cpu read position
  * @tail: the current oa buffer gpu write position
  *
- * Returns 0 on success, negative error code on failure.
- *
- * Notably any error condition resulting in a short read (-ENOSPC or
- * -EFAULT) will be returned even though one or more records may
+ * Notably any error condition resulting in a short read (-%ENOSPC or
+ * -%EFAULT) will be returned even though one or more records may
  * have been successfully copied. In this case it's up to the caller
  * to decide if the error should be squashed before returning to
  * userspace.
@@ -392,6 +434,8 @@ static int append_oa_sample(struct i915_perf_stream *stream,
  * tail, so the head chases the tail?... If you think that's mad
  * and back-to-front you're not alone, but this follows the
  * Gen PRM naming convention.
+ *
+ * Returns: 0 on success, negative error code on failure.
  */
 static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 				  char __user *buf,
@@ -496,6 +540,22 @@ static int gen7_append_oa_reports(struct i915_perf_stream *stream,
 	return ret;
 }
 
+/**
+ * gen7_oa_read - copy status records then buffered OA reports
+ * @stream: An i915-perf stream opened for OA metrics
+ * @buf: destination buffer given by userspace
+ * @count: the number of bytes userspace wants to read
+ * @offset: (inout): the current position for writing into @buf
+ *
+ * Checks Gen 7 specific OA unit status registers and if necessary appends
+ * corresponding status records for userspace (such as for a buffer full
+ * condition) and then initiate appending any buffered OA reports.
+ *
+ * Updates @offset according to the number of bytes successfully copied into
+ * the userspace buffer.
+ *
+ * Returns: zero on success or a negative error code
+ */
 static int gen7_oa_read(struct i915_perf_stream *stream,
 			char __user *buf,
 			size_t count,
@@ -597,6 +657,20 @@ static int gen7_oa_read(struct i915_perf_stream *stream,
 	return ret;
 }
 
+/**
+ * i915_oa_wait_unlocked - handles blocking IO until OA data available
+ * @stream: An i915-perf stream opened for OA metrics
+ *
+ * Called when userspace tries to read() from a blocking stream FD opened
+ * for OA metrics. It waits until the hrtimer callback finds a non-empty
+ * OA buffer and wakes us.
+ *
+ * Note: it's acceptable to have this return with some false positives
+ * since any subsequent read handling will return -EAGAIN if there isn't
+ * really data ready for userspace yet.
+ *
+ * Returns: zero on success or a negative error code
+ */
 static int i915_oa_wait_unlocked(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
@@ -615,6 +689,16 @@ static int i915_oa_wait_unlocked(struct i915_perf_stream *stream)
 					!dev_priv->perf.oa.ops.oa_buffer_is_empty(dev_priv));
 }
 
+/**
+ * i915_oa_poll_wait - call poll_wait() for an OA stream poll()
+ * @stream: An i915-perf stream opened for OA metrics
+ * @file: An i915 perf stream file
+ * @wait: poll() state table
+ *
+ * For handling userspace polling on an i915 perf stream opened for OA metrics,
+ * this starts a poll_wait with the wait queue that our hrtimer callback wakes
+ * when it sees data ready to read in the circular OA buffer.
+ */
 static void i915_oa_poll_wait(struct i915_perf_stream *stream,
 			      struct file *file,
 			      poll_table *wait)
@@ -624,6 +708,18 @@ static void i915_oa_poll_wait(struct i915_perf_stream *stream,
 	poll_wait(file, &dev_priv->perf.oa.poll_wq, wait);
 }
 
+/**
+ * i915_oa_read - just calls through to &i915_oa_ops->read
+ * @stream: An i915-perf stream opened for OA metrics
+ * @buf: destination buffer given by userspace
+ * @count: the number of bytes userspace wants to read
+ * @offset: (inout): the current position for writing into @buf
+ *
+ * Updates @offset according to the number of bytes successfully copied into
+ * the userspace buffer.
+ *
+ * Returns: zero on success or a negative error code
+ */
 static int i915_oa_read(struct i915_perf_stream *stream,
 			char __user *buf,
 			size_t count,
@@ -634,9 +730,15 @@ static int i915_oa_read(struct i915_perf_stream *stream,
 	return dev_priv->perf.oa.ops.read(stream, buf, count, offset);
 }
 
-/* Determine the render context hw id, and ensure it remains fixed for the
+/**
+ * oa_get_render_ctx_id - determine and hold ctx hw id
+ * @stream: An i915-perf stream opened for OA metrics
+ *
+ * Determine the render context hw id, and ensure it remains fixed for the
  * lifetime of the stream. This ensures that we don't have to worry about
  * updating the context ID in OACONTROL on the fly.
+ *
+ * Returns: zero on success or a negative error code
  */
 static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 {
@@ -673,6 +775,13 @@ unlock:
 	return ret;
 }
 
+/**
+ * oa_put_render_ctx_id - counterpart to oa_get_render_ctx_id releases hold
+ * @stream: An i915-perf stream opened for OA metrics
+ *
+ * In case anything needed doing to ensure the context HW ID would remain valid
+ * for the lifetime of the stream, then that can be undone here.
+ */
 static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
@@ -945,6 +1054,15 @@ static void gen7_oa_enable(struct drm_i915_private *dev_priv)
 	spin_unlock_irqrestore(&dev_priv->perf.hook_lock, flags);
 }
 
+/**
+ * i915_oa_stream_enable - handle `I915_PERF_IOCTL_ENABLE` for OA stream
+ * @stream: An i915 perf stream opened for OA metrics
+ *
+ * [Re]enables hardware periodic sampling according to the period configured
+ * when opening the stream. This also starts a hrtimer that will periodically
+ * check for data in the circular OA buffer for notifying userspace (e.g.
+ * during a read() or poll()).
+ */
 static void i915_oa_stream_enable(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
@@ -962,6 +1080,14 @@ static void gen7_oa_disable(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN7_OACONTROL, 0);
 }
 
+/**
+ * i915_oa_stream_disable - handle `I915_PERF_IOCTL_DISABLE` for OA stream
+ * @stream: An i915 perf stream opened for OA metrics
+ *
+ * Stops the OA unit from periodically writing counter reports into the
+ * circular OA buffer. This also stops the hrtimer that periodically checks for
+ * data in the circular OA buffer, for notifying userspace.
+ */
 static void i915_oa_stream_disable(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
@@ -987,6 +1113,24 @@ static const struct i915_perf_stream_ops i915_oa_stream_ops = {
 	.read = i915_oa_read,
 };
 
+/**
+ * i915_oa_stream_init - validate combined props for OA stream and init
+ * @stream: An i915 perf stream
+ * @param: The open parameters passed to `DRM_I915_PERF_OPEN`
+ * @props: The property state that configures stream (individually validated)
+ *
+ * While read_properties_unlocked() validates properties in isolation it
+ * doesn't ensure that the combination necessarily makes sense.
+ *
+ * At this point it has been determined that userspace wants a stream of
+ * OA metrics, but still we need to further validate the combined
+ * properties are OK.
+ *
+ * If the configuration makes sense then we can allocate memory for
+ * a circular OA buffer and apply the requested metric set configuration.
+ *
+ * Returns: zero on success or a negative error code.
+ */
 static int i915_oa_stream_init(struct i915_perf_stream *stream,
 			       struct drm_i915_perf_open_param *param,
 			       struct perf_open_properties *props)
@@ -1111,6 +1255,31 @@ err_oa_buf_alloc:
 	return ret;
 }
 
+/**
+ * i915_perf_read_locked - &i915_perf_stream_ops->read with error normalisation
+ * @stream: An i915 perf stream
+ * @file: An i915 perf stream file
+ * @buf: destination buffer given by userspace
+ * @count: the number of bytes userspace wants to read
+ * @ppos: (inout) file seek position (unused)
+ *
+ * Besides wrapping &i915_perf_stream_ops->read this provides a common place to
+ * ensure that if we've successfully copied any data then reporting that takes
+ * precedence over any internal error status, so the data isn't lost.
+ *
+ * For example ret will be -ENOSPC whenever there is more buffered data than
+ * can be copied to userspace, but that's only interesting if we weren't able
+ * to copy some data because it implies the userspace buffer is too small to
+ * receive a single record (and we never split records).
+ *
+ * Another case with ret == -EFAULT is more of a grey area since it would seem
+ * like bad form for userspace to ask us to overrun its buffer, but the user
+ * knows best:
+ *
+ *   http://yarchive.net/comp/linux/partial_reads_writes.html
+ *
+ * Returns: The number of bytes copied or a negative error code on failure.
+ */
 static ssize_t i915_perf_read_locked(struct i915_perf_stream *stream,
 				     struct file *file,
 				     char __user *buf,
@@ -1126,25 +1295,27 @@ static ssize_t i915_perf_read_locked(struct i915_perf_stream *stream,
 	size_t offset = 0;
 	int ret = stream->ops->read(stream, buf, count, &offset);
 
-	/* If we've successfully copied any data then reporting that
-	 * takes precedence over any internal error status, so the
-	 * data isn't lost.
-	 *
-	 * For example ret will be -ENOSPC whenever there is more
-	 * buffered data than can be copied to userspace, but that's
-	 * only interesting if we weren't able to copy some data
-	 * because it implies the userspace buffer is too small to
-	 * receive a single record (and we never split records).
-	 *
-	 * Another case with ret == -EFAULT is more of a grey area
-	 * since it would seem like bad form for userspace to ask us
-	 * to overrun its buffer, but the user knows best:
-	 *
-	 *   http://yarchive.net/comp/linux/partial_reads_writes.html
-	 */
 	return offset ?: (ret ?: -EAGAIN);
 }
 
+/**
+ * i915_perf_read - handles read() FOP for i915 perf stream FDs
+ * @file: An i915 perf stream file
+ * @buf: destination buffer given by userspace
+ * @count: the number of bytes userspace wants to read
+ * @ppos: (inout) file seek position (unused)
+ *
+ * The entry point for handling a read() on a stream file descriptor from
+ * userspace. Most of the work is left to the i915_perf_read_locked() and
+ * &i915_perf_stream_ops->read but to save having stream implementations (of
+ * which we might have multiple later) we handle blocking read here.
+ *
+ * We can also consistently treat trying to read from a disabled stream
+ * as an IO error so implementations can assume the stream is enabled
+ * while reading.
+ *
+ * Returns: The number of bytes copied or a negative error code on failure.
+ */
 static ssize_t i915_perf_read(struct file *file,
 			      char __user *buf,
 			      size_t count,
@@ -1211,6 +1382,22 @@ static enum hrtimer_restart oa_poll_check_timer_cb(struct hrtimer *hrtimer)
 	return HRTIMER_RESTART;
 }
 
+/**
+ * i915_perf_poll_locked - poll_wait() with a suitable wait queue for stream
+ * @dev_priv: i915 device instance
+ * @stream: An i915 perf stream
+ * @file: An i915 perf stream file
+ * @wait: poll() state table
+ *
+ * For handling userspace polling on an i915 perf stream, this calls through to
+ * &i915_perf_stream_ops->poll_wait to call poll_wait() with a wait queue that
+ * will be woken for new stream data.
+ *
+ * Note: The &drm_i915_private->perf.lock mutex has been taken to serialize
+ * with any non-file-operation driver hooks.
+ *
+ * Returns: any poll events that are ready without sleeping
+ */
 static unsigned int i915_perf_poll_locked(struct drm_i915_private *dev_priv,
 					  struct i915_perf_stream *stream,
 					  struct file *file,
@@ -1232,6 +1419,19 @@ static unsigned int i915_perf_poll_locked(struct drm_i915_private *dev_priv,
 	return events;
 }
 
+/**
+ * i915_perf_poll - call poll_wait() with a suitable wait queue for stream
+ * @file: An i915 perf stream file
+ * @wait: poll() state table
+ *
+ * For handling userspace polling on an i915 perf stream, this ensures
+ * poll_wait() gets called with a wait queue that will be woken for new stream
+ * data.
+ *
+ * Note: Implementation deferred to i915_perf_poll_locked()
+ *
+ * Returns: any poll events that are ready without sleeping
+ */
 static unsigned int i915_perf_poll(struct file *file, poll_table *wait)
 {
 	struct i915_perf_stream *stream = file->private_data;
@@ -1245,6 +1445,16 @@ static unsigned int i915_perf_poll(struct file *file, poll_table *wait)
 	return ret;
 }
 
+/**
+ * i915_perf_enable_locked - handle `I915_PERF_IOCTL_ENABLE` ioctl
+ * @stream: A disabled i915 perf stream
+ *
+ * [Re]enables the associated capture of data for this stream.
+ *
+ * If a stream was previously enabled then there's currently no intention
+ * to provide userspace any guarantee about the preservation of previously
+ * buffered data.
+ */
 static void i915_perf_enable_locked(struct i915_perf_stream *stream)
 {
 	if (stream->enabled)
@@ -1257,6 +1467,20 @@ static void i915_perf_enable_locked(struct i915_perf_stream *stream)
 		stream->ops->enable(stream);
 }
 
+/**
+ * i915_perf_disable_locked - handle `I915_PERF_IOCTL_DISABLE` ioctl
+ * @stream: An enabled i915 perf stream
+ *
+ * Disables the associated capture of data for this stream.
+ *
+ * The intention is that disabling an re-enabling a stream will ideally be
+ * cheaper than destroying and re-opening a stream with the same configuration,
+ * though there are no formal guarantees about what state or buffered data
+ * must be retained between disabling and re-enabling a stream.
+ *
+ * Note: while a stream is disabled it's considered an error for userspace
+ * to attempt to read from the stream (-EIO).
+ */
 static void i915_perf_disable_locked(struct i915_perf_stream *stream)
 {
 	if (!stream->enabled)
@@ -1269,6 +1493,18 @@ static void i915_perf_disable_locked(struct i915_perf_stream *stream)
 		stream->ops->disable(stream);
 }
 
+/**
+ * i915_perf_ioctl - support ioctl() usage with i915 perf stream FDs
+ * @stream: An i915 perf stream
+ * @cmd: the ioctl request
+ * @arg: the ioctl data
+ *
+ * Note: The &drm_i915_private->perf.lock mutex has been taken to serialize
+ * with any non-file-operation driver hooks.
+ *
+ * Returns: zero on success or a negative error code. Returns -EINVAL for
+ * an unknown ioctl request.
+ */
 static long i915_perf_ioctl_locked(struct i915_perf_stream *stream,
 				   unsigned int cmd,
 				   unsigned long arg)
@@ -1285,6 +1521,17 @@ static long i915_perf_ioctl_locked(struct i915_perf_stream *stream,
 	return -EINVAL;
 }
 
+/**
+ * i915_perf_ioctl - support ioctl() usage with i915 perf stream FDs
+ * @file: An i915 perf stream file
+ * @cmd: the ioctl request
+ * @arg: the ioctl data
+ *
+ * Implementation deferred to i915_perf_ioctl_locked().
+ *
+ * Returns: zero on success or a negative error code. Returns -EINVAL for
+ * an unknown ioctl request.
+ */
 static long i915_perf_ioctl(struct file *file,
 			    unsigned int cmd,
 			    unsigned long arg)
@@ -1300,6 +1547,16 @@ static long i915_perf_ioctl(struct file *file,
 	return ret;
 }
 
+/**
+ * i915_perf_destroy_locked - destroy an i915 perf stream
+ * @stream: An i915 perf stream
+ *
+ * Frees all resources associated with the given i915 perf @stream, disabling
+ * any associated data capture in the process.
+ *
+ * Note: The &drm_i915_private->perf.lock mutex has been taken to serialize
+ * with any non-file-operation driver hooks.
+ */
 static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
@@ -1321,6 +1578,17 @@ static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
 	kfree(stream);
 }
 
+/**
+ * i915_perf_release - handles userspace close() of a stream file
+ * @inode: anonymous inode associated with file
+ * @file: An i915 perf stream file
+ *
+ * Cleans up any resources associated with an open i915 perf stream file.
+ *
+ * NB: close() can't really fail from the userspace point of view.
+ *
+ * Returns: zero on success or a negative error code.
+ */
 static int i915_perf_release(struct inode *inode, struct file *file)
 {
 	struct i915_perf_stream *stream = file->private_data;
@@ -1365,6 +1633,30 @@ lookup_context(struct drm_i915_private *dev_priv,
 	return ctx;
 }
 
+/**
+ * i915_perf_open_ioctl_locked - DRM ioctl() for userspace to open a stream FD
+ * @dev_priv: i915 device instance
+ * @param: The open parameters passed to 'DRM_I915_PERF_OPEN`
+ * @props: individually validated u64 property value pairs
+ * @file: drm file
+ *
+ * See i915_perf_ioctl_open() for interface details.
+ *
+ * Implements further stream config validation and stream initialization on
+ * behalf of i915_perf_open_ioctl() with the &drm_i915_private->perf.lock mutex
+ * taken to serialize with any non-file-operation driver hooks.
+ *
+ * Note: at this point the @props have only been validated in isolation and
+ * it's still necessary to validate that the combination of properties makes
+ * sense.
+ *
+ * In the case where userspace is interested in OA unit metrics then further
+ * config validation and stream initialization details will be handled by
+ * i915_oa_stream_init(). The code here should only validate config state that
+ * will be relevant to all stream types / backends.
+ *
+ * Returns: zero on success or a negative error code.
+ */
 static int
 i915_perf_open_ioctl_locked(struct drm_i915_private *dev_priv,
 			    struct drm_i915_perf_open_param *param,
@@ -1459,12 +1751,20 @@ err:
 	return ret;
 }
 
-/* Note we copy the properties from userspace outside of the i915 perf
- * mutex to avoid an awkward lockdep with mmap_sem.
+/**
+ * read_properties_unlocked - validate + copy userspace stream open properties
+ * @dev_priv: i915 device instance
+ * @uprops: The array of u64 key value pairs given by userspace
+ * @n_props: The number of key value pairs expected in @uprops
+ * @props: The stream configuration built up while validating properties
  *
  * Note this function only validates properties in isolation it doesn't
  * validate that the combination of properties makes sense or that all
  * properties necessary for a particular kind of stream have been set.
+ *
+ * Note that there currently aren't any ordering requirements for properties so
+ * we shouldn't validate or assume anything about ordering here. This doesn't
+ * rule out defining new properties with ordering requirements in the future.
  */
 static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 				    u64 __user *uprops,
@@ -1586,6 +1886,30 @@ static int read_properties_unlocked(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+/**
+ * i915_perf_open_ioctl - DRM ioctl() for userspace to open a stream FD
+ * @dev: drm device
+ * @data: ioctl data copied from userspace (unvalidated)
+ * @file: drm file
+ *
+ * Validates the stream open parameters given by userspace including flags
+ * and an array of u64 key, value pair properties.
+ *
+ * Very little is assumed up front about the nature of the stream being
+ * opened (for instance we don't assume it's for periodic OA unit metrics). An
+ * i915-perf stream is expected to be a suitable interface for other forms of
+ * buffered data written by the GPU besides periodic OA metrics.
+ *
+ * Note we copy the properties from userspace outside of the i915 perf
+ * mutex to avoid an awkward lockdep with mmap_sem.
+ *
+ * Most of the implementation details are handled by
+ * i915_perf_open_ioctl_locked() after taking the &drm_i915_private->perf.lock
+ * mutex for serializing with any non-file-operation driver hooks.
+ *
+ * Return: A newly opened i915 Perf stream file descriptor or negative
+ * error code on failure.
+ */
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file)
 {
@@ -1622,6 +1946,14 @@ int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 	return ret;
 }
 
+/**
+ * i915_perf_register - exposes i915-perf to userspace
+ * @dev_priv: i915 device instance
+ *
+ * In particular OA metric sets are advertised under a sysfs metrics/
+ * directory allowing userspace to enumerate valid IDs that can be
+ * used to open an i915-perf stream.
+ */
 void i915_perf_register(struct drm_i915_private *dev_priv)
 {
 	if (!IS_HASWELL(dev_priv))
@@ -1651,6 +1983,15 @@ exit:
 	mutex_unlock(&dev_priv->perf.lock);
 }
 
+/**
+ * i915_perf_unregister - hide i915-perf from userspace
+ * @dev_priv: i915 device instance
+ *
+ * i915-perf state cleanup is split up into an 'unregister' and
+ * 'deinit' phase where the interface is first hidden from
+ * userspace by i915_perf_unregister() before cleaning up
+ * remaining state in i915_perf_fini().
+ */
 void i915_perf_unregister(struct drm_i915_private *dev_priv)
 {
 	if (!IS_HASWELL(dev_priv))
@@ -1707,6 +2048,15 @@ static struct ctl_table dev_root[] = {
 	{}
 };
 
+/**
+ * i915_perf_init - initialize i915-perf state on module load
+ * @dev_priv: i915 device instance
+ *
+ * Initializes i915-perf state without exposing anything to userspace.
+ *
+ * Note: i915-perf initialization is split into an 'init' and 'register'
+ * phase with the i915_perf_register() exposing state to userspace.
+ */
 void i915_perf_init(struct drm_i915_private *dev_priv)
 {
 	if (!IS_HASWELL(dev_priv))
@@ -1742,6 +2092,10 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 	dev_priv->perf.initialized = true;
 }
 
+/**
+ * i915_perf_fini - Counter part to i915_perf_init()
+ * @dev_priv: i915 device instance
+ */
 void i915_perf_fini(struct drm_i915_private *dev_priv)
 {
 	if (!dev_priv->perf.initialized)
