@@ -97,7 +97,6 @@ struct ipvl_port {
 	struct work_struct	wq;
 	struct sk_buff_head	backlog;
 	int			count;
-	struct rcu_head		rcu;
 };
 
 static inline struct ipvl_port *ipvlan_port_get_rcu(const struct net_device *d)
