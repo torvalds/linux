@@ -5336,14 +5336,11 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_PG_STATE_GATE) ? true : false;
 
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_GFX_PG))
-		return 0;
-
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-		if (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)
-			cz_update_gfx_cg_power_gating(adev, enable);
+
+		cz_update_gfx_cg_power_gating(adev, enable);
 
 		if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_SMG) && enable)
 			gfx_v8_0_enable_gfx_static_mg_power_gating(adev, true);
