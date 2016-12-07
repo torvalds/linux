@@ -4152,7 +4152,7 @@ func_qcfg_exit:
 	return rc;
 }
 
-int bnxt_hwrm_func_qcaps(struct bnxt *bp)
+static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 {
 	int rc = 0;
 	struct hwrm_func_qcaps_input req = {0};
@@ -6854,6 +6854,12 @@ static int bnxt_set_dflt_rings(struct bnxt *bp)
 		bp->cp_nr_rings++;
 	}
 	return rc;
+}
+
+void bnxt_restore_pf_fw_resources(struct bnxt *bp)
+{
+	ASSERT_RTNL();
+	bnxt_hwrm_func_qcaps(bp);
 }
 
 static void bnxt_parse_log_pcie_link(struct bnxt *bp)
