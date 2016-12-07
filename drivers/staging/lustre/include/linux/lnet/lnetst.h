@@ -244,7 +244,7 @@ typedef struct {
 	int		 lstio_ses_timeout;	/* IN: session timeout */
 	int		 lstio_ses_force;	/* IN: force create ? */
 	/** IN: session features */
-	unsigned	 lstio_ses_feats;
+	unsigned int	 lstio_ses_feats;
 	lst_sid_t __user *lstio_ses_idp;	/* OUT: session id */
 	int		 lstio_ses_nmlen;	/* IN: name length */
 	char __user	 *lstio_ses_namep;	/* IN: session name */
@@ -255,7 +255,7 @@ typedef struct {
 	lst_sid_t __user	*lstio_ses_idp;		/* OUT: session id */
 	int __user		*lstio_ses_keyp;	/* OUT: local key */
 	/** OUT: session features */
-	unsigned __user		*lstio_ses_featp;
+	unsigned int __user	*lstio_ses_featp;
 	lstcon_ndlist_ent_t __user *lstio_ses_ndinfo;	/* OUT: */
 	int			 lstio_ses_nmlen;	/* IN: name length */
 	char __user		*lstio_ses_namep;	/* OUT: session name */
@@ -328,7 +328,7 @@ typedef struct {
 	char __user		*lstio_grp_namep;	/* IN: group name */
 	int			 lstio_grp_count;	/* IN: # of nodes */
 	/** OUT: session features */
-	unsigned __user		*lstio_grp_featp;
+	unsigned int __user	*lstio_grp_featp;
 	lnet_process_id_t __user *lstio_grp_idsp;	/* IN: nodes */
 	struct list_head __user	*lstio_grp_resultp;	/* OUT: list head of
 								result buffer */

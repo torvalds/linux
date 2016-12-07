@@ -195,25 +195,25 @@ void lustre_assert_wire_constants(void)
 	LASSERTF(REINT_MAX == 10, "found %lld\n",
 		 (long long)REINT_MAX);
 	LASSERTF(DISP_IT_EXECD == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_IT_EXECD);
+		 (unsigned int)DISP_IT_EXECD);
 	LASSERTF(DISP_LOOKUP_EXECD == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_LOOKUP_EXECD);
+		 (unsigned int)DISP_LOOKUP_EXECD);
 	LASSERTF(DISP_LOOKUP_NEG == 0x00000004UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_LOOKUP_NEG);
+		 (unsigned int)DISP_LOOKUP_NEG);
 	LASSERTF(DISP_LOOKUP_POS == 0x00000008UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_LOOKUP_POS);
+		 (unsigned int)DISP_LOOKUP_POS);
 	LASSERTF(DISP_OPEN_CREATE == 0x00000010UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_OPEN_CREATE);
+		 (unsigned int)DISP_OPEN_CREATE);
 	LASSERTF(DISP_OPEN_OPEN == 0x00000020UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_OPEN_OPEN);
+		 (unsigned int)DISP_OPEN_OPEN);
 	LASSERTF(DISP_ENQ_COMPLETE == 0x00400000UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_ENQ_COMPLETE);
+		 (unsigned int)DISP_ENQ_COMPLETE);
 	LASSERTF(DISP_ENQ_OPEN_REF == 0x00800000UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_ENQ_OPEN_REF);
+		 (unsigned int)DISP_ENQ_OPEN_REF);
 	LASSERTF(DISP_ENQ_CREATE_REF == 0x01000000UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_ENQ_CREATE_REF);
+		 (unsigned int)DISP_ENQ_CREATE_REF);
 	LASSERTF(DISP_OPEN_LOCK == 0x02000000UL, "found 0x%.8xUL\n",
-		 (unsigned)DISP_OPEN_LOCK);
+		 (unsigned int)DISP_OPEN_LOCK);
 	LASSERTF(MDS_STATUS_CONN == 1, "found %lld\n",
 		 (long long)MDS_STATUS_CONN);
 	LASSERTF(MDS_STATUS_LOV == 2, "found %lld\n",
@@ -400,13 +400,13 @@ void lustre_assert_wire_constants(void)
 	LASSERTF((int)sizeof(((struct lustre_mdt_attrs *)0)->lma_self_fid) == 16, "found %lld\n",
 		 (long long)(int)sizeof(((struct lustre_mdt_attrs *)0)->lma_self_fid));
 	LASSERTF(LMAI_RELEASED == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)LMAI_RELEASED);
+		 (unsigned int)LMAI_RELEASED);
 	LASSERTF(LMAC_HSM == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)LMAC_HSM);
+		 (unsigned int)LMAC_HSM);
 	LASSERTF(LMAC_NOT_IN_OI == 0x00000004UL, "found 0x%.8xUL\n",
-		 (unsigned)LMAC_NOT_IN_OI);
+		 (unsigned int)LMAC_NOT_IN_OI);
 	LASSERTF(LMAC_FID_ON_OST == 0x00000008UL, "found 0x%.8xUL\n",
-		 (unsigned)LMAC_FID_ON_OST);
+		 (unsigned int)LMAC_FID_ON_OST);
 
 	/* Checks for struct ost_id */
 	LASSERTF((int)sizeof(struct ost_id) == 16, "found %lld\n",
@@ -456,11 +456,11 @@ void lustre_assert_wire_constants(void)
 	LASSERTF(FID_SEQ_LOV_DEFAULT == 0xffffffffffffffffULL, "found 0x%.16llxULL\n",
 		 (long long)FID_SEQ_LOV_DEFAULT);
 	LASSERTF(FID_OID_SPECIAL_BFL == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)FID_OID_SPECIAL_BFL);
+		 (unsigned int)FID_OID_SPECIAL_BFL);
 	LASSERTF(FID_OID_DOT_LUSTRE == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)FID_OID_DOT_LUSTRE);
+		 (unsigned int)FID_OID_DOT_LUSTRE);
 	LASSERTF(FID_OID_DOT_LUSTRE_OBF == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)FID_OID_DOT_LUSTRE_OBF);
+		 (unsigned int)FID_OID_DOT_LUSTRE_OBF);
 
 	/* Checks for struct lu_dirent */
 	LASSERTF((int)sizeof(struct lu_dirent) == 32, "found %lld\n",
@@ -490,11 +490,11 @@ void lustre_assert_wire_constants(void)
 	LASSERTF((int)sizeof(((struct lu_dirent *)0)->lde_name[0]) == 1, "found %lld\n",
 		 (long long)(int)sizeof(((struct lu_dirent *)0)->lde_name[0]));
 	LASSERTF(LUDA_FID == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)LUDA_FID);
+		 (unsigned int)LUDA_FID);
 	LASSERTF(LUDA_TYPE == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)LUDA_TYPE);
+		 (unsigned int)LUDA_TYPE);
 	LASSERTF(LUDA_64BITHASH == 0x00000004UL, "found 0x%.8xUL\n",
-		 (unsigned)LUDA_64BITHASH);
+		 (unsigned int)LUDA_64BITHASH);
 
 	/* Checks for struct luda_type */
 	LASSERTF((int)sizeof(struct luda_type) == 2, "found %lld\n",
@@ -820,41 +820,41 @@ void lustre_assert_wire_constants(void)
 	LASSERTF(MSGHDR_CKSUM_INCOMPAT18 == 2, "found %lld\n",
 		 (long long)MSGHDR_CKSUM_INCOMPAT18);
 	LASSERTF(MSG_OP_FLAG_MASK == 0xffff0000UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_OP_FLAG_MASK);
+		 (unsigned int)MSG_OP_FLAG_MASK);
 	LASSERTF(MSG_OP_FLAG_SHIFT == 16, "found %lld\n",
 		 (long long)MSG_OP_FLAG_SHIFT);
 	LASSERTF(MSG_GEN_FLAG_MASK == 0x0000ffffUL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_GEN_FLAG_MASK);
+		 (unsigned int)MSG_GEN_FLAG_MASK);
 	LASSERTF(MSG_LAST_REPLAY == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_LAST_REPLAY);
+		 (unsigned int)MSG_LAST_REPLAY);
 	LASSERTF(MSG_RESENT == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_RESENT);
+		 (unsigned int)MSG_RESENT);
 	LASSERTF(MSG_REPLAY == 0x00000004UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_REPLAY);
+		 (unsigned int)MSG_REPLAY);
 	LASSERTF(MSG_DELAY_REPLAY == 0x00000010UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_DELAY_REPLAY);
+		 (unsigned int)MSG_DELAY_REPLAY);
 	LASSERTF(MSG_VERSION_REPLAY == 0x00000020UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_VERSION_REPLAY);
+		 (unsigned int)MSG_VERSION_REPLAY);
 	LASSERTF(MSG_REQ_REPLAY_DONE == 0x00000040UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_REQ_REPLAY_DONE);
+		 (unsigned int)MSG_REQ_REPLAY_DONE);
 	LASSERTF(MSG_LOCK_REPLAY_DONE == 0x00000080UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_LOCK_REPLAY_DONE);
+		 (unsigned int)MSG_LOCK_REPLAY_DONE);
 	LASSERTF(MSG_CONNECT_RECOVERING == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_CONNECT_RECOVERING);
+		 (unsigned int)MSG_CONNECT_RECOVERING);
 	LASSERTF(MSG_CONNECT_RECONNECT == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_CONNECT_RECONNECT);
+		 (unsigned int)MSG_CONNECT_RECONNECT);
 	LASSERTF(MSG_CONNECT_REPLAYABLE == 0x00000004UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_CONNECT_REPLAYABLE);
+		 (unsigned int)MSG_CONNECT_REPLAYABLE);
 	LASSERTF(MSG_CONNECT_LIBCLIENT == 0x00000010UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_CONNECT_LIBCLIENT);
+		 (unsigned int)MSG_CONNECT_LIBCLIENT);
 	LASSERTF(MSG_CONNECT_INITIAL == 0x00000020UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_CONNECT_INITIAL);
+		 (unsigned int)MSG_CONNECT_INITIAL);
 	LASSERTF(MSG_CONNECT_ASYNC == 0x00000040UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_CONNECT_ASYNC);
+		 (unsigned int)MSG_CONNECT_ASYNC);
 	LASSERTF(MSG_CONNECT_NEXT_VER == 0x00000080UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_CONNECT_NEXT_VER);
+		 (unsigned int)MSG_CONNECT_NEXT_VER);
 	LASSERTF(MSG_CONNECT_TRANSNO == 0x00000100UL, "found 0x%.8xUL\n",
-		 (unsigned)MSG_CONNECT_TRANSNO);
+		 (unsigned int)MSG_CONNECT_TRANSNO);
 
 	/* Checks for struct obd_connect_data */
 	LASSERTF((int)sizeof(struct obd_connect_data) == 192, "found %lld\n",
@@ -1114,11 +1114,11 @@ void lustre_assert_wire_constants(void)
 	LASSERTF(OBD_CONNECT_FLAGS2 == 0x8000000000000000ULL, "found 0x%.16llxULL\n",
 		 OBD_CONNECT_FLAGS2);
 	LASSERTF(OBD_CKSUM_CRC32 == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)OBD_CKSUM_CRC32);
+		 (unsigned int)OBD_CKSUM_CRC32);
 	LASSERTF(OBD_CKSUM_ADLER == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)OBD_CKSUM_ADLER);
+		 (unsigned int)OBD_CKSUM_ADLER);
 	LASSERTF(OBD_CKSUM_CRC32C == 0x00000004UL, "found 0x%.8xUL\n",
-		 (unsigned)OBD_CKSUM_CRC32C);
+		 (unsigned int)OBD_CKSUM_CRC32C);
 
 	/* Checks for struct obdo */
 	LASSERTF((int)sizeof(struct obdo) == 208, "found %lld\n",
@@ -1428,13 +1428,13 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)sizeof(((struct lov_mds_md_v3 *)0)->lmm_objects[0]));
 	CLASSERT(LOV_MAGIC_V3 == (0x0BD30000 | 0x0BD0));
 	LASSERTF(LOV_PATTERN_RAID0 == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)LOV_PATTERN_RAID0);
+		 (unsigned int)LOV_PATTERN_RAID0);
 	LASSERTF(LOV_PATTERN_RAID1 == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)LOV_PATTERN_RAID1);
+		 (unsigned int)LOV_PATTERN_RAID1);
 	LASSERTF(LOV_PATTERN_FIRST == 0x00000100UL, "found 0x%.8xUL\n",
-		 (unsigned)LOV_PATTERN_FIRST);
+		 (unsigned int)LOV_PATTERN_FIRST);
 	LASSERTF(LOV_PATTERN_CMOBD == 0x00000200UL, "found 0x%.8xUL\n",
-		 (unsigned)LOV_PATTERN_CMOBD);
+		 (unsigned int)LOV_PATTERN_CMOBD);
 
 	/* Checks for struct lmv_mds_md_v1 */
 	LASSERTF((int)sizeof(struct lmv_mds_md_v1) == 56, "found %lld\n",
@@ -4133,9 +4133,9 @@ void lustre_assert_wire_constants(void)
 	LASSERTF((int)sizeof(((struct hsm_request *)0)->hr_data_len) == 4, "found %lld\n",
 		 (long long)(int)sizeof(((struct hsm_request *)0)->hr_data_len));
 	LASSERTF(HSM_FORCE_ACTION == 0x00000001UL, "found 0x%.8xUL\n",
-		 (unsigned)HSM_FORCE_ACTION);
+		 (unsigned int)HSM_FORCE_ACTION);
 	LASSERTF(HSM_GHOST_COPY == 0x00000002UL, "found 0x%.8xUL\n",
-		 (unsigned)HSM_GHOST_COPY);
+		 (unsigned int)HSM_GHOST_COPY);
 
 	/* Checks for struct hsm_user_request */
 	LASSERTF((int)sizeof(struct hsm_user_request) == 24, "found %lld\n",

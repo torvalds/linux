@@ -460,7 +460,7 @@ static int ll_prepare_partial_page(const struct lu_env *env, struct cl_io *io,
 }
 
 static int ll_write_begin(struct file *file, struct address_space *mapping,
-			  loff_t pos, unsigned len, unsigned flags,
+			  loff_t pos, unsigned int len, unsigned int flags,
 			  struct page **pagep, void **fsdata)
 {
 	struct ll_cl_context *lcc;
@@ -577,7 +577,7 @@ static int ll_write_end(struct file *file, struct address_space *mapping,
 	struct cl_io *io;
 	struct vvp_io *vio;
 	struct cl_page *page;
-	unsigned from = pos & (PAGE_SIZE - 1);
+	unsigned int from = pos & (PAGE_SIZE - 1);
 	bool unplug = false;
 	int result = 0;
 

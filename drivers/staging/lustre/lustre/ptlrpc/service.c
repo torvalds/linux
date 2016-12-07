@@ -343,9 +343,9 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 			     struct ptlrpc_service_conf *conf)
 {
 	struct ptlrpc_service_thr_conf *tc = &conf->psc_thr;
-	unsigned init;
-	unsigned total;
-	unsigned nthrs;
+	unsigned int init;
+	unsigned int total;
+	unsigned int nthrs;
 	int weight;
 
 	/*

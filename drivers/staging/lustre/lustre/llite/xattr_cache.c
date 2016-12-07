@@ -26,8 +26,8 @@ struct ll_xattr_entry {
 					     */
 	char			*xe_name;   /* xattr name, \0-terminated */
 	char			*xe_value;  /* xattr value */
-	unsigned		xe_namelen; /* strlen(xe_name) + 1 */
-	unsigned		xe_vallen;  /* xattr value length */
+	unsigned int		xe_namelen; /* strlen(xe_name) + 1 */
+	unsigned int		xe_vallen;  /* xattr value length */
 };
 
 static struct kmem_cache *xattr_kmem;
@@ -104,7 +104,7 @@ static int ll_xattr_cache_find(struct list_head *cache,
 static int ll_xattr_cache_add(struct list_head *cache,
 			      const char *xattr_name,
 			      const char *xattr_val,
-			      unsigned xattr_val_len)
+			      unsigned int xattr_val_len)
 {
 	struct ll_xattr_entry *xattr;
 

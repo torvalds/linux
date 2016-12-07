@@ -445,8 +445,8 @@ static struct ldlm_resource *ldlm_resource_getref(struct ldlm_resource *res)
 	return res;
 }
 
-static unsigned ldlm_res_hop_hash(struct cfs_hash *hs,
-				  const void *key, unsigned mask)
+static unsigned int ldlm_res_hop_hash(struct cfs_hash *hs,
+				      const void *key, unsigned int mask)
 {
 	const struct ldlm_res_id     *id  = key;
 	unsigned int		val = 0;
@@ -457,8 +457,8 @@ static unsigned ldlm_res_hop_hash(struct cfs_hash *hs,
 	return val & mask;
 }
 
-static unsigned ldlm_res_hop_fid_hash(struct cfs_hash *hs,
-				      const void *key, unsigned mask)
+static unsigned int ldlm_res_hop_fid_hash(struct cfs_hash *hs,
+					  const void *key, unsigned int mask)
 {
 	const struct ldlm_res_id *id = key;
 	struct lu_fid       fid;

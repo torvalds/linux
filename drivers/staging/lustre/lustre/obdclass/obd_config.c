@@ -1450,8 +1450,8 @@ EXPORT_SYMBOL(class_manual_cleanup);
  * uuid<->export lustre hash operations
  */
 
-static unsigned
-uuid_hash(struct cfs_hash *hs, const void *key, unsigned mask)
+static unsigned int
+uuid_hash(struct cfs_hash *hs, const void *key, unsigned int mask)
 {
 	return cfs_hash_djb2_hash(((struct obd_uuid *)key)->uuid,
 				  sizeof(((struct obd_uuid *)key)->uuid), mask);

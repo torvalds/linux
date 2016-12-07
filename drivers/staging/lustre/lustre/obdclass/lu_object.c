@@ -914,8 +914,8 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	return clamp_t(typeof(bits), bits, LU_SITE_BITS_MIN, bits_max);
 }
 
-static unsigned lu_obj_hop_hash(struct cfs_hash *hs,
-				const void *key, unsigned mask)
+static unsigned int lu_obj_hop_hash(struct cfs_hash *hs,
+				    const void *key, unsigned int mask)
 {
 	struct lu_fid  *fid = (struct lu_fid *)key;
 	__u32	   hash;
@@ -1324,7 +1324,7 @@ static atomic_t lu_key_initing_cnt = ATOMIC_INIT(0);
  * lu_context_refill(). No locking is provided, as initialization and shutdown
  * are supposed to be externally serialized.
  */
-static unsigned key_set_version;
+static unsigned int key_set_version;
 
 /**
  * Register new key.
