@@ -75,6 +75,20 @@ struct uniphier_clk_data {
 	} data;
 };
 
+#define UNIPHIER_CLK_CPUGEAR(_name, _idx, _regbase, _mask,	\
+			     _num_parents, ...)			\
+	{							\
+		.name = (_name),				\
+		.type = UNIPHIER_CLK_TYPE_CPUGEAR,		\
+		.idx = (_idx),					\
+		.data.cpugear = {				\
+			.parent_names = { __VA_ARGS__ },	\
+			.num_parents = (_num_parents),		\
+			.regbase = (_regbase),			\
+			.mask = (_mask)				\
+		 },						\
+	}
+
 #define UNIPHIER_CLK_FACTOR(_name, _idx, _parent, _mult, _div)	\
 	{							\
 		.name = (_name),				\
@@ -87,7 +101,6 @@ struct uniphier_clk_data {
 		},						\
 	}
 
-
 #define UNIPHIER_CLK_GATE(_name, _idx, _parent, _reg, _bit)	\
 	{							\
 		.name = (_name),				\
@@ -99,6 +112,21 @@ struct uniphier_clk_data {
 			.bit = (_bit),				\
 		},						\
 	}
+
+#define UNIPHIER_CLK_DIV(parent, div)				\
+	UNIPHIER_CLK_FACTOR(parent "/" #div, -1, parent, 1, div)
+
+#define UNIPHIER_CLK_DIV2(parent, div0, div1)			\
+	UNIPHIER_CLK_DIV(parent, div0),				\
+	UNIPHIER_CLK_DIV(parent, div1)
+
+#define UNIPHIER_CLK_DIV3(parent, div0, div1, div2)		\
+	UNIPHIER_CLK_DIV2(parent, div0, div1),			\
+	UNIPHIER_CLK_DIV(parent, div2)
+
+#define UNIPHIER_CLK_DIV4(parent, div0, div1, div2, div3)	\
+	UNIPHIER_CLK_DIV2(parent, div0, div1),			\
+	UNIPHIER_CLK_DIV2(parent, div2, div3)
 
 struct clk_hw *uniphier_clk_register_cpugear(struct device *dev,
 					     struct regmap *regmap,
