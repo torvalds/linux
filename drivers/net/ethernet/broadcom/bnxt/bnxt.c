@@ -4743,6 +4743,16 @@ static int bnxt_trim_rings(struct bnxt *bp, int *rx, int *tx, int max,
 	return 0;
 }
 
+void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		bp->vf.max_irqs = max_irqs;
+	else
+#endif
+		bp->pf.max_irqs = max_irqs;
+}
+
 static int bnxt_setup_msix(struct bnxt *bp)
 {
 	struct msix_entry *msix_ent;
@@ -6949,12 +6959,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
-	if (BNXT_PF(bp))
-		bp->pf.max_irqs = max_irqs;
-#if defined(CONFIG_BNXT_SRIOV)
-	else
-		bp->vf.max_irqs = max_irqs;
-#endif
+	bnxt_set_max_func_irqs(bp, max_irqs);
 	bnxt_set_dflt_rings(bp);
 
 	/* Default RSS hash cfg. */
