@@ -3199,7 +3199,7 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 	dev_dbg(hsotg->dev, "gotgctl=%0x\n", gotgctl);
 	dev_dbg(hsotg->dev, "gotgctl.b.conidsts=%d\n",
 		!!(gotgctl & GOTGCTL_CONID_B));
-
+again:
 	/* B-Device connector (Device Mode) */
 	if (gotgctl & GOTGCTL_CONID_B) {
 		/* Wait for switch to device mode */
@@ -3210,6 +3210,9 @@ static void dwc2_conn_id_status_change(struct work_struct *work)
 				 dwc2_is_host_mode(hsotg) ? "Host" :
 				 "Peripheral");
 			usleep_range(20000, 40000);
+			gotgctl = dwc2_readl(hsotg->regs + GOTGCTL);
+			if (!(gotgctl & GOTGCTL_CONID_B))
+				goto again;
 			if (++count > 250)
 				break;
 		}
