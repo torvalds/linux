@@ -40,6 +40,7 @@
 
 #define MCP795_ST_BIT	0x80
 #define MCP795_24_BIT	0x40
+#define MCP795_LP_BIT	BIT(5)
 
 static int mcp795_rtcc_read(struct device *dev, u8 addr, u8 *buf, u8 count)
 {
@@ -109,7 +110,7 @@ static int mcp795_set_time(struct device *dev, struct rtc_time *tim)
 	data[1] = (data[1] & 0x80) | bin2bcd(tim->tm_min);
 	data[2] = bin2bcd(tim->tm_hour);
 	data[4] = bin2bcd(tim->tm_mday);
-	data[5] = (data[5] & 0x10) | bin2bcd(tim->tm_mon);
+	data[5] = (data[5] & MCP795_LP_BIT) | bin2bcd(tim->tm_mon);
 
 	if (tim->tm_year > 100)
 		tim->tm_year -= 100;
