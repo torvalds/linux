@@ -938,12 +938,13 @@ static void update_pfit_vscale_ratio(struct intel_overlay *overlay)
 static int check_overlay_dst(struct intel_overlay *overlay,
 			     struct drm_intel_overlay_put_image *rec)
 {
-	struct drm_display_mode *mode = &overlay->crtc->base.mode;
+	const struct intel_crtc_state *pipe_config =
+		overlay->crtc->config;
 
-	if (rec->dst_x < mode->hdisplay &&
-	    rec->dst_x + rec->dst_width <= mode->hdisplay &&
-	    rec->dst_y < mode->vdisplay &&
-	    rec->dst_y + rec->dst_height <= mode->vdisplay)
+	if (rec->dst_x < pipe_config->pipe_src_w &&
+	    rec->dst_x + rec->dst_width <= pipe_config->pipe_src_w &&
+	    rec->dst_y < pipe_config->pipe_src_h &&
+	    rec->dst_y + rec->dst_height <= pipe_config->pipe_src_h)
 		return 0;
 	else
 		return -EINVAL;
@@ -1163,7 +1164,6 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 
 	if (overlay->crtc != crtc) {
-		struct drm_display_mode *mode = &crtc->base.mode;
 		ret = intel_overlay_switch_off(overlay);
 		if (ret != 0)
 			goto out_unlock;
@@ -1176,7 +1176,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 		crtc->overlay = overlay;
 
 		/* line too wide, i.e. one-line-mode */
-		if (mode->hdisplay > 1024 &&
+		if (crtc->config->pipe_src_w > 1024 &&
 		    intel_panel_fitter_pipe(dev_priv) == crtc->pipe) {
 			overlay->pfit_active = true;
 			update_pfit_vscale_ratio(overlay);
