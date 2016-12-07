@@ -8641,10 +8641,10 @@ static void nfs4_layoutreturn_release(void *calldata)
 	pnfs_layoutreturn_free_lsegs(lo, &lrp->args.stateid, &lrp->args.range,
 			lrp->res.lrs_present ? &lrp->res.stateid : NULL);
 	nfs4_sequence_free_slot(&lrp->res.seq_res);
-	pnfs_put_layout_hdr(lrp->args.layout);
-	nfs_iput_and_deactive(lrp->inode);
 	if (lrp->ld_private.ops && lrp->ld_private.ops->free)
 		lrp->ld_private.ops->free(&lrp->ld_private);
+	pnfs_put_layout_hdr(lrp->args.layout);
+	nfs_iput_and_deactive(lrp->inode);
 	kfree(calldata);
 	dprintk("<-- %s\n", __func__);
 }
