@@ -1863,7 +1863,8 @@ static int adm8211_probe(struct pci_dev *pdev,
 	priv->rx_ring_size = rx_ring_size;
 	priv->tx_ring_size = tx_ring_size;
 
-	if (adm8211_alloc_rings(dev)) {
+	err = adm8211_alloc_rings(dev);
+	if (err) {
 		printk(KERN_ERR "%s (adm8211): Cannot allocate TX/RX ring\n",
 		       pci_name(pdev));
 		goto err_iounmap;
