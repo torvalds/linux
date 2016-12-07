@@ -971,6 +971,7 @@ static int vi_common_early_init(void *handle)
 			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
 				AMD_PG_SUPPORT_GFX_SMG |
 				AMD_PG_SUPPORT_GFX_PIPELINE |
+				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_UVD |
 				AMD_PG_SUPPORT_VCE;
 		}
@@ -996,6 +997,7 @@ static int vi_common_early_init(void *handle)
 		adev->pg_flags = AMD_PG_SUPPORT_GFX_PG |
 			AMD_PG_SUPPORT_GFX_SMG |
 			AMD_PG_SUPPORT_GFX_PIPELINE |
+			AMD_PG_SUPPORT_CP |
 			AMD_PG_SUPPORT_UVD |
 			AMD_PG_SUPPORT_VCE;
 		adev->external_rev_id = adev->rev_id + 0x61;
