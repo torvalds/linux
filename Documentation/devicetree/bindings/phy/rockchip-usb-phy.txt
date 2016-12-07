@@ -28,6 +28,9 @@ Optional Properties:
 - clock-names: string, clock name, must be "phyclk"
 - vbus_drv-gpio: pull gpio on/off to control vbus power supply.
 - #clock-cells: for users of the phy-pll, should be 0
+- reset-names: Only allow the following entries:
+- phy-reset
+- resets: Must contain an entry for each entry in reset-names.
 
 Example:
 
@@ -36,6 +39,8 @@ usbphy: phy {
 	rockchip,grf = <&grf>;
 	#address-cells = <1>;
 	#size-cells = <0>;
+	resets = <&cru SRST_USBHOST1_PHY>;
+	reset-names = "phy-reset";
 
 	usbphy0: usb-phy0 {
 		#phy-cells = <0>;
