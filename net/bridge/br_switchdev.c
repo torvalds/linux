@@ -13,7 +13,7 @@ static int br_switchdev_mark_get(struct net_bridge *br, struct net_device *dev)
 
 	/* dev is yet to be added to the port list. */
 	list_for_each_entry(p, &br->port_list, list) {
-		if (switchdev_port_same_parent_id(dev, p->dev))
+		if (switchdev_port_same_parent_id(dev, p->dev, 0))
 			return p->offload_fwd_mark;
 	}
 

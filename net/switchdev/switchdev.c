@@ -1094,15 +1094,18 @@ int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 EXPORT_SYMBOL_GPL(switchdev_port_fdb_dump);
 
 bool switchdev_port_same_parent_id(struct net_device *a,
-				   struct net_device *b)
+				   struct net_device *b,
+				   u32 flags)
 {
 	struct switchdev_attr a_attr = {
 		.orig_dev = a,
 		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
+		.flags = flags,
 	};
 	struct switchdev_attr b_attr = {
 		.orig_dev = b,
 		.id = SWITCHDEV_ATTR_ID_PORT_PARENT_ID,
+		.flags = flags,
 	};
 
 	if (switchdev_port_attr_get(a, &a_attr) ||
