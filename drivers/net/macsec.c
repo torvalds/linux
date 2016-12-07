@@ -3346,19 +3346,18 @@ static struct net *macsec_get_link_net(const struct net_device *dev)
 
 static size_t macsec_get_size(const struct net_device *dev)
 {
-	return 0 +
-		nla_total_size_64bit(8) + /* SCI */
-		nla_total_size(1) + /* ICV_LEN */
-		nla_total_size_64bit(8) + /* CIPHER_SUITE */
-		nla_total_size(4) + /* WINDOW */
-		nla_total_size(1) + /* ENCODING_SA */
-		nla_total_size(1) + /* ENCRYPT */
-		nla_total_size(1) + /* PROTECT */
-		nla_total_size(1) + /* INC_SCI */
-		nla_total_size(1) + /* ES */
-		nla_total_size(1) + /* SCB */
-		nla_total_size(1) + /* REPLAY_PROTECT */
-		nla_total_size(1) + /* VALIDATION */
+	return  nla_total_size_64bit(8) + /* IFLA_MACSEC_SCI */
+		nla_total_size(1) + /* IFLA_MACSEC_ICV_LEN */
+		nla_total_size_64bit(8) + /* IFLA_MACSEC_CIPHER_SUITE */
+		nla_total_size(4) + /* IFLA_MACSEC_WINDOW */
+		nla_total_size(1) + /* IFLA_MACSEC_ENCODING_SA */
+		nla_total_size(1) + /* IFLA_MACSEC_ENCRYPT */
+		nla_total_size(1) + /* IFLA_MACSEC_PROTECT */
+		nla_total_size(1) + /* IFLA_MACSEC_INC_SCI */
+		nla_total_size(1) + /* IFLA_MACSEC_ES */
+		nla_total_size(1) + /* IFLA_MACSEC_SCB */
+		nla_total_size(1) + /* IFLA_MACSEC_REPLAY_PROTECT */
+		nla_total_size(1) + /* IFLA_MACSEC_VALIDATION */
 		0;
 }
 
