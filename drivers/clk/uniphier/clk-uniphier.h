@@ -20,13 +20,22 @@ struct clk_hw;
 struct device;
 struct regmap;
 
-#define UNIPHIER_CLK_MUX_MAX_PARENTS	8
+#define UNIPHIER_CLK_CPUGEAR_MAX_PARENTS	16
+#define UNIPHIER_CLK_MUX_MAX_PARENTS		8
 
 enum uniphier_clk_type {
+	UNIPHIER_CLK_TYPE_CPUGEAR,
 	UNIPHIER_CLK_TYPE_FIXED_FACTOR,
 	UNIPHIER_CLK_TYPE_FIXED_RATE,
 	UNIPHIER_CLK_TYPE_GATE,
 	UNIPHIER_CLK_TYPE_MUX,
+};
+
+struct uniphier_clk_cpugear_data {
+	const char *parent_names[UNIPHIER_CLK_CPUGEAR_MAX_PARENTS];
+	unsigned int num_parents;
+	unsigned int regbase;
+	unsigned int mask;
 };
 
 struct uniphier_clk_fixed_factor_data {
@@ -58,6 +67,7 @@ struct uniphier_clk_data {
 	enum uniphier_clk_type type;
 	int idx;
 	union {
+		struct uniphier_clk_cpugear_data cpugear;
 		struct uniphier_clk_fixed_factor_data factor;
 		struct uniphier_clk_fixed_rate_data rate;
 		struct uniphier_clk_gate_data gate;
@@ -90,7 +100,10 @@ struct uniphier_clk_data {
 		},						\
 	}
 
-
+struct clk_hw *uniphier_clk_register_cpugear(struct device *dev,
+					     struct regmap *regmap,
+					     const char *name,
+				const struct uniphier_clk_cpugear_data *data);
 struct clk_hw *uniphier_clk_register_fixed_factor(struct device *dev,
 						  const char *name,
 			const struct uniphier_clk_fixed_factor_data *data);
