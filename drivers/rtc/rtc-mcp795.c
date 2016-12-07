@@ -21,6 +21,7 @@
 #include <linux/spi/spi.h>
 #include <linux/rtc.h>
 #include <linux/of.h>
+#include <linux/bcd.h>
 
 /* MCP795 Instructions, see datasheet table 3-1 */
 #define MCP795_EEREAD	0x03
@@ -104,16 +105,16 @@ static int mcp795_set_time(struct device *dev, struct rtc_time *tim)
 	if (ret)
 		return ret;
 
-	data[0] = (data[0] & 0x80) | ((tim->tm_sec / 10) << 4) | (tim->tm_sec % 10);
-	data[1] = (data[1] & 0x80) | ((tim->tm_min / 10) << 4) | (tim->tm_min % 10);
-	data[2] = ((tim->tm_hour / 10) << 4) | (tim->tm_hour % 10);
-	data[4] = ((tim->tm_mday / 10) << 4) | ((tim->tm_mday) % 10);
-	data[5] = (data[5] & 0x10) | (tim->tm_mon / 10) | (tim->tm_mon % 10);
+	data[0] = (data[0] & 0x80) | bin2bcd(tim->tm_sec);
+	data[1] = (data[1] & 0x80) | bin2bcd(tim->tm_min);
+	data[2] = bin2bcd(tim->tm_hour);
+	data[4] = bin2bcd(tim->tm_mday);
+	data[5] = (data[5] & 0x10) | bin2bcd(tim->tm_mon);
 
 	if (tim->tm_year > 100)
 		tim->tm_year -= 100;
 
-	data[6] = ((tim->tm_year / 10) << 4) | (tim->tm_year % 10);
+	data[6] = bin2bcd(tim->tm_year);
 
 	ret = mcp795_rtcc_write(dev, 0x01, data, sizeof(data));
 
@@ -137,12 +138,12 @@ static int mcp795_read_time(struct device *dev, struct rtc_time *tim)
 	if (ret)
 		return ret;
 
-	tim->tm_sec		= ((data[0] & 0x70) >> 4) * 10 + (data[0] & 0x0f);
-	tim->tm_min		= ((data[1] & 0x70) >> 4) * 10 + (data[1] & 0x0f);
-	tim->tm_hour	= ((data[2] & 0x30) >> 4) * 10 + (data[2] & 0x0f);
-	tim->tm_mday	= ((data[4] & 0x30) >> 4) * 10 + (data[4] & 0x0f);
-	tim->tm_mon		= ((data[5] & 0x10) >> 4) * 10 + (data[5] & 0x0f);
-	tim->tm_year	= ((data[6] & 0xf0) >> 4) * 10 + (data[6] & 0x0f) + 100; /* Assume we are in 20xx */
+	tim->tm_sec	= bcd2bin(data[0] & 0x7F);
+	tim->tm_min	= bcd2bin(data[1] & 0x7F);
+	tim->tm_hour	= bcd2bin(data[2] & 0x3F);
+	tim->tm_mday	= bcd2bin(data[4] & 0x3F);
+	tim->tm_mon	= bcd2bin(data[5] & 0x1F);
+	tim->tm_year	= bcd2bin(data[6]) + 100; /* Assume we are in 20xx */
 
 	dev_dbg(dev, "Read from mcp795: %04d-%02d-%02d %02d:%02d:%02d\n",
 				tim->tm_year + 1900, tim->tm_mon, tim->tm_mday,
