@@ -1148,7 +1148,7 @@ static int lock_matches(struct ldlm_lock *lock, struct lock_match_data *data)
 	return INTERVAL_ITER_STOP;
 }
 
-static unsigned int itree_overlap_cb(struct interval_node *in, void *args)
+static enum interval_iter itree_overlap_cb(struct interval_node *in, void *args)
 {
 	struct ldlm_interval *node = to_ldlm_interval(in);
 	struct lock_match_data *data = args;
