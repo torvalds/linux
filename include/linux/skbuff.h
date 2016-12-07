@@ -1966,6 +1966,8 @@ static inline int pskb_may_pull(struct sk_buff *skb, unsigned int len)
 	return __pskb_pull_tail(skb, len - skb_headlen(skb)) != NULL;
 }
 
+void skb_condense(struct sk_buff *skb);
+
 /**
  *	skb_headroom - bytes at buffer head
  *	@skb: buffer to check

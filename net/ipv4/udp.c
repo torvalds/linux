@@ -1199,7 +1199,7 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct sk_buff_head *list = &sk->sk_receive_queue;
 	int rmem, delta, amt, err = -ENOMEM;
-	int size = skb->truesize;
+	int size;
 
 	/* try to avoid the costly atomic add/sub pair when the receive
 	 * queue is full; always allow at least a packet
@@ -1207,6 +1207,16 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	rmem = atomic_read(&sk->sk_rmem_alloc);
 	if (rmem > sk->sk_rcvbuf)
 		goto drop;
+
+	/* Under mem pressure, it might be helpful to help udp_recvmsg()
+	 * having linear skbs :
+	 * - Reduce memory overhead and thus increase receive queue capacity
+	 * - Less cache line misses at copyout() time
+	 * - Less work at consume_skb() (less alien page frag freeing)
+	 */
+	if (rmem > (sk->sk_rcvbuf >> 1))
+		skb_condense(skb);
+	size = skb->truesize;
 
 	/* we drop only if the receive buf is full and the receive
 	 * queue contains some other skb
