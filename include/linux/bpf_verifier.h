@@ -18,13 +18,6 @@
 
 struct bpf_reg_state {
 	enum bpf_reg_type type;
-	/*
-	 * Used to determine if any memory access using this register will
-	 * result in a bad access.
-	 */
-	s64 min_value;
-	u64 max_value;
-	u32 id;
 	union {
 		/* valid when type == CONST_IMM | PTR_TO_STACK | UNKNOWN_VALUE */
 		s64 imm;
@@ -40,6 +33,13 @@ struct bpf_reg_state {
 		 */
 		struct bpf_map *map_ptr;
 	};
+	u32 id;
+	/* Used to determine if any memory access using this register will
+	 * result in a bad access. These two fields must be last.
+	 * See states_equal()
+	 */
+	s64 min_value;
+	u64 max_value;
 };
 
 enum bpf_stack_slot_type {

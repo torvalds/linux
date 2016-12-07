@@ -2498,7 +2498,7 @@ static bool states_equal(struct bpf_verifier_env *env,
 		 * we didn't do a variable access into a map then we are a-ok.
 		 */
 		if (!varlen_map_access &&
-		    rold->type == rcur->type && rold->imm == rcur->imm)
+		    memcmp(rold, rcur, offsetofend(struct bpf_reg_state, id)) == 0)
 			continue;
 
 		/* If we didn't map access then again we don't care about the
