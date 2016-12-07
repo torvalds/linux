@@ -1578,16 +1578,12 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
  */
 static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 {
-	int pbl = DEFAULT_DMA_PBL, fixed_burst = 0, aal = 0;
-	int mixed_burst = 0;
 	int atds = 0;
 	int ret = 0;
 
-	if (priv->plat->dma_cfg) {
-		pbl = priv->plat->dma_cfg->pbl;
-		fixed_burst = priv->plat->dma_cfg->fixed_burst;
-		mixed_burst = priv->plat->dma_cfg->mixed_burst;
-		aal = priv->plat->dma_cfg->aal;
+	if (!priv->plat->dma_cfg) {
+		dev_err(priv->device, "DMA configuration not found\n");
+		return -EINVAL;
 	}
 
 	if (priv->extend_desc && (priv->mode == STMMAC_RING_MODE))
@@ -1599,8 +1595,12 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		return ret;
 	}
 
-	priv->hw->dma->init(priv->ioaddr, pbl, fixed_burst, mixed_burst,
-			    aal, priv->dma_tx_phy, priv->dma_rx_phy, atds);
+	priv->hw->dma->init(priv->ioaddr,
+			    priv->plat->dma_cfg->pbl,
+			    priv->plat->dma_cfg->fixed_burst,
+			    priv->plat->dma_cfg->mixed_burst,
+			    priv->plat->dma_cfg->aal,
+			    priv->dma_tx_phy, priv->dma_rx_phy, atds);
 
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
 		priv->rx_tail_addr = priv->dma_rx_phy +
