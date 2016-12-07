@@ -192,6 +192,7 @@ struct net_device_stats {
 #ifdef CONFIG_RPS
 #include <linux/static_key.h>
 extern struct static_key rps_needed;
+extern struct static_key rfs_needed;
 #endif
 
 struct neighbour;
