@@ -77,7 +77,7 @@ int	xfs_attr3_leaf_add(struct xfs_buf *leaf_buffer,
 				 struct xfs_da_args *args);
 int	xfs_attr3_leaf_remove(struct xfs_buf *leaf_buffer,
 				    struct xfs_da_args *args);
-int	xfs_attr3_leaf_list_int(struct xfs_buf *bp,
+void	xfs_attr3_leaf_list_int(struct xfs_buf *bp,
 				      struct xfs_attr_list_context *context);
 
 /*

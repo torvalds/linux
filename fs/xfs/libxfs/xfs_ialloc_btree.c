@@ -365,9 +365,11 @@ xfs_inobt_init_cursor(
 	if (btnum == XFS_BTNUM_INO) {
 		cur->bc_nlevels = be32_to_cpu(agi->agi_level);
 		cur->bc_ops = &xfs_inobt_ops;
+		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_ibt_2);
 	} else {
 		cur->bc_nlevels = be32_to_cpu(agi->agi_free_level);
 		cur->bc_ops = &xfs_finobt_ops;
+		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_fibt_2);
 	}
 
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;

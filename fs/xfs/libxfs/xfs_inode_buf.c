@@ -392,6 +392,14 @@ xfs_dinode_verify(
 	if (dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC))
 		return false;
 
+	/* don't allow invalid i_size */
+	if (be64_to_cpu(dip->di_size) & (1ULL << 63))
+		return false;
+
+	/* No zero-length symlinks. */
+	if (S_ISLNK(be16_to_cpu(dip->di_mode)) && dip->di_size == 0)
+		return false;
+
 	/* only version 3 or greater inodes are extensively verified here */
 	if (dip->di_version < 3)
 		return true;
@@ -436,7 +444,7 @@ xfs_dinode_calc_crc(
 		return;
 
 	ASSERT(xfs_sb_version_hascrc(&mp->m_sb));
-	crc = xfs_start_cksum((char *)dip, mp->m_sb.sb_inodesize,
+	crc = xfs_start_cksum_update((char *)dip, mp->m_sb.sb_inodesize,
 			      XFS_DINODE_CRC_OFF);
 	dip->di_crc = xfs_end_cksum(crc);
 }

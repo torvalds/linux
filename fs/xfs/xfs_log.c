@@ -1668,7 +1668,7 @@ xlog_cksum(
 	__uint32_t		crc;
 
 	/* first generate the crc for the record header ... */
-	crc = xfs_start_cksum((char *)rhead,
+	crc = xfs_start_cksum_update((char *)rhead,
 			      sizeof(struct xlog_rec_header),
 			      offsetof(struct xlog_rec_header, h_crc));
 
