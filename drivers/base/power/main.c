@@ -1460,10 +1460,10 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	dpm_watchdog_clear(&wd);
 
  Complete:
-	complete_all(&dev->power.completion);
 	if (error)
 		async_error = error;
 
+	complete_all(&dev->power.completion);
 	TRACE_SUSPEND(error);
 	return error;
 }
