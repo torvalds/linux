@@ -3183,6 +3183,11 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 	bool reset, was_opened;
 	int i;
 
+	if (prog && prog->xdp_adjust_head) {
+		netdev_err(netdev, "Does not support bpf_xdp_adjust_head()\n");
+		return -EOPNOTSUPP;
+	}
+
 	mutex_lock(&priv->state_lock);
 
 	if ((netdev->features & NETIF_F_LRO) && prog) {

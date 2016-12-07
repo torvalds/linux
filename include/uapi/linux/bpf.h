@@ -424,6 +424,12 @@ union bpf_attr {
  *     @len: length of header to be pushed in front
  *     @flags: Flags (unused for now)
  *     Return: 0 on success or negative error
+ *
+ * int bpf_xdp_adjust_head(xdp_md, delta)
+ *     Adjust the xdp_md.data by delta
+ *     @xdp_md: pointer to xdp_md
+ *     @delta: An positive/negative integer to be added to xdp_md.data
+ *     Return: 0 on success or negative on error
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -469,7 +475,8 @@ union bpf_attr {
 	FN(csum_update),		\
 	FN(set_hash_invalid),		\
 	FN(get_numa_node_id),		\
-	FN(skb_change_head),
+	FN(skb_change_head),		\
+	FN(xdp_adjust_head),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
@@ -575,6 +582,8 @@ struct bpf_sock {
 	__u32 type;
 	__u32 protocol;
 };
+
+#define XDP_PACKET_HEADROOM 256
 
 /* User return codes for XDP prog type.
  * A valid XDP program must return one of these defined values. All other
