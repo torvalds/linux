@@ -31,13 +31,13 @@
 		};
 
 		lan3	{
-			label = "bcm53xx:green:lan1";
+			label = "bcm53xx:green:lan3";
 			gpios = <&chipcommon 1 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
 
 		lan4	{
-			label = "bcm53xx:green:lan0";
+			label = "bcm53xx:green:lan4";
 			gpios = <&chipcommon 2 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
@@ -49,7 +49,7 @@
 		};
 
 		lan1	{
-			label = "bcm53xx:green:lan3";
+			label = "bcm53xx:green:lan1";
 			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-off";
 		};
