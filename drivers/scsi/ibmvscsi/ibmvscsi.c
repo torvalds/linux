@@ -95,6 +95,7 @@ static int fast_fail = 1;
 static int client_reserve = 1;
 static char partition_name[97] = "UNKNOWN";
 static unsigned int partition_number = -1;
+static LIST_HEAD(ibmvscsi_head);
 
 static struct scsi_transport_template *ibmvscsi_transport_template;
 
@@ -2270,6 +2271,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 
 	dev_set_drvdata(&vdev->dev, hostdata);
+	list_add_tail(&hostdata->host_list, &ibmvscsi_head);
 	return 0;
 
       add_srp_port_failed:
@@ -2291,6 +2293,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 static int ibmvscsi_remove(struct vio_dev *vdev)
 {
 	struct ibmvscsi_host_data *hostdata = dev_get_drvdata(&vdev->dev);
+	list_del(&hostdata->host_list);
 	unmap_persist_bufs(hostdata);
 	release_event_pool(&hostdata->pool, hostdata);
 	ibmvscsi_release_crq_queue(&hostdata->queue, hostdata,
