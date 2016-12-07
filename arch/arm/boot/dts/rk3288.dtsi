@@ -1260,6 +1260,8 @@
 			reg = <0x320>;
 			clocks = <&cru SCLK_OTGPHY0>;
 			clock-names = "phyclk";
+			resets = <&cru SRST_USBOTG_PHY>;
+			reset-names = "phy-reset";
 		};
 
 		usbphy1: usb-phy1 {
@@ -1274,6 +1276,8 @@
 			reg = <0x348>;
 			clocks = <&cru SCLK_OTGPHY2>;
 			clock-names = "phyclk";
+			resets = <&cru SRST_USBHOST1_PHY>;
+			reset-names = "phy-reset";
 		};
 	};
 
