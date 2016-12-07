@@ -662,10 +662,14 @@ tso_sq_no_longer_full:
 				nesnic->sq_head &= nesnic->sq_size-1;
 			}
 		} else {
-			nesvnic->linearized_skbs++;
 			hoffset = skb_transport_header(skb) - skb->data;
 			nhoffset = skb_network_header(skb) - skb->data;
-			skb_linearize(skb);
+			if (skb_linearize(skb)) {
+				nesvnic->tx_sw_dropped++;
+				kfree_skb(skb);
+				return NETDEV_TX_OK;
+			}
+			nesvnic->linearized_skbs++;
 			skb_set_transport_header(skb, hoffset);
 			skb_set_network_header(skb, nhoffset);
 			if (!nes_nic_send(skb, netdev))
