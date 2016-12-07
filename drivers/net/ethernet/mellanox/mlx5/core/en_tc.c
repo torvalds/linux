@@ -1414,7 +1414,7 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	return -EOPNOTSUPP;
 #endif
 	/* if the egress device isn't on the same HW e-switch, we use the uplink */
-	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev, 0))
+	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev, SWITCHDEV_F_NO_RECURSE))
 		*out_dev = mlx5_eswitch_get_uplink_netdev(esw);
 	else
 		*out_dev = rt->dst.dev;
@@ -1453,7 +1453,7 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	*out_ttl = ip6_dst_hoplimit(dst);
 
 	/* if the egress device isn't on the same HW e-switch, we use the uplink */
-	if (!switchdev_port_same_parent_id(priv->netdev, dst->dev, 0))
+	if (!switchdev_port_same_parent_id(priv->netdev, dst->dev, SWITCHDEV_F_NO_RECURSE))
 		*out_dev = mlx5_eswitch_get_uplink_netdev(esw);
 	else
 		*out_dev = dst->dev;
@@ -1880,7 +1880,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 
 			if (switchdev_port_same_parent_id(priv->netdev,
 							  out_dev,
-							  0)) {
+							  SWITCHDEV_F_NO_RECURSE)) {
 				attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					MLX5_FLOW_CONTEXT_ACTION_COUNT;
 				out_priv = netdev_priv(out_dev);
