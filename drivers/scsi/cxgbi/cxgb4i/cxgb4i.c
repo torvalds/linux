@@ -801,7 +801,7 @@ static void do_act_establish(struct cxgbi_device *cdev, struct sk_buff *skb)
 		       (&csk->saddr), (&csk->daddr),
 		       atid, tid, csk, csk->state, csk->flags, rcv_isn);
 
-	module_put(THIS_MODULE);
+	module_put(cdev->owner);
 
 	cxgbi_sock_get(csk);
 	csk->tid = tid;
@@ -950,7 +950,7 @@ static void do_act_open_rpl(struct cxgbi_device *cdev, struct sk_buff *skb)
 	if (is_neg_adv(status))
 		goto rel_skb;
 
-	module_put(THIS_MODULE);
+	module_put(cdev->owner);
 
 	if (status && status != CPL_ERR_TCAM_FULL &&
 	    status != CPL_ERR_CONN_EXIST &&
@@ -1713,7 +1713,11 @@ static int init_act_open(struct cxgbi_sock *csk)
 		       csk->mtu, csk->mss_idx, csk->smac_idx);
 
 	/* must wait for either a act_open_rpl or act_open_establish */
-	try_module_get(THIS_MODULE);
+	if (!try_module_get(cdev->owner)) {
+		pr_err("%s, try_module_get failed.\n", ndev->name);
+		goto rel_resource;
+	}
+
 	cxgbi_sock_set_state(csk, CTP_ACTIVE_OPEN);
 	if (csk->csk_family == AF_INET)
 		send_act_open_req(csk, skb, csk->l2t);
@@ -2027,6 +2031,7 @@ static void *t4_uld_add(const struct cxgb4_lld_info *lldi)
 	cdev->skb_tx_rsvd = CXGB4I_TX_HEADER_LEN;
 	cdev->skb_rx_extra = sizeof(struct cpl_iscsi_hdr);
 	cdev->itp = &cxgb4i_iscsi_transport;
+	cdev->owner = THIS_MODULE;
 
 	cdev->pfvf = FW_VIID_PFN_G(cxgb4_port_viid(lldi->ports[0]))
 			<< FW_VIID_PFN_S;

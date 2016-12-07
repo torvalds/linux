@@ -468,6 +468,7 @@ struct cxgbi_device {
 	struct pci_dev *pdev;
 	struct dentry *debugfs_root;
 	struct iscsi_transport *itp;
+	struct module *owner;
 
 	unsigned int pfvf;
 	unsigned int rx_credit_thres;
