@@ -84,8 +84,9 @@ static void dwmac1000_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	writel(value, ioaddr + DMA_AXI_BUS_MODE);
 }
 
-static void dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
-			       int aal, u32 dma_tx, u32 dma_rx, int atds)
+static void dwmac1000_dma_init(void __iomem *ioaddr,
+			       struct stmmac_dma_cfg *dma_cfg,
+			       u32 dma_tx, u32 dma_rx, int atds)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 
@@ -101,20 +102,20 @@ static void dwmac1000_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
 	 */
 	value |= DMA_BUS_MODE_MAXPBL;
 	value &= ~DMA_BUS_MODE_PBL_MASK;
-	value |= (pbl << DMA_BUS_MODE_PBL_SHIFT);
+	value |= (dma_cfg->pbl << DMA_BUS_MODE_PBL_SHIFT);
 
 	/* Set the Fixed burst mode */
-	if (fb)
+	if (dma_cfg->fixed_burst)
 		value |= DMA_BUS_MODE_FB;
 
 	/* Mixed Burst has no effect when fb is set */
-	if (mb)
+	if (dma_cfg->mixed_burst)
 		value |= DMA_BUS_MODE_MB;
 
 	if (atds)
 		value |= DMA_BUS_MODE_ATDS;
 
-	if (aal)
+	if (dma_cfg->aal)
 		value |= DMA_BUS_MODE_AAL;
 
 	writel(value, ioaddr + DMA_BUS_MODE);

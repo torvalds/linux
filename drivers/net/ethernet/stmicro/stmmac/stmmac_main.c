@@ -1595,11 +1595,7 @@ static int stmmac_init_dma_engine(struct stmmac_priv *priv)
 		return ret;
 	}
 
-	priv->hw->dma->init(priv->ioaddr,
-			    priv->plat->dma_cfg->pbl,
-			    priv->plat->dma_cfg->fixed_burst,
-			    priv->plat->dma_cfg->mixed_burst,
-			    priv->plat->dma_cfg->aal,
+	priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg,
 			    priv->dma_tx_phy, priv->dma_rx_phy, atds);
 
 	if (priv->synopsys_id >= DWMAC_CORE_4_00) {
