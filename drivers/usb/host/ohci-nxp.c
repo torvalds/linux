@@ -56,8 +56,6 @@ static struct hc_driver __read_mostly ohci_nxp_hc_driver;
 
 static struct i2c_client *isp1301_i2c_client;
 
-extern int usb_disabled(void);
-
 static struct clk *usb_host_clk;
 
 static void isp1301_configure_lpc32xx(void)
