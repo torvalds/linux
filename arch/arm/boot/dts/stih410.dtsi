@@ -233,6 +233,17 @@
 					 <&clk_s_d2_quadfs 0>,
 					 <&clk_s_d2_quadfs 1>;
 			};
+
+			sti-hqvdp@9c000000 {
+				compatible = "st,stih407-hqvdp";
+				reg = <0x9C00000 0x100000>;
+				clock-names = "hqvdp", "pix_main";
+				clocks = <&clk_s_c0_flexgen CLK_MAIN_DISP>,
+					 <&clk_s_d2_flexgen CLK_PIX_MAIN_DISP>;
+				reset-names = "hqvdp";
+				resets = <&softreset STIH407_HDQVDP_SOFTRESET>;
+				st,vtg = <&vtg_main>;
+			};
 		};
 
 		bdisp0:bdisp@9f10000 {
