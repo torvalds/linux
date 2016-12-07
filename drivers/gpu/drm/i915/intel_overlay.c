@@ -216,7 +216,8 @@ static void intel_overlay_submit_request(struct intel_overlay *overlay,
 {
 	GEM_BUG_ON(i915_gem_active_peek(&overlay->last_flip,
 					&overlay->i915->drm.struct_mutex));
-	overlay->last_flip.retire = retire;
+	i915_gem_active_set_retire_fn(&overlay->last_flip, retire,
+				      &overlay->i915->drm.struct_mutex);
 	i915_gem_active_set(&overlay->last_flip, req);
 	i915_add_request(req);
 }
