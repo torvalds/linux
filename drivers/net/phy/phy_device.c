@@ -235,6 +235,53 @@ int phy_register_fixup_for_id(const char *bus_id,
 }
 EXPORT_SYMBOL(phy_register_fixup_for_id);
 
+/**
+ * phy_unregister_fixup - remove a phy_fixup from the list
+ * @bus_id: A string matches fixup->bus_id (or PHY_ANY_ID) in phy_fixup_list
+ * @phy_uid: A phy id matches fixup->phy_id (or PHY_ANY_UID) in phy_fixup_list
+ * @phy_uid_mask: Applied to phy_uid and fixup->phy_uid before comparison
+ */
+int phy_unregister_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask)
+{
+	struct list_head *pos, *n;
+	struct phy_fixup *fixup;
+	int ret;
+
+	ret = -ENODEV;
+
+	mutex_lock(&phy_fixup_lock);
+	list_for_each_safe(pos, n, &phy_fixup_list) {
+		fixup = list_entry(pos, struct phy_fixup, list);
+
+		if ((!strcmp(fixup->bus_id, bus_id)) &&
+		    ((fixup->phy_uid & phy_uid_mask) ==
+		     (phy_uid & phy_uid_mask))) {
+			list_del(&fixup->list);
+			kfree(fixup);
+			ret = 0;
+			break;
+		}
+	}
+	mutex_unlock(&phy_fixup_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(phy_unregister_fixup);
+
+/* Unregisters a fixup of any PHY with the UID in phy_uid */
+int phy_unregister_fixup_for_uid(u32 phy_uid, u32 phy_uid_mask)
+{
+	return phy_unregister_fixup(PHY_ANY_ID, phy_uid, phy_uid_mask);
+}
+EXPORT_SYMBOL(phy_unregister_fixup_for_uid);
+
+/* Unregisters a fixup of the PHY with id string bus_id */
+int phy_unregister_fixup_for_id(const char *bus_id)
+{
+	return phy_unregister_fixup(bus_id, PHY_ANY_UID, 0xffffffff);
+}
+EXPORT_SYMBOL(phy_unregister_fixup_for_id);
+
 /* Returns 1 if fixup matches phydev in bus_id and phy_uid.
  * Fixups can be set to match any in one or more fields.
  */

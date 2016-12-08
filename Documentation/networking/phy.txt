@@ -407,6 +407,15 @@ Board Fixups
  The stubs set one of the two matching criteria, and set the other one to
  match anything.
 
+ When phy_register_fixup() or *_for_uid()/*_for_id() is called at module,
+ unregister fixup and free allocate memory are required.
+
+ Call one of following function before unloading module.
+
+ int phy_unregister_fixup(const char *phy_id, u32 phy_uid, u32 phy_uid_mask);
+ int phy_unregister_fixup_for_uid(u32 phy_uid, u32 phy_uid_mask);
+ int phy_register_fixup_for_id(const char *phy_id);
+
 Standards
 
  IEEE Standard 802.3: CSMA/CD Access Method and Physical Layer Specifications, Section Two:
