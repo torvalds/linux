@@ -1281,6 +1281,26 @@
 		};
 	};
 
+	cif_isp0: cif_isp@ff910000 {
+		compatible = "rockchip,rk3288-cif-isp";
+		rockchip,grf = <&grf>;
+		reg = <0xff910000 0x10000>, <0xff968000 0x4000>;
+		reg-names = "register", "csihost-register";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			<&cru SCLK_ISP>, <&cru SCLK_ISP_JPE>,
+			<&cru PCLK_MIPI_CSI>, <&cru PCLK_ISP_IN>,
+			<&cru SCLK_MIPIDSI_24M>;
+		clock-names = "aclk_isp", "hclk_isp",
+			"sclk_isp", "sclk_isp_jpe",
+			"pclk_mipi_csi", "pclk_isp_in",
+			"sclk_mipidsi_24m";
+		resets = <&cru SRST_ISP>;
+		reset-names = "rst_isp";
+		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "cif_isp10_irq";
+		status = "disabled";
+	};
+
 	pinctrl: pinctrl {
 		compatible = "rockchip,rk3288-pinctrl";
 		rockchip,grf = <&grf>;
@@ -1847,6 +1867,22 @@
 		spdif {
 			spdif_tx: spdif-tx {
 				rockchip,pins = <RK_GPIO6 11 RK_FUNC_1 &pcfg_pull_none>;
+			};
+		};
+
+		cif {
+			cif_dvp_d2d9: cif-dvp-d2d9 {
+				rockchip,pins = <2 0 RK_FUNC_1 &pcfg_pull_none>,
+						<2 1 RK_FUNC_1 &pcfg_pull_none>,
+						<2 2 RK_FUNC_1 &pcfg_pull_none>,
+						<2 3 RK_FUNC_1 &pcfg_pull_none>,
+						<2 4 RK_FUNC_1 &pcfg_pull_none>,
+						<2 5 RK_FUNC_1 &pcfg_pull_none>,
+						<2 6 RK_FUNC_1 &pcfg_pull_none>,
+						<2 7 RK_FUNC_1 &pcfg_pull_none>,
+						<2 8 RK_FUNC_1 &pcfg_pull_none>,
+						<2 9 RK_FUNC_1 &pcfg_pull_none>,
+						<2 11 RK_FUNC_1 &pcfg_pull_none>;
 			};
 		};
 	};
