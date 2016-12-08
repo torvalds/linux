@@ -941,7 +941,6 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 {
 	struct ib_other_headers *ohdr;
 	struct rvt_swqe *wqe;
-	unsigned i;
 	u32 opcode;
 	u32 psn;
 
@@ -987,11 +986,7 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 		qp->s_last = s_last;
 		/* see post_send() */
 		barrier();
-		for (i = 0; i < wqe->wr.num_sge; i++) {
-			struct rvt_sge *sge = &wqe->sg_list[i];
-
-			rvt_put_mr(sge->mr);
-		}
+		rvt_put_swqe(wqe);
 		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
 	}
 	/*
@@ -1021,8 +1016,6 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 					 struct rvt_swqe *wqe,
 					 struct qib_ibport *ibp)
 {
-	unsigned i;
-
 	/*
 	 * Don't decrement refcount and don't generate a
 	 * completion if the SWQE is being resent until the send
@@ -1032,11 +1025,7 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
 		u32 s_last;
 
-		for (i = 0; i < wqe->wr.num_sge; i++) {
-			struct rvt_sge *sge = &wqe->sg_list[i];
-
-			rvt_put_mr(sge->mr);
-		}
+		rvt_put_swqe(wqe);
 		s_last = qp->s_last;
 		if (++s_last >= qp->s_size)
 			s_last = 0;

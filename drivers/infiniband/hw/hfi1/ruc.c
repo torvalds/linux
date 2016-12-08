@@ -942,7 +942,6 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status)
 {
 	u32 old_last, last;
-	unsigned i;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_OR_FLUSH_SEND))
 		return;
@@ -954,11 +953,7 @@ void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 	qp->s_last = last;
 	/* See post_send() */
 	barrier();
-	for (i = 0; i < wqe->wr.num_sge; i++) {
-		struct rvt_sge *sge = &wqe->sg_list[i];
-
-		rvt_put_mr(sge->mr);
-	}
+	rvt_put_swqe(wqe);
 	if (qp->ibqp.qp_type == IB_QPT_UD ||
 	    qp->ibqp.qp_type == IB_QPT_SMI ||
 	    qp->ibqp.qp_type == IB_QPT_GSI)
