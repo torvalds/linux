@@ -71,10 +71,6 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	u8 buf[15];
 	int pitch_x = 0;
 	int pitch_y = 0;
-	int clip_x_low = 0;
-	int clip_x_high = 0;
-	int clip_y_low = 0;
-	int clip_y_high = 0;
 	int rx_receivers = 0;
 	int tx_receivers = 0;
 	int sensor_flags = 0;
@@ -127,7 +123,9 @@ static int rmi_f12_read_sensor_tuning(struct f12_data *f12)
 	}
 
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: x low: %d x high: %d y low: %d y high: %d\n",
-		__func__, clip_x_low, clip_x_high, clip_y_low, clip_y_high);
+		__func__,
+		sensor->axis_align.clip_x_low, sensor->axis_align.clip_x_high,
+		sensor->axis_align.clip_y_low, sensor->axis_align.clip_y_high);
 
 	if (rmi_register_desc_has_subpacket(item, 3)) {
 		rx_receivers = buf[offset];
