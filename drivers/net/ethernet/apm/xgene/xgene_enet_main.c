@@ -319,11 +319,11 @@ static int xgene_enet_setup_mss(struct net_device *ndev, u32 mss)
 		}
 	}
 
-	spin_unlock(&pdata->mss_lock);
-
 	/* No slots with ref_count = 0 available, return busy */
 	if (!mss_index_found)
-		return -EBUSY;
+		mss_index = -EBUSY;
+
+	spin_unlock(&pdata->mss_lock);
 
 	return mss_index;
 }
