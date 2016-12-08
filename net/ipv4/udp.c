@@ -1177,7 +1177,19 @@ out:
 /* fully reclaim rmem/fwd memory allocated for skb */
 static void udp_rmem_release(struct sock *sk, int size, int partial)
 {
+	struct udp_sock *up = udp_sk(sk);
 	int amt;
+
+	if (likely(partial)) {
+		up->forward_deficit += size;
+		size = up->forward_deficit;
+		if (size < (sk->sk_rcvbuf >> 2) &&
+		    !skb_queue_empty(&sk->sk_receive_queue))
+			return;
+	} else {
+		size += up->forward_deficit;
+	}
+	up->forward_deficit = 0;
 
 	atomic_sub(size, &sk->sk_rmem_alloc);
 	sk->sk_forward_alloc += size;
