@@ -637,6 +637,38 @@ static void apply_tx_lanes(struct hfi1_pportdata *ppd, u8 field_id,
 	}
 }
 
+/*
+ * Return a special SerDes setting for low power AOC cables.  The power class
+ * threshold and setting being used were all found by empirical testing.
+ *
+ * Summary of the logic:
+ *
+ * if (QSFP and QSFP_TYPE == AOC and QSFP_POWER_CLASS < 4)
+ *     return 0xe
+ * return 0; // leave at default
+ */
+static u8 aoc_low_power_setting(struct hfi1_pportdata *ppd)
+{
+	u8 *cache = ppd->qsfp_info.cache;
+	int power_class;
+
+	/* QSFP only */
+	if (ppd->port_type != PORT_TYPE_QSFP)
+		return 0; /* leave at default */
+
+	/* active optical cables only */
+	switch ((cache[QSFP_MOD_TECH_OFFS] & 0xF0) >> 4) {
+	case 0x0 ... 0x9: /* fallthrough */
+	case 0xC: /* fallthrough */
+	case 0xE:
+		/* active AOC */
+		power_class = get_qsfp_power_class(cache[QSFP_MOD_PWR_OFFS]);
+		if (power_class < QSFP_POWER_CLASS_4)
+			return 0xe;
+	}
+	return 0; /* leave at default */
+}
+
 static void apply_tunings(
 		struct hfi1_pportdata *ppd, u32 tx_preset_index,
 		u8 tuning_method, u32 total_atten, u8 limiting_active)
@@ -705,7 +737,17 @@ static void apply_tunings(
 		tx_preset_index, TX_PRESET_TABLE_POSTCUR, &tx_preset, 4);
 	postcur = tx_preset;
 
-	config_data = precur | (attn << 8) | (postcur << 16);
+	/*
+	 * NOTES:
+	 * o The aoc_low_power_setting is applied to all lanes even
+	 *   though only lane 0's value is examined by the firmware.
+	 * o A lingering low power setting after a cable swap does
+	 *   not occur.  On cable unplug the 8051 is reset and
+	 *   restarted on cable insert.  This resets all settings to
+	 *   their default, erasing any previous low power setting.
+	 */
+	config_data = precur | (attn << 8) | (postcur << 16) |
+			(aoc_low_power_setting(ppd) << 24);
 
 	apply_tx_lanes(ppd, TX_EQ_SETTINGS, config_data,
 		       "Applying TX settings");
