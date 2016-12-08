@@ -5738,61 +5738,6 @@ tracing_free_buffer_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static inline int lock_user_pages(const char __user *ubuf, size_t cnt,
-				  struct page **pages, void **map_page,
-				  int *offset)
-{
-	unsigned long addr = (unsigned long)ubuf;
-	int nr_pages = 1;
-	int ret;
-	int i;
-
-	/*
-	 * Userspace is injecting traces into the kernel trace buffer.
-	 * We want to be as non intrusive as possible.
-	 * To do so, we do not want to allocate any special buffers
-	 * or take any locks, but instead write the userspace data
-	 * straight into the ring buffer.
-	 *
-	 * First we need to pin the userspace buffer into memory,
-	 * which, most likely it is, because it just referenced it.
-	 * But there's no guarantee that it is. By using get_user_pages_fast()
-	 * and kmap_atomic/kunmap_atomic() we can get access to the
-	 * pages directly. We then write the data directly into the
-	 * ring buffer.
-	 */
-
-	/* check if we cross pages */
-	if ((addr & PAGE_MASK) != ((addr + cnt) & PAGE_MASK))
-		nr_pages = 2;
-
-	*offset = addr & (PAGE_SIZE - 1);
-	addr &= PAGE_MASK;
-
-	ret = get_user_pages_fast(addr, nr_pages, 0, pages);
-	if (ret < nr_pages) {
-		while (--ret >= 0)
-			put_page(pages[ret]);
-		return -EFAULT;
-	}
-
-	for (i = 0; i < nr_pages; i++)
-		map_page[i] = kmap_atomic(pages[i]);
-
-	return nr_pages;
-}
-
-static inline void unlock_user_pages(struct page **pages,
-				     void **map_page, int nr_pages)
-{
-	int i;
-
-	for (i = nr_pages - 1; i >= 0; i--) {
-		kunmap_atomic(map_page[i]);
-		put_page(pages[i]);
-	}
-}
-
 static ssize_t
 tracing_mark_write(struct file *filp, const char __user *ubuf,
 					size_t cnt, loff_t *fpos)
@@ -5802,13 +5747,13 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	struct ring_buffer *buffer;
 	struct print_entry *entry;
 	unsigned long irq_flags;
-	struct page *pages[2];
-	void *map_page[2];
-	int nr_pages = 1;
+	const char faulted[] = "<faulted>";
 	ssize_t written;
-	int offset;
 	int size;
 	int len;
+
+/* Used in tracing_mark_raw_write() as well */
+#define FAULTED_SIZE (sizeof(faulted) - 1) /* '\0' is already accounted for */
 
 	if (tracing_disabled)
 		return -EINVAL;
@@ -5821,30 +5766,31 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 
 	BUILD_BUG_ON(TRACE_BUF_SIZE >= PAGE_SIZE);
 
-	nr_pages = lock_user_pages(ubuf, cnt, pages, map_page, &offset);
-	if (nr_pages < 0)
-		return nr_pages;
-
 	local_save_flags(irq_flags);
-	size = sizeof(*entry) + cnt + 2; /* possible \n added */
+	size = sizeof(*entry) + cnt + 2; /* add '\0' and possible '\n' */
+
+	/* If less than "<faulted>", then make sure we can still add that */
+	if (cnt < FAULTED_SIZE)
+		size += FAULTED_SIZE - cnt;
+
 	buffer = tr->trace_buffer.buffer;
 	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
 					    irq_flags, preempt_count());
-	if (!event) {
+	if (unlikely(!event))
 		/* Ring buffer disabled, return as if not open for write */
-		written = -EBADF;
-		goto out_unlock;
-	}
+		return -EBADF;
 
 	entry = ring_buffer_event_data(event);
 	entry->ip = _THIS_IP_;
 
-	if (nr_pages == 2) {
-		len = PAGE_SIZE - offset;
-		memcpy(&entry->buf, map_page[0] + offset, len);
-		memcpy(&entry->buf[len], map_page[1], cnt - len);
+	len = __copy_from_user_inatomic(&entry->buf, ubuf, cnt);
+	if (len) {
+		memcpy(&entry->buf, faulted, FAULTED_SIZE);
+		cnt = FAULTED_SIZE;
+		written = -EFAULT;
 	} else
-		memcpy(&entry->buf, map_page[0] + offset, cnt);
+		written = cnt;
+	len = cnt;
 
 	if (entry->buf[cnt - 1] != '\n') {
 		entry->buf[cnt] = '\n';
@@ -5854,12 +5800,8 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 
 	__buffer_unlock_commit(buffer, event);
 
-	written = cnt;
-
-	*fpos += written;
-
- out_unlock:
-	unlock_user_pages(pages, map_page, nr_pages);
+	if (written > 0)
+		*fpos += written;
 
 	return written;
 }
@@ -5875,14 +5817,13 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
 	struct raw_data_entry *entry;
+	const char faulted[] = "<faulted>";
 	unsigned long irq_flags;
-	struct page *pages[2];
-	void *map_page[2];
-	int nr_pages = 1;
 	ssize_t written;
-	int offset;
 	int size;
 	int len;
+
+#define FAULT_SIZE_ID (FAULTED_SIZE + sizeof(int))
 
 	if (tracing_disabled)
 		return -EINVAL;
@@ -5899,38 +5840,32 @@ tracing_mark_raw_write(struct file *filp, const char __user *ubuf,
 
 	BUILD_BUG_ON(TRACE_BUF_SIZE >= PAGE_SIZE);
 
-	nr_pages = lock_user_pages(ubuf, cnt, pages, map_page, &offset);
-	if (nr_pages < 0)
-		return nr_pages;
-
 	local_save_flags(irq_flags);
 	size = sizeof(*entry) + cnt;
+	if (cnt < FAULT_SIZE_ID)
+		size += FAULT_SIZE_ID - cnt;
+
 	buffer = tr->trace_buffer.buffer;
 	event = __trace_buffer_lock_reserve(buffer, TRACE_RAW_DATA, size,
 					    irq_flags, preempt_count());
-	if (!event) {
+	if (!event)
 		/* Ring buffer disabled, return as if not open for write */
-		written = -EBADF;
-		goto out_unlock;
-	}
+		return -EBADF;
 
 	entry = ring_buffer_event_data(event);
 
-	if (nr_pages == 2) {
-		len = PAGE_SIZE - offset;
-		memcpy(&entry->id, map_page[0] + offset, len);
-		memcpy(((char *)&entry->id) + len, map_page[1], cnt - len);
+	len = __copy_from_user_inatomic(&entry->id, ubuf, cnt);
+	if (len) {
+		entry->id = -1;
+		memcpy(&entry->buf, faulted, FAULTED_SIZE);
+		written = -EFAULT;
 	} else
-		memcpy(&entry->id, map_page[0] + offset, cnt);
+		written = cnt;
 
 	__buffer_unlock_commit(buffer, event);
 
-	written = cnt;
-
-	*fpos += written;
-
- out_unlock:
-	unlock_user_pages(pages, map_page, nr_pages);
+	if (written > 0)
+		*fpos += written;
 
 	return written;
 }
