@@ -386,6 +386,8 @@ static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
 	[TCA_FLOWER_KEY_ENC_UDP_SRC_PORT_MASK]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_ENC_UDP_DST_PORT]	= { .type = NLA_U16 },
 	[TCA_FLOWER_KEY_ENC_UDP_DST_PORT_MASK]	= { .type = NLA_U16 },
+	[TCA_FLOWER_KEY_FLAGS]		= { .type = NLA_U32 },
+	[TCA_FLOWER_KEY_FLAGS_MASK]	= { .type = NLA_U32 },
 };
 
 static void fl_set_key_val(struct nlattr **tb,
@@ -418,6 +420,39 @@ static void fl_set_key_vlan(struct nlattr **tb,
 			VLAN_PRIORITY_MASK;
 		key_mask->vlan_priority = VLAN_PRIORITY_MASK;
 	}
+}
+
+static void fl_set_key_flag(u32 flower_key, u32 flower_mask,
+			    u32 *dissector_key, u32 *dissector_mask,
+			    u32 flower_flag_bit, u32 dissector_flag_bit)
+{
+	if (flower_mask & flower_flag_bit) {
+		*dissector_mask |= dissector_flag_bit;
+		if (flower_key & flower_flag_bit)
+			*dissector_key |= dissector_flag_bit;
+	}
+}
+
+static void fl_set_key_flags(struct nlattr **tb,
+			     u32 *flags_key, u32 *flags_mask)
+{
+	u32 key, mask;
+
+	if (!tb[TCA_FLOWER_KEY_FLAGS])
+		return;
+
+	key = be32_to_cpu(nla_get_u32(tb[TCA_FLOWER_KEY_FLAGS]));
+
+	if (!tb[TCA_FLOWER_KEY_FLAGS_MASK])
+		mask = ~0;
+	else
+		mask = be32_to_cpu(nla_get_u32(tb[TCA_FLOWER_KEY_FLAGS_MASK]));
+
+	*flags_key  = 0;
+	*flags_mask = 0;
+
+	fl_set_key_flag(key, mask, flags_key, flags_mask,
+			TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT, FLOW_DIS_IS_FRAGMENT);
 }
 
 static int fl_set_key(struct net *net, struct nlattr **tb,
@@ -545,6 +580,8 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 	fl_set_key_val(tb, &key->enc_tp.dst, TCA_FLOWER_KEY_ENC_UDP_DST_PORT,
 		       &mask->enc_tp.dst, TCA_FLOWER_KEY_ENC_UDP_DST_PORT_MASK,
 		       sizeof(key->enc_tp.dst));
+
+	fl_set_key_flags(tb, &key->control.flags, &mask->control.flags);
 
 	return 0;
 }
@@ -880,6 +917,42 @@ static int fl_dump_key_vlan(struct sk_buff *skb,
 	return 0;
 }
 
+static void fl_get_key_flag(u32 dissector_key, u32 dissector_mask,
+			    u32 *flower_key, u32 *flower_mask,
+			    u32 flower_flag_bit, u32 dissector_flag_bit)
+{
+	if (dissector_mask & dissector_flag_bit) {
+		*flower_mask |= flower_flag_bit;
+		if (dissector_key & dissector_flag_bit)
+			*flower_key |= flower_flag_bit;
+	}
+}
+
+static int fl_dump_key_flags(struct sk_buff *skb, u32 flags_key, u32 flags_mask)
+{
+	u32 key, mask;
+	__be32 _key, _mask;
+	int err;
+
+	if (!memchr_inv(&flags_mask, 0, sizeof(flags_mask)))
+		return 0;
+
+	key = 0;
+	mask = 0;
+
+	fl_get_key_flag(flags_key, flags_mask, &key, &mask,
+			TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT, FLOW_DIS_IS_FRAGMENT);
+
+	_key = cpu_to_be32(key);
+	_mask = cpu_to_be32(mask);
+
+	err = nla_put(skb, TCA_FLOWER_KEY_FLAGS, 4, &_key);
+	if (err)
+		return err;
+
+	return nla_put(skb, TCA_FLOWER_KEY_FLAGS_MASK, 4, &_mask);
+}
+
 static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		   struct sk_buff *skb, struct tcmsg *t)
 {
@@ -1013,6 +1086,9 @@ static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 			    &mask->enc_tp.dst,
 			    TCA_FLOWER_KEY_ENC_UDP_DST_PORT_MASK,
 			    sizeof(key->enc_tp.dst)))
+		goto nla_put_failure;
+
+	if (fl_dump_key_flags(skb, key->control.flags, mask->control.flags))
 		goto nla_put_failure;
 
 	nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags);
