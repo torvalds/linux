@@ -132,6 +132,10 @@ OPTIONS for 'perf sched timehist'
 --migrations::
 	Show migration events.
 
+-I::
+--idle-hist::
+	Show idle-related events only.
+
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times
 	have the format seconds.microseconds. If start is not given (i.e., time

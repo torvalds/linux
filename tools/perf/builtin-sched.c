@@ -2421,7 +2421,36 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 			t = ptime->end;
 	}
 
-	timehist_update_runtime_stats(tr, t, tprev);
+	if (!sched->idle_hist || thread->tid == 0) {
+		timehist_update_runtime_stats(tr, t, tprev);
+
+		if (sched->idle_hist) {
+			struct idle_thread_runtime *itr = (void *)tr;
+			struct thread_runtime *last_tr;
+
+			BUG_ON(thread->tid != 0);
+
+			if (itr->last_thread == NULL)
+				goto out;
+
+			/* add current idle time as last thread's runtime */
+			last_tr = thread__get_runtime(itr->last_thread);
+			if (last_tr == NULL)
+				goto out;
+
+			timehist_update_runtime_stats(last_tr, t, tprev);
+			/*
+			 * remove delta time of last thread as it's not updated
+			 * and otherwise it will show an invalid value next
+			 * time.  we only care total run time and run stat.
+			 */
+			last_tr->dt_run = 0;
+			last_tr->dt_wait = 0;
+			last_tr->dt_delay = 0;
+
+			itr->last_thread = NULL;
+		}
+	}
 
 	if (!sched->summary_only)
 		timehist_print_sample(sched, sample, &al, thread, t);
@@ -2543,9 +2572,15 @@ static void timehist_print_summary(struct perf_sched *sched,
 	if (comm_width < 30)
 		comm_width = 30;
 
-	printf("\nRuntime summary\n");
-	printf("%*s  parent   sched-in  ", comm_width, "comm");
-	printf("   run-time    min-run     avg-run     max-run  stddev  migrations\n");
+	if (sched->idle_hist) {
+		printf("\nIdle-time summary\n");
+		printf("%*s  parent  sched-out  ", comm_width, "comm");
+		printf("  idle-time   min-idle    avg-idle    max-idle  stddev  migrations\n");
+	} else {
+		printf("\nRuntime summary\n");
+		printf("%*s  parent   sched-in  ", comm_width, "comm");
+		printf("   run-time    min-run     avg-run     max-run  stddev  migrations\n");
+	}
 	printf("%*s            (count)  ", comm_width, "");
 	printf("     (msec)     (msec)      (msec)      (msec)       %%\n");
 	printf("%.117s\n", graph_dotted_line);
@@ -2561,7 +2596,7 @@ static void timehist_print_summary(struct perf_sched *sched,
 		printf("<no terminated tasks>\n");
 
 	/* CPU idle stats not tracked when samples were skipped */
-	if (sched->skipped_samples)
+	if (sched->skipped_samples && !sched->idle_hist)
 		return;
 
 	printf("\nIdle stats:\n");
@@ -3107,6 +3142,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('w', "wakeups", &sched.show_wakeups, "Show wakeup events"),
 	OPT_BOOLEAN('M', "migrations", &sched.show_migrations, "Show migration events"),
 	OPT_BOOLEAN('V', "cpu-visual", &sched.show_cpu_visual, "Add CPU visual"),
+	OPT_BOOLEAN('I', "idle-hist", &sched.idle_hist, "Show idle events only"),
 	OPT_STRING(0, "time", &sched.time_str, "str",
 		   "Time span for analysis (start,stop)"),
 	OPT_PARENT(sched_options)
