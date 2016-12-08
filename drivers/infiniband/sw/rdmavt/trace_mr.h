@@ -44,11 +44,69 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#if !defined(__RVT_TRACE_MR_H) || defined(TRACE_HEADER_MULTI_READ)
+#define __RVT_TRACE_MR_H
 
-#define RDI_DEV_ENTRY(rdi)   __string(dev, rdi->driver_f.get_card_name(rdi))
-#define RDI_DEV_ASSIGN(rdi)  __assign_str(dev, rdi->driver_f.get_card_name(rdi))
+#include <linux/tracepoint.h>
+#include <linux/trace_seq.h>
 
-#include "trace_rvt.h"
-#include "trace_qp.h"
-#include "trace_tx.h"
-#include "trace_mr.h"
+#include <rdma/ib_verbs.h>
+#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_mr.h>
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM rvt_mr
+DECLARE_EVENT_CLASS(
+	rvt_mr_template,
+	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
+	TP_ARGS(mr, m, n, v, len),
+	TP_STRUCT__entry(
+		RDI_DEV_ENTRY(ib_to_rvt(mr->pd->device))
+		__field(void *, vaddr)
+		__field(struct page *, page)
+		__field(size_t, len)
+		__field(u32, lkey)
+		__field(u16, m)
+		__field(u16, n)
+	),
+	TP_fast_assign(
+		RDI_DEV_ASSIGN(ib_to_rvt(mr->pd->device));
+		__entry->vaddr = v;
+		__entry->page = virt_to_page(v);
+		__entry->m = m;
+		__entry->n = n;
+		__entry->len = len;
+	),
+	TP_printk(
+		"[%s] vaddr %p page %p m %u n %u len %ld",
+		__get_str(dev),
+		__entry->vaddr,
+		__entry->page,
+		__entry->m,
+		__entry->n,
+		__entry->len
+	)
+);
+
+DEFINE_EVENT(
+	rvt_mr_template, rvt_mr_page_seg,
+	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
+	TP_ARGS(mr, m, n, v, len));
+
+DEFINE_EVENT(
+	rvt_mr_template, rvt_mr_fmr_seg,
+	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
+	TP_ARGS(mr, m, n, v, len));
+
+DEFINE_EVENT(
+	rvt_mr_template, rvt_mr_user_seg,
+	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
+	TP_ARGS(mr, m, n, v, len));
+
+#endif /* __RVT_TRACE_MR_H */
+
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace_mr
+#include <trace/define_trace.h>

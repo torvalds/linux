@@ -51,6 +51,7 @@
 #include <rdma/rdma_vt.h>
 #include "vt.h"
 #include "mr.h"
+#include "trace.h"
 
 /**
  * rvt_driver_mr_init - Init MR resources per driver
@@ -403,6 +404,7 @@ struct ib_mr *rvt_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		}
 		mr->mr.map[m]->segs[n].vaddr = vaddr;
 		mr->mr.map[m]->segs[n].length = umem->page_size;
+		trace_rvt_mr_user_seg(&mr->mr, m, n, vaddr, umem->page_size);
 		n++;
 		if (n == RVT_SEGSZ) {
 			m++;
@@ -507,6 +509,7 @@ static int rvt_set_page(struct ib_mr *ibmr, u64 addr)
 	n = mapped_segs % RVT_SEGSZ;
 	mr->mr.map[m]->segs[n].vaddr = (void *)addr;
 	mr->mr.map[m]->segs[n].length = ps;
+	trace_rvt_mr_page_seg(&mr->mr, m, n, (void *)addr, ps);
 	mr->mr.length += ps;
 
 	return 0;
@@ -693,6 +696,7 @@ int rvt_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
 	for (i = 0; i < list_len; i++) {
 		fmr->mr.map[m]->segs[n].vaddr = (void *)page_list[i];
 		fmr->mr.map[m]->segs[n].length = ps;
+		trace_rvt_mr_fmr_seg(&fmr->mr, m, n, (void *)page_list[i], ps);
 		if (++n == RVT_SEGSZ) {
 			m++;
 			n = 0;
