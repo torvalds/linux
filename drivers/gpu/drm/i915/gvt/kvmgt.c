@@ -31,6 +31,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/mm.h>
+#include <linux/mmu_context.h>
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
@@ -519,33 +520,27 @@ static unsigned long kvmgt_gfn_to_pfn(unsigned long handle, unsigned long gfn)
 	return pfn;
 }
 
-static void *kvmgt_gpa_to_hva(unsigned long handle, unsigned long gpa)
-{
-	unsigned long pfn;
-	gfn_t gfn = gpa_to_gfn(gpa);
-
-	pfn = kvmgt_gfn_to_pfn(handle, gfn);
-	if (!pfn)
-		return NULL;
-
-	return (char *)pfn_to_kaddr(pfn) + offset_in_page(gpa);
-}
-
 static int kvmgt_rw_gpa(unsigned long handle, unsigned long gpa,
 			void *buf, unsigned long len, bool write)
 {
-	void *hva = NULL;
+	struct kvmgt_guest_info *info;
+	struct kvm *kvm;
+	int ret;
+	bool kthread = current->mm == NULL;
 
-	hva = kvmgt_gpa_to_hva(handle, gpa);
-	if (!hva)
-		return -EFAULT;
+	info = (struct kvmgt_guest_info *)handle;
+	kvm = info->kvm;
 
-	if (write)
-		memcpy(hva, buf, len);
-	else
-		memcpy(buf, hva, len);
+	if (kthread)
+		use_mm(kvm->mm);
 
-	return 0;
+	ret = write ? kvm_write_guest(kvm, gpa, buf, len) :
+		      kvm_read_guest(kvm, gpa, buf, len);
+
+	if (kthread)
+		unuse_mm(kvm->mm);
+
+	return ret;
 }
 
 static int kvmgt_read_gpa(unsigned long handle, unsigned long gpa,
