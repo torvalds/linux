@@ -486,6 +486,23 @@ static inline void rvt_put_qp(struct rvt_qp *qp)
 }
 
 /**
+ * rvt_put_swqe - drop mr refs held by swqe
+ * @wqe - the send wqe
+ *
+ * This drops any mr references held by the swqe
+ */
+static inline void rvt_put_swqe(struct rvt_swqe *wqe)
+{
+	int i;
+
+	for (i = 0; i < wqe->wr.num_sge; i++) {
+		struct rvt_sge *sge = &wqe->sg_list[i];
+
+		rvt_put_mr(sge->mr);
+	}
+}
+
+/**
  * rvt_qp_wqe_reserve - reserve operation
  * @qp - the rvt qp
  * @wqe - the send wqe
