@@ -648,7 +648,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 				case POWER_SUPPLY_TYPE_USB_FLOATING:
 					dev_dbg(&rport->phy->dev,
 						"floating cable is connecetd\n");
-					cable = EXTCON_CHG_USB_SLOW;
+					cable = EXTCON_CHG_USB_DCP;
 					rockchip_usb2phy_power_off(rport->phy);
 					sch_work = true;
 					break;
