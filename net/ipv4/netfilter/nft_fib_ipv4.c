@@ -101,12 +101,13 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 	}
 
 	iph = ip_hdr(pkt->skb);
-	if (ipv4_is_multicast(iph->daddr) &&
-	    ipv4_is_zeronet(iph->saddr) &&
-	    ipv4_is_local_multicast(iph->daddr)) {
-		nft_fib_store_result(dest, priv->result, pkt,
-				     get_ifindex(pkt->skb->dev));
-		return;
+	if (ipv4_is_zeronet(iph->saddr)) {
+		if (ipv4_is_lbcast(iph->daddr) ||
+		    ipv4_is_local_multicast(iph->daddr)) {
+			nft_fib_store_result(dest, priv->result, pkt,
+					     get_ifindex(pkt->skb->dev));
+			return;
+		}
 	}
 
 	if (priv->flags & NFTA_FIB_F_MARK)
@@ -121,6 +122,8 @@ void nft_fib4_eval(const struct nft_expr *expr, struct nft_regs *regs,
 		fl4.daddr = iph->saddr;
 		fl4.saddr = get_saddr(iph->daddr);
 	}
+
+	*dest = 0;
 
 	if (fib_lookup(nft_net(pkt), &fl4, &res, FIB_LOOKUP_IGNORE_LINKSTATE))
 		return;
@@ -198,7 +201,7 @@ nft_fib4_select_ops(const struct nft_ctx *ctx,
 	if (!tb[NFTA_FIB_RESULT])
 		return ERR_PTR(-EINVAL);
 
-	result = htonl(nla_get_be32(tb[NFTA_FIB_RESULT]));
+	result = ntohl(nla_get_be32(tb[NFTA_FIB_RESULT]));
 
 	switch (result) {
 	case NFT_FIB_RESULT_OIF:

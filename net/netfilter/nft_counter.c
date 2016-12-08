@@ -31,11 +31,10 @@ struct nft_counter_percpu_priv {
 	struct nft_counter_percpu __percpu *counter;
 };
 
-static void nft_counter_eval(const struct nft_expr *expr,
-			     struct nft_regs *regs,
-			     const struct nft_pktinfo *pkt)
+static inline void nft_counter_do_eval(struct nft_counter_percpu_priv *priv,
+				       struct nft_regs *regs,
+				       const struct nft_pktinfo *pkt)
 {
-	struct nft_counter_percpu_priv *priv = nft_expr_priv(expr);
 	struct nft_counter_percpu *this_cpu;
 
 	local_bh_disable();
@@ -47,56 +46,18 @@ static void nft_counter_eval(const struct nft_expr *expr,
 	local_bh_enable();
 }
 
-static void nft_counter_fetch(const struct nft_counter_percpu __percpu *counter,
-			      struct nft_counter *total)
+static inline void nft_counter_obj_eval(struct nft_object *obj,
+					struct nft_regs *regs,
+					const struct nft_pktinfo *pkt)
 {
-	const struct nft_counter_percpu *cpu_stats;
-	u64 bytes, packets;
-	unsigned int seq;
-	int cpu;
+	struct nft_counter_percpu_priv *priv = nft_obj_data(obj);
 
-	memset(total, 0, sizeof(*total));
-	for_each_possible_cpu(cpu) {
-		cpu_stats = per_cpu_ptr(counter, cpu);
-		do {
-			seq	= u64_stats_fetch_begin_irq(&cpu_stats->syncp);
-			bytes	= cpu_stats->counter.bytes;
-			packets	= cpu_stats->counter.packets;
-		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, seq));
-
-		total->packets += packets;
-		total->bytes += bytes;
-	}
+	nft_counter_do_eval(priv, regs, pkt);
 }
 
-static int nft_counter_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_counter_do_init(const struct nlattr * const tb[],
+			       struct nft_counter_percpu_priv *priv)
 {
-	struct nft_counter_percpu_priv *priv = nft_expr_priv(expr);
-	struct nft_counter total;
-
-	nft_counter_fetch(priv->counter, &total);
-
-	if (nla_put_be64(skb, NFTA_COUNTER_BYTES, cpu_to_be64(total.bytes),
-			 NFTA_COUNTER_PAD) ||
-	    nla_put_be64(skb, NFTA_COUNTER_PACKETS, cpu_to_be64(total.packets),
-			 NFTA_COUNTER_PAD))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -1;
-}
-
-static const struct nla_policy nft_counter_policy[NFTA_COUNTER_MAX + 1] = {
-	[NFTA_COUNTER_PACKETS]	= { .type = NLA_U64 },
-	[NFTA_COUNTER_BYTES]	= { .type = NLA_U64 },
-};
-
-static int nft_counter_init(const struct nft_ctx *ctx,
-			    const struct nft_expr *expr,
-			    const struct nlattr * const tb[])
-{
-	struct nft_counter_percpu_priv *priv = nft_expr_priv(expr);
 	struct nft_counter_percpu __percpu *cpu_stats;
 	struct nft_counter_percpu *this_cpu;
 
@@ -119,12 +80,162 @@ static int nft_counter_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
+static int nft_counter_obj_init(const struct nlattr * const tb[],
+				struct nft_object *obj)
+{
+	struct nft_counter_percpu_priv *priv = nft_obj_data(obj);
+
+	return nft_counter_do_init(tb, priv);
+}
+
+static void nft_counter_do_destroy(struct nft_counter_percpu_priv *priv)
+{
+	free_percpu(priv->counter);
+}
+
+static void nft_counter_obj_destroy(struct nft_object *obj)
+{
+	struct nft_counter_percpu_priv *priv = nft_obj_data(obj);
+
+	nft_counter_do_destroy(priv);
+}
+
+static void nft_counter_fetch(struct nft_counter_percpu __percpu *counter,
+			      struct nft_counter *total)
+{
+	struct nft_counter_percpu *cpu_stats;
+	u64 bytes, packets;
+	unsigned int seq;
+	int cpu;
+
+	memset(total, 0, sizeof(*total));
+	for_each_possible_cpu(cpu) {
+		cpu_stats = per_cpu_ptr(counter, cpu);
+		do {
+			seq	= u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			bytes	= cpu_stats->counter.bytes;
+			packets	= cpu_stats->counter.packets;
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, seq));
+
+		total->packets += packets;
+		total->bytes += bytes;
+	}
+}
+
+static u64 __nft_counter_reset(u64 *counter)
+{
+	u64 ret, old;
+
+	do {
+		old = *counter;
+		ret = cmpxchg64(counter, old, 0);
+	} while (ret != old);
+
+	return ret;
+}
+
+static void nft_counter_reset(struct nft_counter_percpu __percpu *counter,
+			      struct nft_counter *total)
+{
+	struct nft_counter_percpu *cpu_stats;
+	u64 bytes, packets;
+	unsigned int seq;
+	int cpu;
+
+	memset(total, 0, sizeof(*total));
+	for_each_possible_cpu(cpu) {
+		bytes = packets = 0;
+
+		cpu_stats = per_cpu_ptr(counter, cpu);
+		do {
+			seq	= u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			packets	+= __nft_counter_reset(&cpu_stats->counter.packets);
+			bytes	+= __nft_counter_reset(&cpu_stats->counter.bytes);
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, seq));
+
+		total->packets += packets;
+		total->bytes += bytes;
+	}
+}
+
+static int nft_counter_do_dump(struct sk_buff *skb,
+			       const struct nft_counter_percpu_priv *priv,
+			       bool reset)
+{
+	struct nft_counter total;
+
+	if (reset)
+		nft_counter_reset(priv->counter, &total);
+	else
+		nft_counter_fetch(priv->counter, &total);
+
+	if (nla_put_be64(skb, NFTA_COUNTER_BYTES, cpu_to_be64(total.bytes),
+			 NFTA_COUNTER_PAD) ||
+	    nla_put_be64(skb, NFTA_COUNTER_PACKETS, cpu_to_be64(total.packets),
+			 NFTA_COUNTER_PAD))
+		goto nla_put_failure;
+	return 0;
+
+nla_put_failure:
+	return -1;
+}
+
+static int nft_counter_obj_dump(struct sk_buff *skb,
+				struct nft_object *obj, bool reset)
+{
+	struct nft_counter_percpu_priv *priv = nft_obj_data(obj);
+
+	return nft_counter_do_dump(skb, priv, reset);
+}
+
+static const struct nla_policy nft_counter_policy[NFTA_COUNTER_MAX + 1] = {
+	[NFTA_COUNTER_PACKETS]	= { .type = NLA_U64 },
+	[NFTA_COUNTER_BYTES]	= { .type = NLA_U64 },
+};
+
+static struct nft_object_type nft_counter_obj __read_mostly = {
+	.type		= NFT_OBJECT_COUNTER,
+	.size		= sizeof(struct nft_counter_percpu_priv),
+	.maxattr	= NFTA_COUNTER_MAX,
+	.policy		= nft_counter_policy,
+	.eval		= nft_counter_obj_eval,
+	.init		= nft_counter_obj_init,
+	.destroy	= nft_counter_obj_destroy,
+	.dump		= nft_counter_obj_dump,
+	.owner		= THIS_MODULE,
+};
+
+static void nft_counter_eval(const struct nft_expr *expr,
+			     struct nft_regs *regs,
+			     const struct nft_pktinfo *pkt)
+{
+	struct nft_counter_percpu_priv *priv = nft_expr_priv(expr);
+
+	nft_counter_do_eval(priv, regs, pkt);
+}
+
+static int nft_counter_dump(struct sk_buff *skb, const struct nft_expr *expr)
+{
+	const struct nft_counter_percpu_priv *priv = nft_expr_priv(expr);
+
+	return nft_counter_do_dump(skb, priv, false);
+}
+
+static int nft_counter_init(const struct nft_ctx *ctx,
+			    const struct nft_expr *expr,
+			    const struct nlattr * const tb[])
+{
+	struct nft_counter_percpu_priv *priv = nft_expr_priv(expr);
+
+	return nft_counter_do_init(tb, priv);
+}
+
 static void nft_counter_destroy(const struct nft_ctx *ctx,
 				const struct nft_expr *expr)
 {
 	struct nft_counter_percpu_priv *priv = nft_expr_priv(expr);
 
-	free_percpu(priv->counter);
+	nft_counter_do_destroy(priv);
 }
 
 static int nft_counter_clone(struct nft_expr *dst, const struct nft_expr *src)
@@ -174,12 +285,26 @@ static struct nft_expr_type nft_counter_type __read_mostly = {
 
 static int __init nft_counter_module_init(void)
 {
-	return nft_register_expr(&nft_counter_type);
+	int err;
+
+	err = nft_register_obj(&nft_counter_obj);
+	if (err < 0)
+		return err;
+
+	err = nft_register_expr(&nft_counter_type);
+	if (err < 0)
+		goto err1;
+
+	return 0;
+err1:
+	nft_unregister_obj(&nft_counter_obj);
+	return err;
 }
 
 static void __exit nft_counter_module_exit(void)
 {
 	nft_unregister_expr(&nft_counter_type);
+	nft_unregister_obj(&nft_counter_obj);
 }
 
 module_init(nft_counter_module_init);
@@ -188,3 +313,4 @@ module_exit(nft_counter_module_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_ALIAS_NFT_EXPR("counter");
+MODULE_ALIAS_NFT_OBJ(NFT_OBJECT_COUNTER);

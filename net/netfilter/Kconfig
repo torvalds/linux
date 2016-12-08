@@ -146,38 +146,38 @@ config NF_CONNTRACK_LABELS
 	  to connection tracking entries.  It selected by the connlabel match.
 
 config NF_CT_PROTO_DCCP
-	tristate 'DCCP protocol connection tracking support'
+	bool 'DCCP protocol connection tracking support'
 	depends on NETFILTER_ADVANCED
-	default IP_DCCP
+	default y
 	help
 	  With this option enabled, the layer 3 independent connection
 	  tracking code will be able to do state tracking on DCCP connections.
 
-	  If unsure, say 'N'.
+	  If unsure, say Y.
 
 config NF_CT_PROTO_GRE
 	tristate
 
 config NF_CT_PROTO_SCTP
-	tristate 'SCTP protocol connection tracking support'
+	bool 'SCTP protocol connection tracking support'
 	depends on NETFILTER_ADVANCED
-	default IP_SCTP
+	default y
 	help
 	  With this option enabled, the layer 3 independent connection
 	  tracking code will be able to do state tracking on SCTP connections.
 
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  If unsure, say Y.
 
 config NF_CT_PROTO_UDPLITE
-	tristate 'UDP-Lite protocol connection tracking support'
+	bool 'UDP-Lite protocol connection tracking support'
 	depends on NETFILTER_ADVANCED
+	default y
 	help
 	  With this option enabled, the layer 3 independent connection
 	  tracking code will be able to do state tracking on UDP-Lite
 	  connections.
 
-	  To compile it as a module, choose M here.  If unsure, say N.
+	  If unsure, say Y.
 
 config NF_CONNTRACK_AMANDA
 	tristate "Amanda backup protocol support"
@@ -384,17 +384,17 @@ config NF_NAT_NEEDED
 	default y
 
 config NF_NAT_PROTO_DCCP
-	tristate
+	bool
 	depends on NF_NAT && NF_CT_PROTO_DCCP
 	default NF_NAT && NF_CT_PROTO_DCCP
 
 config NF_NAT_PROTO_UDPLITE
-	tristate
+	bool
 	depends on NF_NAT && NF_CT_PROTO_UDPLITE
 	default NF_NAT && NF_CT_PROTO_UDPLITE
 
 config NF_NAT_PROTO_SCTP
-	tristate
+	bool
 	default NF_NAT && NF_CT_PROTO_SCTP
 	depends on NF_NAT && NF_CT_PROTO_SCTP
 	select LIBCRC32C
@@ -550,6 +550,12 @@ config NFT_NAT
 	help
 	  This option adds the "nat" expression that you can use to perform
 	  typical Network Address Translation (NAT) packet transformations.
+
+config NFT_OBJREF
+	tristate "Netfilter nf_tables stateful object reference module"
+	help
+	  This option adds the "objref" expression that allows you to refer to
+	  stateful objects, such as counters and quotas.
 
 config NFT_QUEUE
 	depends on NETFILTER_NETLINK_QUEUE

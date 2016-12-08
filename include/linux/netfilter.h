@@ -75,9 +75,38 @@ struct nf_hook_ops {
 
 struct nf_hook_entry {
 	struct nf_hook_entry __rcu	*next;
-	struct nf_hook_ops		ops;
+	nf_hookfn			*hook;
+	void				*priv;
 	const struct nf_hook_ops	*orig_ops;
 };
+
+static inline void
+nf_hook_entry_init(struct nf_hook_entry *entry,	const struct nf_hook_ops *ops)
+{
+	entry->next = NULL;
+	entry->hook = ops->hook;
+	entry->priv = ops->priv;
+	entry->orig_ops = ops;
+}
+
+static inline int
+nf_hook_entry_priority(const struct nf_hook_entry *entry)
+{
+	return entry->orig_ops->priority;
+}
+
+static inline int
+nf_hook_entry_hookfn(const struct nf_hook_entry *entry, struct sk_buff *skb,
+		     struct nf_hook_state *state)
+{
+	return entry->hook(entry->priv, skb, state);
+}
+
+static inline const struct nf_hook_ops *
+nf_hook_entry_ops(const struct nf_hook_entry *entry)
+{
+	return entry->orig_ops;
+}
 
 static inline void nf_hook_state_init(struct nf_hook_state *p,
 				      unsigned int hook,

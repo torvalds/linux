@@ -24,7 +24,8 @@ static void nf_log_bridge_packet(struct net *net, u_int8_t pf,
 				 const struct nf_loginfo *loginfo,
 				 const char *prefix)
 {
-	nf_log_l2packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
+	nf_log_l2packet(net, pf, eth_hdr(skb)->h_proto, hooknum, skb,
+			in, out, loginfo, prefix);
 }
 
 static struct nf_logger nf_bridge_logger __read_mostly = {

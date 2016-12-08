@@ -125,6 +125,54 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 
+int nf_ct_netns_get(struct net *net, u8 nfproto)
+{
+	const struct nf_conntrack_l3proto *l3proto;
+	int ret;
+
+	might_sleep();
+
+	ret = nf_ct_l3proto_try_module_get(nfproto);
+	if (ret < 0)
+		return ret;
+
+	/* we already have a reference, can't fail */
+	rcu_read_lock();
+	l3proto = __nf_ct_l3proto_find(nfproto);
+	rcu_read_unlock();
+
+	if (!l3proto->net_ns_get)
+		return 0;
+
+	ret = l3proto->net_ns_get(net);
+	if (ret < 0)
+		nf_ct_l3proto_module_put(nfproto);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_ct_netns_get);
+
+void nf_ct_netns_put(struct net *net, u8 nfproto)
+{
+	const struct nf_conntrack_l3proto *l3proto;
+
+	might_sleep();
+
+	/* same as nf_conntrack_netns_get(), reference assumed */
+	rcu_read_lock();
+	l3proto = __nf_ct_l3proto_find(nfproto);
+	rcu_read_unlock();
+
+	if (WARN_ON(!l3proto))
+		return;
+
+	if (l3proto->net_ns_put)
+		l3proto->net_ns_put(net);
+
+	nf_ct_l3proto_module_put(nfproto);
+}
+EXPORT_SYMBOL_GPL(nf_ct_netns_put);
+
 struct nf_conntrack_l4proto *
 nf_ct_l4proto_find_get(u_int16_t l3num, u_int8_t l4num)
 {
@@ -190,20 +238,19 @@ out_unlock:
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_register);
 
+#ifdef CONFIG_SYSCTL
+extern unsigned int nf_conntrack_default_on;
+
 int nf_ct_l3proto_pernet_register(struct net *net,
 				  struct nf_conntrack_l3proto *proto)
 {
-	int ret;
+	if (nf_conntrack_default_on == 0)
+		return 0;
 
-	if (proto->init_net) {
-		ret = proto->init_net(net);
-		if (ret < 0)
-			return ret;
-	}
-
-	return 0;
+	return proto->net_ns_get ? proto->net_ns_get(net) : 0;
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_pernet_register);
+#endif
 
 void nf_ct_l3proto_unregister(struct nf_conntrack_l3proto *proto)
 {
@@ -224,6 +271,16 @@ EXPORT_SYMBOL_GPL(nf_ct_l3proto_unregister);
 void nf_ct_l3proto_pernet_unregister(struct net *net,
 				     struct nf_conntrack_l3proto *proto)
 {
+	/*
+	 * nf_conntrack_default_on *might* have registered hooks.
+	 * ->net_ns_put must cope with more puts() than get(), i.e.
+	 * if nf_conntrack_default_on was 0 at time of
+	 * nf_ct_l3proto_pernet_register invocation this net_ns_put()
+	 * should be a noop.
+	 */
+	if (proto->net_ns_put)
+		proto->net_ns_put(net);
+
 	/* Remove all contrack entries for this protocol */
 	nf_ct_iterate_cleanup(net, kill_l3proto, proto, 0, 0);
 }

@@ -60,7 +60,12 @@ static int netmap_tg6_checkentry(const struct xt_tgchk_param *par)
 
 	if (!(range->flags & NF_NAT_RANGE_MAP_IPS))
 		return -EINVAL;
-	return 0;
+	return nf_ct_netns_get(par->net, par->family);
+}
+
+static void netmap_tg_destroy(const struct xt_tgdtor_param *par)
+{
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static unsigned int
@@ -111,7 +116,7 @@ static int netmap_tg4_check(const struct xt_tgchk_param *par)
 		pr_debug("bad rangesize %u.\n", mr->rangesize);
 		return -EINVAL;
 	}
-	return 0;
+	return nf_ct_netns_get(par->net, par->family);
 }
 
 static struct xt_target netmap_tg_reg[] __read_mostly = {
@@ -127,6 +132,7 @@ static struct xt_target netmap_tg_reg[] __read_mostly = {
 		              (1 << NF_INET_LOCAL_OUT) |
 		              (1 << NF_INET_LOCAL_IN),
 		.checkentry = netmap_tg6_checkentry,
+		.destroy    = netmap_tg_destroy,
 		.me         = THIS_MODULE,
 	},
 	{
@@ -141,6 +147,7 @@ static struct xt_target netmap_tg_reg[] __read_mostly = {
 		              (1 << NF_INET_LOCAL_OUT) |
 		              (1 << NF_INET_LOCAL_IN),
 		.checkentry = netmap_tg4_check,
+		.destroy    = netmap_tg_destroy,
 		.me         = THIS_MODULE,
 	},
 };

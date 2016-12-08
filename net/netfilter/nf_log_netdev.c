@@ -23,7 +23,8 @@ static void nf_log_netdev_packet(struct net *net, u_int8_t pf,
 				 const struct nf_loginfo *loginfo,
 				 const char *prefix)
 {
-	nf_log_l2packet(net, pf, hooknum, skb, in, out, loginfo, prefix);
+	nf_log_l2packet(net, pf, skb->protocol, hooknum, skb, in, out,
+			loginfo, prefix);
 }
 
 static struct nf_logger nf_netdev_logger __read_mostly = {

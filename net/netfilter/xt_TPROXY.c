@@ -531,6 +531,11 @@ tproxy_tg6_v1(struct sk_buff *skb, const struct xt_action_param *par)
 static int tproxy_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct ip6t_ip6 *i = par->entryinfo;
+	int err;
+
+	err = nf_defrag_ipv6_enable(par->net);
+	if (err)
+		return err;
 
 	if ((i->proto == IPPROTO_TCP || i->proto == IPPROTO_UDP) &&
 	    !(i->invflags & IP6T_INV_PROTO))
@@ -545,6 +550,11 @@ static int tproxy_tg6_check(const struct xt_tgchk_param *par)
 static int tproxy_tg4_check(const struct xt_tgchk_param *par)
 {
 	const struct ipt_ip *i = par->entryinfo;
+	int err;
+
+	err = nf_defrag_ipv4_enable(par->net);
+	if (err)
+		return err;
 
 	if ((i->proto == IPPROTO_TCP || i->proto == IPPROTO_UDP)
 	    && !(i->invflags & IPT_INV_PROTO))
@@ -596,11 +606,6 @@ static struct xt_target tproxy_tg_reg[] __read_mostly = {
 
 static int __init tproxy_tg_init(void)
 {
-	nf_defrag_ipv4_enable();
-#ifdef XT_TPROXY_HAVE_IPV6
-	nf_defrag_ipv6_enable();
-#endif
-
 	return xt_register_targets(tproxy_tg_reg, ARRAY_SIZE(tproxy_tg_reg));
 }
 

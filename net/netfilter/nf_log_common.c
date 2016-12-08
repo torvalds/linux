@@ -177,6 +177,7 @@ EXPORT_SYMBOL_GPL(nf_log_dump_packet_common);
 
 /* bridge and netdev logging families share this code. */
 void nf_log_l2packet(struct net *net, u_int8_t pf,
+		     __be16 protocol,
 		     unsigned int hooknum,
 		     const struct sk_buff *skb,
 		     const struct net_device *in,
@@ -184,7 +185,7 @@ void nf_log_l2packet(struct net *net, u_int8_t pf,
 		     const struct nf_loginfo *loginfo,
 		     const char *prefix)
 {
-	switch (eth_hdr(skb)->h_proto) {
+	switch (protocol) {
 	case htons(ETH_P_IP):
 		nf_log_packet(net, NFPROTO_IPV4, hooknum, skb, in, out,
 			      loginfo, "%s", prefix);

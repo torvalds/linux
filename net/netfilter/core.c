@@ -102,17 +102,14 @@ int nf_register_net_hook(struct net *net, const struct nf_hook_ops *reg)
 	if (!entry)
 		return -ENOMEM;
 
-	entry->orig_ops	= reg;
-	entry->ops	= *reg;
-	entry->next	= NULL;
+	nf_hook_entry_init(entry, reg);
 
 	mutex_lock(&nf_hook_mutex);
 
 	/* Find the spot in the list */
-	while ((p = nf_entry_dereference(*pp)) != NULL) {
-		if (reg->priority < p->orig_ops->priority)
+	for (; (p = nf_entry_dereference(*pp)) != NULL; pp = &p->next) {
+		if (reg->priority < nf_hook_entry_priority(p))
 			break;
-		pp = &p->next;
 	}
 	rcu_assign_pointer(entry->next, p);
 	rcu_assign_pointer(*pp, entry);
@@ -139,12 +136,11 @@ void nf_unregister_net_hook(struct net *net, const struct nf_hook_ops *reg)
 		return;
 
 	mutex_lock(&nf_hook_mutex);
-	while ((p = nf_entry_dereference(*pp)) != NULL) {
-		if (p->orig_ops == reg) {
+	for (; (p = nf_entry_dereference(*pp)) != NULL; pp = &p->next) {
+		if (nf_hook_entry_ops(p) == reg) {
 			rcu_assign_pointer(*pp, p->next);
 			break;
 		}
-		pp = &p->next;
 	}
 	mutex_unlock(&nf_hook_mutex);
 	if (!p) {
@@ -311,7 +307,7 @@ int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
 	int ret;
 
 	do {
-		verdict = entry->ops.hook(entry->ops.priv, skb, state);
+		verdict = nf_hook_entry_hookfn(entry, skb, state);
 		switch (verdict & NF_VERDICT_MASK) {
 		case NF_ACCEPT:
 			entry = rcu_dereference(entry->next);

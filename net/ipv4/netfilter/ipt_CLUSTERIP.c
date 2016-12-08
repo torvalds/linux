@@ -419,7 +419,7 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 	}
 	cipinfo->config = config;
 
-	ret = nf_ct_l3proto_try_module_get(par->family);
+	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
@@ -444,7 +444,7 @@ static void clusterip_tg_destroy(const struct xt_tgdtor_param *par)
 
 	clusterip_config_put(cipinfo->config);
 
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_get(par->net, par->family);
 }
 
 #ifdef CONFIG_COMPAT
