@@ -161,20 +161,45 @@ void emac_sgmii_reset(struct emac_adapter *adpt)
 
 static int emac_sgmii_acpi_match(struct device *dev, void *data)
 {
+#ifdef CONFIG_ACPI
 	static const struct acpi_device_id match_table[] = {
 		{
 			.id = "QCOM8071",
-			.driver_data = (kernel_ulong_t)emac_sgmii_init_qdf2432,
 		},
 		{}
 	};
 	const struct acpi_device_id *id = acpi_match_device(match_table, dev);
 	emac_sgmii_initialize *initialize = data;
 
-	if (id)
-		*initialize = (emac_sgmii_initialize)id->driver_data;
+	if (id) {
+		acpi_handle handle = ACPI_HANDLE(dev);
+		unsigned long long hrv;
+		acpi_status status;
 
-	return !!id;
+		status = acpi_evaluate_integer(handle, "_HRV", NULL, &hrv);
+		if (status) {
+			if (status == AE_NOT_FOUND)
+				/* Older versions of the QDF2432 ACPI tables do
+				 * not have an _HRV property.
+				 */
+				hrv = 1;
+			else
+				/* Something is wrong with the tables */
+				return 0;
+		}
+
+		switch (hrv) {
+		case 1:
+			*initialize = emac_sgmii_init_qdf2432;
+			return 1;
+		case 2:
+			*initialize = emac_sgmii_init_qdf2400;
+			return 1;
+		}
+	}
+#endif
+
+	return 0;
 }
 
 static const struct of_device_id emac_sgmii_dt_match[] = {

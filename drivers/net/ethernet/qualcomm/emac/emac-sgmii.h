@@ -21,5 +21,6 @@ void emac_sgmii_reset(struct emac_adapter *adpt);
 
 int emac_sgmii_init_fsm9900(struct emac_adapter *adpt);
 int emac_sgmii_init_qdf2432(struct emac_adapter *adpt);
+int emac_sgmii_init_qdf2400(struct emac_adapter *adpt);
 
 #endif
