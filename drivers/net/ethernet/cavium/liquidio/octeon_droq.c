@@ -28,6 +28,7 @@
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
 #include "cn23xx_pf_device.h"
+#include "cn23xx_vf_device.h"
 
 struct niclist {
 	struct list_head list;
@@ -258,6 +259,11 @@ int octeon_init_droq(struct octeon_device *oct,
 			(u32)CFG_GET_OQ_REFILL_THRESHOLD(conf6x);
 	} else if (OCTEON_CN23XX_PF(oct)) {
 		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_pf);
+
+		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf23);
+		c_refill_threshold = (u32)CFG_GET_OQ_REFILL_THRESHOLD(conf23);
+	} else if (OCTEON_CN23XX_VF(oct)) {
+		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_vf);
 
 		c_pkts_per_intr = (u32)CFG_GET_OQ_PKTS_PER_INTR(conf23);
 		c_refill_threshold = (u32)CFG_GET_OQ_REFILL_THRESHOLD(conf23);
@@ -888,6 +894,10 @@ octeon_process_droq_poll_cmd(struct octeon_device *oct, u32 q_no, int cmd,
 		case OCTEON_CN23XX_PF_VID: {
 			lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
 		}
+		break;
+
+		case OCTEON_CN23XX_VF_VID:
+			lio_enable_irq(oct->droq[q_no], oct->instr_queue[q_no]);
 		break;
 		}
 		return 0;

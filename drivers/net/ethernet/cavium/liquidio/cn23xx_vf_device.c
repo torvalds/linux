@@ -529,6 +529,26 @@ static u64 cn23xx_vf_msix_interrupt_handler(void *dev)
 	return ret;
 }
 
+static u32 cn23xx_update_read_index(struct octeon_instr_queue *iq)
+{
+	u32 pkt_in_done = readl(iq->inst_cnt_reg);
+	u32 last_done;
+	u32 new_idx;
+
+	last_done = pkt_in_done - iq->pkt_in_done;
+	iq->pkt_in_done = pkt_in_done;
+
+	/* Modulo of the new index with the IQ size will give us
+	 * the new index.  The iq->reset_instr_cnt is always zero for
+	 * cn23xx, so no extra adjustments are needed.
+	 */
+	new_idx = (iq->octeon_read_index +
+		   (u32)(last_done & CN23XX_PKT_IN_DONE_CNT_MASK)) %
+		  iq->max_count;
+
+	return new_idx;
+}
+
 static void cn23xx_enable_vf_interrupt(struct octeon_device *oct, u8 intr_flag)
 {
 	struct octeon_cn23xx_vf *cn23xx = (struct octeon_cn23xx_vf *)oct->chip;
@@ -660,6 +680,7 @@ int cn23xx_setup_octeon_vf_device(struct octeon_device *oct)
 	oct->fn_list.msix_interrupt_handler = cn23xx_vf_msix_interrupt_handler;
 
 	oct->fn_list.setup_device_regs = cn23xx_setup_vf_device_regs;
+	oct->fn_list.update_iq_read_idx = cn23xx_update_read_index;
 
 	oct->fn_list.enable_interrupt = cn23xx_enable_vf_interrupt;
 	oct->fn_list.disable_interrupt = cn23xx_disable_vf_interrupt;

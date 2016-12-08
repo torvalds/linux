@@ -1221,6 +1221,9 @@ struct octeon_config *octeon_get_conf(struct octeon_device *oct)
 	} else if (OCTEON_CN23XX_PF(oct)) {
 		default_oct_conf = (struct octeon_config *)
 			(CHIP_CONF(oct, cn23xx_pf));
+	} else if (OCTEON_CN23XX_VF(oct)) {
+		default_oct_conf = (struct octeon_config *)
+			(CHIP_CONF(oct, cn23xx_vf));
 	}
 	return default_oct_conf;
 }
@@ -1371,7 +1374,7 @@ void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq)
 	/*write resend. Writing RESEND in SLI_PKTX_CNTS should be enough
 	 *to trigger tx interrupts as well, if they are pending.
 	 */
-	if (oct && OCTEON_CN23XX_PF(oct)) {
+	if (oct && (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct))) {
 		if (droq)
 			writeq(CN23XX_INTR_RESEND, droq->pkts_sent_reg);
 		/*we race with firmrware here. read and write the IN_DONE_CNTS*/

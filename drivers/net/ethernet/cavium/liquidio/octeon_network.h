@@ -123,6 +123,7 @@ struct lio {
 	/* work queue for  link status */
 	struct cavium_wq	link_status_wq;
 
+	int netdev_uc_count;
 };
 
 #define LIO_SIZE         (sizeof(struct lio))
