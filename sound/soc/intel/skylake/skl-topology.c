@@ -974,7 +974,6 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	struct skl_module_cfg *src_module = NULL, *dst_module;
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_pipe *s_pipe = mconfig->pipe;
-	int ret = 0;
 
 	if (s_pipe->state == SKL_PIPE_INVALID)
 		return -EINVAL;
@@ -996,7 +995,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 		src_module = dst_module;
 	}
 
-	ret = skl_delete_pipe(ctx, mconfig->pipe);
+	skl_delete_pipe(ctx, mconfig->pipe);
 
 	return skl_tplg_unload_pipe_modules(ctx, s_pipe);
 }
