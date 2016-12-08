@@ -1191,13 +1191,14 @@ static void udp_rmem_release(struct sock *sk, int size, int partial)
 	}
 	up->forward_deficit = 0;
 
-	atomic_sub(size, &sk->sk_rmem_alloc);
 	sk->sk_forward_alloc += size;
 	amt = (sk->sk_forward_alloc - partial) & ~(SK_MEM_QUANTUM - 1);
 	sk->sk_forward_alloc -= amt;
 
 	if (amt)
 		__sk_mem_reduce_allocated(sk, amt >> SK_MEM_QUANTUM_SHIFT);
+
+	atomic_sub(size, &sk->sk_rmem_alloc);
 }
 
 /* Note: called with sk_receive_queue.lock held.
