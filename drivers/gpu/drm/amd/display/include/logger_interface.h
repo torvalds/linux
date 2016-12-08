@@ -31,6 +31,7 @@
 struct dc_context;
 struct dc_link;
 struct dc_surface_update;
+struct resource_context;
 
 /*
  *
@@ -84,6 +85,10 @@ void update_surface_trace(
 		int surface_count);
 
 void post_surface_trace(const struct dc *dc);
+
+void context_timing_trace(
+		const struct dc *dc,
+		struct resource_context *res_ctx);
 
 
 /* Any function which is empty or have incomplete implementation should be

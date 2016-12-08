@@ -1892,7 +1892,6 @@ static void dce110_apply_ctx_for_surface(
 		program_blender(dc, pipe_ctx);
 
 	}
-
 }
 
 static void dce110_power_down_fe(struct core_dc *dc, struct pipe_ctx *pipe)

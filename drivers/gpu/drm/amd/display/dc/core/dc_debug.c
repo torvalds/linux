@@ -22,6 +22,13 @@
 					##__VA_ARGS__); \
 } while (0)
 
+#define TIMING_TRACE(...) do {\
+	if (dc->debug.timing_trace) \
+		dm_logger_write(logger, \
+				LOG_SYNC, \
+				##__VA_ARGS__); \
+} while (0)
+
 void pre_surface_trace(
 		const struct dc *dc,
 		const struct dc_surface *const *surfaces,
@@ -267,4 +274,29 @@ void post_surface_trace(const struct dc *dc)
 
 	SURFACE_TRACE("post surface process.\n");
 
+}
+
+void context_timing_trace(
+		const struct dc *dc,
+		struct resource_context *res_ctx)
+{
+	int i;
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dal_logger *logger =  core_dc->ctx->logger;
+
+	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
+		int h_pos = 0;
+		int v_pos = 0;
+
+		if (pipe_ctx->stream == NULL)
+			continue;
+
+		pipe_ctx->tg->funcs->get_position(pipe_ctx->tg, &h_pos, &v_pos);
+		TIMING_TRACE("Pipe_%d   H_tot:%d  V_tot:%d   H_pos:%d  V_pos:%d\n",
+				pipe_ctx->pipe_idx,
+				pipe_ctx->stream->public.timing.h_total,
+				pipe_ctx->stream->public.timing.v_total,
+				h_pos, v_pos);
+	}
 }

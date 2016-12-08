@@ -1488,8 +1488,10 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				core_dc->hwss.prepare_pipe_for_context(
 						core_dc, pipe_ctx, context);
 		}
-		if (apply_ctx)
+		if (apply_ctx) {
 			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
+			context_timing_trace(dc, &context->res_ctx);
+		}
 	}
 
 	for (i = context->res_ctx.pool->pipe_count - 1; i >= 0; i--) {
