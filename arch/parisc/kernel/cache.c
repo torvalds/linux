@@ -375,6 +375,15 @@ void __init parisc_setup_cache_timing(void)
 
 	/* calculate TLB flush threshold */
 
+	/* On SMP machines, skip the TLB measure of kernel text which
+	 * has been mapped as huge pages. */
+	if (num_online_cpus() > 1 && !parisc_requires_coherency()) {
+		threshold = max(cache_info.it_size, cache_info.dt_size);
+		threshold *= PAGE_SIZE;
+		threshold /= num_online_cpus();
+		goto set_tlb_threshold;
+	}
+
 	alltime = mfctl(16);
 	flush_tlb_all();
 	alltime = mfctl(16) - alltime;
@@ -393,6 +402,8 @@ void __init parisc_setup_cache_timing(void)
 		alltime, size, rangetime);
 
 	threshold = PAGE_ALIGN(num_online_cpus() * size * alltime / rangetime);
+
+set_tlb_threshold:
 	if (threshold)
 		parisc_tlb_flush_threshold = threshold;
 	printk(KERN_INFO "TLB flush threshold set to %lu KiB\n",
