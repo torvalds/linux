@@ -63,7 +63,7 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
  */
 #define IDX1		32
 #define IDX2		32400
-#define IDX3		511
+#define IDX3		1511
 #define IDX4		8193
 #define IDX5		22222
 #define IDX6		17101
