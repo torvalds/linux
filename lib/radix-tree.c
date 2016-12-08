@@ -30,7 +30,6 @@
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <linux/kmemleak.h>
-#include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
