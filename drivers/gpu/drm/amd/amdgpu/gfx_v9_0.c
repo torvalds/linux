@@ -115,7 +115,6 @@ static const u32 golden_settings_gc_9_0_vg10[] =
 	SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL_1),0x0000000f, 0x00000007
 };
 
-#define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
 static const u32 golden_settings_gc_9_1[] =
 {
 	SOC15_REG_OFFSET(GC, 0, mmCB_HW_CONTROL), 0xfffdf3cf, 0x00014104,
@@ -137,6 +136,9 @@ static const u32 golden_settings_gc_9_1_rv1[] =
 	SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE_1), 0xffffffff, 0x00048000,
 	SOC15_REG_OFFSET(GC, 0, mmTD_CNTL), 0x01bd9f33, 0x00000800
 };
+
+#define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
+#define RAVEN_GB_ADDR_CONFIG_GOLDEN 0x26013042
 
 static void gfx_v9_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v9_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -826,6 +828,14 @@ static void gfx_v9_0_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
 		gb_addr_config = VEGA10_GB_ADDR_CONFIG_GOLDEN;
+		break;
+	case CHIP_RAVEN:
+		adev->gfx.config.max_hw_contexts = 8;
+		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
+		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
+		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
+		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
+		gb_addr_config = RAVEN_GB_ADDR_CONFIG_GOLDEN;
 		break;
 	default:
 		BUG();
