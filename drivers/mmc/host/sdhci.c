@@ -2100,7 +2100,7 @@ static void __sdhci_execute_tuning(struct sdhci_host *host, u32 opcode,
 	sdhci_reset_tuning(host);
 }
 
-static int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
+int sdhci_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 	int err = 0;
@@ -2168,6 +2168,7 @@ out_unlock:
 
 	return err;
 }
+EXPORT_SYMBOL_GPL(sdhci_execute_tuning);
 
 static int sdhci_select_drive_strength(struct mmc_card *card,
 				       unsigned int max_dtr, int host_drv,
