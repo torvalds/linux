@@ -34,7 +34,13 @@ Optional properties:
   platforms.
 - tx-fifo-depth: See ethernet.txt file in the same directory
 - rx-fifo-depth: See ethernet.txt file in the same directory
-- snps,pbl		Programmable Burst Length
+- snps,pbl		Programmable Burst Length (tx and rx)
+- snps,txpbl		Tx Programmable Burst Length. Only for GMAC and newer.
+			If set, DMA tx will use this value rather than snps,pbl.
+- snps,rxpbl		Rx Programmable Burst Length. Only for GMAC and newer.
+			If set, DMA rx will use this value rather than snps,pbl.
+- snps,no-pbl-x8	Don't multiply the pbl/txpbl/rxpbl values by 8.
+			For core rev < 3.50, don't multiply the values by 4.
 - snps,aal		Address-Aligned Beats
 - snps,fixed-burst	Program the DMA to use the fixed burst mode
 - snps,mixed-burst	Program the DMA to use the mixed burst mode

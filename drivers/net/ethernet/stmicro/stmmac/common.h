@@ -412,8 +412,8 @@ extern const struct stmmac_desc_ops ndesc_ops;
 struct stmmac_dma_ops {
 	/* DMA core initialization */
 	int (*reset)(void __iomem *ioaddr);
-	void (*init)(void __iomem *ioaddr, int pbl, int fb, int mb,
-		     int aal, u32 dma_tx, u32 dma_rx, int atds);
+	void (*init)(void __iomem *ioaddr, struct stmmac_dma_cfg *dma_cfg,
+		     u32 dma_tx, u32 dma_rx, int atds);
 	/* Configure the AXI Bus Mode Register */
 	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
 	/* Dump DMA registers */
