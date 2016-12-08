@@ -1939,39 +1939,40 @@ static void timehist_update_runtime_stats(struct thread_runtime *r,
 	r->total_run_time += r->dt_run;
 }
 
-static bool is_idle_sample(struct perf_sched *sched,
-			   struct perf_sample *sample,
-			   struct perf_evsel *evsel,
-			   struct machine *machine)
+static bool is_idle_sample(struct perf_sample *sample,
+			   struct perf_evsel *evsel)
 {
-	struct thread *thread;
-	struct callchain_cursor *cursor = &callchain_cursor;
-
 	/* pid 0 == swapper == idle task */
-	if (sample->pid == 0)
-		return true;
+	if (strcmp(perf_evsel__name(evsel), "sched:sched_switch") == 0)
+		return perf_evsel__intval(evsel, sample, "prev_pid") == 0;
 
-	if (strcmp(perf_evsel__name(evsel), "sched:sched_switch") == 0) {
-		if (perf_evsel__intval(evsel, sample, "prev_pid") == 0)
-			return true;
-	}
+	return sample->pid == 0;
+}
+
+static void save_task_callchain(struct perf_sched *sched,
+				struct perf_sample *sample,
+				struct perf_evsel *evsel,
+				struct machine *machine)
+{
+	struct callchain_cursor *cursor = &callchain_cursor;
+	struct thread *thread;
 
 	/* want main thread for process - has maps */
 	thread = machine__findnew_thread(machine, sample->pid, sample->pid);
 	if (thread == NULL) {
 		pr_debug("Failed to get thread for pid %d.\n", sample->pid);
-		return false;
+		return;
 	}
 
 	if (!symbol_conf.use_callchain || sample->callchain == NULL)
-		return false;
+		return;
 
 	if (thread__resolve_callchain(thread, cursor, evsel, sample,
 				      NULL, NULL, sched->max_stack + 2) != 0) {
 		if (verbose)
 			error("Failed to resolve callchain. Skipping\n");
 
-		return false;
+		return;
 	}
 
 	callchain_cursor_commit(cursor);
@@ -1994,8 +1995,6 @@ static bool is_idle_sample(struct perf_sched *sched,
 
 		callchain_cursor_advance(cursor);
 	}
-
-	return false;
 }
 
 /*
@@ -2111,7 +2110,7 @@ static struct thread *timehist_get_thread(struct perf_sched *sched,
 {
 	struct thread *thread;
 
-	if (is_idle_sample(sched, sample, evsel, machine)) {
+	if (is_idle_sample(sample, evsel)) {
 		thread = get_idle_thread(sample->cpu);
 		if (thread == NULL)
 			pr_err("Failed to get idle thread for cpu %d.\n", sample->cpu);
@@ -2124,6 +2123,8 @@ static struct thread *timehist_get_thread(struct perf_sched *sched,
 			pr_debug("Failed to get thread for tid %d. skipping sample.\n",
 				 sample->tid);
 		}
+
+		save_task_callchain(sched, sample, evsel, machine);
 	}
 
 	return thread;
