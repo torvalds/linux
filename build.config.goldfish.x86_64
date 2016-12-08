@@ -3,7 +3,7 @@ BRANCH=android-4.4
 CROSS_COMPILE=x86_64-linux-android-
 DEFCONFIG=x86_64_ranchu_defconfig
 EXTRA_CMDS=''
-KERNEL_DIR=goldfish
+KERNEL_DIR=common
 LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/bin
 FILES="
 arch/x86/boot/bzImage

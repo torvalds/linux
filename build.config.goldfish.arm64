@@ -3,7 +3,7 @@ BRANCH=android-4.4
 CROSS_COMPILE=aarch64-linux-android-
 DEFCONFIG=ranchu64_defconfig
 EXTRA_CMDS=''
-KERNEL_DIR=goldfish
+KERNEL_DIR=common
 LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
 FILES="
 arch/arm64/boot/Image
