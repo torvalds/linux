@@ -510,6 +510,18 @@ int paravirt_disable_iospace(void);
 #define PVOP_TEST_NULL(op)	((void)op)
 #endif
 
+#define PVOP_RETMASK(rettype)						\
+	({	unsigned long __mask = ~0UL;				\
+		switch (sizeof(rettype)) {				\
+		case 1: __mask =       0xffUL; break;			\
+		case 2: __mask =     0xffffUL; break;			\
+		case 4: __mask = 0xffffffffUL; break;			\
+		default: break;						\
+		}							\
+		__mask;							\
+	})
+
+
 #define ____PVOP_CALL(rettype, op, clbr, call_clbr, extra_clbr,		\
 		      pre, post, ...)					\
 	({								\
@@ -537,7 +549,7 @@ int paravirt_disable_iospace(void);
 				       paravirt_clobber(clbr),		\
 				       ##__VA_ARGS__			\
 				     : "memory", "cc" extra_clbr);	\
-			__ret = (rettype)__eax;				\
+			__ret = (rettype)(__eax & PVOP_RETMASK(rettype));	\
 		}							\
 		__ret;							\
 	})
