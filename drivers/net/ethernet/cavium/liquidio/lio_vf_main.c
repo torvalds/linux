@@ -1824,6 +1824,56 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 }
 
 /**
+ * \brief Net device get_stats
+ * @param netdev network device
+ */
+static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct net_device_stats *stats = &netdev->stats;
+	u64 pkts = 0, drop = 0, bytes = 0;
+	struct oct_droq_stats *oq_stats;
+	struct oct_iq_stats *iq_stats;
+	struct octeon_device *oct;
+	int i, iq_no, oq_no;
+
+	oct = lio->oct_dev;
+
+	for (i = 0; i < lio->linfo.num_txpciq; i++) {
+		iq_no = lio->linfo.txpciq[i].s.q_no;
+		iq_stats = &oct->instr_queue[iq_no]->stats;
+		pkts += iq_stats->tx_done;
+		drop += iq_stats->tx_dropped;
+		bytes += iq_stats->tx_tot_bytes;
+	}
+
+	stats->tx_packets = pkts;
+	stats->tx_bytes = bytes;
+	stats->tx_dropped = drop;
+
+	pkts = 0;
+	drop = 0;
+	bytes = 0;
+
+	for (i = 0; i < lio->linfo.num_rxpciq; i++) {
+		oq_no = lio->linfo.rxpciq[i].s.q_no;
+		oq_stats = &oct->droq[oq_no]->stats;
+		pkts += oq_stats->rx_pkts_received;
+		drop += (oq_stats->rx_dropped +
+			 oq_stats->dropped_nodispatch +
+			 oq_stats->dropped_toomany +
+			 oq_stats->dropped_nomem);
+		bytes += oq_stats->rx_bytes_received;
+	}
+
+	stats->rx_bytes = bytes;
+	stats->rx_packets = pkts;
+	stats->rx_dropped = drop;
+
+	return stats;
+}
+
+/**
  * \brief Net device change_mtu
  * @param netdev network device
  */
@@ -2325,6 +2375,7 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_open		= liquidio_open,
 	.ndo_stop		= liquidio_stop,
 	.ndo_start_xmit		= liquidio_xmit,
+	.ndo_get_stats		= liquidio_get_stats,
 	.ndo_set_mac_address	= liquidio_set_mac,
 	.ndo_set_rx_mode	= liquidio_set_mcast_list,
 	.ndo_tx_timeout		= liquidio_tx_timeout,
@@ -2614,6 +2665,13 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 			goto setup_nic_dev_fail;
 		}
 
+		/* Register ethtool support */
+		liquidio_set_ethtool_ops(netdev);
+		if (lio->oct_dev->chip_id == OCTEON_CN23XX_VF_VID)
+			octeon_dev->priv_flags = OCT_PRIV_FLAG_DEFAULT;
+		else
+			octeon_dev->priv_flags = 0x0;
+
 		if (netdev->features & NETIF_F_LRO)
 			liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,
 					     OCTNIC_LROIPV4 | OCTNIC_LROIPV6);
@@ -2679,6 +2737,7 @@ setup_nic_wait_intr:
  */
 static int liquidio_init_nic_module(struct octeon_device *oct)
 {
+	struct oct_intrmod_cfg *intrmod_cfg;
 	int num_nic_ports = 1;
 	int i, retval = 0;
 
@@ -2699,6 +2758,26 @@ static int liquidio_init_nic_module(struct octeon_device *oct)
 		dev_err(&oct->pci_dev->dev, "Setup NIC devices failed\n");
 		goto octnet_init_failure;
 	}
+
+	/* Initialize interrupt moderation params */
+	intrmod_cfg = &((struct octeon_device *)oct)->intrmod;
+	intrmod_cfg->rx_enable = 1;
+	intrmod_cfg->check_intrvl = LIO_INTRMOD_CHECK_INTERVAL;
+	intrmod_cfg->maxpkt_ratethr = LIO_INTRMOD_MAXPKT_RATETHR;
+	intrmod_cfg->minpkt_ratethr = LIO_INTRMOD_MINPKT_RATETHR;
+	intrmod_cfg->rx_maxcnt_trigger = LIO_INTRMOD_RXMAXCNT_TRIGGER;
+	intrmod_cfg->rx_maxtmr_trigger = LIO_INTRMOD_RXMAXTMR_TRIGGER;
+	intrmod_cfg->rx_mintmr_trigger = LIO_INTRMOD_RXMINTMR_TRIGGER;
+	intrmod_cfg->rx_mincnt_trigger = LIO_INTRMOD_RXMINCNT_TRIGGER;
+	intrmod_cfg->tx_enable = 1;
+	intrmod_cfg->tx_maxcnt_trigger = LIO_INTRMOD_TXMAXCNT_TRIGGER;
+	intrmod_cfg->tx_mincnt_trigger = LIO_INTRMOD_TXMINCNT_TRIGGER;
+	intrmod_cfg->rx_frames = CFG_GET_OQ_INTR_PKT(octeon_get_conf(oct));
+	intrmod_cfg->rx_usecs = CFG_GET_OQ_INTR_TIME(octeon_get_conf(oct));
+	intrmod_cfg->tx_frames = CFG_GET_IQ_INTR_PKT(octeon_get_conf(oct));
+	dev_dbg(&oct->pci_dev->dev, "Network interfaces ready\n");
+
+	return retval;
 
 octnet_init_failure:
 
