@@ -111,7 +111,6 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	unsigned long nr_pages;
 	struct page **pages;
 	struct sg_table *sgt;
-	DEFINE_DMA_ATTRS(attrs);
 	phys_addr_t start, size;
 	struct resource res;
 	int i, ret;
@@ -144,15 +143,35 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	}
 	sgt = drm_prime_pages_to_sg(pages, nr_pages);
 	if (IS_ERR(sgt)) {
-		kfree(pages);
-		return PTR_ERR(sgt);
+		ret = PTR_ERR(sgt);
+		goto err_free_pages;
 	}
 
-	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
-	dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
-	dma_map_sg_attrs(drm_dev->dev, sgt->sgl, sgt->nents,
-			 DMA_TO_DEVICE, &attrs);
-	logo->dma_addr = sg_dma_address(sgt->sgl);
+	if (private->domain) {
+		int prot = IOMMU_READ | IOMMU_WRITE;
+
+		memset(&logo->mm, 0, sizeof(logo->mm));
+		ret = drm_mm_insert_node_generic(&private->mm, &logo->mm,
+						 size, PAGE_SIZE,
+						 0, 0, 0);
+		if (ret < 0) {
+			DRM_ERROR("out of I/O virtual memory: %d\n", ret);
+			goto err_free_pages;
+		}
+
+		logo->dma_addr = logo->mm.start;
+
+		if (iommu_map_sg(private->domain, logo->dma_addr, sgt->sgl,
+				 sgt->nents, prot) < size) {
+			DRM_ERROR("failed to map buffer");
+			ret = -ENOMEM;
+			goto err_remove_node;
+		}
+	} else {
+		dma_map_sg(drm_dev->dev, sgt->sgl, sgt->nents, DMA_TO_DEVICE);
+		logo->dma_addr = sg_dma_address(sgt->sgl);
+	}
+
 	logo->sgt = sgt;
 	logo->start = res.start;
 	logo->size = size;
@@ -160,6 +179,13 @@ static int init_loader_memory(struct drm_device *drm_dev)
 	private->logo = logo;
 
 	return 0;
+
+err_remove_node:
+	drm_mm_remove_node(&logo->mm);
+err_free_pages:
+	kfree(pages);
+
+	return ret;
 }
 
 static struct drm_framebuffer *

@@ -19,6 +19,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <linux/memblock.h>
+#include <linux/iommu.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_gem.h"
@@ -46,6 +47,7 @@ dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
+	struct rockchip_drm_private *private = fb->dev->dev_private;
 	struct drm_gem_object *obj;
 	int i;
 
@@ -63,8 +65,14 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 			void *start = phys_to_virt(logo->start);
 			void *end = phys_to_virt(logo->size);
 
-			dma_unmap_sg(fb->dev->dev, logo->sgt->sgl,
-				     logo->sgt->nents, DMA_TO_DEVICE);
+			if (private && private->domain) {
+				iommu_unmap(private->domain, logo->dma_addr,
+					    logo->size);
+				drm_mm_remove_node(&logo->mm);
+			} else {
+				dma_unmap_sg(fb->dev->dev, logo->sgt->sgl,
+					     logo->sgt->nents, DMA_TO_DEVICE);
+			}
 			sg_free_table(logo->sgt);
 			memblock_free(logo->start, logo->size);
 			free_reserved_area(start, end, -1, "drm_logo");

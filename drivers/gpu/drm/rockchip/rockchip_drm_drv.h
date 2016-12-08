@@ -90,6 +90,7 @@ struct rockchip_drm_file_private {
 
 struct rockchip_logo {
 	struct sg_table *sgt;
+	struct drm_mm_node mm;
 	dma_addr_t dma_addr;
 	phys_addr_t start;
 	phys_addr_t size;
