@@ -378,6 +378,20 @@ enum scale_down_mode {
 	SCALE_DOWN_AVG = 0x1
 };
 
+enum dither_down_mode {
+	RGB888_TO_RGB565 = 0x0,
+	RGB888_TO_RGB666 = 0x1
+};
+
+enum dither_down_mode_sel {
+	DITHER_DOWN_ALLEGRO = 0x0,
+	DITHER_DOWN_FRC = 0x1
+};
+
+#define PRE_DITHER_DOWN_EN(x)	((x) << 0)
+#define DITHER_DOWN_EN(x)	((x) << 1)
+#define DITHER_DOWN_MODE(x)	((x) << 2)
+#define DITHER_DOWN_MODE_SEL(x)	((x) << 3)
 #define FRAC_16_16(mult, div)    (((mult) << 16) / (div))
 #define SCL_FT_DEFAULT_FIXPOINT_SHIFT	12
 #define SCL_MAX_VSKIPLINES		4

@@ -973,6 +973,8 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+	struct drm_connector *connector = conn_state->connector;
+	struct drm_display_info *info = &connector->display_info;
 
 	switch (dsi->format) {
 	case MIPI_DSI_FMT_RGB888:
@@ -990,6 +992,8 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 	}
 
 	s->output_type = DRM_MODE_CONNECTOR_DSI;
+	if (info->num_bus_formats)
+		s->bus_format = info->bus_formats[0];
 
 	return 0;
 }

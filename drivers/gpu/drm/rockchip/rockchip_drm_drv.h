@@ -73,6 +73,7 @@ struct rockchip_crtc_state {
 	int dsp_layer_sel;
 	int output_type;
 	int output_mode;
+	int bus_format;
 };
 
 #define to_rockchip_crtc_state(s) \
