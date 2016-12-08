@@ -206,6 +206,10 @@ static const u32 vega10_golden_init[] =
 {
 };
 
+static const u32 raven_golden_init[] =
+{
+};
+
 static void soc15_init_golden_registers(struct amdgpu_device *adev)
 {
 	/* Some of the registers might be dependent on GRBM_GFX_INDEX */
@@ -216,6 +220,11 @@ static void soc15_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 vega10_golden_init,
 						 (const u32)ARRAY_SIZE(vega10_golden_init));
+		break;
+	case CHIP_RAVEN:
+		amdgpu_program_register_sequence(adev,
+						 raven_golden_init,
+						 (const u32)ARRAY_SIZE(raven_golden_init));
 		break;
 	default:
 		break;
