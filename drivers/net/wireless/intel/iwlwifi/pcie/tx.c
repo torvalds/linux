@@ -341,27 +341,17 @@ static inline dma_addr_t iwl_pcie_tfd_tb_get_addr(struct iwl_trans *trans,
 static inline void iwl_pcie_tfd_set_tb(struct iwl_trans *trans, void *tfd,
 				       u8 idx, dma_addr_t addr, u16 len)
 {
-	if (trans->cfg->use_tfh) {
-		struct iwl_tfh_tfd *tfd_fh = (void *)tfd;
-		struct iwl_tfh_tb *tb = &tfd_fh->tbs[idx];
+	struct iwl_tfd *tfd_fh = (void *)tfd;
+	struct iwl_tfd_tb *tb = &tfd_fh->tbs[idx];
 
-		put_unaligned_le64(addr, &tb->addr);
-		tb->tb_len = cpu_to_le16(len);
+	u16 hi_n_len = len << 4;
 
-		tfd_fh->num_tbs = cpu_to_le16(idx + 1);
-	} else {
-		struct iwl_tfd *tfd_fh = (void *)tfd;
-		struct iwl_tfd_tb *tb = &tfd_fh->tbs[idx];
+	put_unaligned_le32(addr, &tb->lo);
+	hi_n_len |= iwl_get_dma_hi_addr(addr);
 
-		u16 hi_n_len = len << 4;
+	tb->hi_n_len = cpu_to_le16(hi_n_len);
 
-		put_unaligned_le32(addr, &tb->lo);
-		hi_n_len |= iwl_get_dma_hi_addr(addr);
-
-		tb->hi_n_len = cpu_to_le16(hi_n_len);
-
-		tfd_fh->num_tbs = idx + 1;
-	}
+	tfd_fh->num_tbs = idx + 1;
 }
 
 static inline u8 iwl_pcie_tfd_get_num_tbs(struct iwl_trans *trans, void *_tfd)

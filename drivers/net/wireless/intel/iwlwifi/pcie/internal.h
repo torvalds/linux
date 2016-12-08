@@ -778,5 +778,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 void iwl_trans_pcie_dyn_txq_free(struct iwl_trans *trans, int queue);
 int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			   struct iwl_device_cmd *dev_cmd, int txq_id);
+int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
+				  struct iwl_host_cmd *cmd);
 
 #endif /* __iwl_trans_int_pcie_h__ */

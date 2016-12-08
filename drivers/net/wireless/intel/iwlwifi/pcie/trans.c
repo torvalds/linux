@@ -2918,7 +2918,7 @@ static const struct iwl_trans_ops trans_ops_pcie_gen2 = {
 	.start_fw = iwl_trans_pcie_gen2_start_fw,
 	.stop_device = iwl_trans_pcie_stop_device,
 
-	.send_cmd = iwl_trans_pcie_send_hcmd,
+	.send_cmd = iwl_trans_pcie_gen2_send_hcmd,
 
 	.tx = iwl_trans_pcie_gen2_tx,
 	.reclaim = iwl_trans_pcie_reclaim,
