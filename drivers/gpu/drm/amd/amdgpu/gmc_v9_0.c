@@ -686,6 +686,8 @@ static void gmc_v9_0_init_golden_registers(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		break;
+	case CHIP_RAVEN:
+		break;
 	default:
 		break;
 	}
