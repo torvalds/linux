@@ -1188,10 +1188,14 @@ static void udp_rmem_release(struct sock *sk, int size, int partial)
 		__sk_mem_reduce_allocated(sk, amt >> SK_MEM_QUANTUM_SHIFT);
 }
 
-/* Note: called with sk_receive_queue.lock held */
+/* Note: called with sk_receive_queue.lock held.
+ * Instead of using skb->truesize here, find a copy of it in skb->dev_scratch
+ * This avoids a cache line miss while receive_queue lock is held.
+ * Look at __udp_enqueue_schedule_skb() to find where this copy is done.
+ */
 void udp_skb_destructor(struct sock *sk, struct sk_buff *skb)
 {
-	udp_rmem_release(sk, skb->truesize, 1);
+	udp_rmem_release(sk, skb->dev_scratch, 1);
 }
 EXPORT_SYMBOL(udp_skb_destructor);
 
@@ -1246,6 +1250,10 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 		busy = busylock_acquire(sk);
 	}
 	size = skb->truesize;
+	/* Copy skb->truesize into skb->dev_scratch to avoid a cache line miss
+	 * in udp_skb_destructor()
+	 */
+	skb->dev_scratch = size;
 
 	/* we drop only if the receive buf is full and the receive
 	 * queue contains some other skb
@@ -1272,7 +1280,6 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 	/* no need to setup a destructor, we will explicitly release the
 	 * forward allocated memory on dequeue
 	 */
-	skb->dev = NULL;
 	sock_skb_set_dropcount(sk, skb);
 
 	__skb_queue_tail(list, skb);
