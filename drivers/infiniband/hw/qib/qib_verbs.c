@@ -464,7 +464,7 @@ static void mem_timer(unsigned long data)
 		priv = list_entry(list->next, struct qib_qp_priv, iowait);
 		qp = priv->owner;
 		list_del_init(&priv->iowait);
-		atomic_inc(&qp->refcount);
+		rvt_get_qp(qp);
 		if (!list_empty(list))
 			mod_timer(&dev->mem_timer, jiffies + 1);
 	}
@@ -477,8 +477,7 @@ static void mem_timer(unsigned long data)
 			qib_schedule_send(qp);
 		}
 		spin_unlock_irqrestore(&qp->s_lock, flags);
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 }
 
@@ -762,7 +761,7 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
 				  iowait);
 		qp = priv->owner;
 		list_del_init(&priv->iowait);
-		atomic_inc(&qp->refcount);
+		rvt_get_qp(qp);
 		spin_unlock_irqrestore(&dev->rdi.pending_lock, flags);
 
 		spin_lock_irqsave(&qp->s_lock, flags);
@@ -772,8 +771,7 @@ void qib_put_txreq(struct qib_verbs_txreq *tx)
 		}
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	} else
 		spin_unlock_irqrestore(&dev->rdi.pending_lock, flags);
 }
@@ -808,7 +806,7 @@ void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail)
 			break;
 		avail -= qpp->s_tx->txreq.sg_count;
 		list_del_init(&qpp->iowait);
-		atomic_inc(&qp->refcount);
+		rvt_get_qp(qp);
 		qps[n++] = qp;
 	}
 
@@ -822,8 +820,7 @@ void qib_verbs_sdma_desc_avail(struct qib_pportdata *ppd, unsigned avail)
 			qib_schedule_send(qp);
 		}
 		spin_unlock(&qp->s_lock);
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 }
 
@@ -1288,7 +1285,7 @@ void qib_ib_piobufavail(struct qib_devdata *dd)
 		priv = list_entry(list->next, struct qib_qp_priv, iowait);
 		qp = priv->owner;
 		list_del_init(&priv->iowait);
-		atomic_inc(&qp->refcount);
+		rvt_get_qp(qp);
 		qps[n++] = qp;
 	}
 	dd->f_wantpiobuf_intr(dd, 0);
@@ -1306,8 +1303,7 @@ full:
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 
 		/* Notify qib_destroy_qp() if it is waiting. */
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		rvt_put_qp(qp);
 	}
 }
 
