@@ -1117,7 +1117,7 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		 * vblank wait) in the ->enable boolean. */
 		old_crtc_state->enable = false;
 
-		if (!crtc->state->enable)
+		if (!crtc->state->active)
 			continue;
 
 		/* Legacy cursor ioctls are completely unsynced, and userspace
