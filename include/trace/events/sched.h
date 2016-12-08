@@ -1044,7 +1044,7 @@ TRACE_EVENT(walt_update_history,
 		__field(	 int,	samples			)
 		__field(	 int,	evt			)
 		__field(	 u64,	demand			)
-		__field(unsigned int,	walt_avg		)
+		__field(	 u64,	walt_avg		)
 		__field(unsigned int,	pelt_avg		)
 		__array(	 u32,	hist, RAVG_HIST_SIZE_MAX)
 		__field(	 int,	cpu			)
@@ -1066,7 +1066,7 @@ TRACE_EVENT(walt_update_history,
 	),
 
 	TP_printk("%d (%s): runtime %u samples %d event %d demand %llu"
-		" walt %u pelt %u (hist: %u %u %u %u %u) cpu %d",
+		" walt %llu pelt %u (hist: %u %u %u %u %u) cpu %d",
 		__entry->pid, __entry->comm,
 		__entry->runtime, __entry->samples, __entry->evt,
 		__entry->demand,
