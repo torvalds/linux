@@ -1346,7 +1346,7 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 		ieee80211_mesh_rootpath(sdata);
 
 	if (test_and_clear_bit(MESH_WORK_DRIFT_ADJUST, &ifmsh->wrkq_flags))
-		mesh_sync_adjust_tbtt(sdata);
+		mesh_sync_adjust_tsf(sdata);
 
 	if (test_and_clear_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags))
 		mesh_bss_info_changed(sdata);

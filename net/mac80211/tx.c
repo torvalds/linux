@@ -4196,7 +4196,7 @@ __ieee80211_beacon_get(struct ieee80211_hw *hw,
 		}
 
 		if (ifmsh->sync_ops)
-			ifmsh->sync_ops->adjust_tbtt(sdata, beacon);
+			ifmsh->sync_ops->adjust_tsf(sdata, beacon);
 
 		skb = dev_alloc_skb(local->tx_headroom +
 				    beacon->head_len +
