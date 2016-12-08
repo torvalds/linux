@@ -258,7 +258,7 @@ static int tvp5150_log_status(struct v4l2_subdev *sd)
 			Basic functions
  ****************************************************************************/
 
-static inline void tvp5150_selmux(struct v4l2_subdev *sd)
+static void tvp5150_selmux(struct v4l2_subdev *sd)
 {
 	int opmode = 0;
 	struct tvp5150 *decoder = to_tvp5150(sd);
