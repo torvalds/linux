@@ -1185,7 +1185,6 @@ struct hfi1_devdata {
 	/* Number of verbs contexts which have disabled ASPM */
 	atomic_t aspm_disabled_cnt;
 
-	struct hfi1_affinity *affinity;
 	bool eprom_available;	/* true if EPROM is available for this device */
 	bool aspm_supported;	/* Does HW support ASPM */
 	bool aspm_enabled;	/* ASPM state: enabled/disabled */
