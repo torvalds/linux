@@ -130,8 +130,8 @@ int mlx5_frag_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 		if (frag->map & ((1 << buf->page_shift) - 1)) {
 			dma_free_coherent(&dev->pdev->dev, frag_sz,
 					  buf->frags[i].buf, buf->frags[i].map);
-			mlx5_core_warn(dev, "unexpected map alignment: 0x%p, page_shift=%d\n",
-				       (void *)frag->map, buf->page_shift);
+			mlx5_core_warn(dev, "unexpected map alignment: %pad, page_shift=%d\n",
+				       &frag->map, buf->page_shift);
 			goto err_free_buf;
 		}
 		size -= frag_sz;
