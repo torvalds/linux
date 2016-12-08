@@ -109,7 +109,7 @@ static void iwl_pcie_gen2_txq_inc_wr_ptr(struct iwl_trans *trans,
 	 */
 	if (!txq->block)
 		iwl_write32(trans, HBUS_TARG_WRPTR,
-			    txq->write_ptr | (txq->id << 8));
+			    txq->write_ptr | (txq->id << 16));
 }
 
 static u8 iwl_pcie_gen2_get_num_tbs(struct iwl_trans *trans,
@@ -825,7 +825,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 	txq->read_ptr = (ssn & 0xff);
 	txq->write_ptr = (ssn & 0xff);
 	iwl_write_direct32(trans, HBUS_TARG_WRPTR,
-			   (ssn & 0xff) | (cmd->scd_queue << 8));
+			   (ssn & 0xff) | (cmd->scd_queue << 16));
 
 	IWL_DEBUG_TX_QUEUES(trans, "Activate queue %d WrPtr: %d\n",
 			    cmd->scd_queue, ssn & 0xff);
