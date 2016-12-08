@@ -231,37 +231,19 @@ static int skl_be_prepare(struct snd_pcm_substream *substream,
 static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct skl *skl = get_skl_ctx(dai->dev);
-	unsigned int format_val;
-	int err;
 	struct skl_module_cfg *mconfig;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
 
-	format_val = skl_get_format(substream, dai);
-	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d\n",
-				hdac_stream(stream)->stream_tag, format_val);
-	snd_hdac_stream_reset(hdac_stream(stream));
-
 	/* In case of XRUN recovery, reset the FW pipe to clean state */
 	if (mconfig && (substream->runtime->status->state ==
 					SNDRV_PCM_STATE_XRUN))
 		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
 
-	err = snd_hdac_stream_set_params(hdac_stream(stream), format_val);
-	if (err < 0)
-		return err;
-
-	err = snd_hdac_stream_setup(hdac_stream(stream));
-	if (err < 0)
-		return err;
-
-	hdac_stream(stream)->prepared = 1;
-
-	return err;
+	return 0;
 }
 
 static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -436,7 +418,6 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
 		if (!w->ignore_suspend) {
-			skl_pcm_prepare(substream, dai);
 			/*
 			 * enable DMA Resume enable bit for the stream, set the
 			 * dpib & lpib position to resume before starting the
@@ -457,7 +438,6 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		 * pipeline is started but there is a delay in starting the
 		 * DMA channel on the host.
 		 */
-		snd_hdac_ext_stream_decouple(ebus, stream, true);
 		ret = skl_decoupled_trigger(substream, cmd);
 		if (ret < 0)
 			return ret;
@@ -539,40 +519,14 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 static int skl_link_pcm_prepare(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
-	struct hdac_ext_stream *link_dev =
-			snd_soc_dai_get_dma_data(dai, substream);
-	unsigned int format_val = 0;
-	struct skl_dma_params *dma_params;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct hdac_ext_link *link;
 	struct skl *skl = get_skl_ctx(dai->dev);
 	struct skl_module_cfg *mconfig = NULL;
-
-	dma_params  = (struct skl_dma_params *)
-			snd_soc_dai_get_dma_data(codec_dai, substream);
-	if (dma_params)
-		format_val = dma_params->format;
-	dev_dbg(dai->dev, "stream_tag=%d formatvalue=%d codec_dai_name=%s\n",
-			hdac_stream(link_dev)->stream_tag, format_val, codec_dai->name);
-
-	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
-	if (!link)
-		return -EINVAL;
-
-	snd_hdac_ext_link_stream_reset(link_dev);
 
 	/* In case of XRUN recovery, reset the FW pipe to clean state */
 	mconfig = skl_tplg_be_get_cpr_module(dai, substream->stream);
 	if (mconfig && (substream->runtime->status->state ==
 					SNDRV_PCM_STATE_XRUN))
 		skl_reset_pipe(skl->skl_sst, mconfig->pipe);
-
-	snd_hdac_ext_link_stream_setup(link_dev, format_val);
-
-	snd_hdac_ext_link_set_stream_id(link, hdac_stream(link_dev)->stream_tag);
-	link_dev->link_prepared = 1;
 
 	return 0;
 }
@@ -588,10 +542,8 @@ static int skl_link_pcm_trigger(struct snd_pcm_substream *substream,
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		skl_link_pcm_prepare(substream, dai);
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		snd_hdac_ext_stream_decouple(ebus, stream, true);
 		snd_hdac_ext_link_stream_start(link_dev);
 		break;
 
