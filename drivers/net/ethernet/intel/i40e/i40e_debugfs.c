@@ -172,7 +172,7 @@ static void i40e_dbg_dump_vsi_seid(struct i40e_pf *pf, int seid)
 			 f->macaddr, f->vlan,
 			 i40e_filter_state_string[f->state]);
 	}
-	dev_info(&pf->pdev->dev, "    active_filters %d, promisc_threshold %d, overflow promisc %s\n",
+	dev_info(&pf->pdev->dev, "    active_filters %u, promisc_threshold %u, overflow promisc %s\n",
 		 vsi->active_filters, vsi->promisc_threshold,
 		 (test_bit(__I40E_FILTER_OVERFLOW_PROMISC, &vsi->state) ?
 		  "ON" : "OFF"));

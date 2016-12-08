@@ -2766,7 +2766,6 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 	u16 vlanprio = vlan_id | (qos << I40E_VLAN_PRIORITY_SHIFT);
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_pf *pf = np->vsi->back;
-	bool is_vsi_in_vlan = false;
 	struct i40e_vsi *vsi;
 	struct i40e_vf *vf;
 	int ret = 0;
@@ -2803,11 +2802,10 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 		/* duplicate request, so just return success */
 		goto error_pvid;
 
+	/* Locked once because multiple functions below iterate list */
 	spin_lock_bh(&vsi->mac_filter_hash_lock);
-	is_vsi_in_vlan = i40e_is_vsi_in_vlan(vsi);
-	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 
-	if (le16_to_cpu(vsi->info.pvid) == 0 && is_vsi_in_vlan) {
+	if (le16_to_cpu(vsi->info.pvid) == 0 && i40e_is_vsi_in_vlan(vsi)) {
 		dev_err(&pf->pdev->dev,
 			"VF %d has already configured VLAN filters and the administrator is requesting a port VLAN override.\nPlease unload and reload the VF driver for this change to take effect.\n",
 			vf_id);
@@ -2830,14 +2828,23 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 	 */
 	if ((!(vlan_id || qos) ||
 	    vlanprio != le16_to_cpu(vsi->info.pvid)) &&
-	    vsi->info.pvid)
-		ret = i40e_vsi_add_vlan(vsi, I40E_VLAN_ANY);
+	    vsi->info.pvid) {
+		ret = i40e_add_vlan_all_mac(vsi, I40E_VLAN_ANY);
+		if (ret) {
+			dev_info(&vsi->back->pdev->dev,
+				 "add VF VLAN failed, ret=%d aq_err=%d\n", ret,
+				 vsi->back->hw.aq.asq_last_status);
+			spin_unlock_bh(&vsi->mac_filter_hash_lock);
+			goto error_pvid;
+		}
+	}
 
 	if (vsi->info.pvid) {
-		/* kill old VLAN */
-		i40e_vsi_kill_vlan(vsi, (le16_to_cpu(vsi->info.pvid) &
-					 VLAN_VID_MASK));
+		/* remove all filters on the old VLAN */
+		i40e_rm_vlan_all_mac(vsi, (le16_to_cpu(vsi->info.pvid) &
+					   VLAN_VID_MASK));
 	}
+
 	if (vlan_id || qos)
 		ret = i40e_vsi_add_pvid(vsi, vlanprio);
 	else
@@ -2847,24 +2854,30 @@ int i40e_ndo_set_vf_port_vlan(struct net_device *netdev, int vf_id,
 		dev_info(&pf->pdev->dev, "Setting VLAN %d, QOS 0x%x on VF %d\n",
 			 vlan_id, qos, vf_id);
 
-		/* add new VLAN filter */
-		ret = i40e_vsi_add_vlan(vsi, vlan_id);
+		/* add new VLAN filter for each MAC */
+		ret = i40e_add_vlan_all_mac(vsi, vlan_id);
 		if (ret) {
 			dev_info(&vsi->back->pdev->dev,
 				 "add VF VLAN failed, ret=%d aq_err=%d\n", ret,
 				 vsi->back->hw.aq.asq_last_status);
+			spin_unlock_bh(&vsi->mac_filter_hash_lock);
 			goto error_pvid;
 		}
-		/* Kill non-vlan MAC filters - ignore error return since
-		 * there might not be any non-vlan MAC filters.
-		 */
-		i40e_vsi_kill_vlan(vsi, I40E_VLAN_ANY);
+
+		/* remove the previously added non-VLAN MAC filters */
+		i40e_rm_vlan_all_mac(vsi, I40E_VLAN_ANY);
 	}
+
+	spin_unlock_bh(&vsi->mac_filter_hash_lock);
+
+	/* Schedule the worker thread to take care of applying changes */
+	i40e_service_event_schedule(vsi->back);
 
 	if (ret) {
 		dev_err(&pf->pdev->dev, "Unable to update VF vsi context\n");
 		goto error_pvid;
 	}
+
 	/* The Port VLAN needs to be saved across resets the same as the
 	 * default LAN MAC address.
 	 */
@@ -2920,6 +2933,9 @@ int i40e_ndo_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
 	switch (pf->hw.phy.link_info.link_speed) {
 	case I40E_LINK_SPEED_40GB:
 		speed = 40000;
+		break;
+	case I40E_LINK_SPEED_25GB:
+		speed = 25000;
 		break;
 	case I40E_LINK_SPEED_20GB:
 		speed = 20000;

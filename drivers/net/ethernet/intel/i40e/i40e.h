@@ -356,10 +356,11 @@ struct i40e_pf {
 #define I40E_FLAG_NO_DCB_SUPPORT		BIT_ULL(45)
 #define I40E_FLAG_USE_SET_LLDP_MIB		BIT_ULL(46)
 #define I40E_FLAG_STOP_FW_LLDP			BIT_ULL(47)
-#define I40E_FLAG_HAVE_10GBASET_PHY		BIT_ULL(48)
+#define I40E_FLAG_PHY_CONTROLS_LEDS		BIT_ULL(48)
 #define I40E_FLAG_PF_MAC			BIT_ULL(50)
 #define I40E_FLAG_TRUE_PROMISC_SUPPORT		BIT_ULL(51)
 #define I40E_FLAG_HAVE_CRT_RETIMER		BIT_ULL(52)
+#define I40E_FLAG_PTP_L4_CAPABLE		BIT_ULL(53)
 
 	/* tracks features that get auto disabled by errors */
 	u64 auto_disable_flags;
@@ -596,6 +597,7 @@ struct i40e_vsi {
 	u16 veb_idx;		/* index of VEB parent */
 	struct kobject *kobj;	/* sysfs object */
 	bool current_isup;	/* Sync 'link up' logging */
+	enum i40e_aq_link_speed current_speed;	/* Sync link speed logging */
 
 	void *priv;	/* client driver data reference. */
 
@@ -850,7 +852,9 @@ int i40e_open(struct net_device *netdev);
 int i40e_close(struct net_device *netdev);
 int i40e_vsi_open(struct i40e_vsi *vsi);
 void i40e_vlan_stripping_disable(struct i40e_vsi *vsi);
+int i40e_add_vlan_all_mac(struct i40e_vsi *vsi, s16 vid);
 int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid);
+void i40e_rm_vlan_all_mac(struct i40e_vsi *vsi, s16 vid);
 void i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid);
 struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi,
 					     const u8 *macaddr);

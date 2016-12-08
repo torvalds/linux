@@ -265,8 +265,9 @@ static void i40e_partition_setting_complaint(struct i40e_pf *pf)
 static void i40e_phy_type_to_ethtool(struct i40e_pf *pf, u32 *supported,
 				     u32 *advertising)
 {
-	enum i40e_aq_capabilities_phy_type phy_types = pf->hw.phy.phy_types;
 	struct i40e_link_status *hw_link_info = &pf->hw.phy.link_info;
+	u64 phy_types = pf->hw.phy.phy_types;
+
 	*supported = 0x0;
 	*advertising = 0x0;
 
@@ -368,6 +369,13 @@ static void i40e_phy_type_to_ethtool(struct i40e_pf *pf, u32 *supported,
 		if (hw_link_info->requested_speeds & I40E_LINK_SPEED_1GB)
 			if (!(pf->flags & I40E_FLAG_HAVE_CRT_RETIMER))
 				*advertising |= ADVERTISED_1000baseKX_Full;
+	}
+	if (phy_types & I40E_CAP_PHY_TYPE_25GBASE_KR ||
+	    phy_types & I40E_CAP_PHY_TYPE_25GBASE_CR ||
+	    phy_types & I40E_CAP_PHY_TYPE_25GBASE_SR ||
+	    phy_types & I40E_CAP_PHY_TYPE_25GBASE_LR) {
+		*supported |= SUPPORTED_Autoneg;
+		*advertising |= ADVERTISED_Autoneg;
 	}
 }
 
@@ -491,6 +499,14 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 				     ADVERTISED_1000baseKX_Full |
 				     ADVERTISED_Autoneg;
 		break;
+	case I40E_PHY_TYPE_25GBASE_KR:
+	case I40E_PHY_TYPE_25GBASE_CR:
+	case I40E_PHY_TYPE_25GBASE_SR:
+	case I40E_PHY_TYPE_25GBASE_LR:
+		ecmd->supported = SUPPORTED_Autoneg;
+		ecmd->advertising = ADVERTISED_Autoneg;
+		/* TODO: add speeds when ethtool is ready to support*/
+		break;
 	default:
 		/* if we got here and link is up something bad is afoot */
 		netdev_info(netdev, "WARNING: Link is up but PHY type 0x%x is not recognized.\n",
@@ -511,6 +527,14 @@ static void i40e_get_settings_link_up(struct i40e_hw *hw,
 	switch (link_speed) {
 	case I40E_LINK_SPEED_40GB:
 		ethtool_cmd_speed_set(ecmd, SPEED_40000);
+		break;
+	case I40E_LINK_SPEED_25GB:
+#ifdef SPEED_25000
+		ethtool_cmd_speed_set(ecmd, SPEED_25000);
+#else
+		netdev_info(netdev,
+			    "Speed is 25G, display not supported by this version of ethtool.\n");
+#endif
 		break;
 	case I40E_LINK_SPEED_20GB:
 		ethtool_cmd_speed_set(ecmd, SPEED_20000);
@@ -1657,8 +1681,19 @@ static int i40e_get_ts_info(struct net_device *dev,
 	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
 
 	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) |
-			   BIT(HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
-			   BIT(HWTSTAMP_FILTER_PTP_V2_EVENT);
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_EVENT) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_SYNC) |
+			   BIT(HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ);
+
+	if (pf->flags & I40E_FLAG_PTP_L4_CAPABLE)
+		info->rx_filters |= BIT(HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+				    BIT(HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+				    BIT(HWTSTAMP_FILTER_PTP_V2_EVENT) |
+				    BIT(HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+				    BIT(HWTSTAMP_FILTER_PTP_V2_SYNC) |
+				    BIT(HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+				    BIT(HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
+				    BIT(HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ);
 
 	return 0;
 }
@@ -1890,7 +1925,7 @@ static int i40e_set_phys_id(struct net_device *netdev,
 
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
-		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY)) {
+		if (!(pf->flags & I40E_FLAG_PHY_CONTROLS_LEDS)) {
 			pf->led_status = i40e_led_get(hw);
 		} else {
 			i40e_aq_set_phy_debug(hw, I40E_PHY_DEBUG_ALL, NULL);
@@ -1900,20 +1935,20 @@ static int i40e_set_phys_id(struct net_device *netdev,
 		}
 		return blink_freq;
 	case ETHTOOL_ID_ON:
-		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY))
+		if (!(pf->flags & I40E_FLAG_PHY_CONTROLS_LEDS))
 			i40e_led_set(hw, 0xf, false);
 		else
 			ret = i40e_led_set_phy(hw, true, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_OFF:
-		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY))
+		if (!(pf->flags & I40E_FLAG_PHY_CONTROLS_LEDS))
 			i40e_led_set(hw, 0x0, false);
 		else
 			ret = i40e_led_set_phy(hw, false, pf->led_status, 0);
 		break;
 	case ETHTOOL_ID_INACTIVE:
-		if (!(pf->flags & I40E_FLAG_HAVE_10GBASET_PHY)) {
-			i40e_led_set(hw, false, pf->led_status);
+		if (!(pf->flags & I40E_FLAG_PHY_CONTROLS_LEDS)) {
+			i40e_led_set(hw, pf->led_status, false);
 		} else {
 			ret = i40e_led_set_phy(hw, false, pf->led_status,
 					       (pf->phy_led_val |
