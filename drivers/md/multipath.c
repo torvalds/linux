@@ -208,7 +208,7 @@ static void multipath_error (struct mddev *mddev, struct md_rdev *rdev)
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}
 	set_bit(Faulty, &rdev->flags);
-	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
 	pr_err("multipath: IO failure on %s, disabling IO path.\n"
 	       "multipath: Operation continuing on %d IO paths.\n",
 	       bdevname(rdev->bdev, b),

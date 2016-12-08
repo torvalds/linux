@@ -1206,8 +1206,8 @@ static void r5l_write_super_and_discard_space(struct r5l_log *log,
 	 * there is a deadlock. We workaround this issue with a trylock.
 	 * FIXME: we could miss discard if we can't take reconfig mutex
 	 */
-	set_mask_bits(&mddev->flags, 0,
-		BIT(MD_CHANGE_DEVS) | BIT(MD_CHANGE_PENDING));
+	set_mask_bits(&mddev->sb_flags, 0,
+		BIT(MD_SB_CHANGE_DEVS) | BIT(MD_SB_CHANGE_PENDING));
 	if (!mddev_trylock(mddev))
 		return;
 	md_update_sb(mddev, 1);
@@ -2197,7 +2197,7 @@ static void r5l_write_super(struct r5l_log *log, sector_t cp)
 	struct mddev *mddev = log->rdev->mddev;
 
 	log->rdev->journal_tail = cp;
-	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
 }
 
 static ssize_t r5c_journal_mode_show(struct mddev *mddev, char *page)
