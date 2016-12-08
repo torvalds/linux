@@ -970,6 +970,22 @@ enum mlx5_cap_type {
 	MLX5_CAP_NUM
 };
 
+enum mlx5_pcam_reg_groups {
+	MLX5_PCAM_REGS_5000_TO_507F                 = 0x0,
+};
+
+enum mlx5_pcam_feature_groups {
+	MLX5_PCAM_FEATURE_ENHANCED_FEATURES         = 0x0,
+};
+
+enum mlx5_mcam_reg_groups {
+	MLX5_MCAM_REGS_FIRST_128                    = 0x0,
+};
+
+enum mlx5_mcam_feature_groups {
+	MLX5_MCAM_FEATURE_ENHANCED_FEATURES         = 0x0,
+};
+
 /* GET Dev Caps macros */
 #define MLX5_CAP_GEN(mdev, cap) \
 	MLX5_GET(cmd_hca_cap, mdev->hca_caps_cur[MLX5_CAP_GENERAL], cap)
