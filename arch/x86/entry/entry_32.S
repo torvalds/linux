@@ -766,8 +766,8 @@ ftrace_graph_call:
 	jmp	ftrace_stub
 #endif
 
-.globl ftrace_stub
-ftrace_stub:
+/* This is weak to keep gas from relaxing the jumps */
+WEAK(ftrace_stub)
 	ret
 END(ftrace_caller)
 
