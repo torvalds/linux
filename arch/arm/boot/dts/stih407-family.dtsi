@@ -889,6 +889,8 @@
 			interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>;
 			dma-channels = <16>;
 			#dma-cells = <3>;
+
+			status = "disabled";
 		};
 
 		/* fdma free running */
@@ -906,6 +908,8 @@
 				<&clk_s_c0_flexgen CLK_EXT2F_A9>,
 				<&clk_s_c0_flexgen CLK_TX_ICN_DISP_0>,
 				<&clk_s_c0_flexgen CLK_EXT2F_A9>;
+
+			status = "disabled";
 		};
 
 		sti_sasg_codec: sti-sasg-codec {
