@@ -767,8 +767,8 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	u32 bth1;
 
 	/* Construct the header. */
-	extra_bytes = -qp->s_cur_size & 3;
-	nwords = (qp->s_cur_size + extra_bytes) >> 2;
+	extra_bytes = -ps->s_txreq->s_cur_size & 3;
+	nwords = (ps->s_txreq->s_cur_size + extra_bytes) >> 2;
 	lrh0 = HFI1_LRH_BTH;
 	if (unlikely(qp->remote_ah_attr.ah_flags & IB_AH_GRH)) {
 		qp->s_hdrwords += hfi1_make_grh(ibp,

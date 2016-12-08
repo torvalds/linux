@@ -895,7 +895,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_ahg_info *ahg_info = priv->s_ahg;
 	u32 hdrwords = qp->s_hdrwords;
 	struct rvt_sge_state *ss = qp->s_cur_sge;
-	u32 len = qp->s_cur_size;
+	u32 len = ps->s_txreq->s_cur_size;
 	u32 plen = hdrwords + ((len + 3) >> 2) + 2; /* includes pbc */
 	struct hfi1_ibdev *dev = ps->dev;
 	struct hfi1_pportdata *ppd = ps->ppd;
@@ -1012,7 +1012,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_qp_priv *priv = qp->priv;
 	u32 hdrwords = qp->s_hdrwords;
 	struct rvt_sge_state *ss = qp->s_cur_sge;
-	u32 len = qp->s_cur_size;
+	u32 len = ps->s_txreq->s_cur_size;
 	u32 dwords = (len + 3) >> 2;
 	u32 plen = hdrwords + dwords + 2; /* includes pbc */
 	struct hfi1_pportdata *ppd = ps->ppd;
@@ -1240,7 +1240,7 @@ static inline send_routine get_send_routine(struct rvt_qp *qp,
 		u8 op = get_opcode(h);
 
 		if (piothreshold &&
-		    qp->s_cur_size <= min(piothreshold, qp->pmtu) &&
+		    tx->s_cur_size <= min(piothreshold, qp->pmtu) &&
 		    (BIT(op & OPMASK) & pio_opmask[op >> 5]) &&
 		    iowait_sdma_pending(&priv->s_iowait) == 0 &&
 		    !sdma_txreq_built(&tx->txreq))
