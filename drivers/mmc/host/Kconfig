@@ -165,6 +165,17 @@ config MMC_SDHCI_OF_HLWD
 
 	  If unsure, say N.
 
+config MMC_SDHCI_CADENCE
+	tristate "SDHCI support for the Cadence SD/SDIO/eMMC controller"
+	depends on MMC_SDHCI_PLTFM
+	depends on OF
+	help
+	  This selects the Cadence SD/SDIO/eMMC driver.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_CNS3XXX
 	tristate "SDHCI support on the Cavium Networks CNS3xxx SoC"
 	depends on ARCH_CNS3XXX
