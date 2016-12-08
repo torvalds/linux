@@ -225,7 +225,7 @@ static int zx_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct zx_i2s_info *i2s = snd_soc_dai_get_drvdata(socdai);
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	unsigned int lane, ch_num, len, ret = 0;
-	unsigned long val, format;
+	unsigned long val;
 	unsigned long chn_cfg;
 
 	dma_data = snd_soc_dai_get_dma_data(socdai, substream);
@@ -238,15 +238,12 @@ static int zx_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		format = 0;
 		len = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		format = 1;
 		len = 24;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		format = 2;
 		len = 32;
 		break;
 	default:
