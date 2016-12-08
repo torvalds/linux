@@ -257,12 +257,6 @@ struct amdgpu_audio {
 	int num_pins;
 };
 
-struct amdgpu_mode_mc_save {
-	u32 vga_render_control;
-	u32 vga_hdp_control;
-	bool crtc_enabled[AMDGPU_MAX_CRTCS];
-};
-
 struct amdgpu_display_funcs {
 	/* display watermarks */
 	void (*bandwidth_update)(struct amdgpu_device *adev);
@@ -298,10 +292,6 @@ struct amdgpu_display_funcs {
 			      uint16_t connector_object_id,
 			      struct amdgpu_hpd *hpd,
 			      struct amdgpu_router *router);
-	void (*stop_mc_access)(struct amdgpu_device *adev,
-			       struct amdgpu_mode_mc_save *save);
-	void (*resume_mc_access)(struct amdgpu_device *adev,
-				 struct amdgpu_mode_mc_save *save);
 };
 
 struct amdgpu_mode_info {

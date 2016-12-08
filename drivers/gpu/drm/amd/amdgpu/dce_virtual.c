@@ -95,56 +95,6 @@ static u32 dce_virtual_hpd_get_gpio_reg(struct amdgpu_device *adev)
 	return 0;
 }
 
-static void dce_virtual_stop_mc_access(struct amdgpu_device *adev,
-			      struct amdgpu_mode_mc_save *save)
-{
-	switch (adev->asic_type) {
-#ifdef CONFIG_DRM_AMDGPU_SI
-	case CHIP_TAHITI:
-	case CHIP_PITCAIRN:
-	case CHIP_VERDE:
-	case CHIP_OLAND:
-		dce_v6_0_disable_dce(adev);
-		break;
-#endif
-#ifdef CONFIG_DRM_AMDGPU_CIK
-	case CHIP_BONAIRE:
-	case CHIP_HAWAII:
-	case CHIP_KAVERI:
-	case CHIP_KABINI:
-	case CHIP_MULLINS:
-		dce_v8_0_disable_dce(adev);
-		break;
-#endif
-	case CHIP_FIJI:
-	case CHIP_TONGA:
-		dce_v10_0_disable_dce(adev);
-		break;
-	case CHIP_CARRIZO:
-	case CHIP_STONEY:
-	case CHIP_POLARIS10:
-	case CHIP_POLARIS11:
-	case CHIP_POLARIS12:
-		dce_v11_0_disable_dce(adev);
-		break;
-	case CHIP_TOPAZ:
-#ifdef CONFIG_DRM_AMDGPU_SI
-	case CHIP_HAINAN:
-#endif
-		/* no DCE */
-		return;
-	default:
-		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
-	}
-
-	return;
-}
-static void dce_virtual_resume_mc_access(struct amdgpu_device *adev,
-				struct amdgpu_mode_mc_save *save)
-{
-	return;
-}
-
 /**
  * dce_virtual_bandwidth_update - program display watermarks
  *
@@ -516,6 +466,45 @@ static int dce_virtual_sw_fini(void *handle)
 
 static int dce_virtual_hw_init(void *handle)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+	case CHIP_OLAND:
+		dce_v6_0_disable_dce(adev);
+		break;
+#endif
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_BONAIRE:
+	case CHIP_HAWAII:
+	case CHIP_KAVERI:
+	case CHIP_KABINI:
+	case CHIP_MULLINS:
+		dce_v8_0_disable_dce(adev);
+		break;
+#endif
+	case CHIP_FIJI:
+	case CHIP_TONGA:
+		dce_v10_0_disable_dce(adev);
+		break;
+	case CHIP_CARRIZO:
+	case CHIP_STONEY:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+		dce_v11_0_disable_dce(adev);
+		break;
+	case CHIP_TOPAZ:
+#ifdef CONFIG_DRM_AMDGPU_SI
+	case CHIP_HAINAN:
+#endif
+		/* no DCE */
+		break;
+	default:
+		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
+	}
 	return 0;
 }
 
@@ -683,8 +672,6 @@ static const struct amdgpu_display_funcs dce_virtual_display_funcs = {
 	.page_flip_get_scanoutpos = &dce_virtual_crtc_get_scanoutpos,
 	.add_encoder = NULL,
 	.add_connector = NULL,
-	.stop_mc_access = &dce_virtual_stop_mc_access,
-	.resume_mc_access = &dce_virtual_resume_mc_access,
 };
 
 static void dce_virtual_set_display_funcs(struct amdgpu_device *adev)

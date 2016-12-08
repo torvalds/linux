@@ -161,13 +161,9 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 	}
 }
 
-static void gmc_v8_0_mc_stop(struct amdgpu_device *adev,
-			     struct amdgpu_mode_mc_save *save)
+static void gmc_v8_0_mc_stop(struct amdgpu_device *adev)
 {
 	u32 blackout;
-
-	if (adev->mode_info.num_crtc)
-		amdgpu_display_stop_mc_access(adev, save);
 
 	gmc_v8_0_wait_for_idle(adev);
 
@@ -184,8 +180,7 @@ static void gmc_v8_0_mc_stop(struct amdgpu_device *adev,
 	udelay(100);
 }
 
-static void gmc_v8_0_mc_resume(struct amdgpu_device *adev,
-			       struct amdgpu_mode_mc_save *save)
+static void gmc_v8_0_mc_resume(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
@@ -197,9 +192,6 @@ static void gmc_v8_0_mc_resume(struct amdgpu_device *adev,
 	tmp = REG_SET_FIELD(0, BIF_FB_EN, FB_READ_EN, 1);
 	tmp = REG_SET_FIELD(tmp, BIF_FB_EN, FB_WRITE_EN, 1);
 	WREG32(mmBIF_FB_EN, tmp);
-
-	if (adev->mode_info.num_crtc)
-		amdgpu_display_resume_mc_access(adev, save);
 }
 
 /**
@@ -1250,7 +1242,7 @@ static int gmc_v8_0_pre_soft_reset(void *handle)
 	if (!adev->mc.srbm_soft_reset)
 		return 0;
 
-	gmc_v8_0_mc_stop(adev, &adev->mc.save);
+	gmc_v8_0_mc_stop(adev);
 	if (gmc_v8_0_wait_for_idle(adev)) {
 		dev_warn(adev->dev, "Wait for GMC idle timed out !\n");
 	}
@@ -1296,7 +1288,7 @@ static int gmc_v8_0_post_soft_reset(void *handle)
 	if (!adev->mc.srbm_soft_reset)
 		return 0;
 
-	gmc_v8_0_mc_resume(adev, &adev->mc.save);
+	gmc_v8_0_mc_resume(adev);
 	return 0;
 }
 

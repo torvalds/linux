@@ -392,117 +392,6 @@ static u32 dce_v6_0_hpd_get_gpio_reg(struct amdgpu_device *adev)
 	return mmDC_GPIO_HPD_A;
 }
 
-static u32 evergreen_get_vblank_counter(struct amdgpu_device* adev, int crtc)
-{
-	if (crtc >= adev->mode_info.num_crtc)
-		return 0;
-	else
-		return RREG32(mmCRTC_STATUS_FRAME_COUNT + crtc_offsets[crtc]);
-}
-
-static void dce_v6_0_stop_mc_access(struct amdgpu_device *adev,
-				    struct amdgpu_mode_mc_save *save)
-{
-	u32 crtc_enabled, tmp, frame_count;
-	int i, j;
-
-	save->vga_render_control = RREG32(mmVGA_RENDER_CONTROL);
-	save->vga_hdp_control = RREG32(mmVGA_HDP_CONTROL);
-
-	/* disable VGA render */
-	WREG32(mmVGA_RENDER_CONTROL, 0);
-
-	/* blank the display controllers */
-	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		crtc_enabled = RREG32(mmCRTC_CONTROL + crtc_offsets[i]) & CRTC_CONTROL__CRTC_MASTER_EN_MASK;
-		if (crtc_enabled) {
-			save->crtc_enabled[i] = true;
-			tmp = RREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i]);
-
-			if (!(tmp & CRTC_BLANK_CONTROL__CRTC_BLANK_DATA_EN_MASK)) {
-				dce_v6_0_vblank_wait(adev, i);
-				WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 1);
-				tmp |= CRTC_BLANK_CONTROL__CRTC_BLANK_DATA_EN_MASK;
-				WREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
-				WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 0);
-			}
-			/* wait for the next frame */
-			frame_count = evergreen_get_vblank_counter(adev, i);
-			for (j = 0; j < adev->usec_timeout; j++) {
-				if (evergreen_get_vblank_counter(adev, i) != frame_count)
-					break;
-				udelay(1);
-			}
-
-			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
-			WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 1);
-			tmp = RREG32(mmCRTC_CONTROL + crtc_offsets[i]);
-			tmp &= ~CRTC_CONTROL__CRTC_MASTER_EN_MASK;
-			WREG32(mmCRTC_CONTROL + crtc_offsets[i], tmp);
-			WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 0);
-			save->crtc_enabled[i] = false;
-			/* ***** */
-		} else {
-			save->crtc_enabled[i] = false;
-		}
-	}
-}
-
-static void dce_v6_0_resume_mc_access(struct amdgpu_device *adev,
-				      struct amdgpu_mode_mc_save *save)
-{
-	u32 tmp;
-	int i, j;
-
-	/* update crtc base addresses */
-	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + crtc_offsets[i],
-		       upper_32_bits(adev->mc.vram_start));
-		WREG32(mmGRPH_SECONDARY_SURFACE_ADDRESS_HIGH + crtc_offsets[i],
-		       upper_32_bits(adev->mc.vram_start));
-		WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + crtc_offsets[i],
-		       (u32)adev->mc.vram_start);
-		WREG32(mmGRPH_SECONDARY_SURFACE_ADDRESS + crtc_offsets[i],
-		       (u32)adev->mc.vram_start);
-	}
-
-	WREG32(mmVGA_MEMORY_BASE_ADDRESS_HIGH, upper_32_bits(adev->mc.vram_start));
-	WREG32(mmVGA_MEMORY_BASE_ADDRESS, (u32)adev->mc.vram_start);
-
-	/* unlock regs and wait for update */
-	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		if (save->crtc_enabled[i]) {
-			tmp = RREG32(mmMASTER_UPDATE_MODE + crtc_offsets[i]);
-			if ((tmp & 0x7) != 0) {
-				tmp &= ~0x7;
-				WREG32(mmMASTER_UPDATE_MODE + crtc_offsets[i], tmp);
-			}
-			tmp = RREG32(mmGRPH_UPDATE + crtc_offsets[i]);
-			if (tmp & GRPH_UPDATE__GRPH_UPDATE_LOCK_MASK) {
-				tmp &= ~GRPH_UPDATE__GRPH_UPDATE_LOCK_MASK;
-				WREG32(mmGRPH_UPDATE + crtc_offsets[i], tmp);
-			}
-			tmp = RREG32(mmMASTER_UPDATE_LOCK + crtc_offsets[i]);
-			if (tmp & 1) {
-				tmp &= ~1;
-				WREG32(mmMASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
-			}
-			for (j = 0; j < adev->usec_timeout; j++) {
-				tmp = RREG32(mmGRPH_UPDATE + crtc_offsets[i]);
-				if ((tmp & GRPH_UPDATE__GRPH_SURFACE_UPDATE_PENDING_MASK) == 0)
-					break;
-				udelay(1);
-			}
-		}
-	}
-
-	/* Unlock vga access */
-	WREG32(mmVGA_HDP_CONTROL, save->vga_hdp_control);
-	mdelay(1);
-	WREG32(mmVGA_RENDER_CONTROL, save->vga_render_control);
-
-}
-
 static void dce_v6_0_set_vga_render_state(struct amdgpu_device *adev,
 					  bool render)
 {
@@ -3539,8 +3428,6 @@ static const struct amdgpu_display_funcs dce_v6_0_display_funcs = {
 	.page_flip_get_scanoutpos = &dce_v6_0_crtc_get_scanoutpos,
 	.add_encoder = &dce_v6_0_encoder_add,
 	.add_connector = &amdgpu_connector_add,
-	.stop_mc_access = &dce_v6_0_stop_mc_access,
-	.resume_mc_access = &dce_v6_0_resume_mc_access,
 };
 
 static void dce_v6_0_set_display_funcs(struct amdgpu_device *adev)

@@ -2851,12 +2851,6 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 		r = amdgpu_suspend(adev);
 
 retry:
-		/* Disable fb access */
-		if (adev->mode_info.num_crtc) {
-			struct amdgpu_mode_mc_save save;
-			amdgpu_display_stop_mc_access(adev, &save);
-			amdgpu_wait_for_idle(adev, AMD_IP_BLOCK_TYPE_GMC);
-		}
 		if (adev->is_atom_fw)
 			amdgpu_atomfirmware_scratch_regs_save(adev);
 		else

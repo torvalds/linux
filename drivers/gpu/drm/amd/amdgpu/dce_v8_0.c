@@ -419,81 +419,6 @@ static bool dce_v8_0_is_display_hung(struct amdgpu_device *adev)
 	return true;
 }
 
-static void dce_v8_0_stop_mc_access(struct amdgpu_device *adev,
-				    struct amdgpu_mode_mc_save *save)
-{
-	u32 crtc_enabled, tmp;
-	int i;
-
-	save->vga_render_control = RREG32(mmVGA_RENDER_CONTROL);
-	save->vga_hdp_control = RREG32(mmVGA_HDP_CONTROL);
-
-	/* disable VGA render */
-	tmp = RREG32(mmVGA_RENDER_CONTROL);
-	tmp = REG_SET_FIELD(tmp, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
-	WREG32(mmVGA_RENDER_CONTROL, tmp);
-
-	/* blank the display controllers */
-	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		crtc_enabled = REG_GET_FIELD(RREG32(mmCRTC_CONTROL + crtc_offsets[i]),
-					     CRTC_CONTROL, CRTC_MASTER_EN);
-		if (crtc_enabled) {
-#if 1
-			save->crtc_enabled[i] = true;
-			tmp = RREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i]);
-			if (REG_GET_FIELD(tmp, CRTC_BLANK_CONTROL, CRTC_BLANK_DATA_EN) == 0) {
-				/*it is correct only for RGB ; black is 0*/
-				WREG32(mmCRTC_BLANK_DATA_COLOR + crtc_offsets[i], 0);
-				tmp = REG_SET_FIELD(tmp, CRTC_BLANK_CONTROL, CRTC_BLANK_DATA_EN, 1);
-				WREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
-			}
-			mdelay(20);
-#else
-			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
-			WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 1);
-			tmp = RREG32(mmCRTC_CONTROL + crtc_offsets[i]);
-			tmp = REG_SET_FIELD(tmp, CRTC_CONTROL, CRTC_MASTER_EN, 0);
-			WREG32(mmCRTC_CONTROL + crtc_offsets[i], tmp);
-			WREG32(mmCRTC_UPDATE_LOCK + crtc_offsets[i], 0);
-			save->crtc_enabled[i] = false;
-			/* ***** */
-#endif
-		} else {
-			save->crtc_enabled[i] = false;
-		}
-	}
-}
-
-static void dce_v8_0_resume_mc_access(struct amdgpu_device *adev,
-				      struct amdgpu_mode_mc_save *save)
-{
-	u32 tmp;
-	int i;
-
-	/* update crtc base addresses */
-	for (i = 0; i < adev->mode_info.num_crtc; i++) {
-		WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS_HIGH + crtc_offsets[i],
-		       upper_32_bits(adev->mc.vram_start));
-		WREG32(mmGRPH_PRIMARY_SURFACE_ADDRESS + crtc_offsets[i],
-		       (u32)adev->mc.vram_start);
-
-		if (save->crtc_enabled[i]) {
-			tmp = RREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i]);
-			tmp = REG_SET_FIELD(tmp, CRTC_BLANK_CONTROL, CRTC_BLANK_DATA_EN, 0);
-			WREG32(mmCRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
-		}
-		mdelay(20);
-	}
-
-	WREG32(mmVGA_MEMORY_BASE_ADDRESS_HIGH, upper_32_bits(adev->mc.vram_start));
-	WREG32(mmVGA_MEMORY_BASE_ADDRESS, lower_32_bits(adev->mc.vram_start));
-
-	/* Unlock vga access */
-	WREG32(mmVGA_HDP_CONTROL, save->vga_hdp_control);
-	mdelay(1);
-	WREG32(mmVGA_RENDER_CONTROL, save->vga_render_control);
-}
-
 static void dce_v8_0_set_vga_render_state(struct amdgpu_device *adev,
 					  bool render)
 {
@@ -3588,8 +3513,6 @@ static const struct amdgpu_display_funcs dce_v8_0_display_funcs = {
 	.page_flip_get_scanoutpos = &dce_v8_0_crtc_get_scanoutpos,
 	.add_encoder = &dce_v8_0_encoder_add,
 	.add_connector = &amdgpu_connector_add,
-	.stop_mc_access = &dce_v8_0_stop_mc_access,
-	.resume_mc_access = &dce_v8_0_resume_mc_access,
 };
 
 static void dce_v8_0_set_display_funcs(struct amdgpu_device *adev)

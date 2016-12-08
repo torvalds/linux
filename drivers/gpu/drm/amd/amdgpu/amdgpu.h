@@ -613,7 +613,6 @@ struct amdgpu_mc {
 	struct amdgpu_irq_src	vm_fault;
 	uint32_t		vram_type;
 	uint32_t                srbm_soft_reset;
-	struct amdgpu_mode_mc_save save;
 	bool			prt_warning;
 	uint64_t		stolen_size;
 	/* apertures */
@@ -1910,8 +1909,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_display_page_flip_get_scanoutpos(adev, crtc, vbl, pos) (adev)->mode_info.funcs->page_flip_get_scanoutpos((adev), (crtc), (vbl), (pos))
 #define amdgpu_display_add_encoder(adev, e, s, c) (adev)->mode_info.funcs->add_encoder((adev), (e), (s), (c))
 #define amdgpu_display_add_connector(adev, ci, sd, ct, ib, coi, h, r) (adev)->mode_info.funcs->add_connector((adev), (ci), (sd), (ct), (ib), (coi), (h), (r))
-#define amdgpu_display_stop_mc_access(adev, s) (adev)->mode_info.funcs->stop_mc_access((adev), (s))
-#define amdgpu_display_resume_mc_access(adev, s) (adev)->mode_info.funcs->resume_mc_access((adev), (s))
 #define amdgpu_emit_copy_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_copy_buffer((ib),  (s), (d), (b))
 #define amdgpu_emit_fill_buffer(adev, ib, s, d, b) (adev)->mman.buffer_funcs->emit_fill_buffer((ib), (s), (d), (b))
 #define amdgpu_gfx_get_gpu_clock_counter(adev) (adev)->gfx.funcs->get_gpu_clock_counter((adev))
