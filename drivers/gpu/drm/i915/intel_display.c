@@ -12028,7 +12028,6 @@ static void intel_mmio_flip_work_func(struct work_struct *w)
 		to_intel_framebuffer(crtc->base.primary->fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 
-	i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
 	WARN_ON(i915_gem_object_wait(obj, 0, MAX_SCHEDULE_TIMEOUT, NULL) < 0);
 
 	intel_pipe_update_start(crtc);
@@ -12284,6 +12283,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		i915_add_request_no_flush(request);
 	}
 
+	i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
 	i915_gem_track_fb(intel_fb_obj(old_fb), obj,
 			  to_intel_plane(primary)->frontbuffer_bit);
 	mutex_unlock(&dev->struct_mutex);
@@ -13995,8 +13995,9 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 
 		DRM_DEBUG_KMS("New cdclk calculated to be atomic %u, actual %u\n",
 			      intel_state->cdclk, intel_state->dev_cdclk);
-	} else
+	} else {
 		to_intel_atomic_state(state)->cdclk = dev_priv->atomic_cdclk_freq;
+	}
 
 	intel_modeset_clear_plls(state);
 
@@ -14097,8 +14098,9 @@ static int intel_atomic_check(struct drm_device *dev,
 
 		if (ret)
 			return ret;
-	} else
-		intel_state->cdclk = dev_priv->cdclk_freq;
+	} else {
+		intel_state->cdclk = dev_priv->atomic_cdclk_freq;
+	}
 
 	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
@@ -16485,6 +16487,7 @@ int intel_modeset_init(struct drm_device *dev)
 
 	intel_update_czclk(dev_priv);
 	intel_update_cdclk(dev_priv);
+	dev_priv->atomic_cdclk_freq = dev_priv->cdclk_freq;
 
 	intel_shared_dpll_init(dev);
 
