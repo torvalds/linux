@@ -116,6 +116,27 @@ static const u32 golden_settings_gc_9_0_vg10[] =
 };
 
 #define VEGA10_GB_ADDR_CONFIG_GOLDEN 0x2a114042
+static const u32 golden_settings_gc_9_1[] =
+{
+	SOC15_REG_OFFSET(GC, 0, mmCB_HW_CONTROL), 0xfffdf3cf, 0x00014104,
+	SOC15_REG_OFFSET(GC, 0, mmDB_DEBUG2), 0xf00fffff, 0x00000420,
+	SOC15_REG_OFFSET(GC, 0, mmGB_GPU_ID), 0x0000000f, 0x00000000,
+	SOC15_REG_OFFSET(GC, 0, mmPA_SC_BINNER_EVENT_CNTL_3), 0x00000003, 0x82400024,
+	SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE), 0x3fffffff, 0x00000001,
+	SOC15_REG_OFFSET(GC, 0, mmPA_SC_LINE_STIPPLE_STATE), 0x0000ff0f, 0x00000000,
+	SOC15_REG_OFFSET(GC, 0, mmTA_CNTL_AUX), 0xfffffeef, 0x010b0000,
+	SOC15_REG_OFFSET(GC, 0, mmTCP_CHAN_STEER_HI), 0xffffffff, 0x00000000,
+	SOC15_REG_OFFSET(GC, 0, mmTCP_CHAN_STEER_LO), 0xffffffff, 0x00003120,
+	SOC15_REG_OFFSET(GC, 0, mmVGT_GS_MAX_WAVE_ID), 0x00000fff, 0x000003ff
+};
+
+static const u32 golden_settings_gc_9_1_rv1[] =
+{
+	SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG), 0xffff77ff, 0x26013042,
+	SOC15_REG_OFFSET(GC, 0, mmGB_ADDR_CONFIG_READ), 0xffff77ff, 0x26013042,
+	SOC15_REG_OFFSET(GC, 0, mmPA_SC_ENHANCE_1), 0xffffffff, 0x00048000,
+	SOC15_REG_OFFSET(GC, 0, mmTD_CNTL), 0x01bd9f33, 0x00000800
+};
 
 static void gfx_v9_0_set_ring_funcs(struct amdgpu_device *adev);
 static void gfx_v9_0_set_irq_funcs(struct amdgpu_device *adev);
@@ -137,6 +158,14 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_gc_9_0_vg10,
 						 (const u32)ARRAY_SIZE(golden_settings_gc_9_0_vg10));
+		break;
+	case CHIP_RAVEN:
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_gc_9_1,
+						 (const u32)ARRAY_SIZE(golden_settings_gc_9_1));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_gc_9_1_rv1,
+						 (const u32)ARRAY_SIZE(golden_settings_gc_9_1_rv1));
 		break;
 	default:
 		break;
