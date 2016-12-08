@@ -292,6 +292,7 @@ static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
 	p_params.s_freq = params_rate(params);
 	p_params.host_dma_id = dma_id;
 	p_params.stream = substream->stream;
+	p_params.format = params_format(params);
 
 	m_cfg = skl_tplg_fe_get_cpr_module(dai, p_params.stream);
 	if (m_cfg)
@@ -506,6 +507,7 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_ext_dma_params *dma_params;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct skl_pipe_params p_params = {0};
+	struct hdac_ext_link *link;
 
 	link_dev = snd_hdac_ext_stream_assign(ebus, substream,
 					HDAC_EXT_STREAM_TYPE_LINK);
@@ -513,6 +515,10 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 		return -EBUSY;
 
 	snd_soc_dai_set_dma_data(dai, substream, (void *)link_dev);
+
+	link = snd_hdac_ext_bus_get_link(ebus, rtd->codec->component.name);
+	if (!link)
+		return -EINVAL;
 
 	/* set the stream tag in the codec dai dma params  */
 	dma_params = snd_soc_dai_get_dma_data(codec_dai, substream);
@@ -524,6 +530,8 @@ static int skl_link_hw_params(struct snd_pcm_substream *substream,
 	p_params.s_freq = params_rate(params);
 	p_params.stream = substream->stream;
 	p_params.link_dma_id = hdac_stream(link_dev)->stream_tag - 1;
+	p_params.link_index = link->index;
+	p_params.format = params_format(params);
 
 	return skl_tplg_be_update_params(dai, &p_params);
 }

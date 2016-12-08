@@ -1206,6 +1206,7 @@ static void skl_tplg_fill_dma_id(struct skl_module_cfg *mcfg,
 		switch (mcfg->dev_type) {
 		case SKL_DEVICE_HDALINK:
 			pipe->p_params->link_dma_id = params->link_dma_id;
+			pipe->p_params->link_index = params->link_index;
 			break;
 
 		case SKL_DEVICE_HDAHOST:
@@ -1219,6 +1220,7 @@ static void skl_tplg_fill_dma_id(struct skl_module_cfg *mcfg,
 		pipe->p_params->ch = params->ch;
 		pipe->p_params->s_freq = params->s_freq;
 		pipe->p_params->stream = params->stream;
+		pipe->p_params->format = params->format;
 
 	} else {
 		memcpy(pipe->p_params, params, sizeof(*params));
