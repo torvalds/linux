@@ -2492,7 +2492,7 @@ static int r5l_load_log(struct r5l_log *log)
 	sector_t cp = log->rdev->journal_tail;
 	u32 stored_crc, expected_crc;
 	bool create_super = false;
-	int ret;
+	int ret = 0;
 
 	/* Make sure it's valid */
 	if (cp >= rdev->sectors || round_down(cp, BLOCK_SECTORS) != cp)
@@ -2545,7 +2545,13 @@ create:
 
 	__free_page(page);
 
-	ret = r5l_recovery_log(log);
+	if (create_super) {
+		log->log_start = r5l_ring_add(log, cp, BLOCK_SECTORS);
+		log->seq = log->last_cp_seq + 1;
+		log->next_checkpoint = cp;
+	} else
+		ret = r5l_recovery_log(log);
+
 	r5c_update_log_state(log);
 	return ret;
 ioerr:
