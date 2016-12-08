@@ -802,6 +802,8 @@ static const struct panel_desc edt_et057090dhu = {
 		.width = 115,
 		.height = 86,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
 };
 
 static const struct drm_display_mode edt_etm0700g0dh6_mode = {
@@ -826,6 +828,8 @@ static const struct panel_desc edt_etm0700g0dh6 = {
 		.width = 152,
 		.height = 91,
 	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
 };
 
 static const struct drm_display_mode foxlink_fl500wvr00_a0t_mode = {
