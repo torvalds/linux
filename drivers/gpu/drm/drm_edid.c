@@ -1131,16 +1131,19 @@ bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
 
 	csum = drm_edid_block_checksum(raw_edid);
 	if (csum) {
-		if (print_bad_edid) {
-			DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
-		}
-
 		if (edid_corrupt)
 			*edid_corrupt = true;
 
 		/* allow CEA to slide through, switches mangle this */
-		if (raw_edid[0] != 0x02)
+		if (raw_edid[0] == CEA_EXT) {
+			DRM_DEBUG("EDID checksum is invalid, remainder is %d\n", csum);
+			DRM_DEBUG("Assuming a KVM switch modified the CEA block but left the original checksum\n");
+		} else {
+			if (print_bad_edid)
+				DRM_ERROR("EDID checksum is invalid, remainder is %d\n", csum);
+
 			goto bad;
+		}
 	}
 
 	/* per-block-type checks */
