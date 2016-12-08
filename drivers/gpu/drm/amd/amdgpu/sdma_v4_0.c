@@ -83,6 +83,26 @@ static const u32 golden_settings_sdma_vg10[] = {
 	SOC15_REG_OFFSET(SDMA1, 0, mmSDMA1_GB_ADDR_CONFIG_READ), 0x0018773f, 0x00104002
 };
 
+static const u32 golden_settings_sdma_4_1[] =
+{
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CHICKEN_BITS), 0xfe931f07, 0x02831f07,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_CLK_CTRL), 0xffffffff, 0x3f000100,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GFX_IB_CNTL), 0x800f0111, 0x00000100,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GFX_RB_WPTR_POLL_CNTL), 0xfffffff7, 0x00403000,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_POWER_CNTL), 0xfc3fffff, 0x40000051,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_RLC0_IB_CNTL), 0x800f0111, 0x00000100,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_RLC0_RB_WPTR_POLL_CNTL), 0xfffffff7, 0x00403000,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_RLC1_IB_CNTL), 0x800f0111, 0x00000100,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_RLC1_RB_WPTR_POLL_CNTL), 0xfffffff7, 0x00403000,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_UTCL1_PAGE), 0x000003ff, 0x000003c0
+};
+
+static const u32 golden_settings_sdma_rv1[] =
+{
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG), 0x0018773f, 0x00003002,
+	SOC15_REG_OFFSET(SDMA0, 0, mmSDMA0_GB_ADDR_CONFIG_READ), 0x0018773f, 0x00003002
+};
+
 static u32 sdma_v4_0_get_reg_offset(u32 instance, u32 internal_offset)
 {
 	u32 base = 0;
@@ -112,6 +132,14 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 golden_settings_sdma_vg10,
 						 (const u32)ARRAY_SIZE(golden_settings_sdma_vg10));
+		break;
+	case CHIP_RAVEN:
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_sdma_4_1,
+						 (const u32)ARRAY_SIZE(golden_settings_sdma_4_1));
+		amdgpu_program_register_sequence(adev,
+						 golden_settings_sdma_rv1,
+						 (const u32)ARRAY_SIZE(golden_settings_sdma_rv1));
 		break;
 	default:
 		break;
@@ -158,6 +186,9 @@ static int sdma_v4_0_init_microcode(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 		chip_name = "vega10";
+		break;
+	case CHIP_RAVEN:
+		chip_name = "raven";
 		break;
 	default:
 		BUG();
@@ -1414,6 +1445,8 @@ static int sdma_v4_0_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE ? true : false);
 		sdma_v4_0_update_medium_grain_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
+		break;
+	case CHIP_RAVEN:
 		break;
 	default:
 		break;
