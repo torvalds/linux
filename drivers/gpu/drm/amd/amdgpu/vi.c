@@ -1177,6 +1177,23 @@ static void vi_update_hdp_light_sleep(struct amdgpu_device *adev,
 		WREG32(mmHDP_MEM_POWER_LS, data);
 }
 
+static void vi_update_drm_light_sleep(struct amdgpu_device *adev,
+				      bool enable)
+{
+	uint32_t temp, data;
+
+	temp = data = RREG32(0x157a);
+
+	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_DRM_LS))
+		data |= 1;
+	else
+		data &= ~1;
+
+	if (temp != data)
+		WREG32(0x157a, data);
+}
+
+
 static void vi_update_rom_medium_grain_clock_gating(struct amdgpu_device *adev,
 						    bool enable)
 {
@@ -1336,6 +1353,8 @@ static int vi_common_set_clockgating_state(void *handle,
 		vi_update_hdp_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		vi_update_hdp_light_sleep(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		vi_update_drm_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	case CHIP_TONGA:
