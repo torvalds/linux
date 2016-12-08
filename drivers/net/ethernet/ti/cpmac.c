@@ -1113,6 +1113,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	SET_NETDEV_DEV(dev, &pdev->dev);
 	platform_set_drvdata(pdev, dev);
 	priv = netdev_priv(dev);
 
