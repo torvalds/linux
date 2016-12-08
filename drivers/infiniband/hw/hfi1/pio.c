@@ -1419,9 +1419,7 @@ retry:
 			(sc->fill - sc->alloc_free);
 		if (blocks > avail) {
 			/* still no room, actively update */
-			spin_unlock_irqrestore(&sc->alloc_lock, flags);
 			sc_release_update(sc);
-			spin_lock_irqsave(&sc->alloc_lock, flags);
 			sc->alloc_free = ACCESS_ONCE(sc->free);
 			trycount++;
 			goto retry;
