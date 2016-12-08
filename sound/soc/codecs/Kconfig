@@ -56,6 +56,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CS42XX8_I2C if I2C
 	select SND_SOC_CS4349 if I2C
 	select SND_SOC_CX20442 if TTY
+	select SND_SOC_CX2072X if I2C
 	select SND_SOC_DA7210 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_DA7213 if I2C
 	select SND_SOC_DA7219 if I2C
@@ -429,6 +430,9 @@ config SND_SOC_CS4349
 config SND_SOC_CX20442
 	tristate
 	depends on TTY
+
+config SND_SOC_CX2072X
+	tristate "CX2072X CODEC"
 
 config SND_SOC_JZ4740_CODEC
 	select REGMAP_MMIO
