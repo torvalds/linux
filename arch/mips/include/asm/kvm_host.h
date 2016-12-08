@@ -345,7 +345,6 @@ struct kvm_vcpu_arch {
 
 	u8 fpu_enabled;
 	u8 msa_enabled;
-	u8 kscratch_enabled;
 };
 
 

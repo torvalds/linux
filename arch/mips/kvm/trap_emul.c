@@ -489,8 +489,6 @@ static int kvm_trap_emul_vcpu_init(struct kvm_vcpu *vcpu)
 	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
 	struct mm_struct *user_mm = &vcpu->arch.guest_user_mm;
 
-	vcpu->arch.kscratch_enabled = 0xfc;
-
 	/*
 	 * Allocate GVA -> HPA page tables.
 	 * MIPS doesn't use the mm_struct pointer argument.
@@ -640,14 +638,54 @@ static void kvm_trap_emul_flush_shadow_memslot(struct kvm *kvm,
 	kvm_trap_emul_flush_shadow_all(kvm);
 }
 
+static u64 kvm_trap_emul_get_one_regs[] = {
+	KVM_REG_MIPS_CP0_INDEX,
+	KVM_REG_MIPS_CP0_CONTEXT,
+	KVM_REG_MIPS_CP0_USERLOCAL,
+	KVM_REG_MIPS_CP0_PAGEMASK,
+	KVM_REG_MIPS_CP0_WIRED,
+	KVM_REG_MIPS_CP0_HWRENA,
+	KVM_REG_MIPS_CP0_BADVADDR,
+	KVM_REG_MIPS_CP0_COUNT,
+	KVM_REG_MIPS_CP0_ENTRYHI,
+	KVM_REG_MIPS_CP0_COMPARE,
+	KVM_REG_MIPS_CP0_STATUS,
+	KVM_REG_MIPS_CP0_CAUSE,
+	KVM_REG_MIPS_CP0_EPC,
+	KVM_REG_MIPS_CP0_PRID,
+	KVM_REG_MIPS_CP0_CONFIG,
+	KVM_REG_MIPS_CP0_CONFIG1,
+	KVM_REG_MIPS_CP0_CONFIG2,
+	KVM_REG_MIPS_CP0_CONFIG3,
+	KVM_REG_MIPS_CP0_CONFIG4,
+	KVM_REG_MIPS_CP0_CONFIG5,
+	KVM_REG_MIPS_CP0_CONFIG7,
+	KVM_REG_MIPS_CP0_ERROREPC,
+	KVM_REG_MIPS_CP0_KSCRATCH1,
+	KVM_REG_MIPS_CP0_KSCRATCH2,
+	KVM_REG_MIPS_CP0_KSCRATCH3,
+	KVM_REG_MIPS_CP0_KSCRATCH4,
+	KVM_REG_MIPS_CP0_KSCRATCH5,
+	KVM_REG_MIPS_CP0_KSCRATCH6,
+
+	KVM_REG_MIPS_COUNT_CTL,
+	KVM_REG_MIPS_COUNT_RESUME,
+	KVM_REG_MIPS_COUNT_HZ,
+};
+
 static unsigned long kvm_trap_emul_num_regs(struct kvm_vcpu *vcpu)
 {
-	return 0;
+	return ARRAY_SIZE(kvm_trap_emul_get_one_regs);
 }
 
 static int kvm_trap_emul_copy_reg_indices(struct kvm_vcpu *vcpu,
 					  u64 __user *indices)
 {
+	if (copy_to_user(indices, kvm_trap_emul_get_one_regs,
+			 sizeof(kvm_trap_emul_get_one_regs)))
+		return -EFAULT;
+	indices += ARRAY_SIZE(kvm_trap_emul_get_one_regs);
+
 	return 0;
 }
 
@@ -655,7 +693,69 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 				     const struct kvm_one_reg *reg,
 				     s64 *v)
 {
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+
 	switch (reg->id) {
+	case KVM_REG_MIPS_CP0_INDEX:
+		*v = (long)kvm_read_c0_guest_index(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONTEXT:
+		*v = (long)kvm_read_c0_guest_context(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_USERLOCAL:
+		*v = (long)kvm_read_c0_guest_userlocal(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_PAGEMASK:
+		*v = (long)kvm_read_c0_guest_pagemask(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_WIRED:
+		*v = (long)kvm_read_c0_guest_wired(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_HWRENA:
+		*v = (long)kvm_read_c0_guest_hwrena(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_BADVADDR:
+		*v = (long)kvm_read_c0_guest_badvaddr(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYHI:
+		*v = (long)kvm_read_c0_guest_entryhi(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_COMPARE:
+		*v = (long)kvm_read_c0_guest_compare(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_STATUS:
+		*v = (long)kvm_read_c0_guest_status(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CAUSE:
+		*v = (long)kvm_read_c0_guest_cause(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_EPC:
+		*v = (long)kvm_read_c0_guest_epc(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_PRID:
+		*v = (long)kvm_read_c0_guest_prid(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG:
+		*v = (long)kvm_read_c0_guest_config(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG1:
+		*v = (long)kvm_read_c0_guest_config1(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG2:
+		*v = (long)kvm_read_c0_guest_config2(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG3:
+		*v = (long)kvm_read_c0_guest_config3(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG4:
+		*v = (long)kvm_read_c0_guest_config4(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG5:
+		*v = (long)kvm_read_c0_guest_config5(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG7:
+		*v = (long)kvm_read_c0_guest_config7(cop0);
+		break;
 	case KVM_REG_MIPS_CP0_COUNT:
 		*v = kvm_mips_read_count(vcpu);
 		break;
@@ -667,6 +767,27 @@ static int kvm_trap_emul_get_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_COUNT_HZ:
 		*v = vcpu->arch.count_hz;
+		break;
+	case KVM_REG_MIPS_CP0_ERROREPC:
+		*v = (long)kvm_read_c0_guest_errorepc(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH1:
+		*v = (long)kvm_read_c0_guest_kscratch1(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH2:
+		*v = (long)kvm_read_c0_guest_kscratch2(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH3:
+		*v = (long)kvm_read_c0_guest_kscratch3(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH4:
+		*v = (long)kvm_read_c0_guest_kscratch4(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH5:
+		*v = (long)kvm_read_c0_guest_kscratch5(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH6:
+		*v = (long)kvm_read_c0_guest_kscratch6(cop0);
 		break;
 	default:
 		return -EINVAL;
@@ -683,6 +804,39 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 	unsigned int cur, change;
 
 	switch (reg->id) {
+	case KVM_REG_MIPS_CP0_INDEX:
+		kvm_write_c0_guest_index(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_CONTEXT:
+		kvm_write_c0_guest_context(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_USERLOCAL:
+		kvm_write_c0_guest_userlocal(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_PAGEMASK:
+		kvm_write_c0_guest_pagemask(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_WIRED:
+		kvm_write_c0_guest_wired(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_HWRENA:
+		kvm_write_c0_guest_hwrena(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_BADVADDR:
+		kvm_write_c0_guest_badvaddr(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYHI:
+		kvm_write_c0_guest_entryhi(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_STATUS:
+		kvm_write_c0_guest_status(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_EPC:
+		kvm_write_c0_guest_epc(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_PRID:
+		kvm_write_c0_guest_prid(cop0, v);
+		break;
 	case KVM_REG_MIPS_CP0_COUNT:
 		kvm_mips_write_count(vcpu, v);
 		break;
@@ -758,6 +912,27 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_MIPS_COUNT_HZ:
 		ret = kvm_mips_set_count_hz(vcpu, v);
+		break;
+	case KVM_REG_MIPS_CP0_ERROREPC:
+		kvm_write_c0_guest_errorepc(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH1:
+		kvm_write_c0_guest_kscratch1(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH2:
+		kvm_write_c0_guest_kscratch2(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH3:
+		kvm_write_c0_guest_kscratch3(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH4:
+		kvm_write_c0_guest_kscratch4(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH5:
+		kvm_write_c0_guest_kscratch5(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_KSCRATCH6:
+		kvm_write_c0_guest_kscratch6(cop0, v);
 		break;
 	default:
 		return -EINVAL;

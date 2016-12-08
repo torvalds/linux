@@ -1066,7 +1066,7 @@ unsigned int kvm_mips_config4_wrmask(struct kvm_vcpu *vcpu)
 	unsigned int mask = MIPS_CONF_M;
 
 	/* KScrExist */
-	mask |= (unsigned int)vcpu->arch.kscratch_enabled << 16;
+	mask |= 0xfc << MIPS_CONF4_KSCREXIST_SHIFT;
 
 	return mask;
 }
