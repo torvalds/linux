@@ -258,10 +258,9 @@ static void tk_setup_internals(struct timekeeper *tk, struct clocksource *clock)
 	tk->cycle_interval = interval;
 
 	/* Go back from cycles -> shifted ns */
-	tk->xtime_interval = (u64) interval * clock->mult;
+	tk->xtime_interval = interval * clock->mult;
 	tk->xtime_remainder = ntpinterval - tk->xtime_interval;
-	tk->raw_interval =
-		((u64) interval * clock->mult) >> clock->shift;
+	tk->raw_interval = (interval * clock->mult) >> clock->shift;
 
 	 /* if changing clocks, convert xtime_nsec shift units */
 	if (old_clock) {
