@@ -67,6 +67,36 @@
 	status = "okay";
 };
 
+&spi0 {
+	status = "okay";
+
+	m25p80@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <108000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <4>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			partition@0 {
+				label = "bootloader";
+				reg = <0x0 0x200000>;
+			};
+			partition@200000 {
+				label = "U-boot Env";
+				reg = <0x200000 0x10000>;
+			};
+			partition@210000 {
+				label = "Linux";
+				reg = <0x210000 0xDF0000>;
+			};
+		};
+	};
+};
+
 /* Exported on the micro USB connector CON32 through an FTDI */
 &uart0 {
 	status = "okay";
