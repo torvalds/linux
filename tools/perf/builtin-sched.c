@@ -2190,7 +2190,9 @@ static struct thread *timehist_get_thread(struct perf_sched *sched,
 }
 
 static bool timehist_skip_sample(struct perf_sched *sched,
-				 struct thread *thread)
+				 struct thread *thread,
+				 struct perf_evsel *evsel,
+				 struct perf_sample *sample)
 {
 	bool rc = false;
 
@@ -2199,10 +2201,19 @@ static bool timehist_skip_sample(struct perf_sched *sched,
 		sched->skipped_samples++;
 	}
 
+	if (sched->idle_hist) {
+		if (strcmp(perf_evsel__name(evsel), "sched:sched_switch"))
+			rc = true;
+		else if (perf_evsel__intval(evsel, sample, "prev_pid") != 0 &&
+			 perf_evsel__intval(evsel, sample, "next_pid") != 0)
+			rc = true;
+	}
+
 	return rc;
 }
 
 static void timehist_print_wakeup_event(struct perf_sched *sched,
+					struct perf_evsel *evsel,
 					struct perf_sample *sample,
 					struct machine *machine,
 					struct thread *awakened)
@@ -2215,8 +2226,8 @@ static void timehist_print_wakeup_event(struct perf_sched *sched,
 		return;
 
 	/* show wakeup unless both awakee and awaker are filtered */
-	if (timehist_skip_sample(sched, thread) &&
-	    timehist_skip_sample(sched, awakened)) {
+	if (timehist_skip_sample(sched, thread, evsel, sample) &&
+	    timehist_skip_sample(sched, awakened, evsel, sample)) {
 		return;
 	}
 
@@ -2261,7 +2272,7 @@ static int timehist_sched_wakeup_event(struct perf_tool *tool,
 	/* show wakeups if requested */
 	if (sched->show_wakeups &&
 	    !perf_time__skip_sample(&sched->ptime, sample->time))
-		timehist_print_wakeup_event(sched, sample, machine, thread);
+		timehist_print_wakeup_event(sched, evsel, sample, machine, thread);
 
 	return 0;
 }
@@ -2288,8 +2299,8 @@ static void timehist_print_migration_event(struct perf_sched *sched,
 	if (thread == NULL)
 		return;
 
-	if (timehist_skip_sample(sched, thread) &&
-	    timehist_skip_sample(sched, migrated)) {
+	if (timehist_skip_sample(sched, thread, evsel, sample) &&
+	    timehist_skip_sample(sched, migrated, evsel, sample)) {
 		return;
 	}
 
@@ -2374,7 +2385,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 		goto out;
 	}
 
-	if (timehist_skip_sample(sched, thread))
+	if (timehist_skip_sample(sched, thread, evsel, sample))
 		goto out;
 
 	tr = thread__get_runtime(thread);
