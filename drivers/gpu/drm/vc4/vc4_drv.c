@@ -279,12 +279,14 @@ static void vc4_drm_unbind(struct device *dev)
 	struct drm_device *drm = platform_get_drvdata(pdev);
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 
+	drm_dev_unregister(drm);
+
 	if (vc4->fbdev)
 		drm_fbdev_cma_fini(vc4->fbdev);
 
 	drm_mode_config_cleanup(drm);
 
-	drm_put_dev(drm);
+	drm_dev_unref(drm);
 }
 
 static const struct component_master_ops vc4_drm_ops = {
