@@ -263,11 +263,13 @@ static int __read_8051_data(struct hfi1_devdata *dd, u32 addr, u64 *result)
 	u64 reg;
 	int count;
 
-	/* start the read at the given address */
-	reg = ((addr & DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_MASK)
-			<< DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_SHIFT)
-		| DC_DC8051_CFG_RAM_ACCESS_CTRL_READ_ENA_SMASK;
+	/* step 1: set the address, clear enable */
+	reg = (addr & DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_MASK)
+			<< DC_DC8051_CFG_RAM_ACCESS_CTRL_ADDRESS_SHIFT;
 	write_csr(dd, DC_DC8051_CFG_RAM_ACCESS_CTRL, reg);
+	/* step 2: enable */
+	write_csr(dd, DC_DC8051_CFG_RAM_ACCESS_CTRL,
+		  reg | DC_DC8051_CFG_RAM_ACCESS_CTRL_READ_ENA_SMASK);
 
 	/* wait until ACCESS_COMPLETED is set */
 	count = 0;
