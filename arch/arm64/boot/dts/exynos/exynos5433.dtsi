@@ -1482,5 +1482,6 @@
 	};
 };
 
+#include "exynos5433-bus.dtsi"
 #include "exynos5433-pinctrl.dtsi"
 #include "exynos5433-tmu.dtsi"
