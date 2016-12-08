@@ -790,10 +790,10 @@ static int wait_kmem(struct hfi1_ibdev *dev,
  */
 static noinline int build_verbs_ulp_payload(
 	struct sdma_engine *sde,
-	struct rvt_sge_state *ss,
 	u32 length,
 	struct verbs_txreq *tx)
 {
+	struct rvt_sge_state *ss = tx->ss;
 	struct rvt_sge *sg_list = ss->sg_list;
 	struct rvt_sge sge = ss->sge;
 	u8 num_sge = ss->num_sge;
@@ -837,7 +837,6 @@ bail_txadd:
 /* New API */
 static int build_verbs_tx_desc(
 	struct sdma_engine *sde,
-	struct rvt_sge_state *ss,
 	u32 length,
 	struct verbs_txreq *tx,
 	struct hfi1_ahg_info *ahg_info,
@@ -881,9 +880,9 @@ static int build_verbs_tx_desc(
 			goto bail_txadd;
 	}
 
-	/* add the ulp payload - if any.  ss can be NULL for acks */
-	if (ss)
-		ret = build_verbs_ulp_payload(sde, ss, length, tx);
+	/* add the ulp payload - if any. tx->ss can be NULL for acks */
+	if (tx->ss)
+		ret = build_verbs_ulp_payload(sde, length, tx);
 bail_txadd:
 	return ret;
 }
@@ -894,7 +893,6 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ahg_info *ahg_info = priv->s_ahg;
 	u32 hdrwords = qp->s_hdrwords;
-	struct rvt_sge_state *ss = qp->s_cur_sge;
 	u32 len = ps->s_txreq->s_cur_size;
 	u32 plen = hdrwords + ((len + 3) >> 2) + 2; /* includes pbc */
 	struct hfi1_ibdev *dev = ps->dev;
@@ -920,7 +918,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 					 plen);
 		}
 		tx->wqe = qp->s_wqe;
-		ret = build_verbs_tx_desc(tx->sde, ss, len, tx, ahg_info, pbc);
+		ret = build_verbs_tx_desc(tx->sde, len, tx, ahg_info, pbc);
 		if (unlikely(ret))
 			goto bail_build;
 	}
@@ -1011,7 +1009,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	u32 hdrwords = qp->s_hdrwords;
-	struct rvt_sge_state *ss = qp->s_cur_sge;
+	struct rvt_sge_state *ss = ps->s_txreq->ss;
 	u32 len = ps->s_txreq->s_cur_size;
 	u32 dwords = (len + 3) >> 2;
 	u32 plen = hdrwords + dwords + 2; /* includes pbc */

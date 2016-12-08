@@ -276,7 +276,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 				rvt_get_mr(ps->s_txreq->mr);
 			qp->s_ack_rdma_sge.sge = e->rdma_sge;
 			qp->s_ack_rdma_sge.num_sge = 1;
-			qp->s_cur_sge = &qp->s_ack_rdma_sge;
+			ps->s_txreq->ss = &qp->s_ack_rdma_sge;
 			if (len > pmtu) {
 				len = pmtu;
 				qp->s_ack_state = OP(RDMA_READ_RESPONSE_FIRST);
@@ -290,7 +290,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 			bth2 = mask_psn(qp->s_ack_rdma_psn++);
 		} else {
 			/* COMPARE_SWAP or FETCH_ADD */
-			qp->s_cur_sge = NULL;
+			ps->s_txreq->ss = NULL;
 			len = 0;
 			qp->s_ack_state = OP(ATOMIC_ACKNOWLEDGE);
 			ohdr->u.at.aeth = hfi1_compute_aeth(qp);
@@ -306,7 +306,7 @@ static int make_rc_ack(struct hfi1_ibdev *dev, struct rvt_qp *qp,
 		qp->s_ack_state = OP(RDMA_READ_RESPONSE_MIDDLE);
 		/* FALLTHROUGH */
 	case OP(RDMA_READ_RESPONSE_MIDDLE):
-		qp->s_cur_sge = &qp->s_ack_rdma_sge;
+		ps->s_txreq->ss = &qp->s_ack_rdma_sge;
 		ps->s_txreq->mr = qp->s_ack_rdma_sge.sge.mr;
 		if (ps->s_txreq->mr)
 			rvt_get_mr(ps->s_txreq->mr);
@@ -335,7 +335,7 @@ normal:
 		 */
 		qp->s_ack_state = OP(SEND_ONLY);
 		qp->s_flags &= ~RVT_S_ACK_PENDING;
-		qp->s_cur_sge = NULL;
+		ps->s_txreq->ss = NULL;
 		if (qp->s_nak_state)
 			ohdr->u.aeth =
 				cpu_to_be32((qp->r_msn & HFI1_MSN_MASK) |
@@ -801,7 +801,7 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	qp->s_len -= len;
 	qp->s_hdrwords = hwords;
 	ps->s_txreq->sde = priv->s_sde;
-	qp->s_cur_sge = ss;
+	ps->s_txreq->ss = ss;
 	ps->s_txreq->s_cur_size = len;
 	hfi1_make_ruc_header(
 		qp,
