@@ -420,7 +420,7 @@ static int aead_recvmsg_async(struct socket *sock, struct msghdr *msg,
 	unsigned int i, reqlen = GET_REQ_SIZE(tfm);
 	int err = -ENOMEM;
 	unsigned long used;
-	size_t outlen;
+	size_t outlen = 0;
 	size_t usedpages = 0;
 
 	lock_sock(sk);
