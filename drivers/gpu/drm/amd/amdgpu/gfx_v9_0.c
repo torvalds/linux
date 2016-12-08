@@ -328,6 +328,9 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 		chip_name = "vega10";
 		break;
+	case CHIP_RAVEN:
+		chip_name = "raven";
+		break;
 	default:
 		BUG();
 	}
