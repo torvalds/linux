@@ -57,6 +57,8 @@ static int reboot_mode_notify(struct notifier_block *this,
 
 	reboot = container_of(this, struct reboot_mode_driver, reboot_notifier);
 	magic = get_reboot_mode_magic(reboot, cmd);
+	if (!magic)
+		magic = get_reboot_mode_magic(reboot, NULL);
 	if (magic)
 		reboot->write(magic);
 
