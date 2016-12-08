@@ -2295,7 +2295,7 @@ send_last:
 		hfi1_copy_sge(&qp->r_sge, data, tlen, 1, copy_last);
 		rvt_put_ss(&qp->r_sge);
 		qp->r_msn++;
-		if (!test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
+		if (!__test_and_clear_bit(RVT_R_WRID_VALID, &qp->r_aflags))
 			break;
 		wc.wr_id = qp->r_wr_id;
 		wc.status = IB_WC_SUCCESS;
