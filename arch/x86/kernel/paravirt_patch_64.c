@@ -70,15 +70,19 @@ unsigned native_patch(u8 type, u16 clobbers, void *ibuf,
 				end   = end_pv_lock_ops_queued_spin_unlock;
 				goto patch_site;
 			}
+			goto patch_default;
+
 		case PARAVIRT_PATCH(pv_lock_ops.vcpu_is_preempted):
 			if (pv_is_native_vcpu_is_preempted()) {
 				start = start_pv_lock_ops_vcpu_is_preempted;
 				end   = end_pv_lock_ops_vcpu_is_preempted;
 				goto patch_site;
 			}
+			goto patch_default;
 #endif
 
 	default:
+patch_default:
 		ret = paravirt_patch_default(type, clobbers, ibuf, addr, len);
 		break;
 
