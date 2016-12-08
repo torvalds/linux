@@ -981,6 +981,11 @@ verify_rq_based:
 		t->all_blk_mq = true;
 	}
 
+	if (t->type == DM_TYPE_MQ_REQUEST_BASED && !t->all_blk_mq) {
+		DMERR("table load rejected: all devices are not blk-mq request-stackable");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
