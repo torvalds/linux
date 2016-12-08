@@ -200,6 +200,7 @@ struct perf_sched {
 	/* options for timehist command */
 	bool		summary;
 	bool		summary_only;
+	bool		idle_hist;
 	bool		show_callchain;
 	unsigned int	max_stack;
 	bool		show_cpu_visual;
@@ -2101,6 +2102,15 @@ static struct thread *get_idle_thread(int cpu)
 	return idle_threads[cpu];
 }
 
+static void save_idle_callchain(struct idle_thread_runtime *itr,
+				struct perf_sample *sample)
+{
+	if (!symbol_conf.use_callchain || sample->callchain == NULL)
+		return;
+
+	callchain_cursor__copy(&itr->cursor, &callchain_cursor);
+}
+
 /*
  * handle runtime stats saved per thread
  */
@@ -2154,6 +2164,26 @@ static struct thread *timehist_get_thread(struct perf_sched *sched,
 		}
 
 		save_task_callchain(sched, sample, evsel, machine);
+		if (sched->idle_hist) {
+			struct thread *idle;
+			struct idle_thread_runtime *itr;
+
+			idle = get_idle_thread(sample->cpu);
+			if (idle == NULL) {
+				pr_err("Failed to get idle thread for cpu %d.\n", sample->cpu);
+				return NULL;
+			}
+
+			itr = thread__priv(idle);
+			if (itr == NULL)
+				return NULL;
+
+			itr->last_thread = thread;
+
+			/* copy task callchain when entering to idle */
+			if (perf_evsel__intval(evsel, sample, "next_pid") == 0)
+				save_idle_callchain(itr, sample);
+		}
 	}
 
 	return thread;
