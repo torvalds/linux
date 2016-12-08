@@ -98,6 +98,17 @@
 			/* 32M internal register @ 0xd000_0000 */
 			ranges = <0x0 0x0 0xd0000000 0x2000000>;
 
+			spi0: spi@10600 {
+				compatible = "marvell,armada-3700-spi";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x10600 0xA00>;
+				clocks = <&nb_periph_clk 7>;
+				interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+				num-cs = <4>;
+				status = "disabled";
+			};
+
 			uart0: serial@12000 {
 				compatible = "marvell,armada-3700-uart";
 				reg = <0x12000 0x400>;
