@@ -330,17 +330,19 @@ parse_lfp_backlight(struct drm_i915_private *dev_priv,
 
 		method = &backlight_data->backlight_control[panel_type];
 		dev_priv->vbt.backlight.type = method->type;
+		dev_priv->vbt.backlight.controller = method->controller;
 	}
 
 	dev_priv->vbt.backlight.pwm_freq_hz = entry->pwm_freq_hz;
 	dev_priv->vbt.backlight.active_low_pwm = entry->active_low_pwm;
 	dev_priv->vbt.backlight.min_brightness = entry->min_brightness;
 	DRM_DEBUG_KMS("VBT backlight PWM modulation frequency %u Hz, "
-		      "active %s, min brightness %u, level %u\n",
+		      "active %s, min brightness %u, level %u, controller %u\n",
 		      dev_priv->vbt.backlight.pwm_freq_hz,
 		      dev_priv->vbt.backlight.active_low_pwm ? "low" : "high",
 		      dev_priv->vbt.backlight.min_brightness,
-		      backlight_data->level[panel_type]);
+		      backlight_data->level[panel_type],
+		      dev_priv->vbt.backlight.controller);
 }
 
 /* Try to find sdvo panel data */

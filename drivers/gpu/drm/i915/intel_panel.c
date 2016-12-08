@@ -1039,10 +1039,7 @@ static void bxt_enable_backlight(struct intel_connector *connector)
 	enum pipe pipe = intel_get_pipe_from_connector(connector);
 	u32 pwm_ctl, val;
 
-	/* To use 2nd set of backlight registers, utility pin has to be
-	 * enabled with PWM mode.
-	 * The field should only be changed when the utility pin is disabled
-	 */
+	/* Controller 1 uses the utility pin. */
 	if (panel->backlight.controller == 1) {
 		val = I915_READ(UTIL_PIN_CTL);
 		if (val & UTIL_PIN_ENABLE) {
@@ -1608,19 +1605,11 @@ bxt_setup_backlight(struct intel_connector *connector, enum pipe unused)
 	struct intel_panel *panel = &connector->panel;
 	u32 pwm_ctl, val;
 
-	/*
-	 * For BXT hard coding the Backlight controller to 0.
-	 * TODO : Read the controller value from VBT and generalize
-	 */
-	panel->backlight.controller = 0;
+	panel->backlight.controller = dev_priv->vbt.backlight.controller;
 
 	pwm_ctl = I915_READ(BXT_BLC_PWM_CTL(panel->backlight.controller));
 
-	/* Keeping the check if controller 1 is to be programmed.
-	 * This will come into affect once the VBT parsing
-	 * is fixed for controller selection, and controller 1 is used
-	 * for a prticular display configuration.
-	 */
+	/* Controller 1 uses the utility pin. */
 	if (panel->backlight.controller == 1) {
 		val = I915_READ(UTIL_PIN_CTL);
 		panel->backlight.util_pin_active_low =
