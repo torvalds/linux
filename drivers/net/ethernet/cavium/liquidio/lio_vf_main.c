@@ -1350,6 +1350,7 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		container_of(param, struct octeon_droq, napi);
 	struct net_device *netdev = (struct net_device *)arg;
 	struct sk_buff *skb = (struct sk_buff *)skbuff;
+	u16 vtag = 0;
 
 	if (netdev) {
 		struct lio *lio = GET_LIO(netdev);
@@ -1402,6 +1403,16 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
 			skb->ip_summed = CHECKSUM_NONE;
+
+		/* inbound VLAN tag */
+		if ((netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
+		    rh->r_dh.vlan) {
+			u16 priority = rh->r_dh.priority;
+			u16 vid = rh->r_dh.vlan;
+
+			vtag = (priority << VLAN_PRIO_SHIFT) | vid;
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vtag);
+		}
 
 		packet_was_received = (napi_gro_receive(napi, skb) != GRO_DROP);
 
@@ -2025,6 +2036,12 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		tx_info->s.gso_segs = skb_shinfo(skb)->gso_segs;
 	}
 
+	/* HW insert VLAN tag */
+	if (skb_vlan_tag_present(skb)) {
+		irh->priority = skb_vlan_tag_get(skb) >> VLAN_PRIO_SHIFT;
+		irh->vlan = skb_vlan_tag_get(skb) & VLAN_VID_MASK;
+	}
+
 	status = octnet_send_nic_data_pkt(oct, &ndata);
 	if (status == IQ_SEND_FAILED)
 		goto lio_xmit_failed;
@@ -2072,6 +2089,61 @@ static void liquidio_tx_timeout(struct net_device *netdev)
 		   netdev->stats.tx_dropped);
 	netif_trans_update(netdev);
 	txqs_wake(netdev);
+}
+
+static int
+liquidio_vlan_rx_add_vid(struct net_device *netdev,
+			 __be16 proto __attribute__((unused)), u16 vid)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_ADD_VLAN_FILTER;
+	nctrl.ncmd.s.param1 = vid;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
+			ret);
+	}
+
+	return ret;
+}
+
+static int
+liquidio_vlan_rx_kill_vid(struct net_device *netdev,
+			  __be16 proto __attribute__((unused)), u16 vid)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_DEL_VLAN_FILTER;
+	nctrl.ncmd.s.param1 = vid;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
+			ret);
+	}
+	return ret;
 }
 
 /** Sending command to enable/disable RX checksum offload
@@ -2180,6 +2252,8 @@ static const struct net_device_ops lionetdevops = {
 	.ndo_set_mac_address	= liquidio_set_mac,
 	.ndo_set_rx_mode	= liquidio_set_mcast_list,
 	.ndo_tx_timeout		= liquidio_tx_timeout,
+	.ndo_vlan_rx_add_vid    = liquidio_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid   = liquidio_vlan_rx_kill_vid,
 	.ndo_change_mtu		= liquidio_change_mtu,
 	.ndo_fix_features	= liquidio_fix_features,
 	.ndo_set_features	= liquidio_set_features,
@@ -2387,6 +2461,12 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 				      | NETIF_F_GRO
 				      | NETIF_F_LRO;
 		netif_set_gso_max_size(netdev, OCTNIC_GSO_MAX_SIZE);
+
+		netdev->vlan_features = lio->dev_capability;
+		/* Add any unchangeable hw features */
+		lio->dev_capability |= NETIF_F_HW_VLAN_CTAG_FILTER |
+				       NETIF_F_HW_VLAN_CTAG_RX |
+				       NETIF_F_HW_VLAN_CTAG_TX;
 
 		netdev->features = (lio->dev_capability & ~NETIF_F_LRO);
 
