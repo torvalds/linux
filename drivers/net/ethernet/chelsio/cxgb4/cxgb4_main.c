@@ -134,24 +134,6 @@ MODULE_FIRMWARE(FW5_FNAME);
 MODULE_FIRMWARE(FW6_FNAME);
 
 /*
- * Normally we're willing to become the firmware's Master PF but will be happy
- * if another PF has already become the Master and initialized the adapter.
- * Setting "force_init" will cause this driver to forcibly establish itself as
- * the Master PF and initialize the adapter.
- */
-static uint force_init;
-
-module_param(force_init, uint, 0644);
-MODULE_PARM_DESC(force_init, "Forcibly become Master PF and initialize adapter,"
-		 "deprecated parameter");
-
-static int dflt_msg_enable = DFLT_MSG_ENABLE;
-
-module_param(dflt_msg_enable, int, 0644);
-MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T4 default message enable bitmap, "
-		 "deprecated parameter");
-
-/*
  * The driver uses the best interrupt scheme available on a platform in the
  * order MSI-X, MSI, legacy INTx interrupts.  This parameter determines which
  * of these schemes the driver may consider as follows:
@@ -178,16 +160,6 @@ MODULE_PARM_DESC(msi, "whether to use INTx (0), MSI (1) or MSI-X (2)");
  * PCI-E Bus transfers enough to measurably affect performance.
  */
 static int rx_dma_offset = 2;
-
-#ifdef CONFIG_PCI_IOV
-/* Configure the number of PCI-E Virtual Function which are to be instantiated
- * on SR-IOV Capable Physical Functions.
- */
-static unsigned int num_vf[NUM_OF_PF_WITH_SRIOV];
-
-module_param_array(num_vf, uint, NULL, 0644);
-MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3, deprecated parameter - please use the pci sysfs interface.");
-#endif
 
 /* TX Queue select used to determine what algorithm to use for selecting TX
  * queue. Select between the kernel provided function (select_queue=0) or user
@@ -4729,7 +4701,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->name = pci_name(pdev);
 	adapter->mbox = func;
 	adapter->pf = func;
-	adapter->msg_enable = dflt_msg_enable;
+	adapter->msg_enable = DFLT_MSG_ENABLE;
 	memset(adapter->chan_map, 0xff, sizeof(adapter->chan_map));
 
 	spin_lock_init(&adapter->stats_lock);
@@ -4988,17 +4960,6 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 sriov:
 #ifdef CONFIG_PCI_IOV
-	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0) {
-		dev_warn(&pdev->dev,
-			 "Enabling SR-IOV VFs using the num_vf module "
-			 "parameter is deprecated - please use the pci sysfs "
-			 "interface instead.\n");
-		if (pci_enable_sriov(pdev, num_vf[func]) == 0)
-			dev_info(&pdev->dev,
-				 "instantiated %u virtual functions\n",
-				 num_vf[func]);
-	}
-
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		err = -ENOMEM;

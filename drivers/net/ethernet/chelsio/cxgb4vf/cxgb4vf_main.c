@@ -70,13 +70,6 @@
 			 NETIF_MSG_TIMER | NETIF_MSG_IFDOWN | NETIF_MSG_IFUP |\
 			 NETIF_MSG_RX_ERR | NETIF_MSG_TX_ERR)
 
-static int dflt_msg_enable = DFLT_MSG_ENABLE;
-
-module_param(dflt_msg_enable, int, 0644);
-MODULE_PARM_DESC(dflt_msg_enable,
-		 "default adapter ethtool message level bitmap, "
-		 "deprecated parameter");
-
 /*
  * The driver uses the best interrupt scheme available on a platform in the
  * order MSI-X then MSI.  This parameter determines which of these schemes the
@@ -2891,7 +2884,7 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 	 * Initialize adapter level features.
 	 */
 	adapter->name = pci_name(pdev);
-	adapter->msg_enable = dflt_msg_enable;
+	adapter->msg_enable = DFLT_MSG_ENABLE;
 	err = adap_init0(adapter);
 	if (err)
 		goto err_unmap_bar;
