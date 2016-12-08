@@ -239,8 +239,6 @@ static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 		struct nvme_command *cmnd)
 {
 	struct nvme_dsm_range *range;
-	struct page *page;
-	int offset;
 	unsigned int nr_bytes = blk_rq_bytes(req);
 
 	range = kmalloc(sizeof(*range), GFP_ATOMIC);
@@ -257,17 +255,10 @@ static inline int nvme_setup_discard(struct nvme_ns *ns, struct request *req,
 	cmnd->dsm.nr = 0;
 	cmnd->dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
 
-	req->completion_data = range;
-	page = virt_to_page(range);
-	offset = offset_in_page(range);
-	blk_add_request_payload(req, page, offset, sizeof(*range));
-
-	/*
-	 * we set __data_len back to the size of the area to be discarded
-	 * on disk. This allows us to report completion on the full amount
-	 * of blocks described by the request.
-	 */
-	req->__data_len = nr_bytes;
+	req->special_vec.bv_page = virt_to_page(range);
+	req->special_vec.bv_offset = offset_in_page(range);
+	req->special_vec.bv_len = sizeof(*range);
+	req->rq_flags |= RQF_SPECIAL_PAYLOAD;
 
 	return BLK_MQ_RQ_QUEUE_OK;
 }

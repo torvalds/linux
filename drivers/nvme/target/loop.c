@@ -185,13 +185,13 @@ static int nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	if (blk_rq_bytes(req)) {
 		iod->sg_table.sgl = iod->first_sgl;
 		ret = sg_alloc_table_chained(&iod->sg_table,
-			req->nr_phys_segments, iod->sg_table.sgl);
+				blk_rq_nr_phys_segments(req),
+				iod->sg_table.sgl);
 		if (ret)
 			return BLK_MQ_RQ_QUEUE_BUSY;
 
 		iod->req.sg = iod->sg_table.sgl;
 		iod->req.sg_cnt = blk_rq_map_sg(req->q, req, iod->sg_table.sgl);
-		BUG_ON(iod->req.sg_cnt > req->nr_phys_segments);
 	}
 
 	blk_mq_start_request(req);

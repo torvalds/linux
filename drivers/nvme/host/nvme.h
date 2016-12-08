@@ -236,8 +236,10 @@ static inline unsigned nvme_map_len(struct request *rq)
 
 static inline void nvme_cleanup_cmd(struct request *req)
 {
-	if (req_op(req) == REQ_OP_DISCARD)
-		kfree(req->completion_data);
+	if (req->rq_flags & RQF_SPECIAL_PAYLOAD) {
+		kfree(page_address(req->special_vec.bv_page) +
+		      req->special_vec.bv_offset);
+	}
 }
 
 static inline int nvme_error_status(u16 status)

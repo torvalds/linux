@@ -952,8 +952,7 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
 	struct nvme_rdma_device *dev = queue->device;
 	struct ib_device *ibdev = dev->dev;
-	int nents, count;
-	int ret;
+	int count, ret;
 
 	req->num_sge = 1;
 	req->inline_data = false;
@@ -965,16 +964,14 @@ static int nvme_rdma_map_data(struct nvme_rdma_queue *queue,
 		return nvme_rdma_set_sg_null(c);
 
 	req->sg_table.sgl = req->first_sgl;
-	ret = sg_alloc_table_chained(&req->sg_table, rq->nr_phys_segments,
-				req->sg_table.sgl);
+	ret = sg_alloc_table_chained(&req->sg_table,
+			blk_rq_nr_phys_segments(rq), req->sg_table.sgl);
 	if (ret)
 		return -ENOMEM;
 
-	nents = blk_rq_map_sg(rq->q, rq, req->sg_table.sgl);
-	BUG_ON(nents > rq->nr_phys_segments);
-	req->nents = nents;
+	req->nents = blk_rq_map_sg(rq->q, rq, req->sg_table.sgl);
 
-	count = ib_dma_map_sg(ibdev, req->sg_table.sgl, nents,
+	count = ib_dma_map_sg(ibdev, req->sg_table.sgl, req->nents,
 		    rq_data_dir(rq) == WRITE ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	if (unlikely(count <= 0)) {
 		sg_free_table_chained(&req->sg_table, true);

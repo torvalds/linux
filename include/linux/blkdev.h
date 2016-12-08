@@ -120,10 +120,13 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_HASHED		((__force req_flags_t)(1 << 16))
 /* IO stats tracking on */
 #define RQF_STATS		((__force req_flags_t)(1 << 17))
+/* Look at ->special_vec for the actual data payload instead of the
+   bio chain. */
+#define RQF_SPECIAL_PAYLOAD	((__force req_flags_t)(1 << 18))
 
 /* flags that prevent us from merging requests: */
 #define RQF_NOMERGE_FLAGS \
-	(RQF_STARTED | RQF_SOFTBARRIER | RQF_FLUSH_SEQ)
+	(RQF_STARTED | RQF_SOFTBARRIER | RQF_FLUSH_SEQ | RQF_SPECIAL_PAYLOAD)
 
 #define BLK_MAX_CDB	16
 
@@ -175,6 +178,7 @@ struct request {
 	 */
 	union {
 		struct rb_node rb_node;	/* sort/lookup */
+		struct bio_vec special_vec;
 		void *completion_data;
 	};
 
@@ -909,8 +913,6 @@ extern void __blk_put_request(struct request_queue *, struct request *);
 extern struct request *blk_get_request(struct request_queue *, int, gfp_t);
 extern void blk_rq_set_block_pc(struct request *);
 extern void blk_requeue_request(struct request_queue *, struct request *);
-extern void blk_add_request_payload(struct request *rq, struct page *page,
-		int offset, unsigned int len);
 extern int blk_lld_busy(struct request_queue *q);
 extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
 			     struct bio_set *bs, gfp_t gfp_mask,
@@ -1152,6 +1154,13 @@ extern void blk_queue_rq_timeout(struct request_queue *, unsigned int);
 extern void blk_queue_flush_queueable(struct request_queue *q, bool queueable);
 extern void blk_queue_write_cache(struct request_queue *q, bool enabled, bool fua);
 extern struct backing_dev_info *blk_get_backing_dev_info(struct block_device *bdev);
+
+static inline unsigned short blk_rq_nr_phys_segments(struct request *rq)
+{
+	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
+		return 1;
+	return rq->nr_phys_segments;
+}
 
 extern int blk_rq_map_sg(struct request_queue *, struct request *, struct scatterlist *);
 extern void blk_dump_rq_flags(struct request *, char *);

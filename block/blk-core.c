@@ -1475,38 +1475,6 @@ void blk_put_request(struct request *req)
 }
 EXPORT_SYMBOL(blk_put_request);
 
-/**
- * blk_add_request_payload - add a payload to a request
- * @rq: request to update
- * @page: page backing the payload
- * @offset: offset in page
- * @len: length of the payload.
- *
- * This allows to later add a payload to an already submitted request by
- * a block driver.  The driver needs to take care of freeing the payload
- * itself.
- *
- * Note that this is a quite horrible hack and nothing but handling of
- * discard requests should ever use it.
- */
-void blk_add_request_payload(struct request *rq, struct page *page,
-		int offset, unsigned int len)
-{
-	struct bio *bio = rq->bio;
-
-	bio->bi_io_vec->bv_page = page;
-	bio->bi_io_vec->bv_offset = offset;
-	bio->bi_io_vec->bv_len = len;
-
-	bio->bi_iter.bi_size = len;
-	bio->bi_vcnt = 1;
-	bio->bi_phys_segments = 1;
-
-	rq->__data_len = rq->resid_len = len;
-	rq->nr_phys_segments = 1;
-}
-EXPORT_SYMBOL_GPL(blk_add_request_payload);
-
 bool bio_attempt_back_merge(struct request_queue *q, struct request *req,
 			    struct bio *bio)
 {
@@ -2641,6 +2609,8 @@ bool blk_update_request(struct request *req, int error, unsigned int nr_bytes)
 		req->__data_len = 0;
 		return false;
 	}
+
+	WARN_ON_ONCE(req->rq_flags & RQF_SPECIAL_PAYLOAD);
 
 	req->__data_len -= total_bytes;
 

@@ -241,18 +241,13 @@ static unsigned int __blk_recalc_rq_segments(struct request_queue *q,
 	if (!bio)
 		return 0;
 
-	/*
-	 * This should probably be returning 0, but blk_add_request_payload()
-	 * (Christoph!!!!)
-	 */
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE_ZEROES:
+		return 0;
+	case REQ_OP_WRITE_SAME:
 		return 1;
-	default:
-		break;
 	}
 
 	fbio = bio;
@@ -410,39 +405,21 @@ new_segment:
 	*bvprv = *bvec;
 }
 
+static inline int __blk_bvec_map_sg(struct request_queue *q, struct bio_vec bv,
+		struct scatterlist *sglist, struct scatterlist **sg)
+{
+	*sg = sglist;
+	sg_set_page(*sg, bv.bv_page, bv.bv_len, bv.bv_offset);
+	return 1;
+}
+
 static int __blk_bios_map_sg(struct request_queue *q, struct bio *bio,
 			     struct scatterlist *sglist,
 			     struct scatterlist **sg)
 {
 	struct bio_vec bvec, bvprv = { NULL };
 	struct bvec_iter iter;
-	int nsegs, cluster;
-
-	nsegs = 0;
-	cluster = blk_queue_cluster(q);
-
-	switch (bio_op(bio)) {
-	case REQ_OP_DISCARD:
-	case REQ_OP_SECURE_ERASE:
-	case REQ_OP_WRITE_ZEROES:
-		/*
-		 * This is a hack - drivers should be neither modifying the
-		 * biovec, nor relying on bi_vcnt - but because of
-		 * blk_add_request_payload(), a discard bio may or may not have
-		 * a payload we need to set up here (thank you Christoph) and
-		 * bi_vcnt is really the only way of telling if we need to.
-		 */
-		if (!bio->bi_vcnt)
-			return 0;
-		/* Fall through */
-	case REQ_OP_WRITE_SAME:
-		*sg = sglist;
-		bvec = bio_iovec(bio);
-		sg_set_page(*sg, bvec.bv_page, bvec.bv_len, bvec.bv_offset);
-		return 1;
-	default:
-		break;
-	}
+	int cluster = blk_queue_cluster(q), nsegs = 0;
 
 	for_each_bio(bio)
 		bio_for_each_segment(bvec, bio, iter)
@@ -462,7 +439,11 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	struct scatterlist *sg = NULL;
 	int nsegs = 0;
 
-	if (rq->bio)
+	if (rq->rq_flags & RQF_SPECIAL_PAYLOAD)
+		nsegs = __blk_bvec_map_sg(q, rq->special_vec, sglist, &sg);
+	else if (rq->bio && bio_op(rq->bio) == REQ_OP_WRITE_SAME)
+		nsegs = __blk_bvec_map_sg(q, bio_iovec(rq->bio), sglist, &sg);
+	else if (rq->bio)
 		nsegs = __blk_bios_map_sg(q, rq->bio, sglist, &sg);
 
 	if (unlikely(rq->rq_flags & RQF_COPY_USER) &&
@@ -495,7 +476,7 @@ int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	 * Something must have been wrong if the figured number of
 	 * segment is bigger than number of req's physical segments
 	 */
-	WARN_ON(nsegs > rq->nr_phys_segments);
+	WARN_ON(nsegs > blk_rq_nr_phys_segments(rq));
 
 	return nsegs;
 }
