@@ -3243,9 +3243,12 @@ static void *raid1_takeover(struct mddev *mddev)
 		mddev->new_layout = 0;
 		mddev->new_chunk_sectors = 0;
 		conf = setup_conf(mddev);
-		if (!IS_ERR(conf))
+		if (!IS_ERR(conf)) {
 			/* Array must appear to be quiesced */
 			conf->array_frozen = 1;
+			clear_bit(MD_HAS_JOURNAL, &mddev->flags);
+			clear_bit(MD_JOURNAL_CLEAN, &mddev->flags);
+		}
 		return conf;
 	}
 	return ERR_PTR(-EINVAL);
