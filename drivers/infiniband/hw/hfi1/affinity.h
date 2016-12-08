@@ -111,6 +111,7 @@ struct hfi1_affinity_node_list {
 	struct cpumask real_cpu_mask;
 	struct cpu_mask_set proc;
 	int num_core_siblings;
+	int num_possible_nodes;
 	int num_online_nodes;
 	int num_online_cpus;
 	struct mutex lock; /* protects affinity nodes */

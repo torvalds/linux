@@ -2036,21 +2036,10 @@ freesc15:
 int init_credit_return(struct hfi1_devdata *dd)
 {
 	int ret;
-	int num_numa;
 	int i;
 
-	num_numa = num_online_nodes();
-	/* enforce the expectation that the numas are compact */
-	for (i = 0; i < num_numa; i++) {
-		if (!node_online(i)) {
-			dd_dev_err(dd, "NUMA nodes are not compact\n");
-			ret = -EINVAL;
-			goto done;
-		}
-	}
-
 	dd->cr_base = kcalloc(
-		num_numa,
+		node_affinity.num_possible_nodes,
 		sizeof(struct credit_return_base),
 		GFP_KERNEL);
 	if (!dd->cr_base) {
@@ -2058,7 +2047,7 @@ int init_credit_return(struct hfi1_devdata *dd)
 		ret = -ENOMEM;
 		goto done;
 	}
-	for (i = 0; i < num_numa; i++) {
+	for_each_node_with_cpus(i) {
 		int bytes = TXE_NUM_CONTEXTS * sizeof(struct credit_return);
 
 		set_dev_node(&dd->pcidev->dev, i);
@@ -2085,14 +2074,11 @@ done:
 
 void free_credit_return(struct hfi1_devdata *dd)
 {
-	int num_numa;
 	int i;
 
 	if (!dd->cr_base)
 		return;
-
-	num_numa = num_online_nodes();
-	for (i = 0; i < num_numa; i++) {
+	for (i = 0; i < node_affinity.num_possible_nodes; i++) {
 		if (dd->cr_base[i].va) {
 			dma_free_coherent(&dd->pcidev->dev,
 					  TXE_NUM_CONTEXTS *
