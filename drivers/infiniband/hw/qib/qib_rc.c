@@ -2079,8 +2079,7 @@ send_last:
 			 * Update the next expected PSN.  We add 1 later
 			 * below, so only add the remainder here.
 			 */
-			if (len > pmtu)
-				qp->r_psn += (len - 1) / pmtu;
+			qp->r_psn += rvt_div_mtu(qp, len - 1);
 		} else {
 			e->rdma_sge.mr = NULL;
 			e->rdma_sge.vaddr = NULL;

@@ -582,7 +582,29 @@ static inline void rvt_qp_swqe_complete(
 	}
 }
 
-extern const int ib_rvt_state_ops[];
+/**
+ * @qp - the qp pair
+ * @len - the length
+ *
+ * Perform a shift based mtu round up divide
+ */
+static inline u32 rvt_div_round_up_mtu(struct rvt_qp *qp, u32 len)
+{
+	return (len + qp->pmtu - 1) >> qp->log_pmtu;
+}
+
+/**
+ * @qp - the qp pair
+ * @len - the length
+ *
+ * Perform a shift based mtu divide
+ */
+static inline u32 rvt_div_mtu(struct rvt_qp *qp, u32 len)
+{
+	return len >> qp->log_pmtu;
+}
+
+extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;
 int rvt_error_qp(struct rvt_qp *qp, enum ib_wc_status err);
