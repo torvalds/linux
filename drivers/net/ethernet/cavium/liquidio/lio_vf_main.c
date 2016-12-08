@@ -42,6 +42,7 @@ MODULE_PARM_DESC(debug, "NETIF_MSG debug bits");
 #define   LIO_IFSTATE_DROQ_OPS             0x01
 #define   LIO_IFSTATE_REGISTERED           0x02
 #define   LIO_IFSTATE_RUNNING              0x04
+#define   LIO_IFSTATE_RX_TIMESTAMP_ENABLED 0x08
 
 struct liquidio_if_cfg_context {
 	int octeon_id;
@@ -63,6 +64,12 @@ struct liquidio_rx_ctl_context {
 	wait_queue_head_t wc;
 
 	int cond;
+};
+
+struct oct_timestamp_resp {
+	u64 rh;
+	u64 timestamp;
+	u64 status;
 };
 
 union tx_info {
@@ -168,6 +175,144 @@ static int wait_for_pending_requests(struct octeon_device *oct)
 	return 0;
 }
 
+/**
+ * \brief Cause device to go quiet so it can be safely removed/reset/etc
+ * @param oct Pointer to Octeon device
+ */
+static void pcierror_quiesce_device(struct octeon_device *oct)
+{
+	int i;
+
+	/* Disable the input and output queues now. No more packets will
+	 * arrive from Octeon, but we should wait for all packet processing
+	 * to finish.
+	 */
+
+	/* To allow for in-flight requests */
+	schedule_timeout_uninterruptible(100);
+
+	if (wait_for_pending_requests(oct))
+		dev_err(&oct->pci_dev->dev, "There were pending requests\n");
+
+	/* Force all requests waiting to be fetched by OCTEON to complete. */
+	for (i = 0; i < MAX_OCTEON_INSTR_QUEUES(oct); i++) {
+		struct octeon_instr_queue *iq;
+
+		if (!(oct->io_qmask.iq & BIT_ULL(i)))
+			continue;
+		iq = oct->instr_queue[i];
+
+		if (atomic_read(&iq->instr_pending)) {
+			spin_lock_bh(&iq->lock);
+			iq->fill_cnt = 0;
+			iq->octeon_read_index = iq->host_write_index;
+			iq->stats.instr_processed +=
+			    atomic_read(&iq->instr_pending);
+			lio_process_iq_request_list(oct, iq, 0);
+			spin_unlock_bh(&iq->lock);
+		}
+	}
+
+	/* Force all pending ordered list requests to time out. */
+	lio_process_ordered_list(oct, 1);
+
+	/* We do not need to wait for output queue packets to be processed. */
+}
+
+/**
+ * \brief Cleanup PCI AER uncorrectable error status
+ * @param dev Pointer to PCI device
+ */
+static void cleanup_aer_uncorrect_error_status(struct pci_dev *dev)
+{
+	u32 status, mask;
+	int pos = 0x100;
+
+	pr_info("%s :\n", __func__);
+
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, &status);
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &mask);
+	if (dev->error_state == pci_channel_io_normal)
+		status &= ~mask; /* Clear corresponding nonfatal bits */
+	else
+		status &= mask; /* Clear corresponding fatal bits */
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, status);
+}
+
+/**
+ * \brief Stop all PCI IO to a given device
+ * @param dev Pointer to Octeon device
+ */
+static void stop_pci_io(struct octeon_device *oct)
+{
+	struct msix_entry *msix_entries;
+	int i;
+
+	/* No more instructions will be forwarded. */
+	atomic_set(&oct->status, OCT_DEV_IN_RESET);
+
+	for (i = 0; i < oct->ifcount; i++)
+		netif_device_detach(oct->props[i].netdev);
+
+	/* Disable interrupts  */
+	oct->fn_list.disable_interrupt(oct, OCTEON_ALL_INTR);
+
+	pcierror_quiesce_device(oct);
+	if (oct->msix_on) {
+		msix_entries = (struct msix_entry *)oct->msix_entries;
+		for (i = 0; i < oct->num_msix_irqs; i++) {
+			/* clear the affinity_cpumask */
+			irq_set_affinity_hint(msix_entries[i].vector,
+					      NULL);
+			free_irq(msix_entries[i].vector,
+				 &oct->ioq_vector[i]);
+		}
+		pci_disable_msix(oct->pci_dev);
+		kfree(oct->msix_entries);
+		oct->msix_entries = NULL;
+		octeon_free_ioq_vector(oct);
+	}
+	dev_dbg(&oct->pci_dev->dev, "Device state is now %s\n",
+		lio_get_state_string(&oct->status));
+
+	/* making it a common function for all OCTEON models */
+	cleanup_aer_uncorrect_error_status(oct->pci_dev);
+
+	pci_disable_device(oct->pci_dev);
+}
+
+/**
+ * \brief called when PCI error is detected
+ * @param pdev Pointer to PCI device
+ * @param state The current pci connection state
+ *
+ * This function is called after a PCI bus error affecting
+ * this device has been detected.
+ */
+static pci_ers_result_t liquidio_pcie_error_detected(struct pci_dev *pdev,
+						     pci_channel_state_t state)
+{
+	struct octeon_device *oct = pci_get_drvdata(pdev);
+
+	/* Non-correctable Non-fatal errors */
+	if (state == pci_channel_io_normal) {
+		dev_err(&oct->pci_dev->dev, "Non-correctable non-fatal error reported:\n");
+		cleanup_aer_uncorrect_error_status(oct->pci_dev);
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	}
+
+	/* Non-correctable Fatal errors */
+	dev_err(&oct->pci_dev->dev, "Non-correctable FATAL reported by PCI AER driver\n");
+	stop_pci_io(oct);
+
+	return PCI_ERS_RESULT_DISCONNECT;
+}
+
+/* For PCI-E Advanced Error Recovery (AER) Interface */
+static const struct pci_error_handlers liquidio_vf_err_handler = {
+	.error_detected = liquidio_pcie_error_detected,
+};
+
 static const struct pci_device_id liquidio_vf_pci_tbl[] = {
 	{
 		PCI_VENDOR_ID_CAVIUM, OCTEON_CN23XX_VF_VID,
@@ -184,6 +329,7 @@ static struct pci_driver liquidio_vf_pci_driver = {
 	.id_table	= liquidio_vf_pci_tbl,
 	.probe		= liquidio_vf_probe,
 	.remove		= liquidio_vf_remove,
+	.err_handler	= &liquidio_vf_err_handler,    /* For AER */
 };
 
 /**
@@ -1350,6 +1496,7 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		container_of(param, struct octeon_droq, napi);
 	struct net_device *netdev = (struct net_device *)arg;
 	struct sk_buff *skb = (struct sk_buff *)skbuff;
+	u16 vtag = 0;
 
 	if (netdev) {
 		struct lio *lio = GET_LIO(netdev);
@@ -1397,11 +1544,33 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 		skb->protocol = eth_type_trans(skb, skb->dev);
 
 		if ((netdev->features & NETIF_F_RXCSUM) &&
-		    (rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED))
+		    (((rh->r_dh.encap_on) &&
+		      (rh->r_dh.csum_verified & CNNIC_TUN_CSUM_VERIFIED)) ||
+		     (!(rh->r_dh.encap_on) &&
+		      (rh->r_dh.csum_verified & CNNIC_CSUM_VERIFIED))))
 			/* checksum has already been verified */
 			skb->ip_summed = CHECKSUM_UNNECESSARY;
 		else
 			skb->ip_summed = CHECKSUM_NONE;
+
+		/* Setting Encapsulation field on basis of status received
+		 * from the firmware
+		 */
+		if (rh->r_dh.encap_on) {
+			skb->encapsulation = 1;
+			skb->csum_level = 1;
+			droq->stats.rx_vxlan++;
+		}
+
+		/* inbound VLAN tag */
+		if ((netdev->features & NETIF_F_HW_VLAN_CTAG_RX) &&
+		    rh->r_dh.vlan) {
+			u16 priority = rh->r_dh.priority;
+			u16 vid = rh->r_dh.vlan;
+
+			vtag = (priority << VLAN_PRIO_SHIFT) | vid;
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vtag);
+		}
 
 		packet_was_received = (napi_gro_receive(napi, skb) != GRO_DROP);
 
@@ -1801,6 +1970,56 @@ static int liquidio_set_mac(struct net_device *netdev, void *p)
 }
 
 /**
+ * \brief Net device get_stats
+ * @param netdev network device
+ */
+static struct net_device_stats *liquidio_get_stats(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct net_device_stats *stats = &netdev->stats;
+	u64 pkts = 0, drop = 0, bytes = 0;
+	struct oct_droq_stats *oq_stats;
+	struct oct_iq_stats *iq_stats;
+	struct octeon_device *oct;
+	int i, iq_no, oq_no;
+
+	oct = lio->oct_dev;
+
+	for (i = 0; i < lio->linfo.num_txpciq; i++) {
+		iq_no = lio->linfo.txpciq[i].s.q_no;
+		iq_stats = &oct->instr_queue[iq_no]->stats;
+		pkts += iq_stats->tx_done;
+		drop += iq_stats->tx_dropped;
+		bytes += iq_stats->tx_tot_bytes;
+	}
+
+	stats->tx_packets = pkts;
+	stats->tx_bytes = bytes;
+	stats->tx_dropped = drop;
+
+	pkts = 0;
+	drop = 0;
+	bytes = 0;
+
+	for (i = 0; i < lio->linfo.num_rxpciq; i++) {
+		oq_no = lio->linfo.rxpciq[i].s.q_no;
+		oq_stats = &oct->droq[oq_no]->stats;
+		pkts += oq_stats->rx_pkts_received;
+		drop += (oq_stats->rx_dropped +
+			 oq_stats->dropped_nodispatch +
+			 oq_stats->dropped_toomany +
+			 oq_stats->dropped_nomem);
+		bytes += oq_stats->rx_bytes_received;
+	}
+
+	stats->rx_bytes = bytes;
+	stats->rx_packets = pkts;
+	stats->rx_dropped = drop;
+
+	return stats;
+}
+
+/**
  * \brief Net device change_mtu
  * @param netdev network device
  */
@@ -1819,6 +2038,169 @@ static int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev->mtu = new_mtu;
 
 	return 0;
+}
+
+/**
+ * \brief Handler for SIOCSHWTSTAMP ioctl
+ * @param netdev network device
+ * @param ifr interface request
+ * @param cmd command
+ */
+static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct hwtstamp_config conf;
+
+	if (copy_from_user(&conf, ifr->ifr_data, sizeof(conf)))
+		return -EFAULT;
+
+	if (conf.flags)
+		return -EINVAL;
+
+	switch (conf.tx_type) {
+	case HWTSTAMP_TX_ON:
+	case HWTSTAMP_TX_OFF:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (conf.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		break;
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_SOME:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+		conf.rx_filter = HWTSTAMP_FILTER_ALL;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	if (conf.rx_filter == HWTSTAMP_FILTER_ALL)
+		ifstate_set(lio, LIO_IFSTATE_RX_TIMESTAMP_ENABLED);
+
+	else
+		ifstate_reset(lio, LIO_IFSTATE_RX_TIMESTAMP_ENABLED);
+
+	return copy_to_user(ifr->ifr_data, &conf, sizeof(conf)) ? -EFAULT : 0;
+}
+
+/**
+ * \brief ioctl handler
+ * @param netdev network device
+ * @param ifr interface request
+ * @param cmd command
+ */
+static int liquidio_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
+{
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return hwtstamp_ioctl(netdev, ifr);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void handle_timestamp(struct octeon_device *oct, u32 status, void *buf)
+{
+	struct sk_buff *skb = (struct sk_buff *)buf;
+	struct octnet_buf_free_info *finfo;
+	struct oct_timestamp_resp *resp;
+	struct octeon_soft_command *sc;
+	struct lio *lio;
+
+	finfo = (struct octnet_buf_free_info *)skb->cb;
+	lio = finfo->lio;
+	sc = finfo->sc;
+	oct = lio->oct_dev;
+	resp = (struct oct_timestamp_resp *)sc->virtrptr;
+
+	if (status != OCTEON_REQUEST_DONE) {
+		dev_err(&oct->pci_dev->dev, "Tx timestamp instruction failed. Status: %llx\n",
+			CVM_CAST64(status));
+		resp->timestamp = 0;
+	}
+
+	octeon_swap_8B_data(&resp->timestamp, 1);
+
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
+		struct skb_shared_hwtstamps ts;
+		u64 ns = resp->timestamp;
+
+		netif_info(lio, tx_done, lio->netdev,
+			   "Got resulting SKBTX_HW_TSTAMP skb=%p ns=%016llu\n",
+			   skb, (unsigned long long)ns);
+		ts.hwtstamp = ns_to_ktime(ns + lio->ptp_adjust);
+		skb_tstamp_tx(skb, &ts);
+	}
+
+	octeon_free_soft_command(oct, sc);
+	tx_buffer_free(skb);
+}
+
+/* \brief Send a data packet that will be timestamped
+ * @param oct octeon device
+ * @param ndata pointer to network data
+ * @param finfo pointer to private network data
+ */
+static int send_nic_timestamp_pkt(struct octeon_device *oct,
+				  struct octnic_data_pkt *ndata,
+				  struct octnet_buf_free_info *finfo)
+{
+	struct octeon_soft_command *sc;
+	int ring_doorbell;
+	struct lio *lio;
+	int retval;
+	u32 len;
+
+	lio = finfo->lio;
+
+	sc = octeon_alloc_soft_command_resp(oct, &ndata->cmd,
+					    sizeof(struct oct_timestamp_resp));
+	finfo->sc = sc;
+
+	if (!sc) {
+		dev_err(&oct->pci_dev->dev, "No memory for timestamped data packet\n");
+		return IQ_SEND_FAILED;
+	}
+
+	if (ndata->reqtype == REQTYPE_NORESP_NET)
+		ndata->reqtype = REQTYPE_RESP_NET;
+	else if (ndata->reqtype == REQTYPE_NORESP_NET_SG)
+		ndata->reqtype = REQTYPE_RESP_NET_SG;
+
+	sc->callback = handle_timestamp;
+	sc->callback_arg = finfo->skb;
+	sc->iq_no = ndata->q_no;
+
+	len = (u32)((struct octeon_instr_ih3 *)(&sc->cmd.cmd3.ih3))->dlengsz;
+
+	ring_doorbell = 1;
+
+	retval = octeon_send_command(oct, sc->iq_no, ring_doorbell, &sc->cmd,
+				     sc, len, ndata->reqtype);
+
+	if (retval == IQ_SEND_FAILED) {
+		dev_err(&oct->pci_dev->dev, "timestamp data packet failed status: %x\n",
+			retval);
+		octeon_free_soft_command(oct, sc);
+	} else {
+		netif_info(lio, tx_queued, lio->netdev, "Queued timestamp packet\n");
+	}
+
+	return retval;
 }
 
 /** \brief Transmit networks packets to the Octeon interface
@@ -1905,8 +2287,18 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 	cmdsetup.u64 = 0;
 	cmdsetup.s.iq_no = iq_no;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		cmdsetup.s.transport_csum = 1;
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		if (skb->encapsulation) {
+			cmdsetup.s.tnl_csum = 1;
+			stats->tx_vxlan++;
+		} else {
+			cmdsetup.s.transport_csum = 1;
+		}
+	}
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		cmdsetup.s.timestamp = 1;
+	}
 
 	if (!skb_shinfo(skb)->nr_frags) {
 		cmdsetup.s.u.datasize = skb->len;
@@ -2025,7 +2417,16 @@ static int liquidio_xmit(struct sk_buff *skb, struct net_device *netdev)
 		tx_info->s.gso_segs = skb_shinfo(skb)->gso_segs;
 	}
 
-	status = octnet_send_nic_data_pkt(oct, &ndata);
+	/* HW insert VLAN tag */
+	if (skb_vlan_tag_present(skb)) {
+		irh->priority = skb_vlan_tag_get(skb) >> VLAN_PRIO_SHIFT;
+		irh->vlan = skb_vlan_tag_get(skb) & VLAN_VID_MASK;
+	}
+
+	if (unlikely(cmdsetup.s.timestamp))
+		status = send_nic_timestamp_pkt(oct, &ndata, finfo);
+	else
+		status = octnet_send_nic_data_pkt(oct, &ndata);
 	if (status == IQ_SEND_FAILED)
 		goto lio_xmit_failed;
 
@@ -2074,6 +2475,61 @@ static void liquidio_tx_timeout(struct net_device *netdev)
 	txqs_wake(netdev);
 }
 
+static int
+liquidio_vlan_rx_add_vid(struct net_device *netdev,
+			 __be16 proto __attribute__((unused)), u16 vid)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_ADD_VLAN_FILTER;
+	nctrl.ncmd.s.param1 = vid;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
+			ret);
+	}
+
+	return ret;
+}
+
+static int
+liquidio_vlan_rx_kill_vid(struct net_device *netdev,
+			  __be16 proto __attribute__((unused)), u16 vid)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	memset(&nctrl, 0, sizeof(struct octnic_ctrl_pkt));
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = OCTNET_CMD_DEL_VLAN_FILTER;
+	nctrl.ncmd.s.param1 = vid;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev, "Add VLAN filter failed in core (ret: 0x%x)\n",
+			ret);
+	}
+	return ret;
+}
+
 /** Sending command to enable/disable RX checksum offload
  * @param netdev                pointer to network device
  * @param command               OCTNET_CMD_TNL_RX_CSUM_CTL
@@ -2100,6 +2556,40 @@ static int liquidio_set_rxcsum_command(struct net_device *netdev, int command,
 	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
 	if (ret < 0) {
 		dev_err(&oct->pci_dev->dev, "DEVFLAGS RXCSUM change failed in core (ret:0x%x)\n",
+			ret);
+	}
+	return ret;
+}
+
+/** Sending command to add/delete VxLAN UDP port to firmware
+ * @param netdev                pointer to network device
+ * @param command               OCTNET_CMD_VXLAN_PORT_CONFIG
+ * @param vxlan_port            VxLAN port to be added or deleted
+ * @param vxlan_cmd_bit         OCTNET_CMD_VXLAN_PORT_ADD,
+ *                              OCTNET_CMD_VXLAN_PORT_DEL
+ * @returns                     SUCCESS or FAILURE
+ */
+static int liquidio_vxlan_port_command(struct net_device *netdev, int command,
+				       u16 vxlan_port, u8 vxlan_cmd_bit)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct octnic_ctrl_pkt nctrl;
+	int ret = 0;
+
+	nctrl.ncmd.u64 = 0;
+	nctrl.ncmd.s.cmd = command;
+	nctrl.ncmd.s.more = vxlan_cmd_bit;
+	nctrl.ncmd.s.param1 = vxlan_port;
+	nctrl.iq_no = lio->linfo.txpciq[0].s.q_no;
+	nctrl.wait_time = 100;
+	nctrl.netpndev = (u64)netdev;
+	nctrl.cb_fn = liquidio_link_ctrl_cmd_completion;
+
+	ret = octnet_send_nic_ctrl_pkt(lio->oct_dev, &nctrl);
+	if (ret < 0) {
+		dev_err(&oct->pci_dev->dev,
+			"DEVFLAGS VxLAN port add/delete failed in core (ret : 0x%x)\n",
 			ret);
 	}
 	return ret;
@@ -2173,16 +2663,46 @@ static int liquidio_set_features(struct net_device *netdev,
 	return 0;
 }
 
+static void liquidio_add_vxlan_port(struct net_device *netdev,
+				    struct udp_tunnel_info *ti)
+{
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
+
+	liquidio_vxlan_port_command(netdev,
+				    OCTNET_CMD_VXLAN_PORT_CONFIG,
+				    htons(ti->port),
+				    OCTNET_CMD_VXLAN_PORT_ADD);
+}
+
+static void liquidio_del_vxlan_port(struct net_device *netdev,
+				    struct udp_tunnel_info *ti)
+{
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
+
+	liquidio_vxlan_port_command(netdev,
+				    OCTNET_CMD_VXLAN_PORT_CONFIG,
+				    htons(ti->port),
+				    OCTNET_CMD_VXLAN_PORT_DEL);
+}
+
 static const struct net_device_ops lionetdevops = {
 	.ndo_open		= liquidio_open,
 	.ndo_stop		= liquidio_stop,
 	.ndo_start_xmit		= liquidio_xmit,
+	.ndo_get_stats		= liquidio_get_stats,
 	.ndo_set_mac_address	= liquidio_set_mac,
 	.ndo_set_rx_mode	= liquidio_set_mcast_list,
 	.ndo_tx_timeout		= liquidio_tx_timeout,
+	.ndo_vlan_rx_add_vid    = liquidio_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid   = liquidio_vlan_rx_kill_vid,
 	.ndo_change_mtu		= liquidio_change_mtu,
+	.ndo_do_ioctl		= liquidio_ioctl,
 	.ndo_fix_features	= liquidio_fix_features,
 	.ndo_set_features	= liquidio_set_features,
+	.ndo_udp_tunnel_add     = liquidio_add_vxlan_port,
+	.ndo_udp_tunnel_del     = liquidio_del_vxlan_port,
 	.ndo_select_queue	= select_q,
 };
 
@@ -2388,6 +2908,25 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 				      | NETIF_F_LRO;
 		netif_set_gso_max_size(netdev, OCTNIC_GSO_MAX_SIZE);
 
+		/* Copy of transmit encapsulation capabilities:
+		 * TSO, TSO6, Checksums for this device
+		 */
+		lio->enc_dev_capability = NETIF_F_IP_CSUM
+					  | NETIF_F_IPV6_CSUM
+					  | NETIF_F_GSO_UDP_TUNNEL
+					  | NETIF_F_HW_CSUM | NETIF_F_SG
+					  | NETIF_F_RXCSUM
+					  | NETIF_F_TSO | NETIF_F_TSO6
+					  | NETIF_F_LRO;
+
+		netdev->hw_enc_features =
+		    (lio->enc_dev_capability & ~NETIF_F_LRO);
+		netdev->vlan_features = lio->dev_capability;
+		/* Add any unchangeable hw features */
+		lio->dev_capability |= NETIF_F_HW_VLAN_CTAG_FILTER |
+				       NETIF_F_HW_VLAN_CTAG_RX |
+				       NETIF_F_HW_VLAN_CTAG_TX;
+
 		netdev->features = (lio->dev_capability & ~NETIF_F_LRO);
 
 		netdev->hw_features = lio->dev_capability;
@@ -2442,6 +2981,13 @@ static int setup_nic_devices(struct octeon_device *octeon_dev)
 				"Gather list allocation failed\n");
 			goto setup_nic_dev_fail;
 		}
+
+		/* Register ethtool support */
+		liquidio_set_ethtool_ops(netdev);
+		if (lio->oct_dev->chip_id == OCTEON_CN23XX_VF_VID)
+			octeon_dev->priv_flags = OCT_PRIV_FLAG_DEFAULT;
+		else
+			octeon_dev->priv_flags = 0x0;
 
 		if (netdev->features & NETIF_F_LRO)
 			liquidio_set_feature(netdev, OCTNET_CMD_LRO_ENABLE,
@@ -2508,6 +3054,7 @@ setup_nic_wait_intr:
  */
 static int liquidio_init_nic_module(struct octeon_device *oct)
 {
+	struct oct_intrmod_cfg *intrmod_cfg;
 	int num_nic_ports = 1;
 	int i, retval = 0;
 
@@ -2528,6 +3075,26 @@ static int liquidio_init_nic_module(struct octeon_device *oct)
 		dev_err(&oct->pci_dev->dev, "Setup NIC devices failed\n");
 		goto octnet_init_failure;
 	}
+
+	/* Initialize interrupt moderation params */
+	intrmod_cfg = &((struct octeon_device *)oct)->intrmod;
+	intrmod_cfg->rx_enable = 1;
+	intrmod_cfg->check_intrvl = LIO_INTRMOD_CHECK_INTERVAL;
+	intrmod_cfg->maxpkt_ratethr = LIO_INTRMOD_MAXPKT_RATETHR;
+	intrmod_cfg->minpkt_ratethr = LIO_INTRMOD_MINPKT_RATETHR;
+	intrmod_cfg->rx_maxcnt_trigger = LIO_INTRMOD_RXMAXCNT_TRIGGER;
+	intrmod_cfg->rx_maxtmr_trigger = LIO_INTRMOD_RXMAXTMR_TRIGGER;
+	intrmod_cfg->rx_mintmr_trigger = LIO_INTRMOD_RXMINTMR_TRIGGER;
+	intrmod_cfg->rx_mincnt_trigger = LIO_INTRMOD_RXMINCNT_TRIGGER;
+	intrmod_cfg->tx_enable = 1;
+	intrmod_cfg->tx_maxcnt_trigger = LIO_INTRMOD_TXMAXCNT_TRIGGER;
+	intrmod_cfg->tx_mincnt_trigger = LIO_INTRMOD_TXMINCNT_TRIGGER;
+	intrmod_cfg->rx_frames = CFG_GET_OQ_INTR_PKT(octeon_get_conf(oct));
+	intrmod_cfg->rx_usecs = CFG_GET_OQ_INTR_TIME(octeon_get_conf(oct));
+	intrmod_cfg->tx_frames = CFG_GET_IQ_INTR_PKT(octeon_get_conf(oct));
+	dev_dbg(&oct->pci_dev->dev, "Network interfaces ready\n");
+
+	return retval;
 
 octnet_init_failure:
 
