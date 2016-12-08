@@ -79,10 +79,10 @@ static void xgene_cle_kn_to_hw(struct xgene_cle_ptree_kn *kn, u32 *buf)
 	}
 }
 
-static void xgene_cle_dn_to_hw(struct xgene_cle_ptree_ewdn *dn,
+static void xgene_cle_dn_to_hw(const struct xgene_cle_ptree_ewdn *dn,
 			       u32 *buf, u32 jb)
 {
-	struct xgene_cle_ptree_branch *br;
+	const struct xgene_cle_ptree_branch *br;
 	u32 i, j = 0;
 	u32 npp;
 
@@ -205,17 +205,385 @@ static int xgene_cle_setup_dbptr(struct xgene_enet_pdata *pdata,
 	return 0;
 }
 
+static const struct xgene_cle_ptree_ewdn xgene_init_ptree_dn[] = {
+	{
+		/* PKT_TYPE_NODE */
+		.node_type = EWDN,
+		.last_node = 0,
+		.hdr_len_store = 1,
+		.hdr_extn = NO_BYTE,
+		.byte_store = NO_BYTE,
+		.search_byte_store = NO_BYTE,
+		.result_pointer = DB_RES_DROP,
+		.num_branches = 2,
+		.branch = {
+			{
+				/* IPV4 */
+				.valid = 1,
+				.next_packet_pointer = 22,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = PKT_PROT_NODE,
+				.next_branch = 0,
+				.data = 0x8,
+				.mask = 0x0
+			},
+			{
+				.valid = 0,
+				.next_packet_pointer = 262,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = LAST_NODE,
+				.next_branch = 0,
+				.data = 0x0,
+				.mask = 0xffff
+			}
+		},
+	},
+	{
+		/* PKT_PROT_NODE */
+		.node_type = EWDN,
+		.last_node = 0,
+		.hdr_len_store = 1,
+		.hdr_extn = NO_BYTE,
+		.byte_store = NO_BYTE,
+		.search_byte_store = NO_BYTE,
+		.result_pointer = DB_RES_DROP,
+		.num_branches = 3,
+		.branch = {
+			{
+				/* TCP */
+				.valid = 1,
+				.next_packet_pointer = 26,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_TCP_NODE,
+				.next_branch = 0,
+				.data = 0x0600,
+				.mask = 0x00ff
+			},
+			{
+				/* UDP */
+				.valid = 1,
+				.next_packet_pointer = 26,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_UDP_NODE,
+				.next_branch = 0,
+				.data = 0x1100,
+				.mask = 0x00ff
+			},
+			{
+				.valid = 0,
+				.next_packet_pointer = 26,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_branch = 0,
+				.data = 0x0,
+				.mask = 0xffff
+			}
+		}
+	},
+	{
+		/* RSS_IPV4_TCP_NODE */
+		.node_type = EWDN,
+		.last_node = 0,
+		.hdr_len_store = 1,
+		.hdr_extn = NO_BYTE,
+		.byte_store = NO_BYTE,
+		.search_byte_store = BOTH_BYTES,
+		.result_pointer = DB_RES_DROP,
+		.num_branches = 6,
+		.branch = {
+			{
+				/* SRC IPV4 B01 */
+				.valid = 0,
+				.next_packet_pointer = 28,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_TCP_NODE,
+				.next_branch = 1,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* SRC IPV4 B23 */
+				.valid = 0,
+				.next_packet_pointer = 30,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_TCP_NODE,
+				.next_branch = 2,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* DST IPV4 B01 */
+				.valid = 0,
+				.next_packet_pointer = 32,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_TCP_NODE,
+				.next_branch = 3,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* DST IPV4 B23 */
+				.valid = 0,
+				.next_packet_pointer = 34,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_TCP_NODE,
+				.next_branch = 4,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* TCP SRC Port */
+				.valid = 0,
+				.next_packet_pointer = 36,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_TCP_NODE,
+				.next_branch = 5,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* TCP DST Port */
+				.valid = 0,
+				.next_packet_pointer = 256,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = LAST_NODE,
+				.next_branch = 0,
+				.data = 0x0,
+				.mask = 0xffff
+			}
+		}
+	},
+	{
+		/* RSS_IPV4_UDP_NODE */
+		.node_type = EWDN,
+		.last_node = 0,
+		.hdr_len_store = 1,
+		.hdr_extn = NO_BYTE,
+		.byte_store = NO_BYTE,
+		.search_byte_store = BOTH_BYTES,
+		.result_pointer = DB_RES_DROP,
+		.num_branches = 6,
+		.branch = {
+			{
+				/* SRC IPV4 B01 */
+				.valid = 0,
+				.next_packet_pointer = 28,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_UDP_NODE,
+				.next_branch = 1,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* SRC IPV4 B23 */
+				.valid = 0,
+				.next_packet_pointer = 30,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_UDP_NODE,
+				.next_branch = 2,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* DST IPV4 B01 */
+				.valid = 0,
+				.next_packet_pointer = 32,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_UDP_NODE,
+				.next_branch = 3,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* DST IPV4 B23 */
+				.valid = 0,
+				.next_packet_pointer = 34,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_UDP_NODE,
+				.next_branch = 4,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* TCP SRC Port */
+				.valid = 0,
+				.next_packet_pointer = 36,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_UDP_NODE,
+				.next_branch = 5,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* TCP DST Port */
+				.valid = 0,
+				.next_packet_pointer = 258,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = LAST_NODE,
+				.next_branch = 0,
+				.data = 0x0,
+				.mask = 0xffff
+			}
+		}
+	},
+	{
+		/* RSS_IPV4_OTHERS_NODE */
+		.node_type = EWDN,
+		.last_node = 0,
+		.hdr_len_store = 1,
+		.hdr_extn = NO_BYTE,
+		.byte_store = NO_BYTE,
+		.search_byte_store = BOTH_BYTES,
+		.result_pointer = DB_RES_DROP,
+		.num_branches = 6,
+		.branch = {
+			{
+				/* SRC IPV4 B01 */
+				.valid = 0,
+				.next_packet_pointer = 28,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_branch = 1,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* SRC IPV4 B23 */
+				.valid = 0,
+				.next_packet_pointer = 30,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_branch = 2,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* DST IPV4 B01 */
+				.valid = 0,
+				.next_packet_pointer = 32,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_branch = 3,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* DST IPV4 B23 */
+				.valid = 0,
+				.next_packet_pointer = 34,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_branch = 4,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* TCP SRC Port */
+				.valid = 0,
+				.next_packet_pointer = 36,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = RSS_IPV4_OTHERS_NODE,
+				.next_branch = 5,
+				.data = 0x0,
+				.mask = 0xffff
+			},
+			{
+				/* TCP DST Port */
+				.valid = 0,
+				.next_packet_pointer = 260,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = LAST_NODE,
+				.next_branch = 0,
+				.data = 0x0,
+				.mask = 0xffff
+			}
+		}
+	},
+
+	{
+		/* LAST NODE */
+		.node_type = EWDN,
+		.last_node = 1,
+		.hdr_len_store = 1,
+		.hdr_extn = NO_BYTE,
+		.byte_store = NO_BYTE,
+		.search_byte_store = NO_BYTE,
+		.result_pointer = DB_RES_DROP,
+		.num_branches = 1,
+		.branch = {
+			{
+				.valid = 0,
+				.next_packet_pointer = 0,
+				.jump_bw = JMP_FW,
+				.jump_rel = JMP_ABS,
+				.operation = EQT,
+				.next_node = MAX_NODES,
+				.next_branch = 0,
+				.data = 0,
+				.mask = 0xffff
+			}
+		}
+	}
+};
+
 static int xgene_cle_setup_node(struct xgene_enet_pdata *pdata,
 				struct xgene_enet_cle *cle)
 {
 	struct xgene_cle_ptree *ptree = &cle->ptree;
-	struct xgene_cle_ptree_ewdn *dn = ptree->dn;
+	const struct xgene_cle_ptree_ewdn *dn = xgene_init_ptree_dn;
+	int num_dn = ARRAY_SIZE(xgene_init_ptree_dn);
 	struct xgene_cle_ptree_kn *kn = ptree->kn;
 	u32 buf[CLE_DRAM_REGS];
 	int i, j, ret;
 
 	memset(buf, 0, sizeof(buf));
-	for (i = 0; i < ptree->num_dn; i++) {
+	for (i = 0; i < num_dn; i++) {
 		xgene_cle_dn_to_hw(&dn[i], buf, cle->jump_bytes);
 		ret = xgene_cle_dram_wr(cle, buf, 17, i + ptree->start_node,
 					PTREE_RAM, CLE_CMD_WR);
@@ -225,8 +593,8 @@ static int xgene_cle_setup_node(struct xgene_enet_pdata *pdata,
 
 	/* continue node index for key node */
 	memset(buf, 0, sizeof(buf));
-	for (j = i; j < (ptree->num_kn + ptree->num_dn); j++) {
-		xgene_cle_kn_to_hw(&kn[j - ptree->num_dn], buf);
+	for (j = i; j < (ptree->num_kn + num_dn); j++) {
+		xgene_cle_kn_to_hw(&kn[j - num_dn], buf);
 		ret = xgene_cle_dram_wr(cle, buf, 17, j + ptree->start_node,
 					PTREE_RAM, CLE_CMD_WR);
 		if (ret)
@@ -407,392 +775,20 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 	struct xgene_enet_cle *enet_cle = &pdata->cle;
 	u32 def_qid, def_fpsel, def_nxtfpsel, pool_id;
 	struct xgene_cle_dbptr dbptr[DB_MAX_PTRS];
-	struct xgene_cle_ptree_branch *br;
 	struct xgene_cle_ptree *ptree;
 	struct xgene_cle_ptree_kn kn;
 	int ret;
-	struct xgene_cle_ptree_ewdn ptree_dn[] = {
-		{
-			/* PKT_TYPE_NODE */
-			.node_type = EWDN,
-			.last_node = 0,
-			.hdr_len_store = 1,
-			.hdr_extn = NO_BYTE,
-			.byte_store = NO_BYTE,
-			.search_byte_store = NO_BYTE,
-			.result_pointer = DB_RES_DROP,
-			.num_branches = 2,
-			.branch = {
-				{
-					/* IPV4 */
-					.valid = 1,
-					.next_packet_pointer = 22,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = PKT_PROT_NODE,
-					.next_branch = 0,
-					.data = 0x8,
-					.mask = 0x0
-				},
-				{
-					.valid = 0,
-					.next_packet_pointer = 262,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = LAST_NODE,
-					.next_branch = 0,
-					.data = 0x0,
-					.mask = 0xffff
-				}
-			},
-		},
-		{
-			/* PKT_PROT_NODE */
-			.node_type = EWDN,
-			.last_node = 0,
-			.hdr_len_store = 1,
-			.hdr_extn = NO_BYTE,
-			.byte_store = NO_BYTE,
-			.search_byte_store = NO_BYTE,
-			.result_pointer = DB_RES_DROP,
-			.num_branches = 3,
-			.branch = {
-				{
-					/* TCP */
-					.valid = 1,
-					.next_packet_pointer = 26,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_TCP_NODE,
-					.next_branch = 0,
-					.data = 0x0600,
-					.mask = 0x00ff
-				},
-				{
-					/* UDP */
-					.valid = 1,
-					.next_packet_pointer = 26,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_UDP_NODE,
-					.next_branch = 0,
-					.data = 0x1100,
-					.mask = 0x00ff
-				},
-				{
-					.valid = 0,
-					.next_packet_pointer = 26,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_OTHERS_NODE,
-					.next_branch = 0,
-					.data = 0x0,
-					.mask = 0xffff
-				}
-			}
-		},
-		{
-			/* RSS_IPV4_TCP_NODE */
-			.node_type = EWDN,
-			.last_node = 0,
-			.hdr_len_store = 1,
-			.hdr_extn = NO_BYTE,
-			.byte_store = NO_BYTE,
-			.search_byte_store = BOTH_BYTES,
-			.result_pointer = DB_RES_DROP,
-			.num_branches = 6,
-			.branch = {
-				{
-					/* SRC IPV4 B01 */
-					.valid = 0,
-					.next_packet_pointer = 28,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_TCP_NODE,
-					.next_branch = 1,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* SRC IPV4 B23 */
-					.valid = 0,
-					.next_packet_pointer = 30,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_TCP_NODE,
-					.next_branch = 2,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* DST IPV4 B01 */
-					.valid = 0,
-					.next_packet_pointer = 32,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_TCP_NODE,
-					.next_branch = 3,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* DST IPV4 B23 */
-					.valid = 0,
-					.next_packet_pointer = 34,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_TCP_NODE,
-					.next_branch = 4,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* TCP SRC Port */
-					.valid = 0,
-					.next_packet_pointer = 36,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_TCP_NODE,
-					.next_branch = 5,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* TCP DST Port */
-					.valid = 0,
-					.next_packet_pointer = 256,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = LAST_NODE,
-					.next_branch = 0,
-					.data = 0x0,
-					.mask = 0xffff
-				}
-			}
-		},
-		{
-			/* RSS_IPV4_UDP_NODE */
-			.node_type = EWDN,
-			.last_node = 0,
-			.hdr_len_store = 1,
-			.hdr_extn = NO_BYTE,
-			.byte_store = NO_BYTE,
-			.search_byte_store = BOTH_BYTES,
-			.result_pointer = DB_RES_DROP,
-			.num_branches = 6,
-			.branch = {
-				{
-					/* SRC IPV4 B01 */
-					.valid = 0,
-					.next_packet_pointer = 28,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_UDP_NODE,
-					.next_branch = 1,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* SRC IPV4 B23 */
-					.valid = 0,
-					.next_packet_pointer = 30,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_UDP_NODE,
-					.next_branch = 2,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* DST IPV4 B01 */
-					.valid = 0,
-					.next_packet_pointer = 32,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_UDP_NODE,
-					.next_branch = 3,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* DST IPV4 B23 */
-					.valid = 0,
-					.next_packet_pointer = 34,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_UDP_NODE,
-					.next_branch = 4,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* TCP SRC Port */
-					.valid = 0,
-					.next_packet_pointer = 36,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_UDP_NODE,
-					.next_branch = 5,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* TCP DST Port */
-					.valid = 0,
-					.next_packet_pointer = 258,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = LAST_NODE,
-					.next_branch = 0,
-					.data = 0x0,
-					.mask = 0xffff
-				}
-			}
-		},
-		{
-			/* RSS_IPV4_OTHERS_NODE */
-			.node_type = EWDN,
-			.last_node = 0,
-			.hdr_len_store = 1,
-			.hdr_extn = NO_BYTE,
-			.byte_store = NO_BYTE,
-			.search_byte_store = BOTH_BYTES,
-			.result_pointer = DB_RES_DROP,
-			.num_branches = 6,
-			.branch = {
-				{
-					/* SRC IPV4 B01 */
-					.valid = 0,
-					.next_packet_pointer = 28,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_OTHERS_NODE,
-					.next_branch = 1,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* SRC IPV4 B23 */
-					.valid = 0,
-					.next_packet_pointer = 30,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_OTHERS_NODE,
-					.next_branch = 2,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* DST IPV4 B01 */
-					.valid = 0,
-					.next_packet_pointer = 32,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_OTHERS_NODE,
-					.next_branch = 3,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* DST IPV4 B23 */
-					.valid = 0,
-					.next_packet_pointer = 34,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_OTHERS_NODE,
-					.next_branch = 4,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* TCP SRC Port */
-					.valid = 0,
-					.next_packet_pointer = 36,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = RSS_IPV4_OTHERS_NODE,
-					.next_branch = 5,
-					.data = 0x0,
-					.mask = 0xffff
-				},
-				{
-					/* TCP DST Port */
-					.valid = 0,
-					.next_packet_pointer = 260,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = LAST_NODE,
-					.next_branch = 0,
-					.data = 0x0,
-					.mask = 0xffff
-				}
-			}
-		},
 
-		{
-			/* LAST NODE */
-			.node_type = EWDN,
-			.last_node = 1,
-			.hdr_len_store = 1,
-			.hdr_extn = NO_BYTE,
-			.byte_store = NO_BYTE,
-			.search_byte_store = NO_BYTE,
-			.result_pointer = DB_RES_DROP,
-			.num_branches = 1,
-			.branch = {
-				{
-					.valid = 0,
-					.next_packet_pointer = 0,
-					.jump_bw = JMP_FW,
-					.jump_rel = JMP_ABS,
-					.operation = EQT,
-					.next_node = MAX_NODES,
-					.next_branch = 0,
-					.data = 0,
-					.mask = 0xffff
-				}
-			}
-		}
-	};
+	if (pdata->phy_mode != PHY_INTERFACE_MODE_XGMII)
+		return -EINVAL;
 
 	ptree = &enet_cle->ptree;
 	ptree->start_pkt = 12; /* Ethertype */
-	if (pdata->phy_mode == PHY_INTERFACE_MODE_XGMII) {
-		ret = xgene_cle_setup_rss(pdata);
-		if (ret) {
-			netdev_err(pdata->ndev, "RSS initialization failed\n");
-			return ret;
-		}
-	} else {
-		br = &ptree_dn[PKT_PROT_NODE].branch[0];
-		br->valid = 0;
-		br->next_packet_pointer = 260;
-		br->next_node = LAST_NODE;
-		br->data = 0x0000;
-		br->mask = 0xffff;
+
+	ret = xgene_cle_setup_rss(pdata);
+	if (ret) {
+		netdev_err(pdata->ndev, "RSS initialization failed\n");
+		return ret;
 	}
 
 	def_qid = xgene_enet_dst_ring_num(pdata->rx_ring[0]);
@@ -825,10 +821,8 @@ static int xgene_enet_cle_init(struct xgene_enet_pdata *pdata)
 	kn.key[0].priority = 0;
 	kn.key[0].result_pointer = DB_RES_ACCEPT;
 
-	ptree->dn = ptree_dn;
 	ptree->kn = &kn;
 	ptree->dbptr = dbptr;
-	ptree->num_dn = MAX_NODES;
 	ptree->num_kn = 1;
 	ptree->num_dbptr = DB_MAX_PTRS;
 

@@ -278,10 +278,8 @@ struct xgene_cle_dbptr {
 };
 
 struct xgene_cle_ptree {
-	struct xgene_cle_ptree_ewdn *dn;
 	struct xgene_cle_ptree_kn *kn;
 	struct xgene_cle_dbptr *dbptr;
-	u32 num_dn;
 	u32 num_kn;
 	u32 num_dbptr;
 	u32 start_node;
