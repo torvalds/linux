@@ -44,10 +44,38 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#if !defined(__RVT_TRACE_RVT_H) || defined(TRACE_HEADER_MULTI_READ)
+#define __RVT_TRACE_RVT_H
 
-#define RDI_DEV_ENTRY(rdi)   __string(dev, rdi->driver_f.get_card_name(rdi))
-#define RDI_DEV_ASSIGN(rdi)  __assign_str(dev, rdi->driver_f.get_card_name(rdi))
+#include <linux/tracepoint.h>
+#include <linux/trace_seq.h>
 
-#include "trace_rvt.h"
-#include "trace_qp.h"
-#include "trace_tx.h"
+#include <rdma/ib_verbs.h>
+#include <rdma/rdma_vt.h>
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM rvt
+
+TRACE_EVENT(rvt_dbg,
+	TP_PROTO(struct rvt_dev_info *rdi,
+		 const char *msg),
+	TP_ARGS(rdi, msg),
+	TP_STRUCT__entry(
+		RDI_DEV_ENTRY(rdi)
+		__string(msg, msg)
+	),
+	TP_fast_assign(
+		RDI_DEV_ASSIGN(rdi);
+		__assign_str(msg, msg);
+	),
+	TP_printk("[%s]: %s", __get_str(dev), __get_str(msg))
+);
+
+#endif /* __RVT_TRACE_MISC_H */
+
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace_rvt
+#include <trace/define_trace.h>
+

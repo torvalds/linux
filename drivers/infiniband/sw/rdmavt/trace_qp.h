@@ -44,10 +44,53 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#if !defined(__RVT_TRACE_QP_H) || defined(TRACE_HEADER_MULTI_READ)
+#define __RVT_TRACE_QP_H
 
-#define RDI_DEV_ENTRY(rdi)   __string(dev, rdi->driver_f.get_card_name(rdi))
-#define RDI_DEV_ASSIGN(rdi)  __assign_str(dev, rdi->driver_f.get_card_name(rdi))
+#include <linux/tracepoint.h>
+#include <linux/trace_seq.h>
 
-#include "trace_rvt.h"
-#include "trace_qp.h"
-#include "trace_tx.h"
+#include <rdma/ib_verbs.h>
+#include <rdma/rdma_vt.h>
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM rvt_qp
+
+DECLARE_EVENT_CLASS(rvt_qphash_template,
+	TP_PROTO(struct rvt_qp *qp, u32 bucket),
+	TP_ARGS(qp, bucket),
+	TP_STRUCT__entry(
+		RDI_DEV_ENTRY(ib_to_rvt(qp->ibqp.device))
+		__field(u32, qpn)
+		__field(u32, bucket)
+	),
+	TP_fast_assign(
+		RDI_DEV_ASSIGN(ib_to_rvt(qp->ibqp.device))
+		__entry->qpn = qp->ibqp.qp_num;
+		__entry->bucket = bucket;
+	),
+	TP_printk(
+		"[%s] qpn 0x%x bucket %u",
+		__get_str(dev),
+		__entry->qpn,
+		__entry->bucket
+	)
+);
+
+DEFINE_EVENT(rvt_qphash_template, rvt_qpinsert,
+	TP_PROTO(struct rvt_qp *qp, u32 bucket),
+	TP_ARGS(qp, bucket));
+
+DEFINE_EVENT(rvt_qphash_template, rvt_qpremove,
+	TP_PROTO(struct rvt_qp *qp, u32 bucket),
+	TP_ARGS(qp, bucket));
+
+
+#endif /* __RVT_TRACE_QP_H */
+
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace_qp
+#include <trace/define_trace.h>
+
