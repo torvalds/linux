@@ -74,6 +74,30 @@ out:
 }
 EXPORT_SYMBOL_GPL(mlx5_core_access_reg);
 
+int mlx5_query_pcam_reg(struct mlx5_core_dev *dev, u32 *pcam, u8 feature_group,
+			u8 access_reg_group)
+{
+	u32 in[MLX5_ST_SZ_DW(pcam_reg)] = {0};
+	int sz = MLX5_ST_SZ_BYTES(pcam_reg);
+
+	MLX5_SET(pcam_reg, in, feature_group, feature_group);
+	MLX5_SET(pcam_reg, in, access_reg_group, access_reg_group);
+
+	return mlx5_core_access_reg(dev, in, sz, pcam, sz, MLX5_REG_PCAM, 0, 0);
+}
+
+int mlx5_query_mcam_reg(struct mlx5_core_dev *dev, u32 *mcam, u8 feature_group,
+			u8 access_reg_group)
+{
+	u32 in[MLX5_ST_SZ_DW(mcam_reg)] = {0};
+	int sz = MLX5_ST_SZ_BYTES(mcam_reg);
+
+	MLX5_SET(mcam_reg, in, feature_group, feature_group);
+	MLX5_SET(mcam_reg, in, access_reg_group, access_reg_group);
+
+	return mlx5_core_access_reg(dev, in, sz, mcam, sz, MLX5_REG_MCAM, 0, 0);
+}
+
 struct mlx5_reg_pcap {
 	u8			rsvd0;
 	u8			port_num;
