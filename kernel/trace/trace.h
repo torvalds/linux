@@ -846,6 +846,17 @@ static inline int ftrace_graph_notrace_addr(unsigned long addr)
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
+
+extern unsigned int fgraph_max_depth;
+
+static inline bool ftrace_graph_ignore_func(struct ftrace_graph_ent *trace)
+{
+	/* trace it when it is-nested-in or is a function enabled. */
+	return !(trace->depth || ftrace_graph_addr(trace->func)) ||
+		(trace->depth < 0) ||
+		(fgraph_max_depth && trace->depth >= fgraph_max_depth);
+}
+
 #else /* CONFIG_FUNCTION_GRAPH_TRACER */
 static inline enum print_line_t
 print_graph_function_flags(struct trace_iterator *iter, u32 flags)

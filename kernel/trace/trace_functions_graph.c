@@ -65,7 +65,7 @@ struct fgraph_data {
 
 #define TRACE_GRAPH_INDENT	2
 
-static unsigned int max_depth;
+unsigned int fgraph_max_depth;
 
 static struct tracer_opt trace_opts[] = {
 	/* Display overruns? (for self-debug purpose) */
@@ -384,10 +384,10 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	if (!ftrace_trace_task(tr))
 		return 0;
 
-	/* trace it when it is-nested-in or is a function enabled. */
-	if ((!(trace->depth || ftrace_graph_addr(trace->func)) ||
-	     ftrace_graph_ignore_irqs()) || (trace->depth < 0) ||
-	    (max_depth && trace->depth >= max_depth))
+	if (ftrace_graph_ignore_func(trace))
+		return 0;
+
+	if (ftrace_graph_ignore_irqs())
 		return 0;
 
 	/*
@@ -1500,7 +1500,7 @@ graph_depth_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	if (ret)
 		return ret;
 
-	max_depth = val;
+	fgraph_max_depth = val;
 
 	*ppos += cnt;
 
@@ -1514,7 +1514,7 @@ graph_depth_read(struct file *filp, char __user *ubuf, size_t cnt,
 	char buf[15]; /* More than enough to hold UINT_MAX + "\n"*/
 	int n;
 
-	n = sprintf(buf, "%d\n", max_depth);
+	n = sprintf(buf, "%d\n", fgraph_max_depth);
 
 	return simple_read_from_buffer(ubuf, cnt, ppos, buf, n);
 }
