@@ -101,12 +101,6 @@ struct imx_ldb {
 	const struct bus_mux *lvds_mux;
 };
 
-static enum drm_connector_status imx_ldb_connector_detect(
-		struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void imx_ldb_ch_set_bus_format(struct imx_ldb_channel *imx_ldb_ch,
 				      u32 bus_format)
 {
@@ -397,7 +391,6 @@ static int imx_ldb_encoder_atomic_check(struct drm_encoder *encoder,
 static const struct drm_connector_funcs imx_ldb_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = imx_ldb_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,

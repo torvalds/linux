@@ -2499,9 +2499,6 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 	adev->debugfs_count = i;
 #if defined(CONFIG_DEBUG_FS)
 	drm_debugfs_create_files(files, nfiles,
-				 adev->ddev->control->debugfs_root,
-				 adev->ddev->control);
-	drm_debugfs_create_files(files, nfiles,
 				 adev->ddev->primary->debugfs_root,
 				 adev->ddev->primary);
 #endif
@@ -2514,9 +2511,6 @@ static void amdgpu_debugfs_remove_files(struct amdgpu_device *adev)
 	unsigned i;
 
 	for (i = 0; i < adev->debugfs_count; i++) {
-		drm_debugfs_remove_files(adev->debugfs[i].files,
-					 adev->debugfs[i].num_files,
-					 adev->ddev->control);
 		drm_debugfs_remove_files(adev->debugfs[i].files,
 					 adev->debugfs[i].num_files,
 					 adev->ddev->primary);

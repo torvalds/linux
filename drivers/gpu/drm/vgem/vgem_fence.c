@@ -126,7 +126,6 @@ static int attach_dmabuf(struct drm_device *dev,
 		return PTR_ERR(dmabuf);
 
 	obj->dma_buf = dmabuf;
-	drm_gem_object_reference(obj);
 	return 0;
 }
 
@@ -191,12 +190,12 @@ int vgem_fence_attach_ioctl(struct drm_device *dev,
 
 	/* Expose the fence via the dma-buf */
 	ret = 0;
-	mutex_lock(&resv->lock.base);
+	ww_mutex_lock(&resv->lock, NULL);
 	if (arg->flags & VGEM_FENCE_WRITE)
 		reservation_object_add_excl_fence(resv, fence);
 	else if ((ret = reservation_object_reserve_shared(resv)) == 0)
 		reservation_object_add_shared_fence(resv, fence);
-	mutex_unlock(&resv->lock.base);
+	ww_mutex_unlock(&resv->lock);
 
 	/* Record the fence in our idr for later signaling */
 	if (ret == 0) {

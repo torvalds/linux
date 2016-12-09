@@ -1298,12 +1298,6 @@ static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
 	}
 }
 
-static enum drm_connector_status
-intel_dsi_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static int intel_dsi_get_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
@@ -1407,7 +1401,6 @@ static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs 
 
 static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
-	.detect = intel_dsi_detect,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dsi_connector_destroy,

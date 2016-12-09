@@ -134,7 +134,7 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 	release = kmalloc(size, GFP_KERNEL);
 	if (!release) {
 		DRM_ERROR("Out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 	release->base.ops = NULL;
 	release->type = type;
