@@ -129,7 +129,14 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	} else
 		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
 
-	if (flags & PIN_NONBLOCK)
+	/* Retire before we search the active list. Although we have
+	 * reasonable accuracy in our retirement lists, we may have
+	 * a stray pin (preventing eviction) that can only be resolved by
+	 * retiring.
+	 */
+	if (!(flags & PIN_NONBLOCK))
+		i915_gem_retire_requests(dev_priv);
+	else
 		phases[1] = NULL;
 
 search_again:
@@ -234,6 +241,14 @@ int i915_gem_evict_for_vma(struct i915_vma *target, unsigned int flags)
 
 	lockdep_assert_held(&target->vm->i915->drm.struct_mutex);
 	trace_i915_gem_evict_vma(target, flags);
+
+	/* Retire before we search the active list. Although we have
+	 * reasonable accuracy in our retirement lists, we may have
+	 * a stray pin (preventing eviction) that can only be resolved by
+	 * retiring.
+	 */
+	if (!(flags & PIN_NONBLOCK))
+		i915_gem_retire_requests(target->vm->i915);
 
 	check_color = target->vm->mm.color_adjust;
 	if (check_color) {
