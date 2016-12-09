@@ -1702,7 +1702,7 @@ interrupts are disabled.
 static void xmit_descs(struct snd_dbri *dbri)
 {
 	struct dbri_streaminfo *info;
-	u32 dvma_addr = (u32)dbri->dma_dvma;
+	u32 dvma_addr;
 	s32 *cmd;
 	unsigned long flags;
 	int first_td;
@@ -1710,6 +1710,7 @@ static void xmit_descs(struct snd_dbri *dbri)
 	if (dbri == NULL)
 		return;		/* Disabled */
 
+	dvma_addr = (u32)dbri->dma_dvma;
 	info = &dbri->stream_info[DBRI_REC];
 	spin_lock_irqsave(&dbri->lock, flags);
 

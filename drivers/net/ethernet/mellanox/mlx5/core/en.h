@@ -241,7 +241,7 @@ struct mlx5e_tstamp {
 };
 
 enum {
-	MLX5E_RQ_STATE_FLUSH,
+	MLX5E_RQ_STATE_ENABLED,
 	MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS,
 	MLX5E_RQ_STATE_AM,
 };
@@ -394,7 +394,7 @@ struct mlx5e_sq_dma {
 };
 
 enum {
-	MLX5E_SQ_STATE_FLUSH,
+	MLX5E_SQ_STATE_ENABLED,
 	MLX5E_SQ_STATE_BF_ENABLE,
 };
 

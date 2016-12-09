@@ -268,11 +268,6 @@ static void dump_buf(void *buf, int size, int data_only, int offset)
 		pr_debug("\n");
 }
 
-enum {
-	MLX5_DRIVER_STATUS_ABORTED = 0xfe,
-	MLX5_DRIVER_SYND = 0xbadd00de,
-};
-
 static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 				       u32 *synd, u8 *status)
 {
