@@ -59,7 +59,7 @@ struct x86_init_irqs {
 
 /**
  * struct x86_init_oem - oem platform specific customizing functions
- * @arch_setup:			platform specific architecure setup
+ * @arch_setup:			platform specific architecture setup
  * @banner:			print a platform specific banner
  */
 struct x86_init_oem {
@@ -208,12 +208,12 @@ struct x86_legacy_features {
  * @nmi_init			enable NMI on cpus
  * @save_sched_clock_state:	save state for sched_clock() on suspend
  * @restore_sched_clock_state:	restore state for sched_clock() on resume
- * @apic_post_init:		adjust apic if neeeded
+ * @apic_post_init:		adjust apic if needed
  * @legacy:			legacy features
  * @set_legacy_features:	override legacy features. Use of this callback
  * 				is highly discouraged. You should only need
  * 				this if your hardware platform requires further
- * 				custom fine tuning far beyong what may be
+ * 				custom fine tuning far beyond what may be
  * 				possible in x86_early_init_platform_quirks() by
  * 				only using the current x86_hardware_subarch
  * 				semantics.
