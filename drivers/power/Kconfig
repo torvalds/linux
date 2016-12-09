@@ -433,6 +433,12 @@ config CHARGER_BQ24735
 	help
 	  Say Y to enable support for the TI BQ24735 battery charger.
 
+config CHARGER_BQ25700
+	tristate "TI BQ25700 battery charger driver"
+	depends on REGMAP_I2C
+	help
+	  Say Y to enable support for the TI BQ25700 battery charger.
+
 config CHARGER_BQ25890
 	tristate "TI BQ25890 battery charger driver"
 	depends on I2C

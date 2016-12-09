@@ -1,0 +1,24 @@
+Binding for TI bq25700 Li-Ion Charger
+
+Required properties:
+- compatible: Should contain one of the following:
+    * "ti,bq25700"
+- reg: integer, smbus address of the device.
+- ti,battery-regulation-voltage: integer, maximum charging voltage (in uV);
+- ti,charge-current: integer, maximum charging current (in uA);
+- ti,minimum-sys-voltage: integer, when battery is charging and it is below
+    minimum system voltage, the system will be regulated above
+    minimum-sys-voltage setting (in uV);
+
+Optional properties:
+
+Example:
+
+bq25700 {
+        compatible = "ti,bq25700";
+        reg = <0x09>;
+
+        ti,charge-current = <1000000>;
+        ti,termination-current = <50000>;
+        ti,minimum-sys-voltage = <3600000>;
+};
