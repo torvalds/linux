@@ -988,7 +988,7 @@ xfs_vn_setattr(
 			return error;
 
 		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
-		error = xfs_setattr_size(ip, iattr);
+		error = xfs_vn_setattr_size(dentry, iattr);
 		xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
 	} else {
 		error = xfs_vn_setattr_nonsize(dentry, iattr);
