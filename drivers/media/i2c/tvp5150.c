@@ -858,8 +858,6 @@ static int tvp5150_fill_fmt(struct v4l2_subdev *sd,
 
 	f = &format->format;
 
-	tvp5150_reset(sd, 0);
-
 	f->width = decoder->rect.width;
 	f->height = decoder->rect.height / 2;
 
@@ -1521,7 +1519,6 @@ static int tvp5150_probe(struct i2c_client *c,
 		res = core->hdl.error;
 		goto err;
 	}
-	v4l2_ctrl_handler_setup(&core->hdl);
 
 	/* Default is no cropping */
 	core->rect.top = 0;
@@ -1531,6 +1528,8 @@ static int tvp5150_probe(struct i2c_client *c,
 		core->rect.height = TVP5150_V_MAX_OTHERS;
 	core->rect.left = 0;
 	core->rect.width = TVP5150_H_MAX;
+
+	tvp5150_reset(sd, 0);	/* Calls v4l2_ctrl_handler_setup() */
 
 	res = v4l2_async_register_subdev(sd);
 	if (res < 0)
