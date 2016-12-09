@@ -291,8 +291,12 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 	tvp5150_write(sd, TVP5150_OP_MODE_CTL, opmode);
 	tvp5150_write(sd, TVP5150_VD_IN_SRC_SEL_1, input);
 
-	/* Svideo should enable YCrCb output and disable GPCL output
-	 * For Composite and TV, it should be the reverse
+	/*
+	 * Setup the FID/GLCO/VLK/HVLK and INTREQ/GPCL/VBLK output signals. For
+	 * S-Video we output the vertical lock (VLK) signal on FID/GLCO/VLK/HVLK
+	 * and set INTREQ/GPCL/VBLK to logic 0. For composite we output the
+	 * field indicator (FID) signal on FID/GLCO/VLK/HVLK and set
+	 * INTREQ/GPCL/VBLK to logic 1.
 	 */
 	val = tvp5150_read(sd, TVP5150_MISC_CTL);
 	if (val < 0) {
@@ -301,9 +305,9 @@ static void tvp5150_selmux(struct v4l2_subdev *sd)
 	}
 
 	if (decoder->input == TVP5150_SVIDEO)
-		val = (val & ~0x40) | 0x10;
+		val = (val & ~TVP5150_MISC_CTL_GPCL) | TVP5150_MISC_CTL_HVLK;
 	else
-		val = (val & ~0x10) | 0x40;
+		val = (val & ~TVP5150_MISC_CTL_HVLK) | TVP5150_MISC_CTL_GPCL;
 	tvp5150_write(sd, TVP5150_MISC_CTL, val);
 };
 
@@ -455,7 +459,12 @@ static const struct i2c_reg_value tvp5150_init_enable[] = {
 	},{	/* Automatic offset and AGC enabled */
 		TVP5150_ANAL_CHL_CTL, 0x15
 	},{	/* Activate YCrCb output 0x9 or 0xd ? */
-		TVP5150_MISC_CTL, 0x6f
+		TVP5150_MISC_CTL, TVP5150_MISC_CTL_GPCL |
+				  TVP5150_MISC_CTL_INTREQ_OE |
+				  TVP5150_MISC_CTL_YCBCR_OE |
+				  TVP5150_MISC_CTL_SYNC_OE |
+				  TVP5150_MISC_CTL_VBLANK |
+				  TVP5150_MISC_CTL_CLOCK_OE,
 	},{	/* Activates video std autodetection for all standards */
 		TVP5150_AUTOSW_MSK, 0x0
 	},{	/* Default format: 0x47. For 4:2:2: 0x40 */
@@ -1050,11 +1059,12 @@ static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
 	/* Output format: 8-bit ITU-R BT.656 with embedded syncs */
-	int val = 0x09;
+	int val = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_CLOCK_OE;
 
 	/* Output format: 8-bit 4:2:2 YUV with discrete sync */
 	if (decoder->mbus_type == V4L2_MBUS_PARALLEL)
-		val = 0x0d;
+		val = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_SYNC_OE
+		    | TVP5150_MISC_CTL_CLOCK_OE;
 
 	/* Initializes TVP5150 to its default values */
 	/* # set PCLK (27MHz) */
