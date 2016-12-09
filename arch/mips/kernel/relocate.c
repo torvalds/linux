@@ -31,6 +31,17 @@ extern u32 _relocation_end[];	/* End relocation table */
 extern long __start___ex_table;	/* Start exception table */
 extern long __stop___ex_table;	/* End exception table */
 
+/*
+ * This function may be defined for a platform to perform any post-relocation
+ * fixup necessary.
+ * Return non-zero to abort relocation
+ */
+int __weak plat_post_relocation(long offset)
+{
+	return 0;
+}
+
+
 static inline u32 __init get_synci_step(void)
 {
 	u32 res;
@@ -337,6 +348,15 @@ void *__init relocate_kernel(void)
 		 * stored to it so make a copy in the new location.
 		 */
 		memcpy(RELOCATED(&__bss_start), &__bss_start, bss_length);
+
+		/*
+		 * Last chance for the platform to abort relocation.
+		 * This may also be used by the platform to perform any
+		 * initialisation required now that the new kernel is
+		 * resident in memory and ready to be executed.
+		 */
+		if (plat_post_relocation(offset))
+			goto out;
 
 		/* The current thread is now within the relocated image */
 		__current_thread_info = RELOCATED(&init_thread_union);
