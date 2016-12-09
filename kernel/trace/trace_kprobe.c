@@ -1361,18 +1361,18 @@ fs_initcall(init_kprobe_trace);
 
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
-
 /*
  * The "__used" keeps gcc from removing the function symbol
- * from the kallsyms table.
+ * from the kallsyms table. 'noinline' makes sure that there
+ * isn't an inlined version used by the test method below
  */
-static __used int kprobe_trace_selftest_target(int a1, int a2, int a3,
-					       int a4, int a5, int a6)
+static __used __init noinline int
+kprobe_trace_selftest_target(int a1, int a2, int a3, int a4, int a5, int a6)
 {
 	return a1 + a2 + a3 + a4 + a5 + a6;
 }
 
-static struct trace_event_file *
+static struct __init trace_event_file *
 find_trace_probe_file(struct trace_kprobe *tk, struct trace_array *tr)
 {
 	struct trace_event_file *file;
@@ -1450,12 +1450,25 @@ static __init int kprobe_trace_self_tests_init(void)
 
 	ret = target(1, 2, 3, 4, 5, 6);
 
+	/*
+	 * Not expecting an error here, the check is only to prevent the
+	 * optimizer from removing the call to target() as otherwise there
+	 * are no side-effects and the call is never performed.
+	 */
+	if (ret != 21)
+		warn++;
+
 	/* Disable trace points before removing it */
 	tk = find_trace_kprobe("testprobe", KPROBE_EVENT_SYSTEM);
 	if (WARN_ON_ONCE(tk == NULL)) {
 		pr_warn("error on getting test probe.\n");
 		warn++;
 	} else {
+		if (trace_kprobe_nhit(tk) != 1) {
+			pr_warn("incorrect number of testprobe hits\n");
+			warn++;
+		}
+
 		file = find_trace_probe_file(tk, top_trace_array());
 		if (WARN_ON_ONCE(file == NULL)) {
 			pr_warn("error on getting probe file.\n");
@@ -1469,6 +1482,11 @@ static __init int kprobe_trace_self_tests_init(void)
 		pr_warn("error on getting 2nd test probe.\n");
 		warn++;
 	} else {
+		if (trace_kprobe_nhit(tk) != 1) {
+			pr_warn("incorrect number of testprobe2 hits\n");
+			warn++;
+		}
+
 		file = find_trace_probe_file(tk, top_trace_array());
 		if (WARN_ON_ONCE(file == NULL)) {
 			pr_warn("error on getting probe file.\n");
