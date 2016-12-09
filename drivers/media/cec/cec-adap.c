@@ -288,10 +288,10 @@ static void cec_data_cancel(struct cec_data *data)
 
 	/* Mark it as an error */
 	data->msg.tx_ts = ktime_get_ns();
-	data->msg.tx_status = CEC_TX_STATUS_ERROR |
-			      CEC_TX_STATUS_MAX_RETRIES;
+	data->msg.tx_status |= CEC_TX_STATUS_ERROR |
+			       CEC_TX_STATUS_MAX_RETRIES;
+	data->msg.tx_error_cnt++;
 	data->attempts = 0;
-	data->msg.tx_error_cnt = 1;
 	/* Queue transmitted message for monitoring purposes */
 	cec_queue_msg_monitor(data->adap, &data->msg, 1);
 
