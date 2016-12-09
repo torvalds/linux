@@ -417,10 +417,8 @@ static dma_cookie_t pd_tx_submit(struct dma_async_tx_descriptor *txd)
 {
 	struct pch_dma_desc *desc = to_pd_desc(txd);
 	struct pch_dma_chan *pd_chan = to_pd_chan(txd->chan);
-	dma_cookie_t cookie;
 
 	spin_lock(&pd_chan->lock);
-	cookie = dma_cookie_assign(txd);
 
 	if (list_empty(&pd_chan->active_list)) {
 		list_add_tail(&desc->desc_node, &pd_chan->active_list);
