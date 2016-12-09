@@ -2049,16 +2049,28 @@ ff_layout_encode_layoutreturn(struct xdr_stream *xdr,
 {
 	const struct nfs4_layoutreturn_args *args = voidargs;
 	struct nfs4_flexfile_layoutreturn_args *ff_args = ff_opaque->data;
+	struct xdr_buf tmp_buf = {
+		.head = {
+			[0] = {
+				.iov_base = page_address(ff_args->pages[0]),
+			},
+		},
+		.buflen = PAGE_SIZE,
+	};
+	struct xdr_stream tmp_xdr;
 	__be32 *start;
 
 	dprintk("%s: Begin\n", __func__);
+
+	xdr_init_encode(&tmp_xdr, &tmp_buf, NULL);
+
+	ff_layout_encode_ioerr(&tmp_xdr, args, ff_args);
+	ff_layout_encode_iostats_array(&tmp_xdr, args, ff_args);
+
 	start = xdr_reserve_space(xdr, 4);
-	BUG_ON(!start);
+	*start = cpu_to_be32(tmp_buf.len);
+	xdr_write_pages(xdr, ff_args->pages, 0, tmp_buf.len);
 
-	ff_layout_encode_ioerr(xdr, args, ff_args);
-	ff_layout_encode_iostats_array(xdr, args, ff_args);
-
-	*start = cpu_to_be32((xdr->p - start - 1) * 4);
 	dprintk("%s: Return\n", __func__);
 }
 
@@ -2075,6 +2087,7 @@ ff_layout_free_layoutreturn(struct nfs4_xdr_opaque_data *args)
 	ff_layout_free_ds_ioerr(&ff_args->errors);
 	ff_layout_free_iostats_array(ff_args->devinfo, ff_args->num_dev);
 
+	put_page(ff_args->pages[0]);
 	kfree(ff_args);
 }
 
@@ -2091,7 +2104,10 @@ ff_layout_prepare_layoutreturn(struct nfs4_layoutreturn_args *args)
 
 	ff_args = kmalloc(sizeof(*ff_args), GFP_KERNEL);
 	if (!ff_args)
-		return -ENOMEM;
+		goto out_nomem;
+	ff_args->pages[0] = alloc_page(GFP_KERNEL);
+	if (!ff_args->pages[0])
+		goto out_nomem_free;
 
 	INIT_LIST_HEAD(&ff_args->errors);
 	ff_args->num_errors = ff_layout_fetch_ds_ioerr(args->layout,
@@ -2106,6 +2122,10 @@ ff_layout_prepare_layoutreturn(struct nfs4_layoutreturn_args *args)
 	args->ld_private->ops = &layoutreturn_ops;
 	args->ld_private->data = ff_args;
 	return 0;
+out_nomem_free:
+	kfree(ff_args);
+out_nomem:
+	return -ENOMEM;
 }
 
 static int

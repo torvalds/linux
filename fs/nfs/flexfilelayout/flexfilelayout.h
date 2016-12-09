@@ -113,6 +113,7 @@ struct nfs4_flexfile_layoutreturn_args {
 	struct nfs42_layoutstat_devinfo devinfo[FF_LAYOUTSTATS_MAXDEV];
 	unsigned int num_errors;
 	unsigned int num_dev;
+	struct page *pages[1];
 };
 
 static inline struct nfs4_flexfile_layout *
