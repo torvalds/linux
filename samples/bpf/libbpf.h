@@ -188,7 +188,4 @@ struct bpf_insn;
 /* create RAW socket and bind to interface 'name' */
 int open_raw_sock(const char *name);
 
-struct perf_event_attr;
-int perf_event_open(struct perf_event_attr *attr, int pid, int cpu,
-		    int group_fd, unsigned long flags);
 #endif

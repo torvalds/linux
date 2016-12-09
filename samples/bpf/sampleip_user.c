@@ -21,6 +21,7 @@
 #include <sys/ioctl.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 #define DEFAULT_FREQ	99
 #define DEFAULT_SECS	5
@@ -49,7 +50,7 @@ static int sampling_start(int *pmu_fd, int freq)
 	};
 
 	for (i = 0; i < nr_cpus; i++) {
-		pmu_fd[i] = perf_event_open(&pe_sample_attr, -1 /* pid */, i,
+		pmu_fd[i] = sys_perf_event_open(&pe_sample_attr, -1 /* pid */, i,
 					    -1 /* group_fd */, 0 /* flags */);
 		if (pmu_fd[i] < 0) {
 			fprintf(stderr, "ERROR: Initializing perf sampling\n");

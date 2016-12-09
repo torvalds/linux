@@ -20,6 +20,7 @@
 #include <sys/resource.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 #define SAMPLE_FREQ 50
 
@@ -125,9 +126,9 @@ static void test_perf_event_all_cpu(struct perf_event_attr *attr)
 
 	/* open perf_event on all cpus */
 	for (i = 0; i < nr_cpus; i++) {
-		pmu_fd[i] = perf_event_open(attr, -1, i, -1, 0);
+		pmu_fd[i] = sys_perf_event_open(attr, -1, i, -1, 0);
 		if (pmu_fd[i] < 0) {
-			printf("perf_event_open failed\n");
+			printf("sys_perf_event_open failed\n");
 			goto all_cpu_err;
 		}
 		assert(ioctl(pmu_fd[i], PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);
@@ -146,9 +147,9 @@ static void test_perf_event_task(struct perf_event_attr *attr)
 	int pmu_fd;
 
 	/* open task bound event */
-	pmu_fd = perf_event_open(attr, 0, -1, -1, 0);
+	pmu_fd = sys_perf_event_open(attr, 0, -1, -1, 0);
 	if (pmu_fd < 0) {
-		printf("perf_event_open failed\n");
+		printf("sys_perf_event_open failed\n");
 		return;
 	}
 	assert(ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd[0]) == 0);

@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 #define DEBUGFS "/sys/kernel/debug/tracing/"
 
@@ -179,7 +180,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	id = atoi(buf);
 	attr.config = id;
 
-	efd = perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
+	efd = sys_perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
 	if (efd < 0) {
 		printf("event %d fd %d err %s\n", id, efd, strerror(errno));
 		return -1;
