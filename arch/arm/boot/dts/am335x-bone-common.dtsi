@@ -320,7 +320,7 @@
 
 	charger {
 		interrupts = <TPS65217_IRQ_AC>, <TPS65217_IRQ_USB>;
-		interrupts-names = "AC", "USB";
+		interrupt-names = "AC", "USB";
 		status = "okay";
 	};
 
