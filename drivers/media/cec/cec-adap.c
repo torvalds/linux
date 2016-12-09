@@ -1250,6 +1250,8 @@ configured:
 		for (i = 1; i < las->num_log_addrs; i++)
 			las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	}
+	for (i = las->num_log_addrs; i < CEC_MAX_LOG_ADDRS; i++)
+		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	adap->is_configured = true;
 	adap->is_configuring = false;
 	cec_post_state_event(adap);
@@ -1268,8 +1270,6 @@ configured:
 			cec_report_features(adap, i);
 		cec_report_phys_addr(adap, i);
 	}
-	for (i = las->num_log_addrs; i < CEC_MAX_LOG_ADDRS; i++)
-		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 	mutex_lock(&adap->lock);
 	adap->kthread_config = NULL;
 	mutex_unlock(&adap->lock);
