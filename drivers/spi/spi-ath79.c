@@ -80,7 +80,7 @@ static void ath79_spi_chipselect(struct spi_device *spi, int is_active)
 
 	if (gpio_is_valid(spi->cs_gpio)) {
 		/* SPI is normally active-low */
-		gpio_set_value(spi->cs_gpio, cs_high);
+		gpio_set_value_cansleep(spi->cs_gpio, cs_high);
 	} else {
 		u32 cs_bit = AR71XX_SPI_IOC_CS(spi->chip_select);
 
