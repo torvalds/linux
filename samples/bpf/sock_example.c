@@ -27,6 +27,7 @@
 #include <linux/ip.h>
 #include <stddef.h>
 #include "libbpf.h"
+#include "sock_example.h"
 
 char bpf_log_buf[BPF_LOG_BUF_SIZE];
 

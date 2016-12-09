@@ -14,6 +14,7 @@
 
 #include "bpf_load.h"
 #include "libbpf.h"
+#include "sock_example.h"
 
 #define BPF_F_PIN	(1 << 0)
 #define BPF_F_GET	(1 << 1)

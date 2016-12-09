@@ -185,7 +185,4 @@ struct bpf_insn;
 		.off   = 0,					\
 		.imm   = 0 })
 
-/* create RAW socket and bind to interface 'name' */
-int open_raw_sock(const char *name);
-
 #endif

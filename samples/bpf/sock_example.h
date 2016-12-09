@@ -1,4 +1,3 @@
-/* eBPF mini library */
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/unistd.h>
@@ -11,7 +10,7 @@
 #include <arpa/inet.h>
 #include "libbpf.h"
 
-int open_raw_sock(const char *name)
+static inline int open_raw_sock(const char *name)
 {
 	struct sockaddr_ll sll;
 	int sock;

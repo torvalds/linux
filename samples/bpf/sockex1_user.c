@@ -3,6 +3,7 @@
 #include <linux/bpf.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "sock_example.h"
 #include <unistd.h>
 #include <arpa/inet.h>
 
