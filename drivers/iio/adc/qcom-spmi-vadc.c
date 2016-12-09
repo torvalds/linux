@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -468,27 +468,38 @@ err:
 	return ret;
 }
 
-static s32 vadc_calibrate(struct vadc_priv *vadc,
-			  const struct vadc_channel_prop *prop, u16 adc_code)
+static void vadc_scale_calib(struct vadc_priv *vadc, u16 adc_code,
+			     const struct vadc_channel_prop *prop,
+			     s64 *scale_voltage)
+{
+	*scale_voltage = (adc_code -
+		vadc->graph[prop->calibration].gnd);
+	*scale_voltage *= vadc->graph[prop->calibration].dx;
+	*scale_voltage = div64_s64(*scale_voltage,
+		vadc->graph[prop->calibration].dy);
+	if (prop->calibration == VADC_CALIB_ABSOLUTE)
+		*scale_voltage +=
+		vadc->graph[prop->calibration].dx;
+
+	if (*scale_voltage < 0)
+		*scale_voltage = 0;
+}
+
+static int vadc_scale_volt(struct vadc_priv *vadc,
+			   const struct vadc_channel_prop *prop, u16 adc_code,
+			   int *result_uv)
 {
 	const struct vadc_prescale_ratio *prescale;
-	s64 voltage;
+	s64 voltage = 0, result = 0;
 
-	voltage = adc_code - vadc->graph[prop->calibration].gnd;
-	voltage *= vadc->graph[prop->calibration].dx;
-	voltage = div64_s64(voltage, vadc->graph[prop->calibration].dy);
-
-	if (prop->calibration == VADC_CALIB_ABSOLUTE)
-		voltage += vadc->graph[prop->calibration].dx;
-
-	if (voltage < 0)
-		voltage = 0;
+	vadc_scale_calib(vadc, adc_code, prop, &voltage);
 
 	prescale = &vadc_prescale_ratios[prop->prescale];
-
 	voltage = voltage * prescale->den;
+	result = div64_s64(voltage, prescale->num);
+	*result_uv = result;
 
-	return div64_s64(voltage, prescale->num);
+	return 0;
 }
 
 static int vadc_decimation_from_dt(u32 value)
@@ -552,11 +563,8 @@ static int vadc_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			break;
 
-		*val = vadc_calibrate(vadc, prop, adc_code);
+		vadc_scale_volt(vadc, prop, adc_code, val);
 
-		/* 2mV/K, return milli Celsius */
-		*val /= 2;
-		*val -= KELVINMIL_CELSIUSMIL;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_RAW:
 		prop = &vadc->chan_props[chan->address];
@@ -564,12 +572,8 @@ static int vadc_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			break;
 
-		*val = vadc_calibrate(vadc, prop, adc_code);
+		*val = (int)adc_code;
 		return IIO_VAL_INT;
-	case IIO_CHAN_INFO_SCALE:
-		*val = 0;
-		*val2 = 1000;
-		return IIO_VAL_INT_PLUS_MICRO;
 	default:
 		ret = -EINVAL;
 		break;
@@ -617,7 +621,7 @@ struct vadc_channels {
 
 #define VADC_CHAN_VOLT(_dname, _pre)					\
 	VADC_CHAN(_dname, IIO_VOLTAGE,					\
-		  BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),	\
+		  BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_PROCESSED),\
 		  _pre)							\
 
 /*
