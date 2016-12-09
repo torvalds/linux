@@ -76,23 +76,22 @@ static int cxl_pcie_cfg_record(u8 bus, u8 devfn)
 	return (bus << 8) + devfn;
 }
 
-static int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
-				struct cxl_afu **_afu, int *_record)
+static inline struct cxl_afu *pci_bus_to_afu(struct pci_bus *bus)
 {
-	struct pci_controller *phb;
-	struct cxl_afu *afu;
+	struct pci_controller *phb = bus ? pci_bus_to_host(bus) : NULL;
+
+	return phb ? phb->private_data : NULL;
+}
+
+static inline int cxl_pcie_config_info(struct pci_bus *bus, unsigned int devfn,
+				       struct cxl_afu *afu, int *_record)
+{
 	int record;
 
-	phb = pci_bus_to_host(bus);
-	if (phb == NULL)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	afu = (struct cxl_afu *)phb->private_data;
 	record = cxl_pcie_cfg_record(bus->number, devfn);
 	if (record > afu->crs_num)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	*_afu = afu;
 	*_record = record;
 	return 0;
 }
@@ -106,9 +105,14 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 	u16 val16;
 	u32 val32;
 
-	rc = cxl_pcie_config_info(bus, devfn, &afu, &record);
+	afu = pci_bus_to_afu(bus);
+	/* Grab a reader lock on afu. */
+	if (afu == NULL || !down_read_trylock(&afu->configured_rwsem))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	rc = cxl_pcie_config_info(bus, devfn, afu, &record);
 	if (rc)
-		return rc;
+		goto out;
 
 	switch (len) {
 	case 1:
@@ -127,10 +131,9 @@ static int cxl_pcie_read_config(struct pci_bus *bus, unsigned int devfn,
 		WARN_ON(1);
 	}
 
-	if (rc)
-		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	return PCIBIOS_SUCCESSFUL;
+out:
+	up_read(&afu->configured_rwsem);
+	return rc ? PCIBIOS_DEVICE_NOT_FOUND : PCIBIOS_SUCCESSFUL;
 }
 
 static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
@@ -139,9 +142,14 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 	int rc, record;
 	struct cxl_afu *afu;
 
-	rc = cxl_pcie_config_info(bus, devfn, &afu, &record);
+	afu = pci_bus_to_afu(bus);
+	/* Grab a reader lock on afu. */
+	if (afu == NULL || !down_read_trylock(&afu->configured_rwsem))
+		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	rc = cxl_pcie_config_info(bus, devfn, afu, &record);
 	if (rc)
-		return rc;
+		goto out;
 
 	switch (len) {
 	case 1:
@@ -157,10 +165,9 @@ static int cxl_pcie_write_config(struct pci_bus *bus, unsigned int devfn,
 		WARN_ON(1);
 	}
 
-	if (rc)
-		return PCIBIOS_SET_FAILED;
-
-	return PCIBIOS_SUCCESSFUL;
+out:
+	up_read(&afu->configured_rwsem);
+	return rc ? PCIBIOS_SET_FAILED : PCIBIOS_SUCCESSFUL;
 }
 
 static struct pci_ops cxl_pcie_pci_ops =
