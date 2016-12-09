@@ -3445,9 +3445,14 @@ do {								\
 	/* Report first abort since mount */			\
 	if (!test_and_set_bit(BTRFS_FS_STATE_TRANS_ABORTED,	\
 			&((trans)->fs_info->fs_state))) {	\
-		WARN(1, KERN_DEBUG				\
-		"BTRFS: Transaction aborted (error %d)\n",	\
-		(errno));					\
+		if ((errno) != -EIO) {				\
+			WARN(1, KERN_DEBUG				\
+			"BTRFS: Transaction aborted (error %d)\n",	\
+			(errno));					\
+		} else {						\
+			pr_debug("BTRFS: Transaction aborted (error %d)\n", \
+				  (errno));			\
+		}						\
 	}							\
 	__btrfs_abort_transaction((trans), __func__,		\
 				  __LINE__, (errno));		\
