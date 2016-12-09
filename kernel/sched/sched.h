@@ -1592,7 +1592,7 @@ static inline unsigned long __cpu_util(int cpu, int delta)
 
 #ifdef CONFIG_SCHED_WALT
 	if (!walt_disabled && sysctl_sched_use_walt_cpu_util) {
-		util = cpu_rq(cpu)->prev_runnable_sum << SCHED_LOAD_SHIFT;
+		util = cpu_rq(cpu)->cumulative_runnable_avg << SCHED_LOAD_SHIFT;
 		do_div(util, walt_ravg_window);
 	}
 #endif
@@ -1606,6 +1606,20 @@ static inline unsigned long __cpu_util(int cpu, int delta)
 static inline unsigned long cpu_util(int cpu)
 {
 	return __cpu_util(cpu, 0);
+}
+
+static inline unsigned long cpu_util_freq(int cpu)
+{
+	unsigned long util = cpu_rq(cpu)->cfs.avg.util_avg;
+	unsigned long capacity = capacity_orig_of(cpu);
+
+#ifdef CONFIG_SCHED_WALT
+	if (!walt_disabled && sysctl_sched_use_walt_cpu_util) {
+		util = cpu_rq(cpu)->prev_runnable_sum << SCHED_LOAD_SHIFT;
+		do_div(util, walt_ravg_window);
+	}
+#endif
+	return (util >= capacity) ? capacity : util;
 }
 
 #endif
