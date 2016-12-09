@@ -314,19 +314,52 @@ static inline int is_dma_buf_file(struct file *file)
 }
 
 /**
+ * DOC: dma buf device access
+ *
+ * For device DMA access to a shared DMA buffer the usual sequence of operations
+ * is fairly simple:
+ *
+ * 1. The exporter defines his exporter instance using
+ *    DEFINE_DMA_BUF_EXPORT_INFO() and calls dma_buf_export() to wrap a private
+ *    buffer object into a &dma_buf. It then exports that &dma_buf to userspace
+ *    as a file descriptor by calling dma_buf_fd().
+ *
+ * 2. Userspace passes this file-descriptors to all drivers it wants this buffer
+ *    to share with: First the filedescriptor is converted to a &dma_buf using
+ *    dma_buf_get(). The the buffer is attached to the device using
+ *    dma_buf_attach().
+ *
+ *    Up to this stage the exporter is still free to migrate or reallocate the
+ *    backing storage.
+ *
+ * 3. Once the buffer is attached to all devices userspace can inniate DMA
+ *    access to the shared buffer. In the kernel this is done by calling
+ *    dma_buf_map_attachment() and dma_buf_unmap_attachment().
+ *
+ * 4. Once a driver is done with a shared buffer it needs to call
+ *    dma_buf_detach() (after cleaning up any mappings) and then release the
+ *    reference acquired with dma_buf_get by calling dma_buf_put().
+ *
+ * For the detailed semantics exporters are expected to implement see
+ * &dma_buf_ops.
+ */
+
+/**
  * dma_buf_export - Creates a new dma_buf, and associates an anon file
  * with this buffer, so it can be exported.
  * Also connect the allocator specific data and ops to the buffer.
  * Additionally, provide a name string for exporter; useful in debugging.
  *
  * @exp_info:	[in]	holds all the export related information provided
- *			by the exporter. see struct dma_buf_export_info
+ *			by the exporter. see struct &dma_buf_export_info
  *			for further details.
  *
  * Returns, on success, a newly created dma_buf object, which wraps the
  * supplied private data and operations for dma_buf_ops. On either missing
  * ops, or error in allocating struct dma_buf, will return negative error.
  *
+ * For most cases the easiest way to create @exp_info is through the
+ * %DEFINE_DMA_BUF_EXPORT_INFO macro.
  */
 struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 {
@@ -458,7 +491,12 @@ EXPORT_SYMBOL_GPL(dma_buf_get);
  * dma_buf_put - decreases refcount of the buffer
  * @dmabuf:	[in]	buffer to reduce refcount of
  *
- * Uses file's refcounting done implicitly by fput()
+ * Uses file's refcounting done implicitly by fput().
+ *
+ * If, as a result of this call, the refcount becomes 0, the 'release' file
+ * operation related to this fd is called. It calls the release operation of
+ * struct &dma_buf_ops in turn, and frees the memory allocated for dmabuf when
+ * exported.
  */
 void dma_buf_put(struct dma_buf *dmabuf)
 {
@@ -475,8 +513,17 @@ EXPORT_SYMBOL_GPL(dma_buf_put);
  * @dmabuf:	[in]	buffer to attach device to.
  * @dev:	[in]	device to be attached.
  *
- * Returns struct dma_buf_attachment * for this attachment; returns ERR_PTR on
- * error.
+ * Returns struct dma_buf_attachment pointer for this attachment. Attachments
+ * must be cleaned up by calling dma_buf_detach().
+ *
+ * Returns:
+ *
+ * A pointer to newly created &dma_buf_attachment on success, or a negative
+ * error code wrapped into a pointer on failure.
+ *
+ * Note that this can fail if the backing storage of @dmabuf is in a place not
+ * accessible to @dev, and cannot be moved to a more suitable place. This is
+ * indicated with the error code -EBUSY.
  */
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 					  struct device *dev)
@@ -519,6 +566,7 @@ EXPORT_SYMBOL_GPL(dma_buf_attach);
  * @dmabuf:	[in]	buffer to detach from.
  * @attach:	[in]	attachment to be detached; is free'd after this call.
  *
+ * Clean up a device attachment obtained by calling dma_buf_attach().
  */
 void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 {
@@ -543,7 +591,12 @@ EXPORT_SYMBOL_GPL(dma_buf_detach);
  * @direction:	[in]	direction of DMA transfer
  *
  * Returns sg_table containing the scatterlist to be returned; returns ERR_PTR
- * on error.
+ * on error. May return -EINTR if it is interrupted by a signal.
+ *
+ * A mapping must be unmapped again using dma_buf_map_attachment(). Note that
+ * the underlying backing storage is pinned for as long as a mapping exists,
+ * therefore users/importers should not hold onto a mapping for undue amounts of
+ * time.
  */
 struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 					enum dma_data_direction direction)
@@ -571,6 +624,7 @@ EXPORT_SYMBOL_GPL(dma_buf_map_attachment);
  * @sg_table:	[in]	scatterlist info of the buffer to unmap
  * @direction:  [in]    direction of DMA transfer
  *
+ * This unmaps a DMA mapping for @attached obtained by dma_buf_map_attachment().
  */
 void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 				struct sg_table *sg_table,

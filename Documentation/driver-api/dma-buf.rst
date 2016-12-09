@@ -17,6 +17,44 @@ shared or exclusive fence(s) associated with the buffer.
 Shared DMA Buffers
 ------------------
 
+This document serves as a guide to device-driver writers on what is the dma-buf
+buffer sharing API, how to use it for exporting and using shared buffers.
+
+Any device driver which wishes to be a part of DMA buffer sharing, can do so as
+either the 'exporter' of buffers, or the 'user' or 'importer' of buffers.
+
+Say a driver A wants to use buffers created by driver B, then we call B as the
+exporter, and A as buffer-user/importer.
+
+The exporter
+
+ - implements and manages operations in :c:type:`struct dma_buf_ops
+   <dma_buf_ops>` for the buffer,
+ - allows other users to share the buffer by using dma_buf sharing APIs,
+ - manages the details of buffer allocation, wrapped int a :c:type:`struct
+   dma_buf <dma_buf>`,
+ - decides about the actual backing storage where this allocation happens,
+ - and takes care of any migration of scatterlist - for all (shared) users of
+   this buffer.
+
+The buffer-user
+
+ - is one of (many) sharing users of the buffer.
+ - doesn't need to worry about how the buffer is allocated, or where.
+ - and needs a mechanism to get access to the scatterlist that makes up this
+   buffer in memory, mapped into its own address space, so it can access the
+   same area of memory. This interface is provided by :c:type:`struct
+   dma_buf_attachment <dma_buf_attachment>`.
+
+Basic Operation and Device DMA Access
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/dma-buf/dma-buf.c
+   :doc: dma buf device access
+
+Kernel Functions and Structures Reference
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 .. kernel-doc:: drivers/dma-buf/dma-buf.c
    :export:
 
