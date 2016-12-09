@@ -39,10 +39,6 @@ struct dma_buf_attachment;
 
 /**
  * struct dma_buf_ops - operations possible on struct dma_buf
- * @begin_cpu_access: [optional] called before cpu access to invalidate cpu
- * 		      caches and allocate backing storage (if not yet done)
- * 		      respectively pin the object into memory.
- * @end_cpu_access: [optional] called after cpu access to flush caches.
  * @kmap_atomic: maps a page from the buffer into kernel address
  * 		 space, users may not block until the subsequent unmap call.
  * 		 This callback must not sleep.
@@ -50,10 +46,6 @@ struct dma_buf_attachment;
  * 		   This Callback must not sleep.
  * @kmap: maps a page from the buffer into kernel address space.
  * @kunmap: [optional] unmaps a page from the buffer.
- * @mmap: used to expose the backing storage to userspace. Note that the
- * 	  mapping needs to be coherent - if the exporter doesn't directly
- * 	  support this, it needs to fake coherency by shooting down any ptes
- * 	  when transitioning away from the cpu domain.
  * @vmap: [optional] creates a virtual mapping for the buffer into kernel
  *	  address space. Same restrictions as for vmap and friends apply.
  * @vunmap: [optional] unmaps a vmap from the buffer
@@ -164,13 +156,96 @@ struct dma_buf_ops {
 	 */
 	void (*release)(struct dma_buf *);
 
+	/**
+	 * @begin_cpu_access:
+	 *
+	 * This is called from dma_buf_begin_cpu_access() and allows the
+	 * exporter to ensure that the memory is actually available for cpu
+	 * access - the exporter might need to allocate or swap-in and pin the
+	 * backing storage. The exporter also needs to ensure that cpu access is
+	 * coherent for the access direction. The direction can be used by the
+	 * exporter to optimize the cache flushing, i.e. access with a different
+	 * direction (read instead of write) might return stale or even bogus
+	 * data (e.g. when the exporter needs to copy the data to temporary
+	 * storage).
+	 *
+	 * This callback is optional.
+	 *
+	 * FIXME: This is both called through the DMA_BUF_IOCTL_SYNC command
+	 * from userspace (where storage shouldn't be pinned to avoid handing
+	 * de-factor mlock rights to userspace) and for the kernel-internal
+	 * users of the various kmap interfaces, where the backing storage must
+	 * be pinned to guarantee that the atomic kmap calls can succeed. Since
+	 * there's no in-kernel users of the kmap interfaces yet this isn't a
+	 * real problem.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. This can for
+	 * example fail when the backing storage can't be allocated. Can also
+	 * return -ERESTARTSYS or -EINTR when the call has been interrupted and
+	 * needs to be restarted.
+	 */
 	int (*begin_cpu_access)(struct dma_buf *, enum dma_data_direction);
+
+	/**
+	 * @end_cpu_access:
+	 *
+	 * This is called from dma_buf_end_cpu_access() when the importer is
+	 * done accessing the CPU. The exporter can use this to flush caches and
+	 * unpin any resources pinned in @begin_cpu_access.
+	 * The result of any dma_buf kmap calls after end_cpu_access is
+	 * undefined.
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure. Can return
+	 * -ERESTARTSYS or -EINTR when the call has been interrupted and needs
+	 * to be restarted.
+	 */
 	int (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
 	void *(*kmap_atomic)(struct dma_buf *, unsigned long);
 	void (*kunmap_atomic)(struct dma_buf *, unsigned long, void *);
 	void *(*kmap)(struct dma_buf *, unsigned long);
 	void (*kunmap)(struct dma_buf *, unsigned long, void *);
 
+	/**
+	 * @mmap:
+	 *
+	 * This callback is used by the dma_buf_mmap() function
+	 *
+	 * Note that the mapping needs to be incoherent, userspace is expected
+	 * to braket CPU access using the DMA_BUF_IOCTL_SYNC interface.
+	 *
+	 * Because dma-buf buffers have invariant size over their lifetime, the
+	 * dma-buf core checks whether a vma is too large and rejects such
+	 * mappings. The exporter hence does not need to duplicate this check.
+	 * Drivers do not need to check this themselves.
+	 *
+	 * If an exporter needs to manually flush caches and hence needs to fake
+	 * coherency for mmap support, it needs to be able to zap all the ptes
+	 * pointing at the backing storage. Now linux mm needs a struct
+	 * address_space associated with the struct file stored in vma->vm_file
+	 * to do that with the function unmap_mapping_range. But the dma_buf
+	 * framework only backs every dma_buf fd with the anon_file struct file,
+	 * i.e. all dma_bufs share the same file.
+	 *
+	 * Hence exporters need to setup their own file (and address_space)
+	 * association by setting vma->vm_file and adjusting vma->vm_pgoff in
+	 * the dma_buf mmap callback. In the specific case of a gem driver the
+	 * exporter could use the shmem file already provided by gem (and set
+	 * vm_pgoff = 0). Exporters can then zap ptes by unmapping the
+	 * corresponding range of the struct address_space associated with their
+	 * own file.
+	 *
+	 * This callback is optional.
+	 *
+	 * Returns:
+	 *
+	 * 0 on success or a negative error code on failure.
+	 */
 	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
 
 	void *(*vmap)(struct dma_buf *);

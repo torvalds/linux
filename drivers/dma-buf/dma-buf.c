@@ -640,6 +640,122 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 }
 EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
 
+/**
+ * DOC: cpu access
+ *
+ * There are mutliple reasons for supporting CPU access to a dma buffer object:
+ *
+ * - Fallback operations in the kernel, for example when a device is connected
+ *   over USB and the kernel needs to shuffle the data around first before
+ *   sending it away. Cache coherency is handled by braketing any transactions
+ *   with calls to dma_buf_begin_cpu_access() and dma_buf_end_cpu_access()
+ *   access.
+ *
+ *   To support dma_buf objects residing in highmem cpu access is page-based
+ *   using an api similar to kmap. Accessing a dma_buf is done in aligned chunks
+ *   of PAGE_SIZE size. Before accessing a chunk it needs to be mapped, which
+ *   returns a pointer in kernel virtual address space. Afterwards the chunk
+ *   needs to be unmapped again. There is no limit on how often a given chunk
+ *   can be mapped and unmapped, i.e. the importer does not need to call
+ *   begin_cpu_access again before mapping the same chunk again.
+ *
+ *   Interfaces::
+ *      void \*dma_buf_kmap(struct dma_buf \*, unsigned long);
+ *      void dma_buf_kunmap(struct dma_buf \*, unsigned long, void \*);
+ *
+ *   There are also atomic variants of these interfaces. Like for kmap they
+ *   facilitate non-blocking fast-paths. Neither the importer nor the exporter
+ *   (in the callback) is allowed to block when using these.
+ *
+ *   Interfaces::
+ *      void \*dma_buf_kmap_atomic(struct dma_buf \*, unsigned long);
+ *      void dma_buf_kunmap_atomic(struct dma_buf \*, unsigned long, void \*);
+ *
+ *   For importers all the restrictions of using kmap apply, like the limited
+ *   supply of kmap_atomic slots. Hence an importer shall only hold onto at
+ *   max 2 atomic dma_buf kmaps at the same time (in any given process context).
+ *
+ *   dma_buf kmap calls outside of the range specified in begin_cpu_access are
+ *   undefined. If the range is not PAGE_SIZE aligned, kmap needs to succeed on
+ *   the partial chunks at the beginning and end but may return stale or bogus
+ *   data outside of the range (in these partial chunks).
+ *
+ *   Note that these calls need to always succeed. The exporter needs to
+ *   complete any preparations that might fail in begin_cpu_access.
+ *
+ *   For some cases the overhead of kmap can be too high, a vmap interface
+ *   is introduced. This interface should be used very carefully, as vmalloc
+ *   space is a limited resources on many architectures.
+ *
+ *   Interfaces::
+ *      void \*dma_buf_vmap(struct dma_buf \*dmabuf)
+ *      void dma_buf_vunmap(struct dma_buf \*dmabuf, void \*vaddr)
+ *
+ *   The vmap call can fail if there is no vmap support in the exporter, or if
+ *   it runs out of vmalloc space. Fallback to kmap should be implemented. Note
+ *   that the dma-buf layer keeps a reference count for all vmap access and
+ *   calls down into the exporter's vmap function only when no vmapping exists,
+ *   and only unmaps it once. Protection against concurrent vmap/vunmap calls is
+ *   provided by taking the dma_buf->lock mutex.
+ *
+ * - For full compatibility on the importer side with existing userspace
+ *   interfaces, which might already support mmap'ing buffers. This is needed in
+ *   many processing pipelines (e.g. feeding a software rendered image into a
+ *   hardware pipeline, thumbnail creation, snapshots, ...). Also, Android's ION
+ *   framework already supported this and for DMA buffer file descriptors to
+ *   replace ION buffers mmap support was needed.
+ *
+ *   There is no special interfaces, userspace simply calls mmap on the dma-buf
+ *   fd. But like for CPU access there's a need to braket the actual access,
+ *   which is handled by the ioctl (DMA_BUF_IOCTL_SYNC). Note that
+ *   DMA_BUF_IOCTL_SYNC can fail with -EAGAIN or -EINTR, in which case it must
+ *   be restarted.
+ *
+ *   Some systems might need some sort of cache coherency management e.g. when
+ *   CPU and GPU domains are being accessed through dma-buf at the same time.
+ *   To circumvent this problem there are begin/end coherency markers, that
+ *   forward directly to existing dma-buf device drivers vfunc hooks. Userspace
+ *   can make use of those markers through the DMA_BUF_IOCTL_SYNC ioctl. The
+ *   sequence would be used like following:
+ *
+ *     - mmap dma-buf fd
+ *     - for each drawing/upload cycle in CPU 1. SYNC_START ioctl, 2. read/write
+ *       to mmap area 3. SYNC_END ioctl. This can be repeated as often as you
+ *       want (with the new data being consumed by say the GPU or the scanout
+ *       device)
+ *     - munmap once you don't need the buffer any more
+ *
+ *    For correctness and optimal performance, it is always required to use
+ *    SYNC_START and SYNC_END before and after, respectively, when accessing the
+ *    mapped address. Userspace cannot rely on coherent access, even when there
+ *    are systems where it just works without calling these ioctls.
+ *
+ * - And as a CPU fallback in userspace processing pipelines.
+ *
+ *   Similar to the motivation for kernel cpu access it is again important that
+ *   the userspace code of a given importing subsystem can use the same
+ *   interfaces with a imported dma-buf buffer object as with a native buffer
+ *   object. This is especially important for drm where the userspace part of
+ *   contemporary OpenGL, X, and other drivers is huge, and reworking them to
+ *   use a different way to mmap a buffer rather invasive.
+ *
+ *   The assumption in the current dma-buf interfaces is that redirecting the
+ *   initial mmap is all that's needed. A survey of some of the existing
+ *   subsystems shows that no driver seems to do any nefarious thing like
+ *   syncing up with outstanding asynchronous processing on the device or
+ *   allocating special resources at fault time. So hopefully this is good
+ *   enough, since adding interfaces to intercept pagefaults and allow pte
+ *   shootdowns would increase the complexity quite a bit.
+ *
+ *   Interface::
+ *      int dma_buf_mmap(struct dma_buf \*, struct vm_area_struct \*,
+ *		       unsigned long);
+ *
+ *   If the importing subsystem simply provides a special-purpose mmap call to
+ *   set up a mapping in userspace, calling do_mmap with dma_buf->file will
+ *   equally achieve that for a dma-buf object.
+ */
+
 static int __dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 				      enum dma_data_direction direction)
 {
@@ -664,6 +780,10 @@ static int __dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
  * specified access direction.
  * @dmabuf:	[in]	buffer to prepare cpu access for.
  * @direction:	[in]	length of range for cpu access.
+ *
+ * After the cpu access is complete the caller should call
+ * dma_buf_end_cpu_access(). Only when cpu access is braketed by both calls is
+ * it guaranteed to be coherent with other DMA access.
  *
  * Can return negative error values, returns 0 on success.
  */
@@ -696,6 +816,8 @@ EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access);
  * specified access direction.
  * @dmabuf:	[in]	buffer to complete cpu access for.
  * @direction:	[in]	length of range for cpu access.
+ *
+ * This terminates CPU access started with dma_buf_begin_cpu_access().
  *
  * Can return negative error values, returns 0 on success.
  */

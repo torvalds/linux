@@ -52,6 +52,12 @@ Basic Operation and Device DMA Access
 .. kernel-doc:: drivers/dma-buf/dma-buf.c
    :doc: dma buf device access
 
+CPU Access to DMA Buffer Objects
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/dma-buf/dma-buf.c
+   :doc: cpu access
+
 Kernel Functions and Structures Reference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
