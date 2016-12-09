@@ -162,11 +162,11 @@ enum gacc_mode {
 };
 
 int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva,
-			    ar_t ar, unsigned long *gpa, enum gacc_mode mode);
-int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, ar_t ar,
+			    u8 ar, unsigned long *gpa, enum gacc_mode mode);
+int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 		    unsigned long length, enum gacc_mode mode);
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
+int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		 unsigned long len, enum gacc_mode mode);
 
 int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
@@ -218,7 +218,7 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  *	 if data has been changed in guest space in case of an exception.
  */
 static inline __must_check
-int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
+int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		unsigned long len)
 {
 	return access_guest(vcpu, ga, ar, data, len, GACC_STORE);
@@ -238,7 +238,7 @@ int write_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
  * data will be copied from guest space to kernel space.
  */
 static inline __must_check
-int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, ar_t ar, void *data,
+int read_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 	       unsigned long len)
 {
 	return access_guest(vcpu, ga, ar, data, len, GACC_FETCH);
