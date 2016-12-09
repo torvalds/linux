@@ -17,6 +17,11 @@ Required properties:
 - interrupt-parent: the phandle for the interrupt controller
 - interrupts: interrupt line
 
+Optional properties:
+- vdd-supply: phandle of the regulator that provides the supply voltage.
+- init-delay-ms: time required by the device after power-on before it is ready
+  for communication.
+
 Example:
 
 	i2c-hid-dev@2c {
