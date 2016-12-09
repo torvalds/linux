@@ -313,9 +313,16 @@ static int mt2060_init(struct dvb_frontend *fe)
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open i2c_gate */
 
+	if (priv->sleep) {
+		ret = mt2060_writereg(priv, REG_MISC_CTRL, 0x20);
+		if (ret)
+			goto err_i2c_gate_ctrl;
+	}
+
 	ret = mt2060_writereg(priv, REG_VGAG,
 			      (priv->cfg->clock_out << 6) | 0x33);
 
+err_i2c_gate_ctrl:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
@@ -332,7 +339,13 @@ static int mt2060_sleep(struct dvb_frontend *fe)
 
 	ret = mt2060_writereg(priv, REG_VGAG,
 			      (priv->cfg->clock_out << 6) | 0x30);
+	if (ret)
+		goto err_i2c_gate_ctrl;
 
+	if (priv->sleep)
+		ret = mt2060_writereg(priv, REG_MISC_CTRL, 0xe8);
+
+err_i2c_gate_ctrl:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close i2c_gate */
 
@@ -435,6 +448,7 @@ static int mt2060_probe(struct i2c_client *client,
 	dev->if1_freq = pdata->if1 ? pdata->if1 : 1220;
 	dev->client = client;
 	dev->i2c_max_regs = pdata->i2c_write_max ? pdata->i2c_write_max - 1 : ~0;
+	dev->sleep = true;
 
 	ret = mt2060_readreg(dev, REG_PART_REV, &chip_id);
 	if (ret) {
@@ -449,13 +463,20 @@ static int mt2060_probe(struct i2c_client *client,
 		goto err;
 	}
 
+	/* Power on, calibrate, sleep */
+	ret = mt2060_writereg(dev, REG_MISC_CTRL, 0x20);
+	if (ret)
+		goto err;
+	mt2060_calibrate(dev);
+	ret = mt2060_writereg(dev, REG_MISC_CTRL, 0xe8);
+	if (ret)
+		goto err;
+
 	dev_info(&client->dev, "Microtune MT2060 successfully identified\n");
 	memcpy(&fe->ops.tuner_ops, &mt2060_tuner_ops, sizeof(fe->ops.tuner_ops));
 	fe->ops.tuner_ops.release = NULL;
 	fe->tuner_priv = dev;
 	i2c_set_clientdata(client, dev);
-
-	mt2060_calibrate(dev);
 
 	return 0;
 err:
