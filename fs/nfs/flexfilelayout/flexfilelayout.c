@@ -1946,8 +1946,7 @@ ff_layout_free_deviceid_node(struct nfs4_deviceid_node *d)
 						  id_node));
 }
 
-static int ff_layout_encode_ioerr(struct nfs4_flexfile_layout *flo,
-				  struct xdr_stream *xdr,
+static int ff_layout_encode_ioerr(struct xdr_stream *xdr,
 				  const struct nfs4_layoutreturn_args *args,
 				  const struct nfs4_flexfile_layoutreturn_args *ff_args)
 {
@@ -2049,16 +2048,15 @@ ff_layout_encode_layoutreturn(struct xdr_stream *xdr,
 		const struct nfs4_xdr_opaque_data *ff_opaque)
 {
 	const struct nfs4_layoutreturn_args *args = voidargs;
-	struct pnfs_layout_hdr *lo = args->layout;
-	struct nfs4_flexfile_layout *flo = FF_LAYOUT_FROM_HDR(lo);
+	struct nfs4_flexfile_layoutreturn_args *ff_args = ff_opaque->data;
 	__be32 *start;
 
 	dprintk("%s: Begin\n", __func__);
 	start = xdr_reserve_space(xdr, 4);
 	BUG_ON(!start);
 
-	ff_layout_encode_ioerr(flo, xdr, args, ff_opaque->data);
-	ff_layout_encode_iostats_array(xdr, args, ff_opaque->data);
+	ff_layout_encode_ioerr(xdr, args, ff_args);
+	ff_layout_encode_iostats_array(xdr, args, ff_args);
 
 	*start = cpu_to_be32((xdr->p - start - 1) * 4);
 	dprintk("%s: Return\n", __func__);
