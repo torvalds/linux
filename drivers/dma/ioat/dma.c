@@ -611,11 +611,8 @@ static void __cleanup(struct ioatdma_chan *ioat_chan, dma_addr_t phys_complete)
 
 		tx = &desc->txd;
 		if (tx->cookie) {
-			struct dmaengine_result res;
-
 			dma_cookie_complete(tx);
 			dma_descriptor_unmap(tx);
-			res.result = DMA_TRANS_NOERROR;
 			dmaengine_desc_get_callback_invoke(tx, NULL);
 			tx->callback = NULL;
 			tx->callback_result = NULL;
