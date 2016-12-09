@@ -7765,12 +7765,10 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	}
 
 	/*
-	 * this will cow the extent, if em is within [start, len], then
-	 * probably we've found a preallocated/existing extent, let's
-	 * give it a chance to use preallocated space.
+	 * this will cow the extent, reset the len in case we changed
+	 * it above
 	 */
-	len = min_t(u64, bh_result->b_size, em->len - (start - em->start));
-	len = ALIGN(len, fs_info->sectorsize);
+	len = bh_result->b_size;
 	free_extent_map(em);
 	em = btrfs_new_extent_direct(inode, start, len);
 	if (IS_ERR(em)) {
