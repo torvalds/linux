@@ -448,6 +448,8 @@ void __init parse_early_param(void)
 	done = 1;
 }
 
+void __init __weak arch_post_acpi_subsys_init(void) { }
+
 void __init __weak smp_setup_processor_id(void)
 {
 }
@@ -649,6 +651,7 @@ asmlinkage __visible void __init start_kernel(void)
 	check_bugs();
 
 	acpi_subsystem_init();
+	arch_post_acpi_subsys_init();
 	sfi_init_late();
 
 	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
