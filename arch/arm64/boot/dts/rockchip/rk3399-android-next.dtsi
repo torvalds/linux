@@ -139,6 +139,7 @@
 		compatible = "rockchip,vpu_service";
 		rockchip,grf = <&grf>;
 		iommus = <&vpu_mmu>;
+		iommu_enabled = <1>;
 		reg = <0x0 0xff650000 0x0 0x800>;
 		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH 0>,
 			<GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH 0>;
@@ -168,6 +169,7 @@
 		compatible = "rockchip,rkvdec";
 		rockchip,grf = <&grf>;
 		iommus = <&vdec_mmu>;
+		iommu_enabled = <1>;
 		reg = <0x0 0xff660000 0x0 0x400>;
 		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "irq_dec";
