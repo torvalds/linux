@@ -3486,6 +3486,13 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		case PIPEFS_MAGIC:
 			isp->smk_inode = smk_of_current();
 			break;
+		case SOCKFS_MAGIC:
+			/*
+			 * Socket access is controlled by the socket
+			 * structures associated with the task involved.
+			 */
+			isp->smk_inode = &smack_known_star;
+			break;
 		default:
 			isp->smk_inode = sbsp->smk_root;
 			break;
@@ -3502,18 +3509,11 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	 */
 	switch (sbp->s_magic) {
 	case SMACK_MAGIC:
-	case PIPEFS_MAGIC:
-	case SOCKFS_MAGIC:
 	case CGROUP_SUPER_MAGIC:
 		/*
 		 * Casey says that it's a little embarrassing
 		 * that the smack file system doesn't do
 		 * extended attributes.
-		 *
-		 * Casey says pipes are easy (?)
-		 *
-		 * Socket access is controlled by the socket
-		 * structures associated with the task involved.
 		 *
 		 * Cgroupfs is special
 		 */
