@@ -165,8 +165,25 @@ struct x86_legacy_devices {
 };
 
 /**
+ * enum x86_legacy_i8042_state - i8042 keyboard controller state
+ * @X86_LEGACY_I8042_PLATFORM_ABSENT: the controller is always absent on
+ *	given platform/subarch.
+ * @X86_LEGACY_I8042_FIRMWARE_ABSENT: firmware reports that the controller
+ *	is absent.
+ * @X86_LEGACY_i8042_EXPECTED_PRESENT: the controller is likely to be
+ *	present, the i8042 driver should probe for controller existence.
+ */
+enum x86_legacy_i8042_state {
+	X86_LEGACY_I8042_PLATFORM_ABSENT,
+	X86_LEGACY_I8042_FIRMWARE_ABSENT,
+	X86_LEGACY_I8042_EXPECTED_PRESENT,
+};
+
+/**
  * struct x86_legacy_features - legacy x86 features
  *
+ * @i8042: indicated if we expect the device to have i8042 controller
+ *	present.
  * @rtc: this device has a CMOS real-time clock present
  * @reserve_bios_regions: boot code will search for the EBDA address and the
  * 	start of the 640k - 1M BIOS region.  If false, the platform must
@@ -175,6 +192,7 @@ struct x86_legacy_devices {
  * 	documentation for further details.
  */
 struct x86_legacy_features {
+	enum x86_legacy_i8042_state i8042;
 	int rtc;
 	int reserve_bios_regions;
 	struct x86_legacy_devices devices;
