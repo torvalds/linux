@@ -2567,9 +2567,12 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 	seq_printf(m, "Re-enable work scheduled: %s\n",
 		   yesno(work_busy(&dev_priv->psr.work.work)));
 
-	if (HAS_DDI(dev_priv))
-		enabled = I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
-	else {
+	if (HAS_DDI(dev_priv)) {
+		if (dev_priv->psr.psr2_support)
+			enabled = I915_READ(EDP_PSR2_CTL) & EDP_PSR2_ENABLE;
+		else
+			enabled = I915_READ(EDP_PSR_CTL) & EDP_PSR_ENABLE;
+	} else {
 		for_each_pipe(dev_priv, pipe) {
 			enum transcoder cpu_transcoder =
 				intel_pipe_to_cpu_transcoder(dev_priv, pipe);
