@@ -1058,22 +1058,27 @@ static const struct media_entity_operations tvp5150_sd_media_ops = {
 static int tvp5150_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	/* Output format: 8-bit ITU-R BT.656 with embedded syncs */
-	int val = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_CLOCK_OE;
+	int val;
 
-	/* Output format: 8-bit 4:2:2 YUV with discrete sync */
-	if (decoder->mbus_type == V4L2_MBUS_PARALLEL)
-		val = TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_SYNC_OE
-		    | TVP5150_MISC_CTL_CLOCK_OE;
+	/* Enable or disable the video output signals. */
+	val = tvp5150_read(sd, TVP5150_MISC_CTL);
+	if (val < 0)
+		return val;
 
-	/* Initializes TVP5150 to its default values */
-	/* # set PCLK (27MHz) */
-	tvp5150_write(sd, TVP5150_CONF_SHARED_PIN, 0x00);
+	val &= ~(TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_SYNC_OE |
+		 TVP5150_MISC_CTL_CLOCK_OE);
 
-	if (enable)
-		tvp5150_write(sd, TVP5150_MISC_CTL, val);
-	else
-		tvp5150_write(sd, TVP5150_MISC_CTL, 0x00);
+	if (enable) {
+		/*
+		 * Enable the YCbCr and clock outputs. In discrete sync mode
+		 * (non-BT.656) additionally enable the the sync outputs.
+		 */
+		val |= TVP5150_MISC_CTL_YCBCR_OE | TVP5150_MISC_CTL_CLOCK_OE;
+		if (decoder->mbus_type == V4L2_MBUS_PARALLEL)
+			val |= TVP5150_MISC_CTL_SYNC_OE;
+	}
+
+	tvp5150_write(sd, TVP5150_MISC_CTL, val);
 
 	return 0;
 }
