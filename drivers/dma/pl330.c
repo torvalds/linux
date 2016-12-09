@@ -1888,10 +1888,7 @@ static int dmac_alloc_resources(struct pl330_dmac *pl330)
 
 static int pl330_add(struct pl330_dmac *pl330)
 {
-	void __iomem *regs;
 	int i, ret;
-
-	regs = pl330->base;
 
 	/* Check if we can handle this DMAC */
 	if ((pl330->pcfg.periph_id & 0xfffff) != PERIPH_ID_VAL) {
