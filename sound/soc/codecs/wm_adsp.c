@@ -187,7 +187,7 @@ static struct wm_adsp_buf *wm_adsp_buf_alloc(const void *src, size_t len,
 
 	buf->buf = vmalloc(len);
 	if (!buf->buf) {
-		vfree(buf);
+		kfree(buf);
 		return NULL;
 	}
 	memcpy(buf->buf, src, len);
