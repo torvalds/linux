@@ -1575,7 +1575,6 @@ void play_dead_common(void)
 {
 	idle_task_exit();
 	reset_lazy_tlbstate();
-	amd_e400_remove_cpu(raw_smp_processor_id());
 
 	/* Ack it */
 	(void)cpu_report_death();

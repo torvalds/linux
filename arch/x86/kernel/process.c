@@ -289,59 +289,33 @@ void stop_this_cpu(void *dummy)
 		halt();
 }
 
-bool amd_e400_c1e_detected;
-EXPORT_SYMBOL(amd_e400_c1e_detected);
-
-static cpumask_var_t amd_e400_c1e_mask;
-
-void amd_e400_remove_cpu(int cpu)
-{
-	if (amd_e400_c1e_mask != NULL)
-		cpumask_clear_cpu(cpu, amd_e400_c1e_mask);
-}
-
 /*
- * AMD Erratum 400 aware idle routine. We check for C1E active in the interrupt
- * pending message MSR. If we detect C1E, then we handle it the same
- * way as C3 power states (local apic timer and TSC stop)
+ * AMD Erratum 400 aware idle routine. We handle it the same way as C3 power
+ * states (local apic timer and TSC stop).
  */
 static void amd_e400_idle(void)
 {
-	if (!amd_e400_c1e_detected) {
-		u32 lo, hi;
-
-		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
-
-		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
-			amd_e400_c1e_detected = true;
-			if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
-				mark_tsc_unstable("TSC halt in AMD C1E");
-			pr_info("System has AMD C1E enabled\n");
-		}
+	/*
+	 * We cannot use static_cpu_has_bug() here because X86_BUG_AMD_APIC_C1E
+	 * gets set after static_cpu_has() places have been converted via
+	 * alternatives.
+	 */
+	if (!boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E)) {
+		default_idle();
+		return;
 	}
 
-	if (amd_e400_c1e_detected) {
-		int cpu = smp_processor_id();
+	tick_broadcast_enter();
 
-		if (!cpumask_test_cpu(cpu, amd_e400_c1e_mask)) {
-			cpumask_set_cpu(cpu, amd_e400_c1e_mask);
-			/* Force broadcast so ACPI can not interfere. */
-			tick_broadcast_force();
-			pr_info("Switch to broadcast mode on CPU%d\n", cpu);
-		}
-		tick_broadcast_enter();
+	default_idle();
 
-		default_idle();
-
-		/*
-		 * The switch back from broadcast mode needs to be
-		 * called with interrupts disabled.
-		 */
-		local_irq_disable();
-		tick_broadcast_exit();
-		local_irq_enable();
-	} else
-		default_idle();
+	/*
+	 * The switch back from broadcast mode needs to be called with
+	 * interrupts disabled.
+	 */
+	local_irq_disable();
+	tick_broadcast_exit();
+	local_irq_enable();
 }
 
 /*
@@ -411,11 +385,14 @@ void select_idle_routine(const struct cpuinfo_x86 *c)
 		x86_idle = default_idle;
 }
 
-void __init init_amd_e400_c1e_mask(void)
+void amd_e400_c1e_apic_setup(void)
 {
-	/* If we're using amd_e400_idle, we need to allocate amd_e400_c1e_mask. */
-	if (x86_idle == amd_e400_idle)
-		zalloc_cpumask_var(&amd_e400_c1e_mask, GFP_KERNEL);
+	if (boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E)) {
+		pr_info("Switch to broadcast mode on CPU%d\n", smp_processor_id());
+		local_irq_disable();
+		tick_broadcast_force();
+		local_irq_enable();
+	}
 }
 
 void __init arch_post_acpi_subsys_init(void)
