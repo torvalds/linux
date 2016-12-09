@@ -2109,11 +2109,11 @@ void wacom_wac_event(struct hid_device *hdev, struct hid_field *field,
 	if (wacom->wacom_wac.features.type != HID_GENERIC)
 		return;
 
-	if (WACOM_PAD_FIELD(field))
+	if (WACOM_PAD_FIELD(field) && wacom->wacom_wac.pad_input)
 		wacom_wac_pad_event(hdev, field, usage, value);
-	else if (WACOM_PEN_FIELD(field))
+	else if (WACOM_PEN_FIELD(field) && wacom->wacom_wac.pen_input)
 		wacom_wac_pen_event(hdev, field, usage, value);
-	else if (WACOM_FINGER_FIELD(field))
+	else if (WACOM_FINGER_FIELD(field) && wacom->wacom_wac.touch_input)
 		wacom_wac_finger_event(hdev, field, usage, value);
 }
 
@@ -2145,20 +2145,20 @@ void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
 	if (wacom_wac->features.type != HID_GENERIC)
 		return;
 
-	if (WACOM_PAD_FIELD(field))
+	if (WACOM_PAD_FIELD(field) && wacom->wacom_wac.pad_input)
 		wacom_wac_pad_pre_report(hdev, report);
-	else if (WACOM_PEN_FIELD(field))
+	else if (WACOM_PEN_FIELD(field) && wacom->wacom_wac.pen_input)
 		wacom_wac_pen_pre_report(hdev, report);
-	else if (WACOM_FINGER_FIELD(field))
+	else if (WACOM_FINGER_FIELD(field) && wacom->wacom_wac.touch_input)
 		wacom_wac_finger_pre_report(hdev, report);
 
 	wacom_report_events(hdev, report);
 
-	if (WACOM_PAD_FIELD(field))
+	if (WACOM_PAD_FIELD(field) && wacom->wacom_wac.pad_input)
 		return wacom_wac_pad_report(hdev, report);
-	else if (WACOM_PEN_FIELD(field))
+	else if (WACOM_PEN_FIELD(field) && wacom->wacom_wac.pen_input)
 		return wacom_wac_pen_report(hdev, report);
-	else if (WACOM_FINGER_FIELD(field))
+	else if (WACOM_FINGER_FIELD(field) && wacom->wacom_wac.touch_input)
 		return wacom_wac_finger_report(hdev, report);
 }
 
