@@ -2548,7 +2548,7 @@ static int sony_input_configured(struct hid_device *hdev,
 			hid_err(sc->hdev,
 			"Unable to initialize multi-touch slots: %d\n",
 			ret);
-			return ret;
+			goto err_stop;
 		}
 
 		sony_init_output_report(sc, dualshock4_send_output_report);
