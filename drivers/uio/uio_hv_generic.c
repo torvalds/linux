@@ -68,7 +68,7 @@ hv_uio_mmap(struct uio_info *info, struct vm_area_struct *vma)
 	mi = (int)vma->vm_pgoff;
 
 	return remap_pfn_range(vma, vma->vm_start,
-			virt_to_phys((void *)info->mem[mi].addr) >> PAGE_SHIFT,
+			info->mem[mi].addr >> PAGE_SHIFT,
 			vma->vm_end - vma->vm_start, vma->vm_page_prot);
 }
 
@@ -137,20 +137,20 @@ hv_uio_probe(struct hv_device *dev,
 	/* mem resources */
 	pdata->info.mem[TXRX_RING_MAP].name = "txrx_rings";
 	pdata->info.mem[TXRX_RING_MAP].addr
-		= (phys_addr_t)dev->channel->ringbuffer_pages;
+		= virt_to_phys(dev->channel->ringbuffer_pages);
 	pdata->info.mem[TXRX_RING_MAP].size
 		= dev->channel->ringbuffer_pagecount * PAGE_SIZE;
 	pdata->info.mem[TXRX_RING_MAP].memtype = UIO_MEM_LOGICAL;
 
 	pdata->info.mem[INT_PAGE_MAP].name = "int_page";
 	pdata->info.mem[INT_PAGE_MAP].addr =
-		(phys_addr_t)vmbus_connection.int_page;
+		virt_to_phys(vmbus_connection.int_page);
 	pdata->info.mem[INT_PAGE_MAP].size = PAGE_SIZE;
 	pdata->info.mem[INT_PAGE_MAP].memtype = UIO_MEM_LOGICAL;
 
 	pdata->info.mem[MON_PAGE_MAP].name = "monitor_pages";
 	pdata->info.mem[MON_PAGE_MAP].addr =
-		(phys_addr_t)vmbus_connection.monitor_pages[1];
+		virt_to_phys(vmbus_connection.monitor_pages[1]);
 	pdata->info.mem[MON_PAGE_MAP].size = PAGE_SIZE;
 	pdata->info.mem[MON_PAGE_MAP].memtype = UIO_MEM_LOGICAL;
 
