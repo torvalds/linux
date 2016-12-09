@@ -26,7 +26,6 @@ static const char *proc_self_get_link(struct dentry *dentry,
 }
 
 static const struct inode_operations proc_self_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= proc_self_get_link,
 };
 

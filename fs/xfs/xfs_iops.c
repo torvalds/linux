@@ -1122,7 +1122,6 @@ static const struct inode_operations xfs_dir_ci_inode_operations = {
 };
 
 static const struct inode_operations xfs_symlink_inode_operations = {
-	.readlink		= generic_readlink,
 	.get_link		= xfs_vn_get_link,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,
@@ -1131,7 +1130,6 @@ static const struct inode_operations xfs_symlink_inode_operations = {
 };
 
 static const struct inode_operations xfs_inline_symlink_inode_operations = {
-	.readlink		= generic_readlink,
 	.get_link		= xfs_vn_get_link_inline,
 	.getattr		= xfs_vn_getattr,
 	.setattr		= xfs_vn_setattr,

@@ -1129,7 +1129,6 @@ EXPORT_SYMBOL(simple_get_link);
 
 const struct inode_operations simple_symlink_inode_operations = {
 	.get_link = simple_get_link,
-	.readlink = generic_readlink
 };
 EXPORT_SYMBOL(simple_symlink_inode_operations);
 

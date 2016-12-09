@@ -1084,7 +1084,6 @@ out:
 }
 
 const struct inode_operations ecryptfs_symlink_iops = {
-	.readlink = generic_readlink,
 	.get_link = ecryptfs_get_link,
 	.permission = ecryptfs_permission,
 	.setattr = ecryptfs_setattr,
