@@ -737,6 +737,11 @@ int dev_pm_opp_check_initial_rate(struct device *dev, unsigned long *cur_freq)
 
 	clk = opp_table->clk;
 	reg = opp_table->regulator;
+	if (IS_ERR_OR_NULL(clk) || IS_ERR_OR_NULL(reg)) {
+		dev_err(dev, "clk or regulater is unavailable\n");
+		rcu_read_unlock();
+		return -EINVAL;
+	}
 
 	old_freq = clk_get_rate(clk);
 	*cur_freq = old_freq;
@@ -761,6 +766,10 @@ int dev_pm_opp_check_initial_rate(struct device *dev, unsigned long *cur_freq)
 
 	target_freq = clk_round_rate(clk, target_freq);
 	old_volt = regulator_get_voltage(reg);
+	if (old_volt <= 0) {
+		dev_err(dev, "failed to get volt %d\n", old_volt);
+		return -EINVAL;
+	}
 
 	dev_dbg(dev, "%lu Hz %d uV --> %lu Hz %lu uV\n", old_freq, old_volt,
 		target_freq, u_volt);
