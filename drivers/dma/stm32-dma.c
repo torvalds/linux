@@ -573,7 +573,7 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 	int src_bus_width, dst_bus_width;
 	int src_burst_size, dst_burst_size;
 	u32 src_maxburst, dst_maxburst;
-	dma_addr_t src_addr, dst_addr;
+	dma_addr_t src_addr;
 	u32 dma_scr = 0;
 
 	src_addr_width = chan->dma_sconfig.src_addr_width;
@@ -581,7 +581,6 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 	src_maxburst = chan->dma_sconfig.src_maxburst;
 	dst_maxburst = chan->dma_sconfig.dst_maxburst;
 	src_addr = chan->dma_sconfig.src_addr;
-	dst_addr = chan->dma_sconfig.dst_addr;
 
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
