@@ -503,10 +503,6 @@
 	pinctrl-0 = <&i2s0_bus>;
 	pinctrl-names = "default";
 	status = "okay";
-	clocks = <&clock_audss EXYNOS_I2S_BUS>,
-		 <&clock_audss EXYNOS_DOUT_AUD_BUS>,
-		 <&clock_audss EXYNOS_SCLK_I2S>;
-	clock-names = "iis", "i2s_opclk0", "i2s_opclk1";
 };
 
 &mixer {
