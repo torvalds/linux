@@ -1485,6 +1485,7 @@ static int soc_tplg_dapm_widget_create(struct soc_tplg *tplg,
 	tplg->pos +=
 		(sizeof(struct snd_soc_tplg_dapm_widget) + w->priv.size);
 	if (w->num_kcontrols == 0) {
+		kcontrol_type = 0;
 		template.num_kcontrols = 0;
 		goto widget;
 	}
