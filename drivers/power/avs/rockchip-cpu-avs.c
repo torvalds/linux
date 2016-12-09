@@ -53,6 +53,7 @@ struct rockchip_cpu_avs {
 	unsigned int num_clusters;
 	struct cluster_info *cluster;
 	struct notifier_block cpufreq_notify;
+	unsigned int check_done[MAX_CLUSTERS];
 };
 
 #define notifier_to_avs(_n) container_of(_n, struct rockchip_cpu_avs, \
@@ -141,9 +142,12 @@ static int rockchip_cpu_avs_notifier(struct notifier_block *nb,
 	rockchip_leakage_adjust_table(cpu_dev, policy->freq_table, cluster);
 
 next:
-	ret = dev_pm_opp_check_initial_rate(cpu_dev, &cur_freq);
-	if (!ret)
-		policy->cur = cur_freq / 1000;
+	if (avs->check_done[id] == 0) {
+		ret = dev_pm_opp_check_initial_rate(cpu_dev, &cur_freq);
+		if (!ret)
+			policy->cur = cur_freq / 1000;
+		avs->check_done[id] = 1;
+	}
 
 out:
 
