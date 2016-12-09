@@ -1125,7 +1125,7 @@ ep0_write (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	/* data and/or status stage for control request */
 	} else if (dev->state == STATE_DEV_SETUP) {
 
-		/* IN DATA+STATUS caller makes len <= wLength */
+		len = min_t(size_t, len, dev->setup_wLength);
 		if (dev->setup_in) {
 			retval = setup_req (dev->gadget->ep0, dev->req, len);
 			if (retval == 0) {
