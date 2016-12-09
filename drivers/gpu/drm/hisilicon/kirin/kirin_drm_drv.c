@@ -42,7 +42,7 @@ static int kirin_drm_kms_cleanup(struct drm_device *dev)
 #endif
 	drm_kms_helper_poll_fini(dev);
 	drm_vblank_cleanup(dev);
-	dc_ops->cleanup(dev);
+	dc_ops->cleanup(to_platform_device(dev->dev));
 	drm_mode_config_cleanup(dev);
 	devm_kfree(dev->dev, priv);
 	dev->dev_private = NULL;
@@ -104,7 +104,7 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 	kirin_drm_mode_config_init(dev);
 
 	/* display controller init */
-	ret = dc_ops->init(dev);
+	ret = dc_ops->init(to_platform_device(dev->dev));
 	if (ret)
 		goto err_mode_config_cleanup;
 
@@ -138,7 +138,7 @@ static int kirin_drm_kms_init(struct drm_device *dev)
 err_unbind_all:
 	component_unbind_all(dev->dev, dev);
 err_dc_cleanup:
-	dc_ops->cleanup(dev);
+	dc_ops->cleanup(to_platform_device(dev->dev));
 err_mode_config_cleanup:
 	drm_mode_config_cleanup(dev);
 	devm_kfree(dev->dev, priv);
@@ -208,8 +208,6 @@ static int kirin_drm_bind(struct device *dev)
 	drm_dev = drm_dev_alloc(driver, dev);
 	if (IS_ERR(drm_dev))
 		return PTR_ERR(drm_dev);
-
-	drm_dev->platformdev = to_platform_device(dev);
 
 	ret = kirin_drm_kms_init(drm_dev);
 	if (ret)
