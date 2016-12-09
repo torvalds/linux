@@ -126,8 +126,10 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	axi->axi_mb = of_property_read_bool(np, "snps,axi_mb");
 	axi->axi_rb =  of_property_read_bool(np, "snps,axi_rb");
 
-	of_property_read_u32(np, "snps,wr_osr_lmt", &axi->axi_wr_osr_lmt);
-	of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt);
+	if (of_property_read_u32(np, "snps,wr_osr_lmt", &axi->axi_wr_osr_lmt))
+		axi->axi_wr_osr_lmt = 1;
+	if (of_property_read_u32(np, "snps,rd_osr_lmt", &axi->axi_rd_osr_lmt))
+		axi->axi_rd_osr_lmt = 1;
 	of_property_read_u32_array(np, "snps,blen", axi->axi_blen, AXI_BLEN);
 	of_node_put(np);
 
@@ -200,7 +202,6 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 /**
  * stmmac_probe_config_dt - parse device-tree driver parameters
  * @pdev: platform_device structure
- * @plat: driver data platform structure
  * @mac: MAC address to use
  * Description:
  * this function is to read the driver parameters from device-tree and
@@ -306,7 +307,7 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
 				       GFP_KERNEL);
 		if (!dma_cfg) {
-			of_node_put(plat->phy_node);
+			stmmac_remove_config_dt(pdev, plat);
 			return ERR_PTR(-ENOMEM);
 		}
 		plat->dma_cfg = dma_cfg;
@@ -329,14 +330,37 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 
 	return plat;
 }
+
+/**
+ * stmmac_remove_config_dt - undo the effects of stmmac_probe_config_dt()
+ * @pdev: platform_device structure
+ * @plat: driver data platform structure
+ *
+ * Release resources claimed by stmmac_probe_config_dt().
+ */
+void stmmac_remove_config_dt(struct platform_device *pdev,
+			     struct plat_stmmacenet_data *plat)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
+	of_node_put(plat->phy_node);
+}
 #else
 struct plat_stmmacenet_data *
 stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 {
 	return ERR_PTR(-ENOSYS);
 }
+
+void stmmac_remove_config_dt(struct platform_device *pdev,
+			     struct plat_stmmacenet_data *plat)
+{
+}
 #endif /* CONFIG_OF */
 EXPORT_SYMBOL_GPL(stmmac_probe_config_dt);
+EXPORT_SYMBOL_GPL(stmmac_remove_config_dt);
 
 int stmmac_get_platform_resources(struct platform_device *pdev,
 				  struct stmmac_resources *stmmac_res)
@@ -392,10 +416,13 @@ int stmmac_pltfr_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct plat_stmmacenet_data *plat = priv->plat;
 	int ret = stmmac_dvr_remove(&pdev->dev);
 
-	if (priv->plat->exit)
-		priv->plat->exit(pdev, priv->plat->bsp_priv);
+	if (plat->exit)
+		plat->exit(pdev, plat->bsp_priv);
+
+	stmmac_remove_config_dt(pdev, plat);
 
 	return ret;
 }

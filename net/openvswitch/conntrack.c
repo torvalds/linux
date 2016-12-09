@@ -370,8 +370,11 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 		skb_orphan(skb);
 		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
 		err = nf_ct_frag6_gather(net, skb, user);
-		if (err)
+		if (err) {
+			if (err != -EINPROGRESS)
+				kfree_skb(skb);
 			return err;
+		}
 
 		key->ip.proto = ipv6_hdr(skb)->nexthdr;
 		ovs_cb.mru = IP6CB(skb)->frag_max_size;

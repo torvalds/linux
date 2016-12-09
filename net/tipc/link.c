@@ -47,8 +47,8 @@
 #include <linux/pkt_sched.h>
 
 struct tipc_stats {
-	u32 sent_info;		/* used in counting # sent packets */
-	u32 recv_info;		/* used in counting # recv'd packets */
+	u32 sent_pkts;
+	u32 recv_pkts;
 	u32 sent_states;
 	u32 recv_states;
 	u32 sent_probes;
@@ -857,7 +857,6 @@ void tipc_link_reset(struct tipc_link *l)
 	l->acked = 0;
 	l->silent_intv_cnt = 0;
 	l->rst_cnt = 0;
-	l->stats.recv_info = 0;
 	l->stale_count = 0;
 	l->bc_peer_is_up = false;
 	memset(&l->mon_state, 0, sizeof(l->mon_state));
@@ -888,6 +887,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 	struct sk_buff_head *transmq = &l->transmq;
 	struct sk_buff_head *backlogq = &l->backlogq;
 	struct sk_buff *skb, *_skb, *bskb;
+	int pkt_cnt = skb_queue_len(list);
 
 	/* Match msg importance against this and all higher backlog limits: */
 	if (!skb_queue_empty(backlogq)) {
@@ -899,6 +899,11 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 	if (unlikely(msg_size(hdr) > mtu)) {
 		skb_queue_purge(list);
 		return -EMSGSIZE;
+	}
+
+	if (pkt_cnt > 1) {
+		l->stats.sent_fragmented++;
+		l->stats.sent_fragments += pkt_cnt;
 	}
 
 	/* Prepare each packet for sending, and add to relevant queue: */
@@ -920,6 +925,7 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 			__skb_queue_tail(xmitq, _skb);
 			TIPC_SKB_CB(skb)->ackers = l->ackers;
 			l->rcv_unacked = 0;
+			l->stats.sent_pkts++;
 			seqno++;
 			continue;
 		}
@@ -968,6 +974,7 @@ void tipc_link_advance_backlog(struct tipc_link *l, struct sk_buff_head *xmitq)
 		msg_set_ack(hdr, ack);
 		msg_set_bcast_ack(hdr, bc_ack);
 		l->rcv_unacked = 0;
+		l->stats.sent_pkts++;
 		seqno++;
 	}
 	l->snd_nxt = seqno;
@@ -1260,7 +1267,7 @@ int tipc_link_rcv(struct tipc_link *l, struct sk_buff *skb,
 
 		/* Deliver packet */
 		l->rcv_nxt++;
-		l->stats.recv_info++;
+		l->stats.recv_pkts++;
 		if (!tipc_data_input(l, skb, l->inputq))
 			rc |= tipc_link_input(l, skb, l->inputq);
 		if (unlikely(++l->rcv_unacked >= TIPC_MIN_LINK_WIN))
@@ -1800,10 +1807,6 @@ void tipc_link_set_queue_limits(struct tipc_link *l, u32 win)
 void tipc_link_reset_stats(struct tipc_link *l)
 {
 	memset(&l->stats, 0, sizeof(l->stats));
-	if (!link_is_bc_sndlink(l)) {
-		l->stats.sent_info = l->snd_nxt;
-		l->stats.recv_info = l->rcv_nxt;
-	}
 }
 
 static void link_print(struct tipc_link *l, const char *str)
@@ -1867,12 +1870,12 @@ static int __tipc_nl_add_stats(struct sk_buff *skb, struct tipc_stats *s)
 	};
 
 	struct nla_map map[] = {
-		{TIPC_NLA_STATS_RX_INFO, s->recv_info},
+		{TIPC_NLA_STATS_RX_INFO, 0},
 		{TIPC_NLA_STATS_RX_FRAGMENTS, s->recv_fragments},
 		{TIPC_NLA_STATS_RX_FRAGMENTED, s->recv_fragmented},
 		{TIPC_NLA_STATS_RX_BUNDLES, s->recv_bundles},
 		{TIPC_NLA_STATS_RX_BUNDLED, s->recv_bundled},
-		{TIPC_NLA_STATS_TX_INFO, s->sent_info},
+		{TIPC_NLA_STATS_TX_INFO, 0},
 		{TIPC_NLA_STATS_TX_FRAGMENTS, s->sent_fragments},
 		{TIPC_NLA_STATS_TX_FRAGMENTED, s->sent_fragmented},
 		{TIPC_NLA_STATS_TX_BUNDLES, s->sent_bundles},
@@ -1947,9 +1950,9 @@ int __tipc_nl_add_link(struct net *net, struct tipc_nl_msg *msg,
 		goto attr_msg_full;
 	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_MTU, link->mtu))
 		goto attr_msg_full;
-	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_RX, link->rcv_nxt))
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_RX, link->stats.recv_pkts))
 		goto attr_msg_full;
-	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_TX, link->snd_nxt))
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_TX, link->stats.sent_pkts))
 		goto attr_msg_full;
 
 	if (tipc_link_is_up(link))
@@ -2004,12 +2007,12 @@ static int __tipc_nl_add_bc_link_stat(struct sk_buff *skb,
 	};
 
 	struct nla_map map[] = {
-		{TIPC_NLA_STATS_RX_INFO, stats->recv_info},
+		{TIPC_NLA_STATS_RX_INFO, stats->recv_pkts},
 		{TIPC_NLA_STATS_RX_FRAGMENTS, stats->recv_fragments},
 		{TIPC_NLA_STATS_RX_FRAGMENTED, stats->recv_fragmented},
 		{TIPC_NLA_STATS_RX_BUNDLES, stats->recv_bundles},
 		{TIPC_NLA_STATS_RX_BUNDLED, stats->recv_bundled},
-		{TIPC_NLA_STATS_TX_INFO, stats->sent_info},
+		{TIPC_NLA_STATS_TX_INFO, stats->sent_pkts},
 		{TIPC_NLA_STATS_TX_FRAGMENTS, stats->sent_fragments},
 		{TIPC_NLA_STATS_TX_FRAGMENTED, stats->sent_fragmented},
 		{TIPC_NLA_STATS_TX_BUNDLES, stats->sent_bundles},
@@ -2076,9 +2079,9 @@ int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg)
 		goto attr_msg_full;
 	if (nla_put_string(msg->skb, TIPC_NLA_LINK_NAME, bcl->name))
 		goto attr_msg_full;
-	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_RX, bcl->rcv_nxt))
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_RX, 0))
 		goto attr_msg_full;
-	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_TX, bcl->snd_nxt))
+	if (nla_put_u32(msg->skb, TIPC_NLA_LINK_TX, 0))
 		goto attr_msg_full;
 
 	prop = nla_nest_start(msg->skb, TIPC_NLA_LINK_PROP);
