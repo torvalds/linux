@@ -983,7 +983,11 @@ static int __init i8042_pnp_init(void)
 #if defined(__ia64__)
 		return -ENODEV;
 #else
-		pr_info("PNP: No PS/2 controller found. Probing ports directly.\n");
+		pr_info("PNP: No PS/2 controller found.\n");
+		if (x86_platform.legacy.i8042 !=
+				X86_LEGACY_I8042_EXPECTED_PRESENT)
+			return -ENODEV;
+		pr_info("Probing ports directly.\n");
 		return 0;
 #endif
 	}
@@ -1070,8 +1074,8 @@ static int __init i8042_platform_init(void)
 
 #ifdef CONFIG_X86
 	u8 a20_on = 0xdf;
-	/* Just return if pre-detection shows no i8042 controller exist */
-	if (!x86_platform.i8042_detect())
+	/* Just return if platform does not have i8042 controller */
+	if (x86_platform.legacy.i8042 == X86_LEGACY_I8042_PLATFORM_ABSENT)
 		return -ENODEV;
 #endif
 
