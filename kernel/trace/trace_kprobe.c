@@ -73,6 +73,17 @@ static nokprobe_inline bool trace_kprobe_is_on_module(struct trace_kprobe *tk)
 	return !!strchr(trace_kprobe_symbol(tk), ':');
 }
 
+static nokprobe_inline unsigned long trace_kprobe_nhit(struct trace_kprobe *tk)
+{
+	unsigned long nhit = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		nhit += *per_cpu_ptr(tk->nhit, cpu);
+
+	return nhit;
+}
+
 static int register_kprobe_event(struct trace_kprobe *tk);
 static int unregister_kprobe_event(struct trace_kprobe *tk);
 
@@ -882,14 +893,10 @@ static const struct file_operations kprobe_events_ops = {
 static int probes_profile_seq_show(struct seq_file *m, void *v)
 {
 	struct trace_kprobe *tk = v;
-	unsigned long nhit = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		nhit += *per_cpu_ptr(tk->nhit, cpu);
 
 	seq_printf(m, "  %-44s %15lu %15lu\n",
-		   trace_event_name(&tk->tp.call), nhit,
+		   trace_event_name(&tk->tp.call),
+		   trace_kprobe_nhit(tk),
 		   tk->rp.kp.nmissed);
 
 	return 0;
