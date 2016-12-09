@@ -7,10 +7,12 @@ Required properties:
      "rockchip,rk3288-usb-phy"
      "rockchip,rk336x-usb-phy"
      "rockchip,rk3399-usb-phy"
- - rockchip,grf : phandle to the syscon managing the "general
-   register files"
  - #address-cells: should be 1
  - #size-cells: should be 0
+
+Deprecated properties:
+ - rockchip,grf : phandle to the syscon managing the "general
+   register files" - phy should be a child of the GRF instead
 
 Sub-nodes:
 Each PHY should be represented as a sub-node.
@@ -34,16 +36,21 @@ Optional Properties:
 
 Example:
 
-usbphy: phy {
-	compatible = "rockchip,rk3288-usb-phy";
-	rockchip,grf = <&grf>;
-	#address-cells = <1>;
-	#size-cells = <0>;
-	resets = <&cru SRST_USBHOST1_PHY>;
-	reset-names = "phy-reset";
+grf: syscon@ff770000 {
+	compatible = "rockchip,rk3288-grf", "syscon", "simple-mfd";
 
-	usbphy0: usb-phy0 {
-		#phy-cells = <0>;
-		reg = <0x320>;
+...
+
+	usbphy: phy {
+		compatible = "rockchip,rk3288-usb-phy";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		resets = <&cru SRST_USBHOST1_PHY>;
+		reset-names = "phy-reset";
+
+		usbphy0: usb-phy0 {
+			#phy-cells = <0>;
+			reg = <0x320>;
+		};
 	};
 };
