@@ -157,12 +157,6 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-		rockchip,grf = <&grf>;
-		sdcard-supply = <&vccio_sd>;
-	};
-
 	board-leds {
 			compatible = "gpio-leds";
 			status = "okay";
@@ -421,6 +415,12 @@ I2C
 &i2s {
 	#sound-dai-cells = <0>;
 	status = "okay";
+};
+
+&io_domains {
+	status = "okay";
+
+	sdcard-supply = <&vccio_sd>;
 };
 
 &spi2 {

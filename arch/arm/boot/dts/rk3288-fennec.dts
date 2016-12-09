@@ -59,12 +59,6 @@
 		clock-output-names = "ext_gmac";
 	};
 
-	io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-		rockchip,grf = <&grf>;
-		wifi-supply = <&vcc_wl>;
-	};
-
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		clocks = <&rk808 RK808_CLKOUT1>;
@@ -435,6 +429,12 @@
 &i2s {
 	#sound-dai-cells = <0>;
 	status = "okay";
+};
+
+&io_domains {
+	status = "okay";
+
+	wifi-supply = <&vcc_wl>;
 };
 
 &sdio0 {

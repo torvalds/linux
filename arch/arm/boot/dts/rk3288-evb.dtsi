@@ -235,13 +235,6 @@
 		vin-supply = <&vcc_io>;
 	};
 
-	io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-		rockchip,grf = <&grf>;
-		sdcard-supply = <&vccio_sd>;
-		wifi-supply = <&vcc_18>;
-	};
-
 	wireless-bluetooth {
 		compatible = "bluetooth-platdata";
 		uart_rts_gpios = <&gpio4 19 GPIO_ACTIVE_LOW>;
@@ -399,6 +392,13 @@
 	status = "okay";
 };
 
+&io_domains {
+	status = "okay";
+
+	sdcard-supply = <&vccio_sd>;
+	wifi-supply = <&vcc_18>;
+};
+
 &wdt {
 	status = "okay";
 };
@@ -456,6 +456,56 @@
 &tsadc {
 	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
 	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+	status = "okay";
+};
+
+&usbphy {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host1 {
+	status = "okay";
+};
+
+&usb_otg {
+	status = "okay";
+};
+
+&lvds {
+	rockchip,data-mapping = "jeida";
+	rockchip,data-width = <24>;
+	rockchip,output = "lvds";
+	rockchip,panel = <&lvds_panel>;
+	status = "disabled";
+};
+
+&vopb {
+	status = "okay";
+
+	/* Don't use vopb for eDP, save it for HDMI */
+	vopb_out: port {
+		/delete-node/ endpoint@1;
+	};
+};
+
+&vopb_mmu {
+	status = "okay";
+};
+
+&vopl {
+	status = "okay";
+
+	/* Don't use vopb for HDMI, save it for eDP */
+	vopl_out: port {
+		/delete-node/ endpoint@0;
+	};
+};
+
+&vopl_mmu {
 	status = "okay";
 };
 
@@ -545,54 +595,4 @@
 			rockchip,pins = <4 19 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
-};
-
-&usbphy {
-	status = "okay";
-};
-
-&usb_host0_ehci {
-	status = "okay";
-};
-
-&usb_host1 {
-	status = "okay";
-};
-
-&usb_otg {
-	status = "okay";
-};
-
-&lvds {
-	rockchip,data-mapping = "jeida";
-	rockchip,data-width = <24>;
-	rockchip,output = "lvds";
-	rockchip,panel = <&lvds_panel>;
-	status = "disabled";
-};
-
-&vopb {
-	status = "okay";
-
-	/* Don't use vopb for eDP, save it for HDMI */
-	vopb_out: port {
-		/delete-node/ endpoint@1;
-	};
-};
-
-&vopb_mmu {
-	status = "okay";
-};
-
-&vopl {
-	status = "okay";
-
-	/* Don't use vopb for HDMI, save it for eDP */
-	vopl_out: port {
-		/delete-node/ endpoint@0;
-	};
-};
-
-&vopl_mmu {
-	status = "okay";
 };
