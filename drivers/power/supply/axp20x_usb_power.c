@@ -31,6 +31,8 @@
 #define AXP20X_USB_STATUS_VBUS_VALID	BIT(2)
 
 #define AXP20X_VBUS_VHOLD_uV(b)		(4000000 + (((b) >> 3) & 7) * 100000)
+#define AXP20X_VBUS_VHOLD_MASK		GENMASK(5, 3)
+#define AXP20X_VBUS_VHOLD_OFFSET	3
 #define AXP20X_VBUS_CLIMIT_MASK		3
 #define AXP20X_VBUC_CLIMIT_900mA	0
 #define AXP20X_VBUC_CLIMIT_500mA	1
@@ -155,6 +157,81 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int axp20x_usb_power_set_voltage_min(struct axp20x_usb_power *power,
+					    int intval)
+{
+	int val;
+
+	switch (intval) {
+	case 4000000:
+	case 4100000:
+	case 4200000:
+	case 4300000:
+	case 4400000:
+	case 4500000:
+	case 4600000:
+	case 4700000:
+		val = (intval - 4000000) / 100000;
+		return regmap_update_bits(power->regmap,
+					  AXP20X_VBUS_IPSOUT_MGMT,
+					  AXP20X_VBUS_VHOLD_MASK,
+					  val << AXP20X_VBUS_VHOLD_OFFSET);
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+static int axp20x_usb_power_set_current_max(struct axp20x_usb_power *power,
+					    int intval)
+{
+	int val;
+
+	switch (intval) {
+	case 100000:
+		if (power->axp20x_id == AXP221_ID)
+			return -EINVAL;
+	case 500000:
+	case 900000:
+		val = (900000 - intval) / 400000;
+		return regmap_update_bits(power->regmap,
+					  AXP20X_VBUS_IPSOUT_MGMT,
+					  AXP20X_VBUS_CLIMIT_MASK, val);
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+static int axp20x_usb_power_set_property(struct power_supply *psy,
+					 enum power_supply_property psp,
+					 const union power_supply_propval *val)
+{
+	struct axp20x_usb_power *power = power_supply_get_drvdata(psy);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_VOLTAGE_MIN:
+		return axp20x_usb_power_set_voltage_min(power, val->intval);
+
+	case POWER_SUPPLY_PROP_CURRENT_MAX:
+		return axp20x_usb_power_set_current_max(power, val->intval);
+
+	default:
+		return -EINVAL;
+	}
+
+	return -EINVAL;
+}
+
+static int axp20x_usb_power_prop_writeable(struct power_supply *psy,
+					   enum power_supply_property psp)
+{
+	return psp == POWER_SUPPLY_PROP_VOLTAGE_MIN ||
+	       psp == POWER_SUPPLY_PROP_CURRENT_MAX;
+}
+
 static enum power_supply_property axp20x_usb_power_properties[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
@@ -178,7 +255,9 @@ static const struct power_supply_desc axp20x_usb_power_desc = {
 	.type = POWER_SUPPLY_TYPE_USB,
 	.properties = axp20x_usb_power_properties,
 	.num_properties = ARRAY_SIZE(axp20x_usb_power_properties),
+	.property_is_writeable = axp20x_usb_power_prop_writeable,
 	.get_property = axp20x_usb_power_get_property,
+	.set_property = axp20x_usb_power_set_property,
 };
 
 static const struct power_supply_desc axp22x_usb_power_desc = {
@@ -186,7 +265,9 @@ static const struct power_supply_desc axp22x_usb_power_desc = {
 	.type = POWER_SUPPLY_TYPE_USB,
 	.properties = axp22x_usb_power_properties,
 	.num_properties = ARRAY_SIZE(axp22x_usb_power_properties),
+	.property_is_writeable = axp20x_usb_power_prop_writeable,
 	.get_property = axp20x_usb_power_get_property,
+	.set_property = axp20x_usb_power_set_property,
 };
 
 static int axp20x_usb_power_probe(struct platform_device *pdev)
