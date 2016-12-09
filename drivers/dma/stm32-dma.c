@@ -527,13 +527,12 @@ static irqreturn_t stm32_dma_chan_irq(int irq, void *devid)
 {
 	struct stm32_dma_chan *chan = devid;
 	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
-	u32 status, scr, sfcr;
+	u32 status, scr;
 
 	spin_lock(&chan->vchan.lock);
 
 	status = stm32_dma_irq_status(chan);
 	scr = stm32_dma_read(dmadev, STM32_DMA_SCR(chan->id));
-	sfcr = stm32_dma_read(dmadev, STM32_DMA_SFCR(chan->id));
 
 	if ((status & STM32_DMA_TCI) && (scr & STM32_DMA_SCR_TCIE)) {
 		stm32_dma_irq_clear(chan, STM32_DMA_TCI);
