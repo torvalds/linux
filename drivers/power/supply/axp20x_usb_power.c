@@ -90,11 +90,10 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 
 		switch (v & AXP20X_VBUS_CLIMIT_MASK) {
 		case AXP20X_VBUC_CLIMIT_100mA:
-			if (power->axp20x_id == AXP202_ID) {
-				val->intval = 100000;
-			} else {
+			if (power->axp20x_id == AXP221_ID)
 				val->intval = -1; /* No 100mA limit */
-			}
+			else
+				val->intval = 100000;
 			break;
 		case AXP20X_VBUC_CLIMIT_500mA:
 			val->intval = 500000;
@@ -317,7 +316,8 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 
 		usb_power_desc = &axp20x_usb_power_desc;
 		irq_names = axp20x_irq_names;
-	} else if (power->axp20x_id == AXP221_ID) {
+	} else if (power->axp20x_id == AXP221_ID ||
+		   power->axp20x_id == AXP223_ID) {
 		usb_power_desc = &axp22x_usb_power_desc;
 		irq_names = axp22x_irq_names;
 	} else {
@@ -360,6 +360,9 @@ static const struct of_device_id axp20x_usb_power_match[] = {
 	}, {
 		.compatible = "x-powers,axp221-usb-power-supply",
 		.data = (void *)AXP221_ID,
+	}, {
+		.compatible = "x-powers,axp223-usb-power-supply",
+		.data = (void *)AXP223_ID,
 	}, { /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, axp20x_usb_power_match);
