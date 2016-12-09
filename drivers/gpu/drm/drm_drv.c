@@ -647,6 +647,62 @@ void drm_dev_unref(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_dev_unref);
 
+static int create_compat_control_link(struct drm_device *dev)
+{
+	struct drm_minor *minor;
+	char *name;
+	int ret;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return 0;
+
+	minor = *drm_minor_get_slot(dev, DRM_MINOR_PRIMARY);
+	if (!minor)
+		return 0;
+
+	/*
+	 * Some existing userspace out there uses the existing of the controlD*
+	 * sysfs files to figure out whether it's a modeset driver. It only does
+	 * readdir, hence a symlink is sufficient (and the least confusing
+	 * option). Otherwise controlD* is entirely unused.
+	 *
+	 * Old controlD chardev have been allocated in the range
+	 * 64-127.
+	 */
+	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
+	if (!name)
+		return -ENOMEM;
+
+	ret = sysfs_create_link(minor->kdev->kobj.parent,
+				&minor->kdev->kobj,
+				name);
+
+	kfree(name);
+
+	return ret;
+}
+
+static void remove_compat_control_link(struct drm_device *dev)
+{
+	struct drm_minor *minor;
+	char *name;
+
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return;
+
+	minor = *drm_minor_get_slot(dev, DRM_MINOR_PRIMARY);
+	if (!minor)
+		return;
+
+	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index);
+	if (!name)
+		return;
+
+	sysfs_remove_link(minor->kdev->kobj.parent, name);
+
+	kfree(name);
+}
+
 /**
  * drm_dev_register - Register DRM device
  * @dev: Device to register
@@ -685,6 +741,10 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_minors;
 
+	ret = create_compat_control_link(dev);
+	if (ret)
+		goto err_minors;
+
 	if (dev->driver->load) {
 		ret = dev->driver->load(dev, flags);
 		if (ret)
@@ -698,6 +758,7 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	goto out_unlock;
 
 err_minors:
+	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
@@ -738,6 +799,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_legacy_rmmap(dev, r_list->map);
 
+	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
