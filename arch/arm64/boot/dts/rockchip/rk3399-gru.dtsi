@@ -464,16 +464,6 @@
 
 	/* END REGULATORS */
 
-	io-domains {
-		compatible = "rockchip,rk3399-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		bt656-supply = <&pp1800_ap_io>;		/* APIO2_VDD;  2a 2b */
-		audio-supply = <&pp1800_audio>;		/* APIO5_VDD;  3d 4a */
-		sdmmc-supply = <&ppvar_sd_card_io>;	/* SDMMC0_VDD; 4b    */
-		gpio1830-supply = <&pp3000_ap>;		/* APIO4_VDD;  4c 4d */
-	};
-
 	pmu-io-domains {
 		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
 		rockchip,grf = <&pmugrf>;
@@ -645,6 +635,15 @@ ap_i2c_audio: &i2c8 {
 
 &i2s0 {
 	status = "okay";
+};
+
+&io_domains {
+	status = "okay";
+
+	bt656-supply = <&pp1800_ap_io>;		/* APIO2_VDD;  2a 2b */
+	audio-supply = <&pp1800_audio>;		/* APIO5_VDD;  3d 4a */
+	sdmmc-supply = <&ppvar_sd_card_io>;	/* SDMMC0_VDD; 4b    */
+	gpio1830-supply = <&pp3000_ap>;		/* APIO4_VDD;  4c 4d */
 };
 
 &pwm0 {

@@ -149,16 +149,6 @@
 		regulator-boot-on;
 	};
 
-	io-domains {
-		compatible = "rockchip,rk3399-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		bt656-supply = <&vcc_3v0>;
-		audio-supply = <&vcca1v8_codec>;
-		sdmmc-supply = <&vcc_sd>;
-		gpio1830-supply = <&vcc_3v0>;
-	};
-
 	pmu-io-domains {
 		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
 		rockchip,grf = <&pmugrf>;
@@ -671,6 +661,14 @@
 		int-n-gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&io_domains {
+	status = "okay";
+	bt656-supply = <&vcc_3v0>;
+	audio-supply = <&vcca1v8_codec>;
+	sdmmc-supply = <&vcc_sd>;
+	gpio1830-supply = <&vcc_3v0>;
 };
 
 &cpu_l0 {

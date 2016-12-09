@@ -115,16 +115,6 @@
 		};
 	};
 
-	io-domains {
-		compatible = "rockchip,rk3399-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		bt656-supply = <&vcc_3v0>;		/* bt656_gpio2ab_ms */
-		audio-supply = <&vcca1v8_codec>;	/* audio_gpio3d4a_ms */
-		sdmmc-supply = <&vcc_sd>;		/* sdmmc_gpio4b_ms */
-		gpio1830-supply = <&vcc_3v0>;		/* gpio1833_gpio4cd_ms */
-	};
-
 	pmu-io-domains {
 		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
 		rockchip,grf = <&pmugrf>;
@@ -500,6 +490,15 @@
 &i2s2 {
 	#sound-dai-cells = <0>;
 	status = "okay";
+};
+
+&io_domains {
+	status = "okay";
+
+	bt656-supply = <&vcc_3v0>;		/* bt656_gpio2ab_ms */
+	audio-supply = <&vcca1v8_codec>;	/* audio_gpio3d4a_ms */
+	sdmmc-supply = <&vcc_sd>;		/* sdmmc_gpio4b_ms */
+	gpio1830-supply = <&vcc_3v0>;		/* gpio1833_gpio4cd_ms */
 };
 
 &pcie0 {

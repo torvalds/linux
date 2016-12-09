@@ -98,16 +98,6 @@
 		};
 	};
 
-	io-domains {
-		compatible = "rockchip,rk3399-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		bt656-supply = <&vcc1v8_s3>;
-		audio-supply = <&vcc1v8_s3>;
-		sdmmc-supply = <&vcc_sd>;
-		gpio1830-supply = <&vcc1v8_s3>;
-	};
-
 	pmu-io-domains {
 		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
 		rockchip,grf = <&pmugrf>;
@@ -515,6 +505,15 @@
 		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&io_domains {
+	status = "okay";
+
+	bt656-supply = <&vcc1v8_s3>;
+	audio-supply = <&vcc1v8_s3>;
+	sdmmc-supply = <&vcc_sd>;
+	gpio1830-supply = <&vcc1v8_s3>;
 };
 
 &threshold {

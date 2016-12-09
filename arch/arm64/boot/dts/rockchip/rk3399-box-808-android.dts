@@ -115,16 +115,6 @@
 		#clock-cells = <0>;
 	};
 
-	io-domains {
-		compatible = "rockchip,rk3399-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		bt656-supply = <&vcc1v8_s0>; /* bt656_gpio2ab_ms */
-		audio-supply = <&vcc1v8_s0>; /* audio_gpio3d4a_ms */
-		sdmmc-supply = <&vcc_sd>; /* sdmmc_gpio4b_ms */
-		gpio1830-supply = <&vcc_3v0>; /* gpio1833_gpio4cd_ms */
-	};
-
 	pmu-io-domains {
 		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
 		rockchip,grf = <&pmugrf>;
@@ -208,6 +198,15 @@
 		BT,wake_host_irq = <&gpio0 4 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
+};
+
+&io_domains {
+	status = "okay";
+
+	bt656-supply = <&vcc1v8_s0>; /* bt656_gpio2ab_ms */
+	audio-supply = <&vcc1v8_s0>; /* audio_gpio3d4a_ms */
+	sdmmc-supply = <&vcc_sd>; /* sdmmc_gpio4b_ms */
+	gpio1830-supply = <&vcc_3v0>; /* gpio1833_gpio4cd_ms */
 };
 
 &sdmmc {
