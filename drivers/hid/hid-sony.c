@@ -1099,7 +1099,10 @@ struct sony_sc {
 	u8 led_delay_on[MAX_LEDS];
 	u8 led_delay_off[MAX_LEDS];
 	u8 led_count;
+	bool ds4_dongle_connected;
 };
+
+static void sony_set_leds(struct sony_sc *sc);
 
 static inline void sony_schedule_work(struct sony_sc *sc)
 {
@@ -1430,6 +1433,31 @@ static int sony_raw_event(struct hid_device *hdev, struct hid_report *report,
 				return -EILSEQ;
 			}
 		}
+
+		/*
+		 * In the case of a DS4 USB dongle, bit[2] of byte 31 indicates
+		 * if a DS4 is actually connected (indicated by '0').
+		 * For non-dongle, this bit is always 0 (connected).
+		 */
+		if (sc->hdev->vendor == USB_VENDOR_ID_SONY &&
+		    sc->hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) {
+			bool connected = (rd[31] & 0x04) ? false : true;
+
+			if (!sc->ds4_dongle_connected && connected) {
+				hid_info(sc->hdev, "DualShock 4 USB dongle: controller connected\n");
+				sony_set_leds(sc);
+				sc->ds4_dongle_connected = true;
+			} else if (sc->ds4_dongle_connected && !connected) {
+				hid_info(sc->hdev, "DualShock 4 USB dongle: controller disconnected\n");
+				sc->ds4_dongle_connected = false;
+				/* Return 0, so hidraw can get the report. */
+				return 0;
+			} else if (!sc->ds4_dongle_connected) {
+				/* Return 0, so hidraw can get the report. */
+				return 0;
+			}
+		}
+
 		dualshock4_parse_report(sc, rd, size);
 	}
 
