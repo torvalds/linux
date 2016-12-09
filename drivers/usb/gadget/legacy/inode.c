@@ -1755,10 +1755,12 @@ static struct usb_gadget_driver probe_driver = {
  * such as configuration notifications.
  */
 
-static int is_valid_config (struct usb_config_descriptor *config)
+static int is_valid_config(struct usb_config_descriptor *config,
+		unsigned int total)
 {
 	return config->bDescriptorType == USB_DT_CONFIG
 		&& config->bLength == USB_DT_CONFIG_SIZE
+		&& total >= USB_DT_CONFIG_SIZE
 		&& config->bConfigurationValue != 0
 		&& (config->bmAttributes & USB_CONFIG_ATT_ONE) != 0
 		&& (config->bmAttributes & USB_CONFIG_ATT_WAKEUP) == 0;
@@ -1808,7 +1810,8 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	/* full or low speed config */
 	dev->config = (void *) kbuf;
 	total = le16_to_cpu(dev->config->wTotalLength);
-	if (!is_valid_config (dev->config) || total >= length)
+	if (!is_valid_config(dev->config, total) ||
+			total > length - USB_DT_DEVICE_SIZE)
 		goto fail;
 	kbuf += total;
 	length -= total;
@@ -1817,7 +1820,8 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 	if (kbuf [1] == USB_DT_CONFIG) {
 		dev->hs_config = (void *) kbuf;
 		total = le16_to_cpu(dev->hs_config->wTotalLength);
-		if (!is_valid_config (dev->hs_config) || total >= length)
+		if (!is_valid_config(dev->hs_config, total) ||
+				total > length - USB_DT_DEVICE_SIZE)
 			goto fail;
 		kbuf += total;
 		length -= total;
