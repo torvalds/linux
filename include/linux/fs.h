@@ -595,6 +595,7 @@ is_uncached_acl(struct posix_acl *acl)
 #define IOP_LOOKUP	0x0002
 #define IOP_NOFOLLOW	0x0004
 #define IOP_XATTR	0x0008
+#define IOP_DEFAULT_READLINK	0x0010
 
 /*
  * Keep mostly read-only and often accessed (especially for
