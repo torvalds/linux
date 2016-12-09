@@ -2196,8 +2196,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi)
 			}
 			add_list[num_add].queue_number = 0;
 			/* set invalid match method for later detection */
-			add_list[num_add].match_method =
-				cpu_to_le16((u16)I40E_AQC_MM_ERR_NO_RES);
+			add_list[num_add].match_method = I40E_AQC_MM_ERR_NO_RES;
 			cmd_flags |= I40E_AQC_MACVLAN_ADD_PERFECT_MATCH;
 			add_list[num_add].flags = cpu_to_le16(cmd_flags);
 			num_add++;
