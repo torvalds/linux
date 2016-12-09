@@ -4669,6 +4669,27 @@ int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 EXPORT_SYMBOL(generic_readlink);
 
 /**
+ * vfs_readlink - copy symlink body into userspace buffer
+ * @dentry: dentry on which to get symbolic link
+ * @buffer: user memory pointer
+ * @buflen: size of buffer
+ *
+ * Does not touch atime.  That's up to the caller if necessary
+ *
+ * Does not call security hook.
+ */
+int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
+{
+	struct inode *inode = d_inode(dentry);
+
+	if (!inode->i_op->readlink)
+		return -EINVAL;
+
+	return inode->i_op->readlink(dentry, buffer, buflen);
+}
+EXPORT_SYMBOL(vfs_readlink);
+
+/**
  * vfs_get_link - get symlink body
  * @dentry: dentry on which to get symbolic link
  * @done: caller needs to free returned data with this
