@@ -70,7 +70,7 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size,
 
 int bpf_load_program(enum bpf_prog_type type, struct bpf_insn *insns,
 		     size_t insns_cnt, char *license,
-		     u32 kern_version, char *log_buf, size_t log_buf_sz)
+		     __u32 kern_version, char *log_buf, size_t log_buf_sz)
 {
 	int fd;
 	union bpf_attr attr;
@@ -98,7 +98,7 @@ int bpf_load_program(enum bpf_prog_type type, struct bpf_insn *insns,
 }
 
 int bpf_map_update_elem(int fd, void *key, void *value,
-			u64 flags)
+			__u64 flags)
 {
 	union bpf_attr attr;
 
