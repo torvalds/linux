@@ -54,7 +54,7 @@ static int sys_bpf(enum bpf_cmd cmd, union bpf_attr *attr,
 }
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size,
-		   int value_size, int max_entries)
+		   int value_size, int max_entries, __u32 map_flags)
 {
 	union bpf_attr attr;
 
@@ -64,6 +64,7 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size,
 	attr.key_size = key_size;
 	attr.value_size = value_size;
 	attr.max_entries = max_entries;
+	attr.map_flags = map_flags;
 
 	return sys_bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }

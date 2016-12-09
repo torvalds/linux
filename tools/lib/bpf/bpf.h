@@ -24,7 +24,7 @@
 #include <linux/bpf.h>
 
 int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
-		   int max_entries);
+		   int max_entries, __u32 map_flags);
 
 /* Recommend log buffer size */
 #define BPF_LOG_BUF_SIZE 65536
