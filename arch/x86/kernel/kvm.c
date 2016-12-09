@@ -42,7 +42,6 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/tlbflush.h>
-#include <asm/idle.h>
 #include <asm/apic.h>
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>

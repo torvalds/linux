@@ -37,7 +37,6 @@
 #include <asm/desc.h>
 #include <asm/ptrace.h>
 #include <asm/irq.h>
-#include <asm/idle.h>
 #include <asm/io_apic.h>
 #include <asm/i8259.h>
 #include <asm/xen/pci.h>

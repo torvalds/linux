@@ -58,7 +58,6 @@
 #include <asm/desc.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
-#include <asm/idle.h>
 #include <asm/realmode.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
