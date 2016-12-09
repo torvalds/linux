@@ -1777,9 +1777,9 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 
 	case CEC_MSG_GIVE_FEATURES:
-		if (adap->log_addrs.cec_version >= CEC_OP_CEC_VERSION_2_0)
-			return cec_report_features(adap, la_idx);
-		return 0;
+		if (adap->log_addrs.cec_version < CEC_OP_CEC_VERSION_2_0)
+			return cec_feature_abort(adap, msg);
+		return cec_report_features(adap, la_idx);
 
 	default:
 		/*
