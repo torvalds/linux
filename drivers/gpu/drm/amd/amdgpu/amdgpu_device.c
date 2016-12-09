@@ -1493,7 +1493,7 @@ static int amdgpu_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int amdgpu_suspend(struct amdgpu_device *adev)
+int amdgpu_suspend(struct amdgpu_device *adev)
 {
 	int i, r;
 
