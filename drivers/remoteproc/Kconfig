@@ -85,6 +85,7 @@ config QCOM_ADSP_PIL
 	depends on QCOM_SMEM
 	select MFD_SYSCON
 	select QCOM_MDT_LOADER
+	select QCOM_SCM
 	help
 	  Say y here to support the TrustZone based Peripherial Image Loader
 	  for the Qualcomm ADSP remote processors.
