@@ -1400,6 +1400,8 @@ bool intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 void intel_dp_set_link_params(struct intel_dp *intel_dp,
 			      int link_rate, uint8_t lane_count,
 			      bool link_mst);
+int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
+					    int link_rate, uint8_t lane_count);
 void intel_dp_start_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);

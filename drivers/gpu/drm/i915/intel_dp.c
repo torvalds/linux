@@ -278,6 +278,44 @@ static int intel_dp_common_rates(struct intel_dp *intel_dp,
 			       common_rates);
 }
 
+static int intel_dp_link_rate_index(struct intel_dp *intel_dp,
+				    int *common_rates, int link_rate)
+{
+	int common_len;
+	int index;
+
+	common_len = intel_dp_common_rates(intel_dp, common_rates);
+	for (index = 0; index < common_len; index++) {
+		if (link_rate == common_rates[common_len - index - 1])
+			return common_len - index - 1;
+	}
+
+	return -1;
+}
+
+int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
+					    int link_rate, uint8_t lane_count)
+{
+	int common_rates[DP_MAX_SUPPORTED_RATES];
+	int link_rate_index;
+
+	link_rate_index = intel_dp_link_rate_index(intel_dp,
+						   common_rates,
+						   link_rate);
+	if (link_rate_index > 0) {
+		intel_dp->max_sink_link_bw = drm_dp_link_rate_to_bw_code(common_rates[link_rate_index - 1]);
+		intel_dp->max_sink_lane_count = lane_count;
+	} else if (lane_count > 1) {
+		intel_dp->max_sink_link_bw = intel_dp_max_link_bw(intel_dp);
+		intel_dp->max_sink_lane_count = lane_count >> 1;
+	} else {
+		DRM_ERROR("Link Training Unsuccessful\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
