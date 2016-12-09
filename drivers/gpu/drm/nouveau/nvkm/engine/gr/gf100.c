@@ -1258,7 +1258,7 @@ gf100_gr_ctxctl_isr(struct gf100_gr *gr)
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x409c18);
 
-	if (stat & 0x00000001) {
+	if (!gr->firmware && (stat & 0x00000001)) {
 		u32 code = nvkm_rd32(device, 0x409814);
 		if (code == E_BAD_FWMTHD) {
 			u32 class = nvkm_rd32(device, 0x409808);
@@ -1277,7 +1277,7 @@ gf100_gr_ctxctl_isr(struct gf100_gr *gr)
 		stat &= ~0x00000001;
 	}
 
-	if (stat & 0x00080000) {
+	if (!gr->firmware && (stat & 0x00080000)) {
 		nvkm_error(subdev, "FECS watchdog timeout\n");
 		gf100_gr_ctxctl_debug(gr);
 		nvkm_wr32(device, 0x409c20, 0x00080000);
