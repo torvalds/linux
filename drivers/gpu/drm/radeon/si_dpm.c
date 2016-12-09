@@ -3026,6 +3026,7 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 		    (rdev->pdev->revision == 0x80) ||
 		    (rdev->pdev->revision == 0x81) ||
 		    (rdev->pdev->revision == 0x83) ||
+		    (rdev->pdev->revision == 0x87) ||
 		    (rdev->pdev->device == 0x6604) ||
 		    (rdev->pdev->device == 0x6605)) {
 			max_sclk = 75000;

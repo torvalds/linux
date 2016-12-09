@@ -472,7 +472,7 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 	 * size equal to the 1024 or vram, whichever is larger.
 	 */
 	if (amdgpu_gart_size == -1)
-		adev->mc.gtt_size = amdgpu_ttm_get_gtt_mem_size(adev);
+		adev->mc.gtt_size = max((1024ULL << 20), adev->mc.mc_vram_size);
 	else
 		adev->mc.gtt_size = (uint64_t)amdgpu_gart_size << 20;
 
@@ -949,11 +949,6 @@ static int gmc_v8_0_sw_init(void *handle)
 	r = gmc_v8_0_init_microcode(adev);
 	if (r) {
 		DRM_ERROR("Failed to load mc firmware!\n");
-		return r;
-	}
-
-	r = amdgpu_ttm_global_init(adev);
-	if (r) {
 		return r;
 	}
 

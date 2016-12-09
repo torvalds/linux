@@ -2827,6 +2827,21 @@ static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_
 	return RREG32(mmSQ_IND_DATA);
 }
 
+static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
+			   uint32_t wave, uint32_t thread,
+			   uint32_t regno, uint32_t num, uint32_t *out)
+{
+	WREG32(mmSQ_IND_INDEX,
+		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
+		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
+		(regno << SQ_IND_INDEX__INDEX__SHIFT) |
+		(thread << SQ_IND_INDEX__THREAD_ID__SHIFT) |
+		(SQ_IND_INDEX__FORCE_READ_MASK) |
+		(SQ_IND_INDEX__AUTO_INCR_MASK));
+	while (num--)
+		*(out++) = RREG32(mmSQ_IND_DATA);
+}
+
 static void gfx_v6_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t *dst, int *no_fields)
 {
 	/* type 0 wave data */
@@ -2851,10 +2866,20 @@ static void gfx_v6_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, u
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
 }
 
+static void gfx_v6_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
+				     uint32_t wave, uint32_t start,
+				     uint32_t size, uint32_t *dst)
+{
+	wave_read_regs(
+		adev, simd, wave, 0,
+		start + SQIND_WAVE_SGPRS_OFFSET, size, dst);
+}
+
 static const struct amdgpu_gfx_funcs gfx_v6_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v6_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v6_0_select_se_sh,
 	.read_wave_data = &gfx_v6_0_read_wave_data,
+	.read_wave_sgprs = &gfx_v6_0_read_wave_sgprs,
 };
 
 static int gfx_v6_0_early_init(void *handle)
