@@ -1818,7 +1818,6 @@ dev_config (struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 			|| dev->dev->bDescriptorType != USB_DT_DEVICE
 			|| dev->dev->bNumConfigurations != 1)
 		goto fail;
-	dev->dev->bNumConfigurations = 1;
 	dev->dev->bcdUSB = cpu_to_le16 (0x0200);
 
 	/* triggers gadgetfs_bind(); then we can enumerate. */
