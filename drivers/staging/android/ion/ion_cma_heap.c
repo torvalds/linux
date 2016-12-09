@@ -24,8 +24,6 @@
 #include "ion.h"
 #include "ion_priv.h"
 
-#define ION_CMA_ALLOCATE_FAILED -1
-
 struct ion_cma_heap {
 	struct ion_heap heap;
 	struct device *dev;
@@ -59,7 +57,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	info = kzalloc(sizeof(struct ion_cma_buffer_info), GFP_KERNEL);
 	if (!info)
-		return ION_CMA_ALLOCATE_FAILED;
+		return -ENOMEM;
 
 	info->cpu_addr = dma_alloc_coherent(dev, len, &(info->handle),
 						GFP_HIGHUSER | __GFP_ZERO);
@@ -88,7 +86,7 @@ free_mem:
 	dma_free_coherent(dev, len, info->cpu_addr, info->handle);
 err:
 	kfree(info);
-	return ION_CMA_ALLOCATE_FAILED;
+	return -ENOMEM;
 }
 
 static void ion_cma_free(struct ion_buffer *buffer)
