@@ -642,6 +642,12 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 			n->dev->name, ndev->name, mtu);
 	}
 
+	if (!(ndev->flags & IFF_UP) || !netif_carrier_ok(ndev)) {
+		pr_info("%s interface not up.\n", ndev->name);
+		err = -ENETDOWN;
+		goto rel_neigh;
+	}
+
 	cdev = cxgbi_device_find_by_netdev(ndev, &port);
 	if (!cdev) {
 		pr_info("dst %pI4, %s, NOT cxgbi device.\n",
@@ -735,6 +741,12 @@ static struct cxgbi_sock *cxgbi_check_route6(struct sockaddr *dst_addr)
 		goto rel_rt;
 	}
 	ndev = n->dev;
+
+	if (!(ndev->flags & IFF_UP) || !netif_carrier_ok(ndev)) {
+		pr_info("%s interface not up.\n", ndev->name);
+		err = -ENETDOWN;
+		goto rel_rt;
+	}
 
 	if (ipv6_addr_is_multicast(&daddr6->sin6_addr)) {
 		pr_info("multi-cast route %pI6 port %u, dev %s.\n",
