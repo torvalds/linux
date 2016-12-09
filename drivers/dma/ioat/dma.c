@@ -341,14 +341,11 @@ ioat_alloc_ring_ent(struct dma_chan *chan, int idx, gfp_t flags)
 {
 	struct ioat_dma_descriptor *hw;
 	struct ioat_ring_ent *desc;
-	struct ioatdma_device *ioat_dma;
 	struct ioatdma_chan *ioat_chan = to_ioat_chan(chan);
 	int chunk;
 	dma_addr_t phys;
 	u8 *pos;
 	off_t offs;
-
-	ioat_dma = to_ioatdma_device(chan->device);
 
 	chunk = idx / IOAT_DESCS_PER_2M;
 	idx &= (IOAT_DESCS_PER_2M - 1);
