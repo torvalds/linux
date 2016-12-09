@@ -390,8 +390,8 @@ void rockchip_drm_mode_config_init(struct drm_device *dev)
 	 * this value would be used to check framebuffer size limitation
 	 * at drm_mode_addfb().
 	 */
-	dev->mode_config.max_width = 4096;
-	dev->mode_config.max_height = 4096;
+	dev->mode_config.max_width = 8192;
+	dev->mode_config.max_height = 8192;
 
 	dev->mode_config.funcs = &rockchip_drm_mode_config_funcs;
 }
