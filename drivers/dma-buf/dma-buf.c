@@ -124,6 +124,28 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
 	return base + offset;
 }
 
+/**
+ * DOC: fence polling
+ *
+ * To support cross-device and cross-driver synchronization of buffer access
+ * implicit fences (represented internally in the kernel with struct &fence) can
+ * be attached to a &dma_buf. The glue for that and a few related things are
+ * provided in the &reservation_object structure.
+ *
+ * Userspace can query the state of these implicitly tracked fences using poll()
+ * and related system calls:
+ *
+ * - Checking for POLLIN, i.e. read access, can be use to query the state of the
+ *   most recent write or exclusive fence.
+ *
+ * - Checking for POLLOUT, i.e. write access, can be used to query the state of
+ *   all attached fences, shared and exclusive ones.
+ *
+ * Note that this only signals the completion of the respective fences, i.e. the
+ * DMA transfers are complete. Cache flushing and any other necessary
+ * preparations before CPU access can begin still need to happen.
+ */
+
 static void dma_buf_poll_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	struct dma_buf_poll_cb_t *dcb = (struct dma_buf_poll_cb_t *)cb;
