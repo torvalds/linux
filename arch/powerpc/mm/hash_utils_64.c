@@ -35,7 +35,9 @@
 #include <linux/memblock.h>
 #include <linux/context_tracking.h>
 #include <linux/libfdt.h>
+#include <linux/debugfs.h>
 
+#include <asm/debug.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -1795,3 +1797,34 @@ void hash__setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	/* Finally limit subsequent allocations */
 	memblock_set_current_limit(ppc64_rma_size);
 }
+
+#ifdef CONFIG_DEBUG_FS
+
+static int hpt_order_get(void *data, u64 *val)
+{
+	*val = ppc64_pft_size;
+	return 0;
+}
+
+static int hpt_order_set(void *data, u64 val)
+{
+	if (!mmu_hash_ops.resize_hpt)
+		return -ENODEV;
+
+	return mmu_hash_ops.resize_hpt(val);
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(fops_hpt_order, hpt_order_get, hpt_order_set, "%llu\n");
+
+static int __init hash64_debugfs(void)
+{
+	if (!debugfs_create_file("hpt_order", 0600, powerpc_debugfs_root,
+				 NULL, &fops_hpt_order)) {
+		pr_err("lpar: unable to create hpt_order debugsfs file\n");
+	}
+
+	return 0;
+}
+machine_device_initcall(pseries, hash64_debugfs);
+
+#endif /* CONFIG_DEBUG_FS */
