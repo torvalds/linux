@@ -43,6 +43,7 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_debug.h"
+#include "../include/lustre_obdo.h"
 #include "../include/lustre_param.h"
 #include "../include/lustre_fid.h"
 #include "../include/obd_class.h"
