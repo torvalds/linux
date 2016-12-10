@@ -562,6 +562,24 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
 
 }
 
+/* called under bridge lock */
+int __set_ageing_time(struct net_device *dev, unsigned long t)
+{
+	struct switchdev_attr attr = {
+		.orig_dev = dev,
+		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
+		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
+		.u.ageing_time = jiffies_to_clock_t(t),
+	};
+	int err;
+
+	err = switchdev_port_attr_set(dev, &attr);
+	if (err && err != -EOPNOTSUPP)
+		return err;
+
+	return 0;
+}
+
 /* Set time interval that dynamic forwarding entries live
  * For pure software bridge, allow values outside the 802.1
  * standard specification for special cases:
@@ -572,17 +590,11 @@ int br_set_max_age(struct net_bridge *br, unsigned long val)
  */
 int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time)
 {
-	struct switchdev_attr attr = {
-		.orig_dev = br->dev,
-		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
-		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP,
-		.u.ageing_time = ageing_time,
-	};
 	unsigned long t = clock_t_to_jiffies(ageing_time);
 	int err;
 
-	err = switchdev_port_attr_set(br->dev, &attr);
-	if (err && err != -EOPNOTSUPP)
+	err = __set_ageing_time(br->dev, t);
+	if (err)
 		return err;
 
 	br->ageing_time = t;
