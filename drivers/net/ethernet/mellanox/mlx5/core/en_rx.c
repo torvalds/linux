@@ -155,17 +155,15 @@ static inline u32 mlx5e_decompress_cqes_start(struct mlx5e_rq *rq,
 	return mlx5e_decompress_cqes_cont(rq, cq, 1, budget_rem) - 1;
 }
 
-void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val)
+void mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool val)
 {
 	bool was_opened;
 
 	if (!MLX5_CAP_GEN(priv->mdev, cqe_compression))
 		return;
 
-	mutex_lock(&priv->state_lock);
-
 	if (MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS) == val)
-		goto unlock;
+		return;
 
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (was_opened)
@@ -176,8 +174,6 @@ void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val)
 	if (was_opened)
 		mlx5e_open_locked(priv->netdev);
 
-unlock:
-	mutex_unlock(&priv->state_lock);
 }
 
 #define RQ_PAGE_SIZE(rq) ((1 << rq->buff.page_order) << PAGE_SHIFT)

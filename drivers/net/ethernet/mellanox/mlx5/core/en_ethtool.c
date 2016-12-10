@@ -1476,8 +1476,6 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	int err = 0;
-	bool reset;
 
 	if (!MLX5_CAP_GEN(mdev, cqe_compression))
 		return -ENOTSUPP;
@@ -1487,17 +1485,10 @@ static int set_pflag_rx_cqe_compress(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	reset = test_bit(MLX5E_STATE_OPENED, &priv->state);
-
-	if (reset)
-		mlx5e_close_locked(netdev);
-
-	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS, enable);
+	mlx5e_modify_rx_cqe_compression_locked(priv, enable);
 	priv->params.rx_cqe_compress_def = enable;
 
-	if (reset)
-		err = mlx5e_open_locked(netdev);
-	return err;
+	return 0;
 }
 
 static int mlx5e_handle_pflag(struct net_device *netdev,
