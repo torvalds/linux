@@ -385,7 +385,7 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	struct iov_iter to;
 	struct page **pages;
 	unsigned int nr_pages;
-	size_t offset, dummy, copied = 0;
+	size_t offset, base, copied = 0;
 	ssize_t res;
 	int i;
 
@@ -400,12 +400,11 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 
 	iov_iter_pipe(&to, ITER_PIPE | READ, pipe, len + offset);
 
-	res = iov_iter_get_pages_alloc(&to, &pages, len + offset, &dummy);
+	res = iov_iter_get_pages_alloc(&to, &pages, len + offset, &base);
 	if (res <= 0)
 		return -ENOMEM;
 
-	BUG_ON(dummy);
-	nr_pages = DIV_ROUND_UP(res, PAGE_SIZE);
+	nr_pages = DIV_ROUND_UP(res + base, PAGE_SIZE);
 
 	vec = __vec;
 	if (nr_pages > PIPE_DEF_BUFFERS) {
