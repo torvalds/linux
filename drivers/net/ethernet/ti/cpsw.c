@@ -1506,8 +1506,6 @@ static int cpsw_ndo_open(struct net_device *ndev)
 	if (cpsw->data.dual_emac)
 		cpsw->slaves[priv->emac_port].open_stat = true;
 
-	netif_tx_start_all_queues(ndev);
-
 	return 0;
 
 err_cleanup:
