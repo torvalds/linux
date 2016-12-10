@@ -81,7 +81,7 @@ void br_stp_disable_bridge(struct net_bridge *br)
 
 	}
 
-	br->topology_change = 0;
+	__br_set_topology_change(br, 0);
 	br->topology_change_detected = 0;
 	spin_unlock_bh(&br->lock);
 

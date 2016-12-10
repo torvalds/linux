@@ -234,7 +234,7 @@ static void br_record_config_timeout_values(struct net_bridge *br,
 	br->max_age = bpdu->max_age;
 	br->hello_time = bpdu->hello_time;
 	br->forward_delay = bpdu->forward_delay;
-	br->topology_change = bpdu->topology_change;
+	__br_set_topology_change(br, bpdu->topology_change);
 }
 
 /* called under bridge lock */
@@ -344,7 +344,7 @@ void br_topology_change_detection(struct net_bridge *br)
 		isroot ? "propagating" : "sending tcn bpdu");
 
 	if (isroot) {
-		br->topology_change = 1;
+		__br_set_topology_change(br, 1);
 		mod_timer(&br->topology_change_timer, jiffies
 			  + br->bridge_forward_delay + br->bridge_max_age);
 	} else if (!br->topology_change_detected) {
@@ -601,6 +601,12 @@ int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time)
 	mod_timer(&br->gc_timer, jiffies);
 
 	return 0;
+}
+
+/* called under bridge lock */
+void __br_set_topology_change(struct net_bridge *br, unsigned char val)
+{
+	br->topology_change = val;
 }
 
 void __br_set_forward_delay(struct net_bridge *br, unsigned long t)
