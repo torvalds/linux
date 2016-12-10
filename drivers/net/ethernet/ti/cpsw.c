@@ -2020,9 +2020,10 @@ static int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
 	u32 min_rate;
 	u32 ch_rate;
-	int ret;
+	int i, ret;
 
 	ch_rate = netdev_get_tx_queue(ndev, queue)->tx_maxrate;
 	if (ch_rate == rate)
@@ -2052,6 +2053,15 @@ static int cpsw_ndo_set_tx_maxrate(struct net_device *ndev, int queue, u32 rate)
 
 	if (ret)
 		return ret;
+
+	/* update rates for slaves tx queues */
+	for (i = 0; i < cpsw->data.slaves; i++) {
+		slave = &cpsw->slaves[i];
+		if (!slave->ndev)
+			continue;
+
+		netdev_get_tx_queue(slave->ndev, queue)->tx_maxrate = rate;
+	}
 
 	cpsw_split_res(ndev);
 	return ret;
