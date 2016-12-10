@@ -1052,10 +1052,10 @@ static int __init i8042_pnp_init(void)
 	return 0;
 }
 
-#else
+#else  /* !CONFIG_PNP */
 static inline int i8042_pnp_init(void) { return 0; }
 static inline void i8042_pnp_exit(void) { }
-#endif
+#endif /* CONFIG_PNP */
 
 static int __init i8042_platform_init(void)
 {
