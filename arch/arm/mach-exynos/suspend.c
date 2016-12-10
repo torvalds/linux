@@ -66,7 +66,7 @@ struct exynos_pm_data {
 	int (*cpu_suspend)(unsigned long);
 };
 
-static const struct exynos_pm_data *pm_data;
+static const struct exynos_pm_data *pm_data __ro_after_init;
 
 static int exynos5420_cpu_state;
 static unsigned int exynos_pmu_spare3;
