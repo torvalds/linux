@@ -76,6 +76,7 @@ config MVNETA_BM
 	default y if MVNETA=y && MVNETA_BM_ENABLE!=n
 	default MVNETA_BM_ENABLE
 	select HWBM
+	select GENERIC_ALLOCATOR
 	help
 	  MVNETA_BM must not be 'm' if MVNETA=y, so this symbol ensures
 	  that all dependencies are met.
