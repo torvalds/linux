@@ -285,7 +285,7 @@ static int s3c64xx_cpu_suspend(unsigned long arg)
 }
 
 /* mapping of interrupts to parts of the wakeup mask */
-static struct samsung_wakeup_mask wake_irqs[] = {
+static const struct samsung_wakeup_mask wake_irqs[] = {
 	{ .irq = IRQ_RTC_ALARM,	.bit = S3C64XX_PWRCFG_RTC_ALARM_DISABLE, },
 	{ .irq = IRQ_RTC_TIC,	.bit = S3C64XX_PWRCFG_RTC_TICK_DISABLE, },
 	{ .irq = IRQ_PENDN,	.bit = S3C64XX_PWRCFG_TS_DISABLE, },
