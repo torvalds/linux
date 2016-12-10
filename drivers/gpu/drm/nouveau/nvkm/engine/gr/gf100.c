@@ -1041,6 +1041,13 @@ gf100_gr_trap_tpc(struct gf100_gr *gr, int gpc, int tpc)
 		stat &= ~0x00000008;
 	}
 
+	if (stat & 0x00000010) {
+		u32 trap = nvkm_rd32(device, TPC_UNIT(gpc, tpc, 0x0430));
+		nvkm_error(subdev, "GPC%d/TPC%d/MPC: %08x\n", gpc, tpc, trap);
+		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x0430), 0xc0000000);
+		stat &= ~0x00000010;
+	}
+
 	if (stat) {
 		nvkm_error(subdev, "GPC%d/TPC%d/%08x: unknown\n", gpc, tpc, stat);
 	}
