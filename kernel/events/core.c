@@ -903,17 +903,14 @@ list_update_cgroup_event(struct perf_event *event,
 	 */
 	cpuctx = __get_cpu_context(ctx);
 
-	/* Only set/clear cpuctx->cgrp if current task uses event->cgrp. */
-	if (perf_cgroup_from_task(current, ctx) != event->cgrp) {
-		/*
-		 * We are removing the last cpu event in this context.
-		 * If that event is not active in this cpu, cpuctx->cgrp
-		 * should've been cleared by perf_cgroup_switch.
-		 */
-		WARN_ON_ONCE(!add && cpuctx->cgrp);
-		return;
-	}
-	cpuctx->cgrp = add ? event->cgrp : NULL;
+	/*
+	 * cpuctx->cgrp is NULL until a cgroup event is sched in or
+	 * ctx->nr_cgroup == 0 .
+	 */
+	if (add && perf_cgroup_from_task(current, ctx) == event->cgrp)
+		cpuctx->cgrp = event->cgrp;
+	else if (!add)
+		cpuctx->cgrp = NULL;
 }
 
 #else /* !CONFIG_CGROUP_PERF */

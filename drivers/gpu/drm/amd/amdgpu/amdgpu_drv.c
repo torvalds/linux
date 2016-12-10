@@ -479,12 +479,15 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 static void
 amdgpu_pci_shutdown(struct pci_dev *pdev)
 {
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct amdgpu_device *adev = dev->dev_private;
+
 	/* if we are running in a VM, make sure the device
 	 * torn down properly on reboot/shutdown.
 	 * unfortunately we can't detect certain
 	 * hypervisors so just do this all the time.
 	 */
-	amdgpu_pci_remove(pdev);
+	amdgpu_suspend(adev);
 }
 
 static int amdgpu_pmops_suspend(struct device *dev)

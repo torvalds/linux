@@ -546,13 +546,15 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	}
 	err = ipvlan_set_port_mode(port, mode);
 	if (err) {
-		goto unregister_netdev;
+		goto unlink_netdev;
 	}
 
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
 	netif_stacked_transfer_operstate(phy_dev, dev);
 	return 0;
 
+unlink_netdev:
+	netdev_upper_dev_unlink(phy_dev, dev);
 unregister_netdev:
 	unregister_netdevice(dev);
 destroy_ipvlan_port:
