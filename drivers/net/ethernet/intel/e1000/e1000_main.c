@@ -5255,8 +5255,8 @@ static void e1000_netpoll(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 
-	disable_irq(adapter->pdev->irq);
-	e1000_intr(adapter->pdev->irq, netdev);
+	if (disable_hardirq(adapter->pdev->irq))
+		e1000_intr(adapter->pdev->irq, netdev);
 	enable_irq(adapter->pdev->irq);
 }
 #endif
