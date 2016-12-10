@@ -3872,7 +3872,7 @@ static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)
 			DRM_DEBUG_KMS("EDID read had %d NACKs, %d DEFERs\n",
 				      intel_dp->aux.i2c_nack_count,
 				      intel_dp->aux.i2c_defer_count);
-		intel_dp->compliance_test_data = INTEL_DP_RESOLUTION_FAILSAFE;
+		intel_dp->compliance.test_data.edid = INTEL_DP_RESOLUTION_FAILSAFE;
 	} else {
 		struct edid *block = intel_connector->detect_edid;
 
@@ -3888,11 +3888,11 @@ static uint8_t intel_dp_autotest_edid(struct intel_dp *intel_dp)
 			DRM_DEBUG_KMS("Failed to write EDID checksum\n");
 
 		test_result = DP_TEST_ACK | DP_TEST_EDID_CHECKSUM_WRITE;
-		intel_dp->compliance_test_data = INTEL_DP_RESOLUTION_STANDARD;
+		intel_dp->compliance.test_data.edid = INTEL_DP_RESOLUTION_STANDARD;
 	}
 
 	/* Set test active flag here so userspace doesn't interrupt things */
-	intel_dp->compliance_test_active = 1;
+	intel_dp->compliance.test_active = 1;
 
 	return test_result;
 }
@@ -3918,22 +3918,22 @@ static void intel_dp_handle_test_request(struct intel_dp *intel_dp)
 	switch (rxdata) {
 	case DP_TEST_LINK_TRAINING:
 		DRM_DEBUG_KMS("LINK_TRAINING test requested\n");
-		intel_dp->compliance_test_type = DP_TEST_LINK_TRAINING;
+		intel_dp->compliance.test_type = DP_TEST_LINK_TRAINING;
 		response = intel_dp_autotest_link_training(intel_dp);
 		break;
 	case DP_TEST_LINK_VIDEO_PATTERN:
 		DRM_DEBUG_KMS("TEST_PATTERN test requested\n");
-		intel_dp->compliance_test_type = DP_TEST_LINK_VIDEO_PATTERN;
+		intel_dp->compliance.test_type = DP_TEST_LINK_VIDEO_PATTERN;
 		response = intel_dp_autotest_video_pattern(intel_dp);
 		break;
 	case DP_TEST_LINK_EDID_READ:
 		DRM_DEBUG_KMS("EDID test requested\n");
-		intel_dp->compliance_test_type = DP_TEST_LINK_EDID_READ;
+		intel_dp->compliance.test_type = DP_TEST_LINK_EDID_READ;
 		response = intel_dp_autotest_edid(intel_dp);
 		break;
 	case DP_TEST_LINK_PHY_TEST_PATTERN:
 		DRM_DEBUG_KMS("PHY_PATTERN test requested\n");
-		intel_dp->compliance_test_type = DP_TEST_LINK_PHY_TEST_PATTERN;
+		intel_dp->compliance.test_type = DP_TEST_LINK_PHY_TEST_PATTERN;
 		response = intel_dp_autotest_phy_pattern(intel_dp);
 		break;
 	default:
@@ -4057,7 +4057,7 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 		return;
 
 	/* if link training is requested we should perform it always */
-	if ((intel_dp->compliance_test_type == DP_TEST_LINK_TRAINING) ||
+	if ((intel_dp->compliance.test_type == DP_TEST_LINK_TRAINING) ||
 	    (!drm_dp_channel_eq_ok(link_status, intel_dp->lane_count))) {
 		DRM_DEBUG_KMS("%s: channel EQ not ok, retraining\n",
 			      intel_encoder->base.name);
@@ -4091,9 +4091,7 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 	 * Clearing compliance test variables to allow capturing
 	 * of values for next automated test request.
 	 */
-	intel_dp->compliance_test_active = 0;
-	intel_dp->compliance_test_type = 0;
-	intel_dp->compliance_test_data = 0;
+	memset(&intel_dp->compliance, 0, sizeof(intel_dp->compliance));
 
 	/*
 	 * Now read the DPCD to see if it's actually running
@@ -4410,9 +4408,7 @@ intel_dp_long_pulse(struct intel_connector *intel_connector)
 		status = connector_status_disconnected;
 
 	if (status == connector_status_disconnected) {
-		intel_dp->compliance_test_active = 0;
-		intel_dp->compliance_test_type = 0;
-		intel_dp->compliance_test_data = 0;
+		memset(&intel_dp->compliance, 0, sizeof(intel_dp->compliance));
 
 		if (intel_dp->is_mst) {
 			DRM_DEBUG_KMS("MST device may have disappeared %d vs %d\n",

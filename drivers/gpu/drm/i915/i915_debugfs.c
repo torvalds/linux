@@ -3612,9 +3612,9 @@ static ssize_t i915_displayport_test_active_write(struct file *file,
 			 * testing code, only accept an actual value of 1 here
 			 */
 			if (val == 1)
-				intel_dp->compliance_test_active = 1;
+				intel_dp->compliance.test_active = 1;
 			else
-				intel_dp->compliance_test_active = 0;
+				intel_dp->compliance.test_active = 0;
 		}
 	}
 out:
@@ -3641,7 +3641,7 @@ static int i915_displayport_test_active_show(struct seq_file *m, void *data)
 		if (connector->status == connector_status_connected &&
 		    connector->encoder != NULL) {
 			intel_dp = enc_to_intel_dp(connector->encoder);
-			if (intel_dp->compliance_test_active)
+			if (intel_dp->compliance.test_active)
 				seq_puts(m, "1");
 			else
 				seq_puts(m, "0");
@@ -3685,7 +3685,7 @@ static int i915_displayport_test_data_show(struct seq_file *m, void *data)
 		if (connector->status == connector_status_connected &&
 		    connector->encoder != NULL) {
 			intel_dp = enc_to_intel_dp(connector->encoder);
-			seq_printf(m, "%lx", intel_dp->compliance_test_data);
+			seq_printf(m, "%lx", intel_dp->compliance.test_data.edid);
 		} else
 			seq_puts(m, "0");
 	}
@@ -3724,7 +3724,7 @@ static int i915_displayport_test_type_show(struct seq_file *m, void *data)
 		if (connector->status == connector_status_connected &&
 		    connector->encoder != NULL) {
 			intel_dp = enc_to_intel_dp(connector->encoder);
-			seq_printf(m, "%02lx", intel_dp->compliance_test_type);
+			seq_printf(m, "%02lx", intel_dp->compliance.test_type);
 		} else
 			seq_puts(m, "0");
 	}
