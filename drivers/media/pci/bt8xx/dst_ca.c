@@ -475,9 +475,8 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 
 static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
-	int i = 0;
-
-	u32 command = 0;
+	int i;
+	u32 command;
 	struct ca_msg *hw_buffer;
 	int result = 0;
 
