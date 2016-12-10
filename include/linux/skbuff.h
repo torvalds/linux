@@ -645,8 +645,15 @@ struct sk_buff {
 		struct rb_node	rbnode; /* used in netem & tcp stack */
 	};
 	struct sock		*sk;
-	struct net_device	*dev;
 
+	union {
+		struct net_device	*dev;
+		/* Some protocols might use this space to store information,
+		 * while device pointer would be NULL.
+		 * UDP receive path is one user.
+		 */
+		unsigned long		dev_scratch;
+	};
 	/*
 	 * This is the control buffer. It is free to use for every
 	 * layer. Please put your private variables there. If you
