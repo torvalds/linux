@@ -439,7 +439,7 @@ static struct elv_fs_entry deadline_attrs[] = {
 };
 
 static struct elevator_type iosched_deadline = {
-	.ops = {
+	.ops.sq = {
 		.elevator_merge_fn = 		deadline_merge,
 		.elevator_merged_fn =		deadline_merged_request,
 		.elevator_merge_req_fn =	deadline_merged_requests,
