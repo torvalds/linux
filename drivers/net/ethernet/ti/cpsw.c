@@ -1624,10 +1624,7 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	struct cpsw_common *cpsw = priv->cpsw;
 	u32 ctrl, mtype;
 
-	if (cpsw->data.dual_emac)
-		slave = &cpsw->slaves[priv->emac_port];
-	else
-		slave = &cpsw->slaves[cpsw->data.active_slave];
+	slave = &cpsw->slaves[cpsw_slave_index(cpsw, priv)];
 
 	ctrl = slave_read(slave, CPSW2_CONTROL);
 	switch (cpsw->version) {
