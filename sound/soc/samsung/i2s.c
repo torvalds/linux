@@ -1218,7 +1218,6 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 {
 	struct i2s_dai *pri_dai, *sec_dai = NULL;
 	struct s3c_audio_pdata *i2s_pdata = pdev->dev.platform_data;
-	struct samsung_i2s *i2s_cfg = NULL;
 	struct resource *res;
 	u32 regs_base, quirks = 0, idma_addr = 0;
 	struct device_node *np = pdev->dev.of_node;
@@ -1267,13 +1266,8 @@ static int samsung_i2s_probe(struct platform_device *pdev)
 		pri_dai->dma_capture.filter_data = i2s_pdata->dma_capture;
 		pri_dai->filter = i2s_pdata->dma_filter;
 
-		if (&i2s_pdata->type)
-			i2s_cfg = &i2s_pdata->type.i2s;
-
-		if (i2s_cfg) {
-			quirks = i2s_cfg->quirks;
-			idma_addr = i2s_cfg->idma_addr;
-		}
+		quirks = i2s_pdata->type.quirks;
+		idma_addr = i2s_pdata->type.idma_addr;
 	} else {
 		quirks = i2s_dai_data->quirks;
 		if (of_property_read_u32(np, "samsung,idma-addr",
