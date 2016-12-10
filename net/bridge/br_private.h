@@ -300,10 +300,11 @@ struct net_bridge
 	unsigned long			max_age;
 	unsigned long			hello_time;
 	unsigned long			forward_delay;
-	unsigned long			bridge_max_age;
 	unsigned long			ageing_time;
+	unsigned long			bridge_max_age;
 	unsigned long			bridge_hello_time;
 	unsigned long			bridge_forward_delay;
+	unsigned long			bridge_ageing_time;
 
 	u8				group_addr[ETH_ALEN];
 	bool				group_addr_set;

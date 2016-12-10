@@ -597,7 +597,11 @@ int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time)
 	if (err)
 		return err;
 
+	spin_lock_bh(&br->lock);
+	br->bridge_ageing_time = t;
 	br->ageing_time = t;
+	spin_unlock_bh(&br->lock);
+
 	mod_timer(&br->gc_timer, jiffies);
 
 	return 0;
@@ -606,6 +610,29 @@ int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time)
 /* called under bridge lock */
 void __br_set_topology_change(struct net_bridge *br, unsigned char val)
 {
+	unsigned long t;
+	int err;
+
+	if (br->stp_enabled == BR_KERNEL_STP && br->topology_change != val) {
+		/* On topology change, set the bridge ageing time to twice the
+		 * forward delay. Otherwise, restore its default ageing time.
+		 */
+
+		if (val) {
+			t = 2 * br->forward_delay;
+			br_debug(br, "decreasing ageing time to %lu\n", t);
+		} else {
+			t = br->bridge_ageing_time;
+			br_debug(br, "restoring ageing time to %lu\n", t);
+		}
+
+		err = __set_ageing_time(br->dev, t);
+		if (err)
+			br_warn(br, "error offloading ageing time\n");
+		else
+			br->ageing_time = t;
+	}
+
 	br->topology_change = val;
 }
 
