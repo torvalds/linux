@@ -544,7 +544,7 @@ static int rmi_scan_pdt_page(struct rmi_device *rmi_dev,
 	else
 		*empty_pages = 0;
 
-	return (data->f01_bootloader_mode || *empty_pages >= 2) ?
+	return (data->bootloader_mode || *empty_pages >= 2) ?
 					RMI_SCAN_DONE : RMI_SCAN_CONTINUE;
 }
 
@@ -749,41 +749,49 @@ bool rmi_register_desc_has_subpacket(const struct rmi_register_desc_item *item,
 				subpacket) == subpacket;
 }
 
-/* Indicates that flash programming is enabled (bootloader mode). */
-#define RMI_F01_STATUS_BOOTLOADER(status)	(!!((status) & 0x40))
-
-/*
- * Given the PDT entry for F01, read the device status register to determine
- * if we're stuck in bootloader mode or not.
- *
- */
 static int rmi_check_bootloader_mode(struct rmi_device *rmi_dev,
 				     const struct pdt_entry *pdt)
 {
-	int error;
-	u8 device_status;
+	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
+	int ret;
+	u8 status;
 
-	error = rmi_read(rmi_dev, pdt->data_base_addr + pdt->page_start,
-			 &device_status);
-	if (error) {
-		dev_err(&rmi_dev->dev,
-			"Failed to read device status: %d.\n", error);
-		return error;
+	if (pdt->function_number == 0x34 && pdt->function_version > 1) {
+		ret = rmi_read(rmi_dev, pdt->data_base_addr, &status);
+		if (ret) {
+			dev_err(&rmi_dev->dev,
+				"Failed to read F34 status: %d.\n", ret);
+			return ret;
+		}
+
+		if (status & BIT(7))
+			data->bootloader_mode = true;
+	} else if (pdt->function_number == 0x01) {
+		ret = rmi_read(rmi_dev, pdt->data_base_addr, &status);
+		if (ret) {
+			dev_err(&rmi_dev->dev,
+				"Failed to read F01 status: %d.\n", ret);
+			return ret;
+		}
+
+		if (status & BIT(6))
+			data->bootloader_mode = true;
 	}
 
-	return RMI_F01_STATUS_BOOTLOADER(device_status);
+	return 0;
 }
 
 static int rmi_count_irqs(struct rmi_device *rmi_dev,
 			 void *ctx, const struct pdt_entry *pdt)
 {
-	struct rmi_driver_data *data = dev_get_drvdata(&rmi_dev->dev);
 	int *irq_count = ctx;
+	int ret;
 
 	*irq_count += pdt->interrupt_source_count;
-	if (pdt->function_number == 0x01)
-		data->f01_bootloader_mode =
-			rmi_check_bootloader_mode(rmi_dev, pdt);
+
+	ret = rmi_check_bootloader_mode(rmi_dev, pdt);
+	if (ret < 0)
+		return ret;
 
 	return RMI_SCAN_CONTINUE;
 }
@@ -1024,13 +1032,15 @@ int rmi_probe_interrupts(struct rmi_driver_data *data)
 	 */
 	rmi_dbg(RMI_DEBUG_CORE, dev, "%s: Counting IRQs.\n", __func__);
 	irq_count = 0;
+	data->bootloader_mode = false;
+
 	retval = rmi_scan_pdt(rmi_dev, &irq_count, rmi_count_irqs);
 	if (retval < 0) {
 		dev_err(dev, "IRQ counting failed with code %d.\n", retval);
 		return retval;
 	}
 
-	if (data->f01_bootloader_mode)
+	if (data->bootloader_mode)
 		dev_warn(&rmi_dev->dev, "Device in bootloader mode.\n");
 
 	data->irq_count = irq_count;

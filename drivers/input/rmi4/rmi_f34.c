@@ -12,6 +12,7 @@
 #include <linux/firmware.h>
 #include <asm/unaligned.h>
 #include <asm/unaligned.h>
+#include <linux/bitops.h>
 
 #include "rmi_driver.h"
 #include "rmi_f34.h"
@@ -104,6 +105,9 @@ static int rmi_f34_attention(struct rmi_function *fn, unsigned long *irq_bits)
 {
 	struct f34_data *f34 = dev_get_drvdata(&fn->dev);
 	int ret;
+
+	if (f34->bl_version != 5)
+		return 0;
 
 	ret = rmi_read(f34->fn->rmi_dev, f34->v5.ctrl_address, &f34->v5.status);
 	rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: status: %#02x, ret: %d\n",
@@ -292,17 +296,24 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 		return -EINVAL;
 	}
 
-	/* Only version 0 currently supported */
-	if (data->f34_container->fd.function_version != 0) {
+	f34 = dev_get_drvdata(&data->f34_container->dev);
+
+	if (f34->bl_version == 7) {
+		if (data->pdt_props & HAS_BSR) {
+			dev_err(dev, "%s: LTS not supported\n", __func__);
+			return -ENODEV;
+		}
+	} else if (f34->bl_version != 5) {
 		dev_warn(dev, "F34 V%d not supported!\n",
 			 data->f34_container->fd.function_version);
 		return -ENODEV;
 	}
 
-	f34 = dev_get_drvdata(&data->f34_container->dev);
-
 	/* Enter flash mode */
-	ret = rmi_f34_enable_flash(f34);
+	if (f34->bl_version == 7)
+		ret = rmi_f34v7_start_reflash(f34, fw);
+	else
+		ret = rmi_f34_enable_flash(f34);
 	if (ret)
 		return ret;
 
@@ -319,7 +330,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	if (ret)
 		return ret;
 
-	if (!data->f01_bootloader_mode || !data->f34_container) {
+	if (!data->bootloader_mode || !data->f34_container) {
 		dev_warn(dev, "%s: No F34 present or not in bootloader!\n",
 				__func__);
 		return -EINVAL;
@@ -330,7 +341,10 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	f34 = dev_get_drvdata(&data->f34_container->dev);
 
 	/* Perform firmware update */
-	ret = rmi_f34_update_firmware(f34, fw);
+	if (f34->bl_version == 7)
+		ret = rmi_f34v7_do_reflash(f34, fw);
+	else
+		ret = rmi_f34_update_firmware(f34, fw);
 
 	dev_info(&f34->fn->dev, "Firmware update complete, status:%d\n", ret);
 
@@ -362,6 +376,9 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 
 	return ret;
 }
+
+static int rmi_firmware_update(struct rmi_driver_data *data,
+			       const struct firmware *fw);
 
 static ssize_t rmi_driver_update_fw_store(struct device *dev,
 					  struct device_attribute *dattr,
@@ -411,6 +428,7 @@ static int rmi_f34_probe(struct rmi_function *fn)
 	struct f34_data *f34;
 	unsigned char f34_queries[9];
 	bool has_config_id;
+	u8 version = fn->fd.function_version;
 	int ret;
 
 	f34 = devm_kzalloc(&fn->dev, sizeof(struct f34_data), GFP_KERNEL);
@@ -419,6 +437,14 @@ static int rmi_f34_probe(struct rmi_function *fn)
 
 	f34->fn = fn;
 	dev_set_drvdata(&fn->dev, f34);
+
+	/* v5 code only supported version 0, try V7 probe */
+	if (version > 0)
+		return rmi_f34v7_probe(f34);
+	else if (version != 0)
+		return -ENODEV;
+
+	f34->bl_version = 5;
 
 	ret = rmi_read_block(fn->rmi_dev, fn->fd.query_base_addr,
 			     f34_queries, sizeof(f34_queries));
