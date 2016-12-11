@@ -327,6 +327,7 @@ enum iwl_phy_ops_subcmd_ids {
 
 enum iwl_system_subcmd_ids {
 	SHARED_MEM_CFG_CMD = 0x0,
+	INIT_EXTENDED_CFG_CMD = 0x03,
 };
 
 enum iwl_data_path_subcmd_ids {
@@ -2235,5 +2236,27 @@ struct iwl_dbg_mem_access_rsp {
 struct iwl_nvm_access_complete_cmd {
 	__le32 reserved;
 } __packed; /* NVM_ACCESS_COMPLETE_CMD_API_S_VER_1 */
+
+/**
+ * enum iwl_extended_cfg_flag - commands driver may send before
+ *	finishing init flow
+ * @IWL_INIT_DEBUG_CFG: driver is going to send debug config command
+ * @IWL_INIT_NVM: driver is going to send NVM_ACCESS commands
+ * @IWL_INIT_PHY: driver is going to send PHY_DB commands
+ */
+enum iwl_extended_cfg_flags {
+	IWL_INIT_DEBUG_CFG,
+	IWL_INIT_NVM,
+	IWL_INIT_PHY,
+};
+
+/**
+ * struct iwl_extended_cfg_cmd - mark what commands ucode should wait for
+ * before finishing init flows
+ * @init_flags: values from iwl_extended_cfg_flags
+ */
+struct iwl_init_extended_cfg_cmd {
+	__le32 init_flags;
+} __packed; /* INIT_EXTENDED_CFG_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */
