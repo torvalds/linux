@@ -479,6 +479,9 @@ static int fib_get_nhs(struct fib_info *fi, struct rtnexthop *rtnh,
 		if (!rtnh_ok(rtnh, remaining))
 			return -EINVAL;
 
+		if (rtnh->rtnh_flags & (RTNH_F_DEAD | RTNH_F_LINKDOWN))
+			return -EINVAL;
+
 		nexthop_nh->nh_flags =
 			(cfg->fc_flags & ~0xFF) | rtnh->rtnh_flags;
 		nexthop_nh->nh_oif = rtnh->rtnh_ifindex;
@@ -975,6 +978,8 @@ fib_convert_metrics(struct fib_info *fi, const struct fib_config *cfg)
 			val = 65535 - 40;
 		if (type == RTAX_MTU && val > 65535 - 15)
 			val = 65535 - 15;
+		if (type == RTAX_HOPLIMIT && val > 255)
+			val = 255;
 		if (type == RTAX_FEATURES && (val & ~RTAX_FEATURE_MASK))
 			return -EINVAL;
 		fi->fib_metrics[type - 1] = val;
@@ -999,6 +1004,9 @@ struct fib_info *fib_create_info(struct fib_config *cfg)
 
 	/* Fast check to catch the most weird cases */
 	if (fib_props[cfg->fc_type].scope > cfg->fc_scope)
+		goto err_inval;
+
+	if (cfg->fc_flags & (RTNH_F_DEAD | RTNH_F_LINKDOWN))
 		goto err_inval;
 
 #ifdef CONFIG_IP_ROUTE_MULTIPATH

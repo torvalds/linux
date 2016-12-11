@@ -233,8 +233,8 @@ static int amdgpu_move_blit(struct ttm_buffer_object *bo,
 
 	adev = amdgpu_get_adev(bo->bdev);
 	ring = adev->mman.buffer_funcs_ring;
-	old_start = old_mem->start << PAGE_SHIFT;
-	new_start = new_mem->start << PAGE_SHIFT;
+	old_start = (u64)old_mem->start << PAGE_SHIFT;
+	new_start = (u64)new_mem->start << PAGE_SHIFT;
 
 	switch (old_mem->mem_type) {
 	case TTM_PL_VRAM:
@@ -712,7 +712,7 @@ static int amdgpu_ttm_tt_populate(struct ttm_tt *ttm)
 						       0, PAGE_SIZE,
 						       PCI_DMA_BIDIRECTIONAL);
 		if (pci_dma_mapping_error(adev->pdev, gtt->ttm.dma_address[i])) {
-			while (--i) {
+			while (i--) {
 				pci_unmap_page(adev->pdev, gtt->ttm.dma_address[i],
 					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 				gtt->ttm.dma_address[i] = 0;
@@ -783,6 +783,25 @@ bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm)
 	return !!gtt->userptr;
 }
 
+bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
+				  unsigned long end)
+{
+	struct amdgpu_ttm_tt *gtt = (void *)ttm;
+	unsigned long size;
+
+	if (gtt == NULL)
+		return false;
+
+	if (gtt->ttm.ttm.state != tt_bound || !gtt->userptr)
+		return false;
+
+	size = (unsigned long)gtt->ttm.ttm.num_pages * PAGE_SIZE;
+	if (gtt->userptr > end || gtt->userptr + size <= start)
+		return false;
+
+	return true;
+}
+
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm)
 {
 	struct amdgpu_ttm_tt *gtt = (void *)ttm;
@@ -808,7 +827,7 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 			flags |= AMDGPU_PTE_SNOOPED;
 	}
 
-	if (adev->asic_type >= CHIP_TOPAZ)
+	if (adev->asic_type >= CHIP_TONGA)
 		flags |= AMDGPU_PTE_EXECUTABLE;
 
 	flags |= AMDGPU_PTE_READABLE;

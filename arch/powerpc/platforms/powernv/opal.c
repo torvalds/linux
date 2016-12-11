@@ -758,6 +758,9 @@ static int __init opal_init(void)
 	opal_pdev_init(opal_node, "ibm,opal-flash");
 	opal_pdev_init(opal_node, "ibm,opal-prd");
 
+	/* Initialise OPAL kmsg dumper for flushing console on panic */
+	opal_kmsg_init();
+
 	return 0;
 }
 machine_subsys_initcall(powernv, opal_init);

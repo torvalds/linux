@@ -149,6 +149,11 @@ static int crb_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	struct crb_priv *priv = chip->vendor.priv;
 	int rc = 0;
 
+	/* Zero the cancel register so that the next command will not get
+	 * canceled.
+	 */
+	iowrite32(0, &priv->cca->cancel);
+
 	if (len > le32_to_cpu(ioread32(&priv->cca->cmd_size))) {
 		dev_err(&chip->dev,
 			"invalid command count value %x %zx\n",
@@ -182,8 +187,6 @@ static void crb_cancel(struct tpm_chip *chip)
 
 	if ((priv->flags & CRB_FL_ACPI_START) && crb_do_acpi_start(chip))
 		dev_err(&chip->dev, "ACPI Start failed\n");
-
-	iowrite32(0, &priv->cca->cancel);
 }
 
 static bool crb_req_canceled(struct tpm_chip *chip, u8 status)
@@ -310,10 +313,10 @@ static int crb_acpi_remove(struct acpi_device *device)
 	struct device *dev = &device->dev;
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
-	tpm_chip_unregister(chip);
-
 	if (chip->flags & TPM_CHIP_FLAG_TPM2)
 		tpm2_shutdown(chip, TPM2_SU_CLEAR);
+
+	tpm_chip_unregister(chip);
 
 	return 0;
 }

@@ -258,12 +258,12 @@ static int log_one_block(struct log_writes_c *lc,
 		goto out;
 	sector++;
 
-	bio = bio_alloc(GFP_KERNEL, block->vec_cnt);
+	atomic_inc(&lc->io_blocks);
+	bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt, BIO_MAX_PAGES));
 	if (!bio) {
 		DMERR("Couldn't alloc log bio");
 		goto error;
 	}
-	atomic_inc(&lc->io_blocks);
 	bio->bi_iter.bi_size = 0;
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_bdev = lc->logdev->bdev;
@@ -280,7 +280,7 @@ static int log_one_block(struct log_writes_c *lc,
 		if (ret != block->vecs[i].bv_len) {
 			atomic_inc(&lc->io_blocks);
 			submit_bio(WRITE, bio);
-			bio = bio_alloc(GFP_KERNEL, block->vec_cnt - i);
+			bio = bio_alloc(GFP_KERNEL, min(block->vec_cnt - i, BIO_MAX_PAGES));
 			if (!bio) {
 				DMERR("Couldn't alloc log bio");
 				goto error;
@@ -456,9 +456,9 @@ static int log_writes_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	ret = -EINVAL;
 	lc->log_kthread = kthread_run(log_writes_kthread, lc, "log-write");
-	if (!lc->log_kthread) {
+	if (IS_ERR(lc->log_kthread)) {
+		ret = PTR_ERR(lc->log_kthread);
 		ti->error = "Couldn't alloc kthread";
 		dm_put_device(ti, lc->dev);
 		dm_put_device(ti, lc->logdev);

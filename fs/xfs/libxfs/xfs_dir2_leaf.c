@@ -245,11 +245,13 @@ xfs_dir3_leafn_write_verify(
 }
 
 const struct xfs_buf_ops xfs_dir3_leaf1_buf_ops = {
+	.name = "xfs_dir3_leaf1",
 	.verify_read = xfs_dir3_leaf1_read_verify,
 	.verify_write = xfs_dir3_leaf1_write_verify,
 };
 
 const struct xfs_buf_ops xfs_dir3_leafn_buf_ops = {
+	.name = "xfs_dir3_leafn",
 	.verify_read = xfs_dir3_leafn_read_verify,
 	.verify_write = xfs_dir3_leafn_write_verify,
 };

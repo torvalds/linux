@@ -1519,7 +1519,7 @@ int mv88e6xxx_port_vlan_add(struct dsa_switch *ds, int port,
 
 	/* no PVID with ranges, otherwise it's a bug */
 	if (pvid)
-		err = _mv88e6xxx_port_pvid_set(ds, port, vid);
+		err = _mv88e6xxx_port_pvid_set(ds, port, vlan->vid_end);
 unlock:
 	mutex_unlock(&ps->smi_mutex);
 

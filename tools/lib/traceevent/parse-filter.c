@@ -1164,10 +1164,10 @@ process_filter(struct event_format *event, struct filter_arg **parg,
 		current_op = current_exp;
 
 	ret = collapse_tree(current_op, parg, error_str);
+	/* collapse_tree() may free current_op, and updates parg accordingly */
+	current_op = NULL;
 	if (ret < 0)
 		goto fail;
-
-	*parg = current_op;
 
 	free(token);
 	return 0;

@@ -2453,29 +2453,22 @@ struct fib_route_iter {
 static struct key_vector *fib_route_get_idx(struct fib_route_iter *iter,
 					    loff_t pos)
 {
-	struct fib_table *tb = iter->main_tb;
 	struct key_vector *l, **tp = &iter->tnode;
-	struct trie *t;
 	t_key key;
 
-	/* use cache location of next-to-find key */
+	/* use cached location of previously found key */
 	if (iter->pos > 0 && pos >= iter->pos) {
-		pos -= iter->pos;
 		key = iter->key;
 	} else {
-		t = (struct trie *)tb->tb_data;
-		iter->tnode = t->kv;
-		iter->pos = 0;
+		iter->pos = 1;
 		key = 0;
 	}
 
-	while ((l = leaf_walk_rcu(tp, key)) != NULL) {
+	pos -= iter->pos;
+
+	while ((l = leaf_walk_rcu(tp, key)) && (pos-- > 0)) {
 		key = l->key + 1;
 		iter->pos++;
-
-		if (--pos <= 0)
-			break;
-
 		l = NULL;
 
 		/* handle unlikely case of a key wrap */
@@ -2484,7 +2477,7 @@ static struct key_vector *fib_route_get_idx(struct fib_route_iter *iter,
 	}
 
 	if (l)
-		iter->key = key;	/* remember it */
+		iter->key = l->key;	/* remember it */
 	else
 		iter->pos = 0;		/* forget it */
 
@@ -2505,14 +2498,14 @@ static void *fib_route_seq_start(struct seq_file *seq, loff_t *pos)
 		return NULL;
 
 	iter->main_tb = tb;
+	t = (struct trie *)tb->tb_data;
+	iter->tnode = t->kv;
 
 	if (*pos != 0)
 		return fib_route_get_idx(iter, *pos);
 
-	t = (struct trie *)tb->tb_data;
-	iter->tnode = t->kv;
 	iter->pos = 0;
-	iter->key = 0;
+	iter->key = KEY_MAX;
 
 	return SEQ_START_TOKEN;
 }
@@ -2521,7 +2514,7 @@ static void *fib_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct fib_route_iter *iter = seq->private;
 	struct key_vector *l = NULL;
-	t_key key = iter->key;
+	t_key key = iter->key + 1;
 
 	++*pos;
 
@@ -2530,7 +2523,7 @@ static void *fib_route_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		l = leaf_walk_rcu(&iter->tnode, key);
 
 	if (l) {
-		iter->key = l->key + 1;
+		iter->key = l->key;
 		iter->pos++;
 	} else {
 		iter->pos = 0;

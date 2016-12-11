@@ -50,7 +50,7 @@ static int arm_enter_idle_state(struct cpuidle_device *dev,
 		 * call the CPU ops suspend protocol with idle index as a
 		 * parameter.
 		 */
-		arm_cpuidle_suspend(idx);
+		ret = arm_cpuidle_suspend(idx);
 
 		cpu_pm_exit();
 	}
@@ -135,6 +135,7 @@ static int __init arm_idle_init(void)
 		dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 		if (!dev) {
 			pr_err("Failed to allocate cpuidle device\n");
+			ret = -ENOMEM;
 			goto out_fail;
 		}
 		dev->cpu = cpu;

@@ -32,12 +32,28 @@
 #error Wordsize not 32 or 64
 #endif
 
+/*
+ * The above primes are actively bad for hashing, since they are
+ * too sparse. The 32-bit one is mostly ok, the 64-bit one causes
+ * real problems. Besides, the "prime" part is pointless for the
+ * multiplicative hash.
+ *
+ * Although a random odd number will do, it turns out that the golden
+ * ratio phi = (sqrt(5)-1)/2, or its negative, has particularly nice
+ * properties.
+ *
+ * These are the negative, (1 - phi) = (phi^2) = (3 - sqrt(5))/2.
+ * (See Knuth vol 3, section 6.4, exercise 9.)
+ */
+#define GOLDEN_RATIO_32 0x61C88647
+#define GOLDEN_RATIO_64 0x61C8864680B583EBull
+
 static __always_inline u64 hash_64(u64 val, unsigned int bits)
 {
 	u64 hash = val;
 
-#if defined(CONFIG_ARCH_HAS_FAST_MULTIPLIER) && BITS_PER_LONG == 64
-	hash = hash * GOLDEN_RATIO_PRIME_64;
+#if BITS_PER_LONG == 64
+	hash = hash * GOLDEN_RATIO_64;
 #else
 	/*  Sigh, gcc can't optimise this alone like it does for 32 bits. */
 	u64 n = hash;

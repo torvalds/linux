@@ -14819,6 +14819,10 @@ static int bnx2x_get_fc_npiv(struct net_device *dev,
 	}
 
 	offset = SHMEM2_RD(bp, fc_npiv_nvram_tbl_addr[BP_PORT(bp)]);
+	if (!offset) {
+		DP(BNX2X_MSG_MCP, "No FC-NPIV in NVRAM\n");
+		goto out;
+	}
 	DP(BNX2X_MSG_MCP, "Offset of FC-NPIV in NVRAM: %08x\n", offset);
 
 	/* Read the table contents from nvram */

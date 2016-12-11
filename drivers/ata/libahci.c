@@ -467,6 +467,7 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 		dev_info(dev, "forcing port_map 0x%x -> 0x%x\n",
 			 port_map, hpriv->force_port_map);
 		port_map = hpriv->force_port_map;
+		hpriv->saved_port_map = port_map;
 	}
 
 	if (hpriv->mask_port_map) {
@@ -495,8 +496,8 @@ void ahci_save_initial_config(struct device *dev, struct ahci_host_priv *hpriv)
 		}
 	}
 
-	/* fabricate port_map from cap.nr_ports */
-	if (!port_map) {
+	/* fabricate port_map from cap.nr_ports for < AHCI 1.3 */
+	if (!port_map && vers < 0x10300) {
 		port_map = (1 << ahci_nr_ports(cap)) - 1;
 		dev_warn(dev, "forcing PORTS_IMPL to 0x%x\n", port_map);
 
@@ -1142,8 +1143,7 @@ static void ahci_port_init(struct device *dev, struct ata_port *ap,
 
 	/* mark esata ports */
 	tmp = readl(port_mmio + PORT_CMD);
-	if ((tmp & PORT_CMD_HPCP) ||
-	    ((tmp & PORT_CMD_ESP) && (hpriv->cap & HOST_CAP_SXS)))
+	if ((tmp & PORT_CMD_ESP) && (hpriv->cap & HOST_CAP_SXS))
 		ap->pflags |= ATA_PFLAG_EXTERNAL;
 }
 

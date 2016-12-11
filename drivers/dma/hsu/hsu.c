@@ -135,7 +135,7 @@ static u32 hsu_dma_chan_get_sr(struct hsu_dma_chan *hsuc)
 	sr = hsu_chan_readl(hsuc, HSU_CH_SR);
 	spin_unlock_irqrestore(&hsuc->vchan.lock, flags);
 
-	return sr;
+	return sr & ~(HSU_CH_SR_DESCE_ANY | HSU_CH_SR_CDESC_ANY);
 }
 
 irqreturn_t hsu_dma_irq(struct hsu_dma_chip *chip, unsigned short nr)

@@ -116,7 +116,7 @@ void __init of_sama5d4_clk_h32mx_setup(struct device_node *np,
 	h32mxclk->pmc = pmc;
 
 	clk = clk_register(NULL, &h32mxclk->hw);
-	if (!clk) {
+	if (IS_ERR(clk)) {
 		kfree(h32mxclk);
 		return;
 	}

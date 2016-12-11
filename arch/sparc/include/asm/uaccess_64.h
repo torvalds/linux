@@ -98,7 +98,6 @@ struct exception_table_entry {
         unsigned int insn, fixup;
 };
 
-void __ret_efault(void);
 void __retl_efault(void);
 
 /* Uh, these should become the main single-value transfer routines..
@@ -179,20 +178,6 @@ int __put_user_bad(void);
 	 __gu_ret;							     \
 })
 
-#define __get_user_nocheck_ret(data, addr, size, type, retval) ({	\
-	register unsigned long __gu_val __asm__ ("l1");			\
-	switch (size) {							\
-	case 1: __get_user_asm_ret(__gu_val, ub, addr, retval); break;	\
-	case 2: __get_user_asm_ret(__gu_val, uh, addr, retval); break;	\
-	case 4: __get_user_asm_ret(__gu_val, uw, addr, retval); break;	\
-	case 8: __get_user_asm_ret(__gu_val, x, addr, retval); break;	\
-	default:							\
-		if (__get_user_bad())					\
-			return retval;					\
-	}								\
-	data = (__force type) __gu_val;					\
-})
-
 #define __get_user_asm(x, size, addr, ret)				\
 __asm__ __volatile__(							\
 		"/* Get user asm, inline. */\n"				\
@@ -214,80 +199,35 @@ __asm__ __volatile__(							\
 	       : "=r" (ret), "=r" (x) : "r" (__m(addr)),		\
 		 "i" (-EFAULT))
 
-#define __get_user_asm_ret(x, size, addr, retval)			\
-if (__builtin_constant_p(retval) && retval == -EFAULT)			\
-	__asm__ __volatile__(						\
-		"/* Get user asm ret, inline. */\n"			\
-	"1:\t"	"ld"#size "a [%1] %%asi, %0\n\n\t"			\
-		".section __ex_table,\"a\"\n\t"				\
-		".align	4\n\t"						\
-		".word	1b,__ret_efault\n\n\t"				\
-		".previous\n\t"						\
-	       : "=r" (x) : "r" (__m(addr)));				\
-else									\
-	__asm__ __volatile__(						\
-		"/* Get user asm ret, inline. */\n"			\
-	"1:\t"	"ld"#size "a [%1] %%asi, %0\n\n\t"			\
-		".section .fixup,#alloc,#execinstr\n\t"			\
-		".align	4\n"						\
-	"3:\n\t"							\
-		"ret\n\t"						\
-		" restore %%g0, %2, %%o0\n\n\t"				\
-		".previous\n\t"						\
-		".section __ex_table,\"a\"\n\t"				\
-		".align	4\n\t"						\
-		".word	1b, 3b\n\n\t"					\
-		".previous\n\t"						\
-	       : "=r" (x) : "r" (__m(addr)), "i" (retval))
-
 int __get_user_bad(void);
 
 unsigned long __must_check ___copy_from_user(void *to,
 					     const void __user *from,
 					     unsigned long size);
-unsigned long copy_from_user_fixup(void *to, const void __user *from,
-				   unsigned long size);
 static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long size)
 {
-	unsigned long ret = ___copy_from_user(to, from, size);
-
-	if (unlikely(ret))
-		ret = copy_from_user_fixup(to, from, size);
-
-	return ret;
+	return ___copy_from_user(to, from, size);
 }
 #define __copy_from_user copy_from_user
 
 unsigned long __must_check ___copy_to_user(void __user *to,
 					   const void *from,
 					   unsigned long size);
-unsigned long copy_to_user_fixup(void __user *to, const void *from,
-				 unsigned long size);
 static inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long size)
 {
-	unsigned long ret = ___copy_to_user(to, from, size);
-
-	if (unlikely(ret))
-		ret = copy_to_user_fixup(to, from, size);
-	return ret;
+	return ___copy_to_user(to, from, size);
 }
 #define __copy_to_user copy_to_user
 
 unsigned long __must_check ___copy_in_user(void __user *to,
 					   const void __user *from,
 					   unsigned long size);
-unsigned long copy_in_user_fixup(void __user *to, void __user *from,
-				 unsigned long size);
 static inline unsigned long __must_check
 copy_in_user(void __user *to, void __user *from, unsigned long size)
 {
-	unsigned long ret = ___copy_in_user(to, from, size);
-
-	if (unlikely(ret))
-		ret = copy_in_user_fixup(to, from, size);
-	return ret;
+	return ___copy_in_user(to, from, size);
 }
 #define __copy_in_user copy_in_user
 

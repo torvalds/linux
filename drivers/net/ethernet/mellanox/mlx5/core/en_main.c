@@ -746,7 +746,7 @@ static int mlx5e_create_cq(struct mlx5e_channel *c,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
 	int eqn_not_used;
-	int irqn;
+	unsigned int irqn;
 	int err;
 	u32 i;
 
@@ -800,7 +800,7 @@ static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 	void *in;
 	void *cqc;
 	int inlen;
-	int irqn_not_used;
+	unsigned int irqn_not_used;
 	int eqn;
 	int err;
 
@@ -863,12 +863,10 @@ static int mlx5e_open_cq(struct mlx5e_channel *c,
 	if (err)
 		goto err_destroy_cq;
 
-	err = mlx5_core_modify_cq_moderation(mdev, &cq->mcq,
-					     moderation_usecs,
-					     moderation_frames);
-	if (err)
-		goto err_destroy_cq;
-
+	if (MLX5_CAP_GEN(mdev, cq_moderation))
+		mlx5_core_modify_cq_moderation(mdev, &cq->mcq,
+					       moderation_usecs,
+					       moderation_frames);
 	return 0;
 
 err_destroy_cq:
@@ -1372,7 +1370,7 @@ static int mlx5e_set_dev_port_mtu(struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
-	int hw_mtu;
+	u16 hw_mtu;
 	int err;
 
 	err = mlx5_set_port_mtu(mdev, MLX5E_SW2HW_MTU(netdev->mtu), 1);
@@ -1504,7 +1502,7 @@ static int mlx5e_create_drop_cq(struct mlx5e_priv *priv,
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_core_cq *mcq = &cq->mcq;
 	int eqn_not_used;
-	int irqn;
+	unsigned int irqn;
 	int err;
 
 	err = mlx5_cqwq_create(mdev, &param->wq, param->cqc, &cq->wq,
@@ -1891,22 +1889,27 @@ static int mlx5e_set_features(struct net_device *netdev,
 	return err;
 }
 
+#define MXL5_HW_MIN_MTU 64
+#define MXL5E_MIN_MTU (MXL5_HW_MIN_MTU + ETH_FCS_LEN)
+
 static int mlx5e_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 	bool was_opened;
-	int max_mtu;
+	u16 max_mtu;
+	u16 min_mtu;
 	int err = 0;
 
 	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
 
 	max_mtu = MLX5E_HW2SW_MTU(max_mtu);
+	min_mtu = MLX5E_HW2SW_MTU(MXL5E_MIN_MTU);
 
-	if (new_mtu > max_mtu) {
+	if (new_mtu > max_mtu || new_mtu < min_mtu) {
 		netdev_err(netdev,
-			   "%s: Bad MTU (%d) > (%d) Max\n",
-			   __func__, new_mtu, max_mtu);
+			   "%s: Bad MTU (%d), valid range is: [%d..%d]\n",
+			   __func__, new_mtu, min_mtu, max_mtu);
 		return -EINVAL;
 	}
 
@@ -1958,6 +1961,8 @@ static int mlx5e_check_required_hca_cap(struct mlx5_core_dev *mdev)
 	}
 	if (!MLX5_CAP_ETH(mdev, self_lb_en_modifiable))
 		mlx5_core_warn(mdev, "Self loop back prevention is not supported\n");
+	if (!MLX5_CAP_GEN(mdev, cq_moderation))
+		mlx5_core_warn(mdev, "CQ modiration is not supported\n");
 
 	return 0;
 }

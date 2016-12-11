@@ -320,7 +320,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 	struct ctl_table tbl;
 	bool changed = false;
 	char *none = "none";
-	char tmp[8];
+	char tmp[8] = {0};
 	int ret;
 
 	memset(&tbl, 0, sizeof(struct ctl_table));

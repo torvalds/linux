@@ -954,8 +954,8 @@ int fnic_alloc_rq_frame(struct vnic_rq *rq)
 	skb_put(skb, len);
 	pa = pci_map_single(fnic->pdev, skb->data, len, PCI_DMA_FROMDEVICE);
 
-	r = pci_dma_mapping_error(fnic->pdev, pa);
-	if (r) {
+	if (pci_dma_mapping_error(fnic->pdev, pa)) {
+		r = -ENOMEM;
 		printk(KERN_ERR "PCI mapping failed with error %d\n", r);
 		goto free_skb;
 	}
@@ -1093,8 +1093,8 @@ static int fnic_send_frame(struct fnic *fnic, struct fc_frame *fp)
 
 	pa = pci_map_single(fnic->pdev, eth_hdr, tot_len, PCI_DMA_TODEVICE);
 
-	ret = pci_dma_mapping_error(fnic->pdev, pa);
-	if (ret) {
+	if (pci_dma_mapping_error(fnic->pdev, pa)) {
+		ret = -ENOMEM;
 		printk(KERN_ERR "DMA map failed with error %d\n", ret);
 		goto free_skb_on_err;
 	}

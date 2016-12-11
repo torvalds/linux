@@ -199,7 +199,7 @@
 #define unreachable() __builtin_unreachable()
 
 /* Mark a function definition as prohibited from being cloned. */
-#define __noclone	__attribute__((__noclone__))
+#define __noclone	__attribute__((__noclone__, __optimize__("no-tracer")))
 
 #endif /* GCC_VERSION >= 40500 */
 
@@ -251,7 +251,9 @@
 #endif
 #endif /* CONFIG_ARCH_USE_BUILTIN_BSWAP */
 
-#if GCC_VERSION >= 50000
+#if GCC_VERSION >= 70000
+#define KASAN_ABI_VERSION 5
+#elif GCC_VERSION >= 50000
 #define KASAN_ABI_VERSION 4
 #elif GCC_VERSION >= 40902
 #define KASAN_ABI_VERSION 3

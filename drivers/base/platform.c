@@ -96,7 +96,7 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 		int ret;
 
 		ret = of_irq_get(dev->dev.of_node, num);
-		if (ret >= 0 || ret == -EPROBE_DEFER)
+		if (ret > 0 || ret == -EPROBE_DEFER)
 			return ret;
 	}
 
@@ -154,7 +154,7 @@ int platform_get_irq_byname(struct platform_device *dev, const char *name)
 		int ret;
 
 		ret = of_irq_get_byname(dev->dev.of_node, name);
-		if (ret >= 0 || ret == -EPROBE_DEFER)
+		if (ret > 0 || ret == -EPROBE_DEFER)
 			return ret;
 	}
 
@@ -513,10 +513,15 @@ static int platform_drv_probe(struct device *_dev)
 		return ret;
 
 	ret = dev_pm_domain_attach(_dev, true);
-	if (ret != -EPROBE_DEFER && drv->probe) {
-		ret = drv->probe(dev);
-		if (ret)
-			dev_pm_domain_detach(_dev, true);
+	if (ret != -EPROBE_DEFER) {
+		if (drv->probe) {
+			ret = drv->probe(dev);
+			if (ret)
+				dev_pm_domain_detach(_dev, true);
+		} else {
+			/* don't fail if just dev_pm_domain_attach failed */
+			ret = 0;
+		}
 	}
 
 	if (drv->prevent_deferred_probe && ret == -EPROBE_DEFER) {

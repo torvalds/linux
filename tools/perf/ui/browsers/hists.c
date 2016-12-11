@@ -684,7 +684,6 @@ static int __hpp__slsmg_color_printf(struct perf_hpp *hpp, const char *fmt, ...)
 	ret = scnprintf(hpp->buf, hpp->size, fmt, len, percent);
 	ui_browser__printf(arg->b, "%s", hpp->buf);
 
-	advance_hpp(hpp, ret);
 	return ret;
 }
 
@@ -2059,10 +2058,12 @@ skip_annotation:
 			 *
 			 * See hist_browser__show_entry.
 			 */
-			nr_options += add_script_opt(browser,
-						     &actions[nr_options],
-						     &options[nr_options],
-						     NULL, browser->selection->sym);
+			if (sort__has_sym && browser->selection->sym) {
+				nr_options += add_script_opt(browser,
+							     &actions[nr_options],
+							     &options[nr_options],
+							     NULL, browser->selection->sym);
+			}
 		}
 		nr_options += add_script_opt(browser, &actions[nr_options],
 					     &options[nr_options], NULL, NULL);

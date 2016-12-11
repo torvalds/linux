@@ -220,13 +220,13 @@ static void cns3xxx_write_config(struct cns3xxx_pcie *cnspci,
 	u32 mask = (0x1ull << (size * 8)) - 1;
 	int shift = (where % 4) * 8;
 
-	v = readl_relaxed(base + (where & 0xffc));
+	v = readl_relaxed(base);
 
 	v &= ~(mask << shift);
 	v |= (val & mask) << shift;
 
-	writel_relaxed(v, base + (where & 0xffc));
-	readl_relaxed(base + (where & 0xffc));
+	writel_relaxed(v, base);
+	readl_relaxed(base);
 }
 
 static void __init cns3xxx_pcie_hw_init(struct cns3xxx_pcie *cnspci)

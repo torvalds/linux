@@ -555,9 +555,13 @@ scan_microcode(struct mc_saved_data *mc_saved_data, unsigned long *initrd,
 	cd.data = NULL;
 	cd.size = 0;
 
-	cd = find_cpio_data(p, (void *)start, size, &offset);
-	if (!cd.data) {
+	/* try built-in microcode if no initrd */
+	if (!size) {
 		if (!load_builtin_intel_microcode(&cd))
+			return UCODE_ERROR;
+	} else {
+		cd = find_cpio_data(p, (void *)start, size, &offset);
+		if (!cd.data)
 			return UCODE_ERROR;
 	}
 
@@ -694,7 +698,7 @@ int __init save_microcode_in_initrd_intel(void)
 	if (count == 0)
 		return ret;
 
-	copy_initrd_ptrs(mc_saved, mc_saved_in_initrd, initrd_start, count);
+	copy_initrd_ptrs(mc_saved, mc_saved_in_initrd, get_initrd_start(), count);
 	ret = save_microcode(&mc_saved_data, mc_saved, count);
 	if (ret)
 		pr_err("Cannot save microcode patches from initrd.\n");
@@ -732,16 +736,20 @@ void __init load_ucode_intel_bsp(void)
 	struct boot_params *p;
 
 	p	= (struct boot_params *)__pa_nodebug(&boot_params);
-	start	= p->hdr.ramdisk_image;
 	size	= p->hdr.ramdisk_size;
 
-	_load_ucode_intel_bsp(
-			(struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
-			(unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
-			start, size);
+	/*
+	 * Set start only if we have an initrd image. We cannot use initrd_start
+	 * because it is not set that early yet.
+	 */
+	start	= (size ? p->hdr.ramdisk_image : 0);
+
+	_load_ucode_intel_bsp((struct mc_saved_data *)__pa_nodebug(&mc_saved_data),
+			      (unsigned long *)__pa_nodebug(&mc_saved_in_initrd),
+			      start, size);
 #else
-	start	= boot_params.hdr.ramdisk_image + PAGE_OFFSET;
 	size	= boot_params.hdr.ramdisk_size;
+	start	= (size ? boot_params.hdr.ramdisk_image + PAGE_OFFSET : 0);
 
 	_load_ucode_intel_bsp(&mc_saved_data, mc_saved_in_initrd, start, size);
 #endif
@@ -752,20 +760,14 @@ void load_ucode_intel_ap(void)
 	struct mc_saved_data *mc_saved_data_p;
 	struct ucode_cpu_info uci;
 	unsigned long *mc_saved_in_initrd_p;
-	unsigned long initrd_start_addr;
 	enum ucode_state ret;
 #ifdef CONFIG_X86_32
-	unsigned long *initrd_start_p;
 
-	mc_saved_in_initrd_p =
-		(unsigned long *)__pa_nodebug(mc_saved_in_initrd);
+	mc_saved_in_initrd_p = (unsigned long *)__pa_nodebug(mc_saved_in_initrd);
 	mc_saved_data_p = (struct mc_saved_data *)__pa_nodebug(&mc_saved_data);
-	initrd_start_p = (unsigned long *)__pa_nodebug(&initrd_start);
-	initrd_start_addr = (unsigned long)__pa_nodebug(*initrd_start_p);
 #else
-	mc_saved_data_p = &mc_saved_data;
 	mc_saved_in_initrd_p = mc_saved_in_initrd;
-	initrd_start_addr = initrd_start;
+	mc_saved_data_p = &mc_saved_data;
 #endif
 
 	/*
@@ -777,7 +779,7 @@ void load_ucode_intel_ap(void)
 
 	collect_cpu_info_early(&uci);
 	ret = load_microcode(mc_saved_data_p, mc_saved_in_initrd_p,
-			     initrd_start_addr, &uci);
+			     get_initrd_start_addr(), &uci);
 
 	if (ret != UCODE_OK)
 		return;

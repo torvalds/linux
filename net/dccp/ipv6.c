@@ -70,7 +70,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 			u8 type, u8 code, int offset, __be32 info)
 {
 	const struct ipv6hdr *hdr = (const struct ipv6hdr *)skb->data;
-	const struct dccp_hdr *dh = (struct dccp_hdr *)(skb->data + offset);
+	const struct dccp_hdr *dh;
 	struct dccp_sock *dp;
 	struct ipv6_pinfo *np;
 	struct sock *sk;
@@ -78,12 +78,13 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	__u64 seq;
 	struct net *net = dev_net(skb->dev);
 
-	if (skb->len < offset + sizeof(*dh) ||
-	    skb->len < offset + __dccp_basic_hdr_len(dh)) {
-		ICMP6_INC_STATS_BH(net, __in6_dev_get(skb->dev),
-				   ICMP6_MIB_INERRORS);
-		return;
-	}
+	/* Only need dccph_dport & dccph_sport which are the first
+	 * 4 bytes in dccp header.
+	 * Our caller (icmpv6_notify()) already pulled 8 bytes for us.
+	 */
+	BUILD_BUG_ON(offsetofend(struct dccp_hdr, dccph_sport) > 8);
+	BUILD_BUG_ON(offsetofend(struct dccp_hdr, dccph_dport) > 8);
+	dh = (struct dccp_hdr *)(skb->data + offset);
 
 	sk = __inet6_lookup_established(net, &dccp_hashinfo,
 					&hdr->daddr, dh->dccph_dport,
@@ -691,26 +692,26 @@ lookup:
 
 	if (sk->sk_state == DCCP_NEW_SYN_RECV) {
 		struct request_sock *req = inet_reqsk(sk);
-		struct sock *nsk = NULL;
+		struct sock *nsk;
 
 		sk = req->rsk_listener;
-		if (likely(sk->sk_state == DCCP_LISTEN)) {
-			nsk = dccp_check_req(sk, skb, req);
-		} else {
+		if (unlikely(sk->sk_state != DCCP_LISTEN)) {
 			inet_csk_reqsk_queue_drop_and_put(sk, req);
 			goto lookup;
 		}
+		sock_hold(sk);
+		nsk = dccp_check_req(sk, skb, req);
 		if (!nsk) {
 			reqsk_put(req);
-			goto discard_it;
+			goto discard_and_relse;
 		}
 		if (nsk == sk) {
-			sock_hold(sk);
 			reqsk_put(req);
 		} else if (dccp_child_process(sk, nsk, skb)) {
 			dccp_v6_ctl_send_reset(sk, skb);
-			goto discard_it;
+			goto discard_and_relse;
 		} else {
+			sock_put(sk);
 			return 0;
 		}
 	}
@@ -947,6 +948,7 @@ static const struct inet_connection_sock_af_ops dccp_ipv6_mapped = {
 	.getsockopt	   = ipv6_getsockopt,
 	.addr2sockaddr	   = inet6_csk_addr2sockaddr,
 	.sockaddr_len	   = sizeof(struct sockaddr_in6),
+	.bind_conflict	   = inet6_csk_bind_conflict,
 #ifdef CONFIG_COMPAT
 	.compat_setsockopt = compat_ipv6_setsockopt,
 	.compat_getsockopt = compat_ipv6_getsockopt,

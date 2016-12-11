@@ -252,32 +252,40 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 
 	if (!(tdev = kzalloc(sizeof(*tdev), GFP_KERNEL)))
 		return -ENOMEM;
-	*pdevice = &tdev->device;
+
 	tdev->func = func;
 	tdev->pdev = pdev;
 	tdev->irq = -1;
 
 	tdev->vdd = devm_regulator_get(&pdev->dev, "vdd");
-	if (IS_ERR(tdev->vdd))
-		return PTR_ERR(tdev->vdd);
+	if (IS_ERR(tdev->vdd)) {
+		ret = PTR_ERR(tdev->vdd);
+		goto free;
+	}
 
 	tdev->rst = devm_reset_control_get(&pdev->dev, "gpu");
-	if (IS_ERR(tdev->rst))
-		return PTR_ERR(tdev->rst);
+	if (IS_ERR(tdev->rst)) {
+		ret = PTR_ERR(tdev->rst);
+		goto free;
+	}
 
 	tdev->clk = devm_clk_get(&pdev->dev, "gpu");
-	if (IS_ERR(tdev->clk))
-		return PTR_ERR(tdev->clk);
+	if (IS_ERR(tdev->clk)) {
+		ret = PTR_ERR(tdev->clk);
+		goto free;
+	}
 
 	tdev->clk_pwr = devm_clk_get(&pdev->dev, "pwr");
-	if (IS_ERR(tdev->clk_pwr))
-		return PTR_ERR(tdev->clk_pwr);
+	if (IS_ERR(tdev->clk_pwr)) {
+		ret = PTR_ERR(tdev->clk_pwr);
+		goto free;
+	}
 
 	nvkm_device_tegra_probe_iommu(tdev);
 
 	ret = nvkm_device_tegra_power_up(tdev);
 	if (ret)
-		return ret;
+		goto remove;
 
 	tdev->gpu_speedo = tegra_sku_info.gpu_speedo_value;
 	ret = nvkm_device_ctor(&nvkm_device_tegra_func, NULL, &pdev->dev,
@@ -285,9 +293,19 @@ nvkm_device_tegra_new(const struct nvkm_device_tegra_func *func,
 			       cfg, dbg, detect, mmio, subdev_mask,
 			       &tdev->device);
 	if (ret)
-		return ret;
+		goto powerdown;
+
+	*pdevice = &tdev->device;
 
 	return 0;
+
+powerdown:
+	nvkm_device_tegra_power_down(tdev);
+remove:
+	nvkm_device_tegra_remove_iommu(tdev);
+free:
+	kfree(tdev);
+	return ret;
 }
 #else
 int

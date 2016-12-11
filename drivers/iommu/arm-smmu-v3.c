@@ -870,7 +870,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 	 * We may have concurrent producers, so we need to be careful
 	 * not to touch any of the shadow cmdq state.
 	 */
-	queue_read(cmd, Q_ENT(q, idx), q->ent_dwords);
+	queue_read(cmd, Q_ENT(q, cons), q->ent_dwords);
 	dev_err(smmu->dev, "skipping command in error state:\n");
 	for (i = 0; i < ARRAY_SIZE(cmd); ++i)
 		dev_err(smmu->dev, "\t0x%016llx\n", (unsigned long long)cmd[i]);
@@ -881,7 +881,7 @@ static void arm_smmu_cmdq_skip_err(struct arm_smmu_device *smmu)
 		return;
 	}
 
-	queue_write(cmd, Q_ENT(q, idx), q->ent_dwords);
+	queue_write(Q_ENT(q, cons), cmd, q->ent_dwords);
 }
 
 static void arm_smmu_cmdq_issue_cmd(struct arm_smmu_device *smmu,
@@ -1025,6 +1025,9 @@ static void arm_smmu_write_strtab_ent(struct arm_smmu_device *smmu, u32 sid,
 		case STRTAB_STE_0_CFG_S2_TRANS:
 			ste_live = true;
 			break;
+		case STRTAB_STE_0_CFG_ABORT:
+			if (disable_bypass)
+				break;
 		default:
 			BUG(); /* STE corruption */
 		}
@@ -1919,6 +1922,7 @@ static struct iommu_ops arm_smmu_ops = {
 	.detach_dev		= arm_smmu_detach_dev,
 	.map			= arm_smmu_map,
 	.unmap			= arm_smmu_unmap,
+	.map_sg			= default_iommu_map_sg,
 	.iova_to_phys		= arm_smmu_iova_to_phys,
 	.add_device		= arm_smmu_add_device,
 	.remove_device		= arm_smmu_remove_device,

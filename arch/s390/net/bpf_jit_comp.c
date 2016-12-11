@@ -45,7 +45,7 @@ struct bpf_jit {
 	int labels[1];		/* Labels for local jumps */
 };
 
-#define BPF_SIZE_MAX	0x7ffff	/* Max size for program (20 bit signed displ) */
+#define BPF_SIZE_MAX	0xffff	/* Max size for program (16 bit branches) */
 
 #define SEEN_SKB	1	/* skb access */
 #define SEEN_MEM	2	/* use mem[] for temporary storage */
@@ -446,7 +446,7 @@ static void bpf_jit_prologue(struct bpf_jit *jit, bool is_classic)
 		emit_load_skb_data_hlen(jit);
 	if (jit->seen & SEEN_SKB_CHANGE)
 		/* stg %b1,ST_OFF_SKBP(%r0,%r15) */
-		EMIT6_DISP_LH(0xe3000000, 0x0024, REG_W1, REG_0, REG_15,
+		EMIT6_DISP_LH(0xe3000000, 0x0024, BPF_REG_1, REG_0, REG_15,
 			      STK_OFF_SKBP);
 	/* Clear A (%b0) and X (%b7) registers for converted BPF programs */
 	if (is_classic) {

@@ -545,5 +545,7 @@ void rds_inc_info_copy(struct rds_incoming *inc,
 		minfo.fport = inc->i_hdr.h_dport;
 	}
 
+	minfo.flags = 0;
+
 	rds_info_copy(iter, &minfo, sizeof(minfo));
 }

@@ -885,7 +885,13 @@ static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devf
 		return NULL;
 
 	if (dev_is_pci(dev)) {
+		struct pci_dev *pf_pdev;
+
 		pdev = to_pci_dev(dev);
+		/* VFs aren't listed in scope tables; we need to look up
+		 * the PF instead to find the IOMMU. */
+		pf_pdev = pci_physfn(pdev);
+		dev = &pf_pdev->dev;
 		segment = pci_domain_nr(pdev->bus);
 	} else if (has_acpi_companion(dev))
 		dev = &ACPI_COMPANION(dev)->dev;
@@ -898,6 +904,13 @@ static struct intel_iommu *device_to_iommu(struct device *dev, u8 *bus, u8 *devf
 		for_each_active_dev_scope(drhd->devices,
 					  drhd->devices_cnt, i, tmp) {
 			if (tmp == dev) {
+				/* For a VF use its original BDF# not that of the PF
+				 * which we used for the IOMMU lookup. Strictly speaking
+				 * we could do this for all PCI devices; we only need to
+				 * get the BDF# from the scope table for ACPI matches. */
+				if (pdev->is_virtfn)
+					goto got_pdev;
+
 				*bus = drhd->devices[i].bus;
 				*devfn = drhd->devices[i].devfn;
 				goto out;
@@ -1489,7 +1502,7 @@ static void iommu_disable_dev_iotlb(struct device_domain_info *info)
 {
 	struct pci_dev *pdev;
 
-	if (dev_is_pci(info->dev))
+	if (!dev_is_pci(info->dev))
 		return;
 
 	pdev = to_pci_dev(info->dev);
@@ -1672,6 +1685,7 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 	if (!iommu->domains || !iommu->domain_ids)
 		return;
 
+again:
 	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry_safe(info, tmp, &device_domain_list, global) {
 		struct dmar_domain *domain;
@@ -1684,10 +1698,19 @@ static void disable_dmar_iommu(struct intel_iommu *iommu)
 
 		domain = info->domain;
 
-		dmar_remove_one_dev_info(domain, info->dev);
+		__dmar_remove_one_dev_info(info);
 
-		if (!domain_type_is_vm_or_si(domain))
+		if (!domain_type_is_vm_or_si(domain)) {
+			/*
+			 * The domain_exit() function  can't be called under
+			 * device_domain_lock, as it takes this lock itself.
+			 * So release the lock here and re-run the loop
+			 * afterwards.
+			 */
+			spin_unlock_irqrestore(&device_domain_lock, flags);
 			domain_exit(domain);
+			goto again;
+		}
 	}
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
@@ -2032,7 +2055,7 @@ out_unlock:
 	spin_unlock(&iommu->lock);
 	spin_unlock_irqrestore(&device_domain_lock, flags);
 
-	return 0;
+	return ret;
 }
 
 struct domain_context_mapping_data {
@@ -3169,17 +3192,24 @@ static int __init init_dmars(void)
 			}
 		}
 
-		iommu_flush_write_buffer(iommu);
-		iommu_set_root_entry(iommu);
-		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
-		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
-
 		if (!ecap_pass_through(iommu->ecap))
 			hw_pass_through = 0;
 #ifdef CONFIG_INTEL_IOMMU_SVM
 		if (pasid_enabled(iommu))
 			intel_svm_alloc_pasid_tables(iommu);
 #endif
+	}
+
+	/*
+	 * Now that qi is enabled on all iommus, set the root entry and flush
+	 * caches. This is required on some Intel X58 chipsets, otherwise the
+	 * flush_context function will loop forever and the boot hangs.
+	 */
+	for_each_active_iommu(iommu, drhd) {
+		iommu_flush_write_buffer(iommu);
+		iommu_set_root_entry(iommu);
+		iommu->flush.flush_context(iommu, 0, 0, 0, DMA_CCMD_GLOBAL_INVL);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
 	}
 
 	if (iommu_pass_through)
@@ -4175,10 +4205,11 @@ int dmar_check_one_atsr(struct acpi_dmar_header *hdr, void *arg)
 	if (!atsru)
 		return 0;
 
-	if (!atsru->include_all && atsru->devices && atsru->devices_cnt)
+	if (!atsru->include_all && atsru->devices && atsru->devices_cnt) {
 		for_each_active_dev_scope(atsru->devices, atsru->devices_cnt,
 					  i, dev)
 			return -EBUSY;
+	}
 
 	return 0;
 }
@@ -4367,7 +4398,7 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 				rmrru->devices_cnt);
 			if(ret < 0)
 				return ret;
-		} else if (info->event == BUS_NOTIFY_DEL_DEVICE) {
+		} else if (info->event == BUS_NOTIFY_REMOVED_DEVICE) {
 			dmar_remove_dev_scope(info, rmrr->segment,
 				rmrru->devices, rmrru->devices_cnt);
 		}
@@ -4387,7 +4418,7 @@ int dmar_iommu_notify_scope_dev(struct dmar_pci_notify_info *info)
 				break;
 			else if(ret < 0)
 				return ret;
-		} else if (info->event == BUS_NOTIFY_DEL_DEVICE) {
+		} else if (info->event == BUS_NOTIFY_REMOVED_DEVICE) {
 			if (dmar_remove_dev_scope(info, atsr->segment,
 					atsru->devices, atsru->devices_cnt))
 				break;

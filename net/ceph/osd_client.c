@@ -2843,8 +2843,8 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 	mutex_lock(&osdc->request_mutex);
 	req = __lookup_request(osdc, tid);
 	if (!req) {
-		pr_warn("%s osd%d tid %llu unknown, skipping\n",
-			__func__, osd->o_osd, tid);
+		dout("%s osd%d tid %llu unknown, skipping\n", __func__,
+		     osd->o_osd, tid);
 		m = NULL;
 		*skip = 1;
 		goto out;

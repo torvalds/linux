@@ -45,6 +45,10 @@ enum {
 	ND_BLK_DCR_LATCH = 2,
 };
 
+enum nfit_root_notifiers {
+	NFIT_NOTIFY_UPDATE = 0x80,
+};
+
 struct nfit_spa {
 	struct acpi_nfit_system_address *spa;
 	struct list_head list;

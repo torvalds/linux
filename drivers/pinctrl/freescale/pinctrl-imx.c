@@ -207,9 +207,9 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 		pin_reg = &info->pin_regs[pin_id];
 
 		if (pin_reg->mux_reg == -1) {
-			dev_err(ipctl->dev, "Pin(%s) does not support mux function\n",
+			dev_dbg(ipctl->dev, "Pin(%s) does not support mux function\n",
 				info->pins[pin_id].name);
-			return -EINVAL;
+			continue;
 		}
 
 		if (info->flags & SHARE_MUX_CONF_REG) {
@@ -726,19 +726,18 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 
 	if (of_property_read_bool(dev_np, "fsl,input-sel")) {
 		np = of_parse_phandle(dev_np, "fsl,input-sel", 0);
-		if (np) {
-			ipctl->input_sel_base = of_iomap(np, 0);
-			if (IS_ERR(ipctl->input_sel_base)) {
-				of_node_put(np);
-				dev_err(&pdev->dev,
-					"iomuxc input select base address not found\n");
-				return PTR_ERR(ipctl->input_sel_base);
-			}
-		} else {
+		if (!np) {
 			dev_err(&pdev->dev, "iomuxc fsl,input-sel property not found\n");
 			return -EINVAL;
 		}
+
+		ipctl->input_sel_base = of_iomap(np, 0);
 		of_node_put(np);
+		if (!ipctl->input_sel_base) {
+			dev_err(&pdev->dev,
+				"iomuxc input select base address not found\n");
+			return -ENOMEM;
+		}
 	}
 
 	imx_pinctrl_desc.name = dev_name(&pdev->dev);

@@ -1849,6 +1849,7 @@ static int alg_test_drbg(const struct alg_test_desc *desc, const char *driver,
 static int do_test_rsa(struct crypto_akcipher *tfm,
 		       struct akcipher_testvec *vecs)
 {
+	char *xbuf[XBUFSIZE];
 	struct akcipher_request *req;
 	void *outbuf_enc = NULL;
 	void *outbuf_dec = NULL;
@@ -1857,9 +1858,12 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 	int err = -ENOMEM;
 	struct scatterlist src, dst, src_tab[2];
 
+	if (testmgr_alloc_buf(xbuf))
+		return err;
+
 	req = akcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
-		return err;
+		goto free_xbuf;
 
 	init_completion(&result.completion);
 
@@ -1877,9 +1881,14 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 	if (!outbuf_enc)
 		goto free_req;
 
+	if (WARN_ON(vecs->m_size > PAGE_SIZE))
+		goto free_all;
+
+	memcpy(xbuf[0], vecs->m, vecs->m_size);
+
 	sg_init_table(src_tab, 2);
-	sg_set_buf(&src_tab[0], vecs->m, 8);
-	sg_set_buf(&src_tab[1], vecs->m + 8, vecs->m_size - 8);
+	sg_set_buf(&src_tab[0], xbuf[0], 8);
+	sg_set_buf(&src_tab[1], xbuf[0] + 8, vecs->m_size - 8);
 	sg_init_one(&dst, outbuf_enc, out_len_max);
 	akcipher_request_set_crypt(req, src_tab, &dst, vecs->m_size,
 				   out_len_max);
@@ -1898,7 +1907,7 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 		goto free_all;
 	}
 	/* verify that encrypted message is equal to expected */
-	if (memcmp(vecs->c, sg_virt(req->dst), vecs->c_size)) {
+	if (memcmp(vecs->c, outbuf_enc, vecs->c_size)) {
 		pr_err("alg: rsa: encrypt test failed. Invalid output\n");
 		err = -EINVAL;
 		goto free_all;
@@ -1913,7 +1922,13 @@ static int do_test_rsa(struct crypto_akcipher *tfm,
 		err = -ENOMEM;
 		goto free_all;
 	}
-	sg_init_one(&src, vecs->c, vecs->c_size);
+
+	if (WARN_ON(vecs->c_size > PAGE_SIZE))
+		goto free_all;
+
+	memcpy(xbuf[0], vecs->c, vecs->c_size);
+
+	sg_init_one(&src, xbuf[0], vecs->c_size);
 	sg_init_one(&dst, outbuf_dec, out_len_max);
 	init_completion(&result.completion);
 	akcipher_request_set_crypt(req, &src, &dst, vecs->c_size, out_len_max);
@@ -1940,6 +1955,8 @@ free_all:
 	kfree(outbuf_enc);
 free_req:
 	akcipher_request_free(req);
+free_xbuf:
+	testmgr_free_buf(xbuf);
 	return err;
 }
 

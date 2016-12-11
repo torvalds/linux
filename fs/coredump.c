@@ -1,6 +1,7 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/fdtable.h>
+#include <linux/freezer.h>
 #include <linux/mm.h>
 #include <linux/stat.h>
 #include <linux/fcntl.h>
@@ -32,6 +33,9 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/oom.h>
 #include <linux/compat.h>
+#include <linux/sched.h>
+#include <linux/fs.h>
+#include <linux/path.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -396,7 +400,9 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	if (core_waiters > 0) {
 		struct core_thread *ptr;
 
+		freezer_do_not_count();
 		wait_for_completion(&core_state->startup);
+		freezer_count();
 		/*
 		 * Wait for all the threads to become inactive, so that
 		 * all the thread context (extended register state, like
@@ -627,6 +633,8 @@ void do_coredump(const siginfo_t *siginfo)
 		}
 	} else {
 		struct inode *inode;
+		int open_flags = O_CREAT | O_RDWR | O_NOFOLLOW |
+				 O_LARGEFILE | O_EXCL;
 
 		if (cprm.limit < binfmt->min_coredump)
 			goto fail_unlock;
@@ -665,10 +673,27 @@ void do_coredump(const siginfo_t *siginfo)
 		 * what matters is that at least one of the two processes
 		 * writes its coredump successfully, not which one.
 		 */
-		cprm.file = filp_open(cn.corename,
-				 O_CREAT | 2 | O_NOFOLLOW |
-				 O_LARGEFILE | O_EXCL,
-				 0600);
+		if (need_suid_safe) {
+			/*
+			 * Using user namespaces, normal user tasks can change
+			 * their current->fs->root to point to arbitrary
+			 * directories. Since the intention of the "only dump
+			 * with a fully qualified path" rule is to control where
+			 * coredumps may be placed using root privileges,
+			 * current->fs->root must not be used. Instead, use the
+			 * root directory of init_task.
+			 */
+			struct path root;
+
+			task_lock(&init_task);
+			get_fs_root(init_task.fs, &root);
+			task_unlock(&init_task);
+			cprm.file = file_open_root(root.dentry, root.mnt,
+				cn.corename, open_flags, 0600);
+			path_put(&root);
+		} else {
+			cprm.file = filp_open(cn.corename, open_flags, 0600);
+		}
 		if (IS_ERR(cprm.file))
 			goto fail_unlock;
 

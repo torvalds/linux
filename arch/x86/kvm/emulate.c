@@ -650,10 +650,10 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 	u16 sel;
 
 	la = seg_base(ctxt, addr.seg) + addr.ea;
-	*linear = la;
 	*max_size = 0;
 	switch (mode) {
 	case X86EMUL_MODE_PROT64:
+		*linear = la;
 		if (is_noncanonical_address(la))
 			goto bad;
 
@@ -662,6 +662,7 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 			goto bad;
 		break;
 	default:
+		*linear = la = (u32)la;
 		usable = ctxt->ops->get_segment(ctxt, &sel, &desc, NULL,
 						addr.seg);
 		if (!usable)
@@ -689,7 +690,6 @@ static __always_inline int __linearize(struct x86_emulate_ctxt *ctxt,
 			if (size > *max_size)
 				goto bad;
 		}
-		la &= (u32)-1;
 		break;
 	}
 	if (insn_aligned(ctxt, size) && ((la & (size - 1)) != 0))
@@ -2093,15 +2093,9 @@ static int em_iret(struct x86_emulate_ctxt *ctxt)
 static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
-	unsigned short sel, old_sel;
-	struct desc_struct old_desc, new_desc;
-	const struct x86_emulate_ops *ops = ctxt->ops;
+	unsigned short sel;
+	struct desc_struct new_desc;
 	u8 cpl = ctxt->ops->cpl(ctxt);
-
-	/* Assignment of RIP may only fail in 64-bit mode */
-	if (ctxt->mode == X86EMUL_MODE_PROT64)
-		ops->get_segment(ctxt, &old_sel, &old_desc, NULL,
-				 VCPU_SREG_CS);
 
 	memcpy(&sel, ctxt->src.valptr + ctxt->op_bytes, 2);
 
@@ -2112,12 +2106,10 @@ static int em_jmp_far(struct x86_emulate_ctxt *ctxt)
 		return rc;
 
 	rc = assign_eip_far(ctxt, ctxt->src.val, &new_desc);
-	if (rc != X86EMUL_CONTINUE) {
-		WARN_ON(ctxt->mode != X86EMUL_MODE_PROT64);
-		/* assigning eip failed; restore the old cs */
-		ops->set_segment(ctxt, old_sel, &old_desc, 0, VCPU_SREG_CS);
-		return rc;
-	}
+	/* Error handling is not implemented. */
+	if (rc != X86EMUL_CONTINUE)
+		return X86EMUL_UNHANDLEABLE;
+
 	return rc;
 }
 
@@ -2177,14 +2169,8 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 {
 	int rc;
 	unsigned long eip, cs;
-	u16 old_cs;
 	int cpl = ctxt->ops->cpl(ctxt);
-	struct desc_struct old_desc, new_desc;
-	const struct x86_emulate_ops *ops = ctxt->ops;
-
-	if (ctxt->mode == X86EMUL_MODE_PROT64)
-		ops->get_segment(ctxt, &old_cs, &old_desc, NULL,
-				 VCPU_SREG_CS);
+	struct desc_struct new_desc;
 
 	rc = emulate_pop(ctxt, &eip, ctxt->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
@@ -2201,10 +2187,10 @@ static int em_ret_far(struct x86_emulate_ctxt *ctxt)
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 	rc = assign_eip_far(ctxt, eip, &new_desc);
-	if (rc != X86EMUL_CONTINUE) {
-		WARN_ON(ctxt->mode != X86EMUL_MODE_PROT64);
-		ops->set_segment(ctxt, old_cs, &old_desc, 0, VCPU_SREG_CS);
-	}
+	/* Error handling is not implemented. */
+	if (rc != X86EMUL_CONTINUE)
+		return X86EMUL_UNHANDLEABLE;
+
 	return rc;
 }
 
@@ -5033,7 +5019,7 @@ done_prefixes:
 	/* Decode and fetch the destination operand: register or memory. */
 	rc = decode_operand(ctxt, &ctxt->dst, (ctxt->d >> DstShift) & OpMask);
 
-	if (ctxt->rip_relative)
+	if (ctxt->rip_relative && likely(ctxt->memopp))
 		ctxt->memopp->addr.mem.ea = address_mask(ctxt,
 					ctxt->memopp->addr.mem.ea + ctxt->_eip);
 

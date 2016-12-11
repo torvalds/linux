@@ -408,6 +408,7 @@ struct nested_vmx {
 	struct list_head vmcs02_pool;
 	int vmcs02_num;
 	u64 vmcs01_tsc_offset;
+	bool change_vmcs01_virtual_x2apic_mode;
 	/* L2 must run next, and mustn't decide to exit to L1. */
 	bool nested_run_pending;
 	/*
@@ -595,6 +596,8 @@ struct vcpu_vmx {
 	/* Support for PML */
 #define PML_ENTITY_NUM		512
 	struct page *pml_pg;
+
+	u64 current_tsc_ratio;
 };
 
 enum segment_cache_field {
@@ -1746,6 +1749,13 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 			return;
 		}
 		break;
+	case MSR_IA32_PEBS_ENABLE:
+		/* PEBS needs a quiescent period after being disabled (to write
+		 * a record).  Disabling PEBS through VMX MSR swapping doesn't
+		 * provide that period, so a CPU could write host's record into
+		 * guest's memory.
+		 */
+		wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
 	}
 
 	for (i = 0; i < m->nr; ++i)
@@ -1783,26 +1793,31 @@ static void reload_tss(void)
 
 static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 {
-	u64 guest_efer;
-	u64 ignore_bits;
+	u64 guest_efer = vmx->vcpu.arch.efer;
+	u64 ignore_bits = 0;
 
-	guest_efer = vmx->vcpu.arch.efer;
+	if (!enable_ept) {
+		/*
+		 * NX is needed to handle CR0.WP=1, CR4.SMEP=1.  Testing
+		 * host CPUID is more efficient than testing guest CPUID
+		 * or CR4.  Host SMEP is anyway a requirement for guest SMEP.
+		 */
+		if (boot_cpu_has(X86_FEATURE_SMEP))
+			guest_efer |= EFER_NX;
+		else if (!(guest_efer & EFER_NX))
+			ignore_bits |= EFER_NX;
+	}
 
 	/*
-	 * NX is emulated; LMA and LME handled by hardware; SCE meaningless
-	 * outside long mode
+	 * LMA and LME handled by hardware; SCE meaningless outside long mode.
 	 */
-	ignore_bits = EFER_NX | EFER_SCE;
+	ignore_bits |= EFER_SCE;
 #ifdef CONFIG_X86_64
 	ignore_bits |= EFER_LMA | EFER_LME;
 	/* SCE is meaningful only in long mode on Intel */
 	if (guest_efer & EFER_LMA)
 		ignore_bits &= ~(u64)EFER_SCE;
 #endif
-	guest_efer &= ~ignore_bits;
-	guest_efer |= host_efer & ignore_bits;
-	vmx->guest_msrs[efer_offset].data = guest_efer;
-	vmx->guest_msrs[efer_offset].mask = ~ignore_bits;
 
 	clear_atomic_switch_msr(vmx, MSR_EFER);
 
@@ -1813,16 +1828,21 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 	 */
 	if (cpu_has_load_ia32_efer ||
 	    (enable_ept && ((vmx->vcpu.arch.efer ^ host_efer) & EFER_NX))) {
-		guest_efer = vmx->vcpu.arch.efer;
 		if (!(guest_efer & EFER_LMA))
 			guest_efer &= ~EFER_LME;
 		if (guest_efer != host_efer)
 			add_atomic_switch_msr(vmx, MSR_EFER,
 					      guest_efer, host_efer);
 		return false;
-	}
+	} else {
+		guest_efer &= ~ignore_bits;
+		guest_efer |= host_efer & ignore_bits;
 
-	return true;
+		vmx->guest_msrs[efer_offset].data = guest_efer;
+		vmx->guest_msrs[efer_offset].mask = ~ignore_bits;
+
+		return true;
+	}
 }
 
 static unsigned long segment_base(u16 selector)
@@ -2062,12 +2082,14 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);
 		vmcs_writel(HOST_IA32_SYSENTER_ESP, sysenter_esp); /* 22.2.3 */
 
-		/* Setup TSC multiplier */
-		if (cpu_has_vmx_tsc_scaling())
-			vmcs_write64(TSC_MULTIPLIER,
-				     vcpu->arch.tsc_scaling_ratio);
-
 		vmx->loaded_vmcs->cpu = cpu;
+	}
+
+	/* Setup TSC multiplier */
+	if (kvm_has_tsc_control &&
+	    vmx->current_tsc_ratio != vcpu->arch.tsc_scaling_ratio) {
+		vmx->current_tsc_ratio = vcpu->arch.tsc_scaling_ratio;
+		vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
 	}
 
 	vmx_vcpu_pi_load(vcpu, cpu);
@@ -2616,8 +2638,15 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
+	/*
+	 * Old versions of KVM use the single-context version without
+	 * checking for support, so declare that it is supported even
+	 * though it is treated as global context.  The alternative is
+	 * not failing the single-context invvpid, and it is worse.
+	 */
 	if (enable_vpid)
 		vmx->nested.nested_vmx_vpid_caps = VMX_VPID_INVVPID_BIT |
+				VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT |
 				VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT;
 	else
 		vmx->nested.nested_vmx_vpid_caps = 0;
@@ -4926,8 +4955,8 @@ static void vmx_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		vmcs_write16(VIRTUAL_PROCESSOR_ID, vmx->vpid);
 
 	cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
-	vmx_set_cr0(vcpu, cr0); /* enter rmode */
 	vmx->vcpu.arch.cr0 = cr0;
+	vmx_set_cr0(vcpu, cr0); /* enter rmode */
 	vmx_set_cr4(vcpu, 0);
 	vmx_set_efer(vcpu, 0);
 	vmx_fpu_activate(vcpu);
@@ -6551,7 +6580,13 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 
 	/* Checks for #GP/#SS exceptions. */
 	exn = false;
-	if (is_protmode(vcpu)) {
+	if (is_long_mode(vcpu)) {
+		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
+		 * non-canonical form. This is the only check on the memory
+		 * destination for long mode!
+		 */
+		exn = is_noncanonical_address(*ret);
+	} else if (is_protmode(vcpu)) {
 		/* Protected mode: apply checks for segment validity in the
 		 * following order:
 		 * - segment type check (#GP(0) may be thrown)
@@ -6568,17 +6603,10 @@ static int get_vmx_mem_address(struct kvm_vcpu *vcpu,
 			 * execute-only code segment
 			 */
 			exn = ((s.type & 0xa) == 8);
-	}
-	if (exn) {
-		kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
-		return 1;
-	}
-	if (is_long_mode(vcpu)) {
-		/* Long mode: #GP(0)/#SS(0) if the memory address is in a
-		 * non-canonical form. This is an only check for long mode.
-		 */
-		exn = is_noncanonical_address(*ret);
-	} else if (is_protmode(vcpu)) {
+		if (exn) {
+			kvm_queue_exception_e(vcpu, GP_VECTOR, 0);
+			return 1;
+		}
 		/* Protected mode: #GP(0)/#SS(0) if the segment is unusable.
 		 */
 		exn = (s.unusable != 0);
@@ -7319,6 +7347,7 @@ static int handle_invept(struct kvm_vcpu *vcpu)
 	if (!(types & (1UL << type))) {
 		nested_vmx_failValid(vcpu,
 				VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
+		skip_emulated_instruction(vcpu);
 		return 1;
 	}
 
@@ -7377,6 +7406,7 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 	if (!(types & (1UL << type))) {
 		nested_vmx_failValid(vcpu,
 			VMXERR_INVALID_OPERAND_TO_INVEPT_INVVPID);
+		skip_emulated_instruction(vcpu);
 		return 1;
 	}
 
@@ -7393,12 +7423,17 @@ static int handle_invvpid(struct kvm_vcpu *vcpu)
 	}
 
 	switch (type) {
+	case VMX_VPID_EXTENT_SINGLE_CONTEXT:
+		/*
+		 * Old versions of KVM use the single-context version so we
+		 * have to support it; just treat it the same as all-context.
+		 */
 	case VMX_VPID_EXTENT_ALL_CONTEXT:
 		__vmx_flush_tlb(vcpu, to_vmx(vcpu)->nested.vpid02);
 		nested_vmx_succeed(vcpu);
 		break;
 	default:
-		/* Trap single context invalidation invvpid calls */
+		/* Trap individual address invalidation invvpid calls */
 		BUG_ON(1);
 		break;
 	}
@@ -8090,6 +8125,7 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if ((vectoring_info & VECTORING_INFO_VALID_MASK) &&
 			(exit_reason != EXIT_REASON_EXCEPTION_NMI &&
 			exit_reason != EXIT_REASON_EPT_VIOLATION &&
+			exit_reason != EXIT_REASON_PML_FULL &&
 			exit_reason != EXIT_REASON_TASK_SWITCH)) {
 		vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
 		vcpu->run->internal.suberror = KVM_INTERNAL_ERROR_DELIVERY_EV;
@@ -8148,6 +8184,12 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 static void vmx_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
 {
 	u32 sec_exec_control;
+
+	/* Postpone execution until vmcs01 is the current VMCS. */
+	if (is_guest_mode(vcpu)) {
+		to_vmx(vcpu)->nested.change_vmcs01_virtual_x2apic_mode = true;
+		return;
+	}
 
 	/*
 	 * There is not point to enable virtualize x2apic without enable
@@ -8702,6 +8744,22 @@ static void vmx_load_vmcs01(struct kvm_vcpu *vcpu)
 	put_cpu();
 }
 
+/*
+ * Ensure that the current vmcs of the logical processor is the
+ * vmcs01 of the vcpu before calling free_nested().
+ */
+static void vmx_free_vcpu_nested(struct kvm_vcpu *vcpu)
+{
+       struct vcpu_vmx *vmx = to_vmx(vcpu);
+       int r;
+
+       r = vcpu_load(vcpu);
+       BUG_ON(r);
+       vmx_load_vmcs01(vcpu);
+       free_nested(vmx);
+       vcpu_put(vcpu);
+}
+
 static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -8710,8 +8768,7 @@ static void vmx_free_vcpu(struct kvm_vcpu *vcpu)
 		vmx_destroy_pml_buffer(vmx);
 	free_vpid(vmx->vpid);
 	leave_guest_mode(vcpu);
-	vmx_load_vmcs01(vcpu);
-	free_nested(vmx);
+	vmx_free_vcpu_nested(vcpu);
 	free_loaded_vmcs(vmx->loaded_vmcs);
 	kfree(vmx->guest_msrs);
 	kvm_vcpu_uninit(vcpu);
@@ -8932,7 +8989,8 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 			best->ebx &= ~bit(X86_FEATURE_INVPCID);
 	}
 
-	vmcs_set_secondary_exec_control(secondary_exec_ctl);
+	if (cpu_has_secondary_exec_ctrls())
+		vmcs_set_secondary_exec_control(secondary_exec_ctl);
 
 	if (static_cpu_has(X86_FEATURE_PCOMMIT) && nested) {
 		if (guest_cpuid_has_pcommit(vcpu))
@@ -10431,6 +10489,12 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 
 	/* Update TSC_OFFSET if TSC was changed while L2 ran */
 	vmcs_write64(TSC_OFFSET, vmx->nested.vmcs01_tsc_offset);
+
+	if (vmx->nested.change_vmcs01_virtual_x2apic_mode) {
+		vmx->nested.change_vmcs01_virtual_x2apic_mode = false;
+		vmx_set_virtual_x2apic_mode(vcpu,
+				vcpu->arch.apic_base & X2APIC_ENABLE);
+	}
 
 	/* This is needed for same reason as it was needed in prepare_vmcs02 */
 	vmx->host_rsp = 0;

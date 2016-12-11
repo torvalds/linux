@@ -119,11 +119,6 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 	int i;
 	u32 reg;
 
-	/* Workqueue for PF2VF responses */
-	pf2vf_resp_wq = create_workqueue("qat_pf2vf_resp_wq");
-	if (!pf2vf_resp_wq)
-		return -ENOMEM;
-
 	for (i = 0, vf_info = accel_dev->pf.vf_info; i < totalvfs;
 	     i++, vf_info++) {
 		/* This ptr will be populated when VFs will be created */
@@ -216,11 +211,6 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 
 	kfree(accel_dev->pf.vf_info);
 	accel_dev->pf.vf_info = NULL;
-
-	if (pf2vf_resp_wq) {
-		destroy_workqueue(pf2vf_resp_wq);
-		pf2vf_resp_wq = NULL;
-	}
 }
 EXPORT_SYMBOL_GPL(adf_disable_sriov);
 
@@ -304,3 +294,19 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 	return numvfs;
 }
 EXPORT_SYMBOL_GPL(adf_sriov_configure);
+
+int __init adf_init_pf_wq(void)
+{
+	/* Workqueue for PF2VF responses */
+	pf2vf_resp_wq = create_workqueue("qat_pf2vf_resp_wq");
+
+	return !pf2vf_resp_wq ? -ENOMEM : 0;
+}
+
+void adf_exit_pf_wq(void)
+{
+	if (pf2vf_resp_wq) {
+		destroy_workqueue(pf2vf_resp_wq);
+		pf2vf_resp_wq = NULL;
+	}
+}

@@ -809,8 +809,14 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev)
 	}
 
 	opp->u_volt = microvolt[0];
-	opp->u_volt_min = microvolt[1];
-	opp->u_volt_max = microvolt[2];
+
+	if (count == 1) {
+		opp->u_volt_min = opp->u_volt;
+		opp->u_volt_max = opp->u_volt;
+	} else {
+		opp->u_volt_min = microvolt[1];
+		opp->u_volt_max = microvolt[2];
+	}
 
 	if (!of_property_read_u32(opp->np, "opp-microamp", &val))
 		opp->u_amp = val;

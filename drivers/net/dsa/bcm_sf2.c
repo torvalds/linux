@@ -1137,6 +1137,7 @@ static void bcm_sf2_sw_adjust_link(struct dsa_switch *ds, int port,
 				   struct phy_device *phydev)
 {
 	struct bcm_sf2_priv *priv = ds_to_priv(ds);
+	struct ethtool_eee *p = &priv->port_sts[port].eee;
 	u32 id_mode_dis = 0, port_mode;
 	const char *str = NULL;
 	u32 reg;
@@ -1211,6 +1212,9 @@ force_link:
 		reg |= DUPLX_MODE;
 
 	core_writel(priv, reg, CORE_STS_OVERRIDE_GMIIP_PORT(port));
+
+	if (!phydev->is_pseudo_fixed_link)
+		p->eee_enabled = bcm_sf2_eee_init(ds, port, phydev);
 }
 
 static void bcm_sf2_sw_fixed_link_update(struct dsa_switch *ds, int port,

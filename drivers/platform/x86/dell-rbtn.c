@@ -28,6 +28,7 @@ struct rbtn_data {
 	enum rbtn_type type;
 	struct rfkill *rfkill;
 	struct input_dev *input_dev;
+	bool suspended;
 };
 
 
@@ -220,9 +221,55 @@ static const struct acpi_device_id rbtn_ids[] = {
 	{ "", 0 },
 };
 
+#ifdef CONFIG_PM_SLEEP
+static void ACPI_SYSTEM_XFACE rbtn_clear_suspended_flag(void *context)
+{
+	struct rbtn_data *rbtn_data = context;
+
+	rbtn_data->suspended = false;
+}
+
+static int rbtn_suspend(struct device *dev)
+{
+	struct acpi_device *device = to_acpi_device(dev);
+	struct rbtn_data *rbtn_data = acpi_driver_data(device);
+
+	rbtn_data->suspended = true;
+
+	return 0;
+}
+
+static int rbtn_resume(struct device *dev)
+{
+	struct acpi_device *device = to_acpi_device(dev);
+	struct rbtn_data *rbtn_data = acpi_driver_data(device);
+	acpi_status status;
+
+	/*
+	 * Upon resume, some BIOSes send an ACPI notification thet triggers
+	 * an unwanted input event. In order to ignore it, we use a flag
+	 * that we set at suspend and clear once we have received the extra
+	 * ACPI notification. Since ACPI notifications are delivered
+	 * asynchronously to drivers, we clear the flag from the workqueue
+	 * used to deliver the notifications. This should be enough
+	 * to have the flag cleared only after we received the extra
+	 * notification, if any.
+	 */
+	status = acpi_os_execute(OSL_NOTIFY_HANDLER,
+			 rbtn_clear_suspended_flag, rbtn_data);
+	if (ACPI_FAILURE(status))
+		rbtn_clear_suspended_flag(rbtn_data);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(rbtn_pm_ops, rbtn_suspend, rbtn_resume);
+
 static struct acpi_driver rbtn_driver = {
 	.name = "dell-rbtn",
 	.ids = rbtn_ids,
+	.drv.pm = &rbtn_pm_ops,
 	.ops = {
 		.add = rbtn_add,
 		.remove = rbtn_remove,
@@ -383,6 +430,15 @@ static int rbtn_remove(struct acpi_device *device)
 static void rbtn_notify(struct acpi_device *device, u32 event)
 {
 	struct rbtn_data *rbtn_data = device->driver_data;
+
+	/*
+	 * Some BIOSes send a notification at resume.
+	 * Ignore it to prevent unwanted input events.
+	 */
+	if (rbtn_data->suspended) {
+		dev_dbg(&device->dev, "ACPI notification ignored\n");
+		return;
+	}
 
 	if (event != 0x80) {
 		dev_info(&device->dev, "Received unknown event (0x%x)\n",
