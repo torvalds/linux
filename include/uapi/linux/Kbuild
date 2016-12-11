@@ -64,6 +64,7 @@ header-y += auto_fs.h
 header-y += auxvec.h
 header-y += ax25.h
 header-y += b1lli.h
+header-y += batman_adv.h
 header-y += baycom.h
 header-y += bcm933xx_hcs.h
 header-y += bfs_fs.h
