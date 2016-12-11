@@ -84,17 +84,11 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	struct drm_mode_card_res *card_res = data;
-	struct list_head *lh;
 	struct drm_framebuffer *fb;
 	struct drm_connector *connector;
 	struct drm_crtc *crtc;
 	struct drm_encoder *encoder;
-	int ret = 0;
-	int connector_count = 0;
-	int crtc_count = 0;
-	int fb_count = 0;
-	int encoder_count = 0;
-	int copied = 0;
+	int count, ret = 0;
 	uint32_t __user *fb_id;
 	uint32_t __user *crtc_id;
 	uint32_t __user *connector_id;
@@ -105,89 +99,62 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 
 
 	mutex_lock(&file_priv->fbs_lock);
-	/*
-	 * For the non-control nodes we need to limit the list of resources
-	 * by IDs in the group list for this node
-	 */
-	list_for_each(lh, &file_priv->fbs)
-		fb_count++;
-
-	/* handle this in 4 parts */
-	/* FBs */
-	if (card_res->count_fbs >= fb_count) {
-		copied = 0;
-		fb_id = (uint32_t __user *)(unsigned long)card_res->fb_id_ptr;
-		list_for_each_entry(fb, &file_priv->fbs, filp_head) {
-			if (put_user(fb->base.id, fb_id + copied)) {
-				mutex_unlock(&file_priv->fbs_lock);
-				return -EFAULT;
-			}
-			copied++;
+	count = 0;
+	fb_id = u64_to_user_ptr(card_res->fb_id_ptr);
+	list_for_each_entry(fb, &file_priv->fbs, filp_head) {
+		if (count < card_res->count_fbs &&
+		    put_user(fb->base.id, fb_id + count)) {
+			mutex_unlock(&file_priv->fbs_lock);
+			return -EFAULT;
 		}
+		count++;
 	}
-	card_res->count_fbs = fb_count;
+	card_res->count_fbs = count;
 	mutex_unlock(&file_priv->fbs_lock);
 
 	/* mode_config.mutex protects the connector list against e.g. DP MST
 	 * connector hot-adding. CRTC/Plane lists are invariant. */
 	mutex_lock(&dev->mode_config.mutex);
-	drm_for_each_crtc(crtc, dev)
-		crtc_count++;
-
-	drm_for_each_connector(connector, dev)
-		connector_count++;
-
-	drm_for_each_encoder(encoder, dev)
-		encoder_count++;
-
 	card_res->max_height = dev->mode_config.max_height;
 	card_res->min_height = dev->mode_config.min_height;
 	card_res->max_width = dev->mode_config.max_width;
 	card_res->min_width = dev->mode_config.min_width;
 
-	/* CRTCs */
-	if (card_res->count_crtcs >= crtc_count) {
-		copied = 0;
-		crtc_id = (uint32_t __user *)(unsigned long)card_res->crtc_id_ptr;
-		drm_for_each_crtc(crtc, dev) {
-			if (put_user(crtc->base.id, crtc_id + copied)) {
-				ret = -EFAULT;
-				goto out;
-			}
-			copied++;
+	count = 0;
+	crtc_id = u64_to_user_ptr(card_res->crtc_id_ptr);
+	drm_for_each_crtc(crtc, dev) {
+		if (count < card_res->count_crtcs &&
+		    put_user(crtc->base.id, crtc_id + count)) {
+			ret = -EFAULT;
+			goto out;
 		}
+		count++;
 	}
-	card_res->count_crtcs = crtc_count;
+	card_res->count_crtcs = count;
 
-	/* Encoders */
-	if (card_res->count_encoders >= encoder_count) {
-		copied = 0;
-		encoder_id = (uint32_t __user *)(unsigned long)card_res->encoder_id_ptr;
-		drm_for_each_encoder(encoder, dev) {
-			if (put_user(encoder->base.id, encoder_id +
-				     copied)) {
-				ret = -EFAULT;
-				goto out;
-			}
-			copied++;
+	count = 0;
+	encoder_id = u64_to_user_ptr(card_res->encoder_id_ptr);
+	drm_for_each_encoder(encoder, dev) {
+		if (count < card_res->count_encoders &&
+		    put_user(encoder->base.id, encoder_id + count)) {
+			ret = -EFAULT;
+			goto out;
 		}
+		count++;
 	}
-	card_res->count_encoders = encoder_count;
+	card_res->count_encoders = count;
 
-	/* Connectors */
-	if (card_res->count_connectors >= connector_count) {
-		copied = 0;
-		connector_id = (uint32_t __user *)(unsigned long)card_res->connector_id_ptr;
-		drm_for_each_connector(connector, dev) {
-			if (put_user(connector->base.id,
-				     connector_id + copied)) {
-				ret = -EFAULT;
-				goto out;
-			}
-			copied++;
+	count = 0;
+	connector_id = u64_to_user_ptr(card_res->connector_id_ptr);
+	drm_for_each_connector(connector, dev) {
+		if (count < card_res->count_connectors &&
+		    put_user(connector->base.id, connector_id + count)) {
+			ret = -EFAULT;
+			goto out;
 		}
+		count++;
 	}
-	card_res->count_connectors = connector_count;
+	card_res->count_connectors = count;
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
