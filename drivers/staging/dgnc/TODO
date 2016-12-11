@@ -1,4 +1,3 @@
-* checkpatch fixes
 * remove unnecessary comments
 * remove unnecessary error messages. Example kzalloc() has its
   own error message. Adding an extra one is useless.
