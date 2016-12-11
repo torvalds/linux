@@ -301,7 +301,7 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_cmd_gen2 *tx_cmd = (void *)dev_cmd->payload;
 	struct iwl_cmd_meta *out_meta;
-	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
+	struct iwl_txq *txq = trans_pcie->txq[txq_id];
 	void *tfd;
 
 	if (WARN_ONCE(!test_bit(txq_id, trans_pcie->queue_used),
@@ -374,7 +374,7 @@ static int iwl_pcie_gen2_enqueue_hcmd(struct iwl_trans *trans,
 				      struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
+	struct iwl_txq *txq = trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
 	unsigned long flags;
@@ -617,6 +617,7 @@ static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	const char *cmd_str = iwl_get_cmd_string(trans, cmd->id);
+	struct iwl_txq *txq = trans_pcie->txq[trans_pcie->cmd_queue];
 	int cmd_idx;
 	int ret;
 
@@ -653,8 +654,6 @@ static int iwl_pcie_gen2_send_hcmd_sync(struct iwl_trans *trans,
 					   &trans->status),
 				 HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
-		struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
-
 		IWL_ERR(trans, "Error sending %s: time out after %dms.\n",
 			cmd_str, jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
@@ -702,8 +701,7 @@ cancel:
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source).
 		 */
-		trans_pcie->txq[trans_pcie->cmd_queue].
-			entries[cmd_idx].meta.flags &= ~CMD_WANT_SKB;
+		txq->entries[cmd_idx].meta.flags &= ~CMD_WANT_SKB;
 	}
 
 	if (cmd->resp_pkt) {
@@ -750,7 +748,7 @@ int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 void iwl_pcie_gen2_txq_unmap(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
+	struct iwl_txq *txq = trans_pcie->txq[txq_id];
 
 	spin_lock_bh(&txq->lock);
 	while (txq->write_ptr != txq->read_ptr) {
@@ -789,7 +787,7 @@ int iwl_trans_pcie_dyn_txq_alloc(struct iwl_trans *trans,
 				 unsigned int timeout)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = &trans_pcie->txq[cmd->scd_queue];
+	struct iwl_txq *txq = trans_pcie->txq[cmd->scd_queue];
 	struct iwl_host_cmd hcmd = {
 		.id = cmd_id,
 		.len = { sizeof(*cmd) },

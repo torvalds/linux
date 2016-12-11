@@ -1983,7 +1983,7 @@ static void iwl_trans_pcie_freeze_txq_timer(struct iwl_trans *trans,
 	int queue;
 
 	for_each_set_bit(queue, &txqs, BITS_PER_LONG) {
-		struct iwl_txq *txq = &trans_pcie->txq[queue];
+		struct iwl_txq *txq = trans_pcie->txq[queue];
 		unsigned long now;
 
 		spin_lock_bh(&txq->lock);
@@ -2035,7 +2035,7 @@ static void iwl_trans_pcie_block_txq_ptrs(struct iwl_trans *trans, bool block)
 	int i;
 
 	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
-		struct iwl_txq *txq = &trans_pcie->txq[i];
+		struct iwl_txq *txq = trans_pcie->txq[i];
 
 		if (i == trans_pcie->cmd_queue)
 			continue;
@@ -2108,7 +2108,7 @@ static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
 			continue;
 
 		IWL_DEBUG_TX_QUEUES(trans, "Emptying queue %d...\n", cnt);
-		txq = &trans_pcie->txq[cnt];
+		txq = trans_pcie->txq[cnt];
 		wr_ptr = ACCESS_ONCE(txq->write_ptr);
 
 		while (txq->read_ptr != ACCESS_ONCE(txq->write_ptr) &&
@@ -2299,7 +2299,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 
 	bufsz = sizeof(char) * 75 * trans->cfg->base_params->num_of_queues;
 
-	if (!trans_pcie->txq)
+	if (!trans_pcie->txq_memory)
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -2307,7 +2307,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 		return -ENOMEM;
 
 	for (cnt = 0; cnt < trans->cfg->base_params->num_of_queues; cnt++) {
-		txq = &trans_pcie->txq[cnt];
+		txq = trans_pcie->txq[cnt];
 		pos += scnprintf(buf + pos, bufsz - pos,
 				"hwq %.2d: read=%u write=%u use=%d stop=%d need_update=%d frozen=%d%s\n",
 				cnt, txq->read_ptr, txq->write_ptr,
@@ -2724,7 +2724,7 @@ static struct iwl_trans_dump_data
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_fw_error_dump_data *data;
-	struct iwl_txq *cmdq = &trans_pcie->txq[trans_pcie->cmd_queue];
+	struct iwl_txq *cmdq = trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_fw_error_dump_txcmd *txcmd;
 	struct iwl_trans_dump_data *dump_data;
 	u32 len, num_rbs;
