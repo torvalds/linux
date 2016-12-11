@@ -18,8 +18,6 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
-#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -27,7 +25,6 @@
 #include <linux/regulator/consumer.h>
 
 #include <dt-bindings/input/ti-drv260x.h>
-#include <linux/platform_data/drv260x-pdata.h>
 
 #define DRV260X_STATUS		0x0
 #define DRV260X_MODE		0x1
@@ -468,84 +465,34 @@ static const struct regmap_config drv260x_regmap_config = {
 	.cache_type = REGCACHE_NONE,
 };
 
-#ifdef CONFIG_OF
-static int drv260x_parse_dt(struct device *dev,
-			    struct drv260x_data *haptics)
-{
-	struct device_node *np = dev->of_node;
-	unsigned int voltage;
-	int error;
-
-	error = of_property_read_u32(np, "mode", &haptics->mode);
-	if (error) {
-		dev_err(dev, "%s: No entry for mode\n", __func__);
-		return error;
-	}
-
-	error = of_property_read_u32(np, "library-sel", &haptics->library);
-	if (error) {
-		dev_err(dev, "%s: No entry for library selection\n",
-			__func__);
-		return error;
-	}
-
-	error = of_property_read_u32(np, "vib-rated-mv", &voltage);
-	if (!error)
-		haptics->rated_voltage = drv260x_calculate_voltage(voltage);
-
-
-	error = of_property_read_u32(np, "vib-overdrive-mv", &voltage);
-	if (!error)
-		haptics->overdrive_voltage = drv260x_calculate_voltage(voltage);
-
-	return 0;
-}
-#else
-static inline int drv260x_parse_dt(struct device *dev,
-				   struct drv260x_data *haptics)
-{
-	dev_err(dev, "no platform data defined\n");
-
-	return -EINVAL;
-}
-#endif
-
 static int drv260x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
-	const struct drv260x_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct device *dev = &client->dev;
 	struct drv260x_data *haptics;
+	u32 voltage;
 	int error;
 
 	haptics = devm_kzalloc(dev, sizeof(*haptics), GFP_KERNEL);
 	if (!haptics)
 		return -ENOMEM;
 
-	haptics->overdrive_voltage = DRV260X_DEF_OD_CLAMP_VOLT;
-	haptics->rated_voltage = DRV260X_DEF_RATED_VOLT;
-
-	if (pdata) {
-		haptics->mode = pdata->mode;
-		haptics->library = pdata->library_selection;
-		if (pdata->vib_overdrive_voltage)
-			haptics->overdrive_voltage = drv260x_calculate_voltage(pdata->vib_overdrive_voltage);
-		if (pdata->vib_rated_voltage)
-			haptics->rated_voltage = drv260x_calculate_voltage(pdata->vib_rated_voltage);
-	} else if (client->dev.of_node) {
-		error = drv260x_parse_dt(&client->dev, haptics);
-		if (error)
-			return error;
-	} else {
-		dev_err(dev, "Platform data not set\n");
-		return -ENODEV;
+	error = device_property_read_u32(dev, "mode", &haptics->mode);
+	if (error) {
+		dev_err(dev, "Can't fetch 'mode' property: %d\n", error);
+		return error;
 	}
-
 
 	if (haptics->mode < DRV260X_LRA_MODE ||
 	    haptics->mode > DRV260X_ERM_MODE) {
 		dev_err(dev, "Vibrator mode is invalid: %i\n", haptics->mode);
 		return -EINVAL;
+	}
+
+	error = device_property_read_u32(dev, "library-sel", &haptics->library);
+	if (error) {
+		dev_err(dev, "Can't fetch 'library-sel' property: %d\n", error);
+		return error;
 	}
 
 	if (haptics->library < DRV260X_LIB_EMPTY ||
@@ -568,6 +515,14 @@ static int drv260x_probe(struct i2c_client *client,
 		dev_err(dev, "ERM Mode with LRA Library mismatch\n");
 		return -EINVAL;
 	}
+
+	error = device_property_read_u32(dev, "vib-rated-mv", &voltage);
+	haptics->rated_voltage = error ? DRV260X_DEF_RATED_VOLT :
+					 drv260x_calculate_voltage(voltage);
+
+	error = device_property_read_u32(dev, "vib-overdrive-mv", &voltage);
+	haptics->overdrive_voltage = error ? DRV260X_DEF_OD_CLAMP_VOLT :
+					     drv260x_calculate_voltage(voltage);
 
 	haptics->regulator = devm_regulator_get(dev, "vbat");
 	if (IS_ERR(haptics->regulator)) {
