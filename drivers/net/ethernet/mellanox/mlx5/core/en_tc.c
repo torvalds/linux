@@ -298,6 +298,32 @@ vxlan_match_offload_err:
 
 		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IP);
+	} else if (enc_control->addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+		struct flow_dissector_key_ipv6_addrs *key =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS,
+						  f->key);
+		struct flow_dissector_key_ipv6_addrs *mask =
+			skb_flow_dissector_target(f->dissector,
+						  FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS,
+						  f->mask);
+
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
+				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
+		       &mask->src, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
+				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
+		       &key->src, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_c,
+				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+		       &mask->dst, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+		memcpy(MLX5_ADDR_OF(fte_match_set_lyr_2_4, headers_v,
+				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+		       &key->dst, MLX5_FLD_SZ_BYTES(ipv6_layout, ipv6));
+
+		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IPV6);
 	}
 
 	/* Enforce DMAC when offloading incoming tunneled flows.
@@ -358,12 +384,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 						  f->key);
 		switch (key->addr_type) {
 		case FLOW_DISSECTOR_KEY_IPV4_ADDRS:
+		case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
 			if (parse_tunnel_attr(priv, spec, f))
 				return -EOPNOTSUPP;
 			break;
-		case FLOW_DISSECTOR_KEY_IPV6_ADDRS:
-			netdev_warn(priv->netdev,
-				    "IPv6 tunnel decap offload isn't supported\n");
 		default:
 			return -EOPNOTSUPP;
 		}
