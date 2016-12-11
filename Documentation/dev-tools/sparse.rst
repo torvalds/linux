@@ -102,9 +102,4 @@ be recompiled or not.  The latter is a fast way to check the whole tree if you
 have already built it.
 
 The optional make variable CF can be used to pass arguments to sparse.  The
-build system passes -Wbitwise to sparse automatically.  To perform endianness
-checks, you may define __CHECK_ENDIAN__::
-
-        make C=2 CF="-D__CHECK_ENDIAN__"
-
-These checks are disabled by default as they generate a host of warnings.
+build system passes -Wbitwise to sparse automatically.

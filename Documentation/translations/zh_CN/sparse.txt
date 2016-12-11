@@ -92,9 +92,4 @@ DaveJ 把每小时自动生成的 git 源码树 tar 包放在以下地址：
 如果你已经编译了内核，用后一种方式可以很快地检查整个源码树。
 
 make 的可选变量 CHECKFLAGS 可以用来向 sparse 工具传递参数。编译系统会自
-动向 sparse 工具传递 -Wbitwise 参数。你可以定义 __CHECK_ENDIAN__ 来进行
-大小尾检查。
-
-	make C=2 CHECKFLAGS="-D__CHECK_ENDIAN__"
-
-这些检查默认都是被关闭的，因为他们通常会产生大量的警告。
+动向 sparse 工具传递 -Wbitwise 参数。
