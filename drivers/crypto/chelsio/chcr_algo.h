@@ -422,7 +422,7 @@ static inline void get_aes_decrypt_key(unsigned char *dec_key,
 {
 	u32 temp;
 	u32 w_ring[MAX_NK];
-	int i, j, k = 0;
+	int i, j, k;
 	u8  nr, nk;
 
 	switch (keylength) {
@@ -460,6 +460,7 @@ static inline void get_aes_decrypt_key(unsigned char *dec_key,
 		temp = w_ring[i % nk];
 		i++;
 	}
+	i--;
 	for (k = 0, j = i % nk; k < nk; k++) {
 		*((u32 *)dec_key + k) = htonl(w_ring[j]);
 		j--;

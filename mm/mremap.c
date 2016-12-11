@@ -149,14 +149,18 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		if (pte_none(*old_pte))
 			continue;
 
-		/*
-		 * We are remapping a dirty PTE, make sure to
-		 * flush TLB before we drop the PTL for the
-		 * old PTE or we may race with page_mkclean().
-		 */
-		if (pte_present(*old_pte) && pte_dirty(*old_pte))
-			force_flush = true;
 		pte = ptep_get_and_clear(mm, old_addr, old_pte);
+		/*
+		 * If we are remapping a dirty PTE, make sure
+		 * to flush TLB before we drop the PTL for the
+		 * old PTE or we may race with page_mkclean().
+		 *
+		 * This check has to be done after we removed the
+		 * old PTE from page tables or another thread may
+		 * dirty it after the check and before the removal.
+		 */
+		if (pte_present(pte) && pte_dirty(pte))
+			force_flush = true;
 		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
 		pte = move_soft_dirty_pte(pte);
 		set_pte_at(mm, new_addr, new_pte, pte);

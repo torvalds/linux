@@ -839,11 +839,18 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 
 	iface_no = ctx->data->cur_altsetting->desc.bInterfaceNumber;
 
+	/* Device-specific flags */
+	ctx->drvflags = drvflags;
+
 	/* Reset data interface. Some devices will not reset properly
 	 * unless they are configured first.  Toggle the altsetting to
-	 * force a reset
+	 * force a reset.
+	 * Some other devices do not work properly with this procedure
+	 * that can be avoided using quirk CDC_MBIM_FLAG_AVOID_ALTSETTING_TOGGLE
 	 */
-	usb_set_interface(dev->udev, iface_no, data_altsetting);
+	if (!(ctx->drvflags & CDC_MBIM_FLAG_AVOID_ALTSETTING_TOGGLE))
+		usb_set_interface(dev->udev, iface_no, data_altsetting);
+
 	temp = usb_set_interface(dev->udev, iface_no, 0);
 	if (temp) {
 		dev_dbg(&intf->dev, "set interface failed\n");
@@ -889,9 +896,6 @@ int cdc_ncm_bind_common(struct usbnet *dev, struct usb_interface *intf, u8 data_
 
 	/* finish setting up the device specific data */
 	cdc_ncm_setup(dev);
-
-	/* Device-specific flags */
-	ctx->drvflags = drvflags;
 
 	/* Allocate the delayed NDP if needed. */
 	if (ctx->drvflags & CDC_NCM_FLAG_NDP_TO_END) {

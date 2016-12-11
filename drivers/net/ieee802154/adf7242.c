@@ -20,7 +20,6 @@
 #include <linux/skbuff.h>
 #include <linux/of.h>
 #include <linux/irq.h>
-#include <linux/delay.h>
 #include <linux/debugfs.h>
 #include <linux/bitops.h>
 #include <linux/ieee802154.h>

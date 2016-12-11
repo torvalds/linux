@@ -3868,9 +3868,8 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	dev = alloc_etherdev(sizeof(*ugeth));
 
 	if (dev == NULL) {
-		of_node_put(ug_info->tbi_node);
-		of_node_put(ug_info->phy_node);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_deregister_fixed_link;
 	}
 
 	ugeth = netdev_priv(dev);
@@ -3907,10 +3906,7 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 		if (netif_msg_probe(ugeth))
 			pr_err("%s: Cannot register net device, aborting\n",
 			       dev->name);
-		free_netdev(dev);
-		of_node_put(ug_info->tbi_node);
-		of_node_put(ug_info->phy_node);
-		return err;
+		goto err_free_netdev;
 	}
 
 	mac_addr = of_get_mac_address(np);
@@ -3923,16 +3919,29 @@ static int ucc_geth_probe(struct platform_device* ofdev)
 	ugeth->node = np;
 
 	return 0;
+
+err_free_netdev:
+	free_netdev(dev);
+err_deregister_fixed_link:
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
+	of_node_put(ug_info->tbi_node);
+	of_node_put(ug_info->phy_node);
+
+	return err;
 }
 
 static int ucc_geth_remove(struct platform_device* ofdev)
 {
 	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct ucc_geth_private *ugeth = netdev_priv(dev);
+	struct device_node *np = ofdev->dev.of_node;
 
 	unregister_netdev(dev);
 	free_netdev(dev);
 	ucc_geth_memclean(ugeth);
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 	of_node_put(ugeth->ug_info->tbi_node);
 	of_node_put(ugeth->ug_info->phy_node);
 

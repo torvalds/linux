@@ -857,11 +857,17 @@ EXPORT_SYMBOL(phy_attached_print);
 int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		      u32 flags, phy_interface_t interface)
 {
+	struct module *ndev_owner = dev->dev.parent->driver->owner;
 	struct mii_bus *bus = phydev->mdio.bus;
 	struct device *d = &phydev->mdio.dev;
 	int err;
 
-	if (!try_module_get(bus->owner)) {
+	/* For Ethernet device drivers that register their own MDIO bus, we
+	 * will have bus->owner match ndev_mod, so we do not want to increment
+	 * our own module->refcnt here, otherwise we would not be able to
+	 * unload later on.
+	 */
+	if (ndev_owner != bus->owner && !try_module_get(bus->owner)) {
 		dev_err(&dev->dev, "failed to get the bus module\n");
 		return -EIO;
 	}
@@ -921,7 +927,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 
 error:
 	put_device(d);
-	module_put(bus->owner);
+	if (ndev_owner != bus->owner)
+		module_put(bus->owner);
 	return err;
 }
 EXPORT_SYMBOL(phy_attach_direct);
@@ -971,6 +978,8 @@ EXPORT_SYMBOL(phy_attach);
  */
 void phy_detach(struct phy_device *phydev)
 {
+	struct net_device *dev = phydev->attached_dev;
+	struct module *ndev_owner = dev->dev.parent->driver->owner;
 	struct mii_bus *bus;
 	int i;
 
@@ -998,7 +1007,8 @@ void phy_detach(struct phy_device *phydev)
 	bus = phydev->mdio.bus;
 
 	put_device(&phydev->mdio.dev);
-	module_put(bus->owner);
+	if (ndev_owner != bus->owner)
+		module_put(bus->owner);
 }
 EXPORT_SYMBOL(phy_detach);
 
