@@ -513,16 +513,17 @@ static int omap2430_probe(struct platform_device *pdev)
 	}
 
 	pm_runtime_enable(glue->dev);
-	pm_runtime_use_autosuspend(glue->dev);
-	pm_runtime_set_autosuspend_delay(glue->dev, 100);
 
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
-		goto err2;
+		goto err3;
 	}
 
 	return 0;
+
+err3:
+	pm_runtime_disable(glue->dev);
 
 err2:
 	platform_device_put(musb);
@@ -535,10 +536,7 @@ static int omap2430_remove(struct platform_device *pdev)
 {
 	struct omap2430_glue *glue = platform_get_drvdata(pdev);
 
-	pm_runtime_get_sync(glue->dev);
 	platform_device_unregister(glue->musb);
-	pm_runtime_put_sync(glue->dev);
-	pm_runtime_dont_use_autosuspend(glue->dev);
 	pm_runtime_disable(glue->dev);
 
 	return 0;

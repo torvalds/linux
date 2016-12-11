@@ -408,7 +408,8 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	if (res <= 0)
 		return -ENOMEM;
 
-	nr_pages = res / PAGE_SIZE;
+	BUG_ON(dummy);
+	nr_pages = DIV_ROUND_UP(res, PAGE_SIZE);
 
 	vec = __vec;
 	if (nr_pages > PIPE_DEF_BUFFERS) {

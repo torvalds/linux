@@ -14,6 +14,10 @@
 
 #include <linux/threads.h>
 #include <linux/kprobes.h>
+#include <asm/cacheflush.h>
+#include <asm/checksum.h>
+#include <asm/uaccess.h>
+#include <asm/epapr_hcalls.h>
 
 #include <uapi/asm/ucontext.h>
 
@@ -108,5 +112,13 @@ void early_setup_secondary(void);
 
 /* time */
 void accumulate_stolen_time(void);
+
+/* misc runtime */
+extern u64 __bswapdi2(u64);
+extern s64 __lshrdi3(s64, int);
+extern s64 __ashldi3(s64, int);
+extern s64 __ashrdi3(s64, int);
+extern int __cmpdi2(s64, s64);
+extern int __ucmpdi2(u64, u64);
 
 #endif /* _ASM_POWERPC_ASM_PROTOTYPES_H */
