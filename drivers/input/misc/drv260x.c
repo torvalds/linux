@@ -514,10 +514,11 @@ static int drv260x_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	const struct drv260x_platform_data *pdata = dev_get_platdata(&client->dev);
+	struct device *dev = &client->dev;
 	struct drv260x_data *haptics;
 	int error;
 
-	haptics = devm_kzalloc(&client->dev, sizeof(*haptics), GFP_KERNEL);
+	haptics = devm_kzalloc(dev, sizeof(*haptics), GFP_KERNEL);
 	if (!haptics)
 		return -ENOMEM;
 
@@ -536,22 +537,20 @@ static int drv260x_probe(struct i2c_client *client,
 		if (error)
 			return error;
 	} else {
-		dev_err(&client->dev, "Platform data not set\n");
+		dev_err(dev, "Platform data not set\n");
 		return -ENODEV;
 	}
 
 
 	if (haptics->mode < DRV260X_LRA_MODE ||
 	    haptics->mode > DRV260X_ERM_MODE) {
-		dev_err(&client->dev,
-			"Vibrator mode is invalid: %i\n",
-			haptics->mode);
+		dev_err(dev, "Vibrator mode is invalid: %i\n", haptics->mode);
 		return -EINVAL;
 	}
 
 	if (haptics->library < DRV260X_LIB_EMPTY ||
 	    haptics->library > DRV260X_ERM_LIB_F) {
-		dev_err(&client->dev,
+		dev_err(dev,
 			"Library value is invalid: %i\n", haptics->library);
 		return -EINVAL;
 	}
@@ -559,33 +558,30 @@ static int drv260x_probe(struct i2c_client *client,
 	if (haptics->mode == DRV260X_LRA_MODE &&
 	    haptics->library != DRV260X_LIB_EMPTY &&
 	    haptics->library != DRV260X_LIB_LRA) {
-		dev_err(&client->dev,
-			"LRA Mode with ERM Library mismatch\n");
+		dev_err(dev, "LRA Mode with ERM Library mismatch\n");
 		return -EINVAL;
 	}
 
 	if (haptics->mode == DRV260X_ERM_MODE &&
 	    (haptics->library == DRV260X_LIB_EMPTY ||
 	     haptics->library == DRV260X_LIB_LRA)) {
-		dev_err(&client->dev,
-			"ERM Mode with LRA Library mismatch\n");
+		dev_err(dev, "ERM Mode with LRA Library mismatch\n");
 		return -EINVAL;
 	}
 
-	haptics->regulator = devm_regulator_get(&client->dev, "vbat");
+	haptics->regulator = devm_regulator_get(dev, "vbat");
 	if (IS_ERR(haptics->regulator)) {
 		error = PTR_ERR(haptics->regulator);
-		dev_err(&client->dev,
-			"unable to get regulator, error: %d\n", error);
+		dev_err(dev, "unable to get regulator, error: %d\n", error);
 		return error;
 	}
 
-	haptics->enable_gpio = devm_gpiod_get_optional(&client->dev, "enable",
+	haptics->enable_gpio = devm_gpiod_get_optional(dev, "enable",
 						       GPIOD_OUT_HIGH);
 	if (IS_ERR(haptics->enable_gpio))
 		return PTR_ERR(haptics->enable_gpio);
 
-	haptics->input_dev = devm_input_allocate_device(&client->dev);
+	haptics->input_dev = devm_input_allocate_device(dev);
 	if (!haptics->input_dev) {
 		dev_err(&client->dev, "Failed to allocate input device\n");
 		return -ENOMEM;
@@ -599,8 +595,7 @@ static int drv260x_probe(struct i2c_client *client,
 	error = input_ff_create_memless(haptics->input_dev, NULL,
 					drv260x_haptics_play);
 	if (error) {
-		dev_err(&client->dev, "input_ff_create() failed: %d\n",
-			error);
+		dev_err(dev, "input_ff_create() failed: %d\n", error);
 		return error;
 	}
 
@@ -612,21 +607,19 @@ static int drv260x_probe(struct i2c_client *client,
 	haptics->regmap = devm_regmap_init_i2c(client, &drv260x_regmap_config);
 	if (IS_ERR(haptics->regmap)) {
 		error = PTR_ERR(haptics->regmap);
-		dev_err(&client->dev, "Failed to allocate register map: %d\n",
-			error);
+		dev_err(dev, "Failed to allocate register map: %d\n", error);
 		return error;
 	}
 
 	error = drv260x_init(haptics);
 	if (error) {
-		dev_err(&client->dev, "Device init failed: %d\n", error);
+		dev_err(dev, "Device init failed: %d\n", error);
 		return error;
 	}
 
 	error = input_register_device(haptics->input_dev);
 	if (error) {
-		dev_err(&client->dev, "couldn't register input device: %d\n",
-			error);
+		dev_err(dev, "couldn't register input device: %d\n", error);
 		return error;
 	}
 
