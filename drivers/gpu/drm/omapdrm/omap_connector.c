@@ -240,8 +240,6 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
 
-	drm_connector_register(connector);
-
 	return connector;
 
 fail:
