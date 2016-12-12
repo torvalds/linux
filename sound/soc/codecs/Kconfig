@@ -592,6 +592,13 @@ config SND_SOC_MAX9860
 	depends on I2C
 	select REGMAP_I2C
 
+config SND_SOC_MSM8916_WCD_ANALOG
+	tristate "Qualcomm MSM8916 WCD Analog Codec"
+	depends on SPMI || COMPILE_TEST
+
+config SND_SOC_MSM8916_WCD_DIGITAL
+	tristate "Qualcomm MSM8916 WCD DIGITAL Codec"
+
 config SND_SOC_PCM1681
 	tristate "Texas Instruments PCM1681 CODEC"
 	depends on I2C

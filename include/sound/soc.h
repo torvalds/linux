@@ -1644,25 +1644,43 @@ static inline struct snd_soc_platform *snd_soc_kcontrol_platform(
 int snd_soc_util_init(void);
 void snd_soc_util_exit(void);
 
-int snd_soc_of_parse_card_name(struct snd_soc_card *card,
-			       const char *propname);
-int snd_soc_of_parse_audio_simple_widgets(struct snd_soc_card *card,
-					  const char *propname);
+#define snd_soc_of_parse_card_name(card, propname) \
+	snd_soc_of_parse_card_name_from_node(card, NULL, propname)
+int snd_soc_of_parse_card_name_from_node(struct snd_soc_card *card,
+					 struct device_node *np,
+					 const char *propname);
+#define snd_soc_of_parse_audio_simple_widgets(card, propname)\
+	snd_soc_of_parse_audio_simple_widgets_from_node(card, NULL, propname)
+int snd_soc_of_parse_audio_simple_widgets_from_node(struct snd_soc_card *card,
+						    struct device_node *np,
+						    const char *propname);
+
 int snd_soc_of_parse_tdm_slot(struct device_node *np,
 			      unsigned int *tx_mask,
 			      unsigned int *rx_mask,
 			      unsigned int *slots,
 			      unsigned int *slot_width);
-void snd_soc_of_parse_audio_prefix(struct snd_soc_card *card,
+#define snd_soc_of_parse_audio_prefix(card, codec_conf, of_node, propname) \
+	snd_soc_of_parse_audio_prefix_from_node(card, NULL, codec_conf, \
+						of_node, propname)
+void snd_soc_of_parse_audio_prefix_from_node(struct snd_soc_card *card,
+				   struct device_node *np,
 				   struct snd_soc_codec_conf *codec_conf,
 				   struct device_node *of_node,
 				   const char *propname);
-int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
-				   const char *propname);
+
+#define snd_soc_of_parse_audio_routing(card, propname) \
+	snd_soc_of_parse_audio_routing_from_node(card, NULL, propname)
+int snd_soc_of_parse_audio_routing_from_node(struct snd_soc_card *card,
+					     struct device_node *np,
+					     const char *propname);
+
 unsigned int snd_soc_of_parse_daifmt(struct device_node *np,
 				     const char *prefix,
 				     struct device_node **bitclkmaster,
 				     struct device_node **framemaster);
+int snd_soc_get_dai_name(struct of_phandle_args *args,
+			 const char **dai_name);
 int snd_soc_of_get_dai_name(struct device_node *of_node,
 			    const char **dai_name);
 int snd_soc_of_get_dai_link_codecs(struct device *dev,
