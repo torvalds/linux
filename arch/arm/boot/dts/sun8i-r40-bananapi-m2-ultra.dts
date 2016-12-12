@@ -41,7 +41,7 @@
  */
 
 /dts-v1/;
-#include "sun8i-a33.dtsi"
+#include "sun8i-h3.dtsi"
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
@@ -50,7 +50,7 @@
 
 / {
 	model = "Banana Pi BPI-M2-Ultra";
-	compatible = "sinovoip,bpi-m2-ultra", "allwinner,sun8i-a33";
+	compatible = "sinovoip,bpi-m2-ultra", "allwinner,sun8i-h3";
 
 	aliases {
 		serial0 = &uart0;
@@ -93,13 +93,13 @@
 	};
 };
 
-&ehci0 {
+&ehci1 {
 	status = "okay";
 };
 
-&codec {
+&ehci2 {
 	status = "okay";
-}
+};
 
 &ir {
 	pinctrl-names = "default";
