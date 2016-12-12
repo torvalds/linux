@@ -938,7 +938,7 @@ config SND_SOC_WM8523
 	depends on I2C
 
 config SND_SOC_WM8580
-	tristate "Wolfson Microelectronics WM8523 CODEC"
+	tristate "Wolfson Microelectronics WM8580 and WM8581 CODECs"
 	depends on I2C
 
 config SND_SOC_WM8711
@@ -1072,12 +1072,14 @@ config SND_SOC_WM8998
 
 config SND_SOC_WM9081
 	tristate
+	depends on I2C
 
 config SND_SOC_WM9090
 	tristate
 
 config SND_SOC_WM9705
 	tristate
+	select REGMAP_AC97
 
 config SND_SOC_WM9712
 	tristate
