@@ -6353,7 +6353,16 @@ static void i40e_link_event(struct i40e_pf *pf)
 	old_link = (pf->hw.phy.link_info_old.link_info & I40E_AQ_LINK_UP);
 
 	status = i40e_get_link_status(&pf->hw, &new_link);
-	if (status) {
+
+	/* On success, disable temp link polling */
+	if (status == I40E_SUCCESS) {
+		if (pf->flags & I40E_FLAG_TEMP_LINK_POLLING)
+			pf->flags &= ~I40E_FLAG_TEMP_LINK_POLLING;
+	} else {
+		/* Enable link polling temporarily until i40e_get_link_status
+		 * returns I40E_SUCCESS
+		 */
+		pf->flags |= I40E_FLAG_TEMP_LINK_POLLING;
 		dev_dbg(&pf->pdev->dev, "couldn't get link state, status: %d\n",
 			status);
 		return;
@@ -6405,7 +6414,8 @@ static void i40e_watchdog_subtask(struct i40e_pf *pf)
 		return;
 	pf->service_timer_previous = jiffies;
 
-	if (pf->flags & I40E_FLAG_LINK_POLLING_ENABLED)
+	if ((pf->flags & I40E_FLAG_LINK_POLLING_ENABLED) ||
+	    (pf->flags & I40E_FLAG_TEMP_LINK_POLLING))
 		i40e_link_event(pf);
 
 	/* Update the stats for active netdevs so the network stack
