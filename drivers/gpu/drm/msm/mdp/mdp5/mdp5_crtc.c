@@ -195,7 +195,7 @@ static void blend_setup(struct drm_crtc *crtc)
 	uint32_t lm = mdp5_crtc->lm;
 	uint32_t blend_op, fg_alpha, bg_alpha, ctl_blend_flags = 0;
 	unsigned long flags;
-	uint8_t stage[STAGE_MAX + 1];
+	enum mdp5_pipe stage[STAGE_MAX + 1] = { SSPP_NONE };
 	int i, plane_cnt = 0;
 #define blender(stage)	((stage) - STAGE0)
 

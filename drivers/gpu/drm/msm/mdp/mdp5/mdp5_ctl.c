@@ -351,8 +351,8 @@ static u32 mdp_ctl_blend_ext_mask(enum mdp5_pipe pipe,
 	}
 }
 
-int mdp5_ctl_blend(struct mdp5_ctl *ctl, u8 *stage, u32 stage_cnt,
-	u32 ctl_blend_op_flags)
+int mdp5_ctl_blend(struct mdp5_ctl *ctl, enum mdp5_pipe *stage, u32 stage_cnt,
+		   u32 ctl_blend_op_flags)
 {
 	unsigned long flags;
 	u32 blend_cfg = 0, blend_ext_cfg = 0;

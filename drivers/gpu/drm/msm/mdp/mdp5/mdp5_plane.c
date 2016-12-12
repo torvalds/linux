@@ -823,7 +823,7 @@ enum mdp5_pipe mdp5_plane_pipe(struct drm_plane *plane)
 	struct mdp5_plane_state *pstate = to_mdp5_plane_state(plane->state);
 
 	if (WARN_ON(!pstate->hwpipe))
-		return 0;
+		return SSPP_NONE;
 
 	return pstate->hwpipe->pipe;
 }
