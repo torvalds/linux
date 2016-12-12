@@ -48,4 +48,6 @@ void calculate_adjustments_y_only(
 	const struct dc_csc_adjustments *adjustments,
 	struct fixed31_32 *matrix);
 
+unsigned int log_2(unsigned int num);
+
 #endif

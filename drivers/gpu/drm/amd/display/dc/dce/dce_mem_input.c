@@ -25,6 +25,7 @@
 
 #include "mem_input.h"
 #include "reg_helper.h"
+#include "basics/conversion.h"
 
 #define CTX \
 	mi->ctx
@@ -127,16 +128,6 @@ static bool is_vert_scan(enum dc_rotation_angle rotation)
 	default:
 		return false;
 	}
-}
-
-static unsigned int log_2(unsigned int num)
-{
-	unsigned int result = 0;
-
-	while ((num >>= 1) != 0)
-		result++;
-
-	return result;
 }
 
 void dce_mem_input_program_pte_vm(struct mem_input *mi,

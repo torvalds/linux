@@ -221,3 +221,12 @@ void calculate_adjustments_y_only(
 		adjustments->brightness);
 }
 
+unsigned int log_2(unsigned int num)
+{
+	unsigned int result = 0;
+
+	while ((num >>= 1) != 0)
+		result++;
+
+	return result;
+}
