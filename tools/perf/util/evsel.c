@@ -1474,7 +1474,7 @@ retry_sample_id:
 	for (cpu = 0; cpu < cpus->nr; cpu++) {
 
 		for (thread = 0; thread < nthreads; thread++) {
-			int group_fd;
+			int fd, group_fd;
 
 			if (!evsel->cgrp && !evsel->system_wide)
 				pid = thread_map__pid(threads, thread);
@@ -1484,21 +1484,22 @@ retry_open:
 			pr_debug2("sys_perf_event_open: pid %d  cpu %d  group_fd %d  flags %#lx",
 				  pid, cpus->map[cpu], group_fd, flags);
 
-			FD(evsel, cpu, thread) = sys_perf_event_open(&evsel->attr,
-								     pid,
-								     cpus->map[cpu],
-								     group_fd, flags);
-			if (FD(evsel, cpu, thread) < 0) {
+			fd = sys_perf_event_open(&evsel->attr, pid, cpus->map[cpu],
+						 group_fd, flags);
+
+			FD(evsel, cpu, thread) = fd;
+
+			if (fd < 0) {
 				err = -errno;
 				pr_debug2("\nsys_perf_event_open failed, error %d\n",
 					  err);
 				goto try_fallback;
 			}
 
-			pr_debug2(" = %d\n", FD(evsel, cpu, thread));
+			pr_debug2(" = %d\n", fd);
 
 			if (evsel->bpf_fd >= 0) {
-				int evt_fd = FD(evsel, cpu, thread);
+				int evt_fd = fd;
 				int bpf_fd = evsel->bpf_fd;
 
 				err = ioctl(evt_fd,
