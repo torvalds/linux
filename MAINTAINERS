@@ -8977,9 +8977,11 @@ F:	drivers/of/resolver.c
 
 OPENRISC ARCHITECTURE
 M:	Jonas Bonn <jonas@southpole.se>
-W:	http://openrisc.net
+M:	Stefan Kristiansson <stefan.kristiansson@saunalahti.fi>
+M:	Stafford Horne <shorne@gmail.com>
+L:	openrisc@lists.librecores.org
+W:	http://openrisc.io
 S:	Maintained
-T:	git git://openrisc.net/~jonas/linux
 F:	arch/openrisc/
 
 OPENVSWITCH
