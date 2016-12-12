@@ -704,6 +704,7 @@ struct kvm_apic_map {
 
 /* Hyper-V emulation context */
 struct kvm_hv {
+	struct mutex hv_lock;
 	u64 hv_guest_os_id;
 	u64 hv_hypercall;
 	u64 hv_tsc_page;
