@@ -1995,14 +1995,15 @@ static void ttwu_queue(struct task_struct *p, int cpu, int wake_flags)
  * @state: the mask of task states that can be woken
  * @wake_flags: wake modifier flags (WF_*)
  *
- * Put it on the run-queue if it's not already there. The "current"
- * thread is always on the run-queue (except when the actual
- * re-schedule is in progress), and as such you're allowed to do
- * the simpler "current->state = TASK_RUNNING" to mark yourself
- * runnable without the overhead of this.
+ * If (@state & @p->state) @p->state = TASK_RUNNING.
  *
- * Return: %true if @p was woken up, %false if it was already running.
- * or @state didn't match @p's state.
+ * If the task was not queued/runnable, also place it back on a runqueue.
+ *
+ * Atomic against schedule() which would dequeue a task, also see
+ * set_current_state().
+ *
+ * Return: %true if @p->state changes (an actual wakeup was done),
+ *	   %false otherwise.
  */
 static int
 try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
@@ -5707,7 +5708,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 		printk(KERN_CONT " %*pbl",
 		       cpumask_pr_args(sched_group_cpus(group)));
 		if (group->sgc->capacity != SCHED_CAPACITY_SCALE) {
-			printk(KERN_CONT " (cpu_capacity = %d)",
+			printk(KERN_CONT " (cpu_capacity = %lu)",
 				group->sgc->capacity);
 		}
 
@@ -6184,6 +6185,7 @@ build_overlap_sched_groups(struct sched_domain *sd, int cpu)
 		 * die on a /0 trap.
 		 */
 		sg->sgc->capacity = SCHED_CAPACITY_SCALE * cpumask_weight(sg_span);
+		sg->sgc->min_capacity = SCHED_CAPACITY_SCALE;
 
 		/*
 		 * Make sure the first group of this domain contains the
@@ -6301,7 +6303,22 @@ static void init_sched_groups_capacity(int cpu, struct sched_domain *sd)
 	WARN_ON(!sg);
 
 	do {
+		int cpu, max_cpu = -1;
+
 		sg->group_weight = cpumask_weight(sched_group_cpus(sg));
+
+		if (!(sd->flags & SD_ASYM_PACKING))
+			goto next;
+
+		for_each_cpu(cpu, sched_group_cpus(sg)) {
+			if (max_cpu < 0)
+				max_cpu = cpu;
+			else if (sched_asym_prefer(cpu, max_cpu))
+				max_cpu = cpu;
+		}
+		sg->asym_prefer_cpu = max_cpu;
+
+next:
 		sg = sg->next;
 	} while (sg != sd->groups);
 
@@ -7602,6 +7619,7 @@ void __init sched_init(void)
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		root_task_group.shares = ROOT_TASK_GROUP_LOAD;
 		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
+		rq->tmp_alone_branch = &rq->leaf_cfs_rq_list;
 		/*
 		 * How much cpu bandwidth does root_task_group get?
 		 *

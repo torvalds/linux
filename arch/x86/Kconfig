@@ -939,6 +939,27 @@ config SCHED_MC
 	  making when dealing with multi-core CPU chips at a cost of slightly
 	  increased overhead in some places. If unsure say N here.
 
+config SCHED_MC_PRIO
+	bool "CPU core priorities scheduler support"
+	depends on SCHED_MC && CPU_SUP_INTEL
+	select X86_INTEL_PSTATE
+	select CPU_FREQ
+	default y
+	---help---
+	  Intel Turbo Boost Max Technology 3.0 enabled CPUs have a
+	  core ordering determined at manufacturing time, which allows
+	  certain cores to reach higher turbo frequencies (when running
+	  single threaded workloads) than others.
+
+	  Enabling this kernel feature teaches the scheduler about
+	  the TBM3 (aka ITMT) priority order of the CPU cores and adjusts the
+	  scheduler's CPU selection logic accordingly, so that higher
+	  overall system performance can be achieved.
+
+	  This feature will have no effect on CPUs without this feature.
+
+	  If unsure say Y here.
+
 source "kernel/Kconfig.preempt"
 
 config UP_LATE_INIT

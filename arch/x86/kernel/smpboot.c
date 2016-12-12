@@ -109,6 +109,17 @@ static bool logical_packages_frozen __read_mostly;
 /* Maximum number of SMT threads on any online core */
 int __max_smt_threads __read_mostly;
 
+/* Flag to indicate if a complete sched domain rebuild is required */
+bool x86_topology_update;
+
+int arch_update_cpu_topology(void)
+{
+	int retval = x86_topology_update;
+
+	x86_topology_update = false;
+	return retval;
+}
+
 static inline void smpboot_setup_warm_reset_vector(unsigned long start_eip)
 {
 	unsigned long flags;
@@ -471,22 +482,42 @@ static bool match_die(struct cpuinfo_x86 *c, struct cpuinfo_x86 *o)
 	return false;
 }
 
+#if defined(CONFIG_SCHED_SMT) || defined(CONFIG_SCHED_MC)
+static inline int x86_sched_itmt_flags(void)
+{
+	return sysctl_sched_itmt_enabled ? SD_ASYM_PACKING : 0;
+}
+
+#ifdef CONFIG_SCHED_MC
+static int x86_core_flags(void)
+{
+	return cpu_core_flags() | x86_sched_itmt_flags();
+}
+#endif
+#ifdef CONFIG_SCHED_SMT
+static int x86_smt_flags(void)
+{
+	return cpu_smt_flags() | x86_sched_itmt_flags();
+}
+#endif
+#endif
+
 static struct sched_domain_topology_level x86_numa_in_package_topology[] = {
 #ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
+	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
 #endif
 #ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
 #endif
 	{ NULL, },
 };
 
 static struct sched_domain_topology_level x86_topology[] = {
 #ifdef CONFIG_SCHED_SMT
-	{ cpu_smt_mask, cpu_smt_flags, SD_INIT_NAME(SMT) },
+	{ cpu_smt_mask, x86_smt_flags, SD_INIT_NAME(SMT) },
 #endif
 #ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
+	{ cpu_coregroup_mask, x86_core_flags, SD_INIT_NAME(MC) },
 #endif
 	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
 	{ NULL, },
