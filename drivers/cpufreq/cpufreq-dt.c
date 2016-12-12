@@ -149,6 +149,9 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	struct device *cpu_dev;
 	struct clk *cpu_clk;
 	struct dev_pm_opp *suspend_opp;
+#ifdef CONFIG_ARCH_ROCKCHIP
+	struct cpumask cpus;
+#endif
 	unsigned int transition_latency;
 	bool opp_v1 = false;
 	const char *name;
@@ -204,7 +207,20 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	 *
 	 * OPPs might be populated at runtime, don't check for error here
 	 */
+#ifdef CONFIG_ARCH_ROCKCHIP
+	ret = dev_pm_opp_of_add_table(cpu_dev);
+	if (ret) {
+		dev_err(cpu_dev, "couldn't find opp table for cpu:%d, %d\n",
+			policy->cpu, ret);
+	} else {
+		cpumask_copy(&cpus, policy->cpus);
+		cpumask_clear_cpu(policy->cpu, &cpus);
+		if (dev_pm_opp_of_cpumask_add_table(&cpus))
+			dev_pm_opp_of_remove_table(cpu_dev);
+	}
+#else
 	dev_pm_opp_of_cpumask_add_table(policy->cpus);
+#endif
 
 	/*
 	 * But we need OPP table to function so if it is not there let's
