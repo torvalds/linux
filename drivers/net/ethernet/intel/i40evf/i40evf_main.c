@@ -2871,7 +2871,8 @@ static void i40evf_remove(struct pci_dev *pdev)
 		i40evf_request_reset(adapter);
 		msleep(50);
 	}
-
+	i40evf_free_all_tx_resources(adapter);
+	i40evf_free_all_rx_resources(adapter);
 	i40evf_misc_irq_disable(adapter);
 	i40evf_free_misc_irq(adapter);
 	i40evf_reset_interrupt_capability(adapter);
