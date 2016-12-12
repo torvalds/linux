@@ -240,6 +240,7 @@
 #define ARGP_QWORDDATA              0x11
 #define ARGP_SIMPLENAME             0x12	/* name_string | local_term | arg_term */
 #define ARGP_NAME_OR_REF            0x13	/* For object_type only */
+#define ARGP_MAX                    0x13
 
 /*
  * Resolved argument types for the AML Interpreter
