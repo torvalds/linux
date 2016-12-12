@@ -96,6 +96,17 @@ nf_conntrack_max - INTEGER
 	Size of connection tracking table.  Default value is
 	nf_conntrack_buckets value * 4.
 
+nf_conntrack_default_on - BOOLEAN
+	0 - don't register conntrack in new net namespaces
+	1 - register conntrack in new net namespaces (default)
+
+	This controls wheter newly created network namespaces have connection
+	tracking enabled by default.  It will be enabled automatically
+	regardless of this setting if the new net namespace requires
+	connection tracking, e.g. when NAT rules are created.
+	This setting is only visible in initial user namespace, it has no
+	effect on existing namespaces.
+
 nf_conntrack_tcp_be_liberal - BOOLEAN
 	0 - disabled (default)
 	not 0 - enabled

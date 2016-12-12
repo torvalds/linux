@@ -300,10 +300,11 @@ struct net_bridge
 	unsigned long			max_age;
 	unsigned long			hello_time;
 	unsigned long			forward_delay;
-	unsigned long			bridge_max_age;
 	unsigned long			ageing_time;
+	unsigned long			bridge_max_age;
 	unsigned long			bridge_hello_time;
 	unsigned long			bridge_forward_delay;
+	unsigned long			bridge_ageing_time;
 
 	u8				group_addr[ETH_ALEN];
 	bool				group_addr_set;
@@ -333,6 +334,8 @@ struct net_bridge
 	u32				multicast_last_member_count;
 	u32				multicast_startup_query_count;
 
+	u8				multicast_igmp_version;
+
 	unsigned long			multicast_last_member_interval;
 	unsigned long			multicast_membership_interval;
 	unsigned long			multicast_querier_interval;
@@ -353,6 +356,7 @@ struct net_bridge
 	struct bridge_mcast_other_query	ip6_other_query;
 	struct bridge_mcast_own_query	ip6_own_query;
 	struct bridge_mcast_querier	ip6_querier;
+	u8				multicast_mld_version;
 #endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif
 
@@ -582,6 +586,10 @@ int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val);
 int br_multicast_toggle(struct net_bridge *br, unsigned long val);
 int br_multicast_set_querier(struct net_bridge *br, unsigned long val);
 int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val);
+int br_multicast_set_igmp_version(struct net_bridge *br, unsigned long val);
+#if IS_ENABLED(CONFIG_IPV6)
+int br_multicast_set_mld_version(struct net_bridge *br, unsigned long val);
+#endif
 struct net_bridge_mdb_entry *
 br_mdb_ip_get(struct net_bridge_mdb_htable *mdb, struct br_ip *dst);
 struct net_bridge_mdb_entry *
@@ -992,6 +1000,7 @@ void __br_set_forward_delay(struct net_bridge *br, unsigned long t);
 int br_set_forward_delay(struct net_bridge *br, unsigned long x);
 int br_set_hello_time(struct net_bridge *br, unsigned long x);
 int br_set_max_age(struct net_bridge *br, unsigned long x);
+int __set_ageing_time(struct net_device *dev, unsigned long t);
 int br_set_ageing_time(struct net_bridge *br, clock_t ageing_time);
 
 

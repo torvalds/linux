@@ -1198,7 +1198,6 @@ static const struct net_device_ops dvb_netdev_ops = {
 	.ndo_start_xmit		= dvb_net_tx,
 	.ndo_set_rx_mode	= dvb_net_set_multicast_list,
 	.ndo_set_mac_address    = dvb_net_set_mac,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -1209,6 +1208,7 @@ static void dvb_net_setup(struct net_device *dev)
 	dev->header_ops		= &dvb_header_ops;
 	dev->netdev_ops		= &dvb_netdev_ops;
 	dev->mtu		= 4096;
+	dev->max_mtu		= 4096;
 
 	dev->flags |= IFF_NOARP;
 }

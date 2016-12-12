@@ -49,7 +49,7 @@ struct hashlimit_net {
 	struct proc_dir_entry	*ip6t_hashlimit;
 };
 
-static int hashlimit_net_id;
+static unsigned int hashlimit_net_id;
 static inline struct hashlimit_net *hashlimit_pernet(struct net *net)
 {
 	return net_generic(net, hashlimit_net_id);

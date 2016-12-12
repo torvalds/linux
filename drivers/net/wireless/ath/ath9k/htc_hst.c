@@ -244,8 +244,8 @@ int htc_connect_service(struct htc_target *target,
 	/* Find an available endpoint */
 	endpoint = get_next_avail_ep(target->endpoint);
 	if (!endpoint) {
-		dev_err(target->dev, "Endpoint is not available for"
-			"service %d\n", service_connreq->service_id);
+		dev_err(target->dev, "Endpoint is not available for service %d\n",
+			service_connreq->service_id);
 		return -EINVAL;
 	}
 
@@ -382,7 +382,7 @@ static void ath9k_htc_fw_panic_report(struct htc_target *htc_handle,
 		break;
 		}
 	default:
-		dev_err(htc_handle->dev, "ath: uknown panic pattern!\n");
+		dev_err(htc_handle->dev, "ath: unknown panic pattern!\n");
 		break;
 	}
 }

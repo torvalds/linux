@@ -30,10 +30,10 @@
 
 #define IPT_TAB_MASK     15
 
-static int ipt_net_id;
+static unsigned int ipt_net_id;
 static struct tc_action_ops act_ipt_ops;
 
-static int xt_net_id;
+static unsigned int xt_net_id;
 static struct tc_action_ops act_xt_ops;
 
 static int ipt_init_target(struct xt_entry_target *t, char *table,
@@ -213,6 +213,12 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 	int ret = 0, result = 0;
 	struct tcf_ipt *ipt = to_ipt(a);
 	struct xt_action_param par;
+	struct nf_hook_state state = {
+		.net	= dev_net(skb->dev),
+		.in	= skb->dev,
+		.hook	= ipt->tcfi_hook,
+		.pf	= NFPROTO_IPV4,
+	};
 
 	if (skb_unclone(skb, GFP_ATOMIC))
 		return TC_ACT_UNSPEC;
@@ -226,13 +232,9 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 	 * worry later - danger - this API seems to have changed
 	 * from earlier kernels
 	 */
-	par.net	     = dev_net(skb->dev);
-	par.in       = skb->dev;
-	par.out      = NULL;
-	par.hooknum  = ipt->tcfi_hook;
+	par.state    = &state;
 	par.target   = ipt->tcfi_t->u.kernel.target;
 	par.targinfo = ipt->tcfi_t->data;
-	par.family   = NFPROTO_IPV4;
 	ret = par.target->target(skb, &par);
 
 	switch (ret) {

@@ -57,7 +57,7 @@ static struct task_struct	*nlmsvc_task;
 static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
 
-int lockd_net_id;
+unsigned int lockd_net_id;
 
 /*
  * These can be set at insmod time (useful for NFS as root filesystem),

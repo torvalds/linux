@@ -315,17 +315,20 @@ static void nft_reject_bridge_eval(const struct nft_expr *expr,
 	case htons(ETH_P_IP):
 		switch (priv->type) {
 		case NFT_REJECT_ICMP_UNREACH:
-			nft_reject_br_send_v4_unreach(pkt->net, pkt->skb,
-						      pkt->in, pkt->hook,
+			nft_reject_br_send_v4_unreach(nft_net(pkt), pkt->skb,
+						      nft_in(pkt),
+						      nft_hook(pkt),
 						      priv->icmp_code);
 			break;
 		case NFT_REJECT_TCP_RST:
-			nft_reject_br_send_v4_tcp_reset(pkt->net, pkt->skb,
-							pkt->in, pkt->hook);
+			nft_reject_br_send_v4_tcp_reset(nft_net(pkt), pkt->skb,
+							nft_in(pkt),
+							nft_hook(pkt));
 			break;
 		case NFT_REJECT_ICMPX_UNREACH:
-			nft_reject_br_send_v4_unreach(pkt->net, pkt->skb,
-						      pkt->in, pkt->hook,
+			nft_reject_br_send_v4_unreach(nft_net(pkt), pkt->skb,
+						      nft_in(pkt),
+						      nft_hook(pkt),
 						      nft_reject_icmp_code(priv->icmp_code));
 			break;
 		}
@@ -333,17 +336,20 @@ static void nft_reject_bridge_eval(const struct nft_expr *expr,
 	case htons(ETH_P_IPV6):
 		switch (priv->type) {
 		case NFT_REJECT_ICMP_UNREACH:
-			nft_reject_br_send_v6_unreach(pkt->net, pkt->skb,
-						      pkt->in, pkt->hook,
+			nft_reject_br_send_v6_unreach(nft_net(pkt), pkt->skb,
+						      nft_in(pkt),
+						      nft_hook(pkt),
 						      priv->icmp_code);
 			break;
 		case NFT_REJECT_TCP_RST:
-			nft_reject_br_send_v6_tcp_reset(pkt->net, pkt->skb,
-							pkt->in, pkt->hook);
+			nft_reject_br_send_v6_tcp_reset(nft_net(pkt), pkt->skb,
+							nft_in(pkt),
+							nft_hook(pkt));
 			break;
 		case NFT_REJECT_ICMPX_UNREACH:
-			nft_reject_br_send_v6_unreach(pkt->net, pkt->skb,
-						      pkt->in, pkt->hook,
+			nft_reject_br_send_v6_unreach(nft_net(pkt), pkt->skb,
+						      nft_in(pkt),
+						      nft_hook(pkt),
 						      nft_reject_icmpv6_code(priv->icmp_code));
 			break;
 		}

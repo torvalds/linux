@@ -37,6 +37,12 @@
 
 struct sk_buff;
 
+enum sw_flow_mac_proto {
+	MAC_PROTO_NONE = 0,
+	MAC_PROTO_ETHERNET,
+};
+#define SW_FLOW_KEY_INVALID	0x80
+
 /* Store options at the end of the array if they are less than the
  * maximum size. This allows us to get the benefits of variable length
  * matching for small options.
@@ -68,6 +74,7 @@ struct sw_flow_key {
 		u32	skb_mark;	/* SKB mark. */
 		u16	in_port;	/* Input switch port (or DP_MAX_PORTS). */
 	} __packed phy; /* Safe when right after 'tun_key'. */
+	u8 mac_proto;			/* MAC layer protocol (e.g. Ethernet). */
 	u8 tun_proto;			/* Protocol of encapsulating tunnel. */
 	u32 ovs_flow_hash;		/* Datapath computed hash value.  */
 	u32 recirc_id;			/* Recirculation ID.  */
@@ -205,6 +212,21 @@ struct arp_eth_header {
 	unsigned char       ar_tha[ETH_ALEN];	/* target hardware address  */
 	unsigned char       ar_tip[4];		/* target IP address        */
 } __packed;
+
+static inline u8 ovs_key_mac_proto(const struct sw_flow_key *key)
+{
+	return key->mac_proto & ~SW_FLOW_KEY_INVALID;
+}
+
+static inline u16 __ovs_mac_header_len(u8 mac_proto)
+{
+	return mac_proto == MAC_PROTO_ETHERNET ? ETH_HLEN : 0;
+}
+
+static inline u16 ovs_mac_header_len(const struct sw_flow_key *key)
+{
+	return __ovs_mac_header_len(ovs_key_mac_proto(key));
+}
 
 static inline bool ovs_identifier_is_ufid(const struct sw_flow_id *sfid)
 {

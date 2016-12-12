@@ -1048,7 +1048,7 @@ static const char *skge_pause(enum pause_status status)
 static void skge_link_up(struct skge_port *skge)
 {
 	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG),
-		    LED_BLK_OFF|LED_SYNC_OFF|LED_ON);
+		    LED_BLK_OFF|LED_SYNC_OFF|LED_REG_ON);
 
 	netif_carrier_on(skge->netdev);
 	netif_wake_queue(skge->netdev);
@@ -1062,7 +1062,7 @@ static void skge_link_up(struct skge_port *skge)
 
 static void skge_link_down(struct skge_port *skge)
 {
-	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_REG_OFF);
 	netif_carrier_off(skge->netdev);
 	netif_stop_queue(skge->netdev);
 
@@ -2668,7 +2668,7 @@ static int skge_down(struct net_device *dev)
 	if (hw->ports == 1)
 		free_irq(hw->pdev->irq, hw);
 
-	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_OFF);
+	skge_write8(skge->hw, SK_REG(skge->port, LNK_LED_REG), LED_REG_OFF);
 	if (is_genesis(hw))
 		genesis_stop(skge);
 	else
@@ -2899,9 +2899,6 @@ static void skge_tx_timeout(struct net_device *dev)
 static int skge_change_mtu(struct net_device *dev, int new_mtu)
 {
 	int err;
-
-	if (new_mtu < ETH_ZLEN || new_mtu > ETH_JUMBO_MTU)
-		return -EINVAL;
 
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
@@ -3856,6 +3853,10 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	dev->ethtool_ops = &skge_ethtool_ops;
 	dev->watchdog_timeo = TX_WATCHDOG;
 	dev->irq = hw->pdev->irq;
+
+	/* MTU range: 60 - 9000 */
+	dev->min_mtu = ETH_ZLEN;
+	dev->max_mtu = ETH_JUMBO_MTU;
 
 	if (highmem)
 		dev->features |= NETIF_F_HIGHDMA;

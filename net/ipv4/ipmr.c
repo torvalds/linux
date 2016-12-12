@@ -137,6 +137,9 @@ static int ipmr_fib_lookup(struct net *net, struct flowi4 *flp4,
 		.flags = FIB_LOOKUP_NOREF,
 	};
 
+	/* update flow if oif or iif point to device enslaved to l3mdev */
+	l3mdev_update_flow(net, flowi4_to_flowi(flp4));
+
 	err = fib_rules_lookup(net->ipv4.mr_rules_ops,
 			       flowi4_to_flowi(flp4), 0, &arg);
 	if (err < 0)
@@ -163,7 +166,9 @@ static int ipmr_rule_action(struct fib_rule *rule, struct flowi *flp,
 		return -EINVAL;
 	}
 
-	mrt = ipmr_get_table(rule->fr_net, rule->table);
+	arg->table = fib_rule_get_table(rule, arg);
+
+	mrt = ipmr_get_table(rule->fr_net, arg->table);
 	if (!mrt)
 		return -EAGAIN;
 	res->mrt = mrt;
@@ -1809,6 +1814,12 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 
 	/* Wrong interface: drop packet and (maybe) send PIM assert. */
 	if (mrt->vif_table[vif].dev != skb->dev) {
+		struct net_device *mdev;
+
+		mdev = l3mdev_master_dev_rcu(mrt->vif_table[vif].dev);
+		if (mdev == skb->dev)
+			goto forward;
+
 		if (rt_is_output_route(skb_rtable(skb))) {
 			/* It is our own packet, looped back.
 			 * Very complicated situation...
@@ -2053,7 +2064,7 @@ static int pim_rcv(struct sk_buff *skb)
 		goto drop;
 
 	pim = (struct pimreghdr *)skb_transport_header(skb);
-	if (pim->type != ((PIM_VERSION << 4) | (PIM_REGISTER)) ||
+	if (pim->type != ((PIM_VERSION << 4) | (PIM_TYPE_REGISTER)) ||
 	    (pim->flags & PIM_NULL_REGISTER) ||
 	    (ip_compute_csum((void *)pim, sizeof(*pim)) != 0 &&
 	     csum_fold(skb_checksum(skb, 0, skb->len, 0))))
