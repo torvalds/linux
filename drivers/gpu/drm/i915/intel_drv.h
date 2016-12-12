@@ -1815,6 +1815,8 @@ struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
 void intel_plane_destroy_state(struct drm_plane *plane,
 			       struct drm_plane_state *state);
 extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
+int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
+					struct intel_plane_state *intel_state);
 
 /* intel_color.c */
 void intel_color_init(struct drm_crtc *crtc);

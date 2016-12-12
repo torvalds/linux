@@ -103,20 +103,14 @@ intel_plane_destroy_state(struct drm_plane *plane,
 	drm_atomic_helper_plane_destroy_state(plane, state);
 }
 
-static int intel_plane_atomic_check(struct drm_plane *plane,
-				    struct drm_plane_state *state)
+int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
+					struct intel_plane_state *intel_state)
 {
+	struct drm_plane *plane = intel_state->base.plane;
 	struct drm_i915_private *dev_priv = to_i915(plane->dev);
-	struct drm_crtc *crtc = state->crtc;
-	struct intel_crtc *intel_crtc;
-	struct intel_crtc_state *crtc_state;
+	struct drm_plane_state *state = &intel_state->base;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	struct intel_plane_state *intel_state = to_intel_plane_state(state);
-	struct drm_crtc_state *drm_crtc_state;
 	int ret;
-
-	crtc = crtc ? crtc : plane->state->crtc;
-	intel_crtc = to_intel_crtc(crtc);
 
 	/*
 	 * Both crtc and plane->crtc could be NULL if we're updating a
@@ -124,14 +118,8 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	 * anything driver-specific we need to test in that case, so
 	 * just return success.
 	 */
-	if (!crtc)
+	if (!intel_state->base.crtc && !plane->state->crtc)
 		return 0;
-
-	drm_crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
-	if (WARN_ON(!drm_crtc_state))
-		return -EINVAL;
-
-	crtc_state = to_intel_crtc_state(drm_crtc_state);
 
 	/* Clip all planes to CRTC size, or 0x0 if CRTC is disabled */
 	intel_state->clip.x1 = 0;
@@ -182,6 +170,31 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 		return ret;
 
 	return intel_plane_atomic_calc_changes(&crtc_state->base, state);
+}
+
+static int intel_plane_atomic_check(struct drm_plane *plane,
+				    struct drm_plane_state *state)
+{
+	struct drm_crtc *crtc = state->crtc;
+	struct drm_crtc_state *drm_crtc_state;
+
+	crtc = crtc ? crtc : plane->state->crtc;
+
+	/*
+	 * Both crtc and plane->crtc could be NULL if we're updating a
+	 * property while the plane is disabled.  We don't actually have
+	 * anything driver-specific we need to test in that case, so
+	 * just return success.
+	 */
+	if (!crtc)
+		return 0;
+
+	drm_crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+	if (WARN_ON(!drm_crtc_state))
+		return -EINVAL;
+
+	return intel_plane_atomic_check_with_state(to_intel_crtc_state(drm_crtc_state),
+						   to_intel_plane_state(state));
 }
 
 static void intel_plane_atomic_update(struct drm_plane *plane,
