@@ -897,6 +897,7 @@ config SND_SOC_UDA134X
 
 config SND_SOC_UDA1380
         tristate
+	depends on I2C
 
 config SND_SOC_WL1273
 	tristate
