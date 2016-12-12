@@ -239,6 +239,7 @@ struct rocker {
 	struct {
 		u64 id;
 	} hw;
+	unsigned long ageing_time;
 	spinlock_t cmd_ring_lock;		/* for cmd ring accesses */
 	struct rocker_dma_ring_info cmd_ring;
 	struct rocker_dma_ring_info event_ring;
@@ -3531,12 +3532,14 @@ static void rocker_port_fdb_learn_work(struct work_struct *work)
 	info.addr = lw->addr;
 	info.vid = lw->vid;
 
+	rtnl_lock();
 	if (learned && removing)
 		call_switchdev_notifiers(SWITCHDEV_FDB_DEL,
 					 lw->rocker_port->dev, &info.info);
 	else if (learned && !removing)
 		call_switchdev_notifiers(SWITCHDEV_FDB_ADD,
 					 lw->rocker_port->dev, &info.info);
+	rtnl_unlock();
 
 	rocker_port_kfree(lw->trans, work);
 }
@@ -3702,7 +3705,7 @@ static void rocker_fdb_cleanup(unsigned long data)
 	struct rocker_port *rocker_port;
 	struct rocker_fdb_tbl_entry *entry;
 	struct hlist_node *tmp;
-	unsigned long next_timer = jiffies + BR_MIN_AGEING_TIME;
+	unsigned long next_timer = jiffies + rocker->ageing_time;
 	unsigned long expires;
 	unsigned long lock_flags;
 	int flags = ROCKER_OP_FLAG_NOWAIT | ROCKER_OP_FLAG_REMOVE |
@@ -4365,8 +4368,12 @@ static int rocker_port_bridge_ageing_time(struct rocker_port *rocker_port,
 					  struct switchdev_trans *trans,
 					  u32 ageing_time)
 {
+	struct rocker *rocker = rocker_port->rocker;
+
 	if (!switchdev_trans_ph_prepare(trans)) {
 		rocker_port->ageing_time = clock_t_to_jiffies(ageing_time);
+		if (rocker_port->ageing_time < rocker->ageing_time)
+			rocker->ageing_time = rocker_port->ageing_time;
 		mod_timer(&rocker_port->rocker->fdb_cleanup_timer, jiffies);
 	}
 
@@ -4468,7 +4475,7 @@ static int rocker_port_obj_add(struct net_device *dev,
 		fib4 = SWITCHDEV_OBJ_IPV4_FIB(obj);
 		err = rocker_port_fib_ipv4(rocker_port, trans,
 					   htonl(fib4->dst), fib4->dst_len,
-					   &fib4->fi, fib4->tb_id, 0);
+					   fib4->fi, fib4->tb_id, 0);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = rocker_port_fdb_add(rocker_port, trans,
@@ -4540,7 +4547,7 @@ static int rocker_port_obj_del(struct net_device *dev,
 		fib4 = SWITCHDEV_OBJ_IPV4_FIB(obj);
 		err = rocker_port_fib_ipv4(rocker_port, NULL,
 					   htonl(fib4->dst), fib4->dst_len,
-					   &fib4->fi, fib4->tb_id,
+					   fib4->fi, fib4->tb_id,
 					   ROCKER_OP_FLAG_REMOVE);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
@@ -5204,9 +5211,12 @@ static int rocker_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_init_tbls;
 	}
 
+	rocker->ageing_time = BR_DEFAULT_AGEING_TIME;
 	setup_timer(&rocker->fdb_cleanup_timer, rocker_fdb_cleanup,
 		    (unsigned long) rocker);
 	mod_timer(&rocker->fdb_cleanup_timer, jiffies);
+
+	rocker->ageing_time = BR_DEFAULT_AGEING_TIME;
 
 	err = rocker_probe_ports(rocker);
 	if (err) {

@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/rhashtable.h>
+#include <linux/workqueue.h>
 
 #include <linux/if_ether.h>
 #include <linux/in6.h>
@@ -55,7 +56,10 @@ struct cls_fl_head {
 	bool mask_assigned;
 	struct list_head filters;
 	struct rhashtable_params ht_params;
-	struct rcu_head rcu;
+	union {
+		struct work_struct work;
+		struct rcu_head	rcu;
+	};
 };
 
 struct cls_fl_filter {
@@ -165,6 +169,24 @@ static void fl_destroy_filter(struct rcu_head *head)
 	kfree(f);
 }
 
+static void fl_destroy_sleepable(struct work_struct *work)
+{
+	struct cls_fl_head *head = container_of(work, struct cls_fl_head,
+						work);
+	if (head->mask_assigned)
+		rhashtable_destroy(&head->ht);
+	kfree(head);
+	module_put(THIS_MODULE);
+}
+
+static void fl_destroy_rcu(struct rcu_head *rcu)
+{
+	struct cls_fl_head *head = container_of(rcu, struct cls_fl_head, rcu);
+
+	INIT_WORK(&head->work, fl_destroy_sleepable);
+	schedule_work(&head->work);
+}
+
 static bool fl_destroy(struct tcf_proto *tp, bool force)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
@@ -177,10 +199,9 @@ static bool fl_destroy(struct tcf_proto *tp, bool force)
 		list_del_rcu(&f->list);
 		call_rcu(&f->rcu, fl_destroy_filter);
 	}
-	RCU_INIT_POINTER(tp->root, NULL);
-	if (head->mask_assigned)
-		rhashtable_destroy(&head->ht);
-	kfree_rcu(head, rcu);
+
+	__module_get(THIS_MODULE);
+	call_rcu(&head->rcu, fl_destroy_rcu);
 	return true;
 }
 
@@ -252,23 +273,28 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 	fl_set_key_val(tb, key->eth.src, TCA_FLOWER_KEY_ETH_SRC,
 		       mask->eth.src, TCA_FLOWER_KEY_ETH_SRC_MASK,
 		       sizeof(key->eth.src));
+
 	fl_set_key_val(tb, &key->basic.n_proto, TCA_FLOWER_KEY_ETH_TYPE,
 		       &mask->basic.n_proto, TCA_FLOWER_UNSPEC,
 		       sizeof(key->basic.n_proto));
+
 	if (key->basic.n_proto == htons(ETH_P_IP) ||
 	    key->basic.n_proto == htons(ETH_P_IPV6)) {
 		fl_set_key_val(tb, &key->basic.ip_proto, TCA_FLOWER_KEY_IP_PROTO,
 			       &mask->basic.ip_proto, TCA_FLOWER_UNSPEC,
 			       sizeof(key->basic.ip_proto));
 	}
-	if (key->control.addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
+
+	if (tb[TCA_FLOWER_KEY_IPV4_SRC] || tb[TCA_FLOWER_KEY_IPV4_DST]) {
+		key->control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 		fl_set_key_val(tb, &key->ipv4.src, TCA_FLOWER_KEY_IPV4_SRC,
 			       &mask->ipv4.src, TCA_FLOWER_KEY_IPV4_SRC_MASK,
 			       sizeof(key->ipv4.src));
 		fl_set_key_val(tb, &key->ipv4.dst, TCA_FLOWER_KEY_IPV4_DST,
 			       &mask->ipv4.dst, TCA_FLOWER_KEY_IPV4_DST_MASK,
 			       sizeof(key->ipv4.dst));
-	} else if (key->control.addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
+	} else if (tb[TCA_FLOWER_KEY_IPV6_SRC] || tb[TCA_FLOWER_KEY_IPV6_DST]) {
+		key->control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 		fl_set_key_val(tb, &key->ipv6.src, TCA_FLOWER_KEY_IPV6_SRC,
 			       &mask->ipv6.src, TCA_FLOWER_KEY_IPV6_SRC_MASK,
 			       sizeof(key->ipv6.src));
@@ -276,6 +302,7 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 			       &mask->ipv6.dst, TCA_FLOWER_KEY_IPV6_DST_MASK,
 			       sizeof(key->ipv6.dst));
 	}
+
 	if (key->basic.ip_proto == IPPROTO_TCP) {
 		fl_set_key_val(tb, &key->tp.src, TCA_FLOWER_KEY_TCP_SRC,
 			       &mask->tp.src, TCA_FLOWER_UNSPEC,

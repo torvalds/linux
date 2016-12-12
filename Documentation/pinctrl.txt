@@ -831,7 +831,7 @@ separate memory range only intended for GPIO driving, and the register
 range dealing with pin config and pin multiplexing get placed into a
 different memory range and a separate section of the data sheet.
 
-A flag "strict" in struct pinctrl_desc is available to check and deny
+A flag "strict" in struct pinmux_ops is available to check and deny
 simultaneous access to the same pin from GPIO and pin multiplexing
 consumers on hardware of this type. The pinctrl driver should set this flag
 accordingly.

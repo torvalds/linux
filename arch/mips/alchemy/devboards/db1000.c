@@ -503,15 +503,15 @@ int __init db1000_dev_setup(void)
 	if (board == BCSR_WHOAMI_DB1500) {
 		c0 = AU1500_GPIO2_INT;
 		c1 = AU1500_GPIO5_INT;
-		d0 = AU1500_GPIO0_INT;
-		d1 = AU1500_GPIO3_INT;
+		d0 = 0;	/* GPIO number, NOT irq! */
+		d1 = 3; /* GPIO number, NOT irq! */
 		s0 = AU1500_GPIO1_INT;
 		s1 = AU1500_GPIO4_INT;
 	} else if (board == BCSR_WHOAMI_DB1100) {
 		c0 = AU1100_GPIO2_INT;
 		c1 = AU1100_GPIO5_INT;
-		d0 = AU1100_GPIO0_INT;
-		d1 = AU1100_GPIO3_INT;
+		d0 = 0; /* GPIO number, NOT irq! */
+		d1 = 3; /* GPIO number, NOT irq! */
 		s0 = AU1100_GPIO1_INT;
 		s1 = AU1100_GPIO4_INT;
 
@@ -545,15 +545,15 @@ int __init db1000_dev_setup(void)
 	} else if (board == BCSR_WHOAMI_DB1000) {
 		c0 = AU1000_GPIO2_INT;
 		c1 = AU1000_GPIO5_INT;
-		d0 = AU1000_GPIO0_INT;
-		d1 = AU1000_GPIO3_INT;
+		d0 = 0; /* GPIO number, NOT irq! */
+		d1 = 3; /* GPIO number, NOT irq! */
 		s0 = AU1000_GPIO1_INT;
 		s1 = AU1000_GPIO4_INT;
 		platform_add_devices(db1000_devs, ARRAY_SIZE(db1000_devs));
 	} else if ((board == BCSR_WHOAMI_PB1500) ||
 		   (board == BCSR_WHOAMI_PB1500R2)) {
 		c0 = AU1500_GPIO203_INT;
-		d0 = AU1500_GPIO201_INT;
+		d0 = 1; /* GPIO number, NOT irq! */
 		s0 = AU1500_GPIO202_INT;
 		twosocks = 0;
 		flashsize = 64;
@@ -566,7 +566,7 @@ int __init db1000_dev_setup(void)
 		 */
 	} else if (board == BCSR_WHOAMI_PB1100) {
 		c0 = AU1100_GPIO11_INT;
-		d0 = AU1100_GPIO9_INT;
+		d0 = 9; /* GPIO number, NOT irq! */
 		s0 = AU1100_GPIO10_INT;
 		twosocks = 0;
 		flashsize = 64;
@@ -583,7 +583,6 @@ int __init db1000_dev_setup(void)
 	} else
 		return 0; /* unknown board, no further dev setup to do */
 
-	irq_set_irq_type(d0, IRQ_TYPE_EDGE_BOTH);
 	irq_set_irq_type(c0, IRQ_TYPE_LEVEL_LOW);
 	irq_set_irq_type(s0, IRQ_TYPE_LEVEL_LOW);
 
@@ -597,7 +596,6 @@ int __init db1000_dev_setup(void)
 		c0, d0, /*s0*/0, 0, 0);
 
 	if (twosocks) {
-		irq_set_irq_type(d1, IRQ_TYPE_EDGE_BOTH);
 		irq_set_irq_type(c1, IRQ_TYPE_LEVEL_LOW);
 		irq_set_irq_type(s1, IRQ_TYPE_LEVEL_LOW);
 

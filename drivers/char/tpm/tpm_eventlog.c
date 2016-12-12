@@ -232,7 +232,7 @@ static int tpm_binary_bios_measurements_show(struct seq_file *m, void *v)
 {
 	struct tcpa_event *event = v;
 	struct tcpa_event temp_event;
-	char *tempPtr;
+	char *temp_ptr;
 	int i;
 
 	memcpy(&temp_event, event, sizeof(struct tcpa_event));
@@ -242,10 +242,16 @@ static int tpm_binary_bios_measurements_show(struct seq_file *m, void *v)
 	temp_event.event_type = do_endian_conversion(event->event_type);
 	temp_event.event_size = do_endian_conversion(event->event_size);
 
-	tempPtr = (char *)&temp_event;
+	temp_ptr = (char *) &temp_event;
 
-	for (i = 0; i < sizeof(struct tcpa_event) + temp_event.event_size; i++)
-		seq_putc(m, tempPtr[i]);
+	for (i = 0; i < (sizeof(struct tcpa_event) - 1) ; i++)
+		seq_putc(m, temp_ptr[i]);
+
+	temp_ptr = (char *) v;
+
+	for (i = (sizeof(struct tcpa_event) - 1);
+	     i < (sizeof(struct tcpa_event) + temp_event.event_size); i++)
+		seq_putc(m, temp_ptr[i]);
 
 	return 0;
 

@@ -276,7 +276,7 @@ struct smb2_sess_setup_req {
 	__le32 Channel;
 	__le16 SecurityBufferOffset;
 	__le16 SecurityBufferLength;
-	__le64 PreviousSessionId;
+	__u64 PreviousSessionId;
 	__u8   Buffer[1];	/* variable length GSS security buffer */
 } __packed;
 

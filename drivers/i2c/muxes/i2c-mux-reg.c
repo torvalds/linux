@@ -150,7 +150,7 @@ static int i2c_mux_reg_probe_dt(struct regmux *mux,
 		mux->data.idle_in_use = true;
 
 	/* map address from "reg" if exists */
-	if (of_address_to_resource(np, 0, &res)) {
+	if (of_address_to_resource(np, 0, &res) == 0) {
 		mux->data.reg_size = resource_size(&res);
 		mux->data.reg = devm_ioremap_resource(&pdev->dev, &res);
 		if (IS_ERR(mux->data.reg))

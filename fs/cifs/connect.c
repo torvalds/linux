@@ -368,7 +368,6 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	server->session_key.response = NULL;
 	server->session_key.len = 0;
 	server->lstrp = jiffies;
-	mutex_unlock(&server->srv_mutex);
 
 	/* mark submitted MIDs for retry and issue callback */
 	INIT_LIST_HEAD(&retry_list);
@@ -381,6 +380,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		list_move(&mid_entry->qhead, &retry_list);
 	}
 	spin_unlock(&GlobalMid_Lock);
+	mutex_unlock(&server->srv_mutex);
 
 	cifs_dbg(FYI, "%s: issuing mid callbacks\n", __func__);
 	list_for_each_safe(tmp, tmp2, &retry_list) {
@@ -425,7 +425,9 @@ cifs_echo_request(struct work_struct *work)
 	 * server->ops->need_neg() == true. Also, no need to ping if
 	 * we got a response recently.
 	 */
-	if (!server->ops->need_neg || server->ops->need_neg(server) ||
+
+	if (server->tcpStatus == CifsNeedReconnect ||
+	    server->tcpStatus == CifsExiting || server->tcpStatus == CifsNew ||
 	    (server->ops->can_echo && !server->ops->can_echo(server)) ||
 	    time_before(jiffies, server->lstrp + SMB_ECHO_INTERVAL - HZ))
 		goto requeue_echo;
@@ -2198,7 +2200,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	memcpy(&tcp_ses->dstaddr, &volume_info->dstaddr,
 		sizeof(tcp_ses->dstaddr));
 #ifdef CONFIG_CIFS_SMB2
-	get_random_bytes(tcp_ses->client_guid, SMB2_CLIENT_GUID_SIZE);
+	generate_random_uuid(tcp_ses->client_guid);
 #endif
 	/*
 	 * at this point we are the only ones with the pointer
@@ -3515,6 +3517,44 @@ cifs_get_volume_info(char *mount_data, const char *devname)
 	return volume_info;
 }
 
+static int
+cifs_are_all_path_components_accessible(struct TCP_Server_Info *server,
+					unsigned int xid,
+					struct cifs_tcon *tcon,
+					struct cifs_sb_info *cifs_sb,
+					char *full_path)
+{
+	int rc;
+	char *s;
+	char sep, tmp;
+
+	sep = CIFS_DIR_SEP(cifs_sb);
+	s = full_path;
+
+	rc = server->ops->is_path_accessible(xid, tcon, cifs_sb, "");
+	while (rc == 0) {
+		/* skip separators */
+		while (*s == sep)
+			s++;
+		if (!*s)
+			break;
+		/* next separator */
+		while (*s && *s != sep)
+			s++;
+
+		/*
+		 * temporarily null-terminate the path at the end of
+		 * the current component
+		 */
+		tmp = *s;
+		*s = 0;
+		rc = server->ops->is_path_accessible(xid, tcon, cifs_sb,
+						     full_path);
+		*s = tmp;
+	}
+	return rc;
+}
+
 int
 cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
@@ -3651,6 +3691,18 @@ remote_path_check:
 		if (rc != 0 && rc != -EREMOTE) {
 			kfree(full_path);
 			goto mount_fail_check;
+		}
+
+		if (rc != -EREMOTE) {
+			rc = cifs_are_all_path_components_accessible(server,
+							     xid, tcon, cifs_sb,
+							     full_path);
+			if (rc != 0) {
+				cifs_dbg(VFS, "cannot query dirs between root and final path, "
+					 "enabling CIFS_MOUNT_USE_PREFIX_PATH\n");
+				cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
+				rc = 0;
+			}
 		}
 		kfree(full_path);
 	}
@@ -3921,6 +3973,7 @@ cifs_umount(struct cifs_sb_info *cifs_sb)
 
 	bdi_destroy(&cifs_sb->bdi);
 	kfree(cifs_sb->mountdata);
+	kfree(cifs_sb->prepath);
 	call_rcu(&cifs_sb->rcu, delayed_free);
 }
 

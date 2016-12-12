@@ -11,7 +11,7 @@ typedef struct {
 	spinlock_t list_lock;
 	struct list_head pgtable_list;
 	struct list_head gmap_list;
-	unsigned long asce_bits;
+	unsigned long asce;
 	unsigned long asce_limit;
 	unsigned long vdso_base;
 	/* The mmu context allocates 4K page tables. */

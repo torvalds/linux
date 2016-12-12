@@ -618,8 +618,8 @@ static void nbd_request_handler(struct request_queue *q)
 			req, req->cmd_type);
 
 		if (unlikely(!nbd->sock)) {
-			dev_err(disk_to_dev(nbd->disk),
-				"Attempted send on closed socket\n");
+			dev_err_ratelimited(disk_to_dev(nbd->disk),
+					    "Attempted send on closed socket\n");
 			req->errors++;
 			nbd_end_request(nbd, req);
 			spin_lock_irq(q->queue_lock);

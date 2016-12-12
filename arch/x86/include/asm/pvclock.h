@@ -76,6 +76,8 @@ unsigned __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
 	u8 ret_flags;
 
 	version = src->version;
+	/* Make the latest version visible */
+	smp_rmb();
 
 	offset = pvclock_get_nsec_offset(src);
 	ret = src->system_time + offset;

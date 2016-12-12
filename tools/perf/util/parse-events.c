@@ -399,6 +399,9 @@ static void tracepoint_error(struct parse_events_error *e, int err,
 {
 	char help[BUFSIZ];
 
+	if (!e)
+		return;
+
 	/*
 	 * We get error directly from syscall errno ( > 0),
 	 * or from encoded pointer's error ( < 0).
@@ -2098,11 +2101,11 @@ char *parse_events_formats_error_string(char *additional_terms)
 
 	/* valid terms */
 	if (additional_terms) {
-		if (!asprintf(&str, "valid terms: %s,%s",
-			      additional_terms, static_terms))
+		if (asprintf(&str, "valid terms: %s,%s",
+			     additional_terms, static_terms) < 0)
 			goto fail;
 	} else {
-		if (!asprintf(&str, "valid terms: %s", static_terms))
+		if (asprintf(&str, "valid terms: %s", static_terms) < 0)
 			goto fail;
 	}
 	return str;

@@ -33,6 +33,7 @@
 #define LPSS_DEV_SIZE		0x200
 #define LPSS_PRIV_OFFSET	0x200
 #define LPSS_PRIV_SIZE		0x100
+#define LPSS_PRIV_REG_COUNT	(LPSS_PRIV_SIZE / 4)
 #define LPSS_IDMA64_OFFSET	0x800
 #define LPSS_IDMA64_SIZE	0x800
 
@@ -75,6 +76,7 @@ struct intel_lpss {
 	const struct mfd_cell *cell;
 	struct device *dev;
 	void __iomem *priv;
+	u32 priv_ctx[LPSS_PRIV_REG_COUNT];
 	int devid;
 	u32 caps;
 	u32 active_ltr;
@@ -445,6 +447,7 @@ int intel_lpss_probe(struct device *dev,
 err_remove_ltr:
 	intel_lpss_debugfs_remove(lpss);
 	intel_lpss_ltr_hide(lpss);
+	intel_lpss_unregister_clock(lpss);
 
 err_clk_register:
 	ida_simple_remove(&intel_lpss_devid_ida, lpss->devid);
@@ -484,6 +487,13 @@ EXPORT_SYMBOL_GPL(intel_lpss_prepare);
 
 int intel_lpss_suspend(struct device *dev)
 {
+	struct intel_lpss *lpss = dev_get_drvdata(dev);
+	unsigned int i;
+
+	/* Save device context */
+	for (i = 0; i < LPSS_PRIV_REG_COUNT; i++)
+		lpss->priv_ctx[i] = readl(lpss->priv + i * 4);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_lpss_suspend);
@@ -491,8 +501,13 @@ EXPORT_SYMBOL_GPL(intel_lpss_suspend);
 int intel_lpss_resume(struct device *dev)
 {
 	struct intel_lpss *lpss = dev_get_drvdata(dev);
+	unsigned int i;
 
-	intel_lpss_init_dev(lpss);
+	intel_lpss_deassert_reset(lpss);
+
+	/* Restore device context */
+	for (i = 0; i < LPSS_PRIV_REG_COUNT; i++)
+		writel(lpss->priv_ctx[i], lpss->priv + i * 4);
 
 	return 0;
 }

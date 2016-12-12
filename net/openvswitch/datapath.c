@@ -336,12 +336,10 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 	unsigned short gso_type = skb_shinfo(skb)->gso_type;
 	struct sw_flow_key later_key;
 	struct sk_buff *segs, *nskb;
-	struct ovs_skb_cb ovs_cb;
 	int err;
 
-	ovs_cb = *OVS_CB(skb);
+	BUILD_BUG_ON(sizeof(*OVS_CB(skb)) > SKB_SGO_CB_OFFSET);
 	segs = __skb_gso_segment(skb, NETIF_F_SG, false);
-	*OVS_CB(skb) = ovs_cb;
 	if (IS_ERR(segs))
 		return PTR_ERR(segs);
 	if (segs == NULL)
@@ -359,7 +357,6 @@ static int queue_gso_packets(struct datapath *dp, struct sk_buff *skb,
 	/* Queue all of the segments. */
 	skb = segs;
 	do {
-		*OVS_CB(skb) = ovs_cb;
 		if (gso_type & SKB_GSO_UDP && skb != segs)
 			key = &later_key;
 

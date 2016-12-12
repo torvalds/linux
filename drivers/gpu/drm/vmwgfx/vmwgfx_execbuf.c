@@ -3273,19 +3273,19 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    &vmw_cmd_dx_cid_check, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_DEFINE_QUERY, &vmw_cmd_dx_define_query,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_DESTROY_QUERY, &vmw_cmd_ok,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DESTROY_QUERY, &vmw_cmd_dx_cid_check,
 		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_BIND_QUERY, &vmw_cmd_dx_bind_query,
 		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_QUERY_OFFSET,
-		    &vmw_cmd_ok, true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_BEGIN_QUERY, &vmw_cmd_ok,
+		    &vmw_cmd_dx_cid_check, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_BEGIN_QUERY, &vmw_cmd_dx_cid_check,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_END_QUERY, &vmw_cmd_ok,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_END_QUERY, &vmw_cmd_dx_cid_check,
 		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_READBACK_QUERY, &vmw_cmd_invalid,
 		    true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_PREDICATION, &vmw_cmd_invalid,
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_PREDICATION, &vmw_cmd_dx_cid_check,
 		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_VIEWPORTS, &vmw_cmd_dx_cid_check,
 		    true, false, true),
@@ -3830,13 +3830,13 @@ static void *vmw_execbuf_cmdbuf(struct vmw_private *dev_priv,
 	int ret;
 
 	*header = NULL;
-	if (!dev_priv->cman || kernel_commands)
-		return kernel_commands;
-
 	if (command_size > SVGA_CB_MAX_SIZE) {
 		DRM_ERROR("Command buffer is too large.\n");
 		return ERR_PTR(-EINVAL);
 	}
+
+	if (!dev_priv->cman || kernel_commands)
+		return kernel_commands;
 
 	/* If possible, add a little space for fencing. */
 	cmdbuf_size = command_size + 512;

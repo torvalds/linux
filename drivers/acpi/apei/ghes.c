@@ -657,7 +657,7 @@ static int ghes_proc(struct ghes *ghes)
 	ghes_do_proc(ghes, ghes->estatus);
 out:
 	ghes_clear_estatus(ghes);
-	return 0;
+	return rc;
 }
 
 static void ghes_add_timer(struct ghes *ghes)

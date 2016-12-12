@@ -750,6 +750,7 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	vc->vc_complement_mask = 0;
 	vc->vc_can_do_color = 0;
 	vc->vc_panic_force_write = false;
+	vc->vc_cur_blink_ms = DEFAULT_CURSOR_BLINK_MS;
 	vc->vc_sw->con_init(vc, init);
 	if (!vc->vc_complement_mask)
 		vc->vc_complement_mask = vc->vc_can_do_color ? 0x7700 : 0x0800;
@@ -871,9 +872,14 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	if (new_cols == vc->vc_cols && new_rows == vc->vc_rows)
 		return 0;
 
+	if (new_screen_size > (4 << 20))
+		return -EINVAL;
 	newscreen = kmalloc(new_screen_size, GFP_USER);
 	if (!newscreen)
 		return -ENOMEM;
+
+	if (vc == sel_cons)
+		clear_selection();
 
 	old_rows = vc->vc_rows;
 	old_row_size = vc->vc_size_row;
@@ -1172,7 +1178,7 @@ static void csi_J(struct vc_data *vc, int vpar)
 			break;
 		case 3: /* erase scroll-back buffer (and whole display) */
 			scr_memsetw(vc->vc_screenbuf, vc->vc_video_erase_char,
-				    vc->vc_screenbuf_size >> 1);
+				    vc->vc_screenbuf_size);
 			set_origin(vc);
 			if (CON_IS_VISIBLE(vc))
 				update_screen(vc);
@@ -3583,9 +3589,10 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 		goto err;
 
 	desc = csw->con_startup();
-
-	if (!desc)
+	if (!desc) {
+		retval = -ENODEV;
 		goto err;
+	}
 
 	retval = -EINVAL;
 

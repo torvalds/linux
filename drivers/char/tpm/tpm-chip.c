@@ -136,11 +136,13 @@ struct tpm_chip *tpmm_chip_alloc(struct device *dev,
 	chip->cdev.owner = chip->pdev->driver->owner;
 	chip->cdev.kobj.parent = &chip->dev.kobj;
 
+	devm_add_action(dev, (void (*)(void *)) put_device, &chip->dev);
+
 	return chip;
 }
 EXPORT_SYMBOL_GPL(tpmm_chip_alloc);
 
-static int tpm_dev_add_device(struct tpm_chip *chip)
+static int tpm_add_char_device(struct tpm_chip *chip)
 {
 	int rc;
 
@@ -151,7 +153,6 @@ static int tpm_dev_add_device(struct tpm_chip *chip)
 			chip->devname, MAJOR(chip->dev.devt),
 			MINOR(chip->dev.devt), rc);
 
-		device_unregister(&chip->dev);
 		return rc;
 	}
 
@@ -162,16 +163,17 @@ static int tpm_dev_add_device(struct tpm_chip *chip)
 			chip->devname, MAJOR(chip->dev.devt),
 			MINOR(chip->dev.devt), rc);
 
+		cdev_del(&chip->cdev);
 		return rc;
 	}
 
 	return rc;
 }
 
-static void tpm_dev_del_device(struct tpm_chip *chip)
+static void tpm_del_char_device(struct tpm_chip *chip)
 {
 	cdev_del(&chip->cdev);
-	device_unregister(&chip->dev);
+	device_del(&chip->dev);
 }
 
 static int tpm1_chip_register(struct tpm_chip *chip)
@@ -222,7 +224,7 @@ int tpm_chip_register(struct tpm_chip *chip)
 
 	tpm_add_ppi(chip);
 
-	rc = tpm_dev_add_device(chip);
+	rc = tpm_add_char_device(chip);
 	if (rc)
 		goto out_err;
 
@@ -274,6 +276,6 @@ void tpm_chip_unregister(struct tpm_chip *chip)
 		sysfs_remove_link(&chip->pdev->kobj, "ppi");
 
 	tpm1_chip_unregister(chip);
-	tpm_dev_del_device(chip);
+	tpm_del_char_device(chip);
 }
 EXPORT_SYMBOL_GPL(tpm_chip_unregister);

@@ -1317,6 +1317,42 @@ struct i40e_mac_filter *i40e_put_mac_in_vlan(struct i40e_vsi *vsi, u8 *macaddr,
 }
 
 /**
+ * i40e_del_mac_all_vlan - Remove a MAC filter from all VLANS
+ * @vsi: the VSI to be searched
+ * @macaddr: the mac address to be removed
+ * @is_vf: true if it is a VF
+ * @is_netdev: true if it is a netdev
+ *
+ * Removes a given MAC address from a VSI, regardless of VLAN
+ *
+ * Returns 0 for success, or error
+ **/
+int i40e_del_mac_all_vlan(struct i40e_vsi *vsi, u8 *macaddr,
+			  bool is_vf, bool is_netdev)
+{
+	struct i40e_mac_filter *f = NULL;
+	int changed = 0;
+
+	WARN(!spin_is_locked(&vsi->mac_filter_list_lock),
+	     "Missing mac_filter_list_lock\n");
+	list_for_each_entry(f, &vsi->mac_filter_list, list) {
+		if ((ether_addr_equal(macaddr, f->macaddr)) &&
+		    (is_vf == f->is_vf) &&
+		    (is_netdev == f->is_netdev)) {
+			f->counter--;
+			f->changed = true;
+			changed = 1;
+		}
+	}
+	if (changed) {
+		vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
+		vsi->back->flags |= I40E_FLAG_FILTER_SYNC;
+		return 0;
+	}
+	return -ENOENT;
+}
+
+/**
  * i40e_rm_default_mac_filter - Remove the default MAC filter set by NVM
  * @vsi: the PF Main VSI - inappropriate for any other VSI
  * @macaddr: the MAC address
@@ -1547,9 +1583,11 @@ static int i40e_set_mac(struct net_device *netdev, void *p)
 		spin_unlock_bh(&vsi->mac_filter_list_lock);
 	}
 
-	i40e_sync_vsi_filters(vsi, false);
 	ether_addr_copy(netdev->dev_addr, addr->sa_data);
-
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
 	return 0;
 }
 
@@ -1935,11 +1973,13 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 
 	/* Now process 'del_list' outside the lock */
 	if (!list_empty(&tmp_del_list)) {
+		int del_list_size;
+
 		filter_list_len = pf->hw.aq.asq_buf_size /
 			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
-		del_list = kcalloc(filter_list_len,
-			    sizeof(struct i40e_aqc_remove_macvlan_element_data),
-			    GFP_KERNEL);
+		del_list_size = filter_list_len *
+			    sizeof(struct i40e_aqc_remove_macvlan_element_data);
+		del_list = kzalloc(del_list_size, GFP_KERNEL);
 		if (!del_list) {
 			i40e_cleanup_add_list(&tmp_add_list);
 
@@ -1971,7 +2011,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 						  NULL);
 				aq_err = pf->hw.aq.asq_last_status;
 				num_del = 0;
-				memset(del_list, 0, sizeof(*del_list));
+				memset(del_list, 0, del_list_size);
 
 				if (ret && aq_err != I40E_AQ_RC_ENOENT)
 					dev_err(&pf->pdev->dev,
@@ -2004,13 +2044,14 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 	}
 
 	if (!list_empty(&tmp_add_list)) {
+		int add_list_size;
 
 		/* do all the adds now */
 		filter_list_len = pf->hw.aq.asq_buf_size /
 			       sizeof(struct i40e_aqc_add_macvlan_element_data),
-		add_list = kcalloc(filter_list_len,
-			       sizeof(struct i40e_aqc_add_macvlan_element_data),
-			       GFP_KERNEL);
+		add_list_size = filter_list_len *
+			       sizeof(struct i40e_aqc_add_macvlan_element_data);
+		add_list = kzalloc(add_list_size, GFP_KERNEL);
 		if (!add_list) {
 			/* Purge element from temporary lists */
 			i40e_cleanup_add_list(&tmp_add_list);
@@ -2048,7 +2089,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 
 				if (ret)
 					break;
-				memset(add_list, 0, sizeof(*add_list));
+				memset(add_list, 0, add_list_size);
 			}
 			/* Entries from tmp_add_list were cloned from MAC
 			 * filter list, hence clean those cloned entries
@@ -2112,12 +2153,7 @@ int i40e_sync_vsi_filters(struct i40e_vsi *vsi, bool grab_rtnl)
 			 */
 			if (pf->cur_promisc != cur_promisc) {
 				pf->cur_promisc = cur_promisc;
-				if (grab_rtnl)
-					i40e_do_reset_safe(pf,
-						BIT(__I40E_PF_RESET_REQUESTED));
-				else
-					i40e_do_reset(pf,
-						BIT(__I40E_PF_RESET_REQUESTED));
+				set_bit(__I40E_PF_RESET_REQUESTED, &pf->state);
 			}
 		} else {
 			ret = i40e_aq_set_vsi_unicast_promiscuous(
@@ -2377,16 +2413,13 @@ int i40e_vsi_add_vlan(struct i40e_vsi *vsi, s16 vid)
 		}
 	}
 
-	/* Make sure to release before sync_vsi_filter because that
-	 * function will lock/unlock as necessary
-	 */
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
-	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
-	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
-		return 0;
-
-	return i40e_sync_vsi_filters(vsi, false);
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
+	return 0;
 }
 
 /**
@@ -2459,16 +2492,13 @@ int i40e_vsi_kill_vlan(struct i40e_vsi *vsi, s16 vid)
 		}
 	}
 
-	/* Make sure to release before sync_vsi_filter because that
-	 * function with lock/unlock as necessary
-	 */
 	spin_unlock_bh(&vsi->mac_filter_list_lock);
 
-	if (test_bit(__I40E_DOWN, &vsi->back->state) ||
-	    test_bit(__I40E_RESET_RECOVERY_PENDING, &vsi->back->state))
-		return 0;
-
-	return i40e_sync_vsi_filters(vsi, false);
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
+	return 0;
 }
 
 /**
@@ -2711,6 +2741,11 @@ static void i40e_config_xps_tx_ring(struct i40e_ring *ring)
 		netif_set_xps_queue(ring->netdev, mask, ring->queue_index);
 		free_cpumask_var(mask);
 	}
+
+	/* schedule our worker thread which will take care of
+	 * applying the new filter changes
+	 */
+	i40e_service_event_schedule(vsi->back);
 }
 
 /**
@@ -6685,6 +6720,7 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 	struct i40e_hw *hw = &pf->hw;
 	u8 set_fc_aq_fail = 0;
 	i40e_status ret;
+	u32 val;
 	u32 v;
 
 	/* Now we wait for GRST to settle out.
@@ -6821,6 +6857,20 @@ static void i40e_reset_and_rebuild(struct i40e_pf *pf, bool reinit)
 				 "rebuild of Main VSI failed: %d\n", ret);
 			goto end_core_reset;
 		}
+	}
+
+	/* Reconfigure hardware for allowing smaller MSS in the case
+	 * of TSO, so that we avoid the MDD being fired and causing
+	 * a reset in the case of small MSS+TSO.
+	 */
+#define I40E_REG_MSS          0x000E64DC
+#define I40E_REG_MSS_MIN_MASK 0x3FF0000
+#define I40E_64BYTE_MSS       0x400000
+	val = rd32(hw, I40E_REG_MSS);
+	if ((val & I40E_REG_MSS_MIN_MASK) > I40E_64BYTE_MSS) {
+		val &= ~I40E_REG_MSS_MIN_MASK;
+		val |= I40E_64BYTE_MSS;
+		wr32(hw, I40E_REG_MSS, val);
 	}
 
 	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
@@ -8545,7 +8595,7 @@ static int i40e_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 		return 0;
 
 	return ndo_dflt_bridge_getlink(skb, pid, seq, dev, veb->bridge_mode,
-				       nlflags, 0, 0, filter_mask, NULL);
+				       0, 0, nlflags, filter_mask, NULL);
 }
 
 #define I40E_MAX_TUNNEL_HDR_LEN 80
@@ -10183,6 +10233,7 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	u16 link_status;
 	int err;
 	u32 len;
+	u32 val;
 	u32 i;
 	u8 set_fc_aq_fail;
 
@@ -10493,6 +10544,17 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			 i40e_stat_str(&pf->hw, err),
 			 i40e_aq_str(&pf->hw, pf->hw.aq.asq_last_status));
 
+	/* Reconfigure hardware for allowing smaller MSS in the case
+	 * of TSO, so that we avoid the MDD being fired and causing
+	 * a reset in the case of small MSS+TSO.
+	 */
+	val = rd32(hw, I40E_REG_MSS);
+	if ((val & I40E_REG_MSS_MIN_MASK) > I40E_64BYTE_MSS) {
+		val &= ~I40E_REG_MSS_MIN_MASK;
+		val |= I40E_64BYTE_MSS;
+		wr32(hw, I40E_REG_MSS, val);
+	}
+
 	if (((pf->hw.aq.fw_maj_ver == 4) && (pf->hw.aq.fw_min_ver < 33)) ||
 	    (pf->hw.aq.fw_maj_ver < 4)) {
 		msleep(75);
@@ -10790,6 +10852,12 @@ static pci_ers_result_t i40e_pci_error_detected(struct pci_dev *pdev,
 	struct i40e_pf *pf = pci_get_drvdata(pdev);
 
 	dev_info(&pdev->dev, "%s: error %d\n", __func__, error);
+
+	if (!pf) {
+		dev_info(&pdev->dev,
+			 "Cannot recover - error happened during device probe\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
 
 	/* shutdown all operations */
 	if (!test_bit(__I40E_SUSPENDED, &pf->state)) {

@@ -198,7 +198,7 @@ static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned long flexbg_size)
 	if (flex_gd == NULL)
 		goto out3;
 
-	if (flexbg_size >= UINT_MAX / sizeof(struct ext4_new_flex_group_data))
+	if (flexbg_size >= UINT_MAX / sizeof(struct ext4_new_group_data))
 		goto out2;
 	flex_gd->count = flexbg_size;
 

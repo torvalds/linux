@@ -505,6 +505,7 @@ static struct scatterlist *
 alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 {
 	struct scatterlist	*sg;
+	unsigned int		n_size = 0;
 	unsigned		i;
 	unsigned		size = max;
 	unsigned		maxpacket =
@@ -537,7 +538,8 @@ alloc_sglist(int nents, int max, int vary, struct usbtest_dev *dev, int pipe)
 			break;
 		case 1:
 			for (j = 0; j < size; j++)
-				*buf++ = (u8) ((j % maxpacket) % 63);
+				*buf++ = (u8) (((j + n_size) % maxpacket) % 63);
+			n_size += size;
 			break;
 		}
 
@@ -556,7 +558,6 @@ static void sg_timeout(unsigned long _req)
 {
 	struct usb_sg_request	*req = (struct usb_sg_request *) _req;
 
-	req->status = -ETIMEDOUT;
 	usb_sg_cancel(req);
 }
 
@@ -587,8 +588,10 @@ static int perform_sglist(
 		mod_timer(&sg_timer, jiffies +
 				msecs_to_jiffies(SIMPLE_IO_TIMEOUT));
 		usb_sg_wait(req);
-		del_timer_sync(&sg_timer);
-		retval = req->status;
+		if (!del_timer_sync(&sg_timer))
+			retval = -ETIMEDOUT;
+		else
+			retval = req->status;
 
 		/* FIXME check resulting data pattern */
 

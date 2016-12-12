@@ -45,6 +45,7 @@
 #include <linux/if_bridge.h>
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>
+#include <linux/rtnetlink.h>
 #include <net/switchdev.h>
 
 #include "spectrum.h"
@@ -231,8 +232,13 @@ static int mlxsw_sp_port_attr_br_ageing_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	unsigned long ageing_jiffies = clock_t_to_jiffies(ageing_clock_t);
 	u32 ageing_time = jiffies_to_msecs(ageing_jiffies) / 1000;
 
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
+	if (switchdev_trans_ph_prepare(trans)) {
+		if (ageing_time < MLXSW_SP_MIN_AGEING_TIME ||
+		    ageing_time > MLXSW_SP_MAX_AGEING_TIME)
+			return -ERANGE;
+		else
+			return 0;
+	}
 
 	return mlxsw_sp_ageing_set(mlxsw_sp, ageing_time);
 }
@@ -812,6 +818,7 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 
 	mlxsw_sp = container_of(work, struct mlxsw_sp, fdb_notify.dw.work);
 
+	rtnl_lock();
 	do {
 		mlxsw_reg_sfn_pack(sfn_pl);
 		err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(sfn), sfn_pl);
@@ -824,6 +831,7 @@ static void mlxsw_sp_fdb_notify_work(struct work_struct *work)
 			mlxsw_sp_fdb_notify_rec_process(mlxsw_sp, sfn_pl, i);
 
 	} while (num_rec);
+	rtnl_unlock();
 
 	kfree(sfn_pl);
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);

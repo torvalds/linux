@@ -499,7 +499,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	struct intel_pt_recording *ptr =
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_pmu *intel_pt_pmu = ptr->intel_pt_pmu;
-	bool have_timing_info;
+	bool have_timing_info, need_immediate = false;
 	struct perf_evsel *evsel, *intel_pt_evsel = NULL;
 	const struct cpu_map *cpus = evlist->cpus;
 	bool privileged = geteuid() == 0 || perf_event_paranoid() < 0;
@@ -653,6 +653,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				ptr->have_sched_switch = 3;
 			} else {
 				opts->record_switch_events = true;
+				need_immediate = true;
 				if (cpu_wide)
 					ptr->have_sched_switch = 3;
 				else
@@ -697,6 +698,9 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 
 		tracking_evsel->attr.freq = 0;
 		tracking_evsel->attr.sample_period = 1;
+
+		if (need_immediate)
+			tracking_evsel->immediate = true;
 
 		/* In per-cpu case, always need the time of mmap events etc */
 		if (!cpu_map__empty(cpus)) {

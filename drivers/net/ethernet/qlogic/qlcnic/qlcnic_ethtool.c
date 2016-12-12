@@ -59,7 +59,8 @@ static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
 	 QLC_OFF(stats.mac_filter_limit_overrun)},
 	{"spurious intr", QLC_SIZEOF(stats.spurious_intr),
 	 QLC_OFF(stats.spurious_intr)},
-
+	{"mbx spurious intr", QLC_SIZEOF(stats.mbx_spurious_intr),
+	 QLC_OFF(stats.mbx_spurious_intr)},
 };
 
 static const char qlcnic_device_gstrings_stats[][ETH_GSTRING_LEN] = {

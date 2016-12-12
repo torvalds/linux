@@ -832,7 +832,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 
 	.ecsr_value	= ECSR_ICD,
 	.ecsipr_value	= ECSIPR_ICDIP,
-	.eesipr_value	= 0xff7f009f,
+	.eesipr_value	= 0xe77f009f,
 
 	.tx_check	= EESR_TC1 | EESR_FTC,
 	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
@@ -1185,11 +1185,8 @@ static void sh_eth_ring_format(struct net_device *ndev)
 			break;
 		sh_eth_set_receive_align(skb);
 
-		/* RX descriptor */
-		rxdesc = &mdp->rx_ring[i];
 		/* The size of the buffer is a multiple of 32 bytes. */
 		buf_len = ALIGN(mdp->rx_buf_sz, 32);
-		rxdesc->len = cpu_to_edmac(mdp, buf_len << 16);
 		dma_addr = dma_map_single(&ndev->dev, skb->data, buf_len,
 					  DMA_FROM_DEVICE);
 		if (dma_mapping_error(&ndev->dev, dma_addr)) {
@@ -1197,6 +1194,10 @@ static void sh_eth_ring_format(struct net_device *ndev)
 			break;
 		}
 		mdp->rx_skbuff[i] = skb;
+
+		/* RX descriptor */
+		rxdesc = &mdp->rx_ring[i];
+		rxdesc->len = cpu_to_edmac(mdp, buf_len << 16);
 		rxdesc->addr = cpu_to_edmac(mdp, dma_addr);
 		rxdesc->status = cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 
@@ -1212,7 +1213,8 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	mdp->dirty_rx = (u32) (i - mdp->num_rx_ring);
 
 	/* Mark the last entry as wrapping the ring. */
-	rxdesc->status |= cpu_to_edmac(mdp, RD_RDLE);
+	if (rxdesc)
+		rxdesc->status |= cpu_to_edmac(mdp, RD_RDLE);
 
 	memset(mdp->tx_ring, 0, tx_ringsize);
 

@@ -103,7 +103,14 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	s32 err;
 	u16 i;
 
-	/* assume we always have at least 1 queue */
+	/* verify we have at least 1 queue */
+	if (!~fm10k_read_reg(hw, FM10K_TXQCTL(0)) ||
+	    !~fm10k_read_reg(hw, FM10K_RXQCTL(0))) {
+		err = FM10K_ERR_NO_RESOURCES;
+		goto reset_max_queues;
+	}
+
+	/* determine how many queues we have */
 	for (i = 1; tqdloc0 && (i < FM10K_MAX_QUEUES_POOL); i++) {
 		/* verify the Descriptor cache offsets are increasing */
 		tqdloc = ~fm10k_read_reg(hw, FM10K_TQDLOC(i));
@@ -119,7 +126,7 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 	/* shut down queues we own and reset DMA configuration */
 	err = fm10k_disable_queues_generic(hw, i);
 	if (err)
-		return err;
+		goto reset_max_queues;
 
 	/* record maximum queue count */
 	hw->mac.max_queues = i;
@@ -129,6 +136,11 @@ static s32 fm10k_init_hw_vf(struct fm10k_hw *hw)
 			       FM10K_TXQCTL_VID_MASK) >> FM10K_TXQCTL_VID_SHIFT;
 
 	return 0;
+
+reset_max_queues:
+	hw->mac.max_queues = 0;
+
+	return err;
 }
 
 /* This structure defines the attibutes to be parsed below */

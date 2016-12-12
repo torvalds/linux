@@ -717,9 +717,11 @@ static int atmel_conf_pin_config_group_set(struct pinctrl_dev *pctldev,
 			break;
 		case PIN_CONFIG_BIAS_PULL_UP:
 			conf |= ATMEL_PIO_PUEN_MASK;
+			conf &= (~ATMEL_PIO_PDEN_MASK);
 			break;
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			conf |= ATMEL_PIO_PDEN_MASK;
+			conf &= (~ATMEL_PIO_PUEN_MASK);
 			break;
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 			if (arg == 0)
@@ -1000,7 +1002,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		atmel_pioctrl->irqs[i] = res->start;
 		irq_set_chained_handler(res->start, atmel_gpio_irq_handler);
 		irq_set_handler_data(res->start, atmel_pioctrl);
-		dev_dbg(dev, "bank %i: hwirq=%u\n", i, res->start);
+		dev_dbg(dev, "bank %i: irq=%pr\n", i, res);
 	}
 
 	atmel_pioctrl->irq_domain = irq_domain_add_linear(dev->of_node,

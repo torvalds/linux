@@ -150,7 +150,7 @@ void drm_atomic_state_default_clear(struct drm_atomic_state *state)
 	for (i = 0; i < state->num_connector; i++) {
 		struct drm_connector *connector = state->connectors[i];
 
-		if (!connector)
+		if (!connector || !connector->funcs)
 			continue;
 
 		/*
@@ -367,6 +367,8 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 		drm_property_unreference_blob(state->mode_blob);
 	state->mode_blob = NULL;
 
+	memset(&state->mode, 0, sizeof(state->mode));
+
 	if (blob) {
 		if (blob->length != sizeof(struct drm_mode_modeinfo) ||
 		    drm_mode_convert_umode(&state->mode,
@@ -379,7 +381,6 @@ int drm_atomic_set_mode_prop_for_crtc(struct drm_crtc_state *state,
 		DRM_DEBUG_ATOMIC("Set [MODE:%s] for CRTC state %p\n",
 				 state->mode.name, state);
 	} else {
-		memset(&state->mode, 0, sizeof(state->mode));
 		state->enable = false;
 		DRM_DEBUG_ATOMIC("Set [NOMODE] for CRTC state %p\n",
 				 state);

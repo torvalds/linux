@@ -540,7 +540,7 @@ static inline void  smc_rcv(struct net_device *dev)
 #define smc_special_lock(lock, flags)		spin_lock_irqsave(lock, flags)
 #define smc_special_unlock(lock, flags) 	spin_unlock_irqrestore(lock, flags)
 #else
-#define smc_special_trylock(lock, flags)	(flags == flags)
+#define smc_special_trylock(lock, flags)	((void)flags, true)
 #define smc_special_lock(lock, flags)   	do { flags = 0; } while (0)
 #define smc_special_unlock(lock, flags)	do { flags = 0; } while (0)
 #endif
@@ -2269,6 +2269,13 @@ static int smc_drv_probe(struct platform_device *pdev)
 	if (pd) {
 		memcpy(&lp->cfg, pd, sizeof(lp->cfg));
 		lp->io_shift = SMC91X_IO_SHIFT(lp->cfg.flags);
+
+		if (!SMC_8BIT(lp) && !SMC_16BIT(lp)) {
+			dev_err(&pdev->dev,
+				"at least one of 8-bit or 16-bit access support is required.\n");
+			ret = -ENXIO;
+			goto out_free_netdev;
+		}
 	}
 
 #if IS_BUILTIN(CONFIG_OF)

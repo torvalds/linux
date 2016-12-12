@@ -2838,7 +2838,14 @@ enum skl_disp_power_wells {
 #define GEN6_RP_STATE_CAP	(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 #define BXT_RP_STATE_CAP        0x138170
 
-#define INTERVAL_1_28_US(us)	(((us) * 100) >> 7)
+/*
+ * Make these a multiple of magic 25 to avoid SNB (eg. Dell XPS
+ * 8300) freezing up around GPU hangs. Looks as if even
+ * scheduling/timer interrupts start misbehaving if the RPS
+ * EI/thresholds are "bad", leading to a very sluggish or even
+ * frozen machine.
+ */
+#define INTERVAL_1_28_US(us)	roundup(((us) * 100) >> 7, 25)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
 #define INTERVAL_0_833_US(us)	(((us) * 6) / 5)
 #define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \
@@ -3233,19 +3240,20 @@ enum skl_disp_power_wells {
 
 #define PORT_HOTPLUG_STAT	(dev_priv->info.display_mmio_offset + 0x61114)
 /*
- * HDMI/DP bits are gen4+
+ * HDMI/DP bits are g4x+
  *
  * WARNING: Bspec for hpd status bits on gen4 seems to be completely confused.
  * Please check the detailed lore in the commit message for for experimental
  * evidence.
  */
-#define   PORTD_HOTPLUG_LIVE_STATUS_G4X		(1 << 29)
+/* Bspec says GM45 should match G4X/VLV/CHV, but reality disagrees */
+#define   PORTD_HOTPLUG_LIVE_STATUS_GM45	(1 << 29)
+#define   PORTC_HOTPLUG_LIVE_STATUS_GM45	(1 << 28)
+#define   PORTB_HOTPLUG_LIVE_STATUS_GM45	(1 << 27)
+/* G4X/VLV/CHV DP/HDMI bits again match Bspec */
+#define   PORTD_HOTPLUG_LIVE_STATUS_G4X		(1 << 27)
 #define   PORTC_HOTPLUG_LIVE_STATUS_G4X		(1 << 28)
-#define   PORTB_HOTPLUG_LIVE_STATUS_G4X		(1 << 27)
-/* VLV DP/HDMI bits again match Bspec */
-#define   PORTD_HOTPLUG_LIVE_STATUS_VLV		(1 << 27)
-#define   PORTC_HOTPLUG_LIVE_STATUS_VLV		(1 << 28)
-#define   PORTB_HOTPLUG_LIVE_STATUS_VLV		(1 << 29)
+#define   PORTB_HOTPLUG_LIVE_STATUS_G4X		(1 << 29)
 #define   PORTD_HOTPLUG_INT_STATUS		(3 << 21)
 #define   PORTD_HOTPLUG_INT_LONG_PULSE		(2 << 21)
 #define   PORTD_HOTPLUG_INT_SHORT_PULSE		(1 << 21)
@@ -7349,6 +7357,8 @@ enum skl_disp_power_wells {
 /* For each transcoder, we need to select the corresponding port clock */
 #define  TRANS_CLK_SEL_DISABLED		(0x0<<29)
 #define  TRANS_CLK_SEL_PORT(x)		(((x)+1)<<29)
+
+#define CDCLK_FREQ			0x46200
 
 #define TRANSA_MSA_MISC			0x60410
 #define TRANSB_MSA_MISC			0x61410

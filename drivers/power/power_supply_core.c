@@ -565,11 +565,12 @@ static int power_supply_read_temp(struct thermal_zone_device *tzd,
 
 	WARN_ON(tzd == NULL);
 	psy = tzd->devdata;
-	ret = psy->desc->get_property(psy, POWER_SUPPLY_PROP_TEMP, &val);
+	ret = power_supply_get_property(psy, POWER_SUPPLY_PROP_TEMP, &val);
+	if (ret)
+		return ret;
 
 	/* Convert tenths of degree Celsius to milli degree Celsius. */
-	if (!ret)
-		*temp = val.intval * 100;
+	*temp = val.intval * 100;
 
 	return ret;
 }
@@ -612,10 +613,12 @@ static int ps_get_max_charge_cntl_limit(struct thermal_cooling_device *tcd,
 	int ret;
 
 	psy = tcd->devdata;
-	ret = psy->desc->get_property(psy,
-		POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX, &val);
-	if (!ret)
-		*state = val.intval;
+	ret = power_supply_get_property(psy,
+			POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT_MAX, &val);
+	if (ret)
+		return ret;
+
+	*state = val.intval;
 
 	return ret;
 }
@@ -628,10 +631,12 @@ static int ps_get_cur_chrage_cntl_limit(struct thermal_cooling_device *tcd,
 	int ret;
 
 	psy = tcd->devdata;
-	ret = psy->desc->get_property(psy,
-		POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT, &val);
-	if (!ret)
-		*state = val.intval;
+	ret = power_supply_get_property(psy,
+			POWER_SUPPLY_PROP_CHARGE_CONTROL_LIMIT, &val);
+	if (ret)
+		return ret;
+
+	*state = val.intval;
 
 	return ret;
 }

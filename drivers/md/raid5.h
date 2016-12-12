@@ -510,6 +510,8 @@ struct r5conf {
 					      * conversions
 					      */
 	} __percpu *percpu;
+	int scribble_disks;
+	int scribble_sectors;
 #ifdef CONFIG_HOTPLUG_CPU
 	struct notifier_block	cpu_notify;
 #endif
@@ -522,7 +524,7 @@ struct r5conf {
 	atomic_t		empty_inactive_list_nr;
 	struct llist_head	released_stripes;
 	wait_queue_head_t	wait_for_quiescent;
-	wait_queue_head_t	wait_for_stripe[NR_STRIPE_HASH_LOCKS];
+	wait_queue_head_t	wait_for_stripe;
 	wait_queue_head_t	wait_for_overlap;
 	unsigned long		cache_state;
 #define R5_INACTIVE_BLOCKED	1	/* release of inactive stripes blocked,

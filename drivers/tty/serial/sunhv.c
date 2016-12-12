@@ -490,12 +490,6 @@ static void sunhv_console_write_bychar(struct console *con, const char *s, unsig
 		locked = spin_trylock_irqsave(&port->lock, flags);
 	else
 		spin_lock_irqsave(&port->lock, flags);
-	if (port->sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = spin_trylock(&port->lock);
-	} else
-		spin_lock(&port->lock);
 
 	for (i = 0; i < n; i++) {
 		if (*s == '\n')

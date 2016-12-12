@@ -86,10 +86,12 @@
 			macb0: ethernet@f8020000 {
 				phy-mode = "rmii";
 				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_macb0_rmii &pinctrl_macb0_phy_irq>;
 
 				phy0: ethernet-phy@1 {
 					interrupt-parent = <&pioE>;
-					interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
+					interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 					reg = <1>;
 				};
 			};
@@ -151,6 +153,10 @@
 					pinctrl_key_gpio: key_gpio_0 {
 						atmel,pins =
 							<AT91_PIOE 8 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
+					};
+					pinctrl_macb0_phy_irq: macb0_phy_irq_0 {
+						atmel,pins =
+							<AT91_PIOE 1 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;
 					};
 				};
 			};
@@ -262,5 +268,6 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc_3v3_reg>;
+		regulator-always-on;
 	};
 };

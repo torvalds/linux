@@ -1029,7 +1029,8 @@ static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
 #endif
 
 extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
-		struct drm_gem_object *obj, int flags);
+					    struct drm_gem_object *obj,
+					    int flags);
 extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
 		int *prime_fd);

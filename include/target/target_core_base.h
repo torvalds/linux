@@ -138,6 +138,8 @@ enum se_cmd_flags_table {
 	SCF_COMPARE_AND_WRITE		= 0x00080000,
 	SCF_COMPARE_AND_WRITE_POST	= 0x00100000,
 	SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC = 0x00200000,
+	SCF_ACK_KREF			= 0x00400000,
+	SCF_TASK_ATTR_SET		= 0x01000000,
 };
 
 /* struct se_dev_entry->lun_flags and struct se_lun->lun_access */
@@ -178,6 +180,7 @@ enum tcm_sense_reason_table {
 	TCM_LOGICAL_BLOCK_GUARD_CHECK_FAILED	= R(0x15),
 	TCM_LOGICAL_BLOCK_APP_TAG_CHECK_FAILED	= R(0x16),
 	TCM_LOGICAL_BLOCK_REF_TAG_CHECK_FAILED	= R(0x17),
+	TCM_COPY_TARGET_DEVICE_NOT_REACHABLE	= R(0x18),
 #undef R
 };
 
@@ -490,6 +493,8 @@ struct se_cmd {
 #define CMD_T_DEV_ACTIVE	(1 << 7)
 #define CMD_T_REQUEST_STOP	(1 << 8)
 #define CMD_T_BUSY		(1 << 9)
+#define CMD_T_TAS		(1 << 10)
+#define CMD_T_FABRIC_STOP	(1 << 11)
 	spinlock_t		t_state_lock;
 	struct kref		cmd_kref;
 	struct completion	t_transport_stop_comp;

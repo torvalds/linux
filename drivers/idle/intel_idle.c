@@ -65,7 +65,7 @@
 #include <asm/mwait.h>
 #include <asm/msr.h>
 
-#define INTEL_IDLE_VERSION "0.4"
+#define INTEL_IDLE_VERSION "0.4.1"
 #define PREFIX "intel_idle: "
 
 static struct cpuidle_driver intel_idle_driver = {
@@ -716,6 +716,26 @@ static struct cpuidle_state avn_cstates[] = {
 	{
 		.enter = NULL }
 };
+static struct cpuidle_state knl_cstates[] = {
+	{
+		.name = "C1-KNL",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 1,
+		.target_residency = 2,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze },
+	{
+		.name = "C6-KNL",
+		.desc = "MWAIT 0x10",
+		.flags = MWAIT2flg(0x10) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 120,
+		.target_residency = 500,
+		.enter = &intel_idle,
+		.enter_freeze = intel_idle_freeze },
+	{
+		.enter = NULL }
+};
 
 /**
  * intel_idle
@@ -890,6 +910,10 @@ static const struct idle_cpu idle_cpu_avn = {
 	.disable_promotion_to_c1e = true,
 };
 
+static const struct idle_cpu idle_cpu_knl = {
+	.state_table = knl_cstates,
+};
+
 #define ICPU(model, cpu) \
 	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (unsigned long)&cpu }
 
@@ -921,6 +945,7 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	ICPU(0x56, idle_cpu_bdw),
 	ICPU(0x4e, idle_cpu_skl),
 	ICPU(0x5e, idle_cpu_skl),
+	ICPU(0x57, idle_cpu_knl),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
@@ -994,36 +1019,92 @@ static void intel_idle_cpuidle_devices_uninit(void)
 }
 
 /*
+ * ivt_idle_state_table_update(void)
+ *
+ * Tune IVT multi-socket targets
+ * Assumption: num_sockets == (max_package_num + 1)
+ */
+static void ivt_idle_state_table_update(void)
+{
+	/* IVT uses a different table for 1-2, 3-4, and > 4 sockets */
+	int cpu, package_num, num_sockets = 1;
+
+	for_each_online_cpu(cpu) {
+		package_num = topology_physical_package_id(cpu);
+		if (package_num + 1 > num_sockets) {
+			num_sockets = package_num + 1;
+
+			if (num_sockets > 4) {
+				cpuidle_state_table = ivt_cstates_8s;
+				return;
+			}
+		}
+	}
+
+	if (num_sockets > 2)
+		cpuidle_state_table = ivt_cstates_4s;
+
+	/* else, 1 and 2 socket systems use default ivt_cstates */
+}
+/*
+ * sklh_idle_state_table_update(void)
+ *
+ * On SKL-H (model 0x5e) disable C8 and C9 if:
+ * C10 is enabled and SGX disabled
+ */
+static void sklh_idle_state_table_update(void)
+{
+	unsigned long long msr;
+	unsigned int eax, ebx, ecx, edx;
+
+
+	/* if PC10 disabled via cmdline intel_idle.max_cstate=7 or shallower */
+	if (max_cstate <= 7)
+		return;
+
+	/* if PC10 not present in CPUID.MWAIT.EDX */
+	if ((mwait_substates & (0xF << 28)) == 0)
+		return;
+
+	rdmsrl(MSR_NHM_SNB_PKG_CST_CFG_CTL, msr);
+
+	/* PC10 is not enabled in PKG C-state limit */
+	if ((msr & 0xF) != 8)
+		return;
+
+	ecx = 0;
+	cpuid(7, &eax, &ebx, &ecx, &edx);
+
+	/* if SGX is present */
+	if (ebx & (1 << 2)) {
+
+		rdmsrl(MSR_IA32_FEATURE_CONTROL, msr);
+
+		/* if SGX is enabled */
+		if (msr & (1 << 18))
+			return;
+	}
+
+	skl_cstates[5].disabled = 1;	/* C8-SKL */
+	skl_cstates[6].disabled = 1;	/* C9-SKL */
+}
+/*
  * intel_idle_state_table_update()
  *
  * Update the default state_table for this CPU-id
- *
- * Currently used to access tuned IVT multi-socket targets
- * Assumption: num_sockets == (max_package_num + 1)
  */
-void intel_idle_state_table_update(void)
+
+static void intel_idle_state_table_update(void)
 {
-	/* IVT uses a different table for 1-2, 3-4, and > 4 sockets */
-	if (boot_cpu_data.x86_model == 0x3e) { /* IVT */
-		int cpu, package_num, num_sockets = 1;
+	switch (boot_cpu_data.x86_model) {
 
-		for_each_online_cpu(cpu) {
-			package_num = topology_physical_package_id(cpu);
-			if (package_num + 1 > num_sockets) {
-				num_sockets = package_num + 1;
-
-				if (num_sockets > 4) {
-					cpuidle_state_table = ivt_cstates_8s;
-					return;
-				}
-			}
-		}
-
-		if (num_sockets > 2)
-			cpuidle_state_table = ivt_cstates_4s;
-		/* else, 1 and 2 socket systems use default ivt_cstates */
+	case 0x3e: /* IVT */
+		ivt_idle_state_table_update();
+		break;
+	case 0x5e: /* SKL-H */
+		sklh_idle_state_table_update();
+		break;
 	}
-	return;
 }
 
 /*
@@ -1062,6 +1143,14 @@ static int __init intel_idle_cpuidle_driver_init(void)
 		/* if NO sub-states for this state in CPUID, skip it */
 		if (num_substates == 0)
 			continue;
+
+		/* if state marked as disabled, skip it */
+		if (cpuidle_state_table[cstate].disabled != 0) {
+			pr_debug(PREFIX "state %s is disabled",
+				cpuidle_state_table[cstate].name);
+			continue;
+		}
+
 
 		if (((mwait_cstate + 1) > 2) &&
 			!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))

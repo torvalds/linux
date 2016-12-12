@@ -92,7 +92,7 @@ static int exynos_pd_power(struct generic_pm_domain *domain, bool power_on)
 			if (IS_ERR(pd->clk[i]))
 				break;
 
-			if (IS_ERR(pd->clk[i]))
+			if (IS_ERR(pd->pclk[i]))
 				continue; /* Skip on first power up */
 			if (clk_set_parent(pd->clk[i], pd->pclk[i]))
 				pr_err("%s: error setting parent to clock%d\n",

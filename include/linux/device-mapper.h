@@ -124,6 +124,8 @@ struct dm_dev {
 	char name[16];
 };
 
+dev_t dm_get_dev_t(const char *path);
+
 /*
  * Constructors should call these functions to ensure destination devices
  * are opened/closed correctly.

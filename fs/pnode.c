@@ -198,9 +198,14 @@ static struct mount *next_group(struct mount *m, struct mount *origin)
 
 /* all accesses are serialized by namespace_sem */
 static struct user_namespace *user_ns;
-static struct mount *last_dest, *last_source, *dest_master;
+static struct mount *last_dest, *first_source, *last_source, *dest_master;
 static struct mountpoint *mp;
 static struct hlist_head *list;
+
+static inline bool peers(struct mount *m1, struct mount *m2)
+{
+	return m1->mnt_group_id == m2->mnt_group_id && m1->mnt_group_id;
+}
 
 static int propagate_one(struct mount *m)
 {
@@ -212,24 +217,26 @@ static int propagate_one(struct mount *m)
 	/* skip if mountpoint isn't covered by it */
 	if (!is_subdir(mp->m_dentry, m->mnt.mnt_root))
 		return 0;
-	if (m->mnt_group_id == last_dest->mnt_group_id) {
+	if (peers(m, last_dest)) {
 		type = CL_MAKE_SHARED;
 	} else {
 		struct mount *n, *p;
+		bool done;
 		for (n = m; ; n = p) {
 			p = n->mnt_master;
-			if (p == dest_master || IS_MNT_MARKED(p)) {
-				while (last_dest->mnt_master != p) {
-					last_source = last_source->mnt_master;
-					last_dest = last_source->mnt_parent;
-				}
-				if (n->mnt_group_id != last_dest->mnt_group_id) {
-					last_source = last_source->mnt_master;
-					last_dest = last_source->mnt_parent;
-				}
+			if (p == dest_master || IS_MNT_MARKED(p))
 				break;
-			}
 		}
+		do {
+			struct mount *parent = last_source->mnt_parent;
+			if (last_source == first_source)
+				break;
+			done = parent->mnt_master == p;
+			if (done && peers(n, parent))
+				break;
+			last_source = last_source->mnt_master;
+		} while (!done);
+
 		type = CL_SLAVE;
 		/* beginning of peer group among the slaves? */
 		if (IS_MNT_SHARED(m))
@@ -281,6 +288,7 @@ int propagate_mnt(struct mount *dest_mnt, struct mountpoint *dest_mp,
 	 */
 	user_ns = current->nsproxy->mnt_ns->user_ns;
 	last_dest = dest_mnt;
+	first_source = source_mnt;
 	last_source = source_mnt;
 	mp = dest_mp;
 	list = tree_list;

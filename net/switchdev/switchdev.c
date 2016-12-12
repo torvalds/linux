@@ -20,6 +20,7 @@
 #include <linux/list.h>
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
+#include <linux/rtnetlink.h>
 #include <net/ip_fib.h>
 #include <net/switchdev.h>
 
@@ -565,7 +566,6 @@ int switchdev_port_obj_dump(struct net_device *dev, struct switchdev_obj *obj,
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_dump);
 
-static DEFINE_MUTEX(switchdev_mutex);
 static RAW_NOTIFIER_HEAD(switchdev_notif_chain);
 
 /**
@@ -580,9 +580,9 @@ int register_switchdev_notifier(struct notifier_block *nb)
 {
 	int err;
 
-	mutex_lock(&switchdev_mutex);
+	rtnl_lock();
 	err = raw_notifier_chain_register(&switchdev_notif_chain, nb);
-	mutex_unlock(&switchdev_mutex);
+	rtnl_unlock();
 	return err;
 }
 EXPORT_SYMBOL_GPL(register_switchdev_notifier);
@@ -598,9 +598,9 @@ int unregister_switchdev_notifier(struct notifier_block *nb)
 {
 	int err;
 
-	mutex_lock(&switchdev_mutex);
+	rtnl_lock();
 	err = raw_notifier_chain_unregister(&switchdev_notif_chain, nb);
-	mutex_unlock(&switchdev_mutex);
+	rtnl_unlock();
 	return err;
 }
 EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
@@ -614,16 +614,17 @@ EXPORT_SYMBOL_GPL(unregister_switchdev_notifier);
  *	Call all network notifier blocks. This should be called by driver
  *	when it needs to propagate hardware event.
  *	Return values are same as for atomic_notifier_call_chain().
+ *	rtnl_lock must be held.
  */
 int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 			     struct switchdev_notifier_info *info)
 {
 	int err;
 
+	ASSERT_RTNL();
+
 	info->dev = dev;
-	mutex_lock(&switchdev_mutex);
 	err = raw_notifier_call_chain(&switchdev_notif_chain, val, info);
-	mutex_unlock(&switchdev_mutex);
 	return err;
 }
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
@@ -1168,6 +1169,7 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
 		.dst = dst,
 		.dst_len = dst_len,
+		.fi = fi,
 		.tos = tos,
 		.type = type,
 		.nlflags = nlflags,
@@ -1175,8 +1177,6 @@ int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
 	};
 	struct net_device *dev;
 	int err = 0;
-
-	memcpy(&ipv4_fib.fi, fi, sizeof(ipv4_fib.fi));
 
 	/* Don't offload route if using custom ip rules or if
 	 * IPv4 FIB offloading has been disabled completely.
@@ -1221,6 +1221,7 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 		.obj.id = SWITCHDEV_OBJ_ID_IPV4_FIB,
 		.dst = dst,
 		.dst_len = dst_len,
+		.fi = fi,
 		.tos = tos,
 		.type = type,
 		.nlflags = 0,
@@ -1228,8 +1229,6 @@ int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
 	};
 	struct net_device *dev;
 	int err = 0;
-
-	memcpy(&ipv4_fib.fi, fi, sizeof(ipv4_fib.fi));
 
 	if (!(fi->fib_flags & RTNH_F_OFFLOAD))
 		return 0;

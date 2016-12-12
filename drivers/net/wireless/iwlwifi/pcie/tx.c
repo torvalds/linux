@@ -1508,9 +1508,9 @@ static int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 
 	/* start the TFD with the scratchbuf */
 	scratch_size = min_t(int, copy_size, IWL_HCMD_SCRATCHBUF_SIZE);
-	memcpy(&txq->scratchbufs[q->write_ptr], &out_cmd->hdr, scratch_size);
+	memcpy(&txq->scratchbufs[idx], &out_cmd->hdr, scratch_size);
 	iwl_pcie_txq_build_tfd(trans, txq,
-			       iwl_pcie_get_scratchbuf_dma(txq, q->write_ptr),
+			       iwl_pcie_get_scratchbuf_dma(txq, idx),
 			       scratch_size, true);
 
 	/* map first command fragment, if any remains */

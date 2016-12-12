@@ -3628,6 +3628,19 @@ static void gfx_v7_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 					unsigned vm_id, uint64_t pd_addr)
 {
 	int usepfp = (ring->type == AMDGPU_RING_TYPE_GFX);
+	uint32_t seq = ring->fence_drv.sync_seq[ring->idx];
+	uint64_t addr = ring->fence_drv.gpu_addr;
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_WAIT_REG_MEM, 5));
+	amdgpu_ring_write(ring, (WAIT_REG_MEM_MEM_SPACE(1) | /* memory */
+				 WAIT_REG_MEM_FUNCTION(3) | /* equal */
+				 WAIT_REG_MEM_ENGINE(usepfp)));   /* pfp or me */
+	amdgpu_ring_write(ring, addr & 0xfffffffc);
+	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
+	amdgpu_ring_write(ring, seq);
+	amdgpu_ring_write(ring, 0xffffffff);
+	amdgpu_ring_write(ring, 4); /* poll interval */
+
 	if (usepfp) {
 		/* synce CE with ME to prevent CE fetch CEIB before context switch done */
 		amdgpu_ring_write(ring, PACKET3(PACKET3_SWITCH_BUFFER, 0));
@@ -5450,7 +5463,7 @@ static int gfx_v7_0_eop_irq(struct amdgpu_device *adev,
 	case 2:
 		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 			ring = &adev->gfx.compute_ring[i];
-			if ((ring->me == me_id) & (ring->pipe == pipe_id))
+			if ((ring->me == me_id) && (ring->pipe == pipe_id))
 				amdgpu_fence_process(ring);
 		}
 		break;

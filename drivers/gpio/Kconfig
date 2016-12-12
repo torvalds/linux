@@ -50,6 +50,7 @@ config GPIO_DEVRES
 config OF_GPIO
 	def_bool y
 	depends on OF
+	depends on HAS_IOMEM
 
 config GPIO_ACPI
 	def_bool y

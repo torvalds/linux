@@ -67,7 +67,7 @@ static const u8 DASD_DIAG_CMS1[] = { 0xc3, 0xd4, 0xe2, 0xf1 };/* EBCDIC CMS1 */
  * and function code cmd.
  * In case of an exception return 3. Otherwise return result of bitwise OR of
  * resulting condition code and DIAG return code. */
-static inline int dia250(void *iob, int cmd)
+static inline int __dia250(void *iob, int cmd)
 {
 	register unsigned long reg2 asm ("2") = (unsigned long) iob;
 	typedef union {
@@ -77,7 +77,6 @@ static inline int dia250(void *iob, int cmd)
 	int rc;
 
 	rc = 3;
-	diag_stat_inc(DIAG_STAT_X250);
 	asm volatile(
 		"	diag	2,%2,0x250\n"
 		"0:	ipm	%0\n"
@@ -89,6 +88,12 @@ static inline int dia250(void *iob, int cmd)
 		: "d" (cmd), "d" (reg2), "m" (*(addr_type *) iob)
 		: "3", "cc");
 	return rc;
+}
+
+static inline int dia250(void *iob, int cmd)
+{
+	diag_stat_inc(DIAG_STAT_X250);
+	return __dia250(iob, cmd);
 }
 
 /* Initialize block I/O to DIAG device using the specified blocksize and

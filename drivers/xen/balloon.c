@@ -247,6 +247,19 @@ static enum bp_state update_schedule(enum bp_state state)
 }
 
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
+static void release_memory_resource(struct resource *resource)
+{
+	if (!resource)
+		return;
+
+	/*
+	 * No need to reset region to identity mapped since we now
+	 * know that no I/O can be in this region
+	 */
+	release_resource(resource);
+	kfree(resource);
+}
+
 static struct resource *additional_memory_resource(phys_addr_t size)
 {
 	struct resource *res;
@@ -268,20 +281,21 @@ static struct resource *additional_memory_resource(phys_addr_t size)
 		return NULL;
 	}
 
+#ifdef CONFIG_SPARSEMEM
+	{
+		unsigned long limit = 1UL << (MAX_PHYSMEM_BITS - PAGE_SHIFT);
+		unsigned long pfn = res->start >> PAGE_SHIFT;
+
+		if (pfn > limit) {
+			pr_err("New System RAM resource outside addressable RAM (%lu > %lu)\n",
+			       pfn, limit);
+			release_memory_resource(res);
+			return NULL;
+		}
+	}
+#endif
+
 	return res;
-}
-
-static void release_memory_resource(struct resource *resource)
-{
-	if (!resource)
-		return;
-
-	/*
-	 * No need to reset region to identity mapped since we now
-	 * know that no I/O can be in this region
-	 */
-	release_resource(resource);
-	kfree(resource);
 }
 
 static enum bp_state reserve_additional_memory(void)

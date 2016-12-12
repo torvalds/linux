@@ -159,7 +159,7 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	   Set the status so poll routines can check and avoid
 	   access after disconnect.
 	*/
-	dev->dev_state = DEV_DISCONNECTED;
+	set_bit(DEV_DISCONNECTED, &dev->dev_state);
 
 	au0828_rc_unregister(dev);
 	/* Digital TV */

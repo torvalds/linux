@@ -96,8 +96,13 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 SYSCALL_DEFINE1(iopl, unsigned int, level)
 {
 	struct pt_regs *regs = current_pt_regs();
-	unsigned int old = (regs->flags >> 12) & 3;
 	struct thread_struct *t = &current->thread;
+
+	/*
+	 * Careful: the IOPL bits in regs->flags are undefined under Xen PV
+	 * and changing them has no effect.
+	 */
+	unsigned int old = t->iopl >> X86_EFLAGS_IOPL_BIT;
 
 	if (level > 3)
 		return -EINVAL;
@@ -106,8 +111,9 @@ SYSCALL_DEFINE1(iopl, unsigned int, level)
 		if (!capable(CAP_SYS_RAWIO))
 			return -EPERM;
 	}
-	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) | (level << 12);
-	t->iopl = level << 12;
+	regs->flags = (regs->flags & ~X86_EFLAGS_IOPL) |
+		(level << X86_EFLAGS_IOPL_BIT);
+	t->iopl = level << X86_EFLAGS_IOPL_BIT;
 	set_iopl_mask(t->iopl);
 
 	return 0;
