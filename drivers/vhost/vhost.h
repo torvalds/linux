@@ -107,6 +107,9 @@ struct vhost_virtqueue {
 	/* Last index we used. */
 	u16 last_used_idx;
 
+	/* Last used evet we've seen */
+	u16 last_used_event;
+
 	/* Used flags */
 	u16 used_flags;
 
