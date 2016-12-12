@@ -49,12 +49,11 @@ void dce_pipe_control_lock(struct dce_hwseq *hws,
 		bool lock)
 {
 	uint32_t lock_val = lock ? 1 : 0;
-	uint32_t dcp_grph, scl, dcp_grph_surf, blnd, update_lock_mode;
+	uint32_t dcp_grph, scl, blnd, update_lock_mode;
 
-	uint32_t val = REG_GET_5(BLND_V_UPDATE_LOCK[blnd_inst],
+	uint32_t val = REG_GET_4(BLND_V_UPDATE_LOCK[blnd_inst],
 			BLND_DCP_GRPH_V_UPDATE_LOCK, &dcp_grph,
 			BLND_SCL_V_UPDATE_LOCK, &scl,
-			BLND_DCP_GRPH_SURF_V_UPDATE_LOCK, &dcp_grph_surf,
 			BLND_BLND_V_UPDATE_LOCK, &blnd,
 			BLND_V_UPDATE_LOCK_MODE, &update_lock_mode);
 
@@ -64,19 +63,15 @@ void dce_pipe_control_lock(struct dce_hwseq *hws,
 	if (control_mask & PIPE_LOCK_CONTROL_SCL)
 		scl = lock_val;
 
-	if (control_mask & PIPE_LOCK_CONTROL_SURFACE)
-		dcp_grph_surf = lock_val;
-
 	if (control_mask & PIPE_LOCK_CONTROL_BLENDER)
 		blnd = lock_val;
 
 	if (control_mask & PIPE_LOCK_CONTROL_MODE)
 		update_lock_mode = lock_val;
 
-	REG_SET_5(BLND_V_UPDATE_LOCK[blnd_inst], val,
+	REG_SET_4(BLND_V_UPDATE_LOCK[blnd_inst], val,
 			BLND_DCP_GRPH_V_UPDATE_LOCK, dcp_grph,
 			BLND_SCL_V_UPDATE_LOCK, scl,
-			BLND_DCP_GRPH_SURF_V_UPDATE_LOCK, dcp_grph_surf,
 			BLND_BLND_V_UPDATE_LOCK, blnd,
 			BLND_V_UPDATE_LOCK_MODE, update_lock_mode);
 

@@ -143,6 +143,13 @@
 				FN(reg_name, f2), v2, \
 				FN(reg_name, f3), v3)
 
+#define REG_GET_4(reg_name, f1, v1, f2, v2, f3, v3, f4, v4)	\
+		generic_reg_get4(CTX, REG(reg_name), \
+				FN(reg_name, f1), v1, \
+				FN(reg_name, f2), v2, \
+				FN(reg_name, f3), v3, \
+				FN(reg_name, f4), v4)
+
 #define REG_GET_5(reg_name, f1, v1, f2, v2, f3, v3, f4, v4, f5, v5)	\
 		generic_reg_get5(CTX, REG(reg_name), \
 				FN(reg_name, f1), v1, \
@@ -279,6 +286,12 @@ uint32_t generic_reg_get3(const struct dc_context *ctx, uint32_t addr,
 		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,
 		uint8_t shift2, uint32_t mask2, uint32_t *field_value2,
 		uint8_t shift3, uint32_t mask3, uint32_t *field_value3);
+
+uint32_t generic_reg_get4(const struct dc_context *ctx, uint32_t addr,
+		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,
+		uint8_t shift2, uint32_t mask2, uint32_t *field_value2,
+		uint8_t shift3, uint32_t mask3, uint32_t *field_value3,
+		uint8_t shift4, uint32_t mask4, uint32_t *field_value4);
 
 uint32_t generic_reg_get5(const struct dc_context *ctx, uint32_t addr,
 		uint8_t shift1, uint32_t mask1, uint32_t *field_value1,

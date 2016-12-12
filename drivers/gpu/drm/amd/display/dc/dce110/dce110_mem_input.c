@@ -113,16 +113,25 @@ bool dce110_mem_input_program_surface_flip_and_addr(
 	struct dce110_mem_input *mem_input110 = TO_DCE110_MEM_INPUT(mem_input);
 
 	uint32_t value = 0;
+	uint32_t value_old = 0;
+	uint32_t lock_value = 0;
+
+	lock_value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_UPDATE));
+	set_reg_field_value(lock_value, 1, GRPH_UPDATE, GRPH_UPDATE_LOCK);
+	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_UPDATE), lock_value);
 
 	value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_FLIP_CONTROL));
+	value_old = value;
 	if (flip_immediate) {
-		set_reg_field_value(value, 1, GRPH_FLIP_CONTROL, GRPH_SURFACE_UPDATE_IMMEDIATE_EN);
+		set_reg_field_value(value, 0, GRPH_FLIP_CONTROL, GRPH_SURFACE_UPDATE_IMMEDIATE_EN);
 		set_reg_field_value(value, 1, GRPH_FLIP_CONTROL, GRPH_SURFACE_UPDATE_H_RETRACE_EN);
 	} else {
 		set_reg_field_value(value, 0, GRPH_FLIP_CONTROL, GRPH_SURFACE_UPDATE_IMMEDIATE_EN);
 		set_reg_field_value(value, 0, GRPH_FLIP_CONTROL, GRPH_SURFACE_UPDATE_H_RETRACE_EN);
 	}
-	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_FLIP_CONTROL), value);
+	if (value != value_old) {
+		dm_write_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_FLIP_CONTROL), value);
+	}
 
 	switch (address->type) {
 	case PLN_ADDR_TYPE_GRAPHICS:
@@ -146,6 +155,10 @@ bool dce110_mem_input_program_surface_flip_and_addr(
 	mem_input->request_address = *address;
 	if (flip_immediate)
 		mem_input->current_address = *address;
+
+	lock_value = dm_read_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_UPDATE));
+	set_reg_field_value(lock_value, 0, GRPH_UPDATE, GRPH_UPDATE_LOCK);
+	dm_write_reg(mem_input110->base.ctx, DCP_REG(mmGRPH_UPDATE), lock_value);
 
 	return true;
 }

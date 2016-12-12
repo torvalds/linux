@@ -1468,11 +1468,6 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				continue;
 
 			if (updates[i].flip_addr) {
-				core_dc->hwss.pipe_control_lock(
-							core_dc->hwseq,
-							pipe_ctx->pipe_idx,
-							PIPE_LOCK_CONTROL_SURFACE,
-							true);
 				core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
 			}
 
@@ -1485,7 +1480,6 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 					core_dc->hwss.pipe_control_lock(
 							core_dc->hwseq,
 							pipe_ctx->pipe_idx,
-							PIPE_LOCK_CONTROL_SURFACE |
 							PIPE_LOCK_CONTROL_GRAPHICS |
 							PIPE_LOCK_CONTROL_SCL |
 							PIPE_LOCK_CONTROL_BLENDER |
@@ -1515,8 +1509,7 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 							pipe_ctx->pipe_idx,
 							PIPE_LOCK_CONTROL_GRAPHICS |
 							PIPE_LOCK_CONTROL_SCL |
-							PIPE_LOCK_CONTROL_BLENDER |
-							PIPE_LOCK_CONTROL_SURFACE,
+							PIPE_LOCK_CONTROL_BLENDER,
 							false);
 				}
 				break;

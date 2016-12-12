@@ -40,8 +40,7 @@ enum pipe_lock_control {
 	PIPE_LOCK_CONTROL_GRAPHICS = 1 << 0,
 	PIPE_LOCK_CONTROL_BLENDER = 1 << 1,
 	PIPE_LOCK_CONTROL_SCL = 1 << 2,
-	PIPE_LOCK_CONTROL_SURFACE = 1 << 3,
-	PIPE_LOCK_CONTROL_MODE = 1 << 4
+	PIPE_LOCK_CONTROL_MODE = 1 << 3
 };
 
 struct dce_hwseq;
