@@ -85,7 +85,7 @@
 
 #define KS7010_IRAM_ADDRESS	0x06000000
 
-/* 
+/*
  * struct define
  */
 struct hw_info_t {
