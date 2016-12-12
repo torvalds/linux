@@ -1465,6 +1465,9 @@ static int gfx_v9_0_rlc_resume(struct amdgpu_device *adev)
 {
 	int r;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	gfx_v9_0_rlc_stop(adev);
 
 	/* disable CG */
