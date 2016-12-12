@@ -626,7 +626,7 @@ static void codec2codec_close_delayed_work(struct work_struct *work)
 int snd_soc_suspend(struct device *dev)
 {
 	struct snd_soc_card *card = dev_get_drvdata(dev);
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct snd_soc_pcm_runtime *rtd;
 	int i;
 
@@ -702,39 +702,39 @@ int snd_soc_suspend(struct device *dev)
 	dapm_mark_endpoints_dirty(card);
 	snd_soc_dapm_sync(&card->dapm);
 
-	/* suspend all CODECs */
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	/* suspend all COMPONENTs */
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 
-		/* If there are paths active then the CODEC will be held with
+		/* If there are paths active then the COMPONENT will be held with
 		 * bias _ON and should not be suspended. */
-		if (!codec->suspended) {
+		if (!component->suspended) {
 			switch (snd_soc_dapm_get_bias_level(dapm)) {
 			case SND_SOC_BIAS_STANDBY:
 				/*
-				 * If the CODEC is capable of idle
+				 * If the COMPONENT is capable of idle
 				 * bias off then being in STANDBY
 				 * means it's doing something,
 				 * otherwise fall through.
 				 */
 				if (dapm->idle_bias_off) {
-					dev_dbg(codec->dev,
+					dev_dbg(component->dev,
 						"ASoC: idle_bias_off CODEC on over suspend\n");
 					break;
 				}
 
 			case SND_SOC_BIAS_OFF:
-				if (codec->driver->suspend)
-					codec->driver->suspend(codec);
-				codec->suspended = 1;
-				if (codec->component.regmap)
-					regcache_mark_dirty(codec->component.regmap);
+				if (component->suspend)
+					component->suspend(component);
+				component->suspended = 1;
+				if (component->regmap)
+					regcache_mark_dirty(component->regmap);
 				/* deactivate pins to sleep state */
-				pinctrl_pm_select_sleep_state(codec->dev);
+				pinctrl_pm_select_sleep_state(component->dev);
 				break;
 			default:
-				dev_dbg(codec->dev,
-					"ASoC: CODEC is on over suspend\n");
+				dev_dbg(component->dev,
+					"ASoC: COMPONENT is on over suspend\n");
 				break;
 			}
 		}
@@ -768,7 +768,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	struct snd_soc_card *card =
 			container_of(work, struct snd_soc_card, deferred_resume_work);
 	struct snd_soc_pcm_runtime *rtd;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	int i;
 
 	/* our power state is still SNDRV_CTL_POWER_D3hot from suspend time,
@@ -794,11 +794,11 @@ static void soc_resume_deferred(struct work_struct *work)
 			cpu_dai->driver->resume(cpu_dai);
 	}
 
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (codec->suspended) {
-			if (codec->driver->resume)
-				codec->driver->resume(codec);
-			codec->suspended = 0;
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (component->suspended) {
+			if (component->resume)
+				component->resume(component);
+			component->suspended = 0;
 		}
 	}
 
@@ -1072,9 +1072,7 @@ static void soc_remove_component(struct snd_soc_component *component)
 	if (!component->card)
 		return;
 
-	/* This is a HACK and will be removed soon */
-	if (component->codec)
-		list_del(&component->codec->card_list);
+	list_del(&component->card_list);
 
 	if (component->remove)
 		component->remove(component);
@@ -1443,10 +1441,7 @@ static int soc_probe_component(struct snd_soc_card *card,
 					component->num_dapm_routes);
 
 	list_add(&dapm->list, &card->dapm_list);
-
-	/* This is a HACK and will be removed soon */
-	if (component->codec)
-		list_add(&component->codec->card_list, &card->codec_dev_list);
+	list_add(&component->card_list, &card->component_dev_list);
 
 	return 0;
 
@@ -1706,7 +1701,8 @@ static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
 	}
 
 	component->init = aux_dev->init;
-	list_add(&component->list_aux, &card->aux_comp_list);
+	component->auxiliary = 1;
+
 	return 0;
 
 err_defer:
@@ -1722,7 +1718,10 @@ static int soc_probe_aux_devices(struct snd_soc_card *card)
 
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 		order++) {
-		list_for_each_entry(comp, &card->aux_comp_list, list_aux) {
+		list_for_each_entry(comp, &card->component_dev_list, card_list) {
+			if (!comp->auxiliary)
+				continue;
+
 			if (comp->driver->probe_order == order) {
 				ret = soc_probe_component(card,	comp);
 				if (ret < 0) {
@@ -1746,11 +1745,14 @@ static void soc_remove_aux_devices(struct snd_soc_card *card)
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 		order++) {
 		list_for_each_entry_safe(comp, _comp,
-			&card->aux_comp_list, list_aux) {
+			&card->component_dev_list, card_list) {
+
+			if (!comp->auxiliary)
+				continue;
+
 			if (comp->driver->remove_order == order) {
 				soc_remove_component(comp);
-				/* remove it from the card's aux_comp_list */
-				list_del(&comp->list_aux);
+				comp->auxiliary = 0;
 			}
 		}
 	}
@@ -2926,6 +2928,8 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	component->driver = driver;
 	component->probe = component->driver->probe;
 	component->remove = component->driver->remove;
+	component->suspend = component->driver->suspend;
+	component->resume = component->driver->resume;
 
 	dapm = &component->dapm;
 	dapm->dev = dev;
@@ -3275,6 +3279,20 @@ static void snd_soc_codec_drv_remove(struct snd_soc_component *component)
 	codec->driver->remove(codec);
 }
 
+static int snd_soc_codec_drv_suspend(struct snd_soc_component *component)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return codec->driver->suspend(codec);
+}
+
+static int snd_soc_codec_drv_resume(struct snd_soc_component *component)
+{
+	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
+	return codec->driver->resume(codec);
+}
+
 static int snd_soc_codec_drv_write(struct snd_soc_component *component,
 	unsigned int reg, unsigned int val)
 {
@@ -3336,6 +3354,10 @@ int snd_soc_register_codec(struct device *dev,
 		codec->component.probe = snd_soc_codec_drv_probe;
 	if (codec_drv->remove)
 		codec->component.remove = snd_soc_codec_drv_remove;
+	if (codec_drv->suspend)
+		codec->component.suspend = snd_soc_codec_drv_suspend;
+	if (codec_drv->resume)
+		codec->component.resume = snd_soc_codec_drv_resume;
 	if (codec_drv->write)
 		codec->component.write = snd_soc_codec_drv_write;
 	if (codec_drv->read)
