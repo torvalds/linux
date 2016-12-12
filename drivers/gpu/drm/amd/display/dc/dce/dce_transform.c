@@ -83,6 +83,8 @@ static bool setup_scaling_configuration(
 	struct dce_transform *xfm_dce,
 	const struct scaler_data *data)
 {
+	REG_SET(SCL_BYPASS_CONTROL, 0, SCL_BYPASS_MODE, 0);
+
 	if (data->taps.h_taps + data->taps.v_taps <= 2) {
 		/* Set bypass */
 		REG_UPDATE_2(SCL_MODE, SCL_MODE, 0, SCL_PSCL_EN, 0);
@@ -284,6 +286,9 @@ static void dce_transform_set_scaler(
 	REG_SET_2(LB_MEMORY_CTRL, 0,
 			LB_MEMORY_CONFIG, 0,
 			LB_MEMORY_SIZE, xfm_dce->lb_memory_size);
+
+	/* Clear SCL_F_SHARP_CONTROL value to 0 */
+	REG_WRITE(SCL_F_SHARP_CONTROL, 0);
 
 	/* 1. Program overscan */
 	program_overscan(xfm_dce, data);
