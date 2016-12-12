@@ -1698,4 +1698,24 @@ static inline void snd_soc_dapm_mutex_unlock(struct snd_soc_dapm_context *dapm)
 	mutex_unlock(&dapm->card->dapm_mutex);
 }
 
+int snd_soc_component_enable_pin(struct snd_soc_component *component,
+				 const char *pin);
+int snd_soc_component_enable_pin_unlocked(struct snd_soc_component *component,
+					  const char *pin);
+int snd_soc_component_disable_pin(struct snd_soc_component *component,
+				  const char *pin);
+int snd_soc_component_disable_pin_unlocked(struct snd_soc_component *component,
+					   const char *pin);
+int snd_soc_component_nc_pin(struct snd_soc_component *component,
+			     const char *pin);
+int snd_soc_component_nc_pin_unlocked(struct snd_soc_component *component,
+				      const char *pin);
+int snd_soc_component_get_pin_status(struct snd_soc_component *component,
+				     const char *pin);
+int snd_soc_component_force_enable_pin(struct snd_soc_component *component,
+				       const char *pin);
+int snd_soc_component_force_enable_pin_unlocked(
+					struct snd_soc_component *component,
+					const char *pin);
+
 #endif
