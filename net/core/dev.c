@@ -5064,7 +5064,7 @@ count:
 				return rc;
 			goto restart;
 		}
-		cpu_relax_lowlatency();
+		cpu_relax();
 	}
 	if (napi_poll)
 		busy_poll_stop(napi, have_poll_lock);
