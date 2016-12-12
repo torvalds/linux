@@ -105,6 +105,31 @@ static void arc_dma_free(struct device *dev, size_t size, void *vaddr,
 	__free_pages(page, get_order(size));
 }
 
+static int arc_dma_mmap(struct device *dev, struct vm_area_struct *vma,
+			void *cpu_addr, dma_addr_t dma_addr, size_t size,
+			unsigned long attrs)
+{
+	unsigned long user_count = vma_pages(vma);
+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	unsigned long pfn = __phys_to_pfn(plat_dma_to_phys(dev, dma_addr));
+	unsigned long off = vma->vm_pgoff;
+	int ret = -ENXIO;
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (dma_mmap_from_coherent(dev, vma, cpu_addr, size, &ret))
+		return ret;
+
+	if (off < count && user_count <= (count - off)) {
+		ret = remap_pfn_range(vma, vma->vm_start,
+				      pfn + off,
+				      user_count << PAGE_SHIFT,
+				      vma->vm_page_prot);
+	}
+
+	return ret;
+}
+
 /*
  * streaming DMA Mapping API...
  * CPU accesses page via normal paddr, thus needs to explicitly made
@@ -193,6 +218,7 @@ static int arc_dma_supported(struct device *dev, u64 dma_mask)
 struct dma_map_ops arc_dma_ops = {
 	.alloc			= arc_dma_alloc,
 	.free			= arc_dma_free,
+	.mmap			= arc_dma_mmap,
 	.map_page		= arc_dma_map_page,
 	.map_sg			= arc_dma_map_sg,
 	.sync_single_for_device	= arc_dma_sync_single_for_device,

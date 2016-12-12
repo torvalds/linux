@@ -853,45 +853,6 @@ rqbiocnt(struct request *r)
 	return n;
 }
 
-/* This can be removed if we are certain that no users of the block
- * layer will ever use zero-count pages in bios.  Otherwise we have to
- * protect against the put_page sometimes done by the network layer.
- *
- * See http://oss.sgi.com/archives/xfs/2007-01/msg00594.html for
- * discussion.
- *
- * We cannot use get_page in the workaround, because it insists on a
- * positive page count as a precondition.  So we use _refcount directly.
- */
-static void
-bio_pageinc(struct bio *bio)
-{
-	struct bio_vec bv;
-	struct page *page;
-	struct bvec_iter iter;
-
-	bio_for_each_segment(bv, bio, iter) {
-		/* Non-zero page count for non-head members of
-		 * compound pages is no longer allowed by the kernel.
-		 */
-		page = compound_head(bv.bv_page);
-		page_ref_inc(page);
-	}
-}
-
-static void
-bio_pagedec(struct bio *bio)
-{
-	struct page *page;
-	struct bio_vec bv;
-	struct bvec_iter iter;
-
-	bio_for_each_segment(bv, bio, iter) {
-		page = compound_head(bv.bv_page);
-		page_ref_dec(page);
-	}
-}
-
 static void
 bufinit(struct buf *buf, struct request *rq, struct bio *bio)
 {
@@ -899,7 +860,6 @@ bufinit(struct buf *buf, struct request *rq, struct bio *bio)
 	buf->rq = rq;
 	buf->bio = bio;
 	buf->iter = bio->bi_iter;
-	bio_pageinc(bio);
 }
 
 static struct buf *
@@ -1127,7 +1087,6 @@ aoe_end_buf(struct aoedev *d, struct buf *buf)
 	if (buf == d->ip.buf)
 		d->ip.buf = NULL;
 	rq = buf->rq;
-	bio_pagedec(buf->bio);
 	mempool_free(buf, d->bufpool);
 	n = (unsigned long) rq->special;
 	rq->special = (void *) --n;

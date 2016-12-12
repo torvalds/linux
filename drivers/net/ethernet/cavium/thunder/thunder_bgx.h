@@ -28,6 +28,8 @@
 #define    MAX_DMAC_PER_LMAC			8
 #define    MAX_FRAME_SIZE			9216
 
+#define	   BGX_ID_MASK				0x3
+
 #define    MAX_DMAC_PER_LMAC_TNS_BYPASS_MODE	2
 
 /* Registers */

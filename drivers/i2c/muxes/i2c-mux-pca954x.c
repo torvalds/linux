@@ -268,9 +268,9 @@ static int pca954x_probe(struct i2c_client *client,
 				/* discard unconfigured channels */
 				break;
 			idle_disconnect_pd = pdata->modes[num].deselect_on_exit;
-			data->deselect |= (idle_disconnect_pd
-					   || idle_disconnect_dt) << num;
 		}
+		data->deselect |= (idle_disconnect_pd ||
+				   idle_disconnect_dt) << num;
 
 		ret = i2c_mux_add_adapter(muxc, force, num, class);
 

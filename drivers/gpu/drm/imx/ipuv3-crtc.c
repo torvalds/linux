@@ -68,6 +68,12 @@ static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	ipu_dc_disable_channel(ipu_crtc->dc);
 	ipu_di_disable(ipu_crtc->di);
+	/*
+	 * Planes must be disabled before DC clock is removed, as otherwise the
+	 * attached IDMACs will be left in undefined state, possibly hanging
+	 * the IPU or even system.
+	 */
+	drm_atomic_helper_disable_planes_on_crtc(old_crtc_state, false);
 	ipu_dc_disable(ipu);
 
 	spin_lock_irq(&crtc->dev->event_lock);
@@ -76,9 +82,6 @@ static void ipu_crtc_atomic_disable(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irq(&crtc->dev->event_lock);
-
-	/* always disable planes on the CRTC */
-	drm_atomic_helper_disable_planes_on_crtc(old_crtc_state, true);
 
 	drm_crtc_vblank_off(crtc);
 }

@@ -107,7 +107,7 @@ int soc_pcmcia_regulator_set(struct soc_pcmcia_socket *skt,
 
 		ret = regulator_enable(r->reg);
 	} else {
-		regulator_disable(r->reg);
+		ret = regulator_disable(r->reg);
 	}
 	if (ret == 0)
 		r->on = on;

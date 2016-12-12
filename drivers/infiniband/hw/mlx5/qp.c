@@ -2051,8 +2051,8 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 
 		mlx5_ib_dbg(dev, "ib qpnum 0x%x, mlx qpn 0x%x, rcqn 0x%x, scqn 0x%x\n",
 			    qp->ibqp.qp_num, qp->trans_qp.base.mqp.qpn,
-			    to_mcq(init_attr->recv_cq)->mcq.cqn,
-			    to_mcq(init_attr->send_cq)->mcq.cqn);
+			    init_attr->recv_cq ? to_mcq(init_attr->recv_cq)->mcq.cqn : -1,
+			    init_attr->send_cq ? to_mcq(init_attr->send_cq)->mcq.cqn : -1);
 
 		qp->trans_qp.xrcdn = xrcdn;
 
@@ -4813,6 +4813,14 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 	    !ib_is_udata_cleared(udata, 0,
 				 udata->inlen))
 		return ERR_PTR(-EOPNOTSUPP);
+
+	if (init_attr->log_ind_tbl_size >
+	    MLX5_CAP_GEN(dev->mdev, log_max_rqt_size)) {
+		mlx5_ib_dbg(dev, "log_ind_tbl_size = %d is bigger than supported = %d\n",
+			    init_attr->log_ind_tbl_size,
+			    MLX5_CAP_GEN(dev->mdev, log_max_rqt_size));
+		return ERR_PTR(-EINVAL);
+	}
 
 	min_resp_len = offsetof(typeof(resp), reserved) + sizeof(resp.reserved);
 	if (udata->outlen && udata->outlen < min_resp_len)

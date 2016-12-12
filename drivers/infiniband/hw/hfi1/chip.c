@@ -6301,19 +6301,8 @@ void set_up_vl15(struct hfi1_devdata *dd, u8 vau, u16 vl15buf)
 	/* leave shared count at zero for both global and VL15 */
 	write_global_credit(dd, vau, vl15buf, 0);
 
-	/* We may need some credits for another VL when sending packets
-	 * with the snoop interface. Dividing it down the middle for VL15
-	 * and VL0 should suffice.
-	 */
-	if (unlikely(dd->hfi1_snoop.mode_flag == HFI1_PORT_SNOOP_MODE)) {
-		write_csr(dd, SEND_CM_CREDIT_VL15, (u64)(vl15buf >> 1)
-		    << SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
-		write_csr(dd, SEND_CM_CREDIT_VL, (u64)(vl15buf >> 1)
-		    << SEND_CM_CREDIT_VL_DEDICATED_LIMIT_VL_SHIFT);
-	} else {
-		write_csr(dd, SEND_CM_CREDIT_VL15, (u64)vl15buf
-			<< SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
-	}
+	write_csr(dd, SEND_CM_CREDIT_VL15, (u64)vl15buf
+		  << SEND_CM_CREDIT_VL15_DEDICATED_LIMIT_VL_SHIFT);
 }
 
 /*
@@ -9915,9 +9904,6 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	u32 mask = ~((1U << ppd->lmc) - 1);
 	u64 c1 = read_csr(ppd->dd, DCC_CFG_PORT_CONFIG1);
 
-	if (dd->hfi1_snoop.mode_flag)
-		dd_dev_info(dd, "Set lid/lmc while snooping");
-
 	c1 &= ~(DCC_CFG_PORT_CONFIG1_TARGET_DLID_SMASK
 		| DCC_CFG_PORT_CONFIG1_DLID_MASK_SMASK);
 	c1 |= ((ppd->lid & DCC_CFG_PORT_CONFIG1_TARGET_DLID_MASK)
@@ -12112,7 +12098,7 @@ static void update_synth_timer(unsigned long opaque)
 	mod_timer(&dd->synth_stats_timer, jiffies + HZ * SYNTH_CNT_TIME);
 }
 
-#define C_MAX_NAME 13 /* 12 chars + one for /0 */
+#define C_MAX_NAME 16 /* 15 chars + one for /0 */
 static int init_cntrs(struct hfi1_devdata *dd)
 {
 	int i, rcv_ctxts, j;
@@ -14463,7 +14449,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	 * Any error printing is already done by the init code.
 	 * On return, we have the chip mapped.
 	 */
-	ret = hfi1_pcie_ddinit(dd, pdev, ent);
+	ret = hfi1_pcie_ddinit(dd, pdev);
 	if (ret < 0)
 		goto bail_free;
 
@@ -14690,6 +14676,11 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	ret = init_rcverr(dd);
 	if (ret)
 		goto bail_free_cntrs;
+
+	init_completion(&dd->user_comp);
+
+	/* The user refcount starts with one to inidicate an active device */
+	atomic_set(&dd->user_refcount, 1);
 
 	goto bail;
 

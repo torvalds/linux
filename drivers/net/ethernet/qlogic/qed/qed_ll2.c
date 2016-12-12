@@ -1119,6 +1119,7 @@ static void qed_ll2_prepare_tx_packet_set_bd(struct qed_hwfn *p_hwfn,
 	start_bd->bd_flags.as_bitfield |= CORE_TX_BD_FLAGS_START_BD_MASK <<
 	    CORE_TX_BD_FLAGS_START_BD_SHIFT;
 	SET_FIELD(start_bd->bitfield0, CORE_TX_BD_NBDS, num_of_bds);
+	SET_FIELD(start_bd->bitfield0, CORE_TX_BD_ROCE_FLAV, type);
 	DMA_REGPAIR_LE(start_bd->addr, first_frag);
 	start_bd->nbytes = cpu_to_le16(first_frag_len);
 
@@ -1729,6 +1730,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 						       mapping))) {
 				DP_NOTICE(cdev,
 					  "Unable to map frag - dropping packet\n");
+				rc = -ENOMEM;
 				goto err;
 			}
 		} else {

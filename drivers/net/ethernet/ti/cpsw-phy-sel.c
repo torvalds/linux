@@ -81,6 +81,7 @@ static void cpsw_gmii_sel_am3352(struct cpsw_phy_sel_priv *priv,
 	};
 
 	mask = GMII_SEL_MODE_MASK << (slave * 2) | BIT(slave + 6);
+	mask |= BIT(slave + 4);
 	mode <<= slave * 2;
 
 	if (priv->rmii_clock_external) {
@@ -176,9 +177,12 @@ void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave)
 	}
 
 	dev = bus_find_device(&platform_bus_type, NULL, node, match);
+	of_node_put(node);
 	priv = dev_get_drvdata(dev);
 
 	priv->cpsw_phy_sel(priv, phy_mode, slave);
+
+	put_device(dev);
 }
 EXPORT_SYMBOL_GPL(cpsw_phy_sel);
 

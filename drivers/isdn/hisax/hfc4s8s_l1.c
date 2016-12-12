@@ -1499,6 +1499,7 @@ hfc4s8s_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		printk(KERN_INFO
 		       "HFC-4S/8S: failed to request address space at 0x%04x\n",
 		       hw->iobase);
+		err = -EBUSY;
 		goto out;
 	}
 

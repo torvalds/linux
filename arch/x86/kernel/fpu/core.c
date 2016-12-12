@@ -521,14 +521,14 @@ void fpu__clear(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
 
-	if (!use_eager_fpu() || !static_cpu_has(X86_FEATURE_FPU)) {
-		/* FPU state will be reallocated lazily at the first use. */
-		fpu__drop(fpu);
-	} else {
-		if (!fpu->fpstate_active) {
-			fpu__activate_curr(fpu);
-			user_fpu_begin();
-		}
+	fpu__drop(fpu);
+
+	/*
+	 * Make sure fpstate is cleared and initialized.
+	 */
+	if (static_cpu_has(X86_FEATURE_FPU)) {
+		fpu__activate_curr(fpu);
+		user_fpu_begin();
 		copy_init_fpstate_to_fpregs();
 	}
 }

@@ -264,7 +264,7 @@ static int sun4i_usb_phy_init(struct phy *_phy)
 		return ret;
 	}
 
-	if (data->cfg->enable_pmu_unk1) {
+	if (phy->pmu && data->cfg->enable_pmu_unk1) {
 		val = readl(phy->pmu + REG_PMU_UNK1);
 		writel(val & ~2, phy->pmu + REG_PMU_UNK1);
 	}

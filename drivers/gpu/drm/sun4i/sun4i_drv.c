@@ -142,9 +142,9 @@ static int sun4i_drv_bind(struct device *dev)
 
 	/* Create our layers */
 	drv->layers = sun4i_layers_init(drm);
-	if (!drv->layers) {
+	if (IS_ERR(drv->layers)) {
 		dev_err(drm->dev, "Couldn't create the planes\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(drv->layers);
 		goto free_drm;
 	}
 

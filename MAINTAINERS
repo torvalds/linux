@@ -77,6 +77,7 @@ Descriptions of section entries:
 	Q: Patchwork web based patch tracking system site
 	T: SCM tree type and location.
 	   Type is one of: git, hg, quilt, stgit, topgit
+	B: Bug tracking system location.
 	S: Status, one of the following:
 	   Supported:	Someone is actually paid to look after this.
 	   Maintained:	Someone actually looks after it.
@@ -281,6 +282,7 @@ L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
 Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+B:	https://bugzilla.kernel.org
 S:	Supported
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
@@ -304,6 +306,8 @@ W:	https://acpica.org/
 W:	https://github.com/acpica/acpica/
 Q:	https://patchwork.kernel.org/project/linux-acpi/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+B:	https://bugzilla.kernel.org
+B:	https://bugs.acpica.org
 S:	Supported
 F:	drivers/acpi/acpica/
 F:	include/acpi/
@@ -313,6 +317,7 @@ ACPI FAN DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
+B:	https://bugzilla.kernel.org
 S:	Supported
 F:	drivers/acpi/fan.c
 
@@ -328,6 +333,7 @@ ACPI THERMAL DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
+B:	https://bugzilla.kernel.org
 S:	Supported
 F:	drivers/acpi/*thermal*
 
@@ -335,6 +341,7 @@ ACPI VIDEO DRIVER
 M:	Zhang Rui <rui.zhang@intel.com>
 L:	linux-acpi@vger.kernel.org
 W:	https://01.org/linux-acpi
+B:	https://bugzilla.kernel.org
 S:	Supported
 F:	drivers/acpi/acpi_video.c
 
@@ -2317,6 +2324,13 @@ S:	Maintained
 F:	include/uapi/linux/ax25.h
 F:	include/net/ax25.h
 F:	net/ax25/
+
+AXENTIA ASOC DRIVERS
+M:	Peter Rosin <peda@axentia.se>
+L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
+S:	Maintained
+F:	Documentation/devicetree/bindings/sound/axentia,*
+F:	sound/soc/atmel/tse850-pcm5142.c
 
 AZ6007 DVB DRIVER
 M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
@@ -5663,6 +5677,7 @@ HIBERNATION (aka Software Suspend, aka swsusp)
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-pm@vger.kernel.org
+B:	https://bugzilla.kernel.org
 S:	Supported
 F:	arch/x86/power/
 F:	drivers/base/power/
@@ -7084,6 +7099,7 @@ F:	drivers/scsi/53c700*
 LED SUBSYSTEM
 M:	Richard Purdie <rpurdie@rpsys.net>
 M:	Jacek Anaszewski <j.anaszewski@samsung.com>
+M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-leds@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/j.anaszewski/linux-leds.git
 S:	Maintained
@@ -8057,6 +8073,7 @@ F:	drivers/infiniband/hw/mlx4/
 F:	include/linux/mlx4/
 
 MELLANOX MLX5 core VPI driver
+M:	Saeed Mahameed <saeedm@mellanox.com>
 M:	Matan Barak <matanb@mellanox.com>
 M:	Leon Romanovsky <leonro@mellanox.com>
 L:	netdev@vger.kernel.org
@@ -9247,11 +9264,12 @@ S:	Maintained
 F:	drivers/pci/host/*layerscape*
 
 PCI DRIVER FOR IMX6
-M:	Richard Zhu <Richard.Zhu@freescale.com>
+M:	Richard Zhu <hongxing.zhu@nxp.com>
 M:	Lucas Stach <l.stach@pengutronix.de>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	Documentation/devicetree/bindings/pci/fsl,imx6q-pcie.txt
 F:	drivers/pci/host/*imx6*
 
 PCI DRIVER FOR TI KEYSTONE
@@ -9310,17 +9328,11 @@ F:	drivers/pci/host/pci-exynos.c
 
 PCI DRIVER FOR SYNOPSIS DESIGNWARE
 M:	Jingoo Han <jingoohan1@gmail.com>
-M:	Pratyush Anand <pratyush.anand@gmail.com>
-L:	linux-pci@vger.kernel.org
-S:	Maintained
-F:	drivers/pci/host/*designware*
-
-PCI DRIVER FOR SYNOPSYS PROTOTYPING DEVICE
-M:	Jose Abreu <Jose.Abreu@synopsys.com>
+M:	Joao Pinto <Joao.Pinto@synopsys.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/designware-pcie.txt
-F:	drivers/pci/host/pcie-designware-plat.c
+F:	drivers/pci/host/*designware*
 
 PCI DRIVER FOR GENERIC OF HOSTS
 M:	Will Deacon <will.deacon@arm.com>
@@ -9335,7 +9347,7 @@ PCI DRIVER FOR INTEL VOLUME MANAGEMENT DEVICE (VMD)
 M:	Keith Busch <keith.busch@intel.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
-F:	arch/x86/pci/vmd.c
+F:	drivers/pci/host/vmd.c
 
 PCIE DRIVER FOR ST SPEAR13XX
 M:	Pratyush Anand <pratyush.anand@gmail.com>
@@ -9622,6 +9634,7 @@ POWER MANAGEMENT CORE
 M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 L:	linux-pm@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm
+B:	https://bugzilla.kernel.org
 S:	Supported
 F:	drivers/base/power/
 F:	include/linux/pm.h
@@ -11611,6 +11624,7 @@ M:	"Rafael J. Wysocki" <rjw@rjwysocki.net>
 M:	Len Brown <len.brown@intel.com>
 M:	Pavel Machek <pavel@ucw.cz>
 L:	linux-pm@vger.kernel.org
+B:	https://bugzilla.kernel.org
 S:	Supported
 F:	Documentation/power/
 F:	arch/x86/kernel/acpi/

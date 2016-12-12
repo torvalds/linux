@@ -4121,7 +4121,6 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     struct iwl_mvm_internal_rxq_notif *notif,
 				     u32 size)
 {
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(notif_waitq);
 	u32 qmask = BIT(mvm->trans->num_rx_queues) - 1;
 	int ret;
 
@@ -4143,7 +4142,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 	}
 
 	if (notif->sync)
-		ret = wait_event_timeout(notif_waitq,
+		ret = wait_event_timeout(mvm->rx_sync_waitq,
 					 atomic_read(&mvm->queue_sync_counter) == 0,
 					 HZ);
 	WARN_ON_ONCE(!ret);

@@ -9,7 +9,6 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/export.h>
 
 .Linsb_align:	rsb	ip, ip, #4
 		cmp	ip, r2
@@ -122,4 +121,3 @@ ENTRY(__raw_readsb)
 
 		ldmfd	sp!, {r4 - r6, pc}
 ENDPROC(__raw_readsb)
-EXPORT_SYMBOL(__raw_readsb)

@@ -94,7 +94,7 @@ static struct acpi_device *to_acpi_dev(struct acpi_nfit_desc *acpi_desc)
 	return to_acpi_device(acpi_desc->dev);
 }
 
-static int xlat_status(void *buf, unsigned int cmd, u32 status)
+static int xlat_bus_status(void *buf, unsigned int cmd, u32 status)
 {
 	struct nd_cmd_clear_error *clear_err;
 	struct nd_cmd_ars_status *ars_status;
@@ -113,7 +113,7 @@ static int xlat_status(void *buf, unsigned int cmd, u32 status)
 		flags = ND_ARS_PERSISTENT | ND_ARS_VOLATILE;
 		if ((status >> 16 & flags) == 0)
 			return -ENOTTY;
-		break;
+		return 0;
 	case ND_CMD_ARS_START:
 		/* ARS is in progress */
 		if ((status & 0xffff) == NFIT_ARS_START_BUSY)
@@ -122,7 +122,7 @@ static int xlat_status(void *buf, unsigned int cmd, u32 status)
 		/* Command failed */
 		if (status & 0xffff)
 			return -EIO;
-		break;
+		return 0;
 	case ND_CMD_ARS_STATUS:
 		ars_status = buf;
 		/* Command failed */
@@ -146,7 +146,8 @@ static int xlat_status(void *buf, unsigned int cmd, u32 status)
 		 * then just continue with the returned results.
 		 */
 		if (status == NFIT_ARS_STATUS_INTR) {
-			if (ars_status->flags & NFIT_ARS_F_OVERFLOW)
+			if (ars_status->out_length >= 40 && (ars_status->flags
+						& NFIT_ARS_F_OVERFLOW))
 				return -ENOSPC;
 			return 0;
 		}
@@ -154,7 +155,7 @@ static int xlat_status(void *buf, unsigned int cmd, u32 status)
 		/* Unknown status */
 		if (status >> 16)
 			return -EIO;
-		break;
+		return 0;
 	case ND_CMD_CLEAR_ERROR:
 		clear_err = buf;
 		if (status & 0xffff)
@@ -163,7 +164,7 @@ static int xlat_status(void *buf, unsigned int cmd, u32 status)
 			return -EIO;
 		if (clear_err->length > clear_err->cleared)
 			return clear_err->cleared;
-		break;
+		return 0;
 	default:
 		break;
 	}
@@ -174,9 +175,18 @@ static int xlat_status(void *buf, unsigned int cmd, u32 status)
 	return 0;
 }
 
-static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
-		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
-		unsigned int buf_len, int *cmd_rc)
+static int xlat_status(struct nvdimm *nvdimm, void *buf, unsigned int cmd,
+		u32 status)
+{
+	if (!nvdimm)
+		return xlat_bus_status(buf, cmd, status);
+	if (status)
+		return -EIO;
+	return 0;
+}
+
+int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
+		unsigned int cmd, void *buf, unsigned int buf_len, int *cmd_rc)
 {
 	struct acpi_nfit_desc *acpi_desc = to_acpi_nfit_desc(nd_desc);
 	union acpi_object in_obj, in_buf, *out_obj;
@@ -298,7 +308,8 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 
 	for (i = 0, offset = 0; i < desc->out_num; i++) {
 		u32 out_size = nd_cmd_out_size(nvdimm, cmd, desc, i, buf,
-				(u32 *) out_obj->buffer.pointer);
+				(u32 *) out_obj->buffer.pointer,
+				out_obj->buffer.length - offset);
 
 		if (offset + out_size > out_obj->buffer.length) {
 			dev_dbg(dev, "%s:%s output object underflow cmd: %s field: %d\n",
@@ -333,7 +344,8 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 			 */
 			rc = buf_len - offset - in_buf.buffer.length;
 			if (cmd_rc)
-				*cmd_rc = xlat_status(buf, cmd, fw_status);
+				*cmd_rc = xlat_status(nvdimm, buf, cmd,
+						fw_status);
 		} else {
 			dev_err(dev, "%s:%s underrun cmd: %s buf_len: %d out_len: %d\n",
 					__func__, dimm_name, cmd_name, buf_len,
@@ -343,7 +355,7 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 	} else {
 		rc = 0;
 		if (cmd_rc)
-			*cmd_rc = xlat_status(buf, cmd, fw_status);
+			*cmd_rc = xlat_status(nvdimm, buf, cmd, fw_status);
 	}
 
  out:
@@ -351,6 +363,7 @@ static int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc,
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(acpi_nfit_ctl);
 
 static const char *spa_type_name(u16 type)
 {
@@ -2001,19 +2014,32 @@ static int ars_get_status(struct acpi_nfit_desc *acpi_desc)
 	return cmd_rc;
 }
 
-static int ars_status_process_records(struct nvdimm_bus *nvdimm_bus,
+static int ars_status_process_records(struct acpi_nfit_desc *acpi_desc,
 		struct nd_cmd_ars_status *ars_status)
 {
+	struct nvdimm_bus *nvdimm_bus = acpi_desc->nvdimm_bus;
 	int rc;
 	u32 i;
 
+	/*
+	 * First record starts at 44 byte offset from the start of the
+	 * payload.
+	 */
+	if (ars_status->out_length < 44)
+		return 0;
 	for (i = 0; i < ars_status->num_records; i++) {
+		/* only process full records */
+		if (ars_status->out_length
+				< 44 + sizeof(struct nd_ars_record) * (i + 1))
+			break;
 		rc = nvdimm_bus_add_poison(nvdimm_bus,
 				ars_status->records[i].err_address,
 				ars_status->records[i].length);
 		if (rc)
 			return rc;
 	}
+	if (i < ars_status->num_records)
+		dev_warn(acpi_desc->dev, "detected truncated ars results\n");
 
 	return 0;
 }
@@ -2266,8 +2292,7 @@ static int acpi_nfit_query_poison(struct acpi_nfit_desc *acpi_desc,
 	if (rc < 0 && rc != -ENOSPC)
 		return rc;
 
-	if (ars_status_process_records(acpi_desc->nvdimm_bus,
-				acpi_desc->ars_status))
+	if (ars_status_process_records(acpi_desc, acpi_desc->ars_status))
 		return -ENOMEM;
 
 	return 0;

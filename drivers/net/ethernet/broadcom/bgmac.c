@@ -307,6 +307,10 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_RX_CTL);
+
+	/* preserve ONLY bits 16-17 from current hardware value */
+	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
+
 	if (bgmac->feature_flags & BGMAC_FEAT_RX_MASK_SETUP) {
 		ctl &= ~BGMAC_DMA_RX_BL_MASK;
 		ctl |= BGMAC_DMA_RX_BL_128 << BGMAC_DMA_RX_BL_SHIFT;
@@ -317,7 +321,6 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 		ctl &= ~BGMAC_DMA_RX_PT_MASK;
 		ctl |= BGMAC_DMA_RX_PT_1 << BGMAC_DMA_RX_PT_SHIFT;
 	}
-	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
 	ctl |= BGMAC_DMA_RX_ENABLE;
 	ctl |= BGMAC_DMA_RX_PARITY_DISABLE;
 	ctl |= BGMAC_DMA_RX_OVERFLOW_CONT;
@@ -1046,9 +1049,9 @@ static void bgmac_enable(struct bgmac *bgmac)
 
 	mode = (bgmac_read(bgmac, BGMAC_DEV_STATUS) & BGMAC_DS_MM_MASK) >>
 		BGMAC_DS_MM_SHIFT;
-	if (!(bgmac->feature_flags & BGMAC_FEAT_CLKCTLST) || mode != 0)
+	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST || mode != 0)
 		bgmac_set(bgmac, BCMA_CLKCTLST, BCMA_CLKCTLST_FORCEHT);
-	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST && mode == 2)
+	if (!(bgmac->feature_flags & BGMAC_FEAT_CLKCTLST) && mode == 2)
 		bgmac_cco_ctl_maskset(bgmac, 1, ~0,
 				      BGMAC_CHIPCTL_1_RXC_DLL_BYPASS);
 
