@@ -692,13 +692,10 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 		return ret;
 
 	drm_connector_helper_add(connector, &connector_helper_funcs);
-	ret = drm_connector_register(connector);
-	if (ret < 0)
-		goto err_cleanup;
 
 	ret = shmob_drm_backlight_init(&sdev->connector);
 	if (ret < 0)
-		goto err_sysfs;
+		goto err_cleanup;
 
 	ret = drm_mode_connector_attach_encoder(connector, encoder);
 	if (ret < 0)
@@ -712,8 +709,6 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 
 err_backlight:
 	shmob_drm_backlight_exit(&sdev->connector);
-err_sysfs:
-	drm_connector_unregister(connector);
 err_cleanup:
 	drm_connector_cleanup(connector);
 	return ret;
