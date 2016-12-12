@@ -284,10 +284,8 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 
 	reg = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rc_dbi");
 	pp->dbi_base = devm_ioremap_resource(dev, reg);
-	if (IS_ERR(pp->dbi_base)) {
-		dev_err(dev, "cannot get rc_dbi base\n");
+	if (IS_ERR(pp->dbi_base))
 		return PTR_ERR(pp->dbi_base);
-	}
 
 	ret = hisi_add_pcie_port(hisi_pcie, pdev);
 	if (ret)
