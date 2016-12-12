@@ -1076,6 +1076,109 @@ static bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans)
 	return hw_rfkill;
 }
 
+struct iwl_causes_list {
+	u32 cause_num;
+	u32 mask_reg;
+	u8 addr;
+};
+
+static struct iwl_causes_list causes_list[] = {
+	{MSIX_FH_INT_CAUSES_D2S_CH0_NUM,	CSR_MSIX_FH_INT_MASK_AD, 0},
+	{MSIX_FH_INT_CAUSES_D2S_CH1_NUM,	CSR_MSIX_FH_INT_MASK_AD, 0x1},
+	{MSIX_FH_INT_CAUSES_S2D,		CSR_MSIX_FH_INT_MASK_AD, 0x3},
+	{MSIX_FH_INT_CAUSES_FH_ERR,		CSR_MSIX_FH_INT_MASK_AD, 0x5},
+	{MSIX_HW_INT_CAUSES_REG_ALIVE,		CSR_MSIX_HW_INT_MASK_AD, 0x10},
+	{MSIX_HW_INT_CAUSES_REG_WAKEUP,		CSR_MSIX_HW_INT_MASK_AD, 0x11},
+	{MSIX_HW_INT_CAUSES_REG_CT_KILL,	CSR_MSIX_HW_INT_MASK_AD, 0x16},
+	{MSIX_HW_INT_CAUSES_REG_RF_KILL,	CSR_MSIX_HW_INT_MASK_AD, 0x17},
+	{MSIX_HW_INT_CAUSES_REG_PERIODIC,	CSR_MSIX_HW_INT_MASK_AD, 0x18},
+	{MSIX_HW_INT_CAUSES_REG_SW_ERR,		CSR_MSIX_HW_INT_MASK_AD, 0x29},
+	{MSIX_HW_INT_CAUSES_REG_SCD,		CSR_MSIX_HW_INT_MASK_AD, 0x2A},
+	{MSIX_HW_INT_CAUSES_REG_FH_TX,		CSR_MSIX_HW_INT_MASK_AD, 0x2B},
+	{MSIX_HW_INT_CAUSES_REG_HW_ERR,		CSR_MSIX_HW_INT_MASK_AD, 0x2D},
+	{MSIX_HW_INT_CAUSES_REG_HAP,		CSR_MSIX_HW_INT_MASK_AD, 0x2E},
+};
+
+static void iwl_pcie_map_non_rx_causes(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
+	int val = trans_pcie->def_irq | MSIX_NON_AUTO_CLEAR_CAUSE;
+	int i;
+
+	/*
+	 * Access all non RX causes and map them to the default irq.
+	 * In case we are missing at least one interrupt vector,
+	 * the first interrupt vector will serve non-RX and FBQ causes.
+	 */
+	for (i = 0; i < ARRAY_SIZE(causes_list); i++) {
+		iwl_write8(trans, CSR_MSIX_IVAR(causes_list[i].addr), val);
+		iwl_clear_bit(trans, causes_list[i].mask_reg,
+			      causes_list[i].cause_num);
+	}
+}
+
+static void iwl_pcie_map_rx_causes(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	u32 offset =
+		trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS ? 1 : 0;
+	u32 val, idx;
+
+	/*
+	 * The first RX queue - fallback queue, which is designated for
+	 * management frame, command responses etc, is always mapped to the
+	 * first interrupt vector. The other RX queues are mapped to
+	 * the other (N - 2) interrupt vectors.
+	 */
+	val = BIT(MSIX_FH_INT_CAUSES_Q(0));
+	for (idx = 1; idx < trans->num_rx_queues; idx++) {
+		iwl_write8(trans, CSR_MSIX_RX_IVAR(idx),
+			   MSIX_FH_INT_CAUSES_Q(idx - offset));
+		val |= BIT(MSIX_FH_INT_CAUSES_Q(idx));
+	}
+	iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD, ~val);
+
+	val = MSIX_FH_INT_CAUSES_Q(0);
+	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX)
+		val |= MSIX_NON_AUTO_CLEAR_CAUSE;
+	iwl_write8(trans, CSR_MSIX_RX_IVAR(0), val);
+
+	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS)
+		iwl_write8(trans, CSR_MSIX_RX_IVAR(1), val);
+}
+
+static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
+{
+	struct iwl_trans *trans = trans_pcie->trans;
+
+	if (!trans_pcie->msix_enabled) {
+		if (trans->cfg->mq_rx_supported)
+			iwl_write_prph(trans, UREG_CHICK,
+				       UREG_CHICK_MSI_ENABLE);
+		return;
+	}
+
+	iwl_write_prph(trans, UREG_CHICK, UREG_CHICK_MSIX_ENABLE);
+
+	/*
+	 * Each cause from the causes list above and the RX causes is
+	 * represented as a byte in the IVAR table. The first nibble
+	 * represents the bound interrupt vector of the cause, the second
+	 * represents no auto clear for this cause. This will be set if its
+	 * interrupt vector is bound to serve other causes.
+	 */
+	iwl_pcie_map_rx_causes(trans);
+
+	iwl_pcie_map_non_rx_causes(trans);
+
+	trans_pcie->fh_init_mask =
+		~iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD);
+	trans_pcie->fh_mask = trans_pcie->fh_init_mask;
+	trans_pcie->hw_init_mask =
+		~iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD);
+	trans_pcie->hw_mask = trans_pcie->hw_init_mask;
+}
+
 static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -1403,109 +1506,6 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		*status = IWL_D3_STATUS_ALIVE;
 
 	return 0;
-}
-
-struct iwl_causes_list {
-	u32 cause_num;
-	u32 mask_reg;
-	u8 addr;
-};
-
-static struct iwl_causes_list causes_list[] = {
-	{MSIX_FH_INT_CAUSES_D2S_CH0_NUM,	CSR_MSIX_FH_INT_MASK_AD, 0},
-	{MSIX_FH_INT_CAUSES_D2S_CH1_NUM,	CSR_MSIX_FH_INT_MASK_AD, 0x1},
-	{MSIX_FH_INT_CAUSES_S2D,		CSR_MSIX_FH_INT_MASK_AD, 0x3},
-	{MSIX_FH_INT_CAUSES_FH_ERR,		CSR_MSIX_FH_INT_MASK_AD, 0x5},
-	{MSIX_HW_INT_CAUSES_REG_ALIVE,		CSR_MSIX_HW_INT_MASK_AD, 0x10},
-	{MSIX_HW_INT_CAUSES_REG_WAKEUP,		CSR_MSIX_HW_INT_MASK_AD, 0x11},
-	{MSIX_HW_INT_CAUSES_REG_CT_KILL,	CSR_MSIX_HW_INT_MASK_AD, 0x16},
-	{MSIX_HW_INT_CAUSES_REG_RF_KILL,	CSR_MSIX_HW_INT_MASK_AD, 0x17},
-	{MSIX_HW_INT_CAUSES_REG_PERIODIC,	CSR_MSIX_HW_INT_MASK_AD, 0x18},
-	{MSIX_HW_INT_CAUSES_REG_SW_ERR,		CSR_MSIX_HW_INT_MASK_AD, 0x29},
-	{MSIX_HW_INT_CAUSES_REG_SCD,		CSR_MSIX_HW_INT_MASK_AD, 0x2A},
-	{MSIX_HW_INT_CAUSES_REG_FH_TX,		CSR_MSIX_HW_INT_MASK_AD, 0x2B},
-	{MSIX_HW_INT_CAUSES_REG_HW_ERR,		CSR_MSIX_HW_INT_MASK_AD, 0x2D},
-	{MSIX_HW_INT_CAUSES_REG_HAP,		CSR_MSIX_HW_INT_MASK_AD, 0x2E},
-};
-
-static void iwl_pcie_map_non_rx_causes(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
-	int val = trans_pcie->def_irq | MSIX_NON_AUTO_CLEAR_CAUSE;
-	int i;
-
-	/*
-	 * Access all non RX causes and map them to the default irq.
-	 * In case we are missing at least one interrupt vector,
-	 * the first interrupt vector will serve non-RX and FBQ causes.
-	 */
-	for (i = 0; i < ARRAY_SIZE(causes_list); i++) {
-		iwl_write8(trans, CSR_MSIX_IVAR(causes_list[i].addr), val);
-		iwl_clear_bit(trans, causes_list[i].mask_reg,
-			      causes_list[i].cause_num);
-	}
-}
-
-static void iwl_pcie_map_rx_causes(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u32 offset =
-		trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS ? 1 : 0;
-	u32 val, idx;
-
-	/*
-	 * The first RX queue - fallback queue, which is designated for
-	 * management frame, command responses etc, is always mapped to the
-	 * first interrupt vector. The other RX queues are mapped to
-	 * the other (N - 2) interrupt vectors.
-	 */
-	val = BIT(MSIX_FH_INT_CAUSES_Q(0));
-	for (idx = 1; idx < trans->num_rx_queues; idx++) {
-		iwl_write8(trans, CSR_MSIX_RX_IVAR(idx),
-			   MSIX_FH_INT_CAUSES_Q(idx - offset));
-		val |= BIT(MSIX_FH_INT_CAUSES_Q(idx));
-	}
-	iwl_write32(trans, CSR_MSIX_FH_INT_MASK_AD, ~val);
-
-	val = MSIX_FH_INT_CAUSES_Q(0);
-	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX)
-		val |= MSIX_NON_AUTO_CLEAR_CAUSE;
-	iwl_write8(trans, CSR_MSIX_RX_IVAR(0), val);
-
-	if (trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS)
-		iwl_write8(trans, CSR_MSIX_RX_IVAR(1), val);
-}
-
-static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
-{
-	struct iwl_trans *trans = trans_pcie->trans;
-
-	if (!trans_pcie->msix_enabled) {
-		if (trans->cfg->mq_rx_supported)
-			iwl_write_prph(trans, UREG_CHICK,
-				       UREG_CHICK_MSI_ENABLE);
-		return;
-	}
-
-	iwl_write_prph(trans, UREG_CHICK, UREG_CHICK_MSIX_ENABLE);
-
-	/*
-	 * Each cause from the causes list above and the RX causes is
-	 * represented as a byte in the IVAR table. The first nibble
-	 * represents the bound interrupt vector of the cause, the second
-	 * represents no auto clear for this cause. This will be set if its
-	 * interrupt vector is bound to serve other causes.
-	 */
-	iwl_pcie_map_rx_causes(trans);
-
-	iwl_pcie_map_non_rx_causes(trans);
-
-	trans_pcie->fh_init_mask =
-		~iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD);
-	trans_pcie->fh_mask = trans_pcie->fh_init_mask;
-	trans_pcie->hw_init_mask =
-		~iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD);
-	trans_pcie->hw_mask = trans_pcie->hw_init_mask;
 }
 
 static void iwl_pcie_set_interrupt_capa(struct pci_dev *pdev,
