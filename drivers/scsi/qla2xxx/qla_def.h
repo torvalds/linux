@@ -2747,7 +2747,7 @@ struct qla_msix_entry {
 	int have_irq;
 	uint32_t vector;
 	uint16_t entry;
-	struct rsp_que *rsp;
+	void *handle;
 	struct irq_affinity_notify irq_notify;
 	int cpuid;
 };

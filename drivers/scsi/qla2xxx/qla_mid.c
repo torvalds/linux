@@ -542,7 +542,7 @@ qla25xx_free_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	if (rsp->msix && rsp->msix->have_irq) {
 		free_irq(rsp->msix->vector, rsp);
 		rsp->msix->have_irq = 0;
-		rsp->msix->rsp = NULL;
+		rsp->msix->handle = NULL;
 	}
 	dma_free_coherent(&ha->pdev->dev, (rsp->length + 1) *
 		sizeof(response_t), rsp->ring, rsp->dma);

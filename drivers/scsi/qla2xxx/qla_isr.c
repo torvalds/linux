@@ -3025,52 +3025,17 @@ static struct qla_init_msix_entry qla83xx_msix_entries[3] = {
 	{ "qla2xxx (atio_q)", qla83xx_msix_atio_q },
 };
 
-static void
-qla24xx_disable_msix(struct qla_hw_data *ha)
-{
-	int i;
-	struct qla_msix_entry *qentry;
-	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
-
-	for (i = 0; i < ha->msix_count; i++) {
-		qentry = &ha->msix_entries[i];
-		if (qentry->have_irq) {
-			/* un-register irq cpu affinity notification */
-			irq_set_affinity_notifier(qentry->vector, NULL);
-			free_irq(qentry->vector, qentry->rsp);
-		}
-	}
-	pci_disable_msix(ha->pdev);
-	kfree(ha->msix_entries);
-	ha->msix_entries = NULL;
-	ha->flags.msix_enabled = 0;
-	ql_dbg(ql_dbg_init, vha, 0x0042,
-	    "Disabled the MSI.\n");
-}
-
 static int
 qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 {
 #define MIN_MSIX_COUNT	2
 #define ATIO_VECTOR	2
 	int i, ret;
-	struct msix_entry *entries;
 	struct qla_msix_entry *qentry;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
-	entries = kzalloc(sizeof(struct msix_entry) * ha->msix_count,
-			GFP_KERNEL);
-	if (!entries) {
-		ql_log(ql_log_warn, vha, 0x00bc,
-		    "Failed to allocate memory for msix_entry.\n");
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < ha->msix_count; i++)
-		entries[i].entry = i;
-
-	ret = pci_enable_msix_range(ha->pdev,
-				    entries, MIN_MSIX_COUNT, ha->msix_count);
+	ret = pci_alloc_irq_vectors(ha->pdev, MIN_MSIX_COUNT, ha->msix_count,
+				    PCI_IRQ_MSIX);
 	if (ret < 0) {
 		ql_log(ql_log_fatal, vha, 0x00c7,
 		    "MSI-X: Failed to enable support, "
@@ -3097,10 +3062,10 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 
 	for (i = 0; i < ha->msix_count; i++) {
 		qentry = &ha->msix_entries[i];
-		qentry->vector = entries[i].vector;
-		qentry->entry = entries[i].entry;
+		qentry->vector = pci_irq_vector(ha->pdev, i);
+		qentry->entry = i;
 		qentry->have_irq = 0;
-		qentry->rsp = NULL;
+		qentry->handle = NULL;
 		qentry->irq_notify.notify  = qla_irq_affinity_notify;
 		qentry->irq_notify.release = qla_irq_affinity_release;
 		qentry->cpuid = -1;
@@ -3109,7 +3074,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	/* Enable MSI-X vectors for the base queue */
 	for (i = 0; i < 2; i++) {
 		qentry = &ha->msix_entries[i];
-		qentry->rsp = rsp;
+		qentry->handle = rsp;
 		rsp->msix = qentry;
 		if (IS_P3P_TYPE(ha))
 			ret = request_irq(qentry->vector,
@@ -3142,7 +3107,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 	 */
 	if (QLA_TGT_MODE_ENABLED() && IS_ATIO_MSIX_CAPABLE(ha)) {
 		qentry = &ha->msix_entries[ATIO_VECTOR];
-		qentry->rsp = rsp;
+		qentry->handle = rsp;
 		rsp->msix = qentry;
 		ret = request_irq(qentry->vector,
 			qla83xx_msix_entries[ATIO_VECTOR].handler,
@@ -3155,7 +3120,7 @@ msix_register_fail:
 		ql_log(ql_log_fatal, vha, 0x00cb,
 		    "MSI-X: unable to register handler -- %x/%d.\n",
 		    qentry->vector, ret);
-		qla24xx_disable_msix(ha);
+		qla2x00_free_irqs(vha);
 		ha->mqenable = 0;
 		goto msix_out;
 	}
@@ -3177,7 +3142,6 @@ msix_register_fail:
 	    ha->mqiobase, ha->max_rsp_queues, ha->max_req_queues);
 
 msix_out:
-	kfree(entries);
 	return ret;
 }
 
@@ -3230,7 +3194,7 @@ skip_msix:
 	    !IS_QLA27XX(ha))
 		goto skip_msi;
 
-	ret = pci_enable_msi(ha->pdev);
+	ret = pci_alloc_irq_vectors(ha->pdev, 1, 1, PCI_IRQ_MSI);
 	if (!ret) {
 		ql_dbg(ql_dbg_init, vha, 0x0038,
 		    "MSI: Enabled.\n");
@@ -3275,6 +3239,8 @@ qla2x00_free_irqs(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct rsp_que *rsp;
+	struct qla_msix_entry *qentry;
+	int i;
 
 	/*
 	 * We need to check that ha->rsp_q_map is valid in case we are called
@@ -3284,13 +3250,24 @@ qla2x00_free_irqs(scsi_qla_host_t *vha)
 		return;
 	rsp = ha->rsp_q_map[0];
 
-	if (ha->flags.msix_enabled)
-		qla24xx_disable_msix(ha);
-	else if (ha->flags.msi_enabled) {
-		free_irq(ha->pdev->irq, rsp);
-		pci_disable_msi(ha->pdev);
-	} else
-		free_irq(ha->pdev->irq, rsp);
+	if (ha->flags.msix_enabled) {
+		for (i = 0; i < ha->msix_count; i++) {
+			qentry = &ha->msix_entries[i];
+			if (qentry->have_irq) {
+				irq_set_affinity_notifier(qentry->vector, NULL);
+				free_irq(pci_irq_vector(ha->pdev, i), qentry->handle);
+			}
+		}
+		kfree(ha->msix_entries);
+		ha->msix_entries = NULL;
+		ha->flags.msix_enabled = 0;
+		ql_dbg(ql_dbg_init, vha, 0x0042,
+			"Disabled MSI-X.\n");
+	} else {
+		free_irq(pci_irq_vector(ha->pdev, 0), rsp);
+	}
+
+	pci_free_irq_vectors(ha->pdev);
 }
 
 
@@ -3310,7 +3287,7 @@ int qla25xx_request_irq(struct rsp_que *rsp)
 		return ret;
 	}
 	msix->have_irq = 1;
-	msix->rsp = rsp;
+	msix->handle = rsp;
 	return ret;
 }
 
@@ -3323,11 +3300,12 @@ static void qla_irq_affinity_notify(struct irq_affinity_notify *notify,
 		container_of(notify, struct qla_msix_entry, irq_notify);
 	struct qla_hw_data *ha;
 	struct scsi_qla_host *base_vha;
+	struct rsp_que *rsp = e->handle;
 
 	/* user is recommended to set mask to just 1 cpu */
 	e->cpuid = cpumask_first(mask);
 
-	ha = e->rsp->hw;
+	ha = rsp->hw;
 	base_vha = pci_get_drvdata(ha->pdev);
 
 	ql_dbg(ql_dbg_init, base_vha, 0xffff,
@@ -3351,7 +3329,8 @@ static void qla_irq_affinity_release(struct kref *ref)
 		container_of(ref, struct irq_affinity_notify, kref);
 	struct qla_msix_entry *e =
 		container_of(notify, struct qla_msix_entry, irq_notify);
-	struct scsi_qla_host *base_vha = pci_get_drvdata(e->rsp->hw->pdev);
+	struct rsp_que *rsp = e->handle;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(rsp->hw->pdev);
 
 	ql_dbg(ql_dbg_init, base_vha, 0xffff,
 	    "%s: host%ld: vector %d cpu %d \n", __func__,
