@@ -37,7 +37,7 @@ The kernel is written using GNU C and the GNU toolchain.  While it
 adheres to the ISO C89 standard, it uses a number of extensions that are
 not featured in the standard.  The kernel is a freestanding C
 environment, with no reliance on the standard C library, so some
-portions of the C standard are not supported.  Arbitrary long long
+portions of the C standard are not supported.  Arbitrary long 
 divisions and floating point are not allowed.  It can sometimes be
 difficult to understand the assumptions the kernel has on the toolchain
 and the extensions that it uses, and unfortunately there is no
