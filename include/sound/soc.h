@@ -1029,12 +1029,12 @@ struct snd_soc_dai_link {
 	const struct snd_soc_ops *ops;
 	const struct snd_soc_compr_ops *compr_ops;
 
-	/* For unidirectional dai links */
-	bool playback_only;
-	bool capture_only;
-
 	/* Mark this pcm with non atomic ops */
 	bool nonatomic;
+
+	/* For unidirectional dai links */
+	unsigned int playback_only:1;
+	unsigned int capture_only:1;
 
 	/* Keep DAI active over suspend */
 	unsigned int ignore_suspend:1;
@@ -1206,14 +1206,11 @@ struct snd_soc_pcm_runtime {
 	enum snd_soc_pcm_subclass pcm_subclass;
 	struct snd_pcm_ops ops;
 
-	unsigned int dev_registered:1;
-
 	/* Dynamic PCM BE runtime data */
 	struct snd_soc_dpcm_runtime dpcm[2];
 	int fe_compr;
 
 	long pmdown_time;
-	unsigned char pop_wait:1;
 
 	/* runtime devices */
 	struct snd_pcm *pcm;
@@ -1234,6 +1231,10 @@ struct snd_soc_pcm_runtime {
 
 	unsigned int num; /* 0-based and monotonic increasing */
 	struct list_head list; /* rtd list of the soc card */
+
+	/* bit field */
+	unsigned int dev_registered:1;
+	unsigned int pop_wait:1;
 };
 
 /* mixer control */
