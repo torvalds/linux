@@ -38,6 +38,7 @@
 #include <linux/mutex.h>
 #include <linux/acpi.h>
 #include <linux/of.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/i2c/i2c-hid.h>
 
@@ -769,11 +770,11 @@ static int i2c_hid_start(struct hid_device *hid)
 	i2c_hid_find_max_report(hid, HID_FEATURE_REPORT, &bufsize);
 
 	if (bufsize > ihid->bufsize) {
-		disable_irq(ihid->irq);
+		disable_irq(client->irq);
 		i2c_hid_free_buffers(ihid);
 
 		ret = i2c_hid_alloc_buffers(ihid, bufsize);
-		enable_irq(ihid->irq);
+		enable_irq(client->irq);
 
 		if (ret)
 			return ret;
