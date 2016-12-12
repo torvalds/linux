@@ -346,7 +346,6 @@ static int encx24j600_receive_packet(struct encx24j600_priv *priv,
 	/* Maintain stats */
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += rsv->len;
-	priv->next_packet = rsv->next_packet;
 
 	netif_rx(skb);
 
@@ -382,6 +381,8 @@ static void encx24j600_rx_packets(struct encx24j600_priv *priv, u8 packet_count)
 		} else {
 			encx24j600_receive_packet(priv, &rsv);
 		}
+
+		priv->next_packet = rsv.next_packet;
 
 		newrxtail = priv->next_packet - 2;
 		if (newrxtail == ENC_RX_BUF_START)
