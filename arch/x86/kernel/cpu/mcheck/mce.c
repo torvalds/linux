@@ -43,6 +43,7 @@
 #include <linux/export.h>
 #include <linux/jump_label.h>
 
+#include <asm/intel-family.h>
 #include <asm/processor.h>
 #include <asm/traps.h>
 #include <asm/tlbflush.h>
@@ -135,6 +136,9 @@ void mce_setup(struct mce *m)
 	m->socketid = cpu_data(m->extcpu).phys_proc_id;
 	m->apicid = cpu_data(m->extcpu).initial_apicid;
 	rdmsrl(MSR_IA32_MCG_CAP, m->mcgcap);
+
+	if (this_cpu_has(X86_FEATURE_INTEL_PPIN))
+		rdmsrl(MSR_PPIN, m->ppin);
 }
 
 DEFINE_PER_CPU(struct mce, injectm);
@@ -207,8 +211,12 @@ EXPORT_SYMBOL_GPL(mce_inject_log);
 
 static struct notifier_block mce_srao_nb;
 
+static atomic_t num_notifiers;
+
 void mce_register_decode_chain(struct notifier_block *nb)
 {
+	atomic_inc(&num_notifiers);
+
 	/* Ensure SRAO notifier has the highest priority in the decode chain. */
 	if (nb != &mce_srao_nb && nb->priority == INT_MAX)
 		nb->priority -= 1;
@@ -219,6 +227,8 @@ EXPORT_SYMBOL_GPL(mce_register_decode_chain);
 
 void mce_unregister_decode_chain(struct notifier_block *nb)
 {
+	atomic_dec(&num_notifiers);
+
 	atomic_notifier_chain_unregister(&x86_mce_decoder_chain, nb);
 }
 EXPORT_SYMBOL_GPL(mce_unregister_decode_chain);
@@ -270,17 +280,17 @@ struct mca_msr_regs msr_ops = {
 	.misc	= misc_reg
 };
 
-static void print_mce(struct mce *m)
+static void __print_mce(struct mce *m)
 {
-	int ret = 0;
-
-	pr_emerg(HW_ERR "CPU %d: Machine Check Exception: %Lx Bank %d: %016Lx\n",
-	       m->extcpu, m->mcgstatus, m->bank, m->status);
+	pr_emerg(HW_ERR "CPU %d: Machine Check%s: %Lx Bank %d: %016Lx\n",
+		 m->extcpu,
+		 (m->mcgstatus & MCG_STATUS_MCIP ? " Exception" : ""),
+		 m->mcgstatus, m->bank, m->status);
 
 	if (m->ip) {
 		pr_emerg(HW_ERR "RIP%s %02x:<%016Lx> ",
 			!(m->mcgstatus & MCG_STATUS_EIPV) ? " !INEXACT!" : "",
-				m->cs, m->ip);
+			m->cs, m->ip);
 
 		if (m->cs == __KERNEL_CS)
 			print_symbol("{%s}", m->ip);
@@ -308,6 +318,13 @@ static void print_mce(struct mce *m)
 	pr_emerg(HW_ERR "PROCESSOR %u:%x TIME %llu SOCKET %u APIC %x microcode %x\n",
 		m->cpuvendor, m->cpuid, m->time, m->socketid, m->apicid,
 		cpu_data(m->extcpu).microcode);
+}
+
+static void print_mce(struct mce *m)
+{
+	int ret = 0;
+
+	__print_mce(m);
 
 	/*
 	 * Print out human-readable details about the MCE error,
@@ -569,6 +586,32 @@ static struct notifier_block mce_srao_nb = {
 	.priority = INT_MAX,
 };
 
+static int mce_default_notifier(struct notifier_block *nb, unsigned long val,
+				void *data)
+{
+	struct mce *m = (struct mce *)data;
+
+	if (!m)
+		return NOTIFY_DONE;
+
+	/*
+	 * Run the default notifier if we have only the SRAO
+	 * notifier and us registered.
+	 */
+	if (atomic_read(&num_notifiers) > 2)
+		return NOTIFY_DONE;
+
+	__print_mce(m);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block mce_default_nb = {
+	.notifier_call	= mce_default_notifier,
+	/* lowest prio, we want it to run last. */
+	.priority	= 0,
+};
+
 /*
  * Read ADDR and MISC registers.
  */
@@ -667,6 +710,15 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 
 	mce_gather_info(&m, NULL);
 
+	/*
+	 * m.tsc was set in mce_setup(). Clear it if not requested.
+	 *
+	 * FIXME: Propagate @flags to mce_gather_info/mce_setup() to avoid
+	 *	  that dance.
+	 */
+	if (!(flags & MCP_TIMESTAMP))
+		m.tsc = 0;
+
 	for (i = 0; i < mca_cfg.banks; i++) {
 		if (!mce_banks[i].ctl || !test_bit(i, *b))
 			continue;
@@ -674,13 +726,11 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		m.misc = 0;
 		m.addr = 0;
 		m.bank = i;
-		m.tsc = 0;
 
 		barrier();
 		m.status = mce_rdmsrl(msr_ops.status(i));
 		if (!(m.status & MCI_STATUS_VAL))
 			continue;
-
 
 		/*
 		 * Uncorrected or signalled events are handled by the exception
@@ -695,9 +745,6 @@ bool machine_check_poll(enum mcp_flags flags, mce_banks_t *b)
 		error_seen = true;
 
 		mce_read_aux(&m, i);
-
-		if (!(flags & MCP_TIMESTAMP))
-			m.tsc = 0;
 
 		severity = mce_severity(&m, mca_cfg.tolerant, NULL, false);
 
@@ -1355,7 +1402,7 @@ static void mce_timer_fn(unsigned long data)
 	iv = __this_cpu_read(mce_next_interval);
 
 	if (mce_available(this_cpu_ptr(&cpu_info))) {
-		machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_poll_banks));
+		machine_check_poll(0, this_cpu_ptr(&mce_poll_banks));
 
 		if (mce_intel_cmci_poll()) {
 			iv = mce_adjust_timer(iv);
@@ -2138,6 +2185,7 @@ int __init mcheck_init(void)
 {
 	mcheck_intel_therm_init();
 	mce_register_decode_chain(&mce_srao_nb);
+	mce_register_decode_chain(&mce_default_nb);
 	mcheck_vendor_init_severity();
 
 	INIT_WORK(&mce_work, mce_process_work);
