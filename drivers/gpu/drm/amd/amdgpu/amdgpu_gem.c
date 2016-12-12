@@ -471,12 +471,15 @@ out:
 
 static int amdgpu_gem_va_check(void *param, struct amdgpu_bo *bo)
 {
-	unsigned domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
-
 	/* if anything is swapped out don't swap it in here,
 	   just abort and wait for the next CS */
+	if (!amdgpu_bo_gpu_accessible(bo))
+		return -ERESTARTSYS;
 
-	return domain == AMDGPU_GEM_DOMAIN_CPU ? -ERESTARTSYS : 0;
+	if (bo->shadow && !amdgpu_bo_gpu_accessible(bo->shadow))
+		return -ERESTARTSYS;
+
+	return 0;
 }
 
 /**
