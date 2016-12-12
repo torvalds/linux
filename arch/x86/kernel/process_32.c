@@ -231,11 +231,10 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
-	fpu_switch_t fpu_switch;
 
 	/* never put a printk in __switch_to... printk() calls wake_up*() indirectly */
 
-	fpu_switch = switch_fpu_prepare(prev_fpu, next_fpu, cpu);
+	switch_fpu_prepare(prev_fpu, cpu);
 
 	/*
 	 * Save away %gs. No need to save %fs, as it was saved on the
@@ -294,7 +293,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	if (prev->gs | next->gs)
 		lazy_load_gs(next->gs);
 
-	switch_fpu_finish(next_fpu, fpu_switch);
+	switch_fpu_finish(next_fpu, cpu);
 
 	this_cpu_write(current_task, next_p);
 

@@ -103,8 +103,6 @@ struct pv_cpu_ops {
 	unsigned long (*get_debugreg)(int regno);
 	void (*set_debugreg)(int regno, unsigned long value);
 
-	void (*clts)(void);
-
 	unsigned long (*read_cr0)(void);
 	void (*write_cr0)(unsigned long);
 

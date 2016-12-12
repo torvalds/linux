@@ -1079,12 +1079,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nopku		[X86] Disable Memory Protection Keys CPU feature found
 			in some Intel CPUs.
 
-	eagerfpu=	[X86]
-			on	enable eager fpu restore
-			off	disable eager fpu restore
-			auto	selects the default scheme, which automatically
-				enables eagerfpu restore for xsaveopt.
-
 	module.async_probe [KNL]
 			Enable asynchronous probe on this module.
 

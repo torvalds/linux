@@ -41,11 +41,6 @@ static inline void set_debugreg(unsigned long val, int reg)
 	PVOP_VCALL2(pv_cpu_ops.set_debugreg, reg, val);
 }
 
-static inline void clts(void)
-{
-	PVOP_VCALL0(pv_cpu_ops.clts);
-}
-
 static inline unsigned long read_cr0(void)
 {
 	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr0);

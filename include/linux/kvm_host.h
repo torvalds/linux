@@ -224,7 +224,6 @@ struct kvm_vcpu {
 
 	int fpu_active;
 	int guest_fpu_loaded, guest_xcr0_loaded;
-	unsigned char fpu_counter;
 	struct swait_queue_head wq;
 	struct pid *pid;
 	int sigset_active;

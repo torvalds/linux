@@ -892,15 +892,6 @@ int arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
 	 */
 	if (!boot_cpu_has(X86_FEATURE_OSPKE))
 		return -EINVAL;
-	/*
-	 * For most XSAVE components, this would be an arduous task:
-	 * brining fpstate up to date with fpregs, updating fpstate,
-	 * then re-populating fpregs.  But, for components that are
-	 * never lazily managed, we can just access the fpregs
-	 * directly.  PKRU is never managed lazily, so we can just
-	 * manipulate it directly.  Make sure it stays that way.
-	 */
-	WARN_ON_ONCE(!use_eager_fpu());
 
 	/* Set the bits we need in PKRU:  */
 	if (init_val & PKEY_DISABLE_ACCESS)
