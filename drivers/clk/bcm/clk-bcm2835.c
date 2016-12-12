@@ -1029,7 +1029,7 @@ static unsigned long bcm2835_clock_choose_div_and_prate(struct clk_hw *hw,
 	struct bcm2835_clock *clock = bcm2835_clock_from_hw(hw);
 	struct bcm2835_cprman *cprman = clock->cprman;
 	const struct bcm2835_clock_data *data = clock->data;
-	unsigned long best_rate;
+	unsigned long best_rate = 0;
 	u32 curdiv, mindiv, maxdiv;
 	struct clk_hw *parent;
 
