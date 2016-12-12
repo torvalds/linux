@@ -463,7 +463,8 @@ config SPI_ORION
 	tristate "Orion SPI master"
 	depends on PLAT_ORION || ARCH_MVEBU || COMPILE_TEST
 	help
-	  This enables using the SPI master controller on the Orion chips.
+	  This enables using the SPI master controller on the Orion
+	  and MVEBU chips.
 
 config SPI_PIC32
 	tristate "Microchip PIC32 series SPI"
@@ -565,7 +566,7 @@ config SPI_S3C24XX_FIQ
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
-	depends on (PLAT_SAMSUNG || ARCH_EXYNOS)
+	depends on (PLAT_SAMSUNG || ARCH_EXYNOS || COMPILE_TEST)
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
 
