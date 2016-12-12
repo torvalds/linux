@@ -136,6 +136,8 @@ static int maxim_thermocouple_read(struct maxim_thermocouple_data *data,
 		ret = spi_read(data->spi, (void *)&buf32, storage_bytes);
 		*val = be32_to_cpu(buf32);
 		break;
+	default:
+		ret = -EINVAL;
 	}
 
 	if (ret)

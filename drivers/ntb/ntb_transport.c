@@ -257,7 +257,7 @@ enum {
 #define NTB_QP_DEF_NUM_ENTRIES	100
 #define NTB_LINK_DOWN_TIMEOUT	10
 #define DMA_RETRIES		20
-#define DMA_OUT_RESOURCE_TO	50
+#define DMA_OUT_RESOURCE_TO	msecs_to_jiffies(50)
 
 static void ntb_transport_rxc_db(unsigned long data);
 static const struct ntb_ctx_ops ntb_transport_ops;

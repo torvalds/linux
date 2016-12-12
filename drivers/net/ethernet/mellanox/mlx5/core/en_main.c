@@ -759,6 +759,7 @@ static int mlx5e_open_rq(struct mlx5e_channel *c,
 	if (err)
 		goto err_destroy_rq;
 
+	set_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
 	err = mlx5e_modify_rq_state(rq, MLX5_RQC_STATE_RST, MLX5_RQC_STATE_RDY);
 	if (err)
 		goto err_disable_rq;
@@ -773,6 +774,7 @@ static int mlx5e_open_rq(struct mlx5e_channel *c,
 	return 0;
 
 err_disable_rq:
+	clear_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
 	mlx5e_disable_rq(rq);
 err_destroy_rq:
 	mlx5e_destroy_rq(rq);
@@ -782,7 +784,7 @@ err_destroy_rq:
 
 static void mlx5e_close_rq(struct mlx5e_rq *rq)
 {
-	set_bit(MLX5E_RQ_STATE_FLUSH, &rq->state);
+	clear_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
 	napi_synchronize(&rq->channel->napi); /* prevent mlx5e_post_rx_wqes */
 	cancel_work_sync(&rq->am.work);
 
@@ -1006,7 +1008,6 @@ static int mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 	MLX5_SET(sqc,  sqc, min_wqe_inline_mode, sq->min_inline_mode);
 	MLX5_SET(sqc,  sqc, state,		MLX5_SQC_STATE_RST);
 	MLX5_SET(sqc,  sqc, tis_lst_sz, param->type == MLX5E_SQ_ICO ? 0 : 1);
-	MLX5_SET(sqc,  sqc, flush_in_error_en,	1);
 
 	MLX5_SET(wq,   wq, wq_type,       MLX5_WQ_TYPE_CYCLIC);
 	MLX5_SET(wq,   wq, uar_page,      sq->uar.index);
@@ -1083,6 +1084,7 @@ static int mlx5e_open_sq(struct mlx5e_channel *c,
 	if (err)
 		goto err_destroy_sq;
 
+	set_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	err = mlx5e_modify_sq(sq, MLX5_SQC_STATE_RST, MLX5_SQC_STATE_RDY,
 			      false, 0);
 	if (err)
@@ -1096,6 +1098,7 @@ static int mlx5e_open_sq(struct mlx5e_channel *c,
 	return 0;
 
 err_disable_sq:
+	clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	mlx5e_disable_sq(sq);
 err_destroy_sq:
 	mlx5e_destroy_sq(sq);
@@ -1112,7 +1115,7 @@ static inline void netif_tx_disable_queue(struct netdev_queue *txq)
 
 static void mlx5e_close_sq(struct mlx5e_sq *sq)
 {
-	set_bit(MLX5E_SQ_STATE_FLUSH, &sq->state);
+	clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 	/* prevent netif_tx_wake_queue */
 	napi_synchronize(&sq->channel->napi);
 
@@ -1445,6 +1448,7 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	c->netdev   = priv->netdev;
 	c->mkey_be  = cpu_to_be32(priv->mdev->mlx5e_res.mkey.key);
 	c->num_tc   = priv->params.num_tc;
+	c->xdp      = !!priv->xdp_prog;
 
 	if (priv->params.rx_am_enabled)
 		rx_cq_profile = mlx5e_am_get_def_profile(priv->params.rx_cq_period_mode);
@@ -1468,6 +1472,12 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 	if (err)
 		goto err_close_tx_cqs;
 
+	/* XDP SQ CQ params are same as normal TXQ sq CQ params */
+	err = c->xdp ? mlx5e_open_cq(c, &cparam->tx_cq, &c->xdp_sq.cq,
+				     priv->params.tx_cq_moderation) : 0;
+	if (err)
+		goto err_close_rx_cq;
+
 	napi_enable(&c->napi);
 
 	err = mlx5e_open_sq(c, 0, &cparam->icosq, &c->icosq);
@@ -1488,21 +1498,10 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 		}
 	}
 
-	if (priv->xdp_prog) {
-		/* XDP SQ CQ params are same as normal TXQ sq CQ params */
-		err = mlx5e_open_cq(c, &cparam->tx_cq, &c->xdp_sq.cq,
-				    priv->params.tx_cq_moderation);
-		if (err)
-			goto err_close_sqs;
+	err = c->xdp ? mlx5e_open_sq(c, 0, &cparam->xdp_sq, &c->xdp_sq) : 0;
+	if (err)
+		goto err_close_sqs;
 
-		err = mlx5e_open_sq(c, 0, &cparam->xdp_sq, &c->xdp_sq);
-		if (err) {
-			mlx5e_close_cq(&c->xdp_sq.cq);
-			goto err_close_sqs;
-		}
-	}
-
-	c->xdp = !!priv->xdp_prog;
 	err = mlx5e_open_rq(c, &cparam->rq, &c->rq);
 	if (err)
 		goto err_close_xdp_sq;
@@ -1512,7 +1511,8 @@ static int mlx5e_open_channel(struct mlx5e_priv *priv, int ix,
 
 	return 0;
 err_close_xdp_sq:
-	mlx5e_close_sq(&c->xdp_sq);
+	if (c->xdp)
+		mlx5e_close_sq(&c->xdp_sq);
 
 err_close_sqs:
 	mlx5e_close_sqs(c);
@@ -1522,6 +1522,10 @@ err_close_icosq:
 
 err_disable_napi:
 	napi_disable(&c->napi);
+	if (c->xdp)
+		mlx5e_close_cq(&c->xdp_sq.cq);
+
+err_close_rx_cq:
 	mlx5e_close_cq(&c->rq.cq);
 
 err_close_tx_cqs:
@@ -3091,7 +3095,7 @@ static void mlx5e_tx_timeout(struct net_device *dev)
 		if (!netif_xmit_stopped(netdev_get_tx_queue(dev, i)))
 			continue;
 		sched_work = true;
-		set_bit(MLX5E_SQ_STATE_FLUSH, &sq->state);
+		clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
 		netdev_err(dev, "TX timeout on queue: %d, SQ: 0x%x, CQ: 0x%x, SQ Cons: 0x%x SQ Prod: 0x%x\n",
 			   i, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc);
 	}
@@ -3146,13 +3150,13 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 	for (i = 0; i < priv->params.num_channels; i++) {
 		struct mlx5e_channel *c = priv->channel[i];
 
-		set_bit(MLX5E_RQ_STATE_FLUSH, &c->rq.state);
+		clear_bit(MLX5E_RQ_STATE_ENABLED, &c->rq.state);
 		napi_synchronize(&c->napi);
 		/* prevent mlx5e_poll_rx_cq from accessing rq->xdp_prog */
 
 		old_prog = xchg(&c->rq.xdp_prog, prog);
 
-		clear_bit(MLX5E_RQ_STATE_FLUSH, &c->rq.state);
+		set_bit(MLX5E_RQ_STATE_ENABLED, &c->rq.state);
 		/* napi_schedule in case we have missed anything */
 		set_bit(MLX5E_CHANNEL_NAPI_SCHED, &c->flags);
 		napi_schedule(&c->napi);

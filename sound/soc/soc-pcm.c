@@ -2882,7 +2882,7 @@ int snd_soc_platform_trigger(struct snd_pcm_substream *substream,
 EXPORT_SYMBOL_GPL(snd_soc_platform_trigger);
 
 #ifdef CONFIG_DEBUG_FS
-static char *dpcm_state_string(enum snd_soc_dpcm_state state)
+static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
 {
 	switch (state) {
 	case SND_SOC_DPCM_STATE_NEW:

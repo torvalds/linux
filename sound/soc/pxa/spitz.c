@@ -241,9 +241,9 @@ static const struct snd_soc_dapm_route spitz_audio_map[] = {
 	{"LINPUT1", NULL, "Line Jack"},
 };
 
-static const char *jack_function[] = {"Headphone", "Mic", "Line", "Headset",
-	"Off"};
-static const char *spk_function[] = {"On", "Off"};
+static const char * const jack_function[] = {"Headphone", "Mic", "Line",
+	"Headset", "Off"};
+static const char * const spk_function[] = {"On", "Off"};
 static const struct soc_enum spitz_enum[] = {
 	SOC_ENUM_SINGLE_EXT(5, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),

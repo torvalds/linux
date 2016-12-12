@@ -1,6 +1,7 @@
 menuconfig SND_SOC_SAMSUNG
 	tristate "ASoC support for Samsung"
-	depends on (PLAT_SAMSUNG || ARCH_EXYNOS)
+	depends on PLAT_SAMSUNG || ARCH_EXYNOS || COMPILE_TEST
+	depends on COMMON_CLK
 	select SND_SOC_GENERIC_DMAENGINE_PCM
 	---help---
 	  Say Y or M if you want to add support for codecs attached to
@@ -21,10 +22,6 @@ config SND_S3C2412_SOC_I2S
 
 config SND_SAMSUNG_PCM
 	tristate "Samsung PCM interface support"
-
-config SND_SAMSUNG_AC97
-	tristate
-	select SND_SOC_AC97_BUS
 
 config SND_SAMSUNG_SPDIF
 	tristate "Samsung SPDIF transmitter support"
@@ -53,7 +50,7 @@ config SND_SOC_SAMSUNG_JIVE_WM8750
 
 config SND_SOC_SAMSUNG_SMDK_WM8580
 	tristate "SoC I2S Audio support for WM8580 on SMDK"
-	depends on MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110
+	depends on MACH_SMDK6410 || COMPILE_TEST
 	depends on I2C
 	select SND_SOC_WM8580
 	select SND_SAMSUNG_I2S
@@ -68,26 +65,6 @@ config SND_SOC_SAMSUNG_SMDK_WM8994
 	select SND_SAMSUNG_I2S
 	help
 		Say Y if you want to add support for SoC audio on the SMDKs.
-
-config SND_SOC_SAMSUNG_SMDK2443_WM9710
-	tristate "SoC AC97 Audio support for SMDK2443 - WM9710"
-	depends on MACH_SMDK2443
-	select AC97_BUS
-	select SND_SOC_AC97_CODEC
-	select SND_SAMSUNG_AC97
-	help
-	  Say Y if you want to add support for SoC audio on smdk2443
-	  with the WM9710.
-
-config SND_SOC_SAMSUNG_LN2440SBC_ALC650
-	tristate "SoC AC97 Audio support for LN2440SBC - ALC650"
-	depends on ARCH_S3C24XX
-	select AC97_BUS
-	select SND_SOC_AC97_CODEC
-	select SND_SAMSUNG_AC97
-	help
-	  Say Y if you want to add support for SoC audio on ln2440sbc
-	  with the ALC650.
 
 config SND_SOC_SAMSUNG_S3C24XX_UDA134X
 	tristate "SoC I2S Audio support UDA134X wired to a S3C24XX"
@@ -131,17 +108,10 @@ config SND_SOC_SAMSUNG_RX1950_UDA1380
 	help
 	  This driver provides audio support for HP iPAQ RX1950 PDA.
 
-config SND_SOC_SAMSUNG_SMDK_WM9713
-	tristate "SoC AC97 Audio support for SMDK with WM9713"
-	depends on MACH_SMDK6410 || MACH_SMDKC100 || MACH_SMDKV210 || MACH_SMDKC110
-	select SND_SOC_WM9713
-	select SND_SAMSUNG_AC97
-	help
-	  Say Y if you want to add support for SoC audio on the SMDK.
-
 config SND_SOC_SMARTQ
 	tristate "SoC I2S Audio support for SmartQ board"
-	depends on MACH_SMARTQ && I2C
+	depends on MACH_SMARTQ || COMPILE_TEST
+	depends on I2C
 	select SND_SAMSUNG_I2S
 	select SND_SOC_WM8750
 
@@ -150,15 +120,6 @@ config SND_SOC_SAMSUNG_SMDK_SPDIF
 	select SND_SAMSUNG_SPDIF
 	help
 	  Say Y if you want to add support for SoC S/PDIF audio on the SMDK.
-
-config SND_SOC_SMDK_WM8580_PCM
-	tristate "SoC PCM Audio support for WM8580 on SMDK"
-	depends on MACH_SMDKV210 || MACH_SMDKC110
-	depends on I2C
-	select SND_SOC_WM8580
-	select SND_SAMSUNG_PCM
-	help
-	  Say Y if you want to add support for SoC audio on the SMDK.
 
 config SND_SOC_SMDK_WM8994_PCM
 	tristate "SoC PCM Audio support for WM8994 on SMDK"
@@ -228,5 +189,14 @@ config SND_SOC_ARNDALE_RT5631_ALC5631
         depends on I2C
         select SND_SAMSUNG_I2S
         select SND_SOC_RT5631
+
+config SND_SOC_SAMSUNG_TM2_WM5110
+	tristate "SoC I2S Audio support for WM5110 on TM2 board"
+	depends on SND_SOC_SAMSUNG && MFD_ARIZONA && I2C && SPI_MASTER
+	select SND_SOC_MAX98504
+	select SND_SOC_WM5110
+	select SND_SAMSUNG_I2S
+	help
+	  Say Y if you want to add support for SoC audio on the TM2 board.
 
 endif #SND_SOC_SAMSUNG

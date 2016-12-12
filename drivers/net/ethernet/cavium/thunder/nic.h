@@ -47,7 +47,7 @@
 
 /* Min/Max packet size */
 #define	NIC_HW_MIN_FRS			64
-#define	NIC_HW_MAX_FRS			9200 /* 9216 max packet including FCS */
+#define	NIC_HW_MAX_FRS			9190 /* Excluding L2 header and FCS */
 
 /* Max pkinds */
 #define	NIC_MAX_PKIND			16
@@ -178,11 +178,11 @@ enum tx_stats_reg_offset {
 
 struct nicvf_hw_stats {
 	u64 rx_bytes;
+	u64 rx_frames;
 	u64 rx_ucast_frames;
 	u64 rx_bcast_frames;
 	u64 rx_mcast_frames;
-	u64 rx_fcs_errors;
-	u64 rx_l2_errors;
+	u64 rx_drops;
 	u64 rx_drop_red;
 	u64 rx_drop_red_bytes;
 	u64 rx_drop_overrun;
@@ -191,6 +191,19 @@ struct nicvf_hw_stats {
 	u64 rx_drop_mcast;
 	u64 rx_drop_l3_bcast;
 	u64 rx_drop_l3_mcast;
+	u64 rx_fcs_errors;
+	u64 rx_l2_errors;
+
+	u64 tx_bytes;
+	u64 tx_frames;
+	u64 tx_ucast_frames;
+	u64 tx_bcast_frames;
+	u64 tx_mcast_frames;
+	u64 tx_drops;
+};
+
+struct nicvf_drv_stats {
+	/* CQE Rx errs */
 	u64 rx_bgx_truncated_pkts;
 	u64 rx_jabber_errs;
 	u64 rx_fcs_errs;
@@ -216,34 +229,30 @@ struct nicvf_hw_stats {
 	u64 rx_l4_pclp;
 	u64 rx_truncated_pkts;
 
-	u64 tx_bytes_ok;
-	u64 tx_ucast_frames_ok;
-	u64 tx_bcast_frames_ok;
-	u64 tx_mcast_frames_ok;
-	u64 tx_drops;
-};
+	/* CQE Tx errs */
+	u64 tx_desc_fault;
+	u64 tx_hdr_cons_err;
+	u64 tx_subdesc_err;
+	u64 tx_max_size_exceeded;
+	u64 tx_imm_size_oflow;
+	u64 tx_data_seq_err;
+	u64 tx_mem_seq_err;
+	u64 tx_lock_viol;
+	u64 tx_data_fault;
+	u64 tx_tstmp_conflict;
+	u64 tx_tstmp_timeout;
+	u64 tx_mem_fault;
+	u64 tx_csum_overlap;
+	u64 tx_csum_overflow;
 
-struct nicvf_drv_stats {
-	/* Rx */
-	u64 rx_frames_ok;
-	u64 rx_frames_64;
-	u64 rx_frames_127;
-	u64 rx_frames_255;
-	u64 rx_frames_511;
-	u64 rx_frames_1023;
-	u64 rx_frames_1518;
-	u64 rx_frames_jumbo;
-	u64 rx_drops;
-
+	/* driver debug stats */
 	u64 rcv_buffer_alloc_failures;
-
-	/* Tx */
-	u64 tx_frames_ok;
-	u64 tx_drops;
 	u64 tx_tso;
 	u64 tx_timeout;
 	u64 txq_stop;
 	u64 txq_wake;
+
+	struct u64_stats_sync   syncp;
 };
 
 struct nicvf {
@@ -282,7 +291,6 @@ struct nicvf {
 
 	u8			node;
 	u8			cpi_alg;
-	u16			mtu;
 	bool			link_up;
 	u8			duplex;
 	u32			speed;
@@ -298,7 +306,7 @@ struct nicvf {
 
 	/* Stats */
 	struct nicvf_hw_stats   hw_stats;
-	struct nicvf_drv_stats  drv_stats;
+	struct nicvf_drv_stats  __percpu *drv_stats;
 	struct bgx_stats	bgx_stats;
 
 	/* MSI-X  */

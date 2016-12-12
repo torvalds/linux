@@ -465,26 +465,25 @@ void show_regs(struct pt_regs * regs)
 
 	for (i = 0; i < 16; i++) {
 		if ((i % 8) == 0)
-			printk(KERN_INFO "a%02d:", i);
-		printk(KERN_CONT " %08lx", regs->areg[i]);
+			pr_info("a%02d:", i);
+		pr_cont(" %08lx", regs->areg[i]);
 	}
-	printk(KERN_CONT "\n");
-
-	printk("pc: %08lx, ps: %08lx, depc: %08lx, excvaddr: %08lx\n",
-	       regs->pc, regs->ps, regs->depc, regs->excvaddr);
-	printk("lbeg: %08lx, lend: %08lx lcount: %08lx, sar: %08lx\n",
-	       regs->lbeg, regs->lend, regs->lcount, regs->sar);
+	pr_cont("\n");
+	pr_info("pc: %08lx, ps: %08lx, depc: %08lx, excvaddr: %08lx\n",
+		regs->pc, regs->ps, regs->depc, regs->excvaddr);
+	pr_info("lbeg: %08lx, lend: %08lx lcount: %08lx, sar: %08lx\n",
+		regs->lbeg, regs->lend, regs->lcount, regs->sar);
 	if (user_mode(regs))
-		printk("wb: %08lx, ws: %08lx, wmask: %08lx, syscall: %ld\n",
-		       regs->windowbase, regs->windowstart, regs->wmask,
-		       regs->syscall);
+		pr_cont("wb: %08lx, ws: %08lx, wmask: %08lx, syscall: %ld\n",
+			regs->windowbase, regs->windowstart, regs->wmask,
+			regs->syscall);
 }
 
 static int show_trace_cb(struct stackframe *frame, void *data)
 {
 	if (kernel_text_address(frame->pc)) {
-		printk(" [<%08lx>] ", frame->pc);
-		print_symbol("%s\n", frame->pc);
+		pr_cont(" [<%08lx>]", frame->pc);
+		print_symbol(" %s\n", frame->pc);
 	}
 	return 0;
 }
@@ -494,18 +493,12 @@ void show_trace(struct task_struct *task, unsigned long *sp)
 	if (!sp)
 		sp = stack_pointer(task);
 
-	printk("Call Trace:");
-#ifdef CONFIG_KALLSYMS
-	printk("\n");
-#endif
+	pr_info("Call Trace:\n");
 	walk_stackframe(sp, show_trace_cb, NULL);
-	printk("\n");
+#ifndef CONFIG_KALLSYMS
+	pr_cont("\n");
+#endif
 }
-
-/*
- * This routine abuses get_user()/put_user() to reference pointers
- * with at least a bit of error checking ...
- */
 
 static int kstack_depth_to_print = 24;
 
@@ -518,33 +511,16 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 		sp = stack_pointer(task);
 	stack = sp;
 
-	printk("\nStack: ");
+	pr_info("Stack:\n");
 
 	for (i = 0; i < kstack_depth_to_print; i++) {
 		if (kstack_end(sp))
 			break;
-		if (i && ((i % 8) == 0))
-			printk("\n       ");
-		printk("%08lx ", *sp++);
+		pr_cont(" %08lx", *sp++);
+		if (i % 8 == 7)
+			pr_cont("\n");
 	}
-	printk("\n");
 	show_trace(task, stack);
-}
-
-void show_code(unsigned int *pc)
-{
-	long i;
-
-	printk("\nCode:");
-
-	for(i = -3 ; i < 6 ; i++) {
-		unsigned long insn;
-		if (__get_user(insn, pc + i)) {
-			printk(" (Bad address in pc)\n");
-			break;
-		}
-		printk("%c%08lx%c",(i?' ':'<'),insn,(i?' ':'>'));
-	}
 }
 
 DEFINE_SPINLOCK(die_lock);
@@ -552,18 +528,12 @@ DEFINE_SPINLOCK(die_lock);
 void die(const char * str, struct pt_regs * regs, long err)
 {
 	static int die_counter;
-	int nl = 0;
 
 	console_verbose();
 	spin_lock_irq(&die_lock);
 
-	printk("%s: sig: %ld [#%d]\n", str, err, ++die_counter);
-#ifdef CONFIG_PREEMPT
-	printk("PREEMPT ");
-	nl = 1;
-#endif
-	if (nl)
-		printk("\n");
+	pr_info("%s: sig: %ld [#%d]%s\n", str, err, ++die_counter,
+		IS_ENABLED(CONFIG_PREEMPT) ? " PREEMPT" : "");
 	show_regs(regs);
 	if (!user_mode(regs))
 		show_stack(NULL, (unsigned long*)regs->areg[1]);

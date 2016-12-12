@@ -555,7 +555,8 @@ int acpi_device_uevent_modalias(struct device *, struct kobj_uevent_env *);
 int acpi_device_modalias(struct device *, char *, int);
 void acpi_walk_dep_device_list(acpi_handle handle);
 
-struct platform_device *acpi_create_platform_device(struct acpi_device *);
+struct platform_device *acpi_create_platform_device(struct acpi_device *,
+						    struct property_entry *);
 #define ACPI_PTR(_ptr)	(_ptr)
 
 static inline void acpi_device_set_enumerated(struct acpi_device *adev)

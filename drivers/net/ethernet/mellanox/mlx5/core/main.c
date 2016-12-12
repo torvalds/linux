@@ -46,7 +46,6 @@
 #include <linux/mlx5/srq.h>
 #include <linux/debugfs.h>
 #include <linux/kmod.h>
-#include <linux/delay.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
@@ -63,13 +62,13 @@ MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
-int mlx5_core_debug_mask;
-module_param_named(debug_mask, mlx5_core_debug_mask, int, 0644);
+unsigned int mlx5_core_debug_mask;
+module_param_named(debug_mask, mlx5_core_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
 
 #define MLX5_DEFAULT_PROF	2
-static int prof_sel = MLX5_DEFAULT_PROF;
-module_param_named(prof_sel, prof_sel, int, 0444);
+static unsigned int prof_sel = MLX5_DEFAULT_PROF;
+module_param_named(prof_sel, prof_sel, uint, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
 
 enum {
@@ -733,13 +732,15 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		u8 status;
 
 		mlx5_cmd_mbox_status(query_out, &status, &syndrome);
-		if (status == MLX5_CMD_STAT_BAD_OP_ERR) {
-			pr_debug("Only ISSI 0 is supported\n");
-			return 0;
+		if (!status || syndrome == MLX5_DRIVER_SYND) {
+			mlx5_core_err(dev, "Failed to query ISSI err(%d) status(%d) synd(%d)\n",
+				      err, status, syndrome);
+			return err;
 		}
 
-		pr_err("failed to query ISSI err(%d)\n", err);
-		return err;
+		mlx5_core_warn(dev, "Query ISSI is not supported by FW, ISSI is 0\n");
+		dev->issi = 0;
+		return 0;
 	}
 
 	sup_issi = MLX5_GET(query_issi_out, query_out, supported_issi_dw0);
@@ -753,7 +754,8 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		err = mlx5_cmd_exec(dev, set_in, sizeof(set_in),
 				    set_out, sizeof(set_out));
 		if (err) {
-			pr_err("failed to set ISSI=1 err(%d)\n", err);
+			mlx5_core_err(dev, "Failed to set ISSI to 1 err(%d)\n",
+				      err);
 			return err;
 		}
 
@@ -1226,15 +1228,9 @@ static int init_one(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profile)) {
-		mlx5_core_warn(dev,
-			       "selected profile out of range, selecting default (%d)\n",
-			       MLX5_DEFAULT_PROF);
-		prof_sel = MLX5_DEFAULT_PROF;
-	}
-	dev->profile = &profile[prof_sel];
 	dev->pdev = pdev;
 	dev->event = mlx5_core_event;
+	dev->profile = &profile[prof_sel];
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
@@ -1450,10 +1446,22 @@ static struct pci_driver mlx5_core_driver = {
 	.sriov_configure   = mlx5_core_sriov_configure,
 };
 
+static void mlx5_core_verify_params(void)
+{
+	if (prof_sel >= ARRAY_SIZE(profile)) {
+		pr_warn("mlx5_core: WARNING: Invalid module parameter prof_sel %d, valid range 0-%zu, changing back to default(%d)\n",
+			prof_sel,
+			ARRAY_SIZE(profile) - 1,
+			MLX5_DEFAULT_PROF);
+		prof_sel = MLX5_DEFAULT_PROF;
+	}
+}
+
 static int __init init(void)
 {
 	int err;
 
+	mlx5_core_verify_params();
 	mlx5_register_debugfs();
 
 	err = pci_register_driver(&mlx5_core_driver);

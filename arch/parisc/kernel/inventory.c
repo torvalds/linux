@@ -58,7 +58,7 @@ void __init setup_pdc(void)
 	status = pdc_system_map_find_mods(&module_result, &module_path, 0);
 	if (status == PDC_OK) {
 		pdc_type = PDC_TYPE_SYSTEM_MAP;
-		printk("System Map.\n");
+		pr_cont("System Map.\n");
 		return;
 	}
 
@@ -77,7 +77,7 @@ void __init setup_pdc(void)
 	status = pdc_pat_cell_get_number(&cell_info);
 	if (status == PDC_OK) {
 		pdc_type = PDC_TYPE_PAT;
-		printk("64 bit PAT.\n");
+		pr_cont("64 bit PAT.\n");
 		return;
 	}
 #endif
@@ -97,12 +97,12 @@ void __init setup_pdc(void)
 	case 0xC:		/* 715/64, at least */
 
 		pdc_type = PDC_TYPE_SNAKE;
-		printk("Snake.\n");
+		pr_cont("Snake.\n");
 		return;
 
 	default:		/* Everything else */
 
-		printk("Unsupported.\n");
+		pr_cont("Unsupported.\n");
 		panic("If this is a 64-bit machine, please try a 64-bit kernel.\n");
 	}
 }

@@ -48,8 +48,6 @@ struct rsnd_dvc {
 
 #define rsnd_dvc_get(priv, id) ((struct rsnd_dvc *)(priv->dvc) + id)
 #define rsnd_dvc_nr(priv) ((priv)->dvc_nr)
-#define rsnd_dvc_of_node(priv) \
-	of_get_child_by_name(rsnd_priv_to_dev(priv)->of_node, "rcar_sound,dvc")
 
 #define rsnd_mod_to_dvc(_mod)	\
 	container_of((_mod), struct rsnd_dvc, mod)

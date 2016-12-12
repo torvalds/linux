@@ -1811,6 +1811,9 @@ static int bnxt_busy_poll(struct napi_struct *napi)
 	if (atomic_read(&bp->intr_sem) != 0)
 		return LL_FLUSH_FAILED;
 
+	if (!bp->link_info.link_up)
+		return LL_FLUSH_FAILED;
+
 	if (!bnxt_lock_poll(bnapi))
 		return LL_FLUSH_BUSY;
 
@@ -3210,11 +3213,17 @@ static int bnxt_hwrm_tunnel_dst_port_alloc(struct bnxt *bp, __be16 port,
 		goto err_out;
 	}
 
-	if (tunnel_type & TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN)
+	switch (tunnel_type) {
+	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN:
 		bp->vxlan_fw_dst_port_id = resp->tunnel_dst_port_id;
-
-	else if (tunnel_type & TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE)
+		break;
+	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE:
 		bp->nge_fw_dst_port_id = resp->tunnel_dst_port_id;
+		break;
+	default:
+		break;
+	}
+
 err_out:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -4111,7 +4120,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 		bp->grp_info[i].fw_stats_ctx = cpr->hw_stats_ctx_id;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
-	return 0;
+	return rc;
 }
 
 static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
@@ -4934,6 +4943,10 @@ static void bnxt_del_napi(struct bnxt *bp)
 		napi_hash_del(&bnapi->napi);
 		netif_napi_del(&bnapi->napi);
 	}
+	/* We called napi_hash_del() before netif_napi_del(), we need
+	 * to respect an RCU grace period before freeing napi structures.
+	 */
+	synchronize_net();
 }
 
 static void bnxt_init_napi(struct bnxt *bp)
@@ -6309,6 +6322,7 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 			 struct tc_to_netdev *ntc)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	bool sh = false;
 	u8 tc;
 
 	if (ntc->type != TC_SETUP_MQPRIO)
@@ -6325,12 +6339,11 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	if (netdev_get_num_tc(dev) == tc)
 		return 0;
 
+	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
+		sh = true;
+
 	if (tc) {
 		int max_rx_rings, max_tx_rings, rc;
-		bool sh = false;
-
-		if (bp->flags & BNXT_FLAG_SHARED_RINGS)
-			sh = true;
 
 		rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
 		if (rc || bp->tx_nr_rings_per_tc * tc > max_tx_rings)
@@ -6348,7 +6361,8 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 		bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 		netdev_reset_tc(dev);
 	}
-	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
+	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
+			       bp->tx_nr_rings + bp->rx_nr_rings;
 	bp->num_stat_ctxs = bp->cp_nr_rings;
 
 	if (netif_running(bp->dev))

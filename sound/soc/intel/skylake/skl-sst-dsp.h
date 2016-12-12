@@ -126,9 +126,19 @@ struct sst_dsp_device;
 #define SKL_ADSPCS_CPA_SHIFT		24
 #define SKL_ADSPCS_CPA_MASK(cm)		((cm) << SKL_ADSPCS_CPA_SHIFT)
 
+/* DSP Core state */
 enum skl_dsp_states {
 	SKL_DSP_RUNNING = 1,
+	/* Running in D0i3 state; can be in streaming or non-streaming D0i3 */
+	SKL_DSP_RUNNING_D0I3, /* Running in D0i3 state*/
 	SKL_DSP_RESET,
+};
+
+/* D0i3 substates */
+enum skl_dsp_d0i3_states {
+	SKL_DSP_D0I3_NONE = -1, /* No D0i3 */
+	SKL_DSP_D0I3_NON_STREAMING = 0,
+	SKL_DSP_D0I3_STREAMING = 1,
 };
 
 struct skl_dsp_fw_ops {
@@ -139,6 +149,8 @@ struct skl_dsp_fw_ops {
 	int (*parse_fw)(struct sst_dsp *ctx);
 	int (*set_state_D0)(struct sst_dsp *ctx, unsigned int core_id);
 	int (*set_state_D3)(struct sst_dsp *ctx, unsigned int core_id);
+	int (*set_state_D0i3)(struct sst_dsp *ctx);
+	int (*set_state_D0i0)(struct sst_dsp *ctx);
 	unsigned int (*get_fw_errcode)(struct sst_dsp *ctx);
 	int (*load_mod)(struct sst_dsp *ctx, u16 mod_id, u8 *mod_name);
 	int (*unload_mod)(struct sst_dsp *ctx, u16 mod_id);

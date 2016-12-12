@@ -120,7 +120,7 @@ static const struct regulator_linear_range rk808_ldo3_voltage_ranges[] = {
 static int rk808_buck1_2_get_voltage_sel_regmap(struct regulator_dev *rdev)
 {
 	struct rk808_regulator_data *pdata = rdev_get_drvdata(rdev);
-	int id = rdev->desc->id - RK808_ID_DCDC1;
+	int id = rdev_get_id(rdev);
 	struct gpio_desc *gpio = pdata->dvs_gpio[id];
 	unsigned int val;
 	int ret;
@@ -193,7 +193,7 @@ static int rk808_buck1_2_set_voltage_sel(struct regulator_dev *rdev,
 					 unsigned sel)
 {
 	struct rk808_regulator_data *pdata = rdev_get_drvdata(rdev);
-	int id = rdev->desc->id - RK808_ID_DCDC1;
+	int id = rdev_get_id(rdev);
 	struct gpio_desc *gpio = pdata->dvs_gpio[id];
 	unsigned int reg = rdev->desc->vsel_reg;
 	unsigned old_sel;
@@ -232,7 +232,7 @@ static int rk808_buck1_2_set_voltage_time_sel(struct regulator_dev *rdev,
 				       unsigned int new_selector)
 {
 	struct rk808_regulator_data *pdata = rdev_get_drvdata(rdev);
-	int id = rdev->desc->id - RK808_ID_DCDC1;
+	int id = rdev_get_id(rdev);
 	struct gpio_desc *gpio = pdata->dvs_gpio[id];
 
 	/* if there is no dvs1/2 pin, we don't need wait extra time here. */
@@ -245,8 +245,7 @@ static int rk808_buck1_2_set_voltage_time_sel(struct regulator_dev *rdev,
 static int rk808_set_ramp_delay(struct regulator_dev *rdev, int ramp_delay)
 {
 	unsigned int ramp_value = RK808_RAMP_RATE_10MV_PER_US;
-	unsigned int reg = rk808_buck_config_regs[rdev->desc->id -
-						  RK808_ID_DCDC1];
+	unsigned int reg = rk808_buck_config_regs[rdev_get_id(rdev)];
 
 	switch (ramp_delay) {
 	case 1 ... 2000:

@@ -1694,7 +1694,7 @@ struct gelic_wl_scan_info *gelic_wl_find_best_bss(struct gelic_wl_info *wl)
 				pr_debug("%s: bssid matched\n", __func__);
 				break;
 			} else {
-				pr_debug("%s: bssid unmached\n", __func__);
+				pr_debug("%s: bssid unmatched\n", __func__);
 				continue;
 			}
 		}
