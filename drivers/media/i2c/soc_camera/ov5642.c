@@ -943,7 +943,7 @@ static int ov5642_s_power(struct v4l2_subdev *sd, int on)
 	return ret;
 }
 
-static struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ov5642_subdev_video_ops = {
 	.g_mbus_config	= ov5642_g_mbus_config,
 };
 
@@ -955,7 +955,7 @@ static const struct v4l2_subdev_pad_ops ov5642_subdev_pad_ops = {
 	.set_fmt	= ov5642_set_fmt,
 };
 
-static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
 	.s_power	= ov5642_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ov5642_get_register,
@@ -963,7 +963,7 @@ static struct v4l2_subdev_core_ops ov5642_subdev_core_ops = {
 #endif
 };
 
-static struct v4l2_subdev_ops ov5642_subdev_ops = {
+static const struct v4l2_subdev_ops ov5642_subdev_ops = {
 	.core	= &ov5642_subdev_core_ops,
 	.video	= &ov5642_subdev_video_ops,
 	.pad	= &ov5642_subdev_pad_ops,

@@ -993,7 +993,7 @@ static const struct v4l2_ctrl_ops ov772x_ctrl_ops = {
 	.s_ctrl = ov772x_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ov772x_g_register,
 	.s_register	= ov772x_s_register,
@@ -1027,7 +1027,7 @@ static int ov772x_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.s_stream	= ov772x_s_stream,
 	.g_mbus_config	= ov772x_g_mbus_config,
 };
@@ -1039,7 +1039,7 @@ static const struct v4l2_subdev_pad_ops ov772x_subdev_pad_ops = {
 	.set_fmt	= ov772x_set_fmt,
 };
 
-static struct v4l2_subdev_ops ov772x_subdev_ops = {
+static const struct v4l2_subdev_ops ov772x_subdev_ops = {
 	.core	= &ov772x_subdev_core_ops,
 	.video	= &ov772x_subdev_video_ops,
 	.pad	= &ov772x_subdev_pad_ops,

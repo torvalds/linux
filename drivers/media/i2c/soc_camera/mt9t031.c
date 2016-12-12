@@ -679,7 +679,7 @@ static const struct v4l2_ctrl_ops mt9t031_ctrl_ops = {
 	.s_ctrl = mt9t031_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {
 	.s_power	= mt9t031_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9t031_g_register,
@@ -726,7 +726,7 @@ static int mt9t031_s_mbus_config(struct v4l2_subdev *sd,
 		return reg_set(client, MT9T031_PIXEL_CLOCK_CONTROL, 0x8000);
 }
 
-static struct v4l2_subdev_video_ops mt9t031_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops mt9t031_subdev_video_ops = {
 	.s_stream	= mt9t031_s_stream,
 	.g_mbus_config	= mt9t031_g_mbus_config,
 	.s_mbus_config	= mt9t031_s_mbus_config,
@@ -744,7 +744,7 @@ static const struct v4l2_subdev_pad_ops mt9t031_subdev_pad_ops = {
 	.set_fmt	= mt9t031_set_fmt,
 };
 
-static struct v4l2_subdev_ops mt9t031_subdev_ops = {
+static const struct v4l2_subdev_ops mt9t031_subdev_ops = {
 	.core	= &mt9t031_subdev_core_ops,
 	.video	= &mt9t031_subdev_video_ops,
 	.sensor	= &mt9t031_subdev_sensor_ops,

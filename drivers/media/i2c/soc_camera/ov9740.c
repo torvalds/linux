@@ -907,12 +907,12 @@ static int ov9740_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops ov9740_video_ops = {
+static const struct v4l2_subdev_video_ops ov9740_video_ops = {
 	.s_stream	= ov9740_s_stream,
 	.g_mbus_config	= ov9740_g_mbus_config,
 };
 
-static struct v4l2_subdev_core_ops ov9740_core_ops = {
+static const struct v4l2_subdev_core_ops ov9740_core_ops = {
 	.s_power		= ov9740_s_power,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register		= ov9740_get_register,
@@ -926,7 +926,7 @@ static const struct v4l2_subdev_pad_ops ov9740_pad_ops = {
 	.set_fmt	= ov9740_set_fmt,
 };
 
-static struct v4l2_subdev_ops ov9740_subdev_ops = {
+static const struct v4l2_subdev_ops ov9740_subdev_ops = {
 	.core	= &ov9740_core_ops,
 	.video	= &ov9740_video_ops,
 	.pad	= &ov9740_pad_ops,

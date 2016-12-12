@@ -770,7 +770,7 @@ static const struct v4l2_ctrl_ops mt9v022_ctrl_ops = {
 	.s_ctrl = mt9v022_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops mt9v022_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= mt9v022_g_register,
 	.s_register	= mt9v022_s_register,
@@ -858,7 +858,7 @@ static int mt9v022_s_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops mt9v022_subdev_video_ops = {
 	.s_stream	= mt9v022_s_stream,
 	.g_mbus_config	= mt9v022_g_mbus_config,
 	.s_mbus_config	= mt9v022_s_mbus_config,
@@ -876,7 +876,7 @@ static const struct v4l2_subdev_pad_ops mt9v022_subdev_pad_ops = {
 	.set_fmt	= mt9v022_set_fmt,
 };
 
-static struct v4l2_subdev_ops mt9v022_subdev_ops = {
+static const struct v4l2_subdev_ops mt9v022_subdev_ops = {
 	.core	= &mt9v022_subdev_core_ops,
 	.video	= &mt9v022_subdev_video_ops,
 	.sensor	= &mt9v022_subdev_sensor_ops,
