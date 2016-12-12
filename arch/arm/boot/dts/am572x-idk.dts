@@ -23,11 +23,6 @@
 		reg = <0x0 0x80000000 0x0 0x80000000>;
 	};
 
-	extcon_usb2: extcon_usb2 {
-		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
-	};
-
 	status-leds {
 		compatible = "gpio-leds";
 		cpu0-led {
@@ -74,6 +69,11 @@
 
 &omap_dwc3_2 {
 	extcon = <&extcon_usb2>;
+};
+
+&extcon_usb2 {
+	id-gpio = <&gpio3 16 GPIO_ACTIVE_HIGH>;
+	vbus-gpio = <&gpio3 26 GPIO_ACTIVE_HIGH>;
 };
 
 &mmc1 {
