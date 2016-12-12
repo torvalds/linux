@@ -4587,7 +4587,7 @@ static void rt5665_calibrate(struct rt5665_priv *rt5665)
 			pr_err("HP Calibration Failure\n");
 			regmap_write(rt5665->regmap, RT5665_RESET, 0);
 			regcache_cache_bypass(rt5665->regmap, false);
-			return;
+			goto out_unlock;
 		}
 
 		count++;
@@ -4606,7 +4606,7 @@ static void rt5665_calibrate(struct rt5665_priv *rt5665)
 			pr_err("MONO Calibration Failure\n");
 			regmap_write(rt5665->regmap, RT5665_RESET, 0);
 			regcache_cache_bypass(rt5665->regmap, false);
-			return;
+			goto out_unlock;
 		}
 
 		count++;
@@ -4621,6 +4621,7 @@ static void rt5665_calibrate(struct rt5665_priv *rt5665)
 	regmap_write(rt5665->regmap, RT5665_BIAS_CUR_CTRL_8, 0xa602);
 	regmap_write(rt5665->regmap, RT5665_ASRC_8, 0x0120);
 
+out_unlock:
 	mutex_unlock(&rt5665->calibrate_mutex);
 }
 
@@ -4676,11 +4677,9 @@ static int rt5665_i2c_probe(struct i2c_client *i2c,
 	}
 
 	if (gpio_is_valid(rt5665->pdata.ldo1_en)) {
-		if (devm_gpio_request(&i2c->dev, rt5665->pdata.ldo1_en,
-			"rt5665"))
+		if (devm_gpio_request_one(&i2c->dev, rt5665->pdata.ldo1_en,
+					  GPIOF_OUT_INIT_HIGH, "rt5665"))
 			dev_err(&i2c->dev, "Fail gpio_request gpio_ldo\n");
-		else if (gpio_direction_output(rt5665->pdata.ldo1_en, 1))
-			dev_err(&i2c->dev, "Fail gpio_direction gpio_ldo\n");
 	}
 
 	/* Sleep for 300 ms miniumum */

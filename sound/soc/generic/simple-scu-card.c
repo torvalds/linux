@@ -22,7 +22,7 @@
 #include <sound/soc-dai.h>
 #include <sound/simple_card_utils.h>
 
-struct asoc_simple_card_priv {
+struct simple_card_data {
 	struct snd_soc_card snd_card;
 	struct snd_soc_codec_conf codec_conf;
 	struct asoc_simple_dai *dai_props;
@@ -42,7 +42,7 @@ struct asoc_simple_card_priv {
 static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct asoc_simple_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct asoc_simple_dai *dai_props =
 		simple_priv_to_props(priv, rtd->num);
 
@@ -52,7 +52,7 @@ static int asoc_simple_card_startup(struct snd_pcm_substream *substream)
 static void asoc_simple_card_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct asoc_simple_card_priv *priv =	snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv =	snd_soc_card_get_drvdata(rtd->card);
 	struct asoc_simple_dai *dai_props =
 		simple_priv_to_props(priv, rtd->num);
 
@@ -66,7 +66,7 @@ static const struct snd_soc_ops asoc_simple_card_ops = {
 
 static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct asoc_simple_card_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_soc_dai *dai;
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_dai *dai_props;
@@ -84,7 +84,7 @@ static int asoc_simple_card_dai_init(struct snd_soc_pcm_runtime *rtd)
 static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
 {
-	struct asoc_simple_card_priv *priv = snd_soc_card_get_drvdata(rtd->card);
+	struct simple_card_data *priv = snd_soc_card_get_drvdata(rtd->card);
 	struct snd_interval *rate = hw_param_interval(params,
 						      SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params,
@@ -101,8 +101,8 @@ static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static int asoc_simple_card_parse_links(struct device_node *np,
-					struct asoc_simple_card_priv *priv,
+static int asoc_simple_card_dai_link_of(struct device_node *np,
+					struct simple_card_data *priv,
 					unsigned int daifmt,
 					int idx, bool is_fe)
 {
@@ -195,68 +195,18 @@ static int asoc_simple_card_parse_links(struct device_node *np,
 	return 0;
 }
 
-static int asoc_simple_card_dai_link_of(struct device_node *node,
-				 struct asoc_simple_card_priv *priv)
+static int asoc_simple_card_parse_of(struct device_node *node,
+				     struct simple_card_data *priv)
+
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct device_node *np;
 	unsigned int daifmt = 0;
-	int ret, i;
 	bool is_fe;
-
-	/* find 1st codec */
-	np = of_get_child_by_name(node, PREFIX "codec");
-	if (!np)
-		return -ENODEV;
-
-	ret = asoc_simple_card_parse_daifmt(dev, node, np,
-					    PREFIX, &daifmt);
-	if (ret < 0)
-		return ret;
-
-	i = 0;
-	for_each_child_of_node(node, np) {
-		is_fe = false;
-		if (strcmp(np->name, PREFIX "cpu") == 0)
-			is_fe = true;
-
-		ret = asoc_simple_card_parse_links(np, priv, daifmt, i, is_fe);
-		if (ret < 0)
-			return ret;
-		i++;
-	}
-
-	return 0;
-}
-
-static int asoc_simple_card_parse_of(struct device_node *node,
-			      struct asoc_simple_card_priv *priv,
-			      struct device *dev)
-{
-	struct asoc_simple_dai *props;
-	struct snd_soc_dai_link *links;
-	int ret;
-	int num;
+	int ret, i;
 
 	if (!node)
 		return -EINVAL;
-
-	num = of_get_child_count(node);
-	props = devm_kzalloc(dev, sizeof(*props) * num, GFP_KERNEL);
-	links = devm_kzalloc(dev, sizeof(*links) * num, GFP_KERNEL);
-	if (!props || !links)
-		return -ENOMEM;
-
-	priv->dai_props	= props;
-	priv->dai_link	= links;
-
-	/* Init snd_soc_card */
-	priv->snd_card.owner			= THIS_MODULE;
-	priv->snd_card.dev			= dev;
-	priv->snd_card.dai_link			= priv->dai_link;
-	priv->snd_card.num_links		= num;
-	priv->snd_card.codec_conf		= &priv->codec_conf;
-	priv->snd_card.num_configs		= 1;
 
 	ret = snd_soc_of_parse_audio_routing(&priv->snd_card, PREFIX "routing");
 	if (ret < 0)
@@ -268,9 +218,26 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 	/* channels transfer */
 	of_property_read_u32(node, PREFIX "convert-channels", &priv->convert_channels);
 
-	ret = asoc_simple_card_dai_link_of(node, priv);
+	/* find 1st codec */
+	np = of_get_child_by_name(node, PREFIX "codec");
+	if (!np)
+		return -ENODEV;
+
+	ret = asoc_simple_card_parse_daifmt(dev, node, np, PREFIX, &daifmt);
 	if (ret < 0)
 		return ret;
+
+	i = 0;
+	for_each_child_of_node(node, np) {
+		is_fe = false;
+		if (strcmp(np->name, PREFIX "cpu") == 0)
+			is_fe = true;
+
+		ret = asoc_simple_card_dai_link_of(np, priv, daifmt, i, is_fe);
+		if (ret < 0)
+			return ret;
+		i++;
+	}
 
 	ret = asoc_simple_card_parse_card_name(&priv->snd_card, PREFIX);
 	if (ret < 0)
@@ -286,17 +253,37 @@ static int asoc_simple_card_parse_of(struct device_node *node,
 
 static int asoc_simple_card_probe(struct platform_device *pdev)
 {
-	struct asoc_simple_card_priv *priv;
-	struct device_node *np = pdev->dev.of_node;
+	struct simple_card_data *priv;
+	struct snd_soc_dai_link *dai_link;
+	struct asoc_simple_dai *dai_props;
 	struct device *dev = &pdev->dev;
-	int ret;
+	struct device_node *np = pdev->dev.of_node;
+	int num, ret;
 
 	/* Allocate the private data */
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	ret = asoc_simple_card_parse_of(np, priv, dev);
+	num = of_get_child_count(np);
+
+	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
+	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
+	if (!dai_props || !dai_link)
+		return -ENOMEM;
+
+	priv->dai_props				= dai_props;
+	priv->dai_link				= dai_link;
+
+	/* Init snd_soc_card */
+	priv->snd_card.owner			= THIS_MODULE;
+	priv->snd_card.dev			= dev;
+	priv->snd_card.dai_link			= priv->dai_link;
+	priv->snd_card.num_links		= num;
+	priv->snd_card.codec_conf		= &priv->codec_conf;
+	priv->snd_card.num_configs		= 1;
+
+	ret = asoc_simple_card_parse_of(np, priv);
 	if (ret < 0) {
 		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "parse error %d\n", ret);
