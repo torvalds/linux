@@ -651,7 +651,9 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		goto efree;
 
 	/* Enable tuning iff we have an SCC and a supported mode */
-	if (of_data && of_data->scc_offset && host->mmc->caps & MMC_CAP_UHS_SDR104) {
+	if (of_data && of_data->scc_offset &&
+	    (host->mmc->caps & MMC_CAP_UHS_SDR104 ||
+	     host->mmc->caps2 & MMC_CAP2_HS200_1_8V_SDR)) {
 		const struct sh_mobile_sdhi_scc *taps = of_data->taps;
 		bool hit = false;
 
