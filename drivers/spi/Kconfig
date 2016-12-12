@@ -67,6 +67,13 @@ config SPI_ATH79
 	  This enables support for the SPI controller present on the
 	  Atheros AR71XX/AR724X/AR913X SoCs.
 
+config SPI_ARMADA_3700
+	tristate "Marvell Armada 3700 SPI Controller"
+	depends on (ARCH_MVEBU && OF) || COMPILE_TEST
+	help
+	  This enables support for the SPI controller present on the
+	  Marvell Armada 3700 SoCs.
+
 config SPI_ATMEL
 	tristate "Atmel SPI Controller"
 	depends on HAS_DMA
