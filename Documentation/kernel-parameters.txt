@@ -2334,6 +2334,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			memory contents and reserves bad memory
 			regions that are detected.
 
+	mem_sleep_default=	[SUSPEND] Default system suspend mode:
+			s2idle  - Suspend-To-Idle
+			shallow - Power-On Suspend or equivalent (if supported)
+			deep    - Suspend-To-RAM or equivalent (if supported)
+			See Documentation/power/states.txt.
+
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
 
@@ -3676,13 +3682,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
 			See Documentation/cgroup-v1/cpusets.txt.
-
-	relative_sleep_states=
-			[SUSPEND] Use sleep state labeling where the deepest
-			state available other than hibernation is always "mem".
-			Format: { "0" | "1" }
-			0 -- Traditional sleep state labels.
-			1 -- Relative sleep state labels.
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 
