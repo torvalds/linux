@@ -468,9 +468,6 @@ static void sh_mobile_sdhi_hw_reset(struct tmio_mmc_host *host)
 {
 	struct sh_mobile_sdhi *priv;
 
-	if (!(host->mmc->caps & MMC_CAP_UHS_SDR104))
-		return;
-
 	priv = host_to_priv(host);
 
 	/* Reset SCC */
