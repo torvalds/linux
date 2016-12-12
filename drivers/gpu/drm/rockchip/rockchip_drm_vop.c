@@ -1435,19 +1435,21 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	VOP_CTRL_SET(vop, out_mode, s->output_mode);
 	switch (s->bus_format) {
 	case MEDIA_BUS_FMT_RGB565_1X16:
-		val = DITHER_DOWN_EN(1) | DITHER_DOWN_MODE(RGB888_TO_RGB565) |
-			PRE_DITHER_DOWN_EN(1);
+		val = DITHER_DOWN_EN(1) | DITHER_DOWN_MODE(RGB888_TO_RGB565);
 		break;
 	case MEDIA_BUS_FMT_RGB666_1X18:
 	case MEDIA_BUS_FMT_RGB666_1X24_CPADHI:
-		val = DITHER_DOWN_EN(1) | DITHER_DOWN_MODE(RGB888_TO_RGB666) |
-			PRE_DITHER_DOWN_EN(1);
+		val = DITHER_DOWN_EN(1) | DITHER_DOWN_MODE(RGB888_TO_RGB666);
 		break;
 	case MEDIA_BUS_FMT_RGB888_1X24:
 	default:
 		val = DITHER_DOWN_EN(0) | PRE_DITHER_DOWN_EN(0);
 		break;
 	}
+	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA)
+		val |= PRE_DITHER_DOWN_EN(0);
+	else
+		val |= PRE_DITHER_DOWN_EN(1);
 	val |= DITHER_DOWN_MODE_SEL(DITHER_DOWN_ALLEGRO);
 	VOP_CTRL_SET(vop, dither_down, val);
 
