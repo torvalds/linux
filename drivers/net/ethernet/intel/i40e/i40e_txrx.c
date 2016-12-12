@@ -1864,14 +1864,14 @@ static u32 i40e_buildreg_itr(const int type, const u16 itr)
 
 /* a small macro to shorten up some long lines */
 #define INTREG I40E_PFINT_DYN_CTLN
-static inline int get_rx_itr_enabled(struct i40e_vsi *vsi, int idx)
+static inline int get_rx_itr(struct i40e_vsi *vsi, int idx)
 {
-	return !!(vsi->rx_rings[idx]->rx_itr_setting);
+	return vsi->rx_rings[idx]->rx_itr_setting;
 }
 
-static inline int get_tx_itr_enabled(struct i40e_vsi *vsi, int idx)
+static inline int get_tx_itr(struct i40e_vsi *vsi, int idx)
 {
-	return !!(vsi->tx_rings[idx]->tx_itr_setting);
+	return vsi->tx_rings[idx]->tx_itr_setting;
 }
 
 /**
@@ -1897,8 +1897,8 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	 */
 	rxval = txval = i40e_buildreg_itr(I40E_ITR_NONE, 0);
 
-	rx_itr_setting = get_rx_itr_enabled(vsi, idx);
-	tx_itr_setting = get_tx_itr_enabled(vsi, idx);
+	rx_itr_setting = get_rx_itr(vsi, idx);
+	tx_itr_setting = get_tx_itr(vsi, idx);
 
 	if (q_vector->itr_countdown > 0 ||
 	    (!ITR_IS_DYNAMIC(rx_itr_setting) &&
