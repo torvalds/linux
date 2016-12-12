@@ -674,7 +674,21 @@ static int rk_tsadcv2_get_temp(const struct chip_tsadc_table *table,
 static int rk_tsadcv2_alarm_temp(const struct chip_tsadc_table *table,
 				 int chn, void __iomem *regs, int temp)
 {
-	u32 alarm_value, int_en;
+	u32 alarm_value;
+	u32 int_en, int_clr;
+
+	/*
+	 * In some cases, some sensors didn't need the trip points, the
+	 * set_trips will pass {-INT_MAX, INT_MAX} to trigger tsadc alarm
+	 * in the end, ignore this case and disable the high temperature
+	 * interrupt.
+	 */
+	if (temp == INT_MAX) {
+		int_clr = readl_relaxed(regs + TSADCV2_INT_EN);
+		int_clr &= ~TSADCV2_INT_SRC_EN(chn);
+		writel_relaxed(int_clr, regs + TSADCV2_INT_EN);
+		return 0;
+	}
 
 	/* Make sure the value is valid */
 	alarm_value = rk_tsadcv2_temp_to_code(table, temp);
