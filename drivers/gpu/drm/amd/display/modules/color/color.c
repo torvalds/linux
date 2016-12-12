@@ -63,14 +63,18 @@ struct gamut_src_dst_matrix {
 struct color_state {
 	bool user_enable_color_temperature;
 	int custom_color_temperature;
-	struct color_space_coordinates source_gamut;
-	struct color_space_coordinates destination_gamut;
 	struct color_range contrast;
 	struct color_range saturation;
 	struct color_range brightness;
 	struct color_range hue;
 	struct dc_gamma *gamma;
 	enum dc_quantization_range preferred_quantization_range;
+
+	struct color_gamut_data source_gamut;
+	struct color_gamut_data destination_gamut;
+	enum color_transfer_func input_transfer_function;
+	enum color_transfer_func output_transfer_function;
+	struct color_mastering_info mastering_info;
 };
 
 struct core_color {
@@ -79,6 +83,7 @@ struct core_color {
 	int num_sinks;
 	struct sink_caps *caps;
 	struct color_state *state;
+	struct color_edid_caps *edid_caps;
 };
 
 #define MOD_COLOR_TO_CORE(mod_color)\
@@ -1286,6 +1291,142 @@ static struct dc_surface *dc_stream_to_surface_from_pipe_ctx(
 	return out_surface;
 }
 
+static enum predefined_gamut_type color_space_to_predefined_gamut_types(enum
+		color_color_space color_space)
+{
+	switch (color_space) {
+	case color_space_bt709:
+	case color_space_xv_ycc_bt709:
+		return gamut_type_bt709;
+	case color_space_bt601:
+	case color_space_xv_ycc_bt601:
+		return gamut_type_bt601;
+	case color_space_adobe:
+		return gamut_type_adobe_rgb;
+	case color_space_srgb:
+	case color_space_sc_rgb_ms_ref:
+		return gamut_type_srgb;
+	case color_space_bt2020:
+		return gamut_type_bt2020;
+	case color_space_dci_p3: /* TODO */
+	default:
+		return gamut_type_unknown;
+	}
+}
+
+static enum predefined_white_point_type white_point_to_predefined_white_point
+				(enum color_white_point_type white_point)
+{
+	switch (white_point) {
+	case color_white_point_type_5000k_horizon:
+		return white_point_type_5000k_horizon;
+	case color_white_point_type_6500k_noon:
+		return white_point_type_6500k_noon;
+	case color_white_point_type_7500k_north_sky:
+		return white_point_type_7500k_north_sky;
+	case color_white_point_type_9300k:
+		return white_point_type_9300k;
+	default:
+		return white_point_type_unknown;
+	}
+}
+
+static bool update_color_gamut_data(struct color_gamut_data *input_data,
+		struct color_gamut_data *output_data)
+{
+	bool output_custom_cs = false;
+	bool output_custom_wp = false;
+
+	if (input_data == NULL || output_data == NULL)
+		return false;
+
+	if (input_data->color_space == color_space_custom_coordinates) {
+		output_data->color_space = input_data->color_space;
+		output_data->gamut.redX = input_data->gamut.redX;
+		output_data->gamut.redY = input_data->gamut.redY;
+		output_data->gamut.greenX = input_data->gamut.greenX;
+		output_data->gamut.greenY = input_data->gamut.greenY;
+		output_data->gamut.blueX = input_data->gamut.blueX;
+		output_data->gamut.blueY = input_data->gamut.blueY;
+	} else {
+		struct gamut_space_coordinates gamut_coord;
+		enum predefined_gamut_type gamut_type =
+				color_space_to_predefined_gamut_types
+				(input_data->color_space);
+
+		/* fall back to original color space if unknown */
+		if (gamut_type == gamut_type_unknown) {
+			if (output_data->color_space ==
+					color_space_custom_coordinates) {
+				output_custom_cs = true;
+			} else {
+				gamut_type =
+					color_space_to_predefined_gamut_types
+					(output_data->color_space);
+				/* fall back to sRGB if both unknown*/
+				if (gamut_type == gamut_type_unknown) {
+					output_data->color_space =
+						color_space_srgb;
+					gamut_type = gamut_type_srgb;
+				}
+			}
+		} else {
+			output_data->color_space = input_data->color_space;
+		}
+
+		if (!output_custom_cs) {
+			mod_color_find_predefined_gamut(&gamut_coord,
+					gamut_type);
+			output_data->gamut.redX = gamut_coord.redX;
+			output_data->gamut.redY = gamut_coord.redY;
+			output_data->gamut.greenX = gamut_coord.greenX;
+			output_data->gamut.greenY = gamut_coord.greenY;
+			output_data->gamut.blueX = gamut_coord.blueX;
+			output_data->gamut.blueY = gamut_coord.blueY;
+		}
+	}
+
+	if (input_data->white_point == color_space_custom_coordinates) {
+		output_data->white_point = input_data->white_point;
+		output_data->gamut.whiteX = input_data->gamut.whiteX;
+		output_data->gamut.whiteY = input_data->gamut.whiteY;
+	} else {
+		struct white_point_coodinates white_point_coord;
+		enum predefined_white_point_type white_type =
+				white_point_to_predefined_white_point
+				(input_data->white_point);
+
+		/* fall back to original white point if not found */
+		if (white_type == white_point_type_unknown) {
+			if (output_data->white_point ==
+				color_white_point_type_custom_coordinates) {
+				output_custom_wp = true;
+			} else {
+				white_type =
+					white_point_to_predefined_white_point
+					(output_data->white_point);
+				/* fall back to 6500 if both unknown*/
+				if (white_type == white_point_type_unknown) {
+					output_data->white_point =
+					color_white_point_type_6500k_noon;
+					white_type =
+						white_point_type_6500k_noon;
+				}
+			}
+		} else {
+			output_data->white_point = input_data->white_point;
+		}
+
+		if (!output_custom_wp) {
+			mod_color_find_predefined_white_point(
+					&white_point_coord, white_type);
+			output_data->gamut.whiteX = white_point_coord.whiteX;
+			output_data->gamut.whiteY = white_point_coord.whiteY;
+		}
+	}
+	return true;
+}
+
 struct mod_color *mod_color_create(struct dc *dc)
 {
 	int i = 0;
@@ -1311,23 +1452,36 @@ struct mod_color *mod_color_create(struct dc *dc)
 
 	/*hardcoded to sRGB with 6500 color temperature*/
 	for (i = 0; i < MOD_COLOR_MAX_CONCURRENT_SINKS; i++) {
-		core_color->state[i].source_gamut.blueX = 1500;
-		core_color->state[i].source_gamut.blueY = 600;
-		core_color->state[i].source_gamut.greenX = 3000;
-		core_color->state[i].source_gamut.greenY = 6000;
-		core_color->state[i].source_gamut.redX = 6400;
-		core_color->state[i].source_gamut.redY = 3300;
-		core_color->state[i].source_gamut.whiteX = 3127;
-		core_color->state[i].source_gamut.whiteY = 3290;
+		core_color->state[i].source_gamut.color_space =
+				color_space_srgb;
+		core_color->state[i].source_gamut.white_point =
+				color_white_point_type_6500k_noon;
+		core_color->state[i].source_gamut.gamut.blueX = 1500;
+		core_color->state[i].source_gamut.gamut.blueY = 600;
+		core_color->state[i].source_gamut.gamut.greenX = 3000;
+		core_color->state[i].source_gamut.gamut.greenY = 6000;
+		core_color->state[i].source_gamut.gamut.redX = 6400;
+		core_color->state[i].source_gamut.gamut.redY = 3300;
+		core_color->state[i].source_gamut.gamut.whiteX = 3127;
+		core_color->state[i].source_gamut.gamut.whiteY = 3290;
 
-		core_color->state[i].destination_gamut.blueX = 1500;
-		core_color->state[i].destination_gamut.blueY = 600;
-		core_color->state[i].destination_gamut.greenX = 3000;
-		core_color->state[i].destination_gamut.greenY = 6000;
-		core_color->state[i].destination_gamut.redX = 6400;
-		core_color->state[i].destination_gamut.redY = 3300;
-		core_color->state[i].destination_gamut.whiteX = 3127;
-		core_color->state[i].destination_gamut.whiteY = 3290;
+		core_color->state[i].destination_gamut.color_space =
+				color_space_srgb;
+		core_color->state[i].destination_gamut.white_point =
+				color_white_point_type_6500k_noon;
+		core_color->state[i].destination_gamut.gamut.blueX = 1500;
+		core_color->state[i].destination_gamut.gamut.blueY = 600;
+		core_color->state[i].destination_gamut.gamut.greenX = 3000;
+		core_color->state[i].destination_gamut.gamut.greenY = 6000;
+		core_color->state[i].destination_gamut.gamut.redX = 6400;
+		core_color->state[i].destination_gamut.gamut.redY = 3300;
+		core_color->state[i].destination_gamut.gamut.whiteX = 3127;
+		core_color->state[i].destination_gamut.gamut.whiteY = 3290;
+
+		core_color->state[i].input_transfer_function =
+						transfer_func_srgb;
+		core_color->state[i].output_transfer_function =
+						transfer_func_srgb;
 
 		core_color->state[i].custom_color_temperature = 6500;
 
@@ -1351,6 +1505,12 @@ struct mod_color *mod_color_create(struct dc *dc)
 	if (core_color->state == NULL)
 		goto fail_alloc_state;
 
+	core_color->edid_caps = dm_alloc(sizeof(struct color_edid_caps) *
+			MOD_COLOR_MAX_CONCURRENT_SINKS);
+
+	if (core_color->edid_caps == NULL)
+		goto fail_alloc_edid_caps;
+
 	core_color->num_sinks = 0;
 
 	if (dc == NULL)
@@ -1371,6 +1531,9 @@ struct mod_color *mod_color_create(struct dc *dc)
 	return &core_color->public;
 
 fail_construct:
+	dm_free(core_color->edid_caps);
+
+fail_alloc_edid_caps:
 	dm_free(core_color->state);
 
 fail_alloc_state:
@@ -1390,6 +1553,8 @@ void mod_color_destroy(struct mod_color *mod_color)
 		struct core_color *core_color =
 				MOD_COLOR_TO_CORE(mod_color);
 
+		dm_free(core_color->edid_caps);
+
 		for (i = 0; i < core_color->num_sinks; i++)
 			if (core_color->state[i].gamma)
 				dc_gamma_release(core_color->state[i].gamma);
@@ -1405,7 +1570,8 @@ void mod_color_destroy(struct mod_color *mod_color)
 	}
 }
 
-bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink)
+bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
+		struct color_edid_caps *edid_caps)
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
@@ -1425,6 +1591,11 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink)
 		core_color->caps[core_color->num_sinks].sink = sink;
 		core_color->state[core_color->num_sinks].
 				user_enable_color_temperature = true;
+
+		core_color->edid_caps[core_color->num_sinks].colorimetry_caps =
+				edid_caps->colorimetry_caps;
+		core_color->edid_caps[core_color->num_sinks].hdr_caps =
+				edid_caps->hdr_caps;
 
 		/* get persistent data from registry */
 		flag.save_per_edid = true;
@@ -1462,25 +1633,25 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink)
 					sizeof(struct color_space_coordinates),
 					&flag)) {
 			memcpy(&core_color->state[core_color->num_sinks].
-				source_gamut, &persistent_source_gamut,
+				source_gamut.gamut, &persistent_source_gamut,
 				sizeof(struct color_space_coordinates));
 		} else {
 			core_color->state[core_color->num_sinks].
-					source_gamut.blueX = 1500;
+					source_gamut.gamut.blueX = 1500;
 			core_color->state[core_color->num_sinks].
-					source_gamut.blueY = 600;
+					source_gamut.gamut.blueY = 600;
 			core_color->state[core_color->num_sinks].
-					source_gamut.greenX = 3000;
+					source_gamut.gamut.greenX = 3000;
 			core_color->state[core_color->num_sinks].
-					source_gamut.greenY = 6000;
+					source_gamut.gamut.greenY = 6000;
 			core_color->state[core_color->num_sinks].
-					source_gamut.redX = 6400;
+					source_gamut.gamut.redX = 6400;
 			core_color->state[core_color->num_sinks].
-					source_gamut.redY = 3300;
+					source_gamut.gamut.redY = 3300;
 			core_color->state[core_color->num_sinks].
-					source_gamut.whiteX = 3127;
+					source_gamut.gamut.whiteX = 3127;
 			core_color->state[core_color->num_sinks].
-					source_gamut.whiteY = 3290;
+					source_gamut.gamut.whiteY = 3290;
 		}
 
 		if (dm_read_persistent_data(core_dc->ctx, sink, COLOR_REGISTRY_NAME,
@@ -1489,26 +1660,26 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink)
 					sizeof(struct color_space_coordinates),
 					&flag)) {
 			memcpy(&core_color->state[core_color->num_sinks].
-				destination_gamut,
+				destination_gamut.gamut,
 				&persistent_destination_gamut,
 				sizeof(struct color_space_coordinates));
 		} else {
 			core_color->state[core_color->num_sinks].
-					destination_gamut.blueX = 1500;
+					destination_gamut.gamut.blueX = 1500;
 			core_color->state[core_color->num_sinks].
-					destination_gamut.blueY = 600;
+					destination_gamut.gamut.blueY = 600;
 			core_color->state[core_color->num_sinks].
-					destination_gamut.greenX = 3000;
+					destination_gamut.gamut.greenX = 3000;
 			core_color->state[core_color->num_sinks].
-					destination_gamut.greenY = 6000;
+					destination_gamut.gamut.greenY = 6000;
 			core_color->state[core_color->num_sinks].
-					destination_gamut.redX = 6400;
+					destination_gamut.gamut.redX = 6400;
 			core_color->state[core_color->num_sinks].
-					destination_gamut.redY = 3300;
+					destination_gamut.gamut.redY = 3300;
 			core_color->state[core_color->num_sinks].
-					destination_gamut.whiteX = 3127;
+					destination_gamut.gamut.whiteX = 3127;
 			core_color->state[core_color->num_sinks].
-					destination_gamut.whiteY = 3290;
+					destination_gamut.gamut.whiteY = 3290;
 		}
 
 		if (dm_read_persistent_data(core_dc->ctx, sink, COLOR_REGISTRY_NAME,
@@ -1588,6 +1759,10 @@ bool mod_color_remove_sink(struct mod_color *mod_color,
 				memcpy(&core_color->state[j],
 					&core_color->state[j + 1],
 					sizeof(struct color_state));
+
+				memcpy(&core_color->edid_caps[j],
+					&core_color->edid_caps[j + 1],
+					sizeof(struct color_edid_caps));
 			}
 
 			core_color->num_sinks--;
@@ -1625,7 +1800,7 @@ bool mod_color_update_gamut_to_stream(struct mod_color *mod_color,
 					COLOR_REGISTRY_NAME,
 					"sourcegamut",
 					&core_color->state[sink_index].
-							source_gamut,
+							source_gamut.gamut,
 					sizeof(struct color_space_coordinates),
 					&flag);
 
@@ -1634,19 +1809,19 @@ bool mod_color_update_gamut_to_stream(struct mod_color *mod_color,
 					COLOR_REGISTRY_NAME,
 					"destgamut",
 					&core_color->state[sink_index].
-							destination_gamut,
+							destination_gamut.gamut,
 					sizeof(struct color_space_coordinates),
 					&flag);
 
 		if (!build_gamut_remap_matrix
-				(core_color->state[sink_index].source_gamut,
-						matrix->rgbCoeffSrc,
-						matrix->whiteCoeffSrc))
+			(core_color->state[sink_index].source_gamut.gamut,
+					matrix->rgbCoeffSrc,
+					matrix->whiteCoeffSrc))
 			goto function_fail;
 
 		if (!build_gamut_remap_matrix
 				(core_color->state[sink_index].
-				destination_gamut,
+				destination_gamut.gamut,
 				matrix->rgbCoeffDst, matrix->whiteCoeffDst))
 			goto function_fail;
 
@@ -1700,8 +1875,7 @@ function_fail:
 
 bool mod_color_adjust_source_gamut(struct mod_color *mod_color,
 		const struct dc_stream **streams, int num_streams,
-		struct gamut_space_coordinates *input_gamut_coordinates,
-		struct white_point_coodinates *input_white_point_coordinates)
+		struct color_gamut_data *input_gamut_data)
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 
@@ -1711,25 +1885,35 @@ bool mod_color_adjust_source_gamut(struct mod_color *mod_color,
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
 
-		core_color->state[sink_index].source_gamut.blueX =
-				input_gamut_coordinates->blueX;
-		core_color->state[sink_index].source_gamut.blueY =
-				input_gamut_coordinates->blueY;
-		core_color->state[sink_index].source_gamut.greenX =
-				input_gamut_coordinates->greenX;
-		core_color->state[sink_index].source_gamut.greenY =
-				input_gamut_coordinates->greenY;
-		core_color->state[sink_index].source_gamut.redX =
-				input_gamut_coordinates->redX;
-		core_color->state[sink_index].source_gamut.redY =
-				input_gamut_coordinates->redY;
-		core_color->state[sink_index].source_gamut.whiteX =
-				input_white_point_coordinates->whiteX;
-		core_color->state[sink_index].source_gamut.whiteY =
-				input_white_point_coordinates->whiteY;
+		update_color_gamut_data(input_gamut_data,
+				&core_color->state[sink_index].source_gamut);
 	}
 
-	if (!mod_color_update_gamut_to_stream(mod_color, streams, num_streams))
+	if (!mod_color_update_gamut_info(mod_color, streams, num_streams))
+		return false;
+
+	return true;
+}
+
+bool mod_color_adjust_source_gamut_and_tf(struct mod_color *mod_color,
+		const struct dc_stream **streams, int num_streams,
+		struct color_gamut_data *input_gamut_data,
+		enum color_transfer_func input_transfer_func)
+{
+	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
+
+	unsigned int stream_index, sink_index;
+
+	for (stream_index = 0; stream_index < num_streams; stream_index++) {
+		sink_index = sink_index_from_sink(core_color,
+				streams[stream_index]->sink);
+		update_color_gamut_data(input_gamut_data,
+				&core_color->state[sink_index].source_gamut);
+		core_color->state[sink_index].input_transfer_function =
+				input_transfer_func;
+	}
+
+	if (!mod_color_update_gamut_info(mod_color, streams, num_streams))
 		return false;
 
 	return true;
@@ -1737,8 +1921,7 @@ bool mod_color_adjust_source_gamut(struct mod_color *mod_color,
 
 bool mod_color_adjust_destination_gamut(struct mod_color *mod_color,
 		const struct dc_stream **streams, int num_streams,
-		struct gamut_space_coordinates *input_gamut_coordinates,
-		struct white_point_coodinates *input_white_point_coordinates)
+		struct color_gamut_data *input_gamut_data)
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 
@@ -1748,22 +1931,8 @@ bool mod_color_adjust_destination_gamut(struct mod_color *mod_color,
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
 
-		core_color->state[sink_index].destination_gamut.blueX =
-				input_gamut_coordinates->blueX;
-		core_color->state[sink_index].destination_gamut.blueY =
-				input_gamut_coordinates->blueY;
-		core_color->state[sink_index].destination_gamut.greenX =
-				input_gamut_coordinates->greenX;
-		core_color->state[sink_index].destination_gamut.greenY =
-				input_gamut_coordinates->greenY;
-		core_color->state[sink_index].destination_gamut.redX =
-				input_gamut_coordinates->redX;
-		core_color->state[sink_index].destination_gamut.redY =
-				input_gamut_coordinates->redY;
-		core_color->state[sink_index].destination_gamut.whiteX =
-				input_white_point_coordinates->whiteX;
-		core_color->state[sink_index].destination_gamut.whiteY =
-				input_white_point_coordinates->whiteY;
+		update_color_gamut_data(input_gamut_data,
+			&core_color->state[sink_index].destination_gamut);
 	}
 
 	if (!mod_color_update_gamut_to_stream(mod_color, streams, num_streams))
@@ -1784,14 +1953,47 @@ bool mod_color_set_white_point(struct mod_color *mod_color,
 			stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
-		core_color->state[sink_index].source_gamut.whiteX =
+		core_color->state[sink_index].source_gamut.gamut.whiteX =
 				white_point->whiteX;
-		core_color->state[sink_index].source_gamut.whiteY =
+		core_color->state[sink_index].source_gamut.gamut.whiteY =
 				white_point->whiteY;
 	}
 
 	if (!mod_color_update_gamut_to_stream(mod_color, streams, num_streams))
 		return false;
+
+	return true;
+}
+
+
+bool mod_color_set_mastering_info(struct mod_color *mod_color,
+		const struct dc_stream **streams, int num_streams,
+		struct color_mastering_info *mastering_info)
+{
+	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
+	unsigned int stream_index, sink_index;
+
+	for (stream_index = 0; stream_index < num_streams; stream_index++) {
+		sink_index = sink_index_from_sink(core_color,
+				streams[stream_index]->sink);
+		memcpy(&core_color->state[sink_index].mastering_info,
+				mastering_info,
+				sizeof(struct color_mastering_info));
+	}
+	return true;
+}
+
+bool mod_color_get_mastering_info(struct mod_color *mod_color,
+		const struct dc_sink *sink,
+		struct color_mastering_info *mastering_info)
+{
+	struct core_color *core_color =
+			MOD_COLOR_TO_CORE(mod_color);
+
+	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+
+	memcpy(mastering_info, &core_color->state[sink_index].mastering_info,
+			sizeof(struct color_mastering_info));
 
 	return true;
 }
@@ -1953,7 +2155,7 @@ bool mod_color_get_source_gamut(struct mod_color *mod_color,
 
 	unsigned int sink_index = sink_index_from_sink(core_color, sink);
 
-	*source_gamut = core_color->state[sink_index].source_gamut;
+	*source_gamut = core_color->state[sink_index].source_gamut.gamut;
 
 	return true;
 }
@@ -1973,14 +2175,14 @@ bool mod_color_notify_mode_change(struct mod_color *mod_color,
 				streams[stream_index]->sink);
 
 		if (!build_gamut_remap_matrix
-				(core_color->state[sink_index].source_gamut,
-						matrix->rgbCoeffSrc,
-						matrix->whiteCoeffSrc))
+			(core_color->state[sink_index].source_gamut.gamut,
+					matrix->rgbCoeffSrc,
+					matrix->whiteCoeffSrc))
 			goto function_fail;
 
 		if (!build_gamut_remap_matrix
 				(core_color->state[sink_index].
-				destination_gamut,
+				destination_gamut.gamut,
 				matrix->rgbCoeffDst, matrix->whiteCoeffDst))
 			goto function_fail;
 
@@ -2378,4 +2580,201 @@ bool mod_color_is_rgb_limited_range_supported_for_timing(
 		result = false;
 
 	return result;
+}
+
+bool mod_color_set_regamma(struct mod_color *mod_color,
+		const struct dc_stream **streams, int num_streams)
+{
+	/*TODO*/
+	return true;
+}
+
+bool mod_color_set_degamma(struct mod_color *mod_color,
+		const struct dc_stream **streams, int num_streams,
+		enum color_transfer_func transfer_function)
+{
+	/*TODO*/
+	return true;
+}
+
+bool mod_color_update_gamut_info(struct mod_color *mod_color,
+		const struct dc_stream **streams, int num_streams)
+{
+	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
+	unsigned int stream_index, sink_index;
+	bool should_defer = false;
+	bool is_hdr = false;
+	enum color_color_space source_color_space;
+	enum color_transfer_func input_transfer_function;
+	struct color_gamut_data new_gamut_source;
+	struct color_gamut_data new_gamut_destination;
+
+	for (stream_index = 0; stream_index < num_streams; stream_index++) {
+		sink_index = sink_index_from_sink(core_color,
+				streams[stream_index]->sink);
+		source_color_space =
+			core_color->state[sink_index].source_gamut.color_space;
+		input_transfer_function =
+			core_color->state[sink_index].input_transfer_function;
+		new_gamut_source.color_space = source_color_space;
+		new_gamut_destination.color_space =
+			core_color->state[sink_index].
+			destination_gamut.color_space;
+
+		struct dc_surface *surface =
+			dc_stream_to_surface_from_pipe_ctx(core_color,
+					streams[stream_index]);
+		if (surface == NULL)
+			return false;
+
+		if (surface->format == SURFACE_PIXEL_FORMAT_GRPH_ARGB8888 ||
+				surface->format ==
+					SURFACE_PIXEL_FORMAT_GRPH_ARGB2101010) {
+
+			if (input_transfer_function ==
+					transfer_func_pq2084 ||
+					input_transfer_function ==
+						transfer_func_pq2084_interim) {
+				/* For PQ and PQ interim, we bypass degamma+
+				 * remap+regamma, application needs to also
+				 * handle gamut remapping
+				 */
+				/* TODO */
+				is_hdr = true;
+			} else if (input_transfer_function ==
+					transfer_func_linear_0_1 ||
+					input_transfer_function ==
+						transfer_func_linear_0_125) {
+				/* TF not supported in current surface format,
+				 * but may be deferred to a later flip
+				 */
+				should_defer = true;
+			} else {
+				new_gamut_destination.color_space =
+							color_space_srgb;
+			}
+		} else if (surface->format ==
+				SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F ||
+				surface->format ==
+				SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F ||
+				surface->format ==
+				SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616) {
+			if (input_transfer_function ==
+					transfer_func_linear_0_125) {
+				/* Regamma PQ for HDR supported displays and
+				* 0-125 source
+				*/
+				if ((core_color->edid_caps[sink_index].
+					hdr_caps) & smpte_st2084)
+					is_hdr = true;
+
+				/* override for BT.2020 whenever PQ */
+				if (core_color->state[sink_index].
+					destination_gamut.color_space !=
+						color_space_bt2020) {
+					if (streams[stream_index]->timing.
+						pixel_encoding ==
+						PIXEL_ENCODING_RGB) {
+						if ((core_color->
+						edid_caps[sink_index].
+						colorimetry_caps) & bt_2020_rgb)
+							new_gamut_destination.
+							color_space =
+							color_space_bt2020;
+					} else {
+						if ((core_color->
+						edid_caps[sink_index].
+						colorimetry_caps) & bt_2020_ycc)
+							new_gamut_destination.
+							color_space =
+							color_space_bt2020;
+					}
+				}
+			} else if (input_transfer_function ==
+					transfer_func_linear_0_1) {
+				new_gamut_destination.color_space =
+						color_space_srgb;
+			} else {
+				/* TF not supported in current surface format,
+				* but may be deferred to a later flip
+				*/
+				should_defer = true;
+			}
+		}
+
+		/* 0. ---- CHECK DEFERRED ---- */
+		if (should_defer)
+			return true;
+
+		/* 1. ---- SET GAMUT SOURCE ---- */
+		new_gamut_source.white_point = core_color->state[sink_index].
+				source_gamut.white_point;
+		update_color_gamut_data(&new_gamut_source,
+			&core_color->state[sink_index].source_gamut);
+
+		/* 2. ---- SET GAMUT DESTINATION ---- */
+		new_gamut_destination.white_point =
+				core_color->state[sink_index].
+				destination_gamut.white_point;
+		update_color_gamut_data(&new_gamut_destination,
+			&core_color->state[sink_index].destination_gamut);
+
+		/* 3. ---- SET DEGAMMA ---- */
+		struct dc_transfer_func *input_tf = NULL;
+
+		input_tf = dc_create_transfer_func(core_color->dc);
+
+		if (input_tf != NULL) {
+			input_tf->type = TF_TYPE_PREDEFINED;
+
+			switch (input_transfer_function) {
+			case transfer_func_srgb:
+				input_tf->tf = TRANSFER_FUNCTION_SRGB;
+				break;
+			case transfer_func_linear_0_1:
+			case transfer_func_linear_0_125:
+				input_tf->tf = TRANSFER_FUNCTION_LINEAR;
+				break;
+			default:
+				dc_transfer_func_release(input_tf);
+				input_tf = NULL;
+				break;
+			}
+		}
+
+		/* 4. ---- SET REGAMMA ---- */
+		struct dc_transfer_func *output_tf = NULL;
+
+		output_tf = dc_create_transfer_func(core_color->dc);
+
+		if (output_tf != NULL) {
+			output_tf->type = TF_TYPE_PREDEFINED;
+			if (is_hdr)
+				output_tf->tf = TRANSFER_FUNCTION_PQ;
+			else
+				output_tf->tf = TRANSFER_FUNCTION_SRGB;
+		}
+
+		/* 5. ---- TODO: UPDATE INFOPACKETS ---- */
+
+		if (!mod_color_update_gamut_to_stream(
+				mod_color, streams, num_streams))
+			return false;
+
+		struct dc_surface_update updates[4] = {0};
+
+		updates[0].surface = surface;
+		updates[0].gamma = core_color->state[sink_index].gamma;
+		updates[0].in_transfer_func = input_tf;
+		updates[0].out_transfer_func = output_tf;
+
+		dc_update_surfaces_for_target(core_color->dc, updates, 1, NULL);
+
+		if (input_tf != NULL)
+			dc_transfer_func_release(input_tf);
+
+		if (output_tf != NULL)
+			dc_transfer_func_release(output_tf);
+	}
+	return true;
 }

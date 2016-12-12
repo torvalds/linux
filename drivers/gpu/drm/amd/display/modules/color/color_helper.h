@@ -37,7 +37,7 @@ bool mod_color_find_predefined_gamut(
 
 bool mod_color_find_predefined_white_point(
 		struct white_point_coodinates *out_white_point,
-		unsigned int index);
+		enum predefined_white_point_type type);
 
 bool mod_color_find_white_point_from_temperature(
 		struct white_point_coodinates *out_white_point,
