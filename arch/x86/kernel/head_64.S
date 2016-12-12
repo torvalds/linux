@@ -142,6 +142,9 @@ startup_64:
 	decl	%ecx
 	jnz	1b
 
+	test %rbp, %rbp
+	jz .Lskip_fixup
+
 	/*
 	 * Fixup the kernel text+data virtual addresses. Note that
 	 * we might write invalid pmds, when the kernel is relocated
@@ -149,9 +152,9 @@ startup_64:
 	 * beyond _end.
 	 */
 	leaq	level2_kernel_pgt(%rip), %rdi
-	leaq	4096(%rdi), %r8
+	leaq	PAGE_SIZE(%rdi), %r8
 	/* See if it is a valid page table entry */
-1:	testb	$1, 0(%rdi)
+1:	testb	$_PAGE_PRESENT, 0(%rdi)
 	jz	2f
 	addq	%rbp, 0(%rdi)
 	/* Go to the next page */
@@ -162,6 +165,7 @@ startup_64:
 	/* Fixup phys_base */
 	addq	%rbp, phys_base(%rip)
 
+.Lskip_fixup:
 	movq	$(early_level4_pgt - __START_KERNEL_map), %rax
 	jmp 1f
 ENTRY(secondary_startup_64)
