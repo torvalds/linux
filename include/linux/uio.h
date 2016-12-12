@@ -101,12 +101,12 @@ int iov_iter_npages(const struct iov_iter *i, int maxpages);
 
 const void *dup_iter(struct iov_iter *new, struct iov_iter *old, gfp_t flags);
 
-static inline size_t iov_iter_count(struct iov_iter *i)
+static inline size_t iov_iter_count(const struct iov_iter *i)
 {
 	return i->count;
 }
 
-static inline bool iter_is_iovec(struct iov_iter *i)
+static inline bool iter_is_iovec(const struct iov_iter *i)
 {
 	return !(i->type & (ITER_BVEC | ITER_KVEC));
 }
