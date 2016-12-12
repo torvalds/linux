@@ -621,11 +621,6 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 		host->card_busy	= sh_mobile_sdhi_card_busy;
 		host->start_signal_voltage_switch =
 			sh_mobile_sdhi_start_signal_voltage_switch;
-		host->init_tuning	= sh_mobile_sdhi_init_tuning;
-		host->prepare_tuning	= sh_mobile_sdhi_prepare_tuning;
-		host->select_tuning	= sh_mobile_sdhi_select_tuning;
-		host->check_scc_error	= sh_mobile_sdhi_check_scc_error;
-		host->hw_reset		= sh_mobile_sdhi_hw_reset;
 	}
 
 	/* Orginally registers were 16 bit apart, could be 32 or 64 nowadays */
@@ -666,6 +661,7 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto efree;
 
+	/* Enable tuning iff we have an SCC and a supported mode */
 	if (of_data && of_data->scc_offset && host->mmc->caps & MMC_CAP_UHS_SDR104) {
 		const struct sh_mobile_sdhi_scc *taps = of_data->taps;
 		bool hit = false;
@@ -685,6 +681,11 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 			dev_warn(&host->pdev->dev, "Unknown clock rate for SDR104\n");
 
 		priv->scc_ctl = host->ctl + of_data->scc_offset;
+		host->init_tuning = sh_mobile_sdhi_init_tuning;
+		host->prepare_tuning = sh_mobile_sdhi_prepare_tuning;
+		host->select_tuning = sh_mobile_sdhi_select_tuning;
+		host->check_scc_error = sh_mobile_sdhi_check_scc_error;
+		host->hw_reset = sh_mobile_sdhi_hw_reset;
 	}
 
 	i = 0;
