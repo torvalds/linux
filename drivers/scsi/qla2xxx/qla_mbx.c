@@ -10,6 +10,43 @@
 #include <linux/delay.h>
 #include <linux/gfp.h>
 
+struct rom_cmd {
+	uint16_t cmd;
+} rom_cmds[] = {
+	{ MBC_LOAD_RAM },
+	{ MBC_EXECUTE_FIRMWARE },
+	{ MBC_READ_RAM_WORD },
+	{ MBC_MAILBOX_REGISTER_TEST },
+	{ MBC_VERIFY_CHECKSUM },
+	{ MBC_GET_FIRMWARE_VERSION },
+	{ MBC_LOAD_RISC_RAM },
+	{ MBC_DUMP_RISC_RAM },
+	{ MBC_LOAD_RISC_RAM_EXTENDED },
+	{ MBC_DUMP_RISC_RAM_EXTENDED },
+	{ MBC_WRITE_RAM_WORD_EXTENDED },
+	{ MBC_READ_RAM_EXTENDED },
+	{ MBC_GET_RESOURCE_COUNTS },
+	{ MBC_SET_FIRMWARE_OPTION },
+	{ MBC_MID_INITIALIZE_FIRMWARE },
+	{ MBC_GET_FIRMWARE_STATE },
+	{ MBC_GET_MEM_OFFLOAD_CNTRL_STAT },
+	{ MBC_GET_RETRY_COUNT },
+	{ MBC_TRACE_CONTROL },
+};
+
+static int is_rom_cmd(uint16_t cmd)
+{
+	int i;
+	struct  rom_cmd *wc;
+
+	for (i = 0; i < ARRAY_SIZE(rom_cmds); i++) {
+		wc = rom_cmds + i;
+		if (wc->cmd == cmd)
+			return 1;
+	}
+
+	return 0;
+}
 
 /*
  * qla2x00_mailbox_command
@@ -89,6 +126,17 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		mcp->mb[0] = MBS_LINK_DOWN_ERROR;
 		ql_log(ql_log_warn, vha, 0x1004,
 		    "FW hung = %d.\n", ha->flags.isp82xx_fw_hung);
+		return QLA_FUNCTION_TIMEOUT;
+	}
+
+	/* check if ISP abort is active and return cmd with timeout */
+	if ((test_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_RETRY, &base_vha->dpc_flags) ||
+	    test_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags)) &&
+	    !is_rom_cmd(mcp->mb[0])) {
+		ql_log(ql_log_info, vha, 0x1005,
+		    "Cmd 0x%x aborted with timeout since ISP Abort is pending\n",
+		    mcp->mb[0]);
 		return QLA_FUNCTION_TIMEOUT;
 	}
 
@@ -178,6 +226,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			WRT_REG_WORD(&reg->isp.hccr, HCCR_SET_HOST_INT);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
+		wait_time = jiffies;
 		if (!wait_for_completion_timeout(&ha->mbx_intr_comp,
 		    mcp->tov * HZ)) {
 			ql_dbg(ql_dbg_mbx, vha, 0x117a,
@@ -186,6 +235,9 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			clear_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		}
+		if (time_after(jiffies, wait_time + 5 * HZ))
+			ql_log(ql_log_warn, vha, 0x1015, "cmd=0x%x, waited %d msecs\n",
+			    command, jiffies_to_msecs(jiffies - wait_time));
 	} else {
 		ql_dbg(ql_dbg_mbx, vha, 0x1011,
 		    "Cmd=%x Polling Mode.\n", command);
