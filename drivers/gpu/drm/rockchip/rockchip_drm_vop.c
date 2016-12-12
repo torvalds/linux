@@ -74,7 +74,7 @@
 #define VOP_WIN_SET(x, win, name, v) \
 		REG_SET(x, name, win->offset, VOP_WIN_NAME(win, name), v, true)
 #define VOP_WIN_SET_EXT(x, win, ext, name, v) \
-		REG_SET(x, name, win->offset, win->ext->name, v, true)
+		REG_SET(x, name, 0, win->ext->name, v, true)
 #define VOP_SCL_SET(x, win, name, v) \
 		REG_SET(x, name, win->offset, win->phy->scl->name, v, true)
 #define VOP_SCL_SET_EXT(x, win, name, v) \
