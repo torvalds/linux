@@ -2750,6 +2750,10 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
 			fault handling.
 
+	no-vmw-sched-clock
+			[X86,PV_OPS] Disable paravirtualized VMware scheduler
+			clock and use the default one.
+
 	no-steal-acc    [X86,KVM] Disable paravirtualized steal time accounting.
 			steal time is computed, but won't influence scheduler
 			behaviour
