@@ -226,8 +226,25 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	 *
 	 * OPPs might be populated at runtime, don't check for error here
 	 */
+#ifdef CONFIG_ARCH_ROCKCHIP
+	ret = dev_pm_opp_of_add_table(cpu_dev);
+	if (ret) {
+		dev_err(cpu_dev, "couldn't find opp table for cpu:%d, %d\n",
+			policy->cpu, ret);
+	} else {
+		struct cpumask cpus;
+
+		cpumask_copy(&cpus, policy->cpus);
+		cpumask_clear_cpu(policy->cpu, &cpus);
+		if (!dev_pm_opp_of_cpumask_add_table(&cpus))
+			priv->have_static_opps = true;
+		else
+			dev_pm_opp_of_remove_table(cpu_dev);
+	}
+#else
 	if (!dev_pm_opp_of_cpumask_add_table(policy->cpus))
 		priv->have_static_opps = true;
+#endif
 
 	/*
 	 * But we need OPP table to function so if it is not there let's
