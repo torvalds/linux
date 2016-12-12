@@ -767,6 +767,8 @@ void iwl_pcie_synchronize_irqs(struct iwl_trans *trans);
 bool iwl_trans_check_hw_rf_kill(struct iwl_trans *trans);
 void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq);
 int iwl_queue_space(const struct iwl_txq *q);
+int iwl_pcie_apm_stop_master(struct iwl_trans *trans);
+void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie);
 
 /* transport gen 2 exported functions */
 int iwl_trans_pcie_gen2_start_fw(struct iwl_trans *trans,
@@ -781,5 +783,8 @@ int iwl_trans_pcie_gen2_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			   struct iwl_device_cmd *dev_cmd, int txq_id);
 int iwl_trans_pcie_gen2_send_hcmd(struct iwl_trans *trans,
 				  struct iwl_host_cmd *cmd);
+void iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans,
+				     bool low_power);
+void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans, bool low_power);
 
 #endif /* __iwl_trans_int_pcie_h__ */
