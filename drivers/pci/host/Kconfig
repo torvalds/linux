@@ -288,7 +288,7 @@ config PCIE_ROCKCHIP
 	  4 slots.
 
 config VMD
-	depends on PCI_MSI && X86_64
+	depends on PCI_MSI && X86_64 && SRCU
 	tristate "Intel Volume Management Device Driver"
 	default N
 	---help---
