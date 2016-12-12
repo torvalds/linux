@@ -666,27 +666,25 @@ static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto efree;
 
-	if (host->mmc->caps & MMC_CAP_UHS_SDR104) {
+	if (of_data && of_data->scc_offset && host->mmc->caps & MMC_CAP_UHS_SDR104) {
+		const struct sh_mobile_sdhi_scc *taps = of_data->taps;
+		bool hit = false;
+
 		host->mmc->caps |= MMC_CAP_HW_RESET;
 
-		if (of_data) {
-			const struct sh_mobile_sdhi_scc *taps = of_data->taps;
-			bool hit = false;
-
-			for (i = 0; i < of_data->taps_num; i++) {
-				if (taps[i].clk_rate == 0 ||
-				    taps[i].clk_rate == host->mmc->f_max) {
-					host->scc_tappos = taps->tap;
-					hit = true;
-					break;
-				}
+		for (i = 0; i < of_data->taps_num; i++) {
+			if (taps[i].clk_rate == 0 ||
+			    taps[i].clk_rate == host->mmc->f_max) {
+				host->scc_tappos = taps->tap;
+				hit = true;
+				break;
 			}
-
-			if (!hit)
-				dev_warn(&host->pdev->dev, "Unknown clock rate for SDR104\n");
-
-			priv->scc_ctl = host->ctl + of_data->scc_offset;
 		}
+
+		if (!hit)
+			dev_warn(&host->pdev->dev, "Unknown clock rate for SDR104\n");
+
+		priv->scc_ctl = host->ctl + of_data->scc_offset;
 	}
 
 	i = 0;
