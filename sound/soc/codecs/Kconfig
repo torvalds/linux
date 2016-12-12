@@ -1083,6 +1083,7 @@ config SND_SOC_WM9705
 
 config SND_SOC_WM9712
 	tristate
+	select REGMAP_AC97
 
 config SND_SOC_WM9713
 	tristate
