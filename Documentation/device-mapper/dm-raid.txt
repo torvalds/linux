@@ -309,3 +309,4 @@ Version History
 	with a reshape in progress.
 1.9.0   Add support for RAID level takeover/reshape/region size
 	and set size reduction.
+1.9.1   Fix activation of existing RAID 4/10 mapped devices

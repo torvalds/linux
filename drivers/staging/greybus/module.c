@@ -127,7 +127,7 @@ struct gb_module *gb_module_create(struct gb_host_device *hd, u8 module_id,
 	return module;
 
 err_put_interfaces:
-	for (--i; i > 0; --i)
+	for (--i; i >= 0; --i)
 		gb_interface_put(module->interfaces[i]);
 
 	put_device(&module->dev);

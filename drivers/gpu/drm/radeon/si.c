@@ -4431,6 +4431,7 @@ static bool si_vm_reg_valid(u32 reg)
 	case SPI_CONFIG_CNTL:
 	case SPI_CONFIG_CNTL_1:
 	case TA_CNTL_AUX:
+	case TA_CS_BC_BASE_ADDR:
 		return true;
 	default:
 		DRM_ERROR("Invalid register 0x%x in CS\n", reg);

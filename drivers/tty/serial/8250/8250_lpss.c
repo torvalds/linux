@@ -213,7 +213,7 @@ static int qrk_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	struct pci_dev *pdev = to_pci_dev(port->dev);
 	int ret;
 
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, 0);
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
 	if (ret < 0)
 		return ret;
 

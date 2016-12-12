@@ -844,12 +844,6 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	struct pci_dev *pdev = dev->pdev;
 	int err;
 
-	err = mlx5_query_hca_caps(dev);
-	if (err) {
-		dev_err(&pdev->dev, "query hca failed\n");
-		goto out;
-	}
-
 	err = mlx5_query_board_id(dev);
 	if (err) {
 		dev_err(&pdev->dev, "query board id failed\n");
@@ -1022,6 +1016,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	}
 
 	mlx5_start_health_poll(dev);
+
+	err = mlx5_query_hca_caps(dev);
+	if (err) {
+		dev_err(&pdev->dev, "query hca failed\n");
+		goto err_stop_poll;
+	}
 
 	if (boot && mlx5_init_once(dev, priv)) {
 		dev_err(&pdev->dev, "sw objs init failed\n");
@@ -1313,10 +1313,16 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 	struct mlx5_priv *priv = &dev->priv;
 
 	dev_info(&pdev->dev, "%s was called\n", __func__);
+
 	mlx5_enter_error_state(dev);
 	mlx5_unload_one(dev, priv, false);
-	pci_save_state(pdev);
-	mlx5_pci_disable_device(dev);
+	/* In case of kernel call save the pci state and drain health wq */
+	if (state) {
+		pci_save_state(pdev);
+		mlx5_drain_health_wq(dev);
+		mlx5_pci_disable_device(dev);
+	}
+
 	return state == pci_channel_io_perm_failure ?
 		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
 }
@@ -1373,11 +1379,6 @@ static pci_ers_result_t mlx5_pci_slot_reset(struct pci_dev *pdev)
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
-void mlx5_disable_device(struct mlx5_core_dev *dev)
-{
-	mlx5_pci_err_detected(dev->pdev, 0);
-}
-
 static void mlx5_pci_resume(struct pci_dev *pdev)
 {
 	struct mlx5_core_dev *dev = pci_get_drvdata(pdev);
@@ -1426,6 +1427,18 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, mlx5_core_pci_table);
+
+void mlx5_disable_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_err_detected(dev->pdev, 0);
+}
+
+void mlx5_recover_device(struct mlx5_core_dev *dev)
+{
+	mlx5_pci_disable_device(dev);
+	if (mlx5_pci_slot_reset(dev->pdev) == PCI_ERS_RESULT_RECOVERED)
+		mlx5_pci_resume(dev->pdev);
+}
 
 static struct pci_driver mlx5_core_driver = {
 	.name           = DRIVER_NAME,

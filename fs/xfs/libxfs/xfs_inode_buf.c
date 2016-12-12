@@ -57,6 +57,17 @@ xfs_inobp_check(
 }
 #endif
 
+bool
+xfs_dinode_good_version(
+	struct xfs_mount *mp,
+	__u8		version)
+{
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		return version == 3;
+
+	return version == 1 || version == 2;
+}
+
 /*
  * If we are doing readahead on an inode buffer, we might be in log recovery
  * reading an inode allocation buffer that hasn't yet been replayed, and hence
@@ -91,7 +102,7 @@ xfs_inode_buf_verify(
 
 		dip = xfs_buf_offset(bp, (i << mp->m_sb.sb_inodelog));
 		di_ok = dip->di_magic == cpu_to_be16(XFS_DINODE_MAGIC) &&
-			    XFS_DINODE_GOOD_VERSION(dip->di_version);
+			xfs_dinode_good_version(mp, dip->di_version);
 		if (unlikely(XFS_TEST_ERROR(!di_ok, mp,
 						XFS_ERRTAG_ITOBP_INOTOBP,
 						XFS_RANDOM_ITOBP_INOTOBP))) {

@@ -267,12 +267,8 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 		return ret;
 	}
 
-	ret = clk_prepare_enable(fsl_dev->pix_clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable pix clk\n");
-		goto disable_dcu_clk;
-	}
-
+	if (fsl_dev->tcon)
+		fsl_tcon_bypass_enable(fsl_dev->tcon);
 	fsl_dcu_drm_init_planes(fsl_dev->drm);
 	drm_atomic_helper_resume(fsl_dev->drm, fsl_dev->state);
 
@@ -284,10 +280,6 @@ static int fsl_dcu_drm_pm_resume(struct device *dev)
 	enable_irq(fsl_dev->irq);
 
 	return 0;
-
-disable_dcu_clk:
-	clk_disable_unprepare(fsl_dev->clk);
-	return ret;
 }
 #endif
 
@@ -401,18 +393,12 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 		goto disable_clk;
 	}
 
-	ret = clk_prepare_enable(fsl_dev->pix_clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable pix clk\n");
-		goto unregister_pix_clk;
-	}
-
 	fsl_dev->tcon = fsl_tcon_init(dev);
 
 	drm = drm_dev_alloc(driver, dev);
 	if (IS_ERR(drm)) {
 		ret = PTR_ERR(drm);
-		goto disable_pix_clk;
+		goto unregister_pix_clk;
 	}
 
 	fsl_dev->dev = dev;
@@ -433,8 +419,6 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 unref:
 	drm_dev_unref(drm);
-disable_pix_clk:
-	clk_disable_unprepare(fsl_dev->pix_clk);
 unregister_pix_clk:
 	clk_unregister(fsl_dev->pix_clk);
 disable_clk:
@@ -447,7 +431,6 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(fsl_dev->clk);
-	clk_disable_unprepare(fsl_dev->pix_clk);
 	clk_unregister(fsl_dev->pix_clk);
 	drm_put_dev(fsl_dev->drm);
 

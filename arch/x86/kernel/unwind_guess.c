@@ -47,7 +47,14 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	get_stack_info(first_frame, state->task, &state->stack_info,
 		       &state->stack_mask);
 
-	if (!__kernel_text_address(*first_frame))
+	/*
+	 * The caller can provide the address of the first frame directly
+	 * (first_frame) or indirectly (regs->sp) to indicate which stack frame
+	 * to start unwinding at.  Skip ahead until we reach it.
+	 */
+	if (!unwind_done(state) &&
+	    (!on_stack(&state->stack_info, first_frame, sizeof(long)) ||
+	    !__kernel_text_address(*first_frame)))
 		unwind_next_frame(state);
 }
 EXPORT_SYMBOL_GPL(__unwind_start);

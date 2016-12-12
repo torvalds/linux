@@ -983,7 +983,7 @@ static void gc_worker(struct work_struct *work)
 		return;
 
 	ratio = scanned ? expired_count * 100 / scanned : 0;
-	if (ratio >= 90)
+	if (ratio >= 90 || expired_count == GC_MAX_EVICTS)
 		next_run = 0;
 
 	gc_work->last_bucket = i;

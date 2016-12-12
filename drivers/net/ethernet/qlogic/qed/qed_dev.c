@@ -497,12 +497,13 @@ int qed_resc_alloc(struct qed_dev *cdev)
 		if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
 			num_cons = qed_cxt_get_proto_cid_count(p_hwfn,
 							       PROTOCOLID_ROCE,
-							       0) * 2;
+							       NULL) * 2;
 			n_eqes += num_cons + 2 * MAX_NUM_VFS_BB;
 		} else if (p_hwfn->hw_info.personality == QED_PCI_ISCSI) {
 			num_cons =
 			    qed_cxt_get_proto_cid_count(p_hwfn,
-							PROTOCOLID_ISCSI, 0);
+							PROTOCOLID_ISCSI,
+							NULL);
 			n_eqes += 2 * num_cons;
 		}
 
@@ -1422,19 +1423,19 @@ static void qed_hw_set_feat(struct qed_hwfn *p_hwfn)
 	u32 *feat_num = p_hwfn->hw_info.feat_num;
 	int num_features = 1;
 
-#if IS_ENABLED(CONFIG_INFINIBAND_QEDR)
-	/* Roce CNQ each requires: 1 status block + 1 CNQ. We divide the
-	 * status blocks equally between L2 / RoCE but with consideration as
-	 * to how many l2 queues / cnqs we have
-	 */
-	if (p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+	if (IS_ENABLED(CONFIG_QED_RDMA) &&
+	    p_hwfn->hw_info.personality == QED_PCI_ETH_ROCE) {
+		/* Roce CNQ each requires: 1 status block + 1 CNQ. We divide
+		 * the status blocks equally between L2 / RoCE but with
+		 * consideration as to how many l2 queues / cnqs we have.
+		 */
 		num_features++;
 
 		feat_num[QED_RDMA_CNQ] =
 			min_t(u32, RESC_NUM(p_hwfn, QED_SB) / num_features,
 			      RESC_NUM(p_hwfn, QED_RDMA_CNQ_RAM));
 	}
-#endif
+
 	feat_num[QED_PF_L2_QUE] = min_t(u32, RESC_NUM(p_hwfn, QED_SB) /
 						num_features,
 					RESC_NUM(p_hwfn, QED_L2_QUEUE));

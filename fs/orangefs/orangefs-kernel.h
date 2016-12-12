@@ -580,4 +580,11 @@ static inline void orangefs_i_size_write(struct inode *inode, loff_t i_size)
 #endif
 }
 
+static inline void orangefs_set_timeout(struct dentry *dentry)
+{
+	unsigned long time = jiffies + orangefs_dcache_timeout_msecs*HZ/1000;
+
+	dentry->d_fsdata = (void *) time;
+}
+
 #endif /* __ORANGEFSKERNEL_H */

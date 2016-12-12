@@ -676,7 +676,9 @@ static int stmmac_init_ptp(struct stmmac_priv *priv)
 	priv->hwts_tx_en = 0;
 	priv->hwts_rx_en = 0;
 
-	return stmmac_ptp_register(priv);
+	stmmac_ptp_register(priv);
+
+	return 0;
 }
 
 static void stmmac_release_ptp(struct stmmac_priv *priv)
@@ -1710,7 +1712,7 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 	if (init_ptp) {
 		ret = stmmac_init_ptp(priv);
 		if (ret)
-			netdev_warn(priv->dev, "PTP support cannot init.\n");
+			netdev_warn(priv->dev, "fail to init PTP.\n");
 	}
 
 #ifdef CONFIG_DEBUG_FS

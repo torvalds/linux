@@ -1358,6 +1358,7 @@ static const struct of_device_id nb8800_dt_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, nb8800_dt_ids);
 
 static int nb8800_probe(struct platform_device *pdev)
 {

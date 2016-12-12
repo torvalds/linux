@@ -284,7 +284,7 @@ config GPIO_MM_LANTIQ
 
 config GPIO_MOCKUP
 	tristate "GPIO Testing Driver"
-	depends on GPIOLIB
+	depends on GPIOLIB && SYSFS
 	select GPIO_SYSFS
 	help
 	  This enables GPIO Testing driver, which provides a way to test GPIO

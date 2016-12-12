@@ -1545,7 +1545,7 @@ static int update_open_stateid(struct nfs4_state *state,
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs_inode *nfsi = NFS_I(state->inode);
 	struct nfs_delegation *deleg_cur;
-	nfs4_stateid freeme = {0};
+	nfs4_stateid freeme = { };
 	int ret = 0;
 
 	fmode &= (FMODE_READ|FMODE_WRITE);

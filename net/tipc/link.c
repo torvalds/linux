@@ -1312,6 +1312,7 @@ static void tipc_link_build_proto_msg(struct tipc_link *l, int mtyp, bool probe,
 	msg_set_next_sent(hdr, l->snd_nxt);
 	msg_set_ack(hdr, l->rcv_nxt - 1);
 	msg_set_bcast_ack(hdr, bcl->rcv_nxt - 1);
+	msg_set_bc_ack_invalid(hdr, !node_up);
 	msg_set_last_bcast(hdr, l->bc_sndlink->snd_nxt - 1);
 	msg_set_link_tolerance(hdr, tolerance);
 	msg_set_linkprio(hdr, priority);
@@ -1574,6 +1575,7 @@ static void tipc_link_build_bc_init_msg(struct tipc_link *l,
 	__skb_queue_head_init(&list);
 	if (!tipc_link_build_bc_proto_msg(l->bc_rcvlink, false, 0, &list))
 		return;
+	msg_set_bc_ack_invalid(buf_msg(skb_peek(&list)), true);
 	tipc_link_xmit(l, &list, xmitq);
 }
 

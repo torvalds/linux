@@ -3035,6 +3035,7 @@ struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *d
 	}
 	return head;
 }
+EXPORT_SYMBOL_GPL(validate_xmit_skb_list);
 
 static void qdisc_pkt_len_init(struct sk_buff *skb)
 {
@@ -4511,6 +4512,7 @@ static enum gro_result dev_gro_receive(struct napi_struct *napi, struct sk_buff 
 		NAPI_GRO_CB(skb)->flush = 0;
 		NAPI_GRO_CB(skb)->free = 0;
 		NAPI_GRO_CB(skb)->encap_mark = 0;
+		NAPI_GRO_CB(skb)->recursion_counter = 0;
 		NAPI_GRO_CB(skb)->is_fou = 0;
 		NAPI_GRO_CB(skb)->is_atomic = 1;
 		NAPI_GRO_CB(skb)->gro_remcsum_start = 0;
@@ -5511,10 +5513,14 @@ struct net_device *netdev_all_lower_get_next_rcu(struct net_device *dev,
 {
 	struct netdev_adjacent *lower;
 
-	lower = list_first_or_null_rcu(&dev->all_adj_list.lower,
-				       struct netdev_adjacent, list);
+	lower = list_entry_rcu((*iter)->next, struct netdev_adjacent, list);
 
-	return lower ? lower->dev : NULL;
+	if (&lower->list == &dev->all_adj_list.lower)
+		return NULL;
+
+	*iter = &lower->list;
+
+	return lower->dev;
 }
 EXPORT_SYMBOL(netdev_all_lower_get_next_rcu);
 

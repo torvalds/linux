@@ -1012,7 +1012,7 @@ void restore_tm_state(struct pt_regs *regs)
 	/* Ensure that restore_math() will restore */
 	if (msr_diff & MSR_FP)
 		current->thread.load_fp = 1;
-#ifdef CONFIG_ALIVEC
+#ifdef CONFIG_ALTIVEC
 	if (cpu_has_feature(CPU_FTR_ALTIVEC) && msr_diff & MSR_VEC)
 		current->thread.load_vec = 1;
 #endif

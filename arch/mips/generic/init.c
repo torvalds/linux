@@ -30,8 +30,18 @@ static __initdata const void *mach_match_data;
 
 void __init prom_init(void)
 {
+	plat_get_fdt();
+	BUG_ON(!fdt);
+}
+
+void __init *plat_get_fdt(void)
+{
 	const struct mips_machine *check_mach;
 	const struct of_device_id *match;
+
+	if (fdt)
+		/* Already set up */
+		return (void *)fdt;
 
 	if ((fw_arg0 == -2) && !fdt_check_header((void *)fw_arg1)) {
 		/*
@@ -75,12 +85,6 @@ void __init prom_init(void)
 		/* Retrieve the machine's FDT */
 		fdt = mach->fdt;
 	}
-
-	BUG_ON(!fdt);
-}
-
-void __init *plat_get_fdt(void)
-{
 	return (void *)fdt;
 }
 

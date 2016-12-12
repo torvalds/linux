@@ -41,6 +41,41 @@ SYSCALL_DEFINE0(arc_gettls)
 	return task_thread_info(current)->thr_ptr;
 }
 
+SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
+{
+	struct pt_regs *regs = current_pt_regs();
+	int uval = -EFAULT;
+
+	/*
+	 * This is only for old cores lacking LLOCK/SCOND, which by defintion
+	 * can't possibly be SMP. Thus doesn't need to be SMP safe.
+	 * And this also helps reduce the overhead for serializing in
+	 * the UP case
+	 */
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_SMP));
+
+	/* Z indicates to userspace if operation succeded */
+	regs->status32 &= ~STATUS_Z_MASK;
+
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+		return -EFAULT;
+
+	preempt_disable();
+
+	if (__get_user(uval, uaddr))
+		goto done;
+
+	if (uval == expected) {
+		if (!__put_user(new, uaddr))
+			regs->status32 |= STATUS_Z_MASK;
+	}
+
+done:
+	preempt_enable();
+
+	return uval;
+}
+
 void arch_cpu_idle(void)
 {
 	/* sleep, but enable all interrupts before committing */

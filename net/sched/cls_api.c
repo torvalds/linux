@@ -345,7 +345,8 @@ replay:
 			if (err == 0) {
 				struct tcf_proto *next = rtnl_dereference(tp->next);
 
-				tfilter_notify(net, skb, n, tp, fh,
+				tfilter_notify(net, skb, n, tp,
+					       t->tcm_handle,
 					       RTM_DELTFILTER, false);
 				if (tcf_destroy(tp, false))
 					RCU_INIT_POINTER(*back, next);

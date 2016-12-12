@@ -177,7 +177,7 @@ static struct ptp_clock_info stmmac_ptp_clock_ops = {
  * Description: this function will register the ptp clock driver
  * to kernel. It also does some house keeping work.
  */
-int stmmac_ptp_register(struct stmmac_priv *priv)
+void stmmac_ptp_register(struct stmmac_priv *priv)
 {
 	spin_lock_init(&priv->ptp_lock);
 	priv->ptp_clock_ops = stmmac_ptp_clock_ops;
@@ -185,15 +185,10 @@ int stmmac_ptp_register(struct stmmac_priv *priv)
 	priv->ptp_clock = ptp_clock_register(&priv->ptp_clock_ops,
 					     priv->device);
 	if (IS_ERR(priv->ptp_clock)) {
+		netdev_err(priv->dev, "ptp_clock_register failed\n");
 		priv->ptp_clock = NULL;
-		return PTR_ERR(priv->ptp_clock);
-	}
-
-	spin_lock_init(&priv->ptp_lock);
-
-	netdev_dbg(priv->dev, "Added PTP HW clock successfully\n");
-
-	return 0;
+	} else if (priv->ptp_clock)
+		netdev_info(priv->dev, "registered PTP clock\n");
 }
 
 /**

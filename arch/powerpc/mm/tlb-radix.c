@@ -175,7 +175,7 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
-	if (!mm_is_core_local(mm)) {
+	if (!mm_is_thread_local(mm)) {
 		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 
 		if (lock_tlbie)
@@ -201,7 +201,7 @@ void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
-	if (!mm_is_core_local(mm)) {
+	if (!mm_is_thread_local(mm)) {
 		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 
 		if (lock_tlbie)
@@ -226,7 +226,7 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 	pid = mm ? mm->context.id : 0;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto bail;
-	if (!mm_is_core_local(mm)) {
+	if (!mm_is_thread_local(mm)) {
 		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 
 		if (lock_tlbie)
@@ -321,7 +321,7 @@ void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 {
 	unsigned long pid;
 	unsigned long addr;
-	int local = mm_is_core_local(mm);
+	int local = mm_is_thread_local(mm);
 	unsigned long ap = mmu_get_ap(psize);
 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long page_size = 1UL << mmu_psize_defs[psize].shift;

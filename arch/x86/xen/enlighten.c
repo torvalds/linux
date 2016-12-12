@@ -1837,6 +1837,7 @@ static void __init init_hvm_pv_info(void)
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 }
+#endif
 
 static int xen_cpu_up_prepare(unsigned int cpu)
 {
@@ -1887,6 +1888,7 @@ static int xen_cpu_up_online(unsigned int cpu)
 	return 0;
 }
 
+#ifdef CONFIG_XEN_PVHVM
 #ifdef CONFIG_KEXEC_CORE
 static void xen_hvm_shutdown(void)
 {

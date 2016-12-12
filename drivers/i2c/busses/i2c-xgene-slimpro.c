@@ -105,7 +105,7 @@ struct slimpro_i2c_dev {
 	struct mbox_chan *mbox_chan;
 	struct mbox_client mbox_client;
 	struct completion rd_complete;
-	u8 dma_buffer[I2C_SMBUS_BLOCK_MAX];
+	u8 dma_buffer[I2C_SMBUS_BLOCK_MAX + 1]; /* dma_buffer[0] is used for length */
 	u32 *resp_msg;
 };
 

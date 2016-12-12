@@ -43,6 +43,9 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev, struct amdgpu_ctx *ctx)
 		ctx->rings[i].sequence = 1;
 		ctx->rings[i].fences = &ctx->fences[amdgpu_sched_jobs * i];
 	}
+
+	ctx->reset_counter = atomic_read(&adev->gpu_reset_counter);
+
 	/* create context entity for each ring */
 	for (i = 0; i < adev->num_rings; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];

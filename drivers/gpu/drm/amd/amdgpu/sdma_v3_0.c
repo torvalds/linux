@@ -1268,7 +1268,7 @@ static int sdma_v3_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
-static int sdma_v3_0_check_soft_reset(void *handle)
+static bool sdma_v3_0_check_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 srbm_soft_reset = 0;
@@ -1281,14 +1281,12 @@ static int sdma_v3_0_check_soft_reset(void *handle)
 	}
 
 	if (srbm_soft_reset) {
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang = true;
 		adev->sdma.srbm_soft_reset = srbm_soft_reset;
+		return true;
 	} else {
-		adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang = false;
 		adev->sdma.srbm_soft_reset = 0;
+		return false;
 	}
-
-	return 0;
 }
 
 static int sdma_v3_0_pre_soft_reset(void *handle)
@@ -1296,7 +1294,7 @@ static int sdma_v3_0_pre_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 srbm_soft_reset = 0;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang)
+	if (!adev->sdma.srbm_soft_reset)
 		return 0;
 
 	srbm_soft_reset = adev->sdma.srbm_soft_reset;
@@ -1315,7 +1313,7 @@ static int sdma_v3_0_post_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 srbm_soft_reset = 0;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang)
+	if (!adev->sdma.srbm_soft_reset)
 		return 0;
 
 	srbm_soft_reset = adev->sdma.srbm_soft_reset;
@@ -1335,7 +1333,7 @@ static int sdma_v3_0_soft_reset(void *handle)
 	u32 srbm_soft_reset = 0;
 	u32 tmp;
 
-	if (!adev->ip_block_status[AMD_IP_BLOCK_TYPE_SDMA].hang)
+	if (!adev->sdma.srbm_soft_reset)
 		return 0;
 
 	srbm_soft_reset = adev->sdma.srbm_soft_reset;

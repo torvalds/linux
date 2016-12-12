@@ -931,8 +931,8 @@ static void esw_vport_change_handler(struct work_struct *work)
 	mutex_unlock(&esw->state_lock);
 }
 
-static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
-					struct mlx5_vport *vport)
+static int esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
+				       struct mlx5_vport *vport)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_group *vlan_grp = NULL;
@@ -949,9 +949,11 @@ static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	int table_size = 2;
 	int err = 0;
 
-	if (!MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support) ||
-	    !IS_ERR_OR_NULL(vport->egress.acl))
-		return;
+	if (!MLX5_CAP_ESW_EGRESS_ACL(dev, ft_support))
+		return -EOPNOTSUPP;
+
+	if (!IS_ERR_OR_NULL(vport->egress.acl))
+		return 0;
 
 	esw_debug(dev, "Create vport[%d] egress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_EGRESS_ACL(dev, log_max_ft_size));
@@ -959,12 +961,12 @@ static void esw_vport_enable_egress_acl(struct mlx5_eswitch *esw,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_EGRESS);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch egress flow namespace\n");
-		return;
+		return -EIO;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
 	if (!flow_group_in)
-		return;
+		return -ENOMEM;
 
 	acl = mlx5_create_vport_flow_table(root_ns, 0, table_size, 0, vport->vport);
 	if (IS_ERR(acl)) {
@@ -1009,6 +1011,7 @@ out:
 		mlx5_destroy_flow_group(vlan_grp);
 	if (err && !IS_ERR_OR_NULL(acl))
 		mlx5_destroy_flow_table(acl);
+	return err;
 }
 
 static void esw_vport_cleanup_egress_rules(struct mlx5_eswitch *esw,
@@ -1041,8 +1044,8 @@ static void esw_vport_disable_egress_acl(struct mlx5_eswitch *esw,
 	vport->egress.acl = NULL;
 }
 
-static void esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
-					 struct mlx5_vport *vport)
+static int esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
+					struct mlx5_vport *vport)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_core_dev *dev = esw->dev;
@@ -1063,9 +1066,11 @@ static void esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	int table_size = 4;
 	int err = 0;
 
-	if (!MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support) ||
-	    !IS_ERR_OR_NULL(vport->ingress.acl))
-		return;
+	if (!MLX5_CAP_ESW_INGRESS_ACL(dev, ft_support))
+		return -EOPNOTSUPP;
+
+	if (!IS_ERR_OR_NULL(vport->ingress.acl))
+		return 0;
 
 	esw_debug(dev, "Create vport[%d] ingress ACL log_max_size(%d)\n",
 		  vport->vport, MLX5_CAP_ESW_INGRESS_ACL(dev, log_max_ft_size));
@@ -1073,12 +1078,12 @@ static void esw_vport_enable_ingress_acl(struct mlx5_eswitch *esw,
 	root_ns = mlx5_get_flow_namespace(dev, MLX5_FLOW_NAMESPACE_ESW_INGRESS);
 	if (!root_ns) {
 		esw_warn(dev, "Failed to get E-Switch ingress flow namespace\n");
-		return;
+		return -EIO;
 	}
 
 	flow_group_in = mlx5_vzalloc(inlen);
 	if (!flow_group_in)
-		return;
+		return -ENOMEM;
 
 	acl = mlx5_create_vport_flow_table(root_ns, 0, table_size, 0, vport->vport);
 	if (IS_ERR(acl)) {
@@ -1167,6 +1172,7 @@ out:
 	}
 
 	kvfree(flow_group_in);
+	return err;
 }
 
 static void esw_vport_cleanup_ingress_rules(struct mlx5_eswitch *esw,
@@ -1225,7 +1231,13 @@ static int esw_vport_ingress_config(struct mlx5_eswitch *esw,
 		return 0;
 	}
 
-	esw_vport_enable_ingress_acl(esw, vport);
+	err = esw_vport_enable_ingress_acl(esw, vport);
+	if (err) {
+		mlx5_core_warn(esw->dev,
+			       "failed to enable ingress acl (%d) on vport[%d]\n",
+			       err, vport->vport);
+		return err;
+	}
 
 	esw_debug(esw->dev,
 		  "vport[%d] configure ingress rules, vlan(%d) qos(%d)\n",
@@ -1299,7 +1311,13 @@ static int esw_vport_egress_config(struct mlx5_eswitch *esw,
 		return 0;
 	}
 
-	esw_vport_enable_egress_acl(esw, vport);
+	err = esw_vport_enable_egress_acl(esw, vport);
+	if (err) {
+		mlx5_core_warn(esw->dev,
+			       "failed to enable egress acl (%d) on vport[%d]\n",
+			       err, vport->vport);
+		return err;
+	}
 
 	esw_debug(esw->dev,
 		  "vport[%d] configure egress rules, vlan(%d) qos(%d)\n",

@@ -77,7 +77,7 @@
 
 #include "gcc-common.h"
 
-int plugin_is_GPL_compatible;
+__visible int plugin_is_GPL_compatible;
 
 static GTY(()) tree latent_entropy_decl;
 
@@ -340,7 +340,7 @@ static enum tree_code get_op(tree *rhs)
 		break;
 	}
 	if (rhs)
-		*rhs = build_int_cstu(unsigned_intDI_type_node, random_const);
+		*rhs = build_int_cstu(long_unsigned_type_node, random_const);
 	return op;
 }
 
@@ -372,7 +372,7 @@ static void __perturb_latent_entropy(gimple_stmt_iterator *gsi,
 	enum tree_code op;
 
 	/* 1. create temporary copy of latent_entropy */
-	temp = create_var(unsigned_intDI_type_node, "tmp_latent_entropy");
+	temp = create_var(long_unsigned_type_node, "temp_latent_entropy");
 
 	/* 2. read... */
 	add_referenced_var(latent_entropy_decl);
@@ -459,13 +459,13 @@ static void init_local_entropy(basic_block bb, tree local_entropy)
 	gsi_insert_before(&gsi, call, GSI_NEW_STMT);
 	update_stmt(call);
 
-	udi_frame_addr = fold_convert(unsigned_intDI_type_node, frame_addr);
+	udi_frame_addr = fold_convert(long_unsigned_type_node, frame_addr);
 	assign = gimple_build_assign(local_entropy, udi_frame_addr);
 	gsi_insert_after(&gsi, assign, GSI_NEW_STMT);
 	update_stmt(assign);
 
 	/* 3. create temporary copy of latent_entropy */
-	tmp = create_var(unsigned_intDI_type_node, "tmp_latent_entropy");
+	tmp = create_var(long_unsigned_type_node, "temp_latent_entropy");
 
 	/* 4. read the global entropy variable into local entropy */
 	add_referenced_var(latent_entropy_decl);
@@ -480,7 +480,7 @@ static void init_local_entropy(basic_block bb, tree local_entropy)
 	update_stmt(assign);
 
 	rand_cst = get_random_const();
-	rand_const = build_int_cstu(unsigned_intDI_type_node, rand_cst);
+	rand_const = build_int_cstu(long_unsigned_type_node, rand_cst);
 	op = get_op(NULL);
 	assign = create_assign(op, local_entropy, local_entropy, rand_const);
 	gsi_insert_after(&gsi, assign, GSI_NEW_STMT);
@@ -529,7 +529,7 @@ static unsigned int latent_entropy_execute(void)
 	}
 
 	/* 1. create the local entropy variable */
-	local_entropy = create_var(unsigned_intDI_type_node, "local_entropy");
+	local_entropy = create_var(long_unsigned_type_node, "local_entropy");
 
 	/* 2. initialize the local entropy variable */
 	init_local_entropy(bb, local_entropy);
@@ -561,10 +561,9 @@ static void latent_entropy_start_unit(void *gcc_data __unused,
 	if (in_lto_p)
 		return;
 
-	/* extern volatile u64 latent_entropy */
-	gcc_assert(TYPE_PRECISION(long_long_unsigned_type_node) == 64);
-	quals = TYPE_QUALS(long_long_unsigned_type_node) | TYPE_QUAL_VOLATILE;
-	type = build_qualified_type(long_long_unsigned_type_node, quals);
+	/* extern volatile unsigned long latent_entropy */
+	quals = TYPE_QUALS(long_unsigned_type_node) | TYPE_QUAL_VOLATILE;
+	type = build_qualified_type(long_unsigned_type_node, quals);
 	id = get_identifier("latent_entropy");
 	latent_entropy_decl = build_decl(UNKNOWN_LOCATION, VAR_DECL, id, type);
 
@@ -584,8 +583,8 @@ static void latent_entropy_start_unit(void *gcc_data __unused,
 	| TODO_update_ssa
 #include "gcc-generate-gimple-pass.h"
 
-int plugin_init(struct plugin_name_args *plugin_info,
-		struct plugin_gcc_version *version)
+__visible int plugin_init(struct plugin_name_args *plugin_info,
+			  struct plugin_gcc_version *version)
 {
 	bool enabled = true;
 	const char * const plugin_name = plugin_info->base_name;

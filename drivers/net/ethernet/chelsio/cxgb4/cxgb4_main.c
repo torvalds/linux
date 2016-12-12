@@ -4057,7 +4057,7 @@ static void cfg_queues(struct adapter *adap)
 		 * capped by the number of available cores.
 		 */
 		if (n10g) {
-			i = num_online_cpus();
+			i = min_t(int, MAX_OFLD_QSETS, num_online_cpus());
 			s->ofldqsets = roundup(i, adap->params.nports);
 		} else {
 			s->ofldqsets = adap->params.nports;

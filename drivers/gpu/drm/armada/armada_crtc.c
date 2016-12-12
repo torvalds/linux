@@ -332,17 +332,19 @@ static void armada_drm_crtc_dpms(struct drm_crtc *crtc, int dpms)
 {
 	struct armada_crtc *dcrtc = drm_to_armada_crtc(crtc);
 
-	if (dcrtc->dpms != dpms) {
-		dcrtc->dpms = dpms;
-		if (!IS_ERR(dcrtc->clk) && !dpms_blanked(dpms))
-			WARN_ON(clk_prepare_enable(dcrtc->clk));
-		armada_drm_crtc_update(dcrtc);
-		if (!IS_ERR(dcrtc->clk) && dpms_blanked(dpms))
-			clk_disable_unprepare(dcrtc->clk);
+	if (dpms_blanked(dcrtc->dpms) != dpms_blanked(dpms)) {
 		if (dpms_blanked(dpms))
 			armada_drm_vblank_off(dcrtc);
-		else
+		else if (!IS_ERR(dcrtc->clk))
+			WARN_ON(clk_prepare_enable(dcrtc->clk));
+		dcrtc->dpms = dpms;
+		armada_drm_crtc_update(dcrtc);
+		if (!dpms_blanked(dpms))
 			drm_crtc_vblank_on(&dcrtc->crtc);
+		else if (!IS_ERR(dcrtc->clk))
+			clk_disable_unprepare(dcrtc->clk);
+	} else if (dcrtc->dpms != dpms) {
+		dcrtc->dpms = dpms;
 	}
 }
 

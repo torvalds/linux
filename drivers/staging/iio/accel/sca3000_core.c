@@ -468,6 +468,8 @@ static inline int __sca3000_get_base_freq(struct sca3000_state *st,
 	case SCA3000_MEAS_MODE_OP_2:
 		*base_freq = info->option_mode_2_freq;
 		break;
+	default:
+		ret = -EINVAL;
 	}
 error_ret:
 	return ret;

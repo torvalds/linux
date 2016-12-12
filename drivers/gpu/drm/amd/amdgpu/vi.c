@@ -80,7 +80,9 @@
 #include "dce_virtual.h"
 
 MODULE_FIRMWARE("amdgpu/topaz_smc.bin");
+MODULE_FIRMWARE("amdgpu/topaz_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/tonga_smc.bin");
+MODULE_FIRMWARE("amdgpu/tonga_k_smc.bin");
 MODULE_FIRMWARE("amdgpu/fiji_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_smc_sk.bin");
@@ -1651,7 +1653,7 @@ static int vi_common_early_init(void *handle)
 			AMD_CG_SUPPORT_SDMA_MGCG |
 			AMD_CG_SUPPORT_SDMA_LS |
 			AMD_CG_SUPPORT_VCE_MGCG;
-		adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
+		adev->pg_flags = AMD_PG_SUPPORT_GFX_PG |
 			AMD_PG_SUPPORT_GFX_SMG |
 			AMD_PG_SUPPORT_GFX_PIPELINE |
 			AMD_PG_SUPPORT_UVD |

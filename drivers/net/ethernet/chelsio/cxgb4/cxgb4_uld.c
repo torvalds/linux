@@ -135,15 +135,17 @@ static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
 }
 
 static int alloc_uld_rxqs(struct adapter *adap,
-			  struct sge_uld_rxq_info *rxq_info,
-			  unsigned int nq, unsigned int offset, bool lro)
+			  struct sge_uld_rxq_info *rxq_info, bool lro)
 {
 	struct sge *s = &adap->sge;
-	struct sge_ofld_rxq *q = rxq_info->uldrxq + offset;
-	unsigned short *ids = rxq_info->rspq_id + offset;
-	unsigned int per_chan = nq / adap->params.nports;
+	unsigned int nq = rxq_info->nrxq + rxq_info->nciq;
+	struct sge_ofld_rxq *q = rxq_info->uldrxq;
+	unsigned short *ids = rxq_info->rspq_id;
 	unsigned int bmap_idx = 0;
-	int i, err, msi_idx;
+	unsigned int per_chan;
+	int i, err, msi_idx, que_idx = 0;
+
+	per_chan = rxq_info->nrxq / adap->params.nports;
 
 	if (adap->flags & USING_MSIX)
 		msi_idx = 1;
@@ -151,12 +153,18 @@ static int alloc_uld_rxqs(struct adapter *adap,
 		msi_idx = -((int)s->intrq.abs_id + 1);
 
 	for (i = 0; i < nq; i++, q++) {
+		if (i == rxq_info->nrxq) {
+			/* start allocation of concentrator queues */
+			per_chan = rxq_info->nciq / adap->params.nports;
+			que_idx = 0;
+		}
+
 		if (msi_idx >= 0) {
 			bmap_idx = get_msix_idx_from_bmap(adap);
 			msi_idx = adap->msix_info_ulds[bmap_idx].idx;
 		}
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false,
-				       adap->port[i / per_chan],
+				       adap->port[que_idx++ / per_chan],
 				       msi_idx,
 				       q->fl.size ? &q->fl : NULL,
 				       uldrx_handler,
@@ -165,28 +173,18 @@ static int alloc_uld_rxqs(struct adapter *adap,
 		if (err)
 			goto freeout;
 		if (msi_idx >= 0)
-			rxq_info->msix_tbl[i + offset] = bmap_idx;
+			rxq_info->msix_tbl[i] = bmap_idx;
 		memset(&q->stats, 0, sizeof(q->stats));
 		if (ids)
 			ids[i] = q->rspq.abs_id;
 	}
 	return 0;
 freeout:
-	q = rxq_info->uldrxq + offset;
+	q = rxq_info->uldrxq;
 	for ( ; i; i--, q++) {
 		if (q->rspq.desc)
 			free_rspq_fl(adap, &q->rspq,
 				     q->fl.size ? &q->fl : NULL);
-	}
-
-	/* We need to free rxq also in case of ciq allocation failure */
-	if (offset) {
-		q = rxq_info->uldrxq + offset;
-		for ( ; i; i--, q++) {
-			if (q->rspq.desc)
-				free_rspq_fl(adap, &q->rspq,
-					     q->fl.size ? &q->fl : NULL);
-		}
 	}
 	return err;
 }
@@ -205,9 +203,7 @@ setup_sge_queues_uld(struct adapter *adap, unsigned int uld_type, bool lro)
 			return -ENOMEM;
 	}
 
-	ret = !(!alloc_uld_rxqs(adap, rxq_info, rxq_info->nrxq, 0, lro) &&
-		 !alloc_uld_rxqs(adap, rxq_info, rxq_info->nciq,
-				 rxq_info->nrxq, lro));
+	ret = !(!alloc_uld_rxqs(adap, rxq_info, lro));
 
 	/* Tell uP to route control queue completions to rdma rspq */
 	if (adap->flags & FULL_INIT_DONE &&

@@ -873,11 +873,11 @@ static void print_parisc_device(struct parisc_device *dev)
 
 	if (dev->num_addrs) {
 		int k;
-		printk(", additional addresses: ");
+		pr_cont(", additional addresses: ");
 		for (k = 0; k < dev->num_addrs; k++)
-			printk("0x%lx ", dev->addr[k]);
+			pr_cont("0x%lx ", dev->addr[k]);
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 /**

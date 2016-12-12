@@ -237,15 +237,6 @@ ex_saved_reg1:
 
 2:
 
-#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	and.f 0, r0, _PAGE_PRESENT
-	bz   1f
-	ld   r3, [num_pte_not_present]
-	add  r3, r3, 1
-	st   r3, [num_pte_not_present]
-1:
-#endif
-
 .endm
 
 ;-----------------------------------------------------------------
@@ -309,12 +300,6 @@ ENTRY(EV_TLBMissI)
 
 	TLBMISS_FREEUP_REGS
 
-#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	ld  r0, [@numitlb]
-	add r0, r0, 1
-	st  r0, [@numitlb]
-#endif
-
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed, r2 is setup with EFA
 	LOAD_FAULT_PTE
@@ -348,12 +333,6 @@ END(EV_TLBMissI)
 ENTRY(EV_TLBMissD)
 
 	TLBMISS_FREEUP_REGS
-
-#ifdef CONFIG_ARC_DBG_TLB_MISS_COUNT
-	ld  r0, [@numdtlb]
-	add r0, r0, 1
-	st  r0, [@numdtlb]
-#endif
 
 	;----------------------------------------------------------------
 	; Get the PTE corresponding to V-addr accessed

@@ -218,6 +218,7 @@ struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging)
 		goto err_out;
 
 	if (aging) {
+		counter->cache.lastuse = jiffies;
 		counter->aging = true;
 
 		spin_lock(&fc_stats->addlist_lock);

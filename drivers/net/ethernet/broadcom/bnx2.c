@@ -271,22 +271,25 @@ static inline u32 bnx2_tx_avail(struct bnx2 *bp, struct bnx2_tx_ring_info *txr)
 static u32
 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset)
 {
+	unsigned long flags;
 	u32 val;
 
-	spin_lock_bh(&bp->indirect_lock);
+	spin_lock_irqsave(&bp->indirect_lock, flags);
 	BNX2_WR(bp, BNX2_PCICFG_REG_WINDOW_ADDRESS, offset);
 	val = BNX2_RD(bp, BNX2_PCICFG_REG_WINDOW);
-	spin_unlock_bh(&bp->indirect_lock);
+	spin_unlock_irqrestore(&bp->indirect_lock, flags);
 	return val;
 }
 
 static void
 bnx2_reg_wr_ind(struct bnx2 *bp, u32 offset, u32 val)
 {
-	spin_lock_bh(&bp->indirect_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&bp->indirect_lock, flags);
 	BNX2_WR(bp, BNX2_PCICFG_REG_WINDOW_ADDRESS, offset);
 	BNX2_WR(bp, BNX2_PCICFG_REG_WINDOW, val);
-	spin_unlock_bh(&bp->indirect_lock);
+	spin_unlock_irqrestore(&bp->indirect_lock, flags);
 }
 
 static void
@@ -304,8 +307,10 @@ bnx2_shmem_rd(struct bnx2 *bp, u32 offset)
 static void
 bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val)
 {
+	unsigned long flags;
+
 	offset += cid_addr;
-	spin_lock_bh(&bp->indirect_lock);
+	spin_lock_irqsave(&bp->indirect_lock, flags);
 	if (BNX2_CHIP(bp) == BNX2_CHIP_5709) {
 		int i;
 
@@ -322,7 +327,7 @@ bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val)
 		BNX2_WR(bp, BNX2_CTX_DATA_ADR, offset);
 		BNX2_WR(bp, BNX2_CTX_DATA, val);
 	}
-	spin_unlock_bh(&bp->indirect_lock);
+	spin_unlock_irqrestore(&bp->indirect_lock, flags);
 }
 
 #ifdef BCM_CNIC

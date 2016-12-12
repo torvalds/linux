@@ -1514,14 +1514,16 @@ static int cz_dpm_set_powergating_state(void *handle,
 	return 0;
 }
 
-/* borrowed from KV, need future unify */
 static int cz_dpm_get_temperature(struct amdgpu_device *adev)
 {
 	int actual_temp = 0;
-	uint32_t temp = RREG32_SMC(0xC0300E0C);
+	uint32_t val = RREG32_SMC(ixTHM_TCON_CUR_TMP);
+	uint32_t temp = REG_GET_FIELD(val, THM_TCON_CUR_TMP, CUR_TEMP);
 
-	if (temp)
+	if (REG_GET_FIELD(val, THM_TCON_CUR_TMP, CUR_TEMP_RANGE_SEL))
 		actual_temp = 1000 * ((temp / 8) - 49);
+	else
+		actual_temp = 1000 * (temp / 8);
 
 	return actual_temp;
 }

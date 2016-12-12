@@ -1078,6 +1078,17 @@ static void aio_complete(struct kiocb *kiocb, long res, long res2)
 	unsigned tail, pos, head;
 	unsigned long	flags;
 
+	if (kiocb->ki_flags & IOCB_WRITE) {
+		struct file *file = kiocb->ki_filp;
+
+		/*
+		 * Tell lockdep we inherited freeze protection from submission
+		 * thread.
+		 */
+		__sb_writers_acquired(file_inode(file)->i_sb, SB_FREEZE_WRITE);
+		file_end_write(file);
+	}
+
 	/*
 	 * Special case handling for sync iocbs:
 	 *  - events go directly into the iocb for fast handling
@@ -1392,122 +1403,106 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	return -EINVAL;
 }
 
-typedef ssize_t (rw_iter_op)(struct kiocb *, struct iov_iter *);
-
-static int aio_setup_vectored_rw(int rw, char __user *buf, size_t len,
-				 struct iovec **iovec,
-				 bool compat,
-				 struct iov_iter *iter)
+static int aio_setup_rw(int rw, struct iocb *iocb, struct iovec **iovec,
+		bool vectored, bool compat, struct iov_iter *iter)
 {
+	void __user *buf = (void __user *)(uintptr_t)iocb->aio_buf;
+	size_t len = iocb->aio_nbytes;
+
+	if (!vectored) {
+		ssize_t ret = import_single_range(rw, buf, len, *iovec, iter);
+		*iovec = NULL;
+		return ret;
+	}
 #ifdef CONFIG_COMPAT
 	if (compat)
-		return compat_import_iovec(rw,
-				(struct compat_iovec __user *)buf,
-				len, UIO_FASTIOV, iovec, iter);
+		return compat_import_iovec(rw, buf, len, UIO_FASTIOV, iovec,
+				iter);
 #endif
-	return import_iovec(rw, (struct iovec __user *)buf,
-				len, UIO_FASTIOV, iovec, iter);
+	return import_iovec(rw, buf, len, UIO_FASTIOV, iovec, iter);
 }
 
-/*
- * aio_run_iocb:
- *	Performs the initial checks and io submission.
- */
-static ssize_t aio_run_iocb(struct kiocb *req, unsigned opcode,
-			    char __user *buf, size_t len, bool compat)
+static inline ssize_t aio_ret(struct kiocb *req, ssize_t ret)
 {
-	struct file *file = req->ki_filp;
-	ssize_t ret;
-	int rw;
-	fmode_t mode;
-	rw_iter_op *iter_op;
-	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
-	struct iov_iter iter;
-
-	switch (opcode) {
-	case IOCB_CMD_PREAD:
-	case IOCB_CMD_PREADV:
-		mode	= FMODE_READ;
-		rw	= READ;
-		iter_op	= file->f_op->read_iter;
-		goto rw_common;
-
-	case IOCB_CMD_PWRITE:
-	case IOCB_CMD_PWRITEV:
-		mode	= FMODE_WRITE;
-		rw	= WRITE;
-		iter_op	= file->f_op->write_iter;
-		goto rw_common;
-rw_common:
-		if (unlikely(!(file->f_mode & mode)))
-			return -EBADF;
-
-		if (!iter_op)
-			return -EINVAL;
-
-		if (opcode == IOCB_CMD_PREADV || opcode == IOCB_CMD_PWRITEV)
-			ret = aio_setup_vectored_rw(rw, buf, len,
-						&iovec, compat, &iter);
-		else {
-			ret = import_single_range(rw, buf, len, iovec, &iter);
-			iovec = NULL;
-		}
-		if (!ret)
-			ret = rw_verify_area(rw, file, &req->ki_pos,
-					     iov_iter_count(&iter));
-		if (ret < 0) {
-			kfree(iovec);
-			return ret;
-		}
-
-		if (rw == WRITE)
-			file_start_write(file);
-
-		ret = iter_op(req, &iter);
-
-		if (rw == WRITE)
-			file_end_write(file);
-		kfree(iovec);
-		break;
-
-	case IOCB_CMD_FDSYNC:
-		if (!file->f_op->aio_fsync)
-			return -EINVAL;
-
-		ret = file->f_op->aio_fsync(req, 1);
-		break;
-
-	case IOCB_CMD_FSYNC:
-		if (!file->f_op->aio_fsync)
-			return -EINVAL;
-
-		ret = file->f_op->aio_fsync(req, 0);
-		break;
-
-	default:
-		pr_debug("EINVAL: no operation provided\n");
-		return -EINVAL;
-	}
-
-	if (ret != -EIOCBQUEUED) {
+	switch (ret) {
+	case -EIOCBQUEUED:
+		return ret;
+	case -ERESTARTSYS:
+	case -ERESTARTNOINTR:
+	case -ERESTARTNOHAND:
+	case -ERESTART_RESTARTBLOCK:
 		/*
 		 * There's no easy way to restart the syscall since other AIO's
 		 * may be already running. Just fail this IO with EINTR.
 		 */
-		if (unlikely(ret == -ERESTARTSYS || ret == -ERESTARTNOINTR ||
-			     ret == -ERESTARTNOHAND ||
-			     ret == -ERESTART_RESTARTBLOCK))
-			ret = -EINTR;
+		ret = -EINTR;
+		/*FALLTHRU*/
+	default:
 		aio_complete(req, ret, 0);
+		return 0;
 	}
+}
 
-	return 0;
+static ssize_t aio_read(struct kiocb *req, struct iocb *iocb, bool vectored,
+		bool compat)
+{
+	struct file *file = req->ki_filp;
+	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
+	struct iov_iter iter;
+	ssize_t ret;
+
+	if (unlikely(!(file->f_mode & FMODE_READ)))
+		return -EBADF;
+	if (unlikely(!file->f_op->read_iter))
+		return -EINVAL;
+
+	ret = aio_setup_rw(READ, iocb, &iovec, vectored, compat, &iter);
+	if (ret)
+		return ret;
+	ret = rw_verify_area(READ, file, &req->ki_pos, iov_iter_count(&iter));
+	if (!ret)
+		ret = aio_ret(req, file->f_op->read_iter(req, &iter));
+	kfree(iovec);
+	return ret;
+}
+
+static ssize_t aio_write(struct kiocb *req, struct iocb *iocb, bool vectored,
+		bool compat)
+{
+	struct file *file = req->ki_filp;
+	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
+	struct iov_iter iter;
+	ssize_t ret;
+
+	if (unlikely(!(file->f_mode & FMODE_WRITE)))
+		return -EBADF;
+	if (unlikely(!file->f_op->write_iter))
+		return -EINVAL;
+
+	ret = aio_setup_rw(WRITE, iocb, &iovec, vectored, compat, &iter);
+	if (ret)
+		return ret;
+	ret = rw_verify_area(WRITE, file, &req->ki_pos, iov_iter_count(&iter));
+	if (!ret) {
+		req->ki_flags |= IOCB_WRITE;
+		file_start_write(file);
+		ret = aio_ret(req, file->f_op->write_iter(req, &iter));
+		/*
+		 * We release freeze protection in aio_complete().  Fool lockdep
+		 * by telling it the lock got released so that it doesn't
+		 * complain about held lock when we return to userspace.
+		 */
+		__sb_writers_release(file_inode(file)->i_sb, SB_FREEZE_WRITE);
+	}
+	kfree(iovec);
+	return ret;
 }
 
 static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 			 struct iocb *iocb, bool compat)
 {
 	struct aio_kiocb *req;
+	struct file *file;
 	ssize_t ret;
 
 	/* enforce forwards compatibility on users */
@@ -1530,7 +1525,7 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	if (unlikely(!req))
 		return -EAGAIN;
 
-	req->common.ki_filp = fget(iocb->aio_fildes);
+	req->common.ki_filp = file = fget(iocb->aio_fildes);
 	if (unlikely(!req->common.ki_filp)) {
 		ret = -EBADF;
 		goto out_put_req;
@@ -1565,13 +1560,29 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_user_iocb = user_iocb;
 	req->ki_user_data = iocb->aio_data;
 
-	ret = aio_run_iocb(&req->common, iocb->aio_lio_opcode,
-			   (char __user *)(unsigned long)iocb->aio_buf,
-			   iocb->aio_nbytes,
-			   compat);
-	if (ret)
-		goto out_put_req;
+	get_file(file);
+	switch (iocb->aio_lio_opcode) {
+	case IOCB_CMD_PREAD:
+		ret = aio_read(&req->common, iocb, false, compat);
+		break;
+	case IOCB_CMD_PWRITE:
+		ret = aio_write(&req->common, iocb, false, compat);
+		break;
+	case IOCB_CMD_PREADV:
+		ret = aio_read(&req->common, iocb, true, compat);
+		break;
+	case IOCB_CMD_PWRITEV:
+		ret = aio_write(&req->common, iocb, true, compat);
+		break;
+	default:
+		pr_debug("invalid aio operation %d\n", iocb->aio_lio_opcode);
+		ret = -EINVAL;
+		break;
+	}
+	fput(file);
 
+	if (ret && ret != -EIOCBQUEUED)
+		goto out_put_req;
 	return 0;
 out_put_req:
 	put_reqs_available(ctx, 1);
