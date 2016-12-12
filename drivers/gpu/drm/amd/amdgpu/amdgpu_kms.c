@@ -569,6 +569,27 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			return -EINVAL;
 		}
 	}
+	case AMDGPU_INFO_NUM_HANDLES: {
+		struct drm_amdgpu_info_num_handles handle;
+
+		switch (info->query_hw_ip.type) {
+		case AMDGPU_HW_IP_UVD:
+			/* Starting Polaris, we support unlimited UVD handles */
+			if (adev->asic_type < CHIP_POLARIS10) {
+				handle.uvd_max_handles = adev->uvd.max_handles;
+				handle.uvd_used_handles = amdgpu_uvd_used_handles(adev);
+
+				return copy_to_user(out, &handle,
+					min((size_t)size, sizeof(handle))) ? -EFAULT : 0;
+			} else {
+				return -ENODATA;
+			}
+
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
 		return -EINVAL;

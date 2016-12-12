@@ -1178,3 +1178,28 @@ int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 error:
 	return r;
 }
+
+/**
+ * amdgpu_uvd_used_handles - returns used UVD handles
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns the number of UVD handles in use
+ */
+uint32_t amdgpu_uvd_used_handles(struct amdgpu_device *adev)
+{
+	unsigned i;
+	uint32_t used_handles = 0;
+
+	for (i = 0; i < adev->uvd.max_handles; ++i) {
+		/*
+		 * Handles can be freed in any order, and not
+		 * necessarily linear. So we need to count
+		 * all non-zero handles.
+		 */
+		if (atomic_read(&adev->uvd.handles[i]))
+			used_handles++;
+	}
+
+	return used_handles;
+}
