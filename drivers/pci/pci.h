@@ -82,8 +82,8 @@ void pci_pm_init(struct pci_dev *dev);
 void pci_ea_init(struct pci_dev *dev);
 void pci_allocate_cap_save_buffers(struct pci_dev *dev);
 void pci_free_cap_save_buffers(struct pci_dev *dev);
-void pci_bridge_d3_device_changed(struct pci_dev *dev);
-void pci_bridge_d3_device_removed(struct pci_dev *dev);
+bool pci_bridge_d3_possible(struct pci_dev *dev);
+void pci_bridge_d3_update(struct pci_dev *dev);
 
 static inline void pci_wakeup_event(struct pci_dev *dev)
 {

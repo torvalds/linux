@@ -370,6 +370,30 @@ int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 EXPORT_SYMBOL_GPL(pci_get_hp_params);
 
 /**
+ * pciehp_is_native - Check whether a hotplug port is handled by the OS
+ * @pdev: Hotplug port to check
+ *
+ * Walk up from @pdev to the host bridge, obtain its cached _OSC Control Field
+ * and return the value of the "PCI Express Native Hot Plug control" bit.
+ * On failure to obtain the _OSC Control Field return %false.
+ */
+bool pciehp_is_native(struct pci_dev *pdev)
+{
+	struct acpi_pci_root *root;
+	acpi_handle handle;
+
+	handle = acpi_find_root_bridge_handle(pdev);
+	if (!handle)
+		return false;
+
+	root = acpi_pci_find_root(handle);
+	if (!root)
+		return false;
+
+	return root->osc_control_set & OSC_PCI_EXPRESS_NATIVE_HP_CONTROL;
+}
+
+/**
  * pci_acpi_wake_bus - Root bus wakeup notification fork function.
  * @work: Work item to handle.
  */
