@@ -335,9 +335,6 @@ static unsigned int sh_mobile_sdhi_init_tuning(struct tmio_mmc_host *host)
 {
 	struct sh_mobile_sdhi *priv;
 
-	if (!(host->mmc->caps & MMC_CAP_UHS_SDR104))
-		return 0;
-
 	priv = host_to_priv(host);
 
 	/* set sampling clock selection range */
