@@ -690,7 +690,6 @@ config SND_SOC_RL6347A
 
 config SND_SOC_RT286
 	tristate
-	select SND_SOC_RT5663
 	depends on I2C
 
 config SND_SOC_RT298
