@@ -133,8 +133,8 @@ config PCIE_XILINX
 
 config PCI_XGENE
 	bool "X-Gene PCIe controller"
-	depends on ARCH_XGENE
-	depends on OF
+	depends on ARM64
+	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCIEPORTBUS
 	help
 	  Say Y here if you want internal PCI support on APM X-Gene SoC.
@@ -240,14 +240,16 @@ config PCIE_QCOM
 
 config PCI_HOST_THUNDER_PEM
 	bool "Cavium Thunder PCIe controller to off-chip devices"
-	depends on OF && ARM64
+	depends on ARM64
+	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCI_HOST_COMMON
 	help
 	  Say Y here if you want PCIe support for CN88XX Cavium Thunder SoCs.
 
 config PCI_HOST_THUNDER_ECAM
 	bool "Cavium Thunder ECAM controller to on-chip devices on pass-1.x silicon"
-	depends on OF && ARM64
+	depends on ARM64
+	depends on OF || (ACPI && PCI_QUIRKS)
 	select PCI_HOST_COMMON
 	help
 	  Say Y here if you want ECAM support for CN88XX-Pass-1.x Cavium Thunder SoCs.
