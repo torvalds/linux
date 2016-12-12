@@ -2516,6 +2516,7 @@ static void ofdpa_fini(struct rocker *rocker)
 	int bkt;
 
 	del_timer_sync(&ofdpa->fdb_cleanup_timer);
+	flush_workqueue(rocker->rocker_owq);
 
 	spin_lock_irqsave(&ofdpa->flow_tbl_lock, flags);
 	hash_for_each_safe(ofdpa->flow_tbl, bkt, tmp, flow_entry, entry)

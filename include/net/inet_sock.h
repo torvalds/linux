@@ -228,6 +228,7 @@ struct inet_sock {
 #define IP_CMSG_PASSSEC		BIT(5)
 #define IP_CMSG_ORIGDSTADDR	BIT(6)
 #define IP_CMSG_CHECKSUM	BIT(7)
+#define IP_CMSG_RECVFRAGSIZE	BIT(8)
 
 /**
  * sk_to_full_sk - Access to a full socket

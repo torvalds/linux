@@ -712,7 +712,6 @@ static const struct net_device_ops hisi_femac_netdev_ops = {
 	.ndo_do_ioctl		= hisi_femac_net_ioctl,
 	.ndo_set_mac_address	= hisi_femac_set_mac_address,
 	.ndo_set_rx_mode	= hisi_femac_net_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static void hisi_femac_core_reset(struct hisi_femac_priv *priv)

@@ -19,6 +19,21 @@ struct bpf_map_def SEC("maps") hash_map = {
 	.max_entries = MAX_ENTRIES,
 };
 
+struct bpf_map_def SEC("maps") lru_hash_map = {
+	.type = BPF_MAP_TYPE_LRU_HASH,
+	.key_size = sizeof(u32),
+	.value_size = sizeof(long),
+	.max_entries = 10000,
+};
+
+struct bpf_map_def SEC("maps") percpu_lru_hash_map = {
+	.type = BPF_MAP_TYPE_LRU_HASH,
+	.key_size = sizeof(u32),
+	.value_size = sizeof(long),
+	.max_entries = 10000,
+	.map_flags = BPF_F_NO_COMMON_LRU,
+};
+
 struct bpf_map_def SEC("maps") percpu_hash_map = {
 	.type = BPF_MAP_TYPE_PERCPU_HASH,
 	.key_size = sizeof(u32),
@@ -53,6 +68,7 @@ int stress_hmap(struct pt_regs *ctx)
 	value = bpf_map_lookup_elem(&hash_map, &key);
 	if (value)
 		bpf_map_delete_elem(&hash_map, &key);
+
 	return 0;
 }
 
@@ -96,5 +112,28 @@ int stress_percpu_hmap_alloc(struct pt_regs *ctx)
 		bpf_map_delete_elem(&percpu_hash_map_alloc, &key);
 	return 0;
 }
+
+SEC("kprobe/sys_getpid")
+int stress_lru_hmap_alloc(struct pt_regs *ctx)
+{
+	u32 key = bpf_get_prandom_u32();
+	long val = 1;
+
+	bpf_map_update_elem(&lru_hash_map, &key, &val, BPF_ANY);
+
+	return 0;
+}
+
+SEC("kprobe/sys_getppid")
+int stress_percpu_lru_hmap_alloc(struct pt_regs *ctx)
+{
+	u32 key = bpf_get_prandom_u32();
+	long val = 1;
+
+	bpf_map_update_elem(&percpu_lru_hash_map, &key, &val, BPF_ANY);
+
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";
 u32 _version SEC("version") = LINUX_VERSION_CODE;

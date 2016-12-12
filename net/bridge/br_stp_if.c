@@ -36,12 +36,6 @@ static inline port_id br_make_port_id(__u8 priority, __u16 port_no)
 /* called under bridge lock */
 void br_init_port(struct net_bridge_port *p)
 {
-	struct switchdev_attr attr = {
-		.orig_dev = p->dev,
-		.id = SWITCHDEV_ATTR_ID_BRIDGE_AGEING_TIME,
-		.flags = SWITCHDEV_F_SKIP_EOPNOTSUPP | SWITCHDEV_F_DEFER,
-		.u.ageing_time = jiffies_to_clock_t(p->br->ageing_time),
-	};
 	int err;
 
 	p->port_id = br_make_port_id(p->priority, p->port_no);
@@ -50,9 +44,9 @@ void br_init_port(struct net_bridge_port *p)
 	p->topology_change_ack = 0;
 	p->config_pending = 0;
 
-	err = switchdev_port_attr_set(p->dev, &attr);
-	if (err && err != -EOPNOTSUPP)
-		netdev_err(p->dev, "failed to set HW ageing time\n");
+	err = __set_ageing_time(p->dev, p->br->ageing_time);
+	if (err)
+		netdev_err(p->dev, "failed to offload ageing time\n");
 }
 
 /* NO locks held */
@@ -87,7 +81,7 @@ void br_stp_disable_bridge(struct net_bridge *br)
 
 	}
 
-	br->topology_change = 0;
+	__br_set_topology_change(br, 0);
 	br->topology_change_detected = 0;
 	spin_unlock_bh(&br->lock);
 

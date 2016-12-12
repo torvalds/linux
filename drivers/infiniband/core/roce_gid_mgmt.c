@@ -437,6 +437,28 @@ static void callback_for_addr_gid_device_scan(struct ib_device *device,
 			  &parsed->gid_attr);
 }
 
+struct upper_list {
+	struct list_head list;
+	struct net_device *upper;
+};
+
+static int netdev_upper_walk(struct net_device *upper, void *data)
+{
+	struct upper_list *entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
+	struct list_head *upper_list = data;
+
+	if (!entry) {
+		pr_info("roce_gid_mgmt: couldn't allocate entry to delete ndev\n");
+		return 0;
+	}
+
+	list_add_tail(&entry->list, upper_list);
+	dev_hold(upper);
+	entry->upper = upper;
+
+	return 0;
+}
+
 static void handle_netdev_upper(struct ib_device *ib_dev, u8 port,
 				void *cookie,
 				void (*handle_netdev)(struct ib_device *ib_dev,
@@ -444,30 +466,12 @@ static void handle_netdev_upper(struct ib_device *ib_dev, u8 port,
 						      struct net_device *ndev))
 {
 	struct net_device *ndev = (struct net_device *)cookie;
-	struct upper_list {
-		struct list_head list;
-		struct net_device *upper;
-	};
-	struct net_device *upper;
-	struct list_head *iter;
 	struct upper_list *upper_iter;
 	struct upper_list *upper_temp;
 	LIST_HEAD(upper_list);
 
 	rcu_read_lock();
-	netdev_for_each_all_upper_dev_rcu(ndev, upper, iter) {
-		struct upper_list *entry = kmalloc(sizeof(*entry),
-						   GFP_ATOMIC);
-
-		if (!entry) {
-			pr_info("roce_gid_mgmt: couldn't allocate entry to delete ndev\n");
-			continue;
-		}
-
-		list_add_tail(&entry->list, &upper_list);
-		dev_hold(upper);
-		entry->upper = upper;
-	}
+	netdev_walk_all_upper_dev_rcu(ndev, netdev_upper_walk, &upper_list);
 	rcu_read_unlock();
 
 	handle_netdev(ib_dev, port, ndev);

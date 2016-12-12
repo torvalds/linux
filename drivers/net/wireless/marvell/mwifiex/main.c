@@ -308,6 +308,9 @@ process_start:
 			/* We have tried to wakeup the card already */
 			if (adapter->pm_wakeup_fw_try)
 				break;
+			if (adapter->ps_state == PS_STATE_PRE_SLEEP)
+				mwifiex_check_ps_cond(adapter);
+
 			if (adapter->ps_state != PS_STATE_AWAKE)
 				break;
 			if (adapter->tx_lock_flag) {
@@ -355,10 +358,8 @@ process_start:
 
 		/* Check if we need to confirm Sleep Request
 		   received previously */
-		if (adapter->ps_state == PS_STATE_PRE_SLEEP) {
-			if (!adapter->cmd_sent && !adapter->curr_cmd)
-				mwifiex_check_ps_cond(adapter);
-		}
+		if (adapter->ps_state == PS_STATE_PRE_SLEEP)
+			mwifiex_check_ps_cond(adapter);
 
 		/* * The ps_state may have been changed during processing of
 		 * Sleep Request event.
@@ -517,12 +518,11 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 {
 	int ret;
 	char fmt[64];
-	struct mwifiex_private *priv;
 	struct mwifiex_adapter *adapter = context;
 	struct mwifiex_fw_image fw;
-	struct semaphore *sem = adapter->card_sem;
 	bool init_failed = false;
 	struct wireless_dev *wdev;
+	struct completion *fw_done = adapter->fw_done;
 
 	if (!firmware) {
 		mwifiex_dbg(adapter, ERROR,
@@ -574,8 +574,6 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 		if (adapter->hw_status != MWIFIEX_HW_STATUS_READY)
 			goto err_init_fw;
 	}
-
-	priv = adapter->priv[MWIFIEX_BSS_ROLE_STA];
 
 	if (!adapter->wiphy) {
 		if (mwifiex_register_cfg80211(adapter)) {
@@ -669,7 +667,8 @@ done:
 	}
 	if (init_failed)
 		mwifiex_free_adapter(adapter);
-	up(sem);
+	/* Tell all current and future waiters we're finished */
+	complete_all(fw_done);
 	return;
 }
 
@@ -1364,7 +1363,7 @@ static void mwifiex_main_work_queue(struct work_struct *work)
  * code is extracted from mwifiex_remove_card()
  */
 static int
-mwifiex_shutdown_sw(struct mwifiex_adapter *adapter, struct semaphore *sem)
+mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv;
 	int i;
@@ -1372,8 +1371,9 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	if (!adapter)
 		goto exit_return;
 
-	if (down_interruptible(sem))
-		goto exit_sem_err;
+	wait_for_completion(adapter->fw_done);
+	/* Caller should ensure we aren't suspending while this happens */
+	reinit_completion(adapter->fw_done);
 
 	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	mwifiex_deauthenticate(priv, NULL);
@@ -1430,8 +1430,6 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter, struct semaphore *sem)
 		rtnl_unlock();
 	}
 
-	up(sem);
-exit_sem_err:
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
 exit_return:
 	return 0;
@@ -1441,21 +1439,18 @@ exit_return:
  * code is extracted from mwifiex_add_card()
  */
 static int
-mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct semaphore *sem,
+mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct completion *fw_done,
 		  struct mwifiex_if_ops *if_ops, u8 iface_type)
 {
 	char fw_name[32];
 	struct pcie_service_card *card = adapter->card;
-
-	if (down_interruptible(sem))
-		goto exit_sem_err;
 
 	mwifiex_init_lock_list(adapter);
 	if (adapter->if_ops.up_dev)
 		adapter->if_ops.up_dev(adapter);
 
 	adapter->iface_type = iface_type;
-	adapter->card_sem = sem;
+	adapter->fw_done = fw_done;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;
@@ -1506,7 +1501,8 @@ mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct semaphore *sem,
 	}
 	strcpy(adapter->fw_name, fw_name);
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
-	up(sem);
+
+	complete_all(adapter->fw_done);
 	return 0;
 
 err_init_fw:
@@ -1526,8 +1522,7 @@ err_init_fw:
 err_kmalloc:
 	mwifiex_terminate_workqueue(adapter);
 	adapter->surprise_removed = true;
-	up(sem);
-exit_sem_err:
+	complete_all(adapter->fw_done);
 	mwifiex_dbg(adapter, INFO, "%s, error\n", __func__);
 
 	return -1;
@@ -1542,15 +1537,66 @@ void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare)
 	struct mwifiex_if_ops if_ops;
 
 	if (!prepare) {
-		mwifiex_reinit_sw(adapter, adapter->card_sem, &if_ops,
+		mwifiex_reinit_sw(adapter, adapter->fw_done, &if_ops,
 				  adapter->iface_type);
 	} else {
 		memcpy(&if_ops, &adapter->if_ops,
 		       sizeof(struct mwifiex_if_ops));
-		mwifiex_shutdown_sw(adapter, adapter->card_sem);
+		mwifiex_shutdown_sw(adapter);
 	}
 }
 EXPORT_SYMBOL_GPL(mwifiex_do_flr);
+
+static irqreturn_t mwifiex_irq_wakeup_handler(int irq, void *priv)
+{
+	struct mwifiex_adapter *adapter = priv;
+
+	if (adapter->irq_wakeup >= 0) {
+		dev_dbg(adapter->dev, "%s: wake by wifi", __func__);
+		adapter->wake_by_wifi = true;
+		disable_irq_nosync(irq);
+	}
+
+	/* Notify PM core we are wakeup source */
+	pm_wakeup_event(adapter->dev, 0);
+
+	return IRQ_HANDLED;
+}
+
+static void mwifiex_probe_of(struct mwifiex_adapter *adapter)
+{
+	int ret;
+	struct device *dev = adapter->dev;
+
+	if (!dev->of_node)
+		return;
+
+	adapter->dt_node = dev->of_node;
+	adapter->irq_wakeup = irq_of_parse_and_map(adapter->dt_node, 0);
+	if (!adapter->irq_wakeup) {
+		dev_info(dev, "fail to parse irq_wakeup from device tree\n");
+		return;
+	}
+
+	ret = devm_request_irq(dev, adapter->irq_wakeup,
+			       mwifiex_irq_wakeup_handler, IRQF_TRIGGER_LOW,
+			       "wifi_wake", adapter);
+	if (ret) {
+		dev_err(dev, "Failed to request irq_wakeup %d (%d)\n",
+			adapter->irq_wakeup, ret);
+		goto err_exit;
+	}
+
+	disable_irq(adapter->irq_wakeup);
+	if (device_init_wakeup(dev, true)) {
+		dev_err(dev, "fail to init wakeup for mwifiex\n");
+		goto err_exit;
+	}
+	return;
+
+err_exit:
+	adapter->irq_wakeup = 0;
+}
 
 /*
  * This function adds the card.
@@ -1566,21 +1612,22 @@ EXPORT_SYMBOL_GPL(mwifiex_do_flr);
  *      - Add logical interfaces
  */
 int
-mwifiex_add_card(void *card, struct semaphore *sem,
-		 struct mwifiex_if_ops *if_ops, u8 iface_type)
+mwifiex_add_card(void *card, struct completion *fw_done,
+		 struct mwifiex_if_ops *if_ops, u8 iface_type,
+		 struct device *dev)
 {
 	struct mwifiex_adapter *adapter;
-
-	if (down_interruptible(sem))
-		goto exit_sem_err;
 
 	if (mwifiex_register(card, if_ops, (void **)&adapter)) {
 		pr_err("%s: software init failed\n", __func__);
 		goto err_init_sw;
 	}
 
+	adapter->dev = dev;
+	mwifiex_probe_of(adapter);
+
 	adapter->iface_type = iface_type;
-	adapter->card_sem = sem;
+	adapter->fw_done = fw_done;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;
@@ -1649,9 +1696,7 @@ err_kmalloc:
 	mwifiex_free_adapter(adapter);
 
 err_init_sw:
-	up(sem);
 
-exit_sem_err:
 	return -1;
 }
 EXPORT_SYMBOL_GPL(mwifiex_add_card);
@@ -1667,13 +1712,10 @@ EXPORT_SYMBOL_GPL(mwifiex_add_card);
  *      - Unregister the device
  *      - Free the adapter structure
  */
-int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
+int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv = NULL;
 	int i;
-
-	if (down_trylock(sem))
-		goto exit_sem_err;
 
 	if (!adapter)
 		goto exit_remove;
@@ -1744,8 +1786,6 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	mwifiex_free_adapter(adapter);
 
 exit_remove:
-	up(sem);
-exit_sem_err:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_remove_card);

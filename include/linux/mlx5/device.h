@@ -277,6 +277,7 @@ enum mlx5_event {
 	MLX5_EVENT_TYPE_INTERNAL_ERROR	   = 0x08,
 	MLX5_EVENT_TYPE_PORT_CHANGE	   = 0x09,
 	MLX5_EVENT_TYPE_GPIO_EVENT	   = 0x15,
+	MLX5_EVENT_TYPE_PORT_MODULE_EVENT  = 0x16,
 	MLX5_EVENT_TYPE_REMOTE_CONFIG	   = 0x19,
 
 	MLX5_EVENT_TYPE_DB_BF_CONGESTION   = 0x1a,
@@ -552,6 +553,15 @@ struct mlx5_eqe_vport_change {
 	__be32		rsvd1[6];
 } __packed;
 
+struct mlx5_eqe_port_module {
+	u8        reserved_at_0[1];
+	u8        module;
+	u8        reserved_at_2[1];
+	u8        module_status;
+	u8        reserved_at_4[2];
+	u8        error_type;
+} __packed;
+
 union ev_data {
 	__be32				raw[7];
 	struct mlx5_eqe_cmd		cmd;
@@ -565,6 +575,7 @@ union ev_data {
 	struct mlx5_eqe_page_req	req_pages;
 	struct mlx5_eqe_page_fault	page_fault;
 	struct mlx5_eqe_vport_change	vport_change;
+	struct mlx5_eqe_port_module	port_module;
 } __packed;
 
 struct mlx5_eqe {
@@ -1058,6 +1069,11 @@ enum {
 	MLX5_PER_TRAFFIC_CLASS_COUNTERS_GROUP = 0x11,
 	MLX5_PHYSICAL_LAYER_COUNTERS_GROUP    = 0x12,
 	MLX5_INFINIBAND_PORT_COUNTERS_GROUP   = 0x20,
+};
+
+enum {
+	MLX5_PCIE_PERFORMANCE_COUNTERS_GROUP       = 0x0,
+	MLX5_PCIE_TIMERS_AND_STATES_COUNTERS_GROUP = 0x2,
 };
 
 static inline u16 mlx5_to_sw_pkey_sz(int pkey_sz)

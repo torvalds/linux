@@ -195,7 +195,6 @@ static int
 vhost_transport_send_pkt(struct virtio_vsock_pkt *pkt)
 {
 	struct vhost_vsock *vsock;
-	struct vhost_virtqueue *vq;
 	int len = pkt->len;
 
 	/* Find the vhost_vsock according to guest context id  */
@@ -204,8 +203,6 @@ vhost_transport_send_pkt(struct virtio_vsock_pkt *pkt)
 		virtio_transport_free_pkt(pkt);
 		return -ENODEV;
 	}
-
-	vq = &vsock->vqs[VSOCK_VQ_RX];
 
 	if (pkt->reply)
 		atomic_inc(&vsock->queued_replies);
