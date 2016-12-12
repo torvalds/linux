@@ -2335,7 +2335,8 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 
 			/* remove payload length from outer checksum */
 			paylen = skb->len - l4_offset;
-			csum_replace_by_diff(&l4.udp->check, htonl(paylen));
+			csum_replace_by_diff(&l4.udp->check,
+					     (__force __wsum)htonl(paylen));
 		}
 
 		/* reset pointers to inner headers */
@@ -2356,7 +2357,7 @@ static int i40e_tso(struct i40e_tx_buffer *first, u8 *hdr_len,
 
 	/* remove payload length from inner checksum */
 	paylen = skb->len - l4_offset;
-	csum_replace_by_diff(&l4.tcp->check, htonl(paylen));
+	csum_replace_by_diff(&l4.tcp->check, (__force __wsum)htonl(paylen));
 
 	/* compute length of segmentation header */
 	*hdr_len = (l4.tcp->doff * 4) + l4_offset;
