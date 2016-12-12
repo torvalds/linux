@@ -40,118 +40,6 @@
 
 static struct device *exynos_drm_get_dma_device(void);
 
-static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
-{
-	struct exynos_drm_private *private;
-	struct drm_encoder *encoder;
-	unsigned int clone_mask;
-	int cnt, ret;
-
-	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
-	if (!private)
-		return -ENOMEM;
-
-	init_waitqueue_head(&private->wait);
-	spin_lock_init(&private->lock);
-
-	dev_set_drvdata(dev->dev, dev);
-	dev->dev_private = (void *)private;
-
-	/* the first real CRTC device is used for all dma mapping operations */
-	private->dma_dev = exynos_drm_get_dma_device();
-	if (!private->dma_dev) {
-		DRM_ERROR("no device found for DMA mapping operations.\n");
-		ret = -ENODEV;
-		goto err_free_private;
-	}
-	DRM_INFO("Exynos DRM: using %s device for DMA mapping operations\n",
-		 dev_name(private->dma_dev));
-
-	/* create common IOMMU mapping for all devices attached to Exynos DRM */
-	ret = drm_create_iommu_mapping(dev);
-	if (ret < 0) {
-		DRM_ERROR("failed to create iommu mapping.\n");
-		goto err_free_private;
-	}
-
-	drm_mode_config_init(dev);
-
-	exynos_drm_mode_config_init(dev);
-
-	/* setup possible_clones. */
-	cnt = 0;
-	clone_mask = 0;
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		clone_mask |= (1 << (cnt++));
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		encoder->possible_clones = clone_mask;
-
-	platform_set_drvdata(dev->platformdev, dev);
-
-	/* Try to bind all sub drivers. */
-	ret = component_bind_all(dev->dev, dev);
-	if (ret)
-		goto err_mode_config_cleanup;
-
-	ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
-	if (ret)
-		goto err_unbind_all;
-
-	/* Probe non kms sub drivers and virtual display driver. */
-	ret = exynos_drm_device_subdrv_probe(dev);
-	if (ret)
-		goto err_cleanup_vblank;
-
-	drm_mode_config_reset(dev);
-
-	/*
-	 * enable drm irq mode.
-	 * - with irq_enabled = true, we can use the vblank feature.
-	 *
-	 * P.S. note that we wouldn't use drm irq handler but
-	 *	just specific driver own one instead because
-	 *	drm framework supports only one irq handler.
-	 */
-	dev->irq_enabled = true;
-
-	/* init kms poll for handling hpd */
-	drm_kms_helper_poll_init(dev);
-
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(dev);
-
-	return 0;
-
-err_cleanup_vblank:
-	drm_vblank_cleanup(dev);
-err_unbind_all:
-	component_unbind_all(dev->dev, dev);
-err_mode_config_cleanup:
-	drm_mode_config_cleanup(dev);
-	drm_release_iommu_mapping(dev);
-err_free_private:
-	kfree(private);
-
-	return ret;
-}
-
-static void exynos_drm_unload(struct drm_device *dev)
-{
-	exynos_drm_device_subdrv_remove(dev);
-
-	exynos_drm_fbdev_fini(dev);
-	drm_kms_helper_poll_fini(dev);
-
-	drm_vblank_cleanup(dev);
-	component_unbind_all(dev->dev, dev);
-	drm_mode_config_cleanup(dev);
-	drm_release_iommu_mapping(dev);
-
-	kfree(dev->dev_private);
-	dev->dev_private = NULL;
-}
-
 int exynos_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
 {
@@ -257,8 +145,6 @@ static const struct file_operations exynos_drm_driver_fops = {
 static struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME
 				  | DRIVER_ATOMIC | DRIVER_RENDER,
-	.load			= exynos_drm_load,
-	.unload			= exynos_drm_unload,
 	.open			= exynos_drm_open,
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
@@ -436,12 +322,135 @@ static struct component_match *exynos_drm_match_add(struct device *dev)
 
 static int exynos_drm_bind(struct device *dev)
 {
-	return drm_platform_init(&exynos_drm_driver, to_platform_device(dev));
+	struct exynos_drm_private *private;
+	struct drm_encoder *encoder;
+	struct drm_device *drm;
+	unsigned int clone_mask;
+	int cnt, ret;
+
+	drm = drm_dev_alloc(&exynos_drm_driver, dev);
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
+
+	private = kzalloc(sizeof(struct exynos_drm_private), GFP_KERNEL);
+	if (!private) {
+		ret = -ENOMEM;
+		goto err_free_drm;
+	}
+
+	init_waitqueue_head(&private->wait);
+	spin_lock_init(&private->lock);
+
+	dev_set_drvdata(dev, drm);
+	drm->dev_private = (void *)private;
+
+	/* the first real CRTC device is used for all dma mapping operations */
+	private->dma_dev = exynos_drm_get_dma_device();
+	if (!private->dma_dev) {
+		DRM_ERROR("no device found for DMA mapping operations.\n");
+		ret = -ENODEV;
+		goto err_free_private;
+	}
+	DRM_INFO("Exynos DRM: using %s device for DMA mapping operations\n",
+		 dev_name(private->dma_dev));
+
+	/* create common IOMMU mapping for all devices attached to Exynos DRM */
+	ret = drm_create_iommu_mapping(drm);
+	if (ret < 0) {
+		DRM_ERROR("failed to create iommu mapping.\n");
+		goto err_free_private;
+	}
+
+	drm_mode_config_init(drm);
+
+	exynos_drm_mode_config_init(drm);
+
+	/* setup possible_clones. */
+	cnt = 0;
+	clone_mask = 0;
+	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head)
+		clone_mask |= (1 << (cnt++));
+
+	list_for_each_entry(encoder, &drm->mode_config.encoder_list, head)
+		encoder->possible_clones = clone_mask;
+
+	/* Try to bind all sub drivers. */
+	ret = component_bind_all(drm->dev, drm);
+	if (ret)
+		goto err_mode_config_cleanup;
+
+	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
+	if (ret)
+		goto err_unbind_all;
+
+	/* Probe non kms sub drivers and virtual display driver. */
+	ret = exynos_drm_device_subdrv_probe(drm);
+	if (ret)
+		goto err_cleanup_vblank;
+
+	drm_mode_config_reset(drm);
+
+	/*
+	 * enable drm irq mode.
+	 * - with irq_enabled = true, we can use the vblank feature.
+	 *
+	 * P.S. note that we wouldn't use drm irq handler but
+	 *	just specific driver own one instead because
+	 *	drm framework supports only one irq handler.
+	 */
+	drm->irq_enabled = true;
+
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(drm);
+
+	/* force connectors detection */
+	drm_helper_hpd_irq_event(drm);
+
+	/* register the DRM device */
+	ret = drm_dev_register(drm, 0);
+	if (ret < 0)
+		goto err_cleanup_fbdev;
+
+	return 0;
+
+err_cleanup_fbdev:
+	exynos_drm_fbdev_fini(drm);
+	drm_kms_helper_poll_fini(drm);
+	exynos_drm_device_subdrv_remove(drm);
+err_cleanup_vblank:
+	drm_vblank_cleanup(drm);
+err_unbind_all:
+	component_unbind_all(drm->dev, drm);
+err_mode_config_cleanup:
+	drm_mode_config_cleanup(drm);
+	drm_release_iommu_mapping(drm);
+err_free_private:
+	kfree(private);
+err_free_drm:
+	drm_dev_unref(drm);
+
+	return ret;
 }
 
 static void exynos_drm_unbind(struct device *dev)
 {
-	drm_put_dev(dev_get_drvdata(dev));
+	struct drm_device *drm = dev_get_drvdata(dev);
+
+	drm_dev_unregister(drm);
+
+	exynos_drm_device_subdrv_remove(drm);
+
+	exynos_drm_fbdev_fini(drm);
+	drm_kms_helper_poll_fini(drm);
+
+	component_unbind_all(drm->dev, drm);
+	drm_mode_config_cleanup(drm);
+	drm_release_iommu_mapping(drm);
+
+	kfree(drm->dev_private);
+	drm->dev_private = NULL;
+
+	drm_dev_unref(drm);
 }
 
 static const struct component_master_ops exynos_drm_ops = {

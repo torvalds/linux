@@ -120,7 +120,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_device *dev = helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	struct platform_device *pdev = dev->platformdev;
 	unsigned long size;
 	int ret;
 
@@ -143,7 +142,7 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	 * memory area.
 	 */
 	if (IS_ERR(exynos_gem) && is_drm_iommu_supported(dev)) {
-		dev_warn(&pdev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
+		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
 		exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_NONCONTIG,
 						   size);
 	}
