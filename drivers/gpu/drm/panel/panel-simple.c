@@ -553,6 +553,31 @@ static const struct panel_desc auo_b116xw03 = {
 	},
 };
 
+static const struct drm_display_mode auo_b125han03_mode = {
+	.clock = 141000,
+	.hdisplay = 1920,
+	.hsync_start = 1920 + 88,
+	.hsync_end = 1920 + 88 + 60,
+	.htotal = 1920 + 88 + 60 + 36,
+	.vdisplay = 1080,
+	.vsync_start = 1080 + 12,
+	.vsync_end = 1080 + 12 + 4,
+	.vtotal = 1080 + 12 + 4 + 20,
+	.vrefresh = 60,
+	.flags = DRM_MODE_FLAG_NVSYNC | DRM_MODE_FLAG_NHSYNC,
+};
+
+static const struct panel_desc auo_b125han03 = {
+	.modes = &auo_b125han03_mode,
+	.num_modes = 1,
+	.bpc = 6,
+	.size = {
+		.width = 276,
+		.height = 156,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+};
+
 static const struct drm_display_mode auo_b133xtn01_mode = {
 	.clock = 69500,
 	.hdisplay = 1366,
@@ -1303,6 +1328,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "auo,b116xw03",
 		.data = &auo_b116xw03,
+	}, {
+		.compatible = "auo,b125han03",
+		.data = &auo_b125han03,
 	}, {
 		.compatible = "auo,b133htn01",
 		.data = &auo_b133htn01,

@@ -1,0 +1,7 @@
+AU Optronics Corporation 12.5" FHD TFT LCD panel
+
+Required properties:
+- compatible: should be "auo,b125han03"
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory.
