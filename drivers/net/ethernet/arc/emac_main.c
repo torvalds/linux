@@ -636,7 +636,7 @@ static int arc_emac_tx(struct sk_buff *skb, struct net_device *ndev)
 	if (unlikely(dma_mapping_error(&ndev->dev, addr))) {
 		stats->tx_dropped++;
 		stats->tx_errors++;
-		dev_kfree_skb(skb);
+		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 	dma_unmap_addr_set(&priv->tx_buff[*txbd_curr], addr, addr);

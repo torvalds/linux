@@ -2163,8 +2163,8 @@ static const struct genl_multicast_group thermal_event_mcgrps[] = {
 	{ .name = THERMAL_GENL_MCAST_GROUP_NAME, },
 };
 
-static struct genl_family thermal_event_genl_family = {
-	.id = GENL_ID_GENERATE,
+static struct genl_family thermal_event_genl_family __ro_after_init = {
+	.module = THIS_MODULE,
 	.name = THERMAL_GENL_FAMILY_NAME,
 	.version = THERMAL_GENL_VERSION,
 	.maxattr = THERMAL_GENL_ATTR_MAX,
@@ -2235,7 +2235,7 @@ int thermal_generate_netlink_event(struct thermal_zone_device *tz,
 }
 EXPORT_SYMBOL_GPL(thermal_generate_netlink_event);
 
-static int genetlink_init(void)
+static int __init genetlink_init(void)
 {
 	return genl_register_family(&thermal_event_genl_family);
 }

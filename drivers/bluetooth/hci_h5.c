@@ -204,9 +204,7 @@ static int h5_open(struct hci_uart *hu)
 
 	h5_reset_rx(h5);
 
-	init_timer(&h5->timer);
-	h5->timer.function = h5_timed_event;
-	h5->timer.data = (unsigned long)hu;
+	setup_timer(&h5->timer, h5_timed_event, (unsigned long)hu);
 
 	h5->tx_win = H5_TX_WIN_MAX;
 

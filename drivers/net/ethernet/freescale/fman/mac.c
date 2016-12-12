@@ -879,13 +879,17 @@ static int mac_probe(struct platform_device *_of_dev)
 
 		priv->fixed_link = kzalloc(sizeof(*priv->fixed_link),
 					   GFP_KERNEL);
-		if (!priv->fixed_link)
+		if (!priv->fixed_link) {
+			err = -ENOMEM;
 			goto _return_dev_set_drvdata;
+		}
 
 		priv->phy_node = of_node_get(mac_node);
 		phy = of_phy_find_device(priv->phy_node);
-		if (!phy)
+		if (!phy) {
+			err = -EINVAL;
 			goto _return_dev_set_drvdata;
+		}
 
 		priv->fixed_link->link = phy->link;
 		priv->fixed_link->speed = phy->speed;

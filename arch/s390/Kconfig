@@ -171,6 +171,7 @@ config S390
 	select SYSCTL_EXCEPTION_TRACE
 	select TTY
 	select VIRT_CPU_ACCOUNTING
+	select ARCH_HAS_SCALED_CPUTIME
 	select VIRT_TO_BUS
 	select HAVE_NMI
 

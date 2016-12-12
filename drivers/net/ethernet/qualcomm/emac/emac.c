@@ -239,14 +239,7 @@ static void emac_rx_mode_set(struct net_device *netdev)
 /* Change the Maximum Transfer Unit (MTU) */
 static int emac_change_mtu(struct net_device *netdev, int new_mtu)
 {
-	unsigned int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 	struct emac_adapter *adpt = netdev_priv(netdev);
-
-	if ((max_frame < EMAC_MIN_ETH_FRAME_SIZE) ||
-	    (max_frame > EMAC_MAX_ETH_FRAME_SIZE)) {
-		netdev_err(adpt->netdev, "error: invalid MTU setting\n");
-		return -EINVAL;
-	}
 
 	netif_info(adpt, hw, adpt->netdev,
 		   "changing MTU from %d to %d\n", netdev->mtu,
@@ -679,6 +672,12 @@ static int emac_probe(struct platform_device *pdev)
 
 	netdev->vlan_features |= NETIF_F_SG | NETIF_F_HW_CSUM |
 				 NETIF_F_TSO | NETIF_F_TSO6;
+
+	/* MTU range: 46 - 9194 */
+	netdev->min_mtu = EMAC_MIN_ETH_FRAME_SIZE -
+			  (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
+	netdev->max_mtu = EMAC_MAX_ETH_FRAME_SIZE -
+			  (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
 
 	INIT_WORK(&adpt->work_thread, emac_work_thread);
 
