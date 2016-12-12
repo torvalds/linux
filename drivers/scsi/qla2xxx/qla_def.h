@@ -2734,7 +2734,8 @@ struct isp_operations {
 
 #define QLA_MSIX_DEFAULT		0x00
 #define QLA_MSIX_RSP_Q			0x01
-#define QLA_MSIX_QPAIR_MULTIQ_RSP_Q	0x02
+#define QLA_ATIO_VECTOR		0x02
+#define QLA_MSIX_QPAIR_MULTIQ_RSP_Q	0x03
 
 #define QLA_MIDX_DEFAULT	0
 #define QLA_MIDX_RSP_Q		1

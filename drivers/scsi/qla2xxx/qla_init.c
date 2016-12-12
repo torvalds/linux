@@ -6764,7 +6764,7 @@ struct qla_qpair *qla2xxx_create_qpair(struct scsi_qla_host *vha, int qos, int v
 		qpair->vp_idx = vp_idx;
 
 		for (i = 0; i < ha->msix_count; i++) {
-			msix = &ha->msix_entries[i + 2];
+			msix = &ha->msix_entries[i];
 			if (msix->in_use)
 				continue;
 			qpair->msix = msix;
