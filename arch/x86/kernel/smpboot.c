@@ -58,7 +58,6 @@
 #include <asm/desc.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
-#include <asm/idle.h>
 #include <asm/realmode.h>
 #include <asm/cpu.h>
 #include <asm/numa.h>
@@ -1596,7 +1595,6 @@ void play_dead_common(void)
 {
 	idle_task_exit();
 	reset_lazy_tlbstate();
-	amd_e400_remove_cpu(raw_smp_processor_id());
 
 	/* Ack it */
 	(void)cpu_report_death();

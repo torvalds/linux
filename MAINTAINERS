@@ -6104,12 +6104,6 @@ S:	Maintained
 F:	Documentation/cdrom/ide-cd
 F:	drivers/ide/ide-cd*
 
-IDLE-I7300
-M:	Andy Henroid <andrew.d.henroid@intel.com>
-L:	linux-pm@vger.kernel.org
-S:	Supported
-F:	drivers/idle/i7300_idle.c
-
 IEEE 802.15.4 SUBSYSTEM
 M:	Alexander Aring <aar@pengutronix.de>
 M:	Stefan Schmidt <stefan@osg.samsung.com>

@@ -48,7 +48,6 @@
 #include <asm/io_apic.h>
 #include <asm/desc.h>
 #include <asm/hpet.h>
-#include <asm/idle.h>
 #include <asm/mtrr.h>
 #include <asm/time.h>
 #include <asm/smp.h>
@@ -894,11 +893,13 @@ void __init setup_boot_APIC_clock(void)
 
 	/* Setup the lapic or request the broadcast */
 	setup_APIC_timer();
+	amd_e400_c1e_apic_setup();
 }
 
 void setup_secondary_APIC_clock(void)
 {
 	setup_APIC_timer();
+	amd_e400_c1e_apic_setup();
 }
 
 /*

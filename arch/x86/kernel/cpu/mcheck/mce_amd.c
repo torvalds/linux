@@ -24,7 +24,6 @@
 
 #include <asm/amd_nb.h>
 #include <asm/apic.h>
-#include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/trace/irq_vectors.h>
