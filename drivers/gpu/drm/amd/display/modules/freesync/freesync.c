@@ -784,6 +784,9 @@ bool mod_freesync_get_state(struct mod_freesync *mod_freesync,
 	freesync_params->update_duration_in_ns =
 		core_freesync->map[index].state.time.update_duration_in_ns;
 
+	freesync_params->windowed_fullscreen =
+			core_freesync->map[index].state.windowed_fullscreen;
+
 	return true;
 }
 
