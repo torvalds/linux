@@ -829,6 +829,15 @@ struct amdgpu_rb_config {
 	uint32_t raster_config_1;
 };
 
+struct gb_addr_config {
+	uint16_t pipe_interleave_size;
+	uint8_t num_pipes;
+	uint8_t max_compress_frags;
+	uint8_t num_banks;
+	uint8_t num_se;
+	uint8_t num_rb_per_se;
+};
+
 struct amdgpu_gfx_config {
 	unsigned max_shader_engines;
 	unsigned max_tile_pipes;
@@ -858,6 +867,7 @@ struct amdgpu_gfx_config {
 	uint32_t tile_mode_array[32];
 	uint32_t macrotile_mode_array[16];
 
+	struct gb_addr_config gb_addr_config_fields;
 	struct amdgpu_rb_config rb_config[AMDGPU_GFX_MAX_SE][AMDGPU_GFX_MAX_SH_PER_SE];
 
 	/* gfx configure feature */
