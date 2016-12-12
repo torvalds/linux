@@ -1165,6 +1165,18 @@ static bool is_marantz_denon_dac(unsigned int id)
 	return false;
 }
 
+/* TEAC UD-501/UD-503/NT-503 USB DACs need a vendor cmd to switch
+ * between PCM/DOP and native DSD mode
+ */
+static bool is_teac_50X_dac(unsigned int id)
+{
+	switch (id) {
+	case USB_ID(0x0644, 0x8043): /* TEAC UD-501/UD-503/NT-503 */
+		return true;
+	}
+	return false;
+}
+
 int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 			      struct audioformat *fmt)
 {
@@ -1192,6 +1204,26 @@ int snd_usb_select_mode_quirk(struct snd_usb_substream *subs,
 			break;
 		}
 		mdelay(20);
+	} else if (is_teac_50X_dac(subs->stream->chip->usb_id)) {
+		/* Vendor mode switch cmd is required. */
+		switch (fmt->altsetting) {
+		case 3: /* DSD mode (DSD_U32) requested */
+			err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 0,
+					      USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
+					      1, 1, NULL, 0);
+			if (err < 0)
+				return err;
+			break;
+
+		case 2: /* PCM or DOP mode (S32) requested */
+		case 1: /* PCM mode (S16) requested */
+			err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), 0,
+					      USB_DIR_OUT|USB_TYPE_VENDOR|USB_RECIP_INTERFACE,
+					      0, 1, NULL, 0);
+			if (err < 0)
+				return err;
+			break;
+		}
 	}
 	return 0;
 }
@@ -1334,6 +1366,12 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 	/* Denon/Marantz devices with USB DAC functionality */
 	if (is_marantz_denon_dac(chip->usb_id)) {
 		if (fp->altsetting == 2)
+			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
+	}
+
+	/* TEAC devices with USB DAC functionality */
+	if (is_teac_50X_dac(chip->usb_id)) {
+		if (fp->altsetting == 3)
 			return SNDRV_PCM_FMTBIT_DSD_U32_BE;
 	}
 
