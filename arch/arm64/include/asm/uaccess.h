@@ -188,7 +188,7 @@ do {									\
 
 #define __uaccess_enable(alt)						\
 do {									\
-	if (uaccess_ttbr0_enable())					\
+	if (!uaccess_ttbr0_enable())					\
 		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), alt,		\
 				CONFIG_ARM64_PAN));			\
 } while (0)
