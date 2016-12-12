@@ -1647,6 +1647,9 @@ static int smack_file_ioctl(struct file *file, unsigned int cmd,
 	struct smk_audit_info ad;
 	struct inode *inode = file_inode(file);
 
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 
@@ -1676,6 +1679,9 @@ static int smack_file_lock(struct file *file, unsigned int cmd)
 	int rc;
 	struct inode *inode = file_inode(file);
 
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+
 	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_PATH);
 	smk_ad_setfield_u_fs_path(&ad, file->f_path);
 	rc = smk_curacc(smk_of_inode(inode), MAY_LOCK, &ad);
@@ -1701,6 +1707,9 @@ static int smack_file_fcntl(struct file *file, unsigned int cmd,
 	struct smk_audit_info ad;
 	int rc = 0;
 	struct inode *inode = file_inode(file);
+
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
 
 	switch (cmd) {
 	case F_GETLK:
@@ -1753,6 +1762,9 @@ static int smack_mmap_file(struct file *file,
 	int rc;
 
 	if (file == NULL)
+		return 0;
+
+	if (unlikely(IS_PRIVATE(file_inode(file))))
 		return 0;
 
 	isp = file_inode(file)->i_security;
