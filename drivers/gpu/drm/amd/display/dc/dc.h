@@ -312,6 +312,7 @@ const struct dc_surface_status *dc_surface_get_status(
 void dc_surface_retain(const struct dc_surface *dc_surface);
 void dc_surface_release(const struct dc_surface *dc_surface);
 
+void dc_gamma_retain(const struct dc_gamma *dc_gamma);
 void dc_gamma_release(const struct dc_gamma *dc_gamma);
 struct dc_gamma *dc_create_gamma(void);
 

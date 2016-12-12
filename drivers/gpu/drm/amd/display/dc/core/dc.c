@@ -1302,8 +1302,8 @@ bool dc_commit_surfaces_to_target(
 
 	for (i = 0; i < new_surface_count; i++) {
 		updates[i].surface = new_surfaces[i];
-		updates[i].gamma = (struct dc_gamma *)new_surfaces[i]->gamma_correction;
-
+		updates[i].gamma =
+			(struct dc_gamma *)new_surfaces[i]->gamma_correction;
 		flip_addr[i].address = new_surfaces[i]->address;
 		flip_addr[i].flip_immediate = new_surfaces[i]->flip_immediate;
 		plane_info[i].color_space = new_surfaces[i]->color_space;
@@ -1443,6 +1443,16 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 					pipe_ctx->scl_data.recout.height -= 2;
 					pipe_ctx->scl_data.recout.width -= 2;
 				}
+			}
+
+			if (updates[i].gamma) {
+				if (surface->public.gamma_correction != NULL)
+					dc_gamma_release(surface->public.
+							gamma_correction);
+
+				dc_gamma_retain(updates[i].gamma);
+				surface->public.gamma_correction =
+							updates[i].gamma;
 			}
 		}
 	}
