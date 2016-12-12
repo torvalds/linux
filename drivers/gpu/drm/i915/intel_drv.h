@@ -1855,4 +1855,9 @@ void intel_color_load_luts(struct drm_crtc_state *crtc_state);
 bool lspcon_init(struct intel_digital_port *intel_dig_port);
 void lspcon_resume(struct intel_lspcon *lspcon);
 void lspcon_wait_pcon_mode(struct intel_lspcon *lspcon);
+
+/* intel_pipe_crc.c */
+int intel_pipe_crc_create(struct drm_minor *minor);
+void intel_pipe_crc_cleanup(struct drm_minor *minor);
+extern const struct file_operations i915_display_crc_ctl_fops;
 #endif /* __INTEL_DRV_H__ */
