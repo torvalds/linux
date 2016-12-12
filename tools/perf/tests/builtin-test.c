@@ -186,6 +186,10 @@ static struct test generic_tests[] = {
 		.func = test__thread_map_synthesize,
 	},
 	{
+		.desc = "Remove thread map",
+		.func = test__thread_map_remove,
+	},
+	{
 		.desc = "Synthesize cpu map",
 		.func = test__cpu_map_synthesize,
 	},
