@@ -59,7 +59,11 @@
 	};
 };
 
-/* XHCI, MMC, and Ethernet support needed to be complete */
+/* XHCI and SD/MMC support needed to be complete */
+
+&amac0 {
+	status = "okay";
+};
 
 &i2c0 {
 	temperature-sensor@4c {
