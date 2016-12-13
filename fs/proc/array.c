@@ -245,7 +245,7 @@ void render_sigset_t(struct seq_file *m, const char *header,
 		if (sigismember(set, i+2)) x |= 2;
 		if (sigismember(set, i+3)) x |= 4;
 		if (sigismember(set, i+4)) x |= 8;
-		seq_printf(m, "%x", x);
+		seq_putc(m, hex_asc[x]);
 	} while (i >= 4);
 
 	seq_putc(m, '\n');
