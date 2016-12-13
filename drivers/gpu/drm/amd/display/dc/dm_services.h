@@ -109,12 +109,6 @@ static inline uint32_t dm_read_reg_func(
 
 	value = cgs_read_register(ctx->cgs_device, address);
 
-#if defined(__DAL_REGISTER_LOGGER__)
-	if (true == dal_reg_logger_should_dump_register()) {
-		dal_reg_logger_rw_count_increment();
-		DRM_INFO("%s DC_READ_REG: 0x%x 0x%x\n", func_name, address, value);
-	}
-#endif
 	return value;
 }
 
@@ -127,13 +121,6 @@ static inline void dm_write_reg_func(
 	uint32_t value,
 	const char *func_name)
 {
-#if defined(__DAL_REGISTER_LOGGER__)
-	if (true == dal_reg_logger_should_dump_register()) {
-		dal_reg_logger_rw_count_increment();
-		DRM_INFO("%s DC_WRITE_REG: 0x%x 0x%x\n", func_name, address, value);
-	}
-#endif
-
 	if (address == 0) {
 		DC_ERR("invalid register write. address = 0");
 		return;
@@ -417,8 +404,5 @@ bool dm_dmcu_set_pipe(struct dc_context *ctx, unsigned int controller_id);
  */
 #define dm_log_to_buffer(buffer, size, fmt, args)\
 	vsnprintf(buffer, size, fmt, args)
-
-long dm_get_pid(void);
-long dm_get_tgid(void);
 
 #endif /* __DM_SERVICES_H__ */

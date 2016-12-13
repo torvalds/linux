@@ -447,13 +447,3 @@ void dal_notify_setmode_complete(struct dc_context *ctx,
 	/*TODO*/
 }
 /* End of calls to notification */
-
-long dm_get_pid(void)
-{
-	return current->pid;
-}
-
-long dm_get_tgid(void)
-{
-	return current->tgid;
-}
