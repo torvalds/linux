@@ -9060,11 +9060,11 @@ again:
 	}
 
 	/*
-	 * XXX - page_mkwrite gets called every time the page is dirtied, even
-	 * if it was already dirty, so for space accounting reasons we need to
-	 * clear any delalloc bits for the range we are fixing to save.  There
-	 * is probably a better way to do this, but for now keep consistent with
-	 * prepare_pages in the normal write path.
+	 * page_mkwrite gets called when the page is firstly dirtied after it's
+	 * faulted in, but write(2) could also dirty a page and set delalloc
+	 * bits, thus in this case for space account reason, we still need to
+	 * clear any delalloc bits within this page range since we have to
+	 * reserve data&meta space before lock_page() (see above comments).
 	 */
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, page_start, end,
 			  EXTENT_DIRTY | EXTENT_DELALLOC |
