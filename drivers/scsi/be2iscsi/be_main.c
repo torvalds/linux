@@ -67,8 +67,6 @@ beiscsi_##_name##_disp(struct device *dev,\
 {	\
 	struct Scsi_Host *shost = class_to_shost(dev);\
 	struct beiscsi_hba *phba = iscsi_host_priv(shost); \
-	uint32_t param_val = 0;	\
-	param_val = phba->attr_##_name;\
 	return snprintf(buf, PAGE_SIZE, "%d\n",\
 			phba->attr_##_name);\
 }
@@ -642,7 +640,6 @@ static void beiscsi_get_params(struct beiscsi_hba *phba)
 	phba->params.num_sge_per_io = BE2_SGE;
 	phba->params.defpdu_hdr_sz = BE2_DEFPDU_HDR_SZ;
 	phba->params.defpdu_data_sz = BE2_DEFPDU_DATA_SZ;
-	phba->params.eq_timer = 64;
 	phba->params.num_eq_entries = 1024;
 	phba->params.num_cq_entries = 1024;
 	phba->params.wrbs_per_cxn = 256;
@@ -1335,7 +1332,6 @@ static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 	struct hwi_wrb_context *pwrb_context;
 	struct hwi_controller *phwi_ctrlr;
 	struct wrb_handle *pwrb_handle;
-	struct iscsi_wrb *pwrb = NULL;
 	struct iscsi_task *task;
 	uint16_t cri_index = 0;
 	uint8_t type;
@@ -1357,7 +1353,6 @@ static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 		spin_unlock_bh(&session->back_lock);
 		return;
 	}
-	pwrb = pwrb_handle->pwrb;
 	type = ((struct beiscsi_io_task *)task->dd_data)->wrb_type;
 
 	switch (type) {
@@ -1721,13 +1716,12 @@ beiscsi_hdq_post_handles(struct beiscsi_hba *phba,
 	struct list_head *hfree_list;
 	struct phys_addr *pasync_sge;
 	u32 ring_id, doorbell = 0;
-	u16 index, num_entries;
 	u32 doorbell_offset;
 	u16 prod = 0, cons;
+	u16 index;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	pasync_ctx = HWI_GET_ASYNC_PDU_CTX(phwi_ctrlr, ulp_num);
-	num_entries = pasync_ctx->num_entries;
 	if (header) {
 		cons = pasync_ctx->async_header.free_entries;
 		hfree_list = &pasync_ctx->async_header.free_list;
@@ -2384,12 +2378,9 @@ static int hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 static void beiscsi_find_mem_req(struct beiscsi_hba *phba)
 {
 	uint8_t mem_descr_index, ulp_num;
-	unsigned int num_cq_pages, num_async_pdu_buf_pages;
+	unsigned int num_async_pdu_buf_pages;
 	unsigned int num_async_pdu_data_pages, wrb_sz_per_cxn;
 	unsigned int num_async_pdu_buf_sgl_pages, num_async_pdu_data_sgl_pages;
-
-	num_cq_pages = PAGES_REQUIRED(phba->params.num_cq_entries * \
-				      sizeof(struct sol_cqe));
 
 	phba->params.hwi_ws_sz = sizeof(struct hwi_controller);
 
@@ -3377,7 +3368,7 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
 			 struct hwi_context_memory *phwi_context,
 			 struct hwi_controller *phwi_ctrlr)
 {
-	unsigned int wrb_mem_index, offset, size, num_wrb_rings;
+	unsigned int num_wrb_rings;
 	u64 pa_addr_lo;
 	unsigned int idx, num, i, ulp_num;
 	struct mem_array *pwrb_arr;
@@ -3442,10 +3433,6 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
 		}
 
 	for (i = 0; i < phba->params.cxns_per_ctrl; i++) {
-		wrb_mem_index = 0;
-		offset = 0;
-		size = 0;
-
 		if (ulp_count > 1) {
 			ulp_base_num = (ulp_base_num + 1) % BEISCSI_ULP_COUNT;
 
@@ -3673,7 +3660,6 @@ static void hwi_cleanup_port(struct beiscsi_hba *phba)
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
-	struct hd_async_context *pasync_ctx;
 	int i, eq_for_mcc, ulp_num;
 
 	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
@@ -3710,8 +3696,6 @@ static void hwi_cleanup_port(struct beiscsi_hba *phba)
 			q = &phwi_context->be_def_dataq[ulp_num];
 			if (q->created)
 				beiscsi_cmd_q_destroy(ctrl, q, QTYPE_DPDUQ);
-
-			pasync_ctx = phwi_ctrlr->phwi_ctxt->pasync_ctx[ulp_num];
 		}
 	}
 
@@ -3937,7 +3921,7 @@ static void beiscsi_free_mem(struct beiscsi_hba *phba)
 
 static int beiscsi_init_controller(struct beiscsi_hba *phba)
 {
-	int ret = -ENOMEM;
+	int ret;
 
 	ret = beiscsi_get_memory(phba);
 	if (ret < 0) {

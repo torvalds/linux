@@ -676,10 +676,10 @@ void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 				bool embedded, u8 sge_cnt)
 {
 	if (embedded)
-		wrb->embedded |= MCC_WRB_EMBEDDED_MASK;
+		wrb->emb_sgecnt_special |= MCC_WRB_EMBEDDED_MASK;
 	else
-		wrb->embedded |= (sge_cnt & MCC_WRB_SGE_CNT_MASK) <<
-						MCC_WRB_SGE_CNT_SHIFT;
+		wrb->emb_sgecnt_special |= (sge_cnt & MCC_WRB_SGE_CNT_MASK) <<
+					   MCC_WRB_SGE_CNT_SHIFT;
 	wrb->payload_length = payload_len;
 	be_dws_cpu_to_le(wrb, 8);
 }
@@ -1599,7 +1599,7 @@ int beiscsi_cmd_function_reset(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
-	struct be_post_sgl_pages_req *req = embedded_payload(wrb);
+	struct be_post_sgl_pages_req *req;
 	int status;
 
 	mutex_lock(&ctrl->mbox_lock);

@@ -243,19 +243,7 @@ struct hba_parameters {
 	unsigned int num_cq_entries;
 	unsigned int num_eq_entries;
 	unsigned int wrbs_per_cxn;
-	unsigned int crashmode;
-	unsigned int hba_num;
-
-	unsigned int mgmt_ws_sz;
 	unsigned int hwi_ws_sz;
-
-	unsigned int eto;
-	unsigned int ldto;
-
-	unsigned int dbg_flags;
-	unsigned int num_cxn;
-
-	unsigned int eq_timer;
 	/**
 	 * These are calculated from other params. They're here
 	 * for debug purposes
@@ -333,7 +321,6 @@ struct beiscsi_hba {
 	struct be_bus_address pci_pa;	/* CSR */
 	/* PCI representation of our HBA */
 	struct pci_dev *pcidev;
-	unsigned short asic_revision;
 	unsigned int num_cpus;
 	unsigned int nxt_cqid;
 	struct msix_entry msix_entries[MAX_CPUS];
@@ -354,7 +341,6 @@ struct beiscsi_hba {
 	spinlock_t io_sgl_lock;
 	spinlock_t mgmt_sgl_lock;
 	spinlock_t async_pdu_lock;
-	unsigned int age;
 	struct list_head hba_queue;
 #define BE_MAX_SESSION 2048
 #define BE_SET_CID_TO_CRI(cri_index, cid) \
@@ -523,10 +509,6 @@ struct beiscsi_io_task {
 	struct scsi_cmnd *scsi_cmnd;
 	int num_sg;
 	struct hwi_wrb_context *pwrb_context;
-	unsigned int cmd_sn;
-	unsigned int flags;
-	unsigned short cid;
-	unsigned short header_len;
 	itt_t libiscsi_itt;
 	struct be_cmd_bhs *cmd_bhs;
 	struct be_bus_address bhs_pa;
@@ -1040,10 +1022,8 @@ struct hwi_controller {
 	struct list_head io_sgl_list;
 	struct list_head eh_sgl_list;
 	struct sgl_handle *psgl_handle_base;
-	unsigned int wrb_mem_index;
 
 	struct hwi_wrb_context *wrb_context;
-	struct mcc_wrb *pmcc_wrb_base;
 	struct be_ring default_pdu_hdr[BEISCSI_ULP_COUNT];
 	struct be_ring default_pdu_data[BEISCSI_ULP_COUNT];
 	struct hwi_context_memory *phwi_ctxt;
@@ -1060,9 +1040,7 @@ enum hwh_type_enum {
 };
 
 struct wrb_handle {
-	enum hwh_type_enum type;
 	unsigned short wrb_index;
-
 	struct iscsi_task *pio_handle;
 	struct iscsi_wrb *pwrb;
 };

@@ -1114,7 +1114,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	nonemb_cmd.size = req_memsize;
 	memset(nonemb_cmd.va, 0, nonemb_cmd.size);
 	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep, &nonemb_cmd);
-	if (tag <= 0) {
+	if (!tag) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : mgmt_open_connection Failed for cid=%d\n",
 			    beiscsi_ep->ep_cid);

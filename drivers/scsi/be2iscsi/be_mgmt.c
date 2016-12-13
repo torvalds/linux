@@ -66,7 +66,6 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct bsg_job *job,
 					 struct be_dma_mem *nonemb_cmd)
 {
-	struct be_cmd_resp_hdr *resp;
 	struct be_mcc_wrb *wrb;
 	struct be_sge *mcc_sge;
 	unsigned int tag = 0;
@@ -76,7 +75,6 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 
 	nonemb_cmd->size = job->request_payload.payload_len;
 	memset(nonemb_cmd->va, 0, nonemb_cmd->size);
-	resp = nonemb_cmd->va;
 	region =  bsg_req->rqst_data.h_vendor.vendor_cmd[1];
 	sector_size =  bsg_req->rqst_data.h_vendor.vendor_cmd[2];
 	sector =  bsg_req->rqst_data.h_vendor.vendor_cmd[3];
@@ -1022,7 +1020,6 @@ unsigned int beiscsi_boot_reopen_sess(struct beiscsi_hba *phba)
 unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_cmd_get_session_resp *resp;
 	struct be_cmd_get_session_req *req;
 	struct be_dma_mem *nonemb_cmd;
 	struct be_mcc_wrb *wrb;
@@ -1037,7 +1034,7 @@ unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 	}
 
 	nonemb_cmd = &phba->boot_struct.nonemb_cmd;
-	nonemb_cmd->size = sizeof(*resp);
+	nonemb_cmd->size = sizeof(struct be_cmd_get_session_resp);
 	nonemb_cmd->va = pci_alloc_consistent(phba->ctrl.pdev,
 					      nonemb_cmd->size,
 					      &nonemb_cmd->dma);
@@ -1052,7 +1049,7 @@ unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
 			   OPCODE_ISCSI_INI_SESSION_GET_A_SESSION,
-			   sizeof(*resp));
+			   sizeof(struct be_cmd_get_session_resp));
 	req->session_handle = phba->boot_struct.s_handle;
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
@@ -1297,7 +1294,7 @@ beiscsi_phys_port_disp(struct device *dev, struct device_attribute *attr,
 	struct Scsi_Host *shost = class_to_shost(dev);
 	struct beiscsi_hba *phba = iscsi_host_priv(shost);
 
-	return snprintf(buf, PAGE_SIZE, "Port Identifier : %d\n",
+	return snprintf(buf, PAGE_SIZE, "Port Identifier : %u\n",
 			phba->fw_config.phys_port);
 }
 
