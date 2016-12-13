@@ -42,6 +42,7 @@
 
 MODULE_FIRMWARE("amdgpu/vega10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/vega10_sdma1.bin");
+MODULE_FIRMWARE("amdgpu/raven_sdma.bin");
 
 static void sdma_v4_0_set_ring_funcs(struct amdgpu_device *adev);
 static void sdma_v4_0_set_buffer_funcs(struct amdgpu_device *adev);
@@ -1074,7 +1075,10 @@ static int sdma_v4_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	adev->sdma.num_instances = 2;
+	if (adev->asic_type == CHIP_RAVEN)
+		adev->sdma.num_instances = 1;
+	else
+		adev->sdma.num_instances = 2;
 
 	sdma_v4_0_set_ring_funcs(adev);
 	sdma_v4_0_set_buffer_funcs(adev);

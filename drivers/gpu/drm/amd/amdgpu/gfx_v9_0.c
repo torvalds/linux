@@ -48,6 +48,13 @@ MODULE_FIRMWARE("amdgpu/vega10_mec.bin");
 MODULE_FIRMWARE("amdgpu/vega10_mec2.bin");
 MODULE_FIRMWARE("amdgpu/vega10_rlc.bin");
 
+MODULE_FIRMWARE("amdgpu/raven_ce.bin");
+MODULE_FIRMWARE("amdgpu/raven_pfp.bin");
+MODULE_FIRMWARE("amdgpu/raven_me.bin");
+MODULE_FIRMWARE("amdgpu/raven_mec.bin");
+MODULE_FIRMWARE("amdgpu/raven_mec2.bin");
+MODULE_FIRMWARE("amdgpu/raven_rlc.bin");
+
 static const struct amdgpu_gds_reg_offset amdgpu_gds_reg_offset[] =
 {
 	{SOC15_REG_OFFSET(GC, 0, mmGDS_VMID0_BASE), SOC15_REG_OFFSET(GC, 0, mmGDS_VMID0_SIZE),
