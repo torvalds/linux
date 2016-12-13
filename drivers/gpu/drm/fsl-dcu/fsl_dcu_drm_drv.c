@@ -434,7 +434,8 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
-	drm_put_dev(fsl_dev->drm);
+	drm_dev_unregister(fsl_dev->drm);
+	drm_dev_unref(fsl_dev->drm);
 	clk_disable_unprepare(fsl_dev->clk);
 	clk_unregister(fsl_dev->pix_clk);
 
