@@ -111,8 +111,7 @@ static inline int bq24735_enable_charging(struct bq24735 *charger)
 		return 0;
 
 	return bq24735_update_word(charger->client, BQ24735_CHG_OPT,
-				   BQ24735_CHG_OPT_CHARGE_DISABLE,
-				   ~BQ24735_CHG_OPT_CHARGE_DISABLE);
+				   BQ24735_CHG_OPT_CHARGE_DISABLE, 0);
 }
 
 static inline int bq24735_disable_charging(struct bq24735 *charger)
