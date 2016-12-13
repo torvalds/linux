@@ -43,9 +43,8 @@ struct gk20a_pmu {
 };
 
 struct gk20a_pmu_dvfs_dev_status {
-	unsigned long total;
-	unsigned long busy;
-	int cur_state;
+	u32 total;
+	u32 busy;
 };
 
 static int
@@ -56,13 +55,12 @@ gk20a_pmu_dvfs_target(struct gk20a_pmu *pmu, int *state)
 	return nvkm_clk_astate(clk, *state, 0, false);
 }
 
-static int
+static void
 gk20a_pmu_dvfs_get_cur_state(struct gk20a_pmu *pmu, int *state)
 {
 	struct nvkm_clk *clk = pmu->base.subdev.device->clk;
 
 	*state = clk->pstate;
-	return 0;
 }
 
 static int
@@ -90,20 +88,16 @@ gk20a_pmu_dvfs_get_target_state(struct gk20a_pmu *pmu,
 
 	*state = level;
 
-	if (level == cur_level)
-		return 0;
-	else
-		return 1;
+	return (level != cur_level);
 }
 
-static int
+static void
 gk20a_pmu_dvfs_get_dev_status(struct gk20a_pmu *pmu,
 			      struct gk20a_pmu_dvfs_dev_status *status)
 {
 	struct nvkm_device *device = pmu->base.subdev.device;
 	status->busy = nvkm_rd32(device, 0x10a508 + (BUSY_SLOT * 0x10));
 	status->total= nvkm_rd32(device, 0x10a508 + (CLK_SLOT * 0x10));
-	return 0;
 }
 
 static void
@@ -127,7 +121,7 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 	struct nvkm_timer *tmr = device->timer;
 	struct nvkm_volt *volt = device->volt;
 	u32 utilization = 0;
-	int state, ret;
+	int state;
 
 	/*
 	 * The PMU is initialized before CLK and VOLT, so we have to make sure the
@@ -136,11 +130,7 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 	if (!clk || !volt)
 		goto resched;
 
-	ret = gk20a_pmu_dvfs_get_dev_status(pmu, &status);
-	if (ret) {
-		nvkm_warn(subdev, "failed to get device status\n");
-		goto resched;
-	}
+	gk20a_pmu_dvfs_get_dev_status(pmu, &status);
 
 	if (status.total)
 		utilization = div_u64((u64)status.busy * 100, status.total);
@@ -150,11 +140,7 @@ gk20a_pmu_dvfs_work(struct nvkm_alarm *alarm)
 	nvkm_trace(subdev, "utilization = %d %%, avg_load = %d %%\n",
 		   utilization, data->avg_load);
 
-	ret = gk20a_pmu_dvfs_get_cur_state(pmu, &state);
-	if (ret) {
-		nvkm_warn(subdev, "failed to get current state\n");
-		goto resched;
-	}
+	gk20a_pmu_dvfs_get_cur_state(pmu, &state);
 
 	if (gk20a_pmu_dvfs_get_target_state(pmu, &state, data->avg_load)) {
 		nvkm_trace(subdev, "set new state to %d\n", state);
