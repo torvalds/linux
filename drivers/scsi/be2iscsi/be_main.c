@@ -3859,14 +3859,6 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 					phwi_ctrlr->wrb_context[cri].cid] =
 					async_arr_idx++;
 			}
-			/**
-			 * Now that the default PDU rings have been created,
-			 * let EP know about it.
-			 */
-			beiscsi_hdq_post_handles(phba, BEISCSI_DEFQ_HDR,
-						 ulp_num);
-			beiscsi_hdq_post_handles(phba, BEISCSI_DEFQ_DATA,
-						 ulp_num);
 		}
 	}
 
