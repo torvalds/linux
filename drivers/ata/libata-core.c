@@ -787,7 +787,7 @@ int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
 		if (tf->flags & ATA_TFLAG_FUA)
 			tf->device |= 1 << 7;
 
-		if (dev->flags & ATA_DFLAG_NCQ_PRIO_ENABLE) {
+		if (dev->flags & ATA_DFLAG_NCQ_PRIO) {
 			if (class == IOPRIO_CLASS_RT)
 				tf->hob_nsect |= ATA_PRIO_HIGH <<
 						 ATA_SHIFT_PRIO;
@@ -2168,6 +2168,11 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	unsigned int err_mask;
 
+	if (!(dev->flags & ATA_DFLAG_NCQ_PRIO_ENABLE)) {
+		dev->flags &= ~ATA_DFLAG_NCQ_PRIO;
+		return;
+	}
+
 	err_mask = ata_read_log_page(dev,
 				     ATA_LOG_SATA_ID_DEV_DATA,
 				     ATA_LOG_SATA_SETTINGS,
@@ -2180,10 +2185,12 @@ static void ata_dev_config_ncq_prio(struct ata_device *dev)
 		return;
 	}
 
-	if (ap->sector_buf[ATA_LOG_NCQ_PRIO_OFFSET] & BIT(3))
+	if (ap->sector_buf[ATA_LOG_NCQ_PRIO_OFFSET] & BIT(3)) {
 		dev->flags |= ATA_DFLAG_NCQ_PRIO;
-	else
+	} else {
+		dev->flags &= ~ATA_DFLAG_NCQ_PRIO;
 		ata_dev_dbg(dev, "SATA page does not support priority\n");
+	}
 
 }
 
