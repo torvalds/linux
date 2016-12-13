@@ -1171,7 +1171,7 @@ static int intel_ntb_mw_set_trans(struct ntb_dev *ntb, int idx,
 	return 0;
 }
 
-static int intel_ntb_link_is_up(struct ntb_dev *ntb,
+static u64 intel_ntb_link_is_up(struct ntb_dev *ntb,
 				enum ntb_speed *speed,
 				enum ntb_width *width)
 {

@@ -212,7 +212,7 @@ static int amd_link_is_up(struct amd_ntb_dev *ndev)
 	return 0;
 }
 
-static int amd_ntb_link_is_up(struct ntb_dev *ntb,
+static u64 amd_ntb_link_is_up(struct ntb_dev *ntb,
 			      enum ntb_speed *speed,
 			      enum ntb_width *width)
 {

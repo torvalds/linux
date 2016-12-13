@@ -235,7 +235,7 @@ struct ntb_dev_ops {
 	int (*peer_port_number)(struct ntb_dev *ntb, int pidx);
 	int (*peer_port_idx)(struct ntb_dev *ntb, int port);
 
-	int (*link_is_up)(struct ntb_dev *ntb,
+	u64 (*link_is_up)(struct ntb_dev *ntb,
 			  enum ntb_speed *speed, enum ntb_width *width);
 	int (*link_enable)(struct ntb_dev *ntb,
 			   enum ntb_speed max_speed, enum ntb_width max_width);
@@ -607,25 +607,26 @@ static inline int ntb_peer_port_idx(struct ntb_dev *ntb, int port)
  * state once after every link event.  It is safe to query the link state in
  * the context of the link event callback.
  *
- * Return: One if the link is up, zero if the link is down, otherwise a
- *		negative value indicating the error number.
+ * Return: bitfield of indexed ports link state: bit is set/cleared if the
+ *         link is up/down respectively.
  */
-static inline int ntb_link_is_up(struct ntb_dev *ntb,
+static inline u64 ntb_link_is_up(struct ntb_dev *ntb,
 				 enum ntb_speed *speed, enum ntb_width *width)
 {
 	return ntb->ops->link_is_up(ntb, speed, width);
 }
 
 /**
- * ntb_link_enable() - enable the link on the secondary side of the ntb
+ * ntb_link_enable() - enable the local port ntb connection
  * @ntb:	NTB device context.
  * @max_speed:	The maximum link speed expressed as PCIe generation number.
  * @max_width:	The maximum link width expressed as the number of PCIe lanes.
  *
- * Enable the link on the secondary side of the ntb.  This can only be done
- * from the primary side of the ntb in primary or b2b topology.  The ntb device
- * should train the link to its maximum speed and width, or the requested speed
- * and width, whichever is smaller, if supported.
+ * Enable the NTB/PCIe link on the local or remote (for bridge-to-bridge
+ * topology) side of the bridge. If it's supported the ntb device should train
+ * the link to its maximum speed and width, or the requested speed and width,
+ * whichever is smaller. Some hardware doesn't support PCIe link training, so
+ * the last two arguments will be ignored then.
  *
  * Return: Zero on success, otherwise an error number.
  */
@@ -637,14 +638,14 @@ static inline int ntb_link_enable(struct ntb_dev *ntb,
 }
 
 /**
- * ntb_link_disable() - disable the link on the secondary side of the ntb
+ * ntb_link_disable() - disable the local port ntb connection
  * @ntb:	NTB device context.
  *
- * Disable the link on the secondary side of the ntb.  This can only be
- * done from the primary side of the ntb in primary or b2b topology.  The ntb
- * device should disable the link.  Returning from this call must indicate that
- * a barrier has passed, though with no more writes may pass in either
- * direction across the link, except if this call returns an error number.
+ * Disable the link on the local or remote (for b2b topology) of the ntb.
+ * The ntb device should disable the link.  Returning from this call must
+ * indicate that a barrier has passed, though with no more writes may pass in
+ * either direction across the link, except if this call returns an error
+ * number.
  *
  * Return: Zero on success, otherwise an error number.
  */
