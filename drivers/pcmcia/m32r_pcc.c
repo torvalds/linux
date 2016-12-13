@@ -296,10 +296,11 @@ static int __init is_alive(u_short sock)
 	return 0;
 }
 
-static void add_pcc_socket(ulong base, int irq, ulong mapaddr,
-			   unsigned int ioaddr)
+static int add_pcc_socket(ulong base, int irq, ulong mapaddr,
+			  unsigned int ioaddr)
 {
   	pcc_socket_t *t = &socket[pcc_sockets];
+	int err;
 
 	/* add sockets */
 	t->ioaddr = ioaddr;
@@ -328,11 +329,16 @@ static void add_pcc_socket(ulong base, int irq, ulong mapaddr,
 	t->socket.irq_mask = 0;
 	t->socket.pci_irq = 2 + pcc_sockets; /* XXX */
 
-	request_irq(irq, pcc_interrupt, 0, "m32r-pcc", pcc_interrupt);
+	err = request_irq(irq, pcc_interrupt, 0, "m32r-pcc", pcc_interrupt);
+	if (err) {
+		if (t->base > 0)
+			release_region(t->base, 0x20);
+		return err;
+	}
 
 	pcc_sockets++;
 
-	return;
+	return 0;
 }
 
 
