@@ -960,6 +960,10 @@ beiscsi_get_wrb_handle(struct hwi_wrb_context *pwrb_context,
 	unsigned long flags;
 
 	spin_lock_irqsave(&pwrb_context->wrb_lock, flags);
+	if (!pwrb_context->wrb_handles_available) {
+		spin_unlock_irqrestore(&pwrb_context->wrb_lock, flags);
+		return NULL;
+	}
 	pwrb_handle = pwrb_context->pwrb_handle_base[pwrb_context->alloc_index];
 	pwrb_context->wrb_handles_available--;
 	if (pwrb_context->alloc_index == (wrbs_per_cxn - 1))
@@ -1010,6 +1014,7 @@ beiscsi_put_wrb_handle(struct hwi_wrb_context *pwrb_context,
 		pwrb_context->free_index = 0;
 	else
 		pwrb_context->free_index++;
+	pwrb_handle->pio_handle = NULL;
 	spin_unlock_irqrestore(&pwrb_context->wrb_lock, flags);
 }
 
@@ -1220,6 +1225,7 @@ hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
 	uint16_t wrb_index, cid, cri_index;
 	struct hwi_controller *phwi_ctrlr;
 	struct wrb_handle *pwrb_handle;
+	struct iscsi_session *session;
 	struct iscsi_task *task;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
@@ -1238,8 +1244,12 @@ hwi_complete_drvr_msgs(struct beiscsi_conn *beiscsi_conn,
 	cri_index = BE_GET_CRI_FROM_CID(cid);
 	pwrb_context = &phwi_ctrlr->wrb_context[cri_index];
 	pwrb_handle = pwrb_context->pwrb_handle_basestd[wrb_index];
+	session = beiscsi_conn->conn->session;
+	spin_lock_bh(&session->back_lock);
 	task = pwrb_handle->pio_handle;
-	iscsi_put_task(task);
+	if (task)
+		__iscsi_put_task(task);
+	spin_unlock_bh(&session->back_lock);
 }
 
 static void
@@ -1319,16 +1329,16 @@ static void adapter_get_sol_cqe(struct beiscsi_hba *phba,
 static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 			     struct beiscsi_hba *phba, struct sol_cqe *psol)
 {
-	struct hwi_wrb_context *pwrb_context;
-	struct wrb_handle *pwrb_handle;
-	struct iscsi_wrb *pwrb = NULL;
-	struct hwi_controller *phwi_ctrlr;
-	struct iscsi_task *task;
-	unsigned int type;
 	struct iscsi_conn *conn = beiscsi_conn->conn;
 	struct iscsi_session *session = conn->session;
 	struct common_sol_cqe csol_cqe = {0};
+	struct hwi_wrb_context *pwrb_context;
+	struct hwi_controller *phwi_ctrlr;
+	struct wrb_handle *pwrb_handle;
+	struct iscsi_wrb *pwrb = NULL;
+	struct iscsi_task *task;
 	uint16_t cri_index = 0;
+	uint8_t type;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 
@@ -1341,11 +1351,15 @@ static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 	pwrb_handle = pwrb_context->pwrb_handle_basestd[
 		      csol_cqe.wrb_index];
 
+	spin_lock_bh(&session->back_lock);
 	task = pwrb_handle->pio_handle;
+	if (!task) {
+		spin_unlock_bh(&session->back_lock);
+		return;
+	}
 	pwrb = pwrb_handle->pwrb;
 	type = ((struct beiscsi_io_task *)task->dd_data)->wrb_type;
 
-	spin_lock_bh(&session->back_lock);
 	switch (type) {
 	case HWH_TYPE_IO:
 	case HWH_TYPE_IO_RD:
