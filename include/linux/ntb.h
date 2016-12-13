@@ -108,6 +108,7 @@ static inline char *ntb_topo_string(enum ntb_topo topo)
  * @NTB_SPEED_GEN1:	Link is trained to gen1 speed.
  * @NTB_SPEED_GEN2:	Link is trained to gen2 speed.
  * @NTB_SPEED_GEN3:	Link is trained to gen3 speed.
+ * @NTB_SPEED_GEN4:	Link is trained to gen4 speed.
  */
 enum ntb_speed {
 	NTB_SPEED_AUTO = -1,
@@ -115,6 +116,7 @@ enum ntb_speed {
 	NTB_SPEED_GEN1 = 1,
 	NTB_SPEED_GEN2 = 2,
 	NTB_SPEED_GEN3 = 3,
+	NTB_SPEED_GEN4 = 4
 };
 
 /**
