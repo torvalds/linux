@@ -375,10 +375,8 @@ out:
 }
 
 enum drm_connector_status
-intel_panel_detect(struct drm_device *dev)
+intel_panel_detect(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	/* Assume that the BIOS does not lie through the OpRegion... */
 	if (!i915.panel_ignore_lid && dev_priv->opregion.lid_state) {
 		return *dev_priv->opregion.lid_state & 0x1 ?
