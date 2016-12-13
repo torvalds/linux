@@ -3440,6 +3440,18 @@ sub process {
 #ignore lines not being added
 		next if ($line =~ /^[^\+]/);
 
+# check for dereferences that span multiple lines
+		if ($prevline =~ /^\+.*$Lval\s*(?:\.|->)\s*$/ &&
+		    $line =~ /^\+\s*(?!\#\s*(?!define\s+|if))\s*$Lval/) {
+			$prevline =~ /($Lval\s*(?:\.|->))\s*$/;
+			my $ref = $1;
+			$line =~ /^.\s*($Lval)/;
+			$ref .= $1;
+			$ref =~ s/\s//g;
+			WARN("MULTILINE_DEREFERENCE",
+			     "Avoid multiple line dereference - prefer '$ref'\n" . $hereprev);
+		}
+
 # check for declarations of signed or unsigned without int
 		while ($line =~ m{\b($Declare)\s*(?!char\b|short\b|int\b|long\b)\s*($Ident)?\s*[=,;\[\)\(]}g) {
 			my $type = $1;
