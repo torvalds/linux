@@ -66,6 +66,11 @@ struct core_gamma {
 	struct dc_context *ctx;
 };
 
+struct core_transfer_func {
+	struct dc_transfer_func public;
+	struct dc_context *ctx;
+};
+
 void enable_surface_flip_reporting(struct dc_surface *dc_surface,
 		uint32_t controller_id);
 

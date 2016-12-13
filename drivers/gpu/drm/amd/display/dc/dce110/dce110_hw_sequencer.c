@@ -231,15 +231,19 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 	}
 }
 
-static bool set_gamma_ramp(
-	struct input_pixel_processor *ipp,
-	struct output_pixel_processor *opp,
-	const struct core_gamma *ramp,
+static bool dce110_set_gamma_correction(
+	struct pipe_ctx *pipe_ctx,
 	const struct core_surface *surface)
 {
+	struct input_pixel_processor *ipp = pipe_ctx->ipp;
+	struct output_pixel_processor *opp = pipe_ctx->opp;
+	const struct core_gamma *ramp = NULL;
 	struct ipp_prescale_params prescale_params = { 0 };
 	struct pwl_params *regamma_params;
 	bool result = false;
+
+	if (surface->public.gamma_correction)
+		ramp = DC_GAMMA_TO_CORE(surface->public.gamma_correction);
 
 	regamma_params = dm_alloc(sizeof(struct pwl_params));
 	if (regamma_params == NULL)
@@ -1842,33 +1846,13 @@ static void dce110_program_front_end_for_pipe(
 			pipe_ctx->scl_data.recout.y);
 }
 
-
-
-static void dce110_prepare_pipe_for_surface_commit(
-		struct core_dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context) {
-	struct core_gamma *gamma = NULL;
-
-	dc->hwss.increase_watermarks_for_pipe(dc, pipe_ctx, context);
-
-	if (pipe_ctx->surface->public.gamma_correction)
-		gamma = DC_GAMMA_TO_CORE(
-			pipe_ctx->surface->public.gamma_correction);
-
-	dc->hwss.set_gamma_correction(
-			pipe_ctx->ipp,
-			pipe_ctx->opp,
-			gamma, pipe_ctx->surface);
-}
-
 static void dce110_prepare_pipe_for_context(
 		struct core_dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct validate_context *context)
 {
 	dce110_power_on_pipe_if_needed(dc, pipe_ctx, context);
-	dce110_prepare_pipe_for_surface_commit(dc, pipe_ctx, context);
+	dc->hwss.increase_watermarks_for_pipe(dc, pipe_ctx, context);
 }
 
 static void dce110_apply_ctx_for_surface(
@@ -1920,7 +1904,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_plane_config = set_plane_config,
 	.update_plane_addr = update_plane_addr,
 	.update_pending_status = dce110_update_pending_status,
-	.set_gamma_correction = set_gamma_ramp,
+	.set_gamma_correction = dce110_set_gamma_correction,
 	.power_down = dce110_power_down,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,
 	.enable_timing_synchronization = dce110_enable_timing_synchronization,

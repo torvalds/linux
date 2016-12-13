@@ -1455,6 +1455,34 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				surface->public.gamma_correction =
 							updates[i].gamma;
 			}
+
+			if (updates[i].in_transfer_func &&
+					updates[i].in_transfer_func !=
+					surface->public.in_transfer_func) {
+				if (surface->public.in_transfer_func != NULL)
+					dc_transfer_func_release(
+							surface->public.
+							in_transfer_func);
+
+				dc_transfer_func_retain(
+						updates[i].in_transfer_func);
+				surface->public.in_transfer_func =
+						updates[i].in_transfer_func;
+			}
+
+			if (updates[i].out_transfer_func &&
+					updates[i].out_transfer_func !=
+					surface->public.out_transfer_func) {
+				if (surface->public.out_transfer_func != NULL)
+					dc_transfer_func_release(
+							surface->public.
+							out_transfer_func);
+
+				dc_transfer_func_retain(
+						updates[i].out_transfer_func);
+				surface->public.out_transfer_func =
+						updates[i].out_transfer_func;
+			}
 		}
 	}
 
@@ -1474,7 +1502,6 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 
 			if (updates[i].plane_info || updates[i].scaling_info
 					|| is_new_pipe_surface[j]) {
-
 				apply_ctx = true;
 
 				if (!pipe_ctx->tg->funcs->is_blanked(pipe_ctx->tg)) {
@@ -1489,9 +1516,12 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				}
 			}
 
-			if (updates[i].gamma)
-				core_dc->hwss.prepare_pipe_for_context(
-						core_dc, pipe_ctx, context);
+			if (is_new_pipe_surface[j] ||
+					updates[i].gamma ||
+					updates[i].in_transfer_func ||
+					updates[i].out_transfer_func)
+				core_dc->hwss.set_gamma_correction(
+						pipe_ctx, pipe_ctx->surface);
 		}
 		if (apply_ctx) {
 			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);

@@ -78,9 +78,7 @@ struct hw_sequencer_funcs {
 			struct pipe_ctx *pipe_ctx);
 
 	bool (*set_gamma_correction)(
-				struct input_pixel_processor *ipp,
-				struct output_pixel_processor *opp,
-				const struct core_gamma *ramp,
+				struct pipe_ctx *pipe_ctx,
 				const struct core_surface *surface);
 
 	void (*power_down)(struct core_dc *dc);

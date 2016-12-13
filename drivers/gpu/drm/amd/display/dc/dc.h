@@ -201,7 +201,8 @@ bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data);
 
 enum {
 	RGB_256X3X16 = 256,
-	FLOAT_GAMMA_RAMP_MAX = 1025
+	FLOAT_GAMMA_RAMP_MAX = 1025,
+	TRANSFER_FUNC_POINTS = 1025
 };
 
 enum dc_gamma_ramp_type {
@@ -236,6 +237,31 @@ struct dc_gamma {
 	uint32_t size;
 };
 
+enum dc_transfer_func_type {
+	TF_TYPE_PREDEFINED,
+	TF_TYPE_DISTRIBUTED_POINTS,
+};
+
+struct dc_transfer_func_distributed_points {
+	uint16_t red[TRANSFER_FUNC_POINTS];
+	uint16_t green[TRANSFER_FUNC_POINTS];
+	uint16_t blue[TRANSFER_FUNC_POINTS];
+	uint16_t end_exponent;
+	uint16_t x_point_at_y1;
+};
+
+enum dc_transfer_func_predefined {
+	TRANSFER_FUNCTION_SRGB,
+	TRANSFER_FUNCTION_BT709,
+	TRANSFER_FUNCTION_LINEAR,
+};
+
+struct dc_transfer_func {
+	enum dc_transfer_func_type type;
+	enum dc_transfer_func_predefined tf;
+	struct dc_transfer_func_distributed_points tf_pts;
+};
+
 struct dc_surface {
 	bool visible;
 	bool flip_immediate;
@@ -256,7 +282,11 @@ struct dc_surface {
 	bool horizontal_mirror;
 	enum plane_stereo_format stereo_format;
 
+	/* TO BE REMOVED AFTER BELOW TRANSFER FUNCTIONS IMPLEMENTED */
 	const struct dc_gamma *gamma_correction;
+
+	const struct dc_transfer_func *in_transfer_func;
+	const struct dc_transfer_func *out_transfer_func;
 };
 
 struct dc_plane_info {
@@ -287,7 +317,11 @@ struct dc_surface_update {
 	/* following updates require alloc/sleep/spin that is not isr safe,
 	 * null means no updates
 	 */
+	/* gamma TO BE REMOVED */
 	struct dc_gamma *gamma;
+
+	struct dc_transfer_func *in_transfer_func;
+	struct dc_transfer_func *out_transfer_func;
 
 
 };
@@ -315,6 +349,10 @@ void dc_surface_release(const struct dc_surface *dc_surface);
 void dc_gamma_retain(const struct dc_gamma *dc_gamma);
 void dc_gamma_release(const struct dc_gamma *dc_gamma);
 struct dc_gamma *dc_create_gamma(void);
+
+void dc_transfer_func_retain(const struct dc_transfer_func *dc_tf);
+void dc_transfer_func_release(const struct dc_transfer_func *dc_tf);
+struct dc_transfer_func *dc_create_transfer_func(const struct dc *dc);
 
 /*
  * This structure holds a surface address.  There could be multiple addresses
