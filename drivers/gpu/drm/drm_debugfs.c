@@ -38,6 +38,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_atomic.h>
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #if defined(CONFIG_DEBUG_FS)
 
