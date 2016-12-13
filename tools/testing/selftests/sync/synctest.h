@@ -32,7 +32,7 @@
 
 #define ASSERT(cond, msg) do { \
 	if (!(cond)) { \
-		printf("[BAD]\t%s", (msg)); \
+		printf("[ERROR]\t%s", (msg)); \
 		return 1; \
 	} \
 } while (0)
