@@ -67,7 +67,8 @@ static int vprintk_nmi(const char *fmt, va_list args)
 again:
 	len = atomic_read(&s->len);
 
-	if (len >= sizeof(s->buffer)) {
+	/* The trailing '\0' is not counted into len. */
+	if (len >= sizeof(s->buffer) - 1) {
 		atomic_inc(&nmi_message_lost);
 		return 0;
 	}
@@ -79,7 +80,7 @@ again:
 	if (!len)
 		smp_rmb();
 
-	add = vsnprintf(s->buffer + len, sizeof(s->buffer) - len, fmt, args);
+	add = vscnprintf(s->buffer + len, sizeof(s->buffer) - len, fmt, args);
 
 	/*
 	 * Do it once again if the buffer has been flushed in the meantime.
