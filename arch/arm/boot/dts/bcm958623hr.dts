@@ -65,6 +65,14 @@
 	status = "okay";
 };
 
+&amac1 {
+	status = "okay";
+};
+
+&amac2 {
+	status = "okay";
+};
+
 &nand {
 	nandcs@0 {
 		compatible = "brcm,nandcs";
