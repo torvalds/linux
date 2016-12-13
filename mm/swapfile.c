@@ -1234,6 +1234,7 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 
 	pmd = pmd_offset(pud, addr);
 	do {
+		cond_resched();
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
 			continue;
@@ -1313,6 +1314,7 @@ static int unuse_mm(struct mm_struct *mm,
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->anon_vma && (ret = unuse_vma(vma, entry, page)))
 			break;
+		cond_resched();
 	}
 	up_read(&mm->mmap_sem);
 	return (ret < 0)? ret: 0;
@@ -1350,15 +1352,12 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
 			prev = 0;
 			i = 1;
 		}
-		if (frontswap) {
-			if (frontswap_test(si, i))
-				break;
-			else
-				continue;
-		}
 		count = READ_ONCE(si->swap_map[i]);
 		if (count && swap_count(count) != SWAP_MAP_BAD)
-			break;
+			if (!frontswap || frontswap_test(si, i))
+				break;
+		if ((i % LATENCY_LIMIT) == 0)
+			cond_resched();
 	}
 	return i;
 }
