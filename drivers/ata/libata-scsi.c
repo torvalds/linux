@@ -272,7 +272,8 @@ DEVICE_ATTR(unload_heads, S_IRUGO | S_IWUSR,
 EXPORT_SYMBOL_GPL(dev_attr_unload_heads);
 
 static ssize_t ata_ncq_prio_enable_show(struct device *device,
-					struct device_attribute *attr, char *buf)
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct scsi_device *sdev = to_scsi_device(device);
 	struct ata_port *ap;
@@ -305,7 +306,6 @@ static ssize_t ata_ncq_prio_enable_store(struct device *device,
 	struct ata_port *ap;
 	struct ata_device *dev;
 	long int input;
-	unsigned long flags;
 	int rc;
 
 	rc = kstrtol(buf, 10, &input);
@@ -315,27 +315,31 @@ static ssize_t ata_ncq_prio_enable_store(struct device *device,
 		return -EINVAL;
 
 	ap = ata_shost_to_port(sdev->host);
-
-	spin_lock_irqsave(ap->lock, flags);
 	dev = ata_scsi_find_dev(ap, sdev);
-	if (unlikely(!dev)) {
-		rc = -ENODEV;
-		goto unlock;
-	}
+	if (unlikely(!dev))
+		return  -ENODEV;
+
+	spin_lock_irq(ap->lock);
+	if (input)
+		dev->flags |= ATA_DFLAG_NCQ_PRIO_ENABLE;
+	else
+		dev->flags &= ~ATA_DFLAG_NCQ_PRIO_ENABLE;
+
+	dev->link->eh_info.action |= ATA_EH_REVALIDATE;
+	dev->link->eh_info.flags |= ATA_EHI_QUIET;
+	ata_port_schedule_eh(ap);
+	spin_unlock_irq(ap->lock);
+
+	ata_port_wait_eh(ap);
 
 	if (input) {
+		spin_lock_irq(ap->lock);
 		if (!(dev->flags & ATA_DFLAG_NCQ_PRIO)) {
-			rc = -EOPNOTSUPP;
-			goto unlock;
+			dev->flags &= ~ATA_DFLAG_NCQ_PRIO_ENABLE;
+			rc = -EIO;
 		}
-
-		dev->flags |= ATA_DFLAG_NCQ_PRIO_ENABLE;
-	} else {
-		dev->flags &= ~ATA_DFLAG_NCQ_PRIO_ENABLE;
+		spin_unlock_irq(ap->lock);
 	}
-
-unlock:
-	spin_unlock_irqrestore(ap->lock, flags);
 
 	return rc ? rc : len;
 }
