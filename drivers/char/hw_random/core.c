@@ -442,8 +442,7 @@ int hwrng_register(struct hwrng *rng)
 	int err = -EINVAL;
 	struct hwrng *old_rng, *tmp;
 
-	if (rng->name == NULL ||
-	    (rng->data_read == NULL && rng->read == NULL))
+	if (!rng->name || (!rng->data_read && !rng->read))
 		goto out;
 
 	mutex_lock(&rng_mutex);
