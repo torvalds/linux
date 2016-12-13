@@ -677,7 +677,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 #endif
 
 	pci_set_drvdata(pdev, iwl_trans);
-	iwl_trans->drv = iwl_drv_start(iwl_trans, cfg);
+	iwl_trans->drv = iwl_drv_start(iwl_trans);
 
 	if (IS_ERR(iwl_trans->drv)) {
 		ret = PTR_ERR(iwl_trans->drv);
