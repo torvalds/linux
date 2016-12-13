@@ -202,13 +202,14 @@ CONFIGURING the kernel:
      "make randconfig"  Create a ./.config file by setting symbol
                         values to random values.
 
-     "make localmodconfig" Create a config based on current config and
-                           loaded modules (lsmod). Disables any module
-                           option that is not needed for the loaded modules.
+     "make localmodconfig" 
+                        Create a config based on current config and
+                        loaded modules (lsmod). Disables any module
+                        option that is not needed for the loaded modules.
 
-                           To create a localmodconfig for another machine,
-                           store the lsmod of that machine into a file
-                           and pass it in as a LSMOD parameter.
+                        To create a localmodconfig for another machine,
+                        store the lsmod of that machine into a file
+                        and pass it in as a LSMOD parameter.
 
                    target$ lsmod > /tmp/mylsmod
                    target$ scp /tmp/mylsmod host:/tmp
