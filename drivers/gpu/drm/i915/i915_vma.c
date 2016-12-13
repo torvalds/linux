@@ -176,6 +176,12 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	if (bind_flags == 0)
 		return 0;
 
+	if (GEM_WARN_ON(vma->node.start + vma->node.size < vma->node.start))
+		return -ENODEV;
+
+	if (GEM_WARN_ON(vma->node.start + vma->node.size > vma->vm->total))
+		return -ENODEV;
+
 	if (vma_flags == 0 && vma->vm->allocate_va_range) {
 		trace_i915_va_alloc(vma);
 		ret = vma->vm->allocate_va_range(vma->vm,
