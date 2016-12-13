@@ -365,7 +365,13 @@ struct drm_mode_config {
 	struct list_head fb_list;
 
 	/**
-	 * @num_connector: Number of connectors on this device.
+	 * @connector_list_lock: Protects @num_connector and
+	 * @connector_list.
+	 */
+	spinlock_t connector_list_lock;
+	/**
+	 * @num_connector: Number of connectors on this device. Protected by
+	 * @connector_list_lock.
 	 */
 	int num_connector;
 	/**
@@ -373,7 +379,9 @@ struct drm_mode_config {
 	 */
 	struct ida connector_ida;
 	/**
-	 * @connector_list: List of connector objects.
+	 * @connector_list: List of connector objects. Protected by
+	 * @connector_list_lock. Only use drm_for_each_connector_iter() and
+	 * struct &drm_connector_list_iter to walk this list.
 	 */
 	struct list_head connector_list;
 	int num_encoder;
