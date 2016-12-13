@@ -410,7 +410,6 @@ struct beiscsi_hba {
 	u8 port_name;
 	u8 port_speed;
 	char fw_ver_str[BEISCSI_VER_STRLEN];
-	char wq_name[20];
 	struct workqueue_struct *wq;	/* The actuak work queue */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
