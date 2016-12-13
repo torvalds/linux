@@ -58,10 +58,10 @@ extern unsigned int drm_timestamp_monotonic;
 /* IOCTLS */
 int drm_wait_vblank(struct drm_device *dev, void *data,
 		    struct drm_file *filp);
-int drm_control(struct drm_device *dev, void *data,
-		struct drm_file *file_priv);
-int drm_modeset_ctl(struct drm_device *dev, void *data,
-		    struct drm_file *file_priv);
+int drm_legacy_irq_control(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
+int drm_legacy_modeset_ctl(struct drm_device *dev, void *data,
+			   struct drm_file *file_priv);
 
 /* drm_auth.c */
 int drm_getmagic(struct drm_device *dev, void *data,
