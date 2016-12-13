@@ -559,6 +559,23 @@ config STX104
 	  The base port addresses for the devices may be configured via the base
 	  array module parameter.
 
+config SUN4I_GPADC
+	tristate "Support for the Allwinner SoCs GPADC"
+	depends on IIO
+	depends on MFD_SUN4I_GPADC
+	help
+	  Say yes here to build support for Allwinner (A10, A13 and A31) SoCs
+	  GPADC. This ADC provides 4 channels which can be used as an ADC or as
+	  a touchscreen input and one channel for thermal sensor.
+
+	  The thermal sensor slows down ADC readings and can be disabled by
+	  disabling CONFIG_THERMAL_OF. However, the thermal sensor should be
+	  enabled by default since the SoC temperature is usually more critical
+	  than ADC readings.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called sun4i-gpadc-iio.
+
 config TI_ADC081C
 	tristate "Texas Instruments ADC081C/ADC101C/ADC121C family"
 	depends on I2C
