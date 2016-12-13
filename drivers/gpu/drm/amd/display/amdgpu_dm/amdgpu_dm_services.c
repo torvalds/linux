@@ -427,16 +427,3 @@ bool dm_pp_get_static_clocks(
 }
 
 /**** end of power component interfaces ****/
-
-/* Calls to notification */
-
-void dal_notify_setmode_complete(struct dc_context *ctx,
-	uint32_t h_total,
-	uint32_t v_total,
-	uint32_t h_active,
-	uint32_t v_active,
-	uint32_t pix_clk_in_khz)
-{
-	/*TODO*/
-}
-/* End of calls to notification */
