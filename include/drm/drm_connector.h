@@ -563,9 +563,6 @@ struct drm_cmdline_mode {
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
  * @stereo_allowed: can this connector handle stereo modes?
- * @modes: modes available on this connector (from fill_modes() + user)
- * @status: one of the drm_connector_status enums (connected, not, or unknown)
- * @probed_modes: list of modes derived directly from the display
  * @funcs: connector control functions
  * @edid_blob_ptr: DRM property containing EDID if present
  * @properties: property tracking for this connector
@@ -635,11 +632,27 @@ struct drm_connector {
 	 * Protected by @mutex.
 	 */
 	bool registered;
+
+	/**
+	 * @modes:
+	 * Modes available on this connector (from fill_modes() + user).
+	 * Protected by dev->mode_config.mutex.
+	 */
 	struct list_head modes; /* list of modes on this connector */
 
+	/**
+	 * @status:
+	 * One of the drm_connector_status enums (connected, not, or unknown).
+	 * Protected by dev->mode_config.mutex.
+	 */
 	enum drm_connector_status status;
 
-	/* these are modes added by probing with DDC or the BIOS */
+	/**
+	 * @probed_modes:
+	 * These are modes added by probing with DDC or the BIOS, before
+	 * filtering is applied. Used by the probe helpers.Protected by
+	 * dev->mode_config.mutex.
+	 */
 	struct list_head probed_modes;
 
 	/**
@@ -648,6 +661,8 @@ struct drm_connector {
 	 * flat panels in embedded systems, the driver should initialize the
 	 * display_info.width_mm and display_info.height_mm fields with the
 	 * physical size of the display.
+	 *
+	 * Protected by dev->mode_config.mutex.
 	 */
 	struct drm_display_info display_info;
 	const struct drm_connector_funcs *funcs;

@@ -1163,36 +1163,9 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
-	mutex_lock(&dev->mode_config.mutex);
-
 	connector = drm_connector_lookup(dev, out_resp->connector_id);
-	if (!connector) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
-
-	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
-		if (connector->encoder_ids[i] != 0)
-			encoders_count++;
-
-	if (out_resp->count_modes == 0) {
-		connector->funcs->fill_modes(connector,
-					     dev->mode_config.max_width,
-					     dev->mode_config.max_height);
-	}
-
-	/* delayed so we get modes regardless of pre-fill_modes state */
-	list_for_each_entry(mode, &connector->modes, head)
-		if (drm_mode_expose_to_userspace(mode, file_priv))
-			mode_count++;
-
-	out_resp->connector_id = connector->base.id;
-	out_resp->connector_type = connector->connector_type;
-	out_resp->connector_type_id = connector->connector_type_id;
-	out_resp->mm_width = connector->display_info.width_mm;
-	out_resp->mm_height = connector->display_info.height_mm;
-	out_resp->subpixel = connector->display_info.subpixel_order;
-	out_resp->connection = connector->status;
+	if (!connector)
+		return -ENOENT;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 	encoder = drm_connector_get_encoder(connector);
@@ -1200,6 +1173,55 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		out_resp->encoder_id = encoder->base.id;
 	else
 		out_resp->encoder_id = 0;
+
+	ret = drm_mode_object_get_properties(&connector->base, file_priv->atomic,
+			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
+			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),
+			&out_resp->count_props);
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	if (ret)
+		goto out_unref;
+
+	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++)
+		if (connector->encoder_ids[i] != 0)
+			encoders_count++;
+
+	if ((out_resp->count_encoders >= encoders_count) && encoders_count) {
+		copied = 0;
+		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
+		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
+			if (connector->encoder_ids[i] != 0) {
+				if (put_user(connector->encoder_ids[i],
+					     encoder_ptr + copied)) {
+					ret = -EFAULT;
+					goto out_unref;
+				}
+				copied++;
+			}
+		}
+	}
+	out_resp->count_encoders = encoders_count;
+
+	out_resp->connector_id = connector->base.id;
+	out_resp->connector_type = connector->connector_type;
+	out_resp->connector_type_id = connector->connector_type_id;
+
+	mutex_lock(&dev->mode_config.mutex);
+	if (out_resp->count_modes == 0) {
+		connector->funcs->fill_modes(connector,
+					     dev->mode_config.max_width,
+					     dev->mode_config.max_height);
+	}
+
+	out_resp->mm_width = connector->display_info.width_mm;
+	out_resp->mm_height = connector->display_info.height_mm;
+	out_resp->subpixel = connector->display_info.subpixel_order;
+	out_resp->connection = connector->status;
+
+	/* delayed so we get modes regardless of pre-fill_modes state */
+	list_for_each_entry(mode, &connector->modes, head)
+		if (drm_mode_expose_to_userspace(mode, file_priv))
+			mode_count++;
 
 	/*
 	 * This ioctl is called twice, once to determine how much space is
@@ -1222,36 +1244,10 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 		}
 	}
 	out_resp->count_modes = mode_count;
-
-	ret = drm_mode_object_get_properties(&connector->base, file_priv->atomic,
-			(uint32_t __user *)(unsigned long)(out_resp->props_ptr),
-			(uint64_t __user *)(unsigned long)(out_resp->prop_values_ptr),
-			&out_resp->count_props);
-	if (ret)
-		goto out;
-
-	if ((out_resp->count_encoders >= encoders_count) && encoders_count) {
-		copied = 0;
-		encoder_ptr = (uint32_t __user *)(unsigned long)(out_resp->encoders_ptr);
-		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-			if (connector->encoder_ids[i] != 0) {
-				if (put_user(connector->encoder_ids[i],
-					     encoder_ptr + copied)) {
-					ret = -EFAULT;
-					goto out;
-				}
-				copied++;
-			}
-		}
-	}
-	out_resp->count_encoders = encoders_count;
-
 out:
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
-
-	drm_connector_unreference(connector);
-out_unlock:
 	mutex_unlock(&dev->mode_config.mutex);
+out_unref:
+	drm_connector_unreference(connector);
 
 	return ret;
 }
