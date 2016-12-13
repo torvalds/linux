@@ -107,11 +107,6 @@ struct mmu_gather {
 	struct mmu_gather_batch	local;
 	struct page		*__pages[MMU_GATHER_BUNDLE];
 	unsigned int		batch_count;
-	/*
-	 * __tlb_adjust_range  will track the new addr here,
-	 * that that we can adjust the range after the flush
-	 */
-	unsigned long addr;
 	int page_size;
 };
 
@@ -130,12 +125,6 @@ static inline void __tlb_adjust_range(struct mmu_gather *tlb,
 {
 	tlb->start = min(tlb->start, address);
 	tlb->end = max(tlb->end, address + range_size);
-	/*
-	 * Track the last address with which we adjusted the range. This
-	 * will be used later to adjust again after a mmu_flush due to
-	 * failed __tlb_remove_page
-	 */
-	tlb->addr = address;
 }
 
 static inline void __tlb_reset_range(struct mmu_gather *tlb)
@@ -151,15 +140,11 @@ static inline void __tlb_reset_range(struct mmu_gather *tlb)
 static inline void tlb_remove_page_size(struct mmu_gather *tlb,
 					struct page *page, int page_size)
 {
-	if (__tlb_remove_page_size(tlb, page, page_size)) {
+	if (__tlb_remove_page_size(tlb, page, page_size))
 		tlb_flush_mmu(tlb);
-		tlb->page_size = page_size;
-		__tlb_adjust_range(tlb, tlb->addr, page_size);
-		__tlb_remove_page_size(tlb, page, page_size);
-	}
 }
 
-static bool __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+static inline bool __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 {
 	return __tlb_remove_page_size(tlb, page, PAGE_SIZE);
 }
@@ -171,15 +156,6 @@ static bool __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 {
 	return tlb_remove_page_size(tlb, page, PAGE_SIZE);
-}
-
-static inline bool __tlb_remove_pte_page(struct mmu_gather *tlb, struct page *page)
-{
-	/* active->nr should be zero when we call this */
-	VM_BUG_ON_PAGE(tlb->active->nr, page);
-	tlb->page_size = PAGE_SIZE;
-	__tlb_adjust_range(tlb, tlb->addr, PAGE_SIZE);
-	return __tlb_remove_page(tlb, page);
 }
 
 #ifndef tlb_remove_check_page_size_change

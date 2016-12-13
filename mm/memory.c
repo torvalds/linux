@@ -300,15 +300,14 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 	struct mmu_gather_batch *batch;
 
 	VM_BUG_ON(!tlb->end);
-
-	if (!tlb->page_size)
-		tlb->page_size = page_size;
-	else {
-		if (page_size != tlb->page_size)
-			return true;
-	}
+	VM_WARN_ON(tlb->page_size != page_size);
 
 	batch = tlb->active;
+	/*
+	 * Add the page and check if we are full. If so
+	 * force a flush.
+	 */
+	batch->pages[batch->nr++] = page;
 	if (batch->nr == batch->max) {
 		if (!tlb_next_batch(tlb))
 			return true;
@@ -316,7 +315,6 @@ bool __tlb_remove_page_size(struct mmu_gather *tlb, struct page *page, int page_
 	}
 	VM_BUG_ON_PAGE(batch->nr > batch->max, page);
 
-	batch->pages[batch->nr++] = page;
 	return false;
 }
 
@@ -1122,7 +1120,6 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
 	pte_t *start_pte;
 	pte_t *pte;
 	swp_entry_t entry;
-	struct page *pending_page = NULL;
 
 	tlb_remove_check_page_size_change(tlb, PAGE_SIZE);
 again:
@@ -1177,7 +1174,6 @@ again:
 				print_bad_pte(vma, addr, ptent, page);
 			if (unlikely(__tlb_remove_page(tlb, page))) {
 				force_flush = 1;
-				pending_page = page;
 				addr += PAGE_SIZE;
 				break;
 			}
@@ -1218,11 +1214,6 @@ again:
 	if (force_flush) {
 		force_flush = 0;
 		tlb_flush_mmu_free(tlb);
-		if (pending_page) {
-			/* remove the page with new size */
-			__tlb_remove_pte_page(tlb, pending_page);
-			pending_page = NULL;
-		}
 		if (addr != end)
 			goto again;
 	}
