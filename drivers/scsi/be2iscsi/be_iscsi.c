@@ -166,33 +166,6 @@ beiscsi_conn_create(struct iscsi_cls_session *cls_session, u32 cid)
 }
 
 /**
- * beiscsi_bindconn_cid - Bind the beiscsi_conn with phba connection table
- * @beiscsi_conn: The pointer to  beiscsi_conn structure
- * @phba: The phba instance
- * @cid: The cid to free
- */
-static int beiscsi_bindconn_cid(struct beiscsi_hba *phba,
-				struct beiscsi_conn *beiscsi_conn,
-				unsigned int cid)
-{
-	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
-
-	if (phba->conn_table[cri_index]) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Connection table already occupied. Detected clash\n");
-
-		return -EINVAL;
-	} else {
-		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : phba->conn_table[%d]=%p(beiscsi_conn)\n",
-			    cri_index, beiscsi_conn);
-
-		phba->conn_table[cri_index] = beiscsi_conn;
-	}
-	return 0;
-}
-
-/**
  * beiscsi_conn_bind - Binds iscsi session/connection with TCP connection
  * @cls_session: pointer to iscsi cls session
  * @cls_conn: pointer to iscsi cls conn
@@ -212,6 +185,7 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 	struct hwi_wrb_context *pwrb_context;
 	struct beiscsi_endpoint *beiscsi_ep;
 	struct iscsi_endpoint *ep;
+	uint16_t cri_index;
 
 	ep = iscsi_lookup_endpoint(transport_fd);
 	if (!ep)
@@ -229,20 +203,34 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 
 		return -EEXIST;
 	}
-
-	pwrb_context = &phwi_ctrlr->wrb_context[BE_GET_CRI_FROM_CID(
-						beiscsi_ep->ep_cid)];
+	cri_index = BE_GET_CRI_FROM_CID(beiscsi_ep->ep_cid);
+	if (phba->conn_table[cri_index]) {
+		if (beiscsi_conn != phba->conn_table[cri_index] ||
+		    beiscsi_ep != phba->conn_table[cri_index]->ep) {
+			__beiscsi_log(phba, KERN_ERR,
+				      "BS_%d : conn_table not empty at %u: cid %u conn %p:%p\n",
+				      cri_index,
+				      beiscsi_ep->ep_cid,
+				      beiscsi_conn,
+				      phba->conn_table[cri_index]);
+			return -EINVAL;
+		}
+	}
 
 	beiscsi_conn->beiscsi_conn_cid = beiscsi_ep->ep_cid;
 	beiscsi_conn->ep = beiscsi_ep;
 	beiscsi_ep->conn = beiscsi_conn;
+	/**
+	 * Each connection is associated with a WRBQ kept in wrb_context.
+	 * Store doorbell offset for transmit path.
+	 */
+	pwrb_context = &phwi_ctrlr->wrb_context[cri_index];
 	beiscsi_conn->doorbell_offset = pwrb_context->doorbell_offset;
-
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-		    "BS_%d : beiscsi_conn=%p conn=%p ep_cid=%d\n",
-		    beiscsi_conn, conn, beiscsi_ep->ep_cid);
-
-	return beiscsi_bindconn_cid(phba, beiscsi_conn, beiscsi_ep->ep_cid);
+		    "BS_%d : cid %d phba->conn_table[%u]=%p\n",
+		    beiscsi_ep->ep_cid, cri_index, beiscsi_conn);
+	phba->conn_table[cri_index] = beiscsi_conn;
+	return 0;
 }
 
 static int beiscsi_iface_create_ipv4(struct beiscsi_hba *phba)
@@ -973,9 +961,9 @@ int beiscsi_conn_start(struct iscsi_cls_conn *cls_conn)
  */
 static int beiscsi_get_cid(struct beiscsi_hba *phba)
 {
-	unsigned short cid = 0xFFFF, cid_from_ulp;
-	struct ulp_cid_info *cid_info = NULL;
 	uint16_t cid_avlbl_ulp0, cid_avlbl_ulp1;
+	unsigned short cid, cid_from_ulp;
+	struct ulp_cid_info *cid_info;
 
 	/* Find the ULP which has more CID available */
 	cid_avlbl_ulp0 = (phba->cid_array_info[BEISCSI_ULP0]) ?
@@ -984,20 +972,27 @@ static int beiscsi_get_cid(struct beiscsi_hba *phba)
 			  BEISCSI_ULP1_AVLBL_CID(phba) : 0;
 	cid_from_ulp = (cid_avlbl_ulp0 > cid_avlbl_ulp1) ?
 			BEISCSI_ULP0 : BEISCSI_ULP1;
+	/**
+	 * If iSCSI protocol is loaded only on ULP 0, and when cid_avlbl_ulp
+	 * is ZERO for both, ULP 1 is returned.
+	 * Check if ULP is loaded before getting new CID.
+	 */
+	if (!test_bit(cid_from_ulp, (void *)&phba->fw_config.ulp_supported))
+		return BE_INVALID_CID;
 
-	if (test_bit(cid_from_ulp, (void *)&phba->fw_config.ulp_supported)) {
-		cid_info = phba->cid_array_info[cid_from_ulp];
-		if (!cid_info->avlbl_cids)
-			return cid;
-
-		cid = cid_info->cid_array[cid_info->cid_alloc++];
-
-		if (cid_info->cid_alloc == BEISCSI_GET_CID_COUNT(
-					   phba, cid_from_ulp))
-			cid_info->cid_alloc = 0;
-
-		cid_info->avlbl_cids--;
+	cid_info = phba->cid_array_info[cid_from_ulp];
+	cid = cid_info->cid_array[cid_info->cid_alloc];
+	if (!cid_info->avlbl_cids || cid == BE_INVALID_CID) {
+		__beiscsi_log(phba, KERN_ERR,
+				"BS_%d : failed to get cid: available %u:%u\n",
+				cid_info->avlbl_cids, cid_info->cid_free);
+		return BE_INVALID_CID;
 	}
+	/* empty the slot */
+	cid_info->cid_array[cid_info->cid_alloc++] = BE_INVALID_CID;
+	if (cid_info->cid_alloc == BEISCSI_GET_CID_COUNT(phba, cid_from_ulp))
+		cid_info->cid_alloc = 0;
+	cid_info->avlbl_cids--;
 	return cid;
 }
 
@@ -1008,22 +1003,28 @@ static int beiscsi_get_cid(struct beiscsi_hba *phba)
  */
 static void beiscsi_put_cid(struct beiscsi_hba *phba, unsigned short cid)
 {
-	uint16_t cid_post_ulp;
-	struct hwi_controller *phwi_ctrlr;
-	struct hwi_wrb_context *pwrb_context;
-	struct ulp_cid_info *cid_info = NULL;
 	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
+	struct hwi_wrb_context *pwrb_context;
+	struct hwi_controller *phwi_ctrlr;
+	struct ulp_cid_info *cid_info;
+	uint16_t cid_post_ulp;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	pwrb_context = &phwi_ctrlr->wrb_context[cri_index];
 	cid_post_ulp = pwrb_context->ulp_num;
 
 	cid_info = phba->cid_array_info[cid_post_ulp];
-	cid_info->avlbl_cids++;
-
+	/* fill only in empty slot */
+	if (cid_info->cid_array[cid_info->cid_free] != BE_INVALID_CID) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BS_%d : failed to put cid %u: available %u:%u\n",
+			      cid, cid_info->avlbl_cids, cid_info->cid_free);
+		return;
+	}
 	cid_info->cid_array[cid_info->cid_free++] = cid;
 	if (cid_info->cid_free == BEISCSI_GET_CID_COUNT(phba, cid_post_ulp))
 		cid_info->cid_free = 0;
+	cid_info->avlbl_cids++;
 }
 
 /**
@@ -1037,8 +1038,8 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 
 	beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 	beiscsi_ep->phba = NULL;
-	phba->ep_array[BE_GET_CRI_FROM_CID
-		       (beiscsi_ep->ep_cid)] = NULL;
+	/* clear this to track freeing in beiscsi_ep_disconnect */
+	phba->ep_array[BE_GET_CRI_FROM_CID(beiscsi_ep->ep_cid)] = NULL;
 
 	/**
 	 * Check if any connection resource allocated by driver
@@ -1049,6 +1050,11 @@ static void beiscsi_free_ep(struct beiscsi_endpoint *beiscsi_ep)
 		return;
 
 	beiscsi_conn = beiscsi_ep->conn;
+	/**
+	 * Break ep->conn link here so that completions after
+	 * this are ignored.
+	 */
+	beiscsi_ep->conn = NULL;
 	if (beiscsi_conn->login_in_progress) {
 		beiscsi_free_mgmt_task_handles(beiscsi_conn,
 					       beiscsi_conn->task);
@@ -1079,7 +1085,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		    "BS_%d : In beiscsi_open_conn\n");
 
 	beiscsi_ep->ep_cid = beiscsi_get_cid(phba);
-	if (beiscsi_ep->ep_cid == 0xFFFF) {
+	if (beiscsi_ep->ep_cid == BE_INVALID_CID) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG,
 			    "BS_%d : No free cid available\n");
 		return ret;
@@ -1285,26 +1291,6 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 }
 
 /**
- * beiscsi_unbind_conn_to_cid - Unbind the beiscsi_conn from phba conn table
- * @phba: The phba instance
- * @cid: The cid to free
- */
-static int beiscsi_unbind_conn_to_cid(struct beiscsi_hba *phba,
-				      unsigned int cid)
-{
-	uint16_t cri_index = BE_GET_CRI_FROM_CID(cid);
-
-	if (phba->conn_table[cri_index])
-		phba->conn_table[cri_index] = NULL;
-	else {
-		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Connection table Not occupied.\n");
-		return -EINVAL;
-	}
-	return 0;
-}
-
-/**
  * beiscsi_ep_disconnect - Tears down the TCP connection
  * @ep:	endpoint to be used
  *
@@ -1318,12 +1304,22 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 	unsigned int tag;
 	uint8_t mgmt_invalidate_flag, tcp_upload_flag;
 	unsigned short savecfg_flag = CMD_ISCSI_SESSION_SAVE_CFG_ON_FLASH;
+	uint16_t cri_index;
 
 	beiscsi_ep = ep->dd_data;
 	phba = beiscsi_ep->phba;
 	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_CONFIG,
-		    "BS_%d : In beiscsi_ep_disconnect for ep_cid = %d\n",
+		    "BS_%d : In beiscsi_ep_disconnect for ep_cid = %u\n",
 		    beiscsi_ep->ep_cid);
+
+	cri_index = BE_GET_CRI_FROM_CID(beiscsi_ep->ep_cid);
+	if (!phba->ep_array[cri_index]) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BS_%d : ep_array at %u cid %u empty\n",
+			      cri_index,
+			      beiscsi_ep->ep_cid);
+		return;
+	}
 
 	if (beiscsi_ep->conn) {
 		beiscsi_conn = beiscsi_ep->conn;
@@ -1356,7 +1352,12 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 free_ep:
 	msleep(BEISCSI_LOGOUT_SYNC_DELAY);
 	beiscsi_free_ep(beiscsi_ep);
-	beiscsi_unbind_conn_to_cid(phba, beiscsi_ep->ep_cid);
+	if (!phba->conn_table[cri_index])
+		__beiscsi_log(phba, KERN_ERR,
+				"BS_%d : conn_table empty at %u: cid %u\n",
+				cri_index,
+				beiscsi_ep->ep_cid);
+	phba->conn_table[cri_index] = NULL;
 	iscsi_destroy_endpoint(beiscsi_ep->openiscsi_ep);
 }
 

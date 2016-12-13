@@ -4074,9 +4074,10 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 			}
 
 			/* Allocate memory for CID array */
-			ptr_cid_info->cid_array = kzalloc(sizeof(void *) *
-						  BEISCSI_GET_CID_COUNT(phba,
-						  ulp_num), GFP_KERNEL);
+			ptr_cid_info->cid_array =
+				kcalloc(BEISCSI_GET_CID_COUNT(phba, ulp_num),
+					sizeof(*ptr_cid_info->cid_array),
+					GFP_KERNEL);
 			if (!ptr_cid_info->cid_array) {
 				beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
 					    "BM_%d : Failed to allocate memory"
