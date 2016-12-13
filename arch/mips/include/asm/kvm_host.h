@@ -614,11 +614,6 @@ extern enum emulation_result kvm_mips_handle_tlbmiss(u32 cause,
 						     struct kvm_vcpu *vcpu,
 						     bool write_fault);
 
-extern enum emulation_result kvm_mips_handle_tlbmod(u32 cause,
-						    u32 *opc,
-						    struct kvm_run *run,
-						    struct kvm_vcpu *vcpu);
-
 extern void kvm_mips_dump_host_tlbs(void);
 extern void kvm_mips_dump_guest_tlbs(struct kvm_vcpu *vcpu);
 extern int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long entryhi,

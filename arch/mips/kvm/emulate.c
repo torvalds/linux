@@ -2124,37 +2124,6 @@ enum emulation_result kvm_mips_emulate_tlbinv_st(u32 cause,
 	return EMULATE_DONE;
 }
 
-/* TLBMOD: store into address matching TLB with Dirty bit off */
-enum emulation_result kvm_mips_handle_tlbmod(u32 cause, u32 *opc,
-					     struct kvm_run *run,
-					     struct kvm_vcpu *vcpu)
-{
-	enum emulation_result er = EMULATE_DONE;
-#ifdef DEBUG
-	struct mips_coproc *cop0 = vcpu->arch.cop0;
-	unsigned long entryhi = (vcpu->arch.host_cp0_badvaddr & VPN2_MASK) |
-			(kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
-	bool kernel = KVM_GUEST_KERNEL_MODE(vcpu);
-	int index;
-
-	/* If address not in the guest TLB, then we are in trouble */
-	index = kvm_mips_guest_tlb_lookup(vcpu, entryhi);
-	if (index < 0) {
-		/* XXXKYMA Invalidate and retry */
-		kvm_mips_host_tlb_inv(vcpu, vcpu->arch.host_cp0_badvaddr,
-				      !kernel, kernel);
-		kvm_err("%s: host got TLBMOD for %#lx but entry not present in Guest TLB\n",
-		     __func__, entryhi);
-		kvm_mips_dump_guest_tlbs(vcpu);
-		kvm_mips_dump_host_tlbs();
-		return EMULATE_FAIL;
-	}
-#endif
-
-	er = kvm_mips_emulate_tlbmod(cause, opc, run, vcpu);
-	return er;
-}
-
 enum emulation_result kvm_mips_emulate_tlbmod(u32 cause,
 					      u32 *opc,
 					      struct kvm_run *run,

@@ -159,46 +159,63 @@ static int kvm_mips_bad_access(u32 cause, u32 *opc, struct kvm_run *run,
 
 static int kvm_trap_emul_handle_tlb_mod(struct kvm_vcpu *vcpu)
 {
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
 	struct kvm_run *run = vcpu->run;
 	u32 __user *opc = (u32 __user *) vcpu->arch.pc;
 	unsigned long badvaddr = vcpu->arch.host_cp0_badvaddr;
 	u32 cause = vcpu->arch.host_cp0_cause;
-	enum emulation_result er = EMULATE_DONE;
-	int ret = RESUME_GUEST;
+	struct kvm_mips_tlb *tlb;
+	unsigned long entryhi;
+	int index;
 
 	if (KVM_GUEST_KSEGX(badvaddr) < KVM_GUEST_KSEG0
 	    || KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG23) {
-		kvm_debug("USER/KSEG23 ADDR TLB MOD fault: cause %#x, PC: %p, BadVaddr: %#lx\n",
-			  cause, opc, badvaddr);
-		er = kvm_mips_handle_tlbmod(cause, opc, run, vcpu);
-
-		if (er == EMULATE_DONE)
-			ret = RESUME_GUEST;
-		else {
-			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-			ret = RESUME_HOST;
-		}
-	} else if (KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG0) {
 		/*
-		 * XXXKYMA: The guest kernel does not expect to get this fault
-		 * when we are not using HIGHMEM. Need to address this in a
-		 * HIGHMEM kernel
+		 * First find the mapping in the guest TLB. If the failure to
+		 * write was due to the guest TLB, it should be up to the guest
+		 * to handle it.
 		 */
-		kvm_err("TLB MOD fault not handled, cause %#x, PC: %p, BadVaddr: %#lx\n",
-			cause, opc, badvaddr);
-		kvm_mips_dump_host_tlbs();
-		kvm_arch_vcpu_dump_regs(vcpu);
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		ret = RESUME_HOST;
+		entryhi = (badvaddr & VPN2_MASK) |
+			  (kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID);
+		index = kvm_mips_guest_tlb_lookup(vcpu, entryhi);
+
+		/*
+		 * These should never happen.
+		 * They would indicate stale host TLB entries.
+		 */
+		if (unlikely(index < 0)) {
+			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			return RESUME_HOST;
+		}
+		tlb = vcpu->arch.guest_tlb + index;
+		if (unlikely(!TLB_IS_VALID(*tlb, badvaddr))) {
+			run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			return RESUME_HOST;
+		}
+
+		/*
+		 * Guest entry not dirty? That would explain the TLB modified
+		 * exception. Relay that on to the guest so it can handle it.
+		 */
+		if (!TLB_IS_DIRTY(*tlb, badvaddr)) {
+			kvm_mips_emulate_tlbmod(cause, opc, run, vcpu);
+			return RESUME_GUEST;
+		}
+
+		if (kvm_mips_handle_mapped_seg_tlb_fault(vcpu, tlb, badvaddr,
+							 true))
+			/* Not writable, needs handling as MMIO */
+			return kvm_mips_bad_store(cause, opc, run, vcpu);
+		return RESUME_GUEST;
+	} else if (KVM_GUEST_KSEGX(badvaddr) == KVM_GUEST_KSEG0) {
+		if (kvm_mips_handle_kseg0_tlb_fault(badvaddr, vcpu, true) < 0)
+			/* Not writable, needs handling as MMIO */
+			return kvm_mips_bad_store(cause, opc, run, vcpu);
+		return RESUME_GUEST;
 	} else {
-		kvm_err("Illegal TLB Mod fault address , cause %#x, PC: %p, BadVaddr: %#lx\n",
-			cause, opc, badvaddr);
-		kvm_mips_dump_host_tlbs();
-		kvm_arch_vcpu_dump_regs(vcpu);
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		ret = RESUME_HOST;
+		/* host kernel addresses are all handled as MMIO */
+		return kvm_mips_bad_store(cause, opc, run, vcpu);
 	}
-	return ret;
 }
 
 static int kvm_trap_emul_handle_tlb_miss(struct kvm_vcpu *vcpu, bool store)
