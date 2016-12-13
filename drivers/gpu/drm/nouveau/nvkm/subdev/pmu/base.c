@@ -129,15 +129,22 @@ nvkm_pmu = {
 };
 
 int
+nvkm_pmu_ctor(const struct nvkm_pmu_func *func, struct nvkm_device *device,
+	      int index, struct nvkm_pmu *pmu)
+{
+	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
+	pmu->func = func;
+	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
+	init_waitqueue_head(&pmu->recv.wait);
+	return 0;
+}
+
+int
 nvkm_pmu_new_(const struct nvkm_pmu_func *func, struct nvkm_device *device,
 	      int index, struct nvkm_pmu **ppmu)
 {
 	struct nvkm_pmu *pmu;
 	if (!(pmu = *ppmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_subdev_ctor(&nvkm_pmu, device, index, &pmu->subdev);
-	pmu->func = func;
-	INIT_WORK(&pmu->recv.work, nvkm_pmu_recv);
-	init_waitqueue_head(&pmu->recv.wait);
-	return 0;
+	return nvkm_pmu_ctor(func, device, index, *ppmu);
 }

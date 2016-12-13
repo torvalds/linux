@@ -4,6 +4,8 @@
 #include <subdev/pmu.h>
 #include <subdev/pmu/fuc/os.h>
 
+int nvkm_pmu_ctor(const struct nvkm_pmu_func *, struct nvkm_device *,
+		  int index, struct nvkm_pmu *);
 int nvkm_pmu_new_(const struct nvkm_pmu_func *, struct nvkm_device *,
 		  int index, struct nvkm_pmu **);
 
