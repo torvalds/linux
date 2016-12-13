@@ -1158,7 +1158,7 @@ static void dpcd_configure_panel_mode(
 		/*set edp panel mode in receiver*/
 		core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_EDP_CONFIG_SET,
+			DP_EDP_CONFIGURATION_SET,
 			&edp_config_set.raw,
 			sizeof(edp_config_set.raw));
 
@@ -1170,7 +1170,7 @@ static void dpcd_configure_panel_mode(
 			panel_mode_edp;
 			result = core_link_write_dpcd(
 				link,
-				DPCD_ADDRESS_EDP_CONFIG_SET,
+				DP_EDP_CONFIGURATION_SET,
 				&edp_config_set.raw,
 				sizeof(edp_config_set.raw));
 
@@ -1191,13 +1191,13 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 	struct core_link *link = stream->sink->link;
 	union down_spread_ctrl downspread;
 
-	core_link_read_dpcd(link, DPCD_ADDRESS_DOWNSPREAD_CNTL,
+	core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
 			&downspread.raw, sizeof(downspread));
 
 	downspread.bits.IGNORE_MSA_TIMING_PARAM =
 			(stream->public.ignore_msa_timing_param) ? 1 : 0;
 
-	core_link_write_dpcd(link, DPCD_ADDRESS_DOWNSPREAD_CNTL,
+	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 			&downspread.raw, sizeof(downspread));
 }
 

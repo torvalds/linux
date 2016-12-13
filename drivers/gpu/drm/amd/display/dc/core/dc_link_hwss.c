@@ -49,7 +49,7 @@ void dp_receiver_power_ctrl(struct core_link *link, bool on)
 
 	state = on ? DP_POWER_STATE_D0 : DP_POWER_STATE_D3;
 
-	core_link_write_dpcd(link, DPCD_ADDRESS_POWER_STATE, &state,
+	core_link_write_dpcd(link, DP_SET_POWER, &state,
 			sizeof(state));
 }
 

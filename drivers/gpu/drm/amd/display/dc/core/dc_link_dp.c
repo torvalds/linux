@@ -70,7 +70,7 @@ static void wait_for_training_aux_rd_interval(
 		 * "DPCD_ADDR_TRAINING_AUX_RD_INTERVAL" register */
 		core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_TRAINING_AUX_RD_INTERVAL,
+			DP_TRAINING_AUX_RD_INTERVAL,
 			(uint8_t *)&training_rd_interval,
 			sizeof(training_rd_interval));
 
@@ -93,14 +93,14 @@ static void dpcd_set_training_pattern(
 {
 	core_link_write_dpcd(
 		link,
-		DPCD_ADDRESS_TRAINING_PATTERN_SET,
+		DP_TRAINING_PATTERN_SET,
 		&dpcd_pattern.raw,
 		1);
 
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
 		"%s\n %x pattern = %x\n",
 		__func__,
-		DPCD_ADDRESS_TRAINING_PATTERN_SET,
+		DP_TRAINING_PATTERN_SET,
 		dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
 }
 
@@ -129,19 +129,19 @@ static void dpcd_set_link_settings(
 	link_set_buffer[0] = rate;
 	link_set_buffer[1] = lane_count_set.raw;
 
-	core_link_write_dpcd(link, DPCD_ADDRESS_LINK_BW_SET,
+	core_link_write_dpcd(link, DP_LINK_BW_SET,
 	link_set_buffer, 2);
-	core_link_write_dpcd(link, DPCD_ADDRESS_DOWNSPREAD_CNTL,
+	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 	&downspread.raw, sizeof(downspread));
 
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
 		"%s\n %x rate = %x\n %x lane = %x\n %x spread = %x\n",
 		__func__,
-		DPCD_ADDRESS_LINK_BW_SET,
+		DP_LINK_BW_SET,
 		lt_settings->link_settings.link_rate,
-		DPCD_ADDRESS_LANE_COUNT_SET,
+		DP_LANE_COUNT_SET,
 		lt_settings->link_settings.lane_count,
-		DPCD_ADDRESS_DOWNSPREAD_CNTL,
+		DP_DOWNSPREAD_CTRL,
 		lt_settings->link_settings.link_spread);
 
 }
@@ -186,7 +186,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 {
 	union dpcd_training_lane dpcd_lane[LANE_COUNT_DP_MAX] = {{{0}}};
 	const uint32_t dpcd_base_lt_offset =
-	DPCD_ADDRESS_TRAINING_PATTERN_SET;
+	DP_TRAINING_PATTERN_SET;
 	uint8_t dpcd_lt_buffer[5] = {0};
 	union dpcd_training_pattern dpcd_pattern = {{0}};
 	uint32_t lane;
@@ -199,13 +199,13 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	dpcd_pattern.v1_4.TRAINING_PATTERN_SET =
 		hw_training_pattern_to_dpcd_training_pattern(link, pattern);
 
-	dpcd_lt_buffer[DPCD_ADDRESS_TRAINING_PATTERN_SET - dpcd_base_lt_offset]
+	dpcd_lt_buffer[DP_TRAINING_PATTERN_SET - dpcd_base_lt_offset]
 		= dpcd_pattern.raw;
 
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
 		"%s\n %x pattern = %x\n",
 		__func__,
-		DPCD_ADDRESS_TRAINING_PATTERN_SET,
+		DP_TRAINING_PATTERN_SET,
 		dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
 
 	/*****************************************************************
@@ -233,7 +233,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 
 	 // 0x00103 - 0x00102
 	memmove(
-		&dpcd_lt_buffer[DPCD_ADDRESS_LANE0_SET - dpcd_base_lt_offset],
+		&dpcd_lt_buffer[DP_TRAINING_LANE0_SET - dpcd_base_lt_offset],
 		dpcd_lane,
 		size_in_bytes);
 
@@ -241,7 +241,7 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 		"%s:\n %x VS set = %x  PE set = %x \
 		max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
-		DPCD_ADDRESS_LANE0_SET,
+		DP_TRAINING_LANE0_SET,
 		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
 		dpcd_lane[0].bits.PRE_EMPHASIS_SET,
 		dpcd_lane[0].bits.MAX_SWING_REACHED,
@@ -253,13 +253,13 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 		*/
 		core_link_write_dpcd(
 			link,
-			DPCD_ADDRESS_TRAINING_PATTERN_SET,
+			DP_TRAINING_PATTERN_SET,
 			&dpcd_pattern.raw,
 			sizeof(dpcd_pattern.raw) );
 
 		core_link_write_dpcd(
 			link,
-			DPCD_ADDRESS_LANE0_SET,
+			DP_TRAINING_LANE0_SET,
 			(uint8_t *)(dpcd_lane),
 			size_in_bytes);
 
@@ -459,7 +459,7 @@ static void get_lane_status_and_drive_settings(
 
 	core_link_read_dpcd(
 		link,
-		DPCD_ADDRESS_LANE_01_STATUS,
+		DP_LANE0_1_STATUS,
 		(uint8_t *)(dpcd_buf),
 		sizeof(dpcd_buf));
 
@@ -478,15 +478,15 @@ static void get_lane_status_and_drive_settings(
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
 		"%s:\n%x Lane01Status = %x\n %x Lane23Status = %x\n ",
 		__func__,
-		DPCD_ADDRESS_LANE_01_STATUS, dpcd_buf[0],
-		DPCD_ADDRESS_LANE_23_STATUS, dpcd_buf[1]);
+		DP_LANE0_1_STATUS, dpcd_buf[0],
+		DP_LANE2_3_STATUS, dpcd_buf[1]);
 
 	dm_logger_write(link->ctx->logger, LOG_HW_LINK_TRAINING,
 		"%s:\n %x Lane01AdjustRequest = %x\n %x Lane23AdjustRequest = %x\n",
 		__func__,
-		DPCD_ADDRESS_ADJUST_REQUEST_LANE0_1,
+		DP_ADJUST_REQUEST_LANE0_1,
 		dpcd_buf[4],
-		DPCD_ADDRESS_ADJUST_REQUEST_LANE2_3,
+		DP_ADJUST_REQUEST_LANE2_3,
 		dpcd_buf[5]);
 
 	/*copy to req_settings*/
@@ -552,7 +552,7 @@ static void dpcd_set_lane_settings(
 	}
 
 	core_link_write_dpcd(link,
-		DPCD_ADDRESS_LANE0_SET,
+		DP_TRAINING_LANE0_SET,
 		(uint8_t *)(dpcd_lane),
 		link_training_setting->link_settings.lane_count);
 
@@ -579,7 +579,7 @@ static void dpcd_set_lane_settings(
 		"%s\n %x VS set = %x  PE set = %x \
 		max VS Reached = %x  max PE Reached = %x\n",
 		__func__,
-		DPCD_ADDRESS_LANE0_SET,
+		DP_TRAINING_LANE0_SET,
 		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
 		dpcd_lane[0].bits.PRE_EMPHASIS_SET,
 		dpcd_lane[0].bits.MAX_SWING_REACHED,
@@ -935,7 +935,7 @@ static inline bool perform_link_training_int(
 
 	core_link_write_dpcd(
 		link,
-		DPCD_ADDRESS_LANE_COUNT_SET,
+		DP_LANE_COUNT_SET,
 		&lane_count_set.raw,
 		sizeof(lane_count_set));
 
@@ -1385,18 +1385,18 @@ static bool hpd_rx_irq_check_link_loss_status(
 	 */
 
 	dpcd_result = core_link_read_dpcd(link,
-		DPCD_ADDRESS_POWER_STATE,
+		DP_SET_POWER,
 		&irq_reg_rx_power_state,
 		sizeof(irq_reg_rx_power_state));
 
 	if (dpcd_result != DC_OK) {
-		irq_reg_rx_power_state = DP_PWR_STATE_D0;
+		irq_reg_rx_power_state = DP_SET_POWER_D0;
 		dm_logger_write(link->ctx->logger, LOG_HW_HPD_IRQ,
 			"%s: DPCD read failed to obtain power state.\n",
 			__func__);
 	}
 
-	if (irq_reg_rx_power_state == DP_PWR_STATE_D0) {
+	if (irq_reg_rx_power_state == DP_SET_POWER_D0) {
 
 		/*2. Check that Link Status changed, before re-training.*/
 
@@ -1452,7 +1452,7 @@ static enum dc_status read_hpd_rx_irq_data(
 	 */
 	return core_link_read_dpcd(
 	link,
-	DPCD_ADDRESS_SINK_COUNT,
+	DP_SINK_COUNT,
 	irq_data->raw,
 	sizeof(union hpd_irq_data));
 }
@@ -1536,12 +1536,12 @@ static void dp_test_send_link_training(struct core_link *link)
 
 	core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_TEST_LANE_COUNT,
+			DP_TEST_LANE_COUNT,
 			(unsigned char *)(&link_settings.lane_count),
 			1);
 	core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_TEST_LINK_RATE,
+			DP_TEST_LINK_RATE,
 			(unsigned char *)(&link_settings.link_rate),
 			1);
 
@@ -1558,8 +1558,8 @@ static void dp_test_send_phy_test_pattern(struct core_link *link)
 	union lane_adjust dpcd_lane_adjustment[2];
 	unsigned char dpcd_post_cursor_2_adjustment = 0;
 	unsigned char test_80_bit_pattern[
-			(DPCD_ADDRESS_TEST_80BIT_CUSTOM_PATTERN_79_72 -
-			DPCD_ADDRESS_TEST_80BIT_CUSTOM_PATTERN_7_0)+1] = {0};
+			(DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
+			DP_TEST_80BIT_CUSTOM_PATTERN_7_0)+1] = {0};
 	enum dp_test_pattern test_pattern;
 	struct dc_link_training_settings link_settings;
 	union lane_adjust dpcd_lane_adjust;
@@ -1574,12 +1574,12 @@ static void dp_test_send_phy_test_pattern(struct core_link *link)
 	/* get phy test pattern and pattern parameters from DP receiver */
 	core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_TEST_PHY_PATTERN,
+			DP_TEST_PHY_PATTERN,
 			&dpcd_test_pattern.raw,
 			sizeof(dpcd_test_pattern));
 	core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_ADJUST_REQUEST_LANE0_1,
+			DP_ADJUST_REQUEST_LANE0_1,
 			&dpcd_lane_adjustment[0].raw,
 			sizeof(dpcd_lane_adjustment));
 
@@ -1591,7 +1591,7 @@ static void dp_test_send_phy_test_pattern(struct core_link *link)
 	 */
 	core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_ADJUST_REQUEST_POST_CURSOR2,
+			DP_ADJUST_REQUEST_POST_CURSOR2,
 			&dpcd_post_cursor_2_adjustment,
 			sizeof(dpcd_post_cursor_2_adjustment));
 
@@ -1620,7 +1620,7 @@ static void dp_test_send_phy_test_pattern(struct core_link *link)
 	if (test_pattern == DP_TEST_PATTERN_80BIT_CUSTOM)
 		core_link_read_dpcd(
 				link,
-				DPCD_ADDRESS_TEST_80BIT_CUSTOM_PATTERN_7_0,
+				DP_TEST_80BIT_CUSTOM_PATTERN_7_0,
 				test_80_bit_pattern,
 				sizeof(test_80_bit_pattern));
 
@@ -1660,8 +1660,8 @@ static void dp_test_send_phy_test_pattern(struct core_link *link)
 		test_pattern,
 		&link_training_settings,
 		test_80_bit_pattern,
-		(DPCD_ADDRESS_TEST_80BIT_CUSTOM_PATTERN_79_72 -
-		DPCD_ADDRESS_TEST_80BIT_CUSTOM_PATTERN_7_0)+1);
+		(DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
+		DP_TEST_80BIT_CUSTOM_PATTERN_7_0)+1);
 }
 
 static void dp_test_send_link_test_pattern(struct core_link *link)
@@ -1676,12 +1676,12 @@ static void dp_test_send_link_test_pattern(struct core_link *link)
 	/* get link test pattern and pattern parameters */
 	core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_TEST_PATTERN,
+			DP_TEST_PATTERN,
 			&dpcd_test_pattern.raw,
 			sizeof(dpcd_test_pattern));
 	core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_TEST_MISC1,
+			DP_TEST_MISC0,
 			&dpcd_test_params.raw,
 			sizeof(dpcd_test_params));
 
@@ -1721,7 +1721,7 @@ static void handle_automated_test(struct core_link *link)
 
 	core_link_read_dpcd(
 		link,
-		DPCD_ADDRESS_TEST_REQUEST,
+		DP_TEST_REQUEST,
 		&test_request.raw,
 		sizeof(union test_request));
 	if (test_request.bits.LINK_TRAINING) {
@@ -1729,7 +1729,7 @@ static void handle_automated_test(struct core_link *link)
 		test_response.bits.ACK = 1;
 		core_link_write_dpcd(
 			link,
-			DPCD_ADDRESS_TEST_RESPONSE,
+			DP_TEST_RESPONSE,
 			&test_response.raw,
 			sizeof(test_response));
 		dp_test_send_link_training(link);
@@ -1754,7 +1754,7 @@ static void handle_automated_test(struct core_link *link)
 	if (test_response.bits.ACK)
 		core_link_write_dpcd(
 			link,
-			DPCD_ADDRESS_TEST_RESPONSE,
+			DP_TEST_RESPONSE,
 			&test_response.raw,
 			sizeof(test_response));
 }
@@ -1792,7 +1792,7 @@ bool dc_link_handle_hpd_rx_irq(const struct dc_link *dc_link)
 		device_service_clear.bits.AUTOMATED_TEST = 1;
 		core_link_write_dpcd(
 			link,
-			DPCD_ADDRESS_DEVICE_SERVICE_IRQ_VECTOR,
+			DP_DEVICE_SERVICE_IRQ_VECTOR,
 			&device_service_clear.raw,
 			sizeof(device_service_clear.raw));
 		device_service_clear.raw = 0;
@@ -1872,12 +1872,12 @@ bool is_mst_supported(struct core_link *link)
 	rev.raw  = 0;
 	cap.raw  = 0;
 
-	st = core_link_read_dpcd(link, DPCD_ADDRESS_DPCD_REV, &rev.raw,
+	st = core_link_read_dpcd(link, DP_DPCD_REV, &rev.raw,
 			sizeof(rev));
 
 	if (st == DC_OK && rev.raw >= DPCD_REV_12) {
 
-		st = core_link_read_dpcd(link, DPCD_ADDRESS_MSTM_CAP,
+		st = core_link_read_dpcd(link, DP_MSTM_CAP,
 				&cap.raw, sizeof(cap));
 		if (st == DC_OK && cap.bits.MST_CAP == 1)
 			mst = true;
@@ -1926,7 +1926,7 @@ static void get_active_converter_info(
 		uint8_t det_caps[4];
 		union dwnstream_port_caps_byte0 *port_caps =
 			(union dwnstream_port_caps_byte0 *)det_caps;
-		core_link_read_dpcd(link, DPCD_ADDRESS_DWN_STRM_PORT0_CAPS,
+		core_link_read_dpcd(link, DP_DOWNSTREAM_PORT_0,
 				det_caps, sizeof(det_caps));
 
 		switch (port_caps->bits.DWN_STRM_PORTX_TYPE) {
@@ -1962,7 +1962,7 @@ static void get_active_converter_info(
 		/* read IEEE branch device id */
 		core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_BRANCH_DEVICE_ID_START,
+			DP_BRANCH_OUI,
 			(uint8_t *)&dp_id,
 			sizeof(dp_id));
 
@@ -1982,7 +1982,7 @@ static void get_active_converter_info(
 
 		core_link_read_dpcd(
 			link,
-			DPCD_ADDRESS_BRANCH_REVISION_START,
+			DP_BRANCH_REVISION_START,
 			(uint8_t *)&dp_hw_fw_revision,
 			sizeof(dp_hw_fw_revision));
 
@@ -2000,16 +2000,16 @@ static void dp_wa_power_up_0010FA(struct core_link *link, uint8_t *dpcd_data,
 	if (!link->dpcd_caps.dpcd_rev.raw) {
 		do {
 			dp_receiver_power_ctrl(link, true);
-			core_link_read_dpcd(link, DPCD_ADDRESS_DPCD_REV,
+			core_link_read_dpcd(link, DP_DPCD_REV,
 							dpcd_data, length);
 			link->dpcd_caps.dpcd_rev.raw = dpcd_data[
-				DPCD_ADDRESS_DPCD_REV -
-				DPCD_ADDRESS_DPCD_REV];
+				DP_DPCD_REV -
+				DP_DPCD_REV];
 		} while (retry++ < 4 && !link->dpcd_caps.dpcd_rev.raw);
 	}
 
-	ds_port.byte = dpcd_data[DPCD_ADDRESS_DOWNSTREAM_PORT_PRESENT -
-				 DPCD_ADDRESS_DPCD_REV];
+	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
+				 DP_DPCD_REV];
 
 	if (link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER) {
 		switch (link->dpcd_caps.branch_dev_id) {
@@ -2037,14 +2037,14 @@ static void retrieve_psr_link_cap(struct core_link *link,
 {
 	if (edp_revision >= EDP_REVISION_13) {
 		core_link_read_dpcd(link,
-				DPCD_ADDRESS_PSR_SUPPORT_VER,
+				DP_PSR_SUPPORT,
 				(uint8_t *)(&link->public.psr_caps),
 				sizeof(link->public.psr_caps));
 		if (link->public.psr_caps.psr_version != 0) {
 			unsigned char psr_capability = 0;
 
 			core_link_read_dpcd(link,
-					DPCD_ADDRESS_PSR_CAPABILITY,
+					    DP_PSR_CAPS,
 						&psr_capability,
 						sizeof(psr_capability));
 			/* Bit 0 determines whether fast link training is
@@ -2064,7 +2064,7 @@ static void retrieve_psr_link_cap(struct core_link *link,
 
 static void retrieve_link_cap(struct core_link *link)
 {
-	uint8_t dpcd_data[DPCD_ADDRESS_TRAINING_AUX_RD_INTERVAL - DPCD_ADDRESS_DPCD_REV + 1];
+	uint8_t dpcd_data[DP_TRAINING_AUX_RD_INTERVAL - DP_DPCD_REV + 1];
 
 	union down_stream_port_count down_strm_port_count;
 	union edp_configuration_cap edp_config_cap;
@@ -2078,30 +2078,30 @@ static void retrieve_link_cap(struct core_link *link)
 
 	core_link_read_dpcd(
 		link,
-		DPCD_ADDRESS_DPCD_REV,
+		DP_DPCD_REV,
 		dpcd_data,
 		sizeof(dpcd_data));
 
 	link->dpcd_caps.dpcd_rev.raw =
-		dpcd_data[DPCD_ADDRESS_DPCD_REV - DPCD_ADDRESS_DPCD_REV];
+		dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
 
 	{
 		union training_aux_rd_interval aux_rd_interval;
 
 		aux_rd_interval.raw =
-			dpcd_data[DPCD_ADDRESS_TRAINING_AUX_RD_INTERVAL];
+			dpcd_data[DP_TRAINING_AUX_RD_INTERVAL];
 
 		if (aux_rd_interval.bits.EXT_RECIEVER_CAP_FIELD_PRESENT == 1) {
 			core_link_read_dpcd(
 				link,
-				DPCD_ADDRESS_DP13_DPCD_REV,
+				DP_DP13_DPCD_REV,
 				dpcd_data,
 				sizeof(dpcd_data));
 		}
 	}
 
-	ds_port.byte = dpcd_data[DPCD_ADDRESS_DOWNSTREAM_PORT_PRESENT -
-				 DPCD_ADDRESS_DPCD_REV];
+	ds_port.byte = dpcd_data[DP_DOWNSTREAMPORT_PRESENT -
+				 DP_DPCD_REV];
 
 	get_active_converter_info(ds_port.byte, link);
 
@@ -2111,21 +2111,21 @@ static void retrieve_link_cap(struct core_link *link)
 		down_strm_port_count.bits.IGNORE_MSA_TIMING_PARAM;
 
 	link->dpcd_caps.max_ln_count.raw = dpcd_data[
-		DPCD_ADDRESS_MAX_LANE_COUNT - DPCD_ADDRESS_DPCD_REV];
+		DP_MAX_LANE_COUNT - DP_DPCD_REV];
 
 	link->dpcd_caps.max_down_spread.raw = dpcd_data[
-		DPCD_ADDRESS_MAX_DOWNSPREAD - DPCD_ADDRESS_DPCD_REV];
+		DP_MAX_DOWNSPREAD - DP_DPCD_REV];
 
 	link->public.reported_link_cap.lane_count =
 		link->dpcd_caps.max_ln_count.bits.MAX_LANE_COUNT;
 	link->public.reported_link_cap.link_rate = dpcd_data[
-		DPCD_ADDRESS_MAX_LINK_RATE - DPCD_ADDRESS_DPCD_REV];
+		DP_MAX_LINK_RATE - DP_DPCD_REV];
 	link->public.reported_link_cap.link_spread =
 		link->dpcd_caps.max_down_spread.bits.MAX_DOWN_SPREAD ?
 		LINK_SPREAD_05_DOWNSPREAD_30KHZ : LINK_SPREAD_DISABLED;
 
 	edp_config_cap.raw = dpcd_data[
-		DPCD_ADDRESS_EDP_CONFIG_CAP - DPCD_ADDRESS_DPCD_REV];
+		DP_EDP_CONFIGURATION_CAP - DP_DPCD_REV];
 	link->dpcd_caps.panel_mode_edp =
 		edp_config_cap.bits.ALT_SCRAMBLER_RESET;
 
@@ -2142,7 +2142,7 @@ static void retrieve_link_cap(struct core_link *link)
 
 	/* read sink count */
 	core_link_read_dpcd(link,
-			DPCD_ADDRESS_SINK_COUNT,
+			DP_SINK_COUNT,
 			&link->dpcd_caps.sink_count.raw,
 			sizeof(link->dpcd_caps.sink_count.raw));
 
@@ -2151,7 +2151,7 @@ static void retrieve_link_cap(struct core_link *link)
 	if (edp_config_cap.bits.DPCD_DISPLAY_CONTROL_CAPABLE) {
 		/* Read the Panel's eDP revision at DPCD 700h. */
 		core_link_read_dpcd(link,
-			DPCD_ADDRESS_EDP_REV,
+			DP_EDP_DPCD_REV,
 			(uint8_t *)(&link->edp_revision),
 			sizeof(link->edp_revision));
 	}
@@ -2415,7 +2415,7 @@ bool dc_link_dp_set_test_pattern(
 						(unsigned char)(pattern);
 
 			core_link_write_dpcd(core_link,
-					DPCD_ADDRESS_LINK_QUAL_LANE0_SET,
+					DP_LINK_QUAL_LANE0_SET,
 					link_qual_pattern,
 					sizeof(link_qual_pattern));
 		} else if (core_link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_10 ||
@@ -2428,12 +2428,12 @@ bool dc_link_dp_set_test_pattern(
 			 * setting test pattern for DP 1.1.
 			 */
 			core_link_read_dpcd(core_link,
-					DPCD_ADDRESS_TRAINING_PATTERN_SET,
+					DP_TRAINING_PATTERN_SET,
 					&training_pattern.raw,
 					sizeof(training_pattern));
 			training_pattern.v1_3.LINK_QUAL_PATTERN_SET = pattern;
 			core_link_write_dpcd(core_link,
-					DPCD_ADDRESS_TRAINING_PATTERN_SET,
+					DP_TRAINING_PATTERN_SET,
 					&training_pattern.raw,
 					sizeof(training_pattern));
 		}
@@ -2452,7 +2452,7 @@ bool dc_link_dp_set_test_pattern(
 						SET_TEST_PATTERN_PENDING = 0;
 			test_response.bits.ACK = 1;
 			core_link_write_dpcd(core_link,
-					DPCD_ADDRESS_TEST_RESPONSE,
+					DP_TEST_RESPONSE,
 					&test_response.raw,
 					sizeof(test_response));
 		}

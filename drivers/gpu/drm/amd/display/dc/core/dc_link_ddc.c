@@ -872,7 +872,7 @@ void dal_ddc_service_i2c_query_dp_dual_mode_adaptor(
 
 enum {
 	DP_SINK_CAP_SIZE =
-		DPCD_ADDRESS_EDP_CONFIG_CAP - DPCD_ADDRESS_DPCD_REV + 1
+		DP_EDP_CONFIGURATION_CAP - DP_DPCD_REV + 1
 };
 
 bool dal_ddc_service_query_ddc_data(
