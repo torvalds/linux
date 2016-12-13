@@ -19,7 +19,7 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#define gk20a_pmu(p) container_of((p), struct gk20a_pmu, base.subdev)
+#define gk20a_pmu(p) container_of((p), struct gk20a_pmu, base)
 #include "priv.h"
 
 #include <subdev/clk.h>
@@ -166,32 +166,25 @@ resched:
 	nvkm_timer_alarm(tmr, 100000000, alarm);
 }
 
-static int
-gk20a_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
+static void
+gk20a_pmu_fini(struct nvkm_pmu *pmu)
 {
-	struct gk20a_pmu *pmu = gk20a_pmu(subdev);
-	nvkm_timer_alarm_cancel(subdev->device->timer, &pmu->alarm);
-	return 0;
-}
-
-static void *
-gk20a_pmu_dtor(struct nvkm_subdev *subdev)
-{
-	return gk20a_pmu(subdev);
+	struct gk20a_pmu *gpmu = gk20a_pmu(pmu);
+	nvkm_timer_alarm_cancel(pmu->subdev.device->timer, &gpmu->alarm);
 }
 
 static int
-gk20a_pmu_init(struct nvkm_subdev *subdev)
+gk20a_pmu_init(struct nvkm_pmu *pmu)
 {
-	struct gk20a_pmu *pmu = gk20a_pmu(subdev);
-	struct nvkm_device *device = pmu->base.subdev.device;
+	struct gk20a_pmu *gpmu = gk20a_pmu(pmu);
+	struct nvkm_device *device = pmu->subdev.device;
 
 	/* init pwr perf counter */
 	nvkm_wr32(device, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
 	nvkm_wr32(device, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
 	nvkm_wr32(device, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
 
-	nvkm_timer_alarm(device->timer, 2000000000, &pmu->alarm);
+	nvkm_timer_alarm(device->timer, 2000000000, &gpmu->alarm);
 	return 0;
 }
 
@@ -202,26 +195,26 @@ gk20a_dvfs_data= {
 	.p_smooth = 1,
 };
 
-static const struct nvkm_subdev_func
+static const struct nvkm_pmu_func
 gk20a_pmu = {
 	.init = gk20a_pmu_init,
 	.fini = gk20a_pmu_fini,
-	.dtor = gk20a_pmu_dtor,
+	.reset = gt215_pmu_reset,
 };
 
 int
 gk20a_pmu_new(struct nvkm_device *device, int index, struct nvkm_pmu **ppmu)
 {
-	static const struct nvkm_pmu_func func = {};
 	struct gk20a_pmu *pmu;
 
 	if (!(pmu = kzalloc(sizeof(*pmu), GFP_KERNEL)))
 		return -ENOMEM;
-	pmu->base.func = &func;
 	*ppmu = &pmu->base;
 
-	nvkm_subdev_ctor(&gk20a_pmu, device, index, &pmu->base.subdev);
+	nvkm_pmu_ctor(&gk20a_pmu, device, index, &pmu->base);
+
 	pmu->data = &gk20a_dvfs_data;
 	nvkm_alarm_init(&pmu->alarm, gk20a_pmu_dvfs_work);
+
 	return 0;
 }
