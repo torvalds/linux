@@ -8766,6 +8766,16 @@ L:	linux-nvme@lists.infradead.org
 S:	Supported
 F:	drivers/nvme/target/
 
+NVM EXPRESS FC TRANSPORT DRIVERS
+M:	James Smart <james.smart@broadcom.com>
+L:	linux-nvme@lists.infradead.org
+S:	Supported
+F:	include/linux/nvme-fc.h
+F:	include/linux/nvme-fc-driver.h
+F:	drivers/nvme/host/fc.c
+F:	drivers/nvme/target/fc.c
+F:	drivers/nvme/target/fcloop.c
+
 NVMEM FRAMEWORK
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 M:	Maxime Ripard <maxime.ripard@free-electrons.com>
@@ -9656,8 +9666,8 @@ F:      arch/mips/boot/dts/pistachio/
 F:      arch/mips/configs/pistachio*_defconfig
 
 PKTCDVD DRIVER
-M:	Jiri Kosina <jikos@kernel.org>
-S:	Maintained
+S:	Orphan
+M:	linux-block@vger.kernel.org
 F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
 F:	include/uapi/linux/pktcdvd.h

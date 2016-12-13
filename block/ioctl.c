@@ -519,6 +519,10 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 				BLKDEV_DISCARD_SECURE);
 	case BLKZEROOUT:
 		return blk_ioctl_zeroout(bdev, mode, arg);
+	case BLKREPORTZONE:
+		return blkdev_report_zones_ioctl(bdev, mode, cmd, arg);
+	case BLKRESETZONE:
+		return blkdev_reset_zones_ioctl(bdev, mode, cmd, arg);
 	case HDIO_GETGEO:
 		return blkdev_getgeo(bdev, argp);
 	case BLKRAGET:

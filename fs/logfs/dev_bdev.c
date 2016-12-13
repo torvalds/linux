@@ -19,16 +19,10 @@ static int sync_request(struct page *page, struct block_device *bdev, int op)
 	struct bio bio;
 	struct bio_vec bio_vec;
 
-	bio_init(&bio);
-	bio.bi_max_vecs = 1;
-	bio.bi_io_vec = &bio_vec;
-	bio_vec.bv_page = page;
-	bio_vec.bv_len = PAGE_SIZE;
-	bio_vec.bv_offset = 0;
-	bio.bi_vcnt = 1;
+	bio_init(&bio, &bio_vec, 1);
 	bio.bi_bdev = bdev;
+	bio_add_page(&bio, page, PAGE_SIZE, 0);
 	bio.bi_iter.bi_sector = page->index * (PAGE_SIZE >> 9);
-	bio.bi_iter.bi_size = PAGE_SIZE;
 	bio_set_op_attrs(&bio, op, 0);
 
 	return submit_bio_wait(&bio);
@@ -77,56 +71,45 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
 {
 	struct logfs_super *super = logfs_super(sb);
 	struct address_space *mapping = super->s_mapping_inode->i_mapping;
-	struct bio *bio;
+	struct bio *bio = NULL;
 	struct page *page;
 	unsigned int max_pages;
-	int i;
+	int i, ret;
 
 	max_pages = min_t(size_t, nr_pages, BIO_MAX_PAGES);
 
-	bio = bio_alloc(GFP_NOFS, max_pages);
-	BUG_ON(!bio);
-
 	for (i = 0; i < nr_pages; i++) {
-		if (i >= max_pages) {
-			/* Block layer cannot split bios :( */
-			bio->bi_vcnt = i;
-			bio->bi_iter.bi_size = i * PAGE_SIZE;
+		if (!bio) {
+			bio = bio_alloc(GFP_NOFS, max_pages);
+			BUG_ON(!bio);
+
 			bio->bi_bdev = super->s_bdev;
 			bio->bi_iter.bi_sector = ofs >> 9;
 			bio->bi_private = sb;
 			bio->bi_end_io = writeseg_end_io;
 			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-			atomic_inc(&super->s_pending_writes);
-			submit_bio(bio);
-
-			ofs += i * PAGE_SIZE;
-			index += i;
-			nr_pages -= i;
-			i = 0;
-
-			bio = bio_alloc(GFP_NOFS, max_pages);
-			BUG_ON(!bio);
 		}
 		page = find_lock_page(mapping, index + i);
 		BUG_ON(!page);
-		bio->bi_io_vec[i].bv_page = page;
-		bio->bi_io_vec[i].bv_len = PAGE_SIZE;
-		bio->bi_io_vec[i].bv_offset = 0;
+		ret = bio_add_page(bio, page, PAGE_SIZE, 0);
 
 		BUG_ON(PageWriteback(page));
 		set_page_writeback(page);
 		unlock_page(page);
+
+		if (!ret) {
+			/* Block layer cannot split bios :( */
+			ofs += bio->bi_iter.bi_size;
+			atomic_inc(&super->s_pending_writes);
+			submit_bio(bio);
+			bio = NULL;
+		}
 	}
-	bio->bi_vcnt = nr_pages;
-	bio->bi_iter.bi_size = nr_pages * PAGE_SIZE;
-	bio->bi_bdev = super->s_bdev;
-	bio->bi_iter.bi_sector = ofs >> 9;
-	bio->bi_private = sb;
-	bio->bi_end_io = writeseg_end_io;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-	atomic_inc(&super->s_pending_writes);
-	submit_bio(bio);
+
+	if (bio) {
+		atomic_inc(&super->s_pending_writes);
+		submit_bio(bio);
+	}
 	return 0;
 }
 
@@ -160,7 +143,6 @@ static void erase_end_io(struct bio *bio)
 	struct logfs_super *super = logfs_super(sb); 
 
 	BUG_ON(bio->bi_error); /* FIXME: Retry io or write elsewhere */ 
-	BUG_ON(bio->bi_vcnt == 0); 
 	bio_put(bio); 
 	if (atomic_dec_and_test(&super->s_pending_writes))
 		wake_up(&wq); 
@@ -170,49 +152,35 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 		size_t nr_pages)
 {
 	struct logfs_super *super = logfs_super(sb);
-	struct bio *bio;
+	struct bio *bio = NULL;
 	unsigned int max_pages;
-	int i;
+	int i, ret;
 
 	max_pages = min_t(size_t, nr_pages, BIO_MAX_PAGES);
 
-	bio = bio_alloc(GFP_NOFS, max_pages);
-	BUG_ON(!bio);
-
 	for (i = 0; i < nr_pages; i++) {
-		if (i >= max_pages) {
-			/* Block layer cannot split bios :( */
-			bio->bi_vcnt = i;
-			bio->bi_iter.bi_size = i * PAGE_SIZE;
+		if (!bio) {
+			bio = bio_alloc(GFP_NOFS, max_pages);
+			BUG_ON(!bio);
+
 			bio->bi_bdev = super->s_bdev;
 			bio->bi_iter.bi_sector = ofs >> 9;
 			bio->bi_private = sb;
 			bio->bi_end_io = erase_end_io;
 			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+		}
+		ret = bio_add_page(bio, super->s_erase_page, PAGE_SIZE, 0);
+		if (!ret) {
+			/* Block layer cannot split bios :( */
+			ofs += bio->bi_iter.bi_size;
 			atomic_inc(&super->s_pending_writes);
 			submit_bio(bio);
-
-			ofs += i * PAGE_SIZE;
-			index += i;
-			nr_pages -= i;
-			i = 0;
-
-			bio = bio_alloc(GFP_NOFS, max_pages);
-			BUG_ON(!bio);
 		}
-		bio->bi_io_vec[i].bv_page = super->s_erase_page;
-		bio->bi_io_vec[i].bv_len = PAGE_SIZE;
-		bio->bi_io_vec[i].bv_offset = 0;
 	}
-	bio->bi_vcnt = nr_pages;
-	bio->bi_iter.bi_size = nr_pages * PAGE_SIZE;
-	bio->bi_bdev = super->s_bdev;
-	bio->bi_iter.bi_sector = ofs >> 9;
-	bio->bi_private = sb;
-	bio->bi_end_io = erase_end_io;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
-	atomic_inc(&super->s_pending_writes);
-	submit_bio(bio);
+	if (bio) {
+		atomic_inc(&super->s_pending_writes);
+		submit_bio(bio);
+	}
 	return 0;
 }
 

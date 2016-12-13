@@ -111,6 +111,7 @@ void blk_account_io_done(struct request *req);
 enum rq_atomic_flags {
 	REQ_ATOM_COMPLETE = 0,
 	REQ_ATOM_STARTED,
+	REQ_ATOM_POLL_SLEPT,
 };
 
 /*
@@ -130,7 +131,7 @@ static inline void blk_clear_rq_complete(struct request *rq)
 /*
  * Internal elevator interface
  */
-#define ELV_ON_HASH(rq) ((rq)->cmd_flags & REQ_HASHED)
+#define ELV_ON_HASH(rq) ((rq)->rq_flags & RQF_HASHED)
 
 void blk_insert_flush(struct request *rq);
 
@@ -247,7 +248,7 @@ extern int blk_update_nr_requests(struct request_queue *, unsigned int);
 static inline int blk_do_io_stat(struct request *rq)
 {
 	return rq->rq_disk &&
-	       (rq->cmd_flags & REQ_IO_STAT) &&
+	       (rq->rq_flags & RQF_IO_STAT) &&
 		(rq->cmd_type == REQ_TYPE_FS);
 }
 
