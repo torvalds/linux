@@ -3923,10 +3923,6 @@ void unblank_screen(void)
  */
 static void blank_screen_t(unsigned long dummy)
 {
-	if (unlikely(!keventd_up())) {
-		mod_timer(&console_timer, jiffies + (blankinterval * HZ));
-		return;
-	}
 	blank_timer_expired = 1;
 	schedule_work(&console_work);
 }
