@@ -168,7 +168,7 @@ static int m5mols_read(struct v4l2_subdev *sd, u32 size, u32 reg, u32 *val)
 	msg[1].buf = rbuf;
 
 	/* minimum stabilization time */
-	usleep_range(200, 200);
+	usleep_range(200, 300);
 
 	ret = i2c_transfer(client->adapter, msg, 2);
 
@@ -268,7 +268,8 @@ int m5mols_write(struct v4l2_subdev *sd, u32 reg, u32 val)
 
 	*buf = m5mols_swap_byte((u8 *)&val, size);
 
-	usleep_range(200, 200);
+	/* minimum stabilization time */
+	usleep_range(200, 300);
 
 	ret = i2c_transfer(client->adapter, msg, 1);
 	if (ret == 1)
