@@ -1,8 +1,8 @@
 Review checklist for kvm patches
 ================================
 
-1.  The patch must follow Documentation/CodingStyle and
-    Documentation/SubmittingPatches.
+1.  The patch must follow Documentation/process/coding-style.rst and
+    Documentation/process/submitting-patches.rst.
 
 2.  Patches should be against kvm.git master branch.
 

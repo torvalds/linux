@@ -101,6 +101,6 @@ received a notification, it will set the backlight level accordingly. This does
 not affect the sending of event to user space, they are always sent to user
 space regardless of whether or not the video module controls the backlight level
 directly. This behaviour can be controlled through the brightness_switch_enabled
-module parameter as documented in kernel-parameters.txt. It is recommended to
+module parameter as documented in admin-guide/kernel-parameters.rst. It is recommended to
 disable this behaviour once a GUI environment starts up and wants to have full
 control of the backlight level.

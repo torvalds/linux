@@ -10,6 +10,8 @@ _SPHINXDIRS   = $(patsubst $(srctree)/Documentation/%/conf.py,%,$(wildcard $(src
 SPHINX_CONF   = conf.py
 PAPER         =
 BUILDDIR      = $(obj)/output
+PDFLATEX      = xelatex
+LATEXOPTS     = -interaction=batchmode
 
 # User-friendly check for sphinx-build
 HAVE_SPHINX := $(shell if which $(SPHINXBUILD) >/dev/null 2>&1; then echo 1; else echo 0; fi)
@@ -29,7 +31,7 @@ else ifneq ($(DOCBOOKS),)
 else # HAVE_SPHINX
 
 # User-friendly check for pdflatex
-HAVE_PDFLATEX := $(shell if which xelatex >/dev/null 2>&1; then echo 1; else echo 0; fi)
+HAVE_PDFLATEX := $(shell if which $(PDFLATEX) >/dev/null 2>&1; then echo 1; else echo 0; fi)
 
 # Internal variables.
 PAPEROPT_a4     = -D latex_paper_size=a4
@@ -51,8 +53,8 @@ loop_cmd = $(echo-cmd) $(cmd_$(1))
 # $5 reST source folder relative to $(srctree)/$(src),
 #    e.g. "media" for the linux-tv book-set at ./Documentation/media
 
-quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4);
-      cmd_sphinx = $(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/media all;\
+quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4)
+      cmd_sphinx = $(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) $(build)=Documentation/media $2;\
 	BUILDDIR=$(abspath $(BUILDDIR)) SPHINX_CONF=$(abspath $(srctree)/$(src)/$5/$(SPHINX_CONF)) \
 	$(SPHINXBUILD) \
 	-b $2 \
@@ -67,16 +69,19 @@ htmldocs:
 	@$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,html,$(var),,$(var)))
 
 latexdocs:
-ifeq ($(HAVE_PDFLATEX),0)
-	$(warning The 'xelatex' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
-	@echo "  SKIP    Sphinx $@ target."
-else # HAVE_PDFLATEX
 	@$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,latex,$(var),latex,$(var)))
-endif # HAVE_PDFLATEX
+
+ifeq ($(HAVE_PDFLATEX),0)
+
+pdfdocs:
+	$(warning The '$(PDFLATEX)' command was not found. Make sure you have it installed and in PATH to produce PDF output.)
+	@echo "  SKIP    Sphinx $@ target."
+
+else # HAVE_PDFLATEX
 
 pdfdocs: latexdocs
-ifneq ($(HAVE_PDFLATEX),0)
-	$(foreach var,$(SPHINXDIRS), $(MAKE) PDFLATEX=xelatex LATEXOPTS="-interaction=nonstopmode" -C $(BUILDDIR)/$(var)/latex)
+	$(foreach var,$(SPHINXDIRS), $(MAKE) PDFLATEX=$(PDFLATEX) LATEXOPTS="$(LATEXOPTS)" -C $(BUILDDIR)/$(var)/latex;)
+
 endif # HAVE_PDFLATEX
 
 epubdocs:
@@ -93,6 +98,7 @@ installmandocs:
 
 cleandocs:
 	$(Q)rm -rf $(BUILDDIR)
+	$(Q)$(MAKE) BUILDDIR=$(abspath $(BUILDDIR)) -C Documentation/media clean
 
 endif # HAVE_SPHINX
 
