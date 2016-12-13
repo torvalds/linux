@@ -714,6 +714,8 @@ void iwl_mvm_enable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 		};
 
 		if (iwl_mvm_has_new_tx_api(mvm)) {
+			if (cmd.tid == IWL_MAX_TID_COUNT)
+				cmd.tid = IWL_MGMT_TID;
 			iwl_trans_txq_alloc(mvm->trans, (void *)&cmd,
 					    SCD_QUEUE_CFG, wdg_timeout);
 			return;
@@ -810,6 +812,8 @@ int iwl_mvm_disable_txq(struct iwl_mvm *mvm, int queue, int mac80211_queue,
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		iwl_trans_txq_free(mvm->trans, queue);
+		if (cmd.tid == IWL_MAX_TID_COUNT)
+			cmd.tid = IWL_MGMT_TID;
 		ret = iwl_mvm_send_cmd_pdu(mvm, SCD_QUEUE_CFG, flags,
 					   sizeof(cmd), &cmd);
 	} else {

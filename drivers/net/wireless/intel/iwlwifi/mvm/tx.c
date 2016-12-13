@@ -1425,7 +1425,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	if (!IS_ERR(sta)) {
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
-		if (tid != IWL_TID_NON_QOS) {
+		if (tid != IWL_TID_NON_QOS && tid != IWL_MGMT_TID) {
 			struct iwl_mvm_tid_data *tid_data =
 				&mvmsta->tid_data[tid];
 			bool send_eosp_ndp = false;
@@ -1767,8 +1767,11 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 		 * This will go together with SN and AddBA offload and cannot
 		 * be handled properly for now.
 		 */
-		WARN_ON(le16_to_cpu(ba_res->tfd_cnt) != 1);
-		iwl_mvm_tx_reclaim(mvm, sta_id, ba_res->ra_tid[0].tid,
+		WARN_ON(le16_to_cpu(ba_res->ra_tid_cnt) != 1);
+		tid = ba_res->ra_tid[0].tid;
+		if (tid == IWL_MGMT_TID)
+			tid = IWL_MAX_TID_COUNT;
+		iwl_mvm_tx_reclaim(mvm, sta_id, tid,
 				   (int)ba_res->tfd[0].q_num,
 				   le16_to_cpu(ba_res->tfd[0].tfd_index),
 				   &ba_info, le32_to_cpu(ba_res->tx_rate));

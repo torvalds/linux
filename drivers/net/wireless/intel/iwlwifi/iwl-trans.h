@@ -397,6 +397,7 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
  */
 #define IWL_MAX_HW_QUEUES		32
 #define IWL_MAX_TID_COUNT	8
+#define IWL_MGMT_TID		15
 #define IWL_FRAME_LIMIT	64
 #define IWL_MAX_RX_HW_QUEUES	16
 
