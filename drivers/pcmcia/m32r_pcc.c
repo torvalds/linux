@@ -689,10 +689,8 @@ static int __init init_m32r_pcc(void)
 		return ret;
 
 	ret = platform_device_register(&pcc_device);
-	if (ret){
-		platform_driver_unregister(&pcc_driver);
-		return ret;
-	}
+	if (ret)
+		goto unreg_driv;
 
 	printk(KERN_INFO "m32r PCC probe:\n");
 
@@ -706,9 +704,8 @@ static int __init init_m32r_pcc(void)
 
 	if (pcc_sockets == 0) {
 		printk("socket is not found.\n");
-		platform_device_unregister(&pcc_device);
-		platform_driver_unregister(&pcc_driver);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unreg_dev;
 	}
 
 	/* Set up interrupt handler(s) */
@@ -734,6 +731,12 @@ static int __init init_m32r_pcc(void)
 	}
 
 	return 0;
+
+unreg_dev:
+	platform_device_unregister(&pcc_device);
+unreg_driv:
+	platform_driver_unregister(&pcc_driver);
+	return ret;
 } /* init_m32r_pcc */
 
 static void __exit exit_m32r_pcc(void)
