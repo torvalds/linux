@@ -1140,8 +1140,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	/* Bounds check source.  */
-	if (args->offset > obj->base.size ||
-	    args->size > obj->base.size - args->offset) {
+	if (range_overflows_t(u64, args->offset, args->size, obj->base.size)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1454,8 +1453,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	/* Bounds check destination. */
-	if (args->offset > obj->base.size ||
-	    args->size > obj->base.size - args->offset) {
+	if (range_overflows_t(u64, args->offset, args->size, obj->base.size)) {
 		ret = -EINVAL;
 		goto err;
 	}
