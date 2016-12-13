@@ -496,7 +496,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
 			page = pmd_page(*pmd);
 			if (is_huge_zero_page(page)) {
 				spin_unlock(ptl);
-				split_huge_pmd(vma, pmd, addr);
+				__split_huge_pmd(vma, pmd, addr, false, NULL);
 			} else {
 				get_page(page);
 				spin_unlock(ptl);

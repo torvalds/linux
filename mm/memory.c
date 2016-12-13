@@ -1240,7 +1240,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
 			if (next - addr != HPAGE_PMD_SIZE) {
 				VM_BUG_ON_VMA(vma_is_anonymous(vma) &&
 				    !rwsem_is_locked(&tlb->mm->mmap_sem), vma);
-				split_huge_pmd(vma, pmd, addr);
+				__split_huge_pmd(vma, pmd, addr, false, NULL);
 			} else if (zap_huge_pmd(tlb, vma, pmd, addr))
 				goto next;
 			/* fall through */
@@ -3454,7 +3454,7 @@ static int wp_huge_pmd(struct fault_env *fe, pmd_t orig_pmd)
 
 	/* COW handled on pte level: split pmd */
 	VM_BUG_ON_VMA(fe->vma->vm_flags & VM_SHARED, fe->vma);
-	split_huge_pmd(fe->vma, fe->pmd, fe->address);
+	__split_huge_pmd(fe->vma, fe->pmd, fe->address, false, NULL);
 
 	return VM_FAULT_FALLBACK;
 }
