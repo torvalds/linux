@@ -240,6 +240,7 @@ int wusb_dev_sec_add(struct wusbhc *wusbhc,
 	if (new_secd == NULL) {
 		dev_err(dev,
 			"Can't allocate space for security descriptors\n");
+		result = -ENOMEM;
 		goto out;
 	}
 	secd = new_secd;

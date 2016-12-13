@@ -1,4 +1,4 @@
-* Amlogic USB2 PHY
+* Amlogic Meson8b and GXBB USB2 PHY
 
 Required properties:
 - compatible:	Depending on the platform this should be one of:
@@ -16,10 +16,10 @@ Optional properties:
 
 Example:
 
-usb0_phy: usb_phy@0 {
+usb0_phy: usb-phy@c0000000 {
 	compatible = "amlogic,meson-gxbb-usb2-phy";
 	#phy-cells = <0>;
-	reg = <0x0 0x0 0x0 0x20>;
+	reg = <0x0 0xc0000000 0x0 0x20>;
 	resets = <&reset RESET_USB_OTG>;
 	clocks = <&clkc CLKID_USB>, <&clkc CLKID_USB0>;
 	clock-names = "usb_general", "usb";

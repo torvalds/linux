@@ -62,10 +62,7 @@ struct dwc3;
 
 static inline struct dwc3_request *next_request(struct list_head *list)
 {
-	if (list_empty(list))
-		return NULL;
-
-	return list_first_entry(list, struct dwc3_request, list);
+	return list_first_entry_or_null(list, struct dwc3_request, list);
 }
 
 static inline void dwc3_gadget_move_started_request(struct dwc3_request *req)

@@ -141,7 +141,7 @@ static void exynos4210_isol(struct samsung_usb2_phy_instance *inst, bool on)
 		break;
 	default:
 		return;
-	};
+	}
 
 	regmap_update_bits(drv->reg_pmu, offset, mask, on ? 0 : mask);
 }
@@ -179,7 +179,7 @@ static void exynos4210_phy_pwr(struct samsung_usb2_phy_instance *inst, bool on)
 		rstbits =	EXYNOS_4210_URSTCON_PHY1_P1P2 |
 				EXYNOS_4210_URSTCON_HOST_LINK_P2;
 		break;
-	};
+	}
 
 	if (on) {
 		clk = readl(drv->reg_phy + EXYNOS_4210_UPHYCLK);
