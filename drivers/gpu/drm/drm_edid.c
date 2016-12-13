@@ -957,13 +957,13 @@ static const struct drm_display_mode edid_cea_modes[] = {
 		   798, 858, 0, 480, 489, 495, 525, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 	  .vrefresh = 240, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_16_9, },
-	/* 58 - 720(1440)x480i@240 */
+	/* 58 - 720(1440)x480i@240Hz */
 	{ DRM_MODE("720x480i", DRM_MODE_TYPE_DRIVER, 54000, 720, 739,
 		   801, 858, 0, 480, 488, 494, 525, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC |
 			DRM_MODE_FLAG_INTERLACE | DRM_MODE_FLAG_DBLCLK),
 	  .vrefresh = 240, .picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3, },
-	/* 59 - 720(1440)x480i@240 */
+	/* 59 - 720(1440)x480i@240Hz */
 	{ DRM_MODE("720x480i", DRM_MODE_TYPE_DRIVER, 54000, 720, 739,
 		   801, 858, 0, 480, 488, 494, 525, 0,
 		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC |
@@ -1260,6 +1260,34 @@ drm_do_probe_ddc_edid(void *data, u8 *buf, unsigned int block, size_t len)
 	return ret == xfers ? 0 : -1;
 }
 
+static void connector_bad_edid(struct drm_connector *connector,
+			       u8 *edid, int num_blocks)
+{
+	int i;
+
+	if (connector->bad_edid_counter++ && !(drm_debug & DRM_UT_KMS))
+		return;
+
+	dev_warn(connector->dev->dev,
+		 "%s: EDID is invalid:\n",
+		 connector->name);
+	for (i = 0; i < num_blocks; i++) {
+		u8 *block = edid + i * EDID_LENGTH;
+		char prefix[20];
+
+		if (drm_edid_is_zero(block, EDID_LENGTH))
+			sprintf(prefix, "\t[%02x] ZERO ", i);
+		else if (!drm_edid_block_valid(block, i, false, NULL))
+			sprintf(prefix, "\t[%02x] BAD  ", i);
+		else
+			sprintf(prefix, "\t[%02x] GOOD ", i);
+
+		print_hex_dump(KERN_WARNING,
+			       prefix, DUMP_PREFIX_NONE, 16, 1,
+			       block, EDID_LENGTH, false);
+	}
+}
+
 /**
  * drm_do_get_edid - get EDID data using a custom EDID block read function
  * @connector: connector we're probing
@@ -1282,20 +1310,19 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	void *data)
 {
 	int i, j = 0, valid_extensions = 0;
-	u8 *block, *new;
-	bool print_bad_edid = !connector->bad_edid_counter || (drm_debug & DRM_UT_KMS);
+	u8 *edid, *new;
 
-	if ((block = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
+	if ((edid = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
 		return NULL;
 
 	/* base block fetch */
 	for (i = 0; i < 4; i++) {
-		if (get_edid_block(data, block, 0, EDID_LENGTH))
+		if (get_edid_block(data, edid, 0, EDID_LENGTH))
 			goto out;
-		if (drm_edid_block_valid(block, 0, print_bad_edid,
+		if (drm_edid_block_valid(edid, 0, false,
 					 &connector->edid_corrupt))
 			break;
-		if (i == 0 && drm_edid_is_zero(block, EDID_LENGTH)) {
+		if (i == 0 && drm_edid_is_zero(edid, EDID_LENGTH)) {
 			connector->null_edid_counter++;
 			goto carp;
 		}
@@ -1304,58 +1331,62 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 		goto carp;
 
 	/* if there's no extensions, we're done */
-	if (block[0x7e] == 0)
-		return (struct edid *)block;
+	valid_extensions = edid[0x7e];
+	if (valid_extensions == 0)
+		return (struct edid *)edid;
 
-	new = krealloc(block, (block[0x7e] + 1) * EDID_LENGTH, GFP_KERNEL);
+	new = krealloc(edid, (valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
 	if (!new)
 		goto out;
-	block = new;
+	edid = new;
 
-	for (j = 1; j <= block[0x7e]; j++) {
+	for (j = 1; j <= edid[0x7e]; j++) {
+		u8 *block = edid + j * EDID_LENGTH;
+
 		for (i = 0; i < 4; i++) {
-			if (get_edid_block(data,
-				  block + (valid_extensions + 1) * EDID_LENGTH,
-				  j, EDID_LENGTH))
+			if (get_edid_block(data, block, j, EDID_LENGTH))
 				goto out;
-			if (drm_edid_block_valid(block + (valid_extensions + 1)
-						 * EDID_LENGTH, j,
-						 print_bad_edid,
-						 NULL)) {
-				valid_extensions++;
+			if (drm_edid_block_valid(block, j, false, NULL))
 				break;
-			}
 		}
 
-		if (i == 4 && print_bad_edid) {
-			dev_warn(connector->dev->dev,
-			 "%s: Ignoring invalid EDID block %d.\n",
-			 connector->name, j);
-
-			connector->bad_edid_counter++;
-		}
+		if (i == 4)
+			valid_extensions--;
 	}
 
-	if (valid_extensions != block[0x7e]) {
-		block[EDID_LENGTH-1] += block[0x7e] - valid_extensions;
-		block[0x7e] = valid_extensions;
-		new = krealloc(block, (valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
+	if (valid_extensions != edid[0x7e]) {
+		u8 *base;
+
+		connector_bad_edid(connector, edid, edid[0x7e] + 1);
+
+		edid[EDID_LENGTH-1] += edid[0x7e] - valid_extensions;
+		edid[0x7e] = valid_extensions;
+
+		new = kmalloc((valid_extensions + 1) * EDID_LENGTH, GFP_KERNEL);
 		if (!new)
 			goto out;
-		block = new;
+
+		base = new;
+		for (i = 0; i <= edid[0x7e]; i++) {
+			u8 *block = edid + i * EDID_LENGTH;
+
+			if (!drm_edid_block_valid(block, i, false, NULL))
+				continue;
+
+			memcpy(base, block, EDID_LENGTH);
+			base += EDID_LENGTH;
+		}
+
+		kfree(edid);
+		edid = new;
 	}
 
-	return (struct edid *)block;
+	return (struct edid *)edid;
 
 carp:
-	if (print_bad_edid) {
-		dev_warn(connector->dev->dev, "%s: EDID block %d invalid.\n",
-			 connector->name, j);
-	}
-	connector->bad_edid_counter++;
-
+	connector_bad_edid(connector, edid, 1);
 out:
-	kfree(block);
+	kfree(edid);
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(drm_do_get_edid);
@@ -2582,6 +2613,41 @@ cea_mode_alternate_clock(const struct drm_display_mode *cea_mode)
 	return clock;
 }
 
+static bool
+cea_mode_alternate_timings(u8 vic, struct drm_display_mode *mode)
+{
+	/*
+	 * For certain VICs the spec allows the vertical
+	 * front porch to vary by one or two lines.
+	 *
+	 * cea_modes[] stores the variant with the shortest
+	 * vertical front porch. We can adjust the mode to
+	 * get the other variants by simply increasing the
+	 * vertical front porch length.
+	 */
+	BUILD_BUG_ON(edid_cea_modes[8].vtotal != 262 ||
+		     edid_cea_modes[9].vtotal != 262 ||
+		     edid_cea_modes[12].vtotal != 262 ||
+		     edid_cea_modes[13].vtotal != 262 ||
+		     edid_cea_modes[23].vtotal != 312 ||
+		     edid_cea_modes[24].vtotal != 312 ||
+		     edid_cea_modes[27].vtotal != 312 ||
+		     edid_cea_modes[28].vtotal != 312);
+
+	if (((vic == 8 || vic == 9 ||
+	      vic == 12 || vic == 13) && mode->vtotal < 263) ||
+	    ((vic == 23 || vic == 24 ||
+	      vic == 27 || vic == 28) && mode->vtotal < 314)) {
+		mode->vsync_start++;
+		mode->vsync_end++;
+		mode->vtotal++;
+
+		return true;
+	}
+
+	return false;
+}
+
 static u8 drm_match_cea_mode_clock_tolerance(const struct drm_display_mode *to_match,
 					     unsigned int clock_tolerance)
 {
@@ -2591,19 +2657,21 @@ static u8 drm_match_cea_mode_clock_tolerance(const struct drm_display_mode *to_m
 		return 0;
 
 	for (vic = 1; vic < ARRAY_SIZE(edid_cea_modes); vic++) {
-		const struct drm_display_mode *cea_mode = &edid_cea_modes[vic];
+		struct drm_display_mode cea_mode = edid_cea_modes[vic];
 		unsigned int clock1, clock2;
 
 		/* Check both 60Hz and 59.94Hz */
-		clock1 = cea_mode->clock;
-		clock2 = cea_mode_alternate_clock(cea_mode);
+		clock1 = cea_mode.clock;
+		clock2 = cea_mode_alternate_clock(&cea_mode);
 
 		if (abs(to_match->clock - clock1) > clock_tolerance &&
 		    abs(to_match->clock - clock2) > clock_tolerance)
 			continue;
 
-		if (drm_mode_equal_no_clocks(to_match, cea_mode))
-			return vic;
+		do {
+			if (drm_mode_equal_no_clocks_no_stereo(to_match, &cea_mode))
+				return vic;
+		} while (cea_mode_alternate_timings(vic, &cea_mode));
 	}
 
 	return 0;
@@ -2624,18 +2692,23 @@ u8 drm_match_cea_mode(const struct drm_display_mode *to_match)
 		return 0;
 
 	for (vic = 1; vic < ARRAY_SIZE(edid_cea_modes); vic++) {
-		const struct drm_display_mode *cea_mode = &edid_cea_modes[vic];
+		struct drm_display_mode cea_mode = edid_cea_modes[vic];
 		unsigned int clock1, clock2;
 
 		/* Check both 60Hz and 59.94Hz */
-		clock1 = cea_mode->clock;
-		clock2 = cea_mode_alternate_clock(cea_mode);
+		clock1 = cea_mode.clock;
+		clock2 = cea_mode_alternate_clock(&cea_mode);
 
-		if ((KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock1) ||
-		     KHZ2PICOS(to_match->clock) == KHZ2PICOS(clock2)) &&
-		    drm_mode_equal_no_clocks_no_stereo(to_match, cea_mode))
-			return vic;
+		if (KHZ2PICOS(to_match->clock) != KHZ2PICOS(clock1) &&
+		    KHZ2PICOS(to_match->clock) != KHZ2PICOS(clock2))
+			continue;
+
+		do {
+			if (drm_mode_equal_no_clocks_no_stereo(to_match, &cea_mode))
+				return vic;
+		} while (cea_mode_alternate_timings(vic, &cea_mode));
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL(drm_match_cea_mode);
@@ -3578,32 +3651,6 @@ int drm_av_sync_delay(struct drm_connector *connector,
 	return max(v - a, 0);
 }
 EXPORT_SYMBOL(drm_av_sync_delay);
-
-/**
- * drm_select_eld - select one ELD from multiple HDMI/DP sinks
- * @encoder: the encoder just changed display mode
- *
- * It's possible for one encoder to be associated with multiple HDMI/DP sinks.
- * The policy is now hard coded to simply use the first HDMI/DP sink's ELD.
- *
- * Return: The connector associated with the first HDMI/DP sink that has ELD
- * attached to it.
- */
-struct drm_connector *drm_select_eld(struct drm_encoder *encoder)
-{
-	struct drm_connector *connector;
-	struct drm_device *dev = encoder->dev;
-
-	WARN_ON(!mutex_is_locked(&dev->mode_config.mutex));
-	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
-
-	drm_for_each_connector(connector, dev)
-		if (connector->encoder == encoder && connector->eld[0])
-			return connector;
-
-	return NULL;
-}
-EXPORT_SYMBOL(drm_select_eld);
 
 /**
  * drm_detect_hdmi_monitor - detect whether monitor is HDMI

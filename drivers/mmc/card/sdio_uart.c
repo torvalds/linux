@@ -135,8 +135,6 @@ static void sdio_uart_port_remove(struct sdio_uart_port *port)
 {
 	struct sdio_func *func;
 
-	BUG_ON(sdio_uart_table[port->index] != port);
-
 	spin_lock(&sdio_uart_table_lock);
 	sdio_uart_table[port->index] = NULL;
 	spin_unlock(&sdio_uart_table_lock);

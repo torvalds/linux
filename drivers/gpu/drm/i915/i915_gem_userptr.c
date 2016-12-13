@@ -61,33 +61,26 @@ struct i915_mmu_object {
 	bool attached;
 };
 
-static void wait_rendering(struct drm_i915_gem_object *obj)
-{
-	unsigned long active = __I915_BO_ACTIVE(obj);
-	int idx;
-
-	for_each_active(active, idx)
-		i915_gem_active_wait_unlocked(&obj->last_read[idx],
-					      0, NULL, NULL);
-}
-
 static void cancel_userptr(struct work_struct *work)
 {
 	struct i915_mmu_object *mo = container_of(work, typeof(*mo), work);
 	struct drm_i915_gem_object *obj = mo->obj;
 	struct drm_device *dev = obj->base.dev;
 
-	wait_rendering(obj);
+	i915_gem_object_wait(obj, I915_WAIT_ALL, MAX_SCHEDULE_TIMEOUT, NULL);
 
 	mutex_lock(&dev->struct_mutex);
 	/* Cancel any active worker and force us to re-evaluate gup */
 	obj->userptr.work = NULL;
 
-	if (obj->pages != NULL) {
-		/* We are inside a kthread context and can't be interrupted */
-		WARN_ON(i915_gem_object_unbind(obj));
-		WARN_ON(i915_gem_object_put_pages(obj));
-	}
+	/* We are inside a kthread context and can't be interrupted */
+	if (i915_gem_object_unbind(obj) == 0)
+		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+	WARN_ONCE(obj->mm.pages,
+		  "Failed to release pages: bind_count=%d, pages_pin_count=%d, pin_display=%d\n",
+		  obj->bind_count,
+		  atomic_read(&obj->mm.pages_pin_count),
+		  obj->pin_display);
 
 	i915_gem_object_put(obj);
 	mutex_unlock(&dev->struct_mutex);
@@ -436,24 +429,25 @@ err:
 	return ret;
 }
 
-static int
+static struct sg_table *
 __i915_gem_userptr_set_pages(struct drm_i915_gem_object *obj,
 			     struct page **pvec, int num_pages)
 {
+	struct sg_table *pages;
 	int ret;
 
-	ret = st_set_pages(&obj->pages, pvec, num_pages);
+	ret = st_set_pages(&pages, pvec, num_pages);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
-	ret = i915_gem_gtt_prepare_object(obj);
+	ret = i915_gem_gtt_prepare_pages(obj, pages);
 	if (ret) {
-		sg_free_table(obj->pages);
-		kfree(obj->pages);
-		obj->pages = NULL;
+		sg_free_table(pages);
+		kfree(pages);
+		return ERR_PTR(ret);
 	}
 
-	return ret;
+	return pages;
 }
 
 static int
@@ -497,7 +491,6 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 {
 	struct get_pages_work *work = container_of(_work, typeof(*work), work);
 	struct drm_i915_gem_object *obj = work->obj;
-	struct drm_device *dev = obj->base.dev;
 	const int npages = obj->base.size >> PAGE_SHIFT;
 	struct page **pvec;
 	int pinned, ret;
@@ -533,33 +526,32 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 		}
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&obj->mm.lock);
 	if (obj->userptr.work == &work->work) {
+		struct sg_table *pages = ERR_PTR(ret);
+
 		if (pinned == npages) {
-			ret = __i915_gem_userptr_set_pages(obj, pvec, npages);
-			if (ret == 0) {
-				list_add_tail(&obj->global_list,
-					      &to_i915(dev)->mm.unbound_list);
-				obj->get_page.sg = obj->pages->sgl;
-				obj->get_page.last = 0;
+			pages = __i915_gem_userptr_set_pages(obj, pvec, npages);
+			if (!IS_ERR(pages)) {
+				__i915_gem_object_set_pages(obj, pages);
 				pinned = 0;
+				pages = NULL;
 			}
 		}
-		obj->userptr.work = ERR_PTR(ret);
-	}
 
-	obj->userptr.workers--;
-	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
+		obj->userptr.work = ERR_CAST(pages);
+	}
+	mutex_unlock(&obj->mm.lock);
 
 	release_pages(pvec, pinned, 0);
 	drm_free_large(pvec);
 
+	i915_gem_object_put(obj);
 	put_task_struct(work->task);
 	kfree(work);
 }
 
-static int
+static struct sg_table *
 __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj,
 				      bool *active)
 {
@@ -584,15 +576,11 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj,
 	 * that error back to this function through
 	 * obj->userptr.work = ERR_PTR.
 	 */
-	if (obj->userptr.workers >= I915_GEM_USERPTR_MAX_WORKERS)
-		return -EAGAIN;
-
 	work = kmalloc(sizeof(*work), GFP_KERNEL);
 	if (work == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	obj->userptr.work = &work->work;
-	obj->userptr.workers++;
 
 	work->obj = i915_gem_object_get(obj);
 
@@ -603,14 +591,15 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj,
 	schedule_work(&work->work);
 
 	*active = true;
-	return -EAGAIN;
+	return ERR_PTR(-EAGAIN);
 }
 
-static int
+static struct sg_table *
 i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 {
 	const int num_pages = obj->base.size >> PAGE_SHIFT;
 	struct page **pvec;
+	struct sg_table *pages;
 	int pinned, ret;
 	bool active;
 
@@ -634,15 +623,15 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	if (obj->userptr.work) {
 		/* active flag should still be held for the pending work */
 		if (IS_ERR(obj->userptr.work))
-			return PTR_ERR(obj->userptr.work);
+			return ERR_CAST(obj->userptr.work);
 		else
-			return -EAGAIN;
+			return ERR_PTR(-EAGAIN);
 	}
 
 	/* Let the mmu-notifier know that we have begun and need cancellation */
 	ret = __i915_gem_userptr_set_active(obj, true);
 	if (ret)
-		return ret;
+		return ERR_PTR(ret);
 
 	pvec = NULL;
 	pinned = 0;
@@ -651,7 +640,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 				      GFP_TEMPORARY);
 		if (pvec == NULL) {
 			__i915_gem_userptr_set_active(obj, false);
-			return -ENOMEM;
+			return ERR_PTR(-ENOMEM);
 		}
 
 		pinned = __get_user_pages_fast(obj->userptr.ptr, num_pages,
@@ -660,21 +649,22 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 
 	active = false;
 	if (pinned < 0)
-		ret = pinned, pinned = 0;
+		pages = ERR_PTR(pinned), pinned = 0;
 	else if (pinned < num_pages)
-		ret = __i915_gem_userptr_get_pages_schedule(obj, &active);
+		pages = __i915_gem_userptr_get_pages_schedule(obj, &active);
 	else
-		ret = __i915_gem_userptr_set_pages(obj, pvec, num_pages);
-	if (ret) {
+		pages = __i915_gem_userptr_set_pages(obj, pvec, num_pages);
+	if (IS_ERR(pages)) {
 		__i915_gem_userptr_set_active(obj, active);
 		release_pages(pvec, pinned, 0);
 	}
 	drm_free_large(pvec);
-	return ret;
+	return pages;
 }
 
 static void
-i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj)
+i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
+			   struct sg_table *pages)
 {
 	struct sgt_iter sgt_iter;
 	struct page *page;
@@ -682,22 +672,22 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj)
 	BUG_ON(obj->userptr.work != NULL);
 	__i915_gem_userptr_set_active(obj, false);
 
-	if (obj->madv != I915_MADV_WILLNEED)
-		obj->dirty = 0;
+	if (obj->mm.madv != I915_MADV_WILLNEED)
+		obj->mm.dirty = false;
 
-	i915_gem_gtt_finish_object(obj);
+	i915_gem_gtt_finish_pages(obj, pages);
 
-	for_each_sgt_page(page, sgt_iter, obj->pages) {
-		if (obj->dirty)
+	for_each_sgt_page(page, sgt_iter, pages) {
+		if (obj->mm.dirty)
 			set_page_dirty(page);
 
 		mark_page_accessed(page);
 		put_page(page);
 	}
-	obj->dirty = 0;
+	obj->mm.dirty = false;
 
-	sg_free_table(obj->pages);
-	kfree(obj->pages);
+	sg_free_table(pages);
+	kfree(pages);
 }
 
 static void
@@ -717,7 +707,8 @@ i915_gem_userptr_dmabuf_export(struct drm_i915_gem_object *obj)
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
-	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE,
+	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
+		 I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = i915_gem_userptr_get_pages,
 	.put_pages = i915_gem_userptr_put_pages,
 	.dmabuf_export = i915_gem_userptr_dmabuf_export,
@@ -762,12 +753,13 @@ static const struct drm_i915_gem_object_ops i915_gem_userptr_ops = {
 int
 i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 {
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_userptr *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
 	u32 handle;
 
-	if (!HAS_LLC(dev) && !HAS_SNOOP(dev)) {
+	if (!HAS_LLC(dev_priv) && !HAS_SNOOP(dev_priv)) {
 		/* We cannot support coherent userptr objects on hw without
 		 * LLC and broken snooping.
 		 */
@@ -816,7 +808,7 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 		ret = drm_gem_handle_create(file, &obj->base, &handle);
 
 	/* drop reference from allocate - handle holds it now */
-	i915_gem_object_put_unlocked(obj);
+	i915_gem_object_put(obj);
 	if (ret)
 		return ret;
 

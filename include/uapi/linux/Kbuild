@@ -426,6 +426,7 @@ header-y += udp.h
 header-y += uhid.h
 header-y += uinput.h
 header-y += uio.h
+header-y += uleds.h
 header-y += ultrasound.h
 header-y += un.h
 header-y += unistd.h
