@@ -37,8 +37,8 @@ int nvkm_client_notify_put(struct nvkm_client *, int index);
 
 /* logging for client-facing objects */
 #define nvif_printk(o,l,p,f,a...) do {                                         \
-	struct nvkm_object *_object = (o);                                     \
-	struct nvkm_client *_client = _object->client;                         \
+	const struct nvkm_object *_object = (o);                               \
+	const struct nvkm_client *_client = _object->client;                   \
 	if (_client->debug >= NV_DBG_##l)                                      \
 		printk(KERN_##p "nouveau: %s:%08x:%08x: "f, _client->name,     \
 		       _object->handle, _object->oclass, ##a);                 \
