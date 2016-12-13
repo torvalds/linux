@@ -129,7 +129,7 @@ unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 }
 
 unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
-				struct invalidate_command_table *inv_tbl,
+				struct invldt_cmd_tbl *inv_tbl,
 				unsigned int num_invalidate, unsigned int cid,
 				struct be_dma_mem *nonemb_cmd)
 
@@ -137,8 +137,11 @@ unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
 	struct be_sge *sge;
-	struct invalidate_commands_params_in *req;
+	struct invldt_cmds_params_in *req;
 	unsigned int i, tag;
+
+	if (num_invalidate > BE_INVLDT_CMD_TBL_SZ)
+		return 0;
 
 	mutex_lock(&ctrl->mbox_lock);
 	wrb = alloc_mcc_wrb(phba, &tag);
@@ -158,10 +161,9 @@ unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 	req->ref_handle = 0;
 	req->cleanup_type = CMD_ISCSI_COMMAND_INVALIDATE;
 	for (i = 0; i < num_invalidate; i++) {
-		req->table[i].icd = inv_tbl->icd;
-		req->table[i].cid = inv_tbl->cid;
+		req->table[i].icd = inv_tbl[i].icd;
+		req->table[i].cid = inv_tbl[i].cid;
 		req->icd_count++;
-		inv_tbl++;
 	}
 	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
 	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);

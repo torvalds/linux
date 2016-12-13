@@ -104,10 +104,6 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 unsigned int mgmt_upload_connection(struct beiscsi_hba *phba,
 				     unsigned short cid,
 				     unsigned int upload_flag);
-unsigned int mgmt_invalidate_icds(struct beiscsi_hba *phba,
-				struct invalidate_command_table *inv_tbl,
-				unsigned int num_invalidate, unsigned int cid,
-				struct be_dma_mem *nonemb_cmd);
 unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
 					 struct beiscsi_hba *phba,
 					 struct bsg_job *job,
@@ -134,24 +130,31 @@ union iscsi_invalidate_connection_params {
 	struct iscsi_invalidate_connection_params_out response;
 } __packed;
 
-struct invalidate_commands_params_in {
+#define BE_INVLDT_CMD_TBL_SZ	128
+struct invldt_cmd_tbl {
+	unsigned short icd;
+	unsigned short cid;
+} __packed;
+
+struct invldt_cmds_params_in {
 	struct be_cmd_req_hdr hdr;
 	unsigned int ref_handle;
 	unsigned int icd_count;
-	struct invalidate_command_table table[128];
+	struct invldt_cmd_tbl table[BE_INVLDT_CMD_TBL_SZ];
 	unsigned short cleanup_type;
 	unsigned short unused;
 } __packed;
 
-struct invalidate_commands_params_out {
+struct invldt_cmds_params_out {
+	struct be_cmd_resp_hdr hdr;
 	unsigned int ref_handle;
 	unsigned int icd_count;
-	unsigned int icd_status[128];
+	unsigned int icd_status[BE_INVLDT_CMD_TBL_SZ];
 } __packed;
 
-union invalidate_commands_params {
-	struct invalidate_commands_params_in request;
-	struct invalidate_commands_params_out response;
+union be_invldt_cmds_params {
+	struct invldt_cmds_params_in request;
+	struct invldt_cmds_params_out response;
 } __packed;
 
 struct mgmt_hba_attributes {
@@ -231,16 +234,6 @@ struct be_bsg_vendor_cmd {
 
 #define GET_MGMT_CONTROLLER_WS(phba)    (phba->pmgmt_ws)
 
-/* MGMT CMD flags */
-
-#define MGMT_CMDH_FREE                (1<<0)
-
-/*  --- MGMT_ERROR_CODES --- */
-/*  Error Codes returned in the status field of the CMD response header */
-#define MGMT_STATUS_SUCCESS 0	/* The CMD completed without errors */
-#define MGMT_STATUS_FAILED 1	/* Error status in the Status field of */
-				/* the CMD_RESPONSE_HEADER  */
-
 #define ISCSI_GET_PDU_TEMPLATE_ADDRESS(pc, pa) {\
 	pa->lo = phba->init_mem[ISCSI_MEM_GLOBAL_HEADER].mem_array[0].\
 					bus_address.u.a32.address_lo;  \
@@ -264,6 +257,11 @@ struct beiscsi_endpoint {
 	u16 dst_tcpport;
 	u16 cid_vld;
 };
+
+unsigned int mgmt_invalidate_icds(struct beiscsi_hba *phba,
+				struct invldt_cmd_tbl *inv_tbl,
+				unsigned int num_invalidate, unsigned int cid,
+				struct be_dma_mem *nonemb_cmd);
 
 unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 struct beiscsi_endpoint *beiscsi_ep,

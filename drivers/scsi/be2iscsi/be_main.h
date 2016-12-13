@@ -57,7 +57,6 @@
 
 #define BE2_IO_DEPTH		1024
 #define BE2_MAX_SESSIONS	256
-#define BE2_CMDS_PER_CXN	128
 #define BE2_TMFS		16
 #define BE2_NOPOUT_REQ		16
 #define BE2_SGE			32
@@ -72,8 +71,13 @@
 
 #define BEISCSI_SGLIST_ELEMENTS	30
 
-#define BEISCSI_CMD_PER_LUN	128 /* scsi_host->cmd_per_lun */
-#define BEISCSI_MAX_SECTORS	1024 /* scsi_host->max_sectors */
+/**
+ * BE_INVLDT_CMD_TBL_SZ is 128 which is total number commands that can
+ * be invalidated at a time, consider it before changing the value of
+ * BEISCSI_CMD_PER_LUN.
+ */
+#define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
+#define BEISCSI_MAX_SECTORS	1024	/* scsi_host->max_sectors */
 #define BEISCSI_TEMPLATE_HDR_PER_CXN_SIZE 128 /* Template size per cxn */
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
@@ -272,11 +276,6 @@ struct hba_parameters {
 	unsigned int num_sge;
 };
 
-struct invalidate_command_table {
-	unsigned short icd;
-	unsigned short cid;
-} __packed;
-
 #define BEISCSI_GET_ULP_FROM_CRI(phwi_ctrlr, cri) \
 	(phwi_ctrlr->wrb_context[cri].ulp_num)
 struct hwi_wrb_context {
@@ -430,7 +429,6 @@ struct beiscsi_hba {
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
 	unsigned int interface_handle;
-	struct invalidate_command_table inv_tbl[128];
 
 	struct be_aic_obj aic_obj[MAX_CPUS];
 	unsigned int attr_log_enable;
