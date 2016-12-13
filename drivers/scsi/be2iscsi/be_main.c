@@ -2747,7 +2747,7 @@ static int hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 
 	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
 		if (test_bit(ulp_num, &phba->fw_config.ulp_supported)) {
-			 /* get async_ctx for each ULP */
+			/* get async_ctx for each ULP */
 			mem_descr = (struct be_mem_descriptor *)phba->init_mem;
 			mem_descr += (HWI_MEM_ASYNC_PDU_CONTEXT_ULP0 +
 				     (ulp_num * MEM_DESCR_OFFSET));
@@ -3814,7 +3814,6 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 			/**
 			 * Now that the default PDU rings have been created,
 			 * let EP know about it.
-			 * Call beiscsi_cmd_iscsi_cleanup before posting?
 			 */
 			beiscsi_hdq_post_handles(phba, BEISCSI_DEFQ_HDR,
 						 ulp_num);
