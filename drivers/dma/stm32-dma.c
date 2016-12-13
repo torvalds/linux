@@ -403,6 +403,13 @@ static int stm32_dma_terminate_all(struct dma_chan *c)
 	return 0;
 }
 
+static void stm32_dma_synchronize(struct dma_chan *c)
+{
+	struct stm32_dma_chan *chan = to_stm32_dma_chan(c);
+
+	vchan_synchronize(&chan->vchan);
+}
+
 static void stm32_dma_dump_reg(struct stm32_dma_chan *chan)
 {
 	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
@@ -1066,6 +1073,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 	dd->device_prep_dma_cyclic = stm32_dma_prep_dma_cyclic;
 	dd->device_config = stm32_dma_slave_config;
 	dd->device_terminate_all = stm32_dma_terminate_all;
+	dd->device_synchronize = stm32_dma_synchronize;
 	dd->src_addr_widths = BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) |
 		BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |
 		BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
