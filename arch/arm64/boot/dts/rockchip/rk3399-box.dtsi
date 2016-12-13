@@ -112,13 +112,6 @@
 		#clock-cells = <0>;
 	};
 
-	pmu-io-domains {
-		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
-		rockchip,grf = <&pmugrf>;
-
-		pmu1830-supply = <&vcc_1v8>;
-	};
-
 	spdif-sound {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -860,3 +853,9 @@
 &pmu_pvtm {
 	status = "okay";
 };
+
+&pmu_io_domains {
+	status = "okay";
+	pmu1830-supply = <&vcc_1v8>;
+};
+

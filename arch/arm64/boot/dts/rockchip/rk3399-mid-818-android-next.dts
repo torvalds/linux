@@ -158,13 +158,6 @@
 		regulator-boot-on;
 	};
 
-	pmu-io-domains {
-		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
-		rockchip,grf = <&pmugrf>;
-
-		pmu1830-supply = <&vcc_1v8>;
-	};
-
 	es8316-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
@@ -1007,6 +1000,11 @@
 			};
 		};
 	};
+};
+
+&pmu_io_domains {
+	status = "okay";
+	pmu1830-supply = <&vcc_1v8>;
 };
 
 &route_edp {

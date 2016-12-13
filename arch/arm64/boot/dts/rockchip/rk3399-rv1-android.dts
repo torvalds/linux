@@ -98,12 +98,6 @@
 		};
 	};
 
-	pmu-io-domains {
-		compatible = "rockchip,rk3399-pmu-io-voltage-domain";
-		rockchip,grf = <&pmugrf>;
-		pmu1830-supply = <&vcc_1v8>;
-	};
-
 	dw_hdmi_audio: dw-hdmi-audio {
 		status = "okay";
 		compatible = "rockchip,dw-hdmi-audio";
@@ -681,6 +675,11 @@
 &gpu {
 	status = "okay";
 	mali-supply = <&vdd_gpu>;
+};
+
+&pmu_io_domains {
+	status = "okay";
+	pmu1830-supply = <&vcc_1v8>;
 };
 
 &pinctrl {
