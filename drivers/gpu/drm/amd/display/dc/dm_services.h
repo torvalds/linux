@@ -282,38 +282,6 @@ bool dm_pp_get_static_clocks(
 
 /****** end of PP interfaces ******/
 
-enum platform_method {
-	PM_GET_AVAILABLE_METHODS = 1 << 0,
-	PM_GET_LID_STATE = 1 << 1,
-	PM_GET_EXTENDED_BRIGHNESS_CAPS = 1 << 2
-};
-
-struct platform_info_params {
-	enum platform_method method;
-	void *data;
-};
-
-struct platform_info_brightness_caps {
-	uint8_t ac_level_percentage;
-	uint8_t dc_level_percentage;
-};
-
-struct platform_info_ext_brightness_caps {
-	struct platform_info_brightness_caps basic_caps;
-	struct data_point {
-		uint8_t luminance;
-		uint8_t	signal_level;
-	} data_points[99];
-
-	uint8_t	data_points_num;
-	uint8_t	min_input_signal;
-	uint8_t	max_input_signal;
-};
-
-bool dm_get_platform_info(
-	struct dc_context *ctx,
-	struct platform_info_params *params);
-
 struct persistent_data_flag {
 	bool save_per_link;
 	bool save_per_edid;

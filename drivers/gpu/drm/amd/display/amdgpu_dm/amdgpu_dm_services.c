@@ -77,13 +77,6 @@ void dal_isr_release_lock(struct dc_context *ctx)
  * End-of-IRQ Interfaces.
  *****************************************************************************/
 
-bool dm_get_platform_info(struct dc_context *ctx,
-			struct platform_info_params *params)
-{
-	/*TODO*/
-	return false;
-}
-
 bool dm_write_persistent_data(struct dc_context *ctx,
 		const struct dc_sink *sink,
 		const char *module_name,
