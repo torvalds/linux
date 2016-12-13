@@ -59,6 +59,8 @@
 	};
 };
 
+/* XHCI, MMC, and Ethernet support needed to be complete */
+
 &i2c0 {
 	temperature-sensor@4c {
 		compatible = "adi,adt7461a";
@@ -115,18 +117,21 @@
 	};
 };
 
-/* XHCI, MMC, and Ethernet support needed to be complete */
-
-&uart0 {
-	status = "okay";
-};
-
 &pcie0 {
 	status = "okay";
 };
 
 &pcie1 {
 	status = "okay";
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&nand_sel>;
+	nand_sel: nand_sel {
+		function = "nand";
+		groups = "nand_grp";
+	};
 };
 
 &sata_phy0 {
@@ -141,11 +146,6 @@
 	status = "okay";
 };
 
-&pinctrl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&nand_sel>;
-	nand_sel: nand_sel {
-		function = "nand";
-		groups = "nand_grp";
-	};
+&uart0 {
+	status = "okay";
 };

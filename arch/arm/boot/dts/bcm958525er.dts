@@ -65,7 +65,6 @@
 	status = "okay";
 };
 
-
 &amac1 {
 	status = "okay";
 };

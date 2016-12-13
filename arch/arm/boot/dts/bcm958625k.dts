@@ -53,43 +53,11 @@
 	};
 };
 
-&uart0 {
-	status = "okay";
-};
-
-&uart1 {
-	status = "okay";
-};
-
 &amac0 {
 	status = "okay";
 };
 
 &amac1 {
-	status = "okay";
-};
-
-&pcie0 {
-	status = "okay";
-};
-
-&pcie1 {
-	status = "okay";
-};
-
-&pcie2 {
-	status = "okay";
-};
-
-&sata_phy0 {
-	status = "okay";
-};
-
-&sata_phy1 {
-	status = "okay";
-};
-
-&sata {
 	status = "okay";
 };
 
@@ -129,6 +97,18 @@
 			reg = <0x04000000 0x3c000000>;
 		};
 	};
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};
+
+&pcie2 {
+	status = "okay";
 };
 
 &pinctrl {
@@ -172,4 +152,24 @@
 			reg = <0x00700000 0x01900000>;
 		};
 	};
+};
+
+&sata_phy0 {
+	status = "okay";
+};
+
+&sata_phy1 {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
 };

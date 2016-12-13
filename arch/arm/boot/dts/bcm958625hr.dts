@@ -1,7 +1,7 @@
 /*
  *  BSD LICENSE
  *
- *  Copyright (c) 2016 Broadcom.  All rights reserved.
+ *  Copyright(c) 2016 Broadcom.  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
@@ -59,6 +59,10 @@
 	};
 };
 
+&amac0 {
+	status = "okay";
+};
+
 &nand {
 	nandcs@0 {
 		compatible = "brcm,nandcs";
@@ -97,10 +101,6 @@
 	};
 };
 
-&uart0 {
-	status = "okay";
-};
-
 &pcie0 {
 	status = "okay";
 };
@@ -118,7 +118,15 @@
 	};
 };
 
-&amac0 {
+&sata_phy0 {
+	status = "okay";
+};
+
+&sata_phy1 {
+	status = "okay";
+};
+
+&sata {
 	status = "okay";
 };
 
@@ -167,14 +175,6 @@
 	};
 };
 
-&sata_phy0 {
-	status = "okay";
-};
-
-&sata_phy1 {
-	status = "okay";
-};
-
-&sata {
+&uart0 {
 	status = "okay";
 };

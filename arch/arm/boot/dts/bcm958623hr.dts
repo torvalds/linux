@@ -120,6 +120,14 @@
 	};
 };
 
+&sata_phy0 {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
 &srab {
 	compatible = "brcm,bcm58623-srab", "brcm,nsp-srab";
 	status = "okay";
@@ -163,14 +171,6 @@
 			};
 		};
 	};
-};
-
-&sata_phy0 {
-	status = "okay";
-};
-
-&sata {
-	status = "okay";
 };
 
 &uart0 {
