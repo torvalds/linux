@@ -22,7 +22,7 @@
 #include <linux/types.h>
 #include <linux/sem.h>
 #include <linux/bitmap.h>
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
 #include <linux/lightnvm.h>
 #include <linux/sched/sysctl.h>
@@ -1129,10 +1129,4 @@ static struct miscdevice _nvm_misc = {
 	.nodename	= "lightnvm/control",
 	.fops		= &_ctl_fops,
 };
-module_misc_device(_nvm_misc);
-
-MODULE_ALIAS_MISCDEV(MISC_DYNAMIC_MINOR);
-
-MODULE_AUTHOR("Matias Bjorling <m@bjorling.me>");
-MODULE_LICENSE("GPL v2");
-MODULE_VERSION("0.1");
+builtin_misc_device(_nvm_misc);

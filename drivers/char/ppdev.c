@@ -86,6 +86,9 @@ struct pp_struct {
 	long default_inactivity;
 };
 
+/* should we use PARDEVICE_MAX here? */
+static struct device *devices[PARPORT_MAX];
+
 /* pp_struct.flags bitfields */
 #define PP_CLAIMED    (1<<0)
 #define PP_EXCL       (1<<1)
@@ -294,7 +297,7 @@ static int register_device(int minor, struct pp_struct *pp)
 
 	port = parport_find_number(minor);
 	if (!port) {
-		printk(KERN_WARNING "%s: no associated port!\n", name);
+		pr_warn("%s: no associated port!\n", name);
 		kfree(name);
 		return -ENXIO;
 	}
@@ -305,10 +308,10 @@ static int register_device(int minor, struct pp_struct *pp)
 	ppdev_cb.private = pp;
 	pdev = parport_register_dev_model(port, name, &ppdev_cb, minor);
 	parport_put_port(port);
+	kfree(name);
 
 	if (!pdev) {
-		printk(KERN_WARNING "%s: failed to register device!\n", name);
-		kfree(name);
+		pr_warn("%s: failed to register device!\n", name);
 		return -ENXIO;
 	}
 
@@ -789,13 +792,29 @@ static const struct file_operations pp_fops = {
 
 static void pp_attach(struct parport *port)
 {
-	device_create(ppdev_class, port->dev, MKDEV(PP_MAJOR, port->number),
-		      NULL, "parport%d", port->number);
+	struct device *ret;
+
+	if (devices[port->number])
+		return;
+
+	ret = device_create(ppdev_class, port->dev,
+			    MKDEV(PP_MAJOR, port->number), NULL,
+			    "parport%d", port->number);
+	if (IS_ERR(ret)) {
+		pr_err("Failed to create device parport%d\n",
+		       port->number);
+		return;
+	}
+	devices[port->number] = ret;
 }
 
 static void pp_detach(struct parport *port)
 {
+	if (!devices[port->number])
+		return;
+
 	device_destroy(ppdev_class, MKDEV(PP_MAJOR, port->number));
+	devices[port->number] = NULL;
 }
 
 static int pp_probe(struct pardevice *par_dev)
@@ -822,8 +841,7 @@ static int __init ppdev_init(void)
 	int err = 0;
 
 	if (register_chrdev(PP_MAJOR, CHRDEV, &pp_fops)) {
-		printk(KERN_WARNING CHRDEV ": unable to get major %d\n",
-		       PP_MAJOR);
+		pr_warn(CHRDEV ": unable to get major %d\n", PP_MAJOR);
 		return -EIO;
 	}
 	ppdev_class = class_create(THIS_MODULE, CHRDEV);
@@ -833,11 +851,11 @@ static int __init ppdev_init(void)
 	}
 	err = parport_register_driver(&pp_driver);
 	if (err < 0) {
-		printk(KERN_WARNING CHRDEV ": unable to register with parport\n");
+		pr_warn(CHRDEV ": unable to register with parport\n");
 		goto out_class;
 	}
 
-	printk(KERN_INFO PP_VERSION "\n");
+	pr_info(PP_VERSION "\n");
 	goto out;
 
 out_class:

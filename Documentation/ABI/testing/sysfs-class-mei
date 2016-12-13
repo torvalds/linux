@@ -29,3 +29,19 @@ Description:	Display fw status registers content
 		Also number of registers varies between 1 and 6
 		depending on generation.
 
+What:		/sys/class/mei/meiN/hbm_ver
+Date:		Aug 2016
+KernelVersion:	4.9
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Display the negotiated HBM protocol version.
+
+		The HBM protocol version negotiated
+		between the driver and the device.
+
+What:		/sys/class/mei/meiN/hbm_ver_drv
+Date:		Aug 2016
+KernelVersion:	4.9
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Display the driver HBM protocol version.
+
+		The HBM protocol version supported by the driver.
