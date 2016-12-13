@@ -220,10 +220,10 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
 {
 	unsigned long i;
 
-	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d parent %p\n",
+	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d exceptional %d parent %p\n",
 		node, node->offset,
 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
-		node->shift, node->count, node->parent);
+		node->shift, node->count, node->exceptional, node->parent);
 
 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
 		unsigned long first = index | (i << node->shift);
@@ -522,8 +522,13 @@ static int radix_tree_extend(struct radix_tree_root *root,
 		node->offset = 0;
 		node->count = 1;
 		node->parent = NULL;
-		if (radix_tree_is_internal_node(slot))
+		if (radix_tree_is_internal_node(slot)) {
 			entry_to_node(slot)->parent = node;
+		} else {
+			/* Moving an exceptional root->rnode to a node */
+			if (radix_tree_exceptional_entry(slot))
+				node->exceptional = 1;
+		}
 		node->slots[0] = slot;
 		slot = node_to_entry(node);
 		rcu_assign_pointer(root->rnode, slot);
@@ -649,6 +654,8 @@ int __radix_tree_insert(struct radix_tree_root *root, unsigned long index,
 	if (node) {
 		unsigned offset = get_slot_offset(node, slot);
 		node->count++;
+		if (radix_tree_exceptional_entry(item))
+			node->exceptional++;
 		BUG_ON(tag_get(node, 0, offset));
 		BUG_ON(tag_get(node, 1, offset));
 		BUG_ON(tag_get(node, 2, offset));
@@ -745,6 +752,37 @@ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
 	return __radix_tree_lookup(root, index, NULL, NULL);
 }
 EXPORT_SYMBOL(radix_tree_lookup);
+
+/**
+ * __radix_tree_replace		- replace item in a slot
+ * @root:	radix tree root
+ * @node:	pointer to tree node
+ * @slot:	pointer to slot in @node
+ * @item:	new item to store in the slot.
+ *
+ * For use with __radix_tree_lookup().  Caller must hold tree write locked
+ * across slot lookup and replacement.
+ */
+void __radix_tree_replace(struct radix_tree_root *root,
+			  struct radix_tree_node *node,
+			  void **slot, void *item)
+{
+	void *old = rcu_dereference_raw(*slot);
+	int exceptional;
+
+	WARN_ON_ONCE(radix_tree_is_internal_node(item));
+	WARN_ON_ONCE(!!item - !!old);
+
+	exceptional = !!radix_tree_exceptional_entry(item) -
+		      !!radix_tree_exceptional_entry(old);
+
+	WARN_ON_ONCE(exceptional && !node && slot != (void **)&root->rnode);
+
+	if (node)
+		node->exceptional += exceptional;
+
+	rcu_assign_pointer(*slot, item);
+}
 
 /**
  *	radix_tree_tag_set - set a tag on a radix tree node
@@ -1561,6 +1599,8 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
 	delete_sibling_entries(node, node_to_entry(slot), offset);
 	node->slots[offset] = NULL;
 	node->count--;
+	if (radix_tree_exceptional_entry(entry))
+		node->exceptional--;
 
 	__radix_tree_delete_node(root, node);
 
