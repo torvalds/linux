@@ -1455,134 +1455,139 @@ gf100_gr_init_csdata(struct gf100_gr *gr,
 	nvkm_wr32(device, falcon + 0x01c4, star + 4);
 }
 
-int
-gf100_gr_init_ctxctl(struct gf100_gr *gr)
+/* Initialize context from an external (secure or not) firmware */
+static int
+gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
+{
+	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_secboot *sb = device->secboot;
+	int ret = 0;
+
+	/* load fuc microcode */
+	nvkm_mc_unk260(device, 0);
+
+	/* securely-managed falcons must be reset using secure boot */
+	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
+		ret = nvkm_secboot_reset(sb, NVKM_SECBOOT_FALCON_FECS);
+	else
+		gf100_gr_init_fw(gr, 0x409000, &gr->fuc409c, &gr->fuc409d);
+	if (ret)
+		return ret;
+
+	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
+		ret = nvkm_secboot_reset(sb, NVKM_SECBOOT_FALCON_GPCCS);
+	else
+		gf100_gr_init_fw(gr, 0x41a000, &gr->fuc41ac, &gr->fuc41ad);
+	if (ret)
+		return ret;
+
+	nvkm_mc_unk260(device, 1);
+
+	/* start both of them running */
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x41a10c, 0x00000000);
+	nvkm_wr32(device, 0x40910c, 0x00000000);
+
+	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
+		nvkm_secboot_start(sb, NVKM_SECBOOT_FALCON_GPCCS);
+	else
+		nvkm_wr32(device, 0x41a100, 0x00000002);
+	if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
+		nvkm_secboot_start(sb, NVKM_SECBOOT_FALCON_FECS);
+	else
+		nvkm_wr32(device, 0x409100, 0x00000002);
+	if (nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x409800) & 0x00000001)
+			break;
+	) < 0)
+		return -EBUSY;
+
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x409500, 0x7fffffff);
+	nvkm_wr32(device, 0x409504, 0x00000021);
+
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x409500, 0x00000000);
+	nvkm_wr32(device, 0x409504, 0x00000010);
+	if (nvkm_msec(device, 2000,
+		if ((gr->size = nvkm_rd32(device, 0x409800)))
+			break;
+	) < 0)
+		return -EBUSY;
+
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x409500, 0x00000000);
+	nvkm_wr32(device, 0x409504, 0x00000016);
+	if (nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x409800))
+			break;
+	) < 0)
+		return -EBUSY;
+
+	nvkm_wr32(device, 0x409840, 0xffffffff);
+	nvkm_wr32(device, 0x409500, 0x00000000);
+	nvkm_wr32(device, 0x409504, 0x00000025);
+	if (nvkm_msec(device, 2000,
+		if (nvkm_rd32(device, 0x409800))
+			break;
+	) < 0)
+		return -EBUSY;
+
+	if (device->chipset >= 0xe0) {
+		nvkm_wr32(device, 0x409800, 0x00000000);
+		nvkm_wr32(device, 0x409500, 0x00000001);
+		nvkm_wr32(device, 0x409504, 0x00000030);
+		if (nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x409800))
+				break;
+		) < 0)
+			return -EBUSY;
+
+		nvkm_wr32(device, 0x409810, 0xb00095c8);
+		nvkm_wr32(device, 0x409800, 0x00000000);
+		nvkm_wr32(device, 0x409500, 0x00000001);
+		nvkm_wr32(device, 0x409504, 0x00000031);
+		if (nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x409800))
+				break;
+		) < 0)
+			return -EBUSY;
+
+		nvkm_wr32(device, 0x409810, 0x00080420);
+		nvkm_wr32(device, 0x409800, 0x00000000);
+		nvkm_wr32(device, 0x409500, 0x00000001);
+		nvkm_wr32(device, 0x409504, 0x00000032);
+		if (nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x409800))
+				break;
+		) < 0)
+			return -EBUSY;
+
+		nvkm_wr32(device, 0x409614, 0x00000070);
+		nvkm_wr32(device, 0x409614, 0x00000770);
+		nvkm_wr32(device, 0x40802c, 0x00000001);
+	}
+
+	if (gr->data == NULL) {
+		int ret = gf100_grctx_generate(gr);
+		if (ret) {
+			nvkm_error(subdev, "failed to construct context\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int
+gf100_gr_init_ctxctl_int(struct gf100_gr *gr)
 {
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_secboot *sb = device->secboot;
 	int i;
-	int ret = 0;
 
-	if (gr->firmware) {
-		/* load fuc microcode */
-		nvkm_mc_unk260(device, 0);
-
-		/* securely-managed falcons must be reset using secure boot */
-		if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
-			ret = nvkm_secboot_reset(sb, NVKM_SECBOOT_FALCON_FECS);
-		else
-			gf100_gr_init_fw(gr, 0x409000, &gr->fuc409c,
-					 &gr->fuc409d);
-		if (ret)
-			return ret;
-
-		if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
-			ret = nvkm_secboot_reset(sb, NVKM_SECBOOT_FALCON_GPCCS);
-		else
-			gf100_gr_init_fw(gr, 0x41a000, &gr->fuc41ac,
-					 &gr->fuc41ad);
-		if (ret)
-			return ret;
-
-		nvkm_mc_unk260(device, 1);
-
-		/* start both of them running */
-		nvkm_wr32(device, 0x409840, 0xffffffff);
-		nvkm_wr32(device, 0x41a10c, 0x00000000);
-		nvkm_wr32(device, 0x40910c, 0x00000000);
-
-		if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_GPCCS))
-			nvkm_secboot_start(sb, NVKM_SECBOOT_FALCON_GPCCS);
-		else
-			nvkm_wr32(device, 0x41a100, 0x00000002);
-		if (nvkm_secboot_is_managed(sb, NVKM_SECBOOT_FALCON_FECS))
-			nvkm_secboot_start(sb, NVKM_SECBOOT_FALCON_FECS);
-		else
-			nvkm_wr32(device, 0x409100, 0x00000002);
-		if (nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x409800) & 0x00000001)
-				break;
-		) < 0)
-			return -EBUSY;
-
-		nvkm_wr32(device, 0x409840, 0xffffffff);
-		nvkm_wr32(device, 0x409500, 0x7fffffff);
-		nvkm_wr32(device, 0x409504, 0x00000021);
-
-		nvkm_wr32(device, 0x409840, 0xffffffff);
-		nvkm_wr32(device, 0x409500, 0x00000000);
-		nvkm_wr32(device, 0x409504, 0x00000010);
-		if (nvkm_msec(device, 2000,
-			if ((gr->size = nvkm_rd32(device, 0x409800)))
-				break;
-		) < 0)
-			return -EBUSY;
-
-		nvkm_wr32(device, 0x409840, 0xffffffff);
-		nvkm_wr32(device, 0x409500, 0x00000000);
-		nvkm_wr32(device, 0x409504, 0x00000016);
-		if (nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x409800))
-				break;
-		) < 0)
-			return -EBUSY;
-
-		nvkm_wr32(device, 0x409840, 0xffffffff);
-		nvkm_wr32(device, 0x409500, 0x00000000);
-		nvkm_wr32(device, 0x409504, 0x00000025);
-		if (nvkm_msec(device, 2000,
-			if (nvkm_rd32(device, 0x409800))
-				break;
-		) < 0)
-			return -EBUSY;
-
-		if (device->chipset >= 0xe0) {
-			nvkm_wr32(device, 0x409800, 0x00000000);
-			nvkm_wr32(device, 0x409500, 0x00000001);
-			nvkm_wr32(device, 0x409504, 0x00000030);
-			if (nvkm_msec(device, 2000,
-				if (nvkm_rd32(device, 0x409800))
-					break;
-			) < 0)
-				return -EBUSY;
-
-			nvkm_wr32(device, 0x409810, 0xb00095c8);
-			nvkm_wr32(device, 0x409800, 0x00000000);
-			nvkm_wr32(device, 0x409500, 0x00000001);
-			nvkm_wr32(device, 0x409504, 0x00000031);
-			if (nvkm_msec(device, 2000,
-				if (nvkm_rd32(device, 0x409800))
-					break;
-			) < 0)
-				return -EBUSY;
-
-			nvkm_wr32(device, 0x409810, 0x00080420);
-			nvkm_wr32(device, 0x409800, 0x00000000);
-			nvkm_wr32(device, 0x409500, 0x00000001);
-			nvkm_wr32(device, 0x409504, 0x00000032);
-			if (nvkm_msec(device, 2000,
-				if (nvkm_rd32(device, 0x409800))
-					break;
-			) < 0)
-				return -EBUSY;
-
-			nvkm_wr32(device, 0x409614, 0x00000070);
-			nvkm_wr32(device, 0x409614, 0x00000770);
-			nvkm_wr32(device, 0x40802c, 0x00000001);
-		}
-
-		if (gr->data == NULL) {
-			int ret = gf100_grctx_generate(gr);
-			if (ret) {
-				nvkm_error(subdev, "failed to construct context\n");
-				return ret;
-			}
-		}
-
-		return 0;
-	} else
 	if (!gr->func->fecs.ucode) {
 		return -ENOSYS;
 	}
@@ -1640,6 +1645,19 @@ gf100_gr_init_ctxctl(struct gf100_gr *gr)
 	}
 
 	return 0;
+}
+
+int
+gf100_gr_init_ctxctl(struct gf100_gr *gr)
+{
+	int ret;
+
+	if (gr->firmware)
+		ret = gf100_gr_init_ctxctl_ext(gr);
+	else
+		ret = gf100_gr_init_ctxctl_int(gr);
+
+	return ret;
 }
 
 static int
