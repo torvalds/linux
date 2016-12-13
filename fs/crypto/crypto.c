@@ -27,7 +27,7 @@
 #include <linux/bio.h>
 #include <linux/dcache.h>
 #include <linux/namei.h>
-#include <linux/fscrypto.h>
+#include "fscrypt_private.h"
 
 static unsigned int num_prealloc_crypto_pages = 32;
 static unsigned int num_prealloc_crypto_ctxs = 128;
@@ -63,7 +63,7 @@ void fscrypt_release_ctx(struct fscrypt_ctx *ctx)
 {
 	unsigned long flags;
 
-	if (ctx->flags & FS_WRITE_PATH_FL && ctx->w.bounce_page) {
+	if (ctx->flags & FS_CTX_HAS_BOUNCE_BUFFER_FL && ctx->w.bounce_page) {
 		mempool_free(ctx->w.bounce_page, fscrypt_bounce_page_pool);
 		ctx->w.bounce_page = NULL;
 	}
@@ -121,7 +121,7 @@ struct fscrypt_ctx *fscrypt_get_ctx(const struct inode *inode, gfp_t gfp_flags)
 	} else {
 		ctx->flags &= ~FS_CTX_REQUIRES_FREE_ENCRYPT_FL;
 	}
-	ctx->flags &= ~FS_WRITE_PATH_FL;
+	ctx->flags &= ~FS_CTX_HAS_BOUNCE_BUFFER_FL;
 	return ctx;
 }
 EXPORT_SYMBOL(fscrypt_get_ctx);
@@ -147,9 +147,9 @@ typedef enum {
 } fscrypt_direction_t;
 
 static int do_page_crypto(const struct inode *inode,
-			fscrypt_direction_t rw, pgoff_t index,
+			fscrypt_direction_t rw, u64 lblk_num,
 			struct page *src_page, struct page *dest_page,
-			unsigned int src_len, unsigned int src_offset,
+			unsigned int len, unsigned int offs,
 			gfp_t gfp_flags)
 {
 	struct {
@@ -162,6 +162,8 @@ static int do_page_crypto(const struct inode *inode,
 	struct fscrypt_info *ci = inode->i_crypt_info;
 	struct crypto_skcipher *tfm = ci->ci_ctfm;
 	int res = 0;
+
+	BUG_ON(len == 0);
 
 	req = skcipher_request_alloc(tfm, gfp_flags);
 	if (!req) {
@@ -176,14 +178,14 @@ static int do_page_crypto(const struct inode *inode,
 		page_crypt_complete, &ecr);
 
 	BUILD_BUG_ON(sizeof(xts_tweak) != FS_XTS_TWEAK_SIZE);
-	xts_tweak.index = cpu_to_le64(index);
+	xts_tweak.index = cpu_to_le64(lblk_num);
 	memset(xts_tweak.padding, 0, sizeof(xts_tweak.padding));
 
 	sg_init_table(&dst, 1);
-	sg_set_page(&dst, dest_page, src_len, src_offset);
+	sg_set_page(&dst, dest_page, len, offs);
 	sg_init_table(&src, 1);
-	sg_set_page(&src, src_page, src_len, src_offset);
-	skcipher_request_set_crypt(req, &src, &dst, src_len, &xts_tweak);
+	sg_set_page(&src, src_page, len, offs);
+	skcipher_request_set_crypt(req, &src, &dst, len, &xts_tweak);
 	if (rw == FS_DECRYPT)
 		res = crypto_skcipher_decrypt(req);
 	else
@@ -208,69 +210,87 @@ static struct page *alloc_bounce_page(struct fscrypt_ctx *ctx, gfp_t gfp_flags)
 	ctx->w.bounce_page = mempool_alloc(fscrypt_bounce_page_pool, gfp_flags);
 	if (ctx->w.bounce_page == NULL)
 		return ERR_PTR(-ENOMEM);
-	ctx->flags |= FS_WRITE_PATH_FL;
+	ctx->flags |= FS_CTX_HAS_BOUNCE_BUFFER_FL;
 	return ctx->w.bounce_page;
 }
 
 /**
  * fscypt_encrypt_page() - Encrypts a page
- * @inode:            The inode for which the encryption should take place
- * @plaintext_page:   The page to encrypt. Must be locked.
- * @plaintext_len:    Length of plaintext within page
- * @plaintext_offset: Offset of plaintext within page
- * @index:            Index for encryption. This is mainly the page index, but
- *                    but might be different for multiple calls on same page.
- * @gfp_flags:        The gfp flag for memory allocation
+ * @inode:     The inode for which the encryption should take place
+ * @page:      The page to encrypt. Must be locked for bounce-page
+ *             encryption.
+ * @len:       Length of data to encrypt in @page and encrypted
+ *             data in returned page.
+ * @offs:      Offset of data within @page and returned
+ *             page holding encrypted data.
+ * @lblk_num:  Logical block number. This must be unique for multiple
+ *             calls with same inode, except when overwriting
+ *             previously written data.
+ * @gfp_flags: The gfp flag for memory allocation
  *
- * Encrypts plaintext_page using the ctx encryption context. If
- * the filesystem supports it, encryption is performed in-place, otherwise a
- * new ciphertext_page is allocated and returned.
+ * Encrypts @page using the ctx encryption context. Performs encryption
+ * either in-place or into a newly allocated bounce page.
+ * Called on the page write path.
  *
- * Called on the page write path.  The caller must call
+ * Bounce page allocation is the default.
+ * In this case, the contents of @page are encrypted and stored in an
+ * allocated bounce page. @page has to be locked and the caller must call
  * fscrypt_restore_control_page() on the returned ciphertext page to
  * release the bounce buffer and the encryption context.
  *
- * Return: An allocated page with the encrypted content on success. Else, an
+ * In-place encryption is used by setting the FS_CFLG_OWN_PAGES flag in
+ * fscrypt_operations. Here, the input-page is returned with its content
+ * encrypted.
+ *
+ * Return: A page with the encrypted content on success. Else, an
  * error value or NULL.
  */
 struct page *fscrypt_encrypt_page(const struct inode *inode,
-				struct page *plaintext_page,
-				unsigned int plaintext_len,
-				unsigned int plaintext_offset,
-				pgoff_t index, gfp_t gfp_flags)
+				struct page *page,
+				unsigned int len,
+				unsigned int offs,
+				u64 lblk_num, gfp_t gfp_flags)
 
 {
 	struct fscrypt_ctx *ctx;
-	struct page *ciphertext_page = plaintext_page;
+	struct page *ciphertext_page = page;
 	int err;
 
-	BUG_ON(plaintext_len % FS_CRYPTO_BLOCK_SIZE != 0);
+	BUG_ON(len % FS_CRYPTO_BLOCK_SIZE != 0);
+
+	if (inode->i_sb->s_cop->flags & FS_CFLG_OWN_PAGES) {
+		/* with inplace-encryption we just encrypt the page */
+		err = do_page_crypto(inode, FS_ENCRYPT, lblk_num,
+					page, ciphertext_page,
+					len, offs, gfp_flags);
+		if (err)
+			return ERR_PTR(err);
+
+		return ciphertext_page;
+	}
+
+	BUG_ON(!PageLocked(page));
 
 	ctx = fscrypt_get_ctx(inode, gfp_flags);
 	if (IS_ERR(ctx))
 		return (struct page *)ctx;
 
-	if (!(inode->i_sb->s_cop->flags & FS_CFLG_INPLACE_ENCRYPTION)) {
-		/* The encryption operation will require a bounce page. */
-		ciphertext_page = alloc_bounce_page(ctx, gfp_flags);
-		if (IS_ERR(ciphertext_page))
-			goto errout;
-	}
+	/* The encryption operation will require a bounce page. */
+	ciphertext_page = alloc_bounce_page(ctx, gfp_flags);
+	if (IS_ERR(ciphertext_page))
+		goto errout;
 
-	ctx->w.control_page = plaintext_page;
-	err = do_page_crypto(inode, FS_ENCRYPT, index,
-					plaintext_page, ciphertext_page,
-					plaintext_len, plaintext_offset,
-					gfp_flags);
+	ctx->w.control_page = page;
+	err = do_page_crypto(inode, FS_ENCRYPT, lblk_num,
+					page, ciphertext_page,
+					len, offs, gfp_flags);
 	if (err) {
 		ciphertext_page = ERR_PTR(err);
 		goto errout;
 	}
-	if (!(inode->i_sb->s_cop->flags & FS_CFLG_INPLACE_ENCRYPTION)) {
-		SetPagePrivate(ciphertext_page);
-		set_page_private(ciphertext_page, (unsigned long)ctx);
-		lock_page(ciphertext_page);
-	}
+	SetPagePrivate(ciphertext_page);
+	set_page_private(ciphertext_page, (unsigned long)ctx);
+	lock_page(ciphertext_page);
 	return ciphertext_page;
 
 errout:
@@ -281,11 +301,12 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
 
 /**
  * fscrypt_decrypt_page() - Decrypts a page in-place
- * @inode: Encrypted inode to decrypt.
- * @page:  The page to decrypt. Must be locked.
- * @len:   Number of bytes in @page to be decrypted.
- * @offs:  Start of data in @page.
- * @index: Index for encryption.
+ * @inode:     The corresponding inode for the page to decrypt.
+ * @page:      The page to decrypt. Must be locked in case
+ *             it is a writeback page (FS_CFLG_OWN_PAGES unset).
+ * @len:       Number of bytes in @page to be decrypted.
+ * @offs:      Start of data in @page.
+ * @lblk_num:  Logical block number.
  *
  * Decrypts page in-place using the ctx encryption context.
  *
@@ -294,10 +315,13 @@ EXPORT_SYMBOL(fscrypt_encrypt_page);
  * Return: Zero on success, non-zero otherwise.
  */
 int fscrypt_decrypt_page(const struct inode *inode, struct page *page,
-			unsigned int len, unsigned int offs, pgoff_t index)
+			unsigned int len, unsigned int offs, u64 lblk_num)
 {
-	return do_page_crypto(inode, FS_DECRYPT, page->index, page, page, len, offs,
-			GFP_NOFS);
+	if (!(inode->i_sb->s_cop->flags & FS_CFLG_OWN_PAGES))
+		BUG_ON(!PageLocked(page));
+
+	return do_page_crypto(inode, FS_DECRYPT, lblk_num, page, page, len,
+			offs, GFP_NOFS);
 }
 EXPORT_SYMBOL(fscrypt_decrypt_page);
 
@@ -501,17 +525,22 @@ static void fscrypt_destroy(void)
 
 /**
  * fscrypt_initialize() - allocate major buffers for fs encryption.
+ * @cop_flags:  fscrypt operations flags
  *
  * We only call this when we start accessing encrypted files, since it
  * results in memory getting allocated that wouldn't otherwise be used.
  *
  * Return: Zero on success, non-zero otherwise.
  */
-int fscrypt_initialize(void)
+int fscrypt_initialize(unsigned int cop_flags)
 {
 	int i, res = -ENOMEM;
 
-	if (fscrypt_bounce_page_pool)
+	/*
+	 * No need to allocate a bounce page pool if there already is one or
+	 * this FS won't use it.
+	 */
+	if (cop_flags & FS_CFLG_OWN_PAGES || fscrypt_bounce_page_pool)
 		return 0;
 
 	mutex_lock(&fscrypt_init_mutex);
@@ -540,7 +569,6 @@ fail:
 	mutex_unlock(&fscrypt_init_mutex);
 	return res;
 }
-EXPORT_SYMBOL(fscrypt_initialize);
 
 /**
  * fscrypt_init() - Set up for fs encryption.

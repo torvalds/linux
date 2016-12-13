@@ -1194,7 +1194,6 @@ int do_write_data_page(struct f2fs_io_info *fio)
 		f2fs_wait_on_encrypted_page_writeback(F2FS_I_SB(inode),
 							fio->old_blkaddr);
 retry_encrypt:
-		BUG_ON(!PageLocked(fio->page));
 		fio->encrypted_page = fscrypt_encrypt_page(inode, fio->page,
 							PAGE_SIZE, 0,
 							fio->page->index,

@@ -12,7 +12,7 @@
 
 #include <linux/scatterlist.h>
 #include <linux/ratelimit.h>
-#include <linux/fscrypto.h>
+#include "fscrypt_private.h"
 
 /**
  * fname_crypt_complete() - completion callback for filename crypto
@@ -350,7 +350,7 @@ int fscrypt_setup_filename(struct inode *dir, const struct qstr *iname,
 		fname->disk_name.len = iname->len;
 		return 0;
 	}
-	ret = get_crypt_info(dir);
+	ret = fscrypt_get_crypt_info(dir);
 	if (ret && ret != -EOPNOTSUPP)
 		return ret;
 
