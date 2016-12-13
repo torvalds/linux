@@ -652,7 +652,7 @@ static int m5mols_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_pad_ops m5mols_pad_ops = {
+static const struct v4l2_subdev_pad_ops m5mols_pad_ops = {
 	.enum_mbus_code	= m5mols_enum_mbus_code,
 	.get_fmt	= m5mols_get_fmt,
 	.set_fmt	= m5mols_set_fmt,
