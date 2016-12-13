@@ -447,7 +447,8 @@ struct kmem_cache_node {
 	struct list_head slabs_partial;	/* partial list first, better asm code */
 	struct list_head slabs_full;
 	struct list_head slabs_free;
-	unsigned long num_slabs;
+	unsigned long active_slabs;	/* length of slabs_partial+slabs_full */
+	unsigned long free_slabs;	/* length of slabs_free */
 	unsigned long free_objects;
 	unsigned int free_limit;
 	unsigned int colour_next;	/* Per-node cache coloring */
