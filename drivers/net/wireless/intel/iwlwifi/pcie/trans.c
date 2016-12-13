@@ -1147,7 +1147,7 @@ static void iwl_pcie_map_rx_causes(struct iwl_trans *trans)
 		iwl_write8(trans, CSR_MSIX_RX_IVAR(1), val);
 }
 
-static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
+static void iwl_pcie_conf_msix_hw(struct iwl_trans_pcie *trans_pcie)
 {
 	struct iwl_trans *trans = trans_pcie->trans;
 
@@ -1170,12 +1170,20 @@ static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
 	iwl_pcie_map_rx_causes(trans);
 
 	iwl_pcie_map_non_rx_causes(trans);
+}
 
-	trans_pcie->fh_init_mask =
-		~iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD);
+static void iwl_pcie_init_msix(struct iwl_trans_pcie *trans_pcie)
+{
+	struct iwl_trans *trans = trans_pcie->trans;
+
+	iwl_pcie_conf_msix_hw(trans_pcie);
+
+	if (!trans_pcie->msix_enabled)
+		return;
+
+	trans_pcie->fh_init_mask = ~iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD);
 	trans_pcie->fh_mask = trans_pcie->fh_init_mask;
-	trans_pcie->hw_init_mask =
-		~iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD);
+	trans_pcie->hw_init_mask = ~iwl_read32(trans, CSR_MSIX_HW_INT_MASK_AD);
 	trans_pcie->hw_mask = trans_pcie->hw_init_mask;
 }
 
@@ -1675,6 +1683,7 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans, bool low_power)
 	iwl_pcie_apm_init(trans);
 
 	iwl_pcie_init_msix(trans_pcie);
+
 	/* From now on, the op_mode will be kept updated about RF kill state */
 	iwl_enable_rfkill_int(trans);
 
