@@ -683,7 +683,8 @@
 	};
 
 	i2c6: i2c@e6500000 {
-		compatible = "renesas,iic-r8a7794", "renesas,rmobile-iic";
+		compatible = "renesas,iic-r8a7794", "renesas,rcar-gen2-iic",
+			     "renesas,rmobile-iic";
 		reg = <0 0xe6500000 0 0x425>;
 		interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7794_CLK_IIC0>;
@@ -697,7 +698,8 @@
 	};
 
 	i2c7: i2c@e6510000 {
-		compatible = "renesas,iic-r8a7794", "renesas,rmobile-iic";
+		compatible = "renesas,iic-r8a7794", "renesas,rcar-gen2-iic",
+			     "renesas,rmobile-iic";
 		reg = <0 0xe6510000 0 0x425>;
 		interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks R8A7794_CLK_IIC1>;
