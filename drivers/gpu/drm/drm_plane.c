@@ -392,12 +392,16 @@ int drm_mode_getplane(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	drm_modeset_lock(&plane->mutex, NULL);
-	if (plane->crtc)
+	if (plane->state && plane->state->crtc)
+		plane_resp->crtc_id = plane->state->crtc->base.id;
+	else if (!plane->state && plane->crtc)
 		plane_resp->crtc_id = plane->crtc->base.id;
 	else
 		plane_resp->crtc_id = 0;
 
-	if (plane->fb)
+	if (plane->state && plane->state->fb)
+		plane_resp->fb_id = plane->state->fb->base.id;
+	else if (!plane->state && plane->fb)
 		plane_resp->fb_id = plane->fb->base.id;
 	else
 		plane_resp->fb_id = 0;

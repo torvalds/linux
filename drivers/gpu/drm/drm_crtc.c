@@ -357,7 +357,10 @@ int drm_mode_getcrtc(struct drm_device *dev,
 
 	drm_modeset_lock_crtc(crtc, crtc->primary);
 	crtc_resp->gamma_size = crtc->gamma_size;
-	if (crtc->primary->fb)
+
+	if (crtc->primary->state && crtc->primary->state->fb)
+		crtc_resp->fb_id = crtc->primary->state->fb->base.id;
+	else if (!crtc->primary->state && crtc->primary->fb)
 		crtc_resp->fb_id = crtc->primary->fb->base.id;
 	else
 		crtc_resp->fb_id = 0;
