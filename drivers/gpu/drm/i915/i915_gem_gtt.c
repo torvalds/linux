@@ -642,10 +642,10 @@ gen8_setup_pdpe(struct i915_hw_ppgtt *ppgtt,
 }
 
 static void
-gen8_setup_page_directory_pointer(struct i915_hw_ppgtt *ppgtt,
-				  struct i915_pml4 *pml4,
-				  struct i915_page_directory_pointer *pdp,
-				  int index)
+gen8_setup_pml4e(struct i915_hw_ppgtt *ppgtt,
+		 struct i915_pml4 *pml4,
+		 struct i915_page_directory_pointer *pdp,
+		 int index)
 {
 	gen8_ppgtt_pml4e_t *pagemap = kmap_px(pml4);
 
@@ -1425,7 +1425,7 @@ static int gen8_alloc_va_range_4lvl(struct i915_address_space *vm,
 		if (ret)
 			goto err_out;
 
-		gen8_setup_page_directory_pointer(ppgtt, pml4, pdp, pml4e);
+		gen8_setup_pml4e(ppgtt, pml4, pdp, pml4e);
 	}
 
 	bitmap_or(pml4->used_pml4es, new_pdps, pml4->used_pml4es,
