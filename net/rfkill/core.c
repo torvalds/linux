@@ -478,10 +478,7 @@ bool rfkill_set_hw_state(struct rfkill *rfkill, bool blocked)
 
 	rfkill_led_trigger_event(rfkill);
 
-	if (!rfkill->registered)
-		return ret;
-
-	if (prev != blocked)
+	if (rfkill->registered && prev != blocked)
 		schedule_work(&rfkill->uevent_work);
 
 	return ret;
