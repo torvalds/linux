@@ -263,9 +263,11 @@ void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
 			  struct radix_tree_node **nodep, void ***slotp);
 void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
 void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
+typedef void (*radix_tree_update_node_t)(struct radix_tree_node *, void *);
 void __radix_tree_replace(struct radix_tree_root *root,
 			  struct radix_tree_node *node,
-			  void **slot, void *item);
+			  void **slot, void *item,
+			  radix_tree_update_node_t update_node, void *private);
 void radix_tree_replace_slot(struct radix_tree_root *root,
 			     void **slot, void *item);
 bool __radix_tree_delete_node(struct radix_tree_root *root,
