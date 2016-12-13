@@ -321,7 +321,7 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	 * by hand in remove_proc_entry(). For this, save opener's credentials
 	 * for later.
 	 */
-	pdeo = kzalloc(sizeof(struct pde_opener), GFP_KERNEL);
+	pdeo = kmalloc(sizeof(struct pde_opener), GFP_KERNEL);
 	if (!pdeo)
 		return -ENOMEM;
 
@@ -338,6 +338,8 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	if (rv == 0 && release) {
 		/* To know what to release. */
 		pdeo->file = file;
+		pdeo->closing = false;
+		pdeo->c = NULL;
 		/* Strictly for "too late" ->release in proc_reg_release(). */
 		spin_lock(&pde->pde_unload_lock);
 		list_add(&pdeo->lh, &pde->pde_openers);
