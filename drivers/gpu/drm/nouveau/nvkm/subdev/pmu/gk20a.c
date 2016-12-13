@@ -95,17 +95,19 @@ static void
 gk20a_pmu_dvfs_get_dev_status(struct gk20a_pmu *pmu,
 			      struct gk20a_pmu_dvfs_dev_status *status)
 {
-	struct nvkm_device *device = pmu->base.subdev.device;
-	status->busy = nvkm_rd32(device, 0x10a508 + (BUSY_SLOT * 0x10));
-	status->total= nvkm_rd32(device, 0x10a508 + (CLK_SLOT * 0x10));
+	struct nvkm_falcon *falcon = pmu->base.falcon;
+
+	status->busy = nvkm_falcon_rd32(falcon, 0x508 + (BUSY_SLOT * 0x10));
+	status->total= nvkm_falcon_rd32(falcon, 0x508 + (CLK_SLOT * 0x10));
 }
 
 static void
 gk20a_pmu_dvfs_reset_dev_status(struct gk20a_pmu *pmu)
 {
-	struct nvkm_device *device = pmu->base.subdev.device;
-	nvkm_wr32(device, 0x10a508 + (BUSY_SLOT * 0x10), 0x80000000);
-	nvkm_wr32(device, 0x10a508 + (CLK_SLOT * 0x10), 0x80000000);
+	struct nvkm_falcon *falcon = pmu->base.falcon;
+
+	nvkm_falcon_wr32(falcon, 0x508 + (BUSY_SLOT * 0x10), 0x80000000);
+	nvkm_falcon_wr32(falcon, 0x508 + (CLK_SLOT * 0x10), 0x80000000);
 }
 
 static void
@@ -157,18 +159,29 @@ gk20a_pmu_fini(struct nvkm_pmu *pmu)
 {
 	struct gk20a_pmu *gpmu = gk20a_pmu(pmu);
 	nvkm_timer_alarm_cancel(pmu->subdev.device->timer, &gpmu->alarm);
+
+	nvkm_falcon_put(pmu->falcon, &pmu->subdev);
 }
 
 static int
 gk20a_pmu_init(struct nvkm_pmu *pmu)
 {
 	struct gk20a_pmu *gpmu = gk20a_pmu(pmu);
+	struct nvkm_subdev *subdev = &pmu->subdev;
 	struct nvkm_device *device = pmu->subdev.device;
+	struct nvkm_falcon *falcon = pmu->falcon;
+	int ret;
+
+	ret = nvkm_falcon_get(falcon, subdev);
+	if (ret) {
+		nvkm_error(subdev, "cannot acquire %s falcon!\n", falcon->name);
+		return ret;
+	}
 
 	/* init pwr perf counter */
-	nvkm_wr32(device, 0x10a504 + (BUSY_SLOT * 0x10), 0x00200001);
-	nvkm_wr32(device, 0x10a50c + (BUSY_SLOT * 0x10), 0x00000002);
-	nvkm_wr32(device, 0x10a50c + (CLK_SLOT * 0x10), 0x00000003);
+	nvkm_falcon_wr32(falcon, 0x504 + (BUSY_SLOT * 0x10), 0x00200001);
+	nvkm_falcon_wr32(falcon, 0x50c + (BUSY_SLOT * 0x10), 0x00000002);
+	nvkm_falcon_wr32(falcon, 0x50c + (CLK_SLOT * 0x10), 0x00000003);
 
 	nvkm_timer_alarm(device->timer, 2000000000, &gpmu->alarm);
 	return 0;
