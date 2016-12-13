@@ -23,6 +23,7 @@
 
 #include <subdev/mc.h>
 #include <subdev/timer.h>
+#include <subdev/pmu.h>
 
 static const char *
 managed_falcons_names[] = {
@@ -32,130 +33,6 @@ managed_falcons_names[] = {
 	[NVKM_SECBOOT_FALCON_GPCCS] = "GPCCS",
 	[NVKM_SECBOOT_FALCON_END] = "<invalid>",
 };
-
-/*
- * Helper falcon functions
- */
-
-static int
-falcon_clear_halt_interrupt(struct nvkm_device *device, u32 base)
-{
-	int ret;
-
-	/* clear halt interrupt */
-	nvkm_mask(device, base + 0x004, 0x10, 0x10);
-	/* wait until halt interrupt is cleared */
-	ret = nvkm_wait_msec(device, 10, base + 0x008, 0x10, 0x0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int
-falcon_wait_idle(struct nvkm_device *device, u32 base)
-{
-	int ret;
-
-	ret = nvkm_wait_msec(device, 10, base + 0x04c, 0xffff, 0x0);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int
-nvkm_secboot_falcon_enable(struct nvkm_secboot *sb)
-{
-	struct nvkm_device *device = sb->subdev.device;
-	int ret;
-
-	/* enable engine */
-	nvkm_mc_enable(device, sb->devidx);
-	ret = nvkm_wait_msec(device, 10, sb->base + 0x10c, 0x6, 0x0);
-	if (ret < 0) {
-		nvkm_error(&sb->subdev, "Falcon mem scrubbing timeout\n");
-		nvkm_mc_disable(device, sb->devidx);
-		return ret;
-	}
-
-	ret = falcon_wait_idle(device, sb->base);
-	if (ret)
-		return ret;
-
-	/* enable IRQs */
-	nvkm_wr32(device, sb->base + 0x010, 0xff);
-	nvkm_mc_intr_mask(device, sb->devidx, true);
-
-	return 0;
-}
-
-static int
-nvkm_secboot_falcon_disable(struct nvkm_secboot *sb)
-{
-	struct nvkm_device *device = sb->subdev.device;
-
-	/* disable IRQs and wait for any previous code to complete */
-	nvkm_mc_intr_mask(device, sb->devidx, false);
-	nvkm_wr32(device, sb->base + 0x014, 0xff);
-
-	falcon_wait_idle(device, sb->base);
-
-	/* disable engine */
-	nvkm_mc_disable(device, sb->devidx);
-
-	return 0;
-}
-
-int
-nvkm_secboot_falcon_reset(struct nvkm_secboot *sb)
-{
-	int ret;
-
-	ret = nvkm_secboot_falcon_disable(sb);
-	if (ret)
-		return ret;
-
-	ret = nvkm_secboot_falcon_enable(sb);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-/**
- * nvkm_secboot_falcon_run - run the falcon that will perform secure boot
- *
- * This function is to be called after all chip-specific preparations have
- * been completed. It will start the falcon to perform secure boot, wait for
- * it to halt, and report if an error occurred.
- */
-int
-nvkm_secboot_falcon_run(struct nvkm_secboot *sb)
-{
-	struct nvkm_device *device = sb->subdev.device;
-	int ret;
-
-	/* Start falcon */
-	nvkm_wr32(device, sb->base + 0x100, 0x2);
-
-	/* Wait for falcon halt */
-	ret = nvkm_wait_msec(device, 100, sb->base + 0x100, 0x10, 0x10);
-	if (ret < 0)
-		return ret;
-
-	/* If mailbox register contains an error code, then ACR has failed */
-	ret = nvkm_rd32(device, sb->base + 0x040);
-	if (ret) {
-		nvkm_error(&sb->subdev, "ACR boot failed, ret 0x%08x", ret);
-		falcon_clear_halt_interrupt(device, sb->base);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-
 /**
  * nvkm_secboot_reset() - reset specified falcon
  */
@@ -204,6 +81,16 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 {
 	struct nvkm_secboot *sb = nvkm_secboot(subdev);
 	int ret = 0;
+
+	switch (sb->func->boot_falcon) {
+	case NVKM_SECBOOT_FALCON_PMU:
+		sb->boot_falcon = subdev->device->pmu->falcon;
+		break;
+	default:
+		nvkm_error(subdev, "Unmanaged boot falcon %s!\n",
+			   managed_falcons_names[sb->func->boot_falcon]);
+		return -EINVAL;
+	}
 
 	/* Call chip-specific init function */
 	if (sb->func->init)
@@ -257,17 +144,6 @@ nvkm_secboot_ctor(const struct nvkm_secboot_func *func,
 
 	nvkm_subdev_ctor(&nvkm_secboot, device, index, &sb->subdev);
 	sb->func = func;
-
-	/* setup the performing falcon's base address and masks */
-	switch (func->boot_falcon) {
-	case NVKM_SECBOOT_FALCON_PMU:
-		sb->devidx = NVKM_SUBDEV_PMU;
-		sb->base = 0x10a000;
-		break;
-	default:
-		nvkm_error(&sb->subdev, "invalid secure boot falcon\n");
-		return -EINVAL;
-	};
 
 	nvkm_debug(&sb->subdev, "securely managed falcons:\n");
 	for_each_set_bit(fid, &sb->func->managed_falcons,

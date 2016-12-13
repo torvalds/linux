@@ -41,8 +41,6 @@ struct nvkm_secboot_func {
 
 int nvkm_secboot_ctor(const struct nvkm_secboot_func *, struct nvkm_device *,
 		      int index, struct nvkm_secboot *);
-int nvkm_secboot_falcon_reset(struct nvkm_secboot *);
-int nvkm_secboot_falcon_run(struct nvkm_secboot *);
 
 struct flcn_u64 {
 	u32 lo;

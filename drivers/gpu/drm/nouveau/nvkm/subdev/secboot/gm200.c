@@ -86,14 +86,7 @@
 #include <core/gpuobj.h>
 #include <core/firmware.h>
 #include <subdev/fb.h>
-
-enum {
-	FALCON_DMAIDX_UCODE		= 0,
-	FALCON_DMAIDX_VIRT		= 1,
-	FALCON_DMAIDX_PHYS_VID		= 2,
-	FALCON_DMAIDX_PHYS_SYS_COH	= 3,
-	FALCON_DMAIDX_PHYS_SYS_NCOH	= 4,
-};
+#include <engine/falcon.h>
 
 /**
  * struct fw_bin_header - header of firmware files
@@ -887,7 +880,7 @@ gm200_secboot_hsf_patch_signature(struct gm200_secboot *gsb, void *acr_image)
 	u32 sig_size;
 
 	/* Falcon in debug or production mode? */
-	if ((nvkm_rd32(sb->subdev.device, sb->base + 0xc08) >> 20) & 0x1) {
+	if (sb->boot_falcon->debug) {
 		sig = acr_image + fw_hdr->sig_dbg_offset;
 		sig_size = fw_hdr->sig_dbg_size;
 	} else {
@@ -1101,96 +1094,33 @@ gm200_secboot_blobs_ready(struct gm200_secboot *gsb)
  * gm200_secboot_load_hs_bl() - load HS bootloader into DMEM and IMEM
  */
 static void
-gm200_secboot_load_hs_bl(struct gm200_secboot *gsb, void *data, u32 data_size)
+gm200_secboot_load_hs_bl(struct gm200_secboot *gsb, struct nvkm_falcon *falcon,
+			 void *data, u32 data_size)
 {
-	struct nvkm_device *device = gsb->base.subdev.device;
 	struct fw_bin_header *hdr = gsb->hsbl_blob;
 	struct fw_bl_desc *hsbl_desc = gsb->hsbl_blob + hdr->header_offset;
 	void *blob_data = gsb->hsbl_blob + hdr->data_offset;
 	void *hsbl_code = blob_data + hsbl_desc->code_off;
 	void *hsbl_data = blob_data + hsbl_desc->data_off;
 	u32 code_size = ALIGN(hsbl_desc->code_size, 256);
-	const u32 base = gsb->base.base;
-	u32 blk;
 	u32 tag;
-	int i;
 
 	/*
 	 * Copy HS bootloader data
 	 */
-	nvkm_wr32(device, base + 0x1c0, (0x00000000 | (0x1 << 24)));
-	for (i = 0; i < hsbl_desc->data_size / 4; i++)
-		nvkm_wr32(device, base + 0x1c4, ((u32 *)hsbl_data)[i]);
+	nvkm_falcon_load_dmem(falcon, hsbl_data, 0x0, hsbl_desc->data_size, 0);
 
 	/*
 	 * Copy HS bootloader interface structure where the HS descriptor
 	 * expects it to be
 	 */
-	nvkm_wr32(device, base + 0x1c0,
-		  (hsbl_desc->dmem_load_off | (0x1 << 24)));
-	for (i = 0; i < data_size / 4; i++)
-		nvkm_wr32(device, base + 0x1c4, ((u32 *)data)[i]);
+	nvkm_falcon_load_dmem(falcon, data, hsbl_desc->dmem_load_off, data_size,
+			      0);
 
 	/* Copy HS bootloader code to end of IMEM */
-	blk = (nvkm_rd32(device, base + 0x108) & 0x1ff) - (code_size >> 8);
 	tag = hsbl_desc->start_tag;
-	nvkm_wr32(device, base + 0x180, ((blk & 0xff) << 8) | (0x1 << 24));
-	for (i = 0; i < code_size / 4; i++) {
-		/* write new tag every 256B */
-		if ((i & 0x3f) == 0) {
-			nvkm_wr32(device, base + 0x188, tag & 0xffff);
-			tag++;
-		}
-		nvkm_wr32(device, base + 0x184, ((u32 *)hsbl_code)[i]);
-	}
-	nvkm_wr32(device, base + 0x188, 0);
-}
-
-/**
- * gm200_secboot_setup_falcon() - set up the secure falcon for secure boot
- */
-static int
-gm200_secboot_setup_falcon(struct gm200_secboot *gsb)
-{
-	struct nvkm_device *device = gsb->base.subdev.device;
-	struct fw_bin_header *hdr = gsb->hsbl_blob;
-	struct fw_bl_desc *hsbl_desc = gsb->hsbl_blob + hdr->header_offset;
-	/* virtual start address for boot vector */
-	u32 virt_addr = hsbl_desc->start_tag << 8;
-	const u32 base = gsb->base.base;
-	const u32 reg_base = base + 0xe00;
-	u32 inst_loc;
-	int ret;
-
-	ret = nvkm_secboot_falcon_reset(&gsb->base);
-	if (ret)
-		return ret;
-
-	/* setup apertures - virtual */
-	nvkm_wr32(device, reg_base + 4 * (FALCON_DMAIDX_UCODE), 0x4);
-	nvkm_wr32(device, reg_base + 4 * (FALCON_DMAIDX_VIRT), 0x0);
-	/* setup apertures - physical */
-	nvkm_wr32(device, reg_base + 4 * (FALCON_DMAIDX_PHYS_VID), 0x4);
-	nvkm_wr32(device, reg_base + 4 * (FALCON_DMAIDX_PHYS_SYS_COH),
-		  0x4 | 0x1);
-	nvkm_wr32(device, reg_base + 4 * (FALCON_DMAIDX_PHYS_SYS_NCOH),
-		  0x4 | 0x2);
-
-	/* Set context */
-	if (nvkm_memory_target(gsb->inst->memory) == NVKM_MEM_TARGET_VRAM)
-		inst_loc = 0x0; /* FB */
-	else
-		inst_loc = 0x3; /* Non-coherent sysmem */
-
-	nvkm_mask(device, base + 0x048, 0x1, 0x1);
-	nvkm_wr32(device, base + 0x480,
-		  ((gsb->inst->addr >> 12) & 0xfffffff) |
-		  (inst_loc << 28) | (1 << 30));
-
-	/* Set boot vector to code's starting virtual address */
-	nvkm_wr32(device, base + 0x104, virt_addr);
-
-	return 0;
+	nvkm_falcon_load_imem(falcon, hsbl_code, falcon->code.limit - code_size,
+			      code_size, tag, 0, false);
 }
 
 /**
@@ -1200,16 +1130,27 @@ static int
 gm200_secboot_run_hs_blob(struct gm200_secboot *gsb, struct nvkm_gpuobj *blob,
 			  struct gm200_flcn_bl_desc *desc)
 {
-	struct nvkm_vma vma;
-	u64 vma_addr;
+	struct nvkm_subdev *subdev = &gsb->base.subdev;
+	struct fw_bin_header *hdr = gsb->hsbl_blob;
+	struct fw_bl_desc *hsbl_desc = gsb->hsbl_blob + hdr->header_offset;
+	struct nvkm_falcon *falcon = gsb->base.boot_falcon;
+	const u32 virt_addr = hsbl_desc->start_tag << 8;
 	const u32 bl_desc_size = gsb->func->bl_desc_size;
 	u8 bl_desc[bl_desc_size];
+	struct nvkm_vma vma;
+	u64 vma_addr;
 	int ret;
+
+	ret = nvkm_falcon_get(falcon, subdev);
+	if (ret)
+		return ret;
 
 	/* Map the HS firmware so the HS bootloader can see it */
 	ret = nvkm_gpuobj_map(blob, gsb->vm, NV_MEM_ACCESS_RW, &vma);
-	if (ret)
+	if (ret) {
+		nvkm_falcon_put(falcon, subdev);
 		return ret;
+	}
 
 	/* Add the mapping address to the DMA bases */
 	vma_addr = flcn64_to_u64(desc->code_dma_base) + vma.offset;
@@ -1222,18 +1163,29 @@ gm200_secboot_run_hs_blob(struct gm200_secboot *gsb, struct nvkm_gpuobj *blob,
 	/* Fixup the BL header */
 	gsb->func->fixup_bl_desc(desc, &bl_desc);
 
-	/* Reset the falcon and make it ready to run the HS bootloader */
-	ret = gm200_secboot_setup_falcon(gsb);
+	/* Reset and set the falcon up */
+	ret = nvkm_falcon_reset(falcon);
 	if (ret)
 		goto done;
+	nvkm_falcon_bind_context(falcon, gsb->inst);
 
 	/* Load the HS bootloader into the falcon's IMEM/DMEM */
-	gm200_secboot_load_hs_bl(gsb, &bl_desc, bl_desc_size);
+	gm200_secboot_load_hs_bl(gsb, falcon, &bl_desc, bl_desc_size);
 
 	/* Start the HS bootloader */
-	ret = nvkm_secboot_falcon_run(&gsb->base);
+	nvkm_falcon_set_start_addr(falcon, virt_addr);
+	nvkm_falcon_start(falcon);
+	ret = nvkm_falcon_wait_for_halt(falcon, 100);
 	if (ret)
 		goto done;
+
+	/* If mailbox register contains an error code, then ACR has failed */
+	ret = nvkm_falcon_rd32(falcon, 0x040);
+	if (ret) {
+		nvkm_error(subdev, "ACR boot failed, ret 0x%08x", ret);
+		ret = -EINVAL;
+		goto done;
+	}
 
 done:
 	/* Restore the original DMA addresses */
@@ -1246,6 +1198,7 @@ done:
 
 	/* We don't need the ACR firmware anymore */
 	nvkm_gpuobj_unmap(&vma);
+	nvkm_falcon_put(falcon, subdev);
 
 	return ret;
 }

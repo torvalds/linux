@@ -42,9 +42,7 @@ enum nvkm_secboot_falcon {
 struct nvkm_secboot {
 	const struct nvkm_secboot_func *func;
 	struct nvkm_subdev subdev;
-
-	enum nvkm_devidx devidx;
-	u32 base;
+	struct nvkm_falcon *boot_falcon;
 };
 #define nvkm_secboot(p) container_of((p), struct nvkm_secboot, subdev)
 
