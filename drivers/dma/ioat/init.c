@@ -1357,6 +1357,8 @@ static int ioat_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	device->version = readb(device->reg_base + IOAT_VER_OFFSET);
 	if (device->version >= IOAT_VER_3_0) {
+		if (is_skx_ioat(pdev))
+			device->version = IOAT_VER_3_2;
 		err = ioat3_dma_probe(device, ioat_dca_enabled);
 
 		if (device->version >= IOAT_VER_3_3)
