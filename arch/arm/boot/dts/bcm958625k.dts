@@ -117,56 +117,32 @@
 
 &pinctrl {
 	pinctrl-names = "default";
-	pinctrl-0 = <&nand_sel>;
+	pinctrl-0 = <&nand_sel>, <&gpiobs>, <&pwmc>;
+
 	nand_sel: nand_sel {
 		function = "nand";
 		groups = "nand_grp";
 	};
+
+	gpiobs: gpiobs {
+		function = "gpio_b";
+		groups = "gpio_b_0_grp", "gpio_b_1_grp", "gpio_b_2_grp",
+			 "gpio_b_3_grp";
+	};
+
+	pwmc: pwmc {
+		function = "pwm";
+		groups = "pwm0_grp", "pwm1_grp", "pwm2_grp", "pwm3_grp";
+	};
+
+	emmc_sel: emmc_sel {
+		function = "emmc";
+		groups = "emmc_grp";
+	};
 };
 
-&srab {
-	compatible = "brcm,bcm58625-srab", "brcm,nsp-srab";
+&pwm {
 	status = "okay";
-
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@0 {
-			label = "port0";
-			reg = <0>;
-		};
-
-		port@1 {
-			label = "port1";
-			reg = <1>;
-		};
-
-		port@2 {
-			label = "port2";
-			reg = <2>;
-		};
-
-		port@3 {
-			label = "port3";
-			reg = <3>;
-		};
-
-		port@4 {
-			label = "port4";
-			reg = <4>;
-		};
-
-		port@5 {
-			ethernet = <&amac0>;
-			label = "cpu";
-			reg = <5>;
-			fixed-link {
-				speed = <1000>;
-				full-duplex;
-			};
-		};
-	};
 };
 
 &qspi {
@@ -213,6 +189,64 @@
 
 &sata {
 	status = "okay";
+};
+
+/*
+ * By default the sd slot is functional. For emmc to work add "<&emmc_sel>"
+ * and delete "<&nand_sel>" in "pinctrl-0" property of pinctrl node. Remove the
+ * bus-width property here and disable the nand node with status = "disabled";.
+ *
+ * Ex: pinctrl-0 = <&emmc_sel>, <&gpiobs>, <&pwmc>;
+ */
+&sdio {
+	bus-width = <4>;
+	no-1-8-v;
+	status = "ok";
+};
+
+&srab {
+	compatible = "brcm,bcm58625-srab", "brcm,nsp-srab";
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			label = "port0";
+			reg = <0>;
+		};
+
+		port@1 {
+			label = "port1";
+			reg = <1>;
+		};
+
+		port@2 {
+			label = "port2";
+			reg = <2>;
+		};
+
+		port@3 {
+			label = "port3";
+			reg = <3>;
+		};
+
+		port@4 {
+			label = "port4";
+			reg = <4>;
+		};
+
+		port@5 {
+			ethernet = <&amac0>;
+			label = "cpu";
+			reg = <5>;
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+			};
+		};
+	};
 };
 
 &uart0 {

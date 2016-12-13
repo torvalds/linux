@@ -209,6 +209,15 @@
 			#dma-cells = <1>;
 		};
 
+		sdio: sdhci@21000 {
+			compatible = "brcm,sdhci-iproc-cygnus";
+			reg = <0x21000 0x100>;
+			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
+			sdhci,auto-cmd12;
+			clocks = <&lcpll0 BCM_NSP_LCPLL0_SDIO_CLK>;
+			status = "disabled";
+		};
+
 		amac0: ethernet@22000 {
 			compatible = "brcm,nsp-amac";
 			reg = <0x022000 0x1000>,
