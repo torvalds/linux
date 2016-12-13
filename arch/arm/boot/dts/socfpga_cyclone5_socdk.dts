@@ -39,6 +39,29 @@
 		ethernet0 = &gmac1;
 	};
 
+	leds {
+		compatible = "gpio-leds";
+		hps0 {
+			label = "hps_led0";
+			gpios = <&portb 15 1>;
+		};
+
+		hps1 {
+			label = "hps_led1";
+			gpios = <&portb 14 1>;
+		};
+
+		hps2 {
+			label = "hps_led2";
+			gpios = <&portb 13 1>;
+		};
+
+		hps3 {
+			label = "hps_led3";
+			gpios = <&portb 12 1>;
+		};
+	};
+
 	regulator_3_3v: 3-3-v-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "3.3V";
@@ -61,7 +84,15 @@
 	rxc-skew-ps = <2000>;
 };
 
+&gpio0 {
+	status = "okay";
+};
+
 &gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
 	status = "okay";
 };
 
