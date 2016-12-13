@@ -74,6 +74,8 @@ Descriptions of section entries:
 	   These reviewers should be CCed on patches.
 	L: Mailing list that is relevant to this area
 	W: Web-page with status/info
+	B: URI for where to file bugs. A web-page with detailed bug
+	   filing info, a direct bug tracker link, or a mailto: URI.
 	Q: Patchwork web based patch tracking system site
 	T: SCM tree type and location.
 	   Type is one of: git, hg, quilt, stgit, topgit
