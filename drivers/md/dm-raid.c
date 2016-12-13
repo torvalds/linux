@@ -2011,7 +2011,7 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 		sb->compat_features = cpu_to_le32(FEATURE_FLAG_SUPPORTS_V190);
 
 		/* Force writing of superblocks to disk */
-		set_bit(MD_CHANGE_DEVS, &rdev->mddev->flags);
+		set_bit(MD_SB_CHANGE_DEVS, &rdev->mddev->sb_flags);
 
 		/* Any superblock is better than none, choose that if given */
 		return refdev ? 0 : 1;
@@ -3497,7 +3497,7 @@ static void rs_update_sbs(struct raid_set *rs)
 	struct mddev *mddev = &rs->md;
 	int ro = mddev->ro;
 
-	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
 	mddev->ro = 0;
 	md_update_sb(mddev, 1);
 	mddev->ro = ro;
