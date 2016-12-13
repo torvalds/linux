@@ -1,0 +1,21 @@
+mcp3021 properties
+
+Required properties:
+- compatible: Must be one of the following:
+	- "microchip,mcp3021" for mcp3021
+	- "microchip,mcp3221" for mcp3221
+- reg: I2C address
+
+Optional properties:
+
+- reference-voltage-microvolt
+	Reference voltage in microvolt (uV)
+
+Example:
+
+mcp3021@4d {
+	compatible = "microchip,mcp3021";
+	reg = <0x4d>;
+
+	reference-voltage-microvolt = <4500000>; /* 4.5 V */
+};
