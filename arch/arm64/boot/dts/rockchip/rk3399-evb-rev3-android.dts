@@ -153,7 +153,7 @@
 		rockchip,camera-module-mipi-dphy-index = <0>;
 	};
 };
-
+/*
 &isp0 {
 	status = "okay";
 };
@@ -165,4 +165,4 @@
 &cif_isp0 {
 	status = "okay";
 	rockchip,camera-modules-attached = <&camera0>;
-};
+};*/
