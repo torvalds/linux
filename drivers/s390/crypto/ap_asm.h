@@ -108,7 +108,7 @@ static inline int ap_qci(void *config)
 		EX_TABLE(0b, 1b)
 		: "+d" (reg0), "+d" (reg1), "+d" (reg2)
 		:
-		: "cc");
+		: "cc", "memory");
 
 	return reg1;
 }
