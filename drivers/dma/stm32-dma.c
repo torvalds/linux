@@ -972,20 +972,17 @@ static struct dma_chan *stm32_dma_of_xlate(struct of_phandle_args *dma_spec,
 	struct stm32_dma_chan *chan;
 	struct dma_chan *c;
 
-	if (dma_spec->args_count < 3)
+	if (dma_spec->args_count < 4)
 		return NULL;
 
 	cfg.channel_id = dma_spec->args[0];
 	cfg.request_line = dma_spec->args[1];
 	cfg.stream_config = dma_spec->args[2];
-	cfg.threshold = 0;
+	cfg.threshold = dma_spec->args[3];
 
 	if ((cfg.channel_id >= STM32_DMA_MAX_CHANNELS) || (cfg.request_line >=
 				STM32_DMA_MAX_REQUEST_ID))
 		return NULL;
-
-	if (dma_spec->args_count > 3)
-		cfg.threshold = dma_spec->args[3];
 
 	chan = &dmadev->chan[cfg.channel_id];
 
