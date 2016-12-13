@@ -2129,7 +2129,7 @@ static void retrieve_link_cap(struct core_link *link)
 	link->dpcd_caps.panel_mode_edp =
 		edp_config_cap.bits.ALT_SCRAMBLER_RESET;
 
-	link->edp_revision = DPCD_EDP_REVISION_EDP_UNKNOWN;
+	link->edp_revision = EDP_REVISION_11;
 
 	link->public.test_pattern_enabled = false;
 	link->public.compliance_test_state.raw = 0;

@@ -144,20 +144,4 @@ enum dpcd_psr_sink_states {
 	PSR_SINK_STATE_SINK_INTERNAL_ERROR = 7,
 };
 
-/* This enum defines the Panel's eDP revision at DPCD 700h
- * 00h = eDP v1.1 or lower
- * 01h = eDP v1.2
- * 02h = eDP v1.3 (PSR support starts here)
- * 03h = eDP v1.4
- * If unknown revision, treat as eDP v1.1, meaning least functionality set.
- * This enum has values matched to eDP spec, thus values should not change.
- */
-enum dpcd_edp_revision {
-	DPCD_EDP_REVISION_EDP_V1_1 = 0,
-	DPCD_EDP_REVISION_EDP_V1_2 = 1,
-	DPCD_EDP_REVISION_EDP_V1_3 = 2,
-	DPCD_EDP_REVISION_EDP_V1_4 = 3,
-	DPCD_EDP_REVISION_EDP_UNKNOWN = DPCD_EDP_REVISION_EDP_V1_1,
-};
-
 #endif /* __DAL_DPCD_DEFS_H__ */
