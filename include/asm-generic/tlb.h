@@ -220,6 +220,12 @@ static inline bool __tlb_remove_pte_page(struct mmu_gather *tlb, struct page *pa
 		__tlb_remove_tlb_entry(tlb, ptep, address);	\
 	} while (0)
 
+#define tlb_remove_huge_tlb_entry(h, tlb, ptep, address)	     \
+	do {							     \
+		__tlb_adjust_range(tlb, address, huge_page_size(h)); \
+		__tlb_remove_tlb_entry(tlb, ptep, address);	     \
+	} while (0)
+
 /**
  * tlb_remove_pmd_tlb_entry - remember a pmd mapping for later tlb invalidation
  * This is a nop so far, because only x86 needs it.
