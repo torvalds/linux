@@ -58,8 +58,33 @@ void tsc_verify_tsc_adjust(bool resume)
 	}
 }
 
+static void tsc_sanitize_first_cpu(struct tsc_adjust *cur, s64 bootval,
+				   unsigned int cpu, bool bootcpu)
+{
+	/*
+	 * First online CPU in a package stores the boot value in the
+	 * adjustment value. This value might change later via the sync
+	 * mechanism. If that fails we still can yell about boot values not
+	 * being consistent.
+	 *
+	 * On the boot cpu we just force set the ADJUST value to 0 if it's
+	 * non zero. We don't do that on non boot cpus because physical
+	 * hotplug should have set the ADJUST register to a value > 0 so
+	 * the TSC is in sync with the already running cpus.
+	 *
+	 * But we always force positive ADJUST values. Otherwise the TSC
+	 * deadline timer creates an interrupt storm. Sigh!
+	 */
+	if ((bootcpu && bootval != 0) || (!bootcpu && bootval < 0)) {
+		pr_warn("TSC ADJUST: CPU%u: %lld force to 0\n", cpu, bootval);
+		wrmsrl(MSR_IA32_TSC_ADJUST, 0);
+		bootval = 0;
+	}
+	cur->adjusted = bootval;
+}
+
 #ifndef CONFIG_SMP
-bool __init tsc_store_and_check_tsc_adjust(void)
+bool __init tsc_store_and_check_tsc_adjust(bool bootcpu)
 {
 	struct tsc_adjust *cur = this_cpu_ptr(&tsc_adjust);
 	s64 bootval;
@@ -69,9 +94,8 @@ bool __init tsc_store_and_check_tsc_adjust(void)
 
 	rdmsrl(MSR_IA32_TSC_ADJUST, bootval);
 	cur->bootval = bootval;
-	cur->adjusted = bootval;
 	cur->nextcheck = jiffies + HZ;
-	pr_info("TSC ADJUST: Boot CPU0: %lld\n", bootval);
+	tsc_sanitize_first_cpu(cur, bootval, smp_processor_id(), bootcpu);
 	return false;
 }
 
@@ -80,7 +104,7 @@ bool __init tsc_store_and_check_tsc_adjust(void)
 /*
  * Store and check the TSC ADJUST MSR if available
  */
-bool tsc_store_and_check_tsc_adjust(void)
+bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 {
 	struct tsc_adjust *ref, *cur = this_cpu_ptr(&tsc_adjust);
 	unsigned int refcpu, cpu = smp_processor_id();
@@ -98,22 +122,16 @@ bool tsc_store_and_check_tsc_adjust(void)
 	/*
 	 * Check whether this CPU is the first in a package to come up. In
 	 * this case do not check the boot value against another package
-	 * because the package might have been physically hotplugged, where
-	 * TSC_ADJUST is expected to be different. When called on the boot
-	 * CPU topology_core_cpumask() might not be available yet.
+	 * because the new package might have been physically hotplugged,
+	 * where TSC_ADJUST is expected to be different. When called on the
+	 * boot CPU topology_core_cpumask() might not be available yet.
 	 */
 	mask = topology_core_cpumask(cpu);
 	refcpu = mask ? cpumask_any_but(mask, cpu) : nr_cpu_ids;
 
 	if (refcpu >= nr_cpu_ids) {
-		/*
-		 * First online CPU in a package stores the boot value in
-		 * the adjustment value. This value might change later via
-		 * the sync mechanism. If that fails we still can yell
-		 * about boot values not being consistent.
-		 */
-		cur->adjusted = bootval;
-		pr_info_once("TSC ADJUST: Boot CPU%u: %lld\n", cpu,  bootval);
+		tsc_sanitize_first_cpu(cur, bootval, smp_processor_id(),
+				       bootcpu);
 		return false;
 	}
 
@@ -366,7 +384,7 @@ void check_tsc_sync_target(void)
 	 * Store, verify and sanitize the TSC adjust register. If
 	 * successful skip the test.
 	 */
-	if (tsc_store_and_check_tsc_adjust()) {
+	if (tsc_store_and_check_tsc_adjust(false)) {
 		atomic_inc(&skip_test);
 		return;
 	}
@@ -429,8 +447,13 @@ retry:
 	 * that the warp is not longer detectable when the observed warp
 	 * value is used. In the worst case the adjustment needs to go
 	 * through a 3rd run for fine tuning.
+	 *
+	 * But we must make sure that the value doesn't become negative
+	 * otherwise TSC deadline timer will create an interrupt storm.
 	 */
 	cur->adjusted += cur_max_warp;
+	if (cur->adjusted < 0)
+		cur->adjusted = 0;
 
 	pr_warn("TSC ADJUST compensate: CPU%u observed %lld warp. Adjust: %lld\n",
 		cpu, cur_max_warp, cur->adjusted);
