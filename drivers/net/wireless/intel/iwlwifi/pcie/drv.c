@@ -784,13 +784,14 @@ static int iwl_pci_resume(struct device *device)
 
 	/*
 	 * Enable rfkill interrupt (in order to keep track of
-	 * the rfkill status)
+	 * the rfkill status). Must be locked to avoid processing
+	 * a possible rfkill interrupt between reading the state
+	 * and calling iwl_trans_pcie_rf_kill() with it.
 	 */
+	mutex_lock(&trans_pcie->mutex);
 	iwl_enable_rfkill_int(trans);
 
 	hw_rfkill = iwl_is_rfkill_set(trans);
-
-	mutex_lock(&trans_pcie->mutex);
 	iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 	mutex_unlock(&trans_pcie->mutex);
 

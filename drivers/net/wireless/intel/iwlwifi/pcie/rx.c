@@ -1607,13 +1607,13 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	if (inta & CSR_INT_BIT_RF_KILL) {
 		bool hw_rfkill;
 
+		mutex_lock(&trans_pcie->mutex);
 		hw_rfkill = iwl_is_rfkill_set(trans);
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 			 hw_rfkill ? "disable radio" : "enable radio");
 
 		isr_stats->rfkill++;
 
-		mutex_lock(&trans_pcie->mutex);
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
@@ -1952,13 +1952,13 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RF_KILL) {
 		bool hw_rfkill;
 
+		mutex_lock(&trans_pcie->mutex);
 		hw_rfkill = iwl_is_rfkill_set(trans);
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 			 hw_rfkill ? "disable radio" : "enable radio");
 
 		isr_stats->rfkill++;
 
-		mutex_lock(&trans_pcie->mutex);
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
