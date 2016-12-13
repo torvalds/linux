@@ -16,6 +16,8 @@ if len(sys.argv) != 3:
     sys.stderr.write("usage: %s file1 file2\n" % sys.argv[0])
     sys.exit(-1)
 
+re_NUMBER = re.compile(r'\.[0-9]+')
+
 def getsizes(file):
     sym = {}
     with os.popen("nm --size-sort " + file) as f:
@@ -28,7 +30,7 @@ def getsizes(file):
                 if name.startswith("compat_SyS_"): continue
                 if name == "linux_banner": continue
                 # statics and some other optimizations adds random .NUMBER
-                name = re.sub(r'\.[0-9]+', '', name)
+                name = re_NUMBER.sub('', name)
                 sym[name] = sym.get(name, 0) + int(size, 16)
     return sym
 
