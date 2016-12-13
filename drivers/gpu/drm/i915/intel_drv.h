@@ -1610,7 +1610,7 @@ void intel_panel_disable_backlight(struct intel_connector *connector);
 void intel_panel_destroy_backlight(struct drm_connector *connector);
 enum drm_connector_status intel_panel_detect(struct drm_i915_private *dev_priv);
 extern struct drm_display_mode *intel_find_panel_downclock(
-				struct drm_device *dev,
+				struct drm_i915_private *dev_priv,
 				struct drm_display_mode *fixed_mode,
 				struct drm_connector *connector);
 

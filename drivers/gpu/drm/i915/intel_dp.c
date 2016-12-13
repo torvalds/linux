@@ -5528,7 +5528,7 @@ intel_dp_drrs_init(struct intel_connector *intel_connector,
 	}
 
 	downclock_mode = intel_find_panel_downclock
-					(dev, fixed_mode, connector);
+					(dev_priv, fixed_mode, connector);
 
 	if (!downclock_mode) {
 		DRM_DEBUG_KMS("Downclock mode is not found. DRRS not supported\n");

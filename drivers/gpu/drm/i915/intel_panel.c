@@ -48,7 +48,7 @@ intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
 
 /**
  * intel_find_panel_downclock - find the reduced downclock for LVDS in EDID
- * @dev: drm device
+ * @dev_priv: i915 device instance
  * @fixed_mode : panel native mode
  * @connector: LVDS/eDP connector
  *
@@ -56,7 +56,7 @@ intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
  * Find the reduced downclock for LVDS/eDP in EDID.
  */
 struct drm_display_mode *
-intel_find_panel_downclock(struct drm_device *dev,
+intel_find_panel_downclock(struct drm_i915_private *dev_priv,
 			struct drm_display_mode *fixed_mode,
 			struct drm_connector *connector)
 {
@@ -94,7 +94,7 @@ intel_find_panel_downclock(struct drm_device *dev,
 	}
 
 	if (temp_downclock < fixed_mode->clock)
-		return drm_mode_duplicate(dev, tmp_mode);
+		return drm_mode_duplicate(&dev_priv->drm, tmp_mode);
 	else
 		return NULL;
 }
