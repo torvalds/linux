@@ -286,5 +286,11 @@ tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr
 
 #define tlb_migrate_finish(mm)		do { } while (0)
 
+#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
+static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
+						     unsigned int page_size)
+{
+}
+
 #endif /* CONFIG_MMU */
 #endif

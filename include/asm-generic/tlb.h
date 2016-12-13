@@ -182,6 +182,22 @@ static inline bool __tlb_remove_pte_page(struct mmu_gather *tlb, struct page *pa
 	return __tlb_remove_page(tlb, page);
 }
 
+#ifndef tlb_remove_check_page_size_change
+#define tlb_remove_check_page_size_change tlb_remove_check_page_size_change
+static inline void tlb_remove_check_page_size_change(struct mmu_gather *tlb,
+						     unsigned int page_size)
+{
+	/*
+	 * We don't care about page size change, just update
+	 * mmu_gather page size here so that debug checks
+	 * doesn't throw false warning.
+	 */
+#ifdef CONFIG_DEBUG_VM
+	tlb->page_size = page_size;
+#endif
+}
+#endif
+
 /*
  * In the case of tlb vma handling, we can optimise these away in the
  * case where we're doing a full MM flush.  When we're doing a munmap,
