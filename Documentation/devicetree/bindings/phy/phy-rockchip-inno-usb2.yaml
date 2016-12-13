@@ -115,6 +115,10 @@ properties:
           get vbus status. If not, it will use bvalid status bit to get vbus
           status by default.
 
+     rockchip,vbus-always-on:
+       $ref: /schemas/types.yaml#/definitions/flag
+       description: when set, indicates that the otg vbus is always powered on.
+
     required:
       - "#phy-cells"
       - interrupts
