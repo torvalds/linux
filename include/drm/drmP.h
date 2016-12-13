@@ -819,9 +819,6 @@ static inline int drm_pci_set_busid(struct drm_device *dev,
 extern int drm_pcie_get_speed_cap_mask(struct drm_device *dev, u32 *speed_mask);
 extern int drm_pcie_get_max_link_width(struct drm_device *dev, u32 *mlw);
 
-/* platform section */
-extern int drm_platform_init(struct drm_driver *driver, struct platform_device *platform_device);
-
 /* returns true if currently okay to sleep */
 static __inline__ bool drm_can_sleep(void)
 {
