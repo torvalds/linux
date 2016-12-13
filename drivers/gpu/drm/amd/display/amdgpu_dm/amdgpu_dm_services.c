@@ -36,10 +36,6 @@
 #include "amdgpu_dm_types.h"
 #include "amdgpu_pm.h"
 
-#define dm_alloc(size) kzalloc(size, GFP_KERNEL)
-#define dm_realloc(ptr, size) krealloc(ptr, size, GFP_KERNEL)
-#define dm_free(ptr) kfree(ptr)
-
 /******************************************************************************
  * IRQ Interfaces.
  *****************************************************************************/
