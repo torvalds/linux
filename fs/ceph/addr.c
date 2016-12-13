@@ -1948,6 +1948,15 @@ int ceph_pool_perm_check(struct ceph_inode_info *ci, int need)
 	struct ceph_string *pool_ns;
 	int ret, flags;
 
+	if (ci->i_vino.snap != CEPH_NOSNAP) {
+		/*
+		 * Pool permission check needs to write to the first object.
+		 * But for snapshot, head of the first object may have alread
+		 * been deleted. Skip check to avoid creating orphan object.
+		 */
+		return 0;
+	}
+
 	if (ceph_test_mount_opt(ceph_inode_to_client(&ci->vfs_inode),
 				NOPOOLPERM))
 		return 0;
