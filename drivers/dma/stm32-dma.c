@@ -114,6 +114,7 @@
 #define STM32_DMA_MAX_CHANNELS		0x08
 #define STM32_DMA_MAX_REQUEST_ID	0x08
 #define STM32_DMA_MAX_DATA_PARAM	0x03
+#define STM32_DMA_MAX_BURST		16
 
 enum stm32_dma_width {
 	STM32_DMA_BYTE,
@@ -1082,6 +1083,7 @@ static int stm32_dma_probe(struct platform_device *pdev)
 		BIT(DMA_SLAVE_BUSWIDTH_4_BYTES);
 	dd->directions = BIT(DMA_DEV_TO_MEM) | BIT(DMA_MEM_TO_DEV);
 	dd->residue_granularity = DMA_RESIDUE_GRANULARITY_BURST;
+	dd->max_burst = STM32_DMA_MAX_BURST;
 	dd->dev = &pdev->dev;
 	INIT_LIST_HEAD(&dd->channels);
 
