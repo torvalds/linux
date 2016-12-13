@@ -47,6 +47,10 @@
 #define STM32F4_RCC_CSR			0x74
 #define STM32F4_RCC_PLLI2SCFGR		0x84
 #define STM32F4_RCC_PLLSAICFGR		0x88
+#define STM32F4_RCC_DCKCFGR		0x8c
+
+#define NONE -1
+#define NO_IDX  NONE
 
 struct stm32f4_gate_data {
 	u8	offset;
@@ -357,6 +361,19 @@ struct stm32f4_pll {
 
 #define to_stm32f4_pll(_gate) container_of(_gate, struct stm32f4_pll, gate)
 
+struct stm32f4_pll_post_div_data {
+	int idx;
+	u8 pll_num;
+	const char *name;
+	const char *parent;
+	u8 flag;
+	u8 offset;
+	u8 shift;
+	u8 width;
+	u8 flag_div;
+	const struct clk_div_table *div_table;
+};
+
 struct stm32f4_vco_data {
 	const char *vco_name;
 	u8 offset;
@@ -368,6 +385,23 @@ static const struct stm32f4_vco_data  vco_data[] = {
 	{ "vco",     STM32F4_RCC_PLLCFGR,    24, 25 },
 	{ "vco-i2s", STM32F4_RCC_PLLI2SCFGR, 26, 27 },
 	{ "vco-sai", STM32F4_RCC_PLLSAICFGR, 28, 29 },
+};
+
+
+static const struct clk_div_table post_divr_table[] = {
+	{ 0, 2 }, { 1, 4 }, { 2, 8 }, { 3, 16 }, { 0 }
+};
+
+#define MAX_POST_DIV 3
+static const struct stm32f4_pll_post_div_data  post_div_data[MAX_POST_DIV] = {
+	{ CLK_I2SQ_PDIV, PLL_I2S, "plli2s-q-div", "plli2s-q",
+		CLK_SET_RATE_PARENT, STM32F4_RCC_DCKCFGR, 0, 5, 0, NULL},
+
+	{ CLK_SAIQ_PDIV, PLL_SAI, "pllsai-q-div", "pllsai-q",
+		CLK_SET_RATE_PARENT, STM32F4_RCC_DCKCFGR, 8, 5, 0, NULL },
+
+	{ NO_IDX, PLL_SAI, "pllsai-r-div", "pllsai-r", CLK_SET_RATE_PARENT,
+		STM32F4_RCC_DCKCFGR, 16, 2, 0, post_divr_table },
 };
 
 struct stm32f4_div_data {
@@ -995,6 +1029,27 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 
 	clks[PLL_VCO_SAI] = stm32f4_rcc_register_pll("vco_in",
 			&data->pll_data[2], &stm32f4_clk_lock);
+
+	for (n = 0; n < MAX_POST_DIV; n++) {
+		const struct stm32f4_pll_post_div_data *post_div;
+		struct clk_hw *hw;
+
+		post_div = &post_div_data[n];
+
+		hw = clk_register_pll_div(post_div->name,
+				post_div->parent,
+				post_div->flag,
+				base + post_div->offset,
+				post_div->shift,
+				post_div->width,
+				post_div->flag_div,
+				post_div->div_table,
+				clks[post_div->pll_num],
+				&stm32f4_clk_lock);
+
+		if (post_div->idx != NO_IDX)
+			clks[post_div->idx] = hw;
+	}
 
 	sys_parents[1] = hse_clk;
 	clk_register_mux_table(
