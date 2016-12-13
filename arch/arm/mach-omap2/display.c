@@ -317,7 +317,7 @@ static const char * const omapdss_compat_names[] __initconst = {
 	"ti,dra7-dss",
 };
 
-struct device_node * __init omapdss_find_dss_of_node(void)
+static struct device_node * __init omapdss_find_dss_of_node(void)
 {
 	struct device_node *node;
 	int i;
