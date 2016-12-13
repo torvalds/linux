@@ -154,6 +154,7 @@ extern "C" {
 
 /* Vendor Ids: */
 #define DRM_FORMAT_MOD_NONE           0
+#define DRM_FORMAT_MOD_VENDOR_NONE    0
 #define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
 #define DRM_FORMAT_MOD_VENDOR_AMD     0x02
 #define DRM_FORMAT_MOD_VENDOR_NV      0x03
