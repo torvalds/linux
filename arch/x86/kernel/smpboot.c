@@ -1463,15 +1463,15 @@ __init void prefill_possible_map(void)
 		possible = i;
 	}
 
+	nr_cpu_ids = possible;
+
 	pr_info("Allowing %d CPUs, %d hotplug CPUs\n",
 		possible, max_t(int, possible - num_processors, 0));
 
+	reset_cpu_possible_mask();
+
 	for (i = 0; i < possible; i++)
 		set_cpu_possible(i, true);
-	for (; i < NR_CPUS; i++)
-		set_cpu_possible(i, false);
-
-	nr_cpu_ids = possible;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
