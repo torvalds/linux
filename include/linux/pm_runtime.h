@@ -61,12 +61,6 @@ static inline void pm_suspend_ignore_children(struct device *dev, bool enable)
 	dev->power.ignore_children = enable;
 }
 
-static inline bool pm_children_suspended(struct device *dev)
-{
-	return dev->power.ignore_children
-		|| !atomic_read(&dev->power.child_count);
-}
-
 static inline void pm_runtime_get_noresume(struct device *dev)
 {
 	atomic_inc(&dev->power.usage_count);
@@ -162,7 +156,6 @@ static inline void pm_runtime_allow(struct device *dev) {}
 static inline void pm_runtime_forbid(struct device *dev) {}
 
 static inline void pm_suspend_ignore_children(struct device *dev, bool enable) {}
-static inline bool pm_children_suspended(struct device *dev) { return false; }
 static inline void pm_runtime_get_noresume(struct device *dev) {}
 static inline void pm_runtime_put_noidle(struct device *dev) {}
 static inline bool device_run_wake(struct device *dev) { return false; }
@@ -265,9 +258,9 @@ static inline int pm_runtime_set_active(struct device *dev)
 	return __pm_runtime_set_status(dev, RPM_ACTIVE);
 }
 
-static inline void pm_runtime_set_suspended(struct device *dev)
+static inline int pm_runtime_set_suspended(struct device *dev)
 {
-	__pm_runtime_set_status(dev, RPM_SUSPENDED);
+	return __pm_runtime_set_status(dev, RPM_SUSPENDED);
 }
 
 static inline void pm_runtime_disable(struct device *dev)

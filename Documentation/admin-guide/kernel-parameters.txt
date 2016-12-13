@@ -1560,6 +1560,12 @@
 		       disable
 		         Do not enable intel_pstate as the default
 		         scaling driver for the supported processors
+		       passive
+			 Use intel_pstate as a scaling driver, but configure it
+			 to work with generic cpufreq governors (instead of
+			 enabling its internal governor).  This mode cannot be
+			 used along with the hardware-managed P-states (HWP)
+			 feature.
 		       force
 			 Enable intel_pstate on systems that prohibit it by default
 			 in favor of acpi-cpufreq. Forcing the intel_pstate driver
@@ -1580,6 +1586,9 @@
 			Description Table, specifies preferred power management
 			profile as "Enterprise Server" or "Performance Server",
 			then this feature is turned on by default.
+		per_cpu_perf_limits
+			Allow per-logical-CPU P-State performance control limits using
+			cpufreq sysfs interface
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)
@@ -2121,6 +2130,12 @@
 			fills the memory with this pattern, validates
 			memory contents and reserves bad memory
 			regions that are detected.
+
+	mem_sleep_default=	[SUSPEND] Default system suspend mode:
+			s2idle  - Suspend-To-Idle
+			shallow - Power-On Suspend or equivalent (if supported)
+			deep    - Suspend-To-RAM or equivalent (if supported)
+			See Documentation/power/states.txt.
 
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
@@ -3474,13 +3489,6 @@
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
 			See Documentation/cgroup-v1/cpusets.txt.
-
-	relative_sleep_states=
-			[SUSPEND] Use sleep state labeling where the deepest
-			state available other than hibernation is always "mem".
-			Format: { "0" | "1" }
-			0 -- Traditional sleep state labels.
-			1 -- Relative sleep state labels.
 
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 
