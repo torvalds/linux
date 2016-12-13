@@ -217,7 +217,7 @@ static void allow_cpu_feat(unsigned long nr)
 static inline int plo_test_bit(unsigned char nr)
 {
 	register unsigned long r0 asm("0") = (unsigned long) nr | 0x100;
-	int cc = 3; /* subfunction not available */
+	int cc;
 
 	asm volatile(
 		/* Parameter registers are ignored for "test bit" */
