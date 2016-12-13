@@ -226,8 +226,7 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 	struct beiscsi_hba *phba;
 	struct iscsi_session *session;
 	struct invldt_cmd_tbl inv_tbl;
-	struct be_dma_mem nonemb_cmd;
-	unsigned int cid, tag;
+	unsigned int cid;
 	int rc;
 
 	cls_session = starget_to_session(scsi_target(sc->device));
@@ -259,64 +258,47 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 	cid = beiscsi_conn->beiscsi_conn_cid;
 	inv_tbl.cid = cid;
 	inv_tbl.icd = aborted_io_task->psgl_handle->sgl_index;
-	nonemb_cmd.size = sizeof(union be_invldt_cmds_params);
-	nonemb_cmd.va = pci_zalloc_consistent(phba->ctrl.pdev,
-					      nonemb_cmd.size,
-					      &nonemb_cmd.dma);
-	if (nonemb_cmd.va == NULL) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
-			    "BM_%d : Failed to allocate memory for"
-			    "mgmt_invalidate_icds\n");
-		return FAILED;
-	}
-
-	tag = mgmt_invalidate_icds(phba, &inv_tbl, 1, cid, &nonemb_cmd);
-	if (!tag) {
+	rc = beiscsi_mgmt_invalidate_icds(phba, &inv_tbl, 1);
+	if (rc) {
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_EH,
-			    "BM_%d : mgmt_invalidate_icds could not be"
-			    "submitted\n");
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-				    nonemb_cmd.va, nonemb_cmd.dma);
-
+			    "BM_%d : sc %p invalidation failed %d\n",
+			    sc, rc);
 		return FAILED;
 	}
-
-	rc = beiscsi_mccq_compl_wait(phba, tag, NULL, &nonemb_cmd);
-	if (rc != -EBUSY)
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-				    nonemb_cmd.va, nonemb_cmd.dma);
 
 	return iscsi_eh_abort(sc);
 }
 
 static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 {
-	struct iscsi_task *abrt_task;
-	struct beiscsi_io_task *abrt_io_task;
-	struct iscsi_conn *conn;
-	struct beiscsi_conn *beiscsi_conn;
-	struct beiscsi_hba *phba;
-	struct iscsi_session *session;
+	struct beiscsi_invldt_cmd_tbl {
+		struct invldt_cmd_tbl tbl[BE_INVLDT_CMD_TBL_SZ];
+		struct iscsi_task *task[BE_INVLDT_CMD_TBL_SZ];
+	} *inv_tbl;
 	struct iscsi_cls_session *cls_session;
-	struct invldt_cmd_tbl *inv_tbl;
-	struct be_dma_mem nonemb_cmd;
-	unsigned int cid, tag, i, nents;
+	struct beiscsi_conn *beiscsi_conn;
+	struct beiscsi_io_task *io_task;
+	struct iscsi_session *session;
+	struct beiscsi_hba *phba;
+	struct iscsi_conn *conn;
+	struct iscsi_task *task;
+	unsigned int i, nents;
 	int rc, more = 0;
 
-	/* invalidate iocbs */
 	cls_session = starget_to_session(scsi_target(sc->device));
 	session = cls_session->dd_data;
+
 	spin_lock_bh(&session->frwd_lock);
 	if (!session->leadconn || session->state != ISCSI_STATE_LOGGED_IN) {
 		spin_unlock_bh(&session->frwd_lock);
 		return FAILED;
 	}
+
 	conn = session->leadconn;
 	beiscsi_conn = conn->dd_data;
 	phba = beiscsi_conn->phba;
-	cid = beiscsi_conn->beiscsi_conn_cid;
 
-	inv_tbl = kcalloc(BE_INVLDT_CMD_TBL_SZ, sizeof(*inv_tbl), GFP_KERNEL);
+	inv_tbl = kzalloc(sizeof(*inv_tbl), GFP_KERNEL);
 	if (!inv_tbl) {
 		spin_unlock_bh(&session->frwd_lock);
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
@@ -324,13 +306,14 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 		return FAILED;
 	}
 	nents = 0;
+	/* take back_lock to prevent task from getting cleaned up under us */
+	spin_lock(&session->back_lock);
 	for (i = 0; i < conn->session->cmds_max; i++) {
-		abrt_task = conn->session->cmds[i];
-		abrt_io_task = abrt_task->dd_data;
-		if (!abrt_task->sc || abrt_task->state == ISCSI_TASK_FREE)
+		task = conn->session->cmds[i];
+		if (!task->sc)
 			continue;
 
-		if (sc->device->lun != abrt_task->sc->device->lun)
+		if (sc->device->lun != task->sc->device->lun)
 			continue;
 		/**
 		 * Can't fit in more cmds? Normally this won't happen b'coz
@@ -341,52 +324,48 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 			break;
 		}
 
-		/* Invalidate WRB Posted for this Task */
+		/* get a task ref till FW processes the req for the ICD used */
+		__iscsi_get_task(task);
+		io_task = task->dd_data;
+		/* mark WRB invalid which have been not processed by FW yet */
 		AMAP_SET_BITS(struct amap_iscsi_wrb, invld,
-			      abrt_io_task->pwrb_handle->pwrb,
+			      io_task->pwrb_handle->pwrb,
 			      1);
 
-		inv_tbl[nents].cid = cid;
-		inv_tbl[nents].icd = abrt_io_task->psgl_handle->sgl_index;
+		inv_tbl->tbl[nents].cid = beiscsi_conn->beiscsi_conn_cid;
+		inv_tbl->tbl[nents].icd = io_task->psgl_handle->sgl_index;
+		inv_tbl->task[nents] = task;
 		nents++;
 	}
+	spin_unlock_bh(&session->back_lock);
 	spin_unlock_bh(&session->frwd_lock);
+
+	rc = SUCCESS;
+	if (!nents)
+		goto end_reset;
 
 	if (more) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
 			    "BM_%d : number of cmds exceeds size of invalidation table\n");
-		kfree(inv_tbl);
-		return FAILED;
+		rc = FAILED;
+		goto end_reset;
 	}
 
-	nonemb_cmd.size = sizeof(union be_invldt_cmds_params);
-	nonemb_cmd.va = pci_zalloc_consistent(phba->ctrl.pdev,
-					      nonemb_cmd.size,
-					      &nonemb_cmd.dma);
-	if (nonemb_cmd.va == NULL) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_EH,
-			    "BM_%d : Failed to allocate memory for"
-			    "mgmt_invalidate_icds\n");
-		kfree(inv_tbl);
-		return FAILED;
-	}
-	tag = mgmt_invalidate_icds(phba, inv_tbl, nents,
-				   cid, &nonemb_cmd);
-	kfree(inv_tbl);
-	if (!tag) {
+	if (beiscsi_mgmt_invalidate_icds(phba, &inv_tbl->tbl[0], nents)) {
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_EH,
-			    "BM_%d : mgmt_invalidate_icds could not be"
-			    " submitted\n");
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-				    nonemb_cmd.va, nonemb_cmd.dma);
-		return FAILED;
+			    "BM_%d : cid %u scmds invalidation failed\n",
+			    beiscsi_conn->beiscsi_conn_cid);
+		rc = FAILED;
 	}
 
-	rc = beiscsi_mccq_compl_wait(phba, tag, NULL, &nonemb_cmd);
-	if (rc != -EBUSY)
-		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
-				    nonemb_cmd.va, nonemb_cmd.dma);
-	return iscsi_eh_device_reset(sc);
+end_reset:
+	for (i = 0; i < nents; i++)
+		iscsi_put_task(inv_tbl->task[i]);
+	kfree(inv_tbl);
+
+	if (rc == SUCCESS)
+		rc = iscsi_eh_device_reset(sc);
+	return rc;
 }
 
 /*------------------- PCI Driver operations and data ----------------- */

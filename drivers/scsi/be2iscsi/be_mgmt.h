@@ -258,16 +258,14 @@ struct beiscsi_endpoint {
 	u16 cid_vld;
 };
 
-unsigned int mgmt_invalidate_icds(struct beiscsi_hba *phba,
-				struct invldt_cmd_tbl *inv_tbl,
-				unsigned int num_invalidate, unsigned int cid,
-				struct be_dma_mem *nonemb_cmd);
-
 unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 struct beiscsi_endpoint *beiscsi_ep,
 					 unsigned short cid,
 					 unsigned short issue_reset,
 					 unsigned short savecfg_flag);
+int beiscsi_mgmt_invalidate_icds(struct beiscsi_hba *phba,
+				 struct invldt_cmd_tbl *inv_tbl,
+				 unsigned int nents);
 
 int beiscsi_if_en_dhcp(struct beiscsi_hba *phba, u32 ip_type);
 
