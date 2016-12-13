@@ -513,8 +513,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv)
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	} else if (IS_MOBILE(dev_priv) ||
-		   (IS_GEN3(dev_priv) &&
-		    !IS_G33(dev_priv) && !IS_PINEVIEW(dev_priv))) {
+		   IS_I915G(dev_priv) || IS_I945G(dev_priv)) {
 		uint32_t dcc;
 
 		/* On 9xx chipsets, channel interleave by the CPU is
