@@ -48,7 +48,6 @@ struct nvkm_secboot {
 
 bool nvkm_secboot_is_managed(struct nvkm_secboot *, enum nvkm_secboot_falcon);
 int nvkm_secboot_reset(struct nvkm_secboot *, enum nvkm_secboot_falcon);
-int nvkm_secboot_start(struct nvkm_secboot *, enum nvkm_secboot_falcon);
 
 int gm200_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 int gm20b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);

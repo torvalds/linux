@@ -31,7 +31,6 @@ struct nvkm_secboot_func {
 	int (*fini)(struct nvkm_secboot *, bool suspend);
 	void *(*dtor)(struct nvkm_secboot *);
 	int (*reset)(struct nvkm_secboot *, enum nvkm_secboot_falcon);
-	int (*start)(struct nvkm_secboot *, enum nvkm_secboot_falcon);
 
 	/* ID of the falcon that will perform secure boot */
 	enum nvkm_secboot_falcon boot_falcon;

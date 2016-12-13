@@ -49,21 +49,6 @@ nvkm_secboot_reset(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
 }
 
 /**
- * nvkm_secboot_start() - start specified falcon
- */
-int
-nvkm_secboot_start(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
-{
-	/* Unmanaged falcon? */
-	if (!(BIT(falcon) & sb->func->managed_falcons)) {
-		nvkm_error(&sb->subdev, "cannot start unmanaged falcon!\n");
-		return -EINVAL;
-	}
-
-	return sb->func->start(sb, falcon);
-}
-
-/**
  * nvkm_secboot_is_managed() - check whether a given falcon is securely-managed
  */
 bool

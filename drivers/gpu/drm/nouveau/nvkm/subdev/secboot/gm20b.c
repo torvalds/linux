@@ -191,7 +191,6 @@ gm20b_secboot = {
 	.dtor = gm200_secboot_dtor,
 	.init = gm20b_secboot_init,
 	.reset = gm200_secboot_reset,
-	.start = gm200_secboot_start,
 	.managed_falcons = BIT(NVKM_SECBOOT_FALCON_FECS),
 	.boot_falcon = NVKM_SECBOOT_FALCON_PMU,
 };

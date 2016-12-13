@@ -1253,32 +1253,6 @@ end:
 }
 
 int
-gm200_secboot_start(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
-{
-	struct gm200_secboot *gsb = gm200_secboot(sb);
-	int base;
-
-	switch (falcon) {
-	case NVKM_SECBOOT_FALCON_FECS:
-		base = 0x409000;
-		break;
-	case NVKM_SECBOOT_FALCON_GPCCS:
-		base = 0x41a000;
-		break;
-	default:
-		nvkm_error(&sb->subdev, "cannot start unhandled falcon!\n");
-		return -EINVAL;
-	}
-
-	nvkm_wr32(sb->subdev.device, base + 0x130, 0x00000002);
-	gsb->falcon_state[falcon] = RUNNING;
-
-	return 0;
-}
-
-
-
-int
 gm200_secboot_init(struct nvkm_secboot *sb)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
@@ -1361,7 +1335,6 @@ gm200_secboot = {
 	.init = gm200_secboot_init,
 	.fini = gm200_secboot_fini,
 	.reset = gm200_secboot_reset,
-	.start = gm200_secboot_start,
 	.managed_falcons = BIT(NVKM_SECBOOT_FALCON_FECS) |
 			   BIT(NVKM_SECBOOT_FALCON_GPCCS),
 	.boot_falcon = NVKM_SECBOOT_FALCON_PMU,
