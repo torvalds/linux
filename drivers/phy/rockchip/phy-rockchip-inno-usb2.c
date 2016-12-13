@@ -170,6 +170,7 @@ struct rockchip_usb2phy_cfg {
  *	true	- use avalid to get vbus status
  *	flase	- use bvalid to get vbus status
  * @vbus_attached: otg device vbus status.
+ * @vbus_always_on: otg vbus is always powered on.
  * @bvalid_irq: IRQ number assigned for vbus valid rise detection.
  * @ls_irq: IRQ number assigned for linestate detection.
  * @otg_mux_irq: IRQ number which multiplex otg-id/otg-bvalid/linestate
@@ -189,6 +190,7 @@ struct rockchip_usb2phy_port {
 	bool		suspended;
 	bool		utmi_avalid;
 	bool		vbus_attached;
+	bool		vbus_always_on;
 	int		bvalid_irq;
 	int		ls_irq;
 	int		otg_mux_irq;
@@ -420,7 +422,8 @@ static int rockchip_usb2phy_init(struct phy *phy)
 
 	if (rport->port_id == USB2PHY_PORT_OTG) {
 		if (rport->mode != USB_DR_MODE_HOST &&
-		    rport->mode != USB_DR_MODE_UNKNOWN) {
+		    rport->mode != USB_DR_MODE_UNKNOWN &&
+		    !rport->vbus_always_on) {
 			/* clear bvalid status and enable bvalid detect irq */
 			ret = property_enable(rphy->grf,
 					      &rport->port_cfg->bvalid_det_clr,
@@ -515,7 +518,8 @@ static int rockchip_usb2phy_exit(struct phy *phy)
 
 	if (rport->port_id == USB2PHY_PORT_OTG &&
 	    rport->mode != USB_DR_MODE_HOST &&
-	    rport->mode != USB_DR_MODE_UNKNOWN) {
+	    rport->mode != USB_DR_MODE_UNKNOWN &&
+	    !rport->vbus_always_on) {
 		cancel_delayed_work_sync(&rport->otg_sm_work);
 		cancel_delayed_work_sync(&rport->chg_work);
 	} else if (rport->port_id == USB2PHY_PORT_HOST)
@@ -1011,9 +1015,13 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 
 	mutex_init(&rport->mutex);
 
+	rport->vbus_always_on =
+		of_property_read_bool(child_np, "rockchip,vbus-always-on");
+
 	rport->mode = of_usb_get_dr_mode_by_phy(child_np, -1);
 	if (rport->mode == USB_DR_MODE_HOST ||
-	    rport->mode == USB_DR_MODE_UNKNOWN) {
+	    rport->mode == USB_DR_MODE_UNKNOWN ||
+	    rport->vbus_always_on) {
 		ret = 0;
 		goto out;
 	}
