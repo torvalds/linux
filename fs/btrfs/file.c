@@ -2372,7 +2372,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	u64 tail_len;
 	u64 orig_start = offset;
 	u64 cur_offset;
-	u64 min_size = btrfs_calc_trunc_metadata_size(fs_info, 1);
+	u64 min_size = btrfs_calc_trans_metadata_size(fs_info, 1);
 	u64 drop_end;
 	int ret = 0;
 	int err = 0;
@@ -2519,7 +2519,7 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 		ret = -ENOMEM;
 		goto out_free;
 	}
-	rsv->size = btrfs_calc_trunc_metadata_size(fs_info, 1);
+	rsv->size = btrfs_calc_trans_metadata_size(fs_info, 1);
 	rsv->failfast = 1;
 
 	/*

@@ -560,7 +560,15 @@ static noinline int check_leaf(struct btrfs_root *root,
 	u32 nritems = btrfs_header_nritems(leaf);
 	int slot;
 
-	if (nritems == 0) {
+	/*
+	 * Extent buffers from a relocation tree have a owner field that
+	 * corresponds to the subvolume tree they are based on. So just from an
+	 * extent buffer alone we can not find out what is the id of the
+	 * corresponding subvolume tree, so we can not figure out if the extent
+	 * buffer corresponds to the root of the relocation tree or not. So skip
+	 * this check for relocation trees.
+	 */
+	if (nritems == 0 && !btrfs_header_flag(leaf, BTRFS_HEADER_FLAG_RELOC)) {
 		struct btrfs_root *check_root;
 
 		key.objectid = btrfs_header_owner(leaf);
@@ -573,16 +581,23 @@ static noinline int check_leaf(struct btrfs_root *root,
 		 * open_ctree() some roots has not yet been set up.
 		 */
 		if (!IS_ERR_OR_NULL(check_root)) {
+			struct extent_buffer *eb;
+
+			eb = btrfs_root_node(check_root);
 			/* if leaf is the root, then it's fine */
-			if (leaf->start !=
-			    btrfs_root_bytenr(&check_root->root_item)) {
+			if (leaf != eb) {
 				CORRUPT("non-root leaf's nritems is 0",
-					leaf, root, 0);
+					leaf, check_root, 0);
+				free_extent_buffer(eb);
 				return -EIO;
 			}
+			free_extent_buffer(eb);
 		}
 		return 0;
 	}
+
+	if (nritems == 0)
+		return 0;
 
 	/* Check the 0 item */
 	if (btrfs_item_offset_nr(leaf, 0) + btrfs_item_size_nr(leaf, 0) !=

@@ -1388,7 +1388,6 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 	struct extent_buffer *eb;
 	struct btrfs_root_item *root_item;
 	struct btrfs_key root_key;
-	u64 last_snap = 0;
 	int ret;
 
 	root_item = kmalloc(sizeof(*root_item), GFP_NOFS);
@@ -1399,14 +1398,22 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 	root_key.offset = objectid;
 
 	if (root->root_key.objectid == objectid) {
+		u64 commit_root_gen;
+
 		/* called by btrfs_init_reloc_root */
 		ret = btrfs_copy_root(trans, root, root->commit_root, &eb,
 				      BTRFS_TREE_RELOC_OBJECTID);
 		BUG_ON(ret);
-
-		last_snap = btrfs_root_last_snapshot(&root->root_item);
-		btrfs_set_root_last_snapshot(&root->root_item,
-					     trans->transid - 1);
+		/*
+		 * Set the last_snapshot field to the generation of the commit
+		 * root - like this ctree.c:btrfs_block_can_be_shared() behaves
+		 * correctly (returns true) when the relocation root is created
+		 * either inside the critical section of a transaction commit
+		 * (through transaction.c:qgroup_account_snapshot()) and when
+		 * it's created before the transaction commit is started.
+		 */
+		commit_root_gen = btrfs_header_generation(root->commit_root);
+		btrfs_set_root_last_snapshot(&root->root_item, commit_root_gen);
 	} else {
 		/*
 		 * called by btrfs_reloc_post_snapshot_hook.
@@ -1430,12 +1437,6 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 		memset(&root_item->drop_progress, 0,
 		       sizeof(struct btrfs_disk_key));
 		root_item->drop_level = 0;
-		/*
-		 * abuse rtransid, it is safe because it is impossible to
-		 * receive data into a relocation tree.
-		 */
-		btrfs_set_root_rtransid(root_item, last_snap);
-		btrfs_set_root_otransid(root_item, trans->transid);
 	}
 
 	btrfs_tree_unlock(eb);
@@ -2406,9 +2407,6 @@ void merge_reloc_roots(struct reloc_control *rc)
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
 	struct btrfs_root *root;
 	struct btrfs_root *reloc_root;
-	u64 last_snap;
-	u64 otransid;
-	u64 objectid;
 	LIST_HEAD(reloc_roots);
 	int found = 0;
 	int ret = 0;
@@ -2446,14 +2444,6 @@ again:
 		} else {
 			list_del_init(&reloc_root->root_list);
 		}
-
-		/*
-		 * we keep the old last snapshot transid in rtranid when we
-		 * created the relocation tree.
-		 */
-		last_snap = btrfs_root_rtransid(&reloc_root->root_item);
-		otransid = btrfs_root_otransid(&reloc_root->root_item);
-		objectid = reloc_root->root_key.offset;
 
 		ret = btrfs_drop_snapshot(reloc_root, rc->block_rsv, 0, 1);
 		if (ret < 0) {

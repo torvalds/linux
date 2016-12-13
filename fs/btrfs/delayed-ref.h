@@ -34,12 +34,6 @@
  * ref_head. Must clean this mess up later.
  */
 struct btrfs_delayed_ref_node {
-	/*
-	 * ref_head use rb tree, stored in ref_root->href.
-	 * indexed by bytenr
-	 */
-	struct rb_node rb_node;
-
 	/*data/tree ref use list, stored in ref_head->ref_list. */
 	struct list_head list;
 	/*
