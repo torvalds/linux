@@ -462,6 +462,7 @@
 			compatible = "ti,da850-tilcdc";
 			reg = <0x213000 0x1000>;
 			interrupts = <52>;
+			max-pixelclock = <37500>;
 			status = "disabled";
 		};
 	};
