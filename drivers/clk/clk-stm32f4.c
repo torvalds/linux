@@ -946,6 +946,8 @@ static const char *rtc_parents[4] = {
 
 static const char *lcd_parent[1] = { "pllsai-r-div" };
 
+static const char *i2s_parents[2] = { "plli2s-r", NULL };
+
 struct stm32_aux_clk {
 	int idx;
 	const char *name;
@@ -973,6 +975,12 @@ static const struct stm32_aux_clk stm32f429_aux_clk[] = {
 		CLK_LCD, "lcd-tft", lcd_parent, ARRAY_SIZE(lcd_parent),
 		NO_MUX, 0, 0,
 		STM32F4_RCC_APB2ENR, 26,
+		CLK_SET_RATE_PARENT
+	},
+	{
+		CLK_I2S, "i2s", i2s_parents, ARRAY_SIZE(i2s_parents),
+		STM32F4_RCC_CFGR, 23, 1,
+		NO_GATE, 0,
 		CLK_SET_RATE_PARENT
 	},
 };
@@ -1069,7 +1077,7 @@ fail:
 
 static void __init stm32f4_rcc_init(struct device_node *np)
 {
-	const char *hse_clk;
+	const char *hse_clk, *i2s_in_clk;
 	int n;
 	const struct of_device_id *match;
 	const struct stm32f4_clk_data *data;
@@ -1103,6 +1111,10 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 	stm32f4_gate_map = data->gates_map;
 
 	hse_clk = of_clk_get_parent_name(np, 0);
+
+	i2s_in_clk = of_clk_get_parent_name(np, 1);
+
+	i2s_parents[1] = i2s_in_clk;
 
 	clk_register_fixed_rate_with_accuracy(NULL, "hsi", NULL, 0,
 			16000000, 160000);
