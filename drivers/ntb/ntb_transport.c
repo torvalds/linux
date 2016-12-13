@@ -95,6 +95,9 @@ MODULE_PARM_DESC(use_dma, "Use DMA engine to perform large data copy");
 
 static struct dentry *nt_debugfs_dir;
 
+/* Only two-ports NTB devices are supported */
+#define PIDX		NTB_DEF_PEER_IDX
+
 struct ntb_queue_entry {
 	/* ntb_queue list reference */
 	struct list_head entry;
@@ -1063,6 +1066,9 @@ static int ntb_transport_probe(struct ntb_client *self, struct ntb_dev *ndev)
 	if (ntb_spad_is_unsafe(ndev))
 		dev_dbg(&ndev->dev,
 			"scratchpad is unsafe, proceed anyway...\n");
+
+	if (ntb_peer_port_count(ndev) != NTB_DEF_PEER_CNT)
+		dev_warn(&ndev->dev, "Multi-port NTB devices unsupported\n");
 
 	node = dev_to_node(&ndev->dev);
 

@@ -90,6 +90,9 @@ static unsigned long db_init = 0x7;
 module_param(db_init, ulong, 0644);
 MODULE_PARM_DESC(db_init, "Initial doorbell bits to ring on the peer");
 
+/* Only two-ports NTB devices are supported */
+#define PIDX		NTB_DEF_PEER_IDX
+
 struct pp_ctx {
 	struct ntb_dev			*ntb;
 	u64				db_bits;
@@ -229,6 +232,9 @@ static int pp_probe(struct ntb_client *client,
 			goto err_pp;
 		}
 	}
+
+	if (ntb_peer_port_count(ntb) != NTB_DEF_PEER_CNT)
+		dev_warn(&ntb->dev, "multi-port NTB is unsupported\n");
 
 	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp) {
