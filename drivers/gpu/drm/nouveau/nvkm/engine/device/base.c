@@ -2138,6 +2138,7 @@ nv12b_chipset = {
 	.ltc = gm200_ltc_new,
 	.mc = gk20a_mc_new,
 	.mmu = gf100_mmu_new,
+	.pmu = gm20b_pmu_new,
 	.secboot = gm20b_secboot_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
