@@ -10,6 +10,7 @@
 #include <linux/atomic.h>
 #include <linux/module.h>
 #include <linux/swap.h>
+#include <linux/dax.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 
@@ -334,18 +335,45 @@ out:
  * point where they would still be useful.
  */
 
-struct list_lru workingset_shadow_nodes;
+static struct list_lru shadow_nodes;
+
+void workingset_update_node(struct radix_tree_node *node, void *private)
+{
+	struct address_space *mapping = private;
+
+	/* Only regular page cache has shadow entries */
+	if (dax_mapping(mapping) || shmem_mapping(mapping))
+		return;
+
+	/*
+	 * Track non-empty nodes that contain only shadow entries;
+	 * unlink those that contain pages or are being freed.
+	 *
+	 * Avoid acquiring the list_lru lock when the nodes are
+	 * already where they should be. The list_empty() test is safe
+	 * as node->private_list is protected by &mapping->tree_lock.
+	 */
+	if (node->count && node->count == node->exceptional) {
+		if (list_empty(&node->private_list)) {
+			node->private_data = mapping;
+			list_lru_add(&shadow_nodes, &node->private_list);
+		}
+	} else {
+		if (!list_empty(&node->private_list))
+			list_lru_del(&shadow_nodes, &node->private_list);
+	}
+}
 
 static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 					struct shrink_control *sc)
 {
-	unsigned long shadow_nodes;
 	unsigned long max_nodes;
+	unsigned long nodes;
 	unsigned long pages;
 
 	/* list_lru lock nests inside IRQ-safe mapping->tree_lock */
 	local_irq_disable();
-	shadow_nodes = list_lru_shrink_count(&workingset_shadow_nodes, sc);
+	nodes = list_lru_shrink_count(&shadow_nodes, sc);
 	local_irq_enable();
 
 	if (sc->memcg) {
@@ -372,10 +400,10 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
 	 */
 	max_nodes = pages >> (1 + RADIX_TREE_MAP_SHIFT - 3);
 
-	if (shadow_nodes <= max_nodes)
+	if (nodes <= max_nodes)
 		return 0;
 
-	return shadow_nodes - max_nodes;
+	return nodes - max_nodes;
 }
 
 static enum lru_status shadow_lru_isolate(struct list_head *item,
@@ -418,22 +446,25 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
 	 * no pages, so we expect to be able to remove them all and
 	 * delete and free the empty node afterwards.
 	 */
-	if (WARN_ON_ONCE(!workingset_node_shadows(node)))
+	if (WARN_ON_ONCE(!node->exceptional))
 		goto out_invalid;
-	if (WARN_ON_ONCE(workingset_node_pages(node)))
+	if (WARN_ON_ONCE(node->count != node->exceptional))
 		goto out_invalid;
 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
 		if (node->slots[i]) {
 			if (WARN_ON_ONCE(!radix_tree_exceptional_entry(node->slots[i])))
 				goto out_invalid;
+			if (WARN_ON_ONCE(!node->exceptional))
+				goto out_invalid;
 			if (WARN_ON_ONCE(!mapping->nrexceptional))
 				goto out_invalid;
 			node->slots[i] = NULL;
-			workingset_node_shadows_dec(node);
+			node->exceptional--;
+			node->count--;
 			mapping->nrexceptional--;
 		}
 	}
-	if (WARN_ON_ONCE(workingset_node_shadows(node)))
+	if (WARN_ON_ONCE(node->exceptional))
 		goto out_invalid;
 	inc_node_state(page_pgdat(virt_to_page(node)), WORKINGSET_NODERECLAIM);
 	__radix_tree_delete_node(&mapping->page_tree, node);
@@ -456,8 +487,7 @@ static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
 
 	/* list_lru lock nests inside IRQ-safe mapping->tree_lock */
 	local_irq_disable();
-	ret =  list_lru_shrink_walk(&workingset_shadow_nodes, sc,
-				    shadow_lru_isolate, NULL);
+	ret = list_lru_shrink_walk(&shadow_nodes, sc, shadow_lru_isolate, NULL);
 	local_irq_enable();
 	return ret;
 }
@@ -496,7 +526,7 @@ static int __init workingset_init(void)
 	pr_info("workingset: timestamp_bits=%d max_order=%d bucket_order=%u\n",
 	       timestamp_bits, max_order, bucket_order);
 
-	ret = list_lru_init_key(&workingset_shadow_nodes, &shadow_nodes_key);
+	ret = list_lru_init_key(&shadow_nodes, &shadow_nodes_key);
 	if (ret)
 		goto err;
 	ret = register_shrinker(&workingset_shadow_shrinker);
@@ -504,7 +534,7 @@ static int __init workingset_init(void)
 		goto err_list_lru;
 	return 0;
 err_list_lru:
-	list_lru_destroy(&workingset_shadow_nodes);
+	list_lru_destroy(&shadow_nodes);
 err:
 	return ret;
 }

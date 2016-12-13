@@ -541,12 +541,10 @@ out:
  *	radix_tree_shrink    -    shrink radix tree to minimum height
  *	@root		radix tree root
  */
-static inline bool radix_tree_shrink(struct radix_tree_root *root,
+static inline void radix_tree_shrink(struct radix_tree_root *root,
 				     radix_tree_update_node_t update_node,
 				     void *private)
 {
-	bool shrunk = false;
-
 	for (;;) {
 		struct radix_tree_node *node = root->rnode;
 		struct radix_tree_node *child;
@@ -606,26 +604,20 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root,
 		}
 
 		radix_tree_node_free(node);
-		shrunk = true;
 	}
-
-	return shrunk;
 }
 
-static bool delete_node(struct radix_tree_root *root,
+static void delete_node(struct radix_tree_root *root,
 			struct radix_tree_node *node,
 			radix_tree_update_node_t update_node, void *private)
 {
-	bool deleted = false;
-
 	do {
 		struct radix_tree_node *parent;
 
 		if (node->count) {
 			if (node == entry_to_node(root->rnode))
-				deleted |= radix_tree_shrink(root, update_node,
-							     private);
-			return deleted;
+				radix_tree_shrink(root, update_node, private);
+			return;
 		}
 
 		parent = node->parent;
@@ -638,12 +630,9 @@ static bool delete_node(struct radix_tree_root *root,
 		}
 
 		radix_tree_node_free(node);
-		deleted = true;
 
 		node = parent;
 	} while (node);
-
-	return deleted;
 }
 
 /**
@@ -1595,13 +1584,11 @@ unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item)
  *	After clearing the slot at @index in @node from radix tree
  *	rooted at @root, call this function to attempt freeing the
  *	node and shrinking the tree.
- *
- *	Returns %true if @node was freed, %false otherwise.
  */
-bool __radix_tree_delete_node(struct radix_tree_root *root,
+void __radix_tree_delete_node(struct radix_tree_root *root,
 			      struct radix_tree_node *node)
 {
-	return delete_node(root, node, NULL, NULL);
+	delete_node(root, node, NULL, NULL);
 }
 
 static inline void delete_sibling_entries(struct radix_tree_node *node,
