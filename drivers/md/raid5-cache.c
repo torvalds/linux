@@ -2418,9 +2418,6 @@ void r5c_finish_stripe_write_out(struct r5conf *conf,
 	if (do_wakeup)
 		wake_up(&conf->wait_for_overlap);
 
-	if (conf->log->r5c_journal_mode == R5C_JOURNAL_MODE_WRITE_THROUGH)
-		return;
-
 	spin_lock_irq(&conf->log->stripe_in_journal_lock);
 	list_del_init(&sh->r5c);
 	spin_unlock_irq(&conf->log->stripe_in_journal_lock);
