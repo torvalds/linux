@@ -59,8 +59,8 @@ Documentation/SecurityBugs for more information.
 
 If you can't figure out which subsystem caused the issue, you should file
 a bug in kernel.org bugzilla and send email to
-linux-kernel@vger.kernel.org, referencing the bugzilla URL.  (For more
-information on the linux-kernel mailing list see
+linux-kernel@vger.kernel.org, referencing the bugzilla URL.  
+(For more information on the linux-kernel mailing list see
 http://www.tux.org/lkml/).
 
 
@@ -112,10 +112,8 @@ summary from [1.]>" for easy identification by the developers.
 [4.1.] Kernel version (from /proc/version):
 [4.2.] Kernel .config file:
 [5.] Most recent kernel version which did not have the bug:
-[6.] Output of Oops.. message (if applicable) with symbolic information
-     resolved (see Documentation/oops-tracing.txt)
-[7.] A small shell script or example program which triggers the
-     problem (if possible)
+[6.] Output of Oops.. message (if applicable) with symbolic information resolved (see Documentation/oops-tracing.txt)
+[7.] A small shell script or example program which triggers the  problem (if possible)
 [8.] Environment
 [8.1.] Software (add the output of the ver_linux script here)
 [8.2.] Processor information (from /proc/cpuinfo):
@@ -123,9 +121,8 @@ summary from [1.]>" for easy identification by the developers.
 [8.4.] Loaded driver and hardware information (/proc/ioports, /proc/iomem)
 [8.5.] PCI information ('lspci -vvv' as root)
 [8.6.] SCSI information (from /proc/scsi/scsi)
-[8.7.] Other information that might be relevant to the problem
-       (please look in /proc and include all information that you
-       think to be relevant):
+[8.7.] Other information that might be relevant to the problem (please look in /proc and include all information that you
+think to be relevant):
 [X.] Other notes, patches, fixes, workarounds:
 
 
