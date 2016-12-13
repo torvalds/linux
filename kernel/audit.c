@@ -445,15 +445,20 @@ static void kauditd_retry_skb(struct sk_buff *skb)
  *
  * Description:
  * Break the auditd/kauditd connection and move all the records in the retry
- * queue into the hold queue in case auditd reconnects.
+ * queue into the hold queue in case auditd reconnects.  The audit_cmd_mutex
+ * must be held when calling this function.
  */
 static void auditd_reset(void)
 {
 	struct sk_buff *skb;
 
 	/* break the connection */
+	if (audit_sock) {
+		sock_put(audit_sock);
+		audit_sock = NULL;
+	}
 	audit_pid = 0;
-	audit_sock = NULL;
+	audit_nlk_portid = 0;
 
 	/* flush all of the retry queue to the hold queue */
 	while ((skb = skb_dequeue(&audit_retry_queue)))
@@ -579,7 +584,9 @@ static int kauditd_thread(void *dummy)
 
 				auditd = 0;
 				if (AUDITD_BAD(rc, reschedule)) {
+					mutex_lock(&audit_cmd_mutex);
 					auditd_reset();
+					mutex_unlock(&audit_cmd_mutex);
 					reschedule = 0;
 				}
 			} else
@@ -594,7 +601,9 @@ static int kauditd_thread(void *dummy)
 				auditd = 0;
 				if (AUDITD_BAD(rc, reschedule)) {
 					kauditd_hold_skb(skb);
+					mutex_lock(&audit_cmd_mutex);
 					auditd_reset();
+					mutex_unlock(&audit_cmd_mutex);
 					reschedule = 0;
 				} else
 					/* temporary problem (we hope), queue
@@ -623,7 +632,9 @@ quick_loop:
 				if (rc) {
 					auditd = 0;
 					if (AUDITD_BAD(rc, reschedule)) {
+						mutex_lock(&audit_cmd_mutex);
 						auditd_reset();
+						mutex_unlock(&audit_cmd_mutex);
 						reschedule = 0;
 					}
 
@@ -1010,11 +1021,16 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			}
 			if (audit_enabled != AUDIT_OFF)
 				audit_log_config_change("audit_pid", new_pid, audit_pid, 1);
-			audit_pid = new_pid;
-			audit_nlk_portid = NETLINK_CB(skb).portid;
-			audit_sock = skb->sk;
-			if (!new_pid)
+			if (new_pid) {
+				if (audit_sock)
+					sock_put(audit_sock);
+				audit_pid = new_pid;
+				audit_nlk_portid = NETLINK_CB(skb).portid;
+				sock_hold(skb->sk);
+				audit_sock = skb->sk;
+			} else {
 				auditd_reset();
+			}
 			wake_up_interruptible(&kauditd_wait);
 		}
 		if (s.mask & AUDIT_STATUS_RATE_LIMIT) {
@@ -1283,8 +1299,10 @@ static void __net_exit audit_net_exit(struct net *net)
 {
 	struct audit_net *aunet = net_generic(net, audit_net_id);
 	struct sock *sock = aunet->nlsk;
+	mutex_lock(&audit_cmd_mutex);
 	if (sock == audit_sock)
 		auditd_reset();
+	mutex_unlock(&audit_cmd_mutex);
 
 	RCU_INIT_POINTER(aunet->nlsk, NULL);
 	synchronize_net();
