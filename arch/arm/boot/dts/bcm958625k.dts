@@ -80,19 +80,19 @@
 			reg = <0x00000000 0x00200000>;
 			read-only;
 		};
-		partition@1 {
+		partition@200000 {
 			label = "nenv";
 			reg = <0x00200000 0x00400000>;
 		};
-		partition@2 {
+		partition@600000 {
 			label = "nsystem";
 			reg = <0x00600000 0x00a00000>;
 		};
-		partition@3 {
+		partition@1000000 {
 			label = "nrootfs";
 			reg = <0x01000000 0x03000000>;
 		};
-		partition@4 {
+		partition@4000000 {
 			label = "ncustfs";
 			reg = <0x04000000 0x3c000000>;
 		};
