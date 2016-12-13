@@ -149,12 +149,12 @@ struct drm_framebuffer {
 	 */
 	unsigned int offsets[4];
 	/**
-	 * @modifier: Data layout modifier, per buffer. This is used to describe
+	 * @modifier: Data layout modifier. This is used to describe
 	 * tiling, or also special layouts (like compression) of auxiliary
 	 * buffers. For userspace created object this is copied from
 	 * drm_mode_fb_cmd2.
 	 */
-	uint64_t modifier[4];
+	uint64_t modifier;
 	/**
 	 * @width: Logical width of the visible area of the framebuffer, in
 	 * pixels.
@@ -251,6 +251,24 @@ static inline uint32_t drm_framebuffer_read_refcount(struct drm_framebuffer *fb)
 }
 
 /**
+ * drm_framebuffer_assign - store a reference to the fb
+ * @p: location to store framebuffer
+ * @fb: new framebuffer (maybe NULL)
+ *
+ * This functions sets the location to store a reference to the framebuffer,
+ * unreferencing the framebuffer that was previously stored in that location.
+ */
+static inline void drm_framebuffer_assign(struct drm_framebuffer **p,
+					  struct drm_framebuffer *fb)
+{
+	if (fb)
+		drm_framebuffer_reference(fb);
+	if (*p)
+		drm_framebuffer_unreference(*p);
+	*p = fb;
+}
+
+/*
  * drm_for_each_fb - iterate over all framebuffers
  * @fb: the loop cursor
  * @dev: the DRM device

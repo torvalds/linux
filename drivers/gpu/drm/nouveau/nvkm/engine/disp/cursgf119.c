@@ -33,5 +33,5 @@ gf119_disp_curs_oclass = {
 	.base.maxver = 0,
 	.ctor = nv50_disp_curs_new,
 	.func = &gf119_disp_pioc_func,
-	.chid = 13,
+	.chid = { 13, 13 },
 };

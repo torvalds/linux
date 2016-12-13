@@ -66,7 +66,7 @@ nv50_disp_root_scanoutpos(NV50_DISP_MTHD_V0)
 	return 0;
 }
 
-int
+static int
 nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	union {
@@ -173,9 +173,52 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 				return 0;
 			} else
 			if (args->v0.state != 0) {
-				nvkm_output_dp_train(&outpdp->base, 0, true);
+				nvkm_output_dp_train(&outpdp->base, 0);
 				return 0;
 			}
+		} else
+			return ret;
+	}
+		break;
+	case NV50_DISP_MTHD_V1_SOR_DP_MST_LINK: {
+		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
+		union {
+			struct nv50_disp_sor_dp_mst_link_v0 v0;
+		} *args = data;
+		int ret = -ENOSYS;
+		nvif_ioctl(object, "disp sor dp mst link size %d\n", size);
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+			nvif_ioctl(object, "disp sor dp mst link vers %d state %d\n",
+				   args->v0.version, args->v0.state);
+			if (outpdp->lt.mst != !!args->v0.state) {
+				outpdp->lt.mst = !!args->v0.state;
+				atomic_set(&outpdp->lt.done, 0);
+				nvkm_output_dp_train(&outpdp->base, 0);
+			}
+			return 0;
+		} else
+			return ret;
+	}
+		break;
+	case NV50_DISP_MTHD_V1_SOR_DP_MST_VCPI: {
+		struct nvkm_output_dp *outpdp = nvkm_output_dp(outp);
+		union {
+			struct nv50_disp_sor_dp_mst_vcpi_v0 v0;
+		} *args = data;
+		int ret = -ENOSYS;
+		nvif_ioctl(object, "disp sor dp mst vcpi size %d\n", size);
+		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
+			nvif_ioctl(object, "disp sor dp mst vcpi vers %d "
+					   "slot %02x/%02x pbn %04x/%04x\n",
+				   args->v0.version, args->v0.start_slot,
+				   args->v0.num_slots, args->v0.pbn,
+				   args->v0.aligned_pbn);
+			if (!outpdp->func->vcpi)
+				return -ENODEV;
+			outpdp->func->vcpi(outpdp, head, args->v0.start_slot,
+					   args->v0.num_slots, args->v0.pbn,
+					   args->v0.aligned_pbn);
+			return 0;
 		} else
 			return ret;
 	}
@@ -207,8 +250,8 @@ nv50_disp_root_pioc_new_(const struct nvkm_oclass *oclass,
 {
 	const struct nv50_disp_pioc_oclass *sclass = oclass->priv;
 	struct nv50_disp_root *root = nv50_disp_root(oclass->parent);
-	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid,
-			    oclass, data, size, pobject);
+	return sclass->ctor(sclass->func, sclass->mthd, root, sclass->chid.ctrl,
+			    sclass->chid.user, oclass, data, size, pobject);
 }
 
 static int

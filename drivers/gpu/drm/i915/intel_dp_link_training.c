@@ -225,9 +225,6 @@ static u32 intel_dp_training_pattern(struct intel_dp *intel_dp)
 	 * Intel platforms that support HBR2 also support TPS3. TPS3 support is
 	 * also mandatory for downstream devices that support HBR2. However, not
 	 * all sinks follow the spec.
-	 *
-	 * Due to WaDisableHBR2 SKL < B0 is the only exception where TPS3 is
-	 * supported in source but still not enabled.
 	 */
 	source_tps3 = intel_dp_source_supports_hbr2(intel_dp);
 	sink_tps3 = drm_dp_tps3_supported(intel_dp->dpcd);

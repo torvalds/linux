@@ -74,28 +74,22 @@ radeonfb_release(struct fb_info *info, int user)
 
 static struct fb_ops radeonfb_ops = {
 	.owner = THIS_MODULE,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_open = radeonfb_open,
 	.fb_release = radeonfb_release,
-	.fb_check_var = drm_fb_helper_check_var,
-	.fb_set_par = drm_fb_helper_set_par,
 	.fb_fillrect = drm_fb_helper_cfb_fillrect,
 	.fb_copyarea = drm_fb_helper_cfb_copyarea,
 	.fb_imageblit = drm_fb_helper_cfb_imageblit,
-	.fb_pan_display = drm_fb_helper_pan_display,
-	.fb_blank = drm_fb_helper_blank,
-	.fb_setcmap = drm_fb_helper_setcmap,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
 
 
-int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
+int radeon_align_pitch(struct radeon_device *rdev, int width, int cpp, bool tiled)
 {
 	int aligned = width;
 	int align_large = (ASIC_IS_AVIVO(rdev)) || tiled;
 	int pitch_mask = 0;
 
-	switch (bpp / 8) {
+	switch (cpp) {
 	case 1:
 		pitch_mask = align_large ? 255 : 127;
 		break;
@@ -110,7 +104,7 @@ int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tile
 
 	aligned += pitch_mask;
 	aligned &= ~pitch_mask;
-	return aligned;
+	return aligned * cpp;
 }
 
 static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
@@ -139,13 +133,13 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	int ret;
 	int aligned_size, size;
 	int height = mode_cmd->height;
-	u32 bpp, depth;
+	u32 cpp;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	cpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0);
 
 	/* need to align pitch with crtc limits */
-	mode_cmd->pitches[0] = radeon_align_pitch(rdev, mode_cmd->width, bpp,
-						  fb_tiled) * ((bpp + 1) / 8);
+	mode_cmd->pitches[0] = radeon_align_pitch(rdev, mode_cmd->width, cpp,
+						  fb_tiled);
 
 	if (rdev->family >= CHIP_R600)
 		height = ALIGN(mode_cmd->height, 8);
@@ -165,11 +159,11 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 		tiling_flags = RADEON_TILING_MACRO;
 
 #ifdef __BIG_ENDIAN
-	switch (bpp) {
-	case 32:
+	switch (cpp) {
+	case 4:
 		tiling_flags |= RADEON_TILING_SWAP_32BIT;
 		break;
-	case 16:
+	case 2:
 		tiling_flags |= RADEON_TILING_SWAP_16BIT;
 	default:
 		break;
