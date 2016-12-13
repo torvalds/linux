@@ -762,7 +762,7 @@ static void chv_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 		seq_printf(s, "mode %d ", mode);
 	}
 
-	seq_printf(s, "ctrl0 0x%08x ctrl1 0x%08x", ctrl0, ctrl1);
+	seq_printf(s, "0x%08x 0x%08x", ctrl0, ctrl1);
 
 	if (locked)
 		seq_puts(s, " [LOCKED]");
