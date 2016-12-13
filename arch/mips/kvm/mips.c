@@ -1217,6 +1217,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	switch (ext) {
 	case KVM_CAP_ONE_REG:
 	case KVM_CAP_ENABLE_CAP:
+	case KVM_CAP_SYNC_MMU:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
