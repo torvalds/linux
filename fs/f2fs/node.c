@@ -245,12 +245,24 @@ bool need_inode_block_update(struct f2fs_sb_info *sbi, nid_t ino)
 	return need_update;
 }
 
-static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid)
+static struct nat_entry *grab_nat_entry(struct f2fs_nm_info *nm_i, nid_t nid,
+								bool no_fail)
 {
 	struct nat_entry *new;
 
-	new = f2fs_kmem_cache_alloc(nat_entry_slab, GFP_NOFS);
-	f2fs_radix_tree_insert(&nm_i->nat_root, nid, new);
+	if (no_fail) {
+		new = f2fs_kmem_cache_alloc(nat_entry_slab, GFP_NOFS);
+		f2fs_radix_tree_insert(&nm_i->nat_root, nid, new);
+	} else {
+		new = kmem_cache_alloc(nat_entry_slab, GFP_NOFS);
+		if (!new)
+			return NULL;
+		if (radix_tree_insert(&nm_i->nat_root, nid, new)) {
+			kmem_cache_free(nat_entry_slab, new);
+			return NULL;
+		}
+	}
+
 	memset(new, 0, sizeof(struct nat_entry));
 	nat_set_nid(new, nid);
 	nat_reset_flag(new);
@@ -267,8 +279,9 @@ static void cache_nat_entry(struct f2fs_sb_info *sbi, nid_t nid,
 
 	e = __lookup_nat_cache(nm_i, nid);
 	if (!e) {
-		e = grab_nat_entry(nm_i, nid);
-		node_info_from_raw_nat(&e->ni, ne);
+		e = grab_nat_entry(nm_i, nid, false);
+		if (e)
+			node_info_from_raw_nat(&e->ni, ne);
 	} else {
 		f2fs_bug_on(sbi, nat_get_ino(e) != le32_to_cpu(ne->ino) ||
 				nat_get_blkaddr(e) !=
@@ -286,7 +299,7 @@ static void set_node_addr(struct f2fs_sb_info *sbi, struct node_info *ni,
 	down_write(&nm_i->nat_tree_lock);
 	e = __lookup_nat_cache(nm_i, ni->nid);
 	if (!e) {
-		e = grab_nat_entry(nm_i, ni->nid);
+		e = grab_nat_entry(nm_i, ni->nid, true);
 		copy_node_info(&e->ni, ni);
 		f2fs_bug_on(sbi, ni->blk_addr == NEW_ADDR);
 	} else if (new_blkaddr == NEW_ADDR) {
@@ -2155,7 +2168,7 @@ static void remove_nats_in_journal(struct f2fs_sb_info *sbi)
 
 		ne = __lookup_nat_cache(nm_i, nid);
 		if (!ne) {
-			ne = grab_nat_entry(nm_i, nid);
+			ne = grab_nat_entry(nm_i, nid, true);
 			node_info_from_raw_nat(&ne->ni, &raw_ne);
 		}
 
