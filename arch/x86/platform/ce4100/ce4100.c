@@ -89,7 +89,7 @@ static void ce4100_mem_serial_out(struct uart_port *p, int offset, int value)
 }
 
 static void ce4100_serial_fixup(int port, struct uart_port *up,
-	unsigned short *capabilites)
+	u32 *capabilites)
 {
 #ifdef CONFIG_EARLY_PRINTK
 	/*

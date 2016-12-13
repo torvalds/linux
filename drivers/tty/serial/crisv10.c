@@ -3213,8 +3213,6 @@ get_serial_info(struct e100_serial * info,
 	 * should set them to something else than 0.
 	 */
 
-	if (!retinfo)
-		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.type = info->type;
 	tmp.line = info->line;

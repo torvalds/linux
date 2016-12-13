@@ -982,7 +982,7 @@ static void kbd_led_trigger_activate(struct led_classdev *cdev)
 	KBD_LED_TRIGGER((_led_bit) + 8, _name)
 
 static struct kbd_led_trigger kbd_led_triggers[] = {
-	KBD_LED_TRIGGER(VC_SCROLLOCK, "kbd-scrollock"),
+	KBD_LED_TRIGGER(VC_SCROLLOCK, "kbd-scrolllock"),
 	KBD_LED_TRIGGER(VC_NUMLOCK,   "kbd-numlock"),
 	KBD_LED_TRIGGER(VC_CAPSLOCK,  "kbd-capslock"),
 	KBD_LED_TRIGGER(VC_KANALOCK,  "kbd-kanalock"),
@@ -1256,7 +1256,7 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 	case KEY_SYSRQ:
 		/*
 		 * Real AT keyboards (that's what we're trying
-		 * to emulate here emit 0xe0 0x2a 0xe0 0x37 when
+		 * to emulate here) emit 0xe0 0x2a 0xe0 0x37 when
 		 * pressing PrtSc/SysRq alone, but simply 0x54
 		 * when pressing Alt+PrtSc/SysRq.
 		 */
