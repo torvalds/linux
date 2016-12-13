@@ -848,9 +848,6 @@ static int __init hugetlbpage_init(void)
 	else if (mmu_psize_defs[MMU_PAGE_2M].shift)
 		HPAGE_SHIFT = mmu_psize_defs[MMU_PAGE_2M].shift;
 #endif
-	else
-		panic("%s: Unable to set default huge page size\n", __func__);
-
 	return 0;
 }
 
