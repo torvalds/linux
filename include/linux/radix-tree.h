@@ -249,20 +249,6 @@ static inline int radix_tree_exception(void *arg)
 	return unlikely((unsigned long)arg & RADIX_TREE_ENTRY_MASK);
 }
 
-/**
- * radix_tree_replace_slot	- replace item in a slot
- * @pslot:	pointer to slot, returned by radix_tree_lookup_slot
- * @item:	new item to store in the slot.
- *
- * For use with radix_tree_lookup_slot().  Caller must hold tree write locked
- * across slot lookup and replacement.
- */
-static inline void radix_tree_replace_slot(void **pslot, void *item)
-{
-	BUG_ON(radix_tree_is_internal_node(item));
-	rcu_assign_pointer(*pslot, item);
-}
-
 int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 			unsigned order, struct radix_tree_node **nodep,
 			void ***slotp);
@@ -280,6 +266,8 @@ void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
 void __radix_tree_replace(struct radix_tree_root *root,
 			  struct radix_tree_node *node,
 			  void **slot, void *item);
+void radix_tree_replace_slot(struct radix_tree_root *root,
+			     void **slot, void *item);
 bool __radix_tree_delete_node(struct radix_tree_root *root,
 			      struct radix_tree_node *node);
 void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);

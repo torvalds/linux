@@ -146,7 +146,7 @@ static void multiorder_check(unsigned long index, int order)
 
 	slot = radix_tree_lookup_slot(&tree, index);
 	free(*slot);
-	radix_tree_replace_slot(slot, item2);
+	radix_tree_replace_slot(&tree, slot, item2);
 	for (i = min; i < max; i++) {
 		struct item *item = item_lookup(&tree, i);
 		assert(item != 0);

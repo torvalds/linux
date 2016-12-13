@@ -342,7 +342,7 @@ static inline void *lock_slot(struct address_space *mapping, void **slot)
 		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
 
 	entry |= RADIX_DAX_ENTRY_LOCK;
-	radix_tree_replace_slot(slot, (void *)entry);
+	radix_tree_replace_slot(&mapping->page_tree, slot, (void *)entry);
 	return (void *)entry;
 }
 
@@ -356,7 +356,7 @@ static inline void *unlock_slot(struct address_space *mapping, void **slot)
 		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
 
 	entry &= ~(unsigned long)RADIX_DAX_ENTRY_LOCK;
-	radix_tree_replace_slot(slot, (void *)entry);
+	radix_tree_replace_slot(&mapping->page_tree, slot, (void *)entry);
 	return (void *)entry;
 }
 

@@ -49,7 +49,7 @@ static void clear_exceptional_entry(struct address_space *mapping,
 		goto unlock;
 	if (*slot != entry)
 		goto unlock;
-	radix_tree_replace_slot(slot, NULL);
+	radix_tree_replace_slot(&mapping->page_tree, slot, NULL);
 	mapping->nrexceptional--;
 	if (!node)
 		goto unlock;
