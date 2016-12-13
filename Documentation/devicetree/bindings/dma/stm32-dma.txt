@@ -40,8 +40,7 @@ Example:
 
 DMA clients connected to the STM32 DMA controller must use the format
 described in the dma.txt file, using a five-cell specifier for each
-channel: a phandle plus four integer cells.
-The four cells in order are:
+channel: a phandle to the DMA controller plus the following four integer cells:
 
 1. The channel id
 2. The request line number
@@ -61,7 +60,7 @@ The four cells in order are:
 	0x1: medium
 	0x2: high
 	0x3: very high
-5. A 32bit mask specifying the DMA FIFO threshold configuration which are device
+4. A 32bit mask specifying the DMA FIFO threshold configuration which are device
    dependent:
  -bit 0-1: Fifo threshold
 	0x0: 1/4 full FIFO
