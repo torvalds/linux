@@ -458,7 +458,7 @@
 			dma-names = "tx", "rx";
 		};
 
-		display: display@213000 {
+		lcdc: display@213000 {
 			compatible = "ti,da850-tilcdc";
 			reg = <0x213000 0x1000>;
 			interrupts = <52>;
