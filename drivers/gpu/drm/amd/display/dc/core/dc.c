@@ -1445,7 +1445,8 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				}
 			}
 
-			if (updates[i].gamma) {
+			if (updates[i].gamma && updates[i].gamma !=
+				surface->public.gamma_correction) {
 				if (surface->public.gamma_correction != NULL)
 					dc_gamma_release(surface->public.
 							gamma_correction);
