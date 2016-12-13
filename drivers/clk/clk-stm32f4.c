@@ -948,6 +948,9 @@ static const char *lcd_parent[1] = { "pllsai-r-div" };
 
 static const char *i2s_parents[2] = { "plli2s-r", NULL };
 
+static const char *sai_parents[4] = { "pllsai-q-div", "plli2s-q-div", NULL,
+	"no-clock" };
+
 struct stm32_aux_clk {
 	int idx;
 	const char *name;
@@ -981,6 +984,18 @@ static const struct stm32_aux_clk stm32f429_aux_clk[] = {
 		CLK_I2S, "i2s", i2s_parents, ARRAY_SIZE(i2s_parents),
 		STM32F4_RCC_CFGR, 23, 1,
 		NO_GATE, 0,
+		CLK_SET_RATE_PARENT
+	},
+	{
+		CLK_SAI1, "sai1-a", sai_parents, ARRAY_SIZE(sai_parents),
+		STM32F4_RCC_DCKCFGR, 20, 3,
+		STM32F4_RCC_APB2ENR, 22,
+		CLK_SET_RATE_PARENT
+	},
+	{
+		CLK_SAI2, "sai1-b", sai_parents, ARRAY_SIZE(sai_parents),
+		STM32F4_RCC_DCKCFGR, 22, 3,
+		STM32F4_RCC_APB2ENR, 22,
 		CLK_SET_RATE_PARENT
 	},
 };
@@ -1115,6 +1130,7 @@ static void __init stm32f4_rcc_init(struct device_node *np)
 	i2s_in_clk = of_clk_get_parent_name(np, 1);
 
 	i2s_parents[1] = i2s_in_clk;
+	sai_parents[2] = i2s_in_clk;
 
 	clk_register_fixed_rate_with_accuracy(NULL, "hsi", NULL, 0,
 			16000000, 160000);
