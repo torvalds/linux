@@ -375,9 +375,7 @@ void drm_mode_config_init(struct drm_device *dev)
 	idr_init(&dev->mode_config.tile_idr);
 	ida_init(&dev->mode_config.connector_ida);
 
-	drm_modeset_lock_all(dev);
 	drm_mode_create_standard_properties(dev);
-	drm_modeset_unlock_all(dev);
 
 	/* Just to be sure */
 	dev->mode_config.num_fb = 0;
