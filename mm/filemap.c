@@ -169,7 +169,10 @@ static int page_cache_tree_insert(struct address_space *mapping,
 static void page_cache_tree_delete(struct address_space *mapping,
 				   struct page *page, void *shadow)
 {
-	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
+	int i, nr;
+
+	/* hugetlb pages are represented by one entry in the radix tree */
+	nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
 
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(PageTail(page), page);
