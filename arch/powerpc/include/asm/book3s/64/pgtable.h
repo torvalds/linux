@@ -1009,7 +1009,8 @@ static inline void pmdp_huge_split_prepare(struct vm_area_struct *vma,
 #define pmd_move_must_withdraw pmd_move_must_withdraw
 struct spinlock;
 static inline int pmd_move_must_withdraw(struct spinlock *new_pmd_ptl,
-					 struct spinlock *old_pmd_ptl)
+					 struct spinlock *old_pmd_ptl,
+					 struct vm_area_struct *vma)
 {
 	if (radix_enabled())
 		return false;
