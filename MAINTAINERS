@@ -1052,6 +1052,7 @@ F:	arch/arm/mach-meson/
 F:	arch/arm/boot/dts/meson*
 F:	arch/arm64/boot/dts/amlogic/
 F: 	drivers/pinctrl/meson/
+F:	drivers/mmc/host/meson*
 N:	meson
 
 ARM/Annapurna Labs ALPINE ARCHITECTURE
@@ -5068,9 +5069,18 @@ S:	Maintained
 F:	drivers/net/ethernet/freescale/fman
 F:	Documentation/devicetree/bindings/powerpc/fsl/fman.txt
 
-FREESCALE QUICC ENGINE LIBRARY
+FREESCALE SOC DRIVERS
+M:	Scott Wood <oss@buserror.net>
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Orphan
+L:	linux-arm-kernel@lists.infradead.org
+S:	Maintained
+F:	drivers/soc/fsl/
+F:	include/linux/fsl/
+
+FREESCALE QUICC ENGINE LIBRARY
+M:	Qiang Zhao <qiang.zhao@nxp.com>
+L:	linuxppc-dev@lists.ozlabs.org
+S:	Maintained
 F:	drivers/soc/fsl/qe/
 F:	include/soc/fsl/*qe*.h
 F:	include/soc/fsl/*ucc*.h
