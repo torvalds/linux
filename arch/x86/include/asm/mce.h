@@ -295,9 +295,7 @@ void do_machine_check(struct pt_regs *, long);
 /*
  * Threshold handler
  */
-
 extern void (*mce_threshold_vector)(void);
-extern void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
 
 /* Deferred error interrupt handler */
 extern void (*deferred_error_int_vector)(void);
@@ -375,6 +373,15 @@ struct smca_bank {
 extern struct smca_bank smca_banks[MAX_NR_BANKS];
 
 extern const char *smca_get_long_name(enum smca_bank_types t);
+
+extern int mce_threshold_create_device(unsigned int cpu);
+extern int mce_threshold_remove_device(unsigned int cpu);
+
+#else
+
+static inline int mce_threshold_create_device(unsigned int cpu) { return 0; };
+static inline int mce_threshold_remove_device(unsigned int cpu) { return 0; };
+
 #endif
 
 #endif /* _ASM_X86_MCE_H */

@@ -54,6 +54,8 @@
 /* Threshold LVT offset is at MSR0xC0000410[15:12] */
 #define SMCA_THR_LVT_OFF	0xF000
 
+static bool thresholding_en;
+
 static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
@@ -1235,31 +1237,6 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	return err;
 }
 
-/* create dir/files for all valid threshold banks */
-static int threshold_create_device(unsigned int cpu)
-{
-	unsigned int bank;
-	struct threshold_bank **bp;
-	int err = 0;
-
-	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
-		     GFP_KERNEL);
-	if (!bp)
-		return -ENOMEM;
-
-	per_cpu(threshold_banks, cpu) = bp;
-
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
-			continue;
-		err = threshold_create_bank(cpu, bank);
-		if (err)
-			return err;
-	}
-
-	return err;
-}
-
 static void deallocate_threshold_block(unsigned int cpu,
 						 unsigned int bank)
 {
@@ -1327,9 +1304,12 @@ free_out:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }
 
-static void threshold_remove_device(unsigned int cpu)
+int mce_threshold_remove_device(unsigned int cpu)
 {
 	unsigned int bank;
+
+	if (!thresholding_en)
+		return 0;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
@@ -1337,38 +1317,58 @@ static void threshold_remove_device(unsigned int cpu)
 		threshold_remove_bank(cpu, bank);
 	}
 	kfree(per_cpu(threshold_banks, cpu));
+	per_cpu(threshold_banks, cpu) = NULL;
+	return 0;
 }
 
-/* get notified when a cpu comes on/off */
-static void
-amd_64_threshold_cpu_callback(unsigned long action, unsigned int cpu)
+/* create dir/files for all valid threshold banks */
+int mce_threshold_create_device(unsigned int cpu)
 {
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		threshold_create_device(cpu);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		threshold_remove_device(cpu);
-		break;
-	default:
-		break;
+	unsigned int bank;
+	struct threshold_bank **bp;
+	int err = 0;
+
+	if (!thresholding_en)
+		return 0;
+
+	bp = per_cpu(threshold_banks, cpu);
+	if (bp)
+		return 0;
+
+	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
+		     GFP_KERNEL);
+	if (!bp)
+		return -ENOMEM;
+
+	per_cpu(threshold_banks, cpu) = bp;
+
+	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
+			continue;
+		err = threshold_create_bank(cpu, bank);
+		if (err)
+			goto err;
 	}
+	return err;
+err:
+	mce_threshold_remove_device(cpu);
+	return err;
 }
 
 static __init int threshold_init_device(void)
 {
 	unsigned lcpu = 0;
 
+	if (mce_threshold_vector == amd_threshold_interrupt)
+		thresholding_en = true;
+
 	/* to hit CPUs online before the notifier is up */
 	for_each_online_cpu(lcpu) {
-		int err = threshold_create_device(lcpu);
+		int err = mce_threshold_create_device(lcpu);
 
 		if (err)
 			return err;
 	}
-	threshold_cpu_callback = amd_64_threshold_cpu_callback;
 
 	return 0;
 }
