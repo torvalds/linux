@@ -211,7 +211,7 @@ static const struct stm32f4_gate_data stm32f469_gates[] __initconst = {
 	{ STM32F4_RCC_APB2ENR,  8,	"adc1",		"apb2_div" },
 	{ STM32F4_RCC_APB2ENR,  9,	"adc2",		"apb2_div" },
 	{ STM32F4_RCC_APB2ENR, 10,	"adc3",		"apb2_div" },
-	{ STM32F4_RCC_APB2ENR, 11,	"sdio",		"pll48" },
+	{ STM32F4_RCC_APB2ENR, 11,	"sdio",		"sdmux" },
 	{ STM32F4_RCC_APB2ENR, 12,	"spi1",		"apb2_div" },
 	{ STM32F4_RCC_APB2ENR, 13,	"spi4",		"apb2_div" },
 	{ STM32F4_RCC_APB2ENR, 14,	"syscfg",	"apb2_div" },
@@ -951,6 +951,10 @@ static const char *i2s_parents[2] = { "plli2s-r", NULL };
 static const char *sai_parents[4] = { "pllsai-q-div", "plli2s-q-div", NULL,
 	"no-clock" };
 
+static const char *pll48_parents[2] = { "pll-q", "pllsai-p" };
+
+static const char *sdmux_parents[2] = { "pll48", "sys" };
+
 struct stm32_aux_clk {
 	int idx;
 	const char *name;
@@ -1000,6 +1004,45 @@ static const struct stm32_aux_clk stm32f429_aux_clk[] = {
 	},
 };
 
+static const struct stm32_aux_clk stm32f469_aux_clk[] = {
+	{
+		CLK_LCD, "lcd-tft", lcd_parent, ARRAY_SIZE(lcd_parent),
+		NO_MUX, 0, 0,
+		STM32F4_RCC_APB2ENR, 26,
+		CLK_SET_RATE_PARENT
+	},
+	{
+		CLK_I2S, "i2s", i2s_parents, ARRAY_SIZE(i2s_parents),
+		STM32F4_RCC_CFGR, 23, 1,
+		NO_GATE, 0,
+		CLK_SET_RATE_PARENT
+	},
+	{
+		CLK_SAI1, "sai1-a", sai_parents, ARRAY_SIZE(sai_parents),
+		STM32F4_RCC_DCKCFGR, 20, 3,
+		STM32F4_RCC_APB2ENR, 22,
+		CLK_SET_RATE_PARENT
+	},
+	{
+		CLK_SAI2, "sai1-b", sai_parents, ARRAY_SIZE(sai_parents),
+		STM32F4_RCC_DCKCFGR, 22, 3,
+		STM32F4_RCC_APB2ENR, 22,
+		CLK_SET_RATE_PARENT
+	},
+	{
+		NO_IDX, "pll48", pll48_parents, ARRAY_SIZE(pll48_parents),
+		STM32F4_RCC_DCKCFGR, 27, 1,
+		NO_GATE, 0,
+		0
+	},
+	{
+		NO_IDX, "sdmux", sdmux_parents, ARRAY_SIZE(sdmux_parents),
+		STM32F4_RCC_DCKCFGR, 28, 1,
+		NO_GATE, 0,
+		0
+	},
+};
+
 static const struct stm32f4_clk_data stm32f429_clk_data = {
 	.gates_data	= stm32f429_gates,
 	.gates_map	= stm32f42xx_gate_map,
@@ -1014,8 +1057,8 @@ static const struct stm32f4_clk_data stm32f469_clk_data = {
 	.gates_map	= stm32f46xx_gate_map,
 	.gates_num	= ARRAY_SIZE(stm32f469_gates),
 	.pll_data	= stm32f469_pll,
-	.aux_clk	= stm32f429_aux_clk,
-	.aux_clk_num	= ARRAY_SIZE(stm32f429_aux_clk),
+	.aux_clk	= stm32f469_aux_clk,
+	.aux_clk_num	= ARRAY_SIZE(stm32f469_aux_clk),
 };
 
 static const struct of_device_id stm32f4_of_match[] = {
