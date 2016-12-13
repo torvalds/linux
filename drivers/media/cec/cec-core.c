@@ -195,6 +195,24 @@ static void cec_devnode_unregister(struct cec_devnode *devnode)
 	put_device(&devnode->dev);
 }
 
+#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+static void cec_cec_notify(struct cec_adapter *adap, u16 pa)
+{
+	cec_s_phys_addr(adap, pa, false);
+}
+
+void cec_register_cec_notifier(struct cec_adapter *adap,
+			       struct cec_notifier *notifier)
+{
+	if (WARN_ON(!adap->devnode.registered))
+		return;
+
+	adap->notifier = notifier;
+	cec_notifier_register(adap->notifier, adap, cec_cec_notify);
+}
+EXPORT_SYMBOL_GPL(cec_register_cec_notifier);
+#endif
+
 struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 					 void *priv, const char *name, u32 caps,
 					 u8 available_las)
@@ -343,6 +361,10 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 	adap->rc = NULL;
 #endif
 	debugfs_remove_recursive(adap->cec_dir);
+#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+	if (adap->notifier)
+		cec_notifier_unregister(adap->notifier);
+#endif
 	cec_devnode_unregister(&adap->devnode);
 }
 EXPORT_SYMBOL_GPL(cec_unregister_adapter);

@@ -30,6 +30,7 @@
 #include <linux/cec-funcs.h>
 #include <media/rc-core.h>
 #include <media/cec-edid.h>
+#include <media/cec-notifier.h>
 
 /**
  * struct cec_devnode - cec device node
@@ -173,6 +174,10 @@ struct cec_adapter {
 	bool passthrough;
 	struct cec_log_addrs log_addrs;
 
+#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+	struct cec_notifier *notifier;
+#endif
+
 	struct dentry *cec_dir;
 	struct dentry *status_file;
 
@@ -217,6 +222,11 @@ int cec_transmit_msg(struct cec_adapter *adap, struct cec_msg *msg,
 void cec_transmit_done(struct cec_adapter *adap, u8 status, u8 arb_lost_cnt,
 		       u8 nack_cnt, u8 low_drive_cnt, u8 error_cnt);
 void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg);
+
+#ifdef CONFIG_MEDIA_CEC_NOTIFIER
+void cec_register_cec_notifier(struct cec_adapter *adap,
+			       struct cec_notifier *notifier);
+#endif
 
 #else
 
