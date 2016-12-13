@@ -31,6 +31,14 @@ static inline const char *printk_skip_level(const char *buffer)
 	return buffer;
 }
 
+static inline const char *printk_skip_headers(const char *buffer)
+{
+	while (printk_get_level(buffer))
+		buffer = printk_skip_level(buffer);
+
+	return buffer;
+}
+
 #define CONSOLE_EXT_LOG_MAX	8192
 
 /* printk's without a loglevel use this.. */
