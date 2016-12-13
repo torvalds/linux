@@ -25,7 +25,6 @@
 #include <linux/uaccess.h>
 
 #define RNG_MODULE_NAME		"hw_random"
-#define PFX			RNG_MODULE_NAME ": "
 
 static struct hwrng *current_rng;
 static struct task_struct *hwrng_fill;
