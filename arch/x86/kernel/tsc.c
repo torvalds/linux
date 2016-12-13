@@ -1080,6 +1080,11 @@ static void detect_art(void)
 
 static struct clocksource clocksource_tsc;
 
+static void tsc_resume(struct clocksource *cs)
+{
+	tsc_verify_tsc_adjust(true);
+}
+
 /*
  * We used to compare the TSC to the cycle_last value in the clocksource
  * structure to avoid a nasty time-warp. This can be observed in a
@@ -1112,6 +1117,7 @@ static struct clocksource clocksource_tsc = {
 	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS |
 				  CLOCK_SOURCE_MUST_VERIFY,
 	.archdata               = { .vclock_mode = VCLOCK_TSC },
+	.resume			= tsc_resume,
 };
 
 void mark_tsc_unstable(char *reason)

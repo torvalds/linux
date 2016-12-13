@@ -30,7 +30,7 @@ struct tsc_adjust {
 
 static DEFINE_PER_CPU(struct tsc_adjust, tsc_adjust);
 
-void tsc_verify_tsc_adjust(void)
+void tsc_verify_tsc_adjust(bool resume)
 {
 	struct tsc_adjust *adj = this_cpu_ptr(&tsc_adjust);
 	s64 curval;
@@ -39,7 +39,7 @@ void tsc_verify_tsc_adjust(void)
 		return;
 
 	/* Rate limit the MSR check */
-	if (time_before(jiffies, adj->nextcheck))
+	if (!resume && time_before(jiffies, adj->nextcheck))
 		return;
 
 	adj->nextcheck = jiffies + HZ;
@@ -51,7 +51,7 @@ void tsc_verify_tsc_adjust(void)
 	/* Restore the original value */
 	wrmsrl(MSR_IA32_TSC_ADJUST, adj->adjusted);
 
-	if (!adj->warned) {
+	if (!adj->warned || resume) {
 		pr_warn(FW_BUG "TSC ADJUST differs: CPU%u %lld --> %lld. Restoring\n",
 			smp_processor_id(), adj->adjusted, curval);
 		adj->warned = true;
