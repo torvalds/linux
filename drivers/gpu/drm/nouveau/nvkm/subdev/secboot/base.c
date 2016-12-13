@@ -160,7 +160,7 @@ nvkm_secboot_falcon_run(struct nvkm_secboot *sb)
  * nvkm_secboot_reset() - reset specified falcon
  */
 int
-nvkm_secboot_reset(struct nvkm_secboot *sb, u32 falcon)
+nvkm_secboot_reset(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
 {
 	/* Unmanaged falcon? */
 	if (!(BIT(falcon) & sb->func->managed_falcons)) {
@@ -175,7 +175,7 @@ nvkm_secboot_reset(struct nvkm_secboot *sb, u32 falcon)
  * nvkm_secboot_start() - start specified falcon
  */
 int
-nvkm_secboot_start(struct nvkm_secboot *sb, u32 falcon)
+nvkm_secboot_start(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
 {
 	/* Unmanaged falcon? */
 	if (!(BIT(falcon) & sb->func->managed_falcons)) {

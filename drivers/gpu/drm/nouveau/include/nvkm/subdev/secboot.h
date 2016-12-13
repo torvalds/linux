@@ -26,7 +26,7 @@
 #include <core/subdev.h>
 
 enum nvkm_secboot_falcon {
-	NVKM_SECBOOT_FALCON_PMU	= 0,
+	NVKM_SECBOOT_FALCON_PMU = 0,
 	NVKM_SECBOOT_FALCON_RESERVED = 1,
 	NVKM_SECBOOT_FALCON_FECS = 2,
 	NVKM_SECBOOT_FALCON_GPCCS = 3,
@@ -49,8 +49,8 @@ struct nvkm_secboot {
 #define nvkm_secboot(p) container_of((p), struct nvkm_secboot, subdev)
 
 bool nvkm_secboot_is_managed(struct nvkm_secboot *, enum nvkm_secboot_falcon);
-int nvkm_secboot_reset(struct nvkm_secboot *, u32 falcon);
-int nvkm_secboot_start(struct nvkm_secboot *, u32 falcon);
+int nvkm_secboot_reset(struct nvkm_secboot *, enum nvkm_secboot_falcon);
+int nvkm_secboot_start(struct nvkm_secboot *, enum nvkm_secboot_falcon);
 
 int gm200_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);
 int gm20b_secboot_new(struct nvkm_device *, int, struct nvkm_secboot **);

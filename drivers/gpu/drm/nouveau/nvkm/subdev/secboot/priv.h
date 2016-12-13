@@ -226,8 +226,8 @@ struct gm200_secboot_func {
 
 int gm200_secboot_init(struct nvkm_secboot *);
 void *gm200_secboot_dtor(struct nvkm_secboot *);
-int gm200_secboot_reset(struct nvkm_secboot *, u32);
-int gm200_secboot_start(struct nvkm_secboot *, u32);
+int gm200_secboot_reset(struct nvkm_secboot *, enum nvkm_secboot_falcon);
+int gm200_secboot_start(struct nvkm_secboot *, enum nvkm_secboot_falcon);
 
 int gm20x_secboot_prepare_blobs(struct gm200_secboot *);
 
