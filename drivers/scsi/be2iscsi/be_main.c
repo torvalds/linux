@@ -244,8 +244,13 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 	beiscsi_conn = conn->dd_data;
 	phba = beiscsi_conn->phba;
 	/* mark WRB invalid which have been not processed by FW yet */
-	AMAP_SET_BITS(struct amap_iscsi_wrb, invld,
-		      abrt_io_task->pwrb_handle->pwrb, 1);
+	if (is_chip_be2_be3r(phba)) {
+		AMAP_SET_BITS(struct amap_iscsi_wrb, invld,
+			      abrt_io_task->pwrb_handle->pwrb, 1);
+	} else {
+		AMAP_SET_BITS(struct amap_iscsi_wrb_v2, invld,
+			      abrt_io_task->pwrb_handle->pwrb, 1);
+	}
 	inv_tbl.cid = beiscsi_conn->beiscsi_conn_cid;
 	inv_tbl.icd = abrt_io_task->psgl_handle->sgl_index;
 	spin_unlock_bh(&session->back_lock);
@@ -321,9 +326,13 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 		__iscsi_get_task(task);
 		io_task = task->dd_data;
 		/* mark WRB invalid which have been not processed by FW yet */
-		AMAP_SET_BITS(struct amap_iscsi_wrb, invld,
-			      io_task->pwrb_handle->pwrb,
-			      1);
+		if (is_chip_be2_be3r(phba)) {
+			AMAP_SET_BITS(struct amap_iscsi_wrb, invld,
+				      io_task->pwrb_handle->pwrb, 1);
+		} else {
+			AMAP_SET_BITS(struct amap_iscsi_wrb_v2, invld,
+				      io_task->pwrb_handle->pwrb, 1);
+		}
 
 		inv_tbl->tbl[nents].cid = beiscsi_conn->beiscsi_conn_cid;
 		inv_tbl->tbl[nents].icd = io_task->psgl_handle->sgl_index;

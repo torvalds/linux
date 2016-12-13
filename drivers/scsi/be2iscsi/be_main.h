@@ -840,7 +840,7 @@ struct amap_iscsi_wrb_v2 {
 	u8 diff_enbl;   /* DWORD 11 */
 	u8 u_run;       /* DWORD 11 */
 	u8 o_run;       /* DWORD 11 */
-	u8 invalid;     /* DWORD 11 */
+	u8 invld;     /* DWORD 11 */
 	u8 dsp;         /* DWORD 11 */
 	u8 dmsg;        /* DWORD 11 */
 	u8 rsvd4;       /* DWORD 11 */
