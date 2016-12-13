@@ -19,11 +19,14 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 #include <media/cec.h>
+#include <media/cec-edid.h>
+#include <media/cec-notifier.h>
 
 #include "exynos_hdmi_cec.h"
 #include "regs-cec.h"
@@ -167,9 +170,21 @@ static const struct cec_adap_ops s5p_cec_adap_ops = {
 static int s5p_cec_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np;
+	struct platform_device *hdmi_dev;
 	struct resource *res;
 	struct s5p_cec_dev *cec;
 	int ret;
+
+	np = of_parse_phandle(pdev->dev.of_node, "hdmi-phandle", 0);
+
+	if (!np) {
+		dev_err(&pdev->dev, "Failed to find hdmi node in device tree\n");
+		return -ENODEV;
+	}
+	hdmi_dev = of_find_device_by_node(np);
+	if (hdmi_dev == NULL)
+		return -EPROBE_DEFER;
 
 	cec = devm_kzalloc(&pdev->dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
@@ -200,24 +215,33 @@ static int s5p_cec_probe(struct platform_device *pdev)
 	if (IS_ERR(cec->reg))
 		return PTR_ERR(cec->reg);
 
+	cec->notifier = cec_notifier_get(&hdmi_dev->dev);
+	if (cec->notifier == NULL)
+		return -ENOMEM;
+
 	cec->adap = cec_allocate_adapter(&s5p_cec_adap_ops, cec,
 		CEC_NAME,
-		CEC_CAP_PHYS_ADDR | CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT |
+		CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT |
 		CEC_CAP_PASSTHROUGH | CEC_CAP_RC, 1);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;
+
 	ret = cec_register_adapter(cec->adap, &pdev->dev);
-	if (ret) {
-		cec_delete_adapter(cec->adap);
-		return ret;
-	}
+	if (ret)
+		goto err_delete_adapter;
+
+	cec_register_cec_notifier(cec->adap, cec->notifier);
 
 	platform_set_drvdata(pdev, cec);
 	pm_runtime_enable(dev);
 
 	dev_dbg(dev, "successfuly probed\n");
 	return 0;
+
+err_delete_adapter:
+	cec_delete_adapter(cec->adap);
+	return ret;
 }
 
 static int s5p_cec_remove(struct platform_device *pdev)
@@ -225,6 +249,7 @@ static int s5p_cec_remove(struct platform_device *pdev)
 	struct s5p_cec_dev *cec = platform_get_drvdata(pdev);
 
 	cec_unregister_adapter(cec->adap);
+	cec_notifier_put(cec->notifier);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
