@@ -5239,6 +5239,7 @@ L:	kernel-hardening@lists.openwall.com
 S:	Maintained
 F:	scripts/gcc-plugins/
 F:	scripts/gcc-plugin.sh
+F:	scripts/Makefile.gcc-plugins
 F:	Documentation/gcc-plugins.txt
 
 GCOV BASED KERNEL PROFILING
