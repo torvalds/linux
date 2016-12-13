@@ -398,7 +398,8 @@ EXPORT_SYMBOL(drm_mode_config_init);
  */
 void drm_mode_config_cleanup(struct drm_device *dev)
 {
-	struct drm_connector *connector, *ot;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_crtc *crtc, *ct;
 	struct drm_encoder *encoder, *enct;
 	struct drm_framebuffer *fb, *fbt;
@@ -411,10 +412,16 @@ void drm_mode_config_cleanup(struct drm_device *dev)
 		encoder->funcs->destroy(encoder);
 	}
 
-	list_for_each_entry_safe(connector, ot,
-				 &dev->mode_config.connector_list, head) {
-		connector->funcs->destroy(connector);
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		/* drm_connector_list_iter holds an full reference to the
+		 * current connector itself, which means it is inherently safe
+		 * against unreferencing the current connector - but not against
+		 * deleting it right away. */
+		drm_connector_unreference(connector);
 	}
+	drm_connector_list_iter_put(&conn_iter);
+	WARN_ON(!list_empty(&dev->mode_config.connector_list));
 
 	list_for_each_entry_safe(property, pt, &dev->mode_config.property_list,
 				 head) {
