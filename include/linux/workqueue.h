@@ -119,18 +119,30 @@ struct delayed_work {
 	int cpu;
 };
 
-/*
- * A struct for workqueue attributes.  This can be used to change
- * attributes of an unbound workqueue.
+/**
+ * struct workqueue_attrs - A struct for workqueue attributes.
  *
- * Unlike other fields, ->no_numa isn't a property of a worker_pool.  It
- * only modifies how apply_workqueue_attrs() select pools and thus doesn't
- * participate in pool hash calculations or equality comparisons.
+ * This can be used to change attributes of an unbound workqueue.
  */
 struct workqueue_attrs {
-	int			nice;		/* nice level */
-	cpumask_var_t		cpumask;	/* allowed CPUs */
-	bool			no_numa;	/* disable NUMA affinity */
+	/**
+	 * @nice: nice level
+	 */
+	int nice;
+
+	/**
+	 * @cpumask: allowed CPUs
+	 */
+	cpumask_var_t cpumask;
+
+	/**
+	 * @no_numa: disable NUMA affinity
+	 *
+	 * Unlike other fields, ``no_numa`` isn't a property of a worker_pool. It
+	 * only modifies how :c:func:`apply_workqueue_attrs` select pools and thus
+	 * doesn't participate in pool hash calculations or equality comparisons.
+	 */
+	bool no_numa;
 };
 
 static inline struct delayed_work *to_delayed_work(struct work_struct *work)
@@ -272,7 +284,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 
 /*
  * Workqueue flags and constants.  For details, please refer to
- * Documentation/workqueue.txt.
+ * Documentation/core-api/workqueue.rst.
  */
 enum {
 	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
@@ -370,7 +382,8 @@ __alloc_workqueue_key(const char *fmt, unsigned int flags, int max_active,
  * @args...: args for @fmt
  *
  * Allocate a workqueue with the specified parameters.  For detailed
- * information on WQ_* flags, please refer to Documentation/workqueue.txt.
+ * information on WQ_* flags, please refer to
+ * Documentation/core-api/workqueue.rst.
  *
  * The __lock_name macro dance is to guarantee that single lock_class_key
  * doesn't end up with different namesm, which isn't allowed by lockdep.

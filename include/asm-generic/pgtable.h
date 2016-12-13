@@ -558,10 +558,9 @@ static inline int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
  * track_pfn_insert is called when a _new_ single pfn is established
  * by vm_insert_pfn().
  */
-static inline int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
-				   pfn_t pfn)
+static inline void track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+				    pfn_t pfn)
 {
-	return 0;
 }
 
 /*
@@ -593,8 +592,8 @@ static inline void untrack_pfn_moved(struct vm_area_struct *vma)
 extern int track_pfn_remap(struct vm_area_struct *vma, pgprot_t *prot,
 			   unsigned long pfn, unsigned long addr,
 			   unsigned long size);
-extern int track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
-			    pfn_t pfn);
+extern void track_pfn_insert(struct vm_area_struct *vma, pgprot_t *prot,
+			     pfn_t pfn);
 extern int track_pfn_copy(struct vm_area_struct *vma);
 extern void untrack_pfn(struct vm_area_struct *vma, unsigned long pfn,
 			unsigned long size);
@@ -653,18 +652,9 @@ static inline pmd_t pmd_read_atomic(pmd_t *pmdp)
 }
 #endif
 
-#ifndef pmd_move_must_withdraw
-static inline int pmd_move_must_withdraw(spinlock_t *new_pmd_ptl,
-					 spinlock_t *old_pmd_ptl)
-{
-	/*
-	 * With split pmd lock we also need to move preallocated
-	 * PTE page table if new_pmd is on different PMD page table.
-	 */
-	return new_pmd_ptl != old_pmd_ptl;
-}
+#ifndef arch_needs_pgtable_deposit
+#define arch_needs_pgtable_deposit() (false)
 #endif
-
 /*
  * This function is meant to be used by sites walking pagetables with
  * the mmap_sem hold in read mode to protect against MADV_DONTNEED and

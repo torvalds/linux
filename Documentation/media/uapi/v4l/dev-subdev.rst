@@ -99,8 +99,8 @@ the video sensor and the host image processing hardware.
 
 .. _pipeline-scaling:
 
-.. figure::  dev-subdev_files/pipeline.*
-    :alt:    pipeline.pdf / pipeline.png
+.. figure::  pipeline.*
+    :alt:    pipeline.pdf / pipeline.svg
     :align:  center
 
     Image Format Negotiation on Pipelines
@@ -404,8 +404,8 @@ selection will refer to the sink pad format dimensions instead.
 
 .. _subdev-image-processing-crop:
 
-.. figure::  dev-subdev_files/subdev-image-processing-crop.*
-    :alt:    subdev-image-processing-crop.svg
+.. figure::  subdev-image-processing-crop.*
+    :alt:    subdev-image-processing-crop.pdf / subdev-image-processing-crop.svg
     :align:  center
 
     **Figure 4.5. Image processing in subdevs: simple crop example**
@@ -421,8 +421,8 @@ pad.
 
 .. _subdev-image-processing-scaling-multi-source:
 
-.. figure::  dev-subdev_files/subdev-image-processing-scaling-multi-source.*
-    :alt:    subdev-image-processing-scaling-multi-source.svg
+.. figure::  subdev-image-processing-scaling-multi-source.*
+    :alt:    subdev-image-processing-scaling-multi-source.pdf / subdev-image-processing-scaling-multi-source.svg
     :align:  center
 
     **Figure 4.6. Image processing in subdevs: scaling with multiple sources**
@@ -437,8 +437,8 @@ an area at location specified by the source crop rectangle from it.
 
 .. _subdev-image-processing-full:
 
-.. figure::  dev-subdev_files/subdev-image-processing-full.*
-    :alt:    subdev-image-processing-full.svg
+.. figure::  subdev-image-processing-full.*
+    :alt:    subdev-image-processing-full.pdf / subdev-image-processing-full.svg
     :align:  center
 
     **Figure 4.7. Image processing in subdevs: scaling and composition with multiple sinks and sources**

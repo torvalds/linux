@@ -2025,20 +2025,10 @@ out_delete_map:
 void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
 				bool full)
 {
-	struct stat st;
-	int fd, ret;
-
 	if (session == NULL || fp == NULL)
 		return;
 
-	fd = perf_data_file__fd(session->file);
-
-	ret = fstat(fd, &st);
-	if (ret == -1)
-		return;
-
 	fprintf(fp, "# ========\n");
-	fprintf(fp, "# captured on: %s", ctime(&st.st_ctime));
 	perf_header__fprintf_info(session, fp, full);
 	fprintf(fp, "# ========\n#\n");
 }

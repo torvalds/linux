@@ -1950,8 +1950,7 @@ static void ocfs2_write_end_inline(struct inode *inode, loff_t pos,
 }
 
 int ocfs2_write_end_nolock(struct address_space *mapping,
-			   loff_t pos, unsigned len, unsigned copied,
-			   struct page *page, void *fsdata)
+			   loff_t pos, unsigned len, unsigned copied, void *fsdata)
 {
 	int i, ret;
 	unsigned from, to, start = pos & (PAGE_SIZE - 1);
@@ -2064,7 +2063,7 @@ static int ocfs2_write_end(struct file *file, struct address_space *mapping,
 	int ret;
 	struct inode *inode = mapping->host;
 
-	ret = ocfs2_write_end_nolock(mapping, pos, len, copied, page, fsdata);
+	ret = ocfs2_write_end_nolock(mapping, pos, len, copied, fsdata);
 
 	up_write(&OCFS2_I(inode)->ip_alloc_sem);
 	ocfs2_inode_unlock(inode, 1);
@@ -2241,7 +2240,7 @@ static int ocfs2_dio_get_block(struct inode *inode, sector_t iblock,
 		dwc->dw_zero_count++;
 	}
 
-	ret = ocfs2_write_end_nolock(inode->i_mapping, pos, len, len, NULL, wc);
+	ret = ocfs2_write_end_nolock(inode->i_mapping, pos, len, len, wc);
 	BUG_ON(ret != len);
 	ret = 0;
 unlock:

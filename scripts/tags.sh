@@ -304,11 +304,26 @@ if [ "${ARCH}" = "um" ]; then
 elif [ "${SRCARCH}" = "arm" -a "${SUBARCH}" != "" ]; then
 	subarchdir=$(find ${tree}arch/$SRCARCH/ -name "mach-*" -type d -o \
 							-name "plat-*" -type d);
+	mach_suffix=$SUBARCH
+	plat_suffix=$SUBARCH
+
+	# Special cases when $plat_suffix != $mach_suffix
+	case $mach_suffix in
+		"omap1" | "omap2")
+			plat_suffix="omap"
+			;;
+	esac
+
+	if [ ! -d ${tree}arch/$SRCARCH/mach-$mach_suffix ]; then
+		echo "Warning: arch/arm/mach-$mach_suffix/ not found." >&2
+		echo "         Fix your \$SUBARCH appropriately" >&2
+	fi
+
 	for i in $subarchdir; do
 		case "$i" in
-			*"mach-"${SUBARCH})
+			*"mach-"${mach_suffix})
 				;;
-			*"plat-"${SUBARCH})
+			*"plat-"${plat_suffix})
 				;;
 			*)
 				subarchprune="$subarchprune \

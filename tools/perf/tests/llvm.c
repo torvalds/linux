@@ -34,19 +34,19 @@ static struct {
 } bpf_source_table[__LLVM_TESTCASE_MAX] = {
 	[LLVM_TESTCASE_BASE] = {
 		.source = test_llvm__bpf_base_prog,
-		.desc = "Basic BPF llvm compiling test",
+		.desc = "Basic BPF llvm compile",
 	},
 	[LLVM_TESTCASE_KBUILD] = {
 		.source = test_llvm__bpf_test_kbuild_prog,
-		.desc = "Test kbuild searching",
+		.desc = "kbuild searching",
 	},
 	[LLVM_TESTCASE_BPF_PROLOGUE] = {
 		.source = test_llvm__bpf_test_prologue_prog,
-		.desc = "Compile source for BPF prologue generation test",
+		.desc = "Compile source for BPF prologue generation",
 	},
 	[LLVM_TESTCASE_BPF_RELOCATION] = {
 		.source = test_llvm__bpf_test_relocation,
-		.desc = "Compile source for BPF relocation test",
+		.desc = "Compile source for BPF relocation",
 		.should_load_fail = true,
 	},
 };

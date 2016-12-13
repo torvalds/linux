@@ -37,7 +37,6 @@
 #include <asm/desc.h>
 #include <asm/ptrace.h>
 #include <asm/irq.h>
-#include <asm/idle.h>
 #include <asm/io_apic.h>
 #include <asm/i8259.h>
 #include <asm/xen/pci.h>
@@ -1256,7 +1255,6 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 
 	irq_enter();
 #ifdef CONFIG_X86
-	exit_idle();
 	inc_irq_stat(irq_hv_callback_count);
 #endif
 

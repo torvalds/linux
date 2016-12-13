@@ -26,6 +26,9 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/alarmtimer.h>
+
 /**
  * struct alarm_base - Alarm timer bases
  * @lock:		Lock for syncrhonized access to the base
@@ -40,7 +43,9 @@ static struct alarm_base {
 	clockid_t		base_clockid;
 } alarm_bases[ALARM_NUMTYPE];
 
-/* freezer delta & lock used to handle clock_nanosleep triggered wakeups */
+/* freezer information to handle clock_nanosleep triggered wakeups */
+static enum alarmtimer_type freezer_alarmtype;
+static ktime_t freezer_expires;
 static ktime_t freezer_delta;
 static DEFINE_SPINLOCK(freezer_delta_lock);
 
@@ -194,6 +199,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 	}
 	spin_unlock_irqrestore(&base->lock, flags);
 
+	trace_alarmtimer_fired(alarm, base->gettime());
 	return ret;
 
 }
@@ -218,15 +224,16 @@ EXPORT_SYMBOL_GPL(alarm_expires_remaining);
  */
 static int alarmtimer_suspend(struct device *dev)
 {
-	struct rtc_time tm;
-	ktime_t min, now;
-	unsigned long flags;
+	ktime_t min, now, expires;
+	int i, ret, type;
 	struct rtc_device *rtc;
-	int i;
-	int ret;
+	unsigned long flags;
+	struct rtc_time tm;
 
 	spin_lock_irqsave(&freezer_delta_lock, flags);
 	min = freezer_delta;
+	expires = freezer_expires;
+	type = freezer_alarmtype;
 	freezer_delta = ktime_set(0, 0);
 	spin_unlock_irqrestore(&freezer_delta_lock, flags);
 
@@ -247,8 +254,11 @@ static int alarmtimer_suspend(struct device *dev)
 		if (!next)
 			continue;
 		delta = ktime_sub(next->expires, base->gettime());
-		if (!min.tv64 || (delta.tv64 < min.tv64))
+		if (!min.tv64 || (delta.tv64 < min.tv64)) {
+			expires = next->expires;
 			min = delta;
+			type = i;
+		}
 	}
 	if (min.tv64 == 0)
 		return 0;
@@ -257,6 +267,8 @@ static int alarmtimer_suspend(struct device *dev)
 		__pm_wakeup_event(ws, 2 * MSEC_PER_SEC);
 		return -EBUSY;
 	}
+
+	trace_alarmtimer_suspend(expires, type);
 
 	/* Setup an rtc timer to fire that far in the future */
 	rtc_timer_cancel(rtc, &rtctimer);
@@ -295,15 +307,32 @@ static int alarmtimer_resume(struct device *dev)
 
 static void alarmtimer_freezerset(ktime_t absexp, enum alarmtimer_type type)
 {
-	ktime_t delta;
+	struct alarm_base *base;
 	unsigned long flags;
-	struct alarm_base *base = &alarm_bases[type];
+	ktime_t delta;
+
+	switch(type) {
+	case ALARM_REALTIME:
+		base = &alarm_bases[ALARM_REALTIME];
+		type = ALARM_REALTIME_FREEZER;
+		break;
+	case ALARM_BOOTTIME:
+		base = &alarm_bases[ALARM_BOOTTIME];
+		type = ALARM_BOOTTIME_FREEZER;
+		break;
+	default:
+		WARN_ONCE(1, "Invalid alarm type: %d\n", type);
+		return;
+	}
 
 	delta = ktime_sub(absexp, base->gettime());
 
 	spin_lock_irqsave(&freezer_delta_lock, flags);
-	if (!freezer_delta.tv64 || (delta.tv64 < freezer_delta.tv64))
+	if (!freezer_delta.tv64 || (delta.tv64 < freezer_delta.tv64)) {
 		freezer_delta = delta;
+		freezer_expires = absexp;
+		freezer_alarmtype = type;
+	}
 	spin_unlock_irqrestore(&freezer_delta_lock, flags);
 }
 
@@ -342,6 +371,8 @@ void alarm_start(struct alarm *alarm, ktime_t start)
 	alarmtimer_enqueue(base, alarm);
 	hrtimer_start(&alarm->timer, alarm->node.expires, HRTIMER_MODE_ABS);
 	spin_unlock_irqrestore(&base->lock, flags);
+
+	trace_alarmtimer_start(alarm, base->gettime());
 }
 EXPORT_SYMBOL_GPL(alarm_start);
 
@@ -390,6 +421,8 @@ int alarm_try_to_cancel(struct alarm *alarm)
 	if (ret >= 0)
 		alarmtimer_dequeue(base, alarm);
 	spin_unlock_irqrestore(&base->lock, flags);
+
+	trace_alarmtimer_cancel(alarm, base->gettime());
 	return ret;
 }
 EXPORT_SYMBOL_GPL(alarm_try_to_cancel);
@@ -846,8 +879,10 @@ static int __init alarmtimer_init(void)
 
 	alarmtimer_rtc_timer_init();
 
-	posix_timers_register_clock(CLOCK_REALTIME_ALARM, &alarm_clock);
-	posix_timers_register_clock(CLOCK_BOOTTIME_ALARM, &alarm_clock);
+	if (IS_ENABLED(CONFIG_POSIX_TIMERS)) {
+		posix_timers_register_clock(CLOCK_REALTIME_ALARM, &alarm_clock);
+		posix_timers_register_clock(CLOCK_BOOTTIME_ALARM, &alarm_clock);
+	}
 
 	/* Initialize alarm bases */
 	alarm_bases[ALARM_REALTIME].base_clockid = CLOCK_REALTIME;

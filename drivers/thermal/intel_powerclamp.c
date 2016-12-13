@@ -56,7 +56,6 @@
 #include <asm/msr.h>
 #include <asm/mwait.h>
 #include <asm/cpu_device_id.h>
-#include <asm/idle.h>
 #include <asm/hardirq.h>
 
 #define MAX_TARGET_RATIO (50U)

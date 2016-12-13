@@ -177,9 +177,9 @@ config AMD_XGBE
 	depends on X86 || ARM64 || COMPILE_TEST
 	select BITREVERSE
 	select CRC32
-	select PTP_1588_CLOCK
 	select PHYLIB
 	select AMD_XGBE_HAVE_ECC if X86
+	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports the AMD 10GbE Ethernet device found on an
 	  AMD SoC.
