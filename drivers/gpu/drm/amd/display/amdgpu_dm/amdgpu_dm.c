@@ -1386,48 +1386,7 @@ static int amdgpu_notify_freesync(struct drm_device *dev, void *data,
 	return r;
 }
 
-#ifdef CONFIG_DRM_AMDGPU_CIK
-static const struct amdgpu_display_funcs dm_dce_v8_0_display_funcs = {
-	.bandwidth_update = dm_bandwidth_update, /* called unconditionally */
-	.vblank_get_counter = dm_vblank_get_counter,/* called unconditionally */
-	.vblank_wait = NULL,
-	.backlight_set_level =
-		dm_set_backlight_level,/* called unconditionally */
-	.backlight_get_level =
-		dm_get_backlight_level,/* called unconditionally */
-	.hpd_sense = NULL,/* called unconditionally */
-	.hpd_set_polarity = NULL, /* called unconditionally */
-	.hpd_get_gpio_reg = NULL, /* VBIOS parsing. DAL does it. */
-	.page_flip = dm_page_flip, /* called unconditionally */
-	.page_flip_get_scanoutpos =
-		dm_crtc_get_scanoutpos,/* called unconditionally */
-	.add_encoder = NULL, /* VBIOS parsing. DAL does it. */
-	.add_connector = NULL, /* VBIOS parsing. DAL does it. */
-	.notify_freesync = amdgpu_notify_freesync,
-};
-#endif
-
-static const struct amdgpu_display_funcs dm_dce_v10_0_display_funcs = {
-	.bandwidth_update = dm_bandwidth_update, /* called unconditionally */
-	.vblank_get_counter = dm_vblank_get_counter,/* called unconditionally */
-	.vblank_wait = NULL,
-	.backlight_set_level =
-		dm_set_backlight_level,/* called unconditionally */
-	.backlight_get_level =
-		dm_get_backlight_level,/* called unconditionally */
-	.hpd_sense = NULL,/* called unconditionally */
-	.hpd_set_polarity = NULL, /* called unconditionally */
-	.hpd_get_gpio_reg = NULL, /* VBIOS parsing. DAL does it. */
-	.page_flip = dm_page_flip, /* called unconditionally */
-	.page_flip_get_scanoutpos =
-		dm_crtc_get_scanoutpos,/* called unconditionally */
-	.add_encoder = NULL, /* VBIOS parsing. DAL does it. */
-	.add_connector = NULL, /* VBIOS parsing. DAL does it. */
-	.notify_freesync = amdgpu_notify_freesync,
-
-};
-
-static const struct amdgpu_display_funcs dm_dce_v11_0_display_funcs = {
+static const struct amdgpu_display_funcs dm_display_funcs = {
 	.bandwidth_update = dm_bandwidth_update, /* called unconditionally */
 	.vblank_get_counter = dm_vblank_get_counter,/* called unconditionally */
 	.vblank_wait = NULL,
@@ -1491,51 +1450,40 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
-#ifdef CONFIG_DRM_AMDGPU_CIK
-		if (adev->mode_info.funcs == NULL)
-			adev->mode_info.funcs = &dm_dce_v8_0_display_funcs;
-#endif
 		break;
 	case CHIP_FIJI:
 	case CHIP_TONGA:
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 7;
-		if (adev->mode_info.funcs == NULL)
-			adev->mode_info.funcs = &dm_dce_v10_0_display_funcs;
 		break;
 	case CHIP_CARRIZO:
 		adev->mode_info.num_crtc = 3;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 9;
-		if (adev->mode_info.funcs == NULL)
-			adev->mode_info.funcs = &dm_dce_v11_0_display_funcs;
 		break;
 	case CHIP_STONEY:
 		adev->mode_info.num_crtc = 2;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 9;
-		if (adev->mode_info.funcs == NULL)
-			adev->mode_info.funcs = &dm_dce_v11_0_display_funcs;
 		break;
 	case CHIP_POLARIS11:
 		adev->mode_info.num_crtc = 5;
 		adev->mode_info.num_hpd = 5;
 		adev->mode_info.num_dig = 5;
-		if (adev->mode_info.funcs == NULL)
-			adev->mode_info.funcs = &dm_dce_v11_0_display_funcs;
 		break;
 	case CHIP_POLARIS10:
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
-		if (adev->mode_info.funcs == NULL)
-			adev->mode_info.funcs = &dm_dce_v11_0_display_funcs;
 		break;
 	default:
 		DRM_ERROR("Usupported ASIC type: 0x%X\n", adev->asic_type);
 		return -EINVAL;
 	}
+
+	if (adev->mode_info.funcs == NULL)
+		adev->mode_info.funcs = &dm_display_funcs;
 
 	/* Note: Do NOT change adev->audio_endpt_rreg and
 	 * adev->audio_endpt_wreg because they are initialised in
