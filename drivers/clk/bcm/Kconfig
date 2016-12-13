@@ -20,7 +20,7 @@ config CLK_BCM_KONA
 
 config COMMON_CLK_IPROC
 	bool "Broadcom iProc clock support"
-	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on ARCH_BCM_IPROC || ARCH_BCM_63XX || COMPILE_TEST
 	depends on COMMON_CLK
 	default ARCH_BCM_IPROC
 	help

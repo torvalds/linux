@@ -1730,6 +1730,7 @@ static int qed_ll2_start_xmit(struct qed_dev *cdev, struct sk_buff *skb)
 						       mapping))) {
 				DP_NOTICE(cdev,
 					  "Unable to map frag - dropping packet\n");
+				rc = -ENOMEM;
 				goto err;
 			}
 		} else {

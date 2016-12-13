@@ -100,7 +100,8 @@ src-wlib-y := string.S crt0.S crtsavres.S stdio.c decompress.c main.c \
 		ns16550.c serial.c simple_alloc.c div64.S util.S \
 		elf_util.c $(zlib-y) devtree.c stdlib.c \
 		oflib.c ofconsole.c cuboot.c mpsc.c cpm-serial.c \
-		uartlite.c mpc52xx-psc.c opal.c opal-calls.S
+		uartlite.c mpc52xx-psc.c opal.c
+src-wlib-$(CONFIG_PPC64_BOOT_WRAPPER) +=  opal-calls.S
 src-wlib-$(CONFIG_40x) += 4xx.c planetcore.c
 src-wlib-$(CONFIG_44x) += 4xx.c ebony.c bamboo.c
 src-wlib-$(CONFIG_8xx) += mpc8xx.c planetcore.c fsl-soc.c

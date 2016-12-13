@@ -9,7 +9,7 @@
 			Linus
 ----------
 
-M: Matt Mackal
+N: Matt Mackal
 E: mpm@selenic.com
 D: SLOB slab allocator
 
@@ -1910,7 +1910,7 @@ S: Ra'annana, Israel
 
 N: Andi Kleen
 E: andi@firstfloor.org
-U: http://www.halobates.de
+W: http://www.halobates.de
 D: network, x86, NUMA, various hacks
 S: Schwalbenstr. 96
 S: 85551 Ottobrunn
@@ -2089,8 +2089,8 @@ D: ST Microelectronics SPEAr13xx PCI host bridge driver
 D: Synopsys Designware PCI host bridge driver
 
 N: Gabor Kuti
-M: seasons@falcon.sch.bme.hu
-M: seasons@makosteszta.sote.hu
+E: seasons@falcon.sch.bme.hu
+E: seasons@makosteszta.sote.hu
 D: Original author of software suspend
 
 N: Jaroslav Kysela
