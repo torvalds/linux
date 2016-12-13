@@ -634,22 +634,6 @@ isolate_freepages_range(struct compact_control *cc,
 	return pfn;
 }
 
-/* Update the number of anon and file isolated pages in the zone */
-static void acct_isolated(struct zone *zone, struct compact_control *cc)
-{
-	struct page *page;
-	unsigned int count[2] = { 0, };
-
-	if (list_empty(&cc->migratepages))
-		return;
-
-	list_for_each_entry(page, &cc->migratepages, lru)
-		count[!!page_is_file_cache(page)]++;
-
-	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_ANON, count[0]);
-	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, count[1]);
-}
-
 /* Similar to reclaim, but different enough that they don't share logic */
 static bool too_many_isolated(struct zone *zone)
 {
@@ -866,6 +850,8 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 		/* Successfully isolated */
 		del_page_from_lru_list(page, lruvec, page_lru(page));
+		inc_node_page_state(page,
+				NR_ISOLATED_ANON + page_is_file_cache(page));
 
 isolate_success:
 		list_add(&page->lru, &cc->migratepages);
@@ -902,7 +888,6 @@ isolate_fail:
 				spin_unlock_irqrestore(zone_lru_lock(zone), flags);
 				locked = false;
 			}
-			acct_isolated(zone, cc);
 			putback_movable_pages(&cc->migratepages);
 			cc->nr_migratepages = 0;
 			cc->last_migrated_pfn = 0;
@@ -988,7 +973,6 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
 		if (cc->nr_migratepages == COMPACT_CLUSTER_MAX)
 			break;
 	}
-	acct_isolated(cc->zone, cc);
 
 	return pfn;
 }
@@ -1258,10 +1242,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 		low_pfn = isolate_migratepages_block(cc, low_pfn,
 						block_end_pfn, isolate_mode);
 
-		if (!low_pfn || cc->contended) {
-			acct_isolated(zone, cc);
+		if (!low_pfn || cc->contended)
 			return ISOLATE_ABORT;
-		}
 
 		/*
 		 * Either we isolated something and proceed with migration. Or
@@ -1271,7 +1253,6 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
 		break;
 	}
 
-	acct_isolated(zone, cc);
 	/* Record where migration scanner will be restarted. */
 	cc->migrate_pfn = low_pfn;
 

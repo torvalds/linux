@@ -220,10 +220,10 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
 {
 	unsigned long i;
 
-	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d parent %p\n",
+	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d exceptional %d parent %p\n",
 		node, node->offset,
 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
-		node->shift, node->count, node->parent);
+		node->shift, node->count, node->exceptional, node->parent);
 
 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
 		unsigned long first = index | (i << node->shift);
@@ -325,7 +325,6 @@ static void radix_tree_node_rcu_free(struct rcu_head *head)
 		tag_clear(node, i, 0);
 
 	node->slots[0] = NULL;
-	node->count = 0;
 
 	kmem_cache_free(radix_tree_node_cachep, node);
 }
@@ -522,8 +521,13 @@ static int radix_tree_extend(struct radix_tree_root *root,
 		node->offset = 0;
 		node->count = 1;
 		node->parent = NULL;
-		if (radix_tree_is_internal_node(slot))
+		if (radix_tree_is_internal_node(slot)) {
 			entry_to_node(slot)->parent = node;
+		} else {
+			/* Moving an exceptional root->rnode to a node */
+			if (radix_tree_exceptional_entry(slot))
+				node->exceptional = 1;
+		}
 		node->slots[0] = slot;
 		slot = node_to_entry(node);
 		rcu_assign_pointer(root->rnode, slot);
@@ -531,6 +535,104 @@ static int radix_tree_extend(struct radix_tree_root *root,
 	} while (shift <= maxshift);
 out:
 	return maxshift + RADIX_TREE_MAP_SHIFT;
+}
+
+/**
+ *	radix_tree_shrink    -    shrink radix tree to minimum height
+ *	@root		radix tree root
+ */
+static inline void radix_tree_shrink(struct radix_tree_root *root,
+				     radix_tree_update_node_t update_node,
+				     void *private)
+{
+	for (;;) {
+		struct radix_tree_node *node = root->rnode;
+		struct radix_tree_node *child;
+
+		if (!radix_tree_is_internal_node(node))
+			break;
+		node = entry_to_node(node);
+
+		/*
+		 * The candidate node has more than one child, or its child
+		 * is not at the leftmost slot, or the child is a multiorder
+		 * entry, we cannot shrink.
+		 */
+		if (node->count != 1)
+			break;
+		child = node->slots[0];
+		if (!child)
+			break;
+		if (!radix_tree_is_internal_node(child) && node->shift)
+			break;
+
+		if (radix_tree_is_internal_node(child))
+			entry_to_node(child)->parent = NULL;
+
+		/*
+		 * We don't need rcu_assign_pointer(), since we are simply
+		 * moving the node from one part of the tree to another: if it
+		 * was safe to dereference the old pointer to it
+		 * (node->slots[0]), it will be safe to dereference the new
+		 * one (root->rnode) as far as dependent read barriers go.
+		 */
+		root->rnode = child;
+
+		/*
+		 * We have a dilemma here. The node's slot[0] must not be
+		 * NULLed in case there are concurrent lookups expecting to
+		 * find the item. However if this was a bottom-level node,
+		 * then it may be subject to the slot pointer being visible
+		 * to callers dereferencing it. If item corresponding to
+		 * slot[0] is subsequently deleted, these callers would expect
+		 * their slot to become empty sooner or later.
+		 *
+		 * For example, lockless pagecache will look up a slot, deref
+		 * the page pointer, and if the page has 0 refcount it means it
+		 * was concurrently deleted from pagecache so try the deref
+		 * again. Fortunately there is already a requirement for logic
+		 * to retry the entire slot lookup -- the indirect pointer
+		 * problem (replacing direct root node with an indirect pointer
+		 * also results in a stale slot). So tag the slot as indirect
+		 * to force callers to retry.
+		 */
+		node->count = 0;
+		if (!radix_tree_is_internal_node(child)) {
+			node->slots[0] = RADIX_TREE_RETRY;
+			if (update_node)
+				update_node(node, private);
+		}
+
+		radix_tree_node_free(node);
+	}
+}
+
+static void delete_node(struct radix_tree_root *root,
+			struct radix_tree_node *node,
+			radix_tree_update_node_t update_node, void *private)
+{
+	do {
+		struct radix_tree_node *parent;
+
+		if (node->count) {
+			if (node == entry_to_node(root->rnode))
+				radix_tree_shrink(root, update_node, private);
+			return;
+		}
+
+		parent = node->parent;
+		if (parent) {
+			parent->slots[node->offset] = NULL;
+			parent->count--;
+		} else {
+			root_tag_clear_all(root);
+			root->rnode = NULL;
+		}
+
+		radix_tree_node_free(node);
+
+		node = parent;
+	} while (node);
 }
 
 /**
@@ -649,6 +751,8 @@ int __radix_tree_insert(struct radix_tree_root *root, unsigned long index,
 	if (node) {
 		unsigned offset = get_slot_offset(node, slot);
 		node->count++;
+		if (radix_tree_exceptional_entry(item))
+			node->exceptional++;
 		BUG_ON(tag_get(node, 0, offset));
 		BUG_ON(tag_get(node, 1, offset));
 		BUG_ON(tag_get(node, 2, offset));
@@ -745,6 +849,85 @@ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
 	return __radix_tree_lookup(root, index, NULL, NULL);
 }
 EXPORT_SYMBOL(radix_tree_lookup);
+
+static void replace_slot(struct radix_tree_root *root,
+			 struct radix_tree_node *node,
+			 void **slot, void *item,
+			 bool warn_typeswitch)
+{
+	void *old = rcu_dereference_raw(*slot);
+	int count, exceptional;
+
+	WARN_ON_ONCE(radix_tree_is_internal_node(item));
+
+	count = !!item - !!old;
+	exceptional = !!radix_tree_exceptional_entry(item) -
+		      !!radix_tree_exceptional_entry(old);
+
+	WARN_ON_ONCE(warn_typeswitch && (count || exceptional));
+
+	if (node) {
+		node->count += count;
+		node->exceptional += exceptional;
+	}
+
+	rcu_assign_pointer(*slot, item);
+}
+
+/**
+ * __radix_tree_replace		- replace item in a slot
+ * @root:		radix tree root
+ * @node:		pointer to tree node
+ * @slot:		pointer to slot in @node
+ * @item:		new item to store in the slot.
+ * @update_node:	callback for changing leaf nodes
+ * @private:		private data to pass to @update_node
+ *
+ * For use with __radix_tree_lookup().  Caller must hold tree write locked
+ * across slot lookup and replacement.
+ */
+void __radix_tree_replace(struct radix_tree_root *root,
+			  struct radix_tree_node *node,
+			  void **slot, void *item,
+			  radix_tree_update_node_t update_node, void *private)
+{
+	/*
+	 * This function supports replacing exceptional entries and
+	 * deleting entries, but that needs accounting against the
+	 * node unless the slot is root->rnode.
+	 */
+	replace_slot(root, node, slot, item,
+		     !node && slot != (void **)&root->rnode);
+
+	if (!node)
+		return;
+
+	if (update_node)
+		update_node(node, private);
+
+	delete_node(root, node, update_node, private);
+}
+
+/**
+ * radix_tree_replace_slot	- replace item in a slot
+ * @root:	radix tree root
+ * @slot:	pointer to slot
+ * @item:	new item to store in the slot.
+ *
+ * For use with radix_tree_lookup_slot(), radix_tree_gang_lookup_slot(),
+ * radix_tree_gang_lookup_tag_slot().  Caller must hold tree write locked
+ * across slot lookup and replacement.
+ *
+ * NOTE: This cannot be used to switch between non-entries (empty slots),
+ * regular entries, and exceptional entries, as that requires accounting
+ * inside the radix tree node. When switching from one type of entry or
+ * deleting, use __radix_tree_lookup() and __radix_tree_replace().
+ */
+void radix_tree_replace_slot(struct radix_tree_root *root,
+			     void **slot, void *item)
+{
+	replace_slot(root, NULL, slot, item, true);
+}
 
 /**
  *	radix_tree_tag_set - set a tag on a radix tree node
@@ -1394,75 +1577,6 @@ unsigned long radix_tree_locate_item(struct radix_tree_root *root, void *item)
 #endif /* CONFIG_SHMEM && CONFIG_SWAP */
 
 /**
- *	radix_tree_shrink    -    shrink radix tree to minimum height
- *	@root		radix tree root
- */
-static inline bool radix_tree_shrink(struct radix_tree_root *root)
-{
-	bool shrunk = false;
-
-	for (;;) {
-		struct radix_tree_node *node = root->rnode;
-		struct radix_tree_node *child;
-
-		if (!radix_tree_is_internal_node(node))
-			break;
-		node = entry_to_node(node);
-
-		/*
-		 * The candidate node has more than one child, or its child
-		 * is not at the leftmost slot, or the child is a multiorder
-		 * entry, we cannot shrink.
-		 */
-		if (node->count != 1)
-			break;
-		child = node->slots[0];
-		if (!child)
-			break;
-		if (!radix_tree_is_internal_node(child) && node->shift)
-			break;
-
-		if (radix_tree_is_internal_node(child))
-			entry_to_node(child)->parent = NULL;
-
-		/*
-		 * We don't need rcu_assign_pointer(), since we are simply
-		 * moving the node from one part of the tree to another: if it
-		 * was safe to dereference the old pointer to it
-		 * (node->slots[0]), it will be safe to dereference the new
-		 * one (root->rnode) as far as dependent read barriers go.
-		 */
-		root->rnode = child;
-
-		/*
-		 * We have a dilemma here. The node's slot[0] must not be
-		 * NULLed in case there are concurrent lookups expecting to
-		 * find the item. However if this was a bottom-level node,
-		 * then it may be subject to the slot pointer being visible
-		 * to callers dereferencing it. If item corresponding to
-		 * slot[0] is subsequently deleted, these callers would expect
-		 * their slot to become empty sooner or later.
-		 *
-		 * For example, lockless pagecache will look up a slot, deref
-		 * the page pointer, and if the page has 0 refcount it means it
-		 * was concurrently deleted from pagecache so try the deref
-		 * again. Fortunately there is already a requirement for logic
-		 * to retry the entire slot lookup -- the indirect pointer
-		 * problem (replacing direct root node with an indirect pointer
-		 * also results in a stale slot). So tag the slot as indirect
-		 * to force callers to retry.
-		 */
-		if (!radix_tree_is_internal_node(child))
-			node->slots[0] = RADIX_TREE_RETRY;
-
-		radix_tree_node_free(node);
-		shrunk = true;
-	}
-
-	return shrunk;
-}
-
-/**
  *	__radix_tree_delete_node    -    try to free node after clearing a slot
  *	@root:		radix tree root
  *	@node:		node containing @index
@@ -1470,39 +1584,11 @@ static inline bool radix_tree_shrink(struct radix_tree_root *root)
  *	After clearing the slot at @index in @node from radix tree
  *	rooted at @root, call this function to attempt freeing the
  *	node and shrinking the tree.
- *
- *	Returns %true if @node was freed, %false otherwise.
  */
-bool __radix_tree_delete_node(struct radix_tree_root *root,
+void __radix_tree_delete_node(struct radix_tree_root *root,
 			      struct radix_tree_node *node)
 {
-	bool deleted = false;
-
-	do {
-		struct radix_tree_node *parent;
-
-		if (node->count) {
-			if (node == entry_to_node(root->rnode))
-				deleted |= radix_tree_shrink(root);
-			return deleted;
-		}
-
-		parent = node->parent;
-		if (parent) {
-			parent->slots[node->offset] = NULL;
-			parent->count--;
-		} else {
-			root_tag_clear_all(root);
-			root->rnode = NULL;
-		}
-
-		radix_tree_node_free(node);
-		deleted = true;
-
-		node = parent;
-	} while (node);
-
-	return deleted;
+	delete_node(root, node, NULL, NULL);
 }
 
 static inline void delete_sibling_entries(struct radix_tree_node *node,
@@ -1559,10 +1645,7 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
 		node_tag_clear(root, node, tag, offset);
 
 	delete_sibling_entries(node, node_to_entry(slot), offset);
-	node->slots[offset] = NULL;
-	node->count--;
-
-	__radix_tree_delete_node(root, node);
+	__radix_tree_replace(root, node, slot, NULL, NULL, NULL);
 
 	return entry;
 }
