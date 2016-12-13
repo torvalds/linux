@@ -99,8 +99,6 @@ struct mem_input_funcs {
 
 	bool (*mem_input_is_flip_pending)(struct mem_input *mem_input);
 
-	void (*mem_input_update_dchub)(struct mem_input *mem_input,
-			struct dchub_init_data *dh_data);
 };
 
 #endif
