@@ -896,3 +896,5 @@ EXPORT_SYMBOL_GPL(opal_leds_get_ind);
 EXPORT_SYMBOL_GPL(opal_leds_set_ind);
 /* Export this symbol for PowerNV Operator Panel class driver */
 EXPORT_SYMBOL_GPL(opal_write_oppanel_async);
+/* Export this for KVM */
+EXPORT_SYMBOL_GPL(opal_int_set_mfrr);
