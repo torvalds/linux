@@ -3,8 +3,8 @@ The cafe_ccic driver
 
 Author: Jonathan Corbet <corbet@lwn.net>
 
-Introdution
------------
+Introduction
+------------
 
 "cafe_ccic" is a driver for the Marvell 88ALP01 "cafe" CMOS camera
 controller.  This is the controller found in first-generation OLPC systems,

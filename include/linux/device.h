@@ -733,7 +733,7 @@ struct device_dma_parameters {
  * 		minimizes board-specific #ifdefs in drivers.
  * @driver_data: Private pointer for driver specific info.
  * @power:	For device power management.
- * 		See Documentation/power/devices.txt for details.
+ * 		See Documentation/power/admin-guide/devices.rst for details.
  * @pm_domain:	Provide callbacks that are executed during system suspend,
  * 		hibernation, system resume and during runtime PM transitions
  * 		along with subsystem-level and driver-level callbacks.
