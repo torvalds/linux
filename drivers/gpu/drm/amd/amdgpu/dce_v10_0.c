@@ -2493,6 +2493,9 @@ static int dce_v10_0_cursor_move_locked(struct drm_crtc *crtc,
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	int xorigin = 0, yorigin = 0;
 
+	amdgpu_crtc->cursor_x = x;
+	amdgpu_crtc->cursor_y = y;
+
 	/* avivo cursor are offset into the total surface */
 	x += crtc->x;
 	y += crtc->y;
@@ -2509,11 +2512,6 @@ static int dce_v10_0_cursor_move_locked(struct drm_crtc *crtc,
 
 	WREG32(mmCUR_POSITION + amdgpu_crtc->crtc_offset, (x << 16) | y);
 	WREG32(mmCUR_HOT_SPOT + amdgpu_crtc->crtc_offset, (xorigin << 16) | yorigin);
-	WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
-	       ((amdgpu_crtc->cursor_width - 1) << 16) | (amdgpu_crtc->cursor_height - 1));
-
-	amdgpu_crtc->cursor_x = x;
-	amdgpu_crtc->cursor_y = y;
 
 	return 0;
 }
@@ -2539,6 +2537,7 @@ static int dce_v10_0_crtc_cursor_set2(struct drm_crtc *crtc,
 				      int32_t hot_y)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = crtc->dev->dev_private;
 	struct drm_gem_object *obj;
 	struct amdgpu_bo *aobj;
 	int ret;
@@ -2577,9 +2576,6 @@ static int dce_v10_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	amdgpu_crtc->cursor_width = width;
-	amdgpu_crtc->cursor_height = height;
-
 	dce_v10_0_lock_cursor(crtc, true);
 
 	if (hot_x != amdgpu_crtc->cursor_hot_x ||
@@ -2593,6 +2589,14 @@ static int dce_v10_0_crtc_cursor_set2(struct drm_crtc *crtc,
 
 		amdgpu_crtc->cursor_hot_x = hot_x;
 		amdgpu_crtc->cursor_hot_y = hot_y;
+	}
+
+	if (width != amdgpu_crtc->cursor_width ||
+	    height != amdgpu_crtc->cursor_height) {
+		WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
+		       (width - 1) << 16 | (height - 1));
+		amdgpu_crtc->cursor_width = width;
+		amdgpu_crtc->cursor_height = height;
 	}
 
 	dce_v10_0_show_cursor(crtc);
@@ -2616,12 +2620,17 @@ unpin:
 static void dce_v10_0_cursor_reset(struct drm_crtc *crtc)
 {
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	struct amdgpu_device *adev = crtc->dev->dev_private;
 
 	if (amdgpu_crtc->cursor_bo) {
 		dce_v10_0_lock_cursor(crtc, true);
 
 		dce_v10_0_cursor_move_locked(crtc, amdgpu_crtc->cursor_x,
 					     amdgpu_crtc->cursor_y);
+
+		WREG32(mmCUR_SIZE + amdgpu_crtc->crtc_offset,
+		       (amdgpu_crtc->cursor_width - 1) << 16 |
+		       (amdgpu_crtc->cursor_height - 1));
 
 		dce_v10_0_show_cursor(crtc);
 

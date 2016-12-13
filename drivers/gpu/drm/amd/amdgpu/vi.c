@@ -937,12 +937,14 @@ static int vi_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x14;
 		break;
 	case CHIP_POLARIS11:
-		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG;
+		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_VCE_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x5A;
 		break;
 	case CHIP_POLARIS10:
-		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG;
+		adev->cg_flags = AMD_CG_SUPPORT_UVD_MGCG |
+			AMD_CG_SUPPORT_VCE_MGCG;
 		adev->pg_flags = 0;
 		adev->external_rev_id = adev->rev_id + 0x50;
 		break;

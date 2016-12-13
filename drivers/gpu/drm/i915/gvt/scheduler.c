@@ -177,8 +177,8 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 	rq = i915_gem_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
 	if (IS_ERR(rq)) {
 		gvt_err("fail to allocate gem request\n");
-		workload->status = PTR_ERR(rq);
-		return workload->status;
+		ret = PTR_ERR(rq);
+		goto out;
 	}
 
 	gvt_dbg_sched("ring id %d get i915 gem request %p\n", ring_id, rq);
@@ -212,7 +212,8 @@ out:
 	if (ret)
 		workload->status = ret;
 
-	i915_add_request_no_flush(rq);
+	if (!IS_ERR_OR_NULL(rq))
+		i915_add_request_no_flush(rq);
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 	return ret;
 }
@@ -460,7 +461,8 @@ complete:
 
 		complete_current_workload(gvt, ring_id);
 
-		i915_gem_request_put(fetch_and_zero(&workload->req));
+		if (workload->req)
+			i915_gem_request_put(fetch_and_zero(&workload->req));
 
 		if (need_force_wake)
 			intel_uncore_forcewake_put(gvt->dev_priv,

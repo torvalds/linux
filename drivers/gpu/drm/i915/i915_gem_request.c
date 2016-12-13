@@ -200,8 +200,8 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	struct i915_gem_active *active, *next;
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
-	GEM_BUG_ON(!i915_sw_fence_done(&request->submit));
-	GEM_BUG_ON(!i915_sw_fence_done(&request->execute));
+	GEM_BUG_ON(!i915_sw_fence_signaled(&request->submit));
+	GEM_BUG_ON(!i915_sw_fence_signaled(&request->execute));
 	GEM_BUG_ON(!i915_gem_request_completed(request));
 	GEM_BUG_ON(!request->i915->gt.active_requests);
 
@@ -445,11 +445,17 @@ void i915_gem_request_submit(struct drm_i915_gem_request *request)
 static int __i915_sw_fence_call
 submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 {
-	if (state == FENCE_COMPLETE) {
-		struct drm_i915_gem_request *request =
-			container_of(fence, typeof(*request), submit);
+	struct drm_i915_gem_request *request =
+		container_of(fence, typeof(*request), submit);
 
+	switch (state) {
+	case FENCE_COMPLETE:
 		request->engine->submit_request(request);
+		break;
+
+	case FENCE_FREE:
+		i915_gem_request_put(request);
+		break;
 	}
 
 	return NOTIFY_DONE;
@@ -458,6 +464,18 @@ submit_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 static int __i915_sw_fence_call
 execute_notify(struct i915_sw_fence *fence, enum i915_sw_fence_notify state)
 {
+	struct drm_i915_gem_request *request =
+		container_of(fence, typeof(*request), execute);
+
+	switch (state) {
+	case FENCE_COMPLETE:
+		break;
+
+	case FENCE_FREE:
+		i915_gem_request_put(request);
+		break;
+	}
+
 	return NOTIFY_DONE;
 }
 
@@ -545,8 +563,10 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       req->timeline->fence_context,
 		       __timeline_get_seqno(req->timeline->common));
 
-	i915_sw_fence_init(&req->submit, submit_notify);
-	i915_sw_fence_init(&req->execute, execute_notify);
+	/* We bump the ref for the fence chain */
+	i915_sw_fence_init(&i915_gem_request_get(req)->submit, submit_notify);
+	i915_sw_fence_init(&i915_gem_request_get(req)->execute, execute_notify);
+
 	/* Ensure that the execute fence completes after the submit fence -
 	 * as we complete the execute fence from within the submit fence
 	 * callback, its completion would otherwise be visible first.

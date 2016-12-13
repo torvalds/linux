@@ -79,7 +79,7 @@ static unsigned int drm_num_planes(struct drm_device *dev)
  * Zero on success, error code on failure.
  */
 int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
-			     unsigned long possible_crtcs,
+			     uint32_t possible_crtcs,
 			     const struct drm_plane_funcs *funcs,
 			     const uint32_t *formats, unsigned int format_count,
 			     enum drm_plane_type type,
@@ -196,7 +196,7 @@ void drm_plane_unregister_all(struct drm_device *dev)
  * Zero on success, error code on failure.
  */
 int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   unsigned long possible_crtcs,
+		   uint32_t possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
 		   const uint32_t *formats, unsigned int format_count,
 		   bool is_primary)

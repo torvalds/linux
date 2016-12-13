@@ -1004,11 +1004,11 @@ int amd_powerplay_reset(void *handle)
 	if (ret)
 		return ret;
 
-	hw_init_power_state_table(instance->hwmgr);
-
 	if ((amdgpu_dpm == 0)
 		|| cgs_is_virtualization_enabled(instance->smu_mgr->device))
 		return 0;
+
+	hw_init_power_state_table(instance->hwmgr);
 
 	if (eventmgr == NULL || eventmgr->pp_eventmgr_init == NULL)
 		return -EINVAL;

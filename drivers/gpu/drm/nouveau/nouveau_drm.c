@@ -1122,6 +1122,7 @@ nouveau_drm_init(void)
 #endif
 
 	nouveau_register_dsm_handler();
+	nouveau_backlight_ctor();
 	return drm_pci_init(&driver_pci, &nouveau_drm_pci_driver);
 }
 
@@ -1132,6 +1133,7 @@ nouveau_drm_exit(void)
 		return;
 
 	drm_pci_exit(&driver_pci, &nouveau_drm_pci_driver);
+	nouveau_backlight_dtor();
 	nouveau_unregister_dsm_handler();
 
 #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER

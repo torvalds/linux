@@ -1726,6 +1726,11 @@ nv50_head_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 			evo_data(push, asyh->core.handle);
 			evo_mthd(push, 0x08c0 + head->base.index * 0x400, 1);
 			evo_data(push, (asyh->core.y << 16) | asyh->core.x);
+			/* EVO will complain with INVALID_STATE if we have an
+			 * active cursor and (re)specify HeadSetContextDmaIso
+			 * without also updating HeadSetOffsetCursor.
+			 */
+			asyh->set.curs = asyh->curs.visible;
 		} else
 		if (core->base.user.oclass < GF110_DISP_CORE_CHANNEL_DMA) {
 			evo_mthd(push, 0x0860 + head->base.index * 0x400, 1);

@@ -6083,7 +6083,7 @@ ci_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
 		activity_percent = activity_percent > 100 ? 100 : activity_percent;
 	}
 
-	seq_printf(m, "uvd %sabled\n", pi->uvd_enabled ? "en" : "dis");
+	seq_printf(m, "uvd %sabled\n", pi->uvd_power_gated ? "dis" : "en");
 	seq_printf(m, "vce %sabled\n", rps->vce_active ? "en" : "dis");
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);

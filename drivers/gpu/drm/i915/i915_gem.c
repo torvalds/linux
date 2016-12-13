@@ -2764,6 +2764,8 @@ void i915_gem_reset(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
 {
+	i915_gem_request_submit(request);
+	intel_engine_init_global_seqno(request->engine, request->global_seqno);
 }
 
 static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)

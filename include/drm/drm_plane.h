@@ -513,7 +513,7 @@ struct drm_plane {
 extern __printf(8, 9)
 int drm_universal_plane_init(struct drm_device *dev,
 			     struct drm_plane *plane,
-			     unsigned long possible_crtcs,
+			     uint32_t possible_crtcs,
 			     const struct drm_plane_funcs *funcs,
 			     const uint32_t *formats,
 			     unsigned int format_count,
@@ -521,7 +521,7 @@ int drm_universal_plane_init(struct drm_device *dev,
 			     const char *name, ...);
 extern int drm_plane_init(struct drm_device *dev,
 			  struct drm_plane *plane,
-			  unsigned long possible_crtcs,
+			  uint32_t possible_crtcs,
 			  const struct drm_plane_funcs *funcs,
 			  const uint32_t *formats, unsigned int format_count,
 			  bool is_primary);
