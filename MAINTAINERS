@@ -4996,10 +4996,9 @@ F:	drivers/net/wan/dlci.c
 F:	drivers/net/wan/sdla.c
 
 FRAMEBUFFER LAYER
-M:	Tomi Valkeinen <tomi.valkeinen@ti.com>
 L:	linux-fbdev@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-fbdev/list/
-S:	Maintained
+S:	Orphan
 F:	Documentation/fb/
 F:	drivers/video/
 F:	include/video/
