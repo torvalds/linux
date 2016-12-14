@@ -76,6 +76,7 @@ static struct workqueue_struct *kacpi_notify_wq;
 static struct workqueue_struct *kacpi_hotplug_wq;
 static bool acpi_os_initialized;
 unsigned int acpi_sci_irq = INVALID_ACPI_IRQ;
+bool acpi_permanent_mmap = false;
 
 /*
  * This list of permanent mappings is for memory that may be accessed from
@@ -313,7 +314,7 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
  * virtual address).  If not found, map it, add it to that list and return a
  * pointer to it.
  *
- * During early init (when acpi_gbl_permanent_mmap has not been set yet) this
+ * During early init (when acpi_permanent_mmap has not been set yet) this
  * routine simply calls __acpi_map_table() to get the job done.
  */
 void __iomem *__ref
@@ -329,7 +330,7 @@ acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
 		return NULL;
 	}
 
-	if (!acpi_gbl_permanent_mmap)
+	if (!acpi_permanent_mmap)
 		return __acpi_map_table((unsigned long)phys, size);
 
 	mutex_lock(&acpi_ioremap_lock);
@@ -399,7 +400,7 @@ static void acpi_os_map_cleanup(struct acpi_ioremap *map)
  * mappings, drop a reference to it and unmap it if there are no more active
  * references to it.
  *
- * During early init (when acpi_gbl_permanent_mmap has not been set yet) this
+ * During early init (when acpi_permanent_mmap has not been set yet) this
  * routine simply calls __acpi_unmap_table() to get the job done.  Since
  * __acpi_unmap_table() is an __init function, the __ref annotation is needed
  * here.
@@ -408,7 +409,7 @@ void __ref acpi_os_unmap_iomem(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
 
-	if (!acpi_gbl_permanent_mmap) {
+	if (!acpi_permanent_mmap) {
 		__acpi_unmap_table(virt, size);
 		return;
 	}
@@ -432,47 +433,6 @@ void __ref acpi_os_unmap_memory(void *virt, acpi_size size)
 	return acpi_os_unmap_iomem((void __iomem *)virt, size);
 }
 EXPORT_SYMBOL_GPL(acpi_os_unmap_memory);
-
-/*******************************************************************************
- *
- * acpi_get_table_with_size()/early_acpi_os_unmap_memory():
- *
- * These 2 functions are traditionally used by Linux to map/unmap physical
- * addressed ACPI tables during the early stage.
- * They are deprectated now. Do not use them in the new code, but use
- * acpi_get_table()/acpi_put_table() instead.
- *
- ******************************************************************************/
-acpi_status
-acpi_get_table_with_size(char *signature,
-	       u32 instance, struct acpi_table_header **out_table,
-	       acpi_size *tbl_size)
-{
-	acpi_status status;
-
-	status = acpi_get_table(signature, instance, out_table);
-	if (ACPI_SUCCESS(status)) {
-		/*
-		 * "tbl_size" is no longer used by
-		 * early_acpi_os_unmap_memory(), but is still used by the
-		 * ACPI table drivers. So sets it to the length of the
-		 * table when the tbl_size is requested.
-		 * "out_table" is not sanity checked as AE_BAD_PARAMETER
-		 * is returned if it is NULL.
-		 */
-		if (tbl_size && *out_table)
-			*tbl_size = (*out_table)->length;
-	}
-
-	return (status);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_get_table_with_size)
-
-void __init early_acpi_os_unmap_memory(void __iomem *virt, acpi_size size)
-{
-	acpi_put_table(ACPI_CAST_PTR(struct acpi_table_header, virt));
-}
 
 int acpi_os_map_generic_address(struct acpi_generic_address *gas)
 {

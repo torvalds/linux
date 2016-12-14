@@ -964,7 +964,7 @@ void __init acpi_early_init(void)
 	if (!acpi_strict)
 		acpi_gbl_enable_interpreter_slack = TRUE;
 
-	acpi_gbl_permanent_mmap = 1;
+	acpi_permanent_mmap = true;
 
 	/*
 	 * If the machine falls into the DMI check table,
