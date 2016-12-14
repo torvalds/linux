@@ -430,7 +430,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	struct mlx4_ib_dev *dev = to_mdev(ibdev);
 	struct ib_smp *in_mad  = NULL;
 	struct ib_smp *out_mad = NULL;
-	int err = -ENOMEM;
+	int err;
 	int have_ib_ports;
 	struct mlx4_uverbs_ex_query_device cmd;
 	struct mlx4_uverbs_ex_query_device_resp resp = {.comp_mask = 0};
@@ -455,6 +455,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 		sizeof(resp.response_length);
 	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	err = -ENOMEM;
 	if (!in_mad || !out_mad)
 		goto out;
 

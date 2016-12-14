@@ -1641,7 +1641,7 @@ static int ocrdma_build_q_conf(u32 *num_entries, int entry_size,
 static int ocrdma_mbx_create_ah_tbl(struct ocrdma_dev *dev)
 {
 	int i;
-	int status = 0;
+	int status = -ENOMEM;
 	int max_ah;
 	struct ocrdma_create_ah_tbl *cmd;
 	struct ocrdma_create_ah_tbl_rsp *rsp;

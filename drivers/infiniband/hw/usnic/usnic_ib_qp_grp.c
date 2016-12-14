@@ -117,10 +117,10 @@ static int enable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
 
 	res_chunk = get_qp_res_chunk(qp_grp);
-	if (IS_ERR_OR_NULL(res_chunk)) {
+	if (IS_ERR(res_chunk)) {
 		usnic_err("Unable to get qp res with err %ld\n",
 				PTR_ERR(res_chunk));
-		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
+		return PTR_ERR(res_chunk);
 	}
 
 	for (i = 0; i < res_chunk->cnt; i++) {
@@ -158,10 +158,10 @@ static int disable_qp_grp(struct usnic_ib_qp_grp *qp_grp)
 	vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
 
 	res_chunk = get_qp_res_chunk(qp_grp);
-	if (IS_ERR_OR_NULL(res_chunk)) {
+	if (IS_ERR(res_chunk)) {
 		usnic_err("Unable to get qp res with err %ld\n",
 			PTR_ERR(res_chunk));
-		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
+		return PTR_ERR(res_chunk);
 	}
 
 	for (i = 0; i < res_chunk->cnt; i++) {
@@ -186,11 +186,11 @@ static int init_filter_action(struct usnic_ib_qp_grp *qp_grp,
 	struct usnic_vnic_res_chunk *res_chunk;
 
 	res_chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
-	if (IS_ERR_OR_NULL(res_chunk)) {
+	if (IS_ERR(res_chunk)) {
 		usnic_err("Unable to get %s with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
 			PTR_ERR(res_chunk));
-		return res_chunk ? PTR_ERR(res_chunk) : -ENOMEM;
+		return PTR_ERR(res_chunk);
 	}
 
 	uaction->vnic_idx = usnic_vnic_get_index(qp_grp->vf->vnic);
