@@ -52,12 +52,14 @@ struct hsf_load_header {
  * @generate_bl_desc: function called on a block of bl_desc_size to generate the
  *		      proper bootloader descriptor for this LS firmware
  * @bl_desc_size: size of the bootloader descriptor
+ * @lhdr_flags: LS flags
  */
 struct acr_r352_ls_func {
 	int (*load)(const struct nvkm_subdev *, struct ls_ucode_img *);
 	void (*generate_bl_desc)(const struct nvkm_acr *,
 				 const struct ls_ucode_img *, u64, void *);
 	u32 bl_desc_size;
+	u32 lhdr_flags;
 };
 
 /**

@@ -266,13 +266,9 @@ ls_ucode_img_fill_headers(struct acr_r352 *acr, struct ls_ucode_img *img,
 			     desc->app_resident_data_offset;
 	lhdr->app_data_size = desc->app_resident_data_size;
 
-	lhdr->flags = 0;
+	lhdr->flags = func->lhdr_flags;
 	if (img->falcon_id == acr->base.boot_falcon)
-		lhdr->flags = LSF_FLAG_DMACTL_REQ_CTX;
-
-	/* GPCCS will be loaded using PRI */
-	if (img->falcon_id == NVKM_SECBOOT_FALCON_GPCCS)
-		lhdr->flags |= LSF_FLAG_FORCE_PRIV_LOAD;
+		lhdr->flags |= LSF_FLAG_DMACTL_REQ_CTX;
 
 	/* Align and save off BL descriptor size */
 	lhdr->bl_data_size = ALIGN(func->bl_desc_size, LSF_BL_DATA_SIZE_ALIGN);
@@ -862,6 +858,8 @@ acr_r352_ls_gpccs_func = {
 	.load = acr_ls_ucode_load_gpccs,
 	.generate_bl_desc = acr_r352_generate_flcn_bl_desc,
 	.bl_desc_size = sizeof(struct acr_r352_flcn_bl_desc),
+	/* GPCCS will be loaded using PRI */
+	.lhdr_flags = LSF_FLAG_FORCE_PRIV_LOAD,
 };
 
 const struct acr_r352_func
