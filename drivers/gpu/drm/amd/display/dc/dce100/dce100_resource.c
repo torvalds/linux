@@ -39,7 +39,7 @@
 #include "dce110/dce110_mem_input_v.h"
 #include "dce110/dce110_ipp.h"
 #include "dce/dce_transform.h"
-#include "dce110/dce110_opp.h"
+#include "dce/dce_opp.h"
 #include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
 #include "dce/dce_audio.h"
@@ -302,6 +302,29 @@ static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE80_100(_MASK)
 };
 
+#define opp_regs(id)\
+[id] = {\
+	OPP_DCE_100_REG_LIST(id),\
+}
+
+static const struct dce_opp_registers opp_regs[] = {
+	opp_regs(0),
+	opp_regs(1),
+	opp_regs(2),
+	opp_regs(3),
+	opp_regs(4),
+	opp_regs(5)
+};
+
+static const struct dce_opp_shift opp_shift = {
+	OPP_COMMON_MASK_SH_LIST_DCE_100(__SHIFT)
+};
+
+static const struct dce_opp_mask opp_mask = {
+	OPP_COMMON_MASK_SH_LIST_DCE_100(_MASK)
+};
+
+
 #define audio_regs(id)\
 [id] = {\
 	AUD_COMMON_REG_LIST(id)\
@@ -347,35 +370,6 @@ static const struct dce110_clk_src_mask cs_mask = {
 
 
 #define DCFE_MEM_PWR_CTRL_REG_BASE 0x1b03
-
-static const struct dce110_opp_reg_offsets dce100_opp_reg_offsets[] = {
-{
-	.fmt_offset = (mmFMT0_FMT_CONTROL - mmFMT_CONTROL),
-	.dcfe_offset = (mmCRTC0_DCFE_MEM_PWR_CTRL - DCFE_MEM_PWR_CTRL_REG_BASE),
-	.dcp_offset = (mmDCP0_GRPH_CONTROL - mmGRPH_CONTROL),
-},
-{	.fmt_offset = (mmFMT1_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.dcfe_offset = (mmCRTC1_DCFE_MEM_PWR_CTRL - DCFE_MEM_PWR_CTRL_REG_BASE),
-	.dcp_offset = (mmDCP1_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{	.fmt_offset = (mmFMT2_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.dcfe_offset = (mmCRTC2_DCFE_MEM_PWR_CTRL - DCFE_MEM_PWR_CTRL_REG_BASE),
-	.dcp_offset = (mmDCP2_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{
-	.fmt_offset = (mmFMT3_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.dcfe_offset = (mmCRTC3_DCFE_MEM_PWR_CTRL - DCFE_MEM_PWR_CTRL_REG_BASE),
-	.dcp_offset = (mmDCP3_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{	.fmt_offset = (mmFMT4_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.dcfe_offset = (mmCRTC4_DCFE_MEM_PWR_CTRL - DCFE_MEM_PWR_CTRL_REG_BASE),
-	.dcp_offset = (mmDCP4_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{	.fmt_offset = (mmFMT5_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.dcfe_offset = (mmCRTC5_DCFE_MEM_PWR_CTRL - DCFE_MEM_PWR_CTRL_REG_BASE),
-	.dcp_offset = (mmDCP5_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-}
-};
 
 static const struct bios_registers bios_regs = {
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6
@@ -615,8 +609,7 @@ struct link_encoder *dce100_link_encoder_create(
 
 struct output_pixel_processor *dce100_opp_create(
 	struct dc_context *ctx,
-	uint32_t inst,
-	const struct dce110_opp_reg_offsets *offset)
+	uint32_t inst)
 {
 	struct dce110_opp *opp =
 		dm_alloc(sizeof(struct dce110_opp));
@@ -625,7 +618,7 @@ struct output_pixel_processor *dce100_opp_create(
 		return NULL;
 
 	if (dce110_opp_construct(opp,
-			ctx, inst, offset))
+			ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask))
 		return &opp->base;
 
 	BREAK_TO_DEBUGGER();
@@ -1052,7 +1045,7 @@ static bool construct(
 			goto res_create_fail;
 		}
 
-		pool->base.opps[i] = dce100_opp_create(ctx, i, &dce100_opp_reg_offsets[i]);
+		pool->base.opps[i] = dce100_opp_create(ctx, i);
 		if (pool->base.opps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(

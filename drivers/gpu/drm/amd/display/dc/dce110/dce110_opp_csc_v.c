@@ -24,7 +24,7 @@
  */
 
 #include "dm_services.h"
-#include "dce110_opp.h"
+#include "dce/dce_opp.h"
 #include "basics/conversion.h"
 
 /* include DCE11 register header files */

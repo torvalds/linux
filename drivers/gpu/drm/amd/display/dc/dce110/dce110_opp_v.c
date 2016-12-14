@@ -29,7 +29,7 @@
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_sh_mask.h"
 
-#include "dce110_opp.h"
+#include "dce/dce_opp.h"
 #include "dce110_opp_v.h"
 
 #include "gamma_types.h"

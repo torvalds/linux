@@ -39,7 +39,7 @@
 #include "dce/dce_link_encoder.h"
 #include "dce/dce_stream_encoder.h"
 #include "dce/dce_audio.h"
-#include "dce112/dce112_opp.h"
+#include "dce/dce_opp.h"
 #include "dce110/dce110_ipp.h"
 #include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
@@ -306,6 +306,28 @@ static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE112(_MASK)
 };
 
+#define opp_regs(id)\
+[id] = {\
+	OPP_DCE_112_REG_LIST(id),\
+}
+
+static const struct dce_opp_registers opp_regs[] = {
+	opp_regs(0),
+	opp_regs(1),
+	opp_regs(2),
+	opp_regs(3),
+	opp_regs(4),
+	opp_regs(5)
+};
+
+static const struct dce_opp_shift opp_shift = {
+	OPP_COMMON_MASK_SH_LIST_DCE_112(__SHIFT)
+};
+
+static const struct dce_opp_mask opp_mask = {
+	OPP_COMMON_MASK_SH_LIST_DCE_112(_MASK)
+};
+
 #define audio_regs(id)\
 [id] = {\
 	AUD_COMMON_REG_LIST(id)\
@@ -326,42 +348,6 @@ static const struct dce_audio_shift audio_shift = {
 
 static const struct dce_aduio_mask audio_mask = {
 		AUD_COMMON_MASK_SH_LIST(_MASK)
-};
-
-
-static const struct dce110_opp_reg_offsets dce112_opp_reg_offsets[] = {
-{
-	.fmt_offset = (mmFMT0_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.fmt_mem_offset = (mmFMT_MEMORY0_CONTROL - mmFMT_MEMORY0_CONTROL),
-	.dcfe_offset = (mmDCFE0_DCFE_MEM_PWR_CTRL - mmDCFE0_DCFE_MEM_PWR_CTRL),
-	.dcp_offset = (mmDCP0_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{	.fmt_offset = (mmFMT1_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.fmt_mem_offset = (mmFMT_MEMORY1_CONTROL - mmFMT_MEMORY0_CONTROL),
-	.dcfe_offset = (mmDCFE1_DCFE_MEM_PWR_CTRL - mmDCFE0_DCFE_MEM_PWR_CTRL),
-	.dcp_offset = (mmDCP1_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{	.fmt_offset = (mmFMT2_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.fmt_mem_offset = (mmFMT_MEMORY2_CONTROL - mmFMT_MEMORY0_CONTROL),
-	.dcfe_offset = (mmDCFE2_DCFE_MEM_PWR_CTRL - mmDCFE0_DCFE_MEM_PWR_CTRL),
-	.dcp_offset = (mmDCP2_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{
-	.fmt_offset = (mmFMT3_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.fmt_mem_offset = (mmFMT_MEMORY3_CONTROL - mmFMT_MEMORY0_CONTROL),
-	.dcfe_offset = (mmDCFE3_DCFE_MEM_PWR_CTRL - mmDCFE0_DCFE_MEM_PWR_CTRL),
-	.dcp_offset = (mmDCP3_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{	.fmt_offset = (mmFMT4_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.fmt_mem_offset = (mmFMT_MEMORY4_CONTROL - mmFMT_MEMORY0_CONTROL),
-	.dcfe_offset = (mmDCFE4_DCFE_MEM_PWR_CTRL - mmDCFE0_DCFE_MEM_PWR_CTRL),
-	.dcp_offset = (mmDCP4_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-},
-{	.fmt_offset = (mmFMT5_FMT_CONTROL - mmFMT0_FMT_CONTROL),
-	.fmt_mem_offset = (mmFMT_MEMORY5_CONTROL - mmFMT_MEMORY0_CONTROL),
-	.dcfe_offset = (mmDCFE5_DCFE_MEM_PWR_CTRL - mmDCFE0_DCFE_MEM_PWR_CTRL),
-	.dcp_offset = (mmDCP5_GRPH_CONTROL - mmDCP0_GRPH_CONTROL),
-}
 };
 
 #define clk_src_regs(index, id)\
@@ -631,8 +617,7 @@ void dce112_ipp_destroy(struct input_pixel_processor **ipp)
 
 struct output_pixel_processor *dce112_opp_create(
 	struct dc_context *ctx,
-	uint32_t inst,
-	const struct dce110_opp_reg_offsets *offset)
+	uint32_t inst)
 {
 	struct dce110_opp *opp =
 		dm_alloc(sizeof(struct dce110_opp));
@@ -640,8 +625,8 @@ struct output_pixel_processor *dce112_opp_create(
 	if (!opp)
 		return NULL;
 
-	if (dce112_opp_construct(opp,
-			ctx, inst, offset))
+	if (dce110_opp_construct(opp,
+			ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask))
 		return &opp->base;
 
 	BREAK_TO_DEBUGGER();
@@ -1381,8 +1366,7 @@ static bool construct(
 
 		pool->base.opps[i] = dce112_opp_create(
 			ctx,
-			i,
-			&dce112_opp_reg_offsets[i]);
+			i);
 		if (pool->base.opps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(

@@ -43,7 +43,7 @@
 #include "dce80/dce80_mem_input.h"
 #include "dce80/dce80_ipp.h"
 #include "dce/dce_transform.h"
-#include "dce80/dce80_opp.h"
+#include "dce/dce_opp.h"
 #include "dce110/dce110_ipp.h"
 #include "dce/dce_clocks.h"
 #include "dce/dce_clock_source.h"
@@ -317,6 +317,28 @@ static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE80_100(_MASK)
 };
 
+#define opp_regs(id)\
+[id] = {\
+	OPP_DCE_80_REG_LIST(id),\
+}
+
+static const struct dce_opp_registers opp_regs[] = {
+	opp_regs(0),
+	opp_regs(1),
+	opp_regs(2),
+	opp_regs(3),
+	opp_regs(4),
+	opp_regs(5)
+};
+
+static const struct dce_opp_shift opp_shift = {
+	OPP_COMMON_MASK_SH_LIST_DCE_80(__SHIFT)
+};
+
+static const struct dce_opp_mask opp_mask = {
+	OPP_COMMON_MASK_SH_LIST_DCE_80(_MASK)
+};
+
 #define audio_regs(id)\
 [id] = {\
 	AUD_COMMON_REG_LIST(id)\
@@ -416,6 +438,25 @@ static struct timing_generator *dce80_timing_generator_create(
 
 	BREAK_TO_DEBUGGER();
 	dm_free(tg110);
+	return NULL;
+}
+
+static struct output_pixel_processor *dce80_opp_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct dce110_opp *opp =
+		dm_alloc(sizeof(struct dce110_opp));
+
+	if (!opp)
+		return NULL;
+
+	if (dce110_opp_construct(opp,
+			ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask))
+		return &opp->base;
+
+	BREAK_TO_DEBUGGER();
+	dm_free(opp);
 	return NULL;
 }
 
@@ -631,7 +672,7 @@ static void destruct(struct dce110_resource_pool *pool)
 
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		if (pool->base.opps[i] != NULL)
-			dce80_opp_destroy(&pool->base.opps[i]);
+			dce110_opp_destroy(&pool->base.opps[i]);
 
 		if (pool->base.transforms[i] != NULL)
 			dce80_transform_destroy(&pool->base.transforms[i]);
