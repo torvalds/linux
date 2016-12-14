@@ -1666,5 +1666,6 @@ void mwifiex_debugfs_remove(void);
 void mwifiex_dev_debugfs_init(struct mwifiex_private *priv);
 void mwifiex_dev_debugfs_remove(struct mwifiex_private *priv);
 #endif
-void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare);
+int mwifiex_reinit_sw(struct mwifiex_adapter *adapter);
+int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter);
 #endif /* !_MWIFIEX_MAIN_H_ */

@@ -1348,7 +1348,7 @@ static void mwifiex_main_work_queue(struct work_struct *work)
  * This function gets called during PCIe function level reset. Required
  * code is extracted from mwifiex_remove_card()
  */
-static int
+int
 mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv;
@@ -1417,13 +1417,13 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 exit_return:
 	return 0;
 }
+EXPORT_SYMBOL_GPL(mwifiex_shutdown_sw);
 
 /* This function gets called during PCIe function level reset. Required
  * code is extracted from mwifiex_add_card()
  */
-static int
-mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct completion *fw_done,
-		  struct mwifiex_if_ops *if_ops, u8 iface_type)
+int
+mwifiex_reinit_sw(struct mwifiex_adapter *adapter)
 {
 	char fw_name[32];
 	struct pcie_service_card *card = adapter->card;
@@ -1431,9 +1431,6 @@ mwifiex_reinit_sw(struct mwifiex_adapter *adapter, struct completion *fw_done,
 	mwifiex_init_lock_list(adapter);
 	if (adapter->if_ops.up_dev)
 		adapter->if_ops.up_dev(adapter);
-
-	adapter->iface_type = iface_type;
-	adapter->fw_done = fw_done;
 
 	adapter->hw_status = MWIFIEX_HW_STATUS_INITIALIZING;
 	adapter->surprise_removed = false;
@@ -1507,25 +1504,7 @@ err_kmalloc:
 
 	return -1;
 }
-
-/* This function processes pre and post PCIe function level resets.
- * It performs software cleanup without touching PCIe specific code.
- * Also, during initialization PCIe stuff is skipped.
- */
-void mwifiex_do_flr(struct mwifiex_adapter *adapter, bool prepare)
-{
-	struct mwifiex_if_ops if_ops;
-
-	if (!prepare) {
-		mwifiex_reinit_sw(adapter, adapter->fw_done, &if_ops,
-				  adapter->iface_type);
-	} else {
-		memcpy(&if_ops, &adapter->if_ops,
-		       sizeof(struct mwifiex_if_ops));
-		mwifiex_shutdown_sw(adapter);
-	}
-}
-EXPORT_SYMBOL_GPL(mwifiex_do_flr);
+EXPORT_SYMBOL_GPL(mwifiex_reinit_sw);
 
 static irqreturn_t mwifiex_irq_wakeup_handler(int irq, void *priv)
 {

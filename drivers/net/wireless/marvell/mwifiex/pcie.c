@@ -375,7 +375,7 @@ static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
 		 * Cleanup all software without cleaning anything related to
 		 * PCIe and HW.
 		 */
-		mwifiex_do_flr(adapter, prepare);
+		mwifiex_shutdown_sw(adapter);
 		adapter->surprise_removed = true;
 	} else {
 		/* Kernel stores and restores PCIe function context before and
@@ -383,7 +383,7 @@ static void mwifiex_pcie_reset_notify(struct pci_dev *pdev, bool prepare)
 		 * and firmware including firmware redownload
 		 */
 		adapter->surprise_removed = false;
-		mwifiex_do_flr(adapter, prepare);
+		mwifiex_reinit_sw(adapter);
 	}
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
 }
