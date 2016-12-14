@@ -214,15 +214,29 @@ radix_tree_find_next_bit(struct radix_tree_node *node, unsigned int tag,
 	return RADIX_TREE_MAP_SIZE;
 }
 
+/*
+ * The maximum index which can be stored in a radix tree
+ */
+static inline unsigned long shift_maxindex(unsigned int shift)
+{
+	return (RADIX_TREE_MAP_SIZE << shift) - 1;
+}
+
+static inline unsigned long node_maxindex(struct radix_tree_node *node)
+{
+	return shift_maxindex(node->shift);
+}
+
 #ifndef __KERNEL__
 static void dump_node(struct radix_tree_node *node, unsigned long index)
 {
 	unsigned long i;
 
-	pr_debug("radix node: %p offset %d tags %lx %lx %lx shift %d count %d exceptional %d parent %p\n",
-		node, node->offset,
+	pr_debug("radix node: %p offset %d indices %lu-%lu parent %p tags %lx %lx %lx shift %d count %d exceptional %d\n",
+		node, node->offset, index, index | node_maxindex(node),
+		node->parent,
 		node->tags[0][0], node->tags[1][0], node->tags[2][0],
-		node->shift, node->count, node->exceptional, node->parent);
+		node->shift, node->count, node->exceptional);
 
 	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
 		unsigned long first = index | (i << node->shift);
@@ -230,14 +244,16 @@ static void dump_node(struct radix_tree_node *node, unsigned long index)
 		void *entry = node->slots[i];
 		if (!entry)
 			continue;
-		if (is_sibling_entry(node, entry)) {
-			pr_debug("radix sblng %p offset %ld val %p indices %ld-%ld\n",
-					entry, i,
-					*(void **)entry_to_node(entry),
-					first, last);
+		if (entry == RADIX_TREE_RETRY) {
+			pr_debug("radix retry offset %ld indices %lu-%lu parent %p\n",
+					i, first, last, node);
 		} else if (!radix_tree_is_internal_node(entry)) {
-			pr_debug("radix entry %p offset %ld indices %ld-%ld\n",
-					entry, i, first, last);
+			pr_debug("radix entry %p offset %ld indices %lu-%lu parent %p\n",
+					entry, i, first, last, node);
+		} else if (is_sibling_entry(node, entry)) {
+			pr_debug("radix sblng %p offset %ld indices %lu-%lu parent %p val %p\n",
+					entry, i, first, last, node,
+					*(void **)entry_to_node(entry));
 		} else {
 			dump_node(entry_to_node(entry), first);
 		}
@@ -453,19 +469,6 @@ int radix_tree_maybe_preload_order(gfp_t gfp_mask, int order)
 	nr_nodes += nr_subtrees * height_to_maxnodes[subtree_height];
 
 	return __radix_tree_preload(gfp_mask, nr_nodes);
-}
-
-/*
- * The maximum index which can be stored in a radix tree
- */
-static inline unsigned long shift_maxindex(unsigned int shift)
-{
-	return (RADIX_TREE_MAP_SIZE << shift) - 1;
-}
-
-static inline unsigned long node_maxindex(struct radix_tree_node *node)
-{
-	return shift_maxindex(node->shift);
 }
 
 static unsigned radix_tree_load_root(struct radix_tree_root *root,
