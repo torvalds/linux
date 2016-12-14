@@ -774,6 +774,8 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 
 	nvkm_debug(&sb->subdev, "running HS load blob\n");
 	ret = sb->func->run_blob(sb, acr->load_blob);
+	/* clear halt interrupt */
+	nvkm_falcon_clear_interrupt(sb->boot_falcon, 0x10);
 	if (ret)
 		return ret;
 	nvkm_debug(&sb->subdev, "HS load blob completed\n");
