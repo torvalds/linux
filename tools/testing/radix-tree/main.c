@@ -352,6 +352,8 @@ int main(int argc, char **argv)
 	/* Free any remaining preallocated nodes */
 	radix_tree_cpu_dead(0);
 
+	benchmark();
+
 	sleep(1);
 	printf("after sleep(1): %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
