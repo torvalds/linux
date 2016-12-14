@@ -27,6 +27,7 @@
 #include "probe-event.h"
 #include "probe-file.h"
 #include "session.h"
+#include "perf_regs.h"
 
 /* 4096 - 2 ('\n' + '\0') */
 #define MAX_CMDLEN 4094
@@ -688,6 +689,166 @@ static unsigned long long sdt_note__get_addr(struct sdt_note *note)
 		 : (unsigned long long)note->addr.a64[0];
 }
 
+static const char * const type_to_suffix[] = {
+	":s64", "", "", "", ":s32", "", ":s16", ":s8",
+	"", ":u8", ":u16", "", ":u32", "", "", "", ":u64"
+};
+
+static int synthesize_sdt_probe_arg(struct strbuf *buf, int i, const char *arg)
+{
+	char *tmp, *desc = strdup(arg);
+	const char *prefix = "", *suffix = "";
+	int ret = -1;
+
+	if (desc == NULL) {
+		pr_debug4("Allocation error\n");
+		return ret;
+	}
+
+	tmp = strchr(desc, '@');
+	if (tmp) {
+		long type_idx;
+		/*
+		 * Isolate the string number and convert it into a
+		 * binary value; this will be an index to get suffix
+		 * of the uprobe name (defining the type)
+		 */
+		tmp[0] = '\0';
+		type_idx = strtol(desc, NULL, 10);
+		/* Check that the conversion went OK */
+		if (type_idx == LONG_MIN || type_idx == LONG_MAX) {
+			pr_debug4("Failed to parse sdt type\n");
+			goto error;
+		}
+		/* Check that the converted value is OK */
+		if (type_idx < -8 || type_idx > 8) {
+			pr_debug4("Failed to get a valid sdt type\n");
+			goto error;
+		}
+		suffix = type_to_suffix[type_idx + 8];
+		/* Get rid of the sdt prefix which is now useless */
+		tmp++;
+		memmove(desc, tmp, strlen(tmp) + 1);
+	}
+
+	/*
+	 * The uprobe tracer format does not support all the
+	 * addressing modes (notably: in x86 the scaled mode); so, we
+	 * detect ',' characters, if there is just one, there is no
+	 * use converting the sdt arg into a uprobe one.
+	 */
+	if (strchr(desc, ',')) {
+		pr_debug4("Skipping unsupported SDT argument; %s\n", desc);
+		goto out;
+	}
+
+	/*
+	 * If the argument addressing mode is indirect, we must check
+	 * a few things...
+	 */
+	tmp = strchr(desc, '(');
+	if (tmp) {
+		int j;
+
+		/*
+		 * ...if the addressing mode is indirect with a
+		 * positive offset (ex.: "1608(%ax)"), we need to add
+		 * a '+' prefix so as to be compliant with uprobe
+		 * format.
+		 */
+		if (desc[0] != '+' && desc[0] != '-')
+			prefix = "+";
+
+		/*
+		 * ...or if the addressing mode is indirect with a symbol
+		 * as offset, the argument will not be supported by
+		 * the uprobe tracer format; so, let's skip this one.
+		 */
+		for (j = 0; j < tmp - desc; j++) {
+			if (desc[j] != '+' && desc[j] != '-' &&
+				!isdigit(desc[j])) {
+				pr_debug4("Skipping unsupported SDT argument; "
+					"%s\n", desc);
+				goto out;
+			}
+		}
+	}
+
+	/*
+	 * The uprobe tracer format does not support constants; if we
+	 * find one in the current argument, let's skip the argument.
+	 */
+	if (strchr(desc, '$')) {
+		pr_debug4("Skipping unsupported SDT argument; %s\n", desc);
+		goto out;
+	}
+
+	/*
+	 * The uprobe parser does not support all gas register names;
+	 * so, we have to replace them (ex. for x86_64: %rax -> %ax);
+	 * the loop below looks for the register names (starting with
+	 * a '%' and tries to perform the needed renamings.
+	 */
+	tmp = strchr(desc, '%');
+	while (tmp) {
+		size_t offset = tmp - desc;
+
+		ret = sdt_rename_register(&desc, desc + offset);
+		if (ret < 0)
+			goto error;
+
+		/*
+		 * The desc pointer might have changed; so, let's not
+		 * try to reuse tmp for next lookup
+		 */
+		tmp = strchr(desc + offset + 1, '%');
+	}
+
+	if (strbuf_addf(buf, " arg%d=%s%s%s", i + 1, prefix, desc, suffix) < 0)
+		goto error;
+
+out:
+	ret = 0;
+error:
+	free(desc);
+	return ret;
+}
+
+static char *synthesize_sdt_probe_command(struct sdt_note *note,
+					const char *pathname,
+					const char *sdtgrp)
+{
+	struct strbuf buf;
+	char *ret = NULL, **args;
+	int i, args_count;
+
+	if (strbuf_init(&buf, 32) < 0)
+		return NULL;
+
+	if (strbuf_addf(&buf, "p:%s/%s %s:0x%llx",
+				sdtgrp, note->name, pathname,
+				sdt_note__get_addr(note)) < 0)
+		goto error;
+
+	if (!note->args)
+		goto out;
+
+	if (note->args) {
+		args = argv_split(note->args, &args_count);
+
+		for (i = 0; i < args_count; ++i) {
+			if (synthesize_sdt_probe_arg(&buf, i, args[i]) < 0)
+				goto error;
+		}
+	}
+
+out:
+	ret = strbuf_detach(&buf, NULL);
+error:
+	strbuf_release(&buf);
+	return ret;
+}
+
 int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 {
 	struct probe_cache_entry *entry = NULL;
@@ -724,11 +885,12 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 			entry->pev.group = strdup(sdtgrp);
 			list_add_tail(&entry->node, &pcache->entries);
 		}
-		ret = asprintf(&buf, "p:%s/%s %s:0x%llx",
-				sdtgrp, note->name, pathname,
-				sdt_note__get_addr(note));
-		if (ret < 0)
+		buf = synthesize_sdt_probe_command(note, pathname, sdtgrp);
+		if (!buf) {
+			ret = -ENOMEM;
 			break;
+		}
+
 		strlist__add(entry->tevlist, buf);
 		free(buf);
 		entry = NULL;
