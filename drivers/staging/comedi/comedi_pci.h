@@ -34,18 +34,20 @@
 #define PCI_VENDOR_ID_RTD		0x1435
 #define PCI_VENDOR_ID_HUMUSOFT		0x186c
 
-struct pci_dev *comedi_to_pci_dev(struct comedi_device *);
+struct pci_dev *comedi_to_pci_dev(struct comedi_device *dev);
 
-int comedi_pci_enable(struct comedi_device *);
-void comedi_pci_disable(struct comedi_device *);
-void comedi_pci_detach(struct comedi_device *);
+int comedi_pci_enable(struct comedi_device *dev);
+void comedi_pci_disable(struct comedi_device *dev);
+void comedi_pci_detach(struct comedi_device *dev);
 
-int comedi_pci_auto_config(struct pci_dev *, struct comedi_driver *,
+int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver,
 			   unsigned long context);
-void comedi_pci_auto_unconfig(struct pci_dev *);
+void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
 
-int comedi_pci_driver_register(struct comedi_driver *, struct pci_driver *);
-void comedi_pci_driver_unregister(struct comedi_driver *, struct pci_driver *);
+int comedi_pci_driver_register(struct comedi_driver *comedi_driver,
+			       struct pci_driver *pci_driver);
+void comedi_pci_driver_unregister(struct comedi_driver *comedi_driver,
+				  struct pci_driver *pci_driver);
 
 /**
  * module_comedi_pci_driver() - Helper macro for registering a comedi PCI driver
