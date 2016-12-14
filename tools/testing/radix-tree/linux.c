@@ -9,6 +9,7 @@
 #include <urcu/uatomic.h>
 
 int nr_allocated;
+int preempt_count;
 
 void *mempool_alloc(mempool_t *pool, int gfp_mask)
 {

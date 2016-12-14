@@ -293,27 +293,36 @@ static void single_thread_tests(bool long_run)
 {
 	int i;
 
-	printf("starting single_thread_tests: %d allocated\n", nr_allocated);
+	printf("starting single_thread_tests: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	multiorder_checks();
-	printf("after multiorder_check: %d allocated\n", nr_allocated);
+	printf("after multiorder_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	locate_check();
-	printf("after locate_check: %d allocated\n", nr_allocated);
+	printf("after locate_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	tag_check();
-	printf("after tag_check: %d allocated\n", nr_allocated);
+	printf("after tag_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	gang_check();
-	printf("after gang_check: %d allocated\n", nr_allocated);
+	printf("after gang_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	add_and_check();
-	printf("after add_and_check: %d allocated\n", nr_allocated);
+	printf("after add_and_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	dynamic_height_check();
-	printf("after dynamic_height_check: %d allocated\n", nr_allocated);
+	printf("after dynamic_height_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	big_gang_check(long_run);
-	printf("after big_gang_check: %d allocated\n", nr_allocated);
+	printf("after big_gang_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
 		copy_tag_check();
 		printf("%d ", i);
 		fflush(stdout);
 	}
-	printf("after copy_tag_check: %d allocated\n", nr_allocated);
+	printf("after copy_tag_check: %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 }
 
 int main(int argc, char **argv)
@@ -336,7 +345,8 @@ int main(int argc, char **argv)
 	single_thread_tests(long_run);
 
 	sleep(1);
-	printf("after sleep(1): %d allocated\n", nr_allocated);
+	printf("after sleep(1): %d allocated, preempt %d\n",
+		nr_allocated, preempt_count);
 	rcu_unregister_thread();
 
 	exit(0);
