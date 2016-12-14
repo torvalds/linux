@@ -3593,6 +3593,75 @@ u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
 }
 
 /**
+ *  ixgbe_hic_unlocked - Issue command to manageability block unlocked
+ *  @hw: pointer to the HW structure
+ *  @buffer: command to write and where the return status will be placed
+ *  @length: length of buffer, must be multiple of 4 bytes
+ *  @timeout: time in ms to wait for command completion
+ *
+ *  Communicates with the manageability block. On success return 0
+ *  else returns semaphore error when encountering an error acquiring
+ *  semaphore or IXGBE_ERR_HOST_INTERFACE_COMMAND when command fails.
+ *
+ *  This function assumes that the IXGBE_GSSR_SW_MNG_SM semaphore is held
+ *  by the caller.
+ **/
+s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 length,
+		       u32 timeout)
+{
+	u32 hicr, i, fwsts;
+	u16 dword_len;
+
+	if (!length || length > IXGBE_HI_MAX_BLOCK_BYTE_LENGTH) {
+		hw_dbg(hw, "Buffer length failure buffersize-%d.\n", length);
+		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+	}
+
+	/* Set bit 9 of FWSTS clearing FW reset indication */
+	fwsts = IXGBE_READ_REG(hw, IXGBE_FWSTS);
+	IXGBE_WRITE_REG(hw, IXGBE_FWSTS, fwsts | IXGBE_FWSTS_FWRI);
+
+	/* Check that the host interface is enabled. */
+	hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
+	if (!(hicr & IXGBE_HICR_EN)) {
+		hw_dbg(hw, "IXGBE_HOST_EN bit disabled.\n");
+		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+	}
+
+	/* Calculate length in DWORDs. We must be DWORD aligned */
+	if (length % sizeof(u32)) {
+		hw_dbg(hw, "Buffer length failure, not aligned to dword");
+		return IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
+	dword_len = length >> 2;
+
+	/* The device driver writes the relevant command block
+	 * into the ram area.
+	 */
+	for (i = 0; i < dword_len; i++)
+		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_FLEX_MNG,
+				      i, cpu_to_le32(buffer[i]));
+
+	/* Setting this bit tells the ARC that a new command is pending. */
+	IXGBE_WRITE_REG(hw, IXGBE_HICR, hicr | IXGBE_HICR_C);
+
+	for (i = 0; i < timeout; i++) {
+		hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
+		if (!(hicr & IXGBE_HICR_C))
+			break;
+		usleep_range(1000, 2000);
+	}
+
+	/* Check command successful completion. */
+	if ((timeout && i == timeout) ||
+	    !(IXGBE_READ_REG(hw, IXGBE_HICR) & IXGBE_HICR_SV))
+		return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+
+	return 0;
+}
+
+/**
  *  ixgbe_host_interface_command - Issue command to manageability block
  *  @hw: pointer to the HW structure
  *  @buffer: contains the command to write and where the return status will
@@ -3614,13 +3683,13 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 				 bool return_data)
 {
 	u32 hdr_size = sizeof(struct ixgbe_hic_hdr);
-	u32 hicr, i, bi, fwsts;
-	u16 buf_len, dword_len;
 	union {
 		struct ixgbe_hic_hdr hdr;
 		u32 u32arr[1];
 	} *bp = buffer;
+	u16 buf_len, dword_len;
 	s32 status;
+	u32 bi;
 
 	if (!length || length > IXGBE_HI_MAX_BLOCK_BYTE_LENGTH) {
 		hw_dbg(hw, "Buffer length failure buffersize-%d.\n", length);
@@ -3631,51 +3700,9 @@ s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 	if (status)
 		return status;
 
-	/* Set bit 9 of FWSTS clearing FW reset indication */
-	fwsts = IXGBE_READ_REG(hw, IXGBE_FWSTS);
-	IXGBE_WRITE_REG(hw, IXGBE_FWSTS, fwsts | IXGBE_FWSTS_FWRI);
-
-	/* Check that the host interface is enabled. */
-	hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
-	if (!(hicr & IXGBE_HICR_EN)) {
-		hw_dbg(hw, "IXGBE_HOST_EN bit disabled.\n");
-		status = IXGBE_ERR_HOST_INTERFACE_COMMAND;
+	status = ixgbe_hic_unlocked(hw, buffer, length, timeout);
+	if (status)
 		goto rel_out;
-	}
-
-	/* Calculate length in DWORDs. We must be DWORD aligned */
-	if (length % sizeof(u32)) {
-		hw_dbg(hw, "Buffer length failure, not aligned to dword");
-		status = IXGBE_ERR_INVALID_ARGUMENT;
-		goto rel_out;
-	}
-
-	dword_len = length >> 2;
-
-	/* The device driver writes the relevant command block
-	 * into the ram area.
-	 */
-	for (i = 0; i < dword_len; i++)
-		IXGBE_WRITE_REG_ARRAY(hw, IXGBE_FLEX_MNG,
-				      i, cpu_to_le32(bp->u32arr[i]));
-
-	/* Setting this bit tells the ARC that a new command is pending. */
-	IXGBE_WRITE_REG(hw, IXGBE_HICR, hicr | IXGBE_HICR_C);
-
-	for (i = 0; i < timeout; i++) {
-		hicr = IXGBE_READ_REG(hw, IXGBE_HICR);
-		if (!(hicr & IXGBE_HICR_C))
-			break;
-		usleep_range(1000, 2000);
-	}
-
-	/* Check command successful completion. */
-	if ((timeout && i == timeout) ||
-	    !(IXGBE_READ_REG(hw, IXGBE_HICR) & IXGBE_HICR_SV)) {
-		hw_dbg(hw, "Command has failed with no status valid.\n");
-		status = IXGBE_ERR_HOST_INTERFACE_COMMAND;
-		goto rel_out;
-	}
 
 	if (!return_data)
 		goto rel_out;

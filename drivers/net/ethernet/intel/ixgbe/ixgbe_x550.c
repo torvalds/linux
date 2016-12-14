@@ -624,41 +624,6 @@ static s32 ixgbe_read_iosf_sb_reg_x550a(struct ixgbe_hw *hw, u32 reg_addr,
 	return status;
 }
 
-/** ixgbe_read_ee_hostif_data_X550 - Read EEPROM word using a host interface
- *  command assuming that the semaphore is already obtained.
- *  @hw: pointer to hardware structure
- *  @offset: offset of  word in the EEPROM to read
- *  @data: word read from the EEPROM
- *
- *  Reads a 16 bit word from the EEPROM using the hostif.
- **/
-static s32 ixgbe_read_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
-					  u16 *data)
-{
-	s32 status;
-	struct ixgbe_hic_read_shadow_ram buffer;
-
-	buffer.hdr.req.cmd = FW_READ_SHADOW_RAM_CMD;
-	buffer.hdr.req.buf_lenh = 0;
-	buffer.hdr.req.buf_lenl = FW_READ_SHADOW_RAM_LEN;
-	buffer.hdr.req.checksum = FW_DEFAULT_CHECKSUM;
-
-	/* convert offset from words to bytes */
-	buffer.address = cpu_to_be32(offset * 2);
-	/* one word */
-	buffer.length = cpu_to_be16(sizeof(u16));
-
-	status = ixgbe_host_interface_command(hw, &buffer, sizeof(buffer),
-					      IXGBE_HI_COMMAND_TIMEOUT, false);
-	if (status)
-		return status;
-
-	*data = (u16)IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG,
-					  FW_NVM_DATA_OFFSET);
-
-	return 0;
-}
-
 /** ixgbe_read_ee_hostif_buffer_X550- Read EEPROM word(s) using hostif
  *  @hw: pointer to hardware structure
  *  @offset: offset of  word in the EEPROM to read
@@ -670,6 +635,7 @@ static s32 ixgbe_read_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
 static s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
 					    u16 offset, u16 words, u16 *data)
 {
+	const u32 mask = IXGBE_GSSR_SW_MNG_SM | IXGBE_GSSR_EEP_SM;
 	struct ixgbe_hic_read_shadow_ram buffer;
 	u32 current_word = 0;
 	u16 words_to_read;
@@ -677,7 +643,7 @@ static s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
 	u32 i;
 
 	/* Take semaphore for the entire operation. */
-	status = hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
+	status = hw->mac.ops.acquire_swfw_sync(hw, mask);
 	if (status) {
 		hw_dbg(hw, "EEPROM read buffer - semaphore failed\n");
 		return status;
@@ -698,10 +664,8 @@ static s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
 		buffer.address = cpu_to_be32((offset + current_word) * 2);
 		buffer.length = cpu_to_be16(words_to_read * 2);
 
-		status = ixgbe_host_interface_command(hw, &buffer,
-						      sizeof(buffer),
-						      IXGBE_HI_COMMAND_TIMEOUT,
-						      false);
+		status = ixgbe_hic_unlocked(hw, (u32 *)&buffer, sizeof(buffer),
+					    IXGBE_HI_COMMAND_TIMEOUT);
 		if (status) {
 			hw_dbg(hw, "Host interface command failed\n");
 			goto out;
@@ -725,7 +689,7 @@ static s32 ixgbe_read_ee_hostif_buffer_X550(struct ixgbe_hw *hw,
 	}
 
 out:
-	hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
+	hw->mac.ops.release_swfw_sync(hw, mask);
 	return status;
 }
 
@@ -896,15 +860,32 @@ static s32 ixgbe_calc_eeprom_checksum_X550(struct ixgbe_hw *hw)
  **/
 static s32 ixgbe_read_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
 {
-	s32 status = 0;
+	const u32 mask = IXGBE_GSSR_SW_MNG_SM | IXGBE_GSSR_EEP_SM;
+	struct ixgbe_hic_read_shadow_ram buffer;
+	s32 status;
 
-	if (hw->mac.ops.acquire_swfw_sync(hw, IXGBE_GSSR_EEP_SM) == 0) {
-		status = ixgbe_read_ee_hostif_data_X550(hw, offset, data);
-		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_EEP_SM);
-	} else {
-		status = IXGBE_ERR_SWFW_SYNC;
+	buffer.hdr.req.cmd = FW_READ_SHADOW_RAM_CMD;
+	buffer.hdr.req.buf_lenh = 0;
+	buffer.hdr.req.buf_lenl = FW_READ_SHADOW_RAM_LEN;
+	buffer.hdr.req.checksum = FW_DEFAULT_CHECKSUM;
+
+	/* convert offset from words to bytes */
+	buffer.address = cpu_to_be32(offset * 2);
+	/* one word */
+	buffer.length = cpu_to_be16(sizeof(u16));
+
+	status = hw->mac.ops.acquire_swfw_sync(hw, mask);
+	if (status)
+		return status;
+
+	status = ixgbe_hic_unlocked(hw, (u32 *)&buffer, sizeof(buffer),
+				    IXGBE_HI_COMMAND_TIMEOUT);
+	if (!status) {
+		*data = (u16)IXGBE_READ_REG_ARRAY(hw, IXGBE_FLEX_MNG,
+						  FW_NVM_DATA_OFFSET);
 	}
 
+	hw->mac.ops.release_swfw_sync(hw, mask);
 	return status;
 }
 
