@@ -316,7 +316,9 @@ static int rxe_init_av(struct rxe_dev *rxe, struct ib_ah_attr *attr,
 	return err;
 }
 
-static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
+static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+				   struct ib_udata *udata)
+
 {
 	int err;
 	struct rxe_dev *rxe = to_rdev(ibpd->device);

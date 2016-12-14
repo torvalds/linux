@@ -2704,7 +2704,9 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
  * @ah_attr: address handle attributes
  */
 static struct ib_ah *i40iw_create_ah(struct ib_pd *ibpd,
-				     struct ib_ah_attr *attr)
+				     struct ib_ah_attr *attr,
+				     struct ib_udata *udata)
+
 {
 	return ERR_PTR(-ENOSYS);
 }
