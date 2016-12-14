@@ -2275,7 +2275,7 @@ u32 intel_fb_xy_to_linear(int x, int y,
 			  int plane)
 {
 	const struct drm_framebuffer *fb = state->base.fb;
-	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+	unsigned int cpp = fb->format->cpp[plane];
 	unsigned int pitch = fb->pitches[plane];
 
 	return y * pitch + x * cpp;
@@ -2344,7 +2344,7 @@ static u32 intel_adjust_tile_offset(int *x, int *y,
 {
 	const struct drm_i915_private *dev_priv = to_i915(state->base.plane->dev);
 	const struct drm_framebuffer *fb = state->base.fb;
-	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+	unsigned int cpp = fb->format->cpp[plane];
 	unsigned int rotation = state->base.rotation;
 	unsigned int pitch = intel_fb_pitch(fb, plane, rotation);
 
@@ -2400,7 +2400,7 @@ static u32 _intel_compute_tile_offset(const struct drm_i915_private *dev_priv,
 				      u32 alignment)
 {
 	uint64_t fb_modifier = fb->modifier;
-	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+	unsigned int cpp = fb->format->cpp[plane];
 	u32 offset, offset_aligned;
 
 	if (alignment)
@@ -2468,7 +2468,7 @@ u32 intel_compute_tile_offset(int *x, int *y,
 static void intel_fb_offset_to_xy(int *x, int *y,
 				  const struct drm_framebuffer *fb, int plane)
 {
-	unsigned int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+	unsigned int cpp = fb->format->cpp[plane];
 	unsigned int pitch = fb->pitches[plane];
 	u32 linear_offset = fb->offsets[plane];
 
@@ -2506,7 +2506,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		u32 offset;
 		int x, y;
 
-		cpp = drm_format_plane_cpp(format, i);
+		cpp = fb->format->cpp[i];
 		width = drm_format_plane_width(fb->width, format, i);
 		height = drm_format_plane_height(fb->height, format, i);
 
@@ -2833,7 +2833,7 @@ valid_fb:
 static int skl_max_plane_width(const struct drm_framebuffer *fb, int plane,
 			       unsigned int rotation)
 {
-	int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+	int cpp = fb->format->cpp[plane];
 
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_NONE:
@@ -2912,7 +2912,7 @@ static int skl_check_main_surface(struct intel_plane_state *plane_state)
 	 * TODO: linear and Y-tiled seem fine, Yf untested,
 	 */
 	if (fb->modifier == I915_FORMAT_MOD_X_TILED) {
-		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+		int cpp = fb->format->cpp[0];
 
 		while ((x + w) * cpp > fb->pitches[0]) {
 			if (offset == 0) {
@@ -3278,7 +3278,7 @@ u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
 	 * linear buffers or in number of tiles for tiled buffers.
 	 */
 	if (drm_rotation_90_or_270(rotation)) {
-		int cpp = drm_format_plane_cpp(fb->pixel_format, plane);
+		int cpp = fb->format->cpp[plane];
 
 		stride /= intel_tile_height(dev_priv, fb->modifier, cpp);
 	} else {

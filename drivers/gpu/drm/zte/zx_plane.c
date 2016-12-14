@@ -159,7 +159,7 @@ static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 	dst_w = plane->state->crtc_w;
 	dst_h = plane->state->crtc_h;
 
-	bpp = drm_format_plane_cpp(format, 0);
+	bpp = fb->format->cpp[0];
 
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 	paddr = cma_obj->paddr + fb->offsets[0];

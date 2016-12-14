@@ -218,7 +218,7 @@ int sun4i_backend_update_layer_buffer(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Using GEM @ %pad\n", &gem->paddr);
 
 	/* Compute the start of the displayed memory */
-	bpp = drm_format_plane_cpp(fb->pixel_format, 0);
+	bpp = fb->format->cpp[0];
 	paddr = gem->paddr + fb->offsets[0];
 	paddr += (state->src_x >> 16) * bpp;
 	paddr += (state->src_y >> 16) * fb->pitches[0];

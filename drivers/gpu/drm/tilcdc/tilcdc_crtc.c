@@ -91,7 +91,7 @@ static void set_scanout(struct drm_crtc *crtc, struct drm_framebuffer *fb)
 
 	start = gem->paddr + fb->offsets[0] +
 		crtc->y * fb->pitches[0] +
-		crtc->x * drm_format_plane_cpp(fb->pixel_format, 0);
+		crtc->x * fb->format->cpp[0];
 
 	end = start + (crtc->mode.vdisplay * fb->pitches[0]);
 

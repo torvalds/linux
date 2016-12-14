@@ -369,7 +369,7 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	 */
 	if (vc4_state->crtc_x < 0) {
 		for (i = 0; i < num_planes; i++) {
-			u32 cpp = drm_format_plane_cpp(fb->pixel_format, i);
+			u32 cpp = fb->format->cpp[i];
 			u32 subs = ((i == 0) ? 1 : h_subsample);
 
 			vc4_state->offsets[i] += (cpp *

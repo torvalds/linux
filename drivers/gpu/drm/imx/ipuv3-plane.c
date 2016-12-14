@@ -77,7 +77,7 @@ drm_plane_state_to_eba(struct drm_plane_state *state)
 	BUG_ON(!cma_obj);
 
 	return cma_obj->paddr + fb->offsets[0] + fb->pitches[0] * y +
-	       drm_format_plane_cpp(fb->pixel_format, 0) * x;
+	       fb->format->cpp[0] * x;
 }
 
 static inline unsigned long
@@ -96,7 +96,7 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 	y /= drm_format_vert_chroma_subsampling(fb->pixel_format);
 
 	return cma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
-	       drm_format_plane_cpp(fb->pixel_format, 1) * x - eba;
+	       fb->format->cpp[1] * x - eba;
 }
 
 static inline unsigned long
@@ -115,7 +115,7 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	y /= drm_format_vert_chroma_subsampling(fb->pixel_format);
 
 	return cma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
-	       drm_format_plane_cpp(fb->pixel_format, 2) * x - eba;
+	       fb->format->cpp[2] * x - eba;
 }
 
 void ipu_plane_put_resources(struct ipu_plane *ipu_plane)

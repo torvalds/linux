@@ -885,7 +885,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 	/* Check size restrictions when scaling */
 	if (state->base.visible && (src_w != crtc_w || src_h != crtc_h)) {
 		unsigned int width_bytes;
-		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+		int cpp = fb->format->cpp[0];
 
 		WARN_ON(!can_scale);
 

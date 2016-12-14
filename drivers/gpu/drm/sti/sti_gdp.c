@@ -757,7 +757,7 @@ static void sti_gdp_atomic_update(struct drm_plane *drm_plane,
 			 (unsigned long)cma_obj->paddr);
 
 	/* pixel memory location */
-	bpp = drm_format_plane_cpp(fb->pixel_format, 0);
+	bpp = fb->format->cpp[0];
 	top_field->gam_gdp_pml = (u32)cma_obj->paddr + fb->offsets[0];
 	top_field->gam_gdp_pml += src_x * bpp;
 	top_field->gam_gdp_pml += src_y * fb->pitches[0];
