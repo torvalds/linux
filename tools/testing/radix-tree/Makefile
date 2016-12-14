@@ -18,7 +18,12 @@ main:	$(OFILES)
 clean:
 	$(RM) -f $(TARGETS) *.o radix-tree.c
 
-$(OFILES): *.h */*.h ../../../include/linux/radix-tree.h ../../include/linux/*.h
+find_next_bit.o: ../../lib/find_bit.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+$(OFILES): *.h */*.h \
+	../../include/linux/*.h \
+	../../../include/linux/radix-tree.h
 
 radix-tree.c: ../../../lib/radix-tree.c
 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
