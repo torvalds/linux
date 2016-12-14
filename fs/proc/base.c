@@ -1246,7 +1246,7 @@ static const struct file_operations proc_oom_score_adj_operations = {
 };
 
 #ifdef CONFIG_AUDITSYSCALL
-#define TMPBUFLEN 21
+#define TMPBUFLEN 11
 static ssize_t proc_loginuid_read(struct file * file, char __user * buf,
 				  size_t count, loff_t *ppos)
 {
