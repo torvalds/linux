@@ -1344,7 +1344,9 @@ static int __init audit_init(void)
 		panic("audit: failed to start the kauditd thread (%d)\n", err);
 	}
 
-	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL, "initialized");
+	audit_log(NULL, GFP_KERNEL, AUDIT_KERNEL,
+		"state=initialized audit_enabled=%u res=1",
+		 audit_enabled);
 
 	return 0;
 }
