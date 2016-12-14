@@ -22,7 +22,6 @@
 #include <poll.h>
 #include <ctype.h>
 #include "libbpf.h"
-#include "bpf_helpers.h"
 #include "bpf_load.h"
 
 #define DEBUGFS "/sys/kernel/debug/tracing/"
@@ -30,17 +29,26 @@
 static char license[128];
 static int kern_version;
 static bool processed_sec[128];
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
 int map_fd[MAX_MAPS];
 int prog_fd[MAX_PROGS];
 int event_fd[MAX_PROGS];
 int prog_cnt;
 int prog_array_fd = -1;
 
+struct bpf_map_def {
+	unsigned int type;
+	unsigned int key_size;
+	unsigned int value_size;
+	unsigned int max_entries;
+	unsigned int map_flags;
+};
+
 static int populate_prog_array(const char *event, int prog_fd)
 {
 	int ind = atoi(event), err;
 
-	err = bpf_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
+	err = bpf_map_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
 	if (err < 0) {
 		printf("failed to store prog_fd in prog_array\n");
 		return -1;
@@ -87,9 +95,10 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		return -1;
 	}
 
-	fd = bpf_prog_load(prog_type, prog, size, license, kern_version);
+	fd = bpf_load_program(prog_type, prog, size, license, kern_version,
+			      bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (fd < 0) {
-		printf("bpf_prog_load() err=%d\n%s", errno, bpf_log_buf);
+		printf("bpf_load_program() err=%d\n%s", errno, bpf_log_buf);
 		return -1;
 	}
 

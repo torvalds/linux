@@ -58,8 +58,9 @@ static int bpf_prog_create(const char *object)
 		assert(!load_bpf_file((char *)object));
 		return prog_fd[0];
 	} else {
-		return bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER,
-				     insns, sizeof(insns), "GPL", 0);
+		return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER,
+					insns, sizeof(insns), "GPL", 0,
+					bpf_log_buf, BPF_LOG_BUF_SIZE);
 	}
 }
 
@@ -83,12 +84,12 @@ static int bpf_do_map(const char *file, uint32_t flags, uint32_t key,
 	}
 
 	if ((flags & BPF_F_KEY_VAL) == BPF_F_KEY_VAL) {
-		ret = bpf_update_elem(fd, &key, &value, 0);
+		ret = bpf_map_update_elem(fd, &key, &value, 0);
 		printf("bpf: fd:%d u->(%u:%u) ret:(%d,%s)\n", fd, key, value,
 		       ret, strerror(errno));
 		assert(ret == 0);
 	} else if (flags & BPF_F_KEY) {
-		ret = bpf_lookup_elem(fd, &key, &value);
+		ret = bpf_map_lookup_elem(fd, &key, &value);
 		printf("bpf: fd:%d l->(%u):%u ret:(%d,%s)\n", fd, key, value,
 		       ret, strerror(errno));
 		assert(ret == 0);

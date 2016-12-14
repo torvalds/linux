@@ -28,6 +28,8 @@
 #include <stddef.h>
 #include "libbpf.h"
 
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
+
 static int test_sock(void)
 {
 	int sock = -1, map_fd, prog_fd, i, key;
@@ -55,8 +57,8 @@ static int test_sock(void)
 		BPF_EXIT_INSN(),
 	};
 
-	prog_fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, prog, sizeof(prog),
-				"GPL", 0);
+	prog_fd = bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog, sizeof(prog),
+				   "GPL", 0, bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (prog_fd < 0) {
 		printf("failed to load prog '%s'\n", strerror(errno));
 		goto cleanup;
@@ -72,13 +74,13 @@ static int test_sock(void)
 
 	for (i = 0; i < 10; i++) {
 		key = IPPROTO_TCP;
-		assert(bpf_lookup_elem(map_fd, &key, &tcp_cnt) == 0);
+		assert(bpf_map_lookup_elem(map_fd, &key, &tcp_cnt) == 0);
 
 		key = IPPROTO_UDP;
-		assert(bpf_lookup_elem(map_fd, &key, &udp_cnt) == 0);
+		assert(bpf_map_lookup_elem(map_fd, &key, &udp_cnt) == 0);
 
 		key = IPPROTO_ICMP;
-		assert(bpf_lookup_elem(map_fd, &key, &icmp_cnt) == 0);
+		assert(bpf_map_lookup_elem(map_fd, &key, &icmp_cnt) == 0);
 
 		printf("TCP %lld UDP %lld ICMP %lld packets\n",
 		       tcp_cnt, udp_cnt, icmp_cnt);

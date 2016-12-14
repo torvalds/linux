@@ -14,6 +14,8 @@
 #define MAX_INDEX 64
 #define MAX_STARS 38
 
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
+
 static void stars(char *str, long val, long max, int width)
 {
 	int i;
@@ -41,13 +43,13 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
-	while (bpf_get_next_key(map_fd, &key, &next_key) == 0) {
+	while (bpf_map_get_next_key(map_fd, &key, &next_key) == 0) {
 		if (next_key >= MAX_INDEX) {
 			fprintf(stderr, "Key %lu out of bounds\n", next_key);
 			continue;
 		}
 
-		bpf_lookup_elem(map_fd, &next_key, values);
+		bpf_map_lookup_elem(map_fd, &next_key, values);
 
 		sum = 0;
 		for (i = 0; i < nr_cpus; i++)

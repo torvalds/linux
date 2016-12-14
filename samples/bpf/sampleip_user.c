@@ -95,8 +95,8 @@ static void print_ip_map(int fd)
 
 	/* fetch IPs and counts */
 	key = 0, i = 0;
-	while (bpf_get_next_key(fd, &key, &next_key) == 0) {
-		bpf_lookup_elem(fd, &next_key, &value);
+	while (bpf_map_get_next_key(fd, &key, &next_key) == 0) {
+		bpf_map_lookup_elem(fd, &next_key, &value);
 		counts[i].ip = next_key;
 		counts[i++].count = value;
 		key = next_key;

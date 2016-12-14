@@ -36,7 +36,7 @@ static void test_bpf_perf_event(void)
 			goto exit;
 		}
 
-		bpf_update_elem(map_fd[0], &i, &pmu_fd[i], BPF_ANY);
+		bpf_map_update_elem(map_fd[0], &i, &pmu_fd[i], BPF_ANY);
 		ioctl(pmu_fd[i], PERF_EVENT_IOC_ENABLE, 0);
 	}
 

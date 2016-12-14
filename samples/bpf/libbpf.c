@@ -32,7 +32,7 @@ int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
 	return syscall(__NR_bpf, BPF_MAP_CREATE, &attr, sizeof(attr));
 }
 
-int bpf_update_elem(int fd, void *key, void *value, unsigned long long flags)
+int bpf_map_update_elem(int fd, void *key, void *value, unsigned long long flags)
 {
 	union bpf_attr attr = {
 		.map_fd = fd,
@@ -44,7 +44,7 @@ int bpf_update_elem(int fd, void *key, void *value, unsigned long long flags)
 	return syscall(__NR_bpf, BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
 }
 
-int bpf_lookup_elem(int fd, void *key, void *value)
+int bpf_map_lookup_elem(int fd, void *key, void *value)
 {
 	union bpf_attr attr = {
 		.map_fd = fd,
@@ -55,7 +55,7 @@ int bpf_lookup_elem(int fd, void *key, void *value)
 	return syscall(__NR_bpf, BPF_MAP_LOOKUP_ELEM, &attr, sizeof(attr));
 }
 
-int bpf_delete_elem(int fd, void *key)
+int bpf_map_delete_elem(int fd, void *key)
 {
 	union bpf_attr attr = {
 		.map_fd = fd,
@@ -65,7 +65,7 @@ int bpf_delete_elem(int fd, void *key)
 	return syscall(__NR_bpf, BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
 }
 
-int bpf_get_next_key(int fd, void *key, void *next_key)
+int bpf_map_get_next_key(int fd, void *key, void *next_key)
 {
 	union bpf_attr attr = {
 		.map_fd = fd,
@@ -78,19 +78,18 @@ int bpf_get_next_key(int fd, void *key, void *next_key)
 
 #define ROUND_UP(x, n) (((x) + (n) - 1u) & ~((n) - 1u))
 
-char bpf_log_buf[LOG_BUF_SIZE];
-
-int bpf_prog_load(enum bpf_prog_type prog_type,
-		  const struct bpf_insn *insns, int prog_len,
-		  const char *license, int kern_version)
+int bpf_load_program(enum bpf_prog_type prog_type,
+		     const struct bpf_insn *insns, int prog_len,
+		     const char *license, int kern_version,
+		     char *log_buf, size_t log_buf_sz)
 {
 	union bpf_attr attr = {
 		.prog_type = prog_type,
 		.insns = ptr_to_u64((void *) insns),
 		.insn_cnt = prog_len / sizeof(struct bpf_insn),
 		.license = ptr_to_u64((void *) license),
-		.log_buf = ptr_to_u64(bpf_log_buf),
-		.log_size = LOG_BUF_SIZE,
+		.log_buf = ptr_to_u64(log_buf),
+		.log_size = log_buf_sz,
 		.log_level = 1,
 	};
 
@@ -99,7 +98,7 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 	 */
 	attr.kern_version = kern_version;
 
-	bpf_log_buf[0] = 0;
+	log_buf[0] = 0;
 
 	return syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 }

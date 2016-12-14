@@ -32,6 +32,8 @@
 #define BAR		"/foo/bar/"
 #define PING_CMD	"ping -c1 -w1 127.0.0.1"
 
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
+
 static int prog_load(int verdict)
 {
 	int ret;
@@ -40,8 +42,9 @@ static int prog_load(int verdict)
 		BPF_EXIT_INSN(),
 	};
 
-	ret = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SKB,
-			     prog, sizeof(prog), "GPL", 0);
+	ret = bpf_load_program(BPF_PROG_TYPE_CGROUP_SKB,
+			       prog, sizeof(prog), "GPL", 0,
+			       bpf_log_buf, BPF_LOG_BUF_SIZE);
 
 	if (ret < 0) {
 		log_err("Loading program");
