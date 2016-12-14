@@ -244,6 +244,9 @@
 # define SCALER_DISPCTRL_ENABLE			BIT(31)
 # define SCALER_DISPCTRL_DSP2EISLUR		BIT(15)
 # define SCALER_DISPCTRL_DSP1EISLUR		BIT(14)
+# define SCALER_DISPCTRL_DSP3_MUX_MASK		VC4_MASK(19, 18)
+# define SCALER_DISPCTRL_DSP3_MUX_SHIFT		18
+
 /* Enables Display 0 short line and underrun contribution to
  * SCALER_DISPSTAT_IRQDISP0.  Note that short frame contributions are
  * always enabled.
