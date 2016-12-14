@@ -762,16 +762,17 @@ static const struct net_proto_family rxrpc_family_ops = {
 static int __init af_rxrpc_init(void)
 {
 	int ret = -1;
+	unsigned int tmp;
 
 	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	get_random_bytes(&rxrpc_epoch, sizeof(rxrpc_epoch));
 	rxrpc_epoch |= RXRPC_RANDOM_EPOCH;
-	get_random_bytes(&rxrpc_client_conn_ids.cur,
-			 sizeof(rxrpc_client_conn_ids.cur));
-	rxrpc_client_conn_ids.cur &= 0x3fffffff;
-	if (rxrpc_client_conn_ids.cur == 0)
-		rxrpc_client_conn_ids.cur = 1;
+	get_random_bytes(&tmp, sizeof(tmp));
+	tmp &= 0x3fffffff;
+	if (tmp == 0)
+		tmp = 1;
+	idr_set_cursor(&rxrpc_client_conn_ids, tmp);
 
 	ret = -ENOMEM;
 	rxrpc_call_jar = kmem_cache_create(

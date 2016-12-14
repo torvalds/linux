@@ -56,6 +56,32 @@ struct idr {
 #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
 
 /**
+ * idr_get_cursor - Return the current position of the cyclic allocator
+ * @idr: idr handle
+ *
+ * The value returned is the value that will be next returned from
+ * idr_alloc_cyclic() if it is free (otherwise the search will start from
+ * this position).
+ */
+static inline unsigned int idr_get_cursor(struct idr *idr)
+{
+	return READ_ONCE(idr->cur);
+}
+
+/**
+ * idr_set_cursor - Set the current position of the cyclic allocator
+ * @idr: idr handle
+ * @val: new position
+ *
+ * The next call to idr_alloc_cyclic() will return @val if it is free
+ * (otherwise the search will start from this position).
+ */
+static inline void idr_set_cursor(struct idr *idr, unsigned int val)
+{
+	WRITE_ONCE(idr->cur, val);
+}
+
+/**
  * DOC: idr sync
  * idr synchronization (stolen from radix-tree.h)
  *
