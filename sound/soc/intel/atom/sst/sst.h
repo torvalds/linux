@@ -436,6 +436,7 @@ struct intel_sst_drv {
 	 */
 	char firmware_name[FW_NAME_SIZE];
 
+	struct snd_sst_fw_version fw_version;
 	struct sst_fw_save	*fw_save;
 };
 

@@ -326,11 +326,31 @@ static void rt298_jack_detect_work(struct work_struct *work)
 int rt298_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack)
 {
 	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm;
+	bool hp = false;
+	bool mic = false;
+	int status = 0;
+
+	/* If jack in NULL, disable HS jack */
+	if (!jack) {
+		regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x0);
+		dapm = snd_soc_codec_get_dapm(codec);
+		snd_soc_dapm_disable_pin(dapm, "LDO1");
+		snd_soc_dapm_sync(dapm);
+		return 0;
+	}
 
 	rt298->jack = jack;
+	regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x2);
 
-	/* Send an initial empty report */
-	snd_soc_jack_report(rt298->jack, 0,
+	rt298_jack_detect(rt298, &hp, &mic);
+	if (hp == true)
+		status |= SND_JACK_HEADPHONE;
+
+	if (mic == true)
+		status |= SND_JACK_MICROPHONE;
+
+	snd_soc_jack_report(rt298->jack, status,
 		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
 
 	return 0;

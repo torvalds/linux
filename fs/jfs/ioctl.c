@@ -121,7 +121,7 @@ long jfs_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		jfs_set_inode_flags(inode);
 		inode_unlock(inode);
-		inode->i_ctime = CURRENT_TIME_SEC;
+		inode->i_ctime = current_time(inode);
 		mark_inode_dirty(inode);
 setflags_out:
 		mnt_drop_write_file(filp);

@@ -896,7 +896,7 @@ static inline int ntb_spad_is_unsafe(struct ntb_dev *ntb)
 }
 
 /**
- * ntb_mw_count() - get the number of scratchpads
+ * ntb_spad_count() - get the number of scratchpads
  * @ntb:	NTB device context.
  *
  * Hardware and topology may support a different number of scratchpads.

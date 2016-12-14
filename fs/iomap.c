@@ -467,8 +467,9 @@ int iomap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
 
 	offset = page_offset(page);
 	while (length > 0) {
-		ret = iomap_apply(inode, offset, length, IOMAP_WRITE,
-				ops, page, iomap_page_mkwrite_actor);
+		ret = iomap_apply(inode, offset, length,
+				IOMAP_WRITE | IOMAP_FAULT, ops, page,
+				iomap_page_mkwrite_actor);
 		if (unlikely(ret <= 0))
 			goto out_unlock;
 		offset += ret;
