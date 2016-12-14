@@ -252,7 +252,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	offload.cookie = (unsigned long)f;
 	offload.dissector = dissector;
 	offload.mask = mask;
-	offload.key = &f->key;
+	offload.key = &f->mkey;
 	offload.exts = &f->exts;
 
 	tc->type = TC_SETUP_CLSFLOWER;
