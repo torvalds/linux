@@ -45,7 +45,7 @@ static inline struct thread_info *current_thread_info(void)
 
 /* thread information allocation */
 unsigned long *alloc_thread_stack_node(struct task_struct *, int node);
-void free_thread_stack(unsigned long *);
+void free_thread_stack(struct task_struct *tsk);
 
 void threads_init(void);
 void threads_cleanup(void);
