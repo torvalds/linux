@@ -38,7 +38,7 @@ int mlx5_cmd_create_flow_table(struct mlx5_core_dev *dev,
 			       enum fs_flow_table_op_mod op_mod,
 			       enum fs_flow_table_type type, unsigned int level,
 			       unsigned int log_size, struct mlx5_flow_table
-			       *next_ft, unsigned int *table_id);
+			       *next_ft, unsigned int *table_id, u32 flags);
 
 int mlx5_cmd_destroy_flow_table(struct mlx5_core_dev *dev,
 				struct mlx5_flow_table *ft);
@@ -88,12 +88,5 @@ mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, struct mlx5_cmd_fc_bulk *b);
 void mlx5_cmd_fc_bulk_get(struct mlx5_core_dev *dev,
 			  struct mlx5_cmd_fc_bulk *b, u16 id,
 			  u64 *packets, u64 *bytes);
-
-int mlx5_cmd_alloc_encap(struct mlx5_core_dev *dev,
-			 int header_type,
-			 size_t size,
-			 void *encap_header,
-			 u32 *encap_id);
-void mlx5_cmd_dealloc_encap(struct mlx5_core_dev *dev, u32 encap_id);
 
 #endif

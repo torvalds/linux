@@ -269,7 +269,8 @@ int main(int argc, char **argv)
 		insns++;
 	}
 
-	fprintf(stdout, "%s: %s: decoded and checked %d %s instructions with %d errors (seed:0x%x)\n",
+	fprintf((errors) ? stderr : stdout,
+		"%s: %s: decoded and checked %d %s instructions with %d errors (seed:0x%x)\n",
 		prog,
 		(errors) ? "Failure" : "Success",
 		insns,

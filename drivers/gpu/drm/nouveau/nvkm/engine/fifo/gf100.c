@@ -180,7 +180,8 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 	list_del_init(&chan->head);
 	chan->killed = true;
 
-	fifo->recover.mask |= 1ULL << engine->subdev.index;
+	if (engine != &fifo->base.engine)
+		fifo->recover.mask |= 1ULL << engine->subdev.index;
 	schedule_work(&fifo->recover.work);
 }
 

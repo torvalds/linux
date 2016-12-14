@@ -159,9 +159,9 @@ static void dwc2_handle_otg_intr(struct dwc2_hsotg *hsotg)
 			" ++OTG Interrupt: Session Request Success Status Change++\n");
 		gotgctl = dwc2_readl(hsotg->regs + GOTGCTL);
 		if (gotgctl & GOTGCTL_SESREQSCS) {
-			if (hsotg->core_params->phy_type ==
+			if (hsotg->params.phy_type ==
 					DWC2_PHY_TYPE_PARAM_FS
-			    && hsotg->core_params->i2c_enable > 0) {
+			    && hsotg->params.i2c_enable > 0) {
 				hsotg->srp_success = 1;
 			} else {
 				/* Clear Session Request */
@@ -370,7 +370,7 @@ static void dwc2_handle_wakeup_detected_intr(struct dwc2_hsotg *hsotg)
 		/* Change to L0 state */
 		hsotg->lx_state = DWC2_L0;
 	} else {
-		if (hsotg->core_params->hibernation)
+		if (hsotg->params.hibernation)
 			return;
 
 		if (hsotg->lx_state != DWC2_L1) {

@@ -1016,7 +1016,7 @@ static void mxs_auart_settermios(struct uart_port *u,
 			ctrl |= AUART_LINECTRL_EPS;
 	}
 
-	u->read_status_mask = 0;
+	u->read_status_mask = AUART_STAT_OERR;
 
 	if (termios->c_iflag & INPCK)
 		u->read_status_mask |= AUART_STAT_PERR;

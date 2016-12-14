@@ -144,13 +144,6 @@ static void panel_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static enum drm_connector_status panel_connector_detect(
-		struct drm_connector *connector,
-		bool force)
-{
-	return connector_status_connected;
-}
-
 static int panel_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -197,7 +190,6 @@ static struct drm_encoder *panel_connector_best_encoder(
 static const struct drm_connector_funcs panel_connector_funcs = {
 	.destroy            = panel_connector_destroy,
 	.dpms               = drm_atomic_helper_connector_dpms,
-	.detect             = panel_connector_detect,
 	.fill_modes         = drm_helper_probe_single_connector_modes,
 	.reset              = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -239,8 +231,6 @@ static struct drm_connector *panel_connector_create(struct drm_device *dev,
 	ret = drm_mode_connector_attach_encoder(connector, encoder);
 	if (ret)
 		goto fail;
-
-	drm_connector_register(connector);
 
 	return connector;
 

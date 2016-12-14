@@ -80,14 +80,11 @@ static inline bool radix_tree_is_internal_node(void *ptr)
 #define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
 					  RADIX_TREE_MAP_SHIFT))
 
-/* Internally used bits of node->count */
-#define RADIX_TREE_COUNT_SHIFT	(RADIX_TREE_MAP_SHIFT + 1)
-#define RADIX_TREE_COUNT_MASK	((1UL << RADIX_TREE_COUNT_SHIFT) - 1)
-
 struct radix_tree_node {
-	unsigned char	shift;	/* Bits remaining in each slot */
-	unsigned char	offset;	/* Slot offset in parent */
-	unsigned int	count;
+	unsigned char	shift;		/* Bits remaining in each slot */
+	unsigned char	offset;		/* Slot offset in parent */
+	unsigned char	count;		/* Total entry count */
+	unsigned char	exceptional;	/* Exceptional entry count */
 	union {
 		struct {
 			/* Used when ascending tree */
@@ -248,20 +245,6 @@ static inline int radix_tree_exception(void *arg)
 	return unlikely((unsigned long)arg & RADIX_TREE_ENTRY_MASK);
 }
 
-/**
- * radix_tree_replace_slot	- replace item in a slot
- * @pslot:	pointer to slot, returned by radix_tree_lookup_slot
- * @item:	new item to store in the slot.
- *
- * For use with radix_tree_lookup_slot().  Caller must hold tree write locked
- * across slot lookup and replacement.
- */
-static inline void radix_tree_replace_slot(void **pslot, void *item)
-{
-	BUG_ON(radix_tree_is_internal_node(item));
-	rcu_assign_pointer(*pslot, item);
-}
-
 int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 			unsigned order, struct radix_tree_node **nodep,
 			void ***slotp);
@@ -276,7 +259,14 @@ void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
 			  struct radix_tree_node **nodep, void ***slotp);
 void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
 void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
-bool __radix_tree_delete_node(struct radix_tree_root *root,
+typedef void (*radix_tree_update_node_t)(struct radix_tree_node *, void *);
+void __radix_tree_replace(struct radix_tree_root *root,
+			  struct radix_tree_node *node,
+			  void **slot, void *item,
+			  radix_tree_update_node_t update_node, void *private);
+void radix_tree_replace_slot(struct radix_tree_root *root,
+			     void **slot, void *item);
+void __radix_tree_delete_node(struct radix_tree_root *root,
 			      struct radix_tree_node *node);
 void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
 void *radix_tree_delete(struct radix_tree_root *, unsigned long);

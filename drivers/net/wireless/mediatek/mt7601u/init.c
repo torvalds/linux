@@ -293,13 +293,13 @@ static void mt7601u_mac_stop_hw(struct mt7601u_dev *dev)
 	ok = 0;
 	i = 200;
 	while (i--) {
-		if ((mt76_rr(dev, 0x0430) & 0x00ff0000) ||
-		    (mt76_rr(dev, 0x0a30) & 0xffffffff) ||
-		    (mt76_rr(dev, 0x0a34) & 0xffffffff))
-			ok++;
-		if (ok > 6)
-			break;
-
+		if (!(mt76_rr(dev, MT_RXQ_STA) & 0x00ff0000) &&
+		    !mt76_rr(dev, 0x0a30) &&
+		    !mt76_rr(dev, 0x0a34)) {
+			if (ok++ > 5)
+				break;
+			continue;
+		}
 		msleep(1);
 	}
 

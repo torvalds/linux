@@ -1500,6 +1500,7 @@ static int su_probe(struct platform_device *op)
 
 out_unmap:
 	of_iounmap(&op->resource[0], up->port.membase, up->reg_size);
+	kfree(up);
 	return err;
 }
 

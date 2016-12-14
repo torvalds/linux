@@ -59,8 +59,8 @@
 #define B44_TX_TIMEOUT			(5 * HZ)
 
 /* hardware minimum and maximum for a single frame's data payload */
-#define B44_MIN_MTU			60
-#define B44_MAX_MTU			1500
+#define B44_MIN_MTU			ETH_ZLEN
+#define B44_MAX_MTU			ETH_DATA_LEN
 
 #define B44_RX_RING_SIZE		512
 #define B44_DEF_RX_RING_PENDING		200
@@ -1063,9 +1063,6 @@ err_out:
 static int b44_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct b44 *bp = netdev_priv(dev);
-
-	if (new_mtu < B44_MIN_MTU || new_mtu > B44_MAX_MTU)
-		return -EINVAL;
 
 	if (!netif_running(dev)) {
 		/* We'll just catch it later when the
@@ -2377,6 +2374,8 @@ static int b44_init_one(struct ssb_device *sdev,
 	dev->netdev_ops = &b44_netdev_ops;
 	netif_napi_add(dev, &bp->napi, b44_poll, 64);
 	dev->watchdog_timeo = B44_TX_TIMEOUT;
+	dev->min_mtu = B44_MIN_MTU;
+	dev->max_mtu = B44_MAX_MTU;
 	dev->irq = sdev->irq;
 	dev->ethtool_ops = &b44_ethtool_ops;
 

@@ -1410,9 +1410,6 @@ static int ibmveth_change_mtu(struct net_device *dev, int new_mtu)
 	int i, rc;
 	int need_restart = 0;
 
-	if (new_mtu < IBMVETH_MIN_MTU)
-		return -EINVAL;
-
 	for (i = 0; i < IBMVETH_NUM_BUFF_POOLS; i++)
 		if (new_mtu_oh <= adapter->rx_buff_pool[i].buff_size)
 			break;
@@ -1611,6 +1608,9 @@ static int ibmveth_probe(struct vio_dev *dev, const struct vio_device_id *id)
 	} else {
 		netdev->hw_features |= NETIF_F_TSO;
 	}
+
+	netdev->min_mtu = IBMVETH_MIN_MTU;
+	netdev->max_mtu = ETH_MAX_MTU;
 
 	memcpy(netdev->dev_addr, mac_addr_p, ETH_ALEN);
 

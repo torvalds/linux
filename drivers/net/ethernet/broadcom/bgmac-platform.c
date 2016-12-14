@@ -14,10 +14,20 @@
 #define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
 
 #include <linux/bcma/bcma.h>
+#include <linux/brcmphy.h>
 #include <linux/etherdevice.h>
 #include <linux/of_address.h>
+#include <linux/of_mdio.h>
 #include <linux/of_net.h>
 #include "bgmac.h"
+
+#define NICPM_IOMUX_CTRL		0x00000008
+
+#define NICPM_IOMUX_CTRL_INIT_VAL	0x3196e000
+#define NICPM_IOMUX_CTRL_SPD_SHIFT	10
+#define NICPM_IOMUX_CTRL_SPD_10M	0
+#define NICPM_IOMUX_CTRL_SPD_100M	1
+#define NICPM_IOMUX_CTRL_SPD_1000M	2
 
 static u32 platform_bgmac_read(struct bgmac *bgmac, u16 offset)
 {
@@ -86,6 +96,54 @@ static void platform_bgmac_cmn_maskset32(struct bgmac *bgmac, u16 offset,
 	WARN_ON(1);
 }
 
+static void bgmac_nicpm_speed_set(struct net_device *net_dev)
+{
+	struct bgmac *bgmac = netdev_priv(net_dev);
+	u32 val;
+
+	if (!bgmac->plat.nicpm_base)
+		return;
+
+	val = NICPM_IOMUX_CTRL_INIT_VAL;
+	switch (bgmac->net_dev->phydev->speed) {
+	default:
+		netdev_err(net_dev, "Unsupported speed. Defaulting to 1000Mb\n");
+	case SPEED_1000:
+		val |= NICPM_IOMUX_CTRL_SPD_1000M << NICPM_IOMUX_CTRL_SPD_SHIFT;
+		break;
+	case SPEED_100:
+		val |= NICPM_IOMUX_CTRL_SPD_100M << NICPM_IOMUX_CTRL_SPD_SHIFT;
+		break;
+	case SPEED_10:
+		val |= NICPM_IOMUX_CTRL_SPD_10M << NICPM_IOMUX_CTRL_SPD_SHIFT;
+		break;
+	}
+
+	writel(val, bgmac->plat.nicpm_base + NICPM_IOMUX_CTRL);
+
+	bgmac_adjust_link(bgmac->net_dev);
+}
+
+static int platform_phy_connect(struct bgmac *bgmac)
+{
+	struct phy_device *phy_dev;
+
+	if (bgmac->plat.nicpm_base)
+		phy_dev = of_phy_get_and_connect(bgmac->net_dev,
+						 bgmac->dev->of_node,
+						 bgmac_nicpm_speed_set);
+	else
+		phy_dev = of_phy_get_and_connect(bgmac->net_dev,
+						 bgmac->dev->of_node,
+						 bgmac_adjust_link);
+	if (!phy_dev) {
+		dev_err(bgmac->dev, "PHY connection failed\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int bgmac_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -102,7 +160,6 @@ static int bgmac_probe(struct platform_device *pdev)
 	/* Set the features of the 4707 family */
 	bgmac->feature_flags |= BGMAC_FEAT_CLKCTLST;
 	bgmac->feature_flags |= BGMAC_FEAT_NO_RESET;
-	bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
 	bgmac->feature_flags |= BGMAC_FEAT_CMDCFG_SR_REV4;
 	bgmac->feature_flags |= BGMAC_FEAT_TX_MASK_SETUP;
 	bgmac->feature_flags |= BGMAC_FEAT_RX_MASK_SETUP;
@@ -142,6 +199,14 @@ static int bgmac_probe(struct platform_device *pdev)
 	if (IS_ERR(bgmac->plat.idm_base))
 		return PTR_ERR(bgmac->plat.idm_base);
 
+	regs = platform_get_resource_byname(pdev, IORESOURCE_MEM, "nicpm_base");
+	if (regs) {
+		bgmac->plat.nicpm_base = devm_ioremap_resource(&pdev->dev,
+							       regs);
+		if (IS_ERR(bgmac->plat.nicpm_base))
+			return PTR_ERR(bgmac->plat.nicpm_base);
+	}
+
 	bgmac->read = platform_bgmac_read;
 	bgmac->write = platform_bgmac_write;
 	bgmac->idm_read = platform_bgmac_idm_read;
@@ -151,6 +216,12 @@ static int bgmac_probe(struct platform_device *pdev)
 	bgmac->cco_ctl_maskset = platform_bgmac_cco_ctl_maskset;
 	bgmac->get_bus_clock = platform_bgmac_get_bus_clock;
 	bgmac->cmn_maskset32 = platform_bgmac_cmn_maskset32;
+	if (of_parse_phandle(np, "phy-handle", 0)) {
+		bgmac->phy_connect = platform_phy_connect;
+	} else {
+		bgmac->phy_connect = bgmac_phy_connect_direct;
+		bgmac->feature_flags |= BGMAC_FEAT_FORCE_SPEED_2500;
+	}
 
 	return bgmac_enet_probe(bgmac);
 }
@@ -167,6 +238,7 @@ static int bgmac_remove(struct platform_device *pdev)
 static const struct of_device_id bgmac_of_enet_match[] = {
 	{.compatible = "brcm,amac",},
 	{.compatible = "brcm,nsp-amac",},
+	{.compatible = "brcm,ns2-amac",},
 	{},
 };
 

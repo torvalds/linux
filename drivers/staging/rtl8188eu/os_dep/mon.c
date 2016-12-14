@@ -145,7 +145,6 @@ static netdev_tx_t mon_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static const struct net_device_ops mon_netdev_ops = {
 	.ndo_start_xmit		= mon_xmit,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

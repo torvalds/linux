@@ -498,12 +498,6 @@ static struct drm_encoder *cirrus_connector_best_encoder(struct drm_connector
 	return NULL;
 }
 
-static enum drm_connector_status cirrus_vga_detect(struct drm_connector
-						   *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void cirrus_connector_destroy(struct drm_connector *connector)
 {
 	drm_connector_cleanup(connector);
@@ -517,7 +511,6 @@ static const struct drm_connector_helper_funcs cirrus_vga_connector_helper_funcs
 
 static const struct drm_connector_funcs cirrus_vga_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = cirrus_vga_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = cirrus_connector_destroy,
 };

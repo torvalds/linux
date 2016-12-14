@@ -182,9 +182,9 @@ void client_bulk_callback(lnet_event_t *ev)
 	struct ptlrpc_bulk_desc *desc = cbid->cbid_arg;
 	struct ptlrpc_request *req;
 
-	LASSERT((desc->bd_type == BULK_PUT_SINK &&
+	LASSERT((ptlrpc_is_bulk_put_sink(desc->bd_type) &&
 		 ev->type == LNET_EVENT_PUT) ||
-		(desc->bd_type == BULK_GET_SOURCE &&
+		(ptlrpc_is_bulk_get_source(desc->bd_type) &&
 		 ev->type == LNET_EVENT_GET) ||
 		ev->type == LNET_EVENT_UNLINK);
 	LASSERT(ev->unlinked);

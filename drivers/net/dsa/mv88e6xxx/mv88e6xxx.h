@@ -13,6 +13,7 @@
 #define __MV88E6XXX_H
 
 #include <linux/if_vlan.h>
+#include <linux/irq.h>
 #include <linux/gpio/consumer.h>
 
 #ifndef UINT64_MAX
@@ -60,20 +61,29 @@
 #define PORT_PCS_CTRL		0x01
 #define PORT_PCS_CTRL_RGMII_DELAY_RXCLK	BIT(15)
 #define PORT_PCS_CTRL_RGMII_DELAY_TXCLK	BIT(14)
+#define PORT_PCS_CTRL_FORCE_SPEED	BIT(13) /* 6390 */
+#define PORT_PCS_CTRL_ALTSPEED		BIT(12) /* 6390 */
+#define PORT_PCS_CTRL_200BASE		BIT(12) /* 6352 */
 #define PORT_PCS_CTRL_FC		BIT(7)
 #define PORT_PCS_CTRL_FORCE_FC		BIT(6)
 #define PORT_PCS_CTRL_LINK_UP		BIT(5)
 #define PORT_PCS_CTRL_FORCE_LINK	BIT(4)
 #define PORT_PCS_CTRL_DUPLEX_FULL	BIT(3)
 #define PORT_PCS_CTRL_FORCE_DUPLEX	BIT(2)
-#define PORT_PCS_CTRL_10		0x00
-#define PORT_PCS_CTRL_100		0x01
-#define PORT_PCS_CTRL_1000		0x02
-#define PORT_PCS_CTRL_UNFORCED		0x03
+#define PORT_PCS_CTRL_SPEED_MASK	(0x03)
+#define PORT_PCS_CTRL_SPEED_10		(0x00)
+#define PORT_PCS_CTRL_SPEED_100		(0x01)
+#define PORT_PCS_CTRL_SPEED_200		(0x02) /* 6065 and non Gb chips */
+#define PORT_PCS_CTRL_SPEED_1000	(0x02)
+#define PORT_PCS_CTRL_SPEED_10000	(0x03) /* 6390X */
+#define PORT_PCS_CTRL_SPEED_UNFORCED	(0x03)
 #define PORT_PAUSE_CTRL		0x02
+#define PORT_FLOW_CTRL_LIMIT_IN		((0x00 << 8) | BIT(15))
+#define PORT_FLOW_CTRL_LIMIT_OUT	((0x01 << 8) | BIT(15))
 #define PORT_SWITCH_ID		0x03
 #define PORT_SWITCH_ID_PROD_NUM_6085	0x04a
 #define PORT_SWITCH_ID_PROD_NUM_6095	0x095
+#define PORT_SWITCH_ID_PROD_NUM_6097	0x099
 #define PORT_SWITCH_ID_PROD_NUM_6131	0x106
 #define PORT_SWITCH_ID_PROD_NUM_6320	0x115
 #define PORT_SWITCH_ID_PROD_NUM_6123	0x121
@@ -84,11 +94,17 @@
 #define PORT_SWITCH_ID_PROD_NUM_6175	0x175
 #define PORT_SWITCH_ID_PROD_NUM_6176	0x176
 #define PORT_SWITCH_ID_PROD_NUM_6185	0x1a7
+#define PORT_SWITCH_ID_PROD_NUM_6190	0x190
+#define PORT_SWITCH_ID_PROD_NUM_6190X	0x0a0
+#define PORT_SWITCH_ID_PROD_NUM_6191	0x191
 #define PORT_SWITCH_ID_PROD_NUM_6240	0x240
+#define PORT_SWITCH_ID_PROD_NUM_6290	0x290
 #define PORT_SWITCH_ID_PROD_NUM_6321	0x310
 #define PORT_SWITCH_ID_PROD_NUM_6352	0x352
 #define PORT_SWITCH_ID_PROD_NUM_6350	0x371
 #define PORT_SWITCH_ID_PROD_NUM_6351	0x375
+#define PORT_SWITCH_ID_PROD_NUM_6390	0x390
+#define PORT_SWITCH_ID_PROD_NUM_6390X	0x0a1
 #define PORT_CONTROL		0x04
 #define PORT_CONTROL_USE_CORE_TAG	BIT(15)
 #define PORT_CONTROL_DROP_ON_LOCK	BIT(14)
@@ -96,6 +112,7 @@
 #define PORT_CONTROL_EGRESS_UNTAGGED	(0x1 << 12)
 #define PORT_CONTROL_EGRESS_TAGGED	(0x2 << 12)
 #define PORT_CONTROL_EGRESS_ADD_TAG	(0x3 << 12)
+#define PORT_CONTROL_EGRESS_MASK	(0x3 << 12)
 #define PORT_CONTROL_HEADER		BIT(11)
 #define PORT_CONTROL_IGMP_MLD_SNOOP	BIT(10)
 #define PORT_CONTROL_DOUBLE_TAG		BIT(9)
@@ -103,6 +120,7 @@
 #define PORT_CONTROL_FRAME_MODE_DSA		(0x1 << 8)
 #define PORT_CONTROL_FRAME_MODE_PROVIDER	(0x2 << 8)
 #define PORT_CONTROL_FRAME_ETHER_TYPE_DSA	(0x3 << 8)
+#define PORT_CONTROL_FRAME_MASK			(0x3 << 8)
 #define PORT_CONTROL_DSA_TAG		BIT(8)
 #define PORT_CONTROL_VLAN_TUNNEL	BIT(7)
 #define PORT_CONTROL_TAG_IF_BOTH	BIT(6)
@@ -110,6 +128,10 @@
 #define PORT_CONTROL_USE_TAG		BIT(4)
 #define PORT_CONTROL_FORWARD_UNKNOWN_MC	BIT(3)
 #define PORT_CONTROL_FORWARD_UNKNOWN	BIT(2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_DA		(0x0 << 2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_MULTICAST_DA	(0x1 << 2)
+#define PORT_CONTROL_NOT_EGRESS_UNKNOWN_UNITCAST_DA	(0x2 << 2)
+#define PORT_CONTROL_EGRESS_ALL_UNKNOWN_DA		(0x3 << 2)
 #define PORT_CONTROL_STATE_MASK		0x03
 #define PORT_CONTROL_STATE_DISABLED	0x00
 #define PORT_CONTROL_STATE_BLOCKING	0x01
@@ -158,15 +180,34 @@
 #define PORT_OUT_FILTERED	0x13
 #define PORT_TAG_REGMAP_0123	0x18
 #define PORT_TAG_REGMAP_4567	0x19
+#define PORT_IEEE_PRIO_MAP_TABLE	0x18    /* 6390 */
+#define PORT_IEEE_PRIO_MAP_TABLE_UPDATE		BIT(15)
+#define PORT_IEEE_PRIO_MAP_TABLE_INGRESS_PCP		(0x0 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_PCP	(0x1 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_PCP	(0x2 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_PCP		(0x3 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_GREEN_DSCP	(0x5 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_YELLOW_DSCP	(0x6 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_EGRESS_AVB_DSCP	(0x7 << 12)
+#define PORT_IEEE_PRIO_MAP_TABLE_POINTER_SHIFT		9
 
 #define GLOBAL_STATUS		0x00
 #define GLOBAL_STATUS_PPU_STATE BIT(15) /* 6351 and 6171 */
-/* Two bits for 6165, 6185 etc */
-#define GLOBAL_STATUS_PPU_MASK		(0x3 << 14)
-#define GLOBAL_STATUS_PPU_DISABLED_RST	(0x0 << 14)
-#define GLOBAL_STATUS_PPU_INITIALIZING	(0x1 << 14)
-#define GLOBAL_STATUS_PPU_DISABLED	(0x2 << 14)
-#define GLOBAL_STATUS_PPU_POLLING	(0x3 << 14)
+#define GLOBAL_STATUS_PPU_STATE_MASK		(0x3 << 14) /* 6165 6185 */
+#define GLOBAL_STATUS_PPU_STATE_DISABLED_RST	(0x0 << 14)
+#define GLOBAL_STATUS_PPU_STATE_INITIALIZING	(0x1 << 14)
+#define GLOBAL_STATUS_PPU_STATE_DISABLED	(0x2 << 14)
+#define GLOBAL_STATUS_PPU_STATE_POLLING		(0x3 << 14)
+#define GLOBAL_STATUS_INIT_READY	BIT(11)
+#define GLOBAL_STATUS_IRQ_AVB		8
+#define GLOBAL_STATUS_IRQ_DEVICE	7
+#define GLOBAL_STATUS_IRQ_STATS		6
+#define GLOBAL_STATUS_IRQ_VTU_PROBLEM	5
+#define GLOBAL_STATUS_IRQ_VTU_DONE	4
+#define GLOBAL_STATUS_IRQ_ATU_PROBLEM	3
+#define GLOBAL_STATUS_IRQ_ATU_DONE	2
+#define GLOBAL_STATUS_IRQ_TCAM_DONE	1
+#define GLOBAL_STATUS_IRQ_EEPROM_DONE	0
 #define GLOBAL_MAC_01		0x01
 #define GLOBAL_MAC_23		0x02
 #define GLOBAL_MAC_45		0x03
@@ -254,14 +295,27 @@
 #define GLOBAL_CORE_TAG_TYPE	0x19
 #define GLOBAL_MONITOR_CONTROL	0x1a
 #define GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT	12
+#define GLOBAL_MONITOR_CONTROL_INGRESS_MASK	(0xf << 12)
 #define GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT	8
+#define GLOBAL_MONITOR_CONTROL_EGRESS_MASK	(0xf << 8)
 #define GLOBAL_MONITOR_CONTROL_ARP_SHIFT	4
+#define GLOBAL_MONITOR_CONTROL_ARP_MASK	        (0xf << 4)
 #define GLOBAL_MONITOR_CONTROL_MIRROR_SHIFT	0
 #define GLOBAL_MONITOR_CONTROL_ARP_DISABLED	(0xf0)
+#define GLOBAL_MONITOR_CONTROL_UPDATE			BIT(15)
+#define GLOBAL_MONITOR_CONTROL_0180C280000000XLO	(0x00 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000000XHI	(0x01 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000002XLO	(0x02 << 8)
+#define GLOBAL_MONITOR_CONTROL_0180C280000002XHI	(0x03 << 8)
+#define GLOBAL_MONITOR_CONTROL_INGRESS			(0x20 << 8)
+#define GLOBAL_MONITOR_CONTROL_EGRESS			(0x21 << 8)
+#define GLOBAL_MONITOR_CONTROL_CPU_DEST			(0x30 << 8)
 #define GLOBAL_CONTROL_2	0x1c
 #define GLOBAL_CONTROL_2_NO_CASCADE		0xe000
 #define GLOBAL_CONTROL_2_MULTIPLE_CASCADE	0xf000
-
+#define GLOBAL_CONTROL_2_HIST_RX	       (0x1 << 6)
+#define GLOBAL_CONTROL_2_HIST_TX	       (0x2 << 6)
+#define GLOBAL_CONTROL_2_HIST_RX_TX	       (0x3 << 6)
 #define GLOBAL_STATS_OP		0x1d
 #define GLOBAL_STATS_OP_BUSY	BIT(15)
 #define GLOBAL_STATS_OP_NOP		(0 << 12)
@@ -272,7 +326,8 @@
 #define GLOBAL_STATS_OP_HIST_RX		((1 << 10) | GLOBAL_STATS_OP_BUSY)
 #define GLOBAL_STATS_OP_HIST_TX		((2 << 10) | GLOBAL_STATS_OP_BUSY)
 #define GLOBAL_STATS_OP_HIST_RX_TX	((3 << 10) | GLOBAL_STATS_OP_BUSY)
-#define GLOBAL_STATS_OP_BANK_1	BIT(9)
+#define GLOBAL_STATS_OP_BANK_1_BIT_9	BIT(9)
+#define GLOBAL_STATS_OP_BANK_1_BIT_10	BIT(10)
 #define GLOBAL_STATS_COUNTER_32	0x1e
 #define GLOBAL_STATS_COUNTER_01	0x1f
 
@@ -349,10 +404,18 @@
 
 #define MV88E6XXX_N_FID		4096
 
+enum mv88e6xxx_frame_mode {
+	MV88E6XXX_FRAME_MODE_NORMAL,
+	MV88E6XXX_FRAME_MODE_DSA,
+	MV88E6XXX_FRAME_MODE_PROVIDER,
+	MV88E6XXX_FRAME_MODE_ETHERTYPE,
+};
+
 /* List of supported models */
 enum mv88e6xxx_model {
 	MV88E6085,
 	MV88E6095,
+	MV88E6097,
 	MV88E6123,
 	MV88E6131,
 	MV88E6161,
@@ -362,12 +425,18 @@ enum mv88e6xxx_model {
 	MV88E6175,
 	MV88E6176,
 	MV88E6185,
+	MV88E6190,
+	MV88E6190X,
+	MV88E6191,
 	MV88E6240,
+	MV88E6290,
 	MV88E6320,
 	MV88E6321,
 	MV88E6350,
 	MV88E6351,
 	MV88E6352,
+	MV88E6390,
+	MV88E6390X,
 };
 
 enum mv88e6xxx_family {
@@ -380,15 +449,10 @@ enum mv88e6xxx_family {
 	MV88E6XXX_FAMILY_6320,	/* 6320 6321 */
 	MV88E6XXX_FAMILY_6351,	/* 6171 6175 6350 6351 */
 	MV88E6XXX_FAMILY_6352,	/* 6172 6176 6240 6352 */
+	MV88E6XXX_FAMILY_6390,  /* 6190 6190X 6191 6290 6390 6390X */
 };
 
 enum mv88e6xxx_cap {
-	/* Two different tag protocols can be used by the driver. All
-	 * switches support DSA, but only later generations support
-	 * EDSA.
-	 */
-	MV88E6XXX_CAP_EDSA,
-
 	/* Energy Efficient Ethernet.
 	 */
 	MV88E6XXX_CAP_EEE,
@@ -417,6 +481,7 @@ enum mv88e6xxx_cap {
 	 * The device contains a second set of global 16-bit registers.
 	 */
 	MV88E6XXX_CAP_GLOBAL2,
+	MV88E6XXX_CAP_G2_INT,		/* (0x00) Interrupt Status */
 	MV88E6XXX_CAP_G2_MGMT_EN_2X,	/* (0x02) MGMT Enable Register 2x */
 	MV88E6XXX_CAP_G2_MGMT_EN_0X,	/* (0x03) MGMT Enable Register 0x */
 	MV88E6XXX_CAP_G2_IRL_CMD,	/* (0x09) Ingress Rate Command */
@@ -424,12 +489,6 @@ enum mv88e6xxx_cap {
 	MV88E6XXX_CAP_G2_PVT_ADDR,	/* (0x0b) Cross Chip Port VLAN Addr */
 	MV88E6XXX_CAP_G2_PVT_DATA,	/* (0x0c) Cross Chip Port VLAN Data */
 	MV88E6XXX_CAP_G2_POT,		/* (0x0f) Priority Override Table */
-
-	/* PHY Polling Unit.
-	 * See GLOBAL_CONTROL_PPU_ENABLE and GLOBAL_STATUS_PPU_POLLING.
-	 */
-	MV88E6XXX_CAP_PPU,
-	MV88E6XXX_CAP_PPU_ACTIVE,
 
 	/* Per VLAN Spanning Tree Unit (STU).
 	 * The Port State database, if present, is accessed through VTU
@@ -450,7 +509,6 @@ enum mv88e6xxx_cap {
 };
 
 /* Bitmask of capabilities */
-#define MV88E6XXX_FLAG_EDSA		BIT_ULL(MV88E6XXX_CAP_EDSA)
 #define MV88E6XXX_FLAG_EEE		BIT_ULL(MV88E6XXX_CAP_EEE)
 
 #define MV88E6XXX_FLAG_SMI_CMD		BIT_ULL(MV88E6XXX_CAP_SMI_CMD)
@@ -464,6 +522,7 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_G1_VTU_FID	BIT_ULL(MV88E6XXX_CAP_G1_VTU_FID)
 
 #define MV88E6XXX_FLAG_GLOBAL2		BIT_ULL(MV88E6XXX_CAP_GLOBAL2)
+#define MV88E6XXX_FLAG_G2_INT		BIT_ULL(MV88E6XXX_CAP_G2_INT)
 #define MV88E6XXX_FLAG_G2_MGMT_EN_2X	BIT_ULL(MV88E6XXX_CAP_G2_MGMT_EN_2X)
 #define MV88E6XXX_FLAG_G2_MGMT_EN_0X	BIT_ULL(MV88E6XXX_CAP_G2_MGMT_EN_0X)
 #define MV88E6XXX_FLAG_G2_IRL_CMD	BIT_ULL(MV88E6XXX_CAP_G2_IRL_CMD)
@@ -472,8 +531,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAG_G2_PVT_DATA	BIT_ULL(MV88E6XXX_CAP_G2_PVT_DATA)
 #define MV88E6XXX_FLAG_G2_POT		BIT_ULL(MV88E6XXX_CAP_G2_POT)
 
-#define MV88E6XXX_FLAG_PPU		BIT_ULL(MV88E6XXX_CAP_PPU)
-#define MV88E6XXX_FLAG_PPU_ACTIVE	BIT_ULL(MV88E6XXX_CAP_PPU_ACTIVE)
 #define MV88E6XXX_FLAG_STU		BIT_ULL(MV88E6XXX_CAP_STU)
 #define MV88E6XXX_FLAG_TEMP		BIT_ULL(MV88E6XXX_CAP_TEMP)
 #define MV88E6XXX_FLAG_TEMP_LIMIT	BIT_ULL(MV88E6XXX_CAP_TEMP_LIMIT)
@@ -502,7 +559,6 @@ enum mv88e6xxx_cap {
 #define MV88E6XXX_FLAGS_FAMILY_6095	\
 	(MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_PPU |		\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_MULTI_CHIP)
 
@@ -513,7 +569,6 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_PPU |		\
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
@@ -524,6 +579,7 @@ enum mv88e6xxx_cap {
 	(MV88E6XXX_FLAG_G1_ATU_FID |	\
 	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_INT |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
@@ -536,19 +592,17 @@ enum mv88e6xxx_cap {
 
 #define MV88E6XXX_FLAGS_FAMILY_6185	\
 	(MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_INT |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
-	 MV88E6XXX_FLAG_PPU |		\
 	 MV88E6XXX_FLAG_VTU)
 
 #define MV88E6XXX_FLAGS_FAMILY_6320	\
-	(MV88E6XXX_FLAG_EDSA |		\
-	 MV88E6XXX_FLAG_EEE |		\
+	(MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
@@ -557,14 +611,13 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
-	(MV88E6XXX_FLAG_EDSA |		\
-	 MV88E6XXX_FLAG_G1_ATU_FID |	\
+	(MV88E6XXX_FLAG_G1_ATU_FID |	\
 	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_INT |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_VTU |		\
@@ -573,15 +626,14 @@ enum mv88e6xxx_cap {
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6352	\
-	(MV88E6XXX_FLAG_EDSA |		\
-	 MV88E6XXX_FLAG_EEE |		\
+	(MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_G1_ATU_FID |	\
 	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_G2_INT |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
@@ -593,6 +645,17 @@ enum mv88e6xxx_cap {
 
 struct mv88e6xxx_ops;
 
+#define MV88E6XXX_FLAGS_FAMILY_6390	\
+	(MV88E6XXX_FLAG_EEE |		\
+	 MV88E6XXX_FLAG_GLOBAL2 |	\
+	 MV88E6XXX_FLAG_STU |		\
+	 MV88E6XXX_FLAG_TEMP |		\
+	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
+	 MV88E6XXX_FLAG_VTU |		\
+	 MV88E6XXX_FLAGS_IRL |		\
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
+	 MV88E6XXX_FLAGS_PVT)
+
 struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
 	u16 prod_num;
@@ -602,6 +665,8 @@ struct mv88e6xxx_info {
 	unsigned int port_base_addr;
 	unsigned int global1_addr;
 	unsigned int age_time_coeff;
+	unsigned int g1_irqs;
+	enum dsa_tag_protocol tag_protocol;
 	unsigned long long flags;
 	const struct mv88e6xxx_ops *ops;
 };
@@ -626,6 +691,13 @@ struct mv88e6xxx_bus_ops;
 
 struct mv88e6xxx_priv_port {
 	struct net_device *bridge_dev;
+};
+
+struct mv88e6xxx_irq {
+	u16 masked;
+	struct irq_chip chip;
+	struct irq_domain *domain;
+	unsigned int nirqs;
 };
 
 struct mv88e6xxx_chip {
@@ -677,6 +749,14 @@ struct mv88e6xxx_chip {
 
 	/* And the MDIO bus itself */
 	struct mii_bus *mdio_bus;
+
+	/* There can be two interrupt controllers, which are chained
+	 * off a GPIO as interrupt source
+	 */
+	struct mv88e6xxx_irq g1_irq;
+	struct mv88e6xxx_irq g2_irq;
+	int irq;
+	int device_irq;
 };
 
 struct mv88e6xxx_bus_ops {
@@ -696,19 +776,93 @@ struct mv88e6xxx_ops {
 			u16 *val);
 	int (*phy_write)(struct mv88e6xxx_chip *chip, int addr, int reg,
 			 u16 val);
+
+	/* PHY Polling Unit (PPU) operations */
+	int (*ppu_enable)(struct mv88e6xxx_chip *chip);
+	int (*ppu_disable)(struct mv88e6xxx_chip *chip);
+
+	/* Switch Software Reset */
+	int (*reset)(struct mv88e6xxx_chip *chip);
+
+	/* RGMII Receive/Transmit Timing Control
+	 * Add delay on PHY_INTERFACE_MODE_RGMII_*ID, no delay otherwise.
+	 */
+	int (*port_set_rgmii_delay)(struct mv88e6xxx_chip *chip, int port,
+				    phy_interface_t mode);
+
+#define LINK_FORCED_DOWN	0
+#define LINK_FORCED_UP		1
+#define LINK_UNFORCED		-2
+
+	/* Port's MAC link state
+	 * Use LINK_FORCED_UP or LINK_FORCED_DOWN to force link up or down,
+	 * or LINK_UNFORCED for normal link detection.
+	 */
+	int (*port_set_link)(struct mv88e6xxx_chip *chip, int port, int link);
+
+#define DUPLEX_UNFORCED		-2
+
+	/* Port's MAC duplex mode
+	 *
+	 * Use DUPLEX_HALF or DUPLEX_FULL to force half or full duplex,
+	 * or DUPLEX_UNFORCED for normal duplex detection.
+	 */
+	int (*port_set_duplex)(struct mv88e6xxx_chip *chip, int port, int dup);
+
+#define SPEED_MAX		INT_MAX
+#define SPEED_UNFORCED		-2
+
+	/* Port's MAC speed (in Mbps)
+	 *
+	 * Depending on the chip, 10, 100, 200, 1000, 2500, 10000 are valid.
+	 * Use SPEED_UNFORCED for normal detection, SPEED_MAX for max value.
+	 */
+	int (*port_set_speed)(struct mv88e6xxx_chip *chip, int port, int speed);
+
+	int (*port_tag_remap)(struct mv88e6xxx_chip *chip, int port);
+
+	int (*port_set_frame_mode)(struct mv88e6xxx_chip *chip, int port,
+				   enum mv88e6xxx_frame_mode mode);
+	int (*port_set_egress_unknowns)(struct mv88e6xxx_chip *chip, int port,
+					bool on);
+	int (*port_set_ether_type)(struct mv88e6xxx_chip *chip, int port,
+				   u16 etype);
+	int (*port_jumbo_config)(struct mv88e6xxx_chip *chip, int port);
+
+	int (*port_egress_rate_limiting)(struct mv88e6xxx_chip *chip, int port);
+	int (*port_pause_config)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Snapshot the statistics for a port. The statistics can then
+	 * be read back a leisure but still with a consistent view.
+	 */
+	int (*stats_snapshot)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Set the histogram mode for statistics, when the control registers
+	 * are separated out of the STATS_OP register.
+	 */
+	int (*stats_set_histogram)(struct mv88e6xxx_chip *chip);
+
+	/* Return the number of strings describing statistics */
+	int (*stats_get_sset_count)(struct mv88e6xxx_chip *chip);
+	void (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
+	void (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
+				uint64_t *data);
+	int (*g1_set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
+	int (*g1_set_egress_port)(struct mv88e6xxx_chip *chip, int port);
+
+	/* Can be either in g1 or g2, so don't use a prefix */
+	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 };
 
-enum stat_type {
-	BANK0,
-	BANK1,
-	PORT,
-};
+#define STATS_TYPE_PORT		BIT(0)
+#define STATS_TYPE_BANK0	BIT(1)
+#define STATS_TYPE_BANK1	BIT(2)
 
 struct mv88e6xxx_hw_stat {
 	char string[ETH_GSTRING_LEN];
 	int sizeof_stat;
 	int reg;
-	enum stat_type type;
+	int type;
 };
 
 static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,

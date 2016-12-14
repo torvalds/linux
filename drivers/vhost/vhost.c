@@ -261,8 +261,8 @@ void vhost_work_queue(struct vhost_dev *dev, struct vhost_work *work)
 	if (!test_and_set_bit(VHOST_WORK_QUEUED, &work->flags)) {
 		/* We can only add the work to the list after we're
 		 * sure it was not in the list.
+		 * test_and_set_bit() implies a memory barrier.
 		 */
-		smp_mb();
 		llist_add(&work->node, &dev->work_list);
 		wake_up_process(dev->worker);
 	}

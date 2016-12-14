@@ -39,6 +39,7 @@ auo	AU Optronics Corporation
 auvidea Auvidea GmbH
 avago	Avago Technologies
 avic	Shanghai AVIC Optoelectronics Co., Ltd.
+axentia	Axentia Technologies AB
 axis	Axis Communications AB
 boe	BOE Technology Group Co., Ltd.
 bosch	Bosch Sensortec GmbH
@@ -126,6 +127,7 @@ hitex	Hitex Development Tools
 holt	Holt Integrated Circuits, Inc.
 honeywell	Honeywell
 hp	Hewlett Packard
+holtek	Holtek Semiconductor, Inc.
 i2se	I2SE GmbH
 ibm	International Business Machines (IBM)
 idt	Integrated Device Technologies, Inc.
@@ -160,16 +162,19 @@ lltc	Linear Technology Corporation
 lsi	LSI Corp. (LSI Logic)
 marvell	Marvell Technology Group Ltd.
 maxim	Maxim Integrated Products
+mcube	mCube
 meas	Measurement Specialties
 mediatek	MediaTek Inc.
 melexis	Melexis N.V.
 melfas	MELFAS Inc.
+memsic	MEMSIC Inc.
 merrii	Merrii Technology Co., Ltd.
 micrel	Micrel Inc.
 microchip	Microchip Technology Inc.
 microcrystal	Micro Crystal AG
 micron	Micron Technology Inc.
 minix	MINIX Technology Ltd.
+miramems	MiraMEMS Sensing Technology Co., Ltd.
 mitsubishi	Mitsubishi Electric Corporation
 mosaixtech	Mosaix Technologies, Inc.
 moxa	Moxa
@@ -187,6 +192,7 @@ netgear	NETGEAR
 netlogic	Broadcom Corporation (formerly NetLogic Microsystems)
 netxeon		Shenzhen Netxeon Technology CO., LTD
 newhaven	Newhaven Display International
+nvd	New Vision Display
 nintendo	Nintendo
 nokia	Nokia
 nuvoton	Nuvoton Technology Corporation

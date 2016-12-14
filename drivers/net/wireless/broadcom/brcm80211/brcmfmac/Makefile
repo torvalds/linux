@@ -35,7 +35,8 @@ brcmfmac-objs += \
 		firmware.o \
 		feature.o \
 		btcoex.o \
-		vendor.o
+		vendor.o \
+		pno.o
 brcmfmac-$(CONFIG_BRCMFMAC_PROTO_BCDC) += \
 		bcdc.o
 brcmfmac-$(CONFIG_BRCMFMAC_PROTO_MSGBUF) += \

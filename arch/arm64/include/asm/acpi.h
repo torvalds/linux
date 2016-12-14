@@ -17,6 +17,7 @@
 
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
+#include <asm/tlbflush.h>
 
 /* Macros for consistency checks of the GICC subtable of MADT */
 #define ACPI_MADT_GICC_LENGTH	\
@@ -114,8 +115,28 @@ static inline const char *acpi_get_enable_method(int cpu)
 }
 
 #ifdef	CONFIG_ACPI_APEI
+/*
+ * acpi_disable_cmcff is used in drivers/acpi/apei/hest.c for disabling
+ * IA-32 Architecture Corrected Machine Check (CMC) Firmware-First mode
+ * with a kernel command line parameter "acpi=nocmcoff". But we don't
+ * have this IA-32 specific feature on ARM64, this definition is only
+ * for compatibility.
+ */
+#define acpi_disable_cmcff 1
 pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
-#endif
+
+/*
+ * Despite its name, this function must still broadcast the TLB
+ * invalidation in order to ensure other CPUs don't end up with junk
+ * entries as a result of speculation. Unusually, its also called in
+ * IRQ context (ghes_iounmap_irq) so if we ever need to use IPIs for
+ * TLB broadcasting, then we're in trouble here.
+ */
+static inline void arch_apei_flush_tlb_one(unsigned long addr)
+{
+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
+}
+#endif /* CONFIG_ACPI_APEI */
 
 #ifdef CONFIG_ACPI_NUMA
 int arm64_acpi_numa_init(void);

@@ -381,7 +381,7 @@ static char *uuid_read(struct cache_set *c, struct jset *j, struct closure *cl)
 		return "bad uuid pointer";
 
 	bkey_copy(&c->uuid_bucket, k);
-	uuid_io(c, REQ_OP_READ, READ_SYNC, k, cl);
+	uuid_io(c, REQ_OP_READ, 0, k, cl);
 
 	if (j->version < BCACHE_JSET_VERSION_UUIDv1) {
 		struct uuid_entry_v0	*u0 = (void *) c->uuids;
@@ -600,7 +600,7 @@ static void prio_read(struct cache *ca, uint64_t bucket)
 			ca->prio_last_buckets[bucket_nr] = bucket;
 			bucket_nr++;
 
-			prio_io(ca, bucket, REQ_OP_READ, READ_SYNC);
+			prio_io(ca, bucket, REQ_OP_READ, 0);
 
 			if (p->csum != bch_crc64(&p->magic, bucket_bytes(ca) - 8))
 				pr_warn("bad csum reading priorities");
@@ -1152,9 +1152,7 @@ static void register_bdev(struct cache_sb *sb, struct page *sb_page,
 	dc->bdev = bdev;
 	dc->bdev->bd_holder = dc;
 
-	bio_init(&dc->sb_bio);
-	dc->sb_bio.bi_max_vecs	= 1;
-	dc->sb_bio.bi_io_vec	= dc->sb_bio.bi_inline_vecs;
+	bio_init(&dc->sb_bio, dc->sb_bio.bi_inline_vecs, 1);
 	dc->sb_bio.bi_io_vec[0].bv_page = sb_page;
 	get_page(sb_page);
 
@@ -1814,9 +1812,7 @@ static int cache_alloc(struct cache *ca)
 	__module_get(THIS_MODULE);
 	kobject_init(&ca->kobj, &bch_cache_ktype);
 
-	bio_init(&ca->journal.bio);
-	ca->journal.bio.bi_max_vecs = 8;
-	ca->journal.bio.bi_io_vec = ca->journal.bio.bi_inline_vecs;
+	bio_init(&ca->journal.bio, ca->journal.bio.bi_inline_vecs, 8);
 
 	free = roundup_pow_of_two(ca->sb.nbuckets) >> 10;
 
@@ -1852,9 +1848,7 @@ static int register_cache(struct cache_sb *sb, struct page *sb_page,
 	ca->bdev = bdev;
 	ca->bdev->bd_holder = ca;
 
-	bio_init(&ca->sb_bio);
-	ca->sb_bio.bi_max_vecs	= 1;
-	ca->sb_bio.bi_io_vec	= ca->sb_bio.bi_inline_vecs;
+	bio_init(&ca->sb_bio, ca->sb_bio.bi_inline_vecs, 1);
 	ca->sb_bio.bi_io_vec[0].bv_page = sb_page;
 	get_page(sb_page);
 

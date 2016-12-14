@@ -15,6 +15,7 @@
 #include <linux/buffer_head.h>
 #include <linux/capability.h>
 #include <linux/bitops.h>
+#include <linux/bio.h>
 #include <asm/byteorder.h>
 
 #include "ufs_fs.h"

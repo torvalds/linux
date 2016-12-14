@@ -815,7 +815,6 @@ static const struct net_device_ops meth_netdev_ops = {
 	.ndo_start_xmit		= meth_tx,
 	.ndo_do_ioctl		= meth_ioctl,
 	.ndo_tx_timeout		= meth_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_set_rx_mode    	= meth_set_rx_mode,

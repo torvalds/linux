@@ -179,7 +179,8 @@ int ttm_eu_reserve_buffers(struct ww_acquire_ctx *ticket,
 EXPORT_SYMBOL(ttm_eu_reserve_buffers);
 
 void ttm_eu_fence_buffer_objects(struct ww_acquire_ctx *ticket,
-				 struct list_head *list, struct fence *fence)
+				 struct list_head *list,
+				 struct dma_fence *fence)
 {
 	struct ttm_validate_buffer *entry;
 	struct ttm_buffer_object *bo;

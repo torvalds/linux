@@ -139,8 +139,6 @@ struct rx_pkt_attrib {
 #define SN_EQUAL(a, b)	(a == b)
 #define REORDER_WAIT_TIME	(50) /*  (ms) */
 
-#define RECVBUFF_ALIGN_SZ 8
-
 #define RXDESC_SIZE	24
 #define RXDESC_OFFSET RXDESC_SIZE
 
@@ -166,9 +164,7 @@ struct recv_priv {
 	struct __queue free_recv_queue;
 	struct __queue recv_pending_queue;
 	struct __queue uc_swdec_pending_queue;
-	u8 *pallocated_frame_buf;
-	u8 *precv_frame_buf;
-	uint free_recvframe_cnt;
+	void *pallocated_frame_buf;
 	struct adapter	*adapter;
 	u32	bIsAnyNonBEPkts;
 	u64	rx_bytes;
@@ -176,17 +172,12 @@ struct recv_priv {
 	u64	rx_drop;
 	u64	last_rx_bytes;
 
-	uint	ff_hwaddr;
-	u8	rx_pending_cnt;
-
 	struct tasklet_struct irq_prepare_beacon_tasklet;
 	struct tasklet_struct recv_tasklet;
 	struct sk_buff_head free_recv_skb_queue;
 	struct sk_buff_head rx_skb_queue;
-	u8 *pallocated_recv_buf;
-	u8 *precv_buf;    /*  4 alignment */
+	struct recv_buf *precv_buf;    /*  4 alignment */
 	struct __queue free_recv_buf_queue;
-	u32	free_recv_buf_queue_cnt;
 	/* For display the phy informatiom */
 	u8 is_signal_dbg;	/*  for debug */
 	u8 signal_strength_dbg;	/*  for debug */

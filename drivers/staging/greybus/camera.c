@@ -289,6 +289,7 @@ static const int gb_camera_configure_streams_validate_response(
 
 	for (i = 0; i < resp->num_streams; i++) {
 		struct gb_camera_stream_config_response *cfg = &resp->config[i];
+
 		if (cfg->padding) {
 			gcam_err(gcam, "stream #%u padding != 0\n", i);
 			return -EIO;
@@ -796,7 +797,7 @@ static int gb_camera_op_configure_streams(void *priv, unsigned int *nstreams,
 	if (gb_nstreams > GB_CAMERA_MAX_STREAMS)
 		return -EINVAL;
 
-	gb_streams = kzalloc(gb_nstreams * sizeof(*gb_streams), GFP_KERNEL);
+	gb_streams = kcalloc(gb_nstreams, sizeof(*gb_streams), GFP_KERNEL);
 	if (!gb_streams)
 		return -ENOMEM;
 
@@ -937,7 +938,7 @@ static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
 		return ret;
 
 	/* For each stream to configure parse width, height and format */
-	streams = kzalloc(nstreams * sizeof(*streams), GFP_KERNEL);
+	streams = kcalloc(nstreams, sizeof(*streams), GFP_KERNEL);
 	if (!streams)
 		return -ENOMEM;
 
@@ -1118,7 +1119,7 @@ static ssize_t gb_camera_debugfs_write(struct file *file,
 	char *kbuf;
 
 	if (len > 1024)
-	       return -EINVAL;
+		return -EINVAL;
 
 	kbuf = kmalloc(len + 1, GFP_KERNEL);
 	if (!kbuf)

@@ -342,7 +342,7 @@ static inline void *lock_slot(struct address_space *mapping, void **slot)
 		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
 
 	entry |= RADIX_DAX_ENTRY_LOCK;
-	radix_tree_replace_slot(slot, (void *)entry);
+	radix_tree_replace_slot(&mapping->page_tree, slot, (void *)entry);
 	return (void *)entry;
 }
 
@@ -356,7 +356,7 @@ static inline void *unlock_slot(struct address_space *mapping, void **slot)
 		radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
 
 	entry &= ~(unsigned long)RADIX_DAX_ENTRY_LOCK;
-	radix_tree_replace_slot(slot, (void *)entry);
+	radix_tree_replace_slot(&mapping->page_tree, slot, (void *)entry);
 	return (void *)entry;
 }
 
@@ -643,12 +643,14 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
 		}
 		mapping->nrexceptional++;
 	} else {
+		struct radix_tree_node *node;
 		void **slot;
 		void *ret;
 
-		ret = __radix_tree_lookup(page_tree, index, NULL, &slot);
+		ret = __radix_tree_lookup(page_tree, index, &node, &slot);
 		WARN_ON_ONCE(ret != entry);
-		radix_tree_replace_slot(slot, new_entry);
+		__radix_tree_replace(page_tree, node, slot,
+				     new_entry, NULL, NULL);
 	}
 	if (vmf->flags & FAULT_FLAG_WRITE)
 		radix_tree_tag_set(page_tree, index, PAGECACHE_TAG_DIRTY);

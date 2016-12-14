@@ -388,14 +388,6 @@ static void xfrm_state_gc_task(struct work_struct *work)
 		xfrm_state_gc_destroy(x);
 }
 
-static inline unsigned long make_jiffies(long secs)
-{
-	if (secs >= (MAX_SCHEDULE_TIMEOUT-1)/HZ)
-		return MAX_SCHEDULE_TIMEOUT-1;
-	else
-		return secs*HZ;
-}
-
 static enum hrtimer_restart xfrm_timer_handler(struct hrtimer *me)
 {
 	struct tasklet_hrtimer *thr = container_of(me, struct tasklet_hrtimer, timer);

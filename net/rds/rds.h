@@ -151,6 +151,9 @@ struct rds_connection {
 
 	struct rds_conn_path	c_path[RDS_MPATH_WORKERS];
 	wait_queue_head_t	c_hs_waitq; /* handshake waitq */
+
+	u32			c_my_gen_num;
+	u32			c_peer_gen_num;
 };
 
 static inline
@@ -243,7 +246,8 @@ struct rds_ext_header_rdma_dest {
 /* Extension header announcing number of paths.
  * Implicit length = 2 bytes.
  */
-#define RDS_EXTHDR_NPATHS	4
+#define RDS_EXTHDR_NPATHS	5
+#define RDS_EXTHDR_GEN_NUM	6
 
 #define __RDS_EXTHDR_MAX	16 /* for now */
 
@@ -338,6 +342,7 @@ static inline u32 rds_rdma_cookie_offset(rds_rdma_cookie_t cookie)
 #define RDS_MSG_RETRANSMITTED	5
 #define RDS_MSG_MAPPED		6
 #define RDS_MSG_PAGEVEC		7
+#define RDS_MSG_FLUSH		8
 
 struct rds_message {
 	atomic_t		m_refcount;
@@ -664,6 +669,7 @@ void rds_cong_exit(void);
 struct rds_message *rds_cong_update_alloc(struct rds_connection *conn);
 
 /* conn.c */
+extern u32 rds_gen_num;
 int rds_conn_init(void);
 void rds_conn_exit(void);
 struct rds_connection *rds_conn_create(struct net *net,
@@ -683,10 +689,6 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 			  struct rds_info_lengths *lens,
 			  int (*visitor)(struct rds_connection *, void *),
 			  size_t item_len);
-__printf(2, 3)
-void __rds_conn_error(struct rds_connection *conn, const char *, ...);
-#define rds_conn_error(conn, fmt...) \
-	__rds_conn_error(conn, KERN_WARNING "RDS: " fmt)
 
 __printf(2, 3)
 void __rds_conn_path_error(struct rds_conn_path *cp, const char *, ...);

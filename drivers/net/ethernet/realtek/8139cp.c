@@ -1277,10 +1277,6 @@ static int cp_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct cp_private *cp = netdev_priv(dev);
 
-	/* check for invalid MTU, according to hardware limits */
-	if (new_mtu < CP_MIN_MTU || new_mtu > CP_MAX_MTU)
-		return -EINVAL;
-
 	/* if network interface not up, no need for complexity */
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
@@ -2009,6 +2005,10 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 		NETIF_F_HIGHDMA;
+
+	/* MTU range: 60 - 4096 */
+	dev->min_mtu = CP_MIN_MTU;
+	dev->max_mtu = CP_MAX_MTU;
 
 	rc = register_netdev(dev);
 	if (rc)

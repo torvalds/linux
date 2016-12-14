@@ -53,57 +53,37 @@ static struct bman_portal *init_pcfg(struct bm_portal_config *pcfg)
 	return p;
 }
 
-static void bman_offline_cpu(unsigned int cpu)
+static int bman_offline_cpu(unsigned int cpu)
 {
 	struct bman_portal *p = affine_bportals[cpu];
 	const struct bm_portal_config *pcfg;
 
 	if (!p)
-		return;
+		return 0;
 
 	pcfg = bman_get_bm_portal_config(p);
 	if (!pcfg)
-		return;
+		return 0;
 
 	irq_set_affinity(pcfg->irq, cpumask_of(0));
+	return 0;
 }
 
-static void bman_online_cpu(unsigned int cpu)
+static int bman_online_cpu(unsigned int cpu)
 {
 	struct bman_portal *p = affine_bportals[cpu];
 	const struct bm_portal_config *pcfg;
 
 	if (!p)
-		return;
+		return 0;
 
 	pcfg = bman_get_bm_portal_config(p);
 	if (!pcfg)
-		return;
+		return 0;
 
 	irq_set_affinity(pcfg->irq, cpumask_of(cpu));
+	return 0;
 }
-
-static int bman_hotplug_cpu_callback(struct notifier_block *nfb,
-				     unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		bman_online_cpu(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
-		bman_offline_cpu(cpu);
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block bman_hotplug_cpu_notifier = {
-	.notifier_call = bman_hotplug_cpu_callback,
-};
 
 static int bman_portal_probe(struct platform_device *pdev)
 {
@@ -210,8 +190,14 @@ static int __init bman_portal_driver_register(struct platform_driver *drv)
 	if (ret < 0)
 		return ret;
 
-	register_hotcpu_notifier(&bman_hotplug_cpu_notifier);
-
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"soc/qbman_portal:online",
+					bman_online_cpu, bman_offline_cpu);
+	if (ret < 0) {
+		pr_err("bman: failed to register hotplug callbacks.\n");
+		platform_driver_unregister(drv);
+		return ret;
+	}
 	return 0;
 }
 

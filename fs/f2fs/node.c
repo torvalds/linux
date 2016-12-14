@@ -1134,7 +1134,7 @@ repeat:
 	if (!page)
 		return ERR_PTR(-ENOMEM);
 
-	err = read_node_page(page, READ_SYNC);
+	err = read_node_page(page, 0);
 	if (err < 0) {
 		f2fs_put_page(page, 1);
 		return ERR_PTR(err);
@@ -1570,7 +1570,7 @@ static int f2fs_write_node_page(struct page *page,
 		.sbi = sbi,
 		.type = NODE,
 		.op = REQ_OP_WRITE,
-		.op_flags = (wbc->sync_mode == WB_SYNC_ALL) ? WRITE_SYNC : 0,
+		.op_flags = wbc_to_write_flags(wbc),
 		.page = page,
 		.encrypted_page = NULL,
 	};

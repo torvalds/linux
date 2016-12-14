@@ -266,7 +266,7 @@ static void ffs_ep0_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct ffs_data *ffs = req->context;
 
-	complete_all(&ffs->ep0req_completion);
+	complete(&ffs->ep0req_completion);
 }
 
 static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)

@@ -2,7 +2,7 @@
  * NVIDIA Tegra DRM GEM helper functions
  *
  * Copyright (C) 2012 Sascha Hauer, Pengutronix
- * Copyright (C) 2013 NVIDIA CORPORATION, All rights reserved.
+ * Copyright (C) 2013-2015 NVIDIA CORPORATION, All rights reserved.
  *
  * Based on the GEM/CMA helpers
  *
@@ -36,6 +36,8 @@ static dma_addr_t tegra_bo_pin(struct host1x_bo *bo, struct sg_table **sgt)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
+	*sgt = obj->sgt;
+
 	return obj->paddr;
 }
 
@@ -47,23 +49,51 @@ static void *tegra_bo_mmap(struct host1x_bo *bo)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
-	return obj->vaddr;
+	if (obj->vaddr)
+		return obj->vaddr;
+	else if (obj->gem.import_attach)
+		return dma_buf_vmap(obj->gem.import_attach->dmabuf);
+	else
+		return vmap(obj->pages, obj->num_pages, VM_MAP,
+			    pgprot_writecombine(PAGE_KERNEL));
 }
 
 static void tegra_bo_munmap(struct host1x_bo *bo, void *addr)
 {
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+
+	if (obj->vaddr)
+		return;
+	else if (obj->gem.import_attach)
+		dma_buf_vunmap(obj->gem.import_attach->dmabuf, addr);
+	else
+		vunmap(addr);
 }
 
 static void *tegra_bo_kmap(struct host1x_bo *bo, unsigned int page)
 {
 	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
 
-	return obj->vaddr + page * PAGE_SIZE;
+	if (obj->vaddr)
+		return obj->vaddr + page * PAGE_SIZE;
+	else if (obj->gem.import_attach)
+		return dma_buf_kmap(obj->gem.import_attach->dmabuf, page);
+	else
+		return vmap(obj->pages + page, 1, VM_MAP,
+			    pgprot_writecombine(PAGE_KERNEL));
 }
 
 static void tegra_bo_kunmap(struct host1x_bo *bo, unsigned int page,
 			    void *addr)
 {
+	struct tegra_bo *obj = host1x_to_tegra_bo(bo);
+
+	if (obj->vaddr)
+		return;
+	else if (obj->gem.import_attach)
+		dma_buf_kunmap(obj->gem.import_attach->dmabuf, page, addr);
+	else
+		vunmap(addr);
 }
 
 static struct host1x_bo *tegra_bo_get(struct host1x_bo *bo)
@@ -318,11 +348,6 @@ static struct tegra_bo *tegra_bo_import(struct drm_device *drm,
 	get_dma_buf(buf);
 
 	bo->sgt = dma_buf_map_attachment(attach, DMA_TO_DEVICE);
-	if (!bo->sgt) {
-		err = -ENOMEM;
-		goto detach;
-	}
-
 	if (IS_ERR(bo->sgt)) {
 		err = PTR_ERR(bo->sgt);
 		goto detach;

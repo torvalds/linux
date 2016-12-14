@@ -1722,10 +1722,8 @@ _WPAPtk_end_case_:
 
 	case PMKSA:
 		pu8keybuf = kmalloc((pstrHostIFkeyAttr->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1, GFP_KERNEL);
-		if (!pu8keybuf) {
-			netdev_err(vif->ndev, "No buffer to send PMKSA Key\n");
+		if (!pu8keybuf)
 			return -ENOMEM;
-		}
 
 		pu8keybuf[0] = pstrHostIFkeyAttr->attr.pmkid.numpmkid;
 
@@ -1932,7 +1930,7 @@ static s32 Handle_Get_InActiveTime(struct wilc_vif *vif,
 	wid.val = kmalloc(wid.size, GFP_KERNEL);
 
 	stamac = wid.val;
-	memcpy(stamac, strHostIfStaInactiveT->mac, ETH_ALEN);
+	ether_addr_copy(stamac, strHostIfStaInactiveT->mac);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2168,7 +2166,7 @@ static void Handle_DelStation(struct wilc_vif *vif,
 
 	pu8CurrByte = wid.val;
 
-	memcpy(pu8CurrByte, pstrDelStaParam->mac_addr, ETH_ALEN);
+	ether_addr_copy(pu8CurrByte, pstrDelStaParam->mac_addr);
 
 	result = wilc_send_config_pkt(vif, SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -2322,10 +2320,8 @@ static u32 Handle_ListenStateExpired(struct wilc_vif *vif,
 		wid.size = 2;
 		wid.val = kmalloc(wid.size, GFP_KERNEL);
 
-		if (!wid.val) {
-			netdev_err(vif->ndev, "Failed to allocate memory\n");
+		if (!wid.val)
 			return -ENOMEM;
-		}
 
 		wid.val[0] = u8remain_on_chan_flag;
 		wid.val[1] = FALSE_FRMWR_CHANNEL;

@@ -39,6 +39,9 @@ struct malidp_plane_state {
 
 	/* size of the required rotation memory if plane is rotated */
 	u32 rotmem_size;
+	/* internal format ID */
+	u8 format;
+	u8 n_planes;
 };
 
 #define to_malidp_plane(x) container_of(x, struct malidp_plane, base)

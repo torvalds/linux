@@ -75,7 +75,7 @@ do {									\
 
 #define KLASSERT(e) LASSERT(e)
 
-void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *);
+void __noreturn lbug_with_loc(struct libcfs_debug_msg_data *msg);
 
 #define LBUG()							  \
 do {								    \
@@ -96,7 +96,7 @@ do {									    \
 
 #define LIBCFS_ALLOC_POST(ptr, size)					    \
 do {									    \
-	if (unlikely((ptr) == NULL)) {					    \
+	if (unlikely(!(ptr))) {						    \
 		CERROR("LNET: out of memory at %s:%d (tried to alloc '"	    \
 		       #ptr "' = %d)\n", __FILE__, __LINE__, (int)(size));  \
 	} else {							    \
@@ -147,7 +147,7 @@ do {									    \
 
 #define LIBCFS_FREE(ptr, size)					  \
 do {								    \
-	if (unlikely((ptr) == NULL)) {				  \
+	if (unlikely(!(ptr))) {						\
 		CERROR("LIBCFS: free NULL '" #ptr "' (%d bytes) at "    \
 		       "%s:%d\n", (int)(size), __FILE__, __LINE__);	\
 		break;						  \
@@ -169,8 +169,6 @@ do {								    \
 #define ntohs(x) ___ntohs(x)
 #endif
 
-void libcfs_run_upcall(char **argv);
-void libcfs_run_lbug_upcall(struct libcfs_debug_msg_data *);
 void libcfs_debug_dumplog(void);
 int libcfs_debug_init(unsigned long bufsize);
 int libcfs_debug_cleanup(void);
@@ -280,7 +278,7 @@ do {							    \
 #define CFS_FREE_PTR(ptr)       LIBCFS_FREE(ptr, sizeof(*(ptr)))
 
 /** Compile-time assertion.
-
+ *
  * Check an invariant described by a constant expression at compile time by
  * forcing a compiler error if it does not hold.  \a cond must be a constant
  * expression as defined by the ISO C Standard:
@@ -306,7 +304,8 @@ do {							    \
 /* --------------------------------------------------------------------
  * Light-weight trace
  * Support for temporary event tracing with minimal Heisenberg effect.
- * -------------------------------------------------------------------- */
+ * --------------------------------------------------------------------
+ */
 
 #define MKSTR(ptr) ((ptr)) ? (ptr) : ""
 

@@ -108,13 +108,13 @@ void dmam_free_coherent(struct device *dev, size_t size, void *vaddr,
 EXPORT_SYMBOL(dmam_free_coherent);
 
 /**
- * dmam_alloc_non_coherent - Managed dma_alloc_non_coherent()
+ * dmam_alloc_non_coherent - Managed dma_alloc_noncoherent()
  * @dev: Device to allocate non_coherent memory for
  * @size: Size of allocation
  * @dma_handle: Out argument for allocated DMA handle
  * @gfp: Allocation flags
  *
- * Managed dma_alloc_non_coherent().  Memory allocated using this
+ * Managed dma_alloc_noncoherent().  Memory allocated using this
  * function will be automatically released on driver detach.
  *
  * RETURNS:

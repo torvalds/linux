@@ -262,7 +262,7 @@ static void mlxsw_hwmon_attr_add(struct mlxsw_hwmon *mlxsw_hwmon,
 
 static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon *mlxsw_hwmon)
 {
-	char mtcap_pl[MLXSW_REG_MTCAP_LEN];
+	char mtcap_pl[MLXSW_REG_MTCAP_LEN] = {0};
 	char mtmp_pl[MLXSW_REG_MTMP_LEN];
 	u8 sensor_count;
 	int i;
@@ -295,7 +295,7 @@ static int mlxsw_hwmon_temp_init(struct mlxsw_hwmon *mlxsw_hwmon)
 
 static int mlxsw_hwmon_fans_init(struct mlxsw_hwmon *mlxsw_hwmon)
 {
-	char mfcr_pl[MLXSW_REG_MFCR_LEN];
+	char mfcr_pl[MLXSW_REG_MFCR_LEN] = {0};
 	enum mlxsw_reg_mfcr_pwm_frequency freq;
 	unsigned int type_index;
 	unsigned int num;

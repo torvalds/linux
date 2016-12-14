@@ -302,7 +302,7 @@ static int xenvif_close(struct net_device *dev)
 static int xenvif_change_mtu(struct net_device *dev, int mtu)
 {
 	struct xenvif *vif = netdev_priv(dev);
-	int max = vif->can_sg ? 65535 - VLAN_ETH_HLEN : ETH_DATA_LEN;
+	int max = vif->can_sg ? ETH_MAX_MTU - VLAN_ETH_HLEN : ETH_DATA_LEN;
 
 	if (mtu > max)
 		return -EINVAL;
@@ -470,6 +470,9 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 	dev->ethtool_ops = &xenvif_ethtool_ops;
 
 	dev->tx_queue_len = XENVIF_QUEUE_LENGTH;
+
+	dev->min_mtu = 0;
+	dev->max_mtu = ETH_MAX_MTU - VLAN_ETH_HLEN;
 
 	/*
 	 * Initialise a dummy MAC address. We choose the numerically
