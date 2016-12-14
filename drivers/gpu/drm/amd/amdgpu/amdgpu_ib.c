@@ -222,6 +222,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return r;
 	}
 
+	if (ring->funcs->insert_end)
+		ring->funcs->insert_end(ring);
+
 	/* wrap the last IB with fence */
 	if (job && job->uf_addr) {
 		amdgpu_ring_emit_fence(ring, job->uf_addr, job->uf_sequence,
