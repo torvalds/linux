@@ -77,7 +77,7 @@ menu "Machine selection"
 
 choice
 	prompt "System type"
-	default SGI_IP22
+	default MIPS_GENERIC
 
 config MIPS_GENERIC
 	bool "Generic board-agnostic MIPS kernel"
