@@ -348,38 +348,40 @@ static u32 vc4_get_fifo_full_level(u32 format)
 }
 
 /*
- * Returns the clock select bit for the connector attached to the
- * CRTC.
+ * Returns the encoder attached to the CRTC.
+ *
+ * VC4 can only scan out to one encoder at a time, while the DRM core
+ * allows drivers to push pixels to more than one encoder from the
+ * same CRTC.
  */
-static int vc4_get_clock_select(struct drm_crtc *crtc)
+static struct drm_encoder *vc4_get_crtc_encoder(struct drm_crtc *crtc)
 {
 	struct drm_connector *connector;
 
 	drm_for_each_connector(connector, crtc->dev) {
 		if (connector->state->crtc == crtc) {
-			struct drm_encoder *encoder = connector->encoder;
-			struct vc4_encoder *vc4_encoder =
-				to_vc4_encoder(encoder);
-
-			return vc4_encoder->clock_select;
+			return connector->encoder;
 		}
 	}
 
-	return -1;
+	return NULL;
 }
 
 static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct drm_encoder *encoder = vc4_get_crtc_encoder(crtc);
+	struct vc4_encoder *vc4_encoder = to_vc4_encoder(encoder);
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 	struct drm_crtc_state *state = crtc->state;
 	struct drm_display_mode *mode = &state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
 	u32 pixel_rep = (mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1;
-	u32 format = PV_CONTROL_FORMAT_24;
+	bool is_dsi = (vc4_encoder->type == VC4_ENCODER_TYPE_DSI0 ||
+		       vc4_encoder->type == VC4_ENCODER_TYPE_DSI1);
+	u32 format = is_dsi ? PV_CONTROL_FORMAT_DSIV_24 : PV_CONTROL_FORMAT_24;
 	bool debug_dump_regs = false;
-	int clock_select = vc4_get_clock_select(crtc);
 
 	if (debug_dump_regs) {
 		DRM_INFO("CRTC %d regs before:\n", drm_crtc_index(crtc));
@@ -435,16 +437,18 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		 */
 		CRTC_WRITE(PV_V_CONTROL,
 			   PV_VCONTROL_CONTINUOUS |
+			   (is_dsi ? PV_VCONTROL_DSI : 0) |
 			   PV_VCONTROL_INTERLACE |
 			   VC4_SET_FIELD(mode->htotal * pixel_rep / 2,
 					 PV_VCONTROL_ODD_DELAY));
 		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
 	} else {
-		CRTC_WRITE(PV_V_CONTROL, PV_VCONTROL_CONTINUOUS);
+		CRTC_WRITE(PV_V_CONTROL,
+			   PV_VCONTROL_CONTINUOUS |
+			   (is_dsi ? PV_VCONTROL_DSI : 0));
 	}
 
 	CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
-
 
 	CRTC_WRITE(PV_CONTROL,
 		   VC4_SET_FIELD(format, PV_CONTROL_FORMAT) |
@@ -454,7 +458,8 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		   PV_CONTROL_CLR_AT_START |
 		   PV_CONTROL_TRIGGER_UNDERFLOW |
 		   PV_CONTROL_WAIT_HSTART |
-		   VC4_SET_FIELD(clock_select, PV_CONTROL_CLK_SELECT) |
+		   VC4_SET_FIELD(vc4_encoder->clock_select,
+				 PV_CONTROL_CLK_SELECT) |
 		   PV_CONTROL_FIFO_CLR |
 		   PV_CONTROL_EN);
 
