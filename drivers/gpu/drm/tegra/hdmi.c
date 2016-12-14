@@ -11,6 +11,7 @@
 #include <linux/debugfs.h>
 #include <linux/gpio.h>
 #include <linux/hdmi.h>
+#include <linux/math64.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -115,66 +116,9 @@ static inline void tegra_hdmi_writel(struct tegra_hdmi *hdmi, u32 value,
 }
 
 struct tegra_hdmi_audio_config {
-	unsigned int pclk;
 	unsigned int n;
 	unsigned int cts;
 	unsigned int aval;
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_32k[] = {
-	{  25200000, 4096,  25200, 24000 },
-	{  27000000, 4096,  27000, 24000 },
-	{  74250000, 4096,  74250, 24000 },
-	{ 148500000, 4096, 148500, 24000 },
-	{         0,    0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_44_1k[] = {
-	{  25200000, 5880,  26250, 25000 },
-	{  27000000, 5880,  28125, 25000 },
-	{  74250000, 4704,  61875, 20000 },
-	{ 148500000, 4704, 123750, 20000 },
-	{         0,    0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_48k[] = {
-	{  25200000, 6144,  25200, 24000 },
-	{  27000000, 6144,  27000, 24000 },
-	{  74250000, 6144,  74250, 24000 },
-	{ 148500000, 6144, 148500, 24000 },
-	{         0,    0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_88_2k[] = {
-	{  25200000, 11760,  26250, 25000 },
-	{  27000000, 11760,  28125, 25000 },
-	{  74250000,  9408,  61875, 20000 },
-	{ 148500000,  9408, 123750, 20000 },
-	{         0,     0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_96k[] = {
-	{  25200000, 12288,  25200, 24000 },
-	{  27000000, 12288,  27000, 24000 },
-	{  74250000, 12288,  74250, 24000 },
-	{ 148500000, 12288, 148500, 24000 },
-	{         0,     0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_176_4k[] = {
-	{  25200000, 23520,  26250, 25000 },
-	{  27000000, 23520,  28125, 25000 },
-	{  74250000, 18816,  61875, 20000 },
-	{ 148500000, 18816, 123750, 20000 },
-	{         0,     0,      0,     0 },
-};
-
-static const struct tegra_hdmi_audio_config tegra_hdmi_audio_192k[] = {
-	{  25200000, 24576,  25200, 24000 },
-	{  27000000, 24576,  27000, 24000 },
-	{  74250000, 24576,  74250, 24000 },
-	{ 148500000, 24576, 148500, 24000 },
-	{         0,     0,      0,     0 },
 };
 
 static const struct tmds_config tegra20_tmds_config[] = {
@@ -414,52 +358,53 @@ static const struct tmds_config tegra124_tmds_config[] = {
 	},
 };
 
-static const struct tegra_hdmi_audio_config *
-tegra_hdmi_get_audio_config(unsigned int sample_rate, unsigned int pclk)
+static int
+tegra_hdmi_get_audio_config(unsigned int audio_freq, unsigned int pix_clock,
+			    struct tegra_hdmi_audio_config *config)
 {
-	const struct tegra_hdmi_audio_config *table;
+	const unsigned int afreq = 128 * audio_freq;
+	const unsigned int min_n = afreq / 1500;
+	const unsigned int max_n = afreq / 300;
+	const unsigned int ideal_n = afreq / 1000;
+	int64_t min_err = (uint64_t)-1 >> 1;
+	unsigned int min_delta = -1;
+	int n;
 
-	switch (sample_rate) {
-	case 32000:
-		table = tegra_hdmi_audio_32k;
-		break;
+	memset(config, 0, sizeof(*config));
+	config->n = -1;
 
-	case 44100:
-		table = tegra_hdmi_audio_44_1k;
-		break;
+	for (n = min_n; n <= max_n; n++) {
+		uint64_t cts_f, aval_f;
+		unsigned int delta;
+		int64_t cts, err;
 
-	case 48000:
-		table = tegra_hdmi_audio_48k;
-		break;
+		/* compute aval in 48.16 fixed point */
+		aval_f = ((int64_t)24000000 << 16) * n;
+		do_div(aval_f, afreq);
+		/* It should round without any rest */
+		if (aval_f & 0xFFFF)
+			continue;
 
-	case 88200:
-		table = tegra_hdmi_audio_88_2k;
-		break;
+		/* Compute cts in 48.16 fixed point */
+		cts_f = ((int64_t)pix_clock << 16) * n;
+		do_div(cts_f, afreq);
+		/* Round it to the nearest integer */
+		cts = (cts_f & ~0xFFFF) + ((cts_f & BIT(15)) << 1);
 
-	case 96000:
-		table = tegra_hdmi_audio_96k;
-		break;
+		delta = abs(n - ideal_n);
 
-	case 176400:
-		table = tegra_hdmi_audio_176_4k;
-		break;
-
-	case 192000:
-		table = tegra_hdmi_audio_192k;
-		break;
-
-	default:
-		return NULL;
+		/* Compute the absolute error */
+		err = abs((int64_t)cts_f - cts);
+		if (err < min_err || (err == min_err && delta < min_delta)) {
+			config->n = n;
+			config->cts = cts >> 16;
+			config->aval = aval_f >> 16;
+			min_delta = delta;
+			min_err = err;
+		}
 	}
 
-	while (table->pclk) {
-		if (table->pclk == pclk)
-			return table;
-
-		table++;
-	}
-
-	return NULL;
+	return config->n != -1 ? 0 : -EINVAL;
 }
 
 static void tegra_hdmi_setup_audio_fs_tables(struct tegra_hdmi *hdmi)
@@ -515,8 +460,9 @@ static void tegra_hdmi_write_aval(struct tegra_hdmi *hdmi, u32 value)
 
 static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 {
-	const struct tegra_hdmi_audio_config *config;
+	struct tegra_hdmi_audio_config config;
 	u32 source, value;
+	int err;
 
 	switch (hdmi->audio_source) {
 	case HDA:
@@ -591,25 +537,28 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 		tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_SOR_AUDIO_SPARE0);
 	}
 
-	config = tegra_hdmi_get_audio_config(hdmi->format.sample_rate,
-					     hdmi->pixel_clock);
-	if (!config) {
+	err = tegra_hdmi_get_audio_config(hdmi->format.sample_rate,
+					  hdmi->pixel_clock, &config);
+	if (err < 0) {
 		dev_err(hdmi->dev,
 			"cannot set audio to %u Hz at %u Hz pixel clock\n",
 			hdmi->format.sample_rate, hdmi->pixel_clock);
-		return -EINVAL;
+		return err;
 	}
+
+	dev_dbg(hdmi->dev, "audio: pixclk=%u, n=%u, cts=%u, aval=%u\n",
+		hdmi->pixel_clock, config.n, config.cts, config.aval);
 
 	tegra_hdmi_writel(hdmi, 0, HDMI_NV_PDISP_HDMI_ACR_CTRL);
 
 	value = AUDIO_N_RESETF | AUDIO_N_GENERATE_ALTERNATE |
-		AUDIO_N_VALUE(config->n - 1);
+		AUDIO_N_VALUE(config.n - 1);
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_AUDIO_N);
 
-	tegra_hdmi_writel(hdmi, ACR_SUBPACK_N(config->n) | ACR_ENABLE,
+	tegra_hdmi_writel(hdmi, ACR_SUBPACK_N(config.n) | ACR_ENABLE,
 			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_HIGH);
 
-	tegra_hdmi_writel(hdmi, ACR_SUBPACK_CTS(config->cts),
+	tegra_hdmi_writel(hdmi, ACR_SUBPACK_CTS(config.cts),
 			  HDMI_NV_PDISP_HDMI_ACR_0441_SUBPACK_LOW);
 
 	value = SPARE_HW_CTS | SPARE_FORCE_SW_CTS | SPARE_CTS_RESET_VAL(1);
@@ -620,7 +569,7 @@ static int tegra_hdmi_setup_audio(struct tegra_hdmi *hdmi)
 	tegra_hdmi_writel(hdmi, value, HDMI_NV_PDISP_AUDIO_N);
 
 	if (hdmi->config->has_hda)
-		tegra_hdmi_write_aval(hdmi, config->aval);
+		tegra_hdmi_write_aval(hdmi, config.aval);
 
 	tegra_hdmi_setup_audio_fs_tables(hdmi);
 
