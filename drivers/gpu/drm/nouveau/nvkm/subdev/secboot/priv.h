@@ -214,46 +214,39 @@ struct flcn_u64 {
 	u32 lo;
 	u32 hi;
 };
+
 static inline u64 flcn64_to_u64(const struct flcn_u64 f)
 {
 	return ((u64)f.hi) << 32 | f.lo;
 }
 
-/**
- * struct gm200_flcn_bl_desc - DMEM bootloader descriptor
- * @signature:		16B signature for secure code. 0s if no secure code
- * @ctx_dma:		DMA context to be used by BL while loading code/data
- * @code_dma_base:	256B-aligned Physical FB Address where code is located
- *			(falcon's $xcbase register)
- * @non_sec_code_off:	offset from code_dma_base where the non-secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @non_sec_code_size:	the size of the nonSecure code part.
- * @sec_code_off:	offset from code_dma_base where the secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @sec_code_size:	offset from code_dma_base where the secure code is
- *                      located. The offset must be multiple of 256 to help perf
- * @code_entry_point:	code entry point which will be invoked by BL after
- *                      code is loaded.
- * @data_dma_base:	256B aligned Physical FB Address where data is located.
- *			(falcon's $xdbase register)
- * @data_size:		size of data block. Should be multiple of 256B
- *
- * Structure used by the bootloader to load the rest of the code. This has
- * to be filled by host and copied into DMEM at offset provided in the
- * hsflcn_bl_desc.bl_desc_dmem_load_off.
- */
-struct gm200_flcn_bl_desc {
-	u32 reserved[4];
-	u32 signature[4];
-	u32 ctx_dma;
-	struct flcn_u64 code_dma_base;
-	u32 non_sec_code_off;
-	u32 non_sec_code_size;
+static inline struct flcn_u64 u64_to_flcn64(u64 u)
+{
+	struct flcn_u64 ret;
+
+	ret.hi = upper_32_bits(u);
+	ret.lo = lower_32_bits(u);
+
+	return ret;
+}
+
+#define GM200_ACR_MAX_APPS 8
+
+struct hsf_load_header_app {
 	u32 sec_code_off;
 	u32 sec_code_size;
-	u32 code_entry_point;
-	struct flcn_u64 data_dma_base;
+};
+
+/**
+ * struct hsf_load_header - HS firmware load header
+ */
+struct hsf_load_header {
+	u32 non_sec_code_off;
+	u32 non_sec_code_size;
+	u32 data_dma_base;
 	u32 data_size;
+	u32 num_apps;
+	struct hsf_load_header_app app[0];
 };
 
 /**
@@ -319,11 +312,17 @@ struct gm200_secboot {
 	 * on Tegra the HS FW copies the LS blob into the fixed WPR instead
 	 */
 	struct nvkm_gpuobj *acr_load_blob;
-	struct gm200_flcn_bl_desc acr_load_bl_desc;
+	struct {
+		struct hsf_load_header load_bl_header;
+		struct hsf_load_header_app __load_apps[GM200_ACR_MAX_APPS];
+	};
 
 	/* HS FW - unlock WPR region (dGPU only) */
 	struct nvkm_gpuobj *acr_unload_blob;
-	struct gm200_flcn_bl_desc acr_unload_bl_desc;
+	struct {
+		struct hsf_load_header unload_bl_header;
+		struct hsf_load_header_app __unload_apps[GM200_ACR_MAX_APPS];
+	};
 
 	/* HS bootloader */
 	void *hsbl_blob;
@@ -353,9 +352,9 @@ struct gm200_secboot {
 /**
  * Contains functions we wish to abstract between GM200-like implementations
  * @bl_desc_size:	size of the BL descriptor used by this chip.
- * @fixup_bl_desc:	hook that generates the proper BL descriptor format from
- *			the generic GM200 format into a data array of size
- *			bl_desc_size
+ * @generate_bl_desc:	hook that generates the proper BL descriptor format from
+ *			the hsf_load_header format into a preallocated array of
+ *			size bl_desc_size
  * @prepare_blobs:	prepares the various blobs needed for secure booting
  */
 struct gm200_secboot_func {
@@ -365,7 +364,7 @@ struct gm200_secboot_func {
 	 * callback is called on it
 	 */
 	u32 bl_desc_size;
-	void (*fixup_bl_desc)(const struct gm200_flcn_bl_desc *, void *);
+	void (*generate_bl_desc)(const struct hsf_load_header *, void *, u64);
 
 	int (*prepare_blobs)(struct gm200_secboot *);
 };

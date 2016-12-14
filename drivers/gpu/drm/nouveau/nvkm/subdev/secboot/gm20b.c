@@ -88,41 +88,28 @@ gm20b_secboot_prepare_blobs(struct gm200_secboot *gsb)
 	return 0;
 }
 
-/**
- * gm20b_secboot_fixup_bl_desc - adapt BL descriptor to format used by GM20B FW
- *
- * There is only a slight format difference (DMA addresses being 32-bits and
- * 256B-aligned) to address.
- */
 static void
-gm20b_secboot_fixup_bl_desc(const struct gm200_flcn_bl_desc *desc, void *ret)
+gm20b_secboot_generate_bl_desc(const struct hsf_load_header *load_hdr,
+			       void *_bl_desc, u64 offset)
 {
-	struct gm20b_flcn_bl_desc *gdesc = ret;
-	u64 addr;
+	struct gm20b_flcn_bl_desc *bl_desc = _bl_desc;
 
-	memcpy(gdesc->reserved, desc->reserved, sizeof(gdesc->reserved));
-	memcpy(gdesc->signature, desc->signature, sizeof(gdesc->signature));
-	gdesc->ctx_dma = desc->ctx_dma;
-	addr = desc->code_dma_base.hi;
-	addr <<= 32;
-	addr |= desc->code_dma_base.lo;
-	gdesc->code_dma_base = lower_32_bits(addr >> 8);
-	gdesc->non_sec_code_off = desc->non_sec_code_off;
-	gdesc->non_sec_code_size = desc->non_sec_code_size;
-	gdesc->sec_code_off = desc->sec_code_off;
-	gdesc->sec_code_size = desc->sec_code_size;
-	gdesc->code_entry_point = desc->code_entry_point;
-	addr = desc->data_dma_base.hi;
-	addr <<= 32;
-	addr |= desc->data_dma_base.lo;
-	gdesc->data_dma_base = lower_32_bits(addr >> 8);
-	gdesc->data_size = desc->data_size;
+	memset(bl_desc, 0, sizeof(*bl_desc));
+	bl_desc->ctx_dma = FALCON_DMAIDX_VIRT;
+	bl_desc->non_sec_code_off = load_hdr->non_sec_code_off;
+	bl_desc->non_sec_code_size = load_hdr->non_sec_code_size;
+	bl_desc->sec_code_off = load_hdr->app[0].sec_code_off;
+	bl_desc->sec_code_size = load_hdr->app[0].sec_code_size;
+	bl_desc->code_entry_point = 0;
+	bl_desc->code_dma_base = offset >> 8;
+	bl_desc->data_dma_base = (offset + load_hdr->data_dma_base) >> 8;
+	bl_desc->data_size = load_hdr->data_size;
 }
 
 static const struct gm200_secboot_func
 gm20b_secboot_func = {
 	.bl_desc_size = sizeof(struct gm20b_flcn_bl_desc),
-	.fixup_bl_desc = gm20b_secboot_fixup_bl_desc,
+	.generate_bl_desc = gm20b_secboot_generate_bl_desc,
 	.prepare_blobs = gm20b_secboot_prepare_blobs,
 };
 

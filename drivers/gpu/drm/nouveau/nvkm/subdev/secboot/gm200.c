@@ -175,20 +175,44 @@ struct hsf_fw_header {
 	u32 hdr_size;
 };
 
+
 /**
- * struct hsf_load_header - HS firmware load header
+ * struct gm200_flcn_bl_desc - DMEM bootloader descriptor
+ * @signature:		16B signature for secure code. 0s if no secure code
+ * @ctx_dma:		DMA context to be used by BL while loading code/data
+ * @code_dma_base:	256B-aligned Physical FB Address where code is located
+ *			(falcon's $xcbase register)
+ * @non_sec_code_off:	offset from code_dma_base where the non-secure code is
+ *                      located. The offset must be multiple of 256 to help perf
+ * @non_sec_code_size:	the size of the nonSecure code part.
+ * @sec_code_off:	offset from code_dma_base where the secure code is
+ *                      located. The offset must be multiple of 256 to help perf
+ * @sec_code_size:	offset from code_dma_base where the secure code is
+ *                      located. The offset must be multiple of 256 to help perf
+ * @code_entry_point:	code entry point which will be invoked by BL after
+ *                      code is loaded.
+ * @data_dma_base:	256B aligned Physical FB Address where data is located.
+ *			(falcon's $xdbase register)
+ * @data_size:		size of data block. Should be multiple of 256B
+ *
+ * Structure used by the bootloader to load the rest of the code. This has
+ * to be filled by host and copied into DMEM at offset provided in the
+ * hsflcn_bl_desc.bl_desc_dmem_load_off.
  */
-struct hsf_load_header {
+struct gm200_flcn_bl_desc {
+	u32 reserved[4];
+	u32 signature[4];
+	u32 ctx_dma;
+	struct flcn_u64 code_dma_base;
 	u32 non_sec_code_off;
 	u32 non_sec_code_size;
-	u32 data_dma_base;
+	u32 sec_code_off;
+	u32 sec_code_size;
+	u32 code_entry_point;
+	struct flcn_u64 data_dma_base;
 	u32 data_size;
-	u32 num_apps;
-	struct {
-		u32 sec_code_off;
-		u32 sec_code_size;
-	} app[0];
 };
+
 
 /**
  * Convenience function to duplicate a firmware file in memory and check that
@@ -740,39 +764,6 @@ gm200_secboot_hsf_patch_signature(struct gm200_secboot *gsb, void *acr_image)
 }
 
 /**
- * gm200_secboot_populate_hsf_bl_desc() - populate BL descriptor for HS image
- */
-static void
-gm200_secboot_populate_hsf_bl_desc(void *acr_image,
-				   struct gm200_flcn_bl_desc *bl_desc)
-{
-	struct fw_bin_header *hsbin_hdr = acr_image;
-	struct hsf_fw_header *fw_hdr = acr_image + hsbin_hdr->header_offset;
-	struct hsf_load_header *load_hdr = acr_image + fw_hdr->hdr_offset;
-
-	/*
-	 * Descriptor for the bootloader that will load the ACR image into
-	 * IMEM/DMEM memory.
-	 */
-	fw_hdr = acr_image + hsbin_hdr->header_offset;
-	load_hdr = acr_image + fw_hdr->hdr_offset;
-	memset(bl_desc, 0, sizeof(*bl_desc));
-	bl_desc->ctx_dma = FALCON_DMAIDX_VIRT;
-	bl_desc->non_sec_code_off = load_hdr->non_sec_code_off;
-	bl_desc->non_sec_code_size = load_hdr->non_sec_code_size;
-	bl_desc->sec_code_off = load_hdr->app[0].sec_code_off;
-	bl_desc->sec_code_size = load_hdr->app[0].sec_code_size;
-	bl_desc->code_entry_point = 0;
-	/*
-	 * We need to set code_dma_base to the virtual address of the acr_blob,
-	 * and add this address to data_dma_base before writing it into DMEM
-	 */
-	bl_desc->code_dma_base.lo = 0;
-	bl_desc->data_dma_base.lo = load_hdr->data_dma_base;
-	bl_desc->data_size = load_hdr->data_size;
-}
-
-/**
  * struct hsflcn_acr_desc - data section of the HS firmware
  *
  * This header is to be copied at the beginning of DMEM by the HS bootloader.
@@ -847,37 +838,44 @@ gm200_secboot_fixup_hs_desc(struct gm200_secboot *gsb,
 static int
 gm200_secboot_prepare_hs_blob(struct gm200_secboot *gsb, const char *fw,
 			      struct nvkm_gpuobj **blob,
-			      struct gm200_flcn_bl_desc *bl_desc, bool patch)
+			      struct hsf_load_header *load_header, bool patch)
 {
 	struct nvkm_subdev *subdev = &gsb->base.subdev;
 	void *acr_image;
 	struct fw_bin_header *hsbin_hdr;
 	struct hsf_fw_header *fw_hdr;
-	void *acr_data;
 	struct hsf_load_header *load_hdr;
-	struct hsflcn_acr_desc *desc;
+	void *acr_data;
 	int ret;
 
 	acr_image = gm200_secboot_load_firmware(subdev, fw, 0);
 	if (IS_ERR(acr_image))
 		return PTR_ERR(acr_image);
+
 	hsbin_hdr = acr_image;
+	fw_hdr = acr_image + hsbin_hdr->header_offset;
+	load_hdr = acr_image + fw_hdr->hdr_offset;
+	acr_data = acr_image + hsbin_hdr->data_offset;
 
 	/* Patch signature */
 	gm200_secboot_hsf_patch_signature(gsb, acr_image);
 
-	acr_data = acr_image + hsbin_hdr->data_offset;
-
 	/* Patch descriptor with WPR information? */
 	if (patch) {
-		fw_hdr = acr_image + hsbin_hdr->header_offset;
-		load_hdr = acr_image + fw_hdr->hdr_offset;
+		struct hsflcn_acr_desc *desc;
+
 		desc = acr_data + load_hdr->data_dma_base;
 		gm200_secboot_fixup_hs_desc(gsb, desc);
 	}
 
-	/* Generate HS BL descriptor */
-	gm200_secboot_populate_hsf_bl_desc(acr_image, bl_desc);
+	if (load_hdr->num_apps > GM200_ACR_MAX_APPS) {
+		nvkm_error(subdev, "more apps (%d) than supported (%d)!",
+			   load_hdr->num_apps, GM200_ACR_MAX_APPS);
+		ret = -EINVAL;
+		goto cleanup;
+	}
+	memcpy(load_header, load_hdr, sizeof(*load_header) +
+			       (sizeof(load_hdr->app[0]) * load_hdr->num_apps));
 
 	/* Create ACR blob and copy HS data to it */
 	ret = nvkm_gpuobj_new(subdev->device, ALIGN(hsbin_hdr->data_size, 256),
@@ -938,7 +936,7 @@ gm20x_secboot_prepare_blobs(struct gm200_secboot *gsb)
 	if (!gsb->acr_load_blob) {
 		ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_load",
 						&gsb->acr_load_blob,
-						&gsb->acr_load_bl_desc, true);
+						&gsb->load_bl_header, true);
 		if (ret)
 			return ret;
 	}
@@ -966,7 +964,7 @@ gm200_secboot_prepare_blobs(struct gm200_secboot *gsb)
 	if (!gsb->acr_unload_blob) {
 		ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_unload",
 					       &gsb->acr_unload_blob,
-					       &gsb->acr_unload_bl_desc, false);
+					       &gsb->unload_bl_header, false);
 		if (ret)
 			return ret;
 	}
@@ -1037,8 +1035,7 @@ gm200_secboot_load_hs_bl(struct gm200_secboot *gsb, struct nvkm_falcon *falcon,
  * gm200_secboot_run_hs_blob() - run the given high-secure blob
  */
 static int
-gm200_secboot_run_hs_blob(struct gm200_secboot *gsb, struct nvkm_gpuobj *blob,
-			  struct gm200_flcn_bl_desc *desc)
+gm200_secboot_run_hs_blob(struct gm200_secboot *gsb, struct nvkm_gpuobj *blob)
 {
 	struct nvkm_subdev *subdev = &gsb->base.subdev;
 	struct fw_bin_header *hdr = gsb->hsbl_blob;
@@ -1046,10 +1043,21 @@ gm200_secboot_run_hs_blob(struct gm200_secboot *gsb, struct nvkm_gpuobj *blob,
 	struct nvkm_falcon *falcon = gsb->base.boot_falcon;
 	const u32 virt_addr = hsbl_desc->start_tag << 8;
 	const u32 bl_desc_size = gsb->func->bl_desc_size;
+	const struct hsf_load_header *load_hdr;
 	u8 bl_desc[bl_desc_size];
 	struct nvkm_vma vma;
-	u64 vma_addr;
 	int ret;
+
+	/* Find the bootloader descriptor for our blob and copy it */
+	if (blob == gsb->acr_load_blob) {
+		load_hdr = &gsb->load_bl_header;
+
+	} else if (blob == gsb->acr_unload_blob) {
+		load_hdr = &gsb->unload_bl_header;
+	} else {
+		nvkm_error(&gsb->base.subdev, "invalid secure boot blob!\n");
+		return -EINVAL;
+	}
 
 	ret = nvkm_falcon_get(falcon, subdev);
 	if (ret)
@@ -1062,21 +1070,13 @@ gm200_secboot_run_hs_blob(struct gm200_secboot *gsb, struct nvkm_gpuobj *blob,
 		return ret;
 	}
 
-	/* Add the mapping address to the DMA bases */
-	vma_addr = flcn64_to_u64(desc->code_dma_base) + vma.offset;
-	desc->code_dma_base.lo = lower_32_bits(vma_addr);
-	desc->code_dma_base.hi = upper_32_bits(vma_addr);
-	vma_addr = flcn64_to_u64(desc->data_dma_base) + vma.offset;
-	desc->data_dma_base.lo = lower_32_bits(vma_addr);
-	desc->data_dma_base.hi = upper_32_bits(vma_addr);
-
-	/* Fixup the BL header */
-	gsb->func->fixup_bl_desc(desc, &bl_desc);
+	/* Generate the BL header */
+	gsb->func->generate_bl_desc(load_hdr, bl_desc, vma.offset);
 
 	/* Reset and set the falcon up */
 	ret = nvkm_falcon_reset(falcon);
 	if (ret)
-		goto done;
+		goto end;
 	nvkm_falcon_bind_context(falcon, gsb->inst);
 
 	/* Load the HS bootloader into the falcon's IMEM/DMEM */
@@ -1087,25 +1087,17 @@ gm200_secboot_run_hs_blob(struct gm200_secboot *gsb, struct nvkm_gpuobj *blob,
 	nvkm_falcon_start(falcon);
 	ret = nvkm_falcon_wait_for_halt(falcon, 100);
 	if (ret)
-		goto done;
+		goto end;
 
 	/* If mailbox register contains an error code, then ACR has failed */
 	ret = nvkm_falcon_rd32(falcon, 0x040);
 	if (ret) {
 		nvkm_error(subdev, "ACR boot failed, ret 0x%08x", ret);
 		ret = -EINVAL;
-		goto done;
+		goto end;
 	}
 
-done:
-	/* Restore the original DMA addresses */
-	vma_addr = flcn64_to_u64(desc->code_dma_base) - vma.offset;
-	desc->code_dma_base.lo = lower_32_bits(vma_addr);
-	desc->code_dma_base.hi = upper_32_bits(vma_addr);
-	vma_addr = flcn64_to_u64(desc->data_dma_base) - vma.offset;
-	desc->data_dma_base.lo = lower_32_bits(vma_addr);
-	desc->data_dma_base.hi = upper_32_bits(vma_addr);
-
+end:
 	/* We don't need the ACR firmware anymore */
 	nvkm_gpuobj_unmap(&vma);
 	nvkm_falcon_put(falcon, subdev);
@@ -1145,15 +1137,13 @@ gm200_secboot_reset(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
 	/* If WPR is set and we have an unload blob, run it to unlock WPR */
 	if (gsb->acr_unload_blob &&
 	    gsb->falcon_state[NVKM_SECBOOT_FALCON_FECS] != NON_SECURE) {
-		ret = gm200_secboot_run_hs_blob(gsb, gsb->acr_unload_blob,
-						&gsb->acr_unload_bl_desc);
+		ret = gm200_secboot_run_hs_blob(gsb, gsb->acr_unload_blob);
 		if (ret)
 			return ret;
 	}
 
 	/* Reload all managed falcons */
-	ret = gm200_secboot_run_hs_blob(gsb, gsb->acr_load_blob,
-					&gsb->acr_load_bl_desc);
+	ret = gm200_secboot_run_hs_blob(gsb, gsb->acr_load_blob);
 	if (ret)
 		return ret;
 
@@ -1211,8 +1201,7 @@ gm200_secboot_fini(struct nvkm_secboot *sb, bool suspend)
 	/* Run the unload blob to unprotect the WPR region */
 	if (gsb->acr_unload_blob &&
 	    gsb->falcon_state[NVKM_SECBOOT_FALCON_FECS] != NON_SECURE)
-		ret = gm200_secboot_run_hs_blob(gsb, gsb->acr_unload_blob,
-						&gsb->acr_unload_bl_desc);
+		ret = gm200_secboot_run_hs_blob(gsb, gsb->acr_unload_blob);
 
 	for (i = 0; i < NVKM_SECBOOT_FALCON_END; i++)
 		gsb->falcon_state[i] = NON_SECURE;
@@ -1250,21 +1239,29 @@ gm200_secboot = {
 	.boot_falcon = NVKM_SECBOOT_FALCON_PMU,
 };
 
-/**
- * gm200_fixup_bl_desc - just copy the BL descriptor
- *
- * Use the GM200 descriptor format by default.
- */
 static void
-gm200_secboot_fixup_bl_desc(const struct gm200_flcn_bl_desc *desc, void *ret)
+gm200_secboot_generate_bl_desc(const struct hsf_load_header *hdr,
+			       void *_bl_desc, u64 offset)
 {
-	memcpy(ret, desc, sizeof(*desc));
+	struct gm200_flcn_bl_desc *bl_desc = _bl_desc;
+
+	memset(bl_desc, 0, sizeof(*bl_desc));
+	bl_desc->ctx_dma = FALCON_DMAIDX_VIRT;
+	bl_desc->non_sec_code_off = hdr->non_sec_code_off;
+	bl_desc->non_sec_code_size = hdr->non_sec_code_size;
+	bl_desc->sec_code_off = hdr->app[0].sec_code_off;
+	bl_desc->sec_code_size = hdr->app[0].sec_code_size;
+	bl_desc->code_entry_point = 0;
+
+	bl_desc->code_dma_base = u64_to_flcn64(offset);
+	bl_desc->data_dma_base = u64_to_flcn64(offset + hdr->data_dma_base);
+	bl_desc->data_size = hdr->data_size;
 }
 
 static const struct gm200_secboot_func
 gm200_secboot_func = {
 	.bl_desc_size = sizeof(struct gm200_flcn_bl_desc),
-	.fixup_bl_desc = gm200_secboot_fixup_bl_desc,
+	.generate_bl_desc = gm200_secboot_generate_bl_desc,
 	.prepare_blobs = gm200_secboot_prepare_blobs,
 };
 
