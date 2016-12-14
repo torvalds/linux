@@ -62,10 +62,8 @@ struct minstrel_rate_stats {
 	u32 att_hist, succ_hist;
 
 	/* statistis of packet delivery probability
-	 *  cur_prob  - current prob within last update intervall
 	 *  prob_ewma - exponential weighted moving average of prob
 	 *  prob_ewmsd - exp. weighted moving standard deviation of prob */
-	unsigned int cur_prob;
 	unsigned int prob_ewma;
 	u16 prob_ewmsd;
 

@@ -19,7 +19,7 @@ static char *
 minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 {
 	const struct mcs_group *mg;
-	unsigned int j, tp_max, tp_avg, prob, eprob, tx_time;
+	unsigned int j, tp_max, tp_avg, eprob, tx_time;
 	char htmode = '2';
 	char gimode = 'L';
 	u32 gflags;
@@ -83,17 +83,15 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 
 		tp_max = minstrel_ht_get_tp_avg(mi, i, j, MINSTREL_FRAC(100, 100));
 		tp_avg = minstrel_ht_get_tp_avg(mi, i, j, mrs->prob_ewma);
-		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
 		p += sprintf(p, "%4u.%1u    %4u.%1u     %3u.%1u    %3u.%1u"
-				"     %3u.%1u %3u   %3u %-3u   "
+				"     %3u   %3u %-3u   "
 				"%9llu   %-9llu\n",
 				tp_max / 10, tp_max % 10,
 				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
 				mrs->prob_ewmsd / 10, mrs->prob_ewmsd % 10,
-				prob / 10, prob % 10,
 				mrs->retry_count,
 				mrs->last_success,
 				mrs->last_attempts,
@@ -130,9 +128,9 @@ minstrel_ht_stats_open(struct inode *inode, struct file *file)
 
 	p += sprintf(p, "\n");
 	p += sprintf(p,
-		     "              best   ____________rate__________    ________statistics________    ________last_______    ______sum-of________\n");
+		     "              best   ____________rate__________    ________statistics________    _____last____    ______sum-of________\n");
 	p += sprintf(p,
-		     "mode guard #  rate  [name   idx airtime  max_tp]  [avg(tp) avg(prob) sd(prob)]  [prob.|retry|suc|att]  [#success | #attempts]\n");
+		     "mode guard #  rate  [name   idx airtime  max_tp]  [avg(tp) avg(prob) sd(prob)]  [retry|suc|att]  [#success | #attempts]\n");
 
 	p = minstrel_ht_stats_dump(mi, MINSTREL_CCK_GROUP, p);
 	for (i = 0; i < MINSTREL_CCK_GROUP; i++)
@@ -165,7 +163,7 @@ static char *
 minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 {
 	const struct mcs_group *mg;
-	unsigned int j, tp_max, tp_avg, prob, eprob, tx_time;
+	unsigned int j, tp_max, tp_avg, eprob, tx_time;
 	char htmode = '2';
 	char gimode = 'L';
 	u32 gflags;
@@ -226,16 +224,14 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 
 		tp_max = minstrel_ht_get_tp_avg(mi, i, j, MINSTREL_FRAC(100, 100));
 		tp_avg = minstrel_ht_get_tp_avg(mi, i, j, mrs->prob_ewma);
-		prob = MINSTREL_TRUNC(mrs->cur_prob * 1000);
 		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
 
-		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u.%u,%u.%u,%u,%u,"
+		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u.%u,%u,%u,"
 				"%u,%llu,%llu,",
 				tp_max / 10, tp_max % 10,
 				tp_avg / 10, tp_avg % 10,
 				eprob / 10, eprob % 10,
 				mrs->prob_ewmsd / 10, mrs->prob_ewmsd % 10,
-				prob / 10, prob % 10,
 				mrs->retry_count,
 				mrs->last_success,
 				mrs->last_attempts,
