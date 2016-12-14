@@ -67,6 +67,9 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
 	/* Disable interrupts as we will poll for the HALT bit */
 	nvkm_mc_intr_mask(sb->subdev.device, falcon->owner->index, false);
 
+	/* Set default error value in mailbox register */
+	nvkm_falcon_wr32(falcon, 0x040, 0xdeada5a5);
+
 	/* Start the HS bootloader */
 	nvkm_falcon_set_start_addr(falcon, sb->acr->start_address);
 	nvkm_falcon_start(falcon);
