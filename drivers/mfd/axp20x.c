@@ -407,6 +407,9 @@ static const struct regmap_irq axp288_regmap_irqs[] = {
 	INIT_REGMAP_IRQ(AXP288, VBUS_FALL,              0, 2),
 	INIT_REGMAP_IRQ(AXP288, VBUS_RISE,              0, 3),
 	INIT_REGMAP_IRQ(AXP288, OV,                     0, 4),
+	INIT_REGMAP_IRQ(AXP288, FALLING_ALT,            0, 5),
+	INIT_REGMAP_IRQ(AXP288, RISING_ALT,             0, 6),
+	INIT_REGMAP_IRQ(AXP288, OV_ALT,                 0, 7),
 
 	INIT_REGMAP_IRQ(AXP288, DONE,                   1, 2),
 	INIT_REGMAP_IRQ(AXP288, CHARGING,               1, 3),
