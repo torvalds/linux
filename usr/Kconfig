@@ -98,3 +98,13 @@ config RD_LZ4
 	help
 	  Support loading of a LZ4 encoded initial ramdisk or cpio buffer
 	  If unsure, say N.
+
+config INITRAMFS_COMPRESSION
+	string
+	default ".gz"   if RD_GZIP
+	default ".lz4"  if RD_LZ4
+	default ".lzo"  if RD_LZO
+	default ".xz"   if RD_XZ
+	default ".lzma" if RD_LZMA
+	default ".bz2"  if RD_BZIP2
+	default ""
