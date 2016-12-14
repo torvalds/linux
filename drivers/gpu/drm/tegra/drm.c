@@ -1211,11 +1211,13 @@ static const struct of_device_id host1x_drm_subdevs[] = {
 	{ .compatible = "nvidia,tegra124-sor", },
 	{ .compatible = "nvidia,tegra124-hdmi", },
 	{ .compatible = "nvidia,tegra124-dsi", },
+	{ .compatible = "nvidia,tegra124-vic", },
 	{ .compatible = "nvidia,tegra132-dsi", },
 	{ .compatible = "nvidia,tegra210-dc", },
 	{ .compatible = "nvidia,tegra210-dsi", },
 	{ .compatible = "nvidia,tegra210-sor", },
 	{ .compatible = "nvidia,tegra210-sor1", },
+	{ .compatible = "nvidia,tegra210-vic", },
 	{ /* sentinel */ }
 };
 
@@ -1237,6 +1239,7 @@ static struct platform_driver * const drivers[] = {
 	&tegra_sor_driver,
 	&tegra_gr2d_driver,
 	&tegra_gr3d_driver,
+	&tegra_vic_driver,
 };
 
 static int __init host1x_drm_init(void)
