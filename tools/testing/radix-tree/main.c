@@ -295,24 +295,31 @@ static void single_thread_tests(bool long_run)
 	printf("starting single_thread_tests: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	multiorder_checks();
+	rcu_barrier();
 	printf("after multiorder_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	locate_check();
+	rcu_barrier();
 	printf("after locate_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	tag_check();
+	rcu_barrier();
 	printf("after tag_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	gang_check();
+	rcu_barrier();
 	printf("after gang_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	add_and_check();
+	rcu_barrier();
 	printf("after add_and_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	dynamic_height_check();
+	rcu_barrier();
 	printf("after dynamic_height_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	big_gang_check(long_run);
+	rcu_barrier();
 	printf("after big_gang_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	for (i = 0; i < (long_run ? 2000 : 3); i++) {
@@ -320,6 +327,7 @@ static void single_thread_tests(bool long_run)
 		printf("%d ", i);
 		fflush(stdout);
 	}
+	rcu_barrier();
 	printf("after copy_tag_check: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 }
@@ -354,8 +362,8 @@ int main(int argc, char **argv)
 
 	benchmark();
 
-	sleep(1);
-	printf("after sleep(1): %d allocated, preempt %d\n",
+	rcu_barrier();
+	printf("after rcu_barrier: %d allocated, preempt %d\n",
 		nr_allocated, preempt_count);
 	rcu_unregister_thread();
 

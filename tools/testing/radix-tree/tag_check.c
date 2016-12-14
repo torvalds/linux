@@ -51,6 +51,7 @@ void simple_checks(void)
 	verify_tag_consistency(&tree, 1);
 	printf("before item_kill_tree: %d allocated\n", nr_allocated);
 	item_kill_tree(&tree);
+	rcu_barrier();
 	printf("after item_kill_tree: %d allocated\n", nr_allocated);
 }
 
@@ -331,12 +332,16 @@ void tag_check(void)
 	single_check();
 	extend_checks();
 	contract_checks();
+	rcu_barrier();
 	printf("after extend_checks: %d allocated\n", nr_allocated);
 	__leak_check();
 	leak_check();
+	rcu_barrier();
 	printf("after leak_check: %d allocated\n", nr_allocated);
 	simple_checks();
+	rcu_barrier();
 	printf("after simple_checks: %d allocated\n", nr_allocated);
 	thrash_tags();
+	rcu_barrier();
 	printf("after thrash_tags: %d allocated\n", nr_allocated);
 }
