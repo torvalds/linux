@@ -59,7 +59,7 @@ struct minstrel_rate_stats {
 	u16 success, last_success;
 
 	/* total attempts/success counters */
-	u64 att_hist, succ_hist;
+	u32 att_hist, succ_hist;
 
 	/* statistis of packet delivery probability
 	 *  cur_prob  - current prob within last update intervall
