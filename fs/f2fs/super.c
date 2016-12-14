@@ -1764,6 +1764,8 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 				FDEV(i).total_segments,
 				FDEV(i).start_blk, FDEV(i).end_blk);
 	}
+	f2fs_msg(sbi->sb, KERN_INFO,
+			"IO Block Size: %8d KB", F2FS_IO_SIZE_KB(sbi));
 	return 0;
 }
 
@@ -1881,12 +1883,19 @@ try_onemore:
 	if (err)
 		goto free_options;
 
+	if (F2FS_IO_SIZE(sbi) > 1) {
+		sbi->write_io_dummy =
+			mempool_create_page_pool(F2FS_IO_SIZE(sbi) - 1, 0);
+		if (!sbi->write_io_dummy)
+			goto free_options;
+	}
+
 	/* get an inode for meta space */
 	sbi->meta_inode = f2fs_iget(sb, F2FS_META_INO(sbi));
 	if (IS_ERR(sbi->meta_inode)) {
 		f2fs_msg(sb, KERN_ERR, "Failed to read F2FS meta data inode");
 		err = PTR_ERR(sbi->meta_inode);
-		goto free_options;
+		goto free_io_dummy;
 	}
 
 	err = get_valid_checkpoint(sbi);
@@ -2104,6 +2113,8 @@ free_devices:
 free_meta_inode:
 	make_bad_inode(sbi->meta_inode);
 	iput(sbi->meta_inode);
+free_io_dummy:
+	mempool_destroy(sbi->write_io_dummy);
 free_options:
 	destroy_percpu_info(sbi);
 	kfree(options);
