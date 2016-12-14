@@ -54,6 +54,21 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 	free(objp);
 }
 
+void *kmalloc(size_t size, gfp_t gfp)
+{
+	void *ret = malloc(size);
+	uatomic_inc(&nr_allocated);
+	return ret;
+}
+
+void kfree(void *p)
+{
+	if (!p)
+		return;
+	uatomic_dec(&nr_allocated);
+	free(p);
+}
+
 struct kmem_cache *
 kmem_cache_create(const char *name, size_t size, size_t offset,
 	unsigned long flags, void (*ctor)(void *))
