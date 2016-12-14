@@ -5240,6 +5240,7 @@ F:	include/linux/fscache*.h
 FS-CRYPTO: FILE SYSTEM LEVEL ENCRYPTION SUPPORT
 M:	Theodore Y. Ts'o <tytso@mit.edu>
 M:	Jaegeuk Kim <jaegeuk@kernel.org>
+L:	linux-fsdevel@vger.kernel.org
 S:	Supported
 F:	fs/crypto/
 F:	include/linux/fscrypto.h
