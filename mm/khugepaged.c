@@ -882,6 +882,7 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 		.address = address,
 		.flags = FAULT_FLAG_ALLOW_RETRY,
 		.pmd = pmd,
+		.pgoff = linear_page_index(vma, address),
 	};
 
 	/* we only decide to swapin, if there is enough young ptes */
