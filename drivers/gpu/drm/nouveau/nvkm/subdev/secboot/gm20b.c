@@ -99,21 +99,10 @@ gm20b_secboot_fixup_bl_desc(const struct gm200_flcn_bl_desc *desc, void *ret)
 	gdesc->data_size = desc->data_size;
 }
 
-static void
-gm20b_secboot_fixup_hs_desc(struct gm200_secboot *gsb,
-			    struct hsflcn_acr_desc *desc)
-{
-	desc->ucode_blob_base = gsb->ls_blob->addr;
-	desc->ucode_blob_size = gsb->ls_blob->size;
-
-	desc->wpr_offset = 0;
-}
-
 static const struct gm200_secboot_func
 gm20b_secboot_func = {
 	.bl_desc_size = sizeof(struct gm20b_flcn_bl_desc),
 	.fixup_bl_desc = gm20b_secboot_fixup_bl_desc,
-	.fixup_hs_desc = gm20b_secboot_fixup_hs_desc,
 	.prepare_blobs = gm20b_secboot_prepare_blobs,
 };
 

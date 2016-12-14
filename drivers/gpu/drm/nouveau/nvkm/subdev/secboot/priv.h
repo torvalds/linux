@@ -88,48 +88,6 @@ struct gm200_flcn_bl_desc {
 };
 
 /**
- * struct hsflcn_acr_desc - data section of the HS firmware
- *
- * This header is to be copied at the beginning of DMEM by the HS bootloader.
- *
- * @signature:		signature of ACR ucode
- * @wpr_region_id:	region ID holding the WPR header and its details
- * @wpr_offset:		offset from the WPR region holding the wpr header
- * @regions:		region descriptors
- * @nonwpr_ucode_blob_size:	size of LS blob
- * @nonwpr_ucode_blob_start:	FB location of LS blob is
- */
-struct hsflcn_acr_desc {
-	union {
-		u8 reserved_dmem[0x200];
-		u32 signatures[4];
-	} ucode_reserved_space;
-	u32 wpr_region_id;
-	u32 wpr_offset;
-	u32 mmu_mem_range;
-#define FLCN_ACR_MAX_REGIONS 2
-	struct {
-		u32 no_regions;
-		struct {
-			u32 start_addr;
-			u32 end_addr;
-			u32 region_id;
-			u32 read_mask;
-			u32 write_mask;
-			u32 client_mask;
-		} region_props[FLCN_ACR_MAX_REGIONS];
-	} regions;
-	u32 ucode_blob_size;
-	u64 ucode_blob_base __aligned(8);
-	struct {
-		u32 vpr_enabled;
-		u32 vpr_start;
-		u32 vpr_end;
-		u32 hdcp_policies;
-	} vpr_desc;
-};
-
-/**
  * Contains the whole secure boot state, allowing it to be performed as needed
  * @wpr_addr:		physical address of the WPR region
  * @wpr_size:		size in bytes of the WPR region
@@ -151,12 +109,17 @@ struct gm200_secboot {
 	const struct gm200_secboot_func *func;
 
 	/*
-	 * Address and size of the WPR region. On dGPU this will be the
-	 * address of the LS blob. On Tegra this is a fixed region set by the
-	 * bootloader
+	 * Address and size of the fixed WPR region, if any. On Tegra this
+	 * region is set by the bootloader
 	 */
 	u64 wpr_addr;
 	u32 wpr_size;
+
+	/*
+	 * Address and size of the actual WPR region.
+	 */
+	u64 acr_wpr_addr;
+	u32 acr_wpr_size;
 
 	/*
 	 * HS FW - lock WPR region (dGPU only) and load LS FWs
@@ -200,7 +163,6 @@ struct gm200_secboot {
  * @fixup_bl_desc:	hook that generates the proper BL descriptor format from
  *			the generic GM200 format into a data array of size
  *			bl_desc_size
- * @fixup_hs_desc:	hook that twiddles the HS descriptor before it is used
  * @prepare_blobs:	prepares the various blobs needed for secure booting
  */
 struct gm200_secboot_func {
@@ -212,12 +174,6 @@ struct gm200_secboot_func {
 	u32 bl_desc_size;
 	void (*fixup_bl_desc)(const struct gm200_flcn_bl_desc *, void *);
 
-	/*
-	 * Chip-specific modifications of the HS descriptor can be done here.
-	 * On dGPU this is used to fill the information about the WPR region
-	 * we want the HS FW to set up.
-	 */
-	void (*fixup_hs_desc)(struct gm200_secboot *, struct hsflcn_acr_desc *);
 	int (*prepare_blobs)(struct gm200_secboot *);
 };
 

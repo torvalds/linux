@@ -772,7 +772,7 @@ ls_ucode_mgr_write_wpr(struct gm200_secboot *gsb, struct ls_ucode_mgr *mgr,
 			u8 desc[gsb->func->bl_desc_size];
 			struct gm200_flcn_bl_desc gdesc;
 
-			ls_ucode_img_populate_bl_desc(img, gsb->wpr_addr,
+			ls_ucode_img_populate_bl_desc(img, gsb->acr_wpr_addr,
 						      &gdesc);
 			gsb->func->fixup_bl_desc(&gdesc, &desc);
 			nvkm_gpuobj_memcpy_to(wpr_blob,
@@ -847,8 +847,11 @@ gm200_secboot_prepare_ls_blob(struct gm200_secboot *gsb)
 
 	/* If WPR address and size are not fixed, set them to fit the LS blob */
 	if (!gsb->wpr_size) {
-		gsb->wpr_addr = gsb->ls_blob->addr;
-		gsb->wpr_size = gsb->ls_blob->size;
+		gsb->acr_wpr_addr = gsb->ls_blob->addr;
+		gsb->acr_wpr_size = gsb->ls_blob->size;
+	} else {
+		gsb->acr_wpr_addr = gsb->wpr_addr;
+		gsb->acr_wpr_size = gsb->wpr_size;
 	}
 
 	/* Write LS blob */
@@ -926,6 +929,69 @@ gm200_secboot_populate_hsf_bl_desc(void *acr_image,
 }
 
 /**
+ * struct hsflcn_acr_desc - data section of the HS firmware
+ *
+ * This header is to be copied at the beginning of DMEM by the HS bootloader.
+ *
+ * @signature:		signature of ACR ucode
+ * @wpr_region_id:	region ID holding the WPR header and its details
+ * @wpr_offset:		offset from the WPR region holding the wpr header
+ * @regions:		region descriptors
+ * @nonwpr_ucode_blob_size:	size of LS blob
+ * @nonwpr_ucode_blob_start:	FB location of LS blob is
+ */
+struct hsflcn_acr_desc {
+	union {
+		u8 reserved_dmem[0x200];
+		u32 signatures[4];
+	} ucode_reserved_space;
+	u32 wpr_region_id;
+	u32 wpr_offset;
+	u32 mmu_mem_range;
+#define FLCN_ACR_MAX_REGIONS 2
+	struct {
+		u32 no_regions;
+		struct {
+			u32 start_addr;
+			u32 end_addr;
+			u32 region_id;
+			u32 read_mask;
+			u32 write_mask;
+			u32 client_mask;
+		} region_props[FLCN_ACR_MAX_REGIONS];
+	} regions;
+	u32 ucode_blob_size;
+	u64 ucode_blob_base __aligned(8);
+	struct {
+		u32 vpr_enabled;
+		u32 vpr_start;
+		u32 vpr_end;
+		u32 hdcp_policies;
+	} vpr_desc;
+};
+
+static void
+gm200_secboot_fixup_hs_desc(struct gm200_secboot *gsb,
+			    struct hsflcn_acr_desc *desc)
+{
+	desc->ucode_blob_base = gsb->ls_blob->addr;
+	desc->ucode_blob_size = gsb->ls_blob->size;
+
+	desc->wpr_offset = 0;
+
+	/* WPR region information if WPR is not fixed */
+	if (gsb->wpr_size == 0) {
+		desc->wpr_region_id = 1;
+		desc->regions.no_regions = 1;
+		desc->regions.region_props[0].region_id = 1;
+		desc->regions.region_props[0].start_addr =
+							 gsb->acr_wpr_addr >> 8;
+		desc->regions.region_props[0].end_addr =
+				   (gsb->acr_wpr_addr + gsb->acr_wpr_size) >> 8;
+	}
+}
+
+/**
  * gm200_secboot_prepare_hs_blob - load and prepare a HS blob and BL descriptor
  *
  * @gsb secure boot instance to prepare for
@@ -958,12 +1024,12 @@ gm200_secboot_prepare_hs_blob(struct gm200_secboot *gsb, const char *fw,
 
 	acr_data = acr_image + hsbin_hdr->data_offset;
 
-	/* Patch descriptor? */
+	/* Patch descriptor with WPR information? */
 	if (patch) {
 		fw_hdr = acr_image + hsbin_hdr->header_offset;
 		load_hdr = acr_image + fw_hdr->hdr_offset;
 		desc = acr_data + load_hdr->data_dma_base;
-		gsb->func->fixup_hs_desc(gsb, desc);
+		gm200_secboot_fixup_hs_desc(gsb, desc);
 	}
 
 	/* Generate HS BL descriptor */
@@ -1351,29 +1417,10 @@ gm200_secboot_fixup_bl_desc(const struct gm200_flcn_bl_desc *desc, void *ret)
 	memcpy(ret, desc, sizeof(*desc));
 }
 
-static void
-gm200_secboot_fixup_hs_desc(struct gm200_secboot *gsb,
-			    struct hsflcn_acr_desc *desc)
-{
-	desc->ucode_blob_base = gsb->ls_blob->addr;
-	desc->ucode_blob_size = gsb->ls_blob->size;
-
-	desc->wpr_offset = 0;
-
-	/* WPR region information for the HS binary to set up */
-	desc->wpr_region_id = 1;
-	desc->regions.no_regions = 1;
-	desc->regions.region_props[0].region_id = 1;
-	desc->regions.region_props[0].start_addr = gsb->wpr_addr >> 8;
-	desc->regions.region_props[0].end_addr =
-		(gsb->wpr_addr + gsb->wpr_size) >> 8;
-}
-
 static const struct gm200_secboot_func
 gm200_secboot_func = {
 	.bl_desc_size = sizeof(struct gm200_flcn_bl_desc),
 	.fixup_bl_desc = gm200_secboot_fixup_bl_desc,
-	.fixup_hs_desc = gm200_secboot_fixup_hs_desc,
 	.prepare_blobs = gm200_secboot_prepare_blobs,
 };
 
