@@ -661,8 +661,8 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 			swapped++;
 
 		if (need_resched()) {
+			slot = radix_tree_iter_resume(slot, &iter);
 			cond_resched_rcu();
-			slot = radix_tree_iter_next(&iter);
 		}
 	}
 
@@ -2447,8 +2447,8 @@ static void shmem_tag_pins(struct address_space *mapping)
 		}
 
 		if (need_resched()) {
+			slot = radix_tree_iter_resume(slot, &iter);
 			cond_resched_rcu();
-			slot = radix_tree_iter_next(&iter);
 		}
 	}
 	rcu_read_unlock();
@@ -2517,8 +2517,8 @@ static int shmem_wait_for_pins(struct address_space *mapping)
 			spin_unlock_irq(&mapping->tree_lock);
 continue_resched:
 			if (need_resched()) {
+				slot = radix_tree_iter_resume(slot, &iter);
 				cond_resched_rcu();
-				slot = radix_tree_iter_next(&iter);
 			}
 		}
 		rcu_read_unlock();

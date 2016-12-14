@@ -403,20 +403,17 @@ __radix_tree_iter_add(struct radix_tree_iter *iter, unsigned long slots)
 }
 
 /**
- * radix_tree_iter_next - resume iterating when the chunk may be invalid
- * @iter:	iterator state
+ * radix_tree_iter_resume - resume iterating when the chunk may be invalid
+ * @slot: pointer to current slot
+ * @iter: iterator state
+ * Returns: New slot pointer
  *
  * If the iterator needs to release then reacquire a lock, the chunk may
  * have been invalidated by an insertion or deletion.  Call this function
- * to continue the iteration from the next index.
+ * before releasing the lock to continue the iteration from the next index.
  */
-static inline __must_check
-void **radix_tree_iter_next(struct radix_tree_iter *iter)
-{
-	iter->next_index = __radix_tree_iter_add(iter, 1);
-	iter->tags = 0;
-	return NULL;
-}
+void **__must_check radix_tree_iter_resume(void **slot,
+					struct radix_tree_iter *iter);
 
 /**
  * radix_tree_chunk_size - get current chunk size
@@ -430,10 +427,17 @@ radix_tree_chunk_size(struct radix_tree_iter *iter)
 	return (iter->next_index - iter->index) >> iter_shift(iter);
 }
 
-static inline struct radix_tree_node *entry_to_node(void *ptr)
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+void ** __radix_tree_next_slot(void **slot, struct radix_tree_iter *iter,
+				unsigned flags);
+#else
+/* Can't happen without sibling entries, but the compiler can't tell that */
+static inline void ** __radix_tree_next_slot(void **slot,
+				struct radix_tree_iter *iter, unsigned flags)
 {
-	return (void *)((unsigned long)ptr & ~RADIX_TREE_INTERNAL_NODE);
+	return slot;
 }
+#endif
 
 /**
  * radix_tree_next_slot - find next slot in chunk
@@ -447,7 +451,7 @@ static inline struct radix_tree_node *entry_to_node(void *ptr)
  * For tagged lookup it also eats @iter->tags.
  *
  * There are several cases where 'slot' can be passed in as NULL to this
- * function.  These cases result from the use of radix_tree_iter_next() or
+ * function.  These cases result from the use of radix_tree_iter_resume() or
  * radix_tree_iter_retry().  In these cases we don't end up dereferencing
  * 'slot' because either:
  * a) we are doing tagged iteration and iter->tags has been set to 0, or
@@ -458,51 +462,31 @@ static __always_inline void **
 radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 {
 	if (flags & RADIX_TREE_ITER_TAGGED) {
-		void *canon = slot;
-
 		iter->tags >>= 1;
 		if (unlikely(!iter->tags))
 			return NULL;
-		while (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
-					radix_tree_is_internal_node(slot[1])) {
-			if (entry_to_node(slot[1]) == canon) {
-				iter->tags >>= 1;
-				iter->index = __radix_tree_iter_add(iter, 1);
-				slot++;
-				continue;
-			}
-			iter->next_index = __radix_tree_iter_add(iter, 1);
-			return NULL;
-		}
 		if (likely(iter->tags & 1ul)) {
 			iter->index = __radix_tree_iter_add(iter, 1);
-			return slot + 1;
+			slot++;
+			goto found;
 		}
 		if (!(flags & RADIX_TREE_ITER_CONTIG)) {
 			unsigned offset = __ffs(iter->tags);
 
-			iter->tags >>= offset;
-			iter->index = __radix_tree_iter_add(iter, offset + 1);
-			return slot + offset + 1;
+			iter->tags >>= offset++;
+			iter->index = __radix_tree_iter_add(iter, offset);
+			slot += offset;
+			goto found;
 		}
 	} else {
 		long count = radix_tree_chunk_size(iter);
-		void *canon = slot;
 
 		while (--count > 0) {
 			slot++;
 			iter->index = __radix_tree_iter_add(iter, 1);
 
-			if (IS_ENABLED(CONFIG_RADIX_TREE_MULTIORDER) &&
-			    radix_tree_is_internal_node(*slot)) {
-				if (entry_to_node(*slot) == canon)
-					continue;
-				iter->next_index = iter->index;
-				break;
-			}
-
 			if (likely(*slot))
-				return slot;
+				goto found;
 			if (flags & RADIX_TREE_ITER_CONTIG) {
 				/* forbid switching to the next chunk */
 				iter->next_index = 0;
@@ -511,6 +495,11 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 		}
 	}
 	return NULL;
+
+ found:
+	if (unlikely(radix_tree_is_internal_node(*slot)))
+		return __radix_tree_next_slot(slot, iter, flags);
+	return slot;
 }
 
 /**
@@ -561,6 +550,6 @@ radix_tree_next_slot(void **slot, struct radix_tree_iter *iter, unsigned flags)
 	     slot || (slot = radix_tree_next_chunk(root, iter,		\
 			      RADIX_TREE_ITER_TAGGED | tag)) ;		\
 	     slot = radix_tree_next_slot(slot, iter,			\
-				RADIX_TREE_ITER_TAGGED))
+				RADIX_TREE_ITER_TAGGED | tag))
 
 #endif /* _LINUX_RADIX_TREE_H */

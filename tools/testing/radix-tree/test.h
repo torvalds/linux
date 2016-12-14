@@ -41,6 +41,7 @@ void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag);
 extern int nr_allocated;
 
 /* Normally private parts of lib/radix-tree.c */
+struct radix_tree_node *entry_to_node(void *ptr);
 void radix_tree_dump(struct radix_tree_root *root);
 int root_tag_get(struct radix_tree_root *root, unsigned int tag);
 unsigned long node_maxindex(struct radix_tree_node *);

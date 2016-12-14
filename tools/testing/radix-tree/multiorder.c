@@ -231,11 +231,14 @@ void multiorder_iteration(void)
 		radix_tree_for_each_slot(slot, &tree, &iter, j) {
 			int height = order[i] / RADIX_TREE_MAP_SHIFT;
 			int shift = height * RADIX_TREE_MAP_SHIFT;
-			int mask = (1 << order[i]) - 1;
+			unsigned long mask = (1UL << order[i]) - 1;
+			struct item *item = *slot;
 
-			assert(iter.index >= (index[i] &~ mask));
-			assert(iter.index <= (index[i] | mask));
+			assert((iter.index | mask) == (index[i] | mask));
 			assert(iter.shift == shift);
+			assert(!radix_tree_is_internal_node(item));
+			assert((item->index | mask) == (index[i] | mask));
+			assert(item->order == order[i]);
 			i++;
 		}
 	}
@@ -269,7 +272,7 @@ void multiorder_tagged_iteration(void)
 		assert(radix_tree_tag_set(&tree, tag_index[i], 1));
 
 	for (j = 0; j < 256; j++) {
-		int mask, k;
+		int k;
 
 		for (i = 0; i < TAG_ENTRIES; i++) {
 			for (k = i; index[k] < tag_index[i]; k++)
@@ -279,12 +282,16 @@ void multiorder_tagged_iteration(void)
 		}
 
 		radix_tree_for_each_tagged(slot, &tree, &iter, j, 1) {
+			unsigned long mask;
+			struct item *item = *slot;
 			for (k = i; index[k] < tag_index[i]; k++)
 				;
-			mask = (1 << order[k]) - 1;
+			mask = (1UL << order[k]) - 1;
 
-			assert(iter.index >= (tag_index[i] &~ mask));
-			assert(iter.index <= (tag_index[i] | mask));
+			assert((iter.index | mask) == (tag_index[i] | mask));
+			assert(!radix_tree_is_internal_node(item));
+			assert((item->index | mask) == (tag_index[i] | mask));
+			assert(item->order == order[k]);
 			i++;
 		}
 	}
@@ -303,12 +310,15 @@ void multiorder_tagged_iteration(void)
 		}
 
 		radix_tree_for_each_tagged(slot, &tree, &iter, j, 2) {
+			struct item *item = *slot;
 			for (k = i; index[k] < tag_index[i]; k++)
 				;
 			mask = (1 << order[k]) - 1;
 
-			assert(iter.index >= (tag_index[i] &~ mask));
-			assert(iter.index <= (tag_index[i] | mask));
+			assert((iter.index | mask) == (tag_index[i] | mask));
+			assert(!radix_tree_is_internal_node(item));
+			assert((item->index | mask) == (tag_index[i] | mask));
+			assert(item->order == order[k]);
 			i++;
 		}
 	}

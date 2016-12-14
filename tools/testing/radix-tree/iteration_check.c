@@ -48,8 +48,8 @@ static void *add_entries_fn(void *arg)
 /*
  * Iterate over the tagged entries, doing a radix_tree_iter_retry() as we find
  * things that have been removed and randomly resetting our iteration to the
- * next chunk with radix_tree_iter_next().  Both radix_tree_iter_retry() and
- * radix_tree_iter_next() cause radix_tree_next_slot() to be called with a
+ * next chunk with radix_tree_iter_resume().  Both radix_tree_iter_retry() and
+ * radix_tree_iter_resume() cause radix_tree_next_slot() to be called with a
  * NULL 'slot' variable.
  */
 static void *tagged_iteration_fn(void *arg)
@@ -79,7 +79,7 @@ static void *tagged_iteration_fn(void *arg)
 			}
 
 			if (rand_r(&seeds[0]) % 50 == 0) {
-				slot = radix_tree_iter_next(&iter);
+				slot = radix_tree_iter_resume(slot, &iter);
 				rcu_read_unlock();
 				rcu_barrier();
 				rcu_read_lock();
@@ -96,8 +96,8 @@ static void *tagged_iteration_fn(void *arg)
 /*
  * Iterate over the entries, doing a radix_tree_iter_retry() as we find things
  * that have been removed and randomly resetting our iteration to the next
- * chunk with radix_tree_iter_next().  Both radix_tree_iter_retry() and
- * radix_tree_iter_next() cause radix_tree_next_slot() to be called with a
+ * chunk with radix_tree_iter_resume().  Both radix_tree_iter_retry() and
+ * radix_tree_iter_resume() cause radix_tree_next_slot() to be called with a
  * NULL 'slot' variable.
  */
 static void *untagged_iteration_fn(void *arg)
@@ -127,7 +127,7 @@ static void *untagged_iteration_fn(void *arg)
 			}
 
 			if (rand_r(&seeds[1]) % 50 == 0) {
-				slot = radix_tree_iter_next(&iter);
+				slot = radix_tree_iter_resume(slot, &iter);
 				rcu_read_unlock();
 				rcu_barrier();
 				rcu_read_lock();

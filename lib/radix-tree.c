@@ -69,6 +69,11 @@ struct radix_tree_preload {
 };
 static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
 
+static inline struct radix_tree_node *entry_to_node(void *ptr)
+{
+	return (void *)((unsigned long)ptr & ~RADIX_TREE_INTERNAL_NODE);
+}
+
 static inline void *node_to_entry(void *ptr)
 {
 	return (void *)((unsigned long)ptr | RADIX_TREE_INTERNAL_NODE);
@@ -1104,6 +1109,120 @@ static inline void __set_iter_shift(struct radix_tree_iter *iter,
 #endif
 }
 
+/* Construct iter->tags bit-mask from node->tags[tag] array */
+static void set_iter_tags(struct radix_tree_iter *iter,
+				struct radix_tree_node *node, unsigned offset,
+				unsigned tag)
+{
+	unsigned tag_long = offset / BITS_PER_LONG;
+	unsigned tag_bit  = offset % BITS_PER_LONG;
+
+	iter->tags = node->tags[tag][tag_long] >> tag_bit;
+
+	/* This never happens if RADIX_TREE_TAG_LONGS == 1 */
+	if (tag_long < RADIX_TREE_TAG_LONGS - 1) {
+		/* Pick tags from next element */
+		if (tag_bit)
+			iter->tags |= node->tags[tag][tag_long + 1] <<
+						(BITS_PER_LONG - tag_bit);
+		/* Clip chunk size, here only BITS_PER_LONG tags */
+		iter->next_index = __radix_tree_iter_add(iter, BITS_PER_LONG);
+	}
+}
+
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+static void **skip_siblings(struct radix_tree_node **nodep,
+			void **slot, struct radix_tree_iter *iter)
+{
+	void *sib = node_to_entry(slot - 1);
+
+	while (iter->index < iter->next_index) {
+		*nodep = rcu_dereference_raw(*slot);
+		if (*nodep && *nodep != sib)
+			return slot;
+		slot++;
+		iter->index = __radix_tree_iter_add(iter, 1);
+		iter->tags >>= 1;
+	}
+
+	*nodep = NULL;
+	return NULL;
+}
+
+void ** __radix_tree_next_slot(void **slot, struct radix_tree_iter *iter,
+					unsigned flags)
+{
+	unsigned tag = flags & RADIX_TREE_ITER_TAG_MASK;
+	struct radix_tree_node *node = rcu_dereference_raw(*slot);
+
+	slot = skip_siblings(&node, slot, iter);
+
+	while (radix_tree_is_internal_node(node)) {
+		unsigned offset;
+		unsigned long next_index;
+
+		if (node == RADIX_TREE_RETRY)
+			return slot;
+		node = entry_to_node(node);
+		iter->shift = node->shift;
+
+		if (flags & RADIX_TREE_ITER_TAGGED) {
+			offset = radix_tree_find_next_bit(node, tag, 0);
+			if (offset == RADIX_TREE_MAP_SIZE)
+				return NULL;
+			slot = &node->slots[offset];
+			iter->index = __radix_tree_iter_add(iter, offset);
+			set_iter_tags(iter, node, offset, tag);
+			node = rcu_dereference_raw(*slot);
+		} else {
+			offset = 0;
+			slot = &node->slots[0];
+			for (;;) {
+				node = rcu_dereference_raw(*slot);
+				if (node)
+					break;
+				slot++;
+				offset++;
+				if (offset == RADIX_TREE_MAP_SIZE)
+					return NULL;
+			}
+			iter->index = __radix_tree_iter_add(iter, offset);
+		}
+		if ((flags & RADIX_TREE_ITER_CONTIG) && (offset > 0))
+			goto none;
+		next_index = (iter->index | shift_maxindex(iter->shift)) + 1;
+		if (next_index < iter->next_index)
+			iter->next_index = next_index;
+	}
+
+	return slot;
+ none:
+	iter->next_index = 0;
+	return NULL;
+}
+EXPORT_SYMBOL(__radix_tree_next_slot);
+#else
+static void **skip_siblings(struct radix_tree_node **nodep,
+			void **slot, struct radix_tree_iter *iter)
+{
+	return slot;
+}
+#endif
+
+void **radix_tree_iter_resume(void **slot, struct radix_tree_iter *iter)
+{
+	struct radix_tree_node *node;
+
+	slot++;
+	iter->index = __radix_tree_iter_add(iter, 1);
+	node = rcu_dereference_raw(*slot);
+	skip_siblings(&node, slot, iter);
+	iter->next_index = iter->index;
+	iter->tags = 0;
+	return NULL;
+}
+EXPORT_SYMBOL(radix_tree_iter_resume);
+
 /**
  * radix_tree_next_chunk - find next chunk of slots for iteration
  *
@@ -1191,23 +1310,8 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 	iter->next_index = (index | node_maxindex(node)) + 1;
 	__set_iter_shift(iter, node->shift);
 
-	/* Construct iter->tags bit-mask from node->tags[tag] array */
-	if (flags & RADIX_TREE_ITER_TAGGED) {
-		unsigned tag_long, tag_bit;
-
-		tag_long = offset / BITS_PER_LONG;
-		tag_bit  = offset % BITS_PER_LONG;
-		iter->tags = node->tags[tag][tag_long] >> tag_bit;
-		/* This never happens if RADIX_TREE_TAG_LONGS == 1 */
-		if (tag_long < RADIX_TREE_TAG_LONGS - 1) {
-			/* Pick tags from next element */
-			if (tag_bit)
-				iter->tags |= node->tags[tag][tag_long + 1] <<
-						(BITS_PER_LONG - tag_bit);
-			/* Clip chunk size, here only BITS_PER_LONG tags */
-			iter->next_index = index + BITS_PER_LONG;
-		}
-	}
+	if (flags & RADIX_TREE_ITER_TAGGED)
+		set_iter_tags(iter, node, offset, tag);
 
 	return node->slots + offset;
 }
