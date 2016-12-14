@@ -64,6 +64,10 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	u32 rate_flags = 0;
 
+	/* assume HW handles this */
+	if (tx->rate.flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
+		return 0;
+
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(tx->sdata->vif.chanctx_conf);
 	if (chanctx_conf) {
@@ -71,10 +75,6 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 		rate_flags = ieee80211_chandef_rate_flags(&chanctx_conf->def);
 	}
 	rcu_read_unlock();
-
-	/* assume HW handles this */
-	if (tx->rate.flags & (IEEE80211_TX_RC_MCS | IEEE80211_TX_RC_VHT_MCS))
-		return 0;
 
 	/* uh huh? */
 	if (WARN_ON_ONCE(tx->rate.idx < 0))
