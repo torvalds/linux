@@ -27,29 +27,12 @@
 #include <linux/perf_event.h>
 #include <linux/kthread.h>
 
-/*
- * The run state of the lockup detectors is controlled by the content of the
- * 'watchdog_enabled' variable. Each lockup detector has its dedicated bit -
- * bit 0 for the hard lockup detector and bit 1 for the soft lockup detector.
- *
- * 'watchdog_user_enabled', 'nmi_watchdog_enabled' and 'soft_watchdog_enabled'
- * are variables that are only used as an 'interface' between the parameters
- * in /proc/sys/kernel and the internal state bits in 'watchdog_enabled'. The
- * 'watchdog_thresh' variable is handled differently because its value is not
- * boolean, and the lockup detectors are 'suspended' while 'watchdog_thresh'
- * is equal zero.
- */
-#define NMI_WATCHDOG_ENABLED_BIT   0
-#define SOFT_WATCHDOG_ENABLED_BIT  1
-#define NMI_WATCHDOG_ENABLED      (1 << NMI_WATCHDOG_ENABLED_BIT)
-#define SOFT_WATCHDOG_ENABLED     (1 << SOFT_WATCHDOG_ENABLED_BIT)
-
 static DEFINE_MUTEX(watchdog_proc_mutex);
 
-#ifdef CONFIG_HARDLOCKUP_DETECTOR
-static unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED|NMI_WATCHDOG_ENABLED;
+#if defined(CONFIG_HAVE_NMI_WATCHDOG) || defined(CONFIG_HARDLOCKUP_DETECTOR)
+unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED|NMI_WATCHDOG_ENABLED;
 #else
-static unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED;
+unsigned long __read_mostly watchdog_enabled = SOFT_WATCHDOG_ENABLED;
 #endif
 int __read_mostly nmi_watchdog_enabled;
 int __read_mostly soft_watchdog_enabled;
@@ -59,9 +42,6 @@ int __read_mostly watchdog_thresh = 10;
 #ifdef CONFIG_SMP
 int __read_mostly sysctl_softlockup_all_cpu_backtrace;
 int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
-#else
-#define sysctl_softlockup_all_cpu_backtrace 0
-#define sysctl_hardlockup_all_cpu_backtrace 0
 #endif
 static struct cpumask watchdog_cpumask __read_mostly;
 unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
@@ -289,7 +269,7 @@ void touch_softlockup_watchdog_sync(void)
 
 #ifdef CONFIG_HARDLOCKUP_DETECTOR
 /* watchdog detector functions */
-static bool is_hardlockup(void)
+bool is_hardlockup(void)
 {
 	unsigned long hrint = __this_cpu_read(hrtimer_interrupts);
 
