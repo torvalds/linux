@@ -631,6 +631,7 @@ static const struct pinmux_ops stm32_pmx_ops = {
 	.get_function_groups	= stm32_pmx_get_func_groups,
 	.set_mux		= stm32_pmx_set_mux,
 	.gpio_set_direction	= stm32_pmx_gpio_set_direction,
+	.strict			= true,
 };
 
 /* Pinconf functions */
