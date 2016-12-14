@@ -105,7 +105,7 @@
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm0 0 25000 PWM_POLARITY_INVERTED>;
+		pwms = <&pwm0 0 25000 0>;
 		brightness-levels = <
 			0   1   51  52  52  53  53  54
 			54  55  55  56  56  57  57  58
@@ -247,6 +247,15 @@
 		pinctrl-0 = <&hp_det>;
 		io-channels = <&saradc 2>;
 	};
+
+	hall_sensor: hall-mh248 {
+		compatible = "hall-mh248";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mh248_irq_gpio>;
+		irq-gpio = <&gpio0 GPIO_A1 IRQ_TYPE_EDGE_BOTH>;
+		hall-active = <1>;
+		status = "okay";
+	};
 };
 
 &rk_key {
@@ -346,6 +355,10 @@
 &gpu {
 	status = "okay";
 	mali-supply = <&vdd_gpu>;
+};
+
+&hdmi {
+	status = "disabled";
 };
 
 &i2s0 {
@@ -602,7 +615,29 @@
 	};
 };
 
-&i2c5 {
+&i2c3 {
+	status="okay";
+
+	hidkey@68 {
+		clock-frequency = <100000>;
+		compatible = "hid-over-i2c";
+		interrupt-parent = <&gpio0>;
+		interrupts = <GPIO_B0 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hidkey_irq_gpio>;
+		reg = <0x68>;
+		hid-descr-addr = <0x0001>;
+	};
+
+	ec_battery@76 {
+		compatible = "rockchip,ec-battery";
+		reg = <0x76>;
+		virtual_power = <0>;
+		monitor_sec = <5>;
+	};
+};
+
+&i2c2 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <345>;
 	i2c-scl-falling-time-ns = <11>;
@@ -871,6 +906,18 @@
 	headphone {
 		hp_det: hp-det {
 			rockchip,pins = <4 28 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	hallsensor {
+		mh248_irq_gpio: mh248-irq-gpio {
+			rockchip,pins = <0 GPIO_A2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	hidkey {
+		hidkey_irq_gpio: hidkey-irq-gpio {
+			rockchip,pins = <0 GPIO_B0 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 

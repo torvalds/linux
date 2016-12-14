@@ -1,0 +1,20 @@
+Binding for EC Battery
+
+Required properties:
+- compatible: Should contain one of the following:
+    * "rockchip,ec-battery"
+- reg: integer, smbus address of the device.
+- tvirtual_power: integer, test power, if battery is not exist;
+- monitor_sec: integer, delay time of queue_delayed_work (s);
+
+
+Optional properties:
+
+Example:
+
+ec_battery: ec_battery09 {
+	compatible = "rockchip,ec-battery";
+	reg = <0x76>;
+	virtual_power = <0>;
+	monitor_sec = <5>;
+};
