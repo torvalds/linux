@@ -18,6 +18,7 @@
 #include <asm/machdep.h>
 #include <asm/mmu.h>
 #include <asm/firmware.h>
+#include <asm/powernv.h>
 
 #include <trace/events/thp.h>
 
@@ -438,6 +439,7 @@ void radix__mmu_cleanup_all(void)
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr & ~LPCR_UPRT);
 		mtspr(SPRN_PTCR, 0);
+		powernv_set_nmmu_ptcr(0);
 		radix__flush_tlb_all();
 	}
 }
