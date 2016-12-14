@@ -1273,7 +1273,7 @@ static int ap_uevent (struct device *dev, struct kobj_uevent_env *env)
 	return retval;
 }
 
-static int ap_dev_suspend(struct device *dev, pm_message_t state)
+static int ap_dev_suspend(struct device *dev)
 {
 	struct ap_device *ap_dev = to_ap_dev(dev);
 
@@ -1284,11 +1284,6 @@ static int ap_dev_suspend(struct device *dev, pm_message_t state)
 		;
 	ap_dev->state = AP_STATE_BORKED;
 	spin_unlock_bh(&ap_dev->lock);
-	return 0;
-}
-
-static int ap_dev_resume(struct device *dev)
-{
 	return 0;
 }
 
@@ -1356,12 +1351,13 @@ static struct notifier_block ap_power_notifier = {
 	.notifier_call = ap_power_event,
 };
 
+static SIMPLE_DEV_PM_OPS(ap_bus_pm_ops, ap_dev_suspend, NULL);
+
 static struct bus_type ap_bus_type = {
 	.name = "ap",
 	.match = &ap_bus_match,
 	.uevent = &ap_uevent,
-	.suspend = ap_dev_suspend,
-	.resume = ap_dev_resume,
+	.pm = &ap_bus_pm_ops,
 };
 
 void ap_device_init_reply(struct ap_device *ap_dev,
