@@ -169,8 +169,10 @@ static int fuel_gauge_reg_readb(struct axp288_fg_info *info, int reg)
 			break;
 	}
 
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(&info->pdev->dev, "axp288 reg read err:%d\n", ret);
+		return ret;
+	}
 
 	return val;
 }
