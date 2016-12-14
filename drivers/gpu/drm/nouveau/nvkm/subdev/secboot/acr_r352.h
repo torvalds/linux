@@ -223,6 +223,9 @@ struct acr_r352 {
 	/* Firmware already loaded? */
 	bool firmware_ok;
 
+	/* Falcons to lazy-bootstrap */
+	u32 lazy_bootstrap;
+
 	/* To keep track of the state of all managed falcons */
 	enum {
 		/* In non-secure state, no firmware loaded, no privileges*/

@@ -241,6 +241,10 @@ acr_r352_ls_img_fill_headers(struct acr_r352 *acr,
 	whdr->bootstrap_owner = acr->base.boot_falcon;
 	whdr->status = LSF_IMAGE_STATUS_COPY;
 
+	/* Skip bootstrapping falcons started by someone else than ACR */
+	if (acr->lazy_bootstrap & BIT(_img->falcon_id))
+		whdr->lazy_bootstrap = 1;
+
 	/* Align, save off, and include an LSB header size */
 	offset = ALIGN(offset, LSF_LSB_HEADER_ALIGN);
 	whdr->lsb_offset = offset;
