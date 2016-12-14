@@ -991,6 +991,22 @@ static void node_tag_clear(struct radix_tree_root *root,
 		root_tag_clear(root, tag);
 }
 
+static void node_tag_set(struct radix_tree_root *root,
+				struct radix_tree_node *node,
+				unsigned int tag, unsigned int offset)
+{
+	while (node) {
+		if (tag_get(node, tag, offset))
+			return;
+		tag_set(node, tag, offset);
+		offset = node->offset;
+		node = node->parent;
+	}
+
+	if (!root_tag_get(root, tag))
+		root_tag_set(root, tag);
+}
+
 /**
  *	radix_tree_tag_clear - clear a tag on a radix tree node
  *	@root:		radix tree root
@@ -1229,7 +1245,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 		unsigned long nr_to_tag,
 		unsigned int iftag, unsigned int settag)
 {
-	struct radix_tree_node *parent, *node, *child;
+	struct radix_tree_node *node, *child;
 	unsigned long maxindex;
 	unsigned long tagged = 0;
 	unsigned long index = *first_indexp;
@@ -1264,22 +1280,8 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 			continue;
 		}
 
-		/* tag the leaf */
 		tagged++;
-		tag_set(node, settag, offset);
-
-		/* walk back up the path tagging interior nodes */
-		parent = node;
-		for (;;) {
-			offset = parent->offset;
-			parent = parent->parent;
-			if (!parent)
-				break;
-			/* stop if we find a node with the tag already set */
-			if (tag_get(parent, settag, offset))
-				break;
-			tag_set(parent, settag, offset);
-		}
+		node_tag_set(root, node, settag, offset);
  next:
 		/* Go to next entry in node */
 		index = ((index >> node->shift) + 1) << node->shift;
@@ -1301,12 +1303,7 @@ unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
 		if (tagged >= nr_to_tag)
 			break;
 	}
-	/*
-	 * We need not to tag the root tag if there is no tag which is set with
-	 * settag within the range from *first_indexp to last_index.
-	 */
-	if (tagged > 0)
-		root_tag_set(root, settag);
+
 	*first_indexp = index;
 
 	return tagged;
