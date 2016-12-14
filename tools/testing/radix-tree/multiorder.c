@@ -355,7 +355,7 @@ void multiorder_tagged_iteration(void)
 	item_kill_tree(&tree);
 }
 
-static void __multiorder_join(unsigned long index,
+static void multiorder_join1(unsigned long index,
 				unsigned order1, unsigned order2)
 {
 	unsigned long loc;
@@ -373,7 +373,7 @@ static void __multiorder_join(unsigned long index,
 	item_kill_tree(&tree);
 }
 
-static void __multiorder_join2(unsigned order1, unsigned order2)
+static void multiorder_join2(unsigned order1, unsigned order2)
 {
 	RADIX_TREE(tree, GFP_KERNEL);
 	struct radix_tree_node *node;
@@ -393,6 +393,39 @@ static void __multiorder_join2(unsigned order1, unsigned order2)
 	item_kill_tree(&tree);
 }
 
+/*
+ * This test revealed an accounting bug for exceptional entries at one point.
+ * Nodes were being freed back into the pool with an elevated exception count
+ * by radix_tree_join() and then radix_tree_split() was failing to zero the
+ * count of exceptional entries.
+ */
+static void multiorder_join3(unsigned int order)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	struct radix_tree_node *node;
+	void **slot;
+	struct radix_tree_iter iter;
+	unsigned long i;
+
+	for (i = 0; i < (1 << order); i++) {
+		radix_tree_insert(&tree, i, (void *)0x12UL);
+	}
+
+	radix_tree_join(&tree, 0, order, (void *)0x16UL);
+	rcu_barrier();
+
+	radix_tree_split(&tree, 0, 0);
+
+	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
+		radix_tree_iter_replace(&tree, &iter, slot, (void *)0x12UL);
+	}
+
+	__radix_tree_lookup(&tree, 0, &node, NULL);
+	assert(node->exceptional == node->count);
+
+	item_kill_tree(&tree);
+}
+
 static void multiorder_join(void)
 {
 	int i, j, idx;
@@ -400,15 +433,19 @@ static void multiorder_join(void)
 	for (idx = 0; idx < 1024; idx = idx * 2 + 3) {
 		for (i = 1; i < 15; i++) {
 			for (j = 0; j < i; j++) {
-				__multiorder_join(idx, i, j);
+				multiorder_join1(idx, i, j);
 			}
 		}
 	}
 
 	for (i = 1; i < 15; i++) {
 		for (j = 0; j < i; j++) {
-			__multiorder_join2(i, j);
+			multiorder_join2(i, j);
 		}
+	}
+
+	for (i = 3; i < 10; i++) {
+		multiorder_join3(i);
 	}
 }
 

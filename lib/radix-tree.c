@@ -288,7 +288,10 @@ static void radix_tree_dump(struct radix_tree_root *root)
  * that the caller has pinned this thread of control to the current CPU.
  */
 static struct radix_tree_node *
-radix_tree_node_alloc(struct radix_tree_root *root)
+radix_tree_node_alloc(struct radix_tree_root *root,
+			struct radix_tree_node *parent,
+			unsigned int shift, unsigned int offset,
+			unsigned int count, unsigned int exceptional)
 {
 	struct radix_tree_node *ret = NULL;
 	gfp_t gfp_mask = root_gfp_mask(root);
@@ -333,6 +336,13 @@ radix_tree_node_alloc(struct radix_tree_root *root)
 	ret = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
 out:
 	BUG_ON(radix_tree_is_internal_node(ret));
+	if (ret) {
+		ret->parent = parent;
+		ret->shift = shift;
+		ret->offset = offset;
+		ret->count = count;
+		ret->exceptional = exceptional;
+	}
 	return ret;
 }
 
@@ -538,8 +548,8 @@ static int radix_tree_extend(struct radix_tree_root *root,
 		goto out;
 
 	do {
-		struct radix_tree_node *node = radix_tree_node_alloc(root);
-
+		struct radix_tree_node *node = radix_tree_node_alloc(root,
+							NULL, shift, 0, 1, 0);
 		if (!node)
 			return -ENOMEM;
 
@@ -550,16 +560,11 @@ static int radix_tree_extend(struct radix_tree_root *root,
 		}
 
 		BUG_ON(shift > BITS_PER_LONG);
-		node->shift = shift;
-		node->offset = 0;
-		node->count = 1;
-		node->parent = NULL;
 		if (radix_tree_is_internal_node(slot)) {
 			entry_to_node(slot)->parent = node;
-		} else {
+		} else if (radix_tree_exceptional_entry(slot)) {
 			/* Moving an exceptional root->rnode to a node */
-			if (radix_tree_exceptional_entry(slot))
-				node->exceptional = 1;
+			node->exceptional = 1;
 		}
 		node->slots[0] = slot;
 		slot = node_to_entry(node);
@@ -712,14 +717,10 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 		shift -= RADIX_TREE_MAP_SHIFT;
 		if (child == NULL) {
 			/* Have to add a child node.  */
-			child = radix_tree_node_alloc(root);
+			child = radix_tree_node_alloc(root, node, shift,
+							offset, 0, 0);
 			if (!child)
 				return -ENOMEM;
-			child->shift = shift;
-			child->offset = offset;
-			child->count = 0;
-			child->exceptional = 0;
-			child->parent = node;
 			rcu_assign_pointer(*slot, node_to_entry(child));
 			if (node)
 				node->count++;
@@ -1209,13 +1210,11 @@ int radix_tree_split(struct radix_tree_root *root, unsigned long index,
 
 	for (;;) {
 		if (node->shift > order) {
-			child = radix_tree_node_alloc(root);
+			child = radix_tree_node_alloc(root, node,
+					node->shift - RADIX_TREE_MAP_SHIFT,
+					offset, 0, 0);
 			if (!child)
 				goto nomem;
-			child->shift = node->shift - RADIX_TREE_MAP_SHIFT;
-			child->offset = offset;
-			child->count = 0;
-			child->parent = node;
 			if (node != parent) {
 				node->count++;
 				node->slots[offset] = node_to_entry(child);
