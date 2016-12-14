@@ -86,6 +86,8 @@ struct acr_r352_flcn_bl_desc {
 	u32 code_entry_point;
 	u32 data_dma_base;
 	u32 data_size;
+	u32 code_dma_base1;
+	u32 data_dma_base1;
 };
 
 /**
@@ -107,10 +109,12 @@ acr_r352_generate_flcn_bl_desc(const struct nvkm_acr *acr,
 
 	desc->ctx_dma = FALCON_DMAIDX_UCODE;
 	desc->code_dma_base = lower_32_bits(addr_code);
+	desc->code_dma_base1 = upper_32_bits(addr_code);
 	desc->non_sec_code_off = pdesc->app_resident_code_offset;
 	desc->non_sec_code_size = pdesc->app_resident_code_size;
 	desc->code_entry_point = pdesc->app_imem_entry;
 	desc->data_dma_base = lower_32_bits(addr_data);
+	desc->data_dma_base1 = upper_32_bits(addr_data);
 	desc->data_size = pdesc->app_resident_data_size;
 }
 
