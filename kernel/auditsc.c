@@ -2411,7 +2411,7 @@ void audit_core_dumps(long signr)
 	if (unlikely(!ab))
 		return;
 	audit_log_task(ab);
-	audit_log_format(ab, " sig=%ld", signr);
+	audit_log_format(ab, " sig=%ld res=1", signr);
 	audit_log_end(ab);
 }
 
