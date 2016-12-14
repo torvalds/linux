@@ -23,7 +23,7 @@ __simple_checks(struct radix_tree_root *tree, unsigned long index, int tag)
 	item_tag_set(tree, index, tag);
 	ret = item_tag_get(tree, index, tag);
 	assert(ret != 0);
-	ret = radix_tree_range_tag_if_tagged(tree, &first, ~0UL, 10, tag, !tag);
+	ret = tag_tagged_items(tree, NULL, first, ~0UL, 10, tag, !tag);
 	assert(ret == 1);
 	ret = item_tag_get(tree, index, !tag);
 	assert(ret != 0);
@@ -320,7 +320,7 @@ static void single_check(void)
 	assert(ret == 0);
 	verify_tag_consistency(&tree, 0);
 	verify_tag_consistency(&tree, 1);
-	ret = radix_tree_range_tag_if_tagged(&tree, &first, 10, 10, 0, 1);
+	ret = tag_tagged_items(&tree, NULL, first, 10, 10, 0, 1);
 	assert(ret == 1);
 	ret = radix_tree_gang_lookup_tag(&tree, (void **)items, 0, BATCH, 1);
 	assert(ret == 1);

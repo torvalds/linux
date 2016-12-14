@@ -205,8 +205,7 @@ void copy_tag_check(void)
 	}
 
 //	printf("\ncopying tags...\n");
-	cur = start;
-	tagged = radix_tree_range_tag_if_tagged(&tree, &cur, end, ITEMS, 0, 1);
+	tagged = tag_tagged_items(&tree, NULL, start, end, ITEMS, 0, 1);
 
 //	printf("checking copied tags\n");
 	assert(tagged == count);
@@ -214,16 +213,13 @@ void copy_tag_check(void)
 
 	/* Copy tags in several rounds */
 //	printf("\ncopying tags...\n");
-	cur = start;
-	do {
-		tmp = rand() % (count/10+2);
-		tagged = radix_tree_range_tag_if_tagged(&tree, &cur, end, tmp, 0, 2);
-	} while (tmp == tagged);
+	tmp = rand() % (count / 10 + 2);
+	tagged = tag_tagged_items(&tree, NULL, start, end, tmp, 0, 2);
+	assert(tagged == count);
 
 //	printf("%lu %lu %lu\n", tagged, tmp, count);
 //	printf("checking copied tags\n");
 	check_copied_tags(&tree, start, end, idx, ITEMS, 0, 2);
-	assert(tagged < tmp);
 	verify_tag_consistency(&tree, 0);
 	verify_tag_consistency(&tree, 1);
 	verify_tag_consistency(&tree, 2);

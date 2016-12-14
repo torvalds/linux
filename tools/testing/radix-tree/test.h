@@ -25,6 +25,9 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 			unsigned long nr, int chunk);
 void item_kill_tree(struct radix_tree_root *root);
 
+int tag_tagged_items(struct radix_tree_root *, pthread_mutex_t *,
+			unsigned long start, unsigned long end, unsigned batch,
+			unsigned iftag, unsigned thentag);
 unsigned long find_item(struct radix_tree_root *, void *item);
 
 void tag_check(void);

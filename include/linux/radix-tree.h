@@ -121,6 +121,41 @@ static inline bool radix_tree_empty(struct radix_tree_root *root)
 }
 
 /**
+ * struct radix_tree_iter - radix tree iterator state
+ *
+ * @index:	index of current slot
+ * @next_index:	one beyond the last index for this chunk
+ * @tags:	bit-mask for tag-iterating
+ * @node:	node that contains current slot
+ * @shift:	shift for the node that holds our slots
+ *
+ * This radix tree iterator works in terms of "chunks" of slots.  A chunk is a
+ * subinterval of slots contained within one radix tree leaf node.  It is
+ * described by a pointer to its first slot and a struct radix_tree_iter
+ * which holds the chunk's position in the tree and its size.  For tagged
+ * iteration radix_tree_iter also holds the slots' bit-mask for one chosen
+ * radix tree tag.
+ */
+struct radix_tree_iter {
+	unsigned long	index;
+	unsigned long	next_index;
+	unsigned long	tags;
+	struct radix_tree_node *node;
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+	unsigned int	shift;
+#endif
+};
+
+static inline unsigned int iter_shift(const struct radix_tree_iter *iter)
+{
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+	return iter->shift;
+#else
+	return 0;
+#endif
+}
+
+/**
  * Radix-tree synchronization
  *
  * The radix-tree API requires that users provide all synchronisation (with
@@ -283,6 +318,8 @@ void *radix_tree_tag_clear(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag);
 int radix_tree_tag_get(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag);
+void radix_tree_iter_tag_set(struct radix_tree_root *root,
+		const struct radix_tree_iter *iter, unsigned int tag);
 unsigned int
 radix_tree_gang_lookup_tag(struct radix_tree_root *root, void **results,
 		unsigned long first_index, unsigned int max_items,
@@ -291,48 +328,11 @@ unsigned int
 radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
 		unsigned long first_index, unsigned int max_items,
 		unsigned int tag);
-unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
-		unsigned long *first_indexp, unsigned long last_index,
-		unsigned long nr_to_tag,
-		unsigned int fromtag, unsigned int totag);
 int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag);
 
 static inline void radix_tree_preload_end(void)
 {
 	preempt_enable();
-}
-
-/**
- * struct radix_tree_iter - radix tree iterator state
- *
- * @index:	index of current slot
- * @next_index:	one beyond the last index for this chunk
- * @tags:	bit-mask for tag-iterating
- * @shift:	shift for the node that holds our slots
- *
- * This radix tree iterator works in terms of "chunks" of slots.  A chunk is a
- * subinterval of slots contained within one radix tree leaf node.  It is
- * described by a pointer to its first slot and a struct radix_tree_iter
- * which holds the chunk's position in the tree and its size.  For tagged
- * iteration radix_tree_iter also holds the slots' bit-mask for one chosen
- * radix tree tag.
- */
-struct radix_tree_iter {
-	unsigned long	index;
-	unsigned long	next_index;
-	unsigned long	tags;
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-	unsigned int	shift;
-#endif
-};
-
-static inline unsigned int iter_shift(struct radix_tree_iter *iter)
-{
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-	return iter->shift;
-#else
-	return 0;
-#endif
 }
 
 #define RADIX_TREE_ITER_TAG_MASK	0x00FF	/* tag index in lower byte */

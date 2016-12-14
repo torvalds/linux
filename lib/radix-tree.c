@@ -219,6 +219,11 @@ radix_tree_find_next_bit(struct radix_tree_node *node, unsigned int tag,
 	return RADIX_TREE_MAP_SIZE;
 }
 
+static unsigned int iter_offset(const struct radix_tree_iter *iter)
+{
+	return (iter->index >> iter_shift(iter)) & RADIX_TREE_MAP_MASK;
+}
+
 /*
  * The maximum index which can be stored in a radix tree
  */
@@ -1015,6 +1020,18 @@ static void node_tag_set(struct radix_tree_root *root,
 }
 
 /**
+ * radix_tree_iter_tag_set - set a tag on the current iterator entry
+ * @root:	radix tree root
+ * @iter:	iterator state
+ * @tag:	tag to set
+ */
+void radix_tree_iter_tag_set(struct radix_tree_root *root,
+			const struct radix_tree_iter *iter, unsigned int tag)
+{
+	node_tag_set(root, iter->node, tag, iter_offset(iter));
+}
+
+/**
  *	radix_tree_tag_clear - clear a tag on a radix tree node
  *	@root:		radix tree root
  *	@index:		index key
@@ -1164,6 +1181,7 @@ void ** __radix_tree_next_slot(void **slot, struct radix_tree_iter *iter,
 		if (node == RADIX_TREE_RETRY)
 			return slot;
 		node = entry_to_node(node);
+		iter->node = node;
 		iter->shift = node->shift;
 
 		if (flags & RADIX_TREE_ITER_TAGGED) {
@@ -1266,6 +1284,7 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 		iter->index = index;
 		iter->next_index = maxindex + 1;
 		iter->tags = 1;
+		iter->node = NULL;
 		__set_iter_shift(iter, 0);
 		return (void **)&root->rnode;
 	}
@@ -1308,6 +1327,7 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 	/* Update the iterator state */
 	iter->index = (index &~ node_maxindex(node)) | (offset << node->shift);
 	iter->next_index = (index | node_maxindex(node)) + 1;
+	iter->node = node;
 	__set_iter_shift(iter, node->shift);
 
 	if (flags & RADIX_TREE_ITER_TAGGED)
@@ -1316,103 +1336,6 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 	return node->slots + offset;
 }
 EXPORT_SYMBOL(radix_tree_next_chunk);
-
-/**
- * radix_tree_range_tag_if_tagged - for each item in given range set given
- *				   tag if item has another tag set
- * @root:		radix tree root
- * @first_indexp:	pointer to a starting index of a range to scan
- * @last_index:		last index of a range to scan
- * @nr_to_tag:		maximum number items to tag
- * @iftag:		tag index to test
- * @settag:		tag index to set if tested tag is set
- *
- * This function scans range of radix tree from first_index to last_index
- * (inclusive).  For each item in the range if iftag is set, the function sets
- * also settag. The function stops either after tagging nr_to_tag items or
- * after reaching last_index.
- *
- * The tags must be set from the leaf level only and propagated back up the
- * path to the root. We must do this so that we resolve the full path before
- * setting any tags on intermediate nodes. If we set tags as we descend, then
- * we can get to the leaf node and find that the index that has the iftag
- * set is outside the range we are scanning. This reults in dangling tags and
- * can lead to problems with later tag operations (e.g. livelocks on lookups).
- *
- * The function returns the number of leaves where the tag was set and sets
- * *first_indexp to the first unscanned index.
- * WARNING! *first_indexp can wrap if last_index is ULONG_MAX. Caller must
- * be prepared to handle that.
- */
-unsigned long radix_tree_range_tag_if_tagged(struct radix_tree_root *root,
-		unsigned long *first_indexp, unsigned long last_index,
-		unsigned long nr_to_tag,
-		unsigned int iftag, unsigned int settag)
-{
-	struct radix_tree_node *node, *child;
-	unsigned long maxindex;
-	unsigned long tagged = 0;
-	unsigned long index = *first_indexp;
-
-	radix_tree_load_root(root, &child, &maxindex);
-	last_index = min(last_index, maxindex);
-	if (index > last_index)
-		return 0;
-	if (!nr_to_tag)
-		return 0;
-	if (!root_tag_get(root, iftag)) {
-		*first_indexp = last_index + 1;
-		return 0;
-	}
-	if (!radix_tree_is_internal_node(child)) {
-		*first_indexp = last_index + 1;
-		root_tag_set(root, settag);
-		return 1;
-	}
-
-	node = entry_to_node(child);
-
-	for (;;) {
-		unsigned offset = radix_tree_descend(node, &child, index);
-		if (!child)
-			goto next;
-		if (!tag_get(node, iftag, offset))
-			goto next;
-		/* Sibling slots never have tags set on them */
-		if (radix_tree_is_internal_node(child)) {
-			node = entry_to_node(child);
-			continue;
-		}
-
-		tagged++;
-		node_tag_set(root, node, settag, offset);
- next:
-		/* Go to next entry in node */
-		index = ((index >> node->shift) + 1) << node->shift;
-		/* Overflow can happen when last_index is ~0UL... */
-		if (index > last_index || !index)
-			break;
-		offset = (index >> node->shift) & RADIX_TREE_MAP_MASK;
-		while (offset == 0) {
-			/*
-			 * We've fully scanned this node. Go up. Because
-			 * last_index is guaranteed to be in the tree, what
-			 * we do below cannot wander astray.
-			 */
-			node = node->parent;
-			offset = (index >> node->shift) & RADIX_TREE_MAP_MASK;
-		}
-		if (is_sibling_entry(node, node->slots[offset]))
-			goto next;
-		if (tagged >= nr_to_tag)
-			break;
-	}
-
-	*first_indexp = index;
-
-	return tagged;
-}
-EXPORT_SYMBOL(radix_tree_range_tag_if_tagged);
 
 /**
  *	radix_tree_gang_lookup - perform multiple lookup on a radix tree
