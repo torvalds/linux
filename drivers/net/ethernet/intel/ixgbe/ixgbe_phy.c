@@ -977,40 +977,6 @@ s32 ixgbe_setup_phy_link_tnx(struct ixgbe_hw *hw)
 }
 
 /**
- *  ixgbe_get_phy_firmware_version_tnx - Gets the PHY Firmware Version
- *  @hw: pointer to hardware structure
- *  @firmware_version: pointer to the PHY Firmware Version
- **/
-s32 ixgbe_get_phy_firmware_version_tnx(struct ixgbe_hw *hw,
-				       u16 *firmware_version)
-{
-	s32 status;
-
-	status = hw->phy.ops.read_reg(hw, TNX_FW_REV,
-				      MDIO_MMD_VEND1,
-				      firmware_version);
-
-	return status;
-}
-
-/**
- *  ixgbe_get_phy_firmware_version_generic - Gets the PHY Firmware Version
- *  @hw: pointer to hardware structure
- *  @firmware_version: pointer to the PHY Firmware Version
- **/
-s32 ixgbe_get_phy_firmware_version_generic(struct ixgbe_hw *hw,
-					   u16 *firmware_version)
-{
-	s32 status;
-
-	status = hw->phy.ops.read_reg(hw, AQ_FW_REV,
-				      MDIO_MMD_VEND1,
-				      firmware_version);
-
-	return status;
-}
-
-/**
  *  ixgbe_reset_phy_nl - Performs a PHY reset
  *  @hw: pointer to hardware structure
  **/

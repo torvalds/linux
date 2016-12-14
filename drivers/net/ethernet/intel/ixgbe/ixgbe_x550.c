@@ -3419,8 +3419,7 @@ static const struct ixgbe_eeprom_operations eeprom_ops_X550EM_x = {
 	.write_i2c_eeprom	= &ixgbe_write_i2c_eeprom_generic, \
 	.setup_link		= &ixgbe_setup_phy_link_generic, \
 	.set_phy_power		= NULL, \
-	.check_overtemp		= &ixgbe_tn_check_overtemp, \
-	.get_firmware_version	= &ixgbe_get_phy_firmware_version_generic,
+	.check_overtemp		= &ixgbe_tn_check_overtemp,
 
 static const struct ixgbe_phy_operations phy_ops_X550 = {
 	X550_COMMON_PHY

@@ -918,7 +918,6 @@ static const struct ixgbe_phy_operations phy_ops_X540 = {
 	.write_i2c_eeprom       = &ixgbe_write_i2c_eeprom_generic,
 	.check_overtemp         = &ixgbe_tn_check_overtemp,
 	.set_phy_power          = &ixgbe_set_copper_phy_power,
-	.get_firmware_version   = &ixgbe_get_phy_firmware_version_generic,
 };
 
 static const u32 ixgbe_mvals_X540[IXGBE_MVALS_IDX_LIMIT] = {
