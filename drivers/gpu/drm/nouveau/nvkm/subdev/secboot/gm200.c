@@ -27,6 +27,7 @@
 #include <core/gpuobj.h>
 #include <subdev/fb.h>
 #include <engine/falcon.h>
+#include <subdev/mc.h>
 
 /**
  * gm200_secboot_run_blob() - run the given high-secure blob
@@ -63,6 +64,9 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
 	if (ret)
 		goto end;
 
+	/* Disable interrupts as we will poll for the HALT bit */
+	nvkm_mc_intr_mask(sb->subdev.device, falcon->owner->index, false);
+
 	/* Start the HS bootloader */
 	nvkm_falcon_set_start_addr(falcon, sb->acr->start_address);
 	nvkm_falcon_start(falcon);
@@ -79,6 +83,9 @@ gm200_secboot_run_blob(struct nvkm_secboot *sb, struct nvkm_gpuobj *blob)
 	}
 
 end:
+	/* Reenable interrupts */
+	nvkm_mc_intr_mask(sb->subdev.device, falcon->owner->index, true);
+
 	/* We don't need the ACR firmware anymore */
 	nvkm_gpuobj_unmap(&vma);
 	nvkm_falcon_put(falcon, subdev);
