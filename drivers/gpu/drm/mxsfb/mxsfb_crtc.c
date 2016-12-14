@@ -196,9 +196,16 @@ static void mxsfb_crtc_mode_set_nofb(struct mxsfb_drm_private *mxsfb)
 		vdctrl0 |= VDCTRL0_HSYNC_ACT_HIGH;
 	if (m->flags & DRM_MODE_FLAG_PVSYNC)
 		vdctrl0 |= VDCTRL0_VSYNC_ACT_HIGH;
-	if (bus_flags & DRM_BUS_FLAG_DE_HIGH)
+	/* Make sure Data Enable is high active by default */
+	if (!(bus_flags & DRM_BUS_FLAG_DE_LOW))
 		vdctrl0 |= VDCTRL0_ENABLE_ACT_HIGH;
-	if (bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+	/*
+	 * DRM_BUS_FLAG_PIXDATA_ defines are controller centric,
+	 * controllers VDCTRL0_DOTCLK is display centric.
+	 * Drive on positive edge       -> display samples on falling edge
+	 * DRM_BUS_FLAG_PIXDATA_POSEDGE -> VDCTRL0_DOTCLK_ACT_FALLING
+	 */
+	if (bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
 		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FALLING;
 
 	writel(vdctrl0, mxsfb->base + LCDC_VDCTRL0);
