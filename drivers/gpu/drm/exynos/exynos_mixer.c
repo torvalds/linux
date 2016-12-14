@@ -485,7 +485,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	bool crcb_mode = false;
 	u32 val;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_NV12:
 		crcb_mode = false;
 		break;
@@ -494,7 +494,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 		break;
 	default:
 		DRM_ERROR("pixel format for vp is wrong [%d].\n",
-				fb->pixel_format);
+				fb->format->format);
 		return;
 	}
 
@@ -597,7 +597,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	unsigned int fmt;
 	u32 val;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_XRGB4444:
 	case DRM_FORMAT_ARGB4444:
 		fmt = MXR_FORMAT_ARGB4444;
@@ -681,7 +681,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	mixer_cfg_scan(ctx, mode->vdisplay);
 	mixer_cfg_rgb_fmt(ctx, mode->vdisplay);
 	mixer_cfg_layer(ctx, win, priority, true);
-	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->pixel_format));
+	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->format->format));
 
 	/* layer update mandatory for mixer 16.0.33.0 */
 	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||

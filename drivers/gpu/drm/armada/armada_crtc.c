@@ -1035,7 +1035,7 @@ static int armada_drm_crtc_page_flip(struct drm_crtc *crtc,
 	int ret;
 
 	/* We don't support changing the pixel format */
-	if (fb->pixel_format != crtc->primary->fb->pixel_format)
+	if (fb->format->format != crtc->primary->fb->format->format)
 		return -EINVAL;
 
 	work = kmalloc(sizeof(*work), GFP_KERNEL);

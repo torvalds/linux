@@ -1195,7 +1195,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 
-	switch (target_fb->pixel_format) {
+	switch (target_fb->format->format) {
 	case DRM_FORMAT_C8:
 		fb_format = (EVERGREEN_GRPH_DEPTH(EVERGREEN_GRPH_DEPTH_8BPP) |
 			     EVERGREEN_GRPH_FORMAT(EVERGREEN_GRPH_FORMAT_INDEXED));
@@ -1261,7 +1261,7 @@ static int dce4_crtc_do_set_base(struct drm_crtc *crtc,
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
-		          drm_get_format_name(target_fb->pixel_format, &format_name));
+		          drm_get_format_name(target_fb->format->format, &format_name));
 		return -EINVAL;
 	}
 
@@ -1511,7 +1511,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 	radeon_bo_get_tiling_flags(rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(rbo);
 
-	switch (target_fb->pixel_format) {
+	switch (target_fb->format->format) {
 	case DRM_FORMAT_C8:
 		fb_format =
 		    AVIVO_D1GRPH_CONTROL_DEPTH_8BPP |
@@ -1564,7 +1564,7 @@ static int avivo_crtc_do_set_base(struct drm_crtc *crtc,
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
-		          drm_get_format_name(target_fb->pixel_format, &format_name));
+		          drm_get_format_name(target_fb->format->format, &format_name));
 		return -EINVAL;
 	}
 

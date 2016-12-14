@@ -617,7 +617,7 @@ static void ade_rdma_set(void __iomem *base, struct drm_framebuffer *fb,
 			 ch + 1, y, in_h, stride, (u32)obj->paddr);
 	DRM_DEBUG_DRIVER("addr=0x%x, fb:%dx%d, pixel_format=%d(%s)\n",
 			 addr, fb->width, fb->height, fmt,
-			 drm_get_format_name(fb->pixel_format, &format_name));
+			 drm_get_format_name(fb->format->format, &format_name));
 
 	/* get reg offset */
 	reg_ctrl = RD_CH_CTRL(ch);
@@ -773,7 +773,7 @@ static void ade_update_channel(struct ade_plane *aplane,
 {
 	struct ade_hw_ctx *ctx = aplane->ctx;
 	void __iomem *base = ctx->base;
-	u32 fmt = ade_get_format(fb->pixel_format);
+	u32 fmt = ade_get_format(fb->format->format);
 	u32 ch = aplane->ch;
 	u32 in_w;
 	u32 in_h;
@@ -835,7 +835,7 @@ static int ade_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc || !fb)
 		return 0;
 
-	fmt = ade_get_format(fb->pixel_format);
+	fmt = ade_get_format(fb->format->format);
 	if (fmt == ADE_FORMAT_UNSUPPORT)
 		return -EINVAL;
 

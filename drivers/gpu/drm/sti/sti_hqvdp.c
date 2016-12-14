@@ -1147,7 +1147,7 @@ static void sti_hqvdp_atomic_update(struct drm_plane *drm_plane,
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 0);
 
 	DRM_DEBUG_DRIVER("drm FB:%d format:%.4s phys@:0x%lx\n", fb->base.id,
-			 (char *)&fb->pixel_format,
+			 (char *)&fb->format->format,
 			 (unsigned long)cma_obj->paddr);
 
 	/* Buffer planes address */

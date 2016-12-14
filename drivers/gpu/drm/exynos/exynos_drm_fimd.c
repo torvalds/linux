@@ -804,7 +804,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 		DRM_DEBUG_KMS("osd size = 0x%x\n", (unsigned int)val);
 	}
 
-	fimd_win_set_pixfmt(ctx, win, fb->pixel_format, state->src.w);
+	fimd_win_set_pixfmt(ctx, win, fb->format->format, state->src.w);
 
 	/* hardware window 0 doesn't support color key. */
 	if (win != 0)

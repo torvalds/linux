@@ -668,7 +668,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	if (!state->visible)
 		return 0;
 
-	ret = vop_convert_format(fb->pixel_format);
+	ret = vop_convert_format(fb->format->format);
 	if (ret < 0)
 		return ret;
 
@@ -676,7 +676,7 @@ static int vop_plane_atomic_check(struct drm_plane *plane,
 	 * Src.x1 can be odd when do clip, but yuv plane start point
 	 * need align with 2 pixel.
 	 */
-	if (is_yuv_support(fb->pixel_format) && ((state->src.x1 >> 16) % 2))
+	if (is_yuv_support(fb->format->format) && ((state->src.x1 >> 16) % 2))
 		return -EINVAL;
 
 	return 0;
@@ -753,16 +753,16 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	offset += (src->y1 >> 16) * fb->pitches[0];
 	dma_addr = rk_obj->dma_addr + offset + fb->offsets[0];
 
-	format = vop_convert_format(fb->pixel_format);
+	format = vop_convert_format(fb->format->format);
 
 	spin_lock(&vop->reg_lock);
 
 	VOP_WIN_SET(vop, win, format, format);
 	VOP_WIN_SET(vop, win, yrgb_vir, fb->pitches[0] >> 2);
 	VOP_WIN_SET(vop, win, yrgb_mst, dma_addr);
-	if (is_yuv_support(fb->pixel_format)) {
-		int hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
-		int vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
+	if (is_yuv_support(fb->format->format)) {
+		int hsub = drm_format_horz_chroma_subsampling(fb->format->format);
+		int vsub = drm_format_vert_chroma_subsampling(fb->format->format);
 		int bpp = fb->format->cpp[1];
 
 		uv_obj = rockchip_fb_get_gem_obj(fb, 1);
@@ -779,16 +779,16 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	if (win->phy->scl)
 		scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,
 				    drm_rect_width(dest), drm_rect_height(dest),
-				    fb->pixel_format);
+				    fb->format->format);
 
 	VOP_WIN_SET(vop, win, act_info, act_info);
 	VOP_WIN_SET(vop, win, dsp_info, dsp_info);
 	VOP_WIN_SET(vop, win, dsp_st, dsp_st);
 
-	rb_swap = has_rb_swapped(fb->pixel_format);
+	rb_swap = has_rb_swapped(fb->format->format);
 	VOP_WIN_SET(vop, win, rb_swap, rb_swap);
 
-	if (is_alpha_support(fb->pixel_format)) {
+	if (is_alpha_support(fb->format->format)) {
 		VOP_WIN_SET(vop, win, dst_alpha_ctl,
 			    DST_FACTOR_M0(ALPHA_SRC_INVERSE));
 		val = SRC_ALPHA_EN(1) | SRC_COLOR_M0(ALPHA_SRC_PRE_MUL) |

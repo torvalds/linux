@@ -482,11 +482,11 @@ static int __setplane_internal(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, fb->pixel_format);
+	ret = drm_plane_check_pixel_format(plane, fb->format->format);
 	if (ret) {
 		struct drm_format_name_buf format_name;
 		DRM_DEBUG_KMS("Invalid pixel format %s\n",
-		              drm_get_format_name(fb->pixel_format,
+		              drm_get_format_name(fb->format->format,
 		                                  &format_name));
 		goto out;
 	}
@@ -858,7 +858,7 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	if (crtc->primary->fb->pixel_format != fb->pixel_format) {
+	if (crtc->primary->fb->format->format != fb->format->format) {
 		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;

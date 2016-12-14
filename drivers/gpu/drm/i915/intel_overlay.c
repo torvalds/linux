@@ -667,7 +667,7 @@ static void update_colorkey(struct intel_overlay *overlay,
 	if (overlay->color_key_enabled)
 		flags |= DST_KEY_ENABLE;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_C8:
 		key = 0;
 		flags |= CLK_RGB8I_MASK;

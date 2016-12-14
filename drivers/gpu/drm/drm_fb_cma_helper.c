@@ -307,7 +307,7 @@ static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 	int i;
 
 	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
-			(char *)&fb->pixel_format);
+			(char *)&fb->format->format);
 
 	for (i = 0; i < fb->fomat->num_planes; i++) {
 		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",

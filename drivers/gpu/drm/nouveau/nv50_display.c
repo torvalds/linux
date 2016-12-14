@@ -1153,7 +1153,7 @@ nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (asyw->state.fb->width != asyw->state.fb->height)
 		return -EINVAL;
 
-	switch (asyw->state.fb->pixel_format) {
+	switch (asyw->state.fb->format->format) {
 	case DRM_FORMAT_ARGB8888: asyh->curs.format = 1; break;
 	default:
 		WARN_ON(1);
@@ -1438,7 +1438,7 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	asyh->base.w = asyw->state.fb->width;
 	asyh->base.h = asyw->state.fb->height;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_C8         : asyw->image.format = 0x1e; break;
 	case DRM_FORMAT_RGB565     : asyw->image.format = 0xe8; break;
 	case DRM_FORMAT_XRGB1555   :

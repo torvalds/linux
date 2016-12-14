@@ -3021,7 +3021,8 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 		state = plane->state;
 
 		if (state->fb) {
-			drm_get_format_name(state->fb->pixel_format, &format_name);
+			drm_get_format_name(state->fb->format->format,
+					    &format_name);
 		} else {
 			sprintf(format_name.str, "N/A");
 		}

@@ -65,7 +65,7 @@ static int hdlcd_set_pxl_fmt(struct drm_crtc *crtc)
 	struct simplefb_format *format = NULL;
 	int i;
 
-	pixel_format = fb->pixel_format;
+	pixel_format = fb->format->format;
 
 	for (i = 0; i < ARRAY_SIZE(supported_formats); i++) {
 		if (supported_formats[i].fourcc == pixel_format)

@@ -1950,7 +1950,7 @@ static int dce_v8_0_crtc_do_set_base(struct drm_crtc *crtc,
 
 	pipe_config = AMDGPU_TILING_GET(tiling_flags, PIPE_CONFIG);
 
-	switch (target_fb->pixel_format) {
+	switch (target_fb->format->format) {
 	case DRM_FORMAT_C8:
 		fb_format = ((GRPH_DEPTH_8BPP << GRPH_CONTROL__GRPH_DEPTH__SHIFT) |
 			     (GRPH_FORMAT_INDEXED << GRPH_CONTROL__GRPH_FORMAT__SHIFT));
@@ -2016,7 +2016,7 @@ static int dce_v8_0_crtc_do_set_base(struct drm_crtc *crtc,
 		break;
 	default:
 		DRM_ERROR("Unsupported screen format %s\n",
-		          drm_get_format_name(target_fb->pixel_format, &format_name));
+		          drm_get_format_name(target_fb->format->format, &format_name));
 		return -EINVAL;
 	}
 

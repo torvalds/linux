@@ -68,7 +68,7 @@ void msm_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 	int i, n = fb->format->num_planes;
 
 	seq_printf(m, "fb: %dx%d@%4.4s (%2d, ID:%d)\n",
-			fb->width, fb->height, (char *)&fb->pixel_format,
+			fb->width, fb->height, (char *)&fb->format->format,
 			drm_framebuffer_read_refcount(fb), fb->base.id);
 
 	for (i = 0; i < n; i++) {

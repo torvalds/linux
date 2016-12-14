@@ -175,10 +175,6 @@ struct drm_framebuffer {
 	 */
 	int flags;
 	/**
-	 * @pixel_format: DRM FOURCC code describing the pixel format.
-	 */
-	uint32_t pixel_format; /* fourcc format */
-	/**
 	 * @hot_x: X coordinate of the cursor hotspot. Used by the legacy cursor
 	 * IOCTL when the driver supports cursor through a DRM_PLANE_TYPE_CURSOR
 	 * universal plane.

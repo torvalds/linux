@@ -146,7 +146,7 @@ static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 	if (!fb)
 		return;
 
-	format = fb->pixel_format;
+	format = fb->format->format;
 	stride = fb->pitches[0];
 
 	src_x = plane->state->src_x >> 16;

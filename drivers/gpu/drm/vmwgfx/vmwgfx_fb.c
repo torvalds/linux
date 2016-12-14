@@ -488,7 +488,7 @@ static int vmw_fb_kms_framebuffer(struct fb_info *info)
 	cur_fb = par->set_fb;
 	if (cur_fb && cur_fb->width == mode_cmd.width &&
 	    cur_fb->height == mode_cmd.height &&
-	    cur_fb->pixel_format == mode_cmd.pixel_format &&
+	    cur_fb->format->format == mode_cmd.pixel_format &&
 	    cur_fb->pitches[0] == mode_cmd.pitches[0])
 		return 0;
 

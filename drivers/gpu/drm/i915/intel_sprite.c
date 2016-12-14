@@ -223,7 +223,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 		PLANE_CTL_PIPE_GAMMA_ENABLE |
 		PLANE_CTL_PIPE_CSC_ENABLE;
 
-	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
+	plane_ctl |= skl_plane_ctl_format(fb->format->format);
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier);
 
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
@@ -357,7 +357,7 @@ vlv_update_plane(struct drm_plane *dplane,
 
 	sprctl = SP_ENABLE;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_YUYV:
 		sprctl |= SP_FORMAT_YUV422 | SP_YUV_ORDER_YUYV;
 		break;
@@ -443,7 +443,7 @@ vlv_update_plane(struct drm_plane *dplane,
 		sprctl |= SP_SOURCE_KEY;
 
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B)
-		chv_update_csc(intel_plane, fb->pixel_format);
+		chv_update_csc(intel_plane, fb->format->format);
 
 	I915_WRITE(SPSTRIDE(pipe, plane), fb->pitches[0]);
 	I915_WRITE(SPPOS(pipe, plane), (crtc_y << 16) | crtc_x);
@@ -502,7 +502,7 @@ ivb_update_plane(struct drm_plane *plane,
 
 	sprctl = SPRITE_ENABLE;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_XBGR8888:
 		sprctl |= SPRITE_FORMAT_RGBX888 | SPRITE_RGB_ORDER_RGBX;
 		break;
@@ -640,7 +640,7 @@ ilk_update_plane(struct drm_plane *plane,
 
 	dvscntr = DVS_ENABLE;
 
-	switch (fb->pixel_format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_XBGR8888:
 		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_XBGR;
 		break;
@@ -866,7 +866,7 @@ intel_check_sprite_plane(struct drm_plane *plane,
 		src_y = src->y1 >> 16;
 		src_h = drm_rect_height(src) >> 16;
 
-		if (format_is_yuv(fb->pixel_format)) {
+		if (format_is_yuv(fb->format->format)) {
 			src_x &= ~1;
 			src_w &= ~1;
 

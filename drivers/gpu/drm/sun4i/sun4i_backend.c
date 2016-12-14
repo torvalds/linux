@@ -189,7 +189,8 @@ int sun4i_backend_update_layer_formats(struct sun4i_backend *backend,
 	DRM_DEBUG_DRIVER("Switching display backend interlaced mode %s\n",
 			 interlaced ? "on" : "off");
 
-	ret = sun4i_backend_drm_format_to_layer(plane, fb->pixel_format, &val);
+	ret = sun4i_backend_drm_format_to_layer(plane, fb->format->format,
+						&val);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Invalid format\n");
 		return val;

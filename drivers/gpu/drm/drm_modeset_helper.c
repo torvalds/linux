@@ -94,7 +94,6 @@ void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
 		fb->offsets[i] = mode_cmd->offsets[i];
 	}
 	fb->modifier = mode_cmd->modifier[0];
-	fb->pixel_format = mode_cmd->pixel_format;
 	fb->flags = mode_cmd->flags;
 }
 EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
