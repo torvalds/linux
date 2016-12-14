@@ -76,9 +76,18 @@ static int pp_sw_init(void *handle)
 	if (ret)
 		goto err1;
 
+	if (hwmgr->hwmgr_func->request_firmware) {
+		ret = hwmgr->hwmgr_func->request_firmware(hwmgr);
+		if (ret)
+			goto err2;
+	}
+
 	pr_info("amdgpu: powerplay initialized\n");
 
 	return 0;
+err2:
+	if (hwmgr->hwmgr_func->backend_fini)
+		hwmgr->hwmgr_func->backend_fini(hwmgr);
 err1:
 	if (hwmgr->pptable_func->pptable_fini)
 		hwmgr->pptable_func->pptable_fini(hwmgr);
@@ -100,6 +109,9 @@ static int pp_sw_fini(void *handle)
 	hwmgr = pp_handle->hwmgr;
 
 	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->release_firmware)
+		 ret = hwmgr->hwmgr_func->release_firmware(hwmgr);
 
 	if (hwmgr->hwmgr_func->backend_fini != NULL)
 		ret = hwmgr->hwmgr_func->backend_fini(hwmgr);

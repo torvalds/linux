@@ -358,6 +358,8 @@ struct pp_hwmgr_func {
 	int (*get_mclk_od)(struct pp_hwmgr *hwmgr);
 	int (*set_mclk_od)(struct pp_hwmgr *hwmgr, uint32_t value);
 	int (*read_sensor)(struct pp_hwmgr *hwmgr, int idx, int32_t *value);
+	int (*request_firmware)(struct pp_hwmgr *hwmgr);
+	int (*release_firmware)(struct pp_hwmgr *hwmgr);
 };
 
 struct pp_table_func {
