@@ -576,7 +576,6 @@ int vkdb_printf(enum kdb_msgsrc src, const char *fmt, va_list ap)
 		KDB_STATE_SET(PRINTF_LOCK);
 		spin_lock_irqsave(&kdb_printf_lock, flags);
 		got_printf_lock = 1;
-		atomic_inc(&kdb_event);
 	} else {
 		__acquire(kdb_printf_lock);
 	}
@@ -851,7 +850,6 @@ kdb_print_out:
 		got_printf_lock = 0;
 		spin_unlock_irqrestore(&kdb_printf_lock, flags);
 		KDB_STATE_CLEAR(PRINTF_LOCK);
-		atomic_dec(&kdb_event);
 	} else {
 		__release(kdb_printf_lock);
 	}

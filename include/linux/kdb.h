@@ -77,7 +77,6 @@ extern int kdb_poll_idx;
  * number whenever the kernel debugger is entered.
  */
 extern int kdb_initial_cpu;
-extern atomic_t kdb_event;
 
 /* Types and messages used for dynamically added kdb shell commands */
 
