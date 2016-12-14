@@ -239,7 +239,7 @@ static void __locate_check(struct radix_tree_root *tree, unsigned long index,
 
 	item_insert_order(tree, index, order);
 	item = item_lookup(tree, index);
-	index2 = radix_tree_locate_item(tree, item);
+	index2 = find_item(tree, item);
 	if (index != index2) {
 		printf("index %ld order %d inserted; found %ld\n",
 			index, order, index2);
@@ -273,17 +273,17 @@ static void locate_check(void)
 			     index += (1UL << order)) {
 				__locate_check(&tree, index + offset, order);
 			}
-			if (radix_tree_locate_item(&tree, &tree) != -1)
+			if (find_item(&tree, &tree) != -1)
 				abort();
 
 			item_kill_tree(&tree);
 		}
 	}
 
-	if (radix_tree_locate_item(&tree, &tree) != -1)
+	if (find_item(&tree, &tree) != -1)
 		abort();
 	__locate_check(&tree, -1, 0);
-	if (radix_tree_locate_item(&tree, &tree) != -1)
+	if (find_item(&tree, &tree) != -1)
 		abort();
 	item_kill_tree(&tree);
 }

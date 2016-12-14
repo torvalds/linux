@@ -151,6 +151,28 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 	assert(nfound == 0);
 }
 
+/* Use the same pattern as find_swap_entry() in mm/shmem.c */
+unsigned long find_item(struct radix_tree_root *root, void *item)
+{
+	struct radix_tree_iter iter;
+	void **slot;
+	unsigned long found = -1;
+	unsigned long checked = 0;
+
+	radix_tree_for_each_slot(slot, root, &iter, 0) {
+		if (*slot == item) {
+			found = iter.index;
+			break;
+		}
+		checked++;
+		if ((checked % 4) != 0)
+			continue;
+		slot = radix_tree_iter_resume(slot, &iter);
+	}
+
+	return found;
+}
+
 static int verify_node(struct radix_tree_node *slot, unsigned int tag,
 			int tagged)
 {

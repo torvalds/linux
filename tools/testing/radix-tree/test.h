@@ -25,6 +25,8 @@ void item_full_scan(struct radix_tree_root *root, unsigned long start,
 			unsigned long nr, int chunk);
 void item_kill_tree(struct radix_tree_root *root);
 
+unsigned long find_item(struct radix_tree_root *, void *item);
+
 void tag_check(void);
 void multiorder_checks(void);
 void iteration_test(void);
