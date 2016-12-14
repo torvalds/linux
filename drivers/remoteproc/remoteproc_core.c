@@ -396,9 +396,6 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 			goto unwind_vring_allocations;
 	}
 
-	/* track the rvdevs list reference */
-	kref_get(&rvdev->refcount);
-
 	list_add_tail(&rvdev->node, &rproc->rvdevs);
 
 	rproc_add_subdev(rproc, &rvdev->subdev,
