@@ -1798,16 +1798,18 @@ void gfs2_glock_exit(void)
 
 static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi)
 {
-	do {
-		gi->gl = rhashtable_walk_next(&gi->hti);
+	while ((gi->gl = rhashtable_walk_next(&gi->hti))) {
 		if (IS_ERR(gi->gl)) {
 			if (PTR_ERR(gi->gl) == -EAGAIN)
 				continue;
 			gi->gl = NULL;
+			return;
 		}
-	/* Skip entries for other sb and dead entries */
-	} while ((gi->gl) && ((gi->sdp != gi->gl->gl_name.ln_sbd) ||
-			      __lockref_is_dead(&gi->gl->gl_lockref)));
+		/* Skip entries for other sb and dead entries */
+		if (gi->sdp == gi->gl->gl_name.ln_sbd &&
+		    !__lockref_is_dead(&gi->gl->gl_lockref))
+			return;
+	}
 }
 
 static void *gfs2_glock_seq_start(struct seq_file *seq, loff_t *pos)
