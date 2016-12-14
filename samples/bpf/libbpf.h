@@ -2,27 +2,12 @@
 #ifndef __LIBBPF_H
 #define __LIBBPF_H
 
+#include <bpf/bpf.h>
+
 struct bpf_insn;
-
-int bpf_create_map(enum bpf_map_type map_type, int key_size, int value_size,
-		   int max_entries, int map_flags);
-int bpf_map_update_elem(int fd, void *key, void *value, unsigned long long flags);
-int bpf_map_lookup_elem(int fd, void *key, void *value);
-int bpf_map_delete_elem(int fd, void *key);
-int bpf_map_get_next_key(int fd, void *key, void *next_key);
-
-int bpf_load_program(enum bpf_prog_type prog_type,
-		     const struct bpf_insn *insns, int insn_len,
-		     const char *license, int kern_version,
-		     char *log_buf, size_t log_buf_sz);
 
 int bpf_prog_attach(int prog_fd, int attachable_fd, enum bpf_attach_type type);
 int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
-
-int bpf_obj_pin(int fd, const char *pathname);
-int bpf_obj_get(const char *pathname);
-
-#define BPF_LOG_BUF_SIZE (256 * 1024)
 
 /* ALU ops on registers, bpf_add|sub|...: dst_reg += src_reg */
 

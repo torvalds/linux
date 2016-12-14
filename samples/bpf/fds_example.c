@@ -53,13 +53,14 @@ static int bpf_prog_create(const char *object)
 		BPF_MOV64_IMM(BPF_REG_0, 1),
 		BPF_EXIT_INSN(),
 	};
+	size_t insns_cnt = sizeof(insns) / sizeof(struct bpf_insn);
 
 	if (object) {
 		assert(!load_bpf_file((char *)object));
 		return prog_fd[0];
 	} else {
 		return bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER,
-					insns, sizeof(insns), "GPL", 0,
+					insns, insns_cnt, "GPL", 0,
 					bpf_log_buf, BPF_LOG_BUF_SIZE);
 	}
 }

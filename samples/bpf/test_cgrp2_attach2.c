@@ -41,9 +41,10 @@ static int prog_load(int verdict)
 		BPF_MOV64_IMM(BPF_REG_0, verdict), /* r0 = verdict */
 		BPF_EXIT_INSN(),
 	};
+	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
 
 	ret = bpf_load_program(BPF_PROG_TYPE_CGROUP_SKB,
-			       prog, sizeof(prog), "GPL", 0,
+			       prog, insns_cnt, "GPL", 0,
 			       bpf_log_buf, BPF_LOG_BUF_SIZE);
 
 	if (ret < 0) {

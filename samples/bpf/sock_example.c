@@ -56,8 +56,9 @@ static int test_sock(void)
 		BPF_MOV64_IMM(BPF_REG_0, 0), /* r0 = 0 */
 		BPF_EXIT_INSN(),
 	};
+	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
 
-	prog_fd = bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog, sizeof(prog),
+	prog_fd = bpf_load_program(BPF_PROG_TYPE_SOCKET_FILTER, prog, insns_cnt,
 				   "GPL", 0, bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (prog_fd < 0) {
 		printf("failed to load prog '%s'\n", strerror(errno));
