@@ -28,6 +28,7 @@
 #define MOD_COLOR_H_
 
 #include "dm_services.h"
+#include "color_helper.h"
 
 struct mod_color {
 	int dummy;
@@ -54,7 +55,6 @@ struct gamut_space_coordinates {
 };
 
 struct gamut_space_entry {
-	unsigned int index;
 	unsigned int redX;
 	unsigned int redY;
 	unsigned int greenX;
@@ -75,7 +75,7 @@ struct white_point_coodinates {
 };
 
 struct white_point_coodinates_entry {
-	unsigned int index;
+	unsigned int temperature;
 	unsigned int whiteX;
 	unsigned int whiteY;
 };
