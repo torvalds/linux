@@ -435,7 +435,8 @@ int main(int argc, char **argv)
 
 	lkl_start_kernel(&lkl_host_ops, 100 * 1024 * 1024, "");
 
-	ret = lkl_mount_dev(disk_id, cla.fsimg_type, cptofs ? 0 : LKL_MS_RDONLY,
+	ret = lkl_mount_dev(disk_id, 0, cla.fsimg_type,
+			    cptofs ? 0 : LKL_MS_RDONLY,
 			    NULL, mpoint, sizeof(mpoint));
 	if (ret) {
 		fprintf(stderr, "can't mount disk: %s\n", lkl_strerror(ret));
@@ -457,7 +458,7 @@ int main(int argc, char **argv)
 
 	ret = searchdir(src_path_dir, dst_path, src_path_base);
 
-	ret = lkl_umount_dev(disk_id, 0, 1000);
+	ret = lkl_umount_dev(disk_id, 0, 0, 1000);
 
 out_close:
 	close(disk.fd);

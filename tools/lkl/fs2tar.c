@@ -362,7 +362,7 @@ int main(int argc, char **argv)
 
 	lkl_start_kernel(&lkl_host_ops, 10 * 1024 * 1024, "");
 
-	ret = lkl_mount_dev(disk_id, cla.fsimg_type, LKL_MS_RDONLY, NULL,
+	ret = lkl_mount_dev(disk_id, 0, cla.fsimg_type, LKL_MS_RDONLY, NULL,
 			    mpoint, sizeof(mpoint));
 	if (ret) {
 		fprintf(stderr, "can't mount disk: %s\n", lkl_strerror(ret));
@@ -388,7 +388,7 @@ int main(int argc, char **argv)
 		fclose(cla.selinux);
 
 out_umount:
-	lkl_umount_dev(disk_id, 0, 1000);
+	lkl_umount_dev(disk_id, 0, 0, 1000);
 
 out_close:
 	close(disk.fd);

@@ -512,7 +512,7 @@ static int start_lkl(void)
 		goto out;
 	}
 
-	ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.type,
+	ret = lkl_mount_dev(lklfuse.disk_id, 0, lklfuse.type,
 			    lklfuse.ro ? LKL_MS_RDONLY : 0, lklfuse.opts,
 			    mpoint, sizeof(mpoint));
 
@@ -531,7 +531,7 @@ static int start_lkl(void)
 	return 0;
 
 out_umount:
-	lkl_umount_dev(lklfuse.disk_id, 0, 1000);
+	lkl_umount_dev(lklfuse.disk_id, 0, 0, 1000);
 
 out_halt:
 	lkl_sys_halt();

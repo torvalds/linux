@@ -112,15 +112,17 @@ int lkl_disk_add(struct lkl_disk *disk);
 int lkl_disk_remove(struct lkl_disk disk);
 
 /**
- * lkl_get_virtio_blkdev - get device id of a disk
+ * lkl_get_virtio_blkdev - get device id of a disk (partition)
  *
  * This function returns the device id for the given disk.
  *
  * @disk_id - the disk id identifying the disk
+ * @part - disk partition or zero for full disk
  * @pdevid - pointer to memory where dev id will be returned
  * @returns - 0 on success, a negative value on error
  */
-int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid);
+int lkl_get_virtio_blkdev(int disk_id, unsigned int part, uint32_t *pdevid);
+
 
 /**
  * lkl_mount_dev - mount a disk
@@ -129,6 +131,7 @@ int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid);
  * point and mounts the device over the mount point.
  *
  * @disk_id - the disk id identifying the disk to be mounted
+ * @part - disk partition or zero for full disk
  * @fs_type - filesystem type
  * @flags - mount flags
  * @opts - additional filesystem specific mount options
@@ -137,8 +140,9 @@ int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid);
  * @mnt_str_len - size of mnt_str
  * @returns - 0 on success, a negative value on error
  */
-long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
-		   const char *opts, char *mnt_str, unsigned int mnt_str_len);
+long lkl_mount_dev(unsigned int disk_id, unsigned int part, const char *fs_type,
+		   int flags, const char *opts,
+		   char *mnt_str, unsigned int mnt_str_len);
 
 /**
  * lkl_umount_dev - umount a disk
@@ -147,12 +151,14 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
  * mount point.
  *
  * @disk_id - the disk id identifying the disk to be mounted
+ * @part - disk partition or zero for full disk
  * @flags - umount flags
  * @timeout_ms - timeout to wait for the kernel to flush closed files so that
  * umount can succeed
  * @returns - 0 on success, a negative value on error
  */
-long lkl_umount_dev(unsigned int disk_id, int flags, long timeout_ms);
+long lkl_umount_dev(unsigned int disk_id, unsigned int part, int flags,
+		    long timeout_ms);
 
 /**
  * lkl_umount_timeout - umount filesystem with timeout

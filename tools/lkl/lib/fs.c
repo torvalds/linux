@@ -139,7 +139,7 @@ static int snprintf_append(struct abuf *buf, const char *fmt, ...)
 	return 0;
 }
 
-int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid)
+int lkl_get_virtio_blkdev(int disk_id, unsigned int part, uint32_t *pdevid)
 {
 	char sysfs_path[LKL_PATH_MAX];
 	char virtio_name[LKL_PATH_MAX];
@@ -183,14 +183,19 @@ int lkl_get_virtio_blkdev(int disk_id, uint32_t *pdevid)
 	if (ret)
 		return ret;
 
-	ret = snprintf_append(&sysfs_path_buf, "/%s/dev", disk_name);
+	if (!part)
+		ret = snprintf_append(&sysfs_path_buf, "/%s/dev", disk_name);
+	else
+		ret = snprintf_append(&sysfs_path_buf, "/%s/%s%d/dev",
+				      disk_name, disk_name, part);
 	if (ret)
 		return ret;
 
 	return encode_dev_from_sysfs(sysfs_path, pdevid);
 }
 
-long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
+long lkl_mount_dev(unsigned int disk_id, unsigned int part,
+		   const char *fs_type, int flags,
 		   const char *data, char *mnt_str, unsigned int mnt_str_len)
 {
 	char dev_str[] = { "/dev/xxxxxxxx" };
@@ -201,7 +206,7 @@ long lkl_mount_dev(unsigned int disk_id, const char *fs_type, int flags,
 	if (mnt_str_len < sizeof(dev_str))
 		return -LKL_ENOMEM;
 
-	err = lkl_get_virtio_blkdev(disk_id, &dev);
+	err = lkl_get_virtio_blkdev(disk_id, part, &dev);
 	if (err < 0)
 		return err;
 
@@ -272,14 +277,15 @@ long lkl_umount_timeout(char *path, int flags, long timeout_ms)
 	return err;
 }
 
-long lkl_umount_dev(unsigned int disk_id, int flags, long timeout_ms)
+long lkl_umount_dev(unsigned int disk_id, unsigned int part, int flags,
+		    long timeout_ms)
 {
 	char dev_str[] = { "/dev/xxxxxxxx" };
 	char mnt_str[] = { "/mnt/xxxxxxxx" };
 	unsigned int dev;
 	int err;
 
-	err = lkl_get_virtio_blkdev(disk_id, &dev);
+	err = lkl_get_virtio_blkdev(disk_id, part, &dev);
 	if (err < 0)
 		return err;
 

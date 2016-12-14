@@ -542,7 +542,7 @@ static int test_mount_dev(char *str, int len)
 {
 	long ret;
 
-	ret = lkl_mount_dev(disk_id, cla.fstype, 0, NULL, mnt_point,
+	ret = lkl_mount_dev(disk_id, 0, cla.fstype, 0, NULL, mnt_point,
 			    sizeof(mnt_point));
 
 	snprintf(str, len, "%ld", ret);
@@ -617,7 +617,7 @@ static int test_umount_dev(char *str, int len)
 
 	ret2 = lkl_sys_chdir("/");
 
-	ret3 = lkl_umount_dev(disk_id, 0, 1000);
+	ret3 = lkl_umount_dev(disk_id, 0, 0, 1000);
 
 	snprintf(str, len, "%ld %ld %ld", ret, ret2, ret3);
 
