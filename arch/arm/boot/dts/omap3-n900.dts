@@ -697,6 +697,8 @@
 	vmmc_aux-supply = <&vsim>;
 	bus-width = <8>;
 	non-removable;
+	no-sdio;
+	no-sd;
 };
 
 &mmc3 {
