@@ -759,7 +759,7 @@ static struct page **etnaviv_gem_userptr_do_get_pages(
 	down_read(&mm->mmap_sem);
 	while (pinned < npages) {
 		ret = get_user_pages_remote(task, mm, ptr, npages - pinned,
-					    flags, pvec + pinned, NULL);
+					    flags, pvec + pinned, NULL, NULL);
 		if (ret < 0)
 			break;
 
