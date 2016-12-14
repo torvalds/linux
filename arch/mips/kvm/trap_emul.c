@@ -705,6 +705,9 @@ static int kvm_trap_emul_set_one_reg(struct kvm_vcpu *vcpu,
 			kvm_write_c0_guest_config5(cop0, v);
 		}
 		break;
+	case KVM_REG_MIPS_CP0_CONFIG7:
+		/* writes ignored */
+		break;
 	case KVM_REG_MIPS_COUNT_CTL:
 		ret = kvm_mips_set_count_ctl(vcpu, v);
 		break;
