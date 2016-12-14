@@ -930,7 +930,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 
 	atomic_inc(&fs_info->nr_async_submits);
 
-	if (bio->bi_opf & REQ_SYNC)
+	if (op_is_sync(bio->bi_opf))
 		btrfs_set_work_high_priority(&async->work);
 
 	btrfs_queue_work(fs_info->workers, &async->work);
@@ -3485,9 +3485,9 @@ static int write_dev_supers(struct btrfs_device *device,
 		 * to go down lazy.
 		 */
 		if (i == 0)
-			ret = btrfsic_submit_bh(REQ_OP_WRITE, WRITE_FUA, bh);
+			ret = btrfsic_submit_bh(REQ_OP_WRITE, REQ_FUA, bh);
 		else
-			ret = btrfsic_submit_bh(REQ_OP_WRITE, WRITE_SYNC, bh);
+			ret = btrfsic_submit_bh(REQ_OP_WRITE, REQ_SYNC, bh);
 		if (ret)
 			errors++;
 	}
@@ -3551,7 +3551,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 
 	bio->bi_end_io = btrfs_end_empty_barrier;
 	bio->bi_bdev = device->bdev;
-	bio_set_op_attrs(bio, REQ_OP_WRITE, WRITE_FLUSH);
+	bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 	init_completion(&device->flush_wait);
 	bio->bi_private = &device->flush_wait;
 	device->flush_bio = bio;

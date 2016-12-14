@@ -82,28 +82,7 @@ static struct mei_cl_driver microread_driver = {
 	.remove = microread_mei_remove,
 };
 
-static int microread_mei_init(void)
-{
-	int r;
-
-	pr_debug(DRIVER_DESC ": %s\n", __func__);
-
-	r = mei_cldev_driver_register(&microread_driver);
-	if (r) {
-		pr_err(MICROREAD_DRIVER_NAME ": driver registration failed\n");
-		return r;
-	}
-
-	return 0;
-}
-
-static void microread_mei_exit(void)
-{
-	mei_cldev_driver_unregister(&microread_driver);
-}
-
-module_init(microread_mei_init);
-module_exit(microread_mei_exit);
+module_mei_cl_driver(microread_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION(DRIVER_DESC);

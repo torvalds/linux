@@ -167,6 +167,7 @@ ACPI_EXPORT_SYMBOL_INIT(acpi_initialize_tables)
 acpi_status ACPI_INIT_FUNCTION acpi_reallocate_root_table(void)
 {
 	acpi_status status;
+	u32 i;
 
 	ACPI_FUNCTION_TRACE(acpi_reallocate_root_table);
 
@@ -176,6 +177,21 @@ acpi_status ACPI_INIT_FUNCTION acpi_reallocate_root_table(void)
 	 */
 	if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
 		return_ACPI_STATUS(AE_SUPPORT);
+	}
+
+	/*
+	 * Ensure OS early boot logic, which is required by some hosts. If the
+	 * table state is reported to be wrong, developers should fix the
+	 * issue by invoking acpi_put_table() for the reported table during the
+	 * early stage.
+	 */
+	for (i = 0; i < acpi_gbl_root_table_list.current_table_count; ++i) {
+		if (acpi_gbl_root_table_list.tables[i].pointer) {
+			ACPI_ERROR((AE_INFO,
+				    "Table [%4.4s] is not invalidated during early boot stage",
+				    acpi_gbl_root_table_list.tables[i].
+				    signature.ascii));
+		}
 	}
 
 	acpi_gbl_root_table_list.flags |= ACPI_ROOT_ALLOW_RESIZE;

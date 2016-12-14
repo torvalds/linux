@@ -685,7 +685,7 @@ void r5l_flush_stripe_to_raid(struct r5l_log *log)
 	bio_reset(&log->flush_bio);
 	log->flush_bio.bi_bdev = log->rdev->bdev;
 	log->flush_bio.bi_end_io = r5l_log_flush_endio;
-	bio_set_op_attrs(&log->flush_bio, REQ_OP_WRITE, WRITE_FLUSH);
+	log->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 	submit_bio(&log->flush_bio);
 }
 
@@ -1053,7 +1053,7 @@ static int r5l_log_write_empty_meta_block(struct r5l_log *log, sector_t pos,
 	mb->checksum = cpu_to_le32(crc);
 
 	if (!sync_page_io(log->rdev, pos, PAGE_SIZE, page, REQ_OP_WRITE,
-			  WRITE_FUA, false)) {
+			  REQ_FUA, false)) {
 		__free_page(page);
 		return -EIO;
 	}
@@ -1205,7 +1205,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	INIT_LIST_HEAD(&log->io_end_ios);
 	INIT_LIST_HEAD(&log->flushing_ios);
 	INIT_LIST_HEAD(&log->finished_ios);
-	bio_init(&log->flush_bio);
+	bio_init(&log->flush_bio, NULL, 0);
 
 	log->io_kc = KMEM_CACHE(r5l_io_unit, 0);
 	if (!log->io_kc)

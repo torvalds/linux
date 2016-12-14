@@ -80,7 +80,14 @@ void kasan_unpoison_task_stack(struct task_struct *task)
 /* Unpoison the stack for the current task beyond a watermark sp value. */
 asmlinkage void kasan_unpoison_task_stack_below(const void *watermark)
 {
-	__kasan_unpoison_stack(current, watermark);
+	/*
+	 * Calculate the task stack base address.  Avoid using 'current'
+	 * because this function is called by early resume code which hasn't
+	 * yet set up the percpu register (%gs).
+	 */
+	void *base = (void *)((unsigned long)watermark & ~(THREAD_SIZE - 1));
+
+	kasan_unpoison_shadow(base, watermark - base);
 }
 
 /*

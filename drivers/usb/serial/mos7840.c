@@ -1956,9 +1956,6 @@ static int mos7840_get_serial_info(struct moschip_port *mos7840_port,
 	if (mos7840_port == NULL)
 		return -1;
 
-	if (!retinfo)
-		return -EFAULT;
-
 	memset(&tmp, 0, sizeof(tmp));
 
 	tmp.type = PORT_16550A;

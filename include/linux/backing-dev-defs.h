@@ -116,6 +116,8 @@ struct bdi_writeback {
 	struct list_head work_list;
 	struct delayed_work dwork;	/* work item used for writeback */
 
+	unsigned long dirty_sleep;	/* last wait */
+
 	struct list_head bdi_node;	/* anchored at bdi->wb_list */
 
 #ifdef CONFIG_CGROUP_WRITEBACK

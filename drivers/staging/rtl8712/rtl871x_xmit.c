@@ -71,8 +71,8 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	memset((unsigned char *)pxmitpriv, 0, sizeof(struct xmit_priv));
 	spin_lock_init(&pxmitpriv->lock);
 	/*
-	Please insert all the queue initialization using _init_queue below
-	*/
+	 *Please insert all the queue initialization using _init_queue below
+	 */
 	pxmitpriv->adapter = padapter;
 	_init_queue(&pxmitpriv->be_pending);
 	_init_queue(&pxmitpriv->bk_pending);
@@ -83,10 +83,10 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	_init_queue(&pxmitpriv->apsd_queue);
 	_init_queue(&pxmitpriv->free_xmit_queue);
 	/*
-	Please allocate memory with the sz = (struct xmit_frame) * NR_XMITFRAME,
-	and initialize free_xmit_frame below.
-	Please also apply  free_txobj to link_up all the xmit_frames...
-	*/
+	 * Please allocate memory with the sz = (struct xmit_frame) * NR_XMITFRAME,
+	 * and initialize free_xmit_frame below.
+	 * Please also apply  free_txobj to link_up all the xmit_frames...
+	 */
 	pxmitpriv->pallocated_frame_buf = kmalloc(NR_XMITFRAME * sizeof(struct xmit_frame) + 4,
 						  GFP_ATOMIC);
 	if (!pxmitpriv->pallocated_frame_buf) {
@@ -109,8 +109,8 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	}
 	pxmitpriv->free_xmitframe_cnt = NR_XMITFRAME;
 	/*
-		init xmit hw_txqueue
-	*/
+	 * init xmit hw_txqueue
+	 */
 	_r8712_init_hw_txqueue(&pxmitpriv->be_txqueue, BE_QUEUE_INX);
 	_r8712_init_hw_txqueue(&pxmitpriv->bk_txqueue, BK_QUEUE_INX);
 	_r8712_init_hw_txqueue(&pxmitpriv->vi_txqueue, VI_QUEUE_INX);
@@ -128,8 +128,11 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	_init_queue(&pxmitpriv->pending_xmitbuf_queue);
 	pxmitpriv->pallocated_xmitbuf = kmalloc(NR_XMITBUFF * sizeof(struct xmit_buf) + 4,
 						GFP_ATOMIC);
-	if (!pxmitpriv->pallocated_xmitbuf)
+	if (!pxmitpriv->pallocated_xmitbuf) {
+		kfree(pxmitpriv->pallocated_frame_buf);
+		pxmitpriv->pallocated_frame_buf = NULL;
 		return _FAIL;
+	}
 	pxmitpriv->pxmitbuf = pxmitpriv->pallocated_xmitbuf + 4 -
 			      ((addr_t)(pxmitpriv->pallocated_xmitbuf) & 3);
 	pxmitbuf = (struct xmit_buf *)pxmitpriv->pxmitbuf;
@@ -777,24 +780,23 @@ int r8712_free_xmitbuf(struct xmit_priv *pxmitpriv, struct xmit_buf *pxmitbuf)
 }
 
 /*
-Calling context:
-1. OS_TXENTRY
-2. RXENTRY (rx_thread or RX_ISR/RX_CallBack)
-
-If we turn on USE_RXTHREAD, then, no need for critical section.
-Otherwise, we must use _enter/_exit critical to protect free_xmit_queue...
-
-Must be very very cautious...
-
-*/
-
+ * Calling context:
+ * 1. OS_TXENTRY
+ * 2. RXENTRY (rx_thread or RX_ISR/RX_CallBack)
+ *
+ * If we turn on USE_RXTHREAD, then, no need for critical section.
+ * Otherwise, we must use _enter/_exit critical to protect free_xmit_queue...
+ *
+ * Must be very very cautious...
+ *
+ */
 struct xmit_frame *r8712_alloc_xmitframe(struct xmit_priv *pxmitpriv)
 {
 	/*
-		Please remember to use all the osdep_service api,
-		and lock/unlock or _enter/_exit critical to protect
-		pfree_xmit_queue
-	*/
+	 * Please remember to use all the osdep_service api,
+	 * and lock/unlock or _enter/_exit critical to protect
+	 * pfree_xmit_queue
+	 */
 	unsigned long irqL;
 	struct xmit_frame *pxframe;
 	struct  __queue *pfree_xmit_queue = &pxmitpriv->free_xmit_queue;

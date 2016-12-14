@@ -260,6 +260,12 @@ L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-104-idio-16.c
 
+ACCES 104-QUAD-8 IIO DRIVER
+M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/counter/104-quad-8.c
+
 ACENIC DRIVER
 M:	Jes Sorensen <jes@trained-monkey.org>
 L:	linux-acenic@sunsite.dk
@@ -803,7 +809,7 @@ S:	Supported
 F:	drivers/iio/*/ad*
 X:	drivers/iio/*/adjd*
 F:	drivers/staging/iio/*/ad*
-F:	staging/iio/trigger/iio-trig-bfin-timer.c
+F:	drivers/staging/iio/trigger/iio-trig-bfin-timer.c
 
 ANALOG DEVICES INC DMA DRIVERS
 M:	Lars-Peter Clausen <lars@metafoo.de>
@@ -2612,6 +2618,7 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rpi/linux-rpi.git
 S:	Maintained
 N:	bcm2835
+F:	drivers/staging/vc04_services
 
 BROADCOM BCM47XX MIPS ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
@@ -2763,6 +2770,14 @@ L:	linux-mtd@lists.infradead.org
 L:	bcm-kernel-feedback-list@broadcom.com
 S:	Maintained
 F:	drivers/mtd/nand/brcmnand/
+
+BROADCOM STB AVS CPUFREQ DRIVER
+M:	Markus Mayer <mmayer@broadcom.com>
+M:	bcm-kernel-feedback-list@broadcom.com
+L:	linux-pm@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/cpufreq/brcm,stb-avs-cpu-freq.txt
+F:	drivers/cpufreq/brcmstb*
 
 BROADCOM SPECIFIC AMBA DRIVER (BCMA)
 M:	Rafał Miłecki <zajec5@gmail.com>
@@ -3051,6 +3066,12 @@ F:	drivers/usb/host/hwa-hc.c
 F:	drivers/usb/host/whci/
 F:	drivers/usb/wusbcore/
 F:	include/linux/usb/wusb*
+
+HT16K33 LED CONTROLLER DRIVER
+M:	Robin van der Gracht <robin@protonic.nl>
+S:	Maintained
+F:	drivers/auxdisplay/ht16k33.c
+F:	Documentation/devicetree/bindings/display/ht16k33.txt
 
 CFAG12864B LCD DRIVER
 M:	Miguel Ojeda Sandonis <miguel.ojeda.sandonis@gmail.com>
@@ -3356,6 +3377,7 @@ L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
 T:	git git://git.linaro.org/people/vireshk/linux.git (For ARM Updates)
+B:	https://bugzilla.kernel.org
 F:	Documentation/cpu-freq/
 F:	drivers/cpufreq/
 F:	include/linux/cpufreq.h
@@ -3395,6 +3417,7 @@ M:	Daniel Lezcano <daniel.lezcano@linaro.org>
 L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/rafael/linux-pm.git
+B:	https://bugzilla.kernel.org
 F:	drivers/cpuidle/*
 F:	include/linux/cpuidle.h
 
@@ -5026,7 +5049,9 @@ K:	fmc_d.*register
 FPGA MANAGER FRAMEWORK
 M:	Alan Tull <atull@opensource.altera.com>
 R:	Moritz Fischer <moritz.fischer@ettus.com>
+L:	linux-fpga@vger.kernel.org
 S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/atull/linux-fpga.git
 F:	drivers/fpga/
 F:	include/linux/fpga/fpga-mgr.h
 W:	http://www.rocketboards.org
@@ -5181,13 +5206,6 @@ S:	Maintained
 F:	sound/soc/fsl/fsl*
 F:	sound/soc/fsl/imx*
 F:	sound/soc/fsl/mpc8610_hpcd.c
-
-FREESCALE QORIQ MANAGEMENT COMPLEX DRIVER
-M:	"J. German Rivera" <German.Rivera@freescale.com>
-M:	Stuart Yoder <stuart.yoder@nxp.com>
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/fsl-mc/
 
 FREEVXFS FILESYSTEM
 M:	Christoph Hellwig <hch@infradead.org>
@@ -5930,6 +5948,7 @@ F:	drivers/input/serio/hyperv-keyboard.c
 F:	drivers/pci/host/pci-hyperv.c
 F:	drivers/net/hyperv/
 F:	drivers/scsi/storvsc_drv.c
+F:	drivers/uio/uio_hv_generic.c
 F:	drivers/video/fbdev/hyperv_fb.c
 F:	include/linux/hyperv.h
 F:	tools/hv/
@@ -6205,6 +6224,22 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/rc/iguanair.c
 
+IIO DIGITAL POTENTIOMETER DAC
+M:	Peter Rosin <peda@axentia.se>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-bus-iio-dac-dpot-dac
+F:	Documentation/devicetree/bindings/iio/dac/dpot-dac.txt
+F:	drivers/iio/dac/dpot-dac.c
+
+IIO ENVELOPE DETECTOR
+M:	Peter Rosin <peda@axentia.se>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/ABI/testing/sysfs-bus-iio-adc-envelope-detector
+F:	Documentation/devicetree/bindings/iio/adc/envelope-detector.txt
+F:	drivers/iio/adc/envelope-detector.c
+
 IIO SUBSYSTEM AND DRIVERS
 M:	Jonathan Cameron <jic23@kernel.org>
 R:	Hartmut Knaack <knaack.h@gmx.de>
@@ -6362,9 +6397,11 @@ S:	Maintained
 F:	drivers/platform/x86/intel-vbtn.c
 
 INTEL IDLE DRIVER
+M:	Jacob Pan <jacob.jun.pan@linux.intel.com>
 M:	Len Brown <lenb@kernel.org>
 L:	linux-pm@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git
+B:	https://bugzilla.kernel.org
 S:	Supported
 F:	drivers/idle/intel_idle.c
 
@@ -6583,6 +6620,13 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	arch/x86/include/asm/pmc_core.h
 F:	drivers/platform/x86/intel_pmc_core*
+
+INVENSENSE MPU-3050 GYROSCOPE DRIVER
+M:	Linus Walleij <linus.walleij@linaro.org>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/gyro/mpu3050*
+F:	Documentation/devicetree/bindings/iio/gyroscope/inv,mpu3050.txt
 
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
@@ -7791,6 +7835,7 @@ MCP4531 MICROCHIP DIGITAL POTENTIOMETER DRIVER
 M:	Peter Rosin <peda@axentia.se>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
+F:	Documentation/ABI/testing/sysfs-bus-iio-potentiometer-mcp4531
 F:	drivers/iio/potentiometer/mcp4531.c
 
 MEASUREMENT COMPUTING CIO-DAC IIO DRIVER
@@ -8766,6 +8811,16 @@ L:	linux-nvme@lists.infradead.org
 S:	Supported
 F:	drivers/nvme/target/
 
+NVM EXPRESS FC TRANSPORT DRIVERS
+M:	James Smart <james.smart@broadcom.com>
+L:	linux-nvme@lists.infradead.org
+S:	Supported
+F:	include/linux/nvme-fc.h
+F:	include/linux/nvme-fc-driver.h
+F:	drivers/nvme/host/fc.c
+F:	drivers/nvme/target/fc.c
+F:	drivers/nvme/target/fcloop.c
+
 NVMEM FRAMEWORK
 M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 M:	Maxime Ripard <maxime.ripard@free-electrons.com>
@@ -9185,7 +9240,7 @@ F:      drivers/misc/panel.c
 
 PARALLEL PORT SUBSYSTEM
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
-M:	Sudip Mukherjee <sudip@vectorindia.org>
+M:	Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>
 L:	linux-parport@lists.infradead.org (subscribers-only)
 S:	Maintained
 F:	drivers/parport/
@@ -9656,8 +9711,8 @@ F:      arch/mips/boot/dts/pistachio/
 F:      arch/mips/configs/pistachio*_defconfig
 
 PKTCDVD DRIVER
-M:	Jiri Kosina <jikos@kernel.org>
-S:	Maintained
+S:	Orphan
+M:	linux-block@vger.kernel.org
 F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
 F:	include/uapi/linux/pktcdvd.h
@@ -10033,6 +10088,12 @@ S:	Maintained
 F:	fs/qnx4/
 F:	include/uapi/linux/qnx4_fs.h
 F:	include/uapi/linux/qnxtypes.h
+
+QORIQ DPAA2 FSL-MC BUS DRIVER
+M:	Stuart Yoder <stuart.yoder@nxp.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/fsl-mc/
 
 QT1010 MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
@@ -10496,7 +10557,7 @@ F:	arch/s390/pci/
 F:	drivers/pci/hotplug/s390_pci_hpc.c
 
 S390 ZCRYPT DRIVER
-M:	Ingo Tuchscherer <ingo.tuchscherer@de.ibm.com>
+M:	Harald Freudenberger <freude@de.ibm.com>
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
@@ -10788,6 +10849,11 @@ M:	Lennox Wu <lennox.wu@gmail.com>
 W:	http://www.sunplus.com
 S:	Supported
 F:	arch/score/
+
+SCR24X CHIP CARD INTERFACE DRIVER
+M:	Lubomir Rintel <lkundrak@v3.sk>
+S:	Supported
+F:	drivers/char/pcmcia/scr24x_cs.c
 
 SYSTEM CONTROL & POWER INTERFACE (SCPI) Message Protocol drivers
 M:	Sudeep Holla <sudeep.holla@arm.com>
@@ -11192,7 +11258,7 @@ F:	include/media/i2c/ov2659.h
 SILICON MOTION SM712 FRAME BUFFER DRIVER
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 M:	Teddy Wang <teddy.wang@siliconmotion.com>
-M:	Sudip Mukherjee <sudip@vectorindia.org>
+M:	Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/video/fbdev/sm712*
@@ -11620,16 +11686,10 @@ F:	drivers/staging/rtl8712/
 STAGING - SILICON MOTION SM750 FRAME BUFFER DRIVER
 M:	Sudip Mukherjee <sudipm.mukherjee@gmail.com>
 M:	Teddy Wang <teddy.wang@siliconmotion.com>
-M:	Sudip Mukherjee <sudip@vectorindia.org>
+M:	Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/sm750fb/
-
-STAGING - SLICOSS
-M:	Lior Dotan <liodot@gmail.com>
-M:	Christopher Harrer <charrer@alacritech.com>
-S:	Odd Fixes
-F:	drivers/staging/slicoss/
 
 STAGING - SPEAKUP CONSOLE SPEECH DRIVER
 M:	William Hubbs <w.d.hubbs@gmail.com>
@@ -13294,7 +13354,6 @@ F:	drivers/media/tuners/tuner-xc2028.*
 
 XEN HYPERVISOR INTERFACE
 M:	Boris Ostrovsky <boris.ostrovsky@oracle.com>
-M:	David Vrabel <david.vrabel@citrix.com>
 M:	Juergen Gross <jgross@suse.com>
 L:	xen-devel@lists.xenproject.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/xen/tip.git

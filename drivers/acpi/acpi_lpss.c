@@ -718,13 +718,14 @@ static int acpi_lpss_resume_early(struct device *dev)
 #define LPSS_GPIODEF0_DMA1_D3		BIT(2)
 #define LPSS_GPIODEF0_DMA2_D3		BIT(3)
 #define LPSS_GPIODEF0_DMA_D3_MASK	GENMASK(3, 2)
+#define LPSS_GPIODEF0_DMA_LLP		BIT(13)
 
 static DEFINE_MUTEX(lpss_iosf_mutex);
 
 static void lpss_iosf_enter_d3_state(void)
 {
 	u32 value1 = 0;
-	u32 mask1 = LPSS_GPIODEF0_DMA_D3_MASK;
+	u32 mask1 = LPSS_GPIODEF0_DMA_D3_MASK | LPSS_GPIODEF0_DMA_LLP;
 	u32 value2 = LPSS_PMCSR_D3hot;
 	u32 mask2 = LPSS_PMCSR_Dx_MASK;
 	/*
@@ -768,8 +769,9 @@ exit:
 
 static void lpss_iosf_exit_d3_state(void)
 {
-	u32 value1 = LPSS_GPIODEF0_DMA1_D3 | LPSS_GPIODEF0_DMA2_D3;
-	u32 mask1 = LPSS_GPIODEF0_DMA_D3_MASK;
+	u32 value1 = LPSS_GPIODEF0_DMA1_D3 | LPSS_GPIODEF0_DMA2_D3 |
+		     LPSS_GPIODEF0_DMA_LLP;
+	u32 mask1 = LPSS_GPIODEF0_DMA_D3_MASK | LPSS_GPIODEF0_DMA_LLP;
 	u32 value2 = LPSS_PMCSR_D0;
 	u32 mask2 = LPSS_PMCSR_Dx_MASK;
 

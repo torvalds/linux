@@ -154,7 +154,8 @@ static int submit_rtpg(struct scsi_device *sdev, unsigned char *buff,
 	return scsi_execute_req_flags(sdev, cdb, DMA_FROM_DEVICE,
 				      buff, bufflen, sshdr,
 				      ALUA_FAILOVER_TIMEOUT * HZ,
-				      ALUA_FAILOVER_RETRIES, NULL, req_flags);
+				      ALUA_FAILOVER_RETRIES, NULL,
+				      req_flags, 0);
 }
 
 /*
@@ -187,7 +188,8 @@ static int submit_stpg(struct scsi_device *sdev, int group_id,
 	return scsi_execute_req_flags(sdev, cdb, DMA_TO_DEVICE,
 				      stpg_data, stpg_len,
 				      sshdr, ALUA_FAILOVER_TIMEOUT * HZ,
-				      ALUA_FAILOVER_RETRIES, NULL, req_flags);
+				      ALUA_FAILOVER_RETRIES, NULL,
+				      req_flags, 0);
 }
 
 static struct alua_port_group *alua_find_get_pg(char *id_str, size_t id_size,
@@ -1066,7 +1068,7 @@ static int alua_prep_fn(struct scsi_device *sdev, struct request *req)
 		 state != SCSI_ACCESS_STATE_ACTIVE &&
 		 state != SCSI_ACCESS_STATE_LBA) {
 		ret = BLKPREP_KILL;
-		req->cmd_flags |= REQ_QUIET;
+		req->rq_flags |= RQF_QUIET;
 	}
 	return ret;
 

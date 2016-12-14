@@ -158,7 +158,6 @@ struct gbaudio_module_info {
 	int dev_id;	/* check if it should be bundle_id/hd_cport_id */
 	int vid;
 	int pid;
-	int slot;
 	int type;
 	int set_uevent;
 	char vstr[NAME_SIZE];

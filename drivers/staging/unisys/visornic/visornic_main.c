@@ -1371,7 +1371,7 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				     " num_rcv_bufs = %d\n",
 				     devdata->num_rcv_bufs);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " max_oustanding_next_xmits = %lu\n",
+				     " max_outstanding_next_xmits = %lu\n",
 				    devdata->max_outstanding_net_xmits);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 				     " upper_threshold_net_xmits = %lu\n",

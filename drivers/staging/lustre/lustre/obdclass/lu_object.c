@@ -68,6 +68,7 @@ enum {
 
 #define LU_SITE_BITS_MIN	12
 #define LU_SITE_BITS_MAX	24
+#define LU_SITE_BITS_MAX_CL	19
 /**
  * total 256 buckets, we don't want too many buckets because:
  * - consume too much memory
@@ -338,7 +339,7 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	struct cfs_hash_bd	    bd2;
 	struct list_head	       dispose;
 	int		      did_sth;
-	unsigned int start;
+	unsigned int start = 0;
 	int		      count;
 	int		      bnr;
 	unsigned int i;
@@ -351,7 +352,8 @@ int lu_site_purge(const struct lu_env *env, struct lu_site *s, int nr)
 	 * Under LRU list lock, scan LRU list and move unreferenced objects to
 	 * the dispose list, removing them from LRU and hash table.
 	 */
-	start = s->ls_purge_start;
+	if (nr != ~0)
+		start = s->ls_purge_start;
 	bnr = (nr == ~0) ? -1 : nr / (int)CFS_HASH_NBKT(s->ls_obj_hash) + 1;
  again:
 	/*
@@ -877,6 +879,9 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	unsigned long cache_size;
 	unsigned long bits;
 
+	if (!strcmp(top->ld_type->ldt_name, LUSTRE_VVP_NAME))
+		bits_max = LU_SITE_BITS_MAX_CL;
+
 	/*
 	 * Calculate hash table size, assuming that we want reasonable
 	 * performance when 20% of total memory is occupied by cache of
@@ -909,8 +914,8 @@ static unsigned long lu_htable_order(struct lu_device *top)
 	return clamp_t(typeof(bits), bits, LU_SITE_BITS_MIN, bits_max);
 }
 
-static unsigned lu_obj_hop_hash(struct cfs_hash *hs,
-				const void *key, unsigned mask)
+static unsigned int lu_obj_hop_hash(struct cfs_hash *hs,
+				    const void *key, unsigned int mask)
 {
 	struct lu_fid  *fid = (struct lu_fid *)key;
 	__u32	   hash;
@@ -1311,6 +1316,7 @@ enum {
 static struct lu_context_key *lu_keys[LU_CONTEXT_KEY_NR] = { NULL, };
 
 static DEFINE_SPINLOCK(lu_keys_guard);
+static atomic_t lu_key_initing_cnt = ATOMIC_INIT(0);
 
 /**
  * Global counter incremented whenever key is registered, unregistered,
@@ -1318,7 +1324,7 @@ static DEFINE_SPINLOCK(lu_keys_guard);
  * lu_context_refill(). No locking is provided, as initialization and shutdown
  * are supposed to be externally serialized.
  */
-static unsigned key_set_version;
+static unsigned int key_set_version;
 
 /**
  * Register new key.
@@ -1385,6 +1391,19 @@ void lu_context_key_degister(struct lu_context_key *key)
 	++key_set_version;
 	spin_lock(&lu_keys_guard);
 	key_fini(&lu_shrink_env.le_ctx, key->lct_index);
+
+	/**
+	 * Wait until all transient contexts referencing this key have
+	 * run lu_context_key::lct_fini() method.
+	 */
+	while (atomic_read(&key->lct_used) > 1) {
+		spin_unlock(&lu_keys_guard);
+		CDEBUG(D_INFO, "lu_context_key_degister: \"%s\" %p, %d\n",
+		       key->lct_owner ? key->lct_owner->name : "", key,
+		       atomic_read(&key->lct_used));
+		schedule();
+		spin_lock(&lu_keys_guard);
+	}
 	if (lu_keys[key->lct_index]) {
 		lu_keys[key->lct_index] = NULL;
 		lu_ref_fini(&key->lct_reference);
@@ -1507,14 +1526,25 @@ void lu_context_key_quiesce(struct lu_context_key *key)
 
 	if (!(key->lct_tags & LCT_QUIESCENT)) {
 		/*
-		 * XXX layering violation.
-		 */
-		cl_env_cache_purge(~0);
-		key->lct_tags |= LCT_QUIESCENT;
-		/*
 		 * XXX memory barrier has to go here.
 		 */
 		spin_lock(&lu_keys_guard);
+		key->lct_tags |= LCT_QUIESCENT;
+
+		/**
+		 * Wait until all lu_context_key::lct_init() methods
+		 * have completed.
+		 */
+		while (atomic_read(&lu_key_initing_cnt) > 0) {
+			spin_unlock(&lu_keys_guard);
+			CDEBUG(D_INFO, "lu_context_key_quiesce: \"%s\" %p, %d (%d)\n",
+			       key->lct_owner ? key->lct_owner->name : "",
+			       key, atomic_read(&key->lct_used),
+			atomic_read(&lu_key_initing_cnt));
+			schedule();
+			spin_lock(&lu_keys_guard);
+		}
+
 		list_for_each_entry(ctx, &lu_context_remembered, lc_remember)
 			key_fini(ctx, key->lct_index);
 		spin_unlock(&lu_keys_guard);
@@ -1546,6 +1576,19 @@ static int keys_fill(struct lu_context *ctx)
 {
 	unsigned int i;
 
+	/*
+	 * A serialisation with lu_context_key_quiesce() is needed, but some
+	 * "key->lct_init()" are calling kernel memory allocation routine and
+	 * can't be called while holding a spin_lock.
+	 * "lu_keys_guard" is held while incrementing "lu_key_initing_cnt"
+	 * to ensure the start of the serialisation.
+	 * An atomic_t variable is still used, in order not to reacquire the
+	 * lock when decrementing the counter.
+	 */
+	spin_lock(&lu_keys_guard);
+	atomic_inc(&lu_key_initing_cnt);
+	spin_unlock(&lu_keys_guard);
+
 	LINVRNT(ctx->lc_value);
 	for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
 		struct lu_context_key *key;
@@ -1563,12 +1606,19 @@ static int keys_fill(struct lu_context *ctx)
 			LINVRNT(key->lct_init);
 			LINVRNT(key->lct_index == i);
 
-			value = key->lct_init(ctx, key);
-			if (IS_ERR(value))
-				return PTR_ERR(value);
+			LASSERT(key->lct_owner);
+			if (!(ctx->lc_tags & LCT_NOREF) &&
+			    !try_module_get(key->lct_owner)) {
+				/* module is unloading, skip this key */
+				continue;
+			}
 
-			if (!(ctx->lc_tags & LCT_NOREF))
-				try_module_get(key->lct_owner);
+			value = key->lct_init(ctx, key);
+			if (unlikely(IS_ERR(value))) {
+				atomic_dec(&lu_key_initing_cnt);
+				return PTR_ERR(value);
+			}
+
 			lu_ref_add_atomic(&key->lct_reference, "ctx", ctx);
 			atomic_inc(&key->lct_used);
 			/*
@@ -1582,6 +1632,7 @@ static int keys_fill(struct lu_context *ctx)
 		}
 		ctx->lc_version = key_set_version;
 	}
+	atomic_dec(&lu_key_initing_cnt);
 	return 0;
 }
 
@@ -1663,6 +1714,9 @@ void lu_context_exit(struct lu_context *ctx)
 	ctx->lc_state = LCS_LEFT;
 	if (ctx->lc_tags & LCT_HAS_EXIT && ctx->lc_value) {
 		for (i = 0; i < ARRAY_SIZE(lu_keys); ++i) {
+			/* could race with key quiescency */
+			if (ctx->lc_tags & LCT_REMEMBER)
+				spin_lock(&lu_keys_guard);
 			if (ctx->lc_value[i]) {
 				struct lu_context_key *key;
 
@@ -1671,6 +1725,8 @@ void lu_context_exit(struct lu_context *ctx)
 					key->lct_exit(ctx,
 						      key, ctx->lc_value[i]);
 			}
+			if (ctx->lc_tags & LCT_REMEMBER)
+				spin_unlock(&lu_keys_guard);
 		}
 	}
 }
@@ -1930,7 +1986,7 @@ int lu_site_stats_print(const struct lu_site *s, struct seq_file *m)
 	memset(&stats, 0, sizeof(stats));
 	lu_site_stats_get(s->ls_obj_hash, &stats, 1);
 
-	seq_printf(m, "%d/%d %d/%d %d %d %d %d %d %d %d %d\n",
+	seq_printf(m, "%d/%d %d/%ld %d %d %d %d %d %d %d %d\n",
 		   stats.lss_busy,
 		   stats.lss_total,
 		   stats.lss_populated,

@@ -501,17 +501,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	cmpwi	r0, 0
 	beq	57f
 	li	r3, (LPCR_PECEDH | LPCR_PECE0) >> 4
-	mfspr	r4, SPRN_LPCR
-	rlwimi	r4, r3, 4, (LPCR_PECEDP | LPCR_PECEDH | LPCR_PECE0 | LPCR_PECE1)
-	mtspr	SPRN_LPCR, r4
-	isync
-	std	r0, HSTATE_SCRATCH0(r13)
-	ptesync
-	ld	r0, HSTATE_SCRATCH0(r13)
-1:	cmpd	r0, r0
-	bne	1b
-	nap
-	b	.
+	mfspr	r5, SPRN_LPCR
+	rlwimi	r5, r3, 4, (LPCR_PECEDP | LPCR_PECEDH | LPCR_PECE0 | LPCR_PECE1)
+	b	kvm_nap_sequence
 
 57:	li	r0, 0
 	stbx	r0, r3, r4
@@ -522,6 +514,10 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
  *                               Entry code                                   *
  *                                                                            *
  *****************************************************************************/
+
+/* Stack frame offsets */
+#define STACK_SLOT_TID		(112-16)
+#define STACK_SLOT_PSSCR	(112-24)
 
 .global kvmppc_hv_entry
 kvmppc_hv_entry:
@@ -581,12 +577,14 @@ kvmppc_hv_entry:
 	ld	r9,VCORE_KVM(r5)	/* pointer to struct kvm */
 	cmpwi	r6,0
 	bne	10f
-	ld	r6,KVM_SDR1(r9)
 	lwz	r7,KVM_LPID(r9)
+BEGIN_FTR_SECTION
+	ld	r6,KVM_SDR1(r9)
 	li	r0,LPID_RSVD		/* switch to reserved LPID */
 	mtspr	SPRN_LPID,r0
 	ptesync
 	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPID,r7
 	isync
 
@@ -607,12 +605,8 @@ kvmppc_hv_entry:
 	stdcx.	r7,0,r6
 	bne	23b
 	/* Flush the TLB of any entries for this LPID */
-	/* use arch 2.07S as a proxy for POWER8 */
-BEGIN_FTR_SECTION
-	li	r6,512			/* POWER8 has 512 sets */
-FTR_SECTION_ELSE
-	li	r6,128			/* POWER7 has 128 sets */
-ALT_FTR_SECTION_END_IFSET(CPU_FTR_ARCH_207S)
+	lwz	r6,KVM_TLB_SETS(r9)
+	li	r0,0			/* RS for P9 version of tlbiel */
 	mtctr	r6
 	li	r7,0x800		/* IS field = 0b10 */
 	ptesync
@@ -698,6 +692,14 @@ kvmppc_got_guest:
 	mtspr	SPRN_PURR,r7
 	mtspr	SPRN_SPURR,r8
 
+	/* Save host values of some registers */
+BEGIN_FTR_SECTION
+	mfspr	r5, SPRN_TIDR
+	mfspr	r6, SPRN_PSSCR
+	std	r5, STACK_SLOT_TID(r1)
+	std	r6, STACK_SLOT_PSSCR(r1)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
+
 BEGIN_FTR_SECTION
 	/* Set partition DABR */
 	/* Do this before re-enabling PMU to avoid P7 DABR corruption bug */
@@ -750,14 +752,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_PMAO_BUG)
 BEGIN_FTR_SECTION
 	ld	r5, VCPU_MMCR + 24(r4)
 	ld	r6, VCPU_SIER(r4)
+	mtspr	SPRN_MMCR2, r5
+	mtspr	SPRN_SIER, r6
+BEGIN_FTR_SECTION_NESTED(96)
 	lwz	r7, VCPU_PMC + 24(r4)
 	lwz	r8, VCPU_PMC + 28(r4)
 	ld	r9, VCPU_MMCR + 32(r4)
-	mtspr	SPRN_MMCR2, r5
-	mtspr	SPRN_SIER, r6
 	mtspr	SPRN_SPMC1, r7
 	mtspr	SPRN_SPMC2, r8
 	mtspr	SPRN_MMCRS, r9
+END_FTR_SECTION_NESTED(CPU_FTR_ARCH_300, 0, 96)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_MMCR0, r3
 	isync
@@ -813,20 +817,30 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_EBBHR, r8
 	ld	r5, VCPU_EBBRR(r4)
 	ld	r6, VCPU_BESCR(r4)
-	ld	r7, VCPU_CSIGR(r4)
-	ld	r8, VCPU_TACR(r4)
-	mtspr	SPRN_EBBRR, r5
-	mtspr	SPRN_BESCR, r6
-	mtspr	SPRN_CSIGR, r7
-	mtspr	SPRN_TACR, r8
-	ld	r5, VCPU_TCSCR(r4)
-	ld	r6, VCPU_ACOP(r4)
 	lwz	r7, VCPU_GUEST_PID(r4)
 	ld	r8, VCPU_WORT(r4)
-	mtspr	SPRN_TCSCR, r5
-	mtspr	SPRN_ACOP, r6
+	mtspr	SPRN_EBBRR, r5
+	mtspr	SPRN_BESCR, r6
 	mtspr	SPRN_PID, r7
 	mtspr	SPRN_WORT, r8
+BEGIN_FTR_SECTION
+	/* POWER8-only registers */
+	ld	r5, VCPU_TCSCR(r4)
+	ld	r6, VCPU_ACOP(r4)
+	ld	r7, VCPU_CSIGR(r4)
+	ld	r8, VCPU_TACR(r4)
+	mtspr	SPRN_TCSCR, r5
+	mtspr	SPRN_ACOP, r6
+	mtspr	SPRN_CSIGR, r7
+	mtspr	SPRN_TACR, r8
+FTR_SECTION_ELSE
+	/* POWER9-only registers */
+	ld	r5, VCPU_TID(r4)
+	ld	r6, VCPU_PSSCR(r4)
+	oris	r6, r6, PSSCR_EC@h	/* This makes stop trap to HV */
+	mtspr	SPRN_TIDR, r5
+	mtspr	SPRN_PSSCR, r6
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 8:
 
 	/*
@@ -1341,20 +1355,29 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	std	r8, VCPU_EBBHR(r9)
 	mfspr	r5, SPRN_EBBRR
 	mfspr	r6, SPRN_BESCR
-	mfspr	r7, SPRN_CSIGR
-	mfspr	r8, SPRN_TACR
-	std	r5, VCPU_EBBRR(r9)
-	std	r6, VCPU_BESCR(r9)
-	std	r7, VCPU_CSIGR(r9)
-	std	r8, VCPU_TACR(r9)
-	mfspr	r5, SPRN_TCSCR
-	mfspr	r6, SPRN_ACOP
 	mfspr	r7, SPRN_PID
 	mfspr	r8, SPRN_WORT
-	std	r5, VCPU_TCSCR(r9)
-	std	r6, VCPU_ACOP(r9)
+	std	r5, VCPU_EBBRR(r9)
+	std	r6, VCPU_BESCR(r9)
 	stw	r7, VCPU_GUEST_PID(r9)
 	std	r8, VCPU_WORT(r9)
+BEGIN_FTR_SECTION
+	mfspr	r5, SPRN_TCSCR
+	mfspr	r6, SPRN_ACOP
+	mfspr	r7, SPRN_CSIGR
+	mfspr	r8, SPRN_TACR
+	std	r5, VCPU_TCSCR(r9)
+	std	r6, VCPU_ACOP(r9)
+	std	r7, VCPU_CSIGR(r9)
+	std	r8, VCPU_TACR(r9)
+FTR_SECTION_ELSE
+	mfspr	r5, SPRN_TIDR
+	mfspr	r6, SPRN_PSSCR
+	std	r5, VCPU_TID(r9)
+	rldicl	r6, r6, 4, 50		/* r6 &= PSSCR_GUEST_VIS */
+	rotldi	r6, r6, 60
+	std	r6, VCPU_PSSCR(r9)
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	/*
 	 * Restore various registers to 0, where non-zero values
 	 * set by the guest could disrupt the host.
@@ -1363,12 +1386,14 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_IAMR, r0
 	mtspr	SPRN_CIABR, r0
 	mtspr	SPRN_DAWRX, r0
-	mtspr	SPRN_TCSCR, r0
 	mtspr	SPRN_WORT, r0
+BEGIN_FTR_SECTION
+	mtspr	SPRN_TCSCR, r0
 	/* Set MMCRS to 1<<31 to freeze and disable the SPMC counters */
 	li	r0, 1
 	sldi	r0, r0, 31
 	mtspr	SPRN_MMCRS, r0
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 8:
 
 	/* Save and reset AMR and UAMOR before turning on the MMU */
@@ -1502,15 +1527,17 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	stw	r8, VCPU_PMC + 20(r9)
 BEGIN_FTR_SECTION
 	mfspr	r5, SPRN_SIER
+	std	r5, VCPU_SIER(r9)
+BEGIN_FTR_SECTION_NESTED(96)
 	mfspr	r6, SPRN_SPMC1
 	mfspr	r7, SPRN_SPMC2
 	mfspr	r8, SPRN_MMCRS
-	std	r5, VCPU_SIER(r9)
 	stw	r6, VCPU_PMC + 24(r9)
 	stw	r7, VCPU_PMC + 28(r9)
 	std	r8, VCPU_MMCR + 32(r9)
 	lis	r4, 0x8000
 	mtspr	SPRN_MMCRS, r4
+END_FTR_SECTION_NESTED(CPU_FTR_ARCH_300, 0, 96)
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 22:
 	/* Clear out SLB */
@@ -1518,6 +1545,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	slbmte	r5,r5
 	slbia
 	ptesync
+
+	/* Restore host values of some registers */
+BEGIN_FTR_SECTION
+	ld	r5, STACK_SLOT_TID(r1)
+	ld	r6, STACK_SLOT_PSSCR(r1)
+	mtspr	SPRN_TIDR, r5
+	mtspr	SPRN_PSSCR, r6
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 
 	/*
 	 * POWER7/POWER8 guest -> host partition switch code.
@@ -1552,12 +1587,14 @@ kvmhv_switch_to_host:
 	beq	19f
 
 	/* Primary thread switches back to host partition */
-	ld	r6,KVM_HOST_SDR1(r4)
 	lwz	r7,KVM_HOST_LPID(r4)
+BEGIN_FTR_SECTION
+	ld	r6,KVM_HOST_SDR1(r4)
 	li	r8,LPID_RSVD		/* switch to reserved LPID */
 	mtspr	SPRN_LPID,r8
 	ptesync
-	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
+	mtspr	SPRN_SDR1,r6		/* switch to host page table */
+END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPID,r7
 	isync
 
@@ -2211,6 +2248,21 @@ BEGIN_FTR_SECTION
 	ori	r5, r5, LPCR_PECEDH
 	rlwimi	r5, r3, 0, LPCR_PECEDP
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
+
+kvm_nap_sequence:		/* desired LPCR value in r5 */
+BEGIN_FTR_SECTION
+	/*
+	 * PSSCR bits:	exit criterion = 1 (wakeup based on LPCR at sreset)
+	 *		enable state loss = 1 (allow SMT mode switch)
+	 *		requested level = 0 (just stop dispatching)
+	 */
+	lis	r3, (PSSCR_EC | PSSCR_ESL)@h
+	mtspr	SPRN_PSSCR, r3
+	/* Set LPCR_PECE_HVEE bit to enable wakeup by HV interrupts */
+	li	r4, LPCR_PECE_HVEE@higher
+	sldi	r4, r4, 32
+	or	r5, r5, r4
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_300)
 	mtspr	SPRN_LPCR,r5
 	isync
 	li	r0, 0
@@ -2219,7 +2271,11 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	ld	r0, HSTATE_SCRATCH0(r13)
 1:	cmpd	r0, r0
 	bne	1b
+BEGIN_FTR_SECTION
 	nap
+FTR_SECTION_ELSE
+	PPC_STOP
+ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_300)
 	b	.
 
 33:	mr	r4, r3
@@ -2600,11 +2656,13 @@ kvmppc_save_tm:
 	mfctr	r7
 	mfspr	r8, SPRN_AMR
 	mfspr	r10, SPRN_TAR
+	mfxer	r11
 	std	r5, VCPU_LR_TM(r9)
 	stw	r6, VCPU_CR_TM(r9)
 	std	r7, VCPU_CTR_TM(r9)
 	std	r8, VCPU_AMR_TM(r9)
 	std	r10, VCPU_TAR_TM(r9)
+	std	r11, VCPU_XER_TM(r9)
 
 	/* Restore r12 as trap number. */
 	lwz	r12, VCPU_TRAP(r9)
@@ -2697,11 +2755,13 @@ kvmppc_restore_tm:
 	ld	r7, VCPU_CTR_TM(r4)
 	ld	r8, VCPU_AMR_TM(r4)
 	ld	r9, VCPU_TAR_TM(r4)
+	ld	r10, VCPU_XER_TM(r4)
 	mtlr	r5
 	mtcr	r6
 	mtctr	r7
 	mtspr	SPRN_AMR, r8
 	mtspr	SPRN_TAR, r9
+	mtxer	r10
 
 	/*
 	 * Load up PPR and DSCR values but don't put them in the actual SPRs

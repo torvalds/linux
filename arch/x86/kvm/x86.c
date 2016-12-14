@@ -434,12 +434,14 @@ void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception);
 
-void kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err)
+int kvm_complete_insn_gp(struct kvm_vcpu *vcpu, int err)
 {
 	if (err)
 		kvm_inject_gp(vcpu, 0);
 	else
-		kvm_x86_ops->skip_emulated_instruction(vcpu);
+		return kvm_skip_emulated_instruction(vcpu);
+
+	return 1;
 }
 EXPORT_SYMBOL_GPL(kvm_complete_insn_gp);
 
@@ -573,7 +575,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(load_pdptrs);
 
-static bool pdptrs_changed(struct kvm_vcpu *vcpu)
+bool pdptrs_changed(struct kvm_vcpu *vcpu)
 {
 	u64 pdpte[ARRAY_SIZE(vcpu->arch.walk_mmu->pdptrs)];
 	bool changed = true;
@@ -599,6 +601,7 @@ out:
 
 	return changed;
 }
+EXPORT_SYMBOL_GPL(pdptrs_changed);
 
 int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
@@ -2178,7 +2181,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_KVM_SYSTEM_TIME_NEW:
 	case MSR_KVM_SYSTEM_TIME: {
-		u64 gpa_offset;
 		struct kvm_arch *ka = &vcpu->kvm->arch;
 
 		kvmclock_reset(vcpu);
@@ -2199,8 +2201,6 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		/* we verify if the enable bit is set... */
 		if (!(data & 1))
 			break;
-
-		gpa_offset = data & ~(PAGE_MASK | 1);
 
 		if (kvm_gfn_to_hva_cache_init(vcpu->kvm,
 		     &vcpu->arch.pv_time, data & ~1ULL,
@@ -2296,7 +2296,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (kvm_pmu_is_valid_msr(vcpu, msr))
 			return kvm_pmu_set_msr(vcpu, msr_info);
 		if (!ignore_msrs) {
-			vcpu_unimpl(vcpu, "unhandled wrmsr: 0x%x data 0x%llx\n",
+			vcpu_debug_ratelimited(vcpu, "unhandled wrmsr: 0x%x data 0x%llx\n",
 				    msr, data);
 			return 1;
 		} else {
@@ -2508,7 +2508,8 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (kvm_pmu_is_valid_msr(vcpu, msr_info->index))
 			return kvm_pmu_get_msr(vcpu, msr_info->index, &msr_info->data);
 		if (!ignore_msrs) {
-			vcpu_unimpl(vcpu, "unhandled rdmsr: 0x%x\n", msr_info->index);
+			vcpu_debug_ratelimited(vcpu, "unhandled rdmsr: 0x%x\n",
+					       msr_info->index);
 			return 1;
 		} else {
 			vcpu_unimpl(vcpu, "ignored rdmsr: 0x%x\n", msr_info->index);
@@ -2812,7 +2813,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		}
 		if (kvm_lapic_hv_timer_in_use(vcpu) &&
 				kvm_x86_ops->set_hv_timer(vcpu,
-					kvm_get_lapic_tscdeadline_msr(vcpu)))
+					kvm_get_lapic_target_expiration_tsc(vcpu)))
 			kvm_lapic_switch_to_sw_timer(vcpu);
 		/*
 		 * On a host with synchronized TSC, there is no need to update
@@ -4832,7 +4833,7 @@ static void emulator_invlpg(struct x86_emulate_ctxt *ctxt, ulong address)
 	kvm_mmu_invlpg(emul_to_vcpu(ctxt), address);
 }
 
-int kvm_emulate_wbinvd_noskip(struct kvm_vcpu *vcpu)
+static int kvm_emulate_wbinvd_noskip(struct kvm_vcpu *vcpu)
 {
 	if (!need_emulate_wbinvd(vcpu))
 		return X86EMUL_CONTINUE;
@@ -4852,8 +4853,8 @@ int kvm_emulate_wbinvd_noskip(struct kvm_vcpu *vcpu)
 
 int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
 {
-	kvm_x86_ops->skip_emulated_instruction(vcpu);
-	return kvm_emulate_wbinvd_noskip(vcpu);
+	kvm_emulate_wbinvd_noskip(vcpu);
+	return kvm_skip_emulated_instruction(vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_wbinvd);
 
@@ -5451,7 +5452,6 @@ static void kvm_vcpu_check_singlestep(struct kvm_vcpu *vcpu, unsigned long rflag
 			kvm_run->exit_reason = KVM_EXIT_DEBUG;
 			*r = EMULATE_USER_EXIT;
 		} else {
-			vcpu->arch.emulate_ctxt.eflags &= ~X86_EFLAGS_TF;
 			/*
 			 * "Certain debug exceptions may clear bit 0-3.  The
 			 * remaining contents of the DR6 register are never
@@ -5463,6 +5463,17 @@ static void kvm_vcpu_check_singlestep(struct kvm_vcpu *vcpu, unsigned long rflag
 		}
 	}
 }
+
+int kvm_skip_emulated_instruction(struct kvm_vcpu *vcpu)
+{
+	unsigned long rflags = kvm_x86_ops->get_rflags(vcpu);
+	int r = EMULATE_DONE;
+
+	kvm_x86_ops->skip_emulated_instruction(vcpu);
+	kvm_vcpu_check_singlestep(vcpu, rflags, &r);
+	return r == EMULATE_DONE;
+}
+EXPORT_SYMBOL_GPL(kvm_skip_emulated_instruction);
 
 static bool kvm_vcpu_check_breakpoint(struct kvm_vcpu *vcpu, int *r)
 {
@@ -5648,6 +5659,49 @@ int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_fast_pio_out);
+
+static int complete_fast_pio_in(struct kvm_vcpu *vcpu)
+{
+	unsigned long val;
+
+	/* We should only ever be called with arch.pio.count equal to 1 */
+	BUG_ON(vcpu->arch.pio.count != 1);
+
+	/* For size less than 4 we merge, else we zero extend */
+	val = (vcpu->arch.pio.size < 4) ? kvm_register_read(vcpu, VCPU_REGS_RAX)
+					: 0;
+
+	/*
+	 * Since vcpu->arch.pio.count == 1 let emulator_pio_in_emulated perform
+	 * the copy and tracing
+	 */
+	emulator_pio_in_emulated(&vcpu->arch.emulate_ctxt, vcpu->arch.pio.size,
+				 vcpu->arch.pio.port, &val, 1);
+	kvm_register_write(vcpu, VCPU_REGS_RAX, val);
+
+	return 1;
+}
+
+int kvm_fast_pio_in(struct kvm_vcpu *vcpu, int size, unsigned short port)
+{
+	unsigned long val;
+	int ret;
+
+	/* For size less than 4 we merge, else we zero extend */
+	val = (size < 4) ? kvm_register_read(vcpu, VCPU_REGS_RAX) : 0;
+
+	ret = emulator_pio_in_emulated(&vcpu->arch.emulate_ctxt, size, port,
+				       &val, 1);
+	if (ret) {
+		kvm_register_write(vcpu, VCPU_REGS_RAX, val);
+		return ret;
+	}
+
+	vcpu->arch.complete_userspace_io = complete_fast_pio_in;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(kvm_fast_pio_in);
 
 static int kvmclock_cpu_down_prep(unsigned int cpu)
 {
@@ -5998,8 +6052,12 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_halt);
 
 int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 {
-	kvm_x86_ops->skip_emulated_instruction(vcpu);
-	return kvm_vcpu_halt(vcpu);
+	int ret = kvm_skip_emulated_instruction(vcpu);
+	/*
+	 * TODO: we might be squashing a GUESTDBG_SINGLESTEP-triggered
+	 * KVM_EXIT_DEBUG here.
+	 */
+	return kvm_vcpu_halt(vcpu) && ret;
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_halt);
 
@@ -6030,9 +6088,9 @@ void kvm_vcpu_deactivate_apicv(struct kvm_vcpu *vcpu)
 int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 {
 	unsigned long nr, a0, a1, a2, a3, ret;
-	int op_64_bit, r = 1;
+	int op_64_bit, r;
 
-	kvm_x86_ops->skip_emulated_instruction(vcpu);
+	r = kvm_skip_emulated_instruction(vcpu);
 
 	if (kvm_hv_hypercall_enabled(vcpu->kvm))
 		return kvm_hv_hypercall(vcpu);

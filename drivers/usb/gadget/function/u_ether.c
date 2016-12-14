@@ -215,7 +215,7 @@ rx_submit(struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 	if (dev->port_usb->is_fixed)
 		size = max_t(size_t, size, dev->port_usb->fixed_out_len);
 
-	skb = alloc_skb(size + NET_IP_ALIGN, gfp_flags);
+	skb = __netdev_alloc_skb(dev->net, size + NET_IP_ALIGN, gfp_flags);
 	if (skb == NULL) {
 		DBG(dev, "no rx skb\n");
 		goto enomem;
@@ -446,16 +446,17 @@ static void tx_complete(struct usb_ep *ep, struct usb_request *req)
 		/* FALLTHROUGH */
 	case -ECONNRESET:		/* unlink */
 	case -ESHUTDOWN:		/* disconnect etc */
+		dev_kfree_skb_any(skb);
 		break;
 	case 0:
 		dev->net->stats.tx_bytes += skb->len;
+		dev_consume_skb_any(skb);
 	}
 	dev->net->stats.tx_packets++;
 
 	spin_lock(&dev->req_lock);
 	list_add(&req->list, &dev->tx_reqs);
 	spin_unlock(&dev->req_lock);
-	dev_kfree_skb_any(skb);
 
 	atomic_dec(&dev->tx_qlen);
 	if (netif_carrier_ok(dev->net))

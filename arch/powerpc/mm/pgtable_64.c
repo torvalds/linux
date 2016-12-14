@@ -431,3 +431,37 @@ void pgtable_free_tlb(struct mmu_gather *tlb, void *table, int shift)
 	}
 }
 #endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void __init mmu_partition_table_init(void)
+{
+	unsigned long patb_size = 1UL << PATB_SIZE_SHIFT;
+
+	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 36), "Partition table size too large.");
+	partition_tb = __va(memblock_alloc_base(patb_size, patb_size,
+						MEMBLOCK_ALLOC_ANYWHERE));
+
+	/* Initialize the Partition Table with no entries */
+	memset((void *)partition_tb, 0, patb_size);
+
+	/*
+	 * update partition table control register,
+	 * 64 K size.
+	 */
+	mtspr(SPRN_PTCR, __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
+}
+
+void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
+				   unsigned long dw1)
+{
+	partition_tb[lpid].patb0 = cpu_to_be64(dw0);
+	partition_tb[lpid].patb1 = cpu_to_be64(dw1);
+
+	/* Global flush of TLBs and partition table caches for this lpid */
+	asm volatile("ptesync" : : : "memory");
+	asm volatile(PPC_TLBIE_5(%0,%1,2,0,0) : :
+		     "r" (TLBIEL_INVAL_SET_LPID), "r" (lpid));
+	asm volatile("eieio; tlbsync; ptesync" : : : "memory");
+}
+EXPORT_SYMBOL_GPL(mmu_partition_table_set_entry);
+#endif /* CONFIG_PPC_BOOK3S_64 */

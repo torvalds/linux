@@ -611,9 +611,7 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t block,
 	char *ptr;
 	int len;
 
-	bio_init(&b->bio);
-	b->bio.bi_io_vec = b->bio_vec;
-	b->bio.bi_max_vecs = DM_BUFIO_INLINE_VECS;
+	bio_init(&b->bio, b->bio_vec, DM_BUFIO_INLINE_VECS);
 	b->bio.bi_iter.bi_sector = block << b->c->sectors_per_block_bits;
 	b->bio.bi_bdev = b->c->bdev;
 	b->bio.bi_end_io = inline_endio;
@@ -1316,7 +1314,7 @@ int dm_bufio_issue_flush(struct dm_bufio_client *c)
 {
 	struct dm_io_request io_req = {
 		.bi_op = REQ_OP_WRITE,
-		.bi_op_flags = WRITE_FLUSH,
+		.bi_op_flags = REQ_PREFLUSH,
 		.mem.type = DM_IO_KMEM,
 		.mem.ptr.addr = NULL,
 		.client = c->dm_io,

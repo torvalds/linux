@@ -80,7 +80,8 @@ int cl_inode_fini_refcheck;
  */
 static DEFINE_MUTEX(cl_inode_fini_guard);
 
-int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
+int cl_setattr_ost(struct cl_object *obj, const struct iattr *attr,
+		   unsigned int attr_flags)
 {
 	struct lu_env *env;
 	struct cl_io  *io;
@@ -92,14 +93,15 @@ int cl_setattr_ost(struct inode *inode, const struct iattr *attr)
 		return PTR_ERR(env);
 
 	io = vvp_env_thread_io(env);
-	io->ci_obj = ll_i2info(inode)->lli_clob;
+	io->ci_obj = obj;
 
 	io->u.ci_setattr.sa_attr.lvb_atime = LTIME_S(attr->ia_atime);
 	io->u.ci_setattr.sa_attr.lvb_mtime = LTIME_S(attr->ia_mtime);
 	io->u.ci_setattr.sa_attr.lvb_ctime = LTIME_S(attr->ia_ctime);
 	io->u.ci_setattr.sa_attr.lvb_size = attr->ia_size;
+	io->u.ci_setattr.sa_attr_flags = attr_flags;
 	io->u.ci_setattr.sa_valid = attr->ia_valid;
-	io->u.ci_setattr.sa_parent_fid = ll_inode2fid(inode);
+	io->u.ci_setattr.sa_parent_fid = lu_object_fid(&obj->co_lu);
 
 again:
 	if (cl_io_init(env, io, CIT_SETATTR, io->ci_obj) == 0) {
@@ -148,7 +150,7 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 	struct cl_object_conf conf = {
 		.coc_inode = inode,
 		.u = {
-			.coc_md    = md
+			.coc_layout = md->layout,
 		}
 	};
 	int result = 0;
@@ -182,7 +184,6 @@ int cl_file_inode_init(struct inode *inode, struct lustre_md *md)
 			 * locked by I_NEW bit.
 			 */
 			lli->lli_clob = clob;
-			lli->lli_has_smd = lsm_has_objects(md->lsm);
 			lu_object_ref_add(&clob->co_lu, "inode", inode);
 		} else {
 			result = PTR_ERR(clob);
@@ -245,15 +246,11 @@ void cl_inode_fini(struct inode *inode)
 	int emergency;
 
 	if (clob) {
-		void		    *cookie;
-
-		cookie = cl_env_reenter();
 		env = cl_env_get(&refcheck);
 		emergency = IS_ERR(env);
 		if (emergency) {
 			mutex_lock(&cl_inode_fini_guard);
 			LASSERT(cl_inode_fini_env);
-			cl_env_implant(cl_inode_fini_env, &refcheck);
 			env = cl_inode_fini_env;
 		}
 		/*
@@ -265,13 +262,10 @@ void cl_inode_fini(struct inode *inode)
 		lu_object_ref_del(&clob->co_lu, "inode", inode);
 		cl_object_put_last(env, clob);
 		lli->lli_clob = NULL;
-		if (emergency) {
-			cl_env_unplant(cl_inode_fini_env, &refcheck);
+		if (emergency)
 			mutex_unlock(&cl_inode_fini_guard);
-		} else {
+		else
 			cl_env_put(env, &refcheck);
-		}
-		cl_env_reexit(cookie);
 	}
 }
 
@@ -301,23 +295,4 @@ __u32 cl_fid_build_gen(const struct lu_fid *fid)
 
 	gen = fid_flatten(fid) >> 32;
 	return gen;
-}
-
-/* lsm is unreliable after hsm implementation as layout can be changed at
- * any time. This is only to support old, non-clio-ized interfaces. It will
- * cause deadlock if clio operations are called with this extra layout refcount
- * because in case the layout changed during the IO, ll_layout_refresh() will
- * have to wait for the refcount to become zero to destroy the older layout.
- *
- * Notice that the lsm returned by this function may not be valid unless called
- * inside layout lock - MDS_INODELOCK_LAYOUT.
- */
-struct lov_stripe_md *ccc_inode_lsm_get(struct inode *inode)
-{
-	return lov_lsm_get(ll_i2info(inode)->lli_clob);
-}
-
-inline void ccc_inode_lsm_put(struct inode *inode, struct lov_stripe_md *lsm)
-{
-	lov_lsm_put(ll_i2info(inode)->lli_clob, lsm);
 }

@@ -23,6 +23,7 @@
 #include <linux/io.h>
 
 #include "visorbus.h"
+#include "visorbus_private.h"
 #include "controlvmchannel.h"
 
 #define MYDRVNAME "visorchannel"
@@ -127,19 +128,19 @@ EXPORT_SYMBOL_GPL(visorchannel_get_uuid);
 
 int
 visorchannel_read(struct visorchannel *channel, ulong offset,
-		  void *local, ulong nbytes)
+		  void *dest, ulong nbytes)
 {
 	if (offset + nbytes > channel->nbytes)
 		return -EIO;
 
-	memcpy(local, channel->mapped + offset, nbytes);
+	memcpy(dest, channel->mapped + offset, nbytes);
 
 	return 0;
 }
 
 int
 visorchannel_write(struct visorchannel *channel, ulong offset,
-		   void *local, ulong nbytes)
+		   void *dest, ulong nbytes)
 {
 	size_t chdr_size = sizeof(struct channel_header);
 	size_t copy_size;
@@ -150,10 +151,10 @@ visorchannel_write(struct visorchannel *channel, ulong offset,
 	if (offset < chdr_size) {
 		copy_size = min(chdr_size - offset, nbytes);
 		memcpy(((char *)(&channel->chan_hdr)) + offset,
-		       local, copy_size);
+		       dest, copy_size);
 	}
 
-	memcpy(channel->mapped + offset, local, nbytes);
+	memcpy(channel->mapped + offset, dest, nbytes);
 
 	return 0;
 }
@@ -236,8 +237,9 @@ signalremove_inner(struct visorchannel *channel, u32 queue, void *msg)
 	if (error)
 		return error;
 
+	/* No signals to remove; have caller try again. */
 	if (sig_hdr.head == sig_hdr.tail)
-		return -EIO;	/* no signals to remove */
+		return -EAGAIN;
 
 	sig_hdr.tail = (sig_hdr.tail + 1) % sig_hdr.max_slots;
 
@@ -299,22 +301,30 @@ EXPORT_SYMBOL_GPL(visorchannel_signalremove);
  * Return: boolean indicating whether any messages in the designated
  *         channel/queue are present
  */
+
+static bool
+queue_empty(struct visorchannel *channel, u32 queue)
+{
+	struct signal_queue_header sig_hdr;
+
+	if (sig_read_header(channel, queue, &sig_hdr))
+		return true;
+
+	return (sig_hdr.head == sig_hdr.tail);
+}
+
 bool
 visorchannel_signalempty(struct visorchannel *channel, u32 queue)
 {
-	unsigned long flags = 0;
-	struct signal_queue_header sig_hdr;
-	bool rc = false;
+	bool rc;
+	unsigned long flags;
 
-	if (channel->needs_lock)
-		spin_lock_irqsave(&channel->remove_lock, flags);
+	if (!channel->needs_lock)
+		return queue_empty(channel, queue);
 
-	if (sig_read_header(channel, queue, &sig_hdr))
-		rc = true;
-	if (sig_hdr.head == sig_hdr.tail)
-		rc = true;
-	if (channel->needs_lock)
-		spin_unlock_irqrestore(&channel->remove_lock, flags);
+	spin_lock_irqsave(&channel->remove_lock, flags);
+	rc = queue_empty(channel, queue);
+	spin_unlock_irqrestore(&channel->remove_lock, flags);
 
 	return rc;
 }

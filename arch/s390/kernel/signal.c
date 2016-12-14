@@ -359,7 +359,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 		/* set extra registers only for synchronous signals */
 		regs->gprs[4] = regs->int_code & 127;
 		regs->gprs[5] = regs->int_parm_long;
-		regs->gprs[6] = task_thread_info(current)->last_break;
+		regs->gprs[6] = current->thread.last_break;
 	}
 	return 0;
 }
@@ -430,7 +430,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	regs->gprs[2] = ksig->sig;
 	regs->gprs[3] = (unsigned long) &frame->info;
 	regs->gprs[4] = (unsigned long) &frame->uc;
-	regs->gprs[5] = task_thread_info(current)->last_break;
+	regs->gprs[5] = current->thread.last_break;
 	return 0;
 }
 
@@ -467,13 +467,13 @@ void do_signal(struct pt_regs *regs)
 	 * the debugger may change all our registers, including the system
 	 * call information.
 	 */
-	current_thread_info()->system_call =
+	current->thread.system_call =
 		test_pt_regs_flag(regs, PIF_SYSCALL) ? regs->int_code : 0;
 
 	if (get_signal(&ksig)) {
 		/* Whee!  Actually deliver the signal.  */
-		if (current_thread_info()->system_call) {
-			regs->int_code = current_thread_info()->system_call;
+		if (current->thread.system_call) {
+			regs->int_code = current->thread.system_call;
 			/* Check for system call restarting. */
 			switch (regs->gprs[2]) {
 			case -ERESTART_RESTARTBLOCK:
@@ -506,8 +506,8 @@ void do_signal(struct pt_regs *regs)
 
 	/* No handlers present - check for system call restart */
 	clear_pt_regs_flag(regs, PIF_SYSCALL);
-	if (current_thread_info()->system_call) {
-		regs->int_code = current_thread_info()->system_call;
+	if (current->thread.system_call) {
+		regs->int_code = current->thread.system_call;
 		switch (regs->gprs[2]) {
 		case -ERESTART_RESTARTBLOCK:
 			/* Restart with sys_restart_syscall */

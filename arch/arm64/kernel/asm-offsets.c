@@ -36,11 +36,13 @@ int main(void)
 {
   DEFINE(TSK_ACTIVE_MM,		offsetof(struct task_struct, active_mm));
   BLANK();
-  DEFINE(TI_FLAGS,		offsetof(struct thread_info, flags));
-  DEFINE(TI_PREEMPT,		offsetof(struct thread_info, preempt_count));
-  DEFINE(TI_ADDR_LIMIT,		offsetof(struct thread_info, addr_limit));
-  DEFINE(TI_TASK,		offsetof(struct thread_info, task));
-  DEFINE(TI_CPU,		offsetof(struct thread_info, cpu));
+  DEFINE(TSK_TI_FLAGS,		offsetof(struct task_struct, thread_info.flags));
+  DEFINE(TSK_TI_PREEMPT,	offsetof(struct task_struct, thread_info.preempt_count));
+  DEFINE(TSK_TI_ADDR_LIMIT,	offsetof(struct task_struct, thread_info.addr_limit));
+#ifdef CONFIG_ARM64_SW_TTBR0_PAN
+  DEFINE(TSK_TI_TTBR0,		offsetof(struct task_struct, thread_info.ttbr0));
+#endif
+  DEFINE(TSK_STACK,		offsetof(struct task_struct, stack));
   BLANK();
   DEFINE(THREAD_CPU_CONTEXT,	offsetof(struct task_struct, thread.cpu_context));
   BLANK();
@@ -123,6 +125,7 @@ int main(void)
   DEFINE(TZ_DSTTIME,		offsetof(struct timezone, tz_dsttime));
   BLANK();
   DEFINE(CPU_BOOT_STACK,	offsetof(struct secondary_data, stack));
+  DEFINE(CPU_BOOT_TASK,		offsetof(struct secondary_data, task));
   BLANK();
 #ifdef CONFIG_KVM_ARM_HOST
   DEFINE(VCPU_CONTEXT,		offsetof(struct kvm_vcpu, arch.ctxt));

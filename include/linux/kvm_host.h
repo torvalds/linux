@@ -438,6 +438,9 @@ struct kvm {
 	pr_info("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
 #define kvm_debug(fmt, ...) \
 	pr_debug("kvm [%i]: " fmt, task_pid_nr(current), ## __VA_ARGS__)
+#define kvm_debug_ratelimited(fmt, ...) \
+	pr_debug_ratelimited("kvm [%i]: " fmt, task_pid_nr(current), \
+			     ## __VA_ARGS__)
 #define kvm_pr_unimpl(fmt, ...) \
 	pr_err_ratelimited("kvm [%i]: " fmt, \
 			   task_tgid_nr(current), ## __VA_ARGS__)
@@ -449,6 +452,9 @@ struct kvm {
 
 #define vcpu_debug(vcpu, fmt, ...)					\
 	kvm_debug("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
+#define vcpu_debug_ratelimited(vcpu, fmt, ...)				\
+	kvm_debug_ratelimited("vcpu%i " fmt, (vcpu)->vcpu_id,           \
+			      ## __VA_ARGS__)
 #define vcpu_err(vcpu, fmt, ...)					\
 	kvm_err("vcpu%i " fmt, (vcpu)->vcpu_id, ## __VA_ARGS__)
 
@@ -1107,6 +1113,10 @@ static inline bool kvm_check_request(int req, struct kvm_vcpu *vcpu)
 }
 
 extern bool kvm_rebooting;
+
+extern unsigned int halt_poll_ns;
+extern unsigned int halt_poll_ns_grow;
+extern unsigned int halt_poll_ns_shrink;
 
 struct kvm_device {
 	struct kvm_device_ops *ops;

@@ -603,14 +603,6 @@ static inline bool schedule_delayed_work(struct delayed_work *dwork,
 	return queue_delayed_work(system_wq, dwork, delay);
 }
 
-/**
- * keventd_up - is workqueue initialized yet?
- */
-static inline bool keventd_up(void)
-{
-	return system_wq != NULL;
-}
-
 #ifndef CONFIG_SMP
 static inline long work_on_cpu(int cpu, long (*fn)(void *), void *arg)
 {
@@ -644,5 +636,8 @@ int workqueue_prepare_cpu(unsigned int cpu);
 int workqueue_online_cpu(unsigned int cpu);
 int workqueue_offline_cpu(unsigned int cpu);
 #endif
+
+int __init workqueue_init_early(void);
+int __init workqueue_init(void);
 
 #endif
