@@ -595,6 +595,8 @@ static void drm_dev_release(struct kref *ref)
 {
 	struct drm_device *dev = container_of(ref, struct drm_device, ref);
 
+	drm_vblank_cleanup(dev);
+
 	if (drm_core_check_feature(dev, DRIVER_GEM))
 		drm_gem_destroy(dev);
 
@@ -793,8 +795,6 @@ void drm_dev_unregister(struct drm_device *dev)
 
 	if (dev->agp)
 		drm_pci_agp_destroy(dev);
-
-	drm_vblank_cleanup(dev);
 
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_legacy_rmmap(dev, r_list->map);
