@@ -67,7 +67,6 @@ void big_gang_check(bool long_run)
 
 	for (i = 0; i < (long_run ? 1000 : 3); i++) {
 		__big_gang_check();
-		srand(time(0));
 		printf("%d ", i);
 		fflush(stdout);
 	}
@@ -329,11 +328,17 @@ int main(int argc, char **argv)
 {
 	bool long_run = false;
 	int opt;
+	unsigned int seed = time(NULL);
 
-	while ((opt = getopt(argc, argv, "l")) != -1) {
+	while ((opt = getopt(argc, argv, "ls:")) != -1) {
 		if (opt == 'l')
 			long_run = true;
+		else if (opt == 's')
+			seed = strtoul(optarg, NULL, 0);
 	}
+
+	printf("random seed %u\n", seed);
+	srand(seed);
 
 	rcu_register_thread();
 	radix_tree_init();

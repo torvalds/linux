@@ -20,6 +20,7 @@
 #define TAG 0
 static pthread_mutex_t tree_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t threads[NUM_THREADS];
+static unsigned int seeds[3];
 RADIX_TREE(tree, GFP_KERNEL);
 bool test_complete;
 
@@ -71,7 +72,7 @@ static void *tagged_iteration_fn(void *arg)
 				continue;
 			}
 
-			if (rand() % 50 == 0)
+			if (rand_r(&seeds[0]) % 50 == 0)
 				slot = radix_tree_iter_next(&iter);
 		}
 		rcu_read_unlock();
@@ -111,7 +112,7 @@ static void *untagged_iteration_fn(void *arg)
 				continue;
 			}
 
-			if (rand() % 50 == 0)
+			if (rand_r(&seeds[1]) % 50 == 0)
 				slot = radix_tree_iter_next(&iter);
 		}
 		rcu_read_unlock();
@@ -129,7 +130,7 @@ static void *remove_entries_fn(void *arg)
 	while (!test_complete) {
 		int pgoff;
 
-		pgoff = rand() % 100;
+		pgoff = rand_r(&seeds[2]) % 100;
 
 		pthread_mutex_lock(&tree_lock);
 		item_delete(&tree, pgoff);
@@ -146,8 +147,10 @@ void iteration_test(void)
 
 	printf("Running iteration tests for 10 seconds\n");
 
-	srand(time(0));
 	test_complete = false;
+
+	for (i = 0; i < 3; i++)
+		seeds[i] = rand();
 
 	if (pthread_create(&threads[0], NULL, tagged_iteration_fn, NULL)) {
 		perror("pthread_create");
