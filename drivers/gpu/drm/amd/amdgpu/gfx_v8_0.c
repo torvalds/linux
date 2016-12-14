@@ -4024,17 +4024,6 @@ static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 		WREG32(mmRLC_JUMP_TABLE_RESTORE, adev->gfx.rlc.cp_table_gpu_addr >> 8);
 		gfx_v8_0_init_power_gating(adev);
 		WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
-		if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
-			cz_enable_sck_slow_down_on_power_up(adev, true);
-			cz_enable_sck_slow_down_on_power_down(adev, true);
-		} else {
-			cz_enable_sck_slow_down_on_power_up(adev, false);
-			cz_enable_sck_slow_down_on_power_down(adev, false);
-		}
-		if (adev->pg_flags & AMD_PG_SUPPORT_CP)
-			cz_enable_cp_power_gating(adev, true);
-		else
-			cz_enable_cp_power_gating(adev, false);
 	} else if ((adev->asic_type == CHIP_POLARIS11) ||
 		   (adev->asic_type == CHIP_POLARIS12)) {
 		gfx_v8_0_init_csb(adev);
@@ -5359,6 +5348,18 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
+
+		if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
+			cz_enable_sck_slow_down_on_power_up(adev, true);
+			cz_enable_sck_slow_down_on_power_down(adev, true);
+		} else {
+			cz_enable_sck_slow_down_on_power_up(adev, false);
+			cz_enable_sck_slow_down_on_power_down(adev, false);
+		}
+		if (adev->pg_flags & AMD_PG_SUPPORT_CP)
+			cz_enable_cp_power_gating(adev, true);
+		else
+			cz_enable_cp_power_gating(adev, false);
 
 		cz_update_gfx_cg_power_gating(adev, enable);
 
