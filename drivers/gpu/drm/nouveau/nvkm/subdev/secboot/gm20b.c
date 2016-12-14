@@ -23,6 +23,7 @@
 #include "priv.h"
 
 #include <core/gpuobj.h>
+#include <engine/falcon.h>
 
 /*
  * The BL header format used by GM20B's firmware is slightly different
@@ -41,6 +42,25 @@ struct gm20b_flcn_bl_desc {
 	u32 data_dma_base;
 	u32 data_size;
 };
+
+static void
+gm20b_secboot_ls_bl_desc(const struct ls_ucode_img *img, u64 wpr_addr,
+			 void *_desc)
+{
+	struct gm20b_flcn_bl_desc *desc = _desc;
+	const struct ls_ucode_img_desc *pdesc = &img->ucode_desc;
+	u64 base;
+
+	base = wpr_addr + img->lsb_header.ucode_off + pdesc->app_start_offset;
+
+	memset(desc, 0, sizeof(*desc));
+	desc->ctx_dma = FALCON_DMAIDX_UCODE;
+	desc->code_dma_base = (base + pdesc->app_resident_code_offset) >> 8;
+	desc->non_sec_code_size = pdesc->app_resident_code_size;
+	desc->data_dma_base = (base + pdesc->app_resident_data_offset) >> 8;
+	desc->data_size = pdesc->app_resident_data_size;
+	desc->code_entry_point = pdesc->app_imem_entry;
+}
 
 static int
 gm20b_secboot_prepare_blobs(struct gm200_secboot *gsb)
@@ -184,6 +204,15 @@ gm20b_secboot = {
 	.boot_falcon = NVKM_SECBOOT_FALCON_PMU,
 };
 
+static const secboot_ls_func
+gm20b_ls_func = {
+	[NVKM_SECBOOT_FALCON_FECS] = &(struct secboot_ls_single_func) {
+		.load = gm200_ls_load_fecs,
+		.generate_bl_desc = gm20b_secboot_ls_bl_desc,
+		.bl_desc_size = sizeof(struct gm20b_flcn_bl_desc),
+	},
+};
+
 int
 gm20b_secboot_new(struct nvkm_device *device, int index,
 		  struct nvkm_secboot **psb)
@@ -203,6 +232,7 @@ gm20b_secboot_new(struct nvkm_device *device, int index,
 		return ret;
 
 	gsb->func = &gm20b_secboot_func;
+	gsb->ls_func = &gm20b_ls_func;
 
 	return 0;
 }

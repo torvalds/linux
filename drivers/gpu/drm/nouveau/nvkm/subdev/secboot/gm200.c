@@ -131,175 +131,6 @@ struct fw_bl_desc {
 };
 
 
-/*
- *
- * LS blob structures
- *
- */
-
-/**
- * struct lsf_ucode_desc - LS falcon signatures
- * @prd_keys:		signature to use when the GPU is in production mode
- * @dgb_keys:		signature to use when the GPU is in debug mode
- * @b_prd_present:	whether the production key is present
- * @b_dgb_present:	whether the debug key is present
- * @falcon_id:		ID of the falcon the ucode applies to
- *
- * Directly loaded from a signature file.
- */
-struct lsf_ucode_desc {
-	u8  prd_keys[2][16];
-	u8  dbg_keys[2][16];
-	u32 b_prd_present;
-	u32 b_dbg_present;
-	u32 falcon_id;
-};
-
-/**
- * struct lsf_lsb_header - LS firmware header
- * @signature:		signature to verify the firmware against
- * @ucode_off:		offset of the ucode blob in the WPR region. The ucode
- *                      blob contains the bootloader, code and data of the
- *                      LS falcon
- * @ucode_size:		size of the ucode blob, including bootloader
- * @data_size:		size of the ucode blob data
- * @bl_code_size:	size of the bootloader code
- * @bl_imem_off:	offset in imem of the bootloader
- * @bl_data_off:	offset of the bootloader data in WPR region
- * @bl_data_size:	size of the bootloader data
- * @app_code_off:	offset of the app code relative to ucode_off
- * @app_code_size:	size of the app code
- * @app_data_off:	offset of the app data relative to ucode_off
- * @app_data_size:	size of the app data
- * @flags:		flags for the secure bootloader
- *
- * This structure is written into the WPR region for each managed falcon. Each
- * instance is referenced by the lsb_offset member of the corresponding
- * lsf_wpr_header.
- */
-struct lsf_lsb_header {
-	struct lsf_ucode_desc signature;
-	u32 ucode_off;
-	u32 ucode_size;
-	u32 data_size;
-	u32 bl_code_size;
-	u32 bl_imem_off;
-	u32 bl_data_off;
-	u32 bl_data_size;
-	u32 app_code_off;
-	u32 app_code_size;
-	u32 app_data_off;
-	u32 app_data_size;
-	u32 flags;
-#define LSF_FLAG_LOAD_CODE_AT_0		1
-#define LSF_FLAG_DMACTL_REQ_CTX		4
-#define LSF_FLAG_FORCE_PRIV_LOAD	8
-};
-
-/**
- * struct lsf_wpr_header - LS blob WPR Header
- * @falcon_id:		LS falcon ID
- * @lsb_offset:		offset of the lsb_lsf_header in the WPR region
- * @bootstrap_owner:	secure falcon reponsible for bootstrapping the LS falcon
- * @lazy_bootstrap:	skip bootstrapping by ACR
- * @status:		bootstrapping status
- *
- * An array of these is written at the beginning of the WPR region, one for
- * each managed falcon. The array is terminated by an instance which falcon_id
- * is LSF_FALCON_ID_INVALID.
- */
-struct lsf_wpr_header {
-	u32  falcon_id;
-	u32  lsb_offset;
-	u32  bootstrap_owner;
-	u32  lazy_bootstrap;
-	u32  status;
-#define LSF_IMAGE_STATUS_NONE				0
-#define LSF_IMAGE_STATUS_COPY				1
-#define LSF_IMAGE_STATUS_VALIDATION_CODE_FAILED		2
-#define LSF_IMAGE_STATUS_VALIDATION_DATA_FAILED		3
-#define LSF_IMAGE_STATUS_VALIDATION_DONE		4
-#define LSF_IMAGE_STATUS_VALIDATION_SKIPPED		5
-#define LSF_IMAGE_STATUS_BOOTSTRAP_READY		6
-};
-
-
-/**
- * struct ls_ucode_img_desc - descriptor of firmware image
- * @descriptor_size:		size of this descriptor
- * @image_size:			size of the whole image
- * @bootloader_start_offset:	start offset of the bootloader in ucode image
- * @bootloader_size:		size of the bootloader
- * @bootloader_imem_offset:	start off set of the bootloader in IMEM
- * @bootloader_entry_point:	entry point of the bootloader in IMEM
- * @app_start_offset:		start offset of the LS firmware
- * @app_size:			size of the LS firmware's code and data
- * @app_imem_offset:		offset of the app in IMEM
- * @app_imem_entry:		entry point of the app in IMEM
- * @app_dmem_offset:		offset of the data in DMEM
- * @app_resident_code_offset:	offset of app code from app_start_offset
- * @app_resident_code_size:	size of the code
- * @app_resident_data_offset:	offset of data from app_start_offset
- * @app_resident_data_size:	size of data
- *
- * A firmware image contains the code, data, and bootloader of a given LS
- * falcon in a single blob. This structure describes where everything is.
- *
- * This can be generated from a (bootloader, code, data) set if they have
- * been loaded separately, or come directly from a file.
- */
-struct ls_ucode_img_desc {
-	u32 descriptor_size;
-	u32 image_size;
-	u32 tools_version;
-	u32 app_version;
-	char date[64];
-	u32 bootloader_start_offset;
-	u32 bootloader_size;
-	u32 bootloader_imem_offset;
-	u32 bootloader_entry_point;
-	u32 app_start_offset;
-	u32 app_size;
-	u32 app_imem_offset;
-	u32 app_imem_entry;
-	u32 app_dmem_offset;
-	u32 app_resident_code_offset;
-	u32 app_resident_code_size;
-	u32 app_resident_data_offset;
-	u32 app_resident_data_size;
-	u32 nb_overlays;
-	struct {u32 start; u32 size; } load_ovl[64];
-	u32 compressed;
-};
-
-/**
- * struct ls_ucode_img - temporary storage for loaded LS firmwares
- * @node:		to link within lsf_ucode_mgr
- * @falcon_id:		ID of the falcon this LS firmware is for
- * @ucode_desc:		loaded or generated map of ucode_data
- * @ucode_header:	header of the firmware
- * @ucode_data:		firmware payload (code and data)
- * @ucode_size:		size in bytes of data in ucode_data
- * @wpr_header:		WPR header to be written to the LS blob
- * @lsb_header:		LSB header to be written to the LS blob
- *
- * Preparing the WPR LS blob requires information about all the LS firmwares
- * (size, etc) to be known. This structure contains all the data of one LS
- * firmware.
- */
-struct ls_ucode_img {
-	struct list_head node;
-	enum nvkm_secboot_falcon falcon_id;
-
-	struct ls_ucode_img_desc ucode_desc;
-	u32 *ucode_header;
-	u8 *ucode_data;
-	u32 ucode_size;
-
-	struct lsf_wpr_header wpr_header;
-	struct lsf_lsb_header lsb_header;
-};
-
 /**
  * struct ls_ucode_mgr - manager for all LS falcon firmwares
  * @count:	number of managed LS falcons
@@ -364,7 +195,7 @@ struct hsf_load_header {
  * it has the required minimum size.
  */
 static void *
-gm200_secboot_load_firmware(struct nvkm_subdev *subdev, const char *name,
+gm200_secboot_load_firmware(const struct nvkm_subdev *subdev, const char *name,
 		    size_t min_size)
 {
 	const struct firmware *fw;
@@ -457,7 +288,7 @@ ls_ucode_img_build(const struct firmware *bl, const struct firmware *code,
  * blob. Also generate the corresponding ucode descriptor.
  */
 static int
-ls_ucode_img_load_generic(struct nvkm_subdev *subdev,
+ls_ucode_img_load_generic(const struct nvkm_subdev *subdev,
 			  struct ls_ucode_img *img, const char *falcon_name,
 			  const u32 falcon_id)
 {
@@ -518,17 +349,17 @@ error:
 	return ret;
 }
 
-typedef int (*lsf_load_func)(struct nvkm_subdev *, struct ls_ucode_img *);
+typedef int (*lsf_load_func)(const struct nvkm_subdev *, struct ls_ucode_img *);
 
-static int
-ls_ucode_img_load_fecs(struct nvkm_subdev *subdev, struct ls_ucode_img *img)
+int
+gm200_ls_load_fecs(const struct nvkm_subdev *subdev, struct ls_ucode_img *img)
 {
 	return ls_ucode_img_load_generic(subdev, img, "fecs",
 					 NVKM_SECBOOT_FALCON_FECS);
 }
 
-static int
-ls_ucode_img_load_gpccs(struct nvkm_subdev *subdev, struct ls_ucode_img *img)
+int
+gm200_ls_load_gpccs(const struct nvkm_subdev *subdev, struct ls_ucode_img *img)
 {
 	return ls_ucode_img_load_generic(subdev, img, "gpccs",
 					 NVKM_SECBOOT_FALCON_GPCCS);
@@ -556,14 +387,8 @@ ls_ucode_img_load(struct nvkm_subdev *subdev, lsf_load_func load_func)
 	return img;
 }
 
-static const lsf_load_func lsf_load_funcs[] = {
-	[NVKM_SECBOOT_FALCON_END] = NULL, /* reserve enough space */
-	[NVKM_SECBOOT_FALCON_FECS] = ls_ucode_img_load_fecs,
-	[NVKM_SECBOOT_FALCON_GPCCS] = ls_ucode_img_load_gpccs,
-};
-
 /**
- * ls_ucode_img_populate_bl_desc() - populate a DMEM BL descriptor for LS image
+ * gm200_secboot_ls_bl_desc() - populate a DMEM BL descriptor for LS image
  * @img:	ucode image to generate against
  * @desc:	descriptor to populate
  * @sb:		secure boot state to use for base addresses
@@ -573,10 +398,11 @@ static const lsf_load_func lsf_load_funcs[] = {
  *
  */
 static void
-ls_ucode_img_populate_bl_desc(struct ls_ucode_img *img, u64 wpr_addr,
-			      struct gm200_flcn_bl_desc *desc)
+gm200_secboot_ls_bl_desc(const struct ls_ucode_img *img, u64 wpr_addr,
+			 void *_desc)
 {
-	struct ls_ucode_img_desc *pdesc = &img->ucode_desc;
+	struct gm200_flcn_bl_desc *desc = _desc;
+	const struct ls_ucode_img_desc *pdesc = &img->ucode_desc;
 	u64 addr_base;
 
 	addr_base = wpr_addr + img->lsb_header.ucode_off +
@@ -621,6 +447,8 @@ ls_ucode_img_fill_headers(struct gm200_secboot *gsb, struct ls_ucode_img *img,
 	struct lsf_wpr_header *whdr = &img->wpr_header;
 	struct lsf_lsb_header *lhdr = &img->lsb_header;
 	struct ls_ucode_img_desc *desc = &img->ucode_desc;
+	const struct secboot_ls_single_func *func =
+						(*gsb->ls_func)[img->falcon_id];
 
 	if (img->ucode_header) {
 		nvkm_fatal(&gsb->base.subdev,
@@ -681,9 +509,9 @@ ls_ucode_img_fill_headers(struct gm200_secboot *gsb, struct ls_ucode_img *img,
 	if (img->falcon_id == NVKM_SECBOOT_FALCON_GPCCS)
 		lhdr->flags |= LSF_FLAG_FORCE_PRIV_LOAD;
 
-	/* Align (size bloat) and save off BL descriptor size */
-	lhdr->bl_data_size = ALIGN(sizeof(struct gm200_flcn_bl_desc),
-				   LSF_BL_DATA_SIZE_ALIGN);
+	/* Align and save off BL descriptor size */
+	lhdr->bl_data_size = ALIGN(func->bl_desc_size, LSF_BL_DATA_SIZE_ALIGN);
+
 	/*
 	 * Align, save off, and include the additional BL data
 	 */
@@ -769,15 +597,16 @@ ls_ucode_mgr_write_wpr(struct gm200_secboot *gsb, struct ls_ucode_mgr *mgr,
 
 		/* Generate and write BL descriptor */
 		if (!img->ucode_header) {
-			u8 desc[gsb->func->bl_desc_size];
-			struct gm200_flcn_bl_desc gdesc;
+			const struct secboot_ls_single_func *ls_func =
+						(*gsb->ls_func)[img->falcon_id];
+			u8 gdesc[ls_func->bl_desc_size];
 
-			ls_ucode_img_populate_bl_desc(img, gsb->acr_wpr_addr,
-						      &gdesc);
-			gsb->func->fixup_bl_desc(&gdesc, &desc);
+			ls_func->generate_bl_desc(img, gsb->acr_wpr_addr,
+						  &gdesc);
+
 			nvkm_gpuobj_memcpy_to(wpr_blob,
 					      img->lsb_header.bl_data_off,
-					      &desc, gsb->func->bl_desc_size);
+					      &gdesc, ls_func->bl_desc_size);
 		}
 
 		/* Copy ucode */
@@ -816,11 +645,12 @@ gm200_secboot_prepare_ls_blob(struct gm200_secboot *gsb)
 	ls_ucode_mgr_init(&mgr);
 
 	/* Load all LS blobs */
-	for_each_set_bit(falcon_id, &gsb->base.func->managed_falcons,
+	for_each_set_bit(falcon_id, &sb->func->managed_falcons,
 			 NVKM_SECBOOT_FALCON_END) {
 		struct ls_ucode_img *img;
 
-		img = ls_ucode_img_load(&sb->subdev, lsf_load_funcs[falcon_id]);
+		img = ls_ucode_img_load(&sb->subdev,
+					(*gsb->ls_func)[falcon_id]->load);
 
 		if (IS_ERR(img)) {
 			ret = PTR_ERR(img);
@@ -864,6 +694,20 @@ cleanup:
 
 	return ret;
 }
+
+static const secboot_ls_func
+gm200_ls_func = {
+	[NVKM_SECBOOT_FALCON_FECS] = &(struct secboot_ls_single_func) {
+		.load = gm200_ls_load_fecs,
+		.generate_bl_desc = gm200_secboot_ls_bl_desc,
+		.bl_desc_size = sizeof(struct gm200_flcn_bl_desc),
+	},
+	[NVKM_SECBOOT_FALCON_GPCCS] = &(struct secboot_ls_single_func) {
+		.load = gm200_ls_load_gpccs,
+		.generate_bl_desc = gm200_secboot_ls_bl_desc,
+		.bl_desc_size = sizeof(struct gm200_flcn_bl_desc),
+	},
+};
 
 /*
  * High-secure blob creation
@@ -1443,6 +1287,7 @@ gm200_secboot_new(struct nvkm_device *device, int index,
 		return ret;
 
 	gsb->func = &gm200_secboot_func;
+	gsb->ls_func = &gm200_ls_func;
 
 	return 0;
 }
