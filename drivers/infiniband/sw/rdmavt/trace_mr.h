@@ -44,75 +44,69 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
+#if !defined(__RVT_TRACE_MR_H) || defined(TRACE_HEADER_MULTI_READ)
+#define __RVT_TRACE_MR_H
 
-#ifndef HFI1_VERBS_TXREQ_H
-#define HFI1_VERBS_TXREQ_H
+#include <linux/tracepoint.h>
+#include <linux/trace_seq.h>
 
-#include <linux/types.h>
-#include <linux/slab.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/rdma_vt.h>
+#include <rdma/rdmavt_mr.h>
 
-#include "verbs.h"
-#include "sdma_txreq.h"
-#include "iowait.h"
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM rvt_mr
+DECLARE_EVENT_CLASS(
+	rvt_mr_template,
+	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
+	TP_ARGS(mr, m, n, v, len),
+	TP_STRUCT__entry(
+		RDI_DEV_ENTRY(ib_to_rvt(mr->pd->device))
+		__field(void *, vaddr)
+		__field(struct page *, page)
+		__field(size_t, len)
+		__field(u32, lkey)
+		__field(u16, m)
+		__field(u16, n)
+	),
+	TP_fast_assign(
+		RDI_DEV_ASSIGN(ib_to_rvt(mr->pd->device));
+		__entry->vaddr = v;
+		__entry->page = virt_to_page(v);
+		__entry->m = m;
+		__entry->n = n;
+		__entry->len = len;
+	),
+	TP_printk(
+		"[%s] vaddr %p page %p m %u n %u len %ld",
+		__get_str(dev),
+		__entry->vaddr,
+		__entry->page,
+		__entry->m,
+		__entry->n,
+		__entry->len
+	)
+);
 
-struct verbs_txreq {
-	struct hfi1_sdma_header	phdr;
-	struct sdma_txreq       txreq;
-	struct rvt_qp           *qp;
-	struct rvt_swqe         *wqe;
-	struct rvt_mregion	*mr;
-	struct rvt_sge_state    *ss;
-	struct sdma_engine     *sde;
-	struct send_context     *psc;
-	u16                     hdr_dwords;
-	u16			s_cur_size;
-};
+DEFINE_EVENT(
+	rvt_mr_template, rvt_mr_page_seg,
+	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
+	TP_ARGS(mr, m, n, v, len));
 
-struct hfi1_ibdev;
-struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
-				struct rvt_qp *qp);
+DEFINE_EVENT(
+	rvt_mr_template, rvt_mr_fmr_seg,
+	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
+	TP_ARGS(mr, m, n, v, len));
 
-static inline struct verbs_txreq *get_txreq(struct hfi1_ibdev *dev,
-					    struct rvt_qp *qp)
-	__must_hold(&qp->slock)
-{
-	struct verbs_txreq *tx;
-	struct hfi1_qp_priv *priv = qp->priv;
+DEFINE_EVENT(
+	rvt_mr_template, rvt_mr_user_seg,
+	TP_PROTO(struct rvt_mregion *mr, u16 m, u16 n, void *v, size_t len),
+	TP_ARGS(mr, m, n, v, len));
 
-	tx = kmem_cache_alloc(dev->verbs_txreq_cache, GFP_ATOMIC);
-	if (unlikely(!tx)) {
-		/* call slow path to get the lock */
-		tx = __get_txreq(dev, qp);
-		if (IS_ERR(tx))
-			return tx;
-	}
-	tx->qp = qp;
-	tx->mr = NULL;
-	tx->sde = priv->s_sde;
-	tx->psc = priv->s_sendcontext;
-	/* so that we can test if the sdma decriptors are there */
-	tx->txreq.num_desc = 0;
-	return tx;
-}
+#endif /* __RVT_TRACE_MR_H */
 
-static inline struct sdma_txreq *get_sdma_txreq(struct verbs_txreq *tx)
-{
-	return &tx->txreq;
-}
-
-static inline struct verbs_txreq *get_waiting_verbs_txreq(struct rvt_qp *qp)
-{
-	struct sdma_txreq *stx;
-	struct hfi1_qp_priv *priv = qp->priv;
-
-	stx = iowait_get_txhead(&priv->s_iowait);
-	if (stx)
-		return container_of(stx, struct verbs_txreq, txreq);
-	return NULL;
-}
-
-void hfi1_put_txreq(struct verbs_txreq *tx);
-int verbs_txreq_init(struct hfi1_ibdev *dev);
-void verbs_txreq_exit(struct hfi1_ibdev *dev);
-
-#endif                         /* HFI1_VERBS_TXREQ_H */
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH .
+#define TRACE_INCLUDE_FILE trace_mr
+#include <trace/define_trace.h>

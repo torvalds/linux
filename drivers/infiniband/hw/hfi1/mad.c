@@ -336,20 +336,20 @@ static int __subn_get_opa_nodeinfo(struct opa_smp *smp, u32 am, u8 *data,
 	ni = (struct opa_node_info *)data;
 
 	/* GUID 0 is illegal */
-	if (am || pidx >= dd->num_pports || dd->pport[pidx].guid == 0) {
+	if (am || pidx >= dd->num_pports || ibdev->node_guid == 0 ||
+	    get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX) == 0) {
 		smp->status |= IB_SMP_INVALID_FIELD;
 		return reply((struct ib_mad_hdr *)smp);
 	}
 
-	ni->port_guid = cpu_to_be64(dd->pport[pidx].guid);
+	ni->port_guid = get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX);
 	ni->base_version = OPA_MGMT_BASE_VERSION;
 	ni->class_version = OPA_SMI_CLASS_VERSION;
 	ni->node_type = 1;     /* channel adapter */
 	ni->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
 	ni->system_image_guid = ib_hfi1_sys_image_guid;
-	/* Use first-port GUID as node */
-	ni->node_guid = cpu_to_be64(dd->pport->guid);
+	ni->node_guid = ibdev->node_guid;
 	ni->partition_cap = cpu_to_be16(hfi1_get_npkeys(dd));
 	ni->device_id = cpu_to_be16(dd->pcidev->device);
 	ni->revision = cpu_to_be32(dd->minrev);
@@ -373,19 +373,20 @@ static int subn_get_nodeinfo(struct ib_smp *smp, struct ib_device *ibdev,
 
 	/* GUID 0 is illegal */
 	if (smp->attr_mod || pidx >= dd->num_pports ||
-	    dd->pport[pidx].guid == 0)
+	    ibdev->node_guid == 0 ||
+	    get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX) == 0) {
 		smp->status |= IB_SMP_INVALID_FIELD;
-	else
-		nip->port_guid = cpu_to_be64(dd->pport[pidx].guid);
+		return reply((struct ib_mad_hdr *)smp);
+	}
 
+	nip->port_guid = get_sguid(to_iport(ibdev, port), HFI1_PORT_GUID_INDEX);
 	nip->base_version = OPA_MGMT_BASE_VERSION;
 	nip->class_version = OPA_SMI_CLASS_VERSION;
 	nip->node_type = 1;     /* channel adapter */
 	nip->num_ports = ibdev->phys_port_cnt;
 	/* This is already in network order */
 	nip->sys_guid = ib_hfi1_sys_image_guid;
-	 /* Use first-port GUID as node */
-	nip->node_guid = cpu_to_be64(dd->pport->guid);
+	nip->node_guid = ibdev->node_guid;
 	nip->partition_cap = cpu_to_be16(hfi1_get_npkeys(dd));
 	nip->device_id = cpu_to_be16(dd->pcidev->device);
 	nip->revision = cpu_to_be32(dd->minrev);
