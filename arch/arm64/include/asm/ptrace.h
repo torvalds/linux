@@ -217,6 +217,14 @@ int valid_user_regs(struct user_pt_regs *regs, struct task_struct *task);
 
 #include <asm-generic/ptrace.h>
 
+#define procedure_link_pointer(regs)	((regs)->regs[30])
+
+static inline void procedure_link_pointer_set(struct pt_regs *regs,
+					   unsigned long val)
+{
+	procedure_link_pointer(regs) = val;
+}
+
 #undef profile_pc
 extern unsigned long profile_pc(struct pt_regs *regs);
 
