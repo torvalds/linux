@@ -168,10 +168,10 @@ minstrel_calc_rate_stats(struct minstrel_rate_stats *mrs)
 			mrs->prob_ewma = cur_prob;
 		} else {
 			/* update exponential weighted moving variance */
-			mrs->prob_ewmsd = minstrel_ewmsd(mrs->prob_ewmsd,
-							 cur_prob,
-							 mrs->prob_ewma,
-							 EWMA_LEVEL);
+			mrs->prob_ewmv = minstrel_ewmv(mrs->prob_ewmv,
+							cur_prob,
+							mrs->prob_ewma,
+							EWMA_LEVEL);
 
 			/*update exponential weighted moving avarage */
 			mrs->prob_ewma = minstrel_ewma(mrs->prob_ewma,
