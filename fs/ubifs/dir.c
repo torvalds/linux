@@ -528,7 +528,7 @@ static unsigned int vfs_dent_type(uint8_t type)
  */
 static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 {
-	int fstr_real_len, err = 0;
+	int fstr_real_len = 0, err = 0;
 	struct fscrypt_name nm;
 	struct fscrypt_str fstr = {0};
 	union ubifs_key key;
