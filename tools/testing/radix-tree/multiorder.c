@@ -125,7 +125,7 @@ static void multiorder_check(unsigned long index, int order)
 	unsigned long min = index & ~((1UL << order) - 1);
 	unsigned long max = min + (1UL << order);
 	void **slot;
-	struct item *item2 = item_create(min);
+	struct item *item2 = item_create(min, order);
 	RADIX_TREE(tree, GFP_KERNEL);
 
 	printf("Multiorder index %ld, order %d\n", index, order);

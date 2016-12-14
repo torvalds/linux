@@ -5,11 +5,11 @@
 
 struct item {
 	unsigned long index;
+	unsigned int order;
 };
 
-struct item *item_create(unsigned long index);
-int __item_insert(struct radix_tree_root *root, struct item *item,
-			unsigned order);
+struct item *item_create(unsigned long index, unsigned int order);
+int __item_insert(struct radix_tree_root *root, struct item *item);
 int item_insert(struct radix_tree_root *root, unsigned long index);
 int item_insert_order(struct radix_tree_root *root, unsigned long index,
 			unsigned order);
