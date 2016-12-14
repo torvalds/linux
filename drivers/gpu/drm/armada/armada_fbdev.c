@@ -94,7 +94,7 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 	drm_fb_helper_fill_var(info, fbh, sizes->fb_width, sizes->fb_height);
 
 	DRM_DEBUG_KMS("allocated %dx%d %dbpp fb: 0x%08llx\n",
-		dfb->fb.width, dfb->fb.height, dfb->fb.bits_per_pixel,
+		dfb->fb.width, dfb->fb.height, dfb->fb.format->cpp[0] * 8,
 		(unsigned long long)obj->phys_addr);
 
 	return 0;

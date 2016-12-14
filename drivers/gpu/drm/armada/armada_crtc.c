@@ -190,7 +190,7 @@ static unsigned armada_drm_crtc_calc_fb(struct drm_framebuffer *fb,
 	unsigned i = 0;
 
 	DRM_DEBUG_DRIVER("pitch %u x %d y %d bpp %d\n",
-		pitch, x, y, fb->bits_per_pixel);
+		pitch, x, y, fb->format->cpp[0] * 8);
 
 	armada_drm_plane_calc_addrs(addrs, fb, x, y);
 

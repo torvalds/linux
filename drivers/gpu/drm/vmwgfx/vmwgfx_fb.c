@@ -93,7 +93,7 @@ static int vmw_fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	default:
 		DRM_ERROR("Bad depth %u, bpp %u.\n",
 			  par->set_fb->format->depth,
-			  par->set_fb->bits_per_pixel);
+			  par->set_fb->format->cpp[0] * 8);
 		return 1;
 	}
 
@@ -198,7 +198,7 @@ static void vmw_fb_dirty_flush(struct work_struct *work)
 	 * Handle panning when copying from vmalloc to framebuffer.
 	 * Clip dirty area to framebuffer.
 	 */
-	cpp = (cur_fb->bits_per_pixel + 7) / 8;
+	cpp = cur_fb->format->cpp[0];
 	max_x = par->fb_x + cur_fb->width;
 	max_y = par->fb_y + cur_fb->height;
 

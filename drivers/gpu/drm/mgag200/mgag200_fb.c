@@ -24,7 +24,7 @@ static void mga_dirty_update(struct mga_fbdev *mfbdev,
 	struct drm_gem_object *obj;
 	struct mgag200_bo *bo;
 	int src_offset, dst_offset;
-	int bpp = (mfbdev->mfb.base.bits_per_pixel + 7)/8;
+	int bpp = mfbdev->mfb.base.format->cpp[0];
 	int ret = -EBUSY;
 	bool unmap = false;
 	bool store_for_later = false;

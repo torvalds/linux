@@ -1874,7 +1874,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 			   fbdev_fb->base.width,
 			   fbdev_fb->base.height,
 			   fbdev_fb->base.format->depth,
-			   fbdev_fb->base.bits_per_pixel,
+			   fbdev_fb->base.format->cpp[0] * 8,
 			   fbdev_fb->base.modifier,
 			   drm_framebuffer_read_refcount(&fbdev_fb->base));
 		describe_obj(m, fbdev_fb->obj);
@@ -1892,7 +1892,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 			   fb->base.width,
 			   fb->base.height,
 			   fb->base.format->depth,
-			   fb->base.bits_per_pixel,
+			   fb->base.format->cpp[0] * 8,
 			   fb->base.modifier,
 			   drm_framebuffer_read_refcount(&fb->base));
 		describe_obj(m, fb->obj);

@@ -89,7 +89,7 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	int bytes_identical = 0;
 	struct urb *urb;
 	int aligned_x;
-	int bpp = (fb->base.bits_per_pixel / 8);
+	int bpp = fb->base.format->cpp[0];
 
 	if (!fb->active_16)
 		return 0;

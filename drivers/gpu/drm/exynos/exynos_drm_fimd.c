@@ -738,7 +738,7 @@ static void fimd_update_plane(struct exynos_drm_crtc *crtc,
 	unsigned long val, size, offset;
 	unsigned int last_x, last_y, buf_offsize, line_size;
 	unsigned int win = plane->index;
-	unsigned int bpp = fb->bits_per_pixel >> 3;
+	unsigned int bpp = fb->format->cpp[0];
 	unsigned int pitch = fb->pitches[0];
 
 	if (ctx->suspended)

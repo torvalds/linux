@@ -568,7 +568,7 @@ static void tegra_plane_atomic_update(struct drm_plane *plane,
 	window.dst.y = plane->state->crtc_y;
 	window.dst.w = plane->state->crtc_w;
 	window.dst.h = plane->state->crtc_h;
-	window.bits_per_pixel = fb->bits_per_pixel;
+	window.bits_per_pixel = fb->format->cpp[0] * 8;
 	window.bottom_up = tegra_fb_is_bottom_up(fb);
 
 	/* copy from state */

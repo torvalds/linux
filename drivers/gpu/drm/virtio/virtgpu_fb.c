@@ -43,7 +43,7 @@ static int virtio_gpu_dirty_update(struct virtio_gpu_framebuffer *fb,
 	struct drm_device *dev = fb->base.dev;
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	bool store_for_later = false;
-	int bpp = fb->base.bits_per_pixel / 8;
+	int bpp = fb->base.format->cpp[0];
 	int x2, y2;
 	unsigned long flags;
 	struct virtio_gpu_object *obj = gem_to_virtio_gpu_obj(fb->obj);

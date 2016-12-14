@@ -258,7 +258,7 @@ static int cirrus_crtc_mode_set(struct drm_crtc *crtc,
 	sr07 = RREG8(SEQ_DATA);
 	sr07 &= 0xe0;
 	hdr = 0;
-	switch (fb->bits_per_pixel) {
+	switch (fb->format->cpp[0] * 8) {
 	case 8:
 		sr07 |= 0x11;
 		break;

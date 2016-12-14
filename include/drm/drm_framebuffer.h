@@ -170,13 +170,6 @@ struct drm_framebuffer {
 	 */
 	unsigned int height;
 	/**
-	 * @bits_per_pixel: Storage used bits per pixel for RGB formats. 0 for
-	 * everything else. Legacy information derived from @pixel_format, it's
-	 * suggested to use the DRM FOURCC codes and helper functions directly
-	 * instead.
-	 */
-	int bits_per_pixel;
-	/**
 	 * @flags: Framebuffer flags like DRM_MODE_FB_INTERLACED or
 	 * DRM_MODE_FB_MODIFIERS.
 	 */

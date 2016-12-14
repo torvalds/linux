@@ -631,7 +631,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	/* converting dma address base and source offset */
 	dma_addr = exynos_drm_fb_dma_addr(fb, 0)
-		+ (state->src.x * fb->bits_per_pixel >> 3)
+		+ (state->src.x * fb->format->cpp[0])
 		+ (state->src.y * fb->pitches[0]);
 	src_x_offset = 0;
 	src_y_offset = 0;
@@ -649,7 +649,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 
 	/* setup geometry */
 	mixer_reg_write(res, MXR_GRAPHIC_SPAN(win),
-			fb->pitches[0] / (fb->bits_per_pixel >> 3));
+			fb->pitches[0] / fb->format->cpp[0]);
 
 	/* setup display size */
 	if (ctx->mxr_ver == MXR_VER_128_0_0_184 &&

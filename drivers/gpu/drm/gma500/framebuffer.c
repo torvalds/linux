@@ -77,7 +77,7 @@ static int psbfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	    (transp << info->var.transp.offset);
 
 	if (regno < 16) {
-		switch (fb->bits_per_pixel) {
+		switch (fb->format->cpp[0] * 8) {
 		case 16:
 			((uint32_t *) info->pseudo_palette)[regno] = v;
 			break;

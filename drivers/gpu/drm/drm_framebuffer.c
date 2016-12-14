@@ -433,7 +433,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	r->height = fb->height;
 	r->width = fb->width;
 	r->depth = fb->format->depth;
-	r->bpp = fb->bits_per_pixel;
+	r->bpp = fb->format->cpp[0] * 8;
 	r->pitch = fb->pitches[0];
 	if (fb->funcs->create_handle) {
 		if (drm_is_current_master(file_priv) || capable(CAP_SYS_ADMIN) ||

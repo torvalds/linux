@@ -49,7 +49,7 @@ static void ast_dirty_update(struct ast_fbdev *afbdev,
 	struct drm_gem_object *obj;
 	struct ast_bo *bo;
 	int src_offset, dst_offset;
-	int bpp = (afbdev->afb.base.bits_per_pixel + 7)/8;
+	int bpp = afbdev->afb.base.format->cpp[0];
 	int ret = -EBUSY;
 	bool unmap = false;
 	bool store_for_later = false;
