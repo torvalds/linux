@@ -781,7 +781,6 @@ void omap_dss_put_device(struct omap_dss_device *dssdev);
 struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from);
 struct omap_dss_device *omap_dss_find_device(void *data,
 		int (*match)(struct omap_dss_device *dssdev, void *data));
-const char *omapdss_get_default_display_name(void);
 
 int dss_feat_get_num_mgrs(void);
 int dss_feat_get_num_ovls(void);

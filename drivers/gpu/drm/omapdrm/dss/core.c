@@ -41,19 +41,7 @@
 
 static struct {
 	struct platform_device *pdev;
-
-	const char *default_display_name;
 } core;
-
-static char *def_disp_name;
-module_param_named(def_disp, def_disp_name, charp, 0);
-MODULE_PARM_DESC(def_disp, "default display name");
-
-const char *omapdss_get_default_display_name(void)
-{
-	return core.default_display_name;
-}
-EXPORT_SYMBOL(omapdss_get_default_display_name);
 
 enum omapdss_version omapdss_get_version(void)
 {
@@ -175,7 +163,6 @@ static void dss_disable_all_devices(void)
 
 static int __init omap_dss_probe(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	int r;
 
 	core.pdev = pdev;
@@ -185,11 +172,6 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 	r = dss_initialize_debugfs();
 	if (r)
 		goto err_debugfs;
-
-	if (def_disp_name)
-		core.default_display_name = def_disp_name;
-	else if (pdata->default_display_name)
-		core.default_display_name = pdata->default_display_name;
 
 	return 0;
 
