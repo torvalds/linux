@@ -875,7 +875,6 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 					unsigned long address, pmd_t *pmd,
 					int referenced)
 {
-	pte_t pteval;
 	int swapped_in = 0, ret = 0;
 	struct vm_fault vmf = {
 		.vma = vma,
@@ -893,11 +892,11 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 	vmf.pte = pte_offset_map(pmd, address);
 	for (; vmf.address < address + HPAGE_PMD_NR*PAGE_SIZE;
 			vmf.pte++, vmf.address += PAGE_SIZE) {
-		pteval = *vmf.pte;
-		if (!is_swap_pte(pteval))
+		vmf.orig_pte = *vmf.pte;
+		if (!is_swap_pte(vmf.orig_pte))
 			continue;
 		swapped_in++;
-		ret = do_swap_page(&vmf, pteval);
+		ret = do_swap_page(&vmf);
 
 		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
 		if (ret & VM_FAULT_RETRY) {
