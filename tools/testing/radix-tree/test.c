@@ -200,8 +200,15 @@ void verify_tag_consistency(struct radix_tree_root *root, unsigned int tag)
 
 void item_kill_tree(struct radix_tree_root *root)
 {
+	struct radix_tree_iter iter;
+	void **slot;
 	struct item *items[32];
 	int nfound;
+
+	radix_tree_for_each_slot(slot, root, &iter, 0) {
+		if (radix_tree_exceptional_entry(*slot))
+			radix_tree_delete(root, iter.index);
+	}
 
 	while ((nfound = radix_tree_gang_lookup(root, (void **)items, 0, 32))) {
 		int i;
