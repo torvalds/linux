@@ -370,7 +370,7 @@ static int mwifiex_check_winner_status(struct mwifiex_adapter *adapter)
  * This function removes the interface and frees up the card structure.
  */
 static void
-__mwifiex_sdio_remove(struct sdio_func *func)
+mwifiex_sdio_remove(struct sdio_func *func)
 {
 	struct sdio_mmc_card *card;
 	struct mwifiex_adapter *adapter;
@@ -388,6 +388,8 @@ __mwifiex_sdio_remove(struct sdio_func *func)
 	if (!adapter || !adapter->priv_num)
 		return;
 
+	cancel_work_sync(&sdio_work);
+
 	mwifiex_dbg(adapter, INFO, "info: SDIO func num=%d\n", func->num);
 
 	ret = mwifiex_sdio_read_fw_status(adapter, &firmware_stat);
@@ -400,13 +402,6 @@ __mwifiex_sdio_remove(struct sdio_func *func)
 	}
 
 	mwifiex_remove_card(adapter);
-}
-
-static void
-mwifiex_sdio_remove(struct sdio_func *func)
-{
-	cancel_work_sync(&sdio_work);
-	__mwifiex_sdio_remove(func);
 }
 
 /*
