@@ -46,7 +46,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20160831
+#define ACPI_CA_VERSION                 0x20160930
 
 #include <acpi/acconfig.h>
 #include <acpi/actypes.h>
@@ -257,6 +257,13 @@ ACPI_INIT_GLOBAL(u8, acpi_gbl_osi_data, 0);
  * a reduced HW machine, and that flag is duplicated here for convenience.
  */
 ACPI_INIT_GLOBAL(u8, acpi_gbl_reduced_hardware, FALSE);
+
+/*
+ * Maximum number of While() loop iterations before forced method abort.
+ * This mechanism is intended to prevent infinite loops during interpreter
+ * execution within a host kernel.
+ */
+ACPI_INIT_GLOBAL(u32, acpi_gbl_max_loop_iterations, ACPI_MAX_LOOP_COUNT);
 
 /*
  * This mechanism is used to trace a specified AML method. The method is

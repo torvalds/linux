@@ -1988,7 +1988,7 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 
 	req->cmd_len = COMMAND_SIZE(req->cmd[0]);
 
-	req->cmd_flags |= REQ_QUIET;
+	req->rq_flags |= RQF_QUIET;
 	req->timeout = 10 * HZ;
 	req->retries = 5;
 

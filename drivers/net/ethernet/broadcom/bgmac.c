@@ -1085,6 +1085,9 @@ static void bgmac_enable(struct bgmac *bgmac)
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipinit */
 static void bgmac_chip_init(struct bgmac *bgmac)
 {
+	/* Clear any erroneously pending interrupts */
+	bgmac_write(bgmac, BGMAC_INT_STATUS, ~0);
+
 	/* 1 interrupt per received frame */
 	bgmac_write(bgmac, BGMAC_INT_RECV_LAZY, 1 << BGMAC_IRL_FC_SHIFT);
 
@@ -1391,7 +1394,7 @@ static const struct ethtool_ops bgmac_ethtool_ops = {
  * MII
  **************************************************/
 
-static void bgmac_adjust_link(struct net_device *net_dev)
+void bgmac_adjust_link(struct net_device *net_dev)
 {
 	struct bgmac *bgmac = netdev_priv(net_dev);
 	struct phy_device *phy_dev = net_dev->phydev;
@@ -1414,8 +1417,9 @@ static void bgmac_adjust_link(struct net_device *net_dev)
 		phy_print_status(phy_dev);
 	}
 }
+EXPORT_SYMBOL_GPL(bgmac_adjust_link);
 
-static int bgmac_phy_connect_direct(struct bgmac *bgmac)
+int bgmac_phy_connect_direct(struct bgmac *bgmac)
 {
 	struct fixed_phy_status fphy_status = {
 		.link = 1,
@@ -1440,24 +1444,7 @@ static int bgmac_phy_connect_direct(struct bgmac *bgmac)
 
 	return err;
 }
-
-static int bgmac_phy_connect(struct bgmac *bgmac)
-{
-	struct phy_device *phy_dev;
-	char bus_id[MII_BUS_ID_SIZE + 3];
-
-	/* Connect to the PHY */
-	snprintf(bus_id, sizeof(bus_id), PHY_ID_FMT, bgmac->mii_bus->id,
-		 bgmac->phyaddr);
-	phy_dev = phy_connect(bgmac->net_dev, bus_id, &bgmac_adjust_link,
-			      PHY_INTERFACE_MODE_MII);
-	if (IS_ERR(phy_dev)) {
-		dev_err(bgmac->dev, "PHY connection failed\n");
-		return PTR_ERR(phy_dev);
-	}
-
-	return 0;
-}
+EXPORT_SYMBOL_GPL(bgmac_phy_connect_direct);
 
 int bgmac_enet_probe(struct bgmac *info)
 {
@@ -1510,10 +1497,7 @@ int bgmac_enet_probe(struct bgmac *info)
 
 	netif_napi_add(net_dev, &bgmac->napi, bgmac_poll, BGMAC_WEIGHT);
 
-	if (!bgmac->mii_bus)
-		err = bgmac_phy_connect_direct(bgmac);
-	else
-		err = bgmac_phy_connect(bgmac);
+	err = bgmac_phy_connect(bgmac);
 	if (err) {
 		dev_err(bgmac->dev, "Cannot connect to phy\n");
 		goto err_dma_free;

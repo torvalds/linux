@@ -19,10 +19,29 @@ Required Properties:
   - "samsung,exynos5260-pinctrl": for Exynos5260 compatible pin-controller.
   - "samsung,exynos5410-pinctrl": for Exynos5410 compatible pin-controller.
   - "samsung,exynos5420-pinctrl": for Exynos5420 compatible pin-controller.
+  - "samsung,exynos5433-pinctrl": for Exynos5433 compatible pin-controller.
   - "samsung,exynos7-pinctrl": for Exynos7 compatible pin-controller.
 
 - reg: Base address of the pin controller hardware module and length of
   the address space it occupies.
+
+  - reg: Second base address of the pin controller if the specific registers
+  of the pin controller are separated into the different base address.
+
+	Eg: GPF[1-5] of Exynos5433 are separated into the two base address.
+	- First base address is for GPAx and GPF[1-5] external interrupt
+	  registers.
+	- Second base address is for GPF[1-5] pinctrl registers.
+
+	pinctrl_0: pinctrl@10580000 {
+		compatible = "samsung,exynos5433-pinctrl";
+		reg = <0x10580000 0x1a20>, <0x11090000 0x100>;
+
+		wakeup-interrupt-controller {
+			compatible = "samsung,exynos7-wakeup-eint";
+			interrupts = <0 16 0>;
+		};
+	};
 
 - Pin banks as child nodes: Pin banks of the controller are represented by child
   nodes of the controller node. Bank name is taken from name of the node. Each

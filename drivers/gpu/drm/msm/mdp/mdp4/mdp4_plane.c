@@ -40,7 +40,7 @@ enum mdp4_frame_format mdp4_get_frame_format(struct drm_framebuffer *fb)
 {
 	bool is_tile = false;
 
-	if (fb->modifier[1] == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)
+	if (fb->modifier == DRM_FORMAT_MOD_SAMSUNG_64_32_TILE)
 		is_tile = true;
 
 	if (fb->pixel_format == DRM_FORMAT_NV12 && is_tile)

@@ -92,6 +92,8 @@ struct devlink_ops {
 
 	int (*eswitch_mode_get)(struct devlink *devlink, u16 *p_mode);
 	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode);
+	int (*eswitch_inline_mode_get)(struct devlink *devlink, u8 *p_inline_mode);
+	int (*eswitch_inline_mode_set)(struct devlink *devlink, u8 inline_mode);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)

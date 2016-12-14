@@ -145,8 +145,8 @@ struct clk_hw *clk_hw_register_gate(struct device *dev, const char *name,
 	init.name = name;
 	init.ops = &clk_gate_ops;
 	init.flags = flags | CLK_IS_BASIC;
-	init.parent_names = (parent_name ? &parent_name: NULL);
-	init.num_parents = (parent_name ? 1 : 0);
+	init.parent_names = parent_name ? &parent_name : NULL;
+	init.num_parents = parent_name ? 1 : 0;
 
 	/* struct clk_gate assignments */
 	gate->reg = reg;

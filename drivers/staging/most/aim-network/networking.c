@@ -67,10 +67,10 @@ struct net_dev_context {
 	struct most_interface *iface;
 	bool channels_opened;
 	bool is_mamac;
-	unsigned char link_stat;
 	struct net_device *dev;
 	struct net_dev_channel rx;
 	struct net_dev_channel tx;
+	struct completion mac_compl;
 	struct list_head list;
 };
 
@@ -181,6 +181,7 @@ static int most_nd_set_mac_address(struct net_device *dev, void *p)
 static int most_nd_open(struct net_device *dev)
 {
 	struct net_dev_context *nd = dev->ml_priv;
+	long ret;
 
 	netdev_info(dev, "open net device\n");
 
@@ -202,16 +203,30 @@ static int most_nd_open(struct net_device *dev)
 		return -EBUSY;
 	}
 
-	nd->channels_opened = true;
-
-	if (nd->is_mamac) {
-		nd->link_stat = 1;
-		netif_wake_queue(dev);
-	} else {
+	if (!is_valid_ether_addr(dev->dev_addr)) {
 		nd->iface->request_netinfo(nd->iface, nd->tx.ch_id);
+		ret = wait_for_completion_interruptible_timeout(
+			      &nd->mac_compl, msecs_to_jiffies(5000));
+		if (!ret) {
+			netdev_err(dev, "mac timeout\n");
+			ret = -EBUSY;
+			goto err;
+		}
+
+		if (ret < 0) {
+			netdev_warn(dev, "mac waiting interrupted\n");
+			goto err;
+		}
 	}
 
+	nd->channels_opened = true;
+	netif_wake_queue(dev);
 	return 0;
+
+err:
+	most_stop_channel(nd->iface, nd->tx.ch_id, &aim);
+	most_stop_channel(nd->iface, nd->rx.ch_id, &aim);
+	return ret;
 }
 
 static int most_nd_stop(struct net_device *dev)
@@ -277,7 +292,6 @@ static const struct net_device_ops most_nd_ops = {
 
 static void most_nd_setup(struct net_device *dev)
 {
-	netdev_info(dev, "setup net device\n");
 	ether_setup(dev);
 	dev->netdev_ops = &most_nd_ops;
 }
@@ -332,6 +346,7 @@ static int aim_probe_channel(struct most_interface *iface, int channel_idx,
 		if (!nd)
 			return -ENOMEM;
 
+		init_completion(&nd->mac_compl);
 		nd->iface = iface;
 
 		spin_lock_irqsave(&list_lock, flags);
@@ -548,8 +563,7 @@ void most_deliver_netinfo(struct most_interface *iface,
 {
 	struct net_dev_context *nd;
 	struct net_device *dev;
-
-	pr_info("Received netinfo from %s\n", iface->description);
+	const u8 *m = mac_addr;
 
 	nd = get_net_dev_context(iface);
 	if (!nd)
@@ -559,15 +573,16 @@ void most_deliver_netinfo(struct most_interface *iface,
 	if (!dev)
 		return;
 
-	if (mac_addr)
-		ether_addr_copy(dev->dev_addr, mac_addr);
-
-	if (nd->link_stat != link_stat) {
-		nd->link_stat = link_stat;
-		if (nd->link_stat)
-			netif_wake_queue(dev);
-		else
-			netif_stop_queue(dev);
+	if (m && is_valid_ether_addr(m)) {
+		if (!is_valid_ether_addr(dev->dev_addr)) {
+			netdev_info(dev, "set mac %02x-%02x-%02x-%02x-%02x-%02x\n",
+				    m[0], m[1], m[2], m[3], m[4], m[5]);
+			ether_addr_copy(dev->dev_addr, m);
+			complete(&nd->mac_compl);
+		} else if (!ether_addr_equal(dev->dev_addr, m)) {
+			netdev_warn(dev, "reject mac %02x-%02x-%02x-%02x-%02x-%02x\n",
+				    m[0], m[1], m[2], m[3], m[4], m[5]);
+		}
 	}
 }
 EXPORT_SYMBOL(most_deliver_netinfo);

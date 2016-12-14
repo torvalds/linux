@@ -747,7 +747,6 @@
 			clocks = <&sys_ctrl HI6220_USBOTG_HCLK>;
 			clock-names = "otg";
 			dr_mode = "otg";
-			g-use-dma;
 			g-rx-fifo-size = <512>;
 			g-np-tx-fifo-size = <128>;
 			g-tx-fifo-size = <128 128 128 128 128 128>;

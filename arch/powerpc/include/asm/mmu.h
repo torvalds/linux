@@ -214,6 +214,11 @@ extern u64 ppc64_rma_size;
 /* Cleanup function used by kexec */
 extern void mmu_cleanup_all(void);
 extern void radix__mmu_cleanup_all(void);
+
+/* Functions for creating and updating partition table on POWER9 */
+extern void mmu_partition_table_init(void);
+extern void mmu_partition_table_set_entry(unsigned int lpid, unsigned long dw0,
+					  unsigned long dw1);
 #endif /* CONFIG_PPC64 */
 
 struct mm_struct;

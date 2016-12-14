@@ -357,8 +357,8 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
 		di.format   = UNW_INFO_FORMAT_REMOTE_TABLE;
 		di.start_ip = map->start;
 		di.end_ip   = map->end;
-		di.u.rti.segbase    = map->start + segbase;
-		di.u.rti.table_data = map->start + table_data;
+		di.u.rti.segbase    = map->start + segbase - map->pgoff;
+		di.u.rti.table_data = map->start + table_data - map->pgoff;
 		di.u.rti.table_len  = fde_count * sizeof(struct table_entry)
 				      / sizeof(unw_word_t);
 		ret = dwarf_search_unwind_table(as, ip, &di, pi,

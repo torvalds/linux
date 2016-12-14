@@ -4392,10 +4392,7 @@ int sctp_transport_walk_start(struct rhashtable_iter *iter)
 {
 	int err;
 
-	err = rhashtable_walk_init(&sctp_transport_hashtable, iter,
-				   GFP_KERNEL);
-	if (err)
-		return err;
+	rhltable_walk_enter(&sctp_transport_hashtable, iter);
 
 	err = rhashtable_walk_start(iter);
 	if (err && err != -EAGAIN) {
@@ -4479,7 +4476,7 @@ int sctp_transport_lookup_process(int (*cb)(struct sctp_transport *, void *),
 
 	rcu_read_lock();
 	transport = sctp_addrs_lookup_transport(net, laddr, paddr);
-	if (!transport || !sctp_transport_hold(transport))
+	if (!transport)
 		goto out;
 
 	rcu_read_unlock();

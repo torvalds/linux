@@ -14,6 +14,7 @@
 #define __HAVE_ARCH_MEMCHR	/* inline & arch function */
 #define __HAVE_ARCH_MEMCMP	/* arch function */
 #define __HAVE_ARCH_MEMCPY	/* gcc builtin & arch function */
+#define __HAVE_ARCH_MEMMOVE	/* gcc builtin & arch function */
 #define __HAVE_ARCH_MEMSCAN	/* inline & arch function */
 #define __HAVE_ARCH_MEMSET	/* gcc builtin & arch function */
 #define __HAVE_ARCH_STRCAT	/* inline & arch function */
@@ -32,6 +33,7 @@
 extern int memcmp(const void *, const void *, size_t);
 extern void *memcpy(void *, const void *, size_t);
 extern void *memset(void *, int, size_t);
+extern void *memmove(void *, const void *, size_t);
 extern int strcmp(const char *,const char *);
 extern size_t strlcat(char *, const char *, size_t);
 extern size_t strlcpy(char *, const char *, size_t);
@@ -40,7 +42,6 @@ extern char *strncpy(char *, const char *, size_t);
 extern char *strrchr(const char *, int);
 extern char *strstr(const char *, const char *);
 
-#undef __HAVE_ARCH_MEMMOVE
 #undef __HAVE_ARCH_STRCHR
 #undef __HAVE_ARCH_STRNCHR
 #undef __HAVE_ARCH_STRNCMP

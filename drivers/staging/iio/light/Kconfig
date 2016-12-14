@@ -3,18 +3,6 @@
 #
 menu "Light sensors"
 
-config SENSORS_ISL29018
-	tristate "ISL 29018 light and proximity sensor"
-	depends on I2C
-	select REGMAP_I2C
-	default n
-	help
-	 If you say yes here you get support for ambient light sensing and
-	 proximity infrared sensing from Intersil ISL29018.
-	 This driver will provide the measurements of ambient light intensity
-	 in lux, proximity infrared sensing and normal infrared sensing.
-	 Data from sensor is accessible via sysfs.
-
 config SENSORS_ISL29028
 	tristate "Intersil ISL29028 Concurrent Light and Proximity Sensor"
 	depends on I2C
@@ -24,13 +12,6 @@ config SENSORS_ISL29028
 	 This driver supports the sysfs interface to get the ALS, IR intensity,
 	 Proximity value via iio. The ISL29028 provides the concurrent sensing
 	 of ambient light and proximity.
-
-config TSL2583
-	tristate "TAOS TSL2580, TSL2581 and TSL2583 light-to-digital converters"
-	depends on I2C
-	help
-	 Provides support for the TAOS tsl2580, tsl2581 and tsl2583 devices.
-	 Access ALS data via iio, sysfs.
 
 config TSL2x7x
 	tristate "TAOS TSL/TMD2x71 and TSL/TMD2x72 Family of light and proximity sensors"

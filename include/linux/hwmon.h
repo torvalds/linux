@@ -298,8 +298,8 @@ enum hwmon_pwm_attributes {
  *			Channel number
  *		The function returns the file permissions.
  *		If the return value is 0, no attribute will be created.
- * @read:       Read callback. Optional. If not provided, attributes
- *		will not be readable.
+ * @read:	Read callback for data attributes. Mandatory if readable
+ *		data attributes are present.
  *		Parameters are:
  *		@dev:	Pointer to hardware monitoring device
  *		@type:	Sensor type
@@ -308,8 +308,19 @@ enum hwmon_pwm_attributes {
  *			Channel number
  *		@val:	Pointer to returned value
  *		The function returns 0 on success or a negative error number.
- * @write:	Write callback. Optional. If not provided, attributes
- *		will not be writable.
+ * @read_string:
+ *		Read callback for string attributes. Mandatory if string
+ *		attributes are present.
+ *		Parameters are:
+ *		@dev:	Pointer to hardware monitoring device
+ *		@type:	Sensor type
+ *		@attr:	Sensor attribute
+ *		@channel:
+ *			Channel number
+ *		@str:	Pointer to returned string
+ *		The function returns 0 on success or a negative error number.
+ * @write:	Write callback for data attributes. Mandatory if writeable
+ *		data attributes are present.
  *		Parameters are:
  *		@dev:	Pointer to hardware monitoring device
  *		@type:	Sensor type
@@ -324,6 +335,8 @@ struct hwmon_ops {
 			      u32 attr, int channel);
 	int (*read)(struct device *dev, enum hwmon_sensor_types type,
 		    u32 attr, int channel, long *val);
+	int (*read_string)(struct device *dev, enum hwmon_sensor_types type,
+		    u32 attr, int channel, char **str);
 	int (*write)(struct device *dev, enum hwmon_sensor_types type,
 		     u32 attr, int channel, long val);
 };
@@ -349,7 +362,9 @@ struct hwmon_chip_info {
 	const struct hwmon_channel_info **info;
 };
 
+/* hwmon_device_register() is deprecated */
 struct device *hwmon_device_register(struct device *dev);
+
 struct device *
 hwmon_device_register_with_groups(struct device *dev, const char *name,
 				  void *drvdata,
@@ -362,12 +377,12 @@ struct device *
 hwmon_device_register_with_info(struct device *dev,
 				const char *name, void *drvdata,
 				const struct hwmon_chip_info *info,
-				const struct attribute_group **groups);
+				const struct attribute_group **extra_groups);
 struct device *
 devm_hwmon_device_register_with_info(struct device *dev,
-				     const char *name, void *drvdata,
-				     const struct hwmon_chip_info *info,
-				     const struct attribute_group **groups);
+				const char *name, void *drvdata,
+				const struct hwmon_chip_info *info,
+				const struct attribute_group **extra_groups);
 
 void hwmon_device_unregister(struct device *dev);
 void devm_hwmon_device_unregister(struct device *dev);

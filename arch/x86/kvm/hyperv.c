@@ -291,7 +291,7 @@ static int synic_get_msr(struct kvm_vcpu_hv_synic *synic, u32 msr, u64 *pdata)
 	return ret;
 }
 
-int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
+static int synic_set_irq(struct kvm_vcpu_hv_synic *synic, u32 sint)
 {
 	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
 	struct kvm_lapic_irq irq;

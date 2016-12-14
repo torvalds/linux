@@ -58,6 +58,23 @@ struct qed_public_vf_info {
 	int tx_rate;
 };
 
+struct qed_iov_vf_init_params {
+	u16 rel_vf_id;
+
+	/* Number of requested Queues; Currently, don't support different
+	 * number of Rx/Tx queues.
+	 */
+
+	u16 num_queues;
+
+	/* Allow the client to choose which qzones to use for Rx/Tx,
+	 * and which queue_base to use for Tx queues on a per-queue basis.
+	 * Notice values should be relative to the PF resources.
+	 */
+	u16 req_rx_queue[QED_MAX_VF_CHAINS_PER_PF];
+	u16 req_tx_queue[QED_MAX_VF_CHAINS_PER_PF];
+};
+
 /* This struct is part of qed_dev and contains data relevant to all hwfns;
  * Initialized only if SR-IOV cpabability is exposed in PCIe config space.
  */
@@ -99,10 +116,10 @@ struct qed_iov_vf_mbx {
 
 struct qed_vf_q_info {
 	u16 fw_rx_qid;
+	struct qed_queue_cid *p_rx_cid;
 	u16 fw_tx_qid;
+	struct qed_queue_cid *p_tx_cid;
 	u8 fw_cid;
-	u8 rxq_active;
-	u8 txq_active;
 };
 
 enum vf_state {
@@ -132,6 +149,7 @@ struct qed_vf_info {
 	struct qed_iov_vf_mbx vf_mbx;
 	enum vf_state state;
 	bool b_init;
+	bool b_malicious;
 	u8 to_disable;
 
 	struct qed_bulletin bulletin;

@@ -175,10 +175,9 @@ static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 	u8 *data;
 	int retval;
 
-	data = kmalloc(size, GFP_KERNEL);
+	data = kmemdup(req, size, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	memcpy(data, req, size);
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 cmd,
@@ -1034,7 +1033,7 @@ static struct arpc *arpc_alloc(void *payload, u16 size, u8 type)
 		goto err_free_req;
 
 	rpc->req->type = type;
-	rpc->req->size = cpu_to_le16(sizeof(rpc->req) + size);
+	rpc->req->size = cpu_to_le16(sizeof(*rpc->req) + size);
 	memcpy(rpc->req->data, payload, size);
 
 	init_completion(&rpc->response_received);

@@ -130,7 +130,7 @@ static void multipath_make_request(struct mddev *mddev, struct bio * bio)
 	}
 	multipath = conf->multipaths + mp_bh->path;
 
-	bio_init(&mp_bh->bio);
+	bio_init(&mp_bh->bio, NULL, 0);
 	__bio_clone_fast(&mp_bh->bio, bio);
 
 	mp_bh->bio.bi_iter.bi_sector += multipath->rdev->data_offset;

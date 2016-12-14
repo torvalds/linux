@@ -626,4 +626,10 @@ static inline void musb_platform_post_root_reset_end(struct musb *musb)
 		musb->ops->post_root_reset_end(musb);
 }
 
+/*
+ * gets the "dr_mode" property from DT and converts it into musb_mode
+ * if the property is not found or not recognized returns MUSB_OTG
+ */
+extern enum musb_mode musb_get_mode(struct device *dev);
+
 #endif	/* __MUSB_CORE_H__ */

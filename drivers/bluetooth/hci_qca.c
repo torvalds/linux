@@ -438,14 +438,11 @@ static int qca_open(struct hci_uart *hu)
 
 	hu->priv = qca;
 
-	init_timer(&qca->wake_retrans_timer);
-	qca->wake_retrans_timer.function = hci_ibs_wake_retrans_timeout;
-	qca->wake_retrans_timer.data = (u_long)hu;
+	setup_timer(&qca->wake_retrans_timer, hci_ibs_wake_retrans_timeout,
+		    (u_long)hu);
 	qca->wake_retrans = IBS_WAKE_RETRANS_TIMEOUT_MS;
 
-	init_timer(&qca->tx_idle_timer);
-	qca->tx_idle_timer.function = hci_ibs_tx_idle_timeout;
-	qca->tx_idle_timer.data = (u_long)hu;
+	setup_timer(&qca->tx_idle_timer, hci_ibs_tx_idle_timeout, (u_long)hu);
 	qca->tx_idle_delay = IBS_TX_IDLE_TIMEOUT_MS;
 
 	BT_DBG("HCI_UART_QCA open, tx_idle_delay=%u, wake_retrans=%u",

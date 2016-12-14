@@ -14,12 +14,54 @@ unsigned long unwind_get_return_address(struct unwind_state *state)
 	if (unwind_done(state))
 		return 0;
 
+	if (state->regs && user_mode(state->regs))
+		return 0;
+
 	addr = ftrace_graph_ret_addr(state->task, &state->graph_idx, *addr_p,
 				     addr_p);
 
-	return __kernel_text_address(addr) ? addr : 0;
+	if (!__kernel_text_address(addr)) {
+		printk_deferred_once(KERN_WARNING
+			"WARNING: unrecognized kernel stack return address %p at %p in %s:%d\n",
+			(void *)addr, addr_p, state->task->comm,
+			state->task->pid);
+		return 0;
+	}
+
+	return addr;
 }
 EXPORT_SYMBOL_GPL(unwind_get_return_address);
+
+static size_t regs_size(struct pt_regs *regs)
+{
+	/* x86_32 regs from kernel mode are two words shorter: */
+	if (IS_ENABLED(CONFIG_X86_32) && !user_mode(regs))
+		return sizeof(*regs) - 2*sizeof(long);
+
+	return sizeof(*regs);
+}
+
+static bool is_last_task_frame(struct unwind_state *state)
+{
+	unsigned long bp = (unsigned long)state->bp;
+	unsigned long regs = (unsigned long)task_pt_regs(state->task);
+
+	return bp == regs - FRAME_HEADER_SIZE;
+}
+
+/*
+ * This determines if the frame pointer actually contains an encoded pointer to
+ * pt_regs on the stack.  See ENCODE_FRAME_POINTER.
+ */
+static struct pt_regs *decode_frame_pointer(unsigned long *bp)
+{
+	unsigned long regs = (unsigned long)bp;
+
+	if (!(regs & 0x1))
+		return NULL;
+
+	return (struct pt_regs *)(regs & ~0x1);
+}
 
 static bool update_stack_state(struct unwind_state *state, void *addr,
 			       size_t len)
@@ -43,26 +85,117 @@ static bool update_stack_state(struct unwind_state *state, void *addr,
 
 bool unwind_next_frame(struct unwind_state *state)
 {
-	unsigned long *next_bp;
+	struct pt_regs *regs;
+	unsigned long *next_bp, *next_frame;
+	size_t next_len;
+	enum stack_type prev_type = state->stack_info.type;
 
 	if (unwind_done(state))
 		return false;
 
-	next_bp = (unsigned long *)*state->bp;
+	/* have we reached the end? */
+	if (state->regs && user_mode(state->regs))
+		goto the_end;
+
+	if (is_last_task_frame(state)) {
+		regs = task_pt_regs(state->task);
+
+		/*
+		 * kthreads (other than the boot CPU's idle thread) have some
+		 * partial regs at the end of their stack which were placed
+		 * there by copy_thread_tls().  But the regs don't have any
+		 * useful information, so we can skip them.
+		 *
+		 * This user_mode() check is slightly broader than a PF_KTHREAD
+		 * check because it also catches the awkward situation where a
+		 * newly forked kthread transitions into a user task by calling
+		 * do_execve(), which eventually clears PF_KTHREAD.
+		 */
+		if (!user_mode(regs))
+			goto the_end;
+
+		/*
+		 * We're almost at the end, but not quite: there's still the
+		 * syscall regs frame.  Entry code doesn't encode the regs
+		 * pointer for syscalls, so we have to set it manually.
+		 */
+		state->regs = regs;
+		state->bp = NULL;
+		return true;
+	}
+
+	/* get the next frame pointer */
+	if (state->regs)
+		next_bp = (unsigned long *)state->regs->bp;
+	else
+		next_bp = (unsigned long *)*state->bp;
+
+	/* is the next frame pointer an encoded pointer to pt_regs? */
+	regs = decode_frame_pointer(next_bp);
+	if (regs) {
+		next_frame = (unsigned long *)regs;
+		next_len = sizeof(*regs);
+	} else {
+		next_frame = next_bp;
+		next_len = FRAME_HEADER_SIZE;
+	}
 
 	/* make sure the next frame's data is accessible */
-	if (!update_stack_state(state, next_bp, FRAME_HEADER_SIZE))
-		return false;
+	if (!update_stack_state(state, next_frame, next_len)) {
+		/*
+		 * Don't warn on bad regs->bp.  An interrupt in entry code
+		 * might cause a false positive warning.
+		 */
+		if (state->regs)
+			goto the_end;
+
+		goto bad_address;
+	}
+
+	/* Make sure it only unwinds up and doesn't overlap the last frame: */
+	if (state->stack_info.type == prev_type) {
+		if (state->regs && (void *)next_frame < (void *)state->regs + regs_size(state->regs))
+			goto bad_address;
+
+		if (state->bp && (void *)next_frame < (void *)state->bp + FRAME_HEADER_SIZE)
+			goto bad_address;
+	}
 
 	/* move to the next frame */
-	state->bp = next_bp;
+	if (regs) {
+		state->regs = regs;
+		state->bp = NULL;
+	} else {
+		state->bp = next_bp;
+		state->regs = NULL;
+	}
+
 	return true;
+
+bad_address:
+	if (state->regs) {
+		printk_deferred_once(KERN_WARNING
+			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
+			state->regs, state->task->comm,
+			state->task->pid, next_frame);
+	} else {
+		printk_deferred_once(KERN_WARNING
+			"WARNING: kernel stack frame pointer at %p in %s:%d has bad value %p\n",
+			state->bp, state->task->comm,
+			state->task->pid, next_frame);
+	}
+the_end:
+	state->stack_info.type = STACK_TYPE_UNKNOWN;
+	return false;
 }
 EXPORT_SYMBOL_GPL(unwind_next_frame);
 
 void __unwind_start(struct unwind_state *state, struct task_struct *task,
 		    struct pt_regs *regs, unsigned long *first_frame)
 {
+	unsigned long *bp, *frame;
+	size_t len;
+
 	memset(state, 0, sizeof(*state));
 	state->task = task;
 
@@ -73,12 +206,22 @@ void __unwind_start(struct unwind_state *state, struct task_struct *task,
 	}
 
 	/* set up the starting stack frame */
-	state->bp = get_frame_pointer(task, regs);
+	bp = get_frame_pointer(task, regs);
+	regs = decode_frame_pointer(bp);
+	if (regs) {
+		state->regs = regs;
+		frame = (unsigned long *)regs;
+		len = sizeof(*regs);
+	} else {
+		state->bp = bp;
+		frame = bp;
+		len = FRAME_HEADER_SIZE;
+	}
 
 	/* initialize stack info and make sure the frame data is accessible */
-	get_stack_info(state->bp, state->task, &state->stack_info,
+	get_stack_info(frame, state->task, &state->stack_info,
 		       &state->stack_mask);
-	update_stack_state(state, state->bp, FRAME_HEADER_SIZE);
+	update_stack_state(state, frame, len);
 
 	/*
 	 * The caller can provide the address of the first frame directly

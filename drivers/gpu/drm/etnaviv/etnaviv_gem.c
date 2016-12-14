@@ -409,20 +409,16 @@ int etnaviv_gem_cpu_prep(struct drm_gem_object *obj, u32 op,
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct drm_device *dev = obj->dev;
 	bool write = !!(op & ETNA_PREP_WRITE);
-	int ret;
+	unsigned long remain =
+		op & ETNA_PREP_NOSYNC ? 0 : etnaviv_timeout_to_jiffies(timeout);
+	long lret;
 
-	if (op & ETNA_PREP_NOSYNC) {
-		if (!reservation_object_test_signaled_rcu(etnaviv_obj->resv,
-							  write))
-			return -EBUSY;
-	} else {
-		unsigned long remain = etnaviv_timeout_to_jiffies(timeout);
-
-		ret = reservation_object_wait_timeout_rcu(etnaviv_obj->resv,
-							  write, true, remain);
-		if (ret <= 0)
-			return ret == 0 ? -ETIMEDOUT : ret;
-	}
+	lret = reservation_object_wait_timeout_rcu(etnaviv_obj->resv,
+						   write, true, remain);
+	if (lret < 0)
+		return lret;
+	else if (lret == 0)
+		return remain == 0 ? -EBUSY : -ETIMEDOUT;
 
 	if (etnaviv_obj->flags & ETNA_BO_CACHED) {
 		if (!etnaviv_obj->sgt) {
@@ -470,10 +466,10 @@ int etnaviv_gem_wait_bo(struct etnaviv_gpu *gpu, struct drm_gem_object *obj,
 }
 
 #ifdef CONFIG_DEBUG_FS
-static void etnaviv_gem_describe_fence(struct fence *fence,
+static void etnaviv_gem_describe_fence(struct dma_fence *fence,
 	const char *type, struct seq_file *m)
 {
-	if (!test_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
 		seq_printf(m, "\t%9s: %s %s seq %u\n",
 			   type,
 			   fence->ops->get_driver_name(fence),
@@ -486,7 +482,7 @@ static void etnaviv_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct reservation_object *robj = etnaviv_obj->resv;
 	struct reservation_object_list *fobj;
-	struct fence *fence;
+	struct dma_fence *fence;
 	unsigned long off = drm_vma_node_start(&obj->vma_node);
 
 	seq_printf(m, "%08x: %c %2d (%2d) %08lx %p %zd\n",

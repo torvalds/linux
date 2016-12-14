@@ -125,7 +125,7 @@ static void br_topology_change_timer_expired(unsigned long arg)
 	br_debug(br, "topo change timer expired\n");
 	spin_lock(&br->lock);
 	br->topology_change_detected = 0;
-	br->topology_change = 0;
+	__br_set_topology_change(br, 0);
 	spin_unlock(&br->lock);
 }
 

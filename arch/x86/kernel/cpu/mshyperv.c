@@ -25,7 +25,6 @@
 #include <asm/hyperv.h>
 #include <asm/mshyperv.h>
 #include <asm/desc.h>
-#include <asm/idle.h>
 #include <asm/irq_regs.h>
 #include <asm/i8259.h>
 #include <asm/apic.h>

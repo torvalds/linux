@@ -177,8 +177,10 @@ config THERMAL_EMULATION
 
 config HISI_THERMAL
 	tristate "Hisilicon thermal driver"
-	depends on (ARCH_HISI && CPU_THERMAL && OF) || COMPILE_TEST
+	depends on ARCH_HISI || COMPILE_TEST
 	depends on HAS_IOMEM
+	depends on OF
+	default y
 	help
 	  Enable this to plug hisilicon's thermal sensor driver into the Linux
 	  thermal framework. cpufreq is used as the cooling device to throttle

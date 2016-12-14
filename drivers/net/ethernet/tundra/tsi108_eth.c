@@ -1548,7 +1548,6 @@ static const struct net_device_ops tsi108_netdev_ops = {
 	.ndo_do_ioctl		= tsi108_do_ioctl,
 	.ndo_set_mac_address	= tsi108_set_mac,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static int

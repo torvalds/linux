@@ -177,23 +177,15 @@ redo:
 
 static void __init radix_init_partition_table(void)
 {
-	unsigned long rts_field;
+	unsigned long rts_field, dw0;
 
+	mmu_partition_table_init();
 	rts_field = radix__get_tree_size();
+	dw0 = rts_field | __pa(init_mm.pgd) | RADIX_PGD_INDEX_SIZE | PATB_HR;
+	mmu_partition_table_set_entry(0, dw0, 0);
 
-	BUILD_BUG_ON_MSG((PATB_SIZE_SHIFT > 24), "Partition table size too large.");
-	partition_tb = early_alloc_pgtable(1UL << PATB_SIZE_SHIFT);
-	partition_tb->patb0 = cpu_to_be64(rts_field | __pa(init_mm.pgd) |
-					  RADIX_PGD_INDEX_SIZE | PATB_HR);
 	pr_info("Initializing Radix MMU\n");
 	pr_info("Partition table %p\n", partition_tb);
-
-	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
-	/*
-	 * update partition table control register,
-	 * 64 K size.
-	 */
-	mtspr(SPRN_PTCR, __pa(partition_tb) | (PATB_SIZE_SHIFT - 12));
 }
 
 void __init radix_init_native(void)
@@ -377,6 +369,8 @@ void __init radix__early_init_mmu(void)
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();
 	}
+
+	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 
 	radix_init_pgtable();
 }

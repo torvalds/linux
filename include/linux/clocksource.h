@@ -169,7 +169,10 @@ static inline u32 clocksource_hz2mult(u32 hz, u32 shift_constant)
  * @mult:	cycle to nanosecond multiplier
  * @shift:	cycle to nanosecond divisor (power of two)
  *
- * Converts cycles to nanoseconds, using the given mult and shift.
+ * Converts clocksource cycles to nanoseconds, using the given @mult and @shift.
+ * The code is optimized for performance and is not intended to work
+ * with absolute clocksource cycles (as those will easily overflow),
+ * but is only intended to be used with relative (delta) clocksource cycles.
  *
  * XXX - This could use some mult_lxl_ll() asm optimization
  */

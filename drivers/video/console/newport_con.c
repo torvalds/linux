@@ -574,8 +574,8 @@ static int newport_font_set(struct vc_data *vc, struct console_font *font, unsig
 	return newport_set_font(vc->vc_num, font);
 }
 
-static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
-			  int lines)
+static bool newport_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
+		enum con_scroll dir, unsigned int lines)
 {
 	int count, x, y;
 	unsigned short *s, *d;
@@ -595,7 +595,7 @@ static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
 					    (vc->vc_color & 0xf0) >> 4);
 		}
 		npregs->cset.topscan = (topscan - 1) & 0x3ff;
-		return 0;
+		return false;
 	}
 
 	count = (b - t - lines) * vc->vc_cols;
@@ -670,7 +670,7 @@ static int newport_scroll(struct vc_data *vc, int t, int b, int dir,
 			}
 		}
 	}
-	return 1;
+	return true;
 }
 
 static int newport_dummy(struct vc_data *c)

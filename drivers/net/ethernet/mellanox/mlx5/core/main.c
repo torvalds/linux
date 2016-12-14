@@ -174,6 +174,41 @@ static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili)
 	return err;
 }
 
+static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
+{
+	int driver_ver_sz = MLX5_FLD_SZ_BYTES(set_driver_version_in,
+					      driver_version);
+	u8 in[MLX5_ST_SZ_BYTES(set_driver_version_in)] = {0};
+	u8 out[MLX5_ST_SZ_BYTES(set_driver_version_out)] = {0};
+	int remaining_size = driver_ver_sz;
+	char *string;
+
+	if (!MLX5_CAP_GEN(dev, driver_version))
+		return;
+
+	string = MLX5_ADDR_OF(set_driver_version_in, in, driver_version);
+
+	strncpy(string, "Linux", remaining_size);
+
+	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
+	strncat(string, ",", remaining_size);
+
+	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
+	strncat(string, DRIVER_NAME, remaining_size);
+
+	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
+	strncat(string, ",", remaining_size);
+
+	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
+	strncat(string, DRIVER_VERSION, remaining_size);
+
+	/*Send the command*/
+	MLX5_SET(set_driver_version_in, in, opcode,
+		 MLX5_CMD_OP_SET_DRIVER_VERSION);
+
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 static int set_dma_caps(struct pci_dev *pdev)
 {
 	int err;
@@ -1017,6 +1052,8 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_pagealloc_stop;
 	}
 
+	mlx5_set_driver_version(dev);
+
 	mlx5_start_health_poll(dev);
 
 	err = mlx5_query_hca_caps(dev);
@@ -1204,6 +1241,8 @@ static const struct devlink_ops mlx5_devlink_ops = {
 #ifdef CONFIG_MLX5_CORE_EN
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
 	.eswitch_mode_get = mlx5_devlink_eswitch_mode_get,
+	.eswitch_inline_mode_set = mlx5_devlink_eswitch_inline_mode_set,
+	.eswitch_inline_mode_get = mlx5_devlink_eswitch_inline_mode_get,
 #endif
 };
 
@@ -1419,6 +1458,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x1017) },			/* ConnectX-5, PCIe 3.0 */
 	{ PCI_VDEVICE(MELLANOX, 0x1018), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
 	{ PCI_VDEVICE(MELLANOX, 0x1019) },			/* ConnectX-5, PCIe 4.0 */
+	{ PCI_VDEVICE(MELLANOX, 0x101a), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5, PCIe 4.0 VF */
 	{ 0, }
 };
 

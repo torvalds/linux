@@ -131,7 +131,7 @@ static int qxl_device_init(struct qxl_device *qdev,
 	mutex_init(&qdev->update_area_mutex);
 	mutex_init(&qdev->release_mutex);
 	mutex_init(&qdev->surf_evict_mutex);
-	INIT_LIST_HEAD(&qdev->gem.objects);
+	qxl_gem_init(qdev);
 
 	qdev->rom_base = pci_resource_start(pdev, 2);
 	qdev->rom_size = pci_resource_len(pdev, 2);
@@ -273,6 +273,7 @@ static void qxl_device_fini(struct qxl_device *qdev)
 	qxl_ring_free(qdev->command_ring);
 	qxl_ring_free(qdev->cursor_ring);
 	qxl_ring_free(qdev->release_ring);
+	qxl_gem_fini(qdev);
 	qxl_bo_fini(qdev);
 	io_mapping_free(qdev->surface_mapping);
 	io_mapping_free(qdev->vram_mapping);

@@ -35,6 +35,7 @@ extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_WFQ_UNIT	100
 
+#define ISCSI_BDQ_ID(_port_id) (_port_id)
 #define QED_WID_SIZE            (1024)
 #define QED_PF_DEMS_SIZE        (4)
 
@@ -154,7 +155,10 @@ struct qed_qm_iids {
 	u32 tids;
 };
 
-enum QED_RESOURCES {
+/* HW / FW resources, output of features supported below, most information
+ * is received from MFW.
+ */
+enum qed_resources {
 	QED_SB,
 	QED_L2_QUEUE,
 	QED_VPORT,
@@ -166,6 +170,7 @@ enum QED_RESOURCES {
 	QED_RDMA_CNQ_RAM,
 	QED_ILT,
 	QED_LL2_QUEUE,
+	QED_CMDQS_CQS,
 	QED_RDMA_STATS_QUEUE,
 	QED_MAX_RESC,
 };
@@ -174,6 +179,7 @@ enum QED_FEATURE {
 	QED_PF_L2_QUE,
 	QED_VF,
 	QED_RDMA_CNQ,
+	QED_VF_L2_QUE,
 	QED_MAX_FEATURES,
 };
 
@@ -193,6 +199,11 @@ enum qed_dev_cap {
 	QED_DEV_CAP_ETH,
 	QED_DEV_CAP_ISCSI,
 	QED_DEV_CAP_ROCE,
+};
+
+enum qed_wol_support {
+	QED_WOL_SUPPORT_NONE,
+	QED_WOL_SUPPORT_PME,
 };
 
 struct qed_hw_info {
@@ -226,15 +237,9 @@ struct qed_hw_info {
 	u32				port_mode;
 	u32				hw_mode;
 	unsigned long		device_capabilities;
-};
+	u16				mtu;
 
-struct qed_hw_cid_data {
-	u32	cid;
-	bool	b_cid_allocated;
-
-	/* Additional identifiers */
-	u16	opaque_fid;
-	u8	vport_id;
+	enum qed_wol_support b_wol_support;
 };
 
 /* maximun size of read/write commands (HW limit) */
@@ -378,7 +383,9 @@ struct qed_hwfn {
 	/* Protocol related */
 	bool				using_ll2;
 	struct qed_ll2_info		*p_ll2_info;
+	struct qed_ooo_info		*p_ooo_info;
 	struct qed_rdma_info		*p_rdma_info;
+	struct qed_iscsi_info		*p_iscsi_info;
 	struct qed_pf_params		pf_params;
 
 	bool b_rdma_enabled_in_prs;
@@ -402,9 +409,6 @@ struct qed_hwfn {
 	struct qed_mcp_info		*mcp_info;
 
 	struct qed_dcbx_info		*p_dcbx_info;
-
-	struct qed_hw_cid_data		*p_tx_cids;
-	struct qed_hw_cid_data		*p_rx_cids;
 
 	struct qed_dmae_info		dmae_info;
 
@@ -538,7 +542,9 @@ struct qed_dev {
 	u8				mcp_rev;
 	u8				boot_mode;
 
-	u8				wol;
+	/* WoL related configurations */
+	u8 wol_config;
+	u8 wol_mac[ETH_ALEN];
 
 	u32				int_mode;
 	enum qed_coalescing_mode	int_coalescing_mode;
@@ -578,6 +584,8 @@ struct qed_dev {
 	/* Linux specific here */
 	struct  qede_dev		*edev;
 	struct  pci_dev			*pdev;
+	u32 flags;
+#define QED_FLAG_STORAGE_STARTED	(BIT(0))
 	int				msg_enable;
 
 	struct pci_params		pci_params;
@@ -591,6 +599,7 @@ struct qed_dev {
 	union {
 		struct qed_common_cb_ops	*common;
 		struct qed_eth_cb_ops		*eth;
+		struct qed_iscsi_cb_ops		*iscsi;
 	} protocol_ops;
 	void				*ops_cookie;
 
@@ -600,7 +609,7 @@ struct qed_dev {
 	struct qed_cb_ll2_info		*ll2;
 	u8				ll2_mac_address[ETH_ALEN];
 #endif
-
+	DECLARE_HASHTABLE(connections, 10);
 	const struct firmware		*firmware;
 
 	u32 rdma_max_sge;

@@ -37,6 +37,7 @@ struct drm_crtc;
 struct drm_encoder;
 struct drm_property;
 struct drm_property_blob;
+struct drm_printer;
 struct edid;
 
 enum drm_connector_force {
@@ -194,10 +195,40 @@ int drm_display_info_set_bus_formats(struct drm_display_info *info,
 				     unsigned int num_formats);
 
 /**
+ * struct drm_tv_connector_state - TV connector related states
+ * @subconnector: selected subconnector
+ * @margins: left/right/top/bottom margins
+ * @mode: TV mode
+ * @brightness: brightness in percent
+ * @contrast: contrast in percent
+ * @flicker_reduction: flicker reduction in percent
+ * @overscan: overscan in percent
+ * @saturation: saturation in percent
+ * @hue: hue in percent
+ */
+struct drm_tv_connector_state {
+	enum drm_mode_subconnector subconnector;
+	struct {
+		unsigned int left;
+		unsigned int right;
+		unsigned int top;
+		unsigned int bottom;
+	} margins;
+	unsigned int mode;
+	unsigned int brightness;
+	unsigned int contrast;
+	unsigned int flicker_reduction;
+	unsigned int overscan;
+	unsigned int saturation;
+	unsigned int hue;
+};
+
+/**
  * struct drm_connector_state - mutable connector state
  * @connector: backpointer to the connector
  * @best_encoder: can be used by helpers and drivers to select the encoder
  * @state: backpointer to global drm_atomic_state
+ * @tv: TV connector state
  */
 struct drm_connector_state {
 	struct drm_connector *connector;
@@ -213,6 +244,8 @@ struct drm_connector_state {
 	struct drm_encoder *best_encoder;
 
 	struct drm_atomic_state *state;
+
+	struct drm_tv_connector_state tv;
 };
 
 /**
@@ -260,6 +293,9 @@ struct drm_connector_funcs {
 	 * force is set to false whilst polling, true when checking the
 	 * connector due to a user request. force can be used by the driver to
 	 * avoid expensive, destructive operations during automated probing.
+	 *
+	 * This callback is optional, if not implemented the connector will be
+	 * considered as always being attached.
 	 *
 	 * FIXME:
 	 *
@@ -481,6 +517,18 @@ struct drm_connector_funcs {
 				   const struct drm_connector_state *state,
 				   struct drm_property *property,
 				   uint64_t *val);
+
+	/**
+	 * @atomic_print_state:
+	 *
+	 * If driver subclasses struct &drm_connector_state, it should implement
+	 * this optional hook for printing additional driver specific state.
+	 *
+	 * Do not call this directly, use drm_atomic_connector_print_state()
+	 * instead.
+	 */
+	void (*atomic_print_state)(struct drm_printer *p,
+				   const struct drm_connector_state *state);
 };
 
 /* mode specified on the command line */
@@ -760,6 +808,30 @@ int drm_mode_connector_set_path_property(struct drm_connector *connector,
 int drm_mode_connector_set_tile_property(struct drm_connector *connector);
 int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    const struct edid *edid);
+
+/**
+ * struct drm_tile_group - Tile group metadata
+ * @refcount: reference count
+ * @dev: DRM device
+ * @id: tile group id exposed to userspace
+ * @group_data: Sink-private data identifying this group
+ *
+ * @group_data corresponds to displayid vend/prod/serial for external screens
+ * with an EDID.
+ */
+struct drm_tile_group {
+	struct kref refcount;
+	struct drm_device *dev;
+	int id;
+	u8 group_data[8];
+};
+
+struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
+						  char topology[8]);
+struct drm_tile_group *drm_mode_get_tile_group(struct drm_device *dev,
+					       char topology[8]);
+void drm_mode_put_tile_group(struct drm_device *dev,
+			     struct drm_tile_group *tg);
 
 /**
  * drm_for_each_connector - iterate over all connectors

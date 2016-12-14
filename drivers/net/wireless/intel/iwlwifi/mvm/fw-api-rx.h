@@ -474,4 +474,30 @@ struct iwl_mvm_internal_rxq_notif {
 	u8 data[];
 } __packed;
 
+/**
+ * enum iwl_mvm_pm_event - type of station PM event
+ * @IWL_MVM_PM_EVENT_AWAKE: station woke up
+ * @IWL_MVM_PM_EVENT_ASLEEP: station went to sleep
+ * @IWL_MVM_PM_EVENT_UAPSD: station sent uAPSD trigger
+ * @IWL_MVM_PM_EVENT_PS_POLL: station sent PS-Poll
+ */
+enum iwl_mvm_pm_event {
+	IWL_MVM_PM_EVENT_AWAKE,
+	IWL_MVM_PM_EVENT_ASLEEP,
+	IWL_MVM_PM_EVENT_UAPSD,
+	IWL_MVM_PM_EVENT_PS_POLL,
+}; /* PEER_PM_NTFY_API_E_VER_1 */
+
+/**
+ * struct iwl_mvm_pm_state_notification - station PM state notification
+ * @sta_id: station ID of the station changing state
+ * @type: the new powersave state, see IWL_MVM_PM_EVENT_ above
+ */
+struct iwl_mvm_pm_state_notification {
+	u8 sta_id;
+	u8 type;
+	/* private: */
+	u16 reserved;
+} __packed; /* PEER_PM_NTFY_API_S_VER_1 */
+
 #endif /* __fw_api_rx_h__ */

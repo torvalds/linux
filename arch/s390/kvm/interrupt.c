@@ -415,7 +415,7 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 	int rc;
 
 	mci.val = mchk->mcic;
-	/* take care of lazy register loading via vcpu load/put */
+	/* take care of lazy register loading */
 	save_fpu_regs();
 	save_access_regs(vcpu->run->s.regs.acrs);
 

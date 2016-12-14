@@ -1059,9 +1059,9 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	device_info->link_state = rndis_device->link_state;
 
-	dev_info(&dev->device, "Device MAC %pM link state %s\n",
-		 rndis_device->hw_mac_adr,
-		 device_info->link_state ? "down" : "up");
+	netdev_dbg(net, "Device MAC %pM link state %s\n",
+		   rndis_device->hw_mac_adr,
+		   device_info->link_state ? "down" : "up");
 
 	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_5)
 		return 0;

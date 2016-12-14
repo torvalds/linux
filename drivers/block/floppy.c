@@ -3806,14 +3806,10 @@ static int __floppy_read_block_0(struct block_device *bdev, int drive)
 
 	cbdata.drive = drive;
 
-	bio_init(&bio);
-	bio.bi_io_vec = &bio_vec;
-	bio_vec.bv_page = page;
-	bio_vec.bv_len = size;
-	bio_vec.bv_offset = 0;
-	bio.bi_vcnt = 1;
-	bio.bi_iter.bi_size = size;
+	bio_init(&bio, &bio_vec, 1);
 	bio.bi_bdev = bdev;
+	bio_add_page(&bio, page, size, 0);
+
 	bio.bi_iter.bi_sector = 0;
 	bio.bi_flags |= (1 << BIO_QUIET);
 	bio.bi_private = &cbdata;

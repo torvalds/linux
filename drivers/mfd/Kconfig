@@ -756,24 +756,20 @@ config UCB1400_CORE
 	  module will be called ucb1400_core.
 
 config MFD_PM8XXX
-	tristate
-
-config MFD_PM8921_CORE
-	tristate "Qualcomm PM8921 PMIC chip"
+	tristate "Qualcomm PM8xxx PMIC chips driver"
 	depends on (ARM || HEXAGON)
 	select IRQ_DOMAIN
 	select MFD_CORE
-	select MFD_PM8XXX
 	select REGMAP
 	help
 	  If you say yes to this option, support will be included for the
-	  built-in PM8921 PMIC chip.
+	  built-in PM8xxx PMIC chips.
 
-	  This is required if your board has a PM8921 and uses its features,
+	  This is required if your board has a PM8xxx and uses its features,
 	  such as: MPPs, GPIOs, regulators, interrupts, and PWM.
 
-	  Say M here if you want to include support for PM8921 chip as a module.
-	  This will build a module called "pm8921-core".
+	  Say M here if you want to include support for PM8xxx chips as a
+	  module. This will build a module called "pm8xxx-core".
 
 config MFD_QCOM_RPM
 	tristate "Qualcomm Resource Power Manager (RPM)"

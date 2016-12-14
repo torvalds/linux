@@ -6023,7 +6023,7 @@ static void btrfs_end_bio(struct bio *bio)
 				else
 					btrfs_dev_stat_inc(dev,
 						BTRFS_DEV_STAT_READ_ERRS);
-				if ((bio->bi_opf & WRITE_FLUSH) == WRITE_FLUSH)
+				if (bio->bi_opf & REQ_PREFLUSH)
 					btrfs_dev_stat_inc(dev,
 						BTRFS_DEV_STAT_FLUSH_ERRS);
 				btrfs_dev_stat_print_on_error(dev);
@@ -6100,7 +6100,7 @@ static noinline void btrfs_schedule_bio(struct btrfs_root *root,
 	bio->bi_next = NULL;
 
 	spin_lock(&device->io_lock);
-	if (bio->bi_opf & REQ_SYNC)
+	if (op_is_sync(bio->bi_opf))
 		pending_bios = &device->pending_sync_bios;
 	else
 		pending_bios = &device->pending_bios;

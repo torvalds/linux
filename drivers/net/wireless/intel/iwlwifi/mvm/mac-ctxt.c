@@ -499,23 +499,21 @@ int iwl_mvm_mac_ctxt_init(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (ret)
 		return ret;
 
+	/* If DQA is supported - queues will be enabled when needed */
+	if (iwl_mvm_is_dqa_supported(mvm))
+		return 0;
+
 	switch (vif->type) {
 	case NL80211_IFTYPE_P2P_DEVICE:
-		if (!iwl_mvm_is_dqa_supported(mvm))
-			iwl_mvm_enable_ac_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
-					      IWL_MVM_OFFCHANNEL_QUEUE,
-					      IWL_MVM_TX_FIFO_VO, 0,
-					      wdg_timeout);
+		iwl_mvm_enable_ac_txq(mvm, IWL_MVM_OFFCHANNEL_QUEUE,
+				      IWL_MVM_OFFCHANNEL_QUEUE,
+				      IWL_MVM_TX_FIFO_VO, 0, wdg_timeout);
 		break;
 	case NL80211_IFTYPE_AP:
 		iwl_mvm_enable_ac_txq(mvm, vif->cab_queue, vif->cab_queue,
 				      IWL_MVM_TX_FIFO_MCAST, 0, wdg_timeout);
 		/* fall through */
 	default:
-		/* If DQA is supported - queues will be enabled when needed */
-		if (iwl_mvm_is_dqa_supported(mvm))
-			break;
-
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
 			iwl_mvm_enable_ac_txq(mvm, vif->hw_queue[ac],
 					      vif->hw_queue[ac],
@@ -899,9 +897,11 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, NULL, action);
 
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
-			tfd_queue_msk |= BIT(vif->hw_queue[i]);
+	if (!iwl_mvm_is_dqa_supported(mvm)) {
+		for (i = 0; i < IEEE80211_NUM_ACS; i++)
+			if (vif->hw_queue[i] != IEEE80211_INVAL_HW_QUEUE)
+				tfd_queue_msk |= BIT(vif->hw_queue[i]);
+	}
 
 	cmd.filter_flags = cpu_to_le32(MAC_FILTER_IN_PROMISC |
 				       MAC_FILTER_IN_CONTROL_AND_MGMT |

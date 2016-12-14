@@ -181,6 +181,10 @@ static inline void nf_ct_put(struct nf_conn *ct)
 int nf_ct_l3proto_try_module_get(unsigned short l3proto);
 void nf_ct_l3proto_module_put(unsigned short l3proto);
 
+/* load module; enable/disable conntrack in this namespace */
+int nf_ct_netns_get(struct net *net, u8 nfproto);
+void nf_ct_netns_put(struct net *net, u8 nfproto);
+
 /*
  * Allocate a hashtable of hlist_head (if nulls == 0),
  * or hlist_nulls_head (if nulls == 1)

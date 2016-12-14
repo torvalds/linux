@@ -113,7 +113,6 @@ struct vme_driver {
 	int (*match)(struct vme_dev *);
 	int (*probe)(struct vme_dev *);
 	int (*remove)(struct vme_dev *);
-	void (*shutdown)(void);
 	struct device_driver driver;
 	struct list_head devices;
 };

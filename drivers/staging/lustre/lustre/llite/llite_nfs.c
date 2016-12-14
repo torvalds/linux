@@ -226,7 +226,7 @@ static int ll_encode_fh(struct inode *inode, __u32 *fh, int *plen,
 
 static int ll_nfs_get_name_filldir(struct dir_context *ctx, const char *name,
 				   int namelen, loff_t hash, u64 ino,
-				   unsigned type)
+				   unsigned int type)
 {
 	/* It is hack to access lde_fid for comparison with lgd_fid.
 	 * So the input 'name' must be part of the 'lu_dirent'.

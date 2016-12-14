@@ -129,7 +129,7 @@ static int ata_force_tbl_size;
 static char ata_force_param_buf[PAGE_SIZE] __initdata;
 /* param_buf is thrown away after initialization, disallow read */
 module_param_string(force, ata_force_param_buf, sizeof(ata_force_param_buf), 0);
-MODULE_PARM_DESC(force, "Force ATA configurations including cable type, link speed and transfer mode (see Documentation/kernel-parameters.txt for details)");
+MODULE_PARM_DESC(force, "Force ATA configurations including cable type, link speed and transfer mode (see Documentation/admin-guide/kernel-parameters.rst for details)");
 
 static int atapi_enabled = 1;
 module_param(atapi_enabled, int, 0444);
@@ -739,6 +739,7 @@ u64 ata_tf_read_block(const struct ata_taskfile *tf, struct ata_device *dev)
  *	@n_block: Number of blocks
  *	@tf_flags: RW/FUA etc...
  *	@tag: tag
+ *	@class: IO priority class
  *
  *	LOCKING:
  *	None.
@@ -753,7 +754,7 @@ u64 ata_tf_read_block(const struct ata_taskfile *tf, struct ata_device *dev)
  */
 int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
 		    u64 block, u32 n_block, unsigned int tf_flags,
-		    unsigned int tag)
+		    unsigned int tag, int class)
 {
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->flags |= tf_flags;
@@ -785,6 +786,12 @@ int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
 		tf->device = ATA_LBA;
 		if (tf->flags & ATA_TFLAG_FUA)
 			tf->device |= 1 << 7;
+
+		if (dev->flags & ATA_DFLAG_NCQ_PRIO) {
+			if (class == IOPRIO_CLASS_RT)
+				tf->hob_nsect |= ATA_PRIO_HIGH <<
+						 ATA_SHIFT_PRIO;
+		}
 	} else if (dev->flags & ATA_DFLAG_LBA) {
 		tf->flags |= ATA_TFLAG_LBA;
 
@@ -2156,6 +2163,37 @@ static void ata_dev_config_ncq_non_data(struct ata_device *dev)
 	}
 }
 
+static void ata_dev_config_ncq_prio(struct ata_device *dev)
+{
+	struct ata_port *ap = dev->link->ap;
+	unsigned int err_mask;
+
+	if (!(dev->flags & ATA_DFLAG_NCQ_PRIO_ENABLE)) {
+		dev->flags &= ~ATA_DFLAG_NCQ_PRIO;
+		return;
+	}
+
+	err_mask = ata_read_log_page(dev,
+				     ATA_LOG_SATA_ID_DEV_DATA,
+				     ATA_LOG_SATA_SETTINGS,
+				     ap->sector_buf,
+				     1);
+	if (err_mask) {
+		ata_dev_dbg(dev,
+			    "failed to get Identify Device data, Emask 0x%x\n",
+			    err_mask);
+		return;
+	}
+
+	if (ap->sector_buf[ATA_LOG_NCQ_PRIO_OFFSET] & BIT(3)) {
+		dev->flags |= ATA_DFLAG_NCQ_PRIO;
+	} else {
+		dev->flags &= ~ATA_DFLAG_NCQ_PRIO;
+		ata_dev_dbg(dev, "SATA page does not support priority\n");
+	}
+
+}
+
 static int ata_dev_config_ncq(struct ata_device *dev,
 			       char *desc, size_t desc_sz)
 {
@@ -2205,6 +2243,8 @@ static int ata_dev_config_ncq(struct ata_device *dev,
 			ata_dev_config_ncq_send_recv(dev);
 		if (ata_id_has_ncq_non_data(dev->id))
 			ata_dev_config_ncq_non_data(dev);
+		if (ata_id_has_ncq_prio(dev->id))
+			ata_dev_config_ncq_prio(dev);
 	}
 
 	return 0;

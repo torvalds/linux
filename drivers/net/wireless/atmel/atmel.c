@@ -1295,14 +1295,6 @@ static struct iw_statistics *atmel_get_wireless_stats(struct net_device *dev)
 	return &priv->wstats;
 }
 
-static int atmel_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > 2312))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static int atmel_set_mac_address(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
@@ -1506,7 +1498,6 @@ static const struct file_operations atmel_proc_fops = {
 static const struct net_device_ops atmel_netdev_ops = {
 	.ndo_open 		= atmel_open,
 	.ndo_stop		= atmel_close,
-	.ndo_change_mtu 	= atmel_change_mtu,
 	.ndo_set_mac_address 	= atmel_set_mac_address,
 	.ndo_start_xmit 	= start_tx,
 	.ndo_do_ioctl 		= atmel_ioctl,
@@ -1599,6 +1590,10 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 	dev->wireless_handlers = &atmel_handler_def;
 	dev->irq = irq;
 	dev->base_addr = port;
+
+	/* MTU range: 68 - 2312 */
+	dev->min_mtu = 68;
+	dev->max_mtu = MAX_WIRELESS_BODY - ETH_FCS_LEN;
 
 	SET_NETDEV_DEV(dev, sys_dev);
 

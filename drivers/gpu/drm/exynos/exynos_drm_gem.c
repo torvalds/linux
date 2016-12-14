@@ -231,12 +231,12 @@ struct exynos_drm_gem *exynos_drm_gem_create(struct drm_device *dev,
 	int ret;
 
 	if (flags & ~(EXYNOS_BO_MASK)) {
-		DRM_ERROR("invalid flags.\n");
+		DRM_ERROR("invalid GEM buffer flags: %u\n", flags);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (!size) {
-		DRM_ERROR("invalid size.\n");
+		DRM_ERROR("invalid GEM buffer size: %lu\n", size);
 		return ERR_PTR(-EINVAL);
 	}
 

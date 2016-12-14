@@ -75,12 +75,6 @@ static void dm_old_start_queue(struct request_queue *q)
 
 static void dm_mq_start_queue(struct request_queue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
 	blk_mq_start_stopped_hw_queues(q, true);
 	blk_mq_kick_requeue_list(q);
 }
@@ -105,20 +99,10 @@ static void dm_old_stop_queue(struct request_queue *q)
 
 static void dm_mq_stop_queue(struct request_queue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	if (blk_queue_stopped(q)) {
-		spin_unlock_irqrestore(q->queue_lock, flags);
+	if (blk_mq_queue_stopped(q))
 		return;
-	}
 
-	queue_flag_set(QUEUE_FLAG_STOPPED, q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
-	/* Avoid that requeuing could restart the queue. */
-	blk_mq_cancel_requeue_work(q);
-	blk_mq_stop_hw_queues(q);
+	blk_mq_quiesce_queue(q);
 }
 
 void dm_stop_queue(struct request_queue *q)
@@ -313,7 +297,7 @@ static void dm_unprep_request(struct request *rq)
 
 	if (!rq->q->mq_ops) {
 		rq->special = NULL;
-		rq->cmd_flags &= ~REQ_DONTPREP;
+		rq->rq_flags &= ~RQF_DONTPREP;
 	}
 
 	if (clone)
@@ -338,12 +322,7 @@ static void dm_old_requeue_request(struct request *rq)
 
 static void __dm_mq_kick_requeue_list(struct request_queue *q, unsigned long msecs)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	if (!blk_queue_stopped(q))
-		blk_mq_delay_kick_requeue_list(q, msecs);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	blk_mq_delay_kick_requeue_list(q, msecs);
 }
 
 void dm_mq_kick_requeue_list(struct mapped_device *md)
@@ -354,7 +333,7 @@ EXPORT_SYMBOL(dm_mq_kick_requeue_list);
 
 static void dm_mq_delay_requeue_request(struct request *rq, unsigned long msecs)
 {
-	blk_mq_requeue_request(rq);
+	blk_mq_requeue_request(rq, false);
 	__dm_mq_kick_requeue_list(rq->q, msecs);
 }
 
@@ -431,7 +410,7 @@ static void dm_softirq_done(struct request *rq)
 		return;
 	}
 
-	if (rq->cmd_flags & REQ_FAILED)
+	if (rq->rq_flags & RQF_FAILED)
 		mapped = false;
 
 	dm_done(clone, tio->error, mapped);
@@ -460,7 +439,7 @@ static void dm_complete_request(struct request *rq, int error)
  */
 static void dm_kill_unmapped_request(struct request *rq, int error)
 {
-	rq->cmd_flags |= REQ_FAILED;
+	rq->rq_flags |= RQF_FAILED;
 	dm_complete_request(rq, error);
 }
 
@@ -476,7 +455,7 @@ static void end_clone_request(struct request *clone, int error)
 		 * For just cleaning up the information of the queue in which
 		 * the clone was dispatched.
 		 * The clone is *NOT* freed actually here because it is alloced
-		 * from dm own mempool (REQ_ALLOCED isn't set).
+		 * from dm own mempool (RQF_ALLOCED isn't set).
 		 */
 		__blk_put_request(clone->q, clone);
 	}
@@ -497,7 +476,7 @@ static void dm_dispatch_clone_request(struct request *clone, struct request *rq)
 	int r;
 
 	if (blk_queue_io_stat(clone->q))
-		clone->cmd_flags |= REQ_IO_STAT;
+		clone->rq_flags |= RQF_IO_STAT;
 
 	clone->start_time = jiffies;
 	r = blk_insert_cloned_request(clone->q, clone);
@@ -633,7 +612,7 @@ static int dm_old_prep_fn(struct request_queue *q, struct request *rq)
 		return BLKPREP_DEFER;
 
 	rq->special = tio;
-	rq->cmd_flags |= REQ_DONTPREP;
+	rq->rq_flags |= RQF_DONTPREP;
 
 	return BLKPREP_OK;
 }
@@ -903,17 +882,6 @@ static int dm_mq_queue_rq(struct blk_mq_hw_ctx *hctx,
 		ti = dm_table_find_target(map, 0);
 		dm_put_live_table(md, srcu_idx);
 	}
-
-	/*
-	 * On suspend dm_stop_queue() handles stopping the blk-mq
-	 * request_queue BUT: even though the hw_queues are marked
-	 * BLK_MQ_S_STOPPED at that point there is still a race that
-	 * is allowing block/blk-mq.c to call ->queue_rq against a
-	 * hctx that it really shouldn't.  The following check guards
-	 * against this rarity (albeit _not_ race-free).
-	 */
-	if (unlikely(test_bit(BLK_MQ_S_STOPPED, &hctx->state)))
-		return BLK_MQ_RQ_QUEUE_BUSY;
 
 	if (ti->type->busy && ti->type->busy(ti))
 		return BLK_MQ_RQ_QUEUE_BUSY;

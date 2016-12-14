@@ -1,4 +1,5 @@
-/* Copyright 2013-2015 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,7 +33,8 @@
 #ifndef __FSL_DPMNG_H
 #define __FSL_DPMNG_H
 
-/* Management Complex General API
+/*
+ * Management Complex General API
  * Contains general API for the Management Complex firmware
  */
 
@@ -58,12 +60,12 @@ struct mc_version {
 	u32 revision;
 };
 
-int mc_get_version(struct fsl_mc_io	*mc_io,
-		   u32		cmd_flags,
-		   struct mc_version	*mc_ver_info);
+int mc_get_version(struct fsl_mc_io *mc_io,
+		   u32 cmd_flags,
+		   struct mc_version *mc_ver_info);
 
-int dpmng_get_container_id(struct fsl_mc_io	*mc_io,
-			   u32		cmd_flags,
-			   int			*container_id);
+int dpmng_get_container_id(struct fsl_mc_io *mc_io,
+			   u32 cmd_flags,
+			   int *container_id);
 
 #endif /* __FSL_DPMNG_H */

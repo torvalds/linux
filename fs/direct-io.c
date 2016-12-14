@@ -457,7 +457,7 @@ static struct bio *dio_await_one(struct dio *dio)
 		dio->waiter = current;
 		spin_unlock_irqrestore(&dio->bio_lock, flags);
 		if (!(dio->iocb->ki_flags & IOCB_HIPRI) ||
-		    !blk_poll(bdev_get_queue(dio->bio_bdev), dio->bio_cookie))
+		    !blk_mq_poll(bdev_get_queue(dio->bio_bdev), dio->bio_cookie))
 			io_schedule();
 		/* wake up sets us TASK_RUNNING */
 		spin_lock_irqsave(&dio->bio_lock, flags);
@@ -1209,7 +1209,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	dio->inode = inode;
 	if (iov_iter_rw(iter) == WRITE) {
 		dio->op = REQ_OP_WRITE;
-		dio->op_flags = WRITE_ODIRECT;
+		dio->op_flags = REQ_SYNC | REQ_IDLE;
 	} else {
 		dio->op = REQ_OP_READ;
 	}
