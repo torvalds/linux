@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,42 +20,24 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __NVKM_SECBOOT_PRIV_H__
-#define __NVKM_SECBOOT_PRIV_H__
+#ifndef __NVKM_SECBOOT_GM200_H__
+#define __NVKM_SECBOOT_GM200_H__
 
-#include <subdev/secboot.h>
-#include <subdev/mmu.h>
+#include "priv.h"
 
-struct nvkm_secboot_func {
-	int (*oneinit)(struct nvkm_secboot *);
-	int (*fini)(struct nvkm_secboot *, bool suspend);
-	void *(*dtor)(struct nvkm_secboot *);
-	int (*run_blob)(struct nvkm_secboot *, struct nvkm_gpuobj *);
+struct gm200_secboot {
+	struct nvkm_secboot base;
+
+	/* Instance block & address space used for HS FW execution */
+	struct nvkm_gpuobj *inst;
+	struct nvkm_gpuobj *pgd;
+	struct nvkm_vm *vm;
 };
+#define gm200_secboot(sb) container_of(sb, struct gm200_secboot, base)
 
-int nvkm_secboot_ctor(const struct nvkm_secboot_func *, struct nvkm_acr *,
-		      struct nvkm_device *, int, struct nvkm_secboot *);
-int nvkm_secboot_falcon_reset(struct nvkm_secboot *);
-int nvkm_secboot_falcon_run(struct nvkm_secboot *);
-
-struct flcn_u64 {
-	u32 lo;
-	u32 hi;
-};
-
-static inline u64 flcn64_to_u64(const struct flcn_u64 f)
-{
-	return ((u64)f.hi) << 32 | f.lo;
-}
-
-static inline struct flcn_u64 u64_to_flcn64(u64 u)
-{
-	struct flcn_u64 ret;
-
-	ret.hi = upper_32_bits(u);
-	ret.lo = lower_32_bits(u);
-
-	return ret;
-}
+int gm200_secboot_oneinit(struct nvkm_secboot *);
+int gm200_secboot_fini(struct nvkm_secboot *, bool);
+void *gm200_secboot_dtor(struct nvkm_secboot *);
+int gm200_secboot_run_blob(struct nvkm_secboot *, struct nvkm_gpuobj *);
 
 #endif

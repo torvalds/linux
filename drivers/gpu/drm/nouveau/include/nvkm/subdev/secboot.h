@@ -34,15 +34,14 @@ enum nvkm_secboot_falcon {
 	NVKM_SECBOOT_FALCON_INVALID = 0xffffffff,
 };
 
-/**
- * @base:		base IO address of the falcon performing secure boot
- * @irq_mask:		IRQ mask of the falcon performing secure boot
- * @enable_mask:	enable mask of the falcon performing secure boot
-*/
 struct nvkm_secboot {
 	const struct nvkm_secboot_func *func;
+	struct nvkm_acr *acr;
 	struct nvkm_subdev subdev;
 	struct nvkm_falcon *boot_falcon;
+
+	u64 wpr_addr;
+	u32 wpr_size;
 };
 #define nvkm_secboot(p) container_of((p), struct nvkm_secboot, subdev)
 

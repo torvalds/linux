@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2016, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,42 +20,35 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef __NVKM_SECBOOT_PRIV_H__
-#define __NVKM_SECBOOT_PRIV_H__
+#include "acr.h"
 
-#include <subdev/secboot.h>
-#include <subdev/mmu.h>
+#include <core/firmware.h>
 
-struct nvkm_secboot_func {
-	int (*oneinit)(struct nvkm_secboot *);
-	int (*fini)(struct nvkm_secboot *, bool suspend);
-	void *(*dtor)(struct nvkm_secboot *);
-	int (*run_blob)(struct nvkm_secboot *, struct nvkm_gpuobj *);
-};
-
-int nvkm_secboot_ctor(const struct nvkm_secboot_func *, struct nvkm_acr *,
-		      struct nvkm_device *, int, struct nvkm_secboot *);
-int nvkm_secboot_falcon_reset(struct nvkm_secboot *);
-int nvkm_secboot_falcon_run(struct nvkm_secboot *);
-
-struct flcn_u64 {
-	u32 lo;
-	u32 hi;
-};
-
-static inline u64 flcn64_to_u64(const struct flcn_u64 f)
+/**
+ * Convenience function to duplicate a firmware file in memory and check that
+ * it has the required minimum size.
+ */
+void *
+nvkm_acr_load_firmware(const struct nvkm_subdev *subdev, const char *name,
+		       size_t min_size)
 {
-	return ((u64)f.hi) << 32 | f.lo;
+	const struct firmware *fw;
+	void *blob;
+	int ret;
+
+	ret = nvkm_firmware_get(subdev->device, name, &fw);
+	if (ret)
+		return ERR_PTR(ret);
+	if (fw->size < min_size) {
+		nvkm_error(subdev, "%s is smaller than expected size %zu\n",
+			   name, min_size);
+		nvkm_firmware_put(fw);
+		return ERR_PTR(-EINVAL);
+	}
+	blob = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	nvkm_firmware_put(fw);
+	if (!blob)
+		return ERR_PTR(-ENOMEM);
+
+	return blob;
 }
-
-static inline struct flcn_u64 u64_to_flcn64(u64 u)
-{
-	struct flcn_u64 ret;
-
-	ret.hi = upper_32_bits(u);
-	ret.lo = lower_32_bits(u);
-
-	return ret;
-}
-
-#endif
