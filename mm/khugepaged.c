@@ -877,7 +877,7 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 {
 	pte_t pteval;
 	int swapped_in = 0, ret = 0;
-	struct fault_env fe = {
+	struct vm_fault vmf = {
 		.vma = vma,
 		.address = address,
 		.flags = FAULT_FLAG_ALLOW_RETRY,
@@ -889,19 +889,19 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 		trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
 		return false;
 	}
-	fe.pte = pte_offset_map(pmd, address);
-	for (; fe.address < address + HPAGE_PMD_NR*PAGE_SIZE;
-			fe.pte++, fe.address += PAGE_SIZE) {
-		pteval = *fe.pte;
+	vmf.pte = pte_offset_map(pmd, address);
+	for (; vmf.address < address + HPAGE_PMD_NR*PAGE_SIZE;
+			vmf.pte++, vmf.address += PAGE_SIZE) {
+		pteval = *vmf.pte;
 		if (!is_swap_pte(pteval))
 			continue;
 		swapped_in++;
-		ret = do_swap_page(&fe, pteval);
+		ret = do_swap_page(&vmf, pteval);
 
 		/* do_swap_page returns VM_FAULT_RETRY with released mmap_sem */
 		if (ret & VM_FAULT_RETRY) {
 			down_read(&mm->mmap_sem);
-			if (hugepage_vma_revalidate(mm, address, &fe.vma)) {
+			if (hugepage_vma_revalidate(mm, address, &vmf.vma)) {
 				/* vma is no longer available, don't continue to swapin */
 				trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 0);
 				return false;
@@ -915,10 +915,10 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 			return false;
 		}
 		/* pte is unmapped now, we need to map it */
-		fe.pte = pte_offset_map(pmd, fe.address);
+		vmf.pte = pte_offset_map(pmd, vmf.address);
 	}
-	fe.pte--;
-	pte_unmap(fe.pte);
+	vmf.pte--;
+	pte_unmap(vmf.pte);
 	trace_mm_collapse_huge_page_swapin(mm, swapped_in, referenced, 1);
 	return true;
 }

@@ -2164,12 +2164,12 @@ page_not_uptodate:
 }
 EXPORT_SYMBOL(filemap_fault);
 
-void filemap_map_pages(struct fault_env *fe,
+void filemap_map_pages(struct vm_fault *vmf,
 		pgoff_t start_pgoff, pgoff_t end_pgoff)
 {
 	struct radix_tree_iter iter;
 	void **slot;
-	struct file *file = fe->vma->vm_file;
+	struct file *file = vmf->vma->vm_file;
 	struct address_space *mapping = file->f_mapping;
 	pgoff_t last_pgoff = start_pgoff;
 	loff_t size;
@@ -2225,11 +2225,11 @@ repeat:
 		if (file->f_ra.mmap_miss > 0)
 			file->f_ra.mmap_miss--;
 
-		fe->address += (iter.index - last_pgoff) << PAGE_SHIFT;
-		if (fe->pte)
-			fe->pte += iter.index - last_pgoff;
+		vmf->address += (iter.index - last_pgoff) << PAGE_SHIFT;
+		if (vmf->pte)
+			vmf->pte += iter.index - last_pgoff;
 		last_pgoff = iter.index;
-		if (alloc_set_pte(fe, NULL, page))
+		if (alloc_set_pte(vmf, NULL, page))
 			goto unlock;
 		unlock_page(page);
 		goto next;
@@ -2239,7 +2239,7 @@ skip:
 		put_page(page);
 next:
 		/* Huge page is mapped? No need to proceed. */
-		if (pmd_trans_huge(*fe->pmd))
+		if (pmd_trans_huge(*vmf->pmd))
 			break;
 		if (iter.index == end_pgoff)
 			break;
