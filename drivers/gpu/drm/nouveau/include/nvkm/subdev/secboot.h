@@ -34,6 +34,9 @@ enum nvkm_secboot_falcon {
 	NVKM_SECBOOT_FALCON_INVALID = 0xffffffff,
 };
 
+/**
+ * @wpr_set: whether the WPR region is currently set
+*/
 struct nvkm_secboot {
 	const struct nvkm_secboot_func *func;
 	struct nvkm_acr *acr;
@@ -42,6 +45,8 @@ struct nvkm_secboot {
 
 	u64 wpr_addr;
 	u32 wpr_size;
+
+	bool wpr_set;
 };
 #define nvkm_secboot(p) container_of((p), struct nvkm_secboot, subdev)
 

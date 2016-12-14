@@ -740,6 +740,54 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	return 0;
 }
 
+static int
+acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
+{
+	int i;
+
+	/* Run the unload blob to unprotect the WPR region */
+	if (acr->unload_blob && sb->wpr_set) {
+		int ret;
+
+		nvkm_debug(&sb->subdev, "running HS unload blob\n");
+		ret = sb->func->run_blob(sb, acr->unload_blob);
+		if (ret)
+			return ret;
+		nvkm_debug(&sb->subdev, "HS unload blob completed\n");
+	}
+
+	for (i = 0; i < NVKM_SECBOOT_FALCON_END; i++)
+		acr->falcon_state[i] = NON_SECURE;
+
+	sb->wpr_set = false;
+
+	return 0;
+}
+
+static int
+acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
+{
+	int ret;
+
+	if (sb->wpr_set)
+		return 0;
+
+	/* Make sure all blobs are ready */
+	ret = acr_r352_load_blobs(acr, sb);
+	if (ret)
+		return ret;
+
+	nvkm_debug(&sb->subdev, "running HS load blob\n");
+	ret = sb->func->run_blob(sb, acr->load_blob);
+	if (ret)
+		return ret;
+	nvkm_debug(&sb->subdev, "HS load blob completed\n");
+
+	sb->wpr_set = true;
+
+	return 0;
+}
+
 /*
  * acr_r352_reset() - execute secure boot from the prepared state
  *
@@ -754,11 +802,6 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	struct acr_r352 *acr = acr_r352(_acr);
 	int ret;
 
-	/* Make sure all blobs are ready */
-	ret = acr_r352_load_blobs(acr, sb);
-	if (ret)
-		return ret;
-
 	/*
 	 * Dummy GM200 implementation: perform secure boot each time we are
 	 * called on FECS. Since only FECS and GPCCS are managed and started
@@ -770,16 +813,11 @@ acr_r352_reset(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 	if (falcon != NVKM_SECBOOT_FALCON_FECS)
 		goto end;
 
-	/* If WPR is set and we have an unload blob, run it to unlock WPR */
-	if (acr->unload_blob &&
-	    acr->falcon_state[NVKM_SECBOOT_FALCON_FECS] != NON_SECURE) {
-		ret = sb->func->run_blob(sb, acr->unload_blob);
-		if (ret)
-			return ret;
-	}
+	ret = acr_r352_shutdown(acr, sb);
+	if (ret)
+		return ret;
 
-	/* Reload all managed falcons */
-	ret = sb->func->run_blob(sb, acr->load_blob);
+	acr_r352_bootstrap(acr, sb);
 	if (ret)
 		return ret;
 
@@ -818,18 +856,8 @@ static int
 acr_r352_fini(struct nvkm_acr *_acr, struct nvkm_secboot *sb, bool suspend)
 {
 	struct acr_r352 *acr = acr_r352(_acr);
-	int ret = 0;
-	int i;
 
-	/* Run the unload blob to unprotect the WPR region */
-	if (acr->unload_blob &&
-	    acr->falcon_state[NVKM_SECBOOT_FALCON_FECS] != NON_SECURE)
-		ret = sb->func->run_blob(sb, acr->unload_blob);
-
-	for (i = 0; i < NVKM_SECBOOT_FALCON_END; i++)
-		acr->falcon_state[i] = NON_SECURE;
-
-	return ret;
+	return acr_r352_shutdown(acr, sb);
 }
 
 static void
