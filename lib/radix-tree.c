@@ -977,6 +977,24 @@ void *radix_tree_lookup(struct radix_tree_root *root, unsigned long index)
 }
 EXPORT_SYMBOL(radix_tree_lookup);
 
+static inline int slot_count(struct radix_tree_node *node,
+						void **slot)
+{
+	int n = 1;
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+	void *ptr = node_to_entry(slot);
+	unsigned offset = get_slot_offset(node, slot);
+	int i;
+
+	for (i = 1; offset + i < RADIX_TREE_MAP_SIZE; i++) {
+		if (node->slots[offset + i] != ptr)
+			break;
+		n++;
+	}
+#endif
+	return n;
+}
+
 static void replace_slot(struct radix_tree_root *root,
 			 struct radix_tree_node *node,
 			 void **slot, void *item,
@@ -995,10 +1013,33 @@ static void replace_slot(struct radix_tree_root *root,
 
 	if (node) {
 		node->count += count;
-		node->exceptional += exceptional;
+		if (exceptional) {
+			exceptional *= slot_count(node, slot);
+			node->exceptional += exceptional;
+		}
 	}
 
 	rcu_assign_pointer(*slot, item);
+}
+
+static inline void delete_sibling_entries(struct radix_tree_node *node,
+						void **slot)
+{
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+	bool exceptional = radix_tree_exceptional_entry(*slot);
+	void *ptr = node_to_entry(slot);
+	unsigned offset = get_slot_offset(node, slot);
+	int i;
+
+	for (i = 1; offset + i < RADIX_TREE_MAP_SIZE; i++) {
+		if (node->slots[offset + i] != ptr)
+			break;
+		node->slots[offset + i] = NULL;
+		node->count--;
+		if (exceptional)
+			node->exceptional--;
+	}
+#endif
 }
 
 /**
@@ -1018,6 +1059,8 @@ void __radix_tree_replace(struct radix_tree_root *root,
 			  void **slot, void *item,
 			  radix_tree_update_node_t update_node, void *private)
 {
+	if (!item)
+		delete_sibling_entries(node, slot);
 	/*
 	 * This function supports replacing exceptional entries and
 	 * deleting entries, but that needs accounting against the
@@ -1794,20 +1837,6 @@ void __radix_tree_delete_node(struct radix_tree_root *root,
 	delete_node(root, node, NULL, NULL);
 }
 
-static inline void delete_sibling_entries(struct radix_tree_node *node,
-					void *ptr, unsigned offset)
-{
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-	int i;
-	for (i = 1; offset + i < RADIX_TREE_MAP_SIZE; i++) {
-		if (node->slots[offset + i] != ptr)
-			break;
-		node->slots[offset + i] = NULL;
-		node->count--;
-	}
-#endif
-}
-
 /**
  *	radix_tree_delete_item    -    delete an item from a radix tree
  *	@root:		radix tree root
@@ -1847,7 +1876,6 @@ void *radix_tree_delete_item(struct radix_tree_root *root,
 	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
 		node_tag_clear(root, node, tag, offset);
 
-	delete_sibling_entries(node, node_to_entry(slot), offset);
 	__radix_tree_replace(root, node, slot, NULL, NULL, NULL);
 
 	return entry;
