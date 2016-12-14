@@ -75,8 +75,27 @@ static void __multiorder_tag_test(int index, int order)
 	item_kill_tree(&tree);
 }
 
+static void __multiorder_tag_test2(unsigned order, unsigned long index2)
+{
+	RADIX_TREE(tree, GFP_KERNEL);
+	unsigned long index = (1 << order);
+	index2 += index;
+
+	assert(item_insert_order(&tree, 0, order) == 0);
+	assert(item_insert(&tree, index2) == 0);
+
+	assert(radix_tree_tag_set(&tree, 0, 0));
+	assert(radix_tree_tag_set(&tree, index2, 0));
+
+	assert(tag_tagged_items(&tree, NULL, 0, ~0UL, 10, 0, 1) == 2);
+
+	item_kill_tree(&tree);
+}
+
 static void multiorder_tag_tests(void)
 {
+	int i, j;
+
 	/* test multi-order entry for indices 0-7 with no sibling pointers */
 	__multiorder_tag_test(0, 3);
 	__multiorder_tag_test(5, 3);
@@ -116,6 +135,10 @@ static void multiorder_tag_tests(void)
 	__multiorder_tag_test(300, 8);
 
 	__multiorder_tag_test(0x12345678UL, 8);
+
+	for (i = 1; i < 10; i++)
+		for (j = 0; j < (10 << i); j++)
+			__multiorder_tag_test2(i, j);
 }
 
 static void multiorder_check(unsigned long index, int order)

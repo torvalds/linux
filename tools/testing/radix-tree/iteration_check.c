@@ -16,26 +16,36 @@
 #include <pthread.h>
 #include "test.h"
 
-#define NUM_THREADS 4
-#define TAG 0
+#define NUM_THREADS	5
+#define MAX_IDX		100
+#define TAG		0
+#define NEW_TAG		1
+
 static pthread_mutex_t tree_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_t threads[NUM_THREADS];
 static unsigned int seeds[3];
-RADIX_TREE(tree, GFP_KERNEL);
-bool test_complete;
+static RADIX_TREE(tree, GFP_KERNEL);
+static bool test_complete;
+static int max_order;
 
 /* relentlessly fill the tree with tagged entries */
 static void *add_entries_fn(void *arg)
 {
-	int pgoff;
-
 	rcu_register_thread();
 
 	while (!test_complete) {
-		for (pgoff = 0; pgoff < 100; pgoff++) {
+		unsigned long pgoff;
+		int order;
+
+		for (pgoff = 0; pgoff < MAX_IDX; pgoff++) {
 			pthread_mutex_lock(&tree_lock);
-			if (item_insert(&tree, pgoff) == 0)
-				item_tag_set(&tree, pgoff, TAG);
+			for (order = max_order; order >= 0; order--) {
+				if (item_insert_order(&tree, pgoff, order)
+						== 0) {
+					item_tag_set(&tree, pgoff, TAG);
+					break;
+				}
+			}
 			pthread_mutex_unlock(&tree_lock);
 		}
 	}
@@ -62,14 +72,7 @@ static void *tagged_iteration_fn(void *arg)
 	while (!test_complete) {
 		rcu_read_lock();
 		radix_tree_for_each_tagged(slot, &tree, &iter, 0, TAG) {
-			void *entry;
-			int i;
-
-			/* busy wait to let removals happen */
-			for (i = 0; i < 1000000; i++)
-				;
-
-			entry = radix_tree_deref_slot(slot);
+			void *entry = radix_tree_deref_slot(slot);
 			if (unlikely(!entry))
 				continue;
 
@@ -110,14 +113,7 @@ static void *untagged_iteration_fn(void *arg)
 	while (!test_complete) {
 		rcu_read_lock();
 		radix_tree_for_each_slot(slot, &tree, &iter, 0) {
-			void *entry;
-			int i;
-
-			/* busy wait to let removals happen */
-			for (i = 0; i < 1000000; i++)
-				;
-
-			entry = radix_tree_deref_slot(slot);
+			void *entry = radix_tree_deref_slot(slot);
 			if (unlikely(!entry))
 				continue;
 
@@ -152,7 +148,7 @@ static void *remove_entries_fn(void *arg)
 	while (!test_complete) {
 		int pgoff;
 
-		pgoff = rand_r(&seeds[2]) % 100;
+		pgoff = rand_r(&seeds[2]) % MAX_IDX;
 
 		pthread_mutex_lock(&tree_lock);
 		item_delete(&tree, pgoff);
@@ -164,36 +160,54 @@ static void *remove_entries_fn(void *arg)
 	return NULL;
 }
 
+static void *tag_entries_fn(void *arg)
+{
+	rcu_register_thread();
+
+	while (!test_complete) {
+		tag_tagged_items(&tree, &tree_lock, 0, MAX_IDX, 10, TAG,
+					NEW_TAG);
+	}
+	rcu_unregister_thread();
+	return NULL;
+}
+
 /* This is a unit test for a bug found by the syzkaller tester */
-void iteration_test(void)
+void iteration_test(unsigned order, unsigned test_duration)
 {
 	int i;
 
-	printf("Running iteration tests for 10 seconds\n");
+	printf("Running %siteration tests for %d seconds\n",
+			order > 0 ? "multiorder " : "", test_duration);
 
+	max_order = order;
 	test_complete = false;
 
 	for (i = 0; i < 3; i++)
 		seeds[i] = rand();
 
 	if (pthread_create(&threads[0], NULL, tagged_iteration_fn, NULL)) {
-		perror("pthread_create");
+		perror("create tagged iteration thread");
 		exit(1);
 	}
 	if (pthread_create(&threads[1], NULL, untagged_iteration_fn, NULL)) {
-		perror("pthread_create");
+		perror("create untagged iteration thread");
 		exit(1);
 	}
 	if (pthread_create(&threads[2], NULL, add_entries_fn, NULL)) {
-		perror("pthread_create");
+		perror("create add entry thread");
 		exit(1);
 	}
 	if (pthread_create(&threads[3], NULL, remove_entries_fn, NULL)) {
-		perror("pthread_create");
+		perror("create remove entry thread");
+		exit(1);
+	}
+	if (pthread_create(&threads[4], NULL, tag_entries_fn, NULL)) {
+		perror("create tag entry thread");
 		exit(1);
 	}
 
-	sleep(10);
+	sleep(test_duration);
 	test_complete = true;
 
 	for (i = 0; i < NUM_THREADS; i++) {

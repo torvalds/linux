@@ -32,7 +32,7 @@ unsigned long find_item(struct radix_tree_root *, void *item);
 
 void tag_check(void);
 void multiorder_checks(void);
-void iteration_test(void);
+void iteration_test(unsigned order, unsigned duration);
 void benchmark(void);
 
 struct item *
