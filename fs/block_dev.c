@@ -264,7 +264,6 @@ __blkdev_direct_IO_simple(struct kiocb *iocb, struct iov_iter *iter,
 
 	if (unlikely(bio.bi_error))
 		return bio.bi_error;
-	iocb->ki_pos += ret;
 	return ret;
 }
 
@@ -411,10 +410,8 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 	__set_current_state(TASK_RUNNING);
 
 	ret = dio->bio.bi_error;
-	if (likely(!ret)) {
+	if (likely(!ret))
 		ret = dio->size;
-		iocb->ki_pos += ret;
-	}
 
 	bio_put(&dio->bio);
 	return ret;
