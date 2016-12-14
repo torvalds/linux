@@ -78,8 +78,8 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 	}
 
 	/* Call chip-specific init function */
-	if (sb->func->init)
-		ret = sb->func->init(sb);
+	if (sb->func->oneinit)
+		ret = sb->func->oneinit(sb);
 	if (ret) {
 		nvkm_error(subdev, "Secure Boot initialization failed: %d\n",
 			   ret);

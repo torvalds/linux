@@ -174,7 +174,7 @@ gm20b_tegra_read_wpr(struct gm200_secboot *gsb)
 #endif
 
 static int
-gm20b_secboot_init(struct nvkm_secboot *sb)
+gm20b_secboot_oneinit(struct nvkm_secboot *sb)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	int ret;
@@ -183,13 +183,13 @@ gm20b_secboot_init(struct nvkm_secboot *sb)
 	if (ret)
 		return ret;
 
-	return gm200_secboot_init(sb);
+	return gm200_secboot_oneinit(sb);
 }
 
 static const struct nvkm_secboot_func
 gm20b_secboot = {
 	.dtor = gm200_secboot_dtor,
-	.init = gm20b_secboot_init,
+	.oneinit = gm20b_secboot_oneinit,
 	.reset = gm200_secboot_reset,
 	.managed_falcons = BIT(NVKM_SECBOOT_FALCON_FECS),
 	.boot_falcon = NVKM_SECBOOT_FALCON_PMU,

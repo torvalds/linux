@@ -1253,7 +1253,7 @@ end:
 }
 
 int
-gm200_secboot_init(struct nvkm_secboot *sb)
+gm200_secboot_oneinit(struct nvkm_secboot *sb)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	struct nvkm_device *device = sb->subdev.device;
@@ -1332,7 +1332,7 @@ gm200_secboot_dtor(struct nvkm_secboot *sb)
 static const struct nvkm_secboot_func
 gm200_secboot = {
 	.dtor = gm200_secboot_dtor,
-	.init = gm200_secboot_init,
+	.oneinit = gm200_secboot_oneinit,
 	.fini = gm200_secboot_fini,
 	.reset = gm200_secboot_reset,
 	.managed_falcons = BIT(NVKM_SECBOOT_FALCON_FECS) |
