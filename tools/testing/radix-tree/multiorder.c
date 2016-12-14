@@ -389,35 +389,67 @@ static void multiorder_join(void)
 	}
 }
 
+static void check_mem(unsigned old_order, unsigned new_order, unsigned alloc)
+{
+	struct radix_tree_preload *rtp = &radix_tree_preloads;
+	if (rtp->nr != 0)
+		printf("split(%u %u) remaining %u\n", old_order, new_order,
+							rtp->nr);
+	/*
+	 * Can't check for equality here as some nodes may have been
+	 * RCU-freed while we ran.  But we should never finish with more
+	 * nodes allocated since they should have all been preloaded.
+	 */
+	if (nr_allocated > alloc)
+		printf("split(%u %u) allocated %u %u\n", old_order, new_order,
+							alloc, nr_allocated);
+}
+
 static void __multiorder_split(int old_order, int new_order)
 {
-	RADIX_TREE(tree, GFP_KERNEL);
+	RADIX_TREE(tree, GFP_ATOMIC);
 	void **slot;
 	struct radix_tree_iter iter;
 	struct radix_tree_node *node;
 	void *item;
+	unsigned alloc;
 
-	item_insert_order(&tree, 0, old_order);
+	radix_tree_preload(GFP_KERNEL);
+	assert(item_insert_order(&tree, 0, old_order) == 0);
+	radix_tree_preload_end();
+
+	/* Wipe out the preloaded cache or it'll confuse check_mem() */
+	radix_tree_cpu_dead(0);
+
 	radix_tree_tag_set(&tree, 0, 2);
+
+	radix_tree_split_preload(old_order, new_order, GFP_KERNEL);
+	alloc = nr_allocated;
 	radix_tree_split(&tree, 0, new_order);
+	check_mem(old_order, new_order, alloc);
 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
 		radix_tree_iter_replace(&tree, &iter, slot,
 					item_create(iter.index, new_order));
 	}
+	radix_tree_preload_end();
 
 	item_kill_tree(&tree);
 
+	radix_tree_preload(GFP_KERNEL);
 	__radix_tree_insert(&tree, 0, old_order, (void *)0x12);
+	radix_tree_preload_end();
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
 	assert(item == (void *)0x12);
 	assert(node->exceptional > 0);
 
+	radix_tree_split_preload(old_order, new_order, GFP_KERNEL);
 	radix_tree_split(&tree, 0, new_order);
 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
 		radix_tree_iter_replace(&tree, &iter, slot,
 					item_create(iter.index, new_order));
 	}
+	radix_tree_preload_end();
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
 	assert(item != (void *)0x12);
@@ -425,16 +457,20 @@ static void __multiorder_split(int old_order, int new_order)
 
 	item_kill_tree(&tree);
 
+	radix_tree_preload(GFP_KERNEL);
 	__radix_tree_insert(&tree, 0, old_order, (void *)0x12);
+	radix_tree_preload_end();
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
 	assert(item == (void *)0x12);
 	assert(node->exceptional > 0);
 
+	radix_tree_split_preload(old_order, new_order, GFP_KERNEL);
 	radix_tree_split(&tree, 0, new_order);
 	radix_tree_for_each_slot(slot, &tree, &iter, 0) {
 		radix_tree_iter_replace(&tree, &iter, slot, (void *)0x16);
 	}
+	radix_tree_preload_end();
 
 	item = __radix_tree_lookup(&tree, 0, &node, NULL);
 	assert(item == (void *)0x16);
@@ -471,4 +507,6 @@ void multiorder_checks(void)
 	multiorder_tagged_iteration();
 	multiorder_join();
 	multiorder_split();
+
+	radix_tree_cpu_dead(0);
 }
