@@ -102,7 +102,7 @@ https://gitlab.com/cryptsetup/cryptsetup
 [[
 #!/bin/sh
 # Create a crypt device using dmsetup
-dmsetup create crypt1 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha256 babebabebabebabebabebabebabebabe 0 $1 0"
+dmsetup create crypt1 --table "0 `blockdev --getsz $1` crypt aes-cbc-essiv:sha256 babebabebabebabebabebabebabebabe 0 $1 0"
 ]]
 
 [[
