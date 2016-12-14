@@ -298,52 +298,53 @@
 	};
 };
 
-&sdmmc {
-	clock-frequency = <50000000>;
-	clock-freq-min-max = <400000 150000000>;
-	supports-sd;
-	bus-width = <4>;
-	cap-mmc-highspeed;
-	cap-sd-highspeed;
-	disable-wp;
-	num-slots = <1>;
-	//sd-uhs-sdr104;
-	vqmmc-supply = <&vcc_sd>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
-	status = "okay";
+&cpu_l0 {
+	cpu-supply = <&vdd_cpu_l>;
 };
 
-&sdio0 {
-	clock-frequency = <150000000>;
-	clock-freq-min-max = <200000 150000000>;
-	supports-sdio;
-	bus-width = <4>;
-	disable-wp;
-	cap-sd-highspeed;
-	cap-sdio-irq;
-	keep-power-in-suspend;
-	mmc-pwrseq = <&sdio_pwrseq>;
-	non-removable;
-	num-slots = <1>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
-	sd-uhs-sdr104;
+&cpu_l1 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_l2 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_l3 {
+	cpu-supply = <&vdd_cpu_l>;
+};
+
+&cpu_b0 {
+	cpu-supply = <&vdd_cpu_b>;
+};
+
+&cpu_b1 {
+	cpu-supply = <&vdd_cpu_b>;
+};
+
+&edp {
 	status = "okay";
+
+	ports {
+		edp_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			edp_out_panel: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&panel_in_edp>;
+			};
+		};
+	};
 };
 
 &emmc_phy {
 	status = "okay";
 };
 
-&sdhci {
-	bus-width = <8>;
-	mmc-hs400-1_8v;
-	supports-emmc;
-	non-removable;
-	keep-power-in-suspend;
-	mmc-hs400-enhanced-strobe;
+&gpu {
 	status = "okay";
+	mali-supply = <&vdd_gpu>;
 };
 
 &i2s0 {
@@ -355,11 +356,6 @@
 };
 
 &i2s2 {
-	#sound-dai-cells = <0>;
-};
-
-&spdif {
-	status = "okay";
 	#sound-dai-cells = <0>;
 };
 
@@ -664,37 +660,87 @@
 	gpio1830-supply = <&vcc_3v0>;
 };
 
-&cpu_l0 {
-	cpu-supply = <&vdd_cpu_l>;
+&mipi_dsi {
+	status = "disabled";
 };
 
-&cpu_l1 {
-	cpu-supply = <&vdd_cpu_l>;
-};
-
-&cpu_l2 {
-	cpu-supply = <&vdd_cpu_l>;
-};
-
-&cpu_l3 {
-	cpu-supply = <&vdd_cpu_l>;
-};
-
-&cpu_b0 {
-	cpu-supply = <&vdd_cpu_b>;
-};
-
-&cpu_b1 {
-	cpu-supply = <&vdd_cpu_b>;
-};
-
-&gpu {
+&pmu_io_domains {
 	status = "okay";
-	mali-supply = <&vdd_gpu>;
+	pmu1830-supply = <&vcc_1v8>;
+};
+
+&pwm0 {
+	status = "okay";
+};
+
+&pwm2 {
+	status = "okay";
+};
+
+&rkvdec {
+	status = "okay";
+};
+
+&route_edp {
+	status = "okay";
+	logo,mode = "center";
 };
 
 &rga {
 	status = "okay";
+};
+
+&saradc {
+	status = "okay";
+};
+
+&sdmmc {
+	clock-frequency = <50000000>;
+	clock-freq-min-max = <400000 150000000>;
+	supports-sd;
+	bus-width = <4>;
+	cap-mmc-highspeed;
+	cap-sd-highspeed;
+	disable-wp;
+	num-slots = <1>;
+	//sd-uhs-sdr104;
+	vqmmc-supply = <&vcc_sd>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_cd &sdmmc_bus4>;
+	status = "okay";
+};
+
+&sdio0 {
+	clock-frequency = <150000000>;
+	clock-freq-min-max = <200000 150000000>;
+	supports-sdio;
+	bus-width = <4>;
+	disable-wp;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
+	non-removable;
+	num-slots = <1>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdio0_bus4 &sdio0_cmd &sdio0_clk>;
+	sd-uhs-sdr104;
+	status = "okay";
+};
+
+&sdhci {
+	bus-width = <8>;
+	mmc-hs400-1_8v;
+	supports-emmc;
+	non-removable;
+	keep-power-in-suspend;
+	mmc-hs400-enhanced-strobe;
+	status = "okay";
+};
+
+&spdif {
+	status = "okay";
+	#sound-dai-cells = <0>;
 };
 
 &spi1 {
@@ -789,20 +835,7 @@
 	status = "okay";
 };
 
-&pmu_io_domains {
-	status = "okay";
-	pmu1830-supply = <&vcc_1v8>;
-};
-
-&pwm0 {
-	status = "okay";
-};
-
-&pwm2 {
-	status = "okay";
-};
-
-&saradc {
+&vpu {
 	status = "okay";
 };
 
@@ -863,37 +896,4 @@
 				<1 GPIO_B5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
-};
-
-&edp {
-	status = "okay";
-
-	ports {
-		edp_out: port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			edp_out_panel: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
-};
-
-&mipi_dsi {
-	status = "disabled";
-};
-
-&vpu {
-	status = "okay";
-};
-
-&rkvdec {
-	status = "okay";
-};
-
-&route_edp {
-	status = "okay";
-	logo,mode = "center";
 };
