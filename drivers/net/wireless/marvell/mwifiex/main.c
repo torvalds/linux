@@ -1425,9 +1425,6 @@ EXPORT_SYMBOL_GPL(mwifiex_shutdown_sw);
 int
 mwifiex_reinit_sw(struct mwifiex_adapter *adapter)
 {
-	char fw_name[32];
-	struct pcie_service_card *card = adapter->card;
-
 	mwifiex_init_lock_list(adapter);
 	if (adapter->if_ops.up_dev)
 		adapter->if_ops.up_dev(adapter);
@@ -1468,18 +1465,12 @@ mwifiex_reinit_sw(struct mwifiex_adapter *adapter)
 	 * mwifiex_register_dev()
 	 */
 	mwifiex_dbg(adapter, INFO, "%s, mwifiex_init_hw_fw()...\n", __func__);
-	strcpy(fw_name, adapter->fw_name);
-	strcpy(adapter->fw_name, PCIE8997_DEFAULT_WIFIFW_NAME);
 
-	adapter->tx_buf_size = card->pcie.tx_buf_size;
-	adapter->ext_scan = card->pcie.can_ext_scan;
 	if (mwifiex_init_hw_fw(adapter, false)) {
-		strcpy(adapter->fw_name, fw_name);
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: firmware init failed\n", __func__);
 		goto err_init_fw;
 	}
-	strcpy(adapter->fw_name, fw_name);
 	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
 
 	complete_all(adapter->fw_done);

@@ -3082,6 +3082,17 @@ static void mwifiex_pcie_up_dev(struct mwifiex_adapter *adapter)
 	struct pci_dev *pdev = card->dev;
 	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
+	/* Bluetooth is not on pcie interface. Download Wifi only firmware
+	 * during pcie FLR, so that bluetooth part of firmware which is
+	 * already running doesn't get affected.
+	 */
+	strcpy(adapter->fw_name, PCIE8997_DEFAULT_WIFIFW_NAME);
+
+	/* tx_buf_size might be changed to 3584 by firmware during
+	 * data transfer, we should reset it to default size.
+	 */
+	adapter->tx_buf_size = card->pcie.tx_buf_size;
+
 	card->cmdrsp_buf = NULL;
 	ret = mwifiex_pcie_create_txbd_ring(adapter);
 	if (ret) {
@@ -3143,7 +3154,6 @@ static void mwifiex_pcie_down_dev(struct mwifiex_adapter *adapter)
 		mwifiex_dbg(adapter, ERROR, "Failed to write driver not-ready signature\n");
 
 	adapter->seq_num = 0;
-	adapter->tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
 
 	if (reg->sleep_cookie)
 		mwifiex_pcie_delete_sleep_cookie_buf(adapter);
