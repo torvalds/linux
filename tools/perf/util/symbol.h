@@ -351,6 +351,7 @@ int arch__choose_best_symbol(struct symbol *syma, struct symbol *symb);
 struct sdt_note {
 	char *name;			/* name of the note*/
 	char *provider;			/* provider name */
+	char *args;
 	bool bit32;			/* whether the location is 32 bits? */
 	union {				/* location, base and semaphore addrs */
 		Elf64_Addr a64[3];
