@@ -29,6 +29,8 @@ static void *add_entries_fn(void *arg)
 {
 	int pgoff;
 
+	rcu_register_thread();
+
 	while (!test_complete) {
 		for (pgoff = 0; pgoff < 100; pgoff++) {
 			pthread_mutex_lock(&tree_lock);
@@ -37,6 +39,8 @@ static void *add_entries_fn(void *arg)
 			pthread_mutex_unlock(&tree_lock);
 		}
 	}
+
+	rcu_unregister_thread();
 
 	return NULL;
 }
@@ -52,6 +56,8 @@ static void *tagged_iteration_fn(void *arg)
 {
 	struct radix_tree_iter iter;
 	void **slot;
+
+	rcu_register_thread();
 
 	while (!test_complete) {
 		rcu_read_lock();
@@ -72,11 +78,17 @@ static void *tagged_iteration_fn(void *arg)
 				continue;
 			}
 
-			if (rand_r(&seeds[0]) % 50 == 0)
+			if (rand_r(&seeds[0]) % 50 == 0) {
 				slot = radix_tree_iter_next(&iter);
+				rcu_read_unlock();
+				rcu_barrier();
+				rcu_read_lock();
+			}
 		}
 		rcu_read_unlock();
 	}
+
+	rcu_unregister_thread();
 
 	return NULL;
 }
@@ -92,6 +104,8 @@ static void *untagged_iteration_fn(void *arg)
 {
 	struct radix_tree_iter iter;
 	void **slot;
+
+	rcu_register_thread();
 
 	while (!test_complete) {
 		rcu_read_lock();
@@ -112,11 +126,17 @@ static void *untagged_iteration_fn(void *arg)
 				continue;
 			}
 
-			if (rand_r(&seeds[1]) % 50 == 0)
+			if (rand_r(&seeds[1]) % 50 == 0) {
 				slot = radix_tree_iter_next(&iter);
+				rcu_read_unlock();
+				rcu_barrier();
+				rcu_read_lock();
+			}
 		}
 		rcu_read_unlock();
 	}
+
+	rcu_unregister_thread();
 
 	return NULL;
 }
@@ -127,6 +147,8 @@ static void *untagged_iteration_fn(void *arg)
  */
 static void *remove_entries_fn(void *arg)
 {
+	rcu_register_thread();
+
 	while (!test_complete) {
 		int pgoff;
 
@@ -136,6 +158,8 @@ static void *remove_entries_fn(void *arg)
 		item_delete(&tree, pgoff);
 		pthread_mutex_unlock(&tree_lock);
 	}
+
+	rcu_unregister_thread();
 
 	return NULL;
 }
