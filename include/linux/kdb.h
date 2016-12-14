@@ -161,6 +161,7 @@ enum kdb_msgsrc {
 };
 
 extern int kdb_trap_printk;
+extern int kdb_printf_cpu;
 extern __printf(2, 0) int vkdb_printf(enum kdb_msgsrc src, const char *fmt,
 				      va_list args);
 extern __printf(1, 2) int kdb_printf(const char *, ...);

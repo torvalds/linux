@@ -30,6 +30,7 @@
 char kdb_prompt_str[CMD_BUFLEN];
 
 int kdb_trap_printk;
+int kdb_printf_cpu = -1;
 
 static int kgdb_transition_check(char *buffer)
 {
@@ -554,24 +555,19 @@ int vkdb_printf(enum kdb_msgsrc src, const char *fmt, va_list ap)
 	int linecount;
 	int colcount;
 	int logging, saved_loglevel = 0;
-	int saved_trap_printk;
 	int retlen = 0;
 	int fnd, len;
 	int this_cpu, old_cpu;
-	static int kdb_printf_cpu = -1;
 	char *cp, *cp2, *cphold = NULL, replaced_byte = ' ';
 	char *moreprompt = "more> ";
 	struct console *c = console_drivers;
 	unsigned long uninitialized_var(flags);
 
-	local_irq_save(flags);
-	saved_trap_printk = kdb_trap_printk;
-	kdb_trap_printk = 0;
-
 	/* Serialize kdb_printf if multiple cpus try to write at once.
 	 * But if any cpu goes recursive in kdb, just print the output,
 	 * even if it is interleaved with any other text.
 	 */
+	local_irq_save(flags);
 	this_cpu = smp_processor_id();
 	for (;;) {
 		old_cpu = cmpxchg(&kdb_printf_cpu, -1, this_cpu);
@@ -849,7 +845,6 @@ kdb_print_out:
 		console_loglevel = saved_loglevel;
 	/* kdb_printf_cpu locked the code above. */
 	smp_store_release(&kdb_printf_cpu, old_cpu);
-	kdb_trap_printk = saved_trap_printk;
 	local_irq_restore(flags);
 	return retlen;
 }
