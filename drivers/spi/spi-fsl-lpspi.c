@@ -366,7 +366,7 @@ static int fsl_lpspi_transfer_one_msg(struct spi_master *master,
 	struct spi_transfer *xfer;
 	bool is_first_xfer = true;
 	u32 temp;
-	int ret;
+	int ret = 0;
 
 	msg->status = 0;
 	msg->actual_length = 0;
