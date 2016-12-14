@@ -18,7 +18,6 @@
  * This is the main header file to be included in each DLM source file.
  */
 
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/types.h>

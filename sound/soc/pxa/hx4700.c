@@ -27,8 +27,6 @@
 #include <asm/mach-types.h>
 #include "pxa2xx-i2s.h"
 
-#include "../codecs/ak4641.h"
-
 static struct snd_soc_jack hs_jack;
 
 /* Headphones jack detection DAPM pin */

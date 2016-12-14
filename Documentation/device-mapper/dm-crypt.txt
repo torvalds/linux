@@ -21,12 +21,29 @@ Parameters: <cipher> <key> <iv_offset> <device path> \
     /proc/crypto contains supported crypto modes
 
 <key>
-    Key used for encryption. It is encoded as a hexadecimal number.
+    Key used for encryption. It is encoded either as a hexadecimal number
+    or it can be passed as <key_string> prefixed with single colon
+    character (':') for keys residing in kernel keyring service.
     You can only use key sizes that are valid for the selected cipher
     in combination with the selected iv mode.
     Note that for some iv modes the key string can contain additional
     keys (for example IV seed) so the key contains more parts concatenated
     into a single string.
+
+<key_string>
+    The kernel keyring key is identified by string in following format:
+    <key_size>:<key_type>:<key_description>.
+
+<key_size>
+    The encryption key size in bytes. The kernel key payload size must match
+    the value passed in <key_size>.
+
+<key_type>
+    Either 'logon' or 'user' kernel key type.
+
+<key_description>
+    The kernel keyring key description crypt target should look for
+    when loading key of <key_type>.
 
 <keycount>
     Multi-key compatibility mode. You can define <keycount> keys and
@@ -85,7 +102,13 @@ https://gitlab.com/cryptsetup/cryptsetup
 [[
 #!/bin/sh
 # Create a crypt device using dmsetup
-dmsetup create crypt1 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha256 babebabebabebabebabebabebabebabe 0 $1 0"
+dmsetup create crypt1 --table "0 `blockdev --getsz $1` crypt aes-cbc-essiv:sha256 babebabebabebabebabebabebabebabe 0 $1 0"
+]]
+
+[[
+#!/bin/sh
+# Create a crypt device using dmsetup when encryption key is stored in keyring service
+dmsetup create crypt2 --table "0 `blockdev --getsize $1` crypt aes-cbc-essiv:sha256 :32:logon:my_prefix:my_key 0 $1 0"
 ]]
 
 [[

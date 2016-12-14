@@ -1,5 +1,5 @@
 /*
- * linux/drivers/mmc/card/sdio_uart.c - SDIO UART/GPS driver
+ * SDIO UART/GPS driver
  *
  * Based on drivers/serial/8250.c and drivers/serial/serial_core.c
  * by Russell King.

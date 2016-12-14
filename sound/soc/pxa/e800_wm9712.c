@@ -21,7 +21,6 @@
 #include <mach/audio.h>
 #include <mach/eseries-gpio.h>
 
-#include "../codecs/wm9712.h"
 #include "pxa2xx-ac97.h"
 
 static int e800_spk_amp_event(struct snd_soc_dapm_widget *w,

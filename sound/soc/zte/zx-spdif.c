@@ -71,7 +71,7 @@
 #define ZX_VALID_RIGHT_TRACK		(2 << 0)
 #define ZX_VALID_TRACK_MASK		(3 << 0)
 
-#define ZX_SPDIF_CLK_RAT		(4 * 32)
+#define ZX_SPDIF_CLK_RAT		(2 * 32)
 
 struct zx_spdif_info {
 	struct snd_dmaengine_dai_dma_data	dma_data;

@@ -242,6 +242,10 @@ recovery.  Here is a fuller description of the individual fields:
 			in RAID1/10 or wrong parity values found in RAID4/5/6.
 			This value is valid only after a "check" of the array
 			is performed.  A healthy array has a 'mismatch_cnt' of 0.
+	<data_offset>   The current data offset to the start of the user data on
+			each component device of a raid set (see the respective
+			raid parameter to support out-of-place reshaping).
+
 
 Message Interface
 -----------------
