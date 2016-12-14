@@ -318,14 +318,14 @@ __create_page_tables:
 	 * dirty cache lines being evicted.
 	 */
 	mov	x0, x25
-	add	x1, x26, #SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
+	add	x1, x26, #SWAPPER_DIR_SIZE
 	bl	__inval_cache_range
 
 	/*
 	 * Clear the idmap and swapper page tables.
 	 */
 	mov	x0, x25
-	add	x6, x26, #SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
+	add	x6, x26, #SWAPPER_DIR_SIZE
 1:	stp	xzr, xzr, [x0], #16
 	stp	xzr, xzr, [x0], #16
 	stp	xzr, xzr, [x0], #16
@@ -404,7 +404,7 @@ __create_page_tables:
 	 * tables again to remove any speculatively loaded cache lines.
 	 */
 	mov	x0, x25
-	add	x1, x26, #SWAPPER_DIR_SIZE + RESERVED_TTBR0_SIZE
+	add	x1, x26, #SWAPPER_DIR_SIZE
 	dmb	sy
 	bl	__inval_cache_range
 

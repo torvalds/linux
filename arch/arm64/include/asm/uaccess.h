@@ -28,7 +28,6 @@
 
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
-#include <asm/kernel-pgtable.h>
 #include <asm/ptrace.h>
 #include <asm/sysreg.h>
 #include <asm/errno.h>
@@ -129,57 +128,16 @@ static inline void set_fs(mm_segment_t fs)
 /*
  * User access enabling/disabling.
  */
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-static inline void uaccess_ttbr0_disable(void)
-{
-	unsigned long ttbr;
-
-	/* reserved_ttbr0 placed at the end of swapper_pg_dir */
-	ttbr = read_sysreg(ttbr1_el1) + SWAPPER_DIR_SIZE;
-	write_sysreg(ttbr, ttbr0_el1);
-	isb();
-}
-
-static inline void uaccess_ttbr0_enable(void)
-{
-	unsigned long flags;
-
-	/*
-	 * Disable interrupts to avoid preemption between reading the 'ttbr0'
-	 * variable and the MSR. A context switch could trigger an ASID
-	 * roll-over and an update of 'ttbr0'.
-	 */
-	local_irq_save(flags);
-	write_sysreg(current_thread_info()->ttbr0, ttbr0_el1);
-	isb();
-	local_irq_restore(flags);
-}
-#else
-static inline void uaccess_ttbr0_disable(void)
-{
-}
-
-static inline void uaccess_ttbr0_enable(void)
-{
-}
-#endif
-
 #define __uaccess_disable(alt)						\
 do {									\
-	if (system_uses_ttbr0_pan())					\
-		uaccess_ttbr0_disable();				\
-	else								\
-		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), alt,		\
-				CONFIG_ARM64_PAN));			\
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(1), alt,			\
+			CONFIG_ARM64_PAN));				\
 } while (0)
 
 #define __uaccess_enable(alt)						\
 do {									\
-	if (system_uses_ttbr0_pan())					\
-		uaccess_ttbr0_enable();					\
-	else								\
-		asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), alt,		\
-				CONFIG_ARM64_PAN));			\
+	asm(ALTERNATIVE("nop", SET_PSTATE_PAN(0), alt,			\
+			CONFIG_ARM64_PAN));				\
 } while (0)
 
 static inline void uaccess_disable(void)
@@ -409,39 +367,12 @@ extern __must_check long strnlen_user(const char __user *str, long n);
 
 #include <asm/alternative.h>
 #include <asm/assembler.h>
-#include <asm/kernel-pgtable.h>
 
 /*
- * User access enabling/disabling macros.
- */
-	.macro	uaccess_ttbr0_disable, tmp1
-	mrs	\tmp1, ttbr1_el1		// swapper_pg_dir
-	add	\tmp1, \tmp1, #SWAPPER_DIR_SIZE	// reserved_ttbr0 at the end of swapper_pg_dir
-	msr	ttbr0_el1, \tmp1		// set reserved TTBR0_EL1
-	isb
-	.endm
-
-	.macro	uaccess_ttbr0_enable, tmp1
-	get_thread_info \tmp1
-	ldr	\tmp1, [\tmp1, #TI_TTBR0]	// load saved TTBR0_EL1
-	msr	ttbr0_el1, \tmp1		// set the non-PAN TTBR0_EL1
-	isb
-	.endm
-
-/*
- * These macros are no-ops when UAO is present.
+ * User access enabling/disabling macros. These are no-ops when UAO is
+ * present.
  */
 	.macro	uaccess_disable_not_uao, tmp1
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-alternative_if_not ARM64_HAS_PAN
-	uaccess_ttbr0_disable \tmp1
-alternative_else
-	nop
-	nop
-	nop
-	nop
-alternative_endif
-#endif
 alternative_if_not ARM64_ALT_PAN_NOT_UAO
 	nop
 alternative_else
@@ -450,21 +381,6 @@ alternative_endif
 	.endm
 
 	.macro	uaccess_enable_not_uao, tmp1, tmp2
-#ifdef CONFIG_ARM64_SW_TTBR0_PAN
-alternative_if_not ARM64_HAS_PAN
-	save_and_disable_irq \tmp2		// avoid preemption
-	uaccess_ttbr0_enable \tmp1
-	restore_irq \tmp2
-alternative_else
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-alternative_endif
-#endif
 alternative_if_not ARM64_ALT_PAN_NOT_UAO
 	nop
 alternative_else
