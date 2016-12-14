@@ -339,17 +339,14 @@ static void radix_tree_node_rcu_free(struct rcu_head *head)
 {
 	struct radix_tree_node *node =
 			container_of(head, struct radix_tree_node, rcu_head);
-	int i;
 
 	/*
-	 * must only free zeroed nodes into the slab. radix_tree_shrink
-	 * can leave us with a non-NULL entry in the first slot, so clear
-	 * that here to make sure.
+	 * Must only free zeroed nodes into the slab.  We can be left with
+	 * non-NULL entries by radix_tree_free_nodes, so clear the entries
+	 * and tags here.
 	 */
-	for (i = 0; i < RADIX_TREE_MAX_TAGS; i++)
-		tag_clear(node, i, 0);
-
-	node->slots[0] = NULL;
+	memset(node->slots, 0, sizeof(node->slots));
+	memset(node->tags, 0, sizeof(node->tags));
 	INIT_LIST_HEAD(&node->private_list);
 
 	kmem_cache_free(radix_tree_node_cachep, node);
@@ -678,14 +675,14 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 	shift = radix_tree_load_root(root, &child, &maxindex);
 
 	/* Make sure the tree is high enough.  */
+	if (order > 0 && max == ((1UL << order) - 1))
+		max++;
 	if (max > maxindex) {
 		int error = radix_tree_extend(root, max, shift);
 		if (error < 0)
 			return error;
 		shift = error;
 		child = root->rnode;
-		if (order == shift)
-			shift += RADIX_TREE_MAP_SHIFT;
 	}
 
 	while (shift > order) {
@@ -697,6 +694,8 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 				return -ENOMEM;
 			child->shift = shift;
 			child->offset = offset;
+			child->count = 0;
+			child->exceptional = 0;
 			child->parent = node;
 			rcu_assign_pointer(*slot, node_to_entry(child));
 			if (node)
@@ -710,31 +709,121 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
 		slot = &node->slots[offset];
 	}
 
-#ifdef CONFIG_RADIX_TREE_MULTIORDER
-	/* Insert pointers to the canonical entry */
-	if (order > shift) {
-		unsigned i, n = 1 << (order - shift);
-		offset = offset & ~(n - 1);
-		slot = &node->slots[offset];
-		child = node_to_entry(slot);
-		for (i = 0; i < n; i++) {
-			if (slot[i])
-				return -EEXIST;
-		}
-
-		for (i = 1; i < n; i++) {
-			rcu_assign_pointer(slot[i], child);
-			node->count++;
-		}
-	}
-#endif
-
 	if (nodep)
 		*nodep = node;
 	if (slotp)
 		*slotp = slot;
 	return 0;
 }
+
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+/*
+ * Free any nodes below this node.  The tree is presumed to not need
+ * shrinking, and any user data in the tree is presumed to not need a
+ * destructor called on it.  If we need to add a destructor, we can
+ * add that functionality later.  Note that we may not clear tags or
+ * slots from the tree as an RCU walker may still have a pointer into
+ * this subtree.  We could replace the entries with RADIX_TREE_RETRY,
+ * but we'll still have to clear those in rcu_free.
+ */
+static void radix_tree_free_nodes(struct radix_tree_node *node)
+{
+	unsigned offset = 0;
+	struct radix_tree_node *child = entry_to_node(node);
+
+	for (;;) {
+		void *entry = child->slots[offset];
+		if (radix_tree_is_internal_node(entry) &&
+					!is_sibling_entry(child, entry)) {
+			child = entry_to_node(entry);
+			offset = 0;
+			continue;
+		}
+		offset++;
+		while (offset == RADIX_TREE_MAP_SIZE) {
+			struct radix_tree_node *old = child;
+			offset = child->offset + 1;
+			child = child->parent;
+			radix_tree_node_free(old);
+			if (old == entry_to_node(node))
+				return;
+		}
+	}
+}
+
+static inline int insert_entries(struct radix_tree_node *node, void **slot,
+				void *item, unsigned order, bool replace)
+{
+	struct radix_tree_node *child;
+	unsigned i, n, tag, offset, tags = 0;
+
+	if (node) {
+		n = 1 << (order - node->shift);
+		offset = get_slot_offset(node, slot);
+	} else {
+		n = 1;
+		offset = 0;
+	}
+
+	if (n > 1) {
+		offset = offset & ~(n - 1);
+		slot = &node->slots[offset];
+	}
+	child = node_to_entry(slot);
+
+	for (i = 0; i < n; i++) {
+		if (slot[i]) {
+			if (replace) {
+				node->count--;
+				for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+					if (tag_get(node, tag, offset + i))
+						tags |= 1 << tag;
+			} else
+				return -EEXIST;
+		}
+	}
+
+	for (i = 0; i < n; i++) {
+		struct radix_tree_node *old = slot[i];
+		if (i) {
+			rcu_assign_pointer(slot[i], child);
+			for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+				if (tags & (1 << tag))
+					tag_clear(node, tag, offset + i);
+		} else {
+			rcu_assign_pointer(slot[i], item);
+			for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+				if (tags & (1 << tag))
+					tag_set(node, tag, offset);
+		}
+		if (radix_tree_is_internal_node(old) &&
+					!is_sibling_entry(node, old))
+			radix_tree_free_nodes(old);
+		if (radix_tree_exceptional_entry(old))
+			node->exceptional--;
+	}
+	if (node) {
+		node->count += n;
+		if (radix_tree_exceptional_entry(item))
+			node->exceptional += n;
+	}
+	return n;
+}
+#else
+static inline int insert_entries(struct radix_tree_node *node, void **slot,
+				void *item, unsigned order, bool replace)
+{
+	if (*slot)
+		return -EEXIST;
+	rcu_assign_pointer(*slot, item);
+	if (node) {
+		node->count++;
+		if (radix_tree_exceptional_entry(item))
+			node->exceptional++;
+	}
+	return 1;
+}
+#endif
 
 /**
  *	__radix_tree_insert    -    insert into a radix tree
@@ -757,15 +846,13 @@ int __radix_tree_insert(struct radix_tree_root *root, unsigned long index,
 	error = __radix_tree_create(root, index, order, &node, &slot);
 	if (error)
 		return error;
-	if (*slot != NULL)
-		return -EEXIST;
-	rcu_assign_pointer(*slot, item);
+
+	error = insert_entries(node, slot, item, order, false);
+	if (error < 0)
+		return error;
 
 	if (node) {
 		unsigned offset = get_slot_offset(node, slot);
-		node->count++;
-		if (radix_tree_exceptional_entry(item))
-			node->exceptional++;
 		BUG_ON(tag_get(node, 0, offset));
 		BUG_ON(tag_get(node, 1, offset));
 		BUG_ON(tag_get(node, 2, offset));
@@ -941,6 +1028,40 @@ void radix_tree_replace_slot(struct radix_tree_root *root,
 {
 	replace_slot(root, NULL, slot, item, true);
 }
+
+#ifdef CONFIG_RADIX_TREE_MULTIORDER
+/**
+ * radix_tree_join - replace multiple entries with one multiorder entry
+ * @root: radix tree root
+ * @index: an index inside the new entry
+ * @order: order of the new entry
+ * @item: new entry
+ *
+ * Call this function to replace several entries with one larger entry.
+ * The existing entries are presumed to not need freeing as a result of
+ * this call.
+ *
+ * The replacement entry will have all the tags set on it that were set
+ * on any of the entries it is replacing.
+ */
+int radix_tree_join(struct radix_tree_root *root, unsigned long index,
+			unsigned order, void *item)
+{
+	struct radix_tree_node *node;
+	void **slot;
+	int error;
+
+	BUG_ON(radix_tree_is_internal_node(item));
+
+	error = __radix_tree_create(root, index, order, &node, &slot);
+	if (!error)
+		error = insert_entries(node, slot, item, order, true);
+	if (error > 0)
+		error = 0;
+
+	return error;
+}
+#endif
 
 /**
  *	radix_tree_tag_set - set a tag on a radix tree node
