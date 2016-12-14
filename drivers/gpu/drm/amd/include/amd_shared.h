@@ -46,6 +46,7 @@ enum amd_asic_type {
 	CHIP_STONEY,
 	CHIP_POLARIS10,
 	CHIP_POLARIS11,
+	CHIP_POLARIS12,
 	CHIP_LAST,
 };
 
