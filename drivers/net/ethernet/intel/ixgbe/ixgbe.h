@@ -661,6 +661,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_PHY_INTERRUPT		BIT(11)
 #define IXGBE_FLAG2_UDP_TUN_REREG_NEEDED	BIT(12)
 #define IXGBE_FLAG2_VLAN_PROMISC		BIT(13)
+#define IXGBE_FLAG2_EEE_CAPABLE			BIT(14)
+#define IXGBE_FLAG2_EEE_ENABLED			BIT(15)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -862,6 +864,7 @@ enum ixgbe_boards {
 	board_X550,
 	board_X550EM_x,
 	board_x550em_a,
+	board_x550em_a_fw,
 };
 
 extern const struct ixgbe_info ixgbe_82598_info;
@@ -870,6 +873,7 @@ extern const struct ixgbe_info ixgbe_X540_info;
 extern const struct ixgbe_info ixgbe_X550_info;
 extern const struct ixgbe_info ixgbe_X550EM_x_info;
 extern const struct ixgbe_info ixgbe_x550em_a_info;
+extern const struct ixgbe_info ixgbe_x550em_a_fw_info;
 #ifdef CONFIG_IXGBE_DCB
 extern const struct dcbnl_rtnl_ops dcbnl_ops;
 #endif
