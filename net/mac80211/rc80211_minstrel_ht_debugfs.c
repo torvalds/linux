@@ -24,7 +24,7 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 	char gimode = 'L';
 	u32 gflags;
 
-	if (!mi->groups[i].supported)
+	if (!mi->supported[i])
 		return p;
 
 	mg = &minstrel_mcs_groups[i];
@@ -42,7 +42,7 @@ minstrel_ht_stats_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		static const int bitrates[4] = { 10, 20, 55, 110 };
 		int idx = i * MCS_GROUP_RATES + j;
 
-		if (!(mi->groups[i].supported & BIT(j)))
+		if (!(mi->supported[i] & BIT(j)))
 			continue;
 
 		if (gflags & IEEE80211_TX_RC_MCS) {
@@ -170,7 +170,7 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 	char gimode = 'L';
 	u32 gflags;
 
-	if (!mi->groups[i].supported)
+	if (!mi->supported[i])
 		return p;
 
 	mg = &minstrel_mcs_groups[i];
@@ -188,7 +188,7 @@ minstrel_ht_stats_csv_dump(struct minstrel_ht_sta *mi, int i, char *p)
 		static const int bitrates[4] = { 10, 20, 55, 110 };
 		int idx = i * MCS_GROUP_RATES + j;
 
-		if (!(mi->groups[i].supported & BIT(j)))
+		if (!(mi->supported[i] & BIT(j)))
 			continue;
 
 		if (gflags & IEEE80211_TX_RC_MCS) {

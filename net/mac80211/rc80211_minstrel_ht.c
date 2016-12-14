@@ -301,7 +301,7 @@ minstrel_ht_get_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 				break;
 
 		/* short preamble */
-		if (!(mi->groups[group].supported & BIT(idx)))
+		if (!(mi->supported[group] & BIT(idx)))
 			idx += 4;
 	}
 	return &mi->groups[group].rates[idx];
@@ -486,7 +486,7 @@ minstrel_ht_prob_rate_reduce_streams(struct minstrel_ht_sta *mi)
 			  MCS_GROUP_RATES].streams;
 	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
 		mg = &mi->groups[group];
-		if (!mg->supported || group == MINSTREL_CCK_GROUP)
+		if (!mi->supported[group] || group == MINSTREL_CCK_GROUP)
 			continue;
 
 		tmp_idx = mg->max_group_prob_rate % MCS_GROUP_RATES;
@@ -540,7 +540,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	for (group = 0; group < ARRAY_SIZE(minstrel_mcs_groups); group++) {
 
 		mg = &mi->groups[group];
-		if (!mg->supported)
+		if (!mi->supported[group])
 			continue;
 
 		mi->sample_count++;
@@ -550,7 +550,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 			tmp_group_tp_rate[j] = group;
 
 		for (i = 0; i < MCS_GROUP_RATES; i++) {
-			if (!(mg->supported & BIT(i)))
+			if (!(mi->supported[group] & BIT(i)))
 				continue;
 
 			index = MCS_GROUP_RATES * group + i;
@@ -636,7 +636,7 @@ minstrel_set_next_sample_idx(struct minstrel_ht_sta *mi)
 		mi->sample_group %= ARRAY_SIZE(minstrel_mcs_groups);
 		mg = &mi->groups[mi->sample_group];
 
-		if (!mg->supported)
+		if (!mi->supported[mi->sample_group])
 			continue;
 
 		if (++mg->index >= MCS_GROUP_RATES) {
@@ -657,7 +657,7 @@ minstrel_downgrade_rate(struct minstrel_ht_sta *mi, u16 *idx, bool primary)
 	while (group > 0) {
 		group--;
 
-		if (!mi->groups[group].supported)
+		if (!mi->supported[group])
 			continue;
 
 		if (minstrel_mcs_groups[group].streams >
@@ -994,7 +994,7 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	sample_idx = sample_table[mg->column][mg->index];
 	minstrel_set_next_sample_idx(mi);
 
-	if (!(mg->supported & BIT(sample_idx)))
+	if (!(mi->supported[sample_group] & BIT(sample_idx)))
 		return -1;
 
 	mrs = &mg->rates[sample_idx];
@@ -1052,7 +1052,7 @@ static void
 minstrel_ht_check_cck_shortpreamble(struct minstrel_priv *mp,
 				    struct minstrel_ht_sta *mi, bool val)
 {
-	u8 supported = mi->groups[MINSTREL_CCK_GROUP].supported;
+	u8 supported = mi->supported[MINSTREL_CCK_GROUP];
 
 	if (!supported || !mi->cck_supported_short)
 		return;
@@ -1061,7 +1061,7 @@ minstrel_ht_check_cck_shortpreamble(struct minstrel_priv *mp,
 		return;
 
 	supported ^= mi->cck_supported_short | (mi->cck_supported_short << 4);
-	mi->groups[MINSTREL_CCK_GROUP].supported = supported;
+	mi->supported[MINSTREL_CCK_GROUP] = supported;
 }
 
 static void
@@ -1154,7 +1154,7 @@ minstrel_ht_update_cck(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 			mi->cck_supported_short |= BIT(i);
 	}
 
-	mi->groups[MINSTREL_CCK_GROUP].supported = mi->cck_supported;
+	mi->supported[MINSTREL_CCK_GROUP] = mi->cck_supported;
 }
 
 static void
@@ -1224,7 +1224,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		u32 gflags = minstrel_mcs_groups[i].flags;
 		int bw, nss;
 
-		mi->groups[i].supported = 0;
+		mi->supported[i] = 0;
 		if (i == MINSTREL_CCK_GROUP) {
 			minstrel_ht_update_cck(mp, mi, sband, sta);
 			continue;
@@ -1256,8 +1256,8 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 			if (use_vht && minstrel_vht_only)
 				continue;
 #endif
-			mi->groups[i].supported = mcs->rx_mask[nss - 1];
-			if (mi->groups[i].supported)
+			mi->supported[i] = mcs->rx_mask[nss - 1];
+			if (mi->supported[i])
 				n_supported++;
 			continue;
 		}
@@ -1283,10 +1283,10 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 		else
 			bw = BW_20;
 
-		mi->groups[i].supported = minstrel_get_valid_vht_rates(bw, nss,
+		mi->supported[i] = minstrel_get_valid_vht_rates(bw, nss,
 				vht_cap->vht_mcs.tx_mcs_map);
 
-		if (mi->groups[i].supported)
+		if (mi->supported[i])
 			n_supported++;
 	}
 
