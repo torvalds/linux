@@ -1653,7 +1653,7 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 	info->var.height = -1;
 	info->var.width = -1;
 
-	switch (fb->depth) {
+	switch (fb->format->depth) {
 	case 8:
 		info->var.red.offset = 0;
 		info->var.green.offset = 0;

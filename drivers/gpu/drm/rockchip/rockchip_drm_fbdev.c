@@ -94,7 +94,7 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	fbi->fbops = &rockchip_drm_fbdev_ops;
 
 	fb = helper->fb;
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	offset = fbi->var.xoffset * bytes_per_pixel;
@@ -106,7 +106,8 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 	fbi->fix.smem_len = rk_obj->base.size;
 
 	DRM_DEBUG_KMS("FB [%dx%d]-%d kvaddr=%p offset=%ld size=%zu\n",
-		      fb->width, fb->height, fb->depth, rk_obj->kvaddr,
+		      fb->width, fb->height, fb->format->depth,
+		      rk_obj->kvaddr,
 		      offset, size);
 
 	fbi->skip_vt_switch = true;

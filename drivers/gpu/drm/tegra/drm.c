@@ -875,7 +875,8 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 
 	list_for_each_entry(fb, &drm->mode_config.fb_list, head) {
 		seq_printf(s, "%3d: user size: %d x %d, depth %d, %d bpp, refcount %d\n",
-			   fb->base.id, fb->width, fb->height, fb->depth,
+			   fb->base.id, fb->width, fb->height,
+			   fb->format->depth,
 			   fb->bits_per_pixel,
 			   drm_framebuffer_read_refcount(fb));
 	}

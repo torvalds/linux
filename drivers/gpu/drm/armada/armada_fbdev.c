@@ -89,7 +89,8 @@ static int armada_fb_create(struct drm_fb_helper *fbh,
 	info->screen_base = ptr;
 	fbh->fb = &dfb->fb;
 
-	drm_fb_helper_fill_fix(info, dfb->fb.pitches[0], dfb->fb.depth);
+	drm_fb_helper_fill_fix(info, dfb->fb.pitches[0],
+			       dfb->fb.format->depth);
 	drm_fb_helper_fill_var(info, fbh, sizes->fb_width, sizes->fb_height);
 
 	DRM_DEBUG_KMS("allocated %dx%d %dbpp fb: 0x%08llx\n",

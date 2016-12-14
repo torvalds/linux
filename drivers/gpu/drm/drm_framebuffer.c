@@ -432,7 +432,7 @@ int drm_mode_getfb(struct drm_device *dev,
 
 	r->height = fb->height;
 	r->width = fb->width;
-	r->depth = fb->depth;
+	r->depth = fb->format->depth;
 	r->bpp = fb->bits_per_pixel;
 	r->pitch = fb->pitches[0];
 	if (fb->funcs->create_handle) {

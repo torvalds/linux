@@ -39,10 +39,10 @@ static void mga_crtc_load_lut(struct drm_crtc *crtc)
 	WREG8(DAC_INDEX + MGA1064_INDEX, 0);
 
 	if (fb && fb->bits_per_pixel == 16) {
-		int inc = (fb->depth == 15) ? 8 : 4;
+		int inc = (fb->format->depth == 15) ? 8 : 4;
 		u8 r, b;
 		for (i = 0; i < MGAG200_LUT_SIZE; i += inc) {
-			if (fb->depth == 16) {
+			if (fb->format->depth == 16) {
 				if (i > (MGAG200_LUT_SIZE >> 1)) {
 					r = b = 0;
 				} else {
@@ -947,7 +947,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_8bits;
 		break;
 	case 16:
-		if (fb->depth == 15)
+		if (fb->format->depth == 15)
 			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_15bits;
 		else
 			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_16bits;

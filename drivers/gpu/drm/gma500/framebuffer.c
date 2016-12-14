@@ -407,7 +407,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	fbdev->psb_fb_helper.fb = fb;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	strcpy(info->fix.id, "psbdrmfb");
 
 	info->flags = FBINFO_DEFAULT;

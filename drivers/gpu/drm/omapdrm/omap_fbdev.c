@@ -190,7 +190,7 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 
 	strcpy(fbi->fix.id, MODULE_NAME);
 
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	dev->mode_config.fb_base = paddr;

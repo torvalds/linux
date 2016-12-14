@@ -83,10 +83,8 @@ void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
 		              drm_get_format_name(mode_cmd->pixel_format,
 		                                  &format_name));
 
-		fb->depth = 0;
 		fb->bits_per_pixel = 0;
 	} else {
-		fb->depth = info->depth;
 		fb->bits_per_pixel = info->cpp[0] * 8;
 	}
 

@@ -218,7 +218,7 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &cirrusfb_ops;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &gfbdev->helper, sizes->fb_width,
 			       sizes->fb_height);
 
@@ -238,7 +238,7 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	DRM_INFO("fb mappable at 0x%lX\n", info->fix.smem_start);
 	DRM_INFO("vram aper at 0x%lX\n", (unsigned long)info->fix.smem_start);
 	DRM_INFO("size %lu\n", (unsigned long)info->fix.smem_len);
-	DRM_INFO("fb depth is %d\n", fb->depth);
+	DRM_INFO("fb depth is %d\n", fb->format->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
 	return 0;

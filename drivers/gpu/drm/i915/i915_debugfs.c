@@ -1873,7 +1873,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
 			   fbdev_fb->base.width,
 			   fbdev_fb->base.height,
-			   fbdev_fb->base.depth,
+			   fbdev_fb->base.format->depth,
 			   fbdev_fb->base.bits_per_pixel,
 			   fbdev_fb->base.modifier,
 			   drm_framebuffer_read_refcount(&fbdev_fb->base));
@@ -1891,7 +1891,7 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
 			   fb->base.width,
 			   fb->base.height,
-			   fb->base.depth,
+			   fb->base.format->depth,
 			   fb->base.bits_per_pixel,
 			   fb->base.modifier,
 			   drm_framebuffer_read_refcount(&fb->base));

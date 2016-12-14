@@ -208,7 +208,7 @@ static int mdfld__intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		dspcntr |= DISPPLANE_8BPP;
 		break;
 	case 16:
-		if (fb->depth == 15)
+		if (fb->format->depth == 15)
 			dspcntr |= DISPPLANE_15_16BPP;
 		else
 			dspcntr |= DISPPLANE_16BPP;
