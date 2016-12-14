@@ -238,7 +238,6 @@ enum {
 #define AXP288_PMIC_ADC_H               0x56
 #define AXP288_PMIC_ADC_L               0x57
 #define AXP288_ADC_TS_PIN_CTRL          0x84
-#define AXP288_PMIC_ADC_EN              0x84
 
 /* Fuel Gauge */
 #define AXP288_FG_RDC1_REG          0xba
