@@ -116,6 +116,8 @@ u8 ixgbe_calculate_checksum(u8 *buffer, u32 length);
 s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *, u32 length,
 				 u32 timeout, bool return_data);
 s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 len, u32 timeout);
+s32 ixgbe_fw_phy_activity(struct ixgbe_hw *hw, u16 activity,
+			  u32 (*data)[FW_PHY_ACT_DATA_COUNT]);
 void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);
 bool ixgbe_mng_present(struct ixgbe_hw *hw);
 bool ixgbe_mng_enabled(struct ixgbe_hw *hw);

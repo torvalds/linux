@@ -402,6 +402,51 @@ ixgbe_write_i2c_combined_generic_unlocked(struct ixgbe_hw *hw,
 	return ixgbe_write_i2c_combined_generic_int(hw, addr, reg, val, false);
 }
 
+/**
+ * ixgbe_fw_phy_activity - Perform an activity on a PHY
+ * @hw: pointer to hardware structure
+ * @activity: activity to perform
+ * @data: Pointer to 4 32-bit words of data
+ */
+s32 ixgbe_fw_phy_activity(struct ixgbe_hw *hw, u16 activity,
+			  u32 (*data)[FW_PHY_ACT_DATA_COUNT])
+{
+	union {
+		struct ixgbe_hic_phy_activity_req cmd;
+		struct ixgbe_hic_phy_activity_resp rsp;
+	} hic;
+	u16 retries = FW_PHY_ACT_RETRIES;
+	s32 rc;
+	u32 i;
+
+	do {
+		memset(&hic, 0, sizeof(hic));
+		hic.cmd.hdr.cmd = FW_PHY_ACT_REQ_CMD;
+		hic.cmd.hdr.buf_len = FW_PHY_ACT_REQ_LEN;
+		hic.cmd.hdr.checksum = FW_DEFAULT_CHECKSUM;
+		hic.cmd.port_number = hw->bus.lan_id;
+		hic.cmd.activity_id = cpu_to_le16(activity);
+		for (i = 0; i < ARRAY_SIZE(hic.cmd.data); ++i)
+			hic.cmd.data[i] = cpu_to_be32((*data)[i]);
+
+		rc = ixgbe_host_interface_command(hw, &hic.cmd, sizeof(hic.cmd),
+						  IXGBE_HI_COMMAND_TIMEOUT,
+						  true);
+		if (rc)
+			return rc;
+		if (hic.rsp.hdr.cmd_or_resp.ret_status ==
+		    FW_CEM_RESP_STATUS_SUCCESS) {
+			for (i = 0; i < FW_PHY_ACT_DATA_COUNT; ++i)
+				(*data)[i] = be32_to_cpu(hic.rsp.data[i]);
+			return 0;
+		}
+		usleep_range(20, 30);
+		--retries;
+	} while (retries > 0);
+
+	return IXGBE_ERR_HOST_INTERFACE_COMMAND;
+}
+
 /** ixgbe_init_eeprom_params_X550 - Initialize EEPROM params
  *  @hw: pointer to hardware structure
  *
