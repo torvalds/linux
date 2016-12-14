@@ -105,7 +105,6 @@ acr_r352_generate_flcn_bl_desc(const struct nvkm_acr *acr,
 	addr_code = (base + pdesc->app_resident_code_offset) >> 8;
 	addr_data = (base + pdesc->app_resident_data_offset) >> 8;
 
-	memset(desc, 0, sizeof(*desc));
 	desc->ctx_dma = FALCON_DMAIDX_UCODE;
 	desc->code_dma_base = lower_32_bits(addr_code);
 	desc->non_sec_code_off = pdesc->app_resident_code_offset;
@@ -354,6 +353,7 @@ acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 				     &img->lsb_header, sizeof(img->lsb_header));
 
 		/* Generate and write BL descriptor */
+		memset(gdesc, 0, ls_func->bl_desc_size);
 		ls_func->generate_bl_desc(&acr->base, _img, wpr_addr, gdesc);
 
 		nvkm_gpuobj_memcpy_to(wpr_blob, img->lsb_header.bl_data_off,
@@ -515,7 +515,6 @@ acr_r352_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 	struct acr_r352_flcn_bl_desc *bl_desc = _bl_desc;
 	u64 addr_code, addr_data;
 
-	memset(bl_desc, 0, sizeof(*bl_desc));
 	addr_code = offset >> 8;
 	addr_data = (offset + hdr->data_dma_base) >> 8;
 
@@ -713,6 +712,7 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
 			      code_size, hsbl_desc->start_tag, 0, false);
 
 	/* Generate the BL header */
+	memset(bl_desc, 0, bl_desc_size);
 	acr->func->generate_hs_bl_desc(load_hdr, bl_desc, offset);
 
 	/*

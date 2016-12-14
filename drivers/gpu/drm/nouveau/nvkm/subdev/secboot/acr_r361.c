@@ -75,7 +75,6 @@ acr_r361_generate_flcn_bl_desc(const struct nvkm_acr *acr,
 	addr_code = base + pdesc->app_resident_code_offset;
 	addr_data = base + pdesc->app_resident_data_offset;
 
-	memset(desc, 0, sizeof(*desc));
 	desc->ctx_dma = FALCON_DMAIDX_UCODE;
 	desc->code_dma_base = u64_to_flcn64(addr_code);
 	desc->non_sec_code_off = pdesc->app_resident_code_offset;
@@ -91,7 +90,6 @@ acr_r361_generate_hs_bl_desc(const struct hsf_load_header *hdr, void *_bl_desc,
 {
 	struct acr_r361_flcn_bl_desc *bl_desc = _bl_desc;
 
-	memset(bl_desc, 0, sizeof(*bl_desc));
 	bl_desc->ctx_dma = FALCON_DMAIDX_VIRT;
 	bl_desc->code_dma_base = u64_to_flcn64(offset);
 	bl_desc->non_sec_code_off = hdr->non_sec_code_off;
