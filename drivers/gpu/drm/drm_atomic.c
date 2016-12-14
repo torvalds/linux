@@ -960,7 +960,7 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	drm_printf(p, "\tfb=%u\n", state->fb ? state->fb->base.id : 0);
 	if (state->fb) {
 		struct drm_framebuffer *fb = state->fb;
-		int i, n = drm_format_num_planes(fb->pixel_format);
+		int i, n = fb->format->num_planes;
 		struct drm_format_name_buf format_name;
 
 		drm_printf(p, "\t\tformat=%s\n",

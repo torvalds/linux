@@ -2497,7 +2497,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 	u32 gtt_offset_rotated = 0;
 	unsigned int max_size = 0;
 	uint32_t format = fb->pixel_format;
-	int i, num_planes = drm_format_num_planes(format);
+	int i, num_planes = fb->format->num_planes;
 	unsigned int tile_size = intel_tile_size(dev_priv);
 
 	for (i = 0; i < num_planes; i++) {

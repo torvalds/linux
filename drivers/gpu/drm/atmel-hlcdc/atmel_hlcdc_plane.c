@@ -621,7 +621,7 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 	state->src_w >>= 16;
 	state->src_h >>= 16;
 
-	state->nplanes = drm_format_num_planes(fb->pixel_format);
+	state->nplanes = fb->format->num_planes;
 	if (state->nplanes > ATMEL_HLCDC_MAX_PLANES)
 		return -EINVAL;
 

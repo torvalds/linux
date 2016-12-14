@@ -107,7 +107,7 @@ static int omap_framebuffer_create_handle(struct drm_framebuffer *fb,
 static void omap_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	int i, n = drm_format_num_planes(fb->pixel_format);
+	int i, n = fb->format->num_planes;
 
 	DBG("destroy: FB ID: %d (%p)", fb->base.id, fb);
 
@@ -252,7 +252,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb,
 int omap_framebuffer_pin(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	int ret, i, n = drm_format_num_planes(fb->pixel_format);
+	int ret, i, n = fb->format->num_planes;
 
 	mutex_lock(&omap_fb->lock);
 
@@ -292,7 +292,7 @@ fail:
 void omap_framebuffer_unpin(struct drm_framebuffer *fb)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	int i, n = drm_format_num_planes(fb->pixel_format);
+	int i, n = fb->format->num_planes;
 
 	mutex_lock(&omap_fb->lock);
 
@@ -343,7 +343,7 @@ struct drm_connector *omap_framebuffer_get_next_connector(
 void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	struct omap_framebuffer *omap_fb = to_omap_framebuffer(fb);
-	int i, n = drm_format_num_planes(fb->pixel_format);
+	int i, n = fb->format->num_planes;
 
 	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
 			(char *)&fb->pixel_format);

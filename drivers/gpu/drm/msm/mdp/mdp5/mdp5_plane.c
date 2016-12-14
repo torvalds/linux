@@ -699,7 +699,7 @@ static int mdp5_plane_mode_set(struct drm_plane *plane,
 	unsigned long flags;
 	int ret;
 
-	nplanes = drm_format_num_planes(fb->pixel_format);
+	nplanes = fb->format->num_planes;
 
 	/* bad formats should already be rejected: */
 	if (WARN_ON(nplanes > pipe2nclients(pipe)))

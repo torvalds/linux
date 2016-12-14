@@ -116,7 +116,7 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	if (ms->format == MALIDP_INVALID_FORMAT_ID)
 		return -EINVAL;
 
-	ms->n_planes = drm_format_num_planes(fb->pixel_format);
+	ms->n_planes = fb->format->num_planes;
 	for (i = 0; i < ms->n_planes; i++) {
 		if (!malidp_hw_pitch_valid(mp->hwdev, fb->pitches[i])) {
 			DRM_DEBUG_KMS("Invalid pitch %u for plane %d\n",

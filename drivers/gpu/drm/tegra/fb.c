@@ -32,7 +32,7 @@ struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 {
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 
-	if (index >= drm_format_num_planes(framebuffer->pixel_format))
+	if (index >= framebuffer->format->num_planes)
 		return NULL;
 
 	return fb->planes[index];
