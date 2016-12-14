@@ -1488,7 +1488,7 @@ static const struct v4l2_subdev_pad_ops s3c_camif_subdev_pad_ops = {
 	.set_fmt = s3c_camif_subdev_set_fmt,
 };
 
-static struct v4l2_subdev_ops s3c_camif_subdev_ops = {
+static const struct v4l2_subdev_ops s3c_camif_subdev_ops = {
 	.pad = &s3c_camif_subdev_pad_ops,
 };
 
