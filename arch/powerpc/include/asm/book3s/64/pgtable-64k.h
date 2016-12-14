@@ -35,10 +35,6 @@ static inline int pgd_huge(pgd_t pgd)
 }
 #define pgd_huge pgd_huge
 
-#ifdef CONFIG_DEBUG_VM
-extern int hugepd_ok(hugepd_t hpd);
-#define is_hugepd(hpd)               (hugepd_ok(hpd))
-#else
 /*
  * With 64k page size, we have hugepage ptes in the pgd and pmd entries. We don't
  * need to setup hugepage directory for them. Our pte and page directory format
@@ -49,7 +45,6 @@ static inline int hugepd_ok(hugepd_t hpd)
 	return 0;
 }
 #define is_hugepd(pdep)			0
-#endif /* CONFIG_DEBUG_VM */
 
 #endif /* CONFIG_HUGETLB_PAGE */
 
