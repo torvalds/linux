@@ -582,12 +582,10 @@ int amdgpu_modeset_create_props(struct amdgpu_device *adev)
 {
 	int sz;
 
-	if (adev->is_atom_bios) {
-		adev->mode_info.coherent_mode_property =
-			drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
-		if (!adev->mode_info.coherent_mode_property)
-			return -ENOMEM;
-	}
+	adev->mode_info.coherent_mode_property =
+		drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
+	if (!adev->mode_info.coherent_mode_property)
+		return -ENOMEM;
 
 	adev->mode_info.load_detect_property =
 		drm_property_create_range(adev->ddev, 0, "load detection", 0, 1);

@@ -394,15 +394,15 @@ bool amdgpu_get_bios(struct amdgpu_device *adev)
 	if (!bios_header_start) {
 		goto free_bios;
 	}
+
+	/* Must be an ATOMBIOS */
 	tmp = bios_header_start + 4;
-	if (!memcmp(adev->bios + tmp, "ATOM", 4) ||
-	    !memcmp(adev->bios + tmp, "MOTA", 4)) {
-		adev->is_atom_bios = true;
-	} else {
-		adev->is_atom_bios = false;
+	if (memcmp(adev->bios + tmp, "ATOM", 4) &&
+	    memcmp(adev->bios + tmp, "MOTA", 4)) {
+		goto free_bios;
 	}
 
-	DRM_DEBUG("%sBIOS detected\n", adev->is_atom_bios ? "ATOM" : "COM");
+	DRM_DEBUG("ATOMBIOS detected\n");
 	return true;
 free_bios:
 	kfree(adev->bios);

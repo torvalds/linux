@@ -1605,7 +1605,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->pdev = pdev;
 	adev->flags = flags;
 	adev->asic_type = flags & AMD_ASIC_MASK;
-	adev->is_atom_bios = false;
 	adev->usec_timeout = AMDGPU_MAX_USEC_TIMEOUT;
 	adev->mc.gtt_size = 512 * 1024 * 1024;
 	adev->accel_working = false;
@@ -1720,12 +1719,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		r = -EINVAL;
 		goto failed;
 	}
-	/* Must be an ATOMBIOS */
-	if (!adev->is_atom_bios) {
-		dev_err(adev->dev, "Expecting atombios for GPU\n");
-		r = -EINVAL;
-		goto failed;
-	}
+
 	r = amdgpu_atombios_init(adev);
 	if (r) {
 		dev_err(adev->dev, "amdgpu_atombios_init failed\n");
