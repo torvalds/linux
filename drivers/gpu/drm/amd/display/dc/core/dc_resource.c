@@ -60,7 +60,8 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			break;
 		}
 		if (ASIC_REV_IS_POLARIS10_P(asic_id.hw_internal_rev) ||
-				ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev)) {
+				ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev) ||
+				ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev)) {
 			dc_version = DCE_VERSION_11_2;
 		}
 		break;

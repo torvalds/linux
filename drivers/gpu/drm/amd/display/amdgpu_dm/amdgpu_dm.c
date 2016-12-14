@@ -1235,6 +1235,7 @@ int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_STONEY:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
+	case CHIP_POLARIS12:
 		if (dce110_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			return -1;
@@ -1472,6 +1473,7 @@ static int dm_early_init(void *handle)
 		adev->mode_info.num_dig = 9;
 		break;
 	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
 		adev->mode_info.num_crtc = 5;
 		adev->mode_info.num_hpd = 5;
 		adev->mode_info.num_dig = 5;

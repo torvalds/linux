@@ -85,6 +85,7 @@
 /* DCE112 */
 #define VI_POLARIS10_P_A0 80
 #define VI_POLARIS11_M_A0 90
+#define VI_POLARIS12_V_A0 100
 
 #define VI_UNKNOWN 0xFF
 
@@ -95,7 +96,9 @@
 
 #define ASIC_REV_IS_POLARIS10_P(eChipRev) ((eChipRev >= VI_POLARIS10_P_A0) && \
 		(eChipRev < VI_POLARIS11_M_A0))
-#define ASIC_REV_IS_POLARIS11_M(eChipRev) (eChipRev >= VI_POLARIS11_M_A0)
+#define ASIC_REV_IS_POLARIS11_M(eChipRev) ((eChipRev >= VI_POLARIS11_M_A0) &&  \
+		(eChipRev < VI_POLARIS12_V_A0))
+#define ASIC_REV_IS_POLARIS12_V(eChipRev) (eChipRev >= VI_POLARIS12_V_A0)
 
 /* DCE11 */
 #define CZ_CARRIZO_A0 0x01
