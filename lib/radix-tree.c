@@ -22,6 +22,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -758,7 +759,10 @@ static inline int insert_entries(struct radix_tree_node *node, void **slot,
 	unsigned i, n, tag, offset, tags = 0;
 
 	if (node) {
-		n = 1 << (order - node->shift);
+		if (order > node->shift)
+			n = 1 << (order - node->shift);
+		else
+			n = 1;
 		offset = get_slot_offset(node, slot);
 	} else {
 		n = 1;
@@ -797,7 +801,8 @@ static inline int insert_entries(struct radix_tree_node *node, void **slot,
 					tag_set(node, tag, offset);
 		}
 		if (radix_tree_is_internal_node(old) &&
-					!is_sibling_entry(node, old))
+					!is_sibling_entry(node, old) &&
+					(old != RADIX_TREE_RETRY))
 			radix_tree_free_nodes(old);
 		if (radix_tree_exceptional_entry(old))
 			node->exceptional--;
@@ -1021,12 +1026,28 @@ void __radix_tree_replace(struct radix_tree_root *root,
  * NOTE: This cannot be used to switch between non-entries (empty slots),
  * regular entries, and exceptional entries, as that requires accounting
  * inside the radix tree node. When switching from one type of entry or
- * deleting, use __radix_tree_lookup() and __radix_tree_replace().
+ * deleting, use __radix_tree_lookup() and __radix_tree_replace() or
+ * radix_tree_iter_replace().
  */
 void radix_tree_replace_slot(struct radix_tree_root *root,
 			     void **slot, void *item)
 {
 	replace_slot(root, NULL, slot, item, true);
+}
+
+/**
+ * radix_tree_iter_replace - replace item in a slot
+ * @root:	radix tree root
+ * @slot:	pointer to slot
+ * @item:	new item to store in the slot.
+ *
+ * For use with radix_tree_split() and radix_tree_for_each_slot().
+ * Caller must hold tree write locked across split and replacement.
+ */
+void radix_tree_iter_replace(struct radix_tree_root *root,
+		const struct radix_tree_iter *iter, void **slot, void *item)
+{
+	__radix_tree_replace(root, iter->node, slot, item, NULL, NULL);
 }
 
 #ifdef CONFIG_RADIX_TREE_MULTIORDER
@@ -1060,6 +1081,117 @@ int radix_tree_join(struct radix_tree_root *root, unsigned long index,
 		error = 0;
 
 	return error;
+}
+
+/**
+ * radix_tree_split - Split an entry into smaller entries
+ * @root: radix tree root
+ * @index: An index within the large entry
+ * @order: Order of new entries
+ *
+ * Call this function as the first step in replacing a multiorder entry
+ * with several entries of lower order.  After this function returns,
+ * loop over the relevant portion of the tree using radix_tree_for_each_slot()
+ * and call radix_tree_iter_replace() to set up each new entry.
+ *
+ * The tags from this entry are replicated to all the new entries.
+ *
+ * The radix tree should be locked against modification during the entire
+ * replacement operation.  Lock-free lookups will see RADIX_TREE_RETRY which
+ * should prompt RCU walkers to restart the lookup from the root.
+ */
+int radix_tree_split(struct radix_tree_root *root, unsigned long index,
+				unsigned order)
+{
+	struct radix_tree_node *parent, *node, *child;
+	void **slot;
+	unsigned int offset, end;
+	unsigned n, tag, tags = 0;
+
+	if (!__radix_tree_lookup(root, index, &parent, &slot))
+		return -ENOENT;
+	if (!parent)
+		return -ENOENT;
+
+	offset = get_slot_offset(parent, slot);
+
+	for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+		if (tag_get(parent, tag, offset))
+			tags |= 1 << tag;
+
+	for (end = offset + 1; end < RADIX_TREE_MAP_SIZE; end++) {
+		if (!is_sibling_entry(parent, parent->slots[end]))
+			break;
+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+			if (tags & (1 << tag))
+				tag_set(parent, tag, end);
+		/* rcu_assign_pointer ensures tags are set before RETRY */
+		rcu_assign_pointer(parent->slots[end], RADIX_TREE_RETRY);
+	}
+	rcu_assign_pointer(parent->slots[offset], RADIX_TREE_RETRY);
+	parent->exceptional -= (end - offset);
+
+	if (order == parent->shift)
+		return 0;
+	if (order > parent->shift) {
+		while (offset < end)
+			offset += insert_entries(parent, &parent->slots[offset],
+					RADIX_TREE_RETRY, order, true);
+		return 0;
+	}
+
+	node = parent;
+
+	for (;;) {
+		if (node->shift > order) {
+			child = radix_tree_node_alloc(root);
+			if (!child)
+				goto nomem;
+			child->shift = node->shift - RADIX_TREE_MAP_SHIFT;
+			child->offset = offset;
+			child->count = 0;
+			child->parent = node;
+			if (node != parent) {
+				node->count++;
+				node->slots[offset] = node_to_entry(child);
+				for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+					if (tags & (1 << tag))
+						tag_set(node, tag, offset);
+			}
+
+			node = child;
+			offset = 0;
+			continue;
+		}
+
+		n = insert_entries(node, &node->slots[offset],
+					RADIX_TREE_RETRY, order, false);
+		BUG_ON(n > RADIX_TREE_MAP_SIZE);
+
+		for (tag = 0; tag < RADIX_TREE_MAX_TAGS; tag++)
+			if (tags & (1 << tag))
+				tag_set(node, tag, offset);
+		offset += n;
+
+		while (offset == RADIX_TREE_MAP_SIZE) {
+			if (node == parent)
+				break;
+			offset = node->offset;
+			child = node;
+			node = node->parent;
+			rcu_assign_pointer(node->slots[offset],
+						node_to_entry(child));
+			offset++;
+		}
+		if ((node == parent) && (offset == end))
+			return 0;
+	}
+
+ nomem:
+	/* Shouldn't happen; did user forget to preload? */
+	/* TODO: free all the allocated nodes */
+	WARN_ON(1);
+	return -ENOMEM;
 }
 #endif
 
@@ -1441,8 +1573,10 @@ void **radix_tree_next_chunk(struct radix_tree_root *root,
 			child = rcu_dereference_raw(node->slots[offset]);
 		}
 
-		if ((child == NULL) || (child == RADIX_TREE_RETRY))
+		if (!child)
 			goto restart;
+		if (child == RADIX_TREE_RETRY)
+			break;
 	} while (radix_tree_is_internal_node(child));
 
 	/* Update the iterator state */

@@ -80,6 +80,14 @@ static inline bool radix_tree_is_internal_node(void *ptr)
 #define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
 					  RADIX_TREE_MAP_SHIFT))
 
+/*
+ * @count is the count of every non-NULL element in the ->slots array
+ * whether that is an exceptional entry, a retry entry, a user pointer,
+ * a sibling entry or a pointer to the next level of the tree.
+ * @exceptional is the count of every element in ->slots which is
+ * either radix_tree_exceptional_entry() or is a sibling entry for an
+ * exceptional entry.
+ */
 struct radix_tree_node {
 	unsigned char	shift;		/* Bits remaining in each slot */
 	unsigned char	offset;		/* Slot offset in parent */
@@ -293,6 +301,8 @@ void __radix_tree_replace(struct radix_tree_root *root,
 			  struct radix_tree_node *node,
 			  void **slot, void *item,
 			  radix_tree_update_node_t update_node, void *private);
+void radix_tree_iter_replace(struct radix_tree_root *,
+		const struct radix_tree_iter *, void **slot, void *item);
 void radix_tree_replace_slot(struct radix_tree_root *root,
 			     void **slot, void *item);
 void __radix_tree_delete_node(struct radix_tree_root *root,
@@ -335,6 +345,8 @@ static inline void radix_tree_preload_end(void)
 	preempt_enable();
 }
 
+int radix_tree_split(struct radix_tree_root *, unsigned long index,
+			unsigned new_order);
 int radix_tree_join(struct radix_tree_root *, unsigned long index,
 			unsigned new_order, void *);
 
