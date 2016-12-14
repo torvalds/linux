@@ -228,8 +228,6 @@ create_roce_custom_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	flow = usnic_fwd_alloc_flow(qp_grp->ufdev, &filter, &uaction);
 	if (IS_ERR_OR_NULL(flow)) {
-		usnic_err("Unable to alloc flow failed with err %ld\n",
-				PTR_ERR(flow));
 		err = flow ? PTR_ERR(flow) : -EFAULT;
 		goto out_unreserve_port;
 	}
@@ -303,8 +301,6 @@ create_udp_flow(struct usnic_ib_qp_grp *qp_grp,
 
 	flow = usnic_fwd_alloc_flow(qp_grp->ufdev, &filter, &uaction);
 	if (IS_ERR_OR_NULL(flow)) {
-		usnic_err("Unable to alloc flow failed with err %ld\n",
-				PTR_ERR(flow));
 		err = flow ? PTR_ERR(flow) : -EFAULT;
 		goto out_put_sock;
 	}
@@ -694,18 +690,14 @@ usnic_ib_qp_grp_create(struct usnic_fwd_dev *ufdev, struct usnic_ib_vf *vf,
 	}
 
 	qp_grp = kzalloc(sizeof(*qp_grp), GFP_ATOMIC);
-	if (!qp_grp) {
-		usnic_err("Unable to alloc qp_grp - Out of memory\n");
+	if (!qp_grp)
 		return NULL;
-	}
 
 	qp_grp->res_chunk_list = alloc_res_chunk_list(vf->vnic, res_spec,
 							qp_grp);
 	if (IS_ERR_OR_NULL(qp_grp->res_chunk_list)) {
 		err = qp_grp->res_chunk_list ?
 				PTR_ERR(qp_grp->res_chunk_list) : -ENOMEM;
-		usnic_err("Unable to alloc res for %d with err %d\n",
-				qp_grp->grp_id, err);
 		goto out_free_qp_grp;
 	}
 

@@ -1596,10 +1596,9 @@ void ocrdma_alloc_pd_pool(struct ocrdma_dev *dev)
 
 	dev->pd_mgr = kzalloc(sizeof(struct ocrdma_pd_resource_mgr),
 			      GFP_KERNEL);
-	if (!dev->pd_mgr) {
-		pr_err("%s(%d)Memory allocation failure.\n", __func__, dev->id);
+	if (!dev->pd_mgr)
 		return;
-	}
+
 	status = ocrdma_mbx_alloc_pd_range(dev);
 	if (status) {
 		pr_err("%s(%d) Unable to initialize PD pool, using default.\n",
