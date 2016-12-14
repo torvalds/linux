@@ -943,6 +943,12 @@ struct intel_dp {
 	 */
 	enum pipe pps_pipe;
 	/*
+	 * Pipe currently driving the port. Used for preventing
+	 * the use of the PPS for any pipe currentrly driving
+	 * external DP as that will mess things up on VLV.
+	 */
+	enum pipe active_pipe;
+	/*
 	 * Set if the sequencer may be reset due to a power transition,
 	 * requiring a reinitialization. Only relevant on BXT.
 	 */
