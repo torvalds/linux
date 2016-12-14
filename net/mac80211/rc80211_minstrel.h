@@ -59,7 +59,7 @@ struct minstrel_rate_stats {
 	/* statistis of packet delivery probability
 	 *  prob_ewma - exponential weighted moving average of prob
 	 *  prob_ewmsd - exp. weighted moving standard deviation of prob */
-	unsigned int prob_ewma;
+	u16 prob_ewma;
 	u16 prob_ewmv;
 
 	/* maximum retry counts */
