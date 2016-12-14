@@ -174,6 +174,7 @@ struct vop {
 	/* mutex vsync_ work */
 	struct mutex vsync_mutex;
 	bool vsync_work_pending;
+	bool loader_protect;
 	struct completion dsp_hold_completion;
 	struct completion wait_update_complete;
 	struct drm_pending_vblank_event *event;
@@ -1303,7 +1304,27 @@ static void vop_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
 	spin_unlock_irqrestore(&drm->event_lock, flags);
 }
 
+static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
+{
+	struct vop *vop = to_vop(crtc);
+
+	if (on == vop->loader_protect)
+		return 0;
+
+	if (on) {
+		vop_enable(crtc);
+		vop->loader_protect = true;
+	} else {
+		vop_crtc_disable(crtc);
+
+		vop->loader_protect = false;
+	}
+
+	return 0;
+}
+
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
+	.loader_protect = vop_crtc_loader_protect,
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
 	.wait_for_update = vop_crtc_wait_for_update,

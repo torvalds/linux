@@ -471,14 +471,15 @@ static int update_state(struct drm_device *drm_dev,
 
 		crtc_state->active = true;
 	} else {
-		const struct drm_crtc_helper_funcs *funcs;
 		const struct drm_encoder_helper_funcs *encoder_helper_funcs;
 		const struct drm_connector_helper_funcs *connector_helper_funcs;
+		struct rockchip_drm_private *priv = drm_dev->dev_private;
 		struct drm_encoder *encoder;
+		int pipe = drm_crtc_index(crtc);
 
-		funcs = crtc->helper_private;
 		connector_helper_funcs = connector->helper_private;
-		if (!funcs || !funcs->enable ||
+		if (!priv->crtc_funcs[pipe] ||
+		    !priv->crtc_funcs[pipe]->loader_protect ||
 		    !connector_helper_funcs ||
 		    !connector_helper_funcs->best_encoder)
 			return -ENXIO;
@@ -490,7 +491,7 @@ static int update_state(struct drm_device *drm_dev,
 							 conn_state);
 		if (ret)
 			return ret;
-		funcs->enable(crtc);
+		priv->crtc_funcs[pipe]->loader_protect(crtc, true);
 	}
 
 	primary_state = drm_atomic_get_plane_state(state, crtc->primary);
