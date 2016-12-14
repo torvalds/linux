@@ -21,7 +21,6 @@
  */
 
 #include "acr_r352.h"
-#include "ls_ucode.h"
 
 #include <core/gpuobj.h>
 #include <core/firmware.h>
@@ -94,11 +93,12 @@ struct acr_r352_flcn_bl_desc {
  */
 static void
 acr_r352_generate_flcn_bl_desc(const struct nvkm_acr *acr,
-			       const struct ls_ucode_img *img, u64 wpr_addr,
+			       const struct ls_ucode_img *_img, u64 wpr_addr,
 			       void *_desc)
 {
+	struct ls_ucode_img_r352 *img = ls_ucode_img_r352(_img);
 	struct acr_r352_flcn_bl_desc *desc = _desc;
-	const struct ls_ucode_img_desc *pdesc = &img->ucode_desc;
+	const struct ls_ucode_img_desc *pdesc = &_img->ucode_desc;
 	u64 base, addr_code, addr_data;
 
 	base = wpr_addr + img->lsb_header.ucode_off + pdesc->app_start_offset;
@@ -163,29 +163,46 @@ struct hsflcn_acr_desc {
  * Low-secure blob creation
  */
 
-typedef int (*lsf_load_func)(const struct nvkm_subdev *, struct ls_ucode_img *);
-
 /**
  * ls_ucode_img_load() - create a lsf_ucode_img and load it
  */
-static struct ls_ucode_img *
-ls_ucode_img_load(const struct nvkm_subdev *subdev, lsf_load_func load_func)
+struct ls_ucode_img *
+acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
+			   enum nvkm_secboot_falcon falcon_id)
 {
-	struct ls_ucode_img *img;
+	const struct nvkm_subdev *subdev = acr->base.subdev;
+	struct ls_ucode_img_r352 *img;
 	int ret;
 
 	img = kzalloc(sizeof(*img), GFP_KERNEL);
 	if (!img)
 		return ERR_PTR(-ENOMEM);
 
-	ret = load_func(subdev, img);
+	img->base.falcon_id = falcon_id;
+
+	ret = acr->func->ls_func[falcon_id]->load(subdev, &img->base);
 
 	if (ret) {
+		kfree(img->base.ucode_data);
+		kfree(img->base.sig);
 		kfree(img);
 		return ERR_PTR(ret);
 	}
 
-	return img;
+	/* Check that the signature size matches our expectations... */
+	if (img->base.sig_size != sizeof(img->lsb_header.signature)) {
+		nvkm_error(subdev, "invalid signature size for %s falcon!\n",
+			   nvkm_secboot_falcon_name[falcon_id]);
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* Copy signature to the right place */
+	memcpy(&img->lsb_header.signature, img->base.sig, img->base.sig_size);
+
+	/* not needed? the signature should already have the right value */
+	img->lsb_header.signature.falcon_id = falcon_id;
+
+	return &img->base;
 }
 
 #define LSF_LSB_HEADER_ALIGN 256
@@ -195,7 +212,7 @@ ls_ucode_img_load(const struct nvkm_subdev *subdev, lsf_load_func load_func)
 #define LSF_UCODE_DATA_ALIGN 4096
 
 /**
- * ls_ucode_img_fill_headers - fill the WPR and LSB headers of an image
+ * acr_r352_ls_img_fill_headers - fill the WPR and LSB headers of an image
  * @acr:	ACR to use
  * @img:	image to generate for
  * @offset:	offset in the WPR region where this image starts
@@ -206,24 +223,25 @@ ls_ucode_img_load(const struct nvkm_subdev *subdev, lsf_load_func load_func)
  * Return: offset at the end of this image.
  */
 static u32
-ls_ucode_img_fill_headers(struct acr_r352 *acr, struct ls_ucode_img *img,
-			  u32 offset)
+acr_r352_ls_img_fill_headers(struct acr_r352 *acr,
+			     struct ls_ucode_img_r352 *img, u32 offset)
 {
-	struct lsf_wpr_header *whdr = &img->wpr_header;
-	struct lsf_lsb_header *lhdr = &img->lsb_header;
-	struct ls_ucode_img_desc *desc = &img->ucode_desc;
+	struct ls_ucode_img *_img = &img->base;
+	struct acr_r352_lsf_wpr_header *whdr = &img->wpr_header;
+	struct acr_r352_lsf_lsb_header *lhdr = &img->lsb_header;
+	struct ls_ucode_img_desc *desc = &_img->ucode_desc;
 	const struct acr_r352_ls_func *func =
-					    acr->func->ls_func[img->falcon_id];
+					    acr->func->ls_func[_img->falcon_id];
 
 	/* Fill WPR header */
-	whdr->falcon_id = img->falcon_id;
+	whdr->falcon_id = _img->falcon_id;
 	whdr->bootstrap_owner = acr->base.boot_falcon;
 	whdr->status = LSF_IMAGE_STATUS_COPY;
 
 	/* Align, save off, and include an LSB header size */
 	offset = ALIGN(offset, LSF_LSB_HEADER_ALIGN);
 	whdr->lsb_offset = offset;
-	offset += sizeof(struct lsf_lsb_header);
+	offset += sizeof(*lhdr);
 
 	/*
 	 * Align, save off, and include the original (static) ucode
@@ -231,7 +249,7 @@ ls_ucode_img_fill_headers(struct acr_r352 *acr, struct ls_ucode_img *img,
 	 */
 	offset = ALIGN(offset, LSF_UCODE_DATA_ALIGN);
 	lhdr->ucode_off = offset;
-	offset += img->ucode_size;
+	offset += _img->ucode_size;
 
 	/*
 	 * For falcons that use a boot loader (BL), we append a loader
@@ -261,7 +279,7 @@ ls_ucode_img_fill_headers(struct acr_r352 *acr, struct ls_ucode_img *img,
 	lhdr->app_data_size = desc->app_resident_data_size;
 
 	lhdr->flags = func->lhdr_flags;
-	if (img->falcon_id == acr->base.boot_falcon)
+	if (_img->falcon_id == acr->base.boot_falcon)
 		lhdr->flags |= LSF_FLAG_DMACTL_REQ_CTX;
 
 	/* Align and save off BL descriptor size */
@@ -280,10 +298,10 @@ ls_ucode_img_fill_headers(struct acr_r352 *acr, struct ls_ucode_img *img,
 /**
  * acr_r352_ls_fill_headers - fill WPR and LSB headers of all managed images
  */
-static int
+int
 acr_r352_ls_fill_headers(struct acr_r352 *acr, struct list_head *imgs)
 {
-	struct ls_ucode_img *img;
+	struct ls_ucode_img_r352 *img;
 	struct list_head *l;
 	u32 count = 0;
 	u32 offset;
@@ -298,34 +316,35 @@ acr_r352_ls_fill_headers(struct acr_r352 *acr, struct list_head *imgs)
 	 * read of this array and cache it internally so it's ok to pack these.
 	 * Also, we add 1 to the falcon count to indicate the end of the array.
 	 */
-	offset = sizeof(struct lsf_wpr_header) * (count + 1);
+	offset = sizeof(img->wpr_header) * (count + 1);
 
 	/*
 	 * Walk the managed falcons, accounting for the LSB structs
 	 * as well as the ucode images.
 	 */
-	list_for_each_entry(img, imgs, node) {
-		offset = ls_ucode_img_fill_headers(acr, img, offset);
+	list_for_each_entry(img, imgs, base.node) {
+		offset = acr_r352_ls_img_fill_headers(acr, img, offset);
 	}
 
 	return offset;
 }
 
 /**
- * ls_ucode_mgr_write_wpr - write the WPR blob contents
+ * acr_r352_ls_write_wpr - write the WPR blob contents
  */
-static int
-ls_ucode_mgr_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
-		       struct nvkm_gpuobj *wpr_blob, u32 wpr_addr)
+int
+acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
+		      struct nvkm_gpuobj *wpr_blob, u32 wpr_addr)
 {
-	struct ls_ucode_img *img;
+	struct ls_ucode_img *_img;
 	u32 pos = 0;
 
 	nvkm_kmap(wpr_blob);
 
-	list_for_each_entry(img, imgs, node) {
+	list_for_each_entry(_img, imgs, node) {
+		struct ls_ucode_img_r352 *img = ls_ucode_img_r352(_img);
 		const struct acr_r352_ls_func *ls_func =
-					     acr->func->ls_func[img->falcon_id];
+					    acr->func->ls_func[_img->falcon_id];
 		u8 gdesc[ls_func->bl_desc_size];
 
 		nvkm_gpuobj_memcpy_to(wpr_blob, pos, &img->wpr_header,
@@ -335,14 +354,14 @@ ls_ucode_mgr_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 				     &img->lsb_header, sizeof(img->lsb_header));
 
 		/* Generate and write BL descriptor */
-		ls_func->generate_bl_desc(&acr->base, img, wpr_addr, gdesc);
+		ls_func->generate_bl_desc(&acr->base, _img, wpr_addr, gdesc);
 
 		nvkm_gpuobj_memcpy_to(wpr_blob, img->lsb_header.bl_data_off,
 				      gdesc, ls_func->bl_desc_size);
 
 		/* Copy ucode */
 		nvkm_gpuobj_memcpy_to(wpr_blob, img->lsb_header.ucode_off,
-				      img->ucode_data, img->ucode_size);
+				      _img->ucode_data, _img->ucode_size);
 
 		pos += sizeof(img->wpr_header);
 	}
@@ -382,13 +401,12 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 	for_each_set_bit(falcon_id, &managed_falcons, NVKM_SECBOOT_FALCON_END) {
 		struct ls_ucode_img *img;
 
-		img = ls_ucode_img_load(subdev,
-					acr->func->ls_func[falcon_id]->load);
-
+		img = acr->func->ls_ucode_img_load(acr, falcon_id);
 		if (IS_ERR(img)) {
 			ret = PTR_ERR(img);
 			goto cleanup;
 		}
+
 		list_add_tail(&img->node, &imgs);
 		managed_count++;
 	}
@@ -397,7 +415,7 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 	 * Fill the WPR and LSF headers with the right offsets and compute
 	 * required WPR size
 	 */
-	image_wpr_size = acr_r352_ls_fill_headers(acr, &imgs);
+	image_wpr_size = acr->func->ls_fill_headers(acr, &imgs);
 	image_wpr_size = ALIGN(image_wpr_size, WPR_ALIGNMENT);
 
 	/* Allocate GPU object that will contain the WPR region */
@@ -426,13 +444,14 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 	}
 
 	/* Write LS blob */
-	ret = ls_ucode_mgr_write_wpr(acr, &imgs, acr->ls_blob, wpr_addr);
+	ret = acr->func->ls_write_wpr(acr, &imgs, acr->ls_blob, wpr_addr);
 	if (ret)
 		nvkm_gpuobj_del(&acr->ls_blob);
 
 cleanup:
 	list_for_each_entry_safe(img, t, &imgs, node) {
 		kfree(img->ucode_data);
+		kfree(img->sig);
 		kfree(img);
 	}
 
@@ -859,6 +878,9 @@ const struct acr_r352_func
 acr_r352_func = {
 	.generate_hs_bl_desc = acr_r352_generate_hs_bl_desc,
 	.hs_bl_desc_size = sizeof(struct acr_r352_flcn_bl_desc),
+	.ls_ucode_img_load = acr_r352_ls_ucode_img_load,
+	.ls_fill_headers = acr_r352_ls_fill_headers,
+	.ls_write_wpr = acr_r352_ls_write_wpr,
 	.ls_func = {
 		[NVKM_SECBOOT_FALCON_FECS] = &acr_r352_ls_fecs_func,
 		[NVKM_SECBOOT_FALCON_GPCCS] = &acr_r352_ls_gpccs_func,

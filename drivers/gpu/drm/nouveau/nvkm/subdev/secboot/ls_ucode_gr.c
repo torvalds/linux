@@ -91,10 +91,9 @@ ls_ucode_img_build(const struct firmware *bl, const struct firmware *code,
  */
 static int
 ls_ucode_img_load_gr(const struct nvkm_subdev *subdev, struct ls_ucode_img *img,
-		     const char *falcon_name, const u32 falcon_id)
+		     const char *falcon_name)
 {
-	const struct firmware *bl, *code, *data;
-	struct lsf_ucode_desc *lsf_desc;
+	const struct firmware *bl, *code, *data, *sig;
 	char f[64];
 	int ret;
 
@@ -113,6 +112,17 @@ ls_ucode_img_load_gr(const struct nvkm_subdev *subdev, struct ls_ucode_img *img,
 	if (ret)
 		goto free_inst;
 
+	snprintf(f, sizeof(f), "gr/%s_sig", falcon_name);
+	ret = nvkm_firmware_get(subdev->device, f, &sig);
+	if (ret)
+		goto free_data;
+	img->sig = kmemdup(sig->data, sig->size, GFP_KERNEL);
+	if (!img->sig) {
+		ret = -ENOMEM;
+		goto free_sig;
+	}
+	img->sig_size = sig->size;
+
 	img->ucode_data = ls_ucode_img_build(bl, code, data,
 					     &img->ucode_desc);
 	if (IS_ERR(img->ucode_data)) {
@@ -121,23 +131,8 @@ ls_ucode_img_load_gr(const struct nvkm_subdev *subdev, struct ls_ucode_img *img,
 	}
 	img->ucode_size = img->ucode_desc.image_size;
 
-	snprintf(f, sizeof(f), "gr/%s_sig", falcon_name);
-	lsf_desc = nvkm_acr_load_firmware(subdev, f, sizeof(*lsf_desc));
-	if (IS_ERR(lsf_desc)) {
-		ret = PTR_ERR(lsf_desc);
-		goto free_image;
-	}
-	/* not needed? the signature should already have the right value */
-	lsf_desc->falcon_id = falcon_id;
-	memcpy(&img->lsb_header.signature, lsf_desc, sizeof(*lsf_desc));
-	img->falcon_id = lsf_desc->falcon_id;
-	kfree(lsf_desc);
-
-	/* success path - only free requested firmware files */
-	goto free_data;
-
-free_image:
-	kfree(img->ucode_data);
+free_sig:
+	nvkm_firmware_put(sig);
 free_data:
 	nvkm_firmware_put(data);
 free_inst:
@@ -152,14 +147,12 @@ int
 acr_ls_ucode_load_fecs(const struct nvkm_subdev *subdev,
 		       struct ls_ucode_img *img)
 {
-	return ls_ucode_img_load_gr(subdev, img, "fecs",
-				    NVKM_SECBOOT_FALCON_FECS);
+	return ls_ucode_img_load_gr(subdev, img, "fecs");
 }
 
 int
 acr_ls_ucode_load_gpccs(const struct nvkm_subdev *subdev,
 			struct ls_ucode_img *img)
 {
-	return ls_ucode_img_load_gr(subdev, img, "gpccs",
-				    NVKM_SECBOOT_FALCON_GPCCS);
+	return ls_ucode_img_load_gr(subdev, img, "gpccs");
 }

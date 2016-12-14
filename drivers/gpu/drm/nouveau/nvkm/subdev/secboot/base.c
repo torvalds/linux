@@ -88,8 +88,8 @@
 #include <subdev/timer.h>
 #include <subdev/pmu.h>
 
-static const char *
-managed_falcons_names[] = {
+const char *
+nvkm_secboot_falcon_name[] = {
 	[NVKM_SECBOOT_FALCON_PMU] = "PMU",
 	[NVKM_SECBOOT_FALCON_RESERVED] = "<reserved>",
 	[NVKM_SECBOOT_FALCON_FECS] = "FECS",
@@ -135,7 +135,7 @@ nvkm_secboot_oneinit(struct nvkm_subdev *subdev)
 		break;
 	default:
 		nvkm_error(subdev, "Unmanaged boot falcon %s!\n",
-			   managed_falcons_names[sb->acr->boot_falcon]);
+			                nvkm_secboot_falcon_name[sb->acr->boot_falcon]);
 		return -EINVAL;
 	}
 
@@ -197,7 +197,8 @@ nvkm_secboot_ctor(const struct nvkm_secboot_func *func, struct nvkm_acr *acr,
 	nvkm_debug(&sb->subdev, "securely managed falcons:\n");
 	for_each_set_bit(fid, &sb->acr->managed_falcons,
 			 NVKM_SECBOOT_FALCON_END)
-		nvkm_debug(&sb->subdev, "- %s\n", managed_falcons_names[fid]);
+		nvkm_debug(&sb->subdev, "- %s\n",
+			   nvkm_secboot_falcon_name[fid]);
 
 	return 0;
 }

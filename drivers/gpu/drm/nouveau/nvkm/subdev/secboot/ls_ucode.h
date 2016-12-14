@@ -27,98 +27,6 @@
 #include <core/subdev.h>
 #include <subdev/secboot.h>
 
-/*
- *
- * LS blob structures
- *
- */
-
-/**
- * struct lsf_ucode_desc - LS falcon signatures
- * @prd_keys:		signature to use when the GPU is in production mode
- * @dgb_keys:		signature to use when the GPU is in debug mode
- * @b_prd_present:	whether the production key is present
- * @b_dgb_present:	whether the debug key is present
- * @falcon_id:		ID of the falcon the ucode applies to
- *
- * Directly loaded from a signature file.
- */
-struct lsf_ucode_desc {
-	u8 prd_keys[2][16];
-	u8 dbg_keys[2][16];
-	u32 b_prd_present;
-	u32 b_dbg_present;
-	u32 falcon_id;
-};
-
-/**
- * struct lsf_lsb_header - LS firmware header
- * @signature:		signature to verify the firmware against
- * @ucode_off:		offset of the ucode blob in the WPR region. The ucode
- *                      blob contains the bootloader, code and data of the
- *                      LS falcon
- * @ucode_size:		size of the ucode blob, including bootloader
- * @data_size:		size of the ucode blob data
- * @bl_code_size:	size of the bootloader code
- * @bl_imem_off:	offset in imem of the bootloader
- * @bl_data_off:	offset of the bootloader data in WPR region
- * @bl_data_size:	size of the bootloader data
- * @app_code_off:	offset of the app code relative to ucode_off
- * @app_code_size:	size of the app code
- * @app_data_off:	offset of the app data relative to ucode_off
- * @app_data_size:	size of the app data
- * @flags:		flags for the secure bootloader
- *
- * This structure is written into the WPR region for each managed falcon. Each
- * instance is referenced by the lsb_offset member of the corresponding
- * lsf_wpr_header.
- */
-struct lsf_lsb_header {
-	struct lsf_ucode_desc signature;
-	u32 ucode_off;
-	u32 ucode_size;
-	u32 data_size;
-	u32 bl_code_size;
-	u32 bl_imem_off;
-	u32 bl_data_off;
-	u32 bl_data_size;
-	u32 app_code_off;
-	u32 app_code_size;
-	u32 app_data_off;
-	u32 app_data_size;
-	u32 flags;
-#define LSF_FLAG_LOAD_CODE_AT_0		1
-#define LSF_FLAG_DMACTL_REQ_CTX		4
-#define LSF_FLAG_FORCE_PRIV_LOAD	8
-};
-
-/**
- * struct lsf_wpr_header - LS blob WPR Header
- * @falcon_id:		LS falcon ID
- * @lsb_offset:		offset of the lsb_lsf_header in the WPR region
- * @bootstrap_owner:	secure falcon reponsible for bootstrapping the LS falcon
- * @lazy_bootstrap:	skip bootstrapping by ACR
- * @status:		bootstrapping status
- *
- * An array of these is written at the beginning of the WPR region, one for
- * each managed falcon. The array is terminated by an instance which falcon_id
- * is LSF_FALCON_ID_INVALID.
- */
-struct lsf_wpr_header {
-	u32 falcon_id;
-	u32 lsb_offset;
-	u32 bootstrap_owner;
-	u32 lazy_bootstrap;
-	u32 status;
-#define LSF_IMAGE_STATUS_NONE				0
-#define LSF_IMAGE_STATUS_COPY				1
-#define LSF_IMAGE_STATUS_VALIDATION_CODE_FAILED		2
-#define LSF_IMAGE_STATUS_VALIDATION_DATA_FAILED		3
-#define LSF_IMAGE_STATUS_VALIDATION_DONE		4
-#define LSF_IMAGE_STATUS_VALIDATION_SKIPPED		5
-#define LSF_IMAGE_STATUS_BOOTSTRAP_READY		6
-};
-
 
 /**
  * struct ls_ucode_img_desc - descriptor of firmware image
@@ -175,8 +83,8 @@ struct ls_ucode_img_desc {
  * @ucode_desc:		loaded or generated map of ucode_data
  * @ucode_data:		firmware payload (code and data)
  * @ucode_size:		size in bytes of data in ucode_data
- * @wpr_header:		WPR header to be written to the LS blob
- * @lsb_header:		LSB header to be written to the LS blob
+ * @sig:		signature for this firmware
+ * @sig:size:		size of the signature in bytes
  *
  * Preparing the WPR LS blob requires information about all the LS firmwares
  * (size, etc) to be known. This structure contains all the data of one LS
@@ -190,8 +98,8 @@ struct ls_ucode_img {
 	u8 *ucode_data;
 	u32 ucode_size;
 
-	struct lsf_wpr_header wpr_header;
-	struct lsf_lsb_header lsb_header;
+	u8 *sig;
+	u32 sig_size;
 };
 
 /**

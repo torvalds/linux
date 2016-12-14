@@ -21,7 +21,6 @@
  */
 
 #include "acr_r352.h"
-#include "ls_ucode.h"
 
 #include <engine/falcon.h>
 
@@ -64,11 +63,12 @@ struct acr_r361_flcn_bl_desc {
 
 static void
 acr_r361_generate_flcn_bl_desc(const struct nvkm_acr *acr,
-			       const struct ls_ucode_img *img, u64 wpr_addr,
+			       const struct ls_ucode_img *_img, u64 wpr_addr,
 			       void *_desc)
 {
+	struct ls_ucode_img_r352 *img = ls_ucode_img_r352(_img);
 	struct acr_r361_flcn_bl_desc *desc = _desc;
-	const struct ls_ucode_img_desc *pdesc = &img->ucode_desc;
+	const struct ls_ucode_img_desc *pdesc = &img->base.ucode_desc;
 	u64 base, addr_code, addr_data;
 
 	base = wpr_addr + img->lsb_header.ucode_off + pdesc->app_start_offset;
@@ -123,6 +123,9 @@ const struct acr_r352_func
 acr_r361_func = {
 	.generate_hs_bl_desc = acr_r361_generate_hs_bl_desc,
 	.hs_bl_desc_size = sizeof(struct acr_r361_flcn_bl_desc),
+	.ls_ucode_img_load = acr_r352_ls_ucode_img_load,
+	.ls_fill_headers = acr_r352_ls_fill_headers,
+	.ls_write_wpr = acr_r352_ls_write_wpr,
 	.ls_func = {
 		[NVKM_SECBOOT_FALCON_FECS] = &acr_r361_ls_fecs_func,
 		[NVKM_SECBOOT_FALCON_GPCCS] = &acr_r361_ls_gpccs_func,
