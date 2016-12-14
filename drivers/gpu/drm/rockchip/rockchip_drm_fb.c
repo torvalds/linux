@@ -47,7 +47,6 @@ dma_addr_t rockchip_fb_get_dma_addr(struct drm_framebuffer *fb,
 static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	struct rockchip_drm_fb *rockchip_fb = to_rockchip_fb(fb);
-	struct rockchip_drm_private *private = fb->dev->dev_private;
 	struct drm_gem_object *obj;
 	int i;
 
@@ -59,6 +58,7 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 
 #ifndef MODULE
 	if (rockchip_fb->logo) {
+		struct rockchip_drm_private *private = fb->dev->dev_private;
 		struct rockchip_logo *logo = rockchip_fb->logo;
 
 		if (!--logo->count) {
