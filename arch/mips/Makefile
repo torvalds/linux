@@ -15,7 +15,7 @@
 archscripts: scripts_basic
 	$(Q)$(MAKE) $(build)=arch/mips/boot/tools relocs
 
-KBUILD_DEFCONFIG := ip22_defconfig
+KBUILD_DEFCONFIG := 32r2el_defconfig
 
 #
 # Select the object file format to substitute into the linker script.
