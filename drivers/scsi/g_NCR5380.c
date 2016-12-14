@@ -64,9 +64,9 @@ static int card[] = { -1, -1, -1, -1, -1, -1, -1, -1 };
 module_param_array(card, int, NULL, 0);
 MODULE_PARM_DESC(card, "card type (0=NCR5380, 1=NCR53C400, 2=NCR53C400A, 3=DTC3181E, 4=HP C2502)");
 
+MODULE_ALIAS("g_NCR5380_mmio");
 MODULE_LICENSE("GPL");
 
-#ifndef SCSI_G_NCR5380_MEM
 /*
  * Configure I/O address of 53C400A or DTC436 by writing magic numbers
  * to ports 0x779 and 0x379.
@@ -88,40 +88,35 @@ static void magic_configure(int idx, u8 irq, u8 magic[])
 		cfg = 0x80 | idx | (irq << 4);
 	outb(cfg, 0x379);
 }
-#endif
+
+static unsigned int ncr_53c400a_ports[] = {
+	0x280, 0x290, 0x300, 0x310, 0x330, 0x340, 0x348, 0x350, 0
+};
+static unsigned int dtc_3181e_ports[] = {
+	0x220, 0x240, 0x280, 0x2a0, 0x2c0, 0x300, 0x320, 0x340, 0
+};
+static u8 ncr_53c400a_magic[] = {	/* 53C400A & DTC436 */
+	0x59, 0xb9, 0xc5, 0xae, 0xa6
+};
+static u8 hp_c2502_magic[] = {	/* HP C2502 */
+	0x0f, 0x22, 0xf0, 0x20, 0x80
+};
 
 static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 			struct device *pdev, int base, int irq, int board)
 {
-	unsigned int *ports;
+	bool is_pmio = base <= 0xffff;
+	int ret;
+	int flags = 0;
+	unsigned int *ports = NULL;
 	u8 *magic = NULL;
-#ifndef SCSI_G_NCR5380_MEM
 	int i;
 	int port_idx = -1;
 	unsigned long region_size;
-#endif
-	static unsigned int ncr_53c400a_ports[] = {
-		0x280, 0x290, 0x300, 0x310, 0x330, 0x340, 0x348, 0x350, 0
-	};
-	static unsigned int dtc_3181e_ports[] = {
-		0x220, 0x240, 0x280, 0x2a0, 0x2c0, 0x300, 0x320, 0x340, 0
-	};
-	static u8 ncr_53c400a_magic[] = {	/* 53C400A & DTC436 */
-		0x59, 0xb9, 0xc5, 0xae, 0xa6
-	};
-	static u8 hp_c2502_magic[] = {	/* HP C2502 */
-		0x0f, 0x22, 0xf0, 0x20, 0x80
-	};
-	int flags, ret;
 	struct Scsi_Host *instance;
 	struct NCR5380_hostdata *hostdata;
-#ifdef SCSI_G_NCR5380_MEM
-	void __iomem *iomem;
-	resource_size_t iomem_size;
-#endif
+	u8 __iomem *iomem;
 
-	ports = NULL;
-	flags = 0;
 	switch (board) {
 	case BOARD_NCR5380:
 		flags = FLAG_NO_PSEUDO_DMA | FLAG_DMA_FIXUP;
@@ -140,8 +135,7 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		break;
 	}
 
-#ifndef SCSI_G_NCR5380_MEM
-	if (ports && magic) {
+	if (is_pmio && ports && magic) {
 		/* wakeup sequence for the NCR53C400A and DTC3181E */
 
 		/* Disable the adapter and look for a free io port */
@@ -170,84 +164,89 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		if (ports[i]) {
 			/* At this point we have our region reserved */
 			magic_configure(i, 0, magic); /* no IRQ yet */
-			outb(0xc0, ports[i] + 9);
-			if (inb(ports[i] + 9) != 0x80) {
+			base = ports[i];
+			outb(0xc0, base + 9);
+			if (inb(base + 9) != 0x80) {
 				ret = -ENODEV;
 				goto out_release;
 			}
-			base = ports[i];
 			port_idx = i;
 		} else
 			return -EINVAL;
-	}
-	else
-	{
+	} else if (is_pmio) {
 		/* NCR5380 - no configuration, just grab */
 		region_size = 8;
 		if (!base || !request_region(base, region_size, "ncr5380"))
 			return -EBUSY;
+	} else {	/* MMIO */
+		region_size = NCR53C400_region_size;
+		if (!request_mem_region(base, region_size, "ncr5380"))
+			return -EBUSY;
 	}
-#else
-	iomem_size = NCR53C400_region_size;
-	if (!request_mem_region(base, iomem_size, "ncr5380"))
-		return -EBUSY;
-	iomem = ioremap(base, iomem_size);
+
+	if (is_pmio)
+		iomem = ioport_map(base, region_size);
+	else
+		iomem = ioremap(base, region_size);
+
 	if (!iomem) {
-		release_mem_region(base, iomem_size);
-		return -ENOMEM;
-	}
-#endif
-	instance = scsi_host_alloc(tpnt, sizeof(struct NCR5380_hostdata));
-	if (instance == NULL) {
 		ret = -ENOMEM;
 		goto out_release;
 	}
+
+	instance = scsi_host_alloc(tpnt, sizeof(struct NCR5380_hostdata));
+	if (instance == NULL) {
+		ret = -ENOMEM;
+		goto out_unmap;
+	}
 	hostdata = shost_priv(instance);
 
-#ifndef SCSI_G_NCR5380_MEM
-	instance->io_port = base;
-	instance->n_io_port = region_size;
-	hostdata->io_width = 1; /* 8-bit PDMA by default */
+	hostdata->io = iomem;
+	hostdata->region_size = region_size;
 
-	/*
-	 * On NCR53C400 boards, NCR5380 registers are mapped 8 past
-	 * the base address.
-	 */
-	switch (board) {
-	case BOARD_NCR53C400:
-		instance->io_port += 8;
-		hostdata->c400_ctl_status = 0;
-		hostdata->c400_blk_cnt = 1;
-		hostdata->c400_host_buf = 4;
-		break;
-	case BOARD_DTC3181E:
-		hostdata->io_width = 2;	/* 16-bit PDMA */
-		/* fall through */
-	case BOARD_NCR53C400A:
-	case BOARD_HP_C2502:
-		hostdata->c400_ctl_status = 9;
-		hostdata->c400_blk_cnt = 10;
-		hostdata->c400_host_buf = 8;
-		break;
+	if (is_pmio) {
+		hostdata->io_port = base;
+		hostdata->io_width = 1; /* 8-bit PDMA by default */
+		hostdata->offset = 0;
+
+		/*
+		 * On NCR53C400 boards, NCR5380 registers are mapped 8 past
+		 * the base address.
+		 */
+		switch (board) {
+		case BOARD_NCR53C400:
+			hostdata->io_port += 8;
+			hostdata->c400_ctl_status = 0;
+			hostdata->c400_blk_cnt = 1;
+			hostdata->c400_host_buf = 4;
+			break;
+		case BOARD_DTC3181E:
+			hostdata->io_width = 2;	/* 16-bit PDMA */
+			/* fall through */
+		case BOARD_NCR53C400A:
+		case BOARD_HP_C2502:
+			hostdata->c400_ctl_status = 9;
+			hostdata->c400_blk_cnt = 10;
+			hostdata->c400_host_buf = 8;
+			break;
+		}
+	} else {
+		hostdata->base = base;
+		hostdata->offset = NCR53C400_mem_base;
+		switch (board) {
+		case BOARD_NCR53C400:
+			hostdata->c400_ctl_status = 0x100;
+			hostdata->c400_blk_cnt = 0x101;
+			hostdata->c400_host_buf = 0x104;
+			break;
+		case BOARD_DTC3181E:
+		case BOARD_NCR53C400A:
+		case BOARD_HP_C2502:
+			pr_err(DRV_MODULE_NAME ": unknown register offsets\n");
+			ret = -EINVAL;
+			goto out_unregister;
+		}
 	}
-#else
-	instance->base = base;
-	hostdata->iomem = iomem;
-	hostdata->iomem_size = iomem_size;
-	switch (board) {
-	case BOARD_NCR53C400:
-		hostdata->c400_ctl_status = 0x100;
-		hostdata->c400_blk_cnt = 0x101;
-		hostdata->c400_host_buf = 0x104;
-		break;
-	case BOARD_DTC3181E:
-	case BOARD_NCR53C400A:
-	case BOARD_HP_C2502:
-		pr_err(DRV_MODULE_NAME ": unknown register offsets\n");
-		ret = -EINVAL;
-		goto out_unregister;
-	}
-#endif
 
 	ret = NCR5380_init(instance, flags | FLAG_LATE_DMA_SETUP);
 	if (ret)
@@ -273,11 +272,9 @@ static int generic_NCR5380_init_one(struct scsi_host_template *tpnt,
 		instance->irq = NO_IRQ;
 
 	if (instance->irq != NO_IRQ) {
-#ifndef SCSI_G_NCR5380_MEM
 		/* set IRQ for HP C2502 */
 		if (board == BOARD_HP_C2502)
 			magic_configure(port_idx, instance->irq, magic);
-#endif
 		if (request_irq(instance->irq, generic_NCR5380_intr,
 				0, "NCR5380", instance)) {
 			printk(KERN_WARNING "scsi%d : IRQ%d not free, interrupts disabled\n", instance->host_no, instance->irq);
@@ -303,38 +300,39 @@ out_free_irq:
 	NCR5380_exit(instance);
 out_unregister:
 	scsi_host_put(instance);
-out_release:
-#ifndef SCSI_G_NCR5380_MEM
-	release_region(base, region_size);
-#else
+out_unmap:
 	iounmap(iomem);
-	release_mem_region(base, iomem_size);
-#endif
+out_release:
+	if (is_pmio)
+		release_region(base, region_size);
+	else
+		release_mem_region(base, region_size);
 	return ret;
 }
 
 static void generic_NCR5380_release_resources(struct Scsi_Host *instance)
 {
+	struct NCR5380_hostdata *hostdata = shost_priv(instance);
+	void __iomem *iomem = hostdata->io;
+	unsigned long io_port = hostdata->io_port;
+	unsigned long base = hostdata->base;
+	unsigned long region_size = hostdata->region_size;
+
 	scsi_remove_host(instance);
 	if (instance->irq != NO_IRQ)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
-#ifndef SCSI_G_NCR5380_MEM
-	release_region(instance->io_port, instance->n_io_port);
-#else
-	{
-		struct NCR5380_hostdata *hostdata = shost_priv(instance);
-
-		iounmap(hostdata->iomem);
-		release_mem_region(instance->base, hostdata->iomem_size);
-	}
-#endif
 	scsi_host_put(instance);
+	iounmap(iomem);
+	if (io_port)
+		release_region(io_port, region_size);
+	else
+		release_mem_region(base, region_size);
 }
 
 /**
  *	generic_NCR5380_pread - pseudo DMA read
- *	@instance: adapter to read from
+ *	@hostdata: scsi host private data
  *	@dst: buffer to read into
  *	@len: buffer length
  *
@@ -342,10 +340,9 @@ static void generic_NCR5380_release_resources(struct Scsi_Host *instance)
  *	controller
  */
  
-static inline int generic_NCR5380_pread(struct Scsi_Host *instance,
+static inline int generic_NCR5380_pread(struct NCR5380_hostdata *hostdata,
                                         unsigned char *dst, int len)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int blocks = len / 128;
 	int start = 0;
 
@@ -361,18 +358,16 @@ static inline int generic_NCR5380_pread(struct Scsi_Host *instance,
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; /* FIXME - no timeout */
 
-#ifndef SCSI_G_NCR5380_MEM
-		if (hostdata->io_width == 2)
-			insw(instance->io_port + hostdata->c400_host_buf,
+		if (hostdata->io_port && hostdata->io_width == 2)
+			insw(hostdata->io_port + hostdata->c400_host_buf,
 							dst + start, 64);
-		else
-			insb(instance->io_port + hostdata->c400_host_buf,
+		else if (hostdata->io_port)
+			insb(hostdata->io_port + hostdata->c400_host_buf,
 							dst + start, 128);
-#else
-		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_fromio(dst + start,
-		              hostdata->iomem + NCR53C400_host_buffer, 128);
-#endif
+		else
+			memcpy_fromio(dst + start,
+				hostdata->io + NCR53C400_host_buffer, 128);
+
 		start += 128;
 		blocks--;
 	}
@@ -381,18 +376,16 @@ static inline int generic_NCR5380_pread(struct Scsi_Host *instance,
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; /* FIXME - no timeout */
 
-#ifndef SCSI_G_NCR5380_MEM
-		if (hostdata->io_width == 2)
-			insw(instance->io_port + hostdata->c400_host_buf,
+		if (hostdata->io_port && hostdata->io_width == 2)
+			insw(hostdata->io_port + hostdata->c400_host_buf,
 							dst + start, 64);
-		else
-			insb(instance->io_port + hostdata->c400_host_buf,
+		else if (hostdata->io_port)
+			insb(hostdata->io_port + hostdata->c400_host_buf,
 							dst + start, 128);
-#else
-		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_fromio(dst + start,
-		              hostdata->iomem + NCR53C400_host_buffer, 128);
-#endif
+		else
+			memcpy_fromio(dst + start,
+				hostdata->io + NCR53C400_host_buffer, 128);
+
 		start += 128;
 		blocks--;
 	}
@@ -412,7 +405,7 @@ static inline int generic_NCR5380_pread(struct Scsi_Host *instance,
 
 /**
  *	generic_NCR5380_pwrite - pseudo DMA write
- *	@instance: adapter to read from
+ *	@hostdata: scsi host private data
  *	@dst: buffer to read into
  *	@len: buffer length
  *
@@ -420,10 +413,9 @@ static inline int generic_NCR5380_pread(struct Scsi_Host *instance,
  *	controller
  */
 
-static inline int generic_NCR5380_pwrite(struct Scsi_Host *instance,
+static inline int generic_NCR5380_pwrite(struct NCR5380_hostdata *hostdata,
                                          unsigned char *src, int len)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int blocks = len / 128;
 	int start = 0;
 
@@ -439,18 +431,17 @@ static inline int generic_NCR5380_pwrite(struct Scsi_Host *instance,
 			break;
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; // FIXME - timeout
-#ifndef SCSI_G_NCR5380_MEM
-		if (hostdata->io_width == 2)
-			outsw(instance->io_port + hostdata->c400_host_buf,
+
+		if (hostdata->io_port && hostdata->io_width == 2)
+			outsw(hostdata->io_port + hostdata->c400_host_buf,
 							src + start, 64);
-		else
-			outsb(instance->io_port + hostdata->c400_host_buf,
+		else if (hostdata->io_port)
+			outsb(hostdata->io_port + hostdata->c400_host_buf,
 							src + start, 128);
-#else
-		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
-		            src + start, 128);
-#endif
+		else
+			memcpy_toio(hostdata->io + NCR53C400_host_buffer,
+			            src + start, 128);
+
 		start += 128;
 		blocks--;
 	}
@@ -458,18 +449,16 @@ static inline int generic_NCR5380_pwrite(struct Scsi_Host *instance,
 		while (NCR5380_read(hostdata->c400_ctl_status) & CSR_HOST_BUF_NOT_RDY)
 			; // FIXME - no timeout
 
-#ifndef SCSI_G_NCR5380_MEM
-		if (hostdata->io_width == 2)
-			outsw(instance->io_port + hostdata->c400_host_buf,
+		if (hostdata->io_port && hostdata->io_width == 2)
+			outsw(hostdata->io_port + hostdata->c400_host_buf,
 							src + start, 64);
-		else
-			outsb(instance->io_port + hostdata->c400_host_buf,
+		else if (hostdata->io_port)
+			outsb(hostdata->io_port + hostdata->c400_host_buf,
 							src + start, 128);
-#else
-		/* implies SCSI_G_NCR5380_MEM */
-		memcpy_toio(hostdata->iomem + NCR53C400_host_buffer,
-		            src + start, 128);
-#endif
+		else
+			memcpy_toio(hostdata->io + NCR53C400_host_buffer,
+			            src + start, 128);
+
 		start += 128;
 		blocks--;
 	}
@@ -489,10 +478,9 @@ static inline int generic_NCR5380_pwrite(struct Scsi_Host *instance,
 	return 0;
 }
 
-static int generic_NCR5380_dma_xfer_len(struct Scsi_Host *instance,
+static int generic_NCR5380_dma_xfer_len(struct NCR5380_hostdata *hostdata,
                                         struct scsi_cmnd *cmd)
 {
-	struct NCR5380_hostdata *hostdata = shost_priv(instance);
 	int transfersize = cmd->transfersize;
 
 	if (hostdata->flags & FLAG_NO_PSEUDO_DMA)
@@ -566,7 +554,7 @@ static struct isa_driver generic_NCR5380_isa_driver = {
 	},
 };
 
-#if !defined(SCSI_G_NCR5380_MEM) && defined(CONFIG_PNP)
+#ifdef CONFIG_PNP
 static struct pnp_device_id generic_NCR5380_pnp_ids[] = {
 	{ .id = "DTC436e", .driver_data = BOARD_DTC3181E },
 	{ .id = "" }
@@ -600,7 +588,7 @@ static struct pnp_driver generic_NCR5380_pnp_driver = {
 	.probe		= generic_NCR5380_pnp_probe,
 	.remove		= generic_NCR5380_pnp_remove,
 };
-#endif /* !defined(SCSI_G_NCR5380_MEM) && defined(CONFIG_PNP) */
+#endif /* defined(CONFIG_PNP) */
 
 static int pnp_registered, isa_registered;
 
@@ -624,7 +612,7 @@ static int __init generic_NCR5380_init(void)
 			card[0] = BOARD_HP_C2502;
 	}
 
-#if !defined(SCSI_G_NCR5380_MEM) && defined(CONFIG_PNP)
+#ifdef CONFIG_PNP
 	if (!pnp_register_driver(&generic_NCR5380_pnp_driver))
 		pnp_registered = 1;
 #endif
@@ -637,7 +625,7 @@ static int __init generic_NCR5380_init(void)
 
 static void __exit generic_NCR5380_exit(void)
 {
-#if !defined(SCSI_G_NCR5380_MEM) && defined(CONFIG_PNP)
+#ifdef CONFIG_PNP
 	if (pnp_registered)
 		pnp_unregister_driver(&generic_NCR5380_pnp_driver);
 #endif

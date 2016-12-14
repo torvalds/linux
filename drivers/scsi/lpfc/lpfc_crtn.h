@@ -397,8 +397,6 @@ extern spinlock_t _dump_buf_lock;
 extern int _dump_buf_done;
 extern spinlock_t pgcnt_lock;
 extern unsigned int pgcnt;
-extern unsigned int lpfc_prot_mask;
-extern unsigned char lpfc_prot_guard;
 extern unsigned int lpfc_fcp_look_ahead;
 
 /* Interface exported by fabric iocb scheduler */
@@ -431,8 +429,8 @@ struct lpfc_sglq *__lpfc_get_active_sglq(struct lpfc_hba *, uint16_t);
 #define HBA_EVENT_LINK_DOWN              3
 
 /* functions to support SGIOv4/bsg interface */
-int lpfc_bsg_request(struct fc_bsg_job *);
-int lpfc_bsg_timeout(struct fc_bsg_job *);
+int lpfc_bsg_request(struct bsg_job *);
+int lpfc_bsg_timeout(struct bsg_job *);
 int lpfc_bsg_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			     struct lpfc_iocbq *);
 int lpfc_bsg_ct_unsol_abort(struct lpfc_hba *, struct hbq_dmabuf *);
