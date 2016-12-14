@@ -325,6 +325,7 @@ static void radix_tree_node_rcu_free(struct rcu_head *head)
 		tag_clear(node, i, 0);
 
 	node->slots[0] = NULL;
+	INIT_LIST_HEAD(&node->private_list);
 
 	kmem_cache_free(radix_tree_node_cachep, node);
 }
