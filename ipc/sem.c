@@ -414,29 +414,6 @@ static inline void sem_unlock(struct sem_array *sma, int locknum)
  *
  * The caller holds the RCU read lock.
  */
-static inline struct sem_array *sem_obtain_lock(struct ipc_namespace *ns,
-			int id, struct sembuf *sops, int nsops, int *locknum)
-{
-	struct kern_ipc_perm *ipcp;
-	struct sem_array *sma;
-
-	ipcp = ipc_obtain_object_idr(&sem_ids(ns), id);
-	if (IS_ERR(ipcp))
-		return ERR_CAST(ipcp);
-
-	sma = container_of(ipcp, struct sem_array, sem_perm);
-	*locknum = sem_lock(sma, sops, nsops);
-
-	/* ipc_rmid() may have already freed the ID while sem_lock
-	 * was spinning: verify that the structure is still valid
-	 */
-	if (ipc_valid_object(ipcp))
-		return container_of(ipcp, struct sem_array, sem_perm);
-
-	sem_unlock(sma, *locknum);
-	return ERR_PTR(-EINVAL);
-}
-
 static inline struct sem_array *sem_obtain_object(struct ipc_namespace *ns, int id)
 {
 	struct kern_ipc_perm *ipcp = ipc_obtain_object_idr(&sem_ids(ns), id);
@@ -2000,16 +1977,12 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 		}
 
 		rcu_read_lock();
-		sma = sem_obtain_lock(ns, semid, sops, nsops, &locknum);
-		error = READ_ONCE(queue.status);
+		sem_lock(sma, sops, nsops);
 
-		/*
-		 * Array removed? If yes, leave without sem_unlock().
-		 */
-		if (IS_ERR(sma)) {
-			rcu_read_unlock();
-			goto out_free;
-		}
+		if (!ipc_valid_object(&sma->sem_perm))
+			goto out_unlock_free;
+
+		error = READ_ONCE(queue.status);
 
 		/*
 		 * If queue.status != -EINTR we are woken up by another process.
