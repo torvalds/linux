@@ -1,15 +1,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <malloc.h>
+#include <pthread.h>
 #include <unistd.h>
 #include <assert.h>
 
 #include <linux/mempool.h>
+#include <linux/poison.h>
 #include <linux/slab.h>
+#include <linux/radix-tree.h>
 #include <urcu/uatomic.h>
 
 int nr_allocated;
 int preempt_count;
+
+struct kmem_cache {
+	pthread_mutex_t lock;
+	int size;
+	int nr_objs;
+	void *objs;
+	void (*ctor)(void *);
+};
 
 void *mempool_alloc(mempool_t *pool, int gfp_mask)
 {
@@ -34,24 +45,44 @@ mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
 
 void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
 {
-	void *ret;
+	struct radix_tree_node *node;
 
 	if (flags & __GFP_NOWARN)
 		return NULL;
 
-	ret = malloc(cachep->size);
-	if (cachep->ctor)
-		cachep->ctor(ret);
+	pthread_mutex_lock(&cachep->lock);
+	if (cachep->nr_objs) {
+		cachep->nr_objs--;
+		node = cachep->objs;
+		cachep->objs = node->private_data;
+		pthread_mutex_unlock(&cachep->lock);
+		node->private_data = NULL;
+	} else {
+		pthread_mutex_unlock(&cachep->lock);
+		node = malloc(cachep->size);
+		if (cachep->ctor)
+			cachep->ctor(node);
+	}
+
 	uatomic_inc(&nr_allocated);
-	return ret;
+	return node;
 }
 
 void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 {
 	assert(objp);
 	uatomic_dec(&nr_allocated);
-	memset(objp, 0, cachep->size);
-	free(objp);
+	pthread_mutex_lock(&cachep->lock);
+	if (cachep->nr_objs > 10) {
+		memset(objp, POISON_FREE, cachep->size);
+		free(objp);
+	} else {
+		struct radix_tree_node *node = objp;
+		cachep->nr_objs++;
+		node->private_data = cachep->objs;
+		cachep->objs = node;
+	}
+	pthread_mutex_unlock(&cachep->lock);
 }
 
 void *kmalloc(size_t size, gfp_t gfp)
@@ -75,7 +106,10 @@ kmem_cache_create(const char *name, size_t size, size_t offset,
 {
 	struct kmem_cache *ret = malloc(sizeof(*ret));
 
+	pthread_mutex_init(&ret->lock, NULL);
 	ret->size = size;
+	ret->nr_objs = 0;
+	ret->objs = NULL;
 	ret->ctor = ctor;
 	return ret;
 }
