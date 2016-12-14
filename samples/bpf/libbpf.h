@@ -6,9 +6,6 @@
 
 struct bpf_insn;
 
-int bpf_prog_attach(int prog_fd, int attachable_fd, enum bpf_attach_type type);
-int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
-
 /* ALU ops on registers, bpf_add|sub|...: dst_reg += src_reg */
 
 #define BPF_ALU64_REG(OP, DST, SRC)				\

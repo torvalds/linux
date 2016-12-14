@@ -11,27 +11,6 @@
 #include <arpa/inet.h>
 #include "libbpf.h"
 
-int bpf_prog_attach(int prog_fd, int target_fd, enum bpf_attach_type type)
-{
-	union bpf_attr attr = {
-		.target_fd = target_fd,
-		.attach_bpf_fd = prog_fd,
-		.attach_type = type,
-	};
-
-	return syscall(__NR_bpf, BPF_PROG_ATTACH, &attr, sizeof(attr));
-}
-
-int bpf_prog_detach(int target_fd, enum bpf_attach_type type)
-{
-	union bpf_attr attr = {
-		.target_fd = target_fd,
-		.attach_type = type,
-	};
-
-	return syscall(__NR_bpf, BPF_PROG_DETACH, &attr, sizeof(attr));
-}
-
 int open_raw_sock(const char *name)
 {
 	struct sockaddr_ll sll;
