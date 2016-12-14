@@ -278,50 +278,19 @@ ls_ucode_img_fill_headers(struct acr_r352 *acr, struct ls_ucode_img *img,
 }
 
 /**
- * struct ls_ucode_mgr - manager for all LS falcon firmwares
- * @count:	number of managed LS falcons
- * @wpr_size:	size of the required WPR region in bytes
- * @img_list:	linked list of lsf_ucode_img
+ * acr_r352_ls_fill_headers - fill WPR and LSB headers of all managed images
  */
-struct ls_ucode_mgr {
-	u16 count;
-	u32 wpr_size;
-	struct list_head img_list;
-};
-
-static void
-ls_ucode_mgr_init(struct ls_ucode_mgr *mgr)
-{
-	memset(mgr, 0, sizeof(*mgr));
-	INIT_LIST_HEAD(&mgr->img_list);
-}
-
-static void
-ls_ucode_mgr_cleanup(struct ls_ucode_mgr *mgr)
-{
-	struct ls_ucode_img *img, *t;
-
-	list_for_each_entry_safe(img, t, &mgr->img_list, node) {
-		kfree(img->ucode_data);
-		kfree(img);
-	}
-}
-
-static void
-ls_ucode_mgr_add_img(struct ls_ucode_mgr *mgr, struct ls_ucode_img *img)
-{
-	mgr->count++;
-	list_add_tail(&img->node, &mgr->img_list);
-}
-
-/**
- * ls_ucode_mgr_fill_headers - fill WPR and LSB headers of all managed images
- */
-static void
-ls_ucode_mgr_fill_headers(struct acr_r352 *acr, struct ls_ucode_mgr *mgr)
+static int
+acr_r352_ls_fill_headers(struct acr_r352 *acr, struct list_head *imgs)
 {
 	struct ls_ucode_img *img;
+	struct list_head *l;
+	u32 count = 0;
 	u32 offset;
+
+	/* Count the number of images to manage */
+	list_for_each(l, imgs)
+		count++;
 
 	/*
 	 * Start with an array of WPR headers at the base of the WPR.
@@ -329,24 +298,24 @@ ls_ucode_mgr_fill_headers(struct acr_r352 *acr, struct ls_ucode_mgr *mgr)
 	 * read of this array and cache it internally so it's ok to pack these.
 	 * Also, we add 1 to the falcon count to indicate the end of the array.
 	 */
-	offset = sizeof(struct lsf_wpr_header) * (mgr->count + 1);
+	offset = sizeof(struct lsf_wpr_header) * (count + 1);
 
 	/*
 	 * Walk the managed falcons, accounting for the LSB structs
 	 * as well as the ucode images.
 	 */
-	list_for_each_entry(img, &mgr->img_list, node) {
+	list_for_each_entry(img, imgs, node) {
 		offset = ls_ucode_img_fill_headers(acr, img, offset);
 	}
 
-	mgr->wpr_size = offset;
+	return offset;
 }
 
 /**
  * ls_ucode_mgr_write_wpr - write the WPR blob contents
  */
 static int
-ls_ucode_mgr_write_wpr(struct acr_r352 *acr, struct ls_ucode_mgr *mgr,
+ls_ucode_mgr_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 		       struct nvkm_gpuobj *wpr_blob, u32 wpr_addr)
 {
 	struct ls_ucode_img *img;
@@ -354,7 +323,7 @@ ls_ucode_mgr_write_wpr(struct acr_r352 *acr, struct ls_ucode_mgr *mgr,
 
 	nvkm_kmap(wpr_blob);
 
-	list_for_each_entry(img, &mgr->img_list, node) {
+	list_for_each_entry(img, imgs, node) {
 		const struct acr_r352_ls_func *ls_func =
 					     acr->func->ls_func[img->falcon_id];
 		u8 gdesc[ls_func->bl_desc_size];
@@ -399,12 +368,15 @@ static int
 acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 {
 	const struct nvkm_subdev *subdev = acr->base.subdev;
-	struct ls_ucode_mgr mgr;
+	struct list_head imgs;
+	struct ls_ucode_img *img, *t;
 	unsigned long managed_falcons = acr->base.managed_falcons;
+	int managed_count = 0;
+	u32 image_wpr_size;
 	int falcon_id;
 	int ret;
 
-	ls_ucode_mgr_init(&mgr);
+	INIT_LIST_HEAD(&imgs);
 
 	/* Load all LS blobs */
 	for_each_set_bit(falcon_id, &managed_falcons, NVKM_SECBOOT_FALCON_END) {
@@ -417,48 +389,52 @@ acr_r352_prepare_ls_blob(struct acr_r352 *acr, u64 wpr_addr, u32 wpr_size)
 			ret = PTR_ERR(img);
 			goto cleanup;
 		}
-		ls_ucode_mgr_add_img(&mgr, img);
+		list_add_tail(&img->node, &imgs);
+		managed_count++;
 	}
 
 	/*
 	 * Fill the WPR and LSF headers with the right offsets and compute
 	 * required WPR size
 	 */
-	ls_ucode_mgr_fill_headers(acr, &mgr);
-	mgr.wpr_size = ALIGN(mgr.wpr_size, WPR_ALIGNMENT);
+	image_wpr_size = acr_r352_ls_fill_headers(acr, &imgs);
+	image_wpr_size = ALIGN(image_wpr_size, WPR_ALIGNMENT);
 
 	/* Allocate GPU object that will contain the WPR region */
-	ret = nvkm_gpuobj_new(subdev->device, mgr.wpr_size, WPR_ALIGNMENT,
+	ret = nvkm_gpuobj_new(subdev->device, image_wpr_size, WPR_ALIGNMENT,
 			      false, NULL, &acr->ls_blob);
 	if (ret)
 		goto cleanup;
 
 	nvkm_debug(subdev, "%d managed LS falcons, WPR size is %d bytes\n",
-		    mgr.count, mgr.wpr_size);
+		    managed_count, image_wpr_size);
 
 	/* If WPR address and size are not fixed, set them to fit the LS blob */
 	if (wpr_size == 0) {
 		wpr_addr = acr->ls_blob->addr;
-		wpr_size = mgr.wpr_size;
+		wpr_size = image_wpr_size;
 	/*
 	 * But if the WPR region is set by the bootloader, it is illegal for
 	 * the HS blob to be larger than this region.
 	 */
-	} else if (mgr.wpr_size > wpr_size) {
+	} else if (image_wpr_size > wpr_size) {
 		nvkm_error(subdev, "WPR region too small for FW blob!\n");
-		nvkm_error(subdev, "required: %dB\n", mgr.wpr_size);
+		nvkm_error(subdev, "required: %dB\n", image_wpr_size);
 		nvkm_error(subdev, "available: %dB\n", wpr_size);
 		ret = -ENOSPC;
 		goto cleanup;
 	}
 
 	/* Write LS blob */
-	ret = ls_ucode_mgr_write_wpr(acr, &mgr, acr->ls_blob, wpr_addr);
+	ret = ls_ucode_mgr_write_wpr(acr, &imgs, acr->ls_blob, wpr_addr);
 	if (ret)
 		nvkm_gpuobj_del(&acr->ls_blob);
 
 cleanup:
-	ls_ucode_mgr_cleanup(&mgr);
+	list_for_each_entry_safe(img, t, &imgs, node) {
+		kfree(img->ucode_data);
+		kfree(img);
+	}
 
 	return ret;
 }
