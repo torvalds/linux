@@ -173,7 +173,6 @@ struct ls_ucode_img_desc {
  * @node:		to link within lsf_ucode_mgr
  * @falcon_id:		ID of the falcon this LS firmware is for
  * @ucode_desc:		loaded or generated map of ucode_data
- * @ucode_header:	header of the firmware
  * @ucode_data:		firmware payload (code and data)
  * @ucode_size:		size in bytes of data in ucode_data
  * @wpr_header:		WPR header to be written to the LS blob
@@ -188,7 +187,6 @@ struct ls_ucode_img {
 	enum nvkm_secboot_falcon falcon_id;
 
 	struct ls_ucode_img_desc ucode_desc;
-	u32 *ucode_header;
 	u8 *ucode_data;
 	u32 ucode_size;
 

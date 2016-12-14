@@ -98,8 +98,6 @@ ls_ucode_img_load_gr(const struct nvkm_subdev *subdev, struct ls_ucode_img *img,
 	char f[64];
 	int ret;
 
-	img->ucode_header = NULL;
-
 	snprintf(f, sizeof(f), "gr/%s_bl", falcon_name);
 	ret = nvkm_firmware_get(subdev->device, f, &bl);
 	if (ret)

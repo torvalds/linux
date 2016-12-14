@@ -215,12 +215,6 @@ ls_ucode_img_fill_headers(struct acr_r352 *acr, struct ls_ucode_img *img,
 	const struct acr_r352_ls_func *func =
 					    acr->func->ls_func[img->falcon_id];
 
-	if (img->ucode_header) {
-		nvkm_fatal(acr->base.subdev,
-			   "images withough loader are not supported yet!\n");
-		return offset;
-	}
-
 	/* Fill WPR header */
 	whdr->falcon_id = img->falcon_id;
 	whdr->bootstrap_owner = acr->base.boot_falcon;
@@ -309,7 +303,6 @@ ls_ucode_mgr_cleanup(struct ls_ucode_mgr *mgr)
 
 	list_for_each_entry_safe(img, t, &mgr->img_list, node) {
 		kfree(img->ucode_data);
-		kfree(img->ucode_header);
 		kfree(img);
 	}
 }
@@ -362,6 +355,10 @@ ls_ucode_mgr_write_wpr(struct acr_r352 *acr, struct ls_ucode_mgr *mgr,
 	nvkm_kmap(wpr_blob);
 
 	list_for_each_entry(img, &mgr->img_list, node) {
+		const struct acr_r352_ls_func *ls_func =
+					     acr->func->ls_func[img->falcon_id];
+		u8 gdesc[ls_func->bl_desc_size];
+
 		nvkm_gpuobj_memcpy_to(wpr_blob, pos, &img->wpr_header,
 				      sizeof(img->wpr_header));
 
@@ -369,18 +366,10 @@ ls_ucode_mgr_write_wpr(struct acr_r352 *acr, struct ls_ucode_mgr *mgr,
 				     &img->lsb_header, sizeof(img->lsb_header));
 
 		/* Generate and write BL descriptor */
-		if (!img->ucode_header) {
-			const struct acr_r352_ls_func *ls_func =
-					     acr->func->ls_func[img->falcon_id];
-			u8 gdesc[ls_func->bl_desc_size];
+		ls_func->generate_bl_desc(&acr->base, img, wpr_addr, gdesc);
 
-			ls_func->generate_bl_desc(&acr->base, img, wpr_addr,
-						  gdesc);
-
-			nvkm_gpuobj_memcpy_to(wpr_blob,
-					      img->lsb_header.bl_data_off,
-					      gdesc, ls_func->bl_desc_size);
-		}
+		nvkm_gpuobj_memcpy_to(wpr_blob, img->lsb_header.bl_data_off,
+				      gdesc, ls_func->bl_desc_size);
 
 		/* Copy ucode */
 		nvkm_gpuobj_memcpy_to(wpr_blob, img->lsb_header.ucode_off,
