@@ -1963,71 +1963,67 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 		sma->complex_count++;
 	}
 
-sleep_again:
-	queue.status = -EINTR;
-	queue.sleeper = current;
+	do {
+		queue.status = -EINTR;
+		queue.sleeper = current;
 
-	__set_current_state(TASK_INTERRUPTIBLE);
-	sem_unlock(sma, locknum);
-	rcu_read_unlock();
-
-	if (timeout)
-		jiffies_left = schedule_timeout(jiffies_left);
-	else
-		schedule();
-
-	/*
-	 * fastpath: the semop has completed, either successfully or not, from
-	 * the syscall pov, is quite irrelevant to us at this point; we're done.
-	 *
-	 * We _do_ care, nonetheless, about being awoken by a signal or
-	 * spuriously.  The queue.status is checked again in the slowpath (aka
-	 * after taking sem_lock), such that we can detect scenarios where we
-	 * were awakened externally, during the window between wake_q_add() and
-	 * wake_up_q().
-	 */
-	error = READ_ONCE(queue.status);
-	if (error != -EINTR) {
-		/*
-		 * User space could assume that semop() is a memory barrier:
-		 * Without the mb(), the cpu could speculatively read in user
-		 * space stale data that was overwritten by the previous owner
-		 * of the semaphore.
-		 */
-		smp_mb();
-		goto out_free;
-	}
-
-	rcu_read_lock();
-	sma = sem_obtain_lock(ns, semid, sops, nsops, &locknum);
-	error = READ_ONCE(queue.status);
-
-	/*
-	 * Array removed? If yes, leave without sem_unlock().
-	 */
-	if (IS_ERR(sma)) {
+		__set_current_state(TASK_INTERRUPTIBLE);
+		sem_unlock(sma, locknum);
 		rcu_read_unlock();
-		goto out_free;
-	}
 
-	/*
-	 * If queue.status != -EINTR we are woken up by another process.
-	 * Leave without unlink_queue(), but with sem_unlock().
-	 */
-	if (error != -EINTR)
-		goto out_unlock_free;
+		if (timeout)
+			jiffies_left = schedule_timeout(jiffies_left);
+		else
+			schedule();
 
-	/*
-	 * If an interrupt occurred we have to clean up the queue.
-	 */
-	if (timeout && jiffies_left == 0)
-		error = -EAGAIN;
+		/*
+		 * fastpath: the semop has completed, either successfully or
+		 * not, from the syscall pov, is quite irrelevant to us at this
+		 * point; we're done.
+		 *
+		 * We _do_ care, nonetheless, about being awoken by a signal or
+		 * spuriously.  The queue.status is checked again in the
+		 * slowpath (aka after taking sem_lock), such that we can detect
+		 * scenarios where we were awakened externally, during the
+		 * window between wake_q_add() and wake_up_q().
+		 */
+		error = READ_ONCE(queue.status);
+		if (error != -EINTR) {
+			/*
+			 * User space could assume that semop() is a memory
+			 * barrier: Without the mb(), the cpu could
+			 * speculatively read in userspace stale data that was
+			 * overwritten by the previous owner of the semaphore.
+			 */
+			smp_mb();
+			goto out_free;
+		}
 
-	/*
-	 * If the wakeup was spurious, just retry.
-	 */
-	if (error == -EINTR && !signal_pending(current))
-		goto sleep_again;
+		rcu_read_lock();
+		sma = sem_obtain_lock(ns, semid, sops, nsops, &locknum);
+		error = READ_ONCE(queue.status);
+
+		/*
+		 * Array removed? If yes, leave without sem_unlock().
+		 */
+		if (IS_ERR(sma)) {
+			rcu_read_unlock();
+			goto out_free;
+		}
+
+		/*
+		 * If queue.status != -EINTR we are woken up by another process.
+		 * Leave without unlink_queue(), but with sem_unlock().
+		 */
+		if (error != -EINTR)
+			goto out_unlock_free;
+
+		/*
+		 * If an interrupt occurred we have to clean up the queue.
+		 */
+		if (timeout && jiffies_left == 0)
+			error = -EAGAIN;
+	} while (error == -EINTR && !signal_pending(current)); /* spurious */
 
 	unlink_queue(sma, &queue);
 
