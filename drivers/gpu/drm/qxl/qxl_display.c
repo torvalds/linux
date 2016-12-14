@@ -629,7 +629,7 @@ qxl_framebuffer_init(struct drm_device *dev,
 		qfb->obj = NULL;
 		return ret;
 	}
-	drm_helper_mode_fill_fb_struct(&qfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &qfb->base, mode_cmd);
 	return 0;
 }
 

@@ -82,7 +82,7 @@ static struct mtk_drm_fb *mtk_drm_framebuffer_init(struct drm_device *dev,
 	if (!mtk_fb)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(&mtk_fb->base, mode);
+	drm_helper_mode_fill_fb_struct(dev, &mtk_fb->base, mode);
 
 	mtk_fb->gem_obj = obj;
 

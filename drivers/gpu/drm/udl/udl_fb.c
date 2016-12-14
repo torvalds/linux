@@ -330,7 +330,7 @@ udl_framebuffer_init(struct drm_device *dev,
 	int ret;
 
 	ufb->obj = obj;
-	drm_helper_mode_fill_fb_struct(&ufb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &ufb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &ufb->base, &udlfb_funcs);
 	return ret;
 }

@@ -68,7 +68,8 @@ EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
  * This helper can be used in a drivers fb_create callback to pre-fill the fb's
  * metadata fields.
  */
-void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
+void drm_helper_mode_fill_fb_struct(struct drm_device *dev,
+				    struct drm_framebuffer *fb,
 				    const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	const struct drm_format_info *info;

@@ -15877,7 +15877,7 @@ static int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->offsets[0] != 0)
 		return -EINVAL;
 
-	drm_helper_mode_fill_fb_struct(&intel_fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &intel_fb->base, mode_cmd);
 	intel_fb->obj = obj;
 
 	ret = intel_fill_fb_info(dev_priv, &intel_fb->base);

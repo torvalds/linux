@@ -93,7 +93,7 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 		vgfb->obj = NULL;
 		return ret;
 	}
-	drm_helper_mode_fill_fb_struct(&vgfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &vgfb->base, mode_cmd);
 
 	spin_lock_init(&vgfb->dirty_lock);
 	vgfb->x1 = vgfb->y1 = INT_MAX;

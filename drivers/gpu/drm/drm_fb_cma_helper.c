@@ -147,7 +147,7 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 	if (!fb_cma)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(&fb_cma->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &fb_cma->fb, mode_cmd);
 
 	for (i = 0; i < num_planes; i++)
 		fb_cma->obj[i] = obj[i];

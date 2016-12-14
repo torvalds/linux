@@ -512,7 +512,7 @@ hibmc_framebuffer_init(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	drm_helper_mode_fill_fb_struct(&hibmc_fb->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &hibmc_fb->fb, mode_cmd);
 	hibmc_fb->obj = obj;
 	ret = drm_framebuffer_init(dev, &hibmc_fb->fb, &hibmc_fb_funcs);
 	if (ret) {

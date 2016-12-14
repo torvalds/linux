@@ -313,7 +313,7 @@ int ast_framebuffer_init(struct drm_device *dev,
 {
 	int ret;
 
-	drm_helper_mode_fill_fb_struct(&ast_fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &ast_fb->base, mode_cmd);
 	ast_fb->obj = obj;
 	ret = drm_framebuffer_init(dev, &ast_fb->base, &ast_fb_funcs);
 	if (ret) {

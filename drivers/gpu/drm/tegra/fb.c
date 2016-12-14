@@ -114,7 +114,7 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 
 	fb->num_planes = num_planes;
 
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(drm, &fb->base, mode_cmd);
 
 	for (i = 0; i < fb->num_planes; i++)
 		fb->planes[i] = planes[i];

@@ -217,7 +217,7 @@ struct drm_framebuffer *msm_framebuffer_init(struct drm_device *dev,
 		msm_fb->planes[i] = bos[i];
 	}
 
-	drm_helper_mode_fill_fb_struct(fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, fb, mode_cmd);
 
 	ret = drm_framebuffer_init(dev, fb, &msm_framebuffer_funcs);
 	if (ret) {
