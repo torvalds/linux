@@ -116,7 +116,6 @@ static int test_net_init(int argc, char **argv)
 	char *debug = getenv("LKL_DEBUG");
 	int ret, nd_id = -1, nd_ifindex = -1;
 	struct lkl_netdev *nd = NULL;
-	/* with dhcp client by default */
 	char boot_cmdline[256] = "\0";
 
 	if (argc < 3) {
@@ -160,7 +159,7 @@ static int test_net_init(int argc, char **argv)
 		lkl_host_ops.print = NULL;
 
 
-	if (ip && !strcmp(ip, "dhcp"))
+	if ((ip && !strcmp(ip, "dhcp")) && (nd_id != -1))
 		snprintf(boot_cmdline, sizeof(boot_cmdline), "ip=dhcp");
 
 	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024, boot_cmdline);

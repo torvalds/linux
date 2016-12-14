@@ -218,8 +218,7 @@ hijack_init(void)
 	cpu_set_t ori_cpu;
 	char *offload1 = getenv("LKL_HIJACK_OFFLOAD");
 	int offload = 0;
-	/* with dhcp client by default */
-	char *boot_cmdline = "ip=dhcp";
+	char boot_cmdline[256] = "\0";
 
 	memset(&nd_args, 0, sizeof(struct lkl_netdev_args));
 	if (!debug) {
@@ -325,9 +324,9 @@ hijack_init(void)
 	if (single_cpu_mode == 1)
 		PinToFirstCpu(&ori_cpu);
 
-	/* clear cmdline if non-dhcp case */
-	if ((ip && strcmp(ip, "dhcp")) || (nd_id == -1))
-		boot_cmdline = "";
+	/* set cmdline if dhcp case */
+	if ((ip && !strcmp(ip, "dhcp")) && (nd_id != -1))
+		snprintf(boot_cmdline, sizeof(boot_cmdline), "ip=dhcp");
 
 	ret = lkl_start_kernel(&lkl_host_ops, 64 * 1024 * 1024UL, boot_cmdline);
 	if (ret) {
