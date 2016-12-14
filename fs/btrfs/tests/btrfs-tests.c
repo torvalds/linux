@@ -162,6 +162,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 				slot = radix_tree_iter_retry(&iter);
 			continue;
 		}
+		slot = radix_tree_iter_next(&iter);
 		spin_unlock(&fs_info->buffer_lock);
 		free_extent_buffer_stale(eb);
 		spin_lock(&fs_info->buffer_lock);
