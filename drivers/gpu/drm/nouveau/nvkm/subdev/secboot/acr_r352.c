@@ -496,19 +496,22 @@ acr_r352_fixup_hs_desc(struct acr_r352 *acr, struct nvkm_secboot *sb,
 {
 	struct nvkm_gpuobj *ls_blob = acr->ls_blob;
 
-	desc->ucode_blob_base = ls_blob->addr;
-	desc->ucode_blob_size = ls_blob->size;
-
-	desc->wpr_offset = 0;
-
 	/* WPR region information if WPR is not fixed */
 	if (sb->wpr_size == 0) {
+		u32 wpr_start = ls_blob->addr;
+		u32 wpr_end = wpr_start + ls_blob->size;
+
 		desc->wpr_region_id = 1;
-		desc->regions.no_regions = 1;
+		desc->regions.no_regions = 2;
+		desc->regions.region_props[0].start_addr = wpr_start >> 8;
+		desc->regions.region_props[0].end_addr = wpr_end >> 8;
 		desc->regions.region_props[0].region_id = 1;
-		desc->regions.region_props[0].start_addr = ls_blob->addr >> 8;
-		desc->regions.region_props[0].end_addr =
-					   (ls_blob->addr + ls_blob->size) >> 8;
+		desc->regions.region_props[0].read_mask = 0xf;
+		desc->regions.region_props[0].write_mask = 0xc;
+		desc->regions.region_props[0].client_mask = 0x2;
+	} else {
+		desc->ucode_blob_base = ls_blob->addr;
+		desc->ucode_blob_size = ls_blob->size;
 	}
 }
 
