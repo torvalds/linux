@@ -109,7 +109,7 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 		return VM_FAULT_SIGBUS;
 
 	if (sym_offset == image->sym_vvar_page) {
-		ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address,
+		ret = vm_insert_pfn(vma, vmf->address,
 				    __pa_symbol(&__vvar_page) >> PAGE_SHIFT);
 	} else if (sym_offset == image->sym_pvclock_page) {
 		struct pvclock_vsyscall_time_info *pvti =
@@ -117,7 +117,7 @@ static int vvar_fault(const struct vm_special_mapping *sm,
 		if (pvti && vclock_was_used(VCLOCK_PVCLOCK)) {
 			ret = vm_insert_pfn(
 				vma,
-				(unsigned long)vmf->virtual_address,
+				vmf->address,
 				__pa(pvti) >> PAGE_SHIFT);
 		}
 	}

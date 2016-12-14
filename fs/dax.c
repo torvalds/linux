@@ -738,7 +738,7 @@ static int dax_insert_mapping(struct address_space *mapping,
 		struct block_device *bdev, sector_t sector, size_t size,
 		void **entryp, struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+	unsigned long vaddr = vmf->address;
 	struct blk_dax_ctl dax = {
 		.sector = sector,
 		.size = size,
@@ -948,7 +948,7 @@ int dax_iomap_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
 {
 	struct address_space *mapping = vma->vm_file->f_mapping;
 	struct inode *inode = mapping->host;
-	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+	unsigned long vaddr = vmf->address;
 	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
 	sector_t sector;
 	struct iomap iomap = { 0 };

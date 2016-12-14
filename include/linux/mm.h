@@ -297,8 +297,6 @@ struct vm_fault {
 	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
 	pgoff_t pgoff;			/* Logical page offset based on vma */
 	unsigned long address;		/* Faulting virtual address */
-	void __user *virtual_address;	/* Faulting virtual address masked by
-					 * PAGE_MASK */
 	pmd_t *pmd;			/* Pointer to pmd entry matching
 					 * the 'address'
 					 */

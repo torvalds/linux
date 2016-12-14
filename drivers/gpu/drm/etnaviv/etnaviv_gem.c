@@ -202,15 +202,14 @@ int etnaviv_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	}
 
 	/* We don't use vmf->pgoff since that has the fake offset: */
-	pgoff = ((unsigned long)vmf->virtual_address -
-			vma->vm_start) >> PAGE_SHIFT;
+	pgoff = (vmf->address - vma->vm_start) >> PAGE_SHIFT;
 
 	page = pages[pgoff];
 
-	VERB("Inserting %p pfn %lx, pa %lx", vmf->virtual_address,
+	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
 	     page_to_pfn(page), page_to_pfn(page) << PAGE_SHIFT);
 
-	ret = vm_insert_page(vma, (unsigned long)vmf->virtual_address, page);
+	ret = vm_insert_page(vma, vmf->address, page);
 
 out:
 	switch (ret) {
