@@ -114,6 +114,15 @@ static inline u64 amdgpu_bo_mmap_offset(struct amdgpu_bo *bo)
 	return drm_vma_node_offset_addr(&bo->tbo.vma_node);
 }
 
+/**
+ * amdgpu_bo_gpu_accessible - return whether the bo is currently in memory that
+ * is accessible to the GPU.
+ */
+static inline bool amdgpu_bo_gpu_accessible(struct amdgpu_bo *bo)
+{
+	return bo->tbo.mem.mem_type != TTM_PL_SYSTEM;
+}
+
 int amdgpu_bo_create(struct amdgpu_device *adev,
 			    unsigned long size, int byte_align,
 			    bool kernel, u32 domain, u64 flags,
