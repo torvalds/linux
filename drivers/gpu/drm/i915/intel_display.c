@@ -5730,6 +5730,7 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc,
 					    struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum pipe pipe = intel_crtc->pipe;
@@ -5750,6 +5751,9 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc,
 
 		mask |= BIT(intel_display_port_power_domain(intel_encoder));
 	}
+
+	if (HAS_DDI(dev_priv) && crtc_state->has_audio)
+		mask |= BIT(POWER_DOMAIN_AUDIO);
 
 	if (crtc_state->shared_dpll)
 		mask |= BIT(POWER_DOMAIN_PLLS);

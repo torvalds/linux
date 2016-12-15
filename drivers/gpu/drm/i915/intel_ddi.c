@@ -1835,8 +1835,6 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 			     struct drm_connector_state *conn_state)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	enum port port = intel_ddi_get_encoder_port(intel_encoder);
 	int type = intel_encoder->type;
@@ -1863,10 +1861,8 @@ static void intel_enable_ddi(struct intel_encoder *intel_encoder,
 		intel_edp_drrs_enable(intel_dp, pipe_config);
 	}
 
-	if (intel_crtc->config->has_audio) {
-		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
+	if (pipe_config->has_audio)
 		intel_audio_codec_enable(intel_encoder, pipe_config, conn_state);
-	}
 }
 
 static void intel_disable_ddi(struct intel_encoder *intel_encoder,
@@ -1874,16 +1870,10 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder,
 			      struct drm_connector_state *old_conn_state)
 {
 	struct drm_encoder *encoder = &intel_encoder->base;
-	struct drm_crtc *crtc = encoder->crtc;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int type = intel_encoder->type;
-	struct drm_device *dev = encoder->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (intel_crtc->config->has_audio) {
+	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(intel_encoder);
-		intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
-	}
 
 	if (type == INTEL_OUTPUT_EDP) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);

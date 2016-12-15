@@ -92,7 +92,6 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
 	struct intel_connector *connector =
 		to_intel_connector(old_conn_state->connector);
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	int ret;
 
 	DRM_DEBUG_KMS("%d\n", intel_dp->active_mst_links);
@@ -103,10 +102,8 @@ static void intel_mst_disable_dp(struct intel_encoder *encoder,
 	if (ret) {
 		DRM_ERROR("failed to update payload %d\n", ret);
 	}
-	if (old_crtc_state->has_audio) {
+	if (old_crtc_state->has_audio)
 		intel_audio_codec_disable(encoder);
-		intel_display_power_put(dev_priv, POWER_DOMAIN_AUDIO);
-	}
 }
 
 static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
@@ -219,10 +216,8 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 	ret = drm_dp_check_act_status(&intel_dp->mst_mgr);
 
 	ret = drm_dp_update_payload_part2(&intel_dp->mst_mgr);
-	if (pipe_config->has_audio) {
-		intel_display_power_get(dev_priv, POWER_DOMAIN_AUDIO);
+	if (pipe_config->has_audio)
 		intel_audio_codec_enable(encoder, pipe_config, conn_state);
-	}
 }
 
 static bool intel_dp_mst_enc_get_hw_state(struct intel_encoder *encoder,
