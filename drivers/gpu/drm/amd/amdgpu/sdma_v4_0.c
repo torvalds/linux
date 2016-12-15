@@ -522,6 +522,7 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 	u32 wb_offset;
 	u32 doorbell;
 	u32 doorbell_offset;
+	u32 temp;
 	int i,r;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -575,6 +576,16 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_DOORBELL), doorbell);
 		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_DOORBELL_OFFSET), doorbell_offset);
 		nbio_v6_1_sdma_doorbell_range(adev, i, ring->use_doorbell, ring->doorbell_index);
+
+		/* set utc l1 enable flag always to 1 */
+		temp = RREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_CNTL));
+		temp = REG_SET_FIELD(temp, SDMA0_CNTL, UTC_L1_ENABLE, 1);
+		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_CNTL), temp);
+
+		/* unhalt engine */
+		temp = RREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_F32_CNTL));
+		temp = REG_SET_FIELD(temp, SDMA0_F32_CNTL, HALT, 0);
+		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_F32_CNTL), temp);
 
 		/* enable DMA RB */
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_GFX_RB_CNTL, RB_ENABLE, 1);
@@ -689,6 +700,15 @@ static int sdma_v4_0_load_microcode(struct amdgpu_device *adev)
 static int sdma_v4_0_start(struct amdgpu_device *adev)
 {
 	int r;
+
+	if (amdgpu_sriov_vf(adev)) {
+		/* disable RB and halt engine */
+		sdma_v4_0_enable(adev, false);
+
+		/* set RB registers */
+		r = sdma_v4_0_gfx_resume(adev);
+		return r;
+	}
 
 	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 		DRM_INFO("Loading via direct write\n");
