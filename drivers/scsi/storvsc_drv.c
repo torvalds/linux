@@ -377,6 +377,7 @@ enum storvsc_request_type {
 #define SRB_STATUS_SUCCESS	0x01
 #define SRB_STATUS_ABORTED	0x02
 #define SRB_STATUS_ERROR	0x04
+#define SRB_STATUS_DATA_OVERRUN	0x12
 
 #define SRB_STATUS(status) \
 	(status & ~(SRB_STATUS_AUTOSENSE_VALID | SRB_STATUS_QUEUE_FROZEN))
@@ -962,6 +963,7 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 	struct scsi_cmnd *scmnd = cmd_request->cmd;
 	struct scsi_sense_hdr sense_hdr;
 	struct vmscsi_request *vm_srb;
+	u32 data_transfer_length;
 	struct Scsi_Host *host;
 	u32 payload_sz = cmd_request->payload_sz;
 	void *payload = cmd_request->payload;
@@ -969,6 +971,7 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 	host = stor_dev->host;
 
 	vm_srb = &cmd_request->vstor_packet.vm_srb;
+	data_transfer_length = vm_srb->data_transfer_length;
 
 	scmnd->result = vm_srb->scsi_status;
 
@@ -982,13 +985,20 @@ static void storvsc_command_completion(struct storvsc_cmd_request *cmd_request,
 					     &sense_hdr);
 	}
 
-	if (vm_srb->srb_status != SRB_STATUS_SUCCESS)
+	if (vm_srb->srb_status != SRB_STATUS_SUCCESS) {
 		storvsc_handle_error(vm_srb, scmnd, host, sense_hdr.asc,
 					 sense_hdr.ascq);
+		/*
+		 * The Windows driver set data_transfer_length on
+		 * SRB_STATUS_DATA_OVERRUN. On other errors, this value
+		 * is untouched.  In these cases we set it to 0.
+		 */
+		if (vm_srb->srb_status != SRB_STATUS_DATA_OVERRUN)
+			data_transfer_length = 0;
+	}
 
 	scsi_set_resid(scmnd,
-		cmd_request->payload->range.len -
-		vm_srb->data_transfer_length);
+		cmd_request->payload->range.len - data_transfer_length);
 
 	scmnd->scsi_done(scmnd);
 
