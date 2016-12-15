@@ -48,7 +48,7 @@ static const struct option options[] = {
 };
 
 static const char * const bench_futex_lock_pi_usage[] = {
-	"perf bench futex requeue <options>",
+	"perf bench futex lock-pi <options>",
 	NULL
 };
 
