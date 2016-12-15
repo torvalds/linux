@@ -423,11 +423,11 @@ static inline void gtp1_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
 
 	/* Bits    8  7  6  5  4  3  2	1
 	 *	  +--+--+--+--+--+--+--+--+
-	 *	  |version |PT| 1| E| S|PN|
+	 *	  |version |PT| 0| E| S|PN|
 	 *	  +--+--+--+--+--+--+--+--+
 	 *	    0  0  1  1	1  0  0  0
 	 */
-	gtp1->flags	= 0x38; /* v1, GTP-non-prime. */
+	gtp1->flags	= 0x30; /* v1, GTP-non-prime. */
 	gtp1->type	= GTP_TPDU;
 	gtp1->length	= htons(payload_len);
 	gtp1->tid	= htonl(pctx->u.v1.o_tei);
