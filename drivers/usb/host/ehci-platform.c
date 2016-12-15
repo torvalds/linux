@@ -290,6 +290,8 @@ static int ehci_platform_probe(struct platform_device *dev)
 	}
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
+	if (priv->num_phys == 1)
+		hcd->phy = priv->phys[0];
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
