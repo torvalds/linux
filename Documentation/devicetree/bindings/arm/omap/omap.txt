@@ -178,6 +178,9 @@ Boards:
 - AM5728 IDK
   compatible = "ti,am5728-idk", "ti,am5728", "ti,dra742", "ti,dra74", "ti,dra7"
 
+- AM5718 IDK
+  compatible = "ti,am5718-idk", "ti,am5718", "ti,dra7"
+
 - DRA742 EVM:  Software Development Board for DRA742
   compatible = "ti,dra7-evm", "ti,dra742", "ti,dra74", "ti,dra7"
 

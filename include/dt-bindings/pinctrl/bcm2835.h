@@ -24,4 +24,9 @@
 #define BCM2835_FSEL_ALT2	6
 #define BCM2835_FSEL_ALT3	7
 
+/* brcm,pull property */
+#define BCM2835_PUD_OFF		0
+#define BCM2835_PUD_DOWN	1
+#define BCM2835_PUD_UP		2
+
 #endif /* __DT_BINDINGS_PINCTRL_BCM2835_H__ */
