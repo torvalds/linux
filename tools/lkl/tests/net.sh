@@ -1,10 +1,12 @@
 #!/bin/bash -e
 
-IFNAME=`ip route |grep default | awk '{print $5}'`
-GW=`ip route |grep default | awk '{print $3}'`
-HOST_IPADDR=`ip rou |grep ${IFNAME} | grep "scope link" | awk '{print $1}' | sed "s/\(.*\)\/.*/\1/"`
-PLEN=`ip rou |grep ${IFNAME} | grep "scope link" | awk '{print $1}' | sed "s/.*\/\(.*\)/\1/"`
-IPADDR=`echo ${HOST_IPADDR}|awk -F. '{printf ("%d.%d.%d.%d\n",$1,$2,$3,$4+10)}'`
+# currently not supported mingw
+if [ "`printenv CONFIG_AUTO_LKL_POSIX_HOST`" != "y" ] ; then
+    exit 0
+fi
+
+IFNAME=`ip route |grep default | awk '{print $5}' | head -n1`
+GW=`ip route |grep default | awk '{print $3}' | head -n1`
 
 script_dir=$(cd $(dirname ${BASH_SOURCE:-$0}); pwd)
 cd ${script_dir}
@@ -32,27 +34,25 @@ if [ -c /dev/net/tun ]; then
     sudo ip tuntap del dev lkl_ptt1 mode tap
 fi
 
-echo "== RAW socket (LKL net) tests =="
-# currently not supported mingw
-if [ -n "`printenv CONFIG_AUTO_LKL_POSIX_HOST`" ] ; then
-    sudo ip link set dev ${IFNAME} promisc on
-    # this won't work if IFNAME is wifi since it rewrites the src macaddr
-    sudo ./net-test raw ${IFNAME} 8.8.8.8 ${IPADDR} ${PLEN} ${GW}
-
-    # DHCP test
-    echo "  == DHCP with RAW socket test =="
-    sudo ./net-test raw ${IFNAME} 8.8.8.8 dhcp
-    sudo ip link set dev ${IFNAME} promisc off
+if ping -c1 -w1 $GW &>/dev/null; then
+    DST=$GW
+elif ping -c1 -w1 8.8.8.8 &>/dev/null; then
+    DST=8.8.8.8
 fi
 
-echo "== macvtap (LKL net) tests =="
-# currently not supported mingw
-sudo ip link add link ${IFNAME} name lkl_vtap0 type macvtap mode passthru
-if ls /dev/tap* > /dev/null 2>&1 ; then
-    sudo ip link set dev lkl_vtap0 up
-    sudo chown ${USER} `ls /dev/tap*`
+if ! [ -z $DST ]; then
+    echo "== RAW socket (LKL net) tests =="
+    sudo ip link set dev ${IFNAME} promisc on
+    sudo ./net-test raw ${IFNAME} ${DST} dhcp
+    sudo ip link set dev ${IFNAME} promisc off
 
-    ./net-test macvtap `ls /dev/tap*` 8.8.8.8 ${IPADDR} ${PLEN} ${GW}
+    echo "== macvtap (LKL net) tests =="
+    sudo ip link add link ${IFNAME} name lkl_vtap0 type macvtap mode passthru
+    if ls /dev/tap* > /dev/null 2>&1 ; then
+	sudo ip link set dev lkl_vtap0 up
+	sudo chown ${USER} `ls /dev/tap*`
+	./net-test macvtap `ls /dev/tap*` $DST dhcp
+    fi
 fi
 
 # we disabled this DPDK test because it's unlikely possible to describe
