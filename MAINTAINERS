@@ -8045,6 +8045,13 @@ L:      platform-driver-x86@vger.kernel.org
 S:      Supported
 F:      arch/x86/platform/mellanox/mlx-platform.c
 
+MELLANOX MLX CPLD HOTPLUG DRIVER
+M:	Vadim Pasternak <vadimp@mellanox.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Supported
+F:	drivers/platform/x86/mlxcpld-hotplug.c
+F:	include/linux/platform_data/mlxcpld-hotplug.h
+
 SOFT-ROCE DRIVER (rxe)
 M:	Moni Shoua <monis@mellanox.com>
 L:	linux-rdma@vger.kernel.org
