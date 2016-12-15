@@ -62,9 +62,6 @@ static int pic32_rng_read(struct hwrng *rng, void *buf, size_t max,
 	u32 t;
 	unsigned int timeout = RNG_TIMEOUT;
 
-	if (max < 8)
-		return 0;
-
 	do {
 		t = readl(priv->base + RNGRCNT) & RCNT_MASK;
 		if (t == 64) {

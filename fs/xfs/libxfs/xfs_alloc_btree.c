@@ -421,13 +421,17 @@ xfs_allocbt_init_cursor(
 
 	ASSERT(btnum == XFS_BTNUM_BNO || btnum == XFS_BTNUM_CNT);
 
-	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_SLEEP);
+	cur = kmem_zone_zalloc(xfs_btree_cur_zone, KM_NOFS);
 
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
 	cur->bc_btnum = btnum;
 	cur->bc_blocklog = mp->m_sb.sb_blocklog;
 	cur->bc_ops = &xfs_allocbt_ops;
+	if (btnum == XFS_BTNUM_BNO)
+		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_abtb_2);
+	else
+		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_abtc_2);
 
 	if (btnum == XFS_BTNUM_CNT) {
 		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);

@@ -164,6 +164,14 @@
 				clocks = <&cpm_syscon0 1 21>;
 				status = "disabled";
 			};
+
+			cpm_trng: trng@760000 {
+				compatible = "marvell,armada-8k-rng", "inside-secure,safexcel-eip76";
+				reg = <0x760000 0x7d>;
+				interrupts = <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&cpm_syscon0 1 25>;
+				status = "okay";
+			};
 		};
 
 		cpm_pcie0: pcie@f2600000 {

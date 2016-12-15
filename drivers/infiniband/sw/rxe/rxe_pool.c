@@ -180,7 +180,6 @@ static int rxe_pool_init_index(struct rxe_pool *pool, u32 max, u32 min)
 	size = BITS_TO_LONGS(max - min + 1) * sizeof(long);
 	pool->table = kmalloc(size, GFP_KERNEL);
 	if (!pool->table) {
-		pr_warn("no memory for bit table\n");
 		err = -ENOMEM;
 		goto out;
 	}

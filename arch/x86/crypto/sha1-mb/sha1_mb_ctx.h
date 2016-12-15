@@ -125,7 +125,7 @@ struct sha1_hash_ctx {
 	/* error flag */
 	int error;
 
-	uint32_t	total_length;
+	uint64_t	total_length;
 	const void	*incoming_buffer;
 	uint32_t	incoming_buffer_length;
 	uint8_t		partial_block_buffer[SHA1_BLOCK_SIZE * 2];

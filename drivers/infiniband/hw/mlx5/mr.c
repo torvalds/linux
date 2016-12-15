@@ -628,7 +628,8 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		ent->order = i + 2;
 		ent->dev = dev;
 
-		if (dev->mdev->profile->mask & MLX5_PROF_MASK_MR_CACHE)
+		if ((dev->mdev->profile->mask & MLX5_PROF_MASK_MR_CACHE) &&
+		    (mlx5_core_is_pf(dev->mdev)))
 			limit = dev->mdev->profile->mr_cache[i].limit;
 		else
 			limit = 0;
@@ -646,6 +647,33 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 	return 0;
 }
 
+static void wait_for_async_commands(struct mlx5_ib_dev *dev)
+{
+	struct mlx5_mr_cache *cache = &dev->cache;
+	struct mlx5_cache_ent *ent;
+	int total = 0;
+	int i;
+	int j;
+
+	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
+		ent = &cache->ent[i];
+		for (j = 0 ; j < 1000; j++) {
+			if (!ent->pending)
+				break;
+			msleep(50);
+		}
+	}
+	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
+		ent = &cache->ent[i];
+		total += ent->pending;
+	}
+
+	if (total)
+		mlx5_ib_warn(dev, "aborted while there are %d pending mr requests\n", total);
+	else
+		mlx5_ib_warn(dev, "done with all pending requests\n");
+}
+
 int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 {
 	int i;
@@ -659,6 +687,7 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 		clean_keys(dev, i);
 
 	destroy_workqueue(dev->cache.wq);
+	wait_for_async_commands(dev);
 	del_timer_sync(&dev->delay_timer);
 
 	return 0;
@@ -816,29 +845,34 @@ static void prep_umr_unreg_wqe(struct mlx5_ib_dev *dev,
 	umrwr->mkey = key;
 }
 
-static struct ib_umem *mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
-				   int access_flags, int *npages,
-				   int *page_shift, int *ncont, int *order)
+static int mr_umem_get(struct ib_pd *pd, u64 start, u64 length,
+		       int access_flags, struct ib_umem **umem,
+		       int *npages, int *page_shift, int *ncont,
+		       int *order)
 {
 	struct mlx5_ib_dev *dev = to_mdev(pd->device);
-	struct ib_umem *umem = ib_umem_get(pd->uobject->context, start, length,
-					   access_flags, 0);
-	if (IS_ERR(umem)) {
+	int err;
+
+	*umem = ib_umem_get(pd->uobject->context, start, length,
+			    access_flags, 0);
+	err = PTR_ERR_OR_ZERO(*umem);
+	if (err < 0) {
 		mlx5_ib_err(dev, "umem get failed (%ld)\n", PTR_ERR(umem));
-		return (void *)umem;
+		return err;
 	}
 
-	mlx5_ib_cont_pages(umem, start, npages, page_shift, ncont, order);
+	mlx5_ib_cont_pages(*umem, start, MLX5_MKEY_PAGE_SHIFT_MASK, npages,
+			   page_shift, ncont, order);
 	if (!*npages) {
 		mlx5_ib_warn(dev, "avoid zero region\n");
-		ib_umem_release(umem);
-		return ERR_PTR(-EINVAL);
+		ib_umem_release(*umem);
+		return -EINVAL;
 	}
 
 	mlx5_ib_dbg(dev, "npages %d, ncont %d, order %d, page_shift %d\n",
 		    *npages, *ncont, *order, *page_shift);
 
-	return umem;
+	return 0;
 }
 
 static void mlx5_ib_umr_done(struct ib_cq *cq, struct ib_wc *wc)
@@ -1164,11 +1198,11 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 
 	mlx5_ib_dbg(dev, "start 0x%llx, virt_addr 0x%llx, length 0x%llx, access_flags 0x%x\n",
 		    start, virt_addr, length, access_flags);
-	umem = mr_umem_get(pd, start, length, access_flags, &npages,
+	err = mr_umem_get(pd, start, length, access_flags, &umem, &npages,
 			   &page_shift, &ncont, &order);
 
-	if (IS_ERR(umem))
-		return (void *)umem;
+        if (err < 0)
+		return ERR_PTR(err);
 
 	if (use_umr(order)) {
 		mr = reg_umr(pd, umem, virt_addr, length, ncont, page_shift,
@@ -1345,10 +1379,9 @@ int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 		 */
 		flags |= IB_MR_REREG_TRANS;
 		ib_umem_release(mr->umem);
-		mr->umem = mr_umem_get(pd, addr, len, access_flags, &npages,
-				       &page_shift, &ncont, &order);
-		if (IS_ERR(mr->umem)) {
-			err = PTR_ERR(mr->umem);
+		err = mr_umem_get(pd, addr, len, access_flags, &mr->umem,
+				  &npages, &page_shift, &ncont, &order);
+		if (err < 0) {
 			mr->umem = NULL;
 			return err;
 		}

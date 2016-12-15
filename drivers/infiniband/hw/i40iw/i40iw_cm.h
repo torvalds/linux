@@ -56,8 +56,6 @@
 
 #define I40IW_MAX_IETF_SIZE      32
 
-#define MPA_ZERO_PAD_LEN	4
-
 /* IETF RTR MSG Fields               */
 #define IETF_PEER_TO_PEER       0x8000
 #define IETF_FLPDU_ZERO_LEN     0x4000
@@ -299,6 +297,7 @@ struct i40iw_cm_listener {
 	enum i40iw_cm_listener_state listener_state;
 	u32 reused_node;
 	u8 user_pri;
+	u8 tos;
 	u16 vlan_id;
 	bool qhash_set;
 	bool ipv4;
@@ -341,9 +340,11 @@ struct i40iw_cm_node {
 	int accept_pend;
 	struct list_head timer_entry;
 	struct list_head reset_entry;
+	struct list_head connected_entry;
 	atomic_t passive_state;
 	bool qhash_set;
 	u8 user_pri;
+	u8 tos;
 	bool ipv4;
 	bool snd_mark_en;
 	u16 lsmm_size;
@@ -368,7 +369,8 @@ struct i40iw_cm_info {
 	u32 rem_addr[4];
 	u16 vlan_id;
 	int backlog;
-	u16 user_pri;
+	u8 user_pri;
+	u8 tos;
 	bool ipv4;
 };
 
@@ -445,4 +447,7 @@ int i40iw_arp_table(struct i40iw_device *iwdev,
 		    u8 *mac_addr,
 		    u32 action);
 
+void i40iw_if_notify(struct i40iw_device *iwdev, struct net_device *netdev,
+		     u32 *ipaddr, bool ipv4, bool ifup);
+void i40iw_cm_disconnect_all(struct i40iw_device *iwdev);
 #endif /* I40IW_CM_H */

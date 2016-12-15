@@ -457,7 +457,7 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
 		}
 		if (buffer_new(bh)) {
 			clear_buffer_new(bh);
-			unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+			clean_bdev_bh_alias(bh);
 		}
 		set_buffer_async_write(bh);
 		nr_to_submit++;

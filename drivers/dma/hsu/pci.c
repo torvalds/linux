@@ -77,13 +77,15 @@ static int hsu_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (!chip)
 		return -ENOMEM;
 
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		return ret;
+
 	chip->dev = &pdev->dev;
 	chip->regs = pcim_iomap_table(pdev)[0];
 	chip->length = pci_resource_len(pdev, 0);
 	chip->offset = HSU_PCI_CHAN_OFFSET;
-	chip->irq = pdev->irq;
-
-	pci_enable_msi(pdev);
+	chip->irq = pci_irq_vector(pdev, 0);
 
 	ret = hsu_dma_probe(chip);
 	if (ret)

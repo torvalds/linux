@@ -202,12 +202,12 @@ static struct ratelimit_state printk_limits[] = {
 void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
 	struct super_block *sb = fs_info->sb;
-	char lvl[PRINTK_MAX_SINGLE_HEADER_LEN + 1];
+	char lvl[PRINTK_MAX_SINGLE_HEADER_LEN + 1] = "\0";
 	struct va_format vaf;
 	va_list args;
-	const char *type = NULL;
 	int kern_level;
-	struct ratelimit_state *ratelimit;
+	const char *type = logtypes[4];
+	struct ratelimit_state *ratelimit = &printk_limits[4];
 
 	va_start(args, fmt);
 
@@ -221,12 +221,6 @@ void btrfs_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 			ratelimit = &printk_limits[kern_level - '0'];
 		}
 		fmt += size;
-	}
-
-	if (!type) {
-		*lvl = '\0';
-		type = logtypes[4];
-		ratelimit = &printk_limits[4];
 	}
 
 	vaf.fmt = fmt;

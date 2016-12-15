@@ -30,8 +30,10 @@
  * SOFTWARE.
  */
 
-#ifndef _HNS_ROCE_USER_H
-#define _HNS_ROCE_USER_H
+#ifndef HNS_ABI_USER_H
+#define HNS_ABI_USER_H
+
+#include <linux/types.h>
 
 struct hns_roce_ib_create_cq {
 	__u64   buf_addr;
@@ -49,5 +51,4 @@ struct hns_roce_ib_create_qp {
 struct hns_roce_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 };
-
-#endif /*_HNS_ROCE_USER_H */
+#endif /* HNS_ABI_USER_H */
