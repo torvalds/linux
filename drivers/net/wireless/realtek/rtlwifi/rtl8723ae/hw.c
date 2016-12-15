@@ -1256,7 +1256,7 @@ void rtl8723e_set_qos(struct ieee80211_hw *hw, int aci)
 		rtl_write_dword(rtlpriv, REG_EDCA_VO_PARAM, 0x2f3222);
 		break;
 	default:
-		RT_ASSERT(false, "invalid aci: %d !\n", aci);
+		WARN_ONCE(true, "rtl8723ae: invalid aci: %d !\n", aci);
 		break;
 	}
 }

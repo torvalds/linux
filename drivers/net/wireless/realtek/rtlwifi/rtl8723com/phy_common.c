@@ -283,7 +283,7 @@ bool rtl8723_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		RT_ASSERT(false, "cmdtable cannot be NULL.\n");
+		WARN_ONCE(true, "rtl8723-common: cmdtable cannot be NULL.\n");
 		return false;
 	}
 

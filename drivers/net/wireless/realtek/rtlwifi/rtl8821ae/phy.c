@@ -1870,8 +1870,8 @@ static u8 _rtl8821ae_get_rate_section_index(u32 regaddr)
 	else if (regaddr >= 0xE20 && regaddr <= 0xE4C)
 		index = (u8)((regaddr - 0xE20) / 4);
 	else
-		RT_ASSERT(!COMP_INIT,
-			  "Invalid RegAddr 0x%x\n", regaddr);
+		WARN_ONCE(true,
+			  "rtl8821ae: Invalid RegAddr 0x%x\n", regaddr);
 	return index;
 }
 
@@ -2322,7 +2322,7 @@ static s8 _rtl8821ae_phy_get_ratesection_intxpower_byrate(u8 path, u8 rate)
 		rate_section = 11;
 		break;
 	default:
-		RT_ASSERT(true, "Rate_Section is Illegal\n");
+		WARN_ONCE(true, "rtl8821ae: Rate_Section is Illegal\n");
 		break;
 	}
 
@@ -2588,7 +2588,7 @@ static s8 _rtl8821ae_phy_get_txpower_by_rate(struct ieee80211_hw *hw,
 		shift = 24;
 		break;
 	default:
-		RT_ASSERT(true, "Rate_Section is Illegal\n");
+		WARN_ONCE(true, "rtl8821ae: Rate_Section is Illegal\n");
 		break;
 	}
 

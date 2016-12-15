@@ -1231,8 +1231,8 @@ u8 rtl88e_phy_sw_chnl(struct ieee80211_hw *hw)
 		return 0;
 	if (rtlphy->set_bwmode_inprogress)
 		return 0;
-	RT_ASSERT((rtlphy->current_channel <= 14),
-		  "WIRELESS_MODE_G but channel>14");
+	WARN_ONCE((rtlphy->current_channel > 14),
+		  "rtl8188ee: WIRELESS_MODE_G but channel>14");
 	rtlphy->sw_chnl_inprogress = true;
 	rtlphy->sw_chnl_stage = 0;
 	rtlphy->sw_chnl_step = 0;
@@ -1280,8 +1280,8 @@ static bool _rtl88e_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 
 	rfdependcmdcnt = 0;
 
-	RT_ASSERT((channel >= 1 && channel <= 14),
-		  "illegal channel for Zebra: %d\n", channel);
+	WARN_ONCE((channel < 1 || channel > 14),
+		  "rtl8188ee: illegal channel for Zebra: %d\n", channel);
 
 	_rtl88e_phy_set_sw_chnl_cmdarray(rfdependcmd, rfdependcmdcnt++,
 					 MAX_RFDEPENDCMD_CNT, CMDID_RF_WRITEREG,
@@ -1367,7 +1367,7 @@ static bool _rtl88e_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		RT_ASSERT(false, "cmdtable cannot be NULL.\n");
+		WARN_ONCE(true, "rtl8188ee: cmdtable cannot be NULL.\n");
 		return false;
 	}
 

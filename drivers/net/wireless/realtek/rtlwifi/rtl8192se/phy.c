@@ -330,7 +330,7 @@ static bool _rtl92s_phy_set_sw_chnl_cmdarray(struct swchnlcmd *cmdtable,
 	struct swchnlcmd *pcmd;
 
 	if (cmdtable == NULL) {
-		RT_ASSERT(false, "cmdtable cannot be NULL\n");
+		WARN_ONCE(true, "rtl8192se: cmdtable cannot be NULL\n");
 		return false;
 	}
 
@@ -374,8 +374,8 @@ static bool _rtl92s_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 
 	rfdependcmdcnt = 0;
 
-	RT_ASSERT((channel >= 1 && channel <= 14),
-		  "invalid channel for Zebra: %d\n", channel);
+	WARN_ONCE((channel < 1 || channel > 14),
+		  "rtl8192se: invalid channel for Zebra: %d\n", channel);
 
 	_rtl92s_phy_set_sw_chnl_cmdarray(rfdependcmd, rfdependcmdcnt++,
 					 MAX_RFDEPENDCMD_CNT, CMDID_RF_WRITEREG,

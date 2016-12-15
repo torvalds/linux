@@ -1613,8 +1613,8 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
 				 "set pairwise key\n");
 			if (!sta) {
-				RT_ASSERT(false,
-					  "pairwise key without mac_addr\n");
+				WARN_ONCE(true,
+					  "rtlwifi: pairwise key without mac_addr\n");
 
 				err = -EOPNOTSUPP;
 				goto out_unlock;
@@ -1804,8 +1804,8 @@ bool rtl_hal_pwrseqcmdparsing(struct rtl_priv *rtlpriv, u8 cut_version,
 					 "rtl_hal_pwrseqcmdparsing(): PWR_CMD_END\n");
 				return true;
 			default:
-				RT_ASSERT(false,
-					  "rtl_hal_pwrseqcmdparsing(): Unknown CMD!!\n");
+				WARN_ONCE(true,
+					  "rtlwifi: rtl_hal_pwrseqcmdparsing(): Unknown CMD!!\n");
 				break;
 			}
 		}

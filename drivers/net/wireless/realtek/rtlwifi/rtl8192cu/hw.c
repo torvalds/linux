@@ -1790,7 +1790,7 @@ void rtl92cu_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 						u4b_ac_param);
 				break;
 			default:
-				RT_ASSERT(false, "invalid aci: %d !\n",
+				WARN_ONCE(true, "rtl8192cu: invalid aci: %d !\n",
 					  e_aci);
 				break;
 			}

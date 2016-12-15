@@ -182,7 +182,7 @@ void rtl92d_firmware_selfreset(struct ieee80211_hw *hw)
 		udelay(50);
 		u1b_tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 	}
-	RT_ASSERT((delay > 0), "8051 reset failed!\n");
+	WARN_ONCE((delay <= 0), "rtl8192de: 8051 reset failed!\n");
 	RT_TRACE(rtlpriv, COMP_FW, DBG_DMESG,
 		 "=====> 8051 reset success (%d)\n", delay);
 }
