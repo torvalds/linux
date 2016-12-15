@@ -174,9 +174,8 @@ static void _rtl_pci_update_default_setting(struct ieee80211_hw *hw)
 		}
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n",
-			 rtlpci->const_support_pciaspm);
+		pr_err("switch case %#x not processed\n",
+		       rtlpci->const_support_pciaspm);
 		break;
 	}
 
@@ -1247,9 +1246,8 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 					 &buffer_desc_dma);
 
 		if (!buffer_desc || (unsigned long)buffer_desc & 0xFF) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Cannot allocate TX ring (prio = %d)\n",
-				 prio);
+			pr_err("Cannot allocate TX ring (prio = %d)\n",
+			       prio);
 			return -ENOMEM;
 		}
 
@@ -1266,8 +1264,7 @@ static int _rtl_pci_init_tx_ring(struct ieee80211_hw *hw,
 				     sizeof(*desc) * entries, &desc_dma);
 
 	if (!desc || (unsigned long)desc & 0xFF) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Cannot allocate TX ring (prio = %d)\n", prio);
+		pr_err("Cannot allocate TX ring (prio = %d)\n", prio);
 		return -ENOMEM;
 	}
 
@@ -1314,8 +1311,7 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw, int rxring_idx)
 					  &rtlpci->rx_ring[rxring_idx].dma);
 		if (!rtlpci->rx_ring[rxring_idx].buffer_desc ||
 		    (ulong)rtlpci->rx_ring[rxring_idx].buffer_desc & 0xFF) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Cannot allocate RX ring\n");
+			pr_err("Cannot allocate RX ring\n");
 			return -ENOMEM;
 		}
 
@@ -1338,8 +1334,7 @@ static int _rtl_pci_init_rx_ring(struct ieee80211_hw *hw, int rxring_idx)
 					  &rtlpci->rx_ring[rxring_idx].dma);
 		if (!rtlpci->rx_ring[rxring_idx].desc ||
 		    (unsigned long)rtlpci->rx_ring[rxring_idx].desc & 0xFF) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Cannot allocate RX ring\n");
+			pr_err("Cannot allocate RX ring\n");
 			return -ENOMEM;
 		}
 
@@ -1799,15 +1794,13 @@ static void rtl_pci_deinit(struct ieee80211_hw *hw)
 
 static int rtl_pci_init(struct ieee80211_hw *hw, struct pci_dev *pdev)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int err;
 
 	_rtl_pci_init_struct(hw, pdev);
 
 	err = _rtl_pci_init_trx_ring(hw);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "tx ring initialization failed\n");
+		pr_err("tx ring initialization failed\n");
 		return err;
 	}
 
@@ -2275,7 +2268,7 @@ int rtl_pci_probe(struct pci_dev *pdev,
 	rtlpriv->cfg->ops->read_eeprom_info(hw);
 
 	if (rtlpriv->cfg->ops->init_sw_vars(hw)) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Can't init_sw_vars\n");
+		pr_err("Can't init_sw_vars\n");
 		err = -ENODEV;
 		goto fail3;
 	}
@@ -2287,22 +2280,20 @@ int rtl_pci_probe(struct pci_dev *pdev,
 	/* Init mac80211 sw */
 	err = rtl_init_core(hw);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't allocate sw for mac80211\n");
+		pr_err("Can't allocate sw for mac80211\n");
 		goto fail3;
 	}
 
 	/* Init PCI sw */
 	err = rtl_pci_init(hw, pdev);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Failed to init PCI\n");
+		pr_err("Failed to init PCI\n");
 		goto fail3;
 	}
 
 	err = ieee80211_register_hw(hw);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't register mac80211 hw.\n");
+		pr_err("Can't register mac80211 hw.\n");
 		err = -ENODEV;
 		goto fail3;
 	}
@@ -2310,8 +2301,7 @@ int rtl_pci_probe(struct pci_dev *pdev,
 
 	err = sysfs_create_group(&pdev->dev.kobj, &rtl_attribute_group);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "failed to create sysfs device attributes\n");
+		pr_err("failed to create sysfs device attributes\n");
 		goto fail3;
 	}
 

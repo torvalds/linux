@@ -150,8 +150,7 @@ static bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 		break;
 
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", state_toset);
+		pr_err("switch case %#x not processed\n", state_toset);
 		break;
 	}
 
