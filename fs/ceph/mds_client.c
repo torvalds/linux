@@ -668,6 +668,27 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 }
 
 /*
+ * Walk back up the dentry tree until we hit a dentry representing a
+ * non-snapshot inode. We do this using the rcu_read_lock (which must be held
+ * when calling this) to ensure that the objects won't disappear while we're
+ * working with them. Once we hit a candidate dentry, we attempt to take a
+ * reference to it, and return that as the result.
+ */
+static struct inode *get_nonsnap_parent(struct dentry *dentry) { struct inode
+	*inode = NULL;
+
+	while (dentry && !IS_ROOT(dentry)) {
+		inode = d_inode_rcu(dentry);
+		if (!inode || ceph_snap(inode) == CEPH_NOSNAP)
+			break;
+		dentry = dentry->d_parent;
+	}
+	if (inode)
+		inode = igrab(inode);
+	return inode;
+}
+
+/*
  * Choose mds to send request to next.  If there is a hint set in the
  * request (e.g., due to a prior forward hint from the mds), use that.
  * Otherwise, consult frag tree and/or caps to identify the
@@ -675,19 +696,6 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
  *
  * Called under mdsc->mutex.
  */
-static struct dentry *get_nonsnap_parent(struct dentry *dentry)
-{
-	/*
-	 * we don't need to worry about protecting the d_parent access
-	 * here because we never renaming inside the snapped namespace
-	 * except to resplice to another snapdir, and either the old or new
-	 * result is a valid result.
-	 */
-	while (!IS_ROOT(dentry) && ceph_snap(d_inode(dentry)) != CEPH_NOSNAP)
-		dentry = dentry->d_parent;
-	return dentry;
-}
-
 static int __choose_mds(struct ceph_mds_client *mdsc,
 			struct ceph_mds_request *req)
 {
@@ -717,30 +725,39 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	inode = NULL;
 	if (req->r_inode) {
 		inode = req->r_inode;
+		ihold(inode);
 	} else if (req->r_dentry) {
 		/* ignore race with rename; old or new d_parent is okay */
-		struct dentry *parent = req->r_dentry->d_parent;
-		struct inode *dir = d_inode(parent);
+		struct dentry *parent;
+		struct inode *dir;
 
-		if (dir->i_sb != mdsc->fsc->sb) {
-			/* not this fs! */
+		rcu_read_lock();
+		parent = req->r_dentry->d_parent;
+		dir = req->r_locked_dir ? : d_inode_rcu(parent);
+
+		if (!dir || dir->i_sb != mdsc->fsc->sb) {
+			/*  not this fs or parent went negative */
 			inode = d_inode(req->r_dentry);
+			if (inode)
+				ihold(inode);
 		} else if (ceph_snap(dir) != CEPH_NOSNAP) {
 			/* direct snapped/virtual snapdir requests
 			 * based on parent dir inode */
-			struct dentry *dn = get_nonsnap_parent(parent);
-			inode = d_inode(dn);
+			inode = get_nonsnap_parent(parent);
 			dout("__choose_mds using nonsnap parent %p\n", inode);
 		} else {
 			/* dentry target */
 			inode = d_inode(req->r_dentry);
 			if (!inode || mode == USE_AUTH_MDS) {
 				/* dir + name */
-				inode = dir;
+				inode = igrab(dir);
 				hash = ceph_dentry_hash(dir, req->r_dentry);
 				is_hash = true;
+			} else {
+				ihold(inode);
 			}
 		}
+		rcu_read_unlock();
 	}
 
 	dout("__choose_mds %p is_hash=%d (%d) mode %d\n", inode, (int)is_hash,
@@ -769,7 +786,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 				     (int)r, frag.ndist);
 				if (ceph_mdsmap_get_state(mdsc->mdsmap, mds) >=
 				    CEPH_MDS_STATE_ACTIVE)
-					return mds;
+					goto out;
 			}
 
 			/* since this file/dir wasn't known to be
@@ -784,7 +801,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 				     inode, ceph_vinop(inode), frag.frag, mds);
 				if (ceph_mdsmap_get_state(mdsc->mdsmap, mds) >=
 				    CEPH_MDS_STATE_ACTIVE)
-					return mds;
+					goto out;
 			}
 		}
 	}
@@ -797,6 +814,7 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 		cap = rb_entry(rb_first(&ci->i_caps), struct ceph_cap, ci_node);
 	if (!cap) {
 		spin_unlock(&ci->i_ceph_lock);
+		iput(inode);
 		goto random;
 	}
 	mds = cap->session->s_mds;
@@ -804,6 +822,8 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 	     inode, ceph_vinop(inode), mds,
 	     cap == ci->i_auth_cap ? "auth " : "", cap);
 	spin_unlock(&ci->i_ceph_lock);
+out:
+	iput(inode);
 	return mds;
 
 random:
