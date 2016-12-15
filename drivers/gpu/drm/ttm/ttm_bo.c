@@ -342,7 +342,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 
 		if (bo->mem.mem_type == TTM_PL_SYSTEM) {
 			if (bdev->driver->move_notify)
-				bdev->driver->move_notify(bo, mem);
+				bdev->driver->move_notify(bo, evict, mem);
 			bo->mem = *mem;
 			mem->mm_node = NULL;
 			goto moved;
@@ -350,7 +350,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 	}
 
 	if (bdev->driver->move_notify)
-		bdev->driver->move_notify(bo, mem);
+		bdev->driver->move_notify(bo, evict, mem);
 
 	if (!(old_man->flags & TTM_MEMTYPE_FLAG_FIXED) &&
 	    !(new_man->flags & TTM_MEMTYPE_FLAG_FIXED))
@@ -366,7 +366,7 @@ static int ttm_bo_handle_move_mem(struct ttm_buffer_object *bo,
 			struct ttm_mem_reg tmp_mem = *mem;
 			*mem = bo->mem;
 			bo->mem = tmp_mem;
-			bdev->driver->move_notify(bo, mem);
+			bdev->driver->move_notify(bo, false, mem);
 			bo->mem = *mem;
 			*mem = tmp_mem;
 		}
@@ -414,7 +414,7 @@ out_err:
 static void ttm_bo_cleanup_memtype_use(struct ttm_buffer_object *bo)
 {
 	if (bo->bdev->driver->move_notify)
-		bo->bdev->driver->move_notify(bo, NULL);
+		bo->bdev->driver->move_notify(bo, false, NULL);
 
 	ttm_tt_destroy(bo->ttm);
 	bo->ttm = NULL;

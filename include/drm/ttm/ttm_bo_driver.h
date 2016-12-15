@@ -431,9 +431,15 @@ struct ttm_bo_driver {
 	int (*verify_access)(struct ttm_buffer_object *bo,
 			     struct file *filp);
 
-	/* hook to notify driver about a driver move so it
-	 * can do tiling things */
+	/**
+	 * Hook to notify driver about a driver move so it
+	 * can do tiling things and book-keeping.
+	 *
+	 * @evict: whether this move is evicting the buffer from the graphics
+	 * address space
+	 */
 	void (*move_notify)(struct ttm_buffer_object *bo,
+			    bool evict,
 			    struct ttm_mem_reg *new_mem);
 	/* notify the driver we are taking a fault on this BO
 	 * and have reserved it */

@@ -386,6 +386,7 @@ static int virtio_gpu_bo_move(struct ttm_buffer_object *bo,
 }
 
 static void virtio_gpu_bo_move_notify(struct ttm_buffer_object *tbo,
+				      bool evict,
 				      struct ttm_mem_reg *new_mem)
 {
 	struct virtio_gpu_object *bo;

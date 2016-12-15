@@ -825,6 +825,7 @@ static int vmw_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
  * (currently only resources).
  */
 static void vmw_move_notify(struct ttm_buffer_object *bo,
+			    bool evict,
 			    struct ttm_mem_reg *mem)
 {
 	vmw_resource_move_notify(bo, mem);
