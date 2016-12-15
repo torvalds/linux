@@ -866,6 +866,13 @@ static void storvsc_handle_error(struct vmscsi_request *vm_srb,
 	switch (SRB_STATUS(vm_srb->srb_status)) {
 	case SRB_STATUS_ERROR:
 		/*
+		 * Let upper layer deal with error when
+		 * sense message is present.
+		 */
+
+		if (vm_srb->srb_status & SRB_STATUS_AUTOSENSE_VALID)
+			break;
+		/*
 		 * If there is an error; offline the device since all
 		 * error recovery strategies would have already been
 		 * deployed on the host side. However, if the command
