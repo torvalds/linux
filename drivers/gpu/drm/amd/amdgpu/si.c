@@ -1229,7 +1229,7 @@ static int si_common_early_init(void *handle)
 			AMD_CG_SUPPORT_HDP_MGCG;
 		adev->pg_flags = 0;
 		//???
-		adev->external_rev_id = adev->rev_id + 0x14;
+		adev->external_rev_id = adev->rev_id + 40;
 		break;
 	case CHIP_OLAND:
 		adev->cg_flags =
