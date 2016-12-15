@@ -6515,10 +6515,7 @@ F:	drivers/net/ethernet/intel/*/
 
 INTEL RDMA RNIC DRIVER
 M:     Faisal Latif <faisal.latif@intel.com>
-R:     Chien Tin Tung <chien.tin.tung@intel.com>
-R:     Mustafa Ismail <mustafa.ismail@intel.com>
-R:     Shiraz Saleem <shiraz.saleem@intel.com>
-R:     Tatyana Nikolova <tatyana.e.nikolova@intel.com>
+M:     Shiraz Saleem <shiraz.saleem@intel.com>
 L:     linux-rdma@vger.kernel.org
 S:     Supported
 F:     drivers/infiniband/hw/i40iw/
@@ -11078,7 +11075,6 @@ F:	drivers/net/ethernet/emulex/benet/
 EMULEX ONECONNECT ROCE DRIVER
 M:	Selvin Xavier <selvin.xavier@avagotech.com>
 M:	Devesh Sharma <devesh.sharma@avagotech.com>
-M:	Mitesh Ahuja <mitesh.ahuja@avagotech.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.emulex.com
 S:	Supported
@@ -13128,6 +13124,13 @@ L:	linux-scsi@vger.kernel.org
 S:	Maintained
 F:	drivers/scsi/vmw_pvscsi.c
 F:	drivers/scsi/vmw_pvscsi.h
+
+VMWARE PVRDMA DRIVER
+M:	Adit Ranadive <aditr@vmware.com>
+M:	VMware PV-Drivers <pv-drivers@vmware.com>
+L:	linux-rdma@vger.kernel.org
+S:	Maintained
+F:	drivers/infiniband/hw/vmw_pvrdma/
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lgirdwood@gmail.com>

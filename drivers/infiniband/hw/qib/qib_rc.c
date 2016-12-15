@@ -941,8 +941,6 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 {
 	struct ib_other_headers *ohdr;
 	struct rvt_swqe *wqe;
-	struct ib_wc wc;
-	unsigned i;
 	u32 opcode;
 	u32 psn;
 
@@ -988,22 +986,8 @@ void qib_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
 		qp->s_last = s_last;
 		/* see post_send() */
 		barrier();
-		for (i = 0; i < wqe->wr.num_sge; i++) {
-			struct rvt_sge *sge = &wqe->sg_list[i];
-
-			rvt_put_mr(sge->mr);
-		}
-		/* Post a send completion queue entry if requested. */
-		if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
-		    (wqe->wr.send_flags & IB_SEND_SIGNALED)) {
-			memset(&wc, 0, sizeof(wc));
-			wc.wr_id = wqe->wr.wr_id;
-			wc.status = IB_WC_SUCCESS;
-			wc.opcode = ib_qib_wc_opcode[wqe->wr.opcode];
-			wc.byte_len = wqe->length;
-			wc.qp = &qp->ibqp;
-			rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc, 0);
-		}
+		rvt_put_swqe(wqe);
+		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
 	}
 	/*
 	 * If we were waiting for sends to complete before resending,
@@ -1032,9 +1016,6 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 					 struct rvt_swqe *wqe,
 					 struct qib_ibport *ibp)
 {
-	struct ib_wc wc;
-	unsigned i;
-
 	/*
 	 * Don't decrement refcount and don't generate a
 	 * completion if the SWQE is being resent until the send
@@ -1044,28 +1025,14 @@ static struct rvt_swqe *do_rc_completion(struct rvt_qp *qp,
 	    qib_cmp24(qp->s_sending_psn, qp->s_sending_hpsn) > 0) {
 		u32 s_last;
 
-		for (i = 0; i < wqe->wr.num_sge; i++) {
-			struct rvt_sge *sge = &wqe->sg_list[i];
-
-			rvt_put_mr(sge->mr);
-		}
+		rvt_put_swqe(wqe);
 		s_last = qp->s_last;
 		if (++s_last >= qp->s_size)
 			s_last = 0;
 		qp->s_last = s_last;
 		/* see post_send() */
 		barrier();
-		/* Post a send completion queue entry if requested. */
-		if (!(qp->s_flags & RVT_S_SIGNAL_REQ_WR) ||
-		    (wqe->wr.send_flags & IB_SEND_SIGNALED)) {
-			memset(&wc, 0, sizeof(wc));
-			wc.wr_id = wqe->wr.wr_id;
-			wc.status = IB_WC_SUCCESS;
-			wc.opcode = ib_qib_wc_opcode[wqe->wr.opcode];
-			wc.byte_len = wqe->length;
-			wc.qp = &qp->ibqp;
-			rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.send_cq), &wc, 0);
-		}
+		rvt_qp_swqe_complete(qp, wqe, IB_WC_SUCCESS);
 	} else
 		this_cpu_inc(*ibp->rvp.rc_delayed_comp);
 
@@ -2112,8 +2079,7 @@ send_last:
 			 * Update the next expected PSN.  We add 1 later
 			 * below, so only add the remainder here.
 			 */
-			if (len > pmtu)
-				qp->r_psn += (len - 1) / pmtu;
+			qp->r_psn += rvt_div_mtu(qp, len - 1);
 		} else {
 			e->rdma_sge.mr = NULL;
 			e->rdma_sge.vaddr = NULL;

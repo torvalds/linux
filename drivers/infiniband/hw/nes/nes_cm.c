@@ -2282,10 +2282,8 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 	if (!listener) {
 		/* create a CM listen node (1/2 node to compare incoming traffic to) */
 		listener = kzalloc(sizeof(*listener), GFP_ATOMIC);
-		if (!listener) {
-			nes_debug(NES_DBG_CM, "Not creating listener memory allocation failed\n");
+		if (!listener)
 			return NULL;
-		}
 
 		listener->loc_addr = cm_info->loc_addr;
 		listener->loc_port = cm_info->loc_port;
