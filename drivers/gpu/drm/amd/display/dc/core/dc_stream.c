@@ -89,6 +89,9 @@ static bool construct(struct core_stream *stream,
 static void destruct(struct core_stream *stream)
 {
 	dc_sink_release(&stream->sink->public);
+	if (stream->public.out_transfer_func != NULL)
+		dc_transfer_func_release(
+				stream->public.out_transfer_func);
 }
 
 void dc_stream_retain(const struct dc_stream *dc_stream)

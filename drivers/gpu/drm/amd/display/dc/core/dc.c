@@ -1394,6 +1394,7 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 
 		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+			struct core_stream *stream = pipe_ctx->stream;
 
 			if (pipe_ctx->surface != surface)
 				continue;
@@ -1472,15 +1473,14 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 
 			if (updates[i].out_transfer_func &&
 					updates[i].out_transfer_func !=
-					surface->public.out_transfer_func) {
-				if (surface->public.out_transfer_func != NULL)
+					stream->public.out_transfer_func) {
+				if (stream->public.out_transfer_func != NULL)
 					dc_transfer_func_release(
-							surface->public.
+							stream->public.
 							out_transfer_func);
-
 				dc_transfer_func_retain(
 						updates[i].out_transfer_func);
-				surface->public.out_transfer_func =
+				stream->public.out_transfer_func =
 						updates[i].out_transfer_func;
 			}
 		}
@@ -1517,11 +1517,18 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 			}
 
 			if (is_new_pipe_surface[j] ||
-					updates[i].gamma ||
-					updates[i].in_transfer_func ||
-					updates[i].out_transfer_func)
-				core_dc->hwss.set_gamma_correction(
+					updates[i].in_transfer_func)
+				core_dc->hwss.set_input_transfer_func(
 						pipe_ctx, pipe_ctx->surface);
+
+			if (is_new_pipe_surface[j] ||
+					updates[i].gamma ||
+					updates[i].out_transfer_func)
+				core_dc->hwss.set_output_transfer_func(
+						pipe_ctx,
+						pipe_ctx->surface,
+						pipe_ctx->stream);
+
 		}
 		if (apply_ctx) {
 			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);

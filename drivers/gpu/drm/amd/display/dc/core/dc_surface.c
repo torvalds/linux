@@ -76,9 +76,6 @@ static void destruct(struct surface *surface)
 	if (surface->protected.public.in_transfer_func != NULL)
 		dc_transfer_func_release(
 				surface->protected.public.in_transfer_func);
-	if (surface->protected.public.out_transfer_func != NULL)
-		dc_transfer_func_release(
-				surface->protected.public.out_transfer_func);
 }
 
 /*******************************************************************************
@@ -223,9 +220,8 @@ void dc_transfer_func_release(const struct dc_transfer_func *dc_tf)
 		dm_free(tf);
 }
 
-struct dc_transfer_func *dc_create_transfer_func(const struct dc *dc)
+struct dc_transfer_func *dc_create_transfer_func()
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
 	struct transfer_func *tf = dm_alloc(sizeof(*tf));
 
 	if (tf == NULL)

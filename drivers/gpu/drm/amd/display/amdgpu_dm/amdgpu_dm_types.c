@@ -513,6 +513,7 @@ static void fill_gamma_from_crtc(
 	struct dc_gamma *gamma;
 	struct drm_crtc_state *state = crtc->state;
 	struct drm_color_lut *lut = (struct drm_color_lut *) state->gamma_lut->data;
+	struct dc_transfer_func *input_tf;
 
 	gamma = dc_create_gamma();
 
@@ -529,6 +530,16 @@ static void fill_gamma_from_crtc(
 	gamma->size = sizeof(gamma->gamma_ramp_rgb256x3x16);
 
 	dc_surface->gamma_correction = gamma;
+
+	input_tf = dc_create_transfer_func();
+
+	if (input_tf == NULL)
+		return;
+
+	input_tf->type = TF_TYPE_PREDEFINED;
+	input_tf->tf = TRANSFER_FUNCTION_SRGB;
+
+	dc_surface->in_transfer_func = input_tf;
 }
 
 static void fill_plane_attributes(

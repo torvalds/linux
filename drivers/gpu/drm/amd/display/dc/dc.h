@@ -254,6 +254,7 @@ struct dc_transfer_func_distributed_points {
 enum dc_transfer_func_predefined {
 	TRANSFER_FUNCTION_SRGB,
 	TRANSFER_FUNCTION_BT709,
+	TRANSFER_FUNCTION_PQ,
 	TRANSFER_FUNCTION_LINEAR,
 };
 
@@ -287,7 +288,6 @@ struct dc_surface {
 	const struct dc_gamma *gamma_correction;
 
 	const struct dc_transfer_func *in_transfer_func;
-	const struct dc_transfer_func *out_transfer_func;
 };
 
 struct dc_plane_info {
@@ -353,7 +353,7 @@ struct dc_gamma *dc_create_gamma(void);
 
 void dc_transfer_func_retain(const struct dc_transfer_func *dc_tf);
 void dc_transfer_func_release(const struct dc_transfer_func *dc_tf);
-struct dc_transfer_func *dc_create_transfer_func(const struct dc *dc);
+struct dc_transfer_func *dc_create_transfer_func(void);
 
 /*
  * This structure holds a surface address.  There could be multiple addresses
@@ -527,10 +527,11 @@ struct dc_stream {
 
 	struct freesync_context freesync_ctx;
 
-	/* TODO: dithering */
-	/* TODO: transfer function (CSC/regamma/gamut remap) */
+	const struct dc_transfer_func *out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
 	struct csc_transform csc_color_matrix;
+
+	/* TODO: dithering */
 	/* TODO: custom INFO packets */
 	/* TODO: ABM info (DMCU) */
 	/* TODO: PSR info */

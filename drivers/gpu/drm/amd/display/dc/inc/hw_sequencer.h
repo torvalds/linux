@@ -77,9 +77,14 @@ struct hw_sequencer_funcs {
 	void (*update_pending_status)(
 			struct pipe_ctx *pipe_ctx);
 
-	bool (*set_gamma_correction)(
+	bool (*set_input_transfer_func)(
 				struct pipe_ctx *pipe_ctx,
 				const struct core_surface *surface);
+
+	bool (*set_output_transfer_func)(
+				struct pipe_ctx *pipe_ctx,
+				const struct core_surface *surface,
+				const struct core_stream *stream);
 
 	void (*power_down)(struct core_dc *dc);
 
