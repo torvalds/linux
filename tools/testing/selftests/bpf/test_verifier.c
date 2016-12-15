@@ -1059,7 +1059,7 @@ static struct bpf_test tests[] = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_EXIT_INSN(),
 		},
-		.errstr_unpriv = "unknown func 6",
+		.errstr_unpriv = "unknown func bpf_trace_printk#6",
 		.result_unpriv = REJECT,
 		.result = ACCEPT,
 	},
