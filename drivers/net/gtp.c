@@ -158,9 +158,9 @@ static bool gtp_check_src_ms_ipv4(struct sk_buff *skb, struct pdp_ctx *pctx,
 	if (!pskb_may_pull(skb, hdrlen + sizeof(struct iphdr)))
 		return false;
 
-	iph = (struct iphdr *)(skb->data + hdrlen + sizeof(struct iphdr));
+	iph = (struct iphdr *)(skb->data + hdrlen);
 
-	return iph->saddr != pctx->ms_addr_ip4.s_addr;
+	return iph->saddr == pctx->ms_addr_ip4.s_addr;
 }
 
 /* Check if the inner IP source address in this packet is assigned to any
