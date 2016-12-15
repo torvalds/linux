@@ -19,8 +19,6 @@ ccflags-y += \
 	-Idrivers/net/wireless/broadcom/brcm80211/brcmfmac	\
 	-Idrivers/net/wireless/broadcom/brcm80211/include
 
-ccflags-y += -D__CHECK_ENDIAN__
-
 obj-$(CONFIG_BRCMFMAC) += brcmfmac.o
 brcmfmac-objs += \
 		cfg80211.o \
