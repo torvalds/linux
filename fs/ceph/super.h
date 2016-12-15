@@ -934,8 +934,7 @@ extern const struct file_operations ceph_dir_fops;
 extern const struct file_operations ceph_snapdir_fops;
 extern const struct inode_operations ceph_dir_iops;
 extern const struct inode_operations ceph_snapdir_iops;
-extern const struct dentry_operations ceph_dentry_ops, ceph_snap_dentry_ops,
-	ceph_snapdir_dentry_ops;
+extern const struct dentry_operations ceph_dentry_ops;
 
 extern loff_t ceph_make_fpos(unsigned high, unsigned off, bool hash_order);
 extern int ceph_handle_notrace_create(struct inode *dir, struct dentry *dentry);
@@ -950,13 +949,6 @@ extern void ceph_dentry_lru_del(struct dentry *dn);
 extern void ceph_invalidate_dentry_lease(struct dentry *dentry);
 extern unsigned ceph_dentry_hash(struct inode *dir, struct dentry *dn);
 extern void ceph_readdir_cache_release(struct ceph_readdir_cache_control *ctl);
-
-/*
- * our d_ops vary depending on whether the inode is live,
- * snapshotted (read-only), or a virtual ".snap" directory.
- */
-int ceph_init_dentry(struct dentry *dentry);
-
 
 /* ioctl.c */
 extern long ceph_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
