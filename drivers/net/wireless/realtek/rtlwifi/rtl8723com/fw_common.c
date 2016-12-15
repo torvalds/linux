@@ -213,9 +213,6 @@ int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be,
 		       value32);
 		goto exit;
 	}
-	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-		 "Checksum report OK ! REG_MCUFWDL:0x%08x .\n", value32);
-
 	value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL) | MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
 	rtl_write_dword(rtlpriv, REG_MCUFWDL, value32);
@@ -291,12 +288,8 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 	rtl8723_enable_fw_download(hw, false);
 
 	err = rtl8723_fw_free_to_go(hw, is_8723be, max_count);
-	if (err) {
+	if (err)
 		pr_err("Firmware is not ready to run!\n");
-	} else {
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-			 "Firmware is ready to run!\n");
-	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rtl8723_download_fw);

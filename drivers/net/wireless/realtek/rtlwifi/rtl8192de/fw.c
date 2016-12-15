@@ -125,9 +125,8 @@ static void _rtl92d_write_fw(struct ieee80211_hw *hw,
 		_rtl92d_fill_dummy(bufferPtr, &size);
 	pagenums = size / FW_8192D_PAGE_SIZE;
 	remainSize = size % FW_8192D_PAGE_SIZE;
-	if (pagenums > 8) {
+	if (pagenums > 8)
 		pr_err("Page numbers should not greater then 8\n");
-	}
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8192D_PAGE_SIZE;
 		_rtl92d_fw_page_write(hw, page, (bufferPtr + offset),
@@ -156,8 +155,6 @@ static int _rtl92d_fw_free_to_go(struct ieee80211_hw *hw)
 		       value32);
 		return -EIO;
 	}
-	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-		 "Checksum report OK ! REG_MCUFWDL:0x%08x\n", value32);
 	value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	rtl_write_dword(rtlpriv, REG_MCUFWDL, value32);
@@ -324,12 +321,9 @@ int rtl92d_download_fw(struct ieee80211_hw *hw)
 	value &= (~BIT(5));
 	rtl_write_byte(rtlpriv, 0x1f, value);
 	spin_unlock_irqrestore(&globalmutex_for_fwdownload, flags);
-	if (err) {
+	if (err)
 		pr_err("fw is not ready to run!\n");
 		goto exit;
-	} else {
-		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE, "fw is ready to run!\n");
-	}
 exit:
 	err = _rtl92d_fw_init(hw);
 	return err;
