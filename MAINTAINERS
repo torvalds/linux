@@ -2801,7 +2801,7 @@ S:	Supported
 F:	drivers/net/ethernet/broadcom/bcmsysport.*
 
 BROADCOM VULCAN ARM64 SOC
-M:	Jayachandran C. <jchandra@broadcom.com>
+M:	Jayachandran C. <c.jayachandran@gmail.com>
 M:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
