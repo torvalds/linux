@@ -721,7 +721,7 @@ fail:
 static int atusb_set_extended_addr(struct atusb *atusb)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
-	unsigned char buffer[IEEE802154_EXTENDED_ADDR_LEN];
+	unsigned char *buffer;
 	__le64 extended_addr;
 	u64 addr;
 	int ret;
@@ -733,6 +733,10 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 		return 0;
 	}
 
+	buffer = kmalloc(IEEE802154_EXTENDED_ADDR_LEN, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
 	/* Firmware is new enough so we fetch the address from EEPROM */
 	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
 				ATUSB_EUI64_READ, ATUSB_REQ_FROM_DEV, 0, 0,
@@ -740,6 +744,7 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 	if (ret < 0) {
 		dev_err(&usb_dev->dev, "failed to fetch extended address, random address set\n");
 		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
+		kfree(buffer);
 		return ret;
 	}
 
@@ -755,6 +760,7 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 			&addr);
 	}
 
+	kfree(buffer);
 	return ret;
 }
 
