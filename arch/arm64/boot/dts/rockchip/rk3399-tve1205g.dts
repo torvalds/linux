@@ -654,6 +654,37 @@
 	};
 };
 
+&i2c4 {
+	status = "okay";
+	clock-frequency = <100000>;
+	bq25700: bq25700@09 {//6a
+		compatible = "ti,bq25700";
+		reg = <0x09>;
+		extcon = <&fusb0>, <&fusb1>;
+
+		interrupt-parent = <&gpio1>;
+		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&charger_ok>;
+		ti,charge-current = <2500000>;
+		ti,max-input-voltage = <20000000>;
+		ti,max-input-current = <6000000>;
+		ti,max-charge-voltage = <8750000>;
+		ti,input-current = <500000>;
+		ti,input-current-sdp = <500000>;
+		ti,input-current-dcp = <2000000>;
+		ti,input-current-cdp = <2000000>;
+		ti,minimum-sys-voltage = <7400000>;
+		ti,otg-voltage = <5000000>;
+		ti,otg-current = <500000>;
+		pd-charge-only = <1>;
+		typec0-enable-gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
+		typec1-enable-gpios = <&gpio1 GPIO_A4 GPIO_ACTIVE_HIGH>;
+		typec0-discharge-gpios = <&gpio0 GPIO_B4 GPIO_ACTIVE_HIGH>;
+		typec1-discharge-gpios = <&gpio0 GPIO_B5 GPIO_ACTIVE_HIGH>;
+	};
+};
+
 &i2c6 {
 	status = "okay";
 	i2c-scl-rising-time-ns = <345>;
@@ -667,6 +698,7 @@
 		pinctrl-0 = <&fusb1_int>;
 		vbus-5v-gpios = <&gpio4 GPIO_D6 GPIO_ACTIVE_LOW>;
 		int-n-gpios = <&gpio1 GPIO_B5 GPIO_ACTIVE_HIGH>;
+		charge-dev = <&bq25700>;
 		status = "okay";
 	};
 };
@@ -684,6 +716,7 @@
 		pinctrl-0 = <&fusb0_int>;
 		vbus-5v-gpios = <&gpio4 GPIO_D5 GPIO_ACTIVE_LOW>;
 		int-n-gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		charge-dev = <&bq25700>;
 		status = "okay";
 	};
 };
@@ -924,6 +957,13 @@
 	touchpad {
 		touchpad_irq_gpio: touchpad-irq-gpio {
 			rockchip,pins = <1 GPIO_C2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	charger {
+		charger_ok: charge-ok {
+			rockchip,pins =
+				<1 23 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
