@@ -737,8 +737,11 @@ static int atusb_set_extended_addr(struct atusb *atusb)
 	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
 				ATUSB_EUI64_READ, ATUSB_REQ_FROM_DEV, 0, 0,
 				buffer, IEEE802154_EXTENDED_ADDR_LEN, 1000);
-	if (ret < 0)
-		dev_err(&usb_dev->dev, "failed to fetch extended address\n");
+	if (ret < 0) {
+		dev_err(&usb_dev->dev, "failed to fetch extended address, random address set\n");
+		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
+		return ret;
+	}
 
 	memcpy(&extended_addr, buffer, IEEE802154_EXTENDED_ADDR_LEN);
 	/* Check if read address is not empty and the unicast bit is set correctly */
