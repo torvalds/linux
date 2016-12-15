@@ -1795,15 +1795,15 @@ retry:
 	return path;
 }
 
-static int build_dentry_path(struct dentry *dentry,
+static int build_dentry_path(struct dentry *dentry, struct inode *dir,
 			     const char **ppath, int *ppathlen, u64 *pino,
 			     int *pfreepath)
 {
 	char *path;
-	struct inode *dir;
 
 	rcu_read_lock();
-	dir = d_inode_rcu(dentry->d_parent);
+	if (!dir)
+		dir = d_inode_rcu(dentry->d_parent);
 	if (dir && ceph_snap(dir) == CEPH_NOSNAP) {
 		*pino = ceph_ino(dir);
 		rcu_read_unlock();
@@ -1847,8 +1847,8 @@ static int build_inode_path(struct inode *inode,
  * an explicit ino+path.
  */
 static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
-				  const char *rpath, u64 rino,
-				  const char **ppath, int *pathlen,
+				  struct inode *rdiri, const char *rpath,
+				  u64 rino, const char **ppath, int *pathlen,
 				  u64 *ino, int *freepath)
 {
 	int r = 0;
@@ -1858,7 +1858,8 @@ static int set_request_path_attr(struct inode *rinode, struct dentry *rdentry,
 		dout(" inode %p %llx.%llx\n", rinode, ceph_ino(rinode),
 		     ceph_snap(rinode));
 	} else if (rdentry) {
-		r = build_dentry_path(rdentry, ppath, pathlen, ino, freepath);
+		r = build_dentry_path(rdentry, rdiri, ppath, pathlen, ino,
+					freepath);
 		dout(" dentry %p %llx/%.*s\n", rdentry, *ino, *pathlen,
 		     *ppath);
 	} else if (rpath || rino) {
@@ -1891,7 +1892,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	int ret;
 
 	ret = set_request_path_attr(req->r_inode, req->r_dentry,
-			      req->r_path1, req->r_ino1.ino,
+			      req->r_locked_dir, req->r_path1, req->r_ino1.ino,
 			      &path1, &pathlen1, &ino1, &freepath1);
 	if (ret < 0) {
 		msg = ERR_PTR(ret);
@@ -1899,6 +1900,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	}
 
 	ret = set_request_path_attr(NULL, req->r_old_dentry,
+			      req->r_old_dentry_dir,
 			      req->r_path2, req->r_ino2.ino,
 			      &path2, &pathlen2, &ino2, &freepath2);
 	if (ret < 0) {
