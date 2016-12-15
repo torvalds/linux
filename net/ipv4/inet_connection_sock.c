@@ -212,7 +212,7 @@ tb_found:
 			      sk->sk_reuseport &&
 			      !rcu_access_pointer(sk->sk_reuseport_cb) &&
 			      uid_eq(tb->fastuid, uid))) &&
-			    smallest_size != -1 && --attempts >= 0) {
+			    !snum && smallest_size != -1 && --attempts >= 0) {
 				spin_unlock_bh(&head->lock);
 				goto again;
 			}
