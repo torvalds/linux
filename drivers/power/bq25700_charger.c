@@ -27,6 +27,8 @@
 #include <linux/extcon.h>
 #include <linux/delay.h>
 #include <linux/power_supply.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 static int dbg_enable;
 module_param_named(dbg_level, dbg_enable, int, 0644);
@@ -109,6 +111,19 @@ enum charger_t {
 	DC_TYPE_NONE_CHARGER,
 };
 
+enum usb_status_t {
+	USB_STATUS_NONE,
+	USB_STATUS_USB,
+	USB_STATUS_AC,
+	USB_STATUS_PD,
+	USB_STATUS_OTG,
+};
+
+enum tpyec_port_t {
+	USB_TYPEC_0,
+	USB_TYPEC_1,
+};
+
 /* initial field values, converted to register values */
 struct bq25700_init_data {
 	u32 ichg;	/* charge current		*/
@@ -158,18 +173,34 @@ struct bq25700_device {
 	struct delayed_work		pd_work;
 	struct delayed_work		host_work;
 	struct delayed_work		discnt_work;
+	struct delayed_work		usb_work1;
+	struct delayed_work		pd_work1;
+	struct delayed_work		host_work1;
+	struct delayed_work		discnt_work1;
 	struct delayed_work		irq_work;
 	struct notifier_block		cable_cg_nb;
 	struct notifier_block		cable_pd_nb;
 	struct notifier_block		cable_host_nb;
 	struct notifier_block		cable_discnt_nb;
+	struct notifier_block		cable_cg_nb1;
+	struct notifier_block		cable_pd_nb1;
+	struct notifier_block		cable_host_nb1;
+	struct notifier_block		cable_discnt_nb1;
 	struct extcon_dev		*cable_edev;
+	struct extcon_dev		*cable_edev_1;
+	int				typec0_status;
+	int				typec1_status;
+	struct gpio_desc		*typec0_enable_io;
+	struct gpio_desc		*typec1_enable_io;
+	struct gpio_desc		*typec0_discharge_io;
+	struct gpio_desc		*typec1_discharge_io;
 
 	struct regmap			*regmap;
 	struct regmap_field		*rmap_fields[F_MAX_FIELDS];
 	int				chip_id;
 	struct bq25700_init_data	init_data;
 	struct bq25700_state		state;
+	int				pd_charge_only;
 };
 
 static const struct reg_field bq25700_reg_fields[] = {
@@ -446,22 +477,134 @@ static int bq25700_get_chip_state(struct bq25700_device *charger,
 		*state_fields[i].data = ret;
 	}
 
-	DBG("status:\n");
-	DBG("AC_STAT:  %d\n", state->ac_stat);
-	DBG("ICO_DONE: %d\n", state->ico_done);
-	DBG("IN_VINDPM: %d\n", state->in_vindpm);
-	DBG("IN_IINDPM: %d\n", state->in_iindpm);
-	DBG("IN_FCHRG: %d\n", state->in_fchrg);
-	DBG("IN_PCHRG: %d\n", state->in_pchrg);
-	DBG("IN_OTG: %d\n", state->in_otg);
-	DBG("F_ACOV: %d\n", state->fault_acov);
-	DBG("F_BATOC: %d\n", state->fault_batoc);
-	DBG("F_ACOC: %d\n", state->fault_acoc);
-	DBG("SYSOVP_STAT: %d\n", state->sysovp_stat);
-	DBG("F_LATCHOFF: %d\n", state->fault_latchoff);
-	DBG("F_OTGOVP: %d\n", state->fault_otg_ovp);
-	DBG("F_OTGOCP: %d\n", state->fault_otg_ocp);
 	return 0;
+}
+
+static int bq25700_dump_regs(struct bq25700_device *charger)
+{
+	u32 val = 0;
+	struct bq25700_state state;
+	int ret = 0;
+
+	ret = bq25700_field_write(charger, ADC_START, 1);
+	if (ret < 0) {
+		DBG("error: ADC_START\n");
+		return ret;
+	}
+
+	DBG("\n==================================\n");
+	regmap_read(charger->regmap, 0x12, &val);
+	DBG("REG0x12 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x14, &val);
+	DBG("REG0x14 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x15, &val);
+	DBG("REG0x15 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x30, &val);
+	DBG("REG0x30 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x31, &val);
+	DBG("REG0x31 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x32, &val);
+	DBG("REG0x32 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x33, &val);
+	DBG("REG0x33 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x34, &val);
+	DBG("REG0x34 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x35, &val);
+	DBG("REG0x35 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x20, &val);
+	DBG("REG0x20 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x21, &val);
+	DBG("REG0x21 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x22, &val);
+	DBG("REG0x22 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x23, &val);
+	DBG("REG0x23 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x24, &val);
+	DBG("REG0x24 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x25, &val);
+	DBG("REG0x25 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x26, &val);
+	DBG("REG0x26 : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x3b, &val);
+	DBG("REG0x3b : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x3c, &val);
+	DBG("REG0x3c : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x3d, &val);
+	DBG("REG0x3d : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x3e, &val);
+	DBG("REG0x3e : 0x%x\n", val);
+	regmap_read(charger->regmap, 0x3f, &val);
+	DBG("REG0x3f : 0x%x\n", val);
+	regmap_read(charger->regmap, 0xfe, &val);
+	DBG("REG0xfe : 0x%x\n", val);
+	regmap_read(charger->regmap, 0xff, &val);
+	DBG("REG0xff : 0x%x\n", val);
+
+	DBG("battery charge current: %dmA\n",
+	    bq25700_field_read(charger, OUTPUT_DSG_CUR) * 64);
+	DBG("battery discharge current: %dmA\n",
+	    bq25700_field_read(charger, OUTPUT_CHG_CUR) * 256);
+	DBG("VSYS volatge: %dmV\n",
+	    2880 + bq25700_field_read(charger, OUTPUT_SYS_VOL) * 64);
+	DBG("BAT volatge: %dmV\n",
+	    2880 + bq25700_field_read(charger, OUTPUT_BAT_VOL) * 64);
+
+	DBG("SET CHARGE_CURRENT: %dmA\n",
+	    bq25700_field_read(charger, CHARGE_CURRENT) * 64);
+	DBG("MAX_CHARGE_VOLTAGE: %dmV\n",
+	    bq25700_field_read(charger, MAX_CHARGE_VOLTAGE) * 16);
+	DBG("	  INPUT_VOLTAGE: %dmV\n",
+	    3200 + bq25700_field_read(charger, INPUT_VOLTAGE) * 64);
+	DBG("	  INPUT_CURRENT: %dmA\n",
+	    bq25700_field_read(charger, INPUT_CURRENT) * 50);
+	DBG("	 MIN_SYS_VOTAGE: %dmV\n",
+	    1024 + bq25700_field_read(charger, MIN_SYS_VOTAGE) * 256);
+	bq25700_get_chip_state(charger, &state);
+	DBG("status:\n");
+	DBG("AC_STAT:  %d\n", state.ac_stat);
+	DBG("ICO_DONE: %d\n", state.ico_done);
+	DBG("IN_VINDPM: %d\n", state.in_vindpm);
+	DBG("IN_IINDPM: %d\n", state.in_iindpm);
+	DBG("IN_FCHRG: %d\n", state.in_fchrg);
+	DBG("IN_PCHRG: %d\n", state.in_pchrg);
+	DBG("IN_OTG: %d\n", state.in_otg);
+	DBG("F_ACOV: %d\n", state.fault_acov);
+	DBG("F_BATOC: %d\n", state.fault_batoc);
+	DBG("F_ACOC: %d\n", state.fault_acoc);
+	DBG("SYSOVP_STAT: %d\n", state.sysovp_stat);
+	DBG("F_LATCHOFF: %d\n", state.fault_latchoff);
+	DBG("F_OTGOVP: %d\n", state.fault_otg_ovp);
+	DBG("F_OTGOCP: %d\n", state.fault_otg_ocp);
+
+	DBG("\n+++++++++++++++++++++++++++++++++++++++++++++++++\n");
+	return 0;
+}
+
+ssize_t bq25700_charge_info_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct bq25700_device *charger = dev_get_drvdata(dev);
+
+	bq25700_dump_regs(charger);
+
+	return 0;
+}
+
+static struct device_attribute bq25700_charger_attr[] = {
+	__ATTR(charge_info, 0664, bq25700_charge_info_show, NULL),
+};
+
+static void bq25700_init_sysfs(struct bq25700_device *charger)
+{
+	int i, ret;
+
+	for (i = 0; i < ARRAY_SIZE(bq25700_charger_attr); i++) {
+		ret = sysfs_create_file(&charger->dev->kobj,
+					&bq25700_charger_attr[i].attr);
+		if (ret)
+			dev_err(charger->dev, "create charger node(%s) error\n",
+				bq25700_charger_attr[i].attr.name);
+	}
 }
 
 static u32 bq25700_find_idx(u32 value, enum bq25700_table_ids id)
@@ -867,16 +1010,62 @@ handled:
 	return IRQ_HANDLED;
 }
 
-static void bq25700_pd_evt_worker(struct work_struct *work)
+static void bq25700_enable_typec0(struct bq25700_device *charger)
 {
-	struct bq25700_device *charger =
-		container_of(work, struct bq25700_device, pd_work.work);
-	struct extcon_dev *edev = charger->cable_edev;
+	if (!IS_ERR_OR_NULL(charger->typec0_enable_io))
+		gpiod_direction_output(charger->typec0_enable_io, 1);
+	if (!IS_ERR_OR_NULL(charger->typec1_enable_io))
+		gpiod_direction_output(charger->typec1_enable_io, 0);
+}
+
+static void bq25700_enable_typec1(struct bq25700_device *charger)
+{
+	if (!IS_ERR_OR_NULL(charger->typec0_enable_io))
+		gpiod_direction_output(charger->typec0_enable_io, 0);
+	if (!IS_ERR_OR_NULL(charger->typec1_enable_io))
+		gpiod_direction_output(charger->typec1_enable_io, 1);
+}
+
+static void bq25700_disable_charge(struct bq25700_device *charger)
+{
+	if (!IS_ERR_OR_NULL(charger->typec0_enable_io))
+		gpiod_direction_output(charger->typec0_enable_io, 0);
+	if (!IS_ERR_OR_NULL(charger->typec1_enable_io))
+		gpiod_direction_output(charger->typec1_enable_io, 0);
+}
+
+static void bq25700_typec0_discharge(struct bq25700_device *charger)
+{
+	if (!IS_ERR_OR_NULL(charger->typec0_discharge_io))
+		gpiod_direction_output(charger->typec0_discharge_io, 1);
+	msleep(20);
+	if (!IS_ERR_OR_NULL(charger->typec0_discharge_io))
+		gpiod_direction_output(charger->typec0_discharge_io, 0);
+}
+
+static void bq25700_typec1_discharge(struct bq25700_device *charger)
+{
+	if (!IS_ERR_OR_NULL(charger->typec1_discharge_io))
+		gpiod_direction_output(charger->typec1_discharge_io, 1);
+	msleep(20);
+	if (!IS_ERR_OR_NULL(charger->typec1_discharge_io))
+		gpiod_direction_output(charger->typec1_discharge_io, 0);
+}
+
+static void bq25700_pd_connect(struct bq25700_device *charger,
+			       struct extcon_dev *edev,
+			       enum tpyec_port_t port)
+{
 	union extcon_property_value prop_val;
 	struct bq25700_state state;
 	int ret;
 	int vol, cur;
 	int vol_idx, cur_idx;
+	int i;
+
+	if (charger->typec0_status == USB_STATUS_PD ||
+	    charger->typec1_status == USB_STATUS_PD)
+		return;
 
 	if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_FAST) > 0) {
 		ret = extcon_get_property(edev, EXTCON_CHG_USB_FAST,
@@ -886,6 +1075,19 @@ static void bq25700_pd_evt_worker(struct work_struct *work)
 		vol = prop_val.intval & 0xffff;
 		cur = prop_val.intval >> 15;
 		if (ret == 0) {
+			if (port == USB_TYPEC_0) {
+				charger->typec0_status = USB_STATUS_PD;
+				bq25700_enable_typec0(charger);
+			} else {
+				charger->typec1_status = USB_STATUS_PD;
+				bq25700_enable_typec1(charger);
+			}
+
+			i = 0;
+			while (!bq25700_field_read(charger, AC_STAT) && i < 5) {
+				msleep(1000);
+				i++;
+			}
 			vol_idx = bq25700_find_idx((vol - 1280) * 1000,
 						   TBL_INPUTVOL);
 			cur_idx = bq25700_find_idx(cur * 1000, TBL_INPUTCUR);
@@ -901,6 +1103,24 @@ static void bq25700_pd_evt_worker(struct work_struct *work)
 	}
 }
 
+static void bq25700_pd_evt_worker(struct work_struct *work)
+{
+	struct bq25700_device *charger = container_of(work,
+				struct bq25700_device, pd_work.work);
+	struct extcon_dev *edev = charger->cable_edev;
+
+	bq25700_pd_connect(charger, edev, USB_TYPEC_0);
+}
+
+static void bq25700_pd_evt_worker1(struct work_struct *work)
+{
+	struct bq25700_device *charger = container_of(work,
+				struct bq25700_device, pd_work1.work);
+	struct extcon_dev *edev = charger->cable_edev_1;
+
+	bq25700_pd_connect(charger, edev, USB_TYPEC_1);
+}
+
 static int bq25700_pd_evt_notifier(struct notifier_block *nb,
 				   unsigned long event,
 				   void *ptr)
@@ -914,15 +1134,28 @@ static int bq25700_pd_evt_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static void bq25700_charger_evt_worker(struct work_struct *work)
+static int bq25700_pd_evt_notifier1(struct notifier_block *nb,
+				    unsigned long event,
+				    void *ptr)
 {
 	struct bq25700_device *charger =
-		container_of(work, struct bq25700_device, usb_work.work);
-	struct extcon_dev *edev = charger->cable_edev;
+		container_of(nb, struct bq25700_device, cable_pd_nb1);
+
+	queue_delayed_work(charger->usb_charger_wq, &charger->pd_work1,
+			   msecs_to_jiffies(10));
+
+	return NOTIFY_DONE;
+}
+
+static void bq25700_charger_evt_handel(struct bq25700_device *charger,
+				       struct extcon_dev *edev,
+				       enum tpyec_port_t port)
+{
 	struct bq25700_state state;
 	enum charger_t charger_state = USB_TYPE_UNKNOWN_CHARGER;
 
-	if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_FAST) > 0)
+	if (charger->typec0_status == USB_STATUS_PD ||
+	    charger->typec1_status == USB_STATUS_PD)
 		return;
 
 	/* Determine cable/charger type */
@@ -943,10 +1176,41 @@ static void bq25700_charger_evt_worker(struct work_struct *work)
 				       charger->init_data.input_current_cdp);
 		DBG("USB_TYPE_CDP_CHARGER\n");
 	}
+	if (port == USB_TYPEC_0) {
+		if (charger_state == USB_TYPE_USB_CHARGER)
+			charger->typec0_status = USB_STATUS_USB;
+		else
+			charger->typec0_status = USB_STATUS_AC;
+		bq25700_enable_typec0(charger);
+	} else {
+		if (charger_state == USB_TYPE_USB_CHARGER)
+			charger->typec1_status = USB_STATUS_USB;
+		else
+			charger->typec1_status = USB_STATUS_AC;
+		bq25700_enable_typec1(charger);
+	}
 
 	bq25700_get_chip_state(charger, &state);
 	charger->state = state;
 	power_supply_changed(charger->supply_charger);
+}
+
+static void bq25700_charger_evt_worker(struct work_struct *work)
+{
+	struct bq25700_device *charger = container_of(work,
+				struct bq25700_device, usb_work.work);
+	struct extcon_dev *edev = charger->cable_edev;
+
+	bq25700_charger_evt_handel(charger, edev, USB_TYPEC_0);
+}
+
+static void bq25700_charger_evt_worker1(struct work_struct *work)
+{
+	struct bq25700_device *charger = container_of(work,
+				struct bq25700_device, usb_work1.work);
+	struct extcon_dev *edev = charger->cable_edev_1;
+
+	bq25700_charger_evt_handel(charger, edev, USB_TYPEC_1);
 }
 
 static int bq25700_charger_evt_notifier(struct notifier_block *nb,
@@ -962,11 +1226,40 @@ static int bq25700_charger_evt_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+static int bq25700_charger_evt_notifier1(struct notifier_block *nb,
+					 unsigned long event,
+					 void *ptr)
+{
+	struct bq25700_device *charger =
+		container_of(nb, struct bq25700_device, cable_cg_nb1);
+
+	queue_delayed_work(charger->usb_charger_wq, &charger->usb_work1,
+			   msecs_to_jiffies(10));
+
+	return NOTIFY_DONE;
+}
+
 static void bq25700_host_evt_worker(struct work_struct *work)
 {
 	struct bq25700_device *charger =
 		container_of(work, struct bq25700_device, host_work.work);
 	struct extcon_dev *edev = charger->cable_edev;
+
+	/* Determine cable/charger type */
+	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
+		bq25700_field_write(charger, EN_OTG, 1);
+		DBG("OTG enable\n");
+	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
+		bq25700_field_write(charger, EN_OTG, 0);
+		DBG("OTG disable\n");
+	}
+}
+
+static void bq25700_host_evt_worker1(struct work_struct *work)
+{
+	struct bq25700_device *charger =
+		container_of(work, struct bq25700_device, host_work1.work);
+	struct extcon_dev *edev = charger->cable_edev_1;
 
 	/* Determine cable/charger type */
 	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
@@ -990,14 +1283,34 @@ static int bq25700_host_evt_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static void bq25700_discnt_evt_worker(struct work_struct *work)
+static int bq25700_host_evt_notifier1(struct notifier_block *nb,
+				      unsigned long event, void *ptr)
+{
+	struct bq25700_device *charger =
+		container_of(nb, struct bq25700_device, cable_host_nb1);
+
+	queue_delayed_work(charger->usb_charger_wq, &charger->host_work1,
+			   msecs_to_jiffies(10));
+
+	return NOTIFY_DONE;
+}
+
+static void bq25700_discnt(struct bq25700_device *charger,
+			   enum tpyec_port_t port)
 {
 	int vol_idx;
-	struct bq25700_device *charger =
-		container_of(work, struct bq25700_device, discnt_work.work);
 	struct bq25700_state state;
 
-	if (extcon_get_cable_state_(charger->cable_edev, EXTCON_USB) == 0) {
+	if (bq25700_field_read(charger, AC_STAT) == 0) {
+		bq25700_disable_charge(charger);
+		if (port == USB_TYPEC_0) {
+			bq25700_typec0_discharge(charger);
+			charger->typec0_status = USB_STATUS_NONE;
+		} else {
+			bq25700_typec1_discharge(charger);
+			charger->typec1_status = USB_STATUS_NONE;
+		}
+
 		vol_idx = bq25700_find_idx(DEFAULT_INPUTVOL, TBL_INPUTVOL);
 		bq25700_field_write(charger, INPUT_VOLTAGE, vol_idx);
 		bq25700_field_write(charger, INPUT_CURRENT,
@@ -1006,6 +1319,23 @@ static void bq25700_discnt_evt_worker(struct work_struct *work)
 		charger->state = state;
 		power_supply_changed(charger->supply_charger);
 	}
+}
+
+static void bq25700_discnt_evt_worker(struct work_struct *work)
+{
+	struct bq25700_device *charger = container_of(work,
+						      struct bq25700_device,
+						      discnt_work.work);
+
+	bq25700_discnt(charger, USB_TYPEC_0);
+}
+
+static void bq25700_discnt_evt_worker1(struct work_struct *work)
+{
+	struct bq25700_device *charger = container_of(work,
+						      struct bq25700_device,
+						      discnt_work1.work);
+	bq25700_discnt(charger, USB_TYPEC_1);
 }
 
 static int bq25700_discnt_evt_notfier(struct notifier_block *nb,
@@ -1017,122 +1347,256 @@ static int bq25700_discnt_evt_notfier(struct notifier_block *nb,
 
 	queue_delayed_work(charger->usb_charger_wq,
 			   &charger->discnt_work,
-			   msecs_to_jiffies(10));
+			   msecs_to_jiffies(0));
 
 	return NOTIFY_DONE;
 }
 
+static int bq25700_discnt_evt_notfier1(struct notifier_block *nb,
+				       unsigned long event,
+				       void *ptr)
+{
+	struct bq25700_device *charger =
+		container_of(nb, struct bq25700_device, cable_discnt_nb1);
+
+	queue_delayed_work(charger->usb_charger_wq,
+			   &charger->discnt_work1,
+			   msecs_to_jiffies(0));
+
+	return NOTIFY_DONE;
+}
+
+static int bq25700_register_cg_extcon(struct bq25700_device *charger,
+				      struct extcon_dev *edev,
+				      struct notifier_block *able_cg_nb)
+{
+	int ret;
+
+	ret = extcon_register_notifier(edev,
+				       EXTCON_CHG_USB_SDP,
+				       able_cg_nb);
+	if (ret < 0) {
+		dev_err(charger->dev, "failed to register notifier for SDP\n");
+		return -1;
+	}
+
+	ret = extcon_register_notifier(edev,
+				       EXTCON_CHG_USB_DCP,
+				       able_cg_nb);
+	if (ret < 0) {
+		dev_err(charger->dev, "failed to register notifier for DCP\n");
+		return -1;
+	}
+
+	ret = extcon_register_notifier(edev,
+				       EXTCON_CHG_USB_CDP,
+				       able_cg_nb);
+	if (ret < 0) {
+		dev_err(charger->dev, "failed to register notifier for CDP\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int bq25700_register_cg_nb(struct bq25700_device *charger)
+{
+	if (charger->cable_edev) {
+		/* Register chargers  */
+		INIT_DELAYED_WORK(&charger->usb_work,
+				  bq25700_charger_evt_worker);
+		charger->cable_cg_nb.notifier_call =
+			bq25700_charger_evt_notifier;
+		bq25700_register_cg_extcon(charger, charger->cable_edev,
+					   &charger->cable_cg_nb);
+	}
+
+	if (charger->cable_edev_1) {
+		INIT_DELAYED_WORK(&charger->usb_work1,
+				  bq25700_charger_evt_worker1);
+		charger->cable_cg_nb1.notifier_call =
+			bq25700_charger_evt_notifier1;
+		bq25700_register_cg_extcon(charger, charger->cable_edev_1,
+					   &charger->cable_cg_nb1);
+	}
+
+	return 0;
+}
+
+static int bq25700_register_discnt_nb(struct bq25700_device *charger)
+{
+	int ret;
+
+	/* Register discnt usb */
+	if (charger->cable_edev) {
+		INIT_DELAYED_WORK(&charger->discnt_work,
+				  bq25700_discnt_evt_worker);
+		charger->cable_discnt_nb.notifier_call =
+			bq25700_discnt_evt_notfier;
+		ret = extcon_register_notifier(charger->cable_edev,
+					       EXTCON_USB,
+					       &charger->cable_discnt_nb);
+		if (ret < 0) {
+			dev_err(charger->dev,
+				"failed to register notifier for HOST\n");
+			return ret;
+		}
+	}
+
+	if (charger->cable_edev_1) {
+		INIT_DELAYED_WORK(&charger->discnt_work1,
+				  bq25700_discnt_evt_worker1);
+		charger->cable_discnt_nb1.notifier_call =
+			bq25700_discnt_evt_notfier1;
+		ret = extcon_register_notifier(charger->cable_edev_1,
+					       EXTCON_USB,
+					       &charger->cable_discnt_nb1);
+		if (ret < 0) {
+			dev_err(charger->dev,
+				"failed to register notifier for HOST\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int bq25700_register_pd_nb(struct bq25700_device *charger)
+{
+	if (charger->cable_edev) {
+		INIT_DELAYED_WORK(&charger->pd_work, bq25700_pd_evt_worker);
+		charger->cable_pd_nb.notifier_call = bq25700_pd_evt_notifier;
+		extcon_register_notifier(charger->cable_edev,
+					 EXTCON_CHG_USB_FAST,
+					 &charger->cable_pd_nb);
+	}
+
+	if (charger->cable_edev_1) {
+		INIT_DELAYED_WORK(&charger->pd_work1, bq25700_pd_evt_worker1);
+		charger->cable_pd_nb1.notifier_call = bq25700_pd_evt_notifier1;
+		extcon_register_notifier(charger->cable_edev_1,
+					 EXTCON_CHG_USB_FAST,
+					 &charger->cable_pd_nb1);
+	}
+
+	return 0;
+}
+
+static int bq25700_register_host_nb(struct bq25700_device *charger)
+{
+	int ret;
+
+	/* Register host */
+	if (charger->cable_edev) {
+		INIT_DELAYED_WORK(&charger->host_work, bq25700_host_evt_worker);
+		charger->cable_host_nb.notifier_call =
+			bq25700_host_evt_notifier;
+		ret = extcon_register_notifier(charger->cable_edev,
+					       EXTCON_USB_HOST,
+					       &charger->cable_host_nb);
+		if (ret < 0) {
+			dev_err(charger->dev,
+				"failed to register notifier for HOST\n");
+			return -1;
+		}
+	}
+
+	if (charger->cable_edev_1) {
+		INIT_DELAYED_WORK(&charger->host_work1,
+				  bq25700_host_evt_worker1);
+		charger->cable_host_nb1.notifier_call =
+			bq25700_host_evt_notifier1;
+		ret = extcon_register_notifier(charger->cable_edev_1,
+					       EXTCON_USB_HOST,
+					       &charger->cable_host_nb1);
+		if (ret < 0) {
+			dev_err(charger->dev,
+				"failed to register notifier for HOST\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
 static long bq25700_init_usb(struct bq25700_device *charger)
 {
-	struct extcon_dev *edev;
+	struct extcon_dev *edev, *edev1;
 	struct device *dev = charger->dev;
-	int ret;
 
 	charger->usb_charger_wq = alloc_ordered_workqueue("%s",
 							  WQ_MEM_RECLAIM |
 							  WQ_FREEZABLE,
 							  "bq25700-usb-wq");
-
 	/* type-C */
 	edev = extcon_get_edev_by_phandle(dev, 0);
 	if (IS_ERR(edev)) {
 		if (PTR_ERR(edev) != -EPROBE_DEFER)
 			dev_err(dev, "Invalid or missing extcon\n");
-		return PTR_ERR(edev);
+		charger->cable_edev = NULL;
+	} else {
+		charger->cable_edev = edev;
 	}
 
-	/* Register chargers  */
-	INIT_DELAYED_WORK(&charger->usb_work, bq25700_charger_evt_worker);
-	charger->cable_cg_nb.notifier_call = bq25700_charger_evt_notifier;
+	edev1 = extcon_get_edev_by_phandle(dev, 1);
+	if (IS_ERR(edev1)) {
+		if (PTR_ERR(edev1) != -EPROBE_DEFER)
+			dev_err(dev, "Invalid or missing extcon\n");
+		charger->cable_edev_1 = NULL;
+	} else {
+		charger->cable_edev_1 = edev1;
+	}
+	if (!charger->pd_charge_only)
+		bq25700_register_cg_nb(charger);
+	bq25700_register_host_nb(charger);
+	bq25700_register_discnt_nb(charger);
+	bq25700_register_pd_nb(charger);
 
-	ret = extcon_register_notifier(edev,
-				       EXTCON_CHG_USB_SDP,
-				       &charger->cable_cg_nb);
-	if (ret < 0) {
-		dev_err(dev, "failed to register notifier for SDP\n");
-		return ret;
+	if (charger->cable_edev) {
+		schedule_delayed_work(&charger->host_work, 0);
+		schedule_delayed_work(&charger->pd_work, 0);
+		if (!charger->pd_charge_only)
+			schedule_delayed_work(&charger->usb_work, 0);
+	}
+	if (charger->cable_edev_1) {
+		schedule_delayed_work(&charger->host_work1, 0);
+		schedule_delayed_work(&charger->pd_work1, 0);
+		if (!charger->pd_charge_only)
+			schedule_delayed_work(&charger->usb_work1, 0);
 	}
 
-	ret = extcon_register_notifier(edev,
-				       EXTCON_CHG_USB_DCP,
-				       &charger->cable_cg_nb);
-	if (ret < 0) {
-		dev_err(dev, "failed to register notifier for DCP\n");
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_SDP,
-					   &charger->cable_cg_nb);
-		return ret;
-	}
+	return 0;
+}
 
-	ret = extcon_register_notifier(edev,
-				       EXTCON_CHG_USB_CDP,
-				       &charger->cable_cg_nb);
-	if (ret < 0) {
-		dev_err(dev, "failed to register notifier for CDP\n");
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_SDP,
-					   &charger->cable_cg_nb);
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_DCP,
-					   &charger->cable_cg_nb);
-		return ret;
-	}
+static int bq25700_parse_dt(struct bq25700_device *charger)
+{
+	int ret;
+	struct device_node *np = charger->dev->of_node;
 
-	/* Register host */
-	INIT_DELAYED_WORK(&charger->host_work, bq25700_host_evt_worker);
-	charger->cable_host_nb.notifier_call = bq25700_host_evt_notifier;
-	ret = extcon_register_notifier(edev,
-				       EXTCON_USB_HOST,
-				       &charger->cable_host_nb);
-	if (ret < 0) {
-		dev_err(dev, "failed to register notifier for HOST\n");
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_SDP,
-					   &charger->cable_cg_nb);
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_DCP,
-					   &charger->cable_cg_nb);
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_CDP,
-					   &charger->cable_cg_nb);
+	charger->typec0_enable_io = devm_gpiod_get_optional(charger->dev,
+							    "typec0-enable",
+							    GPIOD_IN);
+	if (!IS_ERR_OR_NULL(charger->typec0_enable_io))
+		gpiod_direction_output(charger->typec0_enable_io, 0);
 
-		return ret;
-	}
+	charger->typec1_enable_io = devm_gpiod_get_optional(charger->dev,
+							    "typec1-enable",
+							    GPIOD_IN);
+	if (!IS_ERR_OR_NULL(charger->typec1_enable_io))
+		gpiod_direction_output(charger->typec1_enable_io, 0);
 
-	/* Register discnt usb */
-	INIT_DELAYED_WORK(&charger->discnt_work, bq25700_discnt_evt_worker);
-	charger->cable_discnt_nb.notifier_call = bq25700_discnt_evt_notfier;
-	ret = extcon_register_notifier(edev,
-				       EXTCON_USB,
-				       &charger->cable_discnt_nb);
-	if (ret < 0) {
-		dev_err(dev, "failed to register notifier for HOST\n");
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_SDP,
-					   &charger->cable_cg_nb);
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_DCP,
-					   &charger->cable_cg_nb);
-		extcon_unregister_notifier(edev,
-					   EXTCON_CHG_USB_CDP,
-					   &charger->cable_cg_nb);
-		extcon_unregister_notifier(edev,
-					   EXTCON_USB_VBUS_EN,
-					   &charger->cable_host_nb);
+	charger->typec0_discharge_io =
+		devm_gpiod_get_optional(charger->dev, "typec0-discharge",
+					GPIOD_IN);
 
-		return ret;
-	}
+	charger->typec1_discharge_io =
+		devm_gpiod_get_optional(charger->dev, "typec1-discharge",
+					GPIOD_IN);
 
-	charger->cable_edev = edev;
-
-	schedule_delayed_work(&charger->host_work, 0);
-	schedule_delayed_work(&charger->usb_work, 0);
-
-	INIT_DELAYED_WORK(&charger->pd_work, bq25700_pd_evt_worker);
-	charger->cable_pd_nb.notifier_call = bq25700_pd_evt_notifier;
-	ret = extcon_register_notifier(edev,
-				       EXTCON_CHG_USB_FAST,
-				       &charger->cable_pd_nb);
+	ret = of_property_read_u32(np, "pd-charge-only",
+				   &charger->pd_charge_only);
+	if (ret < 0)
+		dev_err(charger->dev, "pd-charge-only!\n");
 
 	return 0;
 }
@@ -1202,7 +1666,10 @@ static int bq25700_probe(struct i2c_client *client,
 		return ret;
 	}
 
+	bq25700_parse_dt(charger);
+
 	bq25700_init_usb(charger);
+	bq25700_init_sysfs(charger);
 
 	if (client->irq < 0) {
 		dev_err(dev, "No irq resource found.\n");
