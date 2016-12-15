@@ -382,6 +382,10 @@
 	status = "okay";
 };
 
+&rga {
+	status = "okay";
+};
+
 &saradc {
 	vref-supply = <&vcc18_ldo1>;
 	status ="okay";

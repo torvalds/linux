@@ -450,6 +450,10 @@
 	wifi-supply = <&vccio_wl>;
 };
 
+&rga {
+	status = "okay";
+};
+
 &pinctrl {
 	pcfg_output_high: pcfg-output-high {
 		output-high;

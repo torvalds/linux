@@ -437,6 +437,10 @@
 	wifi-supply = <&vcc_wl>;
 };
 
+&rga {
+	status = "okay";
+};
+
 &sdio0 {
 	status = "okay";
 	clock-frequency = <50000000>;

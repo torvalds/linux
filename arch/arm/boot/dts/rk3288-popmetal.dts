@@ -439,6 +439,10 @@
 	wifi-supply = <&vccio_wl>;
 };
 
+&rga {
+	status = "okay";
+};
+
 &pinctrl {
 	ak8963 {
 		comp_int: comp-int {

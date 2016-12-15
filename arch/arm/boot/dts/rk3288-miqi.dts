@@ -435,6 +435,10 @@ I2C
 	status = "okay";
 };
 
+&rga {
+	status = "okay";
+};
+
 /*
  * Debug Serial Port
  */

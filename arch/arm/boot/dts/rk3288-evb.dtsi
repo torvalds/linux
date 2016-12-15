@@ -391,6 +391,10 @@
 	status = "okay";
 };
 
+&rga {
+	status = "okay";
+};
+
 &sdio0 {
 	status = "okay";
 
