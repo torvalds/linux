@@ -129,8 +129,8 @@ void rtl8723_write_fw(struct ieee80211_hw *hw,
 	remain_size = size % FW_8192C_PAGE_SIZE;
 
 	if (page_nums > max_page) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Page numbers should not greater than %d\n", max_page);
+		pr_err("Page numbers should not greater than %d\n",
+		       max_page);
 	}
 	for (page = 0; page < page_nums; page++) {
 		offset = page * FW_8192C_PAGE_SIZE;
@@ -209,9 +209,8 @@ int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be,
 		 (!(value32 & FWDL_CHKSUM_RPT)));
 
 	if (counter >= max_count) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "chksum report fail ! REG_MCUFWDL:0x%08x .\n",
-			 value32);
+		pr_err("chksum report fail ! REG_MCUFWDL:0x%08x .\n",
+		       value32);
 		goto exit;
 	}
 	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
@@ -239,9 +238,8 @@ int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be,
 
 	} while (counter++ < max_count);
 
-	RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-		 "Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n",
-		 value32);
+	pr_err("Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n",
+	       value32);
 
 exit:
 	return err;
@@ -294,8 +292,7 @@ int rtl8723_download_fw(struct ieee80211_hw *hw,
 
 	err = rtl8723_fw_free_to_go(hw, is_8723be, max_count);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Firmware is not ready to run!\n");
+		pr_err("Firmware is not ready to run!\n");
 	} else {
 		RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
 			 "Firmware is ready to run!\n");
