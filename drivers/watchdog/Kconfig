@@ -1008,8 +1008,8 @@ config IT87_WDT
 	tristate "IT87 Watchdog Timer"
 	depends on X86
 	---help---
-	  This is the driver for the hardware watchdog on the ITE IT8702,
-	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
+	  This is the driver for the hardware watchdog on the ITE IT8620,
+	  IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
 	  Super I/O chips.
 
 	  If the driver does not work, then make sure that the game port in
