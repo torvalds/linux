@@ -125,10 +125,8 @@ static void _rtl88e_write_fw(struct ieee80211_hw *hw,
 	pagenums = size / FW_8192C_PAGE_SIZE;
 	remainsize = size % FW_8192C_PAGE_SIZE;
 
-	if (pagenums > 8) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Page numbers should not greater then 8\n");
-	}
+	if (pagenums > 8)
+		pr_err("Page numbers should not greater then 8\n");
 
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8192C_PAGE_SIZE;
@@ -157,15 +155,10 @@ static int _rtl88e_fw_free_to_go(struct ieee80211_hw *hw)
 		 (!(value32 & FWDL_CHKSUM_RPT)));
 
 	if (counter >= FW_8192C_POLLING_TIMEOUT_COUNT) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "chksum report faill ! REG_MCUFWDL:0x%08x .\n",
-			  value32);
+		pr_err("chksum report fail! REG_MCUFWDL:0x%08x .\n",
+		       value32);
 		goto exit;
 	}
-
-	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-		 "Checksum report OK ! REG_MCUFWDL:0x%08x .\n", value32);
-
 	value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
@@ -176,20 +169,15 @@ static int _rtl88e_fw_free_to_go(struct ieee80211_hw *hw)
 
 	do {
 		value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY) {
-			RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-				 "Polling FW ready success!! REG_MCUFWDL:0x%08x.\n",
-				  value32);
-			err = 0;
-			goto exit;
-		}
+		if (value32 & WINTINI_RDY)
+			return 0;
 
 		udelay(FW_8192C_POLLING_DELAY);
 
 	} while (counter++ < FW_8192C_POLLING_TIMEOUT_COUNT);
 
-	RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-		 "Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n", value32);
+	pr_err("Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n",
+	       value32);
 
 exit:
 	return err;
@@ -235,8 +223,7 @@ int rtl88e_download_fw(struct ieee80211_hw *hw,
 
 	err = _rtl88e_fw_free_to_go(hw);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Firmware is not ready to run!\n");
+		pr_err("Firmware is not ready to run!\n");
 	} else {
 		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
 			 "Firmware is ready to run!\n");
@@ -309,8 +296,7 @@ static void _rtl88e_fill_h2c_command(struct ieee80211_hw *hw,
 	while (!write_sucess) {
 		wait_writeh2c_limit--;
 		if (wait_writeh2c_limit == 0) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Write H2C fail because no trigger for FW INT!\n");
+			pr_err("Write H2C fail because no trigger for FW INT!\n");
 			break;
 		}
 

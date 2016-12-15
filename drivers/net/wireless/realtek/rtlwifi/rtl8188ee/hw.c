@@ -358,8 +358,7 @@ void rtl88ee_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	case HAL_DEF_WOWLAN:
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", variable);
+		pr_err("switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -572,9 +571,8 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				acm_ctrl &= (~ACMHW_VOQEN);
 				break;
 			default:
-				RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-					 "switch case %#x not processed\n",
-					 e_aci);
+				pr_err("switch case %#x not processed\n",
+				       e_aci);
 				break;
 			}
 		}
@@ -737,8 +735,7 @@ void rtl88ee_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 				    2, array);
 		break; }
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", variable);
+		pr_err("switch case %#x not processed\n", variable);
 		break;
 	}
 }
@@ -759,9 +756,8 @@ static bool _rtl88ee_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 			break;
 
 		if (count > POLLING_LLT_THRESHOLD) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Failed to polling write LLT done at address %d!\n",
-				 address);
+			pr_err("Failed to polling write LLT done at address %d!\n",
+			       address);
 			status = false;
 			break;
 		}
@@ -1096,7 +1092,7 @@ int rtl88ee_hw_init(struct ieee80211_hw *hw)
 
 	rtstatus = _rtl88ee_init_mac(hw);
 	if (rtstatus != true) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
+		pr_info("Init MAC failed\n");
 		err = 1;
 		goto exit;
 	}
@@ -1252,8 +1248,7 @@ static int _rtl88ee_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Network type %d not support!\n", type);
+		pr_err("Network type %d not support!\n", type);
 		return 1;
 		break;
 	}
@@ -1987,7 +1982,7 @@ void rtl88ee_read_eeprom_info(struct ieee80211_hw *hw)
 		rtlefuse->autoload_failflag = false;
 		_rtl88ee_read_adapter_info(hw);
 	} else {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Autoload ERR!!\n");
+		pr_err("Autoload ERR!!\n");
 	}
 	_rtl88ee_hal_customized_behavior(hw);
 }
@@ -2354,8 +2349,8 @@ void rtl88ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 			enc_algo = CAM_AES;
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case %#x not processed\n", enc_algo);
+			pr_err("switch case %#x not processed\n",
+			       enc_algo);
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -2373,9 +2368,7 @@ void rtl88ee_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id =
 					  rtl_cam_get_free_entry(hw, p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						RT_TRACE(rtlpriv, COMP_SEC,
-							 DBG_EMERG,
-							 "Can not find free hw security cam entry\n");
+						pr_err("Can not find free hw security cam entry\n");
 						return;
 					}
 				} else {
