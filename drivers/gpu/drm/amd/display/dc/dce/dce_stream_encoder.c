@@ -635,7 +635,7 @@ static void dce110_stream_encoder_dp_blank(
 	*/
 
 	REG_WAIT(DP_VID_STREAM_CNTL, DP_VID_STREAM_STATUS,
-			1,
+			0,
 			10, max_retries);
 
 	ASSERT(retries <= max_retries);
