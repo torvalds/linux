@@ -360,10 +360,8 @@ static int vp_try_to_find_vqs(struct virtio_device *vdev, unsigned nvqs,
 				  vring_interrupt, 0,
 				  vp_dev->msix_names[msix_vec],
 				  vqs[i]);
-		if (err) {
-			vp_del_vq(vqs[i]);
+		if (err)
 			goto error_find;
-		}
 	}
 	return 0;
 
