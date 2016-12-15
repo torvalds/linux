@@ -50,6 +50,8 @@
 #define STK1160_MAX_INPUT 4
 #define STK1160_SVIDEO_INPUT 4
 
+#define STK1160_AC97_TIMEOUT 50
+
 #define STK1160_I2C_TIMEOUT 100
 
 /* TODO: Print helpers

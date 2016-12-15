@@ -23,8 +23,29 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "stk1160.h"
 #include "stk1160-reg.h"
+
+static int stk1160_ac97_wait_transfer_complete(struct stk1160 *dev)
+{
+	unsigned long timeout = jiffies + msecs_to_jiffies(STK1160_AC97_TIMEOUT);
+	u8 value;
+
+	/* Wait for AC97 transfer to complete */
+	while (time_is_after_jiffies(timeout)) {
+		stk1160_read_reg(dev, STK1160_AC97CTL_0, &value);
+
+		if (!(value & (STK1160_AC97CTL_0_CR | STK1160_AC97CTL_0_CW)))
+			return 0;
+
+		usleep_range(50, 100);
+	}
+
+	stk1160_err("AC97 transfer took too long, this should never happen!");
+	return -EBUSY;
+}
 
 static void stk1160_write_ac97(struct stk1160 *dev, u16 reg, u16 value)
 {
@@ -35,11 +56,11 @@ static void stk1160_write_ac97(struct stk1160 *dev, u16 reg, u16 value)
 	stk1160_write_reg(dev, STK1160_AC97_CMD, value & 0xff);
 	stk1160_write_reg(dev, STK1160_AC97_CMD + 1, (value & 0xff00) >> 8);
 
-	/*
-	 * Set command write bit to initiate write operation.
-	 * The bit will be cleared when transfer is done.
-	 */
+	/* Set command write bit to initiate write operation */
 	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x8c);
+
+	/* Wait for command write bit to be cleared */
+	stk1160_ac97_wait_transfer_complete(dev);
 }
 
 #ifdef DEBUG
@@ -51,11 +72,13 @@ static u16 stk1160_read_ac97(struct stk1160 *dev, u16 reg)
 	/* Set codec register address */
 	stk1160_write_reg(dev, STK1160_AC97_ADDR, reg);
 
-	/*
-	 * Set command read bit to initiate read operation.
-	 * The bit will be cleared when transfer is done.
-	 */
+	/* Set command read bit to initiate read operation */
 	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x8b);
+
+	/* Wait for command read bit to be cleared */
+	if (stk1160_ac97_wait_transfer_complete(dev) < 0)
+		return 0;
+
 
 	/* Retrieve register value */
 	stk1160_read_reg(dev, STK1160_AC97_CMD, &vall);

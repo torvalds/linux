@@ -122,6 +122,8 @@
 /* AC97 Audio Control */
 #define STK1160_AC97CTL_0		0x500
 #define STK1160_AC97CTL_1		0x504
+#define  STK1160_AC97CTL_0_CR		BIT(1)
+#define  STK1160_AC97CTL_0_CW		BIT(2)
 
 /* Use [0:6] bits of register 0x504 to set codec command address */
 #define STK1160_AC97_ADDR		0x504
