@@ -323,15 +323,29 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 {
 	struct device_node *backlight, *ddc;
 	struct panel_simple *panel;
+	struct panel_desc *of_desc;
 	int err;
 
 	panel = devm_kzalloc(dev, sizeof(*panel), GFP_KERNEL);
 	if (!panel)
 		return -ENOMEM;
 
+	if (!desc) {
+		u32 val;
+
+		of_desc = devm_kzalloc(dev, sizeof(*of_desc), GFP_KERNEL);
+		if (!of_desc)
+			return -ENOMEM;
+		of_desc->num_modes = 0;
+		if (!of_property_read_u32(dev->of_node, "bus-format", &val))
+			of_desc->bus_format = val;
+		else
+			of_desc->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+	}
+
 	panel->enabled = false;
 	panel->prepared = false;
-	panel->desc = desc;
+	panel->desc = desc ? desc : of_desc;
 	panel->dev = dev;
 
 	panel->supply = devm_regulator_get(dev, "power");
