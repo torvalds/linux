@@ -34,6 +34,8 @@ enum nvkm_secboot_falcon {
 	NVKM_SECBOOT_FALCON_INVALID = 0xffffffff,
 };
 
+extern const char *nvkm_secboot_falcon_name[];
+
 /**
  * @wpr_set: whether the WPR region is currently set
 */
