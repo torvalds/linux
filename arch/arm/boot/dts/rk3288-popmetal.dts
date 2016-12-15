@@ -193,6 +193,10 @@
 	status = "okay";
 };
 
+&hevc_service {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -506,6 +510,10 @@
 };
 
 &vopl_mmu {
+	status = "okay";
+};
+
+&vpu_service {
 	status = "okay";
 };
 

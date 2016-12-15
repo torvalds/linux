@@ -206,6 +206,10 @@
 	status = "okay";
 };
 
+&hevc_service {
+	status = "okay";
+};
+
 &sdmmc {
 	supports-sd;
 	bus-width = <4>;
@@ -450,10 +454,6 @@ I2C
 	status = "okay";
 };
 
-&vpu {
-	status = "okay";
-};
-
 &usbphy {
 	status = "okay";
 };
@@ -479,6 +479,10 @@ I2C
 };
 
 &vopl_mmu {
+	status = "okay";
+};
+
+&vpu_service {
 	status = "okay";
 };
 
