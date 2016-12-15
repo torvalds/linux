@@ -1821,6 +1821,9 @@ void dce110_link_encoder_init_dmcu_backlight_settings(
 	uint32_t s2;
 	uint32_t value;
 
+	if (enc->ctx->dc->debug.disable_dmcu)
+		return;
+
 	bl_pwm_cntl = REG_READ(BL_PWM_CNTL);
 
 	/* It must not be 0, so we have to restore them
