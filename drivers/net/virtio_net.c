@@ -471,6 +471,64 @@ xdp_xmit:
 	return NULL;
 }
 
+/* The conditions to enable XDP should preclude the underlying device from
+ * sending packets across multiple buffers (num_buf > 1). However per spec
+ * it does not appear to be illegal to do so but rather just against convention.
+ * So in order to avoid making a system unresponsive the packets are pushed
+ * into a page and the XDP program is run. This will be extremely slow and we
+ * push a warning to the user to fix this as soon as possible. Fixing this may
+ * require resolving the underlying hardware to determine why multiple buffers
+ * are being received or simply loading the XDP program in the ingress stack
+ * after the skb is built because there is no advantage to running it here
+ * anymore.
+ */
+static struct page *xdp_linearize_page(struct receive_queue *rq,
+				       u16 num_buf,
+				       struct page *p,
+				       int offset,
+				       unsigned int *len)
+{
+	struct page *page = alloc_page(GFP_ATOMIC);
+	unsigned int page_off = 0;
+
+	if (!page)
+		return NULL;
+
+	memcpy(page_address(page) + page_off, page_address(p) + offset, *len);
+	page_off += *len;
+
+	while (--num_buf) {
+		unsigned int buflen;
+		unsigned long ctx;
+		void *buf;
+		int off;
+
+		ctx = (unsigned long)virtqueue_get_buf(rq->vq, &buflen);
+		if (unlikely(!ctx))
+			goto err_buf;
+
+		/* guard against a misconfigured or uncooperative backend that
+		 * is sending packet larger than the MTU.
+		 */
+		if ((page_off + buflen) > PAGE_SIZE)
+			goto err_buf;
+
+		buf = mergeable_ctx_to_buf_address(ctx);
+		p = virt_to_head_page(buf);
+		off = buf - page_address(p);
+
+		memcpy(page_address(page) + page_off,
+		       page_address(p) + off, buflen);
+		page_off += buflen;
+	}
+
+	*len = page_off;
+	return page;
+err_buf:
+	__free_pages(page, 0);
+	return NULL;
+}
+
 static struct sk_buff *receive_mergeable(struct net_device *dev,
 					 struct virtnet_info *vi,
 					 struct receive_queue *rq,
@@ -491,6 +549,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	rcu_read_lock();
 	xdp_prog = rcu_dereference(rq->xdp_prog);
 	if (xdp_prog) {
+		struct page *xdp_page;
 		u32 act;
 
 		/* No known backend devices should send packets with
@@ -500,7 +559,15 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		 */
 		if (unlikely(num_buf > 1)) {
 			bpf_warn_invalid_xdp_buffer();
-			goto err_xdp;
+
+			/* linearize data for XDP */
+			xdp_page = xdp_linearize_page(rq, num_buf,
+						      page, offset, &len);
+			if (!xdp_page)
+				goto err_xdp;
+			offset = 0;
+		} else {
+			xdp_page = page;
 		}
 
 		/* Transient failure which in theory could occur if
@@ -514,12 +581,18 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		act = do_xdp_prog(vi, rq, xdp_prog, page, offset, len);
 		switch (act) {
 		case XDP_PASS:
+			if (unlikely(xdp_page != page))
+				__free_pages(xdp_page, 0);
 			break;
 		case XDP_TX:
+			if (unlikely(xdp_page != page))
+				goto err_xdp;
 			rcu_read_unlock();
 			goto xdp_xmit;
 		case XDP_DROP:
 		default:
+			if (unlikely(xdp_page != page))
+				__free_pages(xdp_page, 0);
 			goto err_xdp;
 		}
 	}
