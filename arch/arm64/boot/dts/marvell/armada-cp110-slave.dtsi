@@ -52,7 +52,7 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		config-space {
+		config-space@f4000000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "simple-bus";

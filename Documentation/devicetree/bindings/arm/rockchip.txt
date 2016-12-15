@@ -103,6 +103,18 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "mqmaker,miqi", "rockchip,rk3288";
 
+- Rockchip PX3 Evaluation board:
+    Required root node properties:
+      - compatible = "rockchip,px3-evb", "rockchip,px3", "rockchip,rk3188";
+
+- Rockchip PX5 Evaluation board:
+    Required root node properties:
+      - compatible = "rockchip,px5-evb", "rockchip,px5", "rockchip,rk3368";
+
+- Rockchip RK1108 Evaluation board
+    Required root node properties:
+      - compatible = "rockchip,rk1108-evb", "rockchip,rk1108";
+
 - Rockchip RK3368 evb:
     Required root node properties:
       - compatible = "rockchip,rk3368-evb-act8846", "rockchip,rk3368";
