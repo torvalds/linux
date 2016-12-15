@@ -19,9 +19,6 @@
 
 /************************ CONSTANTS & MACROS ************************/
 
-/* /dev/irnet file constants */
-#define IRNET_MAJOR	10	/* Misc range */
-
 /* IrNET control channel stuff */
 #define IRNET_MAX_COMMAND	256	/* Max length of a command line */
 
