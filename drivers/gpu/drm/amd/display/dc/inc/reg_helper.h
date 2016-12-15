@@ -112,6 +112,31 @@
 				FN(reg, f6), v6,\
 				FN(reg, f7), v7)
 
+#define REG_SET_8(reg, init_value, f1, v1, f2, v2, f3, v3, f4, v4,	\
+		f5, v5, f6, v6, f7, v7, f8, v8)	\
+		REG_SET_N(reg, 8, init_value, \
+				FN(reg, f1), v1,\
+				FN(reg, f2), v2,\
+				FN(reg, f3), v3,\
+				FN(reg, f4), v4,\
+				FN(reg, f5), v5,\
+				FN(reg, f6), v6,\
+				FN(reg, f7), v7,\
+				FN(reg, f8), v8)
+
+#define REG_SET_9(reg, init_value, f1, v1, f2, v2, f3, v3, f4, v4, f5, \
+		v5, f6, v6, f7, v7, f8, v8, f9, v9)	\
+		REG_SET_N(reg, 9, init_value, \
+				FN(reg, f1), v1,\
+				FN(reg, f2), v2, \
+				FN(reg, f3), v3, \
+				FN(reg, f4), v4, \
+				FN(reg, f5), v5, \
+				FN(reg, f6), v6, \
+				FN(reg, f7), v7, \
+				FN(reg, f8), v8, \
+				FN(reg, f9), v9)
+
 #define REG_SET_10(reg, init_value, f1, v1, f2, v2, f3, v3, f4, v4, f5, \
 		v5, f6, v6, f7, v7, f8, v8, f9, v9, f10, v10)	\
 		REG_SET_N(reg, 10, init_value, \
