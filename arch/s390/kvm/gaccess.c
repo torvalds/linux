@@ -465,7 +465,9 @@ static int ar_translation(struct kvm_vcpu *vcpu, union asce *asce, ar_t ar,
 struct trans_exc_code_bits {
 	unsigned long addr : 52; /* Translation-exception Address */
 	unsigned long fsi  : 2;  /* Access Exception Fetch/Store Indication */
-	unsigned long	   : 6;
+	unsigned long	   : 2;
+	unsigned long b56  : 1;
+	unsigned long	   : 3;
 	unsigned long b60  : 1;
 	unsigned long b61  : 1;
 	unsigned long as   : 2;  /* ASCE Identifier */
@@ -497,14 +499,18 @@ static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
 	switch (code) {
 	case PGM_PROTECTION:
 		switch (prot) {
+		case PROT_TYPE_LA:
+			tec->b56 = 1;
+			break;
+		case PROT_TYPE_KEYC:
+			tec->b60 = 1;
+			break;
 		case PROT_TYPE_ALC:
 			tec->b60 = 1;
 			/* FALL THROUGH */
 		case PROT_TYPE_DAT:
 			tec->b61 = 1;
 			break;
-		default: /* LA and KEYC set b61 to 0, other params undefined */
-			return code;
 		}
 		/* FALL THROUGH */
 	case PGM_ASCE_TYPE:
