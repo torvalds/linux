@@ -175,6 +175,18 @@ static int irqsoff_graph_entry(struct ftrace_graph_ent *trace)
 	int ret;
 	int pc;
 
+	if (ftrace_graph_ignore_func(trace))
+		return 0;
+	/*
+	 * Do not trace a function if it's filtered by set_graph_notrace.
+	 * Make the index of ret stack negative to indicate that it should
+	 * ignore further functions.  But it needs its own ret stack entry
+	 * to recover the original index in order to continue tracing after
+	 * returning from the function.
+	 */
+	if (ftrace_graph_notrace_addr(trace->func))
+		return 1;
+
 	if (!func_prolog_dec(tr, &data, &flags))
 		return 0;
 

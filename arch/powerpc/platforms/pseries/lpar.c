@@ -661,9 +661,10 @@ EXPORT_SYMBOL(arch_free_page);
 #ifdef HAVE_JUMP_LABEL
 struct static_key hcall_tracepoint_key = STATIC_KEY_INIT;
 
-void hcall_tracepoint_regfunc(void)
+int hcall_tracepoint_regfunc(void)
 {
 	static_key_slow_inc(&hcall_tracepoint_key);
+	return 0;
 }
 
 void hcall_tracepoint_unregfunc(void)
@@ -680,9 +681,10 @@ void hcall_tracepoint_unregfunc(void)
 /* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 extern long hcall_tracepoint_refcount;
 
-void hcall_tracepoint_regfunc(void)
+int hcall_tracepoint_regfunc(void)
 {
 	hcall_tracepoint_refcount++;
+	return 0;
 }
 
 void hcall_tracepoint_unregfunc(void)

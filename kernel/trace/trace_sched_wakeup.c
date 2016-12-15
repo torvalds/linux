@@ -239,6 +239,18 @@ static int wakeup_graph_entry(struct ftrace_graph_ent *trace)
 	unsigned long flags;
 	int pc, ret = 0;
 
+	if (ftrace_graph_ignore_func(trace))
+		return 0;
+	/*
+	 * Do not trace a function if it's filtered by set_graph_notrace.
+	 * Make the index of ret stack negative to indicate that it should
+	 * ignore further functions.  But it needs its own ret stack entry
+	 * to recover the original index in order to continue tracing after
+	 * returning from the function.
+	 */
+	if (ftrace_graph_notrace_addr(trace->func))
+		return 1;
+
 	if (!func_prolog_preempt_disable(tr, &data, &pc))
 		return 0;
 
@@ -790,6 +802,7 @@ static struct tracer wakeup_dl_tracer __read_mostly =
 #endif
 	.open		= wakeup_trace_open,
 	.close		= wakeup_trace_close,
+	.allow_instances = true,
 	.use_max_tr	= true,
 };
 
