@@ -1926,7 +1926,8 @@ int vprintk_default(const char *fmt, va_list args)
 	int r;
 
 #ifdef CONFIG_KGDB_KDB
-	if (unlikely(kdb_trap_printk)) {
+	/* Allow to pass printk() to kdb but avoid a recursion. */
+	if (unlikely(kdb_trap_printk && kdb_printf_cpu < 0)) {
 		r = vkdb_printf(KDB_MSGSRC_PRINTK, fmt, args);
 		return r;
 	}

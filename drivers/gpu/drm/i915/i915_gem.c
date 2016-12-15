@@ -1796,8 +1796,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	int ret;
 
 	/* We don't use vmf->pgoff since that has the fake offset */
-	page_offset = ((unsigned long)vmf->virtual_address - area->vm_start) >>
-		PAGE_SHIFT;
+	page_offset = (vmf->address - area->vm_start) >> PAGE_SHIFT;
 
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
 
