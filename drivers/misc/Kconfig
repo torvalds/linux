@@ -544,6 +544,12 @@ config MEMORY_STATE_TIME
 	help
 	  Memory time statistics exported to /sys/kernel/memory_state_time
 
+config USB_CAM_GPIO
+	bool "usb camera gpio driver"
+	default n
+	help
+	  Enable this driver will support usb camera gpio control
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"

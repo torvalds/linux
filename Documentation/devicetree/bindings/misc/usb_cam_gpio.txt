@@ -1,0 +1,16 @@
+* Rockchip USB camera GPIO control driver
+
+Required properties:
+- compatible: should be "usb-cam-gpio"
+- hd-cam-pin: HD camera on gpio pin
+- ir-cam-pin: IR camera on gpio pin
+
+Example:
+	usb_cam_gpio: usb-cam-gpio {
+		compatible = "usb-cam-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_cam_on_gpio>;
+		hd-cam-pin = <&gpio3 GPIO_A1 GPIO_ACTIVE_LOW>;
+		ir-cam-pin = <&gpio3 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
