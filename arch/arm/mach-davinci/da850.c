@@ -538,8 +538,8 @@ static struct clk_lookup da850_clks[] = {
 	CLK("da830-mmc.1",	NULL,		&mmcsd1_clk),
 	CLK("ti-aemif",		NULL,		&aemif_clk),
 	CLK(NULL,		"aemif",	&aemif_clk),
-	CLK(NULL,		"usb11",	&usb11_clk),
-	CLK(NULL,		"usb20",	&usb20_clk),
+	CLK("ohci-da8xx",	"usb11",	&usb11_clk),
+	CLK("musb-da8xx",	"usb20",	&usb20_clk),
 	CLK("spi_davinci.0",	NULL,		&spi0_clk),
 	CLK("spi_davinci.1",	NULL,		&spi1_clk),
 	CLK("vpif",		NULL,		&vpif_clk),
@@ -1213,44 +1213,6 @@ static int da850_round_armrate(struct clk *clk, unsigned long rate)
 	return clk->rate;
 }
 #endif
-
-int __init da850_register_pm(struct platform_device *pdev)
-{
-	int ret;
-	struct davinci_pm_config *pdata = pdev->dev.platform_data;
-
-	ret = davinci_cfg_reg(DA850_RTC_ALARM);
-	if (ret)
-		return ret;
-
-	pdata->ddr2_ctlr_base = da8xx_get_mem_ctlr();
-	pdata->deepsleep_reg = DA8XX_SYSCFG1_VIRT(DA8XX_DEEPSLEEP_REG);
-	pdata->ddrpsc_num = DA8XX_LPSC1_EMIF3C;
-
-	pdata->cpupll_reg_base = ioremap(DA8XX_PLL0_BASE, SZ_4K);
-	if (!pdata->cpupll_reg_base)
-		return -ENOMEM;
-
-	pdata->ddrpll_reg_base = ioremap(DA850_PLL1_BASE, SZ_4K);
-	if (!pdata->ddrpll_reg_base) {
-		ret = -ENOMEM;
-		goto no_ddrpll_mem;
-	}
-
-	pdata->ddrpsc_reg_base = ioremap(DA8XX_PSC1_BASE, SZ_4K);
-	if (!pdata->ddrpsc_reg_base) {
-		ret = -ENOMEM;
-		goto no_ddrpsc_mem;
-	}
-
-	return platform_device_register(pdev);
-
-no_ddrpsc_mem:
-	iounmap(pdata->ddrpll_reg_base);
-no_ddrpll_mem:
-	iounmap(pdata->cpupll_reg_base);
-	return ret;
-}
 
 /* VPIF resource, platform data */
 static u64 da850_vpif_dma_mask = DMA_BIT_MASK(32);

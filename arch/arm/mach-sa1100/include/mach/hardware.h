@@ -43,10 +43,6 @@
 # define __REG(x)	(*((volatile unsigned long __iomem *)io_p2v(x)))
 # define __PREG(x)	(io_v2p((unsigned long)&(x)))
 
-static inline unsigned long get_clock_tick_rate(void)
-{
-	return 3686400;
-}
 #else
 
 # define __REG(x)	io_p2v(x)

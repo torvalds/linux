@@ -339,6 +339,7 @@ static const char *const dra72x_boards_compat[] __initconst = {
 	"ti,am5718",
 	"ti,am5716",
 	"ti,dra722",
+	"ti,dra718",
 	NULL,
 };
 
