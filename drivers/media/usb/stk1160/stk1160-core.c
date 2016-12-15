@@ -373,7 +373,7 @@ static int stk1160_probe(struct usb_interface *interface,
 	/* select default input */
 	stk1160_select_input(dev);
 
-	stk1160_ac97_register(dev);
+	stk1160_ac97_setup(dev);
 
 	rc = stk1160_video_register(dev);
 	if (rc < 0)
@@ -410,9 +410,6 @@ static void stk1160_disconnect(struct usb_interface *interface)
 
 	/* Here is the only place where isoc get released */
 	stk1160_uninit_isoc(dev);
-
-	/* ac97 unregister needs to be done before usb_device is cleared */
-	stk1160_ac97_unregister(dev);
 
 	stk1160_clear_queue(dev);
 
