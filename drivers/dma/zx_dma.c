@@ -365,7 +365,8 @@ static enum dma_status zx_dma_tx_status(struct dma_chan *chan,
 
 		bytes = 0;
 		clli = zx_dma_get_curr_lli(p);
-		index = (clli - ds->desc_hw_lli) / sizeof(struct zx_desc_hw);
+		index = (clli - ds->desc_hw_lli) /
+				sizeof(struct zx_desc_hw) + 1;
 		for (; index < ds->desc_num; index++) {
 			bytes += ds->desc_hw[index].src_x;
 			/* end of lli */
