@@ -50,6 +50,11 @@
 
 #define FDB_UPLINK_VPORT 0xffff
 
+#define MLX5_MIN_BW_SHARE 1
+
+#define MLX5_RATE_TO_BW_SHARE(rate, divider, limit) \
+	min_t(u32, max_t(u32, (rate) / (divider), MLX5_MIN_BW_SHARE), limit)
+
 /* L2 -mac address based- hash helpers */
 struct l2addr_node {
 	struct hlist_node hlist;
@@ -116,6 +121,7 @@ struct mlx5_vport_info {
 	u8                      qos;
 	u64                     node_guid;
 	int                     link_state;
+	u32                     min_rate;
 	u32                     max_rate;
 	bool                    spoofchk;
 	bool                    trusted;
@@ -138,6 +144,7 @@ struct mlx5_vport {
 	struct {
 		bool            enabled;
 		u32             esw_tsar_ix;
+		u32             bw_share;
 	} qos;
 
 	bool                    enabled;
@@ -249,8 +256,8 @@ int mlx5_eswitch_set_vport_spoofchk(struct mlx5_eswitch *esw,
 				    int vport, bool spoofchk);
 int mlx5_eswitch_set_vport_trust(struct mlx5_eswitch *esw,
 				 int vport_num, bool setting);
-int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw,
-				int vport, u32 max_rate);
+int mlx5_eswitch_set_vport_rate(struct mlx5_eswitch *esw, int vport,
+				u32 max_rate, u32 min_rate);
 int mlx5_eswitch_get_vport_config(struct mlx5_eswitch *esw,
 				  int vport, struct ifla_vf_info *ivi);
 int mlx5_eswitch_get_vport_stats(struct mlx5_eswitch *esw,

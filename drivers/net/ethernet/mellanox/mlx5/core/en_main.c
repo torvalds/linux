@@ -3021,11 +3021,8 @@ static int mlx5e_set_vf_rate(struct net_device *dev, int vf, int min_tx_rate,
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5_core_dev *mdev = priv->mdev;
 
-	if (min_tx_rate)
-		return -EOPNOTSUPP;
-
 	return mlx5_eswitch_set_vport_rate(mdev->priv.eswitch, vf + 1,
-					   max_tx_rate);
+					   max_tx_rate, min_tx_rate);
 }
 
 static int mlx5_vport_link2ifla(u8 esw_link)
