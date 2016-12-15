@@ -78,19 +78,17 @@ EXPORT_SYMBOL_GPL(sched_clock);
 __read_mostly int sched_clock_running;
 
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-static struct static_key __sched_clock_stable = STATIC_KEY_INIT;
+static DEFINE_STATIC_KEY_FALSE(__sched_clock_stable);
 static int __sched_clock_stable_early;
 
 int sched_clock_stable(void)
 {
-	return static_key_false(&__sched_clock_stable);
+	return static_branch_likely(&__sched_clock_stable);
 }
 
 static void __set_sched_clock_stable(void)
 {
-	if (!sched_clock_stable())
-		static_key_slow_inc(&__sched_clock_stable);
-
+	static_branch_enable(&__sched_clock_stable);
 	tick_dep_clear(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
@@ -109,9 +107,7 @@ void set_sched_clock_stable(void)
 static void __clear_sched_clock_stable(struct work_struct *work)
 {
 	/* XXX worry about clock continuity */
-	if (sched_clock_stable())
-		static_key_slow_dec(&__sched_clock_stable);
-
+	static_branch_disable(&__sched_clock_stable);
 	tick_dep_set(TICK_DEP_BIT_CLOCK_UNSTABLE);
 }
 
