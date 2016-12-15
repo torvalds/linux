@@ -45,6 +45,7 @@ static void arizona_micsupp_check_cp(struct work_struct *work)
 	struct arizona_micsupp *micsupp =
 		container_of(work, struct arizona_micsupp, check_cp_work);
 	struct snd_soc_dapm_context *dapm = micsupp->arizona->dapm;
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct arizona *arizona = micsupp->arizona;
 	struct regmap *regmap = arizona->regmap;
 	unsigned int reg;
@@ -59,9 +60,10 @@ static void arizona_micsupp_check_cp(struct work_struct *work)
 	if (dapm) {
 		if ((reg & (ARIZONA_CPMIC_ENA | ARIZONA_CPMIC_BYPASS)) ==
 		    ARIZONA_CPMIC_ENA)
-			snd_soc_dapm_force_enable_pin(dapm, "MICSUPP");
+			snd_soc_component_force_enable_pin(component,
+							   "MICSUPP");
 		else
-			snd_soc_dapm_disable_pin(dapm, "MICSUPP");
+			snd_soc_component_disable_pin(component, "MICSUPP");
 
 		snd_soc_dapm_sync(dapm);
 	}
