@@ -215,8 +215,10 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	} else {
 		cpumask_copy(&cpus, policy->cpus);
 		cpumask_clear_cpu(policy->cpu, &cpus);
-		if (dev_pm_opp_of_cpumask_add_table(&cpus))
-			dev_pm_opp_of_remove_table(cpu_dev);
+		if (!cpumask_empty(&cpus)) {
+			if (dev_pm_opp_of_cpumask_add_table(&cpus))
+				dev_pm_opp_of_remove_table(cpu_dev);
+		}
 	}
 #else
 	dev_pm_opp_of_cpumask_add_table(policy->cpus);
