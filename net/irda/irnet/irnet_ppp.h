@@ -15,6 +15,7 @@
 /***************************** INCLUDES *****************************/
 
 #include "irnet.h"		/* Module global include */
+#include <linux/miscdevice.h>
 
 /************************ CONSTANTS & MACROS ************************/
 
