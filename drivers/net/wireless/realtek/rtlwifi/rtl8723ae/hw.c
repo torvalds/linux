@@ -570,9 +570,8 @@ static bool _rtl8723e_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 			break;
 
 		if (count > POLLING_LLT_THRESHOLD) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Failed to polling write LLT done at address %d!\n",
-				 address);
+			pr_err("Failed to polling write LLT done at address %d!\n",
+			       address);
 			status = false;
 			break;
 		}
@@ -961,7 +960,7 @@ int rtl8723e_hw_init(struct ieee80211_hw *hw)
 	rtlpriv->intf_ops->disable_aspm(hw);
 	rtstatus = _rtl8712e_init_mac(hw);
 	if (rtstatus != true) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
+		pr_err("Init MAC failed\n");
 		err = 1;
 		goto exit;
 	}
@@ -1107,8 +1106,7 @@ static enum version_8723e _rtl8723e_read_chip_version(struct ieee80211_hw *hw)
 			 "Chip Version ID: VERSION_NORMAL_UMC_CHIP_8723_1T1R_B_CUT.\n");
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Chip Version ID: Unknown. Bug?\n");
+		pr_err("Chip Version ID: Unknown. Bug?\n");
 		break;
 	}
 
@@ -1157,8 +1155,7 @@ static int _rtl8723e_set_media_status(struct ieee80211_hw *hw,
 			"Set Network type to AP!\n");
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			"Network type %d not support!\n", type);
+		pr_err("Network type %d not support!\n", type);
 		return 1;
 		break;
 	}
@@ -1852,7 +1849,7 @@ void rtl8723e_read_eeprom_info(struct ieee80211_hw *hw)
 	} else {
 		rtlefuse->autoload_failflag = true;
 		_rtl8723e_read_adapter_info(hw, false);
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Autoload ERR!!\n");
+		pr_err("Autoload ERR!!\n");
 	}
 	_rtl8723e_hal_customized_behavior(hw);
 }
@@ -2245,9 +2242,7 @@ void rtl8723e_set_key(struct ieee80211_hw *hw, u32 key_index,
 					entry_id =
 					  rtl_cam_get_free_entry(hw, p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						RT_TRACE(rtlpriv, COMP_SEC,
-							 DBG_EMERG,
-							 "Can not find free hw security cam entry\n");
+						pr_err("Can not find free hw security cam entry\n");
 						return;
 					}
 				} else {
