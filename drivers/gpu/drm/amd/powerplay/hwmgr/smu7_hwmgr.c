@@ -40,6 +40,8 @@
 
 #include "hwmgr.h"
 #include "smu7_hwmgr.h"
+#include "smu7_smumgr.h"
+#include "smu_ucode_xfer_vi.h"
 #include "smu7_powertune.h"
 #include "smu7_dyn_defaults.h"
 #include "smu7_thermal.h"
@@ -4324,6 +4326,32 @@ static int smu7_get_clock_by_type(struct pp_hwmgr *hwmgr, enum amd_pp_clock_type
 	return 0;
 }
 
+static int smu7_request_firmware(struct pp_hwmgr *hwmgr)
+{
+	int ret;
+	struct cgs_firmware_info info = {0};
+
+	ret = cgs_get_firmware_info(hwmgr->device,
+				    smu7_convert_fw_type_to_cgs(UCODE_ID_SMU),
+				    &info);
+	if (ret || !info.kptr)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int smu7_release_firmware(struct pp_hwmgr *hwmgr)
+{
+	int ret;
+
+	ret = cgs_rel_firmware(hwmgr->device,
+			       smu7_convert_fw_type_to_cgs(UCODE_ID_SMU));
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
 	.backend_fini = &phm_hwmgr_backend_fini,
@@ -4371,6 +4399,8 @@ static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.get_clock_by_type = smu7_get_clock_by_type,
 	.read_sensor = smu7_read_sensor,
 	.dynamic_state_management_disable = smu7_disable_dpm_tasks,
+	.request_firmware = smu7_request_firmware,
+	.release_firmware = smu7_release_firmware,
 };
 
 uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
