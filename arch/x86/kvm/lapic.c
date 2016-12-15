@@ -115,6 +115,16 @@ static inline int apic_enabled(struct kvm_lapic *apic)
 	(LVT_MASK | APIC_MODE_MASK | APIC_INPUT_POLARITY | \
 	 APIC_LVT_REMOTE_IRR | APIC_LVT_LEVEL_TRIGGER)
 
+static inline u8 kvm_xapic_id(struct kvm_lapic *apic)
+{
+	return kvm_lapic_get_reg(apic, APIC_ID) >> 24;
+}
+
+static inline u32 kvm_x2apic_id(struct kvm_lapic *apic)
+{
+	return apic->vcpu->vcpu_id;
+}
+
 static inline bool kvm_apic_map_get_logical_dest(struct kvm_apic_map *map,
 		u32 dest_id, struct kvm_lapic ***cluster, u16 *mask) {
 	switch (map->mode) {
@@ -159,13 +169,13 @@ static void recalculate_apic_map(struct kvm *kvm)
 	struct kvm_apic_map *new, *old = NULL;
 	struct kvm_vcpu *vcpu;
 	int i;
-	u32 max_id = 255;
+	u32 max_id = 255; /* enough space for any xAPIC ID */
 
 	mutex_lock(&kvm->arch.apic_map_lock);
 
 	kvm_for_each_vcpu(i, vcpu, kvm)
 		if (kvm_apic_present(vcpu))
-			max_id = max(max_id, kvm_apic_id(vcpu->arch.apic));
+			max_id = max(max_id, kvm_x2apic_id(vcpu->arch.apic));
 
 	new = kvm_kvzalloc(sizeof(struct kvm_apic_map) +
 	                   sizeof(struct kvm_lapic *) * ((u64)max_id + 1));
@@ -184,11 +194,12 @@ static void recalculate_apic_map(struct kvm *kvm)
 		if (!kvm_apic_present(vcpu))
 			continue;
 
-		aid = kvm_apic_id(apic);
-		ldr = kvm_lapic_get_reg(apic, APIC_LDR);
-
+		aid = apic_x2apic_mode(apic) ? kvm_x2apic_id(apic)
+		                             : kvm_xapic_id(apic);
 		if (aid <= new->max_apic_id)
 			new->phys_map[aid] = apic;
+
+		ldr = kvm_lapic_get_reg(apic, APIC_LDR);
 
 		if (apic_x2apic_mode(apic)) {
 			new->mode |= KVM_APIC_MODE_X2APIC;
@@ -249,6 +260,8 @@ static inline void kvm_apic_set_ldr(struct kvm_lapic *apic, u32 id)
 static inline void kvm_apic_set_x2apic_id(struct kvm_lapic *apic, u32 id)
 {
 	u32 ldr = ((id >> 4) << 16) | (1 << (id & 0xf));
+
+	WARN_ON_ONCE(id != apic->vcpu->vcpu_id);
 
 	kvm_lapic_set_reg(apic, APIC_ID, id);
 	kvm_lapic_set_reg(apic, APIC_LDR, ldr);
@@ -591,9 +604,9 @@ static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 mda)
 		return true;
 
 	if (apic_x2apic_mode(apic))
-		return mda == kvm_apic_id(apic);
+		return mda == kvm_x2apic_id(apic);
 
-	return mda == SET_APIC_DEST_FIELD(kvm_apic_id(apic));
+	return mda == SET_APIC_DEST_FIELD(kvm_xapic_id(apic));
 }
 
 static bool kvm_apic_match_logical_addr(struct kvm_lapic *apic, u32 mda)
@@ -1907,9 +1920,9 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 	vcpu->arch.apic_arb_prio = 0;
 	vcpu->arch.apic_attention = 0;
 
-	apic_debug("%s: vcpu=%p, id=%d, base_msr="
+	apic_debug("%s: vcpu=%p, id=0x%x, base_msr="
 		   "0x%016" PRIx64 ", base_address=0x%0lx.\n", __func__,
-		   vcpu, kvm_apic_id(apic),
+		   vcpu, kvm_lapic_get_reg(apic, APIC_ID),
 		   vcpu->arch.apic_base, apic->base_address);
 }
 
