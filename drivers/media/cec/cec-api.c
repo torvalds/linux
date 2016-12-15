@@ -88,7 +88,7 @@ static long cec_adap_g_caps(struct cec_adapter *adap,
 {
 	struct cec_caps caps = {};
 
-	strlcpy(caps.driver, adap->devnode.parent->driver->name,
+	strlcpy(caps.driver, adap->devnode.dev.parent->driver->name,
 		sizeof(caps.driver));
 	strlcpy(caps.name, adap->name, sizeof(caps.name));
 	caps.available_log_addrs = adap->available_log_addrs;
@@ -162,7 +162,9 @@ static long cec_adap_s_log_addrs(struct cec_adapter *adap, struct cec_fh *fh,
 		return -ENOTTY;
 	if (copy_from_user(&log_addrs, parg, sizeof(log_addrs)))
 		return -EFAULT;
-	log_addrs.flags &= CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK;
+	log_addrs.flags &= CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK |
+			   CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU |
+			   CEC_LOG_ADDRS_FL_CDC_ONLY;
 	mutex_lock(&adap->lock);
 	if (!adap->is_configuring &&
 	    (!log_addrs.num_log_addrs || !adap->is_configured) &&
@@ -189,6 +191,12 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 		return -ENOTTY;
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
+
+	/* A CDC-Only device can only send CDC messages */
+	if ((adap->log_addrs.flags & CEC_LOG_ADDRS_FL_CDC_ONLY) &&
+	    (msg.len == 1 || msg.msg[1] != CEC_MSG_CDC_MESSAGE))
+		return -EINVAL;
+
 	mutex_lock(&adap->lock);
 	if (!adap->is_configured)
 		err = -ENONET;
@@ -273,6 +281,7 @@ static long cec_receive(struct cec_adapter *adap, struct cec_fh *fh,
 	err = cec_receive_msg(fh, &msg, block);
 	if (err)
 		return err;
+	msg.flags = 0;
 	if (copy_to_user(parg, &msg, sizeof(msg)))
 		return -EFAULT;
 	return 0;

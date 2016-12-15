@@ -104,11 +104,7 @@ static inline void fintek_cir_reg_write(struct fintek_dev *fintek, u8 val, u8 of
 /* read val from cir config register */
 static u8 fintek_cir_reg_read(struct fintek_dev *fintek, u8 offset)
 {
-	u8 val;
-
-	val = inb(fintek->cir_addr + offset);
-
-	return val;
+	return inb(fintek->cir_addr + offset);
 }
 
 /* dump current cir register contents */

@@ -7,9 +7,9 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="59cm"
-   height="17cm"
-   viewBox="-194 128 1179 330"
+   width="58.803326cm"
+   height="16.463955cm"
+   viewBox="-194 128 1175.0698 319.59442"
    id="svg2"
    version="1.1"
    inkscape:version="0.91 r13725"
@@ -22,6 +22,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -40,23 +41,27 @@
      inkscape:window-height="997"
      id="namedview182"
      showgrid="false"
+     fit-margin-top="0"
+     fit-margin-left="0"
+     fit-margin-right="0"
+     fit-margin-bottom="0"
      inkscape:zoom="0.26595857"
-     inkscape:cx="1052.7956"
-     inkscape:cy="301.1811"
+     inkscape:cx="1049.9581"
+     inkscape:cy="292.5708"
      inkscape:window-x="1920"
      inkscape:window-y="30"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg2" />
   <rect
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-     x="-8"
-     y="130"
+     style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+     x="-9.6002426"
+     y="124.14409"
      width="806"
      height="327"
      id="rect4" />
   <g
      id="g6"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <rect
        style="fill:#ffffff"
        x="4.5"
@@ -65,7 +70,7 @@
        height="104"
        id="rect8" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#a52a2a"
+       style="fill:none;fill-opacity:0;stroke:#a52a2a;stroke-width:2"
        x="4.5"
        y="189"
        width="159"
@@ -74,7 +79,7 @@
   </g>
   <g
      id="g12"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <rect
        style="fill:#ffffff"
        x="49.5"
@@ -83,7 +88,7 @@
        height="77"
        id="rect14" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#0000ff"
+       style="fill:none;fill-opacity:0;stroke:#0000ff;stroke-width:2"
        x="49.5"
        y="204"
        width="94"
@@ -91,470 +96,445 @@
        id="rect16" />
   </g>
   <text
-     style="fill:#0000ff;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="60"
-     y="224"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#0000ff"
+     x="58.399757"
+     y="218.14409"
      id="text18">
     <tspan
-       x="60"
-       y="224"
-       id="tspan20"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">sink</tspan>
+       x="58.399757"
+       y="218.14409"
+       id="tspan20">sink</tspan>
     <tspan
-       x="60"
-       y="240"
-       id="tspan22"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">crop</tspan>
+       x="58.399757"
+       y="234.14409"
+       id="tspan22">crop</tspan>
     <tspan
-       x="60"
-       y="256"
-       id="tspan24"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">selection</tspan>
+       x="58.399757"
+       y="250.14409"
+       id="tspan24">selection</tspan>
   </text>
   <text
-     style="fill:#000000;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="29.5"
-     y="158"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="27.899757"
+     y="152.14409"
      id="text26">
     <tspan
-       x="29.5"
-       y="158"
-       id="tspan28"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;" />
+       x="27.899757"
+       y="152.14409"
+       id="tspan28" />
   </text>
   <text
-     style="fill:#a52a2a;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="8.53836"
-     y="157.914"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#a52a2a"
+     x="6.938117"
+     y="152.05809"
      id="text30">
     <tspan
-       x="8.53836"
-       y="157.914"
-       id="tspan32"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">sink media</tspan>
+       x="6.938117"
+       y="152.05809"
+       id="tspan32">sink media</tspan>
     <tspan
-       x="8.53836"
-       y="173.914"
-       id="tspan34"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">bus format</tspan>
+       x="6.938117"
+       y="168.05809"
+       id="tspan34">bus format</tspan>
   </text>
   <g
      id="g36"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <rect
        style="fill:#ffffff"
-       x="333.644"
-       y="185.65"
+       x="333.64401"
+       y="185.64999"
        width="165.2"
        height="172.478"
        id="rect38" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#00ff00"
-       x="333.644"
-       y="185.65"
+       style="fill:none;fill-opacity:0;stroke:#00ff00;stroke-width:2"
+       x="333.64401"
+       y="185.64999"
        width="165.2"
        height="172.478"
        id="rect40" />
   </g>
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="333.644"
-     y1="358.128"
-     x2="49.5"
-     y2="281"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="332.04376"
+     y1="352.27206"
+     x2="47.899757"
+     y2="275.14407"
      id="line42" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="333.644"
-     y1="185.65"
-     x2="49.5"
-     y2="204"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="332.04376"
+     y1="179.79408"
+     x2="47.899757"
+     y2="198.14409"
      id="line44" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="498.844"
-     y1="358.128"
-     x2="143.5"
-     y2="281"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="497.24374"
+     y1="352.27206"
+     x2="141.89977"
+     y2="275.14407"
      id="line46" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="498.844"
-     y1="185.65"
-     x2="143.5"
-     y2="204"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="497.24374"
+     y1="179.79408"
+     x2="141.89977"
+     y2="198.14409"
      id="line48" />
   <text
-     style="fill:#00ff00;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="334.704"
-     y="149.442"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#00ff00"
+     x="333.10376"
+     y="143.58609"
      id="text50">
     <tspan
-       x="334.704"
-       y="149.442"
-       id="tspan52"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">sink compose</tspan>
+       x="333.10376"
+       y="143.58609"
+       id="tspan52">sink compose</tspan>
     <tspan
-       x="334.704"
-       y="165.442"
-       id="tspan54"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">selection (scaling)</tspan>
+       x="333.10376"
+       y="159.58609"
+       id="tspan54">selection (scaling)</tspan>
   </text>
   <g
      id="g56"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <rect
        style="fill:#ffffff"
-       x="382.322"
+       x="382.32199"
        y="199.565"
        width="100.186"
-       height="71.4523"
+       height="71.452301"
        id="rect58" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#a020f0"
-       x="382.322"
+       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       x="382.32199"
        y="199.565"
        width="100.186"
-       height="71.4523"
+       height="71.452301"
        id="rect60" />
   </g>
   <text
-     style="fill:#a020f0;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="543.322"
-     y="149.442"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#a020f0"
+     x="541.7218"
+     y="143.58609"
      id="text62">
     <tspan
-       x="543.322"
-       y="149.442"
-       id="tspan64"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">source</tspan>
+       x="541.7218"
+       y="143.58609"
+       id="tspan64">source</tspan>
     <tspan
-       x="543.322"
-       y="165.442"
-       id="tspan66"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">crop</tspan>
+       x="541.7218"
+       y="159.58609"
+       id="tspan66">crop</tspan>
     <tspan
-       x="543.322"
-       y="181.442"
-       id="tspan68"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">selection</tspan>
+       x="541.7218"
+       y="175.58609"
+       id="tspan68">selection</tspan>
   </text>
   <text
-     style="fill:#8b6914;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="691.5"
-     y="157.128"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#8b6914"
+     x="689.89978"
+     y="151.27209"
      id="text70">
     <tspan
-       x="691.5"
-       y="157.128"
-       id="tspan72"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">source media</tspan>
+       x="689.89978"
+       y="151.27209"
+       id="tspan72">source media</tspan>
     <tspan
-       x="691.5"
-       y="173.128"
-       id="tspan74"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">bus format</tspan>
+       x="689.89978"
+       y="167.27209"
+       id="tspan74">bus format</tspan>
   </text>
   <g
      id="g76"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <rect
        style="fill:#ffffff"
-       x="690.488"
+       x="690.48798"
        y="225.834"
        width="100.186"
-       height="71.4523"
+       height="71.452301"
        id="rect78" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#8b6914"
-       x="690.488"
+       style="fill:none;fill-opacity:0;stroke:#8b6914;stroke-width:2"
+       x="690.48798"
        y="225.834"
        width="100.186"
-       height="71.4523"
+       height="71.452301"
        id="rect80" />
   </g>
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="690.488"
-     y1="297.286"
-     x2="382.322"
-     y2="271.018"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="688.88776"
+     y1="291.43008"
+     x2="380.72174"
+     y2="265.16208"
      id="line82" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="690.488"
-     y1="225.834"
-     x2="382.322"
-     y2="199.565"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="688.88776"
+     y1="219.97809"
+     x2="380.72174"
+     y2="193.70909"
      id="line84" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="790.674"
-     y1="297.286"
-     x2="482.508"
-     y2="271.018"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="789.07379"
+     y1="291.43008"
+     x2="480.90775"
+     y2="265.16208"
      id="line86" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="790.674"
-     y1="225.834"
-     x2="482.508"
-     y2="199.565"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="789.07379"
+     y1="219.97809"
+     x2="480.90775"
+     y2="193.70909"
      id="line88" />
   <g
      id="g90"
-     style="">
-    <ellipse
+     transform="translate(-1.6002426,-5.8559115)">
+    <circle
        style="fill:#ffffff"
-       cx="808.1"
-       cy="249.984"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse92" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="808.1"
-       cy="249.984"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse94" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="808.1"
-       cy="249.984"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse96" />
+       cx="808.09998"
+       cy="249.98399"
+       id="ellipse92"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="808.09998"
+       cy="249.98399"
+       id="ellipse94"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="808.09998"
+       cy="249.98399"
+       id="ellipse96"
+       r="8.5" />
   </g>
   <g
      id="g98"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <line
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       x1="816.6"
-       y1="249.984"
-       x2="972.934"
-       y2="250.012"
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       x1="816.59998"
+       y1="249.98399"
+       x2="972.93402"
+       y2="250.01199"
        id="line100" />
     <polygon
        style="fill:#000000"
-       points="980.434,250.014 970.433,255.012 972.934,250.012 970.435,245.012 "
+       points="970.435,245.012 980.434,250.014 970.433,255.012 972.934,250.012 "
        id="polygon102" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       points="980.434,250.014 970.433,255.012 972.934,250.012 970.435,245.012 "
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       points="970.435,245.012 980.434,250.014 970.433,255.012 972.934,250.012 "
        id="polygon104" />
   </g>
   <text
-     style="fill:#000000;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="841.908"
-     y="239.8"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="840.3078"
+     y="233.94409"
      id="text106">
     <tspan
-       x="841.908"
-       y="239.8"
-       id="tspan108"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">pad 1 (source)</tspan>
+       x="840.3078"
+       y="233.94409"
+       id="tspan108">pad 1 (source)</tspan>
   </text>
   <g
      id="g110"
-     style="">
-    <ellipse
+     transform="translate(-1.6002426,-5.8559115)">
+    <circle
        style="fill:#ffffff"
-       cx="-20.3982"
-       cy="241.512"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse112" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="-20.3982"
-       cy="241.512"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse114" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="-20.3982"
-       cy="241.512"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse116" />
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse112"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse114"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="-20.398199"
+       cy="241.51199"
+       id="ellipse116"
+       r="8.5" />
   </g>
   <g
      id="g118"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <line
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       x1="-192.398"
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       x1="-192.39799"
        y1="241.8"
        x2="-38.6343"
-       y2="241.529"
+       y2="241.52901"
        id="line120" />
     <polygon
        style="fill:#000000"
-       points="-31.1343,241.516 -41.1254,246.534 -38.6343,241.529 -41.1431,236.534 "
+       points="-41.1431,236.534 -31.1343,241.516 -41.1254,246.534 -38.6343,241.529 "
        id="polygon122" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       points="-31.1343,241.516 -41.1254,246.534 -38.6343,241.529 -41.1431,236.534 "
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       points="-41.1431,236.534 -31.1343,241.516 -41.1254,246.534 -38.6343,241.529 "
        id="polygon124" />
   </g>
   <text
-     style="fill:#000000;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="-147.858"
-     y="229.8"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="-149.45824"
+     y="223.94409"
      id="text126">
     <tspan
-       x="-147.858"
-       y="229.8"
-       id="tspan128"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">pad 0 (sink)</tspan>
+       x="-149.45824"
+       y="223.94409"
+       id="tspan128">pad 0 (sink)</tspan>
   </text>
   <rect
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke:#a020f0"
-     x="389.822"
-     y="276.666"
+     style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+     x="388.22174"
+     y="270.81006"
      width="100.186"
-     height="71.4523"
+     height="71.452301"
      id="rect130" />
   <g
      id="g132"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <rect
        style="fill:#ffffff"
-       x="689.988"
-       y="345.934"
+       x="689.98798"
+       y="345.93399"
        width="100.186"
-       height="71.4523"
+       height="71.452301"
        id="rect134" />
     <rect
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#8b6914"
-       x="689.988"
-       y="345.934"
+       style="fill:none;fill-opacity:0;stroke:#8b6914;stroke-width:2"
+       x="689.98798"
+       y="345.93399"
        width="100.186"
-       height="71.4523"
+       height="71.452301"
        id="rect136" />
   </g>
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="689.988"
-     y1="417.386"
-     x2="389.822"
-     y2="348.118"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="688.38776"
+     y1="411.53006"
+     x2="388.22174"
+     y2="342.26208"
      id="line138" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="689.988"
-     y1="345.934"
-     x2="389.822"
-     y2="276.666"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="688.38776"
+     y1="340.07806"
+     x2="388.22174"
+     y2="270.81006"
      id="line140" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="790.174"
-     y1="417.386"
-     x2="490.008"
-     y2="348.118"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="788.57379"
+     y1="411.53006"
+     x2="488.40775"
+     y2="342.26208"
      id="line142" />
   <line
-     style="fill:none;fill-opacity:0;stroke-width:2;stroke-dasharray:4;stroke:#e60505"
-     x1="790.174"
-     y1="345.934"
-     x2="490.008"
-     y2="276.666"
+     style="fill:none;fill-opacity:0;stroke:#e60505;stroke-width:2;stroke-dasharray:4"
+     x1="788.57379"
+     y1="340.07806"
+     x2="488.40775"
+     y2="270.81006"
      id="line144" />
   <g
      id="g146"
-     style="">
-    <ellipse
+     transform="translate(-1.6002426,-5.8559115)">
+    <circle
        style="fill:#ffffff"
-       cx="805.6"
-       cy="384.084"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse148" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="805.6"
-       cy="384.084"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse150" />
-    <ellipse
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       cx="805.6"
-       cy="384.084"
-       rx="8.5"
-       ry="8.5"
-       id="ellipse152" />
+       cx="805.59998"
+       cy="384.08401"
+       id="ellipse148"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="805.59998"
+       cy="384.08401"
+       id="ellipse150"
+       r="8.5" />
+    <circle
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       cx="805.59998"
+       cy="384.08401"
+       id="ellipse152"
+       r="8.5" />
   </g>
   <g
      id="g154"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <line
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       x1="814.1"
-       y1="384.084"
-       x2="970.434"
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       x1="814.09998"
+       y1="384.08401"
+       x2="970.43402"
        y2="384.112"
        id="line156" />
     <polygon
        style="fill:#000000"
-       points="977.934,384.114 967.933,389.112 970.434,384.112 967.935,379.112 "
+       points="967.935,379.112 977.934,384.114 967.933,389.112 970.434,384.112 "
        id="polygon158" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#000000"
-       points="977.934,384.114 967.933,389.112 970.434,384.112 967.935,379.112 "
+       style="fill:none;fill-opacity:0;stroke:#000000;stroke-width:2"
+       points="967.935,379.112 977.934,384.114 967.933,389.112 970.434,384.112 "
        id="polygon160" />
   </g>
   <text
-     style="fill:#000000;text-anchor:start;font-size:12.8;font-family:sans-serif;font-style:normal;font-weight:normal;-inkscape-font-specification:sans-serif;font-stretch:normal;font-variant:normal;"
-     x="839.408"
-     y="373.9"
+     style="font-style:normal;font-weight:normal;font-size:12.80000019px;font-family:sanserif;text-anchor:start;fill:#000000"
+     x="837.8078"
+     y="368.04407"
      id="text162">
     <tspan
-       x="839.408"
-       y="373.9"
-       id="tspan164"
-       style="-inkscape-font-specification:sans-serif;font-family:sans-serif;font-weight:normal;font-style:normal;font-stretch:normal;font-variant:normal;">pad 2 (source)</tspan>
+       x="837.8078"
+       y="368.04407"
+       id="tspan164">pad 2 (source)</tspan>
   </text>
   <g
      id="g166"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <line
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#a020f0"
+       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
        x1="546"
        y1="191"
-       x2="492.157"
+       x2="492.15701"
        y2="198.263"
        id="line168" />
     <polygon
        style="fill:#a020f0"
-       points="484.724,199.266 493.966,192.974 492.157,198.263 495.303,202.884 "
+       points="495.303,202.884 484.724,199.266 493.966,192.974 492.157,198.263 "
        id="polygon170" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#a020f0"
-       points="484.724,199.266 493.966,192.974 492.157,198.263 495.303,202.884 "
+       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       points="495.303,202.884 484.724,199.266 493.966,192.974 492.157,198.263 "
        id="polygon172" />
   </g>
   <g
      id="g174"
-     style="">
+     transform="translate(-1.6002426,-5.8559115)">
     <line
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#a020f0"
-       x1="546.908"
-       y1="190.725"
+       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       x1="546.90802"
+       y1="190.72501"
        x2="495.383"
        y2="268.548"
        id="line176" />
     <polygon
        style="fill:#a020f0"
-       points="491.242,274.802 492.594,263.703 495.383,268.548 500.932,269.224 "
+       points="500.932,269.224 491.242,274.802 492.594,263.703 495.383,268.548 "
        id="polygon178" />
     <polygon
-       style="fill:none;fill-opacity:0;stroke-width:2;stroke:#a020f0"
-       points="491.242,274.802 492.594,263.703 495.383,268.548 500.932,269.224 "
+       style="fill:none;fill-opacity:0;stroke:#a020f0;stroke-width:2"
+       points="500.932,269.224 491.242,274.802 492.594,263.703 495.383,268.548 "
        id="polygon180" />
   </g>
 </svg>

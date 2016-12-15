@@ -56,7 +56,8 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
 	struct sanyo_dec *data = &dev->raw->sanyo;
 	u32 scancode;
-	u8 address, command, not_command;
+	u16 address;
+	u8 command, not_command;
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset) {

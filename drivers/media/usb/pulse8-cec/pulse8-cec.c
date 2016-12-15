@@ -375,27 +375,35 @@ static int pulse8_setup(struct pulse8 *pulse8, struct serio *serio,
 	switch (log_addrs->primary_device_type[0]) {
 	case CEC_OP_PRIM_DEVTYPE_TV:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_TV;
+		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_TV;
 		break;
 	case CEC_OP_PRIM_DEVTYPE_RECORD:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_RECORD;
+		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_RECORD;
 		break;
 	case CEC_OP_PRIM_DEVTYPE_TUNER:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_TUNER;
+		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_TUNER;
 		break;
 	case CEC_OP_PRIM_DEVTYPE_PLAYBACK:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_PLAYBACK;
+		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_PLAYBACK;
 		break;
 	case CEC_OP_PRIM_DEVTYPE_AUDIOSYSTEM:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_PLAYBACK;
+		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_AUDIOSYSTEM;
 		break;
 	case CEC_OP_PRIM_DEVTYPE_SWITCH:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_UNREGISTERED;
+		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_SWITCH;
 		break;
 	case CEC_OP_PRIM_DEVTYPE_PROCESSOR:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_SPECIFIC;
+		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_SWITCH;
 		break;
 	default:
 		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_UNREGISTERED;
+		log_addrs->all_device_types[0] = CEC_OP_ALL_DEVTYPE_SWITCH;
 		dev_info(pulse8->dev, "Unknown Primary Device Type: %d\n",
 			 log_addrs->primary_device_type[0]);
 		break;
@@ -651,7 +659,7 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 
 	pulse8->serio = serio;
 	pulse8->adap = cec_allocate_adapter(&pulse8_cec_adap_ops, pulse8,
-		"HDMI CEC", caps, 1, &serio->dev);
+		"HDMI CEC", caps, 1);
 	err = PTR_ERR_OR_ZERO(pulse8->adap);
 	if (err < 0)
 		goto free_device;
@@ -671,7 +679,7 @@ static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 	if (err)
 		goto close_serio;
 
-	err = cec_register_adapter(pulse8->adap);
+	err = cec_register_adapter(pulse8->adap, &serio->dev);
 	if (err < 0)
 		goto close_serio;
 

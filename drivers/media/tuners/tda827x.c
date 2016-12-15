@@ -767,11 +767,10 @@ static void tda827xa_agcf(struct dvb_frontend *fe)
 
 /* ------------------------------------------------------------------ */
 
-static int tda827x_release(struct dvb_frontend *fe)
+static void tda827x_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int tda827x_get_frequency(struct dvb_frontend *fe, u32 *frequency)

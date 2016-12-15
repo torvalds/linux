@@ -270,3 +270,14 @@ EBUSY
       - Some formats like SMPTE-125M have an interlaced signal with a odd
 	total height. For these formats, if this flag is set, the first
 	field has the extra line. Else, it is the second field.
+    * - ``V4L2_DV_FL_HAS_PICTURE_ASPECT``
+      - If set, then the picture_aspect field is valid. Otherwise assume that
+        the pixels are square, so the picture aspect ratio is the same as the
+	width to height ratio.
+    * - ``V4L2_DV_FL_HAS_CEA861_VIC``
+      - If set, then the cea861_vic field is valid and contains the Video
+        Identification Code as per the CEA-861 standard.
+    * - ``V4L2_DV_FL_HAS_HDMI_VIC``
+      - If set, then the hdmi_vic field is valid and contains the Video
+        Identification Code as per the HDMI standard (HDMI Vendor Specific
+	InfoFrame).
