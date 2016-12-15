@@ -108,9 +108,9 @@ static const struct file_operations irnet_device_fops =
 /* Structure so that the misc major (drivers/char/misc.c) take care of us... */
 static struct miscdevice irnet_misc_device =
 {
-	IRNET_MINOR,
-	"irnet",
-	&irnet_device_fops
+	.minor = IRNET_MINOR,
+	.name = "irnet",
+	.fops = &irnet_device_fops
 };
 
 #endif /* IRNET_PPP_H */
