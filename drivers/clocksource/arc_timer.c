@@ -1,32 +1,18 @@
 /*
+ * Copyright (C) 2016-17 Synopsys, Inc. (www.synopsys.com)
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- *
- * vineetg: Jan 1011
- *  -sched_clock( ) no longer jiffies based. Uses the same clocksource
- *   as gtod
- *
- * Rajeshwarr/Vineetg: Mar 2008
- *  -Implemented CONFIG_GENERIC_TIME (rather deleted arch specific code)
- *   for arch independent gettimeofday()
- *  -Implemented CONFIG_GENERIC_CLOCKEVENTS as base for hrtimers
- *
- * Vineetg: Mar 2008: Forked off from time.c which now is time-jiff.c
  */
 
-/* ARC700 has two 32bit independent prog Timers: TIMER0 and TIMER1
- * Each can programmed to go from @count to @limit and optionally
- * interrupt when that happens.
- * A write to Control Register clears the Interrupt
+/* ARC700 has two 32bit independent prog Timers: TIMER0 and TIMER1, Each can be
+ * programmed to go from @count to @limit and optionally interrupt.
+ * We've designated TIMER0 for clockevents and TIMER1 for clocksource
  *
- * We've designated TIMER0 for events (clockevents)
- * while TIMER1 for free running (clocksource)
- *
- * Newer ARC700 cores have 64bit clk fetching RTSC insn, preferred over TIMER1
- * which however is currently broken
+ * ARCv2 based HS38 cores have RTC (in-core) and GFRC (inside ARConnect/MCIP)
+ * which are suitable for UP and SMP based clocksources respectively
  */
 
 #include <linux/interrupt.h>
@@ -37,23 +23,10 @@
 #include <linux/cpu.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <asm/irq.h>
-#include <asm/arcregs.h>
 
-#include <asm/mcip.h>
+#include <soc/arc/timers.h>
+#include <soc/arc/mcip.h>
 
-/* Timer related Aux registers */
-#define ARC_REG_TIMER0_LIMIT	0x23	/* timer 0 limit */
-#define ARC_REG_TIMER0_CTRL	0x22	/* timer 0 control */
-#define ARC_REG_TIMER0_CNT	0x21	/* timer 0 count */
-#define ARC_REG_TIMER1_LIMIT	0x102	/* timer 1 limit */
-#define ARC_REG_TIMER1_CTRL	0x101	/* timer 1 control */
-#define ARC_REG_TIMER1_CNT	0x100	/* timer 1 count */
-
-#define TIMER_CTRL_IE	(1 << 0) /* Interrupt when Count reaches limit */
-#define TIMER_CTRL_NH	(1 << 1) /* Count only when CPU NOT halted */
-
-#define ARC_TIMER_MAX	0xFFFFFFFF
 
 static unsigned long arc_timer_freq;
 
@@ -81,31 +54,24 @@ static int noinline arc_get_timer_clk(struct device_node *node)
 
 /********** Clock Source Device *********/
 
-#ifdef CONFIG_ARC_HAS_GFRC
+#ifdef CONFIG_ARC_TIMERS_64BIT
 
 static cycle_t arc_read_gfrc(struct clocksource *cs)
 {
 	unsigned long flags;
-	union {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		struct { u32 h, l; };
-#else
-		struct { u32 l, h; };
-#endif
-		cycle_t  full;
-	} stamp;
+	u32 l, h;
 
 	local_irq_save(flags);
 
 	__mcip_cmd(CMD_GFRC_READ_LO, 0);
-	stamp.l = read_aux_reg(ARC_REG_MCIP_READBACK);
+	l = read_aux_reg(ARC_REG_MCIP_READBACK);
 
 	__mcip_cmd(CMD_GFRC_READ_HI, 0);
-	stamp.h = read_aux_reg(ARC_REG_MCIP_READBACK);
+	h = read_aux_reg(ARC_REG_MCIP_READBACK);
 
 	local_irq_restore(flags);
 
-	return stamp.full;
+	return (((cycle_t)h) << 32) | l;
 }
 
 static struct clocksource arc_counter_gfrc = {
@@ -118,11 +84,14 @@ static struct clocksource arc_counter_gfrc = {
 
 static int __init arc_cs_setup_gfrc(struct device_node *node)
 {
-	int exists = cpuinfo_arc700[0].extn.gfrc;
+	struct mcip_bcr mp;
 	int ret;
 
-	if (WARN(!exists, "Global-64-bit-Ctr clocksource not detected"))
+	READ_BCR(ARC_REG_MCIP_BCR, mp);
+	if (!mp.gfrc) {
+		pr_warn("Global-64-bit-Ctr clocksource not detected");
 		return -ENXIO;
+	}
 
 	ret = arc_get_timer_clk(node);
 	if (ret)
@@ -132,10 +101,6 @@ static int __init arc_cs_setup_gfrc(struct device_node *node)
 }
 CLOCKSOURCE_OF_DECLARE(arc_gfrc, "snps,archs-timer-gfrc", arc_cs_setup_gfrc);
 
-#endif
-
-#ifdef CONFIG_ARC_HAS_RTC
-
 #define AUX_RTC_CTRL	0x103
 #define AUX_RTC_LOW	0x104
 #define AUX_RTC_HIGH	0x105
@@ -143,14 +108,7 @@ CLOCKSOURCE_OF_DECLARE(arc_gfrc, "snps,archs-timer-gfrc", arc_cs_setup_gfrc);
 static cycle_t arc_read_rtc(struct clocksource *cs)
 {
 	unsigned long status;
-	union {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-		struct { u32 high, low; };
-#else
-		struct { u32 low, high; };
-#endif
-		cycle_t  full;
-	} stamp;
+	u32 l, h;
 
 	/*
 	 * hardware has an internal state machine which tracks readout of
@@ -159,12 +117,12 @@ static cycle_t arc_read_rtc(struct clocksource *cs)
 	 *  - high increments after low has been read
 	 */
 	do {
-		stamp.low = read_aux_reg(AUX_RTC_LOW);
-		stamp.high = read_aux_reg(AUX_RTC_HIGH);
+		l = read_aux_reg(AUX_RTC_LOW);
+		h = read_aux_reg(AUX_RTC_HIGH);
 		status = read_aux_reg(AUX_RTC_CTRL);
 	} while (!(status & _BITUL(31)));
 
-	return stamp.full;
+	return (((cycle_t)h) << 32) | l;
 }
 
 static struct clocksource arc_counter_rtc = {
@@ -177,15 +135,20 @@ static struct clocksource arc_counter_rtc = {
 
 static int __init arc_cs_setup_rtc(struct device_node *node)
 {
-	int exists = cpuinfo_arc700[smp_processor_id()].extn.rtc;
+	struct bcr_timer timer;
 	int ret;
 
-	if (WARN(!exists, "Local-64-bit-Ctr clocksource not detected"))
+	READ_BCR(ARC_REG_TIMERS_BCR, timer);
+	if (!timer.rtc) {
+		pr_warn("Local-64-bit-Ctr clocksource not detected");
 		return -ENXIO;
+	}
 
 	/* Local to CPU hence not usable in SMP */
-	if (WARN(IS_ENABLED(CONFIG_SMP), "Local-64-bit-Ctr not usable in SMP"))
+	if (IS_ENABLED(CONFIG_SMP)) {
+		pr_warn("Local-64-bit-Ctr not usable in SMP");
 		return -EINVAL;
+	}
 
 	ret = arc_get_timer_clk(node);
 	if (ret)
@@ -228,7 +191,7 @@ static int __init arc_cs_setup_timer1(struct device_node *node)
 	if (ret)
 		return ret;
 
-	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMER_MAX);
+	write_aux_reg(ARC_REG_TIMER1_LIMIT, ARC_TIMERN_MAX);
 	write_aux_reg(ARC_REG_TIMER1_CNT, 0);
 	write_aux_reg(ARC_REG_TIMER1_CTRL, TIMER_CTRL_NH);
 
@@ -306,7 +269,7 @@ static int arc_timer_starting_cpu(unsigned int cpu)
 
 	evt->cpumask = cpumask_of(smp_processor_id());
 
-	clockevents_config_and_register(evt, arc_timer_freq, 0, ARC_TIMER_MAX);
+	clockevents_config_and_register(evt, arc_timer_freq, 0, ARC_TIMERN_MAX);
 	enable_percpu_irq(arc_timer_irq, 0);
 	return 0;
 }
@@ -371,12 +334,3 @@ static int __init arc_of_timer_init(struct device_node *np)
 	return ret;
 }
 CLOCKSOURCE_OF_DECLARE(arc_clkevt, "snps,arc-timer", arc_of_timer_init);
-
-/*
- * Called from start_kernel() - boot CPU only
- */
-void __init time_init(void)
-{
-	of_clk_init(NULL);
-	clocksource_probe();
-}
