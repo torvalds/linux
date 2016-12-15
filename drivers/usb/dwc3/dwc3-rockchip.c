@@ -595,9 +595,25 @@ static int dwc3_rockchip_runtime_resume(struct device *dev)
 static int dwc3_rockchip_suspend(struct device *dev)
 {
 	struct dwc3_rockchip *rockchip = dev_get_drvdata(dev);
+	struct dwc3 *dwc = rockchip->dwc;
 
 	rockchip->suspended = true;
 	cancel_work_sync(&rockchip->otg_work);
+
+	if (rockchip->edev && dwc->dr_mode != USB_DR_MODE_PERIPHERAL) {
+		/*
+		 * If USB HOST connected, we will do phy power
+		 * on in extcon evt work, so need to do phy
+		 * power off in suspend. And we just power off
+		 * USB2 PHY here because USB3 PHY power on operation
+		 * need to be done while DWC3 controller is in P2
+		 * state, but after resume DWC3 controller is in
+		 * P0 state. So we put USB3 PHY in power on state.
+		 */
+		if (extcon_get_cable_state_(rockchip->edev,
+					    EXTCON_USB_HOST) > 0)
+			phy_power_off(dwc->usb2_generic_phy);
+	}
 
 	return 0;
 }
@@ -605,11 +621,18 @@ static int dwc3_rockchip_suspend(struct device *dev)
 static int dwc3_rockchip_resume(struct device *dev)
 {
 	struct dwc3_rockchip *rockchip = dev_get_drvdata(dev);
+	struct dwc3 *dwc = rockchip->dwc;
 
 	rockchip->suspended = false;
 
 	if (rockchip->edev)
 		schedule_work(&rockchip->otg_work);
+
+	if (rockchip->edev && dwc->dr_mode != USB_DR_MODE_PERIPHERAL) {
+		if (extcon_get_cable_state_(rockchip->edev,
+					    EXTCON_USB_HOST) > 0)
+			phy_power_on(dwc->usb2_generic_phy);
+	}
 
 	return 0;
 }
