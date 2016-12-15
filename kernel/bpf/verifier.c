@@ -1940,6 +1940,11 @@ static void mark_map_reg(struct bpf_reg_state *regs, u32 regno, u32 id,
 
 	if (reg->type == PTR_TO_MAP_VALUE_OR_NULL && reg->id == id) {
 		reg->type = type;
+		/* We don't need id from this point onwards anymore, thus we
+		 * should better reset it, so that state pruning has chances
+		 * to take effect.
+		 */
+		reg->id = 0;
 		if (type == UNKNOWN_VALUE)
 			mark_reg_unknown_value(regs, regno);
 	}
@@ -1952,16 +1957,16 @@ static void mark_map_regs(struct bpf_verifier_state *state, u32 regno,
 			  enum bpf_reg_type type)
 {
 	struct bpf_reg_state *regs = state->regs;
+	u32 id = regs[regno].id;
 	int i;
 
 	for (i = 0; i < MAX_BPF_REG; i++)
-		mark_map_reg(regs, i, regs[regno].id, type);
+		mark_map_reg(regs, i, id, type);
 
 	for (i = 0; i < MAX_BPF_STACK; i += BPF_REG_SIZE) {
 		if (state->stack_slot_type[i] != STACK_SPILL)
 			continue;
-		mark_map_reg(state->spilled_regs, i / BPF_REG_SIZE,
-			     regs[regno].id, type);
+		mark_map_reg(state->spilled_regs, i / BPF_REG_SIZE, id, type);
 	}
 }
 
