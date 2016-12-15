@@ -8672,6 +8672,21 @@ enum {
 #define  BXT_PIPE_SELECT_SHIFT				7
 #define  BXT_PIPE_SELECT_MASK				(7 << 7)
 #define  BXT_PIPE_SELECT(pipe)				((pipe) << 7)
+#define  GLK_PHY_STATUS_PORT_READY			(1 << 31) /* RO */
+#define  GLK_ULPS_NOT_ACTIVE				(1 << 30) /* RO */
+#define  GLK_MIPIIO_RESET_RELEASED			(1 << 28)
+#define  GLK_CLOCK_LANE_STOP_STATE			(1 << 27) /* RO */
+#define  GLK_DATA_LANE_STOP_STATE			(1 << 26) /* RO */
+#define  GLK_LP_WAKE					(1 << 22)
+#define  GLK_LP11_LOW_PWR_MODE				(1 << 21)
+#define  GLK_LP00_LOW_PWR_MODE				(1 << 20)
+#define  GLK_FIREWALL_ENABLE				(1 << 16)
+#define  BXT_PIXEL_OVERLAP_CNT_MASK			(0xf << 10)
+#define  BXT_PIXEL_OVERLAP_CNT_SHIFT			10
+#define  BXT_DSC_ENABLE					(1 << 3)
+#define  BXT_RGB_FLIP					(1 << 2)
+#define  GLK_MIPIIO_PORT_POWERED			(1 << 1) /* RO */
+#define  GLK_MIPIIO_ENABLE				(1 << 0)
 
 #define _MIPIA_DATA_ADDRESS		(dev_priv->mipi_mmio_base + 0xb108)
 #define _MIPIC_DATA_ADDRESS		(dev_priv->mipi_mmio_base + 0xb908)
