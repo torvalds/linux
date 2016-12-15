@@ -1216,7 +1216,7 @@ int chsc_sstpi(void *page, void *result, size_t size)
 		struct chsc_header request;
 		unsigned int rsvd0[3];
 		struct chsc_header response;
-		char data[size];
+		char data[];
 	} __attribute__ ((packed)) *rr;
 	int rc;
 
