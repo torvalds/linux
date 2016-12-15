@@ -716,7 +716,7 @@ static bool _rtl92d_phy_bb_config(struct ieee80211_hw *hw)
 	rtstatus = _rtl92d_phy_config_bb_with_headerfile(hw,
 		BASEBAND_CONFIG_PHY_REG);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Write BB Reg Fail!!\n");
+		pr_err("Write BB Reg Fail!!\n");
 		return false;
 	}
 
@@ -731,13 +731,13 @@ static bool _rtl92d_phy_bb_config(struct ieee80211_hw *hw)
 			BASEBAND_CONFIG_PHY_REG);
 	}
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "BB_PG Reg Fail!!\n");
+		pr_err("BB_PG Reg Fail!!\n");
 		return false;
 	}
 	rtstatus = _rtl92d_phy_config_bb_with_headerfile(hw,
 		BASEBAND_CONFIG_AGC_TAB);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "AGC Table Fail\n");
+		pr_err("AGC Table Fail\n");
 		return false;
 	}
 	rtlphy->cck_high_power = (bool) (rtl_get_bbreg(hw,
@@ -833,8 +833,7 @@ bool rtl92d_phy_config_rf_with_headerfile(struct ieee80211_hw *hw,
 		break;
 	case RF90_PATH_C:
 	case RF90_PATH_D:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", rfpath);
+		pr_err("switch case %#x not processed\n", rfpath);
 		break;
 	}
 	return true;
@@ -987,8 +986,8 @@ void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 		rtl_write_byte(rtlpriv, REG_RRSR + 2, reg_prsr_rsc);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "unknown bandwidth: %#X\n", rtlphy->current_chan_bw);
+		pr_err("unknown bandwidth: %#X\n",
+		       rtlphy->current_chan_bw);
 		break;
 	}
 	switch (rtlphy->current_chan_bw) {
@@ -1019,8 +1018,8 @@ void rtl92d_phy_set_bw_mode(struct ieee80211_hw *hw,
 			HAL_PRIME_CHNL_OFFSET_LOWER) ? 2 : 1);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "unknown bandwidth: %#X\n", rtlphy->current_chan_bw);
+		pr_err("unknown bandwidth: %#X\n",
+		       rtlphy->current_chan_bw);
 		break;
 
 	}
@@ -2842,9 +2841,8 @@ static bool _rtl92d_phy_sw_chnl_step_by_step(struct ieee80211_hw *hw,
 			rtl92d_phy_reload_iqk_setting(hw, channel);
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case %#x not processed\n",
-				 currentcmd->cmdid);
+			pr_err("switch case %#x not processed\n",
+			       currentcmd->cmdid);
 			break;
 		}
 		break;
@@ -2956,9 +2954,8 @@ static void rtl92d_phy_set_io(struct ieee80211_hw *hw)
 		rtl92d_dm_write_dig(hw);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n",
-			 rtlphy->current_io_type);
+		pr_err("switch case %#x not processed\n",
+		       rtlphy->current_io_type);
 		break;
 	}
 	rtlphy->set_io_inprogress = false;
@@ -2988,8 +2985,8 @@ bool rtl92d_phy_set_io_cmd(struct ieee80211_hw *hw, enum io_type iotype)
 			postprocessing = true;
 			break;
 		default:
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "switch case %#x not processed\n", iotype);
+			pr_err("switch case %#x not processed\n",
+			       iotype);
 			break;
 		}
 	} while (false);
@@ -3176,8 +3173,8 @@ bool rtl92d_phy_set_rf_power_state(struct ieee80211_hw *hw,
 		_rtl92d_phy_set_rfsleep(hw);
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "switch case %#x not processed\n", rfpwr_state);
+		pr_err("switch case %#x not processed\n",
+		       rfpwr_state);
 		bresult = false;
 		break;
 	}
