@@ -7498,6 +7498,7 @@ void __init sched_init_smp(void)
 	init_sched_dl_class();
 
 	sched_init_smt();
+	sched_clock_init_late();
 
 	sched_smp_initialized = true;
 }
@@ -7513,6 +7514,7 @@ early_initcall(migration_init);
 void __init sched_init_smp(void)
 {
 	sched_init_granularity();
+	sched_clock_init_late();
 }
 #endif /* CONFIG_SMP */
 
@@ -7555,6 +7557,8 @@ void __init sched_init(void)
 {
 	int i, j;
 	unsigned long alloc_size = 0, ptr;
+
+	sched_clock_init();
 
 	for (i = 0; i < WAIT_TABLE_SIZE; i++)
 		init_waitqueue_head(bit_wait_table + i);
