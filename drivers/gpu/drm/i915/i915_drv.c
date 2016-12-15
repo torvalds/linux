@@ -43,6 +43,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
@@ -1307,6 +1308,8 @@ void i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
 
 	intel_fbdev_fini(dev);
 
@@ -1314,6 +1317,24 @@ void i915_driver_unload(struct drm_device *dev)
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
+
+	drm_modeset_acquire_init(&ctx, 0);
+	while (1) {
+		ret = drm_modeset_lock_all_ctx(dev, &ctx);
+		if (!ret)
+			ret = drm_atomic_helper_disable_all(dev, &ctx);
+
+		if (ret != -EDEADLK)
+			break;
+
+		drm_modeset_backoff(&ctx);
+	}
+
+	if (ret)
+		DRM_ERROR("Disabling all crtc's during unload failed with %i\n", ret);
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
 
 	i915_driver_unregister(dev_priv);
 
