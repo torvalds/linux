@@ -48,13 +48,13 @@ static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
 static inline void btrfs_set_log_full_commit(struct btrfs_fs_info *fs_info,
 					     struct btrfs_trans_handle *trans)
 {
-	ACCESS_ONCE(fs_info->last_trans_log_full_commit) = trans->transid;
+	WRITE_ONCE(fs_info->last_trans_log_full_commit, trans->transid);
 }
 
 static inline int btrfs_need_log_full_commit(struct btrfs_fs_info *fs_info,
 					     struct btrfs_trans_handle *trans)
 {
-	return ACCESS_ONCE(fs_info->last_trans_log_full_commit) ==
+	return READ_ONCE(fs_info->last_trans_log_full_commit) ==
 		trans->transid;
 }
 

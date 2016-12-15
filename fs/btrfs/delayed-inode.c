@@ -79,7 +79,7 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(struct inode *inode)
 	u64 ino = btrfs_ino(inode);
 	struct btrfs_delayed_node *node;
 
-	node = ACCESS_ONCE(btrfs_inode->delayed_node);
+	node = READ_ONCE(btrfs_inode->delayed_node);
 	if (node) {
 		atomic_inc(&node->refs);
 		return node;
@@ -1292,7 +1292,7 @@ void btrfs_remove_delayed_node(struct inode *inode)
 {
 	struct btrfs_delayed_node *delayed_node;
 
-	delayed_node = ACCESS_ONCE(BTRFS_I(inode)->delayed_node);
+	delayed_node = READ_ONCE(BTRFS_I(inode)->delayed_node);
 	if (!delayed_node)
 		return;
 
