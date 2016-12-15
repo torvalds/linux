@@ -532,7 +532,8 @@ void rvt_cq_exit(struct rvt_dev_info *rdi)
 
 	/* block future queuing from send_complete() */
 	spin_lock_irq(&rdi->n_cqs_lock);
-	if (!rdi->worker) {
+	worker = rdi->worker;
+	if (!worker) {
 		spin_unlock_irq(&rdi->n_cqs_lock);
 		return;
 	}
