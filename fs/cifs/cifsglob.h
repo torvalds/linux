@@ -514,6 +514,7 @@ struct smb_vol {
 	bool persistent:1;
 	bool nopersistent:1;
 	bool resilient:1; /* noresilient not required since not fored for CA */
+	bool domainauto:1;
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
@@ -830,6 +831,7 @@ struct cifs_ses {
 	enum securityEnum sectype; /* what security flavor was specified? */
 	bool sign;		/* is signing required? */
 	bool need_reconnect:1; /* connection reset, uid now invalid */
+	bool domainAuto:1;
 #ifdef CONFIG_CIFS_SMB2
 	__u16 session_flags;
 	__u8 smb3signingkey[SMB3_SIGN_KEY_SIZE];
