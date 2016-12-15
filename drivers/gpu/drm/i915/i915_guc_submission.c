@@ -344,22 +344,23 @@ static void guc_ctx_desc_fini(struct intel_guc *guc,
 int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 {
 	const size_t wqi_size = sizeof(struct guc_wq_item);
-	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
-	struct guc_process_desc *desc = gc->vaddr + gc->proc_desc_offset;
+	struct i915_guc_client *client = request->i915->guc.execbuf_client;
+	struct guc_process_desc *desc = client->vaddr +
+					client->proc_desc_offset;
 	u32 freespace;
 	int ret;
 
-	spin_lock(&gc->wq_lock);
-	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
-	freespace -= gc->wq_rsvd;
+	spin_lock(&client->wq_lock);
+	freespace = CIRC_SPACE(client->wq_tail, desc->head, client->wq_size);
+	freespace -= client->wq_rsvd;
 	if (likely(freespace >= wqi_size)) {
-		gc->wq_rsvd += wqi_size;
+		client->wq_rsvd += wqi_size;
 		ret = 0;
 	} else {
-		gc->no_wq_space++;
+		client->no_wq_space++;
 		ret = -EAGAIN;
 	}
-	spin_unlock(&gc->wq_lock);
+	spin_unlock(&client->wq_lock);
 
 	return ret;
 }
@@ -367,17 +368,17 @@ int i915_guc_wq_reserve(struct drm_i915_gem_request *request)
 void i915_guc_wq_unreserve(struct drm_i915_gem_request *request)
 {
 	const size_t wqi_size = sizeof(struct guc_wq_item);
-	struct i915_guc_client *gc = request->i915->guc.execbuf_client;
+	struct i915_guc_client *client = request->i915->guc.execbuf_client;
 
-	GEM_BUG_ON(READ_ONCE(gc->wq_rsvd) < wqi_size);
+	GEM_BUG_ON(READ_ONCE(client->wq_rsvd) < wqi_size);
 
-	spin_lock(&gc->wq_lock);
-	gc->wq_rsvd -= wqi_size;
-	spin_unlock(&gc->wq_lock);
+	spin_lock(&client->wq_lock);
+	client->wq_rsvd -= wqi_size;
+	spin_unlock(&client->wq_lock);
 }
 
 /* Construct a Work Item and append it to the GuC's Work Queue */
-static void guc_wq_item_append(struct i915_guc_client *gc,
+static void guc_wq_item_append(struct i915_guc_client *client,
 			       struct drm_i915_gem_request *rq)
 {
 	/* wqi_len is in DWords, and does not include the one-word header */
@@ -388,10 +389,10 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	struct guc_wq_item *wqi;
 	u32 freespace, tail, wq_off;
 
-	desc = gc->vaddr + gc->proc_desc_offset;
+	desc = client->vaddr + client->proc_desc_offset;
 
 	/* Free space is guaranteed, see i915_guc_wq_reserve() above */
-	freespace = CIRC_SPACE(gc->wq_tail, desc->head, gc->wq_size);
+	freespace = CIRC_SPACE(client->wq_tail, desc->head, client->wq_size);
 	GEM_BUG_ON(freespace < wqi_size);
 
 	/* The GuC firmware wants the tail index in QWords, not bytes */
@@ -408,17 +409,17 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	 * workqueue buffer dw by dw.
 	 */
 	BUILD_BUG_ON(wqi_size != 16);
-	GEM_BUG_ON(gc->wq_rsvd < wqi_size);
+	GEM_BUG_ON(client->wq_rsvd < wqi_size);
 
 	/* postincrement WQ tail for next time */
-	wq_off = gc->wq_tail;
+	wq_off = client->wq_tail;
 	GEM_BUG_ON(wq_off & (wqi_size - 1));
-	gc->wq_tail += wqi_size;
-	gc->wq_tail &= gc->wq_size - 1;
-	gc->wq_rsvd -= wqi_size;
+	client->wq_tail += wqi_size;
+	client->wq_tail &= client->wq_size - 1;
+	client->wq_rsvd -= wqi_size;
 
 	/* WQ starts from the page after doorbell / process_desc */
-	wqi = gc->vaddr + wq_off + GUC_DB_SIZE;
+	wqi = client->vaddr + wq_off + GUC_DB_SIZE;
 
 	/* Now fill in the 4-word work queue item */
 	wqi->header = WQ_TYPE_INORDER |
@@ -433,30 +434,30 @@ static void guc_wq_item_append(struct i915_guc_client *gc,
 	wqi->fence_id = rq->global_seqno;
 }
 
-static int guc_ring_doorbell(struct i915_guc_client *gc)
+static int guc_ring_doorbell(struct i915_guc_client *client)
 {
 	struct guc_process_desc *desc;
 	union guc_doorbell_qw db_cmp, db_exc, db_ret;
 	union guc_doorbell_qw *db;
 	int attempt = 2, ret = -EAGAIN;
 
-	desc = gc->vaddr + gc->proc_desc_offset;
+	desc = client->vaddr + client->proc_desc_offset;
 
 	/* Update the tail so it is visible to GuC */
-	desc->tail = gc->wq_tail;
+	desc->tail = client->wq_tail;
 
 	/* current cookie */
 	db_cmp.db_status = GUC_DOORBELL_ENABLED;
-	db_cmp.cookie = gc->doorbell_cookie;
+	db_cmp.cookie = client->doorbell_cookie;
 
 	/* cookie to be updated */
 	db_exc.db_status = GUC_DOORBELL_ENABLED;
-	db_exc.cookie = gc->doorbell_cookie + 1;
+	db_exc.cookie = client->doorbell_cookie + 1;
 	if (db_exc.cookie == 0)
 		db_exc.cookie = 1;
 
 	/* pointer of current doorbell cacheline */
-	db = gc->vaddr + gc->doorbell_offset;
+	db = client->vaddr + client->doorbell_offset;
 
 	while (attempt--) {
 		/* lets ring the doorbell */
@@ -466,7 +467,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 		/* if the exchange was successfully executed */
 		if (db_ret.value_qw == db_cmp.value_qw) {
 			/* db was successfully rung */
-			gc->doorbell_cookie = db_exc.cookie;
+			client->doorbell_cookie = db_exc.cookie;
 			ret = 0;
 			break;
 		}
@@ -1411,14 +1412,15 @@ err:
 	return -ENOMEM;
 }
 
-static void guc_reset_wq(struct i915_guc_client *gc)
+static void guc_reset_wq(struct i915_guc_client *client)
 {
-	struct guc_process_desc *desc = gc->vaddr + gc->proc_desc_offset;
+	struct guc_process_desc *desc = client->vaddr +
+					client->proc_desc_offset;
 
 	desc->head = 0;
 	desc->tail = 0;
 
-	gc->wq_tail = 0;
+	client->wq_tail = 0;
 }
 
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
