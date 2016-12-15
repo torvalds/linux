@@ -62,6 +62,7 @@ EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
 
 /**
  * drm_helper_mode_fill_fb_struct - fill out framebuffer metadata
+ * @dev: DRM device
  * @fb: drm_framebuffer object to fill out
  * @mode_cmd: metadata from the userspace fb creation request
  *
