@@ -64,6 +64,15 @@
 		};
 	};
 
+	usb_cam_gpio: usb-cam-gpio {
+		compatible = "usb-cam-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_cam_on_gpio>;
+		hd-cam-gpios = <&gpio3 GPIO_A1 GPIO_ACTIVE_HIGH>;
+		ir-cam-gpios = <&gpio3 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+
 	vcc_sys: vcc-sys {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -1028,6 +1037,14 @@
 		host_vbus_drv: host-vbus-drv {
 			rockchip,pins =
 				<4 25 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	usb_camera {
+		usb_cam_on_gpio: usb-cam-on-gpio {
+			rockchip,pins =
+				<3 GPIO_A1 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 GPIO_A2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
