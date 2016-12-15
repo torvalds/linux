@@ -1885,12 +1885,6 @@ static u32 console_idx;
 static u64 log_first_seq;
 static u32 log_first_idx;
 static u64 log_next_seq;
-static struct cont {
-	size_t len;
-	size_t cons;
-	u8 level;
-	bool flushed:1;
-} cont;
 static char *log_text(const struct printk_log *msg) { return NULL; }
 static char *log_dict(const struct printk_log *msg) { return NULL; }
 static struct printk_log *log_from_idx(u32 idx) { return NULL; }
