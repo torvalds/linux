@@ -328,6 +328,7 @@ static int polaris10_start_smu(struct pp_smumgr *smumgr)
 			/* If failed, try with different security Key. */
 			if (result != 0) {
 				smu_data->smu7_data.security_hard_key ^= 1;
+				cgs_rel_firmware(smumgr->device, CGS_UCODE_ID_SMU);
 				result = polaris10_start_smu_in_protection_mode(smumgr);
 			}
 		}
