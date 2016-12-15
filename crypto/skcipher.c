@@ -226,7 +226,9 @@ static int skcipher_next_slow(struct skcipher_walk *walk, unsigned int bsize)
 	void *v;
 
 	if (!phys) {
-		buffer = walk->buffer ?: walk->page;
+		if (!walk->buffer)
+			walk->buffer = walk->page;
+		buffer = walk->buffer;
 		if (buffer)
 			goto ok;
 	}
