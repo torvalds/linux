@@ -546,6 +546,37 @@ void etnaviv_gpu_start_fe(struct etnaviv_gpu *gpu, u32 address, u16 prefetch)
 		  VIVS_FE_COMMAND_CONTROL_PREFETCH(prefetch));
 }
 
+static void etnaviv_gpu_setup_pulse_eater(struct etnaviv_gpu *gpu)
+{
+	/*
+	 * Base value for VIVS_PM_PULSE_EATER register on models where it
+	 * cannot be read, extracted from vivante kernel driver.
+	 */
+	u32 pulse_eater = 0x01590880;
+
+	if (etnaviv_is_model_rev(gpu, GC4000, 0x5208) ||
+	    etnaviv_is_model_rev(gpu, GC4000, 0x5222)) {
+		pulse_eater |= BIT(23);
+
+	}
+
+	if (etnaviv_is_model_rev(gpu, GC1000, 0x5039) ||
+	    etnaviv_is_model_rev(gpu, GC1000, 0x5040)) {
+		pulse_eater &= ~BIT(16);
+		pulse_eater |= BIT(17);
+	}
+
+	if ((gpu->identity.revision > 0x5420) &&
+	    (gpu->identity.features & chipFeatures_PIPE_3D))
+	{
+		/* Performance fix: disable internal DFS */
+		pulse_eater = gpu_read(gpu, VIVS_PM_PULSE_EATER);
+		pulse_eater |= BIT(18);
+	}
+
+	gpu_write(gpu, VIVS_PM_PULSE_EATER, pulse_eater);
+}
+
 static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 {
 	u16 prefetch;
@@ -585,6 +616,9 @@ static void etnaviv_gpu_hw_init(struct etnaviv_gpu *gpu)
 			      VIVS_MC_BUS_CONFIG_TX_BUS_CONFIG(0);
 		gpu_write(gpu, VIVS_MC_BUS_CONFIG, bus_config);
 	}
+
+	/* setup the pulse eater */
+	etnaviv_gpu_setup_pulse_eater(gpu);
 
 	/* setup the MMU */
 	etnaviv_iommu_restore(gpu);
