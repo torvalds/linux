@@ -843,24 +843,6 @@ out:
 }
 
 /*
- * Clean any dirty buffers in the blockdev mapping which alias newly-created
- * file blocks.  Only called for S_ISREG files - blockdevs do not set
- * buffer_new
- */
-static void clean_blockdev_aliases(struct dio *dio, struct buffer_head *map_bh)
-{
-	unsigned i;
-	unsigned nblocks;
-
-	nblocks = map_bh->b_size >> dio->inode->i_blkbits;
-
-	for (i = 0; i < nblocks; i++) {
-		unmap_underlying_metadata(map_bh->b_bdev,
-					  map_bh->b_blocknr + i);
-	}
-}
-
-/*
  * If we are not writing the entire block and get_block() allocated
  * the block for us, we need to fill-in the unused portion of the
  * block with zeros. This happens only if user-buffer, fileoffset or
@@ -960,11 +942,15 @@ static int do_direct_IO(struct dio *dio, struct dio_submit *sdio,
 					goto do_holes;
 
 				sdio->blocks_available =
-						map_bh->b_size >> sdio->blkbits;
+						map_bh->b_size >> blkbits;
 				sdio->next_block_for_io =
 					map_bh->b_blocknr << sdio->blkfactor;
-				if (buffer_new(map_bh))
-					clean_blockdev_aliases(dio, map_bh);
+				if (buffer_new(map_bh)) {
+					clean_bdev_aliases(
+						map_bh->b_bdev,
+						map_bh->b_blocknr,
+						map_bh->b_size >> blkbits);
+				}
 
 				if (!sdio->blkfactor)
 					goto do_holes;
