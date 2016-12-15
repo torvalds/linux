@@ -145,6 +145,7 @@ struct __drm_crtcs_state {
 	struct drm_crtc_state *state;
 	struct drm_crtc_commit *commit;
 	s64 __user *out_fence_ptr;
+	unsigned last_vblank_count;
 };
 
 struct __drm_connnectors_state {
