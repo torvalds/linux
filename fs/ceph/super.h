@@ -904,6 +904,7 @@ extern void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc);
 extern int ceph_encode_inode_release(void **p, struct inode *inode,
 				     int mds, int drop, int unless, int force);
 extern int ceph_encode_dentry_release(void **p, struct dentry *dn,
+				      struct inode *dir,
 				      int mds, int drop, int unless);
 
 extern int ceph_get_caps(struct ceph_inode_info *ci, int need, int want,

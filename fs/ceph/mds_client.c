@@ -1954,10 +1954,13 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 		      mds, req->r_inode_drop, req->r_inode_unless, 0);
 	if (req->r_dentry_drop)
 		releases += ceph_encode_dentry_release(&p, req->r_dentry,
-		       mds, req->r_dentry_drop, req->r_dentry_unless);
+				req->r_locked_dir, mds, req->r_dentry_drop,
+				req->r_dentry_unless);
 	if (req->r_old_dentry_drop)
 		releases += ceph_encode_dentry_release(&p, req->r_old_dentry,
-		       mds, req->r_old_dentry_drop, req->r_old_dentry_unless);
+				req->r_old_dentry_dir, mds,
+				req->r_old_dentry_drop,
+				req->r_old_dentry_unless);
 	if (req->r_old_inode_drop)
 		releases += ceph_encode_inode_release(&p,
 		      d_inode(req->r_old_dentry),
