@@ -91,8 +91,34 @@ void stk1160_ac97_dump_regs(struct stk1160 *dev)
 }
 #endif
 
+int stk1160_has_audio(struct stk1160 *dev)
+{
+	u8 value;
+
+	stk1160_read_reg(dev, STK1160_POSV_L, &value);
+	return !(value & STK1160_POSV_L_ACDOUT);
+}
+
+int stk1160_has_ac97(struct stk1160 *dev)
+{
+	u8 value;
+
+	stk1160_read_reg(dev, STK1160_POSV_L, &value);
+	return !(value & STK1160_POSV_L_ACSYNC);
+}
+
 void stk1160_ac97_setup(struct stk1160 *dev)
 {
+	if (!stk1160_has_audio(dev)) {
+		stk1160_info("Device doesn't support audio, skipping AC97 setup.");
+		return;
+	}
+
+	if (!stk1160_has_ac97(dev)) {
+		stk1160_info("Device uses internal 8-bit ADC, skipping AC97 setup.");
+		return;
+	}
+
 	/* Two-step reset AC97 interface and hardware codec */
 	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x94);
 	stk1160_write_reg(dev, STK1160_AC97CTL_0, 0x8c);
