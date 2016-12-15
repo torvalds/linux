@@ -1246,6 +1246,15 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans, bool low_power)
 	usleep_range(1000, 2000);
 
 	/*
+	 * Upon stop, the IVAR table gets erased, so msi-x won't
+	 * work. This causes a bug in RF-KILL flows, since the interrupt
+	 * that enables radio won't fire on the correct irq, and the
+	 * driver won't be able to handle the interrupt.
+	 * Configure the IVAR table again after reset.
+	 */
+	iwl_pcie_conf_msix_hw(trans_pcie);
+
+	/*
 	 * Upon stop, the APM issues an interrupt if HW RF kill is set.
 	 * This is a bug in certain verions of the hardware.
 	 * Certain devices also keep sending HW RF kill interrupt all
