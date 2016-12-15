@@ -15,7 +15,6 @@
 
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <linux/miscdevice.h>
 #include <linux/debugfs.h>
 #include <linux/memblock.h>
 
