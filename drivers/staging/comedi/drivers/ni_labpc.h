@@ -52,8 +52,8 @@ struct labpc_private {
 	 * function pointers so we can use inb/outb or readb/writeb as
 	 * appropriate
 	 */
-	unsigned int (*read_byte)(struct comedi_device *, unsigned long reg);
-	void (*write_byte)(struct comedi_device *,
+	unsigned int (*read_byte)(struct comedi_device *dev, unsigned long reg);
+	void (*write_byte)(struct comedi_device *dev,
 			   unsigned int byte, unsigned long reg);
 };
 
