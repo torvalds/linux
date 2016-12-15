@@ -64,8 +64,8 @@ Required properties if child node exists:
 Properties for children:
 
 The OMAP HS USB Host subsystem contains EHCI and OHCI controllers.
-See Documentation/devicetree/bindings/usb/omap-ehci.txt and
-omap3-ohci.txt
+See Documentation/devicetree/bindings/usb/ehci-omap.txt and
+Documentation/devicetree/bindings/usb/ohci-omap3.txt.
 
 Example for OMAP4:
 
