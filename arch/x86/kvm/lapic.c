@@ -189,15 +189,26 @@ static void recalculate_apic_map(struct kvm *kvm)
 		struct kvm_lapic *apic = vcpu->arch.apic;
 		struct kvm_lapic **cluster;
 		u16 mask;
-		u32 ldr, aid;
+		u32 ldr;
+		u8 xapic_id;
+		u32 x2apic_id;
 
 		if (!kvm_apic_present(vcpu))
 			continue;
 
-		aid = apic_x2apic_mode(apic) ? kvm_x2apic_id(apic)
-		                             : kvm_xapic_id(apic);
-		if (aid <= new->max_apic_id)
-			new->phys_map[aid] = apic;
+		xapic_id = kvm_xapic_id(apic);
+		x2apic_id = kvm_x2apic_id(apic);
+
+		/* Hotplug hack: see kvm_apic_match_physical_addr(), ... */
+		if ((apic_x2apic_mode(apic) || x2apic_id > 0xff) &&
+				x2apic_id <= new->max_apic_id)
+			new->phys_map[x2apic_id] = apic;
+		/*
+		 * ... xAPIC ID of VCPUs with APIC ID > 0xff will wrap-around,
+		 * prevent them from masking VCPUs with APIC ID <= 0xff.
+		 */
+		if (!apic_x2apic_mode(apic) && !new->phys_map[xapic_id])
+			new->phys_map[xapic_id] = apic;
 
 		ldr = kvm_lapic_get_reg(apic, APIC_LDR);
 
@@ -603,6 +614,15 @@ static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 mda)
 
 	if (apic_x2apic_mode(apic))
 		return mda == kvm_x2apic_id(apic);
+
+	/*
+	 * Hotplug hack: Make LAPIC in xAPIC mode also accept interrupts as if
+	 * it were in x2APIC mode.  Hotplugged VCPUs start in xAPIC mode and
+	 * this allows unique addressing of VCPUs with APIC ID over 0xff.
+	 * The 0xff condition is needed because writeable xAPIC ID.
+	 */
+	if (kvm_x2apic_id(apic) > 0xff && mda == kvm_x2apic_id(apic))
+		return true;
 
 	return mda == kvm_xapic_id(apic);
 }
