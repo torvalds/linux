@@ -548,8 +548,10 @@ static int gmc_v9_0_vm_init(struct amdgpu_device *adev)
 	amdgpu_vm_manager_init(adev);
 
 	/* base offset of vram pages */
-	/*XXX This value is not zero for APU*/
-	adev->vm_manager.vram_base_offset = 0;
+	if (adev->flags & AMD_IS_APU)
+		adev->vm_manager.vram_base_offset = gfxhub_v1_0_get_mc_fb_offset(adev);
+	else
+		adev->vm_manager.vram_base_offset = 0;
 
 	return 0;
 }

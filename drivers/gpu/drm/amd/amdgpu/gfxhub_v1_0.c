@@ -31,6 +31,11 @@
 
 #include "soc15_common.h"
 
+u64 gfxhub_v1_0_get_mc_fb_offset(struct amdgpu_device *adev)
+{
+	return (u64)RREG32(SOC15_REG_OFFSET(GC, 0, mmMC_VM_FB_OFFSET)) << 24;
+}
+
 int gfxhub_v1_0_gart_enable(struct amdgpu_device *adev)
 {
 	u32 tmp;
