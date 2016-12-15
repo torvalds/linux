@@ -71,6 +71,7 @@ struct btrfs_dio_data {
 	u64 reserve;
 	u64 unsubmitted_oe_range_start;
 	u64 unsubmitted_oe_range_end;
+	int overwrite;
 };
 
 static const struct inode_operations btrfs_dir_inode_operations;
@@ -7809,7 +7810,7 @@ unlock:
 		 * Need to update the i_size under the extent lock so buffered
 		 * readers will get the updated i_size when we unlock.
 		 */
-		if (start + len > i_size_read(inode))
+		if (!dio_data->overwrite && start + len > i_size_read(inode))
 			i_size_write(inode, start + len);
 
 		adjust_dio_outstanding_extents(inode, dio_data, len);
@@ -8685,6 +8686,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		 * not unlock the i_mutex at this case.
 		 */
 		if (offset + count <= inode->i_size) {
+			dio_data.overwrite = 1;
 			inode_unlock(inode);
 			relock = true;
 		}
