@@ -41,6 +41,7 @@
  */
 
 #include <dt-bindings/display/drm_mipi_dsi.h>
+#include <dt-bindings/display/media-bus-format.h>
 
 / {
 	compatible = "rockchip,android", "rockchip,rk3399";
