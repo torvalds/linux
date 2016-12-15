@@ -60,10 +60,10 @@ static DEFINE_MUTEX(s3_wmi_lock);
 
 static int s3_wmi_query_block(const char *guid, int instance, int *ret)
 {
+	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	acpi_status status;
 	union acpi_object *obj;
-
-	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
+	int error = 0;
 
 	mutex_lock(&s3_wmi_lock);
 	status = wmi_query_block(guid, instance, &output);
@@ -77,13 +77,14 @@ static int s3_wmi_query_block(const char *guid, int instance, int *ret)
 			       obj->type == ACPI_TYPE_BUFFER ?
 						obj->buffer.length : 0);
 		}
-		kfree(obj);
-		return -EINVAL;
+		error = -EINVAL;
+		goto out_free_unlock;
 	}
 	*ret = obj->integer.value;
+ out_free_unlock:
 	kfree(obj);
 	mutex_unlock(&s3_wmi_lock);
-	return 0;
+	return error;
 }
 
 static inline int s3_wmi_query_lid(int *ret)
