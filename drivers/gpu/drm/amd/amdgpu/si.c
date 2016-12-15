@@ -1279,6 +1279,7 @@ static int si_common_early_init(void *handle)
 			AMD_CG_SUPPORT_HDP_LS |
 			AMD_CG_SUPPORT_HDP_MGCG;
 		adev->pg_flags = 0;
+		adev->external_rev_id = 70;
 		break;
 
 	default:
