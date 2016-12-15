@@ -622,7 +622,7 @@ EXPORT_SYMBOL(drm_event_reserve_init_locked);
  * kmalloc and @p must be the first member element.
  *
  * Callers which already hold dev->event_lock should use
- * drm_event_reserve_init() instead.
+ * drm_event_reserve_init_locked() instead.
  *
  * RETURNS:
  *
