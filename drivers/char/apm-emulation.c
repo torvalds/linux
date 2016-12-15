@@ -31,13 +31,6 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
-
-/*
- * The apm_bios device is one of the misc char devices.
- * This is its minor number.
- */
-#define APM_MINOR_DEV	134
-
 /*
  * One option can be changed at boot time as follows:
  *	apm=on/off			enable/disable APM
