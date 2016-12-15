@@ -61,7 +61,7 @@ struct perf_event_sample {
 	char data[];
 };
 
-void perf_event_read(print_fn fn)
+static void perf_event_read(print_fn fn)
 {
 	__u64 data_tail = header->data_tail;
 	__u64 data_head = header->data_head;
