@@ -466,10 +466,6 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo,
 
 	adev = amdgpu_ttm_adev(bo->bdev);
 
-	/* remember the eviction */
-	if (evict)
-		atomic64_inc(&adev->num_evictions);
-
 	if (old_mem->mem_type == TTM_PL_SYSTEM && bo->ttm == NULL) {
 		amdgpu_move_null(bo, new_mem);
 		return 0;
