@@ -48,6 +48,7 @@ void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
 
 	INIT_LIST_HEAD(&panel_list);
 
+	spin_lock_irq(&dev->mode_config.connector_list_lock);
 	list_for_each_entry_safe(connector, tmp,
 				 &dev->mode_config.connector_list, head) {
 		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
@@ -57,6 +58,7 @@ void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
 	}
 
 	list_splice(&panel_list, &dev->mode_config.connector_list);
+	spin_unlock_irq(&dev->mode_config.connector_list_lock);
 }
 EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
 

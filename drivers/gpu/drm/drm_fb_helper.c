@@ -120,20 +120,22 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
-	int i, ret;
+	struct drm_connector_list_iter conn_iter;
+	int i, ret = 0;
 
 	if (!drm_fbdev_emulation)
 		return 0;
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_for_each_connector(connector, dev) {
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		ret = drm_fb_helper_add_one_connector(fb_helper, connector);
 
 		if (ret)
 			goto fail;
 	}
-	mutex_unlock(&dev->mode_config.mutex);
-	return 0;
+	goto out;
+
 fail:
 	drm_fb_helper_for_each_connector(fb_helper, i) {
 		struct drm_fb_helper_connector *fb_helper_connector =
@@ -145,6 +147,8 @@ fail:
 		fb_helper->connector_info[i] = NULL;
 	}
 	fb_helper->connector_count = 0;
+out:
+	drm_connector_list_iter_put(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
