@@ -2091,8 +2091,8 @@ static int __ffs_data_do_entity(enum ffs_entity_type type,
 
 	case FFS_STRING:
 		/*
-		 * Strings are indexed from 1 (0 is magic ;) reserved
-		 * for languages list or some such)
+		 * Strings are indexed from 1 (0 is reserved
+		 * for languages list)
 		 */
 		if (*valuep > helper->ffs->strings_count)
 			helper->ffs->strings_count = *valuep;
