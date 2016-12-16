@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/log2.h>
 
 /* ADC configuration registers field define */
 #define ADC_AIEN		(0x1 << 7)
@@ -93,7 +94,8 @@ struct imx6ul_tsc {
 
 	u32 measure_delay_time;
 	u32 pre_charge_time;
-	u32 average_samples;
+	bool average_enable;
+	u32 average_select;
 
 	struct completion completion;
 };
@@ -117,9 +119,9 @@ static int imx6ul_adc_init(struct imx6ul_tsc *tsc)
 	adc_cfg |= ADC_12BIT_MODE | ADC_IPG_CLK;
 	adc_cfg &= ~(ADC_CLK_DIV_MASK | ADC_SAMPLE_MODE_MASK);
 	adc_cfg |= ADC_CLK_DIV_8 | ADC_SHORT_SAMPLE_MODE;
-	if (tsc->average_samples) {
+	if (tsc->average_enable) {
 		adc_cfg &= ~ADC_AVGS_MASK;
-		adc_cfg |= (tsc->average_samples - 1) << ADC_AVGS_SHIFT;
+		adc_cfg |= (tsc->average_select) << ADC_AVGS_SHIFT;
 	}
 	adc_cfg &= ~ADC_HARDWARE_TRIGGER;
 	writel(adc_cfg, tsc->adc_regs + REG_ADC_CFG);
@@ -132,7 +134,7 @@ static int imx6ul_adc_init(struct imx6ul_tsc *tsc)
 	/* start ADC calibration */
 	adc_gc = readl(tsc->adc_regs + REG_ADC_GC);
 	adc_gc |= ADC_CAL;
-	if (tsc->average_samples)
+	if (tsc->average_enable)
 		adc_gc |= ADC_AVGE;
 	writel(adc_gc, tsc->adc_regs + REG_ADC_GC);
 
@@ -362,6 +364,7 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	int err;
 	int tsc_irq;
 	int adc_irq;
+	u32 average_samples;
 
 	tsc = devm_kzalloc(&pdev->dev, sizeof(*tsc), GFP_KERNEL);
 	if (!tsc)
@@ -466,14 +469,27 @@ static int imx6ul_tsc_probe(struct platform_device *pdev)
 	if (err)
 		tsc->pre_charge_time = 0xfff;
 
-	err = of_property_read_u32(np, "average-samples",
-				   &tsc->average_samples);
+	err = of_property_read_u32(np, "touchscreen-average-samples",
+				   &average_samples);
 	if (err)
-		tsc->average_samples = 0;
+		average_samples = 1;
 
-	if (tsc->average_samples > 4) {
-		dev_err(&pdev->dev, "average-samples (%u) must be [0-4]\n",
-			tsc->average_samples);
+	switch (average_samples) {
+	case 1:
+		tsc->average_enable = false;
+		tsc->average_select = 0; /* value unused; initialize anyway */
+		break;
+	case 4:
+	case 8:
+	case 16:
+	case 32:
+		tsc->average_enable = true;
+		tsc->average_select = ilog2(average_samples) - 2;
+		break;
+	default:
+		dev_err(&pdev->dev,
+			"touchscreen-average-samples (%u) must be 1, 4, 8, 16 or 32\n",
+			average_samples);
 		return -EINVAL;
 	}
 
