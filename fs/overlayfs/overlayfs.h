@@ -9,8 +9,6 @@
 
 #include <linux/kernel.h>
 
-struct ovl_entry;
-
 enum ovl_path_type {
 	__OVL_PATH_UPPER	= (1 << 0),
 	__OVL_PATH_MERGE	= (1 << 1),
@@ -138,37 +136,39 @@ static inline struct inode *ovl_inode_real(struct inode *inode, bool *is_upper)
 	return (struct inode *) (x & ~OVL_ISUPPER_MASK);
 }
 
+/* util.c */
+int ovl_want_write(struct dentry *dentry);
+void ovl_drop_write(struct dentry *dentry);
+struct dentry *ovl_workdir(struct dentry *dentry);
+const struct cred *ovl_override_creds(struct super_block *sb);
+struct ovl_entry *ovl_alloc_entry(unsigned int numlower);
+bool ovl_dentry_remote(struct dentry *dentry);
+bool ovl_dentry_weird(struct dentry *dentry);
 enum ovl_path_type ovl_path_type(struct dentry *dentry);
-u64 ovl_dentry_version_get(struct dentry *dentry);
-void ovl_dentry_version_inc(struct dentry *dentry);
 void ovl_path_upper(struct dentry *dentry, struct path *path);
 void ovl_path_lower(struct dentry *dentry, struct path *path);
 enum ovl_path_type ovl_path_real(struct dentry *dentry, struct path *path);
-int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
 struct dentry *ovl_dentry_upper(struct dentry *dentry);
 struct dentry *ovl_dentry_lower(struct dentry *dentry);
 struct dentry *ovl_dentry_real(struct dentry *dentry);
-struct vfsmount *ovl_entry_mnt_real(struct ovl_entry *oe, struct inode *inode,
-				    bool is_upper);
 struct ovl_dir_cache *ovl_dir_cache(struct dentry *dentry);
 void ovl_set_dir_cache(struct dentry *dentry, struct ovl_dir_cache *cache);
-struct dentry *ovl_workdir(struct dentry *dentry);
-int ovl_want_write(struct dentry *dentry);
-void ovl_drop_write(struct dentry *dentry);
 bool ovl_dentry_is_opaque(struct dentry *dentry);
-bool ovl_lower_positive(struct dentry *dentry);
 bool ovl_dentry_is_whiteout(struct dentry *dentry);
 void ovl_dentry_set_opaque(struct dentry *dentry, bool opaque);
-bool ovl_is_whiteout(struct dentry *dentry);
-const struct cred *ovl_override_creds(struct super_block *sb);
 void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry);
+void ovl_inode_init(struct inode *inode, struct inode *realinode,
+		    bool is_upper);
 void ovl_inode_update(struct inode *inode, struct inode *upperinode);
-struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
-			  unsigned int flags);
+void ovl_dentry_version_inc(struct dentry *dentry);
+u64 ovl_dentry_version_get(struct dentry *dentry);
+bool ovl_is_whiteout(struct dentry *dentry);
 struct file *ovl_path_open(struct path *path, int flags);
 
-struct dentry *ovl_upper_create(struct dentry *upperdir, struct dentry *dentry,
-				struct kstat *stat, const char *link);
+/* namei.c */
+int ovl_path_next(int idx, struct dentry *dentry, struct path *path);
+struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags);
+bool ovl_lower_positive(struct dentry *dentry);
 
 /* readdir.c */
 extern const struct file_operations ovl_dir_operations;
