@@ -304,7 +304,7 @@ static struct dentry *ovl_d_real(struct dentry *dentry,
 {
 	struct dentry *real;
 
-	if (d_is_dir(dentry)) {
+	if (!d_is_reg(dentry)) {
 		if (!inode || inode == d_inode(dentry))
 			return dentry;
 		goto bug;
@@ -575,7 +575,8 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		if (upperdentry && !d_is_dir(upperdentry)) {
 			inode = ovl_get_inode(dentry->d_sb, realinode);
 		} else {
-			inode = ovl_new_inode(dentry->d_sb, realinode->i_mode);
+			inode = ovl_new_inode(dentry->d_sb, realinode->i_mode,
+					      realinode->i_rdev);
 			if (inode)
 				ovl_inode_init(inode, realinode, !!upperdentry);
 		}
@@ -1324,7 +1325,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_fs_info = ufs;
 	sb->s_flags |= MS_POSIXACL | MS_NOREMOTELOCK;
 
-	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR));
+	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR, 0));
 	if (!root_dentry)
 		goto out_free_oe;
 

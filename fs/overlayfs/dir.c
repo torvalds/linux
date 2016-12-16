@@ -537,7 +537,7 @@ static int ovl_create_object(struct dentry *dentry, int mode, dev_t rdev,
 		goto out;
 
 	err = -ENOMEM;
-	inode = ovl_new_inode(dentry->d_sb, mode);
+	inode = ovl_new_inode(dentry->d_sb, mode, rdev);
 	if (!inode)
 		goto out_drop_write;
 
