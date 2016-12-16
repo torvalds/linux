@@ -1347,8 +1347,10 @@ static int __init rfkill_init(void)
 
 	return 0;
 
+#ifdef CONFIG_RFKILL_INPUT
 error_input:
 	rfkill_any_led_trigger_unregister();
+#endif
 error_led_trigger:
 	misc_deregister(&rfkill_miscdev);
 error_misc:
