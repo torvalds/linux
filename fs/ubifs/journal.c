@@ -1319,6 +1319,7 @@ static int truncate_data_node(const struct ubifs_info *c, const struct inode *in
 	dn->compr_type = cpu_to_le16(compr_type);
 	dn->size = cpu_to_le32(*new_len);
 	*new_len = UBIFS_DATA_NODE_SZ + out_len;
+	err = 0;
 out:
 	kfree(buf);
 	return err;
