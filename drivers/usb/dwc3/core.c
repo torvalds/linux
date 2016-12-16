@@ -689,6 +689,18 @@ static int dwc3_core_init(struct dwc3 *dwc)
 		goto err4;
 	}
 
+	switch (dwc->dr_mode) {
+	case USB_DR_MODE_PERIPHERAL:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
+		break;
+	case USB_DR_MODE_HOST:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
+		break;
+	default:
+		dev_dbg(dwc->dev, "Unsupported mode %d\n", dwc->dr_mode);
+		break;
+	}
+
 	return 0;
 
 err4:
