@@ -102,7 +102,8 @@ struct drm_mm {
 	u64 scan_end;
 	struct drm_mm_node *prev_scanned_node;
 
-	void (*color_adjust)(struct drm_mm_node *node, unsigned long color,
+	void (*color_adjust)(const struct drm_mm_node *node,
+			     unsigned long color,
 			     u64 *start, u64 *end);
 };
 
@@ -116,7 +117,7 @@ struct drm_mm {
  * Returns:
  * True if the @node is allocated.
  */
-static inline bool drm_mm_node_allocated(struct drm_mm_node *node)
+static inline bool drm_mm_node_allocated(const struct drm_mm_node *node)
 {
 	return node->allocated;
 }
@@ -131,12 +132,12 @@ static inline bool drm_mm_node_allocated(struct drm_mm_node *node)
  * Returns:
  * True if the @mm is initialized.
  */
-static inline bool drm_mm_initialized(struct drm_mm *mm)
+static inline bool drm_mm_initialized(const struct drm_mm *mm)
 {
 	return mm->hole_stack.next;
 }
 
-static inline u64 __drm_mm_hole_node_start(struct drm_mm_node *hole_node)
+static inline u64 __drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
 {
 	return hole_node->start + hole_node->size;
 }
@@ -152,13 +153,13 @@ static inline u64 __drm_mm_hole_node_start(struct drm_mm_node *hole_node)
  * Returns:
  * Start of the subsequent hole.
  */
-static inline u64 drm_mm_hole_node_start(struct drm_mm_node *hole_node)
+static inline u64 drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
 {
 	BUG_ON(!hole_node->hole_follows);
 	return __drm_mm_hole_node_start(hole_node);
 }
 
-static inline u64 __drm_mm_hole_node_end(struct drm_mm_node *hole_node)
+static inline u64 __drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
 {
 	return list_next_entry(hole_node, node_list)->start;
 }
@@ -174,7 +175,7 @@ static inline u64 __drm_mm_hole_node_end(struct drm_mm_node *hole_node)
  * Returns:
  * End of the subsequent hole.
  */
-static inline u64 drm_mm_hole_node_end(struct drm_mm_node *hole_node)
+static inline u64 drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
 {
 	return __drm_mm_hole_node_end(hole_node);
 }
@@ -314,14 +315,12 @@ static inline int drm_mm_insert_node_in_range(struct drm_mm *mm,
 
 void drm_mm_remove_node(struct drm_mm_node *node);
 void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new);
-void drm_mm_init(struct drm_mm *mm,
-		 u64 start,
-		 u64 size);
+void drm_mm_init(struct drm_mm *mm, u64 start, u64 size);
 void drm_mm_takedown(struct drm_mm *mm);
-bool drm_mm_clean(struct drm_mm *mm);
+bool drm_mm_clean(const struct drm_mm *mm);
 
 struct drm_mm_node *
-__drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last);
+__drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last);
 
 /**
  * drm_mm_for_each_node_in_range - iterator to walk over a range of
@@ -355,9 +354,9 @@ void drm_mm_init_scan_with_range(struct drm_mm *mm,
 bool drm_mm_scan_add_block(struct drm_mm_node *node);
 bool drm_mm_scan_remove_block(struct drm_mm_node *node);
 
-void drm_mm_debug_table(struct drm_mm *mm, const char *prefix);
+void drm_mm_debug_table(const struct drm_mm *mm, const char *prefix);
 #ifdef CONFIG_DEBUG_FS
-int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm);
+int drm_mm_dump_table(struct seq_file *m, const struct drm_mm *mm);
 #endif
 
 #endif

@@ -174,9 +174,9 @@ INTERVAL_TREE_DEFINE(struct drm_mm_node, rb,
 		     START, LAST, static inline, drm_mm_interval_tree)
 
 struct drm_mm_node *
-__drm_mm_interval_first(struct drm_mm *mm, u64 start, u64 last)
+__drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last)
 {
-	return drm_mm_interval_tree_iter_first(&mm->interval_tree,
+	return drm_mm_interval_tree_iter_first((struct rb_root *)&mm->interval_tree,
 					       start, last);
 }
 EXPORT_SYMBOL(__drm_mm_interval_first);
@@ -881,9 +881,9 @@ EXPORT_SYMBOL(drm_mm_scan_remove_block);
  * True if the allocator is completely free, false if there's still a node
  * allocated in it.
  */
-bool drm_mm_clean(struct drm_mm * mm)
+bool drm_mm_clean(const struct drm_mm *mm)
 {
-	struct list_head *head = __drm_mm_nodes(mm);
+	const struct list_head *head = __drm_mm_nodes(mm);
 
 	return (head->next->next == head);
 }
@@ -897,7 +897,7 @@ EXPORT_SYMBOL(drm_mm_clean);
  *
  * Note that @mm must be cleared to 0 before calling this function.
  */
-void drm_mm_init(struct drm_mm * mm, u64 start, u64 size)
+void drm_mm_init(struct drm_mm *mm, u64 start, u64 size)
 {
 	INIT_LIST_HEAD(&mm->hole_stack);
 	mm->scanned_blocks = 0;
@@ -936,8 +936,8 @@ void drm_mm_takedown(struct drm_mm *mm)
 }
 EXPORT_SYMBOL(drm_mm_takedown);
 
-static u64 drm_mm_debug_hole(struct drm_mm_node *entry,
-				     const char *prefix)
+static u64 drm_mm_debug_hole(const struct drm_mm_node *entry,
+			     const char *prefix)
 {
 	u64 hole_start, hole_end, hole_size;
 
@@ -958,9 +958,9 @@ static u64 drm_mm_debug_hole(struct drm_mm_node *entry,
  * @mm: drm_mm allocator to dump
  * @prefix: prefix to use for dumping to dmesg
  */
-void drm_mm_debug_table(struct drm_mm *mm, const char *prefix)
+void drm_mm_debug_table(const struct drm_mm *mm, const char *prefix)
 {
-	struct drm_mm_node *entry;
+	const struct drm_mm_node *entry;
 	u64 total_used = 0, total_free = 0, total = 0;
 
 	total_free += drm_mm_debug_hole(&mm->head_node, prefix);
@@ -979,7 +979,7 @@ void drm_mm_debug_table(struct drm_mm *mm, const char *prefix)
 EXPORT_SYMBOL(drm_mm_debug_table);
 
 #if defined(CONFIG_DEBUG_FS)
-static u64 drm_mm_dump_hole(struct seq_file *m, struct drm_mm_node *entry)
+static u64 drm_mm_dump_hole(struct seq_file *m, const struct drm_mm_node *entry)
 {
 	u64 hole_start, hole_end, hole_size;
 
@@ -1000,9 +1000,9 @@ static u64 drm_mm_dump_hole(struct seq_file *m, struct drm_mm_node *entry)
  * @m: seq_file to dump to
  * @mm: drm_mm allocator to dump
  */
-int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
+int drm_mm_dump_table(struct seq_file *m, const struct drm_mm *mm)
 {
-	struct drm_mm_node *entry;
+	const struct drm_mm_node *entry;
 	u64 total_used = 0, total_free = 0, total = 0;
 
 	total_free += drm_mm_dump_hole(m, &mm->head_node);

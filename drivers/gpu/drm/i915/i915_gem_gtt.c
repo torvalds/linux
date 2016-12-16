@@ -2721,7 +2721,7 @@ void i915_gem_gtt_finish_pages(struct drm_i915_gem_object *obj,
 	dma_unmap_sg(kdev, pages->sgl, pages->nents, PCI_DMA_BIDIRECTIONAL);
 }
 
-static void i915_gtt_color_adjust(struct drm_mm_node *node,
+static void i915_gtt_color_adjust(const struct drm_mm_node *node,
 				  unsigned long color,
 				  u64 *start,
 				  u64 *end)
