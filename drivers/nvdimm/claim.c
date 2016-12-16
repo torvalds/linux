@@ -247,12 +247,13 @@ static int nsio_rw_bytes(struct nd_namespace_common *ndns,
 			long cleared;
 
 			cleared = nvdimm_clear_poison(&ndns->dev, offset, size);
-			if (cleared != size) {
-				size = cleared;
+			if (cleared < size)
 				rc = -EIO;
+			if (cleared > 0 && cleared / 512) {
+				cleared /= 512;
+				badblocks_clear(&nsio->bb, sector, cleared);
 			}
-
-			badblocks_clear(&nsio->bb, sector, cleared >> 9);
+			invalidate_pmem(nsio->addr + offset, size);
 		} else
 			rc = -EIO;
 	}
