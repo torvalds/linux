@@ -3894,7 +3894,7 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 			goto split_irqchip_unlock;
 		/* Pairs with irqchip_in_kernel. */
 		smp_wmb();
-		kvm->arch.irqchip_split = true;
+		kvm->arch.irqchip_mode = KVM_IRQCHIP_SPLIT;
 		kvm->arch.nr_reserved_ioapic_pins = cap->args[0];
 		r = 0;
 split_irqchip_unlock:
@@ -3988,8 +3988,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			mutex_unlock(&kvm->slots_lock);
 			goto create_irqchip_unlock;
 		}
-		/* Write kvm->irq_routing before kvm->arch.vpic.  */
+		/* Write kvm->irq_routing before enabling irqchip_in_kernel. */
 		smp_wmb();
+		kvm->arch.irqchip_mode = KVM_IRQCHIP_KERNEL;
 		kvm->arch.vpic = vpic;
 	create_irqchip_unlock:
 		mutex_unlock(&kvm->lock);

@@ -716,6 +716,12 @@ struct kvm_hv {
 	HV_REFERENCE_TSC_PAGE tsc_ref;
 };
 
+enum kvm_irqchip_mode {
+	KVM_IRQCHIP_NONE,
+	KVM_IRQCHIP_KERNEL,       /* created with KVM_CREATE_IRQCHIP */
+	KVM_IRQCHIP_SPLIT,        /* created with KVM_CAP_SPLIT_IRQCHIP */
+};
+
 struct kvm_arch {
 	unsigned int n_used_mmu_pages;
 	unsigned int n_requested_mmu_pages;
@@ -788,7 +794,7 @@ struct kvm_arch {
 
 	u64 disabled_quirks;
 
-	bool irqchip_split;
+	enum kvm_irqchip_mode irqchip_mode;
 	u8 nr_reserved_ioapic_pins;
 
 	bool disabled_lapic_found;
