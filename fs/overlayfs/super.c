@@ -209,6 +209,11 @@ bool ovl_dentry_is_opaque(struct dentry *dentry)
 	return oe->opaque;
 }
 
+bool ovl_dentry_is_whiteout(struct dentry *dentry)
+{
+	return !dentry->d_inode && ovl_dentry_is_opaque(dentry);
+}
+
 void ovl_dentry_set_opaque(struct dentry *dentry, bool opaque)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;

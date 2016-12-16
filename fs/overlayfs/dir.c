@@ -504,7 +504,7 @@ static int ovl_create_or_link(struct dentry *dentry, struct inode *inode,
 		put_cred(override_creds(override_cred));
 		put_cred(override_cred);
 
-		if (!ovl_dentry_is_opaque(dentry))
+		if (!ovl_dentry_is_whiteout(dentry))
 			err = ovl_create_upper(dentry, inode, stat, link,
 						hardlink);
 		else
@@ -842,14 +842,14 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 
 	if (overwrite) {
 		if (old_opaque) {
-			if (new->d_inode || !new_opaque) {
+			if (!ovl_dentry_is_whiteout(new)) {
 				/* Whiteout source */
 				flags |= RENAME_WHITEOUT;
 			} else {
 				/* Switch whiteouts */
 				flags |= RENAME_EXCHANGE;
 			}
-		} else if (is_dir && !new->d_inode && new_opaque) {
+		} else if (is_dir && ovl_dentry_is_whiteout(new)) {
 			flags |= RENAME_EXCHANGE;
 			cleanup_whiteout = true;
 		}

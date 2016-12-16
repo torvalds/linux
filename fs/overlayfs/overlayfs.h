@@ -161,6 +161,7 @@ struct dentry *ovl_workdir(struct dentry *dentry);
 int ovl_want_write(struct dentry *dentry);
 void ovl_drop_write(struct dentry *dentry);
 bool ovl_dentry_is_opaque(struct dentry *dentry);
+bool ovl_dentry_is_whiteout(struct dentry *dentry);
 void ovl_dentry_set_opaque(struct dentry *dentry, bool opaque);
 bool ovl_is_whiteout(struct dentry *dentry);
 const struct cred *ovl_override_creds(struct super_block *sb);
