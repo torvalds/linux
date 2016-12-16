@@ -69,6 +69,7 @@ struct color_state {
 	struct color_range saturation;
 	struct color_range brightness;
 	struct color_range hue;
+	struct dc_gamma *gamma;
 	enum dc_quantization_range preferred_quantization_range;
 };
 
@@ -1265,6 +1266,26 @@ static void calculate_csc_matrix(struct core_color *core_color,
 	}
 }
 
+static struct dc_surface *dc_stream_to_surface_from_pipe_ctx(
+		struct core_color *core_color,
+		const struct dc_stream *stream)
+{
+	int i;
+	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
+	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
+	struct dc_surface *out_surface = NULL;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (core_dc->current_context->res_ctx.pipe_ctx[i].stream
+						== core_stream) {
+			out_surface = &core_dc->current_context->res_ctx.
+					pipe_ctx[i].surface->public;
+			break;
+		}
+	}
+	return out_surface;
+}
+
 struct mod_color *mod_color_create(struct dc *dc)
 {
 	int i = 0;
@@ -1368,6 +1389,10 @@ void mod_color_destroy(struct mod_color *mod_color)
 		int i;
 		struct core_color *core_color =
 				MOD_COLOR_TO_CORE(mod_color);
+
+		for (i = 0; i < core_color->num_sinks; i++)
+			if (core_color->state[i].gamma)
+				dc_gamma_release(core_color->state[i].gamma);
 
 		dm_free(core_color->state);
 
@@ -1552,6 +1577,9 @@ bool mod_color_remove_sink(struct mod_color *mod_color,
 
 	for (i = 0; i < core_color->num_sinks; i++) {
 		if (core_color->caps[i].sink == sink) {
+			if (core_color->state[i].gamma)
+				dc_gamma_release(core_color->state[i].gamma);
+
 			/* To remove this sink, shift everything after down */
 			for (j = i; j < core_color->num_sinks - 1; j++) {
 				core_color->caps[j].sink =
@@ -2180,6 +2208,55 @@ bool mod_color_set_saturation(struct mod_color *mod_color,
 
 	core_color->dc->stream_funcs.set_gamut_remap
 			(core_color->dc, streams, num_streams);
+
+	return true;
+}
+
+bool mod_color_set_input_gamma_correction(struct mod_color *mod_color,
+		const struct dc_stream **streams, int num_streams,
+		struct dc_gamma *gamma)
+{
+	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
+	unsigned int stream_index, sink_index;
+
+	for (stream_index = 0; stream_index < num_streams; stream_index++) {
+		sink_index = sink_index_from_sink(core_color,
+				streams[stream_index]->sink);
+
+		struct dc_surface *surface =
+				dc_stream_to_surface_from_pipe_ctx(core_color,
+						streams[stream_index]);
+
+		if (surface != NULL) {
+			struct dc_transfer_func *input_tf =
+					dc_create_transfer_func(core_color->dc);
+			struct dc_surface_update updates = {0};
+
+			if (input_tf != NULL) {
+				input_tf->type = TF_TYPE_PREDEFINED;
+				input_tf->tf = TRANSFER_FUNCTION_SRGB;
+			}
+
+			if (core_color->state[sink_index].gamma != gamma) {
+				if (core_color->state[sink_index].gamma)
+					dc_gamma_release(
+						core_color->state[sink_index].
+						gamma);
+
+				dc_gamma_retain(gamma);
+				core_color->state[sink_index].gamma = gamma;
+			}
+
+			updates.surface = surface;
+			updates.gamma = gamma;
+			updates.in_transfer_func = input_tf;
+			dc_update_surfaces_for_target(core_color->dc, &updates,
+					1, NULL);
+
+			if (input_tf != NULL)
+				dc_transfer_func_release(input_tf);
+		}
+	}
 
 	return true;
 }

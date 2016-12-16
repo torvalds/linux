@@ -168,6 +168,10 @@ bool mod_color_set_saturation(struct mod_color *mod_color,
 		const struct dc_stream **streams, int num_streams,
 		int saturation_value);
 
+bool mod_color_set_input_gamma_correction(struct mod_color *mod_color,
+		const struct dc_stream **streams, int num_streams,
+		struct dc_gamma *gamma);
+
 bool mod_color_persist_user_preferred_quantization_range(
 		struct mod_color *mod_color,
 		const struct dc_sink *sink,
