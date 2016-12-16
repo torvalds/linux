@@ -4964,8 +4964,9 @@ enum nl80211_sched_scan_plan {
 /**
  * struct nl80211_bss_select_rssi_adjust - RSSI adjustment parameters.
  *
- * @band: band of BSS that must match for RSSI value adjustment.
- * @delta: value used to adjust the RSSI value of matching BSS.
+ * @band: band of BSS that must match for RSSI value adjustment. The value
+ *	of this field is according to &enum nl80211_band.
+ * @delta: value used to adjust the RSSI value of matching BSS in dB.
  */
 struct nl80211_bss_select_rssi_adjust {
 	__u8 band;
