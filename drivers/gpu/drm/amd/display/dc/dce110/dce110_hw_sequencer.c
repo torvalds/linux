@@ -303,7 +303,8 @@ static bool dce110_set_output_transfer_func(
 
 	opp->funcs->opp_power_on_regamma_lut(opp, true);
 
-	if (ramp && calculate_regamma_params(regamma_params, ramp, surface)) {
+	if (ramp && calculate_regamma_params(
+				regamma_params, ramp, surface, stream)) {
 		opp->funcs->opp_program_regamma_pwl(opp, regamma_params);
 		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_USER);
 	} else {

@@ -14,6 +14,7 @@
 
 bool calculate_regamma_params(struct pwl_params *params,
 		const struct core_gamma *ramp,
-		const struct core_surface *surface);
+		const struct core_surface *surface,
+		const struct core_stream *stream);
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_GAMMA_CALCS_H_ */

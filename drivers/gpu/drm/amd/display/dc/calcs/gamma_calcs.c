@@ -791,6 +791,82 @@ static inline struct fixed31_32 calculate_oem_mapped_value(
 			max_index);
 }
 
+static void compute_pq(struct fixed31_32 in_x, struct fixed31_32 *out_y)
+{
+	/* consts for PQ gamma formula. */
+	const struct fixed31_32 m1 =
+		dal_fixed31_32_from_fraction(159301758, 1000000000);
+	const struct fixed31_32 m2 =
+		dal_fixed31_32_from_fraction(7884375, 100000);
+	const struct fixed31_32 c1 =
+		dal_fixed31_32_from_fraction(8359375, 10000000);
+	const struct fixed31_32 c2 =
+		dal_fixed31_32_from_fraction(188515625, 10000000);
+	const struct fixed31_32 c3 =
+		dal_fixed31_32_from_fraction(186875, 10000);
+
+	struct fixed31_32 l_pow_m1;
+	struct fixed31_32 base;
+
+	if (dal_fixed31_32_lt(in_x, dal_fixed31_32_zero))
+		in_x = dal_fixed31_32_zero;
+
+	l_pow_m1 = dal_fixed31_32_pow(in_x, m1);
+	base = dal_fixed31_32_div(
+			dal_fixed31_32_add(c1,
+					(dal_fixed31_32_mul(c2, l_pow_m1))),
+			dal_fixed31_32_add(dal_fixed31_32_one,
+					(dal_fixed31_32_mul(c3, l_pow_m1))));
+	*out_y = dal_fixed31_32_pow(base, m2);
+}
+
+static void build_regamma_curve_pq(struct pwl_float_data_ex *rgb_regamma,
+		struct pwl_float_data *rgb_oem,
+		struct pixel_gamma_point *coeff128_oem,
+		const struct core_gamma *ramp,
+		const struct core_surface *surface,
+		uint32_t hw_points_num,
+		const struct hw_x_point *coordinate_x,
+		const struct gamma_pixel *axis_x,
+		struct dividers dividers)
+{
+	uint32_t i;
+
+	struct pwl_float_data_ex *rgb = rgb_regamma;
+	const struct hw_x_point *coord_x = coordinate_x;
+	struct fixed31_32 x;
+	struct fixed31_32 output;
+	struct fixed31_32 scaling_factor =
+			dal_fixed31_32_from_fraction(8, 1000);
+
+	/* use coord_x to retrieve coordinates chosen base on given user curve
+	 * the x values are exponentially distributed and currently it is hard
+	 * coded, the user curve shape is ignored. Need to recalculate coord_x
+	 * based on input curve, translation from 256/1025 to 128 PWL points.
+	 */
+	for (i = 0; i <= hw_points_num; i++) {
+		/* Multiply 0.008 as regamma is 0-1 and FP16 input is 0-125.
+		 * FP 1.0 = 80nits
+		 */
+		x = dal_fixed31_32_mul(coord_x->adjusted_x, scaling_factor);
+
+		compute_pq(x, &output);
+
+		/* should really not happen? */
+		if (dal_fixed31_32_lt(output, dal_fixed31_32_zero))
+			output = dal_fixed31_32_zero;
+		else if (dal_fixed31_32_lt(dal_fixed31_32_one, output))
+			output = dal_fixed31_32_one;
+
+		rgb->r = output;
+		rgb->g = output;
+		rgb->b = output;
+
+		++coord_x;
+		++rgb;
+	}
+}
+
 static void build_regamma_curve(struct pwl_float_data_ex *rgb_regamma,
 		struct pwl_float_data *rgb_oem,
 		struct pixel_gamma_point *coeff128_oem,
@@ -1286,7 +1362,8 @@ static bool convert_to_custom_float(
 
 bool calculate_regamma_params(struct pwl_params *params,
 		const struct core_gamma *ramp,
-		const struct core_surface *surface)
+		const struct core_surface *surface,
+		const struct core_stream *stream)
 {
 	struct gamma_curve *arr_curve_points = params->arr_curve_points;
 	struct curve_points *arr_points = params->arr_points;
@@ -1300,7 +1377,6 @@ bool calculate_regamma_params(struct pwl_params *params,
 	struct gamma_pixel *axix_x_256 = NULL;
 	struct pixel_gamma_point *coeff128_oem = NULL;
 	struct pixel_gamma_point *coeff128 = NULL;
-
 
 	bool ret = false;
 
@@ -1341,9 +1417,16 @@ bool calculate_regamma_params(struct pwl_params *params,
 	setup_distribution_points(arr_curve_points, arr_points,
 			&params->hw_points_num, coordinates_x);
 
-	build_regamma_curve(rgb_regamma, rgb_oem, coeff128_oem,
-			ramp, surface, params->hw_points_num,
-			coordinates_x, axix_x_256, dividers);
+	if (stream->public.out_transfer_func &&
+		stream->public.out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
+		build_regamma_curve_pq(rgb_regamma, rgb_oem, coeff128_oem,
+				ramp, surface, params->hw_points_num,
+				coordinates_x, axix_x_256, dividers);
+	} else {
+		build_regamma_curve(rgb_regamma, rgb_oem, coeff128_oem,
+				ramp, surface, params->hw_points_num,
+				coordinates_x, axix_x_256, dividers);
+	}
 
 	map_regamma_hw_to_x_user(coeff128, rgb_oem, rgb_resulted, rgb_user,
 			coordinates_x, axix_x_256, &ramp->public, rgb_regamma,
