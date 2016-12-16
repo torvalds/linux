@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <assert.h>
 
+#include <linux/gfp.h>
 #include <linux/poison.h>
 #include <linux/slab.h>
 #include <linux/radix-tree.h>

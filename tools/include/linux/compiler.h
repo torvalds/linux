@@ -21,6 +21,8 @@
 #endif
 
 #define __user
+#define __rcu
+#define __read_mostly
 
 #ifndef __attribute_const__
 # define __attribute_const__
@@ -49,6 +51,8 @@
 #ifndef unlikely
 # define unlikely(x)		__builtin_expect(!!(x), 0)
 #endif
+
+#define uninitialized_var(x) x = *(&(x))
 
 #define ACCESS_ONCE(x) (*(volatile typeof(x) *)&(x))
 
