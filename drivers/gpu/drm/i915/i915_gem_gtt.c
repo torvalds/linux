@@ -2729,10 +2729,8 @@ static void i915_gtt_color_adjust(const struct drm_mm_node *node,
 	if (node->color != color)
 		*start += 4096;
 
-	node = list_first_entry_or_null(&node->node_list,
-					struct drm_mm_node,
-					node_list);
-	if (node && node->allocated && node->color != color)
+	node = list_next_entry(node, node_list);
+	if (node->allocated && node->color != color)
 		*end -= 4096;
 }
 
