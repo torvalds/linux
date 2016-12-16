@@ -795,6 +795,8 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 	if (!is_sync)
 		return;
 	inode = d_inode(ctx->dentry);
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
+		return;
 	nfsi = NFS_I(inode);
 	if (inode->i_mapping->nrpages == 0)
 		return;
