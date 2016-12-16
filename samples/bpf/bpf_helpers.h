@@ -113,7 +113,7 @@ static int (*bpf_skb_under_cgroup)(void *ctx, void *map, int index) =
 #define PT_REGS_FP(x) ((x)->gprs[11]) /* Works only with CONFIG_FRAME_POINTER */
 #define PT_REGS_RC(x) ((x)->gprs[2])
 #define PT_REGS_SP(x) ((x)->gprs[15])
-#define PT_REGS_IP(x) ((x)->ip)
+#define PT_REGS_IP(x) ((x)->psw.addr)
 
 #elif defined(__aarch64__)
 

@@ -3980,18 +3980,6 @@ out_unlock:
 	return ret;
 }
 
-ssize_t btrfs_copy_file_range(struct file *file_in, loff_t pos_in,
-			      struct file *file_out, loff_t pos_out,
-			      size_t len, unsigned int flags)
-{
-	ssize_t ret;
-
-	ret = btrfs_clone_files(file_out, file_in, pos_in, len, pos_out);
-	if (ret == 0)
-		ret = len;
-	return ret;
-}
-
 int btrfs_clone_file_range(struct file *src_file, loff_t off,
 		struct file *dst_file, loff_t destoff, u64 len)
 {

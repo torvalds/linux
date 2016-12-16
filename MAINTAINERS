@@ -9257,11 +9257,12 @@ S:	Maintained
 F:	drivers/pci/host/*layerscape*
 
 PCI DRIVER FOR IMX6
-M:	Richard Zhu <Richard.Zhu@freescale.com>
+M:	Richard Zhu <hongxing.zhu@nxp.com>
 M:	Lucas Stach <l.stach@pengutronix.de>
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
+F:	Documentation/devicetree/bindings/pci/fsl,imx6q-pcie.txt
 F:	drivers/pci/host/*imx6*
 
 PCI DRIVER FOR TI KEYSTONE
@@ -9320,17 +9321,11 @@ F:	drivers/pci/host/pci-exynos.c
 
 PCI DRIVER FOR SYNOPSIS DESIGNWARE
 M:	Jingoo Han <jingoohan1@gmail.com>
-M:	Pratyush Anand <pratyush.anand@gmail.com>
-L:	linux-pci@vger.kernel.org
-S:	Maintained
-F:	drivers/pci/host/*designware*
-
-PCI DRIVER FOR SYNOPSYS PROTOTYPING DEVICE
-M:	Jose Abreu <Jose.Abreu@synopsys.com>
+M:	Joao Pinto <Joao.Pinto@synopsys.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/designware-pcie.txt
-F:	drivers/pci/host/pcie-designware-plat.c
+F:	drivers/pci/host/*designware*
 
 PCI DRIVER FOR GENERIC OF HOSTS
 M:	Will Deacon <will.deacon@arm.com>
