@@ -114,12 +114,15 @@ out:
 static kvm_pfn_t gvt_cache_find(struct intel_vgpu *vgpu, gfn_t gfn)
 {
 	struct gvt_dma *entry;
+	kvm_pfn_t pfn;
 
 	mutex_lock(&vgpu->vdev.cache_lock);
-	entry = __gvt_cache_find(vgpu, gfn);
-	mutex_unlock(&vgpu->vdev.cache_lock);
 
-	return entry == NULL ? 0 : entry->pfn;
+	entry = __gvt_cache_find(vgpu, gfn);
+	pfn = (entry == NULL) ? 0 : entry->pfn;
+
+	mutex_unlock(&vgpu->vdev.cache_lock);
+	return pfn;
 }
 
 static void gvt_cache_add(struct intel_vgpu *vgpu, gfn_t gfn, kvm_pfn_t pfn)
