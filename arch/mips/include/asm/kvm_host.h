@@ -614,6 +614,23 @@ extern int kvm_mips_host_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long vaddr);
 void kvm_mips_suspend_mm(int cpu);
 void kvm_mips_resume_mm(int cpu);
 
+/* MMU handling */
+
+/**
+ * enum kvm_mips_flush - Types of MMU flushes.
+ * @KMF_USER:	Flush guest user virtual memory mappings.
+ *		Guest USeg only.
+ * @KMF_KERN:	Flush guest kernel virtual memory mappings.
+ *		Guest USeg and KSeg2/3.
+ * @KMF_GPA:	Flush guest physical memory mappings.
+ *		Also includes KSeg0 if KMF_KERN is set.
+ */
+enum kvm_mips_flush {
+	KMF_USER	= 0x0,
+	KMF_KERN	= 0x1,
+	KMF_GPA		= 0x2,
+};
+void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags);
 extern unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
 						   unsigned long gva);
 extern void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,

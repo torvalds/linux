@@ -774,14 +774,15 @@ static void kvm_trap_emul_vcpu_reenter(struct kvm_run *run,
 	unsigned int gasid;
 
 	/*
-	 * Lazy host ASID regeneration for guest user mode.
+	 * Lazy host ASID regeneration / PT flush for guest user mode.
 	 * If the guest ASID has changed since the last guest usermode
 	 * execution, regenerate the host ASID so as to invalidate stale TLB
-	 * entries.
+	 * entries and flush GVA PT entries too.
 	 */
 	if (!KVM_GUEST_KERNEL_MODE(vcpu)) {
 		gasid = kvm_read_c0_guest_entryhi(cop0) & KVM_ENTRYHI_ASID;
 		if (gasid != vcpu->arch.last_user_gasid) {
+			kvm_mips_flush_gva_pt(user_mm->pgd, KMF_USER);
 			kvm_get_new_mmu_context(user_mm, cpu, vcpu);
 			for_each_possible_cpu(i)
 				if (i != cpu)

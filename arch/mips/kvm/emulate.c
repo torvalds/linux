@@ -1172,6 +1172,17 @@ enum emulation_result kvm_mips_emulate_CP0(union mips_instruction inst,
 						nasid);
 
 					/*
+					 * Flush entries from the GVA page
+					 * tables.
+					 * Guest user page table will get
+					 * flushed lazily on re-entry to guest
+					 * user if the guest ASID actually
+					 * changes.
+					 */
+					kvm_mips_flush_gva_pt(kern_mm->pgd,
+							      KMF_KERN);
+
+					/*
 					 * Regenerate/invalidate kernel MMU
 					 * context.
 					 * The user MMU context will be

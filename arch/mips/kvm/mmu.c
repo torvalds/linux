@@ -12,6 +12,7 @@
 #include <linux/highmem.h>
 #include <linux/kvm_host.h>
 #include <asm/mmu_context.h>
+#include <asm/pgalloc.h>
 
 static u32 kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
@@ -78,6 +79,139 @@ unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
 		return KVM_INVALID_ADDR;
 
 	return (kvm->arch.guest_pmap[gfn] << PAGE_SHIFT) + offset;
+}
+
+/*
+ * kvm_mips_flush_gva_{pte,pmd,pud,pgd,pt}.
+ * Flush a range of guest physical address space from the VM's GPA page tables.
+ */
+
+static bool kvm_mips_flush_gva_pte(pte_t *pte, unsigned long start_gva,
+				   unsigned long end_gva)
+{
+	int i_min = __pte_offset(start_gva);
+	int i_max = __pte_offset(end_gva);
+	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PTE - 1);
+	int i;
+
+	/*
+	 * There's no freeing to do, so there's no point clearing individual
+	 * entries unless only part of the last level page table needs flushing.
+	 */
+	if (safe_to_remove)
+		return true;
+
+	for (i = i_min; i <= i_max; ++i) {
+		if (!pte_present(pte[i]))
+			continue;
+
+		set_pte(pte + i, __pte(0));
+	}
+	return false;
+}
+
+static bool kvm_mips_flush_gva_pmd(pmd_t *pmd, unsigned long start_gva,
+				   unsigned long end_gva)
+{
+	pte_t *pte;
+	unsigned long end = ~0ul;
+	int i_min = __pmd_offset(start_gva);
+	int i_max = __pmd_offset(end_gva);
+	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PMD - 1);
+	int i;
+
+	for (i = i_min; i <= i_max; ++i, start_gva = 0) {
+		if (!pmd_present(pmd[i]))
+			continue;
+
+		pte = pte_offset(pmd + i, 0);
+		if (i == i_max)
+			end = end_gva;
+
+		if (kvm_mips_flush_gva_pte(pte, start_gva, end)) {
+			pmd_clear(pmd + i);
+			pte_free_kernel(NULL, pte);
+		} else {
+			safe_to_remove = false;
+		}
+	}
+	return safe_to_remove;
+}
+
+static bool kvm_mips_flush_gva_pud(pud_t *pud, unsigned long start_gva,
+				   unsigned long end_gva)
+{
+	pmd_t *pmd;
+	unsigned long end = ~0ul;
+	int i_min = __pud_offset(start_gva);
+	int i_max = __pud_offset(end_gva);
+	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PUD - 1);
+	int i;
+
+	for (i = i_min; i <= i_max; ++i, start_gva = 0) {
+		if (!pud_present(pud[i]))
+			continue;
+
+		pmd = pmd_offset(pud + i, 0);
+		if (i == i_max)
+			end = end_gva;
+
+		if (kvm_mips_flush_gva_pmd(pmd, start_gva, end)) {
+			pud_clear(pud + i);
+			pmd_free(NULL, pmd);
+		} else {
+			safe_to_remove = false;
+		}
+	}
+	return safe_to_remove;
+}
+
+static bool kvm_mips_flush_gva_pgd(pgd_t *pgd, unsigned long start_gva,
+				   unsigned long end_gva)
+{
+	pud_t *pud;
+	unsigned long end = ~0ul;
+	int i_min = pgd_index(start_gva);
+	int i_max = pgd_index(end_gva);
+	bool safe_to_remove = (i_min == 0 && i_max == PTRS_PER_PGD - 1);
+	int i;
+
+	for (i = i_min; i <= i_max; ++i, start_gva = 0) {
+		if (!pgd_present(pgd[i]))
+			continue;
+
+		pud = pud_offset(pgd + i, 0);
+		if (i == i_max)
+			end = end_gva;
+
+		if (kvm_mips_flush_gva_pud(pud, start_gva, end)) {
+			pgd_clear(pgd + i);
+			pud_free(NULL, pud);
+		} else {
+			safe_to_remove = false;
+		}
+	}
+	return safe_to_remove;
+}
+
+void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags)
+{
+	if (flags & KMF_GPA) {
+		/* all of guest virtual address space could be affected */
+		if (flags & KMF_KERN)
+			/* useg, kseg0, seg2/3 */
+			kvm_mips_flush_gva_pgd(pgd, 0, 0x7fffffff);
+		else
+			/* useg */
+			kvm_mips_flush_gva_pgd(pgd, 0, 0x3fffffff);
+	} else {
+		/* useg */
+		kvm_mips_flush_gva_pgd(pgd, 0, 0x3fffffff);
+
+		/* kseg2/3 */
+		if (flags & KMF_KERN)
+			kvm_mips_flush_gva_pgd(pgd, 0x60000000, 0x7fffffff);
+	}
 }
 
 /* XXXKYMA: Must be called with interrupts disabled */
