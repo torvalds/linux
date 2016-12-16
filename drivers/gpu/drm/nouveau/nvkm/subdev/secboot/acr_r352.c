@@ -824,32 +824,6 @@ end:
 }
 
 static int
-acr_r352_start(struct nvkm_acr *_acr, struct nvkm_secboot *sb,
-		    enum nvkm_secboot_falcon falcon)
-{
-	struct acr_r352 *acr = acr_r352(_acr);
-	const struct nvkm_subdev *subdev = &sb->subdev;
-	int base;
-
-	switch (falcon) {
-	case NVKM_SECBOOT_FALCON_FECS:
-		base = 0x409000;
-		break;
-	case NVKM_SECBOOT_FALCON_GPCCS:
-		base = 0x41a000;
-		break;
-	default:
-		nvkm_error(subdev, "cannot start unhandled falcon!\n");
-		return -EINVAL;
-	}
-
-	nvkm_wr32(subdev->device, base + 0x130, 0x00000002);
-	acr->falcon_state[falcon] = RUNNING;
-
-	return 0;
-}
-
-static int
 acr_r352_fini(struct nvkm_acr *_acr, struct nvkm_secboot *sb, bool suspend)
 {
 	struct acr_r352 *acr = acr_r352(_acr);
@@ -906,7 +880,6 @@ acr_r352_base_func = {
 	.fini = acr_r352_fini,
 	.load = acr_r352_load,
 	.reset = acr_r352_reset,
-	.start = acr_r352_start,
 };
 
 struct nvkm_acr *
