@@ -51,7 +51,7 @@
  *
  * LIFETIME:
  * Inode marks survive between when they are added to an inode and when their
- * refcnt==0.
+ * refcnt==0. Marks are also protected by fsnotify_mark_srcu.
  *
  * The inode mark can be cleared for a number of different reasons including:
  * - The inode is unlinked for the last time.  (fsnotify_inode_remove)
@@ -60,17 +60,6 @@
  * - Something explicitly requests that it be removed.  (fsnotify_destroy_mark)
  * - The fsnotify_group associated with the mark is going away and all such marks
  *   need to be cleaned up. (fsnotify_clear_marks_by_group)
- *
- * Worst case we are given an inode and need to clean up all the marks on that
- * inode.  We take i_lock and walk the i_fsnotify_marks safely.  For each
- * mark on the list we take a reference (so the mark can't disappear under us).
- * We remove that mark form the inode's list of marks and we add this mark to a
- * private list anchored on the stack using i_free_list; we walk i_free_list
- * and before we destroy the mark we make sure that we dont race with a
- * concurrent destroy_group by getting a ref to the marks group and taking the
- * groups mutex.
-
- * Very similarly for freeing by group, except we use free_g_list.
  *
  * This has the very interesting property of being able to run concurrently with
  * any (or all) other directions.
