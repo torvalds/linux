@@ -778,6 +778,13 @@ void mdp5_crtc_set_pipeline(struct drm_crtc *crtc,
 	mdp5_ctl_set_pipeline(ctl, intf, lm);
 }
 
+struct mdp5_ctl *mdp5_crtc_get_ctl(struct drm_crtc *crtc)
+{
+	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+
+	return mdp5_crtc->ctl;
+}
+
 int mdp5_crtc_get_lm(struct drm_crtc *crtc)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
