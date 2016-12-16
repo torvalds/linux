@@ -19,6 +19,7 @@ enum ovl_path_type {
 
 #define OVL_XATTR_PREFIX XATTR_TRUSTED_PREFIX "overlay."
 #define OVL_XATTR_OPAQUE OVL_XATTR_PREFIX "opaque"
+#define OVL_XATTR_REDIRECT OVL_XATTR_PREFIX "redirect"
 
 #define OVL_ISUPPER_MASK 1UL
 

@@ -35,6 +35,7 @@ struct ovl_entry {
 	union {
 		struct {
 			u64 version;
+			const char *redirect;
 			bool opaque;
 		};
 		struct rcu_head rcu;
