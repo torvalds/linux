@@ -717,27 +717,11 @@ out_unlock:
 	return err;
 }
 
-static inline int ovl_check_sticky(struct dentry *dentry)
-{
-	struct inode *dir = ovl_dentry_real(dentry->d_parent)->d_inode;
-	struct inode *inode = ovl_dentry_real(dentry)->d_inode;
-
-	if (check_sticky(dir, inode))
-		return -EPERM;
-
-	return 0;
-}
-
 static int ovl_do_remove(struct dentry *dentry, bool is_dir)
 {
 	enum ovl_path_type type;
 	int err;
 	const struct cred *old_cred;
-
-
-	err = ovl_check_sticky(dentry);
-	if (err)
-		goto out;
 
 	err = ovl_want_write(dentry);
 	if (err)
@@ -804,10 +788,6 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 
 	flags &= ~RENAME_NOREPLACE;
 
-	err = ovl_check_sticky(old);
-	if (err)
-		goto out;
-
 	/* Don't copy up directory trees */
 	old_type = ovl_path_type(old);
 	err = -EXDEV;
@@ -815,10 +795,6 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 		goto out;
 
 	if (new->d_inode) {
-		err = ovl_check_sticky(new);
-		if (err)
-			goto out;
-
 		if (d_is_dir(new))
 			new_is_dir = true;
 
