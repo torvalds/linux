@@ -12,6 +12,7 @@ struct scatterlist;
 enum swiotlb_force {
 	SWIOTLB_NORMAL,		/* Default - depending on HW DMA mask etc. */
 	SWIOTLB_FORCE,		/* swiotlb=force */
+	SWIOTLB_NO_FORCE,	/* swiotlb=noforce */
 };
 
 extern enum swiotlb_force swiotlb_force;
