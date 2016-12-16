@@ -128,9 +128,15 @@ int ovl_create_real(struct inode *dir, struct dentry *newdentry,
 	return err;
 }
 
-static int ovl_set_opaque(struct dentry *upperdentry)
+static int ovl_set_opaque(struct dentry *dentry, struct dentry *upperdentry)
 {
-	return ovl_do_setxattr(upperdentry, OVL_XATTR_OPAQUE, "y", 1, 0);
+	int err;
+
+	err = ovl_do_setxattr(upperdentry, OVL_XATTR_OPAQUE, "y", 1, 0);
+	if (!err)
+		ovl_dentry_set_opaque(dentry);
+
+	return err;
 }
 
 static int ovl_dir_getattr(struct vfsmount *mnt, struct dentry *dentry,
@@ -274,7 +280,7 @@ static struct dentry *ovl_clear_empty(struct dentry *dentry,
 	if (err)
 		goto out_cleanup;
 
-	err = ovl_set_opaque(opaquedir);
+	err = ovl_set_opaque(dentry, opaquedir);
 	if (err)
 		goto out_cleanup;
 
@@ -435,7 +441,7 @@ static int ovl_create_over_whiteout(struct dentry *dentry, struct inode *inode,
 	}
 
 	if (!hardlink && S_ISDIR(stat->mode)) {
-		err = ovl_set_opaque(newdentry);
+		err = ovl_set_opaque(dentry, newdentry);
 		if (err)
 			goto out_cleanup;
 
@@ -996,29 +1002,22 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (WARN_ON(olddentry->d_inode == newdentry->d_inode))
 		goto out_dput;
 
+	err = 0;
 	if (is_dir) {
-		if (ovl_type_merge_or_lower(old)) {
+		if (ovl_type_merge_or_lower(old))
 			err = ovl_set_redirect(old, samedir);
-			if (err)
-				goto out_dput;
-		} else if (!old_opaque && ovl_lower_positive(new)) {
-			err = ovl_set_opaque(olddentry);
-			if (err)
-				goto out_dput;
-			ovl_dentry_set_opaque(old, true);
-		}
+		else if (!old_opaque && ovl_lower_positive(new))
+			err = ovl_set_opaque(old, olddentry);
+		if (err)
+			goto out_dput;
 	}
 	if (!overwrite && new_is_dir) {
-		if (ovl_type_merge_or_lower(new)) {
+		if (ovl_type_merge_or_lower(new))
 			err = ovl_set_redirect(new, samedir);
-			if (err)
-				goto out_dput;
-		} else if (!new_opaque && ovl_lower_positive(old)) {
-			err = ovl_set_opaque(newdentry);
-			if (err)
-				goto out_dput;
-			ovl_dentry_set_opaque(new, true);
-		}
+		else if (!new_opaque && ovl_lower_positive(old))
+			err = ovl_set_opaque(new, newdentry);
+		if (err)
+			goto out_dput;
 	}
 
 	err = ovl_do_rename(old_upperdir->d_inode, olddentry,

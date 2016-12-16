@@ -303,12 +303,6 @@ static int ovl_copy_up_locked(struct dentry *workdir, struct dentry *upperdir,
 	ovl_dentry_update(dentry, newdentry);
 	ovl_inode_update(d_inode(dentry), d_inode(newdentry));
 	newdentry = NULL;
-
-	/*
-	 * Non-directores become opaque when copied up.
-	 */
-	if (!S_ISDIR(stat->mode))
-		ovl_dentry_set_opaque(dentry, true);
 out2:
 	dput(upper);
 out1:
