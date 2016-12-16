@@ -30,6 +30,7 @@ available subsections can be seen below.
    miscellaneous
    vme
    80211/index
+   firmware/index
 
 .. only::  subproject and html
 
