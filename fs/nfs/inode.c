@@ -634,12 +634,25 @@ void nfs_setattr_update_inode(struct inode *inode, struct iattr *attr,
 }
 EXPORT_SYMBOL_GPL(nfs_setattr_update_inode);
 
-static void nfs_request_parent_use_readdirplus(struct dentry *dentry)
+static void nfs_readdirplus_parent_cache_miss(struct dentry *dentry)
 {
 	struct dentry *parent;
 
+	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_READDIRPLUS))
+		return;
 	parent = dget_parent(dentry);
 	nfs_force_use_readdirplus(d_inode(parent));
+	dput(parent);
+}
+
+static void nfs_readdirplus_parent_cache_hit(struct dentry *dentry)
+{
+	struct dentry *parent;
+
+	if (!nfs_server_capable(d_inode(dentry), NFS_CAP_READDIRPLUS))
+		return;
+	parent = dget_parent(dentry);
+	nfs_advise_use_readdirplus(d_inode(parent));
 	dput(parent);
 }
 
@@ -683,10 +696,10 @@ int nfs_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
 	if (need_atime || nfs_need_revalidate_inode(inode)) {
 		struct nfs_server *server = NFS_SERVER(inode);
 
-		if (server->caps & NFS_CAP_READDIRPLUS)
-			nfs_request_parent_use_readdirplus(dentry);
+		nfs_readdirplus_parent_cache_miss(dentry);
 		err = __nfs_revalidate_inode(server, inode);
-	}
+	} else
+		nfs_readdirplus_parent_cache_hit(dentry);
 	if (!err) {
 		generic_fillattr(inode, stat);
 		stat->ino = nfs_compat_user_ino64(NFS_FILEID(inode));
@@ -702,8 +715,7 @@ EXPORT_SYMBOL_GPL(nfs_getattr);
 static void nfs_init_lock_context(struct nfs_lock_context *l_ctx)
 {
 	atomic_set(&l_ctx->count, 1);
-	l_ctx->lockowner.l_owner = current->files;
-	l_ctx->lockowner.l_pid = current->tgid;
+	l_ctx->lockowner = current->files;
 	INIT_LIST_HEAD(&l_ctx->list);
 	atomic_set(&l_ctx->io_count, 0);
 }
@@ -714,9 +726,7 @@ static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context 
 	struct nfs_lock_context *pos = head;
 
 	do {
-		if (pos->lockowner.l_owner != current->files)
-			continue;
-		if (pos->lockowner.l_pid != current->tgid)
+		if (pos->lockowner != current->files)
 			continue;
 		atomic_inc(&pos->count);
 		return pos;
@@ -799,7 +809,9 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 }
 EXPORT_SYMBOL_GPL(nfs_close_context);
 
-struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, fmode_t f_mode)
+struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry,
+						fmode_t f_mode,
+						struct file *filp)
 {
 	struct nfs_open_context *ctx;
 	struct rpc_cred *cred = rpc_lookup_cred();
@@ -818,6 +830,7 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, fmode_t f
 	ctx->mode = f_mode;
 	ctx->flags = 0;
 	ctx->error = 0;
+	ctx->flock_owner = (fl_owner_t)filp;
 	nfs_init_lock_context(&ctx->lock_context);
 	ctx->lock_context.open_context = ctx;
 	INIT_LIST_HEAD(&ctx->list);
@@ -942,7 +955,7 @@ int nfs_open(struct inode *inode, struct file *filp)
 {
 	struct nfs_open_context *ctx;
 
-	ctx = alloc_nfs_open_context(file_dentry(filp), filp->f_mode);
+	ctx = alloc_nfs_open_context(file_dentry(filp), filp->f_mode, filp);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 	nfs_file_set_open_context(filp, ctx);
@@ -1099,11 +1112,17 @@ static int nfs_invalidate_mapping(struct inode *inode, struct address_space *map
 	return 0;
 }
 
-static bool nfs_mapping_need_revalidate_inode(struct inode *inode)
+bool nfs_mapping_need_revalidate_inode(struct inode *inode)
 {
-	if (nfs_have_delegated_attributes(inode))
-		return false;
-	return (NFS_I(inode)->cache_validity & NFS_INO_REVAL_PAGECACHE)
+	unsigned long cache_validity = NFS_I(inode)->cache_validity;
+
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ)) {
+		const unsigned long force_reval =
+			NFS_INO_REVAL_PAGECACHE|NFS_INO_REVAL_FORCED;
+		return (cache_validity & force_reval) == force_reval;
+	}
+
+	return (cache_validity & NFS_INO_REVAL_PAGECACHE)
 		|| nfs_attribute_timeout(inode)
 		|| NFS_STALE(inode);
 }
@@ -1317,7 +1336,7 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 		invalid |= NFS_INO_INVALID_ATIME;
 
 	if (invalid != 0)
-		nfs_set_cache_invalid(inode, invalid);
+		nfs_set_cache_invalid(inode, invalid | NFS_INO_REVAL_FORCED);
 
 	nfsi->read_cache_jiffies = fattr->time_start;
 	return 0;
