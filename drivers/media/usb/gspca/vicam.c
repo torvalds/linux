@@ -47,7 +47,6 @@ MODULE_FIRMWARE(VICAM_FIRMWARE);
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 	struct work_struct work_struct;
-	struct workqueue_struct *work_thread;
 };
 
 /* The vicam sensor has a resolution of 512 x 244, with I believe square
@@ -278,9 +277,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	if (ret < 0)
 		return ret;
 
-	/* Start the workqueue function to do the streaming */
-	sd->work_thread = create_singlethread_workqueue(MODULE_NAME);
-	queue_work(sd->work_thread, &sd->work_struct);
+	schedule_work(&sd->work_struct);
 
 	return 0;
 }
@@ -294,8 +291,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	/* wait for the work queue to terminate */
 	mutex_unlock(&gspca_dev->usb_lock);
 	/* This waits for vicam_dostream to finish */
-	destroy_workqueue(dev->work_thread);
-	dev->work_thread = NULL;
+	flush_work(&dev->work_struct);
 	mutex_lock(&gspca_dev->usb_lock);
 
 	if (gspca_dev->present)

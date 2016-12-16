@@ -170,7 +170,6 @@ struct pvr2_hdw {
 	const struct pvr2_device_desc *hdw_desc;
 
 	/* Kernel worker thread handling */
-	struct workqueue_struct *workqueue;
 	struct work_struct workpoll;     /* Update driver state */
 
 	/* Video spigot */

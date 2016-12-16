@@ -124,6 +124,41 @@
 #define USB_RR3USB_PRODUCT_ID	0x0001
 #define USB_RR3IIUSB_PRODUCT_ID	0x0005
 
+
+/*
+ * The redrat3 encodes an IR signal as set of different lengths and a set
+ * of indices into those lengths. This sets how much two lengths must
+ * differ before they are considered distinct, the value is specified
+ * in microseconds.
+ * Default 5, value 0 to 127.
+ */
+static int length_fuzz = 5;
+module_param(length_fuzz, uint, 0644);
+MODULE_PARM_DESC(length_fuzz, "Length Fuzz (0-127)");
+
+/*
+ * When receiving a continuous ir stream (for example when a user is
+ * holding a button down on a remote), this specifies the minimum size
+ * of a space when the redrat3 sends a irdata packet to the host. Specified
+ * in miliseconds. Default value 18ms.
+ * The value can be between 2 and 30 inclusive.
+ */
+static int minimum_pause = 18;
+module_param(minimum_pause, uint, 0644);
+MODULE_PARM_DESC(minimum_pause, "Minimum Pause in ms (2-30)");
+
+/*
+ * The carrier frequency is measured during the first pulse of the IR
+ * signal. The larger the number of periods used To measure, the more
+ * accurate the result is likely to be, however some signals have short
+ * initial pulses, so in some case it may be necessary to reduce this value.
+ * Default 8, value 1 to 255.
+ */
+static int periods_measure_carrier = 8;
+module_param(periods_measure_carrier, uint, 0644);
+MODULE_PARM_DESC(periods_measure_carrier, "Number of Periods to Measure Carrier (1-255)");
+
+
 struct redrat3_header {
 	__be16 length;
 	__be16 transfer_type;
@@ -187,9 +222,6 @@ struct redrat3_dev {
 
 	/* usb dma */
 	dma_addr_t dma_in;
-
-	/* rx signal timeout */
-	u32 hw_timeout;
 
 	/* Is the device currently transmitting?*/
 	bool transmitting;
@@ -372,7 +404,7 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	/* add a trailing space */
 	rawir.pulse = false;
 	rawir.timeout = true;
-	rawir.duration = US_TO_NS(rr3->hw_timeout);
+	rawir.duration = rr3->rc->timeout;
 	dev_dbg(dev, "storing trailing timeout with duration %d\n",
 							rawir.duration);
 	ir_raw_event_store_with_filter(rr3->rc, &rawir);
@@ -480,7 +512,7 @@ static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutns)
 	struct redrat3_dev *rr3 = rc_dev->priv;
 	struct usb_device *udev = rr3->udev;
 	struct device *dev = rr3->dev;
-	u32 *timeout;
+	__be32 *timeout;
 	int ret;
 
 	timeout = kmalloc(sizeof(*timeout), GFP_KERNEL);
@@ -495,10 +527,9 @@ static int redrat3_set_timeout(struct rc_dev *rc_dev, unsigned int timeoutns)
 	dev_dbg(dev, "set ir parm timeout %d ret 0x%02x\n",
 						be32_to_cpu(*timeout), ret);
 
-	if (ret == sizeof(*timeout)) {
-		rr3->hw_timeout = timeoutns / 1000;
+	if (ret == sizeof(*timeout))
 		ret = 0;
-	} else if (ret >= 0)
+	else if (ret >= 0)
 		ret = -EIO;
 
 	kfree(timeout);
@@ -529,11 +560,24 @@ static void redrat3_reset(struct redrat3_dev *rr3)
 			     RR3_CPUCS_REG_ADDR, 0, val, len, HZ * 25);
 	dev_dbg(dev, "reset returned 0x%02x\n", rc);
 
-	*val = 5;
+	*val = length_fuzz;
 	rc = usb_control_msg(udev, txpipe, RR3_SET_IR_PARAM,
 			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			     RR3_IR_IO_LENGTH_FUZZ, 0, val, len, HZ * 25);
 	dev_dbg(dev, "set ir parm len fuzz %d rc 0x%02x\n", *val, rc);
+
+	*val = (65536 - (minimum_pause * 2000)) / 256;
+	rc = usb_control_msg(udev, txpipe, RR3_SET_IR_PARAM,
+			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+			     RR3_IR_IO_MIN_PAUSE, 0, val, len, HZ * 25);
+	dev_dbg(dev, "set ir parm min pause %d rc 0x%02x\n", *val, rc);
+
+	*val = periods_measure_carrier;
+	rc = usb_control_msg(udev, txpipe, RR3_SET_IR_PARAM,
+			     USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+			     RR3_IR_IO_PERIODS_MF, 0, val, len, HZ * 25);
+	dev_dbg(dev, "set ir parm periods measure carrier %d rc 0x%02x", *val,
+									rc);
 
 	*val = RR3_DRIVER_MAXLENS;
 	rc = usb_control_msg(udev, txpipe, RR3_SET_IR_PARAM,
@@ -889,7 +933,7 @@ static struct rc_dev *redrat3_init_rc_dev(struct redrat3_dev *rr3)
 	rc->allowed_protocols = RC_BIT_ALL;
 	rc->min_timeout = MS_TO_NS(RR3_RX_MIN_TIMEOUT);
 	rc->max_timeout = MS_TO_NS(RR3_RX_MAX_TIMEOUT);
-	rc->timeout = US_TO_NS(rr3->hw_timeout);
+	rc->timeout = US_TO_NS(redrat3_get_timeout(rr3));
 	rc->s_timeout = redrat3_set_timeout;
 	rc->tx_ir = redrat3_transmit_ir;
 	rc->s_tx_carrier = redrat3_set_tx_carrier;
@@ -970,10 +1014,8 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 
 	/* set up bulk-in endpoint */
 	rr3->read_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!rr3->read_urb) {
-		dev_err(dev, "Read urb allocation failure\n");
+	if (!rr3->read_urb)
 		goto error;
-	}
 
 	rr3->ep_in = ep_in;
 	rr3->bulk_in_buf = usb_alloc_coherent(udev,
@@ -999,9 +1041,6 @@ static int redrat3_dev_probe(struct usb_interface *intf,
 	retval = redrat3_enable_detector(rr3);
 	if (retval < 0)
 		goto error;
-
-	/* store current hardware timeout, in µs */
-	rr3->hw_timeout = redrat3_get_timeout(rr3);
 
 	/* default.. will get overridden by any sends with a freq defined */
 	rr3->carrier = 38000;

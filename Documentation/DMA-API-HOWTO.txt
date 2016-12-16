@@ -931,10 +931,8 @@ to "Closing".
 
 1) Struct scatterlist requirements.
 
-   Don't invent the architecture specific struct scatterlist; just use
-   <asm-generic/scatterlist.h>. You need to enable
-   CONFIG_NEED_SG_DMA_LENGTH if the architecture supports IOMMUs
-   (including software IOMMU).
+   You need to enable CONFIG_NEED_SG_DMA_LENGTH if the architecture
+   supports IOMMUs (including software IOMMU).
 
 2) ARCH_DMA_MINALIGN
 

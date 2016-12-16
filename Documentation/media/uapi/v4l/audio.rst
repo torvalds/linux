@@ -21,15 +21,15 @@ more than one video input or output. Assumed two composite video inputs
 and two audio inputs exist, there may be up to four valid combinations.
 The relation of video and audio connectors is defined in the
 ``audioset`` field of the respective struct
-:ref:`v4l2_input <v4l2-input>` or struct
-:ref:`v4l2_output <v4l2-output>`, where each bit represents the index
+:c:type:`v4l2_input` or struct
+:c:type:`v4l2_output`, where each bit represents the index
 number, starting at zero, of one audio input or output.
 
 To learn about the number and attributes of the available inputs and
 outputs applications can enumerate them with the
 :ref:`VIDIOC_ENUMAUDIO` and
 :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>` ioctl, respectively.
-The struct :ref:`v4l2_audio <v4l2-audio>` returned by the
+The struct :c:type:`v4l2_audio` returned by the
 :ref:`VIDIOC_ENUMAUDIO` ioctl also contains signal
 :status information applicable when the current audio input is queried.
 
@@ -37,7 +37,9 @@ The :ref:`VIDIOC_G_AUDIO <VIDIOC_G_AUDIO>` and
 :ref:`VIDIOC_G_AUDOUT <VIDIOC_G_AUDOUT>` ioctls report the current
 audio input and output, respectively.
 
-.. note:: Note that, unlike :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
+.. note::
+
+   Note that, unlike :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` and
    :ref:`VIDIOC_G_OUTPUT <VIDIOC_G_OUTPUT>` these ioctls return a
    structure as :ref:`VIDIOC_ENUMAUDIO` and
    :ref:`VIDIOC_ENUMAUDOUT <VIDIOC_ENUMAUDOUT>` do, not just an index.
@@ -51,7 +53,7 @@ Drivers must implement all audio input ioctls when the device has
 multiple selectable audio inputs, all audio output ioctls when the
 device has multiple selectable audio outputs. When the device has any
 audio inputs or outputs the driver must set the ``V4L2_CAP_AUDIO`` flag
-in the struct :ref:`v4l2_capability <v4l2-capability>` returned by
+in the struct :c:type:`v4l2_capability` returned by
 the :ref:`VIDIOC_QUERYCAP` ioctl.
 
 
@@ -89,7 +91,7 @@ Example: Switching to the first audio input
     }
 
 .. [#f1]
-   Actually struct :ref:`v4l2_audio <v4l2-audio>` ought to have a
-   ``tuner`` field like struct :ref:`v4l2_input <v4l2-input>`, not
+   Actually struct :c:type:`v4l2_audio` ought to have a
+   ``tuner`` field like struct :c:type:`v4l2_input`, not
    only making the API more consistent but also permitting radio devices
    with multiple tuners.

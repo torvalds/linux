@@ -15,7 +15,18 @@ VIDIOC_G_EDID - VIDIOC_S_EDID - VIDIOC_SUBDEV_G_EDID - VIDIOC_SUBDEV_S_EDID - Ge
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_edid *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_EDID, struct v4l2_edid *argp )
+    :name: VIDIOC_G_EDID
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_EDID, struct v4l2_edid *argp )
+    :name: VIDIOC_S_EDID
+
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_EDID, struct v4l2_edid *argp )
+    :name: VIDIOC_SUBDEV_G_EDID
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_EDID, struct v4l2_edid *argp )
+    :name: VIDIOC_SUBDEV_S_EDID
 
 
 Arguments
@@ -23,10 +34,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_EDID, VIDIOC_S_EDID, VIDIOC_SUBDEV_G_EDID,
-    VIDIOC_SUBDEV_S_EDID
 
 ``argp``
 
@@ -67,7 +74,9 @@ total number of available EDID blocks and it will return 0 without
 copying any data. This is an easy way to discover how many EDID blocks
 there are.
 
-.. note:: If there are no EDID blocks available at all, then
+.. note::
+
+   If there are no EDID blocks available at all, then
    the driver will set ``blocks`` to 0 and it returns 0.
 
 To set the EDID blocks of a receiver the application has to fill in the
@@ -88,62 +97,39 @@ the EDID data in some way. In any case, the end result is the same: the
 EDID is no longer available.
 
 
-.. _v4l2-edid:
+.. c:type:: v4l2_edid
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_edid
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad for which to get/set the EDID blocks. When used with a video
-	  device node the pad represents the input or output index as
-	  returned by :ref:`VIDIOC_ENUMINPUT` and
-	  :ref:`VIDIOC_ENUMOUTPUT` respectively.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``start_block``
-
-       -  Read the EDID from starting with this block. Must be 0 when
-	  setting the EDID.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``blocks``
-
-       -  The number of blocks to get or set. Must be less or equal to 256
-	  (the maximum number of blocks as defined by the standard). When
-	  you set the EDID and ``blocks`` is 0, then the EDID is disabled or
-	  erased.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved``\ [5]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
-
-    -  .. row 5
-
-       -  __u8 *
-
-       -  ``edid``
-
-       -  Pointer to memory that contains the EDID. The minimum size is
-	  ``blocks`` * 128.
+    * - __u32
+      - ``pad``
+      - Pad for which to get/set the EDID blocks. When used with a video
+	device node the pad represents the input or output index as
+	returned by :ref:`VIDIOC_ENUMINPUT` and
+	:ref:`VIDIOC_ENUMOUTPUT` respectively.
+    * - __u32
+      - ``start_block``
+      - Read the EDID from starting with this block. Must be 0 when
+	setting the EDID.
+    * - __u32
+      - ``blocks``
+      - The number of blocks to get or set. Must be less or equal to 256
+	(the maximum number of blocks as defined by the standard). When
+	you set the EDID and ``blocks`` is 0, then the EDID is disabled or
+	erased.
+    * - __u32
+      - ``reserved``\ [5]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
+    * - __u8 *
+      - ``edid``
+      - Pointer to memory that contains the EDID. The minimum size is
+	``blocks`` * 128.
 
 
 Return Value

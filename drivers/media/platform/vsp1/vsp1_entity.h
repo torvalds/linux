@@ -14,7 +14,7 @@
 #define __VSP1_ENTITY_H__
 
 #include <linux/list.h>
-#include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 #include <media/v4l2-subdev.h>
 
@@ -33,6 +33,18 @@ enum vsp1_entity_type {
 	VSP1_ENTITY_SRU,
 	VSP1_ENTITY_UDS,
 	VSP1_ENTITY_WPF,
+};
+
+/**
+ * enum vsp1_entity_params - Entity configuration parameters class
+ * @VSP1_ENTITY_PARAMS_INIT - Initial parameters
+ * @VSP1_ENTITY_PARAMS_PARTITION - Per-image partition parameters
+ * @VSP1_ENTITY_PARAMS_RUNTIME - Runtime-configurable parameters
+ */
+enum vsp1_entity_params {
+	VSP1_ENTITY_PARAMS_INIT,
+	VSP1_ENTITY_PARAMS_PARTITION,
+	VSP1_ENTITY_PARAMS_RUNTIME,
 };
 
 #define VSP1_ENTITY_MAX_INPUTS		5	/* For the BRU */
@@ -63,17 +75,16 @@ struct vsp1_route {
 /**
  * struct vsp1_entity_operations - Entity operations
  * @destroy:	Destroy the entity.
- * @set_memory:	Setup memory buffer access. This operation applies the settings
- *		stored in the rwpf mem field to the display list. Valid for RPF
- *		and WPF only.
  * @configure:	Setup the hardware based on the entity state (pipeline, formats,
  *		selection rectangles, ...)
+ * @max_width:	Return the max supported width of data that the entity can
+ *		process in a single operation.
  */
 struct vsp1_entity_operations {
 	void (*destroy)(struct vsp1_entity *);
-	void (*set_memory)(struct vsp1_entity *, struct vsp1_dl_list *dl);
 	void (*configure)(struct vsp1_entity *, struct vsp1_pipeline *,
-			  struct vsp1_dl_list *, bool);
+			  struct vsp1_dl_list *, enum vsp1_entity_params);
+	unsigned int (*max_width)(struct vsp1_entity *, struct vsp1_pipeline *);
 };
 
 struct vsp1_entity {
@@ -96,6 +107,8 @@ struct vsp1_entity {
 
 	struct v4l2_subdev subdev;
 	struct v4l2_subdev_pad_config *config;
+
+	struct mutex lock;	/* Protects the pad config */
 };
 
 static inline struct vsp1_entity *to_vsp1_entity(struct v4l2_subdev *subdev)

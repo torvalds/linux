@@ -538,14 +538,20 @@ static int rj54n1_commit(struct i2c_client *client)
 static int rj54n1_sensor_scale(struct v4l2_subdev *sd, s32 *in_w, s32 *in_h,
 			       s32 *out_w, s32 *out_h);
 
-static int rj54n1_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
+static int rj54n1_set_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
-	const struct v4l2_rect *rect = &a->c;
+	const struct v4l2_rect *rect = &sel->r;
 	int dummy = 0, output_w, output_h,
 		input_w = rect->width, input_h = rect->height;
 	int ret;
+
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
+	    sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
 	/* arbitrary minimum width and height, edges unimportant */
 	soc_camera_limit_side(&dummy, &input_w,
@@ -573,29 +579,30 @@ static int rj54n1_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
 	return 0;
 }
 
-static int rj54n1_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int rj54n1_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 
-	a->c	= rj54n1->rect;
-	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
-}
-
-static int rj54n1_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	a->bounds.left			= RJ54N1_COLUMN_SKIP;
-	a->bounds.top			= RJ54N1_ROW_SKIP;
-	a->bounds.width			= RJ54N1_MAX_WIDTH;
-	a->bounds.height		= RJ54N1_MAX_HEIGHT;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.left = RJ54N1_COLUMN_SKIP;
+		sel->r.top = RJ54N1_ROW_SKIP;
+		sel->r.width = RJ54N1_MAX_WIDTH;
+		sel->r.height = RJ54N1_MAX_HEIGHT;
+		return 0;
+	case V4L2_SEL_TGT_CROP:
+		sel->r = rj54n1->rect;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int rj54n1_get_fmt(struct v4l2_subdev *sd,
@@ -1246,15 +1253,14 @@ static int rj54n1_s_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops rj54n1_subdev_video_ops = {
 	.s_stream	= rj54n1_s_stream,
-	.g_crop		= rj54n1_g_crop,
-	.s_crop		= rj54n1_s_crop,
-	.cropcap	= rj54n1_cropcap,
 	.g_mbus_config	= rj54n1_g_mbus_config,
 	.s_mbus_config	= rj54n1_s_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops rj54n1_subdev_pad_ops = {
 	.enum_mbus_code = rj54n1_enum_mbus_code,
+	.get_selection	= rj54n1_get_selection,
+	.set_selection	= rj54n1_set_selection,
 	.get_fmt	= rj54n1_get_fmt,
 	.set_fmt	= rj54n1_set_fmt,
 };

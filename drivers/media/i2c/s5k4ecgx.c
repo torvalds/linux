@@ -1019,7 +1019,6 @@ MODULE_DEVICE_TABLE(i2c, s5k4ecgx_id);
 
 static struct i2c_driver v4l2_i2c_driver = {
 	.driver = {
-		.owner	= THIS_MODULE,
 		.name = S5K4ECGX_DRIVER_NAME,
 	},
 	.probe = s5k4ecgx_probe,

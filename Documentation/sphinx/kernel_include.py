@@ -39,11 +39,18 @@ from docutils.parsers.rst import directives
 from docutils.parsers.rst.directives.body import CodeBlock, NumberLines
 from docutils.parsers.rst.directives.misc import Include
 
+__version__  = '1.0'
+
 # ==============================================================================
 def setup(app):
 # ==============================================================================
 
     app.add_directive("kernel-include", KernelInclude)
+    return dict(
+        version = __version__,
+        parallel_read_safe = True,
+        parallel_write_safe = True
+    )
 
 # ==============================================================================
 class KernelInclude(Include):

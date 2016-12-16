@@ -363,7 +363,7 @@ static int mt2032_set_params(struct dvb_frontend *fe,
 	return ret;
 }
 
-static struct dvb_tuner_ops mt2032_tuner_ops = {
+static const struct dvb_tuner_ops mt2032_tuner_ops = {
 	.set_analog_params = mt2032_set_params,
 	.release           = microtune_release,
 	.get_frequency     = microtune_get_frequency,
@@ -563,7 +563,7 @@ static int mt2050_set_params(struct dvb_frontend *fe,
 	return ret;
 }
 
-static struct dvb_tuner_ops mt2050_tuner_ops = {
+static const struct dvb_tuner_ops mt2050_tuner_ops = {
 	.set_analog_params = mt2050_set_params,
 	.release           = microtune_release,
 	.get_frequency     = microtune_get_frequency,

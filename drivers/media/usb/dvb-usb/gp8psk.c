@@ -24,6 +24,10 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info,xfer=2,rc=4 (or-able))." DV
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+struct gp8psk_state {
+	unsigned char data[80];
+};
+
 static int gp8psk_get_fw_version(struct dvb_usb_device *d, u8 *fw_vers)
 {
 	return (gp8psk_usb_in_op(d, GET_FW_VERS, 0, 0, fw_vers, 6));
@@ -53,17 +57,22 @@ static void gp8psk_info(struct dvb_usb_device *d)
 
 int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 *b, int blen)
 {
+	struct gp8psk_state *st = d->priv;
 	int ret = 0,try = 0;
+
+	if (blen > sizeof(st->data))
+		return -EIO;
 
 	if ((ret = mutex_lock_interruptible(&d->usb_mutex)))
 		return ret;
 
 	while (ret >= 0 && ret != blen && try < 3) {
+		memcpy(st->data, b, blen);
 		ret = usb_control_msg(d->udev,
 			usb_rcvctrlpipe(d->udev,0),
 			req,
 			USB_TYPE_VENDOR | USB_DIR_IN,
-			value,index,b,blen,
+			value, index, st->data, blen,
 			2000);
 		deb_info("reading number %d (ret: %d)\n",try,ret);
 		try++;
@@ -86,19 +95,24 @@ int gp8psk_usb_in_op(struct dvb_usb_device *d, u8 req, u16 value, u16 index, u8 
 int gp8psk_usb_out_op(struct dvb_usb_device *d, u8 req, u16 value,
 			     u16 index, u8 *b, int blen)
 {
+	struct gp8psk_state *st = d->priv;
 	int ret;
 
 	deb_xfer("out: req. %x, val: %x, ind: %x, buffer: ",req,value,index);
 	debug_dump(b,blen,deb_xfer);
 
+	if (blen > sizeof(st->data))
+		return -EIO;
+
 	if ((ret = mutex_lock_interruptible(&d->usb_mutex)))
 		return ret;
 
+	memcpy(st->data, b, blen);
 	if (usb_control_msg(d->udev,
 			usb_sndctrlpipe(d->udev,0),
 			req,
 			USB_TYPE_VENDOR | USB_DIR_OUT,
-			value,index,b,blen,
+			value, index, st->data, blen,
 			2000) != blen) {
 		warn("usb out operation failed.");
 		ret = -EIO;
@@ -143,6 +157,11 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 			err("failed to load bcm4500 firmware.");
 			goto out_free;
 		}
+		if (buflen > 64) {
+			err("firmare chunk size bigger than 64 bytes.");
+			goto out_free;
+		}
+
 		memcpy(buf, ptr, buflen);
 		if (dvb_usb_generic_write(d, buf, buflen)) {
 			err("failed to load bcm4500 firmware.");
@@ -264,6 +283,8 @@ MODULE_DEVICE_TABLE(usb, gp8psk_usb_table);
 static struct dvb_usb_device_properties gp8psk_properties = {
 	.usb_ctrl = CYPRESS_FX2,
 	.firmware = "dvb-usb-gp8psk-01.fw",
+
+	.size_of_priv = sizeof(struct gp8psk_state),
 
 	.num_adapters = 1,
 	.adapter = {

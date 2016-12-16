@@ -15,9 +15,11 @@ VIDIOC_SUBDEV_G_CROP - VIDIOC_SUBDEV_S_CROP - Get or set the crop rectangle on a
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_subdev_crop *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_CROP, struct v4l2_subdev_crop *argp )
+    :name: VIDIOC_SUBDEV_G_CROP
 
-.. cpp:function:: int ioctl( int fd, int request, const struct v4l2_subdev_crop *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_CROP, const struct v4l2_subdev_crop *argp )
+    :name: VIDIOC_SUBDEV_S_CROP
 
 
 Arguments
@@ -25,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_SUBDEV_G_CROP, VIDIOC_SUBDEV_S_CROP
 
 ``argp``
 
@@ -42,7 +41,7 @@ Description
     :ref:`the selection API <VIDIOC_SUBDEV_G_SELECTION>`.
 
 To retrieve the current crop rectangle applications set the ``pad``
-field of a struct :ref:`v4l2_subdev_crop <v4l2-subdev-crop>` to the
+field of a struct :c:type:`v4l2_subdev_crop` to the
 desired pad number as reported by the media API and the ``which`` field
 to ``V4L2_SUBDEV_FORMAT_ACTIVE``. They then call the
 ``VIDIOC_SUBDEV_G_CROP`` ioctl with a pointer to this structure. The
@@ -55,7 +54,7 @@ and ``which`` fields and all members of the ``rect`` field. They then
 call the ``VIDIOC_SUBDEV_S_CROP`` ioctl with a pointer to this
 structure. The driver verifies the requested crop rectangle, adjusts it
 based on the hardware capabilities and configures the device. Upon
-return the struct :ref:`v4l2_subdev_crop <v4l2-subdev-crop>`
+return the struct :c:type:`v4l2_subdev_crop`
 contains the current format as would be returned by a
 ``VIDIOC_SUBDEV_G_CROP`` call.
 
@@ -72,47 +71,29 @@ modify the rectangle to match what the hardware can provide. The
 modified format should be as close as possible to the original request.
 
 
-.. _v4l2-subdev-crop:
+.. c:type:: v4l2_subdev_crop
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_subdev_crop
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pad``
-
-       -  Pad number as reported by the media framework.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``which``
-
-       -  Crop rectangle to get or set, from enum
-	  :ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
-
-    -  .. row 3
-
-       -  struct :ref:`v4l2_rect <v4l2-rect>`
-
-       -  ``rect``
-
-       -  Crop rectangle boundaries, in pixels.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``reserved``\ [8]
-
-       -  Reserved for future extensions. Applications and drivers must set
-	  the array to zero.
+    * - __u32
+      - ``pad``
+      - Pad number as reported by the media framework.
+    * - __u32
+      - ``which``
+      - Crop rectangle to get or set, from enum
+	:ref:`v4l2_subdev_format_whence <v4l2-subdev-format-whence>`.
+    * - struct :c:type:`v4l2_rect`
+      - ``rect``
+      - Crop rectangle boundaries, in pixels.
+    * - __u32
+      - ``reserved``\ [8]
+      - Reserved for future extensions. Applications and drivers must set
+	the array to zero.
 
 
 Return Value
@@ -130,7 +111,7 @@ EBUSY
     ``VIDIOC_SUBDEV_S_CROP``
 
 EINVAL
-    The struct :ref:`v4l2_subdev_crop <v4l2-subdev-crop>` ``pad``
+    The struct :c:type:`v4l2_subdev_crop` ``pad``
     references a non-existing pad, the ``which`` field references a
     non-existing format, or cropping is not supported on the given
     subdev pad.

@@ -160,11 +160,8 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	int err;
 
 	/* Check for valid input */
-	if (v4l2_dev == NULL || sd == NULL || !sd->name[0])
+	if (!v4l2_dev || !sd || sd->v4l2_dev || !sd->name[0])
 		return -EINVAL;
-
-	/* Warn if we apparently re-register a subdev */
-	WARN_ON(sd->v4l2_dev != NULL);
 
 	/*
 	 * The reason to acquire the module here is to avoid unloading

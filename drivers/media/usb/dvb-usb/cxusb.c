@@ -45,9 +45,6 @@
 #include "si2168.h"
 #include "si2157.h"
 
-/* Max transfer size done by I2C transfer functions */
-#define MAX_XFER_SIZE  80
-
 /* debug */
 static int dvb_usb_cxusb_debug;
 module_param_named(debug, dvb_usb_cxusb_debug, int, 0644);
@@ -61,23 +58,27 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static int cxusb_ctrl_msg(struct dvb_usb_device *d,
 			  u8 cmd, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
-	int wo = (rbuf == NULL || rlen == 0); /* write-only */
-	u8 sndbuf[MAX_XFER_SIZE];
+	struct cxusb_state *st = d->priv;
+	int ret, wo;
 
-	if (1 + wlen > sizeof(sndbuf)) {
-		warn("i2c wr: len=%d is too big!\n",
-		     wlen);
+	if (1 + wlen > MAX_XFER_SIZE) {
+		warn("i2c wr: len=%d is too big!\n", wlen);
 		return -EOPNOTSUPP;
 	}
 
-	memset(sndbuf, 0, 1+wlen);
+	wo = (rbuf == NULL || rlen == 0); /* write-only */
 
-	sndbuf[0] = cmd;
-	memcpy(&sndbuf[1], wbuf, wlen);
+	mutex_lock(&st->data_mutex);
+	st->data[0] = cmd;
+	memcpy(&st->data[1], wbuf, wlen);
 	if (wo)
-		return dvb_usb_generic_write(d, sndbuf, 1+wlen);
+		ret = dvb_usb_generic_write(d, st->data, 1 + wlen);
 	else
-		return dvb_usb_generic_rw(d, sndbuf, 1+wlen, rbuf, rlen, 0);
+		ret = dvb_usb_generic_rw(d, st->data, 1 + wlen,
+					 rbuf, rlen, 0);
+
+	mutex_unlock(&st->data_mutex);
+	return ret;
 }
 
 /* GPIO */
@@ -1460,36 +1461,43 @@ static struct dvb_usb_device_properties cxusb_mygica_t230_properties;
 static int cxusb_probe(struct usb_interface *intf,
 		       const struct usb_device_id *id)
 {
+	struct dvb_usb_device *d;
+	struct cxusb_state *st;
+
 	if (0 == dvb_usb_device_init(intf, &cxusb_medion_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_lgh064f_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_dee1601_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_lgz201_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_dtt7579_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_dualdig4_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_bluebird_nano2_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf,
 				&cxusb_bluebird_nano2_needsfirmware_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_aver_a868r_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf,
 				     &cxusb_bluebird_dualdig4_rev2_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_d680_dmb_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_mygica_d689_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
+				     THIS_MODULE, &d, adapter_nr) ||
 	    0 == dvb_usb_device_init(intf, &cxusb_mygica_t230_properties,
-				     THIS_MODULE, NULL, adapter_nr) ||
-	    0)
+				     THIS_MODULE, &d, adapter_nr) ||
+	    0) {
+		st = d->priv;
+		mutex_init(&st->data_mutex);
+
 		return 0;
+	}
 
 	return -EINVAL;
 }

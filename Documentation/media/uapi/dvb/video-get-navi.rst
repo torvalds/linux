@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_NAVI
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_GET_NAVI , video_navi_pack_t *navipack)
+.. c:function:: int ioctl(fd, VIDEO_GET_NAVI , struct video_navi_pack *navipack)
+    :name: VIDEO_GET_NAVI
 
 
 Arguments
@@ -52,6 +54,14 @@ This ioctl returns navigational information from the DVD stream. This is
 especially needed if an encoded stream has to be decoded by the
 hardware.
 
+.. c:type:: video_navi_pack
+
+.. code-block::c
+
+	typedef struct video_navi_pack {
+		int length;          /* 0 ... 1024 */
+		__u8 data[1024];
+	} video_navi_pack_t;
 
 Return Value
 ------------

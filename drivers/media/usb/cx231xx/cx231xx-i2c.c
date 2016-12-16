@@ -454,7 +454,7 @@ static u32 functionality(struct i2c_adapter *adap)
 	return I2C_FUNC_SMBUS_EMUL | I2C_FUNC_I2C;
 }
 
-static struct i2c_algorithm cx231xx_algo = {
+static const struct i2c_algorithm cx231xx_algo = {
 	.master_xfer = cx231xx_i2c_xfer,
 	.functionality = functionality,
 };
@@ -608,7 +608,7 @@ struct i2c_adapter *cx231xx_get_i2c_adap(struct cx231xx *dev, int i2c_port)
 	case I2C_1_MUX_3:
 		return dev->muxc->adapter[1];
 	default:
-		return NULL;
+		BUG();
 	}
 }
 EXPORT_SYMBOL_GPL(cx231xx_get_i2c_adap);

@@ -928,29 +928,25 @@ static int ov2640_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov2640_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int ov2640_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
-	a->c.left	= 0;
-	a->c.top	= 0;
-	a->c.width	= UXGA_WIDTH;
-	a->c.height	= UXGA_HEIGHT;
-	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
-}
-
-static int ov2640_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= UXGA_WIDTH;
-	a->bounds.height		= UXGA_HEIGHT;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = UXGA_WIDTH;
+		sel->r.height = UXGA_HEIGHT;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int ov2640_video_probe(struct i2c_client *client)
@@ -1024,13 +1020,12 @@ static int ov2640_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops ov2640_subdev_video_ops = {
 	.s_stream	= ov2640_s_stream,
-	.cropcap	= ov2640_cropcap,
-	.g_crop		= ov2640_g_crop,
 	.g_mbus_config	= ov2640_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov2640_subdev_pad_ops = {
 	.enum_mbus_code = ov2640_enum_mbus_code,
+	.get_selection	= ov2640_get_selection,
 	.get_fmt	= ov2640_get_fmt,
 	.set_fmt	= ov2640_set_fmt,
 };

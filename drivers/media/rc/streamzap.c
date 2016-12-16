@@ -499,7 +499,7 @@ static int streamzap_resume(struct usb_interface *intf)
 	struct streamzap_ir *sz = usb_get_intfdata(intf);
 
 	if (usb_submit_urb(sz->urb_in, GFP_ATOMIC)) {
-		dev_err(sz->dev, "Error sumbiting urb\n");
+		dev_err(sz->dev, "Error submitting urb\n");
 		return -EIO;
 	}
 

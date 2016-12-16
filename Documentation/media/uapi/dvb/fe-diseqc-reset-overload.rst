@@ -15,7 +15,8 @@ FE_DISEQC_RESET_OVERLOAD - Restores the power to the antenna subsystem, if it wa
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, NULL )
+.. c:function:: int ioctl( int fd, FE_DISEQC_RESET_OVERLOAD, NULL )
+    :name: FE_DISEQC_RESET_OVERLOAD
 
 
 Arguments
@@ -23,10 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <frontend_f_open>`.
-
-``request``
-    FE_DISEQC_RESET_OVERLOAD
-
 
 Description
 ===========
