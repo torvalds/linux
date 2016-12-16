@@ -176,6 +176,35 @@ void ovl_dentry_set_opaque(struct dentry *dentry, bool opaque)
 	oe->opaque = opaque;
 }
 
+bool ovl_redirect_dir(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	return ofs->config.redirect_dir;
+}
+
+void ovl_clear_redirect_dir(struct super_block *sb)
+{
+	struct ovl_fs *ofs = sb->s_fs_info;
+
+	ofs->config.redirect_dir = false;
+}
+
+const char *ovl_dentry_get_redirect(struct dentry *dentry)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	return oe->redirect;
+}
+
+void ovl_dentry_set_redirect(struct dentry *dentry, const char *redirect)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	kfree(oe->redirect);
+	oe->redirect = redirect;
+}
+
 void ovl_dentry_update(struct dentry *dentry, struct dentry *upperdentry)
 {
 	struct ovl_entry *oe = dentry->d_fsdata;

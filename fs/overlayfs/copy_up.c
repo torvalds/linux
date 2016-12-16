@@ -324,17 +324,11 @@ out_cleanup:
 /*
  * Copy up a single dentry
  *
- * Directory renames only allowed on "pure upper" (already created on
- * upper filesystem, never copied up).  Directories which are on lower or
- * are merged may not be renamed.  For these -EXDEV is returned and
- * userspace has to deal with it.  This means, when copying up a
- * directory we can rely on it and ancestors being stable.
- *
- * Non-directory renames start with copy up of source if necessary.  The
- * actual rename will only proceed once the copy up was successful.  Copy
- * up uses upper parent i_mutex for exclusion.  Since rename can change
- * d_parent it is possible that the copy up will lock the old parent.  At
- * that point the file will have already been copied up anyway.
+ * All renames start with copy up of source if necessary.  The actual
+ * rename will only proceed once the copy up was successful.  Copy up uses
+ * upper parent i_mutex for exclusion.  Since rename can change d_parent it
+ * is possible that the copy up will lock the old parent.  At that point
+ * the file will have already been copied up anyway.
  */
 int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		    struct path *lowerpath, struct kstat *stat)
@@ -346,7 +340,6 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	struct path parentpath;
 	struct dentry *lowerdentry = lowerpath->dentry;
 	struct dentry *upperdir;
-	struct dentry *upperdentry;
 	const char *link = NULL;
 
 	if (WARN_ON(!workdir))
@@ -372,8 +365,7 @@ int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 		pr_err("overlayfs: failed to lock workdir+upperdir\n");
 		goto out_unlock;
 	}
-	upperdentry = ovl_dentry_upper(dentry);
-	if (upperdentry) {
+	if (ovl_dentry_upper(dentry)) {
 		/* Raced with another copy-up?  Nothing to do, then... */
 		err = 0;
 		goto out_unlock;

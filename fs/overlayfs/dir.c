@@ -15,6 +15,7 @@
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/atomic.h>
+#include <linux/ratelimit.h>
 #include "overlayfs.h"
 
 void ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
@@ -757,6 +758,104 @@ static bool ovl_type_merge_or_lower(struct dentry *dentry)
 	return OVL_TYPE_MERGE(type) || !OVL_TYPE_UPPER(type);
 }
 
+static bool ovl_can_move(struct dentry *dentry)
+{
+	return ovl_redirect_dir(dentry->d_sb) ||
+		!d_is_dir(dentry) || !ovl_type_merge_or_lower(dentry);
+}
+
+#define OVL_REDIRECT_MAX 256
+
+static char *ovl_get_redirect(struct dentry *dentry, bool samedir)
+{
+	char *buf, *ret;
+	struct dentry *d, *tmp;
+	int buflen = OVL_REDIRECT_MAX + 1;
+
+	if (samedir) {
+		ret = kstrndup(dentry->d_name.name, dentry->d_name.len,
+			       GFP_KERNEL);
+		goto out;
+	}
+
+	buf = ret = kmalloc(buflen, GFP_TEMPORARY);
+	if (!buf)
+		goto out;
+
+	buflen--;
+	buf[buflen] = '\0';
+	for (d = dget(dentry); !IS_ROOT(d);) {
+		const char *name;
+		int thislen;
+
+		spin_lock(&d->d_lock);
+		name = ovl_dentry_get_redirect(d);
+		if (name) {
+			thislen = strlen(name);
+		} else {
+			name = d->d_name.name;
+			thislen = d->d_name.len;
+		}
+
+		/* If path is too long, fall back to userspace move */
+		if (thislen + (name[0] != '/') > buflen) {
+			ret = ERR_PTR(-EXDEV);
+			spin_unlock(&d->d_lock);
+			goto out_put;
+		}
+
+		buflen -= thislen;
+		memcpy(&buf[buflen], name, thislen);
+		tmp = dget_dlock(d->d_parent);
+		spin_unlock(&d->d_lock);
+
+		dput(d);
+		d = tmp;
+
+		/* Absolute redirect: finished */
+		if (buf[buflen] == '/')
+			break;
+		buflen--;
+		buf[buflen] = '/';
+	}
+	ret = kstrdup(&buf[buflen], GFP_KERNEL);
+out_put:
+	dput(d);
+	kfree(buf);
+out:
+	return ret ? ret : ERR_PTR(-ENOMEM);
+}
+
+static int ovl_set_redirect(struct dentry *dentry, bool samedir)
+{
+	int err;
+	const char *redirect = ovl_dentry_get_redirect(dentry);
+
+	if (redirect && (samedir || redirect[0] == '/'))
+		return 0;
+
+	redirect = ovl_get_redirect(dentry, samedir);
+	if (IS_ERR(redirect))
+		return PTR_ERR(redirect);
+
+	err = ovl_do_setxattr(ovl_dentry_upper(dentry), OVL_XATTR_REDIRECT,
+			      redirect, strlen(redirect), 0);
+	if (!err) {
+		spin_lock(&dentry->d_lock);
+		ovl_dentry_set_redirect(dentry, redirect);
+		spin_unlock(&dentry->d_lock);
+	} else {
+		kfree(redirect);
+		if (err == -EOPNOTSUPP)
+			ovl_clear_redirect_dir(dentry->d_sb);
+		else
+			pr_warn_ratelimited("overlay: failed to set redirect (%i)\n", err);
+		/* Fall back to userspace copy-up */
+		err = -EXDEV;
+	}
+	return err;
+}
+
 static int ovl_rename(struct inode *olddir, struct dentry *old,
 		      struct inode *newdir, struct dentry *new,
 		      unsigned int flags)
@@ -773,6 +872,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	bool overwrite = !(flags & RENAME_EXCHANGE);
 	bool is_dir = d_is_dir(old);
 	bool new_is_dir = d_is_dir(new);
+	bool samedir = olddir == newdir;
 	struct dentry *opaquedir = NULL;
 	const struct cred *old_cred = NULL;
 
@@ -784,9 +884,9 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 
 	/* Don't copy up directory trees */
 	err = -EXDEV;
-	if (is_dir && ovl_type_merge_or_lower(old))
+	if (!ovl_can_move(old))
 		goto out;
-	if (!overwrite && new_is_dir && ovl_type_merge_or_lower(new))
+	if (!overwrite && !ovl_can_move(new))
 		goto out;
 
 	err = ovl_want_write(old);
@@ -837,7 +937,6 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 
 	trap = lock_rename(new_upperdir, old_upperdir);
 
-
 	olddentry = lookup_one_len(old->d_name.name, old_upperdir,
 				   old->d_name.len);
 	err = PTR_ERR(olddentry);
@@ -880,18 +979,29 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (WARN_ON(olddentry->d_inode == newdentry->d_inode))
 		goto out_dput;
 
-	if (is_dir && !old_opaque && ovl_lower_positive(new)) {
-		err = ovl_set_opaque(olddentry);
-		if (err)
-			goto out_dput;
-		ovl_dentry_set_opaque(old, true);
+	if (is_dir) {
+		if (ovl_type_merge_or_lower(old)) {
+			err = ovl_set_redirect(old, samedir);
+			if (err)
+				goto out_dput;
+		} else if (!old_opaque && ovl_lower_positive(new)) {
+			err = ovl_set_opaque(olddentry);
+			if (err)
+				goto out_dput;
+			ovl_dentry_set_opaque(old, true);
+		}
 	}
-	if (!overwrite &&
-	    new_is_dir && !new_opaque && ovl_lower_positive(old)) {
-		err = ovl_set_opaque(newdentry);
-		if (err)
-			goto out_dput;
-		ovl_dentry_set_opaque(new, true);
+	if (!overwrite && new_is_dir) {
+		if (ovl_type_merge_or_lower(new)) {
+			err = ovl_set_redirect(new, samedir);
+			if (err)
+				goto out_dput;
+		} else if (!new_opaque && ovl_lower_positive(old)) {
+			err = ovl_set_opaque(newdentry);
+			if (err)
+				goto out_dput;
+			ovl_dentry_set_opaque(new, true);
+		}
 	}
 
 	err = ovl_do_rename(old_upperdir->d_inode, olddentry,
