@@ -1538,9 +1538,7 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (len == 0)
 		return 0;
 
-	ret = mnt_want_write_file(file_out);
-	if (ret)
-		return ret;
+	sb_start_write(inode_out->i_sb);
 
 	ret = -EOPNOTSUPP;
 	if (file_out->f_op->copy_file_range)
@@ -1559,7 +1557,7 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	inc_syscr(current);
 	inc_syscw(current);
 
-	mnt_drop_write_file(file_out);
+	sb_end_write(inode_out->i_sb);
 
 	return ret;
 }
@@ -1657,14 +1655,18 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 	struct inode *inode_out = file_inode(file_out);
 	int ret;
 
-	if (inode_in->i_sb != inode_out->i_sb ||
-	    file_in->f_path.mnt != file_out->f_path.mnt)
-		return -EXDEV;
-
 	if (S_ISDIR(inode_in->i_mode) || S_ISDIR(inode_out->i_mode))
 		return -EISDIR;
 	if (!S_ISREG(inode_in->i_mode) || !S_ISREG(inode_out->i_mode))
 		return -EINVAL;
+
+	/*
+	 * FICLONE/FICLONERANGE ioctls enforce that src and dest files are on
+	 * the same mount. Practically, they only need to be on the same file
+	 * system.
+	 */
+	if (inode_in->i_sb != inode_out->i_sb)
+		return -EXDEV;
 
 	if (!(file_in->f_mode & FMODE_READ) ||
 	    !(file_out->f_mode & FMODE_WRITE) ||
@@ -1685,10 +1687,6 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 	if (pos_in + len > i_size_read(inode_in))
 		return -EINVAL;
 
-	ret = mnt_want_write_file(file_out);
-	if (ret)
-		return ret;
-
 	ret = file_in->f_op->clone_file_range(file_in, pos_in,
 			file_out, pos_out, len);
 	if (!ret) {
@@ -1696,7 +1694,6 @@ int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 		fsnotify_modify(file_out);
 	}
 
-	mnt_drop_write_file(file_out);
 	return ret;
 }
 EXPORT_SYMBOL(vfs_clone_file_range);
