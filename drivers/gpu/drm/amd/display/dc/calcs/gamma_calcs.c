@@ -387,6 +387,49 @@ static bool build_hw_curve_configuration(
 	return result;
 }
 
+static bool setup_distribution_points_pq(
+		struct gamma_curve *arr_curve_points,
+		struct curve_points *arr_points,
+		uint32_t *hw_points_num,
+		struct hw_x_point *coordinates_x,
+		enum surface_pixel_format format)
+{
+	struct curve_config cfg;
+
+	cfg.offset = 0;
+	cfg.segments[0] = 2;
+	cfg.segments[1] = 2;
+	cfg.segments[2] = 2;
+	cfg.segments[3] = 2;
+	cfg.segments[4] = 2;
+	cfg.segments[5] = 2;
+	cfg.segments[6] = 3;
+	cfg.segments[7] = 4;
+	cfg.segments[8] = 4;
+	cfg.segments[9] = 4;
+	cfg.segments[10] = 4;
+	cfg.segments[11] = 5;
+	cfg.segments[12] = 5;
+	cfg.segments[13] = 5;
+	cfg.segments[14] = 5;
+	cfg.segments[15] = 5;
+
+	if (format == SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616F ||
+			format == SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F)
+		cfg.begin = -11;
+	else
+		cfg.begin = -16;
+
+	if (!build_hw_curve_configuration(
+		&cfg, arr_curve_points,
+		arr_points,
+		coordinates_x, hw_points_num)) {
+		ASSERT_CRITICAL(false);
+		return false;
+	}
+	return true;
+}
+
 static bool setup_distribution_points(
 		struct gamma_curve *arr_curve_points,
 		struct curve_points *arr_points,
@@ -1414,15 +1457,17 @@ bool calculate_regamma_params(struct pwl_params *params,
 
 	scale_gamma(rgb_user, ramp, dividers);
 
-	setup_distribution_points(arr_curve_points, arr_points,
-			&params->hw_points_num, coordinates_x);
-
 	if (stream->public.out_transfer_func &&
 		stream->public.out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
+		setup_distribution_points_pq(arr_curve_points, arr_points,
+				&params->hw_points_num, coordinates_x,
+				surface->public.format);
 		build_regamma_curve_pq(rgb_regamma, rgb_oem, coeff128_oem,
 				ramp, surface, params->hw_points_num,
 				coordinates_x, axix_x_256, dividers);
 	} else {
+		setup_distribution_points(arr_curve_points, arr_points,
+				&params->hw_points_num, coordinates_x);
 		build_regamma_curve(rgb_regamma, rgb_oem, coeff128_oem,
 				ramp, surface, params->hw_points_num,
 				coordinates_x, axix_x_256, dividers);
