@@ -379,7 +379,8 @@ static void bxt_dsi_device_ready(struct intel_encoder *encoder)
 		val &= ~ULPS_STATE_MASK;
 		val |= (ULPS_STATE_ENTER | DEVICE_READY);
 		I915_WRITE(MIPI_DEVICE_READY(port), val);
-		usleep_range(2, 3);
+		/* at least 2us - relaxed for hrtimer subsystem optimization */
+		usleep_range(10, 50);
 
 		/* 3. Exit ULPS */
 		val = I915_READ(MIPI_DEVICE_READY(port));
