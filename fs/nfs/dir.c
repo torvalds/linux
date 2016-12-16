@@ -2286,8 +2286,7 @@ static int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, str
 		if (cache == NULL)
 			goto out;
 		/* Found an entry, is our attribute cache valid? */
-		if (!nfs_attribute_cache_expired(inode) &&
-		    !(nfsi->cache_validity & NFS_INO_INVALID_ATTR))
+		if (!nfs_check_cache_invalid(inode, NFS_INO_INVALID_ACCESS))
 			break;
 		err = -ECHILD;
 		if (!may_block)
@@ -2335,12 +2334,12 @@ static int nfs_access_get_cached_rcu(struct inode *inode, struct rpc_cred *cred,
 		cache = NULL;
 	if (cache == NULL)
 		goto out;
-	err = nfs_revalidate_inode_rcu(NFS_SERVER(inode), inode);
-	if (err)
+	if (nfs_check_cache_invalid(inode, NFS_INO_INVALID_ACCESS))
 		goto out;
 	res->jiffies = cache->jiffies;
 	res->cred = cache->cred;
 	res->mask = cache->mask;
+	err = 0;
 out:
 	rcu_read_unlock();
 	return err;
@@ -2492,12 +2491,13 @@ EXPORT_SYMBOL_GPL(nfs_may_open);
 static int nfs_execute_ok(struct inode *inode, int mask)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	int ret;
+	int ret = 0;
 
-	if (mask & MAY_NOT_BLOCK)
-		ret = nfs_revalidate_inode_rcu(server, inode);
-	else
-		ret = nfs_revalidate_inode(server, inode);
+	if (nfs_check_cache_invalid(inode, NFS_INO_INVALID_ACCESS)) {
+		if (mask & MAY_NOT_BLOCK)
+			return -ECHILD;
+		ret = __nfs_revalidate_inode(server, inode);
+	}
 	if (ret == 0 && !execute_ok(inode))
 		ret = -EACCES;
 	return ret;
