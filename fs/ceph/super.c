@@ -795,7 +795,6 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 			root = ERR_PTR(-ENOMEM);
 			goto out;
 		}
-		ceph_init_dentry(root);
 		dout("open_root_inode success, root dentry is %p\n", root);
 	} else {
 		root = ERR_PTR(err);
@@ -879,6 +878,7 @@ static int ceph_set_super(struct super_block *s, void *data)
 	fsc->sb = s;
 
 	s->s_op = &ceph_super_ops;
+	s->s_d_op = &ceph_dentry_ops;
 	s->s_export_op = &ceph_export_ops;
 
 	s->s_time_gran = 1000;  /* 1000 ns == 1 us */
