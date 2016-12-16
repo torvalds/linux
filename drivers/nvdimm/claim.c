@@ -22,9 +22,8 @@ void __nd_detach_ndns(struct device *dev, struct nd_namespace_common **_ndns)
 {
 	struct nd_namespace_common *ndns = *_ndns;
 
-	dev_WARN_ONCE(dev, !mutex_is_locked(&ndns->dev.mutex)
-			|| ndns->claim != dev,
-			"%s: invalid claim\n", __func__);
+	lockdep_assert_held(&ndns->dev.mutex);
+	dev_WARN_ONCE(dev, ndns->claim != dev, "%s: invalid claim\n", __func__);
 	ndns->claim = NULL;
 	*_ndns = NULL;
 	put_device(&ndns->dev);
@@ -49,9 +48,8 @@ bool __nd_attach_ndns(struct device *dev, struct nd_namespace_common *attach,
 {
 	if (attach->claim)
 		return false;
-	dev_WARN_ONCE(dev, !mutex_is_locked(&attach->dev.mutex)
-			|| *_ndns,
-			"%s: invalid claim\n", __func__);
+	lockdep_assert_held(&attach->dev.mutex);
+	dev_WARN_ONCE(dev, *_ndns, "%s: invalid claim\n", __func__);
 	attach->claim = dev;
 	*_ndns = attach;
 	get_device(&attach->dev);
