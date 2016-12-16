@@ -70,6 +70,10 @@
 	};
 };
 
+&can0 {
+	status = "okay";
+};
+
 &gmac1 {
 	status = "okay";
 	phy-mode = "rgmii";
