@@ -14,6 +14,7 @@
 
 #include <linux/radix-tree.h>
 #include <linux/gfp.h>
+#include <linux/percpu.h>
 
 struct idr {
 	struct radix_tree_root	idr_rt;
@@ -171,9 +172,10 @@ struct ida_bitmap {
 	unsigned long		bitmap[IDA_BITMAP_LONGS];
 };
 
+DECLARE_PER_CPU(struct ida_bitmap *, ida_bitmap);
+
 struct ida {
 	struct radix_tree_root	ida_rt;
-	struct ida_bitmap	*free_bitmap;
 };
 
 #define IDA_INIT	{						\
@@ -193,7 +195,6 @@ void ida_simple_remove(struct ida *ida, unsigned int id);
 static inline void ida_init(struct ida *ida)
 {
 	INIT_RADIX_TREE(&ida->ida_rt, IDR_RT_MARKER | GFP_NOWAIT);
-	ida->free_bitmap = NULL;
 }
 
 /**

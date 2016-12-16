@@ -4,6 +4,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+DEFINE_PER_CPU(struct ida_bitmap *, ida_bitmap);
 static DEFINE_SPINLOCK(simple_ida_lock);
 
 /**
@@ -193,38 +194,6 @@ EXPORT_SYMBOL(idr_replace);
  * limitation, it should be quite straightforward to raise the maximum.
  */
 
-/**
- * ida_pre_get - reserve resources for ida allocation
- * @ida: ida handle
- * @gfp: memory allocation flags
- *
- * This function should be called before calling ida_get_new_above().  If it
- * is unable to allocate memory, it will return %0.  On success, it returns %1.
- */
-int ida_pre_get(struct ida *ida, gfp_t gfp)
-{
-	struct ida_bitmap *bitmap;
-
-	/*
-	 * This looks weird, but the IDA API has no preload_end() equivalent.
-	 * Instead, ida_get_new() can return -EAGAIN, prompting the caller
-	 * to return to the ida_pre_get() step.
-	 */
-	idr_preload(gfp);
-	idr_preload_end();
-
-	if (!ida->free_bitmap) {
-		bitmap = kmalloc(sizeof(struct ida_bitmap), gfp);
-		if (!bitmap)
-			return 0;
-		bitmap = xchg(&ida->free_bitmap, bitmap);
-		kfree(bitmap);
-	}
-
-	return 1;
-}
-EXPORT_SYMBOL(ida_pre_get);
-
 #define IDA_MAX (0x80000000U / IDA_BITMAP_BITS)
 
 /**
@@ -292,10 +261,9 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 			new += bit;
 			if (new < 0)
 				return -ENOSPC;
-			bitmap = ida->free_bitmap;
+			bitmap = this_cpu_xchg(ida_bitmap, NULL);
 			if (!bitmap)
 				return -EAGAIN;
-			ida->free_bitmap = NULL;
 			memset(bitmap, 0, sizeof(*bitmap));
 			__set_bit(bit, bitmap->bitmap);
 			radix_tree_iter_replace(root, &iter, slot, bitmap);
@@ -361,9 +329,6 @@ void ida_destroy(struct ida *ida)
 		kfree(bitmap);
 		radix_tree_iter_delete(&ida->ida_rt, &iter, slot);
 	}
-
-	kfree(ida->free_bitmap);
-	ida->free_bitmap = NULL;
 }
 EXPORT_SYMBOL(ida_destroy);
 
