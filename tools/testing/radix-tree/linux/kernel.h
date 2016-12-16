@@ -7,8 +7,10 @@
 #include <stddef.h>
 #include <limits.h>
 
-#include "../../include/linux/compiler.h"
-#include "../../include/linux/err.h"
+#include <linux/compiler.h>
+#include <linux/err.h>
+#include <linux/bitops.h>
+#include <linux/log2.h>
 #include "../../../include/linux/kconfig.h"
 
 #ifdef BENCHMARK
