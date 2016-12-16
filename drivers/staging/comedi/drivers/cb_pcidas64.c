@@ -238,7 +238,7 @@ enum daq_atrig_low_4020_contents {
 	EXT_START_TRIG_BNC_BIT = 0x2000,
 };
 
-static inline uint16_t analog_trig_low_threshold_bits(uint16_t threshold)
+static inline u16 analog_trig_low_threshold_bits(u16 threshold)
 {
 	return threshold & 0xfff;
 }
@@ -280,17 +280,17 @@ enum adc_control1_contents {
 	ADC_MODE_MASK = 0xf000,
 };
 
-static inline uint16_t adc_lo_chan_4020_bits(unsigned int channel)
+static inline u16 adc_lo_chan_4020_bits(unsigned int channel)
 {
 	return (channel & 0x3) << 8;
 };
 
-static inline uint16_t adc_hi_chan_4020_bits(unsigned int channel)
+static inline u16 adc_hi_chan_4020_bits(unsigned int channel)
 {
 	return (channel & 0x3) << 10;
 };
 
-static inline uint16_t adc_mode_bits(unsigned int mode)
+static inline u16 adc_mode_bits(unsigned int mode)
 {
 	return (mode & 0xf) << 12;
 };
@@ -318,12 +318,12 @@ enum calibration_contents {
  *  7 : dac channel 1
  */
 
-static inline uint16_t adc_src_bits(unsigned int source)
+static inline u16 adc_src_bits(unsigned int source)
 {
 	return (source & 0xf) << 3;
 };
 
-static inline uint16_t adc_convert_chan_4020_bits(unsigned int channel)
+static inline u16 adc_convert_chan_4020_bits(unsigned int channel)
 {
 	return (channel & 0x3) << 8;
 };
@@ -337,7 +337,7 @@ enum adc_queue_load_contents {
 	QUEUE_EOSCAN_BIT = 0x8000,	/* queue end of scan */
 };
 
-static inline uint16_t adc_chan_bits(unsigned int channel)
+static inline u16 adc_chan_bits(unsigned int channel)
 {
 	return channel & 0x3f;
 };
@@ -384,22 +384,22 @@ enum hw_status_contents {
 	ADC_STOP_BIT = 0x200,
 };
 
-static inline uint16_t pipe_full_bits(uint16_t hw_status_bits)
+static inline u16 pipe_full_bits(u16 hw_status_bits)
 {
 	return (hw_status_bits >> 10) & 0x3;
 };
 
-static inline unsigned int dma_chain_flag_bits(uint16_t prepost_bits)
+static inline unsigned int dma_chain_flag_bits(u16 prepost_bits)
 {
 	return (prepost_bits >> 6) & 0x3;
 }
 
-static inline unsigned int adc_upper_read_ptr_code(uint16_t prepost_bits)
+static inline unsigned int adc_upper_read_ptr_code(u16 prepost_bits)
 {
 	return (prepost_bits >> 12) & 0x3;
 }
 
-static inline unsigned int adc_upper_write_ptr_code(uint16_t prepost_bits)
+static inline unsigned int adc_upper_write_ptr_code(u16 prepost_bits)
 {
 	return (prepost_bits >> 14) & 0x3;
 }
@@ -594,7 +594,7 @@ struct hw_fifo_info {
 	unsigned int num_segments;
 	unsigned int max_segment_length;
 	unsigned int sample_packing_ratio;
-	uint16_t fifo_size_reg_mask;
+	u16 fifo_size_reg_mask;
 };
 
 enum pcidas64_boardid {
@@ -1135,7 +1135,7 @@ struct pcidas64_private {
 	uint32_t local0_iobase;
 	uint32_t local1_iobase;
 	/* dma buffers for analog input */
-	uint16_t *ai_buffer[MAX_AI_DMA_RING_COUNT];
+	u16 *ai_buffer[MAX_AI_DMA_RING_COUNT];
 	/* physical addresses of ai dma buffers */
 	dma_addr_t ai_buffer_bus_addr[MAX_AI_DMA_RING_COUNT];
 	/*
@@ -1151,7 +1151,7 @@ struct pcidas64_private {
 	 */
 	unsigned int ai_dma_index;
 	/* dma buffers for analog output */
-	uint16_t *ao_buffer[AO_DMA_RING_COUNT];
+	u16 *ao_buffer[AO_DMA_RING_COUNT];
 	/* physical addresses of ao dma buffers */
 	dma_addr_t ao_buffer_bus_addr[AO_DMA_RING_COUNT];
 	struct plx_dma_desc *ao_dma_desc;
@@ -1162,12 +1162,12 @@ struct pcidas64_private {
 	/* last bits sent to INTR_ENABLE_REG register */
 	unsigned int intr_enable_bits;
 	/* last bits sent to ADC_CONTROL1_REG register */
-	uint16_t adc_control1_bits;
+	u16 adc_control1_bits;
 	/* last bits sent to FIFO_SIZE_REG register */
-	uint16_t fifo_size_bits;
+	u16 fifo_size_bits;
 	/* last bits sent to HW_CONFIG_REG register */
-	uint16_t hw_config_bits;
-	uint16_t dac_control1_bits;
+	u16 hw_config_bits;
+	u16 dac_control1_bits;
 	/* last bits written to plx9080 control register */
 	uint32_t plx_control_bits;
 	/* last bits written to plx interrupt control and status register */
@@ -1193,7 +1193,7 @@ static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
 }
 
 static unsigned int hw_revision(const struct comedi_device *dev,
-				uint16_t hw_status_bits)
+				u16 hw_status_bits)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 
@@ -1204,7 +1204,7 @@ static unsigned int hw_revision(const struct comedi_device *dev,
 }
 
 static void set_dac_range_bits(struct comedi_device *dev,
-			       uint16_t *bits, unsigned int channel,
+			       u16 *bits, unsigned int channel,
 			       unsigned int range)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
@@ -1378,7 +1378,7 @@ static int set_ai_fifo_segment_length(struct comedi_device *dev,
 	static const int increment_size = 0x100;
 	const struct hw_fifo_info *const fifo = board->ai_fifo;
 	unsigned int num_increments;
-	uint16_t bits;
+	u16 bits;
 
 	if (num_entries < increment_size)
 		num_entries = increment_size;
@@ -1437,7 +1437,7 @@ static void init_stc_registers(struct comedi_device *dev)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
-	uint16_t bits;
+	u16 bits;
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
@@ -2273,8 +2273,8 @@ static inline unsigned int dma_transfer_size(struct comedi_device *dev)
 
 	num_samples = devpriv->ai_fifo_segment_length *
 		      board->ai_fifo->sample_packing_ratio;
-	if (num_samples > DMA_BUFFER_SIZE / sizeof(uint16_t))
-		num_samples = DMA_BUFFER_SIZE / sizeof(uint16_t);
+	if (num_samples > DMA_BUFFER_SIZE / sizeof(u16))
+		num_samples = DMA_BUFFER_SIZE / sizeof(u16);
 
 	return num_samples;
 }
@@ -2634,7 +2634,7 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		for (i = 0; i < ai_dma_ring_count(board); i++)
 			devpriv->ai_dma_desc[i].transfer_size =
 				cpu_to_le32(dma_transfer_size(dev) *
-					    sizeof(uint16_t));
+					    sizeof(u16));
 
 		/* give location of first dma descriptor */
 		load_first_dma_descriptor(dev, 1,
@@ -2691,7 +2691,7 @@ static void pio_drain_ai_fifo_16(struct comedi_device *dev)
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int i;
-	uint16_t prepost_bits;
+	u16 prepost_bits;
 	int read_segment, read_index, write_segment, write_index;
 	int num_samples;
 
@@ -3180,7 +3180,7 @@ static void set_dac_select_reg(struct comedi_device *dev,
 			       const struct comedi_cmd *cmd)
 {
 	struct pcidas64_private *devpriv = dev->private;
-	uint16_t bits;
+	u16 bits;
 	unsigned int first_channel, last_channel;
 
 	first_channel = CR_CHAN(cmd->chanlist[0]);
@@ -3708,7 +3708,7 @@ static int cb_pcidas64_ad8402_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static uint16_t read_eeprom(struct comedi_device *dev, u8 address)
+static u16 read_eeprom(struct comedi_device *dev, u8 address)
 {
 	struct pcidas64_private *devpriv = dev->private;
 	static const int bitstream_length = 11;
@@ -3717,7 +3717,7 @@ static uint16_t read_eeprom(struct comedi_device *dev, u8 address)
 	unsigned int bit;
 	void __iomem * const plx_control_addr =
 		devpriv->plx9080_iobase + PLX_REG_CNTRL;
-	uint16_t value;
+	u16 value;
 	static const int value_length = 16;
 	static const int eeprom_udelay = 1;
 
