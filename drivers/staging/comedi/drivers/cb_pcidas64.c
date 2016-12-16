@@ -1132,8 +1132,8 @@ struct pcidas64_private {
 	void __iomem *plx9080_iobase;
 	void __iomem *main_iobase;
 	/* local address (used by dma controller) */
-	uint32_t local0_iobase;
-	uint32_t local1_iobase;
+	u32 local0_iobase;
+	u32 local1_iobase;
 	/* dma buffers for analog input */
 	u16 *ai_buffer[MAX_AI_DMA_RING_COUNT];
 	/* physical addresses of ai dma buffers */
@@ -1169,9 +1169,9 @@ struct pcidas64_private {
 	u16 hw_config_bits;
 	u16 dac_control1_bits;
 	/* last bits written to plx9080 control register */
-	uint32_t plx_control_bits;
+	u32 plx_control_bits;
 	/* last bits written to plx interrupt control and status register */
-	uint32_t plx_intcsr_bits;
+	u32 plx_intcsr_bits;
 	/* index of calibration source readable through ai ch0 */
 	int calibration_source;
 	/* bits written to i2c calibration/range register */
@@ -1266,7 +1266,7 @@ static void enable_ai_interrupts(struct comedi_device *dev,
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
-	uint32_t bits;
+	u32 bits;
 	unsigned long flags;
 
 	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT |
@@ -1292,7 +1292,7 @@ static void init_plx9080(struct comedi_device *dev)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
-	uint32_t bits;
+	u32 bits;
 	void __iomem *plx_iobase = devpriv->plx9080_iobase;
 
 	devpriv->plx_control_bits =
@@ -2279,17 +2279,17 @@ static inline unsigned int dma_transfer_size(struct comedi_device *dev)
 	return num_samples;
 }
 
-static uint32_t ai_convert_counter_6xxx(const struct comedi_device *dev,
+static u32 ai_convert_counter_6xxx(const struct comedi_device *dev,
 					const struct comedi_cmd *cmd)
 {
 	/* supposed to load counter with desired divisor minus 3 */
 	return cmd->convert_arg / TIMER_BASE - 3;
 }
 
-static uint32_t ai_scan_counter_6xxx(struct comedi_device *dev,
+static u32 ai_scan_counter_6xxx(struct comedi_device *dev,
 				     struct comedi_cmd *cmd)
 {
-	uint32_t count;
+	u32 count;
 
 	/* figure out how long we need to delay at end of scan */
 	switch (cmd->scan_begin_src) {
@@ -2307,7 +2307,7 @@ static uint32_t ai_scan_counter_6xxx(struct comedi_device *dev,
 	return count - 3;
 }
 
-static uint32_t ai_convert_counter_4020(struct comedi_device *dev,
+static u32 ai_convert_counter_4020(struct comedi_device *dev,
 					struct comedi_cmd *cmd)
 {
 	struct pcidas64_private *devpriv = dev->private;
@@ -2382,7 +2382,7 @@ static void set_ai_pacing(struct comedi_device *dev, struct comedi_cmd *cmd)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
-	uint32_t convert_counter = 0, scan_counter = 0;
+	u32 convert_counter = 0, scan_counter = 0;
 
 	check_adc_timing(dev, cmd);
 
@@ -2572,7 +2572,7 @@ static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_async *async = s->async;
 	struct comedi_cmd *cmd = &async->cmd;
-	uint32_t bits;
+	u32 bits;
 	unsigned int i;
 	unsigned long flags;
 	int retval;
@@ -2754,7 +2754,7 @@ static void pio_drain_ai_fifo_32(struct comedi_device *dev)
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int nsamples;
 	unsigned int i;
-	uint32_t fifo_data;
+	u32 fifo_data;
 	int write_code =
 		readw(devpriv->main_iobase + ADC_WRITE_PNTR_REG) & 0x7fff;
 	int read_code =
@@ -2794,7 +2794,7 @@ static void drain_dma_buffers(struct comedi_device *dev, unsigned int channel)
 	const struct pcidas64_board *board = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
-	uint32_t next_transfer_addr;
+	u32 next_transfer_addr;
 	int j;
 	int num_samples = 0;
 	void __iomem *pci_addr_reg;
@@ -3056,8 +3056,8 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	struct comedi_device *dev = d;
 	struct pcidas64_private *devpriv = dev->private;
 	unsigned short status;
-	uint32_t plx_status;
-	uint32_t plx_bits;
+	u32 plx_status;
+	u32 plx_bits;
 
 	plx_status = readl(devpriv->plx9080_iobase + PLX_REG_INTCSR);
 	status = readw(devpriv->main_iobase + HW_STATUS_REG);
@@ -3975,7 +3975,7 @@ static int auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct pcidas64_board *board = NULL;
 	struct pcidas64_private *devpriv;
-	uint32_t local_range, local_decode;
+	u32 local_range, local_decode;
 	int retval;
 
 	if (context < ARRAY_SIZE(pcidas64_boards))
@@ -4013,13 +4013,13 @@ static int auto_attach(struct comedi_device *dev,
 		      PLX_LASRR_MEM_MASK;
 	local_decode = readl(devpriv->plx9080_iobase + PLX_REG_LAS0BA) &
 		       local_range & PLX_LASBA_MEM_MASK;
-	devpriv->local0_iobase = ((uint32_t)devpriv->main_phys_iobase &
+	devpriv->local0_iobase = ((u32)devpriv->main_phys_iobase &
 				  ~local_range) | local_decode;
 	local_range = readl(devpriv->plx9080_iobase + PLX_REG_LAS1RR) &
 		      PLX_LASRR_MEM_MASK;
 	local_decode = readl(devpriv->plx9080_iobase + PLX_REG_LAS1BA) &
 		       local_range & PLX_LASBA_MEM_MASK;
-	devpriv->local1_iobase = ((uint32_t)devpriv->dio_counter_phys_iobase &
+	devpriv->local1_iobase = ((u32)devpriv->dio_counter_phys_iobase &
 				  ~local_range) | local_decode;
 
 	retval = alloc_and_init_dma_members(dev);
