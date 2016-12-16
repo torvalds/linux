@@ -51,9 +51,11 @@ static int test_icmp(char *str, int len)
 	struct lkl_pollfd pfd;
 	char buf[32];
 
+	str += snprintf(str, len, "%s ", dst);
+
 	sock = lkl_sys_socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if (sock < 0) {
-		snprintf(str, len, "socket error (%s)", strerror(errno));
+		snprintf(str, len, "socket error (%s)", lkl_strerror(sock));
 		return TEST_FAILURE;
 	}
 
@@ -73,7 +75,7 @@ static int test_icmp(char *str, int len)
 			     (struct lkl_sockaddr*)&saddr,
 			     sizeof(saddr));
 	if (ret < 0) {
-		snprintf(str, len, "sendto error (%s)", strerror(errno));
+		snprintf(str, len, "sendto error (%s)", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
@@ -85,13 +87,13 @@ static int test_icmp(char *str, int len)
 
 	ret = lkl_sys_poll(&pfd, 1, 1000);
 	if (ret < 0) {
-		snprintf(str, len, "poll error (%s)", strerror(errno));
+		snprintf(str, len, "poll error (%s)", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
 	ret = lkl_sys_recv(sock, buf, sizeof(buf), MSG_DONTWAIT);
 	if (ret < 0) {
-		snprintf(str, len, "recv error (%s)", strerror(errno));
+		snprintf(str, len, "recv error (%s)", lkl_strerror(ret));
 		return TEST_FAILURE;
 	}
 
@@ -105,7 +107,6 @@ static int test_icmp(char *str, int len)
 		return TEST_FAILURE;
 	}
 
-	snprintf(str, len, "echo reply %s", dst);
 	return TEST_SUCCESS;
 }
 
@@ -118,7 +119,7 @@ static int test_net_init(int argc, char **argv)
 	struct lkl_netdev *nd = NULL;
 	char boot_cmdline[256] = "\0";
 
-	if (argc < 3) {
+	if (argc < 4) {
 		printf("usage %s <iftype: tap|dpdk|raw> <ifname> <dstaddr> <v4addr>|dhcp <v4mask> [gateway]\n", argv[0]);
 		exit(0);
 	}
