@@ -21,7 +21,7 @@ struct ovl_fs {
 	unsigned numlower;
 	struct vfsmount **lower_mnt;
 	struct dentry *workdir;
-	long lower_namelen;
+	long namelen;
 	/* pathnames of lower and upper dirs, for show_options */
 	struct ovl_config config;
 	/* creds of process who forced instantiation of super block */

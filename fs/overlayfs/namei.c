@@ -20,7 +20,8 @@ static struct dentry *ovl_lookup_real(struct dentry *dir,
 
 	dentry = lookup_one_len_unlocked(name->name, dir, name->len);
 	if (IS_ERR(dentry)) {
-		if (PTR_ERR(dentry) == -ENOENT)
+		if (PTR_ERR(dentry) == -ENOENT ||
+		    PTR_ERR(dentry) == -ENAMETOOLONG)
 			dentry = NULL;
 	} else if (!dentry->d_inode) {
 		dput(dentry);
@@ -74,6 +75,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct ovl_entry *oe;
 	const struct cred *old_cred;
+	struct ovl_fs *ofs = dentry->d_sb->s_fs_info;
 	struct ovl_entry *poe = dentry->d_parent->d_fsdata;
 	struct path *stack = NULL;
 	struct dentry *upperdir, *upperdentry = NULL;
@@ -85,6 +87,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	struct dentry *this;
 	unsigned int i;
 	int err;
+
+	if (dentry->d_name.len > ofs->namelen)
+		return ERR_PTR(-ENAMETOOLONG);
 
 	old_cred = ovl_override_creds(dentry->d_sb);
 	upperdir = ovl_upperdentry_dereference(poe);
@@ -127,14 +132,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 
 		this = ovl_lookup_real(lowerpath.dentry, &dentry->d_name);
 		err = PTR_ERR(this);
-		if (IS_ERR(this)) {
-			/*
-			 * If it's positive, then treat ENAMETOOLONG as ENOENT.
-			 */
-			if (err == -ENAMETOOLONG && (upperdentry || ctr))
-				continue;
+		if (IS_ERR(this))
 			goto out_put;
-		}
+
 		if (!this)
 			continue;
 		if (ovl_is_whiteout(this)) {

@@ -174,7 +174,7 @@ static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	err = vfs_statfs(&path, buf);
 	if (!err) {
-		buf->f_namelen = max(buf->f_namelen, ofs->lower_namelen);
+		buf->f_namelen = ofs->namelen;
 		buf->f_type = OVERLAYFS_SUPER_MAGIC;
 	}
 
@@ -461,22 +461,33 @@ static int ovl_mount_dir(const char *name, struct path *path)
 	return err;
 }
 
-static int ovl_lower_dir(const char *name, struct path *path, long *namelen,
-			 int *stack_depth, bool *remote)
+static int ovl_check_namelen(struct path *path, struct ovl_fs *ofs,
+			     const char *name)
+{
+	struct kstatfs statfs;
+	int err = vfs_statfs(path, &statfs);
+
+	if (err)
+		pr_err("overlayfs: statfs failed on '%s'\n", name);
+	else
+		ofs->namelen = max(ofs->namelen, statfs.f_namelen);
+
+	return err;
+}
+
+static int ovl_lower_dir(const char *name, struct path *path,
+			 struct ovl_fs *ofs, int *stack_depth, bool *remote)
 {
 	int err;
-	struct kstatfs statfs;
 
 	err = ovl_mount_dir_noesc(name, path);
 	if (err)
 		goto out;
 
-	err = vfs_statfs(path, &statfs);
-	if (err) {
-		pr_err("overlayfs: statfs failed on '%s'\n", name);
+	err = ovl_check_namelen(path, ofs, name);
+	if (err)
 		goto out_put;
-	}
-	*namelen = max(*namelen, statfs.f_namelen);
+
 	*stack_depth = max(*stack_depth, path->mnt->mnt_sb->s_stack_depth);
 
 	if (ovl_dentry_remote(path->dentry))
@@ -708,6 +719,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			goto out_put_upperpath;
 		}
 
+		err = ovl_check_namelen(&upperpath, ufs, ufs->config.upperdir);
+		if (err)
+			goto out_put_upperpath;
+
 		err = ovl_mount_dir(ufs->config.workdir, &workpath);
 		if (err)
 			goto out_put_upperpath;
@@ -745,9 +760,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	lower = lowertmp;
 	for (numlower = 0; numlower < stacklen; numlower++) {
-		err = ovl_lower_dir(lower, &stack[numlower],
-				    &ufs->lower_namelen, &sb->s_stack_depth,
-				    &remote);
+		err = ovl_lower_dir(lower, &stack[numlower], ufs,
+				    &sb->s_stack_depth, &remote);
 		if (err)
 			goto out_put_lowerpath;
 
