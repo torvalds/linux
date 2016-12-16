@@ -183,7 +183,7 @@ vcodec_ion_map_iommu(struct vcodec_iommu_session_info *session_info, int idx,
 				    ion_buffer->handle, iova, size);
 	else
 		ret = ion_phys(ion_info->ion_client, ion_buffer->handle,
-			       iova, size);
+			       iova, (size_t *)size);
 
 	return ret;
 }
