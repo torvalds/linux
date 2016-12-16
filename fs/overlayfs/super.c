@@ -429,7 +429,6 @@ static inline struct dentry *ovl_lookup_real(struct dentry *dir,
 	struct dentry *dentry;
 
 	dentry = lookup_one_len_unlocked(name->name, dir, name->len);
-
 	if (IS_ERR(dentry)) {
 		if (PTR_ERR(dentry) == -ENOENT)
 			dentry = NULL;
@@ -611,6 +610,59 @@ out_put_upper:
 out:
 	revert_creds(old_cred);
 	return ERR_PTR(err);
+}
+
+bool ovl_lower_positive(struct dentry *dentry)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+	struct ovl_entry *poe = dentry->d_parent->d_fsdata;
+	const struct qstr *name = &dentry->d_name;
+	unsigned int i;
+	bool positive = false;
+	bool done = false;
+
+	/*
+	 * If dentry is negative, then lower is positive iff this is a
+	 * whiteout.
+	 */
+	if (!dentry->d_inode)
+		return oe->opaque;
+
+	/* Negative upper -> positive lower */
+	if (!oe->__upperdentry)
+		return true;
+
+	/* Positive upper -> have to look up lower to see whether it exists */
+	for (i = 0; !done && !positive && i < poe->numlower; i++) {
+		struct dentry *this;
+		struct dentry *lowerdir = poe->lowerstack[i].dentry;
+
+		this = lookup_one_len_unlocked(name->name, lowerdir,
+					       name->len);
+		if (IS_ERR(this)) {
+			switch (PTR_ERR(this)) {
+			case -ENOENT:
+			case -ENAMETOOLONG:
+				break;
+
+			default:
+				/*
+				 * Assume something is there, we just couldn't
+				 * access it.
+				 */
+				positive = true;
+				break;
+			}
+		} else {
+			if (this->d_inode) {
+				positive = !ovl_is_whiteout(this);
+				done = true;
+			}
+			dput(this);
+		}
+	}
+
+	return positive;
 }
 
 struct file *ovl_path_open(struct path *path, int flags)
