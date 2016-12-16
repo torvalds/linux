@@ -179,6 +179,8 @@ static inline u64 drm_mm_hole_node_end(struct drm_mm_node *hole_node)
 	return __drm_mm_hole_node_end(hole_node);
 }
 
+#define __drm_mm_nodes(mm) (&(mm)->head_node.node_list)
+
 /**
  * drm_mm_for_each_node - iterator to walk over all allocated nodes
  * @entry: drm_mm_node structure to assign to in each iteration step
@@ -187,9 +189,20 @@ static inline u64 drm_mm_hole_node_end(struct drm_mm_node *hole_node)
  * This iterator walks over all nodes in the range allocator. It is implemented
  * with list_for_each, so not save against removal of elements.
  */
-#define drm_mm_for_each_node(entry, mm) list_for_each_entry(entry, \
-						&(mm)->head_node.node_list, \
-						node_list)
+#define drm_mm_for_each_node(entry, mm) \
+	list_for_each_entry(entry, __drm_mm_nodes(mm), node_list)
+
+/**
+ * drm_mm_for_each_node_safe - iterator to walk over all allocated nodes
+ * @entry: drm_mm_node structure to assign to in each iteration step
+ * @next: drm_mm_node structure to store the next step
+ * @mm: drm_mm allocator to walk
+ *
+ * This iterator walks over all nodes in the range allocator. It is implemented
+ * with list_for_each_safe, so save against removal of elements.
+ */
+#define drm_mm_for_each_node_safe(entry, next, mm) \
+	list_for_each_entry_safe(entry, next, __drm_mm_nodes(mm), node_list)
 
 #define __drm_mm_for_each_hole(entry, mm, hole_start, hole_end, backwards) \
 	for (entry = list_entry((backwards) ? (mm)->hole_stack.prev : (mm)->hole_stack.next, struct drm_mm_node, hole_stack); \
