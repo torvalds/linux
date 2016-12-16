@@ -94,9 +94,17 @@ Generic Error Codes
        -  Permission denied. Can be returned if the device needs write
 	  permission, or some special capabilities is needed (e. g. root)
 
+    -  .. row 11
+
+       -  ``EIO``
+
+       -  I/O error. Typically used when there are problems communicating with
+          a hardware device. This could indicate broken or flaky hardware.
+	  It's a 'Something is wrong, I give up!' type of error.
+
 .. note::
 
-  #. This list is not exaustive; ioctls may return other error codes.
+  #. This list is not exhaustive; ioctls may return other error codes.
      Since errors may have side effects such as a driver reset,
      applications should abort on unexpected errors, or otherwise
      assume that the device is in a bad state.
