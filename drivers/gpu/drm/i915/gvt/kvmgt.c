@@ -500,7 +500,16 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 		goto undo_iommu;
 	}
 
-	return kvmgt_guest_init(mdev);
+	ret = kvmgt_guest_init(mdev);
+	if (ret)
+		goto undo_group;
+
+	atomic_set(&vgpu->vdev.released, 0);
+	return ret;
+
+undo_group:
+	vfio_unregister_notifier(&mdev->dev, VFIO_GROUP_NOTIFY,
+					&vgpu->vdev.group_notifier);
 
 undo_iommu:
 	vfio_unregister_notifier(&mdev->dev, VFIO_IOMMU_NOTIFY,
@@ -512,17 +521,26 @@ out:
 static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 {
 	struct kvmgt_guest_info *info;
+	int ret;
 
 	if (!handle_valid(vgpu->handle))
 		return;
 
-	vfio_unregister_notifier(&vgpu->vdev.mdev->dev, VFIO_IOMMU_NOTIFY,
+	if (atomic_cmpxchg(&vgpu->vdev.released, 0, 1))
+		return;
+
+	ret = vfio_unregister_notifier(&vgpu->vdev.mdev->dev, VFIO_IOMMU_NOTIFY,
 					&vgpu->vdev.iommu_notifier);
-	vfio_unregister_notifier(&vgpu->vdev.mdev->dev, VFIO_GROUP_NOTIFY,
+	WARN(ret, "vfio_unregister_notifier for iommu failed: %d\n", ret);
+
+	ret = vfio_unregister_notifier(&vgpu->vdev.mdev->dev, VFIO_GROUP_NOTIFY,
 					&vgpu->vdev.group_notifier);
+	WARN(ret, "vfio_unregister_notifier for group failed: %d\n", ret);
 
 	info = (struct kvmgt_guest_info *)vgpu->handle;
 	kvmgt_guest_exit(info);
+
+	vgpu->vdev.kvm = NULL;
 	vgpu->handle = 0;
 }
 
