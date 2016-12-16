@@ -3957,33 +3957,34 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_get_nr_mmu_pages(kvm);
 		break;
 	case KVM_CREATE_IRQCHIP: {
-		struct kvm_pic *vpic;
-
 		mutex_lock(&kvm->lock);
+
 		r = -EEXIST;
 		if (irqchip_in_kernel(kvm))
 			goto create_irqchip_unlock;
+
 		r = -EINVAL;
 		if (kvm->created_vcpus)
 			goto create_irqchip_unlock;
-		r = -ENOMEM;
-		vpic = kvm_create_pic(kvm);
-		if (vpic) {
-			r = kvm_ioapic_init(kvm);
-			if (r) {
-				mutex_lock(&kvm->slots_lock);
-				kvm_destroy_pic(vpic);
-				mutex_unlock(&kvm->slots_lock);
-				goto create_irqchip_unlock;
-			}
-		} else
+
+		r = kvm_pic_init(kvm);
+		if (r)
 			goto create_irqchip_unlock;
+
+		r = kvm_ioapic_init(kvm);
+		if (r) {
+			mutex_lock(&kvm->slots_lock);
+			kvm_pic_destroy(kvm);
+			mutex_unlock(&kvm->slots_lock);
+			goto create_irqchip_unlock;
+		}
+
 		r = kvm_setup_default_irq_routing(kvm);
 		if (r) {
 			mutex_lock(&kvm->slots_lock);
 			mutex_lock(&kvm->irq_lock);
 			kvm_ioapic_destroy(kvm);
-			kvm_destroy_pic(vpic);
+			kvm_pic_destroy(kvm);
 			mutex_unlock(&kvm->irq_lock);
 			mutex_unlock(&kvm->slots_lock);
 			goto create_irqchip_unlock;
@@ -3991,7 +3992,6 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		/* Write kvm->irq_routing before enabling irqchip_in_kernel. */
 		smp_wmb();
 		kvm->arch.irqchip_mode = KVM_IRQCHIP_KERNEL;
-		kvm->arch.vpic = vpic;
 	create_irqchip_unlock:
 		mutex_unlock(&kvm->lock);
 		break;
