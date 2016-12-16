@@ -10,9 +10,7 @@
 #ifndef FS_LOGFS_LOGFS_H
 #define FS_LOGFS_LOGFS_H
 
-#undef __CHECK_ENDIAN__
-#define __CHECK_ENDIAN__
-
+#include <linux/types.h>
 #include <linux/btree.h>
 #include <linux/crc32.h>
 #include <linux/fs.h>
