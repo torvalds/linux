@@ -5,7 +5,6 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include <linux/mempool.h>
 #include <linux/poison.h>
 #include <linux/slab.h>
 #include <linux/radix-tree.h>
@@ -21,27 +20,6 @@ struct kmem_cache {
 	void *objs;
 	void (*ctor)(void *);
 };
-
-void *mempool_alloc(mempool_t *pool, int gfp_mask)
-{
-	return pool->alloc(gfp_mask, pool->data);
-}
-
-void mempool_free(void *element, mempool_t *pool)
-{
-	pool->free(element, pool->data);
-}
-
-mempool_t *mempool_create(int min_nr, mempool_alloc_t *alloc_fn,
-			mempool_free_t *free_fn, void *pool_data)
-{
-	mempool_t *ret = malloc(sizeof(*ret));
-
-	ret->alloc = alloc_fn;
-	ret->free = free_fn;
-	ret->data = pool_data;
-	return ret;
-}
 
 void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
 {
