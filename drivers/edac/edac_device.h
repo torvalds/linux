@@ -1,5 +1,5 @@
 /*
- * Defines, structures, APIs for edac_core module
+ * Defines, structures, APIs for edac_device
  *
  * (C) 2007 Linux Networx (http://lnxi.com)
  * This file may be distributed under the terms of the
@@ -15,86 +15,22 @@
  * Refactored for multi-source files:
  *	Doug Thompson <norsk5@xmission.com>
  *
+ * Please look at Documentation/driver-api/edac.rst for more info about
+ * EDAC core structs and functions.
  */
 
-#ifndef _EDAC_CORE_H_
-#define _EDAC_CORE_H_
+#ifndef _EDAC_DEVICE_H_
+#define _EDAC_DEVICE_H_
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/spinlock.h>
-#include <linux/smp.h>
-#include <linux/pci.h>
-#include <linux/time.h>
-#include <linux/nmi.h>
-#include <linux/rcupdate.h>
 #include <linux/completion.h>
-#include <linux/kobject.h>
-#include <linux/platform_device.h>
-#include <linux/workqueue.h>
+#include <linux/device.h>
 #include <linux/edac.h>
+#include <linux/kobject.h>
+#include <linux/list.h>
+#include <linux/types.h>
+#include <linux/sysfs.h>
+#include <linux/workqueue.h>
 
-#define EDAC_DEVICE_NAME_LEN	31
-#define EDAC_ATTRIB_VALUE_LEN	15
-
-#if PAGE_SHIFT < 20
-#define PAGES_TO_MiB(pages)	((pages) >> (20 - PAGE_SHIFT))
-#define MiB_TO_PAGES(mb)	((mb) << (20 - PAGE_SHIFT))
-#else				/* PAGE_SHIFT > 20 */
-#define PAGES_TO_MiB(pages)	((pages) << (PAGE_SHIFT - 20))
-#define MiB_TO_PAGES(mb)	((mb) >> (PAGE_SHIFT - 20))
-#endif
-
-#define edac_printk(level, prefix, fmt, arg...) \
-	printk(level "EDAC " prefix ": " fmt, ##arg)
-
-#define edac_mc_printk(mci, level, fmt, arg...) \
-	printk(level "EDAC MC%d: " fmt, mci->mc_idx, ##arg)
-
-#define edac_mc_chipset_printk(mci, level, prefix, fmt, arg...) \
-	printk(level "EDAC " prefix " MC%d: " fmt, mci->mc_idx, ##arg)
-
-#define edac_device_printk(ctl, level, fmt, arg...) \
-	printk(level "EDAC DEVICE%d: " fmt, ctl->dev_idx, ##arg)
-
-#define edac_pci_printk(ctl, level, fmt, arg...) \
-	printk(level "EDAC PCI%d: " fmt, ctl->pci_idx, ##arg)
-
-/* prefixes for edac_printk() and edac_mc_printk() */
-#define EDAC_MC "MC"
-#define EDAC_PCI "PCI"
-#define EDAC_DEBUG "DEBUG"
-
-extern const char * const edac_mem_types[];
-
-#ifdef CONFIG_EDAC_DEBUG
-extern int edac_debug_level;
-
-#define edac_dbg(level, fmt, ...)					\
-do {									\
-	if (level <= edac_debug_level)					\
-		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
-			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
-} while (0)
-
-#else				/* !CONFIG_EDAC_DEBUG */
-
-#define edac_dbg(level, fmt, ...)					\
-do {									\
-	if (0)								\
-		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
-			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
-} while (0)
-
-#endif				/* !CONFIG_EDAC_DEBUG */
-
-#define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
-	PCI_DEVICE_ID_ ## vend ## _ ## dev
-
-#define edac_dev_name(dev) (dev)->dev_name
-
-#define to_mci(k) container_of(k, struct mem_ctl_info, dev)
 
 /*
  * The following are the structures to provide for a generic
@@ -321,197 +257,64 @@ extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 
 extern void edac_device_free_ctl_info(struct edac_device_ctl_info *ctl_info);
 
-#ifdef CONFIG_PCI
-
-struct edac_pci_counter {
-	atomic_t pe_count;
-	atomic_t npe_count;
-};
-
-/*
- * Abstract edac_pci control info structure
+/**
+ * edac_device_add_device: Insert the 'edac_dev' structure into the
+ *	 edac_device global list and create sysfs entries associated with
+ *	 edac_device structure.
  *
- */
-struct edac_pci_ctl_info {
-	/* for global list of edac_pci_ctl_info structs */
-	struct list_head link;
-
-	int pci_idx;
-
-	struct bus_type *edac_subsys;	/* pointer to subsystem */
-
-	/* the internal state of this controller instance */
-	int op_state;
-	/* work struct for this instance */
-	struct delayed_work work;
-
-	/* pointer to edac polling checking routine:
-	 *      If NOT NULL: points to polling check routine
-	 *      If NULL: Then assumes INTERRUPT operation, where
-	 *              MC driver will receive events
-	 */
-	void (*edac_check) (struct edac_pci_ctl_info * edac_dev);
-
-	struct device *dev;	/* pointer to device structure */
-
-	const char *mod_name;	/* module name */
-	const char *ctl_name;	/* edac controller  name */
-	const char *dev_name;	/* pci/platform/etc... name */
-
-	void *pvt_info;		/* pointer to 'private driver' info */
-
-	unsigned long start_time;	/* edac_pci load start time (jiffies) */
-
-	struct completion complete;
-
-	/* sysfs top name under 'edac' directory
-	 * and instance name:
-	 *      cpu/cpu0/...
-	 *      cpu/cpu1/...
-	 *      cpu/cpu2/...
-	 *      ...
-	 */
-	char name[EDAC_DEVICE_NAME_LEN + 1];
-
-	/* Event counters for the this whole EDAC Device */
-	struct edac_pci_counter counters;
-
-	/* edac sysfs device control for the 'name'
-	 * device this structure controls
-	 */
-	struct kobject kobj;
-	struct completion kobj_complete;
-};
-
-#define to_edac_pci_ctl_work(w) \
-		container_of(w, struct edac_pci_ctl_info,work)
-
-/* write all or some bits in a byte-register*/
-static inline void pci_write_bits8(struct pci_dev *pdev, int offset, u8 value,
-				   u8 mask)
-{
-	if (mask != 0xff) {
-		u8 buf;
-
-		pci_read_config_byte(pdev, offset, &buf);
-		value &= mask;
-		buf &= ~mask;
-		value |= buf;
-	}
-
-	pci_write_config_byte(pdev, offset, value);
-}
-
-/* write all or some bits in a word-register*/
-static inline void pci_write_bits16(struct pci_dev *pdev, int offset,
-				    u16 value, u16 mask)
-{
-	if (mask != 0xffff) {
-		u16 buf;
-
-		pci_read_config_word(pdev, offset, &buf);
-		value &= mask;
-		buf &= ~mask;
-		value |= buf;
-	}
-
-	pci_write_config_word(pdev, offset, value);
-}
-
-/*
- * pci_write_bits32
+ * @edac_dev: pointer to edac_device structure to be added to the list
+ *	'edac_device' structure.
  *
- * edac local routine to do pci_write_config_dword, but adds
- * a mask parameter. If mask is all ones, ignore the mask.
- * Otherwise utilize the mask to isolate specified bits
- *
- * write all or some bits in a dword-register
- */
-static inline void pci_write_bits32(struct pci_dev *pdev, int offset,
-				    u32 value, u32 mask)
-{
-	if (mask != 0xffffffff) {
-		u32 buf;
-
-		pci_read_config_dword(pdev, offset, &buf);
-		value &= mask;
-		buf &= ~mask;
-		value |= buf;
-	}
-
-	pci_write_config_dword(pdev, offset, value);
-}
-
-#endif				/* CONFIG_PCI */
-
-struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
-				   unsigned n_layers,
-				   struct edac_mc_layer *layers,
-				   unsigned sz_pvt);
-extern int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
-				      const struct attribute_group **groups);
-#define edac_mc_add_mc(mci)	edac_mc_add_mc_with_groups(mci, NULL)
-extern void edac_mc_free(struct mem_ctl_info *mci);
-extern struct mem_ctl_info *edac_mc_find(int idx);
-extern struct mem_ctl_info *find_mci_by_dev(struct device *dev);
-extern struct mem_ctl_info *edac_mc_del_mc(struct device *dev);
-extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
-				      unsigned long page);
-
-void edac_raw_mc_handle_error(const enum hw_event_mc_err_type type,
-			      struct mem_ctl_info *mci,
-			      struct edac_raw_error_desc *e);
-
-void edac_mc_handle_error(const enum hw_event_mc_err_type type,
-			  struct mem_ctl_info *mci,
-			  const u16 error_count,
-			  const unsigned long page_frame_number,
-			  const unsigned long offset_in_page,
-			  const unsigned long syndrome,
-			  const int top_layer,
-			  const int mid_layer,
-			  const int low_layer,
-			  const char *msg,
-			  const char *other_detail);
-
-/*
- * edac_device APIs
+ * Returns:
+ *	0 on Success, or an error code on failure
  */
 extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
+
+/**
+ * edac_device_del_device:
+ *	Remove sysfs entries for specified edac_device structure and
+ *	then remove edac_device structure from global list
+ *
+ * @dev:
+ *	Pointer to struct &device representing the edac device
+ *	structure to remove.
+ *
+ * Returns:
+ *	Pointer to removed edac_device structure,
+ *	or %NULL if device not found.
+ */
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
+
+/**
+ * edac_device_handle_ue():
+ *	perform a common output and handling of an 'edac_dev' UE event
+ *
+ * @edac_dev: pointer to struct &edac_device_ctl_info
+ * @inst_nr: number of the instance where the UE error happened
+ * @block_nr: number of the block where the UE error happened
+ * @msg: message to be printed
+ */
 extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 				int inst_nr, int block_nr, const char *msg);
+/**
+ * edac_device_handle_ce():
+ *	perform a common output and handling of an 'edac_dev' CE event
+ *
+ * @edac_dev: pointer to struct &edac_device_ctl_info
+ * @inst_nr: number of the instance where the CE error happened
+ * @block_nr: number of the block where the CE error happened
+ * @msg: message to be printed
+ */
 extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 				int inst_nr, int block_nr, const char *msg);
+
+/**
+ * edac_device_alloc_index: Allocate a unique device index number
+ *
+ * Returns:
+ *	allocated index number
+ */
 extern int edac_device_alloc_index(void);
 extern const char *edac_layer_name[];
 
-/*
- * edac_pci APIs
- */
-extern struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
-				const char *edac_pci_name);
-
-extern void edac_pci_free_ctl_info(struct edac_pci_ctl_info *pci);
-
-extern void edac_pci_reset_delay_period(struct edac_pci_ctl_info *pci,
-				unsigned long value);
-
-extern int edac_pci_alloc_index(void);
-extern int edac_pci_add_device(struct edac_pci_ctl_info *pci, int edac_idx);
-extern struct edac_pci_ctl_info *edac_pci_del_device(struct device *dev);
-
-extern struct edac_pci_ctl_info *edac_pci_create_generic_ctl(
-				struct device *dev,
-				const char *mod_name);
-
-extern void edac_pci_release_generic_ctl(struct edac_pci_ctl_info *pci);
-extern int edac_pci_create_sysfs(struct edac_pci_ctl_info *pci);
-extern void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci);
-
-/*
- * edac misc APIs
- */
-extern char *edac_op_state_to_string(int op_state);
-
-#endif				/* _EDAC_CORE_H_ */
+#endif

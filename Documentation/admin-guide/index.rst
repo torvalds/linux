@@ -59,6 +59,7 @@ configure specific aspects of kernel behavior to your liking.
    binfmt-misc
    mono
    java
+   ras
 
 .. only::  subproject and html
 
