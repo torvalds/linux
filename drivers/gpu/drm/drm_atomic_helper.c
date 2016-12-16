@@ -530,6 +530,13 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 					       connector_state);
 		if (ret)
 			return ret;
+		if (connector->state->crtc) {
+			crtc_state = drm_atomic_get_existing_crtc_state(state,
+									connector->state->crtc);
+			if (connector->state->link_status !=
+			    connector_state->link_status)
+				crtc_state->connectors_changed = true;
+		}
 	}
 
 	/*
@@ -2241,6 +2248,8 @@ static int update_output_state(struct drm_atomic_state *state,
 								NULL);
 			if (ret)
 				return ret;
+			/* Make sure legacy setCrtc always re-trains */
+			conn_state->link_status = DRM_LINK_STATUS_GOOD;
 		}
 	}
 
@@ -2283,6 +2292,12 @@ static int update_output_state(struct drm_atomic_state *state,
  * @set: mode set configuration
  *
  * Provides a default crtc set_config handler using the atomic driver interface.
+ *
+ * NOTE: For backwards compatibility with old userspace this automatically
+ * resets the "link-status" property to GOOD, to force any link
+ * re-training. The SETCRTC ioctl does not define whether an update does
+ * need a full modeset or just a plane update, hence we're allowed to do
+ * that. See also drm_mode_connector_set_link_status_property().
  *
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.

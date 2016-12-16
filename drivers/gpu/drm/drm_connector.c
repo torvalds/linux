@@ -244,6 +244,10 @@ int drm_connector_init(struct drm_device *dev,
 	drm_object_attach_property(&connector->base,
 				      config->dpms_property, 0);
 
+	drm_object_attach_property(&connector->base,
+				   config->link_status_property,
+				   0);
+
 	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
 		drm_object_attach_property(&connector->base, config->prop_crtc_id, 0);
 	}
@@ -599,6 +603,12 @@ static const struct drm_prop_enum_list drm_dpms_enum_list[] = {
 };
 DRM_ENUM_NAME_FN(drm_get_dpms_name, drm_dpms_enum_list)
 
+static const struct drm_prop_enum_list drm_link_status_enum_list[] = {
+	{ DRM_MODE_LINK_STATUS_GOOD, "Good" },
+	{ DRM_MODE_LINK_STATUS_BAD, "Bad" },
+};
+DRM_ENUM_NAME_FN(drm_get_link_status_name, drm_link_status_enum_list)
+
 /**
  * drm_display_info_set_bus_formats - set the supported bus formats
  * @info: display info to store bus formats in
@@ -718,6 +728,11 @@ DRM_ENUM_NAME_FN(drm_get_tv_subconnector_name,
  * 	tiling and virtualize both &drm_crtc and &drm_plane if needed. Drivers
  * 	should update this value using drm_mode_connector_set_tile_property().
  * 	Userspace cannot change this property.
+ * link-status:
+ *      Connector link-status property to indicate the status of link. The default
+ *      value of link-status is "GOOD". If something fails during or after modeset,
+ *      the kernel driver may set this to "BAD" and issue a hotplug uevent. Drivers
+ *      should update this value using drm_mode_connector_set_link_status_property().
  *
  * Connectors also have one standardized atomic property:
  *
@@ -758,6 +773,13 @@ int drm_connector_create_standard_properties(struct drm_device *dev)
 	if (!prop)
 		return -ENOMEM;
 	dev->mode_config.tile_property = prop;
+
+	prop = drm_property_create_enum(dev, 0, "link-status",
+					drm_link_status_enum_list,
+					ARRAY_SIZE(drm_link_status_enum_list));
+	if (!prop)
+		return -ENOMEM;
+	dev->mode_config.link_status_property = prop;
 
 	return 0;
 }
@@ -1087,6 +1109,36 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 	return ret;
 }
 EXPORT_SYMBOL(drm_mode_connector_update_edid_property);
+
+/**
+ * drm_mode_connector_set_link_status_property - Set link status property of a connector
+ * @connector: drm connector
+ * @link_status: new value of link status property (0: Good, 1: Bad)
+ *
+ * In usual working scenario, this link status property will always be set to
+ * "GOOD". If something fails during or after a mode set, the kernel driver
+ * may set this link status property to "BAD". The caller then needs to send a
+ * hotplug uevent for userspace to re-check the valid modes through
+ * GET_CONNECTOR_IOCTL and retry modeset.
+ *
+ * Note: Drivers cannot rely on userspace to support this property and
+ * issue a modeset. As such, they may choose to handle issues (like
+ * re-training a link) without userspace's intervention.
+ *
+ * The reason for adding this property is to handle link training failures, but
+ * it is not limited to DP or link training. For example, if we implement
+ * asynchronous setcrtc, this property can be used to report any failures in that.
+ */
+void drm_mode_connector_set_link_status_property(struct drm_connector *connector,
+						 uint64_t link_status)
+{
+	struct drm_device *dev = connector->dev;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+	connector->state->link_status = link_status;
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+}
+EXPORT_SYMBOL(drm_mode_connector_set_link_status_property);
 
 int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 				    struct drm_property *property,
