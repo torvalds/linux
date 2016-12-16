@@ -1137,6 +1137,10 @@ static int kvmgt_write_protect_add(unsigned long handle, u64 gfn)
 
 	idx = srcu_read_lock(&kvm->srcu);
 	slot = gfn_to_memslot(kvm, gfn);
+	if (!slot) {
+		srcu_read_unlock(&kvm->srcu, idx);
+		return -EINVAL;
+	}
 
 	spin_lock(&kvm->mmu_lock);
 
@@ -1167,6 +1171,10 @@ static int kvmgt_write_protect_remove(unsigned long handle, u64 gfn)
 
 	idx = srcu_read_lock(&kvm->srcu);
 	slot = gfn_to_memslot(kvm, gfn);
+	if (!slot) {
+		srcu_read_unlock(&kvm->srcu, idx);
+		return -EINVAL;
+	}
 
 	spin_lock(&kvm->mmu_lock);
 
