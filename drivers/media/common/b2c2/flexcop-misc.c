@@ -23,18 +23,15 @@ void flexcop_determine_revision(struct flexcop_device *fc)
 		fc->rev = FLEXCOP_III;
 		break;
 	default:
-		err("unknown FlexCop Revision: %x. Please report this to "
-				"linux-dvb@linuxtv.org.",
+		err("unknown FlexCop Revision: %x. Please report this to linux-dvb@linuxtv.org.",
 				v.misc_204.Rev_N_sig_revision_hi);
 		break;
 	}
 
 	if ((fc->has_32_hw_pid_filter = v.misc_204.Rev_N_sig_caps))
-		deb_info("this FlexCop has "
-				"the additional 32 hardware pid filter.\n");
+		deb_info("this FlexCop has the additional 32 hardware pid filter.\n");
 	else
-		deb_info("this FlexCop has "
-				"the 6 basic main hardware pid filter.\n");
+		deb_info("this FlexCop has the 6 basic main hardware pid filter.\n");
 	/* bus parts have to decide if hw pid filtering is used or not. */
 }
 

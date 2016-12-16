@@ -75,15 +75,22 @@ static void hix5hd2_ir_enable(struct hix5hd2_ir_priv *dev, bool on)
 {
 	u32 val;
 
-	regmap_read(dev->regmap, IR_CLK, &val);
-	if (on) {
-		val &= ~IR_CLK_RESET;
-		val |= IR_CLK_ENABLE;
+	if (dev->regmap) {
+		regmap_read(dev->regmap, IR_CLK, &val);
+		if (on) {
+			val &= ~IR_CLK_RESET;
+			val |= IR_CLK_ENABLE;
+		} else {
+			val &= ~IR_CLK_ENABLE;
+			val |= IR_CLK_RESET;
+		}
+		regmap_write(dev->regmap, IR_CLK, val);
 	} else {
-		val &= ~IR_CLK_ENABLE;
-		val |= IR_CLK_RESET;
+		if (on)
+			clk_prepare_enable(dev->clock);
+		else
+			clk_disable_unprepare(dev->clock);
 	}
-	regmap_write(dev->regmap, IR_CLK, val);
 }
 
 static int hix5hd2_ir_config(struct hix5hd2_ir_priv *priv)
@@ -207,8 +214,8 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 	priv->regmap = syscon_regmap_lookup_by_phandle(node,
 						       "hisilicon,power-syscon");
 	if (IS_ERR(priv->regmap)) {
-		dev_err(dev, "no power-reg\n");
-		return -EINVAL;
+		dev_info(dev, "no power-reg\n");
+		priv->regmap = NULL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

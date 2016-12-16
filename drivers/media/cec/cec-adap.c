@@ -587,7 +587,6 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 	msg->tx_nack_cnt = 0;
 	msg->tx_low_drive_cnt = 0;
 	msg->tx_error_cnt = 0;
-	msg->flags = 0;
 	msg->sequence = ++adap->sequence;
 	if (!msg->sequence)
 		msg->sequence = ++adap->sequence;
@@ -596,6 +595,10 @@ int cec_transmit_msg_fh(struct cec_adapter *adap, struct cec_msg *msg,
 		/* Make sure the timeout isn't 0. */
 		msg->timeout = 1000;
 	}
+	if (msg->timeout)
+		msg->flags &= CEC_MSG_FL_REPLY_TO_FOLLOWERS;
+	else
+		msg->flags = 0;
 
 	/* Sanity checks */
 	if (msg->len == 0 || msg->len > CEC_MAX_MSG_SIZE) {
@@ -763,16 +766,122 @@ EXPORT_SYMBOL_GPL(cec_transmit_msg);
 static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 			      bool is_reply);
 
+#define DIRECTED	0x80
+#define BCAST1_4	0x40
+#define BCAST2_0	0x20	/* broadcast only allowed for >= 2.0 */
+#define BCAST		(BCAST1_4 | BCAST2_0)
+#define BOTH		(BCAST | DIRECTED)
+
+/*
+ * Specify minimum length and whether the message is directed, broadcast
+ * or both. Messages that do not match the criteria are ignored as per
+ * the CEC specification.
+ */
+static const u8 cec_msg_size[256] = {
+	[CEC_MSG_ACTIVE_SOURCE] = 4 | BCAST,
+	[CEC_MSG_IMAGE_VIEW_ON] = 2 | DIRECTED,
+	[CEC_MSG_TEXT_VIEW_ON] = 2 | DIRECTED,
+	[CEC_MSG_INACTIVE_SOURCE] = 4 | DIRECTED,
+	[CEC_MSG_REQUEST_ACTIVE_SOURCE] = 2 | BCAST,
+	[CEC_MSG_ROUTING_CHANGE] = 6 | BCAST,
+	[CEC_MSG_ROUTING_INFORMATION] = 4 | BCAST,
+	[CEC_MSG_SET_STREAM_PATH] = 4 | BCAST,
+	[CEC_MSG_STANDBY] = 2 | BOTH,
+	[CEC_MSG_RECORD_OFF] = 2 | DIRECTED,
+	[CEC_MSG_RECORD_ON] = 3 | DIRECTED,
+	[CEC_MSG_RECORD_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_RECORD_TV_SCREEN] = 2 | DIRECTED,
+	[CEC_MSG_CLEAR_ANALOGUE_TIMER] = 13 | DIRECTED,
+	[CEC_MSG_CLEAR_DIGITAL_TIMER] = 16 | DIRECTED,
+	[CEC_MSG_CLEAR_EXT_TIMER] = 13 | DIRECTED,
+	[CEC_MSG_SET_ANALOGUE_TIMER] = 13 | DIRECTED,
+	[CEC_MSG_SET_DIGITAL_TIMER] = 16 | DIRECTED,
+	[CEC_MSG_SET_EXT_TIMER] = 13 | DIRECTED,
+	[CEC_MSG_SET_TIMER_PROGRAM_TITLE] = 2 | DIRECTED,
+	[CEC_MSG_TIMER_CLEARED_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_TIMER_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_CEC_VERSION] = 3 | DIRECTED,
+	[CEC_MSG_GET_CEC_VERSION] = 2 | DIRECTED,
+	[CEC_MSG_GIVE_PHYSICAL_ADDR] = 2 | DIRECTED,
+	[CEC_MSG_GET_MENU_LANGUAGE] = 2 | DIRECTED,
+	[CEC_MSG_REPORT_PHYSICAL_ADDR] = 5 | BCAST,
+	[CEC_MSG_SET_MENU_LANGUAGE] = 5 | BCAST,
+	[CEC_MSG_REPORT_FEATURES] = 6 | BCAST,
+	[CEC_MSG_GIVE_FEATURES] = 2 | DIRECTED,
+	[CEC_MSG_DECK_CONTROL] = 3 | DIRECTED,
+	[CEC_MSG_DECK_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_GIVE_DECK_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_PLAY] = 3 | DIRECTED,
+	[CEC_MSG_GIVE_TUNER_DEVICE_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_SELECT_ANALOGUE_SERVICE] = 6 | DIRECTED,
+	[CEC_MSG_SELECT_DIGITAL_SERVICE] = 9 | DIRECTED,
+	[CEC_MSG_TUNER_DEVICE_STATUS] = 7 | DIRECTED,
+	[CEC_MSG_TUNER_STEP_DECREMENT] = 2 | DIRECTED,
+	[CEC_MSG_TUNER_STEP_INCREMENT] = 2 | DIRECTED,
+	[CEC_MSG_DEVICE_VENDOR_ID] = 5 | BCAST,
+	[CEC_MSG_GIVE_DEVICE_VENDOR_ID] = 2 | DIRECTED,
+	[CEC_MSG_VENDOR_COMMAND] = 2 | DIRECTED,
+	[CEC_MSG_VENDOR_COMMAND_WITH_ID] = 5 | BOTH,
+	[CEC_MSG_VENDOR_REMOTE_BUTTON_DOWN] = 2 | BOTH,
+	[CEC_MSG_VENDOR_REMOTE_BUTTON_UP] = 2 | BOTH,
+	[CEC_MSG_SET_OSD_STRING] = 3 | DIRECTED,
+	[CEC_MSG_GIVE_OSD_NAME] = 2 | DIRECTED,
+	[CEC_MSG_SET_OSD_NAME] = 2 | DIRECTED,
+	[CEC_MSG_MENU_REQUEST] = 3 | DIRECTED,
+	[CEC_MSG_MENU_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_USER_CONTROL_PRESSED] = 3 | DIRECTED,
+	[CEC_MSG_USER_CONTROL_RELEASED] = 2 | DIRECTED,
+	[CEC_MSG_GIVE_DEVICE_POWER_STATUS] = 2 | DIRECTED,
+	[CEC_MSG_REPORT_POWER_STATUS] = 3 | DIRECTED | BCAST2_0,
+	[CEC_MSG_FEATURE_ABORT] = 4 | DIRECTED,
+	[CEC_MSG_ABORT] = 2 | DIRECTED,
+	[CEC_MSG_GIVE_AUDIO_STATUS] = 2 | DIRECTED,
+	[CEC_MSG_GIVE_SYSTEM_AUDIO_MODE_STATUS] = 2 | DIRECTED,
+	[CEC_MSG_REPORT_AUDIO_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_REPORT_SHORT_AUDIO_DESCRIPTOR] = 2 | DIRECTED,
+	[CEC_MSG_REQUEST_SHORT_AUDIO_DESCRIPTOR] = 2 | DIRECTED,
+	[CEC_MSG_SET_SYSTEM_AUDIO_MODE] = 3 | BOTH,
+	[CEC_MSG_SYSTEM_AUDIO_MODE_REQUEST] = 2 | DIRECTED,
+	[CEC_MSG_SYSTEM_AUDIO_MODE_STATUS] = 3 | DIRECTED,
+	[CEC_MSG_SET_AUDIO_RATE] = 3 | DIRECTED,
+	[CEC_MSG_INITIATE_ARC] = 2 | DIRECTED,
+	[CEC_MSG_REPORT_ARC_INITIATED] = 2 | DIRECTED,
+	[CEC_MSG_REPORT_ARC_TERMINATED] = 2 | DIRECTED,
+	[CEC_MSG_REQUEST_ARC_INITIATION] = 2 | DIRECTED,
+	[CEC_MSG_REQUEST_ARC_TERMINATION] = 2 | DIRECTED,
+	[CEC_MSG_TERMINATE_ARC] = 2 | DIRECTED,
+	[CEC_MSG_REQUEST_CURRENT_LATENCY] = 4 | BCAST,
+	[CEC_MSG_REPORT_CURRENT_LATENCY] = 7 | BCAST,
+	[CEC_MSG_CDC_MESSAGE] = 2 | BCAST,
+};
+
 /* Called by the CEC adapter if a message is received */
 void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 {
 	struct cec_data *data;
 	u8 msg_init = cec_msg_initiator(msg);
 	u8 msg_dest = cec_msg_destination(msg);
+	u8 cmd = msg->msg[1];
 	bool is_reply = false;
 	bool valid_la = true;
+	u8 min_len = 0;
 
 	if (WARN_ON(!msg->len || msg->len > CEC_MAX_MSG_SIZE))
+		return;
+
+	/*
+	 * Some CEC adapters will receive the messages that they transmitted.
+	 * This test filters out those messages by checking if we are the
+	 * initiator, and just returning in that case.
+	 *
+	 * Note that this won't work if this is an Unregistered device.
+	 *
+	 * It is bad practice if the hardware receives the message that it
+	 * transmitted and luckily most CEC adapters behave correctly in this
+	 * respect.
+	 */
+	if (msg_init != CEC_LOG_ADDR_UNREGISTERED &&
+	    cec_has_log_addr(adap, msg_init))
 		return;
 
 	msg->rx_ts = ktime_get_ns();
@@ -780,6 +889,10 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	msg->sequence = msg->reply = msg->timeout = 0;
 	msg->tx_status = 0;
 	msg->tx_ts = 0;
+	msg->tx_arb_lost_cnt = 0;
+	msg->tx_nack_cnt = 0;
+	msg->tx_low_drive_cnt = 0;
+	msg->tx_error_cnt = 0;
 	msg->flags = 0;
 	memset(msg->msg + msg->len, 0, sizeof(msg->msg) - msg->len);
 
@@ -790,9 +903,71 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 	if (!cec_msg_is_broadcast(msg))
 		valid_la = cec_has_log_addr(adap, msg_dest);
 
+	/*
+	 * Check if the length is not too short or if the message is a
+	 * broadcast message where a directed message was expected or
+	 * vice versa. If so, then the message has to be ignored (according
+	 * to section CEC 7.3 and CEC 12.2).
+	 */
+	if (valid_la && msg->len > 1 && cec_msg_size[cmd]) {
+		u8 dir_fl = cec_msg_size[cmd] & BOTH;
+
+		min_len = cec_msg_size[cmd] & 0x1f;
+		if (msg->len < min_len)
+			valid_la = false;
+		else if (!cec_msg_is_broadcast(msg) && !(dir_fl & DIRECTED))
+			valid_la = false;
+		else if (cec_msg_is_broadcast(msg) && !(dir_fl & BCAST1_4))
+			valid_la = false;
+		else if (cec_msg_is_broadcast(msg) &&
+			 adap->log_addrs.cec_version >= CEC_OP_CEC_VERSION_2_0 &&
+			 !(dir_fl & BCAST2_0))
+			valid_la = false;
+	}
+	if (valid_la && min_len) {
+		/* These messages have special length requirements */
+		switch (cmd) {
+		case CEC_MSG_TIMER_STATUS:
+			if (msg->msg[2] & 0x10) {
+				switch (msg->msg[2] & 0xf) {
+				case CEC_OP_PROG_INFO_NOT_ENOUGH_SPACE:
+				case CEC_OP_PROG_INFO_MIGHT_NOT_BE_ENOUGH_SPACE:
+					if (msg->len < 5)
+						valid_la = false;
+					break;
+				}
+			} else if ((msg->msg[2] & 0xf) == CEC_OP_PROG_ERROR_DUPLICATE) {
+				if (msg->len < 5)
+					valid_la = false;
+			}
+			break;
+		case CEC_MSG_RECORD_ON:
+			switch (msg->msg[2]) {
+			case CEC_OP_RECORD_SRC_OWN:
+				break;
+			case CEC_OP_RECORD_SRC_DIGITAL:
+				if (msg->len < 10)
+					valid_la = false;
+				break;
+			case CEC_OP_RECORD_SRC_ANALOG:
+				if (msg->len < 7)
+					valid_la = false;
+				break;
+			case CEC_OP_RECORD_SRC_EXT_PLUG:
+				if (msg->len < 4)
+					valid_la = false;
+				break;
+			case CEC_OP_RECORD_SRC_EXT_PHYS_ADDR:
+				if (msg->len < 5)
+					valid_la = false;
+				break;
+			}
+			break;
+		}
+	}
+
 	/* It's a valid message and not a poll or CDC message */
-	if (valid_la && msg->len > 1 && msg->msg[1] != CEC_MSG_CDC_MESSAGE) {
-		u8 cmd = msg->msg[1];
+	if (valid_la && msg->len > 1 && cmd != CEC_MSG_CDC_MESSAGE) {
 		bool abort = cmd == CEC_MSG_FEATURE_ABORT;
 
 		/* The aborted command is in msg[2] */
@@ -805,6 +980,18 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 		 */
 		list_for_each_entry(data, &adap->wait_queue, list) {
 			struct cec_msg *dst = &data->msg;
+
+			/*
+			 * The *only* CEC message that has two possible replies
+			 * is CEC_MSG_INITIATE_ARC.
+			 * In this case allow either of the two replies.
+			 */
+			if (!abort && dst->msg[1] == CEC_MSG_INITIATE_ARC &&
+			    (cmd == CEC_MSG_REPORT_ARC_INITIATED ||
+			     cmd == CEC_MSG_REPORT_ARC_TERMINATED) &&
+			    (dst->reply == CEC_MSG_REPORT_ARC_INITIATED ||
+			     dst->reply == CEC_MSG_REPORT_ARC_TERMINATED))
+				dst->reply = cmd;
 
 			/* Does the command match? */
 			if ((abort && cmd != dst->msg[1]) ||
@@ -823,6 +1010,7 @@ void cec_received_msg(struct cec_adapter *adap, struct cec_msg *msg)
 			dst->rx_status = msg->rx_status;
 			if (abort)
 				dst->rx_status |= CEC_RX_STATUS_FEATURE_ABORT;
+			msg->flags = dst->flags;
 			/* Remove it from the wait_queue */
 			list_del_init(&data->list);
 
@@ -1068,7 +1256,8 @@ configured:
 	mutex_unlock(&adap->lock);
 
 	for (i = 0; i < las->num_log_addrs; i++) {
-		if (las->log_addr[i] == CEC_LOG_ADDR_INVALID)
+		if (las->log_addr[i] == CEC_LOG_ADDR_INVALID ||
+		    (las->flags & CEC_LOG_ADDRS_FL_CDC_ONLY))
 			continue;
 
 		/*
@@ -1190,6 +1379,29 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		return 0;
 	}
 
+	if (log_addrs->flags & CEC_LOG_ADDRS_FL_CDC_ONLY) {
+		/*
+		 * Sanitize log_addrs fields if a CDC-Only device is
+		 * requested.
+		 */
+		log_addrs->num_log_addrs = 1;
+		log_addrs->osd_name[0] = '\0';
+		log_addrs->vendor_id = CEC_VENDOR_ID_NONE;
+		log_addrs->log_addr_type[0] = CEC_LOG_ADDR_TYPE_UNREGISTERED;
+		/*
+		 * This is just an internal convention since a CDC-Only device
+		 * doesn't have to be a switch. But switches already use
+		 * unregistered, so it makes some kind of sense to pick this
+		 * as the primary device. Since a CDC-Only device never sends
+		 * any 'normal' CEC messages this primary device type is never
+		 * sent over the CEC bus.
+		 */
+		log_addrs->primary_device_type[0] = CEC_OP_PRIM_DEVTYPE_SWITCH;
+		log_addrs->all_device_types[0] = 0;
+		log_addrs->features[0][0] = 0;
+		log_addrs->features[0][1] = 0;
+	}
+
 	/* Ensure the osd name is 0-terminated */
 	log_addrs->osd_name[sizeof(log_addrs->osd_name) - 1] = '\0';
 
@@ -1223,6 +1435,7 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 		const u8 feature_sz = ARRAY_SIZE(log_addrs->features[0]);
 		u8 *features = log_addrs->features[i];
 		bool op_is_dev_features = false;
+		unsigned j;
 
 		log_addrs->log_addr[i] = CEC_LOG_ADDR_INVALID;
 		if (type_mask & (1 << log_addrs->log_addr_type[i])) {
@@ -1249,19 +1462,19 @@ int __cec_s_log_addrs(struct cec_adapter *adap,
 			dprintk(1, "unknown logical address type\n");
 			return -EINVAL;
 		}
-		for (i = 0; i < feature_sz; i++) {
-			if ((features[i] & 0x80) == 0) {
+		for (j = 0; j < feature_sz; j++) {
+			if ((features[j] & 0x80) == 0) {
 				if (op_is_dev_features)
 					break;
 				op_is_dev_features = true;
 			}
 		}
-		if (!op_is_dev_features || i == feature_sz) {
+		if (!op_is_dev_features || j == feature_sz) {
 			dprintk(1, "malformed features\n");
 			return -EINVAL;
 		}
 		/* Zero unused part of the feature array */
-		memset(features + i + 1, 0, feature_sz - i - 1);
+		memset(features + j + 1, 0, feature_sz - j - 1);
 	}
 
 	if (log_addrs->cec_version >= CEC_OP_CEC_VERSION_2_0) {
@@ -1410,6 +1623,11 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 
 	dprintk(1, "cec_receive_notify: %*ph\n", msg->len, msg->msg);
 
+	/* If this is a CDC-Only device, then ignore any non-CDC messages */
+	if (cec_is_cdc_only(&adap->log_addrs) &&
+	    msg->msg[1] != CEC_MSG_CDC_MESSAGE)
+		return 0;
+
 	if (adap->ops->received) {
 		/* Allow drivers to process the message first */
 		if (adap->ops->received(adap, msg) != -ENOMSG)
@@ -1478,7 +1696,8 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 
 	case CEC_MSG_USER_CONTROL_PRESSED:
-		if (!(adap->capabilities & CEC_CAP_RC))
+		if (!(adap->capabilities & CEC_CAP_RC) ||
+		    !(adap->log_addrs.flags & CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU))
 			break;
 
 #if IS_REACHABLE(CONFIG_RC_CORE)
@@ -1515,7 +1734,8 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		break;
 
 	case CEC_MSG_USER_CONTROL_RELEASED:
-		if (!(adap->capabilities & CEC_CAP_RC))
+		if (!(adap->capabilities & CEC_CAP_RC) ||
+		    !(adap->log_addrs.flags & CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU))
 			break;
 #if IS_REACHABLE(CONFIG_RC_CORE)
 		rc_keyup(adap->rc);
@@ -1573,8 +1793,8 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 	}
 
 skip_processing:
-	/* If this was a reply, then we're done */
-	if (is_reply)
+	/* If this was a reply, then we're done, unless otherwise specified */
+	if (is_reply && !(msg->flags & CEC_MSG_FL_REPLY_TO_FOLLOWERS))
 		return 0;
 
 	/*

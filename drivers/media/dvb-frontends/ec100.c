@@ -280,7 +280,7 @@ static void ec100_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops ec100_ops;
+static const struct dvb_frontend_ops ec100_ops;
 
 struct dvb_frontend *ec100_attach(const struct ec100_config *config,
 	struct i2c_adapter *i2c)
@@ -315,7 +315,7 @@ error:
 }
 EXPORT_SYMBOL(ec100_attach);
 
-static struct dvb_frontend_ops ec100_ops = {
+static const struct dvb_frontend_ops ec100_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "E3C EC100 DVB-T",

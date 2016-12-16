@@ -985,7 +985,7 @@ static int lgs8gxx_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return lgs8gxx_write_reg(priv, 0x01, 0);
 }
 
-static struct dvb_frontend_ops lgs8gxx_ops = {
+static const struct dvb_frontend_ops lgs8gxx_ops = {
 	.delsys = { SYS_DTMB },
 	.info = {
 		.name = "Legend Silicon LGS8913/LGS8GXX DMB-TH",

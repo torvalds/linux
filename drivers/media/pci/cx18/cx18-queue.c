@@ -164,9 +164,8 @@ struct cx18_mdl *cx18_queue_get_mdl(struct cx18_stream *s, u32 id,
 			mdl->skipped++;
 			if (mdl->skipped >= atomic_read(&s->q_busy.depth)-1) {
 				/* mdl must have fallen out of rotation */
-				CX18_WARN("Skipped %s, MDL %d, %d "
-					  "times - it must have dropped out of "
-					  "rotation\n", s->name, mdl->id,
+				CX18_WARN("Skipped %s, MDL %d, %d times - it must have dropped out of rotation\n",
+					  s->name, mdl->id,
 					  mdl->skipped);
 				/* Sweep it up to put it back into rotation */
 				list_move_tail(&mdl->list, &sweep_up);
@@ -352,8 +351,7 @@ int cx18_stream_alloc(struct cx18_stream *s)
 	if (s->buffers == 0)
 		return 0;
 
-	CX18_DEBUG_INFO("Allocate %s stream: %d x %d buffers "
-			"(%d.%02d kB total)\n",
+	CX18_DEBUG_INFO("Allocate %s stream: %d x %d buffers (%d.%02d kB total)\n",
 		s->name, s->buffers, s->buf_size,
 		s->buffers * s->buf_size / 1024,
 		(s->buffers * s->buf_size * 100 / 1024) % 100);

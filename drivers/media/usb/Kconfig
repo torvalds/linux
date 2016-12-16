@@ -60,5 +60,10 @@ source "drivers/media/usb/hackrf/Kconfig"
 source "drivers/media/usb/msi2500/Kconfig"
 endif
 
+if MEDIA_CEC_SUPPORT
+	comment "USB HDMI CEC adapters"
+source "drivers/media/usb/pulse8-cec/Kconfig"
+endif
+
 endif #MEDIA_USB_SUPPORT
 endif #USB

@@ -132,7 +132,6 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 	devnode->dev.bus = &cec_bus_type;
 	devnode->dev.devt = MKDEV(MAJOR(cec_dev_t), minor);
 	devnode->dev.release = cec_devnode_release;
-	devnode->dev.parent = devnode->parent;
 	dev_set_name(&devnode->dev, "cec%d", devnode->minor);
 	device_initialize(&devnode->dev);
 
@@ -198,13 +197,11 @@ static void cec_devnode_unregister(struct cec_devnode *devnode)
 
 struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 					 void *priv, const char *name, u32 caps,
-					 u8 available_las, struct device *parent)
+					 u8 available_las)
 {
 	struct cec_adapter *adap;
 	int res;
 
-	if (WARN_ON(!parent))
-		return ERR_PTR(-EINVAL);
 	if (WARN_ON(!caps))
 		return ERR_PTR(-EINVAL);
 	if (WARN_ON(!ops))
@@ -214,8 +211,6 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
 	if (!adap)
 		return ERR_PTR(-ENOMEM);
-	adap->owner = parent->driver->owner;
-	adap->devnode.parent = parent;
 	strlcpy(adap->name, name, sizeof(adap->name));
 	adap->phys_addr = CEC_PHYS_ADDR_INVALID;
 	adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
@@ -264,7 +259,6 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->rc->input_id.vendor = 0;
 	adap->rc->input_id.product = 0;
 	adap->rc->input_id.version = 1;
-	adap->rc->dev.parent = parent;
 	adap->rc->driver_type = RC_DRIVER_SCANCODE;
 	adap->rc->driver_name = CEC_NAME;
 	adap->rc->allowed_protocols = RC_BIT_CEC;
@@ -278,14 +272,22 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 }
 EXPORT_SYMBOL_GPL(cec_allocate_adapter);
 
-int cec_register_adapter(struct cec_adapter *adap)
+int cec_register_adapter(struct cec_adapter *adap,
+			 struct device *parent)
 {
 	int res;
 
 	if (IS_ERR_OR_NULL(adap))
 		return 0;
 
+	if (WARN_ON(!parent))
+		return -EINVAL;
+
+	adap->owner = parent->driver->owner;
+	adap->devnode.dev.parent = parent;
+
 #if IS_REACHABLE(CONFIG_RC_CORE)
+	adap->rc->dev.parent = parent;
 	if (adap->capabilities & CEC_CAP_RC) {
 		res = rc_register_device(adap->rc);
 

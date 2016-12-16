@@ -78,6 +78,11 @@ describing all planes of that format.
       - This information supplements the ``colorspace`` and must be set by
 	the driver for capture streams and by the application for output
 	streams, see :ref:`colorspaces`.
+    * - enum :c:type:`v4l2_hsv_encoding`
+      - ``hsv_enc``
+      - This information supplements the ``colorspace`` and must be set by
+	the driver for capture streams and by the application for output
+	streams, see :ref:`colorspaces`.
     * - enum :c:type:`v4l2_quantization`
       - ``quantization``
       - This information supplements the ``colorspace`` and must be set by
