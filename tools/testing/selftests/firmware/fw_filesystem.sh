@@ -5,9 +5,24 @@
 # know so we can be sure we're not accidentally testing the user helper.
 set -e
 
-modprobe test_firmware
-
 DIR=/sys/devices/virtual/misc/test_firmware
+TEST_DIR=$(dirname $0)
+
+test_modprobe()
+{
+	if [ ! -d $DIR ]; then
+		echo "$0: $DIR not present"
+		echo "You must have the following enabled in your kernel:"
+		cat $TEST_DIR/config
+		exit 1
+	fi
+}
+
+trap "test_modprobe" EXIT
+
+if [ ! -d $DIR ]; then
+	modprobe test_firmware
+fi
 
 # CONFIG_FW_LOADER_USER_HELPER has a sysfs class under /sys/class/firmware/
 # These days no one enables CONFIG_FW_LOADER_USER_HELPER so check for that
