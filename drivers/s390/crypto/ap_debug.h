@@ -1,10 +1,9 @@
 /*
  *  Copyright IBM Corp. 2016
- *  Author(s): Holger Dengler (hd@linux.vnet.ibm.com)
- *	       Harald Freudenberger <freude@de.ibm.com>
+ *  Author(s): Harald Freudenberger <freude@de.ibm.com>
  */
-#ifndef ZCRYPT_DEBUG_H
-#define ZCRYPT_DEBUG_H
+#ifndef AP_DEBUG_H
+#define AP_DEBUG_H
 
 #include <asm/debug.h>
 
@@ -18,12 +17,12 @@
 
 #define DBF_MAX_SPRINTF_ARGS 5
 
-#define ZCRYPT_DBF(...)					\
-	debug_sprintf_event(zcrypt_dbf_info, ##__VA_ARGS__)
+#define AP_DBF(...)					\
+	debug_sprintf_event(ap_dbf_info, ##__VA_ARGS__)
 
-extern debug_info_t *zcrypt_dbf_info;
+extern debug_info_t *ap_dbf_info;
 
-int zcrypt_debug_init(void);
-void zcrypt_debug_exit(void);
+int ap_debug_init(void);
+void ap_debug_exit(void);
 
-#endif /* ZCRYPT_DEBUG_H */
+#endif /* AP_DEBUG_H */
