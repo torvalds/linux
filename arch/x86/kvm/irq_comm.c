@@ -297,14 +297,12 @@ int kvm_set_routing_entry(struct kvm *kvm,
 	case KVM_IRQ_ROUTING_IRQCHIP:
 		delta = 0;
 		switch (ue->u.irqchip.irqchip) {
+		case KVM_IRQCHIP_PIC_SLAVE:
+			delta = 8;
+			/* fall through */
 		case KVM_IRQCHIP_PIC_MASTER:
 			e->set = kvm_set_pic_irq;
 			max_pin = PIC_NUM_PINS;
-			break;
-		case KVM_IRQCHIP_PIC_SLAVE:
-			e->set = kvm_set_pic_irq;
-			max_pin = PIC_NUM_PINS;
-			delta = 8;
 			break;
 		case KVM_IRQCHIP_IOAPIC:
 			max_pin = KVM_IOAPIC_NUM_PINS;
