@@ -82,7 +82,7 @@ enum ovl_path_type ovl_path_type(struct dentry *dentry)
 		 * Non-dir dentry can hold lower dentry from previous
 		 * location.
 		 */
-		if (oe->numlower && S_ISDIR(dentry->d_inode->i_mode))
+		if (oe->numlower && d_is_dir(dentry))
 			type |= __OVL_PATH_MERGE;
 	} else {
 		if (oe->numlower > 1)
@@ -955,7 +955,7 @@ static int ovl_mount_dir_noesc(const char *name, struct path *path)
 		pr_err("overlayfs: filesystem on '%s' not supported\n", name);
 		goto out_put;
 	}
-	if (!S_ISDIR(path->dentry->d_inode->i_mode)) {
+	if (!d_is_dir(path->dentry)) {
 		pr_err("overlayfs: '%s' not a directory\n", name);
 		goto out_put;
 	}
