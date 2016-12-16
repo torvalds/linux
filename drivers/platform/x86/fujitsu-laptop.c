@@ -202,6 +202,7 @@ static int radio_led_set(struct led_classdev *cdev,
 
 static struct led_classdev radio_led = {
  .name = "fujitsu::radio_led",
+ .default_trigger = "rfkill-any",
  .brightness_get = radio_led_get,
  .brightness_set_blocking = radio_led_set
 };
