@@ -235,9 +235,20 @@ enum {
 #define AXP22X_BATLOW_THRES1		0xe6
 
 /* AXP288 specific registers */
+#define AXP288_POWER_REASON		0x02
+#define AXP288_BC_GLOBAL		0x2c
+#define AXP288_BC_VBUS_CNTL		0x2d
+#define AXP288_BC_USB_STAT		0x2e
+#define AXP288_BC_DET_STAT		0x2f
 #define AXP288_PMIC_ADC_H               0x56
 #define AXP288_PMIC_ADC_L               0x57
+#define AXP288_TS_ADC_H			0x58
+#define AXP288_TS_ADC_L			0x59
+#define AXP288_GP_ADC_H			0x5a
+#define AXP288_GP_ADC_L			0x5b
 #define AXP288_ADC_TS_PIN_CTRL          0x84
+#define AXP288_RT_BATT_V_H		0xa0
+#define AXP288_RT_BATT_V_L		0xa1
 
 /* Fuel Gauge */
 #define AXP288_FG_RDC1_REG          0xba
@@ -513,11 +524,6 @@ enum axp809_irqs {
 	AXP809_IRQ_GPIO1_INPUT,
 	AXP809_IRQ_GPIO0_INPUT,
 };
-
-#define AXP288_TS_ADC_H		0x58
-#define AXP288_TS_ADC_L		0x59
-#define AXP288_GP_ADC_H		0x5a
-#define AXP288_GP_ADC_L		0x5b
 
 struct axp20x_dev {
 	struct device			*dev;
