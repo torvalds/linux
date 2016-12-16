@@ -803,10 +803,7 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 		if (!overwrite && OVL_TYPE_MERGE_OR_LOWER(new_type) && new_is_dir)
 			goto out;
 	} else {
-		if (ovl_dentry_is_opaque(new))
-			new_type = __OVL_PATH_UPPER;
-		else
-			new_type = __OVL_PATH_UPPER | __OVL_PATH_PURE;
+		new_type = __OVL_PATH_UPPER;
 	}
 
 	err = ovl_want_write(old);
@@ -826,8 +823,8 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 			goto out_drop_write;
 	}
 
-	old_opaque = !OVL_TYPE_PURE_UPPER(old_type);
-	new_opaque = !OVL_TYPE_PURE_UPPER(new_type);
+	old_opaque = ovl_dentry_is_opaque(old);
+	new_opaque = ovl_dentry_is_opaque(new);
 
 	old_cred = ovl_override_creds(old->d_sb);
 

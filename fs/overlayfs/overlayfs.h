@@ -12,14 +12,12 @@
 struct ovl_entry;
 
 enum ovl_path_type {
-	__OVL_PATH_PURE		= (1 << 0),
-	__OVL_PATH_UPPER	= (1 << 1),
-	__OVL_PATH_MERGE	= (1 << 2),
+	__OVL_PATH_UPPER	= (1 << 0),
+	__OVL_PATH_MERGE	= (1 << 1),
 };
 
 #define OVL_TYPE_UPPER(type)	((type) & __OVL_PATH_UPPER)
 #define OVL_TYPE_MERGE(type)	((type) & __OVL_PATH_MERGE)
-#define OVL_TYPE_PURE_UPPER(type) ((type) & __OVL_PATH_PURE)
 #define OVL_TYPE_MERGE_OR_LOWER(type) \
 	(OVL_TYPE_MERGE(type) || !OVL_TYPE_UPPER(type))
 
