@@ -111,8 +111,8 @@ struct uart_icount {
 	__u32	buf_overrun;
 };
 
-typedef unsigned int __bitwise__ upf_t;
-typedef unsigned int __bitwise__ upstat_t;
+typedef unsigned int __bitwise upf_t;
+typedef unsigned int __bitwise upstat_t;
 
 struct uart_port {
 	spinlock_t		lock;			/* port lock */

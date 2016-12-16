@@ -133,6 +133,9 @@
 
 		status = "disabled";
 
+		phys = <&pci_phy0>;
+		phy-names = "pcie-phy";
+
 		msi-parent = <&msi0>;
 		msi0: msi@20020000 {
 			compatible = "brcm,iproc-msi";
@@ -171,6 +174,9 @@
 
 		status = "disabled";
 
+		phys = <&pci_phy1>;
+		phy-names = "pcie-phy";
+
 		msi-parent = <&msi4>;
 		msi4: msi@50020000 {
 			compatible = "brcm,iproc-msi";
@@ -201,6 +207,42 @@
 			phy-handle = <&gphy0>;
 			phy-mode = "rgmii";
 			status = "disabled";
+		};
+
+		pdc0: iproc-pdc0@612c0000 {
+			compatible = "brcm,iproc-pdc-mbox";
+			reg = <0x612c0000 0x445>;  /* PDC FS0 regs */
+			interrupts = <GIC_SPI 187 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
+		pdc1: iproc-pdc1@612e0000 {
+			compatible = "brcm,iproc-pdc-mbox";
+			reg = <0x612e0000 0x445>;  /* PDC FS1 regs */
+			interrupts = <GIC_SPI 189 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
+		pdc2: iproc-pdc2@61300000 {
+			compatible = "brcm,iproc-pdc-mbox";
+			reg = <0x61300000 0x445>;  /* PDC FS2 regs */
+			interrupts = <GIC_SPI 191 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
+		};
+
+		pdc3: iproc-pdc3@61320000 {
+			compatible = "brcm,iproc-pdc-mbox";
+			reg = <0x61320000 0x445>;  /* PDC FS3 regs */
+			interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
+			#mbox-cells = <1>;
+			brcm,rx-status-len = <32>;
+			brcm,use-bcm-hdr;
 		};
 
 		dma0: dma@61360000 {
@@ -260,7 +302,7 @@
 				     <GIC_SPI 260 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 261 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 262 IRQ_TYPE_LEVEL_HIGH>;
-			mmu-masters;
+			#iommu-cells = <1>;
 		};
 
 		pinctrl: pinctrl@6501d130 {
@@ -577,5 +619,23 @@
 
 			brcm,nand-has-wp;
 		};
+
+		qspi: spi@66470200 {
+			compatible = "brcm,spi-bcm-qspi", "brcm,spi-ns2-qspi";
+			reg = <0x66470200 0x184>,
+				<0x66470000 0x124>,
+				<0x67017408 0x004>,
+				<0x664703a0 0x01c>;
+			reg-names = "mspi", "bspi", "intr_regs",
+				"intr_status_reg";
+			interrupts = <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "spi_l1_intr";
+			clocks = <&iprocmed>;
+			clock-names = "iprocmed";
+			num-cs = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 	};
 };

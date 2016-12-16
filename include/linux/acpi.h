@@ -437,6 +437,8 @@ static inline int acpi_dev_filter_resource_type_cb(struct acpi_resource *ares,
 	return acpi_dev_filter_resource_type(ares, (unsigned long)arg);
 }
 
+struct acpi_device *acpi_resource_consumer(struct resource *res);
+
 int acpi_check_resource_conflict(const struct resource *res);
 
 int acpi_check_region(resource_size_t start, resource_size_t n,
@@ -785,6 +787,11 @@ static inline int acpi_reconfig_notifier_register(struct notifier_block *nb)
 static inline int acpi_reconfig_notifier_unregister(struct notifier_block *nb)
 {
 	return -EINVAL;
+}
+
+static inline struct acpi_device *acpi_resource_consumer(struct resource *res)
+{
+	return NULL;
 }
 
 #endif	/* !CONFIG_ACPI */

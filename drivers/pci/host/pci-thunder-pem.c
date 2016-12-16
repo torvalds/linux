@@ -18,8 +18,12 @@
 #include <linux/init.h>
 #include <linux/of_address.h>
 #include <linux/of_pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
+#include "../pci.h"
+
+#if defined(CONFIG_PCI_HOST_THUNDER_PEM) || (defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS))
 
 #define PEM_CFG_WR 0x28
 #define PEM_CFG_RD 0x30
@@ -284,34 +288,15 @@ static int thunder_pem_config_write(struct pci_bus *bus, unsigned int devfn,
 	return pci_generic_config_write(bus, devfn, where, size, val);
 }
 
-static int thunder_pem_init(struct pci_config_window *cfg)
+static int thunder_pem_init(struct device *dev, struct pci_config_window *cfg,
+			    struct resource *res_pem)
 {
-	struct device *dev = cfg->parent;
-	resource_size_t bar4_start;
-	struct resource *res_pem;
 	struct thunder_pem_pci *pem_pci;
-	struct platform_device *pdev;
-
-	/* Only OF support for now */
-	if (!dev->of_node)
-		return -EINVAL;
+	resource_size_t bar4_start;
 
 	pem_pci = devm_kzalloc(dev, sizeof(*pem_pci), GFP_KERNEL);
 	if (!pem_pci)
 		return -ENOMEM;
-
-	pdev = to_platform_device(dev);
-
-	/*
-	 * The second register range is the PEM bridge to the PCIe
-	 * bus.  It has a different config access method than those
-	 * devices behind the bridge.
-	 */
-	res_pem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res_pem) {
-		dev_err(dev, "missing \"reg[1]\"property\n");
-		return -EINVAL;
-	}
 
 	pem_pci->pem_reg_base = devm_ioremap(dev, res_pem->start, 0x10000);
 	if (!pem_pci->pem_reg_base)
@@ -332,9 +317,69 @@ static int thunder_pem_init(struct pci_config_window *cfg)
 	return 0;
 }
 
+#if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
+
+static int thunder_pem_acpi_init(struct pci_config_window *cfg)
+{
+	struct device *dev = cfg->parent;
+	struct acpi_device *adev = to_acpi_device(dev);
+	struct acpi_pci_root *root = acpi_driver_data(adev);
+	struct resource *res_pem;
+	int ret;
+
+	res_pem = devm_kzalloc(&adev->dev, sizeof(*res_pem), GFP_KERNEL);
+	if (!res_pem)
+		return -ENOMEM;
+
+	ret = acpi_get_rc_resources(dev, "THRX0002", root->segment, res_pem);
+	if (ret) {
+		dev_err(dev, "can't get rc base address\n");
+		return ret;
+	}
+
+	return thunder_pem_init(dev, cfg, res_pem);
+}
+
+struct pci_ecam_ops thunder_pem_ecam_ops = {
+	.bus_shift	= 24,
+	.init		= thunder_pem_acpi_init,
+	.pci_ops	= {
+		.map_bus	= pci_ecam_map_bus,
+		.read		= thunder_pem_config_read,
+		.write		= thunder_pem_config_write,
+	}
+};
+
+#endif
+
+#ifdef CONFIG_PCI_HOST_THUNDER_PEM
+
+static int thunder_pem_platform_init(struct pci_config_window *cfg)
+{
+	struct device *dev = cfg->parent;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct resource *res_pem;
+
+	if (!dev->of_node)
+		return -EINVAL;
+
+	/*
+	 * The second register range is the PEM bridge to the PCIe
+	 * bus.  It has a different config access method than those
+	 * devices behind the bridge.
+	 */
+	res_pem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res_pem) {
+		dev_err(dev, "missing \"reg[1]\"property\n");
+		return -EINVAL;
+	}
+
+	return thunder_pem_init(dev, cfg, res_pem);
+}
+
 static struct pci_ecam_ops pci_thunder_pem_ops = {
 	.bus_shift	= 24,
-	.init		= thunder_pem_init,
+	.init		= thunder_pem_platform_init,
 	.pci_ops	= {
 		.map_bus	= pci_ecam_map_bus,
 		.read		= thunder_pem_config_read,
@@ -360,3 +405,6 @@ static struct platform_driver thunder_pem_driver = {
 	.probe = thunder_pem_probe,
 };
 builtin_platform_driver(thunder_pem_driver);
+
+#endif
+#endif

@@ -15,6 +15,7 @@
 #include <linux/trace_events.h>
 #include <linux/compiler.h>
 #include <linux/trace_seq.h>
+#include <linux/glob.h>
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 #include <asm/unistd.h>		/* For NR_SYSCALLS	     */
@@ -39,6 +40,7 @@ enum trace_type {
 	TRACE_BLK,
 	TRACE_BPUTS,
 	TRACE_HWLAT,
+	TRACE_RAW_DATA,
 
 	__TRACE_LAST_TYPE,
 };
@@ -330,6 +332,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct bprint_entry, TRACE_BPRINT);	\
 		IF_ASSIGN(var, ent, struct bputs_entry, TRACE_BPUTS);	\
 		IF_ASSIGN(var, ent, struct hwlat_entry, TRACE_HWLAT);	\
+		IF_ASSIGN(var, ent, struct raw_data_entry, TRACE_RAW_DATA);\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
 			  TRACE_MMIO_RW);				\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_map,		\
@@ -599,8 +602,8 @@ struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 					  int *ent_cpu, u64 *ent_ts);
 
-void __buffer_unlock_commit(struct ring_buffer *buffer,
-			    struct ring_buffer_event *event);
+void trace_buffer_unlock_commit_nostack(struct ring_buffer *buffer,
+					struct ring_buffer_event *event);
 
 int trace_empty(struct trace_iterator *iter);
 
@@ -843,6 +846,17 @@ static inline int ftrace_graph_notrace_addr(unsigned long addr)
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
+
+extern unsigned int fgraph_max_depth;
+
+static inline bool ftrace_graph_ignore_func(struct ftrace_graph_ent *trace)
+{
+	/* trace it when it is-nested-in or is a function enabled. */
+	return !(trace->depth || ftrace_graph_addr(trace->func)) ||
+		(trace->depth < 0) ||
+		(fgraph_max_depth && trace->depth >= fgraph_max_depth);
+}
+
 #else /* CONFIG_FUNCTION_GRAPH_TRACER */
 static inline enum print_line_t
 print_graph_function_flags(struct trace_iterator *iter, u32 flags)
@@ -1257,6 +1271,7 @@ enum regex_type {
 	MATCH_FRONT_ONLY,
 	MATCH_MIDDLE_ONLY,
 	MATCH_END_ONLY,
+	MATCH_GLOB,
 };
 
 struct regex {

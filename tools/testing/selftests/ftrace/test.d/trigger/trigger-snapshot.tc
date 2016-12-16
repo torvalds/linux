@@ -23,6 +23,11 @@ if [ ! -f events/sched/sched_process_fork/trigger ]; then
     exit_unsupported
 fi
 
+if [ ! -f snapshot ]; then
+    echo "snapshot is not supported"
+    exit_unsupported
+fi
+
 reset_tracer
 do_reset
 
