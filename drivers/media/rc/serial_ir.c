@@ -757,7 +757,7 @@ static int __init serial_ir_init_module(void)
 	if (result)
 		return result;
 
-	rcdev = devm_rc_allocate_device(&serial_ir.pdev->dev);
+	rcdev = devm_rc_allocate_device(&serial_ir.pdev->dev, RC_DRIVER_IR_RAW);
 	if (!rcdev) {
 		result = -ENOMEM;
 		goto serial_cleanup;
@@ -796,7 +796,6 @@ static int __init serial_ir_init_module(void)
 	rcdev->open = serial_ir_open;
 	rcdev->close = serial_ir_close;
 	rcdev->dev.parent = &serial_ir.pdev->dev;
-	rcdev->driver_type = RC_DRIVER_IR_RAW;
 	rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	rcdev->driver_name = KBUILD_MODNAME;
 	rcdev->map_name = RC_MAP_RC6_MCE;

@@ -183,7 +183,7 @@ int smi_ir_init(struct smi_dev *dev)
 	struct rc_dev *rc_dev;
 	struct smi_rc *ir = &dev->ir;
 
-	rc_dev = rc_allocate_device();
+	rc_dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!rc_dev)
 		return -ENOMEM;
 
@@ -202,7 +202,6 @@ int smi_ir_init(struct smi_dev *dev)
 	rc_dev->input_id.product = dev->pci_dev->subsystem_device;
 	rc_dev->dev.parent = &dev->pci_dev->dev;
 
-	rc_dev->driver_type = RC_DRIVER_SCANCODE;
 	rc_dev->map_name = dev->info->rc_map;
 
 	ir->rc_dev = rc_dev;

@@ -147,7 +147,7 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	if (!d->rc.map_name)
 		return 0;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(d->rc.driver_type);
 	if (!dev) {
 		ret = -ENOMEM;
 		goto err;
@@ -162,7 +162,6 @@ static int dvb_usbv2_remote_init(struct dvb_usb_device *d)
 	/* TODO: likely RC-core should took const char * */
 	dev->driver_name = (char *) d->props->driver_name;
 	dev->map_name = d->rc.map_name;
-	dev->driver_type = d->rc.driver_type;
 	dev->allowed_protocols = d->rc.allowed_protos;
 	dev->change_protocol = d->rc.change_protocol;
 	dev->priv = d;
