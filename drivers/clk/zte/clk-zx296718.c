@@ -610,9 +610,12 @@ static int __init top_clocks_init(struct device_node *np)
 		}
 	}
 
-	if (of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &top_hw_onecell_data))
-		panic("could not register clk provider\n");
-	pr_info("top clk init over, nr:%d\n", TOP_NR_CLKS);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &top_hw_onecell_data);
+	if (ret) {
+		pr_err("failed to register top clk provider: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -776,9 +779,12 @@ static int __init lsp0_clocks_init(struct device_node *np)
 		}
 	}
 
-	if (of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &lsp0_hw_onecell_data))
-		panic("could not register clk provider\n");
-	pr_info("lsp0-clk init over:%d\n", LSP0_NR_CLKS);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &lsp0_hw_onecell_data);
+	if (ret) {
+		pr_err("failed to register lsp0 clk provider: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -881,9 +887,12 @@ static int __init lsp1_clocks_init(struct device_node *np)
 		}
 	}
 
-	if (of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &lsp1_hw_onecell_data))
-		panic("could not register clk provider\n");
-	pr_info("lsp1-clk init over, nr:%d\n", LSP1_NR_CLKS);
+	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get,
+				     &lsp1_hw_onecell_data);
+	if (ret) {
+		pr_err("failed to register lsp1 clk provider: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
