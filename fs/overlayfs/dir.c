@@ -12,11 +12,17 @@
 #include <linux/xattr.h>
 #include <linux/security.h>
 #include <linux/cred.h>
+#include <linux/module.h>
 #include <linux/posix_acl.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/atomic.h>
 #include <linux/ratelimit.h>
 #include "overlayfs.h"
+
+static unsigned short ovl_redirect_max = 256;
+module_param_named(redirect_max, ovl_redirect_max, ushort, 0644);
+MODULE_PARM_DESC(ovl_redirect_max,
+		 "Maximum length of absolute redirect xattr value");
 
 void ovl_cleanup(struct inode *wdir, struct dentry *wdentry)
 {
@@ -777,13 +783,11 @@ static bool ovl_can_move(struct dentry *dentry)
 		!d_is_dir(dentry) || !ovl_type_merge_or_lower(dentry);
 }
 
-#define OVL_REDIRECT_MAX 256
-
 static char *ovl_get_redirect(struct dentry *dentry, bool samedir)
 {
 	char *buf, *ret;
 	struct dentry *d, *tmp;
-	int buflen = OVL_REDIRECT_MAX + 1;
+	int buflen = ovl_redirect_max + 1;
 
 	if (samedir) {
 		ret = kstrndup(dentry->d_name.name, dentry->d_name.len,
