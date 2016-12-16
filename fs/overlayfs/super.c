@@ -473,7 +473,9 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	unsigned int ctr = 0;
 	struct inode *inode = NULL;
 	bool upperopaque = false;
-	struct dentry *this, *prev = NULL;
+	bool stop = false;
+	bool isdir = false;
+	struct dentry *this;
 	unsigned int i;
 	int err;
 
@@ -494,23 +496,26 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			if (ovl_is_whiteout(this)) {
 				dput(this);
 				this = NULL;
-				upperopaque = true;
-			} else if (poe->numlower && ovl_is_opaquedir(this)) {
-				upperopaque = true;
+				stop = upperopaque = true;
+			} else if (!d_is_dir(this)) {
+				stop = true;
+			} else {
+				isdir = true;
+				if (poe->numlower && ovl_is_opaquedir(this))
+					stop = upperopaque = true;
 			}
 		}
-		upperdentry = prev = this;
+		upperdentry = this;
 	}
 
-	if (!upperopaque && poe->numlower) {
+	if (!stop && poe->numlower) {
 		err = -ENOMEM;
 		stack = kcalloc(poe->numlower, sizeof(struct path), GFP_KERNEL);
 		if (!stack)
 			goto out_put_upper;
 	}
 
-	for (i = 0; !upperopaque && i < poe->numlower; i++) {
-		bool opaque = false;
+	for (i = 0; !stop && i < poe->numlower; i++) {
 		struct path lowerpath = poe->lowerstack[i];
 
 		this = ovl_lookup_real(lowerpath.dentry, &dentry->d_name);
@@ -530,35 +535,26 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 			break;
 		}
 		/*
-		 * Only makes sense to check opaque dir if this is not the
-		 * lowermost layer.
-		 */
-		if (i < poe->numlower - 1 && ovl_is_opaquedir(this))
-			opaque = true;
-
-		if (prev && (!S_ISDIR(prev->d_inode->i_mode) ||
-			     !S_ISDIR(this->d_inode->i_mode))) {
-			/*
-			 * FIXME: check for upper-opaqueness maybe better done
-			 * in remove code.
-			 */
-			if (prev == upperdentry)
-				upperopaque = true;
-			dput(this);
-			break;
-		}
-		/*
 		 * If this is a non-directory then stop here.
 		 */
-		if (!S_ISDIR(this->d_inode->i_mode))
-			opaque = true;
+		if (!d_is_dir(this)) {
+			if (isdir) {
+				dput(this);
+				break;
+			}
+			stop = true;
+		} else {
+			/*
+			 * Only makes sense to check opaque dir if this is not
+			 * the lowermost layer.
+			 */
+			if (i < poe->numlower - 1 && ovl_is_opaquedir(this))
+				stop = true;
+		}
 
 		stack[ctr].dentry = this;
 		stack[ctr].mnt = lowerpath.mnt;
 		ctr++;
-		prev = this;
-		if (opaque)
-			break;
 	}
 
 	oe = ovl_alloc_entry(ctr);
