@@ -340,8 +340,7 @@ static irqreturn_t a3700_spi_interrupt(int irq, void *dev_id)
 	spireg_write(a3700_spi, A3700_SPI_INT_STAT_REG, cause);
 
 	/* Wake up the transfer */
-	if (a3700_spi->wait_mask & cause)
-		complete(&a3700_spi->done);
+	complete(&a3700_spi->done);
 
 	return IRQ_HANDLED;
 }
