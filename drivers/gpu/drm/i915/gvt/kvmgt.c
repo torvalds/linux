@@ -555,6 +555,7 @@ static void intel_vgpu_release_work(struct work_struct *work)
 {
 	struct intel_vgpu *vgpu = container_of(work, struct intel_vgpu,
 					vdev.release_work);
+
 	__intel_vgpu_release(vgpu);
 }
 
@@ -1340,18 +1341,14 @@ static int kvmgt_guest_init(struct mdev_device *mdev)
 
 static bool kvmgt_guest_exit(struct kvmgt_guest_info *info)
 {
-	struct intel_vgpu *vgpu;
-
 	if (!info) {
 		gvt_err("kvmgt_guest_info invalid\n");
 		return false;
 	}
 
-	vgpu = info->vgpu;
-
 	kvm_page_track_unregister_notifier(info->kvm, &info->track_node);
 	kvmgt_protect_table_destroy(info);
-	gvt_cache_destroy(vgpu);
+	gvt_cache_destroy(info->vgpu);
 	vfree(info);
 
 	return true;
