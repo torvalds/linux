@@ -234,7 +234,7 @@ static void pnv_pci_dump_p7ioc_diag_data(struct pci_controller *hose,
 	int i;
 
 	data = (struct OpalIoP7IOCPhbErrorData *)common;
-	pr_info("P7IOC PHB#%d Diag-data (Version: %d)\n",
+	pr_info("P7IOC PHB#%x Diag-data (Version: %d)\n",
 		hose->global_number, be32_to_cpu(common->version));
 
 	if (data->brdgCtl)
@@ -326,7 +326,7 @@ static void pnv_pci_dump_phb3_diag_data(struct pci_controller *hose,
 	int i;
 
 	data = (struct OpalIoPhb3ErrorData*)common;
-	pr_info("PHB3 PHB#%d Diag-data (Version: %d)\n",
+	pr_info("PHB3 PHB#%x Diag-data (Version: %d)\n",
 		hose->global_number, be32_to_cpu(common->version));
 	if (data->brdgCtl)
 		pr_info("brdgCtl:     %08x\n",
@@ -516,7 +516,7 @@ static void pnv_pci_config_check_eeh(struct pci_dn *pdn)
 		}
 	}
 
-	pr_devel(" -> EEH check, bdfn=%04x PE#%d fstate=%x\n",
+	pr_devel(" -> EEH check, bdfn=%04x PE#%x fstate=%x\n",
 		 (pdn->busno << 8) | (pdn->devfn), pe_no, fstate);
 
 	/* Clear the frozen state if applicable */

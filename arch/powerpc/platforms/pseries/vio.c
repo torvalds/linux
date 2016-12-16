@@ -1648,6 +1648,9 @@ static struct vio_dev *vio_find_name(const char *name)
 /**
  * vio_find_node - find an already-registered vio_dev
  * @vnode: device_node of the virtual device we're looking for
+ *
+ * Takes a reference to the embedded struct device which needs to be dropped
+ * after use.
  */
 struct vio_dev *vio_find_node(struct device_node *vnode)
 {

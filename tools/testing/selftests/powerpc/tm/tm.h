@@ -10,7 +10,7 @@
 #include <asm/cputable.h>
 #include <stdbool.h>
 
-#include "../utils.h"
+#include "utils.h"
 
 static inline bool have_htm(void)
 {

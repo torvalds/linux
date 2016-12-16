@@ -34,8 +34,7 @@ struct cxl_context *cxl_context_alloc(void)
 /*
  * Initialises a CXL context.
  */
-int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
-		     struct address_space *mapping)
+int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master)
 {
 	int i;
 
@@ -44,7 +43,7 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 	ctx->master = master;
 	ctx->pid = ctx->glpid = NULL; /* Set in start work ioctl */
 	mutex_init(&ctx->mapping_lock);
-	ctx->mapping = mapping;
+	ctx->mapping = NULL;
 
 	/*
 	 * Allocate the segment table before we put it in the IDR so that we
@@ -112,6 +111,14 @@ int cxl_context_init(struct cxl_context *ctx, struct cxl_afu *afu, bool master,
 	 */
 	cxl_afu_get(afu);
 	return 0;
+}
+
+void cxl_context_set_mapping(struct cxl_context *ctx,
+			struct address_space *mapping)
+{
+	mutex_lock(&ctx->mapping_lock);
+	ctx->mapping = mapping;
+	mutex_unlock(&ctx->mapping_lock);
 }
 
 static int cxl_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -299,8 +306,6 @@ static void reclaim_ctx(struct rcu_head *rcu)
 	if (ctx->ff_page)
 		__free_page(ctx->ff_page);
 	ctx->sstp = NULL;
-	if (ctx->kernelapi)
-		kfree(ctx->mapping);
 
 	kfree(ctx->irq_bitmap);
 
@@ -312,6 +317,8 @@ static void reclaim_ctx(struct rcu_head *rcu)
 
 void cxl_context_free(struct cxl_context *ctx)
 {
+	if (ctx->kernelapi && ctx->mapping)
+		cxl_release_mapping(ctx);
 	mutex_lock(&ctx->afu->contexts_lock);
 	idr_remove(&ctx->afu->contexts_idr, ctx->pe);
 	mutex_unlock(&ctx->afu->contexts_lock);
