@@ -117,7 +117,7 @@ struct drm_display_info {
 
 	/**
 	 * @pixel_clock: Maximum pixel clock supported by the sink, in units of
-	 * 100Hz. This mismatches the clok in &drm_display_mode (which is in
+	 * 100Hz. This mismatches the clock in &drm_display_mode (which is in
 	 * kHZ), because that's what the EDID uses as base unit.
 	 */
 	unsigned int pixel_clock;
