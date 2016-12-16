@@ -69,7 +69,7 @@ static int cdn_dp_set_fw_rate(struct cdn_dp_device *dp)
 
 	if (!dp->fw_clk_enabled) {
 		rate = clk_get_rate(dp->core_clk);
-		if (rate < 0) {
+		if (rate == 0) {
 			dev_err(dp->dev, "get clk rate failed: %d\n", rate);
 			return rate;
 		}
@@ -131,53 +131,9 @@ int cdn_dp_get_edid(void *dp, u8 *buf, int block)
 {
 	int ret;
 	struct cdn_dp_device *dp_dev = dp;
-	char guid[16];
-	char start_read_edid = -1;
-	u32 readed_size = 0;
-	u32 left_size = EDID_BLOCK_SIZE;
 
 	mutex_lock(&dp_dev->lock);
-	ret = cdn_dp_dpcd_read(dp, 0x0030, guid, 8);
-	if (ret == 0 && guid[0] == 'n' && guid[1] == 'a' &&
-	    guid[2] == 'n' && guid[3] == 'o' && guid[4] == 'c') {
-		int try_times = 0;
-
-		cdn_dp_dpcd_write(dp, 0x0038, 0x55);
-		while (left_size > 0) {
-			u32 length = (left_size > 8) ? 8 : left_size;
-
-			ret = cdn_dp_dpcd_read(dp, 0x0038, &start_read_edid, 1);
-			if (ret != 0) {
-				dev_err(dp_dev->dev, "read edid sync number error!\n");
-				break;
-			} else if (start_read_edid == 0xaa) {
-				try_times = 0;
-				ret = cdn_dp_dpcd_read(dp, 0x0030,
-						       buf + readed_size,
-						       length);
-				if (ret != 0) {
-					dev_err(dp_dev->dev,
-						"read edid bytes [%d~%d] error!\n",
-						readed_size,
-						readed_size + length);
-					break;
-				}
-
-				readed_size += length;
-				left_size -= length;
-				cdn_dp_dpcd_write(dp, 0x0038, 0x55);
-			} else {
-				if (try_times++ >= 100) {
-					dev_err(dp_dev->dev, "read edid from NanoC failed!\n");
-					break;
-				}
-				continue;
-			}
-		}
-	} else {
-		ret = cdn_dp_get_edid_block(dp_dev, buf,
-					    block, EDID_BLOCK_SIZE);
-	}
+	ret = cdn_dp_get_edid_block(dp_dev, buf, block, EDID_BLOCK_SIZE);
 	mutex_unlock(&dp_dev->lock);
 
 	return ret;
@@ -573,7 +529,7 @@ static int cdn_dp_get_dpcd(struct cdn_dp_device *dp, struct cdn_dp_port *port)
 {
 	u8 sink_count;
 	int i, ret;
-	int retry = 5;
+	int retry = 60;
 
 	/*
 	 * Native read with retry for link status and receiver capability reads
@@ -595,7 +551,7 @@ static int cdn_dp_get_dpcd(struct cdn_dp_device *dp, struct cdn_dp_port *port)
 					dev_err(dp->dev, "sink cout is 0, no sink device!\n");
 					return -ENODEV;
 				}
-				mdelay(50);
+				msleep(50);
 				continue;
 			}
 
