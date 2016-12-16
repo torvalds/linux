@@ -14,6 +14,26 @@
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 
+static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
+{
+	while (mc->nobjs)
+		free_page((unsigned long)mc->objects[--mc->nobjs]);
+}
+
+static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc)
+{
+	void *p;
+
+	BUG_ON(!mc || !mc->nobjs);
+	p = mc->objects[--mc->nobjs];
+	return p;
+}
+
+void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu)
+{
+	mmu_free_memory_cache(&vcpu->arch.mmu_page_cache);
+}
+
 static u32 kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
 	struct mm_struct *kern_mm = &vcpu->arch.guest_kernel_mm;
@@ -28,6 +48,56 @@ static u32 kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
 	int cpu = smp_processor_id();
 
 	return cpu_asid(cpu, user_mm);
+}
+
+/**
+ * kvm_mips_walk_pgd() - Walk page table with optional allocation.
+ * @pgd:	Page directory pointer.
+ * @addr:	Address to index page table using.
+ * @cache:	MMU page cache to allocate new page tables from, or NULL.
+ *
+ * Walk the page tables pointed to by @pgd to find the PTE corresponding to the
+ * address @addr. If page tables don't exist for @addr, they will be created
+ * from the MMU cache if @cache is not NULL.
+ *
+ * Returns:	Pointer to pte_t corresponding to @addr.
+ *		NULL if a page table doesn't exist for @addr and !@cache.
+ *		NULL if a page table allocation failed.
+ */
+static pte_t *kvm_mips_walk_pgd(pgd_t *pgd, struct kvm_mmu_memory_cache *cache,
+				unsigned long addr)
+{
+	pud_t *pud;
+	pmd_t *pmd;
+
+	pgd += pgd_index(addr);
+	if (pgd_none(*pgd)) {
+		/* Not used on MIPS yet */
+		BUG();
+		return NULL;
+	}
+	pud = pud_offset(pgd, addr);
+	if (pud_none(*pud)) {
+		pmd_t *new_pmd;
+
+		if (!cache)
+			return NULL;
+		new_pmd = mmu_memory_cache_alloc(cache);
+		pmd_init((unsigned long)new_pmd,
+			 (unsigned long)invalid_pte_table);
+		pud_populate(NULL, pud, new_pmd);
+	}
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none(*pmd)) {
+		pte_t *new_pte;
+
+		if (!cache)
+			return NULL;
+		new_pte = mmu_memory_cache_alloc(cache);
+		clear_page(new_pte);
+		pmd_populate_kernel(NULL, pmd, new_pte);
+	}
+	return pte_offset(pmd, addr);
 }
 
 static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
@@ -79,6 +149,31 @@ unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
 		return KVM_INVALID_ADDR;
 
 	return (kvm->arch.guest_pmap[gfn] << PAGE_SHIFT) + offset;
+}
+
+void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
+				  bool user)
+{
+	pgd_t *pgdp;
+	pte_t *ptep;
+
+	addr &= PAGE_MASK << 1;
+
+	pgdp = vcpu->arch.guest_kernel_mm.pgd;
+	ptep = kvm_mips_walk_pgd(pgdp, NULL, addr);
+	if (ptep) {
+		ptep[0] = pfn_pte(0, __pgprot(0));
+		ptep[1] = pfn_pte(0, __pgprot(0));
+	}
+
+	if (user) {
+		pgdp = vcpu->arch.guest_user_mm.pgd;
+		ptep = kvm_mips_walk_pgd(pgdp, NULL, addr);
+		if (ptep) {
+			ptep[0] = pfn_pte(0, __pgprot(0));
+			ptep[1] = pfn_pte(0, __pgprot(0));
+		}
+	}
 }
 
 /*

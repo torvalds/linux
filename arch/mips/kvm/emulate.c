@@ -864,10 +864,16 @@ static void kvm_mips_invalidate_guest_tlb(struct kvm_vcpu *vcpu,
 	/* No need to flush for entries which are already invalid */
 	if (!((tlb->tlb_lo[0] | tlb->tlb_lo[1]) & ENTRYLO_V))
 		return;
+	/* Don't touch host kernel page tables or TLB mappings */
+	if ((unsigned long)tlb->tlb_hi > 0x7fffffff)
+		return;
 	/* User address space doesn't need flushing for KSeg2/3 changes */
 	user = tlb->tlb_hi < KVM_GUEST_KSEG0;
 
 	preempt_disable();
+
+	/* Invalidate page table entries */
+	kvm_trap_emul_invalidate_gva(vcpu, tlb->tlb_hi & VPN2_MASK, user);
 
 	/*
 	 * Probe the shadow host TLB for the entry being overwritten, if one

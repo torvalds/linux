@@ -261,6 +261,17 @@ struct kvm_mips_tlb {
 	long tlb_lo[2];
 };
 
+#define KVM_NR_MEM_OBJS     4
+
+/*
+ * We don't want allocation failures within the mmu code, so we preallocate
+ * enough memory for a single page fault in a cache.
+ */
+struct kvm_mmu_memory_cache {
+	int nobjs;
+	void *objects[KVM_NR_MEM_OBJS];
+};
+
 #define KVM_MIPS_AUX_FPU	0x1
 #define KVM_MIPS_AUX_MSA	0x2
 
@@ -326,6 +337,9 @@ struct kvm_vcpu_arch {
 
 	/* Guest ASID of last user mode execution */
 	unsigned int last_user_gasid;
+
+	/* Cache some mmu pages needed inside spinlock regions */
+	struct kvm_mmu_memory_cache mmu_page_cache;
 
 	int last_sched_cpu;
 
@@ -631,6 +645,9 @@ enum kvm_mips_flush {
 	KMF_GPA		= 0x2,
 };
 void kvm_mips_flush_gva_pt(pgd_t *pgd, enum kvm_mips_flush flags);
+void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
+void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
+				  bool user);
 extern unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
 						   unsigned long gva);
 extern void kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
