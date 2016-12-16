@@ -8,18 +8,23 @@
  * many threads and futexes as possible.
  */
 
-#include "../perf.h"
-#include "../util/util.h"
+/* For the CLR_() macros */
+#include <pthread.h>
+
+#include <errno.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <linux/compiler.h>
+#include <linux/kernel.h>
+#include <sys/time.h>
+
 #include "../util/stat.h"
 #include <subcmd/parse-options.h>
-#include "../util/header.h"
 #include "bench.h"
 #include "futex.h"
 
 #include <err.h>
-#include <stdlib.h>
 #include <sys/time.h>
-#include <pthread.h>
 
 static unsigned int nthreads = 0;
 static unsigned int nsecs    = 10;

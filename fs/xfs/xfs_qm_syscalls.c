@@ -236,10 +236,8 @@ xfs_qm_scall_trunc_qfile(
 
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_TRUNCATE_FILE);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_itruncate, 0, 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
 	if (error) {
-		xfs_trans_cancel(tp);
 		xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 		goto out_put;
 	}
@@ -436,12 +434,9 @@ xfs_qm_scall_setqlim(
 	defq = xfs_get_defquota(dqp, q);
 	xfs_dqunlock(dqp);
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SETQLIM);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_setqlim, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_setqlim, 0, 0, 0, &tp);
+	if (error)
 		goto out_rele;
-	}
 
 	xfs_dqlock(dqp);
 	xfs_trans_dqjoin(tp, dqp);
@@ -569,13 +564,9 @@ xfs_qm_log_quotaoff_end(
 	int			error;
 	xfs_qoff_logitem_t	*qoffi;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QUOTAOFF_END);
-
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_equotaoff, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_equotaoff, 0, 0, 0, &tp);
+	if (error)
 		return error;
-	}
 
 	qoffi = xfs_trans_get_qoff_item(tp, startqoff,
 					flags & XFS_ALL_QUOTA_ACCT);
@@ -603,12 +594,9 @@ xfs_qm_log_quotaoff(
 
 	*qoffstartp = NULL;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_QUOTAOFF);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_qm_quotaoff, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_quotaoff, 0, 0, 0, &tp);
+	if (error)
 		goto out;
-	}
 
 	qoffi = xfs_trans_get_qoff_item(tp, NULL, flags & XFS_ALL_QUOTA_ACCT);
 	xfs_trans_log_quotaoff_item(tp, qoffi);

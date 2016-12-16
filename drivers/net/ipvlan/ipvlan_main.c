@@ -80,13 +80,6 @@ static void ipvlan_port_destroy(struct net_device *dev)
 	kfree_rcu(port, rcu);
 }
 
-/* ipvlan network devices have devices nesting below it and are a special
- * "super class" of normal network devices; split their locks off into a
- * separate class since they always nest.
- */
-static struct lock_class_key ipvlan_netdev_xmit_lock_key;
-static struct lock_class_key ipvlan_netdev_addr_lock_key;
-
 #define IPVLAN_FEATURES \
 	(NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
 	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_GSO_ROBUST | \
@@ -96,23 +89,11 @@ static struct lock_class_key ipvlan_netdev_addr_lock_key;
 #define IPVLAN_STATE_MASK \
 	((1<<__LINK_STATE_NOCARRIER) | (1<<__LINK_STATE_DORMANT))
 
-static void ipvlan_set_lockdep_class_one(struct net_device *dev,
-					 struct netdev_queue *txq,
-					 void *_unused)
-{
-	lockdep_set_class(&txq->_xmit_lock, &ipvlan_netdev_xmit_lock_key);
-}
-
-static void ipvlan_set_lockdep_class(struct net_device *dev)
-{
-	lockdep_set_class(&dev->addr_list_lock, &ipvlan_netdev_addr_lock_key);
-	netdev_for_each_tx_queue(dev, ipvlan_set_lockdep_class_one, NULL);
-}
-
 static int ipvlan_init(struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 	const struct net_device *phy_dev = ipvlan->phy_dev;
+	struct ipvl_port *port = ipvlan->port;
 
 	dev->state = (dev->state & ~IPVLAN_STATE_MASK) |
 		     (phy_dev->state & IPVLAN_STATE_MASK);
@@ -122,11 +103,13 @@ static int ipvlan_init(struct net_device *dev)
 	dev->gso_max_segs = phy_dev->gso_max_segs;
 	dev->hard_header_len = phy_dev->hard_header_len;
 
-	ipvlan_set_lockdep_class(dev);
+	netdev_lockdep_set_classes(dev);
 
 	ipvlan->pcpu_stats = alloc_percpu(struct ipvl_pcpu_stats);
 	if (!ipvlan->pcpu_stats)
 		return -ENOMEM;
+
+	port->count += 1;
 
 	return 0;
 }
@@ -481,27 +464,21 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 
 	dev->priv_flags |= IFF_IPVLAN_SLAVE;
 
-	port->count += 1;
 	err = register_netdevice(dev);
 	if (err < 0)
-		goto ipvlan_destroy_port;
+		return err;
 
 	err = netdev_upper_dev_link(phy_dev, dev);
-	if (err)
-		goto ipvlan_destroy_port;
+	if (err) {
+		unregister_netdevice(dev);
+		return err;
+	}
 
 	list_add_tail_rcu(&ipvlan->pnode, &port->ipvlans);
 	ipvlan_set_port_mode(port, mode);
 
 	netif_stacked_transfer_operstate(phy_dev, dev);
 	return 0;
-
-ipvlan_destroy_port:
-	port->count -= 1;
-	if (!port->count)
-		ipvlan_port_destroy(phy_dev);
-
-	return err;
 }
 
 static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)

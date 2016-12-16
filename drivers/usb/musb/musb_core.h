@@ -215,7 +215,7 @@ struct musb_platform_ops {
 				dma_addr_t *dma_addr, u32 *len);
 	void	(*pre_root_reset_end)(struct musb *musb);
 	void	(*post_root_reset_end)(struct musb *musb);
-	void	(*phy_callback)(enum musb_vbus_id_status status);
+	int	(*phy_callback)(enum musb_vbus_id_status status);
 };
 
 /*
@@ -312,6 +312,7 @@ struct musb {
 	struct work_struct	irq_work;
 	struct delayed_work	deassert_reset_work;
 	struct delayed_work	finish_resume_work;
+	struct delayed_work	gadget_work;
 	u16			hwvers;
 
 	u16			intrrxe;

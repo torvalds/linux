@@ -236,8 +236,8 @@ acpi_ut_divide(u64 in_dividend,
 			}
 
 			remainder.full = remainder.full - dividend.full;
-			remainder.part.hi = (u32) - ((s32) remainder.part.hi);
-			remainder.part.lo = (u32) - ((s32) remainder.part.lo);
+			remainder.part.hi = (u32)-((s32)remainder.part.hi);
+			remainder.part.lo = (u32)-((s32)remainder.part.lo);
 
 			if (remainder.part.lo) {
 				remainder.part.hi--;

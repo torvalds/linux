@@ -3,9 +3,10 @@ Date:		Mai 2012
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
 		press of a button. A profile is split into general settings and
-		button settings. buttons holds informations about button layout.
-		When written, this file lets one write the respective profile
-		buttons to the mouse. The data has to be 47 bytes long.
+		button settings. The buttons variable holds information about
+		button layout. When written, this file lets one write the
+		respective profile buttons to the mouse. The data has to be
+		47 bytes long.
 		The mouse will reject invalid data.
 		Which profile to write is determined by the profile number
 		contained in the data.
@@ -26,8 +27,8 @@ Date:		Mai 2012
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
 Description:	The mouse can store 5 profiles which can be switched by the
 		press of a button. A profile is split into general settings and
-		button settings. profile holds informations like resolution, sensitivity
-		and light effects.
+		button settings. A profile holds information like resolution,
+		sensitivity and light effects.
 		When written, this file lets one write the respective profile
 		settings back to the mouse. The data has to be 43 bytes long.
 		The mouse will reject invalid data.

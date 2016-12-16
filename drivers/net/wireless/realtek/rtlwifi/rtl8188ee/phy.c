@@ -373,7 +373,7 @@ static bool _rtl88e_phy_bb8188e_config_parafile(struct ieee80211_hw *hw)
 
 	rtstatus = phy_config_bb_with_headerfile(hw, BASEBAND_CONFIG_PHY_REG);
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Write BB Reg Fail!!");
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Write BB Reg Fail!!\n");
 		return false;
 	}
 
@@ -383,7 +383,7 @@ static bool _rtl88e_phy_bb8188e_config_parafile(struct ieee80211_hw *hw)
 		  phy_config_bb_with_pghdr(hw, BASEBAND_CONFIG_PHY_REG);
 	}
 	if (!rtstatus) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "BB_PG Reg Fail!!");
+		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "BB_PG Reg Fail!!\n");
 		return false;
 	}
 	rtstatus =
@@ -1239,7 +1239,7 @@ u8 rtl88e_phy_sw_chnl(struct ieee80211_hw *hw)
 	if (!(is_hal_stop(rtlhal)) && !(RT_CANNOT_IO(hw))) {
 		rtl88e_phy_sw_chnl_callback(hw);
 		RT_TRACE(rtlpriv, COMP_CHAN, DBG_LOUD,
-			 "sw_chnl_inprogress false schdule workitem current channel %d\n",
+			 "sw_chnl_inprogress false schedule workitem current channel %d\n",
 			 rtlphy->current_channel);
 		rtlphy->sw_chnl_inprogress = false;
 	} else {
@@ -1903,8 +1903,7 @@ static void _rtl88e_phy_lc_calibrate(struct ieee80211_hw *hw, bool is2t)
 	} else {
 		rtl_write_byte(rtlpriv, REG_TXPAUSE, 0x00);
 	}
-RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "\n");
-
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "\n");
 }
 
 static void _rtl88e_phy_set_rfpath_switch(struct ieee80211_hw *hw,

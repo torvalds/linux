@@ -299,9 +299,9 @@ acpi_tb_install_standard_table(acpi_physical_address address,
 			ACPI_BIOS_ERROR((AE_INFO,
 					 "Table has invalid signature [%4.4s] (0x%8.8X), "
 					 "must be SSDT or OEMx",
-					 acpi_ut_valid_acpi_name(new_table_desc.
-								 signature.
-								 ascii) ?
+					 acpi_ut_valid_nameseg(new_table_desc.
+							       signature.
+							       ascii) ?
 					 new_table_desc.signature.
 					 ascii : "????",
 					 new_table_desc.signature.integer));

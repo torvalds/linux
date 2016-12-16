@@ -55,6 +55,7 @@ struct thread_info {
 #define TIF_SINGLESTEP		9	/* single stepping? */
 #define TIF_BLOCKSTEP		10	/* branch stepping? */
 #define TIF_SECCOMP		11	/* secure computing */
+#define TIF_SYSCALL_TRACEPOINT	12	/* syscall tracepoint instrumentation */
 
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
@@ -66,12 +67,13 @@ struct thread_info {
 #define _TIF_SINGLESTEP		(1 << TIF_SINGLESTEP)
 #define _TIF_BLOCKSTEP		(1 << TIF_BLOCKSTEP)
 #define _TIF_SECCOMP		(1 << TIF_SECCOMP)
+#define _TIF_SYSCALL_TRACEPOINT	(1 << TIF_SYSCALL_TRACEPOINT)
 
 #define _TIF_USER_WORK_MASK     (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | \
                                  _TIF_NEED_RESCHED)
 #define _TIF_SYSCALL_TRACE_MASK (_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP |	\
 				 _TIF_BLOCKSTEP | _TIF_SYSCALL_AUDIT | \
-				 _TIF_SECCOMP)
+				 _TIF_SECCOMP | _TIF_SYSCALL_TRACEPOINT)
 
 #ifdef CONFIG_64BIT
 # ifdef CONFIG_COMPAT

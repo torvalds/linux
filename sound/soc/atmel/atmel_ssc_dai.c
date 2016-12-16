@@ -299,8 +299,9 @@ static int atmel_ssc_startup(struct snd_pcm_substream *substream,
 	clk_enable(ssc_p->ssc->clk);
 	ssc_p->mck_rate = clk_get_rate(ssc_p->ssc->clk);
 
-	/* Reset the SSC to keep it at a clean status */
-	ssc_writel(ssc_p->ssc->regs, CR, SSC_BIT(CR_SWRST));
+	/* Reset the SSC unless initialized to keep it in a clean state */
+	if (!ssc_p->initialized)
+		ssc_writel(ssc_p->ssc->regs, CR, SSC_BIT(CR_SWRST));
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		dir = 0;
@@ -321,7 +322,7 @@ static int atmel_ssc_startup(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	dma_params = &ssc_dma_params[dai->id][dir];
+	dma_params = &ssc_dma_params[pdev->id][dir];
 	dma_params->ssc = ssc_p->ssc;
 	dma_params->substream = substream;
 
@@ -652,7 +653,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		rcmr =	  SSC_BF(RCMR_PERIOD, ssc_p->rcmr_period)
 			| SSC_BF(RCMR_STTDLY, 1)
 			| SSC_BF(RCMR_START, SSC_START_RISING_RF)
-			| SSC_BF(RCMR_CKI, SSC_CKI_FALLING)
+			| SSC_BF(RCMR_CKI, SSC_CKI_RISING)
 			| SSC_BF(RCMR_CKO, SSC_CKO_NONE)
 			| SSC_BF(RCMR_CKS, SSC_CKS_DIV);
 
@@ -692,7 +693,7 @@ static int atmel_ssc_hw_params(struct snd_pcm_substream *substream,
 		rcmr =	  SSC_BF(RCMR_PERIOD, 0)
 			| SSC_BF(RCMR_STTDLY, START_DELAY)
 			| SSC_BF(RCMR_START, SSC_START_RISING_RF)
-			| SSC_BF(RCMR_CKI, SSC_CKI_FALLING)
+			| SSC_BF(RCMR_CKI, SSC_CKI_RISING)
 			| SSC_BF(RCMR_CKO, SSC_CKO_NONE)
 			| SSC_BF(RCMR_CKS, ssc->clk_from_rk_pin ?
 					   SSC_CKS_PIN : SSC_CKS_CLOCK);

@@ -222,7 +222,7 @@ int omap2_dflt_clk_enable(struct clk_hw *hw)
 		}
 	}
 
-	if (unlikely(IS_ERR(clk->enable_reg))) {
+	if (IS_ERR(clk->enable_reg)) {
 		pr_err("%s: %s missing enable_reg\n", __func__,
 		       clk_hw_get_name(hw));
 		ret = -EINVAL;

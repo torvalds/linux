@@ -1496,7 +1496,7 @@ static int snd_riptide_prepare(struct snd_pcm_substream *substream)
 		f = PAGE_SIZE;
 		while ((size + (f >> 1) - 1) <= (f << 7) && (f << 1) > period)
 			f = f >> 1;
-		pages = (size + f - 1) / f;
+		pages = DIV_ROUND_UP(size, f);
 		data->size = size;
 		data->pages = pages;
 		snd_printdd

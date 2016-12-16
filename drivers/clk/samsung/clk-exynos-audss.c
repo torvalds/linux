@@ -273,17 +273,7 @@ static struct platform_driver exynos_audss_clk_driver = {
 	.remove = exynos_audss_clk_remove,
 };
 
-static int __init exynos_audss_clk_init(void)
-{
-	return platform_driver_register(&exynos_audss_clk_driver);
-}
-core_initcall(exynos_audss_clk_init);
-
-static void __exit exynos_audss_clk_exit(void)
-{
-	platform_driver_unregister(&exynos_audss_clk_driver);
-}
-module_exit(exynos_audss_clk_exit);
+module_platform_driver(exynos_audss_clk_driver);
 
 MODULE_AUTHOR("Padmavathi Venna <padma.v@samsung.com>");
 MODULE_DESCRIPTION("Exynos Audio Subsystem Clock Controller");

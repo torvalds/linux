@@ -279,6 +279,26 @@ static int ndesc_get_rx_timestamp_status(void *desc, u32 ats)
 		return 1;
 }
 
+static void ndesc_display_ring(void *head, unsigned int size, bool rx)
+{
+	struct dma_desc *p = (struct dma_desc *)head;
+	int i;
+
+	pr_info("%s descriptor ring:\n", rx ? "RX" : "TX");
+
+	for (i = 0; i < size; i++) {
+		u64 x;
+
+		x = *(u64 *)p;
+		pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x",
+			i, (unsigned int)virt_to_phys(p),
+			(unsigned int)x, (unsigned int)(x >> 32),
+			p->des2, p->des3);
+		p++;
+	}
+	pr_info("\n");
+}
+
 const struct stmmac_desc_ops ndesc_ops = {
 	.tx_status = ndesc_get_tx_status,
 	.rx_status = ndesc_get_rx_status,
@@ -297,4 +317,5 @@ const struct stmmac_desc_ops ndesc_ops = {
 	.get_tx_timestamp_status = ndesc_get_tx_timestamp_status,
 	.get_timestamp = ndesc_get_timestamp,
 	.get_rx_timestamp_status = ndesc_get_rx_timestamp_status,
+	.display_ring = ndesc_display_ring,
 };

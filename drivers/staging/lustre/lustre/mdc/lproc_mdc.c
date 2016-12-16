@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -49,9 +45,9 @@ static ssize_t max_rpcs_in_flight_show(struct kobject *kobj,
 					      obd_kobj);
 	struct client_obd *cli = &dev->u.cli;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	len = sprintf(buf, "%u\n", cli->cl_max_rpcs_in_flight);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return len;
 }
@@ -74,9 +70,9 @@ static ssize_t max_rpcs_in_flight_store(struct kobject *kobj,
 	if (val < 1 || val > MDC_MAX_RIF_MAX)
 		return -ERANGE;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_max_rpcs_in_flight = val;
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 
 	return count;
 }

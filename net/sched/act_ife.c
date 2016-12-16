@@ -37,6 +37,7 @@
 
 static int ife_net_id;
 static int max_metacnt = IFE_META_MAX + 1;
+static struct tc_action_ops act_ife_ops;
 
 static const struct nla_policy ife_policy[TCA_IFE_MAX + 1] = {
 	[TCA_IFE_PARMS] = { .len = sizeof(struct tc_ife)},
@@ -52,7 +53,7 @@ int ife_tlv_meta_encode(void *skbdata, u16 attrtype, u16 dlen, const void *dval)
 	u32 *tlv = (u32 *)(skbdata);
 	u16 totlen = nla_total_size(dlen);	/*alignment + hdr */
 	char *dptr = (char *)tlv + NLA_HDRLEN;
-	u32 htlv = attrtype << 16 | totlen;
+	u32 htlv = attrtype << 16 | (dlen + NLA_HDRLEN);
 
 	*tlv = htonl(htlv);
 	memset(dptr, 0, totlen - NLA_HDRLEN);
@@ -106,9 +107,9 @@ int ife_get_meta_u16(struct sk_buff *skb, struct tcf_meta_info *mi)
 }
 EXPORT_SYMBOL_GPL(ife_get_meta_u16);
 
-int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval)
+int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval, gfp_t gfp)
 {
-	mi->metaval = kmemdup(metaval, sizeof(u32), GFP_KERNEL);
+	mi->metaval = kmemdup(metaval, sizeof(u32), gfp);
 	if (!mi->metaval)
 		return -ENOMEM;
 
@@ -116,9 +117,9 @@ int ife_alloc_meta_u32(struct tcf_meta_info *mi, void *metaval)
 }
 EXPORT_SYMBOL_GPL(ife_alloc_meta_u32);
 
-int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval)
+int ife_alloc_meta_u16(struct tcf_meta_info *mi, void *metaval, gfp_t gfp)
 {
-	mi->metaval = kmemdup(metaval, sizeof(u16), GFP_KERNEL);
+	mi->metaval = kmemdup(metaval, sizeof(u16), gfp);
 	if (!mi->metaval)
 		return -ENOMEM;
 
@@ -134,7 +135,7 @@ EXPORT_SYMBOL_GPL(ife_release_meta_gen);
 
 int ife_validate_meta_u32(void *val, int len)
 {
-	if (len == 4)
+	if (len == sizeof(u32))
 		return 0;
 
 	return -EINVAL;
@@ -143,8 +144,8 @@ EXPORT_SYMBOL_GPL(ife_validate_meta_u32);
 
 int ife_validate_meta_u16(void *val, int len)
 {
-	/* length will include padding */
-	if (len == NLA_ALIGN(2))
+	/* length will not include padding */
+	if (len == sizeof(u16))
 		return 0;
 
 	return -EINVAL;
@@ -240,10 +241,10 @@ static int ife_validate_metatype(struct tcf_meta_ops *ops, void *val, int len)
 }
 
 /* called when adding new meta information
- * under ife->tcf_lock
+ * under ife->tcf_lock for existing action
 */
 static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
-				void *val, int len)
+				void *val, int len, bool exists)
 {
 	struct tcf_meta_ops *ops = find_ife_oplist(metaid);
 	int ret = 0;
@@ -251,11 +252,13 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
 	if (!ops) {
 		ret = -ENOENT;
 #ifdef CONFIG_MODULES
-		spin_unlock_bh(&ife->tcf_lock);
+		if (exists)
+			spin_unlock_bh(&ife->tcf_lock);
 		rtnl_unlock();
 		request_module("ifemeta%u", metaid);
 		rtnl_lock();
-		spin_lock_bh(&ife->tcf_lock);
+		if (exists)
+			spin_lock_bh(&ife->tcf_lock);
 		ops = find_ife_oplist(metaid);
 #endif
 	}
@@ -272,10 +275,10 @@ static int load_metaops_and_vet(struct tcf_ife_info *ife, u32 metaid,
 }
 
 /* called when adding new meta information
- * under ife->tcf_lock
+ * under ife->tcf_lock for existing action
 */
 static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
-			int len)
+			int len, bool atomic)
 {
 	struct tcf_meta_info *mi = NULL;
 	struct tcf_meta_ops *ops = find_ife_oplist(metaid);
@@ -284,7 +287,7 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	if (!ops)
 		return -ENOENT;
 
-	mi = kzalloc(sizeof(*mi), GFP_KERNEL);
+	mi = kzalloc(sizeof(*mi), atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (!mi) {
 		/*put back what find_ife_oplist took */
 		module_put(ops->owner);
@@ -294,7 +297,7 @@ static int add_metainfo(struct tcf_ife_info *ife, u32 metaid, void *metaval,
 	mi->metaid = metaid;
 	mi->ops = ops;
 	if (len > 0) {
-		ret = ops->alloc(mi, metaval);
+		ret = ops->alloc(mi, metaval, atomic ? GFP_ATOMIC : GFP_KERNEL);
 		if (ret != 0) {
 			kfree(mi);
 			module_put(ops->owner);
@@ -313,11 +316,13 @@ static int use_all_metadata(struct tcf_ife_info *ife)
 	int rc = 0;
 	int installed = 0;
 
+	read_lock(&ife_mod_lock);
 	list_for_each_entry(o, &ifeoplist, list) {
-		rc = add_metainfo(ife, o->metaid, NULL, 0);
+		rc = add_metainfo(ife, o->metaid, NULL, 0, true);
 		if (rc == 0)
 			installed += 1;
 	}
+	read_unlock(&ife_mod_lock);
 
 	if (installed)
 		return 0;
@@ -360,7 +365,7 @@ out_nlmsg_trim:
 /* under ife->tcf_lock */
 static void _tcf_ife_cleanup(struct tc_action *a, int bind)
 {
-	struct tcf_ife_info *ife = a->priv;
+	struct tcf_ife_info *ife = to_ife(a);
 	struct tcf_meta_info *e, *n;
 
 	list_for_each_entry_safe(e, n, &ife->metalist, metalist) {
@@ -378,15 +383,16 @@ static void _tcf_ife_cleanup(struct tc_action *a, int bind)
 
 static void tcf_ife_cleanup(struct tc_action *a, int bind)
 {
-	struct tcf_ife_info *ife = a->priv;
+	struct tcf_ife_info *ife = to_ife(a);
 
 	spin_lock_bh(&ife->tcf_lock);
 	_tcf_ife_cleanup(a, bind);
 	spin_unlock_bh(&ife->tcf_lock);
 }
 
-/* under ife->tcf_lock */
-static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb)
+/* under ife->tcf_lock for existing action */
+static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb,
+			     bool exists)
 {
 	int len = 0;
 	int rc = 0;
@@ -398,11 +404,11 @@ static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb)
 			val = nla_data(tb[i]);
 			len = nla_len(tb[i]);
 
-			rc = load_metaops_and_vet(ife, i, val, len);
+			rc = load_metaops_and_vet(ife, i, val, len, exists);
 			if (rc != 0)
 				return rc;
 
-			rc = add_metainfo(ife, i, val, len);
+			rc = add_metainfo(ife, i, val, len, exists);
 			if (rc)
 				return rc;
 		}
@@ -412,7 +418,7 @@ static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb)
 }
 
 static int tcf_ife_init(struct net *net, struct nlattr *nla,
-			struct nlattr *est, struct tc_action *a,
+			struct nlattr *est, struct tc_action **a,
 			int ovr, int bind)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
@@ -423,7 +429,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	u16 ife_type = 0;
 	u8 *daddr = NULL;
 	u8 *saddr = NULL;
-	int ret = 0, exists = 0;
+	bool exists = false;
+	int ret = 0;
 	int err;
 
 	err = nla_parse_nested(tb, TCA_IFE_MAX, nla, ife_policy);
@@ -445,25 +452,25 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 		**/
 		if (!tb[TCA_IFE_TYPE]) {
 			if (exists)
-				tcf_hash_release(a, bind);
+				tcf_hash_release(*a, bind);
 			pr_info("You MUST pass etherype for encoding\n");
 			return -EINVAL;
 		}
 	}
 
 	if (!exists) {
-		ret = tcf_hash_create(tn, parm->index, est, a, sizeof(*ife),
+		ret = tcf_hash_create(tn, parm->index, est, a, &act_ife_ops,
 				      bind, false);
 		if (ret)
 			return ret;
 		ret = ACT_P_CREATED;
 	} else {
-		tcf_hash_release(a, bind);
+		tcf_hash_release(*a, bind);
 		if (!ovr)
 			return -EEXIST;
 	}
 
-	ife = to_ife(a);
+	ife = to_ife(*a);
 	ife->flags = parm->flags;
 
 	if (parm->flags & IFE_ENCODE) {
@@ -474,7 +481,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			saddr = nla_data(tb[TCA_IFE_SMAC]);
 	}
 
-	spin_lock_bh(&ife->tcf_lock);
+	if (exists)
+		spin_lock_bh(&ife->tcf_lock);
 	ife->tcf_action = parm->action;
 
 	if (parm->flags & IFE_ENCODE) {
@@ -500,15 +508,16 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 		if (err) {
 metadata_parse_err:
 			if (exists)
-				tcf_hash_release(a, bind);
+				tcf_hash_release(*a, bind);
 			if (ret == ACT_P_CREATED)
-				_tcf_ife_cleanup(a, bind);
+				_tcf_ife_cleanup(*a, bind);
 
-			spin_unlock_bh(&ife->tcf_lock);
+			if (exists)
+				spin_unlock_bh(&ife->tcf_lock);
 			return err;
 		}
 
-		err = populate_metalist(ife, tb2);
+		err = populate_metalist(ife, tb2, exists);
 		if (err)
 			goto metadata_parse_err;
 
@@ -521,17 +530,19 @@ metadata_parse_err:
 		err = use_all_metadata(ife);
 		if (err) {
 			if (ret == ACT_P_CREATED)
-				_tcf_ife_cleanup(a, bind);
+				_tcf_ife_cleanup(*a, bind);
 
-			spin_unlock_bh(&ife->tcf_lock);
+			if (exists)
+				spin_unlock_bh(&ife->tcf_lock);
 			return err;
 		}
 	}
 
-	spin_unlock_bh(&ife->tcf_lock);
+	if (exists)
+		spin_unlock_bh(&ife->tcf_lock);
 
 	if (ret == ACT_P_CREATED)
-		tcf_hash_insert(tn, a);
+		tcf_hash_insert(tn, *a);
 
 	return ret;
 }
@@ -540,7 +551,7 @@ static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 			int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
-	struct tcf_ife_info *ife = a->priv;
+	struct tcf_ife_info *ife = to_ife(a);
 	struct tc_ife opt = {
 		.index = ife->tcf_index,
 		.refcnt = ife->tcf_refcnt - ref,
@@ -553,10 +564,8 @@ static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
 	if (nla_put(skb, TCA_IFE_PARMS, sizeof(opt), &opt))
 		goto nla_put_failure;
 
-	t.install = jiffies_to_clock_t(jiffies - ife->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - ife->tcf_tm.lastuse);
-	t.expires = jiffies_to_clock_t(ife->tcf_tm.expires);
-	if (nla_put(skb, TCA_IFE_TM, sizeof(t), &t))
+	tcf_tm_dump(&t, &ife->tcf_tm);
+	if (nla_put_64bit(skb, TCA_IFE_TM, sizeof(t), &t, TCA_IFE_PAD))
 		goto nla_put_failure;
 
 	if (!is_zero_ether_addr(ife->eth_dst)) {
@@ -615,15 +624,15 @@ struct meta_tlvhdr {
 static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
-	struct tcf_ife_info *ife = a->priv;
+	struct tcf_ife_info *ife = to_ife(a);
 	int action = ife->tcf_action;
 	struct ifeheadr *ifehdr = (struct ifeheadr *)skb->data;
-	u16 ifehdrln = ifehdr->metalen;
+	int ifehdrln = (int)ifehdr->metalen;
 	struct meta_tlvhdr *tlv = (struct meta_tlvhdr *)(ifehdr->tlv_data);
 
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 	spin_unlock(&ife->tcf_lock);
 
 	ifehdrln = ntohs(ifehdrln);
@@ -643,12 +652,14 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 		u8 *tlvdata = (u8 *)tlv;
 		u16 mtype = tlv->type;
 		u16 mlen = tlv->len;
+		u16 alen;
 
 		mtype = ntohs(mtype);
 		mlen = ntohs(mlen);
+		alen = NLA_ALIGN(mlen);
 
-		if (find_decode_metaid(skb, ife, mtype, (mlen - 4),
-				       (void *)(tlvdata + 4))) {
+		if (find_decode_metaid(skb, ife, mtype, (mlen - NLA_HDRLEN),
+				       (void *)(tlvdata + NLA_HDRLEN))) {
 			/* abuse overlimits to count when we receive metadata
 			 * but dont have an ops for it
 			 */
@@ -657,8 +668,8 @@ static int tcf_ife_decode(struct sk_buff *skb, const struct tc_action *a,
 			ife->tcf_qstats.overlimits++;
 		}
 
-		tlvdata += mlen;
-		ifehdrln -= mlen;
+		tlvdata += alen;
+		ifehdrln -= alen;
 		tlv = (struct meta_tlvhdr *)tlvdata;
 	}
 
@@ -687,7 +698,7 @@ static int ife_get_sz(struct sk_buff *skb, struct tcf_ife_info *ife)
 static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
-	struct tcf_ife_info *ife = a->priv;
+	struct tcf_ife_info *ife = to_ife(a);
 	int action = ife->tcf_action;
 	struct ethhdr *oethh;	/* outer ether header */
 	struct ethhdr *iethh;	/* inner eth header */
@@ -711,7 +722,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 
 	if (!metalen) {		/* no metadata to send */
 		/* abuse overlimits to count when we allow packet
@@ -729,8 +740,6 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 		return TC_ACT_SHOT;
 	}
 
-	iethh = eth_hdr(skb);
-
 	err = skb_cow_head(skb, hdrm);
 	if (unlikely(err)) {
 		ife->tcf_qstats.drops++;
@@ -741,6 +750,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	if (!(at & AT_EGRESS))
 		skb_push(skb, skb->dev->hard_header_len);
 
+	iethh = (struct ethhdr *)skb->data;
 	__skb_push(skb, hdrm);
 	memcpy(skb->data, iethh, skb->mac_len);
 	skb_reset_mac_header(skb);
@@ -791,7 +801,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 		       struct tcf_result *res)
 {
-	struct tcf_ife_info *ife = a->priv;
+	struct tcf_ife_info *ife = to_ife(a);
 
 	if (ife->flags & IFE_ENCODE)
 		return tcf_ife_encode(skb, a, res);
@@ -802,7 +812,7 @@ static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 	pr_info_ratelimited("unknown failure(policy neither de/encode\n");
 	spin_lock(&ife->tcf_lock);
 	bstats_update(&ife->tcf_bstats, skb);
-	ife->tcf_tm.lastuse = jiffies;
+	tcf_lastuse_update(&ife->tcf_tm);
 	ife->tcf_qstats.drops++;
 	spin_unlock(&ife->tcf_lock);
 
@@ -811,14 +821,14 @@ static int tcf_ife_act(struct sk_buff *skb, const struct tc_action *a,
 
 static int tcf_ife_walker(struct net *net, struct sk_buff *skb,
 			  struct netlink_callback *cb, int type,
-			  struct tc_action *a)
+			  const struct tc_action_ops *ops)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
 
-	return tcf_generic_walker(tn, skb, cb, type, a);
+	return tcf_generic_walker(tn, skb, cb, type, ops);
 }
 
-static int tcf_ife_search(struct net *net, struct tc_action *a, u32 index)
+static int tcf_ife_search(struct net *net, struct tc_action **a, u32 index)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
 
@@ -835,6 +845,7 @@ static struct tc_action_ops act_ife_ops = {
 	.init = tcf_ife_init,
 	.walk = tcf_ife_walker,
 	.lookup = tcf_ife_search,
+	.size =	sizeof(struct tcf_ife_info),
 };
 
 static __net_init int ife_init_net(struct net *net)

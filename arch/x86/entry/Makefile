@@ -5,6 +5,8 @@
 OBJECT_FILES_NON_STANDARD_entry_$(BITS).o   := y
 OBJECT_FILES_NON_STANDARD_entry_64_compat.o := y
 
+CFLAGS_syscall_64.o		+= -Wno-override-init
+CFLAGS_syscall_32.o		+= -Wno-override-init
 obj-y				:= entry_$(BITS).o thunk_$(BITS).o syscall_$(BITS).o
 obj-y				+= common.o
 

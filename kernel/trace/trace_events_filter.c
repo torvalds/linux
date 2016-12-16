@@ -689,10 +689,7 @@ static void append_filter_err(struct filter_parse_state *ps,
 
 static inline struct event_filter *event_filter(struct trace_event_file *file)
 {
-	if (file->event_call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		return file->event_call->filter;
-	else
-		return file->filter;
+	return file->filter;
 }
 
 /* caller must hold event_mutex */
@@ -826,12 +823,12 @@ static void __free_preds(struct event_filter *filter)
 
 static void filter_disable(struct trace_event_file *file)
 {
-	struct trace_event_call *call = file->event_call;
+	unsigned long old_flags = file->flags;
 
-	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		call->flags &= ~TRACE_EVENT_FL_FILTERED;
-	else
-		file->flags &= ~EVENT_FILE_FL_FILTERED;
+	file->flags &= ~EVENT_FILE_FL_FILTERED;
+
+	if (old_flags != file->flags)
+		trace_buffered_event_disable();
 }
 
 static void __free_filter(struct event_filter *filter)
@@ -883,13 +880,8 @@ static int __alloc_preds(struct event_filter *filter, int n_preds)
 
 static inline void __remove_filter(struct trace_event_file *file)
 {
-	struct trace_event_call *call = file->event_call;
-
 	filter_disable(file);
-	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		remove_filter_string(call->filter);
-	else
-		remove_filter_string(file->filter);
+	remove_filter_string(file->filter);
 }
 
 static void filter_free_subsystem_preds(struct trace_subsystem_dir *dir,
@@ -906,15 +898,8 @@ static void filter_free_subsystem_preds(struct trace_subsystem_dir *dir,
 
 static inline void __free_subsystem_filter(struct trace_event_file *file)
 {
-	struct trace_event_call *call = file->event_call;
-
-	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER) {
-		__free_filter(call->filter);
-		call->filter = NULL;
-	} else {
-		__free_filter(file->filter);
-		file->filter = NULL;
-	}
+	__free_filter(file->filter);
+	file->filter = NULL;
 }
 
 static void filter_free_subsystem_filters(struct trace_subsystem_dir *dir,
@@ -1718,67 +1703,41 @@ fail:
 
 static inline void event_set_filtered_flag(struct trace_event_file *file)
 {
-	struct trace_event_call *call = file->event_call;
+	unsigned long old_flags = file->flags;
 
-	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		call->flags |= TRACE_EVENT_FL_FILTERED;
-	else
-		file->flags |= EVENT_FILE_FL_FILTERED;
+	file->flags |= EVENT_FILE_FL_FILTERED;
+
+	if (old_flags != file->flags)
+		trace_buffered_event_enable();
 }
 
 static inline void event_set_filter(struct trace_event_file *file,
 				    struct event_filter *filter)
 {
-	struct trace_event_call *call = file->event_call;
-
-	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		rcu_assign_pointer(call->filter, filter);
-	else
-		rcu_assign_pointer(file->filter, filter);
+	rcu_assign_pointer(file->filter, filter);
 }
 
 static inline void event_clear_filter(struct trace_event_file *file)
 {
-	struct trace_event_call *call = file->event_call;
-
-	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		RCU_INIT_POINTER(call->filter, NULL);
-	else
-		RCU_INIT_POINTER(file->filter, NULL);
+	RCU_INIT_POINTER(file->filter, NULL);
 }
 
 static inline void
 event_set_no_set_filter_flag(struct trace_event_file *file)
 {
-	struct trace_event_call *call = file->event_call;
-
-	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		call->flags |= TRACE_EVENT_FL_NO_SET_FILTER;
-	else
-		file->flags |= EVENT_FILE_FL_NO_SET_FILTER;
+	file->flags |= EVENT_FILE_FL_NO_SET_FILTER;
 }
 
 static inline void
 event_clear_no_set_filter_flag(struct trace_event_file *file)
 {
-	struct trace_event_call *call = file->event_call;
-
-	if (call->flags & TRACE_EVENT_FL_USE_CALL_FILTER)
-		call->flags &= ~TRACE_EVENT_FL_NO_SET_FILTER;
-	else
-		file->flags &= ~EVENT_FILE_FL_NO_SET_FILTER;
+	file->flags &= ~EVENT_FILE_FL_NO_SET_FILTER;
 }
 
 static inline bool
 event_no_set_filter_flag(struct trace_event_file *file)
 {
-	struct trace_event_call *call = file->event_call;
-
 	if (file->flags & EVENT_FILE_FL_NO_SET_FILTER)
-		return true;
-
-	if ((call->flags & TRACE_EVENT_FL_USE_CALL_FILTER) &&
-	    (call->flags & TRACE_EVENT_FL_NO_SET_FILTER))
 		return true;
 
 	return false;

@@ -61,6 +61,7 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 		{ "bmbt2",		XFSSTAT_END_BMBT_V2		},
 		{ "ibt2",		XFSSTAT_END_IBT_V2		},
 		{ "fibt2",		XFSSTAT_END_FIBT_V2		},
+		{ "rmapbt",		XFSSTAT_END_RMAP_V2		},
 		/* we print both series of quota information together */
 		{ "qm",			XFSSTAT_END_QM			},
 	};
@@ -128,7 +129,6 @@ static int xqm_proc_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations xqm_proc_fops = {
-	.owner		= THIS_MODULE,
 	.open		= xqm_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

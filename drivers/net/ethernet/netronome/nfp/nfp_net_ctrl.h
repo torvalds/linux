@@ -81,14 +81,10 @@
 
 /**
  * @NFP_NET_TXR_MAX:         Maximum number of TX rings
- * @NFP_NET_TXR_MASK:        Mask for TX rings
  * @NFP_NET_RXR_MAX:         Maximum number of RX rings
- * @NFP_NET_RXR_MASK:        Mask for RX rings
  */
 #define NFP_NET_TXR_MAX                 64
-#define NFP_NET_TXR_MASK                (NFP_NET_TXR_MAX - 1)
 #define NFP_NET_RXR_MAX                 64
-#define NFP_NET_RXR_MASK                (NFP_NET_RXR_MAX - 1)
 
 /**
  * Read/Write config words (0x0000 - 0x002c)
@@ -152,9 +148,9 @@
  * @NFP_NET_CFG_VERSION:     Firmware version number
  * @NFP_NET_CFG_STS:         Status
  * @NFP_NET_CFG_CAP:         Capabilities (same bits as @NFP_NET_CFG_CTRL)
- * @NFP_NET_MAX_TXRINGS:     Maximum number of TX rings
- * @NFP_NET_MAX_RXRINGS:     Maximum number of RX rings
- * @NFP_NET_MAX_MTU:         Maximum support MTU
+ * @NFP_NET_CFG_MAX_TXRINGS: Maximum number of TX rings
+ * @NFP_NET_CFG_MAX_RXRINGS: Maximum number of RX rings
+ * @NFP_NET_CFG_MAX_MTU:     Maximum support MTU
  * @NFP_NET_CFG_START_TXQ:   Start Queue Control Queue to use for TX (PF only)
  * @NFP_NET_CFG_START_RXQ:   Start Queue Control Queue to use for RX (PF only)
  *

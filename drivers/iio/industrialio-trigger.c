@@ -64,9 +64,15 @@ static struct attribute *iio_trig_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(iio_trig_dev);
 
+static struct iio_trigger *__iio_trigger_find_by_name(const char *name);
+
 int iio_trigger_register(struct iio_trigger *trig_info)
 {
 	int ret;
+
+	/* trig_info->ops is required for the module member */
+	if (!trig_info->ops)
+		return -EINVAL;
 
 	trig_info->id = ida_simple_get(&iio_trigger_ida, 0, 0, GFP_KERNEL);
 	if (trig_info->id < 0)
@@ -82,11 +88,19 @@ int iio_trigger_register(struct iio_trigger *trig_info)
 
 	/* Add to list of available triggers held by the IIO core */
 	mutex_lock(&iio_trigger_list_lock);
+	if (__iio_trigger_find_by_name(trig_info->name)) {
+		pr_err("Duplicate trigger name '%s'\n", trig_info->name);
+		ret = -EEXIST;
+		goto error_device_del;
+	}
 	list_add_tail(&trig_info->list, &iio_trigger_list);
 	mutex_unlock(&iio_trigger_list_lock);
 
 	return 0;
 
+error_device_del:
+	mutex_unlock(&iio_trigger_list_lock);
+	device_del(&trig_info->dev);
 error_unregister_id:
 	ida_simple_remove(&iio_trigger_ida, trig_info->id);
 	return ret;
@@ -104,6 +118,18 @@ void iio_trigger_unregister(struct iio_trigger *trig_info)
 	device_del(&trig_info->dev);
 }
 EXPORT_SYMBOL(iio_trigger_unregister);
+
+/* Search for trigger by name, assuming iio_trigger_list_lock held */
+static struct iio_trigger *__iio_trigger_find_by_name(const char *name)
+{
+	struct iio_trigger *iter;
+
+	list_for_each_entry(iter, &iio_trigger_list, list)
+		if (!strcmp(iter->name, name))
+			return iter;
+
+	return NULL;
+}
 
 static struct iio_trigger *iio_trigger_find_by_name(const char *name,
 						    size_t len)
@@ -164,8 +190,7 @@ EXPORT_SYMBOL(iio_trigger_poll_chained);
 
 void iio_trigger_notify_done(struct iio_trigger *trig)
 {
-	if (atomic_dec_and_test(&trig->use_count) && trig->ops &&
-		trig->ops->try_reenable)
+	if (atomic_dec_and_test(&trig->use_count) && trig->ops->try_reenable)
 		if (trig->ops->try_reenable(trig))
 			/* Missed an interrupt so launch new poll now */
 			iio_trigger_poll(trig);
@@ -210,21 +235,34 @@ static int iio_trigger_attach_poll_func(struct iio_trigger *trig,
 
 	/* Prevent the module from being removed whilst attached to a trigger */
 	__module_get(pf->indio_dev->info->driver_module);
+
+	/* Get irq number */
 	pf->irq = iio_trigger_get_irq(trig);
+	if (pf->irq < 0)
+		goto out_put_module;
+
+	/* Request irq */
 	ret = request_threaded_irq(pf->irq, pf->h, pf->thread,
 				   pf->type, pf->name,
 				   pf);
-	if (ret < 0) {
-		module_put(pf->indio_dev->info->driver_module);
-		return ret;
-	}
+	if (ret < 0)
+		goto out_put_irq;
 
-	if (trig->ops && trig->ops->set_trigger_state && notinuse) {
+	/* Enable trigger in driver */
+	if (trig->ops->set_trigger_state && notinuse) {
 		ret = trig->ops->set_trigger_state(trig, true);
 		if (ret < 0)
-			module_put(pf->indio_dev->info->driver_module);
+			goto out_free_irq;
 	}
 
+	return ret;
+
+out_free_irq:
+	free_irq(pf->irq, pf);
+out_put_irq:
+	iio_trigger_put_irq(trig, pf->irq);
+out_put_module:
+	module_put(pf->indio_dev->info->driver_module);
 	return ret;
 }
 
@@ -236,7 +274,7 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 		= (bitmap_weight(trig->pool,
 				 CONFIG_IIO_CONSUMERS_PER_TRIGGER)
 		   == 1);
-	if (trig->ops && trig->ops->set_trigger_state && no_other_users) {
+	if (trig->ops->set_trigger_state && no_other_users) {
 		ret = trig->ops->set_trigger_state(trig, false);
 		if (ret)
 			return ret;
@@ -251,7 +289,7 @@ static int iio_trigger_detach_poll_func(struct iio_trigger *trig,
 irqreturn_t iio_pollfunc_store_time(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	pf->timestamp = iio_get_time_ns();
+	pf->timestamp = iio_get_time_ns(pf->indio_dev);
 	return IRQ_WAKE_THREAD;
 }
 EXPORT_SYMBOL(iio_pollfunc_store_time);
@@ -358,7 +396,7 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 			return ret;
 	}
 
-	if (trig && trig->ops && trig->ops->validate_device) {
+	if (trig && trig->ops->validate_device) {
 		ret = trig->ops->validate_device(trig, indio_dev);
 		if (ret)
 			return ret;

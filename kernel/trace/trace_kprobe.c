@@ -587,6 +587,7 @@ static int create_trace_kprobe(int argc, char **argv)
 	 *  $retval	: fetch return value
 	 *  $stack	: fetch stack address
 	 *  $stackN	: fetch Nth of stack (N:0-)
+	 *  $comm       : fetch current task comm
 	 *  @ADDR	: fetch memory at ADDR (ADDR should be in kernel)
 	 *  @SYM[+|-offs] : fetch memory at SYM +|- offs (SYM is a data symbol)
 	 *  %REG	: fetch register REG
@@ -1149,14 +1150,15 @@ kprobe_perf_func(struct trace_kprobe *tk, struct pt_regs *regs)
 	size = ALIGN(__size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
 
-	entry = perf_trace_buf_prepare(size, call->event.type, NULL, &rctx);
+	entry = perf_trace_buf_alloc(size, NULL, &rctx);
 	if (!entry)
 		return;
 
 	entry->ip = (unsigned long)tk->rp.kp.addr;
 	memset(&entry[1], 0, dsize);
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
-	perf_trace_buf_submit(entry, size, rctx, 0, 1, regs, head, NULL);
+	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
+			      head, NULL);
 }
 NOKPROBE_SYMBOL(kprobe_perf_func);
 
@@ -1184,14 +1186,15 @@ kretprobe_perf_func(struct trace_kprobe *tk, struct kretprobe_instance *ri,
 	size = ALIGN(__size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
 
-	entry = perf_trace_buf_prepare(size, call->event.type, NULL, &rctx);
+	entry = perf_trace_buf_alloc(size, NULL, &rctx);
 	if (!entry)
 		return;
 
 	entry->func = (unsigned long)tk->rp.kp.addr;
 	entry->ret_ip = (unsigned long)ri->ret_addr;
 	store_trace_args(sizeof(*entry), &tk->tp, regs, (u8 *)&entry[1], dsize);
-	perf_trace_buf_submit(entry, size, rctx, 0, 1, regs, head, NULL);
+	perf_trace_buf_submit(entry, size, rctx, call->event.type, 1, regs,
+			      head, NULL);
 }
 NOKPROBE_SYMBOL(kretprobe_perf_func);
 #endif	/* CONFIG_PERF_EVENTS */

@@ -11,16 +11,15 @@
 
 / {
 	compatible = "snps,nsimosci";
-	clock-frequency = <20000000>;	/* 20 MHZ */
 	#address-cells = <1>;
 	#size-cells = <1>;
-	interrupt-parent = <&intc>;
+	interrupt-parent = <&core_intc>;
 
 	chosen {
 		/* this is for console on PGU */
 		/* bootargs = "console=tty0 consoleblank=0"; */
 		/* this is for console on serial */
-		bootargs = "earlycon=uart8250,mmio32,0xf0000000,115200n8 console=tty0 console=ttyS0,115200n8 consoleblank=0 debug";
+		bootargs = "earlycon=uart8250,mmio32,0xf0000000,115200n8 console=tty0 console=ttyS0,115200n8 consoleblank=0 debug video=640x480-24";
 	};
 
 	aliases {
@@ -35,7 +34,13 @@
 		/* child and parent address space 1:1 mapped */
 		ranges;
 
-		intc: interrupt-controller {
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <20000000>;
+		};
+
+		core_intc: interrupt-controller {
 			compatible = "snps,arc700-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -52,9 +57,17 @@
 			no-loopback-test = <1>;
 		};
 
-		pgu0: pgu@f9000000 {
-			compatible = "snps,arcpgufb";
+		pguclk: pguclk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <25175000>;
+		};
+
+		pgu@f9000000 {
+			compatible = "snps,arcpgu";
 			reg = <0xf9000000 0x400>;
+			clocks = <&pguclk>;
+			clock-names = "pxlclk";
 		};
 
 		ps2: ps2@f9001000 {

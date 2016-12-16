@@ -24,7 +24,6 @@
 #include <linux/pm_wakeirq.h>
 #include <linux/slab.h>
 
-#define DS1343_DRV_VERSION	"01.00"
 #define DALLAS_MAXIM_DS1343	0
 #define DALLAS_MAXIM_DS1344	1
 
@@ -505,12 +504,6 @@ static int ds1343_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	alarm->time.tm_hour = priv->alarm_hour < 0 ? 0 : priv->alarm_hour;
 	alarm->time.tm_mday = priv->alarm_mday < 0 ? 0 : priv->alarm_mday;
 
-	alarm->time.tm_mon = -1;
-	alarm->time.tm_year = -1;
-	alarm->time.tm_wday = -1;
-	alarm->time.tm_yday = -1;
-	alarm->time.tm_isdst = -1;
-
 out:
 	mutex_unlock(&priv->mutex);
 	return res;
@@ -747,4 +740,3 @@ MODULE_DESCRIPTION("DS1343 RTC SPI Driver");
 MODULE_AUTHOR("Raghavendra Chandra Ganiga <ravi23ganiga@gmail.com>,"
 		"Ankur Srivastava <sankurece@gmail.com>");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(DS1343_DRV_VERSION);

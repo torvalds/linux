@@ -24,6 +24,7 @@ void s3c64xx_init_io(struct map_desc *mach_desc, int size);
 
 void s3c64xx_restart(enum reboot_mode mode, const char *cmd);
 
+struct device_node;
 void s3c64xx_clk_init(struct device_node *np, unsigned long xtal_f,
 	unsigned long xusbxti_f, bool is_s3c6400, void __iomem *reg_base);
 void s3c64xx_set_xtal_freq(unsigned long freq);

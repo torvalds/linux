@@ -107,15 +107,24 @@ EXPORT_SYMBOL(atomic64_##op);
 EXPORT_SYMBOL(atomic_##op##_return);					\
 EXPORT_SYMBOL(atomic64_##op##_return);
 
-#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op)
+#define ATOMIC_FETCH_OP(op)						\
+EXPORT_SYMBOL(atomic_fetch_##op);					\
+EXPORT_SYMBOL(atomic64_fetch_##op);
+
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op) ATOMIC_FETCH_OP(op)
 
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
-ATOMIC_OP(and)
-ATOMIC_OP(or)
-ATOMIC_OP(xor)
 
 #undef ATOMIC_OPS
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_FETCH_OP(op)
+
+ATOMIC_OPS(and)
+ATOMIC_OPS(or)
+ATOMIC_OPS(xor)
+
+#undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 

@@ -25,16 +25,6 @@
 		stdout-path = &uart0;
 	};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pin-controller@10000 {
 			pinctrl-names = "default";
@@ -63,7 +53,7 @@
 		};
 	};
 
-	dsa@0 {
+	dsa {
 		compatible = "marvell,dsa";
 		#address-cells = <2>;
 		#size-cells = <0>;
@@ -133,4 +123,12 @@
 		speed = <1000>;
 		duplex = <1>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

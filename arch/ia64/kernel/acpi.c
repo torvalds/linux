@@ -524,7 +524,7 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	return 0;
 }
 
-void __init acpi_numa_arch_fixup(void)
+void __init acpi_numa_fixup(void)
 {
 	int i, j, node_from, node_to;
 

@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/lockdep.h>
 #include <linux/netdevice.h>
-#include <linux/pkt_sched.h>
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -407,14 +406,14 @@ static struct sk_buff *batadv_frag_create(struct sk_buff *skb,
 					  unsigned int mtu)
 {
 	struct sk_buff *skb_fragment;
-	unsigned header_size = sizeof(*frag_head);
-	unsigned fragment_size = mtu - header_size;
+	unsigned int header_size = sizeof(*frag_head);
+	unsigned int fragment_size = mtu - header_size;
 
 	skb_fragment = netdev_alloc_skb(NULL, mtu + ETH_HLEN);
 	if (!skb_fragment)
 		goto err;
 
-	skb->priority = TC_PRIO_CONTROL;
+	skb_fragment->priority = skb->priority;
 
 	/* Eat the last mtu-bytes of the skb */
 	skb_reserve(skb_fragment, header_size + ETH_HLEN);
@@ -434,36 +433,37 @@ err:
  * @orig_node: final destination of the created fragments
  * @neigh_node: next-hop of the created fragments
  *
- * Return: true on success, false otherwise.
+ * Return: the netdev tx status or -1 in case of error.
+ * When -1 is returned the skb is not consumed.
  */
-bool batadv_frag_send_packet(struct sk_buff *skb,
-			     struct batadv_orig_node *orig_node,
-			     struct batadv_neigh_node *neigh_node)
+int batadv_frag_send_packet(struct sk_buff *skb,
+			    struct batadv_orig_node *orig_node,
+			    struct batadv_neigh_node *neigh_node)
 {
 	struct batadv_priv *bat_priv;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_frag_packet frag_header;
 	struct sk_buff *skb_fragment;
-	unsigned mtu = neigh_node->if_incoming->net_dev->mtu;
-	unsigned header_size = sizeof(frag_header);
-	unsigned max_fragment_size, max_packet_size;
-	bool ret = false;
+	unsigned int mtu = neigh_node->if_incoming->net_dev->mtu;
+	unsigned int header_size = sizeof(frag_header);
+	unsigned int max_fragment_size, max_packet_size;
+	int ret = -1;
 
 	/* To avoid merge and refragmentation at next-hops we never send
 	 * fragments larger than BATADV_FRAG_MAX_FRAG_SIZE
 	 */
-	mtu = min_t(unsigned, mtu, BATADV_FRAG_MAX_FRAG_SIZE);
+	mtu = min_t(unsigned int, mtu, BATADV_FRAG_MAX_FRAG_SIZE);
 	max_fragment_size = mtu - header_size;
 	max_packet_size = max_fragment_size * BATADV_FRAG_MAX_FRAGMENTS;
 
 	/* Don't even try to fragment, if we need more than 16 fragments */
 	if (skb->len > max_packet_size)
-		goto out_err;
+		goto out;
 
 	bat_priv = orig_node->bat_priv;
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
-		goto out_err;
+		goto out;
 
 	/* Create one header to be copied to all fragments */
 	frag_header.packet_type = BATADV_UNICAST_FRAG;
@@ -473,6 +473,15 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 	frag_header.reserved = 0;
 	frag_header.no = 0;
 	frag_header.total_size = htons(skb->len);
+
+	/* skb->priority values from 256->263 are magic values to
+	 * directly indicate a specific 802.1d priority.  This is used
+	 * to allow 802.1d priority to be passed directly in from VLAN
+	 * tags, etc.
+	 */
+	if (skb->priority >= 256 && skb->priority <= 263)
+		frag_header.priority = skb->priority - 256;
+
 	ether_addr_copy(frag_header.orig, primary_if->net_dev->dev_addr);
 	ether_addr_copy(frag_header.dest, orig_node->orig);
 
@@ -480,23 +489,33 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 	while (skb->len > max_fragment_size) {
 		skb_fragment = batadv_frag_create(skb, &frag_header, mtu);
 		if (!skb_fragment)
-			goto out_err;
+			goto out;
 
 		batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
 		batadv_add_counter(bat_priv, BATADV_CNT_FRAG_TX_BYTES,
 				   skb_fragment->len + ETH_HLEN);
-		batadv_send_unicast_skb(skb_fragment, neigh_node);
+		ret = batadv_send_unicast_skb(skb_fragment, neigh_node);
+		if (ret != NET_XMIT_SUCCESS) {
+			/* return -1 so that the caller can free the original
+			 * skb
+			 */
+			ret = -1;
+			goto out;
+		}
+
 		frag_header.no++;
 
 		/* The initial check in this function should cover this case */
-		if (frag_header.no == BATADV_FRAG_MAX_FRAGMENTS - 1)
-			goto out_err;
+		if (frag_header.no == BATADV_FRAG_MAX_FRAGMENTS - 1) {
+			ret = -1;
+			goto out;
+		}
 	}
 
 	/* Make room for the fragment header. */
 	if (batadv_skb_head_push(skb, header_size) < 0 ||
 	    pskb_expand_head(skb, header_size + ETH_HLEN, 0, GFP_ATOMIC) < 0)
-		goto out_err;
+		goto out;
 
 	memcpy(skb->data, &frag_header, header_size);
 
@@ -504,11 +523,9 @@ bool batadv_frag_send_packet(struct sk_buff *skb,
 	batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
 	batadv_add_counter(bat_priv, BATADV_CNT_FRAG_TX_BYTES,
 			   skb->len + ETH_HLEN);
-	batadv_send_unicast_skb(skb, neigh_node);
+	ret = batadv_send_unicast_skb(skb, neigh_node);
 
-	ret = true;
-
-out_err:
+out:
 	if (primary_if)
 		batadv_hardif_put(primary_if);
 

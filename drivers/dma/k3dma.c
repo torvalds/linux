@@ -102,6 +102,7 @@ struct k3_dma_dev {
 	struct clk		*clk;
 	u32			dma_channels;
 	u32			dma_requests;
+	unsigned int		irq;
 };
 
 #define to_k3_dma(dmadev) container_of(dmadev, struct k3_dma_dev, slave)
@@ -425,10 +426,9 @@ static struct dma_async_tx_descriptor *k3_dma_prep_memcpy(
 
 	num = DIV_ROUND_UP(len, DMA_MAX_SIZE);
 	ds = kzalloc(sizeof(*ds) + num * sizeof(ds->desc_hw[0]), GFP_ATOMIC);
-	if (!ds) {
-		dev_dbg(chan->device->dev, "vchan %p: kzalloc fail\n", &c->vc);
+	if (!ds)
 		return NULL;
-	}
+
 	ds->desc_hw_lli = __virt_to_phys((unsigned long)&ds->desc_hw[0]);
 	ds->size = len;
 	ds->desc_num = num;
@@ -481,10 +481,9 @@ static struct dma_async_tx_descriptor *k3_dma_prep_slave_sg(
 	}
 
 	ds = kzalloc(sizeof(*ds) + num * sizeof(ds->desc_hw[0]), GFP_ATOMIC);
-	if (!ds) {
-		dev_dbg(chan->device->dev, "vchan %p: kzalloc fail\n", &c->vc);
+	if (!ds)
 		return NULL;
-	}
+
 	ds->desc_hw_lli = __virt_to_phys((unsigned long)&ds->desc_hw[0]);
 	ds->desc_num = num;
 	num = 0;
@@ -705,6 +704,8 @@ static int k3_dma_probe(struct platform_device *op)
 	if (ret)
 		return ret;
 
+	d->irq = irq;
+
 	/* init phy channel */
 	d->phy = devm_kzalloc(&op->dev,
 		d->dma_channels * sizeof(struct k3_dma_phy), GFP_KERNEL);
@@ -759,7 +760,7 @@ static int k3_dma_probe(struct platform_device *op)
 
 	ret = dma_async_device_register(&d->slave);
 	if (ret)
-		return ret;
+		goto dma_async_register_fail;
 
 	ret = of_dma_controller_register((&op->dev)->of_node,
 					k3_of_dma_simple_xlate, d);
@@ -776,6 +777,8 @@ static int k3_dma_probe(struct platform_device *op)
 
 of_dma_register_fail:
 	dma_async_device_unregister(&d->slave);
+dma_async_register_fail:
+	clk_disable_unprepare(d->clk);
 	return ret;
 }
 
@@ -786,6 +789,8 @@ static int k3_dma_remove(struct platform_device *op)
 
 	dma_async_device_unregister(&d->slave);
 	of_dma_controller_free((&op->dev)->of_node);
+
+	devm_free_irq(&op->dev, d->irq, d);
 
 	list_for_each_entry_safe(c, cn, &d->slave.channels, vc.chan.device_node) {
 		list_del(&c->vc.chan.device_node);

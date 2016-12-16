@@ -35,16 +35,21 @@
  * in Hyp mode (see init_hyp_mode in arch/arm/kvm/arm.c).  Return values are
  * passed in x0.
  *
- * A function pointer with a value of 0 has a special meaning, and is
- * used to implement __hyp_get_vectors in the same way as in
+ * A function pointer with a value less than 0xfff has a special meaning,
+ * and is used to implement __hyp_get_vectors in the same way as in
  * arch/arm64/kernel/hyp_stub.S.
+ * HVC behaves as a 'bl' call and will clobber lr.
  */
 ENTRY(__kvm_call_hyp)
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN	
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+	str     lr, [sp, #-16]!
 	hvc	#0
+	ldr     lr, [sp], #16
 	ret
 alternative_else
 	b	__vhe_hyp_call
+	nop
+	nop
 	nop
 alternative_endif
 ENDPROC(__kvm_call_hyp)

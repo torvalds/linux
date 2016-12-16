@@ -7,4 +7,3 @@ DRIVER_OBJS = $(addprefix ../../../drivers/oprofile/, \
 		timer_int.o )
 
 oprofile-y :=	$(DRIVER_OBJS) init.o
-oprofile-y +=	hwsampler.o

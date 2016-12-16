@@ -91,6 +91,10 @@ __register_chrdev_region(unsigned int major, unsigned int baseminor,
 				break;
 		}
 
+		if (i < CHRDEV_MAJOR_DYN_END)
+			pr_warn("CHRDEV \"%s\" major number %d goes below the dynamic allocation range\n",
+				name, i);
+
 		if (i == 0) {
 			ret = -EBUSY;
 			goto out;

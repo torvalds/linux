@@ -17,7 +17,17 @@
  *
  * Author: Anton Blanchard <anton@au.ibm.com>
  */
+
+/*
+ * Sparse (as at v0.5.0) gets very, very confused by this file.
+ * Make it a bit simpler for it.
+ */
+#if !defined(__CHECKER__)
 #include <altivec.h>
+#else
+#define vec_xor(a, b) a ^ b
+#define vector __attribute__((vector_size(16)))
+#endif
 
 #include <linux/preempt.h>
 #include <linux/export.h>

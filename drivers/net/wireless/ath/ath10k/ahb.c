@@ -25,10 +25,9 @@
 #include "ahb.h"
 
 static const struct of_device_id ath10k_ahb_of_match[] = {
-	/* TODO: enable this entry once everything in place.
-	 * { .compatible = "qcom,ipq4019-wifi",
-	 *   .data = (void *)ATH10K_HW_QCA4019 },
-	 */
+	{ .compatible = "qcom,ipq4019-wifi",
+	  .data = (void *)ATH10K_HW_QCA4019
+	},
 	{ }
 };
 
@@ -476,6 +475,7 @@ static irqreturn_t ath10k_ahb_interrupt_handler(int irq, void *arg)
 
 static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
 {
+	struct ath10k_pci *ar_pci = ath10k_pci_priv(ar);
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 	int ret;
 
@@ -487,6 +487,7 @@ static int ath10k_ahb_request_irq_legacy(struct ath10k *ar)
 			    ar_ahb->irq, ret);
 		return ret;
 	}
+	ar_pci->oper_irq_mode = ATH10K_PCI_IRQ_LEGACY;
 
 	return 0;
 }
@@ -917,8 +918,6 @@ static struct platform_driver ath10k_ahb_driver = {
 int ath10k_ahb_init(void)
 {
 	int ret;
-
-	printk(KERN_ERR "AHB support is still work in progress\n");
 
 	ret = platform_driver_register(&ath10k_ahb_driver);
 	if (ret)

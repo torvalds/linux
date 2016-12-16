@@ -574,7 +574,8 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t block,
 {
 	int r;
 	struct dm_io_request io_req = {
-		.bi_rw = rw,
+		.bi_op = rw,
+		.bi_op_flags = 0,
 		.notify.fn = dmio_complete,
 		.notify.context = b,
 		.client = b->c->dm_io,
@@ -634,6 +635,7 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t block,
 	 * the dm_buffer's inline bio is local to bufio.
 	 */
 	b->bio.bi_private = end_io;
+	bio_set_op_attrs(&b->bio, rw, 0);
 
 	/*
 	 * We assume that if len >= PAGE_SIZE ptr is page-aligned.
@@ -660,7 +662,7 @@ static void use_inline_bio(struct dm_buffer *b, int rw, sector_t block,
 		ptr += PAGE_SIZE;
 	} while (len > 0);
 
-	submit_bio(rw, &b->bio);
+	submit_bio(&b->bio);
 }
 
 static void submit_io(struct dm_buffer *b, int rw, sector_t block,
@@ -1326,7 +1328,8 @@ EXPORT_SYMBOL_GPL(dm_bufio_write_dirty_buffers);
 int dm_bufio_issue_flush(struct dm_bufio_client *c)
 {
 	struct dm_io_request io_req = {
-		.bi_rw = WRITE_FLUSH,
+		.bi_op = REQ_OP_WRITE,
+		.bi_op_flags = WRITE_FLUSH,
 		.mem.type = DM_IO_KMEM,
 		.mem.ptr.addr = NULL,
 		.client = c->dm_io,
@@ -1876,7 +1879,7 @@ static int __init dm_bufio_init(void)
 	__cache_size_refresh();
 	mutex_unlock(&dm_bufio_clients_lock);
 
-	dm_bufio_wq = create_singlethread_workqueue("dm_bufio_cache");
+	dm_bufio_wq = alloc_workqueue("dm_bufio_cache", WQ_MEM_RECLAIM, 0);
 	if (!dm_bufio_wq)
 		return -ENOMEM;
 

@@ -707,6 +707,7 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 		*timings = ((*timings) & ~TR_133_PIOREG_MDMA_MASK) | tr;
 		*timings2 = (*timings2) & ~TR_133_UDMAREG_UDMA_EN;
 		}
+		break;
 	case controller_un_ata6:
 	case controller_k2_ata6: {
 		/* 100Mhz cell */

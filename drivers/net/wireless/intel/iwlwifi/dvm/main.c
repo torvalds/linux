@@ -262,7 +262,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 	rate_flags = iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 
 	/* In mac80211, rates for 5 GHz start at 0 */
-	if (info->band == IEEE80211_BAND_5GHZ)
+	if (info->band == NL80211_BAND_5GHZ)
 		rate += IWL_FIRST_OFDM_RATE;
 	else if (rate >= IWL_FIRST_CCK_RATE && rate <= IWL_LAST_CCK_RATE)
 		rate_flags |= RATE_MCS_CCK_MSK;
@@ -1071,7 +1071,7 @@ static void iwl_bg_restart(struct work_struct *data)
 
 static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
-	priv->workqueue = create_singlethread_workqueue(DRV_NAME);
+	priv->workqueue = alloc_ordered_workqueue(DRV_NAME, 0);
 
 	INIT_WORK(&priv->restart, iwl_bg_restart);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
@@ -1117,7 +1117,7 @@ static int iwl_init_drv(struct iwl_priv *priv)
 
 	INIT_LIST_HEAD(&priv->calib_results);
 
-	priv->band = IEEE80211_BAND_2GHZ;
+	priv->band = NL80211_BAND_2GHZ;
 
 	priv->plcp_delta_threshold = priv->lib->plcp_delta_threshold;
 
@@ -1317,6 +1317,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 
 	switch (iwlwifi_mod_params.amsdu_size) {
+	case IWL_AMSDU_DEF:
 	case IWL_AMSDU_4K:
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
 		break;
@@ -1336,6 +1337,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_dvm_groups);
 
 	trans_cfg.cmd_fifo = IWLAGN_CMD_FIFO_NUM;
+	trans_cfg.cb_data_offs = offsetof(struct ieee80211_tx_info,
+					  driver_data[2]);
 
 	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
 		priv->cfg->base_params->num_of_queues);

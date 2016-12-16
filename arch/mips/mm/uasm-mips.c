@@ -65,11 +65,16 @@ static struct insn insn_table[] = {
 #ifndef CONFIG_CPU_MIPSR6
 	{ insn_cache,  M(cache_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
 #else
-	{ insn_cache,  M6(cache_op, 0, 0, 0, cache6_op),  RS | RT | SIMM9 },
+	{ insn_cache,  M6(spec3_op, 0, 0, 0, cache6_op),  RS | RT | SIMM9 },
 #endif
+	{ insn_cfc1, M(cop1_op, cfc_op, 0, 0, 0, 0), RT | RD },
+	{ insn_cfcmsa, M(msa_op, 0, msa_cfc_op, 0, 0, msa_elm_op), RD | RE },
+	{ insn_ctc1, M(cop1_op, ctc_op, 0, 0, 0, 0), RT | RD },
+	{ insn_ctcmsa, M(msa_op, 0, msa_ctc_op, 0, 0, msa_elm_op), RD | RE },
 	{ insn_daddiu, M(daddiu_op, 0, 0, 0, 0, 0), RS | RT | SIMM },
 	{ insn_daddu, M(spec_op, 0, 0, 0, 0, daddu_op), RS | RT | RD },
 	{ insn_dinsm, M(spec3_op, 0, 0, 0, 0, dinsm_op), RS | RT | RD | RE },
+	{ insn_di, M(cop0_op, mfmc0_op, 0, 12, 0, 0), RT },
 	{ insn_dins, M(spec3_op, 0, 0, 0, 0, dins_op), RS | RT | RD | RE },
 	{ insn_divu, M(spec_op, 0, 0, 0, 0, divu_op), RS | RT },
 	{ insn_dmfc0, M(cop0_op, dmfc_op, 0, 0, 0, 0), RT | RD | SET},
@@ -114,7 +119,13 @@ static struct insn insn_table[] = {
 	{ insn_mflo,  M(spec_op, 0, 0, 0, 0, mflo_op), RD },
 	{ insn_mtc0,  M(cop0_op, mtc_op, 0, 0, 0, 0),  RT | RD | SET},
 	{ insn_mthc0,  M(cop0_op, mthc0_op, 0, 0, 0, 0),  RT | RD | SET},
+	{ insn_mthi,  M(spec_op, 0, 0, 0, 0, mthi_op), RS },
+	{ insn_mtlo,  M(spec_op, 0, 0, 0, 0, mtlo_op), RS },
+#ifndef CONFIG_CPU_MIPSR6
 	{ insn_mul, M(spec2_op, 0, 0, 0, 0, mul_op), RS | RT | RD},
+#else
+	{ insn_mul, M(spec_op, 0, 0, 0, mult_mul_op, mult_op), RS | RT | RD},
+#endif
 	{ insn_ori,  M(ori_op, 0, 0, 0, 0, 0),	RS | RT | UIMM },
 	{ insn_or,  M(spec_op, 0, 0, 0, 0, or_op),  RS | RT | RD },
 #ifndef CONFIG_CPU_MIPSR6
@@ -153,6 +164,8 @@ static struct insn insn_table[] = {
 	{ insn_xori,  M(xori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
 	{ insn_xor,  M(spec_op, 0, 0, 0, 0, xor_op),  RS | RT | RD },
 	{ insn_yield, M(spec3_op, 0, 0, 0, 0, yield_op), RS | RD },
+	{ insn_ldpte, M(lwc2_op, 0, 0, 0, ldpte_op, mult_op), RS | RD },
+	{ insn_lddir, M(lwc2_op, 0, 0, 0, lddir_op, mult_op), RS | RT | RD },
 	{ insn_invalid, 0, 0 }
 };
 

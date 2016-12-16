@@ -824,7 +824,7 @@ static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 {
 	struct twl6040 *twl6040 = codec->control_data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
-	int ret;
+	int ret = 0;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -832,12 +832,16 @@ static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (priv->codec_powered)
+		if (priv->codec_powered) {
+			/* Select low power PLL in standby */
+			ret = twl6040_set_pll(twl6040, TWL6040_SYSCLK_SEL_LPPLL,
+					      32768, 19200000);
 			break;
+		}
 
 		ret = twl6040_power(twl6040, 1);
 		if (ret)
-			return ret;
+			break;
 
 		priv->codec_powered = 1;
 
@@ -853,7 +857,7 @@ static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int twl6040_startup(struct snd_pcm_substream *substream,
@@ -983,9 +987,9 @@ static void twl6040_mute_path(struct snd_soc_codec *codec, enum twl6040_dai_id i
 		if (mute) {
 			/* Power down drivers and DACs */
 			hflctl &= ~(TWL6040_HFDACENA | TWL6040_HFPGAENA |
-				    TWL6040_HFDRVENA);
+				    TWL6040_HFDRVENA | TWL6040_HFSWENA);
 			hfrctl &= ~(TWL6040_HFDACENA | TWL6040_HFPGAENA |
-				    TWL6040_HFDRVENA);
+				    TWL6040_HFDRVENA | TWL6040_HFSWENA);
 		}
 
 		twl6040_reg_write(twl6040, TWL6040_REG_HFLCTL, hflctl);

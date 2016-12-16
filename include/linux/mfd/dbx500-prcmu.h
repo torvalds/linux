@@ -178,16 +178,6 @@ enum ddr_pwrst {
 
 #define DB8500_PRCMU_LEGACY_OFFSET		0xDD4
 
-struct prcmu_pdata
-{
-	bool enable_set_ddr_opp;
-	bool enable_ape_opp_100_voltage;
-	struct ab8500_platform_data *ab_platdata;
-	u32 version_offset;
-	u32 legacy_offset;
-	u32 adt_offset;
-};
-
 #define PRCMU_FW_PROJECT_U8500		2
 #define PRCMU_FW_PROJECT_U8400		3
 #define PRCMU_FW_PROJECT_U9500		4 /* Customer specific */

@@ -218,7 +218,7 @@ static void gfs2_holder_wake(struct gfs2_holder *gh)
  *
  */
 
-static inline void do_error(struct gfs2_glock *gl, const int ret)
+static void do_error(struct gfs2_glock *gl, const int ret)
 {
 	struct gfs2_holder *gh, *tmp;
 
@@ -475,7 +475,14 @@ __acquires(&gl->gl_lockref.lock)
 	if (sdp->sd_lockstruct.ls_ops->lm_lock)	{
 		/* lock_dlm */
 		ret = sdp->sd_lockstruct.ls_ops->lm_lock(gl, target, lck_flags);
-		if (ret) {
+		if (ret == -EINVAL && gl->gl_target == LM_ST_UNLOCKED &&
+		    target == LM_ST_UNLOCKED &&
+		    test_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags)) {
+			finish_xmote(gl, target);
+			if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
+				gfs2_glock_put(gl);
+		}
+		else if (ret) {
 			pr_err("lm_lock ret %d\n", ret);
 			GLOCK_BUG_ON(gl, 1);
 		}
@@ -568,7 +575,6 @@ static void delete_work_func(struct work_struct *work)
 {
 	struct gfs2_glock *gl = container_of(work, struct gfs2_glock, gl_delete);
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct gfs2_inode *ip;
 	struct inode *inode;
 	u64 no_addr = gl->gl_name.ln_number;
 
@@ -578,13 +584,7 @@ static void delete_work_func(struct work_struct *work)
 	if (test_bit(GLF_INODE_CREATING, &gl->gl_flags))
 		goto out;
 
-	ip = gl->gl_object;
-	/* Note: Unsafe to dereference ip as we don't hold right refs/locks */
-
-	if (ip)
-		inode = gfs2_ilookup(sdp->sd_vfs, no_addr);
-	else
-		inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
+	inode = gfs2_lookup_by_inum(sdp, no_addr, NULL, GFS2_BLKST_UNLINKED);
 	if (inode && !IS_ERR(inode)) {
 		d_prune_aliases(inode);
 		iput(inode);
@@ -801,7 +801,7 @@ void gfs2_holder_uninit(struct gfs2_holder *gh)
 {
 	put_pid(gh->gh_owner_pid);
 	gfs2_glock_put(gh->gh_gl);
-	gh->gh_gl = NULL;
+	gfs2_holder_mark_uninitialized(gh);
 	gh->gh_ip = 0;
 }
 
@@ -1913,7 +1913,7 @@ static int gfs2_glocks_open(struct inode *inode, struct file *file)
 		if (seq->buf)
 			seq->size = GFS2_SEQ_GOODSIZE;
 		gi->gl = NULL;
-		ret = rhashtable_walk_init(&gl_hash_table, &gi->hti);
+		ret = rhashtable_walk_init(&gl_hash_table, &gi->hti, GFP_KERNEL);
 	}
 	return ret;
 }
@@ -1941,7 +1941,7 @@ static int gfs2_glstats_open(struct inode *inode, struct file *file)
 		if (seq->buf)
 			seq->size = GFS2_SEQ_GOODSIZE;
 		gi->gl = NULL;
-		ret = rhashtable_walk_init(&gl_hash_table, &gi->hti);
+		ret = rhashtable_walk_init(&gl_hash_table, &gi->hti, GFP_KERNEL);
 	}
 	return ret;
 }

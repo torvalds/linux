@@ -46,6 +46,7 @@ static const struct nft_expr_ops nft_reject_ipv4_ops = {
 	.eval		= nft_reject_ipv4_eval,
 	.init		= nft_reject_init,
 	.dump		= nft_reject_dump,
+	.validate	= nft_reject_validate,
 };
 
 static struct nft_expr_type nft_reject_ipv4_type __read_mostly = {

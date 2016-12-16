@@ -124,7 +124,7 @@ int squashfs_read_data(struct super_block *sb, u64 index, int length,
 				goto block_release;
 			bytes += msblk->devblksize;
 		}
-		ll_rw_block(READ, b, bh);
+		ll_rw_block(REQ_OP_READ, 0, b, bh);
 	} else {
 		/*
 		 * Metadata block.
@@ -156,7 +156,7 @@ int squashfs_read_data(struct super_block *sb, u64 index, int length,
 				goto block_release;
 			bytes += msblk->devblksize;
 		}
-		ll_rw_block(READ, b - 1, bh + 1);
+		ll_rw_block(REQ_OP_READ, 0, b - 1, bh + 1);
 	}
 
 	for (i = 0; i < b; i++) {

@@ -17,11 +17,11 @@
 
 /* Standard copy_to_user with segment limit checking */
 ENTRY(_copy_to_user)
-	GET_THREAD_INFO(%rax)
+	mov PER_CPU_VAR(current_task), %rax
 	movq %rdi,%rcx
 	addq %rdx,%rcx
 	jc bad_to_user
-	cmpq TI_addr_limit(%rax),%rcx
+	cmpq TASK_addr_limit(%rax),%rcx
 	ja bad_to_user
 	ALTERNATIVE_2 "jmp copy_user_generic_unrolled",		\
 		      "jmp copy_user_generic_string",		\
@@ -32,11 +32,11 @@ ENDPROC(_copy_to_user)
 
 /* Standard copy_from_user with segment limit checking */
 ENTRY(_copy_from_user)
-	GET_THREAD_INFO(%rax)
+	mov PER_CPU_VAR(current_task), %rax
 	movq %rsi,%rcx
 	addq %rdx,%rcx
 	jc bad_from_user
-	cmpq TI_addr_limit(%rax),%rcx
+	cmpq TASK_addr_limit(%rax),%rcx
 	ja bad_from_user
 	ALTERNATIVE_2 "jmp copy_user_generic_unrolled",		\
 		      "jmp copy_user_generic_string",		\

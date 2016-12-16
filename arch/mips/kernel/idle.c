@@ -181,6 +181,11 @@ void __init check_wait(void)
 	case CPU_XLP:
 		cpu_wait = r4k_wait;
 		break;
+	case CPU_LOONGSON3:
+		if ((c->processor_id & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2)
+			cpu_wait = r4k_wait;
+		break;
+
 	case CPU_BMIPS5000:
 		cpu_wait = r4k_wait_irqoff;
 		break;

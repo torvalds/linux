@@ -14,7 +14,7 @@
 		display2 = &tv0;
 	};
 
-	lcd0: display@0 {
+	lcd0: display {
 		compatible = "panel-dpi";
 		label = "lcd";
 
@@ -30,7 +30,7 @@
 
 &dss {
 	port {
-		dpi_lcd_out: endpoint@1 {
+		dpi_lcd_out: endpoint {
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};

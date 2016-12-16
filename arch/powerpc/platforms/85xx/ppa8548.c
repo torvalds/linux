@@ -81,9 +81,7 @@ machine_device_initcall(ppa8548, declare_of_platform_devices);
  */
 static int __init ppa8548_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "ppa8548");
+	return of_machine_is_compatible("ppa8548");
 }
 
 define_machine(ppa8548) {

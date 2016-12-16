@@ -52,7 +52,7 @@ static int write_mmp_block(struct super_block *sb, struct buffer_head *bh)
 	lock_buffer(bh);
 	bh->b_end_io = end_buffer_write_sync;
 	get_bh(bh);
-	submit_bh(WRITE_SYNC | REQ_META | REQ_PRIO, bh);
+	submit_bh(REQ_OP_WRITE, WRITE_SYNC | REQ_META | REQ_PRIO, bh);
 	wait_on_buffer(bh);
 	sb_end_write(sb);
 	if (unlikely(!buffer_uptodate(bh)))
@@ -88,7 +88,7 @@ static int read_mmp_block(struct super_block *sb, struct buffer_head **bh,
 	get_bh(*bh);
 	lock_buffer(*bh);
 	(*bh)->b_end_io = end_buffer_read_sync;
-	submit_bh(READ_SYNC | REQ_META | REQ_PRIO, *bh);
+	submit_bh(REQ_OP_READ, READ_SYNC | REQ_META | REQ_PRIO, *bh);
 	wait_on_buffer(*bh);
 	if (!buffer_uptodate(*bh)) {
 		ret = -EIO;
@@ -121,7 +121,7 @@ void __dump_mmp_msg(struct super_block *sb, struct mmp_struct *mmp,
 	__ext4_warning(sb, function, line, "%s", msg);
 	__ext4_warning(sb, function, line,
 		       "MMP failure info: last update time: %llu, last update "
-		       "node: %s, last update device: %s\n",
+		       "node: %s, last update device: %s",
 		       (long long unsigned int) le64_to_cpu(mmp->mmp_time),
 		       mmp->mmp_nodename, mmp->mmp_bdevname);
 }
@@ -353,7 +353,7 @@ skip:
 	 * wait for MMP interval and check mmp_seq.
 	 */
 	if (schedule_timeout_interruptible(HZ * wait_time) != 0) {
-		ext4_warning(sb, "MMP startup interrupted, failing mount\n");
+		ext4_warning(sb, "MMP startup interrupted, failing mount");
 		goto failed;
 	}
 

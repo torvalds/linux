@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -181,6 +177,12 @@ struct lu_seq_range {
 	__u64 lsr_end;
 	__u32 lsr_index;
 	__u32 lsr_flags;
+};
+
+struct lu_seq_range_array {
+	__u32 lsra_count;
+	__u32 lsra_padding;
+	struct lu_seq_range lsra_lsr[0];
 };
 
 #define LU_SEQ_RANGE_MDT	0x0
@@ -380,7 +382,7 @@ static inline __u64 fid_ver_oid(const struct lu_fid *fid)
  * used for other purposes and not risk collisions with existing inodes.
  *
  * Different FID Format
- * http://arch.lustre.org/index.php?title=Interoperability_fids_zfs#NEW.0
+ * http://wiki.old.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
  */
 enum fid_seq {
 	FID_SEQ_OST_MDT0	= 0,
@@ -578,7 +580,7 @@ static inline __u64 ostid_seq(const struct ost_id *ostid)
 	if (fid_seq_is_mdt0(ostid->oi.oi_seq))
 		return FID_SEQ_OST_MDT0;
 
-	if (fid_seq_is_default(ostid->oi.oi_seq))
+	if (unlikely(fid_seq_is_default(ostid->oi.oi_seq)))
 		return FID_SEQ_LOV_DEFAULT;
 
 	if (fid_is_idif(&ostid->oi_fid))
@@ -590,8 +592,11 @@ static inline __u64 ostid_seq(const struct ost_id *ostid)
 /* extract OST objid from a wire ost_id (id/seq) pair */
 static inline __u64 ostid_id(const struct ost_id *ostid)
 {
-	if (fid_seq_is_mdt0(ostid_seq(ostid)))
+	if (fid_seq_is_mdt0(ostid->oi.oi_seq))
 		return ostid->oi.oi_id & IDIF_OID_MASK;
+
+	if (unlikely(fid_seq_is_default(ostid->oi.oi_seq)))
+		return ostid->oi.oi_id;
 
 	if (fid_is_idif(&ostid->oi_fid))
 		return fid_idif_id(fid_seq(&ostid->oi_fid),
@@ -636,12 +641,22 @@ static inline void ostid_set_seq_llog(struct ost_id *oi)
  */
 static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 {
-	if (fid_seq_is_mdt0(ostid_seq(oi))) {
+	if (fid_seq_is_mdt0(oi->oi.oi_seq)) {
 		if (oid >= IDIF_MAX_OID) {
 			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
 			return;
 		}
 		oi->oi.oi_id = oid;
+	} else if (fid_is_idif(&oi->oi_fid)) {
+		if (oid >= IDIF_MAX_OID) {
+			CERROR("Bad %llu to set "DOSTID"\n",
+			       oid, POSTID(oi));
+			return;
+		}
+		oi->oi_fid.f_seq = fid_idif_seq(oid,
+						fid_idif_ost_idx(&oi->oi_fid));
+		oi->oi_fid.f_oid = oid;
+		oi->oi_fid.f_ver = oid >> 48;
 	} else {
 		if (oid > OBIF_MAX_OID) {
 			CERROR("Bad %llu to set " DOSTID "\n", oid, POSTID(oi));
@@ -651,25 +666,31 @@ static inline void ostid_set_id(struct ost_id *oi, __u64 oid)
 	}
 }
 
-static inline void ostid_inc_id(struct ost_id *oi)
+static inline int fid_set_id(struct lu_fid *fid, __u64 oid)
 {
-	if (fid_seq_is_mdt0(ostid_seq(oi))) {
-		if (unlikely(ostid_id(oi) + 1 > IDIF_MAX_OID)) {
-			CERROR("Bad inc "DOSTID"\n", POSTID(oi));
-			return;
-		}
-		oi->oi.oi_id++;
-	} else {
-		oi->oi_fid.f_oid++;
+	if (unlikely(fid_seq_is_igif(fid->f_seq))) {
+		CERROR("bad IGIF, "DFID"\n", PFID(fid));
+		return -EBADF;
 	}
-}
 
-static inline void ostid_dec_id(struct ost_id *oi)
-{
-	if (fid_seq_is_mdt0(ostid_seq(oi)))
-		oi->oi.oi_id--;
-	else
-		oi->oi_fid.f_oid--;
+	if (fid_is_idif(fid)) {
+		if (oid >= IDIF_MAX_OID) {
+			CERROR("Too large OID %#llx to set IDIF "DFID"\n",
+			       (unsigned long long)oid, PFID(fid));
+			return -EBADF;
+		}
+		fid->f_seq = fid_idif_seq(oid, fid_idif_ost_idx(fid));
+		fid->f_oid = oid;
+		fid->f_ver = oid >> 48;
+	} else {
+		if (oid > OBIF_MAX_OID) {
+			CERROR("Too large OID %#llx to set REG "DFID"\n",
+			       (unsigned long long)oid, PFID(fid));
+			return -EBADF;
+		}
+		fid->f_oid = oid;
+	}
+	return 0;
 }
 
 /**
@@ -679,35 +700,39 @@ static inline void ostid_dec_id(struct ost_id *oi)
  * be passed through unchanged.  Only legacy OST objects in "group 0"
  * will be mapped into the IDIF namespace so that they can fit into the
  * struct lu_fid fields without loss.  For reference see:
- * http://arch.lustre.org/index.php?title=Interoperability_fids_zfs
+ * http://wiki.old.lustre.org/index.php/Architecture_-_Interoperability_fids_zfs
  */
 static inline int ostid_to_fid(struct lu_fid *fid, struct ost_id *ostid,
 			       __u32 ost_idx)
 {
+	__u64 seq = ostid_seq(ostid);
+
 	if (ost_idx > 0xffff) {
 		CERROR("bad ost_idx, "DOSTID" ost_idx:%u\n", POSTID(ostid),
 		       ost_idx);
 		return -EBADF;
 	}
 
-	if (fid_seq_is_mdt0(ostid_seq(ostid))) {
+	if (fid_seq_is_mdt0(seq)) {
+		__u64 oid = ostid_id(ostid);
+
 		/* This is a "legacy" (old 1.x/2.early) OST object in "group 0"
 		 * that we map into the IDIF namespace.  It allows up to 2^48
 		 * objects per OST, as this is the object namespace that has
 		 * been in production for years.  This can handle create rates
 		 * of 1M objects/s/OST for 9 years, or combinations thereof.
 		 */
-		if (ostid_id(ostid) >= IDIF_MAX_OID) {
+		if (oid >= IDIF_MAX_OID) {
 			CERROR("bad MDT0 id, " DOSTID " ost_idx:%u\n",
 			       POSTID(ostid), ost_idx);
 			return -EBADF;
 		}
-		fid->f_seq = fid_idif_seq(ostid_id(ostid), ost_idx);
+		fid->f_seq = fid_idif_seq(oid, ost_idx);
 		/* truncate to 32 bits by assignment */
-		fid->f_oid = ostid_id(ostid);
+		fid->f_oid = oid;
 		/* in theory, not currently used */
-		fid->f_ver = ostid_id(ostid) >> 48;
-	} else /* if (fid_seq_is_idif(seq) || fid_seq_is_norm(seq)) */ {
+		fid->f_ver = oid >> 48;
+	} else if (likely(!fid_seq_is_default(seq))) {
 	       /* This is either an IDIF object, which identifies objects across
 		* all OSTs, or a regular FID.  The IDIF namespace maps legacy
 		* OST objects into the FID namespace.  In both cases, we just
@@ -1001,8 +1026,9 @@ static inline int lu_dirent_calc_size(int namelen, __u16 attr)
 
 		size = (sizeof(struct lu_dirent) + namelen + align) & ~align;
 		size += sizeof(struct luda_type);
-	} else
+	} else {
 		size = sizeof(struct lu_dirent) + namelen;
+	}
 
 	return (size + 7) & ~7;
 }
@@ -1211,8 +1237,16 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 						  */
 #define OBD_CONNECT_ATTRFID	       0x4000ULL /*Server can GetAttr By Fid*/
 #define OBD_CONNECT_NODEVOH	       0x8000ULL /*No open hndl on specl nodes*/
-#define OBD_CONNECT_RMT_CLIENT	      0x10000ULL /*Remote client */
-#define OBD_CONNECT_RMT_CLIENT_FORCE  0x20000ULL /*Remote client by force */
+#define OBD_CONNECT_RMT_CLIENT	      0x10000ULL /* Remote client, never used
+						  * in production. Removed in
+						  * 2.9. Keep this flag to
+						  * avoid reuse.
+						  */
+#define OBD_CONNECT_RMT_CLIENT_FORCE  0x20000ULL /* Remote client by force,
+						  * never used in production.
+						  * Removed in 2.9. Keep this
+						  * flag to avoid reuse
+						  */
 #define OBD_CONNECT_BRW_SIZE	      0x40000ULL /*Max bytes per rpc */
 #define OBD_CONNECT_QUOTA64	      0x80000ULL /*Not used since 2.4 */
 #define OBD_CONNECT_MDS_CAPA	     0x100000ULL /*MDS capability */
@@ -1256,6 +1290,9 @@ void lustre_swab_ptlrpc_body(struct ptlrpc_body *pb);
 #define OBD_CONNECT_PINGLESS	0x4000000000000ULL/* pings not required */
 #define OBD_CONNECT_FLOCK_DEAD	0x8000000000000ULL/* flock deadlock detection */
 #define OBD_CONNECT_DISP_STRIPE 0x10000000000000ULL/*create stripe disposition*/
+#define OBD_CONNECT_OPEN_BY_FID	0x20000000000000ULL	/* open by fid won't pack
+							 * name in request
+							 */
 
 /* XXX README XXX:
  * Please DO NOT add flag values here before first ensuring that this same
@@ -1428,6 +1465,8 @@ enum obdo_flags {
 					   */
 	OBD_FL_RECOV_RESEND = 0x00080000, /* recoverable resent */
 	OBD_FL_NOSPC_BLK    = 0x00100000, /* no more block space on OST */
+	OBD_FL_FLUSH	    = 0x00200000, /* flush pages on the OST */
+	OBD_FL_SHORT_IO	    = 0x00400000, /* short io request */
 
 	/* Note that while these checksum values are currently separate bits,
 	 * in 2.x we can actually allow all values from 1-31 if we wanted.
@@ -1523,6 +1562,11 @@ static inline void fid_to_lmm_oi(const struct lu_fid *fid,
 static inline void lmm_oi_set_seq(struct ost_id *oi, __u64 seq)
 {
 	oi->oi.oi_seq = seq;
+}
+
+static inline void lmm_oi_set_id(struct ost_id *oi, __u64 oid)
+{
+	oi->oi.oi_id = oid;
 }
 
 static inline __u64 lmm_oi_id(struct ost_id *oi)
@@ -1663,7 +1707,7 @@ lov_mds_md_max_stripe_count(size_t buf_size, __u32 lmm_magic)
 #define OBD_MD_FLXATTRLS     (0x0000002000000000ULL) /* xattr list */
 #define OBD_MD_FLXATTRRM     (0x0000004000000000ULL) /* xattr remove */
 #define OBD_MD_FLACL	     (0x0000008000000000ULL) /* ACL */
-#define OBD_MD_FLRMTPERM     (0x0000010000000000ULL) /* remote permission */
+/*	OBD_MD_FLRMTPERM     (0x0000010000000000ULL) remote perm, obsolete */
 #define OBD_MD_FLMDSCAPA     (0x0000020000000000ULL) /* MDS capability */
 #define OBD_MD_FLOSSCAPA     (0x0000040000000000ULL) /* OSS capability */
 #define OBD_MD_FLCKSPLIT     (0x0000080000000000ULL) /* Check split on server */
@@ -1675,10 +1719,10 @@ lov_mds_md_max_stripe_count(size_t buf_size, __u32 lmm_magic)
 						      */
 #define OBD_MD_FLOBJCOUNT    (0x0000400000000000ULL) /* for multiple destroy */
 
-#define OBD_MD_FLRMTLSETFACL (0x0001000000000000ULL) /* lfs lsetfacl case */
-#define OBD_MD_FLRMTLGETFACL (0x0002000000000000ULL) /* lfs lgetfacl case */
-#define OBD_MD_FLRMTRSETFACL (0x0004000000000000ULL) /* lfs rsetfacl case */
-#define OBD_MD_FLRMTRGETFACL (0x0008000000000000ULL) /* lfs rgetfacl case */
+/*	OBD_MD_FLRMTLSETFACL (0x0001000000000000ULL) lfs lsetfacl, obsolete */
+/*	OBD_MD_FLRMTLGETFACL (0x0002000000000000ULL) lfs lgetfacl, obsolete */
+/*	OBD_MD_FLRMTRSETFACL (0x0004000000000000ULL) lfs rsetfacl, obsolete */
+/*	OBD_MD_FLRMTRGETFACL (0x0008000000000000ULL) lfs rgetfacl, obsolete */
 
 #define OBD_MD_FLDATAVERSION (0x0010000000000000ULL) /* iversion sum */
 #define OBD_MD_FLRELEASED    (0x0020000000000000ULL) /* file released */
@@ -1732,6 +1776,11 @@ void lustre_swab_obd_statfs(struct obd_statfs *os);
 #define OBD_BRW_MEMALLOC       0x800 /* Client runs in the "kswapd" context */
 #define OBD_BRW_OVER_USRQUOTA 0x1000 /* Running out of user quota */
 #define OBD_BRW_OVER_GRPQUOTA 0x2000 /* Running out of group quota */
+#define OBD_BRW_SOFT_SYNC     0x4000 /* This flag notifies the server
+				      * that the client is running low on
+				      * space for unstable pages; asking
+				      * it to sync quickly
+				      */
 
 #define OBD_OBJECT_EOF 0xffffffffffffffffULL
 
@@ -2114,25 +2163,7 @@ enum {
 	CFS_SETUID_PERM = 0x01,
 	CFS_SETGID_PERM = 0x02,
 	CFS_SETGRP_PERM = 0x04,
-	CFS_RMTACL_PERM = 0x08,
-	CFS_RMTOWN_PERM = 0x10
 };
-
-/* inode access permission for remote user, the inode info are omitted,
- * for client knows them.
- */
-struct mdt_remote_perm {
-	__u32	   rp_uid;
-	__u32	   rp_gid;
-	__u32	   rp_fsuid;
-	__u32	   rp_fsuid_h;
-	__u32	   rp_fsgid;
-	__u32	   rp_fsgid_h;
-	__u32	   rp_access_perm; /* MAY_READ/WRITE/EXEC */
-	__u32	   rp_padding;
-};
-
-void lustre_swab_mdt_remote_perm(struct mdt_remote_perm *p);
 
 struct mdt_rec_setattr {
 	__u32	   sa_opcode;
@@ -2436,6 +2467,7 @@ struct mdt_rec_reint {
 
 void lustre_swab_mdt_rec_reint(struct mdt_rec_reint *rr);
 
+/* lmv structures */
 struct lmv_desc {
 	__u32 ld_tgt_count;		/* how many MDS's */
 	__u32 ld_active_tgt_count;	 /* how many active */
@@ -2460,7 +2492,6 @@ struct lmv_stripe_md {
 	struct lu_fid mea_ids[0];
 };
 
-/* lmv structures */
 #define MEA_MAGIC_LAST_CHAR      0xb2221ca1
 #define MEA_MAGIC_ALL_CHARS      0xb222a11c
 #define MEA_MAGIC_HASH_SEGMENT   0xb222a11b
@@ -2470,9 +2501,10 @@ struct lmv_stripe_md {
 #define MAX_HASH_HIGHEST_BIT     0x1000000000000000ULL
 
 enum fld_rpc_opc {
-	FLD_QUERY		       = 900,
+	FLD_QUERY	= 900,
+	FLD_READ	= 901,
 	FLD_LAST_OPC,
-	FLD_FIRST_OPC		   = FLD_QUERY
+	FLD_FIRST_OPC	= FLD_QUERY
 };
 
 enum seq_rpc_opc {
@@ -2484,6 +2516,12 @@ enum seq_rpc_opc {
 enum seq_op {
 	SEQ_ALLOC_SUPER = 0,
 	SEQ_ALLOC_META = 1
+};
+
+enum fld_op {
+	FLD_CREATE = 0,
+	FLD_DELETE = 1,
+	FLD_LOOKUP = 2,
 };
 
 /*
@@ -2581,6 +2619,8 @@ struct ldlm_extent {
 	__u64 end;
 	__u64 gid;
 };
+
+#define LDLM_GID_ANY ((__u64)-1)
 
 static inline int ldlm_extent_overlap(struct ldlm_extent *ex1,
 				      struct ldlm_extent *ex2)
@@ -3304,7 +3344,7 @@ struct getinfo_fid2path {
 	char	    gf_path[0];
 } __packed;
 
-void lustre_swab_fid2path (struct getinfo_fid2path *gf);
+void lustre_swab_fid2path(struct getinfo_fid2path *gf);
 
 enum {
 	LAYOUT_INTENT_ACCESS    = 0,

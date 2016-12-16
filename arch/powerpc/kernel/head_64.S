@@ -401,7 +401,7 @@ generic_secondary_common_init:
 	ld	r12,CPU_SPEC_RESTORE(r23)
 	cmpdi	0,r12,0
 	beq	3f
-#if !defined(_CALL_ELF) || _CALL_ELF != 2
+#ifdef PPC64_ELF_ABI_v1
 	ld	r12,0(r12)
 #endif
 	mtctr	r12
@@ -941,7 +941,7 @@ start_here_multiplatform:
 	mtspr	SPRN_SRR1,r4
 	RFI
 	b	.	/* prevent speculative execution */
-	
+
 	/* This is where all platforms converge execution */
 
 start_here_common:
@@ -950,9 +950,6 @@ start_here_common:
 
 	/* Load the TOC (virtual address) */
 	ld	r2,PACATOC(r13)
-
-	/* Do more system initializations in virtual mode */
-	bl	setup_system
 
 	/* Mark interrupts soft and hard disabled (they might be enabled
 	 * in the PACA when doing hotplug)
@@ -973,13 +970,16 @@ start_here_common:
  * This stuff goes at the beginning of the bss, which is page-aligned.
  */
 	.section ".bss"
-
-	.align	PAGE_SHIFT
-
-	.globl	empty_zero_page
-empty_zero_page:
-	.space	PAGE_SIZE
+/*
+ * pgd dir should be aligned to PGD_TABLE_SIZE which is 64K.
+ * We will need to find a better way to fix this
+ */
+	.align	16
 
 	.globl	swapper_pg_dir
 swapper_pg_dir:
 	.space	PGD_TABLE_SIZE
+
+	.globl	empty_zero_page
+empty_zero_page:
+	.space	PAGE_SIZE

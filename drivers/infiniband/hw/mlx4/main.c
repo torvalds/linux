@@ -505,9 +505,9 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 			props->device_cap_flags |= IB_DEVICE_MEM_WINDOW_TYPE_2B;
 		else
 			props->device_cap_flags |= IB_DEVICE_MEM_WINDOW_TYPE_2A;
-	if (dev->steering_support ==  MLX4_STEERING_MODE_DEVICE_MANAGED)
-		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
 	}
+	if (dev->steering_support == MLX4_STEERING_MODE_DEVICE_MANAGED)
+		props->device_cap_flags |= IB_DEVICE_MANAGED_FLOW_STEERING;
 
 	props->device_cap_flags |= IB_DEVICE_RAW_IP_CSUM;
 
@@ -1601,7 +1601,7 @@ static int __mlx4_ib_create_flow(struct ib_qp *qp, struct ib_flow_attr *flow_att
 	else if (ret == -ENXIO)
 		pr_err("Device managed flow steering is disabled. Fail to register network rule.\n");
 	else if (ret)
-		pr_err("Invalid argumant. Fail to register network rule.\n");
+		pr_err("Invalid argument. Fail to register network rule.\n");
 
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
 	return ret;
@@ -1703,6 +1703,9 @@ static struct ib_flow *mlx4_ib_create_flow(struct ib_qp *qp,
 	enum mlx4_net_trans_promisc_mode type[2];
 	struct mlx4_dev *dev = (to_mdev(qp->device))->dev;
 	int is_bonded = mlx4_is_bonded(dev);
+
+	if (flow_attr->port < 1 || flow_attr->port > qp->device->phys_port_cnt)
+		return ERR_PTR(-EINVAL);
 
 	if ((flow_attr->flags & IB_FLOW_ATTR_FLAGS_DONT_TRAP) &&
 	    (flow_attr->type != IB_FLOW_ATTR_NORMAL))
@@ -2022,16 +2025,6 @@ static ssize_t show_hca(struct device *device, struct device_attribute *attr,
 	return sprintf(buf, "MT%d\n", dev->dev->persist->pdev->device);
 }
 
-static ssize_t show_fw_ver(struct device *device, struct device_attribute *attr,
-			   char *buf)
-{
-	struct mlx4_ib_dev *dev =
-		container_of(device, struct mlx4_ib_dev, ib_dev.dev);
-	return sprintf(buf, "%d.%d.%d\n", (int) (dev->dev->caps.fw_ver >> 32),
-		       (int) (dev->dev->caps.fw_ver >> 16) & 0xffff,
-		       (int) dev->dev->caps.fw_ver & 0xffff);
-}
-
 static ssize_t show_rev(struct device *device, struct device_attribute *attr,
 			char *buf)
 {
@@ -2050,16 +2043,206 @@ static ssize_t show_board(struct device *device, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(hw_rev,   S_IRUGO, show_rev,    NULL);
-static DEVICE_ATTR(fw_ver,   S_IRUGO, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, show_hca,    NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, show_board,  NULL);
 
 static struct device_attribute *mlx4_class_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
 	&dev_attr_board_id
 };
+
+struct diag_counter {
+	const char *name;
+	u32 offset;
+};
+
+#define DIAG_COUNTER(_name, _offset)			\
+	{ .name = #_name, .offset = _offset }
+
+static const struct diag_counter diag_basic[] = {
+	DIAG_COUNTER(rq_num_lle, 0x00),
+	DIAG_COUNTER(sq_num_lle, 0x04),
+	DIAG_COUNTER(rq_num_lqpoe, 0x08),
+	DIAG_COUNTER(sq_num_lqpoe, 0x0C),
+	DIAG_COUNTER(rq_num_lpe, 0x18),
+	DIAG_COUNTER(sq_num_lpe, 0x1C),
+	DIAG_COUNTER(rq_num_wrfe, 0x20),
+	DIAG_COUNTER(sq_num_wrfe, 0x24),
+	DIAG_COUNTER(sq_num_mwbe, 0x2C),
+	DIAG_COUNTER(sq_num_bre, 0x34),
+	DIAG_COUNTER(sq_num_rire, 0x44),
+	DIAG_COUNTER(rq_num_rire, 0x48),
+	DIAG_COUNTER(sq_num_rae, 0x4C),
+	DIAG_COUNTER(rq_num_rae, 0x50),
+	DIAG_COUNTER(sq_num_roe, 0x54),
+	DIAG_COUNTER(sq_num_tree, 0x5C),
+	DIAG_COUNTER(sq_num_rree, 0x64),
+	DIAG_COUNTER(rq_num_rnr, 0x68),
+	DIAG_COUNTER(sq_num_rnr, 0x6C),
+	DIAG_COUNTER(rq_num_oos, 0x100),
+	DIAG_COUNTER(sq_num_oos, 0x104),
+};
+
+static const struct diag_counter diag_ext[] = {
+	DIAG_COUNTER(rq_num_dup, 0x130),
+	DIAG_COUNTER(sq_num_to, 0x134),
+};
+
+static const struct diag_counter diag_device_only[] = {
+	DIAG_COUNTER(num_cqovf, 0x1A0),
+	DIAG_COUNTER(rq_num_udsdprd, 0x118),
+};
+
+static struct rdma_hw_stats *mlx4_ib_alloc_hw_stats(struct ib_device *ibdev,
+						    u8 port_num)
+{
+	struct mlx4_ib_dev *dev = to_mdev(ibdev);
+	struct mlx4_ib_diag_counters *diag = dev->diag_counters;
+
+	if (!diag[!!port_num].name)
+		return NULL;
+
+	return rdma_alloc_hw_stats_struct(diag[!!port_num].name,
+					  diag[!!port_num].num_counters,
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+static int mlx4_ib_get_hw_stats(struct ib_device *ibdev,
+				struct rdma_hw_stats *stats,
+				u8 port, int index)
+{
+	struct mlx4_ib_dev *dev = to_mdev(ibdev);
+	struct mlx4_ib_diag_counters *diag = dev->diag_counters;
+	u32 hw_value[ARRAY_SIZE(diag_device_only) +
+		ARRAY_SIZE(diag_ext) + ARRAY_SIZE(diag_basic)] = {};
+	int ret;
+	int i;
+
+	ret = mlx4_query_diag_counters(dev->dev,
+				       MLX4_OP_MOD_QUERY_TRANSPORT_CI_ERRORS,
+				       diag[!!port].offset, hw_value,
+				       diag[!!port].num_counters, port);
+
+	if (ret)
+		return ret;
+
+	for (i = 0; i < diag[!!port].num_counters; i++)
+		stats->value[i] = hw_value[i];
+
+	return diag[!!port].num_counters;
+}
+
+static int __mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev,
+					 const char ***name,
+					 u32 **offset,
+					 u32 *num,
+					 bool port)
+{
+	u32 num_counters;
+
+	num_counters = ARRAY_SIZE(diag_basic);
+
+	if (ibdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT)
+		num_counters += ARRAY_SIZE(diag_ext);
+
+	if (!port)
+		num_counters += ARRAY_SIZE(diag_device_only);
+
+	*name = kcalloc(num_counters, sizeof(**name), GFP_KERNEL);
+	if (!*name)
+		return -ENOMEM;
+
+	*offset = kcalloc(num_counters, sizeof(**offset), GFP_KERNEL);
+	if (!*offset)
+		goto err_name;
+
+	*num = num_counters;
+
+	return 0;
+
+err_name:
+	kfree(*name);
+	return -ENOMEM;
+}
+
+static void mlx4_ib_fill_diag_counters(struct mlx4_ib_dev *ibdev,
+				       const char **name,
+				       u32 *offset,
+				       bool port)
+{
+	int i;
+	int j;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(diag_basic); i++, j++) {
+		name[i] = diag_basic[i].name;
+		offset[i] = diag_basic[i].offset;
+	}
+
+	if (ibdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT) {
+		for (i = 0; i < ARRAY_SIZE(diag_ext); i++, j++) {
+			name[j] = diag_ext[i].name;
+			offset[j] = diag_ext[i].offset;
+		}
+	}
+
+	if (!port) {
+		for (i = 0; i < ARRAY_SIZE(diag_device_only); i++, j++) {
+			name[j] = diag_device_only[i].name;
+			offset[j] = diag_device_only[i].offset;
+		}
+	}
+}
+
+static int mlx4_ib_alloc_diag_counters(struct mlx4_ib_dev *ibdev)
+{
+	struct mlx4_ib_diag_counters *diag = ibdev->diag_counters;
+	int i;
+	int ret;
+	bool per_port = !!(ibdev->dev->caps.flags2 &
+		MLX4_DEV_CAP_FLAG2_DIAG_PER_PORT);
+
+	if (mlx4_is_slave(ibdev->dev))
+		return 0;
+
+	for (i = 0; i < MLX4_DIAG_COUNTERS_TYPES; i++) {
+		/* i == 1 means we are building port counters */
+		if (i && !per_port)
+			continue;
+
+		ret = __mlx4_ib_alloc_diag_counters(ibdev, &diag[i].name,
+						    &diag[i].offset,
+						    &diag[i].num_counters, i);
+		if (ret)
+			goto err_alloc;
+
+		mlx4_ib_fill_diag_counters(ibdev, diag[i].name,
+					   diag[i].offset, i);
+	}
+
+	ibdev->ib_dev.get_hw_stats	= mlx4_ib_get_hw_stats;
+	ibdev->ib_dev.alloc_hw_stats	= mlx4_ib_alloc_hw_stats;
+
+	return 0;
+
+err_alloc:
+	if (i) {
+		kfree(diag[i - 1].name);
+		kfree(diag[i - 1].offset);
+	}
+
+	return ret;
+}
+
+static void mlx4_ib_diag_cleanup(struct mlx4_ib_dev *ibdev)
+{
+	int i;
+
+	for (i = 0; i < MLX4_DIAG_COUNTERS_TYPES; i++) {
+		kfree(ibdev->diag_counters[i].offset);
+		kfree(ibdev->diag_counters[i].name);
+	}
+}
 
 #define MLX4_IB_INVALID_MAC	((u64)-1)
 static void mlx4_ib_update_qps(struct mlx4_ib_dev *ibdev,
@@ -2277,6 +2460,17 @@ static int mlx4_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
+static void get_fw_ver_str(struct ib_device *device, char *str,
+			   size_t str_len)
+{
+	struct mlx4_ib_dev *dev =
+		container_of(device, struct mlx4_ib_dev, ib_dev);
+	snprintf(str, str_len, "%d.%d.%d",
+		 (int) (dev->dev->caps.fw_ver >> 32),
+		 (int) (dev->dev->caps.fw_ver >> 16) & 0xffff,
+		 (int) dev->dev->caps.fw_ver & 0xffff);
+}
+
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
@@ -2410,6 +2604,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	ibdev->ib_dev.detach_mcast	= mlx4_ib_mcg_detach;
 	ibdev->ib_dev.process_mad	= mlx4_ib_process_mad;
 	ibdev->ib_dev.get_port_immutable = mlx4_port_immutable;
+	ibdev->ib_dev.get_dev_fw_str    = get_fw_ver_str;
 	ibdev->ib_dev.disassociate_ucontext = mlx4_ib_disassociate_ucontext;
 
 	if (!mlx4_is_slave(ibdev->dev)) {
@@ -2552,8 +2747,11 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	for (j = 1; j <= ibdev->dev->caps.num_ports; j++)
 		atomic64_set(&iboe->mac[j - 1], ibdev->dev->caps.def_mac[j]);
 
-	if (ib_register_device(&ibdev->ib_dev, NULL))
+	if (mlx4_ib_alloc_diag_counters(ibdev))
 		goto err_steer_free_bitmap;
+
+	if (ib_register_device(&ibdev->ib_dev, NULL))
+		goto err_diag_counters;
 
 	if (mlx4_ib_mad_init(ibdev))
 		goto err_reg;
@@ -2619,6 +2817,9 @@ err_mad:
 
 err_reg:
 	ib_unregister_device(&ibdev->ib_dev);
+
+err_diag_counters:
+	mlx4_ib_diag_cleanup(ibdev);
 
 err_steer_free_bitmap:
 	kfree(ibdev->ib_uc_qpns_bitmap);
@@ -2723,6 +2924,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	mlx4_ib_close_sriov(ibdev);
 	mlx4_ib_mad_cleanup(ibdev);
 	ib_unregister_device(&ibdev->ib_dev);
+	mlx4_ib_diag_cleanup(ibdev);
 	if (ibdev->iboe.nb.notifier_call) {
 		if (unregister_netdevice_notifier(&ibdev->iboe.nb))
 			pr_warn("failure unregistering notifier\n");

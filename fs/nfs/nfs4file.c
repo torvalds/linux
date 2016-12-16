@@ -66,7 +66,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	if (openflags & O_TRUNC) {
 		attr.ia_valid |= ATTR_SIZE;
 		attr.ia_size = 0;
-		nfs_sync_inode(inode);
+		filemap_write_and_wait(inode->i_mapping);
 	}
 
 	inode = NFS_PROTO(dir)->open_context(dir, ctx, openflags, &attr, NULL);
@@ -129,6 +129,16 @@ nfs4_file_flush(struct file *file, fl_owner_t id)
 }
 
 #ifdef CONFIG_NFS_V4_2
+static ssize_t nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
+				    struct file *file_out, loff_t pos_out,
+				    size_t count, unsigned int flags)
+{
+	if (file_inode(file_in) == file_inode(file_out))
+		return -EINVAL;
+
+	return nfs42_proc_copy(file_in, pos_in, file_out, pos_out, count);
+}
+
 static loff_t nfs4_file_llseek(struct file *filep, loff_t offset, int whence)
 {
 	loff_t ret;
@@ -243,6 +253,7 @@ const struct file_operations nfs4_file_operations = {
 	.check_flags	= nfs_check_flags,
 	.setlease	= simple_nosetlease,
 #ifdef CONFIG_NFS_V4_2
+	.copy_file_range = nfs4_copy_file_range,
 	.llseek		= nfs4_file_llseek,
 	.fallocate	= nfs42_fallocate,
 	.clone_file_range = nfs42_clone_file_range,

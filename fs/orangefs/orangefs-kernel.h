@@ -119,17 +119,6 @@ struct client_debug_mask {
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif /* ((defined ORANGEFS_KERNEL_DEBUG) && (defined CONFIG_DEBUG_SLAB)) */
 
-/* orangefs xattr and acl related defines */
-#define ORANGEFS_XATTR_INDEX_POSIX_ACL_ACCESS  1
-#define ORANGEFS_XATTR_INDEX_POSIX_ACL_DEFAULT 2
-#define ORANGEFS_XATTR_INDEX_TRUSTED           3
-#define ORANGEFS_XATTR_INDEX_DEFAULT           4
-
-#define ORANGEFS_XATTR_NAME_ACL_ACCESS XATTR_NAME_POSIX_ACL_ACCESS
-#define ORANGEFS_XATTR_NAME_ACL_DEFAULT XATTR_NAME_POSIX_ACL_DEFAULT
-#define ORANGEFS_XATTR_NAME_TRUSTED_PREFIX "trusted."
-#define ORANGEFS_XATTR_NAME_DEFAULT_PREFIX ""
-
 /* these functions are defined in orangefs-utils.c */
 int orangefs_prepare_cdm_array(char *debug_array_string);
 int orangefs_prepare_debugfs_help_string(int);
@@ -257,6 +246,8 @@ struct orangefs_inode_s {
 	 * with this object
 	 */
 	unsigned long pinode_flags;
+
+	unsigned long getattr_time;
 };
 
 #define P_ATIME_FLAG 0
@@ -528,19 +519,17 @@ __s32 fsid_of_op(struct orangefs_kernel_op_s *op);
 int orangefs_flush_inode(struct inode *inode);
 
 ssize_t orangefs_inode_getxattr(struct inode *inode,
-			     const char *prefix,
 			     const char *name,
 			     void *buffer,
 			     size_t size);
 
 int orangefs_inode_setxattr(struct inode *inode,
-			 const char *prefix,
 			 const char *name,
 			 const void *value,
 			 size_t size,
 			 int flags);
 
-int orangefs_inode_getattr(struct inode *inode, int new, int size);
+int orangefs_inode_getattr(struct inode *inode, int new, int bypass);
 
 int orangefs_inode_check_changed(struct inode *inode);
 
@@ -559,6 +548,8 @@ extern struct mutex request_mutex;
 extern int debug;
 extern int op_timeout_secs;
 extern int slot_timeout_secs;
+extern int dcache_timeout_msecs;
+extern int getattr_timeout_msecs;
 extern struct list_head orangefs_superblocks;
 extern spinlock_t orangefs_superblocks_lock;
 extern struct list_head orangefs_request_list;
@@ -570,10 +561,10 @@ extern int hash_table_size;
 
 extern const struct address_space_operations orangefs_address_operations;
 extern struct backing_dev_info orangefs_backing_dev_info;
-extern struct inode_operations orangefs_file_inode_operations;
+extern const struct inode_operations orangefs_file_inode_operations;
 extern const struct file_operations orangefs_file_operations;
-extern struct inode_operations orangefs_symlink_inode_operations;
-extern struct inode_operations orangefs_dir_inode_operations;
+extern const struct inode_operations orangefs_symlink_inode_operations;
+extern const struct inode_operations orangefs_dir_inode_operations;
 extern const struct file_operations orangefs_dir_operations;
 extern const struct dentry_operations orangefs_dentry_operations;
 extern const struct file_operations orangefs_devreq_file_operations;
@@ -600,8 +591,8 @@ int service_operation(struct orangefs_kernel_op_s *op,
 
 #define fill_default_sys_attrs(sys_attr, type, mode)			\
 do {									\
-	sys_attr.owner = from_kuid(current_user_ns(), current_fsuid()); \
-	sys_attr.group = from_kgid(current_user_ns(), current_fsgid()); \
+	sys_attr.owner = from_kuid(&init_user_ns, current_fsuid()); \
+	sys_attr.group = from_kgid(&init_user_ns, current_fsgid()); \
 	sys_attr.perms = ORANGEFS_util_translate_mode(mode);		\
 	sys_attr.mtime = 0;						\
 	sys_attr.atime = 0;						\
@@ -612,11 +603,11 @@ do {									\
 static inline void orangefs_i_size_write(struct inode *inode, loff_t i_size)
 {
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 #endif
 	i_size_write(inode, i_size);
 #if BITS_PER_LONG == 32 && defined(CONFIG_SMP)
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 #endif
 }
 

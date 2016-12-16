@@ -154,12 +154,11 @@ static int ad7266_read_raw(struct iio_dev *indio_dev,
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
-		if (iio_buffer_enabled(indio_dev))
-			return -EBUSY;
-
-		ret = ad7266_read_single(st, val, chan->address);
+		ret = iio_device_claim_direct_mode(indio_dev);
 		if (ret)
 			return ret;
+		ret = ad7266_read_single(st, val, chan->address);
+		iio_device_release_direct_mode(indio_dev);
 
 		*val = (*val >> 2) & 0xfff;
 		if (chan->scan_type.sign == 's')
@@ -396,8 +395,8 @@ static int ad7266_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	st->reg = devm_regulator_get(&spi->dev, "vref");
-	if (!IS_ERR_OR_NULL(st->reg)) {
+	st->reg = devm_regulator_get_optional(&spi->dev, "vref");
+	if (!IS_ERR(st->reg)) {
 		ret = regulator_enable(st->reg);
 		if (ret)
 			return ret;
@@ -408,6 +407,9 @@ static int ad7266_probe(struct spi_device *spi)
 
 		st->vref_mv = ret / 1000;
 	} else {
+		/* Any other error indicates that the regulator does exist */
+		if (PTR_ERR(st->reg) != -ENODEV)
+			return PTR_ERR(st->reg);
 		/* Use internal reference */
 		st->vref_mv = 2500;
 	}
@@ -438,6 +440,7 @@ static int ad7266_probe(struct spi_device *spi)
 	st->spi = spi;
 
 	indio_dev->dev.parent = &spi->dev;
+	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &ad7266_info;

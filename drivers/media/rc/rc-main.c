@@ -130,13 +130,18 @@ static struct rc_map_list empty_map = {
 static int ir_create_table(struct rc_map *rc_map,
 			   const char *name, u64 rc_type, size_t size)
 {
-	rc_map->name = name;
+	rc_map->name = kstrdup(name, GFP_KERNEL);
+	if (!rc_map->name)
+		return -ENOMEM;
 	rc_map->rc_type = rc_type;
 	rc_map->alloc = roundup_pow_of_two(size * sizeof(struct rc_map_table));
 	rc_map->size = rc_map->alloc / sizeof(struct rc_map_table);
 	rc_map->scan = kmalloc(rc_map->alloc, GFP_KERNEL);
-	if (!rc_map->scan)
+	if (!rc_map->scan) {
+		kfree(rc_map->name);
+		rc_map->name = NULL;
 		return -ENOMEM;
+	}
 
 	IR_dprintk(1, "Allocated space for %u keycode entries (%u bytes)\n",
 		   rc_map->size, rc_map->alloc);
@@ -153,6 +158,7 @@ static int ir_create_table(struct rc_map *rc_map,
 static void ir_free_table(struct rc_map *rc_map)
 {
 	rc_map->size = 0;
+	kfree(rc_map->name);
 	kfree(rc_map->scan);
 	rc_map->scan = NULL;
 }
@@ -789,7 +795,9 @@ static const struct {
 	{ RC_BIT_UNKNOWN,	"unknown",	NULL			},
 	{ RC_BIT_RC5 |
 	  RC_BIT_RC5X,		"rc-5",		"ir-rc5-decoder"	},
-	{ RC_BIT_NEC,		"nec",		"ir-nec-decoder"	},
+	{ RC_BIT_NEC |
+	  RC_BIT_NECX |
+	  RC_BIT_NEC32,		"nec",		"ir-nec-decoder"	},
 	{ RC_BIT_RC6_0 |
 	  RC_BIT_RC6_6A_20 |
 	  RC_BIT_RC6_6A_24 |
@@ -804,6 +812,7 @@ static const struct {
 	{ RC_BIT_SHARP,		"sharp",	"ir-sharp-decoder"	},
 	{ RC_BIT_MCE_KBD,	"mce_kbd",	"ir-mce_kbd-decoder"	},
 	{ RC_BIT_XMP,		"xmp",		"ir-xmp-decoder"	},
+	{ RC_BIT_CEC,		"cec",		NULL			},
 };
 
 /**
@@ -1263,6 +1272,9 @@ unlock:
 
 static void rc_dev_release(struct device *device)
 {
+	struct rc_dev *dev = to_rc_dev(device);
+
+	kfree(dev);
 }
 
 #define ADD_HOTPLUG_VAR(fmt, val...)					\
@@ -1384,7 +1396,9 @@ void rc_free_device(struct rc_dev *dev)
 
 	put_device(&dev->dev);
 
-	kfree(dev);
+	/* kfree(dev) will be called by the callback function
+	   rc_dev_release() */
+
 	module_put(THIS_MODULE);
 }
 EXPORT_SYMBOL_GPL(rc_free_device);
@@ -1448,6 +1462,10 @@ int rc_register_device(struct rc_dev *dev)
 	dev->input_dev->phys = dev->input_phys;
 	dev->input_dev->name = dev->input_name;
 
+	rc = input_register_device(dev->input_dev);
+	if (rc)
+		goto out_table;
+
 	/*
 	 * Default delay of 250ms is too short for some protocols, especially
 	 * since the timeout is currently set to 250ms. Increase it to 500ms,
@@ -1462,11 +1480,6 @@ int rc_register_device(struct rc_dev *dev)
 	 * to do.
 	 */
 	dev->input_dev->rep[REP_PERIOD] = 125;
-
-	/* rc_open will be called here */
-	rc = input_register_device(dev->input_dev);
-	if (rc)
-		goto out_table;
 
 	path = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
 	dev_info(&dev->dev, "%s as %s\n",
@@ -1492,9 +1505,7 @@ int rc_register_device(struct rc_dev *dev)
 	}
 
 	/* Allow the RC sysfs nodes to be accessible */
-	mutex_lock(&dev->lock);
 	atomic_set(&dev->initialized, 1);
-	mutex_unlock(&dev->lock);
 
 	IR_dprintk(1, "Registered rc%u (driver: %s, remote: %s, mode %s)\n",
 		   dev->minor,

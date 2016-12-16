@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000-2001 Christoph Hellwig.
+ * Copyright (c) 2016 Krzysztof Blaszkowski
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,20 +43,20 @@
  * Fileset header 
  */
 struct vxfs_fsh {
-	u_int32_t	fsh_version;		/* fileset header version */
-	u_int32_t	fsh_fsindex;		/* fileset index */
-	u_int32_t	fsh_time;		/* modification time - sec */
-	u_int32_t	fsh_utime;		/* modification time - usec */
-	u_int32_t	fsh_extop;		/* extop flags */
-	vx_ino_t	fsh_ninodes;		/* allocated inodes */
-	u_int32_t	fsh_nau;		/* number of IAUs */
-	u_int32_t	fsh_old_ilesize;	/* old size of ilist */
-	u_int32_t	fsh_dflags;		/* flags */
-	u_int32_t	fsh_quota;		/* quota limit */
-	vx_ino_t	fsh_maxinode;		/* maximum inode number */
-	vx_ino_t	fsh_iauino;		/* IAU inode */
-	vx_ino_t	fsh_ilistino[2];	/* ilist inodes */
-	vx_ino_t	fsh_lctino;		/* link count table inode */
+	__fs32		fsh_version;		/* fileset header version */
+	__fs32		fsh_fsindex;		/* fileset index */
+	__fs32		fsh_time;		/* modification time - sec */
+	__fs32		fsh_utime;		/* modification time - usec */
+	__fs32		fsh_extop;		/* extop flags */
+	__fs32		fsh_ninodes;		/* allocated inodes */
+	__fs32		fsh_nau;		/* number of IAUs */
+	__fs32		fsh_old_ilesize;	/* old size of ilist */
+	__fs32		fsh_dflags;		/* flags */
+	__fs32		fsh_quota;		/* quota limit */
+	__fs32		fsh_maxinode;		/* maximum inode number */
+	__fs32		fsh_iauino;		/* IAU inode */
+	__fs32		fsh_ilistino[2];	/* ilist inodes */
+	__fs32		fsh_lctino;		/* link count table inode */
 
 	/*
 	 * Slightly more fields follow, but they

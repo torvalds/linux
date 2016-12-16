@@ -313,7 +313,6 @@ static struct device_type csrow_attr_type = {
  * possible dynamic channel DIMM Label attribute files
  *
  */
-
 DEVICE_CHANNEL(ch0_dimm_label, S_IRUGO | S_IWUSR,
 	channel_dimm_label_show, channel_dimm_label_store, 0);
 DEVICE_CHANNEL(ch1_dimm_label, S_IRUGO | S_IWUSR,
@@ -326,6 +325,10 @@ DEVICE_CHANNEL(ch4_dimm_label, S_IRUGO | S_IWUSR,
 	channel_dimm_label_show, channel_dimm_label_store, 4);
 DEVICE_CHANNEL(ch5_dimm_label, S_IRUGO | S_IWUSR,
 	channel_dimm_label_show, channel_dimm_label_store, 5);
+DEVICE_CHANNEL(ch6_dimm_label, S_IRUGO | S_IWUSR,
+	channel_dimm_label_show, channel_dimm_label_store, 6);
+DEVICE_CHANNEL(ch7_dimm_label, S_IRUGO | S_IWUSR,
+	channel_dimm_label_show, channel_dimm_label_store, 7);
 
 /* Total possible dynamic DIMM Label attribute file table */
 static struct attribute *dynamic_csrow_dimm_attr[] = {
@@ -335,6 +338,8 @@ static struct attribute *dynamic_csrow_dimm_attr[] = {
 	&dev_attr_legacy_ch3_dimm_label.attr.attr,
 	&dev_attr_legacy_ch4_dimm_label.attr.attr,
 	&dev_attr_legacy_ch5_dimm_label.attr.attr,
+	&dev_attr_legacy_ch6_dimm_label.attr.attr,
+	&dev_attr_legacy_ch7_dimm_label.attr.attr,
 	NULL
 };
 
@@ -351,6 +356,10 @@ DEVICE_CHANNEL(ch4_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 4);
 DEVICE_CHANNEL(ch5_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 5);
+DEVICE_CHANNEL(ch6_ce_count, S_IRUGO,
+		   channel_ce_count_show, NULL, 6);
+DEVICE_CHANNEL(ch7_ce_count, S_IRUGO,
+		   channel_ce_count_show, NULL, 7);
 
 /* Total possible dynamic ce_count attribute file table */
 static struct attribute *dynamic_csrow_ce_count_attr[] = {
@@ -360,6 +369,8 @@ static struct attribute *dynamic_csrow_ce_count_attr[] = {
 	&dev_attr_legacy_ch3_ce_count.attr.attr,
 	&dev_attr_legacy_ch4_ce_count.attr.attr,
 	&dev_attr_legacy_ch5_ce_count.attr.attr,
+	&dev_attr_legacy_ch6_ce_count.attr.attr,
+	&dev_attr_legacy_ch7_ce_count.attr.attr,
 	NULL
 };
 
@@ -371,9 +382,16 @@ static umode_t csrow_dev_is_visible(struct kobject *kobj,
 
 	if (idx >= csrow->nr_channels)
 		return 0;
+
+	if (idx >= ARRAY_SIZE(dynamic_csrow_ce_count_attr) - 1) {
+		WARN_ONCE(1, "idx: %d\n", idx);
+		return 0;
+	}
+
 	/* Only expose populated DIMMs */
 	if (!csrow->channels[idx]->dimm->nr_pages)
 		return 0;
+
 	return attr->mode;
 }
 
@@ -998,11 +1016,12 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 
 void edac_unregister_sysfs(struct mem_ctl_info *mci)
 {
+	struct bus_type *bus = mci->bus;
 	const char *name = mci->bus->name;
 
 	edac_dbg(1, "Unregistering device %s\n", dev_name(&mci->dev));
 	device_unregister(&mci->dev);
-	bus_unregister(mci->bus);
+	bus_unregister(bus);
 	kfree(name);
 }
 

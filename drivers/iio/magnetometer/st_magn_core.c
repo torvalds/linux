@@ -484,6 +484,7 @@ static const struct st_sensor_settings st_magn_sensors_settings[] = {
 			.mask_int1 = ST_MAGN_3_DRDY_INT_MASK,
 			.addr_ihl = ST_MAGN_3_IHL_IRQ_ADDR,
 			.mask_ihl = ST_MAGN_3_IHL_IRQ_MASK,
+			.addr_stat_drdy = ST_SENSORS_DEFAULT_STAT_ADDR,
 		},
 		.multi_read_bit = ST_MAGN_3_MULTIREAD_BIT,
 		.bootime = 2,
@@ -571,6 +572,7 @@ static const struct iio_info magn_info = {
 static const struct iio_trigger_ops st_magn_trigger_ops = {
 	.owner = THIS_MODULE,
 	.set_trigger_state = ST_MAGN_TRIGGER_SET_STATE,
+	.validate_device = st_sensors_validate_device,
 };
 #define ST_MAGN_TRIGGER_OPS (&st_magn_trigger_ops)
 #else
@@ -587,13 +589,15 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 	indio_dev->info = &magn_info;
 	mutex_init(&mdata->tb.buf_lock);
 
-	st_sensors_power_enable(indio_dev);
+	err = st_sensors_power_enable(indio_dev);
+	if (err)
+		return err;
 
 	err = st_sensors_check_device_support(indio_dev,
 					ARRAY_SIZE(st_magn_sensors_settings),
 					st_magn_sensors_settings);
 	if (err < 0)
-		return err;
+		goto st_magn_power_off;
 
 	mdata->num_data_channels = ST_MAGN_NUMBER_DATA_CHANNELS;
 	mdata->multiread_bit = mdata->sensor_settings->multi_read_bit;
@@ -606,11 +610,11 @@ int st_magn_common_probe(struct iio_dev *indio_dev)
 
 	err = st_sensors_init_sensor(indio_dev, NULL);
 	if (err < 0)
-		return err;
+		goto st_magn_power_off;
 
 	err = st_magn_allocate_ring(indio_dev);
 	if (err < 0)
-		return err;
+		goto st_magn_power_off;
 
 	if (irq > 0) {
 		err = st_sensors_allocate_trigger(indio_dev,
@@ -633,6 +637,8 @@ st_magn_device_register_error:
 		st_sensors_deallocate_trigger(indio_dev);
 st_magn_probe_trigger_error:
 	st_magn_deallocate_ring(indio_dev);
+st_magn_power_off:
+	st_sensors_power_disable(indio_dev);
 
 	return err;
 }

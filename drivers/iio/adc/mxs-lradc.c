@@ -373,13 +373,6 @@ static u32 mxs_lradc_plate_mask(struct mxs_lradc *lradc)
 	return LRADC_CTRL0_MX28_PLATE_MASK;
 }
 
-static u32 mxs_lradc_irq_en_mask(struct mxs_lradc *lradc)
-{
-	if (lradc->soc == IMX23_LRADC)
-		return LRADC_CTRL1_MX23_LRADC_IRQ_EN_MASK;
-	return LRADC_CTRL1_MX28_LRADC_IRQ_EN_MASK;
-}
-
 static u32 mxs_lradc_irq_mask(struct mxs_lradc *lradc)
 {
 	if (lradc->soc == IMX23_LRADC)
@@ -686,6 +679,17 @@ static void mxs_lradc_prepare_pressure(struct mxs_lradc *lradc)
 
 static void mxs_lradc_enable_touch_detection(struct mxs_lradc *lradc)
 {
+	/* Configure the touchscreen type */
+	if (lradc->soc == IMX28_LRADC) {
+		mxs_lradc_reg_clear(lradc, LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
+				    LRADC_CTRL0);
+
+		if (lradc->use_touchscreen == MXS_LRADC_TOUCHSCREEN_5WIRE)
+			mxs_lradc_reg_set(lradc,
+					  LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
+					  LRADC_CTRL0);
+	}
+
 	mxs_lradc_setup_touch_detection(lradc);
 
 	lradc->cur_plate = LRADC_TOUCH;
@@ -1109,24 +1113,23 @@ static int mxs_lradc_ts_register(struct mxs_lradc *lradc)
 {
 	struct input_dev *input;
 	struct device *dev = lradc->dev;
-	int ret;
 
 	if (!lradc->use_touchscreen)
 		return 0;
 
-	input = input_allocate_device();
+	input = devm_input_allocate_device(dev);
 	if (!input)
 		return -ENOMEM;
 
 	input->name = DRIVER_NAME;
 	input->id.bustype = BUS_HOST;
-	input->dev.parent = dev;
 	input->open = mxs_lradc_ts_open;
 	input->close = mxs_lradc_ts_close;
 
 	__set_bit(EV_ABS, input->evbit);
 	__set_bit(EV_KEY, input->evbit);
 	__set_bit(BTN_TOUCH, input->keybit);
+	__set_bit(INPUT_PROP_DIRECT, input->propbit);
 	input_set_abs_params(input, ABS_X, 0, LRADC_SINGLE_SAMPLE_MASK, 0, 0);
 	input_set_abs_params(input, ABS_Y, 0, LRADC_SINGLE_SAMPLE_MASK, 0, 0);
 	input_set_abs_params(input, ABS_PRESSURE, 0, LRADC_SINGLE_SAMPLE_MASK,
@@ -1134,20 +1137,8 @@ static int mxs_lradc_ts_register(struct mxs_lradc *lradc)
 
 	lradc->ts_input = input;
 	input_set_drvdata(input, lradc);
-	ret = input_register_device(input);
-	if (ret)
-		input_free_device(lradc->ts_input);
 
-	return ret;
-}
-
-static void mxs_lradc_ts_unregister(struct mxs_lradc *lradc)
-{
-	if (!lradc->use_touchscreen)
-		return;
-
-	mxs_lradc_disable_ts(lradc);
-	input_unregister_device(lradc->ts_input);
+	return input_register_device(input);
 }
 
 /*
@@ -1475,17 +1466,12 @@ static const struct iio_chan_spec mx28_lradc_chan_spec[] = {
 	MXS_ADC_CHAN(15, IIO_VOLTAGE, "VDD5V"),
 };
 
-static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
+static void mxs_lradc_hw_init(struct mxs_lradc *lradc)
 {
 	/* The ADC always uses DELAY CHANNEL 0. */
 	const u32 adc_cfg =
 		(1 << (LRADC_DELAY_TRIGGER_DELAYS_OFFSET + 0)) |
 		(LRADC_DELAY_TIMER_PER << LRADC_DELAY_DELAY_OFFSET);
-
-	int ret = stmp_reset_block(lradc->base);
-
-	if (ret)
-		return ret;
 
 	/* Configure DELAY CHANNEL 0 for generic ADC sampling. */
 	mxs_lradc_reg_wrt(lradc, adc_cfg, LRADC_DELAY(0));
@@ -1495,27 +1481,17 @@ static int mxs_lradc_hw_init(struct mxs_lradc *lradc)
 	mxs_lradc_reg_wrt(lradc, 0, LRADC_DELAY(2));
 	mxs_lradc_reg_wrt(lradc, 0, LRADC_DELAY(3));
 
-	/* Configure the touchscreen type */
-	if (lradc->soc == IMX28_LRADC) {
-		mxs_lradc_reg_clear(lradc, LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
-				    LRADC_CTRL0);
-
-	if (lradc->use_touchscreen == MXS_LRADC_TOUCHSCREEN_5WIRE)
-		mxs_lradc_reg_set(lradc, LRADC_CTRL0_MX28_TOUCH_SCREEN_TYPE,
-				  LRADC_CTRL0);
-	}
-
 	/* Start internal temperature sensing. */
 	mxs_lradc_reg_wrt(lradc, 0, LRADC_CTRL2);
-
-	return 0;
 }
 
 static void mxs_lradc_hw_stop(struct mxs_lradc *lradc)
 {
 	int i;
 
-	mxs_lradc_reg_clear(lradc, mxs_lradc_irq_en_mask(lradc), LRADC_CTRL1);
+	mxs_lradc_reg_clear(lradc,
+		lradc->buffer_vchans << LRADC_CTRL1_LRADC_IRQ_EN_OFFSET,
+		LRADC_CTRL1);
 
 	for (i = 0; i < LRADC_MAX_DELAY_CHANS; i++)
 		mxs_lradc_reg_wrt(lradc, 0, LRADC_DELAY(i));
@@ -1708,10 +1684,12 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Configure the hardware. */
-	ret = mxs_lradc_hw_init(lradc);
+	ret = stmp_reset_block(lradc->base);
 	if (ret)
 		goto err_dev;
+
+	/* Configure the hardware. */
+	mxs_lradc_hw_init(lradc);
 
 	/* Register the touchscreen input device. */
 	if (touch_ret == 0) {
@@ -1724,13 +1702,11 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	ret = iio_device_register(iio);
 	if (ret) {
 		dev_err(dev, "Failed to register IIO device\n");
-		goto err_ts;
+		return ret;
 	}
 
 	return 0;
 
-err_ts:
-	mxs_lradc_ts_unregister(lradc);
 err_ts_register:
 	mxs_lradc_hw_stop(lradc);
 err_dev:
@@ -1748,7 +1724,6 @@ static int mxs_lradc_remove(struct platform_device *pdev)
 	struct mxs_lradc *lradc = iio_priv(iio);
 
 	iio_device_unregister(iio);
-	mxs_lradc_ts_unregister(lradc);
 	mxs_lradc_hw_stop(lradc);
 	mxs_lradc_trigger_remove(iio);
 	iio_triggered_buffer_cleanup(iio);

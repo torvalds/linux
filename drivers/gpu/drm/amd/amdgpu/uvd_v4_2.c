@@ -34,6 +34,8 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
+#include "bif/bif_4_1_d.h"
+
 static void uvd_v4_2_mc_resume(struct amdgpu_device *adev);
 static void uvd_v4_2_init_cg(struct amdgpu_device *adev);
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev);
@@ -114,7 +116,7 @@ static int uvd_v4_2_sw_init(void *handle)
 
 	ring = &adev->uvd.ring;
 	sprintf(ring->name, "uvd");
-	r = amdgpu_ring_init(adev, ring, 4096, CP_PACKET2, 0xf,
+	r = amdgpu_ring_init(adev, ring, 512, CP_PACKET2, 0xf,
 			     &adev->uvd.irq, 0, AMDGPU_RING_TYPE_UVD);
 
 	return r;
@@ -439,6 +441,32 @@ static void uvd_v4_2_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq
 }
 
 /**
+ * uvd_v4_2_ring_emit_hdp_flush - emit an hdp flush
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp flush.
+ */
+static void uvd_v4_2_ring_emit_hdp_flush(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0));
+	amdgpu_ring_write(ring, 0);
+}
+
+/**
+ * uvd_v4_2_ring_hdp_invalidate - emit an hdp invalidate
+ *
+ * @ring: amdgpu_ring pointer
+ *
+ * Emits an hdp invalidate.
+ */
+static void uvd_v4_2_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET0(mmHDP_DEBUG0, 0));
+	amdgpu_ring_write(ring, 1);
+}
+
+/**
  * uvd_v4_2_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -489,55 +517,13 @@ static int uvd_v4_2_ring_test_ring(struct amdgpu_ring *ring)
  * Write ring commands to execute the indirect buffer
  */
 static void uvd_v4_2_ring_emit_ib(struct amdgpu_ring *ring,
-				  struct amdgpu_ib *ib)
+				  struct amdgpu_ib *ib,
+				  unsigned vm_id, bool ctx_switch)
 {
 	amdgpu_ring_write(ring, PACKET0(mmUVD_RBC_IB_BASE, 0));
 	amdgpu_ring_write(ring, ib->gpu_addr);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_RBC_IB_SIZE, 0));
 	amdgpu_ring_write(ring, ib->length_dw);
-}
-
-/**
- * uvd_v4_2_ring_test_ib - test ib execution
- *
- * @ring: amdgpu_ring pointer
- *
- * Test if we can successfully execute an IB
- */
-static int uvd_v4_2_ring_test_ib(struct amdgpu_ring *ring)
-{
-	struct amdgpu_device *adev = ring->adev;
-	struct fence *fence = NULL;
-	int r;
-
-	r = amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to raise UVD clocks (%d).\n", r);
-		return r;
-	}
-
-	r = amdgpu_uvd_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%d).\n", r);
-		goto error;
-	}
-
-	r = amdgpu_uvd_get_destroy_msg(ring, 1, true, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%d).\n", r);
-		goto error;
-	}
-
-	r = fence_wait(fence, false);
-	if (r) {
-		DRM_ERROR("amdgpu: fence wait failed (%d).\n", r);
-		goto error;
-	}
-	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
-error:
-	fence_put(fence);
-	amdgpu_asic_set_uvd_clocks(adev, 0, 0);
-	return r;
 }
 
 /**
@@ -559,12 +545,13 @@ static void uvd_v4_2_mc_resume(struct amdgpu_device *adev)
 	WREG32(mmUVD_VCPU_CACHE_SIZE0, size);
 
 	addr += size;
-	size = AMDGPU_UVD_STACK_SIZE >> 3;
+	size = AMDGPU_UVD_HEAP_SIZE >> 3;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET1, addr);
 	WREG32(mmUVD_VCPU_CACHE_SIZE1, size);
 
 	addr += size;
-	size = AMDGPU_UVD_HEAP_SIZE >> 3;
+	size = (AMDGPU_UVD_STACK_SIZE +
+	       (AMDGPU_UVD_SESSION_SIZE * adev->uvd.max_handles)) >> 3;
 	WREG32(mmUVD_VCPU_CACHE_OFFSET2, addr);
 	WREG32(mmUVD_VCPU_CACHE_SIZE2, size);
 
@@ -679,117 +666,6 @@ static int uvd_v4_2_soft_reset(void *handle)
 	return uvd_v4_2_start(adev);
 }
 
-static void uvd_v4_2_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	dev_info(adev->dev, "UVD 4.2 registers\n");
-	dev_info(adev->dev, "  UVD_SEMA_ADDR_LOW=0x%08X\n",
-		 RREG32(mmUVD_SEMA_ADDR_LOW));
-	dev_info(adev->dev, "  UVD_SEMA_ADDR_HIGH=0x%08X\n",
-		 RREG32(mmUVD_SEMA_ADDR_HIGH));
-	dev_info(adev->dev, "  UVD_SEMA_CMD=0x%08X\n",
-		 RREG32(mmUVD_SEMA_CMD));
-	dev_info(adev->dev, "  UVD_GPCOM_VCPU_CMD=0x%08X\n",
-		 RREG32(mmUVD_GPCOM_VCPU_CMD));
-	dev_info(adev->dev, "  UVD_GPCOM_VCPU_DATA0=0x%08X\n",
-		 RREG32(mmUVD_GPCOM_VCPU_DATA0));
-	dev_info(adev->dev, "  UVD_GPCOM_VCPU_DATA1=0x%08X\n",
-		 RREG32(mmUVD_GPCOM_VCPU_DATA1));
-	dev_info(adev->dev, "  UVD_ENGINE_CNTL=0x%08X\n",
-		 RREG32(mmUVD_ENGINE_CNTL));
-	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DB_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DBW_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DBW_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_SEMA_CNTL=0x%08X\n",
-		 RREG32(mmUVD_SEMA_CNTL));
-	dev_info(adev->dev, "  UVD_LMI_EXT40_ADDR=0x%08X\n",
-		 RREG32(mmUVD_LMI_EXT40_ADDR));
-	dev_info(adev->dev, "  UVD_CTX_INDEX=0x%08X\n",
-		 RREG32(mmUVD_CTX_INDEX));
-	dev_info(adev->dev, "  UVD_CTX_DATA=0x%08X\n",
-		 RREG32(mmUVD_CTX_DATA));
-	dev_info(adev->dev, "  UVD_CGC_GATE=0x%08X\n",
-		 RREG32(mmUVD_CGC_GATE));
-	dev_info(adev->dev, "  UVD_CGC_CTRL=0x%08X\n",
-		 RREG32(mmUVD_CGC_CTRL));
-	dev_info(adev->dev, "  UVD_LMI_CTRL2=0x%08X\n",
-		 RREG32(mmUVD_LMI_CTRL2));
-	dev_info(adev->dev, "  UVD_MASTINT_EN=0x%08X\n",
-		 RREG32(mmUVD_MASTINT_EN));
-	dev_info(adev->dev, "  UVD_LMI_ADDR_EXT=0x%08X\n",
-		 RREG32(mmUVD_LMI_ADDR_EXT));
-	dev_info(adev->dev, "  UVD_LMI_CTRL=0x%08X\n",
-		 RREG32(mmUVD_LMI_CTRL));
-	dev_info(adev->dev, "  UVD_LMI_SWAP_CNTL=0x%08X\n",
-		 RREG32(mmUVD_LMI_SWAP_CNTL));
-	dev_info(adev->dev, "  UVD_MP_SWAP_CNTL=0x%08X\n",
-		 RREG32(mmUVD_MP_SWAP_CNTL));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUXA0=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUXA0));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUXA1=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUXA1));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUXB0=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUXB0));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUXB1=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUXB1));
-	dev_info(adev->dev, "  UVD_MPC_SET_MUX=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_MUX));
-	dev_info(adev->dev, "  UVD_MPC_SET_ALU=0x%08X\n",
-		 RREG32(mmUVD_MPC_SET_ALU));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_OFFSET0=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_OFFSET0));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_SIZE0=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_SIZE0));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_OFFSET1=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_OFFSET1));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_SIZE1=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_SIZE1));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_OFFSET2=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_OFFSET2));
-	dev_info(adev->dev, "  UVD_VCPU_CACHE_SIZE2=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CACHE_SIZE2));
-	dev_info(adev->dev, "  UVD_VCPU_CNTL=0x%08X\n",
-		 RREG32(mmUVD_VCPU_CNTL));
-	dev_info(adev->dev, "  UVD_SOFT_RESET=0x%08X\n",
-		 RREG32(mmUVD_SOFT_RESET));
-	dev_info(adev->dev, "  UVD_RBC_IB_BASE=0x%08X\n",
-		 RREG32(mmUVD_RBC_IB_BASE));
-	dev_info(adev->dev, "  UVD_RBC_IB_SIZE=0x%08X\n",
-		 RREG32(mmUVD_RBC_IB_SIZE));
-	dev_info(adev->dev, "  UVD_RBC_RB_BASE=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_BASE));
-	dev_info(adev->dev, "  UVD_RBC_RB_RPTR=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_RPTR));
-	dev_info(adev->dev, "  UVD_RBC_RB_WPTR=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_WPTR));
-	dev_info(adev->dev, "  UVD_RBC_RB_WPTR_CNTL=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_WPTR_CNTL));
-	dev_info(adev->dev, "  UVD_RBC_RB_CNTL=0x%08X\n",
-		 RREG32(mmUVD_RBC_RB_CNTL));
-	dev_info(adev->dev, "  UVD_STATUS=0x%08X\n",
-		 RREG32(mmUVD_STATUS));
-	dev_info(adev->dev, "  UVD_SEMA_TIMEOUT_STATUS=0x%08X\n",
-		 RREG32(mmUVD_SEMA_TIMEOUT_STATUS));
-	dev_info(adev->dev, "  UVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL=0x%08X\n",
-		 RREG32(mmUVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL));
-	dev_info(adev->dev, "  UVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL=0x%08X\n",
-		 RREG32(mmUVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL));
-	dev_info(adev->dev, "  UVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL=0x%08X\n",
-		 RREG32(mmUVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL));
-	dev_info(adev->dev, "  UVD_CONTEXT_ID=0x%08X\n",
-		 RREG32(mmUVD_CONTEXT_ID));
-	dev_info(adev->dev, "  UVD_UDEC_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DB_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DB_ADDR_CONFIG));
-	dev_info(adev->dev, "  UVD_UDEC_DBW_ADDR_CONFIG=0x%08X\n",
-		 RREG32(mmUVD_UDEC_DBW_ADDR_CONFIG));
-
-}
-
 static int uvd_v4_2_set_interrupt_state(struct amdgpu_device *adev,
 					struct amdgpu_irq_src *source,
 					unsigned type,
@@ -849,6 +725,7 @@ static int uvd_v4_2_set_powergating_state(void *handle,
 }
 
 const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
+	.name = "uvd_v4_2",
 	.early_init = uvd_v4_2_early_init,
 	.late_init = NULL,
 	.sw_init = uvd_v4_2_sw_init,
@@ -860,7 +737,6 @@ const struct amd_ip_funcs uvd_v4_2_ip_funcs = {
 	.is_idle = uvd_v4_2_is_idle,
 	.wait_for_idle = uvd_v4_2_wait_for_idle,
 	.soft_reset = uvd_v4_2_soft_reset,
-	.print_status = uvd_v4_2_print_status,
 	.set_clockgating_state = uvd_v4_2_set_clockgating_state,
 	.set_powergating_state = uvd_v4_2_set_powergating_state,
 };
@@ -872,10 +748,14 @@ static const struct amdgpu_ring_funcs uvd_v4_2_ring_funcs = {
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_ib = uvd_v4_2_ring_emit_ib,
 	.emit_fence = uvd_v4_2_ring_emit_fence,
+	.emit_hdp_flush = uvd_v4_2_ring_emit_hdp_flush,
+	.emit_hdp_invalidate = uvd_v4_2_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v4_2_ring_test_ring,
-	.test_ib = uvd_v4_2_ring_test_ib,
+	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
+	.begin_use = amdgpu_uvd_ring_begin_use,
+	.end_use = amdgpu_uvd_ring_end_use,
 };
 
 static void uvd_v4_2_set_ring_funcs(struct amdgpu_device *adev)

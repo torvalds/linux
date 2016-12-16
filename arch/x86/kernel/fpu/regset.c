@@ -4,6 +4,7 @@
 #include <asm/fpu/internal.h>
 #include <asm/fpu/signal.h>
 #include <asm/fpu/regset.h>
+#include <asm/fpu/xstate.h>
 
 /*
  * The xstateregs_active() routine is the same as the regset_fpregs_active() routine,
@@ -21,7 +22,10 @@ int regset_xregset_fpregs_active(struct task_struct *target, const struct user_r
 {
 	struct fpu *target_fpu = &target->thread.fpu;
 
-	return (cpu_has_fxsr && target_fpu->fpstate_active) ? regset->n : 0;
+	if (boot_cpu_has(X86_FEATURE_FXSR) && target_fpu->fpstate_active)
+		return regset->n;
+	else
+		return 0;
 }
 
 int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
@@ -30,7 +34,7 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 {
 	struct fpu *fpu = &target->thread.fpu;
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return -ENODEV;
 
 	fpu__activate_fpstate_read(fpu);
@@ -47,7 +51,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct fpu *fpu = &target->thread.fpu;
 	int ret;
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return -ENODEV;
 
 	fpu__activate_fpstate_write(fpu);
@@ -65,7 +69,7 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * update the header bits in the xsave header, indicating the
 	 * presence of FP and SSE state.
 	 */
-	if (cpu_has_xsave)
+	if (boot_cpu_has(X86_FEATURE_XSAVE))
 		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FPSSE;
 
 	return ret;
@@ -79,24 +83,29 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 	struct xregs_state *xsave;
 	int ret;
 
-	if (!cpu_has_xsave)
+	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return -ENODEV;
-
-	fpu__activate_fpstate_read(fpu);
 
 	xsave = &fpu->state.xsave;
 
-	/*
-	 * Copy the 48bytes defined by the software first into the xstate
-	 * memory layout in the thread struct, so that we can copy the entire
-	 * xstateregs to the user using one user_regset_copyout().
-	 */
-	memcpy(&xsave->i387.sw_reserved,
-		xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
-	/*
-	 * Copy the xstate memory layout.
-	 */
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+	fpu__activate_fpstate_read(fpu);
+
+	if (using_compacted_format()) {
+		ret = copyout_from_xsaves(pos, count, kbuf, ubuf, xsave);
+	} else {
+		fpstate_sanitize_xstate(fpu);
+		/*
+		 * Copy the 48 bytes defined by the software into the xsave
+		 * area in the thread struct, so that we can copy the whole
+		 * area to user using one user_regset_copyout().
+		 */
+		memcpy(&xsave->i387.sw_reserved, xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
+
+		/*
+		 * Copy the xstate memory layout.
+		 */
+		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+	}
 	return ret;
 }
 
@@ -108,14 +117,30 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
 	struct xregs_state *xsave;
 	int ret;
 
-	if (!cpu_has_xsave)
+	if (!boot_cpu_has(X86_FEATURE_XSAVE))
 		return -ENODEV;
 
-	fpu__activate_fpstate_write(fpu);
+	/*
+	 * A whole standard-format XSAVE buffer is needed:
+	 */
+	if ((pos != 0) || (count < fpu_user_xstate_size))
+		return -EFAULT;
 
 	xsave = &fpu->state.xsave;
 
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+	fpu__activate_fpstate_write(fpu);
+
+	if (boot_cpu_has(X86_FEATURE_XSAVES))
+		ret = copyin_to_xsaves(kbuf, ubuf, xsave);
+	else
+		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, xsave, 0, -1);
+
+	/*
+	 * In case of failure, mark all states as init:
+	 */
+	if (ret)
+		fpstate_init(&fpu->state);
+
 	/*
 	 * mxcsr reserved bits must be masked to zero for security reasons.
 	 */
@@ -275,10 +300,10 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 
 	fpu__activate_fpstate_read(fpu);
 
-	if (!static_cpu_has(X86_FEATURE_FPU))
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_get(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					   &fpu->state.fsave, 0,
 					   -1);
@@ -306,10 +331,10 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	fpu__activate_fpstate_write(fpu);
 	fpstate_sanitize_xstate(fpu);
 
-	if (!static_cpu_has(X86_FEATURE_FPU))
+	if (!boot_cpu_has(X86_FEATURE_FPU))
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
 
-	if (!cpu_has_fxsr)
+	if (!boot_cpu_has(X86_FEATURE_FXSR))
 		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					  &fpu->state.fsave, 0,
 					  -1);
@@ -325,7 +350,7 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	 * update the header bit in the xsave header, indicating the
 	 * presence of FP.
 	 */
-	if (cpu_has_xsave)
+	if (boot_cpu_has(X86_FEATURE_XSAVE))
 		fpu->state.xsave.header.xfeatures |= XFEATURE_MASK_FP;
 	return ret;
 }

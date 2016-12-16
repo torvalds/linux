@@ -49,12 +49,27 @@ extern struct ww_class reservation_ww_class;
 extern struct lock_class_key reservation_seqcount_class;
 extern const char reservation_seqcount_string[];
 
+/**
+ * struct reservation_object_list - a list of shared fences
+ * @rcu: for internal use
+ * @shared_count: table of shared fences
+ * @shared_max: for growing shared fence table
+ * @shared: shared fence table
+ */
 struct reservation_object_list {
 	struct rcu_head rcu;
 	u32 shared_count, shared_max;
 	struct fence __rcu *shared[];
 };
 
+/**
+ * struct reservation_object - a reservation object manages fences for a buffer
+ * @lock: update side lock
+ * @seq: sequence count for managing RCU read-side synchronization
+ * @fence_excl: the exclusive fence, if there is one currently
+ * @fence: list of current shared fences
+ * @staged: staged copy of shared fences for RCU updates
+ */
 struct reservation_object {
 	struct ww_mutex lock;
 	seqcount_t seq;
@@ -68,6 +83,10 @@ struct reservation_object {
 #define reservation_object_assert_held(obj) \
 	lockdep_assert_held(&(obj)->lock.base)
 
+/**
+ * reservation_object_init - initialize a reservation object
+ * @obj: the reservation object
+ */
 static inline void
 reservation_object_init(struct reservation_object *obj)
 {
@@ -79,6 +98,10 @@ reservation_object_init(struct reservation_object *obj)
 	obj->staged = NULL;
 }
 
+/**
+ * reservation_object_fini - destroys a reservation object
+ * @obj: the reservation object
+ */
 static inline void
 reservation_object_fini(struct reservation_object *obj)
 {
@@ -106,6 +129,14 @@ reservation_object_fini(struct reservation_object *obj)
 	ww_mutex_destroy(&obj->lock);
 }
 
+/**
+ * reservation_object_get_list - get the reservation object's
+ * shared fence list, with update-side lock held
+ * @obj: the reservation object
+ *
+ * Returns the shared fence list.  Does NOT take references to
+ * the fence.  The obj->lock must be held.
+ */
 static inline struct reservation_object_list *
 reservation_object_get_list(struct reservation_object *obj)
 {
@@ -113,11 +144,51 @@ reservation_object_get_list(struct reservation_object *obj)
 					 reservation_object_held(obj));
 }
 
+/**
+ * reservation_object_get_excl - get the reservation object's
+ * exclusive fence, with update-side lock held
+ * @obj: the reservation object
+ *
+ * Returns the exclusive fence (if any).  Does NOT take a
+ * reference.  The obj->lock must be held.
+ *
+ * RETURNS
+ * The exclusive fence or NULL
+ */
 static inline struct fence *
 reservation_object_get_excl(struct reservation_object *obj)
 {
 	return rcu_dereference_protected(obj->fence_excl,
 					 reservation_object_held(obj));
+}
+
+/**
+ * reservation_object_get_excl_rcu - get the reservation object's
+ * exclusive fence, without lock held.
+ * @obj: the reservation object
+ *
+ * If there is an exclusive fence, this atomically increments it's
+ * reference count and returns it.
+ *
+ * RETURNS
+ * The exclusive fence or NULL if none
+ */
+static inline struct fence *
+reservation_object_get_excl_rcu(struct reservation_object *obj)
+{
+	struct fence *fence;
+	unsigned seq;
+retry:
+	seq = read_seqcount_begin(&obj->seq);
+	rcu_read_lock();
+	fence = rcu_dereference(obj->fence_excl);
+	if (read_seqcount_retry(&obj->seq, seq)) {
+		rcu_read_unlock();
+		goto retry;
+	}
+	fence = fence_get(fence);
+	rcu_read_unlock();
+	return fence;
 }
 
 int reservation_object_reserve_shared(struct reservation_object *obj);

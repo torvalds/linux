@@ -10,6 +10,7 @@
 
 #include <linux/of_address.h>
 #include <linux/clk.h>
+#include <linux/syscore_ops.h>
 #include <dt-bindings/clock/vf610-clock.h>
 
 #include "clk.h"
@@ -40,6 +41,7 @@
 #define CCM_CCGR9		(ccm_base + 0x64)
 #define CCM_CCGR10		(ccm_base + 0x68)
 #define CCM_CCGR11		(ccm_base + 0x6c)
+#define CCM_CCGRx(x)		(CCM_CCGR0 + (x) * 4)
 #define CCM_CMEOR0		(ccm_base + 0x70)
 #define CCM_CMEOR1		(ccm_base + 0x74)
 #define CCM_CMEOR2		(ccm_base + 0x78)
@@ -115,10 +117,19 @@ static struct clk_div_table pll4_audio_div_table[] = {
 static struct clk *clk[VF610_CLK_END];
 static struct clk_onecell_data clk_data;
 
+static u32 cscmr1;
+static u32 cscmr2;
+static u32 cscdr1;
+static u32 cscdr2;
+static u32 cscdr3;
+static u32 ccgr[12];
+
 static unsigned int const clks_init_on[] __initconst = {
 	VF610_CLK_SYS_BUS,
 	VF610_CLK_DDR_SEL,
 	VF610_CLK_DAP,
+	VF610_CLK_DDRMC,
+	VF610_CLK_WKPU,
 };
 
 static struct clk * __init vf610_get_fixed_clock(
@@ -130,6 +141,43 @@ static struct clk * __init vf610_get_fixed_clock(
 	if (IS_ERR(clk))
 		clk = imx_obtain_fixed_clock(name, 0);
 	return clk;
+};
+
+static int vf610_clk_suspend(void)
+{
+	int i;
+
+	cscmr1 = readl_relaxed(CCM_CSCMR1);
+	cscmr2 = readl_relaxed(CCM_CSCMR2);
+
+	cscdr1 = readl_relaxed(CCM_CSCDR1);
+	cscdr2 = readl_relaxed(CCM_CSCDR2);
+	cscdr3 = readl_relaxed(CCM_CSCDR3);
+
+	for (i = 0; i < 12; i++)
+		ccgr[i] = readl_relaxed(CCM_CCGRx(i));
+
+	return 0;
+}
+
+static void vf610_clk_resume(void)
+{
+	int i;
+
+	writel_relaxed(cscmr1, CCM_CSCMR1);
+	writel_relaxed(cscmr2, CCM_CSCMR2);
+
+	writel_relaxed(cscdr1, CCM_CSCDR1);
+	writel_relaxed(cscdr2, CCM_CSCDR2);
+	writel_relaxed(cscdr3, CCM_CSCDR3);
+
+	for (i = 0; i < 12; i++)
+		writel_relaxed(ccgr[i], CCM_CCGRx(i));
+}
+
+static struct syscore_ops vf610_clk_syscore_ops = {
+	.suspend = vf610_clk_suspend,
+	.resume = vf610_clk_resume,
 };
 
 static void __init vf610_clocks_init(struct device_node *ccm_node)
@@ -233,6 +281,9 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 	clk[VF610_CLK_PLL4_MAIN_DIV] = clk_register_divider_table(NULL, "pll4_audio_div", "pll4_audio", 0, CCM_CACRR, 6, 3, 0, pll4_audio_div_table, &imx_ccm_lock);
 	clk[VF610_CLK_PLL6_MAIN_DIV] = imx_clk_divider("pll6_video_div", "pll6_video", CCM_CACRR, 21, 1);
 
+	clk[VF610_CLK_DDRMC] = imx_clk_gate2_cgr("ddrmc", "ddr_sel", CCM_CCGR6, CCM_CCGRx_CGn(14), 0x2);
+	clk[VF610_CLK_WKPU] = imx_clk_gate2_cgr("wkpu", "ipg_bus", CCM_CCGR4, CCM_CCGRx_CGn(10), 0x2);
+
 	clk[VF610_CLK_USBPHY0] = imx_clk_gate("usbphy0", "pll3_usb_otg", PLL3_CTRL, 6);
 	clk[VF610_CLK_USBPHY1] = imx_clk_gate("usbphy1", "pll7_usb_host", PLL7_CTRL, 6);
 
@@ -264,12 +315,12 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 
 	clk[VF610_CLK_PIT] = imx_clk_gate2("pit", "ipg_bus", CCM_CCGR1, CCM_CCGRx_CGn(7));
 
-	clk[VF610_CLK_UART0] = imx_clk_gate2("uart0", "ipg_bus", CCM_CCGR0, CCM_CCGRx_CGn(7));
-	clk[VF610_CLK_UART1] = imx_clk_gate2("uart1", "ipg_bus", CCM_CCGR0, CCM_CCGRx_CGn(8));
-	clk[VF610_CLK_UART2] = imx_clk_gate2("uart2", "ipg_bus", CCM_CCGR0, CCM_CCGRx_CGn(9));
-	clk[VF610_CLK_UART3] = imx_clk_gate2("uart3", "ipg_bus", CCM_CCGR0, CCM_CCGRx_CGn(10));
-	clk[VF610_CLK_UART4] = imx_clk_gate2("uart4", "ipg_bus", CCM_CCGR6, CCM_CCGRx_CGn(9));
-	clk[VF610_CLK_UART5] = imx_clk_gate2("uart5", "ipg_bus", CCM_CCGR6, CCM_CCGRx_CGn(10));
+	clk[VF610_CLK_UART0] = imx_clk_gate2_cgr("uart0", "ipg_bus", CCM_CCGR0, CCM_CCGRx_CGn(7), 0x2);
+	clk[VF610_CLK_UART1] = imx_clk_gate2_cgr("uart1", "ipg_bus", CCM_CCGR0, CCM_CCGRx_CGn(8), 0x2);
+	clk[VF610_CLK_UART2] = imx_clk_gate2_cgr("uart2", "ipg_bus", CCM_CCGR0, CCM_CCGRx_CGn(9), 0x2);
+	clk[VF610_CLK_UART3] = imx_clk_gate2_cgr("uart3", "ipg_bus", CCM_CCGR0, CCM_CCGRx_CGn(10), 0x2);
+	clk[VF610_CLK_UART4] = imx_clk_gate2_cgr("uart4", "ipg_bus", CCM_CCGR6, CCM_CCGRx_CGn(9), 0x2);
+	clk[VF610_CLK_UART5] = imx_clk_gate2_cgr("uart5", "ipg_bus", CCM_CCGR6, CCM_CCGRx_CGn(10), 0x2);
 
 	clk[VF610_CLK_I2C0] = imx_clk_gate2("i2c0", "ipg_bus", CCM_CCGR4, CCM_CCGRx_CGn(6));
 	clk[VF610_CLK_I2C1] = imx_clk_gate2("i2c1", "ipg_bus", CCM_CCGR4, CCM_CCGRx_CGn(7));
@@ -321,11 +372,14 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 	clk[VF610_CLK_DCU0_SEL] = imx_clk_mux("dcu0_sel", CCM_CSCMR1, 28, 1, dcu_sels, 2);
 	clk[VF610_CLK_DCU0_EN] = imx_clk_gate("dcu0_en", "dcu0_sel", CCM_CSCDR3, 19);
 	clk[VF610_CLK_DCU0_DIV] = imx_clk_divider("dcu0_div", "dcu0_en", CCM_CSCDR3, 16, 3);
-	clk[VF610_CLK_DCU0] = imx_clk_gate2("dcu0", "dcu0_div", CCM_CCGR3, CCM_CCGRx_CGn(8));
+	clk[VF610_CLK_DCU0] = imx_clk_gate2("dcu0", "ipg_bus", CCM_CCGR3, CCM_CCGRx_CGn(8));
 	clk[VF610_CLK_DCU1_SEL] = imx_clk_mux("dcu1_sel", CCM_CSCMR1, 29, 1, dcu_sels, 2);
 	clk[VF610_CLK_DCU1_EN] = imx_clk_gate("dcu1_en", "dcu1_sel", CCM_CSCDR3, 23);
 	clk[VF610_CLK_DCU1_DIV] = imx_clk_divider("dcu1_div", "dcu1_en", CCM_CSCDR3, 20, 3);
-	clk[VF610_CLK_DCU1] = imx_clk_gate2("dcu1", "dcu1_div", CCM_CCGR9, CCM_CCGRx_CGn(8));
+	clk[VF610_CLK_DCU1] = imx_clk_gate2("dcu1", "ipg_bus", CCM_CCGR9, CCM_CCGRx_CGn(8));
+
+	clk[VF610_CLK_TCON0] = imx_clk_gate2("tcon0", "platform_bus", CCM_CCGR1, CCM_CCGRx_CGn(13));
+	clk[VF610_CLK_TCON1] = imx_clk_gate2("tcon1", "platform_bus", CCM_CCGR7, CCM_CCGRx_CGn(13));
 
 	clk[VF610_CLK_ESAI_SEL] = imx_clk_mux("esai_sel", CCM_CSCMR1, 20, 2, esai_sels, 4);
 	clk[VF610_CLK_ESAI_EN] = imx_clk_gate("esai_en", "esai_sel", CCM_CSCDR2, 30);
@@ -408,6 +462,8 @@ static void __init vf610_clocks_init(struct device_node *ccm_node)
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clk[clks_init_on[i]]);
+
+	register_syscore_ops(&vf610_clk_syscore_ops);
 
 	/* Add the clocks to provider list */
 	clk_data.clks = clk;

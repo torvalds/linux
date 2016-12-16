@@ -508,4 +508,6 @@ enum {
 	F2FS_FT_MAX
 };
 
+#define S_SHIFT 12
+
 #endif  /* _LINUX_F2FS_FS_H */

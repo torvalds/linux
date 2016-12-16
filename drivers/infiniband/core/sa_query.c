@@ -53,10 +53,6 @@
 #include "sa.h"
 #include "core_priv.h"
 
-MODULE_AUTHOR("Roland Dreier");
-MODULE_DESCRIPTION("InfiniBand subnet administration query support");
-MODULE_LICENSE("Dual BSD/GPL");
-
 #define IB_SA_LOCAL_SVC_TIMEOUT_MIN		100
 #define IB_SA_LOCAL_SVC_TIMEOUT_DEFAULT		2000
 #define IB_SA_LOCAL_SVC_TIMEOUT_MAX		200000
@@ -69,10 +65,17 @@ struct ib_sa_sm_ah {
 	u8		     src_path_mask;
 };
 
+struct ib_sa_classport_cache {
+	bool valid;
+	struct ib_class_port_info data;
+};
+
 struct ib_sa_port {
 	struct ib_mad_agent *agent;
 	struct ib_sa_sm_ah  *sm_ah;
 	struct work_struct   update_task;
+	struct ib_sa_classport_cache classport_info;
+	spinlock_t                   classport_lock; /* protects class port info set */
 	spinlock_t           ah_lock;
 	u8                   port_num;
 };
@@ -115,6 +118,12 @@ struct ib_sa_path_query {
 
 struct ib_sa_guidinfo_query {
 	void (*callback)(int, struct ib_sa_guidinfo_rec *, void *);
+	void *context;
+	struct ib_sa_query sa_query;
+};
+
+struct ib_sa_classport_info_query {
+	void (*callback)(int, struct ib_class_port_info *, void *);
 	void *context;
 	struct ib_sa_query sa_query;
 };
@@ -392,6 +401,82 @@ static const struct ib_field service_rec_table[] = {
 	  .size_bits    = 2*64 },
 };
 
+#define CLASSPORTINFO_REC_FIELD(field) \
+	.struct_offset_bytes = offsetof(struct ib_class_port_info, field),	\
+	.struct_size_bytes   = sizeof((struct ib_class_port_info *)0)->field,	\
+	.field_name          = "ib_class_port_info:" #field
+
+static const struct ib_field classport_info_rec_table[] = {
+	{ CLASSPORTINFO_REC_FIELD(base_version),
+	  .offset_words = 0,
+	  .offset_bits  = 0,
+	  .size_bits    = 8 },
+	{ CLASSPORTINFO_REC_FIELD(class_version),
+	  .offset_words = 0,
+	  .offset_bits  = 8,
+	  .size_bits    = 8 },
+	{ CLASSPORTINFO_REC_FIELD(capability_mask),
+	  .offset_words = 0,
+	  .offset_bits  = 16,
+	  .size_bits    = 16 },
+	{ CLASSPORTINFO_REC_FIELD(cap_mask2_resp_time),
+	  .offset_words = 1,
+	  .offset_bits  = 0,
+	  .size_bits    = 32 },
+	{ CLASSPORTINFO_REC_FIELD(redirect_gid),
+	  .offset_words = 2,
+	  .offset_bits  = 0,
+	  .size_bits    = 128 },
+	{ CLASSPORTINFO_REC_FIELD(redirect_tcslfl),
+	  .offset_words = 6,
+	  .offset_bits  = 0,
+	  .size_bits    = 32 },
+	{ CLASSPORTINFO_REC_FIELD(redirect_lid),
+	  .offset_words = 7,
+	  .offset_bits  = 0,
+	  .size_bits    = 16 },
+	{ CLASSPORTINFO_REC_FIELD(redirect_pkey),
+	  .offset_words = 7,
+	  .offset_bits  = 16,
+	  .size_bits    = 16 },
+
+	{ CLASSPORTINFO_REC_FIELD(redirect_qp),
+	  .offset_words = 8,
+	  .offset_bits  = 0,
+	  .size_bits    = 32 },
+	{ CLASSPORTINFO_REC_FIELD(redirect_qkey),
+	  .offset_words = 9,
+	  .offset_bits  = 0,
+	  .size_bits    = 32 },
+
+	{ CLASSPORTINFO_REC_FIELD(trap_gid),
+	  .offset_words = 10,
+	  .offset_bits  = 0,
+	  .size_bits    = 128 },
+	{ CLASSPORTINFO_REC_FIELD(trap_tcslfl),
+	  .offset_words = 14,
+	  .offset_bits  = 0,
+	  .size_bits    = 32 },
+
+	{ CLASSPORTINFO_REC_FIELD(trap_lid),
+	  .offset_words = 15,
+	  .offset_bits  = 0,
+	  .size_bits    = 16 },
+	{ CLASSPORTINFO_REC_FIELD(trap_pkey),
+	  .offset_words = 15,
+	  .offset_bits  = 16,
+	  .size_bits    = 16 },
+
+	{ CLASSPORTINFO_REC_FIELD(trap_hlqp),
+	  .offset_words = 16,
+	  .offset_bits  = 0,
+	  .size_bits    = 32 },
+	{ CLASSPORTINFO_REC_FIELD(trap_qkey),
+	  .offset_words = 17,
+	  .offset_bits  = 0,
+	  .size_bits    = 32 },
+};
+
 #define GUIDINFO_REC_FIELD(field) \
 	.struct_offset_bytes = offsetof(struct ib_sa_guidinfo_rec, field),	\
 	.struct_size_bytes   = sizeof((struct ib_sa_guidinfo_rec *) 0)->field,	\
@@ -536,7 +621,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	data = ibnl_put_msg(skb, &nlh, query->seq, 0, RDMA_NL_LS,
 			    RDMA_NL_LS_OP_RESOLVE, NLM_F_REQUEST);
 	if (!data) {
-		kfree_skb(skb);
+		nlmsg_free(skb);
 		return -EMSGSIZE;
 	}
 
@@ -705,8 +790,8 @@ static void ib_nl_request_timeout(struct work_struct *work)
 	spin_unlock_irqrestore(&ib_nl_request_lock, flags);
 }
 
-static int ib_nl_handle_set_timeout(struct sk_buff *skb,
-				    struct netlink_callback *cb)
+int ib_nl_handle_set_timeout(struct sk_buff *skb,
+			     struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 	int timeout, delta, abs_delta;
@@ -782,8 +867,8 @@ static inline int ib_nl_is_good_resolve_resp(const struct nlmsghdr *nlh)
 	return 1;
 }
 
-static int ib_nl_handle_resolve_resp(struct sk_buff *skb,
-				     struct netlink_callback *cb)
+int ib_nl_handle_resolve_resp(struct sk_buff *skb,
+			      struct netlink_callback *cb)
 {
 	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 	unsigned long flags;
@@ -837,15 +922,6 @@ static int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 resp_out:
 	return skb->len;
 }
-
-static struct ibnl_client_cbs ib_sa_cb_table[] = {
-	[RDMA_NL_LS_OP_RESOLVE] = {
-		.dump = ib_nl_handle_resolve_resp,
-		.module = THIS_MODULE },
-	[RDMA_NL_LS_OP_SET_TIMEOUT] = {
-		.dump = ib_nl_handle_set_timeout,
-		.module = THIS_MODULE },
-};
 
 static void free_sm_ah(struct kref *kref)
 {
@@ -929,6 +1005,13 @@ static void ib_sa_event(struct ib_event_handler *handler, struct ib_event *event
 		port->sm_ah = NULL;
 		spin_unlock_irqrestore(&port->ah_lock, flags);
 
+		if (event->event == IB_EVENT_SM_CHANGE ||
+		    event->event == IB_EVENT_CLIENT_REREGISTER ||
+		    event->event == IB_EVENT_LID_CHANGE) {
+			spin_lock_irqsave(&port->classport_lock, flags);
+			port->classport_info.valid = false;
+			spin_unlock_irqrestore(&port->classport_lock, flags);
+		}
 		queue_work(ib_wq, &sa_dev->port[event->element.port_num -
 					    sa_dev->start_port].update_task);
 	}
@@ -1645,6 +1728,121 @@ err1:
 }
 EXPORT_SYMBOL(ib_sa_guid_info_rec_query);
 
+/* Support get SA ClassPortInfo */
+static void ib_sa_classport_info_rec_callback(struct ib_sa_query *sa_query,
+					      int status,
+					      struct ib_sa_mad *mad)
+{
+	unsigned long flags;
+	struct ib_sa_classport_info_query *query =
+		container_of(sa_query, struct ib_sa_classport_info_query, sa_query);
+
+	if (mad) {
+		struct ib_class_port_info rec;
+
+		ib_unpack(classport_info_rec_table,
+			  ARRAY_SIZE(classport_info_rec_table),
+			  mad->data, &rec);
+
+		spin_lock_irqsave(&sa_query->port->classport_lock, flags);
+		if (!status && !sa_query->port->classport_info.valid) {
+			memcpy(&sa_query->port->classport_info.data, &rec,
+			       sizeof(sa_query->port->classport_info.data));
+
+			sa_query->port->classport_info.valid = true;
+		}
+		spin_unlock_irqrestore(&sa_query->port->classport_lock, flags);
+
+		query->callback(status, &rec, query->context);
+	} else {
+		query->callback(status, NULL, query->context);
+	}
+}
+
+static void ib_sa_portclass_info_rec_release(struct ib_sa_query *sa_query)
+{
+	kfree(container_of(sa_query, struct ib_sa_classport_info_query,
+			   sa_query));
+}
+
+int ib_sa_classport_info_rec_query(struct ib_sa_client *client,
+				   struct ib_device *device, u8 port_num,
+				   int timeout_ms, gfp_t gfp_mask,
+				   void (*callback)(int status,
+						    struct ib_class_port_info *resp,
+						    void *context),
+				   void *context,
+				   struct ib_sa_query **sa_query)
+{
+	struct ib_sa_classport_info_query *query;
+	struct ib_sa_device *sa_dev = ib_get_client_data(device, &sa_client);
+	struct ib_sa_port *port;
+	struct ib_mad_agent *agent;
+	struct ib_sa_mad *mad;
+	struct ib_class_port_info cached_class_port_info;
+	int ret;
+	unsigned long flags;
+
+	if (!sa_dev)
+		return -ENODEV;
+
+	port  = &sa_dev->port[port_num - sa_dev->start_port];
+	agent = port->agent;
+
+	/* Use cached ClassPortInfo attribute if valid instead of sending mad */
+	spin_lock_irqsave(&port->classport_lock, flags);
+	if (port->classport_info.valid && callback) {
+		memcpy(&cached_class_port_info, &port->classport_info.data,
+		       sizeof(cached_class_port_info));
+		spin_unlock_irqrestore(&port->classport_lock, flags);
+		callback(0, &cached_class_port_info, context);
+		return 0;
+	}
+	spin_unlock_irqrestore(&port->classport_lock, flags);
+
+	query = kzalloc(sizeof(*query), gfp_mask);
+	if (!query)
+		return -ENOMEM;
+
+	query->sa_query.port = port;
+	ret = alloc_mad(&query->sa_query, gfp_mask);
+	if (ret)
+		goto err1;
+
+	ib_sa_client_get(client);
+	query->sa_query.client = client;
+	query->callback        = callback;
+	query->context         = context;
+
+	mad = query->sa_query.mad_buf->mad;
+	init_mad(mad, agent);
+
+	query->sa_query.callback = callback ? ib_sa_classport_info_rec_callback : NULL;
+
+	query->sa_query.release  = ib_sa_portclass_info_rec_release;
+	/* support GET only */
+	mad->mad_hdr.method	 = IB_MGMT_METHOD_GET;
+	mad->mad_hdr.attr_id	 = cpu_to_be16(IB_SA_ATTR_CLASS_PORTINFO);
+	mad->sa_hdr.comp_mask	 = 0;
+	*sa_query = &query->sa_query;
+
+	ret = send_mad(&query->sa_query, timeout_ms, gfp_mask);
+	if (ret < 0)
+		goto err2;
+
+	return ret;
+
+err2:
+	*sa_query = NULL;
+	ib_sa_client_put(query->sa_query.client);
+	free_mad(&query->sa_query);
+
+err1:
+	kfree(query);
+	return ret;
+}
+EXPORT_SYMBOL(ib_sa_classport_info_rec_query);
+
 static void send_handler(struct ib_mad_agent *agent,
 			 struct ib_mad_send_wc *mad_send_wc)
 {
@@ -1725,6 +1923,9 @@ static void ib_sa_add_one(struct ib_device *device)
 		sa_dev->port[i].sm_ah    = NULL;
 		sa_dev->port[i].port_num = i + s;
 
+		spin_lock_init(&sa_dev->port[i].classport_lock);
+		sa_dev->port[i].classport_info.valid = false;
+
 		sa_dev->port[i].agent =
 			ib_register_mad_agent(device, i + s, IB_QPT_GSI,
 					      NULL, 0, send_handler,
@@ -1794,7 +1995,7 @@ static void ib_sa_remove_one(struct ib_device *device, void *client_data)
 	kfree(sa_dev);
 }
 
-static int __init ib_sa_init(void)
+int ib_sa_init(void)
 {
 	int ret;
 
@@ -1820,17 +2021,10 @@ static int __init ib_sa_init(void)
 		goto err3;
 	}
 
-	if (ibnl_add_client(RDMA_NL_LS, RDMA_NL_LS_NUM_OPS,
-			    ib_sa_cb_table)) {
-		pr_err("Failed to add netlink callback\n");
-		ret = -EINVAL;
-		goto err4;
-	}
 	INIT_DELAYED_WORK(&ib_nl_timed_work, ib_nl_request_timeout);
 
 	return 0;
-err4:
-	destroy_workqueue(ib_nl_wq);
+
 err3:
 	mcast_cleanup();
 err2:
@@ -1839,9 +2033,8 @@ err1:
 	return ret;
 }
 
-static void __exit ib_sa_cleanup(void)
+void ib_sa_cleanup(void)
 {
-	ibnl_remove_client(RDMA_NL_LS);
 	cancel_delayed_work(&ib_nl_timed_work);
 	flush_workqueue(ib_nl_wq);
 	destroy_workqueue(ib_nl_wq);
@@ -1849,6 +2042,3 @@ static void __exit ib_sa_cleanup(void)
 	ib_unregister_client(&sa_client);
 	idr_destroy(&query_idr);
 }
-
-module_init(ib_sa_init);
-module_exit(ib_sa_cleanup);

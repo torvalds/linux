@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -58,6 +54,7 @@ extern int at_early_margin;
 extern int at_extra;
 extern unsigned int obd_sync_filter;
 extern unsigned int obd_max_dirty_pages;
+extern atomic_t obd_unstable_pages;
 extern atomic_t obd_dirty_pages;
 extern atomic_t obd_dirty_transit_pages;
 extern char obd_jobid_var[];
@@ -289,6 +286,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_OST_ENOINO	      0x229
 #define OBD_FAIL_OST_DQACQ_NET	   0x230
 #define OBD_FAIL_OST_STATFS_EINPROGRESS  0x231
+#define OBD_FAIL_OST_SET_INFO_NET		0x232
 
 #define OBD_FAIL_LDLM		    0x300
 #define OBD_FAIL_LDLM_NAMESPACE_NEW      0x301
@@ -319,6 +317,7 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_LDLM_AGL_DELAY	  0x31a
 #define OBD_FAIL_LDLM_AGL_NOLOCK	 0x31b
 #define OBD_FAIL_LDLM_OST_LVB		 0x31c
+#define OBD_FAIL_LDLM_ENQUEUE_HANG	 0x31d
 
 /* LOCKLESS IO */
 #define OBD_FAIL_LDLM_SET_CONTENTION     0x385
@@ -365,6 +364,9 @@ extern char obd_jobid_var[];
 #define OBD_FAIL_PTLRPC_CLIENT_BULK_CB2  0x515
 #define OBD_FAIL_PTLRPC_DELAY_IMP_FULL   0x516
 #define OBD_FAIL_PTLRPC_CANCEL_RESEND    0x517
+#define OBD_FAIL_PTLRPC_DROP_BULK	 0x51a
+#define OBD_FAIL_PTLRPC_LONG_REQ_UNLINK	 0x51b
+#define OBD_FAIL_PTLRPC_LONG_BOTH_UNLINK 0x51c
 
 #define OBD_FAIL_OBD_PING_NET	    0x600
 #define OBD_FAIL_OBD_LOG_CANCEL_NET      0x601
@@ -426,6 +428,7 @@ extern char obd_jobid_var[];
 
 #define OBD_FAIL_FLD		     0x1100
 #define OBD_FAIL_FLD_QUERY_NET	   0x1101
+#define OBD_FAIL_FLD_READ_NET		0x1102
 
 #define OBD_FAIL_SEC_CTX		 0x1200
 #define OBD_FAIL_SEC_CTX_INIT_NET	0x1201

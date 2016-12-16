@@ -2,11 +2,10 @@ config DRM_RCAR_DU
 	tristate "DRM Support for R-Car Display Unit"
 	depends on DRM && OF
 	depends on ARM || ARM64
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_RENESAS || COMPILE_TEST
 	select DRM_KMS_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_GEM_CMA_HELPER
-	select DRM_KMS_FB_HELPER
 	select VIDEOMODE_HELPERS
 	help
 	  Choose this option if you have an R-Car chipset.
@@ -27,6 +26,6 @@ config DRM_RCAR_LVDS
 config DRM_RCAR_VSP
 	bool "R-Car DU VSP Compositor Support"
 	depends on DRM_RCAR_DU
-	depends on VIDEO_RENESAS_VSP1
+	depends on VIDEO_RENESAS_VSP1=y || (VIDEO_RENESAS_VSP1 && DRM_RCAR_DU=m)
 	help
 	  Enable support to expose the R-Car VSP Compositor as KMS planes.

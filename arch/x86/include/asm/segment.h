@@ -2,6 +2,7 @@
 #define _ASM_X86_SEGMENT_H
 
 #include <linux/const.h>
+#include <asm/alternative.h>
 
 /*
  * Constructor for a conventional segment GDT (or LDT) entry.
@@ -207,13 +208,6 @@
 #define __USER_CS			(GDT_ENTRY_DEFAULT_USER_CS*8 + 3)
 #define __PER_CPU_SEG			(GDT_ENTRY_PER_CPU*8 + 3)
 
-/* TLS indexes for 64-bit - hardcoded in arch_prctl(): */
-#define FS_TLS				0
-#define GS_TLS				1
-
-#define GS_TLS_SEL			((GDT_ENTRY_TLS_MIN+GS_TLS)*8 + 3)
-#define FS_TLS_SEL			((GDT_ENTRY_TLS_MIN+FS_TLS)*8 + 3)
-
 #endif
 
 #ifndef CONFIG_PARAVIRT
@@ -249,10 +243,13 @@ extern const char early_idt_handler_array[NUM_EXCEPTION_VECTORS][EARLY_IDT_HANDL
 #endif
 
 /*
- * Load a segment. Fall back on loading the zero
- * segment if something goes wrong..
+ * Load a segment. Fall back on loading the zero segment if something goes
+ * wrong.  This variant assumes that loading zero fully clears the segment.
+ * This is always the case on Intel CPUs and, even on 64-bit AMD CPUs, any
+ * failure to fully clear the cached descriptor is only observable for
+ * FS and GS.
  */
-#define loadsegment(seg, value)						\
+#define __loadsegment_simple(seg, value)				\
 do {									\
 	unsigned short __val = (value);					\
 									\
@@ -268,6 +265,38 @@ do {									\
 									\
 		     : "+r" (__val) : : "memory");			\
 } while (0)
+
+#define __loadsegment_ss(value) __loadsegment_simple(ss, (value))
+#define __loadsegment_ds(value) __loadsegment_simple(ds, (value))
+#define __loadsegment_es(value) __loadsegment_simple(es, (value))
+
+#ifdef CONFIG_X86_32
+
+/*
+ * On 32-bit systems, the hidden parts of FS and GS are unobservable if
+ * the selector is NULL, so there's no funny business here.
+ */
+#define __loadsegment_fs(value) __loadsegment_simple(fs, (value))
+#define __loadsegment_gs(value) __loadsegment_simple(gs, (value))
+
+#else
+
+static inline void __loadsegment_fs(unsigned short value)
+{
+	asm volatile("						\n"
+		     "1:	movw %0, %%fs			\n"
+		     "2:					\n"
+
+		     _ASM_EXTABLE_HANDLE(1b, 2b, ex_handler_clear_fs)
+
+		     : : "rm" (value) : "memory");
+}
+
+/* __loadsegment_gs is intentionally undefined.  Use load_gs_index instead. */
+
+#endif
+
+#define loadsegment(seg, value) __loadsegment_ ## seg (value)
 
 /*
  * Save a segment register away:

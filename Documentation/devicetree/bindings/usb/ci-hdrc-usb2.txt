@@ -93,7 +93,7 @@ Example:
 		phys = <&usb_phy0>;
 		phy-names = "usb-phy";
 		vbus-supply = <&reg_usb0_vbus>;
-		gadget-itc-setting = <0x4>; /* 4 micro-frames */
+		itc-setting = <0x4>; /* 4 micro-frames */
 		 /* Incremental burst of unspecified length */
 		ahb-burst-config = <0x0>;
 		tx-burst-size-dword = <0x10>; /* 64 bytes */

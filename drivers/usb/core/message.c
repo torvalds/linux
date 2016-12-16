@@ -12,6 +12,7 @@
 #include <linux/nls.h>
 #include <linux/device.h>
 #include <linux/scatterlist.h>
+#include <linux/usb/cdc.h>
 #include <linux/usb/quirks.h>
 #include <linux/usb/hcd.h>	/* for usbcore internals */
 #include <asm/byteorder.h>
@@ -302,9 +303,10 @@ static void sg_complete(struct urb *urb)
 		 */
 		spin_unlock(&io->lock);
 		for (i = 0, found = 0; i < io->entries; i++) {
-			if (!io->urbs[i] || !io->urbs[i]->dev)
+			if (!io->urbs[i])
 				continue;
 			if (found) {
+				usb_block_urb(io->urbs[i]);
 				retval = usb_unlink_urb(io->urbs[i]);
 				if (retval != -EINPROGRESS &&
 				    retval != -ENODEV &&
@@ -515,12 +517,10 @@ void usb_sg_wait(struct usb_sg_request *io)
 		int retval;
 
 		io->urbs[i]->dev = io->dev;
-		retval = usb_submit_urb(io->urbs[i], GFP_ATOMIC);
-
-		/* after we submit, let completions or cancellations fire;
-		 * we handshake using io->status.
-		 */
 		spin_unlock_irq(&io->lock);
+
+		retval = usb_submit_urb(io->urbs[i], GFP_NOIO);
+
 		switch (retval) {
 			/* maybe we retrying will recover */
 		case -ENXIO:	/* hc didn't queue this one */
@@ -578,31 +578,28 @@ EXPORT_SYMBOL_GPL(usb_sg_wait);
 void usb_sg_cancel(struct usb_sg_request *io)
 {
 	unsigned long flags;
+	int i, retval;
 
 	spin_lock_irqsave(&io->lock, flags);
-
-	/* shut everything down, if it didn't already */
-	if (!io->status) {
-		int i;
-
-		io->status = -ECONNRESET;
-		spin_unlock(&io->lock);
-		for (i = 0; i < io->entries; i++) {
-			int retval;
-
-			if (!io->urbs[i]->dev)
-				continue;
-			retval = usb_unlink_urb(io->urbs[i]);
-			if (retval != -EINPROGRESS
-					&& retval != -ENODEV
-					&& retval != -EBUSY
-					&& retval != -EIDRM)
-				dev_warn(&io->dev->dev, "%s, unlink --> %d\n",
-					__func__, retval);
-		}
-		spin_lock(&io->lock);
+	if (io->status) {
+		spin_unlock_irqrestore(&io->lock, flags);
+		return;
 	}
+	/* shut everything down */
+	io->status = -ECONNRESET;
 	spin_unlock_irqrestore(&io->lock, flags);
+
+	for (i = io->entries - 1; i >= 0; --i) {
+		usb_block_urb(io->urbs[i]);
+
+		retval = usb_unlink_urb(io->urbs[i]);
+		if (retval != -EINPROGRESS
+		    && retval != -ENODEV
+		    && retval != -EBUSY
+		    && retval != -EIDRM)
+			dev_warn(&io->dev->dev, "%s, unlink --> %d\n",
+				 __func__, retval);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_sg_cancel);
 
@@ -2027,3 +2024,155 @@ int usb_driver_set_configuration(struct usb_device *udev, int config)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_driver_set_configuration);
+
+/**
+ * cdc_parse_cdc_header - parse the extra headers present in CDC devices
+ * @hdr: the place to put the results of the parsing
+ * @intf: the interface for which parsing is requested
+ * @buffer: pointer to the extra headers to be parsed
+ * @buflen: length of the extra headers
+ *
+ * This evaluates the extra headers present in CDC devices which
+ * bind the interfaces for data and control and provide details
+ * about the capabilities of the device.
+ *
+ * Return: number of descriptors parsed or -EINVAL
+ * if the header is contradictory beyond salvage
+ */
+
+int cdc_parse_cdc_header(struct usb_cdc_parsed_header *hdr,
+				struct usb_interface *intf,
+				u8 *buffer,
+				int buflen)
+{
+	/* duplicates are ignored */
+	struct usb_cdc_union_desc *union_header = NULL;
+
+	/* duplicates are not tolerated */
+	struct usb_cdc_header_desc *header = NULL;
+	struct usb_cdc_ether_desc *ether = NULL;
+	struct usb_cdc_mdlm_detail_desc *detail = NULL;
+	struct usb_cdc_mdlm_desc *desc = NULL;
+
+	unsigned int elength;
+	int cnt = 0;
+
+	memset(hdr, 0x00, sizeof(struct usb_cdc_parsed_header));
+	hdr->phonet_magic_present = false;
+	while (buflen > 0) {
+		elength = buffer[0];
+		if (!elength) {
+			dev_err(&intf->dev, "skipping garbage byte\n");
+			elength = 1;
+			goto next_desc;
+		}
+		if (buffer[1] != USB_DT_CS_INTERFACE) {
+			dev_err(&intf->dev, "skipping garbage\n");
+			goto next_desc;
+		}
+
+		switch (buffer[2]) {
+		case USB_CDC_UNION_TYPE: /* we've found it */
+			if (elength < sizeof(struct usb_cdc_union_desc))
+				goto next_desc;
+			if (union_header) {
+				dev_err(&intf->dev, "More than one union descriptor, skipping ...\n");
+				goto next_desc;
+			}
+			union_header = (struct usb_cdc_union_desc *)buffer;
+			break;
+		case USB_CDC_COUNTRY_TYPE:
+			if (elength < sizeof(struct usb_cdc_country_functional_desc))
+				goto next_desc;
+			hdr->usb_cdc_country_functional_desc =
+				(struct usb_cdc_country_functional_desc *)buffer;
+			break;
+		case USB_CDC_HEADER_TYPE:
+			if (elength != sizeof(struct usb_cdc_header_desc))
+				goto next_desc;
+			if (header)
+				return -EINVAL;
+			header = (struct usb_cdc_header_desc *)buffer;
+			break;
+		case USB_CDC_ACM_TYPE:
+			if (elength < sizeof(struct usb_cdc_acm_descriptor))
+				goto next_desc;
+			hdr->usb_cdc_acm_descriptor =
+				(struct usb_cdc_acm_descriptor *)buffer;
+			break;
+		case USB_CDC_ETHERNET_TYPE:
+			if (elength != sizeof(struct usb_cdc_ether_desc))
+				goto next_desc;
+			if (ether)
+				return -EINVAL;
+			ether = (struct usb_cdc_ether_desc *)buffer;
+			break;
+		case USB_CDC_CALL_MANAGEMENT_TYPE:
+			if (elength < sizeof(struct usb_cdc_call_mgmt_descriptor))
+				goto next_desc;
+			hdr->usb_cdc_call_mgmt_descriptor =
+				(struct usb_cdc_call_mgmt_descriptor *)buffer;
+			break;
+		case USB_CDC_DMM_TYPE:
+			if (elength < sizeof(struct usb_cdc_dmm_desc))
+				goto next_desc;
+			hdr->usb_cdc_dmm_desc =
+				(struct usb_cdc_dmm_desc *)buffer;
+			break;
+		case USB_CDC_MDLM_TYPE:
+			if (elength < sizeof(struct usb_cdc_mdlm_desc *))
+				goto next_desc;
+			if (desc)
+				return -EINVAL;
+			desc = (struct usb_cdc_mdlm_desc *)buffer;
+			break;
+		case USB_CDC_MDLM_DETAIL_TYPE:
+			if (elength < sizeof(struct usb_cdc_mdlm_detail_desc *))
+				goto next_desc;
+			if (detail)
+				return -EINVAL;
+			detail = (struct usb_cdc_mdlm_detail_desc *)buffer;
+			break;
+		case USB_CDC_NCM_TYPE:
+			if (elength < sizeof(struct usb_cdc_ncm_desc))
+				goto next_desc;
+			hdr->usb_cdc_ncm_desc = (struct usb_cdc_ncm_desc *)buffer;
+			break;
+		case USB_CDC_MBIM_TYPE:
+			if (elength < sizeof(struct usb_cdc_mbim_desc))
+				goto next_desc;
+
+			hdr->usb_cdc_mbim_desc = (struct usb_cdc_mbim_desc *)buffer;
+			break;
+		case USB_CDC_MBIM_EXTENDED_TYPE:
+			if (elength < sizeof(struct usb_cdc_mbim_extended_desc))
+				break;
+			hdr->usb_cdc_mbim_extended_desc =
+				(struct usb_cdc_mbim_extended_desc *)buffer;
+			break;
+		case CDC_PHONET_MAGIC_NUMBER:
+			hdr->phonet_magic_present = true;
+			break;
+		default:
+			/*
+			 * there are LOTS more CDC descriptors that
+			 * could legitimately be found here.
+			 */
+			dev_dbg(&intf->dev, "Ignoring descriptor: type %02x, length %ud\n",
+					buffer[2], elength);
+			goto next_desc;
+		}
+		cnt++;
+next_desc:
+		buflen -= elength;
+		buffer += elength;
+	}
+	hdr->usb_cdc_union_desc = union_header;
+	hdr->usb_cdc_header_desc = header;
+	hdr->usb_cdc_mdlm_detail_desc = detail;
+	hdr->usb_cdc_mdlm_desc = desc;
+	hdr->usb_cdc_ether_desc = ether;
+	return cnt;
+}
+
+EXPORT_SYMBOL(cdc_parse_cdc_header);

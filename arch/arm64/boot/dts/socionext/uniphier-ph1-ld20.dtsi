@@ -42,6 +42,8 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/memreserve/ 0x80000000 0x00000008;	/* cpu-release-addr */
+
 / {
 	compatible = "socionext,ph1-ld20";
 	#address-cells = <2>;
@@ -77,7 +79,7 @@
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0 0x000>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0 0x80000100>;
+			cpu-release-addr = <0 0x80000000>;
 		};
 
 		cpu1: cpu@1 {
@@ -85,7 +87,7 @@
 			compatible = "arm,cortex-a72", "arm,armv8";
 			reg = <0 0x001>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0 0x80000100>;
+			cpu-release-addr = <0 0x80000000>;
 		};
 
 		cpu2: cpu@100 {
@@ -93,7 +95,7 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0 0x100>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0 0x80000100>;
+			cpu-release-addr = <0 0x80000000>;
 		};
 
 		cpu3: cpu@101 {
@@ -101,11 +103,17 @@
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0 0x101>;
 			enable-method = "spin-table";
-			cpu-release-addr = <0 0x80000100>;
+			cpu-release-addr = <0 0x80000000>;
 		};
 	};
 
 	clocks {
+		refclk: ref {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <25000000>;
+		};
+
 		uart_clk: uart_clk {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -121,10 +129,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts = <1 13 0xf01>,
-			     <1 14 0xf01>,
-			     <1 11 0xf01>,
-			     <1 10 0xf01>;
+		interrupts = <1 13 4>,
+			     <1 14 4>,
+			     <1 11 4>,
+			     <1 10 4>;
 	};
 
 	soc {
@@ -258,9 +266,13 @@
 			reg = <0x59801000 0x400>;
 		};
 
-		pinctrl: pinctrl@5f801000 {
-			compatible = "socionext,ph1-ld20-pinctrl", "syscon";
-			reg = <0x5f801000 0xe00>;
+		soc-glue@5f800000 {
+			compatible = "simple-mfd", "syscon";
+			reg = <0x5f800000 0x2000>;
+
+			pinctrl: pinctrl {
+				 compatible = "socionext,uniphier-ld20-pinctrl";
+			};
 		};
 
 		gic: interrupt-controller@5fe00000 {

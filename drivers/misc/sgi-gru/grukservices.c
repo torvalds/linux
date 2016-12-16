@@ -718,8 +718,8 @@ cberr:
 static int send_message_put_nacked(void *cb, struct gru_message_queue_desc *mqd,
 			void *mesg, int lines)
 {
-	unsigned long m, *val = mesg, gpa, save;
-	int ret;
+	unsigned long m;
+	int ret, loops = 200;	/* experimentally determined */
 
 	m = mqd->mq_gpa + (gru_get_amo_value_head(cb) << 6);
 	if (lines == 2) {
@@ -735,22 +735,28 @@ static int send_message_put_nacked(void *cb, struct gru_message_queue_desc *mqd,
 		return MQE_OK;
 
 	/*
-	 * Send a cross-partition interrupt to the SSI that contains the target
-	 * message queue. Normally, the interrupt is automatically delivered by
-	 * hardware but some error conditions require explicit delivery.
-	 * Use the GRU to deliver the interrupt. Otherwise partition failures
+	 * Send a noop message in order to deliver a cross-partition interrupt
+	 * to the SSI that contains the target message queue. Normally, the
+	 * interrupt is automatically delivered by hardware following mesq
+	 * operations, but some error conditions require explicit delivery.
+	 * The noop message will trigger delivery. Otherwise partition failures
 	 * could cause unrecovered errors.
 	 */
-	gpa = uv_global_gru_mmr_address(mqd->interrupt_pnode, UVH_IPI_INT);
-	save = *val;
-	*val = uv_hub_ipi_value(mqd->interrupt_apicid, mqd->interrupt_vector,
-				dest_Fixed);
-	gru_vstore_phys(cb, gpa, gru_get_tri(mesg), IAA_REGISTER, IMA);
-	ret = gru_wait(cb);
-	*val = save;
-	if (ret != CBS_IDLE)
-		return MQE_UNEXPECTED_CB_ERR;
-	return MQE_OK;
+	do {
+		ret = send_noop_message(cb, mqd, mesg);
+	} while ((ret == MQIE_AGAIN || ret == MQE_CONGESTION) && (loops-- > 0));
+
+	if (ret == MQIE_AGAIN || ret == MQE_CONGESTION) {
+		/*
+		 * Don't indicate to the app to resend the message, as it's
+		 * already been successfully sent.  We simply send an OK
+		 * (rather than fail the send with MQE_UNEXPECTED_CB_ERR),
+		 * assuming that the other side is receiving enough
+		 * interrupts to get this message processed anyway.
+		 */
+		ret = MQE_OK;
+	}
+	return ret;
 }
 
 /*

@@ -209,7 +209,7 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
  ******************************************************************************/
 
 acpi_status
-acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
+acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 {
 	u32 aml_offset;
 

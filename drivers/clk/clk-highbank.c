@@ -275,7 +275,6 @@ static const struct clk_ops periclk_ops = {
 static __init struct clk *hb_clk_init(struct device_node *node, const struct clk_ops *ops)
 {
 	u32 reg;
-	struct clk *clk;
 	struct hb_clk *hb_clk;
 	const char *clk_name = node->name;
 	const char *parent_name;
@@ -308,13 +307,13 @@ static __init struct clk *hb_clk_init(struct device_node *node, const struct clk
 
 	hb_clk->hw.init = &init;
 
-	clk = clk_register(NULL, &hb_clk->hw);
-	if (WARN_ON(IS_ERR(clk))) {
+	rc = clk_hw_register(NULL, &hb_clk->hw);
+	if (WARN_ON(rc)) {
 		kfree(hb_clk);
 		return NULL;
 	}
-	rc = of_clk_add_provider(node, of_clk_src_simple_get, clk);
-	return clk;
+	rc = of_clk_add_hw_provider(node, of_clk_hw_simple_get, &hb_clk->hw);
+	return hb_clk->hw.clk;
 }
 
 static void __init hb_pll_init(struct device_node *node)

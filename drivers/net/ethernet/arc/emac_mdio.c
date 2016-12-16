@@ -141,7 +141,7 @@ int arc_mdio_probe(struct arc_emac_priv *priv)
 	priv->bus = bus;
 	bus->priv = priv;
 	bus->parent = priv->dev;
-	bus->name = "Synopsys MII Bus",
+	bus->name = "Synopsys MII Bus";
 	bus->read = &arc_mdio_read;
 	bus->write = &arc_mdio_write;
 	bus->reset = &arc_mdio_reset;

@@ -356,8 +356,13 @@ extern void lockdep_set_current_reclaim_state(gfp_t gfp_mask);
 extern void lockdep_clear_current_reclaim_state(void);
 extern void lockdep_trace_alloc(gfp_t mask);
 
-extern void lock_pin_lock(struct lockdep_map *lock);
-extern void lock_unpin_lock(struct lockdep_map *lock);
+struct pin_cookie { unsigned int val; };
+
+#define NIL_COOKIE (struct pin_cookie){ .val = 0U, }
+
+extern struct pin_cookie lock_pin_lock(struct lockdep_map *lock);
+extern void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie);
+extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 
 # define INIT_LOCKDEP				.lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
 
@@ -373,8 +378,9 @@ extern void lock_unpin_lock(struct lockdep_map *lock);
 
 #define lockdep_recursing(tsk)	((tsk)->lockdep_recursion)
 
-#define lockdep_pin_lock(l)		lock_pin_lock(&(l)->dep_map)
-#define lockdep_unpin_lock(l)	lock_unpin_lock(&(l)->dep_map)
+#define lockdep_pin_lock(l)	lock_pin_lock(&(l)->dep_map)
+#define lockdep_repin_lock(l,c)	lock_repin_lock(&(l)->dep_map, (c))
+#define lockdep_unpin_lock(l,c)	lock_unpin_lock(&(l)->dep_map, (c))
 
 #else /* !CONFIG_LOCKDEP */
 
@@ -427,8 +433,13 @@ struct lock_class_key { };
 
 #define lockdep_recursing(tsk)			(0)
 
-#define lockdep_pin_lock(l)				do { (void)(l); } while (0)
-#define lockdep_unpin_lock(l)			do { (void)(l); } while (0)
+struct pin_cookie { };
+
+#define NIL_COOKIE (struct pin_cookie){ }
+
+#define lockdep_pin_lock(l)			({ struct pin_cookie cookie; cookie; })
+#define lockdep_repin_lock(l, c)		do { (void)(l); (void)(c); } while (0)
+#define lockdep_unpin_lock(l, c)		do { (void)(l); (void)(c); } while (0)
 
 #endif /* !LOCKDEP */
 
@@ -446,12 +457,27 @@ do {								\
 	lock_acquired(&(_lock)->dep_map, _RET_IP_);			\
 } while (0)
 
+#define LOCK_CONTENDED_RETURN(_lock, try, lock)			\
+({								\
+	int ____err = 0;					\
+	if (!try(_lock)) {					\
+		lock_contended(&(_lock)->dep_map, _RET_IP_);	\
+		____err = lock(_lock);				\
+	}							\
+	if (!____err)						\
+		lock_acquired(&(_lock)->dep_map, _RET_IP_);	\
+	____err;						\
+})
+
 #else /* CONFIG_LOCK_STAT */
 
 #define lock_contended(lockdep_map, ip) do {} while (0)
 #define lock_acquired(lockdep_map, ip) do {} while (0)
 
 #define LOCK_CONTENDED(_lock, try, lock) \
+	lock(_lock)
+
+#define LOCK_CONTENDED_RETURN(_lock, try, lock) \
 	lock(_lock)
 
 #endif /* CONFIG_LOCK_STAT */

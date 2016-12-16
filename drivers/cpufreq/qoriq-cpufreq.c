@@ -301,10 +301,11 @@ err_np:
 	return -ENODEV;
 }
 
-static int __exit qoriq_cpufreq_cpu_exit(struct cpufreq_policy *policy)
+static int qoriq_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct cpu_data *data = policy->driver_data;
 
+	cpufreq_cooling_unregister(data->cdev);
 	kfree(data->pclk);
 	kfree(data->table);
 	kfree(data);
@@ -333,8 +334,8 @@ static void qoriq_cpufreq_ready(struct cpufreq_policy *policy)
 		cpud->cdev = of_cpufreq_cooling_register(np,
 							 policy->related_cpus);
 
-		if (IS_ERR(cpud->cdev)) {
-			pr_err("Failed to register cooling device cpu%d: %ld\n",
+		if (IS_ERR(cpud->cdev) && PTR_ERR(cpud->cdev) != -ENOSYS) {
+			pr_err("cpu%d is not running as cooling device: %ld\n",
 					policy->cpu, PTR_ERR(cpud->cdev));
 
 			cpud->cdev = NULL;
@@ -348,7 +349,7 @@ static struct cpufreq_driver qoriq_cpufreq_driver = {
 	.name		= "qoriq_cpufreq",
 	.flags		= CPUFREQ_CONST_LOOPS,
 	.init		= qoriq_cpufreq_cpu_init,
-	.exit		= __exit_p(qoriq_cpufreq_cpu_exit),
+	.exit		= qoriq_cpufreq_cpu_exit,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= qoriq_cpufreq_target,
 	.get		= cpufreq_generic_get,

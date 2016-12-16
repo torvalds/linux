@@ -908,12 +908,12 @@ static const char * const wm5102_supplies[] = {
 
 static const struct mfd_cell wm5102_devs[] = {
 	{ .name = "arizona-micsupp" },
+	{ .name = "arizona-gpio" },
 	{
 		.name = "arizona-extcon",
 		.parent_supplies = wm5102_supplies,
 		.num_parent_supplies = 1, /* We only need MICVDD */
 	},
-	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{
@@ -925,12 +925,12 @@ static const struct mfd_cell wm5102_devs[] = {
 
 static const struct mfd_cell wm5110_devs[] = {
 	{ .name = "arizona-micsupp" },
+	{ .name = "arizona-gpio" },
 	{
 		.name = "arizona-extcon",
 		.parent_supplies = wm5102_supplies,
 		.num_parent_supplies = 1, /* We only need MICVDD */
 	},
-	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{
@@ -966,12 +966,12 @@ static const char * const wm8997_supplies[] = {
 
 static const struct mfd_cell wm8997_devs[] = {
 	{ .name = "arizona-micsupp" },
+	{ .name = "arizona-gpio" },
 	{
 		.name = "arizona-extcon",
 		.parent_supplies = wm8997_supplies,
 		.num_parent_supplies = 1, /* We only need MICVDD */
 	},
-	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{
@@ -982,12 +982,13 @@ static const struct mfd_cell wm8997_devs[] = {
 };
 
 static const struct mfd_cell wm8998_devs[] = {
+	{ .name = "arizona-micsupp" },
+	{ .name = "arizona-gpio" },
 	{
 		.name = "arizona-extcon",
 		.parent_supplies = wm5102_supplies,
 		.num_parent_supplies = 1, /* We only need MICVDD */
 	},
-	{ .name = "arizona-gpio" },
 	{ .name = "arizona-haptics" },
 	{ .name = "arizona-pwm" },
 	{
@@ -995,7 +996,6 @@ static const struct mfd_cell wm8998_devs[] = {
 		.parent_supplies = wm5102_supplies,
 		.num_parent_supplies = ARRAY_SIZE(wm5102_supplies),
 	},
-	{ .name = "arizona-micsupp" },
 };
 
 int arizona_dev_init(struct arizona *arizona)
@@ -1462,7 +1462,7 @@ int arizona_dev_init(struct arizona *arizona)
 	/* Set up for interrupts */
 	ret = arizona_irq_init(arizona);
 	if (ret != 0)
-		goto err_reset;
+		goto err_pm;
 
 	pm_runtime_set_autosuspend_delay(arizona->dev, 100);
 	pm_runtime_use_autosuspend(arizona->dev);
@@ -1486,6 +1486,8 @@ int arizona_dev_init(struct arizona *arizona)
 
 err_irq:
 	arizona_irq_exit(arizona);
+err_pm:
+	pm_runtime_disable(arizona->dev);
 err_reset:
 	arizona_enable_reset(arizona);
 	regulator_disable(arizona->dcvdd);

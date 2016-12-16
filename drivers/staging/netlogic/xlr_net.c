@@ -850,7 +850,7 @@ static int xlr_mii_probe(struct xlr_net_priv *priv)
 
 	/* Attach MAC to PHY */
 	phydev = phy_connect(priv->ndev, phydev_name(phydev),
-			     &xlr_gmac_link_adjust, priv->nd->phy_interface);
+			     xlr_gmac_link_adjust, priv->nd->phy_interface);
 
 	if (IS_ERR(phydev)) {
 		pr_err("could not attach PHY\n");

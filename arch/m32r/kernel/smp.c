@@ -164,6 +164,7 @@ void smp_flush_cache_all(void)
 	spin_unlock(&flushcache_lock);
 	preempt_enable();
 }
+EXPORT_SYMBOL(smp_flush_cache_all);
 
 void smp_flush_cache_all_interrupt(void)
 {

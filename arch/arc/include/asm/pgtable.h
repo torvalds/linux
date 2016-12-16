@@ -47,7 +47,7 @@
  * Page Tables are purely for Linux VM's consumption and the bits below are
  * suited to that (uniqueness). Hence some are not implemented in the TLB and
  * some have different value in TLB.
- * e.g. MMU v2: K_READ bit is 8 and so is GLOBAL (possible becoz they live in
+ * e.g. MMU v2: K_READ bit is 8 and so is GLOBAL (possible because they live in
  *      seperate PD0 and PD1, which combined forms a translation entry)
  *      while for PTE perspective, they are 8 and 9 respectively
  * with MMU v3: Most bits (except SHARED) represent the exact hardware pos
@@ -110,7 +110,7 @@
 #define ___DEF (_PAGE_PRESENT | _PAGE_CACHEABLE)
 
 /* Set of bits not changed in pte_modify */
-#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
+#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_SPECIAL)
 
 /* More Abbrevaited helpers */
 #define PAGE_U_NONE     __pgprot(___DEF)
@@ -217,7 +217,7 @@
 #define BITS_FOR_PTE	(PGDIR_SHIFT - PAGE_SHIFT)
 #define BITS_FOR_PGD	(32 - PGDIR_SHIFT)
 
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)	/* vaddr span, not PDG sz */
+#define PGDIR_SIZE	_BITUL(PGDIR_SHIFT)	/* vaddr span, not PDG sz */
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define	PTRS_PER_PTE	_BITUL(BITS_FOR_PTE)
@@ -280,7 +280,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
 
 #define pte_page(pte)		pfn_to_page(pte_pfn(pte))
 #define mk_pte(page, prot)	pfn_pte(page_to_pfn(page), prot)
-#define pfn_pte(pfn, prot)	(__pte(((pte_t)(pfn) << PAGE_SHIFT) | pgprot_val(prot)))
+#define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
 
 /* Don't use virt_to_pfn for macros below: could cause truncations for PAE40*/
 #define pte_pfn(pte)		(pte_val(pte) >> PAGE_SHIFT)

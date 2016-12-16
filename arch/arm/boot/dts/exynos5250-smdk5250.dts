@@ -13,6 +13,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include "exynos5250.dtsi"
+#include "exynos-mfc-reserved-memory.dtsi"
 
 / {
 	model = "SAMSUNG SMDK5250 board based on EXYNOS5250";
@@ -29,7 +30,7 @@
 		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M console=ttySAC2,115200 init=/linuxrc";
 	};
 
-	vdd: fixed-regulator@0 {
+	vdd: fixed-regulator-vdd {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-supply";
 		regulator-min-microvolt = <1800000>;
@@ -37,7 +38,7 @@
 		regulator-always-on;
 	};
 
-	dbvdd: fixed-regulator@1 {
+	dbvdd: fixed-regulator-dbvdd {
 		compatible = "regulator-fixed";
 		regulator-name = "dbvdd-supply";
 		regulator-min-microvolt = <3300000>;
@@ -45,7 +46,7 @@
 		regulator-always-on;
 	};
 
-	spkvdd: fixed-regulator@2 {
+	spkvdd: fixed-regulator-spkvdd {
 		compatible = "regulator-fixed";
 		regulator-name = "spkvdd-supply";
 		regulator-min-microvolt = <5000000>;
@@ -80,8 +81,6 @@
 
 &dp {
 	samsung,color-space = <0>;
-	samsung,dynamic-range = <0>;
-	samsung,ycbcr-coeff = <0>;
 	samsung,color-depth = <1>;
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <4>;
@@ -93,7 +92,7 @@
 	display-timings {
 		native-mode = <&timing0>;
 
-		timing0: timing@0 {
+		timing0: timing {
 			/* 1280x800 */
 			clock-frequency = <50000>;
 			hactive = <1280>;
@@ -343,11 +342,6 @@
 
 &i2s0 {
 	status = "okay";
-};
-
-&mfc {
-	samsung,mfc-r = <0x43000000 0x800000>;
-	samsung,mfc-l = <0x51000000 0x800000>;
 };
 
 &mmc_0 {

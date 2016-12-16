@@ -187,6 +187,6 @@ nvkm_xtensa_new_(const struct nvkm_xtensa_func *func,
 	xtensa->addr = addr;
 	*pengine = &xtensa->engine;
 
-	return nvkm_engine_ctor(&nvkm_xtensa, device, index, func->pmc_enable,
+	return nvkm_engine_ctor(&nvkm_xtensa, device, index,
 				enable, &xtensa->engine);
 }

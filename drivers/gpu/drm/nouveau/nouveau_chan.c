@@ -34,7 +34,7 @@
 /*XXX*/
 #include <core/client.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_bo.h"
 #include "nouveau_chan.h"
@@ -191,7 +191,8 @@ static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		    u32 engine, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { MAXWELL_CHANNEL_GPFIFO_A,
+	static const u16 oclasses[] = { PASCAL_CHANNEL_GPFIFO_A,
+					MAXWELL_CHANNEL_GPFIFO_A,
 					KEPLER_CHANNEL_GPFIFO_B,
 					KEPLER_CHANNEL_GPFIFO_A,
 					FERMI_CHANNEL_GPFIFO,

@@ -61,6 +61,7 @@
 #define REG_TXBCON0	0x1A
 #define REG_TXNCON	0x1B  /* Transmit Normal FIFO Control */
 #define BIT_TXNTRIG	BIT(0)
+#define BIT_TXNSECEN	BIT(1)
 #define BIT_TXNACKREQ	BIT(2)
 
 #define REG_TXG1CON	0x1C
@@ -85,10 +86,13 @@
 #define REG_INTSTAT	0x31  /* Interrupt Status */
 #define BIT_TXNIF	BIT(0)
 #define BIT_RXIF	BIT(3)
+#define BIT_SECIF	BIT(4)
+#define BIT_SECIGNORE	BIT(7)
 
 #define REG_INTCON	0x32  /* Interrupt Control */
 #define BIT_TXNIE	BIT(0)
 #define BIT_RXIE	BIT(3)
+#define BIT_SECIE	BIT(4)
 
 #define REG_GPIO	0x33  /* GPIO */
 #define REG_TRISGPIO	0x34  /* GPIO direction */
@@ -548,6 +552,9 @@ static void write_tx_buf_complete(void *context)
 	u8 val = BIT_TXNTRIG;
 	int ret;
 
+	if (ieee802154_is_secen(fc))
+		val |= BIT_TXNSECEN;
+
 	if (ieee802154_is_ackreq(fc))
 		val |= BIT_TXNACKREQ;
 
@@ -616,7 +623,7 @@ static int mrf24j40_start(struct ieee802154_hw *hw)
 
 	/* Clear TXNIE and RXIE. Enable interrupts */
 	return regmap_update_bits(devrec->regmap_short, REG_INTCON,
-				  BIT_TXNIE | BIT_RXIE, 0);
+				  BIT_TXNIE | BIT_RXIE | BIT_SECIE, 0);
 }
 
 static void mrf24j40_stop(struct ieee802154_hw *hw)
@@ -1025,6 +1032,11 @@ static void mrf24j40_intstat_complete(void *context)
 
 	enable_irq(devrec->spi->irq);
 
+	/* Ignore Rx security decryption */
+	if (intstat & BIT_SECIF)
+		regmap_write_async(devrec->regmap_short, REG_SECCON0,
+				   BIT_SECIGNORE);
+
 	/* Check for TX complete */
 	if (intstat & BIT_TXNIF)
 		ieee802154_xmit_complete(devrec->hw, devrec->tx_skb, false);
@@ -1042,6 +1054,8 @@ static irqreturn_t mrf24j40_isr(int irq, void *data)
 	disable_irq_nosync(irq);
 
 	devrec->irq_buf[0] = MRF24J40_READSHORT(REG_INTSTAT);
+	devrec->irq_buf[1] = 0;
+
 	/* Read the interrupt status */
 	ret = spi_async(devrec->spi, &devrec->irq_msg);
 	if (ret) {

@@ -30,7 +30,6 @@
 #include <asm/rtc.h>
 
 #define DRV_NAME	"sh-rtc"
-#define DRV_VERSION	"0.2.3"
 
 #define RTC_REG(r)	((r) * rtc_reg_size)
 
@@ -482,7 +481,6 @@ static int sh_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	tm->tm_mon	= sh_rtc_read_alarm_value(rtc, RMONAR);
 	if (tm->tm_mon > 0)
 		tm->tm_mon -= 1; /* RTC is 1-12, tm_mon is 0-11 */
-	tm->tm_year     = 0xffff;
 
 	wkalrm->enabled = (readb(rtc->regbase + RCR1) & RCR1_AIE) ? 1 : 0;
 
@@ -501,52 +499,13 @@ static inline void sh_rtc_write_alarm_value(struct sh_rtc *rtc,
 		writeb(bin2bcd(value) | AR_ENB,  rtc->regbase + reg_off);
 }
 
-static int sh_rtc_check_alarm(struct rtc_time *tm)
-{
-	/*
-	 * The original rtc says anything > 0xc0 is "don't care" or "match
-	 * all" - most users use 0xff but rtc-dev uses -1 for the same thing.
-	 * The original rtc doesn't support years - some things use -1 and
-	 * some 0xffff. We use -1 to make out tests easier.
-	 */
-	if (tm->tm_year == 0xffff)
-		tm->tm_year = -1;
-	if (tm->tm_mon >= 0xff)
-		tm->tm_mon = -1;
-	if (tm->tm_mday >= 0xff)
-		tm->tm_mday = -1;
-	if (tm->tm_wday >= 0xff)
-		tm->tm_wday = -1;
-	if (tm->tm_hour >= 0xff)
-		tm->tm_hour = -1;
-	if (tm->tm_min >= 0xff)
-		tm->tm_min = -1;
-	if (tm->tm_sec >= 0xff)
-		tm->tm_sec = -1;
-
-	if (tm->tm_year > 9999 ||
-		tm->tm_mon >= 12 ||
-		tm->tm_mday == 0 || tm->tm_mday >= 32 ||
-		tm->tm_wday >= 7 ||
-		tm->tm_hour >= 24 ||
-		tm->tm_min >= 60 ||
-		tm->tm_sec >= 60)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int sh_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct sh_rtc *rtc = platform_get_drvdata(pdev);
 	unsigned int rcr1;
 	struct rtc_time *tm = &wkalrm->time;
-	int mon, err;
-
-	err = sh_rtc_check_alarm(tm);
-	if (unlikely(err < 0))
-		return err;
+	int mon;
 
 	spin_lock_irq(&rtc->lock);
 
@@ -790,7 +749,6 @@ static struct platform_driver sh_rtc_platform_driver = {
 module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);
 
 MODULE_DESCRIPTION("SuperH on-chip RTC driver");
-MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>, "
 	      "Jamie Lenehan <lenehan@twibble.org>, "
 	      "Angelo Castello <angelo.castello@st.com>");

@@ -1086,7 +1086,7 @@ out:
 	return err;
 }
 
-static void __init_refok pcifront_backend_changed(struct xenbus_device *xdev,
+static void __ref pcifront_backend_changed(struct xenbus_device *xdev,
 						  enum xenbus_state be_state)
 {
 	struct pcifront_device *pdev = dev_get_drvdata(&xdev->dev);

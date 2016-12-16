@@ -30,12 +30,36 @@
 static DEFINE_MUTEX(panel_lock);
 static LIST_HEAD(panel_list);
 
+/**
+ * DOC: drm panel
+ *
+ * The DRM panel helpers allow drivers to register panel objects with a
+ * central registry and provide functions to retrieve those panels in display
+ * drivers.
+ */
+
+/**
+ * drm_panel_init - initialize a panel
+ * @panel: DRM panel
+ *
+ * Sets up internal fields of the panel so that it can subsequently be added
+ * to the registry.
+ */
 void drm_panel_init(struct drm_panel *panel)
 {
 	INIT_LIST_HEAD(&panel->list);
 }
 EXPORT_SYMBOL(drm_panel_init);
 
+/**
+ * drm_panel_add - add a panel to the global registry
+ * @panel: panel to add
+ *
+ * Add a panel to the global registry so that it can be looked up by display
+ * drivers.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int drm_panel_add(struct drm_panel *panel)
 {
 	mutex_lock(&panel_lock);
@@ -46,6 +70,12 @@ int drm_panel_add(struct drm_panel *panel)
 }
 EXPORT_SYMBOL(drm_panel_add);
 
+/**
+ * drm_panel_remove - remove a panel from the global registry
+ * @panel: DRM panel
+ *
+ * Removes a panel from the global registry.
+ */
 void drm_panel_remove(struct drm_panel *panel)
 {
 	mutex_lock(&panel_lock);
@@ -54,6 +84,18 @@ void drm_panel_remove(struct drm_panel *panel)
 }
 EXPORT_SYMBOL(drm_panel_remove);
 
+/**
+ * drm_panel_attach - attach a panel to a connector
+ * @panel: DRM panel
+ * @connector: DRM connector
+ *
+ * After obtaining a pointer to a DRM panel a display driver calls this
+ * function to attach a panel to a connector.
+ *
+ * An error is returned if the panel is already attached to another connector.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
 {
 	if (panel->connector)
@@ -66,6 +108,15 @@ int drm_panel_attach(struct drm_panel *panel, struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_panel_attach);
 
+/**
+ * drm_panel_detach - detach a panel from a connector
+ * @panel: DRM panel
+ *
+ * Detaches a panel from the connector it is attached to. If a panel is not
+ * attached to any connector this is effectively a no-op.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
 int drm_panel_detach(struct drm_panel *panel)
 {
 	panel->connector = NULL;
@@ -76,6 +127,16 @@ int drm_panel_detach(struct drm_panel *panel)
 EXPORT_SYMBOL(drm_panel_detach);
 
 #ifdef CONFIG_OF
+/**
+ * of_drm_find_panel - look up a panel using a device tree node
+ * @np: device tree node of the panel
+ *
+ * Searches the set of registered panels for one that matches the given device
+ * tree node. If a matching panel is found, return a pointer to it.
+ *
+ * Return: A pointer to the panel registered for the specified device tree
+ * node or NULL if no panel matching the device tree node can be found.
+ */
 struct drm_panel *of_drm_find_panel(struct device_node *np)
 {
 	struct drm_panel *panel;

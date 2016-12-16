@@ -581,7 +581,7 @@ static int wm2000_anc_transition(struct wm2000_priv *wm2000,
 	if (anc_transitions[i].dest == ANC_OFF)
 		clk_disable_unprepare(wm2000->mclk);
 
-	return ret;
+	return 0;
 }
 
 static int wm2000_anc_set_mode(struct wm2000_priv *wm2000)

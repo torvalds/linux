@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -185,8 +181,7 @@ void md_from_obdo(struct md_op_data *op_data, struct obdo *oa, u32 valid)
 		op_data->op_attr.ia_valid |= ATTR_BLOCKS;
 	}
 	if (valid & OBD_MD_FLFLAGS) {
-		((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags =
-			oa->o_flags;
+		op_data->op_attr_flags = oa->o_flags;
 		op_data->op_attr.ia_valid |= ATTR_ATTR_FLAG;
 	}
 }

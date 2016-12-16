@@ -85,6 +85,7 @@ static int da9052_read_alarm(struct da9052_rtc *rtc, struct rtc_time *rtc_tm)
 			rtc_tm->tm_mday = v[0][2] & DA9052_RTC_DAY;
 			rtc_tm->tm_hour = v[0][1] & DA9052_RTC_HOUR;
 			rtc_tm->tm_min  = v[0][0] & DA9052_RTC_MIN;
+			rtc_tm->tm_sec = 0;
 
 			ret = rtc_valid_tm(rtc_tm);
 			return ret;
@@ -302,6 +303,13 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 	if (ret != 0)
 		rtc_err(rtc, "Failed to disable TICKS: %d\n", ret);
 
+	device_init_wakeup(&pdev->dev, true);
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
+				       &da9052_rtc_ops, THIS_MODULE);
+
+	if (IS_ERR(rtc->rtc))
+		return PTR_ERR(rtc->rtc);
+
 	ret = da9052_request_irq(rtc->da9052, DA9052_IRQ_ALARM, "ALM",
 				da9052_rtc_irq, rtc);
 	if (ret != 0) {
@@ -309,11 +317,7 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	device_init_wakeup(&pdev->dev, true);
-
-	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				       &da9052_rtc_ops, THIS_MODULE);
-	return PTR_ERR_OR_ZERO(rtc->rtc);
+	return 0;
 }
 
 static struct platform_driver da9052_rtc_driver = {

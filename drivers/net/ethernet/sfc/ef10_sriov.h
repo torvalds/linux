@@ -70,6 +70,9 @@ int efx_ef10_vport_add_mac(struct efx_nic *efx,
 int efx_ef10_vport_del_mac(struct efx_nic *efx,
 			   unsigned int port_id, u8 *mac);
 int efx_ef10_vadaptor_alloc(struct efx_nic *efx, unsigned int port_id);
+int efx_ef10_vadaptor_query(struct efx_nic *efx, unsigned int port_id,
+			    u32 *port_flags, u32 *vadaptor_flags,
+			    unsigned int *vlan_tags);
 int efx_ef10_vadaptor_free(struct efx_nic *efx, unsigned int port_id);
 
 #endif /* EF10_SRIOV_H */

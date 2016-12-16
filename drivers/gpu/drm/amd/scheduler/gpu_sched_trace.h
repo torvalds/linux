@@ -26,7 +26,7 @@ TRACE_EVENT(amd_sched_job,
 	    TP_fast_assign(
 			   __entry->entity = sched_job->s_entity;
 			   __entry->sched_job = sched_job;
-			   __entry->fence = &sched_job->s_fence->base;
+			   __entry->fence = &sched_job->s_fence->finished;
 			   __entry->name = sched_job->sched->name;
 			   __entry->job_count = kfifo_len(
 				   &sched_job->s_entity->job_queue) / sizeof(sched_job);
@@ -46,7 +46,7 @@ TRACE_EVENT(amd_sched_process_job,
 		    ),
 
 	    TP_fast_assign(
-		    __entry->fence = &fence->base;
+		    __entry->fence = &fence->finished;
 		    ),
 	    TP_printk("fence=%p signaled", __entry->fence)
 );

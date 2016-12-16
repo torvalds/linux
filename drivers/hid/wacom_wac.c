@@ -2344,12 +2344,13 @@ static void wacom_setup_basic_pro_pen(struct wacom_wac *wacom_wac)
 	__set_bit(BTN_STYLUS2, input_dev->keybit);
 
 	input_set_abs_params(input_dev, ABS_DISTANCE,
-			     0, wacom_wac->features.distance_max, 0, 0);
+			     0, wacom_wac->features.distance_max, wacom_wac->features.distance_fuzz, 0);
 }
 
 static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
 {
 	struct input_dev *input_dev = wacom_wac->pen_input;
+	struct wacom_features *features = &wacom_wac->features;
 
 	wacom_setup_basic_pro_pen(wacom_wac);
 
@@ -2359,9 +2360,9 @@ static void wacom_setup_cintiq(struct wacom_wac *wacom_wac)
 	__set_bit(BTN_TOOL_AIRBRUSH, input_dev->keybit);
 
 	input_set_abs_params(input_dev, ABS_WHEEL, 0, 1023, 0, 0);
-	input_set_abs_params(input_dev, ABS_TILT_X, -64, 63, 0, 0);
+	input_set_abs_params(input_dev, ABS_TILT_X, -64, 63, features->tilt_fuzz, 0);
 	input_abs_set_res(input_dev, ABS_TILT_X, 57);
-	input_set_abs_params(input_dev, ABS_TILT_Y, -64, 63, 0, 0);
+	input_set_abs_params(input_dev, ABS_TILT_Y, -64, 63, features->tilt_fuzz, 0);
 	input_abs_set_res(input_dev, ABS_TILT_Y, 57);
 }
 
@@ -2507,7 +2508,7 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 	case WACOM_G4:
 		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
 					      features->distance_max,
-					      0, 0);
+					      features->distance_fuzz, 0);
 		/* fall through */
 
 	case GRAPHIRE:
@@ -2569,7 +2570,7 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 
 		input_set_abs_params(input_dev, ABS_DISTANCE, 0,
 				      features->distance_max,
-				      0, 0);
+				      features->distance_fuzz, 0);
 
 		input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
 		input_abs_set_res(input_dev, ABS_Z, 287);
@@ -2628,7 +2629,7 @@ int wacom_setup_pen_input_capabilities(struct input_dev *input_dev,
 			__set_bit(BTN_STYLUS2, input_dev->keybit);
 			input_set_abs_params(input_dev, ABS_DISTANCE, 0,
 				      features->distance_max,
-				      0, 0);
+				      features->distance_fuzz, 0);
 		}
 		break;
 	case BAMBOO_PAD:

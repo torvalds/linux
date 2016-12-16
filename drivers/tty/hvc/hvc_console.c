@@ -632,7 +632,7 @@ int hvc_poll(struct hvc_struct *hp)
 		goto bail;
 
 	/* Now check if we can get data (are we throttled ?) */
-	if (test_bit(TTY_THROTTLED, &tty->flags))
+	if (tty_throttled(tty))
 		goto throttled;
 
 	/* If we aren't notifier driven and aren't throttled, we always
@@ -814,7 +814,7 @@ static int hvc_poll_get_char(struct tty_driver *driver, int line)
 
 	n = hp->ops->get_chars(hp->vtermno, &ch, 1);
 
-	if (n == 0)
+	if (n <= 0)
 		return NO_POLL_CHAR;
 
 	return ch;

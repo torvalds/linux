@@ -1,2 +1,2 @@
-obj-$(CONFIG_AMD_MCE_INJ)		+= mce_amd_inj.o
+obj-$(CONFIG_MCE_AMD_INJ)		+= mce_amd_inj.o
 

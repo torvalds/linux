@@ -18,7 +18,7 @@
  */
 
 #include <linux/kernel.h>
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 
 #include "dispc.h"
 

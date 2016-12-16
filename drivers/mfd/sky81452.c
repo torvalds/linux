@@ -64,17 +64,12 @@ static int sky81452_probe(struct i2c_client *client,
 	cells[1].platform_data = pdata->regulator_init_data;
 	cells[1].pdata_size = sizeof(*pdata->regulator_init_data);
 
-	ret = mfd_add_devices(dev, -1, cells, ARRAY_SIZE(cells), NULL, 0, NULL);
+	ret = devm_mfd_add_devices(dev, -1, cells, ARRAY_SIZE(cells),
+				   NULL, 0, NULL);
 	if (ret)
 		dev_err(dev, "failed to add child devices. err=%d\n", ret);
 
 	return ret;
-}
-
-static int sky81452_remove(struct i2c_client *client)
-{
-	mfd_remove_devices(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id sky81452_ids[] = {
@@ -97,7 +92,6 @@ static struct i2c_driver sky81452_driver = {
 		.of_match_table = of_match_ptr(sky81452_of_match),
 	},
 	.probe = sky81452_probe,
-	.remove = sky81452_remove,
 	.id_table = sky81452_ids,
 };
 

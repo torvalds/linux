@@ -460,7 +460,7 @@ int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable)
 	if (ret != 0)
 		return ret;
 
-	*enable = val & rdev->desc->bypass_mask;
+	*enable = (val & rdev->desc->bypass_mask) == rdev->desc->bypass_val_on;
 
 	return 0;
 }

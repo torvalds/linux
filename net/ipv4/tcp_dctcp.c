@@ -293,7 +293,7 @@ static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
 	 */
 	if (ext & (1 << (INET_DIAG_DCTCPINFO - 1)) ||
 	    ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
-		memset(info, 0, sizeof(struct tcp_dctcp_info));
+		memset(&info->dctcp, 0, sizeof(info->dctcp));
 		if (inet_csk(sk)->icsk_ca_ops != &dctcp_reno) {
 			info->dctcp.dctcp_enabled = 1;
 			info->dctcp.dctcp_ce_state = (u16) ca->ce_state;
@@ -303,7 +303,7 @@ static size_t dctcp_get_info(struct sock *sk, u32 ext, int *attr,
 		}
 
 		*attr = INET_DIAG_DCTCPINFO;
-		return sizeof(*info);
+		return sizeof(info->dctcp);
 	}
 	return 0;
 }

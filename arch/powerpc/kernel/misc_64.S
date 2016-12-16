@@ -661,13 +661,13 @@ _GLOBAL(kexec_sequence)
 
 #ifndef CONFIG_PPC_BOOK3E
 	/* clear out hardware hash page table and tlb */
-#if !defined(_CALL_ELF) || _CALL_ELF != 2
+#ifdef PPC64_ELF_ABI_v1
 	ld	r12,0(r27)		/* deref function descriptor */
 #else
 	mr	r12,r27
 #endif
 	mtctr	r12
-	bctrl				/* ppc_md.hpte_clear_all(void); */
+	bctrl				/* mmu_hash_ops.hpte_clear_all(void); */
 #endif /* !CONFIG_PPC_BOOK3E */
 
 /*

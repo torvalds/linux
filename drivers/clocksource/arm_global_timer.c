@@ -165,9 +165,9 @@ static irqreturn_t gt_clockevent_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int gt_clockevents_init(struct clock_event_device *clk)
+static int gt_starting_cpu(unsigned int cpu)
 {
-	int cpu = smp_processor_id();
+	struct clock_event_device *clk = this_cpu_ptr(gt_evt);
 
 	clk->name = "arm_global_timer";
 	clk->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT |
@@ -186,10 +186,13 @@ static int gt_clockevents_init(struct clock_event_device *clk)
 	return 0;
 }
 
-static void gt_clockevents_stop(struct clock_event_device *clk)
+static int gt_dying_cpu(unsigned int cpu)
 {
+	struct clock_event_device *clk = this_cpu_ptr(gt_evt);
+
 	gt_clockevent_shutdown(clk);
 	disable_percpu_irq(clk->irq);
+	return 0;
 }
 
 static cycle_t gt_clocksource_read(struct clocksource *cs)
@@ -238,7 +241,7 @@ static void __init gt_delay_timer_init(void)
 	register_current_timer_delay(&gt_delay_timer);
 }
 
-static void __init gt_clocksource_init(void)
+static int __init gt_clocksource_init(void)
 {
 	writel(0, gt_base + GT_CONTROL);
 	writel(0, gt_base + GT_COUNTER0);
@@ -249,28 +252,10 @@ static void __init gt_clocksource_init(void)
 #ifdef CONFIG_CLKSRC_ARM_GLOBAL_TIMER_SCHED_CLOCK
 	sched_clock_register(gt_sched_clock_read, 64, gt_clk_rate);
 #endif
-	clocksource_register_hz(&gt_clocksource, gt_clk_rate);
+	return clocksource_register_hz(&gt_clocksource, gt_clk_rate);
 }
 
-static int gt_cpu_notify(struct notifier_block *self, unsigned long action,
-			 void *hcpu)
-{
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_STARTING:
-		gt_clockevents_init(this_cpu_ptr(gt_evt));
-		break;
-	case CPU_DYING:
-		gt_clockevents_stop(this_cpu_ptr(gt_evt));
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-static struct notifier_block gt_cpu_nb = {
-	.notifier_call = gt_cpu_notify,
-};
-
-static void __init global_timer_of_register(struct device_node *np)
+static int __init global_timer_of_register(struct device_node *np)
 {
 	struct clk *gt_clk;
 	int err = 0;
@@ -283,19 +268,19 @@ static void __init global_timer_of_register(struct device_node *np)
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9
 	    && (read_cpuid_id() & 0xf0000f) < 0x200000) {
 		pr_warn("global-timer: non support for this cpu version.\n");
-		return;
+		return -ENOSYS;
 	}
 
 	gt_ppi = irq_of_parse_and_map(np, 0);
 	if (!gt_ppi) {
 		pr_warn("global-timer: unable to parse irq\n");
-		return;
+		return -EINVAL;
 	}
 
 	gt_base = of_iomap(np, 0);
 	if (!gt_base) {
 		pr_warn("global-timer: invalid base address\n");
-		return;
+		return -ENXIO;
 	}
 
 	gt_clk = of_clk_get(np, 0);
@@ -325,18 +310,20 @@ static void __init global_timer_of_register(struct device_node *np)
 		goto out_free;
 	}
 
-	err = register_cpu_notifier(&gt_cpu_nb);
-	if (err) {
-		pr_warn("global-timer: unable to register cpu notifier.\n");
+	/* Register and immediately configure the timer on the boot CPU */
+	err = gt_clocksource_init();
+	if (err)
 		goto out_irq;
-	}
+	
+	err = cpuhp_setup_state(CPUHP_AP_ARM_GLOBAL_TIMER_STARTING,
+				"AP_ARM_GLOBAL_TIMER_STARTING",
+				gt_starting_cpu, gt_dying_cpu);
+	if (err)
+		goto out_irq;
 
-	/* Immediately configure the timer on the boot CPU */
-	gt_clocksource_init();
-	gt_clockevents_init(this_cpu_ptr(gt_evt));
 	gt_delay_timer_init();
 
-	return;
+	return 0;
 
 out_irq:
 	free_percpu_irq(gt_ppi, gt_evt);
@@ -347,6 +334,8 @@ out_clk:
 out_unmap:
 	iounmap(gt_base);
 	WARN(err, "ARM Global timer register failed (%d)\n", err);
+
+	return err;
 }
 
 /* Only tested on r2p2 and r3p0  */

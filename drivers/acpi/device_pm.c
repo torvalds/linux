@@ -319,6 +319,7 @@ int acpi_device_fix_up_power(struct acpi_device *device)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(acpi_device_fix_up_power);
 
 int acpi_device_update_power(struct acpi_device *device, int *state_p)
 {

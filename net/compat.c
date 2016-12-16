@@ -309,8 +309,8 @@ void scm_detach_fds_compat(struct msghdr *kmsg, struct scm_cookie *scm)
 	__scm_destroy(scm);
 }
 
-static int do_set_attach_filter(struct socket *sock, int level, int optname,
-				char __user *optval, unsigned int optlen)
+/* allocate a 64-bit sock_fprog on the user stack for duration of syscall. */
+struct sock_fprog __user *get_compat_bpf_fprog(char __user *optval)
 {
 	struct compat_sock_fprog __user *fprog32 = (struct compat_sock_fprog __user *)optval;
 	struct sock_fprog __user *kfprog = compat_alloc_user_space(sizeof(struct sock_fprog));
@@ -323,6 +323,19 @@ static int do_set_attach_filter(struct socket *sock, int level, int optname,
 	    __get_user(ptr, &fprog32->filter) ||
 	    __put_user(len, &kfprog->len) ||
 	    __put_user(compat_ptr(ptr), &kfprog->filter))
+		return NULL;
+
+	return kfprog;
+}
+EXPORT_SYMBOL_GPL(get_compat_bpf_fprog);
+
+static int do_set_attach_filter(struct socket *sock, int level, int optname,
+				char __user *optval, unsigned int optlen)
+{
+	struct sock_fprog __user *kfprog;
+
+	kfprog = get_compat_bpf_fprog(optval);
+	if (!kfprog)
 		return -EFAULT;
 
 	return sock_setsockopt(sock, level, optname, (char __user *)kfprog,
@@ -354,7 +367,8 @@ static int do_set_sock_timeout(struct socket *sock, int level,
 static int compat_sock_setsockopt(struct socket *sock, int level, int optname,
 				char __user *optval, unsigned int optlen)
 {
-	if (optname == SO_ATTACH_FILTER)
+	if (optname == SO_ATTACH_FILTER ||
+	    optname == SO_ATTACH_REUSEPORT_CBPF)
 		return do_set_attach_filter(sock, level, optname,
 					    optval, optlen);
 	if (optname == SO_RCVTIMEO || optname == SO_SNDTIMEO)

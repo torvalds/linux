@@ -104,21 +104,25 @@ static int digsig_verify_rsa(struct key *key,
 	datap = pkh->mpi;
 	endp = ukp->data + ukp->datalen;
 
-	err = -ENOMEM;
-
 	for (i = 0; i < pkh->nmpi; i++) {
 		unsigned int remaining = endp - datap;
 		pkey[i] = mpi_read_from_buffer(datap, &remaining);
-		if (!pkey[i])
+		if (IS_ERR(pkey[i])) {
+			err = PTR_ERR(pkey[i]);
 			goto err;
+		}
 		datap += remaining;
 	}
 
 	mblen = mpi_get_nbits(pkey[0]);
 	mlen = DIV_ROUND_UP(mblen, 8);
 
-	if (mlen == 0)
+	if (mlen == 0) {
+		err = -EINVAL;
 		goto err;
+	}
+
+	err = -ENOMEM;
 
 	out1 = kzalloc(mlen, GFP_KERNEL);
 	if (!out1)
@@ -126,8 +130,10 @@ static int digsig_verify_rsa(struct key *key,
 
 	nret = siglen;
 	in = mpi_read_from_buffer(sig, &nret);
-	if (!in)
+	if (IS_ERR(in)) {
+		err = PTR_ERR(in);
 		goto err;
+	}
 
 	res = mpi_alloc(mpi_get_nlimbs(in) * 2);
 	if (!res)

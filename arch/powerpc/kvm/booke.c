@@ -64,6 +64,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "ext_intr",   VCPU_STAT(ext_intr_exits) },
 	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll) },
 	{ "halt_attempted_poll", VCPU_STAT(halt_attempted_poll) },
+	{ "halt_poll_invalid", VCPU_STAT(halt_poll_invalid) },
 	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
 	{ "doorbell", VCPU_STAT(dbell_exits) },
 	{ "guest doorbell", VCPU_STAT(gdbell_exits) },
@@ -775,7 +776,7 @@ int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 	ret = __kvmppc_vcpu_run(kvm_run, vcpu);
 
-	/* No need for kvm_guest_exit. It's done in handle_exit.
+	/* No need for guest_exit. It's done in handle_exit.
 	   We also get here with interrupts enabled. */
 
 	/* Switch back to user space debug context */
@@ -1011,7 +1012,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	trace_kvm_exit(exit_nr, vcpu);
-	__kvm_guest_exit();
+	guest_exit_irqoff();
 
 	local_irq_enable();
 

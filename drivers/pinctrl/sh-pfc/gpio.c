@@ -212,7 +212,7 @@ static int gpio_pin_to_irq(struct gpio_chip *gc, unsigned offset)
 		}
 	}
 
-	return -ENOSYS;
+	return 0;
 
 found:
 	return pfc->irqs[i];
@@ -318,7 +318,7 @@ sh_pfc_add_gpiochip(struct sh_pfc *pfc, int(*setup)(struct sh_pfc_chip *),
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	ret = gpiochip_add_data(&chip->gpio_chip, chip);
+	ret = devm_gpiochip_add_data(pfc->dev, &chip->gpio_chip, chip);
 	if (unlikely(ret < 0))
 		return ERR_PTR(ret);
 
@@ -399,18 +399,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup, NULL);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
-
-	pfc->func = chip;
 #endif /* CONFIG_SUPERH */
 
-	return 0;
-}
-
-int sh_pfc_unregister_gpiochip(struct sh_pfc *pfc)
-{
-	gpiochip_remove(&pfc->gpio->gpio_chip);
-#ifdef CONFIG_SUPERH
-	gpiochip_remove(&pfc->func->gpio_chip);
-#endif
 	return 0;
 }

@@ -116,8 +116,13 @@ typedef enum {
 	NAND_ECC_HW,
 	NAND_ECC_HW_SYNDROME,
 	NAND_ECC_HW_OOB_FIRST,
-	NAND_ECC_SOFT_BCH,
 } nand_ecc_modes_t;
+
+enum nand_ecc_algo {
+	NAND_ECC_UNKNOWN,
+	NAND_ECC_HAMMING,
+	NAND_ECC_BCH,
+};
 
 /*
  * Constants for Hardware ECC
@@ -458,6 +463,7 @@ struct nand_hw_control {
 /**
  * struct nand_ecc_ctrl - Control structure for ECC
  * @mode:	ECC mode
+ * @algo:	ECC algorithm
  * @steps:	number of ECC steps per page
  * @size:	data bytes per ECC step
  * @bytes:	ECC bytes per step
@@ -466,7 +472,6 @@ struct nand_hw_control {
  * @prepad:	padding information for syndrome based ECC generators
  * @postpad:	padding information for syndrome based ECC generators
  * @options:	ECC specific options (see NAND_ECC_XXX flags defined above)
- * @layout:	ECC layout control struct pointer
  * @priv:	pointer to private ECC control data
  * @hwctl:	function to control hardware ECC generator. Must only
  *		be provided if an hardware ECC is available
@@ -508,6 +513,7 @@ struct nand_hw_control {
  */
 struct nand_ecc_ctrl {
 	nand_ecc_modes_t mode;
+	enum nand_ecc_algo algo;
 	int steps;
 	int size;
 	int bytes;
@@ -516,7 +522,6 @@ struct nand_ecc_ctrl {
 	int prepad;
 	int postpad;
 	unsigned int options;
-	struct nand_ecclayout	*layout;
 	void *priv;
 	void (*hwctl)(struct mtd_info *mtd, int mode);
 	int (*calculate)(struct mtd_info *mtd, const uint8_t *dat,
@@ -740,6 +745,9 @@ struct nand_chip {
 	void *priv;
 };
 
+extern const struct mtd_ooblayout_ops nand_ooblayout_sp_ops;
+extern const struct mtd_ooblayout_ops nand_ooblayout_lp_ops;
+
 static inline void nand_set_flash_node(struct nand_chip *chip,
 				       struct device_node *np)
 {
@@ -775,6 +783,7 @@ static inline void nand_set_controller_data(struct nand_chip *chip, void *priv)
  * NAND Flash Manufacturer ID Codes
  */
 #define NAND_MFR_TOSHIBA	0x98
+#define NAND_MFR_ESMT		0xc8
 #define NAND_MFR_SAMSUNG	0xec
 #define NAND_MFR_FUJITSU	0x04
 #define NAND_MFR_NATIONAL	0x8f
@@ -1070,4 +1079,18 @@ int nand_check_erased_ecc_chunk(void *data, int datalen,
 				void *ecc, int ecclen,
 				void *extraoob, int extraooblen,
 				int threshold);
+
+/* Default write_oob implementation */
+int nand_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
+
+/* Default write_oob syndrome implementation */
+int nand_write_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
+			    int page);
+
+/* Default read_oob implementation */
+int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
+
+/* Default read_oob syndrome implementation */
+int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
+			   int page);
 #endif /* __LINUX_MTD_NAND_H */

@@ -967,15 +967,6 @@ static struct gsc_driverdata gsc_v_100_drvdata = {
 	.lclk_frequency = 266000000UL,
 };
 
-static const struct platform_device_id gsc_driver_ids[] = {
-	{
-		.name		= "exynos-gsc",
-		.driver_data	= (unsigned long)&gsc_v_100_drvdata,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(platform, gsc_driver_ids);
-
 static const struct of_device_id exynos_gsc_match[] = {
 	{
 		.compatible = "samsung,exynos5-gsc",
@@ -988,17 +979,11 @@ MODULE_DEVICE_TABLE(of, exynos_gsc_match);
 static void *gsc_get_drv_data(struct platform_device *pdev)
 {
 	struct gsc_driverdata *driver_data = NULL;
+	const struct of_device_id *match;
 
-	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_node(exynos_gsc_match,
-					pdev->dev.of_node);
-		if (match)
-			driver_data = (struct gsc_driverdata *)match->data;
-	} else {
-		driver_data = (struct gsc_driverdata *)
-			platform_get_device_id(pdev)->driver_data;
-	}
+	match = of_match_node(exynos_gsc_match, pdev->dev.of_node);
+	if (match)
+		driver_data = (struct gsc_driverdata *)match->data;
 
 	return driver_data;
 }
@@ -1078,17 +1063,17 @@ static int gsc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct gsc_driverdata *drv_data = gsc_get_drv_data(pdev);
 	struct device *dev = &pdev->dev;
-	int ret = 0;
+	int ret;
 
 	gsc = devm_kzalloc(dev, sizeof(struct gsc_dev), GFP_KERNEL);
 	if (!gsc)
 		return -ENOMEM;
 
-	if (dev->of_node)
-		gsc->id = of_alias_get_id(pdev->dev.of_node, "gsc");
-	else
-		gsc->id = pdev->id;
+	ret = of_alias_get_id(pdev->dev.of_node, "gsc");
+	if (ret < 0)
+		return ret;
 
+	gsc->id = ret;
 	if (gsc->id >= drv_data->num_entities) {
 		dev_err(dev, "Invalid platform device id: %d\n", gsc->id);
 		return -EINVAL;
@@ -1096,7 +1081,6 @@ static int gsc_probe(struct platform_device *pdev)
 
 	gsc->variant = drv_data->variant[gsc->id];
 	gsc->pdev = pdev;
-	gsc->pdata = dev->platform_data;
 
 	init_waitqueue_head(&gsc->irq_queue);
 	spin_lock_init(&gsc->slock);
@@ -1139,19 +1123,13 @@ static int gsc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_m2m;
 
-	/* Initialize continious memory allocator */
-	gsc->alloc_ctx = vb2_dma_contig_init_ctx(dev);
-	if (IS_ERR(gsc->alloc_ctx)) {
-		ret = PTR_ERR(gsc->alloc_ctx);
-		goto err_pm;
-	}
+	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
 
 	dev_dbg(dev, "gsc-%d registered successfully\n", gsc->id);
 
 	pm_runtime_put(dev);
 	return 0;
-err_pm:
-	pm_runtime_put(dev);
+
 err_m2m:
 	gsc_unregister_m2m_device(gsc);
 err_v4l2:
@@ -1168,7 +1146,7 @@ static int gsc_remove(struct platform_device *pdev)
 	gsc_unregister_m2m_device(gsc);
 	v4l2_device_unregister(&gsc->v4l2_dev);
 
-	vb2_dma_contig_cleanup_ctx(gsc->alloc_ctx);
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	gsc_clk_put(gsc);
 
@@ -1253,7 +1231,6 @@ static const struct dev_pm_ops gsc_pm_ops = {
 static struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
 	.remove		= gsc_remove,
-	.id_table	= gsc_driver_ids,
 	.driver = {
 		.name	= GSC_MODULE_NAME,
 		.pm	= &gsc_pm_ops,

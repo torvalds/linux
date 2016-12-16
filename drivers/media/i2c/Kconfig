@@ -21,7 +21,7 @@ config VIDEO_IR_I2C
 # Encoder / Decoder module configuration
 #
 
-menu "Encoders, decoders, sensors and other helper chips"
+menu "I2C Encoders, decoders, sensors and other helper chips"
 	visible if !MEDIA_SUBDRV_AUTOSELECT || COMPILE_TEST
 
 comment "Audio decoders, processors and mixers"
@@ -187,7 +187,7 @@ comment "Video decoders"
 
 config VIDEO_ADV7180
 	tristate "Analog Devices ADV7180 decoder"
-	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on GPIOLIB && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	---help---
 	  Support for the Analog Devices ADV7180 video decoder.
 
@@ -209,6 +209,7 @@ config VIDEO_ADV7604
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on GPIOLIB || COMPILE_TEST
 	select HDMI
+	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7604 video decoder.
 
@@ -218,10 +219,18 @@ config VIDEO_ADV7604
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7604.
 
+config VIDEO_ADV7604_CEC
+	bool "Enable Analog Devices ADV7604 CEC support"
+	depends on VIDEO_ADV7604 && MEDIA_CEC
+	---help---
+	  When selected the adv7604 will support the optional
+	  HDMI CEC feature.
+
 config VIDEO_ADV7842
 	tristate "Analog Devices ADV7842 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
+	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7842 video decoder.
 
@@ -230,6 +239,13 @@ config VIDEO_ADV7842
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7842.
+
+config VIDEO_ADV7842_CEC
+	bool "Enable Analog Devices ADV7842 CEC support"
+	depends on VIDEO_ADV7842 && MEDIA_CEC
+	---help---
+	  When selected the adv7842 will support the optional
+	  HDMI CEC feature.
 
 config VIDEO_BT819
 	tristate "BT819A VideoStream decoder"
@@ -278,6 +294,13 @@ config VIDEO_ML86V7667
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ml86v7667.
+
+config VIDEO_AD5820
+	tristate "AD5820 lens voice coil support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	---help---
+	  This is a driver for the AD5820 camera lens voice coil.
+	  It is used for example in Nokia N900 (RX-51).
 
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
@@ -447,6 +470,7 @@ config VIDEO_ADV7511
 	tristate "Analog Devices ADV7511 encoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
+	select MEDIA_CEC_EDID
 	---help---
 	  Support for the Analog Devices ADV7511 video encoder.
 
@@ -454,6 +478,13 @@ config VIDEO_ADV7511
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7511.
+
+config VIDEO_ADV7511_CEC
+	bool "Enable Analog Devices ADV7511 CEC support"
+	depends on VIDEO_ADV7511 && MEDIA_CEC
+	---help---
+	  When selected the adv7511 will support the optional
+	  HDMI CEC feature.
 
 config VIDEO_AD9389B
 	tristate "Analog Devices AD9389B encoder"
@@ -546,6 +577,13 @@ config VIDEO_MT9M032
 	---help---
 	  This driver supports MT9M032 camera sensors from Aptina, monochrome
 	  models only.
+
+config VIDEO_MT9M111
+	tristate "mt9m111, mt9m112 and mt9m131 support"
+	depends on I2C && VIDEO_V4L2
+	help
+	  This driver supports MT9M111, MT9M112 and MT9M131 cameras from
+	  Micron/Aptina
 
 config VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"

@@ -48,7 +48,7 @@ int carl9170_set_dyn_sifs_ack(struct ar9170 *ar)
 	if (conf_is_ht40(&ar->hw->conf))
 		val = 0x010a;
 	else {
-		if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
+		if (ar->hw->conf.chandef.chan->band == NL80211_BAND_2GHZ)
 			val = 0x105;
 		else
 			val = 0x104;
@@ -66,7 +66,7 @@ int carl9170_set_rts_cts_rate(struct ar9170 *ar)
 		rts_rate = 0x1da;
 		cts_rate = 0x10a;
 	} else {
-		if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ) {
+		if (ar->hw->conf.chandef.chan->band == NL80211_BAND_2GHZ) {
 			/* 11 mbit CCK */
 			rts_rate = 033;
 			cts_rate = 003;
@@ -93,7 +93,7 @@ int carl9170_set_slot_time(struct ar9170 *ar)
 		return 0;
 	}
 
-	if ((ar->hw->conf.chandef.chan->band == IEEE80211_BAND_5GHZ) ||
+	if ((ar->hw->conf.chandef.chan->band == NL80211_BAND_5GHZ) ||
 	    vif->bss_conf.use_short_slot)
 		slottime = 9;
 
@@ -120,7 +120,7 @@ int carl9170_set_mac_rates(struct ar9170 *ar)
 	basic |= (vif->bss_conf.basic_rates & 0xff0) << 4;
 	rcu_read_unlock();
 
-	if (ar->hw->conf.chandef.chan->band == IEEE80211_BAND_5GHZ)
+	if (ar->hw->conf.chandef.chan->band == NL80211_BAND_5GHZ)
 		mandatory = 0xff00; /* OFDM 6/9/12/18/24/36/48/54 */
 	else
 		mandatory = 0xff0f; /* OFDM (6/9../54) + CCK (1/2/5.5/11) */
@@ -512,10 +512,10 @@ int carl9170_set_mac_tpc(struct ar9170 *ar, struct ieee80211_channel *channel)
 		chains = AR9170_TX_PHY_TXCHAIN_1;
 
 	switch (channel->band) {
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		power = ar->power_2G_ofdm[0] & 0x3f;
 		break;
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		power = ar->power_5G_leg[0] & 0x3f;
 		break;
 	default:

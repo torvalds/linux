@@ -51,6 +51,7 @@
 #include <linux/ftrace.h>
 #include <linux/frame.h>
 
+#include <asm/text-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
@@ -960,7 +961,19 @@ int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * normal page fault.
 		 */
 		regs->ip = (unsigned long)cur->addr;
+		/*
+		 * Trap flag (TF) has been set here because this fault
+		 * happened where the single stepping will be done.
+		 * So clear it by resetting the current kprobe:
+		 */
+		regs->flags &= ~X86_EFLAGS_TF;
+
+		/*
+		 * If the TF flag was set before the kprobe hit,
+		 * don't touch it:
+		 */
 		regs->flags |= kcb->kprobe_old_flags;
+
 		if (kcb->kprobe_status == KPROBE_REENTER)
 			restore_previous_kprobe(kcb);
 		else

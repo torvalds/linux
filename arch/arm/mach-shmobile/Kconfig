@@ -4,11 +4,6 @@ config ARCH_SHMOBILE
 config ARCH_SHMOBILE_MULTI
 	bool
 
-config PM_RCAR
-	bool
-	select PM
-	select PM_GENERIC_DOMAINS
-
 config PM_RMOBILE
 	bool
 	select PM
@@ -16,13 +11,15 @@ config PM_RMOBILE
 
 config ARCH_RCAR_GEN1
 	bool
-	select PM_RCAR
+	select PM
+	select PM_GENERIC_DOMAINS
 	select RENESAS_INTC_IRQPIN
 	select SYS_SUPPORTS_SH_TMU
 
 config ARCH_RCAR_GEN2
 	bool
-	select PM_RCAR
+	select PM
+	select PM_GENERIC_DOMAINS
 	select RENESAS_IRQC
 	select SYS_SUPPORTS_SH_CMT
 	select PCI_DOMAINS if PCI
@@ -44,7 +41,7 @@ menuconfig ARCH_RENESAS
 	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 	select NO_IOPORT_MAP
 	select PINCTRL
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select ZONE_DMA if ARM_LPAE
 
 if ARCH_RENESAS
@@ -88,6 +85,10 @@ config ARCH_R8A7791
 	bool "R-Car M2-W (R8A77910)"
 	select ARCH_RCAR_GEN2
 	select I2C
+
+config ARCH_R8A7792
+	bool "R-Car V2H (R8A77920)"
+	select ARCH_RCAR_GEN2
 
 config ARCH_R8A7793
 	bool "R-Car M2-N (R8A7793)"

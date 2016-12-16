@@ -78,7 +78,8 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 exit_int_info;
 	u32 exit_int_info_err;
 	u64 nested_ctl;
-	u8 reserved_4[16];
+	u64 avic_vapic_bar;
+	u8 reserved_4[8];
 	u32 event_inj;
 	u32 event_inj_err;
 	u64 nested_cr3;
@@ -88,7 +89,11 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u64 next_rip;
 	u8 insn_len;
 	u8 insn_bytes[15];
-	u8 reserved_6[800];
+	u64 avic_backing_page;	/* Offset 0xe0 */
+	u8 reserved_6[8];	/* Offset 0xe8 */
+	u64 avic_logical_id;	/* Offset 0xf0 */
+	u64 avic_physical_id;	/* Offset 0xf8 */
+	u8 reserved_7[768];
 };
 
 
@@ -110,6 +115,9 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 
 #define V_INTR_MASKING_SHIFT 24
 #define V_INTR_MASKING_MASK (1 << V_INTR_MASKING_SHIFT)
+
+#define AVIC_ENABLE_SHIFT 31
+#define AVIC_ENABLE_MASK (1 << AVIC_ENABLE_SHIFT)
 
 #define SVM_INTERRUPT_SHADOW_MASK 1
 
@@ -185,7 +193,6 @@ struct __attribute__ ((__packed__)) vmcb {
 	struct vmcb_save_area save;
 };
 
-#define SVM_CPUID_FEATURE_SHIFT 2
 #define SVM_CPUID_FUNC 0x8000000a
 
 #define SVM_VM_CR_SVM_DISABLE 4

@@ -54,10 +54,10 @@ extern void __flush_tlb_page(struct mm_struct *mm, unsigned long vmaddr,
 #define flush_tlb_page(vma,addr)	local_flush_tlb_page(vma,addr)
 #define __flush_tlb_page(mm,addr,p,i)	__local_flush_tlb_page(mm,addr,p,i)
 #endif
-#define flush_tlb_page_nohash(vma,addr)	flush_tlb_page(vma,addr)
 
 #elif defined(CONFIG_PPC_STD_MMU_32)
 
+#define MMU_NO_CONTEXT      (0)
 /*
  * TLB flushing for "classic" hash-MMU 32-bit CPUs, 6xx, 7xx, 7xxx
  */
@@ -78,7 +78,7 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 }
 
 #elif defined(CONFIG_PPC_STD_MMU_64)
-#include <asm/book3s/64/tlbflush-hash.h>
+#include <asm/book3s/64/tlbflush.h>
 #else
 #error Unsupported MMU type
 #endif

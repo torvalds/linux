@@ -114,10 +114,6 @@ struct dw_dma_regs {
 #define dma_writel_native writel
 #endif
 
-/* To access the registers in early stage of probe */
-#define dma_read_byaddr(addr, name) \
-	dma_readl_native((addr) + offsetof(struct dw_dma_regs, name))
-
 /* Bitfields in DW_PARAMS */
 #define DW_PARAMS_NR_CHAN	8		/* number of channels */
 #define DW_PARAMS_NR_MASTER	11		/* number of AHB masters */
@@ -142,6 +138,10 @@ enum dw_dma_msize {
 	DW_DMA_MSIZE_128,
 	DW_DMA_MSIZE_256,
 };
+
+/* Bitfields in LLP */
+#define DWC_LLP_LMS(x)		((x) & 3)	/* list master select */
+#define DWC_LLP_LOC(x)		((x) & ~3)	/* next lli */
 
 /* Bitfields in CTL_LO */
 #define DWC_CTLL_INT_EN		(1 << 0)	/* irqs enabled? */
@@ -216,6 +216,8 @@ enum dw_dma_msize {
 enum dw_dmac_flags {
 	DW_DMA_IS_CYCLIC = 0,
 	DW_DMA_IS_SOFT_LLP = 1,
+	DW_DMA_IS_PAUSED = 2,
+	DW_DMA_IS_INITIALIZED = 3,
 };
 
 struct dw_dma_chan {
@@ -224,8 +226,6 @@ struct dw_dma_chan {
 	u8				mask;
 	u8				priority;
 	enum dma_transfer_direction	direction;
-	bool				paused;
-	bool				initialized;
 
 	/* software emulation of the LLP transfers */
 	struct list_head	*tx_node_active;
@@ -236,8 +236,6 @@ struct dw_dma_chan {
 	unsigned long		flags;
 	struct list_head	active_list;
 	struct list_head	queue;
-	struct list_head	free_list;
-	u32			residue;
 	struct dw_cyclic_desc	*cdesc;
 
 	unsigned int		descs_allocated;
@@ -249,8 +247,8 @@ struct dw_dma_chan {
 	/* custom slave configuration */
 	u8			src_id;
 	u8			dst_id;
-	u8			src_master;
-	u8			dst_master;
+	u8			m_master;
+	u8			p_master;
 
 	/* configuration passed via .device_config */
 	struct dma_slave_config dma_sconfig;
@@ -283,9 +281,8 @@ struct dw_dma {
 	u8			all_chan_mask;
 	u8			in_use;
 
-	/* hardware configuration */
-	unsigned char		nr_masters;
-	unsigned char		data_width[DW_DMA_MAX_NR_MASTERS];
+	/* platform data */
+	struct dw_dma_platform_data	*pdata;
 };
 
 static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
@@ -308,25 +305,43 @@ static inline struct dw_dma *to_dw_dma(struct dma_device *ddev)
 	return container_of(ddev, struct dw_dma, dma);
 }
 
+#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
+typedef __be32 __dw32;
+#else
+typedef __le32 __dw32;
+#endif
+
 /* LLI == Linked List Item; a.k.a. DMA block descriptor */
 struct dw_lli {
 	/* values that are not changed by hardware */
-	u32		sar;
-	u32		dar;
-	u32		llp;		/* chain to next lli */
-	u32		ctllo;
+	__dw32		sar;
+	__dw32		dar;
+	__dw32		llp;		/* chain to next lli */
+	__dw32		ctllo;
 	/* values that may get written back: */
-	u32		ctlhi;
+	__dw32		ctlhi;
 	/* sstat and dstat can snapshot peripheral register state.
 	 * silicon config may discard either or both...
 	 */
-	u32		sstat;
-	u32		dstat;
+	__dw32		sstat;
+	__dw32		dstat;
 };
 
 struct dw_desc {
 	/* FIRST values the hardware uses */
 	struct dw_lli			lli;
+
+#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
+#define lli_set(d, reg, v)		((d)->lli.reg |= cpu_to_be32(v))
+#define lli_clear(d, reg, v)		((d)->lli.reg &= ~cpu_to_be32(v))
+#define lli_read(d, reg)		be32_to_cpu((d)->lli.reg)
+#define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_be32(v))
+#else
+#define lli_set(d, reg, v)		((d)->lli.reg |= cpu_to_le32(v))
+#define lli_clear(d, reg, v)		((d)->lli.reg &= ~cpu_to_le32(v))
+#define lli_read(d, reg)		le32_to_cpu((d)->lli.reg)
+#define lli_write(d, reg, v)		((d)->lli.reg = cpu_to_le32(v))
+#endif
 
 	/* THEN values for driver housekeeping */
 	struct list_head		desc_node;
@@ -334,6 +349,7 @@ struct dw_desc {
 	struct dma_async_tx_descriptor	txd;
 	size_t				len;
 	size_t				total_len;
+	u32				residue;
 };
 
 #define to_dw_desc(h)	list_entry(h, struct dw_desc, desc_node)

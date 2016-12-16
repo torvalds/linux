@@ -65,7 +65,7 @@ static const char *const bt_slock_key_strings[BT_MAX_PROTO] = {
 void bt_sock_reclassify_lock(struct sock *sk, int proto)
 {
 	BUG_ON(!sk);
-	BUG_ON(sock_owned_by_user(sk));
+	BUG_ON(!sock_allow_reclassification(sk));
 
 	sock_lock_init_class_and_name(sk,
 			bt_slock_key_strings[proto], &bt_slock_key[proto],
@@ -215,6 +215,7 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
 	size_t copied;
+	size_t skblen;
 	int err;
 
 	BT_DBG("sock %p sk %p len %zu", sock, sk, len);
@@ -230,6 +231,7 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 		return err;
 	}
 
+	skblen = skb->len;
 	copied = skb->len;
 	if (len < copied) {
 		msg->msg_flags |= MSG_TRUNC;
@@ -247,6 +249,9 @@ int bt_sock_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	}
 
 	skb_free_datagram(sk, skb);
+
+	if (flags & MSG_TRUNC)
+		copied = skblen;
 
 	return err ? : copied;
 }

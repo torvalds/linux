@@ -16,7 +16,7 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
@@ -99,7 +99,7 @@ static void mcu_power_off(void)
 
 static void mcu_gpio_set(struct gpio_chip *gc, unsigned int gpio, int val)
 {
-	struct mcu *mcu = container_of(gc, struct mcu, gc);
+	struct mcu *mcu = gpiochip_get_data(gc);
 	u8 bit = 1 << (4 + gpio);
 
 	mutex_lock(&mcu->lock);
@@ -136,7 +136,7 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 	gc->direction_output = mcu_gpio_dir_out;
 	gc->of_node = np;
 
-	return gpiochip_add(gc);
+	return gpiochip_add_data(gc, mcu);
 }
 
 static int mcu_gpiochip_remove(struct mcu *mcu)
@@ -222,7 +222,6 @@ static const struct of_device_id mcu_of_match_table[] = {
 static struct i2c_driver mcu_driver = {
 	.driver = {
 		.name = "mcu-mpc8349emitx",
-		.owner = THIS_MODULE,
 		.of_match_table = mcu_of_match_table,
 	},
 	.probe = mcu_probe,

@@ -12,6 +12,7 @@
  */
 #ifndef __NFIT_TEST_H__
 #define __NFIT_TEST_H__
+#include <linux/list.h>
 
 struct nfit_test_resource {
 	struct list_head list;
@@ -26,4 +27,5 @@ void __iomem *__wrap_ioremap_nocache(resource_size_t offset,
 void __wrap_iounmap(volatile void __iomem *addr);
 void nfit_test_setup(nfit_test_lookup_fn lookup);
 void nfit_test_teardown(void);
+struct nfit_test_resource *get_nfit_res(resource_size_t resource);
 #endif

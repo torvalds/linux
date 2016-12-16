@@ -80,6 +80,10 @@ static inline bool is_kernel_in_hyp_mode(void)
 	return false;
 }
 
+/* The section containing the hypervisor idmap text */
+extern char __hyp_idmap_text_start[];
+extern char __hyp_idmap_text_end[];
+
 /* The section containing the hypervisor text */
 extern char __hyp_text_start[];
 extern char __hyp_text_end[];

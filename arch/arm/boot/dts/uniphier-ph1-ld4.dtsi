@@ -182,5 +182,5 @@
 };
 
 &pinctrl {
-	compatible = "socionext,ph1-ld4-pinctrl", "syscon";
+	compatible = "socionext,uniphier-ld4-pinctrl";
 };

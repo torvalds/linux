@@ -375,7 +375,7 @@ void usage(FILE *file, char *progname)
 
 int main(int argc, char **argv)
 {
-	int fd = 0;
+	int fd = -1;
 	int ch;
 	int len;
 	int ret = EXIT_SUCCESS;
@@ -430,7 +430,7 @@ int main(int argc, char **argv)
 	acpi_aml_loop(fd);
 
 exit:
-	if (fd < 0)
+	if (fd >= 0)
 		close(fd);
 	if (acpi_aml_batch_cmd)
 		free(acpi_aml_batch_cmd);

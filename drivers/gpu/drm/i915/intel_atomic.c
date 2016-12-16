@@ -96,8 +96,11 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->update_pipe = false;
 	crtc_state->disable_lp_wm = false;
 	crtc_state->disable_cxsr = false;
-	crtc_state->wm_changed = false;
+	crtc_state->update_wm_pre = false;
+	crtc_state->update_wm_post = false;
 	crtc_state->fb_changed = false;
+	crtc_state->wm.need_postvbl_update = false;
+	crtc_state->fb_bits = 0;
 
 	return &crtc_state->base;
 }
@@ -188,7 +191,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 
 			/* plane scaler case: assign as a plane scaler */
 			/* find the plane that set the bit as scaler_user */
-			plane = drm_state->planes[i];
+			plane = drm_state->planes[i].ptr;
 
 			/*
 			 * to enable/disable hq mode, add planes that are using scaler
@@ -220,7 +223,8 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 				continue;
 			}
 
-			plane_state = to_intel_plane_state(drm_state->plane_states[i]);
+			plane_state = intel_atomic_get_existing_plane_state(drm_state,
+									    intel_plane);
 			scaler_id = &plane_state->scaler_id;
 		}
 

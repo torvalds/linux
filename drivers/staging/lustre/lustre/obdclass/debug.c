@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -68,8 +64,8 @@ int block_debug_check(char *who, void *addr, int end, __u64 off, __u64 id)
 
 	LASSERT(addr);
 
-	ne_off = le64_to_cpu (off);
-	id = le64_to_cpu (id);
+	ne_off = le64_to_cpu(off);
+	id = le64_to_cpu(id);
 	if (memcmp(addr, (char *)&ne_off, LPDS)) {
 		CDEBUG(D_ERROR, "%s: id %#llx offset %llu off: %#llx != %#llx\n",
 		       who, id, off, *(__u64 *)addr, ne_off);

@@ -185,6 +185,7 @@ struct nfs4_state {
 struct nfs4_exception {
 	struct nfs4_state *state;
 	struct inode *inode;
+	nfs4_stateid *stateid;
 	long timeout;
 	unsigned char delay : 1,
 		      recovering : 1,
@@ -224,7 +225,8 @@ int nfs_atomic_open(struct inode *, struct dentry *, struct file *,
 extern struct file_system_type nfs4_fs_type;
 
 /* nfs4namespace.c */
-struct rpc_clnt *nfs4_negotiate_security(struct rpc_clnt *, struct inode *, struct qstr *);
+struct rpc_clnt *nfs4_negotiate_security(struct rpc_clnt *, struct inode *,
+					 const struct qstr *);
 struct vfsmount *nfs4_submount(struct nfs_server *, struct dentry *,
 			       struct nfs_fh *, struct nfs_fattr *);
 int nfs4_replace_transport(struct nfs_server *server,
@@ -251,7 +253,7 @@ extern int nfs4_proc_fs_locations(struct rpc_clnt *, struct inode *, const struc
 extern int nfs4_proc_get_locations(struct inode *, struct nfs4_fs_locations *,
 		struct page *page, struct rpc_cred *);
 extern int nfs4_proc_fsid_present(struct inode *, struct rpc_cred *);
-extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct inode *, struct qstr *,
+extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct inode *, const struct qstr *,
 			    struct nfs_fh *, struct nfs_fattr *);
 extern int nfs4_proc_secinfo(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);
 extern const struct xattr_handler *nfs4_xattr_handlers[];
@@ -394,6 +396,10 @@ extern void nfs4_schedule_state_renewal(struct nfs_client *);
 extern void nfs4_renewd_prepare_shutdown(struct nfs_server *);
 extern void nfs4_kill_renewd(struct nfs_client *);
 extern void nfs4_renew_state(struct work_struct *);
+extern void nfs4_set_lease_period(struct nfs_client *clp,
+		unsigned long lease,
+		unsigned long lastrenewed);
+
 
 /* nfs4state.c */
 struct rpc_cred *nfs4_get_clid_cred(struct nfs_client *clp);
@@ -438,8 +444,9 @@ extern void nfs41_handle_server_scope(struct nfs_client *,
 				      struct nfs41_server_scope **);
 extern void nfs4_put_lock_state(struct nfs4_lock_state *lsp);
 extern int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl);
-extern int nfs4_select_rw_stateid(nfs4_stateid *, struct nfs4_state *,
-		fmode_t, const struct nfs_lockowner *);
+extern int nfs4_select_rw_stateid(struct nfs4_state *, fmode_t,
+		const struct nfs_lockowner *, nfs4_stateid *,
+		struct rpc_cred **);
 
 extern struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_mask);
 extern int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task);
@@ -496,12 +503,15 @@ extern struct svc_version nfs4_callback_version4;
 
 static inline void nfs4_stateid_copy(nfs4_stateid *dst, const nfs4_stateid *src)
 {
-	memcpy(dst, src, sizeof(*dst));
+	memcpy(dst->data, src->data, sizeof(dst->data));
+	dst->type = src->type;
 }
 
 static inline bool nfs4_stateid_match(const nfs4_stateid *dst, const nfs4_stateid *src)
 {
-	return memcmp(dst, src, sizeof(*dst)) == 0;
+	if (dst->type != src->type)
+		return false;
+	return memcmp(dst->data, src->data, sizeof(dst->data)) == 0;
 }
 
 static inline bool nfs4_stateid_match_other(const nfs4_stateid *dst, const nfs4_stateid *src)

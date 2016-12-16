@@ -33,6 +33,32 @@ enum devlink_command {
 	DEVLINK_CMD_PORT_SPLIT,
 	DEVLINK_CMD_PORT_UNSPLIT,
 
+	DEVLINK_CMD_SB_GET,		/* can dump */
+	DEVLINK_CMD_SB_SET,
+	DEVLINK_CMD_SB_NEW,
+	DEVLINK_CMD_SB_DEL,
+
+	DEVLINK_CMD_SB_POOL_GET,	/* can dump */
+	DEVLINK_CMD_SB_POOL_SET,
+	DEVLINK_CMD_SB_POOL_NEW,
+	DEVLINK_CMD_SB_POOL_DEL,
+
+	DEVLINK_CMD_SB_PORT_POOL_GET,	/* can dump */
+	DEVLINK_CMD_SB_PORT_POOL_SET,
+	DEVLINK_CMD_SB_PORT_POOL_NEW,
+	DEVLINK_CMD_SB_PORT_POOL_DEL,
+
+	DEVLINK_CMD_SB_TC_POOL_BIND_GET,	/* can dump */
+	DEVLINK_CMD_SB_TC_POOL_BIND_SET,
+	DEVLINK_CMD_SB_TC_POOL_BIND_NEW,
+	DEVLINK_CMD_SB_TC_POOL_BIND_DEL,
+
+	/* Shared buffer occupancy monitoring commands */
+	DEVLINK_CMD_SB_OCC_SNAPSHOT,
+	DEVLINK_CMD_SB_OCC_MAX_CLEAR,
+
+	DEVLINK_CMD_ESWITCH_MODE_GET,
+	DEVLINK_CMD_ESWITCH_MODE_SET,
 	/* add new commands above here */
 
 	__DEVLINK_CMD_MAX,
@@ -44,6 +70,36 @@ enum devlink_port_type {
 	DEVLINK_PORT_TYPE_AUTO,
 	DEVLINK_PORT_TYPE_ETH,
 	DEVLINK_PORT_TYPE_IB,
+};
+
+enum devlink_sb_pool_type {
+	DEVLINK_SB_POOL_TYPE_INGRESS,
+	DEVLINK_SB_POOL_TYPE_EGRESS,
+};
+
+/* static threshold - limiting the maximum number of bytes.
+ * dynamic threshold - limiting the maximum number of bytes
+ *   based on the currently available free space in the shared buffer pool.
+ *   In this mode, the maximum quota is calculated based
+ *   on the following formula:
+ *     max_quota = alpha / (1 + alpha) * Free_Buffer
+ *   While Free_Buffer is the amount of none-occupied buffer associated to
+ *   the relevant pool.
+ *   The value range which can be passed is 0-20 and serves
+ *   for computation of alpha by following formula:
+ *     alpha = 2 ^ (passed_value - 10)
+ */
+
+enum devlink_sb_threshold_type {
+	DEVLINK_SB_THRESHOLD_TYPE_STATIC,
+	DEVLINK_SB_THRESHOLD_TYPE_DYNAMIC,
+};
+
+#define DEVLINK_SB_THRESHOLD_TO_ALPHA_MAX 20
+
+enum devlink_eswitch_mode {
+	DEVLINK_ESWITCH_MODE_LEGACY,
+	DEVLINK_ESWITCH_MODE_SWITCHDEV,
 };
 
 enum devlink_attr {
@@ -62,6 +118,21 @@ enum devlink_attr {
 	DEVLINK_ATTR_PORT_IBDEV_NAME,		/* string */
 	DEVLINK_ATTR_PORT_SPLIT_COUNT,		/* u32 */
 	DEVLINK_ATTR_PORT_SPLIT_GROUP,		/* u32 */
+	DEVLINK_ATTR_SB_INDEX,			/* u32 */
+	DEVLINK_ATTR_SB_SIZE,			/* u32 */
+	DEVLINK_ATTR_SB_INGRESS_POOL_COUNT,	/* u16 */
+	DEVLINK_ATTR_SB_EGRESS_POOL_COUNT,	/* u16 */
+	DEVLINK_ATTR_SB_INGRESS_TC_COUNT,	/* u16 */
+	DEVLINK_ATTR_SB_EGRESS_TC_COUNT,	/* u16 */
+	DEVLINK_ATTR_SB_POOL_INDEX,		/* u16 */
+	DEVLINK_ATTR_SB_POOL_TYPE,		/* u8 */
+	DEVLINK_ATTR_SB_POOL_SIZE,		/* u32 */
+	DEVLINK_ATTR_SB_POOL_THRESHOLD_TYPE,	/* u8 */
+	DEVLINK_ATTR_SB_THRESHOLD,		/* u32 */
+	DEVLINK_ATTR_SB_TC_INDEX,		/* u16 */
+	DEVLINK_ATTR_SB_OCC_CUR,		/* u32 */
+	DEVLINK_ATTR_SB_OCC_MAX,		/* u32 */
+	DEVLINK_ATTR_ESWITCH_MODE,		/* u16 */
 
 	/* add new attributes above here, update the policy in devlink.c */
 

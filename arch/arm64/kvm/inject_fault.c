@@ -132,16 +132,14 @@ static u64 get_except_vector(struct kvm_vcpu *vcpu, enum exception_type type)
 static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr)
 {
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
-	bool is_aarch32;
+	bool is_aarch32 = vcpu_mode_is_32bit(vcpu);
 	u32 esr = 0;
 
-	is_aarch32 = vcpu_mode_is_32bit(vcpu);
-
-	*vcpu_spsr(vcpu) = cpsr;
 	*vcpu_elr_el1(vcpu) = *vcpu_pc(vcpu);
-
 	*vcpu_pc(vcpu) = get_except_vector(vcpu, except_type_sync);
+
 	*vcpu_cpsr(vcpu) = PSTATE_FAULT_BITS_64;
+	*vcpu_spsr(vcpu) = cpsr;
 
 	vcpu_sys_reg(vcpu, FAR_EL1) = addr;
 
@@ -162,7 +160,7 @@ static void inject_abt64(struct kvm_vcpu *vcpu, bool is_iabt, unsigned long addr
 		esr |= (ESR_ELx_EC_IABT_CUR << ESR_ELx_EC_SHIFT);
 
 	if (!is_iabt)
-		esr |= ESR_ELx_EC_DABT_LOW;
+		esr |= ESR_ELx_EC_DABT_LOW << ESR_ELx_EC_SHIFT;
 
 	vcpu_sys_reg(vcpu, ESR_EL1) = esr | ESR_ELx_FSC_EXTABT;
 }
@@ -172,11 +170,11 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 	unsigned long cpsr = *vcpu_cpsr(vcpu);
 	u32 esr = (ESR_ELx_EC_UNKNOWN << ESR_ELx_EC_SHIFT);
 
-	*vcpu_spsr(vcpu) = cpsr;
 	*vcpu_elr_el1(vcpu) = *vcpu_pc(vcpu);
-
 	*vcpu_pc(vcpu) = get_except_vector(vcpu, except_type_sync);
+
 	*vcpu_cpsr(vcpu) = PSTATE_FAULT_BITS_64;
+	*vcpu_spsr(vcpu) = cpsr;
 
 	/*
 	 * Build an unknown exception, depending on the instruction

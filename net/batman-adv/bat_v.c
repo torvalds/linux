@@ -15,7 +15,7 @@
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "bat_algo.h"
+#include "bat_v.h"
 #include "main.h"
 
 #include <linux/atomic.h>
@@ -27,9 +27,11 @@
 #include <linux/rculist.h>
 #include <linux/rcupdate.h>
 #include <linux/seq_file.h>
+#include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
+#include "bat_algo.h"
 #include "bat_v_elp.h"
 #include "bat_v_ogm.h"
 #include "hard-interface.h"
@@ -39,6 +41,16 @@
 
 static void batadv_v_iface_activate(struct batadv_hard_iface *hard_iface)
 {
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_hard_iface *primary_if;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+
+	if (primary_if) {
+		batadv_v_elp_iface_activate(primary_if, hard_iface);
+		batadv_hardif_put(primary_if);
+	}
+
 	/* B.A.T.M.A.N. V does not use any queuing mechanism, therefore it can
 	 * set the interface as ACTIVE right away, without any risk of race
 	 * condition
@@ -59,11 +71,6 @@ static int batadv_v_iface_enable(struct batadv_hard_iface *hard_iface)
 	if (ret < 0)
 		batadv_v_elp_iface_disable(hard_iface);
 
-	/* enable link throughput auto-detection by setting the throughput
-	 * override to zero
-	 */
-	atomic_set(&hard_iface->bat_v.throughput_override, 0);
-
 	return ret;
 }
 
@@ -72,14 +79,32 @@ static void batadv_v_iface_disable(struct batadv_hard_iface *hard_iface)
 	batadv_v_elp_iface_disable(hard_iface);
 }
 
-static void batadv_v_iface_update_mac(struct batadv_hard_iface *hard_iface)
-{
-}
-
 static void batadv_v_primary_iface_set(struct batadv_hard_iface *hard_iface)
 {
 	batadv_v_elp_primary_iface_set(hard_iface);
 	batadv_v_ogm_primary_iface_set(hard_iface);
+}
+
+/**
+ * batadv_v_iface_update_mac - react to hard-interface MAC address change
+ * @hard_iface: the modified interface
+ *
+ * If the modified interface is the primary one, update the originator
+ * address in the ELP and OGM messages to reflect the new MAC address.
+ */
+static void batadv_v_iface_update_mac(struct batadv_hard_iface *hard_iface)
+{
+	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
+	struct batadv_hard_iface *primary_if;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (primary_if != hard_iface)
+		goto out;
+
+	batadv_v_primary_iface_set(hard_iface);
+out:
+	if (primary_if)
+		batadv_hardif_put(primary_if);
 }
 
 static void
@@ -88,14 +113,6 @@ batadv_v_hardif_neigh_init(struct batadv_hardif_neigh_node *hardif_neigh)
 	ewma_throughput_init(&hardif_neigh->bat_v.throughput);
 	INIT_WORK(&hardif_neigh->bat_v.metric_work,
 		  batadv_v_elp_throughput_metric_update);
-}
-
-static void batadv_v_ogm_schedule(struct batadv_hard_iface *hard_iface)
-{
-}
-
-static void batadv_v_ogm_emit(struct batadv_forw_packet *forw_packet)
-{
 }
 
 /**
@@ -162,8 +179,8 @@ static void batadv_v_neigh_print(struct batadv_priv *bat_priv,
 	struct batadv_hard_iface *hard_iface;
 	int batman_count = 0;
 
-	seq_printf(seq, "  %-15s %s (%11s) [%10s]\n", "Neighbor",
-		   "last-seen", "throughput", "IF");
+	seq_puts(seq,
+		 "  Neighbor        last-seen ( throughput) [        IF]\n");
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -202,9 +219,8 @@ static void batadv_v_orig_print(struct batadv_priv *bat_priv,
 	int batman_count = 0;
 	u32 i;
 
-	seq_printf(seq, "  %-15s %s (%11s) %17s [%10s]: %20s ...\n",
-		   "Originator", "last-seen", "throughput", "Nexthop",
-		   "outgoingIF", "Potential nexthops");
+	seq_puts(seq,
+		 "  Originator      last-seen ( throughput)           Nexthop [outgoingIF]:   Potential nexthops ...\n");
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
@@ -256,14 +272,23 @@ static int batadv_v_neigh_cmp(struct batadv_neigh_node *neigh1,
 			      struct batadv_hard_iface *if_outgoing2)
 {
 	struct batadv_neigh_ifinfo *ifinfo1, *ifinfo2;
+	int ret = 0;
 
 	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
+	if (WARN_ON(!ifinfo1))
+		goto err_ifinfo1;
+
 	ifinfo2 = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+	if (WARN_ON(!ifinfo2))
+		goto err_ifinfo2;
 
-	if (WARN_ON(!ifinfo1 || !ifinfo2))
-		return 0;
+	ret = ifinfo1->bat_v.throughput - ifinfo2->bat_v.throughput;
 
-	return ifinfo1->bat_v.throughput - ifinfo2->bat_v.throughput;
+	batadv_neigh_ifinfo_put(ifinfo2);
+err_ifinfo2:
+	batadv_neigh_ifinfo_put(ifinfo1);
+err_ifinfo1:
+	return ret;
 }
 
 static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
@@ -273,31 +298,61 @@ static bool batadv_v_neigh_is_sob(struct batadv_neigh_node *neigh1,
 {
 	struct batadv_neigh_ifinfo *ifinfo1, *ifinfo2;
 	u32 threshold;
+	bool ret = false;
 
 	ifinfo1 = batadv_neigh_ifinfo_get(neigh1, if_outgoing1);
+	if (WARN_ON(!ifinfo1))
+		goto err_ifinfo1;
+
 	ifinfo2 = batadv_neigh_ifinfo_get(neigh2, if_outgoing2);
+	if (WARN_ON(!ifinfo2))
+		goto err_ifinfo2;
 
 	threshold = ifinfo1->bat_v.throughput / 4;
 	threshold = ifinfo1->bat_v.throughput - threshold;
 
-	return ifinfo2->bat_v.throughput > threshold;
+	ret = ifinfo2->bat_v.throughput > threshold;
+
+	batadv_neigh_ifinfo_put(ifinfo2);
+err_ifinfo2:
+	batadv_neigh_ifinfo_put(ifinfo1);
+err_ifinfo1:
+	return ret;
 }
 
 static struct batadv_algo_ops batadv_batman_v __read_mostly = {
 	.name = "BATMAN_V",
-	.bat_iface_activate = batadv_v_iface_activate,
-	.bat_iface_enable = batadv_v_iface_enable,
-	.bat_iface_disable = batadv_v_iface_disable,
-	.bat_iface_update_mac = batadv_v_iface_update_mac,
-	.bat_primary_iface_set = batadv_v_primary_iface_set,
-	.bat_hardif_neigh_init = batadv_v_hardif_neigh_init,
-	.bat_ogm_emit = batadv_v_ogm_emit,
-	.bat_ogm_schedule = batadv_v_ogm_schedule,
-	.bat_orig_print = batadv_v_orig_print,
-	.bat_neigh_cmp = batadv_v_neigh_cmp,
-	.bat_neigh_is_similar_or_better = batadv_v_neigh_is_sob,
-	.bat_neigh_print = batadv_v_neigh_print,
+	.iface = {
+		.activate = batadv_v_iface_activate,
+		.enable = batadv_v_iface_enable,
+		.disable = batadv_v_iface_disable,
+		.update_mac = batadv_v_iface_update_mac,
+		.primary_set = batadv_v_primary_iface_set,
+	},
+	.neigh = {
+		.hardif_init = batadv_v_hardif_neigh_init,
+		.cmp = batadv_v_neigh_cmp,
+		.is_similar_or_better = batadv_v_neigh_is_sob,
+		.print = batadv_v_neigh_print,
+	},
+	.orig = {
+		.print = batadv_v_orig_print,
+	},
 };
+
+/**
+ * batadv_v_hardif_init - initialize the algorithm specific fields in the
+ *  hard-interface object
+ * @hard_iface: the hard-interface to initialize
+ */
+void batadv_v_hardif_init(struct batadv_hard_iface *hard_iface)
+{
+	/* enable link throughput auto-detection by setting the throughput
+	 * override to zero
+	 */
+	atomic_set(&hard_iface->bat_v.throughput_override, 0);
+	atomic_set(&hard_iface->bat_v.elp_interval, 500);
+}
 
 /**
  * batadv_v_mesh_init - initialize the B.A.T.M.A.N. V private resources for a

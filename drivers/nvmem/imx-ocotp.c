@@ -15,6 +15,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -22,68 +23,50 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 #include <linux/slab.h>
 
 struct ocotp_priv {
 	struct device *dev;
+	struct clk *clk;
 	void __iomem *base;
 	unsigned int nregs;
 };
 
-static int imx_ocotp_read(void *context, const void *reg, size_t reg_size,
-			  void *val, size_t val_size)
+static int imx_ocotp_read(void *context, unsigned int offset,
+			  void *val, size_t bytes)
 {
 	struct ocotp_priv *priv = context;
-	unsigned int offset = *(u32 *)reg;
 	unsigned int count;
-	int i;
+	u32 *buf = val;
+	int i, ret;
 	u32 index;
 
 	index = offset >> 2;
-	count = val_size >> 2;
+	count = bytes >> 2;
 
 	if (count > (priv->nregs - index))
 		count = priv->nregs - index;
 
-	for (i = index; i < (index + count); i++) {
-		*(u32 *)val = readl(priv->base + 0x400 + i * 0x10);
-		val += 4;
+	ret = clk_prepare_enable(priv->clk);
+	if (ret < 0) {
+		dev_err(priv->dev, "failed to prepare/enable ocotp clk\n");
+		return ret;
 	}
+	for (i = index; i < (index + count); i++)
+		*buf++ = readl(priv->base + 0x400 + i * 0x10);
+
+	clk_disable_unprepare(priv->clk);
 
 	return 0;
 }
-
-static int imx_ocotp_write(void *context, const void *data, size_t count)
-{
-	/* Not implemented */
-	return 0;
-}
-
-static struct regmap_bus imx_ocotp_bus = {
-	.read = imx_ocotp_read,
-	.write = imx_ocotp_write,
-	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
-	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
-};
-
-static bool imx_ocotp_writeable_reg(struct device *dev, unsigned int reg)
-{
-	return false;
-}
-
-static struct regmap_config imx_ocotp_regmap_config = {
-	.reg_bits = 32,
-	.val_bits = 32,
-	.reg_stride = 4,
-	.writeable_reg = imx_ocotp_writeable_reg,
-	.name = "imx-ocotp",
-};
 
 static struct nvmem_config imx_ocotp_nvmem_config = {
 	.name = "imx-ocotp",
 	.read_only = true,
+	.word_size = 4,
+	.stride = 4,
 	.owner = THIS_MODULE,
+	.reg_read = imx_ocotp_read,
 };
 
 static const struct of_device_id imx_ocotp_dt_ids[] = {
@@ -99,7 +82,6 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	struct regmap *regmap;
 	struct ocotp_priv *priv;
 	struct nvmem_device *nvmem;
 
@@ -112,17 +94,15 @@ static int imx_ocotp_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	of_id = of_match_device(imx_ocotp_dt_ids, dev);
-	priv->nregs = (unsigned int)of_id->data;
-	imx_ocotp_regmap_config.max_register = 4 * priv->nregs - 4;
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
 
-	regmap = devm_regmap_init(dev, &imx_ocotp_bus, priv,
-				  &imx_ocotp_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(regmap);
-	}
+	of_id = of_match_device(imx_ocotp_dt_ids, dev);
+	priv->nregs = (unsigned long)of_id->data;
+	imx_ocotp_nvmem_config.size = 4 * priv->nregs;
 	imx_ocotp_nvmem_config.dev = dev;
+	imx_ocotp_nvmem_config.priv = priv;
 	nvmem = nvmem_register(&imx_ocotp_nvmem_config);
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);

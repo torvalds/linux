@@ -1,15 +1,14 @@
 * Cirris Logic CLPS711X PWM controller
 
 Required properties:
-- compatible: Shall contain "cirrus,clps711x-pwm".
+- compatible: Shall contain "cirrus,ep7209-pwm".
 - reg: Physical base address and length of the controller's registers.
 - clocks: phandle + clock specifier pair of the PWM reference clock.
 - #pwm-cells: Should be 1. The cell specifies the index of the channel.
 
 Example:
 	pwm: pwm@80000400 {
-		compatible = "cirrus,ep7312-pwm",
-			     "cirrus,clps711x-pwm";
+		compatible = "cirrus,ep7312-pwm", "cirrus,ep7209-pwm";
 		reg = <0x80000400 0x4>;
 		clocks = <&clks 8>;
 		#pwm-cells = <1>;

@@ -23,7 +23,7 @@ scu:
 	see binding for arm/scu.txt
 
 interrupt-controller:
-	see binding for arm/gic.txt
+	see binding for interrupt-controller/arm,gic.txt
 
 timer:
 	see binding for arm/twd.txt

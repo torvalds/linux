@@ -1813,7 +1813,7 @@ static int rio_mport_add_riodev(struct mport_cdev_priv *priv,
 	if (rdev->pef & RIO_PEF_EXT_FEATURES) {
 		rdev->efptr = rval & 0xffff;
 		rdev->phys_efptr = rio_mport_get_physefb(mport, 0, destid,
-							 hopcount);
+						hopcount, &rdev->phys_rmap);
 
 		rdev->em_efptr = rio_mport_get_feature(mport, 0, destid,
 						hopcount, RIO_EFB_ERR_MGMNT);
@@ -2242,7 +2242,7 @@ static void mport_mm_open(struct vm_area_struct *vma)
 {
 	struct rio_mport_mapping *map = vma->vm_private_data;
 
-rmcd_debug(MMAP, "0x%pad", &map->phys_addr);
+	rmcd_debug(MMAP, "%pad", &map->phys_addr);
 	kref_get(&map->ref);
 }
 
@@ -2250,7 +2250,7 @@ static void mport_mm_close(struct vm_area_struct *vma)
 {
 	struct rio_mport_mapping *map = vma->vm_private_data;
 
-rmcd_debug(MMAP, "0x%pad", &map->phys_addr);
+	rmcd_debug(MMAP, "%pad", &map->phys_addr);
 	mutex_lock(&map->md->buf_mutex);
 	kref_put(&map->ref, mport_release_mapping);
 	mutex_unlock(&map->md->buf_mutex);

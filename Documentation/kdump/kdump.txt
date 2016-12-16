@@ -263,12 +263,6 @@ The syntax is:
     crashkernel=<range1>:<size1>[,<range2>:<size2>,...][@offset]
     range=start-[end]
 
-Please note, on arm, the offset is required.
-    crashkernel=<range1>:<size1>[,<range2>:<size2>,...]@offset
-    range=start-[end]
-
-    'start' is inclusive and 'end' is exclusive.
-
 For example:
 
     crashkernel=512M-2G:64M,2G-:128M
@@ -307,10 +301,9 @@ Boot into System Kernel
    on the memory consumption of the kdump system. In general this is not
    dependent on the memory size of the production system.
 
-   On arm, use "crashkernel=Y@X". Note that the start address of the kernel
-   will be aligned to 128MiB (0x08000000), so if the start address is not then
-   any space below the alignment point may be overwritten by the dump-capture kernel,
-   which means it is possible that the vmcore is not that precise as expected.
+   On arm, the use of "crashkernel=Y@X" is no longer necessary; the
+   kernel will automatically locate the crash kernel image within the
+   first 512MB of RAM if X is not given.
 
 
 Load the Dump-capture Kernel

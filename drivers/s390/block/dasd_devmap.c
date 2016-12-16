@@ -982,6 +982,32 @@ out:
 static DEVICE_ATTR(safe_offline, 0200, NULL, dasd_safe_offline_store);
 
 static ssize_t
+dasd_access_show(struct device *dev, struct device_attribute *attr,
+		 char *buf)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct dasd_device *device;
+	int count;
+
+	device = dasd_device_from_cdev(cdev);
+	if (IS_ERR(device))
+		return PTR_ERR(device);
+
+	if (device->discipline->host_access_count)
+		count = device->discipline->host_access_count(device);
+	else
+		count = -EOPNOTSUPP;
+
+	dasd_put_device(device);
+	if (count < 0)
+		return count;
+
+	return sprintf(buf, "%d\n", count);
+}
+
+static DEVICE_ATTR(host_access_count, 0444, dasd_access_show, NULL);
+
+static ssize_t
 dasd_discipline_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
@@ -1471,6 +1497,7 @@ static struct attribute * dasd_attrs[] = {
 	&dev_attr_reservation_policy.attr,
 	&dev_attr_last_known_reservation_state.attr,
 	&dev_attr_safe_offline.attr,
+	&dev_attr_host_access_count.attr,
 	&dev_attr_path_masks.attr,
 	NULL,
 };

@@ -141,6 +141,7 @@ enum iwl_sta_flags {
  * @STA_KEY_FLG_CCM: CCMP encryption algorithm
  * @STA_KEY_FLG_TKIP: TKIP encryption algorithm
  * @STA_KEY_FLG_EXT: extended cipher algorithm (depends on the FW support)
+ * @STA_KEY_FLG_GCMP: GCMP encryption algorithm
  * @STA_KEY_FLG_CMAC: CMAC encryption algorithm
  * @STA_KEY_FLG_ENC_UNKNOWN: unknown encryption algorithm
  * @STA_KEY_FLG_EN_MSK: mask for encryption algorithmi value
@@ -149,6 +150,7 @@ enum iwl_sta_flags {
  * @STA_KEY_FLG_KEYID_MSK: the index of the key
  * @STA_KEY_NOT_VALID: key is invalid
  * @STA_KEY_FLG_WEP_13BYTES: set for 13 bytes WEP key
+ * @STA_KEY_FLG_KEY_32BYTES for non-wep key set for 32 bytes key
  * @STA_KEY_MULTICAST: set for multical key
  * @STA_KEY_MFP: key is used for Management Frame Protection
  */
@@ -158,6 +160,7 @@ enum iwl_sta_key_flag {
 	STA_KEY_FLG_CCM			= (2 << 0),
 	STA_KEY_FLG_TKIP		= (3 << 0),
 	STA_KEY_FLG_EXT			= (4 << 0),
+	STA_KEY_FLG_GCMP		= (5 << 0),
 	STA_KEY_FLG_CMAC		= (6 << 0),
 	STA_KEY_FLG_ENC_UNKNOWN		= (7 << 0),
 	STA_KEY_FLG_EN_MSK		= (7 << 0),
@@ -167,13 +170,14 @@ enum iwl_sta_key_flag {
 	STA_KEY_FLG_KEYID_MSK		= (3 << STA_KEY_FLG_KEYID_POS),
 	STA_KEY_NOT_VALID		= BIT(11),
 	STA_KEY_FLG_WEP_13BYTES		= BIT(12),
+	STA_KEY_FLG_KEY_32BYTES		= BIT(12),
 	STA_KEY_MULTICAST		= BIT(14),
 	STA_KEY_MFP			= BIT(15),
 };
 
 /**
  * enum iwl_sta_modify_flag - indicate to the fw what flag are being changed
- * @STA_MODIFY_KEY: this command modifies %key
+ * @STA_MODIFY_QUEUE_REMOVAL: this command removes a queue
  * @STA_MODIFY_TID_DISABLE_TX: this command modifies %tid_disable_tx
  * @STA_MODIFY_TX_RATE: unused
  * @STA_MODIFY_ADD_BA_TID: this command modifies %add_immediate_ba_tid
@@ -183,7 +187,7 @@ enum iwl_sta_key_flag {
  * @STA_MODIFY_QUEUES: modify the queues used by this station
  */
 enum iwl_sta_modify_flag {
-	STA_MODIFY_KEY				= BIT(0),
+	STA_MODIFY_QUEUE_REMOVAL		= BIT(0),
 	STA_MODIFY_TID_DISABLE_TX		= BIT(1),
 	STA_MODIFY_TX_RATE			= BIT(2),
 	STA_MODIFY_ADD_BA_TID			= BIT(3),
@@ -255,8 +259,10 @@ struct iwl_mvm_keyinfo {
 	__le64 hw_tkip_mic_tx_key;
 } __packed;
 
-#define IWL_ADD_STA_STATUS_MASK	0xFF
-#define IWL_ADD_STA_BAID_MASK	0xFF00
+#define IWL_ADD_STA_STATUS_MASK		0xFF
+#define IWL_ADD_STA_BAID_VALID_MASK	0x8000
+#define IWL_ADD_STA_BAID_MASK		0x7F00
+#define IWL_ADD_STA_BAID_SHIFT		8
 
 /**
  * struct iwl_mvm_add_sta_cmd_v7 - Add/modify a station in the fw's sta table.
@@ -386,7 +392,6 @@ struct iwl_mvm_add_sta_cmd {
  * @key_offset: key offset in key storage
  * @key_flags: type %iwl_sta_key_flag
  * @key: key material data
- * @key2: key material data
  * @rx_secur_seq_cnt: RX security sequence counter for the key
  * @tkip_rx_tsc_byte2: TSC[2] for key mix ph1 detection
  * @tkip_rx_ttak: 10-byte unicast TKIP TTAK for Rx
@@ -395,8 +400,7 @@ struct iwl_mvm_add_sta_key_cmd {
 	u8 sta_id;
 	u8 key_offset;
 	__le16 key_flags;
-	u8 key[16];
-	u8 key2[16];
+	u8 key[32];
 	u8 rx_secur_seq_cnt[16];
 	u8 tkip_rx_tsc_byte2;
 	u8 reserved;

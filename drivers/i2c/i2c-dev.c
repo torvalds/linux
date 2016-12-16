@@ -22,6 +22,7 @@
 
 /* The I2C_RDWR ioctl code is written by Kolja Waschk <waschk@telos.de> */
 
+#include <linux/cdev.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/i2c-dev.h>
@@ -47,9 +48,10 @@ struct i2c_dev {
 	struct list_head list;
 	struct i2c_adapter *adap;
 	struct device *dev;
+	struct cdev cdev;
 };
 
-#define I2C_MINORS	256
+#define I2C_MINORS	MINORMASK
 static LIST_HEAD(i2c_dev_list);
 static DEFINE_SPINLOCK(i2c_dev_list_lock);
 
@@ -89,7 +91,7 @@ static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 	return i2c_dev;
 }
 
-static void return_i2c_dev(struct i2c_dev *i2c_dev)
+static void put_i2c_dev(struct i2c_dev *i2c_dev)
 {
 	spin_lock(&i2c_dev_list_lock);
 	list_del(&i2c_dev->list);
@@ -483,13 +485,8 @@ static int i2cdev_open(struct inode *inode, struct file *file)
 	unsigned int minor = iminor(inode);
 	struct i2c_client *client;
 	struct i2c_adapter *adap;
-	struct i2c_dev *i2c_dev;
 
-	i2c_dev = i2c_dev_get_by_minor(minor);
-	if (!i2c_dev)
-		return -ENODEV;
-
-	adap = i2c_get_adapter(i2c_dev->adap->nr);
+	adap = i2c_get_adapter(minor);
 	if (!adap)
 		return -ENODEV;
 
@@ -552,6 +549,12 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 	if (IS_ERR(i2c_dev))
 		return PTR_ERR(i2c_dev);
 
+	cdev_init(&i2c_dev->cdev, &i2cdev_fops);
+	i2c_dev->cdev.owner = THIS_MODULE;
+	res = cdev_add(&i2c_dev->cdev, MKDEV(I2C_MAJOR, adap->nr), 1);
+	if (res)
+		goto error_cdev;
+
 	/* register this i2c device with the driver core */
 	i2c_dev->dev = device_create(i2c_dev_class, &adap->dev,
 				     MKDEV(I2C_MAJOR, adap->nr), NULL,
@@ -565,7 +568,9 @@ static int i2cdev_attach_adapter(struct device *dev, void *dummy)
 		 adap->name, adap->nr);
 	return 0;
 error:
-	return_i2c_dev(i2c_dev);
+	cdev_del(&i2c_dev->cdev);
+error_cdev:
+	put_i2c_dev(i2c_dev);
 	return res;
 }
 
@@ -582,7 +587,8 @@ static int i2cdev_detach_adapter(struct device *dev, void *dummy)
 	if (!i2c_dev) /* attach_adapter must have failed */
 		return 0;
 
-	return_i2c_dev(i2c_dev);
+	cdev_del(&i2c_dev->cdev);
+	put_i2c_dev(i2c_dev);
 	device_destroy(i2c_dev_class, MKDEV(I2C_MAJOR, adap->nr));
 
 	pr_debug("i2c-dev: adapter [%s] unregistered\n", adap->name);
@@ -620,7 +626,7 @@ static int __init i2c_dev_init(void)
 
 	printk(KERN_INFO "i2c /dev entries driver\n");
 
-	res = register_chrdev(I2C_MAJOR, "i2c", &i2cdev_fops);
+	res = register_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS, "i2c");
 	if (res)
 		goto out;
 
@@ -644,7 +650,7 @@ static int __init i2c_dev_init(void)
 out_unreg_class:
 	class_destroy(i2c_dev_class);
 out_unreg_chrdev:
-	unregister_chrdev(I2C_MAJOR, "i2c");
+	unregister_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS);
 out:
 	printk(KERN_ERR "%s: Driver Initialisation failed\n", __FILE__);
 	return res;
@@ -655,7 +661,7 @@ static void __exit i2c_dev_exit(void)
 	bus_unregister_notifier(&i2c_bus_type, &i2cdev_notifier);
 	i2c_for_each_dev(NULL, i2cdev_detach_adapter);
 	class_destroy(i2c_dev_class);
-	unregister_chrdev(I2C_MAJOR, "i2c");
+	unregister_chrdev_region(MKDEV(I2C_MAJOR, 0), I2C_MINORS);
 }
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl> and "

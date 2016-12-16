@@ -495,3 +495,4 @@ void vmbus_set_event(struct vmbus_channel *channel)
 
 	hv_do_hypercall(HVCALL_SIGNAL_EVENT, channel->sig_event, NULL);
 }
+EXPORT_SYMBOL_GPL(vmbus_set_event);

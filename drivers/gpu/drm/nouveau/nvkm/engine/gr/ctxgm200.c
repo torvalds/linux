@@ -33,7 +33,7 @@ gm200_grctx_generate_tpcid(struct gf100_gr *gr)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int gpc, tpc, id;
 
-	for (tpc = 0, id = 0; tpc < 4; tpc++) {
+	for (tpc = 0, id = 0; tpc < TPC_MAX_PER_GPC; tpc++) {
 		for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 			if (tpc < gr->tpc_nr[gpc]) {
 				nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x698), id);
@@ -43,15 +43,6 @@ gm200_grctx_generate_tpcid(struct gf100_gr *gr)
 			}
 		}
 	}
-}
-
-static void
-gm200_grctx_generate_rop_active_fbps(struct gf100_gr *gr)
-{
-	struct nvkm_device *device = gr->base.engine.subdev.device;
-	const u32 fbp_count = nvkm_rd32(device, 0x12006c);
-	nvkm_mask(device, 0x408850, 0x0000000f, fbp_count); /* zrop */
-	nvkm_mask(device, 0x408958, 0x0000000f, fbp_count); /* crop */
 }
 
 void
@@ -86,17 +77,17 @@ gm200_grctx_generate_405b60(struct gf100_gr *gr)
 		nvkm_wr32(device, 0x405ba0 + (i * 4), gpcs[i]);
 }
 
-void
+static void
 gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
-	u32 tmp;
+	u32 idle_timeout, tmp;
 	int i;
 
 	gf100_gr_mmio(gr, gr->fuc_sw_ctx);
 
-	nvkm_wr32(device, 0x404154, 0x00000000);
+	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
 
 	grctx->bundle(info);
 	grctx->pagepool(info);
@@ -113,8 +104,6 @@ gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	nvkm_wr32(device, 0x405b00, (gr->tpc_total << 8) | gr->gpc_nr);
 
-	gm200_grctx_generate_rop_active_fbps(gr);
-
 	for (tmp = 0, i = 0; i < gr->gpc_nr; i++)
 		tmp |= ((1 << gr->tpc_nr[i]) - 1) << (i * 4);
 	nvkm_wr32(device, 0x4041c4, tmp);
@@ -122,7 +111,7 @@ gm200_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gm200_grctx_generate_405b60(gr);
 
 	gf100_gr_icmd(gr, gr->fuc_bundle);
-	nvkm_wr32(device, 0x404154, 0x00000800);
+	nvkm_wr32(device, 0x404154, idle_timeout);
 	gf100_gr_mthd(gr, gr->fuc_method);
 
 	nvkm_mask(device, 0x418e94, 0xffffffff, 0xc4230000);

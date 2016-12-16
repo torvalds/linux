@@ -99,8 +99,9 @@ configfrag_hotplug_cpu () {
 # identify_boot_image qemu-cmd
 #
 # Returns the relative path to the kernel build image.  This will be
-# arch/<arch>/boot/bzImage unless overridden with the TORTURE_BOOT_IMAGE
-# environment variable.
+# arch/<arch>/boot/bzImage or vmlinux if bzImage is not a target for the
+# architecture, unless overridden with the TORTURE_BOOT_IMAGE environment
+# variable.
 identify_boot_image () {
 	if test -n "$TORTURE_BOOT_IMAGE"
 	then
@@ -110,11 +111,8 @@ identify_boot_image () {
 		qemu-system-x86_64|qemu-system-i386)
 			echo arch/x86/boot/bzImage
 			;;
-		qemu-system-ppc64)
-			echo arch/powerpc/boot/bzImage
-			;;
 		*)
-			echo ""
+			echo vmlinux
 			;;
 		esac
 	fi
@@ -175,7 +173,7 @@ identify_qemu_args () {
 	qemu-system-x86_64|qemu-system-i386)
 		;;
 	qemu-system-ppc64)
-		echo -enable-kvm -M pseries -cpu POWER7 -nodefaults
+		echo -enable-kvm -M pseries -nodefaults
 		echo -device spapr-vscsi
 		if test -n "$TORTURE_QEMU_INTERACTIVE" -a -n "$TORTURE_QEMU_MAC"
 		then

@@ -25,6 +25,24 @@ void pvclock_resume(void);
 
 void pvclock_touch_watchdogs(void);
 
+static __always_inline
+unsigned pvclock_read_begin(const struct pvclock_vcpu_time_info *src)
+{
+	unsigned version = src->version & ~1;
+	/* Make sure that the version is read before the data. */
+	virt_rmb();
+	return version;
+}
+
+static __always_inline
+bool pvclock_read_retry(const struct pvclock_vcpu_time_info *src,
+			unsigned version)
+{
+	/* Make sure that the version is re-read after the data. */
+	virt_rmb();
+	return unlikely(version != src->version);
+}
+
 /*
  * Scale a 64-bit delta by scaling and multiplying by a 32-bit fraction,
  * yielding a 64-bit result.
@@ -69,30 +87,12 @@ static inline u64 pvclock_scale_delta(u64 delta, u32 mul_frac, int shift)
 }
 
 static __always_inline
-u64 pvclock_get_nsec_offset(const struct pvclock_vcpu_time_info *src)
+cycle_t __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src)
 {
 	u64 delta = rdtsc_ordered() - src->tsc_timestamp;
-	return pvclock_scale_delta(delta, src->tsc_to_system_mul,
-				   src->tsc_shift);
-}
-
-static __always_inline
-unsigned __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
-			       cycle_t *cycles, u8 *flags)
-{
-	unsigned version;
-	cycle_t ret, offset;
-	u8 ret_flags;
-
-	version = src->version;
-
-	offset = pvclock_get_nsec_offset(src);
-	ret = src->system_time + offset;
-	ret_flags = src->flags;
-
-	*cycles = ret;
-	*flags = ret_flags;
-	return version;
+	cycle_t offset = pvclock_scale_delta(delta, src->tsc_to_system_mul,
+					     src->tsc_shift);
+	return src->system_time + offset;
 }
 
 struct pvclock_vsyscall_time_info {

@@ -18,6 +18,27 @@
 #ifndef __ASM__VIRT_H
 #define __ASM__VIRT_H
 
+/*
+ * The arm64 hcall implementation uses x0 to specify the hcall type. A value
+ * less than 0xfff indicates a special hcall, such as get/set vector.
+ * Any other value is used as a pointer to the function to call.
+ */
+
+/* HVC_GET_VECTORS - Return the value of the vbar_el2 register. */
+#define HVC_GET_VECTORS 0
+
+/*
+ * HVC_SET_VECTORS - Set the value of the vbar_el2 register.
+ *
+ * @x1: Physical address of the new vector table.
+ */
+#define HVC_SET_VECTORS 1
+
+/*
+ * HVC_SOFT_RESTART - CPU soft reset, used by the cpu_soft_restart routine.
+ */
+#define HVC_SOFT_RESTART 2
+
 #define BOOT_CPU_MODE_EL1	(0xe11)
 #define BOOT_CPU_MODE_EL2	(0xe12)
 
@@ -59,6 +80,16 @@ static inline bool is_kernel_in_hyp_mode(void)
 	asm("mrs %0, CurrentEL" : "=r" (el));
 	return el == CurrentEL_EL2;
 }
+
+#ifdef CONFIG_ARM64_VHE
+extern void verify_cpu_run_el(void);
+#else
+static inline void verify_cpu_run_el(void) {}
+#endif
+
+/* The section containing the hypervisor idmap text */
+extern char __hyp_idmap_text_start[];
+extern char __hyp_idmap_text_end[];
 
 /* The section containing the hypervisor text */
 extern char __hyp_text_start[];

@@ -16,7 +16,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 #include <video/omap-panel-data.h>
 #include <video/of_display_timing.h>
 

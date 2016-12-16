@@ -34,12 +34,12 @@ struct pxa1928_clk_unit {
 };
 
 static struct mmp_param_fixed_rate_clk fixed_rate_clks[] = {
-	{0, "clk32", NULL, CLK_IS_ROOT, 32768},
-	{0, "vctcxo", NULL, CLK_IS_ROOT, 26000000},
-	{0, "pll1_624", NULL, CLK_IS_ROOT, 624000000},
-	{0, "pll5p", NULL, CLK_IS_ROOT, 832000000},
-	{0, "pll5", NULL, CLK_IS_ROOT, 1248000000},
-	{0, "usb_pll", NULL, CLK_IS_ROOT, 480000000},
+	{0, "clk32", NULL, 0, 32768},
+	{0, "vctcxo", NULL, 0, 26000000},
+	{0, "pll1_624", NULL, 0, 624000000},
+	{0, "pll5p", NULL, 0, 832000000},
+	{0, "pll5", NULL, 0, 1248000000},
+	{0, "usb_pll", NULL, 0, 480000000},
 };
 
 static struct mmp_param_fixed_factor_clk fixed_factor_clks[] = {

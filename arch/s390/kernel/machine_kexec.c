@@ -24,6 +24,7 @@
 #include <asm/diag.h>
 #include <asm/elf.h>
 #include <asm/asm-offsets.h>
+#include <asm/cacheflush.h>
 #include <asm/os_info.h>
 #include <asm/switch_to.h>
 
@@ -43,13 +44,13 @@ static int machine_kdump_pm_cb(struct notifier_block *nb, unsigned long action,
 	switch (action) {
 	case PM_SUSPEND_PREPARE:
 	case PM_HIBERNATION_PREPARE:
-		if (crashk_res.start)
-			crash_map_reserved_pages();
+		if (kexec_crash_image)
+			arch_kexec_unprotect_crashkres();
 		break;
 	case PM_POST_SUSPEND:
 	case PM_POST_HIBERNATION:
-		if (crashk_res.start)
-			crash_unmap_reserved_pages();
+		if (kexec_crash_image)
+			arch_kexec_protect_crashkres();
 		break;
 	default:
 		return NOTIFY_DONE;
@@ -146,41 +147,45 @@ static int kdump_csum_valid(struct kimage *image)
 #endif
 }
 
-/*
- * Map or unmap crashkernel memory
- */
-static void crash_map_pages(int enable)
-{
-	unsigned long size = resource_size(&crashk_res);
+#ifdef CONFIG_CRASH_DUMP
 
-	BUG_ON(crashk_res.start % KEXEC_CRASH_MEM_ALIGN ||
-	       size % KEXEC_CRASH_MEM_ALIGN);
-	if (enable)
-		vmem_add_mapping(crashk_res.start, size);
-	else {
-		vmem_remove_mapping(crashk_res.start, size);
-		if (size)
-			os_info_crashkernel_add(crashk_res.start, size);
-		else
-			os_info_crashkernel_add(0, 0);
-	}
+void crash_free_reserved_phys_range(unsigned long begin, unsigned long end)
+{
+	unsigned long addr, size;
+
+	for (addr = begin; addr < end; addr += PAGE_SIZE)
+		free_reserved_page(pfn_to_page(addr >> PAGE_SHIFT));
+	size = begin - crashk_res.start;
+	if (size)
+		os_info_crashkernel_add(crashk_res.start, size);
+	else
+		os_info_crashkernel_add(0, 0);
 }
 
-/*
- * Map crashkernel memory
- */
-void crash_map_reserved_pages(void)
+static void crash_protect_pages(int protect)
 {
-	crash_map_pages(1);
+	unsigned long size;
+
+	if (!crashk_res.end)
+		return;
+	size = resource_size(&crashk_res);
+	if (protect)
+		set_memory_ro(crashk_res.start, size >> PAGE_SHIFT);
+	else
+		set_memory_rw(crashk_res.start, size >> PAGE_SHIFT);
 }
 
-/*
- * Unmap crashkernel memory
- */
-void crash_unmap_reserved_pages(void)
+void arch_kexec_protect_crashkres(void)
 {
-	crash_map_pages(0);
+	crash_protect_pages(1);
 }
+
+void arch_kexec_unprotect_crashkres(void)
+{
+	crash_protect_pages(0);
+}
+
+#endif
 
 /*
  * Give back memory to hypervisor before new kdump is loaded

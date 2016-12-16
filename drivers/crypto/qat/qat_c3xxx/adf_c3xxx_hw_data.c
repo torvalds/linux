@@ -229,6 +229,7 @@ void adf_init_hw_data_c3xxx(struct adf_hw_device_data *hw_data)
 	hw_data->get_arb_mapping = adf_get_arbiter_mapping;
 	hw_data->enable_ints = adf_enable_ints;
 	hw_data->enable_vf2pf_comms = adf_pf_enable_vf2pf_comms;
+	hw_data->reset_device = adf_reset_flr;
 	hw_data->min_iov_compat_ver = ADF_PFVF_COMPATIBILITY_VERSION;
 }
 

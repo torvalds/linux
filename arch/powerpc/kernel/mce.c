@@ -37,7 +37,7 @@ static DEFINE_PER_CPU(int, mce_queue_count);
 static DEFINE_PER_CPU(struct machine_check_event[MAX_MC_EVT], mce_event_queue);
 
 static void machine_check_process_queued_event(struct irq_work *work);
-struct irq_work mce_event_process_work = {
+static struct irq_work mce_event_process_work = {
         .func = machine_check_process_queued_event,
 };
 
@@ -92,7 +92,8 @@ void save_mce_event(struct pt_regs *regs, long handled,
 	mce->in_use = 1;
 
 	mce->initiator = MCE_INITIATOR_CPU;
-	if (handled)
+	/* Mark it recovered if we have handled it and MSR(RI=1). */
+	if (handled && (regs->msr & MSR_RI))
 		mce->disposition = MCE_DISPOSITION_RECOVERED;
 	else
 		mce->disposition = MCE_DISPOSITION_NOT_RECOVERED;
@@ -284,7 +285,7 @@ void machine_check_print_event_info(struct machine_check_event *evt)
 			printk("%s    Effective address: %016llx\n",
 			       level, evt->u.ue_error.effective_address);
 		if (evt->u.ue_error.physical_address_provided)
-			printk("%s      Physial address: %016llx\n",
+			printk("%s      Physical address: %016llx\n",
 			       level, evt->u.ue_error.physical_address);
 		break;
 	case MCE_ERROR_TYPE_SLB:

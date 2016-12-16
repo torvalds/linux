@@ -76,15 +76,18 @@
 /*
  * Leaf 5 (0x40000x04)
  * HVM-specific features
+ * EAX: Features
+ * EBX: vcpu id (iff EAX has XEN_HVM_CPUID_VCPU_ID_PRESENT flag)
  */
 
-/* EAX Features */
 /* Virtualized APIC registers */
 #define XEN_HVM_CPUID_APIC_ACCESS_VIRT (1u << 0)
 /* Virtualized x2APIC accesses */
 #define XEN_HVM_CPUID_X2APIC_VIRT      (1u << 1)
 /* Memory mapped from other domains has valid IOMMU entries */
 #define XEN_HVM_CPUID_IOMMU_MAPPINGS   (1u << 2)
+/* vcpu id is present in EBX */
+#define XEN_HVM_CPUID_VCPU_ID_PRESENT  (1u << 3)
 
 #define XEN_CPUID_MAX_NUM_LEAVES 4
 

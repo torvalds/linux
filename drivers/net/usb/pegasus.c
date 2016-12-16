@@ -473,7 +473,7 @@ static void read_bulk_callback(struct urb *urb)
 		goto goon;
 	}
 
-	if (!count || count < 4)
+	if (count < 4)
 		goto goon;
 
 	rx_status = buf[count - 2];
@@ -615,7 +615,7 @@ static void write_bulk_callback(struct urb *urb)
 		break;
 	}
 
-	net->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(net); /* prevent tx timeout */
 	netif_wake_queue(net);
 }
 

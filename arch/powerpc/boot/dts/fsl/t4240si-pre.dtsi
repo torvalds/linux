@@ -56,6 +56,8 @@
 		pci1 = &pci1;
 		pci2 = &pci2;
 		pci3 = &pci3;
+		usb0 = &usb0;
+		usb1 = &usb1;
 		dma0 = &dma0;
 		dma1 = &dma1;
 		dma2 = &dma2;

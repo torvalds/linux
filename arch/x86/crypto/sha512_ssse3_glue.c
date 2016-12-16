@@ -151,7 +151,7 @@ asmlinkage void sha512_transform_avx(u64 *digest, const char *data,
 static bool avx_usable(void)
 {
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL)) {
-		if (cpu_has_avx)
+		if (boot_cpu_has(X86_FEATURE_AVX))
 			pr_info("AVX detected but unusable.\n");
 		return false;
 	}
@@ -346,4 +346,10 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA512 Secure Hash Algorithm, Supplemental SSE3 accelerated");
 
 MODULE_ALIAS_CRYPTO("sha512");
+MODULE_ALIAS_CRYPTO("sha512-ssse3");
+MODULE_ALIAS_CRYPTO("sha512-avx");
+MODULE_ALIAS_CRYPTO("sha512-avx2");
 MODULE_ALIAS_CRYPTO("sha384");
+MODULE_ALIAS_CRYPTO("sha384-ssse3");
+MODULE_ALIAS_CRYPTO("sha384-avx");
+MODULE_ALIAS_CRYPTO("sha384-avx2");

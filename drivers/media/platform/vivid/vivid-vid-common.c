@@ -653,103 +653,6 @@ int fmt_sp2mp_func(struct file *file, void *priv,
 	return ret;
 }
 
-/* v4l2_rect helper function: copy the width/height values */
-void rect_set_size_to(struct v4l2_rect *r, const struct v4l2_rect *size)
-{
-	r->width = size->width;
-	r->height = size->height;
-}
-
-/* v4l2_rect helper function: width and height of r should be >= min_size */
-void rect_set_min_size(struct v4l2_rect *r, const struct v4l2_rect *min_size)
-{
-	if (r->width < min_size->width)
-		r->width = min_size->width;
-	if (r->height < min_size->height)
-		r->height = min_size->height;
-}
-
-/* v4l2_rect helper function: width and height of r should be <= max_size */
-void rect_set_max_size(struct v4l2_rect *r, const struct v4l2_rect *max_size)
-{
-	if (r->width > max_size->width)
-		r->width = max_size->width;
-	if (r->height > max_size->height)
-		r->height = max_size->height;
-}
-
-/* v4l2_rect helper function: r should be inside boundary */
-void rect_map_inside(struct v4l2_rect *r, const struct v4l2_rect *boundary)
-{
-	rect_set_max_size(r, boundary);
-	if (r->left < boundary->left)
-		r->left = boundary->left;
-	if (r->top < boundary->top)
-		r->top = boundary->top;
-	if (r->left + r->width > boundary->width)
-		r->left = boundary->width - r->width;
-	if (r->top + r->height > boundary->height)
-		r->top = boundary->height - r->height;
-}
-
-/* v4l2_rect helper function: return true if r1 has the same size as r2 */
-bool rect_same_size(const struct v4l2_rect *r1, const struct v4l2_rect *r2)
-{
-	return r1->width == r2->width && r1->height == r2->height;
-}
-
-/* v4l2_rect helper function: calculate the intersection of two rects */
-struct v4l2_rect rect_intersect(const struct v4l2_rect *a, const struct v4l2_rect *b)
-{
-	struct v4l2_rect r;
-	int right, bottom;
-
-	r.top = max(a->top, b->top);
-	r.left = max(a->left, b->left);
-	bottom = min(a->top + a->height, b->top + b->height);
-	right = min(a->left + a->width, b->left + b->width);
-	r.height = max(0, bottom - r.top);
-	r.width = max(0, right - r.left);
-	return r;
-}
-
-/*
- * v4l2_rect helper function: scale rect r by to->width / from->width and
- * to->height / from->height.
- */
-void rect_scale(struct v4l2_rect *r, const struct v4l2_rect *from,
-				     const struct v4l2_rect *to)
-{
-	if (from->width == 0 || from->height == 0) {
-		r->left = r->top = r->width = r->height = 0;
-		return;
-	}
-	r->left = (((r->left - from->left) * to->width) / from->width) & ~1;
-	r->width = ((r->width * to->width) / from->width) & ~1;
-	r->top = ((r->top - from->top) * to->height) / from->height;
-	r->height = (r->height * to->height) / from->height;
-}
-
-bool rect_overlap(const struct v4l2_rect *r1, const struct v4l2_rect *r2)
-{
-	/*
-	 * IF the left side of r1 is to the right of the right side of r2 OR
-	 *    the left side of r2 is to the right of the right side of r1 THEN
-	 * they do not overlap.
-	 */
-	if (r1->left >= r2->left + r2->width ||
-	    r2->left >= r1->left + r1->width)
-		return false;
-	/*
-	 * IF the top side of r1 is below the bottom of r2 OR
-	 *    the top side of r2 is below the bottom of r1 THEN
-	 * they do not overlap.
-	 */
-	if (r1->top >= r2->top + r2->height ||
-	    r2->top >= r1->top + r1->height)
-		return false;
-	return true;
-}
 int vivid_vid_adjust_sel(unsigned flags, struct v4l2_rect *r)
 {
 	unsigned w = r->width;
@@ -908,6 +811,7 @@ int vidioc_g_edid(struct file *file, void *_fh,
 {
 	struct vivid_dev *dev = video_drvdata(file);
 	struct video_device *vdev = video_devdata(file);
+	struct cec_adapter *adap;
 
 	memset(edid->reserved, 0, sizeof(edid->reserved));
 	if (vdev->vfl_dir == VFL_DIR_RX) {
@@ -915,11 +819,16 @@ int vidioc_g_edid(struct file *file, void *_fh,
 			return -EINVAL;
 		if (dev->input_type[edid->pad] != HDMI)
 			return -EINVAL;
+		adap = dev->cec_rx_adap;
 	} else {
+		unsigned int bus_idx;
+
 		if (edid->pad >= dev->num_outputs)
 			return -EINVAL;
 		if (dev->output_type[edid->pad] != HDMI)
 			return -EINVAL;
+		bus_idx = dev->cec_output2bus_map[edid->pad];
+		adap = dev->cec_tx_adap[bus_idx];
 	}
 	if (edid->start_block == 0 && edid->blocks == 0) {
 		edid->blocks = dev->edid_blocks;
@@ -932,5 +841,6 @@ int vidioc_g_edid(struct file *file, void *_fh,
 	if (edid->start_block + edid->blocks > dev->edid_blocks)
 		edid->blocks = dev->edid_blocks - edid->start_block;
 	memcpy(edid->edid, dev->edid, edid->blocks * 128);
+	cec_set_edid_phys_addr(edid->edid, edid->blocks * 128, adap->phys_addr);
 	return 0;
 }

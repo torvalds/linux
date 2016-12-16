@@ -162,6 +162,17 @@ static struct net_bridge_vlan *br_vlan_get_master(struct net_bridge *br, u16 vid
 	return masterv;
 }
 
+static void br_master_vlan_rcu_free(struct rcu_head *rcu)
+{
+	struct net_bridge_vlan *v;
+
+	v = container_of(rcu, struct net_bridge_vlan, rcu);
+	WARN_ON(!br_vlan_is_master(v));
+	free_percpu(v->stats);
+	v->stats = NULL;
+	kfree(v);
+}
+
 static void br_vlan_put_master(struct net_bridge_vlan *masterv)
 {
 	struct net_bridge_vlan_group *vg;
@@ -174,7 +185,7 @@ static void br_vlan_put_master(struct net_bridge_vlan *masterv)
 		rhashtable_remove_fast(&vg->vlan_hash,
 				       &masterv->vnode, br_vlan_rht_params);
 		__vlan_del_list(masterv);
-		kfree_rcu(masterv, rcu);
+		call_rcu(&masterv->rcu, br_master_vlan_rcu_free);
 	}
 }
 
@@ -230,6 +241,7 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 		if (!masterv)
 			goto out_filt;
 		v->brvlan = masterv;
+		v->stats = masterv->stats;
 	}
 
 	/* Add the dev mac and count the vlan only if it's usable */
@@ -329,6 +341,7 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 			       struct net_bridge_vlan_group *vg,
 			       struct sk_buff *skb)
 {
+	struct br_vlan_stats *stats;
 	struct net_bridge_vlan *v;
 	u16 vid;
 
@@ -355,18 +368,27 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 			return NULL;
 		}
 	}
+	if (br->vlan_stats_enabled) {
+		stats = this_cpu_ptr(v->stats);
+		u64_stats_update_begin(&stats->syncp);
+		stats->tx_bytes += skb->len;
+		stats->tx_packets++;
+		u64_stats_update_end(&stats->syncp);
+	}
+
 	if (v->flags & BRIDGE_VLAN_INFO_UNTAGGED)
 		skb->vlan_tci = 0;
-
 out:
 	return skb;
 }
 
 /* Called under RCU */
-static bool __allowed_ingress(struct net_bridge_vlan_group *vg, __be16 proto,
+static bool __allowed_ingress(const struct net_bridge *br,
+			      struct net_bridge_vlan_group *vg,
 			      struct sk_buff *skb, u16 *vid)
 {
-	const struct net_bridge_vlan *v;
+	struct br_vlan_stats *stats;
+	struct net_bridge_vlan *v;
 	bool tagged;
 
 	BR_INPUT_SKB_CB(skb)->vlan_filtered = true;
@@ -375,7 +397,7 @@ static bool __allowed_ingress(struct net_bridge_vlan_group *vg, __be16 proto,
 	 * HW accelerated vlan tag.
 	 */
 	if (unlikely(!skb_vlan_tag_present(skb) &&
-		     skb->protocol == proto)) {
+		     skb->protocol == br->vlan_proto)) {
 		skb = skb_vlan_untag(skb);
 		if (unlikely(!skb))
 			return false;
@@ -383,7 +405,7 @@ static bool __allowed_ingress(struct net_bridge_vlan_group *vg, __be16 proto,
 
 	if (!br_vlan_get_tag(skb, vid)) {
 		/* Tagged frame */
-		if (skb->vlan_proto != proto) {
+		if (skb->vlan_proto != br->vlan_proto) {
 			/* Protocol-mismatch, empty out vlan_tci for new tag */
 			skb_push(skb, ETH_HLEN);
 			skb = vlan_insert_tag_set_proto(skb, skb->vlan_proto,
@@ -419,7 +441,7 @@ static bool __allowed_ingress(struct net_bridge_vlan_group *vg, __be16 proto,
 		*vid = pvid;
 		if (likely(!tagged))
 			/* Untagged Frame. */
-			__vlan_hwaccel_put_tag(skb, proto, pvid);
+			__vlan_hwaccel_put_tag(skb, br->vlan_proto, pvid);
 		else
 			/* Priority-tagged Frame.
 			 * At this point, We know that skb->vlan_tci had
@@ -428,13 +450,24 @@ static bool __allowed_ingress(struct net_bridge_vlan_group *vg, __be16 proto,
 			 */
 			skb->vlan_tci |= pvid;
 
-		return true;
+		/* if stats are disabled we can avoid the lookup */
+		if (!br->vlan_stats_enabled)
+			return true;
+	}
+	v = br_vlan_find(vg, *vid);
+	if (!v || !br_vlan_should_use(v))
+		goto drop;
+
+	if (br->vlan_stats_enabled) {
+		stats = this_cpu_ptr(v->stats);
+		u64_stats_update_begin(&stats->syncp);
+		stats->rx_bytes += skb->len;
+		stats->rx_packets++;
+		u64_stats_update_end(&stats->syncp);
 	}
 
-	/* Frame had a valid vlan tag.  See if vlan is allowed */
-	v = br_vlan_find(vg, *vid);
-	if (v && br_vlan_should_use(v))
-		return true;
+	return true;
+
 drop:
 	kfree_skb(skb);
 	return false;
@@ -452,7 +485,7 @@ bool br_allowed_ingress(const struct net_bridge *br,
 		return true;
 	}
 
-	return __allowed_ingress(vg, br->vlan_proto, skb, vid);
+	return __allowed_ingress(br, vg, skb, vid);
 }
 
 /* Called under RCU. */
@@ -542,6 +575,11 @@ int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
 	if (!vlan)
 		return -ENOMEM;
 
+	vlan->stats = netdev_alloc_pcpu_stats(struct br_vlan_stats);
+	if (!vlan->stats) {
+		kfree(vlan);
+		return -ENOMEM;
+	}
 	vlan->vid = vid;
 	vlan->flags = flags | BRIDGE_VLAN_INFO_MASTER;
 	vlan->flags &= ~BRIDGE_VLAN_INFO_PVID;
@@ -549,8 +587,10 @@ int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
 	if (flags & BRIDGE_VLAN_INFO_BRENTRY)
 		atomic_set(&vlan->refcnt, 1);
 	ret = __vlan_add(vlan, flags);
-	if (ret)
+	if (ret) {
+		free_percpu(vlan->stats);
 		kfree(vlan);
+	}
 
 	return ret;
 }
@@ -651,15 +691,7 @@ int __br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 
 int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
-	int err;
-
-	if (!rtnl_trylock())
-		return restart_syscall();
-
-	err = __br_vlan_filter_toggle(br, val);
-	rtnl_unlock();
-
-	return err;
+	return __br_vlan_filter_toggle(br, val);
 }
 
 int __br_vlan_set_proto(struct net_bridge *br, __be16 proto)
@@ -713,18 +745,24 @@ err_filt:
 
 int br_vlan_set_proto(struct net_bridge *br, unsigned long val)
 {
-	int err;
-
 	if (val != ETH_P_8021Q && val != ETH_P_8021AD)
 		return -EPROTONOSUPPORT;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	return __br_vlan_set_proto(br, htons(val));
+}
 
-	err = __br_vlan_set_proto(br, htons(val));
-	rtnl_unlock();
+int br_vlan_set_stats(struct net_bridge *br, unsigned long val)
+{
+	switch (val) {
+	case 0:
+	case 1:
+		br->vlan_stats_enabled = val;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	return err;
+	return 0;
 }
 
 static bool vlan_default_pvid(struct net_bridge_vlan_group *vg, u16 vid)
@@ -855,21 +893,17 @@ int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val)
 	if (val >= VLAN_VID_MASK)
 		return -EINVAL;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
-
 	if (pvid == br->default_pvid)
-		goto unlock;
+		goto out;
 
 	/* Only allow default pvid change when filtering is disabled */
 	if (br->vlan_enabled) {
 		pr_info_once("Please disable vlan filtering to change default_pvid\n");
 		err = -EPERM;
-		goto unlock;
+		goto out;
 	}
 	err = __br_vlan_set_default_pvid(br, pvid);
-unlock:
-	rtnl_unlock();
+out:
 	return err;
 }
 
@@ -1019,4 +1053,31 @@ void nbp_vlan_flush(struct net_bridge_port *port)
 	RCU_INIT_POINTER(port->vlgrp, NULL);
 	synchronize_rcu();
 	__vlan_group_free(vg);
+}
+
+void br_vlan_get_stats(const struct net_bridge_vlan *v,
+		       struct br_vlan_stats *stats)
+{
+	int i;
+
+	memset(stats, 0, sizeof(*stats));
+	for_each_possible_cpu(i) {
+		u64 rxpackets, rxbytes, txpackets, txbytes;
+		struct br_vlan_stats *cpu_stats;
+		unsigned int start;
+
+		cpu_stats = per_cpu_ptr(v->stats, i);
+		do {
+			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
+			rxpackets = cpu_stats->rx_packets;
+			rxbytes = cpu_stats->rx_bytes;
+			txbytes = cpu_stats->tx_bytes;
+			txpackets = cpu_stats->tx_packets;
+		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
+
+		stats->rx_packets += rxpackets;
+		stats->rx_bytes += rxbytes;
+		stats->tx_bytes += txbytes;
+		stats->tx_packets += txpackets;
+	}
 }

@@ -296,7 +296,7 @@ static void r8a66597_change_curpipe(struct r8a66597 *r8a66597, u16 pipenum,
 	} while ((tmp & mask) != loop);
 }
 
-static inline void pipe_change(struct r8a66597 *r8a66597, u16 pipenum)
+static void pipe_change(struct r8a66597 *r8a66597, u16 pipenum)
 {
 	struct r8a66597_ep *ep = r8a66597->pipenum2ep[pipenum];
 
@@ -1464,8 +1464,6 @@ static irqreturn_t r8a66597_irq(int irq, void *_r8a66597)
 	struct r8a66597 *r8a66597 = _r8a66597;
 	u16 intsts0;
 	u16 intenb0;
-	u16 brdysts, nrdysts, bempsts;
-	u16 brdyenb, nrdyenb, bempenb;
 	u16 savepipe;
 	u16 mask0;
 
@@ -1481,12 +1479,10 @@ static irqreturn_t r8a66597_irq(int irq, void *_r8a66597)
 
 	mask0 = intsts0 & intenb0;
 	if (mask0) {
-		brdysts = r8a66597_read(r8a66597, BRDYSTS);
-		nrdysts = r8a66597_read(r8a66597, NRDYSTS);
-		bempsts = r8a66597_read(r8a66597, BEMPSTS);
-		brdyenb = r8a66597_read(r8a66597, BRDYENB);
-		nrdyenb = r8a66597_read(r8a66597, NRDYENB);
-		bempenb = r8a66597_read(r8a66597, BEMPENB);
+		u16 brdysts = r8a66597_read(r8a66597, BRDYSTS);
+		u16 bempsts = r8a66597_read(r8a66597, BEMPSTS);
+		u16 brdyenb = r8a66597_read(r8a66597, BRDYENB);
+		u16 bempenb = r8a66597_read(r8a66597, BEMPENB);
 
 		if (mask0 & VBINT) {
 			r8a66597_write(r8a66597,  0xffff & ~VBINT,
@@ -1658,20 +1654,14 @@ static int r8a66597_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 static int r8a66597_set_halt(struct usb_ep *_ep, int value)
 {
-	struct r8a66597_ep *ep;
-	struct r8a66597_request *req;
+	struct r8a66597_ep *ep = container_of(_ep, struct r8a66597_ep, ep);
 	unsigned long flags;
 	int ret = 0;
-
-	ep = container_of(_ep, struct r8a66597_ep, ep);
-	req = get_request_from_ep(ep);
 
 	spin_lock_irqsave(&ep->r8a66597->lock, flags);
 	if (!list_empty(&ep->queue)) {
 		ret = -EAGAIN;
-		goto out;
-	}
-	if (value) {
+	} else if (value) {
 		ep->busy = 1;
 		pipe_stall(ep->r8a66597, ep->pipenum);
 	} else {
@@ -1679,8 +1669,6 @@ static int r8a66597_set_halt(struct usb_ep *_ep, int value)
 		ep->wedge = 0;
 		pipe_stop(ep->r8a66597, ep->pipenum);
 	}
-
-out:
 	spin_unlock_irqrestore(&ep->r8a66597->lock, flags);
 	return ret;
 }

@@ -34,10 +34,11 @@
 #include <asm/smp_scu.h>
 #include <asm/suspend.h>
 
+#include <mach/map.h>
+
 #include <plat/pm-common.h>
 
 #include "common.h"
-#include "regs-srom.h"
 
 #define REG_TABLE_END (-1U)
 
@@ -51,15 +52,6 @@
 struct exynos_wkup_irq {
 	unsigned int hwirq;
 	u32 mask;
-};
-
-static struct sleep_save exynos_core_save[] = {
-	/* SROM side */
-	SAVE_ITEM(S5P_SROM_BW),
-	SAVE_ITEM(S5P_SROM_BC0),
-	SAVE_ITEM(S5P_SROM_BC1),
-	SAVE_ITEM(S5P_SROM_BC2),
-	SAVE_ITEM(S5P_SROM_BC3),
 };
 
 struct exynos_pm_data {
@@ -263,6 +255,12 @@ static int __init exynos_pmu_irq_init(struct device_node *node,
 		return -ENOMEM;
 	}
 
+	/*
+	 * Clear the OF_POPULATED flag set in of_irq_init so that
+	 * later the Exynos PMU platform device won't be skipped.
+	 */
+	of_node_clear_flag(node, OF_POPULATED);
+
 	return 0;
 }
 
@@ -309,7 +307,7 @@ static int exynos5420_cpu_suspend(unsigned long arg)
 	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	unsigned int cpu = MPIDR_AFFINITY_LEVEL(mpidr, 0);
 
-	__raw_writel(0x0, sysram_base_addr + EXYNOS5420_CPU_STATE);
+	writel_relaxed(0x0, sysram_base_addr + EXYNOS5420_CPU_STATE);
 
 	if (IS_ENABLED(CONFIG_EXYNOS5420_MCPM)) {
 		mcpm_set_entry_vector(cpu, cluster, exynos_cpu_resume);
@@ -343,8 +341,6 @@ static void exynos_pm_prepare(void)
 	/* Set wake-up mask registers */
 	exynos_pm_set_wakeup_mask();
 
-	s3c_pm_do_save(exynos_core_save, ARRAY_SIZE(exynos_core_save));
-
 	exynos_pm_enter_sleep_mode();
 
 	/* ensure at least INFORM0 has the resume address */
@@ -375,8 +371,6 @@ static void exynos5420_pm_prepare(void)
 	/* Set wake-up mask registers */
 	exynos_pm_set_wakeup_mask();
 
-	s3c_pm_do_save(exynos_core_save, ARRAY_SIZE(exynos_core_save));
-
 	exynos_pmu_spare3 = pmu_raw_readl(S5P_PMU_SPARE3);
 	/*
 	 * The cpu state needs to be saved and restored so that the
@@ -385,8 +379,8 @@ static void exynos5420_pm_prepare(void)
 	 * needs to restore it back in case, the primary cpu fails to
 	 * suspend for any reason.
 	 */
-	exynos5420_cpu_state = __raw_readl(sysram_base_addr +
-						EXYNOS5420_CPU_STATE);
+	exynos5420_cpu_state = readl_relaxed(sysram_base_addr +
+					     EXYNOS5420_CPU_STATE);
 
 	exynos_pm_enter_sleep_mode();
 
@@ -467,8 +461,6 @@ static void exynos_pm_resume(void)
 	/* For release retention */
 	exynos_pm_release_retention();
 
-	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
-
 	if (cpuid == ARM_CPU_PART_CORTEX_A9)
 		scu_enable(S5P_VA_SCU);
 
@@ -518,11 +510,11 @@ static void exynos5420_pm_resume(void)
 	/* Restore the CPU0 low power state register */
 	tmp = pmu_raw_readl(EXYNOS5_ARM_CORE0_SYS_PWR_REG);
 	pmu_raw_writel(tmp | S5P_CORE_LOCAL_PWR_EN,
-		EXYNOS5_ARM_CORE0_SYS_PWR_REG);
+		       EXYNOS5_ARM_CORE0_SYS_PWR_REG);
 
 	/* Restore the sysram cpu state register */
-	__raw_writel(exynos5420_cpu_state,
-		sysram_base_addr + EXYNOS5420_CPU_STATE);
+	writel_relaxed(exynos5420_cpu_state,
+		       sysram_base_addr + EXYNOS5420_CPU_STATE);
 
 	pmu_raw_writel(EXYNOS5420_USE_STANDBY_WFI_ALL,
 			S5P_CENTRAL_SEQ_OPTION);
@@ -534,8 +526,6 @@ static void exynos5420_pm_resume(void)
 	exynos_pm_release_retention();
 
 	pmu_raw_writel(exynos_pmu_spare3, S5P_PMU_SPARE3);
-
-	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
 early_wakeup:
 

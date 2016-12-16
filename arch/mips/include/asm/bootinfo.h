@@ -127,6 +127,10 @@ extern char arcs_cmdline[COMMAND_LINE_SIZE];
  */
 extern unsigned long fw_arg0, fw_arg1, fw_arg2, fw_arg3;
 
+#ifdef CONFIG_USE_OF
+extern unsigned long fw_passed_dtb;
+#endif
+
 /*
  * Platform memory detection hook called by setup_arch
  */
@@ -143,5 +147,23 @@ extern void plat_swiotlb_setup(void);
 static inline void plat_swiotlb_setup(void) {}
 
 #endif /* CONFIG_SWIOTLB */
+
+#ifdef CONFIG_USE_OF
+/**
+ * plat_get_fdt() - Return a pointer to the platform's device tree blob
+ *
+ * This function provides a platform independent API to get a pointer to the
+ * flattened device tree blob. The interface between bootloader and kernel
+ * is not consistent across platforms so it is necessary to provide this
+ * API such that common startup code can locate the FDT.
+ *
+ * This is used by the KASLR code to get command line arguments and random
+ * seed from the device tree. Any platform wishing to use KASLR should
+ * provide this API and select SYS_SUPPORTS_RELOCATABLE.
+ *
+ * Return: Pointer to the flattened device tree blob.
+ */
+extern void *plat_get_fdt(void);
+#endif /* CONFIG_USE_OF */
 
 #endif /* _ASM_BOOTINFO_H */

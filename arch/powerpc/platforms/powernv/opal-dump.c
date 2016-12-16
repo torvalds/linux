@@ -370,6 +370,7 @@ static irqreturn_t process_dump(int irq, void *data)
 	uint32_t dump_id, dump_size, dump_type;
 	struct dump_obj *dump;
 	char name[22];
+	struct kobject *kobj;
 
 	rc = dump_read_info(&dump_id, &dump_size, &dump_type);
 	if (rc != OPAL_SUCCESS)
@@ -381,8 +382,12 @@ static irqreturn_t process_dump(int irq, void *data)
 	 * that gracefully and not create two conflicting
 	 * entries.
 	 */
-	if (kset_find_obj(dump_kset, name))
+	kobj = kset_find_obj(dump_kset, name);
+	if (kobj) {
+		/* Drop reference added by kset_find_obj() */
+		kobject_put(kobj);
 		return 0;
+	}
 
 	dump = create_dump_obj(dump_id, dump_size, dump_type);
 	if (!dump)

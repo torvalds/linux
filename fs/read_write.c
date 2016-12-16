@@ -302,18 +302,6 @@ loff_t vfs_llseek(struct file *file, loff_t offset, int whence)
 }
 EXPORT_SYMBOL(vfs_llseek);
 
-static inline struct fd fdget_pos(int fd)
-{
-	return __to_fd(__fdget_pos(fd));
-}
-
-static inline void fdput_pos(struct fd f)
-{
-	if (f.flags & FDPUT_POS_UNLOCK)
-		mutex_unlock(&f.file->f_pos_lock);
-	fdput(f);
-}
-
 SYSCALL_DEFINE3(lseek, unsigned int, fd, off_t, offset, unsigned int, whence)
 {
 	off_t retval;
@@ -410,11 +398,6 @@ ssize_t vfs_iter_write(struct file *file, struct iov_iter *iter, loff_t *ppos)
 }
 EXPORT_SYMBOL(vfs_iter_write);
 
-/*
- * rw_verify_area doesn't like huge counts. We limit
- * them to something that fits in "int" so that others
- * won't have to do range checks all the time.
- */
 int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t count)
 {
 	struct inode *inode;
@@ -441,11 +424,8 @@ int rw_verify_area(int read_write, struct file *file, const loff_t *ppos, size_t
 		if (retval < 0)
 			return retval;
 	}
-	retval = security_file_permission(file,
+	return security_file_permission(file,
 				read_write == READ ? MAY_READ : MAY_WRITE);
-	if (retval)
-		return retval;
-	return count > MAX_RW_COUNT ? MAX_RW_COUNT : count;
 }
 
 static ssize_t new_sync_read(struct file *filp, char __user *buf, size_t len, loff_t *ppos)
@@ -489,8 +469,9 @@ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 		return -EFAULT;
 
 	ret = rw_verify_area(READ, file, pos, count);
-	if (ret >= 0) {
-		count = ret;
+	if (!ret) {
+		if (count > MAX_RW_COUNT)
+			count =  MAX_RW_COUNT;
 		ret = __vfs_read(file, buf, count, pos);
 		if (ret > 0) {
 			fsnotify_access(file);
@@ -572,8 +553,9 @@ ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_
 		return -EFAULT;
 
 	ret = rw_verify_area(WRITE, file, pos, count);
-	if (ret >= 0) {
-		count = ret;
+	if (!ret) {
+		if (count > MAX_RW_COUNT)
+			count =  MAX_RW_COUNT;
 		file_start_write(file);
 		ret = __vfs_write(file, buf, count, pos);
 		if (ret > 0) {
@@ -698,12 +680,16 @@ static ssize_t do_iter_readv_writev(struct file *filp, struct iov_iter *iter,
 	struct kiocb kiocb;
 	ssize_t ret;
 
-	if (flags & ~RWF_HIPRI)
+	if (flags & ~(RWF_HIPRI | RWF_DSYNC | RWF_SYNC))
 		return -EOPNOTSUPP;
 
 	init_sync_kiocb(&kiocb, filp);
 	if (flags & RWF_HIPRI)
 		kiocb.ki_flags |= IOCB_HIPRI;
+	if (flags & RWF_DSYNC)
+		kiocb.ki_flags |= IOCB_DSYNC;
+	if (flags & RWF_SYNC)
+		kiocb.ki_flags |= (IOCB_DSYNC | IOCB_SYNC);
 	kiocb.ki_pos = *ppos;
 
 	ret = fn(&kiocb, iter);
@@ -1182,6 +1168,15 @@ COMPAT_SYSCALL_DEFINE5(preadv, compat_ulong_t, fd,
 	return do_compat_preadv64(fd, vec, vlen, pos, 0);
 }
 
+#ifdef __ARCH_WANT_COMPAT_SYS_PREADV64V2
+COMPAT_SYSCALL_DEFINE5(preadv64v2, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos, int, flags)
+{
+	return do_compat_preadv64(fd, vec, vlen, pos, flags);
+}
+#endif
+
 COMPAT_SYSCALL_DEFINE6(preadv2, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen, u32, pos_low, u32, pos_high,
@@ -1279,6 +1274,15 @@ COMPAT_SYSCALL_DEFINE5(pwritev, compat_ulong_t, fd,
 	return do_compat_pwritev64(fd, vec, vlen, pos, 0);
 }
 
+#ifdef __ARCH_WANT_COMPAT_SYS_PWRITEV64V2
+COMPAT_SYSCALL_DEFINE5(pwritev64v2, unsigned long, fd,
+		const struct compat_iovec __user *,vec,
+		unsigned long, vlen, loff_t, pos, int, flags)
+{
+	return do_compat_pwritev64(fd, vec, vlen, pos, flags);
+}
+#endif
+
 COMPAT_SYSCALL_DEFINE6(pwritev2, compat_ulong_t, fd,
 		const struct compat_iovec __user *,vec,
 		compat_ulong_t, vlen, u32, pos_low, u32, pos_high, int, flags)
@@ -1323,7 +1327,8 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	retval = rw_verify_area(READ, in.file, &pos, count);
 	if (retval < 0)
 		goto fput_in;
-	count = retval;
+	if (count > MAX_RW_COUNT)
+		count =  MAX_RW_COUNT;
 
 	/*
 	 * Get output file, and verify that it is ok..
@@ -1341,7 +1346,6 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 	retval = rw_verify_area(WRITE, out.file, &out_pos, count);
 	if (retval < 0)
 		goto fput_out;
-	count = retval;
 
 	if (!max)
 		max = min(in_inode->i_sb->s_maxbytes, out_inode->i_sb->s_maxbytes);
@@ -1485,11 +1489,12 @@ ssize_t vfs_copy_file_range(struct file *file_in, loff_t pos_in,
 	if (flags != 0)
 		return -EINVAL;
 
-	/* copy_file_range allows full ssize_t len, ignoring MAX_RW_COUNT  */
 	ret = rw_verify_area(READ, file_in, &pos_in, len);
-	if (ret >= 0)
-		ret = rw_verify_area(WRITE, file_out, &pos_out, len);
-	if (ret < 0)
+	if (unlikely(ret))
+		return ret;
+
+	ret = rw_verify_area(WRITE, file_out, &pos_out, len);
+	if (unlikely(ret))
 		return ret;
 
 	if (!(file_in->f_mode & FMODE_READ) ||

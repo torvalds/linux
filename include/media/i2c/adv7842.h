@@ -165,8 +165,6 @@ struct adv7842_platform_data {
 
 	/* IO register 0x02 */
 	unsigned alt_gamma:1;
-	unsigned op_656_range:1;
-	unsigned alt_data_sat:1;
 
 	/* IO register 0x05 */
 	unsigned blank_data:1;

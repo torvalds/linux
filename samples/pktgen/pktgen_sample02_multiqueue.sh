@@ -23,7 +23,9 @@ UDP_MIN=9
 UDP_MAX=109
 
 # (example of setting default params in your script)
-[ -z "$DEST_IP" ] && DEST_IP="198.18.0.42"
+if [ -z "$DEST_IP" ]; then
+    [ -z "$IP6" ] && DEST_IP="198.18.0.42" || DEST_IP="FD00::1"
+fi
 [ -z "$DST_MAC" ] && DST_MAC="90:e2:ba:ff:ff:ff"
 
 # General cleanup everything since last run
@@ -54,7 +56,7 @@ for ((thread = 0; thread < $THREADS; thread++)); do
 
     # Destination
     pg_set $dev "dst_mac $DST_MAC"
-    pg_set $dev "dst $DEST_IP"
+    pg_set $dev "dst$IP6 $DEST_IP"
 
     # Setup random UDP port src range
     pg_set $dev "flag UDPSRC_RND"

@@ -228,9 +228,9 @@ static int vfio_intx_set_signal(struct vfio_pci_device *vdev, int fd)
 
 static void vfio_intx_disable(struct vfio_pci_device *vdev)
 {
-	vfio_intx_set_signal(vdev, -1);
 	vfio_virqfd_disable(&vdev->ctx[0].unmask);
 	vfio_virqfd_disable(&vdev->ctx[0].mask);
+	vfio_intx_set_signal(vdev, -1);
 	vdev->irq_type = VFIO_PCI_NUM_IRQS;
 	vdev->num_ctx = 0;
 	kfree(vdev->ctx);
@@ -401,12 +401,12 @@ static void vfio_msi_disable(struct vfio_pci_device *vdev, bool msix)
 	struct pci_dev *pdev = vdev->pdev;
 	int i;
 
-	vfio_msi_set_block(vdev, 0, vdev->num_ctx, NULL, msix);
-
 	for (i = 0; i < vdev->num_ctx; i++) {
 		vfio_virqfd_disable(&vdev->ctx[i].unmask);
 		vfio_virqfd_disable(&vdev->ctx[i].mask);
 	}
+
+	vfio_msi_set_block(vdev, 0, vdev->num_ctx, NULL, msix);
 
 	if (msix) {
 		pci_disable_msix(vdev->pdev);
@@ -564,67 +564,80 @@ static int vfio_pci_set_msi_trigger(struct vfio_pci_device *vdev,
 }
 
 static int vfio_pci_set_ctx_trigger_single(struct eventfd_ctx **ctx,
-					   uint32_t flags, void *data)
+					   unsigned int count, uint32_t flags,
+					   void *data)
 {
-	int32_t fd = *(int32_t *)data;
-
-	if (!(flags & VFIO_IRQ_SET_DATA_TYPE_MASK))
-		return -EINVAL;
-
 	/* DATA_NONE/DATA_BOOL enables loopback testing */
 	if (flags & VFIO_IRQ_SET_DATA_NONE) {
-		if (*ctx)
-			eventfd_signal(*ctx, 1);
-		return 0;
+		if (*ctx) {
+			if (count) {
+				eventfd_signal(*ctx, 1);
+			} else {
+				eventfd_ctx_put(*ctx);
+				*ctx = NULL;
+			}
+			return 0;
+		}
 	} else if (flags & VFIO_IRQ_SET_DATA_BOOL) {
-		uint8_t trigger = *(uint8_t *)data;
+		uint8_t trigger;
+
+		if (!count)
+			return -EINVAL;
+
+		trigger = *(uint8_t *)data;
 		if (trigger && *ctx)
 			eventfd_signal(*ctx, 1);
+
+		return 0;
+	} else if (flags & VFIO_IRQ_SET_DATA_EVENTFD) {
+		int32_t fd;
+
+		if (!count)
+			return -EINVAL;
+
+		fd = *(int32_t *)data;
+		if (fd == -1) {
+			if (*ctx)
+				eventfd_ctx_put(*ctx);
+			*ctx = NULL;
+		} else if (fd >= 0) {
+			struct eventfd_ctx *efdctx;
+
+			efdctx = eventfd_ctx_fdget(fd);
+			if (IS_ERR(efdctx))
+				return PTR_ERR(efdctx);
+
+			if (*ctx)
+				eventfd_ctx_put(*ctx);
+
+			*ctx = efdctx;
+		}
 		return 0;
 	}
 
-	/* Handle SET_DATA_EVENTFD */
-	if (fd == -1) {
-		if (*ctx)
-			eventfd_ctx_put(*ctx);
-		*ctx = NULL;
-		return 0;
-	} else if (fd >= 0) {
-		struct eventfd_ctx *efdctx;
-		efdctx = eventfd_ctx_fdget(fd);
-		if (IS_ERR(efdctx))
-			return PTR_ERR(efdctx);
-		if (*ctx)
-			eventfd_ctx_put(*ctx);
-		*ctx = efdctx;
-		return 0;
-	} else
-		return -EINVAL;
+	return -EINVAL;
 }
 
 static int vfio_pci_set_err_trigger(struct vfio_pci_device *vdev,
 				    unsigned index, unsigned start,
 				    unsigned count, uint32_t flags, void *data)
 {
-	if (index != VFIO_PCI_ERR_IRQ_INDEX)
+	if (index != VFIO_PCI_ERR_IRQ_INDEX || start != 0 || count > 1)
 		return -EINVAL;
 
-	/*
-	 * We should sanitize start & count, but that wasn't caught
-	 * originally, so this IRQ index must forever ignore them :-(
-	 */
-
-	return vfio_pci_set_ctx_trigger_single(&vdev->err_trigger, flags, data);
+	return vfio_pci_set_ctx_trigger_single(&vdev->err_trigger,
+					       count, flags, data);
 }
 
 static int vfio_pci_set_req_trigger(struct vfio_pci_device *vdev,
 				    unsigned index, unsigned start,
 				    unsigned count, uint32_t flags, void *data)
 {
-	if (index != VFIO_PCI_REQ_IRQ_INDEX || start != 0 || count != 1)
+	if (index != VFIO_PCI_REQ_IRQ_INDEX || start != 0 || count > 1)
 		return -EINVAL;
 
-	return vfio_pci_set_ctx_trigger_single(&vdev->req_trigger, flags, data);
+	return vfio_pci_set_ctx_trigger_single(&vdev->req_trigger,
+					       count, flags, data);
 }
 
 int vfio_pci_set_irqs_ioctl(struct vfio_pci_device *vdev, uint32_t flags,

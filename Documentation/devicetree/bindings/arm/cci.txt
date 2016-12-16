@@ -100,7 +100,7 @@ specific to ARM.
 				 "arm,cci-400-pmu,r0"
 				 "arm,cci-400-pmu,r1"
 				 "arm,cci-400-pmu"  - DEPRECATED, permitted only where OS has
-						      secure acces to CCI registers
+						      secure access to CCI registers
 				 "arm,cci-500-pmu,r0"
 				 "arm,cci-550-pmu,r0"
 		- reg:

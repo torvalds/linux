@@ -13,6 +13,7 @@ Required properties:
   * "lltc,ltc3886"
   * "lltc,ltc3887"
   * "lltc,ltm2987"
+  * "lltc,ltm4675"
   * "lltc,ltm4676"
 - reg: I2C slave address
 

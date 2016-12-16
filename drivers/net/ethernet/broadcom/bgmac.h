@@ -1,19 +1,6 @@
 #ifndef _BGMAC_H
 #define _BGMAC_H
 
-#define pr_fmt(fmt)		KBUILD_MODNAME ": " fmt
-
-#define bgmac_err(bgmac, fmt, ...) \
-	dev_err(&(bgmac)->core->dev, fmt, ##__VA_ARGS__)
-#define bgmac_warn(bgmac, fmt, ...) \
-	dev_warn(&(bgmac)->core->dev, fmt,  ##__VA_ARGS__)
-#define bgmac_info(bgmac, fmt, ...) \
-	dev_info(&(bgmac)->core->dev, fmt,  ##__VA_ARGS__)
-#define bgmac_dbg(bgmac, fmt, ...) \
-	dev_dbg(&(bgmac)->core->dev, fmt, ##__VA_ARGS__)
-
-#include <linux/bcma/bcma.h>
-#include <linux/brcmphy.h>
 #include <linux/netdevice.h>
 
 #define BGMAC_DEV_CTL				0x000
@@ -123,7 +110,7 @@
 #define BGMAC_TX_LEN_1024_TO_1522		0x334
 #define BGMAC_TX_LEN_1523_TO_2047		0x338
 #define BGMAC_TX_LEN_2048_TO_4095		0x33c
-#define BGMAC_TX_LEN_4095_TO_8191		0x340
+#define BGMAC_TX_LEN_4096_TO_8191		0x340
 #define BGMAC_TX_LEN_8192_TO_MAX		0x344
 #define BGMAC_TX_JABBER_PKTS			0x348		/* Error */
 #define BGMAC_TX_OVERSIZE_PKTS			0x34c		/* Error */
@@ -166,7 +153,7 @@
 #define BGMAC_RX_LEN_1024_TO_1522		0x3e4
 #define BGMAC_RX_LEN_1523_TO_2047		0x3e8
 #define BGMAC_RX_LEN_2048_TO_4095		0x3ec
-#define BGMAC_RX_LEN_4095_TO_8191		0x3f0
+#define BGMAC_RX_LEN_4096_TO_8191		0x3f0
 #define BGMAC_RX_LEN_8192_TO_MAX		0x3f4
 #define BGMAC_RX_JABBER_PKTS			0x3f8		/* Error */
 #define BGMAC_RX_OVERSIZE_PKTS			0x3fc		/* Error */
@@ -201,7 +188,6 @@
 #define  BGMAC_CMDCFG_HD_SHIFT			10
 #define  BGMAC_CMDCFG_SR_REV0			0x00000800	/* Set to reset mode, for core rev 0-3 */
 #define  BGMAC_CMDCFG_SR_REV4			0x00002000	/* Set to reset mode, for core rev >= 4 */
-#define  BGMAC_CMDCFG_SR(rev)  ((rev >= 4) ? BGMAC_CMDCFG_SR_REV4 : BGMAC_CMDCFG_SR_REV0)
 #define  BGMAC_CMDCFG_ML			0x00008000	/* Set to activate mac loopback mode */
 #define  BGMAC_CMDCFG_AE			0x00400000
 #define  BGMAC_CMDCFG_CFE			0x00800000
@@ -387,6 +373,24 @@
 
 #define ETHER_MAX_LEN   1518
 
+/* Feature Flags */
+#define BGMAC_FEAT_TX_MASK_SETUP	BIT(0)
+#define BGMAC_FEAT_RX_MASK_SETUP	BIT(1)
+#define BGMAC_FEAT_IOST_ATTACHED	BIT(2)
+#define BGMAC_FEAT_NO_RESET		BIT(3)
+#define BGMAC_FEAT_MISC_PLL_REQ		BIT(4)
+#define BGMAC_FEAT_SW_TYPE_PHY		BIT(5)
+#define BGMAC_FEAT_SW_TYPE_EPHYRMII	BIT(6)
+#define BGMAC_FEAT_SW_TYPE_RGMII	BIT(7)
+#define BGMAC_FEAT_CMN_PHY_CTL		BIT(8)
+#define BGMAC_FEAT_FLW_CTRL1		BIT(9)
+#define BGMAC_FEAT_FLW_CTRL2		BIT(10)
+#define BGMAC_FEAT_SET_RXQ_CLK		BIT(11)
+#define BGMAC_FEAT_CLKCTLST		BIT(12)
+#define BGMAC_FEAT_NO_CLR_MIB		BIT(13)
+#define BGMAC_FEAT_FORCE_SPEED_2500	BIT(14)
+#define BGMAC_FEAT_CMDCFG_SR_REV4	BIT(15)
+
 struct bgmac_slot_info {
 	union {
 		struct sk_buff *skb;
@@ -436,12 +440,26 @@ struct bgmac_rx_header {
 };
 
 struct bgmac {
-	struct bcma_device *core;
-	struct bcma_device *cmn; /* Reference to CMN core for BCM4706 */
+	union {
+		struct {
+			void *base;
+			void *idm_base;
+		} plat;
+		struct {
+			struct bcma_device *core;
+			/* Reference to CMN core for BCM4706 */
+			struct bcma_device *cmn;
+		} bcma;
+	};
+
+	struct device *dev;
+	struct device *dma_dev;
+	unsigned char mac_addr[ETH_ALEN];
+	u32 feature_flags;
+
 	struct net_device *net_dev;
 	struct napi_struct napi;
 	struct mii_bus *mii_bus;
-	struct phy_device *phy_dev;
 
 	/* DMA */
 	struct bgmac_dma_ring tx_ring[BGMAC_MAX_TX_RINGS];
@@ -453,6 +471,7 @@ struct bgmac {
 	u32 mib_rx_regs[BGMAC_NUM_MIB_RX_REGS];
 
 	/* Int */
+	int irq;
 	u32 int_mask;
 
 	/* Current MAC state */
@@ -463,16 +482,71 @@ struct bgmac {
 	bool has_robosw;
 
 	bool loopback;
+
+	u32 (*read)(struct bgmac *bgmac, u16 offset);
+	void (*write)(struct bgmac *bgmac, u16 offset, u32 value);
+	u32 (*idm_read)(struct bgmac *bgmac, u16 offset);
+	void (*idm_write)(struct bgmac *bgmac, u16 offset, u32 value);
+	bool (*clk_enabled)(struct bgmac *bgmac);
+	void (*clk_enable)(struct bgmac *bgmac, u32 flags);
+	void (*cco_ctl_maskset)(struct bgmac *bgmac, u32 offset, u32 mask,
+				u32 set);
+	u32 (*get_bus_clock)(struct bgmac *bgmac);
+	void (*cmn_maskset32)(struct bgmac *bgmac, u16 offset, u32 mask,
+			      u32 set);
 };
+
+int bgmac_enet_probe(struct bgmac *info);
+void bgmac_enet_remove(struct bgmac *bgmac);
+
+struct mii_bus *bcma_mdio_mii_register(struct bcma_device *core, u8 phyaddr);
+void bcma_mdio_mii_unregister(struct mii_bus *mii_bus);
 
 static inline u32 bgmac_read(struct bgmac *bgmac, u16 offset)
 {
-	return bcma_read32(bgmac->core, offset);
+	return bgmac->read(bgmac, offset);
 }
 
 static inline void bgmac_write(struct bgmac *bgmac, u16 offset, u32 value)
 {
-	bcma_write32(bgmac->core, offset, value);
+	bgmac->write(bgmac, offset, value);
+}
+
+static inline u32 bgmac_idm_read(struct bgmac *bgmac, u16 offset)
+{
+	return bgmac->idm_read(bgmac, offset);
+}
+
+static inline void bgmac_idm_write(struct bgmac *bgmac, u16 offset, u32 value)
+{
+	bgmac->idm_write(bgmac, offset, value);
+}
+
+static inline bool bgmac_clk_enabled(struct bgmac *bgmac)
+{
+	return bgmac->clk_enabled(bgmac);
+}
+
+static inline void bgmac_clk_enable(struct bgmac *bgmac, u32 flags)
+{
+	bgmac->clk_enable(bgmac, flags);
+}
+
+static inline void bgmac_cco_ctl_maskset(struct bgmac *bgmac, u32 offset,
+					 u32 mask, u32 set)
+{
+	bgmac->cco_ctl_maskset(bgmac, offset, mask, set);
+}
+
+static inline u32 bgmac_get_bus_clock(struct bgmac *bgmac)
+{
+	return bgmac->get_bus_clock(bgmac);
+}
+
+static inline void bgmac_cmn_maskset32(struct bgmac *bgmac, u16 offset,
+				       u32 mask, u32 set)
+{
+	bgmac->cmn_maskset32(bgmac, offset, mask, set);
 }
 
 static inline void bgmac_maskset(struct bgmac *bgmac, u16 offset, u32 mask,
@@ -490,5 +564,4 @@ static inline void bgmac_set(struct bgmac *bgmac, u16 offset, u32 set)
 {
 	bgmac_maskset(bgmac, offset, ~0, set);
 }
-
 #endif /* _BGMAC_H */

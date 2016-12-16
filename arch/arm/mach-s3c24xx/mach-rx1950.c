@@ -496,6 +496,12 @@ static int rx1950_backlight_init(struct device *dev)
 		return PTR_ERR(lcd_pwm);
 	}
 
+	/*
+	 * FIXME: pwm_apply_args() should be removed when switching to
+	 * the atomic PWM API.
+	 */
+	pwm_apply_args(lcd_pwm);
+
 	rx1950_lcd_power(1);
 	rx1950_bl_power(1);
 

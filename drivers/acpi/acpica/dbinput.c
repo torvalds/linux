@@ -57,12 +57,12 @@ static u32 acpi_db_get_line(char *input_buffer);
 
 static u32 acpi_db_match_command(char *user_command);
 
-static void acpi_db_display_command_info(char *command, u8 display_all);
+static void acpi_db_display_command_info(const char *command, u8 display_all);
 
 static void acpi_db_display_help(char *command);
 
 static u8
-acpi_db_match_command_help(char *command,
+acpi_db_match_command_help(const char *command,
 			   const struct acpi_db_command_help *help);
 
 /*
@@ -348,7 +348,7 @@ static const struct acpi_db_command_help acpi_gbl_db_command_help[] = {
  ******************************************************************************/
 
 static u8
-acpi_db_match_command_help(char *command,
+acpi_db_match_command_help(const char *command,
 			   const struct acpi_db_command_help *help)
 {
 	char *invocation = help->invocation;
@@ -402,7 +402,7 @@ acpi_db_match_command_help(char *command,
  *
  ******************************************************************************/
 
-static void acpi_db_display_command_info(char *command, u8 display_all)
+static void acpi_db_display_command_info(const char *command, u8 display_all)
 {
 	const struct acpi_db_command_help *next;
 	u8 matched;
@@ -466,7 +466,7 @@ static void acpi_db_display_help(char *command)
  ******************************************************************************/
 
 char *acpi_db_get_next_token(char *string,
-			     char **next, acpi_object_type * return_type)
+			     char **next, acpi_object_type *return_type)
 {
 	char *start;
 	u32 depth;
@@ -656,8 +656,9 @@ static u32 acpi_db_match_command(char *user_command)
 	}
 
 	for (i = CMD_FIRST_VALID; acpi_gbl_db_commands[i].name; i++) {
-		if (strstr(acpi_gbl_db_commands[i].name, user_command) ==
-		    acpi_gbl_db_commands[i].name) {
+		if (strstr
+		    (ACPI_CAST_PTR(char, acpi_gbl_db_commands[i].name),
+		     user_command) == acpi_gbl_db_commands[i].name) {
 			return (i);
 		}
 	}
@@ -683,8 +684,8 @@ static u32 acpi_db_match_command(char *user_command)
 
 acpi_status
 acpi_db_command_dispatch(char *input_buffer,
-			 struct acpi_walk_state * walk_state,
-			 union acpi_parse_object * op)
+			 struct acpi_walk_state *walk_state,
+			 union acpi_parse_object *op)
 {
 	u32 temp;
 	u32 command_index;

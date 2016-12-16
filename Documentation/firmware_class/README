@@ -20,7 +20,7 @@
 
  1), kernel(driver):
 	- calls request_firmware(&fw_entry, $FIRMWARE, device)
-	- kernel searchs the fimware image with name $FIRMWARE directly
+	- kernel searches the firmware image with name $FIRMWARE directly
 	in the below search path of root filesystem:
 		User customized search path by module parameter 'path'[1]
 		"/lib/firmware/updates/" UTS_RELEASE,

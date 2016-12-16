@@ -5,6 +5,7 @@
 #include "../debug.h"
 #include "helpline.h"
 #include "ui.h"
+#include "../util.h"
 
 char ui_helpline__current[512];
 

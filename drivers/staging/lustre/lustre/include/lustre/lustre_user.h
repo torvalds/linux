@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -193,37 +189,37 @@ struct ost_id {
  * *INFO    - set/get lov_user_mds_data
  */
 /* see <lustre_lib.h> for ioctl numberss 101-150 */
-#define LL_IOC_GETFLAGS		 _IOR ('f', 151, long)
-#define LL_IOC_SETFLAGS		 _IOW ('f', 152, long)
-#define LL_IOC_CLRFLAGS		 _IOW ('f', 153, long)
+#define LL_IOC_GETFLAGS		 _IOR('f', 151, long)
+#define LL_IOC_SETFLAGS		 _IOW('f', 152, long)
+#define LL_IOC_CLRFLAGS		 _IOW('f', 153, long)
 /* LL_IOC_LOV_SETSTRIPE: See also OBD_IOC_LOV_SETSTRIPE */
-#define LL_IOC_LOV_SETSTRIPE	    _IOW ('f', 154, long)
+#define LL_IOC_LOV_SETSTRIPE	    _IOW('f', 154, long)
 /* LL_IOC_LOV_GETSTRIPE: See also OBD_IOC_LOV_GETSTRIPE */
-#define LL_IOC_LOV_GETSTRIPE	    _IOW ('f', 155, long)
+#define LL_IOC_LOV_GETSTRIPE	    _IOW('f', 155, long)
 /* LL_IOC_LOV_SETEA: See also OBD_IOC_LOV_SETEA */
-#define LL_IOC_LOV_SETEA		_IOW ('f', 156, long)
-#define LL_IOC_RECREATE_OBJ	     _IOW ('f', 157, long)
-#define LL_IOC_RECREATE_FID	     _IOW ('f', 157, struct lu_fid)
-#define LL_IOC_GROUP_LOCK	       _IOW ('f', 158, long)
-#define LL_IOC_GROUP_UNLOCK	     _IOW ('f', 159, long)
+#define LL_IOC_LOV_SETEA		_IOW('f', 156, long)
+#define LL_IOC_RECREATE_OBJ	     _IOW('f', 157, long)
+#define LL_IOC_RECREATE_FID	     _IOW('f', 157, struct lu_fid)
+#define LL_IOC_GROUP_LOCK	       _IOW('f', 158, long)
+#define LL_IOC_GROUP_UNLOCK	     _IOW('f', 159, long)
 /* LL_IOC_QUOTACHECK: See also OBD_IOC_QUOTACHECK */
-#define LL_IOC_QUOTACHECK	       _IOW ('f', 160, int)
+#define LL_IOC_QUOTACHECK	       _IOW('f', 160, int)
 /* LL_IOC_POLL_QUOTACHECK: See also OBD_IOC_POLL_QUOTACHECK */
-#define LL_IOC_POLL_QUOTACHECK	  _IOR ('f', 161, struct if_quotacheck *)
+#define LL_IOC_POLL_QUOTACHECK	  _IOR('f', 161, struct if_quotacheck *)
 /* LL_IOC_QUOTACTL: See also OBD_IOC_QUOTACTL */
 #define LL_IOC_QUOTACTL		 _IOWR('f', 162, struct if_quotactl)
 #define IOC_OBD_STATFS		  _IOWR('f', 164, struct obd_statfs *)
 #define IOC_LOV_GETINFO		 _IOWR('f', 165, struct lov_user_mds_data *)
-#define LL_IOC_FLUSHCTX		 _IOW ('f', 166, long)
-#define LL_IOC_RMTACL		   _IOW ('f', 167, long)
-#define LL_IOC_GETOBDCOUNT	      _IOR ('f', 168, long)
+#define LL_IOC_FLUSHCTX		 _IOW('f', 166, long)
+/* LL_IOC_RMTACL			167 obsolete */
+#define LL_IOC_GETOBDCOUNT	      _IOR('f', 168, long)
 #define LL_IOC_LLOOP_ATTACH	     _IOWR('f', 169, long)
 #define LL_IOC_LLOOP_DETACH	     _IOWR('f', 170, long)
 #define LL_IOC_LLOOP_INFO	       _IOWR('f', 171, struct lu_fid)
 #define LL_IOC_LLOOP_DETACH_BYDEV       _IOWR('f', 172, long)
-#define LL_IOC_PATH2FID		 _IOR ('f', 173, long)
+#define LL_IOC_PATH2FID		 _IOR('f', 173, long)
 #define LL_IOC_GET_CONNECT_FLAGS	_IOWR('f', 174, __u64 *)
-#define LL_IOC_GET_MDTIDX	       _IOR ('f', 175, int)
+#define LL_IOC_GET_MDTIDX	       _IOR('f', 175, int)
 
 /* see <lustre_lib.h> for ioctl numbers 177-210 */
 
@@ -542,19 +538,6 @@ struct identity_downcall_data {
 	__u32			    idd_groups[0];
 };
 
-/* for non-mapped uid/gid */
-#define NOBODY_UID      99
-#define NOBODY_GID      99
-
-#define INVALID_ID      (-1)
-
-enum {
-	RMT_LSETFACL    = 1,
-	RMT_LGETFACL    = 2,
-	RMT_RSETFACL    = 3,
-	RMT_RGETFACL    = 4
-};
-
 /* lustre volatile file support
  * file name header: .^L^S^T^R:volatile"
  */
@@ -676,7 +659,12 @@ static inline const char *changelog_type2str(int type)
 #define CLF_UNLINK_HSM_EXISTS 0x0002 /* File has something in HSM */
 				     /* HSM cleaning needed */
 /* Flags for rename */
-#define CLF_RENAME_LAST       0x0001 /* rename unlink last hardlink of target */
+#define CLF_RENAME_LAST		0x0001	/* rename unlink last hardlink of
+					 * target
+					 */
+#define CLF_RENAME_LAST_EXISTS	0x0002	/* rename unlink last hardlink of target
+					 * has an archive in backend
+					 */
 
 /* Flags for HSM */
 /* 12b used (from high weight to low weight):
@@ -833,9 +821,8 @@ struct ioc_data_version {
 	__u64 idv_flags;     /* See LL_DV_xxx */
 };
 
-#define LL_DV_NOFLUSH 0x01   /* Do not take READ EXTENT LOCK before sampling
-			      * version. Dirty caches are left unchanged.
-			      */
+#define LL_DV_RD_FLUSH	BIT(0)	/* Flush dirty pages from clients */
+#define LL_DV_WR_FLUSH	BIT(1)	/* Flush all caching pages from clients */
 
 #ifndef offsetof
 # define offsetof(typ, memb)     ((unsigned long)((char *)&(((typ *)0)->memb)))
@@ -1095,12 +1082,12 @@ struct hsm_action_list {
 	__u32 padding1;
 	char  hal_fsname[0];   /* null-terminated */
 	/* struct hsm_action_item[hal_count] follows, aligned on 8-byte
-	 * boundaries. See hai_zero
+	 * boundaries. See hai_first
 	 */
 } __packed;
 
 #ifndef HAVE_CFS_SIZE_ROUND
-static inline int cfs_size_round (int val)
+static inline int cfs_size_round(int val)
 {
 	return (val + 7) & (~0x7);
 }
@@ -1109,7 +1096,7 @@ static inline int cfs_size_round (int val)
 #endif
 
 /* Return pointer to first hai in action list */
-static inline struct hsm_action_item *hai_zero(struct hsm_action_list *hal)
+static inline struct hsm_action_item *hai_first(struct hsm_action_list *hal)
 {
 	return (struct hsm_action_item *)(hal->hal_fsname +
 					  cfs_size_round(strlen(hal-> \
@@ -1131,7 +1118,7 @@ static inline int hal_size(struct hsm_action_list *hal)
 	struct hsm_action_item *hai;
 
 	sz = sizeof(*hal) + cfs_size_round(strlen(hal->hal_fsname) + 1);
-	hai = hai_zero(hal);
+	hai = hai_first(hal);
 	for (i = 0; i < hal->hal_count; i++, hai = hai_next(hai))
 		sz += cfs_size_round(hai->hai_len);
 

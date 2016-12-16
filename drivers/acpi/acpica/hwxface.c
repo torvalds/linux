@@ -91,10 +91,9 @@ acpi_status acpi_reset(void)
 		 * compatibility with other ACPI implementations that have allowed
 		 * BIOS code with bad register width values to go unnoticed.
 		 */
-		status =
-		    acpi_os_write_port((acpi_io_address) reset_reg->address,
-				       acpi_gbl_FADT.reset_value,
-				       ACPI_RESET_REGISTER_WIDTH);
+		status = acpi_os_write_port((acpi_io_address)reset_reg->address,
+					    acpi_gbl_FADT.reset_value,
+					    ACPI_RESET_REGISTER_WIDTH);
 	} else {
 		/* Write the reset value to the reset register */
 
@@ -504,9 +503,7 @@ acpi_get_sleep_type_data(u8 sleep_state, u8 *sleep_type_a, u8 *sleep_type_b)
 	 * Evaluate the \_Sx namespace object containing the register values
 	 * for this state
 	 */
-	info->relative_pathname = ACPI_CAST_PTR(char,
-						acpi_gbl_sleep_state_names
-						[sleep_state]);
+	info->relative_pathname = acpi_gbl_sleep_state_names[sleep_state];
 
 	status = acpi_ns_evaluate(info);
 	if (ACPI_FAILURE(status)) {

@@ -36,7 +36,8 @@
 #define PCIE_CAP_OFFSET	0x100
 
 /* Quirks for the listed devices */
-#define PCI_DEVICE_ID_INTEL_MRFL_MMC	0x1190
+#define PCI_DEVICE_ID_INTEL_MRFLD_MMC	0x1190
+#define PCI_DEVICE_ID_INTEL_MRFLD_HSU	0x1191
 
 /* Fixed BAR fields */
 #define PCIE_VNDR_CAP_ID_FIXED_BAR 0x00	/* Fixed BAR (TBD) */
@@ -225,13 +226,20 @@ static int intel_mid_pci_irq_enable(struct pci_dev *dev)
 		/* Special treatment for IRQ0 */
 		if (dev->irq == 0) {
 			/*
+			 * Skip HS UART common registers device since it has
+			 * IRQ0 assigned and not used by the kernel.
+			 */
+			if (dev->device == PCI_DEVICE_ID_INTEL_MRFLD_HSU)
+				return -EBUSY;
+			/*
 			 * TNG has IRQ0 assigned to eMMC controller. But there
 			 * are also other devices with bogus PCI configuration
 			 * that have IRQ0 assigned. This check ensures that
-			 * eMMC gets it.
+			 * eMMC gets it. The rest of devices still could be
+			 * enabled without interrupt line being allocated.
 			 */
-			if (dev->device != PCI_DEVICE_ID_INTEL_MRFL_MMC)
-				return -EBUSY;
+			if (dev->device != PCI_DEVICE_ID_INTEL_MRFLD_MMC)
+				return 0;
 		}
 		break;
 	default:
@@ -308,14 +316,39 @@ static void pci_d3delay_fixup(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, pci_d3delay_fixup);
 
-static void mrst_power_off_unused_dev(struct pci_dev *dev)
+static void mid_power_off_one_device(struct pci_dev *dev)
 {
+	u16 pmcsr;
+
+	/*
+	 * Update current state first, otherwise PCI core enforces PCI_D0 in
+	 * pci_set_power_state() for devices which status was PCI_UNKNOWN.
+	 */
+	pci_read_config_word(dev, dev->pm_cap + PCI_PM_CTRL, &pmcsr);
+	dev->current_state = (pci_power_t __force)(pmcsr & PCI_PM_CTRL_STATE_MASK);
+
 	pci_set_power_state(dev, PCI_D3hot);
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0801, mrst_power_off_unused_dev);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0809, mrst_power_off_unused_dev);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x080C, mrst_power_off_unused_dev);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0815, mrst_power_off_unused_dev);
+
+static void mid_power_off_devices(struct pci_dev *dev)
+{
+	int id;
+
+	if (!pci_soc_mode)
+		return;
+
+	id = intel_mid_pwr_get_lss_id(dev);
+	if (id < 0)
+		return;
+
+	/*
+	 * This sets only PMCSR bits. The actual power off will happen in
+	 * arch/x86/platform/intel-mid/pwr.c.
+	 */
+	mid_power_off_one_device(dev);
+}
+
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, PCI_ANY_ID, mid_power_off_devices);
 
 /*
  * Langwell devices reside at fixed offsets, don't try to move them.

@@ -133,6 +133,7 @@ static ssize_t mbox_test_message_write(struct file *filp,
 out:
 	kfree(tdev->signal);
 	kfree(tdev->message);
+	tdev->signal = NULL;
 
 	return ret < 0 ? ret : count;
 }

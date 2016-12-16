@@ -526,4 +526,6 @@ void ps3_sync_irq(int node);
 u32 ps3_get_hw_thread_id(int cpu);
 u64 ps3_get_spe_id(void *arg);
 
+void ps3_early_mm_init(void);
+
 #endif

@@ -52,6 +52,7 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 		pp_init->chip_family = adev->family;
 		pp_init->chip_id = adev->asic_type;
 		pp_init->device = amdgpu_cgs_create_device(adev);
+		pp_init->powercontainment_enabled = amdgpu_powercontainment;
 
 		ret = amd_powerplay_init(pp_init, amd_pp);
 		kfree(pp_init);
@@ -99,6 +100,10 @@ static int amdgpu_pp_early_init(void *handle)
 
 #ifdef CONFIG_DRM_AMD_POWERPLAY
 	switch (adev->asic_type) {
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS10:
+		adev->pp_enabled = true;
+		break;
 	case CHIP_TONGA:
 	case CHIP_FIJI:
 		adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;
@@ -179,13 +184,6 @@ static int amdgpu_pp_sw_fini(void *handle)
 	if (ret)
 		return ret;
 
-#ifdef CONFIG_DRM_AMD_POWERPLAY
-	if (adev->pp_enabled) {
-		amdgpu_pm_sysfs_fini(adev);
-		amd_powerplay_fini(adev->powerplay.pp_handle);
-	}
-#endif
-
 	return ret;
 }
 
@@ -217,6 +215,22 @@ static int amdgpu_pp_hw_fini(void *handle)
 		amdgpu_ucode_fini_bo(adev);
 
 	return ret;
+}
+
+static void amdgpu_pp_late_fini(void *handle)
+{
+#ifdef CONFIG_DRM_AMD_POWERPLAY
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	if (adev->pp_enabled) {
+		amdgpu_pm_sysfs_fini(adev);
+		amd_powerplay_fini(adev->powerplay.pp_handle);
+	}
+
+	if (adev->powerplay.ip_funcs->late_fini)
+		adev->powerplay.ip_funcs->late_fini(
+			  adev->powerplay.pp_handle);
+#endif
 }
 
 static int amdgpu_pp_suspend(void *handle)
@@ -299,28 +313,20 @@ static int amdgpu_pp_soft_reset(void *handle)
 	return ret;
 }
 
-static void amdgpu_pp_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	if (adev->powerplay.ip_funcs->print_status)
-		adev->powerplay.ip_funcs->print_status(
-					adev->powerplay.pp_handle);
-}
-
 const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
+	.name = "amdgpu_powerplay",
 	.early_init = amdgpu_pp_early_init,
 	.late_init = amdgpu_pp_late_init,
 	.sw_init = amdgpu_pp_sw_init,
 	.sw_fini = amdgpu_pp_sw_fini,
 	.hw_init = amdgpu_pp_hw_init,
 	.hw_fini = amdgpu_pp_hw_fini,
+	.late_fini = amdgpu_pp_late_fini,
 	.suspend = amdgpu_pp_suspend,
 	.resume = amdgpu_pp_resume,
 	.is_idle = amdgpu_pp_is_idle,
 	.wait_for_idle = amdgpu_pp_wait_for_idle,
 	.soft_reset = amdgpu_pp_soft_reset,
-	.print_status = amdgpu_pp_print_status,
 	.set_clockgating_state = amdgpu_pp_set_clockgating_state,
 	.set_powergating_state = amdgpu_pp_set_powergating_state,
 };

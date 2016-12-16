@@ -4,6 +4,7 @@ Required properties:
   - compatible: should be one or more of
 
     - "generic-xhci" for generic XHCI device
+    - "marvell,armada3700-xhci" for Armada 37xx SoCs
     - "marvell,armada-375-xhci" for Armada 375 SoCs
     - "marvell,armada-380-xhci" for Armada 38x SoCs
     - "renesas,xhci-r8a7790" for r8a7790 SoC

@@ -262,11 +262,11 @@ static void ath9k_multi_regread(void *hw_priv, u32 *addr,
 	__be32 tmpval[8];
 	int i, ret;
 
-       for (i = 0; i < count; i++) {
-	       tmpaddr[i] = cpu_to_be32(addr[i]);
-       }
+	for (i = 0; i < count; i++) {
+		tmpaddr[i] = cpu_to_be32(addr[i]);
+	}
 
-       ret = ath9k_wmi_cmd(priv->wmi, WMI_REG_READ_CMDID,
+	ret = ath9k_wmi_cmd(priv->wmi, WMI_REG_READ_CMDID,
 			   (u8 *)tmpaddr , sizeof(u32) * count,
 			   (u8 *)tmpval, sizeof(u32) * count,
 			   100);
@@ -275,9 +275,9 @@ static void ath9k_multi_regread(void *hw_priv, u32 *addr,
 			"Multiple REGISTER READ FAILED (count: %d)\n", count);
 	}
 
-       for (i = 0; i < count; i++) {
-	       val[i] = be32_to_cpu(tmpval[i]);
-       }
+	for (i = 0; i < count; i++) {
+		val[i] = be32_to_cpu(tmpval[i]);
+	}
 }
 
 static void ath9k_regwrite_multi(struct ath_common *common)
@@ -678,7 +678,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv,
 
 	for (i = 0; i < ATH9K_HTC_MAX_BCN_VIF; i++)
 		priv->beacon.bslot[i] = NULL;
-	priv->beacon.slottime = ATH9K_SLOT_TIME_9;
+	priv->beacon.slottime = 9;
 
 	ath9k_cmn_init_channels_rates(common);
 	ath9k_cmn_init_crypto(ah);
@@ -765,11 +765,11 @@ static void ath9k_set_hw_capab(struct ath9k_htc_priv *priv,
 		sizeof(struct htc_frame_hdr) + 4;
 
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_2GHZ)
-		hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
-			&common->sbands[IEEE80211_BAND_2GHZ];
+		hw->wiphy->bands[NL80211_BAND_2GHZ] =
+			&common->sbands[NL80211_BAND_2GHZ];
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_5GHZ)
-		hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
-			&common->sbands[IEEE80211_BAND_5GHZ];
+		hw->wiphy->bands[NL80211_BAND_5GHZ] =
+			&common->sbands[NL80211_BAND_5GHZ];
 
 	ath9k_cmn_reload_chainmask(ah);
 

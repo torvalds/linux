@@ -1430,7 +1430,7 @@ struct hdmi_hdcp_ctrl *msm_hdmi_hdcp_init(struct hdmi *hdmi)
 
 void msm_hdmi_hdcp_destroy(struct hdmi *hdmi)
 {
-	if (hdmi && hdmi->hdcp_ctrl) {
+	if (hdmi) {
 		kfree(hdmi->hdcp_ctrl);
 		hdmi->hdcp_ctrl = NULL;
 	}

@@ -39,8 +39,7 @@ do {									\
 	 */								\
 	unsigned long ebx, ecx, edx, esi, edi;				\
 									\
-	asm volatile("pushfl\n\t"		/* save    flags */	\
-		     "pushl %%ebp\n\t"		/* save    EBP   */	\
+	asm volatile("pushl %%ebp\n\t"		/* save    EBP   */	\
 		     "movl %%esp,%[prev_sp]\n\t"	/* save    ESP   */ \
 		     "movl %[next_sp],%%esp\n\t"	/* restore ESP   */ \
 		     "movl $1f,%[prev_ip]\n\t"	/* save    EIP   */	\
@@ -49,7 +48,6 @@ do {									\
 		     "jmp __switch_to\n"	/* regparm call  */	\
 		     "1:\t"						\
 		     "popl %%ebp\n\t"		/* restore EBP   */	\
-		     "popfl\n"			/* restore flags */	\
 									\
 		     /* output parameters */				\
 		     : [prev_sp] "=m" (prev->thread.sp),		\

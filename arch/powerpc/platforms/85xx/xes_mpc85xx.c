@@ -144,23 +144,17 @@ machine_arch_initcall(xes_mpc8540, mpc85xx_common_publish_devices);
  */
 static int __init xes_mpc8572_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "xes,MPC8572");
+	return of_machine_is_compatible("xes,MPC8572");
 }
 
 static int __init xes_mpc8548_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "xes,MPC8548");
+	return of_machine_is_compatible("xes,MPC8548");
 }
 
 static int __init xes_mpc8540_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "xes,MPC8540");
+	return of_machine_is_compatible("xes,MPC8540");
 }
 
 define_machine(xes_mpc8572) {

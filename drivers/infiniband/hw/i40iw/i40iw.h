@@ -50,8 +50,6 @@
 #include <rdma/ib_pack.h>
 #include <rdma/rdma_cm.h>
 #include <rdma/iw_cm.h>
-#include <rdma/iw_portmap.h>
-#include <rdma/rdma_netlink.h>
 #include <crypto/hash.h>
 
 #include "i40iw_status.h"
@@ -115,6 +113,8 @@
 
 #define IW_HMC_OBJ_TYPE_NUM ARRAY_SIZE(iw_hmc_obj_types)
 #define IW_CFG_FPM_QP_COUNT		32768
+#define I40IW_MAX_PAGES_PER_FMR		512
+#define I40IW_MIN_PAGES_PER_FMR		1
 
 #define I40IW_MTU_TO_MSS		40
 #define I40IW_DEFAULT_MSS		1460
@@ -232,7 +232,7 @@ struct i40iw_device {
 	struct i40e_client *client;
 	struct i40iw_hw hw;
 	struct i40iw_cm_core cm_core;
-	unsigned long *mem_resources;
+	u8 *mem_resources;
 	unsigned long *allocated_qps;
 	unsigned long *allocated_cqs;
 	unsigned long *allocated_mrs;
@@ -254,6 +254,7 @@ struct i40iw_device {
 	u32 arp_table_size;
 	u32 next_arp_index;
 	spinlock_t resource_lock; /* hw resource access */
+	spinlock_t qptable_lock;
 	u32 vendor_id;
 	u32 vendor_part_id;
 	u32 of_device_registered;
@@ -392,7 +393,7 @@ void i40iw_flush_wqes(struct i40iw_device *iwdev,
 
 void i40iw_manage_arp_cache(struct i40iw_device *iwdev,
 			    unsigned char *mac_addr,
-			    __be32 *ip_addr,
+			    u32 *ip_addr,
 			    bool ipv4,
 			    u32 action);
 
@@ -434,8 +435,8 @@ static inline int i40iw_alloc_resource(struct i40iw_device *iwdev,
 	*next = resource_num + 1;
 	if (*next == max_resources)
 		*next = 0;
-	spin_unlock_irqrestore(&iwdev->resource_lock, flags);
 	*req_resource_num = resource_num;
+	spin_unlock_irqrestore(&iwdev->resource_lock, flags);
 
 	return 0;
 }
@@ -550,7 +551,7 @@ enum i40iw_status_code i40iw_hw_flush_wqes(struct i40iw_device *iwdev,
 					   struct i40iw_qp_flush_info *info,
 					   bool wait);
 
-void i40iw_copy_ip_ntohl(u32 *dst, u32 *src);
+void i40iw_copy_ip_ntohl(u32 *dst, __be32 *src);
 struct ib_mr *i40iw_reg_phys_mr(struct ib_pd *ib_pd,
 				u64 addr,
 				u64 size,

@@ -1,0 +1,26 @@
+menuconfig ARCH_OXNAS
+	bool "Oxford Semiconductor OXNAS Family SoCs"
+	select ARCH_HAS_RESET_CONTROLLER
+	select GPIOLIB
+	select PINCTRL
+	depends on ARCH_MULTI_V5
+	help
+	  Support for OxNas SoC family developed by Oxford Semiconductor.
+
+if ARCH_OXNAS
+
+config MACH_OX810SE
+	bool "Support OX810SE Based Products"
+	select ARCH_HAS_RESET_CONTROLLER
+	select COMMON_CLK_OXNAS
+	select CPU_ARM926T
+	select MFD_SYSCON
+	select OXNAS_RPS_TIMER
+	select PINCTRL_OXNAS
+	select RESET_CONTROLLER
+	select RESET_OXNAS
+	select VERSATILE_FPGA_IRQ
+	help
+	  Include Support for the Oxford Semiconductor OX810SE SoC Based Products.
+
+endif

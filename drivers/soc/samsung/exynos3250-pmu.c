@@ -14,7 +14,7 @@
 
 #include "exynos-pmu.h"
 
-static struct exynos_pmu_conf exynos3250_pmu_config[] = {
+static const struct exynos_pmu_conf exynos3250_pmu_config[] = {
 	/* { .offset = offset, .val = { AFTR, W-AFTR, SLEEP } */
 	{ EXYNOS3_ARM_CORE0_SYS_PWR_REG,		{ 0x0, 0x0, 0x2} },
 	{ EXYNOS3_DIS_IRQ_ARM_CORE0_LOCAL_SYS_PWR_REG,	{ 0x0, 0x0, 0x0} },

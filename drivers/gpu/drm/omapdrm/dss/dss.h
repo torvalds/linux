@@ -102,6 +102,20 @@ enum dss_writeback_channel {
 	DSS_WB_LCD3_MGR =	7,
 };
 
+enum dss_clk_source {
+	DSS_CLK_SRC_FCK = 0,
+
+	DSS_CLK_SRC_PLL1_1,
+	DSS_CLK_SRC_PLL1_2,
+	DSS_CLK_SRC_PLL1_3,
+
+	DSS_CLK_SRC_PLL2_1,
+	DSS_CLK_SRC_PLL2_2,
+	DSS_CLK_SRC_PLL2_3,
+
+	DSS_CLK_SRC_HDMI_PLL,
+};
+
 enum dss_pll_id {
 	DSS_PLL_DSI1,
 	DSS_PLL_DSI2,
@@ -113,6 +127,11 @@ enum dss_pll_id {
 struct dss_pll;
 
 #define DSS_PLL_MAX_HSDIVS 4
+
+enum dss_pll_type {
+	DSS_PLL_TYPE_A,
+	DSS_PLL_TYPE_B,
+};
 
 /*
  * Type-A PLLs: clkout[]/mX[] refer to hsdiv outputs m4, m5, m6, m7.
@@ -140,6 +159,8 @@ struct dss_pll_ops {
 };
 
 struct dss_pll_hw {
+	enum dss_pll_type type;
+
 	unsigned n_max;
 	unsigned m_min;
 	unsigned m_max;
@@ -227,7 +248,7 @@ unsigned long dss_get_dispc_clk_rate(void);
 int dss_dpi_select_source(int port, enum omap_channel channel);
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
 enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
-const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src);
+const char *dss_get_clk_source_name(enum dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
 
 /* DSS VIDEO PLL */
@@ -244,20 +265,18 @@ void dss_debug_dump_clocks(struct seq_file *s);
 #endif
 
 void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable);
-void dss_ctrl_pll_set_control_mux(enum dss_pll_id pll_id,
-	enum omap_channel channel);
 
 void dss_sdi_init(int datapairs);
 int dss_sdi_enable(void);
 void dss_sdi_disable(void);
 
 void dss_select_dsi_clk_source(int dsi_module,
-		enum omap_dss_clk_source clk_src);
+		enum dss_clk_source clk_src);
 void dss_select_lcd_clk_source(enum omap_channel channel,
-		enum omap_dss_clk_source clk_src);
-enum omap_dss_clk_source dss_get_dispc_clk_source(void);
-enum omap_dss_clk_source dss_get_dsi_clk_source(int dsi_module);
-enum omap_dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
+		enum dss_clk_source clk_src);
+enum dss_clk_source dss_get_dispc_clk_source(void);
+enum dss_clk_source dss_get_dsi_clk_source(int dsi_module);
+enum dss_clk_source dss_get_lcd_clk_source(enum omap_channel channel);
 
 void dss_set_venc_output(enum omap_dss_venc_type type);
 void dss_set_dac_pwrdn_bgz(bool enable);
@@ -409,17 +428,23 @@ typedef bool (*dss_hsdiv_calc_func)(int m_dispc, unsigned long dispc,
 int dss_pll_register(struct dss_pll *pll);
 void dss_pll_unregister(struct dss_pll *pll);
 struct dss_pll *dss_pll_find(const char *name);
+struct dss_pll *dss_pll_find_by_src(enum dss_clk_source src);
+unsigned dss_pll_get_clkout_idx_for_src(enum dss_clk_source src);
 int dss_pll_enable(struct dss_pll *pll);
 void dss_pll_disable(struct dss_pll *pll);
 int dss_pll_set_config(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);
 
-bool dss_pll_hsdiv_calc(const struct dss_pll *pll, unsigned long clkdco,
+bool dss_pll_hsdiv_calc_a(const struct dss_pll *pll, unsigned long clkdco,
 		unsigned long out_min, unsigned long out_max,
 		dss_hsdiv_calc_func func, void *data);
-bool dss_pll_calc(const struct dss_pll *pll, unsigned long clkin,
+bool dss_pll_calc_a(const struct dss_pll *pll, unsigned long clkin,
 		unsigned long pll_min, unsigned long pll_max,
 		dss_pll_calc_func func, void *data);
+
+bool dss_pll_calc_b(const struct dss_pll *pll, unsigned long clkin,
+	unsigned long target_clkout, struct dss_pll_clock_info *cinfo);
+
 int dss_pll_write_config_type_a(struct dss_pll *pll,
 		const struct dss_pll_clock_info *cinfo);
 int dss_pll_write_config_type_b(struct dss_pll *pll,

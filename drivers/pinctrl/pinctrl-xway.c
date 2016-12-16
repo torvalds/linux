@@ -1616,50 +1616,74 @@ struct pinctrl_xway_soc {
 
 /* xway xr9 series (DEPRECATED: Use XWAY xRX100/xRX200 Family) */
 static struct pinctrl_xway_soc xr9_pinctrl = {
-	XR9_MAX_PIN, xway_mfp,
-	xway_grps, ARRAY_SIZE(xway_grps),
-	xrx_funcs, ARRAY_SIZE(xrx_funcs),
-	xway_exin_pin_map, 6
+	.pin_count = XR9_MAX_PIN,
+	.mfp = xway_mfp,
+	.grps = xway_grps,
+	.num_grps = ARRAY_SIZE(xway_grps),
+	.funcs = xrx_funcs,
+	.num_funcs = ARRAY_SIZE(xrx_funcs),
+	.exin = xway_exin_pin_map,
+	.num_exin = 6
 };
 
 /* XWAY AMAZON Family */
 static struct pinctrl_xway_soc ase_pinctrl = {
-	ASE_MAX_PIN, ase_mfp,
-	ase_grps, ARRAY_SIZE(ase_grps),
-	ase_funcs, ARRAY_SIZE(ase_funcs),
-	ase_exin_pin_map, 3
+	.pin_count = ASE_MAX_PIN,
+	.mfp = ase_mfp,
+	.grps = ase_grps,
+	.num_grps = ARRAY_SIZE(ase_grps),
+	.funcs = ase_funcs,
+	.num_funcs = ARRAY_SIZE(ase_funcs),
+	.exin = ase_exin_pin_map,
+	.num_exin = 3
 };
 
 /* XWAY DANUBE Family */
 static struct pinctrl_xway_soc danube_pinctrl = {
-	DANUBE_MAX_PIN, danube_mfp,
-	danube_grps, ARRAY_SIZE(danube_grps),
-	danube_funcs, ARRAY_SIZE(danube_funcs),
-	danube_exin_pin_map, 3
+	.pin_count = DANUBE_MAX_PIN,
+	.mfp = danube_mfp,
+	.grps = danube_grps,
+	.num_grps = ARRAY_SIZE(danube_grps),
+	.funcs = danube_funcs,
+	.num_funcs = ARRAY_SIZE(danube_funcs),
+	.exin = danube_exin_pin_map,
+	.num_exin = 3
 };
 
 /* XWAY xRX100 Family */
 static struct pinctrl_xway_soc xrx100_pinctrl = {
-	XRX100_MAX_PIN, xrx100_mfp,
-	xrx100_grps, ARRAY_SIZE(xrx100_grps),
-	xrx100_funcs, ARRAY_SIZE(xrx100_funcs),
-	xrx100_exin_pin_map, 6
+	.pin_count = XRX100_MAX_PIN,
+	.mfp = xrx100_mfp,
+	.grps = xrx100_grps,
+	.num_grps = ARRAY_SIZE(xrx100_grps),
+	.funcs = xrx100_funcs,
+	.num_funcs = ARRAY_SIZE(xrx100_funcs),
+	.exin = xrx100_exin_pin_map,
+	.num_exin = 6
 };
 
 /* XWAY xRX200 Family */
 static struct pinctrl_xway_soc xrx200_pinctrl = {
-	XRX200_MAX_PIN, xrx200_mfp,
-	xrx200_grps, ARRAY_SIZE(xrx200_grps),
-	xrx200_funcs, ARRAY_SIZE(xrx200_funcs),
-	xrx200_exin_pin_map, 6
+	.pin_count = XRX200_MAX_PIN,
+	.mfp = xrx200_mfp,
+	.grps = xrx200_grps,
+	.num_grps = ARRAY_SIZE(xrx200_grps),
+	.funcs = xrx200_funcs,
+	.num_funcs = ARRAY_SIZE(xrx200_funcs),
+	.exin = xrx200_exin_pin_map,
+	.num_exin = 6
 };
 
 /* XWAY xRX300 Family */
 static struct pinctrl_xway_soc xrx300_pinctrl = {
-	XRX300_MAX_PIN, xrx300_mfp,
-	xrx300_grps, ARRAY_SIZE(xrx300_grps),
-	xrx300_funcs, ARRAY_SIZE(xrx300_funcs),
-	xrx300_exin_pin_map, 5
+	.pin_count = XRX300_MAX_PIN,
+	.mfp = xrx300_mfp,
+	.grps = xrx300_grps,
+	.num_grps = ARRAY_SIZE(xrx300_grps),
+	.funcs = xrx300_funcs,
+	.num_funcs = ARRAY_SIZE(xrx300_funcs),
+	.exin = xrx300_exin_pin_map,
+	.num_exin = 5
 };
 
 static struct pinctrl_gpio_range xway_gpio_range = {
@@ -1724,9 +1748,9 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	}
 	xway_pctrl_desc.pins = xway_info.pads;
 
-	/* load the gpio chip */
+	/* register the gpio chip */
 	xway_chip.parent = &pdev->dev;
-	ret = gpiochip_add(&xway_chip);
+	ret = devm_gpiochip_add_data(&pdev->dev, &xway_chip, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register gpio chip\n");
 		return ret;
@@ -1749,7 +1773,6 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	/* register with the generic lantiq layer */
 	ret = ltq_pinctrl_register(pdev, &xway_info);
 	if (ret) {
-		gpiochip_remove(&xway_chip);
 		dev_err(&pdev->dev, "Failed to register pinctrl driver\n");
 		return ret;
 	}

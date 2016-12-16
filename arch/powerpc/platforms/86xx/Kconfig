@@ -4,7 +4,6 @@ menuconfig PPC_86xx
 	depends on 6xx
 	select FSL_SOC
 	select ALTIVEC
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
 	  The Freescale E600 SoCs have 74xx cores.
 
@@ -37,7 +36,7 @@ config GEF_PPC9A
 	bool "GE PPC9A"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select GE_FPGA
 	help
 	  This option enables support for the GE PPC9A.
@@ -46,7 +45,7 @@ config GEF_SBC310
 	bool "GE SBC310"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select GE_FPGA
 	help
 	  This option enables support for the GE SBC310.
@@ -55,11 +54,16 @@ config GEF_SBC610
 	bool "GE SBC610"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select GE_FPGA
 	select HAS_RAPIDIO
 	help
 	  This option enables support for the GE SBC610.
+
+config MVME7100
+        bool "Artesyn MVME7100"
+        help
+          This option enables support for the Emerson/Artesyn MVME7100 board.
 
 endif
 
@@ -69,7 +73,8 @@ config MPC8641
 	select FSL_PCI if PCI
 	select PPC_UDBG_16550
 	select MPIC
-	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
+	default y if MPC8641_HPCN || SBC8641D || GEF_SBC610 || GEF_SBC310 || GEF_PPC9A \
+			|| MVME7100
 
 config MPC8610
 	bool

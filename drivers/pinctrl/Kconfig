@@ -35,7 +35,7 @@ config PINCTRL_ADI2
 	  machine and arch are selected to build.
 
 config PINCTRL_AS3722
-	bool "Pinctrl and GPIO driver for ams AS3722 PMIC"
+	tristate "Pinctrl and GPIO driver for ams AS3722 PMIC"
 	depends on MFD_AS3722 && GPIOLIB
 	select PINMUX
 	select GENERIC_PINCONF
@@ -129,6 +129,17 @@ config PINCTRL_MESON
 	select OF_GPIO
 	select REGMAP_MMIO
 
+config PINCTRL_OXNAS
+	bool
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
+	select MFD_SYSCON
+
 config PINCTRL_ROCKCHIP
 	bool
 	select PINMUX
@@ -196,8 +207,19 @@ config PINCTRL_COH901
 	  COH 901 335 and COH 901 571/3. They contain 3, 5 or 7
 	  ports of 8 GPIO pins each.
 
+config PINCTRL_MAX77620
+	tristate "MAX77620/MAX20024 Pincontrol support"
+	depends on MFD_MAX77620
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Say Yes here to enable Pin control support for Maxim PMIC MAX77620.
+	  This PMIC has 8 GPIO pins that work as GPIO as well as special
+	  function in alternate mode. This driver also configure push-pull,
+	  open drain, FPS slots etc.
+
 config PINCTRL_PALMAS
-	bool "Pinctrl driver for the PALMAS Series MFD devices"
+	tristate "Pinctrl driver for the PALMAS Series MFD devices"
 	depends on OF && MFD_PALMAS
 	select PINMUX
 	select GENERIC_PINCONF

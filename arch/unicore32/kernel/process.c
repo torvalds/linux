@@ -201,13 +201,6 @@ void show_regs(struct pt_regs *regs)
 	__backtrace();
 }
 
-/*
- * Free current thread data structures etc..
- */
-void exit_thread(void)
-{
-}
-
 void flush_thread(void)
 {
 	struct thread_info *thread = current_thread_info();

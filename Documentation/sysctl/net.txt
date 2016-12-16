@@ -43,6 +43,17 @@ Values :
 	1 - enable the JIT
 	2 - enable the JIT and ask the compiler to emit traces on kernel log.
 
+bpf_jit_harden
+--------------
+
+This enables hardening for the Berkeley Packet Filter Just in Time compiler.
+Supported are eBPF JIT backends. Enabling hardening trades off performance,
+but can mitigate JIT spraying.
+Values :
+	0 - disable JIT hardening (default value)
+	1 - enable JIT hardening for unprivileged users only
+	2 - enable JIT hardening for all users
+
 dev_weight
 --------------
 

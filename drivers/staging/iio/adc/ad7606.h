@@ -28,16 +28,16 @@
  */
 
 struct ad7606_platform_data {
-	unsigned			default_os;
-	unsigned			default_range;
-	unsigned			gpio_convst;
-	unsigned			gpio_reset;
-	unsigned			gpio_range;
-	unsigned			gpio_os0;
-	unsigned			gpio_os1;
-	unsigned			gpio_os2;
-	unsigned			gpio_frstdata;
-	unsigned			gpio_stby;
+	unsigned int			default_os;
+	unsigned int			default_range;
+	unsigned int			gpio_convst;
+	unsigned int			gpio_reset;
+	unsigned int			gpio_range;
+	unsigned int			gpio_os0;
+	unsigned int			gpio_os1;
+	unsigned int			gpio_os2;
+	unsigned int			gpio_frstdata;
+	unsigned int			gpio_stby;
 };
 
 /**
@@ -52,7 +52,7 @@ struct ad7606_chip_info {
 	const char			*name;
 	u16				int_vref_mv;
 	const struct iio_chan_spec	*channels;
-	unsigned			num_channels;
+	unsigned int			num_channels;
 };
 
 /**
@@ -67,8 +67,8 @@ struct ad7606_state {
 	struct work_struct		poll_work;
 	wait_queue_head_t		wq_data_avail;
 	const struct ad7606_bus_ops	*bops;
-	unsigned			range;
-	unsigned			oversampling;
+	unsigned int			range;
+	unsigned int			oversampling;
 	bool				done;
 	void __iomem			*base_address;
 
@@ -86,7 +86,7 @@ struct ad7606_bus_ops {
 };
 
 struct iio_dev *ad7606_probe(struct device *dev, int irq,
-			      void __iomem *base_address, unsigned id,
+			      void __iomem *base_address, unsigned int id,
 			      const struct ad7606_bus_ops *bops);
 int ad7606_remove(struct iio_dev *indio_dev, int irq);
 int ad7606_reset(struct ad7606_state *st);

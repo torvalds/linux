@@ -572,9 +572,6 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 	dev_dbg(di->ipu->dev, "disp %d: panel size = %d x %d\n",
 		di->id, sig->mode.hactive, sig->mode.vactive);
 
-	if ((sig->mode.vsync_len == 0) || (sig->mode.hsync_len == 0))
-		return -EINVAL;
-
 	dev_dbg(di->ipu->dev, "Clocks: IPU %luHz DI %luHz Needed %luHz\n",
 		clk_get_rate(di->clk_ipu),
 		clk_get_rate(di->clk_di),

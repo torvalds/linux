@@ -23,6 +23,9 @@ nvkm-y += nvkm/subdev/fb/gf100.o
 nvkm-y += nvkm/subdev/fb/gk104.o
 nvkm-y += nvkm/subdev/fb/gk20a.o
 nvkm-y += nvkm/subdev/fb/gm107.o
+nvkm-y += nvkm/subdev/fb/gm200.o
+nvkm-y += nvkm/subdev/fb/gp100.o
+nvkm-y += nvkm/subdev/fb/gp104.o
 
 nvkm-y += nvkm/subdev/fb/ram.o
 nvkm-y += nvkm/subdev/fb/ramnv04.o
@@ -40,6 +43,7 @@ nvkm-y += nvkm/subdev/fb/rammcp77.o
 nvkm-y += nvkm/subdev/fb/ramgf100.o
 nvkm-y += nvkm/subdev/fb/ramgk104.o
 nvkm-y += nvkm/subdev/fb/ramgm107.o
+nvkm-y += nvkm/subdev/fb/ramgp100.o
 nvkm-y += nvkm/subdev/fb/sddr2.o
 nvkm-y += nvkm/subdev/fb/sddr3.o
 nvkm-y += nvkm/subdev/fb/gddr3.o

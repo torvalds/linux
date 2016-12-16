@@ -142,6 +142,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FW_DBG_CONF	= 39,
 	IWL_UCODE_TLV_FW_DBG_TRIGGER	= 40,
 	IWL_UCODE_TLV_FW_GSCAN_CAPA	= 50,
+	IWL_UCODE_TLV_FW_MEM_SEG	= 51,
 };
 
 struct iwl_ucode_tlv {
@@ -245,7 +246,6 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
 
 /**
  * enum iwl_ucode_tlv_api - ucode api
- * @IWL_UCODE_TLV_API_BT_COEX_SPLIT: new API for BT Coex
  * @IWL_UCODE_TLV_API_FRAGMENTED_SCAN: This ucode supports active dwell time
  *	longer than the passive one, which is essential for fragmented scan.
  * @IWL_UCODE_TLV_API_WIFI_MCC_UPDATE: ucode supports MCC updates with source.
@@ -260,12 +260,11 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_api_t;
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
 enum iwl_ucode_tlv_api {
-	IWL_UCODE_TLV_API_BT_COEX_SPLIT         = (__force iwl_ucode_tlv_api_t)3,
 	IWL_UCODE_TLV_API_FRAGMENTED_SCAN	= (__force iwl_ucode_tlv_api_t)8,
 	IWL_UCODE_TLV_API_WIFI_MCC_UPDATE	= (__force iwl_ucode_tlv_api_t)9,
 	IWL_UCODE_TLV_API_WIDE_CMD_HDR		= (__force iwl_ucode_tlv_api_t)14,
 	IWL_UCODE_TLV_API_LQ_SS_PARAMS		= (__force iwl_ucode_tlv_api_t)18,
-	IWL_UCODE_TLV_API_NEW_VERSION		= (__force iwl_ucode_tlv_api_t)20,
+	IWL_UCODE_TLV_API_NEW_VERSION           = (__force iwl_ucode_tlv_api_t)20,
 	IWL_UCODE_TLV_API_EXT_SCAN_PRIORITY	= (__force iwl_ucode_tlv_api_t)24,
 	IWL_UCODE_TLV_API_TX_POWER_CHAIN	= (__force iwl_ucode_tlv_api_t)27,
 
@@ -302,7 +301,8 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_DC2DC_SUPPORT: supports DC2DC Command
  * @IWL_UCODE_TLV_CAPA_CSUM_SUPPORT: supports TCP Checksum Offload
  * @IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS: support radio and beacon statistics
- * @IWL_UCODE_TLV_CAPA_P2P_STANDALONE_UAPSD: support p2p standalone U-APSD
+ * @IWL_UCODE_TLV_CAPA_P2P_SCM_UAPSD: supports U-APSD on p2p interface when it
+ *	is standalone or with a BSS station interface in the same binding.
  * @IWL_UCODE_TLV_CAPA_BT_COEX_PLCR: enabled BT Coex packet level co-running
  * @IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC: ucode supports LAR updates with different
  *	sources for the MCC. This TLV bit is a future replacement to
@@ -313,6 +313,9 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_EXTENDED_DTS_MEASURE: extended DTS measurement
  * @IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS: supports short PM timeouts
  * @IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT: supports bt-coex Multi-priority LUT
+ * @IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD: the firmware supports CSA
+ *	countdown offloading. Beacon notifications are not sent to the host.
+ *	The fw also offloads TBTT alignment.
  * @IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION: firmware will decide on what
  *	antenna the beacon should be transmitted
  * @IWL_UCODE_TLV_CAPA_BEACON_STORING: firmware will store the latest beacon
@@ -324,6 +327,12 @@ typedef unsigned int __bitwise__ iwl_ucode_tlv_capa_t;
  * @IWL_UCODE_TLV_CAPA_CTDP_SUPPORT: supports cTDP command
  * @IWL_UCODE_TLV_CAPA_USNIFFER_UNIFIED: supports usniffer enabled in
  *	regular image.
+ * @IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG: support getting more shared
+ *	memory addresses from the firmware.
+ * @IWL_UCODE_TLV_CAPA_LQM_SUPPORT: supports Link Quality Measurement
+ * @IWL_UCODE_TLV_CAPA_TX_POWER_ACK: reduced TX power API has larger
+ *	command size (command version 4) that supports toggling ACK TX
+ *	power reduction.
  *
  * @NUM_IWL_UCODE_TLV_CAPA: number of bits used
  */
@@ -345,7 +354,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_DC2DC_CONFIG_SUPPORT		= (__force iwl_ucode_tlv_capa_t)19,
 	IWL_UCODE_TLV_CAPA_CSUM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)21,
 	IWL_UCODE_TLV_CAPA_RADIO_BEACON_STATS		= (__force iwl_ucode_tlv_capa_t)22,
-	IWL_UCODE_TLV_CAPA_P2P_STANDALONE_UAPSD		= (__force iwl_ucode_tlv_capa_t)26,
+	IWL_UCODE_TLV_CAPA_P2P_SCM_UAPSD		= (__force iwl_ucode_tlv_capa_t)26,
 	IWL_UCODE_TLV_CAPA_BT_COEX_PLCR			= (__force iwl_ucode_tlv_capa_t)28,
 	IWL_UCODE_TLV_CAPA_LAR_MULTI_MCC		= (__force iwl_ucode_tlv_capa_t)29,
 	IWL_UCODE_TLV_CAPA_BT_COEX_RRC			= (__force iwl_ucode_tlv_capa_t)30,
@@ -354,6 +363,7 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_SHORT_PM_TIMEOUTS		= (__force iwl_ucode_tlv_capa_t)65,
 	IWL_UCODE_TLV_CAPA_BT_MPLUT_SUPPORT		= (__force iwl_ucode_tlv_capa_t)67,
 	IWL_UCODE_TLV_CAPA_MULTI_QUEUE_RX_SUPPORT	= (__force iwl_ucode_tlv_capa_t)68,
+	IWL_UCODE_TLV_CAPA_CSA_AND_TBTT_OFFLOAD		= (__force iwl_ucode_tlv_capa_t)70,
 	IWL_UCODE_TLV_CAPA_BEACON_ANT_SELECTION		= (__force iwl_ucode_tlv_capa_t)71,
 	IWL_UCODE_TLV_CAPA_BEACON_STORING		= (__force iwl_ucode_tlv_capa_t)72,
 	IWL_UCODE_TLV_CAPA_LAR_SUPPORT_V2		= (__force iwl_ucode_tlv_capa_t)73,
@@ -361,6 +371,9 @@ enum iwl_ucode_tlv_capa {
 	IWL_UCODE_TLV_CAPA_TEMP_THS_REPORT_SUPPORT	= (__force iwl_ucode_tlv_capa_t)75,
 	IWL_UCODE_TLV_CAPA_CTDP_SUPPORT			= (__force iwl_ucode_tlv_capa_t)76,
 	IWL_UCODE_TLV_CAPA_USNIFFER_UNIFIED		= (__force iwl_ucode_tlv_capa_t)77,
+	IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG	= (__force iwl_ucode_tlv_capa_t)80,
+	IWL_UCODE_TLV_CAPA_LQM_SUPPORT			= (__force iwl_ucode_tlv_capa_t)81,
+	IWL_UCODE_TLV_CAPA_TX_POWER_ACK			= (__force iwl_ucode_tlv_capa_t)84,
 
 	NUM_IWL_UCODE_TLV_CAPA
 #ifdef __CHECKER__
@@ -489,6 +502,37 @@ enum iwl_fw_dbg_monitor_mode {
 	MARBH_MODE = 2,
 	MIPI_MODE = 3,
 };
+
+/**
+ * enum iwl_fw_mem_seg_type - data types for dumping on error
+ *
+ * @FW_DBG_MEM_SMEM: the data type is SMEM
+ * @FW_DBG_MEM_DCCM_LMAC: the data type is DCCM_LMAC
+ * @FW_DBG_MEM_DCCM_UMAC: the data type is DCCM_UMAC
+ */
+enum iwl_fw_dbg_mem_seg_type {
+	FW_DBG_MEM_DCCM_LMAC = 0,
+	FW_DBG_MEM_DCCM_UMAC,
+	FW_DBG_MEM_SMEM,
+
+	/* Must be last */
+	FW_DBG_MEM_MAX,
+};
+
+/**
+ * struct iwl_fw_dbg_mem_seg_tlv - configures the debug data memory segments
+ *
+ * @data_type: enum %iwl_fw_mem_seg_type
+ * @ofs: the memory segment offset
+ * @len: the memory segment length, in bytes
+ *
+ * This parses IWL_UCODE_TLV_FW_MEM_SEG
+ */
+struct iwl_fw_dbg_mem_seg_tlv {
+	__le32 data_type;
+	__le32 ofs;
+	__le32 len;
+} __packed;
 
 /**
  * struct iwl_fw_dbg_dest_tlv - configures the destination of the debug data

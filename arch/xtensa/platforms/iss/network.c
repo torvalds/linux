@@ -428,7 +428,7 @@ static int iss_net_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (len == skb->len) {
 		lp->stats.tx_packets++;
 		lp->stats.tx_bytes += skb->len;
-		dev->trans_start = jiffies;
+		netif_trans_update(dev);
 		netif_start_queue(dev);
 
 		/* this is normally done in the interrupt when tx finishes */

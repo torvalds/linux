@@ -284,6 +284,25 @@ static void gpio_rcar_set(struct gpio_chip *chip, unsigned offset, int value)
 	spin_unlock_irqrestore(&p->lock, flags);
 }
 
+static void gpio_rcar_set_multiple(struct gpio_chip *chip, unsigned long *mask,
+				   unsigned long *bits)
+{
+	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
+	unsigned long flags;
+	u32 val, bankmask;
+
+	bankmask = mask[0] & GENMASK(chip->ngpio - 1, 0);
+	if (!bankmask)
+		return;
+
+	spin_lock_irqsave(&p->lock, flags);
+	val = gpio_rcar_read(p, OUTDT);
+	val &= ~bankmask;
+	val |= (bankmask & bits[0]);
+	gpio_rcar_write(p, OUTDT, val);
+	spin_unlock_irqrestore(&p->lock, flags);
+}
+
 static int gpio_rcar_direction_output(struct gpio_chip *chip, unsigned offset,
 				      int value)
 {
@@ -314,6 +333,9 @@ static const struct of_device_id gpio_rcar_of_table[] = {
 		.data = &gpio_rcar_info_gen2,
 	}, {
 		.compatible = "renesas,gpio-r8a7791",
+		.data = &gpio_rcar_info_gen2,
+	}, {
+		.compatible = "renesas,gpio-r8a7792",
 		.data = &gpio_rcar_info_gen2,
 	}, {
 		.compatible = "renesas,gpio-r8a7793",
@@ -425,6 +447,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	gpio_chip->get = gpio_rcar_get;
 	gpio_chip->direction_output = gpio_rcar_direction_output;
 	gpio_chip->set = gpio_rcar_set;
+	gpio_chip->set_multiple = gpio_rcar_set_multiple;
 	gpio_chip->label = name;
 	gpio_chip->parent = dev;
 	gpio_chip->owner = THIS_MODULE;

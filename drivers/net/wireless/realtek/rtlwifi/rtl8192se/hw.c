@@ -1673,22 +1673,30 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
+	struct device *dev = &rtl_pcipriv(hw)->dev.pdev->dev;
 	u16 i, usvalue;
 	u16	eeprom_id;
 	u8 tempval;
 	u8 hwinfo[HWSET_MAX_SIZE_92S];
 	u8 rf_path, index;
 
-	if (rtlefuse->epromtype == EEPROM_93C46) {
+	switch (rtlefuse->epromtype) {
+	case EEPROM_BOOT_EFUSE:
+		rtl_efuse_shadow_map_update(hw);
+		break;
+
+	case EEPROM_93C46:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 			 "RTL819X Not boot from eeprom, check it !!\n");
-	} else if (rtlefuse->epromtype == EEPROM_BOOT_EFUSE) {
-		rtl_efuse_shadow_map_update(hw);
+		return;
 
-		memcpy((void *)hwinfo, (void *)
-			&rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
-			HWSET_MAX_SIZE_92S);
+	default:
+		dev_warn(dev, "no efuse data\n");
+		return;
 	}
+
+	memcpy(hwinfo, &rtlefuse->efuse_map[EFUSE_INIT_MAP][0],
+	       HWSET_MAX_SIZE_92S);
 
 	RT_PRINT_DATA(rtlpriv, COMP_INIT, DBG_DMESG, "MAP",
 		      hwinfo, HWSET_MAX_SIZE_92S);
@@ -1995,7 +2003,7 @@ static void _rtl92se_read_adapter_info(struct ieee80211_hw *hw)
 	rtlefuse->b1ss_support = rtlefuse->b1x1_recvcombine;
 	rtlefuse->eeprom_oemid = *&hwinfo[EEPROM_CUSTOMID];
 
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "EEPROM Customer ID: 0x%2x",
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "EEPROM Customer ID: 0x%2x\n",
 		 rtlefuse->eeprom_oemid);
 
 	/* set channel paln to world wide 13 */

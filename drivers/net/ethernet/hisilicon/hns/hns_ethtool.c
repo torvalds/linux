@@ -46,11 +46,10 @@ static u32 hns_nic_get_link(struct net_device *net_dev)
 	u32 link_stat = priv->link;
 	struct hnae_handle *h;
 
-	assert(priv && priv->ae_handle);
 	h = priv->ae_handle;
 
 	if (priv->phy) {
-		if (!genphy_update_link(priv->phy))
+		if (!genphy_read_status(priv->phy))
 			link_stat = priv->phy->link;
 		else
 			link_stat = 0;
@@ -166,12 +165,20 @@ static int hns_nic_get_settings(struct net_device *net_dev,
 		cmd->advertising |= ADVERTISED_10000baseKR_Full;
 	}
 
-	if (h->port_type == HNAE_PORT_SERVICE) {
+	switch (h->media_type) {
+	case HNAE_MEDIA_TYPE_FIBER:
 		cmd->port = PORT_FIBRE;
-		cmd->supported |= SUPPORTED_Pause;
-	} else {
+		break;
+	case HNAE_MEDIA_TYPE_COPPER:
 		cmd->port = PORT_TP;
+		break;
+	case HNAE_MEDIA_TYPE_UNKNOWN:
+	default:
+		break;
 	}
+
+	if (!(AE_IS_VER1(priv->enet_ver) && h->port_type == HNAE_PORT_DEBUG))
+		cmd->supported |= SUPPORTED_Pause;
 
 	cmd->transceiver = XCVR_EXTERNAL;
 	cmd->mdio_support = (ETH_MDIO_SUPPORTS_C45 | ETH_MDIO_SUPPORTS_C22);
@@ -243,6 +250,7 @@ static const char hns_nic_test_strs[][ETH_GSTRING_LEN] = {
 static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 {
 #define COPPER_CONTROL_REG 0
+#define PHY_POWER_DOWN BIT(11)
 #define PHY_LOOP_BACK BIT(14)
 	u16 val = 0;
 
@@ -253,33 +261,40 @@ static int hns_nic_config_phy_loopback(struct phy_device *phy_dev, u8 en)
 		/* speed : 1000M */
 		phy_write(phy_dev, HNS_PHY_PAGE_REG, 2);
 		phy_write(phy_dev, 21, 0x1046);
+
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
 		/* Force Master */
 		phy_write(phy_dev, 9, 0x1F00);
+
 		/* Soft-reset */
 		phy_write(phy_dev, 0, 0x9140);
 		/* If autoneg disabled,two soft-reset operations */
 		phy_write(phy_dev, 0, 0x9140);
-		phy_write(phy_dev, 22, 0xFA);
+
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0xFA);
 
 		/* Default is 0x0400 */
 		phy_write(phy_dev, 1, 0x418);
 
 		/* Force 1000M Link, Default is 0x0200 */
 		phy_write(phy_dev, 7, 0x20C);
-		phy_write(phy_dev, 22, 0);
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
 
-		/* Enable MAC loop-back */
+		/* Enable PHY loop-back */
 		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val |= PHY_LOOP_BACK;
+		val &= ~PHY_POWER_DOWN;
 		phy_write(phy_dev, COPPER_CONTROL_REG, val);
 	} else {
-		phy_write(phy_dev, 22, 0xFA);
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0xFA);
 		phy_write(phy_dev, 1, 0x400);
 		phy_write(phy_dev, 7, 0x200);
-		phy_write(phy_dev, 22, 0);
+		phy_write(phy_dev, HNS_PHY_PAGE_REG, 0);
+		phy_write(phy_dev, 9, 0xF00);
 
 		val = phy_read(phy_dev, COPPER_CONTROL_REG);
 		val &= ~PHY_LOOP_BACK;
+		val |= PHY_POWER_DOWN;
 		phy_write(phy_dev, COPPER_CONTROL_REG, val);
 	}
 	return 0;
@@ -340,27 +355,15 @@ static int __lb_up(struct net_device *ndev,
 
 	hns_nic_net_reset(ndev);
 
-	if (priv->phy) {
-		phy_disconnect(priv->phy);
-		msleep(100);
-
-		ret = hns_nic_init_phy(ndev, h);
-		if (ret)
-			return ret;
-	}
-
 	ret = __lb_setup(ndev, loop_mode);
 	if (ret)
 		return ret;
 
-	msleep(100);
+	msleep(200);
 
 	ret = h->dev->ops->start ? h->dev->ops->start(h) : 0;
 	if (ret)
 		return ret;
-
-	if (priv->phy)
-		phy_start(priv->phy);
 
 	/* link adjust duplex*/
 	if (priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII)
@@ -562,9 +565,6 @@ static int __lb_down(struct net_device *ndev)
 			   __func__,
 			   ret);
 
-	if (priv->phy)
-		phy_stop(priv->phy);
-
 	if (h->dev->ops->stop)
 		h->dev->ops->stop(h);
 
@@ -597,7 +597,7 @@ static void hns_nic_self_test(struct net_device *ndev,
 	st_param[1][0] = MAC_INTERNALLOOP_SERDES;
 	st_param[1][1] = 1; /*serdes must exist*/
 	st_param[2][0] = MAC_INTERNALLOOP_PHY; /* only supporte phy node*/
-	st_param[2][1] = ((!!(priv->ae_handle->phy_node)) &&
+	st_param[2][1] = ((!!(priv->ae_handle->phy_dev)) &&
 		(priv->ae_handle->phy_if != PHY_INTERFACE_MODE_XGMII));
 
 	if (eth_test->flags == ETH_TEST_FL_OFFLINE) {
@@ -645,8 +645,6 @@ static void hns_nic_get_drvinfo(struct net_device *net_dev,
 				struct ethtool_drvinfo *drvinfo)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
-
-	assert(priv);
 
 	strncpy(drvinfo->version, HNAE_DRIVER_VERSION,
 		sizeof(drvinfo->version));
@@ -720,8 +718,6 @@ static int hns_set_pauseparam(struct net_device *net_dev,
 	struct hnae_handle *h;
 	struct hnae_ae_ops *ops;
 
-	assert(priv || priv->ae_handle);
-
 	h = priv->ae_handle;
 	ops = h->dev->ops;
 
@@ -763,6 +759,16 @@ static int hns_get_coalesce(struct net_device *net_dev,
 		&ec->tx_max_coalesced_frames,
 		&ec->rx_max_coalesced_frames);
 
+	ops->get_coalesce_range(priv->ae_handle,
+				&ec->tx_max_coalesced_frames_low,
+				&ec->rx_max_coalesced_frames_low,
+				&ec->tx_max_coalesced_frames_high,
+				&ec->rx_max_coalesced_frames_high,
+				&ec->tx_coalesce_usecs_low,
+				&ec->rx_coalesce_usecs_low,
+				&ec->tx_coalesce_usecs_high,
+				&ec->rx_coalesce_usecs_high);
+
 	return 0;
 }
 
@@ -779,8 +785,6 @@ static int hns_set_coalesce(struct net_device *net_dev,
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
 	int ret;
-
-	assert(priv || priv->ae_handle);
 
 	ops = priv->ae_handle->dev->ops;
 
@@ -1111,8 +1115,6 @@ void hns_get_regs(struct net_device *net_dev, struct ethtool_regs *cmd,
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
 
-	assert(priv || priv->ae_handle);
-
 	ops = priv->ae_handle->dev->ops;
 
 	cmd->version = HNS_CHIP_VERSION;
@@ -1134,8 +1136,6 @@ static int hns_get_regs_len(struct net_device *net_dev)
 	u32 reg_num;
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
-
-	assert(priv || priv->ae_handle);
 
 	ops = priv->ae_handle->dev->ops;
 	if (!ops->get_regs_len) {

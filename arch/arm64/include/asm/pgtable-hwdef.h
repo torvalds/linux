@@ -133,7 +133,6 @@
  * Section
  */
 #define PMD_SECT_VALID		(_AT(pmdval_t, 1) << 0)
-#define PMD_SECT_PROT_NONE	(_AT(pmdval_t, 1) << 58)
 #define PMD_SECT_USER		(_AT(pmdval_t, 1) << 6)		/* AP[1] */
 #define PMD_SECT_RDONLY		(_AT(pmdval_t, 1) << 7)		/* AP[2] */
 #define PMD_SECT_S		(_AT(pmdval_t, 3) << 8)
@@ -165,6 +164,7 @@
 #define PTE_CONT		(_AT(pteval_t, 1) << 52)	/* Contiguous range */
 #define PTE_PXN			(_AT(pteval_t, 1) << 53)	/* Privileged XN */
 #define PTE_UXN			(_AT(pteval_t, 1) << 54)	/* User XN */
+#define PTE_HYP_XN		(_AT(pteval_t, 1) << 54)	/* HYP XN */
 
 /*
  * AttrIndx[2:0] encoding (mapping attributes defined in the MAIR* registers).
@@ -208,23 +208,69 @@
 #define TCR_T1SZ(x)		((UL(64) - (x)) << TCR_T1SZ_OFFSET)
 #define TCR_TxSZ(x)		(TCR_T0SZ(x) | TCR_T1SZ(x))
 #define TCR_TxSZ_WIDTH		6
-#define TCR_IRGN_NC		((UL(0) << 8) | (UL(0) << 24))
-#define TCR_IRGN_WBWA		((UL(1) << 8) | (UL(1) << 24))
-#define TCR_IRGN_WT		((UL(2) << 8) | (UL(2) << 24))
-#define TCR_IRGN_WBnWA		((UL(3) << 8) | (UL(3) << 24))
-#define TCR_IRGN_MASK		((UL(3) << 8) | (UL(3) << 24))
-#define TCR_ORGN_NC		((UL(0) << 10) | (UL(0) << 26))
-#define TCR_ORGN_WBWA		((UL(1) << 10) | (UL(1) << 26))
-#define TCR_ORGN_WT		((UL(2) << 10) | (UL(2) << 26))
-#define TCR_ORGN_WBnWA		((UL(3) << 10) | (UL(3) << 26))
-#define TCR_ORGN_MASK		((UL(3) << 10) | (UL(3) << 26))
-#define TCR_SHARED		((UL(3) << 12) | (UL(3) << 28))
-#define TCR_TG0_4K		(UL(0) << 14)
-#define TCR_TG0_64K		(UL(1) << 14)
-#define TCR_TG0_16K		(UL(2) << 14)
-#define TCR_TG1_16K		(UL(1) << 30)
-#define TCR_TG1_4K		(UL(2) << 30)
-#define TCR_TG1_64K		(UL(3) << 30)
+
+#define TCR_IRGN0_SHIFT		8
+#define TCR_IRGN0_MASK		(UL(3) << TCR_IRGN0_SHIFT)
+#define TCR_IRGN0_NC		(UL(0) << TCR_IRGN0_SHIFT)
+#define TCR_IRGN0_WBWA		(UL(1) << TCR_IRGN0_SHIFT)
+#define TCR_IRGN0_WT		(UL(2) << TCR_IRGN0_SHIFT)
+#define TCR_IRGN0_WBnWA		(UL(3) << TCR_IRGN0_SHIFT)
+
+#define TCR_IRGN1_SHIFT		24
+#define TCR_IRGN1_MASK		(UL(3) << TCR_IRGN1_SHIFT)
+#define TCR_IRGN1_NC		(UL(0) << TCR_IRGN1_SHIFT)
+#define TCR_IRGN1_WBWA		(UL(1) << TCR_IRGN1_SHIFT)
+#define TCR_IRGN1_WT		(UL(2) << TCR_IRGN1_SHIFT)
+#define TCR_IRGN1_WBnWA		(UL(3) << TCR_IRGN1_SHIFT)
+
+#define TCR_IRGN_NC		(TCR_IRGN0_NC | TCR_IRGN1_NC)
+#define TCR_IRGN_WBWA		(TCR_IRGN0_WBWA | TCR_IRGN1_WBWA)
+#define TCR_IRGN_WT		(TCR_IRGN0_WT | TCR_IRGN1_WT)
+#define TCR_IRGN_WBnWA		(TCR_IRGN0_WBnWA | TCR_IRGN1_WBnWA)
+#define TCR_IRGN_MASK		(TCR_IRGN0_MASK | TCR_IRGN1_MASK)
+
+
+#define TCR_ORGN0_SHIFT		10
+#define TCR_ORGN0_MASK		(UL(3) << TCR_ORGN0_SHIFT)
+#define TCR_ORGN0_NC		(UL(0) << TCR_ORGN0_SHIFT)
+#define TCR_ORGN0_WBWA		(UL(1) << TCR_ORGN0_SHIFT)
+#define TCR_ORGN0_WT		(UL(2) << TCR_ORGN0_SHIFT)
+#define TCR_ORGN0_WBnWA		(UL(3) << TCR_ORGN0_SHIFT)
+
+#define TCR_ORGN1_SHIFT		26
+#define TCR_ORGN1_MASK		(UL(3) << TCR_ORGN1_SHIFT)
+#define TCR_ORGN1_NC		(UL(0) << TCR_ORGN1_SHIFT)
+#define TCR_ORGN1_WBWA		(UL(1) << TCR_ORGN1_SHIFT)
+#define TCR_ORGN1_WT		(UL(2) << TCR_ORGN1_SHIFT)
+#define TCR_ORGN1_WBnWA		(UL(3) << TCR_ORGN1_SHIFT)
+
+#define TCR_ORGN_NC		(TCR_ORGN0_NC | TCR_ORGN1_NC)
+#define TCR_ORGN_WBWA		(TCR_ORGN0_WBWA | TCR_ORGN1_WBWA)
+#define TCR_ORGN_WT		(TCR_ORGN0_WT | TCR_ORGN1_WT)
+#define TCR_ORGN_WBnWA		(TCR_ORGN0_WBnWA | TCR_ORGN1_WBnWA)
+#define TCR_ORGN_MASK		(TCR_ORGN0_MASK | TCR_ORGN1_MASK)
+
+#define TCR_SH0_SHIFT		12
+#define TCR_SH0_MASK		(UL(3) << TCR_SH0_SHIFT)
+#define TCR_SH0_INNER		(UL(3) << TCR_SH0_SHIFT)
+
+#define TCR_SH1_SHIFT		28
+#define TCR_SH1_MASK		(UL(3) << TCR_SH1_SHIFT)
+#define TCR_SH1_INNER		(UL(3) << TCR_SH1_SHIFT)
+#define TCR_SHARED		(TCR_SH0_INNER | TCR_SH1_INNER)
+
+#define TCR_TG0_SHIFT		14
+#define TCR_TG0_MASK		(UL(3) << TCR_TG0_SHIFT)
+#define TCR_TG0_4K		(UL(0) << TCR_TG0_SHIFT)
+#define TCR_TG0_64K		(UL(1) << TCR_TG0_SHIFT)
+#define TCR_TG0_16K		(UL(2) << TCR_TG0_SHIFT)
+
+#define TCR_TG1_SHIFT		30
+#define TCR_TG1_MASK		(UL(3) << TCR_TG1_SHIFT)
+#define TCR_TG1_16K		(UL(1) << TCR_TG1_SHIFT)
+#define TCR_TG1_4K		(UL(2) << TCR_TG1_SHIFT)
+#define TCR_TG1_64K		(UL(3) << TCR_TG1_SHIFT)
+
 #define TCR_ASID16		(UL(1) << 36)
 #define TCR_TBI0		(UL(1) << 37)
 #define TCR_HA			(UL(1) << 39)

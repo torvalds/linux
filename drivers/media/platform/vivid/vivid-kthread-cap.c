@@ -36,6 +36,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
+#include <media/v4l2-rect.h>
 
 #include "vivid-core.h"
 #include "vivid-vid-common.h"
@@ -184,15 +185,15 @@ static void vivid_precalc_copy_rects(struct vivid_dev *dev)
 		dev->compose_out.width, dev->compose_out.height
 	};
 
-	dev->loop_vid_copy = rect_intersect(&dev->crop_cap, &dev->compose_out);
+	v4l2_rect_intersect(&dev->loop_vid_copy, &dev->crop_cap, &dev->compose_out);
 
 	dev->loop_vid_out = dev->loop_vid_copy;
-	rect_scale(&dev->loop_vid_out, &dev->compose_out, &dev->crop_out);
+	v4l2_rect_scale(&dev->loop_vid_out, &dev->compose_out, &dev->crop_out);
 	dev->loop_vid_out.left += dev->crop_out.left;
 	dev->loop_vid_out.top += dev->crop_out.top;
 
 	dev->loop_vid_cap = dev->loop_vid_copy;
-	rect_scale(&dev->loop_vid_cap, &dev->crop_cap, &dev->compose_cap);
+	v4l2_rect_scale(&dev->loop_vid_cap, &dev->crop_cap, &dev->compose_cap);
 
 	dprintk(dev, 1,
 		"loop_vid_copy: %dx%d@%dx%d loop_vid_out: %dx%d@%dx%d loop_vid_cap: %dx%d@%dx%d\n",
@@ -203,13 +204,13 @@ static void vivid_precalc_copy_rects(struct vivid_dev *dev)
 		dev->loop_vid_cap.width, dev->loop_vid_cap.height,
 		dev->loop_vid_cap.left, dev->loop_vid_cap.top);
 
-	r_overlay = rect_intersect(&r_fb, &r_overlay);
+	v4l2_rect_intersect(&r_overlay, &r_fb, &r_overlay);
 
 	/* shift r_overlay to the same origin as compose_out */
 	r_overlay.left += dev->compose_out.left - dev->overlay_out_left;
 	r_overlay.top += dev->compose_out.top - dev->overlay_out_top;
 
-	dev->loop_vid_overlay = rect_intersect(&r_overlay, &dev->loop_vid_copy);
+	v4l2_rect_intersect(&dev->loop_vid_overlay, &r_overlay, &dev->loop_vid_copy);
 	dev->loop_fb_copy = dev->loop_vid_overlay;
 
 	/* shift dev->loop_fb_copy back again to the fb origin */
@@ -217,7 +218,7 @@ static void vivid_precalc_copy_rects(struct vivid_dev *dev)
 	dev->loop_fb_copy.top -= dev->compose_out.top - dev->overlay_out_top;
 
 	dev->loop_vid_overlay_cap = dev->loop_vid_overlay;
-	rect_scale(&dev->loop_vid_overlay_cap, &dev->crop_cap, &dev->compose_cap);
+	v4l2_rect_scale(&dev->loop_vid_overlay_cap, &dev->crop_cap, &dev->compose_cap);
 
 	dprintk(dev, 1,
 		"loop_fb_copy: %dx%d@%dx%d loop_vid_overlay: %dx%d@%dx%d loop_vid_overlay_cap: %dx%d@%dx%d\n",
@@ -550,6 +551,19 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 			dev->button_pressed--;
 			snprintf(str, sizeof(str), " button pressed!");
 			tpg_gen_text(tpg, basep, line++ * line_height, 16, str);
+		}
+		if (dev->osd[0]) {
+			if (vivid_is_hdmi_cap(dev)) {
+				snprintf(str, sizeof(str),
+					 " OSD \"%s\"", dev->osd);
+				tpg_gen_text(tpg, basep, line++ * line_height,
+					     16, str);
+			}
+			if (dev->osd_jiffies &&
+			    time_is_before_jiffies(dev->osd_jiffies + 5 * HZ)) {
+				dev->osd[0] = 0;
+				dev->osd_jiffies = 0;
+			}
 		}
 	}
 

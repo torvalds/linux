@@ -464,15 +464,52 @@ static void bt_tags_for_each(struct blk_mq_tags *tags,
 	}
 }
 
-void blk_mq_all_tag_busy_iter(struct blk_mq_tags *tags, busy_tag_iter_fn *fn,
-		void *priv)
+static void blk_mq_all_tag_busy_iter(struct blk_mq_tags *tags,
+		busy_tag_iter_fn *fn, void *priv)
 {
 	if (tags->nr_reserved_tags)
 		bt_tags_for_each(tags, &tags->breserved_tags, 0, fn, priv, true);
 	bt_tags_for_each(tags, &tags->bitmap_tags, tags->nr_reserved_tags, fn, priv,
 			false);
 }
-EXPORT_SYMBOL(blk_mq_all_tag_busy_iter);
+
+void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
+		busy_tag_iter_fn *fn, void *priv)
+{
+	int i;
+
+	for (i = 0; i < tagset->nr_hw_queues; i++) {
+		if (tagset->tags && tagset->tags[i])
+			blk_mq_all_tag_busy_iter(tagset->tags[i], fn, priv);
+	}
+}
+EXPORT_SYMBOL(blk_mq_tagset_busy_iter);
+
+int blk_mq_reinit_tagset(struct blk_mq_tag_set *set)
+{
+	int i, j, ret = 0;
+
+	if (!set->ops->reinit_request)
+		goto out;
+
+	for (i = 0; i < set->nr_hw_queues; i++) {
+		struct blk_mq_tags *tags = set->tags[i];
+
+		for (j = 0; j < tags->nr_tags; j++) {
+			if (!tags->rqs[j])
+				continue;
+
+			ret = set->ops->reinit_request(set->driver_data,
+						tags->rqs[j]);
+			if (ret)
+				goto out;
+		}
+	}
+
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(blk_mq_reinit_tagset);
 
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 		void *priv)

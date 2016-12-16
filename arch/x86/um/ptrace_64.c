@@ -78,7 +78,11 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 	case RSI:
 	case RDI:
 	case RBP:
+		break;
+
 	case ORIG_RAX:
+		/* Update the syscall number. */
+		UPT_SYSCALL_NR(&child->thread.regs.regs) = value;
 		break;
 
 	case FS:
@@ -222,14 +226,14 @@ int is_syscall(unsigned long addr)
 static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
 	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
-	long fpregs[HOST_FP_SIZE];
+	struct user_i387_struct fpregs;
 
-	BUG_ON(sizeof(*buf) != sizeof(fpregs));
-	err = save_fp_registers(userspace_pid[cpu], fpregs);
+	err = save_i387_registers(userspace_pid[cpu],
+				  (unsigned long *) &fpregs);
 	if (err)
 		return err;
 
-	n = copy_to_user(buf, fpregs, sizeof(fpregs));
+	n = copy_to_user(buf, &fpregs, sizeof(fpregs));
 	if (n > 0)
 		return -EFAULT;
 
@@ -239,14 +243,14 @@ static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *c
 static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
 	int n, cpu = ((struct thread_info *) child->stack)->cpu;
-	long fpregs[HOST_FP_SIZE];
+	struct user_i387_struct fpregs;
 
-	BUG_ON(sizeof(*buf) != sizeof(fpregs));
-	n = copy_from_user(fpregs, buf, sizeof(fpregs));
+	n = copy_from_user(&fpregs, buf, sizeof(fpregs));
 	if (n > 0)
 		return -EFAULT;
 
-	return restore_fp_registers(userspace_pid[cpu], fpregs);
+	return restore_i387_registers(userspace_pid[cpu],
+				      (unsigned long *) &fpregs);
 }
 
 long subarch_ptrace(struct task_struct *child, long request,

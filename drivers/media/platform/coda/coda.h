@@ -92,7 +92,6 @@ struct coda_dev {
 	struct mutex		coda_mutex;
 	struct workqueue_struct	*workqueue;
 	struct v4l2_m2m_dev	*m2m_dev;
-	struct vb2_alloc_ctx	*alloc_ctx;
 	struct list_head	instances;
 	unsigned long		instance_mask;
 	struct dentry		*debugfs_root;

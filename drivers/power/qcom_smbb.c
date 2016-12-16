@@ -34,6 +34,7 @@
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
+#include <linux/extcon.h>
 
 #define SMBB_CHG_VMAX		0x040
 #define SMBB_CHG_VSAFE		0x041
@@ -111,6 +112,7 @@ struct smbb_charger {
 	unsigned int revision;
 	unsigned int addr;
 	struct device *dev;
+	struct extcon_dev *edev;
 
 	bool dc_disabled;
 	bool jeita_ext_temp;
@@ -123,6 +125,11 @@ struct smbb_charger {
 	struct power_supply *dc_psy;
 	struct power_supply *bat_psy;
 	struct regmap *regmap;
+};
+
+static const unsigned int smbb_usb_extcon_cable[] = {
+	EXTCON_USB,
+	EXTCON_NONE,
 };
 
 static int smbb_vbat_weak_fn(unsigned int index)
@@ -371,6 +378,8 @@ static irqreturn_t smbb_usb_valid_handler(int irq, void *_data)
 	struct smbb_charger *chg = _data;
 
 	smbb_set_line_flag(chg, irq, STATUS_USBIN_VALID);
+	extcon_set_cable_state_(chg->edev, EXTCON_USB,
+				chg->status & STATUS_USBIN_VALID);
 	power_supply_changed(chg->usb_psy);
 
 	return IRQ_HANDLED;
@@ -847,6 +856,18 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	if (IS_ERR(chg->usb_psy)) {
 		dev_err(&pdev->dev, "failed to register USB power supply\n");
 		return PTR_ERR(chg->usb_psy);
+	}
+
+	chg->edev = devm_extcon_dev_allocate(&pdev->dev, smbb_usb_extcon_cable);
+	if (IS_ERR(chg->edev)) {
+		dev_err(&pdev->dev, "failed to allocate extcon device\n");
+		return -ENOMEM;
+	}
+
+	rc = devm_extcon_dev_register(&pdev->dev, chg->edev);
+	if (rc < 0) {
+		dev_err(&pdev->dev, "failed to register extcon device\n");
+		return rc;
 	}
 
 	if (!chg->dc_disabled) {

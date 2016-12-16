@@ -92,7 +92,7 @@
 			dfsrr;
 
 			eeprom: at24@50 {
-				compatible = "st-micro,24c256";
+				compatible = "st,24c256";
 				reg = <0x50>;
 			};
 

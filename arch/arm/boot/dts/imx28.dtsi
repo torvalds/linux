@@ -165,6 +165,7 @@
 
 				gpio0: gpio@0 {
 					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <0>;
 					interrupts = <127>;
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -174,6 +175,7 @@
 
 				gpio1: gpio@1 {
 					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <1>;
 					interrupts = <126>;
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -183,6 +185,7 @@
 
 				gpio2: gpio@2 {
 					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <2>;
 					interrupts = <125>;
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -192,6 +195,7 @@
 
 				gpio3: gpio@3 {
 					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <3>;
 					interrupts = <124>;
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -201,6 +205,7 @@
 
 				gpio4: gpio@4 {
 					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					reg = <4>;
 					interrupts = <123>;
 					gpio-controller;
 					#gpio-cells = <2>;
@@ -429,6 +434,32 @@
 						MX28_PAD_ENET0_TXD1__ENET0_TXD1
 						MX28_PAD_ENET_CLK__CLKCTRL_ENET
 					>;
+					fsl,drive-strength = <MXS_DRIVE_8mA>;
+					fsl,voltage = <MXS_VOLTAGE_HIGH>;
+					fsl,pull-up = <MXS_PULL_ENABLE>;
+				};
+
+				mac0_pins_b: mac0@1 {
+					reg = <1>;
+					fsl,pinmux-ids = <
+						MX28_PAD_ENET0_MDC__ENET0_MDC
+						MX28_PAD_ENET0_MDIO__ENET0_MDIO
+						MX28_PAD_ENET0_RX_EN__ENET0_RX_EN
+						MX28_PAD_ENET0_RXD0__ENET0_RXD0
+						MX28_PAD_ENET0_RXD1__ENET0_RXD1
+						MX28_PAD_ENET0_RXD2__ENET0_RXD2
+						MX28_PAD_ENET0_RXD3__ENET0_RXD3
+						MX28_PAD_ENET0_TX_EN__ENET0_TX_EN
+						MX28_PAD_ENET0_TXD0__ENET0_TXD0
+						MX28_PAD_ENET0_TXD1__ENET0_TXD1
+						MX28_PAD_ENET0_TXD2__ENET0_TXD2
+						MX28_PAD_ENET0_TXD3__ENET0_TXD3
+						MX28_PAD_ENET_CLK__CLKCTRL_ENET
+						MX28_PAD_ENET0_COL__ENET0_COL
+						MX28_PAD_ENET0_CRS__ENET0_CRS
+						MX28_PAD_ENET0_TX_CLK__ENET0_TX_CLK
+						MX28_PAD_ENET0_RX_CLK__ENET0_RX_CLK
+						>;
 					fsl,drive-strength = <MXS_DRIVE_8mA>;
 					fsl,voltage = <MXS_VOLTAGE_HIGH>;
 					fsl,pull-up = <MXS_PULL_ENABLE>;

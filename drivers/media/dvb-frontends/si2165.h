@@ -28,10 +28,15 @@ enum {
 	SI2165_MODE_PLL_XTAL = 0x21
 };
 
-struct si2165_config {
-	/* i2c addr
-	 * possible values: 0x64,0x65,0x66,0x67 */
-	u8 i2c_addr;
+/* I2C addresses
+ * possible values: 0x64,0x65,0x66,0x67
+ */
+struct si2165_platform_data {
+	/*
+	 * frontend
+	 * returned by driver
+	 */
+	struct dvb_frontend **fe;
 
 	/* external clock or XTAL */
 	u8 chip_mode;
@@ -44,19 +49,5 @@ struct si2165_config {
 	/* invert the spectrum */
 	bool inversion;
 };
-
-#if IS_REACHABLE(CONFIG_DVB_SI2165)
-struct dvb_frontend *si2165_attach(
-	const struct si2165_config *config,
-	struct i2c_adapter *i2c);
-#else
-static inline struct dvb_frontend *si2165_attach(
-	const struct si2165_config *config,
-	struct i2c_adapter *i2c)
-{
-	pr_warn("%s: driver disabled by Kconfig\n", __func__);
-	return NULL;
-}
-#endif /* CONFIG_DVB_SI2165 */
 
 #endif /* _DVB_SI2165_H */

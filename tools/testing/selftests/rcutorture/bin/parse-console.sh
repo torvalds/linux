@@ -33,7 +33,7 @@ if grep -Pq '\x00' < $file
 then
 	print_warning Console output contains nul bytes, old qemu still running?
 fi
-egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:|detected stalls on CPUs/tasks:|self-detected stall on CPU|Stall ended before state dump start|\?\?\? Writer stall state' < $file | grep -v 'ODEBUG: ' | grep -v 'Warning: unable to open an initial console' > $1.diags
+egrep 'Badness|WARNING:|Warn|BUG|===========|Call Trace:|Oops:|detected stalls on CPUs/tasks:|self-detected stall on CPU|Stall ended before state dump start|\?\?\? Writer stall state|rcu_.*kthread starved for' < $file | grep -v 'ODEBUG: ' | grep -v 'Warning: unable to open an initial console' > $1.diags
 if test -s $1.diags
 then
 	print_warning Assertion failure in $file $title
@@ -68,6 +68,11 @@ then
 	if test "$n_stalls" -ne 0
 	then
 		summary="$summary  Stalls: $n_stalls"
+	fi
+	n_starves=`grep -c 'rcu_.*kthread starved for' $1`
+	if test "$n_starves" -ne 0
+	then
+		summary="$summary  Starves: $n_starves"
 	fi
 	print_warning Summary: $summary
 else

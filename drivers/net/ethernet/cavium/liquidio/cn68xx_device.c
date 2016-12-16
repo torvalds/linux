@@ -19,28 +19,17 @@
 * This file may also be available under a different license from Cavium.
 * Contact Cavium, Inc. for more information
 **********************************************************************/
-#include <linux/version.h>
-#include <linux/types.h>
-#include <linux/list.h>
-#include <linux/interrupt.h>
 #include <linux/pci.h>
-#include <linux/kthread.h>
 #include <linux/netdevice.h>
-#include "octeon_config.h"
 #include "liquidio_common.h"
 #include "octeon_droq.h"
 #include "octeon_iq.h"
 #include "response_manager.h"
 #include "octeon_device.h"
-#include "octeon_nic.h"
 #include "octeon_main.h"
-#include "octeon_network.h"
 #include "cn66xx_regs.h"
 #include "cn66xx_device.h"
 #include "cn68xx_regs.h"
-#include "cn68xx_device.h"
-#include "liquidio_image.h"
-#include "octeon_mem_ops.h"
 
 static void lio_cn68xx_set_dpi_regs(struct octeon_device *oct)
 {
@@ -129,7 +118,7 @@ static inline void lio_cn68xx_vendor_message_fix(struct octeon_device *oct)
 	pci_write_config_dword(oct->pci_dev, CN6XXX_PCIE_FLTMSK, val);
 }
 
-int lio_is_210nv(struct octeon_device *oct)
+static int lio_is_210nv(struct octeon_device *oct)
 {
 	u64 mio_qlm4_cfg = lio_pci_readq(oct, CN6XXX_MIO_QLM4_CFG);
 

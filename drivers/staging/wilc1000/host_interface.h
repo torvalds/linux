@@ -224,10 +224,6 @@ struct op_mode {
 	u32 mode;
 };
 
-struct set_mac_addr {
-	u8 mac_addr[ETH_ALEN];
-};
-
 struct get_mac_addr {
 	u8 *mac_addr;
 };
@@ -275,10 +271,10 @@ struct host_if_drv {
 	struct cfg_param_attr cfg_values;
 
 	struct mutex cfg_values_lock;
-	struct semaphore sem_test_key_block;
-	struct semaphore sem_test_disconn_block;
-	struct semaphore sem_get_rssi;
-	struct semaphore sem_inactive_time;
+	struct completion comp_test_key_block;
+	struct completion comp_test_disconn_block;
+	struct completion comp_get_rssi;
+	struct completion comp_inactive_time;
 
 	struct timer_list scan_timer;
 	struct timer_list connect_timer;

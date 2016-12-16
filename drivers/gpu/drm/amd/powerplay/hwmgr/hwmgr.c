@@ -24,16 +24,21 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <drm/amdgpu_drm.h>
 #include "cgs_common.h"
 #include "power_state.h"
 #include "hwmgr.h"
 #include "pppcielanes.h"
 #include "pp_debug.h"
 #include "ppatomctrl.h"
+#include "ppsmc.h"
+
+#define VOLTAGE_SCALE               4
 
 extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int tonga_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int fiji_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int polaris10_hwmgr_init(struct pp_hwmgr *hwmgr);
 
 int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 {
@@ -54,18 +59,23 @@ int hwmgr_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 	hwmgr->hw_revision = pp_init->rev_id;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
+	hwmgr->powercontainment_enabled = pp_init->powercontainment_enabled;
 
 	switch (hwmgr->chip_family) {
-	case AMD_FAMILY_CZ:
+	case AMDGPU_FAMILY_CZ:
 		cz_hwmgr_init(hwmgr);
 		break;
-	case AMD_FAMILY_VI:
+	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
 		case CHIP_TONGA:
 			tonga_hwmgr_init(hwmgr);
 			break;
 		case CHIP_FIJI:
 			fiji_hwmgr_init(hwmgr);
+			break;
+		case CHIP_POLARIS11:
+		case CHIP_POLARIS10:
+			polaris10_hwmgr_init(hwmgr);
 			break;
 		default:
 			return -EINVAL;
@@ -84,6 +94,15 @@ int hwmgr_fini(struct pp_hwmgr *hwmgr)
 {
 	if (hwmgr == NULL || hwmgr->ps == NULL)
 		return -EINVAL;
+
+	/* do hwmgr finish*/
+	kfree(hwmgr->hardcode_pp_table);
+
+	kfree(hwmgr->backend);
+
+	kfree(hwmgr->start_thermal_controller.function_list);
+
+	kfree(hwmgr->set_temperature_range.function_list);
 
 	kfree(hwmgr->ps);
 	kfree(hwmgr);
@@ -454,7 +473,7 @@ uint16_t phm_find_closest_vddci(struct pp_atomctrl_voltage_table *vddci_table, u
 
 	PP_ASSERT_WITH_CODE(false,
 			"VDDCI is larger than max VDDCI in VDDCI Voltage Table!",
-			return vddci_table->entries[i].value);
+			return vddci_table->entries[i-1].value);
 }
 
 int phm_find_boot_level(void *table,
@@ -515,7 +534,7 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 
 	/* initialize vddc_dep_on_dal_pwrl table */
 	table_size = sizeof(uint32_t) + 4 * sizeof(struct phm_clock_voltage_dependency_record);
-	table_clk_vlt = (struct phm_clock_voltage_dependency_table *)kzalloc(table_size, GFP_KERNEL);
+	table_clk_vlt = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
 		printk(KERN_ERR "[ powerplay ] Can not allocate space for vddc_dep_on_dal_pwrl! \n");
@@ -560,4 +579,39 @@ uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask)
 		level++;
 
 	return level;
+}
+
+void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
+{
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)hwmgr->pptable;
+	struct phm_clock_voltage_dependency_table *table =
+				table_info->vddc_dep_on_dal_pwrl;
+	struct phm_ppt_v1_clock_voltage_dependency_table *vddc_table;
+	enum PP_DAL_POWERLEVEL dal_power_level = hwmgr->dal_power_level;
+	uint32_t req_vddc = 0, req_volt, i;
+
+	if (!table || table->count <= 0
+		|| dal_power_level < PP_DAL_POWERLEVEL_ULTRALOW
+		|| dal_power_level > PP_DAL_POWERLEVEL_PERFORMANCE)
+		return;
+
+	for (i = 0; i < table->count; i++) {
+		if (dal_power_level == table->entries[i].clk) {
+			req_vddc = table->entries[i].v;
+			break;
+		}
+	}
+
+	vddc_table = table_info->vdd_dep_on_sclk;
+	for (i = 0; i < vddc_table->count; i++) {
+		if (req_vddc <= vddc_table->entries[i].vddc) {
+			req_volt = (((uint32_t)vddc_table->entries[i].vddc) * VOLTAGE_SCALE);
+			smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_VddC_Request, req_volt);
+			return;
+		}
+	}
+	printk(KERN_ERR "DAL requested level can not"
+			" found a available voltage in VDDC DPM Table \n");
 }

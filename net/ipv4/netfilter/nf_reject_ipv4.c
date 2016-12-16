@@ -24,6 +24,9 @@ const struct tcphdr *nf_reject_ip_tcphdr_get(struct sk_buff *oldskb,
 	if (ip_hdr(oldskb)->frag_off & htons(IP_OFFSET))
 		return NULL;
 
+	if (ip_hdr(oldskb)->protocol != IPPROTO_TCP)
+		return NULL;
+
 	oth = skb_header_pointer(oldskb, ip_hdrlen(oldskb),
 				 sizeof(struct tcphdr), _oth);
 	if (oth == NULL)

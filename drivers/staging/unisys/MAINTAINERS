@@ -2,5 +2,4 @@ Unisys s-Par drivers
 M:	David Kershner <sparmaintainer@unisys.com>
 S:	Maintained
 F:	Documentation/s-Par/overview.txt
-F:	Documentation/s-Par/proc-entries.txt
 F:	drivers/staging/unisys/

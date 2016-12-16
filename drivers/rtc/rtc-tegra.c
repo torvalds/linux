@@ -179,12 +179,6 @@ static int tegra_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (sec == 0) {
 		/* alarm is disabled. */
 		alarm->enabled = 0;
-		alarm->time.tm_mon = -1;
-		alarm->time.tm_mday = -1;
-		alarm->time.tm_year = -1;
-		alarm->time.tm_hour = -1;
-		alarm->time.tm_min = -1;
-		alarm->time.tm_sec = -1;
 	} else {
 		/* alarm is enabled. */
 		alarm->enabled = 1;

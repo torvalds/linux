@@ -7,6 +7,8 @@
  *  arch/sh/drivers/pci/ops-sh7786.c
  *  Copyright (C) 2009 - 2011  Paul Mundt
  *
+ * Author: Phil Edworthy <phil.edworthy@renesas.com>
+ *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
@@ -18,7 +20,7 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -936,12 +938,6 @@ static const struct of_device_id rcar_pcie_of_match[] = {
 	{ .compatible = "renesas,pcie-r8a7795", .data = rcar_pcie_hw_init },
 	{},
 };
-MODULE_DEVICE_TABLE(of, rcar_pcie_of_match);
-
-static void rcar_pcie_release_of_pci_ranges(struct rcar_pcie *pci)
-{
-	pci_free_resource_list(&pci->resources);
-}
 
 static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 {
@@ -955,37 +951,25 @@ static int rcar_pcie_parse_request_of_pci_ranges(struct rcar_pcie *pci)
 	if (err)
 		return err;
 
-	resource_list_for_each_entry(win, &pci->resources) {
-		struct resource *parent, *res = win->res;
+	err = devm_request_pci_bus_resources(dev, &pci->resources);
+	if (err)
+		goto out_release_res;
 
-		switch (resource_type(res)) {
-		case IORESOURCE_IO:
-			parent = &ioport_resource;
+	resource_list_for_each_entry(win, &pci->resources) {
+		struct resource *res = win->res;
+
+		if (resource_type(res) == IORESOURCE_IO) {
 			err = pci_remap_iospace(res, iobase);
-			if (err) {
+			if (err)
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
-				continue;
-			}
-			break;
-		case IORESOURCE_MEM:
-			parent = &iomem_resource;
-			break;
-
-		case IORESOURCE_BUS:
-		default:
-			continue;
 		}
-
-		err = devm_request_resource(dev, parent, res);
-		if (err)
-			goto out_release_res;
 	}
 
 	return 0;
 
 out_release_res:
-	rcar_pcie_release_of_pci_ranges(pci);
+	pci_free_resource_list(&pci->resources);
 	return err;
 }
 
@@ -1073,8 +1057,4 @@ static struct platform_driver rcar_pcie_driver = {
 	},
 	.probe = rcar_pcie_probe,
 };
-module_platform_driver(rcar_pcie_driver);
-
-MODULE_AUTHOR("Phil Edworthy <phil.edworthy@renesas.com>");
-MODULE_DESCRIPTION("Renesas R-Car PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(rcar_pcie_driver);

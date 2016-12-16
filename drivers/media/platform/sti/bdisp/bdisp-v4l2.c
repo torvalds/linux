@@ -439,7 +439,7 @@ static void bdisp_ctrls_delete(struct bdisp_ctx *ctx)
 
 static int bdisp_queue_setup(struct vb2_queue *vq,
 			     unsigned int *nb_buf, unsigned int *nb_planes,
-			     unsigned int sizes[], void *allocators[])
+			     unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct bdisp_ctx *ctx = vb2_get_drv_priv(vq);
 	struct bdisp_frame *frame = ctx_get_frame(ctx, vq->type);
@@ -453,7 +453,6 @@ static int bdisp_queue_setup(struct vb2_queue *vq,
 		dev_err(ctx->bdisp_dev->dev, "Invalid format\n");
 		return -EINVAL;
 	}
-	allocators[0] = ctx->bdisp_dev->alloc_ctx;
 
 	if (*nb_planes)
 		return sizes[0] < frame->sizeimage ? -EINVAL : 0;
@@ -528,7 +527,7 @@ static void bdisp_stop_streaming(struct vb2_queue *q)
 	pm_runtime_put(ctx->bdisp_dev->dev);
 }
 
-static struct vb2_ops bdisp_qops = {
+static const struct vb2_ops bdisp_qops = {
 	.queue_setup     = bdisp_queue_setup,
 	.buf_prepare     = bdisp_buf_prepare,
 	.buf_queue       = bdisp_buf_queue,
@@ -553,6 +552,7 @@ static int queue_init(void *priv,
 	src_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock = &ctx->bdisp_dev->lock;
+	src_vq->dev = ctx->bdisp_dev->v4l2_dev.dev;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret)
@@ -567,6 +567,7 @@ static int queue_init(void *priv,
 	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->bdisp_dev->lock;
+	dst_vq->dev = ctx->bdisp_dev->v4l2_dev.dev;
 
 	return vb2_queue_init(dst_vq);
 }
@@ -1269,8 +1270,6 @@ static int bdisp_remove(struct platform_device *pdev)
 
 	bdisp_hw_free_filters(bdisp->dev);
 
-	vb2_dma_contig_cleanup_ctx(bdisp->alloc_ctx);
-
 	pm_runtime_disable(&pdev->dev);
 
 	bdisp_debugfs_remove(bdisp);
@@ -1371,18 +1370,11 @@ static int bdisp_probe(struct platform_device *pdev)
 		goto err_dbg;
 	}
 
-	/* Continuous memory allocator */
-	bdisp->alloc_ctx = vb2_dma_contig_init_ctx(dev);
-	if (IS_ERR(bdisp->alloc_ctx)) {
-		ret = PTR_ERR(bdisp->alloc_ctx);
-		goto err_pm;
-	}
-
 	/* Filters */
 	if (bdisp_hw_alloc_filters(bdisp->dev)) {
 		dev_err(bdisp->dev, "no memory for filters\n");
 		ret = -ENOMEM;
-		goto err_vb2_dma;
+		goto err_pm;
 	}
 
 	/* Register */
@@ -1401,8 +1393,6 @@ static int bdisp_probe(struct platform_device *pdev)
 
 err_filter:
 	bdisp_hw_free_filters(bdisp->dev);
-err_vb2_dma:
-	vb2_dma_contig_cleanup_ctx(bdisp->alloc_ctx);
 err_pm:
 	pm_runtime_put(dev);
 err_dbg:

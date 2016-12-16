@@ -585,8 +585,8 @@ static int ptrace_setoptions(struct task_struct *child, unsigned long data)
 		return -EINVAL;
 
 	if (unlikely(data & PTRACE_O_SUSPEND_SECCOMP)) {
-		if (!config_enabled(CONFIG_CHECKPOINT_RESTORE) ||
-		    !config_enabled(CONFIG_SECCOMP))
+		if (!IS_ENABLED(CONFIG_CHECKPOINT_RESTORE) ||
+		    !IS_ENABLED(CONFIG_SECCOMP))
 			return -EINVAL;
 
 		if (!capable(CAP_SYS_ADMIN))

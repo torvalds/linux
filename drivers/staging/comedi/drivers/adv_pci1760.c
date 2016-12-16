@@ -196,6 +196,7 @@ static int pci1760_pwm_ns_to_div(unsigned int flags, unsigned int ns)
 		break;
 	case CMDF_ROUND_DOWN:
 		divisor = ns / PCI1760_PWM_TIMEBASE;
+		break;
 	default:
 		return -EINVAL;
 	}

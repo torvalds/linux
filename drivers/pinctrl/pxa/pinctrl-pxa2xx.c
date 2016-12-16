@@ -57,7 +57,7 @@ static int pxa2xx_pctrl_get_group_pins(struct pinctrl_dev *pctldev,
 static const struct pinctrl_ops pxa2xx_pctl_ops = {
 #ifdef CONFIG_OF
 	.dt_node_to_map		= pinconf_generic_dt_node_to_map_all,
-	.dt_free_map		= pinctrl_utils_dt_free_map,
+	.dt_free_map		= pinctrl_utils_free_map,
 #endif
 	.get_groups_count	= pxa2xx_pctrl_get_groups_count,
 	.get_group_name		= pxa2xx_pctrl_get_group_name,
@@ -416,7 +416,7 @@ int pxa2xx_pinctrl_init(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	pctl->pctl_dev = pinctrl_register(&pctl->desc, &pdev->dev, pctl);
+	pctl->pctl_dev = devm_pinctrl_register(&pdev->dev, &pctl->desc, pctl);
 	if (IS_ERR(pctl->pctl_dev)) {
 		dev_err(&pdev->dev, "couldn't register pinctrl driver\n");
 		return PTR_ERR(pctl->pctl_dev);

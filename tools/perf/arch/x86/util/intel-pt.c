@@ -131,7 +131,7 @@ static int intel_pt_read_config(struct perf_pmu *intel_pt_pmu, const char *str,
 	if (!mask)
 		return -EINVAL;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type == intel_pt_pmu->type) {
 			*res = intel_pt_masked_bits(mask, evsel->attr.config);
 			return 0;
@@ -501,7 +501,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	struct intel_pt_recording *ptr =
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_pmu *intel_pt_pmu = ptr->intel_pt_pmu;
-	bool have_timing_info;
+	bool have_timing_info, need_immediate = false;
 	struct perf_evsel *evsel, *intel_pt_evsel = NULL;
 	const struct cpu_map *cpus = evlist->cpus;
 	bool privileged = geteuid() == 0 || perf_event_paranoid() < 0;
@@ -511,7 +511,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	ptr->evlist = evlist;
 	ptr->snapshot_mode = opts->auxtrace_snapshot_mode;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type == intel_pt_pmu->type) {
 			if (intel_pt_evsel) {
 				pr_err("There may be only one " INTEL_PT_PMU_NAME " event\n");
@@ -655,6 +655,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				ptr->have_sched_switch = 3;
 			} else {
 				opts->record_switch_events = true;
+				need_immediate = true;
 				if (cpu_wide)
 					ptr->have_sched_switch = 3;
 				else
@@ -700,6 +701,9 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		tracking_evsel->attr.freq = 0;
 		tracking_evsel->attr.sample_period = 1;
 
+		if (need_immediate)
+			tracking_evsel->immediate = true;
+
 		/* In per-cpu case, always need the time of mmap events etc */
 		if (!cpu_map__empty(cpus)) {
 			perf_evsel__set_sample_bit(tracking_evsel, TIME);
@@ -725,7 +729,7 @@ static int intel_pt_snapshot_start(struct auxtrace_record *itr)
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(ptr->evlist, evsel) {
+	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
 			return perf_evsel__disable(evsel);
 	}
@@ -738,7 +742,7 @@ static int intel_pt_snapshot_finish(struct auxtrace_record *itr)
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(ptr->evlist, evsel) {
+	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
 			return perf_evsel__enable(evsel);
 	}
@@ -1011,7 +1015,7 @@ static int intel_pt_read_finish(struct auxtrace_record *itr, int idx)
 			container_of(itr, struct intel_pt_recording, itr);
 	struct perf_evsel *evsel;
 
-	evlist__for_each(ptr->evlist, evsel) {
+	evlist__for_each_entry(ptr->evlist, evsel) {
 		if (evsel->attr.type == ptr->intel_pt_pmu->type)
 			return perf_evlist__enable_event_idx(ptr->evlist, evsel,
 							     idx);
@@ -1026,6 +1030,11 @@ struct auxtrace_record *intel_pt_recording_init(int *err)
 
 	if (!intel_pt_pmu)
 		return NULL;
+
+	if (setenv("JITDUMP_USE_ARCH_TIMESTAMP", "1", 1)) {
+		*err = -errno;
+		return NULL;
+	}
 
 	ptr = zalloc(sizeof(struct intel_pt_recording));
 	if (!ptr) {

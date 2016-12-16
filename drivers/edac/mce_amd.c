@@ -1052,7 +1052,6 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	struct mce *m = (struct mce *)data;
 	struct cpuinfo_x86 *c = &cpu_data(m->extcpu);
 	int ecc;
-	u32 ebx = cpuid_ebx(0x80000007);
 
 	if (amd_filter_mce(m))
 		return NOTIFY_STOP;
@@ -1075,7 +1074,7 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 			((m->status & MCI_STATUS_DEFERRED) ? "Deferred" : "-"),
 			((m->status & MCI_STATUS_POISON)   ? "Poison"   : "-"));
 
-	if (!!(ebx & BIT(3))) {
+	if (boot_cpu_has(X86_FEATURE_SMCA)) {
 		u32 low, high;
 		u32 addr = MSR_AMD64_SMCA_MCx_CONFIG(m->bank);
 
@@ -1094,7 +1093,7 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	if (m->status & MCI_STATUS_ADDRV)
 		pr_emerg(HW_ERR "MC%d Error Address: 0x%016llx\n", m->bank, m->addr);
 
-	if (!!(ebx & BIT(3))) {
+	if (boot_cpu_has(X86_FEATURE_SMCA)) {
 		decode_smca_errors(m);
 		goto err_code;
 	}
@@ -1149,7 +1148,6 @@ static struct notifier_block amd_mce_dec_nb = {
 static int __init mce_amd_init(void)
 {
 	struct cpuinfo_x86 *c = &boot_cpu_data;
-	u32 ebx;
 
 	if (c->x86_vendor != X86_VENDOR_AMD)
 		return -ENODEV;
@@ -1205,9 +1203,8 @@ static int __init mce_amd_init(void)
 		break;
 
 	case 0x17:
-		ebx = cpuid_ebx(0x80000007);
 		xec_mask = 0x3f;
-		if (!(ebx & BIT(3))) {
+		if (!boot_cpu_has(X86_FEATURE_SMCA)) {
 			printk(KERN_WARNING "Decoding supported only on Scalable MCA processors.\n");
 			goto err_out;
 		}

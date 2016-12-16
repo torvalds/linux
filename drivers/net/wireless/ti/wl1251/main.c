@@ -448,7 +448,11 @@ static void wl1251_op_stop(struct ieee80211_hw *hw)
 	WARN_ON(wl->state != WL1251_STATE_ON);
 
 	if (wl->scanning) {
-		ieee80211_scan_completed(wl->hw, true);
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		ieee80211_scan_completed(wl->hw, &info);
 		wl->scanning = false;
 	}
 
@@ -1482,7 +1486,7 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					 BIT(NL80211_IFTYPE_ADHOC);
 	wl->hw->wiphy->max_scan_ssids = 1;
-	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
+	wl->hw->wiphy->bands[NL80211_BAND_2GHZ] = &wl1251_band_2ghz;
 
 	wl->hw->queues = 4;
 

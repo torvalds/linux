@@ -30,6 +30,7 @@
 
 #define pr_fmt(fmt) "vga_switcheroo: " fmt
 
+#include <linux/apple-gmux.h>
 #include <linux/console.h>
 #include <linux/debugfs.h>
 #include <linux/fb.h>
@@ -51,9 +52,9 @@
  *
  * * muxed: Dual GPUs with a multiplexer chip to switch outputs between GPUs.
  * * muxless: Dual GPUs but only one of them is connected to outputs.
- * 	The other one is merely used to offload rendering, its results
- * 	are copied over PCIe into the framebuffer. On Linux this is
- * 	supported with DRI PRIME.
+ *   The other one is merely used to offload rendering, its results
+ *   are copied over PCIe into the framebuffer. On Linux this is
+ *   supported with DRI PRIME.
  *
  * Hybrid graphics started to appear in the late Naughties and were initially
  * all muxed. Newer laptops moved to a muxless architecture for cost reasons.
@@ -308,7 +309,8 @@ static int register_client(struct pci_dev *pdev,
  *
  * Register vga client (GPU). Enable vga_switcheroo if another GPU and a
  * handler have already registered. The power state of the client is assumed
- * to be ON.
+ * to be ON. Beforehand, vga_switcheroo_client_probe_defer() shall be called
+ * to ensure that all prerequisites are met.
  *
  * Return: 0 on success, -ENOMEM on memory allocation error.
  */
@@ -329,7 +331,8 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  * @id: client identifier
  *
  * Register audio client (audio device on a GPU). The power state of the
- * client is assumed to be ON.
+ * client is assumed to be ON. Beforehand, vga_switcheroo_client_probe_defer()
+ * shall be called to ensure that all prerequisites are met.
  *
  * Return: 0 on success, -ENOMEM on memory allocation error.
  */
@@ -374,6 +377,33 @@ find_active_client(struct list_head *head)
 			return client;
 	return NULL;
 }
+
+/**
+ * vga_switcheroo_client_probe_defer() - whether to defer probing a given client
+ * @pdev: client pci device
+ *
+ * Determine whether any prerequisites are not fulfilled to probe a given
+ * client. Drivers shall invoke this early on in their ->probe callback
+ * and return %-EPROBE_DEFER if it evaluates to %true. Thou shalt not
+ * register the client ere thou hast called this.
+ *
+ * Return: %true if probing should be deferred, otherwise %false.
+ */
+bool vga_switcheroo_client_probe_defer(struct pci_dev *pdev)
+{
+	if ((pdev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
+		/*
+		 * apple-gmux is needed on pre-retina MacBook Pro
+		 * to probe the panel if pdev is the inactive GPU.
+		 */
+		if (apple_gmux_present() && pdev != vga_default_device() &&
+		    !vgasr_priv.handler_flags)
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(vga_switcheroo_client_probe_defer);
 
 /**
  * vga_switcheroo_get_client_state() - obtain power state of a given client
@@ -530,21 +560,21 @@ EXPORT_SYMBOL(vga_switcheroo_unlock_ddc);
  * * OFF: Power off the device not in use.
  * * ON: Power on the device not in use.
  * * IGD: Switch to the integrated graphics device.
- * 	Power on the integrated GPU if necessary, power off the discrete GPU.
- * 	Prerequisite is that no user space processes (e.g. Xorg, alsactl)
- * 	have opened device files of the GPUs or the audio client. If the
- * 	switch fails, the user may invoke lsof(8) or fuser(1) on /dev/dri/
- * 	and /dev/snd/controlC1 to identify processes blocking the switch.
+ *   Power on the integrated GPU if necessary, power off the discrete GPU.
+ *   Prerequisite is that no user space processes (e.g. Xorg, alsactl)
+ *   have opened device files of the GPUs or the audio client. If the
+ *   switch fails, the user may invoke lsof(8) or fuser(1) on /dev/dri/
+ *   and /dev/snd/controlC1 to identify processes blocking the switch.
  * * DIS: Switch to the discrete graphics device.
  * * DIGD: Delayed switch to the integrated graphics device.
- * 	This will perform the switch once the last user space process has
- * 	closed the device files of the GPUs and the audio client.
+ *   This will perform the switch once the last user space process has
+ *   closed the device files of the GPUs and the audio client.
  * * DDIS: Delayed switch to the discrete graphics device.
  * * MIGD: Mux-only switch to the integrated graphics device.
- * 	Does not remap console or change the power state of either gpu.
- * 	If the integrated GPU is currently off, the screen will turn black.
- * 	If it is on, the screen will show whatever happens to be in VRAM.
- * 	Either way, the user has to blindly enter the command to switch back.
+ *   Does not remap console or change the power state of either gpu.
+ *   If the integrated GPU is currently off, the screen will turn black.
+ *   If it is on, the screen will show whatever happens to be in VRAM.
+ *   Either way, the user has to blindly enter the command to switch back.
  * * MDIS: Mux-only switch to the discrete graphics device.
  *
  * For GPUs whose power state is controlled by the driver's runtime pm,

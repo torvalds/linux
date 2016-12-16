@@ -144,7 +144,7 @@ nfs3_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 }
 
 static int
-nfs3_proc_lookup(struct inode *dir, struct qstr *name,
+nfs3_proc_lookup(struct inode *dir, const struct qstr *name,
 		 struct nfs_fh *fhandle, struct nfs_fattr *fattr,
 		 struct nfs4_label *label)
 {
@@ -404,7 +404,7 @@ out:
 }
 
 static int
-nfs3_proc_remove(struct inode *dir, struct qstr *name)
+nfs3_proc_remove(struct inode *dir, const struct qstr *name)
 {
 	struct nfs_removeargs arg = {
 		.fh = NFS_FH(dir),
@@ -480,7 +480,7 @@ nfs3_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 }
 
 static int
-nfs3_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
+nfs3_proc_link(struct inode *inode, struct inode *dir, const struct qstr *name)
 {
 	struct nfs3_linkargs	arg = {
 		.fromfh		= NFS_FH(inode),
@@ -582,7 +582,7 @@ out:
 }
 
 static int
-nfs3_proc_rmdir(struct inode *dir, struct qstr *name)
+nfs3_proc_rmdir(struct inode *dir, const struct qstr *name)
 {
 	struct nfs_fattr	*dir_attr;
 	struct nfs3_diropargs	arg = {

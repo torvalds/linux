@@ -257,6 +257,9 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 		if (!instance->is_rdpq)
 			instance->max_fw_cmds = min_t(u16, instance->max_fw_cmds, 1024);
 
+		if (reset_devices)
+			instance->max_fw_cmds = min(instance->max_fw_cmds,
+						(u16)MEGASAS_KDUMP_QUEUE_DEPTH);
 		/*
 		* Reduce the max supported cmds by 1. This is to ensure that the
 		* reply_q_sz (1 more than the max cmd that driver may send)
@@ -851,7 +854,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		ret = 1;
 		goto fail_fw_init;
 	}
-	dev_err(&instance->pdev->dev, "Init cmd success\n");
+	dev_info(&instance->pdev->dev, "Init cmd success\n");
 
 	ret = 0;
 
@@ -2600,7 +2603,7 @@ megasas_release_fusion(struct megasas_instance *instance)
 
 	iounmap(instance->reg_set);
 
-	pci_release_selected_regions(instance->pdev, instance->bar);
+	pci_release_selected_regions(instance->pdev, 1<<instance->bar);
 }
 
 /**
@@ -2759,6 +2762,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 			dev_warn(&instance->pdev->dev, "Found FW in FAULT state,"
 			       " will reset adapter scsi%d.\n",
 				instance->host->host_no);
+			megasas_complete_cmd_dpc_fusion((unsigned long)instance);
 			retval = 1;
 			goto out;
 		}
@@ -2766,6 +2770,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		if (reason == MFI_IO_TIMEOUT_OCR) {
 			dev_info(&instance->pdev->dev,
 				"MFI IO is timed out, initiating OCR\n");
+			megasas_complete_cmd_dpc_fusion((unsigned long)instance);
 			retval = 1;
 			goto out;
 		}

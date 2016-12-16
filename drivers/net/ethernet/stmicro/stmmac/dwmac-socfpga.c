@@ -27,6 +27,11 @@
 #include "stmmac.h"
 #include "stmmac_platform.h"
 
+#include "altr_tse_pcs.h"
+
+#define SGMII_ADAPTER_CTRL_REG                          0x00
+#define SGMII_ADAPTER_DISABLE                           0x0001
+
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII 0x0
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RGMII 0x1
 #define SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_RMII 0x2
@@ -49,37 +54,49 @@ struct socfpga_dwmac {
 	u32	reg_shift;
 	struct	device *dev;
 	struct regmap *sys_mgr_base_addr;
+	struct reset_control *stmmac_rst;
 	void __iomem *splitter_base;
 	bool f2h_ptp_ref_clk;
+	struct tse_pcs pcs;
 };
 
 static void socfpga_dwmac_fix_mac_speed(void *priv, unsigned int speed)
 {
 	struct socfpga_dwmac *dwmac = (struct socfpga_dwmac *)priv;
 	void __iomem *splitter_base = dwmac->splitter_base;
+	void __iomem *tse_pcs_base = dwmac->pcs.tse_pcs_base;
+	void __iomem *sgmii_adapter_base = dwmac->pcs.sgmii_adapter_base;
+	struct device *dev = dwmac->dev;
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct phy_device *phy_dev = ndev->phydev;
 	u32 val;
 
-	if (!splitter_base)
-		return;
+	if ((tse_pcs_base) && (sgmii_adapter_base))
+		writew(SGMII_ADAPTER_DISABLE,
+		       sgmii_adapter_base + SGMII_ADAPTER_CTRL_REG);
 
-	val = readl(splitter_base + EMAC_SPLITTER_CTRL_REG);
-	val &= ~EMAC_SPLITTER_CTRL_SPEED_MASK;
+	if (splitter_base) {
+		val = readl(splitter_base + EMAC_SPLITTER_CTRL_REG);
+		val &= ~EMAC_SPLITTER_CTRL_SPEED_MASK;
 
-	switch (speed) {
-	case 1000:
-		val |= EMAC_SPLITTER_CTRL_SPEED_1000;
-		break;
-	case 100:
-		val |= EMAC_SPLITTER_CTRL_SPEED_100;
-		break;
-	case 10:
-		val |= EMAC_SPLITTER_CTRL_SPEED_10;
-		break;
-	default:
-		return;
+		switch (speed) {
+		case 1000:
+			val |= EMAC_SPLITTER_CTRL_SPEED_1000;
+			break;
+		case 100:
+			val |= EMAC_SPLITTER_CTRL_SPEED_100;
+			break;
+		case 10:
+			val |= EMAC_SPLITTER_CTRL_SPEED_10;
+			break;
+		default:
+			return;
+		}
+		writel(val, splitter_base + EMAC_SPLITTER_CTRL_REG);
 	}
 
-	writel(val, splitter_base + EMAC_SPLITTER_CTRL_REG);
+	if (tse_pcs_base && sgmii_adapter_base)
+		tse_pcs_fix_mac_speed(&dwmac->pcs, phy_dev, speed);
 }
 
 static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *dev)
@@ -87,9 +104,12 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 	struct device_node *np = dev->of_node;
 	struct regmap *sys_mgr_base_addr;
 	u32 reg_offset, reg_shift;
-	int ret;
-	struct device_node *np_splitter;
+	int ret, index;
+	struct device_node *np_splitter = NULL;
+	struct device_node *np_sgmii_adapter = NULL;
 	struct resource res_splitter;
+	struct resource res_tse_pcs;
+	struct resource res_sgmii_adapter;
 
 	dwmac->interface = of_get_phy_mode(np);
 
@@ -115,7 +135,9 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 
 	np_splitter = of_parse_phandle(np, "altr,emac-splitter", 0);
 	if (np_splitter) {
-		if (of_address_to_resource(np_splitter, 0, &res_splitter)) {
+		ret = of_address_to_resource(np_splitter, 0, &res_splitter);
+		of_node_put(np_splitter);
+		if (ret) {
 			dev_info(dev, "Missing emac splitter address\n");
 			return -EINVAL;
 		}
@@ -127,15 +149,89 @@ static int socfpga_dwmac_parse_data(struct socfpga_dwmac *dwmac, struct device *
 		}
 	}
 
+	np_sgmii_adapter = of_parse_phandle(np,
+					    "altr,gmii-to-sgmii-converter", 0);
+	if (np_sgmii_adapter) {
+		index = of_property_match_string(np_sgmii_adapter, "reg-names",
+						 "hps_emac_interface_splitter_avalon_slave");
+
+		if (index >= 0) {
+			if (of_address_to_resource(np_sgmii_adapter, index,
+						   &res_splitter)) {
+				dev_err(dev,
+					"%s: ERROR: missing emac splitter address\n",
+					__func__);
+				ret = -EINVAL;
+				goto err_node_put;
+			}
+
+			dwmac->splitter_base =
+			    devm_ioremap_resource(dev, &res_splitter);
+
+			if (IS_ERR(dwmac->splitter_base)) {
+				ret = PTR_ERR(dwmac->splitter_base);
+				goto err_node_put;
+			}
+		}
+
+		index = of_property_match_string(np_sgmii_adapter, "reg-names",
+						 "gmii_to_sgmii_adapter_avalon_slave");
+
+		if (index >= 0) {
+			if (of_address_to_resource(np_sgmii_adapter, index,
+						   &res_sgmii_adapter)) {
+				dev_err(dev,
+					"%s: ERROR: failed mapping adapter\n",
+					__func__);
+				ret = -EINVAL;
+				goto err_node_put;
+			}
+
+			dwmac->pcs.sgmii_adapter_base =
+			    devm_ioremap_resource(dev, &res_sgmii_adapter);
+
+			if (IS_ERR(dwmac->pcs.sgmii_adapter_base)) {
+				ret = PTR_ERR(dwmac->pcs.sgmii_adapter_base);
+				goto err_node_put;
+			}
+		}
+
+		index = of_property_match_string(np_sgmii_adapter, "reg-names",
+						 "eth_tse_control_port");
+
+		if (index >= 0) {
+			if (of_address_to_resource(np_sgmii_adapter, index,
+						   &res_tse_pcs)) {
+				dev_err(dev,
+					"%s: ERROR: failed mapping tse control port\n",
+					__func__);
+				ret = -EINVAL;
+				goto err_node_put;
+			}
+
+			dwmac->pcs.tse_pcs_base =
+			    devm_ioremap_resource(dev, &res_tse_pcs);
+
+			if (IS_ERR(dwmac->pcs.tse_pcs_base)) {
+				ret = PTR_ERR(dwmac->pcs.tse_pcs_base);
+				goto err_node_put;
+			}
+		}
+	}
 	dwmac->reg_offset = reg_offset;
 	dwmac->reg_shift = reg_shift;
 	dwmac->sys_mgr_base_addr = sys_mgr_base_addr;
 	dwmac->dev = dev;
+	of_node_put(np_sgmii_adapter);
 
 	return 0;
+
+err_node_put:
+	of_node_put(np_sgmii_adapter);
+	return ret;
 }
 
-static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
+static int socfpga_dwmac_set_phy_mode(struct socfpga_dwmac *dwmac)
 {
 	struct regmap *sys_mgr_base_addr = dwmac->sys_mgr_base_addr;
 	int phymode = dwmac->interface;
@@ -150,6 +246,7 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 		break;
 	case PHY_INTERFACE_MODE_MII:
 	case PHY_INTERFACE_MODE_GMII:
+	case PHY_INTERFACE_MODE_SGMII:
 		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
 		break;
 	default:
@@ -163,6 +260,10 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 	 */
 	if (dwmac->splitter_base)
 		val = SYSMGR_EMACGRP_CTRL_PHYSEL_ENUM_GMII_MII;
+
+	/* Assert reset to the enet controller before changing the phy mode */
+	if (dwmac->stmmac_rst)
+		reset_control_assert(dwmac->stmmac_rst);
 
 	regmap_read(sys_mgr_base_addr, reg_offset, &ctrl);
 	ctrl &= ~(SYSMGR_EMACGRP_CTRL_PHYSEL_MASK << reg_shift);
@@ -181,57 +282,19 @@ static int socfpga_dwmac_setup(struct socfpga_dwmac *dwmac)
 
 	regmap_write(sys_mgr_base_addr, reg_offset, ctrl);
 
-	return 0;
-}
-
-static int socfpga_dwmac_init(struct platform_device *pdev, void *priv)
-{
-	struct socfpga_dwmac *dwmac = priv;
-	struct net_device *ndev = platform_get_drvdata(pdev);
-	struct stmmac_priv *stpriv = NULL;
-	int ret = 0;
-
-	if (!ndev)
-		return -EINVAL;
-
-	stpriv = netdev_priv(ndev);
-	if (!stpriv)
-		return -EINVAL;
-
-	/* Assert reset to the enet controller before changing the phy mode */
-	if (stpriv->stmmac_rst)
-		reset_control_assert(stpriv->stmmac_rst);
-
-	/* Setup the phy mode in the system manager registers according to
-	 * devicetree configuration
-	 */
-	ret = socfpga_dwmac_setup(dwmac);
-
 	/* Deassert reset for the phy configuration to be sampled by
 	 * the enet controller, and operation to start in requested mode
 	 */
-	if (stpriv->stmmac_rst)
-		reset_control_deassert(stpriv->stmmac_rst);
+	if (dwmac->stmmac_rst)
+		reset_control_deassert(dwmac->stmmac_rst);
+	if (phymode == PHY_INTERFACE_MODE_SGMII) {
+		if (tse_pcs_init(dwmac->pcs.tse_pcs_base, &dwmac->pcs) != 0) {
+			dev_err(dwmac->dev, "Unable to initialize TSE PCS");
+			return -EINVAL;
+		}
+	}
 
-	/* Before the enet controller is suspended, the phy is suspended.
-	 * This causes the phy clock to be gated. The enet controller is
-	 * resumed before the phy, so the clock is still gated "off" when
-	 * the enet controller is resumed. This code makes sure the phy
-	 * is "resumed" before reinitializing the enet controller since
-	 * the enet controller depends on an active phy clock to complete
-	 * a DMA reset. A DMA reset will "time out" if executed
-	 * with no phy clock input on the Synopsys enet controller.
-	 * Verified through Synopsys Case #8000711656.
-	 *
-	 * Note that the phy clock is also gated when the phy is isolated.
-	 * Phy "suspend" and "isolate" controls are located in phy basic
-	 * control register 0, and can be modified by the phy driver
-	 * framework.
-	 */
-	if (stpriv->phydev)
-		phy_resume(stpriv->phydev);
-
-	return ret;
+	return 0;
 }
 
 static int socfpga_dwmac_probe(struct platform_device *pdev)
@@ -260,22 +323,59 @@ static int socfpga_dwmac_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = socfpga_dwmac_setup(dwmac);
-	if (ret) {
-		dev_err(dev, "couldn't setup SoC glue (%d)\n", ret);
-		return ret;
-	}
-
 	plat_dat->bsp_priv = dwmac;
-	plat_dat->init = socfpga_dwmac_init;
 	plat_dat->fix_mac_speed = socfpga_dwmac_fix_mac_speed;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
-	if (!ret)
-		ret = socfpga_dwmac_init(pdev, dwmac);
+
+	if (!ret) {
+		struct net_device *ndev = platform_get_drvdata(pdev);
+		struct stmmac_priv *stpriv = netdev_priv(ndev);
+
+		/* The socfpga driver needs to control the stmmac reset to
+		 * set the phy mode. Create a copy of the core reset handel
+		 * so it can be used by the driver later.
+		 */
+		dwmac->stmmac_rst = stpriv->stmmac_rst;
+
+		ret = socfpga_dwmac_set_phy_mode(dwmac);
+	}
 
 	return ret;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int socfpga_dwmac_resume(struct device *dev)
+{
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+
+	socfpga_dwmac_set_phy_mode(priv->plat->bsp_priv);
+
+	/* Before the enet controller is suspended, the phy is suspended.
+	 * This causes the phy clock to be gated. The enet controller is
+	 * resumed before the phy, so the clock is still gated "off" when
+	 * the enet controller is resumed. This code makes sure the phy
+	 * is "resumed" before reinitializing the enet controller since
+	 * the enet controller depends on an active phy clock to complete
+	 * a DMA reset. A DMA reset will "time out" if executed
+	 * with no phy clock input on the Synopsys enet controller.
+	 * Verified through Synopsys Case #8000711656.
+	 *
+	 * Note that the phy clock is also gated when the phy is isolated.
+	 * Phy "suspend" and "isolate" controls are located in phy basic
+	 * control register 0, and can be modified by the phy driver
+	 * framework.
+	 */
+	if (priv->phydev)
+		phy_resume(priv->phydev);
+
+	return stmmac_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(socfpga_dwmac_pm_ops, stmmac_suspend,
+					       socfpga_dwmac_resume);
 
 static const struct of_device_id socfpga_dwmac_match[] = {
 	{ .compatible = "altr,socfpga-stmmac" },
@@ -288,7 +388,7 @@ static struct platform_driver socfpga_dwmac_driver = {
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "socfpga-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &socfpga_dwmac_pm_ops,
 		.of_match_table = socfpga_dwmac_match,
 	},
 };

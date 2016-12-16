@@ -141,7 +141,7 @@ out_cleanup:
 void amdgpu_benchmark(struct amdgpu_device *adev, int test_number)
 {
 	int i;
-	int common_modes[AMDGPU_BENCHMARK_COMMON_MODES_N] = {
+	static const int common_modes[AMDGPU_BENCHMARK_COMMON_MODES_N] = {
 		640 * 480 * 4,
 		720 * 480 * 4,
 		800 * 600 * 4,

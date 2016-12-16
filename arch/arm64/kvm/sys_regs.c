@@ -134,6 +134,17 @@ static bool access_gic_sgi(struct kvm_vcpu *vcpu,
 	return true;
 }
 
+static bool access_gic_sre(struct kvm_vcpu *vcpu,
+			   struct sys_reg_params *p,
+			   const struct sys_reg_desc *r)
+{
+	if (p->is_write)
+		return ignore_write(vcpu, p);
+
+	p->regval = vcpu->arch.vgic_cpu.vgic_v3.vgic_sre;
+	return true;
+}
+
 static bool trap_raz_wi(struct kvm_vcpu *vcpu,
 			struct sys_reg_params *p,
 			const struct sys_reg_desc *r)
@@ -812,14 +823,6 @@ static bool access_pmuserenr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
  * Architected system registers.
  * Important: Must be sorted ascending by Op0, Op1, CRn, CRm, Op2
  *
- * We could trap ID_DFR0 and tell the guest we don't support performance
- * monitoring.  Unfortunately the patch to make the kernel check ID_DFR0 was
- * NAKed, so it will read the PMCR anyway.
- *
- * Therefore we tell the guest we have 0 counters.  Unfortunately, we
- * must always support PMCCNTR (the cycle counter): we just RAZ/WI for
- * all PM registers, which doesn't crash the guest kernel at least.
- *
  * Debug handling: We do trap most, if not all debug related system
  * registers. The implementation is good enough to ensure that a guest
  * can use these with minimal performance degradation. The drawback is
@@ -958,7 +961,7 @@ static const struct sys_reg_desc sys_reg_descs[] = {
 	  access_gic_sgi },
 	/* ICC_SRE_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b1100), CRm(0b1100), Op2(0b101),
-	  trap_raz_wi },
+	  access_gic_sre },
 
 	/* CONTEXTIDR_EL1 */
 	{ Op0(0b11), Op1(0b000), CRn(0b1101), CRm(0b0000), Op2(0b001),
@@ -1349,7 +1352,7 @@ static const struct sys_reg_desc cp15_regs[] = {
 	{ Op1( 0), CRn(10), CRm( 3), Op2( 1), access_vm_reg, NULL, c10_AMAIR1 },
 
 	/* ICC_SRE */
-	{ Op1( 0), CRn(12), CRm(12), Op2( 5), trap_raz_wi },
+	{ Op1( 0), CRn(12), CRm(12), Op2( 5), access_gic_sre },
 
 	{ Op1( 0), CRn(13), CRm( 0), Op2( 1), access_vm_reg, NULL, c13_CID },
 
@@ -1535,7 +1538,7 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
 				struct sys_reg_params *params)
 {
 	u8 hsr_ec = kvm_vcpu_trap_get_class(vcpu);
-	int cp;
+	int cp = -1;
 
 	switch(hsr_ec) {
 	case ESR_ELx_EC_CP15_32:
@@ -1547,7 +1550,7 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
 		cp = 14;
 		break;
 	default:
-		WARN_ON((cp = -1));
+		WARN_ON(1);
 	}
 
 	kvm_err("Unsupported guest CP%d access at: %08lx\n",

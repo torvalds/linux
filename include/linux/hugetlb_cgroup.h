@@ -93,20 +93,17 @@ hugetlb_cgroup_commit_charge(int idx, unsigned long nr_pages,
 			     struct hugetlb_cgroup *h_cg,
 			     struct page *page)
 {
-	return;
 }
 
 static inline void
 hugetlb_cgroup_uncharge_page(int idx, unsigned long nr_pages, struct page *page)
 {
-	return;
 }
 
 static inline void
 hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 			       struct hugetlb_cgroup *h_cg)
 {
-	return;
 }
 
 static inline void hugetlb_cgroup_file_init(void)
@@ -116,7 +113,6 @@ static inline void hugetlb_cgroup_file_init(void)
 static inline void hugetlb_cgroup_migrate(struct page *oldhpage,
 					  struct page *newhpage)
 {
-	return;
 }
 
 #endif  /* CONFIG_MEM_RES_CTLR_HUGETLB */

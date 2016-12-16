@@ -94,7 +94,7 @@ static void _rtl_rc_rate_set_series(struct rtl_priv *rtlpriv,
 				    struct ieee80211_sta *sta,
 				    struct ieee80211_tx_rate *rate,
 				    struct ieee80211_tx_rate_control *txrc,
-				    u8 tries, char rix, int rtsctsenable,
+				    u8 tries, s8 rix, int rtsctsenable,
 				    bool not_data)
 {
 	struct rtl_mac *mac = rtl_mac(rtlpriv);

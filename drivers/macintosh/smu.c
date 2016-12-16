@@ -38,6 +38,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
+#include <linux/memblock.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -99,6 +100,7 @@ static DEFINE_MUTEX(smu_mutex);
 static struct smu_device	*smu;
 static DEFINE_MUTEX(smu_part_access);
 static int smu_irq_inited;
+static unsigned long smu_cmdbuf_abs;
 
 static void smu_i2c_retry(unsigned long data);
 
@@ -479,8 +481,13 @@ int __init smu_init (void)
 
 	printk(KERN_INFO "SMU: Driver %s %s\n", VERSION, AUTHOR);
 
+	/*
+	 * SMU based G5s need some memory below 2Gb. Thankfully this is
+	 * called at a time where memblock is still available.
+	 */
+	smu_cmdbuf_abs = memblock_alloc_base(4096, 4096, 0x80000000UL);
 	if (smu_cmdbuf_abs == 0) {
-		printk(KERN_ERR "SMU: Command buffer not allocated !\n");
+		printk(KERN_ERR "SMU: Command buffer allocation failed !\n");
 		ret = -EINVAL;
 		goto fail_np;
 	}

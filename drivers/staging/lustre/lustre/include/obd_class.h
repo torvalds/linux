@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -477,7 +473,7 @@ static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 		struct lu_context  session_ctx;
 		struct lu_env env;
 
-		lu_context_init(&session_ctx, LCT_SESSION);
+		lu_context_init(&session_ctx, LCT_SESSION | LCT_SERVER_SESSION);
 		session_ctx.lc_thread = NULL;
 		lu_context_enter(&session_ctx);
 
@@ -490,8 +486,9 @@ static inline int obd_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 				obd->obd_lu_dev = d;
 				d->ld_obd = obd;
 				rc = 0;
-			} else
+			} else {
 				rc = PTR_ERR(d);
+			}
 		}
 		lu_context_exit(&session_ctx);
 		lu_context_fini(&session_ctx);
@@ -1651,16 +1648,6 @@ static inline int md_init_ea_size(struct obd_export *exp, int easize,
 	EXP_MD_COUNTER_INCREMENT(exp, init_ea_size);
 	return MDP(exp->exp_obd, init_ea_size)(exp, easize, def_asize,
 					       cookiesize, def_cookiesize);
-}
-
-static inline int md_get_remote_perm(struct obd_export *exp,
-				     const struct lu_fid *fid, __u32 suppgid,
-				     struct ptlrpc_request **request)
-{
-	EXP_CHECK_MD_OP(exp, get_remote_perm);
-	EXP_MD_COUNTER_INCREMENT(exp, get_remote_perm);
-	return MDP(exp->exp_obd, get_remote_perm)(exp, fid, suppgid,
-						  request);
 }
 
 static inline int md_intent_getattr_async(struct obd_export *exp,

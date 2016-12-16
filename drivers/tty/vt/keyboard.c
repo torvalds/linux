@@ -567,7 +567,7 @@ static void fn_scroll_forw(struct vc_data *vc)
 
 static void fn_scroll_back(struct vc_data *vc)
 {
-	scrollback(vc, 0);
+	scrollback(vc);
 }
 
 static void fn_show_mem(struct vc_data *vc)

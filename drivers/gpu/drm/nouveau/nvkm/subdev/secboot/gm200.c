@@ -860,6 +860,8 @@ gm200_secboot_prepare_ls_blob(struct gm200_secboot *gsb)
 
 	/* Write LS blob */
 	ret = ls_ucode_mgr_write_wpr(gsb, &mgr, gsb->ls_blob);
+	if (ret)
+		nvkm_gpuobj_del(&gsb->ls_blob);
 
 cleanup:
 	ls_ucode_mgr_cleanup(&mgr);
@@ -1023,29 +1025,34 @@ gm20x_secboot_prepare_blobs(struct gm200_secboot *gsb)
 	int ret;
 
 	/* Load and prepare the managed falcon's firmwares */
-	ret = gm200_secboot_prepare_ls_blob(gsb);
-	if (ret)
-		return ret;
+	if (!gsb->ls_blob) {
+		ret = gm200_secboot_prepare_ls_blob(gsb);
+		if (ret)
+			return ret;
+	}
 
 	/* Load the HS firmware that will load the LS firmwares */
-	ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_load",
-					    &gsb->acr_load_blob,
-					    &gsb->acr_load_bl_desc, true);
-	if (ret)
-		return ret;
+	if (!gsb->acr_load_blob) {
+		ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_load",
+						&gsb->acr_load_blob,
+						&gsb->acr_load_bl_desc, true);
+		if (ret)
+			return ret;
+	}
 
 	/* Load the HS firmware bootloader */
-	ret = gm200_secboot_prepare_hsbl_blob(gsb);
-	if (ret)
-		return ret;
+	if (!gsb->hsbl_blob) {
+		ret = gm200_secboot_prepare_hsbl_blob(gsb);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
 
 static int
-gm200_secboot_prepare_blobs(struct nvkm_secboot *sb)
+gm200_secboot_prepare_blobs(struct gm200_secboot *gsb)
 {
-	struct gm200_secboot *gsb = gm200_secboot(sb);
 	int ret;
 
 	ret = gm20x_secboot_prepare_blobs(gsb);
@@ -1053,15 +1060,37 @@ gm200_secboot_prepare_blobs(struct nvkm_secboot *sb)
 		return ret;
 
 	/* dGPU only: load the HS firmware that unprotects the WPR region */
-	ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_unload",
-					    &gsb->acr_unload_blob,
-					    &gsb->acr_unload_bl_desc, false);
-	if (ret)
-		return ret;
+	if (!gsb->acr_unload_blob) {
+		ret = gm200_secboot_prepare_hs_blob(gsb, "acr/ucode_unload",
+					       &gsb->acr_unload_blob,
+					       &gsb->acr_unload_bl_desc, false);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
 
+static int
+gm200_secboot_blobs_ready(struct gm200_secboot *gsb)
+{
+	struct nvkm_subdev *subdev = &gsb->base.subdev;
+	int ret;
+
+	/* firmware already loaded, nothing to do... */
+	if (gsb->firmware_ok)
+		return 0;
+
+	ret = gsb->func->prepare_blobs(gsb);
+	if (ret) {
+		nvkm_error(subdev, "failed to load secure firmware\n");
+		return ret;
+	}
+
+	gsb->firmware_ok = true;
+
+	return 0;
+}
 
 
 /*
@@ -1234,6 +1263,11 @@ gm200_secboot_reset(struct nvkm_secboot *sb, enum nvkm_secboot_falcon falcon)
 	struct gm200_secboot *gsb = gm200_secboot(sb);
 	int ret;
 
+	/* Make sure all blobs are ready */
+	ret = gm200_secboot_blobs_ready(gsb);
+	if (ret)
+		return ret;
+
 	/*
 	 * Dummy GM200 implementation: perform secure boot each time we are
 	 * called on FECS. Since only FECS and GPCCS are managed and started
@@ -1373,7 +1407,6 @@ gm200_secboot = {
 	.dtor = gm200_secboot_dtor,
 	.init = gm200_secboot_init,
 	.fini = gm200_secboot_fini,
-	.prepare_blobs = gm200_secboot_prepare_blobs,
 	.reset = gm200_secboot_reset,
 	.start = gm200_secboot_start,
 	.managed_falcons = BIT(NVKM_SECBOOT_FALCON_FECS) |
@@ -1415,6 +1448,7 @@ gm200_secboot_func = {
 	.bl_desc_size = sizeof(struct gm200_flcn_bl_desc),
 	.fixup_bl_desc = gm200_secboot_fixup_bl_desc,
 	.fixup_hs_desc = gm200_secboot_fixup_hs_desc,
+	.prepare_blobs = gm200_secboot_prepare_blobs,
 };
 
 int
@@ -1487,3 +1521,19 @@ MODULE_FIRMWARE("nvidia/gm206/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/gm206/gr/sw_method_init.bin");
+
+MODULE_FIRMWARE("nvidia/gp100/acr/bl.bin");
+MODULE_FIRMWARE("nvidia/gp100/acr/ucode_load.bin");
+MODULE_FIRMWARE("nvidia/gp100/acr/ucode_unload.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/fecs_bl.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/fecs_inst.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/fecs_data.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/fecs_sig.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/gpccs_bl.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/gpccs_inst.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/gpccs_data.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/gpccs_sig.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/sw_ctx.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/sw_nonctx.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/sw_bundle_init.bin");
+MODULE_FIRMWARE("nvidia/gp100/gr/sw_method_init.bin");

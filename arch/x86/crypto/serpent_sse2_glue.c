@@ -600,7 +600,7 @@ static struct crypto_alg serpent_algs[10] = { {
 
 static int __init serpent_sse2_init(void)
 {
-	if (!cpu_has_xmm2) {
+	if (!boot_cpu_has(X86_FEATURE_XMM2)) {
 		printk(KERN_INFO "SSE2 instructions are not detected.\n");
 		return -ENODEV;
 	}

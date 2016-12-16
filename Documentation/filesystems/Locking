@@ -12,14 +12,17 @@ prototypes:
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct dentry *,
+	int (*d_compare)(const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(struct dentry *);
+	int (*d_init)(struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)((struct dentry *dentry, char *buffer, int buflen);
 	struct vfsmount *(*d_automount)(struct path *path);
 	int (*d_manage)(struct dentry *, bool);
+	struct dentry *(*d_real)(struct dentry *, const struct inode *,
+				 unsigned int);
 
 locking rules:
 		rename_lock	->d_lock	may block	rcu-walk
@@ -28,12 +31,14 @@ d_weak_revalidate:no		no		yes	 	no
 d_hash		no		no		no		maybe
 d_compare:	yes		no		no		maybe
 d_delete:	no		yes		no		no
+d_init:	no		no		yes		no
 d_release:	no		no		yes		no
 d_prune:        no              yes             no              no
 d_iput:		no		no		yes		no
 d_dname:	no		no		no		no
 d_automount:	no		no		yes		no
 d_manage:	no		no		yes (ref-walk)	maybe
+d_real		no		no		yes 		no
 
 --------------------------- inode_operations --------------------------- 
 prototypes:
@@ -66,7 +71,6 @@ prototypes:
 				struct file *, unsigned open_flag,
 				umode_t create_mode, int *opened);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
-	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 
 locking rules:
 	all may block
@@ -95,7 +99,6 @@ fiemap:		no
 update_time:	no
 atomic_open:	yes
 tmpfile:	no
-dentry_open:	no
 
 	Additionally, ->rmdir(), ->unlink() and ->rename() have ->i_mutex on
 victim.
@@ -179,7 +182,6 @@ unlocks and drops the reference.
 prototypes:
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	int (*readpage)(struct file *, struct page *);
-	int (*sync_page)(struct page *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
 	int (*set_page_dirty)(struct page *page);
 	int (*readpages)(struct file *filp, struct address_space *mapping,
@@ -194,8 +196,10 @@ prototypes:
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	int (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
+	int (*direct_IO)(struct kiocb *, struct iov_iter *iter);
+	bool (*isolate_page) (struct page *, isolate_mode_t);
 	int (*migratepage)(struct address_space *, struct page *, struct page *);
+	void (*putback_page) (struct page *);
 	int (*launder_page)(struct page *);
 	int (*is_partially_uptodate)(struct page *, unsigned long, unsigned long);
 	int (*error_remove_page)(struct address_space *, struct page *);
@@ -208,7 +212,6 @@ locking rules:
 			PageLocked(page)	i_mutex
 writepage:		yes, unlocks (see below)
 readpage:		yes, unlocks
-sync_page:		maybe
 writepages:
 set_page_dirty		no
 readpages:
@@ -219,15 +222,17 @@ invalidatepage:		yes
 releasepage:		yes
 freepage:		yes
 direct_IO:
+isolate_page:		yes
 migratepage:		yes (both)
+putback_page:		yes
 launder_page:		yes
 is_partially_uptodate:	yes
 error_remove_page:	yes
 swap_activate:		no
 swap_deactivate:	no
 
-	->write_begin(), ->write_end(), ->sync_page() and ->readpage()
-may be called from the request handler (/dev/loop).
+	->write_begin(), ->write_end() and ->readpage() may be called from
+the request handler (/dev/loop).
 
 	->readpage() unlocks the page, either synchronously or via I/O
 completion.
@@ -282,11 +287,6 @@ set_page_writeback()/end_page_writeback() on a page submitted to writepage
 will leave the page itself marked clean but it will be tagged as dirty in the
 radix tree.  This incoherency can lead to all sorts of hard-to-debug problems
 in the filesystem like having dirty inodes at umount and losing written data.
-
-	->sync_page() locking rules are not well-defined - usually it is called
-with lock on page, but that is not guaranteed. Considering the currently
-existing instances of this method ->sync_page() itself doesn't look
-well-defined...
 
 	->writepages() is used for periodic writeback and for syscall-initiated
 sync operations.  The address_space should start I/O against at least
@@ -395,7 +395,7 @@ prototypes:
 	int (*release) (struct gendisk *, fmode_t);
 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
-	int (*direct_access) (struct block_device *, sector_t, void __pmem **,
+	int (*direct_access) (struct block_device *, sector_t, void **,
 				unsigned long *);
 	int (*media_changed) (struct gendisk *);
 	void (*unlock_native_capacity) (struct gendisk *);
@@ -544,13 +544,13 @@ subsequent truncate), and then return with VM_FAULT_LOCKED, and the page
 locked. The VM will unlock the page.
 
 	->map_pages() is called when VM asks to map easy accessible pages.
-Filesystem should find and map pages associated with offsets from "pgoff"
-till "max_pgoff". ->map_pages() is called with page table locked and must
+Filesystem should find and map pages associated with offsets from "start_pgoff"
+till "end_pgoff". ->map_pages() is called with page table locked and must
 not block.  If it's not possible to reach a page without blocking,
 filesystem should skip it. Filesystem should use do_set_pte() to setup
-page table entry. Pointer to entry associated with offset "pgoff" is
-passed in "pte" field in vm_fault structure. Pointers to entries for other
-offsets should be calculated relative to "pte".
+page table entry. Pointer to entry associated with the page is passed in
+"pte" field in fault_env structure. Pointers to entries for other offsets
+should be calculated relative to "pte".
 
 	->page_mkwrite() is called when a previously read-only pte is
 about to become writeable. The filesystem again must ensure that there are

@@ -135,6 +135,7 @@
 		interrupt-parent = <&gpmc>;
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		nand-bus-width = <8>;
 		ti,nand-ecc-opt = "bch8";
 		gpmc,device-width = <1>;
@@ -160,7 +161,7 @@
 
 		#address-cells = <1>;
 		#size-cells = <1>;
-		elm_id = <&elm>;
+		ti,elm-id = <&elm>;
 
 		/* MTD partition table */
 		partition@0 {

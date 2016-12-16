@@ -20,31 +20,18 @@ extern void request_event_sources_irqs(struct device_node *np,
 
 #include <linux/of.h>
 
-extern void __init fw_hypertas_feature_init(const char *hypertas,
-					    unsigned long len);
-extern void __init fw_vec5_feature_init(const char *hypertas,
-					unsigned long len);
-
 struct pt_regs;
 
 extern int pSeries_system_reset_exception(struct pt_regs *regs);
 extern int pSeries_machine_check_exception(struct pt_regs *regs);
 
 #ifdef CONFIG_SMP
-extern void smp_init_pseries_mpic(void);
-extern void smp_init_pseries_xics(void);
+extern void smp_init_pseries(void);
 #else
-static inline void smp_init_pseries_mpic(void) { };
-static inline void smp_init_pseries_xics(void) { };
+static inline void smp_init_pseries(void) { };
 #endif
 
-#ifdef CONFIG_KEXEC
-extern void setup_kexec_cpu_down_xics(void);
-extern void setup_kexec_cpu_down_mpic(void);
-#else
-static inline void setup_kexec_cpu_down_xics(void) { }
-static inline void setup_kexec_cpu_down_mpic(void) { }
-#endif
+extern void pseries_kexec_cpu_down(int crash_shutdown, int secondary);
 
 extern void pSeries_final_fixup(void);
 
@@ -64,6 +51,8 @@ extern int dlpar_detach_node(struct device_node *);
 extern int dlpar_acquire_drc(u32 drc_index);
 extern int dlpar_release_drc(u32 drc_index);
 
+void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
+			 struct completion *hotplug_done, int *rc);
 #ifdef CONFIG_MEMORY_HOTPLUG
 int dlpar_memory(struct pseries_hp_errorlog *hp_elog);
 #else

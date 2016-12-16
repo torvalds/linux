@@ -205,7 +205,7 @@ statistics on them:
 
   dmsetup message vol 0 @stats_create - /100
 
-Set the auxillary data string to "foo bar baz" (the escape for each
+Set the auxiliary data string to "foo bar baz" (the escape for each
 space must also be escaped, otherwise the shell will consume them):
 
   dmsetup message vol 0 @stats_set_aux 0 foo\\ bar\\ baz

@@ -29,33 +29,48 @@
  *
  * Instead, give the HYP mode its own VA region at a fixed offset from
  * the kernel by just masking the top bits (which are all ones for a
- * kernel address).
+ * kernel address). We need to find out how many bits to mask.
  *
- * ARMv8.1 (using VHE) does have a TTBR1_EL2, and doesn't use these
- * macros (the entire kernel runs at EL2).
+ * We want to build a set of page tables that cover both parts of the
+ * idmap (the trampoline page used to initialize EL2), and our normal
+ * runtime VA space, at the same time.
+ *
+ * Given that the kernel uses VA_BITS for its entire address space,
+ * and that half of that space (VA_BITS - 1) is used for the linear
+ * mapping, we can also limit the EL2 space to (VA_BITS - 1).
+ *
+ * The main question is "Within the VA_BITS space, does EL2 use the
+ * top or the bottom half of that space to shadow the kernel's linear
+ * mapping?". As we need to idmap the trampoline page, this is
+ * determined by the range in which this page lives.
+ *
+ * If the page is in the bottom half, we have to use the top half. If
+ * the page is in the top half, we have to use the bottom half:
+ *
+ * T = __virt_to_phys(__hyp_idmap_text_start)
+ * if (T & BIT(VA_BITS - 1))
+ *	HYP_VA_MIN = 0  //idmap in upper half
+ * else
+ *	HYP_VA_MIN = 1 << (VA_BITS - 1)
+ * HYP_VA_MAX = HYP_VA_MIN + (1 << (VA_BITS - 1)) - 1
+ *
+ * This of course assumes that the trampoline page exists within the
+ * VA_BITS range. If it doesn't, then it means we're in the odd case
+ * where the kernel idmap (as well as HYP) uses more levels than the
+ * kernel runtime page tables (as seen when the kernel is configured
+ * for 4k pages, 39bits VA, and yet memory lives just above that
+ * limit, forcing the idmap to use 4 levels of page tables while the
+ * kernel itself only uses 3). In this particular case, it doesn't
+ * matter which side of VA_BITS we use, as we're guaranteed not to
+ * conflict with anything.
+ *
+ * When using VHE, there are no separate hyp mappings and all KVM
+ * functionality is already mapped as part of the main kernel
+ * mappings, and none of this applies in that case.
  */
-#define HYP_PAGE_OFFSET_SHIFT	VA_BITS
-#define HYP_PAGE_OFFSET_MASK	((UL(1) << HYP_PAGE_OFFSET_SHIFT) - 1)
-#define HYP_PAGE_OFFSET		(PAGE_OFFSET & HYP_PAGE_OFFSET_MASK)
 
-/*
- * Our virtual mapping for the idmap-ed MMU-enable code. Must be
- * shared across all the page-tables. Conveniently, we use the last
- * possible page, where no kernel mapping will ever exist.
- */
-#define TRAMPOLINE_VA		(HYP_PAGE_OFFSET_MASK & PAGE_MASK)
-
-/*
- * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation
- * levels in addition to the PGD and potentially the PUD which are
- * pre-allocated (we pre-allocate the fake PGD and the PUD when the Stage-2
- * tables use one level of tables less than the kernel.
- */
-#ifdef CONFIG_ARM64_64K_PAGES
-#define KVM_MMU_CACHE_MIN_PAGES	1
-#else
-#define KVM_MMU_CACHE_MIN_PAGES	2
-#endif
+#define HYP_PAGE_OFFSET_HIGH_MASK	((UL(1) << VA_BITS) - 1)
+#define HYP_PAGE_OFFSET_LOW_MASK	((UL(1) << (VA_BITS - 1)) - 1)
 
 #ifdef __ASSEMBLY__
 
@@ -65,12 +80,32 @@
 /*
  * Convert a kernel VA into a HYP VA.
  * reg: VA to be converted.
+ *
+ * This generates the following sequences:
+ * - High mask:
+ *		and x0, x0, #HYP_PAGE_OFFSET_HIGH_MASK
+ *		nop
+ * - Low mask:
+ *		and x0, x0, #HYP_PAGE_OFFSET_HIGH_MASK
+ *		and x0, x0, #HYP_PAGE_OFFSET_LOW_MASK
+ * - VHE:
+ *		nop
+ *		nop
+ *
+ * The "low mask" version works because the mask is a strict subset of
+ * the "high mask", hence performing the first mask for nothing.
+ * Should be completely invisible on any viable CPU.
  */
 .macro kern_hyp_va	reg
-alternative_if_not ARM64_HAS_VIRT_HOST_EXTN	
-	and	\reg, \reg, #HYP_PAGE_OFFSET_MASK
+alternative_if_not ARM64_HAS_VIRT_HOST_EXTN
+	and     \reg, \reg, #HYP_PAGE_OFFSET_HIGH_MASK
 alternative_else
 	nop
+alternative_endif
+alternative_if_not ARM64_HYP_OFFSET_LOW
+	nop
+alternative_else
+	and     \reg, \reg, #HYP_PAGE_OFFSET_LOW_MASK
 alternative_endif
 .endm
 
@@ -82,7 +117,22 @@ alternative_endif
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 
-#define KERN_TO_HYP(kva)	((unsigned long)kva - PAGE_OFFSET + HYP_PAGE_OFFSET)
+static inline unsigned long __kern_hyp_va(unsigned long v)
+{
+	asm volatile(ALTERNATIVE("and %0, %0, %1",
+				 "nop",
+				 ARM64_HAS_VIRT_HOST_EXTN)
+		     : "+r" (v)
+		     : "i" (HYP_PAGE_OFFSET_HIGH_MASK));
+	asm volatile(ALTERNATIVE("nop",
+				 "and %0, %0, %1",
+				 ARM64_HYP_OFFSET_LOW)
+		     : "+r" (v)
+		     : "i" (HYP_PAGE_OFFSET_LOW_MASK));
+	return v;
+}
+
+#define kern_hyp_va(v) 	(typeof(v))(__kern_hyp_va((unsigned long)(v)))
 
 /*
  * We currently only support a 40bit IPA.
@@ -91,9 +141,10 @@ alternative_endif
 #define KVM_PHYS_SIZE	(1UL << KVM_PHYS_SHIFT)
 #define KVM_PHYS_MASK	(KVM_PHYS_SIZE - 1UL)
 
-int create_hyp_mappings(void *from, void *to);
+#include <asm/stage2_pgtable.h>
+
+int create_hyp_mappings(void *from, void *to, pgprot_t prot);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
-void free_boot_hyp_pgd(void);
 void free_hyp_pgds(void);
 
 void stage2_unmap_vm(struct kvm *kvm);
@@ -107,8 +158,8 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 
 phys_addr_t kvm_mmu_get_httbr(void);
-phys_addr_t kvm_mmu_get_boot_httbr(void);
 phys_addr_t kvm_get_idmap_vector(void);
+phys_addr_t kvm_get_idmap_start(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
@@ -121,19 +172,32 @@ static inline void kvm_clean_pmd_entry(pmd_t *pmd) {}
 static inline void kvm_clean_pte(pte_t *pte) {}
 static inline void kvm_clean_pte_entry(pte_t *pte) {}
 
-static inline void kvm_set_s2pte_writable(pte_t *pte)
+static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
 {
-	pte_val(*pte) |= PTE_S2_RDWR;
+	pte_val(pte) |= PTE_S2_RDWR;
+	return pte;
 }
 
-static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
+static inline pmd_t kvm_s2pmd_mkwrite(pmd_t pmd)
 {
-	pmd_val(*pmd) |= PMD_S2_RDWR;
+	pmd_val(pmd) |= PMD_S2_RDWR;
+	return pmd;
 }
 
 static inline void kvm_set_s2pte_readonly(pte_t *pte)
 {
-	pte_val(*pte) = (pte_val(*pte) & ~PTE_S2_RDWR) | PTE_S2_RDONLY;
+	pteval_t pteval;
+	unsigned long tmp;
+
+	asm volatile("//	kvm_set_s2pte_readonly\n"
+	"	prfm	pstl1strm, %2\n"
+	"1:	ldxr	%0, %2\n"
+	"	and	%0, %0, %3		// clear PTE_S2_RDWR\n"
+	"	orr	%0, %0, %4		// set PTE_S2_RDONLY\n"
+	"	stxr	%w1, %0, %2\n"
+	"	cbnz	%w1, 1b\n"
+	: "=&r" (pteval), "=&r" (tmp), "+Q" (pte_val(*pte))
+	: "L" (~PTE_S2_RDWR), "L" (PTE_S2_RDONLY));
 }
 
 static inline bool kvm_s2pte_readonly(pte_t *pte)
@@ -143,69 +207,12 @@ static inline bool kvm_s2pte_readonly(pte_t *pte)
 
 static inline void kvm_set_s2pmd_readonly(pmd_t *pmd)
 {
-	pmd_val(*pmd) = (pmd_val(*pmd) & ~PMD_S2_RDWR) | PMD_S2_RDONLY;
+	kvm_set_s2pte_readonly((pte_t *)pmd);
 }
 
 static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 {
-	return (pmd_val(*pmd) & PMD_S2_RDWR) == PMD_S2_RDONLY;
-}
-
-
-#define kvm_pgd_addr_end(addr, end)	pgd_addr_end(addr, end)
-#define kvm_pud_addr_end(addr, end)	pud_addr_end(addr, end)
-#define kvm_pmd_addr_end(addr, end)	pmd_addr_end(addr, end)
-
-/*
- * In the case where PGDIR_SHIFT is larger than KVM_PHYS_SHIFT, we can address
- * the entire IPA input range with a single pgd entry, and we would only need
- * one pgd entry.  Note that in this case, the pgd is actually not used by
- * the MMU for Stage-2 translations, but is merely a fake pgd used as a data
- * structure for the kernel pgtable macros to work.
- */
-#if PGDIR_SHIFT > KVM_PHYS_SHIFT
-#define PTRS_PER_S2_PGD_SHIFT	0
-#else
-#define PTRS_PER_S2_PGD_SHIFT	(KVM_PHYS_SHIFT - PGDIR_SHIFT)
-#endif
-#define PTRS_PER_S2_PGD		(1 << PTRS_PER_S2_PGD_SHIFT)
-
-#define kvm_pgd_index(addr)	(((addr) >> PGDIR_SHIFT) & (PTRS_PER_S2_PGD - 1))
-
-/*
- * If we are concatenating first level stage-2 page tables, we would have less
- * than or equal to 16 pointers in the fake PGD, because that's what the
- * architecture allows.  In this case, (4 - CONFIG_PGTABLE_LEVELS)
- * represents the first level for the host, and we add 1 to go to the next
- * level (which uses contatenation) for the stage-2 tables.
- */
-#if PTRS_PER_S2_PGD <= 16
-#define KVM_PREALLOC_LEVEL	(4 - CONFIG_PGTABLE_LEVELS + 1)
-#else
-#define KVM_PREALLOC_LEVEL	(0)
-#endif
-
-static inline void *kvm_get_hwpgd(struct kvm *kvm)
-{
-	pgd_t *pgd = kvm->arch.pgd;
-	pud_t *pud;
-
-	if (KVM_PREALLOC_LEVEL == 0)
-		return pgd;
-
-	pud = pud_offset(pgd, 0);
-	if (KVM_PREALLOC_LEVEL == 1)
-		return pud;
-
-	BUG_ON(KVM_PREALLOC_LEVEL != 2);
-	return pmd_offset(pud, 0);
-}
-
-static inline unsigned int kvm_get_hwpgd_size(void)
-{
-	if (KVM_PREALLOC_LEVEL > 0)
-		return PTRS_PER_S2_PGD * PAGE_SIZE;
-	return PTRS_PER_S2_PGD * sizeof(pgd_t);
+	return kvm_s2pte_readonly((pte_t *)pmd);
 }
 
 static inline bool kvm_page_empty(void *ptr)
@@ -214,22 +221,19 @@ static inline bool kvm_page_empty(void *ptr)
 	return page_count(ptr_page) == 1;
 }
 
-#define kvm_pte_table_empty(kvm, ptep) kvm_page_empty(ptep)
+#define hyp_pte_table_empty(ptep) kvm_page_empty(ptep)
 
 #ifdef __PAGETABLE_PMD_FOLDED
-#define kvm_pmd_table_empty(kvm, pmdp) (0)
+#define hyp_pmd_table_empty(pmdp) (0)
 #else
-#define kvm_pmd_table_empty(kvm, pmdp) \
-	(kvm_page_empty(pmdp) && (!(kvm) || KVM_PREALLOC_LEVEL < 2))
+#define hyp_pmd_table_empty(pmdp) kvm_page_empty(pmdp)
 #endif
 
 #ifdef __PAGETABLE_PUD_FOLDED
-#define kvm_pud_table_empty(kvm, pudp) (0)
+#define hyp_pud_table_empty(pudp) (0)
 #else
-#define kvm_pud_table_empty(kvm, pudp) \
-	(kvm_page_empty(pudp) && (!(kvm) || KVM_PREALLOC_LEVEL < 1))
+#define hyp_pud_table_empty(pudp) kvm_page_empty(pudp)
 #endif
-
 
 struct kvm;
 

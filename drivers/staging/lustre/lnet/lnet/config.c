@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -106,6 +102,9 @@ lnet_ni_free(struct lnet_ni *ni)
 
 	if (ni->ni_cpts)
 		cfs_expr_list_values_free(ni->ni_cpts, ni->ni_ncpts);
+
+	if (ni->ni_lnd_tunables)
+		LIBCFS_FREE(ni->ni_lnd_tunables, sizeof(*ni->ni_lnd_tunables));
 
 	for (i = 0; i < LNET_MAX_INTERFACES && ni->ni_interfaces[i]; i++) {
 		LIBCFS_FREE(ni->ni_interfaces[i],

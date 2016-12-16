@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -161,7 +157,7 @@ static inline void *lustre_cfg_buf(struct lustre_cfg *lcfg, int index)
 	int offset;
 	int bufcount;
 
-	LASSERT (index >= 0);
+	LASSERT(index >= 0);
 
 	bufcount = lcfg->lcfg_bufcount;
 	if (index >= bufcount)

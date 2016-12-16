@@ -161,3 +161,4 @@ module_platform_driver(palm27x_wm9712_driver);
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");
 MODULE_DESCRIPTION("ALSA SoC Palm T|X, T5 and LifeDrive");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:palm27x-asoc");

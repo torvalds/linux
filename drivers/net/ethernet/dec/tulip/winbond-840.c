@@ -966,7 +966,7 @@ static void tx_timeout(struct net_device *dev)
 	enable_irq(irq);
 
 	netif_wake_queue(dev);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	np->stats.tx_errors++;
 }
 

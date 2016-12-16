@@ -438,8 +438,8 @@ static void isicom_tx(unsigned long _data)
 
 	for (; count > 0; count--, port++) {
 		/* port not active or tx disabled to force flow control */
-		if (!(port->port.flags & ASYNC_INITIALIZED) ||
-				!(port->status & ISI_TXOK))
+		if (!tty_port_initialized(&port->port) ||
+			!(port->status & ISI_TXOK))
 			continue;
 
 		txcount = min_t(short, TX_SIZE, port->xmit_cnt);
@@ -553,7 +553,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		return IRQ_HANDLED;
 	}
 	port = card->ports + channel;
-	if (!(port->port.flags & ASYNC_INITIALIZED)) {
+	if (!tty_port_initialized(&port->port)) {
 		outw(0x0000, base+0x04); /* enable interrupts */
 		spin_unlock(&card->card_lock);
 		return IRQ_HANDLED;
@@ -577,7 +577,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 		header = inw(base);
 		switch (header & 0xff) {
 		case 0:	/* Change in EIA signals */
-			if (port->port.flags & ASYNC_CHECK_CD) {
+			if (tty_port_check_carrier(&port->port)) {
 				if (port->status & ISI_DCD) {
 					if (!(header & ISI_DCD)) {
 					/* Carrier has been lost  */
@@ -758,18 +758,13 @@ static void isicom_config_port(struct tty_struct *tty)
 		outw(channel_setup, base);
 		InterruptTheCard(base);
 	}
-	if (C_CLOCAL(tty))
-		port->port.flags &= ~ASYNC_CHECK_CD;
-	else
-		port->port.flags |= ASYNC_CHECK_CD;
+	tty_port_set_check_carrier(&port->port, !C_CLOCAL(tty));
 
 	/* flow control settings ...*/
 	flow_ctrl = 0;
-	port->port.flags &= ~ASYNC_CTS_FLOW;
-	if (C_CRTSCTS(tty)) {
-		port->port.flags |= ASYNC_CTS_FLOW;
+	tty_port_set_cts_flow(&port->port, C_CRTSCTS(tty));
+	if (C_CRTSCTS(tty))
 		flow_ctrl |= ISICOM_CTSRTS;
-	}
 	if (I_IXON(tty))
 		flow_ctrl |= ISICOM_RESPOND_XONXOFF;
 	if (I_IXOFF(tty))

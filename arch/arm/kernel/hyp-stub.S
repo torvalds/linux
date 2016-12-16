@@ -142,6 +142,19 @@ ARM_BE8(orr	r7, r7, #(1 << 25))     @ HSCTLR.EE
 	and	r7, #0x1f		@ Preserve HPMN
 	mcr	p15, 4, r7, c1, c1, 1	@ HDCR
 
+	@ Make sure NS-SVC is initialised appropriately
+	mrc	p15, 0, r7, c1, c0, 0	@ SCTLR
+	orr	r7, #(1 << 5)		@ CP15 barriers enabled
+	bic	r7, #(3 << 7)		@ Clear SED/ITD for v8 (RES0 for v7)
+	bic	r7, #(3 << 19)		@ WXN and UWXN disabled
+	mcr	p15, 0, r7, c1, c0, 0	@ SCTLR
+
+	mrc	p15, 0, r7, c0, c0, 0	@ MIDR
+	mcr	p15, 4, r7, c0, c0, 0	@ VPIDR
+
+	mrc	p15, 0, r7, c0, c0, 5	@ MPIDR
+	mcr	p15, 4, r7, c0, c0, 5	@ VMPIDR
+
 #if !defined(ZIMAGE) && defined(CONFIG_ARM_ARCH_TIMER)
 	@ make CNTP_* and CNTPCT accessible from PL1
 	mrc	p15, 0, r7, c0, c1, 1	@ ID_PFR1

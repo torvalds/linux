@@ -190,8 +190,8 @@
 #       define MACRO_TILE_ASPECT(x)				((x) << 4)
 #       define NUM_BANKS(x)					((x) << 6)
 
-#define		MSG_ENTER_RLC_SAFE_MODE      			1
-#define		MSG_EXIT_RLC_SAFE_MODE      			0
+#define		MSG_ENTER_RLC_SAFE_MODE			1
+#define		MSG_EXIT_RLC_SAFE_MODE			0
 
 /*
  * PM4

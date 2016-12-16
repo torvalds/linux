@@ -167,12 +167,9 @@ static int astfb_create_object(struct ast_fbdev *afbdev,
 			       struct drm_gem_object **gobj_p)
 {
 	struct drm_device *dev = afbdev->helper.dev;
-	u32 bpp, depth;
 	u32 size;
 	struct drm_gem_object *gobj;
-
 	int ret = 0;
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
 
 	size = mode_cmd->pitches[0] * mode_cmd->height;
 	ret = ast_gem_create(dev, size, true, &gobj);

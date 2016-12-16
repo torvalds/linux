@@ -1447,10 +1447,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	len = min_t(unsigned int, buflen, server->vals->read_rsp_size) -
 							HEADER_SIZE(server) + 1;
 
-	rdata->iov.iov_base = buf + HEADER_SIZE(server) - 1;
-	rdata->iov.iov_len = len;
-
-	length = cifs_readv_from_socket(server, &rdata->iov, 1, len);
+	length = cifs_read_from_socket(server,
+				       buf + HEADER_SIZE(server) - 1, len);
 	if (length < 0)
 		return length;
 	server->total_read += length;
@@ -1502,9 +1500,8 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	len = data_offset - server->total_read;
 	if (len > 0) {
 		/* read any junk before data into the rest of smallbuf */
-		rdata->iov.iov_base = buf + server->total_read;
-		rdata->iov.iov_len = len;
-		length = cifs_readv_from_socket(server, &rdata->iov, 1, len);
+		length = cifs_read_from_socket(server,
+					       buf + server->total_read, len);
 		if (length < 0)
 			return length;
 		server->total_read += length;
@@ -3366,7 +3363,7 @@ static int cifs_copy_posix_acl(char *trgt, char *src, const int buflen,
 	if (le16_to_cpu(cifs_acl->version) != CIFS_ACL_VERSION)
 		return -EOPNOTSUPP;
 
-	if (acl_type & ACL_TYPE_ACCESS) {
+	if (acl_type == ACL_TYPE_ACCESS) {
 		count = le16_to_cpu(cifs_acl->access_entry_count);
 		pACE = &cifs_acl->ace_array[0];
 		size = sizeof(struct cifs_posix_acl);
@@ -3377,7 +3374,7 @@ static int cifs_copy_posix_acl(char *trgt, char *src, const int buflen,
 				 size_of_data_area, size);
 			return -EINVAL;
 		}
-	} else if (acl_type & ACL_TYPE_DEFAULT) {
+	} else if (acl_type == ACL_TYPE_DEFAULT) {
 		count = le16_to_cpu(cifs_acl->access_entry_count);
 		size = sizeof(struct cifs_posix_acl);
 		size += sizeof(struct cifs_posix_ace) * count;

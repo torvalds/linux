@@ -144,7 +144,7 @@ static struct list_head *vc4_get_cache_list_for_size(struct drm_device *dev,
 	return &vc4->bo_cache.size_list[page_index];
 }
 
-void vc4_bo_cache_purge(struct drm_device *dev)
+static void vc4_bo_cache_purge(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
@@ -291,8 +291,6 @@ static void vc4_bo_cache_free_old(struct drm_device *dev)
 
 /* Called on the last userspace/kernel unreference of the BO.  Returns
  * it to the BO cache if possible, otherwise frees it.
- *
- * Note that this is called with the struct_mutex held.
  */
 void vc4_free_object(struct drm_gem_object *gem_bo)
 {
@@ -457,7 +455,7 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	struct drm_vc4_mmap_bo *args = data;
 	struct drm_gem_object *gem_obj;
 
-	gem_obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
 		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
 		return -EINVAL;

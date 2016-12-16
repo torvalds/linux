@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -118,19 +114,6 @@ static int __init lustre_init(void)
 	if (!ll_file_data_slab)
 		goto out_cache;
 
-	ll_remote_perm_cachep = kmem_cache_create("ll_remote_perm_cache",
-						  sizeof(struct ll_remote_perm),
-						      0, 0, NULL);
-	if (!ll_remote_perm_cachep)
-		goto out_cache;
-
-	ll_rmtperm_hash_cachep = kmem_cache_create("ll_rmtperm_hash_cache",
-						   REMOTE_PERM_HASHSIZE *
-						   sizeof(struct list_head),
-						   0, 0, NULL);
-	if (!ll_rmtperm_hash_cachep)
-		goto out_cache;
-
 	llite_root = debugfs_create_dir("llite", debugfs_lustre_root);
 	if (IS_ERR_OR_NULL(llite_root)) {
 		rc = llite_root ? PTR_ERR(llite_root) : -ENOMEM;
@@ -164,9 +147,18 @@ static int __init lustre_init(void)
 	if (rc != 0)
 		goto out_sysfs;
 
+	cl_inode_fini_env = cl_env_alloc(&cl_inode_fini_refcheck,
+					 LCT_REMEMBER | LCT_NOREF);
+	if (IS_ERR(cl_inode_fini_env)) {
+		rc = PTR_ERR(cl_inode_fini_env);
+		goto out_vvp;
+	}
+
+	cl_inode_fini_env->le_ctx.lc_cookie = 0x4;
+
 	rc = ll_xattr_init();
 	if (rc != 0)
-		goto out_vvp;
+		goto out_inode_fini_env;
 
 	lustre_register_client_fill_super(ll_fill_super);
 	lustre_register_kill_super_cb(ll_kill_super);
@@ -174,6 +166,8 @@ static int __init lustre_init(void)
 
 	return 0;
 
+out_inode_fini_env:
+	cl_env_put(cl_inode_fini_env, &cl_inode_fini_refcheck);
 out_vvp:
 	vvp_global_fini();
 out_sysfs:
@@ -183,8 +177,6 @@ out_debugfs:
 out_cache:
 	kmem_cache_destroy(ll_inode_cachep);
 	kmem_cache_destroy(ll_file_data_slab);
-	kmem_cache_destroy(ll_remote_perm_cachep);
-	kmem_cache_destroy(ll_rmtperm_hash_cachep);
 	return rc;
 }
 
@@ -198,13 +190,10 @@ static void __exit lustre_exit(void)
 	kset_unregister(llite_kset);
 
 	ll_xattr_fini();
+	cl_env_put(cl_inode_fini_env, &cl_inode_fini_refcheck);
 	vvp_global_fini();
 
 	kmem_cache_destroy(ll_inode_cachep);
-	kmem_cache_destroy(ll_rmtperm_hash_cachep);
-
-	kmem_cache_destroy(ll_remote_perm_cachep);
-
 	kmem_cache_destroy(ll_file_data_slab);
 }
 

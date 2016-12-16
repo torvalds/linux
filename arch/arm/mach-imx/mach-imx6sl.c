@@ -52,7 +52,7 @@ static void __init imx6sl_init_machine(void)
 	if (parent == NULL)
 		pr_warn("failed to initialize soc device\n");
 
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
+	of_platform_default_populate(NULL, NULL, parent);
 
 	imx6sl_fec_init();
 	imx_anatop_init();
@@ -75,6 +75,8 @@ static const char * const imx6sl_dt_compat[] __initconst = {
 };
 
 DT_MACHINE_START(IMX6SL, "Freescale i.MX6 SoloLite (Device Tree)")
+	.l2c_aux_val 	= 0,
+	.l2c_aux_mask	= ~0,
 	.init_irq	= imx6sl_init_irq,
 	.init_machine	= imx6sl_init_machine,
 	.init_late      = imx6sl_init_late,

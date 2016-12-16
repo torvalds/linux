@@ -133,3 +133,21 @@ __sys_copy_file_range:
 	call	sys_copy_file_range
 	sub	sp, -4
 	popm	pc
+
+	.global __sys_preadv2
+	.type	__sys_preadv2,@function
+__sys_preadv2:
+	pushm	lr
+	st.w	--sp, ARG6
+	call	sys_preadv2
+	sub	sp, -4
+	popm	pc
+
+	.global __sys_pwritev2
+	.type	__sys_pwritev2,@function
+__sys_pwritev2:
+	pushm	lr
+	st.w	--sp, ARG6
+	call	sys_pwritev2
+	sub	sp, -4
+	popm	pc

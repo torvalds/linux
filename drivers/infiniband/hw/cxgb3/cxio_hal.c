@@ -327,7 +327,7 @@ int cxio_destroy_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev_p->rnic_info.pdev->dev),
 			  (1UL << (cq->size_log2))
-			  * sizeof(struct t3_cqe), cq->queue,
+			  * sizeof(struct t3_cqe) + 1, cq->queue,
 			  dma_unmap_addr(cq, mapping));
 	cxio_hal_put_cqid(rdev_p->rscp, cq->cqid);
 	return err;

@@ -140,7 +140,7 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  *			second.
  *
  * @features:		lirc compatible hardware features, like LIRC_MODE_RAW,
- *			LIRC_CAN_*, as defined at include/media/lirc.h.
+ *			LIRC_CAN\_\*, as defined at include/media/lirc.h.
  *
  * @chunk_size:		Size of each FIFO buffer.
  *

@@ -355,7 +355,7 @@ static struct inet_frag_queue *inet_frag_alloc(struct netns_frags *nf,
 {
 	struct inet_frag_queue *q;
 
-	if (frag_mem_limit(nf) > nf->high_thresh) {
+	if (!nf->high_thresh || frag_mem_limit(nf) > nf->high_thresh) {
 		inet_frag_schedule_worker(f);
 		return NULL;
 	}

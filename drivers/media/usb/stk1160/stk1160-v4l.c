@@ -666,7 +666,7 @@ static const struct v4l2_ioctl_ops stk1160_ioctl_ops = {
  */
 static int queue_setup(struct vb2_queue *vq,
 				unsigned int *nbuffers, unsigned int *nplanes,
-				unsigned int sizes[], void *alloc_ctxs[])
+				unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct stk1160 *dev = vb2_get_drv_priv(vq);
 	unsigned long size;
@@ -679,6 +679,9 @@ static int queue_setup(struct vb2_queue *vq,
 	 */
 	*nbuffers = clamp_t(unsigned int, *nbuffers,
 			STK1160_MIN_VIDEO_BUFFERS, STK1160_MAX_VIDEO_BUFFERS);
+
+	if (*nplanes)
+		return sizes[0] < size ? -EINVAL : 0;
 
 	/* This means a packed colorformat */
 	*nplanes = 1;
@@ -739,7 +742,7 @@ static void stop_streaming(struct vb2_queue *vq)
 	stk1160_stop_streaming(dev);
 }
 
-static struct vb2_ops stk1160_video_qops = {
+static const struct vb2_ops stk1160_video_qops = {
 	.queue_setup		= queue_setup,
 	.buf_queue		= buffer_queue,
 	.start_streaming	= start_streaming,

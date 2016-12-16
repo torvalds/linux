@@ -1285,18 +1285,22 @@ int sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data)
 }
 
 int sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
-		u32 dest, int length, size_t *bytes_written)
+		u32 dest, int length)
 {
+	size_t dummy;
+
 	return sisusb_write_mem_bulk(sisusb, dest, src, length,
-			NULL, 0, bytes_written);
+			NULL, 0, &dummy);
 }
 
 #ifdef SISUSBENDIANTEST
-int sisusb_read_memory(struct sisusb_usb_data *sisusb, char *dest,
-		u32 src, int length, size_t *bytes_written)
+static int sisusb_read_memory(struct sisusb_usb_data *sisusb, char *dest,
+		u32 src, int length)
 {
+	size_t dummy;
+
 	return sisusb_read_mem_bulk(sisusb, src, dest, length,
-			NULL, bytes_written);
+			NULL, &dummy);
 }
 #endif
 #endif
@@ -1306,16 +1310,14 @@ static void sisusb_testreadwrite(struct sisusb_usb_data *sisusb)
 {
 	static char srcbuffer[] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 };
 	char destbuffer[10];
-	size_t dummy;
 	int i, j;
 
-	sisusb_copy_memory(sisusb, srcbuffer, sisusb->vrambase, 7, &dummy);
+	sisusb_copy_memory(sisusb, srcbuffer, sisusb->vrambase, 7);
 
 	for (i = 1; i <= 7; i++) {
 		dev_dbg(&sisusb->sisusb_dev->dev,
 				"sisusb: rwtest %d bytes\n", i);
-		sisusb_read_memory(sisusb, destbuffer, sisusb->vrambase,
-				i, &dummy);
+		sisusb_read_memory(sisusb, destbuffer, sisusb->vrambase, i);
 		for (j = 0; j < i; j++) {
 			dev_dbg(&sisusb->sisusb_dev->dev,
 					"rwtest read[%d] = %x\n",
@@ -2276,7 +2278,6 @@ int sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 	const struct font_desc *myfont;
 	u8 *tempbuf;
 	u16 *tempbufb;
-	size_t written;
 	static const char bootstring[] =
 		"SiSUSB VGA text console, (C) 2005 Thomas Winischhofer.";
 	static const char bootlogo[] = "(o_ //\\ V_/_";
@@ -2343,18 +2344,15 @@ int sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 				*(tempbufb++) = 0x0700 | bootstring[i++];
 
 			ret |= sisusb_copy_memory(sisusb, tempbuf,
-					sisusb->vrambase, 8192, &written);
+					sisusb->vrambase, 8192);
 
 			vfree(tempbuf);
 
 		}
 
 	} else if (sisusb->scrbuf) {
-
 		ret |= sisusb_copy_memory(sisusb, (char *)sisusb->scrbuf,
-				sisusb->vrambase, sisusb->scrbuf_size,
-				&written);
-
+				sisusb->vrambase, sisusb->scrbuf_size);
 	}
 
 	if (sisusb->sisusb_cursor_size_from >= 0 &&
@@ -2420,7 +2418,7 @@ static int sisusb_open(struct inode *inode, struct file *file)
 
 	if (!sisusb->devinit) {
 		if (sisusb->sisusb_dev->speed == USB_SPEED_HIGH ||
-				sisusb->sisusb_dev->speed == USB_SPEED_SUPER) {
+				sisusb->sisusb_dev->speed >= USB_SPEED_SUPER) {
 			if (sisusb_init_gfxdevice(sisusb, 0)) {
 				mutex_unlock(&sisusb->lock);
 				dev_err(&sisusb->sisusb_dev->dev,
@@ -3127,7 +3125,7 @@ static int sisusb_probe(struct usb_interface *intf,
 
 	sisusb->present = 1;
 
-	if (dev->speed == USB_SPEED_HIGH || dev->speed == USB_SPEED_SUPER) {
+	if (dev->speed == USB_SPEED_HIGH || dev->speed >= USB_SPEED_SUPER) {
 		int initscreen = 1;
 #ifdef INCL_SISUSB_CON
 		if (sisusb_first_vc > 0 && sisusb_last_vc > 0 &&

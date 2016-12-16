@@ -7,7 +7,7 @@
 	};
 
 	ocp {
-		i2c@0 {
+		i2c0 {
 			compatible = "i2c-cbus-gpio";
 			gpios = <&gpio3 2 GPIO_ACTIVE_HIGH /* gpio66 clk */
 				 &gpio3 1 GPIO_ACTIVE_HIGH /* gpio65 dat */

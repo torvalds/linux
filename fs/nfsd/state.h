@@ -345,6 +345,7 @@ struct nfs4_client {
 	u32			cl_exchange_flags;
 	/* number of rpc's in progress over an associated session: */
 	atomic_t		cl_refcount;
+	struct nfs4_op_map      cl_spo_must_allow;
 
 	/* for nfs41 callbacks */
 	/* We currently support a single back channel with a single slot */
@@ -535,7 +536,7 @@ struct nfs4_ol_stateid {
 	unsigned char			st_access_bmap;
 	unsigned char			st_deny_bmap;
 	struct nfs4_ol_stateid		*st_openstp;
-	struct rw_semaphore		st_rwsem;
+	struct mutex			st_mutex;
 };
 
 static inline struct nfs4_ol_stateid *openlockstateid(struct nfs4_stid *s)
@@ -573,6 +574,11 @@ enum nfsd4_cb_op {
 	NFSPROC4_CLNT_CB_SEQUENCE,
 };
 
+/* Returns true iff a is later than b: */
+static inline bool nfsd4_stateid_generation_after(stateid_t *a, stateid_t *b)
+{
+	return (s32)(a->si_generation - b->si_generation) > 0;
+}
 
 struct nfsd4_compound_state;
 struct nfsd_net;

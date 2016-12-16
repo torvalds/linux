@@ -57,12 +57,27 @@ LDFLAGS_vmlinux := -T
 hostprogs-y	:= mkpiggy
 HOST_EXTRACFLAGS += -I$(srctree)/tools/include
 
+sed-voffset := -e 's/^\([0-9a-fA-F]*\) [ABCDGRSTVW] \(_text\|__bss_start\|_end\)$$/\#define VO_\2 _AC(0x\1,UL)/p'
+
+quiet_cmd_voffset = VOFFSET $@
+      cmd_voffset = $(NM) $< | sed -n $(sed-voffset) > $@
+
+targets += ../voffset.h
+
+$(obj)/../voffset.h: vmlinux FORCE
+	$(call if_changed,voffset)
+
+$(obj)/misc.o: $(obj)/../voffset.h
+
 vmlinux-objs-y := $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
-	$(obj)/string.o $(obj)/cmdline.o \
+	$(obj)/string.o $(obj)/cmdline.o $(obj)/error.o \
 	$(obj)/piggy.o $(obj)/cpuflags.o
 
 vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $(obj)/early_serial_console.o
-vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/aslr.o
+vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
+ifdef CONFIG_X86_64
+	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
+endif
 
 $(obj)/eboot.o: KBUILD_CFLAGS += -fshort-wchar -mno-red-zone
 
@@ -70,9 +85,26 @@ vmlinux-objs-$(CONFIG_EFI_STUB) += $(obj)/eboot.o $(obj)/efi_stub_$(BITS).o \
 	$(objtree)/drivers/firmware/efi/libstub/lib.a
 vmlinux-objs-$(CONFIG_EFI_MIXED) += $(obj)/efi_thunk_$(BITS).o
 
+# The compressed kernel is built with -fPIC/-fPIE so that a boot loader
+# can place it anywhere in memory and it will still run. However, since
+# it is executed as-is without any ELF relocation processing performed
+# (and has already had all relocation sections stripped from the binary),
+# none of the code can use data relocations (e.g. static assignments of
+# pointer values), since they will be meaningless at runtime. This check
+# will refuse to link the vmlinux if any of these relocations are found.
+quiet_cmd_check_data_rel = DATAREL $@
+define cmd_check_data_rel
+	for obj in $(filter %.o,$^); do \
+		readelf -S $$obj | grep -qF .rel.local && { \
+			echo "error: $$obj has data relocations!" >&2; \
+			exit 1; \
+		} || true; \
+	done
+endef
+
 $(obj)/vmlinux: $(vmlinux-objs-y) FORCE
+	$(call if_changed,check_data_rel)
 	$(call if_changed,ld)
-	@:
 
 OBJCOPYFLAGS_vmlinux.bin :=  -R .comment -S
 $(obj)/vmlinux.bin: vmlinux FORCE
@@ -109,10 +141,8 @@ suffix-$(CONFIG_KERNEL_XZ)	:= xz
 suffix-$(CONFIG_KERNEL_LZO) 	:= lzo
 suffix-$(CONFIG_KERNEL_LZ4) 	:= lz4
 
-RUN_SIZE = $(shell $(OBJDUMP) -h vmlinux | \
-	     $(CONFIG_SHELL) $(srctree)/arch/x86/tools/calc_run_size.sh)
 quiet_cmd_mkpiggy = MKPIGGY $@
-      cmd_mkpiggy = $(obj)/mkpiggy $< $(RUN_SIZE) > $@ || ( rm -f $@ ; false )
+      cmd_mkpiggy = $(obj)/mkpiggy $< > $@ || ( rm -f $@ ; false )
 
 targets += piggy.S
 $(obj)/piggy.S: $(obj)/vmlinux.bin.$(suffix-y) $(obj)/mkpiggy FORCE

@@ -54,16 +54,6 @@ config QLCNIC_DCB
 	  mode of DCB is supported. PG and PFC values are related only
 	  to Tx.
 
-config QLCNIC_VXLAN
-	bool "Virtual eXtensible Local Area Network (VXLAN) offload support"
-	default n
-	depends on QLCNIC && VXLAN && !(QLCNIC=y && VXLAN=m)
-	---help---
-	  This enables hardware offload support for VXLAN protocol over QLogic's
-	  84XX series adapters.
-	  Say Y here if you want to enable hardware offload support for
-	  Virtual eXtensible Local Area Network (VXLAN) in the driver.
-
 config QLCNIC_HWMON
 	bool "QLOGIC QLCNIC 82XX and 83XX family HWMON support"
 	depends on QLCNIC && HWMON && !(QLCNIC=y && HWMON=m)
@@ -98,9 +88,20 @@ config QED
 	---help---
 	  This enables the support for ...
 
+config QED_SRIOV
+	bool "QLogic QED 25/40/100Gb SR-IOV support"
+	depends on QED && PCI_IOV
+	default y
+	---help---
+	  This configuration parameter enables Single Root Input Output
+	  Virtualization support for QED devices.
+	  This allows for virtual function acceleration in virtualized
+	  environments.
+
 config QEDE
 	tristate "QLogic QED 25/40/100Gb Ethernet NIC"
 	depends on QED
 	---help---
 	  This enables the support for ...
+
 endif # NET_VENDOR_QLOGIC

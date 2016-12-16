@@ -26,16 +26,7 @@
  * We directly use the kernel VA for the HYP, as we can directly share
  * the mapping (HTTBR "covers" TTBR1).
  */
-#define HYP_PAGE_OFFSET_MASK	UL(~0)
-#define HYP_PAGE_OFFSET		PAGE_OFFSET
-#define KERN_TO_HYP(kva)	(kva)
-
-/*
- * Our virtual mapping for the boot-time MMU-enable code. Must be
- * shared across all the page-tables. Conveniently, we use the vectors
- * page, where no kernel data will ever be shared with HYP.
- */
-#define TRAMPOLINE_VA		UL(CONFIG_VECTORS_BASE)
+#define kern_hyp_va(kva)	(kva)
 
 /*
  * KVM_MMU_CACHE_MIN_PAGES is the number of stage2 page table translation levels.
@@ -47,10 +38,10 @@
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>
 #include <asm/pgalloc.h>
+#include <asm/stage2_pgtable.h>
 
-int create_hyp_mappings(void *from, void *to);
+int create_hyp_mappings(void *from, void *to, pgprot_t prot);
 int create_hyp_io_mappings(void *from, void *to, phys_addr_t);
-void free_boot_hyp_pgd(void);
 void free_hyp_pgds(void);
 
 void stage2_unmap_vm(struct kvm *kvm);
@@ -64,8 +55,8 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu, struct kvm_run *run);
 void kvm_mmu_free_memory_caches(struct kvm_vcpu *vcpu);
 
 phys_addr_t kvm_mmu_get_httbr(void);
-phys_addr_t kvm_mmu_get_boot_httbr(void);
 phys_addr_t kvm_get_idmap_vector(void);
+phys_addr_t kvm_get_idmap_start(void);
 int kvm_mmu_init(void);
 void kvm_clear_hyp_idmap(void);
 
@@ -105,14 +96,16 @@ static inline void kvm_clean_pte(pte_t *pte)
 	clean_pte_table(pte);
 }
 
-static inline void kvm_set_s2pte_writable(pte_t *pte)
+static inline pte_t kvm_s2pte_mkwrite(pte_t pte)
 {
-	pte_val(*pte) |= L_PTE_S2_RDWR;
+	pte_val(pte) |= L_PTE_S2_RDWR;
+	return pte;
 }
 
-static inline void kvm_set_s2pmd_writable(pmd_t *pmd)
+static inline pmd_t kvm_s2pmd_mkwrite(pmd_t pmd)
 {
-	pmd_val(*pmd) |= L_PMD_S2_RDWR;
+	pmd_val(pmd) |= L_PMD_S2_RDWR;
+	return pmd;
 }
 
 static inline void kvm_set_s2pte_readonly(pte_t *pte)
@@ -135,22 +128,6 @@ static inline bool kvm_s2pmd_readonly(pmd_t *pmd)
 	return (pmd_val(*pmd) & L_PMD_S2_RDWR) == L_PMD_S2_RDONLY;
 }
 
-
-/* Open coded p*d_addr_end that can deal with 64bit addresses */
-#define kvm_pgd_addr_end(addr, end)					\
-({	u64 __boundary = ((addr) + PGDIR_SIZE) & PGDIR_MASK;		\
-	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
-})
-
-#define kvm_pud_addr_end(addr,end)		(end)
-
-#define kvm_pmd_addr_end(addr, end)					\
-({	u64 __boundary = ((addr) + PMD_SIZE) & PMD_MASK;		\
-	(__boundary - 1 < (end) - 1)? __boundary: (end);		\
-})
-
-#define kvm_pgd_index(addr)			pgd_index(addr)
-
 static inline bool kvm_page_empty(void *ptr)
 {
 	struct page *ptr_page = virt_to_page(ptr);
@@ -159,19 +136,11 @@ static inline bool kvm_page_empty(void *ptr)
 
 #define kvm_pte_table_empty(kvm, ptep) kvm_page_empty(ptep)
 #define kvm_pmd_table_empty(kvm, pmdp) kvm_page_empty(pmdp)
-#define kvm_pud_table_empty(kvm, pudp) (0)
+#define kvm_pud_table_empty(kvm, pudp) false
 
-#define KVM_PREALLOC_LEVEL	0
-
-static inline void *kvm_get_hwpgd(struct kvm *kvm)
-{
-	return kvm->arch.pgd;
-}
-
-static inline unsigned int kvm_get_hwpgd_size(void)
-{
-	return PTRS_PER_S2_PGD * sizeof(pgd_t);
-}
+#define hyp_pte_table_empty(ptep) kvm_page_empty(ptep)
+#define hyp_pmd_table_empty(pmdp) kvm_page_empty(pmdp)
+#define hyp_pud_table_empty(pudp) false
 
 struct kvm;
 

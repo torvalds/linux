@@ -851,7 +851,7 @@ static void mace_tx_timeout(struct net_device *dev)
 #else /* #if RESET_ON_TIMEOUT */
   pr_cont("NOT resetting card\n");
 #endif /* #if RESET_ON_TIMEOUT */
-  dev->trans_start = jiffies; /* prevent tx timeout */
+  netif_trans_update(dev); /* prevent tx timeout */
   netif_wake_queue(dev);
 }
 

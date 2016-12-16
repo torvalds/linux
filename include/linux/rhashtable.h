@@ -346,7 +346,8 @@ struct bucket_table *rhashtable_insert_slow(struct rhashtable *ht,
 					    struct bucket_table *old_tbl);
 int rhashtable_insert_rehash(struct rhashtable *ht, struct bucket_table *tbl);
 
-int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter);
+int rhashtable_walk_init(struct rhashtable *ht, struct rhashtable_iter *iter,
+			 gfp_t gfp);
 void rhashtable_walk_exit(struct rhashtable_iter *iter);
 int rhashtable_walk_start(struct rhashtable_iter *iter) __acquires(RCU);
 void *rhashtable_walk_next(struct rhashtable_iter *iter);

@@ -98,7 +98,6 @@ config PPC
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select SYSCTL_EXCEPTION_TRACE
-	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select VIRT_TO_BUS if !PPC64
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
@@ -116,6 +115,8 @@ config PPC
 	select GENERIC_ATOMIC64 if PPC32
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_PERF_EVENTS
+	select HAVE_PERF_REGS
+	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_HW_BREAKPOINT if PERF_EVENTS && PPC_BOOK3S_64
 	select ARCH_WANT_IPC_PARSE_VERSION
@@ -126,7 +127,8 @@ config PPC
 	select IRQ_FORCED_THREADING
 	select HAVE_RCU_TABLE_FREE if SMP
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_BPF_JIT
+	select HAVE_CBPF_JIT if !PPC64
+	select HAVE_EBPF_JIT if PPC64
 	select HAVE_ARCH_JUMP_LABEL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select ARCH_HAS_GCOV_PROFILE_ALL
@@ -153,6 +155,7 @@ config PPC
 	select NO_BOOTMEM
 	select HAVE_GENERIC_RCU_GUP
 	select HAVE_PERF_EVENTS_NMI if PPC64
+	select HAVE_NMI if PERF_EVENTS
 	select EDAC_SUPPORT
 	select EDAC_ATOMIC_SCRUB
 	select ARCH_HAS_DMA_SET_COHERENT_MASK
@@ -160,6 +163,10 @@ config PPC
 	select HAVE_ARCH_SECCOMP_FILTER
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+	select HAVE_LIVEPATCH if HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select GENERIC_CPU_AUTOPROBE
+	select HAVE_VIRT_CPU_ACCOUNTING
+	select HAVE_ARCH_HARDENED_USERCOPY
 
 config GENERIC_CSUM
 	def_bool CPU_LITTLE_ENDIAN
@@ -453,6 +460,29 @@ config KEXEC
 	  interface is strongly in flux, so no good recommendation can be
 	  made.
 
+config RELOCATABLE
+	bool "Build a relocatable kernel"
+	depends on (PPC64 && !COMPILE_TEST) || (FLATMEM && (44x || FSL_BOOKE))
+	select NONSTATIC_KERNEL
+	help
+	  This builds a kernel image that is capable of running at the
+	  location the kernel is loaded at. For ppc32, there is no any
+	  alignment restrictions, and this feature is a superset of
+	  DYNAMIC_MEMSTART and hence overrides it. For ppc64, we should use
+	  16k-aligned base address. The kernel is linked as a
+	  position-independent executable (PIE) and contains dynamic relocations
+	  which are processed early in the bootup process.
+
+	  One use is for the kexec on panic case where the recovery kernel
+	  must live at a different physical address than the primary
+	  kernel.
+
+	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
+	  it has been loaded at and the compile time physical addresses
+	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
+	  setting can still be useful to bootwrappers that need to know the
+	  load address of the kernel (eg. u-boot/mkimage).
+
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
 	depends on PPC64 || 6xx || FSL_BOOKE || (44x && !SMP)
@@ -605,9 +635,9 @@ endchoice
 
 config FORCE_MAX_ZONEORDER
 	int "Maximum zone order"
-	range 9 64 if PPC64 && PPC_64K_PAGES
+	range 8 9 if PPC64 && PPC_64K_PAGES
 	default "9" if PPC64 && PPC_64K_PAGES
-	range 13 64 if PPC64 && !PPC_64K_PAGES
+	range 9 13 if PPC64 && !PPC_64K_PAGES
 	default "13" if PPC64 && !PPC_64K_PAGES
 	range 9 64 if PPC32 && PPC_16K_PAGES
 	default "9" if PPC32 && PPC_16K_PAGES
@@ -794,7 +824,6 @@ config 4xx_SOC
 
 config FSL_LBC
 	bool "Freescale Local Bus support"
-	depends on FSL_SOC
 	help
 	  Enables reporting of errors from the Freescale local bus
 	  controller.  Also contains some common code used by
@@ -946,29 +975,6 @@ config DYNAMIC_MEMSTART
 
 	  This option is overridden by CONFIG_RELOCATABLE
 
-config RELOCATABLE
-	bool "Build a relocatable kernel"
-	depends on ADVANCED_OPTIONS && FLATMEM && (44x || FSL_BOOKE)
-	select NONSTATIC_KERNEL
-	help
-	  This builds a kernel image that is capable of running at the
-	  location the kernel is loaded at, without any alignment restrictions.
-	  This feature is a superset of DYNAMIC_MEMSTART and hence overrides it.
-
-	  One use is for the kexec on panic case where the recovery kernel
-	  must live at a different physical address than the primary
-	  kernel.
-
-	  Note: If CONFIG_RELOCATABLE=y, then the kernel runs from the address
-	  it has been loaded at and the compile time physical addresses
-	  CONFIG_PHYSICAL_START is ignored.  However CONFIG_PHYSICAL_START
-	  setting can still be useful to bootwrappers that need to know the
-	  load address of the kernel (eg. u-boot/mkimage).
-
-config RELOCATABLE_PPC32
-	def_bool y
-	depends on PPC32 && RELOCATABLE
-
 config PAGE_OFFSET_BOOL
 	bool "Set custom page offset address"
 	depends on ADVANCED_OPTIONS
@@ -1051,24 +1057,14 @@ config CONSISTENT_SIZE
 config PIN_TLB
 	bool "Pinned Kernel TLBs (860 ONLY)"
 	depends on ADVANCED_OPTIONS && 8xx
+
+config PIN_TLB_IMMR
+	bool "Pinned TLB for IMMR"
+	depends on PIN_TLB
+	default y
 endmenu
 
 if PPC64
-config RELOCATABLE
-	bool "Build a relocatable kernel"
-	depends on !COMPILE_TEST
-	select NONSTATIC_KERNEL
-	help
-	  This builds a kernel image that is capable of running anywhere
-	  in the RMA (real memory area) at any 16k-aligned base address.
-	  The kernel is linked as a position-independent executable (PIE)
-	  and contains dynamic relocations which are processed early
-	  in the bootup process.
-
-	  One use is for the kexec on panic case where the recovery kernel
-	  must live at a different physical address than the primary
-	  kernel.
-
 # This value must have zeroes in the bottom 60 bits otherwise lots will break
 config PAGE_OFFSET
 	hex
@@ -1107,3 +1103,5 @@ config PPC_LIB_RHEAP
 	bool
 
 source "arch/powerpc/kvm/Kconfig"
+
+source "kernel/livepatch/Kconfig"

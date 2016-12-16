@@ -70,10 +70,13 @@ struct max77693_haptic {
 
 static int max77693_haptic_set_duty_cycle(struct max77693_haptic *haptic)
 {
-	int delta = (haptic->pwm_dev->period + haptic->pwm_duty) / 2;
+	struct pwm_args pargs;
+	int delta;
 	int error;
 
-	error = pwm_config(haptic->pwm_dev, delta, haptic->pwm_dev->period);
+	pwm_get_args(haptic->pwm_dev, &pargs);
+	delta = (pargs.period + haptic->pwm_duty) / 2;
+	error = pwm_config(haptic->pwm_dev, delta, pargs.period);
 	if (error) {
 		dev_err(haptic->dev, "failed to configure pwm: %d\n", error);
 		return error;
@@ -234,6 +237,7 @@ static int max77693_haptic_play_effect(struct input_dev *dev, void *data,
 				       struct ff_effect *effect)
 {
 	struct max77693_haptic *haptic = input_get_drvdata(dev);
+	struct pwm_args pargs;
 	u64 period_mag_multi;
 
 	haptic->magnitude = effect->u.rumble.strong_magnitude;
@@ -245,7 +249,8 @@ static int max77693_haptic_play_effect(struct input_dev *dev, void *data,
 	 * The formula to convert magnitude to pwm_duty as follows:
 	 * - pwm_duty = (magnitude * pwm_period) / MAX_MAGNITUDE(0xFFFF)
 	 */
-	period_mag_multi = (u64)haptic->pwm_dev->period * haptic->magnitude;
+	pwm_get_args(haptic->pwm_dev, &pargs);
+	period_mag_multi = (u64)pargs.period * haptic->magnitude;
 	haptic->pwm_duty = (unsigned int)(period_mag_multi >>
 						MAX_MAGNITUDE_SHIFT);
 
@@ -328,6 +333,12 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get pwm device\n");
 		return PTR_ERR(haptic->pwm_dev);
 	}
+
+	/*
+	 * FIXME: pwm_apply_args() should be removed when switching to the
+	 * atomic PWM API.
+	 */
+	pwm_apply_args(haptic->pwm_dev);
 
 	haptic->motor_reg = devm_regulator_get(&pdev->dev, "haptic");
 	if (IS_ERR(haptic->motor_reg)) {

@@ -146,10 +146,12 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 
 static int vlan_dev_change_mtu(struct net_device *dev, int new_mtu)
 {
-	/* TODO: gotta make sure the underlying layer can handle it,
-	 * maybe an IFF_VLAN_CAPABLE flag for devices?
-	 */
-	if (vlan_dev_priv(dev)->real_dev->mtu < new_mtu)
+	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
+	unsigned int max_mtu = real_dev->mtu;
+
+	if (netif_reduces_vlan_mtu(real_dev))
+		max_mtu -= VLAN_HLEN;
+	if (max_mtu < new_mtu)
 		return -ERANGE;
 
 	dev->mtu = new_mtu;
@@ -245,6 +247,17 @@ void vlan_dev_get_realdev_name(const struct net_device *dev, char *result)
 	strncpy(result, vlan_dev_priv(dev)->real_dev->name, 23);
 }
 
+bool vlan_dev_inherit_address(struct net_device *dev,
+			      struct net_device *real_dev)
+{
+	if (dev->addr_assign_type != NET_ADDR_STOLEN)
+		return false;
+
+	ether_addr_copy(dev->dev_addr, real_dev->dev_addr);
+	call_netdevice_notifiers(NETDEV_CHANGEADDR, dev);
+	return true;
+}
+
 static int vlan_dev_open(struct net_device *dev)
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
@@ -255,7 +268,8 @@ static int vlan_dev_open(struct net_device *dev)
 	    !(vlan->flags & VLAN_FLAG_LOOSE_BINDING))
 		return -ENETDOWN;
 
-	if (!ether_addr_equal(dev->dev_addr, real_dev->dev_addr)) {
+	if (!ether_addr_equal(dev->dev_addr, real_dev->dev_addr) &&
+	    !vlan_dev_inherit_address(dev, real_dev)) {
 		err = dev_uc_add(real_dev, dev->dev_addr);
 		if (err < 0)
 			goto out;
@@ -560,8 +574,10 @@ static int vlan_dev_init(struct net_device *dev)
 	/* ipv6 shared card related stuff */
 	dev->dev_id = real_dev->dev_id;
 
-	if (is_zero_ether_addr(dev->dev_addr))
-		eth_hw_addr_inherit(dev, real_dev);
+	if (is_zero_ether_addr(dev->dev_addr)) {
+		ether_addr_copy(dev->dev_addr, real_dev->dev_addr);
+		dev->addr_assign_type = NET_ADDR_STOLEN;
+	}
 	if (is_zero_ether_addr(dev->broadcast))
 		memcpy(dev->broadcast, real_dev->broadcast, dev->addr_len);
 
@@ -776,6 +792,8 @@ static const struct net_device_ops vlan_netdev_ops = {
 	.ndo_netpoll_cleanup	= vlan_dev_netpoll_cleanup,
 #endif
 	.ndo_fix_features	= vlan_dev_fix_features,
+	.ndo_neigh_construct	= netdev_default_l2upper_neigh_construct,
+	.ndo_neigh_destroy	= netdev_default_l2upper_neigh_destroy,
 	.ndo_fdb_add		= switchdev_port_fdb_add,
 	.ndo_fdb_del		= switchdev_port_fdb_del,
 	.ndo_fdb_dump		= switchdev_port_fdb_dump,

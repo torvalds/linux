@@ -35,7 +35,7 @@ static ssize_t acpi_object_path(acpi_handle handle, char *buf)
 	if (result)
 		return result;
 
-	result = sprintf(buf, "%s\n", (char*)path.pointer);
+	result = sprintf(buf, "%s\n", (char *)path.pointer);
 	kfree(path.pointer);
 	return result;
 }
@@ -333,7 +333,8 @@ int acpi_device_modalias(struct device *dev, char *buf, int size)
 EXPORT_SYMBOL_GPL(acpi_device_modalias);
 
 static ssize_t
-acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, char *buf) {
+acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
 	return __acpi_device_modalias(to_acpi_device(dev), buf, 1024);
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
@@ -397,7 +398,8 @@ acpi_eject_store(struct device *d, struct device_attribute *attr,
 static DEVICE_ATTR(eject, 0200, NULL, acpi_eject_store);
 
 static ssize_t
-acpi_device_hid_show(struct device *dev, struct device_attribute *attr, char *buf) {
+acpi_device_hid_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
 	return sprintf(buf, "%s\n", acpi_device_hid(acpi_dev));
@@ -467,11 +469,26 @@ acpi_device_sun_show(struct device *dev, struct device_attribute *attr,
 
 	status = acpi_evaluate_integer(acpi_dev->handle, "_SUN", NULL, &sun);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EIO;
 
 	return sprintf(buf, "%llu\n", sun);
 }
 static DEVICE_ATTR(sun, 0444, acpi_device_sun_show, NULL);
+
+static ssize_t
+acpi_device_hrv_show(struct device *dev, struct device_attribute *attr,
+		     char *buf) {
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	acpi_status status;
+	unsigned long long hrv;
+
+	status = acpi_evaluate_integer(acpi_dev->handle, "_HRV", NULL, &hrv);
+	if (ACPI_FAILURE(status))
+		return -EIO;
+
+	return sprintf(buf, "%llu\n", hrv);
+}
+static DEVICE_ATTR(hrv, 0444, acpi_device_hrv_show, NULL);
 
 static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 				char *buf) {
@@ -481,7 +498,7 @@ static ssize_t status_show(struct device *dev, struct device_attribute *attr,
 
 	status = acpi_evaluate_integer(acpi_dev->handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status))
-		return -ENODEV;
+		return -EIO;
 
 	return sprintf(buf, "%llu\n", sta);
 }
@@ -541,16 +558,22 @@ int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
+	if (acpi_has_method(dev->handle, "_HRV")) {
+		result = device_create_file(&dev->dev, &dev_attr_hrv);
+		if (result)
+			goto end;
+	}
+
 	if (acpi_has_method(dev->handle, "_STA")) {
 		result = device_create_file(&dev->dev, &dev_attr_status);
 		if (result)
 			goto end;
 	}
 
-        /*
-         * If device has _EJ0, 'eject' file is created that is used to trigger
-         * hot-removal function from userland.
-         */
+	/*
+	 * If device has _EJ0, 'eject' file is created that is used to trigger
+	 * hot-removal function from userland.
+	 */
 	if (acpi_has_method(dev->handle, "_EJ0")) {
 		result = device_create_file(&dev->dev, &dev_attr_eject);
 		if (result)
@@ -603,6 +626,9 @@ void acpi_device_remove_files(struct acpi_device *dev)
 
 	if (acpi_has_method(dev->handle, "_SUN"))
 		device_remove_file(&dev->dev, &dev_attr_sun);
+
+	if (acpi_has_method(dev->handle, "_HRV"))
+		device_remove_file(&dev->dev, &dev_attr_hrv);
 
 	if (dev->pnp.unique_id)
 		device_remove_file(&dev->dev, &dev_attr_uid);

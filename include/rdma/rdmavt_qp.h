@@ -117,8 +117,9 @@
 /*
  * Wait flags that would prevent any packet type from being sent.
  */
-#define RVT_S_ANY_WAIT_IO (RVT_S_WAIT_PIO | RVT_S_WAIT_TX | \
-	RVT_S_WAIT_DMA_DESC | RVT_S_WAIT_KMEM)
+#define RVT_S_ANY_WAIT_IO \
+	(RVT_S_WAIT_PIO | RVT_S_WAIT_PIO_DRAIN | RVT_S_WAIT_TX | \
+	 RVT_S_WAIT_DMA_DESC | RVT_S_WAIT_KMEM)
 
 /*
  * Wait flags that would prevent send work requests from making progress.
@@ -142,6 +143,12 @@
 #define RVT_FLUSH_RECV			0x40
 #define RVT_PROCESS_OR_FLUSH_SEND \
 	(RVT_PROCESS_SEND_OK | RVT_FLUSH_SEND)
+
+/*
+ * Internal send flags
+ */
+#define RVT_SEND_RESERVE_USED           IB_SEND_RESERVED_START
+#define RVT_SEND_COMPLETION_ONLY	(IB_SEND_RESERVED_START << 1)
 
 /*
  * Send work request queue entry.
@@ -210,30 +217,48 @@ struct rvt_mmap_info {
 	unsigned size;
 };
 
-#define RVT_MAX_RDMA_ATOMIC	16
-
 /*
  * This structure holds the information that the send tasklet needs
  * to send a RDMA read response or atomic operation.
  */
 struct rvt_ack_entry {
-	u8 opcode;
-	u8 sent;
+	struct rvt_sge rdma_sge;
+	u64 atomic_data;
 	u32 psn;
 	u32 lpsn;
-	union {
-		struct rvt_sge rdma_sge;
-		u64 atomic_data;
-	};
+	u8 opcode;
+	u8 sent;
 };
 
 #define	RC_QP_SCALING_INTERVAL	5
 
-/*
- * Variables prefixed with s_ are for the requester (sender).
- * Variables prefixed with r_ are for the responder (receiver).
- * Variables prefixed with ack_ are for responder replies.
+#define RVT_OPERATION_PRIV        0x00000001
+#define RVT_OPERATION_ATOMIC      0x00000002
+#define RVT_OPERATION_ATOMIC_SGE  0x00000004
+#define RVT_OPERATION_LOCAL       0x00000008
+#define RVT_OPERATION_USE_RESERVE 0x00000010
+
+#define RVT_OPERATION_MAX (IB_WR_RESERVED10 + 1)
+
+/**
+ * rvt_operation_params - op table entry
+ * @length - the length to copy into the swqe entry
+ * @qpt_support - a bit mask indicating QP type support
+ * @flags - RVT_OPERATION flags (see above)
  *
+ * This supports table driven post send so that
+ * the driver can have differing an potentially
+ * different sets of operations.
+ *
+ **/
+
+struct rvt_operation_params {
+	size_t length;
+	u32 qpt_support;
+	u32 flags;
+};
+
+/*
  * Common variables are protected by both r_rq.lock and s_lock in that order
  * which only happens in modify_qp() or changing the QP 'state'.
  */
@@ -281,8 +306,7 @@ struct rvt_qp {
 	atomic_t refcount ____cacheline_aligned_in_smp;
 	wait_queue_head_t wait;
 
-	struct rvt_ack_entry s_ack_queue[RVT_MAX_RDMA_ATOMIC + 1]
-		____cacheline_aligned_in_smp;
+	struct rvt_ack_entry *s_ack_queue;
 	struct rvt_sge_state s_rdma_read_sge;
 
 	spinlock_t r_lock ____cacheline_aligned_in_smp;      /* used for APM */
@@ -309,6 +333,7 @@ struct rvt_qp {
 	u32 s_next_psn;         /* PSN for next request */
 	u32 s_avail;            /* number of entries avail */
 	u32 s_ssn;              /* SSN of tail entry */
+	atomic_t s_reserved_used; /* reserved entries in use */
 
 	spinlock_t s_lock ____cacheline_aligned_in_smp;
 	u32 s_flags;
@@ -344,6 +369,8 @@ struct rvt_qp {
 
 	struct rvt_sge_state s_ack_rdma_sge;
 	struct timer_list s_timer;
+
+	atomic_t local_ops_pending; /* number of fast_reg/local_inv reqs */
 
 	/*
 	 * This sge list MUST be last. Do not add anything below here.
@@ -436,6 +463,49 @@ static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 		((char *)rq->wq->wq +
 		 (sizeof(struct rvt_rwqe) +
 		  rq->max_sge * sizeof(struct ib_sge)) * n);
+}
+
+/**
+ * rvt_qp_wqe_reserve - reserve operation
+ * @qp - the rvt qp
+ * @wqe - the send wqe
+ *
+ * This routine used in post send to record
+ * a wqe relative reserved operation use.
+ */
+static inline void rvt_qp_wqe_reserve(
+	struct rvt_qp *qp,
+	struct rvt_swqe *wqe)
+{
+	wqe->wr.send_flags |= RVT_SEND_RESERVE_USED;
+	atomic_inc(&qp->s_reserved_used);
+}
+
+/**
+ * rvt_qp_wqe_unreserve - clean reserved operation
+ * @qp - the rvt qp
+ * @wqe - the send wqe
+ *
+ * This decrements the reserve use count.
+ *
+ * This call MUST precede the change to
+ * s_last to insure that post send sees a stable
+ * s_avail.
+ *
+ * An smp_mp__after_atomic() is used to insure
+ * the compiler does not juggle the order of the s_last
+ * ring index and the decrementing of s_reserved_used.
+ */
+static inline void rvt_qp_wqe_unreserve(
+	struct rvt_qp *qp,
+	struct rvt_swqe *wqe)
+{
+	if (unlikely(wqe->wr.send_flags & RVT_SEND_RESERVE_USED)) {
+		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
+		atomic_dec(&qp->s_reserved_used);
+		/* insure no compiler re-order up to s_last change */
+		smp_mb__after_atomic();
+	}
 }
 
 extern const int  ib_rvt_state_ops[];

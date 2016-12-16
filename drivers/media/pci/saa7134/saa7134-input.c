@@ -345,7 +345,7 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_type *protocol,
 	if (data[9] != (unsigned char)(~data[8]))
 		return 0;
 
-	*protocol = RC_TYPE_NEC;
+	*protocol = RC_TYPE_NECX;
 	*scancode = RC_SCANCODE_NECX(data[11] << 8 | data[10], data[9]);
 	*toggle = 0;
 	return 1;
@@ -1035,7 +1035,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "BeholdTV";
 		dev->init_data.get_key = get_key_beholdm6xx;
 		dev->init_data.ir_codes = RC_MAP_BEHOLD;
-		dev->init_data.type = RC_BIT_NEC;
+		dev->init_data.type = RC_BIT_NECX;
 		info.addr = 0x2d;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:

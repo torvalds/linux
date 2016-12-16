@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -142,22 +138,11 @@ static int mdc_getattr_common(struct obd_export *exp,
 
 	CDEBUG(D_NET, "mode: %o\n", body->mode);
 
+	mdc_update_max_ea_from_body(exp, body);
 	if (body->eadatasize != 0) {
-		mdc_update_max_ea_from_body(exp, body);
-
 		eadata = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
 						      body->eadatasize);
 		if (!eadata)
-			return -EPROTO;
-	}
-
-	if (body->valid & OBD_MD_FLRMTPERM) {
-		struct mdt_remote_perm *perm;
-
-		LASSERT(client_is_remote(exp));
-		perm = req_capsule_server_swab_get(pill, &RMF_ACL,
-						lustre_swab_mdt_remote_perm);
-		if (!perm)
 			return -EPROTO;
 	}
 
@@ -191,11 +176,6 @@ static int mdc_getattr(struct obd_export *exp, struct md_op_data *op_data,
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
 			     op_data->op_mode);
-	if (op_data->op_valid & OBD_MD_FLRMTPERM) {
-		LASSERT(client_is_remote(exp));
-		req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
-				     sizeof(struct mdt_remote_perm));
-	}
 	ptlrpc_request_set_replen(req);
 
 	rc = mdc_getattr_common(exp, req);
@@ -435,7 +415,7 @@ static int mdc_unpack_acl(struct ptlrpc_request *req, struct lustre_md *md)
 		return rc;
 	}
 
-	rc = posix_acl_valid(acl);
+	rc = posix_acl_valid(&init_user_ns, acl);
 	if (rc) {
 		CERROR("validate acl: %d\n", rc);
 		posix_acl_release(acl);
@@ -540,16 +520,7 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 	}
 	rc = 0;
 
-	if (md->body->valid & OBD_MD_FLRMTPERM) {
-		/* remote permission */
-		LASSERT(client_is_remote(exp));
-		md->remote_perm = req_capsule_server_swab_get(pill, &RMF_ACL,
-						lustre_swab_mdt_remote_perm);
-		if (!md->remote_perm) {
-			rc = -EPROTO;
-			goto out;
-		}
-	} else if (md->body->valid & OBD_MD_FLACL) {
+	if (md->body->valid & OBD_MD_FLACL) {
 		/* for ACL, it's possible that FLACL is set but aclsize is zero.
 		 * only when aclsize != 0 there's an actual segment for ACL
 		 * in reply buffer.
@@ -666,7 +637,7 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 	struct md_open_data   *mod;
 	struct mdt_rec_create *rec;
 	struct mdt_body       *body;
-	struct ptlrpc_request *open_req = it->d.lustre.it_data;
+	struct ptlrpc_request *open_req = it->it_request;
 	struct obd_import     *imp = open_req->rq_import;
 
 	if (!open_req->rq_replay)
@@ -1169,7 +1140,7 @@ static int mdc_ioc_hsm_progress(struct obd_export *exp,
 		goto out;
 	}
 
-	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, 0, 0);
+	mdc_pack_body(req, NULL, 0, 0, -1, 0);
 
 	/* Copy hsm_progress struct */
 	req_hpk = req_capsule_client_get(&req->rq_pill, &RMF_MDS_HSM_PROGRESS);
@@ -1203,7 +1174,7 @@ static int mdc_ioc_hsm_ct_register(struct obd_import *imp, __u32 archives)
 		goto out;
 	}
 
-	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, 0, 0);
+	mdc_pack_body(req, NULL, 0, 0, -1, 0);
 
 	/* Copy hsm_progress struct */
 	archive_mask = req_capsule_client_get(&req->rq_pill,
@@ -1242,7 +1213,7 @@ static int mdc_ioc_hsm_current_action(struct obd_export *exp,
 		return rc;
 	}
 
-	mdc_pack_body(req, &op_data->op_fid1, OBD_MD_FLRMTPERM, 0,
+	mdc_pack_body(req, &op_data->op_fid1, 0, 0,
 		      op_data->op_suppgids[0], 0);
 
 	ptlrpc_request_set_replen(req);
@@ -1278,7 +1249,7 @@ static int mdc_ioc_hsm_ct_unregister(struct obd_import *imp)
 		goto out;
 	}
 
-	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, 0, 0);
+	mdc_pack_body(req, NULL, 0, 0, -1, 0);
 
 	ptlrpc_request_set_replen(req);
 
@@ -1307,7 +1278,7 @@ static int mdc_ioc_hsm_state_get(struct obd_export *exp,
 		return rc;
 	}
 
-	mdc_pack_body(req, &op_data->op_fid1, OBD_MD_FLRMTPERM, 0,
+	mdc_pack_body(req, &op_data->op_fid1, 0, 0,
 		      op_data->op_suppgids[0], 0);
 
 	ptlrpc_request_set_replen(req);
@@ -1348,7 +1319,7 @@ static int mdc_ioc_hsm_state_set(struct obd_export *exp,
 		return rc;
 	}
 
-	mdc_pack_body(req, &op_data->op_fid1, OBD_MD_FLRMTPERM, 0,
+	mdc_pack_body(req, &op_data->op_fid1, 0, 0,
 		      op_data->op_suppgids[0], 0);
 
 	/* Copy states */
@@ -1395,7 +1366,7 @@ static int mdc_ioc_hsm_request(struct obd_export *exp,
 		return rc;
 	}
 
-	mdc_pack_body(req, NULL, OBD_MD_FLRMTPERM, 0, 0, 0);
+	mdc_pack_body(req, NULL, 0, 0, -1, 0);
 
 	/* Copy hsm_request struct */
 	req_hr = req_capsule_client_get(&req->rq_pill, &RMF_MDS_HSM_REQUEST);
@@ -1808,7 +1779,7 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 	case IOC_OBD_STATFS: {
 		struct obd_statfs stat_buf = {0};
 
-		if (*((__u32 *) data->ioc_inlbuf2) != 0) {
+		if (*((__u32 *)data->ioc_inlbuf2) != 0) {
 			rc = -ENODEV;
 			goto out;
 		}
@@ -1952,7 +1923,7 @@ static void lustre_swab_hal(struct hsm_action_list *h)
 	__swab32s(&h->hal_count);
 	__swab32s(&h->hal_archive_id);
 	__swab64s(&h->hal_flags);
-	hai = hai_zero(h);
+	hai = hai_first(h);
 	for (i = 0; i < h->hal_count; i++, hai = hai_next(hai))
 		lustre_swab_hai(hai);
 }
@@ -2002,7 +1973,7 @@ static int mdc_hsm_copytool_send(int len, void *val)
 
 	if (len < sizeof(*lh) + sizeof(*hal)) {
 		CERROR("Short HSM message %d < %d\n", len,
-		       (int) (sizeof(*lh) + sizeof(*hal)));
+		       (int)(sizeof(*lh) + sizeof(*hal)));
 		return -EPROTO;
 	}
 	if (lh->kuc_magic == __swab16(KUC_MAGIC)) {
@@ -2249,7 +2220,7 @@ static struct obd_uuid *mdc_get_uuid(struct obd_export *exp)
  * recovery, non zero value will be return if the lock can be canceled,
  * or zero returned for not
  */
-static int mdc_cancel_for_recovery(struct ldlm_lock *lock)
+static int mdc_cancel_weight(struct ldlm_lock *lock)
 {
 	if (lock->l_resource->lr_type != LDLM_IBITS)
 		return 0;
@@ -2314,12 +2285,14 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 		return -ENOMEM;
 	mdc_init_rpc_lock(cli->cl_rpc_lock);
 
-	ptlrpcd_addref();
+	rc = ptlrpcd_addref();
+	if (rc < 0)
+		goto err_rpc_lock;
 
 	cli->cl_close_lock = kzalloc(sizeof(*cli->cl_close_lock), GFP_NOFS);
 	if (!cli->cl_close_lock) {
 		rc = -ENOMEM;
-		goto err_rpc_lock;
+		goto err_ptlrpcd_decref;
 	}
 	mdc_init_rpc_lock(cli->cl_close_lock);
 
@@ -2331,7 +2304,7 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	sptlrpc_lprocfs_cliobd_attach(obd);
 	ptlrpc_lprocfs_register_obd(obd);
 
-	ns_register_cancel(obd->obd_namespace, mdc_cancel_for_recovery);
+	ns_register_cancel(obd->obd_namespace, mdc_cancel_weight);
 
 	obd->obd_namespace->ns_lvbo = &inode_lvbo;
 
@@ -2345,9 +2318,10 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 
 err_close_lock:
 	kfree(cli->cl_close_lock);
+err_ptlrpcd_decref:
+	ptlrpcd_decref();
 err_rpc_lock:
 	kfree(cli->cl_rpc_lock);
-	ptlrpcd_decref();
 	return rc;
 }
 
@@ -2430,41 +2404,6 @@ static int mdc_process_config(struct obd_device *obd, u32 len, void *buf)
 	return rc;
 }
 
-/* get remote permission for current user on fid */
-static int mdc_get_remote_perm(struct obd_export *exp, const struct lu_fid *fid,
-			       __u32 suppgid, struct ptlrpc_request **request)
-{
-	struct ptlrpc_request  *req;
-	int		    rc;
-
-	LASSERT(client_is_remote(exp));
-
-	*request = NULL;
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp), &RQF_MDS_GETATTR);
-	if (!req)
-		return -ENOMEM;
-
-	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_GETATTR);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
-	}
-
-	mdc_pack_body(req, fid, OBD_MD_FLRMTPERM, 0, suppgid, 0);
-
-	req_capsule_set_size(&req->rq_pill, &RMF_ACL, RCL_SERVER,
-			     sizeof(struct mdt_remote_perm));
-
-	ptlrpc_request_set_replen(req);
-
-	rc = ptlrpc_queue_wait(req);
-	if (rc)
-		ptlrpc_req_finished(req);
-	else
-		*request = req;
-	return rc;
-}
-
 static struct obd_ops mdc_obd_ops = {
 	.owner          = THIS_MODULE,
 	.setup          = mdc_setup,
@@ -2516,7 +2455,6 @@ static struct md_ops mdc_md_ops = {
 	.free_lustre_md		= mdc_free_lustre_md,
 	.set_open_replay_data	= mdc_set_open_replay_data,
 	.clear_open_replay_data	= mdc_clear_open_replay_data,
-	.get_remote_perm	= mdc_get_remote_perm,
 	.intent_getattr_async	= mdc_intent_getattr_async,
 	.revalidate_lock	= mdc_revalidate_lock
 };

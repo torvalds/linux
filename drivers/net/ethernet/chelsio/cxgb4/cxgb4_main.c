@@ -64,6 +64,7 @@
 #include <net/bonding.h>
 #include <net/addrconf.h>
 #include <asm/uaccess.h>
+#include <linux/crash_dump.h>
 
 #include "cxgb4.h"
 #include "t4_regs.h"
@@ -168,7 +169,8 @@ MODULE_PARM_DESC(force_init, "Forcibly become Master PF and initialize adapter,"
 static int dflt_msg_enable = DFLT_MSG_ENABLE;
 
 module_param(dflt_msg_enable, int, 0644);
-MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T4 default message enable bitmap");
+MODULE_PARM_DESC(dflt_msg_enable, "Chelsio T4 default message enable bitmap, "
+		 "deprecated parameter");
 
 /*
  * The driver uses the best interrupt scheme available on a platform in the
@@ -205,7 +207,7 @@ static int rx_dma_offset = 2;
 static unsigned int num_vf[NUM_OF_PF_WITH_SRIOV];
 
 module_param_array(num_vf, uint, NULL, 0644);
-MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3");
+MODULE_PARM_DESC(num_vf, "number of VFs for each of PFs 0-3, deprecated parameter - please use the pci sysfs interface.");
 #endif
 
 /* TX Queue select used to determine what algorithm to use for selecting TX
@@ -303,6 +305,22 @@ static void dcb_tx_queue_prio_enable(struct net_device *dev, int enable)
 }
 #endif /* CONFIG_CHELSIO_T4_DCB */
 
+int cxgb4_dcb_enabled(const struct net_device *dev)
+{
+#ifdef CONFIG_CHELSIO_T4_DCB
+	struct port_info *pi = netdev_priv(dev);
+
+	if (!pi->dcb.enabled)
+		return 0;
+
+	return ((pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED) ||
+		(pi->dcb.state == CXGB4_DCB_STATE_HOST));
+#else
+	return 0;
+#endif
+}
+EXPORT_SYMBOL(cxgb4_dcb_enabled);
+
 void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 {
 	struct net_device *dev = adapter->port[port_id];
@@ -313,8 +331,10 @@ void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 			netif_carrier_on(dev);
 		else {
 #ifdef CONFIG_CHELSIO_T4_DCB
-			cxgb4_dcb_state_init(dev);
-			dcb_tx_queue_prio_enable(dev, false);
+			if (cxgb4_dcb_enabled(dev)) {
+				cxgb4_dcb_state_init(dev);
+				dcb_tx_queue_prio_enable(dev, false);
+			}
 #endif /* CONFIG_CHELSIO_T4_DCB */
 			netif_carrier_off(dev);
 		}
@@ -336,6 +356,17 @@ void t4_os_portmod_changed(const struct adapter *adap, int port_id)
 		netdev_info(dev, "port module unplugged\n");
 	else if (pi->mod_type < ARRAY_SIZE(mod_str))
 		netdev_info(dev, "%s module inserted\n", mod_str[pi->mod_type]);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)
+		netdev_info(dev, "%s: unsupported port module inserted\n",
+			    dev->name);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_UNKNOWN)
+		netdev_info(dev, "%s: unknown port module inserted\n",
+			    dev->name);
+	else if (pi->mod_type == FW_PORT_MOD_TYPE_ERROR)
+		netdev_info(dev, "%s: transceiver module error\n", dev->name);
+	else
+		netdev_info(dev, "%s: unknown module type %d inserted\n",
+			    dev->name, pi->mod_type);
 }
 
 int dbfifo_int_thresh = 10; /* 10 == 640 entry threshold */
@@ -430,11 +461,8 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
-	if (!(dev->flags & IFF_PROMISC)) {
-		__dev_uc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
-		if (!(dev->flags & IFF_ALLMULTI))
-			__dev_mc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
-	}
+	__dev_uc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
+	__dev_mc_sync(dev, cxgb4_mac_sync, cxgb4_mac_unsync);
 
 	return t4_set_rxmode(adapter, adapter->mbox, pi->viid, mtu,
 			     (dev->flags & IFF_PROMISC) ? 1 : 0,
@@ -482,28 +510,12 @@ static int link_start(struct net_device *dev)
 	return ret;
 }
 
-int cxgb4_dcb_enabled(const struct net_device *dev)
-{
-#ifdef CONFIG_CHELSIO_T4_DCB
-	struct port_info *pi = netdev_priv(dev);
-
-	if (!pi->dcb.enabled)
-		return 0;
-
-	return ((pi->dcb.state == CXGB4_DCB_STATE_FW_ALLSYNCED) ||
-		(pi->dcb.state == CXGB4_DCB_STATE_HOST));
-#else
-	return 0;
-#endif
-}
-EXPORT_SYMBOL(cxgb4_dcb_enabled);
-
 #ifdef CONFIG_CHELSIO_T4_DCB
 /* Handle a Data Center Bridging update message from the firmware. */
 static void dcb_rpl(struct adapter *adap, const struct fw_port_cmd *pcmd)
 {
 	int port = FW_PORT_CMD_PORTID_G(ntohl(pcmd->op_to_portid));
-	struct net_device *dev = adap->port[port];
+	struct net_device *dev = adap->port[adap->chan_map[port]];
 	int old_dcb_enabled = cxgb4_dcb_enabled(dev);
 	int new_dcb_enabled;
 
@@ -633,7 +645,8 @@ static int fwevtq_handler(struct sge_rspq *q, const __be64 *rsp,
 		    action == FW_PORT_ACTION_GET_PORT_INFO) {
 			int port = FW_PORT_CMD_PORTID_G(
 					be32_to_cpu(pcmd->op_to_portid));
-			struct net_device *dev = q->adap->port[port];
+			struct net_device *dev =
+				q->adap->port[q->adap->chan_map[port]];
 			int state_input = ((pcmd->u.info.dcbxdis_pkd &
 					    FW_PORT_CMD_DCBXDIS_F)
 					   ? CXGB4_DCB_INPUT_FW_DISABLED
@@ -3720,7 +3733,8 @@ static int adap_init0(struct adapter *adap)
 		return ret;
 
 	/* Contact FW, advertising Master capability */
-	ret = t4_fw_hello(adap, adap->mbox, adap->mbox, MASTER_MAY, &state);
+	ret = t4_fw_hello(adap, adap->mbox, adap->mbox,
+			  is_kdump_kernel() ? MASTER_MUST : MASTER_MAY, &state);
 	if (ret < 0) {
 		dev_err(adap->pdev_dev, "could not connect to FW, error %d\n",
 			ret);
@@ -3737,7 +3751,10 @@ static int adap_init0(struct adapter *adap)
 	 * is excessively mismatched relative to the driver.)
 	 */
 	t4_get_fw_version(adap, &adap->params.fw_vers);
+	t4_get_bs_version(adap, &adap->params.bs_vers);
 	t4_get_tp_version(adap, &adap->params.tp_vers);
+	t4_get_exprom_version(adap, &adap->params.er_vers);
+
 	ret = t4_check_fw_version(adap);
 	/* If firmware is too old (not supported by driver) force an update. */
 	if (ret)
@@ -4288,10 +4305,17 @@ static const struct pci_error_handlers cxgb4_eeh = {
 	.resume         = eeh_resume,
 };
 
+/* Return true if the Link Configuration supports "High Speeds" (those greater
+ * than 1Gb/s).
+ */
 static inline bool is_x_10g_port(const struct link_config *lc)
 {
-	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0 ||
-	       (lc->supported & FW_PORT_CAP_SPEED_40G) != 0;
+	unsigned int speeds, high_speeds;
+
+	speeds = FW_PORT_CAP_SPEED_V(FW_PORT_CAP_SPEED_G(lc->supported));
+	high_speeds = speeds & ~(FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G);
+
+	return high_speeds != 0;
 }
 
 static inline void init_rspq(struct adapter *adap, struct sge_rspq *q,
@@ -4317,6 +4341,11 @@ static void cfg_queues(struct adapter *adap)
 	int q10g = 0;
 #endif
 	int ciq_size;
+
+	/* Reduce memory usage in kdump environment, disable all offload.
+	 */
+	if (is_kdump_kernel())
+		adap->params.offload = 0;
 
 	for_each_port(adap, i)
 		n10g += is_x_10g_port(&adap2pinfo(adap, i)->link_cfg);
@@ -4651,6 +4680,68 @@ static void cxgb4_check_pcie_caps(struct adapter *adap)
 			 "suggested for optimal performance.\n");
 }
 
+/* Dump basic information about the adapter */
+static void print_adapter_info(struct adapter *adapter)
+{
+	/* Device information */
+	dev_info(adapter->pdev_dev, "Chelsio %s rev %d\n",
+		 adapter->params.vpd.id,
+		 CHELSIO_CHIP_RELEASE(adapter->params.chip));
+	dev_info(adapter->pdev_dev, "S/N: %s, P/N: %s\n",
+		 adapter->params.vpd.sn, adapter->params.vpd.pn);
+
+	/* Firmware Version */
+	if (!adapter->params.fw_vers)
+		dev_warn(adapter->pdev_dev, "No firmware loaded\n");
+	else
+		dev_info(adapter->pdev_dev, "Firmware version: %u.%u.%u.%u\n",
+			 FW_HDR_FW_VER_MAJOR_G(adapter->params.fw_vers),
+			 FW_HDR_FW_VER_MINOR_G(adapter->params.fw_vers),
+			 FW_HDR_FW_VER_MICRO_G(adapter->params.fw_vers),
+			 FW_HDR_FW_VER_BUILD_G(adapter->params.fw_vers));
+
+	/* Bootstrap Firmware Version. (Some adapters don't have Bootstrap
+	 * Firmware, so dev_info() is more appropriate here.)
+	 */
+	if (!adapter->params.bs_vers)
+		dev_info(adapter->pdev_dev, "No bootstrap loaded\n");
+	else
+		dev_info(adapter->pdev_dev, "Bootstrap version: %u.%u.%u.%u\n",
+			 FW_HDR_FW_VER_MAJOR_G(adapter->params.bs_vers),
+			 FW_HDR_FW_VER_MINOR_G(adapter->params.bs_vers),
+			 FW_HDR_FW_VER_MICRO_G(adapter->params.bs_vers),
+			 FW_HDR_FW_VER_BUILD_G(adapter->params.bs_vers));
+
+	/* TP Microcode Version */
+	if (!adapter->params.tp_vers)
+		dev_warn(adapter->pdev_dev, "No TP Microcode loaded\n");
+	else
+		dev_info(adapter->pdev_dev,
+			 "TP Microcode version: %u.%u.%u.%u\n",
+			 FW_HDR_FW_VER_MAJOR_G(adapter->params.tp_vers),
+			 FW_HDR_FW_VER_MINOR_G(adapter->params.tp_vers),
+			 FW_HDR_FW_VER_MICRO_G(adapter->params.tp_vers),
+			 FW_HDR_FW_VER_BUILD_G(adapter->params.tp_vers));
+
+	/* Expansion ROM version */
+	if (!adapter->params.er_vers)
+		dev_info(adapter->pdev_dev, "No Expansion ROM loaded\n");
+	else
+		dev_info(adapter->pdev_dev,
+			 "Expansion ROM version: %u.%u.%u.%u\n",
+			 FW_HDR_FW_VER_MAJOR_G(adapter->params.er_vers),
+			 FW_HDR_FW_VER_MINOR_G(adapter->params.er_vers),
+			 FW_HDR_FW_VER_MICRO_G(adapter->params.er_vers),
+			 FW_HDR_FW_VER_BUILD_G(adapter->params.er_vers));
+
+	/* Software/Hardware configuration */
+	dev_info(adapter->pdev_dev, "Configuration: %sNIC %s, %s capable\n",
+		 is_offload(adapter) ? "R" : "",
+		 ((adapter->flags & USING_MSIX) ? "MSI-X" :
+		  (adapter->flags & USING_MSI) ? "MSI" : ""),
+		 is_offload(adapter) ? "Offload" : "non-Offload");
+}
+
 static void print_port_info(const struct net_device *dev)
 {
 	char buf[80];
@@ -4672,20 +4763,18 @@ static void print_port_info(const struct net_device *dev)
 		bufp += sprintf(bufp, "1000/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
 		bufp += sprintf(bufp, "10G/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
+		bufp += sprintf(bufp, "25G/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_40G)
 		bufp += sprintf(bufp, "40G/");
+	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100G)
+		bufp += sprintf(bufp, "100G/");
 	if (bufp != buf)
 		--bufp;
 	sprintf(bufp, "BASE-%s", t4_get_port_type_description(pi->port_type));
 
-	netdev_info(dev, "Chelsio %s rev %d %s %sNIC %s\n",
-		    adap->params.vpd.id,
-		    CHELSIO_CHIP_RELEASE(adap->params.chip), buf,
-		    is_offload(adap) ? "R" : "",
-		    (adap->flags & USING_MSIX) ? " MSI-X" :
-		    (adap->flags & USING_MSI) ? " MSI" : "");
-	netdev_info(dev, "S/N: %s, P/N: %s\n",
-		    adap->params.vpd.sn, adap->params.vpd.pn);
+	netdev_info(dev, "%s: Chelsio %s (%s) %s\n",
+		    dev->name, adap->params.vpd.id, adap->name, buf);
 }
 
 static void enable_pcie_relaxed_ordering(struct pci_dev *dev)
@@ -4754,6 +4843,60 @@ static int get_chip_type(struct pci_dev *pdev, u32 pl_rev)
 	}
 	return -EINVAL;
 }
+
+#ifdef CONFIG_PCI_IOV
+static int cxgb4_iov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	int err = 0;
+	int current_vfs = pci_num_vf(pdev);
+	u32 pcie_fw;
+	void __iomem *regs;
+
+	regs = pci_ioremap_bar(pdev, 0);
+	if (!regs) {
+		dev_err(&pdev->dev, "cannot map device registers\n");
+		return -ENOMEM;
+	}
+
+	pcie_fw = readl(regs + PCIE_FW_A);
+	iounmap(regs);
+	/* Check if cxgb4 is the MASTER and fw is initialized */
+	if (!(pcie_fw & PCIE_FW_INIT_F) ||
+	    !(pcie_fw & PCIE_FW_MASTER_VLD_F) ||
+	    PCIE_FW_MASTER_G(pcie_fw) != 4) {
+		dev_warn(&pdev->dev,
+			 "cxgb4 driver needs to be MASTER to support SRIOV\n");
+		return -EOPNOTSUPP;
+	}
+
+	/* If any of the VF's is already assigned to Guest OS, then
+	 * SRIOV for the same cannot be modified
+	 */
+	if (current_vfs && pci_vfs_assigned(pdev)) {
+		dev_err(&pdev->dev,
+			"Cannot modify SR-IOV while VFs are assigned\n");
+		num_vfs = current_vfs;
+		return num_vfs;
+	}
+
+	/* Disable SRIOV when zero is passed.
+	 * One needs to disable SRIOV before modifying it, else
+	 * stack throws the below warning:
+	 * " 'n' VFs already enabled. Disable before enabling 'm' VFs."
+	 */
+	if (!num_vfs) {
+		pci_disable_sriov(pdev);
+		return num_vfs;
+	}
+
+	if (num_vfs != current_vfs) {
+		err = pci_enable_sriov(pdev, num_vfs);
+		if (err)
+			return err;
+	}
+	return num_vfs;
+}
+#endif
 
 static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
@@ -4837,12 +4980,23 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_adapter;
 	}
 
+	adapter->mbox_log = kzalloc(sizeof(*adapter->mbox_log) +
+				    (sizeof(struct mbox_cmd) *
+				     T4_OS_LOG_MBOX_CMDS),
+				    GFP_KERNEL);
+	if (!adapter->mbox_log) {
+		err = -ENOMEM;
+		goto out_free_adapter;
+	}
+	adapter->mbox_log->size = T4_OS_LOG_MBOX_CMDS;
+
 	/* PCI device has been enabled */
 	adapter->flags |= DEV_ENABLED;
 
 	adapter->regs = regs;
 	adapter->pdev = pdev;
 	adapter->pdev_dev = &pdev->dev;
+	adapter->name = pci_name(pdev);
 	adapter->mbox = func;
 	adapter->pf = func;
 	adapter->msg_enable = dflt_msg_enable;
@@ -5073,13 +5227,20 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (is_offload(adapter))
 		attach_ulds(adapter);
 
+	print_adapter_info(adapter);
+
 sriov:
 #ifdef CONFIG_PCI_IOV
-	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0)
+	if (func < ARRAY_SIZE(num_vf) && num_vf[func] > 0) {
+		dev_warn(&pdev->dev,
+			 "Enabling SR-IOV VFs using the num_vf module "
+			 "parameter is deprecated - please use the pci sysfs "
+			 "interface instead.\n");
 		if (pci_enable_sriov(pdev, num_vf[func]) == 0)
 			dev_info(&pdev->dev,
 				 "instantiated %u virtual functions\n",
 				 num_vf[func]);
+	}
 #endif
 	return 0;
 
@@ -5092,6 +5253,7 @@ sriov:
 	if (adapter->workq)
 		destroy_workqueue(adapter->workq);
 
+	kfree(adapter->mbox_log);
 	kfree(adapter);
  out_unmap_bar0:
 	iounmap(regs);
@@ -5158,6 +5320,7 @@ static void remove_one(struct pci_dev *pdev)
 			adapter->flags &= ~DEV_ENABLED;
 		}
 		pci_release_regions(pdev);
+		kfree(adapter->mbox_log);
 		synchronize_rcu();
 		kfree(adapter);
 	} else
@@ -5170,6 +5333,9 @@ static struct pci_driver cxgb4_driver = {
 	.probe    = init_one,
 	.remove   = remove_one,
 	.shutdown = remove_one,
+#ifdef CONFIG_PCI_IOV
+	.sriov_configure = cxgb4_iov_configure,
+#endif
 	.err_handler = &cxgb4_eeh,
 };
 

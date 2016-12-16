@@ -15,7 +15,6 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
@@ -82,8 +81,4 @@ static struct platform_driver moxart_gpio_driver = {
 	},
 	.probe	= moxart_gpio_probe,
 };
-module_platform_driver(moxart_gpio_driver);
-
-MODULE_DESCRIPTION("MOXART GPIO chip driver");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jonas Jensen <jonas.jensen@gmail.com>");
+builtin_platform_driver(moxart_gpio_driver);

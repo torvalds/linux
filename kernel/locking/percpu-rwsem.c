@@ -37,6 +37,7 @@ void percpu_free_rwsem(struct percpu_rw_semaphore *brw)
 	free_percpu(brw->fast_read_ctr);
 	brw->fast_read_ctr = NULL; /* catch use after free bugs */
 }
+EXPORT_SYMBOL_GPL(percpu_free_rwsem);
 
 /*
  * This is the fast-path for down_read/up_read. If it succeeds we rely

@@ -8,7 +8,7 @@ menuconfig ARCH_MVEBU
 	select SOC_BUS
 	select MVEBU_MBUS
 	select ZONE_DMA if ARM_LPAE
-	select ARCH_REQUIRE_GPIOLIB
+	select GPIOLIB
 	select PCI_QUIRKS if PCI
 	select OF_ADDRESS_PCI
 
@@ -119,8 +119,8 @@ config MACH_DOVE
 config MACH_KIRKWOOD
 	bool "Marvell Kirkwood boards"
 	depends on ARCH_MULTI_V5
-	select ARCH_REQUIRE_GPIOLIB
 	select CPU_FEROCEON
+	select GPIOLIB
 	select KIRKWOOD_CLK
 	select MACH_MVEBU_ANY
 	select ORION_IRQCHIP

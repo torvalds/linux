@@ -140,10 +140,10 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 }
 
 const struct inode_operations jfs_file_inode_operations = {
-	.setxattr	= jfs_setxattr,
-	.getxattr	= jfs_getxattr,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
 	.listxattr	= jfs_listxattr,
-	.removexattr	= jfs_removexattr,
+	.removexattr	= generic_removexattr,
 	.setattr	= jfs_setattr,
 #ifdef CONFIG_JFS_POSIX_ACL
 	.get_acl	= jfs_get_acl,

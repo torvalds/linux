@@ -42,19 +42,17 @@
 	 * Shuffle the parameters before calling the function
 	 * pointed to in x0. Assumes parameters in x[1,2,3].
 	 */
-	sub	sp, sp, #16
-	str	lr, [sp]
 	mov	lr, x0
 	mov	x0, x1
 	mov	x1, x2
 	mov	x2, x3
 	blr	lr
-	ldr	lr, [sp]
-	add	sp, sp, #16
 .endm
 
 ENTRY(__vhe_hyp_call)
+	str	lr, [sp, #-16]!
 	do_el2_call
+	ldr	lr, [sp], #16
 	/*
 	 * We used to rely on having an exception return to get
 	 * an implicit isb. In the E2H case, we don't have it anymore.
@@ -64,6 +62,21 @@ ENTRY(__vhe_hyp_call)
 	isb
 	ret
 ENDPROC(__vhe_hyp_call)
+
+/*
+ * Compute the idmap address of __kvm_hyp_reset based on the idmap
+ * start passed as a parameter, and jump there.
+ *
+ * x0: HYP phys_idmap_start
+ */
+ENTRY(__kvm_hyp_teardown)
+	mov	x4, x0
+	adr_l	x3, __kvm_hyp_reset
+
+	/* insert __kvm_hyp_reset()s offset into phys_idmap_start */
+	bfi	x4, x3, #0, #PAGE_SHIFT
+	br	x4
+ENDPROC(__kvm_hyp_teardown)
 	
 el1_sync:				// Guest trapped into EL2
 	save_x0_to_x3
@@ -84,8 +97,8 @@ alternative_endif
 	/* Here, we're pretty sure the host called HVC. */
 	restore_x0_to_x3
 
-	/* Check for __hyp_get_vectors */
-	cbnz	x0, 1f
+	cmp	x0, #HVC_GET_VECTORS
+	b.ne	1f
 	mrs	x0, vbar_el2
 	b	2f
 

@@ -1,10 +1,8 @@
 include ../scripts/Makefile.include
+include ../scripts/Makefile.arch
 
-ifndef ($(ARCH))
-ARCH ?= $(shell uname -m)
 ifeq ($(ARCH),x86_64)
 ARCH := x86
-endif
 endif
 
 # always use the host compiler
@@ -26,19 +24,26 @@ OBJTOOL_IN := $(OBJTOOL)-in.o
 
 all: $(OBJTOOL)
 
-INCLUDES := -I$(srctree)/tools/include
+INCLUDES := -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(HOSTARCH)/include/uapi
 CFLAGS   += -Wall -Werror $(EXTRA_WARNINGS) -fomit-frame-pointer -O2 -g $(INCLUDES)
 LDFLAGS  += -lelf $(LIBSUBCMD)
 
+# Allow old libelf to be used:
+elfshdr := $(shell echo '\#include <libelf.h>' | $(CC) $(CFLAGS) -x c -E - | grep elf_getshdr)
+CFLAGS += $(if $(elfshdr),,-DLIBELF_USE_DEPRECATED)
+
 AWK = awk
-export srctree OUTPUT CFLAGS ARCH AWK
+export srctree OUTPUT CFLAGS SRCARCH AWK
 include $(srctree)/tools/build/Makefile.include
 
 $(OBJTOOL_IN): fixdep FORCE
 	@$(MAKE) $(build)=objtool
 
+# Busybox's diff doesn't have -I, avoid warning in that case
+#
 $(OBJTOOL): $(LIBSUBCMD) $(OBJTOOL_IN)
-	@(test -d ../../kernel -a -d ../../tools -a -d ../objtool && (( \
+	@(diff -I 2>&1 | grep -q 'option requires an argument' && \
+	test -d ../../kernel -a -d ../../tools -a -d ../objtool && (( \
 	diff -I'^#include' arch/x86/insn/insn.c ../../arch/x86/lib/insn.c >/dev/null && \
 	diff -I'^#include' arch/x86/insn/inat.c ../../arch/x86/lib/inat.c >/dev/null && \
 	diff arch/x86/insn/x86-opcode-map.txt ../../arch/x86/lib/x86-opcode-map.txt >/dev/null && \
@@ -46,7 +51,7 @@ $(OBJTOOL): $(LIBSUBCMD) $(OBJTOOL_IN)
 	diff -I'^#include' arch/x86/insn/insn.h ../../arch/x86/include/asm/insn.h >/dev/null && \
 	diff -I'^#include' arch/x86/insn/inat.h ../../arch/x86/include/asm/inat.h >/dev/null && \
 	diff -I'^#include' arch/x86/insn/inat_types.h ../../arch/x86/include/asm/inat_types.h >/dev/null) \
-	|| echo "Warning: objtool: x86 instruction decoder differs from kernel" >&2 )) || true
+	|| echo "warning: objtool: x86 instruction decoder differs from kernel" >&2 )) || true
 	$(QUIET_LINK)$(CC) $(OBJTOOL_IN) $(LDFLAGS) -o $@
 
 

@@ -553,7 +553,7 @@ static inline int ntfs_submit_bh_for_read(struct buffer_head *bh)
 	lock_buffer(bh);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_read_sync;
-	return submit_bh(READ, bh);
+	return submit_bh(REQ_OP_READ, 0, bh);
 }
 
 /**
@@ -1952,12 +1952,9 @@ static ssize_t ntfs_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		written = ntfs_perform_write(file, from, iocb->ki_pos);
 	current->backing_dev_info = NULL;
 	inode_unlock(vi);
-	if (likely(written > 0)) {
-		err = generic_write_sync(file, iocb->ki_pos, written);
-		if (err < 0)
-			written = 0;
-	}
 	iocb->ki_pos += written;
+	if (likely(written > 0))
+		written = generic_write_sync(iocb, written);
 	return written ? written : err;
 }
 

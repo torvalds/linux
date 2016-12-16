@@ -16,9 +16,7 @@
 #include <linux/aer.h>
 #include <linux/log2.h>
 #include <linux/pci.h>
-#ifdef CONFIG_QLCNIC_VXLAN
 #include <net/vxlan.h>
-#endif
 
 #include "qlcnic.h"
 #include "qlcnic_sriov.h"
@@ -474,12 +472,14 @@ static int qlcnic_get_phys_port_id(struct net_device *netdev,
 	return 0;
 }
 
-#ifdef CONFIG_QLCNIC_VXLAN
 static void qlcnic_add_vxlan_port(struct net_device *netdev,
-				  sa_family_t sa_family, __be16 port)
+				  struct udp_tunnel_info *ti)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
 
 	/* Adapter supports only one VXLAN port. Use very first port
 	 * for enabling offload
@@ -488,23 +488,26 @@ static void qlcnic_add_vxlan_port(struct net_device *netdev,
 		return;
 	if (!ahw->vxlan_port_count) {
 		ahw->vxlan_port_count = 1;
-		ahw->vxlan_port = ntohs(port);
+		ahw->vxlan_port = ntohs(ti->port);
 		adapter->flags |= QLCNIC_ADD_VXLAN_PORT;
 		return;
 	}
-	if (ahw->vxlan_port == ntohs(port))
+	if (ahw->vxlan_port == ntohs(ti->port))
 		ahw->vxlan_port_count++;
 
 }
 
 static void qlcnic_del_vxlan_port(struct net_device *netdev,
-				  sa_family_t sa_family, __be16 port)
+				  struct udp_tunnel_info *ti)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
+	if (ti->type != UDP_TUNNEL_TYPE_VXLAN)
+		return;
+
 	if (!qlcnic_encap_rx_offload(adapter) || !ahw->vxlan_port_count ||
-	    (ahw->vxlan_port != ntohs(port)))
+	    (ahw->vxlan_port != ntohs(ti->port)))
 		return;
 
 	ahw->vxlan_port_count--;
@@ -519,7 +522,6 @@ static netdev_features_t qlcnic_features_check(struct sk_buff *skb,
 	features = vlan_features_check(skb, features);
 	return vxlan_features_check(skb, features);
 }
-#endif
 
 static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_open	   = qlcnic_open,
@@ -539,11 +541,9 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_fdb_del		= qlcnic_fdb_del,
 	.ndo_fdb_dump		= qlcnic_fdb_dump,
 	.ndo_get_phys_port_id	= qlcnic_get_phys_port_id,
-#ifdef CONFIG_QLCNIC_VXLAN
-	.ndo_add_vxlan_port	= qlcnic_add_vxlan_port,
-	.ndo_del_vxlan_port	= qlcnic_del_vxlan_port,
+	.ndo_udp_tunnel_add	= qlcnic_add_vxlan_port,
+	.ndo_udp_tunnel_del	= qlcnic_del_vxlan_port,
 	.ndo_features_check	= qlcnic_features_check,
-#endif
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = qlcnic_poll_controller,
 #endif
@@ -2015,10 +2015,8 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 
 	qlcnic_create_sysfs_entries(adapter);
 
-#ifdef CONFIG_QLCNIC_VXLAN
 	if (qlcnic_encap_rx_offload(adapter))
-		vxlan_get_rx_port(netdev);
-#endif
+		udp_tunnel_get_rx_info(netdev);
 
 	adapter->is_up = QLCNIC_ADAPTER_UP_MAGIC;
 	return 0;
@@ -3952,8 +3950,14 @@ static pci_ers_result_t qlcnic_82xx_io_error_detected(struct pci_dev *pdev,
 
 static pci_ers_result_t qlcnic_82xx_io_slot_reset(struct pci_dev *pdev)
 {
-	return qlcnic_attach_func(pdev) ? PCI_ERS_RESULT_DISCONNECT :
-				PCI_ERS_RESULT_RECOVERED;
+	pci_ers_result_t res;
+
+	rtnl_lock();
+	res = qlcnic_attach_func(pdev) ? PCI_ERS_RESULT_DISCONNECT :
+					 PCI_ERS_RESULT_RECOVERED;
+	rtnl_unlock();
+
+	return res;
 }
 
 static void qlcnic_82xx_io_resume(struct pci_dev *pdev)

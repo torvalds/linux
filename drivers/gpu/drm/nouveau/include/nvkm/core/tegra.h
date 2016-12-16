@@ -28,6 +28,7 @@ struct nvkm_device_tegra {
 	} iommu;
 
 	int gpu_speedo;
+	int gpu_speedo_id;
 };
 
 struct nvkm_device_tegra_func {

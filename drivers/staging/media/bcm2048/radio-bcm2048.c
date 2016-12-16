@@ -308,7 +308,7 @@ module_param(radio_nr, int, 0);
 MODULE_PARM_DESC(radio_nr,
 		 "Minor number for radio device (-1 ==> auto assign)");
 
-static struct region_info region_configs[] = {
+static const struct region_info region_configs[] = {
 	/* USA */
 	{
 		.channel_spacing	= 20,
@@ -482,6 +482,8 @@ static int bcm2048_set_rds_no_lock(struct bcm2048_device *bdev, u8 rds_on)
 					   flags);
 		memset(&bdev->rds_info, 0, sizeof(bdev->rds_info));
 	}
+	if (err)
+		return err;
 
 	err = bcm2048_send_command(bdev, BCM2048_I2C_FM_RDS_SYSTEM,
 				   bdev->cache_fm_rds_system);

@@ -60,9 +60,10 @@ enum pca_type {
 
 struct pca954x {
 	enum pca_type type;
-	struct i2c_adapter *virt_adaps[PCA954X_MAX_NCHANS];
 
 	u8 last_chan;		/* last register value */
+	u8 deselect;
+	struct i2c_client *client;
 };
 
 struct chip_desc {
@@ -146,10 +147,10 @@ static int pca954x_reg_write(struct i2c_adapter *adap,
 	return ret;
 }
 
-static int pca954x_select_chan(struct i2c_adapter *adap,
-			       void *client, u32 chan)
+static int pca954x_select_chan(struct i2c_mux_core *muxc, u32 chan)
 {
-	struct pca954x *data = i2c_get_clientdata(client);
+	struct pca954x *data = i2c_mux_priv(muxc);
+	struct i2c_client *client = data->client;
 	const struct chip_desc *chip = &chips[data->type];
 	u8 regval;
 	int ret = 0;
@@ -162,21 +163,24 @@ static int pca954x_select_chan(struct i2c_adapter *adap,
 
 	/* Only select the channel if its different from the last channel */
 	if (data->last_chan != regval) {
-		ret = pca954x_reg_write(adap, client, regval);
-		data->last_chan = regval;
+		ret = pca954x_reg_write(muxc->parent, client, regval);
+		data->last_chan = ret ? 0 : regval;
 	}
 
 	return ret;
 }
 
-static int pca954x_deselect_mux(struct i2c_adapter *adap,
-				void *client, u32 chan)
+static int pca954x_deselect_mux(struct i2c_mux_core *muxc, u32 chan)
 {
-	struct pca954x *data = i2c_get_clientdata(client);
+	struct pca954x *data = i2c_mux_priv(muxc);
+	struct i2c_client *client = data->client;
+
+	if (!(data->deselect & (1 << chan)))
+		return 0;
 
 	/* Deselect active channel */
 	data->last_chan = 0;
-	return pca954x_reg_write(adap, client, data->last_chan);
+	return pca954x_reg_write(muxc->parent, client, data->last_chan);
 }
 
 /*
@@ -191,17 +195,22 @@ static int pca954x_probe(struct i2c_client *client,
 	bool idle_disconnect_dt;
 	struct gpio_desc *gpio;
 	int num, force, class;
+	struct i2c_mux_core *muxc;
 	struct pca954x *data;
 	int ret;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_BYTE))
 		return -ENODEV;
 
-	data = devm_kzalloc(&client->dev, sizeof(struct pca954x), GFP_KERNEL);
-	if (!data)
+	muxc = i2c_mux_alloc(adap, &client->dev,
+			     PCA954X_MAX_NCHANS, sizeof(*data), 0,
+			     pca954x_select_chan, pca954x_deselect_mux);
+	if (!muxc)
 		return -ENOMEM;
+	data = i2c_mux_priv(muxc);
 
-	i2c_set_clientdata(client, data);
+	i2c_set_clientdata(client, muxc);
+	data->client = client;
 
 	/* Get the mux out of reset if a reset GPIO is specified. */
 	gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
@@ -238,16 +247,13 @@ static int pca954x_probe(struct i2c_client *client,
 				/* discard unconfigured channels */
 				break;
 			idle_disconnect_pd = pdata->modes[num].deselect_on_exit;
+			data->deselect |= (idle_disconnect_pd
+					   || idle_disconnect_dt) << num;
 		}
 
-		data->virt_adaps[num] =
-			i2c_add_mux_adapter(adap, &client->dev, client,
-				force, num, class, pca954x_select_chan,
-				(idle_disconnect_pd || idle_disconnect_dt)
-					? pca954x_deselect_mux : NULL);
+		ret = i2c_mux_add_adapter(muxc, force, num, class);
 
-		if (data->virt_adaps[num] == NULL) {
-			ret = -ENODEV;
+		if (ret) {
 			dev_err(&client->dev,
 				"failed to register multiplexed adapter"
 				" %d as bus %d\n", num, force);
@@ -263,23 +269,15 @@ static int pca954x_probe(struct i2c_client *client,
 	return 0;
 
 virt_reg_failed:
-	for (num--; num >= 0; num--)
-		i2c_del_mux_adapter(data->virt_adaps[num]);
+	i2c_mux_del_adapters(muxc);
 	return ret;
 }
 
 static int pca954x_remove(struct i2c_client *client)
 {
-	struct pca954x *data = i2c_get_clientdata(client);
-	const struct chip_desc *chip = &chips[data->type];
-	int i;
+	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
 
-	for (i = 0; i < chip->nchans; ++i)
-		if (data->virt_adaps[i]) {
-			i2c_del_mux_adapter(data->virt_adaps[i]);
-			data->virt_adaps[i] = NULL;
-		}
-
+	i2c_mux_del_adapters(muxc);
 	return 0;
 }
 
@@ -287,7 +285,8 @@ static int pca954x_remove(struct i2c_client *client)
 static int pca954x_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-	struct pca954x *data = i2c_get_clientdata(client);
+	struct i2c_mux_core *muxc = i2c_get_clientdata(client);
+	struct pca954x *data = i2c_mux_priv(muxc);
 
 	data->last_chan = 0;
 	return i2c_smbus_write_byte(client, 0);

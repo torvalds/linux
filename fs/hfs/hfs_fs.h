@@ -69,6 +69,7 @@ struct hfs_inode_info {
 	struct hfs_cat_key cat_key;
 
 	struct list_head open_dir_list;
+	spinlock_t open_dir_lock;
 	struct inode *rsrc_inode;
 
 	struct mutex extents_lock;
@@ -177,11 +178,11 @@ extern int hfs_clear_vbm_bits(struct super_block *, u16, u16);
 extern int hfs_cat_keycmp(const btree_key *, const btree_key *);
 struct hfs_find_data;
 extern int hfs_cat_find_brec(struct super_block *, u32, struct hfs_find_data *);
-extern int hfs_cat_create(u32, struct inode *, struct qstr *, struct inode *);
-extern int hfs_cat_delete(u32, struct inode *, struct qstr *);
-extern int hfs_cat_move(u32, struct inode *, struct qstr *,
-			struct inode *, struct qstr *);
-extern void hfs_cat_build_key(struct super_block *, btree_key *, u32, struct qstr *);
+extern int hfs_cat_create(u32, struct inode *, const struct qstr *, struct inode *);
+extern int hfs_cat_delete(u32, struct inode *, const struct qstr *);
+extern int hfs_cat_move(u32, struct inode *, const struct qstr *,
+			struct inode *, const struct qstr *);
+extern void hfs_cat_build_key(struct super_block *, btree_key *, u32, const struct qstr *);
 
 /* dir.c */
 extern const struct file_operations hfs_dir_operations;
@@ -200,7 +201,7 @@ extern int hfs_get_block(struct inode *, sector_t, struct buffer_head *, int);
 extern const struct address_space_operations hfs_aops;
 extern const struct address_space_operations hfs_btree_aops;
 
-extern struct inode *hfs_new_inode(struct inode *, struct qstr *, umode_t);
+extern struct inode *hfs_new_inode(struct inode *, const struct qstr *, umode_t);
 extern void hfs_inode_write_fork(struct inode *, struct hfs_extent *, __be32 *, __be32 *);
 extern int hfs_write_inode(struct inode *, struct writeback_control *);
 extern int hfs_inode_setattr(struct dentry *, struct iattr *);
@@ -211,10 +212,10 @@ extern void hfs_evict_inode(struct inode *);
 extern void hfs_delete_inode(struct inode *);
 
 /* attr.c */
-extern int hfs_setxattr(struct dentry *dentry, const char *name,
+extern int hfs_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
 			const void *value, size_t size, int flags);
-extern ssize_t hfs_getxattr(struct dentry *dentry, const char *name,
-			    void *value, size_t size);
+extern ssize_t hfs_getxattr(struct dentry *dentry, struct inode *inode,
+			    const char *name, void *value, size_t size);
 extern ssize_t hfs_listxattr(struct dentry *dentry, char *buffer, size_t size);
 
 /* mdb.c */
@@ -232,11 +233,11 @@ extern const struct dentry_operations hfs_dentry_operations;
 extern int hfs_hash_dentry(const struct dentry *, struct qstr *);
 extern int hfs_strcmp(const unsigned char *, unsigned int,
 		      const unsigned char *, unsigned int);
-extern int hfs_compare_dentry(const struct dentry *parent, const struct dentry *dentry,
+extern int hfs_compare_dentry(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name);
 
 /* trans.c */
-extern void hfs_asc2mac(struct super_block *, struct hfs_name *, struct qstr *);
+extern void hfs_asc2mac(struct super_block *, struct hfs_name *, const struct qstr *);
 extern int hfs_mac2asc(struct super_block *, char *, const struct hfs_name *);
 
 /* super.c */

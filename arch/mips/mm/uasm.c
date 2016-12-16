@@ -49,17 +49,19 @@ enum opcode {
 	insn_invalid,
 	insn_addiu, insn_addu, insn_and, insn_andi, insn_bbit0, insn_bbit1,
 	insn_beq, insn_beql, insn_bgez, insn_bgezl, insn_bltz, insn_bltzl,
-	insn_bne, insn_cache, insn_daddiu, insn_daddu, insn_dins, insn_dinsm,
-	insn_divu, insn_dmfc0, insn_dmtc0, insn_drotr, insn_drotr32, insn_dsll,
+	insn_bne, insn_cache, insn_cfc1, insn_cfcmsa, insn_ctc1, insn_ctcmsa,
+	insn_daddiu, insn_daddu, insn_di, insn_dins, insn_dinsm, insn_divu,
+	insn_dmfc0, insn_dmtc0, insn_drotr, insn_drotr32, insn_dsll,
 	insn_dsll32, insn_dsra, insn_dsrl, insn_dsrl32, insn_dsubu, insn_eret,
 	insn_ext, insn_ins, insn_j, insn_jal, insn_jalr, insn_jr, insn_lb,
 	insn_ld, insn_ldx, insn_lh, insn_ll, insn_lld, insn_lui, insn_lw,
 	insn_lwx, insn_mfc0, insn_mfhc0, insn_mfhi, insn_mflo, insn_mtc0,
-	insn_mthc0, insn_mul, insn_or, insn_ori, insn_pref, insn_rfe,
-	insn_rotr, insn_sc, insn_scd, insn_sd, insn_sll, insn_sllv, insn_slt,
-	insn_sltiu, insn_sltu, insn_sra, insn_srl, insn_srlv, insn_subu,
-	insn_sw, insn_sync, insn_syscall, insn_tlbp, insn_tlbr, insn_tlbwi,
-	insn_tlbwr, insn_wait, insn_wsbh, insn_xor, insn_xori, insn_yield,
+	insn_mthc0, insn_mthi, insn_mtlo, insn_mul, insn_or, insn_ori,
+	insn_pref, insn_rfe, insn_rotr, insn_sc, insn_scd, insn_sd, insn_sll,
+	insn_sllv, insn_slt, insn_sltiu, insn_sltu, insn_sra, insn_srl,
+	insn_srlv, insn_subu, insn_sw, insn_sync, insn_syscall, insn_tlbp,
+	insn_tlbr, insn_tlbwi, insn_tlbwr, insn_wait, insn_wsbh, insn_xor,
+	insn_xori, insn_yield, insn_lddir, insn_ldpte,
 };
 
 struct insn {
@@ -267,10 +269,15 @@ I_u1s2(_bltz)
 I_u1s2(_bltzl)
 I_u1u2s3(_bne)
 I_u2s3u1(_cache)
+I_u1u2(_cfc1)
+I_u2u1(_cfcmsa)
+I_u1u2(_ctc1)
+I_u2u1(_ctcmsa)
 I_u1u2u3(_dmfc0)
 I_u1u2u3(_dmtc0)
 I_u2u1s3(_daddiu)
 I_u3u1u2(_daddu)
+I_u1(_di);
 I_u1u2(_divu)
 I_u2u1u3(_dsll)
 I_u2u1u3(_dsll32)
@@ -300,6 +307,8 @@ I_u1(_mfhi)
 I_u1(_mflo)
 I_u1u2u3(_mtc0)
 I_u1u2u3(_mthc0)
+I_u1(_mthi)
+I_u1(_mtlo)
 I_u3u1u2(_mul)
 I_u2u1u3(_ori)
 I_u3u1u2(_or)
@@ -335,6 +344,8 @@ I_u1u2s3(_bbit0);
 I_u1u2s3(_bbit1);
 I_u3u1u2(_lwx)
 I_u3u1u2(_ldx)
+I_u1u2(_ldpte)
+I_u2u1u3(_lddir)
 
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 #include <asm/octeon/octeon.h>
@@ -367,11 +378,7 @@ UASM_EXPORT_SYMBOL(ISAFUNC(uasm_build_label));
 int ISAFUNC(uasm_in_compat_space_p)(long addr)
 {
 	/* Is this address in 32bit compat space? */
-#ifdef CONFIG_64BIT
-	return (((addr) & 0xffffffff00000000L) == 0xffffffff00000000L);
-#else
-	return 1;
-#endif
+	return addr == (int)addr;
 }
 UASM_EXPORT_SYMBOL(ISAFUNC(uasm_in_compat_space_p));
 

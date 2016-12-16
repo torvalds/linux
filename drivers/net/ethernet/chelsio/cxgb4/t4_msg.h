@@ -104,6 +104,8 @@ enum {
 
 enum CPL_error {
 	CPL_ERR_NONE               = 0,
+	CPL_ERR_TCAM_PARITY        = 1,
+	CPL_ERR_TCAM_MISS          = 2,
 	CPL_ERR_TCAM_FULL          = 3,
 	CPL_ERR_BAD_LENGTH         = 15,
 	CPL_ERR_BAD_ROUTE          = 18,
@@ -1391,6 +1393,10 @@ struct ulp_mem_io {
 #define T5_ULP_MEMIO_ORDER_S    22
 #define T5_ULP_MEMIO_ORDER_V(x) ((x) << T5_ULP_MEMIO_ORDER_S)
 #define T5_ULP_MEMIO_ORDER_F    T5_ULP_MEMIO_ORDER_V(1U)
+
+#define T5_ULP_MEMIO_FID_S	4
+#define T5_ULP_MEMIO_FID_M	0x7ff
+#define T5_ULP_MEMIO_FID_V(x)	((x) << T5_ULP_MEMIO_FID_S)
 
 /* ulp_mem_io.lock_addr fields */
 #define ULP_MEMIO_ADDR_S    0

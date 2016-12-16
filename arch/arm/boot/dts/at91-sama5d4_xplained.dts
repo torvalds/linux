@@ -252,7 +252,7 @@
 		};
 	};
 
-	vcc_3v3_reg: fixedregulator@0 {
+	vcc_3v3_reg: fixedregulator_3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC 3V3";
 		regulator-min-microvolt = <3300000>;
@@ -261,7 +261,7 @@
 		regulator-always-on;
 	};
 
-	vcc_mmc1_reg: fixedregulator@1 {
+	vcc_mmc1_reg: fixedregulator_mmc1 {
 		compatible = "regulator-fixed";
 		gpio = <&pioE 4 GPIO_ACTIVE_LOW>;
 		regulator-name = "VDD MCI1";

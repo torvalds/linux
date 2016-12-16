@@ -5,14 +5,55 @@
 
 menu "Digital potentiometers"
 
+config DS1803
+	tristate "Maxim Integrated DS1803 Digital Potentiometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Maxim Integrated DS1803
+	  digital potentiometer chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ds1803.
+
+config MAX5487
+        tristate "Maxim MAX5487/MAX5488/MAX5489 Digital Potentiometer driver"
+        depends on SPI
+        help
+          Say yes here to build support for the Maxim
+          MAX5487, MAX5488, MAX5489 digital potentiometer
+          chips.
+
+          To compile this driver as a module, choose M here: the
+          module will be called max5487.
+
+config MCP4131
+	tristate "Microchip MCP413X/414X/415X/416X/423X/424X/425X/426X Digital Potentiometer driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Microchip
+	  MCP4131, MCP4132,
+	  MCP4141, MCP4142,
+	  MCP4151, MCP4152,
+	  MCP4161, MCP4162,
+	  MCP4231, MCP4232,
+	  MCP4241, MCP4242,
+	  MCP4251, MCP4252,
+	  MCP4261, MCP4262,
+	  digital potentiometer chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcp4131.
+
 config MCP4531
 	tristate "Microchip MCP45xx/MCP46xx Digital Potentiometer driver"
 	depends on I2C
 	help
 	  Say yes here to build support for the Microchip
-	  MCP4531, MCP4532, MCP4551, MCP4552,
-	  MCP4631, MCP4632, MCP4651, MCP4652
-	  digital potentiomenter chips.
+	  MCP4531, MCP4532, MCP4541, MCP4542,
+	  MCP4551, MCP4552, MCP4561, MCP4562,
+	  MCP4631, MCP4632, MCP4641, MCP4642,
+	  MCP4651, MCP4652, MCP4661, MCP4662
+	  digital potentiometer chips.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcp4531.

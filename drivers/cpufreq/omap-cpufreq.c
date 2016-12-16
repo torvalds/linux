@@ -13,6 +13,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
@@ -51,7 +54,7 @@ static int omap_target(struct cpufreq_policy *policy, unsigned int index)
 
 	freq = new_freq * 1000;
 	ret = clk_round_rate(policy->clk, freq);
-	if (IS_ERR_VALUE(ret)) {
+	if (ret < 0) {
 		dev_warn(mpu_dev,
 			 "CPUfreq: Cannot find matching frequency for %lu\n",
 			 freq);
@@ -163,13 +166,13 @@ static int omap_cpufreq_probe(struct platform_device *pdev)
 {
 	mpu_dev = get_cpu_device(0);
 	if (!mpu_dev) {
-		pr_warning("%s: unable to get the mpu device\n", __func__);
+		pr_warn("%s: unable to get the MPU device\n", __func__);
 		return -EINVAL;
 	}
 
 	mpu_reg = regulator_get(mpu_dev, "vcc");
 	if (IS_ERR(mpu_reg)) {
-		pr_warning("%s: unable to get MPU regulator\n", __func__);
+		pr_warn("%s: unable to get MPU regulator\n", __func__);
 		mpu_reg = NULL;
 	} else {
 		/* 

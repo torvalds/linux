@@ -751,9 +751,7 @@ static unsigned int img_i2c_atomic(struct img_i2c *i2c,
 	switch (i2c->at_cur_cmd) {
 	case CMD_GEN_START:
 		next_cmd = CMD_GEN_DATA;
-		next_data = (i2c->msg.addr << 1);
-		if (i2c->msg.flags & I2C_M_RD)
-			next_data |= 0x1;
+		next_data = i2c_8bit_addr_from_msg(&i2c->msg);
 		break;
 	case CMD_GEN_DATA:
 		if (i2c->line_status & LINESTAT_INPUT_HELD_V)

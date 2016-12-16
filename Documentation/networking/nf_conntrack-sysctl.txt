@@ -7,12 +7,13 @@ nf_conntrack_acct - BOOLEAN
 	Enable connection tracking flow accounting. 64-bit byte and packet
 	counters per flow are added.
 
-nf_conntrack_buckets - INTEGER (read-only)
+nf_conntrack_buckets - INTEGER
 	Size of hash table. If not specified as parameter during module
 	loading, the default size is calculated by dividing total memory
 	by 16384 to determine the number of buckets but the hash table will
 	never have fewer than 32 and limited to 16384 buckets. For systems
 	with more than 4GB of memory it will be 65536 buckets.
+	This sysctl is only writeable in the initial net namespace.
 
 nf_conntrack_checksum - BOOLEAN
 	0 - disabled

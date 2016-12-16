@@ -56,6 +56,7 @@ Optional properties:-
 	phy-names: name of the Generic Keystine SerDes phy for PCI
 	  - If boot loader already does PCI link establishment, then phys and
 	    phy-names shouldn't be present.
+	interrupts: platform interrupt for error interrupts.
 
 Designware DT Properties not applicable for Keystone PCI
 

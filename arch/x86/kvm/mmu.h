@@ -93,11 +93,6 @@ static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 	return kvm_mmu_load(vcpu);
 }
 
-static inline int is_present_gpte(unsigned long pte)
-{
-	return pte & PT_PRESENT_MASK;
-}
-
 /*
  * Currently, we have two sorts of write-protection, a) the first one
  * write-protects guest page to sync the guest modification, b) another one is

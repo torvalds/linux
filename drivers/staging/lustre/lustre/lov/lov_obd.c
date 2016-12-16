@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -54,7 +50,6 @@
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_param.h"
 #include "../include/cl_object.h"
-#include "../include/lclient.h"		/* for cl_client_lru */
 #include "../include/lustre/ll_fiemap.h"
 #include "../include/lustre_fid.h"
 
@@ -124,7 +119,6 @@ static int lov_set_osc_active(struct obd_device *obd, struct obd_uuid *uuid,
 static int lov_notify(struct obd_device *obd, struct obd_device *watched,
 		      enum obd_notify_event ev, void *data);
 
-#define MAX_STRING_SIZE 128
 int lov_connect_obd(struct obd_device *obd, __u32 index, int activate,
 		    struct obd_connect_data *data)
 {
@@ -898,6 +892,12 @@ static int lov_cleanup(struct obd_device *obd)
 		kfree(lov->lov_tgts);
 		lov->lov_tgt_size = 0;
 	}
+
+	if (lov->lov_cache) {
+		cl_cache_decref(lov->lov_cache);
+		lov->lov_cache = NULL;
+	}
+
 	return 0;
 }
 
@@ -965,7 +965,6 @@ int lov_process_config_base(struct obd_device *obd, struct lustre_cfg *lcfg,
 		CERROR("Unknown command: %d\n", lcfg->lcfg_command);
 		rc = -EINVAL;
 		goto out;
-
 	}
 	}
 out:
@@ -1734,6 +1733,27 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	unsigned int buffer_size = FIEMAP_BUFFER_SIZE;
 
 	if (!lsm_has_objects(lsm)) {
+		if (lsm && lsm_is_released(lsm) && (fm_key->fiemap.fm_start <
+		    fm_key->oa.o_size)) {
+			/*
+			 * released file, return a minimal FIEMAP if
+			 * request fits in file-size.
+			 */
+			fiemap->fm_mapped_extents = 1;
+			fiemap->fm_extents[0].fe_logical =
+					fm_key->fiemap.fm_start;
+			if (fm_key->fiemap.fm_start + fm_key->fiemap.fm_length <
+			    fm_key->oa.o_size) {
+				fiemap->fm_extents[0].fe_length =
+					fm_key->fiemap.fm_length;
+			} else {
+				fiemap->fm_extents[0].fe_length =
+					fm_key->oa.o_size - fm_key->fiemap.fm_start;
+				fiemap->fm_extents[0].fe_flags |=
+						(FIEMAP_EXTENT_UNKNOWN |
+						 FIEMAP_EXTENT_LAST);
+			}
+		}
 		rc = 0;
 		goto out;
 	}
@@ -1754,7 +1774,8 @@ static int lov_fiemap(struct lov_obd *lov, __u32 keylen, void *key,
 	fm_start = fiemap->fm_start;
 	fm_length = fiemap->fm_length;
 	/* Calculate start stripe, last stripe and length of mapping */
-	actual_start_stripe = start_stripe = lov_stripe_number(lsm, fm_start);
+	start_stripe = lov_stripe_number(lsm, fm_start);
+	actual_start_stripe = start_stripe;
 	fm_end = (fm_length == ~0ULL ? fm_key->oa.o_size :
 						fm_start + fm_length - 1);
 	/* If fm_length != ~0ULL but fm_start+fm_length-1 exceeds file size */
@@ -2077,11 +2098,9 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 	u32 count;
 	int i, rc = 0, err;
 	struct lov_tgt_desc *tgt;
-	unsigned incr, check_uuid,
-		 do_inactive, no_set;
-	unsigned next_id = 0,  mds_con = 0;
+	unsigned int incr = 0, check_uuid = 0, do_inactive = 0, no_set = 0;
+	unsigned int next_id = 0, mds_con = 0;
 
-	incr = check_uuid = do_inactive = no_set = 0;
 	if (!set) {
 		no_set = 1;
 		set = ptlrpc_prep_set();
@@ -2108,6 +2127,7 @@ static int lov_set_info_async(const struct lu_env *env, struct obd_export *exp,
 		LASSERT(!lov->lov_cache);
 		lov->lov_cache = val;
 		do_inactive = 1;
+		cl_cache_incref(lov->lov_cache);
 	}
 
 	for (i = 0; i < count; i++, val = (char *)val + incr) {
@@ -2173,7 +2193,6 @@ void lov_stripe_lock(struct lov_stripe_md *md)
 	LASSERT(md->lsm_lock_owner == 0);
 	md->lsm_lock_owner = current_pid();
 }
-EXPORT_SYMBOL(lov_stripe_lock);
 
 void lov_stripe_unlock(struct lov_stripe_md *md)
 		__releases(&md->lsm_lock)
@@ -2182,7 +2201,6 @@ void lov_stripe_unlock(struct lov_stripe_md *md)
 	md->lsm_lock_owner = 0;
 	spin_unlock(&md->lsm_lock);
 }
-EXPORT_SYMBOL(lov_stripe_unlock);
 
 static int lov_quotactl(struct obd_device *obd, struct obd_export *exp,
 			struct obd_quotactl *oqctl)

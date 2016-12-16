@@ -167,6 +167,14 @@ static const struct dmi_system_id video_detect_dmi_table[] = {
 		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201s"),
 		},
 	},
+        {
+         .callback = video_detect_force_video,
+         .ident = "ThinkPad X201T",
+         .matches = {
+                DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+                DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201T"),
+                },
+        },
 
 	/* The native backlight controls do not work on some older machines */
 	{
@@ -358,7 +366,7 @@ enum acpi_backlight_type acpi_video_get_backlight_type(void)
 	if (!(video_caps & ACPI_VIDEO_BACKLIGHT))
 		return acpi_backlight_vendor;
 
-	if (acpi_osi_is_win8() && backlight_device_registered(BACKLIGHT_RAW))
+	if (acpi_osi_is_win8() && backlight_device_get_by_type(BACKLIGHT_RAW))
 		return acpi_backlight_native;
 
 	return acpi_backlight_video;

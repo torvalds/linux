@@ -26,38 +26,30 @@
 
 #include "gpiolib.h"
 
-/* Private data structure for of_gpiochip_find_and_xlate */
-struct gg_data {
-	enum of_gpio_flags *flags;
-	struct of_phandle_args gpiospec;
-
-	struct gpio_desc *out_gpio;
-};
-
-/* Private function for resolving node pointer to gpio_chip */
-static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
+static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
 {
-	struct gg_data *gg_data = data;
+	return chip->gpiodev->dev.of_node == data;
+}
+
+static struct gpio_chip *of_find_gpiochip_by_node(struct device_node *np)
+{
+	return gpiochip_find(np, of_gpiochip_match_node);
+}
+
+static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
+					struct of_phandle_args *gpiospec,
+					enum of_gpio_flags *flags)
+{
 	int ret;
 
-	if ((gc->of_node != gg_data->gpiospec.np) ||
-	    (gc->of_gpio_n_cells != gg_data->gpiospec.args_count) ||
-	    (!gc->of_xlate))
-		return false;
+	if (chip->of_gpio_n_cells != gpiospec->args_count)
+		return ERR_PTR(-EINVAL);
 
-	ret = gc->of_xlate(gc, &gg_data->gpiospec, gg_data->flags);
-	if (ret < 0) {
-		/* We've found a gpio chip, but the translation failed.
-		 * Store translation error in out_gpio.
-		 * Return false to keep looking, as more than one gpio chip
-		 * could be registered per of-node.
-		 */
-		gg_data->out_gpio = ERR_PTR(ret);
-		return false;
-	 }
+	ret = chip->of_xlate(chip, gpiospec, flags);
+	if (ret < 0)
+		return ERR_PTR(ret);
 
-	gg_data->out_gpio = gpiochip_get_desc(gc, ret);
-	return true;
+	return gpiochip_get_desc(chip, ret);
 }
 
 /**
@@ -74,34 +66,37 @@ static int of_gpiochip_find_and_xlate(struct gpio_chip *gc, void *data)
 struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		     const char *propname, int index, enum of_gpio_flags *flags)
 {
-	/* Return -EPROBE_DEFER to support probe() functions to be called
-	 * later when the GPIO actually becomes available
-	 */
-	struct gg_data gg_data = {
-		.flags = flags,
-		.out_gpio = ERR_PTR(-EPROBE_DEFER)
-	};
+	struct of_phandle_args gpiospec;
+	struct gpio_chip *chip;
+	struct gpio_desc *desc;
 	int ret;
 
-	/* .of_xlate might decide to not fill in the flags, so clear it. */
-	if (flags)
-		*flags = 0;
-
 	ret = of_parse_phandle_with_args(np, propname, "#gpio-cells", index,
-					 &gg_data.gpiospec);
+					 &gpiospec);
 	if (ret) {
 		pr_debug("%s: can't parse '%s' property of node '%s[%d]'\n",
 			__func__, propname, np->full_name, index);
 		return ERR_PTR(ret);
 	}
 
-	gpiochip_find(&gg_data, of_gpiochip_find_and_xlate);
+	chip = of_find_gpiochip_by_node(gpiospec.np);
+	if (!chip) {
+		desc = ERR_PTR(-EPROBE_DEFER);
+		goto out;
+	}
 
-	of_node_put(gg_data.gpiospec.np);
+	desc = of_xlate_and_get_gpiod_flags(chip, &gpiospec, flags);
+	if (IS_ERR(desc))
+		goto out;
+
 	pr_debug("%s: parsed '%s' property of node '%s[%d]' - status (%d)\n",
 		 __func__, propname, np->full_name, index,
-		 PTR_ERR_OR_ZERO(gg_data.out_gpio));
-	return gg_data.out_gpio;
+		 PTR_ERR_OR_ZERO(desc));
+
+out:
+	of_node_put(gpiospec.np);
+
+	return desc;
 }
 
 int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
@@ -121,6 +116,7 @@ EXPORT_SYMBOL(of_get_named_gpio_flags);
 /**
  * of_parse_own_gpio() - Get a GPIO hog descriptor, names and flags for GPIO API
  * @np:		device node to get GPIO from
+ * @chip:	GPIO chip whose hog is parsed
  * @name:	GPIO line name
  * @lflags:	gpio_lookup_flags - returned from of_find_gpio() or
  *		of_parse_own_gpio()
@@ -130,19 +126,19 @@ EXPORT_SYMBOL(of_get_named_gpio_flags);
  * value on the error condition.
  */
 static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
+					   struct gpio_chip *chip,
 					   const char **name,
 					   enum gpio_lookup_flags *lflags,
 					   enum gpiod_flags *dflags)
 {
 	struct device_node *chip_np;
 	enum of_gpio_flags xlate_flags;
-	struct gg_data gg_data = {
-		.flags = &xlate_flags,
-	};
+	struct of_phandle_args gpiospec;
+	struct gpio_desc *desc;
 	u32 tmp;
-	int i, ret;
+	int ret;
 
-	chip_np = np->parent;
+	chip_np = chip->of_node;
 	if (!chip_np)
 		return ERR_PTR(-EINVAL);
 
@@ -154,25 +150,16 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 	if (ret)
 		return ERR_PTR(ret);
 
-	if (tmp > MAX_PHANDLE_ARGS)
-		return ERR_PTR(-EINVAL);
+	gpiospec.np = chip_np;
+	gpiospec.args_count = tmp;
 
-	gg_data.gpiospec.args_count = tmp;
-	gg_data.gpiospec.np = chip_np;
-	for (i = 0; i < tmp; i++) {
-		ret = of_property_read_u32_index(np, "gpios", i,
-					   &gg_data.gpiospec.args[i]);
-		if (ret)
-			return ERR_PTR(ret);
-	}
+	ret = of_property_read_u32_array(np, "gpios", gpiospec.args, tmp);
+	if (ret)
+		return ERR_PTR(ret);
 
-	gpiochip_find(&gg_data, of_gpiochip_find_and_xlate);
-	if (!gg_data.out_gpio) {
-		if (np->parent == np)
-			return ERR_PTR(-ENXIO);
-		else
-			return ERR_PTR(-EINVAL);
-	}
+	desc = of_xlate_and_get_gpiod_flags(chip, &gpiospec, &xlate_flags);
+	if (IS_ERR(desc))
+		return desc;
 
 	if (xlate_flags & OF_GPIO_ACTIVE_LOW)
 		*lflags |= GPIO_ACTIVE_LOW;
@@ -185,14 +172,59 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 		*dflags |= GPIOD_OUT_HIGH;
 	else {
 		pr_warn("GPIO line %d (%s): no hogging state specified, bailing out\n",
-			desc_to_gpio(gg_data.out_gpio), np->name);
+			desc_to_gpio(desc), np->name);
 		return ERR_PTR(-EINVAL);
 	}
 
 	if (name && of_property_read_string(np, "line-name", name))
 		*name = np->name;
 
-	return gg_data.out_gpio;
+	return desc;
+}
+
+/**
+ * of_gpiochip_set_names() - set up the names of the lines
+ * @chip: GPIO chip whose lines should be named, if possible
+ */
+static void of_gpiochip_set_names(struct gpio_chip *gc)
+{
+	struct gpio_device *gdev = gc->gpiodev;
+	struct device_node *np = gc->of_node;
+	int i;
+	int nstrings;
+
+	nstrings = of_property_count_strings(np, "gpio-line-names");
+	if (nstrings <= 0)
+		/* Lines names not present */
+		return;
+
+	/* This is normally not what you want */
+	if (gdev->ngpio != nstrings)
+		dev_info(&gdev->dev, "gpio-line-names specifies %d line "
+			 "names but there are %d lines on the chip\n",
+			 nstrings, gdev->ngpio);
+
+	/*
+	 * Make sure to not index beyond the end of the number of descriptors
+	 * of the GPIO device.
+	 */
+	for (i = 0; i < gdev->ngpio; i++) {
+		const char *name;
+		int ret;
+
+		ret = of_property_read_string_index(np,
+						    "gpio-line-names",
+						    i,
+						    &name);
+		if (ret) {
+			if (ret != -ENODATA)
+                                dev_err(&gdev->dev,
+                                        "unable to name line %d: %d\n",
+                                        i, ret);
+			break;
+		}
+		gdev->descs[i].name = name;
+	}
 }
 
 /**
@@ -201,26 +233,31 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
  *
  * This is only used by of_gpiochip_add to request/set GPIO initial
  * configuration.
+ * It retures error if it fails otherwise 0 on success.
  */
-static void of_gpiochip_scan_gpios(struct gpio_chip *chip)
+static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 {
 	struct gpio_desc *desc = NULL;
 	struct device_node *np;
 	const char *name;
 	enum gpio_lookup_flags lflags;
 	enum gpiod_flags dflags;
+	int ret;
 
-	for_each_child_of_node(chip->of_node, np) {
+	for_each_available_child_of_node(chip->of_node, np) {
 		if (!of_property_read_bool(np, "gpio-hog"))
 			continue;
 
-		desc = of_parse_own_gpio(np, &name, &lflags, &dflags);
+		desc = of_parse_own_gpio(np, chip, &name, &lflags, &dflags);
 		if (IS_ERR(desc))
 			continue;
 
-		if (gpiod_hog(desc, name, lflags, dflags))
-			continue;
+		ret = gpiod_hog(desc, name, lflags, dflags);
+		if (ret < 0)
+			return ret;
 	}
+
+	return 0;
 }
 
 /**
@@ -359,6 +396,7 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 			break;
 
 		pctldev = of_pinctrl_get(pinspec.np);
+		of_node_put(pinspec.np);
 		if (!pctldev)
 			return -EPROBE_DEFER;
 
@@ -436,15 +474,20 @@ int of_gpiochip_add(struct gpio_chip *chip)
 		chip->of_xlate = of_gpio_simple_xlate;
 	}
 
+	if (chip->of_gpio_n_cells > MAX_PHANDLE_ARGS)
+		return -EINVAL;
+
 	status = of_gpiochip_add_pin_range(chip);
 	if (status)
 		return status;
 
+	/* If the chip defines names itself, these take precedence */
+	if (!chip->names)
+		of_gpiochip_set_names(chip);
+
 	of_node_get(chip->of_node);
 
-	of_gpiochip_scan_gpios(chip);
-
-	return 0;
+	return of_gpiochip_scan_gpios(chip);
 }
 
 void of_gpiochip_remove(struct gpio_chip *chip)

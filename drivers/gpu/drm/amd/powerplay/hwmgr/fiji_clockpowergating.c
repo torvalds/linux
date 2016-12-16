@@ -47,10 +47,17 @@ int fiji_phm_powergate_uvd(struct pp_hwmgr *hwmgr, bool bgate)
 
 	data->uvd_power_gated = bgate;
 
-	if (bgate)
+	if (bgate) {
+		cgs_set_clockgating_state(hwmgr->device,
+					  AMD_IP_BLOCK_TYPE_UVD,
+					  AMD_CG_STATE_GATE);
 		fiji_update_uvd_dpm(hwmgr, true);
-	else
+	} else {
 		fiji_update_uvd_dpm(hwmgr, false);
+		cgs_set_clockgating_state(hwmgr->device,
+					  AMD_IP_BLOCK_TYPE_UVD,
+					  AMD_CG_STATE_UNGATE);
+	}
 
 	return 0;
 }

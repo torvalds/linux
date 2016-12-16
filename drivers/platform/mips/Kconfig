@@ -15,10 +15,6 @@ menuconfig MIPS_PLATFORM_DEVICES
 
 if MIPS_PLATFORM_DEVICES
 
-config MIPS_ACPI
-	bool
-	default y if LOONGSON_MACH3X
-
 config CPU_HWMON
 	tristate "Loongson CPU HWMon Driver"
 	depends on LOONGSON_MACH3X

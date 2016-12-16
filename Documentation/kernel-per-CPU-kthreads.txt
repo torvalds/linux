@@ -10,7 +10,7 @@ REFERENCES
 
 o	Documentation/IRQ-affinity.txt:  Binding interrupts to sets of CPUs.
 
-o	Documentation/cgroups:  Using cgroups to bind tasks to sets of CPUs.
+o	Documentation/cgroup-v1:  Using cgroups to bind tasks to sets of CPUs.
 
 o	man taskset:  Using the taskset command to bind tasks to sets
 	of CPUs.

@@ -151,6 +151,8 @@ static int gpio_wdt_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, priv);
+
 	priv->gpio = of_get_gpio_flags(pdev->dev.of_node, 0, &flags);
 	if (!gpio_is_valid(priv->gpio))
 		return priv->gpio;

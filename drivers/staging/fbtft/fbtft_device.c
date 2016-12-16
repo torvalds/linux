@@ -1254,7 +1254,7 @@ static int write_gpio16_wr_slow(struct fbtft_par *par, void *buf, size_t len)
 		"%s(len=%d): ", __func__, len);
 
 	while (len) {
-		data = *(u16 *) buf;
+		data = *(u16 *)buf;
 
 		/* Start writing by pulling down /WR */
 		gpio_set_value(par->gpio.wr, 0);
@@ -1283,7 +1283,7 @@ static int write_gpio16_wr_slow(struct fbtft_par *par, void *buf, size_t len)
 		gpio_set_value(par->gpio.wr, 1);
 
 #ifndef DO_NOT_OPTIMIZE_FBTFT_WRITE_GPIO
-		prev_data = *(u16 *) buf;
+		prev_data = *(u16 *)buf;
 #endif
 		buf += 2;
 		len -= 2;
@@ -1436,7 +1436,7 @@ static int __init fbtft_device_init(void)
 		}
 		strncpy(fbtft_device_param_gpios[i].name, p_name,
 			FBTFT_GPIO_NAME_SIZE - 1);
-		fbtft_device_param_gpios[i++].gpio = (int) val;
+		fbtft_device_param_gpios[i++].gpio = (int)val;
 		if (i == MAX_GPIOS) {
 			pr_err("gpios parameter: exceeded max array size: %d\n",
 			       MAX_GPIOS);

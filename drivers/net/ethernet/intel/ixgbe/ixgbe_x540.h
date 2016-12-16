@@ -36,4 +36,5 @@ s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_blink_led_stop_X540(struct ixgbe_hw *hw, u32 index);
 s32 ixgbe_acquire_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
 void ixgbe_release_swfw_sync_X540(struct ixgbe_hw *hw, u32 mask);
+void ixgbe_init_swfw_sync_X540(struct ixgbe_hw *hw);
 s32 ixgbe_init_eeprom_params_X540(struct ixgbe_hw *hw);

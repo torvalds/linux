@@ -403,11 +403,19 @@ static inline void jbd_unlock_bh_journal_head(struct buffer_head *bh)
 
 /* Flags in jbd_inode->i_flags */
 #define __JI_COMMIT_RUNNING 0
-/* Commit of the inode data in progress. We use this flag to protect us from
+#define __JI_WRITE_DATA 1
+#define __JI_WAIT_DATA 2
+
+/*
+ * Commit of the inode data in progress. We use this flag to protect us from
  * concurrent deletion of inode. We cannot use reference to inode for this
  * since we cannot afford doing last iput() on behalf of kjournald
  */
 #define JI_COMMIT_RUNNING (1 << __JI_COMMIT_RUNNING)
+/* Write allocated dirty buffers in this inode before commit */
+#define JI_WRITE_DATA (1 << __JI_WRITE_DATA)
+/* Wait for outstanding data writes for this inode before commit */
+#define JI_WAIT_DATA (1 << __JI_WAIT_DATA)
 
 /**
  * struct jbd_inode is the structure linking inodes in ordered mode
@@ -483,10 +491,6 @@ struct jbd2_journal_handle
 
 	unsigned long		h_start_jiffies;
 	unsigned int		h_requested_credits;
-
-#ifdef CONFIG_DEBUG_LOCK_ALLOC
-	struct lockdep_map	h_lockdep_map;
-#endif
 };
 
 
@@ -781,13 +785,11 @@ jbd2_time_diff(unsigned long start, unsigned long end)
  * @j_wbufsize: maximum number of buffer_heads allowed in j_wbuf, the
  *	number that will fit in j_blocksize
  * @j_last_sync_writer: most recent pid which did a synchronous write
- * @j_history: Buffer storing the transactions statistics history
- * @j_history_max: Maximum number of transactions in the statistics history
- * @j_history_cur: Current number of transactions in the statistics history
  * @j_history_lock: Protect the transactions statistics history
  * @j_proc_entry: procfs entry for the jbd statistics directory
  * @j_stats: Overall statistics
  * @j_private: An opaque pointer to fs-private information.
+ * @j_trans_commit_map: Lockdep entity to track transaction commit dependencies
  */
 
 struct journal_s
@@ -1030,7 +1032,25 @@ struct journal_s
 
 	/* Precomputed journal UUID checksum for seeding other checksums */
 	__u32 j_csum_seed;
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/*
+	 * Lockdep entity to track transaction commit dependencies. Handles
+	 * hold this "lock" for read, when we wait for commit, we acquire the
+	 * "lock" for writing. This matches the properties of jbd2 journalling
+	 * where the running transaction has to wait for all handles to be
+	 * dropped to commit that transaction and also acquiring a handle may
+	 * require transaction commit to finish.
+	 */
+	struct lockdep_map	j_trans_commit_map;
+#endif
 };
+
+#define jbd2_might_wait_for_commit(j) \
+	do { \
+		rwsem_acquire(&j->j_trans_commit_map, 0, 0, _THIS_IP_); \
+		rwsem_release(&j->j_trans_commit_map, 1, _THIS_IP_); \
+	} while (0)
 
 /* journal feature predicate functions */
 #define JBD2_FEATURE_COMPAT_FUNCS(name, flagname) \
@@ -1270,7 +1290,8 @@ extern int	   jbd2_journal_clear_err  (journal_t *);
 extern int	   jbd2_journal_bmap(journal_t *, unsigned long, unsigned long long *);
 extern int	   jbd2_journal_force_commit(journal_t *);
 extern int	   jbd2_journal_force_commit_nested(journal_t *);
-extern int	   jbd2_journal_file_inode(handle_t *handle, struct jbd2_inode *inode);
+extern int	   jbd2_journal_inode_add_write(handle_t *handle, struct jbd2_inode *inode);
+extern int	   jbd2_journal_inode_add_wait(handle_t *handle, struct jbd2_inode *inode);
 extern int	   jbd2_journal_begin_ordered_truncate(journal_t *journal,
 				struct jbd2_inode *inode, loff_t new_size);
 extern void	   jbd2_journal_init_jbd_inode(struct jbd2_inode *jinode, struct inode *inode);

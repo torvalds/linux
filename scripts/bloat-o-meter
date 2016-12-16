@@ -32,18 +32,21 @@ old = getsizes(sys.argv[1])
 new = getsizes(sys.argv[2])
 grow, shrink, add, remove, up, down = 0, 0, 0, 0, 0, 0
 delta, common = [], {}
+otot, ntot = 0, 0
 
 for a in old:
     if a in new:
         common[a] = 1
 
 for name in old:
+    otot += old[name]
     if name not in common:
         remove += 1
         down += old[name]
         delta.append((-old[name], name))
 
 for name in new:
+    ntot += new[name]
     if name not in common:
         add += 1
         up += new[name]
@@ -63,3 +66,6 @@ print("add/remove: %s/%s grow/shrink: %s/%s up/down: %s/%s (%s)" % \
 print("%-40s %7s %7s %+7s" % ("function", "old", "new", "delta"))
 for d, n in delta:
     if d: print("%-40s %7s %7s %+7d" % (n, old.get(n,"-"), new.get(n,"-"), d))
+
+print("Total: Before=%d, After=%d, chg %+.2f%%" % \
+    (otot, ntot, (ntot - otot)*100.0/otot))

@@ -13,13 +13,14 @@
 #ifndef __VSP1_PIPE_H__
 #define __VSP1_PIPE_H__
 
+#include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
 #include <media/media-entity.h>
 
-struct vsp1_dl;
+struct vsp1_dl_list;
 struct vsp1_rwpf;
 
 /*
@@ -60,12 +61,13 @@ enum vsp1_pipeline_state {
  * @pipe: the media pipeline
  * @irqlock: protects the pipeline state
  * @state: current state
- * @wq: work queue to wait for state change completion
+ * @wq: wait queue to wait for state change completion
  * @frame_end: frame end interrupt handler
  * @lock: protects the pipeline use count and stream count
- * @use_count: number of video nodes using the pipeline
+ * @kref: pipeline reference count
  * @stream_count: number of streaming video nodes
  * @buffers_ready: bitmask of RPFs and WPFs with at least one buffer available
+ * @sequence: frame sequence number
  * @num_inputs: number of RPFs
  * @inputs: array of RPFs in the pipeline (indexed by RPF index)
  * @output: WPF at the output of the pipeline
@@ -75,6 +77,9 @@ enum vsp1_pipeline_state {
  * @uds_input: entity at the input of the UDS, if the UDS is present
  * @entities: list of entities in the pipeline
  * @dl: display list associated with the pipeline
+ * @div_size: The maximum allowed partition size for the pipeline
+ * @partitions: The number of partitions used to process one frame
+ * @current_partition: The partition number currently being configured
  */
 struct vsp1_pipeline {
 	struct media_pipeline pipe;
@@ -86,9 +91,10 @@ struct vsp1_pipeline {
 	void (*frame_end)(struct vsp1_pipeline *pipe);
 
 	struct mutex lock;
-	unsigned int use_count;
+	struct kref kref;
 	unsigned int stream_count;
 	unsigned int buffers_ready;
+	unsigned int sequence;
 
 	unsigned int num_inputs;
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF];
@@ -100,16 +106,13 @@ struct vsp1_pipeline {
 
 	struct list_head entities;
 
-	struct vsp1_dl *dl;
-};
+	struct vsp1_dl_list *dl;
 
-static inline struct vsp1_pipeline *to_vsp1_pipeline(struct media_entity *e)
-{
-	if (likely(e->pipe))
-		return container_of(e->pipe, struct vsp1_pipeline, pipe);
-	else
-		return NULL;
-}
+	unsigned int div_size;
+	unsigned int partitions;
+	struct v4l2_rect partition;
+	unsigned int current_partition;
+};
 
 void vsp1_pipeline_reset(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_init(struct vsp1_pipeline *pipe);
@@ -119,16 +122,15 @@ bool vsp1_pipeline_stopped(struct vsp1_pipeline *pipe);
 int vsp1_pipeline_stop(struct vsp1_pipeline *pipe);
 bool vsp1_pipeline_ready(struct vsp1_pipeline *pipe);
 
-void vsp1_pipeline_display_start(struct vsp1_pipeline *pipe);
 void vsp1_pipeline_frame_end(struct vsp1_pipeline *pipe);
 
 void vsp1_pipeline_propagate_alpha(struct vsp1_pipeline *pipe,
-				   struct vsp1_entity *input,
-				   unsigned int alpha);
+				   struct vsp1_dl_list *dl, unsigned int alpha);
 
 void vsp1_pipelines_suspend(struct vsp1_device *vsp1);
 void vsp1_pipelines_resume(struct vsp1_device *vsp1);
 
-const struct vsp1_format_info *vsp1_get_format_info(u32 fourcc);
+const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
+						    u32 fourcc);
 
 #endif /* __VSP1_PIPE_H__ */

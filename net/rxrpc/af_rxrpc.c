@@ -9,6 +9,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/net.h>
@@ -30,8 +32,6 @@ MODULE_ALIAS_NETPROTO(PF_RXRPC);
 unsigned int rxrpc_debug; // = RXRPC_DEBUG_KPROTO;
 module_param_named(debug, rxrpc_debug, uint, S_IWUSR | S_IRUGO);
 MODULE_PARM_DESC(debug, "RxRPC debugging mask");
-
-static int sysctl_rxrpc_max_qlen __read_mostly = 10;
 
 static struct proto rxrpc_proto;
 static const struct proto_ops rxrpc_rpc_ops;
@@ -97,11 +97,13 @@ static int rxrpc_validate_address(struct rxrpc_sock *rx,
 	    srx->transport_len > len)
 		return -EINVAL;
 
-	if (srx->transport.family != rx->proto)
+	if (srx->transport.family != rx->family)
 		return -EAFNOSUPPORT;
 
 	switch (srx->transport.family) {
 	case AF_INET:
+		if (srx->transport_len < sizeof(struct sockaddr_in))
+			return -EINVAL;
 		_debug("INET: %x @ %pI4",
 		       ntohs(srx->transport.sin.sin_port),
 		       &srx->transport.sin.sin_addr);
@@ -137,33 +139,33 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 
 	lock_sock(&rx->sk);
 
-	if (rx->sk.sk_state != RXRPC_UNCONNECTED) {
+	if (rx->sk.sk_state != RXRPC_UNBOUND) {
 		ret = -EINVAL;
 		goto error_unlock;
 	}
 
 	memcpy(&rx->srx, srx, sizeof(rx->srx));
 
-	/* Find or create a local transport endpoint to use */
 	local = rxrpc_lookup_local(&rx->srx);
 	if (IS_ERR(local)) {
 		ret = PTR_ERR(local);
 		goto error_unlock;
 	}
 
-	rx->local = local;
-	if (srx->srx_service) {
+	if (rx->srx.srx_service) {
 		write_lock_bh(&local->services_lock);
 		list_for_each_entry(prx, &local->services, listen_link) {
-			if (prx->srx.srx_service == srx->srx_service)
+			if (prx->srx.srx_service == rx->srx.srx_service)
 				goto service_in_use;
 		}
 
+		rx->local = local;
 		list_add_tail(&rx->listen_link, &local->services);
 		write_unlock_bh(&local->services_lock);
 
 		rx->sk.sk_state = RXRPC_SERVER_BOUND;
 	} else {
+		rx->local = local;
 		rx->sk.sk_state = RXRPC_CLIENT_BOUND;
 	}
 
@@ -172,8 +174,9 @@ static int rxrpc_bind(struct socket *sock, struct sockaddr *saddr, int len)
 	return 0;
 
 service_in_use:
-	ret = -EADDRINUSE;
 	write_unlock_bh(&local->services_lock);
+	rxrpc_put_local(local);
+	ret = -EADDRINUSE;
 error_unlock:
 	release_sock(&rx->sk);
 error:
@@ -188,6 +191,7 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	unsigned int max;
 	int ret;
 
 	_enter("%p,%d", rx, backlog);
@@ -195,19 +199,23 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 	lock_sock(&rx->sk);
 
 	switch (rx->sk.sk_state) {
-	case RXRPC_UNCONNECTED:
+	case RXRPC_UNBOUND:
 		ret = -EADDRNOTAVAIL;
-		break;
-	case RXRPC_CLIENT_BOUND:
-	case RXRPC_CLIENT_CONNECTED:
-	default:
-		ret = -EBUSY;
 		break;
 	case RXRPC_SERVER_BOUND:
 		ASSERT(rx->local != NULL);
+		max = READ_ONCE(rxrpc_max_backlog);
+		ret = -EINVAL;
+		if (backlog == INT_MAX)
+			backlog = max;
+		else if (backlog < 0 || backlog > max)
+			break;
 		sk->sk_max_ack_backlog = backlog;
 		rx->sk.sk_state = RXRPC_SERVER_LISTENING;
 		ret = 0;
+		break;
+	default:
+		ret = -EBUSY;
 		break;
 	}
 
@@ -216,45 +224,10 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 	return ret;
 }
 
-/*
- * find a transport by address
- */
-static struct rxrpc_transport *rxrpc_name_to_transport(struct socket *sock,
-						       struct sockaddr *addr,
-						       int addr_len, int flags,
-						       gfp_t gfp)
-{
-	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *) addr;
-	struct rxrpc_transport *trans;
-	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
-	struct rxrpc_peer *peer;
-
-	_enter("%p,%p,%d,%d", rx, addr, addr_len, flags);
-
-	ASSERT(rx->local != NULL);
-	ASSERT(rx->sk.sk_state > RXRPC_UNCONNECTED);
-
-	if (rx->srx.transport_type != srx->transport_type)
-		return ERR_PTR(-ESOCKTNOSUPPORT);
-	if (rx->srx.transport.family != srx->transport.family)
-		return ERR_PTR(-EAFNOSUPPORT);
-
-	/* find a remote transport endpoint from the local one */
-	peer = rxrpc_get_peer(srx, gfp);
-	if (IS_ERR(peer))
-		return ERR_CAST(peer);
-
-	/* find a transport */
-	trans = rxrpc_get_transport(rx->local, peer, gfp);
-	rxrpc_put_peer(peer);
-	_leave(" = %p", trans);
-	return trans;
-}
-
 /**
  * rxrpc_kernel_begin_call - Allow a kernel service to begin a call
  * @sock: The socket on which to make the call
- * @srx: The address of the peer to contact (defaults to socket setting)
+ * @srx: The address of the peer to contact
  * @key: The security context to use (defaults to socket setting)
  * @user_call_ID: The ID to use
  *
@@ -271,51 +244,32 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 					   unsigned long user_call_ID,
 					   gfp_t gfp)
 {
-	struct rxrpc_conn_bundle *bundle;
-	struct rxrpc_transport *trans;
+	struct rxrpc_conn_parameters cp;
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
+	int ret;
 
 	_enter(",,%x,%lx", key_serial(key), user_call_ID);
 
+	ret = rxrpc_validate_address(rx, srx, sizeof(*srx));
+	if (ret < 0)
+		return ERR_PTR(ret);
+
 	lock_sock(&rx->sk);
 
-	if (srx) {
-		trans = rxrpc_name_to_transport(sock, (struct sockaddr *) srx,
-						sizeof(*srx), 0, gfp);
-		if (IS_ERR(trans)) {
-			call = ERR_CAST(trans);
-			trans = NULL;
-			goto out_notrans;
-		}
-	} else {
-		trans = rx->trans;
-		if (!trans) {
-			call = ERR_PTR(-ENOTCONN);
-			goto out_notrans;
-		}
-		atomic_inc(&trans->usage);
-	}
-
-	if (!srx)
-		srx = &rx->srx;
 	if (!key)
 		key = rx->key;
 	if (key && !key->payload.data[0])
 		key = NULL; /* a no-security key */
 
-	bundle = rxrpc_get_bundle(rx, trans, key, srx->srx_service, gfp);
-	if (IS_ERR(bundle)) {
-		call = ERR_CAST(bundle);
-		goto out;
-	}
+	memset(&cp, 0, sizeof(cp));
+	cp.local		= rx->local;
+	cp.key			= key;
+	cp.security_level	= 0;
+	cp.exclusive		= false;
+	cp.service_id		= srx->srx_service;
+	call = rxrpc_new_client_call(rx, &cp, srx, user_call_ID, gfp);
 
-	call = rxrpc_get_client_call(rx, trans, bundle, user_call_ID, true,
-				     gfp);
-	rxrpc_put_bundle(trans, bundle);
-out:
-	rxrpc_put_transport(trans);
-out_notrans:
 	release_sock(&rx->sk);
 	_leave(" = %p", call);
 	return call;
@@ -367,11 +321,8 @@ EXPORT_SYMBOL(rxrpc_kernel_intercept_rx_messages);
 static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
 			 int addr_len, int flags)
 {
-	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *) addr;
-	struct sock *sk = sock->sk;
-	struct rxrpc_transport *trans;
-	struct rxrpc_local *local;
-	struct rxrpc_sock *rx = rxrpc_sk(sk);
+	struct sockaddr_rxrpc *srx = (struct sockaddr_rxrpc *)addr;
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	int ret;
 
 	_enter("%p,%p,%d,%d", rx, addr, addr_len, flags);
@@ -384,45 +335,28 @@ static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
 
 	lock_sock(&rx->sk);
 
+	ret = -EISCONN;
+	if (test_bit(RXRPC_SOCK_CONNECTED, &rx->flags))
+		goto error;
+
 	switch (rx->sk.sk_state) {
-	case RXRPC_UNCONNECTED:
-		/* find a local transport endpoint if we don't have one already */
-		ASSERTCMP(rx->local, ==, NULL);
-		rx->srx.srx_family = AF_RXRPC;
-		rx->srx.srx_service = 0;
-		rx->srx.transport_type = srx->transport_type;
-		rx->srx.transport_len = sizeof(sa_family_t);
-		rx->srx.transport.family = srx->transport.family;
-		local = rxrpc_lookup_local(&rx->srx);
-		if (IS_ERR(local)) {
-			release_sock(&rx->sk);
-			return PTR_ERR(local);
-		}
-		rx->local = local;
-		rx->sk.sk_state = RXRPC_CLIENT_BOUND;
+	case RXRPC_UNBOUND:
+		rx->sk.sk_state = RXRPC_CLIENT_UNBOUND;
+	case RXRPC_CLIENT_UNBOUND:
 	case RXRPC_CLIENT_BOUND:
 		break;
-	case RXRPC_CLIENT_CONNECTED:
-		release_sock(&rx->sk);
-		return -EISCONN;
 	default:
-		release_sock(&rx->sk);
-		return -EBUSY; /* server sockets can't connect as well */
+		ret = -EBUSY;
+		goto error;
 	}
 
-	trans = rxrpc_name_to_transport(sock, addr, addr_len, flags,
-					GFP_KERNEL);
-	if (IS_ERR(trans)) {
-		release_sock(&rx->sk);
-		_leave(" = %ld", PTR_ERR(trans));
-		return PTR_ERR(trans);
-	}
+	rx->connect_srx = *srx;
+	set_bit(RXRPC_SOCK_CONNECTED, &rx->flags);
+	ret = 0;
 
-	rx->trans = trans;
-	rx->sk.sk_state = RXRPC_CLIENT_CONNECTED;
-
+error:
 	release_sock(&rx->sk);
-	return 0;
+	return ret;
 }
 
 /*
@@ -436,7 +370,7 @@ static int rxrpc_connect(struct socket *sock, struct sockaddr *addr,
  */
 static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 {
-	struct rxrpc_transport *trans;
+	struct rxrpc_local *local;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
 	int ret;
 
@@ -453,48 +387,38 @@ static int rxrpc_sendmsg(struct socket *sock, struct msghdr *m, size_t len)
 		}
 	}
 
-	trans = NULL;
 	lock_sock(&rx->sk);
 
-	if (m->msg_name) {
-		ret = -EISCONN;
-		trans = rxrpc_name_to_transport(sock, m->msg_name,
-						m->msg_namelen, 0, GFP_KERNEL);
-		if (IS_ERR(trans)) {
-			ret = PTR_ERR(trans);
-			trans = NULL;
-			goto out;
-		}
-	} else {
-		trans = rx->trans;
-		if (trans)
-			atomic_inc(&trans->usage);
-	}
-
 	switch (rx->sk.sk_state) {
-	case RXRPC_SERVER_LISTENING:
-		if (!m->msg_name) {
-			ret = rxrpc_server_sendmsg(rx, m, len);
-			break;
+	case RXRPC_UNBOUND:
+		local = rxrpc_lookup_local(&rx->srx);
+		if (IS_ERR(local)) {
+			ret = PTR_ERR(local);
+			goto error_unlock;
+		}
+
+		rx->local = local;
+		rx->sk.sk_state = RXRPC_CLIENT_UNBOUND;
+		/* Fall through */
+
+	case RXRPC_CLIENT_UNBOUND:
+	case RXRPC_CLIENT_BOUND:
+		if (!m->msg_name &&
+		    test_bit(RXRPC_SOCK_CONNECTED, &rx->flags)) {
+			m->msg_name = &rx->connect_srx;
+			m->msg_namelen = sizeof(rx->connect_srx);
 		}
 	case RXRPC_SERVER_BOUND:
-	case RXRPC_CLIENT_BOUND:
-		if (!m->msg_name) {
-			ret = -ENOTCONN;
-			break;
-		}
-	case RXRPC_CLIENT_CONNECTED:
-		ret = rxrpc_client_sendmsg(rx, trans, m, len);
+	case RXRPC_SERVER_LISTENING:
+		ret = rxrpc_do_sendmsg(rx, m, len);
 		break;
 	default:
-		ret = -ENOTCONN;
+		ret = -EINVAL;
 		break;
 	}
 
-out:
+error_unlock:
 	release_sock(&rx->sk);
-	if (trans)
-		rxrpc_put_transport(trans);
 	_leave(" = %d", ret);
 	return ret;
 }
@@ -521,9 +445,9 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			if (optlen != 0)
 				goto error;
 			ret = -EISCONN;
-			if (rx->sk.sk_state != RXRPC_UNCONNECTED)
+			if (rx->sk.sk_state != RXRPC_UNBOUND)
 				goto error;
-			set_bit(RXRPC_SOCK_EXCLUSIVE_CONN, &rx->flags);
+			rx->exclusive = true;
 			goto success;
 
 		case RXRPC_SECURITY_KEY:
@@ -531,7 +455,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			if (rx->key)
 				goto error;
 			ret = -EISCONN;
-			if (rx->sk.sk_state != RXRPC_UNCONNECTED)
+			if (rx->sk.sk_state != RXRPC_UNBOUND)
 				goto error;
 			ret = rxrpc_request_key(rx, optval, optlen);
 			goto error;
@@ -541,7 +465,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			if (rx->key)
 				goto error;
 			ret = -EISCONN;
-			if (rx->sk.sk_state != RXRPC_UNCONNECTED)
+			if (rx->sk.sk_state != RXRPC_UNBOUND)
 				goto error;
 			ret = rxrpc_server_keyring(rx, optval, optlen);
 			goto error;
@@ -551,7 +475,7 @@ static int rxrpc_setsockopt(struct socket *sock, int level, int optname,
 			if (optlen != sizeof(unsigned int))
 				goto error;
 			ret = -EISCONN;
-			if (rx->sk.sk_state != RXRPC_UNCONNECTED)
+			if (rx->sk.sk_state != RXRPC_UNBOUND)
 				goto error;
 			ret = get_user(min_sec_level,
 				       (unsigned int __user *) optval);
@@ -630,13 +554,13 @@ static int rxrpc_create(struct net *net, struct socket *sock, int protocol,
 		return -ENOMEM;
 
 	sock_init_data(sock, sk);
-	sk->sk_state		= RXRPC_UNCONNECTED;
+	sk->sk_state		= RXRPC_UNBOUND;
 	sk->sk_write_space	= rxrpc_write_space;
-	sk->sk_max_ack_backlog	= sysctl_rxrpc_max_qlen;
+	sk->sk_max_ack_backlog	= 0;
 	sk->sk_destruct		= rxrpc_sock_destructor;
 
 	rx = rxrpc_sk(sk);
-	rx->proto = protocol;
+	rx->family = protocol;
 	rx->calls = RB_ROOT;
 
 	INIT_LIST_HEAD(&rx->listen_link);
@@ -698,24 +622,8 @@ static int rxrpc_release_sock(struct sock *sk)
 	flush_workqueue(rxrpc_workqueue);
 	rxrpc_purge_queue(&sk->sk_receive_queue);
 
-	if (rx->conn) {
-		rxrpc_put_connection(rx->conn);
-		rx->conn = NULL;
-	}
-
-	if (rx->bundle) {
-		rxrpc_put_bundle(rx->trans, rx->bundle);
-		rx->bundle = NULL;
-	}
-	if (rx->trans) {
-		rxrpc_put_transport(rx->trans);
-		rx->trans = NULL;
-	}
-	if (rx->local) {
-		rxrpc_put_local(rx->local);
-		rx->local = NULL;
-	}
-
+	rxrpc_put_local(rx->local);
+	rx->local = NULL;
 	key_put(rx->key);
 	rx->key = NULL;
 	key_put(rx->securities);
@@ -796,43 +704,49 @@ static int __init af_rxrpc_init(void)
 		"rxrpc_call_jar", sizeof(struct rxrpc_call), 0,
 		SLAB_HWCACHE_ALIGN, NULL);
 	if (!rxrpc_call_jar) {
-		printk(KERN_NOTICE "RxRPC: Failed to allocate call jar\n");
+		pr_notice("Failed to allocate call jar\n");
 		goto error_call_jar;
 	}
 
 	rxrpc_workqueue = alloc_workqueue("krxrpcd", 0, 1);
 	if (!rxrpc_workqueue) {
-		printk(KERN_NOTICE "RxRPC: Failed to allocate work queue\n");
+		pr_notice("Failed to allocate work queue\n");
 		goto error_work_queue;
+	}
+
+	ret = rxrpc_init_security();
+	if (ret < 0) {
+		pr_crit("Cannot initialise security\n");
+		goto error_security;
 	}
 
 	ret = proto_register(&rxrpc_proto, 1);
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register protocol\n");
+		pr_crit("Cannot register protocol\n");
 		goto error_proto;
 	}
 
 	ret = sock_register(&rxrpc_family_ops);
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register socket family\n");
+		pr_crit("Cannot register socket family\n");
 		goto error_sock;
 	}
 
 	ret = register_key_type(&key_type_rxrpc);
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register client key type\n");
+		pr_crit("Cannot register client key type\n");
 		goto error_key_type;
 	}
 
 	ret = register_key_type(&key_type_rxrpc_s);
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register server key type\n");
+		pr_crit("Cannot register server key type\n");
 		goto error_key_type_s;
 	}
 
 	ret = rxrpc_sysctl_init();
 	if (ret < 0) {
-		printk(KERN_CRIT "RxRPC: Cannot register sysctls\n");
+		pr_crit("Cannot register sysctls\n");
 		goto error_sysctls;
 	}
 
@@ -852,6 +766,8 @@ error_key_type:
 error_sock:
 	proto_unregister(&rxrpc_proto);
 error_proto:
+	rxrpc_exit_security();
+error_security:
 	destroy_workqueue(rxrpc_workqueue);
 error_work_queue:
 	kmem_cache_destroy(rxrpc_call_jar);
@@ -872,17 +788,13 @@ static void __exit af_rxrpc_exit(void)
 	proto_unregister(&rxrpc_proto);
 	rxrpc_destroy_all_calls();
 	rxrpc_destroy_all_connections();
-	rxrpc_destroy_all_transports();
-	rxrpc_destroy_all_peers();
+	ASSERTCMP(atomic_read(&rxrpc_n_skbs), ==, 0);
 	rxrpc_destroy_all_locals();
 
-	ASSERTCMP(atomic_read(&rxrpc_n_skbs), ==, 0);
-
-	_debug("flush scheduled work");
-	flush_workqueue(rxrpc_workqueue);
 	remove_proc_entry("rxrpc_conns", init_net.proc_net);
 	remove_proc_entry("rxrpc_calls", init_net.proc_net);
 	destroy_workqueue(rxrpc_workqueue);
+	rxrpc_exit_security();
 	kmem_cache_destroy(rxrpc_call_jar);
 	_leave("");
 }

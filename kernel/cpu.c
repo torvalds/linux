@@ -517,6 +517,13 @@ static int cpuhp_invoke_ap_callback(int cpu, enum cpuhp_state state,
 	if (!cpu_online(cpu))
 		return 0;
 
+	/*
+	 * If we are up and running, use the hotplug thread. For early calls
+	 * we invoke the thread function directly.
+	 */
+	if (!st->thread)
+		return cpuhp_invoke_callback(cpu, state, cb);
+
 	st->cb_state = state;
 	st->cb = cb;
 	/*
@@ -702,21 +709,6 @@ static int takedown_cpu(unsigned int cpu)
 {
 	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
 	int err;
-
-	/*
-	 * By now we've cleared cpu_active_mask, wait for all preempt-disabled
-	 * and RCU users of this state to go away such that all new such users
-	 * will observe it.
-	 *
-	 * For CONFIG_PREEMPT we have preemptible RCU and its sync_rcu() might
-	 * not imply sync_sched(), so wait for both.
-	 *
-	 * Do sync before park smpboot threads to take care the rcu boost case.
-	 */
-	if (IS_ENABLED(CONFIG_PREEMPT))
-		synchronize_rcu_mult(call_rcu, call_rcu_sched);
-	else
-		synchronize_rcu();
 
 	/* Park the smpboot threads */
 	kthread_park(per_cpu_ptr(&cpuhp_state, cpu)->thread);
@@ -923,8 +915,6 @@ void cpuhp_online_idle(enum cpuhp_state state)
 
 	st->state = CPUHP_AP_ONLINE_IDLE;
 
-	/* The cpu is marked online, set it active now */
-	set_cpu_active(cpu, true);
 	/* Unpark the stopper thread and the hotplug thread of this cpu */
 	stop_machine_unpark(cpu);
 	kthread_unpark(st->thread);
@@ -1190,6 +1180,31 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown		= NULL,
 		.cant_stop		= true,
 	},
+	[CPUHP_PERF_PREPARE] = {
+		.name = "perf prepare",
+		.startup = perf_event_init_cpu,
+		.teardown = perf_event_exit_cpu,
+	},
+	[CPUHP_WORKQUEUE_PREP] = {
+		.name = "workqueue prepare",
+		.startup = workqueue_prepare_cpu,
+		.teardown = NULL,
+	},
+	[CPUHP_HRTIMERS_PREPARE] = {
+		.name = "hrtimers prepare",
+		.startup = hrtimers_prepare_cpu,
+		.teardown = hrtimers_dead_cpu,
+	},
+	[CPUHP_SMPCFD_PREPARE] = {
+		.name = "SMPCFD prepare",
+		.startup = smpcfd_prepare_cpu,
+		.teardown = smpcfd_dead_cpu,
+	},
+	[CPUHP_RCUTREE_PREP] = {
+		.name = "RCU-tree prepare",
+		.startup = rcutree_prepare_cpu,
+		.teardown = rcutree_dead_cpu,
+	},
 	/*
 	 * Preparatory and dead notifiers. Will be replaced once the notifiers
 	 * are converted to states.
@@ -1201,12 +1216,26 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.skip_onerr		= true,
 		.cant_stop		= true,
 	},
+	/*
+	 * On the tear-down path, timers_dead_cpu() must be invoked
+	 * before blk_mq_queue_reinit_notify() from notify_dead(),
+	 * otherwise a RCU stall occurs.
+	 */
+	[CPUHP_TIMERS_DEAD] = {
+		.name = "timers dead",
+		.startup = NULL,
+		.teardown = timers_dead_cpu,
+	},
 	/* Kicks the plugged cpu into life */
 	[CPUHP_BRINGUP_CPU] = {
 		.name			= "cpu:bringup",
 		.startup		= bringup_cpu,
 		.teardown		= NULL,
 		.cant_stop		= true,
+	},
+	[CPUHP_AP_SMPCFD_DYING] = {
+		.startup = NULL,
+		.teardown = smpcfd_dying_cpu,
 	},
 	/*
 	 * Handled on controll processor until the plugged processor manages
@@ -1218,6 +1247,8 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown		= takedown_cpu,
 		.cant_stop		= true,
 	},
+#else
+	[CPUHP_BRINGUP_CPU] = { },
 #endif
 };
 
@@ -1235,6 +1266,16 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	[CPUHP_AP_OFFLINE] = {
 		.name			= "ap:offline",
 		.cant_stop		= true,
+	},
+	/* First state is scheduler control. Interrupts are disabled */
+	[CPUHP_AP_SCHED_STARTING] = {
+		.name			= "sched:starting",
+		.startup		= sched_cpu_starting,
+		.teardown		= sched_cpu_dying,
+	},
+	[CPUHP_AP_RCUTREE_DYING] = {
+		.startup = NULL,
+		.teardown = rcutree_dying_cpu,
 	},
 	/*
 	 * Low level startup/teardown notifiers. Run with interrupts
@@ -1259,6 +1300,22 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.startup		= smpboot_unpark_threads,
 		.teardown		= NULL,
 	},
+	[CPUHP_AP_PERF_ONLINE] = {
+		.name = "perf online",
+		.startup = perf_event_init_cpu,
+		.teardown = perf_event_exit_cpu,
+	},
+	[CPUHP_AP_WORKQUEUE_ONLINE] = {
+		.name = "workqueue online",
+		.startup = workqueue_online_cpu,
+		.teardown = workqueue_offline_cpu,
+	},
+	[CPUHP_AP_RCUTREE_ONLINE] = {
+		.name = "RCU-tree online",
+		.startup = rcutree_online_cpu,
+		.teardown = rcutree_offline_cpu,
+	},
+
 	/*
 	 * Online/down_prepare notifiers. Will be removed once the notifiers
 	 * are converted to states.
@@ -1273,6 +1330,15 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 	/*
 	 * The dynamically registered state space is here
 	 */
+
+#ifdef CONFIG_SMP
+	/* Last state is scheduler control setting the cpu active */
+	[CPUHP_AP_ACTIVE] = {
+		.name			= "sched:active",
+		.startup		= sched_cpu_activate,
+		.teardown		= sched_cpu_deactivate,
+	},
+#endif
 
 	/* CPU is fully up and running. */
 	[CPUHP_ONLINE] = {

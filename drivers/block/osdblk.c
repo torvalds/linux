@@ -321,7 +321,7 @@ static void osdblk_rq_fn(struct request_queue *q)
 		 * driver-specific, etc.
 		 */
 
-		do_flush = rq->cmd_flags & REQ_FLUSH;
+		do_flush = (req_op(rq) == REQ_OP_FLUSH);
 		do_write = (rq_data_dir(rq) == WRITE);
 
 		if (!do_flush) { /* osd_flush does not use a bio */
@@ -437,7 +437,7 @@ static int osdblk_init_disk(struct osdblk_device *osdev)
 	blk_queue_stack_limits(q, osd_request_queue(osdev->osd));
 
 	blk_queue_prep_rq(q, blk_queue_start_tag);
-	blk_queue_flush(q, REQ_FLUSH);
+	blk_queue_write_cache(q, true, false);
 
 	disk->queue = q;
 

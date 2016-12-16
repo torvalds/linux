@@ -287,7 +287,6 @@ static struct jz4780_bch *jz4780_bch_get(struct device_node *np)
 	bch = platform_get_drvdata(pdev);
 	clk_prepare_enable(bch->clk);
 
-	bch->dev = &pdev->dev;
 	return bch;
 }
 
@@ -376,6 +375,6 @@ static struct platform_driver jz4780_bch_driver = {
 module_platform_driver(jz4780_bch_driver);
 
 MODULE_AUTHOR("Alex Smith <alex@alex-smith.me.uk>");
-MODULE_AUTHOR("Harvey Hunt <harvey.hunt@imgtec.com>");
+MODULE_AUTHOR("Harvey Hunt <harveyhuntnexus@gmail.com>");
 MODULE_DESCRIPTION("Ingenic JZ4780 BCH error correction driver");
 MODULE_LICENSE("GPL v2");

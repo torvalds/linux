@@ -295,9 +295,8 @@ static int ast_get_dram_info(struct drm_device *dev)
 static void ast_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct ast_framebuffer *ast_fb = to_ast_framebuffer(fb);
-	if (ast_fb->obj)
-		drm_gem_object_unreference_unlocked(ast_fb->obj);
 
+	drm_gem_object_unreference_unlocked(ast_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(fb);
 }
@@ -333,7 +332,7 @@ ast_user_framebuffer_create(struct drm_device *dev,
 	struct ast_framebuffer *ast_fb;
 	int ret;
 
-	obj = drm_gem_object_lookup(dev, filp, mode_cmd->handles[0]);
+	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
 	if (obj == NULL)
 		return ERR_PTR(-ENOENT);
 
@@ -574,7 +573,7 @@ ast_dumb_mmap_offset(struct drm_file *file,
 	struct drm_gem_object *obj;
 	struct ast_bo *bo;
 
-	obj = drm_gem_object_lookup(dev, file, handle);
+	obj = drm_gem_object_lookup(file, handle);
 	if (obj == NULL)
 		return -ENOENT;
 

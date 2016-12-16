@@ -352,10 +352,8 @@ static int bcma_hcd_probe(struct bcma_device *core)
 	usb_dev->core = core;
 
 	if (core->dev.of_node)
-		usb_dev->gpio_desc = devm_get_gpiod_from_child(&core->dev, "vcc",
-							       &core->dev.of_node->fwnode);
-	if (!IS_ERR_OR_NULL(usb_dev->gpio_desc))
-		gpiod_direction_output(usb_dev->gpio_desc, 1);
+		usb_dev->gpio_desc = devm_gpiod_get(&core->dev, "vcc",
+						    GPIOD_OUT_HIGH);
 
 	switch (core->id.id) {
 	case BCMA_CORE_USB20_HOST:

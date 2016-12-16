@@ -35,6 +35,7 @@ config USB_XHCI_PCI
 
 config USB_XHCI_PLATFORM
 	tristate "Generic xHCI driver for a platform device"
+	select USB_XHCI_RCAR if ARCH_RENESAS
 	---help---
 	  Adds an xHCI host driver for a generic platform device, which
 	  provides a memory space and an irq.
@@ -63,11 +64,20 @@ config USB_XHCI_MVEBU
 
 config USB_XHCI_RCAR
 	tristate "xHCI support for Renesas R-Car SoCs"
-	select USB_XHCI_PLATFORM
+	depends on USB_XHCI_PLATFORM
 	depends on ARCH_RENESAS || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Renesas R-Car ARM SoCs.
+
+config USB_XHCI_TEGRA
+	tristate "xHCI support for NVIDIA Tegra SoCs"
+	depends on PHY_TEGRA_XUSB
+	depends on RESET_CONTROLLER
+	select FW_LOADER
+	---help---
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in NVIDIA Tegra124 and later SoCs.
 
 endif # USB_XHCI_HCD
 
@@ -170,7 +180,7 @@ config USB_EHCI_MXC
 config USB_EHCI_HCD_OMAP
 	tristate "EHCI support for OMAP3 and later chips"
 	depends on ARCH_OMAP
-	select NOP_USB_XCEIV
+	depends on NOP_USB_XCEIV
 	default y
 	---help---
 	  Enables support for the on-chip EHCI controller on

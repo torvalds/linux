@@ -66,7 +66,7 @@ struct hv_24x7_result_element {
 	/* -1 if @performance_domain does not refer to a virtual processor */
 	__be32 lpar_cfg_instance_id;
 
-	/* size = @result_element_data_size of cointaining result. */
+	/* size = @result_element_data_size of containing result. */
 	__u64 element_data[1];
 } __packed;
 

@@ -44,6 +44,9 @@ Elf_Scn *elf_section_by_name(Elf *elf, GElf_Ehdr *ep,
 #define DMGL_ANSI        (1 << 1)       /* Include const, volatile, etc */
 #endif
 
+#define DSO__NAME_KALLSYMS	"[kernel.kallsyms]"
+#define DSO__NAME_KCORE		"[kernel.kcore]"
+
 /** struct symbol - symtab entry
  *
  * @ignore - resolvable but tools ignore it (e.g. idle routines)
@@ -55,6 +58,7 @@ struct symbol {
 	u16		namelen;
 	u8		binding;
 	bool		ignore;
+	u8		arch_sym;
 	char		name[0];
 };
 
@@ -140,6 +144,11 @@ struct symbol_conf {
 
 extern struct symbol_conf symbol_conf;
 
+struct symbol_name_rb_node {
+	struct rb_node	rb_node;
+	struct symbol	sym;
+};
+
 static inline int __symbol__join_symfs(char *bf, size_t size, const char *path)
 {
 	return path__join(bf, size, symbol_conf.symfs, path);
@@ -177,6 +186,8 @@ struct branch_info {
 	struct addr_map_symbol from;
 	struct addr_map_symbol to;
 	struct branch_flags flags;
+	char			*srcline_from;
+	char			*srcline_to;
 };
 
 struct mem_info {
@@ -235,8 +246,13 @@ int dso__load_vmlinux(struct dso *dso, struct map *map,
 		      symbol_filter_t filter);
 int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 			   symbol_filter_t filter);
+int __dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
+			 bool no_kcore, symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
 		       symbol_filter_t filter);
+
+void dso__insert_symbol(struct dso *dso, enum map_type type,
+			struct symbol *sym);
 
 struct symbol *dso__find_symbol(struct dso *dso, enum map_type type,
 				u64 addr);
@@ -262,14 +278,22 @@ int symbol__init(struct perf_env *env);
 void symbol__exit(void);
 void symbol__elf_init(void);
 struct symbol *symbol__new(u64 start, u64 len, u8 binding, const char *name);
+size_t __symbol__fprintf_symname_offs(const struct symbol *sym,
+				      const struct addr_location *al,
+				      bool unknown_as_addr, FILE *fp);
 size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 				    const struct addr_location *al, FILE *fp);
+size_t __symbol__fprintf_symname(const struct symbol *sym,
+				 const struct addr_location *al,
+				 bool unknown_as_addr, FILE *fp);
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 size_t symbol__fprintf(struct symbol *sym, FILE *fp);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 bool symbol__restricted_filename(const char *filename,
 				 const char *restricted_filename);
 bool symbol__is_idle(struct symbol *sym);
+int symbol__config_symfs(const struct option *opt __maybe_unused,
+			 const char *dir, int unset __maybe_unused);
 
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		  struct symsrc *runtime_ss, symbol_filter_t filter,
@@ -310,12 +334,34 @@ int setup_intlist(struct intlist **list, const char *list_str,
 
 #ifdef HAVE_LIBELF_SUPPORT
 bool elf__needs_adjust_symbols(GElf_Ehdr ehdr);
-void arch__elf_sym_adjust(GElf_Sym *sym);
+void arch__sym_update(struct symbol *s, GElf_Sym *sym);
 #endif
 
 #define SYMBOL_A 0
 #define SYMBOL_B 1
 
 int arch__choose_best_symbol(struct symbol *syma, struct symbol *symb);
+
+/* structure containing an SDT note's info */
+struct sdt_note {
+	char *name;			/* name of the note*/
+	char *provider;			/* provider name */
+	bool bit32;			/* whether the location is 32 bits? */
+	union {				/* location, base and semaphore addrs */
+		Elf64_Addr a64[3];
+		Elf32_Addr a32[3];
+	} addr;
+	struct list_head note_list;	/* SDT notes' list */
+};
+
+int get_sdt_note_list(struct list_head *head, const char *target);
+int cleanup_sdt_note_list(struct list_head *sdt_notes);
+int sdt_notes__get_count(struct list_head *start);
+
+#define SDT_BASE_SCN ".stapsdt.base"
+#define SDT_NOTE_SCN  ".note.stapsdt"
+#define SDT_NOTE_TYPE 3
+#define SDT_NOTE_NAME "stapsdt"
+#define NR_ADDR 3
 
 #endif /* __PERF_SYMBOL */

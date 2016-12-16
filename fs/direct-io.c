@@ -108,7 +108,8 @@ struct dio_submit {
 /* dio_state communicated between submission path and end_io */
 struct dio {
 	int flags;			/* doesn't change */
-	int rw;
+	int op;
+	int op_flags;
 	blk_qc_t bio_cookie;
 	struct block_device *bio_bdev;
 	struct inode *inode;
@@ -163,7 +164,7 @@ static inline int dio_refill_pages(struct dio *dio, struct dio_submit *sdio)
 	ret = iov_iter_get_pages(sdio->iter, dio->pages, LONG_MAX, DIO_PAGES,
 				&sdio->from);
 
-	if (ret < 0 && sdio->blocks_available && (dio->rw & WRITE)) {
+	if (ret < 0 && sdio->blocks_available && (dio->op == REQ_OP_WRITE)) {
 		struct page *page = ZERO_PAGE(0);
 		/*
 		 * A memory fault, but the filesystem has some outstanding
@@ -224,9 +225,9 @@ static inline struct page *dio_get_page(struct dio *dio,
  * filesystems can use it to hold additional state between get_block calls and
  * dio_complete.
  */
-static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
-		bool is_async)
+static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
 {
+	loff_t offset = dio->iocb->ki_pos;
 	ssize_t transferred = 0;
 
 	/*
@@ -242,7 +243,8 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 		transferred = dio->result;
 
 		/* Check for short read case */
-		if ((dio->rw == READ) && ((offset + transferred) > dio->i_size))
+		if ((dio->op == REQ_OP_READ) &&
+		    ((offset + transferred) > dio->i_size))
 			transferred = dio->i_size - offset;
 	}
 
@@ -256,6 +258,7 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 	if (dio->end_io) {
 		int err;
 
+		// XXX: ki_pos??
 		err = dio->end_io(dio->iocb, offset, ret, dio->private);
 		if (err)
 			ret = err;
@@ -265,15 +268,15 @@ static ssize_t dio_complete(struct dio *dio, loff_t offset, ssize_t ret,
 		inode_dio_end(dio->inode);
 
 	if (is_async) {
-		if (dio->rw & WRITE) {
-			int err;
+		/*
+		 * generic_write_sync expects ki_pos to have been updated
+		 * already, but the submission path only does this for
+		 * synchronous I/O.
+		 */
+		dio->iocb->ki_pos += transferred;
 
-			err = generic_write_sync(dio->iocb->ki_filp, offset,
-						 transferred);
-			if (err < 0 && ret > 0)
-				ret = err;
-		}
-
+		if (dio->op == REQ_OP_WRITE)
+			ret = generic_write_sync(dio->iocb,  transferred);
 		dio->iocb->ki_complete(dio->iocb, ret, 0);
 	}
 
@@ -285,7 +288,7 @@ static void dio_aio_complete_work(struct work_struct *work)
 {
 	struct dio *dio = container_of(work, struct dio, complete_work);
 
-	dio_complete(dio, dio->iocb->ki_pos, 0, true);
+	dio_complete(dio, 0, true);
 }
 
 static int dio_bio_complete(struct dio *dio, struct bio *bio);
@@ -314,7 +317,7 @@ static void dio_bio_end_aio(struct bio *bio)
 			queue_work(dio->inode->i_sb->s_dio_done_wq,
 				   &dio->complete_work);
 		} else {
-			dio_complete(dio, dio->iocb->ki_pos, 0, true);
+			dio_complete(dio, 0, true);
 		}
 	}
 }
@@ -374,6 +377,7 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
 
 	bio->bi_bdev = bdev;
 	bio->bi_iter.bi_sector = first_sector;
+	bio_set_op_attrs(bio, dio->op, dio->op_flags);
 	if (dio->is_async)
 		bio->bi_end_io = dio_bio_end_aio;
 	else
@@ -401,17 +405,16 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
 	dio->refcount++;
 	spin_unlock_irqrestore(&dio->bio_lock, flags);
 
-	if (dio->is_async && dio->rw == READ && dio->should_dirty)
+	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty)
 		bio_set_pages_dirty(bio);
 
 	dio->bio_bdev = bio->bi_bdev;
 
 	if (sdio->submit_io) {
-		sdio->submit_io(dio->rw, bio, dio->inode,
-			       sdio->logical_offset_in_bio);
+		sdio->submit_io(bio, dio->inode, sdio->logical_offset_in_bio);
 		dio->bio_cookie = BLK_QC_T_NONE;
 	} else
-		dio->bio_cookie = submit_bio(dio->rw, bio);
+		dio->bio_cookie = submit_bio(bio);
 
 	sdio->bio = NULL;
 	sdio->boundary = 0;
@@ -477,14 +480,14 @@ static int dio_bio_complete(struct dio *dio, struct bio *bio)
 	if (bio->bi_error)
 		dio->io_error = -EIO;
 
-	if (dio->is_async && dio->rw == READ && dio->should_dirty) {
+	if (dio->is_async && dio->op == REQ_OP_READ && dio->should_dirty) {
 		err = bio->bi_error;
 		bio_check_pages_dirty(bio);	/* transfers ownership */
 	} else {
 		bio_for_each_segment_all(bvec, bio, i) {
 			struct page *page = bvec->bv_page;
 
-			if (dio->rw == READ && !PageCompound(page) &&
+			if (dio->op == REQ_OP_READ && !PageCompound(page) &&
 					dio->should_dirty)
 				set_page_dirty_lock(page);
 			put_page(page);
@@ -627,20 +630,20 @@ static int get_more_blocks(struct dio *dio, struct dio_submit *sdio,
 		map_bh->b_size = fs_count << i_blkbits;
 
 		/*
-		 * For writes inside i_size on a DIO_SKIP_HOLES filesystem we
-		 * forbid block creations: only overwrites are permitted.
-		 * We will return early to the caller once we see an
-		 * unmapped buffer head returned, and the caller will fall
-		 * back to buffered I/O.
+		 * For writes that could fill holes inside i_size on a
+		 * DIO_SKIP_HOLES filesystem we forbid block creations: only
+		 * overwrites are permitted. We will return early to the caller
+		 * once we see an unmapped buffer head returned, and the caller
+		 * will fall back to buffered I/O.
 		 *
 		 * Otherwise the decision is left to the get_blocks method,
 		 * which may decide to handle it or also return an unmapped
 		 * buffer head.
 		 */
-		create = dio->rw & WRITE;
+		create = dio->op == REQ_OP_WRITE;
 		if (dio->flags & DIO_SKIP_HOLES) {
-			if (sdio->block_in_file < (i_size_read(dio->inode) >>
-							sdio->blkbits))
+			if (fs_startblk <= ((i_size_read(dio->inode) - 1) >>
+							i_blkbits))
 				create = 0;
 		}
 
@@ -787,7 +790,7 @@ submit_page_section(struct dio *dio, struct dio_submit *sdio, struct page *page,
 {
 	int ret = 0;
 
-	if (dio->rw & WRITE) {
+	if (dio->op == REQ_OP_WRITE) {
 		/*
 		 * Read accounting is performed in submit_bio()
 		 */
@@ -987,7 +990,7 @@ do_holes:
 				loff_t i_size_aligned;
 
 				/* AKPM: eargh, -ENOTBLK is a hack */
-				if (dio->rw & WRITE) {
+				if (dio->op == REQ_OP_WRITE) {
 					put_page(page);
 					return -ENOTBLK;
 				}
@@ -1113,7 +1116,7 @@ static inline int drop_refcount(struct dio *dio)
 static inline ssize_t
 do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		      struct block_device *bdev, struct iov_iter *iter,
-		      loff_t offset, get_block_t get_block, dio_iodone_t end_io,
+		      get_block_t get_block, dio_iodone_t end_io,
 		      dio_submit_t submit_io, int flags)
 {
 	unsigned i_blkbits = ACCESS_ONCE(inode->i_blkbits);
@@ -1121,6 +1124,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	unsigned blocksize_mask = (1 << blkbits) - 1;
 	ssize_t retval = -EINVAL;
 	size_t count = iov_iter_count(iter);
+	loff_t offset = iocb->ki_pos;
 	loff_t end = offset + count;
 	struct dio *dio;
 	struct dio_submit sdio = { 0, };
@@ -1200,7 +1204,12 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		dio->is_async = true;
 
 	dio->inode = inode;
-	dio->rw = iov_iter_rw(iter) == WRITE ? WRITE_ODIRECT : READ;
+	if (iov_iter_rw(iter) == WRITE) {
+		dio->op = REQ_OP_WRITE;
+		dio->op_flags = WRITE_ODIRECT;
+	} else {
+		dio->op = REQ_OP_READ;
+	}
 
 	/*
 	 * For AIO O_(D)SYNC writes we need to defer completions to a workqueue
@@ -1318,7 +1327,7 @@ do_blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 		dio_await_completion(dio);
 
 	if (drop_refcount(dio) == 0) {
-		retval = dio_complete(dio, offset, retval, false);
+		retval = dio_complete(dio, retval, false);
 	} else
 		BUG_ON(retval != -EIOCBQUEUED);
 
@@ -1328,7 +1337,7 @@ out:
 
 ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			     struct block_device *bdev, struct iov_iter *iter,
-			     loff_t offset, get_block_t get_block,
+			     get_block_t get_block,
 			     dio_iodone_t end_io, dio_submit_t submit_io,
 			     int flags)
 {
@@ -1344,7 +1353,7 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	prefetch(bdev->bd_queue);
 	prefetch((char *)bdev->bd_queue + SMP_CACHE_BYTES);
 
-	return do_blockdev_direct_IO(iocb, inode, bdev, iter, offset, get_block,
+	return do_blockdev_direct_IO(iocb, inode, bdev, iter, get_block,
 				     end_io, submit_io, flags);
 }
 

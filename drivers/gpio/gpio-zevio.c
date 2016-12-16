@@ -10,7 +10,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/errno.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/of_device.h>
@@ -203,32 +203,17 @@ static int zevio_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int zevio_gpio_remove(struct platform_device *pdev)
-{
-	struct zevio_gpio *controller = platform_get_drvdata(pdev);
-
-	of_mm_gpiochip_remove(&controller->chip);
-
-	return 0;
-}
-
 static const struct of_device_id zevio_gpio_of_match[] = {
 	{ .compatible = "lsi,zevio-gpio", },
 	{ },
 };
 
-MODULE_DEVICE_TABLE(of, zevio_gpio_of_match);
-
 static struct platform_driver zevio_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-zevio",
 		.of_match_table = zevio_gpio_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= zevio_gpio_probe,
-	.remove		= zevio_gpio_remove,
 };
-module_platform_driver(zevio_gpio_driver);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Fabian Vogt <fabian@ritter-vogt.de>");
-MODULE_DESCRIPTION("LSI ZEVIO SoC GPIO driver");
+builtin_platform_driver(zevio_gpio_driver);

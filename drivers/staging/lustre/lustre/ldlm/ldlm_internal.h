@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -95,9 +91,10 @@ enum {
 	LDLM_CANCEL_PASSED = 1 << 1, /* Cancel passed number of locks. */
 	LDLM_CANCEL_SHRINK = 1 << 2, /* Cancel locks from shrinker. */
 	LDLM_CANCEL_LRUR   = 1 << 3, /* Cancel locks from lru resize. */
-	LDLM_CANCEL_NO_WAIT = 1 << 4 /* Cancel locks w/o blocking (neither
-				      * sending nor waiting for any rpcs)
-				      */
+	LDLM_CANCEL_NO_WAIT = 1 << 4, /* Cancel locks w/o blocking (neither
+				       * sending nor waiting for any rpcs)
+				       */
+	LDLM_CANCEL_LRUR_NO_WAIT = 1 << 5, /* LRUR + NO_WAIT */
 };
 
 int ldlm_cancel_lru(struct ldlm_namespace *ns, int nr,
@@ -145,7 +142,8 @@ void ldlm_lock_decref_internal(struct ldlm_lock *, __u32 mode);
 void ldlm_lock_decref_internal_nolock(struct ldlm_lock *, __u32 mode);
 int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 		      enum ldlm_desc_ast_t ast_type);
-int ldlm_lock_remove_from_lru(struct ldlm_lock *lock);
+int ldlm_lock_remove_from_lru_check(struct ldlm_lock *lock, time_t last_use);
+#define ldlm_lock_remove_from_lru(lock) ldlm_lock_remove_from_lru_check(lock, 0)
 int ldlm_lock_remove_from_lru_nolock(struct ldlm_lock *lock);
 void ldlm_lock_destroy_nolock(struct ldlm_lock *lock);
 
@@ -215,8 +213,6 @@ enum ldlm_policy_res {
 	LDLM_POLICY_KEEP_LOCK,
 	LDLM_POLICY_SKIP_LOCK
 };
-
-typedef enum ldlm_policy_res ldlm_policy_res_t;
 
 #define LDLM_POOL_SYSFS_PRINT_int(v) sprintf(buf, "%d\n", v)
 #define LDLM_POOL_SYSFS_SET_int(a, b) { a = b; }
@@ -305,9 +301,10 @@ static inline int is_granted_or_cancelled(struct ldlm_lock *lock)
 	int ret = 0;
 
 	lock_res_and_lock(lock);
-	if (((lock->l_req_mode == lock->l_granted_mode) &&
-	     !(lock->l_flags & LDLM_FL_CP_REQD)) ||
-	    (lock->l_flags & (LDLM_FL_FAILED | LDLM_FL_CANCEL)))
+	if ((lock->l_req_mode == lock->l_granted_mode) &&
+	     !ldlm_is_cp_reqd(lock))
+		ret = 1;
+	else if (ldlm_is_failed(lock) || ldlm_is_cancel(lock))
 		ret = 1;
 	unlock_res_and_lock(lock);
 

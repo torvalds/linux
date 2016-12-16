@@ -98,7 +98,7 @@ static int pm_allocate_runlist_ib(struct packet_manager *pm,
 	int retval;
 
 	BUG_ON(!pm);
-	BUG_ON(pm->allocated == true);
+	BUG_ON(pm->allocated);
 	BUG_ON(is_over_subscription == NULL);
 
 	pm_calc_rlib_size(pm, rl_buffer_size, is_over_subscription);
@@ -292,7 +292,7 @@ static int pm_create_map_queue(struct packet_manager *pm, uint32_t *buffer,
 			q->properties.doorbell_off;
 
 	packet->mes_map_queues_ordinals[0].bitfields3.is_static =
-			(use_static == true) ? 1 : 0;
+			(use_static) ? 1 : 0;
 
 	packet->mes_map_queues_ordinals[0].mqd_addr_lo =
 			lower_32_bits(q->gart_mqd_addr);
@@ -357,7 +357,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 				alloc_size_bytes);
 
 		list_for_each_entry(kq, &qpd->priv_queue_list, list) {
-			if (kq->queue->properties.is_active != true)
+			if (!kq->queue->properties.is_active)
 				continue;
 
 			pr_debug("kfd: static_queue, mapping kernel q %d, is debug status %d\n",
@@ -383,7 +383,7 @@ static int pm_create_runlist_ib(struct packet_manager *pm,
 		}
 
 		list_for_each_entry(q, &qpd->queues_list, list) {
-			if (q->properties.is_active != true)
+			if (!q->properties.is_active)
 				continue;
 
 			pr_debug("kfd: static_queue, mapping user queue %d, is debug status %d\n",
@@ -531,7 +531,7 @@ fail_create_runlist:
 fail_acquire_packet_buffer:
 	mutex_unlock(&pm->lock);
 fail_create_runlist_ib:
-	if (pm->allocated == true)
+	if (pm->allocated)
 		pm_release_ib(pm);
 	return retval;
 }
@@ -647,7 +647,7 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 	default:
 		BUG();
 		break;
-	};
+	}
 
 	pm->priv_queue->ops.submit_packet(pm->priv_queue);
 

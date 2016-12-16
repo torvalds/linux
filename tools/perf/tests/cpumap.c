@@ -1,5 +1,12 @@
 #include "tests.h"
+#include <stdio.h>
 #include "cpumap.h"
+#include "event.h"
+#include <string.h>
+#include <linux/bitops.h>
+#include "debug.h"
+
+struct machine;
 
 static int process_event_mask(struct perf_tool *tool __maybe_unused,
 			 union perf_event *event,
@@ -84,5 +91,29 @@ int test__cpu_map_synthesize(int subtest __maybe_unused)
 		!perf_event__synthesize_cpu_map(NULL, cpus, process_event_cpus, NULL));
 
 	cpu_map__put(cpus);
+	return 0;
+}
+
+static int cpu_map_print(const char *str)
+{
+	struct cpu_map *map = cpu_map__new(str);
+	char buf[100];
+
+	if (!map)
+		return -1;
+
+	cpu_map__snprint(map, buf, sizeof(buf));
+	return !strcmp(buf, str);
+}
+
+int test__cpu_map_print(int subtest __maybe_unused)
+{
+	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("1"));
+	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("1,5"));
+	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("1,3,5,7,9,11,13,15,17,19,21-40"));
+	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("2-5"));
+	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("1,3-6,8-10,24,35-37"));
+	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("1,3-6,8-10,24,35-37"));
+	TEST_ASSERT_VAL("failed to convert map", cpu_map_print("1-10,12-20,22-30,32-40"));
 	return 0;
 }

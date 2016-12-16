@@ -185,7 +185,7 @@ static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 {
 	if (ipl_block) {
 		diag308(DIAG308_SET, ipl_block);
-		diag308(DIAG308_IPL, NULL);
+		diag308(DIAG308_LOAD_CLEAR, NULL);
 	}
 	return count;
 }

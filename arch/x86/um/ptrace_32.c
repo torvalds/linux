@@ -84,7 +84,10 @@ int putreg(struct task_struct *child, int regno, unsigned long value)
 	case EAX:
 	case EIP:
 	case UESP:
+		break;
 	case ORIG_EAX:
+		/* Update the syscall number. */
+		UPT_SYSCALL_NR(&child->thread.regs.regs) = value;
 		break;
 	case FS:
 		if (value && (value & 3) != 3)
@@ -194,7 +197,8 @@ static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *c
 	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;
 	struct user_i387_struct fpregs;
 
-	err = save_fp_registers(userspace_pid[cpu], (unsigned long *) &fpregs);
+	err = save_i387_registers(userspace_pid[cpu],
+				  (unsigned long *) &fpregs);
 	if (err)
 		return err;
 
@@ -214,7 +218,7 @@ static int set_fpregs(struct user_i387_struct __user *buf, struct task_struct *c
 	if (n > 0)
 		return -EFAULT;
 
-	return restore_fp_registers(userspace_pid[cpu],
+	return restore_i387_registers(userspace_pid[cpu],
 				    (unsigned long *) &fpregs);
 }
 

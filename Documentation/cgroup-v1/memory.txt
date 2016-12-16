@@ -267,11 +267,11 @@ When oom event notifier is registered, event will be delivered.
    Other lock order is following:
    PG_locked.
    mm->page_table_lock
-       zone->lru_lock
+       zone_lru_lock
 	  lock_page_cgroup.
   In many cases, just lock_page_cgroup() is called.
   per-zone-per-cgroup LRU (cgroup's private LRU) is just guarded by
-  zone->lru_lock, it has no lock of its own.
+  zone_lru_lock, it has no lock of its own.
 
 2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
 
@@ -280,17 +280,9 @@ the amount of kernel memory used by the system. Kernel memory is fundamentally
 different than user memory, since it can't be swapped out, which makes it
 possible to DoS the system by consuming too much of this precious resource.
 
-Kernel memory won't be accounted at all until limit on a group is set. This
-allows for existing setups to continue working without disruption.  The limit
-cannot be set if the cgroup have children, or if there are already tasks in the
-cgroup. Attempting to set the limit under those conditions will return -EBUSY.
-When use_hierarchy == 1 and a group is accounted, its children will
-automatically be accounted regardless of their limit value.
-
-After a group is first limited, it will be kept being accounted until it
-is removed. The memory limitation itself, can of course be removed by writing
--1 to memory.kmem.limit_in_bytes. In this case, kmem will be accounted, but not
-limited.
+Kernel memory accounting is enabled for all memory cgroups by default. But
+it can be disabled system-wide by passing cgroup.memory=nokmem to the kernel
+at boot time. In this case, kernel memory will not be accounted at all.
 
 Kernel memory limits are not imposed for the root cgroup. Usage for the root
 cgroup may or may not be accounted. The memory used is accumulated into

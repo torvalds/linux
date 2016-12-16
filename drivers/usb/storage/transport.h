@@ -1,4 +1,5 @@
-/* Driver for USB Mass Storage compliant devices
+/*
+ * Driver for USB Mass Storage compliant devices
  * Transport Functions Header File
  *
  * Current development and maintenance by:

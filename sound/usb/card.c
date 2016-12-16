@@ -350,6 +350,7 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 	case USB_SPEED_HIGH:
 	case USB_SPEED_WIRELESS:
 	case USB_SPEED_SUPER:
+	case USB_SPEED_SUPER_PLUS:
 		break;
 	default:
 		dev_err(&dev->dev, "unknown device speed %d\n", snd_usb_get_speed(dev));
@@ -449,6 +450,9 @@ static int snd_usb_audio_create(struct usb_interface *intf,
 		break;
 	case USB_SPEED_SUPER:
 		strlcat(card->longname, ", super speed", sizeof(card->longname));
+		break;
+	case USB_SPEED_SUPER_PLUS:
+		strlcat(card->longname, ", super speed plus", sizeof(card->longname));
 		break;
 	default:
 		break;
@@ -552,7 +556,6 @@ static int usb_audio_probe(struct usb_interface *intf,
 				goto __error;
 			}
 			chip = usb_chip[i];
-			dev_set_drvdata(&dev->dev, chip);
 			atomic_inc(&chip->active); /* avoid autopm */
 			break;
 		}
@@ -578,6 +581,7 @@ static int usb_audio_probe(struct usb_interface *intf,
 			goto __error;
 		}
 	}
+	dev_set_drvdata(&dev->dev, chip);
 
 	/*
 	 * For devices with more than one control interface, we assume the

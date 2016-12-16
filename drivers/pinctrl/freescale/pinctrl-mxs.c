@@ -12,7 +12,6 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/pinctrl/machine.h>
@@ -553,14 +552,3 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mxs_pinctrl_probe);
-
-int mxs_pinctrl_remove(struct platform_device *pdev)
-{
-	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(d->pctl);
-	iounmap(d->base);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mxs_pinctrl_remove);

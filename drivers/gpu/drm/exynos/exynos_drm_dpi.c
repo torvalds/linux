@@ -15,6 +15,7 @@
 #include <drm/drm_panel.h>
 #include <drm/drm_atomic_helper.h>
 
+#include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 
 #include <video/of_videomode.h>
@@ -92,17 +93,8 @@ static int exynos_dpi_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static struct drm_encoder *
-exynos_dpi_best_encoder(struct drm_connector *connector)
-{
-	struct exynos_dpi *ctx = connector_to_dpi(connector);
-
-	return &ctx->encoder;
-}
-
 static const struct drm_connector_helper_funcs exynos_dpi_connector_helper_funcs = {
 	.get_modes = exynos_dpi_get_modes,
-	.best_encoder = exynos_dpi_best_encoder,
 };
 
 static int exynos_dpi_create_connector(struct drm_encoder *encoder)
@@ -164,67 +156,6 @@ static const struct drm_encoder_funcs exynos_dpi_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-/* of_* functions will be removed after merge of of_graph patches */
-static struct device_node *
-of_get_child_by_name_reg(struct device_node *parent, const char *name, u32 reg)
-{
-	struct device_node *np;
-
-	for_each_child_of_node(parent, np) {
-		u32 r;
-
-		if (!np->name || of_node_cmp(np->name, name))
-			continue;
-
-		if (of_property_read_u32(np, "reg", &r) < 0)
-			r = 0;
-
-		if (reg == r)
-			break;
-	}
-
-	return np;
-}
-
-static struct device_node *of_graph_get_port_by_reg(struct device_node *parent,
-						    u32 reg)
-{
-	struct device_node *ports, *port;
-
-	ports = of_get_child_by_name(parent, "ports");
-	if (ports)
-		parent = ports;
-
-	port = of_get_child_by_name_reg(parent, "port", reg);
-
-	of_node_put(ports);
-
-	return port;
-}
-
-static struct device_node *
-of_graph_get_endpoint_by_reg(struct device_node *port, u32 reg)
-{
-	return of_get_child_by_name_reg(port, "endpoint", reg);
-}
-
-static struct device_node *
-of_graph_get_remote_port_parent(const struct device_node *node)
-{
-	struct device_node *np;
-	unsigned int depth;
-
-	np = of_parse_phandle(node, "remote-endpoint", 0);
-
-	/* Walk 3 levels up only if there is 'ports' node. */
-	for (depth = 3; depth && np; depth--) {
-		np = of_get_next_parent(np);
-		if (depth == 2 && of_node_cmp(np->name, "ports"))
-			break;
-	}
-	return np;
-}
-
 enum {
 	FIMD_PORT_IN0,
 	FIMD_PORT_IN1,
@@ -237,12 +168,7 @@ static struct device_node *exynos_dpi_of_find_panel_node(struct device *dev)
 {
 	struct device_node *np, *ep;
 
-	np = of_graph_get_port_by_reg(dev->of_node, FIMD_PORT_RGB);
-	if (!np)
-		return NULL;
-
-	ep = of_graph_get_endpoint_by_reg(np, 0);
-	of_node_put(np);
+	ep = of_graph_get_endpoint_by_regs(dev->of_node, FIMD_PORT_RGB, 0);
 	if (!ep)
 		return NULL;
 

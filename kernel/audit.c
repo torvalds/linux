@@ -64,7 +64,6 @@
 #include <linux/security.h>
 #endif
 #include <linux/freezer.h>
-#include <linux/tty.h>
 #include <linux/pid_namespace.h>
 #include <net/netns/generic.h>
 
@@ -430,7 +429,6 @@ restart:
 					attempts, audit_pid);
 				set_current_state(TASK_INTERRUPTIBLE);
 				schedule();
-				__set_current_state(TASK_RUNNING);
 				goto restart;
 			}
 		}
@@ -934,7 +932,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		if (!audit_enabled && msg_type != AUDIT_USER_AVC)
 			return 0;
 
-		err = audit_filter_user(msg_type);
+		err = audit_filter(msg_type, AUDIT_FILTER_USER);
 		if (err == 1) { /* match or error */
 			err = 0;
 			if (msg_type == AUDIT_USER_TTY) {
@@ -1341,15 +1339,14 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 static long wait_for_auditd(long sleep_time)
 {
 	DECLARE_WAITQUEUE(wait, current);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	add_wait_queue_exclusive(&audit_backlog_wait, &wait);
 
 	if (audit_backlog_limit &&
-	    skb_queue_len(&audit_skb_queue) > audit_backlog_limit)
+	    skb_queue_len(&audit_skb_queue) > audit_backlog_limit) {
+		add_wait_queue_exclusive(&audit_backlog_wait, &wait);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 		sleep_time = schedule_timeout(sleep_time);
-
-	__set_current_state(TASK_RUNNING);
-	remove_wait_queue(&audit_backlog_wait, &wait);
+		remove_wait_queue(&audit_backlog_wait, &wait);
+	}
 
 	return sleep_time;
 }
@@ -1382,7 +1379,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (audit_initialized != AUDIT_INITIALIZED)
 		return NULL;
 
-	if (unlikely(audit_filter_type(type)))
+	if (unlikely(!audit_filter(type, AUDIT_FILTER_TYPE)))
 		return NULL;
 
 	if (gfp_mask & __GFP_DIRECT_RECLAIM) {
@@ -1886,25 +1883,35 @@ out_null:
 	audit_log_format(ab, " exe=(null)");
 }
 
+struct tty_struct *audit_get_tty(struct task_struct *tsk)
+{
+	struct tty_struct *tty = NULL;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tsk->sighand->siglock, flags);
+	if (tsk->signal)
+		tty = tty_kref_get(tsk->signal->tty);
+	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+	return tty;
+}
+
+void audit_put_tty(struct tty_struct *tty)
+{
+	tty_kref_put(tty);
+}
+
 void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 {
 	const struct cred *cred;
 	char comm[sizeof(tsk->comm)];
-	char *tty;
+	struct tty_struct *tty;
 
 	if (!ab)
 		return;
 
 	/* tsk == current */
 	cred = current_cred();
-
-	spin_lock_irq(&tsk->sighand->siglock);
-	if (tsk->signal && tsk->signal->tty && tsk->signal->tty->name)
-		tty = tsk->signal->tty->name;
-	else
-		tty = "(none)";
-	spin_unlock_irq(&tsk->sighand->siglock);
-
+	tty = audit_get_tty(tsk);
 	audit_log_format(ab,
 			 " ppid=%d pid=%d auid=%u uid=%u gid=%u"
 			 " euid=%u suid=%u fsuid=%u"
@@ -1920,11 +1927,11 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 			 from_kgid(&init_user_ns, cred->egid),
 			 from_kgid(&init_user_ns, cred->sgid),
 			 from_kgid(&init_user_ns, cred->fsgid),
-			 tty, audit_get_sessionid(tsk));
-
+			 tty ? tty_name(tty) : "(none)",
+			 audit_get_sessionid(tsk));
+	audit_put_tty(tty);
 	audit_log_format(ab, " comm=");
 	audit_log_untrustedstring(ab, get_task_comm(comm, tsk));
-
 	audit_log_d_path_exe(ab, tsk->mm);
 	audit_log_task_context(ab);
 }

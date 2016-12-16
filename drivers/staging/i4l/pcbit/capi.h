@@ -17,7 +17,7 @@
 #define REQ_DISPLAY       0x04
 #define REQ_USER_TO_USER  0x08
 
-#define AppInfoMask  REQ_CAUSE | REQ_DISPLAY | REQ_USER_TO_USER
+#define AppInfoMask  (REQ_CAUSE | REQ_DISPLAY | REQ_USER_TO_USER)
 
 /* Connection Setup */
 extern int capi_conn_req(const char *calledPN, struct sk_buff **buf,

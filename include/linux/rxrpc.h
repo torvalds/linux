@@ -35,21 +35,24 @@ struct sockaddr_rxrpc {
  */
 #define RXRPC_SECURITY_KEY		1	/* [clnt] set client security key */
 #define RXRPC_SECURITY_KEYRING		2	/* [srvr] set ring of server security keys */
-#define RXRPC_EXCLUSIVE_CONNECTION	3	/* [clnt] use exclusive RxRPC connection */
+#define RXRPC_EXCLUSIVE_CONNECTION	3	/* Deprecated; use RXRPC_EXCLUSIVE_CALL instead */
 #define RXRPC_MIN_SECURITY_LEVEL	4	/* minimum security level */
 
 /*
  * RxRPC control messages
+ * - If neither abort or accept are specified, the message is a data message.
  * - terminal messages mean that a user call ID tag can be recycled
+ * - s/r/- indicate whether these are applicable to sendmsg() and/or recvmsg()
  */
-#define RXRPC_USER_CALL_ID	1	/* user call ID specifier */
-#define RXRPC_ABORT		2	/* abort request / notification [terminal] */
-#define RXRPC_ACK		3	/* [Server] RPC op final ACK received [terminal] */
-#define RXRPC_NET_ERROR		5	/* network error received [terminal] */
-#define RXRPC_BUSY		6	/* server busy received [terminal] */
-#define RXRPC_LOCAL_ERROR	7	/* local error generated [terminal] */
-#define RXRPC_NEW_CALL		8	/* [Server] new incoming call notification */
-#define RXRPC_ACCEPT		9	/* [Server] accept request */
+#define RXRPC_USER_CALL_ID	1	/* sr: user call ID specifier */
+#define RXRPC_ABORT		2	/* sr: abort request / notification [terminal] */
+#define RXRPC_ACK		3	/* -r: [Service] RPC op final ACK received [terminal] */
+#define RXRPC_NET_ERROR		5	/* -r: network error received [terminal] */
+#define RXRPC_BUSY		6	/* -r: server busy received [terminal] */
+#define RXRPC_LOCAL_ERROR	7	/* -r: local error generated [terminal] */
+#define RXRPC_NEW_CALL		8	/* -r: [Service] new incoming call notification */
+#define RXRPC_ACCEPT		9	/* s-: [Service] accept request */
+#define RXRPC_EXCLUSIVE_CALL	10	/* s-: Call should be on exclusive connection */
 
 /*
  * RxRPC security levels

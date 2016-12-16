@@ -10,6 +10,7 @@
 
 #include <linux/types.h>
 #include <linux/nvmem-consumer.h>
+#include <linux/bitops.h>
 
 /**
  * struct at24_platform_data - data to set up at24 (generic eeprom) driver
@@ -26,7 +27,7 @@
  *
  * An example in pseudo code for a setup() callback:
  *
- * void get_mac_addr(struct mvmem_device *nvmem, void *context)
+ * void get_mac_addr(struct nvmem_device *nvmem, void *context)
  * {
  *	u8 *mac_addr = ethernet_pdata->mac_addr;
  *	off_t offset = context;
@@ -43,10 +44,12 @@ struct at24_platform_data {
 	u32		byte_len;		/* size (sum of all addr) */
 	u16		page_size;		/* for writes */
 	u8		flags;
-#define AT24_FLAG_ADDR16	0x80	/* address pointer is 16 bit */
-#define AT24_FLAG_READONLY	0x40	/* sysfs-entry will be read-only */
-#define AT24_FLAG_IRUGO		0x20	/* sysfs-entry will be world-readable */
-#define AT24_FLAG_TAKE8ADDR	0x10	/* take always 8 addresses (24c00) */
+#define AT24_FLAG_ADDR16	BIT(7)	/* address pointer is 16 bit */
+#define AT24_FLAG_READONLY	BIT(6)	/* sysfs-entry will be read-only */
+#define AT24_FLAG_IRUGO		BIT(5)	/* sysfs-entry will be world-readable */
+#define AT24_FLAG_TAKE8ADDR	BIT(4)	/* take always 8 addresses (24c00) */
+#define AT24_FLAG_SERIAL	BIT(3)	/* factory-programmed serial number */
+#define AT24_FLAG_MAC		BIT(2)	/* factory-programmed mac address */
 
 	void		(*setup)(struct nvmem_device *nvmem, void *context);
 	void		*context;

@@ -353,7 +353,8 @@ static void hdmi_std_setup_channel_mapping(struct hdac_chmap *chmap,
 		int hdmi_slot = 0;
 		/* fill actual channel mappings in ALSA channel (i) order */
 		for (i = 0; i < ch_alloc->channels; i++) {
-			while (!ch_alloc->speakers[7 - hdmi_slot] && !WARN_ON(hdmi_slot >= 8))
+			while (!WARN_ON(hdmi_slot >= 8) &&
+			       !ch_alloc->speakers[7 - hdmi_slot])
 				hdmi_slot++; /* skip zero slots */
 
 			hdmi_channel_mapping[ca][i] = (i << 4) | hdmi_slot++;
@@ -430,6 +431,12 @@ static int to_cea_slot(int ordered_ca, unsigned char pos)
 	int mask = snd_hdac_chmap_to_spk_mask(pos);
 	int i;
 
+	/* Add sanity check to pass klockwork check.
+	 * This should never happen.
+	 */
+	if (ordered_ca >= ARRAY_SIZE(channel_allocations))
+		return -1;
+
 	if (mask) {
 		for (i = 0; i < 8; i++) {
 			if (channel_allocations[ordered_ca].speakers[7 - i] == mask)
@@ -456,7 +463,15 @@ EXPORT_SYMBOL_GPL(snd_hdac_spk_to_chmap);
 /* from CEA slot to ALSA API channel position */
 static int from_cea_slot(int ordered_ca, unsigned char slot)
 {
-	int mask = channel_allocations[ordered_ca].speakers[7 - slot];
+	int mask;
+
+	/* Add sanity check to pass klockwork check.
+	 * This should never happen.
+	 */
+	if (slot >= 8)
+		return 0;
+
+	mask = channel_allocations[ordered_ca].speakers[7 - slot];
 
 	return snd_hdac_spk_to_chmap(mask);
 }
@@ -523,7 +538,8 @@ static void hdmi_setup_fake_chmap(unsigned char *map, int ca)
 	int ordered_ca = get_channel_allocation_order(ca);
 
 	for (i = 0; i < 8; i++) {
-		if (i < channel_allocations[ordered_ca].channels)
+		if (ordered_ca < ARRAY_SIZE(channel_allocations) &&
+		    i < channel_allocations[ordered_ca].channels)
 			map[i] = from_cea_slot(ordered_ca, hdmi_channel_mapping[ca][i] & 0x0f);
 		else
 			map[i] = 0;
@@ -550,6 +566,12 @@ EXPORT_SYMBOL_GPL(snd_hdac_setup_channel_mapping);
 int snd_hdac_get_active_channels(int ca)
 {
 	int ordered_ca = get_channel_allocation_order(ca);
+
+	/* Add sanity check to pass klockwork check.
+	 * This should never happen.
+	 */
+	if (ordered_ca >= ARRAY_SIZE(channel_allocations))
+		ordered_ca = 0;
 
 	return channel_allocations[ordered_ca].channels;
 }
@@ -625,13 +647,30 @@ static void hdmi_cea_alloc_to_tlv_chmap(struct hdac_chmap *hchmap,
 	WARN_ON(count != channels);
 }
 
+static int spk_mask_from_spk_alloc(int spk_alloc)
+{
+	int i;
+	int spk_mask = eld_speaker_allocation_bits[0];
+
+	for (i = 0; i < ARRAY_SIZE(eld_speaker_allocation_bits); i++) {
+		if (spk_alloc & (1 << i))
+			spk_mask |= eld_speaker_allocation_bits[i];
+	}
+
+	return spk_mask;
+}
+
 static int hdmi_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 			      unsigned int size, unsigned int __user *tlv)
 {
 	struct snd_pcm_chmap *info = snd_kcontrol_chip(kcontrol);
 	struct hdac_chmap *chmap = info->private_data;
+	int pcm_idx = kcontrol->private_value;
 	unsigned int __user *dst;
 	int chs, count = 0;
+	unsigned long max_chs;
+	int type;
+	int spk_alloc, spk_mask;
 
 	if (size < 8)
 		return -ENOMEM;
@@ -639,40 +678,59 @@ static int hdmi_chmap_ctl_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 		return -EFAULT;
 	size -= 8;
 	dst = tlv + 2;
-	for (chs = 2; chs <= chmap->channels_max; chs++) {
+
+	spk_alloc = chmap->ops.get_spk_alloc(chmap->hdac, pcm_idx);
+	spk_mask = spk_mask_from_spk_alloc(spk_alloc);
+
+	max_chs = hweight_long(spk_mask);
+
+	for (chs = 2; chs <= max_chs; chs++) {
 		int i;
 		struct hdac_cea_channel_speaker_allocation *cap;
 
 		cap = channel_allocations;
 		for (i = 0; i < ARRAY_SIZE(channel_allocations); i++, cap++) {
 			int chs_bytes = chs * 4;
-			int type = chmap->ops.chmap_cea_alloc_validate_get_type(
-								chmap, cap, chs);
 			unsigned int tlv_chmap[8];
 
-			if (type < 0)
+			if (cap->channels != chs)
 				continue;
+
+			if (!(cap->spk_mask == (spk_mask & cap->spk_mask)))
+				continue;
+
+			type = chmap->ops.chmap_cea_alloc_validate_get_type(
+							chmap, cap, chs);
+			if (type < 0)
+				return -ENODEV;
 			if (size < 8)
 				return -ENOMEM;
+
 			if (put_user(type, dst) ||
 			    put_user(chs_bytes, dst + 1))
 				return -EFAULT;
+
 			dst += 2;
 			size -= 8;
 			count += 8;
+
 			if (size < chs_bytes)
 				return -ENOMEM;
+
 			size -= chs_bytes;
 			count += chs_bytes;
 			chmap->ops.cea_alloc_to_tlv_chmap(chmap, cap,
 						tlv_chmap, chs);
+
 			if (copy_to_user(dst, tlv_chmap, chs_bytes))
 				return -EFAULT;
 			dst += chs;
 		}
 	}
+
 	if (put_user(count, tlv + 1))
 		return -EFAULT;
+
 	return 0;
 }
 

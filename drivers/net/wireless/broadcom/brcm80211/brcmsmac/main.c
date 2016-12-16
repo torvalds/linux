@@ -3349,8 +3349,8 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 	dma_rxfill(wlc_hw->di[RX_FIFO]);
 }
 
-void
-static brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec) {
+static void brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec)
+{
 	u32 macintmask;
 	bool fastclk;
 	struct brcms_c_info *wlc = wlc_hw->wlc;
@@ -7076,7 +7076,7 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 	channel = BRCMS_CHAN_CHANNEL(rxh->RxChan);
 
 	rx_status->band =
-		channel > 14 ? IEEE80211_BAND_5GHZ : IEEE80211_BAND_2GHZ;
+		channel > 14 ? NL80211_BAND_5GHZ : NL80211_BAND_2GHZ;
 	rx_status->freq =
 		ieee80211_channel_to_frequency(channel, rx_status->band);
 
@@ -7143,7 +7143,7 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 		 * a subset of the 2.4G rates. See bitrates field
 		 * of brcms_band_5GHz_nphy (in mac80211_if.c).
 		 */
-		if (rx_status->band == IEEE80211_BAND_5GHZ)
+		if (rx_status->band == NL80211_BAND_5GHZ)
 			rx_status->rate_idx -= BRCMS_LEGACY_5G_RATE_OFFSET;
 
 		/* Determine short preamble and rate_idx */

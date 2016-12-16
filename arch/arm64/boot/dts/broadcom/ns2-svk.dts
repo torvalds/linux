@@ -40,16 +40,28 @@
 
 	aliases {
 		serial0 = &uart3;
+		serial1 = &uart0;
+		serial2 = &uart1;
+		serial3 = &uart2;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+		bootargs = "earlycon=uart8250,mmio32,0x66130000";
 	};
 
 	memory {
 		device_type = "memory";
 		reg = <0x000000000 0x80000000 0x00000000 0x40000000>;
 	};
+};
+
+&pci_phy0 {
+	status = "ok";
+};
+
+&pci_phy1 {
+	status = "ok";
 };
 
 &pcie0 {
@@ -68,7 +80,76 @@
 	status = "ok";
 };
 
+&uart0 {
+	status = "ok";
+};
+
+&uart1 {
+	status = "ok";
+};
+
+&uart2 {
+	status = "ok";
+};
+
 &uart3 {
+	status = "ok";
+};
+
+&ssp0 {
+	status = "ok";
+
+	slic@0 {
+		compatible = "silabs,si3226x";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+		spi-cpha = <1>;
+		spi-cpol = <1>;
+		pl022,hierarchy = <0>;
+		pl022,interface = <0>;
+		pl022,slave-tx-disable = <0>;
+		pl022,com-mode = <0>;
+		pl022,rx-level-trig = <1>;
+		pl022,tx-level-trig = <1>;
+		pl022,ctrl-len = <11>;
+		pl022,wait-state = <0>;
+		pl022,duplex = <0>;
+	};
+};
+
+&ssp1 {
+	status = "ok";
+
+	at25@0 {
+		compatible = "atmel,at25";
+		reg = <0>;
+		spi-max-frequency = <5000000>;
+		at25,byte-len = <0x8000>;
+		at25,addr-mode = <2>;
+		at25,page-size = <64>;
+		spi-cpha = <1>;
+		spi-cpol = <1>;
+		pl022,hierarchy = <0>;
+		pl022,interface = <0>;
+		pl022,slave-tx-disable = <0>;
+		pl022,com-mode = <0>;
+		pl022,rx-level-trig = <1>;
+		pl022,tx-level-trig = <1>;
+		pl022,ctrl-len = <11>;
+		pl022,wait-state = <0>;
+		pl022,duplex = <0>;
+	};
+};
+
+&sata_phy0 {
+	status = "ok";
+};
+
+&sata_phy1 {
+	status = "ok";
+};
+
+&sata {
 	status = "ok";
 };
 
@@ -85,5 +166,22 @@
 		nand-ecc-step-size = <512>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+	};
+};
+
+&mdio_mux_iproc {
+	mdio@10 {
+		gphy0: eth-phy@10 {
+			reg = <0x10>;
+		};
+	};
+};
+
+&pinctrl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&nand_sel>;
+	nand_sel: nand_sel {
+		function = "nand";
+		groups = "nand_grp";
 	};
 };

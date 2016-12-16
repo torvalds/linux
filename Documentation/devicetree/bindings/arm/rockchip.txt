@@ -39,6 +39,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "netxeon,r89", "rockchip,rk3288";
 
+- GeekBuying GeekBox:
+    Required root node properties:
+      - compatible = "geekbuying,geekbox", "rockchip,rk3368";
+
 - Google Brain (dev-board):
     Required root node properties:
       - compatible = "google,veyron-brain-rev0", "google,veyron-brain",
@@ -87,6 +91,10 @@ Rockchip platforms device tree bindings
 		     "google,veyron-speedy-rev3", "google,veyron-speedy-rev2",
 		     "google,veyron-speedy", "google,veyron", "rockchip,rk3288";
 
+- mqmaker MiQi:
+    Required root node properties:
+      - compatible = "mqmaker,miqi", "rockchip,rk3288";
+
 - Rockchip RK3368 evb:
     Required root node properties:
       - compatible = "rockchip,rk3368-evb-act8846", "rockchip,rk3368";
@@ -97,4 +105,11 @@ Rockchip platforms device tree bindings
 
 - Rockchip RK3228 Evaluation board:
     Required root node properties:
-      - compatible = "rockchip,rk3228-evb", "rockchip,rk3228";
+     - compatible = "rockchip,rk3228-evb", "rockchip,rk3228";
+
+- Rockchip RK3229 Evaluation board:
+     - compatible = "rockchip,rk3229-evb", "rockchip,rk3229";
+
+- Rockchip RK3399 evb:
+    Required root node properties:
+      - compatible = "rockchip,rk3399-evb", "rockchip,rk3399";

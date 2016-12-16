@@ -140,6 +140,9 @@ static inline void per_cpu_scan_finalize(int min_cpus, int reserve_cpus)
 		}
 	}
 }
+
+extern void acpi_numa_fixup(void);
+
 #endif /* CONFIG_ACPI_NUMA */
 
 #endif /*__KERNEL__*/

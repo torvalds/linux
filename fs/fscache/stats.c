@@ -295,7 +295,6 @@ static int fscache_stats_open(struct inode *inode, struct file *file)
 }
 
 const struct file_operations fscache_stats_fops = {
-	.owner		= THIS_MODULE,
 	.open		= fscache_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

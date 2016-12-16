@@ -1,0 +1,24 @@
+Allwinner Clock Control Unit Binding
+------------------------------------
+
+Required properties :
+- compatible: must contain one of the following compatible:
+		- "allwinner,sun8i-h3-ccu"
+
+- reg: Must contain the registers base address and length
+- clocks: phandle to the oscillators feeding the CCU. Two are needed:
+  - "hosc": the high frequency oscillator (usually at 24MHz)
+  - "losc": the low frequency oscillator (usually at 32kHz)
+- clock-names: Must contain the clock names described just above
+- #clock-cells : must contain 1
+- #reset-cells : must contain 1
+
+Example:
+ccu: clock@01c20000 {
+	compatible = "allwinner,sun8i-h3-ccu";
+	reg = <0x01c20000 0x400>;
+	clocks = <&osc24M>, <&osc32k>;
+	clock-names = "hosc", "losc";
+	#clock-cells = <1>;
+	#reset-cells = <1>;
+};

@@ -205,5 +205,5 @@
 };
 
 &pinctrl {
-	compatible = "socionext,proxstream2-pinctrl", "syscon";
+	compatible = "socionext,uniphier-pxs2-pinctrl";
 };

@@ -50,7 +50,7 @@ struct exynos_drm_gem {
 	void			*cookie;
 	void __iomem		*kvaddr;
 	dma_addr_t		dma_addr;
-	struct dma_attrs	dma_attrs;
+	unsigned long		dma_attrs;
 	struct page		**pages;
 	struct sg_table		*sgt;
 };
@@ -121,16 +121,6 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 /* set vm_flags and we can change the vm attribute to other one at here. */
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
-/* map sgt with dma region. */
-int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
-				struct sg_table *sgt,
-				enum dma_data_direction dir);
-
-/* unmap sgt from dma region. */
-void exynos_gem_unmap_sgt_from_dma(struct drm_device *drm_dev,
-				struct sg_table *sgt,
-				enum dma_data_direction dir);
-
 /* low-level interface prime helpers */
 struct sg_table *exynos_drm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 struct drm_gem_object *
@@ -139,5 +129,7 @@ exynos_drm_gem_prime_import_sg_table(struct drm_device *dev,
 				     struct sg_table *sgt);
 void *exynos_drm_gem_prime_vmap(struct drm_gem_object *obj);
 void exynos_drm_gem_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
+int exynos_drm_gem_prime_mmap(struct drm_gem_object *obj,
+			      struct vm_area_struct *vma);
 
 #endif

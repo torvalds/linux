@@ -232,7 +232,7 @@ xfs_open_by_handle(
 	}
 
 	if ((fmode & FMODE_WRITE) && IS_IMMUTABLE(inode)) {
-		error = -EACCES;
+		error = -EPERM;
 		goto out_dput;
 	}
 
@@ -277,7 +277,6 @@ xfs_readlink_by_handle(
 {
 	struct dentry		*dentry;
 	__u32			olen;
-	void			*link;
 	int			error;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -288,7 +287,7 @@ xfs_readlink_by_handle(
 		return PTR_ERR(dentry);
 
 	/* Restrict this handle operation to symlinks only. */
-	if (!d_is_symlink(dentry)) {
+	if (!d_inode(dentry)->i_op->readlink) {
 		error = -EINVAL;
 		goto out_dput;
 	}
@@ -298,21 +297,8 @@ xfs_readlink_by_handle(
 		goto out_dput;
 	}
 
-	link = kmalloc(MAXPATHLEN+1, GFP_KERNEL);
-	if (!link) {
-		error = -ENOMEM;
-		goto out_dput;
-	}
+	error = d_inode(dentry)->i_op->readlink(dentry, hreq->ohandle, olen);
 
-	error = xfs_readlink(XFS_I(d_inode(dentry)), link);
-	if (error)
-		goto out_kfree;
-	error = readlink_copy(hreq->ohandle, olen, link);
-	if (error)
-		goto out_kfree;
-
- out_kfree:
-	kfree(link);
  out_dput:
 	dput(dentry);
 	return error;
@@ -334,12 +320,10 @@ xfs_set_dmattrs(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_SET_DMATTRS);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
-	if (error) {
-		xfs_trans_cancel(tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
+	if (error)
 		return error;
-	}
+
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
@@ -403,6 +387,7 @@ xfs_attrlist_by_handle(
 {
 	int			error = -ENOMEM;
 	attrlist_cursor_kern_t	*cursor;
+	struct xfs_fsop_attrlist_handlereq __user	*p = arg;
 	xfs_fsop_attrlist_handlereq_t al_hreq;
 	struct dentry		*dentry;
 	char			*kbuf;
@@ -434,6 +419,11 @@ xfs_attrlist_by_handle(
 					al_hreq.flags, cursor);
 	if (error)
 		goto out_kfree;
+
+	if (copy_to_user(&p->pos, cursor, sizeof(attrlist_cursor_kern_t))) {
+		error = -EFAULT;
+		goto out_kfree;
+	}
 
 	if (copy_to_user(al_hreq.buffer, kbuf, al_hreq.buflen))
 		error = -EFAULT;
@@ -611,13 +601,12 @@ xfs_attrmulti_by_handle(
 
 int
 xfs_ioc_space(
-	struct xfs_inode	*ip,
-	struct inode		*inode,
 	struct file		*filp,
-	int			ioflags,
 	unsigned int		cmd,
 	xfs_flock64_t		*bf)
 {
+	struct inode		*inode = file_inode(filp);
+	struct xfs_inode	*ip = XFS_I(inode);
 	struct iattr		iattr;
 	enum xfs_prealloc_flags	flags = 0;
 	uint			iolock = XFS_IOLOCK_EXCL;
@@ -642,7 +631,7 @@ xfs_ioc_space(
 
 	if (filp->f_flags & O_DSYNC)
 		flags |= XFS_PREALLOC_SYNC;
-	if (ioflags & XFS_IO_INVIS)
+	if (filp->f_mode & FMODE_NOCMTIME)
 		flags |= XFS_PREALLOC_INVISIBLE;
 
 	error = mnt_want_write_file(filp);
@@ -1141,10 +1130,9 @@ xfs_ioctl_setattr_get_trans(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		goto out_unlock;
 
-	tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_NOT_SIZE);
-	error = xfs_trans_reserve(tp, &M_RES(mp)->tr_ichange, 0, 0);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_ichange, 0, 0, 0, &tp);
 	if (error)
-		goto out_cancel;
+		return ERR_PTR(error);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL | join_flags);
@@ -1481,8 +1469,7 @@ xfs_getbmap_format(void **ap, struct getbmapx *bmv, int *full)
 
 STATIC int
 xfs_ioc_getbmap(
-	struct xfs_inode	*ip,
-	int			ioflags,
+	struct file		*file,
 	unsigned int		cmd,
 	void			__user *arg)
 {
@@ -1496,10 +1483,10 @@ xfs_ioc_getbmap(
 		return -EINVAL;
 
 	bmx.bmv_iflags = (cmd == XFS_IOC_GETBMAPA ? BMV_IF_ATTRFORK : 0);
-	if (ioflags & XFS_IO_INVIS)
+	if (file->f_mode & FMODE_NOCMTIME)
 		bmx.bmv_iflags |= BMV_IF_NO_DMAPI_READ;
 
-	error = xfs_getbmap(ip, &bmx, xfs_getbmap_format,
+	error = xfs_getbmap(XFS_I(file_inode(file)), &bmx, xfs_getbmap_format,
 			    (__force struct getbmap *)arg+1);
 	if (error)
 		return error;
@@ -1592,6 +1579,17 @@ xfs_ioc_swapext(
 		goto out_put_tmp_file;
 	}
 
+	/*
+	 * We need to ensure that the fds passed in point to XFS inodes
+	 * before we cast and access them as XFS structures as we have no
+	 * control over what the user passes us here.
+	 */
+	if (f.file->f_op != &xfs_file_operations ||
+	    tmp.file->f_op != &xfs_file_operations) {
+		error = -EINVAL;
+		goto out_put_tmp_file;
+	}
+
 	ip = XFS_I(file_inode(f.file));
 	tip = XFS_I(file_inode(tmp.file));
 
@@ -1636,11 +1634,7 @@ xfs_file_ioctl(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	void			__user *arg = (void __user *)p;
-	int			ioflags = 0;
 	int			error;
-
-	if (filp->f_mode & FMODE_NOCMTIME)
-		ioflags |= XFS_IO_INVIS;
 
 	trace_xfs_file_ioctl(ip);
 
@@ -1660,7 +1654,7 @@ xfs_file_ioctl(
 
 		if (copy_from_user(&bf, arg, sizeof(bf)))
 			return -EFAULT;
-		return xfs_ioc_space(ip, inode, filp, ioflags, cmd, &bf);
+		return xfs_ioc_space(filp, cmd, &bf);
 	}
 	case XFS_IOC_DIOINFO: {
 		struct dioattr	da;
@@ -1719,7 +1713,7 @@ xfs_file_ioctl(
 
 	case XFS_IOC_GETBMAP:
 	case XFS_IOC_GETBMAPA:
-		return xfs_ioc_getbmap(ip, ioflags, cmd, arg);
+		return xfs_ioc_getbmap(filp, cmd, arg);
 
 	case XFS_IOC_GETBMAPX:
 		return xfs_ioc_getbmapx(ip, arg);

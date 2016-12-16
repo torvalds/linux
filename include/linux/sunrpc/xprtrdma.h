@@ -52,7 +52,9 @@
 #define RPCRDMA_DEF_SLOT_TABLE	(128U)
 #define RPCRDMA_MAX_SLOT_TABLE	(256U)
 
-#define RPCRDMA_DEF_INLINE  (1024)	/* default inline max */
+#define RPCRDMA_MIN_INLINE  (1024)	/* min inline thresh */
+#define RPCRDMA_DEF_INLINE  (1024)	/* default inline thresh */
+#define RPCRDMA_MAX_INLINE  (3068)	/* max inline thresh */
 
 /* Memory registration strategies, by number.
  * This is part of a kernel / user space API. Do not remove. */

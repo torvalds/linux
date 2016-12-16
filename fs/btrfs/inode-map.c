@@ -38,7 +38,7 @@ static int caching_kthread(void *data)
 	int slot;
 	int ret;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -141,7 +141,7 @@ static void start_caching(struct btrfs_root *root)
 	int ret;
 	u64 objectid;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return;
 
 	spin_lock(&root->ino_cache_lock);
@@ -185,7 +185,7 @@ static void start_caching(struct btrfs_root *root)
 
 int btrfs_find_free_ino(struct btrfs_root *root, u64 *objectid)
 {
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return btrfs_find_free_objectid(root, objectid);
 
 again:
@@ -211,7 +211,7 @@ void btrfs_return_ino(struct btrfs_root *root, u64 objectid)
 {
 	struct btrfs_free_space_ctl *pinned = root->free_ino_pinned;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return;
 again:
 	if (root->ino_cache_state == BTRFS_CACHE_FINISHED) {
@@ -251,7 +251,7 @@ void btrfs_unpin_free_ino(struct btrfs_root *root)
 	struct rb_node *n;
 	u64 count;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return;
 
 	while (1) {
@@ -412,7 +412,7 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 	if (btrfs_root_refs(&root->root_item) == 0)
 		return 0;
 
-	if (!btrfs_test_opt(root, INODE_MAP_CACHE))
+	if (!btrfs_test_opt(root->fs_info, INODE_MAP_CACHE))
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -458,7 +458,7 @@ again:
 	BTRFS_I(inode)->generation = 0;
 	ret = btrfs_update_inode(trans, root, inode);
 	if (ret) {
-		btrfs_abort_transaction(trans, root, ret);
+		btrfs_abort_transaction(trans, ret);
 		goto out_put;
 	}
 
@@ -466,7 +466,7 @@ again:
 		ret = btrfs_truncate_free_space_cache(root, trans, NULL, inode);
 		if (ret) {
 			if (ret != -ENOSPC)
-				btrfs_abort_transaction(trans, root, ret);
+				btrfs_abort_transaction(trans, ret);
 			goto out_put;
 		}
 	}
@@ -495,10 +495,9 @@ again:
 	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, prealloc,
 					      prealloc, prealloc, &alloc_hint);
 	if (ret) {
-		btrfs_delalloc_release_space(inode, 0, prealloc);
+		btrfs_delalloc_release_metadata(inode, prealloc);
 		goto out_put;
 	}
-	btrfs_free_reserved_data_space(inode, 0, prealloc);
 
 	ret = btrfs_write_out_ino_cache(root, trans, path, inode);
 out_put:

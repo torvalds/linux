@@ -203,7 +203,7 @@ extern struct tsb_phys_patch_entry __tsb_phys_patch, __tsb_phys_patch_end;
 	 * We have to propagate the 4MB bit of the virtual address
 	 * because we are fabricating 8MB pages using 4MB hw pages.
 	 */
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 #define USER_PGTABLE_CHECK_PMD_HUGE(VADDR, REG1, REG2, FAIL_LABEL, PTE_LABEL) \
 	brz,pn		REG1, FAIL_LABEL;		\
 	 sethi		%uhi(_PAGE_PMD_HUGE), REG2;	\

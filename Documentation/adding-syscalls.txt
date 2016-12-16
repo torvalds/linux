@@ -136,7 +136,7 @@ an fxyzzy(3) operation for free:
  - xyzzyat(fd, "", ..., AT_EMPTY_PATH) is equivalent to fxyzzy(fd, ...)
 
 (For more details on the rationale of the *at() calls, see the openat(2) man
-page; for an example of AT_EMPTY_PATH, see the statat(2) man page.)
+page; for an example of AT_EMPTY_PATH, see the fstatat(2) man page.)
 
 If your new xyzzy(2) system call involves a parameter describing an offset
 within a file, make its type loff_t so that 64-bit offsets can be supported

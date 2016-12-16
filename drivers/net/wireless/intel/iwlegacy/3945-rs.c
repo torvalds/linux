@@ -97,7 +97,7 @@ static struct il3945_tpt_entry il3945_tpt_table_g[] = {
 #define RATE_RETRY_TH		15
 
 static u8
-il3945_get_rate_idx_by_rssi(s32 rssi, enum ieee80211_band band)
+il3945_get_rate_idx_by_rssi(s32 rssi, enum nl80211_band band)
 {
 	u32 idx = 0;
 	u32 table_size = 0;
@@ -107,11 +107,11 @@ il3945_get_rate_idx_by_rssi(s32 rssi, enum ieee80211_band band)
 		rssi = IL_MIN_RSSI_VAL;
 
 	switch (band) {
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		tpt_table = il3945_tpt_table_g;
 		table_size = ARRAY_SIZE(il3945_tpt_table_g);
 		break;
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		tpt_table = il3945_tpt_table_a;
 		table_size = ARRAY_SIZE(il3945_tpt_table_a);
 		break;
@@ -380,7 +380,7 @@ il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 
 	il->_3945.sta_supp_rates = sta->supp_rates[sband->band];
 	/* For 5 GHz band it start at IL_FIRST_OFDM_RATE */
-	if (sband->band == IEEE80211_BAND_5GHZ) {
+	if (sband->band == NL80211_BAND_5GHZ) {
 		rs_sta->last_txrate_idx += IL_FIRST_OFDM_RATE;
 		il->_3945.sta_supp_rates <<= IL_FIRST_OFDM_RATE;
 	}
@@ -541,7 +541,7 @@ il3945_rs_tx_status(void *il_rate, struct ieee80211_supported_band *sband,
 
 static u16
 il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta, u8 idx, u16 rate_mask,
-			 enum ieee80211_band band)
+			 enum nl80211_band band)
 {
 	u8 high = RATE_INVALID;
 	u8 low = RATE_INVALID;
@@ -549,7 +549,7 @@ il3945_get_adjacent_rate(struct il3945_rs_sta *rs_sta, u8 idx, u16 rate_mask,
 
 	/* 802.11A walks to the next literal adjacent rate in
 	 * the rate table */
-	if (unlikely(band == IEEE80211_BAND_5GHZ)) {
+	if (unlikely(band == NL80211_BAND_5GHZ)) {
 		int i;
 		u32 mask;
 
@@ -657,14 +657,14 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 
 	/* get user max rate if set */
 	max_rate_idx = txrc->max_rate_idx;
-	if (sband->band == IEEE80211_BAND_5GHZ && max_rate_idx != -1)
+	if (sband->band == NL80211_BAND_5GHZ && max_rate_idx != -1)
 		max_rate_idx += IL_FIRST_OFDM_RATE;
 	if (max_rate_idx < 0 || max_rate_idx >= RATE_COUNT)
 		max_rate_idx = -1;
 
 	idx = min(rs_sta->last_txrate_idx & 0xffff, RATE_COUNT_3945 - 1);
 
-	if (sband->band == IEEE80211_BAND_5GHZ)
+	if (sband->band == NL80211_BAND_5GHZ)
 		rate_mask = rate_mask << IL_FIRST_OFDM_RATE;
 
 	spin_lock_irqsave(&rs_sta->lock, flags);
@@ -806,7 +806,7 @@ il3945_rs_get_rate(void *il_r, struct ieee80211_sta *sta, void *il_sta,
 
 out:
 
-	if (sband->band == IEEE80211_BAND_5GHZ) {
+	if (sband->band == NL80211_BAND_5GHZ) {
 		if (WARN_ON_ONCE(idx < IL_FIRST_OFDM_RATE))
 			idx = IL_FIRST_OFDM_RATE;
 		rs_sta->last_txrate_idx = idx;
@@ -935,7 +935,7 @@ il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	rs_sta->tgg = 0;
 	switch (il->band) {
-	case IEEE80211_BAND_2GHZ:
+	case NL80211_BAND_2GHZ:
 		/* TODO: this always does G, not a regression */
 		if (il->active.flags & RXON_FLG_TGG_PROTECT_MSK) {
 			rs_sta->tgg = 1;
@@ -943,7 +943,7 @@ il3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 		} else
 			rs_sta->expected_tpt = il3945_expected_tpt_g;
 		break;
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		rs_sta->expected_tpt = il3945_expected_tpt_a;
 		break;
 	default:

@@ -67,6 +67,15 @@ config RAPIDIO_ENUM_BASIC
 
 endchoice
 
+config RAPIDIO_CHMAN
+	tristate "RapidIO Channelized Messaging driver"
+	depends on RAPIDIO
+	help
+	  This option includes RapidIO channelized messaging driver which
+	  provides socket-like interface to allow sharing of single RapidIO
+	  messaging mailbox between multiple user-space applications.
+	  See "Documentation/rapidio/rio_cm.txt" for driver description.
+
 config RAPIDIO_MPORT_CDEV
 	tristate "RapidIO /dev mport device driver"
 	depends on RAPIDIO

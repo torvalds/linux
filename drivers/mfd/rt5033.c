@@ -97,22 +97,15 @@ static int rt5033_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = mfd_add_devices(rt5033->dev, -1, rt5033_devs,
-			ARRAY_SIZE(rt5033_devs), NULL, 0,
-			regmap_irq_get_domain(rt5033->irq_data));
+	ret = devm_mfd_add_devices(rt5033->dev, -1, rt5033_devs,
+				   ARRAY_SIZE(rt5033_devs), NULL, 0,
+				   regmap_irq_get_domain(rt5033->irq_data));
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to add RT5033 child devices.\n");
 		return ret;
 	}
 
 	device_init_wakeup(rt5033->dev, rt5033->wakeup);
-
-	return 0;
-}
-
-static int rt5033_i2c_remove(struct i2c_client *i2c)
-{
-	mfd_remove_devices(&i2c->dev);
 
 	return 0;
 }
@@ -135,7 +128,6 @@ static struct i2c_driver rt5033_driver = {
 		.of_match_table = of_match_ptr(rt5033_dt_match),
 	},
 	.probe = rt5033_i2c_probe,
-	.remove = rt5033_i2c_remove,
 	.id_table = rt5033_i2c_id,
 };
 module_i2c_driver(rt5033_driver);

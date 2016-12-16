@@ -16,7 +16,7 @@
 #include <linux/err.h>
 #include <linux/pe.h>
 #include <linux/asn1.h>
-#include <crypto/pkcs7.h>
+#include <linux/verification.h>
 #include <crypto/hash.h>
 #include "verify_pefile.h"
 
@@ -392,9 +392,8 @@ error_no_desc:
  * verify_pefile_signature - Verify the signature on a PE binary image
  * @pebuf: Buffer containing the PE binary image
  * @pelen: Length of the binary image
- * @trust_keyring: Signing certificates to use as starting points
+ * @trust_keys: Signing certificate(s) to use as starting points
  * @usage: The use to which the key is being put.
- * @_trusted: Set to true if trustworth, false otherwise
  *
  * Validate that the certificate chain inside the PKCS#7 message inside the PE
  * binary image intersects keys we already know and trust.
@@ -418,14 +417,10 @@ error_no_desc:
  * May also return -ENOMEM.
  */
 int verify_pefile_signature(const void *pebuf, unsigned pelen,
-			    struct key *trusted_keyring,
-			    enum key_being_used_for usage,
-			    bool *_trusted)
+			    struct key *trusted_keys,
+			    enum key_being_used_for usage)
 {
-	struct pkcs7_message *pkcs7;
 	struct pefile_context ctx;
-	const void *data;
-	size_t datalen;
 	int ret;
 
 	kenter("");
@@ -439,19 +434,10 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 	if (ret < 0)
 		return ret;
 
-	pkcs7 = pkcs7_parse_message(pebuf + ctx.sig_offset, ctx.sig_len);
-	if (IS_ERR(pkcs7))
-		return PTR_ERR(pkcs7);
-	ctx.pkcs7 = pkcs7;
-
-	ret = pkcs7_get_content_data(ctx.pkcs7, &data, &datalen, false);
-	if (ret < 0 || datalen == 0) {
-		pr_devel("PKCS#7 message does not contain data\n");
-		ret = -EBADMSG;
-		goto error;
-	}
-
-	ret = mscode_parse(&ctx);
+	ret = verify_pkcs7_signature(NULL, 0,
+				     pebuf + ctx.sig_offset, ctx.sig_len,
+				     trusted_keys, usage,
+				     mscode_parse, &ctx);
 	if (ret < 0)
 		goto error;
 
@@ -462,16 +448,8 @@ int verify_pefile_signature(const void *pebuf, unsigned pelen,
 	 * contents.
 	 */
 	ret = pefile_digest_pe(pebuf, pelen, &ctx);
-	if (ret < 0)
-		goto error;
-
-	ret = pkcs7_verify(pkcs7, usage);
-	if (ret < 0)
-		goto error;
-
-	ret = pkcs7_validate_trust(pkcs7, trusted_keyring, _trusted);
 
 error:
-	pkcs7_free_message(ctx.pkcs7);
+	kfree(ctx.digest);
 	return ret;
 }

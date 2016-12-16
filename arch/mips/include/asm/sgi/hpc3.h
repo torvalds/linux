@@ -39,7 +39,7 @@ struct hpc3_pbus_dmacregs {
 	volatile u32 pbdma_dptr;	/* pbus dma channel desc ptr */
 	u32 _unused0[0x1000/4 - 2];	/* padding */
 	volatile u32 pbdma_ctrl;	/* pbus dma channel control register has
-					 * copletely different meaning for read
+					 * completely different meaning for read
 					 * compared with write */
 	/* read */
 #define HPC3_PDMACTRL_INT	0x00000001 /* interrupt (cleared after read) */

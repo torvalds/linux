@@ -70,6 +70,52 @@ bail:
 	return ret;
 }
 
+/* rds_tcp_accept_one_path(): if accepting on cp_index > 0, make sure the
+ * client's ipaddr < server's ipaddr. Otherwise, close the accepted
+ * socket and force a reconneect from smaller -> larger ip addr. The reason
+ * we special case cp_index 0 is to allow the rds probe ping itself to itself
+ * get through efficiently.
+ * Since reconnects are only initiated from the node with the numerically
+ * smaller ip address, we recycle conns in RDS_CONN_ERROR on the passive side
+ * by moving them to CONNECTING in this function.
+ */
+struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
+{
+	int i;
+	bool peer_is_smaller = (conn->c_faddr < conn->c_laddr);
+	int npaths = conn->c_npaths;
+
+	if (npaths <= 1) {
+		struct rds_conn_path *cp = &conn->c_path[0];
+		int ret;
+
+		ret = rds_conn_path_transition(cp, RDS_CONN_DOWN,
+					       RDS_CONN_CONNECTING);
+		if (!ret)
+			rds_conn_path_transition(cp, RDS_CONN_ERROR,
+						 RDS_CONN_CONNECTING);
+		return cp->cp_transport_data;
+	}
+
+	/* for mprds, paths with cp_index > 0 MUST be initiated by the peer
+	 * with the smaller address.
+	 */
+	if (!peer_is_smaller)
+		return NULL;
+
+	for (i = 1; i < npaths; i++) {
+		struct rds_conn_path *cp = &conn->c_path[i];
+
+		if (rds_conn_path_transition(cp, RDS_CONN_DOWN,
+					     RDS_CONN_CONNECTING) ||
+		    rds_conn_path_transition(cp, RDS_CONN_ERROR,
+					     RDS_CONN_CONNECTING)) {
+			return cp->cp_transport_data;
+		}
+	}
+	return NULL;
+}
+
 int rds_tcp_accept_one(struct socket *sock)
 {
 	struct socket *new_sock = NULL;
@@ -78,7 +124,10 @@ int rds_tcp_accept_one(struct socket *sock)
 	struct inet_sock *inet;
 	struct rds_tcp_connection *rs_tcp = NULL;
 	int conn_state;
-	struct sock *nsk;
+	struct rds_conn_path *cp;
+
+	if (!sock) /* module unload or netns delete in progress */
+		return -ENETUNREACH;
 
 	ret = sock_create_kern(sock_net(sock->sk), sock->sk->sk_family,
 			       sock->sk->sk_type, sock->sk->sk_protocol,
@@ -116,11 +165,14 @@ int rds_tcp_accept_one(struct socket *sock)
 	 * If the client reboots, this conn will need to be cleaned up.
 	 * rds_tcp_state_change() will do that cleanup
 	 */
-	rs_tcp = (struct rds_tcp_connection *)conn->c_transport_data;
-	rds_conn_transition(conn, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
-	mutex_lock(&rs_tcp->t_conn_lock);
-	conn_state = rds_conn_state(conn);
-	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP)
+	rs_tcp = rds_tcp_accept_one_path(conn);
+	if (!rs_tcp)
+		goto rst_nsk;
+	mutex_lock(&rs_tcp->t_conn_path_lock);
+	cp = rs_tcp->t_cpath;
+	conn_state = rds_conn_path_state(cp);
+	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP &&
+	    conn_state != RDS_CONN_ERROR)
 		goto rst_nsk;
 	if (rs_tcp->t_sock) {
 		/* Need to resolve a duelling SYN between peers.
@@ -129,32 +181,29 @@ int rds_tcp_accept_one(struct socket *sock)
 		 * so we must quiesce any send threads before resetting
 		 * c_transport_data.
 		 */
-		wait_event(conn->c_waitq,
-			   !test_bit(RDS_IN_XMIT, &conn->c_flags));
-		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr)) {
+		if (ntohl(inet->inet_saddr) < ntohl(inet->inet_daddr) ||
+		    !cp->cp_outgoing) {
 			goto rst_nsk;
-		} else if (rs_tcp->t_sock) {
-			rds_tcp_restore_callbacks(rs_tcp->t_sock, rs_tcp);
-			conn->c_outgoing = 0;
+		} else {
+			rds_tcp_reset_callbacks(new_sock, cp);
+			cp->cp_outgoing = 0;
+			/* rds_connect_path_complete() marks RDS_CONN_UP */
+			rds_connect_path_complete(cp, RDS_CONN_RESETTING);
 		}
+	} else {
+		rds_tcp_set_callbacks(new_sock, cp);
+		rds_connect_path_complete(cp, RDS_CONN_CONNECTING);
 	}
-	rds_tcp_set_callbacks(new_sock, conn);
-	rds_connect_complete(conn); /* marks RDS_CONN_UP */
 	new_sock = NULL;
 	ret = 0;
 	goto out;
 rst_nsk:
 	/* reset the newly returned accept sock and bail */
-	nsk = new_sock->sk;
-	rds_tcp_stats_inc(s_tcp_listen_closed_stale);
-	nsk->sk_user_data = NULL;
-	nsk->sk_prot->disconnect(nsk, 0);
-	tcp_done(nsk);
-	new_sock = NULL;
+	kernel_sock_shutdown(new_sock, SHUT_RDWR);
 	ret = 0;
 out:
 	if (rs_tcp)
-		mutex_unlock(&rs_tcp->t_conn_lock);
+		mutex_unlock(&rs_tcp->t_conn_path_lock);
 	if (new_sock)
 		sock_release(new_sock);
 	return ret;
@@ -166,7 +215,7 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 
 	rdsdebug("listen data ready sk %p\n", sk);
 
-	read_lock(&sk->sk_callback_lock);
+	read_lock_bh(&sk->sk_callback_lock);
 	ready = sk->sk_user_data;
 	if (!ready) { /* check for teardown race */
 		ready = sk->sk_data_ready;
@@ -181,9 +230,11 @@ void rds_tcp_listen_data_ready(struct sock *sk)
 	 */
 	if (sk->sk_state == TCP_LISTEN)
 		rds_tcp_accept_work(sk);
+	else
+		ready = rds_tcp_listen_sock_def_readable(sock_net(sk));
 
 out:
-	read_unlock(&sk->sk_callback_lock);
+	read_unlock_bh(&sk->sk_callback_lock);
 	ready(sk);
 }
 

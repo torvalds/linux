@@ -397,8 +397,6 @@ static int mpc52xx_bcom_probe(struct platform_device *op)
 	/* Get a clean struct */
 	bcom_eng = kzalloc(sizeof(struct bcom_engine), GFP_KERNEL);
 	if (!bcom_eng) {
-		printk(KERN_ERR DRIVER_NAME ": "
-			"Can't allocate state structure\n");
 		rv = -ENOMEM;
 		goto error_sramclean;
 	}

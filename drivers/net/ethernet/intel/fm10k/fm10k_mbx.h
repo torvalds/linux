@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -41,6 +41,8 @@ struct fm10k_mbx_info;
 #define FM10K_MBX_ACK_INTERRUPT			0x00000010
 #define FM10K_MBX_INTERRUPT_ENABLE		0x00000020
 #define FM10K_MBX_INTERRUPT_DISABLE		0x00000040
+#define FM10K_MBX_GLOBAL_REQ_INTERRUPT		0x00000200
+#define FM10K_MBX_GLOBAL_ACK_INTERRUPT		0x00000400
 #define FM10K_MBICR(_n)		((_n) + 0x18840)
 #define FM10K_GMBX		0x18842
 

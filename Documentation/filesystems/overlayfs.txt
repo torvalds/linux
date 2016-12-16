@@ -183,25 +183,14 @@ The copy_up operation essentially creates a new, identical file and
 moves it over to the old name.  The new file may be on a different
 filesystem, so both st_dev and st_ino of the file may change.
 
-Any open files referring to this inode will access the old data and
-metadata.  Similarly any file locks obtained before copy_up will not
-apply to the copied up file.
+Any open files referring to this inode will access the old data.
 
-On a file opened with O_RDONLY fchmod(2), fchown(2), futimesat(2) and
-fsetxattr(2) will fail with EROFS.
+Any file locks (and leases) obtained before copy_up will not apply
+to the copied up file.
 
 If a file with multiple hard links is copied up, then this will
 "break" the link.  Changes will not be propagated to other names
 referring to the same inode.
-
-Symlinks in /proc/PID/ and /proc/PID/fd which point to a non-directory
-object in overlayfs will not contain valid absolute paths, only
-relative paths leading up to the filesystem's root.  This will be
-fixed in the future.
-
-Some operations are not atomic, for example a crash during copy_up or
-rename will leave the filesystem in an inconsistent state.  This will
-be addressed in the future.
 
 Changes to underlying filesystems
 ---------------------------------

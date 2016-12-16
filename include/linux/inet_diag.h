@@ -52,6 +52,12 @@ struct sock *inet_diag_find_one_icsk(struct net *net,
 
 int inet_diag_bc_sk(const struct nlattr *_bc, struct sock *sk);
 
+void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk);
+
+int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
+			     struct inet_diag_msg *r, int ext,
+			     struct user_namespace *user_ns);
+
 extern int  inet_diag_register(const struct inet_diag_handler *handler);
 extern void inet_diag_unregister(const struct inet_diag_handler *handler);
 #endif /* _INET_DIAG_H_ */

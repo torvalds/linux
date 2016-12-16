@@ -61,6 +61,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/debugfs.h>
 
 #include <linux/ntb.h>
 
@@ -96,7 +97,12 @@ struct pp_ctx {
 	spinlock_t			db_lock;
 	struct timer_list		db_timer;
 	unsigned long			db_delay;
+	struct dentry			*debugfs_node_dir;
+	struct dentry			*debugfs_count;
+	atomic_t			count;
 };
+
+static struct dentry *pp_debugfs_dir;
 
 static void pp_ping(unsigned long ctx)
 {
@@ -171,8 +177,30 @@ static void pp_db_event(void *ctx, int vec)
 		dev_dbg(&pp->ntb->dev,
 			"Pong vec %d bits %#llx\n",
 			vec, db_bits);
+		atomic_inc(&pp->count);
 	}
 	spin_unlock_irqrestore(&pp->db_lock, irqflags);
+}
+
+static int pp_debugfs_setup(struct pp_ctx *pp)
+{
+	struct pci_dev *pdev = pp->ntb->pdev;
+
+	if (!pp_debugfs_dir)
+		return -ENODEV;
+
+	pp->debugfs_node_dir = debugfs_create_dir(pci_name(pdev),
+						  pp_debugfs_dir);
+	if (!pp->debugfs_node_dir)
+		return -ENODEV;
+
+	pp->debugfs_count = debugfs_create_atomic_t("count", S_IRUSR | S_IWUSR,
+						    pp->debugfs_node_dir,
+						    &pp->count);
+	if (!pp->debugfs_count)
+		return -ENODEV;
+
+	return 0;
 }
 
 static const struct ntb_ctx_ops pp_ops = {
@@ -210,11 +238,16 @@ static int pp_probe(struct ntb_client *client,
 
 	pp->ntb = ntb;
 	pp->db_bits = 0;
+	atomic_set(&pp->count, 0);
 	spin_lock_init(&pp->db_lock);
 	setup_timer(&pp->db_timer, pp_ping, (unsigned long)pp);
 	pp->db_delay = msecs_to_jiffies(delay_ms);
 
 	rc = ntb_set_ctx(ntb, pp, &pp_ops);
+	if (rc)
+		goto err_ctx;
+
+	rc = pp_debugfs_setup(pp);
 	if (rc)
 		goto err_ctx;
 
@@ -234,6 +267,8 @@ static void pp_remove(struct ntb_client *client,
 {
 	struct pp_ctx *pp = ntb->ctx;
 
+	debugfs_remove_recursive(pp->debugfs_node_dir);
+
 	ntb_clear_ctx(ntb);
 	del_timer_sync(&pp->db_timer);
 	ntb_link_disable(ntb);
@@ -247,4 +282,29 @@ static struct ntb_client pp_client = {
 		.remove = pp_remove,
 	},
 };
-module_ntb_client(pp_client);
+
+static int __init pp_init(void)
+{
+	int rc;
+
+	if (debugfs_initialized())
+		pp_debugfs_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
+
+	rc = ntb_register_client(&pp_client);
+	if (rc)
+		goto err_client;
+
+	return 0;
+
+err_client:
+	debugfs_remove_recursive(pp_debugfs_dir);
+	return rc;
+}
+module_init(pp_init);
+
+static void __exit pp_exit(void)
+{
+	ntb_unregister_client(&pp_client);
+	debugfs_remove_recursive(pp_debugfs_dir);
+}
+module_exit(pp_exit);

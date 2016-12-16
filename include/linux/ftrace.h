@@ -455,6 +455,7 @@ int ftrace_update_record(struct dyn_ftrace *rec, int enable);
 int ftrace_test_record(struct dyn_ftrace *rec, int enable);
 void ftrace_run_stop_machine(int command);
 unsigned long ftrace_location(unsigned long ip);
+unsigned long ftrace_location_range(unsigned long start, unsigned long end);
 unsigned long ftrace_get_addr_new(struct dyn_ftrace *rec);
 unsigned long ftrace_get_addr_curr(struct dyn_ftrace *rec);
 
@@ -753,23 +754,27 @@ static inline void ftrace_init(void) { }
 
 /*
  * Structure that defines an entry function trace.
+ * It's already packed but the attribute "packed" is needed
+ * to remove extra padding at the end.
  */
 struct ftrace_graph_ent {
 	unsigned long func; /* Current function */
 	int depth;
-};
+} __packed;
 
 /*
  * Structure that defines a return function trace.
+ * It's already packed but the attribute "packed" is needed
+ * to remove extra padding at the end.
  */
 struct ftrace_graph_ret {
 	unsigned long func; /* Current function */
-	unsigned long long calltime;
-	unsigned long long rettime;
 	/* Number of functions that overran the depth limit for current task */
 	unsigned long overrun;
+	unsigned long long calltime;
+	unsigned long long rettime;
 	int depth;
-};
+} __packed;
 
 /* Type of the callback handlers for tracing function graph*/
 typedef void (*trace_func_graph_ret_t)(struct ftrace_graph_ret *); /* return */

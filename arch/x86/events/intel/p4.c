@@ -826,7 +826,7 @@ static int p4_hw_config(struct perf_event *event)
 		 * Clear bits we reserve to be managed by kernel itself
 		 * and never allowed from a user space
 		 */
-		 event->attr.config &= P4_CONFIG_MASK;
+		event->attr.config &= P4_CONFIG_MASK;
 
 		rc = p4_validate_raw_event(event);
 		if (rc)

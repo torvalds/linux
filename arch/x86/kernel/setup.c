@@ -36,7 +36,7 @@
 #include <linux/console.h>
 #include <linux/root_dev.h>
 #include <linux/highmem.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/efi.h>
 #include <linux/init.h>
 #include <linux/edd.h>
@@ -113,6 +113,7 @@
 #include <asm/prom.h>
 #include <asm/microcode.h>
 #include <asm/mmu_context.h>
+#include <asm/kaslr.h>
 
 /*
  * max_low_pfn_mapped: highest direct mapped pfn under 4GB
@@ -398,6 +399,7 @@ static void __init reserve_initrd(void)
 
 	memblock_free(ramdisk_image, ramdisk_end - ramdisk_image);
 }
+
 #else
 static void __init early_reserve_initrd(void)
 {
@@ -1051,6 +1053,12 @@ void __init setup_arch(char **cmdline_p)
 
 	max_possible_pfn = max_pfn;
 
+	/*
+	 * Define random base addresses for memory sections after max_pfn is
+	 * defined and before each memory section base is used.
+	 */
+	kernel_randomize_memory();
+
 #ifdef CONFIG_X86_32
 	/* max_low_pfn get updated here */
 	find_low_pfn_range();
@@ -1093,6 +1101,8 @@ void __init setup_arch(char **cmdline_p)
 		efi_find_mirror();
 	}
 
+	reserve_bios_regions();
+
 	/*
 	 * The EFI specification says that boot service code won't be called
 	 * after ExitBootServices(). This is, in fact, a lie.
@@ -1121,7 +1131,13 @@ void __init setup_arch(char **cmdline_p)
 
 	early_trap_pf_init();
 
-	setup_real_mode();
+	/*
+	 * Update mmu_cr4_features (and, indirectly, trampoline_cr4_features)
+	 * with the current CR4 value.  This may not be necessary, but
+	 * auditing all the early-boot CR4 manipulation would be needed to
+	 * rule it out.
+	 */
+	mmu_cr4_features = __read_cr4_safe();
 
 	memblock_set_current_limit(get_max_mapped());
 
@@ -1138,9 +1154,7 @@ void __init setup_arch(char **cmdline_p)
 
 	reserve_initrd();
 
-#if defined(CONFIG_ACPI) && defined(CONFIG_BLK_DEV_INITRD)
-	acpi_initrd_override((void *)initrd_start, initrd_end - initrd_start);
-#endif
+	acpi_table_upgrade();
 
 	vsmp_init();
 
@@ -1171,13 +1185,6 @@ void __init setup_arch(char **cmdline_p)
 	x86_init.paging.pagetable_init();
 
 	kasan_init();
-
-	if (boot_cpu_data.cpuid_level >= 0) {
-		/* A CPU has %cr4 if and only if it has CPUID */
-		mmu_cr4_features = __read_cr4();
-		if (trampoline_cr4_features)
-			*trampoline_cr4_features = mmu_cr4_features;
-	}
 
 #ifdef CONFIG_X86_32
 	/* sync back kernel address range */

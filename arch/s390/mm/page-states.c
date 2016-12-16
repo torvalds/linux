@@ -34,20 +34,25 @@ static int __init cmma(char *str)
 }
 __setup("cmma=", cmma);
 
-void __init cmma_init(void)
+static inline int cmma_test_essa(void)
 {
 	register unsigned long tmp asm("0") = 0;
 	register int rc asm("1") = -EOPNOTSUPP;
 
-	if (!cmma_flag)
-		return;
 	asm volatile(
 		"       .insn rrf,0xb9ab0000,%1,%1,0,0\n"
 		"0:     la      %0,0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
 		: "+&d" (rc), "+&d" (tmp));
-	if (rc)
+	return rc;
+}
+
+void __init cmma_init(void)
+{
+	if (!cmma_flag)
+		return;
+	if (cmma_test_essa())
 		cmma_flag = 0;
 }
 

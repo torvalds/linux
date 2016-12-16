@@ -159,8 +159,8 @@ to be strictly associated with a P-state.
 
 2.2 cpuinfo_transition_latency:
 -------------------------------
-The cpuinfo_transition_latency field is CPUFREQ_ETERNAL. The PCC specification
-does not include a field to expose this value currently.
+The cpuinfo_transition_latency field is 0. The PCC specification does
+not include a field to expose this value currently.
 
 2.3 cpuinfo_cur_freq:
 ---------------------

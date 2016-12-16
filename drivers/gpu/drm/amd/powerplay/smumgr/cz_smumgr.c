@@ -39,7 +39,7 @@
 
 #define SIZE_ALIGN_32(x)    (((x) + 31) / 32 * 32)
 
-static enum cz_scratch_entry firmware_list[] = {
+static const enum cz_scratch_entry firmware_list[] = {
 	CZ_SCRATCH_ENTRY_UCODE_ID_SDMA0,
 	CZ_SCRATCH_ENTRY_UCODE_ID_SDMA1,
 	CZ_SCRATCH_ENTRY_UCODE_ID_CP_CE,
@@ -639,7 +639,7 @@ static int cz_smu_populate_firmware_entries(struct pp_smumgr *smumgr)
 
 	cz_smu->driver_buffer_length = 0;
 
-	for (i = 0; i < sizeof(firmware_list)/sizeof(*firmware_list); i++) {
+	for (i = 0; i < ARRAY_SIZE(firmware_list); i++) {
 
 		firmware_type = cz_translate_firmware_enum_to_arg(smumgr,
 					firmware_list[i]);

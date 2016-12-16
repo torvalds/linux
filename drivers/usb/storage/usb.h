@@ -1,4 +1,5 @@
-/* Driver for USB Mass Storage compliant devices
+/*
+ * Driver for USB Mass Storage compliant devices
  * Main Header File
  *
  * Current development and maintenance by:
@@ -100,7 +101,8 @@ typedef void (*pm_hook)(struct us_data *, int);	/* power management hook */
 
 /* we allocate one of these for every device that we remember */
 struct us_data {
-	/* The device we're working with
+	/*
+	 * The device we're working with
 	 * It's important to note:
 	 *    (o) you must hold dev_mutex to change pusb_dev
 	 */
@@ -125,7 +127,7 @@ struct us_data {
 	u8			max_lun;
 
 	u8			ifnum;		 /* interface number   */
-	u8			ep_bInterval;	 /* interrupt interval */ 
+	u8			ep_bInterval;	 /* interrupt interval */
 
 	/* function pointers for this device */
 	trans_cmnd		transport;	 /* transport function	   */
@@ -175,8 +177,10 @@ static inline struct us_data *host_to_us(struct Scsi_Host *host) {
 extern void fill_inquiry_response(struct us_data *us,
 	unsigned char *data, unsigned int data_len);
 
-/* The scsi_lock() and scsi_unlock() macros protect the sm_state and the
- * single queue element srb for write access */
+/*
+ * The scsi_lock() and scsi_unlock() macros protect the sm_state and the
+ * single queue element srb for write access
+ */
 #define scsi_unlock(host)	spin_unlock_irq(host->host_lock)
 #define scsi_lock(host)		spin_lock_irq(host->host_lock)
 

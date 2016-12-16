@@ -97,9 +97,11 @@ gf100_devinit_preinit(struct nvkm_devinit *base)
 	struct nvkm_subdev *subdev = &init->base.subdev;
 	struct nvkm_device *device = subdev->device;
 
-	/* This bit is set by devinit, and flips back to 0 on suspend */
-	if (!base->post)
-		base->post = ((nvkm_rd32(device, 0x2240c) & BIT(1)) == 0);
+	/*
+	 * This bit is set by devinit, and flips back to 0 on suspend. We
+	 * can use it as a reliable way to know whether we should run devinit.
+	 */
+	base->post = ((nvkm_rd32(device, 0x2240c) & BIT(1)) == 0);
 }
 
 static const struct nvkm_devinit_func

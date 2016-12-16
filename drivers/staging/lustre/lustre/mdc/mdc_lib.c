@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -279,8 +275,7 @@ static void mdc_setattr_pack_rec(struct mdt_rec_setattr *rec,
 	rec->sa_atime  = LTIME_S(op_data->op_attr.ia_atime);
 	rec->sa_mtime  = LTIME_S(op_data->op_attr.ia_mtime);
 	rec->sa_ctime  = LTIME_S(op_data->op_attr.ia_ctime);
-	rec->sa_attr_flags =
-			((struct ll_iattr *)&op_data->op_attr)->ia_attr_flags;
+	rec->sa_attr_flags = op_data->op_attr_flags;
 	if ((op_data->op_attr.ia_valid & ATTR_GID) &&
 	    in_group_p(op_data->op_attr.ia_gid))
 		rec->sa_suppgid =
@@ -439,7 +434,6 @@ void mdc_getattr_pack(struct ptlrpc_request *req, __u64 valid, int flags,
 		char *tmp = req_capsule_client_get(&req->rq_pill, &RMF_NAME);
 
 		LOGL0(op_data->op_name, op_data->op_namelen, tmp);
-
 	}
 }
 
@@ -455,7 +449,7 @@ static void mdc_hsm_release_pack(struct ptlrpc_request *req,
 		lock = ldlm_handle2lock(&op_data->op_lease_handle);
 		if (lock) {
 			data->cd_handle = lock->l_remote_handle;
-			ldlm_lock_put(lock);
+			LDLM_LOCK_PUT(lock);
 		}
 		ldlm_cli_cancel(&op_data->op_lease_handle, LCF_LOCAL);
 
@@ -473,6 +467,18 @@ void mdc_close_pack(struct ptlrpc_request *req, struct md_op_data *op_data)
 	rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 
 	mdc_setattr_pack_rec(rec, op_data);
+	/*
+	 * The client will zero out local timestamps when losing the IBITS lock
+	 * so any new RPC timestamps will update the client inode's timestamps.
+	 * There was a defect on the server side which allowed the atime to be
+	 * overwritten by a zeroed-out atime packed into the close RPC.
+	 *
+	 * Proactively clear the MDS_ATTR_ATIME flag in the RPC in this case
+	 * to avoid zeroing the atime on old unpatched servers.  See LU-8041.
+	 */
+	if (rec->sa_atime == 0)
+		rec->sa_valid &= ~MDS_ATTR_ATIME;
+
 	mdc_ioepoch_pack(epoch, op_data);
 	mdc_hsm_release_pack(req, op_data);
 }
@@ -481,9 +487,9 @@ static int mdc_req_avail(struct client_obd *cli, struct mdc_cache_waiter *mcw)
 {
 	int rc;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	rc = list_empty(&mcw->mcw_entry);
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 	return rc;
 };
 
@@ -497,23 +503,23 @@ int mdc_enter_request(struct client_obd *cli)
 	struct mdc_cache_waiter mcw;
 	struct l_wait_info lwi = LWI_INTR(LWI_ON_SIGNAL_NOOP, NULL);
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
 		list_add_tail(&mcw.mcw_entry, &cli->cl_cache_waiters);
 		init_waitqueue_head(&mcw.mcw_waitq);
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 		rc = l_wait_event(mcw.mcw_waitq, mdc_req_avail(cli, &mcw),
 				  &lwi);
 		if (rc) {
-			client_obd_list_lock(&cli->cl_loi_list_lock);
+			spin_lock(&cli->cl_loi_list_lock);
 			if (list_empty(&mcw.mcw_entry))
 				cli->cl_r_in_flight--;
 			list_del_init(&mcw.mcw_entry);
-			client_obd_list_unlock(&cli->cl_loi_list_lock);
+			spin_unlock(&cli->cl_loi_list_lock);
 		}
 	} else {
 		cli->cl_r_in_flight++;
-		client_obd_list_unlock(&cli->cl_loi_list_lock);
+		spin_unlock(&cli->cl_loi_list_lock);
 	}
 	return rc;
 }
@@ -523,7 +529,7 @@ void mdc_exit_request(struct client_obd *cli)
 	struct list_head *l, *tmp;
 	struct mdc_cache_waiter *mcw;
 
-	client_obd_list_lock(&cli->cl_loi_list_lock);
+	spin_lock(&cli->cl_loi_list_lock);
 	cli->cl_r_in_flight--;
 	list_for_each_safe(l, tmp, &cli->cl_cache_waiters) {
 		if (cli->cl_r_in_flight >= cli->cl_max_rpcs_in_flight) {
@@ -538,5 +544,5 @@ void mdc_exit_request(struct client_obd *cli)
 	}
 	/* Empty waiting list? Decrease reqs in-flight number */
 
-	client_obd_list_unlock(&cli->cl_loi_list_lock);
+	spin_unlock(&cli->cl_loi_list_lock);
 }

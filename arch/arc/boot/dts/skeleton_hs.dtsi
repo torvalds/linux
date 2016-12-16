@@ -1,0 +1,51 @@
+/*
+ * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/ {
+	compatible = "snps,arc";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
+	aliases { };
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "snps,archs38";
+			reg = <0>;
+		};
+	};
+
+	/* TIMER0 with interrupt for clockevent */
+	timer0 {
+		compatible = "snps,arc-timer";
+		interrupts = <16>;
+		interrupt-parent = <&core_intc>;
+		clocks = <&core_clk>;
+	};
+
+	/* 64-bit Local RTC: preferred clocksource for UP */
+	rtc {
+		compatible = "snps,archs-timer-rtc";
+		clocks = <&core_clk>;
+	};
+
+	/* TIMER1 for free running clocksource: Fallback if rtc not found */
+	timer1 {
+		compatible = "snps,arc-timer";
+		clocks = <&core_clk>;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>;	/* 256M */
+	};
+};

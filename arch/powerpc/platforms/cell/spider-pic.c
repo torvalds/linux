@@ -217,7 +217,7 @@ static void spider_irq_cascade(struct irq_desc *desc)
 	chip->irq_eoi(&desc->irq_data);
 }
 
-/* For hooking up the cascace we have a problem. Our device-tree is
+/* For hooking up the cascade we have a problem. Our device-tree is
  * crap and we don't know on which BE iic interrupt we are hooked on at
  * least not the "standard" way. We can reconstitute it based on two
  * informations though: which BE node we are connected to and whether

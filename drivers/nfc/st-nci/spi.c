@@ -43,7 +43,7 @@
 
 #define ST_NCI_SPI_DRIVER_NAME "st_nci_spi"
 
-#define ST_NCI_GPIO_NAME_RESET "clf_reset"
+#define ST_NCI_GPIO_NAME_RESET "reset"
 
 struct st_nci_spi_phy {
 	struct spi_device *spi_dev;
@@ -226,19 +226,9 @@ static struct nfc_phy_ops spi_phy_ops = {
 static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(spi_dev);
-	const struct acpi_device_id *id;
 	struct gpio_desc *gpiod_reset;
-	struct device *dev;
-
-	if (!spi_dev)
-		return -EINVAL;
-
-	dev = &spi_dev->dev;
-
-	/* Match the struct device against a given list of ACPI IDs */
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -ENODEV;
+	struct device *dev = &spi_dev->dev;
+	u8 tmp;
 
 	/* Get RESET GPIO from ACPI */
 	gpiod_reset = devm_gpiod_get_index(dev, ST_NCI_GPIO_NAME_RESET, 1,
@@ -252,10 +242,18 @@ static int st_nci_spi_acpi_request_resources(struct spi_device *spi_dev)
 
 	phy->irq_polarity = irq_get_trigger_type(spi_dev->irq);
 
-	phy->se_status.is_ese_present =
-				device_property_present(dev, "ese-present");
-	phy->se_status.is_uicc_present =
-				device_property_present(dev, "uicc-present");
+	phy->se_status.is_ese_present = false;
+	phy->se_status.is_uicc_present = false;
+
+	if (device_property_present(dev, "ese-present")) {
+		device_property_read_u8(dev, "ese-present", &tmp);
+		tmp = phy->se_status.is_ese_present;
+	}
+
+	if (device_property_present(dev, "uicc-present")) {
+		device_property_read_u8(dev, "uicc-present", &tmp);
+		tmp = phy->se_status.is_uicc_present;
+	}
 
 	return 0;
 }

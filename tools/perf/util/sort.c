@@ -21,13 +21,6 @@ const char	*sort_order;
 const char	*field_order;
 regex_t		ignore_callees_regex;
 int		have_ignore_callees = 0;
-int		sort__need_collapse = 0;
-int		sort__has_parent = 0;
-int		sort__has_sym = 0;
-int		sort__has_dso = 0;
-int		sort__has_socket = 0;
-int		sort__has_thread = 0;
-int		sort__has_comm = 0;
 enum sort_mode	sort__mode = SORT_MODE__NORMAL;
 
 /*
@@ -86,8 +79,8 @@ static int hist_entry__thread_snprintf(struct hist_entry *he, char *bf,
 {
 	const char *comm = thread__comm_str(he->thread);
 
-	width = max(7U, width) - 6;
-	return repsep_snprintf(bf, size, "%5d:%-*.*s", he->thread->tid,
+	width = max(7U, width) - 8;
+	return repsep_snprintf(bf, size, "%7d:%-*.*s", he->thread->tid,
 			       width, width, comm ?: "");
 }
 
@@ -102,7 +95,7 @@ static int hist_entry__thread_filter(struct hist_entry *he, int type, const void
 }
 
 struct sort_entry sort_thread = {
-	.se_header	= "  Pid:Command",
+	.se_header	= "    Pid:Command",
 	.se_cmp		= sort__thread_cmp,
 	.se_snprintf	= hist_entry__thread_snprintf,
 	.se_filter	= hist_entry__thread_filter,
@@ -244,7 +237,7 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 	 * comparing symbol address alone is not enough since it's a
 	 * relative address within a dso.
 	 */
-	if (!sort__has_dso) {
+	if (!hists__has(left->hists, dso) || hists__has(right->hists, dso)) {
 		ret = sort__dso_cmp(left, right);
 		if (ret != 0)
 			return ret;
@@ -358,6 +351,88 @@ struct sort_entry sort_srcline = {
 	.se_cmp		= sort__srcline_cmp,
 	.se_snprintf	= hist_entry__srcline_snprintf,
 	.se_width_idx	= HISTC_SRCLINE,
+};
+
+/* --sort srcline_from */
+
+static int64_t
+sort__srcline_from_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->branch_info->srcline_from) {
+		struct map *map = left->branch_info->from.map;
+		if (!map)
+			left->branch_info->srcline_from = SRCLINE_UNKNOWN;
+		else
+			left->branch_info->srcline_from = get_srcline(map->dso,
+					   map__rip_2objdump(map,
+							     left->branch_info->from.al_addr),
+							 left->branch_info->from.sym, true);
+	}
+	if (!right->branch_info->srcline_from) {
+		struct map *map = right->branch_info->from.map;
+		if (!map)
+			right->branch_info->srcline_from = SRCLINE_UNKNOWN;
+		else
+			right->branch_info->srcline_from = get_srcline(map->dso,
+					     map__rip_2objdump(map,
+							       right->branch_info->from.al_addr),
+						     right->branch_info->from.sym, true);
+	}
+	return strcmp(right->branch_info->srcline_from, left->branch_info->srcline_from);
+}
+
+static int hist_entry__srcline_from_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->branch_info->srcline_from);
+}
+
+struct sort_entry sort_srcline_from = {
+	.se_header	= "From Source:Line",
+	.se_cmp		= sort__srcline_from_cmp,
+	.se_snprintf	= hist_entry__srcline_from_snprintf,
+	.se_width_idx	= HISTC_SRCLINE_FROM,
+};
+
+/* --sort srcline_to */
+
+static int64_t
+sort__srcline_to_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->branch_info->srcline_to) {
+		struct map *map = left->branch_info->to.map;
+		if (!map)
+			left->branch_info->srcline_to = SRCLINE_UNKNOWN;
+		else
+			left->branch_info->srcline_to = get_srcline(map->dso,
+					   map__rip_2objdump(map,
+							     left->branch_info->to.al_addr),
+							 left->branch_info->from.sym, true);
+	}
+	if (!right->branch_info->srcline_to) {
+		struct map *map = right->branch_info->to.map;
+		if (!map)
+			right->branch_info->srcline_to = SRCLINE_UNKNOWN;
+		else
+			right->branch_info->srcline_to = get_srcline(map->dso,
+					     map__rip_2objdump(map,
+							       right->branch_info->to.al_addr),
+						     right->branch_info->to.sym, true);
+	}
+	return strcmp(right->branch_info->srcline_to, left->branch_info->srcline_to);
+}
+
+static int hist_entry__srcline_to_snprintf(struct hist_entry *he, char *bf,
+					size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*.*s", width, width, he->branch_info->srcline_to);
+}
+
+struct sort_entry sort_srcline_to = {
+	.se_header	= "To Source:Line",
+	.se_cmp		= sort__srcline_to_cmp,
+	.se_snprintf	= hist_entry__srcline_to_snprintf,
+	.se_width_idx	= HISTC_SRCLINE_TO,
 };
 
 /* --sort srcfile */
@@ -513,7 +588,11 @@ static char *get_trace_output(struct hist_entry *he)
 	} else {
 		pevent_event_info(&seq, evsel->tp_format, &rec);
 	}
-	return seq.buffer;
+	/*
+	 * Trim the buffer, it starts at 4KB and we're not going to
+	 * add anything more to this buffer.
+	 */
+	return realloc(seq.buffer, seq.len + 1);
 }
 
 static int64_t
@@ -1143,7 +1222,7 @@ struct sort_entry sort_mem_daddr_dso = {
 	.se_header	= "Data Object",
 	.se_cmp		= sort__dso_daddr_cmp,
 	.se_snprintf	= hist_entry__dso_daddr_snprintf,
-	.se_width_idx	= HISTC_MEM_DADDR_SYMBOL,
+	.se_width_idx	= HISTC_MEM_DADDR_DSO,
 };
 
 struct sort_entry sort_mem_locked = {
@@ -1354,6 +1433,8 @@ static struct sort_dimension bstack_sort_dimensions[] = {
 	DIM(SORT_IN_TX, "in_tx", sort_in_tx),
 	DIM(SORT_ABORT, "abort", sort_abort),
 	DIM(SORT_CYCLES, "cycles", sort_cycles),
+	DIM(SORT_SRCLINE_FROM, "srcline_from", sort_srcline_from),
+	DIM(SORT_SRCLINE_TO, "srcline_to", sort_srcline_to),
 };
 
 #undef DIM
@@ -1411,7 +1492,7 @@ void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists)
 }
 
 static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			      struct perf_evsel *evsel)
+			      struct hists *hists)
 {
 	struct hpp_sort_entry *hse;
 	size_t len = fmt->user_len;
@@ -1419,14 +1500,14 @@ static int __sort__hpp_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
 
 	if (!len)
-		len = hists__col_len(evsel__hists(evsel), hse->se->se_width_idx);
+		len = hists__col_len(hists, hse->se->se_width_idx);
 
 	return scnprintf(hpp->buf, hpp->size, "%-*.*s", len, len, fmt->name);
 }
 
 static int __sort__hpp_width(struct perf_hpp_fmt *fmt,
 			     struct perf_hpp *hpp __maybe_unused,
-			     struct perf_evsel *evsel)
+			     struct hists *hists)
 {
 	struct hpp_sort_entry *hse;
 	size_t len = fmt->user_len;
@@ -1434,7 +1515,7 @@ static int __sort__hpp_width(struct perf_hpp_fmt *fmt,
 	hse = container_of(fmt, struct hpp_sort_entry, hpp);
 
 	if (!len)
-		len = hists__col_len(evsel__hists(evsel), hse->se->se_width_idx);
+		len = hists__col_len(hists, hse->se->se_width_idx);
 
 	return len;
 }
@@ -1716,7 +1797,7 @@ static void update_dynamic_len(struct hpp_dynamic_entry *hde,
 }
 
 static int __sort__hde_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
-			      struct perf_evsel *evsel __maybe_unused)
+			      struct hists *hists __maybe_unused)
 {
 	struct hpp_dynamic_entry *hde;
 	size_t len = fmt->user_len;
@@ -1731,7 +1812,7 @@ static int __sort__hde_header(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 
 static int __sort__hde_width(struct perf_hpp_fmt *fmt,
 			     struct perf_hpp *hpp __maybe_unused,
-			     struct perf_evsel *evsel __maybe_unused)
+			     struct hists *hists __maybe_unused)
 {
 	struct hpp_dynamic_entry *hde;
 	size_t len = fmt->user_len;
@@ -1992,7 +2073,7 @@ static struct perf_evsel *find_evsel(struct perf_evlist *evlist, char *event_nam
 	}
 
 	full_name = !!strchr(event_name, ':');
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		/* case 2 */
 		if (full_name && !strcmp(pos->name, event_name))
 			return pos;
@@ -2048,7 +2129,7 @@ static int add_all_dynamic_fields(struct perf_evlist *evlist, bool raw_trace,
 	int ret;
 	struct perf_evsel *evsel;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
@@ -2066,7 +2147,7 @@ static int add_all_matching_fields(struct perf_evlist *evlist,
 	struct perf_evsel *evsel;
 	struct format_field *field;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT)
 			continue;
 
@@ -2163,7 +2244,7 @@ static int __sort_dimension__add(struct sort_dimension *sd,
 		return -1;
 
 	if (sd->entry->se_collapse)
-		sort__need_collapse = 1;
+		list->need_collapse = 1;
 
 	sd->taken = 1;
 
@@ -2245,9 +2326,9 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				pr_err("Invalid regex: %s\n%s", parent_pattern, err);
 				return -EINVAL;
 			}
-			sort__has_parent = 1;
+			list->parent = 1;
 		} else if (sd->entry == &sort_sym) {
-			sort__has_sym = 1;
+			list->sym = 1;
 			/*
 			 * perf diff displays the performance difference amongst
 			 * two or more perf.data files. Those files could come
@@ -2258,13 +2339,13 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				sd->entry->se_collapse = sort__sym_sort;
 
 		} else if (sd->entry == &sort_dso) {
-			sort__has_dso = 1;
+			list->dso = 1;
 		} else if (sd->entry == &sort_socket) {
-			sort__has_socket = 1;
+			list->socket = 1;
 		} else if (sd->entry == &sort_thread) {
-			sort__has_thread = 1;
+			list->thread = 1;
 		} else if (sd->entry == &sort_comm) {
-			sort__has_comm = 1;
+			list->comm = 1;
 		}
 
 		return __sort_dimension__add(sd, list, level);
@@ -2289,7 +2370,7 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 			return -EINVAL;
 
 		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)
-			sort__has_sym = 1;
+			list->sym = 1;
 
 		__sort_dimension__add(sd, list, level);
 		return 0;
@@ -2304,8 +2385,11 @@ static int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 		if (sort__mode != SORT_MODE__MEMORY)
 			return -EINVAL;
 
+		if (sd->entry == &sort_mem_dcacheline && cacheline_size == 0)
+			return -EINVAL;
+
 		if (sd->entry == &sort_mem_daddr_sym)
-			sort__has_sym = 1;
+			list->sym = 1;
 
 		__sort_dimension__add(sd, list, level);
 		return 0;
@@ -2347,7 +2431,10 @@ static int setup_sort_list(struct perf_hpp_list *list, char *str,
 		if (*tok) {
 			ret = sort_dimension__add(list, tok, evlist, level);
 			if (ret == -EINVAL) {
-				error("Invalid --sort key: `%s'", tok);
+				if (!cacheline_size && !strncasecmp(tok, "dcacheline", strlen(tok)))
+					error("The \"dcacheline\" --sort key needs to know the cacheline size and it couldn't be determined on this system");
+				else
+					error("Invalid --sort key: `%s'", tok);
 				break;
 			} else if (ret == -ESRCH) {
 				error("Unknown --sort key: `%s'", tok);
@@ -2379,7 +2466,7 @@ static const char *get_default_sort_order(struct perf_evlist *evlist)
 	if (evlist == NULL)
 		goto out_no_evlist;
 
-	evlist__for_each(evlist, evsel) {
+	evlist__for_each_entry(evlist, evsel) {
 		if (evsel->attr.type != PERF_TYPE_TRACEPOINT) {
 			use_trace = false;
 			break;
@@ -2749,10 +2836,10 @@ int setup_sorting(struct perf_evlist *evlist)
 
 void reset_output_field(void)
 {
-	sort__need_collapse = 0;
-	sort__has_parent = 0;
-	sort__has_sym = 0;
-	sort__has_dso = 0;
+	perf_hpp_list.need_collapse = 0;
+	perf_hpp_list.parent = 0;
+	perf_hpp_list.sym = 0;
+	perf_hpp_list.dso = 0;
 
 	field_order = NULL;
 	sort_order = NULL;

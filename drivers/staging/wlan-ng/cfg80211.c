@@ -338,6 +338,8 @@ static int prism2_scan(struct wiphy *wiphy,
 	struct p80211msg_dot11req_scan msg1;
 	struct p80211msg_dot11req_scan_results msg2;
 	struct cfg80211_bss *bss;
+	struct cfg80211_scan_info info = {};
+
 	int result;
 	int err = 0;
 	int numbss = 0;
@@ -415,7 +417,7 @@ static int prism2_scan(struct wiphy *wiphy,
 		ie_len = ie_buf[1] + 2;
 		memcpy(&ie_buf[2], &(msg2.ssid.data.data), msg2.ssid.data.len);
 		freq = ieee80211_channel_to_frequency(msg2.dschannel.data,
-						      IEEE80211_BAND_2GHZ);
+						      NL80211_BAND_2GHZ);
 		bss = cfg80211_inform_bss(wiphy,
 			ieee80211_get_channel(wiphy, freq),
 			CFG80211_BSS_FTYPE_UNKNOWN,
@@ -440,7 +442,8 @@ static int prism2_scan(struct wiphy *wiphy,
 		err = prism2_result2err(msg2.resultcode.data);
 
 exit:
-	cfg80211_scan_done(request, err ? 1 : 0);
+	info.aborted = !!(err);
+	cfg80211_scan_done(request, &info);
 	priv->scan_request = NULL;
 	return err;
 }
@@ -758,9 +761,9 @@ static struct wiphy *wlan_create_wiphy(struct device *dev, wlandevice_t *wlandev
 	priv->band.n_channels = ARRAY_SIZE(prism2_channels);
 	priv->band.bitrates = priv->rates;
 	priv->band.n_bitrates = ARRAY_SIZE(prism2_rates);
-	priv->band.band = IEEE80211_BAND_2GHZ;
+	priv->band.band = NL80211_BAND_2GHZ;
 	priv->band.ht_cap.ht_supported = false;
-	wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+	wiphy->bands[NL80211_BAND_2GHZ] = &priv->band;
 
 	set_wiphy_dev(wiphy, dev);
 	wiphy->privid = prism2_wiphy_privid;
@@ -771,8 +774,10 @@ static struct wiphy *wlan_create_wiphy(struct device *dev, wlandevice_t *wlandev
 	wiphy->n_cipher_suites = PRISM2_NUM_CIPHER_SUITES;
 	wiphy->cipher_suites = prism2_cipher_suites;
 
-	if (wiphy_register(wiphy) < 0)
+	if (wiphy_register(wiphy) < 0) {
+		wiphy_free(wiphy);
 		return NULL;
+	}
 
 	return wiphy;
 }

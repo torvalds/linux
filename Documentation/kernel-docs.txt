@@ -194,15 +194,15 @@
        simple---most of the complexity (other than talking to the
        hardware) involves managing network packets in memory".
        
-     * Title: "Writing Linux Device Drivers"
+     * Title: "Linux Kernel Hackers' Guide"
        Author: Michael K. Johnson.
-       URL: http://users.evitech.fi/~tk/rtos/writing_linux_device_d.html
-       Keywords: files, VFS, file operations, kernel interface, character
-       vs block devices, I/O access, hardware interrupts, DMA, access to
-       user memory, memory allocation, timers.
-       Description: Introductory 50-minutes (sic) tutorial on writing
-       device drivers. 12 pages written by the same author of the "Kernel
-       Hackers' Guide" which give a very good overview of the topic.
+       URL: http://www.tldp.org/LDP/khg/HyperNews/get/khg.html
+       Keywords: device drivers, files, VFS, kernel interface, character vs
+       block devices, hardware interrupts, scsi, DMA, access to user memory,
+       memory allocation, timers.
+       Description: A guide designed to help you get up to speed on the
+       concepts that are not intuitevly obvious, and to document the internal
+       structures of Linux.
        
      * Title: "The Venus kernel interface"
        Author: Peter J. Braam.
@@ -250,7 +250,7 @@
 
      * Title: "Analysis of the Ext2fs structure"
        Author: Louis-Dominique Dubeau.
-       URL: http://www.nondot.org/sabre/os/files/FileSystems/ext2fs/
+       URL: http://teaching.csse.uwa.edu.au/units/CITS2002/fs-ext2/
        Keywords: ext2, filesystem, ext2fs.
        Description: Description of ext2's blocks, directories, inodes,
        bitmaps, invariants...
@@ -266,14 +266,14 @@
 
      * Title: "Kernel API changes from 2.0 to 2.2"
        Author: Richard Gooch.
-       URL:
-       http://www.linuxhq.com/guides/LKMPG/node28.html 
+       URL: http://www.safe-mbox.com/~rgooch/linux/docs/porting-to-2.2.html
        Keywords: 2.2, changes.
        Description: Kernel functions/structures/variables which changed
        from 2.0.x to 2.2.x.
 
      * Title: "Kernel API changes from 2.2 to 2.4"
        Author: Richard Gooch.
+       URL: http://www.safe-mbox.com/~rgooch/linux/docs/porting-to-2.4.html
        Keywords: 2.4, changes.
        Description: Kernel functions/structures/variables which changed
        from 2.2.x to 2.4.x.
@@ -608,6 +608,13 @@
        Date: June, 1994.
        Pages: 432.
        ISBN: 0-201-63338-8
+
+     * Title: "Linux Kernel Development, 3rd Edition"
+       Author: Robert Love
+       Publisher: Addison-Wesley.
+       Date: July, 2010
+       Pages: 440
+       ISBN: 978-0672329463
 
      MISCELLANEOUS:
 

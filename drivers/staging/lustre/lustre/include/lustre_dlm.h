@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -71,6 +67,7 @@ struct obd_device;
  */
 enum ldlm_error {
 	ELDLM_OK = 0,
+	ELDLM_LOCK_MATCHED = 1,
 
 	ELDLM_LOCK_CHANGED = 300,
 	ELDLM_LOCK_ABORTED = 301,
@@ -269,7 +266,7 @@ struct ldlm_pool {
 	struct completion	 pl_kobj_unregister;
 };
 
-typedef int (*ldlm_cancel_for_recovery)(struct ldlm_lock *lock);
+typedef int (*ldlm_cancel_cbt)(struct ldlm_lock *lock);
 
 /**
  * LVB operations.
@@ -446,8 +443,11 @@ struct ldlm_namespace {
 	/** Limit of parallel AST RPC count. */
 	unsigned		ns_max_parallel_ast;
 
-	/** Callback to cancel locks before replaying it during recovery. */
-	ldlm_cancel_for_recovery ns_cancel_for_recovery;
+	/**
+	 * Callback to check if a lock is good to be canceled by ELC or
+	 * during recovery.
+	 */
+	ldlm_cancel_cbt		ns_cancel;
 
 	/** LDLM lock stats */
 	struct lprocfs_stats	*ns_stats;
@@ -479,9 +479,9 @@ static inline int ns_connect_lru_resize(struct ldlm_namespace *ns)
 }
 
 static inline void ns_register_cancel(struct ldlm_namespace *ns,
-				      ldlm_cancel_for_recovery arg)
+				      ldlm_cancel_cbt arg)
 {
-	ns->ns_cancel_for_recovery = arg;
+	ns->ns_cancel = arg;
 }
 
 struct ldlm_lock;
@@ -1073,7 +1073,7 @@ void ldlm_lock2handle(const struct ldlm_lock *lock,
 struct ldlm_lock *__ldlm_handle2lock(const struct lustre_handle *, __u64 flags);
 void ldlm_cancel_callback(struct ldlm_lock *);
 int ldlm_lock_remove_from_lru(struct ldlm_lock *);
-int ldlm_lock_set_data(struct lustre_handle *, void *);
+int ldlm_lock_set_data(const struct lustre_handle *lockh, void *data);
 
 /**
  * Obtain a lock reference by its handle.
@@ -1162,10 +1162,10 @@ do {					    \
 struct ldlm_lock *ldlm_lock_get(struct ldlm_lock *lock);
 void ldlm_lock_put(struct ldlm_lock *lock);
 void ldlm_lock2desc(struct ldlm_lock *lock, struct ldlm_lock_desc *desc);
-void ldlm_lock_addref(struct lustre_handle *lockh, __u32 mode);
-int  ldlm_lock_addref_try(struct lustre_handle *lockh, __u32 mode);
-void ldlm_lock_decref(struct lustre_handle *lockh, __u32 mode);
-void ldlm_lock_decref_and_cancel(struct lustre_handle *lockh, __u32 mode);
+void ldlm_lock_addref(const struct lustre_handle *lockh, __u32 mode);
+int  ldlm_lock_addref_try(const struct lustre_handle *lockh, __u32 mode);
+void ldlm_lock_decref(const struct lustre_handle *lockh, __u32 mode);
+void ldlm_lock_decref_and_cancel(const struct lustre_handle *lockh, __u32 mode);
 void ldlm_lock_fail_match_locked(struct ldlm_lock *lock);
 void ldlm_lock_allow_match(struct ldlm_lock *lock);
 void ldlm_lock_allow_match_locked(struct ldlm_lock *lock);
@@ -1174,10 +1174,10 @@ enum ldlm_mode ldlm_lock_match(struct ldlm_namespace *ns, __u64 flags,
 			       enum ldlm_type type, ldlm_policy_data_t *,
 			       enum ldlm_mode mode, struct lustre_handle *,
 			       int unref);
-enum ldlm_mode ldlm_revalidate_lock_handle(struct lustre_handle *lockh,
+enum ldlm_mode ldlm_revalidate_lock_handle(const struct lustre_handle *lockh,
 					   __u64 *bits);
 void ldlm_lock_cancel(struct ldlm_lock *lock);
-void ldlm_lock_dump_handle(int level, struct lustre_handle *);
+void ldlm_lock_dump_handle(int level, const struct lustre_handle *);
 void ldlm_unlink_lock_skiplist(struct ldlm_lock *req);
 
 /* resource.c */
@@ -1251,9 +1251,9 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 			  enum ldlm_type type, __u8 with_policy,
 			  enum ldlm_mode mode,
 			  __u64 *flags, void *lvb, __u32 lvb_len,
-			  struct lustre_handle *lockh, int rc);
+			  const struct lustre_handle *lockh, int rc);
 int ldlm_cli_update_pool(struct ptlrpc_request *req);
-int ldlm_cli_cancel(struct lustre_handle *lockh,
+int ldlm_cli_cancel(const struct lustre_handle *lockh,
 		    enum ldlm_cancel_flags cancel_flags);
 int ldlm_cli_cancel_unused(struct ldlm_namespace *, const struct ldlm_res_id *,
 			   enum ldlm_cancel_flags flags, void *opaque);

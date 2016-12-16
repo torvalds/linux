@@ -43,7 +43,7 @@
 #include <linux/of_platform.h>
 
 /* this is for "generic access to PC-style RTC" using CMOS_READ/CMOS_WRITE */
-#include <asm-generic/rtc.h>
+#include <linux/mc146818rtc.h>
 
 struct cmos_rtc {
 	struct rtc_device	*rtc;
@@ -190,10 +190,10 @@ static inline void cmos_write_bank2(unsigned char val, unsigned char addr)
 static int cmos_read_time(struct device *dev, struct rtc_time *t)
 {
 	/* REVISIT:  if the clock has a "century" register, use
-	 * that instead of the heuristic in get_rtc_time().
+	 * that instead of the heuristic in mc146818_get_time().
 	 * That'll make Y3K compatility (year > 2070) easy!
 	 */
-	get_rtc_time(t);
+	mc146818_get_time(t);
 	return 0;
 }
 
@@ -205,7 +205,7 @@ static int cmos_set_time(struct device *dev, struct rtc_time *t)
 	 * takes effect exactly 500ms after we write the register.
 	 * (Also queueing and other delays before we get this far.)
 	 */
-	return set_rtc_time(t);
+	return mc146818_set_time(t);
 }
 
 static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
@@ -220,8 +220,6 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 	 * Some also support day and month, for alarms up to a year in
 	 * the future.
 	 */
-	t->time.tm_mday = -1;
-	t->time.tm_mon = -1;
 
 	spin_lock_irq(&rtc_lock);
 	t->time.tm_sec = CMOS_READ(RTC_SECONDS_ALARM);
@@ -272,7 +270,6 @@ static int cmos_read_alarm(struct device *dev, struct rtc_wkalrm *t)
 			}
 		}
 	}
-	t->time.tm_year = -1;
 
 	t->enabled = !!(rtc_control & RTC_AIE);
 	t->pending = 0;
@@ -401,7 +398,7 @@ static int cmos_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-#if defined(CONFIG_RTC_INTF_PROC) || defined(CONFIG_RTC_INTF_PROC_MODULE)
+#if IS_ENABLED(CONFIG_RTC_INTF_PROC)
 
 static int cmos_procfs(struct device *dev, struct seq_file *seq)
 {
@@ -630,7 +627,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	address_space = 64;
 #elif defined(__i386__) || defined(__x86_64__) || defined(__arm__) \
 			|| defined(__sparc__) || defined(__mips__) \
-			|| defined(__powerpc__)
+			|| defined(__powerpc__) || defined(CONFIG_MN10300)
 	address_space = 128;
 #else
 #warning Assuming 128 bytes of RTC+NVRAM address space, not 64 bytes.
@@ -1142,14 +1139,14 @@ static __init void cmos_of_init(struct platform_device *pdev)
 	if (val)
 		CMOS_WRITE(be32_to_cpup(val), RTC_FREQ_SELECT);
 
-	get_rtc_time(&time);
+	cmos_read_time(&pdev->dev, &time);
 	ret = rtc_valid_tm(&time);
 	if (ret) {
 		struct rtc_time def_time = {
 			.tm_year = 1,
 			.tm_mday = 1,
 		};
-		set_rtc_time(&def_time);
+		cmos_set_time(&pdev->dev, &def_time);
 	}
 }
 #else

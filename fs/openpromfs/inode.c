@@ -166,7 +166,7 @@ static int openpromfs_readdir(struct file *, struct dir_context *);
 
 static const struct file_operations openprom_operations = {
 	.read		= generic_read_dir,
-	.iterate	= openpromfs_readdir,
+	.iterate_shared	= openpromfs_readdir,
 	.llseek		= generic_file_llseek,
 };
 

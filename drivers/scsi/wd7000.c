@@ -192,7 +192,7 @@
 #ifdef WD7000_DEBUG
 #define dprintk printk
 #else
-#define dprintk(format,args...)
+#define dprintk	no_printk
 #endif
 
 /*
@@ -1591,8 +1591,8 @@ static int wd7000_biosparam(struct scsi_device *sdev,
 {
 	char b[BDEVNAME_SIZE];
 
-	dprintk("wd7000_biosparam: dev=%s, size=%d, ",
-		bdevname(bdev, b), capacity);
+	dprintk("wd7000_biosparam: dev=%s, size=%llu, ",
+		bdevname(bdev, b), (u64)capacity);
 	(void)b;	/* unused var warning? */
 
 	/*

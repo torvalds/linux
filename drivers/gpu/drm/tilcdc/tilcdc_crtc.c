@@ -697,7 +697,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 
 		spin_unlock_irqrestore(&tilcdc_crtc->irq_lock, flags);
 
-		drm_handle_vblank(dev, 0);
+		drm_crtc_handle_vblank(crtc);
 
 		if (!skip_event) {
 			struct drm_pending_vblank_event *event;
@@ -707,7 +707,7 @@ irqreturn_t tilcdc_crtc_irq(struct drm_crtc *crtc)
 			event = tilcdc_crtc->event;
 			tilcdc_crtc->event = NULL;
 			if (event)
-				drm_send_vblank_event(dev, 0, event);
+				drm_crtc_send_vblank_event(crtc, event);
 
 			spin_unlock_irqrestore(&dev->event_lock, flags);
 		}

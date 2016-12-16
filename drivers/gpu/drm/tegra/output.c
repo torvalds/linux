@@ -36,18 +36,11 @@ int tegra_output_connector_get_modes(struct drm_connector *connector)
 
 	if (edid) {
 		err = drm_add_edid_modes(connector, edid);
+		drm_edid_to_eld(connector, edid);
 		kfree(edid);
 	}
 
 	return err;
-}
-
-struct drm_encoder *
-tegra_output_connector_best_encoder(struct drm_connector *connector)
-{
-	struct tegra_output *output = connector_to_output(connector);
-
-	return &output->encoder;
 }
 
 enum drm_connector_status

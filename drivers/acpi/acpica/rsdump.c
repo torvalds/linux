@@ -52,17 +52,17 @@ ACPI_MODULE_NAME("rsdump")
  * All functions in this module are used by the AML Debugger only
  */
 /* Local prototypes */
-static void acpi_rs_out_string(char *title, char *value);
+static void acpi_rs_out_string(const char *title, const char *value);
 
-static void acpi_rs_out_integer8(char *title, u8 value);
+static void acpi_rs_out_integer8(const char *title, u8 value);
 
-static void acpi_rs_out_integer16(char *title, u16 value);
+static void acpi_rs_out_integer16(const char *title, u16 value);
 
-static void acpi_rs_out_integer32(char *title, u32 value);
+static void acpi_rs_out_integer32(const char *title, u32 value);
 
-static void acpi_rs_out_integer64(char *title, u64 value);
+static void acpi_rs_out_integer64(const char *title, u64 value);
 
-static void acpi_rs_out_title(char *title);
+static void acpi_rs_out_title(const char *title);
 
 static void acpi_rs_dump_byte_list(u16 length, u8 *data);
 
@@ -208,7 +208,7 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 {
 	u8 *target = NULL;
 	u8 *previous_target;
-	char *name;
+	const char *name;
 	u8 count;
 
 	/* First table entry must contain the table length (# of table entries) */
@@ -248,10 +248,8 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 		case ACPI_RSD_UINT8:
 
 			if (table->pointer) {
-				acpi_rs_out_string(name, ACPI_CAST_PTR(char,
-								       table->
-								       pointer
-								       [*target]));
+				acpi_rs_out_string(name,
+						   table->pointer[*target]);
 			} else {
 				acpi_rs_out_integer8(name, ACPI_GET8(target));
 			}
@@ -276,26 +274,20 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 
 		case ACPI_RSD_1BITFLAG:
 
-			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
-							       table->
-							       pointer[*target &
-								       0x01]));
+			acpi_rs_out_string(name,
+					   table->pointer[*target & 0x01]);
 			break;
 
 		case ACPI_RSD_2BITFLAG:
 
-			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
-							       table->
-							       pointer[*target &
-								       0x03]));
+			acpi_rs_out_string(name,
+					   table->pointer[*target & 0x03]);
 			break;
 
 		case ACPI_RSD_3BITFLAG:
 
-			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
-							       table->
-							       pointer[*target &
-								       0x07]));
+			acpi_rs_out_string(name,
+					   table->pointer[*target & 0x07]);
 			break;
 
 		case ACPI_RSD_SHORTLIST:
@@ -481,7 +473,7 @@ static void acpi_rs_dump_address_common(union acpi_resource_data *resource)
  *
  ******************************************************************************/
 
-static void acpi_rs_out_string(char *title, char *value)
+static void acpi_rs_out_string(const char *title, const char *value)
 {
 
 	acpi_os_printf("%27s : %s", title, value);
@@ -491,30 +483,30 @@ static void acpi_rs_out_string(char *title, char *value)
 	acpi_os_printf("\n");
 }
 
-static void acpi_rs_out_integer8(char *title, u8 value)
+static void acpi_rs_out_integer8(const char *title, u8 value)
 {
 	acpi_os_printf("%27s : %2.2X\n", title, value);
 }
 
-static void acpi_rs_out_integer16(char *title, u16 value)
+static void acpi_rs_out_integer16(const char *title, u16 value)
 {
 
 	acpi_os_printf("%27s : %4.4X\n", title, value);
 }
 
-static void acpi_rs_out_integer32(char *title, u32 value)
+static void acpi_rs_out_integer32(const char *title, u32 value)
 {
 
 	acpi_os_printf("%27s : %8.8X\n", title, value);
 }
 
-static void acpi_rs_out_integer64(char *title, u64 value)
+static void acpi_rs_out_integer64(const char *title, u64 value)
 {
 
 	acpi_os_printf("%27s : %8.8X%8.8X\n", title, ACPI_FORMAT_UINT64(value));
 }
 
-static void acpi_rs_out_title(char *title)
+static void acpi_rs_out_title(const char *title)
 {
 
 	acpi_os_printf("%27s : ", title);

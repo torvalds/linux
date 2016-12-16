@@ -381,8 +381,8 @@ static irqreturn_t at91_adc_rl_interrupt(int irq, void *private)
 		st->ts_bufferedmeasure = false;
 		input_report_key(st->ts_input, BTN_TOUCH, 0);
 		input_sync(st->ts_input);
-	} else if (status & AT91_ADC_EOC(3)) {
-		/* Conversion finished */
+	} else if (status & AT91_ADC_EOC(3) && st->ts_input) {
+		/* Conversion finished and we've a touchscreen */
 		if (st->ts_bufferedmeasure) {
 			/*
 			 * Last measurement is always discarded, since it can
@@ -797,8 +797,8 @@ static u32 calc_startup_ticks_9x5(u32 startup_time, u32 adc_clk_khz)
 	 * Startup Time = <lookup_table_value> / ADC Clock
 	 */
 	const int startup_lookup[] = {
-		0  , 8  , 16 , 24 ,
-		64 , 80 , 96 , 112,
+		0,   8,   16,  24,
+		64,  80,  96,  112,
 		512, 576, 640, 704,
 		768, 832, 896, 960
 		};
@@ -924,14 +924,14 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 			ret = -EINVAL;
 			goto error_ret;
 		}
-	        trig->name = name;
+		trig->name = name;
 
 		if (of_property_read_u32(trig_node, "trigger-value", &prop)) {
 			dev_err(&idev->dev, "Missing trigger-value property in the DT.\n");
 			ret = -EINVAL;
 			goto error_ret;
 		}
-	        trig->value = prop;
+		trig->value = prop;
 		trig->is_external = of_property_read_bool(trig_node, "trigger-external");
 		i++;
 	}

@@ -188,6 +188,7 @@
 	vmmc-supply = <&vmmc1>;
 	vmmc_aux-supply = <&vsim>;
 	bus-width = <4>;
+	cd-gpios = <&twl_gpio 0 GPIO_ACTIVE_LOW>;
 };
 
 &mmc3 {

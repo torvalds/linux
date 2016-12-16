@@ -330,19 +330,20 @@ struct acpi_rsdump_info acpi_rs_dump_fixed_dma[4] = {
 	{ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (common_serial_bus.type),           "Type",                     acpi_gbl_sbt_decode}, \
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (common_serial_bus.producer_consumer), "ProducerConsumer",      acpi_gbl_consume_decode}, \
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (common_serial_bus.slave_mode),     "SlaveMode",                acpi_gbl_sm_decode}, \
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (common_serial_bus.connection_sharing),"ConnectionSharing",     acpi_gbl_shr_decode}, \
 	{ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (common_serial_bus.type_revision_id), "TypeRevisionId",         NULL}, \
 	{ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (common_serial_bus.type_data_length), "TypeDataLength",         NULL}, \
 	{ACPI_RSD_SOURCE,   ACPI_RSD_OFFSET (common_serial_bus.resource_source), "ResourceSource",          NULL}, \
 	{ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (common_serial_bus.vendor_length),  "VendorLength",             NULL}, \
 	{ACPI_RSD_SHORTLISTX,ACPI_RSD_OFFSET (common_serial_bus.vendor_data),   "VendorData",               NULL},
 
-struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[10] = {
+struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[11] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_common_serial_bus),
 	 "Common Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS
 };
 
-struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[13] = {
+struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[14] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_i2c_serial_bus),
 	 "I2C Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_1BITFLAG,
@@ -355,7 +356,7 @@ struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[13] = {
 	 "SlaveAddress", NULL},
 };
 
-struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[17] = {
+struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[18] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_spi_serial_bus),
 	 "Spi Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_1BITFLAG,
@@ -376,7 +377,7 @@ struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[17] = {
 	 "ConnectionSpeed", NULL},
 };
 
-struct acpi_rsdump_info acpi_rs_dump_uart_serial_bus[19] = {
+struct acpi_rsdump_info acpi_rs_dump_uart_serial_bus[20] = {
 	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_uart_serial_bus),
 	 "Uart Serial Bus", NULL},
 	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_2BITFLAG,

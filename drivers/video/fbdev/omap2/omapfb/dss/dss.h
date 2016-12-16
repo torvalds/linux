@@ -73,6 +73,17 @@
 #define FLD_MOD(orig, val, start, end) \
 	(((orig) & ~FLD_MASK(start, end)) | FLD_VAL(val, start, end))
 
+enum omap_dss_clk_source {
+	OMAP_DSS_CLK_SRC_FCK = 0,		/* OMAP2/3: DSS1_ALWON_FCLK
+						 * OMAP4: DSS_FCLK */
+	OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC,	/* OMAP3: DSI1_PLL_FCLK
+						 * OMAP4: PLL1_CLK1 */
+	OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI,	/* OMAP3: DSI2_PLL_FCLK
+						 * OMAP4: PLL1_CLK2 */
+	OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC,	/* OMAP4: PLL2_CLK1 */
+	OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI,	/* OMAP4: PLL2_CLK2 */
+};
+
 enum dss_io_pad_mode {
 	DSS_IO_PAD_MODE_RESET,
 	DSS_IO_PAD_MODE_RFBI,

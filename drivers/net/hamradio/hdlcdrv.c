@@ -412,8 +412,10 @@ static netdev_tx_t hdlcdrv_send_packet(struct sk_buff *skb,
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
-	if (sm->skb)
-		return NETDEV_TX_LOCKED;
+	if (sm->skb) {
+		dev_kfree_skb(skb);
+		return NETDEV_TX_OK;
+	}
 	netif_stop_queue(dev);
 	sm->skb = skb;
 	return NETDEV_TX_OK;

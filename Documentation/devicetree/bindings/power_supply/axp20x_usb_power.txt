@@ -1,7 +1,8 @@
 AXP20x USB power supply
 
 Required Properties:
--compatible: "x-powers,axp202-usb-power-supply"
+-compatible: One of: "x-powers,axp202-usb-power-supply"
+                     "x-powers,axp221-usb-power-supply"
 
 This node is a subnode of the axp20x PMIC.
 

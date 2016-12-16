@@ -56,7 +56,7 @@ static inline int is_vcpu_stopped(struct kvm_vcpu *vcpu)
 
 static inline int is_vcpu_idle(struct kvm_vcpu *vcpu)
 {
-	return atomic_read(&vcpu->arch.sie_block->cpuflags) & CPUSTAT_WAIT;
+	return test_bit(vcpu->vcpu_id, vcpu->arch.local_int.float_int->idle_mask);
 }
 
 static inline int kvm_is_ucontrol(struct kvm *kvm)
@@ -175,6 +175,12 @@ static inline int set_kvm_facility(u64 *fac_list, unsigned long nr)
 	return 0;
 }
 
+static inline int test_kvm_cpu_feat(struct kvm *kvm, unsigned long nr)
+{
+	WARN_ON_ONCE(nr >= KVM_S390_VM_CPU_FEAT_NR_BITS);
+	return test_bit_inv(nr, kvm->arch.cpu_feat);
+}
+
 /* are cpu states controlled by user space */
 static inline int kvm_s390_user_cpu_state_ctrl(struct kvm *kvm)
 {
@@ -232,6 +238,8 @@ static inline void kvm_s390_forward_psw(struct kvm_vcpu *vcpu, int ilen)
 }
 static inline void kvm_s390_retry_instr(struct kvm_vcpu *vcpu)
 {
+	/* don't inject PER events if we re-execute the instruction */
+	vcpu->arch.sie_block->icptstatus &= ~0x02;
 	kvm_s390_rewind_psw(vcpu, kvm_s390_get_ilen(vcpu));
 }
 
@@ -246,9 +254,20 @@ int kvm_s390_handle_stctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_lctl(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu);
 
+/* implemented in vsie.c */
+int kvm_s390_handle_vsie(struct kvm_vcpu *vcpu);
+void kvm_s390_vsie_kick(struct kvm_vcpu *vcpu);
+void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
+				 unsigned long end);
+void kvm_s390_vsie_init(struct kvm *kvm);
+void kvm_s390_vsie_destroy(struct kvm *kvm);
+
 /* implemented in sigp.c */
 int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 int kvm_s390_handle_sigp_pei(struct kvm_vcpu *vcpu);
+
+/* implemented in sthyi.c */
+int handle_sthyi(struct kvm_vcpu *vcpu);
 
 /* implemented in kvm-s390.c */
 void kvm_s390_set_tod_clock(struct kvm *kvm, u64 tod);
@@ -360,6 +379,7 @@ int kvm_s390_import_bp_data(struct kvm_vcpu *vcpu,
 			    struct kvm_guest_debug *dbg);
 void kvm_s390_clear_bp_data(struct kvm_vcpu *vcpu);
 void kvm_s390_prepare_debug_exit(struct kvm_vcpu *vcpu);
+int kvm_s390_handle_per_ifetch_icpt(struct kvm_vcpu *vcpu);
 void kvm_s390_handle_per_event(struct kvm_vcpu *vcpu);
 
 /* support for Basic/Extended SCA handling */

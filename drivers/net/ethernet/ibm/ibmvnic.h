@@ -879,6 +879,9 @@ struct ibmvnic_tx_buff {
 	int pool_index;
 	bool last_frag;
 	bool used_bounce;
+	union sub_crq indir_arr[6];
+	u8 hdr_data[140];
+	dma_addr_t indir_dma;
 };
 
 struct ibmvnic_tx_pool {
@@ -977,6 +980,7 @@ struct ibmvnic_adapter {
 	struct ibmvnic_sub_crq_queue **tx_scrq;
 	struct ibmvnic_sub_crq_queue **rx_scrq;
 	int requested_caps;
+	bool renegotiate;
 
 	/* rx structs */
 	struct napi_struct *napi;
@@ -1041,4 +1045,6 @@ struct ibmvnic_adapter {
 	u64 opt_rxba_entries_per_subcrq;
 	__be64 tx_rx_desc_req;
 	u8 map_id;
+
+	struct work_struct vnic_crq_init;
 };

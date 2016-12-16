@@ -139,9 +139,9 @@ static void exynos_drm_plane_reset(struct drm_plane *plane)
 
 	exynos_state = kzalloc(sizeof(*exynos_state), GFP_KERNEL);
 	if (exynos_state) {
-		exynos_state->zpos = exynos_plane->config->zpos;
 		plane->state = &exynos_state->base;
 		plane->state->plane = plane;
+		plane->state->zpos = exynos_plane->config->zpos;
 	}
 }
 
@@ -157,7 +157,6 @@ exynos_drm_plane_duplicate_state(struct drm_plane *plane)
 		return NULL;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &copy->base);
-	copy->zpos = exynos_state->zpos;
 	return &copy->base;
 }
 
@@ -166,45 +165,8 @@ static void exynos_drm_plane_destroy_state(struct drm_plane *plane,
 {
 	struct exynos_drm_plane_state *old_exynos_state =
 					to_exynos_plane_state(old_state);
-	__drm_atomic_helper_plane_destroy_state(plane, old_state);
+	__drm_atomic_helper_plane_destroy_state(old_state);
 	kfree(old_exynos_state);
-}
-
-static int exynos_drm_plane_atomic_set_property(struct drm_plane *plane,
-						struct drm_plane_state *state,
-						struct drm_property *property,
-						uint64_t val)
-{
-	struct exynos_drm_plane *exynos_plane = to_exynos_plane(plane);
-	struct exynos_drm_plane_state *exynos_state =
-					to_exynos_plane_state(state);
-	struct exynos_drm_private *dev_priv = plane->dev->dev_private;
-	const struct exynos_drm_plane_config *config = exynos_plane->config;
-
-	if (property == dev_priv->plane_zpos_property &&
-	    (config->capabilities & EXYNOS_DRM_PLANE_CAP_ZPOS))
-		exynos_state->zpos = val;
-	else
-		return -EINVAL;
-
-	return 0;
-}
-
-static int exynos_drm_plane_atomic_get_property(struct drm_plane *plane,
-					  const struct drm_plane_state *state,
-					  struct drm_property *property,
-					  uint64_t *val)
-{
-	const struct exynos_drm_plane_state *exynos_state =
-		container_of(state, const struct exynos_drm_plane_state, base);
-	struct exynos_drm_private *dev_priv = plane->dev->dev_private;
-
-	if (property == dev_priv->plane_zpos_property)
-		*val = exynos_state->zpos;
-	else
-		return -EINVAL;
-
-	return 0;
 }
 
 static struct drm_plane_funcs exynos_plane_funcs = {
@@ -215,8 +177,6 @@ static struct drm_plane_funcs exynos_plane_funcs = {
 	.reset		= exynos_drm_plane_reset,
 	.atomic_duplicate_state = exynos_drm_plane_duplicate_state,
 	.atomic_destroy_state = exynos_drm_plane_destroy_state,
-	.atomic_set_property = exynos_drm_plane_atomic_set_property,
-	.atomic_get_property = exynos_drm_plane_atomic_get_property,
 };
 
 static int
@@ -242,7 +202,7 @@ exynos_drm_plane_check_size(const struct exynos_drm_plane_config *config,
 	    state->v_ratio == (1 << 15))
 		height_ok = true;
 
-	if (width_ok & height_ok)
+	if (width_ok && height_ok)
 		return 0;
 
 	DRM_DEBUG_KMS("scaling mode is not supported");
@@ -304,23 +264,13 @@ static const struct drm_plane_helper_funcs plane_helper_funcs = {
 };
 
 static void exynos_plane_attach_zpos_property(struct drm_plane *plane,
-					      unsigned int zpos)
+					      bool immutable)
 {
-	struct drm_device *dev = plane->dev;
-	struct exynos_drm_private *dev_priv = dev->dev_private;
-	struct drm_property *prop;
-
-	prop = dev_priv->plane_zpos_property;
-	if (!prop) {
-		prop = drm_property_create_range(dev, 0, "zpos",
-						 0, MAX_PLANE - 1);
-		if (!prop)
-			return;
-
-		dev_priv->plane_zpos_property = prop;
-	}
-
-	drm_object_attach_property(&plane->base, prop, zpos);
+	/* FIXME */
+	if (immutable)
+		drm_plane_create_zpos_immutable_property(plane, 0);
+	else
+		drm_plane_create_zpos_property(plane, 0, 0, MAX_PLANE - 1);
 }
 
 int exynos_plane_init(struct drm_device *dev,
@@ -346,7 +296,8 @@ int exynos_plane_init(struct drm_device *dev,
 	exynos_plane->index = index;
 	exynos_plane->config = config;
 
-	exynos_plane_attach_zpos_property(&exynos_plane->base, config->zpos);
+	exynos_plane_attach_zpos_property(&exynos_plane->base,
+			   !(config->capabilities & EXYNOS_DRM_PLANE_CAP_ZPOS));
 
 	return 0;
 }

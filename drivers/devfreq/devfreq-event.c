@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/err.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/of.h>
@@ -234,6 +234,11 @@ struct devfreq_event_dev *devfreq_event_get_edev_by_phandle(struct device *dev,
 		return ERR_PTR(-ENODEV);
 
 	mutex_lock(&devfreq_event_list_lock);
+	list_for_each_entry(edev, &devfreq_event_list, node) {
+		if (edev->dev.parent && edev->dev.parent->of_node == node)
+			goto out;
+	}
+
 	list_for_each_entry(edev, &devfreq_event_list, node) {
 		if (!strcmp(edev->desc->name, node->name))
 			goto out;
@@ -476,13 +481,3 @@ static int __init devfreq_event_init(void)
 	return 0;
 }
 subsys_initcall(devfreq_event_init);
-
-static void __exit devfreq_event_exit(void)
-{
-	class_destroy(devfreq_event_class);
-}
-module_exit(devfreq_event_exit);
-
-MODULE_AUTHOR("Chanwoo Choi <cw00.choi@samsung.com>");
-MODULE_DESCRIPTION("DEVFREQ-Event class support");
-MODULE_LICENSE("GPL");

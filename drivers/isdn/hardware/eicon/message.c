@@ -1147,8 +1147,6 @@ static byte test_c_ind_mask_bit(PLCI *plci, word b)
 
 static void dump_c_ind_mask(PLCI *plci)
 {
-	static char hex_digit_table[0x10] =
-		{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 	word i, j, k;
 	dword d;
 	char *p;
@@ -1165,7 +1163,7 @@ static void dump_c_ind_mask(PLCI *plci)
 				d = plci->c_ind_mask_table[i + j];
 				for (k = 0; k < 8; k++)
 				{
-					*(--p) = hex_digit_table[d & 0xf];
+					*(--p) = hex_asc_lo(d);
 					d >>= 4;
 				}
 			}
@@ -10507,7 +10505,6 @@ static void mixer_set_bchannel_id(PLCI *plci, byte *chi)
 
 static void mixer_calculate_coefs(DIVA_CAPI_ADAPTER *a)
 {
-	static char hex_digit_table[0x10] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 	word n, i, j;
 	char *p;
 	char hex_line[2 * MIXER_MAX_DUMP_CHANNELS + MIXER_MAX_DUMP_CHANNELS / 8 + 4];
@@ -10690,13 +10687,13 @@ static void mixer_calculate_coefs(DIVA_CAPI_ADAPTER *a)
 	n = li_total_channels;
 	if (n > MIXER_MAX_DUMP_CHANNELS)
 		n = MIXER_MAX_DUMP_CHANNELS;
+
 	p = hex_line;
 	for (j = 0; j < n; j++)
 	{
 		if ((j & 0x7) == 0)
 			*(p++) = ' ';
-		*(p++) = hex_digit_table[li_config_table[j].curchnl >> 4];
-		*(p++) = hex_digit_table[li_config_table[j].curchnl & 0xf];
+		p = hex_byte_pack(p, li_config_table[j].curchnl);
 	}
 	*p = '\0';
 	dbug(1, dprintf("[%06lx] CURRENT %s",
@@ -10706,8 +10703,7 @@ static void mixer_calculate_coefs(DIVA_CAPI_ADAPTER *a)
 	{
 		if ((j & 0x7) == 0)
 			*(p++) = ' ';
-		*(p++) = hex_digit_table[li_config_table[j].channel >> 4];
-		*(p++) = hex_digit_table[li_config_table[j].channel & 0xf];
+		p = hex_byte_pack(p, li_config_table[j].channel);
 	}
 	*p = '\0';
 	dbug(1, dprintf("[%06lx] CHANNEL %s",
@@ -10717,8 +10713,7 @@ static void mixer_calculate_coefs(DIVA_CAPI_ADAPTER *a)
 	{
 		if ((j & 0x7) == 0)
 			*(p++) = ' ';
-		*(p++) = hex_digit_table[li_config_table[j].chflags >> 4];
-		*(p++) = hex_digit_table[li_config_table[j].chflags & 0xf];
+		p = hex_byte_pack(p, li_config_table[j].chflags);
 	}
 	*p = '\0';
 	dbug(1, dprintf("[%06lx] CHFLAG  %s",
@@ -10730,8 +10725,7 @@ static void mixer_calculate_coefs(DIVA_CAPI_ADAPTER *a)
 		{
 			if ((j & 0x7) == 0)
 				*(p++) = ' ';
-			*(p++) = hex_digit_table[li_config_table[i].flag_table[j] >> 4];
-			*(p++) = hex_digit_table[li_config_table[i].flag_table[j] & 0xf];
+			p = hex_byte_pack(p, li_config_table[i].flag_table[j]);
 		}
 		*p = '\0';
 		dbug(1, dprintf("[%06lx] FLAG[%02x]%s",
@@ -10744,8 +10738,7 @@ static void mixer_calculate_coefs(DIVA_CAPI_ADAPTER *a)
 		{
 			if ((j & 0x7) == 0)
 				*(p++) = ' ';
-			*(p++) = hex_digit_table[li_config_table[i].coef_table[j] >> 4];
-			*(p++) = hex_digit_table[li_config_table[i].coef_table[j] & 0xf];
+			p = hex_byte_pack(p, li_config_table[i].coef_table[j]);
 		}
 		*p = '\0';
 		dbug(1, dprintf("[%06lx] COEF[%02x]%s",

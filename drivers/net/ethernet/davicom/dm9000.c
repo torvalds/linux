@@ -966,7 +966,7 @@ dm9000_init_dm9000(struct net_device *dev)
 	/* Init Driver variable */
 	db->tx_pkt_cnt = 0;
 	db->queue_pkt_len = 0;
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 }
 
 /* Our watchdog timed out. Called by the networking layer */
@@ -985,7 +985,7 @@ static void dm9000_timeout(struct net_device *dev)
 	dm9000_init_dm9000(dev);
 	dm9000_unmask_interrupts(db);
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue(dev);
 
 	/* Restore previous register address */
@@ -1299,6 +1299,7 @@ static int
 dm9000_open(struct net_device *dev)
 {
 	struct board_info *db = netdev_priv(dev);
+	unsigned int irq_flags = irq_get_trigger_type(dev->irq);
 
 	if (netif_msg_ifup(db))
 		dev_dbg(db->dev, "enabling %s\n", dev->name);
@@ -1306,8 +1307,10 @@ dm9000_open(struct net_device *dev)
 	/* If there is no IRQ type specified, tell the user that this is a
 	 * problem
 	 */
-	if (irq_get_trigger_type(dev->irq) == IRQF_TRIGGER_NONE)
+	if (irq_flags == IRQF_TRIGGER_NONE)
 		dev_warn(db->dev, "WARNING: no IRQ resource flags set.\n");
+
+	irq_flags |= IRQF_SHARED;
 
 	/* GPIO0 on pre-activate PHY, Reg 1F is not set by reset */
 	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
@@ -1316,8 +1319,7 @@ dm9000_open(struct net_device *dev)
 	/* Initialize DM9000 board */
 	dm9000_init_dm9000(dev);
 
-	if (request_irq(dev->irq, dm9000_interrupt, IRQF_SHARED,
-			dev->name, dev))
+	if (request_irq(dev->irq, dm9000_interrupt, irq_flags, dev->name, dev))
 		return -EAGAIN;
 	/* Now that we have an interrupt handler hooked up we can unmask
 	 * our interrupts
@@ -1432,6 +1434,7 @@ dm9000_probe(struct platform_device *pdev)
 	int reset_gpios;
 	enum of_gpio_flags flags;
 	struct regulator *power;
+	bool inv_mac_addr = false;
 
 	power = devm_regulator_get(dev, "vcc");
 	if (IS_ERR(power)) {
@@ -1686,9 +1689,7 @@ dm9000_probe(struct platform_device *pdev)
 	}
 
 	if (!is_valid_ether_addr(ndev->dev_addr)) {
-		dev_warn(db->dev, "%s: Invalid ethernet MAC address. Please "
-			 "set using ifconfig\n", ndev->name);
-
+		inv_mac_addr = true;
 		eth_hw_addr_random(ndev);
 		mac_src = "random";
 	}
@@ -1697,11 +1698,15 @@ dm9000_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	ret = register_netdev(ndev);
 
-	if (ret == 0)
+	if (ret == 0) {
+		if (inv_mac_addr)
+			dev_warn(db->dev, "%s: Invalid ethernet MAC address. Please set using ip\n",
+				 ndev->name);
 		printk(KERN_INFO "%s: dm9000%c at %p,%p IRQ %d MAC: %pM (%s)\n",
 		       ndev->name, dm9000_type_to_char(db->type),
 		       db->io_addr, db->io_data, ndev->irq,
 		       ndev->dev_addr, mac_src);
+	}
 	return 0;
 
 out:

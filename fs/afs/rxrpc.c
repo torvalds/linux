@@ -65,6 +65,12 @@ static void afs_async_workfn(struct work_struct *work)
 	call->async_workfn(call);
 }
 
+static int afs_wait_atomic_t(atomic_t *p)
+{
+	schedule();
+	return 0;
+}
+
 /*
  * open an RxRPC socket and bind it to be a server for callback notifications
  * - the socket is left in blocking mode and non-blocking ops use MSG_DONTWAIT
@@ -79,18 +85,14 @@ int afs_open_socket(void)
 
 	skb_queue_head_init(&afs_incoming_calls);
 
+	ret = -ENOMEM;
 	afs_async_calls = create_singlethread_workqueue("kafsd");
-	if (!afs_async_calls) {
-		_leave(" = -ENOMEM [wq]");
-		return -ENOMEM;
-	}
+	if (!afs_async_calls)
+		goto error_0;
 
 	ret = sock_create_kern(&init_net, AF_RXRPC, SOCK_DGRAM, PF_INET, &socket);
-	if (ret < 0) {
-		destroy_workqueue(afs_async_calls);
-		_leave(" = %d [socket]", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error_1;
 
 	socket->sk->sk_allocation = GFP_NOFS;
 
@@ -105,18 +107,26 @@ int afs_open_socket(void)
 	       sizeof(srx.transport.sin.sin_addr));
 
 	ret = kernel_bind(socket, (struct sockaddr *) &srx, sizeof(srx));
-	if (ret < 0) {
-		sock_release(socket);
-		destroy_workqueue(afs_async_calls);
-		_leave(" = %d [bind]", ret);
-		return ret;
-	}
+	if (ret < 0)
+		goto error_2;
+
+	ret = kernel_listen(socket, INT_MAX);
+	if (ret < 0)
+		goto error_2;
 
 	rxrpc_kernel_intercept_rx_messages(socket, afs_rx_interceptor);
 
 	afs_socket = socket;
 	_leave(" = 0");
 	return 0;
+
+error_2:
+	sock_release(socket);
+error_1:
+	destroy_workqueue(afs_async_calls);
+error_0:
+	_leave(" = %d", ret);
+	return ret;
 }
 
 /*
@@ -126,21 +136,23 @@ void afs_close_socket(void)
 {
 	_enter("");
 
+	wait_on_atomic_t(&afs_outstanding_calls, afs_wait_atomic_t,
+			 TASK_UNINTERRUPTIBLE);
+	_debug("no outstanding calls");
+
 	sock_release(afs_socket);
 
 	_debug("dework");
 	destroy_workqueue(afs_async_calls);
 
 	ASSERTCMP(atomic_read(&afs_outstanding_skbs), ==, 0);
-	ASSERTCMP(atomic_read(&afs_outstanding_calls), ==, 0);
 	_leave("");
 }
 
 /*
- * note that the data in a socket buffer is now delivered and that the buffer
- * should be freed
+ * Note that the data in a socket buffer is now consumed.
  */
-static void afs_data_delivered(struct sk_buff *skb)
+void afs_data_consumed(struct afs_call *call, struct sk_buff *skb)
 {
 	if (!skb) {
 		_debug("DLVR NULL [%d]", atomic_read(&afs_outstanding_skbs));
@@ -148,9 +160,7 @@ static void afs_data_delivered(struct sk_buff *skb)
 	} else {
 		_debug("DLVR %p{%u} [%d]",
 		       skb, skb->mark, atomic_read(&afs_outstanding_skbs));
-		if (atomic_dec_return(&afs_outstanding_skbs) == -1)
-			BUG();
-		rxrpc_kernel_data_delivered(skb);
+		rxrpc_kernel_data_consumed(call->rxcall, skb);
 	}
 }
 
@@ -178,8 +188,6 @@ static void afs_free_call(struct afs_call *call)
 {
 	_debug("DONE %p{%s} [%d]",
 	       call, call->type->name, atomic_read(&afs_outstanding_calls));
-	if (atomic_dec_return(&afs_outstanding_calls) == -1)
-		BUG();
 
 	ASSERTCMP(call->rxcall, ==, NULL);
 	ASSERT(!work_pending(&call->async_work));
@@ -188,6 +196,9 @@ static void afs_free_call(struct afs_call *call)
 
 	kfree(call->request);
 	kfree(call);
+
+	if (atomic_dec_and_test(&afs_outstanding_calls))
+		wake_up_atomic_t(&afs_outstanding_calls);
 }
 
 /*
@@ -420,9 +431,11 @@ error_kill_call:
 }
 
 /*
- * handles intercepted messages that were arriving in the socket's Rx queue
- * - called with the socket receive queue lock held to ensure message ordering
- * - called with softirqs disabled
+ * Handles intercepted messages that were arriving in the socket's Rx queue.
+ *
+ * Called from the AF_RXRPC call processor in waitqueue process context.  For
+ * each call, it is guaranteed this will be called in order of packet to be
+ * delivered.
  */
 static void afs_rx_interceptor(struct sock *sk, unsigned long user_call_ID,
 			       struct sk_buff *skb)
@@ -473,9 +486,15 @@ static void afs_deliver_to_call(struct afs_call *call)
 			last = rxrpc_kernel_is_data_last(skb);
 			ret = call->type->deliver(call, skb, last);
 			switch (ret) {
+			case -EAGAIN:
+				if (last) {
+					_debug("short data");
+					goto unmarshal_error;
+				}
+				break;
 			case 0:
-				if (last &&
-				    call->state == AFS_CALL_AWAIT_REPLY)
+				ASSERT(last);
+				if (call->state == AFS_CALL_AWAIT_REPLY)
 					call->state = AFS_CALL_COMPLETE;
 				break;
 			case -ENOTCONN:
@@ -485,6 +504,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 				abort_code = RX_INVALID_OPERATION;
 				goto do_abort;
 			default:
+			unmarshal_error:
 				abort_code = RXGEN_CC_UNMARSHAL;
 				if (call->state != AFS_CALL_AWAIT_REPLY)
 					abort_code = RXGEN_SS_UNMARSHAL;
@@ -495,9 +515,7 @@ static void afs_deliver_to_call(struct afs_call *call)
 				call->state = AFS_CALL_ERROR;
 				break;
 			}
-			afs_data_delivered(skb);
-			skb = NULL;
-			continue;
+			break;
 		case RXRPC_SKB_MARK_FINAL_ACK:
 			_debug("Rcv ACK");
 			call->state = AFS_CALL_COMPLETE;
@@ -512,6 +530,12 @@ static void afs_deliver_to_call(struct afs_call *call)
 			call->error = call->type->abort_to_error(abort_code);
 			call->state = AFS_CALL_ABORTED;
 			_debug("Rcv ABORT %u -> %d", abort_code, call->error);
+			break;
+		case RXRPC_SKB_MARK_LOCAL_ABORT:
+			abort_code = rxrpc_kernel_get_abort_code(skb);
+			call->error = call->type->abort_to_error(abort_code);
+			call->state = AFS_CALL_ABORTED;
+			_debug("Loc ABORT %u -> %d", abort_code, call->error);
 			break;
 		case RXRPC_SKB_MARK_NET_ERROR:
 			call->error = -rxrpc_kernel_get_error_number(skb);
@@ -663,15 +687,35 @@ static void afs_process_async_call(struct afs_call *call)
 }
 
 /*
- * empty a socket buffer into a flat reply buffer
+ * Empty a socket buffer into a flat reply buffer.
  */
-void afs_transfer_reply(struct afs_call *call, struct sk_buff *skb)
+int afs_transfer_reply(struct afs_call *call, struct sk_buff *skb, bool last)
 {
 	size_t len = skb->len;
 
-	if (skb_copy_bits(skb, 0, call->buffer + call->reply_size, len) < 0)
-		BUG();
-	call->reply_size += len;
+	if (len > call->reply_max - call->reply_size) {
+		_leave(" = -EBADMSG [%zu > %u]",
+		       len, call->reply_max - call->reply_size);
+		return -EBADMSG;
+	}
+
+	if (len > 0) {
+		if (skb_copy_bits(skb, 0, call->buffer + call->reply_size,
+				  len) < 0)
+			BUG();
+		call->reply_size += len;
+	}
+
+	afs_data_consumed(call, skb);
+	if (!last)
+		return -EAGAIN;
+
+	if (call->reply_size != call->reply_max) {
+		_leave(" = -EBADMSG [%u != %u]",
+		       call->reply_size, call->reply_max);
+		return -EBADMSG;
+	}
+	return 0;
 }
 
 /*
@@ -723,7 +767,8 @@ static void afs_collect_incoming_call(struct work_struct *work)
 }
 
 /*
- * grab the operation ID from an incoming cache manager call
+ * Grab the operation ID from an incoming cache manager call.  The socket
+ * buffer is discarded on error or if we don't yet have sufficient data.
  */
 static int afs_deliver_cm_op_id(struct afs_call *call, struct sk_buff *skb,
 				bool last)
@@ -744,12 +789,9 @@ static int afs_deliver_cm_op_id(struct afs_call *call, struct sk_buff *skb,
 	call->offset += len;
 
 	if (call->offset < 4) {
-		if (last) {
-			_leave(" = -EBADMSG [op ID short]");
-			return -EBADMSG;
-		}
-		_leave(" = 0 [incomplete]");
-		return 0;
+		afs_data_consumed(call, skb);
+		_leave(" = -EAGAIN");
+		return -EAGAIN;
 	}
 
 	call->state = AFS_CALL_AWAIT_REQUEST;
@@ -833,7 +875,7 @@ void afs_send_simple_reply(struct afs_call *call, const void *buf, size_t len)
 }
 
 /*
- * extract a piece of data from the received data socket buffers
+ * Extract a piece of data from the received data socket buffers.
  */
 int afs_extract_data(struct afs_call *call, struct sk_buff *skb,
 		     bool last, void *buf, size_t count)
@@ -851,10 +893,7 @@ int afs_extract_data(struct afs_call *call, struct sk_buff *skb,
 	call->offset += len;
 
 	if (call->offset < count) {
-		if (last) {
-			_leave(" = -EBADMSG [%d < %zu]", call->offset, count);
-			return -EBADMSG;
-		}
+		afs_data_consumed(call, skb);
 		_leave(" = -EAGAIN");
 		return -EAGAIN;
 	}

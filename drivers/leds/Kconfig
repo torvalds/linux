@@ -228,6 +228,20 @@ config LEDS_LP3944
 	  To compile this driver as a module, choose M here: the
 	  module will be called leds-lp3944.
 
+config LEDS_LP3952
+	tristate "LED Support for TI LP3952 2 channel LED driver"
+	depends on LEDS_CLASS
+	depends on I2C
+	depends on ACPI
+	depends on GPIOLIB
+	select REGMAP_I2C
+	help
+	  This option enables support for LEDs connected to the Texas
+	  Instruments LP3952 LED driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called leds-lp3952.
+
 config LEDS_LP55XX_COMMON
 	tristate "Common Driver for TI/National LP5521/5523/55231/5562/8501"
 	depends on LEDS_LP5521 || LEDS_LP5523 || LEDS_LP5562 || LEDS_LP8501
@@ -413,10 +427,11 @@ config LEDS_INTEL_SS4200
 	tristate "LED driver for Intel NAS SS4200 series"
 	depends on LEDS_CLASS
 	depends on PCI && DMI
+	depends on X86
 	help
 	  This option enables support for the Intel SS4200 series of
-	  Network Attached Storage servers.  You may control the hard
-	  drive or power LEDs on the front panel.  Using this driver
+	  Network Attached Storage servers. You may control the hard
+	  drive or power LEDs on the front panel. Using this driver
 	  can stop the front LED from blinking after startup.
 
 config LEDS_LT3593

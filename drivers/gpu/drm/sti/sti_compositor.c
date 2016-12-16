@@ -55,6 +55,26 @@ struct sti_compositor_data stih416_compositor_data = {
 	},
 };
 
+int sti_compositor_debufs_init(struct sti_compositor *compo,
+			       struct drm_minor *minor)
+{
+	int ret = 0, i;
+
+	for (i = 0; compo->vid[i]; i++) {
+		ret = vid_debugfs_init(compo->vid[i], minor);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; compo->mixer[i]; i++) {
+		ret = sti_mixer_debugfs_init(compo->mixer[i], minor);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int sti_compositor_bind(struct device *dev,
 			       struct device *master,
 			       void *data)
@@ -234,12 +254,12 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	}
 
 	/* Get reset resources */
-	compo->rst_main = devm_reset_control_get(dev, "compo-main");
+	compo->rst_main = devm_reset_control_get_shared(dev, "compo-main");
 	/* Take compo main out of reset */
 	if (!IS_ERR(compo->rst_main))
 		reset_control_deassert(compo->rst_main);
 
-	compo->rst_aux = devm_reset_control_get(dev, "compo-aux");
+	compo->rst_aux = devm_reset_control_get_shared(dev, "compo-aux");
 	/* Take compo aux out of reset */
 	if (!IS_ERR(compo->rst_aux))
 		reset_control_deassert(compo->rst_aux);
@@ -247,10 +267,12 @@ static int sti_compositor_probe(struct platform_device *pdev)
 	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 0);
 	if (vtg_np)
 		compo->vtg_main = of_vtg_find(vtg_np);
+	of_node_put(vtg_np);
 
 	vtg_np = of_parse_phandle(pdev->dev.of_node, "st,vtg", 1);
 	if (vtg_np)
 		compo->vtg_aux = of_vtg_find(vtg_np);
+	of_node_put(vtg_np);
 
 	platform_set_drvdata(pdev, compo);
 

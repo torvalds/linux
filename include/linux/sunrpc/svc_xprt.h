@@ -25,7 +25,6 @@ struct svc_xprt_ops {
 	void		(*xpo_detach)(struct svc_xprt *);
 	void		(*xpo_free)(struct svc_xprt *);
 	int		(*xpo_secure_port)(struct svc_rqst *);
-	void		(*xpo_adjust_wspace)(struct svc_xprt *);
 };
 
 struct svc_xprt_class {
@@ -69,6 +68,7 @@ struct svc_xprt {
 
 	struct svc_serv		*xpt_server;	/* service for transport */
 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */
+	atomic_t		xpt_nr_rqsts;	/* Number of requests */
 	struct mutex		xpt_mutex;	/* to serialize sending data */
 	spinlock_t		xpt_lock;	/* protects sk_deferred
 						 * and xpt_auth_cache */
@@ -84,6 +84,7 @@ struct svc_xprt {
 
 	struct net		*xpt_net;
 	struct rpc_xprt		*xpt_bc_xprt;	/* NFSv4.1 backchannel */
+	struct rpc_xprt_switch	*xpt_bc_xps;	/* NFSv4.1 backchannel */
 };
 
 static inline void unregister_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)

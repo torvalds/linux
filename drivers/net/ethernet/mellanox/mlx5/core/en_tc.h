@@ -43,9 +43,12 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 int mlx5e_delete_flower(struct mlx5e_priv *priv,
 			struct tc_cls_flower_offload *f);
 
+int mlx5e_stats_flower(struct mlx5e_priv *priv,
+		       struct tc_cls_flower_offload *f);
+
 static inline int mlx5e_tc_num_filters(struct mlx5e_priv *priv)
 {
-	return atomic_read(&priv->fts.tc.ht.nelems);
+	return atomic_read(&priv->fs.tc.ht.nelems);
 }
 
 #endif /* __MLX5_EN_TC_H__ */

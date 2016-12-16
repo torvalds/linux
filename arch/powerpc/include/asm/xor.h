@@ -23,6 +23,7 @@
 #ifdef CONFIG_ALTIVEC
 
 #include <asm/cputable.h>
+#include <asm/cpu_has_feature.h>
 
 void xor_altivec_2(unsigned long bytes, unsigned long *v1_in,
 		   unsigned long *v2_in);

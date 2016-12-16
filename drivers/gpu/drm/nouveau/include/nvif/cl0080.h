@@ -29,6 +29,7 @@ struct nv_device_info_v0 {
 #define NV_DEVICE_INFO_V0_FERMI                                            0x07
 #define NV_DEVICE_INFO_V0_KEPLER                                           0x08
 #define NV_DEVICE_INFO_V0_MAXWELL                                          0x09
+#define NV_DEVICE_INFO_V0_PASCAL                                           0x0a
 	__u8  family;
 	__u8  pad06[2];
 	__u64 ram_size;

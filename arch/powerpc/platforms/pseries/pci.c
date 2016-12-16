@@ -119,6 +119,10 @@ int pseries_root_bridge_prepare(struct pci_host_bridge *bridge)
 
 	bus = bridge->bus;
 
+	/* Rely on the pcibios_free_controller_deferred() callback. */
+	pci_set_host_bridge_release(bridge, pcibios_free_controller_deferred,
+					(void *) pci_bus_to_host(bus));
+
 	dn = pcibios_get_phb_of_node(bus);
 	if (!dn)
 		return 0;

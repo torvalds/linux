@@ -446,16 +446,27 @@ out_no_rpciod:
 	return ERR_PTR(err);
 }
 
-struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
+static struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 					struct rpc_xprt *xprt)
 {
 	struct rpc_clnt *clnt = NULL;
 	struct rpc_xprt_switch *xps;
 
-	xps = xprt_switch_alloc(xprt, GFP_KERNEL);
-	if (xps == NULL)
-		return ERR_PTR(-ENOMEM);
-
+	if (args->bc_xprt && args->bc_xprt->xpt_bc_xps) {
+		WARN_ON_ONCE(!(args->protocol & XPRT_TRANSPORT_BC));
+		xps = args->bc_xprt->xpt_bc_xps;
+		xprt_switch_get(xps);
+	} else {
+		xps = xprt_switch_alloc(xprt, GFP_KERNEL);
+		if (xps == NULL) {
+			xprt_put(xprt);
+			return ERR_PTR(-ENOMEM);
+		}
+		if (xprt->bc_xprt) {
+			xprt_switch_get(xps);
+			xprt->bc_xprt->xpt_bc_xps = xps;
+		}
+	}
 	clnt = rpc_new_client(args, xps, xprt, NULL);
 	if (IS_ERR(clnt))
 		return clnt;
@@ -483,7 +494,6 @@ struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
 
 	return clnt;
 }
-EXPORT_SYMBOL_GPL(rpc_create_xprt);
 
 /**
  * rpc_create - create an RPC client and transport with one call
@@ -508,6 +518,15 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 		.bc_xprt = args->bc_xprt,
 	};
 	char servername[48];
+
+	if (args->bc_xprt) {
+		WARN_ON_ONCE(!(args->protocol & XPRT_TRANSPORT_BC));
+		xprt = args->bc_xprt->xpt_bc_xprt;
+		if (xprt) {
+			xprt_get(xprt);
+			return rpc_create_xprt(args, xprt);
+		}
+	}
 
 	if (args->flags & RPC_CLNT_CREATE_INFINITE_SLOTS)
 		xprtargs.flags |= XPRT_CREATE_INFINITE_SLOTS;
@@ -1412,6 +1431,23 @@ size_t rpc_max_payload(struct rpc_clnt *clnt)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rpc_max_payload);
+
+/**
+ * rpc_max_bc_payload - Get maximum backchannel payload size, in bytes
+ * @clnt: RPC client to query
+ */
+size_t rpc_max_bc_payload(struct rpc_clnt *clnt)
+{
+	struct rpc_xprt *xprt;
+	size_t ret;
+
+	rcu_read_lock();
+	xprt = rcu_dereference(clnt->cl_xprt);
+	ret = xprt->ops->bc_maxpayload(xprt);
+	rcu_read_unlock();
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rpc_max_bc_payload);
 
 /**
  * rpc_get_timeout - Get timeout for transport in units of HZ
@@ -2541,7 +2577,7 @@ static void rpc_cb_add_xprt_release(void *calldata)
 	kfree(data);
 }
 
-const static struct rpc_call_ops rpc_cb_add_xprt_call_ops = {
+static const struct rpc_call_ops rpc_cb_add_xprt_call_ops = {
 	.rpc_call_done = rpc_cb_add_xprt_done,
 	.rpc_release = rpc_cb_add_xprt_release,
 };
@@ -2602,6 +2638,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 {
 	struct rpc_xprt_switch *xps;
 	struct rpc_xprt *xprt;
+	unsigned long reconnect_timeout;
 	unsigned char resvport;
 	int ret = 0;
 
@@ -2613,6 +2650,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		return -EAGAIN;
 	}
 	resvport = xprt->resvport;
+	reconnect_timeout = xprt->max_reconnect_timeout;
 	rcu_read_unlock();
 
 	xprt = xprt_create_transport(xprtargs);
@@ -2621,6 +2659,7 @@ int rpc_clnt_add_xprt(struct rpc_clnt *clnt,
 		goto out_put_switch;
 	}
 	xprt->resvport = resvport;
+	xprt->max_reconnect_timeout = reconnect_timeout;
 
 	rpc_xprt_switch_set_roundrobin(xps);
 	if (setup) {
@@ -2636,6 +2675,27 @@ out_put_switch:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_add_xprt);
+
+static int
+rpc_xprt_cap_max_reconnect_timeout(struct rpc_clnt *clnt,
+		struct rpc_xprt *xprt,
+		void *data)
+{
+	unsigned long timeout = *((unsigned long *)data);
+
+	if (timeout < xprt->max_reconnect_timeout)
+		xprt->max_reconnect_timeout = timeout;
+	return 0;
+}
+
+void
+rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt, unsigned long timeo)
+{
+	rpc_clnt_iterate_for_each_xprt(clnt,
+			rpc_xprt_cap_max_reconnect_timeout,
+			&timeo);
+}
+EXPORT_SYMBOL_GPL(rpc_cap_max_reconnect_timeout);
 
 #if IS_ENABLED(CONFIG_SUNRPC_DEBUG)
 static void rpc_show_header(void)

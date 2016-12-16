@@ -444,46 +444,9 @@ static void mdacon_clear(struct vc_data *c, int y, int x,
 	}
 }
                         
-static void mdacon_bmove(struct vc_data *c, int sy, int sx, 
-			 int dy, int dx, int height, int width)
-{
-	u16 *src, *dest;
-
-	if (width <= 0 || height <= 0)
-		return;
-		
-	if (sx==0 && dx==0 && width==mda_num_columns) {
-		scr_memmovew(MDA_ADDR(0,dy), MDA_ADDR(0,sy), height*width*2);
-
-	} else if (dy < sy || (dy == sy && dx < sx)) {
-		src  = MDA_ADDR(sx, sy);
-		dest = MDA_ADDR(dx, dy);
-
-		for (; height > 0; height--) {
-			scr_memmovew(dest, src, width*2);
-			src  += mda_num_columns;
-			dest += mda_num_columns;
-		}
-	} else {
-		src  = MDA_ADDR(sx, sy+height-1);
-		dest = MDA_ADDR(dx, dy+height-1);
-
-		for (; height > 0; height--) {
-			scr_memmovew(dest, src, width*2);
-			src  -= mda_num_columns;
-			dest -= mda_num_columns;
-		}
-	}
-}
-
 static int mdacon_switch(struct vc_data *c)
 {
 	return 1;	/* redrawing needed */
-}
-
-static int mdacon_set_palette(struct vc_data *c, unsigned char *table)
-{
-	return -EINVAL;
 }
 
 static int mdacon_blank(struct vc_data *c, int blank, int mode_switch)
@@ -503,11 +466,6 @@ static int mdacon_blank(struct vc_data *c, int blank, int mode_switch)
 				mda_mode_port);
 		return 0;
 	}
-}
-
-static int mdacon_scrolldelta(struct vc_data *c, int lines)
-{
-	return 0;
 }
 
 static void mdacon_cursor(struct vc_data *c, int mode)
@@ -574,11 +532,8 @@ static const struct consw mda_con = {
 	.con_putcs =		mdacon_putcs,
 	.con_cursor =		mdacon_cursor,
 	.con_scroll =		mdacon_scroll,
-	.con_bmove =		mdacon_bmove,
 	.con_switch =		mdacon_switch,
 	.con_blank =		mdacon_blank,
-	.con_set_palette =	mdacon_set_palette,
-	.con_scrolldelta =	mdacon_scrolldelta,
 	.con_build_attr =	mdacon_build_attr,
 	.con_invert_region =	mdacon_invert_region,
 };

@@ -23,8 +23,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#include <video/omapdss.h>
-
+#include "omapdss.h"
 #include "dss.h"
 #include "dss_features.h"
 
@@ -50,7 +49,6 @@ struct omap_dss_features {
 	const enum omap_dss_output_id *supported_outputs;
 	const enum omap_color_mode *supported_color_modes;
 	const enum omap_overlay_caps *overlay_caps;
-	const char * const *clksrc_names;
 	const struct dss_param_range *dss_params;
 
 	const enum omap_dss_rotation_type supported_rotation_types;
@@ -389,34 +387,6 @@ static const enum omap_overlay_caps omap4_dss_overlay_caps[] = {
 		OMAP_DSS_OVL_CAP_POS | OMAP_DSS_OVL_CAP_REPLICATION,
 };
 
-static const char * const omap2_dss_clk_source_names[] = {
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "N/A",
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "N/A",
-	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCLK1",
-};
-
-static const char * const omap3_dss_clk_source_names[] = {
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI1_PLL_FCLK",
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "DSI2_PLL_FCLK",
-	[OMAP_DSS_CLK_SRC_FCK]			= "DSS1_ALWON_FCLK",
-};
-
-static const char * const omap4_dss_clk_source_names[] = {
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "PLL1_CLK1",
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "PLL1_CLK2",
-	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCLK",
-	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC]	= "PLL2_CLK1",
-	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI]	= "PLL2_CLK2",
-};
-
-static const char * const omap5_dss_clk_source_names[] = {
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DPLL_DSI1_A_CLK1",
-	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "DPLL_DSI1_A_CLK2",
-	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_CLK",
-	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC]	= "DPLL_DSI1_C_CLK1",
-	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI]	= "DPLL_DSI1_C_CLK2",
-};
-
 static const struct dss_param_range omap2_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 133000000 },
 	[FEAT_PARAM_DSS_PCD]			= { 2, 255 },
@@ -631,7 +601,6 @@ static const struct omap_dss_features omap2_dss_features = {
 	.supported_outputs = omap2_dss_supported_outputs,
 	.supported_color_modes = omap2_dss_supported_color_modes,
 	.overlay_caps = omap2_dss_overlay_caps,
-	.clksrc_names = omap2_dss_clk_source_names,
 	.dss_params = omap2_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_VRFB,
 	.buffer_size_unit = 1,
@@ -652,7 +621,6 @@ static const struct omap_dss_features omap3430_dss_features = {
 	.supported_outputs = omap3430_dss_supported_outputs,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
-	.clksrc_names = omap3_dss_clk_source_names,
 	.dss_params = omap3_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_VRFB,
 	.buffer_size_unit = 1,
@@ -676,7 +644,6 @@ static const struct omap_dss_features am35xx_dss_features = {
 	.supported_outputs = omap3430_dss_supported_outputs,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
-	.clksrc_names = omap3_dss_clk_source_names,
 	.dss_params = omap3_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_VRFB,
 	.buffer_size_unit = 1,
@@ -696,7 +663,6 @@ static const struct omap_dss_features am43xx_dss_features = {
 	.supported_outputs = am43xx_dss_supported_outputs,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
-	.clksrc_names = omap2_dss_clk_source_names,
 	.dss_params = am43xx_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA,
 	.buffer_size_unit = 1,
@@ -716,7 +682,6 @@ static const struct omap_dss_features omap3630_dss_features = {
 	.supported_outputs = omap3630_dss_supported_outputs,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3630_dss_overlay_caps,
-	.clksrc_names = omap3_dss_clk_source_names,
 	.dss_params = omap3_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_VRFB,
 	.buffer_size_unit = 1,
@@ -738,7 +703,6 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 	.supported_outputs = omap4_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
-	.clksrc_names = omap4_dss_clk_source_names,
 	.dss_params = omap4_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_TILER,
 	.buffer_size_unit = 16,
@@ -759,7 +723,6 @@ static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
 	.supported_outputs = omap4_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
-	.clksrc_names = omap4_dss_clk_source_names,
 	.dss_params = omap4_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_TILER,
 	.buffer_size_unit = 16,
@@ -780,7 +743,6 @@ static const struct omap_dss_features omap4_dss_features = {
 	.supported_outputs = omap4_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
-	.clksrc_names = omap4_dss_clk_source_names,
 	.dss_params = omap4_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_TILER,
 	.buffer_size_unit = 16,
@@ -801,7 +763,6 @@ static const struct omap_dss_features omap5_dss_features = {
 	.supported_outputs = omap5_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
-	.clksrc_names = omap5_dss_clk_source_names,
 	.dss_params = omap5_dss_param_range,
 	.supported_rotation_types = OMAP_DSS_ROT_DMA | OMAP_DSS_ROT_TILER,
 	.buffer_size_unit = 16,
@@ -857,11 +818,6 @@ bool dss_feat_color_mode_supported(enum omap_plane plane,
 {
 	return omap_current_dss_features->supported_color_modes[plane] &
 			color_mode;
-}
-
-const char *dss_feat_get_clk_source_name(enum omap_dss_clk_source id)
-{
-	return omap_current_dss_features->clksrc_names[id];
 }
 
 u32 dss_feat_get_buffer_size_unit(void)

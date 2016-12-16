@@ -27,7 +27,6 @@
 
 static const struct nvkm_falcon_func
 gk104_mspdec = {
-	.pmc_enable = 0x00020000,
 	.init = gf100_mspdec_init,
 	.sclass = {
 		{ -1, -1, GK104_MSPDEC },

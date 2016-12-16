@@ -609,9 +609,8 @@ config NETFILTER_XT_MARK
 	The target allows you to create rules in the "mangle" table which alter
 	the netfilter mark (nfmark) field associated with the packet.
 
-	Prior to routing, the nfmark can influence the routing method (see
-	"Use netfilter MARK value as routing key") and can also be used by
-	other subsystems to change their behavior.
+	Prior to routing, the nfmark can influence the routing method and can
+	also be used by other subsystems to change their behavior.
 
 config NETFILTER_XT_CONNMARK
 	tristate 'ctmark target and match support'
@@ -753,9 +752,8 @@ config NETFILTER_XT_TARGET_HMARK
 
 	The target allows you to create rules in the "raw" and "mangle" tables
 	which set the skbuff mark by means of hash calculation within a given
-	range. The nfmark can influence the routing method (see "Use netfilter
-	MARK value as routing key") and can also be used by other subsystems to
-	change their behaviour.
+	range. The nfmark can influence the routing method and can also be used
+	by other subsystems to change their behaviour.
 
 	To compile it as a module, choose M here. If unsure, say N.
 

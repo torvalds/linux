@@ -568,7 +568,7 @@ static int ioctl_fsthaw(struct file *filp)
 	return thaw_super(sb);
 }
 
-static long ioctl_file_dedupe_range(struct file *file, void __user *arg)
+static int ioctl_file_dedupe_range(struct file *file, void __user *arg)
 {
 	struct file_dedupe_range __user *argp = arg;
 	struct file_dedupe_range *same = NULL;
@@ -582,6 +582,10 @@ static long ioctl_file_dedupe_range(struct file *file, void __user *arg)
 	}
 
 	size = offsetof(struct file_dedupe_range __user, info[count]);
+	if (size > PAGE_SIZE) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	same = memdup_user(argp, size);
 	if (IS_ERR(same)) {
@@ -590,6 +594,7 @@ static long ioctl_file_dedupe_range(struct file *file, void __user *arg)
 		goto out;
 	}
 
+	same->dest_count = count;
 	ret = vfs_dedupe_file_range(file, same);
 	if (ret)
 		goto out;

@@ -28,7 +28,7 @@ The serial core provides a few helper functions.  This includes identifing
 the correct port structure (via uart_get_console) and decoding command line
 arguments (uart_parse_options).
 
-There is also a helper function (uart_write_console) which performs a
+There is also a helper function (uart_console_write) which performs a
 character by character write, translating newlines to CRLF sequences.
 Driver writers are recommended to use this function rather than implementing
 their own version.
@@ -41,27 +41,23 @@ It is the responsibility of the low level hardware driver to perform the
 necessary locking using port->lock.  There are some exceptions (which
 are described in the uart_ops listing below.)
 
-There are three locks.  A per-port spinlock, a per-port tmpbuf semaphore,
-and an overall semaphore.
+There are two locks.  A per-port spinlock, and an overall semaphore.
 
 From the core driver perspective, the port->lock locks the following
 data:
 
 	port->mctrl
 	port->icount
-	info->xmit.head (circ->head)
-	info->xmit.tail (circ->tail)
+	port->state->xmit.head (circ_buf->head)
+	port->state->xmit.tail (circ_buf->tail)
 
 The low level driver is free to use this lock to provide any additional
 locking.
 
-The core driver uses the info->tmpbuf_sem lock to prevent multi-threaded
-access to the info->tmpbuf bouncebuffer used for port writes.
-
 The port_sem semaphore is used to protect against ports being added/
 removed or reconfigured at inappropriate times. Since v2.6.27, this
 semaphore has been the 'mutex' member of the tty_port struct, and
-commonly referred to as the port mutex (or port->mutex).
+commonly referred to as the port mutex.
 
 
 uart_ops
@@ -135,6 +131,24 @@ hardware.
 	Interrupts: locally disabled.
 	This call must not sleep
 
+  throttle(port)
+	Notify the serial driver that input buffers for the line discipline are
+	close to full, and it should somehow signal that no more characters
+	should be sent to the serial port.
+	This will be called only if hardware assisted flow control is enabled.
+
+	Locking: serialized with .unthrottle() and termios modification by the
+		 tty layer.
+
+  unthrottle(port)
+	Notify the serial driver that characters can now be sent to the serial
+	port without fear of overrunning the input buffers of the line
+	disciplines.
+	This will be called only if hardware assisted flow control is enabled.
+
+	Locking: serialized with .throttle() and termios modification by the
+		 tty layer.
+
   send_xchar(port,ch)
 	Transmit a high priority character, even if the port is stopped.
 	This is used to implement XON/XOFF flow control and tcflow().  If
@@ -172,9 +186,7 @@ hardware.
 	should be terminated when another call is made with a zero
 	ctl.
 
-	Locking: none.
-	Interrupts: caller dependent.
-	This call must not sleep
+	Locking: caller holds tty_port->mutex
 
   startup(port)
 	Grab any interrupt resources and initialise any low level driver
@@ -192,7 +204,7 @@ hardware.
 	RTS nor DTR; this will have already been done via a separate
 	call to set_mctrl.
 
-	Drivers must not access port->info once this call has completed.
+	Drivers must not access port->state once this call has completed.
 
 	This method will only be called when there are no more users of
 	this port.
@@ -204,7 +216,7 @@ hardware.
 	Flush any write buffers, reset any DMA state and stop any
 	ongoing DMA transfers.
 
-	This will be called whenever the port->info->xmit circular
+	This will be called whenever the port->state->xmit circular
 	buffer is cleared.
 
 	Locking: port->lock taken.
@@ -250,9 +262,14 @@ hardware.
 	Other flags may be used (eg, xon/xoff characters) if your
 	hardware supports hardware "soft" flow control.
 
-	Locking: caller holds port->mutex
+	Locking: caller holds tty_port->mutex
 	Interrupts: caller dependent.
 	This call must not sleep
+
+  set_ldisc(port,termios)
+	Notifier for discipline change. See Documentation/serial/tty.txt.
+
+	Locking: caller holds tty_port->mutex
 
   pm(port,state,oldstate)
 	Perform any power management related activities on the specified
@@ -371,7 +388,7 @@ uart_get_baud_rate(port,termios,old,min,max)
 	Interrupts: n/a
 
 uart_get_divisor(port,baud)
-	Return the divsor (baud_base / baud) for the specified baud
+	Return the divisor (baud_base / baud) for the specified baud
 	rate, appropriately rounded.
 
 	If 38400 baud and custom divisor is selected, return the
@@ -449,11 +466,12 @@ mctrl_gpio_init(port, idx):
 
 mctrl_gpio_free(dev, gpios):
 	This will free the requested gpios in mctrl_gpio_init().
-	As devm_* function are used, there's generally no need to call
+	As devm_* functions are used, there's generally no need to call
 	this function.
 
 mctrl_gpio_to_gpiod(gpios, gidx)
-	This returns the gpio structure associated to the modem line index.
+	This returns the gpio_desc structure associated to the modem line
+	index.
 
 mctrl_gpio_set(gpios, mctrl):
 	This will sets the gpios according to the mctrl state.

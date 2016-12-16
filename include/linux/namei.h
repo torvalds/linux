@@ -45,6 +45,8 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define LOOKUP_ROOT		0x2000
 #define LOOKUP_EMPTY		0x4000
 
+extern int path_pts(struct path *path);
+
 extern int user_path_at_empty(int, const char __user *, unsigned, struct path *, int *empty);
 
 static inline int user_path_at(int dfd, const char __user *name, unsigned flags,
@@ -79,8 +81,6 @@ extern int kern_path_mountpoint(int, const char *, struct path *, unsigned int);
 
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
 extern struct dentry *lookup_one_len_unlocked(const char *, struct dentry *, int);
-struct qstr;
-extern struct dentry *lookup_hash(const struct qstr *, struct dentry *);
 
 extern int follow_down_one(struct path *);
 extern int follow_down(struct path *);

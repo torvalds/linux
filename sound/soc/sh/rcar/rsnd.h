@@ -276,8 +276,9 @@ struct rsnd_mod {
 /*
  * status
  *
- * 0xH0000CB0
+ * 0xH0000CBA
  *
+ * A	0: probe	1: remove
  * B	0: init		1: quit
  * C	0: start	1: stop
  *
@@ -287,19 +288,19 @@ struct rsnd_mod {
  * H	0: fallback
  * H	0: hw_params
  */
+#define __rsnd_mod_shift_probe		0
+#define __rsnd_mod_shift_remove		0
 #define __rsnd_mod_shift_init		4
 #define __rsnd_mod_shift_quit		4
 #define __rsnd_mod_shift_start		8
 #define __rsnd_mod_shift_stop		8
-#define __rsnd_mod_shift_probe		28 /* always called */
-#define __rsnd_mod_shift_remove		28 /* always called */
 #define __rsnd_mod_shift_irq		28 /* always called */
 #define __rsnd_mod_shift_pcm_new	28 /* always called */
 #define __rsnd_mod_shift_fallback	28 /* always called */
 #define __rsnd_mod_shift_hw_params	28 /* always called */
 
-#define __rsnd_mod_add_probe		0
-#define __rsnd_mod_add_remove		0
+#define __rsnd_mod_add_probe		 1
+#define __rsnd_mod_add_remove		-1
 #define __rsnd_mod_add_init		 1
 #define __rsnd_mod_add_quit		-1
 #define __rsnd_mod_add_start		 1
@@ -310,7 +311,7 @@ struct rsnd_mod {
 #define __rsnd_mod_add_hw_params	0
 
 #define __rsnd_mod_call_probe		0
-#define __rsnd_mod_call_remove		0
+#define __rsnd_mod_call_remove		1
 #define __rsnd_mod_call_init		0
 #define __rsnd_mod_call_quit		1
 #define __rsnd_mod_call_start		0

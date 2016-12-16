@@ -284,7 +284,6 @@ struct nb8800_priv {
 
 	struct mii_bus			*mii_bus;
 	struct device_node		*phy_node;
-	struct phy_device		*phydev;
 
 	/* PHY connection type from DT */
 	int				phy_mode;

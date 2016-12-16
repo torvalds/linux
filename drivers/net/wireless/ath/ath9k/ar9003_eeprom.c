@@ -3202,8 +3202,7 @@ static int ar9300_compress_decision(struct ath_hw *ah,
 			it, length);
 		break;
 	case _CompressBlock:
-		if (reference == 0) {
-		} else {
+		if (reference != 0) {
 			eep = ar9003_eeprom_struct_find_by_id(reference);
 			if (eep == NULL) {
 				ath_dbg(common, EEPROM,
@@ -3590,8 +3589,8 @@ static void ar9003_hw_ant_ctrl_apply(struct ath_hw *ah, bool is2ghz)
 		else
 			gpio = AR9300_EXT_LNA_CTL_GPIO_AR9485;
 
-		ath9k_hw_cfg_output(ah, gpio,
-				    AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED);
+		ath9k_hw_gpio_request_out(ah, gpio, NULL,
+					  AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED);
 	}
 
 	value = ar9003_hw_ant_ctrl_common_get(ah, is2ghz);
@@ -4097,16 +4096,16 @@ static void ar9003_hw_thermometer_apply(struct ath_hw *ah)
 		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
 			      AR_PHY_65NM_CH0_RXTX4_THERM_ON_OVR, therm_on);
 
-	therm_on = (thermometer < 0) ? 0 : (thermometer == 0);
+	therm_on = thermometer == 0;
 	REG_RMW_FIELD(ah, AR_PHY_65NM_CH0_RXTX4,
 		      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
 	if (pCap->chip_chainmask & BIT(1)) {
-		therm_on = (thermometer < 0) ? 0 : (thermometer == 1);
+		therm_on = thermometer == 1;
 		REG_RMW_FIELD(ah, AR_PHY_65NM_CH1_RXTX4,
 			      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
 	}
 	if (pCap->chip_chainmask & BIT(2)) {
-		therm_on = (thermometer < 0) ? 0 : (thermometer == 2);
+		therm_on = thermometer == 2;
 		REG_RMW_FIELD(ah, AR_PHY_65NM_CH2_RXTX4,
 			      AR_PHY_65NM_CH0_RXTX4_THERM_ON, therm_on);
 	}
@@ -4176,7 +4175,7 @@ static void ath9k_hw_ar9300_set_board_values(struct ath_hw *ah,
 	if (!AR_SREV_9330(ah) && !AR_SREV_9340(ah) && !AR_SREV_9531(ah))
 		ar9003_hw_internal_regulator_apply(ah);
 	ar9003_hw_apply_tuning_caps(ah);
-	ar9003_hw_apply_minccapwr_thresh(ah, chan);
+	ar9003_hw_apply_minccapwr_thresh(ah, is2ghz);
 	ar9003_hw_txend_to_xpa_off_apply(ah, is2ghz);
 	ar9003_hw_thermometer_apply(ah);
 	ar9003_hw_thermo_cal_apply(ah);
@@ -4402,7 +4401,7 @@ static void ar9003_hw_selfgen_tpc_txpower(struct ath_hw *ah,
 }
 
 /* Set tx power registers to array of values passed in */
-static int ar9003_hw_tx_power_regwrite(struct ath_hw *ah, u8 * pPwrArray)
+int ar9003_hw_tx_power_regwrite(struct ath_hw *ah, u8 * pPwrArray)
 {
 #define POW_SM(_r, _s)     (((_r) & 0x3f) << (_s))
 	/* make sure forced gain is not set */

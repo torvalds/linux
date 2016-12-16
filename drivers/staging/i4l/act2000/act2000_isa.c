@@ -31,7 +31,8 @@ act2000_isa_reset(unsigned short portbase)
 	int serial = 0;
 
 	found = 0;
-	if ((reg = inb(portbase + ISA_COR)) != 0xff) {
+	reg = inb(portbase + ISA_COR);
+	if (reg != 0xff) {
 		outb(reg | ISA_COR_RESET, portbase + ISA_COR);
 		mdelay(10);
 		outb(reg, portbase + ISA_COR);
@@ -232,7 +233,7 @@ act2000_isa_receive(act2000_card *card)
 {
 	u_char c;
 
-	if (test_and_set_bit(ACT2000_LOCK_RX, (void *) &card->ilock) != 0)
+	if (test_and_set_bit(ACT2000_LOCK_RX, (void *)&card->ilock) != 0)
 		return;
 	while (!act2000_isa_readb(card, &c)) {
 		if (card->idat.isa.rcvidx < 8) {
@@ -247,7 +248,7 @@ act2000_isa_receive(act2000_card *card)
 						card->idat.isa.rcvignore = 1;
 						printk(KERN_WARNING
 						       "act2000_isa_receive: no memory\n");
-						test_and_clear_bit(ACT2000_LOCK_RX, (void *) &card->ilock);
+						test_and_clear_bit(ACT2000_LOCK_RX, (void *)&card->ilock);
 						return;
 					}
 					memcpy(skb_put(card->idat.isa.rcvskb, 8), card->idat.isa.rcvhdr, 8);
@@ -287,7 +288,7 @@ act2000_isa_receive(act2000_card *card)
 		     (card->idat.isa.rcvidx < card->idat.isa.rcvlen)))
 			act2000_schedule_poll(card);
 	}
-	test_and_clear_bit(ACT2000_LOCK_RX, (void *) &card->ilock);
+	test_and_clear_bit(ACT2000_LOCK_RX, (void *)&card->ilock);
 }
 
 void
@@ -298,12 +299,13 @@ act2000_isa_send(act2000_card *card)
 	actcapi_msg *msg;
 	int l;
 
-	if (test_and_set_bit(ACT2000_LOCK_TX, (void *) &card->ilock) != 0)
+	if (test_and_set_bit(ACT2000_LOCK_TX, (void *)&card->ilock) != 0)
 		return;
 	while (1) {
 		spin_lock_irqsave(&card->lock, flags);
 		if (!(card->sbuf)) {
-			if ((card->sbuf = skb_dequeue(&card->sndq))) {
+			card->sbuf = skb_dequeue(&card->sndq);
+			if (card->sbuf) {
 				card->ack_msg = card->sbuf->data;
 				msg = (actcapi_msg *)card->sbuf->data;
 				if ((msg->hdr.cmd.cmd == 0x86) &&
@@ -317,7 +319,7 @@ act2000_isa_send(act2000_card *card)
 		spin_unlock_irqrestore(&card->lock, flags);
 		if (!(card->sbuf)) {
 			/* No more data to send */
-			test_and_clear_bit(ACT2000_LOCK_TX, (void *) &card->ilock);
+			test_and_clear_bit(ACT2000_LOCK_TX, (void *)&card->ilock);
 			return;
 		}
 		skb = card->sbuf;
@@ -325,7 +327,7 @@ act2000_isa_send(act2000_card *card)
 		while (skb->len) {
 			if (act2000_isa_writeb(card, *(skb->data))) {
 				/* Fifo is full, but more data to send */
-				test_and_clear_bit(ACT2000_LOCK_TX, (void *) &card->ilock);
+				test_and_clear_bit(ACT2000_LOCK_TX, (void *)&card->ilock);
 				/* Schedule myself */
 				act2000_schedule_tx(card);
 				return;
@@ -356,7 +358,6 @@ act2000_isa_send(act2000_card *card)
 static int
 act2000_isa_getid(act2000_card *card)
 {
-
 	act2000_fwid fid;
 	u_char *p = (u_char *)&fid;
 	int count = 0;
@@ -378,7 +379,8 @@ act2000_isa_getid(act2000_card *card)
 		printk(KERN_WARNING "act2000: Wrong Firmware-ID!\n");
 		return -EPROTO;
 	}
-	if ((p = strchr(fid.revision, '\n')))
+	p = strchr(fid.revision, '\n');
+	if (p)
 		*p = '\0';
 	printk(KERN_INFO "act2000: Firmware-ID: %s\n", fid.revision);
 	if (card->flags & ACT2000_FLAGS_IVALID) {
@@ -439,5 +441,5 @@ act2000_isa_download(act2000_card *card, act2000_ddef __user *cb)
 	}
 	kfree(buf);
 	msleep_interruptible(500);
-	return (act2000_isa_getid(card));
+	return act2000_isa_getid(card);
 }

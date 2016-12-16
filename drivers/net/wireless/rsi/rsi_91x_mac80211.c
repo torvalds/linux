@@ -20,84 +20,84 @@
 #include "rsi_common.h"
 
 static const struct ieee80211_channel rsi_2ghz_channels[] = {
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2412,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2412,
 	  .hw_value = 1 }, /* Channel 1 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2417,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2417,
 	  .hw_value = 2 }, /* Channel 2 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2422,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2422,
 	  .hw_value = 3 }, /* Channel 3 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2427,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2427,
 	  .hw_value = 4 }, /* Channel 4 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2432,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2432,
 	  .hw_value = 5 }, /* Channel 5 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2437,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2437,
 	  .hw_value = 6 }, /* Channel 6 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2442,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2442,
 	  .hw_value = 7 }, /* Channel 7 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2447,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2447,
 	  .hw_value = 8 }, /* Channel 8 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2452,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2452,
 	  .hw_value = 9 }, /* Channel 9 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2457,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2457,
 	  .hw_value = 10 }, /* Channel 10 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2462,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2462,
 	  .hw_value = 11 }, /* Channel 11 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2467,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2467,
 	  .hw_value = 12 }, /* Channel 12 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2472,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2472,
 	  .hw_value = 13 }, /* Channel 13 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2484,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2484,
 	  .hw_value = 14 }, /* Channel 14 */
 };
 
 static const struct ieee80211_channel rsi_5ghz_channels[] = {
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5180,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5180,
 	  .hw_value = 36,  }, /* Channel 36 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5200,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5200,
 	  .hw_value = 40, }, /* Channel 40 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5220,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5220,
 	  .hw_value = 44, }, /* Channel 44 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5240,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5240,
 	  .hw_value = 48, }, /* Channel 48 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5260,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5260,
 	  .hw_value = 52, }, /* Channel 52 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5280,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5280,
 	  .hw_value = 56, }, /* Channel 56 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5300,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5300,
 	  .hw_value = 60, }, /* Channel 60 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5320,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5320,
 	  .hw_value = 64, }, /* Channel 64 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5500,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5500,
 	  .hw_value = 100, }, /* Channel 100 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5520,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5520,
 	  .hw_value = 104, }, /* Channel 104 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5540,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5540,
 	  .hw_value = 108, }, /* Channel 108 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5560,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5560,
 	  .hw_value = 112, }, /* Channel 112 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5580,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5580,
 	  .hw_value = 116, }, /* Channel 116 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5600,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5600,
 	  .hw_value = 120, }, /* Channel 120 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5620,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5620,
 	  .hw_value = 124, }, /* Channel 124 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5640,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5640,
 	  .hw_value = 128, }, /* Channel 128 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5660,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5660,
 	  .hw_value = 132, }, /* Channel 132 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5680,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5680,
 	  .hw_value = 136, }, /* Channel 136 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5700,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5700,
 	  .hw_value = 140, }, /* Channel 140 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5745,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5745,
 	  .hw_value = 149, }, /* Channel 149 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5765,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5765,
 	  .hw_value = 153, }, /* Channel 153 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5785,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5785,
 	  .hw_value = 157, }, /* Channel 157 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5805,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5805,
 	  .hw_value = 161, }, /* Channel 161 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5825,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5825,
 	  .hw_value = 165, }, /* Channel 165 */
 };
 
@@ -150,12 +150,12 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 	struct ieee80211_supported_band *sbands = &adapter->sbands[band];
 	void *channels = NULL;
 
-	if (band == IEEE80211_BAND_2GHZ) {
+	if (band == NL80211_BAND_2GHZ) {
 		channels = kmalloc(sizeof(rsi_2ghz_channels), GFP_KERNEL);
 		memcpy(channels,
 		       rsi_2ghz_channels,
 		       sizeof(rsi_2ghz_channels));
-		sbands->band = IEEE80211_BAND_2GHZ;
+		sbands->band = NL80211_BAND_2GHZ;
 		sbands->n_channels = ARRAY_SIZE(rsi_2ghz_channels);
 		sbands->bitrates = rsi_rates;
 		sbands->n_bitrates = ARRAY_SIZE(rsi_rates);
@@ -164,7 +164,7 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 		memcpy(channels,
 		       rsi_5ghz_channels,
 		       sizeof(rsi_5ghz_channels));
-		sbands->band = IEEE80211_BAND_5GHZ;
+		sbands->band = NL80211_BAND_5GHZ;
 		sbands->n_channels = ARRAY_SIZE(rsi_5ghz_channels);
 		sbands->bitrates = &rsi_rates[4];
 		sbands->n_bitrates = ARRAY_SIZE(rsi_rates) - 4;
@@ -775,7 +775,7 @@ static int rsi_mac80211_set_rate_mask(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
-	enum ieee80211_band band = hw->conf.chandef.chan->band;
+	enum nl80211_band band = hw->conf.chandef.chan->band;
 
 	mutex_lock(&common->mutex);
 	common->fixedrate_mask[band] = 0;
@@ -999,8 +999,8 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 
 	mutex_lock(&common->mutex);
 	/* Resetting all the fields to default values */
-	common->bitrate_mask[IEEE80211_BAND_2GHZ] = 0;
-	common->bitrate_mask[IEEE80211_BAND_5GHZ] = 0;
+	common->bitrate_mask[NL80211_BAND_2GHZ] = 0;
+	common->bitrate_mask[NL80211_BAND_5GHZ] = 0;
 	common->min_rate = 0xffff;
 	common->vif_info[0].is_ht = false;
 	common->vif_info[0].sgi = false;
@@ -1070,8 +1070,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	hw->max_rate_tries = MAX_RETRIES;
 
 	hw->max_tx_aggregation_subframes = 6;
-	rsi_register_rates_channels(adapter, IEEE80211_BAND_2GHZ);
-	rsi_register_rates_channels(adapter, IEEE80211_BAND_5GHZ);
+	rsi_register_rates_channels(adapter, NL80211_BAND_2GHZ);
+	rsi_register_rates_channels(adapter, NL80211_BAND_5GHZ);
 	hw->rate_control_algorithm = "AARF";
 
 	SET_IEEE80211_PERM_ADDR(hw, common->mac_addr);
@@ -1087,10 +1087,10 @@ int rsi_mac80211_attach(struct rsi_common *common)
 
 	wiphy->available_antennas_rx = 1;
 	wiphy->available_antennas_tx = 1;
-	wiphy->bands[IEEE80211_BAND_2GHZ] =
-		&adapter->sbands[IEEE80211_BAND_2GHZ];
-	wiphy->bands[IEEE80211_BAND_5GHZ] =
-		&adapter->sbands[IEEE80211_BAND_5GHZ];
+	wiphy->bands[NL80211_BAND_2GHZ] =
+		&adapter->sbands[NL80211_BAND_2GHZ];
+	wiphy->bands[NL80211_BAND_5GHZ] =
+		&adapter->sbands[NL80211_BAND_5GHZ];
 
 	status = ieee80211_register_hw(hw);
 	if (status)

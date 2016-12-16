@@ -3,6 +3,7 @@
  *
  * Copyright 2006-2010		Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
+ * Copyright 2015	Intel Deutschland GmbH
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -157,7 +158,7 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 	if (!(rdev->wiphy.flags & WIPHY_FLAG_NETNS_OK))
 		return -EOPNOTSUPP;
 
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (!wdev->netdev)
 			continue;
 		wdev->netdev->features &= ~NETIF_F_NETNS_LOCAL;
@@ -171,7 +172,8 @@ int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 		/* failed -- clean up to old netns */
 		net = wiphy_net(&rdev->wiphy);
 
-		list_for_each_entry_continue_reverse(wdev, &rdev->wdev_list,
+		list_for_each_entry_continue_reverse(wdev,
+						     &rdev->wiphy.wdev_list,
 						     list) {
 			if (!wdev->netdev)
 				continue;
@@ -218,7 +220,7 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 
 	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
 		if (WARN_ON(!rdev->scan_req->notified))
-			rdev->scan_req->aborted = true;
+			rdev->scan_req->info.aborted = true;
 		___cfg80211_scan_done(rdev, false);
 	}
 }
@@ -230,7 +232,7 @@ void cfg80211_shutdown_all_interfaces(struct wiphy *wiphy)
 
 	ASSERT_RTNL();
 
-	list_for_each_entry(wdev, &rdev->wdev_list, list) {
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		if (wdev->netdev) {
 			dev_close(wdev->netdev);
 			continue;
@@ -298,7 +300,8 @@ void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev)
 		kfree(item);
 		spin_unlock_irq(&rdev->destroy_list_lock);
 
-		list_for_each_entry_safe(wdev, tmp, &rdev->wdev_list, list) {
+		list_for_each_entry_safe(wdev, tmp,
+					 &rdev->wiphy.wdev_list, list) {
 			if (nlportid == wdev->owner_nlportid)
 				rdev_del_virtual_intf(rdev, wdev);
 		}
@@ -360,8 +363,6 @@ struct wiphy *wiphy_new_nm(const struct cfg80211_ops *ops, int sizeof_priv,
 	WARN_ON(ops->remain_on_channel && !ops->cancel_remain_on_channel);
 	WARN_ON(ops->tdls_channel_switch && !ops->tdls_cancel_channel_switch);
 	WARN_ON(ops->add_tx_ts && !ops->del_tx_ts);
-	WARN_ON(ops->set_tx_power && !ops->get_tx_power);
-	WARN_ON(ops->set_antenna && !ops->get_antenna);
 
 	alloc_size = sizeof(*rdev) + sizeof_priv;
 
@@ -410,7 +411,7 @@ use_default_name:
 		dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
 	}
 
-	INIT_LIST_HEAD(&rdev->wdev_list);
+	INIT_LIST_HEAD(&rdev->wiphy.wdev_list);
 	INIT_LIST_HEAD(&rdev->beacon_registrations);
 	spin_lock_init(&rdev->beacon_registrations_lock);
 	spin_lock_init(&rdev->bss_lock);
@@ -557,7 +558,7 @@ int wiphy_register(struct wiphy *wiphy)
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	int res;
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	bool have_band = false;
 	int i;
@@ -626,6 +627,13 @@ int wiphy_register(struct wiphy *wiphy)
 		     !rdev->ops->set_mac_acl)))
 		return -EINVAL;
 
+	/* assure only valid behaviours are flagged by driver
+	 * hence subtract 2 as bit 0 is invalid.
+	 */
+	if (WARN_ON(wiphy->bss_select_support &&
+		    (wiphy->bss_select_support & ~(BIT(__NL80211_BSS_SELECT_ATTR_AFTER_LAST) - 2))))
+		return -EINVAL;
+
 	if (wiphy->addresses)
 		memcpy(wiphy->perm_addr, wiphy->addresses[0].addr, ETH_ALEN);
 
@@ -640,7 +648,7 @@ int wiphy_register(struct wiphy *wiphy)
 		return res;
 
 	/* sanity check supported bands/channels */
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		sband = wiphy->bands[band];
 		if (!sband)
 			continue;
@@ -652,7 +660,7 @@ int wiphy_register(struct wiphy *wiphy)
 		 * on 60GHz band, there are no legacy rates, so
 		 * n_bitrates is 0
 		 */
-		if (WARN_ON(band != IEEE80211_BAND_60GHZ &&
+		if (WARN_ON(band != NL80211_BAND_60GHZ &&
 			    !sband->n_bitrates))
 			return -EINVAL;
 
@@ -662,7 +670,7 @@ int wiphy_register(struct wiphy *wiphy)
 		 * global structure for that.
 		 */
 		if (cfg80211_disable_40mhz_24ghz &&
-		    band == IEEE80211_BAND_2GHZ &&
+		    band == NL80211_BAND_2GHZ &&
 		    sband->ht_cap.ht_supported) {
 			sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 			sband->ht_cap.cap &= ~IEEE80211_HT_CAP_SGI_40;
@@ -740,6 +748,36 @@ int wiphy_register(struct wiphy *wiphy)
 		nl80211_send_reg_change_event(&request);
 	}
 
+	/* Check that nobody globally advertises any capabilities they do not
+	 * advertise on all possible interface types.
+	 */
+	if (wiphy->extended_capabilities_len &&
+	    wiphy->num_iftype_ext_capab &&
+	    wiphy->iftype_ext_capab) {
+		u8 supported_on_all, j;
+		const struct wiphy_iftype_ext_capab *capab;
+
+		capab = wiphy->iftype_ext_capab;
+		for (j = 0; j < wiphy->extended_capabilities_len; j++) {
+			if (capab[0].extended_capabilities_len > j)
+				supported_on_all =
+					capab[0].extended_capabilities[j];
+			else
+				supported_on_all = 0x00;
+			for (i = 1; i < wiphy->num_iftype_ext_capab; i++) {
+				if (j >= capab[i].extended_capabilities_len) {
+					supported_on_all = 0x00;
+					break;
+				}
+				supported_on_all &=
+					capab[i].extended_capabilities[j];
+			}
+			if (WARN_ON(wiphy->extended_capabilities[j] &
+				    ~supported_on_all))
+				break;
+		}
+	}
+
 	rdev->wiphy.registered = true;
 	rtnl_unlock();
 
@@ -792,7 +830,7 @@ void wiphy_unregister(struct wiphy *wiphy)
 	nl80211_notify_wiphy(rdev, NL80211_CMD_DEL_WIPHY);
 	rdev->wiphy.registered = false;
 
-	WARN_ON(!list_empty(&rdev->wdev_list));
+	WARN_ON(!list_empty(&rdev->wiphy.wdev_list));
 
 	/*
 	 * First remove the hardware from everywhere, this makes
@@ -1014,7 +1052,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		spin_lock_init(&wdev->mgmt_registrations_lock);
 
 		wdev->identifier = ++rdev->wdev_id;
-		list_add_rcu(&wdev->list, &rdev->wdev_list);
+		list_add_rcu(&wdev->list, &rdev->wiphy.wdev_list);
 		rdev->devlist_generation++;
 		/* can only change netns with wiphy */
 		dev->features |= NETIF_F_NETNS_LOCAL;
@@ -1049,7 +1087,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 		cfg80211_update_iface_num(rdev, wdev->iftype, -1);
 		if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
 			if (WARN_ON(!rdev->scan_req->notified))
-				rdev->scan_req->aborted = true;
+				rdev->scan_req->info.aborted = true;
 			___cfg80211_scan_done(rdev, false);
 		}
 

@@ -147,7 +147,7 @@ static int netup_unidvb_ci_read_attribute_mem(struct dvb_ca_en50221 *en50221,
 {
 	struct netup_ci_state *state = en50221->data;
 	struct netup_unidvb_dev *dev = state->dev;
-	u8 val = *((u8 __force *)state->membase8_io + addr);
+	u8 val = *((u8 __force *)state->membase8_config + addr);
 
 	dev_dbg(&dev->pci_dev->dev,
 		"%s(): addr=0x%x val=0x%x\n", __func__, addr, val);
@@ -162,7 +162,7 @@ static int netup_unidvb_ci_write_attribute_mem(struct dvb_ca_en50221 *en50221,
 
 	dev_dbg(&dev->pci_dev->dev,
 		"%s(): addr=0x%x data=0x%x\n", __func__, addr, data);
-	*((u8 __force *)state->membase8_io + addr) = data;
+	*((u8 __force *)state->membase8_config + addr) = data;
 	return 0;
 }
 

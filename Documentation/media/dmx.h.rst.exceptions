@@ -1,0 +1,66 @@
+# Ignore header name
+ignore define _UAPI_DVBDMX_H_
+
+# Ignore limit constants
+ignore define DMX_FILTER_SIZE
+
+# dmx_pes_type_t enum symbols
+replace enum dmx_ts_pes :c:type:`dmx_pes_type`
+replace symbol DMX_PES_AUDIO0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_VIDEO0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_TELETEXT0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_SUBTITLE0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_PCR0 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_AUDIO1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_VIDEO1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_TELETEXT1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_SUBTITLE1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_PCR1 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_AUDIO2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_VIDEO2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_TELETEXT2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_SUBTITLE2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_PCR2 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_AUDIO3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_VIDEO3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_TELETEXT3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_SUBTITLE3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_PCR3 :c:type:`dmx_pes_type`
+replace symbol DMX_PES_OTHER :c:type:`dmx_pes_type`
+
+# Ignore obsolete symbols
+ignore define DMX_PES_AUDIO
+ignore define DMX_PES_VIDEO
+ignore define DMX_PES_TELETEXT
+ignore define DMX_PES_SUBTITLE
+ignore define DMX_PES_PCR
+
+# dmx_input_t symbols
+replace enum dmx_input :c:type:`dmx_input`
+replace symbol DMX_IN_FRONTEND :c:type:`dmx_input`
+replace symbol DMX_IN_DVR :c:type:`dmx_input`
+
+# dmx_source_t symbols
+replace enum dmx_source :c:type:`dmx_source`
+replace symbol DMX_SOURCE_FRONT0 :c:type:`dmx_source`
+replace symbol DMX_SOURCE_FRONT1 :c:type:`dmx_source`
+replace symbol DMX_SOURCE_FRONT2 :c:type:`dmx_source`
+replace symbol DMX_SOURCE_FRONT3 :c:type:`dmx_source`
+replace symbol DMX_SOURCE_DVR0 :c:type:`dmx_source`
+replace symbol DMX_SOURCE_DVR1 :c:type:`dmx_source`
+replace symbol DMX_SOURCE_DVR2 :c:type:`dmx_source`
+replace symbol DMX_SOURCE_DVR3 :c:type:`dmx_source`
+
+
+# Flags for struct dmx_sct_filter_params
+replace define DMX_CHECK_CRC :c:type:`dmx_sct_filter_params`
+replace define DMX_ONESHOT :c:type:`dmx_sct_filter_params`
+replace define DMX_IMMEDIATE_START :c:type:`dmx_sct_filter_params`
+replace define DMX_KERNEL_CLIENT :c:type:`dmx_sct_filter_params`
+
+# some typedefs should point to struct/enums
+replace typedef dmx_caps_t :c:type:`dmx_caps`
+replace typedef dmx_filter_t :c:type:`dmx_filter`
+replace typedef dmx_pes_type_t :c:type:`dmx_pes_type`
+replace typedef dmx_input_t :c:type:`dmx_input`
+replace typedef dmx_source_t :c:type:`dmx_source`

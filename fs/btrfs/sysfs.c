@@ -120,6 +120,9 @@ static ssize_t btrfs_feature_attr_store(struct kobject *kobj,
 	if (!fs_info)
 		return -EPERM;
 
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
 	ret = kstrtoul(skip_spaces(buf), 0, &val);
 	if (ret)
 		return ret;
@@ -323,6 +326,7 @@ SPACE_INFO_ATTR(bytes_used);
 SPACE_INFO_ATTR(bytes_pinned);
 SPACE_INFO_ATTR(bytes_reserved);
 SPACE_INFO_ATTR(bytes_may_use);
+SPACE_INFO_ATTR(bytes_readonly);
 SPACE_INFO_ATTR(disk_used);
 SPACE_INFO_ATTR(disk_total);
 BTRFS_ATTR(total_bytes_pinned, btrfs_space_info_show_total_bytes_pinned);
@@ -334,6 +338,7 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(bytes_pinned),
 	BTRFS_ATTR_PTR(bytes_reserved),
 	BTRFS_ATTR_PTR(bytes_may_use),
+	BTRFS_ATTR_PTR(bytes_readonly),
 	BTRFS_ATTR_PTR(disk_used),
 	BTRFS_ATTR_PTR(disk_total),
 	BTRFS_ATTR_PTR(total_bytes_pinned),
@@ -364,7 +369,13 @@ static ssize_t btrfs_label_show(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	char *label = fs_info->super_copy->label;
-	return snprintf(buf, PAGE_SIZE, label[0] ? "%s\n" : "%s", label);
+	ssize_t ret;
+
+	spin_lock(&fs_info->super_lock);
+	ret = snprintf(buf, PAGE_SIZE, label[0] ? "%s\n" : "%s", label);
+	spin_unlock(&fs_info->super_lock);
+
+	return ret;
 }
 
 static ssize_t btrfs_label_store(struct kobject *kobj,
@@ -373,6 +384,9 @@ static ssize_t btrfs_label_store(struct kobject *kobj,
 {
 	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
 	size_t p_len;
+
+	if (!fs_info)
+		return -EPERM;
 
 	if (fs_info->sb->s_flags & MS_RDONLY)
 		return -EROFS;

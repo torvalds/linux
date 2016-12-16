@@ -83,23 +83,19 @@ static inline void cpu_emergency_vmxoff(void)
  */
 static inline int cpu_has_svm(const char **msg)
 {
-	uint32_t eax, ebx, ecx, edx;
-
 	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD) {
 		if (msg)
 			*msg = "not amd";
 		return 0;
 	}
 
-	cpuid(0x80000000, &eax, &ebx, &ecx, &edx);
-	if (eax < SVM_CPUID_FUNC) {
+	if (boot_cpu_data.extended_cpuid_level < SVM_CPUID_FUNC) {
 		if (msg)
 			*msg = "can't execute cpuid_8000000a";
 		return 0;
 	}
 
-	cpuid(0x80000001, &eax, &ebx, &ecx, &edx);
-	if (!(ecx & (1 << SVM_CPUID_FEATURE_SHIFT))) {
+	if (!boot_cpu_has(X86_FEATURE_SVM)) {
 		if (msg)
 			*msg = "svm not available";
 		return 0;

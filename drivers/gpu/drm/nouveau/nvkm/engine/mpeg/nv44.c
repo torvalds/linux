@@ -212,6 +212,5 @@ nv44_mpeg_new(struct nvkm_device *device, int index, struct nvkm_engine **pmpeg)
 	INIT_LIST_HEAD(&mpeg->chan);
 	*pmpeg = &mpeg->engine;
 
-	return nvkm_engine_ctor(&nv44_mpeg, device, index, 0x00000002,
-				true, &mpeg->engine);
+	return nvkm_engine_ctor(&nv44_mpeg, device, index, true, &mpeg->engine);
 }

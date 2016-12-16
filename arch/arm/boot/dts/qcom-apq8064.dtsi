@@ -124,6 +124,101 @@
 		hwlocks = <&sfpb_mutex 3>;
 	};
 
+	smd {
+		compatible = "qcom,smd";
+
+		modem@0 {
+			interrupts = <0 37 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&l2cc 8 3>;
+			qcom,smd-edge = <0>;
+
+			status = "disabled";
+		};
+
+		q6@1 {
+			interrupts = <0 90 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&l2cc 8 15>;
+			qcom,smd-edge = <1>;
+
+			status = "disabled";
+		};
+
+		dsps@3 {
+			interrupts = <0 138 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&sps_sic_non_secure 0x4080 0>;
+			qcom,smd-edge = <3>;
+
+			status = "disabled";
+		};
+
+		riva@6 {
+			interrupts = <0 198 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&l2cc 8 25>;
+			qcom,smd-edge = <6>;
+
+			status = "disabled";
+		};
+	};
+
+	smsm {
+		compatible = "qcom,smsm";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		qcom,ipc-1 = <&l2cc 8 4>;
+		qcom,ipc-2 = <&l2cc 8 14>;
+		qcom,ipc-3 = <&l2cc 8 23>;
+		qcom,ipc-4 = <&sps_sic_non_secure 0x4094 0>;
+
+		apps_smsm: apps@0 {
+			reg = <0>;
+			#qcom,smem-state-cells = <1>;
+		};
+
+		modem_smsm: modem@1 {
+			reg = <1>;
+			interrupts = <0 38 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		q6_smsm: q6@2 {
+			reg = <2>;
+			interrupts = <0 89 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		wcnss_smsm: wcnss@3 {
+			reg = <3>;
+			interrupts = <0 204 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		dsps_smsm: dsps@4 {
+			reg = <4>;
+			interrupts = <0 137 IRQ_TYPE_EDGE_RISING>;
+
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+	};
+
+	firmware {
+		scm {
+			compatible = "qcom,scm-apq8064";
+		};
+	};
+
 	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -158,7 +253,8 @@
 		};
 
 		timer@200a000 {
-			compatible = "qcom,kpss-timer", "qcom,msm-timer";
+			compatible = "qcom,kpss-timer",
+				     "qcom,kpss-wdt-apq8064", "qcom,msm-timer";
 			interrupts = <1 1 0x301>,
 				     <1 2 0x301>,
 				     <1 3 0x301>;
@@ -212,6 +308,11 @@
 			regulator;
 		};
 
+		sps_sic_non_secure: sps-sic-non-secure@12100000 {
+			compatible	= "syscon";
+			reg		= <0x12100000 0x10000>;
+		};
+
 		gsbi1: gsbi@12440000 {
 			status = "disabled";
 			compatible = "qcom,gsbi-v1.0.0";
@@ -225,9 +326,20 @@
 
 			syscon-tcsr = <&tcsr>;
 
+			gsbi1_serial: serial@12450000 {
+				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
+				reg = <0x12450000 0x100>,
+				      <0x12400000 0x03>;
+				interrupts = <0 193 0x0>;
+				clocks = <&gcc GSBI1_UART_CLK>, <&gcc GSBI1_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+			};
+
 			gsbi1_i2c: i2c@12460000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
-				pinctrl-0 = <&i2c1_pins &i2c1_pins_sleep>;
+				pinctrl-0 = <&i2c1_pins>;
+				pinctrl-1 = <&i2c1_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x12460000 0x1000>;
 				interrupts = <0 194 IRQ_TYPE_NONE>;
@@ -255,7 +367,8 @@
 			gsbi2_i2c: i2c@124a0000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x124a0000 0x1000>;
-				pinctrl-0 = <&i2c2_pins &i2c2_pins_sleep>;
+				pinctrl-0 = <&i2c2_pins>;
+				pinctrl-1 = <&i2c2_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				interrupts = <0 196 IRQ_TYPE_NONE>;
 				clocks = <&gcc GSBI2_QUP_CLK>, <&gcc GSBI2_H_CLK>;
@@ -277,7 +390,8 @@
 			ranges;
 			gsbi3_i2c: i2c@16280000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
-				pinctrl-0 = <&i2c3_pins &i2c3_pins_sleep>;
+				pinctrl-0 = <&i2c3_pins>;
+				pinctrl-1 = <&i2c3_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x16280000 0x1000>;
 				interrupts = <GIC_SPI 151 IRQ_TYPE_NONE>;
@@ -302,7 +416,8 @@
 
 			gsbi4_i2c: i2c@16380000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
-				pinctrl-0 = <&i2c4_pins &i2c4_pins_sleep>;
+				pinctrl-0 = <&i2c4_pins>;
+				pinctrl-1 = <&i2c4_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x16380000 0x1000>;
 				interrupts = <GIC_SPI 153 IRQ_TYPE_NONE>;
@@ -337,7 +452,8 @@
 				compatible = "qcom,spi-qup-v1.1.1";
 				reg = <0x1a280000 0x1000>;
 				interrupts = <0 155 0>;
-				pinctrl-0 = <&spi5_default &spi5_sleep>;
+				pinctrl-0 = <&spi5_default>;
+				pinctrl-1 = <&spi5_sleep>;
 				pinctrl-names = "default", "sleep";
 				clocks = <&gcc GSBI5_QUP_CLK>, <&gcc GSBI5_H_CLK>;
 				clock-names = "core", "iface";
@@ -370,7 +486,8 @@
 
 			gsbi6_i2c: i2c@16580000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
-				pinctrl-0 = <&i2c6_pins &i2c6_pins_sleep>;
+				pinctrl-0 = <&i2c6_pins>;
+				pinctrl-1 = <&i2c6_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x16580000 0x1000>;
 				interrupts = <GIC_SPI 157 IRQ_TYPE_NONE>;
@@ -398,6 +515,19 @@
 				      <0x16600000 0x1000>;
 				interrupts = <0 158 0x0>;
 				clocks = <&gcc GSBI7_UART_CLK>, <&gcc GSBI7_H_CLK>;
+				clock-names = "core", "iface";
+				status = "disabled";
+			};
+
+			gsbi7_i2c: i2c@16680000 {
+				compatible = "qcom,i2c-qup-v1.1.1";
+				pinctrl-0 = <&i2c7_pins>;
+				pinctrl-1 = <&i2c7_pins_sleep>;
+				pinctrl-names = "default", "sleep";
+				reg = <0x16680000 0x1000>;
+				interrupts = <GIC_SPI 159 IRQ_TYPE_NONE>;
+				clocks = <&gcc GSBI7_QUP_CLK>,
+					 <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
 			};
@@ -730,6 +860,8 @@
 			sdcc1: sdcc@12400000 {
 				status		= "disabled";
 				compatible	= "arm,pl18x", "arm,primecell";
+				pinctrl-names	= "default";
+				pinctrl-0	= <&sdcc1_pins>;
 				arm,primecell-periphid = <0x00051180>;
 				reg		= <0x12400000 0x2000>;
 				interrupts	= <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;

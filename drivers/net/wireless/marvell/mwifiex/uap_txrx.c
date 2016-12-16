@@ -102,6 +102,7 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	int hdr_chop;
 	struct ethhdr *p_ethhdr;
 	struct mwifiex_sta_node *src_node;
+	int index;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
 	rx_pkt_hdr = (void *)uap_rx_pd + le16_to_cpu(uap_rx_pd->rx_pkt_offset);
@@ -208,9 +209,14 @@ static void mwifiex_uap_queue_bridged_pkt(struct mwifiex_private *priv,
 	}
 
 	__net_timestamp(skb);
+
+	index = mwifiex_1d_to_wmm_queue[skb->priority];
+	atomic_inc(&priv->wmm_tx_pending[index]);
 	mwifiex_wmm_add_buf_txqueue(priv, skb);
 	atomic_inc(&adapter->tx_pending);
 	atomic_inc(&adapter->pending_bridged_pkts);
+
+	mwifiex_queue_main_work(priv->adapter);
 
 	return;
 }
@@ -261,6 +267,96 @@ int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 
 	/* Forward unicat/Inter-BSS packets to kernel. */
 	return mwifiex_process_rx_packet(priv, skb);
+}
+
+int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
+			    struct sk_buff *skb)
+{
+	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_sta_node *src_node;
+	struct ethhdr *p_ethhdr;
+	struct sk_buff *skb_uap;
+	struct mwifiex_txinfo *tx_info;
+
+	if (!skb)
+		return -1;
+
+	p_ethhdr = (void *)skb->data;
+	src_node = mwifiex_get_sta_entry(priv, p_ethhdr->h_source);
+	if (src_node) {
+		src_node->stats.last_rx = jiffies;
+		src_node->stats.rx_bytes += skb->len;
+		src_node->stats.rx_packets++;
+	}
+
+	skb->dev = priv->netdev;
+	skb->protocol = eth_type_trans(skb, priv->netdev);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	/* This is required only in case of 11n and USB/PCIE as we alloc
+	 * a buffer of 4K only if its 11N (to be able to receive 4K
+	 * AMSDU packets). In case of SD we allocate buffers based
+	 * on the size of packet and hence this is not needed.
+	 *
+	 * Modifying the truesize here as our allocation for each
+	 * skb is 4K but we only receive 2K packets and this cause
+	 * the kernel to start dropping packets in case where
+	 * application has allocated buffer based on 2K size i.e.
+	 * if there a 64K packet received (in IP fragments and
+	 * application allocates 64K to receive this packet but
+	 * this packet would almost double up because we allocate
+	 * each 1.5K fragment in 4K and pass it up. As soon as the
+	 * 64K limit hits kernel will start to drop rest of the
+	 * fragments. Currently we fail the Filesndl-ht.scr script
+	 * for UDP, hence this fix
+	 */
+	if ((adapter->iface_type == MWIFIEX_USB ||
+	     adapter->iface_type == MWIFIEX_PCIE) &&
+	    (skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE))
+		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
+
+	if (is_multicast_ether_addr(p_ethhdr->h_dest) ||
+	    mwifiex_get_sta_entry(priv, p_ethhdr->h_dest)) {
+		if (skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN)
+			skb_uap =
+			skb_realloc_headroom(skb, MWIFIEX_MIN_DATA_HEADER_LEN);
+		else
+			skb_uap = skb_copy(skb, GFP_ATOMIC);
+
+		if (likely(skb_uap)) {
+			tx_info = MWIFIEX_SKB_TXCB(skb_uap);
+			memset(tx_info, 0, sizeof(*tx_info));
+			tx_info->bss_num = priv->bss_num;
+			tx_info->bss_type = priv->bss_type;
+			tx_info->flags |= MWIFIEX_BUF_FLAG_BRIDGED_PKT;
+			__net_timestamp(skb_uap);
+			mwifiex_wmm_add_buf_txqueue(priv, skb_uap);
+			atomic_inc(&adapter->tx_pending);
+			atomic_inc(&adapter->pending_bridged_pkts);
+			if ((atomic_read(&adapter->pending_bridged_pkts) >=
+					MWIFIEX_BRIDGED_PKTS_THR_HIGH)) {
+				mwifiex_dbg(adapter, ERROR,
+					    "Tx: Bridge packet limit reached. Drop packet!\n");
+				mwifiex_uap_cleanup_tx_queues(priv);
+			}
+
+		} else {
+			mwifiex_dbg(adapter, ERROR, "failed to allocate skb_uap");
+		}
+
+		mwifiex_queue_main_work(adapter);
+		/* Don't forward Intra-BSS unicast packet to upper layer*/
+		if (mwifiex_get_sta_entry(priv, p_ethhdr->h_dest))
+			return 0;
+	}
+
+	/* Forward multicast/broadcast packet to upper layer*/
+	if (in_interrupt())
+		netif_rx(skb);
+	else
+		netif_rx_ni(skb);
+
+	return 0;
 }
 
 /*

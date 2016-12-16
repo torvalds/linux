@@ -264,12 +264,14 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   "Aborts Fail                 : %lld\n"
 		   "Aborts Driver Timeout       : %lld\n"
 		   "Abort FW Timeout            : %lld\n"
-		   "Abort IO NOT Found          : %lld\n",
+		   "Abort IO NOT Found          : %lld\n"
+		   "Abort Queuing Failed        : %lld\n",
 		   (u64) atomic64_read(&stats->abts.num),
 		   (u64) atomic64_read(&stats->abts.fail),
 		   (u64) atomic64_read(&stats->abts.drv_tmo),
 		   (u64) atomic64_read(&stats->abts.fw_tmo),
-		   (u64) atomic64_read(&stats->abts.io_not_found));
+		   (u64) atomic64_read(&stats->abts.io_not_found),
+		   (u64) atomic64_read(&stats->abts.q_fail));
 
 	/* Dump Reset Stats */
 	seq_printf(sfp,
@@ -316,7 +318,9 @@ snic_stats_show(struct seq_file *sfp, void *data)
 	seq_printf(sfp,
 		   "Last ISR Time               : %llu (%8lu.%8lu)\n"
 		   "Last Ack Time               : %llu (%8lu.%8lu)\n"
-		   "ISRs                        : %llu\n"
+		   "Ack ISRs                    : %llu\n"
+		   "IO Cmpl ISRs                : %llu\n"
+		   "Err Notify ISRs             : %llu\n"
 		   "Max CQ Entries              : %lld\n"
 		   "Data Count Mismatch         : %lld\n"
 		   "IOs w/ Timeout Status       : %lld\n"
@@ -324,12 +328,17 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   "IOs w/ SGL Invalid Stat     : %lld\n"
 		   "WQ Desc Alloc Fail          : %lld\n"
 		   "Queue Full                  : %lld\n"
+		   "Queue Ramp Up               : %lld\n"
+		   "Queue Ramp Down             : %lld\n"
+		   "Queue Last Queue Depth      : %lld\n"
 		   "Target Not Ready            : %lld\n",
 		   (u64) stats->misc.last_isr_time,
 		   last_isr_tms.tv_sec, last_isr_tms.tv_nsec,
 		   (u64)stats->misc.last_ack_time,
 		   last_ack_tms.tv_sec, last_ack_tms.tv_nsec,
-		   (u64) atomic64_read(&stats->misc.isr_cnt),
+		   (u64) atomic64_read(&stats->misc.ack_isr_cnt),
+		   (u64) atomic64_read(&stats->misc.cmpl_isr_cnt),
+		   (u64) atomic64_read(&stats->misc.errnotify_isr_cnt),
 		   (u64) atomic64_read(&stats->misc.max_cq_ents),
 		   (u64) atomic64_read(&stats->misc.data_cnt_mismat),
 		   (u64) atomic64_read(&stats->misc.io_tmo),
@@ -337,6 +346,9 @@ snic_stats_show(struct seq_file *sfp, void *data)
 		   (u64) atomic64_read(&stats->misc.sgl_inval),
 		   (u64) atomic64_read(&stats->misc.wq_alloc_fail),
 		   (u64) atomic64_read(&stats->misc.qfull),
+		   (u64) atomic64_read(&stats->misc.qsz_rampup),
+		   (u64) atomic64_read(&stats->misc.qsz_rampdown),
+		   (u64) atomic64_read(&stats->misc.last_qsz),
 		   (u64) atomic64_read(&stats->misc.tgt_not_rdy));
 
 	return 0;

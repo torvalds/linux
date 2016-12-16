@@ -344,7 +344,6 @@ static int add_bio(struct cardinfo *card)
 	int offset;
 	struct bio *bio;
 	struct bio_vec vec;
-	int rw;
 
 	bio = card->currentbio;
 	if (!bio && card->bio) {
@@ -359,7 +358,6 @@ static int add_bio(struct cardinfo *card)
 	if (!bio)
 		return 0;
 
-	rw = bio_rw(bio);
 	if (card->mm_pages[card->Ready].cnt >= DESC_PER_PAGE)
 		return 0;
 
@@ -369,7 +367,7 @@ static int add_bio(struct cardinfo *card)
 				  vec.bv_page,
 				  vec.bv_offset,
 				  vec.bv_len,
-				  (rw == READ) ?
+				  bio_op(bio) == REQ_OP_READ ?
 				  PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE);
 
 	p = &card->mm_pages[card->Ready];
@@ -398,7 +396,7 @@ static int add_bio(struct cardinfo *card)
 					 DMASCR_CHAIN_EN |
 					 DMASCR_SEM_EN |
 					 pci_cmds);
-	if (rw == WRITE)
+	if (bio_op(bio) == REQ_OP_WRITE)
 		desc->control_bits |= cpu_to_le32(DMASCR_TRANSFER_READ);
 	desc->sem_control_bits = desc->control_bits;
 
@@ -462,7 +460,7 @@ static void process_page(unsigned long data)
 				le32_to_cpu(desc->local_addr)>>9,
 				le32_to_cpu(desc->transfer_size));
 			dump_dmastat(card, control);
-		} else if ((bio->bi_rw & REQ_WRITE) &&
+		} else if (op_is_write(bio_op(bio)) &&
 			   le32_to_cpu(desc->local_addr) >> 9 ==
 				card->init_size) {
 			card->init_size += le32_to_cpu(desc->transfer_size) >> 9;
@@ -537,7 +535,7 @@ static blk_qc_t mm_make_request(struct request_queue *q, struct bio *bio)
 	*card->biotail = bio;
 	bio->bi_next = NULL;
 	card->biotail = &bio->bi_next;
-	if (bio->bi_rw & REQ_SYNC || !mm_check_plugged(card))
+	if (bio->bi_opf & REQ_SYNC || !mm_check_plugged(card))
 		activate(card);
 	spin_unlock_irq(&card->lock);
 

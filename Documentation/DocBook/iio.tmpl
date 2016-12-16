@@ -594,7 +594,7 @@
 
     irqreturn_t sensor_iio_pollfunc(int irq, void *p)
     {
-        pf->timestamp = iio_get_time_ns();
+        pf->timestamp = iio_get_time_ns((struct indio_dev *)p);
         return IRQ_WAKE_THREAD;
     }
 

@@ -177,7 +177,7 @@ Default is to monitor all CPUS.
 	between information loss and faster processing especially for
 	workloads that can have a very long callchain stack.
 
-	Default: 127
+	Default: /proc/sys/kernel/perf_event_max_stack when present, 127 otherwise.
 
 --ignore-callees=<regex>::
         Ignore callees of the function(s) matching the given regex.

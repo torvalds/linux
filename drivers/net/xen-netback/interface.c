@@ -128,6 +128,15 @@ irqreturn_t xenvif_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+irqreturn_t xenvif_ctrl_interrupt(int irq, void *dev_id)
+{
+	struct xenvif *vif = dev_id;
+
+	wake_up(&vif->ctrl_wq);
+
+	return IRQ_HANDLED;
+}
+
 int xenvif_queue_stopped(struct xenvif_queue *queue)
 {
 	struct net_device *dev = queue->vif->dev;
@@ -140,6 +149,33 @@ void xenvif_wake_queue(struct xenvif_queue *queue)
 	struct net_device *dev = queue->vif->dev;
 	unsigned int id = queue->id;
 	netif_tx_wake_queue(netdev_get_tx_queue(dev, id));
+}
+
+static u16 xenvif_select_queue(struct net_device *dev, struct sk_buff *skb,
+			       void *accel_priv,
+			       select_queue_fallback_t fallback)
+{
+	struct xenvif *vif = netdev_priv(dev);
+	unsigned int size = vif->hash.size;
+
+	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE) {
+		u16 index = fallback(dev, skb) % dev->real_num_tx_queues;
+
+		/* Make sure there is no hash information in the socket
+		 * buffer otherwise it would be incorrectly forwarded
+		 * to the frontend.
+		 */
+		skb_clear_hash(skb);
+
+		return index;
+	}
+
+	xenvif_set_skb_hash(vif, skb);
+
+	if (size == 0)
+		return skb_get_hash_raw(skb) % dev->real_num_tx_queues;
+
+	return vif->hash.mapping[skb_get_hash_raw(skb) % size];
 }
 
 static int xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -386,6 +422,7 @@ static const struct ethtool_ops xenvif_ethtool_ops = {
 };
 
 static const struct net_device_ops xenvif_netdev_ops = {
+	.ndo_select_queue = xenvif_select_queue,
 	.ndo_start_xmit	= xenvif_start_xmit,
 	.ndo_get_stats	= xenvif_get_stats,
 	.ndo_open	= xenvif_open,
@@ -527,9 +564,69 @@ void xenvif_carrier_on(struct xenvif *vif)
 	rtnl_unlock();
 }
 
-int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
-		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
-		   unsigned int rx_evtchn)
+int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
+			unsigned int evtchn)
+{
+	struct net_device *dev = vif->dev;
+	void *addr;
+	struct xen_netif_ctrl_sring *shared;
+	struct task_struct *task;
+	int err = -ENOMEM;
+
+	err = xenbus_map_ring_valloc(xenvif_to_xenbus_device(vif),
+				     &ring_ref, 1, &addr);
+	if (err)
+		goto err;
+
+	shared = (struct xen_netif_ctrl_sring *)addr;
+	BACK_RING_INIT(&vif->ctrl, shared, XEN_PAGE_SIZE);
+
+	init_waitqueue_head(&vif->ctrl_wq);
+
+	err = bind_interdomain_evtchn_to_irqhandler(vif->domid, evtchn,
+						    xenvif_ctrl_interrupt,
+						    0, dev->name, vif);
+	if (err < 0)
+		goto err_unmap;
+
+	vif->ctrl_irq = err;
+
+	xenvif_init_hash(vif);
+
+	task = kthread_create(xenvif_ctrl_kthread, (void *)vif,
+			      "%s-control", dev->name);
+	if (IS_ERR(task)) {
+		pr_warn("Could not allocate kthread for %s\n", dev->name);
+		err = PTR_ERR(task);
+		goto err_deinit;
+	}
+
+	get_task_struct(task);
+	vif->ctrl_task = task;
+
+	wake_up_process(vif->ctrl_task);
+
+	return 0;
+
+err_deinit:
+	xenvif_deinit_hash(vif);
+	unbind_from_irqhandler(vif->ctrl_irq, vif);
+	vif->ctrl_irq = 0;
+
+err_unmap:
+	xenbus_unmap_ring_vfree(xenvif_to_xenbus_device(vif),
+				vif->ctrl.sring);
+	vif->ctrl.sring = NULL;
+
+err:
+	return err;
+}
+
+int xenvif_connect_data(struct xenvif_queue *queue,
+			unsigned long tx_ring_ref,
+			unsigned long rx_ring_ref,
+			unsigned int tx_evtchn,
+			unsigned int rx_evtchn)
 {
 	struct task_struct *task;
 	int err = -ENOMEM;
@@ -538,7 +635,8 @@ int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
 	BUG_ON(queue->task);
 	BUG_ON(queue->dealloc_task);
 
-	err = xenvif_map_frontend_rings(queue, tx_ring_ref, rx_ring_ref);
+	err = xenvif_map_frontend_data_rings(queue, tx_ring_ref,
+					     rx_ring_ref);
 	if (err < 0)
 		goto err;
 
@@ -614,7 +712,7 @@ err_tx_unbind:
 	unbind_from_irqhandler(queue->tx_irq, queue);
 	queue->tx_irq = 0;
 err_unmap:
-	xenvif_unmap_frontend_rings(queue);
+	xenvif_unmap_frontend_data_rings(queue);
 	netif_napi_del(&queue->napi);
 err:
 	module_put(THIS_MODULE);
@@ -634,7 +732,7 @@ void xenvif_carrier_off(struct xenvif *vif)
 	rtnl_unlock();
 }
 
-void xenvif_disconnect(struct xenvif *vif)
+void xenvif_disconnect_data(struct xenvif *vif)
 {
 	struct xenvif_queue *queue = NULL;
 	unsigned int num_queues = vif->num_queues;
@@ -668,10 +766,31 @@ void xenvif_disconnect(struct xenvif *vif)
 			queue->tx_irq = 0;
 		}
 
-		xenvif_unmap_frontend_rings(queue);
+		xenvif_unmap_frontend_data_rings(queue);
 	}
 
 	xenvif_mcast_addr_list_free(vif);
+}
+
+void xenvif_disconnect_ctrl(struct xenvif *vif)
+{
+	if (vif->ctrl_task) {
+		kthread_stop(vif->ctrl_task);
+		put_task_struct(vif->ctrl_task);
+		vif->ctrl_task = NULL;
+	}
+
+	if (vif->ctrl_irq) {
+		xenvif_deinit_hash(vif);
+		unbind_from_irqhandler(vif->ctrl_irq, vif);
+		vif->ctrl_irq = 0;
+	}
+
+	if (vif->ctrl.sring) {
+		xenbus_unmap_ring_vfree(xenvif_to_xenbus_device(vif),
+					vif->ctrl.sring);
+		vif->ctrl.sring = NULL;
+	}
 }
 
 /* Reverse the relevant parts of xenvif_init_queue().

@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -225,11 +225,6 @@ struct fm10k_hw;
 #define FM10K_STATS_LOOPBACK_DROP	0x3806
 #define FM10K_STATS_NODESC_DROP		0x3807
 
-/* Timesync registers */
-#define FM10K_SYSTIME		0x3814
-#define FM10K_SYSTIME_CFG	0x3818
-#define FM10K_SYSTIME_CFG_STEP_MASK		0x0000000F
-
 /* PCIe state registers */
 #define FM10K_PHYADDR		0x381C
 
@@ -355,6 +350,7 @@ struct fm10k_hw;
 #define FM10K_VLAN_TABLE_VSI_MAX		64
 #define FM10K_VLAN_LENGTH_SHIFT			16
 #define FM10K_VLAN_CLEAR			BIT(15)
+#define FM10K_VLAN_OVERRIDE			FM10K_VLAN_CLEAR
 #define FM10K_VLAN_ALL \
 	((FM10K_VLAN_TABLE_VID_MAX - 1) << FM10K_VLAN_LENGTH_SHIFT)
 
@@ -380,12 +376,6 @@ struct fm10k_hw;
 #define FM10K_VFINT_MAP		0x00030
 #define FM10K_VFSYSTIME		0x00040
 #define FM10K_VFITR(_n)		((_n) + 0x00060)
-
-/* Registers contained in BAR 4 for Switch management */
-#define FM10K_SW_SYSTIME_ADJUST	0x0224D
-#define FM10K_SW_SYSTIME_ADJUST_MASK		0x3FFFFFFF
-#define FM10K_SW_SYSTIME_ADJUST_DIR_POSITIVE	0x80000000
-#define FM10K_SW_SYSTIME_PULSE(_n)	((_n) + 0x02252)
 
 enum fm10k_int_source {
 	fm10k_int_mailbox		= 0,
@@ -536,6 +526,7 @@ struct fm10k_mac_ops {
 	s32 (*stop_hw)(struct fm10k_hw *);
 	s32 (*get_bus_info)(struct fm10k_hw *);
 	s32 (*get_host_state)(struct fm10k_hw *, bool *);
+	s32 (*request_lport_map)(struct fm10k_hw *);
 	s32 (*update_vlan)(struct fm10k_hw *, u32, u8, bool);
 	s32 (*read_mac_addr)(struct fm10k_hw *);
 	s32 (*update_uc_addr)(struct fm10k_hw *, u16, const u8 *,
@@ -550,8 +541,6 @@ struct fm10k_mac_ops {
 				    struct fm10k_dglort_cfg *);
 	void (*set_dma_mask)(struct fm10k_hw *, u64);
 	s32 (*get_fault)(struct fm10k_hw *, int, struct fm10k_fault *);
-	s32 (*adjust_systime)(struct fm10k_hw *, s32 ppb);
-	u64 (*read_systime)(struct fm10k_hw *);
 };
 
 enum fm10k_mac_type {
@@ -574,6 +563,7 @@ struct fm10k_mac_info {
 	bool tx_ready;
 	u32 dglort_map;
 	u8 itr_scale;
+	u64 reset_while_pending;
 };
 
 struct fm10k_swapi_table_info {
@@ -617,10 +607,10 @@ struct fm10k_vf_info {
 						 */
 };
 
-#define FM10K_VF_FLAG_ALLMULTI_CAPABLE	((u8)1 << FM10K_XCAST_MODE_ALLMULTI)
-#define FM10K_VF_FLAG_MULTI_CAPABLE	((u8)1 << FM10K_XCAST_MODE_MULTI)
-#define FM10K_VF_FLAG_PROMISC_CAPABLE	((u8)1 << FM10K_XCAST_MODE_PROMISC)
-#define FM10K_VF_FLAG_NONE_CAPABLE	((u8)1 << FM10K_XCAST_MODE_NONE)
+#define FM10K_VF_FLAG_ALLMULTI_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_ALLMULTI))
+#define FM10K_VF_FLAG_MULTI_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_MULTI))
+#define FM10K_VF_FLAG_PROMISC_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_PROMISC))
+#define FM10K_VF_FLAG_NONE_CAPABLE	(u8)(BIT(FM10K_XCAST_MODE_NONE))
 #define FM10K_VF_FLAG_CAPABLE(vf_info)	((vf_info)->vf_flags & (u8)0xF)
 #define FM10K_VF_FLAG_ENABLED(vf_info)	((vf_info)->vf_flags >> 4)
 #define FM10K_VF_FLAG_SET_MODE(mode)	((u8)0x10 << (mode))
@@ -643,7 +633,6 @@ struct fm10k_iov_ops {
 	s32 (*set_lport)(struct fm10k_hw *, struct fm10k_vf_info *, u16, u8);
 	void (*reset_lport)(struct fm10k_hw *, struct fm10k_vf_info *);
 	void (*update_stats)(struct fm10k_hw *, struct fm10k_hw_stats_q *, u16);
-	s32 (*report_timestamp)(struct fm10k_hw *, struct fm10k_vf_info *, u64);
 };
 
 struct fm10k_iov_info {
@@ -667,7 +656,6 @@ struct fm10k_info {
 
 struct fm10k_hw {
 	u32 __iomem *hw_addr;
-	u32 __iomem *sw_addr;
 	void *back;
 	struct fm10k_mac_info mac;
 	struct fm10k_bus_info bus;

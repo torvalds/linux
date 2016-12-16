@@ -191,13 +191,12 @@ static void usbhsg_queue_push(struct usbhsg_uep *uep,
 /*
  *		dma map/unmap
  */
-static int usbhsg_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
+static int usbhsg_dma_map_ctrl(struct device *dma_dev, struct usbhs_pkt *pkt,
+			       int map)
 {
 	struct usbhsg_request *ureq = usbhsg_pkt_to_ureq(pkt);
 	struct usb_request *req = &ureq->req;
 	struct usbhs_pipe *pipe = pkt->pipe;
-	struct usbhsg_uep *uep = usbhsg_pipe_to_uep(pipe);
-	struct usbhsg_gpriv *gpriv = usbhsg_uep_to_gpriv(uep);
 	enum dma_data_direction dir;
 	int ret = 0;
 
@@ -207,13 +206,13 @@ static int usbhsg_dma_map_ctrl(struct usbhs_pkt *pkt, int map)
 		/* it can not use scatter/gather */
 		WARN_ON(req->num_sgs);
 
-		ret = usb_gadget_map_request(&gpriv->gadget, req, dir);
+		ret = usb_gadget_map_request_by_dev(dma_dev, req, dir);
 		if (ret < 0)
 			return ret;
 
 		pkt->dma = req->dma;
 	} else {
-		usb_gadget_unmap_request(&gpriv->gadget, req, dir);
+		usb_gadget_unmap_request_by_dev(dma_dev, req, dir);
 	}
 
 	return ret;
@@ -586,6 +585,9 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	struct usbhs_priv *priv = usbhsg_gpriv_to_priv(gpriv);
 	struct usbhs_pipe *pipe;
 	int ret = -EIO;
+	unsigned long flags;
+
+	usbhs_lock(priv, flags);
 
 	/*
 	 * if it already have pipe,
@@ -594,7 +596,8 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 	if (uep->pipe) {
 		usbhs_pipe_clear(uep->pipe);
 		usbhs_pipe_sequence_data0(uep->pipe);
-		return 0;
+		ret = 0;
+		goto usbhsg_ep_enable_end;
 	}
 
 	pipe = usbhs_pipe_malloc(priv,
@@ -614,13 +617,19 @@ static int usbhsg_ep_enable(struct usb_ep *ep,
 		 * use dmaengine if possible.
 		 * It will use pio handler if impossible.
 		 */
-		if (usb_endpoint_dir_in(desc))
+		if (usb_endpoint_dir_in(desc)) {
 			pipe->handler = &usbhs_fifo_dma_push_handler;
-		else
+		} else {
 			pipe->handler = &usbhs_fifo_dma_pop_handler;
+			usbhs_xxxsts_clear(priv, BRDYSTS,
+					   usbhs_pipe_number(pipe));
+		}
 
 		ret = 0;
 	}
+
+usbhsg_ep_enable_end:
+	usbhs_unlock(priv, flags);
 
 	return ret;
 }
@@ -1067,7 +1076,7 @@ int usbhs_mod_gadget_probe(struct usbhs_priv *priv)
 
 	gpriv->transceiver = usb_get_phy(USB_PHY_TYPE_UNDEFINED);
 	dev_info(dev, "%stransceiver found\n",
-		 gpriv->transceiver ? "" : "no ");
+		 !IS_ERR(gpriv->transceiver) ? "" : "no ");
 
 	/*
 	 * CAUTION

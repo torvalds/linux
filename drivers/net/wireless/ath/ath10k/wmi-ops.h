@@ -186,8 +186,14 @@ struct wmi_ops {
 							u8 enable,
 							u32 detect_level,
 							u32 detect_margin);
+	struct sk_buff *(*ext_resource_config)(struct ath10k *ar,
+					       enum wmi_host_platform_type type,
+					       u32 fw_feature_bitmap);
 	int (*get_vdev_subtype)(struct ath10k *ar,
 				enum wmi_vdev_subtype subtype);
+	struct sk_buff *(*gen_pdev_bss_chan_info_req)
+					(struct ath10k *ar,
+					 enum wmi_bss_survey_req_type type);
 };
 
 int ath10k_wmi_cmd_send(struct ath10k *ar, struct sk_buff *skb, u32 cmd_id);
@@ -1330,12 +1336,50 @@ ath10k_wmi_pdev_enable_adaptive_cca(struct ath10k *ar, u8 enable,
 }
 
 static inline int
+ath10k_wmi_ext_resource_config(struct ath10k *ar,
+			       enum wmi_host_platform_type type,
+			       u32 fw_feature_bitmap)
+{
+	struct sk_buff *skb;
+
+	if (!ar->wmi.ops->ext_resource_config)
+		return -EOPNOTSUPP;
+
+	skb = ar->wmi.ops->ext_resource_config(ar, type,
+					       fw_feature_bitmap);
+
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   ar->wmi.cmd->ext_resource_cfg_cmdid);
+}
+
+static inline int
 ath10k_wmi_get_vdev_subtype(struct ath10k *ar, enum wmi_vdev_subtype subtype)
 {
 	if (!ar->wmi.ops->get_vdev_subtype)
 		return -EOPNOTSUPP;
 
 	return ar->wmi.ops->get_vdev_subtype(ar, subtype);
+}
+
+static inline int
+ath10k_wmi_pdev_bss_chan_info_request(struct ath10k *ar,
+				      enum wmi_bss_survey_req_type type)
+{
+	struct ath10k_wmi *wmi = &ar->wmi;
+	struct sk_buff *skb;
+
+	if (!wmi->ops->gen_pdev_bss_chan_info_req)
+		return -EOPNOTSUPP;
+
+	skb = wmi->ops->gen_pdev_bss_chan_info_req(ar, type);
+	if (IS_ERR(skb))
+		return PTR_ERR(skb);
+
+	return ath10k_wmi_cmd_send(ar, skb,
+				   wmi->cmd->pdev_bss_chan_info_request_cmdid);
 }
 
 #endif

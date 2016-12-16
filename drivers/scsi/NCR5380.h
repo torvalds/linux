@@ -199,13 +199,6 @@
 
 #define PHASE_SR_TO_TCR(phase) ((phase) >> 2)
 
-/* 
- * "Special" value for the (unsigned char) command tag, to indicate
- * I_T_L nexus instead of I_T_L_Q.
- */
-
-#define TAG_NONE	0xff
-
 /*
  * These are "special" values for the irq and dma_channel fields of the 
  * Scsi_Host structure
@@ -220,28 +213,17 @@
 #define NO_IRQ		0
 #endif
 
-#define FLAG_NO_DMA_FIXUP		1	/* No DMA errata workarounds */
+#define FLAG_DMA_FIXUP			1	/* Use DMA errata workarounds */
 #define FLAG_NO_PSEUDO_DMA		8	/* Inhibit DMA */
 #define FLAG_LATE_DMA_SETUP		32	/* Setup NCR before DMA H/W */
-#define FLAG_TAGGED_QUEUING		64	/* as X3T9.2 spelled it */
 #define FLAG_TOSHIBA_DELAY		128	/* Allow for borken CD-ROMs */
-
-#ifdef SUPPORT_TAGS
-struct tag_alloc {
-	DECLARE_BITMAP(allocated, MAX_TAGS);
-	int nr_allocated;
-	int queue_size;
-};
-#endif
 
 struct NCR5380_hostdata {
 	NCR5380_implementation_fields;		/* implementation specific */
 	struct Scsi_Host *host;			/* Host backpointer */
 	unsigned char id_mask, id_higher_mask;	/* 1 << id, all bits greater */
 	unsigned char busy[8];			/* index = target, bit = lun */
-#if defined(REAL_DMA) || defined(REAL_DMA_POLL)
 	int dma_len;				/* requested length of DMA */
-#endif
 	unsigned char last_message;		/* last message OUT */
 	struct scsi_cmnd *connected;		/* currently connected cmnd */
 	struct scsi_cmnd *selecting;		/* cmnd to be connected */
@@ -256,13 +238,6 @@ struct NCR5380_hostdata {
 	int read_overruns;                /* number of bytes to cut from a
 	                                   * transfer to handle chip overruns */
 	struct work_struct main_task;
-#ifdef SUPPORT_TAGS
-	struct tag_alloc TagAlloc[8][8];	/* 8 targets and 8 LUNs */
-#endif
-#ifdef PSEUDO_DMA
-	unsigned spin_max_r;
-	unsigned spin_max_w;
-#endif
 	struct workqueue_struct *work_q;
 	unsigned long accesses_per_ms;	/* chip register accesses per ms */
 };
@@ -305,132 +280,20 @@ static void NCR5380_print(struct Scsi_Host *instance);
 #define NCR5380_dprint_phase(flg, arg) do {} while (0)
 #endif
 
-#if defined(AUTOPROBE_IRQ)
 static int NCR5380_probe_irq(struct Scsi_Host *instance, int possible);
-#endif
 static int NCR5380_init(struct Scsi_Host *instance, int flags);
 static int NCR5380_maybe_reset_bus(struct Scsi_Host *);
 static void NCR5380_exit(struct Scsi_Host *instance);
 static void NCR5380_information_transfer(struct Scsi_Host *instance);
-#ifndef DONT_USE_INTR
 static irqreturn_t NCR5380_intr(int irq, void *dev_id);
-#endif
 static void NCR5380_main(struct work_struct *work);
 static const char *NCR5380_info(struct Scsi_Host *instance);
 static void NCR5380_reselect(struct Scsi_Host *instance);
 static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *, struct scsi_cmnd *);
-#if defined(PSEUDO_DMA) || defined(REAL_DMA) || defined(REAL_DMA_POLL)
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
-#endif
 static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
+static int NCR5380_poll_politely(struct Scsi_Host *, int, int, int, int);
+static int NCR5380_poll_politely2(struct Scsi_Host *, int, int, int, int, int, int, int);
 
-#if (defined(REAL_DMA) || defined(REAL_DMA_POLL))
-
-#if defined(i386) || defined(__alpha__)
-
-/**
- *	NCR5380_pc_dma_setup		-	setup ISA DMA
- *	@instance: adapter to set up
- *	@ptr: block to transfer (virtual address)
- *	@count: number of bytes to transfer
- *	@mode: DMA controller mode to use
- *
- *	Program the DMA controller ready to perform an ISA DMA transfer
- *	on this chip.
- *
- *	Locks: takes and releases the ISA DMA lock.
- */
- 
-static __inline__ int NCR5380_pc_dma_setup(struct Scsi_Host *instance, unsigned char *ptr, unsigned int count, unsigned char mode)
-{
-	unsigned limit;
-	unsigned long bus_addr = virt_to_bus(ptr);
-	unsigned long flags;
-
-	if (instance->dma_channel <= 3) {
-		if (count > 65536)
-			count = 65536;
-		limit = 65536 - (bus_addr & 0xFFFF);
-	} else {
-		if (count > 65536 * 2)
-			count = 65536 * 2;
-		limit = 65536 * 2 - (bus_addr & 0x1FFFF);
-	}
-
-	if (count > limit)
-		count = limit;
-
-	if ((count & 1) || (bus_addr & 1))
-		panic("scsi%d : attempted unaligned DMA transfer\n", instance->host_no);
-	
-	flags=claim_dma_lock();
-	disable_dma(instance->dma_channel);
-	clear_dma_ff(instance->dma_channel);
-	set_dma_addr(instance->dma_channel, bus_addr);
-	set_dma_count(instance->dma_channel, count);
-	set_dma_mode(instance->dma_channel, mode);
-	enable_dma(instance->dma_channel);
-	release_dma_lock(flags);
-	
-	return count;
-}
-
-/**
- *	NCR5380_pc_dma_write_setup		-	setup ISA DMA write
- *	@instance: adapter to set up
- *	@ptr: block to transfer (virtual address)
- *	@count: number of bytes to transfer
- *
- *	Program the DMA controller ready to perform an ISA DMA write to the
- *	SCSI controller.
- *
- *	Locks: called routines take and release the ISA DMA lock.
- */
-
-static __inline__ int NCR5380_pc_dma_write_setup(struct Scsi_Host *instance, unsigned char *src, unsigned int count)
-{
-	return NCR5380_pc_dma_setup(instance, src, count, DMA_MODE_WRITE);
-}
-
-/**
- *	NCR5380_pc_dma_read_setup		-	setup ISA DMA read
- *	@instance: adapter to set up
- *	@ptr: block to transfer (virtual address)
- *	@count: number of bytes to transfer
- *
- *	Program the DMA controller ready to perform an ISA DMA read from the
- *	SCSI controller.
- *
- *	Locks: called routines take and release the ISA DMA lock.
- */
-
-static __inline__ int NCR5380_pc_dma_read_setup(struct Scsi_Host *instance, unsigned char *src, unsigned int count)
-{
-	return NCR5380_pc_dma_setup(instance, src, count, DMA_MODE_READ);
-}
-
-/**
- *	NCR5380_pc_dma_residual		-	return bytes left 
- *	@instance: adapter
- *
- *	Reports the number of bytes left over after the DMA was terminated.
- *
- *	Locks: takes and releases the ISA DMA lock.
- */
-
-static __inline__ int NCR5380_pc_dma_residual(struct Scsi_Host *instance)
-{
-	unsigned long flags;
-	int tmp;
-
-	flags = claim_dma_lock();
-	clear_dma_ff(instance->dma_channel);
-	tmp = get_dma_residue(instance->dma_channel);
-	release_dma_lock(flags);
-	
-	return tmp;
-}
-#endif				/* defined(i386) || defined(__alpha__) */
-#endif				/* defined(REAL_DMA)  */
 #endif				/* __KERNEL__ */
 #endif				/* NCR5380_H */

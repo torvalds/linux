@@ -203,7 +203,7 @@ qxl_push_cursor_ring_release(struct qxl_device *qdev, struct qxl_release *releas
 bool qxl_queue_garbage_collect(struct qxl_device *qdev, bool flush)
 {
 	if (!qxl_check_idle(qdev->release_ring)) {
-		queue_work(qdev->gc_queue, &qdev->gc_work);
+		schedule_work(&qdev->gc_work);
 		if (flush)
 			flush_work(&qdev->gc_work);
 		return true;
@@ -624,7 +624,7 @@ static int qxl_reap_surf(struct qxl_device *qdev, struct qxl_bo *surf, bool stal
 	if (stall)
 		mutex_unlock(&qdev->surf_evict_mutex);
 
-	ret = ttm_bo_wait(&surf->tbo, true, true, !stall);
+	ret = ttm_bo_wait(&surf->tbo, true, !stall);
 
 	if (stall)
 		mutex_lock(&qdev->surf_evict_mutex);

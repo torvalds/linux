@@ -91,9 +91,7 @@ machine_device_initcall(mpc834x_mds, mpc83xx_declare_of_platform_devices);
  */
 static int __init mpc834x_mds_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "MPC834xMDS");
+	return of_machine_is_compatible("MPC834xMDS");
 }
 
 define_machine(mpc834x_mds) {

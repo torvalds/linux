@@ -34,7 +34,7 @@ T=/tmp/kvm.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-dur=30
+dur=$((30*60))
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
@@ -48,6 +48,7 @@ resdir=""
 configs=""
 cpus=0
 ds=`date +%Y.%m.%d-%H:%M:%S`
+jitter="-1"
 
 . functions.sh
 
@@ -63,6 +64,7 @@ usage () {
 	echo "       --dryrun sched|script"
 	echo "       --duration minutes"
 	echo "       --interactive"
+	echo "       --jitter N [ maxsleep (us) [ maxspin (us) ] ]"
 	echo "       --kmake-arg kernel-make-arguments"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --no-initrd"
@@ -116,11 +118,16 @@ do
 		;;
 	--duration)
 		checkarg --duration "(minutes)" $# "$2" '^[0-9]*$' '^error'
-		dur=$2
+		dur=$(($2*60))
 		shift
 		;;
 	--interactive)
 		TORTURE_QEMU_INTERACTIVE=1; export TORTURE_QEMU_INTERACTIVE
+		;;
+	--jitter)
+		checkarg --jitter "(# threads [ sleep [ spin ] ])" $# "$2" '^-\{,1\}[0-9]\+\( \+[0-9]\+\)\{,2\} *$' '^error$'
+		jitter="$2"
+		shift
 		;;
 	--kmake-arg)
 		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
@@ -156,7 +163,7 @@ do
 		shift
 		;;
 	--torture)
-		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\)$' '^--'
+		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuperf\)$' '^--'
 		TORTURE_SUITE=$2
 		shift
 		;;
@@ -299,6 +306,7 @@ awk < $T/cfgcpu.pack \
 	-v CONFIGDIR="$CONFIGFRAG/" \
 	-v KVM="$KVM" \
 	-v ncpus=$cpus \
+	-v jitter="$jitter" \
 	-v rd=$resdir/$ds/ \
 	-v dur=$dur \
 	-v TORTURE_QEMU_ARG="$TORTURE_QEMU_ARG" \
@@ -359,6 +367,16 @@ function dump(first, pastlast, batchnum)
 		print "\techo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date` >> " rd "/log";
 		print "fi"
 	}
+	njitter = 0;
+	split(jitter, ja);
+	if (ja[1] == -1 && ncpus == 0)
+		njitter = 1;
+	else if (ja[1] == -1)
+		njitter = ncpus;
+	else
+		njitter = ja[1];
+	for (j = 0; j < njitter; j++)
+		print "jitter.sh " j " " dur " " ja[2] " " ja[3] "&"
 	print "wait"
 	print "if test -z \"$TORTURE_BUILDONLY\""
 	print "then"

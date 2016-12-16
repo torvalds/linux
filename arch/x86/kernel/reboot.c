@@ -1,6 +1,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/pm.h>
@@ -53,6 +53,19 @@ bool port_cf9_safe = false;
  * Reboot options and system auto-detection code provided by
  * Dell Inc. so their systems "just work". :-)
  */
+
+/*
+ * Some machines require the "reboot=a" commandline options
+ */
+static int __init set_acpi_reboot(const struct dmi_system_id *d)
+{
+	if (reboot_type != BOOT_ACPI) {
+		reboot_type = BOOT_ACPI;
+		pr_info("%s series board detected. Selecting %s-method for reboots.\n",
+			d->ident, "ACPI");
+	}
+	return 0;
+}
 
 /*
  * Some machines require the "reboot=b" or "reboot=k"  commandline options,
@@ -395,6 +408,14 @@ static struct dmi_system_id __initdata reboot_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Dell XPS710"),
 		},
 	},
+	{	/* Handle problems with rebooting on Dell Optiplex 7450 AIO */
+		.callback = set_acpi_reboot,
+		.ident = "Dell OptiPlex 7450 AIO",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "OptiPlex 7450 AIO"),
+		},
+	},
 
 	/* Hewlett-Packard */
 	{	/* Handle problems with rebooting on HP laptops */
@@ -534,6 +555,15 @@ static void native_machine_emergency_restart(void)
 	/* Tell the BIOS if we want cold or warm reboot */
 	mode = reboot_mode == REBOOT_WARM ? 0x1234 : 0;
 	*((unsigned short *)__va(0x472)) = mode;
+
+	/*
+	 * If an EFI capsule has been registered with the firmware then
+	 * override the reboot= parameter.
+	 */
+	if (efi_capsule_pending(NULL)) {
+		pr_info("EFI capsule is pending, forcing EFI reboot.\n");
+		reboot_type = BOOT_EFI;
+	}
 
 	for (;;) {
 		/* Could also try the reset bit in the Hammer NB */

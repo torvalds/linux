@@ -429,7 +429,14 @@ static int dm_btree_lookup_next_single(struct dm_btree_info *info, dm_block_t ro
 
 	if (flags & INTERNAL_NODE) {
 		i = lower_bound(n, key);
-		if (i < 0 || i >= nr_entries) {
+		if (i < 0) {
+			/*
+			 * avoid early -ENODATA return when all entries are
+			 * higher than the search @key.
+			 */
+			i = 0;
+		}
+		if (i >= nr_entries) {
 			r = -ENODATA;
 			goto out;
 		}

@@ -15,8 +15,8 @@
 
 #include <crypto/internal/hash.h>
 #include <linux/module.h>
+#include <asm/cpacf.h>
 #include "sha.h"
-#include "crypt_s390.h"
 
 int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 {
@@ -35,7 +35,7 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 	/* process one stored block */
 	if (index) {
 		memcpy(ctx->buf + index, data, bsize - index);
-		ret = crypt_s390_kimd(ctx->func, ctx->state, ctx->buf, bsize);
+		ret = cpacf_kimd(ctx->func, ctx->state, ctx->buf, bsize);
 		if (ret != bsize)
 			return -EIO;
 		data += bsize - index;
@@ -45,8 +45,8 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 
 	/* process as many blocks as possible */
 	if (len >= bsize) {
-		ret = crypt_s390_kimd(ctx->func, ctx->state, data,
-				      len & ~(bsize - 1));
+		ret = cpacf_kimd(ctx->func, ctx->state, data,
+				 len & ~(bsize - 1));
 		if (ret != (len & ~(bsize - 1)))
 			return -EIO;
 		data += ret;
@@ -89,7 +89,7 @@ int s390_sha_final(struct shash_desc *desc, u8 *out)
 	bits = ctx->count * 8;
 	memcpy(ctx->buf + end - 8, &bits, sizeof(bits));
 
-	ret = crypt_s390_kimd(ctx->func, ctx->state, ctx->buf, end);
+	ret = cpacf_kimd(ctx->func, ctx->state, ctx->buf, end);
 	if (ret != end)
 		return -EIO;
 

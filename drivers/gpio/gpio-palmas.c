@@ -20,7 +20,7 @@
 
 #include <linux/gpio.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mfd/palmas.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -208,7 +208,6 @@ static int palmas_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver palmas_gpio_driver = {
 	.driver.name	= "palmas-gpio",
-	.driver.owner	= THIS_MODULE,
 	.driver.of_match_table = of_palmas_gpio_match,
 	.probe		= palmas_gpio_probe,
 };
@@ -218,14 +217,3 @@ static int __init palmas_gpio_init(void)
 	return platform_driver_register(&palmas_gpio_driver);
 }
 subsys_initcall(palmas_gpio_init);
-
-static void __exit palmas_gpio_exit(void)
-{
-	platform_driver_unregister(&palmas_gpio_driver);
-}
-module_exit(palmas_gpio_exit);
-
-MODULE_ALIAS("platform:palmas-gpio");
-MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_DESCRIPTION("GPIO driver for TI Palmas series PMICs");
-MODULE_LICENSE("GPL v2");

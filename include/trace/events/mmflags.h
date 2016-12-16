@@ -11,6 +11,7 @@
 
 #define __def_gfpflag_names						\
 	{(unsigned long)GFP_TRANSHUGE,		"GFP_TRANSHUGE"},	\
+	{(unsigned long)GFP_TRANSHUGE_LIGHT,	"GFP_TRANSHUGE_LIGHT"}, \
 	{(unsigned long)GFP_HIGHUSER_MOVABLE,	"GFP_HIGHUSER_MOVABLE"},\
 	{(unsigned long)GFP_HIGHUSER,		"GFP_HIGHUSER"},	\
 	{(unsigned long)GFP_USER,		"GFP_USER"},		\

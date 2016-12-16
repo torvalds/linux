@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -49,7 +45,7 @@
  * sorted by increasing expiry time. The number of slots is 2**7 (128),
  * to cover a time period of 1024 seconds into the future before wrapping.
  */
-#define STTIMER_MINPOLL        3   /* log2 min poll interval (8 s) */
+#define STTIMER_MINPOLL        3	/* log2 min poll interval (8 s) */
 #define STTIMER_SLOTTIME       (1 << STTIMER_MINPOLL)
 #define STTIMER_SLOTTIMEMASK   (~(STTIMER_SLOTTIME - 1))
 #define STTIMER_NSLOTS	       (1 << 7)
@@ -170,20 +166,22 @@ stt_check_timers(unsigned long *last)
 static int
 stt_timer_main(void *arg)
 {
+	int rc = 0;
+
 	cfs_block_allsigs();
 
 	while (!stt_data.stt_shuttingdown) {
 		stt_check_timers(&stt_data.stt_prev_slot);
 
-		wait_event_timeout(stt_data.stt_waitq,
-				   stt_data.stt_shuttingdown,
-				   cfs_time_seconds(STTIMER_SLOTTIME));
+		rc = wait_event_timeout(stt_data.stt_waitq,
+					stt_data.stt_shuttingdown,
+					cfs_time_seconds(STTIMER_SLOTTIME));
 	}
 
 	spin_lock(&stt_data.stt_lock);
 	stt_data.stt_nthreads--;
 	spin_unlock(&stt_data.stt_lock);
-	return 0;
+	return rc;
 }
 
 static int

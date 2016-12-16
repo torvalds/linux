@@ -644,7 +644,7 @@ static int lx_pipe_wait_for_state(struct lx6464es *chip, u32 pipe,
 		if (err < 0)
 			return err;
 
-		if (current_state == state)
+		if (!err && current_state == state)
 			return 0;
 
 		mdelay(1);

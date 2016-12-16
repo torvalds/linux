@@ -103,12 +103,13 @@ OPTIONS
 
 	If --branch-stack option is used, following sort keys are also
 	available:
-	dso_from, dso_to, symbol_from, symbol_to, mispredict.
 
 	- dso_from: name of library or module branched from
 	- dso_to: name of library or module branched to
 	- symbol_from: name of function branched from
 	- symbol_to: name of function branched to
+	- srcline_from: source file and line branched from
+	- srcline_to: source file and line branched to
 	- mispredict: "N" for predicted branch, "Y" for mispredicted branch
 	- in_tx: branch in TSX transaction
 	- abort: TSX transaction abort.
@@ -264,6 +265,13 @@ OPTIONS
 
 --stdio:: Use the stdio interface.
 
+--stdio-color::
+	'always', 'never' or 'auto', allowing configuring color output
+	via the command line, in addition to via "color.ui" .perfconfig.
+	Use '--stdio-color always' to generate color even when redirecting
+	to a pipe or file. Using just '--stdio-color' is equivalent to
+	using 'always'.
+
 --tui:: Use the TUI interface, that is integrated with annotate and allows
         zooming into DSOs or threads, among other features. Use of --tui
 	requires a tty, if one is not present, as when piping to other
@@ -285,7 +293,7 @@ OPTIONS
 
 -f::
 --force::
-        Don't complain, do it.
+        Don't do ownership validation.
 
 --symfs=<directory>::
         Look for files with symbols relative to this directory.

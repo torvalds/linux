@@ -166,3 +166,12 @@ Description:
 		The mm_stat file is read-only and represents device's mm
 		statistics (orig_data_size, compr_data_size, etc.) in a format
 		similar to block layer statistics file format.
+
+What:		/sys/block/zram<id>/debug_stat
+Date:		July 2016
+Contact:	Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Description:
+		The debug_stat file is read-only and represents various
+		device's debugging info useful for kernel developers. Its
+		format is not documented intentionally and may change
+		anytime without any notice.

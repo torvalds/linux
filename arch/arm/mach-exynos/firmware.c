@@ -41,9 +41,9 @@ static int exynos_do_idle(unsigned long mode)
 	case FW_DO_IDLE_AFTR:
 		if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9)
 			exynos_save_cp15();
-		__raw_writel(virt_to_phys(exynos_cpu_resume_ns),
-			     sysram_ns_base_addr + 0x24);
-		__raw_writel(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
+		writel_relaxed(virt_to_phys(exynos_cpu_resume_ns),
+			       sysram_ns_base_addr + 0x24);
+		writel_relaxed(EXYNOS_AFTR_MAGIC, sysram_ns_base_addr + 0x20);
 		if (soc_is_exynos3250()) {
 			flush_cache_all();
 			exynos_smc(SMC_CMD_SAVE, OP_TYPE_CORE,
@@ -97,7 +97,7 @@ static int exynos_set_cpu_boot_addr(int cpu, unsigned long boot_addr)
 	if (soc_is_exynos4412())
 		boot_reg += 4 * cpu;
 
-	__raw_writel(boot_addr, boot_reg);
+	writel_relaxed(boot_addr, boot_reg);
 	return 0;
 }
 
@@ -113,7 +113,7 @@ static int exynos_get_cpu_boot_addr(int cpu, unsigned long *boot_addr)
 	if (soc_is_exynos4412())
 		boot_reg += 4 * cpu;
 
-	*boot_addr = __raw_readl(boot_reg);
+	*boot_addr = readl_relaxed(boot_reg);
 	return 0;
 }
 
@@ -234,20 +234,20 @@ void exynos_set_boot_flag(unsigned int cpu, unsigned int mode)
 {
 	unsigned int tmp;
 
-	tmp = __raw_readl(REG_CPU_STATE_ADDR + cpu * 4);
+	tmp = readl_relaxed(REG_CPU_STATE_ADDR + cpu * 4);
 
 	if (mode & BOOT_MODE_MASK)
 		tmp &= ~BOOT_MODE_MASK;
 
 	tmp |= mode;
-	__raw_writel(tmp, REG_CPU_STATE_ADDR + cpu * 4);
+	writel_relaxed(tmp, REG_CPU_STATE_ADDR + cpu * 4);
 }
 
 void exynos_clear_boot_flag(unsigned int cpu, unsigned int mode)
 {
 	unsigned int tmp;
 
-	tmp = __raw_readl(REG_CPU_STATE_ADDR + cpu * 4);
+	tmp = readl_relaxed(REG_CPU_STATE_ADDR + cpu * 4);
 	tmp &= ~mode;
-	__raw_writel(tmp, REG_CPU_STATE_ADDR + cpu * 4);
+	writel_relaxed(tmp, REG_CPU_STATE_ADDR + cpu * 4);
 }

@@ -5,6 +5,10 @@
 config RTC_LIB
 	bool
 
+config RTC_MC146818_LIB
+	bool
+	select RTC_LIB
+
 menuconfig RTC_CLASS
 	bool "Real Time Clock"
 	default n
@@ -573,29 +577,11 @@ config RTC_DRV_EM3027
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-em3027.
 
-config RTC_DRV_RV3029C2
-	tristate "Micro Crystal RV3029"
-	help
-	  If you say yes here you get support for the Micro Crystal
-	  RV3029 RTC chips.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called rtc-rv3029c2.
-
-config RTC_DRV_RV3029_HWMON
-	bool "HWMON support for RV3029"
-	depends on RTC_DRV_RV3029C2 && HWMON
-	depends on !(RTC_DRV_RV3029C2=y && HWMON=m)
-	default y
-	help
-	  Say Y here if you want to expose temperature sensor data on
-	  rtc-rv3029.
-
 config RTC_DRV_RV8803
-	tristate "Micro Crystal RV8803"
+	tristate "Micro Crystal RV8803, Epson RX8900"
 	help
-	  If you say yes here you get support for the Micro Crystal
-	  RV8803 RTC chips.
+	  If you say yes here you get support for the Micro Crystal RV8803 and
+	  Epson RX8900 RTC chips.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rv8803.
@@ -633,6 +619,15 @@ config RTC_DRV_M41T94
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-m41t94.
+
+config RTC_DRV_DS1302
+	tristate "Dallas/Maxim DS1302"
+	depends on SPI
+	help
+	  If you say yes here you get support for the Dallas DS1302 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-ds1302.
 
 config RTC_DRV_DS1305
 	tristate "Dallas/Maxim DS1305/DS1306"
@@ -678,6 +673,18 @@ config RTC_DRV_DS1390
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-ds1390.
+
+config RTC_DRV_MAX6916
+	tristate "Maxim MAX6916"
+	help
+	  If you say yes here you will get support for the
+	  Maxim MAX6916 SPI RTC chip.
+
+	  This driver only supports the RTC feature, and not other chip
+	  features such as alarms.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max6916.
 
 config RTC_DRV_R9701
 	tristate "Epson RTC-9701JE"
@@ -777,6 +784,25 @@ config RTC_DRV_PCF2127
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-pcf2127.
 
+config RTC_DRV_RV3029C2
+	tristate "Micro Crystal RV3029/3049"
+	depends on RTC_I2C_AND_SPI
+	help
+	  If you say yes here you get support for the Micro Crystal
+	  RV3029 and RV3049 RTC chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rv3029c2.
+
+config RTC_DRV_RV3029_HWMON
+	bool "HWMON support for RV3029/3049"
+	depends on RTC_DRV_RV3029C2 && HWMON
+	depends on !(RTC_DRV_RV3029C2=y && HWMON=m)
+	default y
+	help
+	  Say Y here if you want to expose temperature sensor data on
+	  rtc-rv3029.
+
 comment "Platform RTC drivers"
 
 # this 'CMOS' RTC driver is arch dependent because <asm-generic/rtc.h>
@@ -785,8 +811,9 @@ comment "Platform RTC drivers"
 
 config RTC_DRV_CMOS
 	tristate "PC-style 'CMOS'"
-	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64
+	depends on X86 || ARM || M32R || PPC || MIPS || SPARC64 || MN10300
 	default y if X86
+	select RTC_MC146818_LIB
 	help
 	  Say "yes" here to get direct support for the real time clock
 	  found in every PC or ACPI-based system, and some other boards.
@@ -805,6 +832,7 @@ config RTC_DRV_CMOS
 config RTC_DRV_ALPHA
 	bool "Alpha PC-style CMOS"
 	depends on ALPHA
+	select RTC_MC146818_LIB
 	default y
 	help
 	  Direct support for the real-time clock found on every Alpha
@@ -833,12 +861,6 @@ config RTC_DRV_DS1286
 	depends on HAS_IOMEM
 	help
 	  If you say yes here you get support for the Dallas DS1286 RTC chips.
-
-config RTC_DRV_DS1302
-	tristate "Dallas DS1302"
-	depends on SH_SECUREEDGE5410
-	help
-	  If you say yes here you get support for the Dallas DS1302 RTC chips.
 
 config RTC_DRV_DS1511
 	tristate "Dallas DS1511"

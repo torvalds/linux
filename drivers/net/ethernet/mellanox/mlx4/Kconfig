@@ -24,13 +24,6 @@ config MLX4_EN_DCB
 
 	  If unsure, set to Y
 
-config MLX4_EN_VXLAN
-	bool "VXLAN offloads Support"
-	default y
-	depends on MLX4_EN && VXLAN && !(MLX4_EN=y && VXLAN=m)
-	---help---
-	  Say Y here if you want to use VXLAN offloads in the driver.
-
 config MLX4_CORE
 	tristate
 	depends on PCI

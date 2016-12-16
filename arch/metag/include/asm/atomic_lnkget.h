@@ -61,6 +61,30 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 		"	CMPT	%0, #HI(0x02000000)\n"			\
 		"	BNZ 1b\n"					\
 		: "=&d" (temp), "=&da" (result)				\
+		: "da" (&v->counter), "br" (i)				\
+		: "cc");						\
+									\
+	smp_mb();							\
+									\
+	return result;							\
+}
+
+#define ATOMIC_FETCH_OP(op)						\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	int result, temp;						\
+									\
+	smp_mb();							\
+									\
+	asm volatile (							\
+		"1:	LNKGETD %1, [%2]\n"				\
+		"	" #op "	%0, %1, %3\n"				\
+		"	LNKSETD [%2], %0\n"				\
+		"	DEFR	%0, TXSTAT\n"				\
+		"	ANDT	%0, %0, #HI(0x3f000000)\n"		\
+		"	CMPT	%0, #HI(0x02000000)\n"			\
+		"	BNZ 1b\n"					\
+		: "=&d" (temp), "=&d" (result)				\
 		: "da" (&v->counter), "bd" (i)				\
 		: "cc");						\
 									\
@@ -69,16 +93,20 @@ static inline int atomic_##op##_return(int i, atomic_t *v)		\
 	return result;							\
 }
 
-#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op)
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_OP_RETURN(op) ATOMIC_FETCH_OP(op)
 
 ATOMIC_OPS(add)
 ATOMIC_OPS(sub)
 
-ATOMIC_OP(and)
-ATOMIC_OP(or)
-ATOMIC_OP(xor)
+#undef ATOMIC_OPS
+#define ATOMIC_OPS(op) ATOMIC_OP(op) ATOMIC_FETCH_OP(op)
+
+ATOMIC_OPS(and)
+ATOMIC_OPS(or)
+ATOMIC_OPS(xor)
 
 #undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP_RETURN
 #undef ATOMIC_OP
 

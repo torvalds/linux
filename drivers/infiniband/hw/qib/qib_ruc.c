@@ -739,7 +739,7 @@ void qib_do_send(struct rvt_qp *qp)
 	struct qib_qp_priv *priv = qp->priv;
 	struct qib_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
 	struct qib_pportdata *ppd = ppd_from_ibp(ibp);
-	int (*make_req)(struct rvt_qp *qp);
+	int (*make_req)(struct rvt_qp *qp, unsigned long *flags);
 	unsigned long flags;
 
 	if ((qp->ibqp.qp_type == IB_QPT_RC ||
@@ -781,7 +781,7 @@ void qib_do_send(struct rvt_qp *qp)
 			qp->s_hdrwords = 0;
 			spin_lock_irqsave(&qp->s_lock, flags);
 		}
-	} while (make_req(qp));
+	} while (make_req(qp, &flags));
 
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 }

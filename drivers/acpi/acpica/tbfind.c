@@ -76,7 +76,7 @@ acpi_tb_find_table(char *signature,
 
 	/* Validate the input table signature */
 
-	if (!acpi_is_valid_signature(signature)) {
+	if (!acpi_ut_valid_nameseg(signature)) {
 		return_ACPI_STATUS(AE_BAD_SIGNATURE);
 	}
 

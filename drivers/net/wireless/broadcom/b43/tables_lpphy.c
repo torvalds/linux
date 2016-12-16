@@ -560,7 +560,7 @@ void b2062_upload_init_table(struct b43_wldev *dev)
 
 	for (i = 0; i < ARRAY_SIZE(b2062_init_tab); i++) {
 		e = &b2062_init_tab[i];
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 			if (!(e->flags & B206X_FLAG_G))
 				continue;
 			b43_radio_write(dev, e->offset, e->value_g);
@@ -579,7 +579,7 @@ void b2063_upload_init_table(struct b43_wldev *dev)
 
 	for (i = 0; i < ARRAY_SIZE(b2063_init_tab); i++) {
 		e = &b2063_init_tab[i];
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+		if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ) {
 			if (!(e->flags & B206X_FLAG_G))
 				continue;
 			b43_radio_write(dev, e->offset, e->value_g);
@@ -2379,12 +2379,12 @@ static void lpphy_rev2plus_write_gain_table(struct b43_wldev *dev, int offset,
 	tmp |= data.pga << 8;
 	tmp |= data.gm;
 	if (dev->phy.rev >= 3) {
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
+		if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
 			tmp |= 0x10 << 24;
 		else
 			tmp |= 0x70 << 24;
 	} else {
-		if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
+		if (b43_current_band(dev->wl) == NL80211_BAND_5GHZ)
 			tmp |= 0x14 << 24;
 		else
 			tmp |= 0x7F << 24;
@@ -2423,7 +2423,7 @@ void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 		    (sprom->boardflags_lo & B43_BFL_HGPA))
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev0_nopa_tx_gain_table);
-		else if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		else if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev0_2ghz_tx_gain_table);
 		else
@@ -2435,7 +2435,7 @@ void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 		    (sprom->boardflags_lo & B43_BFL_HGPA))
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev1_nopa_tx_gain_table);
-		else if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		else if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev1_2ghz_tx_gain_table);
 		else
@@ -2446,7 +2446,7 @@ void lpphy_init_tx_gain_table(struct b43_wldev *dev)
 		if (sprom->boardflags_hi & B43_BFH_NOPA)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev2_nopa_tx_gain_table);
-		else if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
+		else if (b43_current_band(dev->wl) == NL80211_BAND_2GHZ)
 			lpphy_write_gain_table_bulk(dev, 0, 128,
 					lpphy_rev2_2ghz_tx_gain_table);
 		else

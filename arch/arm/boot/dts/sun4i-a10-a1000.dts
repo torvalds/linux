@@ -72,8 +72,9 @@
 		};
 
 		blue {
-			label = "a1000:blue:usr";
+			label = "a1000:blue:pwr";
 			gpios = <&pio 7 20 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
 		};
 	};
 
@@ -84,8 +85,27 @@
 		regulator-name = "emac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <20000>;
 		enable-active-high;
 		gpio = <&pio 7 15 GPIO_ACTIVE_HIGH>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "On-board SPDIF";
+
+		simple-audio-card,cpu {
+			sound-dai = <&spdif>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&spdif_out>;
+		};
+	};
+
+	spdif_out: spdif-out {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
 	};
 };
 
@@ -185,6 +205,12 @@
 };
 
 &reg_usb2_vbus {
+	status = "okay";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif_tx_pins_a>;
 	status = "okay";
 };
 

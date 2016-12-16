@@ -5,10 +5,12 @@ Required properties:
 - reg : Should contain WDT registers location and length
 - interrupts : Should contain WDT interrupt
 
-Optional property:
+Optional properties:
 - big-endian: If present the watchdog device's registers are implemented
   in big endian mode, otherwise in native mode(same with CPU), for more
   detail please see: Documentation/devicetree/bindings/regmap/regmap.txt.
+- fsl,ext-reset-output: If present the watchdog device is configured to
+  assert its external reset (WDOG_B) instead of issuing a software reset.
 
 Examples:
 

@@ -94,7 +94,7 @@
 	};
 
 	syscon {
-		compatible = "arm,integrator-cp-syscon";
+		compatible = "arm,integrator-cp-syscon", "syscon";
 		reg = <0xcb000000 0x100>;
 	};
 

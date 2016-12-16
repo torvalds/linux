@@ -133,10 +133,10 @@ int fcoe_link_speed_update(struct fc_lport *lport)
 		case SPEED_10000:
 			lport->link_speed = FC_PORTSPEED_10GBIT;
 			break;
-		case 20000:
+		case SPEED_20000:
 			lport->link_speed = FC_PORTSPEED_20GBIT;
 			break;
-		case 40000:
+		case SPEED_40000:
 			lport->link_speed = FC_PORTSPEED_40GBIT;
 			break;
 		default:

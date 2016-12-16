@@ -74,7 +74,7 @@ struct tonga_power_state {
 };
 
 struct _phw_tonga_dpm_level {
-	bool  		enabled;
+	bool		enabled;
 	uint32_t    value;
 	uint32_t    param1;
 };
@@ -237,20 +237,20 @@ struct tonga_hwmgr {
 	irq_handler_func_t             ctf_callback;
 	void                             *ctf_context;
 
-	phw_tonga_clock_registers      	  clock_registers;
+	phw_tonga_clock_registers	  clock_registers;
 	phw_tonga_voltage_smio_registers  voltage_smio_registers;
 
-	bool                         	is_memory_GDDR5;
+	bool	is_memory_GDDR5;
 	uint16_t                          acpi_vddc;
-	bool                         	pspp_notify_required;        /* Flag to indicate if PSPP notification to SBIOS is required */
+	bool	pspp_notify_required;        /* Flag to indicate if PSPP notification to SBIOS is required */
 	uint16_t                          force_pcie_gen;            /* The forced PCI-E speed if not 0xffff */
 	uint16_t                          acpi_pcie_gen;             /* The PCI-E speed at ACPI time */
 	uint32_t                           pcie_gen_cap;             /* The PCI-E speed capabilities bitmap from CAIL */
 	uint32_t                           pcie_lane_cap;            /* The PCI-E lane capabilities bitmap from CAIL */
 	uint32_t                           pcie_spc_cap;             /* Symbol Per Clock Capabilities from registry */
-	phw_tonga_leakage_voltage       	vddc_leakage;            /* The Leakage VDDC supported (based on leakage ID).*/
-	phw_tonga_leakage_voltage       	vddcgfx_leakage;         /* The Leakage VDDC supported (based on leakage ID). */
-	phw_tonga_leakage_voltage       	vddci_leakage;           /* The Leakage VDDCI supported (based on leakage ID). */
+	phw_tonga_leakage_voltage	vddc_leakage;            /* The Leakage VDDC supported (based on leakage ID).*/
+	phw_tonga_leakage_voltage	vddcgfx_leakage;         /* The Leakage VDDC supported (based on leakage ID). */
+	phw_tonga_leakage_voltage	vddci_leakage;           /* The Leakage VDDCI supported (based on leakage ID). */
 
 	uint32_t                           mvdd_control;
 	uint32_t                           vddc_mask_low;
@@ -263,8 +263,8 @@ struct tonga_hwmgr {
 	uint32_t                           mclk_stutter_mode_threshold;
 	uint32_t                           mclk_edc_enable_threshold;
 	uint32_t                           mclk_edc_wr_enable_threshold;
-	bool                         	is_uvd_enabled;
-	bool                         	is_xdma_enabled;
+	bool	is_uvd_enabled;
+	bool	is_xdma_enabled;
 	phw_tonga_vbios_boot_state      vbios_boot_state;
 
 	bool                         battery_state;
@@ -352,7 +352,6 @@ struct tonga_hwmgr {
 	bool                           samu_power_gated; /* 1: gated, 0:not gated */
 	bool                           acp_power_gated;  /* 1: gated, 0:not gated */
 	bool                           pg_acp_init;
-
 };
 
 typedef struct tonga_hwmgr tonga_hwmgr;

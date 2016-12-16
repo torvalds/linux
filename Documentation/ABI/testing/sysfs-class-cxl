@@ -233,3 +233,11 @@ Description:	read/write
 		0 = don't trust, the image may be different (default)
 		1 = trust that the image will not change.
 Users:		https://github.com/ibm-capi/libcxl
+
+What:           /sys/class/cxl/<card>/psl_timebase_synced
+Date:           March 2016
+Contact:        linuxppc-dev@lists.ozlabs.org
+Description:    read only
+                Returns 1 if the psl timebase register is synchronized
+                with the core timebase register, 0 otherwise.
+Users:          https://github.com/ibm-capi/libcxl

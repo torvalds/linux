@@ -1,11 +1,13 @@
 #ifndef _IPX_H_
 #define _IPX_H_
+#include <linux/libc-compat.h>	/* for compatibility with glibc netipx/ipx.h */
 #include <linux/types.h>
 #include <linux/sockios.h>
 #include <linux/socket.h>
 #define IPX_NODE_LEN	6
 #define IPX_MTU		576
 
+#if __UAPI_DEF_SOCKADDR_IPX
 struct sockaddr_ipx {
 	__kernel_sa_family_t sipx_family;
 	__be16		sipx_port;
@@ -14,6 +16,7 @@ struct sockaddr_ipx {
 	__u8		sipx_type;
 	unsigned char	sipx_zero;	/* 16 byte fill */
 };
+#endif /* __UAPI_DEF_SOCKADDR_IPX */
 
 /*
  * So we can fit the extra info for SIOCSIFADDR into the address nicely
@@ -23,12 +26,15 @@ struct sockaddr_ipx {
 #define IPX_DLTITF	0
 #define IPX_CRTITF	1
 
+#if __UAPI_DEF_IPX_ROUTE_DEFINITION
 struct ipx_route_definition {
 	__be32        ipx_network;
 	__be32        ipx_router_network;
 	unsigned char ipx_router_node[IPX_NODE_LEN];
 };
+#endif /* __UAPI_DEF_IPX_ROUTE_DEFINITION */
 
+#if __UAPI_DEF_IPX_INTERFACE_DEFINITION
 struct ipx_interface_definition {
 	__be32        ipx_network;
 	unsigned char ipx_device[16];
@@ -45,16 +51,20 @@ struct ipx_interface_definition {
 #define IPX_INTERNAL		2
 	unsigned char ipx_node[IPX_NODE_LEN];
 };
-	
+#endif /* __UAPI_DEF_IPX_INTERFACE_DEFINITION */
+
+#if __UAPI_DEF_IPX_CONFIG_DATA
 struct ipx_config_data {
 	unsigned char	ipxcfg_auto_select_primary;
 	unsigned char	ipxcfg_auto_create_interfaces;
 };
+#endif /* __UAPI_DEF_IPX_CONFIG_DATA */
 
 /*
  * OLD Route Definition for backward compatibility.
  */
 
+#if __UAPI_DEF_IPX_ROUTE_DEF
 struct ipx_route_def {
 	__be32		ipx_network;
 	__be32		ipx_router_network;
@@ -67,6 +77,7 @@ struct ipx_route_def {
 #define IPX_RT_BLUEBOOK		2
 #define IPX_RT_ROUTED		1
 };
+#endif /* __UAPI_DEF_IPX_ROUTE_DEF */
 
 #define SIOCAIPXITFCRT		(SIOCPROTOPRIVATE)
 #define SIOCAIPXPRISLT		(SIOCPROTOPRIVATE + 1)

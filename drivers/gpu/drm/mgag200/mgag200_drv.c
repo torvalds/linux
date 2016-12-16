@@ -101,7 +101,7 @@ static struct drm_driver driver = {
 	.minor = DRIVER_MINOR,
 	.patchlevel = DRIVER_PATCHLEVEL,
 
-	.gem_free_object = mgag200_gem_free_object,
+	.gem_free_object_unlocked = mgag200_gem_free_object,
 	.dumb_create = mgag200_dumb_create,
 	.dumb_map_offset = mgag200_dumb_mmap_offset,
 	.dumb_destroy = drm_gem_dumb_destroy,
@@ -116,10 +116,8 @@ static struct pci_driver mgag200_pci_driver = {
 
 static int __init mgag200_init(void)
 {
-#ifdef CONFIG_VGA_CONSOLE
 	if (vgacon_text_force() && mgag200_modeset == -1)
 		return -EINVAL;
-#endif
 
 	if (mgag200_modeset == 0)
 		return -EINVAL;

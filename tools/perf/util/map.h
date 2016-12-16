@@ -194,7 +194,7 @@ struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name,
                                          struct map **mapp, symbol_filter_t filter);
 void map_groups__init(struct map_groups *mg, struct machine *machine);
 void map_groups__exit(struct map_groups *mg);
-int map_groups__clone(struct map_groups *mg,
+int map_groups__clone(struct thread *thread,
 		      struct map_groups *parent, enum map_type type);
 size_t map_groups__fprintf(struct map_groups *mg, FILE *fp);
 

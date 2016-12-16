@@ -335,12 +335,17 @@ static struct notifier_block lockd_inet6addr_notifier = {
 };
 #endif
 
-static void lockd_svc_exit_thread(void)
+static void lockd_unregister_notifiers(void)
 {
 	unregister_inetaddr_notifier(&lockd_inetaddr_notifier);
 #if IS_ENABLED(CONFIG_IPV6)
 	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
 #endif
+}
+
+static void lockd_svc_exit_thread(void)
+{
+	lockd_unregister_notifiers();
 	svc_exit_thread(nlmsvc_rqst);
 }
 
@@ -462,7 +467,7 @@ int lockd_up(struct net *net)
 	 * Note: svc_serv structures have an initial use count of 1,
 	 * so we exit through here on both success and failure.
 	 */
-err_net:
+err_put:
 	svc_destroy(serv);
 err_create:
 	mutex_unlock(&nlmsvc_mutex);
@@ -470,7 +475,9 @@ err_create:
 
 err_start:
 	lockd_down_net(serv, net);
-	goto err_net;
+err_net:
+	lockd_unregister_notifiers();
+	goto err_put;
 }
 EXPORT_SYMBOL_GPL(lockd_up);
 

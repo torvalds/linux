@@ -5,10 +5,12 @@ obj-vdso-y := elf.o gettimeofday.o sigreturn.o
 ccflags-vdso := \
 	$(filter -I%,$(KBUILD_CFLAGS)) \
 	$(filter -E%,$(KBUILD_CFLAGS)) \
+	$(filter -mmicromips,$(KBUILD_CFLAGS)) \
 	$(filter -march=%,$(KBUILD_CFLAGS))
 cflags-vdso := $(ccflags-vdso) \
 	$(filter -W%,$(filter-out -Wa$(comma)%,$(KBUILD_CFLAGS))) \
-	-O2 -g -fPIC -fno-common -fno-builtin -G 0 -DDISABLE_BRANCH_PROFILING \
+	-O2 -g -fPIC -fno-strict-aliasing -fno-common -fno-builtin -G 0 \
+	-DDISABLE_BRANCH_PROFILING \
 	$(call cc-option, -fno-stack-protector)
 aflags-vdso := $(ccflags-vdso) \
 	$(filter -I%,$(KBUILD_CFLAGS)) \
@@ -50,13 +52,17 @@ quiet_cmd_vdsold = VDSO    $@
       cmd_vdsold = $(CC) $(c_flags) $(VDSO_LDFLAGS) \
                    -Wl,-T $(filter %.lds,$^) $(filter %.o,$^) -o $@
 
+# Strip rule for the raw .so files
+$(obj)/%.so.raw: OBJCOPYFLAGS := -S
+$(obj)/%.so.raw: $(obj)/%.so.dbg.raw FORCE
+	$(call if_changed,objcopy)
+
 hostprogs-y := genvdso
 
 quiet_cmd_genvdso = GENVDSO $@
 define cmd_genvdso
-	cp $< $(<:%.dbg=%) && \
-	$(OBJCOPY) -S $< $(<:%.dbg=%) && \
-	$(obj)/genvdso $< $(<:%.dbg=%) $@ $(VDSO_NAME)
+	$(foreach file,$(filter %.raw,$^),cp $(file) $(file:%.raw=%) &&) \
+	$(obj)/genvdso $(<:%.raw=%) $(<:%.dbg.raw=%) $@ $(VDSO_NAME)
 endef
 
 #
@@ -66,7 +72,10 @@ endef
 native-abi := $(filter -mabi=%,$(KBUILD_CFLAGS))
 
 targets += $(obj-vdso-y)
-targets += vdso.lds vdso.so.dbg vdso.so vdso-image.c
+targets += vdso.lds
+targets += vdso.so.dbg.raw vdso.so.raw
+targets += vdso.so.dbg vdso.so
+targets += vdso-image.c
 
 obj-vdso := $(obj-vdso-y:%.o=$(obj)/%.o)
 
@@ -75,10 +84,11 @@ $(obj-vdso): KBUILD_AFLAGS := $(aflags-vdso) $(native-abi)
 
 $(obj)/vdso.lds: KBUILD_CPPFLAGS := $(native-abi)
 
-$(obj)/vdso.so.dbg: $(obj)/vdso.lds $(obj-vdso) FORCE
+$(obj)/vdso.so.dbg.raw: $(obj)/vdso.lds $(obj-vdso) FORCE
 	$(call if_changed,vdsold)
 
-$(obj)/vdso-image.c: $(obj)/vdso.so.dbg $(obj)/genvdso FORCE
+$(obj)/vdso-image.c: $(obj)/vdso.so.dbg.raw $(obj)/vdso.so.raw \
+                     $(obj)/genvdso FORCE
 	$(call if_changed,genvdso)
 
 obj-y += vdso-image.o
@@ -89,7 +99,10 @@ obj-y += vdso-image.o
 
 # Define these outside the ifdef to ensure they are picked up by clean.
 targets += $(obj-vdso-y:%.o=%-o32.o)
-targets += vdso-o32.lds vdso-o32.so.dbg vdso-o32.so vdso-o32-image.c
+targets += vdso-o32.lds
+targets += vdso-o32.so.dbg.raw vdso-o32.so.raw
+targets += vdso-o32.so.dbg vdso-o32.so
+targets += vdso-o32-image.c
 
 ifdef CONFIG_MIPS32_O32
 
@@ -109,11 +122,12 @@ $(obj)/vdso-o32.lds: KBUILD_CPPFLAGS := -mabi=32
 $(obj)/vdso-o32.lds: $(src)/vdso.lds.S FORCE
 	$(call if_changed_dep,cpp_lds_S)
 
-$(obj)/vdso-o32.so.dbg: $(obj)/vdso-o32.lds $(obj-vdso-o32) FORCE
+$(obj)/vdso-o32.so.dbg.raw: $(obj)/vdso-o32.lds $(obj-vdso-o32) FORCE
 	$(call if_changed,vdsold)
 
 $(obj)/vdso-o32-image.c: VDSO_NAME := o32
-$(obj)/vdso-o32-image.c: $(obj)/vdso-o32.so.dbg $(obj)/genvdso FORCE
+$(obj)/vdso-o32-image.c: $(obj)/vdso-o32.so.dbg.raw $(obj)/vdso-o32.so.raw \
+                         $(obj)/genvdso FORCE
 	$(call if_changed,genvdso)
 
 obj-y += vdso-o32-image.o
@@ -125,7 +139,10 @@ endif
 #
 
 targets += $(obj-vdso-y:%.o=%-n32.o)
-targets += vdso-n32.lds vdso-n32.so.dbg vdso-n32.so vdso-n32-image.c
+targets += vdso-n32.lds
+targets += vdso-n32.so.dbg.raw vdso-n32.so.raw
+targets += vdso-n32.so.dbg vdso-n32.so
+targets += vdso-n32-image.c
 
 ifdef CONFIG_MIPS32_N32
 
@@ -145,11 +162,12 @@ $(obj)/vdso-n32.lds: KBUILD_CPPFLAGS := -mabi=n32
 $(obj)/vdso-n32.lds: $(src)/vdso.lds.S FORCE
 	$(call if_changed_dep,cpp_lds_S)
 
-$(obj)/vdso-n32.so.dbg: $(obj)/vdso-n32.lds $(obj-vdso-n32) FORCE
+$(obj)/vdso-n32.so.dbg.raw: $(obj)/vdso-n32.lds $(obj-vdso-n32) FORCE
 	$(call if_changed,vdsold)
 
 $(obj)/vdso-n32-image.c: VDSO_NAME := n32
-$(obj)/vdso-n32-image.c: $(obj)/vdso-n32.so.dbg $(obj)/genvdso FORCE
+$(obj)/vdso-n32-image.c: $(obj)/vdso-n32.so.dbg.raw $(obj)/vdso-n32.so.raw \
+                         $(obj)/genvdso FORCE
 	$(call if_changed,genvdso)
 
 obj-y += vdso-n32-image.o

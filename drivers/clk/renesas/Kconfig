@@ -1,0 +1,18 @@
+config CLK_RENESAS_CPG_MSSR
+	bool
+	default y if ARCH_R8A7795
+	default y if ARCH_R8A7796
+
+config CLK_RENESAS_CPG_MSTP
+	bool
+	default y if ARCH_R7S72100
+	default y if ARCH_R8A73A4
+	default y if ARCH_R8A7740
+	default y if ARCH_R8A7778
+	default y if ARCH_R8A7779
+	default y if ARCH_R8A7790
+	default y if ARCH_R8A7791
+	default y if ARCH_R8A7792
+	default y if ARCH_R8A7793
+	default y if ARCH_R8A7794
+	default y if ARCH_SH73A0

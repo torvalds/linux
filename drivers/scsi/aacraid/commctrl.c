@@ -63,7 +63,7 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	struct fib *fibptr;
 	struct hw_fib * hw_fib = (struct hw_fib *)0;
 	dma_addr_t hw_fib_pa = (dma_addr_t)0LL;
-	unsigned size;
+	unsigned int size, osize;
 	int retval;
 
 	if (dev->in_reset) {
@@ -87,7 +87,8 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 	 *	will not overrun the buffer when we copy the memory. Return
 	 *	an error if we would.
 	 */
-	size = le16_to_cpu(kfib->header.Size) + sizeof(struct aac_fibhdr);
+	osize = size = le16_to_cpu(kfib->header.Size) +
+		sizeof(struct aac_fibhdr);
 	if (size < le16_to_cpu(kfib->header.SenderSize))
 		size = le16_to_cpu(kfib->header.SenderSize);
 	if (size > dev->max_fib_size) {
@@ -115,6 +116,14 @@ static int ioctl_send_fib(struct aac_dev * dev, void __user *arg)
 
 	if (copy_from_user(kfib, arg, size)) {
 		retval = -EFAULT;
+		goto cleanup;
+	}
+
+	/* Sanity check the second copy */
+	if ((osize != le16_to_cpu(kfib->header.Size) +
+		sizeof(struct aac_fibhdr))
+		|| (size < le16_to_cpu(kfib->header.SenderSize))) {
+		retval = -EINVAL;
 		goto cleanup;
 	}
 
@@ -635,15 +644,14 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 			}
 		} else {
 			struct user_sgmap* usg;
-			usg = kmalloc(actual_fibsize - sizeof(struct aac_srb)
-			  + sizeof(struct sgmap), GFP_KERNEL);
+			usg = kmemdup(upsg,
+				      actual_fibsize - sizeof(struct aac_srb)
+				      + sizeof(struct sgmap), GFP_KERNEL);
 			if (!usg) {
 				dprintk((KERN_DEBUG"aacraid: Allocation error in Raw SRB command\n"));
 				rcode = -ENOMEM;
 				goto cleanup;
 			}
-			memcpy (usg, upsg, actual_fibsize - sizeof(struct aac_srb)
-			  + sizeof(struct sgmap));
 			actual_fibsize = actual_fibsize64;
 
 			for (i = 0; i < usg->count; i++) {

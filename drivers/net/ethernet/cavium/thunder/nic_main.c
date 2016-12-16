@@ -251,9 +251,14 @@ static void nic_set_tx_pkt_pad(struct nicpf *nic, int size)
 	int lmac;
 	u64 lmac_cfg;
 
-	/* Max value that can be set is 60 */
-	if (size > 60)
-		size = 60;
+	/* There is a issue in HW where-in while sending GSO sized
+	 * pkts as part of TSO, if pkt len falls below this size
+	 * NIC will zero PAD packet and also updates IP total length.
+	 * Hence set this value to lessthan min pkt size of MAC+IP+TCP
+	 * headers, BGX will do the padding to transmit 64 byte pkt.
+	 */
+	if (size > 52)
+		size = 52;
 
 	for (lmac = 0; lmac < (MAX_BGX_PER_CN88XX * MAX_LMAC_PER_BGX); lmac++) {
 		lmac_cfg = nic_reg_read(nic, NIC_PF_LMAC_0_7_CFG | (lmac << 3));
@@ -499,6 +504,7 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 	u32 rr_quantum;
 	u8 sq_idx = sq->sq_num;
 	u8 pqs_vnic;
+	int svf;
 
 	if (sq->sqs_mode)
 		pqs_vnic = nic->pqs_vf[vnic];
@@ -511,10 +517,19 @@ static void nic_tx_channel_cfg(struct nicpf *nic, u8 vnic,
 	/* 24 bytes for FCS, IPG and preamble */
 	rr_quantum = ((NIC_HW_MAX_FRS + 24) / 4);
 
-	tl4 = (lmac * NIC_TL4_PER_LMAC) + (bgx * NIC_TL4_PER_BGX);
+	if (!sq->sqs_mode) {
+		tl4 = (lmac * NIC_TL4_PER_LMAC) + (bgx * NIC_TL4_PER_BGX);
+	} else {
+		for (svf = 0; svf < MAX_SQS_PER_VF; svf++) {
+			if (nic->vf_sqs[pqs_vnic][svf] == vnic)
+				break;
+		}
+		tl4 = (MAX_LMAC_PER_BGX * NIC_TL4_PER_LMAC);
+		tl4 += (lmac * NIC_TL4_PER_LMAC * MAX_SQS_PER_VF);
+		tl4 += (svf * NIC_TL4_PER_LMAC);
+		tl4 += (bgx * NIC_TL4_PER_BGX);
+	}
 	tl4 += sq_idx;
-	if (sq->sqs_mode)
-		tl4 += vnic * 8;
 
 	tl3 = tl4 / (NIC_MAX_TL4 / NIC_MAX_TL3);
 	nic_reg_write(nic, NIC_PF_QSET_0_127_SQ_0_7_CFG2 |

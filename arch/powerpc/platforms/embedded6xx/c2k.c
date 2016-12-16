@@ -99,7 +99,7 @@ static void c2k_reset_board(void)
 	out_le32(mv64x60_gpp_reg_base + MV64x60_GPP_VALUE_SET, 0x00080004);
 }
 
-static void c2k_restart(char *cmd)
+static void __noreturn c2k_restart(char *cmd)
 {
 	c2k_reset_board();
 	msleep(100);
@@ -123,15 +123,16 @@ void c2k_show_cpuinfo(struct seq_file *m)
  */
 static int __init c2k_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "GEFanuc,C2K"))
+	if (!of_machine_is_compatible("GEFanuc,C2K"))
 		return 0;
 
 	printk(KERN_INFO "Detected a GEFanuc C2K board\n");
 
 	_set_L2CR(0);
 	_set_L2CR(L2CR_L2E | L2CR_L2PE | L2CR_L2I);
+
+	mv64x60_init_early();
+
 	return 1;
 }
 
@@ -139,7 +140,6 @@ define_machine(c2k) {
 	.name			= "C2K",
 	.probe			= c2k_probe,
 	.setup_arch		= c2k_setup_arch,
-	.init_early		= mv64x60_init_early,
 	.show_cpuinfo		= c2k_show_cpuinfo,
 	.init_IRQ		= mv64x60_init_irq,
 	.get_irq		= mv64x60_get_irq,

@@ -42,7 +42,7 @@
 #include <linux/of_platform.h>
 #include <linux/component.h>
 
-#include <video/omapdss.h>
+#include <video/omapfb_dss.h>
 #include <video/mipi_display.h>
 
 #include "dss.h"
@@ -1180,13 +1180,11 @@ static int dsi_regulator_init(struct platform_device *dsidev)
 		return PTR_ERR(vdds_dsi);
 	}
 
-	if (regulator_can_change_voltage(vdds_dsi)) {
-		r = regulator_set_voltage(vdds_dsi, 1800000, 1800000);
-		if (r) {
-			devm_regulator_put(vdds_dsi);
-			DSSERR("can't set the DSI regulator voltage\n");
-			return r;
-		}
+	r = regulator_set_voltage(vdds_dsi, 1800000, 1800000);
+	if (r) {
+		devm_regulator_put(vdds_dsi);
+		DSSERR("can't set the DSI regulator voltage\n");
+		return r;
 	}
 
 	dsi->vdds_dsi_reg = vdds_dsi;

@@ -97,6 +97,7 @@ struct regulator_state {
  * @ramp_disable: Disable ramp delay when initialising or when setting voltage.
  * @soft_start: Enable soft start so that voltage ramps slowly.
  * @pull_down: Enable pull down when regulator is disabled.
+ * @over_current_protection: Auto disable on over current event.
  *
  * @input_uV: Input voltage for regulator when supplied by another regulator.
  *

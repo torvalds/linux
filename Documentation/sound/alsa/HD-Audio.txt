@@ -655,17 +655,6 @@ development branches in general while the development for the current
 and next kernels are found in for-linus and for-next branches,
 respectively.
 
-If you are using the latest Linus tree, it'd be better to pull the
-above GIT tree onto it.  If you are using the older kernels, an easy
-way to try the latest ALSA code is to build from the snapshot
-tarball.  There are daily tarballs and the latest snapshot tarball.
-All can be built just like normal alsa-driver release packages, that
-is, installed via the usual spells: configure, make and make
-install(-modules).  See INSTALL in the package.  The snapshot tarballs
-are found at:
-
-- ftp://ftp.suse.com/pub/people/tiwai/snapshot/
-
 
 Sending a Bug Report
 ~~~~~~~~~~~~~~~~~~~~
@@ -699,7 +688,12 @@ problems.
 alsa-info
 ~~~~~~~~~
 The script `alsa-info.sh` is a very useful tool to gather the audio
-device information.  You can fetch the latest version from:
+device information.  It's included in alsa-utils package.  The latest
+version can be found on git repository:
+
+- git://git.alsa-project.org/alsa-utils.git
+
+The script can be fetched directly from the following URL, too:
 
 - http://www.alsa-project.org/alsa-info.sh
 
@@ -836,15 +830,11 @@ can get a proc-file dump at the current state, get a list of control
 (mixer) elements, set/get the control element value, simulate the PCM
 operation, the jack plugging simulation, etc.
 
-The package is found in:
-
-- ftp://ftp.suse.com/pub/people/tiwai/misc/
-
-A git repository is available:
+The program is found in the git repository below:
 
 - git://git.kernel.org/pub/scm/linux/kernel/git/tiwai/hda-emu.git
 
-See README file in the tarball for more details about hda-emu
+See README file in the repository for more details about hda-emu
 program.
 
 

@@ -107,9 +107,9 @@ void ath_chanctx_init(struct ath_softc *sc)
 	struct ieee80211_channel *chan;
 	int i, j;
 
-	sband = &common->sbands[IEEE80211_BAND_2GHZ];
+	sband = &common->sbands[NL80211_BAND_2GHZ];
 	if (!sband->n_channels)
-		sband = &common->sbands[IEEE80211_BAND_5GHZ];
+		sband = &common->sbands[NL80211_BAND_5GHZ];
 
 	chan = &sband->channels[0];
 	for (i = 0; i < ATH9K_NUM_CHANCTX; i++) {
@@ -960,6 +960,9 @@ void ath_roc_complete(struct ath_softc *sc, enum ath_roc_complete_reason reason)
 void ath_scan_complete(struct ath_softc *sc, bool abort)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct cfg80211_scan_info info = {
+		.aborted = abort,
+	};
 
 	if (abort)
 		ath_dbg(common, CHAN_CTX, "HW scan aborted\n");
@@ -969,7 +972,7 @@ void ath_scan_complete(struct ath_softc *sc, bool abort)
 	sc->offchannel.scan_req = NULL;
 	sc->offchannel.scan_vif = NULL;
 	sc->offchannel.state = ATH_OFFCHANNEL_IDLE;
-	ieee80211_scan_completed(sc->hw, abort);
+	ieee80211_scan_completed(sc->hw, &info);
 	clear_bit(ATH_OP_SCANNING, &common->op_flags);
 	spin_lock_bh(&sc->chan_lock);
 	if (test_bit(ATH_OP_MULTI_CHANNEL, &common->op_flags))
@@ -1333,9 +1336,9 @@ void ath9k_offchannel_init(struct ath_softc *sc)
 	struct ieee80211_channel *chan;
 	int i;
 
-	sband = &common->sbands[IEEE80211_BAND_2GHZ];
+	sband = &common->sbands[NL80211_BAND_2GHZ];
 	if (!sband->n_channels)
-		sband = &common->sbands[IEEE80211_BAND_5GHZ];
+		sband = &common->sbands[NL80211_BAND_5GHZ];
 
 	chan = &sband->channels[0];
 

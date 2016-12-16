@@ -1,7 +1,7 @@
 /*
  *  Ralink RT288x SoC PCI register definitions
  *
- *  Copyright (C) 2009 John Crispin <blogic@openwrt.org>
+ *  Copyright (C) 2009 John Crispin <john@phrozen.org>
  *  Copyright (C) 2009 Gabor Juhos <juhosg@openwrt.org>
  *
  *  Parts of this file are based on Ralink's 2.6.21 BSP

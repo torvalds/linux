@@ -49,9 +49,7 @@ machine_device_initcall(ebony, ebony_device_probe);
  */
 static int __init ebony_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "ibm,ebony"))
+	if (!of_machine_is_compatible("ibm,ebony"))
 		return 0;
 
 	pci_set_flags(PCI_REASSIGN_ALL_RSRC);

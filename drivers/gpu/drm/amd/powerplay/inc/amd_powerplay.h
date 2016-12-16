@@ -132,6 +132,7 @@ struct amd_pp_init {
 	uint32_t chip_family;
 	uint32_t chip_id;
 	uint32_t rev_id;
+	bool powercontainment_enabled;
 };
 enum amd_pp_display_config_type{
 	AMD_PP_DisplayConfigType_None = 0,
@@ -289,6 +290,9 @@ struct pp_states_info {
 
 #define PP_BLOCK_GFX_CG         0x01
 #define PP_BLOCK_GFX_MG         0x02
+#define PP_BLOCK_GFX_3D         0x04
+#define PP_BLOCK_GFX_RLC        0x08
+#define PP_BLOCK_GFX_CP         0x10
 #define PP_BLOCK_SYS_BIF        0x01
 #define PP_BLOCK_SYS_MC         0x02
 #define PP_BLOCK_SYS_ROM        0x04
@@ -337,8 +341,12 @@ struct amd_powerplay_funcs {
 	int (*get_pp_num_states)(void *handle, struct pp_states_info *data);
 	int (*get_pp_table)(void *handle, char **table);
 	int (*set_pp_table)(void *handle, const char *buf, size_t size);
-	int (*force_clock_level)(void *handle, enum pp_clock_type type, int level);
+	int (*force_clock_level)(void *handle, enum pp_clock_type type, uint32_t mask);
 	int (*print_clock_levels)(void *handle, enum pp_clock_type type, char *buf);
+	int (*get_sclk_od)(void *handle);
+	int (*set_sclk_od)(void *handle, uint32_t value);
+	int (*get_mclk_od)(void *handle);
+	int (*set_mclk_od)(void *handle, uint32_t value);
 };
 
 struct amd_powerplay {
@@ -351,6 +359,8 @@ int amd_powerplay_init(struct amd_pp_init *pp_init,
 		       struct amd_powerplay *amd_pp);
 
 int amd_powerplay_fini(void *handle);
+
+int amd_powerplay_reset(void *handle);
 
 int amd_powerplay_display_configuration_change(void *handle,
 		const struct amd_pp_display_configuration *input);

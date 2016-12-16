@@ -246,7 +246,7 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 const struct file_operations v9fs_dir_operations = {
 	.read = generic_read_dir,
 	.llseek = generic_file_llseek,
-	.iterate = v9fs_dir_readdir,
+	.iterate_shared = v9fs_dir_readdir,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
 };
@@ -254,7 +254,7 @@ const struct file_operations v9fs_dir_operations = {
 const struct file_operations v9fs_dir_operations_dotl = {
 	.read = generic_read_dir,
 	.llseek = generic_file_llseek,
-	.iterate = v9fs_dir_readdir_dotl,
+	.iterate_shared = v9fs_dir_readdir_dotl,
 	.open = v9fs_file_open,
 	.release = v9fs_dir_release,
         .fsync = v9fs_file_fsync_dotl,

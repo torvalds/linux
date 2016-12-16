@@ -1183,7 +1183,6 @@ static const int MD_MIU_TEST_AGT_RDDATA[] = { 0x410000A8, 0x410000AC,
 #define CRB_NIU_XG_PAUSE_CTL_P1        0x8
 
 #define qla82xx_get_temp_val(x)          ((x) >> 16)
-#define qla82xx_get_temp_val1(x)          ((x) && 0x0000FFFF)
 #define qla82xx_get_temp_state(x)        ((x) & 0xffff)
 #define qla82xx_encode_temp(val, state)  (((val) << 16) | (state))
 

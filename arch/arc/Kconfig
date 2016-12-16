@@ -10,8 +10,9 @@ config ARC
 	def_bool y
 	select ARCH_SUPPORTS_ATOMIC_RMW if ARC_HAS_LLSC
 	select BUILDTIME_EXTABLE_SORT
-	select COMMON_CLK
+	select CLKSRC_OF
 	select CLONE_BACKWARDS
+	select COMMON_CLK
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_FIND_FIRST_BIT
@@ -30,6 +31,7 @@ config ARC
 	select HAVE_MOD_ARCH_SPECIFIC if ARC_DW2_UNWIND
 	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
+	select HANDLE_DOMAIN_IRQ
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
 	select NO_BOOTMEM
@@ -59,7 +61,7 @@ config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
 config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
+	def_bool n
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
@@ -95,6 +97,7 @@ source "arch/arc/plat-sim/Kconfig"
 source "arch/arc/plat-tb10x/Kconfig"
 source "arch/arc/plat-axs10x/Kconfig"
 #New platform adds here
+source "arch/arc/plat-eznps/Kconfig"
 
 endmenu
 
@@ -104,6 +107,7 @@ choice
 
 config ISA_ARCOMPACT
 	bool "ARCompact ISA"
+	select CPU_NO_EFFICIENT_FFS
 	help
 	  The original ARC ISA of ARC600/700 cores
 
@@ -180,9 +184,6 @@ config SMP
 if SMP
 
 config ARC_HAS_COH_CACHES
-	def_bool n
-
-config ARC_HAS_REENTRANT_IRQ_LV2
 	def_bool n
 
 config ARC_MCIP
@@ -362,25 +363,10 @@ config NODES_SHIFT
 if ISA_ARCOMPACT
 
 config ARC_COMPACT_IRQ_LEVELS
-	bool "ARCompact IRQ Priorities: High(2)/Low(1)"
+	bool "Setup Timer IRQ as high Priority"
 	default n
-	# Timer HAS to be high priority, for any other high priority config
-	select ARC_IRQ3_LV2
 	# if SMP, LV2 enabled ONLY if ARC implementation has LV2 re-entrancy
-	depends on !SMP || ARC_HAS_REENTRANT_IRQ_LV2
-
-if ARC_COMPACT_IRQ_LEVELS
-
-config ARC_IRQ3_LV2
-	bool
-
-config ARC_IRQ5_LV2
-	bool
-
-config ARC_IRQ6_LV2
-	bool
-
-endif	#ARC_COMPACT_IRQ_LEVELS
+	depends on !SMP
 
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
@@ -402,11 +388,6 @@ config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
 	depends on !ARC_CANT_LLSC
-
-config ARC_STAR_9000923308
-	bool "Workaround for llock/scond livelock"
-	default n
-	depends on ISA_ARCV2 && SMP && ARC_HAS_LLSC
 
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
@@ -467,7 +448,7 @@ config LINUX_LINK_BASE
 
 config HIGHMEM
 	bool "High Memory Support"
-	select DISCONTIGMEM
+	select ARCH_DISCONTIGMEM_ENABLE
 	help
 	  With ARC 2G:2G address split, only upper 2G is directly addressable by
 	  kernel. Enable this to potentially allow access to rest of 2G and PAE
@@ -489,6 +470,17 @@ config ARCH_DMA_ADDR_T_64BIT
 
 config ARC_PLAT_NEEDS_PHYS_TO_DMA
 	bool
+
+config ARC_KVADDR_SIZE
+	int "Kernel Virtaul Address Space size (MB)"
+	range 0 512
+	default "256"
+	help
+	  The kernel address space is carved out of 256MB of translated address
+	  space for catering to vmalloc, modules, pkmap, fixmap. This however may
+	  not suffice vmalloc requirements of a 4K CPU EZChip system. So allow
+	  this to be stretched to 512 MB (by extending into the reserved
+	  kernel-user gutter)
 
 config ARC_CURR_IN_REG
 	bool "Dedicate Register r25 for current_task pointer"

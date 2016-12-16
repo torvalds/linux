@@ -469,8 +469,8 @@ static const u8 wl12xx_rate_to_idx_5ghz[] = {
 };
 
 static const u8 *wl12xx_band_rate_to_idx[] = {
-	[IEEE80211_BAND_2GHZ] = wl12xx_rate_to_idx_2ghz,
-	[IEEE80211_BAND_5GHZ] = wl12xx_rate_to_idx_5ghz
+	[NL80211_BAND_2GHZ] = wl12xx_rate_to_idx_2ghz,
+	[NL80211_BAND_5GHZ] = wl12xx_rate_to_idx_5ghz
 };
 
 enum wl12xx_hw_rates {
@@ -553,8 +553,8 @@ static struct wlcore_partition_set wl12xx_ptable[PART_TABLE_LEN] = {
 			.size  = 0x00000004
 		},
 		.mem3 = {
-			.start = 0x00040404,
-			.size  = 0x00000000
+			.start = 0x00000000,
+			.size  = 0x00040404
 		},
 	},
 
@@ -1827,8 +1827,8 @@ static int wl12xx_setup(struct wl1271 *wl)
 	wl->fw_status_priv_len = 0;
 	wl->stats.fw_stats_len = sizeof(struct wl12xx_acx_statistics);
 	wl->ofdm_only_ap = true;
-	wlcore_set_ht_cap(wl, IEEE80211_BAND_2GHZ, &wl12xx_ht_cap);
-	wlcore_set_ht_cap(wl, IEEE80211_BAND_5GHZ, &wl12xx_ht_cap);
+	wlcore_set_ht_cap(wl, NL80211_BAND_2GHZ, &wl12xx_ht_cap);
+	wlcore_set_ht_cap(wl, NL80211_BAND_5GHZ, &wl12xx_ht_cap);
 	wl12xx_conf_init(wl);
 
 	if (!fref_param) {

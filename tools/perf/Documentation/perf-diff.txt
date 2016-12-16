@@ -75,7 +75,7 @@ OPTIONS
 
 -f::
 --force::
-       Don't complain, do it.
+        Don't do ownership validation.
 
 --symfs=<directory>::
         Look for files with symbols relative to this directory.

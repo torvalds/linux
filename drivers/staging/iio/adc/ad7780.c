@@ -63,7 +63,7 @@ static int ad7780_set_mode(struct ad_sigma_delta *sigma_delta,
 			   enum ad_sigma_delta_mode mode)
 {
 	struct ad7780_state *st = ad_sigma_delta_to_ad7780(sigma_delta);
-	unsigned val;
+	unsigned int val;
 
 	switch (mode) {
 	case AD_SD_MODE_SINGLE:

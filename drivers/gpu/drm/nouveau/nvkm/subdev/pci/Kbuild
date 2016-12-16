@@ -10,3 +10,4 @@ nvkm-y += nvkm/subdev/pci/g94.o
 nvkm-y += nvkm/subdev/pci/gf100.o
 nvkm-y += nvkm/subdev/pci/gf106.o
 nvkm-y += nvkm/subdev/pci/gk104.o
+nvkm-y += nvkm/subdev/pci/gp100.o

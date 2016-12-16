@@ -132,6 +132,10 @@ NOTE: versions prior to v4.6 cannot make use of memory below the
 physical offset of the Image so it is recommended that the Image be
 placed as close as possible to the start of system RAM.
 
+If an initrd/initramfs is passed to the kernel at boot, it must reside
+entirely within a 1 GB aligned physical memory window of up to 32 GB in
+size that fully covers the kernel Image as well.
+
 Any memory described to the kernel (even that below the start of the
 image) which is not marked as reserved from the kernel (e.g., with a
 memreserve region in the device tree) will be considered as available to

@@ -50,13 +50,6 @@ struct driver_data {
 	struct tasklet_struct pump_transfers;
 
 	/* DMA engine support */
-	struct dma_chan *rx_chan;
-	struct dma_chan *tx_chan;
-	struct sg_table rx_sgt;
-	struct sg_table tx_sgt;
-	int rx_nents;
-	int tx_nents;
-	void *dummy;
 	atomic_t dma_running;
 
 	/* Current message transfer state info */
@@ -68,9 +61,6 @@ struct driver_data {
 	void *tx_end;
 	void *rx;
 	void *rx_end;
-	int dma_mapped;
-	size_t rx_map_len;
-	size_t tx_map_len;
 	u8 n_bytes;
 	int (*write)(struct driver_data *drv_data);
 	int (*read)(struct driver_data *drv_data);
@@ -148,8 +138,6 @@ extern void *pxa2xx_spi_next_transfer(struct driver_data *drv_data);
 #define MAX_DMA_LEN		SZ_64K
 #define DEFAULT_DMA_CR1		(SSCR1_TSRE | SSCR1_RSRE | SSCR1_TRAIL)
 
-extern bool pxa2xx_spi_dma_is_possible(size_t len);
-extern int pxa2xx_spi_map_dma_buffers(struct driver_data *drv_data);
 extern irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst);
 extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);

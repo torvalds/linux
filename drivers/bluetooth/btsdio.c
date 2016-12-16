@@ -311,7 +311,7 @@ static int btsdio_probe(struct sdio_func *func,
 	if (id->class == SDIO_CLASS_BT_AMP)
 		hdev->dev_type = HCI_AMP;
 	else
-		hdev->dev_type = HCI_BREDR;
+		hdev->dev_type = HCI_PRIMARY;
 
 	data->hdev = hdev;
 

@@ -196,7 +196,6 @@ static int ufs_qcom_phy_qmp_20nm_probe(struct platform_device *pdev)
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy) {
-		dev_err(dev, "%s: failed to allocate phy\n", __func__);
 		err = -ENOMEM;
 		goto out;
 	}

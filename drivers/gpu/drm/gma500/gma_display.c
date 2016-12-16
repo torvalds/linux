@@ -175,20 +175,21 @@ void gma_crtc_load_lut(struct drm_crtc *crtc)
 	}
 }
 
-void gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
-			u32 start, u32 size)
+int gma_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green, u16 *blue,
+		       u32 size)
 {
 	struct gma_crtc *gma_crtc = to_gma_crtc(crtc);
 	int i;
-	int end = (start + size > 256) ? 256 : start + size;
 
-	for (i = start; i < end; i++) {
+	for (i = 0; i < size; i++) {
 		gma_crtc->lut_r[i] = red[i] >> 8;
 		gma_crtc->lut_g[i] = green[i] >> 8;
 		gma_crtc->lut_b[i] = blue[i] >> 8;
 	}
 
 	gma_crtc_load_lut(crtc);
+
+	return 0;
 }
 
 /**
@@ -281,7 +282,7 @@ void gma_crtc_dpms(struct drm_crtc *crtc, int mode)
 		REG_WRITE(VGACNTRL, VGA_DISP_DISABLE);
 
 		/* Turn off vblank interrupts */
-		drm_vblank_off(dev, pipe);
+		drm_crtc_vblank_off(crtc);
 
 		/* Wait for vblank for the disable to take effect */
 		gma_wait_for_vblank(dev);
@@ -372,7 +373,7 @@ int gma_crtc_cursor_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	obj = drm_gem_object_lookup(dev, file_priv, handle);
+	obj = drm_gem_object_lookup(file_priv, handle);
 	if (!obj) {
 		ret = -ENOENT;
 		goto unlock;

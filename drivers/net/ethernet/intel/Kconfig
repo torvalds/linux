@@ -25,15 +25,12 @@ config E100
 	  on the adapter. Look for a label that has a barcode and a number
 	  in the format 123456-001 (six digits hyphen three digits).
 
-	  Use the above information and the Adapter & Driver ID Guide at:
+	  Use the above information and the Adapter & Driver ID Guide that
+	  can be located at:
 
-	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
+	  <http://support.intel.com>
 
 	  to identify the adapter.
-
-	  For the latest Intel PRO/100 network driver for Linux, see:
-
-	  <http://www.intel.com/p/en_US/support/highlights/network/pro100plus>
 
 	  More specific information on configuring the driver is in
 	  <file:Documentation/networking/e100.txt>.
@@ -47,12 +44,7 @@ config E1000
 	---help---
 	  This driver supports Intel(R) PRO/1000 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
-	  to the Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
@@ -71,12 +63,8 @@ config E1000E
 	  This driver supports the PCI-Express Intel(R) PRO/1000 gigabit
 	  ethernet family of adapters. For PCI or PCI-X e1000 adapters,
 	  use the regular e1000 driver For more information on how to
-	  identify your adapter, go to the Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  identify your adapter, go to the Adapter & Driver ID Guide that
+	  can be located at:
 
 	  <http://support.intel.com>
 
@@ -101,12 +89,7 @@ config IGB
 	---help---
 	  This driver supports Intel(R) 82575/82576 gigabit ethernet family of
 	  adapters.  For more information on how to identify your adapter, go
-	  to the Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
@@ -142,12 +125,7 @@ config IGBVF
 	---help---
 	  This driver supports Intel(R) 82576 virtual functions.  For more
 	  information on how to identify your adapter, go to the Adapter &
-	  Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
@@ -164,12 +142,7 @@ config IXGB
 	  This driver supports Intel(R) PRO/10GbE family of adapters for
 	  PCI-X type cards. For PCI-E type cards, use the "ixgbe" driver
 	  instead. For more information on how to identify your adapter, go
-	  to the Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
@@ -187,28 +160,12 @@ config IXGBE
 	---help---
 	  This driver supports Intel(R) 10GbE PCI Express family of
 	  adapters.  For more information on how to identify your adapter, go
-	  to the Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.
-
-config IXGBE_VXLAN
-	bool "Virtual eXtensible Local Area Network Support"
-	default n
-	depends on IXGBE && VXLAN && !(IXGBE=y && VXLAN=m)
-	---help---
-	  This allows one to create VXLAN virtual interfaces that provide
-	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
-	  to tunnel virtual network infrastructure in virtualized environments.
-	  Say Y here if you want to use Virtual eXtensible Local Area Network
-	  (VXLAN) in the driver.
 
 config IXGBE_HWMON
 	bool "Intel(R) 10GbE PCI Express adapters HWMON support"
@@ -243,12 +200,7 @@ config IXGBEVF
 	---help---
 	  This driver supports Intel(R) PCI Express virtual functions for the
 	  Intel(R) ixgbe driver.  For more information on how to identify your
-	  adapter, go to the Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/sb/CS-008441.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  adapter, go to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
@@ -266,38 +218,12 @@ config I40E
 	---help---
 	  This driver supports Intel(R) Ethernet Controller XL710 Family of
 	  devices.  For more information on how to identify your adapter, go
-	  to the Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/adapter/pro100/21397.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called i40e.
-
-config I40E_VXLAN
-	bool "Virtual eXtensible Local Area Network Support"
-	default n
-	depends on I40E && VXLAN && !(I40E=y && VXLAN=m)
-	---help---
-	  This allows one to create VXLAN virtual interfaces that provide
-	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
-	  to tunnel virtual network infrastructure in virtualized environments.
-	  Say Y here if you want to use Virtual eXtensible Local Area Network
-	  (VXLAN) in the driver.
-
-config I40E_GENEVE
-	bool "Generic Network Virtualization Encapsulation (GENEVE) Support"
-	depends on I40E && GENEVE && !(I40E=y && GENEVE=m)
-	default n
-	---help---
-	  This allows one to create GENEVE virtual interfaces that provide
-	  Layer 2 Networks over Layer 3 Networks. GENEVE is often used
-	  to tunnel virtual network infrastructure in virtualized environments.
-	  Say Y here if you want to use GENEVE in the driver.
 
 config I40E_DCB
 	bool "Data Center Bridging (DCB) Support"
@@ -326,12 +252,7 @@ config I40EVF
 	---help---
 	  This driver supports Intel(R) XL710 and X710 virtual functions.
 	  For more information on how to identify your adapter, go to the
-	  Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/sb/CS-008441.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
@@ -347,27 +268,11 @@ config FM10K
 	---help---
 	  This driver supports Intel(R) FM10000 Ethernet Switch Host
 	  Interface.  For more information on how to identify your adapter,
-	  go to the Adapter & Driver ID Guide at:
-
-	  <http://support.intel.com/support/network/sb/CS-008441.htm>
-
-	  For general information and support, go to the Intel support
-	  website at:
+	  go to the Adapter & Driver ID Guide that can be located at:
 
 	  <http://support.intel.com>
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called fm10k.  MSI-X interrupt support is required
-
-config FM10K_VXLAN
-	bool "Virtual eXtensible Local Area Network Support"
-	default n
-	depends on FM10K && VXLAN && !(FM10K=y && VXLAN=m)
-	---help---
-	  This allows one to create VXLAN virtual interfaces that provide
-	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
-	  to tunnel virtual network infrastructure in virtualized environments.
-	  Say Y here if you want to use Virtual eXtensible Local Area Network
-	  (VXLAN) in the driver.
 
 endif # NET_VENDOR_INTEL

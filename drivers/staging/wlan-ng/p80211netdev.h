@@ -158,7 +158,6 @@ extern int wlan_wext_write;
 
 /* WLAN device type */
 typedef struct wlandevice {
-	struct wlandevice *next;	/* link for list of devices */
 	void *priv;		/* private data for MSD */
 
 	/* Subsystem State */

@@ -64,18 +64,26 @@ struct nci_conn_info *nci_get_conn_info_by_conn_id(struct nci_dev *ndev,
 	return NULL;
 }
 
-int nci_get_conn_info_by_id(struct nci_dev *ndev, u8 id)
+int nci_get_conn_info_by_dest_type_params(struct nci_dev *ndev, u8 dest_type,
+					  struct dest_spec_params *params)
 {
 	struct nci_conn_info *conn_info;
 
 	list_for_each_entry(conn_info, &ndev->conn_info_list, list) {
-		if (conn_info->id == id)
-			return conn_info->conn_id;
+		if (conn_info->dest_type == dest_type) {
+			if (!params)
+				return conn_info->conn_id;
+			if (conn_info) {
+				if (params->id == conn_info->dest_params->id &&
+				    params->protocol == conn_info->dest_params->protocol)
+					return conn_info->conn_id;
+			}
+		}
 	}
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(nci_get_conn_info_by_id);
+EXPORT_SYMBOL(nci_get_conn_info_by_dest_type_params);
 
 /* ---- NCI requests ---- */
 
@@ -392,6 +400,83 @@ int nci_core_init(struct nci_dev *ndev)
 }
 EXPORT_SYMBOL(nci_core_init);
 
+struct nci_loopback_data {
+	u8 conn_id;
+	struct sk_buff *data;
+};
+
+static void nci_send_data_req(struct nci_dev *ndev, unsigned long opt)
+{
+	struct nci_loopback_data *data = (struct nci_loopback_data *)opt;
+
+	nci_send_data(ndev, data->conn_id, data->data);
+}
+
+static void nci_nfcc_loopback_cb(void *context, struct sk_buff *skb, int err)
+{
+	struct nci_dev *ndev = (struct nci_dev *)context;
+	struct nci_conn_info    *conn_info;
+
+	conn_info = nci_get_conn_info_by_conn_id(ndev, ndev->cur_conn_id);
+	if (!conn_info) {
+		nci_req_complete(ndev, NCI_STATUS_REJECTED);
+		return;
+	}
+
+	conn_info->rx_skb = skb;
+
+	nci_req_complete(ndev, NCI_STATUS_OK);
+}
+
+int nci_nfcc_loopback(struct nci_dev *ndev, void *data, size_t data_len,
+		      struct sk_buff **resp)
+{
+	int r;
+	struct nci_loopback_data loopback_data;
+	struct nci_conn_info *conn_info;
+	struct sk_buff *skb;
+	int conn_id = nci_get_conn_info_by_dest_type_params(ndev,
+					NCI_DESTINATION_NFCC_LOOPBACK, NULL);
+
+	if (conn_id < 0) {
+		r = nci_core_conn_create(ndev, NCI_DESTINATION_NFCC_LOOPBACK,
+					 0, 0, NULL);
+		if (r != NCI_STATUS_OK)
+			return r;
+
+		conn_id = nci_get_conn_info_by_dest_type_params(ndev,
+					NCI_DESTINATION_NFCC_LOOPBACK,
+					NULL);
+	}
+
+	conn_info = nci_get_conn_info_by_conn_id(ndev, conn_id);
+	if (!conn_info)
+		return -EPROTO;
+
+	/* store cb and context to be used on receiving data */
+	conn_info->data_exchange_cb = nci_nfcc_loopback_cb;
+	conn_info->data_exchange_cb_context = ndev;
+
+	skb = nci_skb_alloc(ndev, NCI_DATA_HDR_SIZE + data_len, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_reserve(skb, NCI_DATA_HDR_SIZE);
+	memcpy(skb_put(skb, data_len), data, data_len);
+
+	loopback_data.conn_id = conn_id;
+	loopback_data.data = skb;
+
+	ndev->cur_conn_id = conn_id;
+	r = nci_request(ndev, nci_send_data_req, (unsigned long)&loopback_data,
+			msecs_to_jiffies(NCI_DATA_TIMEOUT));
+	if (r == NCI_STATUS_OK && resp)
+		*resp = conn_info->rx_skb;
+
+	return r;
+}
+EXPORT_SYMBOL(nci_nfcc_loopback);
+
 static int nci_open_device(struct nci_dev *ndev)
 {
 	int rc = 0;
@@ -610,9 +695,6 @@ int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 	struct nci_core_conn_create_cmd *cmd;
 	struct core_conn_create_data data;
 
-	if (!number_destination_params)
-		return -EINVAL;
-
 	data.length = params_len + sizeof(struct nci_core_conn_create_cmd);
 	cmd = kzalloc(data.length, GFP_KERNEL);
 	if (!cmd)
@@ -620,17 +702,23 @@ int nci_core_conn_create(struct nci_dev *ndev, u8 destination_type,
 
 	cmd->destination_type = destination_type;
 	cmd->number_destination_params = number_destination_params;
-	memcpy(cmd->params, params, params_len);
 
 	data.cmd = cmd;
 
-	if (params->length > 0)
-		ndev->cur_id = params->value[DEST_SPEC_PARAMS_ID_INDEX];
-	else
-		ndev->cur_id = 0;
+	if (params) {
+		memcpy(cmd->params, params, params_len);
+		if (params->length > 0)
+			memcpy(&ndev->cur_params,
+			       &params->value[DEST_SPEC_PARAMS_ID_INDEX],
+			       sizeof(struct dest_spec_params));
+		else
+			ndev->cur_params.id = 0;
+	} else {
+		ndev->cur_params.id = 0;
+	}
+	ndev->cur_dest_type = destination_type;
 
-	r = __nci_request(ndev, nci_core_conn_create_req,
-			  (unsigned long)&data,
+	r = __nci_request(ndev, nci_core_conn_create_req, (unsigned long)&data,
 			  msecs_to_jiffies(NCI_CMD_TIMEOUT));
 	kfree(cmd);
 	return r;
@@ -646,6 +734,7 @@ static void nci_core_conn_close_req(struct nci_dev *ndev, unsigned long opt)
 
 int nci_core_conn_close(struct nci_dev *ndev, u8 conn_id)
 {
+	ndev->cur_conn_id = conn_id;
 	return __nci_request(ndev, nci_core_conn_close_req, conn_id,
 			     msecs_to_jiffies(NCI_CMD_TIMEOUT));
 }

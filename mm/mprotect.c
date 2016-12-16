@@ -163,7 +163,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 		if (pmd_trans_huge(*pmd) || pmd_devmap(*pmd)) {
 			if (next - addr != HPAGE_PMD_SIZE) {
 				split_huge_pmd(vma, pmd, addr);
-				if (pmd_none(*pmd))
+				if (pmd_trans_unstable(pmd))
 					continue;
 			} else {
 				int nr_ptes = change_huge_pmd(vma, pmd, addr,
@@ -379,7 +379,8 @@ SYSCALL_DEFINE3(mprotect, unsigned long, start, size_t, len,
 
 	reqprot = prot;
 
-	down_write(&current->mm->mmap_sem);
+	if (down_write_killable(&current->mm->mmap_sem))
+		return -EINTR;
 
 	vma = find_vma(current->mm, start);
 	error = -ENOMEM;

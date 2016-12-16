@@ -47,6 +47,7 @@ This document describes the Linux kernel Makefiles.
 		--- 7.2 genhdr-y
 		--- 7.3 destination-y
 		--- 7.4 generic-y
+		--- 7.5 generated-y
 
 	=== 8 Kbuild Variables
 	=== 9 Makefile language
@@ -1318,6 +1319,19 @@ See subsequent chapter for the syntax of the Kbuild file.
 
 		Example: termios.h
 			#include <asm-generic/termios.h>
+
+	--- 7.5 generated-y
+
+	If an architecture generates other header files alongside generic-y
+	wrappers, and not included in genhdr-y, then generated-y specifies
+	them.
+
+	This prevents them being treated as stale asm-generic wrappers and
+	removed.
+
+		Example:
+			#arch/x86/include/asm/Kbuild
+			generated-y += syscalls_32.h
 
 === 8 Kbuild Variables
 

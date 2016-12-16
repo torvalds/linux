@@ -1106,7 +1106,7 @@ e100_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	myNextTxDesc->skb = skb;
 
-	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
+	netif_trans_update(dev); /* NETIF_F_LLTX driver :( */
 
 	e100_hardware_send_packet(np, buf, skb->len);
 

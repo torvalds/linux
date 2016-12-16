@@ -407,7 +407,7 @@ static void sl_encaps(struct slip *sl, unsigned char *icp, int len)
 	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 	actual = sl->tty->ops->write(sl->tty, sl->xbuff, count);
 #ifdef SL_CHECK_TRANSMIT
-	sl->dev->trans_start = jiffies;
+	netif_trans_update(sl->dev);
 #endif
 	sl->xleft = count - actual;
 	sl->xhead = sl->xbuff + actual;

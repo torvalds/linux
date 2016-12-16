@@ -32,7 +32,7 @@
 #define __kernel_ok		(segment_eq(get_fs(), KERNEL_DS))
 
 /*
- * Algorthmically, for __user_ok() we want do:
+ * Algorithmically, for __user_ok() we want do:
  * 	(start < TASK_SIZE) && (start+len < TASK_SIZE)
  * where TASK_SIZE could either be retrieved from thread_info->addr_limit or
  * emitted directly in code.
@@ -83,7 +83,10 @@
 	"2:	;nop\n"				\
 	"	.section .fixup, \"ax\"\n"	\
 	"	.align 4\n"			\
-	"3:	mov %0, %3\n"			\
+	"3:	# return -EFAULT\n"		\
+	"	mov %0, %3\n"			\
+	"	# zero out dst ptr\n"		\
+	"	mov %1,  0\n"			\
 	"	j   2b\n"			\
 	"	.previous\n"			\
 	"	.section __ex_table, \"a\"\n"	\
@@ -101,7 +104,11 @@
 	"2:	;nop\n"				\
 	"	.section .fixup, \"ax\"\n"	\
 	"	.align 4\n"			\
-	"3:	mov %0, %3\n"			\
+	"3:	# return -EFAULT\n"		\
+	"	mov %0, %3\n"			\
+	"	# zero out dst ptr\n"		\
+	"	mov %1,  0\n"			\
+	"	mov %R1, 0\n"			\
 	"	j   2b\n"			\
 	"	.previous\n"			\
 	"	.section __ex_table, \"a\"\n"	\

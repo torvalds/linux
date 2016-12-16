@@ -404,5 +404,8 @@
 #define __NR_memfd_create	386
 #define __NR_bpf		387
 #define __NR_execveat		388
+#define __NR_userfaultfd	389
+#define __NR_membarrier		390
+#define __NR_mlock2		391
 
 #endif /* _UAPI_ASM_MICROBLAZE_UNISTD_H */

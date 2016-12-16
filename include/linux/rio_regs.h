@@ -42,9 +42,11 @@
 #define  RIO_PEF_INB_MBOX2		0x00200000	/* [II, <= 1.2] Mailbox 2 */
 #define  RIO_PEF_INB_MBOX3		0x00100000	/* [II, <= 1.2] Mailbox 3 */
 #define  RIO_PEF_INB_DOORBELL		0x00080000	/* [II, <= 1.2] Doorbells */
+#define  RIO_PEF_DEV32			0x00001000	/* [III] PE supports Common TRansport Dev32 */
 #define  RIO_PEF_EXT_RT			0x00000200	/* [III, 1.3] Extended route table support */
 #define  RIO_PEF_STD_RT			0x00000100	/* [III, 1.3] Standard route table support */
-#define  RIO_PEF_CTLS			0x00000010	/* [III] CTLS */
+#define  RIO_PEF_CTLS			0x00000010	/* [III] Common Transport Large System (< rev.3) */
+#define  RIO_PEF_DEV16			0x00000010	/* [III] PE Supports Common Transport Dev16 (rev.3) */
 #define  RIO_PEF_EXT_FEATURES		0x00000008	/* [I] EFT_PTR valid */
 #define  RIO_PEF_ADDR_66		0x00000004	/* [I] 66 bits */
 #define  RIO_PEF_ADDR_50		0x00000002	/* [I] 50 bits */
@@ -194,70 +196,101 @@
 #define RIO_GET_BLOCK_ID(x)	(x & RIO_EFB_ID_MASK)
 
 /* Extended Feature Block IDs */
-#define RIO_EFB_PAR_EP_ID	0x0001	/* [IV] LP/LVDS EP Devices */
-#define RIO_EFB_PAR_EP_REC_ID	0x0002	/* [IV] LP/LVDS EP Recovery Devices */
-#define RIO_EFB_PAR_EP_FREE_ID	0x0003	/* [IV] LP/LVDS EP Free Devices */
-#define RIO_EFB_SER_EP_ID_V13P	0x0001	/* [VI] LP/Serial EP Devices, RapidIO Spec ver 1.3 and above */
-#define RIO_EFB_SER_EP_REC_ID_V13P	0x0002	/* [VI] LP/Serial EP Recovery Devices, RapidIO Spec ver 1.3 and above */
-#define RIO_EFB_SER_EP_FREE_ID_V13P	0x0003	/* [VI] LP/Serial EP Free Devices, RapidIO Spec ver 1.3 and above */
-#define RIO_EFB_SER_EP_ID	0x0004	/* [VI] LP/Serial EP Devices */
-#define RIO_EFB_SER_EP_REC_ID	0x0005	/* [VI] LP/Serial EP Recovery Devices */
-#define RIO_EFB_SER_EP_FREE_ID	0x0006	/* [VI] LP/Serial EP Free Devices */
-#define RIO_EFB_SER_EP_FREC_ID	0x0009  /* [VI] LP/Serial EP Free Recovery Devices */
+#define RIO_EFB_SER_EP_M1_ID	0x0001	/* [VI] LP-Serial EP Devices, Map I */
+#define RIO_EFB_SER_EP_SW_M1_ID	0x0002	/* [VI] LP-Serial EP w SW Recovery Devices, Map I */
+#define RIO_EFB_SER_EPF_M1_ID	0x0003	/* [VI] LP-Serial EP Free Devices, Map I */
+#define RIO_EFB_SER_EP_ID	0x0004	/* [VI] LP-Serial EP Devices, RIO 1.2 */
+#define RIO_EFB_SER_EP_REC_ID	0x0005	/* [VI] LP-Serial EP w SW Recovery Devices, RIO 1.2 */
+#define RIO_EFB_SER_EP_FREE_ID	0x0006	/* [VI] LP-Serial EP Free Devices, RIO 1.2 */
 #define RIO_EFB_ERR_MGMNT	0x0007  /* [VIII] Error Management Extensions */
+#define RIO_EFB_SER_EPF_SW_M1_ID	0x0009  /* [VI] LP-Serial EP Free w SW Recovery Devices, Map I */
+#define RIO_EFB_SW_ROUTING_TBL	0x000E  /* [III] Switch Routing Table Block */
+#define RIO_EFB_SER_EP_M2_ID	0x0011	/* [VI] LP-Serial EP Devices, Map II */
+#define RIO_EFB_SER_EP_SW_M2_ID	0x0012	/* [VI] LP-Serial EP w SW Recovery Devices, Map II */
+#define RIO_EFB_SER_EPF_M2_ID	0x0013	/* [VI] LP-Serial EP Free Devices, Map II */
+#define RIO_EFB_ERR_MGMNT_HS	0x0017  /* [VIII] Error Management Extensions, Hot-Swap only */
+#define RIO_EFB_SER_EPF_SW_M2_ID	0x0019  /* [VI] LP-Serial EP Free w SW Recovery Devices, Map II */
 
 /*
- * Physical 8/16 LP-LVDS
- * ID=0x0001, Generic End Point Devices
- * ID=0x0002, Generic End Point Devices, software assisted recovery option
- * ID=0x0003, Generic End Point Free Devices
- *
- * Physical LP-Serial
- * ID=0x0004, Generic End Point Devices
- * ID=0x0005, Generic End Point Devices, software assisted recovery option
- * ID=0x0006, Generic End Point Free Devices
+ * Physical LP-Serial Registers Definitions
+ * Parameters in register macros:
+ *    n - port number, m - Register Map Type (1 or 2)
  */
 #define RIO_PORT_MNT_HEADER		0x0000
 #define RIO_PORT_REQ_CTL_CSR		0x0020
-#define RIO_PORT_RSP_CTL_CSR		0x0024	/* 0x0001/0x0002 */
-#define RIO_PORT_LINKTO_CTL_CSR		0x0020	/* Serial */
-#define RIO_PORT_RSPTO_CTL_CSR		0x0024	/* Serial */
+#define RIO_PORT_RSP_CTL_CSR		0x0024
+#define RIO_PORT_LINKTO_CTL_CSR		0x0020
+#define RIO_PORT_RSPTO_CTL_CSR		0x0024
 #define RIO_PORT_GEN_CTL_CSR		0x003c
 #define  RIO_PORT_GEN_HOST		0x80000000
 #define  RIO_PORT_GEN_MASTER		0x40000000
 #define  RIO_PORT_GEN_DISCOVERED	0x20000000
-#define RIO_PORT_N_MNT_REQ_CSR(x)	(0x0040 + x*0x20)	/* 0x0002 */
+#define RIO_PORT_N_MNT_REQ_CSR(n, m)	(0x40 + (n) * (0x20 * (m)))
 #define  RIO_MNT_REQ_CMD_RD		0x03	/* Reset-device command */
 #define  RIO_MNT_REQ_CMD_IS		0x04	/* Input-status command */
-#define RIO_PORT_N_MNT_RSP_CSR(x)	(0x0044 + x*0x20)	/* 0x0002 */
+#define RIO_PORT_N_MNT_RSP_CSR(n, m)	(0x44 + (n) * (0x20 * (m)))
 #define  RIO_PORT_N_MNT_RSP_RVAL	0x80000000 /* Response Valid */
 #define  RIO_PORT_N_MNT_RSP_ASTAT	0x000007e0 /* ackID Status */
 #define  RIO_PORT_N_MNT_RSP_LSTAT	0x0000001f /* Link Status */
-#define RIO_PORT_N_ACK_STS_CSR(x)	(0x0048 + x*0x20)	/* 0x0002 */
+#define RIO_PORT_N_ACK_STS_CSR(n)	(0x48 + (n) * 0x20) /* Only in RM-I */
 #define  RIO_PORT_N_ACK_CLEAR		0x80000000
 #define  RIO_PORT_N_ACK_INBOUND		0x3f000000
 #define  RIO_PORT_N_ACK_OUTSTAND	0x00003f00
 #define  RIO_PORT_N_ACK_OUTBOUND	0x0000003f
-#define RIO_PORT_N_CTL2_CSR(x)		(0x0054 + x*0x20)
+#define RIO_PORT_N_CTL2_CSR(n, m)	(0x54 + (n) * (0x20 * (m)))
 #define  RIO_PORT_N_CTL2_SEL_BAUD	0xf0000000
-#define RIO_PORT_N_ERR_STS_CSR(x)	(0x0058 + x*0x20)
-#define  RIO_PORT_N_ERR_STS_PW_OUT_ES	0x00010000 /* Output Error-stopped */
-#define  RIO_PORT_N_ERR_STS_PW_INP_ES	0x00000100 /* Input Error-stopped */
+#define RIO_PORT_N_ERR_STS_CSR(n, m)	(0x58 + (n) * (0x20 * (m)))
+#define  RIO_PORT_N_ERR_STS_OUT_ES	0x00010000 /* Output Error-stopped */
+#define  RIO_PORT_N_ERR_STS_INP_ES	0x00000100 /* Input Error-stopped */
 #define  RIO_PORT_N_ERR_STS_PW_PEND	0x00000010 /* Port-Write Pending */
+#define  RIO_PORT_N_ERR_STS_PORT_UA	0x00000008 /* Port Unavailable */
 #define  RIO_PORT_N_ERR_STS_PORT_ERR	0x00000004
 #define  RIO_PORT_N_ERR_STS_PORT_OK	0x00000002
 #define  RIO_PORT_N_ERR_STS_PORT_UNINIT	0x00000001
-#define RIO_PORT_N_CTL_CSR(x)		(0x005c + x*0x20)
+#define RIO_PORT_N_CTL_CSR(n, m)	(0x5c + (n) * (0x20 * (m)))
 #define  RIO_PORT_N_CTL_PWIDTH		0xc0000000
 #define  RIO_PORT_N_CTL_PWIDTH_1	0x00000000
 #define  RIO_PORT_N_CTL_PWIDTH_4	0x40000000
 #define  RIO_PORT_N_CTL_IPW		0x38000000 /* Initialized Port Width */
 #define  RIO_PORT_N_CTL_P_TYP_SER	0x00000001
 #define  RIO_PORT_N_CTL_LOCKOUT		0x00000002
-#define  RIO_PORT_N_CTL_EN_RX_SER	0x00200000
-#define  RIO_PORT_N_CTL_EN_TX_SER	0x00400000
-#define  RIO_PORT_N_CTL_EN_RX_PAR	0x08000000
-#define  RIO_PORT_N_CTL_EN_TX_PAR	0x40000000
+#define  RIO_PORT_N_CTL_EN_RX		0x00200000
+#define  RIO_PORT_N_CTL_EN_TX		0x00400000
+#define RIO_PORT_N_OB_ACK_CSR(n)	(0x60 + (n) * 0x40) /* Only in RM-II */
+#define  RIO_PORT_N_OB_ACK_CLEAR	0x80000000
+#define  RIO_PORT_N_OB_ACK_OUTSTD	0x00fff000
+#define  RIO_PORT_N_OB_ACK_OUTBND	0x00000fff
+#define RIO_PORT_N_IB_ACK_CSR(n)	(0x64 + (n) * 0x40) /* Only in RM-II */
+#define  RIO_PORT_N_IB_ACK_INBND	0x00000fff
+
+/*
+ * Device-based helper macros for serial port register access.
+ *   d - pointer to rapidio device object, n - port number
+ */
+
+#define RIO_DEV_PORT_N_MNT_REQ_CSR(d, n)	\
+		(d->phys_efptr + RIO_PORT_N_MNT_REQ_CSR(n, d->phys_rmap))
+
+#define RIO_DEV_PORT_N_MNT_RSP_CSR(d, n)	\
+		(d->phys_efptr + RIO_PORT_N_MNT_RSP_CSR(n, d->phys_rmap))
+
+#define RIO_DEV_PORT_N_ACK_STS_CSR(d, n)	\
+		(d->phys_efptr + RIO_PORT_N_ACK_STS_CSR(n))
+
+#define RIO_DEV_PORT_N_CTL2_CSR(d, n)		\
+		(d->phys_efptr + RIO_PORT_N_CTL2_CSR(n, d->phys_rmap))
+
+#define RIO_DEV_PORT_N_ERR_STS_CSR(d, n)	\
+		(d->phys_efptr + RIO_PORT_N_ERR_STS_CSR(n, d->phys_rmap))
+
+#define RIO_DEV_PORT_N_CTL_CSR(d, n)		\
+		(d->phys_efptr + RIO_PORT_N_CTL_CSR(n, d->phys_rmap))
+
+#define RIO_DEV_PORT_N_OB_ACK_CSR(d, n)		\
+		(d->phys_efptr + RIO_PORT_N_OB_ACK_CSR(n))
+
+#define RIO_DEV_PORT_N_IB_ACK_CSR(d, n)		\
+		(d->phys_efptr + RIO_PORT_N_IB_ACK_CSR(n))
 
 /*
  * Error Management Extensions (RapidIO 1.3+, Part 8)
@@ -268,6 +301,7 @@
 /* General EM Registers (Common for all Ports) */
 
 #define RIO_EM_EFB_HEADER	0x000	/* Error Management Extensions Block Header */
+#define RIO_EM_EMHS_CAR		0x004	/* EM Functionality CAR */
 #define RIO_EM_LTL_ERR_DETECT	0x008	/* Logical/Transport Layer Error Detect CSR */
 #define RIO_EM_LTL_ERR_EN	0x00c	/* Logical/Transport Layer Error Enable CSR */
 #define  REM_LTL_ERR_ILLTRAN		0x08000000 /* Illegal Transaction decode */
@@ -278,15 +312,33 @@
 #define RIO_EM_LTL_ADDR_CAP	0x014	/* Logical/Transport Layer Address Capture CSR */
 #define RIO_EM_LTL_DEVID_CAP	0x018	/* Logical/Transport Layer Device ID Capture CSR */
 #define RIO_EM_LTL_CTRL_CAP	0x01c	/* Logical/Transport Layer Control Capture CSR */
+#define RIO_EM_LTL_DID32_CAP	0x020	/* Logical/Transport Layer Dev32 DestID Capture CSR */
+#define RIO_EM_LTL_SID32_CAP	0x024	/* Logical/Transport Layer Dev32  source ID Capture CSR */
 #define RIO_EM_PW_TGT_DEVID	0x028	/* Port-write Target deviceID CSR */
+#define  RIO_EM_PW_TGT_DEVID_D16M	0xff000000	/* Port-write Target DID16 MSB */
+#define  RIO_EM_PW_TGT_DEVID_D8		0x00ff0000	/* Port-write Target DID16 LSB or DID8 */
+#define  RIO_EM_PW_TGT_DEVID_DEV16	0x00008000	/* Port-write Target DID16 LSB or DID8 */
+#define  RIO_EM_PW_TGT_DEVID_DEV32	0x00004000	/* Port-write Target DID16 LSB or DID8 */
 #define RIO_EM_PKT_TTL		0x02c	/* Packet Time-to-live CSR */
+#define RIO_EM_PKT_TTL_VAL		0xffff0000	/* Packet Time-to-live value */
+#define RIO_EM_PW_TGT32_DEVID	0x030	/* Port-write Dev32 Target deviceID CSR */
+#define RIO_EM_PW_TX_CTRL	0x034	/* Port-write Transmission Control CSR */
+#define RIO_EM_PW_TX_CTRL_PW_DIS	0x00000001	/* Port-write Transmission Disable bit */
 
 /* Per-Port EM Registers */
 
 #define RIO_EM_PN_ERR_DETECT(x)	(0x040 + x*0x40) /* Port N Error Detect CSR */
 #define  REM_PED_IMPL_SPEC		0x80000000
+#define  REM_PED_LINK_OK2U		0x40000000 /* Link OK to Uninit transition */
+#define  REM_PED_LINK_UPDA		0x20000000 /* Link Uninit Packet Discard Active */
+#define  REM_PED_LINK_U2OK		0x10000000 /* Link Uninit to OK transition */
 #define  REM_PED_LINK_TO		0x00000001
+
 #define RIO_EM_PN_ERRRATE_EN(x) (0x044 + x*0x40) /* Port N Error Rate Enable CSR */
+#define RIO_EM_PN_ERRRATE_EN_OK2U	0x40000000 /* Enable notification for OK2U */
+#define RIO_EM_PN_ERRRATE_EN_UPDA	0x20000000 /* Enable notification for UPDA */
+#define RIO_EM_PN_ERRRATE_EN_U2OK	0x10000000 /* Enable notification for U2OK */
+
 #define RIO_EM_PN_ATTRIB_CAP(x)	(0x048 + x*0x40) /* Port N Attributes Capture CSR */
 #define RIO_EM_PN_PKT_CAP_0(x)	(0x04c + x*0x40) /* Port N Packet/Control Symbol Capture 0 CSR */
 #define RIO_EM_PN_PKT_CAP_1(x)	(0x050 + x*0x40) /* Port N Packet Capture 1 CSR */
@@ -294,5 +346,50 @@
 #define RIO_EM_PN_PKT_CAP_3(x)	(0x058 + x*0x40) /* Port N Packet Capture 3 CSR */
 #define RIO_EM_PN_ERRRATE(x)	(0x068 + x*0x40) /* Port N Error Rate CSR */
 #define RIO_EM_PN_ERRRATE_TR(x) (0x06c + x*0x40) /* Port N Error Rate Threshold CSR */
+#define RIO_EM_PN_LINK_UDT(x)	(0x070 + x*0x40) /* Port N Link Uninit Discard Timer CSR */
+#define RIO_EM_PN_LINK_UDT_TO		0xffffff00 /* Link Uninit Timeout value */
+
+/*
+ * Switch Routing Table Register Block ID=0x000E (RapidIO 3.0+, part 3)
+ * Register offsets are defined from beginning of the block.
+ */
+
+/* Broadcast Routing Table Control CSR */
+#define RIO_BC_RT_CTL_CSR	0x020
+#define  RIO_RT_CTL_THREE_LVL		0x80000000
+#define  RIO_RT_CTL_DEV32_RT_CTRL	0x40000000
+#define  RIO_RT_CTL_MC_MASK_SZ		0x03000000 /* 3.0+ Part 11: Multicast */
+
+/* Broadcast Level 0 Info CSR */
+#define RIO_BC_RT_LVL0_INFO_CSR	0x030
+#define  RIO_RT_L0I_NUM_GR		0xff000000
+#define  RIO_RT_L0I_GR_PTR		0x00fffc00
+
+/* Broadcast Level 1 Info CSR */
+#define RIO_BC_RT_LVL1_INFO_CSR	0x034
+#define  RIO_RT_L1I_NUM_GR		0xff000000
+#define  RIO_RT_L1I_GR_PTR		0x00fffc00
+
+/* Broadcast Level 2 Info CSR */
+#define RIO_BC_RT_LVL2_INFO_CSR	0x038
+#define  RIO_RT_L2I_NUM_GR		0xff000000
+#define  RIO_RT_L2I_GR_PTR		0x00fffc00
+
+/* Per-Port Routing Table registers.
+ * Register fields defined in the broadcast section above are
+ * applicable to the corresponding registers below.
+ */
+#define RIO_SPx_RT_CTL_CSR(x)	(0x040 + (0x20 * x))
+#define RIO_SPx_RT_LVL0_INFO_CSR(x)	(0x50 + (0x20 * x))
+#define RIO_SPx_RT_LVL1_INFO_CSR(x)	(0x54 + (0x20 * x))
+#define RIO_SPx_RT_LVL2_INFO_CSR(x)	(0x58 + (0x20 * x))
+
+/* Register Formats for Routing Table Group entry.
+ * Register offsets are calculated using GR_PTR field in the corresponding
+ * table Level_N and group/entry numbers (see RapidIO 3.0+ Part 3).
+ */
+#define RIO_RT_Ln_ENTRY_IMPL_DEF	0xf0000000
+#define RIO_RT_Ln_ENTRY_RTE_VAL		0x000003ff
+#define RIO_RT_ENTRY_DROP_PKT		0x300
 
 #endif				/* LINUX_RIO_REGS_H */

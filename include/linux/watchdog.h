@@ -66,7 +66,8 @@ struct watchdog_ops {
  *		as configurable from user space. Only relevant if
  *		max_hw_heartbeat_ms is not provided.
  * @min_hw_heartbeat_ms:
- *		Minimum time between heartbeats, in milli-seconds.
+ *		Hardware limit for minimum time between heartbeats,
+ *		in milli-seconds.
  * @max_hw_heartbeat_ms:
  *		Hardware limit for maximum timeout, in milli-seconds.
  *		Replaces max_timeout if specified.
@@ -179,5 +180,8 @@ extern int watchdog_init_timeout(struct watchdog_device *wdd,
 				  unsigned int timeout_parm, struct device *dev);
 extern int watchdog_register_device(struct watchdog_device *);
 extern void watchdog_unregister_device(struct watchdog_device *);
+
+/* devres register variant */
+int devm_watchdog_register_device(struct device *dev, struct watchdog_device *);
 
 #endif  /* ifndef _LINUX_WATCHDOG_H */

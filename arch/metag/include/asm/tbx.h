@@ -668,7 +668,7 @@ typedef union _tbires_tag_ {
    
    State.Sig.TrigMask will indicate the bits set within TXMASKI at
           the time of the handler call that have all been cleared to prevent
-          nested interrupt occuring immediately.
+          nested interrupt occurring immediately.
    
    State.Sig.SaveMask is a bit-mask which will be set to Zero when a trigger
           occurs at background level and TBICTX_CRIT_BIT and optionally
@@ -1083,7 +1083,7 @@ TBIRES __TBINestInts( TBIRES State, void *pExt, int NoNestMask );
 /* This routine causes the TBICTX structure specified in State.Sig.pCtx to
    be restored. This implies that execution will not return to the caller.
    The State.Sig.TrigMask field will be restored during the context switch
-   such that any immediately occuring interrupts occur in the context of the
+   such that any immediately occurring interrupts occur in the context of the
    newly specified task. The State.Sig.SaveMask parameter is ignored. */
 void __TBIASyncResume( TBIRES State );
 
@@ -1305,7 +1305,7 @@ extern const char __TBISigNames[];
 
 /* 
  * Calculate linear PC value from real PC and Minim mode control, the LSB of
- * the result returned indicates if address compression has occured.
+ * the result returned indicates if address compression has occurred.
  */
 #ifndef __ASSEMBLY__
 #define METAG_LINPC( PCVal )                                              (\

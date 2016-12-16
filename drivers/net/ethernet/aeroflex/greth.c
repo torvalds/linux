@@ -1323,7 +1323,7 @@ static inline int phy_aneg_done(struct phy_device *phydev)
 
 static int greth_mdio_init(struct greth_private *greth)
 {
-	int ret, phy;
+	int ret;
 	unsigned long timeout;
 
 	greth->mdio = mdiobus_alloc();

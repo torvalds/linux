@@ -384,7 +384,7 @@ static void do_of_entry_multi(void *symval, struct module *mod)
 	len = sprintf(alias, "of:N%sT%s", (*name)[0] ? *name : "*",
 		      (*type)[0] ? *type : "*");
 
-	if (compatible[0])
+	if ((*compatible)[0])
 		sprintf(&alias[len], "%sC%s", (*type)[0] ? "*" : "",
 			*compatible);
 
@@ -1288,6 +1288,18 @@ static int do_hda_entry(const char *filename, void *symval, char *alias)
 	return 1;
 }
 ADD_TO_DEVTABLE("hdaudio", hda_device_id, do_hda_entry);
+
+/* Looks like: fsl-mc:vNdN */
+static int do_fsl_mc_entry(const char *filename, void *symval,
+			   char *alias)
+{
+	DEF_FIELD(symval, fsl_mc_device_id, vendor);
+	DEF_FIELD_ADDR(symval, fsl_mc_device_id, obj_type);
+
+	sprintf(alias, "fsl-mc:v%08Xd%s", vendor, *obj_type);
+	return 1;
+}
+ADD_TO_DEVTABLE("fslmc", fsl_mc_device_id, do_fsl_mc_entry);
 
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)

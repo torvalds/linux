@@ -60,9 +60,7 @@ machine_device_initcall(sbc834x, mpc83xx_declare_of_platform_devices);
  */
 static int __init sbc834x_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	return of_flat_dt_is_compatible(root, "SBC834xE");
+	return of_machine_is_compatible("SBC834xE");
 }
 
 define_machine(sbc834x) {

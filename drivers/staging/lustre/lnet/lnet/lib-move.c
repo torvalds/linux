@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -407,7 +403,7 @@ lnet_copy_kiov2iov(unsigned int niov, struct kvec *iov, unsigned int iovoffset,
 		LASSERT(niov > 0);
 		LASSERT(nkiov > 0);
 		this_nob = min(iov->iov_len - iovoffset,
-			       (__kernel_size_t) kiov->kiov_len - kiovoffset);
+			       (__kernel_size_t)kiov->kiov_len - kiovoffset);
 		this_nob = min(this_nob, nob);
 
 		if (!addr)
@@ -477,7 +473,7 @@ lnet_copy_iov2kiov(unsigned int nkiov, lnet_kiov_t *kiov,
 	do {
 		LASSERT(nkiov > 0);
 		LASSERT(niov > 0);
-		this_nob = min((__kernel_size_t) kiov->kiov_len - kiovoffset,
+		this_nob = min((__kernel_size_t)kiov->kiov_len - kiovoffset,
 			       iov->iov_len - iovoffset);
 		this_nob = min(this_nob, nob);
 
@@ -996,7 +992,7 @@ lnet_return_tx_credits_locked(lnet_msg_t *msg)
 			LASSERT(msg2->msg_txpeer->lp_ni == ni);
 			LASSERT(msg2->msg_tx_delayed);
 
-			(void) lnet_post_send_locked(msg2, 1);
+			(void)lnet_post_send_locked(msg2, 1);
 		}
 	}
 
@@ -1019,7 +1015,7 @@ lnet_return_tx_credits_locked(lnet_msg_t *msg)
 			LASSERT(msg2->msg_txpeer == txpeer);
 			LASSERT(msg2->msg_tx_delayed);
 
-			(void) lnet_post_send_locked(msg2, 1);
+			(void)lnet_post_send_locked(msg2, 1);
 		}
 	}
 
@@ -1142,7 +1138,7 @@ routing_off:
 					  lnet_msg_t, msg_list);
 			list_del(&msg2->msg_list);
 
-			(void) lnet_post_routed_recv_locked(msg2, 1);
+			(void)lnet_post_routed_recv_locked(msg2, 1);
 		}
 	}
 	if (rxpeer) {

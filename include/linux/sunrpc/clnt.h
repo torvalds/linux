@@ -137,8 +137,6 @@ struct rpc_create_args {
 #define RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT	(1UL << 9)
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
-struct rpc_clnt *rpc_create_xprt(struct rpc_create_args *args,
-					struct rpc_xprt *xprt);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,
 				const struct rpc_program *, u32);
 struct rpc_clnt *rpc_clone_client(struct rpc_clnt *);
@@ -176,6 +174,7 @@ void		rpc_setbufsize(struct rpc_clnt *, unsigned int, unsigned int);
 int		rpc_protocol(struct rpc_clnt *);
 struct net *	rpc_net_ns(struct rpc_clnt *);
 size_t		rpc_max_payload(struct rpc_clnt *);
+size_t		rpc_max_bc_payload(struct rpc_clnt *);
 unsigned long	rpc_get_timeout(struct rpc_clnt *clnt);
 void		rpc_force_rebind(struct rpc_clnt *);
 size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
@@ -196,6 +195,8 @@ int		rpc_clnt_add_xprt(struct rpc_clnt *, struct xprt_create *,
 				struct rpc_xprt *,
 				void *),
 			void *data);
+void		rpc_cap_max_reconnect_timeout(struct rpc_clnt *clnt,
+			unsigned long timeo);
 
 const char *rpc_proc_name(const struct rpc_task *task);
 #endif /* __KERNEL__ */

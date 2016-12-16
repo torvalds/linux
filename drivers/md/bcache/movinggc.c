@@ -163,7 +163,7 @@ static void read_moving(struct cache_set *c)
 		moving_init(io);
 		bio = &io->bio.bio;
 
-		bio->bi_rw	= READ;
+		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		bio->bi_end_io	= read_moving_endio;
 
 		if (bio_alloc_pages(bio, GFP_KERNEL))

@@ -316,11 +316,15 @@ static u32 rsnd_dmapp_get_id(struct rsnd_dai_stream *io,
 		size = ARRAY_SIZE(gen2_id_table_cmd);
 	}
 
-	if (!entry)
-		return 0xFF;
+	if ((!entry) || (size <= id)) {
+		struct device *dev = rsnd_priv_to_dev(rsnd_io_to_priv(io));
 
-	if (size <= id)
-		return 0xFF;
+		dev_err(dev, "unknown connection (%s[%d])\n",
+			rsnd_mod_name(mod), rsnd_mod_id(mod));
+
+		/* use non-prohibited SRS number as error */
+		return 0x00; /* SSI00 */
+	}
 
 	return entry[id];
 }

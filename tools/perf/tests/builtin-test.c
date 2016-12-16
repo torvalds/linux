@@ -14,6 +14,8 @@
 #include <subcmd/parse-options.h>
 #include "symbol.h"
 
+static bool dont_fork;
+
 struct test __weak arch_tests[] = {
 	{
 		.func = NULL,
@@ -204,6 +206,30 @@ static struct test generic_tests[] = {
 		.func = test__event_update,
 	},
 	{
+		.desc = "Test events times",
+		.func = test__event_times,
+	},
+	{
+		.desc = "Test backward reading from ring buffer",
+		.func = test__backward_ring_buffer,
+	},
+	{
+		.desc = "Test cpu map print",
+		.func = test__cpu_map_print,
+	},
+	{
+		.desc = "Test SDT event probing",
+		.func = test__sdt_event,
+	},
+	{
+		.desc = "Test is_printable_array function",
+		.func = test__is_printable_array,
+	},
+	{
+		.desc = "Test bitmap print",
+		.func = test__bitmap_print,
+	},
+	{
 		.func = NULL,
 	},
 };
@@ -239,44 +265,51 @@ static bool perf_test__matches(struct test *test, int curr, int argc, const char
 
 static int run_test(struct test *test, int subtest)
 {
-	int status, err = -1, child = fork();
+	int status, err = -1, child = dont_fork ? 0 : fork();
 	char sbuf[STRERR_BUFSIZE];
 
 	if (child < 0) {
 		pr_err("failed to fork test: %s\n",
-			strerror_r(errno, sbuf, sizeof(sbuf)));
+			str_error_r(errno, sbuf, sizeof(sbuf)));
 		return -1;
 	}
 
 	if (!child) {
-		pr_debug("test child forked, pid %d\n", getpid());
-		if (!verbose) {
-			int nullfd = open("/dev/null", O_WRONLY);
-			if (nullfd >= 0) {
-				close(STDERR_FILENO);
-				close(STDOUT_FILENO);
+		if (!dont_fork) {
+			pr_debug("test child forked, pid %d\n", getpid());
 
-				dup2(nullfd, STDOUT_FILENO);
-				dup2(STDOUT_FILENO, STDERR_FILENO);
-				close(nullfd);
+			if (!verbose) {
+				int nullfd = open("/dev/null", O_WRONLY);
+
+				if (nullfd >= 0) {
+					close(STDERR_FILENO);
+					close(STDOUT_FILENO);
+
+					dup2(nullfd, STDOUT_FILENO);
+					dup2(STDOUT_FILENO, STDERR_FILENO);
+					close(nullfd);
+				}
+			} else {
+				signal(SIGSEGV, sighandler_dump_stack);
+				signal(SIGFPE, sighandler_dump_stack);
 			}
-		} else {
-			signal(SIGSEGV, sighandler_dump_stack);
-			signal(SIGFPE, sighandler_dump_stack);
 		}
 
 		err = test->func(subtest);
-		exit(err);
+		if (!dont_fork)
+			exit(err);
 	}
 
-	wait(&status);
+	if (!dont_fork) {
+		wait(&status);
 
-	if (WIFEXITED(status)) {
-		err = (signed char)WEXITSTATUS(status);
-		pr_debug("test child finished with %d\n", err);
-	} else if (WIFSIGNALED(status)) {
-		err = -1;
-		pr_debug("test child interrupted\n");
+		if (WIFEXITED(status)) {
+			err = (signed char)WEXITSTATUS(status);
+			pr_debug("test child finished with %d\n", err);
+		} else if (WIFSIGNALED(status)) {
+			err = -1;
+			pr_debug("test child interrupted\n");
+		}
 	}
 
 	return err;
@@ -417,6 +450,8 @@ int cmd_test(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_STRING('s', "skip", &skip, "tests", "tests to skip"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('F', "dont-fork", &dont_fork,
+		    "Do not fork for testcase"),
 	OPT_END()
 	};
 	const char * const test_subcommands[] = { "list", NULL };

@@ -28,7 +28,6 @@
 #include <sound/asoundef.h>
 #include <sound/omap-pcm.h>
 #include <sound/omap-hdmi-audio.h>
-#include <video/omapdss.h>
 
 #define DRV_NAME "omap-hdmi-audio"
 

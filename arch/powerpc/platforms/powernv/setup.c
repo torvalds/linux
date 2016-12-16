@@ -58,7 +58,7 @@ static void __init pnv_setup_arch(void)
 	/* XXX PMCS */
 }
 
-static void __init pnv_init_early(void)
+static void __init pnv_init(void)
 {
 	/*
 	 * Initialize the LPC bus now so that legacy serial
@@ -268,17 +268,15 @@ static void __init pnv_setup_machdep_opal(void)
 
 static int __init pnv_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
-
-	if (!of_flat_dt_is_compatible(root, "ibm,powernv"))
+	if (!of_machine_is_compatible("ibm,powernv"))
 		return 0;
-
-	hpte_init_native();
 
 	if (firmware_has_feature(FW_FEATURE_OPAL))
 		pnv_setup_machdep_opal();
 
 	pr_debug("PowerNV detected !\n");
+
+	pnv_init();
 
 	return 1;
 }
@@ -305,14 +303,13 @@ static unsigned long pnv_get_proc_freq(unsigned int cpu)
 define_machine(powernv) {
 	.name			= "PowerNV",
 	.probe			= pnv_probe,
-	.init_early		= pnv_init_early,
 	.setup_arch		= pnv_setup_arch,
 	.init_IRQ		= pnv_init_IRQ,
 	.show_cpuinfo		= pnv_show_cpuinfo,
 	.get_proc_freq          = pnv_get_proc_freq,
 	.progress		= pnv_progress,
 	.machine_shutdown	= pnv_shutdown,
-	.power_save             = power7_idle,
+	.power_save             = NULL,
 	.calibrate_decr		= generic_calibrate_decr,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= pnv_kexec_cpu_down,

@@ -22,6 +22,8 @@
 
 #include <linux/bitops.h>
 #include <linux/bug.h>
+#include <linux/compat.h>
+#include <linux/elf.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/personality.h>
@@ -87,7 +89,8 @@ static const char *const compat_hwcap_str[] = {
 	"idivt",
 	"vfpd32",
 	"lpae",
-	"evtstrm"
+	"evtstrm",
+	NULL
 };
 
 static const char *const compat_hwcap2_str[] = {
@@ -103,6 +106,7 @@ static const char *const compat_hwcap2_str[] = {
 static int c_show(struct seq_file *m, void *v)
 {
 	int i, j;
+	bool compat = personality(current->personality) == PER_LINUX32;
 
 	for_each_online_cpu(i) {
 		struct cpuinfo_arm64 *cpuinfo = &per_cpu(cpu_data, i);
@@ -114,6 +118,9 @@ static int c_show(struct seq_file *m, void *v)
 		 * "processor".  Give glibc what it expects.
 		 */
 		seq_printf(m, "processor\t: %d\n", i);
+		if (compat)
+			seq_printf(m, "model name\t: ARMv8 Processor rev %d (%s)\n",
+				   MIDR_REVISION(midr), COMPAT_ELF_PLATFORM);
 
 		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
 			   loops_per_jiffy / (500000UL/HZ),
@@ -126,7 +133,7 @@ static int c_show(struct seq_file *m, void *v)
 		 * software which does already (at least for 32-bit).
 		 */
 		seq_puts(m, "Features\t:");
-		if (personality(current->personality) == PER_LINUX32) {
+		if (compat) {
 #ifdef CONFIG_COMPAT
 			for (j = 0; compat_hwcap_str[j]; j++)
 				if (compat_elf_hwcap & (1 << j))
@@ -176,6 +183,123 @@ const struct seq_operations cpuinfo_op = {
 	.show	= c_show
 };
 
+
+static struct kobj_type cpuregs_kobj_type = {
+	.sysfs_ops = &kobj_sysfs_ops,
+};
+
+/*
+ * The ARM ARM uses the phrase "32-bit register" to describe a register
+ * whose upper 32 bits are RES0 (per C5.1.1, ARM DDI 0487A.i), however
+ * no statement is made as to whether the upper 32 bits will or will not
+ * be made use of in future, and between ARM DDI 0487A.c and ARM DDI
+ * 0487A.d CLIDR_EL1 was expanded from 32-bit to 64-bit.
+ *
+ * Thus, while both MIDR_EL1 and REVIDR_EL1 are described as 32-bit
+ * registers, we expose them both as 64 bit values to cater for possible
+ * future expansion without an ABI break.
+ */
+#define kobj_to_cpuinfo(kobj)	container_of(kobj, struct cpuinfo_arm64, kobj)
+#define CPUREGS_ATTR_RO(_name, _field)						\
+	static ssize_t _name##_show(struct kobject *kobj,			\
+			struct kobj_attribute *attr, char *buf)			\
+	{									\
+		struct cpuinfo_arm64 *info = kobj_to_cpuinfo(kobj);		\
+										\
+		if (info->reg_midr)						\
+			return sprintf(buf, "0x%016x\n", info->reg_##_field);	\
+		else								\
+			return 0;						\
+	}									\
+	static struct kobj_attribute cpuregs_attr_##_name = __ATTR_RO(_name)
+
+CPUREGS_ATTR_RO(midr_el1, midr);
+CPUREGS_ATTR_RO(revidr_el1, revidr);
+
+static struct attribute *cpuregs_id_attrs[] = {
+	&cpuregs_attr_midr_el1.attr,
+	&cpuregs_attr_revidr_el1.attr,
+	NULL
+};
+
+static struct attribute_group cpuregs_attr_group = {
+	.attrs = cpuregs_id_attrs,
+	.name = "identification"
+};
+
+static int cpuid_add_regs(int cpu)
+{
+	int rc;
+	struct device *dev;
+	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
+
+	dev = get_cpu_device(cpu);
+	if (!dev) {
+		rc = -ENODEV;
+		goto out;
+	}
+	rc = kobject_add(&info->kobj, &dev->kobj, "regs");
+	if (rc)
+		goto out;
+	rc = sysfs_create_group(&info->kobj, &cpuregs_attr_group);
+	if (rc)
+		kobject_del(&info->kobj);
+out:
+	return rc;
+}
+
+static int cpuid_remove_regs(int cpu)
+{
+	struct device *dev;
+	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
+
+	dev = get_cpu_device(cpu);
+	if (!dev)
+		return -ENODEV;
+	if (info->kobj.parent) {
+		sysfs_remove_group(&info->kobj, &cpuregs_attr_group);
+		kobject_del(&info->kobj);
+	}
+
+	return 0;
+}
+
+static int cpuid_callback(struct notifier_block *nb,
+			 unsigned long action, void *hcpu)
+{
+	int rc = 0;
+	unsigned long cpu = (unsigned long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_ONLINE:
+		rc = cpuid_add_regs(cpu);
+		break;
+	case CPU_DEAD:
+		rc = cpuid_remove_regs(cpu);
+		break;
+	}
+
+	return notifier_from_errno(rc);
+}
+
+static int __init cpuinfo_regs_init(void)
+{
+	int cpu;
+
+	cpu_notifier_register_begin();
+
+	for_each_possible_cpu(cpu) {
+		struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
+
+		kobject_init(&info->kobj, &cpuregs_kobj_type);
+		if (cpu_online(cpu))
+			cpuid_add_regs(cpu);
+	}
+	__hotcpu_notifier(cpuid_callback, 0);
+
+	cpu_notifier_register_done();
+	return 0;
+}
 static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 {
 	unsigned int cpu = smp_processor_id();
@@ -205,6 +329,7 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_ctr = read_cpuid_cachetype();
 	info->reg_dczid = read_cpuid(DCZID_EL0);
 	info->reg_midr = read_cpuid_id();
+	info->reg_revidr = read_cpuid(REVIDR_EL1);
 
 	info->reg_id_aa64dfr0 = read_cpuid(ID_AA64DFR0_EL1);
 	info->reg_id_aa64dfr1 = read_cpuid(ID_AA64DFR1_EL1);
@@ -216,23 +341,26 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_aa64pfr0 = read_cpuid(ID_AA64PFR0_EL1);
 	info->reg_id_aa64pfr1 = read_cpuid(ID_AA64PFR1_EL1);
 
-	info->reg_id_dfr0 = read_cpuid(ID_DFR0_EL1);
-	info->reg_id_isar0 = read_cpuid(ID_ISAR0_EL1);
-	info->reg_id_isar1 = read_cpuid(ID_ISAR1_EL1);
-	info->reg_id_isar2 = read_cpuid(ID_ISAR2_EL1);
-	info->reg_id_isar3 = read_cpuid(ID_ISAR3_EL1);
-	info->reg_id_isar4 = read_cpuid(ID_ISAR4_EL1);
-	info->reg_id_isar5 = read_cpuid(ID_ISAR5_EL1);
-	info->reg_id_mmfr0 = read_cpuid(ID_MMFR0_EL1);
-	info->reg_id_mmfr1 = read_cpuid(ID_MMFR1_EL1);
-	info->reg_id_mmfr2 = read_cpuid(ID_MMFR2_EL1);
-	info->reg_id_mmfr3 = read_cpuid(ID_MMFR3_EL1);
-	info->reg_id_pfr0 = read_cpuid(ID_PFR0_EL1);
-	info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
+	/* Update the 32bit ID registers only if AArch32 is implemented */
+	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0)) {
+		info->reg_id_dfr0 = read_cpuid(ID_DFR0_EL1);
+		info->reg_id_isar0 = read_cpuid(ID_ISAR0_EL1);
+		info->reg_id_isar1 = read_cpuid(ID_ISAR1_EL1);
+		info->reg_id_isar2 = read_cpuid(ID_ISAR2_EL1);
+		info->reg_id_isar3 = read_cpuid(ID_ISAR3_EL1);
+		info->reg_id_isar4 = read_cpuid(ID_ISAR4_EL1);
+		info->reg_id_isar5 = read_cpuid(ID_ISAR5_EL1);
+		info->reg_id_mmfr0 = read_cpuid(ID_MMFR0_EL1);
+		info->reg_id_mmfr1 = read_cpuid(ID_MMFR1_EL1);
+		info->reg_id_mmfr2 = read_cpuid(ID_MMFR2_EL1);
+		info->reg_id_mmfr3 = read_cpuid(ID_MMFR3_EL1);
+		info->reg_id_pfr0 = read_cpuid(ID_PFR0_EL1);
+		info->reg_id_pfr1 = read_cpuid(ID_PFR1_EL1);
 
-	info->reg_mvfr0 = read_cpuid(MVFR0_EL1);
-	info->reg_mvfr1 = read_cpuid(MVFR1_EL1);
-	info->reg_mvfr2 = read_cpuid(MVFR2_EL1);
+		info->reg_mvfr0 = read_cpuid(MVFR0_EL1);
+		info->reg_mvfr1 = read_cpuid(MVFR1_EL1);
+		info->reg_mvfr2 = read_cpuid(MVFR2_EL1);
+	}
 
 	cpuinfo_detect_icache_policy(info);
 
@@ -254,3 +382,5 @@ void __init cpuinfo_store_boot_cpu(void)
 	boot_cpu_data = *info;
 	init_cpu_features(&boot_cpu_data);
 }
+
+device_initcall(cpuinfo_regs_init);

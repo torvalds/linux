@@ -1472,7 +1472,7 @@ static long fm_st_receive(void *arg, struct sk_buff *skb)
  * Called by ST layer to indicate protocol registration completion
  * status.
  */
-static void fm_st_reg_comp_cb(void *arg, char data)
+static void fm_st_reg_comp_cb(void *arg, int data)
 {
 	struct fmdev *fmdev;
 

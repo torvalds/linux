@@ -262,7 +262,6 @@ struct cobalt {
 	int instance;
 	struct pci_dev *pci_dev;
 	struct v4l2_device v4l2_dev;
-	void *alloc_ctx;
 
 	void __iomem *bar0, *bar1;
 

@@ -135,6 +135,10 @@ LS1043A ARMv8 based RDB Board
 Required root node properties:
     - compatible = "fsl,ls1043a-rdb", "fsl,ls1043a";
 
+LS1043A ARMv8 based QDS Board
+Required root node properties:
+    - compatible = "fsl,ls1043a-qds", "fsl,ls1043a";
+
 LS2080A ARMv8 based Simulator model
 Required root node properties:
     - compatible = "fsl,ls2080a-simu", "fsl,ls2080a";

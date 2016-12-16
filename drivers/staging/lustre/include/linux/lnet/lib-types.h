@@ -38,6 +38,7 @@
 #include <linux/kthread.h>
 #include <linux/uio.h>
 #include <linux/types.h>
+#include <linux/completion.h>
 
 #include "types.h"
 #include "lnetctl.h"
@@ -273,6 +274,8 @@ typedef struct lnet_ni {
 	int			**ni_refs;	/* percpt reference count */
 	time64_t		  ni_last_alive;/* when I was last alive */
 	lnet_ni_status_t	 *ni_status;	/* my health status */
+	/* per NI LND tunables */
+	struct lnet_ioctl_config_lnd_tunables *ni_lnd_tunables;
 	/* equivalent interfaces to use */
 	char			 *ni_interfaces[LNET_MAX_INTERFACES];
 } lnet_ni_t;
@@ -608,7 +611,7 @@ typedef struct {
 	/* rcd ready for free */
 	struct list_head		  ln_rcd_zombie;
 	/* serialise startup/shutdown */
-	struct semaphore		  ln_rc_signal;
+	struct completion		  ln_rc_signal;
 
 	struct mutex			  ln_api_mutex;
 	struct mutex			  ln_lnd_mutex;

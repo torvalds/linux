@@ -618,8 +618,8 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 				err = mlx4_READ_ENTRY(dev,
 						      entry->index,
 						      mailbox);
-					if (err)
-						goto out_mailbox;
+				if (err)
+					goto out_mailbox;
 				members_count =
 					be32_to_cpu(mgm->members_count) &
 					0xffffff;
@@ -657,8 +657,8 @@ static int remove_promisc_qp(struct mlx4_dev *dev, u8 port,
 				err = mlx4_WRITE_ENTRY(dev,
 						       entry->index,
 						       mailbox);
-					if (err)
-						goto out_mailbox;
+				if (err)
+					goto out_mailbox;
 			}
 		}
 	}
@@ -1102,7 +1102,7 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_mgm *mgm;
 	u32 members_count;
-	int index, prev;
+	int index = -1, prev;
 	int link = 0;
 	int i;
 	int err;
@@ -1181,7 +1181,7 @@ int mlx4_qp_attach_common(struct mlx4_dev *dev, struct mlx4_qp *qp, u8 gid[16],
 		goto out;
 
 out:
-	if (prot == MLX4_PROT_ETH) {
+	if (prot == MLX4_PROT_ETH && index != -1) {
 		/* manage the steering entry for promisc mode */
 		if (new_entry)
 			err = new_steering_entry(dev, port, steer,

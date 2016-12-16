@@ -15,7 +15,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
+#include <linux/bitops.h>
 
 #define DRVNAME "gpio-f7188x"
 
@@ -124,21 +125,27 @@ static inline void superio_exit(int base)
  * GPIO chip.
  */
 
+static int f7188x_gpio_get_direction(struct gpio_chip *chip, unsigned offset);
 static int f7188x_gpio_direction_in(struct gpio_chip *chip, unsigned offset);
 static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset);
 static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value);
 static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value);
+static int f7188x_gpio_set_single_ended(struct gpio_chip *gc,
+					unsigned offset,
+					enum single_ended_mode mode);
 
 #define F7188X_GPIO_BANK(_base, _ngpio, _regbase)			\
 	{								\
 		.chip = {						\
 			.label            = DRVNAME,			\
 			.owner            = THIS_MODULE,		\
+			.get_direction    = f7188x_gpio_get_direction,	\
 			.direction_input  = f7188x_gpio_direction_in,	\
 			.get              = f7188x_gpio_get,		\
 			.direction_output = f7188x_gpio_direction_out,	\
 			.set              = f7188x_gpio_set,		\
+			.set_single_ended = f7188x_gpio_set_single_ended, \
 			.base             = _base,			\
 			.ngpio            = _ngpio,			\
 			.can_sleep        = true,			\
@@ -204,6 +211,26 @@ static struct f7188x_gpio_bank f81866_gpio_bank[] = {
 	F7188X_GPIO_BANK(80, 8, 0x88),
 };
 
+static int f7188x_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+{
+	int err;
+	struct f7188x_gpio_bank *bank =
+		container_of(chip, struct f7188x_gpio_bank, chip);
+	struct f7188x_sio *sio = bank->data->sio;
+	u8 dir;
+
+	err = superio_enter(sio->addr);
+	if (err)
+		return err;
+	superio_select(sio->addr, SIO_LD_GPIO);
+
+	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
+
+	superio_exit(sio->addr);
+
+	return !(dir & 1 << offset);
+}
+
 static int f7188x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
 	int err;
@@ -217,7 +244,7 @@ static int f7188x_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 	superio_select(sio->addr, SIO_LD_GPIO);
 
 	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
-	dir &= ~(1 << offset);
+	dir &= ~BIT(offset);
 	superio_outb(sio->addr, gpio_dir(bank->regbase), dir);
 
 	superio_exit(sio->addr);
@@ -238,7 +265,7 @@ static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset)
 	superio_select(sio->addr, SIO_LD_GPIO);
 
 	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
-	dir = !!(dir & (1 << offset));
+	dir = !!(dir & BIT(offset));
 	if (dir)
 		data = superio_inb(sio->addr, gpio_data_out(bank->regbase));
 	else
@@ -246,7 +273,7 @@ static int f7188x_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 	superio_exit(sio->addr);
 
-	return !!(data & 1 << offset);
+	return !!(data & BIT(offset));
 }
 
 static int f7188x_gpio_direction_out(struct gpio_chip *chip,
@@ -264,13 +291,13 @@ static int f7188x_gpio_direction_out(struct gpio_chip *chip,
 
 	data_out = superio_inb(sio->addr, gpio_data_out(bank->regbase));
 	if (value)
-		data_out |= (1 << offset);
+		data_out |= BIT(offset);
 	else
-		data_out &= ~(1 << offset);
+		data_out &= ~BIT(offset);
 	superio_outb(sio->addr, gpio_data_out(bank->regbase), data_out);
 
 	dir = superio_inb(sio->addr, gpio_dir(bank->regbase));
-	dir |= (1 << offset);
+	dir |= BIT(offset);
 	superio_outb(sio->addr, gpio_dir(bank->regbase), dir);
 
 	superio_exit(sio->addr);
@@ -292,12 +319,41 @@ static void f7188x_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 	data_out = superio_inb(sio->addr, gpio_data_out(bank->regbase));
 	if (value)
-		data_out |= (1 << offset);
+		data_out |= BIT(offset);
 	else
-		data_out &= ~(1 << offset);
+		data_out &= ~BIT(offset);
 	superio_outb(sio->addr, gpio_data_out(bank->regbase), data_out);
 
 	superio_exit(sio->addr);
+}
+
+static int f7188x_gpio_set_single_ended(struct gpio_chip *chip,
+					unsigned offset,
+					enum single_ended_mode mode)
+{
+	int err;
+	struct f7188x_gpio_bank *bank = gpiochip_get_data(chip);
+	struct f7188x_sio *sio = bank->data->sio;
+	u8 data;
+
+	if (mode != LINE_MODE_OPEN_DRAIN &&
+	    mode != LINE_MODE_PUSH_PULL)
+		return -ENOTSUPP;
+
+	err = superio_enter(sio->addr);
+	if (err)
+		return err;
+	superio_select(sio->addr, SIO_LD_GPIO);
+
+	data = superio_inb(sio->addr, gpio_out_mode(bank->regbase));
+	if (mode == LINE_MODE_OPEN_DRAIN)
+		data &= ~BIT(offset);
+	else
+		data |= BIT(offset);
+	superio_outb(sio->addr, gpio_out_mode(bank->regbase), data);
+
+	superio_exit(sio->addr);
+	return 0;
 }
 
 /*

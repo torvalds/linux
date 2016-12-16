@@ -46,19 +46,13 @@ static int act8945a_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, regmap);
 
-	ret = mfd_add_devices(&i2c->dev, PLATFORM_DEVID_NONE, act8945a_devs,
-			      ARRAY_SIZE(act8945a_devs), NULL, 0, NULL);
+	ret = devm_mfd_add_devices(&i2c->dev, PLATFORM_DEVID_NONE,
+				   act8945a_devs, ARRAY_SIZE(act8945a_devs),
+				   NULL, 0, NULL);
 	if (ret) {
 		dev_err(&i2c->dev, "Failed to add sub devices\n");
 		return ret;
 	}
-
-	return 0;
-}
-
-static int act8945a_i2c_remove(struct i2c_client *i2c)
-{
-	mfd_remove_devices(&i2c->dev);
 
 	return 0;
 }
@@ -81,7 +75,6 @@ static struct i2c_driver act8945a_i2c_driver = {
 		   .of_match_table = of_match_ptr(act8945a_of_match),
 	},
 	.probe = act8945a_i2c_probe,
-	.remove = act8945a_i2c_remove,
 	.id_table = act8945a_i2c_id,
 };
 

@@ -37,6 +37,7 @@
 #define IWPM_MAPINFO_HASH_MASK	(IWPM_MAPINFO_HASH_SIZE - 1)
 #define IWPM_REMINFO_HASH_SIZE	64
 #define IWPM_REMINFO_HASH_MASK	(IWPM_REMINFO_HASH_SIZE - 1)
+#define IWPM_MSG_SIZE		512
 
 static LIST_HEAD(iwpm_nlmsg_req_list);
 static DEFINE_SPINLOCK(iwpm_nlmsg_req_lock);
@@ -452,7 +453,7 @@ struct sk_buff *iwpm_create_nlmsg(u32 nl_op, struct nlmsghdr **nlh,
 {
 	struct sk_buff *skb = NULL;
 
-	skb = dev_alloc_skb(NLMSG_GOODSIZE);
+	skb = dev_alloc_skb(IWPM_MSG_SIZE);
 	if (!skb) {
 		pr_err("%s Unable to allocate skb\n", __func__);
 		goto create_nlmsg_exit;
@@ -634,6 +635,7 @@ static int send_nlmsg_done(struct sk_buff *skb, u8 nl_client, int iwpm_pid)
 	if (!(ibnl_put_msg(skb, &nlh, 0, 0, nl_client,
 			   RDMA_NL_IWPM_MAPINFO, NLM_F_MULTI))) {
 		pr_warn("%s Unable to put NLMSG_DONE\n", __func__);
+		dev_kfree_skb(skb);
 		return -ENOMEM;
 	}
 	nlh->nlmsg_type = NLMSG_DONE;

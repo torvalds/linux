@@ -64,7 +64,7 @@ static u64 notrace dbx500_prcmu_sched_clock_read(void)
 
 #endif
 
-static void __init clksrc_dbx500_prcmu_init(struct device_node *node)
+static int __init clksrc_dbx500_prcmu_init(struct device_node *node)
 {
 	clksrc_dbx500_timer_base = of_iomap(node, 0);
 
@@ -84,7 +84,7 @@ static void __init clksrc_dbx500_prcmu_init(struct device_node *node)
 #ifdef CONFIG_CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 	sched_clock_register(dbx500_prcmu_sched_clock_read, 32, RATE_32K);
 #endif
-	clocksource_register_hz(&clocksource_dbx500_prcmu, RATE_32K);
+	return clocksource_register_hz(&clocksource_dbx500_prcmu, RATE_32K);
 }
 CLOCKSOURCE_OF_DECLARE(dbx500_prcmu, "stericsson,db8500-prcmu-timer-4",
 		       clksrc_dbx500_prcmu_init);

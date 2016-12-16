@@ -519,6 +519,9 @@ enum {
 #ifdef CONFIG_SFC_SRIOV
  * @vf: Pointer to VF data structure
 #endif
+ * @vport_mac: The MAC address on the vport, only for PFs; VFs will be zero
+ * @vlan_list: List of VLANs added over the interface. Serialised by vlan_lock.
+ * @vlan_lock: Lock to serialize access to vlan_list.
  */
 struct efx_ef10_nic_data {
 	struct efx_buffer mcdi_buf;
@@ -550,6 +553,8 @@ struct efx_ef10_nic_data {
 	struct ef10_vf *vf;
 #endif
 	u8 vport_mac[ETH_ALEN];
+	struct list_head vlan_list;
+	struct mutex vlan_lock;
 };
 
 int efx_init_sriov(void);

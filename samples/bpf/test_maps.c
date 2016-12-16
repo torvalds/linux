@@ -68,7 +68,16 @@ static void test_hashmap_sanity(int i, void *data)
 	assert(bpf_update_elem(map_fd, &key, &value, BPF_NOEXIST) == -1 &&
 	       errno == E2BIG);
 
+	/* update existing element, thought the map is full */
+	key = 1;
+	assert(bpf_update_elem(map_fd, &key, &value, BPF_EXIST) == 0);
+	key = 2;
+	assert(bpf_update_elem(map_fd, &key, &value, BPF_ANY) == 0);
+	key = 1;
+	assert(bpf_update_elem(map_fd, &key, &value, BPF_ANY) == 0);
+
 	/* check that key = 0 doesn't exist */
+	key = 0;
 	assert(bpf_delete_elem(map_fd, &key) == -1 && errno == ENOENT);
 
 	/* iterate over two elements */
@@ -413,10 +422,12 @@ static void do_work(int fn, void *data)
 
 	for (i = fn; i < MAP_SIZE; i += TASKS) {
 		key = value = i;
-		if (do_update)
+		if (do_update) {
 			assert(bpf_update_elem(map_fd, &key, &value, BPF_NOEXIST) == 0);
-		else
+			assert(bpf_update_elem(map_fd, &key, &value, BPF_EXIST) == 0);
+		} else {
 			assert(bpf_delete_elem(map_fd, &key) == 0);
+		}
 	}
 }
 

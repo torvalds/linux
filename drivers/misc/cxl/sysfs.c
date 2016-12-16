@@ -57,6 +57,15 @@ static ssize_t image_loaded_show(struct device *device,
 	return scnprintf(buf, PAGE_SIZE, "factory\n");
 }
 
+static ssize_t psl_timebase_synced_show(struct device *device,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct cxl *adapter = to_cxl_adapter(device);
+
+	return scnprintf(buf, PAGE_SIZE, "%i\n", adapter->psl_timebase_synced);
+}
+
 static ssize_t reset_adapter_store(struct device *device,
 				   struct device_attribute *attr,
 				   const char *buf, size_t count)
@@ -142,6 +151,7 @@ static struct device_attribute adapter_attrs[] = {
 	__ATTR_RO(psl_revision),
 	__ATTR_RO(base_image),
 	__ATTR_RO(image_loaded),
+	__ATTR_RO(psl_timebase_synced),
 	__ATTR_RW(load_image_on_perst),
 	__ATTR_RW(perst_reloads_same_image),
 	__ATTR(reset, S_IWUSR, NULL, reset_adapter_store),

@@ -409,20 +409,6 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 		       CHELSIO_CHIP_RELEASE(c4iw_dev->rdev.lldi.adapter_type));
 }
 
-static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,
-			   char *buf)
-{
-	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev,
-						 ibdev.dev);
-	PDBG("%s dev 0x%p\n", __func__, dev);
-
-	return sprintf(buf, "%u.%u.%u.%u\n",
-			FW_HDR_FW_VER_MAJOR_G(c4iw_dev->rdev.lldi.fw_vers),
-			FW_HDR_FW_VER_MINOR_G(c4iw_dev->rdev.lldi.fw_vers),
-			FW_HDR_FW_VER_MICRO_G(c4iw_dev->rdev.lldi.fw_vers),
-			FW_HDR_FW_VER_BUILD_G(c4iw_dev->rdev.lldi.fw_vers));
-}
-
 static ssize_t show_hca(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
@@ -446,30 +432,67 @@ static ssize_t show_board(struct device *dev, struct device_attribute *attr,
 		       c4iw_dev->rdev.lldi.pdev->device);
 }
 
+enum counters {
+	IP4INSEGS,
+	IP4OUTSEGS,
+	IP4RETRANSSEGS,
+	IP4OUTRSTS,
+	IP6INSEGS,
+	IP6OUTSEGS,
+	IP6RETRANSSEGS,
+	IP6OUTRSTS,
+	NR_COUNTERS
+};
+
+static const char * const names[] = {
+	[IP4INSEGS] = "ip4InSegs",
+	[IP4OUTSEGS] = "ip4OutSegs",
+	[IP4RETRANSSEGS] = "ip4RetransSegs",
+	[IP4OUTRSTS] = "ip4OutRsts",
+	[IP6INSEGS] = "ip6InSegs",
+	[IP6OUTSEGS] = "ip6OutSegs",
+	[IP6RETRANSSEGS] = "ip6RetransSegs",
+	[IP6OUTRSTS] = "ip6OutRsts"
+};
+
+static struct rdma_hw_stats *c4iw_alloc_stats(struct ib_device *ibdev,
+					      u8 port_num)
+{
+	BUILD_BUG_ON(ARRAY_SIZE(names) != NR_COUNTERS);
+
+	if (port_num != 0)
+		return NULL;
+
+	return rdma_alloc_hw_stats_struct(names, NR_COUNTERS,
+					  RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
 static int c4iw_get_mib(struct ib_device *ibdev,
-			union rdma_protocol_stats *stats)
+			struct rdma_hw_stats *stats,
+			u8 port, int index)
 {
 	struct tp_tcp_stats v4, v6;
 	struct c4iw_dev *c4iw_dev = to_c4iw_dev(ibdev);
 
 	cxgb4_get_tcp_stats(c4iw_dev->rdev.lldi.pdev, &v4, &v6);
-	memset(stats, 0, sizeof *stats);
-	stats->iw.tcpInSegs = v4.tcp_in_segs + v6.tcp_in_segs;
-	stats->iw.tcpOutSegs = v4.tcp_out_segs + v6.tcp_out_segs;
-	stats->iw.tcpRetransSegs = v4.tcp_retrans_segs + v6.tcp_retrans_segs;
-	stats->iw.tcpOutRsts = v4.tcp_out_rsts + v6.tcp_out_rsts;
+	stats->value[IP4INSEGS] = v4.tcp_in_segs;
+	stats->value[IP4OUTSEGS] = v4.tcp_out_segs;
+	stats->value[IP4RETRANSSEGS] = v4.tcp_retrans_segs;
+	stats->value[IP4OUTRSTS] = v4.tcp_out_rsts;
+	stats->value[IP6INSEGS] = v6.tcp_in_segs;
+	stats->value[IP6OUTSEGS] = v6.tcp_out_segs;
+	stats->value[IP6RETRANSSEGS] = v6.tcp_retrans_segs;
+	stats->value[IP6OUTRSTS] = v6.tcp_out_rsts;
 
-	return 0;
+	return stats->num_counters;
 }
 
 static DEVICE_ATTR(hw_rev, S_IRUGO, show_rev, NULL);
-static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
 static DEVICE_ATTR(hca_type, S_IRUGO, show_hca, NULL);
 static DEVICE_ATTR(board_id, S_IRUGO, show_board, NULL);
 
 static struct device_attribute *c4iw_class_attributes[] = {
 	&dev_attr_hw_rev,
-	&dev_attr_fw_ver,
 	&dev_attr_hca_type,
 	&dev_attr_board_id,
 };
@@ -489,6 +512,20 @@ static int c4iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
 
 	return 0;
+}
+
+static void get_dev_fw_str(struct ib_device *dev, char *str,
+			   size_t str_len)
+{
+	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev,
+						 ibdev);
+	PDBG("%s dev 0x%p\n", __func__, dev);
+
+	snprintf(str, str_len, "%u.%u.%u.%u",
+		 FW_HDR_FW_VER_MAJOR_G(c4iw_dev->rdev.lldi.fw_vers),
+		 FW_HDR_FW_VER_MINOR_G(c4iw_dev->rdev.lldi.fw_vers),
+		 FW_HDR_FW_VER_MICRO_G(c4iw_dev->rdev.lldi.fw_vers),
+		 FW_HDR_FW_VER_BUILD_G(c4iw_dev->rdev.lldi.fw_vers));
 }
 
 int c4iw_register_device(struct c4iw_dev *dev)
@@ -562,9 +599,11 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.req_notify_cq = c4iw_arm_cq;
 	dev->ibdev.post_send = c4iw_post_send;
 	dev->ibdev.post_recv = c4iw_post_receive;
-	dev->ibdev.get_protocol_stats = c4iw_get_mib;
+	dev->ibdev.alloc_hw_stats = c4iw_alloc_stats;
+	dev->ibdev.get_hw_stats = c4iw_get_mib;
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 	dev->ibdev.get_port_immutable = c4iw_port_immutable;
+	dev->ibdev.get_dev_fw_str = get_dev_fw_str;
 	dev->ibdev.drain_sq = c4iw_drain_sq;
 	dev->ibdev.drain_rq = c4iw_drain_rq;
 

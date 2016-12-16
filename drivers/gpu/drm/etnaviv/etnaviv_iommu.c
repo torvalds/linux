@@ -225,6 +225,7 @@ struct iommu_domain *etnaviv_iommu_domain_alloc(struct etnaviv_gpu *gpu)
 
 	etnaviv_domain->domain.type = __IOMMU_DOMAIN_PAGING;
 	etnaviv_domain->domain.ops = &etnaviv_iommu_ops.ops;
+	etnaviv_domain->domain.pgsize_bitmap = SZ_4K;
 	etnaviv_domain->domain.geometry.aperture_start = GPU_MEM_START;
 	etnaviv_domain->domain.geometry.aperture_end = GPU_MEM_START + PT_ENTRIES * SZ_4K - 1;
 

@@ -38,6 +38,13 @@ xattr_permission(struct inode *inode, const char *name, int mask)
 	if (mask & MAY_WRITE) {
 		if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
 			return -EPERM;
+		/*
+		 * Updating an xattr will likely cause i_uid and i_gid
+		 * to be writen back improperly if their true value is
+		 * unknown to the vfs.
+		 */
+		if (HAS_UNMAPPED_ID(inode))
+			return -EPERM;
 	}
 
 	/*
@@ -100,7 +107,7 @@ int __vfs_setxattr_noperm(struct dentry *dentry, const char *name,
 	if (issec)
 		inode->i_flags &= ~S_NOSEC;
 	if (inode->i_op->setxattr) {
-		error = inode->i_op->setxattr(dentry, name, value, size, flags);
+		error = inode->i_op->setxattr(dentry, inode, name, value, size, flags);
 		if (!error) {
 			fsnotify_xattr(dentry);
 			security_inode_post_setxattr(dentry, name, value,
@@ -192,7 +199,7 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 	if (!inode->i_op->getxattr)
 		return -EOPNOTSUPP;
 
-	error = inode->i_op->getxattr(dentry, name, NULL, 0);
+	error = inode->i_op->getxattr(dentry, inode, name, NULL, 0);
 	if (error < 0)
 		return error;
 
@@ -203,7 +210,7 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
 		memset(value, 0, error + 1);
 	}
 
-	error = inode->i_op->getxattr(dentry, name, value, error);
+	error = inode->i_op->getxattr(dentry, inode, name, value, error);
 	*xattr_value = value;
 	return error;
 }
@@ -236,7 +243,7 @@ vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
 	}
 nolsm:
 	if (inode->i_op->getxattr)
-		error = inode->i_op->getxattr(dentry, name, value, size);
+		error = inode->i_op->getxattr(dentry, inode, name, value, size);
 	else
 		error = -EOPNOTSUPP;
 
@@ -655,6 +662,7 @@ strcmp_prefix(const char *a, const char *a_prefix)
  * operations to the correct xattr_handler.
  */
 #define for_each_xattr_handler(handlers, handler)		\
+	if (handlers)						\
 		for ((handler) = *(handlers)++;			\
 			(handler) != NULL;			\
 			(handler) = *(handlers)++)
@@ -668,7 +676,7 @@ xattr_resolve_name(const struct xattr_handler **handlers, const char **name)
 	const struct xattr_handler *handler;
 
 	if (!*name)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	for_each_xattr_handler(handlers, handler) {
 		const char *n;
@@ -691,14 +699,16 @@ xattr_resolve_name(const struct xattr_handler **handlers, const char **name)
  * Find the handler for the prefix and dispatch its get() operation.
  */
 ssize_t
-generic_getxattr(struct dentry *dentry, const char *name, void *buffer, size_t size)
+generic_getxattr(struct dentry *dentry, struct inode *inode,
+		 const char *name, void *buffer, size_t size)
 {
 	const struct xattr_handler *handler;
 
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
-	return handler->get(handler, dentry, name, buffer, size);
+	return handler->get(handler, dentry, inode,
+			    name, buffer, size);
 }
 
 /*
@@ -742,7 +752,8 @@ generic_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
  * Find the handler for the prefix and dispatch its set() operation.
  */
 int
-generic_setxattr(struct dentry *dentry, const char *name, const void *value, size_t size, int flags)
+generic_setxattr(struct dentry *dentry, struct inode *inode, const char *name,
+		 const void *value, size_t size, int flags)
 {
 	const struct xattr_handler *handler;
 
@@ -751,7 +762,7 @@ generic_setxattr(struct dentry *dentry, const char *name, const void *value, siz
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
-	return handler->set(handler, dentry, name, value, size, flags);
+	return handler->set(handler, dentry, inode, name, value, size, flags);
 }
 
 /*
@@ -766,7 +777,8 @@ generic_removexattr(struct dentry *dentry, const char *name)
 	handler = xattr_resolve_name(dentry->d_sb->s_xattr, &name);
 	if (IS_ERR(handler))
 		return PTR_ERR(handler);
-	return handler->set(handler, dentry, name, NULL, 0, XATTR_REPLACE);
+	return handler->set(handler, dentry, d_inode(dentry), name, NULL,
+			    0, XATTR_REPLACE);
 }
 
 EXPORT_SYMBOL(generic_getxattr);

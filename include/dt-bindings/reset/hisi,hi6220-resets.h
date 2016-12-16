@@ -64,4 +64,12 @@
 #define PERIPH_RSDIST9_CARM_SOCDBG      0x507
 #define PERIPH_RSDIST9_CARM_ETM         0x508
 
+#define MEDIA_G3D                       0
+#define MEDIA_CODEC_VPU                 2
+#define MEDIA_CODEC_JPEG                3
+#define MEDIA_ISP                       4
+#define MEDIA_ADE                       5
+#define MEDIA_MMU                       6
+#define MEDIA_XG2RAM1                   7
+
 #endif /*_DT_BINDINGS_RESET_CONTROLLER_HI6220*/

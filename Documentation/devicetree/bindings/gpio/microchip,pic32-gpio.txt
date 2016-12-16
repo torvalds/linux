@@ -33,7 +33,7 @@ gpio0: gpio0@1f860000 {
 	gpio-controller;
 	interrupt-controller;
 	#interrupt-cells = <2>;
-	clocks = <&PBCLK4>;
+	clocks = <&rootclk PB4CLK>;
 	microchip,gpio-bank = <0>;
 	gpio-ranges = <&pic32_pinctrl 0 0 16>;
 };

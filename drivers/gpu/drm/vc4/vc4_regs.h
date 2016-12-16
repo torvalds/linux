@@ -341,6 +341,10 @@
 #define SCALER_DISPLACT0                        0x00000030
 #define SCALER_DISPLACT1                        0x00000034
 #define SCALER_DISPLACT2                        0x00000038
+#define SCALER_DISPLACTX(x)			(SCALER_DISPLACT0 +	\
+						 (x) * (SCALER_DISPLACT1 - \
+							SCALER_DISPLACT0))
+
 #define SCALER_DISPCTRL0                        0x00000040
 # define SCALER_DISPCTRLX_ENABLE		BIT(31)
 # define SCALER_DISPCTRLX_RESET			BIT(30)
@@ -362,7 +366,6 @@
 # define SCALER_DISPBKGND_FILL			BIT(24)
 
 #define SCALER_DISPSTAT0                        0x00000048
-#define SCALER_DISPBASE0                        0x0000004c
 # define SCALER_DISPSTATX_MODE_MASK		VC4_MASK(31, 30)
 # define SCALER_DISPSTATX_MODE_SHIFT		30
 # define SCALER_DISPSTATX_MODE_DISABLED		0
@@ -371,6 +374,24 @@
 # define SCALER_DISPSTATX_MODE_EOF		3
 # define SCALER_DISPSTATX_FULL			BIT(29)
 # define SCALER_DISPSTATX_EMPTY			BIT(28)
+# define SCALER_DISPSTATX_FRAME_COUNT_MASK	VC4_MASK(17, 12)
+# define SCALER_DISPSTATX_FRAME_COUNT_SHIFT	12
+# define SCALER_DISPSTATX_LINE_MASK		VC4_MASK(11, 0)
+# define SCALER_DISPSTATX_LINE_SHIFT		0
+
+#define SCALER_DISPBASE0                        0x0000004c
+/* Last pixel in the COB (display FIFO memory) allocated to this HVS
+ * channel.  Must be 4-pixel aligned (and thus 4 pixels less than the
+ * next COB base).
+ */
+# define SCALER_DISPBASEX_TOP_MASK		VC4_MASK(31, 16)
+# define SCALER_DISPBASEX_TOP_SHIFT		16
+/* First pixel in the COB (display FIFO memory) allocated to this HVS
+ * channel.  Must be 4-pixel aligned.
+ */
+# define SCALER_DISPBASEX_BASE_MASK		VC4_MASK(15, 0)
+# define SCALER_DISPBASEX_BASE_SHIFT		0
+
 #define SCALER_DISPCTRL1                        0x00000050
 #define SCALER_DISPBKGND1                       0x00000054
 #define SCALER_DISPBKGNDX(x)			(SCALER_DISPBKGND0 +        \
@@ -381,6 +402,9 @@
 						 (x) * (SCALER_DISPSTAT1 - \
 							SCALER_DISPSTAT0))
 #define SCALER_DISPBASE1                        0x0000005c
+#define SCALER_DISPBASEX(x)			(SCALER_DISPBASE0 +        \
+						 (x) * (SCALER_DISPBASE1 - \
+							SCALER_DISPBASE0))
 #define SCALER_DISPCTRL2                        0x00000060
 #define SCALER_DISPCTRLX(x)			(SCALER_DISPCTRL0 +        \
 						 (x) * (SCALER_DISPCTRL1 - \
@@ -390,6 +414,12 @@
 #define SCALER_DISPBASE2                        0x0000006c
 #define SCALER_DISPALPHA2                       0x00000070
 #define SCALER_GAMADDR                          0x00000078
+# define SCALER_GAMADDR_AUTOINC			BIT(31)
+/* Enables all gamma ramp SRAMs, not just those of CRTCs with gamma
+ * enabled.
+ */
+# define SCALER_GAMADDR_SRAMENB			BIT(30)
+
 #define SCALER_GAMDATA                          0x000000e0
 #define SCALER_DLIST_START                      0x00002000
 #define SCALER_DLIST_SIZE                       0x00004000

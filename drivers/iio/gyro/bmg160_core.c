@@ -17,7 +17,6 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/iio/iio.h>
@@ -31,7 +30,6 @@
 #include "bmg160.h"
 
 #define BMG160_IRQ_NAME		"bmg160_event"
-#define BMG160_GPIO_NAME		"gpio_int"
 
 #define BMG160_REG_CHIP_ID		0x00
 #define BMG160_CHIP_ID_VAL		0x0F
@@ -52,6 +50,7 @@
 #define BMG160_REG_PMU_BW		0x10
 #define BMG160_NO_FILTER		0
 #define BMG160_DEF_BW			100
+#define BMG160_REG_PMU_BW_RES		BIT(7)
 
 #define BMG160_REG_INT_MAP_0		0x17
 #define BMG160_INT_MAP_0_BIT_ANY	BIT(1)
@@ -97,13 +96,11 @@
 #define BMG160_AUTO_SUSPEND_DELAY_MS	2000
 
 struct bmg160_data {
-	struct device *dev;
 	struct regmap *regmap;
 	struct iio_trigger *dready_trig;
 	struct iio_trigger *motion_trig;
 	struct mutex mutex;
 	s16 buffer[8];
-	u8 bw_bits;
 	u32 dps_range;
 	int ev_enable_state;
 	int slope_thres;
@@ -116,16 +113,20 @@ enum bmg160_axis {
 	AXIS_X,
 	AXIS_Y,
 	AXIS_Z,
+	AXIS_MAX,
 };
 
 static const struct {
-	int val;
+	int odr;
+	int filter;
 	int bw_bits;
-} bmg160_samp_freq_table[] = { {100, 0x07},
-			       {200, 0x06},
-			       {400, 0x03},
-			       {1000, 0x02},
-			       {2000, 0x01} };
+} bmg160_samp_freq_table[] = { {100, 32, 0x07},
+			       {200, 64, 0x06},
+			       {100, 12, 0x05},
+			       {200, 23, 0x04},
+			       {400, 47, 0x03},
+			       {1000, 116, 0x02},
+			       {2000, 230, 0x01} };
 
 static const struct {
 	int scale;
@@ -138,11 +139,12 @@ static const struct {
 
 static int bmg160_set_mode(struct bmg160_data *data, u8 mode)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	ret = regmap_write(data->regmap, BMG160_REG_PMU_LPW, mode);
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_pmu_lpw\n");
+		dev_err(dev, "Error writing reg_pmu_lpw\n");
 		return ret;
 	}
 
@@ -154,7 +156,7 @@ static int bmg160_convert_freq_to_bit(int val)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(bmg160_samp_freq_table); ++i) {
-		if (bmg160_samp_freq_table[i].val == val)
+		if (bmg160_samp_freq_table[i].odr == val)
 			return bmg160_samp_freq_table[i].bw_bits;
 	}
 
@@ -163,6 +165,7 @@ static int bmg160_convert_freq_to_bit(int val)
 
 static int bmg160_set_bw(struct bmg160_data *data, int val)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	int bw_bits;
 
@@ -172,29 +175,76 @@ static int bmg160_set_bw(struct bmg160_data *data, int val)
 
 	ret = regmap_write(data->regmap, BMG160_REG_PMU_BW, bw_bits);
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_pmu_bw\n");
+		dev_err(dev, "Error writing reg_pmu_bw\n");
 		return ret;
 	}
 
-	data->bw_bits = bw_bits;
+	return 0;
+}
+
+static int bmg160_get_filter(struct bmg160_data *data, int *val)
+{
+	struct device *dev = regmap_get_device(data->regmap);
+	int ret;
+	int i;
+	unsigned int bw_bits;
+
+	ret = regmap_read(data->regmap, BMG160_REG_PMU_BW, &bw_bits);
+	if (ret < 0) {
+		dev_err(dev, "Error reading reg_pmu_bw\n");
+		return ret;
+	}
+
+	/* Ignore the readonly reserved bit. */
+	bw_bits &= ~BMG160_REG_PMU_BW_RES;
+
+	for (i = 0; i < ARRAY_SIZE(bmg160_samp_freq_table); ++i) {
+		if (bmg160_samp_freq_table[i].bw_bits == bw_bits)
+			break;
+	}
+
+	*val = bmg160_samp_freq_table[i].filter;
+
+	return ret ? ret : IIO_VAL_INT;
+}
+
+
+static int bmg160_set_filter(struct bmg160_data *data, int val)
+{
+	struct device *dev = regmap_get_device(data->regmap);
+	int ret;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bmg160_samp_freq_table); ++i) {
+		if (bmg160_samp_freq_table[i].filter == val)
+			break;
+	}
+
+	ret = regmap_write(data->regmap, BMG160_REG_PMU_BW,
+			   bmg160_samp_freq_table[i].bw_bits);
+	if (ret < 0) {
+		dev_err(dev, "Error writing reg_pmu_bw\n");
+		return ret;
+	}
 
 	return 0;
 }
 
 static int bmg160_chip_init(struct bmg160_data *data)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	unsigned int val;
 
 	ret = regmap_read(data->regmap, BMG160_REG_CHIP_ID, &val);
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading reg_chip_id\n");
+		dev_err(dev, "Error reading reg_chip_id\n");
 		return ret;
 	}
 
-	dev_dbg(data->dev, "Chip Id %x\n", val);
+	dev_dbg(dev, "Chip Id %x\n", val);
 	if (val != BMG160_CHIP_ID_VAL) {
-		dev_err(data->dev, "invalid chip %x\n", val);
+		dev_err(dev, "invalid chip %x\n", val);
 		return -ENODEV;
 	}
 
@@ -213,14 +263,14 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	/* Set Default Range */
 	ret = regmap_write(data->regmap, BMG160_REG_RANGE, BMG160_RANGE_500DPS);
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_range\n");
+		dev_err(dev, "Error writing reg_range\n");
 		return ret;
 	}
 	data->dps_range = BMG160_RANGE_500DPS;
 
 	ret = regmap_read(data->regmap, BMG160_REG_SLOPE_THRES, &val);
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading reg_slope_thres\n");
+		dev_err(dev, "Error reading reg_slope_thres\n");
 		return ret;
 	}
 	data->slope_thres = val;
@@ -229,7 +279,7 @@ static int bmg160_chip_init(struct bmg160_data *data)
 	ret = regmap_update_bits(data->regmap, BMG160_REG_INT_EN_1,
 				 BMG160_INT1_BIT_OD, 0);
 	if (ret < 0) {
-		dev_err(data->dev, "Error updating bits in reg_int_en_1\n");
+		dev_err(dev, "Error updating bits in reg_int_en_1\n");
 		return ret;
 	}
 
@@ -237,7 +287,7 @@ static int bmg160_chip_init(struct bmg160_data *data)
 			   BMG160_INT_MODE_LATCH_INT |
 			   BMG160_INT_MODE_LATCH_RESET);
 	if (ret < 0) {
-		dev_err(data->dev,
+		dev_err(dev,
 			"Error writing reg_motion_intr\n");
 		return ret;
 	}
@@ -248,20 +298,21 @@ static int bmg160_chip_init(struct bmg160_data *data)
 static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 {
 #ifdef CONFIG_PM
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	if (on)
-		ret = pm_runtime_get_sync(data->dev);
+		ret = pm_runtime_get_sync(dev);
 	else {
-		pm_runtime_mark_last_busy(data->dev);
-		ret = pm_runtime_put_autosuspend(data->dev);
+		pm_runtime_mark_last_busy(dev);
+		ret = pm_runtime_put_autosuspend(dev);
 	}
 
 	if (ret < 0) {
-		dev_err(data->dev,
-			"Failed: bmg160_set_power_state for %d\n", on);
+		dev_err(dev, "Failed: bmg160_set_power_state for %d\n", on);
+
 		if (on)
-			pm_runtime_put_noidle(data->dev);
+			pm_runtime_put_noidle(dev);
 
 		return ret;
 	}
@@ -273,6 +324,7 @@ static int bmg160_set_power_state(struct bmg160_data *data, bool on)
 static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 					     bool status)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	/* Enable/Disable INT_MAP0 mapping */
@@ -280,7 +332,7 @@ static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 				 BMG160_INT_MAP_0_BIT_ANY,
 				 (status ? BMG160_INT_MAP_0_BIT_ANY : 0));
 	if (ret < 0) {
-		dev_err(data->dev, "Error updating bits reg_int_map0\n");
+		dev_err(dev, "Error updating bits reg_int_map0\n");
 		return ret;
 	}
 
@@ -290,8 +342,7 @@ static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 		ret = regmap_write(data->regmap, BMG160_REG_SLOPE_THRES,
 				   data->slope_thres);
 		if (ret < 0) {
-			dev_err(data->dev,
-				"Error writing reg_slope_thres\n");
+			dev_err(dev, "Error writing reg_slope_thres\n");
 			return ret;
 		}
 
@@ -299,8 +350,7 @@ static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 				   BMG160_INT_MOTION_X | BMG160_INT_MOTION_Y |
 				   BMG160_INT_MOTION_Z);
 		if (ret < 0) {
-			dev_err(data->dev,
-				"Error writing reg_motion_intr\n");
+			dev_err(dev, "Error writing reg_motion_intr\n");
 			return ret;
 		}
 
@@ -315,8 +365,7 @@ static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 					   BMG160_INT_MODE_LATCH_INT |
 					   BMG160_INT_MODE_LATCH_RESET);
 			if (ret < 0) {
-				dev_err(data->dev,
-					"Error writing reg_rst_latch\n");
+				dev_err(dev, "Error writing reg_rst_latch\n");
 				return ret;
 			}
 		}
@@ -329,7 +378,7 @@ static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 	}
 
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_int_en0\n");
+		dev_err(dev, "Error writing reg_int_en0\n");
 		return ret;
 	}
 
@@ -339,6 +388,7 @@ static int bmg160_setup_any_motion_interrupt(struct bmg160_data *data,
 static int bmg160_setup_new_data_interrupt(struct bmg160_data *data,
 					   bool status)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	/* Enable/Disable INT_MAP1 mapping */
@@ -346,7 +396,7 @@ static int bmg160_setup_new_data_interrupt(struct bmg160_data *data,
 				 BMG160_INT_MAP_1_BIT_NEW_DATA,
 				 (status ? BMG160_INT_MAP_1_BIT_NEW_DATA : 0));
 	if (ret < 0) {
-		dev_err(data->dev, "Error updating bits in reg_int_map1\n");
+		dev_err(dev, "Error updating bits in reg_int_map1\n");
 		return ret;
 	}
 
@@ -355,9 +405,8 @@ static int bmg160_setup_new_data_interrupt(struct bmg160_data *data,
 				   BMG160_INT_MODE_NON_LATCH_INT |
 				   BMG160_INT_MODE_LATCH_RESET);
 		if (ret < 0) {
-			dev_err(data->dev,
-				"Error writing reg_rst_latch\n");
-				return ret;
+			dev_err(dev, "Error writing reg_rst_latch\n");
+			return ret;
 		}
 
 		ret = regmap_write(data->regmap, BMG160_REG_INT_EN_0,
@@ -369,16 +418,15 @@ static int bmg160_setup_new_data_interrupt(struct bmg160_data *data,
 				   BMG160_INT_MODE_LATCH_INT |
 				   BMG160_INT_MODE_LATCH_RESET);
 		if (ret < 0) {
-			dev_err(data->dev,
-				"Error writing reg_rst_latch\n");
-				return ret;
+			dev_err(dev, "Error writing reg_rst_latch\n");
+			return ret;
 		}
 
 		ret = regmap_write(data->regmap, BMG160_REG_INT_EN_0, 0);
 	}
 
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_int_en0\n");
+		dev_err(dev, "Error writing reg_int_en0\n");
 		return ret;
 	}
 
@@ -387,11 +435,23 @@ static int bmg160_setup_new_data_interrupt(struct bmg160_data *data,
 
 static int bmg160_get_bw(struct bmg160_data *data, int *val)
 {
+	struct device *dev = regmap_get_device(data->regmap);	
 	int i;
+	unsigned int bw_bits;
+	int ret;
+
+	ret = regmap_read(data->regmap, BMG160_REG_PMU_BW, &bw_bits);
+	if (ret < 0) {
+		dev_err(dev, "Error reading reg_pmu_bw\n");
+		return ret;
+	}
+
+	/* Ignore the readonly reserved bit. */
+	bw_bits &= ~BMG160_REG_PMU_BW_RES;
 
 	for (i = 0; i < ARRAY_SIZE(bmg160_samp_freq_table); ++i) {
-		if (bmg160_samp_freq_table[i].bw_bits == data->bw_bits) {
-			*val = bmg160_samp_freq_table[i].val;
+		if (bmg160_samp_freq_table[i].bw_bits == bw_bits) {
+			*val = bmg160_samp_freq_table[i].odr;
 			return IIO_VAL_INT;
 		}
 	}
@@ -401,6 +461,7 @@ static int bmg160_get_bw(struct bmg160_data *data, int *val)
 
 static int bmg160_set_scale(struct bmg160_data *data, int val)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret, i;
 
 	for (i = 0; i < ARRAY_SIZE(bmg160_scale_table); ++i) {
@@ -408,8 +469,7 @@ static int bmg160_set_scale(struct bmg160_data *data, int val)
 			ret = regmap_write(data->regmap, BMG160_REG_RANGE,
 					   bmg160_scale_table[i].dps_range);
 			if (ret < 0) {
-				dev_err(data->dev,
-					"Error writing reg_range\n");
+				dev_err(dev, "Error writing reg_range\n");
 				return ret;
 			}
 			data->dps_range = bmg160_scale_table[i].dps_range;
@@ -422,6 +482,7 @@ static int bmg160_set_scale(struct bmg160_data *data, int val)
 
 static int bmg160_get_temp(struct bmg160_data *data, int *val)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	unsigned int raw_val;
 
@@ -434,7 +495,7 @@ static int bmg160_get_temp(struct bmg160_data *data, int *val)
 
 	ret = regmap_read(data->regmap, BMG160_REG_TEMP, &raw_val);
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading reg_temp\n");
+		dev_err(dev, "Error reading reg_temp\n");
 		bmg160_set_power_state(data, false);
 		mutex_unlock(&data->mutex);
 		return ret;
@@ -451,6 +512,7 @@ static int bmg160_get_temp(struct bmg160_data *data, int *val)
 
 static int bmg160_get_axis(struct bmg160_data *data, int axis, int *val)
 {
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	__le16 raw_val;
 
@@ -464,7 +526,7 @@ static int bmg160_get_axis(struct bmg160_data *data, int axis, int *val)
 	ret = regmap_bulk_read(data->regmap, BMG160_AXIS_TO_REG(axis), &raw_val,
 			       sizeof(raw_val));
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading axis %d\n", axis);
+		dev_err(dev, "Error reading axis %d\n", axis);
 		bmg160_set_power_state(data, false);
 		mutex_unlock(&data->mutex);
 		return ret;
@@ -506,6 +568,8 @@ static int bmg160_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT;
 		} else
 			return -EINVAL;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		return bmg160_get_filter(data, val);
 	case IIO_CHAN_INFO_SCALE:
 		*val = 0;
 		switch (chan->type) {
@@ -562,6 +626,26 @@ static int bmg160_write_raw(struct iio_dev *indio_dev,
 			return ret;
 		}
 		ret = bmg160_set_bw(data, val);
+		if (ret < 0) {
+			bmg160_set_power_state(data, false);
+			mutex_unlock(&data->mutex);
+			return ret;
+		}
+		ret = bmg160_set_power_state(data, false);
+		mutex_unlock(&data->mutex);
+		return ret;
+	case IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY:
+		if (val2)
+			return -EINVAL;
+
+		mutex_lock(&data->mutex);
+		ret = bmg160_set_power_state(data, true);
+		if (ret < 0) {
+			bmg160_set_power_state(data, false);
+			mutex_unlock(&data->mutex);
+			return ret;
+		}
+		ret = bmg160_set_filter(data, val);
 		if (ret < 0) {
 			bmg160_set_power_state(data, false);
 			mutex_unlock(&data->mutex);
@@ -727,7 +811,8 @@ static const struct iio_event_spec bmg160_event = {
 	.channel2 = IIO_MOD_##_axis,					\
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |		\
-				    BIT(IIO_CHAN_INFO_SAMP_FREQ),	\
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |				\
+		BIT(IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY),	\
 	.scan_index = AXIS_##_axis,					\
 	.scan_type = {							\
 		.sign = 's',						\
@@ -764,26 +849,23 @@ static const struct iio_info bmg160_info = {
 	.driver_module		= THIS_MODULE,
 };
 
+static const unsigned long bmg160_accel_scan_masks[] = {
+					BIT(AXIS_X) | BIT(AXIS_Y) | BIT(AXIS_Z),
+					0};
+
 static irqreturn_t bmg160_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct bmg160_data *data = iio_priv(indio_dev);
-	int bit, ret, i = 0;
-	unsigned int val;
+	int ret;
 
 	mutex_lock(&data->mutex);
-	for_each_set_bit(bit, indio_dev->active_scan_mask,
-			 indio_dev->masklength) {
-		ret = regmap_bulk_read(data->regmap, BMG160_AXIS_TO_REG(bit),
-				       &val, 2);
-		if (ret < 0) {
-			mutex_unlock(&data->mutex);
-			goto err;
-		}
-		data->buffer[i++] = val;
-	}
+	ret = regmap_bulk_read(data->regmap, BMG160_REG_XOUT_L,
+			       data->buffer, AXIS_MAX * 2);
 	mutex_unlock(&data->mutex);
+	if (ret < 0)
+		goto err;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
 					   pf->timestamp);
@@ -797,6 +879,7 @@ static int bmg160_trig_try_reen(struct iio_trigger *trig)
 {
 	struct iio_dev *indio_dev = iio_trigger_get_drvdata(trig);
 	struct bmg160_data *data = iio_priv(indio_dev);
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 
 	/* new data interrupts don't need ack */
@@ -808,7 +891,7 @@ static int bmg160_trig_try_reen(struct iio_trigger *trig)
 			   BMG160_INT_MODE_LATCH_INT |
 			   BMG160_INT_MODE_LATCH_RESET);
 	if (ret < 0) {
-		dev_err(data->dev, "Error writing reg_rst_latch\n");
+		dev_err(dev, "Error writing reg_rst_latch\n");
 		return ret;
 	}
 
@@ -868,13 +951,14 @@ static irqreturn_t bmg160_event_handler(int irq, void *private)
 {
 	struct iio_dev *indio_dev = private;
 	struct bmg160_data *data = iio_priv(indio_dev);
+	struct device *dev = regmap_get_device(data->regmap);
 	int ret;
 	int dir;
 	unsigned int val;
 
 	ret = regmap_read(data->regmap, BMG160_REG_INT_STATUS_2, &val);
 	if (ret < 0) {
-		dev_err(data->dev, "Error reading reg_int_status2\n");
+		dev_err(dev, "Error reading reg_int_status2\n");
 		goto ack_intr_status;
 	}
 
@@ -885,25 +969,25 @@ static irqreturn_t bmg160_event_handler(int irq, void *private)
 
 	if (val & BMG160_ANY_MOTION_BIT_X)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
-							0,
-							IIO_MOD_X,
-							IIO_EV_TYPE_ROC,
-							dir),
-							iio_get_time_ns());
+							     0,
+							     IIO_MOD_X,
+							     IIO_EV_TYPE_ROC,
+							     dir),
+			       iio_get_time_ns(indio_dev));
 	if (val & BMG160_ANY_MOTION_BIT_Y)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
-							0,
-							IIO_MOD_Y,
-							IIO_EV_TYPE_ROC,
-							dir),
-							iio_get_time_ns());
+							     0,
+							     IIO_MOD_Y,
+							     IIO_EV_TYPE_ROC,
+							     dir),
+			       iio_get_time_ns(indio_dev));
 	if (val & BMG160_ANY_MOTION_BIT_Z)
 		iio_push_event(indio_dev, IIO_MOD_EVENT_CODE(IIO_ANGL_VEL,
-							0,
-							IIO_MOD_Z,
-							IIO_EV_TYPE_ROC,
-							dir),
-							iio_get_time_ns());
+							     0,
+							     IIO_MOD_Z,
+							     IIO_EV_TYPE_ROC,
+							     dir),
+			       iio_get_time_ns(indio_dev));
 
 ack_intr_status:
 	if (!data->dready_trigger_on) {
@@ -911,8 +995,7 @@ ack_intr_status:
 				   BMG160_INT_MODE_LATCH_INT |
 				   BMG160_INT_MODE_LATCH_RESET);
 		if (ret < 0)
-			dev_err(data->dev,
-				"Error writing reg_rst_latch\n");
+			dev_err(dev, "Error writing reg_rst_latch\n");
 	}
 
 	return IRQ_HANDLED;
@@ -956,29 +1039,6 @@ static const struct iio_buffer_setup_ops bmg160_buffer_setup_ops = {
 	.postdisable = bmg160_buffer_postdisable,
 };
 
-static int bmg160_gpio_probe(struct bmg160_data *data)
-
-{
-	struct device *dev;
-	struct gpio_desc *gpio;
-
-	dev = data->dev;
-
-	/* data ready gpio interrupt pin */
-	gpio = devm_gpiod_get_index(dev, BMG160_GPIO_NAME, 0, GPIOD_IN);
-	if (IS_ERR(gpio)) {
-		dev_err(dev, "acpi gpio get index failed\n");
-		return PTR_ERR(gpio);
-	}
-
-	data->irq = gpiod_to_irq(gpio);
-
-	dev_dbg(dev, "GPIO resource, no:%d irq:%d\n", desc_to_gpio(gpio),
-		data->irq);
-
-	return 0;
-}
-
 static const char *bmg160_match_acpi_device(struct device *dev)
 {
 	const struct acpi_device_id *id;
@@ -1003,7 +1063,6 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
-	data->dev = dev;
 	data->irq = irq;
 	data->regmap = regmap;
 
@@ -1020,11 +1079,9 @@ int bmg160_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	indio_dev->channels = bmg160_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bmg160_channels);
 	indio_dev->name = name;
+	indio_dev->available_scan_masks = bmg160_accel_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmg160_info;
-
-	if (data->irq <= 0)
-		bmg160_gpio_probe(data);
 
 	if (data->irq > 0) {
 		ret = devm_request_threaded_irq(dev,
@@ -1168,7 +1225,7 @@ static int bmg160_runtime_suspend(struct device *dev)
 
 	ret = bmg160_set_mode(data, BMG160_MODE_SUSPEND);
 	if (ret < 0) {
-		dev_err(data->dev, "set mode failed\n");
+		dev_err(dev, "set mode failed\n");
 		return -EAGAIN;
 	}
 

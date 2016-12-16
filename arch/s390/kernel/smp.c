@@ -242,10 +242,8 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {
 	struct lowcore *lc = pcpu->lowcore;
 
-	if (MACHINE_HAS_TLB_LC)
-		cpumask_set_cpu(cpu, &init_mm.context.cpu_attach_mask);
+	cpumask_set_cpu(cpu, &init_mm.context.cpu_attach_mask);
 	cpumask_set_cpu(cpu, mm_cpumask(&init_mm));
-	atomic_inc(&init_mm.context.attach_count);
 	lc->cpu_nr = cpu;
 	lc->spinlock_lockval = arch_spin_lockval(cpu);
 	lc->percpu_offset = __per_cpu_offset[cpu];
@@ -320,17 +318,11 @@ static void pcpu_delegate(struct pcpu *pcpu, void (*func)(void *),
  */
 static int pcpu_set_smt(unsigned int mtid)
 {
-	register unsigned long reg1 asm ("1") = (unsigned long) mtid;
 	int cc;
 
 	if (smp_cpu_mtid == mtid)
 		return 0;
-	asm volatile(
-		"	sigp	%1,0,%2	# sigp set multi-threading\n"
-		"	ipm	%0\n"
-		"	srl	%0,28\n"
-		: "=d" (cc) : "d" (reg1), "K" (SIGP_SET_MULTI_THREADING)
-		: "cc");
+	cc = __pcpu_sigp(0, SIGP_SET_MULTI_THREADING, mtid, NULL);
 	if (cc == 0) {
 		smp_cpu_mtid = mtid;
 		smp_cpu_mt_shift = 0;
@@ -832,7 +824,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	pcpu_attach_task(pcpu, tidle);
 	pcpu_start_fn(pcpu, smp_start_secondary, NULL);
 	/* Wait until cpu puts itself in the online & active maps */
-	while (!cpu_online(cpu) || !cpu_active(cpu))
+	while (!cpu_online(cpu))
 		cpu_relax();
 	return 0;
 }
@@ -876,10 +868,8 @@ void __cpu_die(unsigned int cpu)
 	while (!pcpu_stopped(pcpu))
 		cpu_relax();
 	pcpu_free_lowcore(pcpu);
-	atomic_dec(&init_mm.context.attach_count);
 	cpumask_clear_cpu(cpu, mm_cpumask(&init_mm));
-	if (MACHINE_HAS_TLB_LC)
-		cpumask_clear_cpu(cpu, &init_mm.context.cpu_attach_mask);
+	cpumask_clear_cpu(cpu, &init_mm.context.cpu_attach_mask);
 }
 
 void __noreturn cpu_die(void)
@@ -897,7 +887,7 @@ void __init smp_fill_possible_mask(void)
 
 	sclp_max = max(sclp.mtid, sclp.mtid_cp) + 1;
 	sclp_max = min(smp_max_threads, sclp_max);
-	sclp_max = sclp.max_cores * sclp_max ?: nr_cpu_ids;
+	sclp_max = (sclp.max_cores * sclp_max) ?: nr_cpu_ids;
 	possible = setup_possible_cpus ?: nr_cpu_ids;
 	possible = min(possible, sclp_max);
 	for (cpu = 0; cpu < possible && cpu < nr_cpu_ids; cpu++)

@@ -237,6 +237,9 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
+	if (btrfs_root_readonly(root))
+		return -EROFS;
+
 	if (trans)
 		return do_setxattr(trans, inode, name, value, size, flags);
 
@@ -369,33 +372,29 @@ err:
 }
 
 static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *name,
-				   void *buffer, size_t size)
+				   struct dentry *unused, struct inode *inode,
+				   const char *name, void *buffer, size_t size)
 {
-	struct inode *inode = d_inode(dentry);
-
 	name = xattr_full_name(handler, name);
 	return __btrfs_getxattr(inode, name, buffer, size);
 }
 
 static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
-				   struct dentry *dentry, const char *name,
-				   const void *buffer, size_t size,
-				   int flags)
+				   struct dentry *unused, struct inode *inode,
+				   const char *name, const void *buffer,
+				   size_t size, int flags)
 {
-	struct inode *inode = d_inode(dentry);
-
 	name = xattr_full_name(handler, name);
 	return __btrfs_setxattr(NULL, inode, name, buffer, size, flags);
 }
 
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
-					struct dentry *dentry,
+					struct dentry *unused, struct inode *inode,
 					const char *name, const void *value,
 					size_t size, int flags)
 {
 	name = xattr_full_name(handler, name);
-	return btrfs_set_prop(d_inode(dentry), name, value, size, flags);
+	return btrfs_set_prop(inode, name, value, size, flags);
 }
 
 static const struct xattr_handler btrfs_security_xattr_handler = {
@@ -433,25 +432,6 @@ const struct xattr_handler *btrfs_xattr_handlers[] = {
 	&btrfs_btrfs_xattr_handler,
 	NULL,
 };
-
-int btrfs_setxattr(struct dentry *dentry, const char *name, const void *value,
-		   size_t size, int flags)
-{
-	struct btrfs_root *root = BTRFS_I(d_inode(dentry))->root;
-
-	if (btrfs_root_readonly(root))
-		return -EROFS;
-	return generic_setxattr(dentry, name, value, size, flags);
-}
-
-int btrfs_removexattr(struct dentry *dentry, const char *name)
-{
-	struct btrfs_root *root = BTRFS_I(d_inode(dentry))->root;
-
-	if (btrfs_root_readonly(root))
-		return -EROFS;
-	return generic_removexattr(dentry, name);
-}
 
 static int btrfs_initxattrs(struct inode *inode,
 			    const struct xattr *xattr_array, void *fs_info)

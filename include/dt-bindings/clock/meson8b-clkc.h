@@ -19,7 +19,9 @@
 #define CLKID_MALI		11
 #define CLKID_CPUCLK		12
 #define CLKID_ZERO		13
+#define CLKID_MPEG_SEL		14
+#define CLKID_MPEG_DIV		15
 
-#define CLK_NR_CLKS		(CLKID_ZERO + 1)
+#define CLK_NR_CLKS		(CLKID_MPEG_DIV + 1)
 
 #endif /* __MESON8B_CLKC_H */

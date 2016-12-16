@@ -27,6 +27,13 @@ __weak void __iomem *ioremap_cache(resource_size_t offset, unsigned long size)
 }
 #endif
 
+#ifndef arch_memremap_wb
+static void *arch_memremap_wb(resource_size_t offset, unsigned long size)
+{
+	return (__force void *)ioremap_cache(offset, size);
+}
+#endif
+
 static void *try_ram_remap(resource_size_t offset, size_t size)
 {
 	unsigned long pfn = PHYS_PFN(offset);
@@ -34,7 +41,7 @@ static void *try_ram_remap(resource_size_t offset, size_t size)
 	/* In the simple case just return the existing linear address */
 	if (pfn_valid(pfn) && !PageHighMem(pfn_to_page(pfn)))
 		return __va(offset);
-	return NULL; /* fallback to ioremap_cache */
+	return NULL; /* fallback to arch_memremap_wb */
 }
 
 /**
@@ -90,7 +97,7 @@ void *memremap(resource_size_t offset, size_t size, unsigned long flags)
 		if (is_ram == REGION_INTERSECTS)
 			addr = try_ram_remap(offset, size);
 		if (!addr)
-			addr = ioremap_cache(offset, size);
+			addr = arch_memremap_wb(offset, size);
 	}
 
 	/*
@@ -161,12 +168,6 @@ void devm_memunmap(struct device *dev, void *addr)
 				devm_memremap_match, addr));
 }
 EXPORT_SYMBOL(devm_memunmap);
-
-pfn_t phys_to_pfn_t(phys_addr_t addr, u64 flags)
-{
-	return __pfn_to_pfn_t(addr >> PAGE_SHIFT, flags);
-}
-EXPORT_SYMBOL(phys_to_pfn_t);
 
 #ifdef CONFIG_ZONE_DEVICE
 static DEFINE_MUTEX(pgmap_lock);
@@ -246,6 +247,7 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
 	align_start = res->start & ~(SECTION_SIZE - 1);
 	align_size = ALIGN(resource_size(res), SECTION_SIZE);
 	arch_remove_memory(align_start, align_size);
+	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
 	pgmap_radix_release(res);
 	dev_WARN_ONCE(dev, pgmap->altmap && pgmap->altmap->alloc,
 			"%s: failed to free all reserved pages\n", __func__);
@@ -281,6 +283,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 		struct percpu_ref *ref, struct vmem_altmap *altmap)
 {
 	resource_size_t key, align_start, align_size, align_end;
+	pgprot_t pgprot = PAGE_KERNEL;
 	struct dev_pagemap *pgmap;
 	struct page_map *page_map;
 	int error, nid, is_ram;
@@ -300,12 +303,6 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 
 	if (is_ram == REGION_INTERSECTS)
 		return __va(res->start);
-
-	if (altmap && !IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP)) {
-		dev_err(dev, "%s: altmap requires CONFIG_SPARSEMEM_VMEMMAP=y\n",
-				__func__);
-		return ERR_PTR(-ENXIO);
-	}
 
 	if (!ref)
 		return ERR_PTR(-EINVAL);
@@ -356,6 +353,11 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	if (nid < 0)
 		nid = numa_mem_id();
 
+	error = track_pfn_remap(NULL, &pgprot, PHYS_PFN(align_start), 0,
+			align_size);
+	if (error)
+		goto err_pfn_remap;
+
 	error = arch_add_memory(nid, align_start, align_size, true);
 	if (error)
 		goto err_add_memory;
@@ -376,6 +378,8 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
 	return __va(res->start);
 
  err_add_memory:
+	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
+ err_pfn_remap:
  err_radix:
 	pgmap_radix_release(res);
 	devres_free(page_map);
@@ -394,7 +398,6 @@ void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
 	altmap->alloc -= nr_pfns;
 }
 
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
 struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 {
 	/*
@@ -420,5 +423,4 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
 
 	return pgmap ? pgmap->altmap : NULL;
 }
-#endif /* CONFIG_SPARSEMEM_VMEMMAP */
 #endif /* CONFIG_ZONE_DEVICE */

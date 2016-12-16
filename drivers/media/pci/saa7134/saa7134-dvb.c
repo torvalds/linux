@@ -1238,6 +1238,7 @@ static int dvb_init(struct saa7134_dev *dev)
 	q->buf_struct_size = sizeof(struct saa7134_buf);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->lock = &dev->lock;
+	q->dev = &dev->pci->dev;
 	ret = vb2_queue_init(q);
 	if (ret) {
 		vb2_dvb_dealloc_frontends(&dev->frontends);

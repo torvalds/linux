@@ -45,7 +45,10 @@ Builtin microcode
 =================
 
 We can also load builtin microcode supplied through the regular firmware
-builtin method CONFIG_FIRMWARE_IN_KERNEL. Here's an example:
+builtin method CONFIG_FIRMWARE_IN_KERNEL. Only 64-bit is currently
+supported.
+
+Here's an example:
 
 CONFIG_FIRMWARE_IN_KERNEL=y
 CONFIG_EXTRA_FIRMWARE="intel-ucode/06-3a-09 amd-ucode/microcode_amd_fam15h.bin"

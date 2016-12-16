@@ -57,6 +57,18 @@ config SERIAL_8250_PNP
 	  This builds standard PNP serial support. You may be able to
 	  disable this feature if you only need legacy serial support.
 
+config SERIAL_8250_FINTEK
+	bool "Support for Fintek F81216A LPC to 4 UART RS485 API"
+	depends on SERIAL_8250
+	---help---
+	  Selecting this option will add support for the RS485 capabilities
+	  of the Fintek F81216A LPC to 4 UART.
+
+	  If this option is not selected the device will be configured as a
+	  standard 16550A serial port.
+
+	  If unsure, say N.
+
 config SERIAL_8250_CONSOLE
 	bool "Console on 8250/16550 and compatible serial port"
 	depends on SERIAL_8250=y
@@ -358,14 +370,6 @@ config SERIAL_8250_OMAP_TTYO_FIXUP
 	  not booting kernel because the serial console remains silent in case
 	  they forgot to update the command line.
 
-config SERIAL_8250_FINTEK
-	tristate "Support for Fintek F81216A LPC to 4 UART"
-	depends on SERIAL_8250 && PNP
-	help
-	  Selecting this option will add support for the Fintek F81216A
-	  LPC to 4 UART. This device has some RS485 functionality not available
-	  through the PNP driver. If unsure, say N.
-
 config SERIAL_8250_LPC18XX
 	tristate "NXP LPC18xx/43xx serial port support"
 	depends on SERIAL_8250 && OF && (ARCH_LPC18XX || COMPILE_TEST)
@@ -383,7 +387,8 @@ config SERIAL_8250_MT6577
 
 config SERIAL_8250_UNIPHIER
 	tristate "Support for UniPhier on-chip UART"
-	depends on SERIAL_8250 && ARCH_UNIPHIER
+	depends on SERIAL_8250
+	depends on ARCH_UNIPHIER || COMPILE_TEST
 	help
 	  If you have a UniPhier based board and want to use the on-chip
 	  serial ports, say Y to this option. If unsure, say N.
@@ -391,15 +396,17 @@ config SERIAL_8250_UNIPHIER
 config SERIAL_8250_INGENIC
 	tristate "Support for Ingenic SoC serial ports"
 	depends on SERIAL_8250
-	depends on (OF_FLATTREE && SERIAL_8250_CONSOLE) || !SERIAL_EARLYCON
+	depends on OF_FLATTREE
 	depends on MIPS || COMPILE_TEST
 	help
 	  If you have a system using an Ingenic SoC and wish to make use of
 	  its UARTs, say Y to this option. If unsure, say N.
 
 config SERIAL_8250_MID
-	tristate "Support for serial ports on Intel MID platforms"
+	tristate "Support for serial ports on Intel MID platforms" if EXPERT
+	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
+	depends on X86 || COMPILE_TEST
 	select HSU_DMA if SERIAL_8250_DMA
 	select HSU_DMA_PCI if (HSU_DMA && X86_INTEL_MID)
 	select RATIONAL

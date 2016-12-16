@@ -25,14 +25,14 @@ static void __init i386_default_early_setup(void)
 	/* Initialize 32bit specific setup functions */
 	x86_init.resources.reserve_resources = i386_reserve_resources;
 	x86_init.mpparse.setup_ioapic_ids = setup_ioapic_ids_from_mpc;
-
-	reserve_ebda_region();
 }
 
 asmlinkage __visible void __init i386_start_kernel(void)
 {
 	cr4_init_shadow();
 	sanitize_boot_params(&boot_params);
+
+	x86_early_init_platform_quirks();
 
 	/* Call the subarch specific early setup function */
 	switch (boot_params.hdr.hardware_subarch) {

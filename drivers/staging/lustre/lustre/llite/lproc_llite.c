@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -180,11 +176,7 @@ LUSTRE_RO_ATTR(filesfree);
 static ssize_t client_type_show(struct kobject *kobj, struct attribute *attr,
 				char *buf)
 {
-	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
-					      ll_kobj);
-
-	return sprintf(buf, "%s client\n",
-			sbi->ll_flags & LL_SBI_RMT_CLIENT ? "remote" : "local");
+	return sprintf(buf, "local client\n");
 }
 LUSTRE_RO_ATTR(client_type);
 
@@ -254,7 +246,6 @@ static ssize_t max_read_ahead_mb_store(struct kobject *kobj,
 	pages_number *= 1 << (20 - PAGE_SHIFT); /* MB -> pages */
 
 	if (pages_number > totalram_pages / 2) {
-
 		CERROR("can't set file readahead more than %lu MB\n",
 		       totalram_pages >> (20 - PAGE_SHIFT + 1)); /*1/2 of RAM*/
 		return -ERANGE;
@@ -365,7 +356,7 @@ static int ll_max_cached_mb_seq_show(struct seq_file *m, void *v)
 {
 	struct super_block     *sb    = m->private;
 	struct ll_sb_info      *sbi   = ll_s2sbi(sb);
-	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct cl_client_cache *cache = sbi->ll_cache;
 	int shift = 20 - PAGE_SHIFT;
 	int max_cached_mb;
 	int unused_mb;
@@ -392,7 +383,9 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 {
 	struct super_block *sb = ((struct seq_file *)file->private_data)->private;
 	struct ll_sb_info *sbi = ll_s2sbi(sb);
-	struct cl_client_cache *cache = &sbi->ll_cache;
+	struct cl_client_cache *cache = sbi->ll_cache;
+	struct lu_env *env;
+	int refcheck;
 	int mult, rc, pages_number;
 	int diff = 0;
 	int nrpages = 0;
@@ -430,6 +423,10 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 		goto out;
 	}
 
+	env = cl_env_get(&refcheck);
+	if (IS_ERR(env))
+		return 0;
+
 	diff = -diff;
 	while (diff > 0) {
 		int tmp;
@@ -455,19 +452,20 @@ static ssize_t ll_max_cached_mb_seq_write(struct file *file,
 			break;
 
 		if (!sbi->ll_dt_exp) { /* being initialized */
-			rc = -ENODEV;
-			break;
+			rc = 0;
+			goto out;
 		}
 
 		/* difficult - have to ask OSCs to drop LRU slots. */
 		tmp = diff << 1;
-		rc = obd_set_info_async(NULL, sbi->ll_dt_exp,
+		rc = obd_set_info_async(env, sbi->ll_dt_exp,
 					sizeof(KEY_CACHE_LRU_SHRINK),
 					KEY_CACHE_LRU_SHRINK,
 					sizeof(tmp), &tmp, NULL);
 		if (rc < 0)
 			break;
 	}
+	cl_env_put(env, &refcheck);
 
 out:
 	if (rc >= 0) {
@@ -818,6 +816,23 @@ static ssize_t xattr_cache_store(struct kobject *kobj,
 }
 LUSTRE_RW_ATTR(xattr_cache);
 
+static ssize_t unstable_stats_show(struct kobject *kobj,
+				   struct attribute *attr,
+				   char *buf)
+{
+	struct ll_sb_info *sbi = container_of(kobj, struct ll_sb_info,
+					      ll_kobj);
+	struct cl_client_cache *cache = sbi->ll_cache;
+	int pages, mb;
+
+	pages = atomic_read(&cache->ccc_unstable_nr);
+	mb = (pages * PAGE_SIZE) >> 20;
+
+	return sprintf(buf, "unstable_pages: %8d\n"
+			    "unstable_mb:    %8d\n", pages, mb);
+}
+LUSTRE_RO_ATTR(unstable_stats);
+
 static struct lprocfs_vars lprocfs_llite_obd_vars[] = {
 	/* { "mntpt_path",   ll_rd_path,	     0, 0 }, */
 	{ "site",	  &ll_site_stats_fops,    NULL, 0 },
@@ -853,6 +868,7 @@ static struct attribute *llite_attrs[] = {
 	&lustre_attr_max_easize.attr,
 	&lustre_attr_default_easize.attr,
 	&lustre_attr_xattr_cache.attr,
+	&lustre_attr_unstable_stats.attr,
 	NULL,
 };
 
@@ -953,6 +969,7 @@ static const char *ra_stat_string[] = {
 	[RA_STAT_EOF] = "read-ahead to EOF",
 	[RA_STAT_MAX_IN_FLIGHT] = "hit max r-a issue",
 	[RA_STAT_WRONG_GRAB_PAGE] = "wrong page from grab_cache_page",
+	[RA_STAT_FAILED_REACH_END] = "failed to reach end"
 };
 
 int ldebugfs_register_mountpoint(struct dentry *parent,

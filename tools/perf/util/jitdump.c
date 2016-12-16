@@ -1,3 +1,4 @@
+#include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 #include "strlist.h"
 #include <elf.h>
 
+#include "tsc.h"
 #include "session.h"
 #include "jit.h"
 #include "jitdump.h"
@@ -33,6 +35,7 @@ struct jit_buf_desc {
 	size_t           bufsize;
 	FILE             *in;
 	bool		 needs_bswap; /* handles cross-endianess */
+	bool		 use_arch_timestamp;
 	void		 *debug_data;
 	size_t		 nr_debug_entries;
 	uint32_t         code_load_count;
@@ -106,7 +109,7 @@ jit_validate_events(struct perf_session *session)
 	/*
 	 * check that all events use CLOCK_MONOTONIC
 	 */
-	evlist__for_each(session->evlist, evsel) {
+	evlist__for_each_entry(session->evlist, evsel) {
 		if (evsel->attr.use_clockid == 0 || evsel->attr.clockid != CLOCK_MONOTONIC)
 			return -1;
 	}
@@ -158,13 +161,16 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 		header.flags      = bswap_64(header.flags);
 	}
 
+	jd->use_arch_timestamp = header.flags & JITDUMP_FLAGS_ARCH_TIMESTAMP;
+
 	if (verbose > 2)
-		pr_debug("version=%u\nhdr.size=%u\nts=0x%llx\npid=%d\nelf_mach=%d\n",
+		pr_debug("version=%u\nhdr.size=%u\nts=0x%llx\npid=%d\nelf_mach=%d\nuse_arch_timestamp=%d\n",
 			header.version,
 			header.total_size,
 			(unsigned long long)header.timestamp,
 			header.pid,
-			header.elf_mach);
+			header.elf_mach,
+			jd->use_arch_timestamp);
 
 	if (header.flags & JITDUMP_FLAGS_RESERVED) {
 		pr_err("jitdump file contains invalid or unsupported flags 0x%llx\n",
@@ -172,10 +178,15 @@ jit_open(struct jit_buf_desc *jd, const char *name)
 		goto error;
 	}
 
+	if (jd->use_arch_timestamp && !jd->session->time_conv.time_mult) {
+		pr_err("jitdump file uses arch timestamps but there is no timestamp conversion\n");
+		goto error;
+	}
+
 	/*
 	 * validate event is using the correct clockid
 	 */
-	if (jit_validate_events(jd->session)) {
+	if (!jd->use_arch_timestamp && jit_validate_events(jd->session)) {
 		pr_err("error, jitted code must be sampled with perf record -k 1\n");
 		goto error;
 	}
@@ -329,6 +340,23 @@ jit_inject_event(struct jit_buf_desc *jd, union perf_event *event)
 	return 0;
 }
 
+static uint64_t convert_timestamp(struct jit_buf_desc *jd, uint64_t timestamp)
+{
+	struct perf_tsc_conversion tc;
+
+	if (!jd->use_arch_timestamp)
+		return timestamp;
+
+	tc.time_shift = jd->session->time_conv.time_shift;
+	tc.time_mult  = jd->session->time_conv.time_mult;
+	tc.time_zero  = jd->session->time_conv.time_zero;
+
+	if (!tc.time_mult)
+		return 0;
+
+	return tsc_to_perf_time(timestamp, &tc);
+}
+
 static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 {
 	struct perf_sample sample;
@@ -385,7 +413,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 		return -1;
 	}
 	if (stat(filename, &st))
-		memset(&st, 0, sizeof(stat));
+		memset(&st, 0, sizeof(st));
 
 	event->mmap2.header.type = PERF_RECORD_MMAP2;
 	event->mmap2.header.misc = PERF_RECORD_MISC_USER;
@@ -410,7 +438,7 @@ static int jit_repipe_code_load(struct jit_buf_desc *jd, union jr_entry *jr)
 		id->tid  = tid;
 	}
 	if (jd->sample_type & PERF_SAMPLE_TIME)
-		id->time = jr->load.p.timestamp;
+		id->time = convert_timestamp(jd, jr->load.p.timestamp);
 
 	/*
 	 * create pseudo sample to induce dso hit increment
@@ -473,7 +501,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 	size++; /* for \0 */
 
 	if (stat(filename, &st))
-		memset(&st, 0, sizeof(stat));
+		memset(&st, 0, sizeof(st));
 
 	size = PERF_ALIGN(size, sizeof(u64));
 
@@ -499,7 +527,7 @@ static int jit_repipe_code_move(struct jit_buf_desc *jd, union jr_entry *jr)
 		id->tid  = tid;
 	}
 	if (jd->sample_type & PERF_SAMPLE_TIME)
-		id->time = jr->load.p.timestamp;
+		id->time = convert_timestamp(jd, jr->load.p.timestamp);
 
 	/*
 	 * create pseudo sample to induce dso hit increment

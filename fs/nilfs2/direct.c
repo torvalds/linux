@@ -13,11 +13,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Koji Sato <koji@osrg.net>.
+ * Written by Koji Sato.
  */
 
 #include <linux/errno.h>
@@ -62,7 +58,7 @@ static int nilfs_direct_lookup(const struct nilfs_bmap *direct,
 
 static int nilfs_direct_lookup_contig(const struct nilfs_bmap *direct,
 				      __u64 key, __u64 *ptrp,
-				      unsigned maxblocks)
+				      unsigned int maxblocks)
 {
 	struct inode *dat = NULL;
 	__u64 ptr, ptr2;
@@ -83,7 +79,8 @@ static int nilfs_direct_lookup_contig(const struct nilfs_bmap *direct,
 		ptr = blocknr;
 	}
 
-	maxblocks = min_t(unsigned, maxblocks, NILFS_DIRECT_KEY_MAX - key + 1);
+	maxblocks = min_t(unsigned int, maxblocks,
+			  NILFS_DIRECT_KEY_MAX - key + 1);
 	for (cnt = 1; cnt < maxblocks &&
 		     (ptr2 = nilfs_direct_get_ptr(direct, key + cnt)) !=
 		     NILFS_BMAP_INVALID_PTR;
@@ -110,9 +107,9 @@ nilfs_direct_find_target_v(const struct nilfs_bmap *direct, __u64 key)
 	if (ptr != NILFS_BMAP_INVALID_PTR)
 		/* sequential access */
 		return ptr;
-	else
-		/* block group */
-		return nilfs_bmap_find_target_in_group(direct);
+
+	/* block group */
+	return nilfs_bmap_find_target_in_group(direct);
 }
 
 static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
@@ -340,14 +337,16 @@ static int nilfs_direct_assign(struct nilfs_bmap *bmap,
 
 	key = nilfs_bmap_data_get_key(bmap, *bh);
 	if (unlikely(key > NILFS_DIRECT_KEY_MAX)) {
-		printk(KERN_CRIT "%s: invalid key: %llu\n", __func__,
-		       (unsigned long long)key);
+		nilfs_msg(bmap->b_inode->i_sb, KERN_CRIT,
+			  "%s (ino=%lu): invalid key: %llu", __func__,
+			  bmap->b_inode->i_ino, (unsigned long long)key);
 		return -EINVAL;
 	}
 	ptr = nilfs_direct_get_ptr(bmap, key);
 	if (unlikely(ptr == NILFS_BMAP_INVALID_PTR)) {
-		printk(KERN_CRIT "%s: invalid pointer: %llu\n", __func__,
-		       (unsigned long long)ptr);
+		nilfs_msg(bmap->b_inode->i_sb, KERN_CRIT,
+			  "%s (ino=%lu): invalid pointer: %llu", __func__,
+			  bmap->b_inode->i_ino, (unsigned long long)ptr);
 		return -EINVAL;
 	}
 

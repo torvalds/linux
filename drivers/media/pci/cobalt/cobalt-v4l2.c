@@ -45,7 +45,7 @@ static const struct v4l2_dv_timings cea1080p60 = V4L2_DV_BT_CEA_1920X1080P60;
 
 static int cobalt_queue_setup(struct vb2_queue *q,
 			unsigned int *num_buffers, unsigned int *num_planes,
-			unsigned int sizes[], void *alloc_ctxs[])
+			unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct cobalt_stream *s = q->drv_priv;
 	unsigned size = s->stride * s->height;
@@ -54,7 +54,6 @@ static int cobalt_queue_setup(struct vb2_queue *q,
 		*num_buffers = 3;
 	if (*num_buffers > NR_BUFS)
 		*num_buffers = NR_BUFS;
-	alloc_ctxs[0] = s->cobalt->alloc_ctx;
 	if (*num_planes)
 		return sizes[0] < size ? -EINVAL : 0;
 	*num_planes = 1;
@@ -162,8 +161,11 @@ static void cobalt_enable_output(struct cobalt_stream *s)
 	struct v4l2_subdev_format sd_fmt = {
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 	};
+	u64 clk = bt->pixelclock;
 
-	if (!cobalt_cpld_set_freq(cobalt, bt->pixelclock)) {
+	if (bt->flags & V4L2_DV_FL_REDUCED_FPS)
+		clk = div_u64(clk * 1000ULL, 1001);
+	if (!cobalt_cpld_set_freq(cobalt, clk)) {
 		cobalt_err("pixelclock out of range\n");
 		return;
 	}
@@ -645,7 +647,7 @@ static int cobalt_s_dv_timings(struct file *file, void *priv_fh,
 		return 0;
 	}
 
-	if (v4l2_match_dv_timings(timings, &s->timings, 0, false))
+	if (v4l2_match_dv_timings(timings, &s->timings, 0, true))
 		return 0;
 
 	if (vb2_is_busy(&s->q))
@@ -1224,6 +1226,7 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->min_buffers_needed = 2;
 	q->lock = &s->lock;
+	q->dev = &cobalt->pci_dev->dev;
 	vdev->queue = q;
 
 	video_set_drvdata(vdev, s);

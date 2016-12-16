@@ -52,6 +52,7 @@ int HYPERVISOR_memory_op(unsigned int cmd, void *arg);
 int HYPERVISOR_physdev_op(int cmd, void *arg);
 int HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args);
 int HYPERVISOR_tmem_op(void *arg);
+int HYPERVISOR_vm_assist(unsigned int cmd, unsigned int type);
 int HYPERVISOR_platform_op_raw(void *arg);
 static inline int HYPERVISOR_platform_op(struct xen_platform_op *op)
 {

@@ -347,6 +347,43 @@ static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 	return ret;
 }
 
+static ssize_t queue_wc_show(struct request_queue *q, char *page)
+{
+	if (test_bit(QUEUE_FLAG_WC, &q->queue_flags))
+		return sprintf(page, "write back\n");
+
+	return sprintf(page, "write through\n");
+}
+
+static ssize_t queue_wc_store(struct request_queue *q, const char *page,
+			      size_t count)
+{
+	int set = -1;
+
+	if (!strncmp(page, "write back", 10))
+		set = 1;
+	else if (!strncmp(page, "write through", 13) ||
+		 !strncmp(page, "none", 4))
+		set = 0;
+
+	if (set == -1)
+		return -EINVAL;
+
+	spin_lock_irq(q->queue_lock);
+	if (set)
+		queue_flag_set(QUEUE_FLAG_WC, q);
+	else
+		queue_flag_clear(QUEUE_FLAG_WC, q);
+	spin_unlock_irq(q->queue_lock);
+
+	return count;
+}
+
+static ssize_t queue_dax_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(blk_queue_dax(q), page);
+}
+
 static struct queue_sysfs_entry queue_requests_entry = {
 	.attr = {.name = "nr_requests", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_requests_show,
@@ -478,6 +515,17 @@ static struct queue_sysfs_entry queue_poll_entry = {
 	.store = queue_poll_store,
 };
 
+static struct queue_sysfs_entry queue_wc_entry = {
+	.attr = {.name = "write_cache", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_wc_show,
+	.store = queue_wc_store,
+};
+
+static struct queue_sysfs_entry queue_dax_entry = {
+	.attr = {.name = "dax", .mode = S_IRUGO },
+	.show = queue_dax_show,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
@@ -503,6 +551,8 @@ static struct attribute *default_attrs[] = {
 	&queue_iostats_entry.attr,
 	&queue_random_entry.attr,
 	&queue_poll_entry.attr,
+	&queue_wc_entry.attr,
+	&queue_dax_entry.attr,
 	NULL,
 };
 

@@ -20,6 +20,6 @@ struct nilfs_fid {
 
 	u32 parent_gen;
 	u64 parent_ino;
-} __attribute__ ((packed));
+} __packed;
 
 #endif

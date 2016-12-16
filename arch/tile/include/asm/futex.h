@@ -80,16 +80,16 @@
 		ret = gu.err;						\
 	}
 
-#define __futex_set() __futex_call(__atomic_xchg)
-#define __futex_add() __futex_call(__atomic_xchg_add)
-#define __futex_or() __futex_call(__atomic_or)
-#define __futex_andn() __futex_call(__atomic_andn)
-#define __futex_xor() __futex_call(__atomic_xor)
+#define __futex_set() __futex_call(__atomic32_xchg)
+#define __futex_add() __futex_call(__atomic32_xchg_add)
+#define __futex_or() __futex_call(__atomic32_fetch_or)
+#define __futex_andn() __futex_call(__atomic32_fetch_andn)
+#define __futex_xor() __futex_call(__atomic32_fetch_xor)
 
 #define __futex_cmpxchg()						\
 	{								\
-		struct __get_user gu = __atomic_cmpxchg((u32 __force *)uaddr, \
-							lock, oldval, oparg); \
+		struct __get_user gu = __atomic32_cmpxchg((u32 __force *)uaddr, \
+							  lock, oldval, oparg); \
 		val = gu.val;						\
 		ret = gu.err;						\
 	}

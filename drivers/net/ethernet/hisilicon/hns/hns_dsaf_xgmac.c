@@ -119,7 +119,7 @@ static void hns_xgmac_enable(void *mac_drv, enum mac_commom_mode mode)
 		= (struct dsaf_device *)dev_get_drvdata(drv->dev);
 	u32 port = drv->mac_id;
 
-	hns_dsaf_xge_core_srst_by_port(dsaf_dev, port, 1);
+	dsaf_dev->misc_op->xge_core_srst(dsaf_dev, port, 1);
 	mdelay(10);
 
 	/*enable XGE rX/tX */
@@ -157,7 +157,7 @@ static void hns_xgmac_disable(void *mac_drv, enum mac_commom_mode mode)
 	}
 
 	mdelay(10);
-	hns_dsaf_xge_core_srst_by_port(dsaf_dev, port, 0);
+	dsaf_dev->misc_op->xge_core_srst(dsaf_dev, port, 0);
 }
 
 /**
@@ -198,9 +198,9 @@ static void hns_xgmac_init(void *mac_drv)
 		= (struct dsaf_device *)dev_get_drvdata(drv->dev);
 	u32 port = drv->mac_id;
 
-	hns_dsaf_xge_srst_by_port(dsaf_dev, port, 0);
+	dsaf_dev->misc_op->xge_srst(dsaf_dev, port, 0);
 	mdelay(100);
-	hns_dsaf_xge_srst_by_port(dsaf_dev, port, 1);
+	dsaf_dev->misc_op->xge_srst(dsaf_dev, port, 1);
 
 	mdelay(100);
 	hns_xgmac_exc_irq_en(drv, 0);
@@ -425,7 +425,7 @@ static void hns_xgmac_free(void *mac_drv)
 
 	u32 mac_id = drv->mac_id;
 
-	hns_dsaf_xge_srst_by_port(dsaf_dev, mac_id, 0);
+	dsaf_dev->misc_op->xge_srst(dsaf_dev, mac_id, 0);
 }
 
 /**

@@ -625,4 +625,10 @@ void wq_watchdog_touch(int cpu);
 static inline void wq_watchdog_touch(int cpu) { }
 #endif	/* CONFIG_WQ_WATCHDOG */
 
+#ifdef CONFIG_SMP
+int workqueue_prepare_cpu(unsigned int cpu);
+int workqueue_online_cpu(unsigned int cpu);
+int workqueue_offline_cpu(unsigned int cpu);
+#endif
+
 #endif

@@ -28,14 +28,12 @@ enum gpd_status {
 
 struct dev_power_governor {
 	bool (*power_down_ok)(struct dev_pm_domain *domain);
-	bool (*stop_ok)(struct device *dev);
+	bool (*suspend_ok)(struct device *dev);
 };
 
 struct gpd_dev_ops {
 	int (*start)(struct device *dev);
 	int (*stop)(struct device *dev);
-	int (*save_state)(struct device *dev);
-	int (*restore_state)(struct device *dev);
 	bool (*active_wakeup)(struct device *dev);
 };
 
@@ -59,7 +57,6 @@ struct generic_pm_domain {
 	unsigned int device_count;	/* Number of devices */
 	unsigned int suspended_count;	/* System suspend device counter */
 	unsigned int prepared_count;	/* Suspend counter of prepared devices */
-	bool suspend_power_off;	/* Power status before system suspend */
 	int (*power_off)(struct generic_pm_domain *domain);
 	int (*power_on)(struct generic_pm_domain *domain);
 	struct gpd_dev_ops dev_ops;
@@ -94,7 +91,7 @@ struct gpd_timing_data {
 	s64 resume_latency_ns;
 	s64 effective_constraint_ns;
 	bool constraint_changed;
-	bool cached_stop_ok;
+	bool cached_suspend_ok;
 };
 
 struct pm_domain_data {
@@ -130,8 +127,8 @@ extern int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 				  struct generic_pm_domain *new_subdomain);
 extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 				     struct generic_pm_domain *target);
-extern void pm_genpd_init(struct generic_pm_domain *genpd,
-			  struct dev_power_governor *gov, bool is_off);
+extern int pm_genpd_init(struct generic_pm_domain *genpd,
+			 struct dev_power_governor *gov, bool is_off);
 
 extern struct dev_power_governor simple_qos_governor;
 extern struct dev_power_governor pm_domain_always_on_gov;
@@ -166,9 +163,10 @@ static inline int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
 {
 	return -ENOSYS;
 }
-static inline void pm_genpd_init(struct generic_pm_domain *genpd,
-				 struct dev_power_governor *gov, bool is_off)
+static inline int pm_genpd_init(struct generic_pm_domain *genpd,
+				struct dev_power_governor *gov, bool is_off)
 {
+	return -ENOSYS;
 }
 #endif
 

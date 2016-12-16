@@ -445,7 +445,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 
 	gossip_debug(GOSSIP_FILE_DEBUG, "orangefs_file_write_iter\n");
 
-	mutex_lock(&file->f_mapping->host->i_mutex);
+	inode_lock(file->f_mapping->host);
 
 	/* Make sure generic_write_checks sees an up to date inode size. */
 	if (file->f_flags & O_APPEND) {
@@ -492,7 +492,7 @@ static ssize_t orangefs_file_write_iter(struct kiocb *iocb, struct iov_iter *ite
 
 out:
 
-	mutex_unlock(&file->f_mapping->host->i_mutex);
+	inode_unlock(file->f_mapping->host);
 	return rc;
 }
 
@@ -516,7 +516,6 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	if (cmd == FS_IOC_GETFLAGS) {
 		val = 0;
 		ret = orangefs_inode_getxattr(file_inode(file),
-					      ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
 					      "user.pvfs2.meta_hint",
 					      &val, sizeof(val));
 		if (ret < 0 && ret != -ENODATA)
@@ -549,7 +548,6 @@ static long orangefs_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 			     "orangefs_ioctl: FS_IOC_SETFLAGS: %llu\n",
 			     (unsigned long long)val);
 		ret = orangefs_inode_setxattr(file_inode(file),
-					      ORANGEFS_XATTR_NAME_DEFAULT_PREFIX,
 					      "user.pvfs2.meta_hint",
 					      &val, sizeof(val), 0);
 	}

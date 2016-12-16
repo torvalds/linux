@@ -1,0 +1,1127 @@
+#!/usr/bin/python
+#
+# top-like utility for displaying kvm statistics
+#
+# Copyright 2006-2008 Qumranet Technologies
+# Copyright 2008-2011 Red Hat, Inc.
+#
+# Authors:
+#  Avi Kivity <avi@redhat.com>
+#
+# This work is licensed under the terms of the GNU GPL, version 2.  See
+# the COPYING file in the top-level directory.
+"""The kvm_stat module outputs statistics about running KVM VMs
+
+Three different ways of output formatting are available:
+- as a top-like text ui
+- in a key -> value format
+- in an all keys, all values format
+
+The data is sampled from the KVM's debugfs entries and its perf events.
+"""
+
+import curses
+import sys
+import os
+import time
+import optparse
+import ctypes
+import fcntl
+import resource
+import struct
+import re
+from collections import defaultdict
+from time import sleep
+
+VMX_EXIT_REASONS = {
+    'EXCEPTION_NMI':        0,
+    'EXTERNAL_INTERRUPT':   1,
+    'TRIPLE_FAULT':         2,
+    'PENDING_INTERRUPT':    7,
+    'NMI_WINDOW':           8,
+    'TASK_SWITCH':          9,
+    'CPUID':                10,
+    'HLT':                  12,
+    'INVLPG':               14,
+    'RDPMC':                15,
+    'RDTSC':                16,
+    'VMCALL':               18,
+    'VMCLEAR':              19,
+    'VMLAUNCH':             20,
+    'VMPTRLD':              21,
+    'VMPTRST':              22,
+    'VMREAD':               23,
+    'VMRESUME':             24,
+    'VMWRITE':              25,
+    'VMOFF':                26,
+    'VMON':                 27,
+    'CR_ACCESS':            28,
+    'DR_ACCESS':            29,
+    'IO_INSTRUCTION':       30,
+    'MSR_READ':             31,
+    'MSR_WRITE':            32,
+    'INVALID_STATE':        33,
+    'MWAIT_INSTRUCTION':    36,
+    'MONITOR_INSTRUCTION':  39,
+    'PAUSE_INSTRUCTION':    40,
+    'MCE_DURING_VMENTRY':   41,
+    'TPR_BELOW_THRESHOLD':  43,
+    'APIC_ACCESS':          44,
+    'EPT_VIOLATION':        48,
+    'EPT_MISCONFIG':        49,
+    'WBINVD':               54,
+    'XSETBV':               55,
+    'APIC_WRITE':           56,
+    'INVPCID':              58,
+}
+
+SVM_EXIT_REASONS = {
+    'READ_CR0':       0x000,
+    'READ_CR3':       0x003,
+    'READ_CR4':       0x004,
+    'READ_CR8':       0x008,
+    'WRITE_CR0':      0x010,
+    'WRITE_CR3':      0x013,
+    'WRITE_CR4':      0x014,
+    'WRITE_CR8':      0x018,
+    'READ_DR0':       0x020,
+    'READ_DR1':       0x021,
+    'READ_DR2':       0x022,
+    'READ_DR3':       0x023,
+    'READ_DR4':       0x024,
+    'READ_DR5':       0x025,
+    'READ_DR6':       0x026,
+    'READ_DR7':       0x027,
+    'WRITE_DR0':      0x030,
+    'WRITE_DR1':      0x031,
+    'WRITE_DR2':      0x032,
+    'WRITE_DR3':      0x033,
+    'WRITE_DR4':      0x034,
+    'WRITE_DR5':      0x035,
+    'WRITE_DR6':      0x036,
+    'WRITE_DR7':      0x037,
+    'EXCP_BASE':      0x040,
+    'INTR':           0x060,
+    'NMI':            0x061,
+    'SMI':            0x062,
+    'INIT':           0x063,
+    'VINTR':          0x064,
+    'CR0_SEL_WRITE':  0x065,
+    'IDTR_READ':      0x066,
+    'GDTR_READ':      0x067,
+    'LDTR_READ':      0x068,
+    'TR_READ':        0x069,
+    'IDTR_WRITE':     0x06a,
+    'GDTR_WRITE':     0x06b,
+    'LDTR_WRITE':     0x06c,
+    'TR_WRITE':       0x06d,
+    'RDTSC':          0x06e,
+    'RDPMC':          0x06f,
+    'PUSHF':          0x070,
+    'POPF':           0x071,
+    'CPUID':          0x072,
+    'RSM':            0x073,
+    'IRET':           0x074,
+    'SWINT':          0x075,
+    'INVD':           0x076,
+    'PAUSE':          0x077,
+    'HLT':            0x078,
+    'INVLPG':         0x079,
+    'INVLPGA':        0x07a,
+    'IOIO':           0x07b,
+    'MSR':            0x07c,
+    'TASK_SWITCH':    0x07d,
+    'FERR_FREEZE':    0x07e,
+    'SHUTDOWN':       0x07f,
+    'VMRUN':          0x080,
+    'VMMCALL':        0x081,
+    'VMLOAD':         0x082,
+    'VMSAVE':         0x083,
+    'STGI':           0x084,
+    'CLGI':           0x085,
+    'SKINIT':         0x086,
+    'RDTSCP':         0x087,
+    'ICEBP':          0x088,
+    'WBINVD':         0x089,
+    'MONITOR':        0x08a,
+    'MWAIT':          0x08b,
+    'MWAIT_COND':     0x08c,
+    'XSETBV':         0x08d,
+    'NPF':            0x400,
+}
+
+# EC definition of HSR (from arch/arm64/include/asm/kvm_arm.h)
+AARCH64_EXIT_REASONS = {
+    'UNKNOWN':      0x00,
+    'WFI':          0x01,
+    'CP15_32':      0x03,
+    'CP15_64':      0x04,
+    'CP14_MR':      0x05,
+    'CP14_LS':      0x06,
+    'FP_ASIMD':     0x07,
+    'CP10_ID':      0x08,
+    'CP14_64':      0x0C,
+    'ILL_ISS':      0x0E,
+    'SVC32':        0x11,
+    'HVC32':        0x12,
+    'SMC32':        0x13,
+    'SVC64':        0x15,
+    'HVC64':        0x16,
+    'SMC64':        0x17,
+    'SYS64':        0x18,
+    'IABT':         0x20,
+    'IABT_HYP':     0x21,
+    'PC_ALIGN':     0x22,
+    'DABT':         0x24,
+    'DABT_HYP':     0x25,
+    'SP_ALIGN':     0x26,
+    'FP_EXC32':     0x28,
+    'FP_EXC64':     0x2C,
+    'SERROR':       0x2F,
+    'BREAKPT':      0x30,
+    'BREAKPT_HYP':  0x31,
+    'SOFTSTP':      0x32,
+    'SOFTSTP_HYP':  0x33,
+    'WATCHPT':      0x34,
+    'WATCHPT_HYP':  0x35,
+    'BKPT32':       0x38,
+    'VECTOR32':     0x3A,
+    'BRK64':        0x3C,
+}
+
+# From include/uapi/linux/kvm.h, KVM_EXIT_xxx
+USERSPACE_EXIT_REASONS = {
+    'UNKNOWN':          0,
+    'EXCEPTION':        1,
+    'IO':               2,
+    'HYPERCALL':        3,
+    'DEBUG':            4,
+    'HLT':              5,
+    'MMIO':             6,
+    'IRQ_WINDOW_OPEN':  7,
+    'SHUTDOWN':         8,
+    'FAIL_ENTRY':       9,
+    'INTR':             10,
+    'SET_TPR':          11,
+    'TPR_ACCESS':       12,
+    'S390_SIEIC':       13,
+    'S390_RESET':       14,
+    'DCR':              15,
+    'NMI':              16,
+    'INTERNAL_ERROR':   17,
+    'OSI':              18,
+    'PAPR_HCALL':       19,
+    'S390_UCONTROL':    20,
+    'WATCHDOG':         21,
+    'S390_TSCH':        22,
+    'EPR':              23,
+    'SYSTEM_EVENT':     24,
+}
+
+IOCTL_NUMBERS = {
+    'SET_FILTER':  0x40082406,
+    'ENABLE':      0x00002400,
+    'DISABLE':     0x00002401,
+    'RESET':       0x00002403,
+}
+
+class Arch(object):
+    """Encapsulates global architecture specific data.
+
+    Contains the performance event open syscall and ioctl numbers, as
+    well as the VM exit reasons for the architecture it runs on.
+
+    """
+    @staticmethod
+    def get_arch():
+        machine = os.uname()[4]
+
+        if machine.startswith('ppc'):
+            return ArchPPC()
+        elif machine.startswith('aarch64'):
+            return ArchA64()
+        elif machine.startswith('s390'):
+            return ArchS390()
+        else:
+            # X86_64
+            for line in open('/proc/cpuinfo'):
+                if not line.startswith('flags'):
+                    continue
+
+                flags = line.split()
+                if 'vmx' in flags:
+                    return ArchX86(VMX_EXIT_REASONS)
+                if 'svm' in flags:
+                    return ArchX86(SVM_EXIT_REASONS)
+                return
+
+class ArchX86(Arch):
+    def __init__(self, exit_reasons):
+        self.sc_perf_evt_open = 298
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = exit_reasons
+
+class ArchPPC(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 319
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.ioctl_numbers['ENABLE'] = 0x20002400
+        self.ioctl_numbers['DISABLE'] = 0x20002401
+        self.ioctl_numbers['RESET'] = 0x20002403
+
+        # PPC comes in 32 and 64 bit and some generated ioctl
+        # numbers depend on the wordsize.
+        char_ptr_size = ctypes.sizeof(ctypes.c_char_p)
+        self.ioctl_numbers['SET_FILTER'] = 0x80002406 | char_ptr_size << 16
+        self.exit_reasons = {}
+
+class ArchA64(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 241
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = AARCH64_EXIT_REASONS
+
+class ArchS390(Arch):
+    def __init__(self):
+        self.sc_perf_evt_open = 331
+        self.ioctl_numbers = IOCTL_NUMBERS
+        self.exit_reasons = None
+
+ARCH = Arch.get_arch()
+
+
+def walkdir(path):
+    """Returns os.walk() data for specified directory.
+
+    As it is only a wrapper it returns the same 3-tuple of (dirpath,
+    dirnames, filenames).
+    """
+    return next(os.walk(path))
+
+
+def parse_int_list(list_string):
+    """Returns an int list from a string of comma separated integers and
+    integer ranges."""
+    integers = []
+    members = list_string.split(',')
+
+    for member in members:
+        if '-' not in member:
+            integers.append(int(member))
+        else:
+            int_range = member.split('-')
+            integers.extend(range(int(int_range[0]),
+                                  int(int_range[1]) + 1))
+
+    return integers
+
+
+def get_online_cpus():
+    """Returns a list of cpu id integers."""
+    with open('/sys/devices/system/cpu/online') as cpu_list:
+        cpu_string = cpu_list.readline()
+        return parse_int_list(cpu_string)
+
+
+def get_filters():
+    """Returns a dict of trace events, their filter ids and
+    the values that can be filtered.
+
+    Trace events can be filtered for special values by setting a
+    filter string via an ioctl. The string normally has the format
+    identifier==value. For each filter a new event will be created, to
+    be able to distinguish the events.
+
+    """
+    filters = {}
+    filters['kvm_userspace_exit'] = ('reason', USERSPACE_EXIT_REASONS)
+    if ARCH.exit_reasons:
+        filters['kvm_exit'] = ('exit_reason', ARCH.exit_reasons)
+    return filters
+
+libc = ctypes.CDLL('libc.so.6', use_errno=True)
+syscall = libc.syscall
+
+class perf_event_attr(ctypes.Structure):
+    """Struct that holds the necessary data to set up a trace event.
+
+    For an extensive explanation see perf_event_open(2) and
+    include/uapi/linux/perf_event.h, struct perf_event_attr
+
+    All fields that are not initialized in the constructor are 0.
+
+    """
+    _fields_ = [('type', ctypes.c_uint32),
+                ('size', ctypes.c_uint32),
+                ('config', ctypes.c_uint64),
+                ('sample_freq', ctypes.c_uint64),
+                ('sample_type', ctypes.c_uint64),
+                ('read_format', ctypes.c_uint64),
+                ('flags', ctypes.c_uint64),
+                ('wakeup_events', ctypes.c_uint32),
+                ('bp_type', ctypes.c_uint32),
+                ('bp_addr', ctypes.c_uint64),
+                ('bp_len', ctypes.c_uint64),
+                ]
+
+    def __init__(self):
+        super(self.__class__, self).__init__()
+        self.type = PERF_TYPE_TRACEPOINT
+        self.size = ctypes.sizeof(self)
+        self.read_format = PERF_FORMAT_GROUP
+
+def perf_event_open(attr, pid, cpu, group_fd, flags):
+    """Wrapper for the sys_perf_evt_open() syscall.
+
+    Used to set up performance events, returns a file descriptor or -1
+    on error.
+
+    Attributes are:
+    - syscall number
+    - struct perf_event_attr *
+    - pid or -1 to monitor all pids
+    - cpu number or -1 to monitor all cpus
+    - The file descriptor of the group leader or -1 to create a group.
+    - flags
+
+    """
+    return syscall(ARCH.sc_perf_evt_open, ctypes.pointer(attr),
+                   ctypes.c_int(pid), ctypes.c_int(cpu),
+                   ctypes.c_int(group_fd), ctypes.c_long(flags))
+
+PERF_TYPE_TRACEPOINT = 2
+PERF_FORMAT_GROUP = 1 << 3
+
+PATH_DEBUGFS_TRACING = '/sys/kernel/debug/tracing'
+PATH_DEBUGFS_KVM = '/sys/kernel/debug/kvm'
+
+class Group(object):
+    """Represents a perf event group."""
+
+    def __init__(self):
+        self.events = []
+
+    def add_event(self, event):
+        self.events.append(event)
+
+    def read(self):
+        """Returns a dict with 'event name: value' for all events in the
+        group.
+
+        Values are read by reading from the file descriptor of the
+        event that is the group leader. See perf_event_open(2) for
+        details.
+
+        Read format for the used event configuration is:
+        struct read_format {
+            u64 nr; /* The number of events */
+            struct {
+                u64 value; /* The value of the event */
+            } values[nr];
+        };
+
+        """
+        length = 8 * (1 + len(self.events))
+        read_format = 'xxxxxxxx' + 'Q' * len(self.events)
+        return dict(zip([event.name for event in self.events],
+                        struct.unpack(read_format,
+                                      os.read(self.events[0].fd, length))))
+
+class Event(object):
+    """Represents a performance event and manages its life cycle."""
+    def __init__(self, name, group, trace_cpu, trace_pid, trace_point,
+                 trace_filter, trace_set='kvm'):
+        self.name = name
+        self.fd = None
+        self.setup_event(group, trace_cpu, trace_pid, trace_point,
+                         trace_filter, trace_set)
+
+    def __del__(self):
+        """Closes the event's file descriptor.
+
+        As no python file object was created for the file descriptor,
+        python will not reference count the descriptor and will not
+        close it itself automatically, so we do it.
+
+        """
+        if self.fd:
+            os.close(self.fd)
+
+    def setup_event_attribute(self, trace_set, trace_point):
+        """Returns an initialized ctype perf_event_attr struct."""
+
+        id_path = os.path.join(PATH_DEBUGFS_TRACING, 'events', trace_set,
+                               trace_point, 'id')
+
+        event_attr = perf_event_attr()
+        event_attr.config = int(open(id_path).read())
+        return event_attr
+
+    def setup_event(self, group, trace_cpu, trace_pid, trace_point,
+                    trace_filter, trace_set):
+        """Sets up the perf event in Linux.
+
+        Issues the syscall to register the event in the kernel and
+        then sets the optional filter.
+
+        """
+
+        event_attr = self.setup_event_attribute(trace_set, trace_point)
+
+        # First event will be group leader.
+        group_leader = -1
+
+        # All others have to pass the leader's descriptor instead.
+        if group.events:
+            group_leader = group.events[0].fd
+
+        fd = perf_event_open(event_attr, trace_pid,
+                             trace_cpu, group_leader, 0)
+        if fd == -1:
+            err = ctypes.get_errno()
+            raise OSError(err, os.strerror(err),
+                          'while calling sys_perf_event_open().')
+
+        if trace_filter:
+            fcntl.ioctl(fd, ARCH.ioctl_numbers['SET_FILTER'],
+                        trace_filter)
+
+        self.fd = fd
+
+    def enable(self):
+        """Enables the trace event in the kernel.
+
+        Enabling the group leader makes reading counters from it and the
+        events under it possible.
+
+        """
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['ENABLE'], 0)
+
+    def disable(self):
+        """Disables the trace event in the kernel.
+
+        Disabling the group leader makes reading all counters under it
+        impossible.
+
+        """
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['DISABLE'], 0)
+
+    def reset(self):
+        """Resets the count of the trace event in the kernel."""
+        fcntl.ioctl(self.fd, ARCH.ioctl_numbers['RESET'], 0)
+
+class TracepointProvider(object):
+    """Data provider for the stats class.
+
+    Manages the events/groups from which it acquires its data.
+
+    """
+    def __init__(self):
+        self.group_leaders = []
+        self.filters = get_filters()
+        self._fields = self.get_available_fields()
+        self._pid = 0
+
+    def get_available_fields(self):
+        """Returns a list of available event's of format 'event name(filter
+        name)'.
+
+        All available events have directories under
+        /sys/kernel/debug/tracing/events/ which export information
+        about the specific event. Therefore, listing the dirs gives us
+        a list of all available events.
+
+        Some events like the vm exit reasons can be filtered for
+        specific values. To take account for that, the routine below
+        creates special fields with the following format:
+        event name(filter name)
+
+        """
+        path = os.path.join(PATH_DEBUGFS_TRACING, 'events', 'kvm')
+        fields = walkdir(path)[1]
+        extra = []
+        for field in fields:
+            if field in self.filters:
+                filter_name_, filter_dicts = self.filters[field]
+                for name in filter_dicts:
+                    extra.append(field + '(' + name + ')')
+        fields += extra
+        return fields
+
+    def setup_traces(self):
+        """Creates all event and group objects needed to be able to retrieve
+        data."""
+        if self._pid > 0:
+            # Fetch list of all threads of the monitored pid, as qemu
+            # starts a thread for each vcpu.
+            path = os.path.join('/proc', str(self._pid), 'task')
+            groupids = walkdir(path)[1]
+        else:
+            groupids = get_online_cpus()
+
+        # The constant is needed as a buffer for python libs, std
+        # streams and other files that the script opens.
+        newlim = len(groupids) * len(self._fields) + 50
+        try:
+            softlim_, hardlim = resource.getrlimit(resource.RLIMIT_NOFILE)
+
+            if hardlim < newlim:
+                # Now we need CAP_SYS_RESOURCE, to increase the hard limit.
+                resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, newlim))
+            else:
+                # Raising the soft limit is sufficient.
+                resource.setrlimit(resource.RLIMIT_NOFILE, (newlim, hardlim))
+
+        except ValueError:
+            sys.exit("NOFILE rlimit could not be raised to {0}".format(newlim))
+
+        for groupid in groupids:
+            group = Group()
+            for name in self._fields:
+                tracepoint = name
+                tracefilter = None
+                match = re.match(r'(.*)\((.*)\)', name)
+                if match:
+                    tracepoint, sub = match.groups()
+                    tracefilter = ('%s==%d\0' %
+                                   (self.filters[tracepoint][0],
+                                    self.filters[tracepoint][1][sub]))
+
+                # From perf_event_open(2):
+                # pid > 0 and cpu == -1
+                # This measures the specified process/thread on any CPU.
+                #
+                # pid == -1 and cpu >= 0
+                # This measures all processes/threads on the specified CPU.
+                trace_cpu = groupid if self._pid == 0 else -1
+                trace_pid = int(groupid) if self._pid != 0 else -1
+
+                group.add_event(Event(name=name,
+                                      group=group,
+                                      trace_cpu=trace_cpu,
+                                      trace_pid=trace_pid,
+                                      trace_point=tracepoint,
+                                      trace_filter=tracefilter))
+
+            self.group_leaders.append(group)
+
+    def available_fields(self):
+        return self.get_available_fields()
+
+    @property
+    def fields(self):
+        return self._fields
+
+    @fields.setter
+    def fields(self, fields):
+        """Enables/disables the (un)wanted events"""
+        self._fields = fields
+        for group in self.group_leaders:
+            for index, event in enumerate(group.events):
+                if event.name in fields:
+                    event.reset()
+                    event.enable()
+                else:
+                    # Do not disable the group leader.
+                    # It would disable all of its events.
+                    if index != 0:
+                        event.disable()
+
+    @property
+    def pid(self):
+        return self._pid
+
+    @pid.setter
+    def pid(self, pid):
+        """Changes the monitored pid by setting new traces."""
+        self._pid = pid
+        # The garbage collector will get rid of all Event/Group
+        # objects and open files after removing the references.
+        self.group_leaders = []
+        self.setup_traces()
+        self.fields = self._fields
+
+    def read(self):
+        """Returns 'event name: current value' for all enabled events."""
+        ret = defaultdict(int)
+        for group in self.group_leaders:
+            for name, val in group.read().iteritems():
+                if name in self._fields:
+                    ret[name] += val
+        return ret
+
+class DebugfsProvider(object):
+    """Provides data from the files that KVM creates in the kvm debugfs
+    folder."""
+    def __init__(self):
+        self._fields = self.get_available_fields()
+        self._pid = 0
+        self.do_read = True
+
+    def get_available_fields(self):
+        """"Returns a list of available fields.
+
+        The fields are all available KVM debugfs files
+
+        """
+        return walkdir(PATH_DEBUGFS_KVM)[2]
+
+    @property
+    def fields(self):
+        return self._fields
+
+    @fields.setter
+    def fields(self, fields):
+        self._fields = fields
+
+    @property
+    def pid(self):
+        return self._pid
+
+    @pid.setter
+    def pid(self, pid):
+        if pid != 0:
+            self._pid = pid
+
+            vms = walkdir(PATH_DEBUGFS_KVM)[1]
+            if len(vms) == 0:
+                self.do_read = False
+
+            self.paths = filter(lambda x: "{}-".format(pid) in x, vms)
+
+        else:
+            self.paths = ['']
+            self.do_read = True
+
+    def read(self):
+        """Returns a dict with format:'file name / field -> current value'."""
+        results = {}
+
+        # If no debugfs filtering support is available, then don't read.
+        if not self.do_read:
+            return results
+
+        for path in self.paths:
+            for field in self._fields:
+                results[field] = results.get(field, 0) \
+                                 + self.read_field(field, path)
+
+        return results
+
+    def read_field(self, field, path):
+        """Returns the value of a single field from a specific VM."""
+        try:
+            return int(open(os.path.join(PATH_DEBUGFS_KVM,
+                                         path,
+                                         field))
+                       .read())
+        except IOError:
+            return 0
+
+class Stats(object):
+    """Manages the data providers and the data they provide.
+
+    It is used to set filters on the provider's data and collect all
+    provider data.
+
+    """
+    def __init__(self, providers, pid, fields=None):
+        self.providers = providers
+        self._pid_filter = pid
+        self._fields_filter = fields
+        self.values = {}
+        self.update_provider_pid()
+        self.update_provider_filters()
+
+    def update_provider_filters(self):
+        """Propagates fields filters to providers."""
+        def wanted(key):
+            if not self._fields_filter:
+                return True
+            return re.match(self._fields_filter, key) is not None
+
+        # As we reset the counters when updating the fields we can
+        # also clear the cache of old values.
+        self.values = {}
+        for provider in self.providers:
+            provider_fields = [key for key in provider.get_available_fields()
+                               if wanted(key)]
+            provider.fields = provider_fields
+
+    def update_provider_pid(self):
+        """Propagates pid filters to providers."""
+        for provider in self.providers:
+            provider.pid = self._pid_filter
+
+    @property
+    def fields_filter(self):
+        return self._fields_filter
+
+    @fields_filter.setter
+    def fields_filter(self, fields_filter):
+        self._fields_filter = fields_filter
+        self.update_provider_filters()
+
+    @property
+    def pid_filter(self):
+        return self._pid_filter
+
+    @pid_filter.setter
+    def pid_filter(self, pid):
+        self._pid_filter = pid
+        self.values = {}
+        self.update_provider_pid()
+
+    def get(self):
+        """Returns a dict with field -> (value, delta to last value) of all
+        provider data."""
+        for provider in self.providers:
+            new = provider.read()
+            for key in provider.fields:
+                oldval = self.values.get(key, (0, 0))
+                newval = new.get(key, 0)
+                newdelta = None
+                if oldval is not None:
+                    newdelta = newval - oldval[0]
+                self.values[key] = (newval, newdelta)
+        return self.values
+
+LABEL_WIDTH = 40
+NUMBER_WIDTH = 10
+
+class Tui(object):
+    """Instruments curses to draw a nice text ui."""
+    def __init__(self, stats):
+        self.stats = stats
+        self.screen = None
+        self.drilldown = False
+        self.update_drilldown()
+
+    def __enter__(self):
+        """Initialises curses for later use.  Based on curses.wrapper
+           implementation from the Python standard library."""
+        self.screen = curses.initscr()
+        curses.noecho()
+        curses.cbreak()
+
+        # The try/catch works around a minor bit of
+        # over-conscientiousness in the curses module, the error
+        # return from C start_color() is ignorable.
+        try:
+            curses.start_color()
+        except:
+            pass
+
+        curses.use_default_colors()
+        return self
+
+    def __exit__(self, *exception):
+        """Resets the terminal to its normal state.  Based on curses.wrappre
+           implementation from the Python standard library."""
+        if self.screen:
+            self.screen.keypad(0)
+            curses.echo()
+            curses.nocbreak()
+            curses.endwin()
+
+    def update_drilldown(self):
+        """Sets or removes a filter that only allows fields without braces."""
+        if not self.stats.fields_filter:
+            self.stats.fields_filter = r'^[^\(]*$'
+
+        elif self.stats.fields_filter == r'^[^\(]*$':
+            self.stats.fields_filter = None
+
+    def update_pid(self, pid):
+        """Propagates pid selection to stats object."""
+        self.stats.pid_filter = pid
+
+    def refresh(self, sleeptime):
+        """Refreshes on-screen data."""
+        self.screen.erase()
+        if self.stats.pid_filter > 0:
+            self.screen.addstr(0, 0, 'kvm statistics - pid {0}'
+                               .format(self.stats.pid_filter),
+                               curses.A_BOLD)
+        else:
+            self.screen.addstr(0, 0, 'kvm statistics - summary', curses.A_BOLD)
+        self.screen.addstr(2, 1, 'Event')
+        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH -
+                           len('Total'), 'Total')
+        self.screen.addstr(2, 1 + LABEL_WIDTH + NUMBER_WIDTH + 8 -
+                           len('Current'), 'Current')
+        row = 3
+        stats = self.stats.get()
+        def sortkey(x):
+            if stats[x][1]:
+                return (-stats[x][1], -stats[x][0])
+            else:
+                return (0, -stats[x][0])
+        for key in sorted(stats.keys(), key=sortkey):
+
+            if row >= self.screen.getmaxyx()[0]:
+                break
+            values = stats[key]
+            if not values[0] and not values[1]:
+                break
+            col = 1
+            self.screen.addstr(row, col, key)
+            col += LABEL_WIDTH
+            self.screen.addstr(row, col, '%10d' % (values[0],))
+            col += NUMBER_WIDTH
+            if values[1] is not None:
+                self.screen.addstr(row, col, '%8d' % (values[1] / sleeptime,))
+            row += 1
+        self.screen.refresh()
+
+    def show_filter_selection(self):
+        """Draws filter selection mask.
+
+        Asks for a valid regex and sets the fields filter accordingly.
+
+        """
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0,
+                               "Show statistics for events matching a regex.",
+                               curses.A_BOLD)
+            self.screen.addstr(2, 0,
+                               "Current regex: {0}"
+                               .format(self.stats.fields_filter))
+            self.screen.addstr(3, 0, "New regex: ")
+            curses.echo()
+            regex = self.screen.getstr()
+            curses.noecho()
+            if len(regex) == 0:
+                return
+            try:
+                re.compile(regex)
+                self.stats.fields_filter = regex
+                return
+            except re.error:
+                continue
+
+    def show_vm_selection(self):
+        """Draws PID selection mask.
+
+        Asks for a pid until a valid pid or 0 has been entered.
+
+        """
+        while True:
+            self.screen.erase()
+            self.screen.addstr(0, 0,
+                               'Show statistics for specific pid.',
+                               curses.A_BOLD)
+            self.screen.addstr(1, 0,
+                               'This might limit the shown data to the trace '
+                               'statistics.')
+
+            curses.echo()
+            self.screen.addstr(3, 0, "Pid [0 or pid]: ")
+            pid = self.screen.getstr()
+            curses.noecho()
+
+            try:
+                pid = int(pid)
+
+                if pid == 0:
+                    self.update_pid(pid)
+                    break
+                else:
+                    if not os.path.isdir(os.path.join('/proc/', str(pid))):
+                        continue
+                    else:
+                        self.update_pid(pid)
+                        break
+
+            except ValueError:
+                continue
+
+    def show_stats(self):
+        """Refreshes the screen and processes user input."""
+        sleeptime = 0.25
+        while True:
+            self.refresh(sleeptime)
+            curses.halfdelay(int(sleeptime * 10))
+            sleeptime = 3
+            try:
+                char = self.screen.getkey()
+                if char == 'x':
+                    self.drilldown = not self.drilldown
+                    self.update_drilldown()
+                if char == 'q':
+                    break
+                if char == 'f':
+                    self.show_filter_selection()
+                if char == 'p':
+                    self.show_vm_selection()
+            except KeyboardInterrupt:
+                break
+            except curses.error:
+                continue
+
+def batch(stats):
+    """Prints statistics in a key, value format."""
+    s = stats.get()
+    time.sleep(1)
+    s = stats.get()
+    for key in sorted(s.keys()):
+        values = s[key]
+        print '%-42s%10d%10d' % (key, values[0], values[1])
+
+def log(stats):
+    """Prints statistics as reiterating key block, multiple value blocks."""
+    keys = sorted(stats.get().iterkeys())
+    def banner():
+        for k in keys:
+            print '%s' % k,
+        print
+    def statline():
+        s = stats.get()
+        for k in keys:
+            print ' %9d' % s[k][1],
+        print
+    line = 0
+    banner_repeat = 20
+    while True:
+        time.sleep(1)
+        if line % banner_repeat == 0:
+            banner()
+        statline()
+        line += 1
+
+def get_options():
+    """Returns processed program arguments."""
+    description_text = """
+This script displays various statistics about VMs running under KVM.
+The statistics are gathered from the KVM debugfs entries and / or the
+currently available perf traces.
+
+The monitoring takes additional cpu cycles and might affect the VM's
+performance.
+
+Requirements:
+- Access to:
+    /sys/kernel/debug/kvm
+    /sys/kernel/debug/trace/events/*
+    /proc/pid/task
+- /proc/sys/kernel/perf_event_paranoid < 1 if user has no
+  CAP_SYS_ADMIN and perf events are used.
+- CAP_SYS_RESOURCE if the hard limit is not high enough to allow
+  the large number of files that are possibly opened.
+"""
+
+    class PlainHelpFormatter(optparse.IndentedHelpFormatter):
+        def format_description(self, description):
+            if description:
+                return description + "\n"
+            else:
+                return ""
+
+    optparser = optparse.OptionParser(description=description_text,
+                                      formatter=PlainHelpFormatter())
+    optparser.add_option('-1', '--once', '--batch',
+                         action='store_true',
+                         default=False,
+                         dest='once',
+                         help='run in batch mode for one second',
+                         )
+    optparser.add_option('-l', '--log',
+                         action='store_true',
+                         default=False,
+                         dest='log',
+                         help='run in logging mode (like vmstat)',
+                         )
+    optparser.add_option('-t', '--tracepoints',
+                         action='store_true',
+                         default=False,
+                         dest='tracepoints',
+                         help='retrieve statistics from tracepoints',
+                         )
+    optparser.add_option('-d', '--debugfs',
+                         action='store_true',
+                         default=False,
+                         dest='debugfs',
+                         help='retrieve statistics from debugfs',
+                         )
+    optparser.add_option('-f', '--fields',
+                         action='store',
+                         default=None,
+                         dest='fields',
+                         help='fields to display (regex)',
+                         )
+    optparser.add_option('-p', '--pid',
+                        action='store',
+                        default=0,
+                        type=int,
+                        dest='pid',
+                        help='restrict statistics to pid',
+                        )
+    (options, _) = optparser.parse_args(sys.argv)
+    return options
+
+def get_providers(options):
+    """Returns a list of data providers depending on the passed options."""
+    providers = []
+
+    if options.tracepoints:
+        providers.append(TracepointProvider())
+    if options.debugfs:
+        providers.append(DebugfsProvider())
+    if len(providers) == 0:
+        providers.append(TracepointProvider())
+
+    return providers
+
+def check_access(options):
+    """Exits if the current user can't access all needed directories."""
+    if not os.path.exists('/sys/kernel/debug'):
+        sys.stderr.write('Please enable CONFIG_DEBUG_FS in your kernel.')
+        sys.exit(1)
+
+    if not os.path.exists(PATH_DEBUGFS_KVM):
+        sys.stderr.write("Please make sure, that debugfs is mounted and "
+                         "readable by the current user:\n"
+                         "('mount -t debugfs debugfs /sys/kernel/debug')\n"
+                         "Also ensure, that the kvm modules are loaded.\n")
+        sys.exit(1)
+
+    if not os.path.exists(PATH_DEBUGFS_TRACING) and (options.tracepoints
+                                                     or not options.debugfs):
+        sys.stderr.write("Please enable CONFIG_TRACING in your kernel "
+                         "when using the option -t (default).\n"
+                         "If it is enabled, make {0} readable by the "
+                         "current user.\n"
+                         .format(PATH_DEBUGFS_TRACING))
+        if options.tracepoints:
+            sys.exit(1)
+
+        sys.stderr.write("Falling back to debugfs statistics!\n")
+        options.debugfs = True
+        sleep(5)
+
+    return options
+
+def main():
+    options = get_options()
+    options = check_access(options)
+
+    if (options.pid > 0 and
+        not os.path.isdir(os.path.join('/proc/',
+                                       str(options.pid)))):
+        sys.stderr.write('Did you use a (unsupported) tid instead of a pid?\n')
+        sys.exit('Specified pid does not exist.')
+
+    providers = get_providers(options)
+    stats = Stats(providers, options.pid, fields=options.fields)
+
+    if options.log:
+        log(stats)
+    elif not options.once:
+        with Tui(stats) as tui:
+            tui.show_stats()
+    else:
+        batch(stats)
+
+if __name__ == "__main__":
+    main()

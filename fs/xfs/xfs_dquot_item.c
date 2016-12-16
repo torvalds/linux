@@ -370,6 +370,8 @@ xfs_qm_qoffend_logitem_committed(
 	spin_lock(&ailp->xa_lock);
 	xfs_trans_ail_delete(ailp, &qfs->qql_item, SHUTDOWN_LOG_IO_ERROR);
 
+	kmem_free(qfs->qql_item.li_lv_shadow);
+	kmem_free(lip->li_lv_shadow);
 	kmem_free(qfs);
 	kmem_free(qfe);
 	return (xfs_lsn_t)-1;

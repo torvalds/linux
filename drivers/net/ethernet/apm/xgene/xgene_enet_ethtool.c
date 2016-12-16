@@ -65,8 +65,15 @@ static int xgene_get_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
 
 		return phy_ethtool_gset(phydev, cmd);
 	} else if (pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
-		cmd->supported = SUPPORTED_1000baseT_Full |
-				 SUPPORTED_Autoneg | SUPPORTED_MII;
+		if (pdata->mdio_driver) {
+			if (!phydev)
+				return -ENODEV;
+
+			return phy_ethtool_gset(phydev, cmd);
+		}
+
+		cmd->supported = SUPPORTED_1000baseT_Full | SUPPORTED_Autoneg |
+				 SUPPORTED_MII;
 		cmd->advertising = cmd->supported;
 		ethtool_cmd_speed_set(cmd, SPEED_1000);
 		cmd->duplex = DUPLEX_FULL;
@@ -92,10 +99,19 @@ static int xgene_set_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
 	struct phy_device *phydev = pdata->phy_dev;
 
 	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII) {
-		if (phydev == NULL)
+		if (!phydev)
 			return -ENODEV;
 
 		return phy_ethtool_sset(phydev, cmd);
+	}
+
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
+		if (pdata->mdio_driver) {
+			if (!phydev)
+				return -ENODEV;
+
+			return phy_ethtool_sset(phydev, cmd);
+		}
 	}
 
 	return -EINVAL;

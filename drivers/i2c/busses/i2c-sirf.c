@@ -190,9 +190,7 @@ static void i2c_sirfsoc_set_address(struct sirfsoc_i2c *siic,
 
 	writel(regval, siic->base + SIRFSOC_I2C_CMD(siic->cmd_ptr++));
 
-	addr = msg->addr << 1;	/* Generate address */
-	if (msg->flags & I2C_M_RD)
-		addr |= 1;
+	addr = i2c_8bit_addr_from_msg(msg);
 
 	/* Reverse direction bit */
 	if (msg->flags & I2C_M_REV_DIR_ADDR)

@@ -30,7 +30,6 @@ nft_netdev_set_pktinfo_ipv4(struct nft_pktinfo *pkt,
 	if (!iph)
 		return;
 
-	iph = ip_hdr(skb);
 	if (iph->ihl < 5 || iph->version != 4)
 		return;
 

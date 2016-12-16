@@ -167,6 +167,10 @@ void cw1200_scan_work(struct work_struct *work)
 	}
 
 	if (!priv->scan.req || (priv->scan.curr == priv->scan.end)) {
+		struct cfg80211_scan_info info = {
+			.aborted = priv->scan.status ? 1 : 0,
+		};
+
 		if (priv->scan.output_power != priv->output_power)
 			wsm_set_output_power(priv, priv->output_power * 10);
 		if (priv->join_status == CW1200_JOIN_STATUS_STA &&
@@ -188,7 +192,7 @@ void cw1200_scan_work(struct work_struct *work)
 		cw1200_scan_restart_delayed(priv);
 		wsm_unlock_tx(priv);
 		mutex_unlock(&priv->conf_mutex);
-		ieee80211_scan_completed(priv->hw, priv->scan.status ? 1 : 0);
+		ieee80211_scan_completed(priv->hw, &info);
 		up(&priv->scan.lock);
 		return;
 	} else {
@@ -402,7 +406,7 @@ void cw1200_probe_work(struct work_struct *work)
 	}
 	wsm = (struct wsm_tx *)frame.skb->data;
 	scan.max_tx_rate = wsm->max_tx_rate;
-	scan.band = (priv->channel->band == IEEE80211_BAND_5GHZ) ?
+	scan.band = (priv->channel->band == NL80211_BAND_5GHZ) ?
 		WSM_PHY_BAND_5G : WSM_PHY_BAND_2_4G;
 	if (priv->join_status == CW1200_JOIN_STATUS_STA ||
 	    priv->join_status == CW1200_JOIN_STATUS_IBSS) {

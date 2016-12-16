@@ -34,40 +34,38 @@ static void clear_exceptional_entry(struct address_space *mapping,
 	if (shmem_mapping(mapping))
 		return;
 
-	spin_lock_irq(&mapping->tree_lock);
-
 	if (dax_mapping(mapping)) {
-		if (radix_tree_delete_item(&mapping->page_tree, index, entry))
-			mapping->nrexceptional--;
-	} else {
-		/*
-		 * Regular page slots are stabilized by the page lock even
-		 * without the tree itself locked.  These unlocked entries
-		 * need verification under the tree lock.
-		 */
-		if (!__radix_tree_lookup(&mapping->page_tree, index, &node,
-					&slot))
-			goto unlock;
-		if (*slot != entry)
-			goto unlock;
-		radix_tree_replace_slot(slot, NULL);
-		mapping->nrexceptional--;
-		if (!node)
-			goto unlock;
-		workingset_node_shadows_dec(node);
-		/*
-		 * Don't track node without shadow entries.
-		 *
-		 * Avoid acquiring the list_lru lock if already untracked.
-		 * The list_empty() test is safe as node->private_list is
-		 * protected by mapping->tree_lock.
-		 */
-		if (!workingset_node_shadows(node) &&
-		    !list_empty(&node->private_list))
-			list_lru_del(&workingset_shadow_nodes,
-					&node->private_list);
-		__radix_tree_delete_node(&mapping->page_tree, node);
+		dax_delete_mapping_entry(mapping, index);
+		return;
 	}
+	spin_lock_irq(&mapping->tree_lock);
+	/*
+	 * Regular page slots are stabilized by the page lock even
+	 * without the tree itself locked.  These unlocked entries
+	 * need verification under the tree lock.
+	 */
+	if (!__radix_tree_lookup(&mapping->page_tree, index, &node,
+				&slot))
+		goto unlock;
+	if (*slot != entry)
+		goto unlock;
+	radix_tree_replace_slot(slot, NULL);
+	mapping->nrexceptional--;
+	if (!node)
+		goto unlock;
+	workingset_node_shadows_dec(node);
+	/*
+	 * Don't track node without shadow entries.
+	 *
+	 * Avoid acquiring the list_lru lock if already untracked.
+	 * The list_empty() test is safe as node->private_list is
+	 * protected by mapping->tree_lock.
+	 */
+	if (!workingset_node_shadows(node) &&
+	    !list_empty(&node->private_list))
+		list_lru_del(&workingset_shadow_nodes,
+				&node->private_list);
+	__radix_tree_delete_node(&mapping->page_tree, node);
 unlock:
 	spin_unlock_irq(&mapping->tree_lock);
 }
@@ -157,10 +155,14 @@ invalidate_complete_page(struct address_space *mapping, struct page *page)
 
 int truncate_inode_page(struct address_space *mapping, struct page *page)
 {
+	loff_t holelen;
+	VM_BUG_ON_PAGE(PageTail(page), page);
+
+	holelen = PageTransHuge(page) ? HPAGE_PMD_SIZE : PAGE_SIZE;
 	if (page_mapped(page)) {
 		unmap_mapping_range(mapping,
 				   (loff_t)page->index << PAGE_SHIFT,
-				   PAGE_SIZE, 0);
+				   holelen, 0);
 	}
 	return truncate_complete_page(mapping, page);
 }
@@ -281,7 +283,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 
 			if (!trylock_page(page))
 				continue;
-			WARN_ON(page->index != index);
+			WARN_ON(page_to_pgoff(page) != index);
 			if (PageWriteback(page)) {
 				unlock_page(page);
 				continue;
@@ -369,7 +371,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 			}
 
 			lock_page(page);
-			WARN_ON(page->index != index);
+			WARN_ON(page_to_pgoff(page) != index);
 			wait_on_page_writeback(page);
 			truncate_inode_page(mapping, page);
 			unlock_page(page);
@@ -489,7 +491,21 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 
 			if (!trylock_page(page))
 				continue;
-			WARN_ON(page->index != index);
+
+			WARN_ON(page_to_pgoff(page) != index);
+
+			/* Middle of THP: skip */
+			if (PageTransTail(page)) {
+				unlock_page(page);
+				continue;
+			} else if (PageTransHuge(page)) {
+				index += HPAGE_PMD_NR - 1;
+				i += HPAGE_PMD_NR - 1;
+				/* 'end' is in the middle of THP */
+				if (index ==  round_down(end, HPAGE_PMD_NR))
+					continue;
+			}
+
 			ret = invalidate_inode_page(page);
 			unlock_page(page);
 			/*
@@ -596,7 +612,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 			}
 
 			lock_page(page);
-			WARN_ON(page->index != index);
+			WARN_ON(page_to_pgoff(page) != index);
 			if (page->mapping != mapping) {
 				unlock_page(page);
 				continue;

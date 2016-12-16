@@ -170,7 +170,6 @@
 #define   NIC_QSET_SQ_0_7_DOOR			(0x010838)
 #define   NIC_QSET_SQ_0_7_STATUS		(0x010840)
 #define   NIC_QSET_SQ_0_7_DEBUG			(0x010848)
-#define   NIC_QSET_SQ_0_7_CNM_CHG		(0x010860)
 #define   NIC_QSET_SQ_0_7_STAT_0_1		(0x010900)
 
 #define   NIC_QSET_RBDR_0_1_CFG			(0x010C00)

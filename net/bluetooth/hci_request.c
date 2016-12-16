@@ -262,6 +262,8 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		break;
 	}
 
+	kfree_skb(hdev->req_skb);
+	hdev->req_skb = NULL;
 	hdev->req_status = hdev->req_result = 0;
 
 	BT_DBG("%s end: err %d", hdev->name, err);
@@ -1065,15 +1067,15 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 	if (instance_flags & MGMT_ADV_FLAG_LIMITED_DISCOV)
 		flags |= LE_AD_LIMITED;
 
+	if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
+		flags |= LE_AD_NO_BREDR;
+
 	if (flags || (instance_flags & MGMT_ADV_FLAG_MANAGED_FLAGS)) {
 		/* If a discovery flag wasn't provided, simply use the global
 		 * settings.
 		 */
 		if (!flags)
 			flags |= mgmt_get_adv_discov_flags(hdev);
-
-		if (!hci_dev_test_flag(hdev, HCI_BREDR_ENABLED))
-			flags |= LE_AD_NO_BREDR;
 
 		/* If flags would still be empty, then there is no need to
 		 * include the "Flags" AD field".

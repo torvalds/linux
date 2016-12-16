@@ -298,8 +298,8 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 			ec_dev->max_response = EC_PROTO2_MAX_PARAM_SIZE;
 			ec_dev->max_passthru = 0;
 			ec_dev->pkt_xfer = NULL;
-			ec_dev->din_size = EC_MSG_BYTES;
-			ec_dev->dout_size = EC_MSG_BYTES;
+			ec_dev->din_size = EC_PROTO2_MSG_BYTES;
+			ec_dev->dout_size = EC_PROTO2_MSG_BYTES;
 		} else {
 			/*
 			 * It's possible for a test to occur too early when
@@ -380,3 +380,20 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev,
 	return ret;
 }
 EXPORT_SYMBOL(cros_ec_cmd_xfer);
+
+int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
+			    struct cros_ec_command *msg)
+{
+	int ret;
+
+	ret = cros_ec_cmd_xfer(ec_dev, msg);
+	if (ret < 0) {
+		dev_err(ec_dev->dev, "Command xfer error (err:%d)\n", ret);
+	} else if (msg->result != EC_RES_SUCCESS) {
+		dev_dbg(ec_dev->dev, "Command result (err: %d)\n", msg->result);
+		return -EPROTO;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(cros_ec_cmd_xfer_status);

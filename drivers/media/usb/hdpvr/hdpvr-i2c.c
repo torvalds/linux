@@ -55,7 +55,7 @@ struct i2c_client *hdpvr_register_ir_rx_i2c(struct hdpvr_device *dev)
 	/* Our default information for ir-kbd-i2c.c to use */
 	init_data->ir_codes = RC_MAP_HAUPPAUGE;
 	init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-	init_data->type = RC_BIT_RC5;
+	init_data->type = RC_BIT_RC5 | RC_BIT_RC6_MCE | RC_BIT_RC6_6A_32;
 	init_data->name = "HD-PVR";
 	init_data->polling_interval = 405; /* ms, duplicated from Windows */
 	hdpvr_ir_rx_i2c_board_info.platform_data = init_data;
@@ -180,7 +180,7 @@ static u32 hdpvr_functionality(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm hdpvr_algo = {
+static const struct i2c_algorithm hdpvr_algo = {
 	.master_xfer   = hdpvr_transfer,
 	.functionality = hdpvr_functionality,
 };

@@ -1,6 +1,8 @@
 libperf-y += header.o
 libperf-y += sym-handling.o
 libperf-y += kvm-stat.o
+libperf-y += perf_regs.o
 
 libperf-$(CONFIG_DWARF) += dwarf-regs.o
 libperf-$(CONFIG_DWARF) += skip-callchain-idx.o
+libperf-$(CONFIG_LIBUNWIND) += unwind-libunwind.o

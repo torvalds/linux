@@ -206,10 +206,8 @@ static void set_dtr(struct tegra_uart_port *tup, bool active)
 static void tegra_uart_set_mctrl(struct uart_port *u, unsigned int mctrl)
 {
 	struct tegra_uart_port *tup = to_tegra_uport(u);
-	unsigned long mcr;
 	int dtr_enable;
 
-	mcr = tup->mcr_shadow;
 	tup->rts_active = !!(mctrl & TIOCM_RTS);
 	set_rts(tup, tup->rts_active);
 
@@ -1319,7 +1317,12 @@ static int tegra_uart_probe(struct platform_device *pdev)
 	}
 
 	u->iotype = UPIO_MEM32;
-	u->irq = platform_get_irq(pdev, 0);
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Couldn't get IRQ\n");
+		return ret;
+	}
+	u->irq = ret;
 	u->regshift = 2;
 	ret = uart_add_one_port(&tegra_uart_driver, u);
 	if (ret < 0) {

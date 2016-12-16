@@ -599,7 +599,7 @@ static u32 rate_n_flags_from_tbl(struct iwl_priv *priv,
  * fill "search" or "active" tx mode table.
  */
 static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
-				    enum ieee80211_band band,
+				    enum nl80211_band band,
 				    struct iwl_scale_tbl_info *tbl,
 				    int *rate_idx)
 {
@@ -624,7 +624,7 @@ static int rs_get_tbl_info_from_mcs(const u32 rate_n_flags,
 	/* legacy rate format */
 	if (!(rate_n_flags & RATE_MCS_HT_MSK)) {
 		if (num_of_ant == 1) {
-			if (band == IEEE80211_BAND_5GHZ)
+			if (band == NL80211_BAND_5GHZ)
 				tbl->lq_type = LQ_A;
 			else
 				tbl->lq_type = LQ_G;
@@ -802,7 +802,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 	if (!is_legacy(tbl->lq_type) && (!ht_possible || !scale_index)) {
 		switch_to_legacy = 1;
 		scale_index = rs_ht_to_legacy[scale_index];
-		if (lq_sta->band == IEEE80211_BAND_5GHZ)
+		if (lq_sta->band == NL80211_BAND_5GHZ)
 			tbl->lq_type = LQ_A;
 		else
 			tbl->lq_type = LQ_G;
@@ -821,7 +821,7 @@ static u32 rs_get_lower_rate(struct iwl_lq_sta *lq_sta,
 	/* Mask with station rate restriction */
 	if (is_legacy(tbl->lq_type)) {
 		/* supp_rates has no CCK bits in A mode */
-		if (lq_sta->band == IEEE80211_BAND_5GHZ)
+		if (lq_sta->band == NL80211_BAND_5GHZ)
 			rate_mask  = (u16)(rate_mask &
 			   (lq_sta->supp_rates << IWL_FIRST_OFDM_RATE));
 		else
@@ -939,7 +939,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	table = &lq_sta->lq;
 	tx_rate = le32_to_cpu(table->rs_table[0].rate_n_flags);
 	rs_get_tbl_info_from_mcs(tx_rate, priv->band, &tbl_type, &rs_index);
-	if (priv->band == IEEE80211_BAND_5GHZ)
+	if (priv->band == NL80211_BAND_5GHZ)
 		rs_index -= IWL_FIRST_OFDM_RATE;
 	mac_flags = info->status.rates[0].flags;
 	mac_index = info->status.rates[0].idx;
@@ -952,7 +952,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 		 * mac80211 HT index is always zero-indexed; we need to move
 		 * HT OFDM rates after CCK rates in 2.4 GHz band
 		 */
-		if (priv->band == IEEE80211_BAND_2GHZ)
+		if (priv->band == NL80211_BAND_2GHZ)
 			mac_index += IWL_FIRST_OFDM_RATE;
 	}
 	/* Here we actually compare this rate to the latest LQ command */
@@ -2284,7 +2284,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 
 	/* mask with station rate restriction */
 	if (is_legacy(tbl->lq_type)) {
-		if (lq_sta->band == IEEE80211_BAND_5GHZ)
+		if (lq_sta->band == NL80211_BAND_5GHZ)
 			/* supp_rates has no CCK bits in A mode */
 			rate_scale_index_msk = (u16) (rate_mask &
 				(lq_sta->supp_rates << IWL_FIRST_OFDM_RATE));
@@ -2721,7 +2721,7 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	/* Get max rate if user set max rate */
 	if (lq_sta) {
 		lq_sta->max_rate_idx = txrc->max_rate_idx;
-		if ((sband->band == IEEE80211_BAND_5GHZ) &&
+		if ((sband->band == NL80211_BAND_5GHZ) &&
 		    (lq_sta->max_rate_idx != -1))
 			lq_sta->max_rate_idx += IWL_FIRST_OFDM_RATE;
 		if ((lq_sta->max_rate_idx < 0) ||
@@ -2763,11 +2763,11 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta, void *priv_sta,
 	} else {
 		/* Check for invalid rates */
 		if ((rate_idx < 0) || (rate_idx >= IWL_RATE_COUNT_LEGACY) ||
-				((sband->band == IEEE80211_BAND_5GHZ) &&
+				((sband->band == NL80211_BAND_5GHZ) &&
 				 (rate_idx < IWL_FIRST_OFDM_RATE)))
 			rate_idx = rate_lowest_index(sband, sta);
 		/* On valid 5 GHz rate, adjust index */
-		else if (sband->band == IEEE80211_BAND_5GHZ)
+		else if (sband->band == NL80211_BAND_5GHZ)
 			rate_idx -= IWL_FIRST_OFDM_RATE;
 		info->control.rates[0].flags = 0;
 	}
@@ -2880,7 +2880,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 
 	/* Set last_txrate_idx to lowest rate */
 	lq_sta->last_txrate_idx = rate_lowest_index(sband, sta);
-	if (sband->band == IEEE80211_BAND_5GHZ)
+	if (sband->band == NL80211_BAND_5GHZ)
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 	lq_sta->is_agg = 0;
 #ifdef CONFIG_MAC80211_DEBUGFS

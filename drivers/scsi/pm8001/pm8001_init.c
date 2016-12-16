@@ -418,8 +418,6 @@ static int pm8001_ioremap(struct pm8001_hba_info *pm8001_ha)
 		if (pci_resource_flags(pdev, bar) & IORESOURCE_MEM) {
 			pm8001_ha->io_mem[logicalBar].membase =
 				pci_resource_start(pdev, bar);
-			pm8001_ha->io_mem[logicalBar].membase &=
-				(u32)PCI_BASE_ADDRESS_MEM_MASK;
 			pm8001_ha->io_mem[logicalBar].memsize =
 				pci_resource_len(pdev, bar);
 			pm8001_ha->io_mem[logicalBar].memvirtaddr =
@@ -1251,7 +1249,7 @@ static int pm8001_pci_resume(struct pci_dev *pdev)
 
 	/* Chip documentation for the 8070 and 8072 SPCv    */
 	/* states that a 500ms minimum delay is required    */
-	/* before issuing commands.  Otherwise, the firmare */
+	/* before issuing commands. Otherwise, the firmware */
 	/* will enter an unrecoverable state.               */
 
 	if (pm8001_ha->chip_id == chip_8070 ||

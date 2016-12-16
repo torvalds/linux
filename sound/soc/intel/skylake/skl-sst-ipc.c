@@ -363,7 +363,7 @@ static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 	/* first process the header */
 	switch (reply) {
 	case IPC_GLB_REPLY_SUCCESS:
-		dev_info(ipc->dev, "ipc FW reply %x: success\n", header.primary);
+		dev_dbg(ipc->dev, "ipc FW reply %x: success\n", header.primary);
 		/* copy the rx data from the mailbox */
 		sst_dsp_inbox_read(ipc->dsp, msg->rx_data, msg->rx_size);
 		break;
@@ -692,7 +692,7 @@ int skl_ipc_init_instance(struct sst_generic_ipc *ipc,
 	 /* param_block_size must be in dwords */
 	u16 param_block_size = msg->param_data_size / sizeof(u32);
 
-	print_hex_dump(KERN_DEBUG, NULL, DUMP_PREFIX_NONE,
+	print_hex_dump_debug("Param data:", DUMP_PREFIX_NONE,
 		16, 4, buffer, param_block_size, false);
 
 	header.primary = IPC_MSG_TARGET(IPC_MOD_MSG);

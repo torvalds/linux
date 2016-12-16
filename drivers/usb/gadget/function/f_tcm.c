@@ -1290,15 +1290,6 @@ static void usbg_release_cmd(struct se_cmd *se_cmd)
 	percpu_ida_free(&se_sess->sess_tag_pool, se_cmd->map_tag);
 }
 
-static int usbg_shutdown_session(struct se_session *se_sess)
-{
-	return 0;
-}
-
-static void usbg_close_session(struct se_session *se_sess)
-{
-}
-
 static u32 usbg_sess_get_index(struct se_session *se_sess)
 {
 	return 0;
@@ -1454,16 +1445,18 @@ static void usbg_drop_tpg(struct se_portal_group *se_tpg)
 	for (i = 0; i < TPG_INSTANCES; ++i)
 		if (tpg_instances[i].tpg == tpg)
 			break;
-	if (i < TPG_INSTANCES)
+	if (i < TPG_INSTANCES) {
 		tpg_instances[i].tpg = NULL;
-	opts = container_of(tpg_instances[i].func_inst,
-		struct f_tcm_opts, func_inst);
-	mutex_lock(&opts->dep_lock);
-	if (opts->has_dep)
-		module_put(opts->dependent);
-	else
-		configfs_undepend_item_unlocked(&opts->func_inst.group.cg_item);
-	mutex_unlock(&opts->dep_lock);
+		opts = container_of(tpg_instances[i].func_inst,
+			struct f_tcm_opts, func_inst);
+		mutex_lock(&opts->dep_lock);
+		if (opts->has_dep)
+			module_put(opts->dependent);
+		else
+			configfs_undepend_item_unlocked(
+				&opts->func_inst.group.cg_item);
+		mutex_unlock(&opts->dep_lock);
+	}
 	mutex_unlock(&tpg_instances_lock);
 
 	kfree(tpg);
@@ -1735,8 +1728,6 @@ static const struct target_core_fabric_ops usbg_ops = {
 	.tpg_check_prod_mode_write_protect = usbg_check_false,
 	.tpg_get_inst_index		= usbg_tpg_get_inst_index,
 	.release_cmd			= usbg_release_cmd,
-	.shutdown_session		= usbg_shutdown_session,
-	.close_session			= usbg_close_session,
 	.sess_get_index			= usbg_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= usbg_send_write_request,

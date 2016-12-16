@@ -40,6 +40,51 @@
 #include <asm/mips-cm.h>
 
 /*
+ * Bits describing what cache ops an SMP callback function may perform.
+ *
+ * R4K_HIT   -	Virtual user or kernel address based cache operations. The
+ *		active_mm must be checked before using user addresses, falling
+ *		back to kmap.
+ * R4K_INDEX -	Index based cache operations.
+ */
+
+#define R4K_HIT		BIT(0)
+#define R4K_INDEX	BIT(1)
+
+/**
+ * r4k_op_needs_ipi() - Decide if a cache op needs to be done on every core.
+ * @type:	Type of cache operations (R4K_HIT or R4K_INDEX).
+ *
+ * Decides whether a cache op needs to be performed on every core in the system.
+ * This may change depending on the @type of cache operation, as well as the set
+ * of online CPUs, so preemption should be disabled by the caller to prevent CPU
+ * hotplug from changing the result.
+ *
+ * Returns:	1 if the cache operation @type should be done on every core in
+ *		the system.
+ *		0 if the cache operation @type is globalized and only needs to
+ *		be performed on a simple CPU.
+ */
+static inline bool r4k_op_needs_ipi(unsigned int type)
+{
+	/* The MIPS Coherence Manager (CM) globalizes address-based cache ops */
+	if (type == R4K_HIT && mips_cm_present())
+		return false;
+
+	/*
+	 * Hardware doesn't globalize the required cache ops, so SMP calls may
+	 * be needed, but only if there are foreign CPUs (non-siblings with
+	 * separate caches).
+	 */
+	/* cpu_foreign_map[] undeclared when !CONFIG_SMP */
+#ifdef CONFIG_SMP
+	return !cpumask_empty(&cpu_foreign_map[0]);
+#else
+	return false;
+#endif
+}
+
+/*
  * Special Variant of smp_call_function for use by cache functions:
  *
  *  o No return value
@@ -48,35 +93,23 @@
  *    primary cache.
  *  o doesn't disable interrupts on the local CPU
  */
-static inline void r4k_on_each_cpu(void (*func) (void *info), void *info)
+static inline void r4k_on_each_cpu(unsigned int type,
+				   void (*func)(void *info), void *info)
 {
 	preempt_disable();
-
-	/*
-	 * The Coherent Manager propagates address-based cache ops to other
-	 * cores but not index-based ops. However, r4k_on_each_cpu is used
-	 * in both cases so there is no easy way to tell what kind of op is
-	 * executed to the other cores. The best we can probably do is
-	 * to restrict that call when a CM is not present because both
-	 * CM-based SMP protocols (CMP & CPS) restrict index-based cache ops.
-	 */
-	if (!mips_cm_present())
-		smp_call_function_many(&cpu_foreign_map, func, info, 1);
+	if (r4k_op_needs_ipi(type))
+		smp_call_function_many(&cpu_foreign_map[smp_processor_id()],
+				       func, info, 1);
 	func(info);
 	preempt_enable();
 }
-
-#if defined(CONFIG_MIPS_CMP) || defined(CONFIG_MIPS_CPS)
-#define cpu_has_safe_index_cacheops 0
-#else
-#define cpu_has_safe_index_cacheops 1
-#endif
 
 /*
  * Must die.
  */
 static unsigned long icache_size __read_mostly;
 static unsigned long dcache_size __read_mostly;
+static unsigned long vcache_size __read_mostly;
 static unsigned long scache_size __read_mostly;
 
 /*
@@ -447,6 +480,11 @@ static inline void local_r4k___flush_cache_all(void * args)
 		r4k_blast_scache();
 		break;
 
+	case CPU_BMIPS5000:
+		r4k_blast_scache();
+		__sync();
+		break;
+
 	default:
 		r4k_blast_dcache();
 		r4k_blast_icache();
@@ -456,22 +494,44 @@ static inline void local_r4k___flush_cache_all(void * args)
 
 static void r4k___flush_cache_all(void)
 {
-	r4k_on_each_cpu(local_r4k___flush_cache_all, NULL);
+	r4k_on_each_cpu(R4K_INDEX, local_r4k___flush_cache_all, NULL);
 }
 
-static inline int has_valid_asid(const struct mm_struct *mm)
+/**
+ * has_valid_asid() - Determine if an mm already has an ASID.
+ * @mm:		Memory map.
+ * @type:	R4K_HIT or R4K_INDEX, type of cache op.
+ *
+ * Determines whether @mm already has an ASID on any of the CPUs which cache ops
+ * of type @type within an r4k_on_each_cpu() call will affect. If
+ * r4k_on_each_cpu() does an SMP call to a single VPE in each core, then the
+ * scope of the operation is confined to sibling CPUs, otherwise all online CPUs
+ * will need to be checked.
+ *
+ * Must be called in non-preemptive context.
+ *
+ * Returns:	1 if the CPUs affected by @type cache ops have an ASID for @mm.
+ *		0 otherwise.
+ */
+static inline int has_valid_asid(const struct mm_struct *mm, unsigned int type)
 {
-#ifdef CONFIG_MIPS_MT_SMP
-	int i;
+	unsigned int i;
+	const cpumask_t *mask = cpu_present_mask;
 
-	for_each_online_cpu(i)
+	/* cpu_sibling_map[] undeclared when !CONFIG_SMP */
+#ifdef CONFIG_SMP
+	/*
+	 * If r4k_on_each_cpu does SMP calls, it does them to a single VPE in
+	 * each foreign core, so we only need to worry about siblings.
+	 * Otherwise we need to worry about all present CPUs.
+	 */
+	if (r4k_op_needs_ipi(type))
+		mask = &cpu_sibling_map[smp_processor_id()];
+#endif
+	for_each_cpu(i, mask)
 		if (cpu_context(i, mm))
 			return 1;
-
 	return 0;
-#else
-	return cpu_context(smp_processor_id(), mm);
-#endif
 }
 
 static void r4k__flush_cache_vmap(void)
@@ -484,15 +544,26 @@ static void r4k__flush_cache_vunmap(void)
 	r4k_blast_dcache();
 }
 
+/*
+ * Note: flush_tlb_range() assumes flush_cache_range() sufficiently flushes
+ * whole caches when vma is executable.
+ */
 static inline void local_r4k_flush_cache_range(void * args)
 {
 	struct vm_area_struct *vma = args;
 	int exec = vma->vm_flags & VM_EXEC;
 
-	if (!(has_valid_asid(vma->vm_mm)))
+	if (!has_valid_asid(vma->vm_mm, R4K_INDEX))
 		return;
 
-	r4k_blast_dcache();
+	/*
+	 * If dcache can alias, we must blast it since mapping is changing.
+	 * If executable, we must ensure any dirty lines are written back far
+	 * enough to be visible to icache.
+	 */
+	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc))
+		r4k_blast_dcache();
+	/* If executable, blast stale lines from icache */
 	if (exec)
 		r4k_blast_icache();
 }
@@ -502,15 +573,15 @@ static void r4k_flush_cache_range(struct vm_area_struct *vma,
 {
 	int exec = vma->vm_flags & VM_EXEC;
 
-	if (cpu_has_dc_aliases || (exec && !cpu_has_ic_fills_f_dc))
-		r4k_on_each_cpu(local_r4k_flush_cache_range, vma);
+	if (cpu_has_dc_aliases || exec)
+		r4k_on_each_cpu(R4K_INDEX, local_r4k_flush_cache_range, vma);
 }
 
 static inline void local_r4k_flush_cache_mm(void * args)
 {
 	struct mm_struct *mm = args;
 
-	if (!has_valid_asid(mm))
+	if (!has_valid_asid(mm, R4K_INDEX))
 		return;
 
 	/*
@@ -535,7 +606,7 @@ static void r4k_flush_cache_mm(struct mm_struct *mm)
 	if (!cpu_has_dc_aliases)
 		return;
 
-	r4k_on_each_cpu(local_r4k_flush_cache_mm, mm);
+	r4k_on_each_cpu(R4K_INDEX, local_r4k_flush_cache_mm, mm);
 }
 
 struct flush_cache_page_args {
@@ -560,10 +631,10 @@ static inline void local_r4k_flush_cache_page(void *args)
 	void *vaddr;
 
 	/*
-	 * If ownes no valid ASID yet, cannot possibly have gotten
+	 * If owns no valid ASID yet, cannot possibly have gotten
 	 * this page into the cache.
 	 */
-	if (!has_valid_asid(mm))
+	if (!has_valid_asid(mm, R4K_HIT))
 		return;
 
 	addr &= PAGE_MASK;
@@ -630,7 +701,7 @@ static void r4k_flush_cache_page(struct vm_area_struct *vma,
 	args.addr = addr;
 	args.pfn = pfn;
 
-	r4k_on_each_cpu(local_r4k_flush_cache_page, &args);
+	r4k_on_each_cpu(R4K_HIT, local_r4k_flush_cache_page, &args);
 }
 
 static inline void local_r4k_flush_data_cache_page(void * addr)
@@ -643,18 +714,23 @@ static void r4k_flush_data_cache_page(unsigned long addr)
 	if (in_atomic())
 		local_r4k_flush_data_cache_page((void *)addr);
 	else
-		r4k_on_each_cpu(local_r4k_flush_data_cache_page, (void *) addr);
+		r4k_on_each_cpu(R4K_HIT, local_r4k_flush_data_cache_page,
+				(void *) addr);
 }
 
 struct flush_icache_range_args {
 	unsigned long start;
 	unsigned long end;
+	unsigned int type;
 };
 
-static inline void local_r4k_flush_icache_range(unsigned long start, unsigned long end)
+static inline void __local_r4k_flush_icache_range(unsigned long start,
+						  unsigned long end,
+						  unsigned int type)
 {
 	if (!cpu_has_ic_fills_f_dc) {
-		if (end - start >= dcache_size) {
+		if (type == R4K_INDEX ||
+		    (type & R4K_INDEX && end - start >= dcache_size)) {
 			r4k_blast_dcache();
 		} else {
 			R4600_HIT_CACHEOP_WAR_IMPL;
@@ -662,7 +738,8 @@ static inline void local_r4k_flush_icache_range(unsigned long start, unsigned lo
 		}
 	}
 
-	if (end - start > icache_size)
+	if (type == R4K_INDEX ||
+	    (type & R4K_INDEX && end - start > icache_size))
 		r4k_blast_icache();
 	else {
 		switch (boot_cpu_type()) {
@@ -688,23 +765,52 @@ static inline void local_r4k_flush_icache_range(unsigned long start, unsigned lo
 #endif
 }
 
+static inline void local_r4k_flush_icache_range(unsigned long start,
+						unsigned long end)
+{
+	__local_r4k_flush_icache_range(start, end, R4K_HIT | R4K_INDEX);
+}
+
 static inline void local_r4k_flush_icache_range_ipi(void *args)
 {
 	struct flush_icache_range_args *fir_args = args;
 	unsigned long start = fir_args->start;
 	unsigned long end = fir_args->end;
+	unsigned int type = fir_args->type;
 
-	local_r4k_flush_icache_range(start, end);
+	__local_r4k_flush_icache_range(start, end, type);
 }
 
 static void r4k_flush_icache_range(unsigned long start, unsigned long end)
 {
 	struct flush_icache_range_args args;
+	unsigned long size, cache_size;
 
 	args.start = start;
 	args.end = end;
+	args.type = R4K_HIT | R4K_INDEX;
 
-	r4k_on_each_cpu(local_r4k_flush_icache_range_ipi, &args);
+	/*
+	 * Indexed cache ops require an SMP call.
+	 * Consider if that can or should be avoided.
+	 */
+	preempt_disable();
+	if (r4k_op_needs_ipi(R4K_INDEX) && !r4k_op_needs_ipi(R4K_HIT)) {
+		/*
+		 * If address-based cache ops don't require an SMP call, then
+		 * use them exclusively for small flushes.
+		 */
+		size = end - start;
+		cache_size = icache_size;
+		if (!cpu_has_ic_fills_f_dc) {
+			size *= 2;
+			cache_size += dcache_size;
+		}
+		if (size <= cache_size)
+			args.type &= ~R4K_INDEX;
+	}
+	r4k_on_each_cpu(args.type, local_r4k_flush_icache_range_ipi, &args);
+	preempt_enable();
 	instruction_hazard();
 }
 
@@ -731,7 +837,7 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	 * subset property so we have to flush the primary caches
 	 * explicitly
 	 */
-	if (cpu_has_safe_index_cacheops && size >= dcache_size) {
+	if (size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
 		R4600_HIT_CACHEOP_WAR_IMPL;
@@ -768,7 +874,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		return;
 	}
 
-	if (cpu_has_safe_index_cacheops && size >= dcache_size) {
+	if (size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
 		R4600_HIT_CACHEOP_WAR_IMPL;
@@ -781,25 +887,76 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 }
 #endif /* CONFIG_DMA_NONCOHERENT || CONFIG_DMA_MAYBE_COHERENT */
 
+struct flush_cache_sigtramp_args {
+	struct mm_struct *mm;
+	struct page *page;
+	unsigned long addr;
+};
+
 /*
  * While we're protected against bad userland addresses we don't care
  * very much about what happens in that case.  Usually a segmentation
  * fault will dump the process later on anyway ...
  */
-static void local_r4k_flush_cache_sigtramp(void * arg)
+static void local_r4k_flush_cache_sigtramp(void *args)
 {
+	struct flush_cache_sigtramp_args *fcs_args = args;
+	unsigned long addr = fcs_args->addr;
+	struct page *page = fcs_args->page;
+	struct mm_struct *mm = fcs_args->mm;
+	int map_coherent = 0;
+	void *vaddr;
+
 	unsigned long ic_lsize = cpu_icache_line_size();
 	unsigned long dc_lsize = cpu_dcache_line_size();
 	unsigned long sc_lsize = cpu_scache_line_size();
-	unsigned long addr = (unsigned long) arg;
+
+	/*
+	 * If owns no valid ASID yet, cannot possibly have gotten
+	 * this page into the cache.
+	 */
+	if (!has_valid_asid(mm, R4K_HIT))
+		return;
+
+	if (mm == current->active_mm) {
+		vaddr = NULL;
+	} else {
+		/*
+		 * Use kmap_coherent or kmap_atomic to do flushes for
+		 * another ASID than the current one.
+		 */
+		map_coherent = (cpu_has_dc_aliases &&
+				page_mapcount(page) &&
+				!Page_dcache_dirty(page));
+		if (map_coherent)
+			vaddr = kmap_coherent(page, addr);
+		else
+			vaddr = kmap_atomic(page);
+		addr = (unsigned long)vaddr + (addr & ~PAGE_MASK);
+	}
 
 	R4600_HIT_CACHEOP_WAR_IMPL;
-	if (dc_lsize)
-		protected_writeback_dcache_line(addr & ~(dc_lsize - 1));
-	if (!cpu_icache_snoops_remote_store && scache_size)
-		protected_writeback_scache_line(addr & ~(sc_lsize - 1));
+	if (!cpu_has_ic_fills_f_dc) {
+		if (dc_lsize)
+			vaddr ? flush_dcache_line(addr & ~(dc_lsize - 1))
+			      : protected_writeback_dcache_line(
+							addr & ~(dc_lsize - 1));
+		if (!cpu_icache_snoops_remote_store && scache_size)
+			vaddr ? flush_scache_line(addr & ~(sc_lsize - 1))
+			      : protected_writeback_scache_line(
+							addr & ~(sc_lsize - 1));
+	}
 	if (ic_lsize)
-		protected_flush_icache_line(addr & ~(ic_lsize - 1));
+		vaddr ? flush_icache_line(addr & ~(ic_lsize - 1))
+		      : protected_flush_icache_line(addr & ~(ic_lsize - 1));
+
+	if (vaddr) {
+		if (map_coherent)
+			kunmap_coherent();
+		else
+			kunmap_atomic(vaddr);
+	}
+
 	if (MIPS4K_ICACHE_REFILL_WAR) {
 		__asm__ __volatile__ (
 			".set push\n\t"
@@ -824,7 +981,23 @@ static void local_r4k_flush_cache_sigtramp(void * arg)
 
 static void r4k_flush_cache_sigtramp(unsigned long addr)
 {
-	r4k_on_each_cpu(local_r4k_flush_cache_sigtramp, (void *) addr);
+	struct flush_cache_sigtramp_args args;
+	int npages;
+
+	down_read(&current->mm->mmap_sem);
+
+	npages = get_user_pages_fast(addr, 1, 0, &args.page);
+	if (npages < 1)
+		goto out;
+
+	args.mm = current->mm;
+	args.addr = addr;
+
+	r4k_on_each_cpu(R4K_HIT, local_r4k_flush_cache_sigtramp, &args);
+
+	put_page(args.page);
+out:
+	up_read(&current->mm->mmap_sem);
 }
 
 static void r4k_flush_icache_all(void)
@@ -838,6 +1011,15 @@ struct flush_kernel_vmap_range_args {
 	int		size;
 };
 
+static inline void local_r4k_flush_kernel_vmap_range_index(void *args)
+{
+	/*
+	 * Aliases only affect the primary caches so don't bother with
+	 * S-caches or T-caches.
+	 */
+	r4k_blast_dcache();
+}
+
 static inline void local_r4k_flush_kernel_vmap_range(void *args)
 {
 	struct flush_kernel_vmap_range_args *vmra = args;
@@ -848,12 +1030,8 @@ static inline void local_r4k_flush_kernel_vmap_range(void *args)
 	 * Aliases only affect the primary caches so don't bother with
 	 * S-caches or T-caches.
 	 */
-	if (cpu_has_safe_index_cacheops && size >= dcache_size)
-		r4k_blast_dcache();
-	else {
-		R4600_HIT_CACHEOP_WAR_IMPL;
-		blast_dcache_range(vaddr, vaddr + size);
-	}
+	R4600_HIT_CACHEOP_WAR_IMPL;
+	blast_dcache_range(vaddr, vaddr + size);
 }
 
 static void r4k_flush_kernel_vmap_range(unsigned long vaddr, int size)
@@ -863,7 +1041,12 @@ static void r4k_flush_kernel_vmap_range(unsigned long vaddr, int size)
 	args.vaddr = (unsigned long) vaddr;
 	args.size = size;
 
-	r4k_on_each_cpu(local_r4k_flush_kernel_vmap_range, &args);
+	if (size >= dcache_size)
+		r4k_on_each_cpu(R4K_INDEX,
+				local_r4k_flush_kernel_vmap_range_index, NULL);
+	else
+		r4k_on_each_cpu(R4K_HIT, local_r4k_flush_kernel_vmap_range,
+				&args);
 }
 
 static inline void rm7k_erratum31(void)
@@ -1148,6 +1331,8 @@ static void probe_pcache(void)
 					  c->dcache.ways *
 					  c->dcache.linesz;
 		c->dcache.waybit = 0;
+		if ((prid & PRID_REV_MASK) >= PRID_REV_LOONGSON3A_R2)
+			c->options |= MIPS_CPU_PREFETCH;
 		break;
 
 	case CPU_CAVIUM_OCTEON3:
@@ -1191,7 +1376,7 @@ static void probe_pcache(void)
 			      c->icache.linesz;
 		c->icache.waybit = __ffs(icache_size/c->icache.ways);
 
-		if (config & 0x8)		/* VI bit */
+		if (config & MIPS_CONF_VI)
 			c->icache.flags |= MIPS_CACHE_VTAG;
 
 		/*
@@ -1278,6 +1463,8 @@ static void probe_pcache(void)
 	case CPU_M5150:
 	case CPU_QEMU_GENERIC:
 	case CPU_I6400:
+	case CPU_P6600:
+	case CPU_M6250:
 		if (!(read_c0_config7() & MIPS_CONF7_IAR) &&
 		    (c->icache.waysize > PAGE_SIZE))
 			c->icache.flags |= MIPS_CACHE_ALIASES;
@@ -1304,7 +1491,14 @@ static void probe_pcache(void)
 		break;
 
 	case CPU_ALCHEMY:
+	case CPU_I6400:
 		c->icache.flags |= MIPS_CACHE_IC_F_DC;
+		break;
+
+	case CPU_BMIPS5000:
+		c->icache.flags |= MIPS_CACHE_IC_F_DC;
+		/* Cache aliases are handled in hardware; allow HIGHMEM */
+		c->dcache.flags &= ~MIPS_CACHE_ALIASES;
 		break;
 
 	case CPU_LOONGSON2:
@@ -1326,6 +1520,31 @@ static void probe_pcache(void)
 	       (c->dcache.flags & MIPS_CACHE_ALIASES) ?
 			"cache aliases" : "no aliases",
 	       c->dcache.linesz);
+}
+
+static void probe_vcache(void)
+{
+	struct cpuinfo_mips *c = &current_cpu_data;
+	unsigned int config2, lsize;
+
+	if (current_cpu_type() != CPU_LOONGSON3)
+		return;
+
+	config2 = read_c0_config2();
+	if ((lsize = ((config2 >> 20) & 15)))
+		c->vcache.linesz = 2 << lsize;
+	else
+		c->vcache.linesz = lsize;
+
+	c->vcache.sets = 64 << ((config2 >> 24) & 15);
+	c->vcache.ways = 1 + ((config2 >> 16) & 15);
+
+	vcache_size = c->vcache.sets * c->vcache.ways * c->vcache.linesz;
+
+	c->vcache.waybit = 0;
+
+	pr_info("Unified victim cache %ldkB %s, linesize %d bytes.\n",
+		vcache_size >> 10, way_string[c->vcache.ways], c->vcache.linesz);
 }
 
 /*
@@ -1650,6 +1869,7 @@ void r4k_cache_init(void)
 	struct cpuinfo_mips *c = &current_cpu_data;
 
 	probe_pcache();
+	probe_vcache();
 	setup_scache();
 
 	r4k_blast_dcache_page_setup();
@@ -1671,7 +1891,7 @@ void r4k_cache_init(void)
 	 * This code supports virtually indexed processors and will be
 	 * unnecessarily inefficient on physically indexed processors.
 	 */
-	if (c->dcache.linesz)
+	if (c->dcache.linesz && cpu_has_dc_aliases)
 		shm_align_mask = max_t( unsigned long,
 					c->dcache.sets * c->dcache.linesz - 1,
 					PAGE_SIZE - 1);
@@ -1744,11 +1964,23 @@ void r4k_cache_init(void)
 		flush_icache_range = (void *)b5k_instruction_hazard;
 		local_flush_icache_range = (void *)b5k_instruction_hazard;
 
-		/* Cache aliases are handled in hardware; allow HIGHMEM */
-		current_cpu_data.dcache.flags &= ~MIPS_CACHE_ALIASES;
 
 		/* Optimization: an L2 flush implicitly flushes the L1 */
 		current_cpu_data.options |= MIPS_CPU_INCLUSIVE_CACHES;
+		break;
+	case CPU_LOONGSON3:
+		/* Loongson-3 maintains cache coherency by hardware */
+		__flush_cache_all	= cache_noop;
+		__flush_cache_vmap	= cache_noop;
+		__flush_cache_vunmap	= cache_noop;
+		__flush_kernel_vmap_range = (void *)cache_noop;
+		flush_cache_mm		= (void *)cache_noop;
+		flush_cache_page	= (void *)cache_noop;
+		flush_cache_range	= (void *)cache_noop;
+		flush_cache_sigtramp	= (void *)cache_noop;
+		flush_icache_all	= (void *)cache_noop;
+		flush_data_cache_page	= (void *)cache_noop;
+		local_flush_data_cache_page	= (void *)cache_noop;
 		break;
 	}
 }

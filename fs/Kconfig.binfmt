@@ -1,6 +1,7 @@
 config BINFMT_ELF
 	bool "Kernel support for ELF binaries"
 	depends on MMU && (BROKEN || !FRV)
+	select ELFCORE
 	default y
 	---help---
 	  ELF (Executable and Linkable Format) is a format for libraries and
@@ -26,6 +27,7 @@ config BINFMT_ELF
 config COMPAT_BINFMT_ELF
 	bool
 	depends on COMPAT && BINFMT_ELF
+	select ELFCORE
 
 config ARCH_BINFMT_ELF_STATE
 	bool
@@ -34,6 +36,7 @@ config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y
 	depends on (FRV || BLACKFIN || (SUPERH32 && !MMU) || C6X)
+	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
 	  segments of a binary to be located in memory independently of each
@@ -42,6 +45,11 @@ config BINFMT_ELF_FDPIC
 	  even if data segments are not.
 
 	  It is also possible to run FDPIC ELF binaries on MMU linux also.
+
+config ELFCORE
+	bool
+	help
+	  This option enables kernel/elfcore.o.
 
 config CORE_DUMP_DEFAULT_ELF_HEADERS
 	bool "Write ELF core dumps with partial segments"
@@ -81,7 +89,8 @@ config BINFMT_SCRIPT
 
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
-	depends on !MMU && (!FRV || BROKEN)
+	depends on !MMU || M68K
+	depends on !FRV || BROKEN
 	help
 	  Support uClinux FLAT format binaries.
 

@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <sound/memalloc.h>
 #include "skl-sst-cldma.h"
+#include "skl-tplg-interface.h"
 
 struct sst_dsp;
 struct skl_sst;
@@ -76,35 +77,53 @@ struct sst_dsp_device;
 #define SKL_ADSPIC_IPC			1
 #define SKL_ADSPIS_IPC			1
 
+/* Core ID of core0 */
+#define SKL_DSP_CORE0_ID		0
+
+/* Mask for a given core index, c = 0.. number of supported cores - 1 */
+#define SKL_DSP_CORE_MASK(c)		BIT(c)
+
+/*
+ * Core 0 mask = SKL_DSP_CORE_MASK(0); Defined separately
+ * since Core0 is primary core and it is used often
+ */
+#define SKL_DSP_CORE0_MASK		BIT(0)
+
+/*
+ * Mask for a given number of cores
+ * nc = number of supported cores
+ */
+#define SKL_DSP_CORES_MASK(nc)	GENMASK((nc - 1), 0)
+
 /* ADSPCS - Audio DSP Control & Status */
-#define SKL_DSP_CORES		1
-#define SKL_DSP_CORE0_MASK	1
-#define SKL_DSP_CORES_MASK	((1 << SKL_DSP_CORES) - 1)
 
-/* Core Reset - asserted high */
-#define SKL_ADSPCS_CRST_SHIFT	0
-#define SKL_ADSPCS_CRST_MASK	(SKL_DSP_CORES_MASK << SKL_ADSPCS_CRST_SHIFT)
-#define SKL_ADSPCS_CRST(x)	((x << SKL_ADSPCS_CRST_SHIFT) & SKL_ADSPCS_CRST_MASK)
+/*
+ * Core Reset - asserted high
+ * CRST Mask for a given core mask pattern, cm
+ */
+#define SKL_ADSPCS_CRST_SHIFT		0
+#define SKL_ADSPCS_CRST_MASK(cm)	((cm) << SKL_ADSPCS_CRST_SHIFT)
 
-/* Core run/stall - when set to '1' core is stalled */
-#define SKL_ADSPCS_CSTALL_SHIFT	8
-#define SKL_ADSPCS_CSTALL_MASK	(SKL_DSP_CORES_MASK <<	\
-					SKL_ADSPCS_CSTALL_SHIFT)
-#define SKL_ADSPCS_CSTALL(x)	((x << SKL_ADSPCS_CSTALL_SHIFT) &	\
-				SKL_ADSPCS_CSTALL_MASK)
+/*
+ * Core run/stall - when set to '1' core is stalled
+ * CSTALL Mask for a given core mask pattern, cm
+ */
+#define SKL_ADSPCS_CSTALL_SHIFT		8
+#define SKL_ADSPCS_CSTALL_MASK(cm)	((cm) << SKL_ADSPCS_CSTALL_SHIFT)
 
-/* Set Power Active - when set to '1' turn cores on */
-#define SKL_ADSPCS_SPA_SHIFT	16
-#define SKL_ADSPCS_SPA_MASK	(SKL_DSP_CORES_MASK << SKL_ADSPCS_SPA_SHIFT)
-#define SKL_ADSPCS_SPA(x)	((x << SKL_ADSPCS_SPA_SHIFT) & SKL_ADSPCS_SPA_MASK)
+/*
+ * Set Power Active - when set to '1' turn cores on
+ * SPA Mask for a given core mask pattern, cm
+ */
+#define SKL_ADSPCS_SPA_SHIFT		16
+#define SKL_ADSPCS_SPA_MASK(cm)		((cm) << SKL_ADSPCS_SPA_SHIFT)
 
-/* Current Power Active - power status of cores, set by hardware */
-#define SKL_ADSPCS_CPA_SHIFT	24
-#define SKL_ADSPCS_CPA_MASK	(SKL_DSP_CORES_MASK << SKL_ADSPCS_CPA_SHIFT)
-#define SKL_ADSPCS_CPA(x)	((x << SKL_ADSPCS_CPA_SHIFT) & SKL_ADSPCS_CPA_MASK)
-
-#define SST_DSP_POWER_D0	0x0  /* full On */
-#define SST_DSP_POWER_D3	0x3  /* Off */
+/*
+ * Current Power Active - power status of cores, set by hardware
+ * CPA Mask for a given core mask pattern, cm
+ */
+#define SKL_ADSPCS_CPA_SHIFT		24
+#define SKL_ADSPCS_CPA_MASK(cm)		((cm) << SKL_ADSPCS_CPA_SHIFT)
 
 enum skl_dsp_states {
 	SKL_DSP_RUNNING = 1,
@@ -115,19 +134,28 @@ struct skl_dsp_fw_ops {
 	int (*load_fw)(struct sst_dsp  *ctx);
 	/* FW module parser/loader */
 	int (*parse_fw)(struct sst_dsp *ctx);
-	int (*set_state_D0)(struct sst_dsp *ctx);
-	int (*set_state_D3)(struct sst_dsp *ctx);
+	int (*set_state_D0)(struct sst_dsp *ctx, unsigned int core_id);
+	int (*set_state_D3)(struct sst_dsp *ctx, unsigned int core_id);
 	unsigned int (*get_fw_errcode)(struct sst_dsp *ctx);
-	int (*load_mod)(struct sst_dsp *ctx, u16 mod_id, char *mod_name);
+	int (*load_mod)(struct sst_dsp *ctx, u16 mod_id, u8 *mod_name);
 	int (*unload_mod)(struct sst_dsp *ctx, u16 mod_id);
 
 };
 
 struct skl_dsp_loader_ops {
+	int stream_tag;
+
 	int (*alloc_dma_buf)(struct device *dev,
 		struct snd_dma_buffer *dmab, size_t size);
 	int (*free_dma_buf)(struct device *dev,
 		struct snd_dma_buffer *dmab);
+	int (*prepare)(struct device *dev, unsigned int format,
+				unsigned int byte_size,
+				struct snd_dma_buffer *bufp);
+	int (*trigger)(struct device *dev, bool start, int stream_tag);
+
+	int (*cleanup)(struct device *dev, struct snd_dma_buffer *dmab,
+				 int stream_tag);
 };
 
 struct skl_load_module_info {
@@ -148,18 +176,41 @@ int skl_cldma_prepare(struct sst_dsp *ctx);
 void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state);
 struct sst_dsp *skl_dsp_ctx_init(struct device *dev,
 		struct sst_dsp_device *sst_dev, int irq);
-int skl_dsp_enable_core(struct sst_dsp *ctx);
-int skl_dsp_disable_core(struct sst_dsp *ctx);
 bool is_skl_dsp_running(struct sst_dsp *ctx);
+
+unsigned int skl_dsp_get_enabled_cores(struct sst_dsp *ctx);
+void skl_dsp_init_core_state(struct sst_dsp *ctx);
+int skl_dsp_enable_core(struct sst_dsp *ctx, unsigned int core_mask);
+int skl_dsp_disable_core(struct sst_dsp *ctx, unsigned int core_mask);
+int skl_dsp_core_power_up(struct sst_dsp *ctx, unsigned int core_mask);
+int skl_dsp_core_power_down(struct sst_dsp *ctx, unsigned int core_mask);
+int skl_dsp_core_unset_reset_state(struct sst_dsp *ctx,
+					unsigned int core_mask);
+int skl_dsp_start_core(struct sst_dsp *ctx, unsigned int core_mask);
+
 irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id);
 int skl_dsp_wake(struct sst_dsp *ctx);
 int skl_dsp_sleep(struct sst_dsp *ctx);
 void skl_dsp_free(struct sst_dsp *dsp);
 
+int skl_dsp_get_core(struct sst_dsp *ctx, unsigned int core_id);
+int skl_dsp_put_core(struct sst_dsp *ctx, unsigned int core_id);
+
 int skl_dsp_boot(struct sst_dsp *ctx);
 int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
 		struct skl_sst **dsp);
+int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
+		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
+		struct skl_sst **dsp);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
+void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
+
+int snd_skl_get_module_info(struct skl_sst *ctx, u8 *uuid,
+		struct skl_dfw_module *dfw_config);
+int snd_skl_parse_uuids(struct sst_dsp *ctx, unsigned int offset);
+void skl_freeup_uuid_list(struct skl_sst *ctx);
+
+int skl_dsp_strip_extended_manifest(struct firmware *fw);
 
 #endif /*__SKL_SST_DSP_H__*/

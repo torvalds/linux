@@ -1974,9 +1974,12 @@ static long read_tape(struct scsi_tape *STp, long count,
 					transfer = (int)cmdstatp->uremainder64;
 				else
 					transfer = 0;
-				if (STp->block_size == 0 &&
-				    cmdstatp->sense_hdr.sense_key == MEDIUM_ERROR)
-					transfer = bytes;
+				if (cmdstatp->sense_hdr.sense_key == MEDIUM_ERROR) {
+					if (STp->block_size == 0)
+						transfer = bytes;
+					/* Some drives set ILI with MEDIUM ERROR */
+					cmdstatp->flags &= ~SENSE_ILI;
+				}
 
 				if (cmdstatp->flags & SENSE_ILI) {	/* ILI */
 					if (STp->block_size == 0 &&

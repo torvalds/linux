@@ -33,11 +33,12 @@ static bool bcma_wait_reg(struct bcma_bus *bus, void __iomem *addr, u32 mask,
 void bcma_chipco_b_mii_write(struct bcma_drv_cc_b *ccb, u32 offset, u32 value)
 {
 	struct bcma_bus *bus = ccb->core->bus;
+	void __iomem *mii = ccb->mii;
 
-	writel(offset, ccb->mii + 0x00);
-	bcma_wait_reg(bus, ccb->mii + 0x00, 0x0100, 0x0000, 100);
-	writel(value, ccb->mii + 0x04);
-	bcma_wait_reg(bus, ccb->mii + 0x00, 0x0100, 0x0000, 100);
+	writel(offset, mii + BCMA_CCB_MII_MNG_CTL);
+	bcma_wait_reg(bus, mii + BCMA_CCB_MII_MNG_CTL, 0x0100, 0x0000, 100);
+	writel(value, mii + BCMA_CCB_MII_MNG_CMD_DATA);
+	bcma_wait_reg(bus, mii + BCMA_CCB_MII_MNG_CTL, 0x0100, 0x0000, 100);
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_b_mii_write);
 

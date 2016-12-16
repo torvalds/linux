@@ -206,7 +206,7 @@ static int tda665x_release(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_tuner_ops tda665x_ops = {
+static const struct dvb_tuner_ops tda665x_ops = {
 	.get_status	= tda665x_get_status,
 	.set_params	= tda665x_set_params,
 	.get_frequency	= tda665x_get_frequency,

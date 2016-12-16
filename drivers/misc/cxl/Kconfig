@@ -7,11 +7,7 @@ config CXL_BASE
 	default n
 	select PPC_COPRO_BASE
 
-config CXL_KERNEL_API
-	bool
-	default n
-
-config CXL_EEH
+config CXL_AFU_DRIVER_OPS
 	bool
 	default n
 
@@ -19,8 +15,7 @@ config CXL
 	tristate "Support for IBM Coherent Accelerators (CXL)"
 	depends on PPC_POWERNV && PCI_MSI && EEH
 	select CXL_BASE
-	select CXL_KERNEL_API
-	select CXL_EEH
+	select CXL_AFU_DRIVER_OPS
 	default m
 	help
 	  Select this option to enable driver support for IBM Coherent
@@ -33,3 +28,11 @@ config CXL
 	  CAPI adapters are found in POWER8 based systems.
 
 	  If unsure, say N.
+
+config CXL_BIMODAL
+	bool "Support for bi-modal CAPI cards"
+	depends on HOTPLUG_PCI_POWERNV = y && CXL || HOTPLUG_PCI_POWERNV = m && CXL = m
+	default y
+	help
+	  Select this option to enable support for bi-modal CAPI cards, such as
+	  the Mellanox CX-4.

@@ -133,8 +133,6 @@ struct pch_spi_dma_ctrl {
  * @io_remap_addr:		The remapped PCI base address
  * @master:			Pointer to the SPI master structure
  * @work:			Reference to work queue handler
- * @wk:				Workqueue for carrying out execution of the
- *				requests
  * @wait:			Wait queue for waking up upon receiving an
  *				interrupt.
  * @transfer_complete:		Status of SPI Transfer
@@ -169,7 +167,6 @@ struct pch_spi_data {
 	unsigned long io_base_addr;
 	struct spi_master *master;
 	struct work_struct work;
-	struct workqueue_struct *wk;
 	wait_queue_head_t wait;
 	u8 transfer_complete;
 	u8 bcurrent_msg_processing;
@@ -517,8 +514,7 @@ static int pch_spi_transfer(struct spi_device *pspi, struct spi_message *pmsg)
 
 	dev_dbg(&pspi->dev, "%s - Invoked list_add_tail\n", __func__);
 
-	/* schedule work queue to run */
-	queue_work(data->wk, &data->work);
+	schedule_work(&data->work);
 	dev_dbg(&pspi->dev, "%s - Invoked queue work\n", __func__);
 
 	retval = 0;
@@ -674,7 +670,7 @@ static void pch_spi_nomore_transfer(struct pch_spi_data *data)
 		 *more messages)
 		 */
 		dev_dbg(&data->master->dev, "%s:Invoke queue_work\n", __func__);
-		queue_work(data->wk, &data->work);
+		schedule_work(&data->work);
 	} else if (data->board_dat->suspend_sts ||
 		   data->status == STATUS_EXITING) {
 		dev_dbg(&data->master->dev,
@@ -1266,14 +1262,7 @@ static void pch_spi_free_resources(struct pch_spi_board_data *board_dat,
 {
 	dev_dbg(&board_dat->pdev->dev, "%s ENTRY\n", __func__);
 
-	/* free workqueue */
-	if (data->wk != NULL) {
-		destroy_workqueue(data->wk);
-		data->wk = NULL;
-		dev_dbg(&board_dat->pdev->dev,
-			"%s destroy_workqueue invoked successfully\n",
-			__func__);
-	}
+	flush_work(&data->work);
 }
 
 static int pch_spi_get_resources(struct pch_spi_board_data *board_dat,
@@ -1283,14 +1272,6 @@ static int pch_spi_get_resources(struct pch_spi_board_data *board_dat,
 
 	dev_dbg(&board_dat->pdev->dev, "%s ENTRY\n", __func__);
 
-	/* create workqueue */
-	data->wk = create_singlethread_workqueue(KBUILD_MODNAME);
-	if (!data->wk) {
-		dev_err(&board_dat->pdev->dev,
-			"%s create_singlet hread_workqueue failed\n", __func__);
-		retval = -EBUSY;
-		goto err_return;
-	}
 
 	/* reset PCH SPI h/w */
 	pch_spi_reset(data->master);
@@ -1299,7 +1280,6 @@ static int pch_spi_get_resources(struct pch_spi_board_data *board_dat,
 
 	dev_dbg(&board_dat->pdev->dev, "%s data->irq_reg_sts=true\n", __func__);
 
-err_return:
 	if (retval != 0) {
 		dev_err(&board_dat->pdev->dev,
 			"%s FAIL:invoking pch_spi_free_resources\n", __func__);

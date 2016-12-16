@@ -4,7 +4,9 @@ mt65xx USB3.0 PHY binding
 This binding describes a usb3.0 phy for mt65xx platforms of Medaitek SoC.
 
 Required properties (controller (parent) node):
- - compatible	: should be "mediatek,mt8173-u3phy"
+ - compatible	: should be one of
+		  "mediatek,mt2701-u3phy"
+		  "mediatek,mt8173-u3phy"
  - reg		: offset and length of register for phy, exclude port's
 		  register.
  - clocks	: a list of phandle + clock-specifier pairs, one for each

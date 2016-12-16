@@ -45,13 +45,7 @@ static int mdio_mux_read(struct mii_bus *bus, int phy_id, int regnum)
 	struct mdio_mux_parent_bus *pb = cb->parent;
 	int r;
 
-	/* In theory multiple mdio_mux could be stacked, thus creating
-	 * more than a single level of nesting.  But in practice,
-	 * SINGLE_DEPTH_NESTING will cover the vast majority of use
-	 * cases.  We use it, instead of trying to handle the general
-	 * case.
-	 */
-	mutex_lock_nested(&pb->mii_bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&pb->mii_bus->mdio_lock, MDIO_MUTEX_MUX);
 	r = pb->switch_fn(pb->current_child, cb->bus_number, pb->switch_data);
 	if (r)
 		goto out;
@@ -76,7 +70,7 @@ static int mdio_mux_write(struct mii_bus *bus, int phy_id,
 
 	int r;
 
-	mutex_lock_nested(&pb->mii_bus->mdio_lock, SINGLE_DEPTH_NESTING);
+	mutex_lock_nested(&pb->mii_bus->mdio_lock, MDIO_MUTEX_MUX);
 	r = pb->switch_fn(pb->current_child, cb->bus_number, pb->switch_data);
 	if (r)
 		goto out;
@@ -95,7 +89,8 @@ static int parent_count;
 int mdio_mux_init(struct device *dev,
 		  int (*switch_fn)(int cur, int desired, void *data),
 		  void **mux_handle,
-		  void *data)
+		  void *data,
+		  struct mii_bus *mux_bus)
 {
 	struct device_node *parent_bus_node;
 	struct device_node *child_bus_node;
@@ -107,10 +102,22 @@ int mdio_mux_init(struct device *dev,
 	if (!dev->of_node)
 		return -ENODEV;
 
-	parent_bus_node = of_parse_phandle(dev->of_node, "mdio-parent-bus", 0);
+	if (!mux_bus) {
+		parent_bus_node = of_parse_phandle(dev->of_node,
+						   "mdio-parent-bus", 0);
 
-	if (!parent_bus_node)
-		return -ENODEV;
+		if (!parent_bus_node)
+			return -ENODEV;
+
+		parent_bus = of_mdio_find_bus(parent_bus_node);
+		if (!parent_bus) {
+			ret_val = -EPROBE_DEFER;
+			goto err_parent_bus;
+		}
+	} else {
+		parent_bus_node = NULL;
+		parent_bus = mux_bus;
+	}
 
 	pb = devm_kzalloc(dev, sizeof(*pb), GFP_KERNEL);
 	if (pb == NULL) {
@@ -118,11 +125,6 @@ int mdio_mux_init(struct device *dev,
 		goto err_parent_bus;
 	}
 
-	parent_bus = of_mdio_find_bus(parent_bus_node);
-	if (parent_bus == NULL) {
-		ret_val = -EPROBE_DEFER;
-		goto err_parent_bus;
-	}
 
 	pb->switch_data = data;
 	pb->switch_fn = switch_fn;

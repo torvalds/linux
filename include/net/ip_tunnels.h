@@ -105,24 +105,23 @@ struct ip_tunnel {
 	struct net_device	*dev;
 	struct net		*net;	/* netns for packet i/o */
 
-	int		err_count;	/* Number of arrived ICMP errors */
 	unsigned long	err_time;	/* Time when the last ICMP error
 					 * arrived */
+	int		err_count;	/* Number of arrived ICMP errors */
 
 	/* These four fields used only by GRE */
 	u32		i_seqno;	/* The last seen seqno	*/
 	u32		o_seqno;	/* The last output seqno */
 	int		tun_hlen;	/* Precalculated header length */
-	int		mlink;
 
 	struct dst_cache dst_cache;
 
 	struct ip_tunnel_parm parms;
 
+	int		mlink;
 	int		encap_hlen;	/* Encap header length (FOU,GUE) */
-	struct ip_tunnel_encap encap;
-
 	int		hlen;		/* tun_hlen + encap_hlen */
+	struct ip_tunnel_encap encap;
 
 	/* for SIT */
 #ifdef CONFIG_IPV6_SIT_6RD
@@ -133,6 +132,7 @@ struct ip_tunnel {
 	int			ip_tnl_net_id;
 	struct gro_cells	gro_cells;
 	bool			collect_md;
+	bool			ignore_df;
 };
 
 #define TUNNEL_CSUM		__cpu_to_be16(0x01)
@@ -157,10 +157,12 @@ struct tnl_ptk_info {
 	__be16 proto;
 	__be32 key;
 	__be32 seq;
+	int hdr_len;
 };
 
 #define PACKET_RCVD	0
 #define PACKET_REJECT	1
+#define PACKET_NEXT	2
 
 #define IP_TNL_HASH_BITS   7
 #define IP_TNL_HASH_SIZE   (1 << IP_TNL_HASH_BITS)
@@ -170,22 +172,6 @@ struct ip_tunnel_net {
 	struct hlist_head tunnels[IP_TNL_HASH_SIZE];
 	struct ip_tunnel __rcu *collect_md_tun;
 };
-
-struct ip_tunnel_encap_ops {
-	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
-	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
-			    u8 *protocol, struct flowi4 *fl4);
-};
-
-#define MAX_IPTUN_ENCAP_OPS 8
-
-extern const struct ip_tunnel_encap_ops __rcu *
-		iptun_encaps[MAX_IPTUN_ENCAP_OPS];
-
-int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *op,
-			    unsigned int num);
-int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
-			    unsigned int num);
 
 static inline void ip_tunnel_key_init(struct ip_tunnel_key *key,
 				      __be32 saddr, __be32 daddr,
@@ -251,8 +237,6 @@ void ip_tunnel_delete_net(struct ip_tunnel_net *itn, struct rtnl_link_ops *ops);
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		    const struct iphdr *tnl_params, const u8 protocol);
 int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd);
-int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
-		    u8 *protocol, struct flowi4 *fl4);
 int __ip_tunnel_change_mtu(struct net_device *dev, int new_mtu, bool strict);
 int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu);
 
@@ -271,8 +255,66 @@ int ip_tunnel_changelink(struct net_device *dev, struct nlattr *tb[],
 int ip_tunnel_newlink(struct net_device *dev, struct nlattr *tb[],
 		      struct ip_tunnel_parm *p);
 void ip_tunnel_setup(struct net_device *dev, int net_id);
+
+struct ip_tunnel_encap_ops {
+	size_t (*encap_hlen)(struct ip_tunnel_encap *e);
+	int (*build_header)(struct sk_buff *skb, struct ip_tunnel_encap *e,
+			    u8 *protocol, struct flowi4 *fl4);
+};
+
+#define MAX_IPTUN_ENCAP_OPS 8
+
+extern const struct ip_tunnel_encap_ops __rcu *
+		iptun_encaps[MAX_IPTUN_ENCAP_OPS];
+
+int ip_tunnel_encap_add_ops(const struct ip_tunnel_encap_ops *op,
+			    unsigned int num);
+int ip_tunnel_encap_del_ops(const struct ip_tunnel_encap_ops *op,
+			    unsigned int num);
+
 int ip_tunnel_encap_setup(struct ip_tunnel *t,
 			  struct ip_tunnel_encap *ipencap);
+
+static inline int ip_encap_hlen(struct ip_tunnel_encap *e)
+{
+	const struct ip_tunnel_encap_ops *ops;
+	int hlen = -EINVAL;
+
+	if (e->type == TUNNEL_ENCAP_NONE)
+		return 0;
+
+	if (e->type >= MAX_IPTUN_ENCAP_OPS)
+		return -EINVAL;
+
+	rcu_read_lock();
+	ops = rcu_dereference(iptun_encaps[e->type]);
+	if (likely(ops && ops->encap_hlen))
+		hlen = ops->encap_hlen(e);
+	rcu_read_unlock();
+
+	return hlen;
+}
+
+static inline int ip_tunnel_encap(struct sk_buff *skb, struct ip_tunnel *t,
+				  u8 *protocol, struct flowi4 *fl4)
+{
+	const struct ip_tunnel_encap_ops *ops;
+	int ret = -EINVAL;
+
+	if (t->encap.type == TUNNEL_ENCAP_NONE)
+		return 0;
+
+	if (t->encap.type >= MAX_IPTUN_ENCAP_OPS)
+		return -EINVAL;
+
+	rcu_read_lock();
+	ops = rcu_dereference(iptun_encaps[t->encap.type]);
+	if (likely(ops && ops->build_header))
+		ret = ops->build_header(skb, &t->encap, protocol, fl4);
+	rcu_read_unlock();
+
+	return ret;
+}
 
 /* Extract dsfield from inner protocol */
 static inline u8 ip_tunnel_get_dsfield(const struct iphdr *iph,
@@ -295,15 +337,22 @@ static inline u8 ip_tunnel_ecn_encap(u8 tos, const struct iphdr *iph,
 	return INET_ECN_encapsulate(tos, inner);
 }
 
-int iptunnel_pull_header(struct sk_buff *skb, int hdr_len, __be16 inner_proto,
-			 bool xnet);
+int __iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+			   __be16 inner_proto, bool raw_proto, bool xnet);
+
+static inline int iptunnel_pull_header(struct sk_buff *skb, int hdr_len,
+				       __be16 inner_proto, bool xnet)
+{
+	return __iptunnel_pull_header(skb, hdr_len, inner_proto, false, xnet);
+}
+
 void iptunnel_xmit(struct sock *sk, struct rtable *rt, struct sk_buff *skb,
 		   __be32 src, __be32 dst, u8 proto,
 		   u8 tos, u8 ttl, __be16 df, bool xnet);
 struct metadata_dst *iptunnel_metadata_reply(struct metadata_dst *md,
 					     gfp_t flags);
 
-struct sk_buff *iptunnel_handle_offloads(struct sk_buff *skb, int gso_type_mask);
+int iptunnel_handle_offloads(struct sk_buff *skb, int gso_type_mask);
 
 static inline int iptunnel_pull_offloads(struct sk_buff *skb)
 {

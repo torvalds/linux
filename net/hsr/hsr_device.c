@@ -90,7 +90,8 @@ static void hsr_check_announce(struct net_device *hsr_dev,
 
 	hsr = netdev_priv(hsr_dev);
 
-	if ((hsr_dev->operstate == IF_OPER_UP) && (old_operstate != IF_OPER_UP)) {
+	if ((hsr_dev->operstate == IF_OPER_UP)
+			&& (old_operstate != IF_OPER_UP)) {
 		/* Went up */
 		hsr->announce_count = 0;
 		hsr->announce_timer.expires = jiffies +
@@ -250,31 +251,22 @@ static const struct header_ops hsr_header_ops = {
 	.parse	 = eth_header_parse,
 };
 
-
-/* HSR:2010 supervision frames should be padded so that the whole frame,
- * including headers and FCS, is 64 bytes (without VLAN).
- */
-static int hsr_pad(int size)
-{
-	const int min_size = ETH_ZLEN - HSR_HLEN - ETH_HLEN;
-
-	if (size >= min_size)
-		return size;
-	return min_size;
-}
-
-static void send_hsr_supervision_frame(struct hsr_port *master, u8 type)
+static void send_hsr_supervision_frame(struct hsr_port *master,
+		u8 type, u8 hsrVer)
 {
 	struct sk_buff *skb;
 	int hlen, tlen;
+	struct hsr_tag *hsr_tag;
 	struct hsr_sup_tag *hsr_stag;
 	struct hsr_sup_payload *hsr_sp;
 	unsigned long irqflags;
 
 	hlen = LL_RESERVED_SPACE(master->dev);
 	tlen = master->dev->needed_tailroom;
-	skb = alloc_skb(hsr_pad(sizeof(struct hsr_sup_payload)) + hlen + tlen,
-			GFP_ATOMIC);
+	skb = dev_alloc_skb(
+			sizeof(struct hsr_tag) +
+			sizeof(struct hsr_sup_tag) +
+			sizeof(struct hsr_sup_payload) + hlen + tlen);
 
 	if (skb == NULL)
 		return;
@@ -282,31 +274,47 @@ static void send_hsr_supervision_frame(struct hsr_port *master, u8 type)
 	skb_reserve(skb, hlen);
 
 	skb->dev = master->dev;
-	skb->protocol = htons(ETH_P_PRP);
+	skb->protocol = htons(hsrVer ? ETH_P_HSR : ETH_P_PRP);
 	skb->priority = TC_PRIO_CONTROL;
 
-	if (dev_hard_header(skb, skb->dev, ETH_P_PRP,
+	if (dev_hard_header(skb, skb->dev, (hsrVer ? ETH_P_HSR : ETH_P_PRP),
 			    master->hsr->sup_multicast_addr,
 			    skb->dev->dev_addr, skb->len) <= 0)
 		goto out;
 	skb_reset_mac_header(skb);
 
-	hsr_stag = (typeof(hsr_stag)) skb_put(skb, sizeof(*hsr_stag));
+	if (hsrVer > 0) {
+		hsr_tag = (typeof(hsr_tag)) skb_put(skb, sizeof(struct hsr_tag));
+		hsr_tag->encap_proto = htons(ETH_P_PRP);
+		set_hsr_tag_LSDU_size(hsr_tag, HSR_V1_SUP_LSDUSIZE);
+	}
 
-	set_hsr_stag_path(hsr_stag, 0xf);
-	set_hsr_stag_HSR_Ver(hsr_stag, 0);
+	hsr_stag = (typeof(hsr_stag)) skb_put(skb, sizeof(struct hsr_sup_tag));
+	set_hsr_stag_path(hsr_stag, (hsrVer ? 0x0 : 0xf));
+	set_hsr_stag_HSR_Ver(hsr_stag, hsrVer);
 
+	/* From HSRv1 on we have separate supervision sequence numbers. */
 	spin_lock_irqsave(&master->hsr->seqnr_lock, irqflags);
-	hsr_stag->sequence_nr = htons(master->hsr->sequence_nr);
-	master->hsr->sequence_nr++;
+	if (hsrVer > 0) {
+		hsr_stag->sequence_nr = htons(master->hsr->sup_sequence_nr);
+		hsr_tag->sequence_nr = htons(master->hsr->sequence_nr);
+		master->hsr->sup_sequence_nr++;
+		master->hsr->sequence_nr++;
+	} else {
+		hsr_stag->sequence_nr = htons(master->hsr->sequence_nr);
+		master->hsr->sequence_nr++;
+	}
 	spin_unlock_irqrestore(&master->hsr->seqnr_lock, irqflags);
 
 	hsr_stag->HSR_TLV_Type = type;
-	hsr_stag->HSR_TLV_Length = 12;
+	/* TODO: Why 12 in HSRv0? */
+	hsr_stag->HSR_TLV_Length = hsrVer ? sizeof(struct hsr_sup_payload) : 12;
 
 	/* Payload: MacAddressA */
-	hsr_sp = (typeof(hsr_sp)) skb_put(skb, sizeof(*hsr_sp));
+	hsr_sp = (typeof(hsr_sp)) skb_put(skb, sizeof(struct hsr_sup_payload));
 	ether_addr_copy(hsr_sp->MacAddressA, master->dev->dev_addr);
+
+	skb_put_padto(skb, ETH_ZLEN + HSR_HLEN);
 
 	hsr_forward_skb(skb, master);
 	return;
@@ -329,19 +337,20 @@ static void hsr_announce(unsigned long data)
 	rcu_read_lock();
 	master = hsr_port_get_hsr(hsr, HSR_PT_MASTER);
 
-	if (hsr->announce_count < 3) {
-		send_hsr_supervision_frame(master, HSR_TLV_ANNOUNCE);
+	if (hsr->announce_count < 3 && hsr->protVersion == 0) {
+		send_hsr_supervision_frame(master, HSR_TLV_ANNOUNCE,
+				hsr->protVersion);
 		hsr->announce_count++;
-	} else {
-		send_hsr_supervision_frame(master, HSR_TLV_LIFE_CHECK);
-	}
 
-	if (hsr->announce_count < 3)
 		hsr->announce_timer.expires = jiffies +
 				msecs_to_jiffies(HSR_ANNOUNCE_INTERVAL);
-	else
+	} else {
+		send_hsr_supervision_frame(master, HSR_TLV_LIFE_CHECK,
+				hsr->protVersion);
+
 		hsr->announce_timer.expires = jiffies +
 				msecs_to_jiffies(HSR_LIFE_CHECK_INTERVAL);
+	}
 
 	if (is_admin_up(master->dev))
 		add_timer(&hsr->announce_timer);
@@ -428,7 +437,7 @@ static const unsigned char def_multicast_addr[ETH_ALEN] __aligned(2) = {
 };
 
 int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
-		     unsigned char multicast_spec)
+		     unsigned char multicast_spec, u8 protocol_version)
 {
 	struct hsr_priv *hsr;
 	struct hsr_port *port;
@@ -450,17 +459,16 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	spin_lock_init(&hsr->seqnr_lock);
 	/* Overflow soon to find bugs easier: */
 	hsr->sequence_nr = HSR_SEQNR_START;
+	hsr->sup_sequence_nr = HSR_SUP_SEQNR_START;
 
-	init_timer(&hsr->announce_timer);
-	hsr->announce_timer.function = hsr_announce;
-	hsr->announce_timer.data = (unsigned long) hsr;
+	setup_timer(&hsr->announce_timer, hsr_announce, (unsigned long)hsr);
 
-	init_timer(&hsr->prune_timer);
-	hsr->prune_timer.function = hsr_prune_nodes;
-	hsr->prune_timer.data = (unsigned long) hsr;
+	setup_timer(&hsr->prune_timer, hsr_prune_nodes, (unsigned long)hsr);
 
 	ether_addr_copy(hsr->sup_multicast_addr, def_multicast_addr);
 	hsr->sup_multicast_addr[ETH_ALEN - 1] = multicast_spec;
+
+	hsr->protVersion = protocol_version;
 
 	/* FIXME: should I modify the value of these?
 	 *
@@ -490,8 +498,7 @@ int hsr_dev_finalize(struct net_device *hsr_dev, struct net_device *slave[2],
 	if (res)
 		goto fail;
 
-	hsr->prune_timer.expires = jiffies + msecs_to_jiffies(PRUNE_PERIOD);
-	add_timer(&hsr->prune_timer);
+	mod_timer(&hsr->prune_timer, jiffies + msecs_to_jiffies(PRUNE_PERIOD));
 
 	return 0;
 

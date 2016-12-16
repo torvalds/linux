@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -69,17 +65,6 @@ typedef struct {
 
 #define CFS_ACL_XATTR_COUNT(size, prefix) \
 	(((size) - sizeof(prefix ## _header)) / sizeof(prefix ## _entry))
-
-extern ext_acl_xattr_header *
-lustre_posix_acl_xattr_2ext(posix_acl_xattr_header *header, int size);
-extern int
-lustre_posix_acl_xattr_filter(posix_acl_xattr_header *header, size_t size,
-			      posix_acl_xattr_header **out);
-extern void
-lustre_ext_acl_xattr_free(ext_acl_xattr_header *header);
-extern ext_acl_xattr_header *
-lustre_acl_xattr_merge2ext(posix_acl_xattr_header *posix_header, int size,
-			   ext_acl_xattr_header *ext_header);
 
 #endif /* CONFIG_FS_POSIX_ACL */
 

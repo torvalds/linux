@@ -47,7 +47,7 @@
 
 #define MAX_SLACK	(100 * NSEC_PER_MSEC)
 
-static long __estimate_accuracy(struct timespec *tv)
+static long __estimate_accuracy(struct timespec64 *tv)
 {
 	long slack;
 	int divfactor = 1000;
@@ -70,10 +70,10 @@ static long __estimate_accuracy(struct timespec *tv)
 	return slack;
 }
 
-u64 select_estimate_accuracy(struct timespec *tv)
+u64 select_estimate_accuracy(struct timespec64 *tv)
 {
 	u64 ret;
-	struct timespec now;
+	struct timespec64 now;
 
 	/*
 	 * Realtime tasks get a slack of 0 for obvious reasons.
@@ -82,8 +82,8 @@ u64 select_estimate_accuracy(struct timespec *tv)
 	if (rt_task(current))
 		return 0;
 
-	ktime_get_ts(&now);
-	now = timespec_sub(*tv, now);
+	ktime_get_ts64(&now);
+	now = timespec64_sub(*tv, now);
 	ret = __estimate_accuracy(&now);
 	if (ret < current->timer_slack_ns)
 		return current->timer_slack_ns;
@@ -260,7 +260,7 @@ EXPORT_SYMBOL(poll_schedule_timeout);
 
 /**
  * poll_select_set_timeout - helper function to setup the timeout value
- * @to:		pointer to timespec variable for the final timeout
+ * @to:		pointer to timespec64 variable for the final timeout
  * @sec:	seconds (from user space)
  * @nsec:	nanoseconds (from user space)
  *
@@ -269,26 +269,28 @@ EXPORT_SYMBOL(poll_schedule_timeout);
  *
  * Returns -EINVAL if sec/nsec are not normalized. Otherwise 0.
  */
-int poll_select_set_timeout(struct timespec *to, long sec, long nsec)
+int poll_select_set_timeout(struct timespec64 *to, time64_t sec, long nsec)
 {
-	struct timespec ts = {.tv_sec = sec, .tv_nsec = nsec};
+	struct timespec64 ts = {.tv_sec = sec, .tv_nsec = nsec};
 
-	if (!timespec_valid(&ts))
+	if (!timespec64_valid(&ts))
 		return -EINVAL;
 
 	/* Optimize for the zero timeout value here */
 	if (!sec && !nsec) {
 		to->tv_sec = to->tv_nsec = 0;
 	} else {
-		ktime_get_ts(to);
-		*to = timespec_add_safe(*to, ts);
+		ktime_get_ts64(to);
+		*to = timespec64_add_safe(*to, ts);
 	}
 	return 0;
 }
 
-static int poll_select_copy_remaining(struct timespec *end_time, void __user *p,
+static int poll_select_copy_remaining(struct timespec64 *end_time,
+				      void __user *p,
 				      int timeval, int ret)
 {
+	struct timespec64 rts64;
 	struct timespec rts;
 	struct timeval rtv;
 
@@ -302,16 +304,18 @@ static int poll_select_copy_remaining(struct timespec *end_time, void __user *p,
 	if (!end_time->tv_sec && !end_time->tv_nsec)
 		return ret;
 
-	ktime_get_ts(&rts);
-	rts = timespec_sub(*end_time, rts);
-	if (rts.tv_sec < 0)
-		rts.tv_sec = rts.tv_nsec = 0;
+	ktime_get_ts64(&rts64);
+	rts64 = timespec64_sub(*end_time, rts64);
+	if (rts64.tv_sec < 0)
+		rts64.tv_sec = rts64.tv_nsec = 0;
+
+	rts = timespec64_to_timespec(rts64);
 
 	if (timeval) {
 		if (sizeof(rtv) > sizeof(rtv.tv_sec) + sizeof(rtv.tv_usec))
 			memset(&rtv, 0, sizeof(rtv));
-		rtv.tv_sec = rts.tv_sec;
-		rtv.tv_usec = rts.tv_nsec / NSEC_PER_USEC;
+		rtv.tv_sec = rts64.tv_sec;
+		rtv.tv_usec = rts64.tv_nsec / NSEC_PER_USEC;
 
 		if (!copy_to_user(p, &rtv, sizeof(rtv)))
 			return ret;
@@ -396,7 +400,7 @@ static inline void wait_key_set(poll_table *wait, unsigned long in,
 		wait->_key |= POLLOUT_SET;
 }
 
-int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
+int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 {
 	ktime_t expire, *to = NULL;
 	struct poll_wqueues table;
@@ -522,7 +526,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 		 * pointer to the expiry value.
 		 */
 		if (end_time && !to) {
-			expire = timespec_to_ktime(*end_time);
+			expire = timespec64_to_ktime(*end_time);
 			to = &expire;
 		}
 
@@ -545,7 +549,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
  * I'm trying ERESTARTNOHAND which restart only when you want to.
  */
 int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
-			   fd_set __user *exp, struct timespec *end_time)
+			   fd_set __user *exp, struct timespec64 *end_time)
 {
 	fd_set_bits fds;
 	void *bits;
@@ -622,7 +626,7 @@ out_nofds:
 SYSCALL_DEFINE5(select, int, n, fd_set __user *, inp, fd_set __user *, outp,
 		fd_set __user *, exp, struct timeval __user *, tvp)
 {
-	struct timespec end_time, *to = NULL;
+	struct timespec64 end_time, *to = NULL;
 	struct timeval tv;
 	int ret;
 
@@ -648,15 +652,17 @@ static long do_pselect(int n, fd_set __user *inp, fd_set __user *outp,
 		       const sigset_t __user *sigmask, size_t sigsetsize)
 {
 	sigset_t ksigmask, sigsaved;
-	struct timespec ts, end_time, *to = NULL;
+	struct timespec ts;
+	struct timespec64 ts64, end_time, *to = NULL;
 	int ret;
 
 	if (tsp) {
 		if (copy_from_user(&ts, tsp, sizeof(ts)))
 			return -EFAULT;
+		ts64 = timespec_to_timespec64(ts);
 
 		to = &end_time;
-		if (poll_select_set_timeout(to, ts.tv_sec, ts.tv_nsec))
+		if (poll_select_set_timeout(to, ts64.tv_sec, ts64.tv_nsec))
 			return -EINVAL;
 	}
 
@@ -779,7 +785,7 @@ static inline unsigned int do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 }
 
 static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
-		   struct timespec *end_time)
+		   struct timespec64 *end_time)
 {
 	poll_table* pt = &wait->pt;
 	ktime_t expire, *to = NULL;
@@ -854,7 +860,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
 		 * pointer to the expiry value.
 		 */
 		if (end_time && !to) {
-			expire = timespec_to_ktime(*end_time);
+			expire = timespec64_to_ktime(*end_time);
 			to = &expire;
 		}
 
@@ -868,7 +874,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
 			sizeof(struct pollfd))
 
 int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds,
-		struct timespec *end_time)
+		struct timespec64 *end_time)
 {
 	struct poll_wqueues table;
  	int err = -EFAULT, fdcount, len, size;
@@ -936,7 +942,7 @@ static long do_restart_poll(struct restart_block *restart_block)
 {
 	struct pollfd __user *ufds = restart_block->poll.ufds;
 	int nfds = restart_block->poll.nfds;
-	struct timespec *to = NULL, end_time;
+	struct timespec64 *to = NULL, end_time;
 	int ret;
 
 	if (restart_block->poll.has_timeout) {
@@ -957,7 +963,7 @@ static long do_restart_poll(struct restart_block *restart_block)
 SYSCALL_DEFINE3(poll, struct pollfd __user *, ufds, unsigned int, nfds,
 		int, timeout_msecs)
 {
-	struct timespec end_time, *to = NULL;
+	struct timespec64 end_time, *to = NULL;
 	int ret;
 
 	if (timeout_msecs >= 0) {
@@ -993,7 +999,8 @@ SYSCALL_DEFINE5(ppoll, struct pollfd __user *, ufds, unsigned int, nfds,
 		size_t, sigsetsize)
 {
 	sigset_t ksigmask, sigsaved;
-	struct timespec ts, end_time, *to = NULL;
+	struct timespec ts;
+	struct timespec64 end_time, *to = NULL;
 	int ret;
 
 	if (tsp) {

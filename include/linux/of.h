@@ -75,6 +75,23 @@ struct of_phandle_args {
 	uint32_t args[MAX_PHANDLE_ARGS];
 };
 
+struct of_phandle_iterator {
+	/* Common iterator information */
+	const char *cells_name;
+	int cell_count;
+	const struct device_node *parent;
+
+	/* List size information */
+	const __be32 *list_end;
+	const __be32 *phandle_end;
+
+	/* Current position state */
+	const __be32 *cur;
+	uint32_t cur_count;
+	phandle phandle;
+	struct device_node *node;
+};
+
 struct of_reconfig_data {
 	struct device_node	*dn;
 	struct property		*prop;
@@ -221,13 +238,6 @@ static inline unsigned long of_read_ulong(const __be32 *cell, int size)
 #define OF_ROOT_NODE_SIZE_CELLS_DEFAULT 1
 #endif
 
-/* Default string compare functions, Allow arch asm/prom.h to override */
-#if !defined(of_compat_cmp)
-#define of_compat_cmp(s1, s2, l)	strcasecmp((s1), (s2))
-#define of_prop_cmp(s1, s2)		strcmp((s1), (s2))
-#define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
-#endif
-
 #define OF_IS_DYNAMIC(x) test_bit(OF_DYNAMIC, &x->_flags)
 #define OF_MARK_DYNAMIC(x) set_bit(OF_DYNAMIC, &x->_flags)
 
@@ -307,6 +317,8 @@ extern int of_property_read_string_helper(const struct device_node *np,
 					      const char **out_strs, size_t sz, int index);
 extern int of_device_is_compatible(const struct device_node *device,
 				   const char *);
+extern int of_device_compatible_match(struct device_node *device,
+				      const char *const *compat);
 extern bool of_device_is_available(const struct device_node *device);
 extern bool of_device_is_big_endian(const struct device_node *device);
 extern const void *of_get_property(const struct device_node *node,
@@ -333,6 +345,18 @@ extern int of_parse_phandle_with_fixed_args(const struct device_node *np,
 	struct of_phandle_args *out_args);
 extern int of_count_phandle_with_args(const struct device_node *np,
 	const char *list_name, const char *cells_name);
+
+/* phandle iterator functions */
+extern int of_phandle_iterator_init(struct of_phandle_iterator *it,
+				    const struct device_node *np,
+				    const char *list_name,
+				    const char *cells_name,
+				    int cell_count);
+
+extern int of_phandle_iterator_next(struct of_phandle_iterator *it);
+extern int of_phandle_iterator_args(struct of_phandle_iterator *it,
+				    uint32_t *args,
+				    int size);
 
 extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
 extern int of_alias_get_id(struct device_node *np, const char *stem);
@@ -585,7 +609,7 @@ static inline struct device_node *of_parse_phandle(const struct device_node *np,
 	return NULL;
 }
 
-static inline int of_parse_phandle_with_args(struct device_node *np,
+static inline int of_parse_phandle_with_args(const struct device_node *np,
 					     const char *list_name,
 					     const char *cells_name,
 					     int index,
@@ -606,6 +630,27 @@ static inline int of_count_phandle_with_args(struct device_node *np,
 					     const char *cells_name)
 {
 	return -ENOSYS;
+}
+
+static inline int of_phandle_iterator_init(struct of_phandle_iterator *it,
+					   const struct device_node *np,
+					   const char *list_name,
+					   const char *cells_name,
+					   int cell_count)
+{
+	return -ENOSYS;
+}
+
+static inline int of_phandle_iterator_next(struct of_phandle_iterator *it)
+{
+	return -ENOSYS;
+}
+
+static inline int of_phandle_iterator_args(struct of_phandle_iterator *it,
+					   uint32_t *args,
+					   int size)
+{
+	return 0;
 }
 
 static inline int of_alias_get_id(struct device_node *np, const char *stem)
@@ -676,12 +721,28 @@ static inline void of_property_clear_flag(struct property *p, unsigned long flag
 #define of_match_node(_matches, _node)	NULL
 #endif /* CONFIG_OF */
 
+/* Default string compare functions, Allow arch asm/prom.h to override */
+#if !defined(of_compat_cmp)
+#define of_compat_cmp(s1, s2, l)	strcasecmp((s1), (s2))
+#define of_prop_cmp(s1, s2)		strcmp((s1), (s2))
+#define of_node_cmp(s1, s2)		strcasecmp((s1), (s2))
+#endif
+
 #if defined(CONFIG_OF) && defined(CONFIG_NUMA)
 extern int of_node_to_nid(struct device_node *np);
 #else
 static inline int of_node_to_nid(struct device_node *device)
 {
 	return NUMA_NO_NODE;
+}
+#endif
+
+#ifdef CONFIG_OF_NUMA
+extern int of_numa_init(void);
+#else
+static inline int of_numa_init(void)
+{
+	return -ENOSYS;
 }
 #endif
 
@@ -868,6 +929,12 @@ static inline int of_property_read_s32(const struct device_node *np,
 	return of_property_read_u32(np, propname, (u32*) out_value);
 }
 
+#define of_for_each_phandle(it, err, np, ln, cn, cc)			\
+	for (of_phandle_iterator_init((it), (np), (ln), (cn), (cc)),	\
+	     err = of_phandle_iterator_next(it);			\
+	     err == 0;							\
+	     err = of_phandle_iterator_next(it))
+
 #define of_property_for_each_u32(np, propname, prop, p, u)	\
 	for (prop = of_find_property(np, propname, NULL),	\
 		p = of_prop_next_u32(prop, NULL, &u);		\
@@ -944,10 +1011,13 @@ static inline int of_get_available_child_count(const struct device_node *np)
 #endif
 
 typedef int (*of_init_fn_2)(struct device_node *, struct device_node *);
+typedef int (*of_init_fn_1_ret)(struct device_node *);
 typedef void (*of_init_fn_1)(struct device_node *);
 
 #define OF_DECLARE_1(table, name, compat, fn) \
 		_OF_DECLARE(table, name, compat, fn, of_init_fn_1)
+#define OF_DECLARE_1_RET(table, name, compat, fn) \
+		_OF_DECLARE(table, name, compat, fn, of_init_fn_1_ret)
 #define OF_DECLARE_2(table, name, compat, fn) \
 		_OF_DECLARE(table, name, compat, fn, of_init_fn_2)
 

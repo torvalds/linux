@@ -41,7 +41,7 @@
  */
 
 /dts-v1/;
-
+#include <dt-bindings/input/input.h>
 #include "rk3288.dtsi"
 
 / {
@@ -62,37 +62,19 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&pwrbtn>;
 
-		button@0 {
+		power {
 			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			label = "GPIO Key Power";
 			linux,input-type = <1>;
 			wakeup-source;
 			debounce-interval = <100>;
 		};
-	};
-
-	io_domains: io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		audio-supply = <&vcca_33>;
-		bb-supply = <&vcc_io>;
-		dvp-supply = <&vcc18_dvp>;
-		flash0-supply = <&vcc_flash>;
-		flash1-supply = <&vcc_lan>;
-		gpio30-supply = <&vcc_io>;
-		gpio1830-supply = <&vcc_io>;
-		lcdc-supply = <&vcc_io>;
-		sdcard-supply = <&vccio_sd>;
-		wifi-supply = <&vccio_wl>;
 	};
 
 	ir: ir-receiver {
@@ -162,7 +144,6 @@
 };
 
 &emmc {
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
@@ -438,6 +419,21 @@
 
 &i2c5 {
 	status = "okay";
+};
+
+&io_domains {
+	status = "okay";
+
+	audio-supply = <&vcca_33>;
+	bb-supply = <&vcc_io>;
+	dvp-supply = <&vcc18_dvp>;
+	flash0-supply = <&vcc_flash>;
+	flash1-supply = <&vcc_lan>;
+	gpio30-supply = <&vcc_io>;
+	gpio1830-supply = <&vcc_io>;
+	lcdc-supply = <&vcc_io>;
+	sdcard-supply = <&vccio_sd>;
+	wifi-supply = <&vccio_wl>;
 };
 
 &pinctrl {

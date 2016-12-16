@@ -555,7 +555,7 @@ static int pkg_temp_thermal_cpu_callback(struct notifier_block *nfb,
 {
 	unsigned int cpu = (unsigned long) hcpu;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
 	case CPU_DOWN_FAILED:
 		get_core_online(cpu);

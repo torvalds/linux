@@ -976,6 +976,23 @@ static void cdns_uart_poll_put_char(struct uart_port *port, unsigned char c)
 }
 #endif
 
+static void cdns_uart_pm(struct uart_port *port, unsigned int state,
+		   unsigned int oldstate)
+{
+	struct cdns_uart *cdns_uart = port->private_data;
+
+	switch (state) {
+	case UART_PM_STATE_OFF:
+		clk_disable(cdns_uart->uartclk);
+		clk_disable(cdns_uart->pclk);
+		break;
+	default:
+		clk_enable(cdns_uart->pclk);
+		clk_enable(cdns_uart->uartclk);
+		break;
+	}
+}
+
 static struct uart_ops cdns_uart_ops = {
 	.set_mctrl	= cdns_uart_set_mctrl,
 	.get_mctrl	= cdns_uart_get_mctrl,
@@ -987,6 +1004,7 @@ static struct uart_ops cdns_uart_ops = {
 	.set_termios	= cdns_uart_set_termios,
 	.startup	= cdns_uart_startup,
 	.shutdown	= cdns_uart_shutdown,
+	.pm		= cdns_uart_pm,
 	.type		= cdns_uart_type,
 	.verify_port	= cdns_uart_verify_port,
 	.request_port	= cdns_uart_request_port,
@@ -1350,12 +1368,12 @@ static int cdns_uart_probe(struct platform_device *pdev)
 		return PTR_ERR(cdns_uart_data->uartclk);
 	}
 
-	rc = clk_prepare_enable(cdns_uart_data->pclk);
+	rc = clk_prepare(cdns_uart_data->pclk);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to enable pclk clock.\n");
 		return rc;
 	}
-	rc = clk_prepare_enable(cdns_uart_data->uartclk);
+	rc = clk_prepare(cdns_uart_data->uartclk);
 	if (rc) {
 		dev_err(&pdev->dev, "Unable to enable device clock.\n");
 		goto err_out_clk_dis_pclk;
@@ -1422,9 +1440,9 @@ err_out_notif_unreg:
 			&cdns_uart_data->clk_rate_change_nb);
 #endif
 err_out_clk_disable:
-	clk_disable_unprepare(cdns_uart_data->uartclk);
+	clk_unprepare(cdns_uart_data->uartclk);
 err_out_clk_dis_pclk:
-	clk_disable_unprepare(cdns_uart_data->pclk);
+	clk_unprepare(cdns_uart_data->pclk);
 
 	return rc;
 }
@@ -1448,8 +1466,8 @@ static int cdns_uart_remove(struct platform_device *pdev)
 #endif
 	rc = uart_remove_one_port(&cdns_uart_uart_driver, port);
 	port->mapbase = 0;
-	clk_disable_unprepare(cdns_uart_data->uartclk);
-	clk_disable_unprepare(cdns_uart_data->pclk);
+	clk_unprepare(cdns_uart_data->uartclk);
+	clk_unprepare(cdns_uart_data->pclk);
 	return rc;
 }
 

@@ -48,11 +48,14 @@
 
 #define WCN36XX_HAL_IPV4_ADDR_LEN       4
 
-#define WALN_HAL_STA_INVALID_IDX 0xFF
+#define WCN36XX_HAL_STA_INVALID_IDX 0xFF
 #define WCN36XX_HAL_BSS_INVALID_IDX 0xFF
 
 /* Default Beacon template size */
 #define BEACON_TEMPLATE_SIZE 0x180
+
+/* Minimum PVM size that the FW expects. See comment in smd.c for details. */
+#define TIM_MIN_PVM_SIZE 6
 
 /* Param Change Bitmap sent to HAL */
 #define PARAM_BCN_INTERVAL_CHANGED                      (1 << 0)
@@ -2884,11 +2887,14 @@ struct update_beacon_rsp_msg {
 struct wcn36xx_hal_send_beacon_req_msg {
 	struct wcn36xx_hal_msg_header header;
 
+	/* length of the template + 6. Only qcom knows why */
+	u32 beacon_length6;
+
 	/* length of the template. */
 	u32 beacon_length;
 
 	/* Beacon data. */
-	u8 beacon[BEACON_TEMPLATE_SIZE];
+	u8 beacon[BEACON_TEMPLATE_SIZE - sizeof(u32)];
 
 	u8 bssid[ETH_ALEN];
 
@@ -4117,7 +4123,7 @@ struct wcn36xx_hal_update_scan_params_req {
 
 /* Update scan params - sent from host to PNO to be used during PNO
  * scanningx */
-struct update_scan_params_req_ex {
+struct wcn36xx_hal_update_scan_params_req_ex {
 
 	struct wcn36xx_hal_msg_header header;
 
@@ -4145,7 +4151,7 @@ struct update_scan_params_req_ex {
 
 	/* Cb State */
 	enum phy_chan_bond_state state;
-};
+} __packed;
 
 /* Update scan params - sent from host to PNO to be used during PNO
  * scanningx */
@@ -4261,9 +4267,9 @@ struct wcn36xx_hal_rcv_flt_mc_addr_list_type {
 	u8 data_offset;
 
 	u32 mc_addr_count;
-	u8 mc_addr[ETH_ALEN][WCN36XX_HAL_MAX_NUM_MULTICAST_ADDRESS];
+	u8 mc_addr[WCN36XX_HAL_MAX_NUM_MULTICAST_ADDRESS][ETH_ALEN];
 	u8 bss_index;
-};
+} __packed;
 
 struct wcn36xx_hal_set_pkt_filter_rsp_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -4317,7 +4323,7 @@ struct wcn36xx_hal_rcv_flt_pkt_clear_rsp_msg {
 struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_req_msg {
 	struct wcn36xx_hal_msg_header header;
 	struct wcn36xx_hal_rcv_flt_mc_addr_list_type mc_addr_list;
-};
+} __packed;
 
 struct wcn36xx_hal_rcv_flt_pkt_set_mc_list_rsp_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -4383,6 +4389,45 @@ enum place_holder_in_cap_bitmap {
 	RTT = 20,
 	RATECTRL = 21,
 	WOW = 22,
+	WLAN_ROAM_SCAN_OFFLOAD = 23,
+	SPECULATIVE_PS_POLL = 24,
+	SCAN_SCH = 25,
+	IBSS_HEARTBEAT_OFFLOAD = 26,
+	WLAN_SCAN_OFFLOAD = 27,
+	WLAN_PERIODIC_TX_PTRN = 28,
+	ADVANCE_TDLS = 29,
+	BATCH_SCAN = 30,
+	FW_IN_TX_PATH = 31,
+	EXTENDED_NSOFFLOAD_SLOT = 32,
+	CH_SWITCH_V1 = 33,
+	HT40_OBSS_SCAN = 34,
+	UPDATE_CHANNEL_LIST = 35,
+	WLAN_MCADDR_FLT = 36,
+	WLAN_CH144 = 37,
+	NAN = 38,
+	TDLS_SCAN_COEXISTENCE = 39,
+	LINK_LAYER_STATS_MEAS = 40,
+	MU_MIMO = 41,
+	EXTENDED_SCAN = 42,
+	DYNAMIC_WMM_PS = 43,
+	MAC_SPOOFED_SCAN = 44,
+	BMU_ERROR_GENERIC_RECOVERY = 45,
+	DISA = 46,
+	FW_STATS = 47,
+	WPS_PRBRSP_TMPL = 48,
+	BCN_IE_FLT_DELTA = 49,
+	TDLS_OFF_CHANNEL = 51,
+	RTT3 = 52,
+	MGMT_FRAME_LOGGING = 53,
+	ENHANCED_TXBD_COMPLETION = 54,
+	LOGGING_ENHANCEMENT = 55,
+	EXT_SCAN_ENHANCED = 56,
+	MEMORY_DUMP_SUPPORTED = 57,
+	PER_PKT_STATS_SUPPORTED = 58,
+	EXT_LL_STAT = 60,
+	WIFI_CONFIG = 61,
+	ANTENNA_DIVERSITY_SELECTION = 62,
+
 	MAX_FEATURE_SUPPORTED = 128,
 };
 

@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/sfi.h>
 #include <linux/platform_device.h>
+#include <linux/mc146818rtc.h>
 
 #include <asm/intel-mid.h>
 #include <asm/intel_mid_vrtc.h>

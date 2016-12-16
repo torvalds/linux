@@ -79,7 +79,7 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 
 	len = thread__comm_len(h->thread);
 	if (hists__new_col_len(hists, HISTC_COMM, len))
-		hists__set_col_len(hists, HISTC_THREAD, len + 6);
+		hists__set_col_len(hists, HISTC_THREAD, len + 8);
 
 	if (h->ms.map) {
 		len = dso__name_len(h->ms.map->dso);
@@ -117,6 +117,13 @@ void hists__calc_col_len(struct hists *hists, struct hist_entry *h)
 			hists__new_col_len(hists, HISTC_SYMBOL_TO, symlen);
 			hists__set_unres_dso_col_len(hists, HISTC_DSO_TO);
 		}
+
+		if (h->branch_info->srcline_from)
+			hists__new_col_len(hists, HISTC_SRCLINE_FROM,
+					strlen(h->branch_info->srcline_from));
+		if (h->branch_info->srcline_to)
+			hists__new_col_len(hists, HISTC_SRCLINE_TO,
+					strlen(h->branch_info->srcline_to));
 	}
 
 	if (h->mem_info) {
@@ -295,7 +302,7 @@ static void hists__delete_entry(struct hists *hists, struct hist_entry *he)
 		root_in  = &he->parent_he->hroot_in;
 		root_out = &he->parent_he->hroot_out;
 	} else {
-		if (sort__need_collapse)
+		if (hists__has(hists, need_collapse))
 			root_in = &hists->entries_collapsed;
 		else
 			root_in = hists->entries_in;
@@ -345,86 +352,114 @@ void hists__delete_entries(struct hists *hists)
  * histogram, sorted on item, collects periods
  */
 
+static int hist_entry__init(struct hist_entry *he,
+			    struct hist_entry *template,
+			    bool sample_self)
+{
+	*he = *template;
+
+	if (symbol_conf.cumulate_callchain) {
+		he->stat_acc = malloc(sizeof(he->stat));
+		if (he->stat_acc == NULL)
+			return -ENOMEM;
+		memcpy(he->stat_acc, &he->stat, sizeof(he->stat));
+		if (!sample_self)
+			memset(&he->stat, 0, sizeof(he->stat));
+	}
+
+	map__get(he->ms.map);
+
+	if (he->branch_info) {
+		/*
+		 * This branch info is (a part of) allocated from
+		 * sample__resolve_bstack() and will be freed after
+		 * adding new entries.  So we need to save a copy.
+		 */
+		he->branch_info = malloc(sizeof(*he->branch_info));
+		if (he->branch_info == NULL) {
+			map__zput(he->ms.map);
+			free(he->stat_acc);
+			return -ENOMEM;
+		}
+
+		memcpy(he->branch_info, template->branch_info,
+		       sizeof(*he->branch_info));
+
+		map__get(he->branch_info->from.map);
+		map__get(he->branch_info->to.map);
+	}
+
+	if (he->mem_info) {
+		map__get(he->mem_info->iaddr.map);
+		map__get(he->mem_info->daddr.map);
+	}
+
+	if (symbol_conf.use_callchain)
+		callchain_init(he->callchain);
+
+	if (he->raw_data) {
+		he->raw_data = memdup(he->raw_data, he->raw_size);
+
+		if (he->raw_data == NULL) {
+			map__put(he->ms.map);
+			if (he->branch_info) {
+				map__put(he->branch_info->from.map);
+				map__put(he->branch_info->to.map);
+				free(he->branch_info);
+			}
+			if (he->mem_info) {
+				map__put(he->mem_info->iaddr.map);
+				map__put(he->mem_info->daddr.map);
+			}
+			free(he->stat_acc);
+			return -ENOMEM;
+		}
+	}
+	INIT_LIST_HEAD(&he->pairs.node);
+	thread__get(he->thread);
+
+	if (!symbol_conf.report_hierarchy)
+		he->leaf = true;
+
+	return 0;
+}
+
+static void *hist_entry__zalloc(size_t size)
+{
+	return zalloc(size + sizeof(struct hist_entry));
+}
+
+static void hist_entry__free(void *ptr)
+{
+	free(ptr);
+}
+
+static struct hist_entry_ops default_ops = {
+	.new	= hist_entry__zalloc,
+	.free	= hist_entry__free,
+};
+
 static struct hist_entry *hist_entry__new(struct hist_entry *template,
 					  bool sample_self)
 {
+	struct hist_entry_ops *ops = template->ops;
 	size_t callchain_size = 0;
 	struct hist_entry *he;
+	int err = 0;
+
+	if (!ops)
+		ops = template->ops = &default_ops;
 
 	if (symbol_conf.use_callchain)
 		callchain_size = sizeof(struct callchain_root);
 
-	he = zalloc(sizeof(*he) + callchain_size);
-
-	if (he != NULL) {
-		*he = *template;
-
-		if (symbol_conf.cumulate_callchain) {
-			he->stat_acc = malloc(sizeof(he->stat));
-			if (he->stat_acc == NULL) {
-				free(he);
-				return NULL;
-			}
-			memcpy(he->stat_acc, &he->stat, sizeof(he->stat));
-			if (!sample_self)
-				memset(&he->stat, 0, sizeof(he->stat));
+	he = ops->new(callchain_size);
+	if (he) {
+		err = hist_entry__init(he, template, sample_self);
+		if (err) {
+			ops->free(he);
+			he = NULL;
 		}
-
-		map__get(he->ms.map);
-
-		if (he->branch_info) {
-			/*
-			 * This branch info is (a part of) allocated from
-			 * sample__resolve_bstack() and will be freed after
-			 * adding new entries.  So we need to save a copy.
-			 */
-			he->branch_info = malloc(sizeof(*he->branch_info));
-			if (he->branch_info == NULL) {
-				map__zput(he->ms.map);
-				free(he->stat_acc);
-				free(he);
-				return NULL;
-			}
-
-			memcpy(he->branch_info, template->branch_info,
-			       sizeof(*he->branch_info));
-
-			map__get(he->branch_info->from.map);
-			map__get(he->branch_info->to.map);
-		}
-
-		if (he->mem_info) {
-			map__get(he->mem_info->iaddr.map);
-			map__get(he->mem_info->daddr.map);
-		}
-
-		if (symbol_conf.use_callchain)
-			callchain_init(he->callchain);
-
-		if (he->raw_data) {
-			he->raw_data = memdup(he->raw_data, he->raw_size);
-
-			if (he->raw_data == NULL) {
-				map__put(he->ms.map);
-				if (he->branch_info) {
-					map__put(he->branch_info->from.map);
-					map__put(he->branch_info->to.map);
-					free(he->branch_info);
-				}
-				if (he->mem_info) {
-					map__put(he->mem_info->iaddr.map);
-					map__put(he->mem_info->daddr.map);
-				}
-				free(he->stat_acc);
-				free(he);
-				return NULL;
-			}
-		}
-		INIT_LIST_HEAD(&he->pairs.node);
-		thread__get(he->thread);
-
-		if (!symbol_conf.report_hierarchy)
-			he->leaf = true;
 	}
 
 	return he;
@@ -524,13 +559,15 @@ out:
 	return he;
 }
 
-struct hist_entry *__hists__add_entry(struct hists *hists,
-				      struct addr_location *al,
-				      struct symbol *sym_parent,
-				      struct branch_info *bi,
-				      struct mem_info *mi,
-				      struct perf_sample *sample,
-				      bool sample_self)
+static struct hist_entry*
+__hists__add_entry(struct hists *hists,
+		   struct addr_location *al,
+		   struct symbol *sym_parent,
+		   struct branch_info *bi,
+		   struct mem_info *mi,
+		   struct perf_sample *sample,
+		   bool sample_self,
+		   struct hist_entry_ops *ops)
 {
 	struct hist_entry entry = {
 		.thread	= al->thread,
@@ -557,9 +594,35 @@ struct hist_entry *__hists__add_entry(struct hists *hists,
 		.transaction = sample->transaction,
 		.raw_data = sample->raw_data,
 		.raw_size = sample->raw_size,
+		.ops = ops,
 	};
 
 	return hists__findnew_entry(hists, &entry, al, sample_self);
+}
+
+struct hist_entry *hists__add_entry(struct hists *hists,
+				    struct addr_location *al,
+				    struct symbol *sym_parent,
+				    struct branch_info *bi,
+				    struct mem_info *mi,
+				    struct perf_sample *sample,
+				    bool sample_self)
+{
+	return __hists__add_entry(hists, al, sym_parent, bi, mi,
+				  sample, sample_self, NULL);
+}
+
+struct hist_entry *hists__add_entry_ops(struct hists *hists,
+					struct hist_entry_ops *ops,
+					struct addr_location *al,
+					struct symbol *sym_parent,
+					struct branch_info *bi,
+					struct mem_info *mi,
+					struct perf_sample *sample,
+					bool sample_self)
+{
+	return __hists__add_entry(hists, al, sym_parent, bi, mi,
+				  sample, sample_self, ops);
 }
 
 static int
@@ -615,8 +678,8 @@ iter_add_single_mem_entry(struct hist_entry_iter *iter, struct addr_location *al
 	 */
 	sample->period = cost;
 
-	he = __hists__add_entry(hists, al, iter->parent, NULL, mi,
-				sample, true);
+	he = hists__add_entry(hists, al, iter->parent, NULL, mi,
+			      sample, true);
 	if (!he)
 		return -ENOMEM;
 
@@ -720,8 +783,8 @@ iter_add_next_branch_entry(struct hist_entry_iter *iter, struct addr_location *a
 	sample->period = 1;
 	sample->weight = bi->flags.cycles ? bi->flags.cycles : 1;
 
-	he = __hists__add_entry(hists, al, iter->parent, &bi[i], NULL,
-				sample, true);
+	he = hists__add_entry(hists, al, iter->parent, &bi[i], NULL,
+			      sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -757,8 +820,8 @@ iter_add_single_normal_entry(struct hist_entry_iter *iter, struct addr_location 
 	struct perf_sample *sample = iter->sample;
 	struct hist_entry *he;
 
-	he = __hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
-				sample, true);
+	he = hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
+			      sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -818,8 +881,8 @@ iter_add_single_cumulative_entry(struct hist_entry_iter *iter,
 	struct hist_entry *he;
 	int err = 0;
 
-	he = __hists__add_entry(hists, al, iter->parent, NULL, NULL,
-				sample, true);
+	he = hists__add_entry(hists, al, iter->parent, NULL, NULL,
+			      sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -893,8 +956,8 @@ iter_add_next_cumulative_entry(struct hist_entry_iter *iter,
 		}
 	}
 
-	he = __hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
-				sample, false);
+	he = hists__add_entry(evsel__hists(evsel), al, iter->parent, NULL, NULL,
+			      sample, false);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -953,7 +1016,7 @@ int hist_entry_iter__add(struct hist_entry_iter *iter, struct addr_location *al,
 {
 	int err, err2;
 
-	err = sample__resolve_callchain(iter->sample, &iter->parent,
+	err = sample__resolve_callchain(iter->sample, &callchain_cursor, &iter->parent,
 					iter->evsel, al, max_stack_depth);
 	if (err)
 		return err;
@@ -1036,12 +1099,16 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 
 void hist_entry__delete(struct hist_entry *he)
 {
+	struct hist_entry_ops *ops = he->ops;
+
 	thread__zput(he->thread);
 	map__zput(he->ms.map);
 
 	if (he->branch_info) {
 		map__zput(he->branch_info->from.map);
 		map__zput(he->branch_info->to.map);
+		free_srcline(he->branch_info->srcline_from);
+		free_srcline(he->branch_info->srcline_to);
 		zfree(&he->branch_info);
 	}
 
@@ -1058,7 +1125,7 @@ void hist_entry__delete(struct hist_entry *he)
 	free_callchain(he->callchain);
 	free(he->trace_output);
 	free(he->raw_data);
-	free(he);
+	ops->free(he);
 }
 
 /*
@@ -1072,7 +1139,7 @@ int hist_entry__snprintf_alignment(struct hist_entry *he, struct perf_hpp *hpp,
 				   struct perf_hpp_fmt *fmt, int printed)
 {
 	if (!list_is_last(&fmt->list, &he->hists->hpp_list->fields)) {
-		const int width = fmt->width(fmt, hpp, hists_to_evsel(he->hists));
+		const int width = fmt->width(fmt, hpp, he->hists);
 		if (printed < width) {
 			advance_hpp(hpp, printed);
 			printed = scnprintf(hpp->buf, hpp->size, "%-*s", width - printed, " ");
@@ -1295,8 +1362,9 @@ static int hists__hierarchy_insert_entry(struct hists *hists,
 	return ret;
 }
 
-int hists__collapse_insert_entry(struct hists *hists, struct rb_root *root,
-				 struct hist_entry *he)
+static int hists__collapse_insert_entry(struct hists *hists,
+					struct rb_root *root,
+					struct hist_entry *he)
 {
 	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
@@ -1372,7 +1440,7 @@ int hists__collapse_resort(struct hists *hists, struct ui_progress *prog)
 	struct hist_entry *n;
 	int ret;
 
-	if (!sort__need_collapse)
+	if (!hists__has(hists, need_collapse))
 		return 0;
 
 	hists->nr_entries = 0;
@@ -1604,7 +1672,7 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 }
 
 static void output_resort(struct hists *hists, struct ui_progress *prog,
-			  bool use_callchain)
+			  bool use_callchain, hists__resort_cb_t cb)
 {
 	struct rb_root *root;
 	struct rb_node *next;
@@ -1631,7 +1699,7 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 		return;
 	}
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -1642,6 +1710,9 @@ static void output_resort(struct hists *hists, struct ui_progress *prog,
 	while (next) {
 		n = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&n->rb_node_in);
+
+		if (cb && cb(n))
+			continue;
 
 		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits, use_callchain);
 		hists__inc_stats(hists, n);
@@ -1663,12 +1734,18 @@ void perf_evsel__output_resort(struct perf_evsel *evsel, struct ui_progress *pro
 	else
 		use_callchain = symbol_conf.use_callchain;
 
-	output_resort(evsel__hists(evsel), prog, use_callchain);
+	output_resort(evsel__hists(evsel), prog, use_callchain, NULL);
 }
 
 void hists__output_resort(struct hists *hists, struct ui_progress *prog)
 {
-	output_resort(hists, prog, symbol_conf.use_callchain);
+	output_resort(hists, prog, symbol_conf.use_callchain, NULL);
+}
+
+void hists__output_resort_cb(struct hists *hists, struct ui_progress *prog,
+			     hists__resort_cb_t cb)
+{
+	output_resort(hists, prog, symbol_conf.use_callchain, cb);
 }
 
 static bool can_goto_child(struct hist_entry *he, enum hierarchy_move_dir hmd)
@@ -2035,7 +2112,7 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 	struct hist_entry *he;
 	int64_t cmp;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -2061,6 +2138,8 @@ static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
 	if (he) {
 		memset(&he->stat, 0, sizeof(he->stat));
 		he->hists = hists;
+		if (symbol_conf.cumulate_callchain)
+			memset(he->stat_acc, 0, sizeof(he->stat));
 		rb_link_node(&he->rb_node_in, parent, p);
 		rb_insert_color(&he->rb_node_in, root);
 		hists__inc_stats(hists, he);
@@ -2075,7 +2154,7 @@ static struct hist_entry *hists__find_entry(struct hists *hists,
 {
 	struct rb_node *n;
 
-	if (sort__need_collapse)
+	if (hists__has(hists, need_collapse))
 		n = hists->entries_collapsed.rb_node;
 	else
 		n = hists->entries_in->rb_node;
@@ -2104,7 +2183,7 @@ void hists__match(struct hists *leader, struct hists *other)
 	struct rb_node *nd;
 	struct hist_entry *pos, *pair;
 
-	if (sort__need_collapse)
+	if (hists__has(leader, need_collapse))
 		root = &leader->entries_collapsed;
 	else
 		root = leader->entries_in;
@@ -2129,7 +2208,7 @@ int hists__link(struct hists *leader, struct hists *other)
 	struct rb_node *nd;
 	struct hist_entry *pos, *pair;
 
-	if (sort__need_collapse)
+	if (hists__has(other, need_collapse))
 		root = &other->entries_collapsed;
 	else
 		root = other->entries_in;
@@ -2187,7 +2266,7 @@ size_t perf_evlist__fprintf_nr_events(struct perf_evlist *evlist, FILE *fp)
 	struct perf_evsel *pos;
 	size_t ret = 0;
 
-	evlist__for_each(evlist, pos) {
+	evlist__for_each_entry(evlist, pos) {
 		ret += fprintf(fp, "%s stats:\n", perf_evsel__name(pos));
 		ret += events_stats__fprintf(&evsel__hists(pos)->stats, fp);
 	}

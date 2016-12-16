@@ -27,6 +27,7 @@
 #include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/anon_inodes.h>
+#include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <linux/spinlock.h>
 #include <linux/page-flags.h>
@@ -51,6 +52,7 @@
 #include <asm/switch_to.h>
 #include <asm/smp.h>
 #include <asm/dbell.h>
+#include <asm/hmi.h>
 #include <linux/gfp.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
@@ -2521,7 +2523,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 		list_for_each_entry(pvc, &core_info.vcs[sub], preempt_list)
 			spin_unlock(&pvc->lock);
 
-	kvm_guest_enter();
+	guest_enter();
 
 	srcu_idx = srcu_read_lock(&vc->kvm->srcu);
 
@@ -2569,7 +2571,7 @@ static noinline void kvmppc_run_core(struct kvmppc_vcore *vc)
 
 	/* make sure updates to secondary vcpu structs are visible now */
 	smp_mb();
-	kvm_guest_exit();
+	guest_exit();
 
 	for (sub = 0; sub < core_info.n_subcores; ++sub)
 		list_for_each_entry_safe(pvc, vcnext, &core_info.vcs[sub],
@@ -3271,6 +3273,12 @@ static int kvmppc_core_check_processor_compat_hv(void)
 	if (!cpu_has_feature(CPU_FTR_HVMODE) ||
 	    !cpu_has_feature(CPU_FTR_ARCH_206))
 		return -EIO;
+	/*
+	 * Disable KVM for Power9, untill the required bits merged.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		return -EIO;
+
 	return 0;
 }
 
@@ -3394,6 +3402,38 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.hcall_implemented = kvmppc_hcall_impl_hv,
 };
 
+static int kvm_init_subcore_bitmap(void)
+{
+	int i, j;
+	int nr_cores = cpu_nr_cores();
+	struct sibling_subcore_state *sibling_subcore_state;
+
+	for (i = 0; i < nr_cores; i++) {
+		int first_cpu = i * threads_per_core;
+		int node = cpu_to_node(first_cpu);
+
+		/* Ignore if it is already allocated. */
+		if (paca[first_cpu].sibling_subcore_state)
+			continue;
+
+		sibling_subcore_state =
+			kmalloc_node(sizeof(struct sibling_subcore_state),
+							GFP_KERNEL, node);
+		if (!sibling_subcore_state)
+			return -ENOMEM;
+
+		memset(sibling_subcore_state, 0,
+				sizeof(struct sibling_subcore_state));
+
+		for (j = 0; j < threads_per_core; j++) {
+			int cpu = first_cpu + j;
+
+			paca[cpu].sibling_subcore_state = sibling_subcore_state;
+		}
+	}
+	return 0;
+}
+
 static int kvmppc_book3s_init_hv(void)
 {
 	int r;
@@ -3403,6 +3443,10 @@ static int kvmppc_book3s_init_hv(void)
 	r = kvmppc_core_check_processor_compat_hv();
 	if (r < 0)
 		return -ENODEV;
+
+	r = kvm_init_subcore_bitmap();
+	if (r)
+		return r;
 
 	kvm_ops_hv.owner = THIS_MODULE;
 	kvmppc_hv_ops = &kvm_ops_hv;

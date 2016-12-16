@@ -21,6 +21,9 @@
 #include <pthread.h>
 #include <sched.h>
 #include <linux/futex.h>
+#include <sys/mman.h>
+#include <asm/prctl.h>
+#include <sys/prctl.h>
 
 #define AR_ACCESSED		(1<<8)
 
@@ -43,6 +46,12 @@
 #define AR_G			(1 << 23)
 
 static int nerrs;
+
+/* Points to an array of 1024 ints, each holding its own index. */
+static const unsigned int *counter_page;
+static struct user_desc *low_user_desc;
+static struct user_desc *low_user_desc_clear;  /* Use to delete GDT entry */
+static int gdt_entry_num;
 
 static void check_invalid_segment(uint16_t index, int ldt)
 {
@@ -561,16 +570,257 @@ static void do_exec_test(void)
 	}
 }
 
+static void setup_counter_page(void)
+{
+	unsigned int *page = mmap(NULL, 4096, PROT_READ | PROT_WRITE,
+			 MAP_ANONYMOUS | MAP_PRIVATE | MAP_32BIT, -1, 0);
+	if (page == MAP_FAILED)
+		err(1, "mmap");
+
+	for (int i = 0; i < 1024; i++)
+		page[i] = i;
+	counter_page = page;
+}
+
+static int invoke_set_thread_area(void)
+{
+	int ret;
+	asm volatile ("int $0x80"
+		      : "=a" (ret), "+m" (low_user_desc) :
+			"a" (243), "b" (low_user_desc)
+		      : "flags");
+	return ret;
+}
+
+static void setup_low_user_desc(void)
+{
+	low_user_desc = mmap(NULL, 2 * sizeof(struct user_desc),
+			     PROT_READ | PROT_WRITE,
+			     MAP_ANONYMOUS | MAP_PRIVATE | MAP_32BIT, -1, 0);
+	if (low_user_desc == MAP_FAILED)
+		err(1, "mmap");
+
+	low_user_desc->entry_number	= -1;
+	low_user_desc->base_addr	= (unsigned long)&counter_page[1];
+	low_user_desc->limit		= 0xfffff;
+	low_user_desc->seg_32bit	= 1;
+	low_user_desc->contents		= 0; /* Data, grow-up*/
+	low_user_desc->read_exec_only	= 0;
+	low_user_desc->limit_in_pages	= 1;
+	low_user_desc->seg_not_present	= 0;
+	low_user_desc->useable		= 0;
+
+	if (invoke_set_thread_area() == 0) {
+		gdt_entry_num = low_user_desc->entry_number;
+		printf("[NOTE]\tset_thread_area is available; will use GDT index %d\n", gdt_entry_num);
+	} else {
+		printf("[NOTE]\tset_thread_area is unavailable\n");
+	}
+
+	low_user_desc_clear = low_user_desc + 1;
+	low_user_desc_clear->entry_number = gdt_entry_num;
+	low_user_desc_clear->read_exec_only = 1;
+	low_user_desc_clear->seg_not_present = 1;
+}
+
+static void test_gdt_invalidation(void)
+{
+	if (!gdt_entry_num)
+		return;	/* 64-bit only system -- we can't use set_thread_area */
+
+	unsigned short prev_sel;
+	unsigned short sel;
+	unsigned int eax;
+	const char *result;
+#ifdef __x86_64__
+	unsigned long saved_base;
+	unsigned long new_base;
+#endif
+
+	/* Test DS */
+	invoke_set_thread_area();
+	eax = 243;
+	sel = (gdt_entry_num << 3) | 3;
+	asm volatile ("movw %%ds, %[prev_sel]\n\t"
+		      "movw %[sel], %%ds\n\t"
+#ifdef __i386__
+		      "pushl %%ebx\n\t"
+#endif
+		      "movl %[arg1], %%ebx\n\t"
+		      "int $0x80\n\t"	/* Should invalidate ds */
+#ifdef __i386__
+		      "popl %%ebx\n\t"
+#endif
+		      "movw %%ds, %[sel]\n\t"
+		      "movw %[prev_sel], %%ds"
+		      : [prev_sel] "=&r" (prev_sel), [sel] "+r" (sel),
+			"+a" (eax)
+		      : "m" (low_user_desc_clear),
+			[arg1] "r" ((unsigned int)(unsigned long)low_user_desc_clear)
+		      : "flags");
+
+	if (sel != 0) {
+		result = "FAIL";
+		nerrs++;
+	} else {
+		result = "OK";
+	}
+	printf("[%s]\tInvalidate DS with set_thread_area: new DS = 0x%hx\n",
+	       result, sel);
+
+	/* Test ES */
+	invoke_set_thread_area();
+	eax = 243;
+	sel = (gdt_entry_num << 3) | 3;
+	asm volatile ("movw %%es, %[prev_sel]\n\t"
+		      "movw %[sel], %%es\n\t"
+#ifdef __i386__
+		      "pushl %%ebx\n\t"
+#endif
+		      "movl %[arg1], %%ebx\n\t"
+		      "int $0x80\n\t"	/* Should invalidate es */
+#ifdef __i386__
+		      "popl %%ebx\n\t"
+#endif
+		      "movw %%es, %[sel]\n\t"
+		      "movw %[prev_sel], %%es"
+		      : [prev_sel] "=&r" (prev_sel), [sel] "+r" (sel),
+			"+a" (eax)
+		      : "m" (low_user_desc_clear),
+			[arg1] "r" ((unsigned int)(unsigned long)low_user_desc_clear)
+		      : "flags");
+
+	if (sel != 0) {
+		result = "FAIL";
+		nerrs++;
+	} else {
+		result = "OK";
+	}
+	printf("[%s]\tInvalidate ES with set_thread_area: new ES = 0x%hx\n",
+	       result, sel);
+
+	/* Test FS */
+	invoke_set_thread_area();
+	eax = 243;
+	sel = (gdt_entry_num << 3) | 3;
+#ifdef __x86_64__
+	syscall(SYS_arch_prctl, ARCH_GET_FS, &saved_base);
+#endif
+	asm volatile ("movw %%fs, %[prev_sel]\n\t"
+		      "movw %[sel], %%fs\n\t"
+#ifdef __i386__
+		      "pushl %%ebx\n\t"
+#endif
+		      "movl %[arg1], %%ebx\n\t"
+		      "int $0x80\n\t"	/* Should invalidate fs */
+#ifdef __i386__
+		      "popl %%ebx\n\t"
+#endif
+		      "movw %%fs, %[sel]\n\t"
+		      : [prev_sel] "=&r" (prev_sel), [sel] "+r" (sel),
+			"+a" (eax)
+		      : "m" (low_user_desc_clear),
+			[arg1] "r" ((unsigned int)(unsigned long)low_user_desc_clear)
+		      : "flags");
+
+#ifdef __x86_64__
+	syscall(SYS_arch_prctl, ARCH_GET_FS, &new_base);
+#endif
+
+	/* Restore FS/BASE for glibc */
+	asm volatile ("movw %[prev_sel], %%fs" : : [prev_sel] "rm" (prev_sel));
+#ifdef __x86_64__
+	if (saved_base)
+		syscall(SYS_arch_prctl, ARCH_SET_FS, saved_base);
+#endif
+
+	if (sel != 0) {
+		result = "FAIL";
+		nerrs++;
+	} else {
+		result = "OK";
+	}
+	printf("[%s]\tInvalidate FS with set_thread_area: new FS = 0x%hx\n",
+	       result, sel);
+
+#ifdef __x86_64__
+	if (sel == 0 && new_base != 0) {
+		nerrs++;
+		printf("[FAIL]\tNew FSBASE was 0x%lx\n", new_base);
+	} else {
+		printf("[OK]\tNew FSBASE was zero\n");
+	}
+#endif
+
+	/* Test GS */
+	invoke_set_thread_area();
+	eax = 243;
+	sel = (gdt_entry_num << 3) | 3;
+#ifdef __x86_64__
+	syscall(SYS_arch_prctl, ARCH_GET_GS, &saved_base);
+#endif
+	asm volatile ("movw %%gs, %[prev_sel]\n\t"
+		      "movw %[sel], %%gs\n\t"
+#ifdef __i386__
+		      "pushl %%ebx\n\t"
+#endif
+		      "movl %[arg1], %%ebx\n\t"
+		      "int $0x80\n\t"	/* Should invalidate gs */
+#ifdef __i386__
+		      "popl %%ebx\n\t"
+#endif
+		      "movw %%gs, %[sel]\n\t"
+		      : [prev_sel] "=&r" (prev_sel), [sel] "+r" (sel),
+			"+a" (eax)
+		      : "m" (low_user_desc_clear),
+			[arg1] "r" ((unsigned int)(unsigned long)low_user_desc_clear)
+		      : "flags");
+
+#ifdef __x86_64__
+	syscall(SYS_arch_prctl, ARCH_GET_GS, &new_base);
+#endif
+
+	/* Restore GS/BASE for glibc */
+	asm volatile ("movw %[prev_sel], %%gs" : : [prev_sel] "rm" (prev_sel));
+#ifdef __x86_64__
+	if (saved_base)
+		syscall(SYS_arch_prctl, ARCH_SET_GS, saved_base);
+#endif
+
+	if (sel != 0) {
+		result = "FAIL";
+		nerrs++;
+	} else {
+		result = "OK";
+	}
+	printf("[%s]\tInvalidate GS with set_thread_area: new GS = 0x%hx\n",
+	       result, sel);
+
+#ifdef __x86_64__
+	if (sel == 0 && new_base != 0) {
+		nerrs++;
+		printf("[FAIL]\tNew GSBASE was 0x%lx\n", new_base);
+	} else {
+		printf("[OK]\tNew GSBASE was zero\n");
+	}
+#endif
+}
+
 int main(int argc, char **argv)
 {
 	if (argc == 1 && !strcmp(argv[0], "ldt_gdt_test_exec"))
 		return finish_exec_test();
+
+	setup_counter_page();
+	setup_low_user_desc();
 
 	do_simple_tests();
 
 	do_multicpu_tests();
 
 	do_exec_test();
+
+	test_gdt_invalidation();
 
 	return nerrs ? 1 : 0;
 }

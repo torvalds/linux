@@ -448,7 +448,7 @@
 			reg =	<0x49000000 0x10000>;
 			reg-names = "edma3_cc";
 			interrupts = <12 13 14>;
-			interrupt-names = "edma3_ccint", "emda3_mperr",
+			interrupt-names = "edma3_ccint", "edma3_mperr",
 					  "edma3_ccerrint";
 			dma-requests = <64>;
 			#dma-cells = <2>;
@@ -509,7 +509,6 @@
 			ale_entries = <1024>;
 			bd_ram_size = <0x2000>;
 			no_bd_ram = <0>;
-			rx_descs = <64>;
 			mac_control = <0x20>;
 			slaves = <2>;
 			active_slave = <0>;
@@ -568,6 +567,8 @@
 			#size-cells = <1>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 	};
 };

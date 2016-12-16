@@ -7,3 +7,5 @@ config ISCSI_TARGET
 	help
 	Say M here to enable the ConfigFS enabled Linux-iSCSI.org iSCSI
 	Target Mode Stack.
+
+source	"drivers/target/iscsi/cxgbit/Kconfig"

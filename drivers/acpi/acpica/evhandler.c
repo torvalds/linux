@@ -359,7 +359,7 @@ union acpi_operand_object *acpi_ev_find_region_handler(acpi_adr_space_type
  ******************************************************************************/
 
 acpi_status
-acpi_ev_install_space_handler(struct acpi_namespace_node * node,
+acpi_ev_install_space_handler(struct acpi_namespace_node *node,
 			      acpi_adr_space_type space_id,
 			      acpi_adr_space_handler handler,
 			      acpi_adr_space_setup setup, void *context)

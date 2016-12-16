@@ -60,7 +60,7 @@
  *
  * The host talks to the IOPs using a rather simple message-passing scheme via
  * a shared memory area in the IOP RAM. Each IOP has seven "channels"; each
- * channel is conneced to a specific software driver on the IOP. For example
+ * channel is connected to a specific software driver on the IOP. For example
  * on the SCC IOP there is one channel for each serial port. Each channel has
  * an incoming and and outgoing message queue with a depth of one.
  *

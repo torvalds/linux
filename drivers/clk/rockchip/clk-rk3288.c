@@ -165,7 +165,10 @@ static const struct rockchip_cpuclk_reg_data rk3288_cpuclk_data = {
 	.core_reg = RK3288_CLKSEL_CON(0),
 	.div_core_shift = 8,
 	.div_core_mask = 0x1f,
+	.mux_core_alt = 1,
+	.mux_core_main = 0,
 	.mux_core_shift = 15,
+	.mux_core_mask = 0x1,
 };
 
 PNAME(mux_pll_p)		= { "xin24m", "xin32k" };
@@ -878,6 +881,7 @@ static struct syscore_ops rk3288_clk_syscore_ops = {
 
 static void __init rk3288_clk_init(struct device_node *np)
 {
+	struct rockchip_clk_provider *ctx;
 	struct clk *clk;
 
 	rk3288_cru_base = of_iomap(np, 0);
@@ -886,7 +890,12 @@ static void __init rk3288_clk_init(struct device_node *np)
 		return;
 	}
 
-	rockchip_clk_init(np, rk3288_cru_base, CLK_NR_CLKS);
+	ctx = rockchip_clk_init(np, rk3288_cru_base, CLK_NR_CLKS);
+	if (IS_ERR(ctx)) {
+		pr_err("%s: rockchip clk init failed\n", __func__);
+		iounmap(rk3288_cru_base);
+		return;
+	}
 
 	/* Watchdog pclk is controlled by RK3288_SGRF_SOC_CON0[1]. */
 	clk = clk_register_fixed_factor(NULL, "pclk_wdt", "pclk_pd_alive", 0, 1, 1);
@@ -894,17 +903,17 @@ static void __init rk3288_clk_init(struct device_node *np)
 		pr_warn("%s: could not register clock pclk_wdt: %ld\n",
 			__func__, PTR_ERR(clk));
 	else
-		rockchip_clk_add_lookup(clk, PCLK_WDT);
+		rockchip_clk_add_lookup(ctx, clk, PCLK_WDT);
 
-	rockchip_clk_register_plls(rk3288_pll_clks,
+	rockchip_clk_register_plls(ctx, rk3288_pll_clks,
 				   ARRAY_SIZE(rk3288_pll_clks),
 				   RK3288_GRF_SOC_STATUS1);
-	rockchip_clk_register_branches(rk3288_clk_branches,
+	rockchip_clk_register_branches(ctx, rk3288_clk_branches,
 				  ARRAY_SIZE(rk3288_clk_branches));
 	rockchip_clk_protect_critical(rk3288_critical_clocks,
 				      ARRAY_SIZE(rk3288_critical_clocks));
 
-	rockchip_clk_register_armclk(ARMCLK, "armclk",
+	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
 			mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
 			&rk3288_cpuclk_data, rk3288_cpuclk_rates,
 			ARRAY_SIZE(rk3288_cpuclk_rates));
@@ -913,8 +922,10 @@ static void __init rk3288_clk_init(struct device_node *np)
 				  rk3288_cru_base + RK3288_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(RK3288_GLB_SRST_FST,
+	rockchip_register_restart_notifier(ctx, RK3288_GLB_SRST_FST,
 					   rk3288_clk_shutdown);
 	register_syscore_ops(&rk3288_clk_syscore_ops);
+
+	rockchip_clk_of_add_provider(np, ctx);
 }
 CLK_OF_DECLARE(rk3288_cru, "rockchip,rk3288-cru", rk3288_clk_init);

@@ -474,7 +474,7 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 {
 	struct ctl_table_header *head = grab_header(dir);
 	struct ctl_table_header *h = NULL;
-	struct qstr *name = &dentry->d_name;
+	const struct qstr *name = &dentry->d_name;
 	struct ctl_table *p;
 	struct inode *inode;
 	struct dentry *err = ERR_PTR(-ENOENT);
@@ -623,22 +623,23 @@ static bool proc_sys_fill_cache(struct file *file,
 
 	qname.name = table->procname;
 	qname.len  = strlen(table->procname);
-	qname.hash = full_name_hash(qname.name, qname.len);
+	qname.hash = full_name_hash(dir, qname.name, qname.len);
 
 	child = d_lookup(dir, &qname);
 	if (!child) {
-		child = d_alloc(dir, &qname);
-		if (child) {
+		DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
+		child = d_alloc_parallel(dir, &qname, &wq);
+		if (IS_ERR(child))
+			return false;
+		if (d_in_lookup(child)) {
 			inode = proc_sys_make_inode(dir->d_sb, head, table);
 			if (!inode) {
+				d_lookup_done(child);
 				dput(child);
 				return false;
-			} else {
-				d_set_d_op(child, &proc_sys_dentry_operations);
-				d_add(child, inode);
 			}
-		} else {
-			return false;
+			d_set_d_op(child, &proc_sys_dentry_operations);
+			d_add(child, inode);
 		}
 	}
 	inode = d_inode(child);
@@ -789,7 +790,7 @@ static const struct file_operations proc_sys_file_operations = {
 
 static const struct file_operations proc_sys_dir_file_operations = {
 	.read		= generic_read_dir,
-	.iterate	= proc_sys_readdir,
+	.iterate_shared	= proc_sys_readdir,
 	.llseek		= generic_file_llseek,
 };
 
@@ -833,7 +834,7 @@ static int sysctl_is_seen(struct ctl_table_header *p)
 	return res;
 }
 
-static int proc_sys_compare(const struct dentry *parent, const struct dentry *dentry,
+static int proc_sys_compare(const struct dentry *dentry,
 		unsigned int len, const char *str, const struct qstr *name)
 {
 	struct ctl_table_header *head;

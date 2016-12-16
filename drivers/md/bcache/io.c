@@ -25,7 +25,6 @@ struct bio *bch_bbio_alloc(struct cache_set *c)
 	struct bio *bio = &b->bio;
 
 	bio_init(bio);
-	bio->bi_flags		|= BIO_POOL_NONE << BIO_POOL_OFFSET;
 	bio->bi_max_vecs	 = bucket_pages(c);
 	bio->bi_io_vec		 = bio->bi_inline_vecs;
 
@@ -111,7 +110,7 @@ void bch_bbio_count_io_errors(struct cache_set *c, struct bio *bio,
 	struct bbio *b = container_of(bio, struct bbio, bio);
 	struct cache *ca = PTR_CACHE(c, &b->key, 0);
 
-	unsigned threshold = bio->bi_rw & REQ_WRITE
+	unsigned threshold = op_is_write(bio_op(bio))
 		? c->congested_write_threshold_us
 		: c->congested_read_threshold_us;
 

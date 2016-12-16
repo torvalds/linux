@@ -412,11 +412,11 @@ TRACE_EVENT(global_dirty_state,
 	),
 
 	TP_fast_assign(
-		__entry->nr_dirty	= global_page_state(NR_FILE_DIRTY);
-		__entry->nr_writeback	= global_page_state(NR_WRITEBACK);
-		__entry->nr_unstable	= global_page_state(NR_UNSTABLE_NFS);
-		__entry->nr_dirtied	= global_page_state(NR_DIRTIED);
-		__entry->nr_written	= global_page_state(NR_WRITTEN);
+		__entry->nr_dirty	= global_node_page_state(NR_FILE_DIRTY);
+		__entry->nr_writeback	= global_node_page_state(NR_WRITEBACK);
+		__entry->nr_unstable	= global_node_page_state(NR_UNSTABLE_NFS);
+		__entry->nr_dirtied	= global_node_page_state(NR_DIRTIED);
+		__entry->nr_written	= global_node_page_state(NR_WRITTEN);
 		__entry->background_thresh = background_thresh;
 		__entry->dirty_thresh	= dirty_thresh;
 		__entry->dirty_limit	= global_wb_domain.dirty_limit;
@@ -696,7 +696,7 @@ DEFINE_EVENT(writeback_single_inode_template, writeback_single_inode,
 	TP_ARGS(inode, wbc, nr_to_write)
 );
 
-DECLARE_EVENT_CLASS(writeback_lazytime_template,
+DECLARE_EVENT_CLASS(writeback_inode_template,
 	TP_PROTO(struct inode *inode),
 
 	TP_ARGS(inode),
@@ -723,22 +723,36 @@ DECLARE_EVENT_CLASS(writeback_lazytime_template,
 		  show_inode_state(__entry->state), __entry->mode)
 );
 
-DEFINE_EVENT(writeback_lazytime_template, writeback_lazytime,
+DEFINE_EVENT(writeback_inode_template, writeback_lazytime,
 	TP_PROTO(struct inode *inode),
 
 	TP_ARGS(inode)
 );
 
-DEFINE_EVENT(writeback_lazytime_template, writeback_lazytime_iput,
+DEFINE_EVENT(writeback_inode_template, writeback_lazytime_iput,
 	TP_PROTO(struct inode *inode),
 
 	TP_ARGS(inode)
 );
 
-DEFINE_EVENT(writeback_lazytime_template, writeback_dirty_inode_enqueue,
+DEFINE_EVENT(writeback_inode_template, writeback_dirty_inode_enqueue,
 
 	TP_PROTO(struct inode *inode),
 
+	TP_ARGS(inode)
+);
+
+/*
+ * Inode writeback list tracking.
+ */
+
+DEFINE_EVENT(writeback_inode_template, sb_mark_inode_writeback,
+	TP_PROTO(struct inode *inode),
+	TP_ARGS(inode)
+);
+
+DEFINE_EVENT(writeback_inode_template, sb_clear_inode_writeback,
+	TP_PROTO(struct inode *inode),
 	TP_ARGS(inode)
 );
 

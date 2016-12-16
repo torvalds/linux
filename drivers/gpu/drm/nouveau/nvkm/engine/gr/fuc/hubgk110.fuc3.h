@@ -584,9 +584,10 @@ uint32_t gk110_grhub_code[] = {
 	0x300007f1,
 	0xd00203f0,
 	0x04bd0001,
-/* 0x0564: main */
-	0xf40031f4,
-	0xd7f00028,
+/* 0x0564: wait */
+	0xf40028f4,
+/* 0x056a: main */
+	0xd7f00031,
 	0x3921f410,
 	0xb1f401f4,
 	0xf54001e4,
@@ -650,7 +651,7 @@ uint32_t gk110_grhub_code[] = {
 	0x170007f1,
 	0xd00203f0,
 	0x04bd0009,
-	0xff080ef5,
+	0xff0e0ef5,
 /* 0x0660: main_not_ctx_switch */
 	0xf401e4b0,
 	0xf2b90d1b,
@@ -675,12 +676,12 @@ uint32_t gk110_grhub_code[] = {
 	0xf501f5f0,
 	0xf5037e21,
 /* 0x06b3: main_done */
-	0xbdfeb50e,
+	0xbdfebb0e,
 	0x1f29f024,
 	0x300007f1,
 	0xd00203f0,
 	0x04bd0002,
-	0xfea00ef5,
+	0xfea60ef5,
 /* 0x06c8: ih */
 	0x80f900f9,
 	0xf90188fe,

@@ -61,12 +61,12 @@ bool acpi_ata_match(acpi_handle handle);
 bool acpi_bay_match(acpi_handle handle);
 bool acpi_dock_match(acpi_handle handle);
 
-bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, int rev, u64 funcs);
+bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, u64 rev, u64 funcs);
 union acpi_object *acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid,
-			int rev, int func, union acpi_object *argv4);
+			u64 rev, u64 func, union acpi_object *argv4);
 
 static inline union acpi_object *
-acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, int rev, int func,
+acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, u64 rev, u64 func,
 			union acpi_object *argv4, acpi_object_type type)
 {
 	union acpi_object *obj;
@@ -87,7 +87,7 @@ acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, int rev, int func,
 	  .package.elements = (eles)			\
 	}
 
-bool acpi_dev_present(const char *hid);
+bool acpi_dev_found(const char *hid);
 
 #ifdef CONFIG_ACPI
 
@@ -418,6 +418,13 @@ static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwn
 {
 	return is_acpi_data_node(fwnode) ?
 		container_of(fwnode, struct acpi_data_node, fwnode) : NULL;
+}
+
+static inline bool acpi_data_node_match(struct fwnode_handle *fwnode,
+					const char *name)
+{
+	return is_acpi_data_node(fwnode) ?
+		(!strcmp(to_acpi_data_node(fwnode)->name, name)) : false;
 }
 
 static inline struct fwnode_handle *acpi_fwnode_handle(struct acpi_device *adev)

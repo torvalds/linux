@@ -498,8 +498,7 @@ static void __init mxs_machine_init(void)
 	else if (of_machine_is_compatible("msr,m28cu3"))
 		m28cu3_init();
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     NULL, parent);
+	of_platform_default_populate(NULL, NULL, parent);
 
 	mxs_restart_init();
 

@@ -29,6 +29,7 @@ enum {
 #define AAC_INT_MODE_MSI		(1<<1)
 #define AAC_INT_MODE_AIF		(1<<2)
 #define AAC_INT_MODE_SYNC		(1<<3)
+#define AAC_INT_MODE_MSIX		(1<<16)
 
 #define AAC_INT_ENABLE_TYPE1_INTX	0xfffffffb
 #define AAC_INT_ENABLE_TYPE1_MSIX	0xfffffffa
@@ -62,7 +63,7 @@ enum {
 #define	PMC_GLOBAL_INT_BIT0		0x00000001
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 41052
+# define AAC_DRIVER_BUILD 41066
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -620,6 +621,11 @@ struct aac_driver_ident
 #define AAC_QUIRK_SCSI_32	0x0020
 
 /*
+ * SRC based adapters support the AifReqEvent functions
+ */
+#define AAC_QUIRK_SRC 0x0040
+
+/*
  *	The adapter interface specs all queues to be located in the same
  *	physically contiguous block. The host structure that defines the
  *	commuication queues will assume they are each a separate physically
@@ -720,7 +726,7 @@ struct sa_registers {
 };
 
 
-#define Sa_MINIPORT_REVISION			1
+#define SA_INIT_NUM_MSIXVECTORS		1
 
 #define sa_readw(AEP, CSR)		readl(&((AEP)->regs.sa->CSR))
 #define sa_readl(AEP, CSR)		readl(&((AEP)->regs.sa->CSR))
@@ -2064,6 +2070,10 @@ extern struct aac_common aac_config;
 #define			AifHighPriority		3	/* Highest Priority Event */
 #define			AifEnAddJBOD		30	/* JBOD created */
 #define			AifEnDeleteJBOD		31	/* JBOD deleted */
+
+#define			AifBuManagerEvent		42 /* Bu management*/
+#define			AifBuCacheDataLoss		10
+#define			AifBuCacheDataRecover	11
 
 #define		AifCmdJobProgress	2	/* Progress report */
 #define			AifJobCtrZero	101	/* Array Zero progress */

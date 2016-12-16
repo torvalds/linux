@@ -588,7 +588,7 @@ static bool tile_net_lepp_free_comps(struct net_device *dev, bool all)
 static void tile_net_schedule_egress_timer(struct tile_net_cpu *info)
 {
 	if (!info->egress_timer_scheduled) {
-		mod_timer_pinned(&info->egress_timer, jiffies + 1);
+		mod_timer(&info->egress_timer, jiffies + 1);
 		info->egress_timer_scheduled = true;
 	}
 }
@@ -1004,7 +1004,7 @@ static void tile_net_register(void *dev_ptr)
 		BUG();
 
 	/* Initialize the egress timer. */
-	init_timer(&info->egress_timer);
+	init_timer_pinned(&info->egress_timer);
 	info->egress_timer.data = (long)info;
 	info->egress_timer.function = tile_net_handle_egress_timer;
 
@@ -1883,7 +1883,7 @@ static int tile_net_tx(struct sk_buff *skb, struct net_device *dev)
 
 
 	/* Save the timestamp. */
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 
 #ifdef TILE_NET_PARANOIA
@@ -2026,7 +2026,7 @@ static void tile_net_tx_timeout(struct net_device *dev)
 {
 	PDEBUG("tile_net_tx_timeout()\n");
 	PDEBUG("Transmit timeout at %ld, latency %ld\n", jiffies,
-	       jiffies - dev->trans_start);
+	       jiffies - dev_trans_start(dev));
 
 	/* XXX: ISSUE: This doesn't seem useful for us. */
 	netif_wake_queue(dev);

@@ -56,7 +56,6 @@ struct rrpc_block {
 	struct nvm_block *parent;
 	struct rrpc_lun *rlun;
 	struct list_head prio;
-	struct list_head list;
 
 #define MAX_INVALID_PAGES_STORAGE 8
 	/* Bitmap for invalid page intries */
@@ -77,13 +76,7 @@ struct rrpc_lun {
 	struct rrpc_block *blocks;	/* Reference to block allocation */
 
 	struct list_head prio_list;	/* Blocks that may be GC'ed */
-	struct list_head open_list;	/* In-use open blocks. These are blocks
-					 * that can be both written to and read
-					 * from
-					 */
-	struct list_head closed_list;	/* In-use closed blocks. These are
-					 * blocks that can _only_ be read from
-					 */
+	struct list_head wblk_list;	/* Queued blocks to be written to */
 
 	struct work_struct ws_gc;
 
@@ -188,7 +181,7 @@ static inline int request_intersects(struct rrpc_inflight_rq *r,
 }
 
 static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
-			     unsigned pages, struct rrpc_inflight_rq *r)
+			     unsigned int pages, struct rrpc_inflight_rq *r)
 {
 	sector_t laddr_end = laddr + pages - 1;
 	struct rrpc_inflight_rq *rtmp;
@@ -213,7 +206,7 @@ static int __rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
 }
 
 static inline int rrpc_lock_laddr(struct rrpc *rrpc, sector_t laddr,
-				 unsigned pages,
+				 unsigned int pages,
 				 struct rrpc_inflight_rq *r)
 {
 	BUG_ON((laddr + pages) > rrpc->nr_sects);
@@ -251,7 +244,7 @@ static inline void rrpc_unlock_laddr(struct rrpc *rrpc,
 static inline void rrpc_unlock_rq(struct rrpc *rrpc, struct nvm_rq *rqd)
 {
 	struct rrpc_inflight_rq *r = rrpc_get_inflight_rq(rqd);
-	uint8_t pages = rqd->nr_pages;
+	uint8_t pages = rqd->nr_ppas;
 
 	BUG_ON((r->l_start + pages) > rrpc->nr_sects);
 

@@ -28,6 +28,15 @@ struct cache_desc {
 	unsigned char flags;	/* Flags describing cache properties */
 };
 
+struct guest_info {
+	unsigned long		ases;
+	unsigned long		ases_dyn;
+	unsigned long long	options;
+	unsigned long long	options_dyn;
+	u8			conf;
+	u8			kscratch_mask;
+};
+
 /*
  * Flag definitions
  */
@@ -40,6 +49,9 @@ struct cache_desc {
 
 struct cpuinfo_mips {
 	unsigned long		asid_cache;
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	unsigned long		asid_mask;
+#endif
 
 	/*
 	 * Capability and feature descriptor structure for MIPS CPU
@@ -60,6 +72,7 @@ struct cpuinfo_mips {
 	int			tlbsizeftlbways;
 	struct cache_desc	icache; /* Primary I-cache */
 	struct cache_desc	dcache; /* Primary D or combined I/D cache */
+	struct cache_desc	vcache; /* Victim cache, between pcache and scache */
 	struct cache_desc	scache; /* Secondary cache */
 	struct cache_desc	tcache; /* Tertiary/split secondary cache */
 	int			srsets; /* Shadow register sets */
@@ -68,7 +81,7 @@ struct cpuinfo_mips {
 #ifdef CONFIG_64BIT
 	int			vmbits; /* Virtual memory size in bits */
 #endif
-#ifdef CONFIG_MIPS_MT_SMP
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
 	/*
 	 * There is not necessarily a 1:1 mapping of VPE num to CPU number
 	 * in particular on multi-core systems.
@@ -91,6 +104,11 @@ struct cpuinfo_mips {
 	 * htw_start/htw_stop calls
 	 */
 	unsigned int		htw_seq;
+
+	/* VZ & Guest features */
+	struct guest_info	guest;
+	unsigned int		gtoffset_mask;
+	unsigned int		guestid_mask;
 } __attribute__((aligned(SMP_CACHE_BYTES)));
 
 extern struct cpuinfo_mips cpu_data[];
@@ -125,10 +143,31 @@ struct proc_cpuinfo_notifier_args {
 	unsigned long n;
 };
 
-#ifdef CONFIG_MIPS_MT_SMP
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_CPU_MIPSR6)
 # define cpu_vpe_id(cpuinfo)	((cpuinfo)->vpe_id)
 #else
 # define cpu_vpe_id(cpuinfo)	({ (void)cpuinfo; 0; })
 #endif
+
+static inline unsigned long cpu_asid_inc(void)
+{
+	return 1 << CONFIG_MIPS_ASID_SHIFT;
+}
+
+static inline unsigned long cpu_asid_mask(struct cpuinfo_mips *cpuinfo)
+{
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	return cpuinfo->asid_mask;
+#endif
+	return ((1 << CONFIG_MIPS_ASID_BITS) - 1) << CONFIG_MIPS_ASID_SHIFT;
+}
+
+static inline void set_cpu_asid_mask(struct cpuinfo_mips *cpuinfo,
+				     unsigned long asid_mask)
+{
+#ifdef CONFIG_MIPS_ASID_BITS_VARIABLE
+	cpuinfo->asid_mask = asid_mask;
+#endif
+}
 
 #endif /* __ASM_CPU_INFO_H */

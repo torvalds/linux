@@ -21,7 +21,6 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/regulator/driver.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6105x.h>
 

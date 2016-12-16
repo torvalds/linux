@@ -382,7 +382,7 @@ enum {
 	ADDIP_SERIAL_SIGN_BIT = (1<<31)
 };
 
-static inline int ADDIP_SERIAL_gte(__u16 s, __u16 t)
+static inline int ADDIP_SERIAL_gte(__u32 s, __u32 t)
 {
 	return ((s) == (t)) || (((t) - (s)) & ADDIP_SERIAL_SIGN_BIT);
 }

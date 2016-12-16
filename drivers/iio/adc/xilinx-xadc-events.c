@@ -46,7 +46,7 @@ static void xadc_handle_event(struct iio_dev *indio_dev, unsigned int event)
 		iio_push_event(indio_dev,
 			IIO_UNMOD_EVENT_CODE(chan->type, chan->channel,
 				IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING),
-			iio_get_time_ns());
+			iio_get_time_ns(indio_dev));
 	} else {
 		/*
 		 * For other channels we don't know whether it is a upper or
@@ -56,7 +56,7 @@ static void xadc_handle_event(struct iio_dev *indio_dev, unsigned int event)
 		iio_push_event(indio_dev,
 			IIO_UNMOD_EVENT_CODE(chan->type, chan->channel,
 				IIO_EV_TYPE_THRESH, IIO_EV_DIR_EITHER),
-			iio_get_time_ns());
+			iio_get_time_ns(indio_dev));
 	}
 }
 

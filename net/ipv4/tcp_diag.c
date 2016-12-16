@@ -54,11 +54,16 @@ static int tcp_diag_destroy(struct sk_buff *in_skb,
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct sock *sk = inet_diag_find_one_icsk(net, &tcp_hashinfo, req);
+	int err;
 
 	if (IS_ERR(sk))
 		return PTR_ERR(sk);
 
-	return sock_diag_destroy(sk, ECONNABORTED);
+	err = sock_diag_destroy(sk, ECONNABORTED);
+
+	sock_gen_put(sk);
+
+	return err;
 }
 #endif
 

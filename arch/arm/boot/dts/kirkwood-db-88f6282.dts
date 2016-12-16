@@ -17,18 +17,16 @@
 / {
 	model = "Marvell DB-88F6282-BP Development Board";
 	compatible = "marvell,db-88f6282-bp", "marvell,kirkwood-88f6282", "marvell,kirkwood";
+};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
+&pciec {
+        status = "okay";
+};
 
-			pcie@1,0 {
-				status = "okay";
-			};
+&pcie0 {
+	status = "okay";
+};
 
-			pcie@2,0 {
-				status = "okay";
-			};
-		};
-	};
+&pcie1 {
+	status = "okay";
 };

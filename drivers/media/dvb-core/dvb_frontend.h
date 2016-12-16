@@ -1,6 +1,10 @@
 /*
  * dvb_frontend.h
  *
+ * The Digital TV Frontend kABI defines a driver-internal interface for
+ * registering low-level, hardware specific driver to a hardware independent
+ * frontend layer.
+ *
  * Copyright (C) 2001 convergence integrated media GmbH
  * Copyright (C) 2004 convergence GmbH
  *
@@ -41,29 +45,6 @@
 #include <linux/dvb/frontend.h>
 
 #include "dvbdev.h"
-
-/**
- * DOC: Digital TV Frontend
- *
- * The Digital TV Frontend kABI defines a driver-internal interface for
- * registering low-level, hardware specific driver to a hardware independent
- * frontend layer. It is only of interest for Digital TV device driver writers.
- * The header file for this API is named dvb_frontend.h and located in
- * drivers/media/dvb-core.
- *
- * Before using the Digital TV frontend core, the bridge driver should attach
- * the frontend demod, tuner and SEC devices and call dvb_register_frontend(),
- * in order to register the new frontend at the subsystem. At device
- * detach/removal, the bridge driver should call dvb_unregister_frontend() to
- * remove the frontend from the core and then dvb_frontend_detach() to free the
- * memory allocated by the frontend drivers.
- *
- * The drivers should also call dvb_frontend_suspend() as part of their
- * handler for the &device_driver.suspend(), and dvb_frontend_resume() as
- * part of their handler for &device_driver.resume().
- *
- * A few other optional functions are provided to handle some special cases.
- */
 
 /*
  * Maximum number of Delivery systems per frontend. It
@@ -406,7 +387,7 @@ struct dtv_frontend_properties;
  *			FE_DISHNETWORK_SEND_LEGACY_CMD ioctl (only Satellite).
  *			Drivers should not use this, except when the DVB
  *			core emulation fails to provide proper support (e.g.
- *			if set_voltage() takes more than 8ms to work), and
+ *			if @set_voltage takes more than 8ms to work), and
  *			when backward compatibility with this legacy API is
  *			required.
  * @i2c_gate_ctrl:	controls the I2C gate. Newer drivers should use I2C
@@ -741,13 +722,13 @@ void dvb_frontend_detach(struct dvb_frontend *fe);
  * This function prepares a Digital TV frontend to suspend.
  *
  * In order to prepare the tuner to suspend, if
- * &dvb_frontend_ops.tuner_ops.suspend() is available, it calls it. Otherwise,
- * it will call &dvb_frontend_ops.tuner_ops.sleep(), if available.
+ * &dvb_frontend_ops.tuner_ops.suspend\(\) is available, it calls it. Otherwise,
+ * it will call &dvb_frontend_ops.tuner_ops.sleep\(\), if available.
  *
- * It will also call &dvb_frontend_ops.sleep() to put the demod to suspend.
+ * It will also call &dvb_frontend_ops.sleep\(\) to put the demod to suspend.
  *
- * The drivers should also call dvb_frontend_suspend() as part of their
- * handler for the &device_driver.suspend().
+ * The drivers should also call dvb_frontend_suspend\(\) as part of their
+ * handler for the &device_driver.suspend\(\).
  */
 int dvb_frontend_suspend(struct dvb_frontend *fe);
 
@@ -758,17 +739,17 @@ int dvb_frontend_suspend(struct dvb_frontend *fe);
  *
  * This function resumes the usual operation of the tuner after resume.
  *
- * In order to resume the frontend, it calls the demod &dvb_frontend_ops.init().
+ * In order to resume the frontend, it calls the demod &dvb_frontend_ops.init\(\).
  *
- * If &dvb_frontend_ops.tuner_ops.resume() is available, It, it calls it.
- * Otherwise,t will call &dvb_frontend_ops.tuner_ops.init(), if available.
+ * If &dvb_frontend_ops.tuner_ops.resume\(\) is available, It, it calls it.
+ * Otherwise,t will call &dvb_frontend_ops.tuner_ops.init\(\), if available.
  *
  * Once tuner and demods are resumed, it will enforce that the SEC voltage and
  * tone are restored to their previous values and wake up the frontend's
  * kthread in order to retune the frontend.
  *
  * The drivers should also call dvb_frontend_resume() as part of their
- * handler for the &device_driver.resume().
+ * handler for the &device_driver.resume\(\).
  */
 int dvb_frontend_resume(struct dvb_frontend *fe);
 
@@ -777,7 +758,7 @@ int dvb_frontend_resume(struct dvb_frontend *fe);
  *
  * @fe: pointer to the frontend struct
  *
- * Calls &dvb_frontend_ops.init() and &dvb_frontend_ops.tuner_ops.init(),
+ * Calls &dvb_frontend_ops.init\(\) and &dvb_frontend_ops.tuner_ops.init\(\),
  * and resets SEC tone and voltage (for Satellite systems).
  *
  * NOTE: Currently, this function is used only by one driver (budget-av).
@@ -799,14 +780,14 @@ void dvb_frontend_reinitialise(struct dvb_frontend *fe);
  * satellite subsystem.
  *
  * Its used internally by the DVB frontend core, in order to emulate
- * %FE_DISHNETWORK_SEND_LEGACY_CMD using the &dvb_frontend_ops.set_voltage()
+ * %FE_DISHNETWORK_SEND_LEGACY_CMD using the &dvb_frontend_ops.set_voltage\(\)
  * callback.
  *
  * NOTE: it should not be used at the drivers, as the emulation for the
  * legacy callback is provided by the Kernel. The only situation where this
  * should be at the drivers is when there are some bugs at the hardware that
  * would prevent the core emulation to work. On such cases, the driver would
- * be writing a &dvb_frontend_ops.dishnetwork_send_legacy_command() and
+ * be writing a &dvb_frontend_ops.dishnetwork_send_legacy_command\(\) and
  * calling this function directly.
  */
 void dvb_frontend_sleep_until(ktime_t *waketime, u32 add_usec);

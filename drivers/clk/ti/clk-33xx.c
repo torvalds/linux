@@ -108,6 +108,9 @@ static struct ti_dt_clk am33xx_clks[] = {
 	DT_CLK("48300200.ehrpwm", "tbclk", "ehrpwm0_tbclk"),
 	DT_CLK("48302200.ehrpwm", "tbclk", "ehrpwm1_tbclk"),
 	DT_CLK("48304200.ehrpwm", "tbclk", "ehrpwm2_tbclk"),
+	DT_CLK("48300200.pwm", "tbclk", "ehrpwm0_tbclk"),
+	DT_CLK("48302200.pwm", "tbclk", "ehrpwm1_tbclk"),
+	DT_CLK("48304200.pwm", "tbclk", "ehrpwm2_tbclk"),
 	{ .node_name = NULL },
 };
 

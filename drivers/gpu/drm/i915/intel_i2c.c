@@ -113,7 +113,7 @@ to_intel_gmbus(struct i2c_adapter *i2c)
 void
 intel_i2c_reset(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	I915_WRITE(GMBUS0, 0);
 	I915_WRITE(GMBUS4, 0);
@@ -124,7 +124,7 @@ static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
 	u32 val;
 
 	/* When using bit bashing for I2C, this bit needs to be set to 1 */
-	if (!IS_PINEVIEW(dev_priv->dev))
+	if (!IS_PINEVIEW(dev_priv))
 		return;
 
 	val = I915_READ(DSPCLK_GATE_D);
@@ -138,7 +138,7 @@ static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
 static u32 get_reserved(struct intel_gmbus *bus)
 {
 	struct drm_i915_private *dev_priv = bus->dev_priv;
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_device *dev = &dev_priv->drm;
 	u32 reserved = 0;
 
 	/* On most chips, these bits must be preserved in software. */
@@ -212,7 +212,7 @@ intel_gpio_pre_xfer(struct i2c_adapter *adapter)
 					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
 
-	intel_i2c_reset(dev_priv->dev);
+	intel_i2c_reset(&dev_priv->drm);
 	intel_i2c_quirk_set(dev_priv, true);
 	set_data(bus, 1);
 	set_clock(bus, 1);
@@ -264,7 +264,7 @@ gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 	u32 gmbus2 = 0;
 	DEFINE_WAIT(wait);
 
-	if (!HAS_GMBUS_IRQ(dev_priv->dev))
+	if (!HAS_GMBUS_IRQ(dev_priv))
 		gmbus4_irq_en = 0;
 
 	/* Important: The hw handles only the first bit, so set only one! Since
@@ -298,15 +298,16 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
-#define C ((I915_READ_NOTRACE(GMBUS2) & GMBUS_ACTIVE) == 0)
-
-	if (!HAS_GMBUS_IRQ(dev_priv->dev))
-		return wait_for(C, 10);
+	if (!HAS_GMBUS_IRQ(dev_priv))
+		return intel_wait_for_register(dev_priv,
+					       GMBUS2, GMBUS_ACTIVE, 0,
+					       10);
 
 	/* Important: The hw handles only the first bit, so set only one! */
 	I915_WRITE(GMBUS4, GMBUS_IDLE_EN);
 
-	ret = wait_event_timeout(dev_priv->gmbus_wait_queue, C,
+	ret = wait_event_timeout(dev_priv->gmbus_wait_queue,
+				 (I915_READ_NOTRACE(GMBUS2) & GMBUS_ACTIVE) == 0,
 				 msecs_to_jiffies_timeout(10));
 
 	I915_WRITE(GMBUS4, 0);
@@ -315,7 +316,6 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 		return 0;
 	else
 		return -ETIMEDOUT;
-#undef C
 }
 
 static int
@@ -571,15 +571,14 @@ clear_err:
 	goto out;
 
 timeout:
-	DRM_INFO("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
-		 bus->adapter.name, bus->reg0 & 0xff);
+	DRM_DEBUG_KMS("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
+		      bus->adapter.name, bus->reg0 & 0xff);
 	I915_WRITE(GMBUS0, 0);
 
 	/*
 	 * Hardware may not support GMBUS over these pins? Try GPIO bitbanging
 	 * instead. Use EAGAIN to have i2c core retry.
 	 */
-	bus->force_bit = 1;
 	ret = -EAGAIN;
 
 out:
@@ -597,10 +596,15 @@ gmbus_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs, int num)
 	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 	mutex_lock(&dev_priv->gmbus_mutex);
 
-	if (bus->force_bit)
+	if (bus->force_bit) {
 		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
-	else
+		if (ret < 0)
+			bus->force_bit &= ~GMBUS_FORCE_BIT_RETRY;
+	} else {
 		ret = do_gmbus_xfer(adapter, msgs, num);
+		if (ret == -EAGAIN)
+			bus->force_bit |= GMBUS_FORCE_BIT_RETRY;
+	}
 
 	mutex_unlock(&dev_priv->gmbus_mutex);
 	intel_display_power_put(dev_priv, POWER_DOMAIN_GMBUS);
@@ -628,7 +632,7 @@ static const struct i2c_algorithm gmbus_algorithm = {
  */
 int intel_setup_gmbus(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;
@@ -684,7 +688,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 			goto err;
 	}
 
-	intel_i2c_reset(dev_priv->dev);
+	intel_i2c_reset(&dev_priv->drm);
 
 	return 0;
 
@@ -718,16 +722,21 @@ void intel_gmbus_set_speed(struct i2c_adapter *adapter, int speed)
 void intel_gmbus_force_bit(struct i2c_adapter *adapter, bool force_bit)
 {
 	struct intel_gmbus *bus = to_intel_gmbus(adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+
+	mutex_lock(&dev_priv->gmbus_mutex);
 
 	bus->force_bit += force_bit ? 1 : -1;
 	DRM_DEBUG_KMS("%sabling bit-banging on %s. force bit now %d\n",
 		      force_bit ? "en" : "dis", adapter->name,
 		      bus->force_bit);
+
+	mutex_unlock(&dev_priv->gmbus_mutex);
 }
 
 void intel_teardown_gmbus(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_gmbus *bus;
 	unsigned int pin;
 

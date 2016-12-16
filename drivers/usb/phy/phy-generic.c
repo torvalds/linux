@@ -144,14 +144,18 @@ static irqreturn_t nop_gpio_vbus_thread(int irq, void *data)
 int usb_gen_phy_init(struct usb_phy *phy)
 {
 	struct usb_phy_generic *nop = dev_get_drvdata(phy->dev);
+	int ret;
 
 	if (!IS_ERR(nop->vcc)) {
 		if (regulator_enable(nop->vcc))
 			dev_err(phy->dev, "Failed to enable power\n");
 	}
 
-	if (!IS_ERR(nop->clk))
-		clk_prepare_enable(nop->clk);
+	if (!IS_ERR(nop->clk)) {
+		ret = clk_prepare_enable(nop->clk);
+		if (ret)
+			return ret;
+	}
 
 	nop_reset(nop);
 

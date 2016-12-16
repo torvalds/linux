@@ -26,6 +26,18 @@ void initmem_init(void);
 void setup_panic(void);
 #define ARCH_PANIC_TIMEOUT 180
 
+#ifdef CONFIG_PPC_PSERIES
+extern void pseries_enable_reloc_on_exc(void);
+extern void pseries_disable_reloc_on_exc(void);
+extern void pseries_big_endian_exceptions(void);
+extern void pseries_little_endian_exceptions(void);
+#else
+static inline void pseries_enable_reloc_on_exc(void) {}
+static inline void pseries_disable_reloc_on_exc(void) {}
+static inline void pseries_big_endian_exceptions(void) {}
+static inline void pseries_little_endian_exceptions(void) {}
+#endif /* CONFIG_PPC_PSERIES */
+
 #endif /* !__ASSEMBLY__ */
 
 #endif	/* _ASM_POWERPC_SETUP_H */

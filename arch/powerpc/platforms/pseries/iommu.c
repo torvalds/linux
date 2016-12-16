@@ -120,39 +120,10 @@ static void iommu_pseries_free_group(struct iommu_table_group *table_group,
 	kfree(table_group);
 }
 
-static void tce_invalidate_pSeries_sw(struct iommu_table *tbl,
-				      __be64 *startp, __be64 *endp)
-{
-	u64 __iomem *invalidate = (u64 __iomem *)tbl->it_index;
-	unsigned long start, end, inc;
-
-	start = __pa(startp);
-	end = __pa(endp);
-	inc = L1_CACHE_BYTES; /* invalidate a cacheline of TCEs at a time */
-
-	/* If this is non-zero, change the format.  We shift the
-	 * address and or in the magic from the device tree. */
-	if (tbl->it_busno) {
-		start <<= 12;
-		end <<= 12;
-		inc <<= 12;
-		start |= tbl->it_busno;
-		end |= tbl->it_busno;
-	}
-
-	end |= inc - 1; /* round up end to be different than start */
-
-	mb(); /* Make sure TCEs in memory are written */
-	while (start <= end) {
-		out_be64(invalidate, start);
-		start += inc;
-	}
-}
-
 static int tce_build_pSeries(struct iommu_table *tbl, long index,
 			      long npages, unsigned long uaddr,
 			      enum dma_data_direction direction,
-			      struct dma_attrs *attrs)
+			      unsigned long attrs)
 {
 	u64 proto_tce;
 	__be64 *tcep, *tces;
@@ -173,9 +144,6 @@ static int tce_build_pSeries(struct iommu_table *tbl, long index,
 		uaddr += TCE_PAGE_SIZE;
 		tcep++;
 	}
-
-	if (tbl->it_type & TCE_PCI_SWINV_CREATE)
-		tce_invalidate_pSeries_sw(tbl, tces, tcep - 1);
 	return 0;
 }
 
@@ -188,9 +156,6 @@ static void tce_free_pSeries(struct iommu_table *tbl, long index, long npages)
 
 	while (npages--)
 		*(tcep++) = 0;
-
-	if (tbl->it_type & TCE_PCI_SWINV_FREE)
-		tce_invalidate_pSeries_sw(tbl, tces, tcep - 1);
 }
 
 static unsigned long tce_get_pseries(struct iommu_table *tbl, long index)
@@ -208,7 +173,7 @@ static void tce_freemulti_pSeriesLP(struct iommu_table*, long, long);
 static int tce_build_pSeriesLP(struct iommu_table *tbl, long tcenum,
 				long npages, unsigned long uaddr,
 				enum dma_data_direction direction,
-				struct dma_attrs *attrs)
+				unsigned long attrs)
 {
 	u64 rc = 0;
 	u64 proto_tce, tce;
@@ -251,7 +216,7 @@ static DEFINE_PER_CPU(__be64 *, tce_page);
 static int tce_buildmulti_pSeriesLP(struct iommu_table *tbl, long tcenum,
 				     long npages, unsigned long uaddr,
 				     enum dma_data_direction direction,
-				     struct dma_attrs *attrs)
+				     unsigned long attrs)
 {
 	u64 rc = 0;
 	u64 proto_tce;
@@ -537,7 +502,7 @@ static void iommu_table_setparms(struct pci_controller *phb,
 				 struct iommu_table *tbl)
 {
 	struct device_node *node;
-	const unsigned long *basep, *sw_inval;
+	const unsigned long *basep;
 	const u32 *sizep;
 
 	node = phb->dn;
@@ -575,22 +540,6 @@ static void iommu_table_setparms(struct pci_controller *phb,
 	tbl->it_index = 0;
 	tbl->it_blocksize = 16;
 	tbl->it_type = TCE_PCI;
-
-	sw_inval = of_get_property(node, "linux,tce-sw-invalidate-info", NULL);
-	if (sw_inval) {
-		/*
-		 * This property contains information on how to
-		 * invalidate the TCE entry.  The first property is
-		 * the base MMIO address used to invalidate entries.
-		 * The second property tells us the format of the TCE
-		 * invalidate (whether it needs to be shifted) and
-		 * some magic routing info to add to our invalidate
-		 * command.
-		 */
-		tbl->it_index = (unsigned long) ioremap(sw_inval[0], 8);
-		tbl->it_busno = sw_inval[1]; /* overload this with magic */
-		tbl->it_type = TCE_PCI_SWINV_CREATE | TCE_PCI_SWINV_FREE;
-	}
 }
 
 /*
@@ -912,7 +861,8 @@ machine_arch_initcall(pseries, find_existing_ddw_windows);
 static int query_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 			struct ddw_query_response *query)
 {
-	struct eeh_dev *edev;
+	struct device_node *dn;
+	struct pci_dn *pdn;
 	u32 cfg_addr;
 	u64 buid;
 	int ret;
@@ -923,11 +873,10 @@ static int query_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 	 * Retrieve them from the pci device, not the node with the
 	 * dma-window property
 	 */
-	edev = pci_dev_to_eeh_dev(dev);
-	cfg_addr = edev->config_addr;
-	if (edev->pe_config_addr)
-		cfg_addr = edev->pe_config_addr;
-	buid = edev->phb->buid;
+	dn = pci_device_to_OF_node(dev);
+	pdn = PCI_DN(dn);
+	buid = pdn->phb->buid;
+	cfg_addr = ((pdn->busno << 16) | (pdn->devfn << 8));
 
 	ret = rtas_call(ddw_avail[0], 3, 5, (u32 *)query,
 		  cfg_addr, BUID_HI(buid), BUID_LO(buid));
@@ -941,7 +890,8 @@ static int create_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 			struct ddw_create_response *create, int page_shift,
 			int window_shift)
 {
-	struct eeh_dev *edev;
+	struct device_node *dn;
+	struct pci_dn *pdn;
 	u32 cfg_addr;
 	u64 buid;
 	int ret;
@@ -952,11 +902,10 @@ static int create_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 	 * Retrieve them from the pci device, not the node with the
 	 * dma-window property
 	 */
-	edev = pci_dev_to_eeh_dev(dev);
-	cfg_addr = edev->config_addr;
-	if (edev->pe_config_addr)
-		cfg_addr = edev->pe_config_addr;
-	buid = edev->phb->buid;
+	dn = pci_device_to_OF_node(dev);
+	pdn = PCI_DN(dn);
+	buid = pdn->phb->buid;
+	cfg_addr = ((pdn->busno << 16) | (pdn->devfn << 8));
 
 	do {
 		/* extra outputs are LIOBN and dma-addr (hi, lo) */

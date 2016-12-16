@@ -5,12 +5,21 @@ config VXFS_FS
 	  FreeVxFS is a file system driver that support the VERITAS VxFS(TM)
 	  file system format.  VERITAS VxFS(TM) is the standard file system
 	  of SCO UnixWare (and possibly others) and optionally available
-	  for Sunsoft Solaris, HP-UX and many other operating systems.
-	  Currently only readonly access is supported.
+	  for Sunsoft Solaris, HP-UX and many other operating systems. However
+	  these particular OS implementations of vxfs may differ in on-disk
+	  data endianess and/or superblock offset. The vxfs module has been
+	  tested with SCO UnixWare and HP-UX B.10.20 (pa-risc 1.1 arch.)
+	  Currently only readonly access is supported and VxFX versions
+	  2, 3 and 4. Tests were performed with HP-UX VxFS version 3.
 
 	  NOTE: the file system type as used by mount(1), mount(2) and
 	  fstab(5) is 'vxfs' as it describes the file system format, not
 	  the actual driver.
+
+	  There is a userspace utility for HP-UX logical volumes which makes
+	  creating HP-UX logical volumes easy from HP-UX disk block device file
+	  or regular file with image of the disk. See:
+	         https://sourceforge.net/projects/linux-vxfs/
 
 	  To compile this as a module, choose M here: the module will be
 	  called freevxfs.  If unsure, say N.

@@ -67,10 +67,19 @@ config DVB_TDA18271C2DD
 config DVB_SI2165
 	tristate "Silicon Labs si2165 based"
 	depends on DVB_CORE && I2C
+	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A DVB-C/T demodulator.
 
+	  Say Y when you want to support this frontend.
+
+config DVB_MN88472
+	tristate "Panasonic MN88472"
+	depends on DVB_CORE && I2C
+	select REGMAP_I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
 	  Say Y when you want to support this frontend.
 
 config DVB_MN88473
@@ -455,6 +464,7 @@ config DVB_STV0367
 config DVB_CXD2820R
 	tristate "Sony CXD2820R"
 	depends on DVB_CORE && I2C
+	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
@@ -852,6 +862,13 @@ config DVB_ASCOT2E
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y when you want to support this frontend.
+
+config DVB_HELENE
+	tristate "Sony HELENE Sat/Ter tuner (CXD2858ER)"
+	depends on DVB_CORE && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	Say Y when you want to support this frontend.
 
 comment "Tools to develop new frontends"
 

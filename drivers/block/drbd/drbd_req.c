@@ -47,8 +47,7 @@ static void _drbd_end_io_acct(struct drbd_device *device, struct drbd_request *r
 			    &device->vdisk->part0, req->start_jif);
 }
 
-static struct drbd_request *drbd_req_new(struct drbd_device *device,
-					       struct bio *bio_src)
+static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio *bio_src)
 {
 	struct drbd_request *req;
 
@@ -58,10 +57,12 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device,
 	memset(req, 0, sizeof(*req));
 
 	drbd_req_make_private_bio(req, bio_src);
-	req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
-	req->device   = device;
-	req->master_bio  = bio_src;
-	req->epoch       = 0;
+	req->rq_state = (bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0)
+		      | (bio_op(bio_src) == REQ_OP_WRITE_SAME ? RQ_WSAME : 0)
+		      | (bio_op(bio_src) == REQ_OP_DISCARD ? RQ_UNMAP : 0);
+	req->device = device;
+	req->master_bio = bio_src;
+	req->epoch = 0;
 
 	drbd_clear_interval(&req->i);
 	req->i.sector     = bio_src->bi_iter.bi_sector;
@@ -218,7 +219,6 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 {
 	const unsigned s = req->rq_state;
 	struct drbd_device *device = req->device;
-	int rw;
 	int error, ok;
 
 	/* we must not complete the master bio, while it is
@@ -241,8 +241,6 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 		drbd_err(device, "drbd_req_complete: Logic BUG, master_bio == NULL!\n");
 		return;
 	}
-
-	rw = bio_rw(req->master_bio);
 
 	/*
 	 * figure out whether to report success or failure.
@@ -267,7 +265,7 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 	 * epoch number.  If they match, increase the current_tle_nr,
 	 * and reset the transfer log epoch write_cnt.
 	 */
-	if (rw == WRITE &&
+	if (op_is_write(bio_op(req->master_bio)) &&
 	    req->epoch == atomic_read(&first_peer_device(device)->connection->current_tle_nr))
 		start_new_tl_epoch(first_peer_device(device)->connection);
 
@@ -284,11 +282,14 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 	 * because no path was available, in which case
 	 * it was not even added to the transfer_log.
 	 *
-	 * READA may fail, and will not be retried.
+	 * read-ahead may fail, and will not be retried.
 	 *
 	 * WRITE should have used all available paths already.
 	 */
-	if (!ok && rw == READ && !list_empty(&req->tl_requests))
+	if (!ok &&
+	    bio_op(req->master_bio) == REQ_OP_READ &&
+	    !(req->master_bio->bi_opf & REQ_RAHEAD) &&
+	    !list_empty(&req->tl_requests))
 		req->rq_state |= RQ_POSTPONED;
 
 	if (!(req->rq_state & RQ_POSTPONED)) {
@@ -644,7 +645,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		__drbd_chk_io_error(device, DRBD_READ_ERROR);
 		/* fall through. */
 	case READ_AHEAD_COMPLETED_WITH_ERROR:
-		/* it is legal to fail READA, no __drbd_chk_io_error in that case. */
+		/* it is legal to fail read-ahead, no __drbd_chk_io_error in that case. */
 		mod_rq_state(req, m, RQ_LOCAL_PENDING, RQ_LOCAL_COMPLETED);
 		break;
 
@@ -656,7 +657,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case QUEUE_FOR_NET_READ:
-		/* READ or READA, and
+		/* READ, and
 		 * no local disk,
 		 * or target area marked as invalid,
 		 * or just got an io-error. */
@@ -977,16 +978,20 @@ static void complete_conflicting_writes(struct drbd_request *req)
 	sector_t sector = req->i.sector;
 	int size = req->i.size;
 
-	i = drbd_find_overlap(&device->write_requests, sector, size);
-	if (!i)
-		return;
-
 	for (;;) {
-		prepare_to_wait(&device->misc_wait, &wait, TASK_UNINTERRUPTIBLE);
-		i = drbd_find_overlap(&device->write_requests, sector, size);
-		if (!i)
+		drbd_for_each_overlap(i, &device->write_requests, sector, size) {
+			/* Ignore, if already completed to upper layers. */
+			if (i->completed)
+				continue;
+			/* Handle the first found overlap.  After the schedule
+			 * we have to restart the tree walk. */
 			break;
+		}
+		if (!i)	/* if any */
+			break;
+
 		/* Indicate to wake up device->misc_wait on progress.  */
+		prepare_to_wait(&device->misc_wait, &wait, TASK_UNINTERRUPTIBLE);
 		i->waiting = true;
 		spin_unlock_irq(&device->resource->req_lock);
 		schedule();
@@ -995,7 +1000,7 @@ static void complete_conflicting_writes(struct drbd_request *req)
 	finish_wait(&device->misc_wait, &wait);
 }
 
-/* called within req_lock and rcu_read_lock() */
+/* called within req_lock */
 static void maybe_pull_ahead(struct drbd_device *device)
 {
 	struct drbd_connection *connection = first_peer_device(device)->connection;
@@ -1132,7 +1137,7 @@ static int drbd_process_write_request(struct drbd_request *req)
 	 * replicating, in which case there is no point. */
 	if (unlikely(req->i.size == 0)) {
 		/* The only size==0 bios we expect are empty flushes. */
-		D_ASSERT(device, req->master_bio->bi_rw & REQ_FLUSH);
+		D_ASSERT(device, req->master_bio->bi_opf & REQ_PREFLUSH);
 		if (remote)
 			_req_mod(req, QUEUE_AS_DRBD_BARRIER);
 		return remote;
@@ -1152,12 +1157,29 @@ static int drbd_process_write_request(struct drbd_request *req)
 	return remote;
 }
 
+static void drbd_process_discard_req(struct drbd_request *req)
+{
+	int err = drbd_issue_discard_or_zero_out(req->device,
+				req->i.sector, req->i.size >> 9, true);
+
+	if (err)
+		req->private_bio->bi_error = -EIO;
+	bio_endio(req->private_bio);
+}
+
 static void
 drbd_submit_req_private_bio(struct drbd_request *req)
 {
 	struct drbd_device *device = req->device;
 	struct bio *bio = req->private_bio;
-	const int rw = bio_rw(bio);
+	unsigned int type;
+
+	if (bio_op(bio) != REQ_OP_READ)
+		type = DRBD_FAULT_DT_WR;
+	else if (bio->bi_opf & REQ_RAHEAD)
+		type = DRBD_FAULT_DT_RA;
+	else
+		type = DRBD_FAULT_DT_RD;
 
 	bio->bi_bdev = device->ldev->backing_bdev;
 
@@ -1167,11 +1189,10 @@ drbd_submit_req_private_bio(struct drbd_request *req)
 	 * stable storage, and this is a WRITE, we may not even submit
 	 * this bio. */
 	if (get_ldev(device)) {
-		if (drbd_insert_fault(device,
-				      rw == WRITE ? DRBD_FAULT_DT_WR
-				    : rw == READ  ? DRBD_FAULT_DT_RD
-				    :               DRBD_FAULT_DT_RA))
+		if (drbd_insert_fault(device, type))
 			bio_io_error(bio);
+		else if (bio_op(bio) == REQ_OP_DISCARD)
+			drbd_process_discard_req(req);
 		else
 			generic_make_request(bio);
 		put_ldev(device);
@@ -1223,24 +1244,45 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 	/* Update disk stats */
 	_drbd_start_io_acct(device, req);
 
+	/* process discards always from our submitter thread */
+	if (bio_op(bio) & REQ_OP_DISCARD)
+		goto queue_for_submitter_thread;
+
 	if (rw == WRITE && req->private_bio && req->i.size
 	&& !test_bit(AL_SUSPENDED, &device->flags)) {
-		if (!drbd_al_begin_io_fastpath(device, &req->i)) {
-			atomic_inc(&device->ap_actlog_cnt);
-			drbd_queue_write(device, req);
-			return NULL;
-		}
+		if (!drbd_al_begin_io_fastpath(device, &req->i))
+			goto queue_for_submitter_thread;
 		req->rq_state |= RQ_IN_ACT_LOG;
 		req->in_actlog_jif = jiffies;
 	}
-
 	return req;
+
+ queue_for_submitter_thread:
+	atomic_inc(&device->ap_actlog_cnt);
+	drbd_queue_write(device, req);
+	return NULL;
+}
+
+/* Require at least one path to current data.
+ * We don't want to allow writes on C_STANDALONE D_INCONSISTENT:
+ * We would not allow to read what was written,
+ * we would not have bumped the data generation uuids,
+ * we would cause data divergence for all the wrong reasons.
+ *
+ * If we don't see at least one D_UP_TO_DATE, we will fail this request,
+ * which either returns EIO, or, if OND_SUSPEND_IO is set, suspends IO,
+ * and queues for retry later.
+ */
+static bool may_do_writes(struct drbd_device *device)
+{
+	const union drbd_dev_state s = device->state;
+	return s.disk == D_UP_TO_DATE || s.pdsk == D_UP_TO_DATE;
 }
 
 static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request *req)
 {
 	struct drbd_resource *resource = device->resource;
-	const int rw = bio_rw(req->master_bio);
+	const int rw = bio_data_dir(req->master_bio);
 	struct bio_and_error m = { NULL, };
 	bool no_remote = false;
 	bool submit_private_bio = false;
@@ -1270,7 +1312,7 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 		goto out;
 	}
 
-	/* We fail READ/READA early, if we can not serve it.
+	/* We fail READ early, if we can not serve it.
 	 * We must do this before req is registered on any lists.
 	 * Otherwise, drbd_req_complete() will queue failed READ for retry. */
 	if (rw != WRITE) {
@@ -1291,6 +1333,12 @@ static void drbd_send_and_submit(struct drbd_device *device, struct drbd_request
 	}
 
 	if (rw == WRITE) {
+		if (req->private_bio && !may_do_writes(device)) {
+			bio_put(req->private_bio);
+			req->private_bio = NULL;
+			put_ldev(device);
+			goto nodata;
+		}
 		if (!drbd_process_write_request(req))
 			no_remote = true;
 	} else {

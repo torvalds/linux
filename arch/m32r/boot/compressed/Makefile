@@ -19,7 +19,6 @@ LDFLAGS_vmlinux := -T
 
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS) $(obj)/piggy.o FORCE
 	$(call if_changed,ld)
-	@:
 
 $(obj)/vmlinux.bin: vmlinux FORCE
 	$(call if_changed,objcopy)

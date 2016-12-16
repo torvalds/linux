@@ -160,7 +160,7 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
 	error = gfs2_glock_nq(&gh);
 	if (error)
-		return error;
+		goto out_uninit;
 
 	fsflags = fsflags_cvt(gfs2_to_fsflags, ip->i_diskflags);
 	if (!S_ISDIR(inode->i_mode) && ip->i_diskflags & GFS2_DIF_JDATA)
@@ -169,6 +169,7 @@ static int gfs2_get_flags(struct file *filp, u32 __user *ptr)
 		error = -EFAULT;
 
 	gfs2_glock_dq(&gh);
+out_uninit:
 	gfs2_holder_uninit(&gh);
 	return error;
 }
@@ -895,7 +896,10 @@ static long __gfs2_fallocate(struct file *file, int mode, loff_t offset, loff_t 
 		mark_inode_dirty(inode);
 	}
 
-	return generic_write_sync(file, pos, count);
+	if ((file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host))
+		return vfs_fsync_range(file, pos, pos + count - 1,
+			       (file->f_flags & __O_SYNC) ? 0 : 1);
+	return 0;
 
 out_trans_fail:
 	gfs2_inplace_release(ip);
@@ -949,6 +953,30 @@ out_uninit:
 	inode_unlock(inode);
 	return ret;
 }
+
+static ssize_t gfs2_file_splice_read(struct file *in, loff_t *ppos,
+				     struct pipe_inode_info *pipe, size_t len,
+				     unsigned int flags)
+{
+	struct inode *inode = in->f_mapping->host;
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_holder gh;
+	int ret;
+
+	inode_lock(inode);
+
+	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+	if (ret) {
+		inode_unlock(inode);
+		return ret;
+	}
+
+	gfs2_glock_dq_uninit(&gh);
+	inode_unlock(inode);
+
+	return generic_file_splice_read(in, ppos, pipe, len, flags);
+}
+
 
 static ssize_t gfs2_file_splice_write(struct pipe_inode_info *pipe,
 				      struct file *out, loff_t *ppos,
@@ -1070,7 +1098,7 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 
 	mutex_lock(&fp->f_fl_mutex);
 	locks_lock_file_wait(file, fl);
-	if (fl_gh->gh_gl) {
+	if (gfs2_holder_initialized(fl_gh)) {
 		gfs2_glock_dq(fl_gh);
 		gfs2_holder_uninit(fl_gh);
 	}
@@ -1112,14 +1140,14 @@ const struct file_operations gfs2_file_fops = {
 	.fsync		= gfs2_fsync,
 	.lock		= gfs2_lock,
 	.flock		= gfs2_flock,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= gfs2_file_splice_read,
 	.splice_write	= gfs2_file_splice_write,
 	.setlease	= simple_nosetlease,
 	.fallocate	= gfs2_fallocate,
 };
 
 const struct file_operations gfs2_dir_fops = {
-	.iterate	= gfs2_readdir,
+	.iterate_shared	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
 	.release	= gfs2_release,
@@ -1140,14 +1168,14 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.open		= gfs2_open,
 	.release	= gfs2_release,
 	.fsync		= gfs2_fsync,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= gfs2_file_splice_read,
 	.splice_write	= gfs2_file_splice_write,
 	.setlease	= generic_setlease,
 	.fallocate	= gfs2_fallocate,
 };
 
 const struct file_operations gfs2_dir_fops_nolock = {
-	.iterate	= gfs2_readdir,
+	.iterate_shared	= gfs2_readdir,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.open		= gfs2_open,
 	.release	= gfs2_release,

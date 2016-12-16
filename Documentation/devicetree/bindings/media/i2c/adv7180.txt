@@ -1,0 +1,34 @@
+* Analog Devices ADV7180 analog video decoder family
+
+The adv7180 family devices are used to capture analog video to different
+digital interfaces like MIPI CSI-2 or parallel video.
+
+Required Properties :
+- compatible : value must be one of
+		"adi,adv7180"
+		"adi,adv7182"
+		"adi,adv7280"
+		"adi,adv7280-m"
+		"adi,adv7281"
+		"adi,adv7281-m"
+		"adi,adv7281-ma"
+		"adi,adv7282"
+		"adi,adv7282-m"
+
+Optional Properties :
+- powerdown-gpios: reference to the GPIO connected to the powerdown pin,
+  if any.
+
+
+Example:
+
+	i2c0@1c22000 {
+		...
+		...
+		adv7180@21 {
+			compatible = "adi,adv7180";
+			reg = <0x21>;
+		};
+		...
+	};
+

@@ -22,7 +22,7 @@
 #include "perf.h"
 
 #include "util/annotate.h"
-#include "util/cache.h"
+#include "util/config.h"
 #include "util/color.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
@@ -128,10 +128,14 @@ static int perf_top__parse_source(struct perf_top *top, struct hist_entry *he)
 		return err;
 	}
 
-	err = symbol__annotate(sym, map, 0);
+	err = symbol__disassemble(sym, map, 0);
 	if (err == 0) {
 out_assign:
 		top->sym_filter_entry = he;
+	} else {
+		char msg[BUFSIZ];
+		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		pr_err("Couldn't annotate %s: %s\n", sym->name, msg);
 	}
 
 	pthread_mutex_unlock(&notes->lock);
@@ -295,7 +299,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 	hists__output_recalc_col_len(hists, top->print_entries - printed);
 	putchar('\n');
 	hists__fprintf(hists, false, top->print_entries - printed, win_width,
-		       top->min_percent, stdout);
+		       top->min_percent, stdout, symbol_conf.use_callchain);
 }
 
 static void prompt_integer(int *target, const char *msg)
@@ -479,7 +483,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 
 				fprintf(stderr, "\nAvailable events:");
 
-				evlist__for_each(top->evlist, top->sym_evsel)
+				evlist__for_each_entry(top->evlist, top->sym_evsel)
 					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
@@ -490,7 +494,7 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 					sleep(1);
 					break;
 				}
-				evlist__for_each(top->evlist, top->sym_evsel)
+				evlist__for_each_entry(top->evlist, top->sym_evsel)
 					if (top->sym_evsel->idx == counter)
 						break;
 			} else
@@ -583,7 +587,7 @@ static void *display_thread_tui(void *arg)
 	 * Zooming in/out UIDs. For now juse use whatever the user passed
 	 * via --uid.
 	 */
-	evlist__for_each(top->evlist, pos) {
+	evlist__for_each_entry(top->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		hists->uid_filter_str = top->record_opts.target.uid_str;
 	}
@@ -688,7 +692,7 @@ static int hist_iter__top_callback(struct hist_entry_iter *iter,
 	struct hist_entry *he = iter->he;
 	struct perf_evsel *evsel = iter->evsel;
 
-	if (sort__has_sym && single)
+	if (perf_hpp_list.sym && single)
 		perf_top__record_precise_ip(top, he, evsel->idx, al->addr);
 
 	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
@@ -732,7 +736,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	if (machine__resolve(machine, &al, sample) < 0)
 		return;
 
-	if (!top->kptr_restrict_warned &&
+	if (!machine->kptr_restrict_warned &&
 	    symbol_conf.kptr_restrict &&
 	    al.cpumode == PERF_RECORD_MISC_KERNEL) {
 		ui__warning(
@@ -743,7 +747,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 			  " modules" : "");
 		if (use_browser <= 0)
 			sleep(5);
-		top->kptr_restrict_warned = true;
+		machine->kptr_restrict_warned = true;
 	}
 
 	if (al.sym == NULL) {
@@ -759,7 +763,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		 * --hide-kernel-symbols, even if the user specifies an
 		 * invalid --vmlinux ;-)
 		 */
-		if (!top->kptr_restrict_warned && !top->vmlinux_warned &&
+		if (!machine->kptr_restrict_warned && !top->vmlinux_warned &&
 		    al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
 		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
 			if (symbol_conf.vmlinux_name) {
@@ -886,9 +890,9 @@ static int perf_top__start_counters(struct perf_top *top)
 	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
 
-	perf_evlist__config(evlist, opts);
+	perf_evlist__config(evlist, opts, &callchain_param);
 
-	evlist__for_each(evlist, counter) {
+	evlist__for_each_entry(evlist, counter) {
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads) < 0) {
@@ -907,7 +911,7 @@ try_again:
 
 	if (perf_evlist__mmap(evlist, opts->mmap_pages, false) < 0) {
 		ui__error("Failed to mmap with %d (%s)\n",
-			    errno, strerror_r(errno, msg, sizeof(msg)));
+			    errno, str_error_r(errno, msg, sizeof(msg)));
 		goto out_err;
 	}
 
@@ -917,15 +921,15 @@ out_err:
 	return -1;
 }
 
-static int perf_top__setup_sample_type(struct perf_top *top __maybe_unused)
+static int callchain_param__setup_sample_type(struct callchain_param *callchain)
 {
-	if (!sort__has_sym) {
-		if (symbol_conf.use_callchain) {
+	if (!perf_hpp_list.sym) {
+		if (callchain->enabled) {
 			ui__error("Selected -g but \"sym\" not present in --sort/-s.");
 			return -EINVAL;
 		}
-	} else if (callchain_param.mode != CHAIN_NONE) {
-		if (callchain_register_param(&callchain_param) < 0) {
+	} else if (callchain->mode != CHAIN_NONE) {
+		if (callchain_register_param(callchain) < 0) {
 			ui__error("Can't register callchain params.\n");
 			return -EINVAL;
 		}
@@ -952,7 +956,7 @@ static int __cmd_top(struct perf_top *top)
 			goto out_delete;
 	}
 
-	ret = perf_top__setup_sample_type(top);
+	ret = callchain_param__setup_sample_type(&callchain_param);
 	if (ret)
 		goto out_delete;
 
@@ -962,7 +966,7 @@ static int __cmd_top(struct perf_top *top)
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
 				    top->evlist->threads, false, opts->proc_map_timeout);
 
-	if (sort__has_socket) {
+	if (perf_hpp_list.socket) {
 		ret = perf_env__read_cpu_topology_map(&perf_env);
 		if (ret < 0)
 			goto out_err_cpu_topo;
@@ -1028,7 +1032,7 @@ out_delete:
 
 out_err_cpu_topo: {
 	char errbuf[BUFSIZ];
-	const char *err = strerror_r(-ret, errbuf, sizeof(errbuf));
+	const char *err = str_error_r(-ret, errbuf, sizeof(errbuf));
 
 	ui__error("Could not read the CPU topology map: %s\n", err);
 	goto out_delete;
@@ -1045,18 +1049,17 @@ callchain_opt(const struct option *opt, const char *arg, int unset)
 static int
 parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 {
-	struct record_opts *record = (struct record_opts *)opt->value;
+	struct callchain_param *callchain = opt->value;
 
-	record->callgraph_set = true;
-	callchain_param.enabled = !unset;
-	callchain_param.record_mode = CALLCHAIN_FP;
+	callchain->enabled = !unset;
+	callchain->record_mode = CALLCHAIN_FP;
 
 	/*
 	 * --no-call-graph
 	 */
 	if (unset) {
 		symbol_conf.use_callchain = false;
-		callchain_param.record_mode = CALLCHAIN_NONE;
+		callchain->record_mode = CALLCHAIN_NONE;
 		return 0;
 	}
 
@@ -1104,7 +1107,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 			},
 			.proc_map_timeout    = 500,
 		},
-		.max_stack	     = PERF_MAX_STACK_DEPTH,
+		.max_stack	     = sysctl_perf_event_max_stack,
 		.sym_pcnt_filter     = 5,
 	};
 	struct record_opts *opts = &top.record_opts;
@@ -1162,17 +1165,17 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 		   "output field(s): overhead, period, sample plus all of sort keys"),
 	OPT_BOOLEAN('n', "show-nr-samples", &symbol_conf.show_nr_samples,
 		    "Show a column with the number of samples"),
-	OPT_CALLBACK_NOOPT('g', NULL, &top.record_opts,
+	OPT_CALLBACK_NOOPT('g', NULL, &callchain_param,
 			   NULL, "enables call-graph recording and display",
 			   &callchain_opt),
-	OPT_CALLBACK(0, "call-graph", &top.record_opts,
+	OPT_CALLBACK(0, "call-graph", &callchain_param,
 		     "record_mode[,record_size],print_type,threshold[,print_limit],order,sort_key[,branch]",
 		     top_callchain_help, &parse_callchain_opt),
 	OPT_BOOLEAN(0, "children", &symbol_conf.cumulate_callchain,
 		    "Accumulate callchains of children and show total overhead as well"),
 	OPT_INTEGER(0, "max-stack", &top.max_stack,
 		    "Set the maximum stack depth when parsing the callchain. "
-		    "Default: " __stringify(PERF_MAX_STACK_DEPTH)),
+		    "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_CALLBACK(0, "ignore-callees", NULL, "regex",
 		   "ignore callees of these functions in call graphs",
 		   report_parse_ignore_callees_opt),
@@ -1256,7 +1259,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	sort__mode = SORT_MODE__TOP;
 	/* display thread wants entries to be collapsed in a different tree */
-	sort__need_collapse = 1;
+	perf_hpp_list.need_collapse = 1;
 
 	if (top.use_stdio)
 		use_browser = 0;
@@ -1296,7 +1299,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (perf_evlist__create_maps(top.evlist, target) < 0) {
 		ui__error("Couldn't create thread/CPU maps: %s\n",
-			  errno == ENOENT ? "No such process" : strerror_r(errno, errbuf, sizeof(errbuf)));
+			  errno == ENOENT ? "No such process" : str_error_r(errno, errbuf, sizeof(errbuf)));
 		goto out_delete_evlist;
 	}
 
@@ -1312,7 +1315,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	top.sym_evsel = perf_evlist__first(top.evlist);
 
-	if (!symbol_conf.use_callchain) {
+	if (!callchain_param.enabled) {
 		symbol_conf.cumulate_callchain = false;
 		perf_hpp__cancel_cumulate();
 	}

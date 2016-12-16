@@ -617,10 +617,7 @@ int kgd2kfd_resume(struct kfd_dev *kfd);
 int kfd_init_apertures(struct kfd_process *process);
 
 /* Queue Context Management */
-inline uint32_t lower_32(uint64_t x);
-inline uint32_t upper_32(uint64_t x);
 struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd);
-inline uint32_t get_sdma_base_addr(struct cik_sdma_rlc_registers *m);
 
 int init_queue(struct queue **q, struct queue_properties properties);
 void uninit_queue(struct queue *q);

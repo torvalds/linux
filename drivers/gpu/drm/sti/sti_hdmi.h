@@ -23,6 +23,13 @@ struct hdmi_phy_ops {
 	void (*stop)(struct sti_hdmi *hdmi);
 };
 
+struct hdmi_audio_params {
+	bool enabled;
+	unsigned int sample_width;
+	unsigned int sample_rate;
+	struct hdmi_audio_infoframe cea;
+};
+
 /* values for the framing mode property */
 enum sti_hdmi_modes {
 	HDMI_MODE_HDMI,
@@ -67,6 +74,9 @@ static const struct drm_prop_enum_list colorspace_mode_names[] = {
  * @ddc_adapt: i2c ddc adapter
  * @colorspace: current colorspace selected
  * @hdmi_mode: select framing for HDMI or DVI
+ * @audio_pdev: ASoC hdmi-codec platform device
+ * @audio: hdmi audio parameters.
+ * @drm_connector: hdmi connector
  */
 struct sti_hdmi {
 	struct device dev;
@@ -89,6 +99,9 @@ struct sti_hdmi {
 	struct i2c_adapter *ddc_adapt;
 	enum hdmi_colorspace colorspace;
 	enum sti_hdmi_modes hdmi_mode;
+	struct platform_device *audio_pdev;
+	struct hdmi_audio_params audio;
+	struct drm_connector *drm_connector;
 };
 
 u32 hdmi_read(struct sti_hdmi *hdmi, int offset);

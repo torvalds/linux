@@ -143,7 +143,7 @@ static int osiris_dvs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* the CONFIG_PM block is so small, it isn't worth actaully compiling it
+/* the CONFIG_PM block is so small, it isn't worth actually compiling it
  * out if the configuration isn't set. */
 
 static int osiris_dvs_suspend(struct device *dev)

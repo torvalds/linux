@@ -208,6 +208,7 @@ BUILD_CM_RW(l2_config,		MIPS_CM_GCB_OFS + 0x130)
 BUILD_CM_RW(sys_config2,	MIPS_CM_GCB_OFS + 0x150)
 BUILD_CM_RW(l2_pft_control,	MIPS_CM_GCB_OFS + 0x300)
 BUILD_CM_RW(l2_pft_control_b,	MIPS_CM_GCB_OFS + 0x308)
+BUILD_CM_RW(bev_base,		MIPS_CM_GCB_OFS + 0x680)
 
 /* Core Local & Core Other register accessor functions */
 BUILD_CM_Cx_RW(reset_release,	0x00)
@@ -290,8 +291,8 @@ BUILD_CM_Cx_R_(tcid_8_priority,	0x80)
 #define CM_GCR_GIC_BASE_GICEN_MSK		(_ULCAST_(0x1) << 0)
 
 /* GCR_CPC_BASE register fields */
-#define CM_GCR_CPC_BASE_CPCBASE_SHF		17
-#define CM_GCR_CPC_BASE_CPCBASE_MSK		(_ULCAST_(0x7fff) << 17)
+#define CM_GCR_CPC_BASE_CPCBASE_SHF		15
+#define CM_GCR_CPC_BASE_CPCBASE_MSK		(_ULCAST_(0x1ffff) << 15)
 #define CM_GCR_CPC_BASE_CPCEN_SHF		0
 #define CM_GCR_CPC_BASE_CPCEN_MSK		(_ULCAST_(0x1) << 0)
 
@@ -457,11 +458,25 @@ static inline int mips_cm_revision(void)
 static inline unsigned int mips_cm_max_vp_width(void)
 {
 	extern int smp_num_siblings;
+	uint32_t cfg;
 
 	if (mips_cm_revision() >= CM_REV_CM3)
 		return read_gcr_sys_config2() & CM_GCR_SYS_CONFIG2_MAXVPW_MSK;
 
-	return smp_num_siblings;
+	if (mips_cm_present()) {
+		/*
+		 * We presume that all cores in the system will have the same
+		 * number of VP(E)s, and if that ever changes then this will
+		 * need revisiting.
+		 */
+		cfg = read_gcr_cl_config() & CM_GCR_Cx_CONFIG_PVPE_MSK;
+		return (cfg >> CM_GCR_Cx_CONFIG_PVPE_SHF) + 1;
+	}
+
+	if (IS_ENABLED(CONFIG_SMP))
+		return smp_num_siblings;
+
+	return 1;
 }
 
 /**
@@ -505,7 +520,7 @@ extern void mips_cm_unlock_other(void);
 
 #else /* !CONFIG_MIPS_CM */
 
-static inline void mips_cm_lock_other(unsigned int core) { }
+static inline void mips_cm_lock_other(unsigned int core, unsigned int vp) { }
 static inline void mips_cm_unlock_other(void) { }
 
 #endif /* !CONFIG_MIPS_CM */

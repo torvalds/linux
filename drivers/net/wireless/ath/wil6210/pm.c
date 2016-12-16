@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Qualcomm Atheros, Inc.
+ * Copyright (c) 2014,2016 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,10 +24,32 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 	wil_dbg_pm(wil, "%s(%s)\n", __func__,
 		   is_runtime ? "runtime" : "system");
 
+	if (!netif_running(wil_to_ndev(wil))) {
+		/* can always sleep when down */
+		wil_dbg_pm(wil, "Interface is down\n");
+		goto out;
+	}
+	if (test_bit(wil_status_resetting, wil->status)) {
+		wil_dbg_pm(wil, "Delay suspend when resetting\n");
+		rc = -EBUSY;
+		goto out;
+	}
+	if (wil->recovery_state != fw_recovery_idle) {
+		wil_dbg_pm(wil, "Delay suspend during recovery\n");
+		rc = -EBUSY;
+		goto out;
+	}
+
+	/* interface is running */
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
+		if (test_bit(wil_status_fwconnecting, wil->status)) {
+			wil_dbg_pm(wil, "Delay suspend when connecting\n");
+			rc = -EBUSY;
+			goto out;
+		}
 		break;
 	/* AP-like interface - can't suspend */
 	default:
@@ -36,6 +58,7 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 		break;
 	}
 
+out:
 	wil_dbg_pm(wil, "%s(%s) => %s (%d)\n", __func__,
 		   is_runtime ? "runtime" : "system", rc ? "No" : "Yes", rc);
 

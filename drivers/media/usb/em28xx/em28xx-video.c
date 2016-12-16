@@ -1013,7 +1013,7 @@ static void em28xx_v4l2_create_entities(struct em28xx *dev)
 
 static int queue_setup(struct vb2_queue *vq,
 		       unsigned int *nbuffers, unsigned int *nplanes,
-		       unsigned int sizes[], void *alloc_ctxs[])
+		       unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct em28xx *dev = vb2_get_drv_priv(vq);
 	struct em28xx_v4l2 *v4l2 = dev->v4l2;
@@ -1204,7 +1204,7 @@ buffer_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-static struct vb2_ops em28xx_video_qops = {
+static const struct vb2_ops em28xx_video_qops = {
 	.queue_setup    = queue_setup,
 	.buf_prepare    = buffer_prepare,
 	.buf_queue      = buffer_queue,

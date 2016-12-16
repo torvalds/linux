@@ -28,6 +28,7 @@
 
 #include "bcm47xx_private.h"
 
+#include <linux/bcm47xx_sprom.h>
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/ethtool.h>
@@ -151,7 +152,6 @@ void __init plat_mem_setup(void)
 		pr_info("Using bcma bus\n");
 #ifdef CONFIG_BCM47XX_BCMA
 		bcm47xx_bus_type = BCM47XX_BUS_TYPE_BCMA;
-		bcm47xx_sprom_register_fallbacks();
 		bcm47xx_register_bcma();
 		bcm47xx_set_system_type(bcm47xx_bus.bcma.bus.chipinfo.id);
 #ifdef CONFIG_HIGHMEM

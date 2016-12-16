@@ -24,7 +24,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
 
@@ -164,6 +164,7 @@ nouveau_gart_manager_new(struct ttm_mem_type_manager *man,
 	case NV_DEVICE_INFO_V0_FERMI:
 	case NV_DEVICE_INFO_V0_KEPLER:
 	case NV_DEVICE_INFO_V0_MAXWELL:
+	case NV_DEVICE_INFO_V0_PASCAL:
 		node->memtype = (nvbo->tile_flags & 0xff00) >> 8;
 		break;
 	default:

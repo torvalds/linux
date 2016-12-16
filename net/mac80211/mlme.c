@@ -122,15 +122,16 @@ void ieee80211_sta_reset_conn_monitor(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	if (unlikely(!sdata->u.mgd.associated))
+	if (unlikely(!ifmgd->associated))
 		return;
 
-	ifmgd->probe_send_count = 0;
+	if (ifmgd->probe_send_count)
+		ifmgd->probe_send_count = 0;
 
 	if (ieee80211_hw_check(&sdata->local->hw, CONNECTION_MONITOR))
 		return;
 
-	mod_timer(&sdata->u.mgd.conn_mon_timer,
+	mod_timer(&ifmgd->conn_mon_timer,
 		  round_jiffies_up(jiffies + IEEE80211_CONNECTION_IDLE_TIME));
 }
 
@@ -660,7 +661,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	capab = WLAN_CAPABILITY_ESS;
 
-	if (sband->band == IEEE80211_BAND_2GHZ) {
+	if (sband->band == NL80211_BAND_2GHZ) {
 		capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
 		capab |= WLAN_CAPABILITY_SHORT_PREAMBLE;
 	}
@@ -1099,7 +1100,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_bss *cbss = ifmgd->associated;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *chanctx;
-	enum ieee80211_band current_band;
+	enum nl80211_band current_band;
 	struct ieee80211_csa_ie csa_ie;
 	struct ieee80211_channel_switch ch_switch;
 	int res;
@@ -1256,11 +1257,11 @@ ieee80211_find_80211h_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	default:
 		WARN_ON_ONCE(1);
 		/* fall through */
-	case IEEE80211_BAND_2GHZ:
-	case IEEE80211_BAND_60GHZ:
+	case NL80211_BAND_2GHZ:
+	case NL80211_BAND_60GHZ:
 		chan_increment = 1;
 		break;
-	case IEEE80211_BAND_5GHZ:
+	case NL80211_BAND_5GHZ:
 		chan_increment = 4;
 		break;
 	}
@@ -1860,7 +1861,7 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 	}
 
 	use_short_slot = !!(capab & WLAN_CAPABILITY_SHORT_SLOT_TIME);
-	if (ieee80211_get_sdata_band(sdata) == IEEE80211_BAND_5GHZ)
+	if (ieee80211_get_sdata_band(sdata) == NL80211_BAND_5GHZ)
 		use_short_slot = true;
 
 	if (use_protection != bss_conf->use_cts_prot) {
@@ -2216,6 +2217,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	const u8 *ssid;
 	u8 *dst = ifmgd->associated->bssid;
 	u8 unicast_limit = max(1, max_probe_tries - 3);
+	struct sta_info *sta;
 
 	/*
 	 * Try sending broadcast probe requests for the last three
@@ -2233,6 +2235,14 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 	 * the AP.
 	 */
 	ifmgd->probe_send_count++;
+
+	if (dst) {
+		mutex_lock(&sdata->local->sta_mtx);
+		sta = sta_info_get(sdata, dst);
+		if (!WARN_ON(!sta))
+			ieee80211_check_fast_rx(sta);
+		mutex_unlock(&sdata->local->sta_mtx);
+	}
 
 	if (ieee80211_hw_check(&sdata->local->hw, REPORTS_TX_ACK_STATUS)) {
 		ifmgd->nullfunc_failed = false;
@@ -2388,6 +2398,11 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 		sdata_unlock(sdata);
 		return;
 	}
+
+	/* AP is probably out of range (or not reachable for another reason) so
+	 * remove the bss struct for that AP.
+	 */
+	cfg80211_unlink_bss(local->hw.wiphy, ifmgd->associated);
 
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 			       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
@@ -4365,7 +4380,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.basic_rates = basic_rates;
 
 		/* cf. IEEE 802.11 9.2.12 */
-		if (cbss->channel->band == IEEE80211_BAND_2GHZ &&
+		if (cbss->channel->band == NL80211_BAND_2GHZ &&
 		    have_higher_than_11mbit)
 			sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
 		else

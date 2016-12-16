@@ -81,3 +81,14 @@ endchoice
 config PCIE_PME
 	def_bool y
 	depends on PCIEPORTBUS && PM
+
+config PCIE_DPC
+	bool "PCIe Downstream Port Containment support"
+	depends on PCIEPORTBUS
+	default n
+	help
+	  This enables PCI Express Downstream Port Containment (DPC)
+	  driver support.  DPC events from Root and Downstream ports
+	  will be handled by the DPC driver.  If your system doesn't
+	  have this capability or you do not want to use this feature,
+	  it is safe to answer N.

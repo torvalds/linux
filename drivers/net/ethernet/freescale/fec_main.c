@@ -60,6 +60,7 @@
 #include <linux/if_vlan.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/prefetch.h>
+#include <soc/imx/cpuidle.h>
 
 #include <asm/cacheflush.h>
 
@@ -88,10 +89,10 @@ static struct platform_device_id fec_devtype[] = {
 		.driver_data = 0,
 	}, {
 		.name = "imx25-fec",
-		.driver_data = FEC_QUIRK_USE_GASKET | FEC_QUIRK_HAS_RACC,
+		.driver_data = FEC_QUIRK_USE_GASKET,
 	}, {
 		.name = "imx27-fec",
-		.driver_data = FEC_QUIRK_HAS_RACC,
+		.driver_data = 0,
 	}, {
 		.name = "imx28-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_SWAP_FRAME |
@@ -111,7 +112,13 @@ static struct platform_device_id fec_devtype[] = {
 				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
 				FEC_QUIRK_HAS_VLAN | FEC_QUIRK_HAS_AVB |
 				FEC_QUIRK_ERR007885 | FEC_QUIRK_BUG_CAPTURE |
-				FEC_QUIRK_HAS_RACC,
+				FEC_QUIRK_HAS_RACC | FEC_QUIRK_HAS_COALESCE,
+	}, {
+		.name = "imx6ul-fec",
+		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
+				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM |
+				FEC_QUIRK_HAS_VLAN | FEC_QUIRK_BUG_CAPTURE |
+				FEC_QUIRK_HAS_RACC | FEC_QUIRK_HAS_COALESCE,
 	}, {
 		/* sentinel */
 	}
@@ -125,6 +132,7 @@ enum imx_fec_type {
 	IMX6Q_FEC,
 	MVF600_FEC,
 	IMX6SX_FEC,
+	IMX6UL_FEC,
 };
 
 static const struct of_device_id fec_dt_ids[] = {
@@ -134,6 +142,7 @@ static const struct of_device_id fec_dt_ids[] = {
 	{ .compatible = "fsl,imx6q-fec", .data = &fec_devtype[IMX6Q_FEC], },
 	{ .compatible = "fsl,mvf600-fec", .data = &fec_devtype[MVF600_FEC], },
 	{ .compatible = "fsl,imx6sx-fec", .data = &fec_devtype[IMX6SX_FEC], },
+	{ .compatible = "fsl,imx6ul-fec", .data = &fec_devtype[IMX6UL_FEC], },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fec_dt_ids);
@@ -171,6 +180,7 @@ MODULE_PARM_DESC(macaddr, "FEC Ethernet MAC address");
 /* FEC receive acceleration */
 #define FEC_RACC_IPDIS		(1 << 1)
 #define FEC_RACC_PRODIS		(1 << 2)
+#define FEC_RACC_SHIFT16	BIT(7)
 #define FEC_RACC_OPTIONS	(FEC_RACC_IPDIS | FEC_RACC_PRODIS)
 
 /*
@@ -936,9 +946,11 @@ fec_restart(struct net_device *ndev)
 
 #if !defined(CONFIG_M5272)
 	if (fep->quirks & FEC_QUIRK_HAS_RACC) {
-		/* set RX checksum */
 		val = readl(fep->hwp + FEC_RACC);
+		/* align IP header */
+		val |= FEC_RACC_SHIFT16;
 		if (fep->csum_flags & FLAG_RX_CSUM_ENABLED)
+			/* set RX checksum */
 			val |= FEC_RACC_OPTIONS;
 		else
 			val &= ~FEC_RACC_OPTIONS;
@@ -967,10 +979,10 @@ fec_restart(struct net_device *ndev)
 			rcntl &= ~(1 << 8);
 
 		/* 1G, 100M or 10M */
-		if (fep->phy_dev) {
-			if (fep->phy_dev->speed == SPEED_1000)
+		if (ndev->phydev) {
+			if (ndev->phydev->speed == SPEED_1000)
 				ecntl |= (1 << 5);
-			else if (fep->phy_dev->speed == SPEED_100)
+			else if (ndev->phydev->speed == SPEED_100)
 				rcntl &= ~(1 << 9);
 			else
 				rcntl |= (1 << 9);
@@ -991,7 +1003,7 @@ fec_restart(struct net_device *ndev)
 			 */
 			cfgr = (fep->phy_interface == PHY_INTERFACE_MODE_RMII)
 				? BM_MIIGSK_CFGR_RMII : BM_MIIGSK_CFGR_MII;
-			if (fep->phy_dev && fep->phy_dev->speed == SPEED_10)
+			if (ndev->phydev && ndev->phydev->speed == SPEED_10)
 				cfgr |= BM_MIIGSK_CFGR_FRCONT_10M;
 			writel(cfgr, fep->hwp + FEC_MIIGSK_CFGR);
 
@@ -1005,7 +1017,7 @@ fec_restart(struct net_device *ndev)
 	/* enable pause frame*/
 	if ((fep->pause_flag & FEC_PAUSE_FLAG_ENABLE) ||
 	    ((fep->pause_flag & FEC_PAUSE_FLAG_AUTONEG) &&
-	     fep->phy_dev && fep->phy_dev->pause)) {
+	     ndev->phydev && ndev->phydev->pause)) {
 		rcntl |= FEC_ENET_FCE;
 
 		/* set FIFO threshold parameter to reduce overrun */
@@ -1197,10 +1209,8 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id)
 					 fec16_to_cpu(bdp->cbd_datlen),
 					 DMA_TO_DEVICE);
 		bdp->cbd_bufaddr = cpu_to_fec32(0);
-		if (!skb) {
-			bdp = fec_enet_get_nextdesc(bdp, &txq->bd);
-			continue;
-		}
+		if (!skb)
+			goto skb_done;
 
 		/* Check for errors. */
 		if (status & (BD_ENET_TX_HB | BD_ENET_TX_LC |
@@ -1239,7 +1249,7 @@ fec_enet_tx_queue(struct net_device *ndev, u16 queue_id)
 
 		/* Free the sk buffer associated with this last transmit */
 		dev_kfree_skb_any(skb);
-
+skb_done:
 		/* Make sure the update to bdp and tx_skbuff are performed
 		 * before dirty_tx
 		 */
@@ -1421,6 +1431,12 @@ fec_enet_rx_queue(struct net_device *ndev, int budget, u16 queue_id)
 		prefetch(skb->data - NET_IP_ALIGN);
 		skb_put(skb, pkt_len - 4);
 		data = skb->data;
+
+#if !defined(CONFIG_M5272)
+		if (fep->quirks & FEC_QUIRK_HAS_RACC)
+			data = skb_pull_inline(skb, 2);
+#endif
+
 		if (!is_copybreak && need_swap)
 			swap_buffer(data, pkt_len);
 
@@ -1685,7 +1701,7 @@ static void fec_get_mac(struct net_device *ndev)
 static void fec_enet_adjust_link(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct phy_device *phy_dev = fep->phy_dev;
+	struct phy_device *phy_dev = ndev->phydev;
 	int status_change = 0;
 
 	/* Prevent a state halted on mii error */
@@ -1885,8 +1901,6 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 	int phy_id;
 	int dev_id = fep->dev_id;
 
-	fep->phy_dev = NULL;
-
 	if (fep->phy_node) {
 		phy_dev = of_phy_connect(ndev, fep->phy_node,
 					 &fec_enet_adjust_link, 0,
@@ -1934,7 +1948,6 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 
 	phy_dev->advertising = phy_dev->supported;
 
-	fep->phy_dev = phy_dev;
 	fep->link = 0;
 	fep->full_duplex = 0;
 
@@ -2062,30 +2075,6 @@ static void fec_enet_mii_remove(struct fec_enet_private *fep)
 		mdiobus_unregister(fep->mii_bus);
 		mdiobus_free(fep->mii_bus);
 	}
-}
-
-static int fec_enet_get_settings(struct net_device *ndev,
-				  struct ethtool_cmd *cmd)
-{
-	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct phy_device *phydev = fep->phy_dev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_gset(phydev, cmd);
-}
-
-static int fec_enet_set_settings(struct net_device *ndev,
-				 struct ethtool_cmd *cmd)
-{
-	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct phy_device *phydev = fep->phy_dev;
-
-	if (!phydev)
-		return -ENODEV;
-
-	return phy_ethtool_sset(phydev, cmd);
 }
 
 static void fec_enet_get_drvinfo(struct net_device *ndev,
@@ -2220,7 +2209,7 @@ static int fec_enet_set_pauseparam(struct net_device *ndev,
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	if (!fep->phy_dev)
+	if (!ndev->phydev)
 		return -ENODEV;
 
 	if (pause->tx_pause != pause->rx_pause) {
@@ -2236,17 +2225,17 @@ static int fec_enet_set_pauseparam(struct net_device *ndev,
 	fep->pause_flag |= pause->autoneg ? FEC_PAUSE_FLAG_AUTONEG : 0;
 
 	if (pause->rx_pause || pause->autoneg) {
-		fep->phy_dev->supported |= ADVERTISED_Pause;
-		fep->phy_dev->advertising |= ADVERTISED_Pause;
+		ndev->phydev->supported |= ADVERTISED_Pause;
+		ndev->phydev->advertising |= ADVERTISED_Pause;
 	} else {
-		fep->phy_dev->supported &= ~ADVERTISED_Pause;
-		fep->phy_dev->advertising &= ~ADVERTISED_Pause;
+		ndev->phydev->supported &= ~ADVERTISED_Pause;
+		ndev->phydev->advertising &= ~ADVERTISED_Pause;
 	}
 
 	if (pause->autoneg) {
 		if (netif_running(ndev))
 			fec_stop(ndev);
-		phy_start_aneg(fep->phy_dev);
+		phy_start_aneg(ndev->phydev);
 	}
 	if (netif_running(ndev)) {
 		napi_disable(&fep->napi);
@@ -2362,8 +2351,7 @@ static int fec_enet_get_sset_count(struct net_device *dev, int sset)
 
 static int fec_enet_nway_reset(struct net_device *dev)
 {
-	struct fec_enet_private *fep = netdev_priv(dev);
-	struct phy_device *phydev = fep->phy_dev;
+	struct phy_device *phydev = dev->phydev;
 
 	if (!phydev)
 		return -ENODEV;
@@ -2388,9 +2376,6 @@ static void fec_enet_itr_coal_set(struct net_device *ndev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	int rx_itr, tx_itr;
 
-	if (!(fep->quirks & FEC_QUIRK_HAS_AVB))
-		return;
-
 	/* Must be greater than zero to avoid unpredictable behavior */
 	if (!fep->rx_time_itr || !fep->rx_pkts_itr ||
 	    !fep->tx_time_itr || !fep->tx_pkts_itr)
@@ -2413,10 +2398,12 @@ static void fec_enet_itr_coal_set(struct net_device *ndev)
 
 	writel(tx_itr, fep->hwp + FEC_TXIC0);
 	writel(rx_itr, fep->hwp + FEC_RXIC0);
-	writel(tx_itr, fep->hwp + FEC_TXIC1);
-	writel(rx_itr, fep->hwp + FEC_RXIC1);
-	writel(tx_itr, fep->hwp + FEC_TXIC2);
-	writel(rx_itr, fep->hwp + FEC_RXIC2);
+	if (fep->quirks & FEC_QUIRK_HAS_AVB) {
+		writel(tx_itr, fep->hwp + FEC_TXIC1);
+		writel(rx_itr, fep->hwp + FEC_RXIC1);
+		writel(tx_itr, fep->hwp + FEC_TXIC2);
+		writel(rx_itr, fep->hwp + FEC_RXIC2);
+	}
 }
 
 static int
@@ -2424,7 +2411,7 @@ fec_enet_get_coalesce(struct net_device *ndev, struct ethtool_coalesce *ec)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	if (!(fep->quirks & FEC_QUIRK_HAS_AVB))
+	if (!(fep->quirks & FEC_QUIRK_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
 	ec->rx_coalesce_usecs = fep->rx_time_itr;
@@ -2442,28 +2429,28 @@ fec_enet_set_coalesce(struct net_device *ndev, struct ethtool_coalesce *ec)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	unsigned int cycle;
 
-	if (!(fep->quirks & FEC_QUIRK_HAS_AVB))
+	if (!(fep->quirks & FEC_QUIRK_HAS_COALESCE))
 		return -EOPNOTSUPP;
 
 	if (ec->rx_max_coalesced_frames > 255) {
-		pr_err("Rx coalesced frames exceed hardware limiation");
+		pr_err("Rx coalesced frames exceed hardware limitation\n");
 		return -EINVAL;
 	}
 
 	if (ec->tx_max_coalesced_frames > 255) {
-		pr_err("Tx coalesced frame exceed hardware limiation");
+		pr_err("Tx coalesced frame exceed hardware limitation\n");
 		return -EINVAL;
 	}
 
 	cycle = fec_enet_us_to_itr_clock(ndev, fep->rx_time_itr);
 	if (cycle > 0xFFFF) {
-		pr_err("Rx coalesed usec exceeed hardware limiation");
+		pr_err("Rx coalesced usec exceed hardware limitation\n");
 		return -EINVAL;
 	}
 
 	cycle = fec_enet_us_to_itr_clock(ndev, fep->tx_time_itr);
 	if (cycle > 0xFFFF) {
-		pr_err("Rx coalesed usec exceeed hardware limiation");
+		pr_err("Rx coalesced usec exceed hardware limitation\n");
 		return -EINVAL;
 	}
 
@@ -2568,8 +2555,6 @@ fec_enet_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 }
 
 static const struct ethtool_ops fec_enet_ethtool_ops = {
-	.get_settings		= fec_enet_get_settings,
-	.set_settings		= fec_enet_set_settings,
 	.get_drvinfo		= fec_enet_get_drvinfo,
 	.get_regs_len		= fec_enet_get_regs_len,
 	.get_regs		= fec_enet_get_regs,
@@ -2589,12 +2574,14 @@ static const struct ethtool_ops fec_enet_ethtool_ops = {
 	.set_tunable		= fec_enet_set_tunable,
 	.get_wol		= fec_enet_get_wol,
 	.set_wol		= fec_enet_set_wol,
+	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
+	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
 static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct phy_device *phydev = fep->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (!netif_running(ndev))
 		return -EINVAL;
@@ -2848,8 +2835,11 @@ fec_enet_open(struct net_device *ndev)
 	if (ret)
 		goto err_enet_mii_probe;
 
+	if (fep->quirks & FEC_QUIRK_ERR006687)
+		imx6q_cpuidle_fec_irqs_used();
+
 	napi_enable(&fep->napi);
-	phy_start(fep->phy_dev);
+	phy_start(ndev->phydev);
 	netif_tx_start_all_queues(ndev);
 
 	device_set_wakeup_enable(&ndev->dev, fep->wol_flag &
@@ -2873,7 +2863,7 @@ fec_enet_close(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 
-	phy_stop(fep->phy_dev);
+	phy_stop(ndev->phydev);
 
 	if (netif_device_present(ndev)) {
 		napi_disable(&fep->napi);
@@ -2881,8 +2871,10 @@ fec_enet_close(struct net_device *ndev)
 		fec_stop(ndev);
 	}
 
-	phy_disconnect(fep->phy_dev);
-	fep->phy_dev = NULL;
+	phy_disconnect(ndev->phydev);
+
+	if (fep->quirks & FEC_QUIRK_ERR006687)
+		imx6q_cpuidle_fec_irqs_unused();
 
 	fec_enet_clk_enable(ndev, false);
 	pinctrl_pm_select_sleep_state(&fep->pdev->dev);
@@ -3222,7 +3214,12 @@ static void fec_reset_phy(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get phy-reset-gpios: %d\n", err);
 		return;
 	}
-	msleep(msec);
+
+	if (msec > 20)
+		msleep(msec);
+	else
+		usleep_range(msec * 1000, msec * 1000 + 1000);
+
 	gpio_set_value_cansleep(phy_reset, !active_high);
 }
 #else /* CONFIG_OF */
@@ -3322,6 +3319,11 @@ fec_probe(struct platform_device *pdev)
 	fep->dev_id = dev_id++;
 
 	platform_set_drvdata(pdev, ndev);
+
+	if ((of_machine_is_compatible("fsl,imx6q") ||
+	     of_machine_is_compatible("fsl,imx6dl")) &&
+	    !of_property_read_bool(np, "fsl,err006687-workaround-present"))
+		fep->quirks |= FEC_QUIRK_ERR006687;
 
 	if (of_get_property(np, "fsl,magic-packet", NULL))
 		fep->wol_flag |= FEC_WOL_HAS_MAGIC_PACKET;
@@ -3510,7 +3512,7 @@ static int __maybe_unused fec_suspend(struct device *dev)
 	if (netif_running(ndev)) {
 		if (fep->wol_flag & FEC_WOL_FLAG_ENABLE)
 			fep->wol_flag |= FEC_WOL_FLAG_SLEEP_ON;
-		phy_stop(fep->phy_dev);
+		phy_stop(ndev->phydev);
 		napi_disable(&fep->napi);
 		netif_tx_lock_bh(ndev);
 		netif_device_detach(ndev);
@@ -3570,7 +3572,7 @@ static int __maybe_unused fec_resume(struct device *dev)
 		netif_device_attach(ndev);
 		netif_tx_unlock_bh(ndev);
 		napi_enable(&fep->napi);
-		phy_start(fep->phy_dev);
+		phy_start(ndev->phydev);
 	}
 	rtnl_unlock();
 

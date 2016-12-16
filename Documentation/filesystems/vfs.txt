@@ -364,7 +364,6 @@ struct inode_operations {
 	int (*atomic_open)(struct inode *, struct dentry *, struct file *,
 			unsigned open_flag, umode_t create_mode, int *opened);
 	int (*tmpfile) (struct inode *, struct dentry *, umode_t);
-	int (*dentry_open)(struct dentry *, struct file *, const struct cred *);
 };
 
 Again, all methods are called without any locks being held, unless
@@ -534,9 +533,7 @@ __sync_single_inode) to check if ->writepages has been successful in
 writing out the whole address_space.
 
 The Writeback tag is used by filemap*wait* and sync_page* functions,
-via filemap_fdatawait_range, to wait for all writeback to
-complete.  While waiting ->sync_page (if defined) will be called on
-each page that is found to require writeback.
+via filemap_fdatawait_range, to wait for all writeback to complete.
 
 An address_space handler may attach extra information to a page,
 typically using the 'private' field in the 'struct page'.  If such
@@ -554,8 +551,8 @@ address_space has finer control of write sizes.
 
 The read process essentially only requires 'readpage'.  The write
 process is more complicated and uses write_begin/write_end or
-set_page_dirty to write data into the address_space, and writepage,
-sync_page, and writepages to writeback data to storage.
+set_page_dirty to write data into the address_space, and writepage
+and writepages to writeback data to storage.
 
 Adding and removing pages to/from an address_space is protected by the
 inode's i_mutex.
@@ -591,10 +588,15 @@ struct address_space_operations {
 	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
-	ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter, loff_t offset);
+	ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
+	/* isolate a page for migration */
+	bool (*isolate_page) (struct page *, isolate_mode_t);
 	/* migrate the contents of a page to the specified target */
 	int (*migratepage) (struct page *, struct page *);
+	/* put migration-failed page back to right list */
+	void (*putback_page) (struct page *);
 	int (*launder_page) (struct page *);
+
 	int (*is_partially_uptodate) (struct page *, unsigned long,
 					unsigned long);
 	void (*is_dirty_writeback) (struct page *, bool *, bool *);
@@ -696,13 +698,6 @@ struct address_space_operations {
   	but instead uses bmap to find out where the blocks in the file
   	are and uses those addresses directly.
 
-  dentry_open: *WARNING: probably going away soon, do not use!* This is an
-	alternative to f_op->open(), the difference is that this method may open
-	a file not necessarily originating from the same filesystem as the one
-	i_op->open() was called on.  It may be useful for stacking filesystems
-	which want to allow native I/O directly on underlying files.
-
-
   invalidatepage: If a page has PagePrivate set, then invalidatepage
         will be called when part or all of the page is to be removed
 	from the address space.  This generally corresponds to either a
@@ -747,12 +742,18 @@ struct address_space_operations {
         and transfer data directly between the storage and the
         application's address space.
 
+  isolate_page: Called by the VM when isolating a movable non-lru page.
+	If page is successfully isolated, VM marks the page as PG_isolated
+	via __SetPageIsolated.
+
   migrate_page:  This is used to compact the physical memory usage.
         If the VM wants to relocate a page (maybe off a memory card
         that is signalling imminent failure) it will pass a new page
 	and an old page to this function.  migrate_page should
 	transfer any private data across and update any references
         that it has to the page.
+
+  putback_page: Called by the VM when isolated page's migration fails.
 
   launder_page: Called before freeing a page - it writes back the dirty page. To
   	prevent redirtying the page, it is kept locked during the whole
@@ -930,14 +931,17 @@ struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
 	int (*d_hash)(const struct dentry *, struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct dentry *,
+	int (*d_compare)(const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
+	int (*d_init)(struct dentry *);
 	void (*d_release)(struct dentry *);
 	void (*d_iput)(struct dentry *, struct inode *);
 	char *(*d_dname)(struct dentry *, char *, int);
 	struct vfsmount *(*d_automount)(struct path *);
 	int (*d_manage)(struct dentry *, bool);
+	struct dentry *(*d_real)(struct dentry *, const struct inode *,
+				 unsigned int);
 };
 
   d_revalidate: called when the VFS needs to revalidate a dentry. This
@@ -1003,6 +1007,8 @@ struct dentry_operations {
 	always cache a reachable dentry. d_delete must be constant and
 	idempotent.
 
+  d_init: called when a dentry is allocated
+
   d_release: called when a dentry is really deallocated
 
   d_iput: called when a dentry loses its inode (just prior to its
@@ -1021,6 +1027,14 @@ struct dentry_operations {
 	tricky. The correct way to return for example "Hello" is to put it
 	at the end of the buffer, and returns a pointer to the first char.
 	dynamic_dname() helper function is provided to take care of this.
+
+	Example :
+
+	static char *pipefs_dname(struct dentry *dent, char *buffer, int buflen)
+	{
+		return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
+				dentry->d_inode->i_ino);
+	}
 
   d_automount: called when an automount dentry is to be traversed (optional).
 	This should create a new VFS mount record and return the record to the
@@ -1060,13 +1074,23 @@ struct dentry_operations {
 	This function is only used if DCACHE_MANAGE_TRANSIT is set on the
 	dentry being transited from.
 
-Example :
+  d_real: overlay/union type filesystems implement this method to return one of
+	the underlying dentries hidden by the overlay.  It is used in three
+	different modes:
 
-static char *pipefs_dname(struct dentry *dent, char *buffer, int buflen)
-{
-	return dynamic_dname(dentry, buffer, buflen, "pipe:[%lu]",
-				dentry->d_inode->i_ino);
-}
+	Called from open it may need to copy-up the file depending on the
+	supplied open flags.  This mode is selected with a non-zero flags
+	argument.  In this mode the d_real method can return an error.
+
+	Called from file_dentry() it returns the real dentry matching the inode
+	argument.  The real dentry may be from a lower layer already copied up,
+	but still referenced from the file.  This mode is selected with a
+	non-NULL inode argument.  This will always succeed.
+
+	With NULL inode and zero flags the topmost real underlying dentry is
+	returned.  This will always succeed.
+
+	This method is never called with both non-NULL inode and non-zero flags.
 
 Each dentry has a pointer to its parent dentry, as well as a hash list
 of child dentries. Child dentries are basically like files in a

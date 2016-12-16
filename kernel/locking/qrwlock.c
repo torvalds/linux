@@ -93,7 +93,7 @@ void queued_read_lock_slowpath(struct qrwlock *lock, u32 cnts)
 	 * that accesses can't leak upwards out of our subsequent critical
 	 * section in the case that the lock is currently held for write.
 	 */
-	cnts = atomic_add_return_acquire(_QR_BIAS, &lock->cnts) - _QR_BIAS;
+	cnts = atomic_fetch_add_acquire(_QR_BIAS, &lock->cnts);
 	rspin_until_writer_unlock(lock, cnts);
 
 	/*

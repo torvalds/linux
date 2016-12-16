@@ -337,7 +337,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_genq(
 
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 	if (len > FSL_RE_MAX_DATA_LEN) {
-		dev_err(re_chan->dev, "genq tx length %lu, max length %d\n",
+		dev_err(re_chan->dev, "genq tx length %zu, max length %d\n",
 			len, FSL_RE_MAX_DATA_LEN);
 		return NULL;
 	}
@@ -424,7 +424,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_pq(
 
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 	if (len > FSL_RE_MAX_DATA_LEN) {
-		dev_err(re_chan->dev, "pq tx length is %lu, max length is %d\n",
+		dev_err(re_chan->dev, "pq tx length is %zu, max length is %d\n",
 			len, FSL_RE_MAX_DATA_LEN);
 		return NULL;
 	}
@@ -545,7 +545,7 @@ static struct dma_async_tx_descriptor *fsl_re_prep_dma_memcpy(
 	re_chan = container_of(chan, struct fsl_re_chan, chan);
 
 	if (len > FSL_RE_MAX_DATA_LEN) {
-		dev_err(re_chan->dev, "cp tx length is %lu, max length is %d\n",
+		dev_err(re_chan->dev, "cp tx length is %zu, max length is %d\n",
 			len, FSL_RE_MAX_DATA_LEN);
 		return NULL;
 	}
@@ -836,6 +836,7 @@ static int fsl_re_probe(struct platform_device *ofdev)
 		rc = of_property_read_u32(np, "reg", &off);
 		if (rc) {
 			dev_err(dev, "Reg property not found in JQ node\n");
+			of_node_put(np);
 			return -ENODEV;
 		}
 		/* Find out the Job Rings present under each JQ */
@@ -856,6 +857,8 @@ static int fsl_re_probe(struct platform_device *ofdev)
 
 static void fsl_re_remove_chan(struct fsl_re_chan *chan)
 {
+	tasklet_kill(&chan->irqtask);
+
 	dma_pool_free(chan->re_dev->hw_desc_pool, chan->inb_ring_virt_addr,
 		      chan->inb_phys_addr);
 
@@ -890,7 +893,6 @@ static struct of_device_id fsl_re_ids[] = {
 static struct platform_driver fsl_re_driver = {
 	.driver = {
 		.name = "fsl-raideng",
-		.owner = THIS_MODULE,
 		.of_match_table = fsl_re_ids,
 	},
 	.probe = fsl_re_probe,

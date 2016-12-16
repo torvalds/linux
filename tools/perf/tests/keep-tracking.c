@@ -80,7 +80,7 @@ int test__keep_tracking(int subtest __maybe_unused)
 	CHECK__(parse_events(evlist, "dummy:u", NULL));
 	CHECK__(parse_events(evlist, "cycles:u", NULL));
 
-	perf_evlist__config(evlist, &opts);
+	perf_evlist__config(evlist, &opts, NULL);
 
 	evsel = perf_evlist__first(evlist);
 

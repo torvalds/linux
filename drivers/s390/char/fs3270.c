@@ -217,7 +217,7 @@ fs3270_deactivate(struct raw3270_view *view)
 		fp->init->callback(fp->init, NULL);
 }
 
-static int
+static void
 fs3270_irq(struct fs3270 *fp, struct raw3270_request *rq, struct irb *irb)
 {
 	/* Handle ATTN. Set indication and wake waiters for attention. */
@@ -233,7 +233,6 @@ fs3270_irq(struct fs3270 *fp, struct raw3270_request *rq, struct irb *irb)
 			/* Normal end. Copy residual count. */
 			rq->rescnt = irb->scsw.cmd.count;
 	}
-	return RAW3270_IO_DONE;
 }
 
 /*

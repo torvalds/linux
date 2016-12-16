@@ -220,12 +220,13 @@ struct nfc_digital_dev {
 	struct list_head cmd_queue;
 	struct mutex cmd_lock;
 
-	struct work_struct poll_work;
+	struct delayed_work poll_work;
 
 	u8 curr_protocol;
 	u8 curr_rf_tech;
 	u8 curr_nfc_dep_pni;
 	u8 did;
+	u16 dep_rwt;
 
 	u8 local_payload_max;
 	u8 remote_payload_max;
@@ -237,7 +238,6 @@ struct nfc_digital_dev {
 	int nack_count;
 
 	struct sk_buff *saved_skb;
-	unsigned int saved_skb_len;
 
 	u16 target_fsc;
 

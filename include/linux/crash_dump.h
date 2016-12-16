@@ -34,9 +34,13 @@ void vmcore_cleanup(void);
 
 /*
  * Architecture code can redefine this if there are any special checks
- * needed for 64-bit ELF vmcores. In case of 32-bit only architecture,
- * this can be set to zero.
+ * needed for 32-bit ELF or 64-bit ELF vmcores.  In case of 32-bit
+ * only architecture, vmcore_elf64_check_arch can be set to zero.
  */
+#ifndef vmcore_elf32_check_arch
+#define vmcore_elf32_check_arch(x) elf_check_arch(x)
+#endif
+
 #ifndef vmcore_elf64_check_arch
 #define vmcore_elf64_check_arch(x) (elf_check_arch(x) || vmcore_elf_check_arch_cross(x))
 #endif

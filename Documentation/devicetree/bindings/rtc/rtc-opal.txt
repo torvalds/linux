@@ -2,7 +2,7 @@ IBM OPAL real-time clock
 ------------------------
 
 Required properties:
-- comapatible: Should be "ibm,opal-rtc"
+- compatible: Should be "ibm,opal-rtc"
 
 Optional properties:
 - wakeup-source: Decides if the wakeup is supported or not

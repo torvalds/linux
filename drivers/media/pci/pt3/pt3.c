@@ -798,10 +798,8 @@ static int pt3_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	strlcpy(i2c->name, DRV_NAME, sizeof(i2c->name));
 	i2c_set_adapdata(i2c, pt3);
 	ret = i2c_add_adapter(i2c);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to add i2c adapter\n");
+	if (ret < 0)
 		goto err_i2cbuf;
-	}
 
 	for (i = 0; i < PT3_NUM_FE; i++) {
 		ret = pt3_alloc_adapter(pt3, i);

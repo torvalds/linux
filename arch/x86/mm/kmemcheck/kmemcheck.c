@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/kmemcheck.h>
 #include <linux/mm.h>
-#include <linux/module.h>
 #include <linux/page-flags.h>
 #include <linux/percpu.h>
 #include <linux/ptrace.h>

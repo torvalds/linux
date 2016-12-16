@@ -932,7 +932,7 @@ static int core_alua_update_tpg_primary_metadata(
 			tg_pt_gp->tg_pt_gp_alua_access_status);
 
 	snprintf(path, ALUA_METADATA_PATH_LEN,
-		"/var/target/alua/tpgs_%s/%s", &wwn->unit_serial[0],
+		"%s/alua/tpgs_%s/%s", db_root, &wwn->unit_serial[0],
 		config_item_name(&tg_pt_gp->tg_pt_gp_group.cg_item));
 
 	rc = core_alua_write_tpg_metadata(path, md_buf, len);
@@ -1275,8 +1275,8 @@ static int core_alua_update_tpg_secondary_metadata(struct se_lun *lun)
 			atomic_read(&lun->lun_tg_pt_secondary_offline),
 			lun->lun_tg_pt_secondary_stat);
 
-	snprintf(path, ALUA_METADATA_PATH_LEN, "/var/target/alua/%s/%s/lun_%llu",
-			se_tpg->se_tpg_tfo->get_fabric_name(), wwn,
+	snprintf(path, ALUA_METADATA_PATH_LEN, "%s/alua/%s/%s/lun_%llu",
+			db_root, se_tpg->se_tpg_tfo->get_fabric_name(), wwn,
 			lun->unpacked_lun);
 
 	rc = core_alua_write_tpg_metadata(path, md_buf, len);

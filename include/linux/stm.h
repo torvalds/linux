@@ -50,6 +50,8 @@ struct stm_device;
  * @sw_end:		last STP master available to software
  * @sw_nchannels:	number of STP channels per master
  * @sw_mmiosz:		size of one channel's IO space, for mmap, optional
+ * @hw_override:	masters in the STP stream will not match the ones
+ *			assigned by software, but are up to the STM hardware
  * @packet:		callback that sends an STP packet
  * @mmio_addr:		mmap callback, optional
  * @link:		called when a new stm_source gets linked to us, optional
@@ -85,6 +87,7 @@ struct stm_data {
 	unsigned int		sw_end;
 	unsigned int		sw_nchannels;
 	unsigned int		sw_mmiosz;
+	unsigned int		hw_override;
 	ssize_t			(*packet)(struct stm_data *, unsigned int,
 					  unsigned int, unsigned int,
 					  unsigned int, unsigned int,

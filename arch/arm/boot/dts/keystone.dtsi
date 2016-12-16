@@ -20,6 +20,9 @@
 
 	aliases {
 		serial0	= &uart0;
+		spi0 = &spi0;
+		spi1 = &spi1;
+		spi2 = &spi2;
 	};
 
 	memory {
@@ -57,6 +60,14 @@
 			     <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
 			     <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>,
 			     <GIC_SPI 23 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	psci {
+		compatible	= "arm,psci";
+		method		= "smc";
+		cpu_suspend	= <0x84000001>;
+		cpu_off		= <0x84000002>;
+		cpu_on		= <0x84000003>;
 	};
 
 	soc {
@@ -283,13 +294,16 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			reg =  <0x21801000 0x2000>, <0x21800000 0x1000>, <0x02620128 4>;
-			ranges = <0x81000000 0 0 0x23250000 0 0x4000
-				0x82000000 0 0x50000000 0x50000000 0 0x10000000>;
+			ranges = <0x82000000 0 0x50000000 0x50000000
+				  0 0x10000000>;
 
 			status = "disabled";
 			device_type = "pci";
 			num-lanes = <2>;
+			bus-range = <0x00 0xff>;
 
+			/* error interrupt */
+			interrupts = <GIC_SPI 38 IRQ_TYPE_EDGE_RISING>;
 			#interrupt-cells = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc0 0>, /* INT A */

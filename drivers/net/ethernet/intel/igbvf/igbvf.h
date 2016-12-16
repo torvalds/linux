@@ -287,8 +287,8 @@ struct igbvf_info {
 };
 
 /* hardware capability, feature, and workaround flags */
-#define IGBVF_FLAG_RX_CSUM_DISABLED	(1 << 0)
-#define IGBVF_FLAG_RX_LB_VLAN_BSWAP	(1 << 1)
+#define IGBVF_FLAG_RX_CSUM_DISABLED	BIT(0)
+#define IGBVF_FLAG_RX_LB_VLAN_BSWAP	BIT(1)
 #define IGBVF_RX_DESC_ADV(R, i)     \
 	(&((((R).desc))[i].rx_desc))
 #define IGBVF_TX_DESC_ADV(R, i)     \

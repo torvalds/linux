@@ -246,8 +246,7 @@ static void cdv_hdmi_destroy(struct drm_connector *connector)
 {
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	if (gma_encoder->i2c_bus)
-		psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 	kfree(connector);

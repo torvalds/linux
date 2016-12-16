@@ -103,6 +103,7 @@
 				clocks = <&clk_sysin>;
 
 				clock-output-names = "clk-s-a0-pll-ofd-0";
+				clock-critical = <0>; /* clk-s-a0-pll-ofd-0 */
 			};
 
 			clk_s_a0_flexgen: clk-s-a0-flexgen {
@@ -115,6 +116,7 @@
 
 				clock-output-names = "clk-ic-lmi0",
 						     "clk-ic-lmi1";
+				clock-critical = <CLK_IC_LMI0>;
 			};
 		};
 
@@ -129,6 +131,7 @@
 					     "clk-s-c0-fs0-ch1",
 					     "clk-s-c0-fs0-ch2",
 					     "clk-s-c0-fs0-ch3";
+			clock-critical = <0>; /* clk-s-c0-fs0-ch0 */
 		};
 
 		clk_s_c0: clockgen-c@09103000 {
@@ -142,6 +145,7 @@
 				clocks = <&clk_sysin>;
 
 				clock-output-names = "clk-s-c0-pll0-odf-0";
+				clock-critical = <0>; /* clk-s-c0-pll0-odf-0 */
 			};
 
 			clk_s_c0_pll1: clk-s-c0-pll1 {
@@ -204,6 +208,11 @@
 						     "clk-clust-hades",
 						     "clk-hwpe-hades",
 						     "clk-fc-hades";
+				clock-critical = <CLK_ICN_CPU>,
+						 <CLK_TX_ICN_DMU>,
+						 <CLK_EXT2F_A9>,
+						 <CLK_ICN_LMI>,
+						 <CLK_ICN_SBC>;
 			};
 		};
 

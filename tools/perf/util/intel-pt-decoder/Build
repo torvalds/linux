@@ -7,8 +7,11 @@ $(OUTPUT)util/intel-pt-decoder/inat-tables.c: $(inat_tables_script) $(inat_table
 	$(call rule_mkdir)
 	@$(call echo-cmd,gen)$(AWK) -f $(inat_tables_script) $(inat_tables_maps) > $@ || rm -f $@
 
+# Busybox's diff doesn't have -I, avoid warning in the case
+
 $(OUTPUT)util/intel-pt-decoder/intel-pt-insn-decoder.o: util/intel-pt-decoder/intel-pt-insn-decoder.c util/intel-pt-decoder/inat.c $(OUTPUT)util/intel-pt-decoder/inat-tables.c
-	@(test -d ../../kernel -a -d ../../tools -a -d ../perf && (( \
+	@(diff -I 2>&1 | grep -q 'option requires an argument' && \
+	test -d ../../kernel -a -d ../../tools -a -d ../perf && (( \
 	diff -B -I'^#include' util/intel-pt-decoder/insn.c ../../arch/x86/lib/insn.c >/dev/null && \
 	diff -B -I'^#include' util/intel-pt-decoder/inat.c ../../arch/x86/lib/inat.c >/dev/null && \
 	diff -B util/intel-pt-decoder/x86-opcode-map.txt ../../arch/x86/lib/x86-opcode-map.txt >/dev/null && \

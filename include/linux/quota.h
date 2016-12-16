@@ -179,6 +179,16 @@ static inline struct kqid make_kqid_projid(kprojid_t projid)
 	return kqid;
 }
 
+/**
+ *	qid_has_mapping - Report if a qid maps into a user namespace.
+ *	@ns:  The user namespace to see if a value maps into.
+ *	@qid: The kernel internal quota identifier to test.
+ */
+static inline bool qid_has_mapping(struct user_namespace *ns, struct kqid qid)
+{
+	return from_kqid(ns, qid) != (qid_t) -1;
+}
+
 
 extern spinlock_t dq_data_lock;
 
@@ -200,8 +210,8 @@ struct mem_dqblk {
 	qsize_t dqb_ihardlimit;	/* absolute limit on allocated inodes */
 	qsize_t dqb_isoftlimit;	/* preferred inode limit */
 	qsize_t dqb_curinodes;	/* current # allocated inodes */
-	time_t dqb_btime;	/* time limit for excessive disk use */
-	time_t dqb_itime;	/* time limit for excessive inode use */
+	time64_t dqb_btime;	/* time limit for excessive disk use */
+	time64_t dqb_itime;	/* time limit for excessive inode use */
 };
 
 /*

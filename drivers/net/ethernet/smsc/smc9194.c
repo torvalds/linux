@@ -663,7 +663,7 @@ static void smc_hardware_send_packet( struct net_device * dev )
 	lp->saved_skb = NULL;
 	dev_kfree_skb_any (skb);
 
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 
 	/* we can send another packet */
 	netif_wake_queue(dev);
@@ -1104,7 +1104,7 @@ static void smc_timeout(struct net_device *dev)
 	/* "kick" the adaptor */
 	smc_reset( dev->base_addr );
 	smc_enable( dev->base_addr );
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	/* clear anything saved */
 	((struct smc_local *)netdev_priv(dev))->saved_skb = NULL;
 	netif_wake_queue(dev);

@@ -299,6 +299,31 @@ static inline void octeon_npi_write32(uint64_t address, uint32_t val)
 	cvmx_read64_uint32(address ^ 4);
 }
 
+#ifdef CONFIG_SMP
+void octeon_setup_smp(void);
+#else
+static inline void octeon_setup_smp(void) {}
+#endif
+
+struct irq_domain;
+struct device_node;
+struct irq_data;
+struct irq_chip;
+void octeon_ciu3_mbox_send(int cpu, unsigned int mbox);
+int octeon_irq_ciu3_xlat(struct irq_domain *d,
+			 struct device_node *node,
+			 const u32 *intspec,
+			 unsigned int intsize,
+			 unsigned long *out_hwirq,
+			 unsigned int *out_type);
+void octeon_irq_ciu3_enable(struct irq_data *data);
+void octeon_irq_ciu3_disable(struct irq_data *data);
+void octeon_irq_ciu3_ack(struct irq_data *data);
+void octeon_irq_ciu3_mask(struct irq_data *data);
+void octeon_irq_ciu3_mask_ack(struct irq_data *data);
+int octeon_irq_ciu3_mapx(struct irq_domain *d, unsigned int virq,
+			 irq_hw_number_t hw, struct irq_chip *chip);
+
 /* Octeon multiplier save/restore routines from octeon_switch.S */
 void octeon_mult_save(void);
 void octeon_mult_restore(void);

@@ -333,7 +333,7 @@ static void init_cyrix(struct cpuinfo_x86 *c)
 		switch (dir0_lsn) {
 		case 0xd:  /* either a 486SLC or DLC w/o DEVID */
 			dir0_msn = 0;
-			p = Cx486_name[(cpu_has_fpu ? 1 : 0)];
+			p = Cx486_name[!!boot_cpu_has(X86_FEATURE_FPU)];
 			break;
 
 		case 0xe:  /* a 486S A step */

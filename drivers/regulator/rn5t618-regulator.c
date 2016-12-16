@@ -46,6 +46,23 @@ static struct regulator_ops rn5t618_reg_ops = {
 		.vsel_mask	= (vmask),				\
 	}
 
+static struct regulator_desc rn5t567_regulators[] = {
+	/* DCDC */
+	REG(DCDC1, DC1CTL, BIT(0), DC1DAC, 0xff, 600000, 3500000, 12500),
+	REG(DCDC2, DC2CTL, BIT(0), DC2DAC, 0xff, 600000, 3500000, 12500),
+	REG(DCDC3, DC3CTL, BIT(0), DC3DAC, 0xff, 600000, 3500000, 12500),
+	REG(DCDC4, DC4CTL, BIT(0), DC4DAC, 0xff, 600000, 3500000, 12500),
+	/* LDO */
+	REG(LDO1, LDOEN1, BIT(0), LDO1DAC, 0x7f, 900000, 3500000, 25000),
+	REG(LDO2, LDOEN1, BIT(1), LDO2DAC, 0x7f, 900000, 3500000, 25000),
+	REG(LDO3, LDOEN1, BIT(2), LDO3DAC, 0x7f, 600000, 3500000, 25000),
+	REG(LDO4, LDOEN1, BIT(3), LDO4DAC, 0x7f, 900000, 3500000, 25000),
+	REG(LDO5, LDOEN1, BIT(4), LDO5DAC, 0x7f, 900000, 3500000, 25000),
+	/* LDO RTC */
+	REG(LDORTC1, LDOEN2, BIT(4), LDORTCDAC, 0x7f, 1200000, 3500000, 25000),
+	REG(LDORTC2, LDOEN2, BIT(5), LDORTC2DAC, 0x7f, 900000, 3500000, 25000),
+};
+
 static struct regulator_desc rn5t618_regulators[] = {
 	/* DCDC */
 	REG(DCDC1, DC1CTL, BIT(0), DC1DAC, 0xff, 600000, 3500000, 12500),
@@ -67,18 +84,33 @@ static int rn5t618_regulator_probe(struct platform_device *pdev)
 	struct rn5t618 *rn5t618 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
+	struct regulator_desc *regulators;
 	int i;
 
+	switch (rn5t618->variant) {
+	case RN5T567:
+		regulators = rn5t567_regulators;
+		break;
+	case RN5T618:
+		regulators = rn5t618_regulators;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	config.dev = pdev->dev.parent;
+	config.regmap = rn5t618->regmap;
+
 	for (i = 0; i < RN5T618_REG_NUM; i++) {
-		config.dev = pdev->dev.parent;
-		config.regmap = rn5t618->regmap;
+		if (!regulators[i].name)
+			continue;
 
 		rdev = devm_regulator_register(&pdev->dev,
-					       &rn5t618_regulators[i],
+					       &regulators[i],
 					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "failed to register %s regulator\n",
-				rn5t618_regulators[i].name);
+				regulators[i].name);
 			return PTR_ERR(rdev);
 		}
 	}

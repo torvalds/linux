@@ -670,7 +670,7 @@ struct u300_pmx {
  * u300_pmx_registers - the array of registers read/written for each pinmux
  * shunt setting
  */
-const u32 u300_pmx_registers[] = {
+static const u32 u300_pmx_registers[] = {
 	U300_SYSCON_PMC1LR,
 	U300_SYSCON_PMC1HR,
 	U300_SYSCON_PMC2R,
@@ -1067,7 +1067,7 @@ static int u300_pmx_probe(struct platform_device *pdev)
 	if (IS_ERR(upmx->virtbase))
 		return PTR_ERR(upmx->virtbase);
 
-	upmx->pctl = pinctrl_register(&u300_pmx_desc, &pdev->dev, upmx);
+	upmx->pctl = devm_pinctrl_register(&pdev->dev, &u300_pmx_desc, upmx);
 	if (IS_ERR(upmx->pctl)) {
 		dev_err(&pdev->dev, "could not register U300 pinmux driver\n");
 		return PTR_ERR(upmx->pctl);
@@ -1076,15 +1076,6 @@ static int u300_pmx_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, upmx);
 
 	dev_info(&pdev->dev, "initialized U300 pin control driver\n");
-
-	return 0;
-}
-
-static int u300_pmx_remove(struct platform_device *pdev)
-{
-	struct u300_pmx *upmx = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(upmx->pctl);
 
 	return 0;
 }
@@ -1101,7 +1092,6 @@ static struct platform_driver u300_pmx_driver = {
 		.of_match_table = u300_pinctrl_match,
 	},
 	.probe = u300_pmx_probe,
-	.remove = u300_pmx_remove,
 };
 
 static int __init u300_pmx_init(void)

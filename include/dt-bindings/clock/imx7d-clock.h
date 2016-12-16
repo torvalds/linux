@@ -448,5 +448,6 @@
 #define IMX7D_PLL_DRAM_TEST_DIV		435
 #define IMX7D_ADC_ROOT_CLK		436
 #define IMX7D_CLK_ARM			437
-#define IMX7D_CLK_END			438
+#define IMX7D_CKIL			438
+#define IMX7D_CLK_END			439
 #endif /* __DT_BINDINGS_CLOCK_IMX7D_H */

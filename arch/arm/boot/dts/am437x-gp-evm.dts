@@ -119,7 +119,7 @@
 		clock-frequency = <32768>;
 	};
 
-	sound0: sound@0 {
+	sound0: sound0 {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "AM437x-GP-EVM";
 		simple-audio-card,widgets =
@@ -817,6 +817,7 @@
 		interrupt-parent = <&gpmc>;
 		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
 			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>;	/* gpmc_wait0 */
 		ti,nand-ecc-opt = "bch16";
 		ti,elm-id = <&elm>;
 		nand-bus-width = <8>;
@@ -896,7 +897,7 @@
 	pinctrl-0 = <&dss_pins>;
 
 	port {
-		dpi_out: endpoint@0 {
+		dpi_out: endpoint {
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};
@@ -973,4 +974,8 @@
 	clocks = <&clk_32k_rtc>, <&clk_32768_ck>;
 	clock-names = "ext-clk", "int-clk";
 	status = "okay";
+};
+
+&cpu {
+	cpu0-supply = <&dcdc2>;
 };

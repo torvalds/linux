@@ -256,28 +256,18 @@ If any of these error conditions are encountered, the arena is put into a read
 only state using a flag in the info block.
 
 
-5. In-kernel usage
-==================
+5. Usage
+========
 
-Any block driver that supports byte granularity IO to the storage may register
-with the BTT. It will have to provide the rw_bytes interface in its
-block_device_operations struct:
+The BTT can be set up on any disk (namespace) exposed by the libnvdimm subsystem
+(pmem, or blk mode). The easiest way to set up such a namespace is using the
+'ndctl' utility [1]:
 
-	int (*rw_bytes)(struct gendisk *, void *, size_t, off_t, int rw);
+For example, the ndctl command line to setup a btt with a 4k sector size is:
 
-It may register with the BTT after it adds its own gendisk, using btt_init:
+    ndctl create-namespace -f -e namespace0.0 -m sector -l 4k
 
-	struct btt *btt_init(struct gendisk *disk, unsigned long long rawsize,
-			u32 lbasize, u8 uuid[], int maxlane);
+See ndctl create-namespace --help for more options.
 
-note that maxlane is the maximum amount of concurrency the driver wishes to
-allow the BTT to use.
-
-The BTT 'disk' appears as a stacked block device that grabs the underlying block
-device in the O_EXCL mode.
-
-When the driver wishes to remove the backing disk, it should similarly call
-btt_fini using the same struct btt* handle that was provided to it by btt_init.
-
-	void btt_fini(struct btt *btt);
+[1]: https://github.com/pmem/ndctl
 

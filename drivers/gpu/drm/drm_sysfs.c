@@ -32,75 +32,6 @@ static struct device_type drm_sysfs_device_minor = {
 
 struct class *drm_class;
 
-/**
- * __drm_class_suspend - internal DRM class suspend routine
- * @dev: Linux device to suspend
- * @state: power state to enter
- *
- * Just figures out what the actual struct drm_device associated with
- * @dev is and calls its suspend hook, if present.
- */
-static int __drm_class_suspend(struct device *dev, pm_message_t state)
-{
-	if (dev->type == &drm_sysfs_device_minor) {
-		struct drm_minor *drm_minor = to_drm_minor(dev);
-		struct drm_device *drm_dev = drm_minor->dev;
-
-		if (drm_minor->type == DRM_MINOR_LEGACY &&
-		    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
-		    drm_dev->driver->suspend)
-			return drm_dev->driver->suspend(drm_dev, state);
-	}
-	return 0;
-}
-
-/**
- * drm_class_suspend - internal DRM class suspend hook. Simply calls
- * __drm_class_suspend() with the correct pm state.
- * @dev: Linux device to suspend
- */
-static int drm_class_suspend(struct device *dev)
-{
-	return __drm_class_suspend(dev, PMSG_SUSPEND);
-}
-
-/**
- * drm_class_freeze - internal DRM class freeze hook. Simply calls
- * __drm_class_suspend() with the correct pm state.
- * @dev: Linux device to freeze
- */
-static int drm_class_freeze(struct device *dev)
-{
-	return __drm_class_suspend(dev, PMSG_FREEZE);
-}
-
-/**
- * drm_class_resume - DRM class resume hook
- * @dev: Linux device to resume
- *
- * Just figures out what the actual struct drm_device associated with
- * @dev is and calls its resume hook, if present.
- */
-static int drm_class_resume(struct device *dev)
-{
-	if (dev->type == &drm_sysfs_device_minor) {
-		struct drm_minor *drm_minor = to_drm_minor(dev);
-		struct drm_device *drm_dev = drm_minor->dev;
-
-		if (drm_minor->type == DRM_MINOR_LEGACY &&
-		    !drm_core_check_feature(drm_dev, DRIVER_MODESET) &&
-		    drm_dev->driver->resume)
-			return drm_dev->driver->resume(drm_dev);
-	}
-	return 0;
-}
-
-static const struct dev_pm_ops drm_class_dev_pm_ops = {
-	.suspend	= drm_class_suspend,
-	.resume		= drm_class_resume,
-	.freeze		= drm_class_freeze,
-};
-
 static char *drm_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
@@ -130,8 +61,6 @@ int drm_sysfs_init(void)
 	drm_class = class_create(THIS_MODULE, "drm");
 	if (IS_ERR(drm_class))
 		return PTR_ERR(drm_class);
-
-	drm_class->pm = &drm_class_dev_pm_ops;
 
 	err = class_create_file(drm_class, &class_attr_version.attr);
 	if (err) {
@@ -208,9 +137,12 @@ static ssize_t status_show(struct device *device,
 			   char *buf)
 {
 	struct drm_connector *connector = to_drm_connector(device);
+	enum drm_connector_status status;
+
+	status = READ_ONCE(connector->status);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			drm_get_connector_status_name(connector->status));
+			drm_get_connector_status_name(status));
 }
 
 static ssize_t dpms_show(struct device *device,
@@ -231,9 +163,11 @@ static ssize_t enabled_show(struct device *device,
 			   char *buf)
 {
 	struct drm_connector *connector = to_drm_connector(device);
+	bool enabled;
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", connector->encoder ? "enabled" :
-			"disabled");
+	enabled = READ_ONCE(connector->encoder);
+
+	return snprintf(buf, PAGE_SIZE, enabled ? "enabled\n" : "disabled\n");
 }
 
 static ssize_t edid_show(struct file *filp, struct kobject *kobj,
@@ -287,102 +221,6 @@ static ssize_t modes_show(struct device *device,
 	return written;
 }
 
-static ssize_t tv_subconnector_show(struct device *device,
-				    struct device_attribute *attr,
-				    char *buf)
-{
-	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-	uint64_t subconnector;
-	int ret;
-
-	prop = dev->mode_config.tv_subconnector_property;
-	if (!prop) {
-		DRM_ERROR("Unable to find subconnector property\n");
-		return 0;
-	}
-
-	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
-	if (ret)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "%s",
-			drm_get_tv_subconnector_name((int)subconnector));
-}
-
-static ssize_t tv_select_subconnector_show(struct device *device,
-					   struct device_attribute *attr,
-					   char *buf)
-{
-	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-	uint64_t subconnector;
-	int ret;
-
-	prop = dev->mode_config.tv_select_subconnector_property;
-	if (!prop) {
-		DRM_ERROR("Unable to find select subconnector property\n");
-		return 0;
-	}
-
-	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
-	if (ret)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "%s",
-			drm_get_tv_select_name((int)subconnector));
-}
-
-static ssize_t dvii_subconnector_show(struct device *device,
-				      struct device_attribute *attr,
-				      char *buf)
-{
-	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-	uint64_t subconnector;
-	int ret;
-
-	prop = dev->mode_config.dvi_i_subconnector_property;
-	if (!prop) {
-		DRM_ERROR("Unable to find subconnector property\n");
-		return 0;
-	}
-
-	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
-	if (ret)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "%s",
-			drm_get_dvi_i_subconnector_name((int)subconnector));
-}
-
-static ssize_t dvii_select_subconnector_show(struct device *device,
-					     struct device_attribute *attr,
-					     char *buf)
-{
-	struct drm_connector *connector = to_drm_connector(device);
-	struct drm_device *dev = connector->dev;
-	struct drm_property *prop;
-	uint64_t subconnector;
-	int ret;
-
-	prop = dev->mode_config.dvi_i_select_subconnector_property;
-	if (!prop) {
-		DRM_ERROR("Unable to find select subconnector property\n");
-		return 0;
-	}
-
-	ret = drm_object_property_get_value(&connector->base, prop, &subconnector);
-	if (ret)
-		return 0;
-
-	return snprintf(buf, PAGE_SIZE, "%s",
-			drm_get_dvi_i_select_name((int)subconnector));
-}
-
 static DEVICE_ATTR_RW(status);
 static DEVICE_ATTR_RO(enabled);
 static DEVICE_ATTR_RO(dpms);
@@ -395,54 +233,6 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_modes.attr,
 	NULL
 };
-
-static DEVICE_ATTR_RO(tv_subconnector);
-static DEVICE_ATTR_RO(tv_select_subconnector);
-
-static struct attribute *connector_tv_dev_attrs[] = {
-	&dev_attr_tv_subconnector.attr,
-	&dev_attr_tv_select_subconnector.attr,
-	NULL
-};
-
-static DEVICE_ATTR_RO(dvii_subconnector);
-static DEVICE_ATTR_RO(dvii_select_subconnector);
-
-static struct attribute *connector_dvii_dev_attrs[] = {
-	&dev_attr_dvii_subconnector.attr,
-	&dev_attr_dvii_select_subconnector.attr,
-	NULL
-};
-
-/* Connector type related helpers */
-static int kobj_connector_type(struct kobject *kobj)
-{
-	struct device *dev = kobj_to_dev(kobj);
-	struct drm_connector *connector = to_drm_connector(dev);
-
-	return connector->connector_type;
-}
-
-static umode_t connector_is_dvii(struct kobject *kobj,
-				 struct attribute *attr, int idx)
-{
-	return kobj_connector_type(kobj) == DRM_MODE_CONNECTOR_DVII ?
-		attr->mode : 0;
-}
-
-static umode_t connector_is_tv(struct kobject *kobj,
-			       struct attribute *attr, int idx)
-{
-	switch (kobj_connector_type(kobj)) {
-	case DRM_MODE_CONNECTOR_Composite:
-	case DRM_MODE_CONNECTOR_SVIDEO:
-	case DRM_MODE_CONNECTOR_Component:
-	case DRM_MODE_CONNECTOR_TV:
-		return attr->mode;
-	}
-
-	return 0;
-}
 
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
@@ -461,20 +251,8 @@ static const struct attribute_group connector_dev_group = {
 	.bin_attrs = connector_bin_attrs,
 };
 
-static const struct attribute_group connector_tv_dev_group = {
-	.attrs = connector_tv_dev_attrs,
-	.is_visible = connector_is_tv,
-};
-
-static const struct attribute_group connector_dvii_dev_group = {
-	.attrs = connector_dvii_dev_attrs,
-	.is_visible = connector_is_dvii,
-};
-
 static const struct attribute_group *connector_dev_groups[] = {
 	&connector_dev_group,
-	&connector_tv_dev_group,
-	&connector_dvii_dev_group,
 	NULL
 };
 

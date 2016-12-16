@@ -68,6 +68,8 @@ int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
 	priv->pkey = pkey;
 
 	memcpy(priv->dev->dev_addr, ppriv->dev->dev_addr, INFINIBAND_ALEN);
+	memcpy(&priv->local_gid, &ppriv->local_gid, sizeof(priv->local_gid));
+	set_bit(IPOIB_FLAG_DEV_ADDR_SET, &priv->flags);
 	priv->dev->broadcast[8] = pkey >> 8;
 	priv->dev->broadcast[9] = pkey & 0xff;
 
@@ -129,6 +131,9 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 
 	ppriv = netdev_priv(pdev);
 
+	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
+		return -EPERM;
+
 	snprintf(intf_name, sizeof intf_name, "%s.%04x",
 		 ppriv->dev->name, pkey);
 	priv = ipoib_intf_alloc(intf_name);
@@ -180,6 +185,9 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 		return -EPERM;
 
 	ppriv = netdev_priv(pdev);
+
+	if (test_bit(IPOIB_FLAG_GOING_DOWN, &ppriv->flags))
+		return -EPERM;
 
 	if (!rtnl_trylock())
 		return restart_syscall();

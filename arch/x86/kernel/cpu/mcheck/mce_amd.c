@@ -54,14 +54,6 @@
 /* Threshold LVT offset is at MSR0xC0000410[15:12] */
 #define SMCA_THR_LVT_OFF	0xF000
 
-/*
- * OS is required to set the MCAX bit to acknowledge that it is now using the
- * new MSR ranges and new registers under each bank. It also means that the OS
- * will configure deferred errors in the new MCx_CONFIG register. If the bit is
- * not set, uncorrectable errors will cause a system panic.
- */
-#define SMCA_MCAX_EN_OFF	0x1
-
 static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
@@ -101,7 +93,7 @@ const char * const amd_df_mcablock_names[] = {
 EXPORT_SYMBOL_GPL(amd_df_mcablock_names);
 
 static DEFINE_PER_CPU(struct threshold_bank **, threshold_banks);
-static DEFINE_PER_CPU(unsigned char, bank_map);	/* see which banks are on */
+static DEFINE_PER_CPU(unsigned int, bank_map);	/* see which banks are on */
 
 static void amd_threshold_interrupt(void);
 static void amd_deferred_error_interrupt(void);
@@ -333,7 +325,7 @@ static u32 get_block_address(u32 current_addr, u32 low, u32 high,
 	/* Fall back to method we used for older processors: */
 	switch (block) {
 	case 0:
-		addr = MSR_IA32_MCx_MISC(bank);
+		addr = msr_ops.misc(bank);
 		break;
 	case 1:
 		offset = ((low & MASK_BLKPTR_LO) >> 21);
@@ -351,6 +343,7 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 			int offset, u32 misc_high)
 {
 	unsigned int cpu = smp_processor_id();
+	u32 smca_low, smca_high, smca_addr;
 	struct threshold_block b;
 	int new;
 
@@ -369,24 +362,49 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 
 	b.interrupt_enable = 1;
 
-	if (mce_flags.smca) {
-		u32 smca_low, smca_high;
-		u32 smca_addr = MSR_AMD64_SMCA_MCx_CONFIG(bank);
-
-		if (!rdmsr_safe(smca_addr, &smca_low, &smca_high)) {
-			smca_high |= SMCA_MCAX_EN_OFF;
-			wrmsr(smca_addr, smca_low, smca_high);
-		}
-
-		/* Gather LVT offset for thresholding: */
-		if (rdmsr_safe(MSR_CU_DEF_ERR, &smca_low, &smca_high))
-			goto out;
-
-		new = (smca_low & SMCA_THR_LVT_OFF) >> 12;
-	} else {
+	if (!mce_flags.smca) {
 		new = (misc_high & MASK_LVTOFF_HI) >> 20;
+		goto set_offset;
 	}
 
+	smca_addr = MSR_AMD64_SMCA_MCx_CONFIG(bank);
+
+	if (!rdmsr_safe(smca_addr, &smca_low, &smca_high)) {
+		/*
+		 * OS is required to set the MCAX bit to acknowledge that it is
+		 * now using the new MSR ranges and new registers under each
+		 * bank. It also means that the OS will configure deferred
+		 * errors in the new MCx_CONFIG register. If the bit is not set,
+		 * uncorrectable errors will cause a system panic.
+		 *
+		 * MCA_CONFIG[MCAX] is bit 32 (0 in the high portion of the MSR.)
+		 */
+		smca_high |= BIT(0);
+
+		/*
+		 * SMCA logs Deferred Error information in MCA_DE{STAT,ADDR}
+		 * registers with the option of additionally logging to
+		 * MCA_{STATUS,ADDR} if MCA_CONFIG[LogDeferredInMcaStat] is set.
+		 *
+		 * This bit is usually set by BIOS to retain the old behavior
+		 * for OSes that don't use the new registers. Linux supports the
+		 * new registers so let's disable that additional logging here.
+		 *
+		 * MCA_CONFIG[LogDeferredInMcaStat] is bit 34 (bit 2 in the high
+		 * portion of the MSR).
+		 */
+		smca_high &= ~BIT(2);
+
+		wrmsr(smca_addr, smca_low, smca_high);
+	}
+
+	/* Gather LVT offset for thresholding: */
+	if (rdmsr_safe(MSR_CU_DEF_ERR, &smca_low, &smca_high))
+		goto out;
+
+	new = (smca_low & SMCA_THR_LVT_OFF) >> 12;
+
+set_offset:
 	offset = setup_APIC_mce_threshold(offset, new);
 
 	if ((offset == new) && (mce_threshold_vector != amd_threshold_interrupt))
@@ -430,12 +448,23 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 		deferred_error_interrupt_enable(c);
 }
 
-static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
+static void
+__log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
 {
+	u32 msr_status = msr_ops.status(bank);
+	u32 msr_addr = msr_ops.addr(bank);
 	struct mce m;
 	u64 status;
 
-	rdmsrl(MSR_IA32_MCx_STATUS(bank), status);
+	WARN_ON_ONCE(deferred_err && threshold_err);
+
+	if (deferred_err && mce_flags.smca) {
+		msr_status = MSR_AMD64_SMCA_MCx_DESTAT(bank);
+		msr_addr = MSR_AMD64_SMCA_MCx_DEADDR(bank);
+	}
+
+	rdmsrl(msr_status, status);
+
 	if (!(status & MCI_STATUS_VAL))
 		return;
 
@@ -448,10 +477,11 @@ static void __log_error(unsigned int bank, bool threshold_err, u64 misc)
 		m.misc = misc;
 
 	if (m.status & MCI_STATUS_ADDRV)
-		rdmsrl(MSR_IA32_MCx_ADDR(bank), m.addr);
+		rdmsrl(msr_addr, m.addr);
 
 	mce_log(&m);
-	wrmsrl(MSR_IA32_MCx_STATUS(bank), 0);
+
+	wrmsrl(msr_status, 0);
 }
 
 static inline void __smp_deferred_error_interrupt(void)
@@ -479,17 +509,21 @@ asmlinkage __visible void smp_trace_deferred_error_interrupt(void)
 /* APIC interrupt handler for deferred errors */
 static void amd_deferred_error_interrupt(void)
 {
-	u64 status;
 	unsigned int bank;
+	u32 msr_status;
+	u64 status;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		rdmsrl(MSR_IA32_MCx_STATUS(bank), status);
+		msr_status = (mce_flags.smca) ? MSR_AMD64_SMCA_MCx_DESTAT(bank)
+					      : msr_ops.status(bank);
+
+		rdmsrl(msr_status, status);
 
 		if (!(status & MCI_STATUS_VAL) ||
 		    !(status & MCI_STATUS_DEFERRED))
 			continue;
 
-		__log_error(bank, false, 0);
+		__log_error(bank, true, false, 0);
 		break;
 	}
 }
@@ -544,7 +578,7 @@ static void amd_threshold_interrupt(void)
 	return;
 
 log:
-	__log_error(bank, true, ((u64)high << 32) | low);
+	__log_error(bank, false, true, ((u64)high << 32) | low);
 }
 
 /*

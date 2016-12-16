@@ -18,10 +18,10 @@
 #ifndef _BATMAN_ADV_BATADV_V_OGM_H_
 #define _BATMAN_ADV_BATADV_V_OGM_H_
 
+#include "main.h"
+
 #include <linux/types.h>
 
-struct batadv_hard_iface;
-struct batadv_priv;
 struct sk_buff;
 
 int batadv_v_ogm_init(struct batadv_priv *bat_priv);

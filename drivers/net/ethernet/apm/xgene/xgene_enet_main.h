@@ -38,6 +38,7 @@
 #include "xgene_enet_hw.h"
 #include "xgene_enet_cle.h"
 #include "xgene_enet_ring2.h"
+#include "../../../phy/mdio-xgene.h"
 
 #define XGENE_DRV_VERSION	"v1.0"
 #define XGENE_ENET_MAX_MTU	1536
@@ -140,6 +141,7 @@ struct xgene_mac_ops {
 	void (*rx_enable)(struct xgene_enet_pdata *pdata);
 	void (*tx_disable)(struct xgene_enet_pdata *pdata);
 	void (*rx_disable)(struct xgene_enet_pdata *pdata);
+	void (*set_speed)(struct xgene_enet_pdata *pdata);
 	void (*set_mac_addr)(struct xgene_enet_pdata *pdata);
 	void (*set_mss)(struct xgene_enet_pdata *pdata);
 	void (*link_state)(struct work_struct *work);
@@ -147,6 +149,8 @@ struct xgene_mac_ops {
 
 struct xgene_port_ops {
 	int (*reset)(struct xgene_enet_pdata *pdata);
+	void (*clear)(struct xgene_enet_pdata *pdata,
+		      struct xgene_enet_desc_ring *ring);
 	void (*cle_bypass)(struct xgene_enet_pdata *pdata,
 			   u32 dst_ring_num, u16 bufpool_id);
 	void (*shutdown)(struct xgene_enet_pdata *pdata);
@@ -201,7 +205,7 @@ struct xgene_enet_pdata {
 	const struct xgene_mac_ops *mac_ops;
 	const struct xgene_port_ops *port_ops;
 	struct xgene_ring_ops *ring_ops;
-	struct xgene_cle_ops *cle_ops;
+	const struct xgene_cle_ops *cle_ops;
 	struct delayed_work link_work;
 	u32 port_id;
 	u8 cpu_bufnum;
@@ -211,6 +215,7 @@ struct xgene_enet_pdata {
 	u32 mss;
 	u8 tx_delay;
 	u8 rx_delay;
+	bool mdio_driver;
 };
 
 struct xgene_indirect_ctl {
@@ -219,34 +224,6 @@ struct xgene_indirect_ctl {
 	void __iomem *cmd;
 	void __iomem *cmd_done;
 };
-
-/* Set the specified value into a bit-field defined by its starting position
- * and length within a single u64.
- */
-static inline u64 xgene_enet_set_field_value(int pos, int len, u64 val)
-{
-	return (val & ((1ULL << len) - 1)) << pos;
-}
-
-#define SET_VAL(field, val) \
-		xgene_enet_set_field_value(field ## _POS, field ## _LEN, val)
-
-#define SET_BIT(field) \
-		xgene_enet_set_field_value(field ## _POS, 1, 1)
-
-/* Get the value from a bit-field defined by its starting position
- * and length within the specified u64.
- */
-static inline u64 xgene_enet_get_field_value(int pos, int len, u64 src)
-{
-	return (src >> pos) & ((1ULL << len) - 1);
-}
-
-#define GET_VAL(field, src) \
-		xgene_enet_get_field_value(field ## _POS, field ## _LEN, src)
-
-#define GET_BIT(field, src) \
-		xgene_enet_get_field_value(field ## _POS, 1, src)
 
 static inline struct device *ndev_to_dev(struct net_device *ndev)
 {

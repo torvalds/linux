@@ -140,6 +140,7 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 {
 	acpi_status status = AE_OK;
 	struct acpi_device_walk_info info;
+	acpi_handle handle;
 
 	ACPI_FUNCTION_TRACE(ns_initialize_devices);
 
@@ -190,6 +191,27 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 		if (ACPI_SUCCESS(status)) {
 			info.num_INI++;
 		}
+
+		/*
+		 * Execute \_SB._INI.
+		 * There appears to be a strict order requirement for \_SB._INI,
+		 * which should be evaluated before any _REG evaluations.
+		 */
+		status = acpi_get_handle(NULL, "\\_SB", &handle);
+		if (ACPI_SUCCESS(status)) {
+			memset(info.evaluate_info, 0,
+			       sizeof(struct acpi_evaluate_info));
+			info.evaluate_info->prefix_node = handle;
+			info.evaluate_info->relative_pathname =
+			    METHOD_NAME__INI;
+			info.evaluate_info->parameters = NULL;
+			info.evaluate_info->flags = ACPI_IGNORE_RETURN_VALUE;
+
+			status = acpi_ns_evaluate(info.evaluate_info);
+			if (ACPI_SUCCESS(status)) {
+				info.num_INI++;
+			}
+		}
 	}
 
 	/*
@@ -198,6 +220,12 @@ acpi_status acpi_ns_initialize_devices(u32 flags)
 	 * Note: Any objects accessed by the _REG methods will be automatically
 	 * initialized, even if they contain executable AML (see the call to
 	 * acpi_ns_initialize_objects below).
+	 *
+	 * Note: According to the ACPI specification, we actually needn't execute
+	 * _REG for system_memory/system_io operation regions, but for PCI_Config
+	 * operation regions, it is required to evaluate _REG for those on a PCI
+	 * root bus that doesn't contain _BBN object. So this code is kept here
+	 * in order not to break things.
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -592,33 +620,37 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	 * Note: We know there is an _INI within this subtree, but it may not be
 	 * under this particular device, it may be lower in the branch.
 	 */
-	ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
-			(ACPI_TYPE_METHOD, device_node, METHOD_NAME__INI));
+	if (!ACPI_COMPARE_NAME(device_node->name.ascii, "_SB_") ||
+	    device_node->parent != acpi_gbl_root_node) {
+		ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
+				(ACPI_TYPE_METHOD, device_node,
+				 METHOD_NAME__INI));
 
-	memset(info, 0, sizeof(struct acpi_evaluate_info));
-	info->prefix_node = device_node;
-	info->relative_pathname = METHOD_NAME__INI;
-	info->parameters = NULL;
-	info->flags = ACPI_IGNORE_RETURN_VALUE;
+		memset(info, 0, sizeof(struct acpi_evaluate_info));
+		info->prefix_node = device_node;
+		info->relative_pathname = METHOD_NAME__INI;
+		info->parameters = NULL;
+		info->flags = ACPI_IGNORE_RETURN_VALUE;
 
-	status = acpi_ns_evaluate(info);
-
-	if (ACPI_SUCCESS(status)) {
-		walk_info->num_INI++;
-	}
+		status = acpi_ns_evaluate(info);
+		if (ACPI_SUCCESS(status)) {
+			walk_info->num_INI++;
+		}
 #ifdef ACPI_DEBUG_OUTPUT
-	else if (status != AE_NOT_FOUND) {
+		else if (status != AE_NOT_FOUND) {
 
-		/* Ignore error and move on to next device */
+			/* Ignore error and move on to next device */
 
-		char *scope_name =
-		    acpi_ns_get_normalized_pathname(device_node, TRUE);
+			char *scope_name =
+			    acpi_ns_get_normalized_pathname(device_node, TRUE);
 
-		ACPI_EXCEPTION((AE_INFO, status, "during %s._INI execution",
-				scope_name));
-		ACPI_FREE(scope_name);
-	}
+			ACPI_EXCEPTION((AE_INFO, status,
+					"during %s._INI execution",
+					scope_name));
+			ACPI_FREE(scope_name);
+		}
 #endif
+	}
 
 	/* Ignore errors from above */
 

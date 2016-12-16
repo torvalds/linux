@@ -231,7 +231,7 @@ if you want to skip one entry in the table, set the frequency to
 CPUFREQ_ENTRY_INVALID. The entries don't need to be in ascending
 order.
 
-By calling cpufreq_frequency_table_cpuinfo(struct cpufreq_policy *policy,
+By calling cpufreq_table_validate_and_show(struct cpufreq_policy *policy,
 					struct cpufreq_frequency_table *table);
 the cpuinfo.min_freq and cpuinfo.max_freq values are detected, and
 policy->min and policy->max are set to the same values. This is
@@ -244,14 +244,12 @@ policy->max, and all other criteria are met. This is helpful for the
 ->verify call.
 
 int cpufreq_frequency_table_target(struct cpufreq_policy *policy,
-                                   struct cpufreq_frequency_table *table,
                                    unsigned int target_freq,
-                                   unsigned int relation,
-                                   unsigned int *index);
+                                   unsigned int relation);
 
 is the corresponding frequency table helper for the ->target
-stage. Just pass the values to this function, and the unsigned int
-index returns the number of the frequency table entry which contains
+stage. Just pass the values to this function, and this function
+returns the number of the frequency table entry which contains
 the frequency the CPU shall be set to.
 
 The following macros can be used as iterators over cpufreq_frequency_table:

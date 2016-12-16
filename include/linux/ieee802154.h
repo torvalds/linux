@@ -31,6 +31,8 @@
 #define IEEE802154_MIN_PSDU_LEN		9
 #define IEEE802154_FCS_LEN		2
 #define IEEE802154_MAX_AUTH_TAG_LEN	16
+#define IEEE802154_FC_LEN		2
+#define IEEE802154_SEQ_LEN		1
 
 /*  General MAC frame format:
  *  2 bytes: Frame Control
@@ -47,6 +49,8 @@
 #define IEEE802154_ADDR_SHORT_UNSPEC	0xfffe
 
 #define IEEE802154_EXTENDED_ADDR_LEN	8
+#define IEEE802154_SHORT_ADDR_LEN	2
+#define IEEE802154_PAN_ID_LEN		2
 
 #define IEEE802154_LIFS_PERIOD		40
 #define IEEE802154_SIFS_PERIOD		12
@@ -218,9 +222,18 @@ enum {
 /* frame control handling */
 #define IEEE802154_FCTL_FTYPE		0x0003
 #define IEEE802154_FCTL_ACKREQ		0x0020
+#define IEEE802154_FCTL_SECEN		0x0004
 #define IEEE802154_FCTL_INTRA_PAN	0x0040
+#define IEEE802154_FCTL_DADDR		0x0c00
+#define IEEE802154_FCTL_SADDR		0xc000
 
 #define IEEE802154_FTYPE_DATA		0x0001
+
+#define IEEE802154_FCTL_ADDR_NONE	0x0000
+#define IEEE802154_FCTL_DADDR_SHORT	0x0800
+#define IEEE802154_FCTL_DADDR_EXTENDED	0x0c00
+#define IEEE802154_FCTL_SADDR_SHORT	0x8000
+#define IEEE802154_FCTL_SADDR_EXTENDED	0xc000
 
 /*
  * ieee802154_is_data - check if type is IEEE802154_FTYPE_DATA
@@ -230,6 +243,15 @@ static inline int ieee802154_is_data(__le16 fc)
 {
 	return (fc & cpu_to_le16(IEEE802154_FCTL_FTYPE)) ==
 		cpu_to_le16(IEEE802154_FTYPE_DATA);
+}
+
+/**
+ * ieee802154_is_secen - check if Security bit is set
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline bool ieee802154_is_secen(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_SECEN);
 }
 
 /**
@@ -250,6 +272,24 @@ static inline bool ieee802154_is_intra_pan(__le16 fc)
 	return fc & cpu_to_le16(IEEE802154_FCTL_INTRA_PAN);
 }
 
+/*
+ * ieee802154_daddr_mode - get daddr mode from fc
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline __le16 ieee802154_daddr_mode(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_DADDR);
+}
+
+/*
+ * ieee802154_saddr_mode - get saddr mode from fc
+ * @fc: frame control bytes in little-endian byteorder
+ */
+static inline __le16 ieee802154_saddr_mode(__le16 fc)
+{
+	return fc & cpu_to_le16(IEEE802154_FCTL_SADDR);
+}
+
 /**
  * ieee802154_is_valid_psdu_len - check if psdu len is valid
  * available lengths:
@@ -260,23 +300,51 @@ static inline bool ieee802154_is_intra_pan(__le16 fc)
  *
  * @len: psdu len with (MHR + payload + MFR)
  */
-static inline bool ieee802154_is_valid_psdu_len(const u8 len)
+static inline bool ieee802154_is_valid_psdu_len(u8 len)
 {
 	return (len == IEEE802154_ACK_PSDU_LEN ||
 		(len >= IEEE802154_MIN_PSDU_LEN && len <= IEEE802154_MTU));
 }
 
 /**
- * ieee802154_is_valid_psdu_len - check if extended addr is valid
+ * ieee802154_is_valid_extended_unicast_addr - check if extended addr is valid
  * @addr: extended addr to check
  */
-static inline bool ieee802154_is_valid_extended_unicast_addr(const __le64 addr)
+static inline bool ieee802154_is_valid_extended_unicast_addr(__le64 addr)
 {
 	/* Bail out if the address is all zero, or if the group
 	 * address bit is set.
 	 */
 	return ((addr != cpu_to_le64(0x0000000000000000ULL)) &&
 		!(addr & cpu_to_le64(0x0100000000000000ULL)));
+}
+
+/**
+ * ieee802154_is_broadcast_short_addr - check if short addr is broadcast
+ * @addr: short addr to check
+ */
+static inline bool ieee802154_is_broadcast_short_addr(__le16 addr)
+{
+	return (addr == cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST));
+}
+
+/**
+ * ieee802154_is_unspec_short_addr - check if short addr is unspecified
+ * @addr: short addr to check
+ */
+static inline bool ieee802154_is_unspec_short_addr(__le16 addr)
+{
+	return (addr == cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC));
+}
+
+/**
+ * ieee802154_is_valid_src_short_addr - check if source short address is valid
+ * @addr: short addr to check
+ */
+static inline bool ieee802154_is_valid_src_short_addr(__le16 addr)
+{
+	return !(ieee802154_is_broadcast_short_addr(addr) ||
+		 ieee802154_is_unspec_short_addr(addr));
 }
 
 /**

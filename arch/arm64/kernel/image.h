@@ -73,6 +73,8 @@
 
 #ifdef CONFIG_EFI
 
+__efistub_stext_offset = stext - _text;
+
 /*
  * Prevent the symbol aliases below from being emitted into the kallsyms
  * table, by forcing them to be absolute symbols (which are conveniently
@@ -112,6 +114,7 @@ __efistub___memset		= KALLSYMS_HIDE(__pi_memset);
 __efistub__text			= KALLSYMS_HIDE(_text);
 __efistub__end			= KALLSYMS_HIDE(_end);
 __efistub__edata		= KALLSYMS_HIDE(_edata);
+__efistub_screen_info		= KALLSYMS_HIDE(screen_info);
 
 #endif
 

@@ -308,7 +308,7 @@ static void handle_object_size_mismatch(struct type_mismatch_data *data,
 		return;
 
 	ubsan_prologue(&data->location, &flags);
-	pr_err("%s address %pk with insufficient space\n",
+	pr_err("%s address %p with insufficient space\n",
 		type_check_kinds[data->type_check_kind],
 		(void *) ptr);
 	pr_err("for an object of type %s\n", data->type->type_name);

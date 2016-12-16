@@ -99,8 +99,7 @@ u8 acpi_ev_is_notify_object(struct acpi_namespace_node *node)
  ******************************************************************************/
 
 acpi_status
-acpi_ev_queue_notify_request(struct acpi_namespace_node * node,
-			     u32 notify_value)
+acpi_ev_queue_notify_request(struct acpi_namespace_node *node, u32 notify_value)
 {
 	union acpi_operand_object *obj_desc;
 	union acpi_operand_object *handler_list_head = NULL;

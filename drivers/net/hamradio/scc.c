@@ -1669,7 +1669,7 @@ static netdev_tx_t scc_net_tx(struct sk_buff *skb, struct net_device *dev)
 		dev_kfree_skb(skb_del);
 	}
 	skb_queue_tail(&scc->tx_queue, skb);
-	dev->trans_start = jiffies;
+	netif_trans_update(dev);
 	
 
 	/*

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -97,7 +97,8 @@
 					 * SURF/DPDK
 					 */
 
-#define MAX_RSS_IFACES		15
+#define MAX_PORT_RSS_TABLES	15
+#define MAX_NIC_FUNCS		16
 #define MAX_RX_QS		32
 #define MAX_EVT_QS		32
 #define MAX_TX_QS		32
@@ -442,8 +443,20 @@ struct be_resources {
 	u16 max_iface_count;
 	u16 max_mcc_count;
 	u16 max_evt_qs;
+	u16 max_nic_evt_qs;	/* NIC's share of evt qs */
 	u32 if_cap_flags;
 	u32 vf_if_cap_flags;	/* VF if capability flags */
+	u32 flags;
+	/* Calculated PF Pool's share of RSS Tables. This is not enforced by
+	 * the FW, but is a self-imposed driver limitation.
+	 */
+	u16 max_rss_tables;
+};
+
+/* These are port-wide values */
+struct be_port_resources {
+	u16 max_vfs;
+	u16 nic_pfs;
 };
 
 #define be_is_os2bmc_enabled(adapter) (adapter->flags & BE_FLAGS_OS2BMC)
@@ -513,7 +526,8 @@ struct be_adapter {
 	spinlock_t mcc_lock;	/* For serializing mcc cmds to BE card */
 	spinlock_t mcc_cq_lock;
 
-	u16 cfg_num_qs;		/* configured via set-channels */
+	u16 cfg_num_rx_irqs;		/* configured via set-channels */
+	u16 cfg_num_tx_irqs;		/* configured via set-channels */
 	u16 num_evt_qs;
 	u16 num_msix_vec;
 	struct be_eq_obj eq_obj[MAX_EVT_QS];
@@ -632,16 +646,42 @@ struct be_adapter {
 #define be_max_txqs(adapter)		(adapter->res.max_tx_qs)
 #define be_max_prio_txqs(adapter)	(adapter->res.max_prio_tx_qs)
 #define be_max_rxqs(adapter)		(adapter->res.max_rx_qs)
-#define be_max_eqs(adapter)		(adapter->res.max_evt_qs)
+/* Max number of EQs available for the function (NIC + RoCE (if enabled)) */
+#define be_max_func_eqs(adapter)	(adapter->res.max_evt_qs)
+/* Max number of EQs available avaialble only for NIC */
+#define be_max_nic_eqs(adapter)		(adapter->res.max_nic_evt_qs)
 #define be_if_cap_flags(adapter)	(adapter->res.if_cap_flags)
+#define be_max_pf_pool_rss_tables(adapter)	\
+				(adapter->pool_res.max_rss_tables)
+/* Max irqs avaialble for NIC */
+#define be_max_irqs(adapter)		\
+			(min_t(u16, be_max_nic_eqs(adapter), num_online_cpus()))
 
-static inline u16 be_max_qs(struct be_adapter *adapter)
+/* Max irqs *needed* for RX queues */
+static inline u16 be_max_rx_irqs(struct be_adapter *adapter)
 {
-	/* If no RSS, need atleast the one def RXQ */
+	/* If no RSS, need atleast one irq for def-RXQ */
 	u16 num = max_t(u16, be_max_rss(adapter), 1);
 
-	num = min(num, be_max_eqs(adapter));
-	return min_t(u16, num, num_online_cpus());
+	return min_t(u16, num, be_max_irqs(adapter));
+}
+
+/* Max irqs *needed* for TX queues */
+static inline u16 be_max_tx_irqs(struct be_adapter *adapter)
+{
+	return min_t(u16, be_max_txqs(adapter), be_max_irqs(adapter));
+}
+
+/* Max irqs *needed* for combined queues */
+static inline u16 be_max_qp_irqs(struct be_adapter *adapter)
+{
+	return min(be_max_tx_irqs(adapter), be_max_rx_irqs(adapter));
+}
+
+/* Max irqs *needed* for RX and TX queues together */
+static inline u16 be_max_any_irqs(struct be_adapter *adapter)
+{
+	return max(be_max_tx_irqs(adapter), be_max_rx_irqs(adapter));
 }
 
 /* Is BE in pvid_tagging mode */

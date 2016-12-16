@@ -114,6 +114,8 @@ source "drivers/rtc/Kconfig"
 
 source "drivers/dma/Kconfig"
 
+source "drivers/dma-buf/Kconfig"
+
 source "drivers/dca/Kconfig"
 
 source "drivers/auxdisplay/Kconfig"
@@ -189,6 +191,8 @@ source "drivers/thunderbolt/Kconfig"
 source "drivers/android/Kconfig"
 
 source "drivers/nvdimm/Kconfig"
+
+source "drivers/dax/Kconfig"
 
 source "drivers/nvmem/Kconfig"
 

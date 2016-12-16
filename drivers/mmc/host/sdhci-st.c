@@ -28,6 +28,7 @@
 
 struct st_mmc_platform_data {
 	struct  reset_control *rstc;
+	struct  clk *icnclk;
 	void __iomem *top_ioaddr;
 };
 
@@ -183,7 +184,7 @@ static void st_mmcss_cconfig(struct device_node *np, struct sdhci_host *host)
 
 	writel_relaxed(cconf2, host->ioaddr + ST_MMC_CCONFIG_REG_2);
 
-	if (mhost->caps & MMC_CAP_NONREMOVABLE)
+	if (!mmc_card_is_removable(mhost))
 		cconf3 |= ST_MMC_CCONFIG_EMMC_SLOT_TYPE;
 	else
 		/* CARD _D ET_CTRL */
@@ -353,7 +354,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	struct sdhci_host *host;
 	struct st_mmc_platform_data *pdata;
 	struct sdhci_pltfm_host *pltfm_host;
-	struct clk *clk;
+	struct clk *clk, *icnclk;
 	int ret = 0;
 	u16 host_version;
 	struct resource *res;
@@ -364,6 +365,11 @@ static int sdhci_st_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Peripheral clk not found\n");
 		return PTR_ERR(clk);
 	}
+
+	/* ICN clock isn't compulsory, but use it if it's provided. */
+	icnclk = devm_clk_get(&pdev->dev, "icn");
+	if (IS_ERR(icnclk))
+		icnclk = NULL;
 
 	rstc = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(rstc))
@@ -389,6 +395,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	}
 
 	clk_prepare_enable(clk);
+	clk_prepare_enable(icnclk);
 
 	/* Configure the FlashSS Top registers for setting eMMC TX/RX delay */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
@@ -400,6 +407,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	}
 
 	pltfm_host->clk = clk;
+	pdata->icnclk = icnclk;
 
 	/* Configure the Arasan HC inside the flashSS */
 	st_mmcss_cconfig(np, host);
@@ -422,6 +430,7 @@ static int sdhci_st_probe(struct platform_device *pdev)
 	return 0;
 
 err_out:
+	clk_disable_unprepare(icnclk);
 	clk_disable_unprepare(clk);
 err_of:
 	sdhci_pltfm_free(pdev);
@@ -441,6 +450,8 @@ static int sdhci_st_remove(struct platform_device *pdev)
 	int ret;
 
 	ret = sdhci_pltfm_unregister(pdev);
+
+	clk_disable_unprepare(pdata->icnclk);
 
 	if (rstc)
 		reset_control_assert(rstc);
@@ -462,6 +473,7 @@ static int sdhci_st_suspend(struct device *dev)
 	if (pdata->rstc)
 		reset_control_assert(pdata->rstc);
 
+	clk_disable_unprepare(pdata->icnclk);
 	clk_disable_unprepare(pltfm_host->clk);
 out:
 	return ret;
@@ -475,6 +487,7 @@ static int sdhci_st_resume(struct device *dev)
 	struct device_node *np = dev->of_node;
 
 	clk_prepare_enable(pltfm_host->clk);
+	clk_prepare_enable(pdata->icnclk);
 
 	if (pdata->rstc)
 		reset_control_deassert(pdata->rstc);

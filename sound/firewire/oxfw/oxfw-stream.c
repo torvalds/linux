@@ -242,8 +242,7 @@ int snd_oxfw_stream_init_simplex(struct snd_oxfw *oxfw,
 	 * blocks than IEC 61883-6 defines.
 	 */
 	if (stream == &oxfw->tx_stream) {
-		oxfw->tx_stream.flags |= CIP_SKIP_INIT_DBC_CHECK |
-					 CIP_JUMBO_PAYLOAD;
+		oxfw->tx_stream.flags |= CIP_JUMBO_PAYLOAD;
 		if (oxfw->wrong_dbs)
 			oxfw->tx_stream.flags |= CIP_WRONG_DBS;
 	}

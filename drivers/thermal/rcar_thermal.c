@@ -492,7 +492,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			goto error_unregister;
 
 		if (of_data == USE_OF_THERMAL)
-			priv->zone = thermal_zone_of_sensor_register(
+			priv->zone = devm_thermal_zone_of_sensor_register(
 						dev, i, priv,
 						&rcar_thermal_zone_of_ops);
 		else
@@ -504,6 +504,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		if (IS_ERR(priv->zone)) {
 			dev_err(dev, "can't register thermal zone\n");
 			ret = PTR_ERR(priv->zone);
+			priv->zone = NULL;
 			goto error_unregister;
 		}
 

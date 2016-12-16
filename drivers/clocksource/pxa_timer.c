@@ -21,6 +21,8 @@
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
 
+#include <clocksource/pxa.h>
+
 #include <asm/div64.h>
 
 #define OSMR0		0x00	/* OS Timer 0 Match Register */
@@ -150,8 +152,10 @@ static struct irqaction pxa_ost0_irq = {
 	.dev_id		= &ckevt_pxa_osmr0,
 };
 
-static void __init pxa_timer_common_init(int irq, unsigned long clock_tick_rate)
+static int __init pxa_timer_common_init(int irq, unsigned long clock_tick_rate)
 {
+	int ret;
+
 	timer_writel(0, OIER);
 	timer_writel(OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3, OSSR);
 
@@ -159,39 +163,57 @@ static void __init pxa_timer_common_init(int irq, unsigned long clock_tick_rate)
 
 	ckevt_pxa_osmr0.cpumask = cpumask_of(0);
 
-	setup_irq(irq, &pxa_ost0_irq);
+	ret = setup_irq(irq, &pxa_ost0_irq);
+	if (ret) {
+		pr_err("Failed to setup irq");
+		return ret;
+	}
 
-	clocksource_mmio_init(timer_base + OSCR, "oscr0", clock_tick_rate, 200,
-			      32, clocksource_mmio_readl_up);
+	ret = clocksource_mmio_init(timer_base + OSCR, "oscr0", clock_tick_rate, 200,
+				    32, clocksource_mmio_readl_up);
+	if (ret) {
+		pr_err("Failed to init clocksource");
+		return ret;
+	}
+
 	clockevents_config_and_register(&ckevt_pxa_osmr0, clock_tick_rate,
 					MIN_OSCR_DELTA * 2, 0x7fffffff);
+
+	return 0;
 }
 
-static void __init pxa_timer_dt_init(struct device_node *np)
+static int __init pxa_timer_dt_init(struct device_node *np)
 {
 	struct clk *clk;
-	int irq;
+	int irq, ret;
 
 	/* timer registers are shared with watchdog timer */
 	timer_base = of_iomap(np, 0);
-	if (!timer_base)
-		panic("%s: unable to map resource\n", np->name);
+	if (!timer_base) {
+		pr_err("%s: unable to map resource\n", np->name);
+		return -ENXIO;
+	}
 
 	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
 		pr_crit("%s: unable to get clk\n", np->name);
-		return;
+		return PTR_ERR(clk);
 	}
-	clk_prepare_enable(clk);
+
+	ret = clk_prepare_enable(clk);
+	if (ret) {
+		pr_crit("Failed to prepare clock");
+		return ret;
+	}
 
 	/* we are only interested in OS-timer0 irq */
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
 		pr_crit("%s: unable to parse OS-timer0 irq\n", np->name);
-		return;
+		return -EINVAL;
 	}
 
-	pxa_timer_common_init(irq, clk_get_rate(clk));
+	return pxa_timer_common_init(irq, clk_get_rate(clk));
 }
 CLOCKSOURCE_OF_DECLARE(pxa_timer, "marvell,pxa-timer", pxa_timer_dt_init);
 

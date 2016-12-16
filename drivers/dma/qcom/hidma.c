@@ -1,7 +1,7 @@
 /*
  * Qualcomm Technologies HIDMA DMA engine interface
  *
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -404,7 +404,7 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 	spin_unlock_irqrestore(&mchan->lock, irqflags);
 
 	/* this suspends the existing transfer */
-	rc = hidma_ll_pause(dmadev->lldev);
+	rc = hidma_ll_disable(dmadev->lldev);
 	if (rc) {
 		dev_err(dmadev->ddev.dev, "channel did not pause\n");
 		goto out;
@@ -427,7 +427,7 @@ static int hidma_terminate_channel(struct dma_chan *chan)
 		list_move(&mdesc->node, &mchan->free);
 	}
 
-	rc = hidma_ll_resume(dmadev->lldev);
+	rc = hidma_ll_enable(dmadev->lldev);
 out:
 	pm_runtime_mark_last_busy(dmadev->ddev.dev);
 	pm_runtime_put_autosuspend(dmadev->ddev.dev);
@@ -488,7 +488,7 @@ static int hidma_pause(struct dma_chan *chan)
 	dmadev = to_hidma_dev(mchan->chan.device);
 	if (!mchan->paused) {
 		pm_runtime_get_sync(dmadev->ddev.dev);
-		if (hidma_ll_pause(dmadev->lldev))
+		if (hidma_ll_disable(dmadev->lldev))
 			dev_warn(dmadev->ddev.dev, "channel did not stop\n");
 		mchan->paused = true;
 		pm_runtime_mark_last_busy(dmadev->ddev.dev);
@@ -507,7 +507,7 @@ static int hidma_resume(struct dma_chan *chan)
 	dmadev = to_hidma_dev(mchan->chan.device);
 	if (mchan->paused) {
 		pm_runtime_get_sync(dmadev->ddev.dev);
-		rc = hidma_ll_resume(dmadev->lldev);
+		rc = hidma_ll_enable(dmadev->lldev);
 		if (!rc)
 			mchan->paused = false;
 		else
@@ -528,6 +528,43 @@ static irqreturn_t hidma_chirq_handler(int chirq, void *arg)
 	 * HW doesn't send an interrupt by itself.
 	 */
 	return hidma_ll_inthandler(chirq, lldev);
+}
+
+static ssize_t hidma_show_values(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct hidma_dev *mdev = platform_get_drvdata(pdev);
+
+	buf[0] = 0;
+
+	if (strcmp(attr->attr.name, "chid") == 0)
+		sprintf(buf, "%d\n", mdev->chidx);
+
+	return strlen(buf);
+}
+
+static int hidma_create_sysfs_entry(struct hidma_dev *dev, char *name,
+				    int mode)
+{
+	struct device_attribute *attrs;
+	char *name_copy;
+
+	attrs = devm_kmalloc(dev->ddev.dev, sizeof(struct device_attribute),
+			     GFP_KERNEL);
+	if (!attrs)
+		return -ENOMEM;
+
+	name_copy = devm_kstrdup(dev->ddev.dev, name, GFP_KERNEL);
+	if (!name_copy)
+		return -ENOMEM;
+
+	attrs->attr.name = name_copy;
+	attrs->attr.mode = mode;
+	attrs->show = hidma_show_values;
+	sysfs_attr_init(&attrs->attr);
+
+	return device_create_file(dev->ddev.dev, attrs);
 }
 
 static int hidma_probe(struct platform_device *pdev)
@@ -644,6 +681,8 @@ static int hidma_probe(struct platform_device *pdev)
 
 	dmadev->irq = chirq;
 	tasklet_init(&dmadev->task, hidma_issue_task, (unsigned long)dmadev);
+	hidma_debug_init(dmadev);
+	hidma_create_sysfs_entry(dmadev, "chid", S_IRUGO);
 	dev_info(&pdev->dev, "HI-DMA engine driver registration complete\n");
 	platform_set_drvdata(pdev, dmadev);
 	pm_runtime_mark_last_busy(dmadev->ddev.dev);
@@ -651,6 +690,7 @@ static int hidma_probe(struct platform_device *pdev)
 	return 0;
 
 uninit:
+	hidma_debug_uninit(dmadev);
 	hidma_ll_uninit(dmadev->lldev);
 dmafree:
 	if (dmadev)
@@ -668,6 +708,8 @@ static int hidma_remove(struct platform_device *pdev)
 	pm_runtime_get_sync(dmadev->ddev.dev);
 	dma_async_device_unregister(&dmadev->ddev);
 	devm_free_irq(dmadev->ddev.dev, dmadev->irq, dmadev->lldev);
+	tasklet_kill(&dmadev->task);
+	hidma_debug_uninit(dmadev);
 	hidma_ll_uninit(dmadev->lldev);
 	hidma_free(dmadev);
 
@@ -689,7 +731,6 @@ static const struct of_device_id hidma_match[] = {
 	{.compatible = "qcom,hidma-1.0",},
 	{},
 };
-
 MODULE_DEVICE_TABLE(of, hidma_match);
 
 static struct platform_driver hidma_driver = {

@@ -5,7 +5,7 @@
  */
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/uaccess.h>
 #include <asm/stacktrace.h>
 

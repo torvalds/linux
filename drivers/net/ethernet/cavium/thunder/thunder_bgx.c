@@ -274,11 +274,13 @@ static void bgx_sgmii_change_link_state(struct lmac *lmac)
 static void bgx_lmac_handler(struct net_device *netdev)
 {
 	struct lmac *lmac = container_of(netdev, struct lmac, netdev);
-	struct phy_device *phydev = lmac->phydev;
+	struct phy_device *phydev;
 	int link_changed = 0;
 
 	if (!lmac)
 		return;
+
+	phydev = lmac->phydev;
 
 	if (!phydev->link && lmac->last_link)
 		link_changed = -1;
@@ -549,7 +551,9 @@ static int bgx_xaui_check_link(struct lmac *lmac)
 	}
 
 	/* Clear rcvflt bit (latching high) and read it back */
-	bgx_reg_modify(bgx, lmacid, BGX_SPUX_STATUS2, SPU_STATUS2_RCVFLT);
+	if (bgx_reg_read(bgx, lmacid, BGX_SPUX_STATUS2) & SPU_STATUS2_RCVFLT)
+		bgx_reg_modify(bgx, lmacid,
+			       BGX_SPUX_STATUS2, SPU_STATUS2_RCVFLT);
 	if (bgx_reg_read(bgx, lmacid, BGX_SPUX_STATUS2) & SPU_STATUS2_RCVFLT) {
 		dev_err(&bgx->pdev->dev, "Receive fault, retry training\n");
 		if (bgx->use_training) {
@@ -568,13 +572,6 @@ static int bgx_xaui_check_link(struct lmac *lmac)
 		return -1;
 	}
 
-	/* Wait for MAC RX to be ready */
-	if (bgx_poll_reg(bgx, lmacid, BGX_SMUX_RX_CTL,
-			 SMU_RX_CTL_STATUS, true)) {
-		dev_err(&bgx->pdev->dev, "SMU RX link not okay\n");
-		return -1;
-	}
-
 	/* Wait for BGX RX to be idle */
 	if (bgx_poll_reg(bgx, lmacid, BGX_SMUX_CTL, SMU_CTL_RX_IDLE, false)) {
 		dev_err(&bgx->pdev->dev, "SMU RX not idle\n");
@@ -587,29 +584,30 @@ static int bgx_xaui_check_link(struct lmac *lmac)
 		return -1;
 	}
 
-	if (bgx_reg_read(bgx, lmacid, BGX_SPUX_STATUS2) & SPU_STATUS2_RCVFLT) {
-		dev_err(&bgx->pdev->dev, "Receive fault\n");
-		return -1;
-	}
-
-	/* Receive link is latching low. Force it high and verify it */
-	bgx_reg_modify(bgx, lmacid, BGX_SPUX_STATUS1, SPU_STATUS1_RCV_LNK);
-	if (bgx_poll_reg(bgx, lmacid, BGX_SPUX_STATUS1,
-			 SPU_STATUS1_RCV_LNK, false)) {
-		dev_err(&bgx->pdev->dev, "SPU receive link down\n");
-		return -1;
-	}
-
+	/* Clear receive packet disable */
 	cfg = bgx_reg_read(bgx, lmacid, BGX_SPUX_MISC_CONTROL);
 	cfg &= ~SPU_MISC_CTL_RX_DIS;
 	bgx_reg_write(bgx, lmacid, BGX_SPUX_MISC_CONTROL, cfg);
-	return 0;
+
+	/* Check for MAC RX faults */
+	cfg = bgx_reg_read(bgx, lmacid, BGX_SMUX_RX_CTL);
+	/* 0 - Link is okay, 1 - Local fault, 2 - Remote fault */
+	cfg &= SMU_RX_CTL_STATUS;
+	if (!cfg)
+		return 0;
+
+	/* Rx local/remote fault seen.
+	 * Do lmac reinit to see if condition recovers
+	 */
+	bgx_lmac_xaui_init(bgx, lmacid, bgx->lmac_type);
+
+	return -1;
 }
 
 static void bgx_poll_for_link(struct work_struct *work)
 {
 	struct lmac *lmac;
-	u64 link;
+	u64 spu_link, smu_link;
 
 	lmac = container_of(work, struct lmac, dwork.work);
 
@@ -619,8 +617,11 @@ static void bgx_poll_for_link(struct work_struct *work)
 	bgx_poll_reg(lmac->bgx, lmac->lmacid, BGX_SPUX_STATUS1,
 		     SPU_STATUS1_RCV_LNK, false);
 
-	link = bgx_reg_read(lmac->bgx, lmac->lmacid, BGX_SPUX_STATUS1);
-	if (link & SPU_STATUS1_RCV_LNK) {
+	spu_link = bgx_reg_read(lmac->bgx, lmac->lmacid, BGX_SPUX_STATUS1);
+	smu_link = bgx_reg_read(lmac->bgx, lmac->lmacid, BGX_SMUX_RX_CTL);
+
+	if ((spu_link & SPU_STATUS1_RCV_LNK) &&
+	    !(smu_link & SMU_RX_CTL_STATUS)) {
 		lmac->link_up = 1;
 		if (lmac->bgx->lmac_type == BGX_MODE_XLAUI)
 			lmac->last_speed = 40000;
@@ -634,9 +635,15 @@ static void bgx_poll_for_link(struct work_struct *work)
 	}
 
 	if (lmac->last_link != lmac->link_up) {
+		if (lmac->link_up) {
+			if (bgx_xaui_check_link(lmac)) {
+				/* Errors, clear link_up state */
+				lmac->link_up = 0;
+				lmac->last_speed = SPEED_UNKNOWN;
+				lmac->last_duplex = DUPLEX_UNKNOWN;
+			}
+		}
 		lmac->last_link = lmac->link_up;
-		if (lmac->link_up)
-			bgx_xaui_check_link(lmac);
 	}
 
 	queue_delayed_work(lmac->check_link, &lmac->dwork, HZ * 2);
@@ -708,7 +715,7 @@ static int bgx_lmac_enable(struct bgx *bgx, u8 lmacid)
 static void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
 {
 	struct lmac *lmac;
-	u64 cmrx_cfg;
+	u64 cfg;
 
 	lmac = &bgx->lmac[lmacid];
 	if (lmac->check_link) {
@@ -717,9 +724,33 @@ static void bgx_lmac_disable(struct bgx *bgx, u8 lmacid)
 		destroy_workqueue(lmac->check_link);
 	}
 
-	cmrx_cfg = bgx_reg_read(bgx, lmacid, BGX_CMRX_CFG);
-	cmrx_cfg &= ~(1 << 15);
-	bgx_reg_write(bgx, lmacid, BGX_CMRX_CFG, cmrx_cfg);
+	/* Disable packet reception */
+	cfg = bgx_reg_read(bgx, lmacid, BGX_CMRX_CFG);
+	cfg &= ~CMR_PKT_RX_EN;
+	bgx_reg_write(bgx, lmacid, BGX_CMRX_CFG, cfg);
+
+	/* Give chance for Rx/Tx FIFO to get drained */
+	bgx_poll_reg(bgx, lmacid, BGX_CMRX_RX_FIFO_LEN, (u64)0x1FFF, true);
+	bgx_poll_reg(bgx, lmacid, BGX_CMRX_TX_FIFO_LEN, (u64)0x3FFF, true);
+
+	/* Disable packet transmission */
+	cfg = bgx_reg_read(bgx, lmacid, BGX_CMRX_CFG);
+	cfg &= ~CMR_PKT_TX_EN;
+	bgx_reg_write(bgx, lmacid, BGX_CMRX_CFG, cfg);
+
+	/* Disable serdes lanes */
+        if (!lmac->is_sgmii)
+                bgx_reg_modify(bgx, lmacid,
+                               BGX_SPUX_CONTROL1, SPU_CTL_LOW_POWER);
+        else
+                bgx_reg_modify(bgx, lmacid,
+                               BGX_GMP_PCS_MRX_CTL, PCS_MRX_CTL_PWR_DN);
+
+	/* Disable LMAC */
+	cfg = bgx_reg_read(bgx, lmacid, BGX_CMRX_CFG);
+	cfg &= ~CMR_EN;
+	bgx_reg_write(bgx, lmacid, BGX_CMRX_CFG, cfg);
+
 	bgx_flush_dmac_addrs(bgx, lmacid);
 
 	if ((bgx->lmac_type != BGX_MODE_XFI) &&

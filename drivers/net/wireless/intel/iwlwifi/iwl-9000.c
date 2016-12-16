@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015-2016 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2015-2016 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,13 +55,10 @@
 #include "iwl-agn-hw.h"
 
 /* Highest firmware API version supported */
-#define IWL9000_UCODE_API_MAX	21
-
-/* Oldest version we won't warn about */
-#define IWL9000_UCODE_API_OK	13
+#define IWL9000_UCODE_API_MAX	24
 
 /* Lowest firmware API version supported */
-#define IWL9000_UCODE_API_MIN	13
+#define IWL9000_UCODE_API_MIN	16
 
 /* NVM versions */
 #define IWL9000_NVM_VERSION		0x0a1d
@@ -75,16 +72,21 @@
 #define IWL9000_SMEM_OFFSET		0x400000
 #define IWL9000_SMEM_LEN		0x68000
 
-#define  IWL9000_FW_PRE "iwlwifi-9000-"
+#define  IWL9000_FW_PRE "iwlwifi-9000-pu-a0-lc-a0-"
+#define  IWL9260_FW_PRE "iwlwifi-9260-th-a0-jf-a0-"
+#define  IWL9260LC_FW_PRE "iwlwifi-9260-th-a0-lc-a0-"
 #define IWL9000_MODULE_FIRMWARE(api) \
 	IWL9000_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL9260_MODULE_FIRMWARE(api) \
+	IWL9260_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL9260LC_MODULE_FIRMWARE(api) \
+	IWL9260LC_FW_PRE "-" __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_9000		10
 
 static const struct iwl_base_params iwl9000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_FAMILY_9000,
 	.num_of_queues = 31,
-	.pll_cfg_val = 0,
 	.shadow_ram_support = true,
 	.led_compensation = 57,
 	.wd_timeout = IWL_LONG_WD_TIMEOUT,
@@ -96,7 +98,7 @@ static const struct iwl_base_params iwl9000_base_params = {
 static const struct iwl_ht_params iwl9000_ht_params = {
 	.stbc = true,
 	.ldpc = true,
-	.ht40_bands = BIT(IEEE80211_BAND_2GHZ) | BIT(IEEE80211_BAND_5GHZ),
+	.ht40_bands = BIT(NL80211_BAND_2GHZ) | BIT(NL80211_BAND_5GHZ),
 };
 
 static const struct iwl_tt_params iwl9000_tt_params = {
@@ -122,7 +124,6 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 
 #define IWL_DEVICE_9000							\
 	.ucode_api_max = IWL9000_UCODE_API_MAX,				\
-	.ucode_api_ok = IWL9000_UCODE_API_OK,				\
 	.ucode_api_min = IWL9000_UCODE_API_MIN,				\
 	.device_family = IWL_DEVICE_FAMILY_8000,			\
 	.max_inst_size = IWL60_RTC_INST_SIZE,				\
@@ -137,15 +138,31 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 	.dccm2_len = IWL9000_DCCM2_LEN,					\
 	.smem_offset = IWL9000_SMEM_OFFSET,				\
 	.smem_len = IWL9000_SMEM_LEN,					\
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
 	.thermal_params = &iwl9000_tt_params,				\
 	.apmg_not_supported = true,					\
 	.mq_rx_supported = true,					\
 	.vht_mu_mimo_supported = true,					\
-	.mac_addr_from_csr = true
+	.mac_addr_from_csr = true,					\
+	.rf_id = true
 
 const struct iwl_cfg iwl9260_2ac_cfg = {
 		.name = "Intel(R) Dual Band Wireless AC 9260",
-		.fw_name_pre = IWL9000_FW_PRE,
+		.fw_name_pre = IWL9260_FW_PRE,
+		IWL_DEVICE_9000,
+		.ht_params = &iwl9000_ht_params,
+		.nvm_ver = IWL9000_NVM_VERSION,
+		.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
+		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+};
+
+/*
+ * TODO the struct below is for internal testing only this should be
+ * removed by EO 2016~
+ */
+const struct iwl_cfg iwl9260lc_2ac_cfg = {
+		.name = "Intel(R) Dual Band Wireless AC 9260",
+		.fw_name_pre = IWL9260LC_FW_PRE,
 		IWL_DEVICE_9000,
 		.ht_params = &iwl9000_ht_params,
 		.nvm_ver = IWL9000_NVM_VERSION,
@@ -161,6 +178,9 @@ const struct iwl_cfg iwl5165_2ac_cfg = {
 		.nvm_ver = IWL9000_NVM_VERSION,
 		.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
 		.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
+		.integrated = true,
 };
 
-MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_OK));
+MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL9260_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL9260LC_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));

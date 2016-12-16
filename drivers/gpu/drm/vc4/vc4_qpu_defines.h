@@ -70,7 +70,7 @@ enum qpu_raddr {
 	QPU_R_ELEM_QPU = 38,
 	QPU_R_NOP,
 	QPU_R_XY_PIXEL_COORD = 41,
-	QPU_R_MS_REV_FLAGS = 41,
+	QPU_R_MS_REV_FLAGS = 42,
 	QPU_R_VPM = 48,
 	QPU_R_VPM_LD_BUSY,
 	QPU_R_VPM_LD_WAIT,
@@ -230,6 +230,15 @@ enum qpu_unpack_r4 {
 #define QPU_COND_MUL_SHIFT              46
 #define QPU_COND_MUL_MASK               QPU_MASK(48, 46)
 
+#define QPU_BRANCH_COND_SHIFT           52
+#define QPU_BRANCH_COND_MASK            QPU_MASK(55, 52)
+
+#define QPU_BRANCH_REL                  ((uint64_t)1 << 51)
+#define QPU_BRANCH_REG                  ((uint64_t)1 << 50)
+
+#define QPU_BRANCH_RADDR_A_SHIFT        45
+#define QPU_BRANCH_RADDR_A_MASK         QPU_MASK(49, 45)
+
 #define QPU_SF                          ((uint64_t)1 << 45)
 
 #define QPU_WADDR_ADD_SHIFT             38
@@ -260,5 +269,11 @@ enum qpu_unpack_r4 {
 
 #define QPU_OP_ADD_SHIFT                24
 #define QPU_OP_ADD_MASK                 QPU_MASK(28, 24)
+
+#define QPU_LOAD_IMM_SHIFT              0
+#define QPU_LOAD_IMM_MASK               QPU_MASK(31, 0)
+
+#define QPU_BRANCH_TARGET_SHIFT         0
+#define QPU_BRANCH_TARGET_MASK          QPU_MASK(31, 0)
 
 #endif /* VC4_QPU_DEFINES_H */

@@ -83,7 +83,7 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 		return PCIBIOS_SUCCESSFUL;
 }
 
-static void mpc85xx_cds_restart(char *cmd)
+static void __noreturn mpc85xx_cds_restart(char *cmd)
 {
 	struct pci_dev *dev;
 	u_char tmp;
@@ -367,9 +367,7 @@ static void mpc85xx_cds_show_cpuinfo(struct seq_file *m)
  */
 static int __init mpc85xx_cds_probe(void)
 {
-        unsigned long root = of_get_flat_dt_root();
-
-        return of_flat_dt_is_compatible(root, "MPC85xxCDS");
+	return of_machine_is_compatible("MPC85xxCDS");
 }
 
 machine_arch_initcall(mpc85xx_cds, mpc85xx_common_publish_devices);

@@ -597,27 +597,55 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 
 static void vmbus_wait_for_unload(void)
 {
-	int cpu = smp_processor_id();
-	void *page_addr = hv_context.synic_message_page[cpu];
-	struct hv_message *msg = (struct hv_message *)page_addr +
-				  VMBUS_MESSAGE_SINT;
+	int cpu;
+	void *page_addr;
+	struct hv_message *msg;
 	struct vmbus_channel_message_header *hdr;
-	bool unloaded = false;
+	u32 message_type;
 
+	/*
+	 * CHANNELMSG_UNLOAD_RESPONSE is always delivered to the CPU which was
+	 * used for initial contact or to CPU0 depending on host version. When
+	 * we're crashing on a different CPU let's hope that IRQ handler on
+	 * the cpu which receives CHANNELMSG_UNLOAD_RESPONSE is still
+	 * functional and vmbus_unload_response() will complete
+	 * vmbus_connection.unload_event. If not, the last thing we can do is
+	 * read message pages for all CPUs directly.
+	 */
 	while (1) {
-		if (READ_ONCE(msg->header.message_type) == HVMSG_NONE) {
-			mdelay(10);
-			continue;
+		if (completion_done(&vmbus_connection.unload_event))
+			break;
+
+		for_each_online_cpu(cpu) {
+			page_addr = hv_context.synic_message_page[cpu];
+			msg = (struct hv_message *)page_addr +
+				VMBUS_MESSAGE_SINT;
+
+			message_type = READ_ONCE(msg->header.message_type);
+			if (message_type == HVMSG_NONE)
+				continue;
+
+			hdr = (struct vmbus_channel_message_header *)
+				msg->u.payload;
+
+			if (hdr->msgtype == CHANNELMSG_UNLOAD_RESPONSE)
+				complete(&vmbus_connection.unload_event);
+
+			vmbus_signal_eom(msg, message_type);
 		}
 
-		hdr = (struct vmbus_channel_message_header *)msg->u.payload;
-		if (hdr->msgtype == CHANNELMSG_UNLOAD_RESPONSE)
-			unloaded = true;
+		mdelay(10);
+	}
 
-		vmbus_signal_eom(msg);
-
-		if (unloaded)
-			break;
+	/*
+	 * We're crashing and already got the UNLOAD_RESPONSE, cleanup all
+	 * maybe-pending messages on all CPUs to be able to receive new
+	 * messages after we reconnect.
+	 */
+	for_each_online_cpu(cpu) {
+		page_addr = hv_context.synic_message_page[cpu];
+		msg = (struct hv_message *)page_addr + VMBUS_MESSAGE_SINT;
+		msg->header.message_type = HVMSG_NONE;
 	}
 }
 

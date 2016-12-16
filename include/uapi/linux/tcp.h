@@ -115,10 +115,20 @@ enum {
 #define TCP_CC_INFO		26	/* Get Congestion Control (optional) info */
 #define TCP_SAVE_SYN		27	/* Record SYN headers for new connections */
 #define TCP_SAVED_SYN		28	/* Get SYN headers recorded for connection */
+#define TCP_REPAIR_WINDOW	29	/* Get/set window parameters */
 
 struct tcp_repair_opt {
 	__u32	opt_code;
 	__u32	opt_val;
+};
+
+struct tcp_repair_window {
+	__u32	snd_wl1;
+	__u32	snd_wnd;
+	__u32	max_window;
+
+	__u32	rcv_wnd;
+	__u32	rcv_wup;
 };
 
 enum {

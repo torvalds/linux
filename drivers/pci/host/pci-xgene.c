@@ -21,7 +21,7 @@
 #include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/memblock.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
@@ -540,14 +540,20 @@ static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	ret = devm_request_pci_bus_resources(&pdev->dev, &res);
+	if (ret)
+		goto error;
+
 	ret = xgene_pcie_setup(port, &res, iobase);
 	if (ret)
-		return ret;
+		goto error;
 
 	bus = pci_create_root_bus(&pdev->dev, 0,
 					&xgene_pcie_ops, port, &res);
-	if (!bus)
-		return -ENOMEM;
+	if (!bus) {
+		ret = -ENOMEM;
+		goto error;
+	}
 
 	pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);
@@ -555,6 +561,10 @@ static int xgene_pcie_probe_bridge(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, port);
 	return 0;
+
+error:
+	pci_free_resource_list(&res);
+	return ret;
 }
 
 static const struct of_device_id xgene_pcie_match_table[] = {
@@ -569,8 +579,4 @@ static struct platform_driver xgene_pcie_driver = {
 	},
 	.probe = xgene_pcie_probe_bridge,
 };
-module_platform_driver(xgene_pcie_driver);
-
-MODULE_AUTHOR("Tanmay Inamdar <tinamdar@apm.com>");
-MODULE_DESCRIPTION("APM X-Gene PCIe driver");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(xgene_pcie_driver);

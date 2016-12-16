@@ -801,6 +801,7 @@ static void ubd_device_release(struct device *dev)
 static int ubd_disk_register(int major, u64 size, int unit,
 			     struct gendisk **disk_out)
 {
+	struct device *parent = NULL;
 	struct gendisk *disk;
 
 	disk = alloc_disk(1 << UBD_SHIFT);
@@ -823,12 +824,12 @@ static int ubd_disk_register(int major, u64 size, int unit,
 		ubd_devs[unit].pdev.dev.release = ubd_device_release;
 		dev_set_drvdata(&ubd_devs[unit].pdev.dev, &ubd_devs[unit]);
 		platform_device_register(&ubd_devs[unit].pdev);
-		disk->driverfs_dev = &ubd_devs[unit].pdev.dev;
+		parent = &ubd_devs[unit].pdev.dev;
 	}
 
 	disk->private_data = &ubd_devs[unit];
 	disk->queue = ubd_devs[unit].queue;
-	add_disk(disk);
+	device_add_disk(parent, disk);
 
 	*disk_out = disk;
 	return 0;
@@ -862,7 +863,7 @@ static int ubd_add(int n, char **error_out)
 		goto out;
 	}
 	ubd_dev->queue->queuedata = ubd_dev;
-	blk_queue_flush(ubd_dev->queue, REQ_FLUSH);
+	blk_queue_write_cache(ubd_dev->queue, true, false);
 
 	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
 	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, &ubd_gendisk[n]);
@@ -1286,7 +1287,7 @@ static void do_ubd_request(struct request_queue *q)
 
 		req = dev->request;
 
-		if (req->cmd_flags & REQ_FLUSH) {
+		if (req_op(req) == REQ_OP_FLUSH) {
 			io_req = kmalloc(sizeof(struct io_thread_req),
 					 GFP_ATOMIC);
 			if (io_req == NULL) {

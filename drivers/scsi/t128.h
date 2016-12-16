@@ -77,14 +77,17 @@
 #define NCR5380_write(reg, value) writeb((value),(T128_address(reg)))
 
 #define NCR5380_dma_xfer_len(instance, cmd, phase)	(cmd->transfersize)
+#define NCR5380_dma_recv_setup		t128_pread
+#define NCR5380_dma_send_setup		t128_pwrite
+#define NCR5380_dma_residual(instance)	(0)
 
 #define NCR5380_intr t128_intr
 #define NCR5380_queue_command t128_queue_command
 #define NCR5380_abort t128_abort
 #define NCR5380_bus_reset t128_bus_reset
 #define NCR5380_info t128_info
-#define NCR5380_show_info t128_show_info
-#define NCR5380_write_info t128_write_info
+
+#define NCR5380_io_delay(x)		udelay(x)
 
 /* 15 14 12 10 7 5 3
    1101 0100 1010 1000 */

@@ -428,6 +428,7 @@ feautures||features
 fetaure||feature
 fetaures||features
 fileystem||filesystem
+fimware||firmware
 finanize||finalize
 findn||find
 finilizes||finalizes

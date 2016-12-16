@@ -82,7 +82,7 @@ acpi_status __init acpi_load_tables(void)
 	 * their customized default region handlers.
 	 */
 	status = acpi_ev_install_region_handlers();
-	if (ACPI_FAILURE(status) && status != AE_ALREADY_EXISTS) {
+	if (ACPI_FAILURE(status)) {
 		ACPI_EXCEPTION((AE_INFO, status,
 				"During Region initialization"));
 		return_ACPI_STATUS(status);

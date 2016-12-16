@@ -6,6 +6,8 @@
  * device tree nodes.
  */
 
+#define pr_fmt(fmt)	"OF: " fmt
+
 #include <linux/of.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -55,7 +57,7 @@ void __of_detach_node_sysfs(struct device_node *np)
 	/* only remove properties if on sysfs */
 	if (of_node_is_attached(np)) {
 		for_each_property_of_node(np, pp)
-			sysfs_remove_bin_file(&np->kobj, &pp->attr);
+			__of_sysfs_remove_bin_file(np, pp);
 		kobject_del(&np->kobj);
 	}
 
@@ -96,13 +98,13 @@ int of_reconfig_notify(unsigned long action, struct of_reconfig_data *p)
 	switch (action) {
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("of/notify %-15s %s\n", action_names[action],
+		pr_debug("notify %-15s %s\n", action_names[action],
 			pr->dn->full_name);
 		break;
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("of/notify %-15s %s:%s\n", action_names[action],
+		pr_debug("notify %-15s %s:%s\n", action_names[action],
 			pr->dn->full_name, pr->prop->name);
 		break;
 
@@ -311,6 +313,7 @@ int of_detach_node(struct device_node *np)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(of_detach_node);
 
 /**
  * of_node_release() - release a dynamically allocated node
@@ -459,12 +462,12 @@ static void __of_changeset_entry_dump(struct of_changeset_entry *ce)
 	case OF_RECONFIG_ADD_PROPERTY:
 	case OF_RECONFIG_REMOVE_PROPERTY:
 	case OF_RECONFIG_UPDATE_PROPERTY:
-		pr_debug("of/cset<%p> %-15s %s/%s\n", ce, action_names[ce->action],
+		pr_debug("cset<%p> %-15s %s/%s\n", ce, action_names[ce->action],
 			ce->np->full_name, ce->prop->name);
 		break;
 	case OF_RECONFIG_ATTACH_NODE:
 	case OF_RECONFIG_DETACH_NODE:
-		pr_debug("of/cset<%p> %-15s %s\n", ce, action_names[ce->action],
+		pr_debug("cset<%p> %-15s %s\n", ce, action_names[ce->action],
 			ce->np->full_name);
 		break;
 	}
@@ -497,6 +500,11 @@ static void __of_changeset_entry_invert(struct of_changeset_entry *ce,
 	case OF_RECONFIG_UPDATE_PROPERTY:
 		rce->old_prop = ce->prop;
 		rce->prop = ce->old_prop;
+		/* update was used but original property did not exist */
+		if (!rce->prop) {
+			rce->action = OF_RECONFIG_REMOVE_PROPERTY;
+			rce->prop = ce->prop;
+		}
 		break;
 	}
 }
@@ -525,13 +533,13 @@ static void __of_changeset_entry_notify(struct of_changeset_entry *ce, bool reve
 		ret = of_property_notify(ce->action, ce->np, ce->prop, ce->old_prop);
 		break;
 	default:
-		pr_err("%s: invalid devicetree changeset action: %i\n", __func__,
+		pr_err("invalid devicetree changeset action: %i\n",
 			(int)ce->action);
 		return;
 	}
 
 	if (ret)
-		pr_err("%s: notifier error @%s\n", __func__, ce->np->full_name);
+		pr_err("changeset notifier error @%s\n", ce->np->full_name);
 }
 
 static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
@@ -562,8 +570,8 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 
 		ret = __of_add_property(ce->np, ce->prop);
 		if (ret) {
-			pr_err("%s: add_property failed @%s/%s\n",
-				__func__, ce->np->full_name,
+			pr_err("changeset: add_property failed @%s/%s\n",
+				ce->np->full_name,
 				ce->prop->name);
 			break;
 		}
@@ -571,8 +579,8 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 	case OF_RECONFIG_REMOVE_PROPERTY:
 		ret = __of_remove_property(ce->np, ce->prop);
 		if (ret) {
-			pr_err("%s: remove_property failed @%s/%s\n",
-				__func__, ce->np->full_name,
+			pr_err("changeset: remove_property failed @%s/%s\n",
+				ce->np->full_name,
 				ce->prop->name);
 			break;
 		}
@@ -590,8 +598,8 @@ static int __of_changeset_entry_apply(struct of_changeset_entry *ce)
 
 		ret = __of_update_property(ce->np, ce->prop, &old_prop);
 		if (ret) {
-			pr_err("%s: update_property failed @%s/%s\n",
-				__func__, ce->np->full_name,
+			pr_err("changeset: update_property failed @%s/%s\n",
+				ce->np->full_name,
 				ce->prop->name);
 			break;
 		}
@@ -671,24 +679,24 @@ int __of_changeset_apply(struct of_changeset *ocs)
 	int ret;
 
 	/* perform the rest of the work */
-	pr_debug("of_changeset: applying...\n");
+	pr_debug("changeset: applying...\n");
 	list_for_each_entry(ce, &ocs->entries, node) {
 		ret = __of_changeset_entry_apply(ce);
 		if (ret) {
-			pr_err("%s: Error applying changeset (%d)\n", __func__, ret);
+			pr_err("Error applying changeset (%d)\n", ret);
 			list_for_each_entry_continue_reverse(ce, &ocs->entries, node)
 				__of_changeset_entry_revert(ce);
 			return ret;
 		}
 	}
-	pr_debug("of_changeset: applied, emitting notifiers.\n");
+	pr_debug("changeset: applied, emitting notifiers.\n");
 
 	/* drop the global lock while emitting notifiers */
 	mutex_unlock(&of_mutex);
 	list_for_each_entry(ce, &ocs->entries, node)
 		__of_changeset_entry_notify(ce, 0);
 	mutex_lock(&of_mutex);
-	pr_debug("of_changeset: notifiers sent.\n");
+	pr_debug("changeset: notifiers sent.\n");
 
 	return 0;
 }
@@ -722,24 +730,24 @@ int __of_changeset_revert(struct of_changeset *ocs)
 	struct of_changeset_entry *ce;
 	int ret;
 
-	pr_debug("of_changeset: reverting...\n");
+	pr_debug("changeset: reverting...\n");
 	list_for_each_entry_reverse(ce, &ocs->entries, node) {
 		ret = __of_changeset_entry_revert(ce);
 		if (ret) {
-			pr_err("%s: Error reverting changeset (%d)\n", __func__, ret);
+			pr_err("Error reverting changeset (%d)\n", ret);
 			list_for_each_entry_continue(ce, &ocs->entries, node)
 				__of_changeset_entry_apply(ce);
 			return ret;
 		}
 	}
-	pr_debug("of_changeset: reverted, emitting notifiers.\n");
+	pr_debug("changeset: reverted, emitting notifiers.\n");
 
 	/* drop the global lock while emitting notifiers */
 	mutex_unlock(&of_mutex);
 	list_for_each_entry_reverse(ce, &ocs->entries, node)
 		__of_changeset_entry_notify(ce, 1);
 	mutex_lock(&of_mutex);
-	pr_debug("of_changeset: notifiers sent.\n");
+	pr_debug("changeset: notifiers sent.\n");
 
 	return 0;
 }
@@ -789,10 +797,9 @@ int of_changeset_action(struct of_changeset *ocs, unsigned long action,
 	struct of_changeset_entry *ce;
 
 	ce = kzalloc(sizeof(*ce), GFP_KERNEL);
-	if (!ce) {
-		pr_err("%s: Failed to allocate\n", __func__);
+	if (!ce)
 		return -ENOMEM;
-	}
+
 	/* get a reference to the node */
 	ce->action = action;
 	ce->np = of_node_get(np);

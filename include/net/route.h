@@ -325,10 +325,11 @@ static inline struct rtable *ip_route_newports(struct flowi4 *fl4, struct rtable
 
 static inline int inet_iif(const struct sk_buff *skb)
 {
-	int iif = skb_rtable(skb)->rt_iif;
+	struct rtable *rt = skb_rtable(skb);
 
-	if (iif)
-		return iif;
+	if (rt && rt->rt_iif)
+		return rt->rt_iif;
+
 	return skb->skb_iif;
 }
 

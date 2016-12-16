@@ -155,7 +155,10 @@ static const struct rockchip_cpuclk_reg_data rk3066_cpuclk_data = {
 	.core_reg = RK2928_CLKSEL_CON(0),
 	.div_core_shift = 0,
 	.div_core_mask = 0x1f,
+	.mux_core_alt = 1,
+	.mux_core_main = 0,
 	.mux_core_shift = 8,
+	.mux_core_mask = 0x1,
 };
 
 #define RK3188_DIV_ACLK_CORE_MASK	0x7
@@ -191,7 +194,10 @@ static const struct rockchip_cpuclk_reg_data rk3188_cpuclk_data = {
 	.core_reg = RK2928_CLKSEL_CON(0),
 	.div_core_shift = 9,
 	.div_core_mask = 0x1f,
+	.mux_core_alt = 1,
+	.mux_core_main = 0,
 	.mux_core_shift = 8,
+	.mux_core_mask = 0x1,
 };
 
 PNAME(mux_pll_p)		= { "xin24m", "xin32k" };
@@ -753,57 +759,75 @@ static const char *const rk3188_critical_clocks[] __initconst = {
 	"hclk_cpubus"
 };
 
-static void __init rk3188_common_clk_init(struct device_node *np)
+static struct rockchip_clk_provider *__init rk3188_common_clk_init(struct device_node *np)
 {
+	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
 		pr_err("%s: could not map cru region\n", __func__);
-		return;
+		return ERR_PTR(-ENOMEM);
 	}
 
-	rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
+	ctx = rockchip_clk_init(np, reg_base, CLK_NR_CLKS);
+	if (IS_ERR(ctx)) {
+		pr_err("%s: rockchip clk init failed\n", __func__);
+		iounmap(reg_base);
+		return ERR_PTR(-ENOMEM);
+	}
 
-	rockchip_clk_register_branches(common_clk_branches,
+	rockchip_clk_register_branches(ctx, common_clk_branches,
 				  ARRAY_SIZE(common_clk_branches));
 
 	rockchip_register_softrst(np, 9, reg_base + RK2928_SOFTRST_CON(0),
 				  ROCKCHIP_SOFTRST_HIWORD_MASK);
 
-	rockchip_register_restart_notifier(RK2928_GLB_SRST_FST, NULL);
+	rockchip_register_restart_notifier(ctx, RK2928_GLB_SRST_FST, NULL);
+
+	return ctx;
 }
 
 static void __init rk3066a_clk_init(struct device_node *np)
 {
-	rk3188_common_clk_init(np);
-	rockchip_clk_register_plls(rk3066_pll_clks,
+	struct rockchip_clk_provider *ctx;
+
+	ctx = rk3188_common_clk_init(np);
+	if (IS_ERR(ctx))
+		return;
+
+	rockchip_clk_register_plls(ctx, rk3066_pll_clks,
 				   ARRAY_SIZE(rk3066_pll_clks),
 				   RK3066_GRF_SOC_STATUS);
-	rockchip_clk_register_branches(rk3066a_clk_branches,
+	rockchip_clk_register_branches(ctx, rk3066a_clk_branches,
 				  ARRAY_SIZE(rk3066a_clk_branches));
-	rockchip_clk_register_armclk(ARMCLK, "armclk",
+	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
 			mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
 			&rk3066_cpuclk_data, rk3066_cpuclk_rates,
 			ARRAY_SIZE(rk3066_cpuclk_rates));
 	rockchip_clk_protect_critical(rk3188_critical_clocks,
 				      ARRAY_SIZE(rk3188_critical_clocks));
+	rockchip_clk_of_add_provider(np, ctx);
 }
 CLK_OF_DECLARE(rk3066a_cru, "rockchip,rk3066a-cru", rk3066a_clk_init);
 
 static void __init rk3188a_clk_init(struct device_node *np)
 {
+	struct rockchip_clk_provider *ctx;
 	struct clk *clk1, *clk2;
 	unsigned long rate;
 	int ret;
 
-	rk3188_common_clk_init(np);
-	rockchip_clk_register_plls(rk3188_pll_clks,
+	ctx = rk3188_common_clk_init(np);
+	if (IS_ERR(ctx))
+		return;
+
+	rockchip_clk_register_plls(ctx, rk3188_pll_clks,
 				   ARRAY_SIZE(rk3188_pll_clks),
 				   RK3188_GRF_SOC_STATUS);
-	rockchip_clk_register_branches(rk3188_clk_branches,
+	rockchip_clk_register_branches(ctx, rk3188_clk_branches,
 				  ARRAY_SIZE(rk3188_clk_branches));
-	rockchip_clk_register_armclk(ARMCLK, "armclk",
+	rockchip_clk_register_armclk(ctx, ARMCLK, "armclk",
 				  mux_armclk_p, ARRAY_SIZE(mux_armclk_p),
 				  &rk3188_cpuclk_data, rk3188_cpuclk_rates,
 				  ARRAY_SIZE(rk3188_cpuclk_rates));
@@ -827,6 +851,7 @@ static void __init rk3188a_clk_init(struct device_node *np)
 
 	rockchip_clk_protect_critical(rk3188_critical_clocks,
 				      ARRAY_SIZE(rk3188_critical_clocks));
+	rockchip_clk_of_add_provider(np, ctx);
 }
 CLK_OF_DECLARE(rk3188a_cru, "rockchip,rk3188a-cru", rk3188a_clk_init);
 

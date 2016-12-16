@@ -236,6 +236,7 @@ certainly invest a bit more effort into libata core layer).
 CLOCK
   devm_clk_get()
   devm_clk_put()
+  devm_clk_hw_register()
 
 DMA
   dmam_alloc_coherent()
@@ -267,6 +268,13 @@ IIO
   devm_iio_kfifo_free()
   devm_iio_trigger_alloc()
   devm_iio_trigger_free()
+  devm_iio_channel_get()
+  devm_iio_channel_release()
+  devm_iio_channel_get_all()
+  devm_iio_channel_release_all()
+
+INPUT
+  devm_input_allocate_device()
 
 IO region
   devm_release_mem_region()
@@ -317,6 +325,9 @@ MEM
   devm_kvasprintf()
   devm_kzalloc()
 
+MFD
+ devm_mfd_add_devices()
+
 PCI
   pcim_enable_device()	: after success, all PCI ops become managed
   pcim_pin_device()	: keep PCI device enabled after release
@@ -328,6 +339,8 @@ PHY
 PINCTRL
   devm_pinctrl_get()
   devm_pinctrl_put()
+  devm_pinctrl_register()
+  devm_pinctrl_unregister()
 
 PWM
   devm_pwm_get()
@@ -339,8 +352,15 @@ REGULATOR
   devm_regulator_put()
   devm_regulator_register()
 
+RESET
+  devm_reset_control_get()
+  devm_reset_controller_register()
+
 SLAVE DMA ENGINE
   devm_acpi_dma_controller_register()
 
 SPI
   devm_spi_register_master()
+
+WATCHDOG
+  devm_watchdog_register_device()

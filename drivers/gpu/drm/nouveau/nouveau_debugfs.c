@@ -32,7 +32,7 @@
 #include <nvif/class.h>
 #include <nvif/if0001.h>
 #include "nouveau_debugfs.h"
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 
 static int
 nouveau_debugfs_vbios_image(struct seq_file *m, void *data)

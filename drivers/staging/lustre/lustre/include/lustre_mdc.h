@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -64,9 +60,27 @@ struct obd_export;
 struct ptlrpc_request;
 struct obd_device;
 
+/**
+ * Serializes in-flight MDT-modifying RPC requests to preserve idempotency.
+ *
+ * This mutex is used to implement execute-once semantics on the MDT.
+ * The MDT stores the last transaction ID and result for every client in
+ * its last_rcvd file. If the client doesn't get a reply, it can safely
+ * resend the request and the MDT will reconstruct the reply being aware
+ * that the request has already been executed. Without this lock,
+ * execution status of concurrent in-flight requests would be
+ * overwritten.
+ *
+ * This design limits the extent to which we can keep a full pipeline of
+ * in-flight requests from a single client.  This limitation could be
+ * overcome by allowing multiple slots per client in the last_rcvd file.
+ */
 struct mdc_rpc_lock {
+	/** Lock protecting in-flight RPC concurrency. */
 	struct mutex		rpcl_mutex;
+	/** Intent associated with currently executing request. */
 	struct lookup_intent	*rpcl_it;
+	/** Used for MDS/RPC load testing purposes. */
 	int			rpcl_fakes;
 };
 
@@ -171,9 +185,6 @@ struct mdc_cache_waiter {
 };
 
 /* mdc/mdc_locks.c */
-int it_disposition(struct lookup_intent *it, int flag);
-void it_clear_disposition(struct lookup_intent *it, int flag);
-void it_set_disposition(struct lookup_intent *it, int flag);
 int it_open_error(int phase, struct lookup_intent *it);
 
 static inline bool cl_is_lov_delay_create(unsigned int flags)

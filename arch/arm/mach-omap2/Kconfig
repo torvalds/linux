@@ -17,6 +17,7 @@ config ARCH_OMAP3
 	select PM_OPP if PM
 	select PM if CPU_IDLE
 	select SOC_HAS_OMAP2_SDRC
+	select ARM_ERRATA_430973
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
@@ -36,6 +37,7 @@ config ARCH_OMAP4
 	select PM if CPU_IDLE
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
+	select OMAP_INTERCONNECT
 
 config SOC_OMAP5
 	bool "TI OMAP5"
@@ -67,6 +69,8 @@ config SOC_AM43XX
 	select HAVE_ARM_SCU
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select HAVE_ARM_TWD
+	select ARM_ERRATA_754322
+	select ARM_ERRATA_775420
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"
@@ -88,9 +92,9 @@ config ARCH_OMAP2PLUS
 	select ARCH_HAS_BANDGAP
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	select ARCH_OMAP
-	select ARCH_REQUIRE_GPIOLIB
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
+	select GPIOLIB
 	select MACH_OMAP_GENERIC
 	select MEMORY
 	select MFD_SYSCON
@@ -239,5 +243,13 @@ config OMAP3_SDRC_AC_TIMING
 endmenu
 
 endif
+
+config OMAP5_ERRATA_801819
+	bool "Errata 801819: An eviction from L1 data cache might stall indefinitely"
+	depends on SOC_OMAP5 || SOC_DRA7XX
+	help
+	  A livelock can occur in the L2 cache arbitration that might prevent
+	  a snoop from completing. Under certain conditions this can cause the
+	  system to deadlock.
 
 endmenu

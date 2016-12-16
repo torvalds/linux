@@ -49,8 +49,6 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 	atomic_set(&hdlcd->dma_end_count, 0);
 #endif
 
-	INIT_LIST_HEAD(&hdlcd->event_list);
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hdlcd->mmio = devm_ioremap_resource(drm->dev, res);
 	if (IS_ERR(hdlcd->mmio)) {
@@ -84,11 +82,7 @@ static int hdlcd_load(struct drm_device *drm, unsigned long flags)
 		goto setup_fail;
 	}
 
-	pm_runtime_enable(drm->dev);
-
-	pm_runtime_get_sync(drm->dev);
 	ret = drm_irq_install(drm, platform_get_irq(pdev, 0));
-	pm_runtime_put_sync(drm->dev);
 	if (ret < 0) {
 		DRM_ERROR("failed to install IRQ handler\n");
 		goto irq_fail;
@@ -108,21 +102,14 @@ static void hdlcd_fb_output_poll_changed(struct drm_device *drm)
 {
 	struct hdlcd_drm_private *hdlcd = drm->dev_private;
 
-	if (hdlcd->fbdev)
-		drm_fbdev_cma_hotplug_event(hdlcd->fbdev);
-}
-
-static int hdlcd_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state, bool async)
-{
-	return drm_atomic_helper_commit(dev, state, false);
+	drm_fbdev_cma_hotplug_event(hdlcd->fbdev);
 }
 
 static const struct drm_mode_config_funcs hdlcd_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = hdlcd_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = hdlcd_atomic_commit,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static void hdlcd_setup_mode_config(struct drm_device *drm)
@@ -164,23 +151,8 @@ static irqreturn_t hdlcd_irq(int irq, void *arg)
 		atomic_inc(&hdlcd->vsync_count);
 
 #endif
-	if (irq_status & HDLCD_INTERRUPT_VSYNC) {
-		bool events_sent = false;
-		unsigned long flags;
-		struct drm_pending_vblank_event	*e, *t;
-
+	if (irq_status & HDLCD_INTERRUPT_VSYNC)
 		drm_crtc_handle_vblank(&hdlcd->crtc);
-
-		spin_lock_irqsave(&drm->event_lock, flags);
-		list_for_each_entry_safe(e, t, &hdlcd->event_list, base.link) {
-			list_del(&e->base.link);
-			drm_crtc_send_vblank_event(&hdlcd->crtc, e);
-			events_sent = true;
-		}
-		if (events_sent)
-			drm_crtc_vblank_put(&hdlcd->crtc);
-		spin_unlock_irqrestore(&drm->event_lock, flags);
-	}
 
 	/* acknowledge interrupt(s) */
 	hdlcd_write(hdlcd, HDLCD_REG_INT_CLEAR, irq_status);
@@ -275,6 +247,7 @@ static int hdlcd_show_pxlclock(struct seq_file *m, void *arg)
 static struct drm_info_list hdlcd_debugfs_list[] = {
 	{ "interrupt_count", hdlcd_show_underrun_count, 0 },
 	{ "clocks", hdlcd_show_pxlclock, 0 },
+	{ "fb", drm_fb_cma_debugfs_show, 0 },
 };
 
 static int hdlcd_debugfs_init(struct drm_minor *minor)
@@ -316,7 +289,7 @@ static struct drm_driver hdlcd_driver = {
 	.get_vblank_counter = drm_vblank_no_hw_counter,
 	.enable_vblank = hdlcd_enable_vblank,
 	.disable_vblank = hdlcd_disable_vblank,
-	.gem_free_object = drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
 	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
@@ -357,6 +330,8 @@ static int hdlcd_drm_bind(struct device *dev)
 		return -ENOMEM;
 
 	drm->dev_private = hdlcd;
+	dev_set_drvdata(dev, drm);
+
 	hdlcd_setup_mode_config(drm);
 	ret = hdlcd_load(drm, 0);
 	if (ret)
@@ -366,20 +341,23 @@ static int hdlcd_drm_bind(struct device *dev)
 	if (ret)
 		goto err_unload;
 
-	dev_set_drvdata(dev, drm);
-
 	ret = component_bind_all(dev, drm);
 	if (ret) {
 		DRM_ERROR("Failed to bind all components\n");
 		goto err_unregister;
 	}
 
+	ret = pm_runtime_set_active(dev);
+	if (ret)
+		goto err_pm_active;
+
+	pm_runtime_enable(dev);
+
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialise vblank\n");
 		goto err_vblank;
 	}
-	drm->vblank_disable_allowed = true;
 
 	drm_mode_config_reset(drm);
 	drm_kms_helper_poll_init(drm);
@@ -400,16 +378,16 @@ err_fbdev:
 	drm_mode_config_cleanup(drm);
 	drm_vblank_cleanup(drm);
 err_vblank:
+	pm_runtime_disable(drm->dev);
+err_pm_active:
 	component_unbind_all(dev, drm);
 err_unregister:
 	drm_dev_unregister(drm);
 err_unload:
-	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);
-	pm_runtime_put_sync(drm->dev);
-	pm_runtime_disable(drm->dev);
 	of_reserved_mem_device_release(drm->dev);
 err_free:
+	dev_set_drvdata(dev, NULL);
 	drm_dev_unref(drm);
 
 	return ret;
@@ -496,30 +474,34 @@ MODULE_DEVICE_TABLE(of, hdlcd_of_match);
 static int __maybe_unused hdlcd_pm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct drm_crtc *crtc;
+	struct hdlcd_drm_private *hdlcd = drm ? drm->dev_private : NULL;
 
-	if (pm_runtime_suspended(dev))
+	if (!hdlcd)
 		return 0;
 
-	drm_modeset_lock_all(drm);
-	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head)
-		hdlcd_crtc_suspend(crtc);
-	drm_modeset_unlock_all(drm);
+	drm_kms_helper_poll_disable(drm);
+
+	hdlcd->state = drm_atomic_helper_suspend(drm);
+	if (IS_ERR(hdlcd->state)) {
+		drm_kms_helper_poll_enable(drm);
+		return PTR_ERR(hdlcd->state);
+	}
+
 	return 0;
 }
 
 static int __maybe_unused hdlcd_pm_resume(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
-	struct drm_crtc *crtc;
+	struct hdlcd_drm_private *hdlcd = drm ? drm->dev_private : NULL;
 
-	if (!pm_runtime_suspended(dev))
+	if (!hdlcd)
 		return 0;
 
-	drm_modeset_lock_all(drm);
-	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head)
-		hdlcd_crtc_resume(crtc);
-	drm_modeset_unlock_all(drm);
+	drm_atomic_helper_resume(drm, hdlcd->state);
+	drm_kms_helper_poll_enable(drm);
+	pm_runtime_set_active(dev);
+
 	return 0;
 }
 

@@ -9,16 +9,10 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
-/ {
-	nand@18028000 {
-		nandcs@0 {
-			compatible = "brcm,nandcs";
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <1>;
+#include "bcm5301x-nand-cs0.dtsi"
 
-			nand-ecc-strength = <8>;
-			nand-ecc-step-size = <512>;
-		};
-	};
+&nandcs {
+	nand-ecc-algo = "bch";
+	nand-ecc-strength = <8>;
+	nand-ecc-step-size = <512>;
 };

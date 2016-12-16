@@ -656,7 +656,7 @@ static const struct pinctrl_ops palmas_pinctrl_ops = {
 	.get_group_name = palmas_pinctrl_get_group_name,
 	.get_group_pins = palmas_pinctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int palmas_pinctrl_get_funcs_count(struct pinctrl_dev *pctldev)
@@ -1043,19 +1043,12 @@ static int palmas_pinctrl_probe(struct platform_device *pdev)
 	palmas_pinctrl_desc.name = dev_name(&pdev->dev);
 	palmas_pinctrl_desc.pins = palmas_pins_desc;
 	palmas_pinctrl_desc.npins = ARRAY_SIZE(palmas_pins_desc);
-	pci->pctl = pinctrl_register(&palmas_pinctrl_desc, &pdev->dev, pci);
+	pci->pctl = devm_pinctrl_register(&pdev->dev, &palmas_pinctrl_desc,
+					  pci);
 	if (IS_ERR(pci->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		return PTR_ERR(pci->pctl);
 	}
-	return 0;
-}
-
-static int palmas_pinctrl_remove(struct platform_device *pdev)
-{
-	struct palmas_pctrl_chip_info *pci = platform_get_drvdata(pdev);
-
-	pinctrl_unregister(pci->pctl);
 	return 0;
 }
 
@@ -1065,7 +1058,6 @@ static struct platform_driver palmas_pinctrl_driver = {
 		.of_match_table = palmas_pinctrl_of_match,
 	},
 	.probe = palmas_pinctrl_probe,
-	.remove = palmas_pinctrl_remove,
 };
 
 module_platform_driver(palmas_pinctrl_driver);

@@ -44,9 +44,7 @@ extern void arm_heavy_mb(void);
 #define __arm_heavy_mb(x...) dsb(x)
 #endif
 
-#ifdef CONFIG_ARCH_HAS_BARRIERS
-#include <mach/barriers.h>
-#elif defined(CONFIG_ARM_DMA_MEM_BUFFERABLE) || defined(CONFIG_SMP)
+#if defined(CONFIG_ARM_DMA_MEM_BUFFERABLE) || defined(CONFIG_SMP)
 #define mb()		__arm_heavy_mb()
 #define rmb()		dsb()
 #define wmb()		__arm_heavy_mb(st)

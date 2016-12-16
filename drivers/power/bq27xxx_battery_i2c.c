@@ -1,5 +1,5 @@
 /*
- * SCI Reset driver for Keystone based devices
+ * BQ27xxx battery monitor I2C driver
  *
  * Copyright (C) 2015 Texas Instruments Incorporated - http://www.ti.com/
  *	Andrew F. Davis <afd@ti.com>
