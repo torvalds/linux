@@ -36,15 +36,15 @@ conditions.
                   combined interrupt, it must be listed multiple times.
 
 - #iommu-cells  : See Documentation/devicetree/bindings/iommu/iommu.txt
-                  for details. With a value of 1, each "iommus" entry
+                  for details. With a value of 1, each IOMMU specifier
                   represents a distinct stream ID emitted by that device
                   into the relevant SMMU.
 
                   SMMUs with stream matching support and complex masters
-                  may use a value of 2, where the second cell represents
-                  an SMR mask to combine with the ID in the first cell.
-                  Care must be taken to ensure the set of matched IDs
-                  does not result in conflicts.
+                  may use a value of 2, where the second cell of the
+                  IOMMU specifier represents an SMR mask to combine with
+                  the ID in the first cell.  Care must be taken to ensure
+                  the set of matched IDs does not result in conflicts.
 
 ** System MMU optional properties:
 
