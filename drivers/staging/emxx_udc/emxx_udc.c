@@ -3137,7 +3137,7 @@ static const struct {
 };
 
 /*-------------------------------------------------------------------------*/
-static void __init nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
+static void nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 {
 	int	i;
 
@@ -3168,7 +3168,7 @@ static void __init nbu2ss_drv_ep_init(struct nbu2ss_udc *udc)
 
 /*-------------------------------------------------------------------------*/
 /* platform_driver */
-static int __init nbu2ss_drv_contest_init(
+static int nbu2ss_drv_contest_init(
 	struct platform_device *pdev,
 	struct nbu2ss_udc *udc)
 {
