@@ -245,6 +245,8 @@ static bool build_hw_curve_configuration(
 	uint32_t segments = 0;
 	uint32_t max_number;
 
+	int8_t num_regions = 0;
+
 	bool result = false;
 
 	if (!number_of_points) {
@@ -273,6 +275,7 @@ static bool build_hw_curve_configuration(
 		ASSERT(curve_config->segments[i] >= 0);
 
 		segments += (1 << curve_config->segments[i]);
+		++num_regions;
 
 		++i;
 	}
@@ -284,12 +287,14 @@ static bool build_hw_curve_configuration(
 		uint32_t offset = 0;
 		int8_t begin = curve_config->begin;
 		int32_t region_number = 0;
+		struct fixed31_32 magic_number =
+				dal_fixed31_32_from_fraction(249, 1000);
 
 		i = begin;
 
 		while ((index < max_number) &&
 			(region_number < max_regions_number) &&
-			(i <= 1)) {
+			(i < (begin + num_regions))) {
 			int32_t j = 0;
 
 			segments = curve_config->segments[region_number];
@@ -345,8 +350,7 @@ static bool build_hw_curve_configuration(
 				divisor);
 
 			points[index].x = region1;
-
-			round_custom_float_6_12(points + index);
+			points[index].adjusted_x = region1;
 
 			++index;
 			++region_number;
@@ -366,9 +370,10 @@ static bool build_hw_curve_configuration(
 			++i;
 		}
 
-		points[index].x = region1;
-
-		round_custom_float_6_12(points + index);
+		points[index].x =
+				dal_fixed31_32_add(region1, magic_number);
+		points[index].adjusted_x =
+				dal_fixed31_32_add(region1, magic_number);
 
 		*number_of_points = index;
 
@@ -1215,15 +1220,11 @@ static void rebuild_curve_configuration_magic(
 		const struct hw_x_point *coordinates_x,
 		uint32_t hw_points_num)
 {
-	const struct fixed31_32 magic_number =
-		dal_fixed31_32_from_fraction(249, 1000);
-
 	struct fixed31_32 y_r;
 	struct fixed31_32 y_g;
 	struct fixed31_32 y_b;
 
 	struct fixed31_32 y1_min;
-	struct fixed31_32 y2_max;
 	struct fixed31_32 y3_max;
 
 	y_r = rgb_resulted[0].red;
@@ -1238,29 +1239,31 @@ static void rebuild_curve_configuration_magic(
 					arr_points[0].y,
 					arr_points[0].x);
 
-	arr_points[1].x = dal_fixed31_32_add(
-			coordinates_x[hw_points_num - 1].adjusted_x,
-			magic_number);
-
-	arr_points[2].x = arr_points[1].x;
-
-	y_r = rgb_resulted[hw_points_num - 1].red;
-	y_g = rgb_resulted[hw_points_num - 1].green;
-	y_b = rgb_resulted[hw_points_num - 1].blue;
-
-	y2_max = dal_fixed31_32_max(y_r, dal_fixed31_32_max(y_g, y_b));
-
-	arr_points[1].y = y2_max;
+	/* this should be cleaned up as it's confusing my understanding (KK) is
+	 * that REGAMMA_CNTLA_EXP_REGION_END is the X value for the region end
+	 * REGAMMA_CNTLA_EXP_REGION_END_BASE is Y value for the above X
+	 * REGAMMA_CNTLA_EXP_REGION_END_SLOPE is the slope beyond (X,Y) above
+	 * currently when programming REGION_END = m_arrPoints[1].x,
+	 * REGION_END_BASE = m_arrPoints[1].y, REGION_END_SLOPE=1
+	 * we don't use m_arrPoints[2] at all after this function,
+	 * and its purpose isn't clear to me
+	 */
+	arr_points[1].x = coordinates_x[hw_points_num].adjusted_x;
+	arr_points[2].x = coordinates_x[hw_points_num].adjusted_x;
 
 	y_r = rgb_resulted[hw_points_num].red;
 	y_g = rgb_resulted[hw_points_num].green;
 	y_b = rgb_resulted[hw_points_num].blue;
 
+	/* see comment above, m_arrPoints[1].y should be the Y value for the
+	 * region end (m_numOfHwPoints), not last HW point(m_numOfHwPoints - 1)
+	 */
 	y3_max = dal_fixed31_32_max(y_r, dal_fixed31_32_max(y_g, y_b));
 
+	arr_points[1].y = y3_max;
 	arr_points[2].y = y3_max;
 
-	arr_points[2].slope = dal_fixed31_32_one;
+	arr_points[2].slope = dal_fixed31_32_zero;
 }
 
 static bool convert_to_custom_float_format(
