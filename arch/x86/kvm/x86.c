@@ -3961,7 +3961,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 		mutex_lock(&kvm->lock);
 		r = -EEXIST;
-		if (kvm->arch.vpic)
+		if (irqchip_in_kernel(kvm))
 			goto create_irqchip_unlock;
 		r = -EINVAL;
 		if (kvm->created_vcpus)
