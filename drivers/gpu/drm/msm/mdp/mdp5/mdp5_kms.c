@@ -411,7 +411,9 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	struct msm_drm_private *priv = dev->dev_private;
 	const struct mdp5_cfg_hw *hw_cfg;
 	unsigned int num_crtcs;
-	int i, ret;
+	int i, ret, pi = 0, ci = 0;
+	struct drm_plane *primary[MAX_BASES] = { NULL };
+	struct drm_plane *cursor[MAX_BASES] = { NULL };
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
 
@@ -438,13 +440,14 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 	 * planes for the CRTCs, with the remainder as overlay planes:
 	 */
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
-		bool primary = i < num_crtcs;
+		struct mdp5_hw_pipe *hwpipe = mdp5_kms->hwpipes[i];
 		struct drm_plane *plane;
-		struct drm_crtc *crtc;
 		enum drm_plane_type type;
 
-		if (primary)
+		if (i < num_crtcs)
 			type = DRM_PLANE_TYPE_PRIMARY;
+		else if (hwpipe->caps & MDP_PIPE_CAP_CURSOR)
+			type = DRM_PLANE_TYPE_CURSOR;
 		else
 			type = DRM_PLANE_TYPE_OVERLAY;
 
@@ -456,10 +459,16 @@ static int modeset_init(struct mdp5_kms *mdp5_kms)
 		}
 		priv->planes[priv->num_planes++] = plane;
 
-		if (!primary)
-			continue;
+		if (type == DRM_PLANE_TYPE_PRIMARY)
+			primary[pi++] = plane;
+		if (type == DRM_PLANE_TYPE_CURSOR)
+			cursor[ci++] = plane;
+	}
 
-		crtc  = mdp5_crtc_init(dev, plane, NULL, i);
+	for (i = 0; i < num_crtcs; i++) {
+		struct drm_crtc *crtc;
+
+		crtc  = mdp5_crtc_init(dev, primary[i], cursor[i], i);
 		if (IS_ERR(crtc)) {
 			ret = PTR_ERR(crtc);
 			dev_err(dev->dev, "failed to construct crtc %d (%d)\n", i, ret);
@@ -791,6 +800,9 @@ static int hwpipe_init(struct mdp5_kms *mdp5_kms)
 	static const enum mdp5_pipe dma_planes[] = {
 			SSPP_DMA0, SSPP_DMA1,
 	};
+	static const enum mdp5_pipe cursor_planes[] = {
+			SSPP_CURSOR0, SSPP_CURSOR1,
+	};
 	const struct mdp5_cfg_hw *hw_cfg;
 	int ret;
 
@@ -811,6 +823,13 @@ static int hwpipe_init(struct mdp5_kms *mdp5_kms)
 	/* Construct DMA pipes: */
 	ret = construct_pipes(mdp5_kms, hw_cfg->pipe_dma.count, dma_planes,
 			hw_cfg->pipe_dma.base, hw_cfg->pipe_dma.caps);
+	if (ret)
+		return ret;
+
+	/* Construct cursor pipes: */
+	ret = construct_pipes(mdp5_kms, hw_cfg->pipe_cursor.count,
+			cursor_planes, hw_cfg->pipe_cursor.base,
+			hw_cfg->pipe_cursor.caps);
 	if (ret)
 		return ret;
 
