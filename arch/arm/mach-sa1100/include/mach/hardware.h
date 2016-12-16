@@ -52,8 +52,4 @@
 
 #include "SA-1100.h"
 
-#ifdef CONFIG_SA1101
-#include "SA-1101.h"
-#endif
-
 #endif  /* _ASM_ARCH_HARDWARE_H */
