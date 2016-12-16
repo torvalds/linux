@@ -126,17 +126,6 @@ static int ovl_set_opaque(struct dentry *upperdentry)
 	return ovl_do_setxattr(upperdentry, OVL_XATTR_OPAQUE, "y", 1, 0);
 }
 
-static void ovl_remove_opaque(struct dentry *upperdentry)
-{
-	int err;
-
-	err = ovl_do_removexattr(upperdentry, OVL_XATTR_OPAQUE);
-	if (err) {
-		pr_warn("overlayfs: failed to remove opaque from '%s' (%i)\n",
-			upperdentry->d_name.name, err);
-	}
-}
-
 static int ovl_dir_getattr(struct vfsmount *mnt, struct dentry *dentry,
 			 struct kstat *stat)
 {
@@ -817,9 +806,6 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 			goto out_drop_write;
 	}
 
-	old_opaque = ovl_dentry_is_opaque(old);
-	new_opaque = ovl_dentry_is_opaque(new);
-
 	old_cred = ovl_override_creds(old->d_sb);
 
 	if (overwrite && new_is_dir && ovl_type_merge_or_lower(new)) {
@@ -868,6 +854,9 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (IS_ERR(newdentry))
 		goto out_dput_old;
 
+	old_opaque = ovl_dentry_is_opaque(old);
+	new_opaque = ovl_dentry_is_opaque(new);
+
 	err = -ESTALE;
 	if (ovl_dentry_upper(new)) {
 		if (opaquedir) {
@@ -891,54 +880,24 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (WARN_ON(olddentry->d_inode == newdentry->d_inode))
 		goto out_dput;
 
-	if (is_dir && !old_opaque && new_opaque) {
+	if (is_dir && !old_opaque && ovl_lower_positive(new)) {
 		err = ovl_set_opaque(olddentry);
 		if (err)
 			goto out_dput;
+		ovl_dentry_set_opaque(old, true);
 	}
-	if (!overwrite && new_is_dir && old_opaque && !new_opaque) {
+	if (!overwrite &&
+	    new_is_dir && !new_opaque && ovl_lower_positive(old)) {
 		err = ovl_set_opaque(newdentry);
 		if (err)
 			goto out_dput;
+		ovl_dentry_set_opaque(new, true);
 	}
 
-	if (old_opaque || new_opaque) {
-		err = ovl_do_rename(old_upperdir->d_inode, olddentry,
-				    new_upperdir->d_inode, newdentry,
-				    flags);
-	} else {
-		/* No debug for the plain case */
-		BUG_ON(flags & ~RENAME_EXCHANGE);
-		err = vfs_rename(old_upperdir->d_inode, olddentry,
-				 new_upperdir->d_inode, newdentry,
-				 NULL, flags);
-	}
-
-	if (err) {
-		if (is_dir && !old_opaque && new_opaque)
-			ovl_remove_opaque(olddentry);
-		if (!overwrite && new_is_dir && old_opaque && !new_opaque)
-			ovl_remove_opaque(newdentry);
+	err = ovl_do_rename(old_upperdir->d_inode, olddentry,
+			    new_upperdir->d_inode, newdentry, flags);
+	if (err)
 		goto out_dput;
-	}
-
-	if (is_dir && old_opaque && !new_opaque)
-		ovl_remove_opaque(olddentry);
-	if (!overwrite && new_is_dir && !old_opaque && new_opaque)
-		ovl_remove_opaque(newdentry);
-
-	/*
-	 * Old dentry now lives in different location. Dentries in
-	 * lowerstack are stale. We cannot drop them here because
-	 * access to them is lockless. This could be only pure upper
-	 * or opaque directory - numlower is zero. Or upper non-dir
-	 * entry - its pureness is tracked by flag opaque.
-	 */
-	if (old_opaque != new_opaque) {
-		ovl_dentry_set_opaque(old, new_opaque);
-		if (!overwrite)
-			ovl_dentry_set_opaque(new, old_opaque);
-	}
 
 	if (cleanup_whiteout)
 		ovl_cleanup(old_upperdir->d_inode, newdentry);
