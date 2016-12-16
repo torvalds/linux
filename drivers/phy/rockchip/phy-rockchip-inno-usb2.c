@@ -1469,13 +1469,6 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 		if (!rport->phy)
 			continue;
 
-		if (!rport->suspended) {
-			if (rport->port_id == USB2PHY_PORT_HOST)
-				rockchip_usb2phy_sm_work(&rport->sm_work.work);
-			else
-				rockchip_usb2phy_power_off(rport->phy);
-		}
-
 		/* activate the linestate to detect the next interrupt. */
 		property_enable(rphy->grf, &rport->port_cfg->ls_det_clr, true);
 		property_enable(rphy->grf, &rport->port_cfg->ls_det_en, true);
@@ -1486,24 +1479,6 @@ static int rockchip_usb2phy_pm_suspend(struct device *dev)
 
 static int rockchip_usb2phy_pm_resume(struct device *dev)
 {
-	struct rockchip_usb2phy *rphy = dev_get_drvdata(dev);
-	struct rockchip_usb2phy_port *rport;
-	int index;
-
-	for (index = 0; index < rphy->phy_cfg->num_ports; index++) {
-		rport = &rphy->ports[index];
-		if (!rport->phy)
-			continue;
-
-		/*
-		 * Resuming case, for host-port, *_linestate_irq() will take
-		 * over all actions, but for otg-port, we should invoke
-		 * *_power_on() to resume the phy-port manually.
-		 */
-		if (rport->suspended && rport->port_id == USB2PHY_PORT_OTG)
-			rockchip_usb2phy_power_on(rport->phy);
-	}
-
 	return 0;
 }
 
