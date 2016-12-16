@@ -859,7 +859,6 @@ static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
 static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 {
 	struct s3c24xx_uart_dma	*dma = p->dma;
-	dma_cap_mask_t mask;
 	unsigned long flags;
 
 	/* Default slave configuration parameters */
@@ -876,21 +875,17 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	else
 		dma->tx_conf.dst_maxburst = 1;
 
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
+	dma->rx_chan = dma_request_chan(p->port.dev, "rx");
 
-	dma->rx_chan = dma_request_slave_channel_compat(mask, dma->fn,
-					dma->rx_param, p->port.dev, "rx");
-	if (!dma->rx_chan)
-		return -ENODEV;
+	if (IS_ERR(dma->rx_chan))
+		return PTR_ERR(dma->rx_chan);
 
 	dmaengine_slave_config(dma->rx_chan, &dma->rx_conf);
 
-	dma->tx_chan = dma_request_slave_channel_compat(mask, dma->fn,
-					dma->tx_param, p->port.dev, "tx");
-	if (!dma->tx_chan) {
+	dma->tx_chan = dma_request_chan(p->port.dev, "tx");
+	if (IS_ERR(dma->tx_chan)) {
 		dma_release_channel(dma->rx_chan);
-		return -ENODEV;
+		return PTR_ERR(dma->tx_chan);
 	}
 
 	dmaengine_slave_config(dma->tx_chan, &dma->tx_conf);
