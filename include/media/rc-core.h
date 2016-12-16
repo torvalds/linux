@@ -32,13 +32,16 @@ do {								\
 /**
  * enum rc_driver_type - type of the RC output
  *
- * @RC_DRIVER_SCANCODE:	Driver or hardware generates a scancode
- * @RC_DRIVER_IR_RAW:	Driver or hardware generates pulse/space sequences.
- *			It needs a Infra-Red pulse/space decoder
+ * @RC_DRIVER_SCANCODE:	 Driver or hardware generates a scancode
+ * @RC_DRIVER_IR_RAW:	 Driver or hardware generates pulse/space sequences.
+ *			 It needs a Infra-Red pulse/space decoder
+ * @RC_DRIVER_IR_RAW_TX: Device transmitter only,
+ *			 driver requires pulse/space data sequence.
  */
 enum rc_driver_type {
 	RC_DRIVER_SCANCODE = 0,
 	RC_DRIVER_IR_RAW,
+	RC_DRIVER_IR_RAW_TX,
 };
 
 /**
