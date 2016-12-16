@@ -163,33 +163,48 @@ enum {HASH_SIZE = 128};
 static struct list_head chunk_hash_heads[HASH_SIZE];
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(hash_lock);
 
-static inline struct list_head *chunk_hash(const struct inode *inode)
+/* Function to return search key in our hash from inode. */
+static unsigned long inode_to_key(const struct inode *inode)
 {
-	unsigned long n = (unsigned long)inode / L1_CACHE_BYTES;
+	return (unsigned long)inode;
+}
+
+/*
+ * Function to return search key in our hash from chunk. Key 0 is special and
+ * should never be present in the hash.
+ */
+static unsigned long chunk_to_key(struct audit_chunk *chunk)
+{
+	return (unsigned long)chunk->mark.inode;
+}
+
+static inline struct list_head *chunk_hash(unsigned long key)
+{
+	unsigned long n = key / L1_CACHE_BYTES;
 	return chunk_hash_heads + n % HASH_SIZE;
 }
 
 /* hash_lock & entry->lock is held by caller */
 static void insert_hash(struct audit_chunk *chunk)
 {
-	struct fsnotify_mark *entry = &chunk->mark;
+	unsigned long key = chunk_to_key(chunk);
 	struct list_head *list;
 
-	if (!entry->inode)
+	if (!key)
 		return;
-	list = chunk_hash(entry->inode);
+	list = chunk_hash(key);
 	list_add_rcu(&chunk->hash, list);
 }
 
 /* called under rcu_read_lock */
 struct audit_chunk *audit_tree_lookup(const struct inode *inode)
 {
-	struct list_head *list = chunk_hash(inode);
+	unsigned long key = inode_to_key(inode);
+	struct list_head *list = chunk_hash(key);
 	struct audit_chunk *p;
 
 	list_for_each_entry_rcu(p, list, hash) {
-		/* mark.inode may have gone NULL, but who cares? */
-		if (p->mark.inode == inode) {
+		if (chunk_to_key(p) == key) {
 			atomic_long_inc(&p->refs);
 			return p;
 		}
@@ -588,7 +603,8 @@ int audit_remove_tree_rule(struct audit_krule *rule)
 
 static int compare_root(struct vfsmount *mnt, void *arg)
 {
-	return d_backing_inode(mnt->mnt_root) == arg;
+	return inode_to_key(d_backing_inode(mnt->mnt_root)) ==
+	       (unsigned long)arg;
 }
 
 void audit_trim_trees(void)
@@ -623,9 +639,10 @@ void audit_trim_trees(void)
 		list_for_each_entry(node, &tree->chunks, list) {
 			struct audit_chunk *chunk = find_chunk(node);
 			/* this could be NULL if the watch is dying else where... */
-			struct inode *inode = chunk->mark.inode;
 			node->index |= 1U<<31;
-			if (iterate_mounts(compare_root, inode, root_mnt))
+			if (iterate_mounts(compare_root,
+					   (void *)chunk_to_key(chunk),
+					   root_mnt))
 				node->index &= ~(1U<<31);
 		}
 		spin_unlock(&hash_lock);
