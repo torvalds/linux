@@ -1078,7 +1078,7 @@ int img_ir_probe_hw(struct img_ir_priv *priv)
 	}
 
 	/* Allocate hardware decoder */
-	hw->rdev = rdev = rc_allocate_device();
+	hw->rdev = rdev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!rdev) {
 		dev_err(priv->dev, "cannot allocate input device\n");
 		error = -ENOMEM;

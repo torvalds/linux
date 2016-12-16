@@ -398,7 +398,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 * If platform_data doesn't specify rc_dev, initialize it
 		 * internally
 		 */
-		rc = rc_allocate_device();
+		rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 		if (!rc)
 			return -ENOMEM;
 	}

@@ -217,7 +217,7 @@ static int __init loop_init(void)
 	struct rc_dev *rc;
 	int ret;
 
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!rc) {
 		printk(KERN_ERR DRIVER_NAME ": rc_dev allocation failed\n");
 		return -ENOMEM;
@@ -230,7 +230,6 @@ static int __init loop_init(void)
 	rc->driver_name		= DRIVER_NAME;
 	rc->map_name		= RC_MAP_EMPTY;
 	rc->priv		= &loopdev;
-	rc->driver_type		= RC_DRIVER_IR_RAW;
 	rc->allowed_protocols	= RC_BIT_ALL_IR_DECODER;
 	rc->allowed_wakeup_protocols = RC_BIT_ALL_IR_ENCODER;
 	rc->encode_wakeup	= true;

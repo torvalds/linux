@@ -205,7 +205,7 @@ static int ttusbir_probe(struct usb_interface *intf,
 	int altsetting = -1;
 
 	tt = kzalloc(sizeof(*tt), GFP_KERNEL);
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!tt || !rc) {
 		ret = -ENOMEM;
 		goto out;
@@ -317,7 +317,6 @@ static int ttusbir_probe(struct usb_interface *intf,
 	rc->input_phys = tt->phys;
 	usb_to_input_id(tt->udev, &rc->input_id);
 	rc->dev.parent = &intf->dev;
-	rc->driver_type = RC_DRIVER_IR_RAW;
 	rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
 	rc->priv = tt;
 	rc->driver_name = DRIVER_NAME;

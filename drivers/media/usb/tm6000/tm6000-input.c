@@ -429,7 +429,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 		return 0;
 
 	ir = kzalloc(sizeof(*ir), GFP_ATOMIC);
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ir || !rc)
 		goto out;
 
@@ -456,7 +456,6 @@ int tm6000_ir_init(struct tm6000_core *dev)
 		ir->polling = 50;
 		INIT_DELAYED_WORK(&ir->work, tm6000_ir_handle_key);
 	}
-	rc->driver_type = RC_DRIVER_SCANCODE;
 
 	snprintf(ir->name, sizeof(ir->name), "tm5600/60x0 IR (%s)",
 						dev->name);

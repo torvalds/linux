@@ -177,7 +177,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 	struct rc_dev *dev;
 	int error;
 
-	dev = rc_allocate_device();
+	dev = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!dev) {
 		printk(KERN_ERR "budget_ci: IR interface initialisation failed\n");
 		return -ENOMEM;

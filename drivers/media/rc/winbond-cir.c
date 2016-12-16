@@ -1055,13 +1055,12 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	if (err)
 		goto exit_free_data;
 
-	data->dev = rc_allocate_device();
+	data->dev = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!data->dev) {
 		err = -ENOMEM;
 		goto exit_unregister_led;
 	}
 
-	data->dev->driver_type = RC_DRIVER_IR_RAW;
 	data->dev->driver_name = DRVNAME;
 	data->dev->input_name = WBCIR_NAME;
 	data->dev->input_phys = "wbcir/cir0";
