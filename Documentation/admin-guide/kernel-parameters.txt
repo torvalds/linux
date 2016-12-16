@@ -863,6 +863,11 @@
 
 	dscc4.setup=	[NET]
 
+	dump_apple_properties	[X86]
+			Dump name and content of EFI device properties on
+			x86 Macs.  Useful for driver authors to determine
+			what data is available or for reverse-engineering.
+
 	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
 	module.dyndbg[="val"]
 			Enable debug messages at boot time.  See
@@ -874,12 +879,6 @@
 
 	nopku		[X86] Disable Memory Protection Keys CPU feature found
 			in some Intel CPUs.
-
-	eagerfpu=	[X86]
-			on	enable eager fpu restore
-			off	disable eager fpu restore
-			auto	selects the default scheme, which automatically
-				enables eagerfpu restore for xsaveopt.
 
 	module.async_probe [KNL]
 			Enable asynchronous probe on this module.
@@ -1759,9 +1758,6 @@
 			kmemcheck=2 (one-shot mode)
 			Default: 2 (one-shot mode)
 
-	kstack=N	[X86] Print N words from the kernel stack
-			in oops dumps.
-
 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
 			Default is 0 (don't ignore, but inject #GP)
 
@@ -2202,7 +2198,7 @@
 			that the amount of memory usable for all allocations
 			is not too small.
 
-	movable_node	[KNL,X86] Boot-time switch to enable the effects
+	movable_node	[KNL] Boot-time switch to enable the effects
 			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
 
 	MTD_Partition=	[MTD]
@@ -2554,6 +2550,10 @@
 
 	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
 			fault handling.
+
+	no-vmw-sched-clock
+			[X86,PV_OPS] Disable paravirtualized VMware scheduler
+			clock and use the default one.
 
 	no-steal-acc    [X86,KVM] Disable paravirtualized steal time accounting.
 			steal time is computed, but won't influence scheduler
@@ -3035,6 +3035,12 @@
 			Up to 8 (IP_VS_APP_MAX_PORTS) ports
 			may be specified.
 			Format: <port>,<port>....
+
+	powersave=off	[PPC] This option disables power saving features.
+			It specifically disables cpuidle and sets the
+			platform machine description specific power_save
+			function to NULL. On Idle the CPU just reduces
+			execution priority.
 
 	ppc_strict_facility_enable
 			[PPC] This option catches any kernel floating point,
@@ -3624,12 +3630,6 @@
 
 	shapers=	[NET]
 			Maximal number of shapers.
-
-	show_msr=	[x86] show boot-time MSR settings
-			Format: { <integer> }
-			Show boot-time (BIOS-initialized) MSR settings.
-			The parameter means the number of CPUs to show,
-			for example 1 means boot CPU only.
 
 	simeth=		[IA-64]
 	simscsi=

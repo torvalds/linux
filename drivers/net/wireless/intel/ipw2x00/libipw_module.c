@@ -118,15 +118,6 @@ static void libipw_networks_initialize(struct libipw_device *ieee)
 			      &ieee->network_free_list);
 }
 
-int libipw_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > LIBIPW_DATA_LEN))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL(libipw_change_mtu);
-
 struct net_device *alloc_libipw(int sizeof_priv, int monitor)
 {
 	struct libipw_device *ieee;

@@ -2093,6 +2093,8 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 	size_t pages_size;
 	struct page **pages;
 	int unit, i, j, rc;
+	int upa;
+	int nr_g0_units;
 
 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
 
@@ -2100,7 +2102,12 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 	if (IS_ERR(ai))
 		return PTR_ERR(ai);
 	BUG_ON(ai->nr_groups != 1);
-	BUG_ON(ai->groups[0].nr_units != num_possible_cpus());
+	upa = ai->alloc_size/ai->unit_size;
+	nr_g0_units = roundup(num_possible_cpus(), upa);
+	if (unlikely(WARN_ON(ai->groups[0].nr_units != nr_g0_units))) {
+		pcpu_free_alloc_info(ai);
+		return -EINVAL;
+	}
 
 	unit_pages = ai->unit_size >> PAGE_SHIFT;
 
@@ -2111,21 +2118,22 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 
 	/* allocate pages */
 	j = 0;
-	for (unit = 0; unit < num_possible_cpus(); unit++)
+	for (unit = 0; unit < num_possible_cpus(); unit++) {
+		unsigned int cpu = ai->groups[0].cpu_map[unit];
 		for (i = 0; i < unit_pages; i++) {
-			unsigned int cpu = ai->groups[0].cpu_map[unit];
 			void *ptr;
 
 			ptr = alloc_fn(cpu, PAGE_SIZE, PAGE_SIZE);
 			if (!ptr) {
 				pr_warn("failed to allocate %s page for cpu%u\n",
-					psize_str, cpu);
+						psize_str, cpu);
 				goto enomem;
 			}
 			/* kmemleak tracks the percpu allocations separately */
 			kmemleak_free(ptr);
 			pages[j++] = virt_to_page(ptr);
 		}
+	}
 
 	/* allocate vm area, map the pages and copy static data */
 	vm.flags = VM_ALLOC;

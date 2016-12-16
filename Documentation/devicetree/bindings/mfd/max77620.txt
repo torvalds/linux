@@ -106,6 +106,18 @@ Here supported time periods by device in microseconds are as follows:
 MAX77620 supports 40, 80, 160, 320, 640, 1280, 2560 and 5120 microseconds.
 MAX20024 supports 20, 40, 80, 160, 320, 640, 1280 and 2540 microseconds.
 
+-maxim,power-ok-control: configure map power ok bit
+			1: Enables POK(Power OK) to control nRST_IO and GPIO1
+			POK function.
+			0: Disables POK control.
+			if property missing, do not configure MPOK bit.
+			If POK mapping is enabled for GPIO1/nRST_IO then,
+			GPIO1/nRST_IO pins are HIGH only if all rails
+			that have POK control enabled are HIGH.
+			If any of the rails goes down(which are enabled for POK
+			control) then, GPIO1/nRST_IO goes LOW.
+			this property is valid for max20024 only.
+
 For DT binding details of different sub modules like GPIO, pincontrol,
 regulator, power, please refer respective device-tree binding document
 under their respective sub-system directories.

@@ -861,7 +861,7 @@ static void __init __efi_enter_virtual_mode(void)
 	int count = 0, pg_shift = 0;
 	void *new_memmap = NULL;
 	efi_status_t status;
-	phys_addr_t pa;
+	unsigned long pa;
 
 	efi.systab = NULL;
 

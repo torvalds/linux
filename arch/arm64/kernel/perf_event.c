@@ -31,16 +31,8 @@
 
 /*
  * ARMv8 PMUv3 Performance Events handling code.
- * Common event types.
+ * Common event types (some are defined in asm/perf_event.h).
  */
-
-/* Required events. */
-#define ARMV8_PMUV3_PERFCTR_SW_INCR				0x00
-#define ARMV8_PMUV3_PERFCTR_L1D_CACHE_REFILL			0x03
-#define ARMV8_PMUV3_PERFCTR_L1D_CACHE				0x04
-#define ARMV8_PMUV3_PERFCTR_BR_MIS_PRED				0x10
-#define ARMV8_PMUV3_PERFCTR_CPU_CYCLES				0x11
-#define ARMV8_PMUV3_PERFCTR_BR_PRED				0x12
 
 /* At least one of the following is required. */
 #define ARMV8_PMUV3_PERFCTR_INST_RETIRED			0x08

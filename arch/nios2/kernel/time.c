@@ -324,6 +324,7 @@ static int __init nios2_time_init(struct device_node *timer)
 		ret = nios2_clocksource_init(timer);
 		break;
 	default:
+		ret = 0;
 		break;
 	}
 

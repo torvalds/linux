@@ -58,6 +58,28 @@ void skb_flow_dissector_init(struct flow_dissector *flow_dissector,
 EXPORT_SYMBOL(skb_flow_dissector_init);
 
 /**
+ * skb_flow_get_be16 - extract be16 entity
+ * @skb: sk_buff to extract from
+ * @poff: offset to extract at
+ * @data: raw buffer pointer to the packet
+ * @hlen: packet header length
+ *
+ * The function will try to retrieve a be32 entity at
+ * offset poff
+ */
+__be16 skb_flow_get_be16(const struct sk_buff *skb, int poff, void *data,
+			 int hlen)
+{
+	__be16 *u, _u;
+
+	u = __skb_header_pointer(skb, poff, sizeof(_u), data, hlen, &_u);
+	if (u)
+		return *u;
+
+	return 0;
+}
+
+/**
  * __skb_flow_get_ports - extract the upper layer ports and return them
  * @skb: sk_buff to extract the ports from
  * @thoff: transport header offset
@@ -117,12 +139,13 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 	struct flow_dissector_key_basic *key_basic;
 	struct flow_dissector_key_addrs *key_addrs;
 	struct flow_dissector_key_ports *key_ports;
+	struct flow_dissector_key_icmp *key_icmp;
 	struct flow_dissector_key_tags *key_tags;
 	struct flow_dissector_key_vlan *key_vlan;
 	struct flow_dissector_key_keyid *key_keyid;
 	bool skip_vlan = false;
 	u8 ip_proto = 0;
-	bool ret = false;
+	bool ret;
 
 	if (!data) {
 		data = skb->data;
@@ -546,15 +569,28 @@ ip_proto_again:
 							data, hlen);
 	}
 
+	if (dissector_uses_key(flow_dissector,
+			       FLOW_DISSECTOR_KEY_ICMP)) {
+		key_icmp = skb_flow_dissector_target(flow_dissector,
+						     FLOW_DISSECTOR_KEY_ICMP,
+						     target_container);
+		key_icmp->icmp = skb_flow_get_be16(skb, nhoff, data, hlen);
+	}
+
 out_good:
 	ret = true;
 
-out_bad:
+	key_control->thoff = (u16)nhoff;
+out:
 	key_basic->n_proto = proto;
 	key_basic->ip_proto = ip_proto;
-	key_control->thoff = (u16)nhoff;
 
 	return ret;
+
+out_bad:
+	ret = false;
+	key_control->thoff = min_t(u16, nhoff, skb ? skb->len : hlen);
+	goto out;
 }
 EXPORT_SYMBOL(__skb_flow_dissect);
 
@@ -721,7 +757,7 @@ EXPORT_SYMBOL(make_flow_keys_digest);
 
 static struct flow_dissector flow_keys_dissector_symmetric __read_mostly;
 
-u32 __skb_get_hash_symmetric(struct sk_buff *skb)
+u32 __skb_get_hash_symmetric(const struct sk_buff *skb)
 {
 	struct flow_keys keys;
 
@@ -1008,4 +1044,4 @@ static int __init init_default_flow_dissectors(void)
 	return 0;
 }
 
-late_initcall_sync(init_default_flow_dissectors);
+core_initcall(init_default_flow_dissectors);

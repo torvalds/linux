@@ -36,6 +36,7 @@ struct cpdma_params {
 	u32			desc_hw_addr;
 	int			desc_mem_size;
 	int			desc_align;
+	u32			bus_freq_mhz;
 
 	/*
 	 * Some instances of embedded cpdma controllers have extra control and
@@ -90,8 +91,13 @@ int cpdma_chan_int_ctrl(struct cpdma_chan *chan, bool enable);
 u32 cpdma_ctrl_rxchs_state(struct cpdma_ctlr *ctlr);
 u32 cpdma_ctrl_txchs_state(struct cpdma_ctlr *ctlr);
 bool cpdma_check_free_tx_desc(struct cpdma_chan *chan);
+int cpdma_chan_set_weight(struct cpdma_chan *ch, int weight);
+int cpdma_chan_set_rate(struct cpdma_chan *ch, u32 rate);
+u32 cpdma_chan_get_rate(struct cpdma_chan *ch);
+u32 cpdma_chan_get_min_rate(struct cpdma_ctlr *ctlr);
 
 enum cpdma_control {
+	CPDMA_TX_RLIM,			/* read-write */
 	CPDMA_CMD_IDLE,			/* write-only */
 	CPDMA_COPY_ERROR_FRAMES,	/* read-write */
 	CPDMA_RX_OFF_LEN_UPDATE,	/* read-write */

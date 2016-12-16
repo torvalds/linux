@@ -8,11 +8,9 @@
  */
 
 #include <linux/types.h>
-#include <linux/init.h>
 #include <linux/udp.h>
 
 #include <linux/netfilter.h>
-#include <linux/module.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/netfilter/nf_nat_l4proto.h>
@@ -64,7 +62,7 @@ udplite_manip_pkt(struct sk_buff *skb,
 	return true;
 }
 
-static const struct nf_nat_l4proto nf_nat_l4proto_udplite = {
+const struct nf_nat_l4proto nf_nat_l4proto_udplite = {
 	.l4proto		= IPPROTO_UDPLITE,
 	.manip_pkt		= udplite_manip_pkt,
 	.in_range		= nf_nat_l4proto_in_range,
@@ -73,34 +71,3 @@ static const struct nf_nat_l4proto nf_nat_l4proto_udplite = {
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
 };
-
-static int __init nf_nat_proto_udplite_init(void)
-{
-	int err;
-
-	err = nf_nat_l4proto_register(NFPROTO_IPV4, &nf_nat_l4proto_udplite);
-	if (err < 0)
-		goto err1;
-	err = nf_nat_l4proto_register(NFPROTO_IPV6, &nf_nat_l4proto_udplite);
-	if (err < 0)
-		goto err2;
-	return 0;
-
-err2:
-	nf_nat_l4proto_unregister(NFPROTO_IPV4, &nf_nat_l4proto_udplite);
-err1:
-	return err;
-}
-
-static void __exit nf_nat_proto_udplite_fini(void)
-{
-	nf_nat_l4proto_unregister(NFPROTO_IPV6, &nf_nat_l4proto_udplite);
-	nf_nat_l4proto_unregister(NFPROTO_IPV4, &nf_nat_l4proto_udplite);
-}
-
-module_init(nf_nat_proto_udplite_init);
-module_exit(nf_nat_proto_udplite_fini);
-
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("UDP-Lite NAT protocol helper");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");

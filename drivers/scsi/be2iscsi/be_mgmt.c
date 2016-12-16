@@ -1083,7 +1083,7 @@ unsigned int beiscsi_boot_get_sinfo(struct beiscsi_hba *phba)
 	nonemb_cmd = &phba->boot_struct.nonemb_cmd;
 	nonemb_cmd->size = sizeof(*resp);
 	nonemb_cmd->va = pci_alloc_consistent(phba->ctrl.pdev,
-					      sizeof(nonemb_cmd->size),
+					      nonemb_cmd->size,
 					      &nonemb_cmd->dma);
 	if (!nonemb_cmd->va) {
 		mutex_unlock(&ctrl->mbox_lock);

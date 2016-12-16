@@ -16,6 +16,8 @@ available subsections can be seen below.
 
    basics
    infrastructure
+   dma-buf
+   device_link
    message-based
    sound
    frame-buffer

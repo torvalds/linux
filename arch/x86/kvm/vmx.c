@@ -2145,12 +2145,6 @@ static void __vmx_load_host_state(struct vcpu_vmx *vmx)
 #endif
 	if (vmx->host_state.msr_host_bndcfgs)
 		wrmsrl(MSR_IA32_BNDCFGS, vmx->host_state.msr_host_bndcfgs);
-	/*
-	 * If the FPU is not active (through the host task or
-	 * the guest vcpu), then restore the cr0.TS bit.
-	 */
-	if (!fpregs_active() && !vmx->vcpu.guest_fpu_loaded)
-		stts();
 	load_gdt(this_cpu_ptr(&host_gdt));
 }
 
@@ -4845,9 +4839,11 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 	u32 low32, high32;
 	unsigned long tmpl;
 	struct desc_ptr dt;
-	unsigned long cr4;
+	unsigned long cr0, cr4;
 
-	vmcs_writel(HOST_CR0, read_cr0() & ~X86_CR0_TS);  /* 22.2.3 */
+	cr0 = read_cr0();
+	WARN_ON(cr0 & X86_CR0_TS);
+	vmcs_writel(HOST_CR0, cr0);  /* 22.2.3 */
 	vmcs_writel(HOST_CR3, read_cr3());  /* 22.2.3  FIXME: shadow tables */
 
 	/* Save the most likely value for this task's CR4 in the VMCS. */

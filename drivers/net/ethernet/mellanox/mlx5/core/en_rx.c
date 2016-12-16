@@ -164,14 +164,14 @@ void mlx5e_modify_rx_cqe_compression(struct mlx5e_priv *priv, bool val)
 
 	mutex_lock(&priv->state_lock);
 
-	if (priv->params.rx_cqe_compress == val)
+	if (MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS) == val)
 		goto unlock;
 
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (was_opened)
 		mlx5e_close_locked(priv->netdev);
 
-	priv->params.rx_cqe_compress = val;
+	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS, val);
 
 	if (was_opened)
 		mlx5e_open_locked(priv->netdev);
@@ -340,7 +340,7 @@ static inline void mlx5e_post_umr_wqe(struct mlx5e_rq *rq, u16 ix)
 	while ((pi = (sq->pc & wq->sz_m1)) > sq->edge) {
 		sq->db.ico_wqe[pi].opcode = MLX5_OPCODE_NOP;
 		sq->db.ico_wqe[pi].num_wqebbs = 1;
-		mlx5e_send_nop(sq, true);
+		mlx5e_send_nop(sq, false);
 	}
 
 	wqe = mlx5_wq_cyc_get_wqe(wq, pi);
@@ -412,7 +412,7 @@ void mlx5e_post_rx_mpwqe(struct mlx5e_rq *rq)
 
 	clear_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state);
 
-	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state))) {
+	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state))) {
 		mlx5e_free_rx_mpwqe(rq, &rq->mpwqe.info[wq->head]);
 		return;
 	}
@@ -445,7 +445,7 @@ void mlx5e_dealloc_rx_mpwqe(struct mlx5e_rq *rq, u16 ix)
 }
 
 #define RQ_CANNOT_POST(rq) \
-	(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state) || \
+	(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state) || \
 	 test_bit(MLX5E_RQ_STATE_UMR_WQE_IN_PROGRESS, &rq->state))
 
 bool mlx5e_post_rx_wqes(struct mlx5e_rq *rq)
@@ -737,10 +737,10 @@ static inline
 struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 			     u16 wqe_counter, u32 cqe_bcnt)
 {
-	struct bpf_prog *xdp_prog = READ_ONCE(rq->xdp_prog);
 	struct mlx5e_dma_info *di;
 	struct sk_buff *skb;
 	void *va, *data;
+	bool consumed;
 
 	di             = &rq->dma_info[wqe_counter];
 	va             = page_address(di->page);
@@ -759,7 +759,11 @@ struct sk_buff *skb_from_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 		return NULL;
 	}
 
-	if (mlx5e_xdp_handle(rq, xdp_prog, di, data, cqe_bcnt))
+	rcu_read_lock();
+	consumed = mlx5e_xdp_handle(rq, READ_ONCE(rq->xdp_prog), di, data,
+				    cqe_bcnt);
+	rcu_read_unlock();
+	if (consumed)
 		return NULL; /* page/packet was consumed by XDP */
 
 	skb = build_skb(va, RQ_PAGE_SIZE(rq));
@@ -924,7 +928,7 @@ int mlx5e_poll_rx_cq(struct mlx5e_cq *cq, int budget)
 	struct mlx5e_sq *xdp_sq = &rq->channel->xdp_sq;
 	int work_done = 0;
 
-	if (unlikely(test_bit(MLX5E_RQ_STATE_FLUSH, &rq->state)))
+	if (unlikely(!test_bit(MLX5E_RQ_STATE_ENABLED, &rq->state)))
 		return 0;
 
 	if (cq->decmprs_left)

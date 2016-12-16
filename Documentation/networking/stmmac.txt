@@ -28,8 +28,6 @@ CONFIG_STMMAC_PCI: is to enable the pci driver.
 2) Driver parameters list:
 	debug: message level (0: no output, 16: all);
 	phyaddr: to manually provide the physical address to the PHY device;
-	dma_rxsize: DMA rx ring size;
-	dma_txsize: DMA tx ring size;
 	buf_sz: DMA buffer size;
 	tc: control the HW FIFO threshold;
 	watchdog: transmit timeout (in milliseconds);
@@ -40,31 +38,31 @@ CONFIG_STMMAC_PCI: is to enable the pci driver.
 
 3) Command line options
 Driver parameters can be also passed in command line by using:
-	stmmaceth=dma_rxsize:128,dma_txsize:512
+	stmmaceth=watchdog:100,chain_mode=1
 
 4) Driver information and notes
 
 4.1) Transmit process
 The xmit method is invoked when the kernel needs to transmit a packet; it sets
-the descriptors in the ring and informs the DMA engine that there is a packet
+the descriptors in the ring and informs the DMA engine, that there is a packet
 ready to be transmitted.
 By default, the driver sets the NETIF_F_SG bit in the features field of the
-net_device structure enabling the scatter-gather feature. This is true on
+net_device structure, enabling the scatter-gather feature. This is true on
 chips and configurations where the checksum can be done in hardware.
-Once the controller has finished transmitting the packet, napi will be
+Once the controller has finished transmitting the packet, timer will be
 scheduled to release the transmit resources.
 
 4.2) Receive process
 When one or more packets are received, an interrupt happens. The interrupts
-are not queued so the driver has to scan all the descriptors in the ring during
+are not queued, so the driver has to scan all the descriptors in the ring during
 the receive process.
-This is based on NAPI so the interrupt handler signals only if there is work
+This is based on NAPI, so the interrupt handler signals only if there is work
 to be done, and it exits.
 Then the poll method will be scheduled at some future point.
 The incoming packets are stored, by the DMA, in a list of pre-allocated socket
 buffers in order to avoid the memcpy (zero-copy).
 
-4.3) Interrupt Mitigation
+4.3) Interrupt mitigation
 The driver is able to mitigate the number of its DMA interrupts
 using NAPI for the reception on chips older than the 3.50.
 New chips have an HW RX-Watchdog used for this mitigation.
@@ -88,19 +86,20 @@ the list, hence creating the explicit chaining in the descriptor itself,
 whereas such explicit chaining is not possible in RING mode.
 
 4.5.1) Extended descriptors
-	The extended descriptors give us information about the Ethernet payload
-	when it is carrying PTP packets or TCP/UDP/ICMP over IP.
-	These are not available on GMAC Synopsys chips older than the 3.50.
-	At probe time the driver will decide if these can be actually used.
-	This support also is mandatory for PTPv2 because the extra descriptors
-	are used for saving the hardware timestamps and Extended Status.
+The extended descriptors give us information about the Ethernet payload
+when it is carrying PTP packets or TCP/UDP/ICMP over IP.
+These are not available on GMAC Synopsys chips older than the 3.50.
+At probe time the driver will decide if these can be actually used.
+This support also is mandatory for PTPv2 because the extra descriptors
+are used for saving the hardware timestamps and Extended Status.
 
 4.6) Ethtool support
 Ethtool is supported.
 
 For example, driver statistics (including RMON), internal errors can be taken
 using:
-  # ethtool -S ethX command
+  # ethtool -S ethX
+command
 
 4.7) Jumbo and Segmentation Offloading
 Jumbo frames are supported and tested for the GMAC.
@@ -153,8 +152,10 @@ Where:
  o dma_cfg: internal DMA parameters
    o pbl: the Programmable Burst Length is maximum number of beats to
        be transferred in one DMA transaction.
-       GMAC also enables the 4xPBL by default.
-   o fixed_burst/mixed_burst/burst_len
+       GMAC also enables the 4xPBL by default. (8xPBL for GMAC 3.50 and newer)
+   o txpbl/rxpbl: GMAC and newer supports independent DMA pbl for tx/rx.
+   o pblx8: Enable 8xPBL (4xPBL for core rev < 3.50). Enabled by default.
+   o fixed_burst/mixed_burst/aal
  o clk_csr: fixed CSR Clock range selection.
  o has_gmac: uses the GMAC core.
  o enh_desc: if sets the MAC will use the enhanced descriptor structure.
@@ -206,16 +207,24 @@ tuned according to the HW capabilities.
 
 struct stmmac_dma_cfg {
 	int pbl;
+	int txpbl;
+	int rxpbl;
+	bool pblx8;
 	int fixed_burst;
-	int burst_len_supported;
+	int mixed_burst;
+	bool aal;
 };
 
 Where:
- o pbl: Programmable Burst Length
+ o pbl: Programmable Burst Length (tx and rx)
+ o txpbl: Transmit Programmable Burst Length. Only for GMAC and newer.
+	 If set, DMA tx will use this value rather than pbl.
+ o rxpbl: Receive Programmable Burst Length. Only for GMAC and newer.
+	 If set, DMA rx will use this value rather than pbl.
+ o pblx8: Enable 8xPBL (4xPBL for core rev < 3.50). Enabled by default.
  o fixed_burst: program the DMA to use the fixed burst mode
- o burst_len: this is the value we put in the register
-	      supported values are provided as macros in
-	      linux/stmmac.h header file.
+ o mixed_burst: program the DMA to use the mixed burst mode
+ o aal: Address-Aligned Beats
 
 ---
 
@@ -275,11 +284,11 @@ Please see the following document:
 	Documentation/devicetree/bindings/net/stmmac.txt
 
 4.11) This is a summary of the content of some relevant files:
- o stmmac_main.c: to implement the main network device driver;
- o stmmac_mdio.c: to provide mdio functions;
- o stmmac_pci: this the PCI driver;
- o stmmac_platform.c: this the platform driver (OF supported)
- o stmmac_ethtool.c: to implement the ethtool support;
+ o stmmac_main.c: implements the main network device driver;
+ o stmmac_mdio.c: provides MDIO functions;
+ o stmmac_pci: this is the PCI driver;
+ o stmmac_platform.c: this the platform driver (OF supported);
+ o stmmac_ethtool.c: implements the ethtool support;
  o stmmac.h: private driver structure;
  o common.h: common definitions and VFTs;
  o mmc_core.c/mmc.h: Management MAC Counters;
@@ -381,12 +390,12 @@ In addition to the basic timestamp features mentioned in IEEE 1588-2002
 Timestamps, new GMAC cores support the advanced timestamp features.
 IEEE 1588-2008 that can be enabled when configure the Kernel.
 
-8) SGMII/RGMII supports
+8) SGMII/RGMII support
 New GMAC devices provide own way to manage RGMII/SGMII.
 This information is available at run-time by looking at the
 HW capability register. This means that the stmmac can manage
-auto-negotiation and link status w/o using the PHYLIB stuff
+auto-negotiation and link status w/o using the PHYLIB stuff.
 In fact, the HW provides a subset of extended registers to
 restart the ANE, verify Full/Half duplex mode and Speed.
-Also thanks to these registers it is possible to look at the
+Thanks to these registers, it is possible to look at the
 Auto-negotiated Link Parter Ability.

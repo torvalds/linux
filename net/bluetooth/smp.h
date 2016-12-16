@@ -57,6 +57,7 @@ struct smp_cmd_pairing {
 #define SMP_AUTH_MITM		0x04
 #define SMP_AUTH_SC		0x08
 #define SMP_AUTH_KEYPRESS	0x10
+#define SMP_AUTH_CT2		0x20
 
 #define SMP_CMD_PAIRING_CONFIRM	0x03
 struct smp_cmd_pairing_confirm {

@@ -33,6 +33,8 @@ struct brcmf_proto {
 			  void *buf, uint len);
 	int (*set_dcmd)(struct brcmf_pub *drvr, int ifidx, uint cmd, void *buf,
 			uint len);
+	int (*tx_queue_data)(struct brcmf_pub *drvr, int ifidx,
+			     struct sk_buff *skb);
 	int (*txdata)(struct brcmf_pub *drvr, int ifidx, u8 offset,
 		      struct sk_buff *skb);
 	void (*configure_addr_mode)(struct brcmf_pub *drvr, int ifidx,
@@ -74,6 +76,13 @@ static inline int brcmf_proto_set_dcmd(struct brcmf_pub *drvr, int ifidx,
 {
 	return drvr->proto->set_dcmd(drvr, ifidx, cmd, buf, len);
 }
+
+static inline int brcmf_proto_tx_queue_data(struct brcmf_pub *drvr, int ifidx,
+					    struct sk_buff *skb)
+{
+	return drvr->proto->tx_queue_data(drvr, ifidx, skb);
+}
+
 static inline int brcmf_proto_txdata(struct brcmf_pub *drvr, int ifidx,
 				     u8 offset, struct sk_buff *skb)
 {

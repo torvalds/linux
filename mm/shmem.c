@@ -300,18 +300,19 @@ void shmem_uncharge(struct inode *inode, long pages)
 static int shmem_radix_tree_replace(struct address_space *mapping,
 			pgoff_t index, void *expected, void *replacement)
 {
+	struct radix_tree_node *node;
 	void **pslot;
 	void *item;
 
 	VM_BUG_ON(!expected);
 	VM_BUG_ON(!replacement);
-	pslot = radix_tree_lookup_slot(&mapping->page_tree, index);
-	if (!pslot)
+	item = __radix_tree_lookup(&mapping->page_tree, index, &node, &pslot);
+	if (!item)
 		return -ENOENT;
-	item = radix_tree_deref_slot_protected(pslot, &mapping->tree_lock);
 	if (item != expected)
 		return -ENOENT;
-	radix_tree_replace_slot(pslot, replacement);
+	__radix_tree_replace(&mapping->page_tree, node, pslot,
+			     replacement, NULL, NULL);
 	return 0;
 }
 
@@ -370,6 +371,7 @@ static bool shmem_confirm_swap(struct address_space *mapping,
 
 int shmem_huge __read_mostly;
 
+#if defined(CONFIG_SYSFS) || defined(CONFIG_TMPFS)
 static int shmem_parse_huge(const char *str)
 {
 	if (!strcmp(str, "never"))
@@ -407,6 +409,7 @@ static const char *shmem_format_huge(int huge)
 		return "bad_val";
 	}
 }
+#endif
 
 static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
 		struct shrink_control *sc, unsigned long nr_to_split)
@@ -1483,6 +1486,8 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
 	copy_highpage(newpage, oldpage);
 	flush_dcache_page(newpage);
 
+	__SetPageLocked(newpage);
+	__SetPageSwapBacked(newpage);
 	SetPageUptodate(newpage);
 	set_page_private(newpage, swap_index);
 	SetPageSwapCache(newpage);
@@ -1537,7 +1542,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
 	struct mm_struct *fault_mm, int *fault_type)
 {
 	struct address_space *mapping = inode->i_mapping;
-	struct shmem_inode_info *info;
+	struct shmem_inode_info *info = SHMEM_I(inode);
 	struct shmem_sb_info *sbinfo;
 	struct mm_struct *charge_mm;
 	struct mem_cgroup *memcg;
@@ -1587,7 +1592,6 @@ repeat:
 	 * Fast cache lookup did not find it:
 	 * bring it back from swap or allocate.
 	 */
-	info = SHMEM_I(inode);
 	sbinfo = SHMEM_SB(inode->i_sb);
 	charge_mm = fault_mm ? : current->mm;
 
@@ -1835,7 +1839,6 @@ unlock:
 		put_page(page);
 	}
 	if (error == -ENOSPC && !once++) {
-		info = SHMEM_I(inode);
 		spin_lock_irq(&info->lock);
 		shmem_recalc_inode(inode);
 		spin_unlock_irq(&info->lock);
@@ -1844,6 +1847,18 @@ unlock:
 	if (error == -EEXIST)	/* from above or from radix_tree_insert */
 		goto repeat;
 	return error;
+}
+
+/*
+ * This is like autoremove_wake_function, but it removes the wait queue
+ * entry unconditionally - even if something else had already woken the
+ * target.
+ */
+static int synchronous_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key)
+{
+	int ret = default_wake_function(wait, mode, sync, key);
+	list_del_init(&wait->task_list);
+	return ret;
 }
 
 static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -1881,7 +1896,7 @@ static int shmem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		    vmf->pgoff >= shmem_falloc->start &&
 		    vmf->pgoff < shmem_falloc->next) {
 			wait_queue_head_t *shmem_falloc_waitq;
-			DEFINE_WAIT(shmem_fault_wait);
+			DEFINE_WAIT_FUNC(shmem_fault_wait, synchronous_wake_function);
 
 			ret = VM_FAULT_NOPAGE;
 			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
@@ -2663,6 +2678,7 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 		spin_lock(&inode->i_lock);
 		inode->i_private = NULL;
 		wake_up_all(&shmem_falloc_waitq);
+		WARN_ON_ONCE(!list_empty(&shmem_falloc_waitq.task_list));
 		spin_unlock(&inode->i_lock);
 		error = 0;
 		goto out;

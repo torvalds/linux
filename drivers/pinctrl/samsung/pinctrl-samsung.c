@@ -33,6 +33,9 @@
 #include "../core.h"
 #include "pinctrl-samsung.h"
 
+/* maximum number of the memory resources */
+#define	SAMSUNG_PINCTRL_NUM_RESOURCES	2
+
 /* list of all possible config options supported */
 static struct pin_config {
 	const char *property;
@@ -345,7 +348,7 @@ static void pin_to_reg_bank(struct samsung_pinctrl_drv_data *drvdata,
 			((b->pin_base + b->nr_pins - 1) < pin))
 		b++;
 
-	*reg = drvdata->virt_base + b->pctl_offset;
+	*reg = b->pctl_base + b->pctl_offset;
 	*offset = pin - b->pin_base;
 	if (bank)
 		*bank = b;
@@ -526,7 +529,7 @@ static void samsung_gpio_set_value(struct gpio_chip *gc,
 	void __iomem *reg;
 	u32 data;
 
-	reg = bank->drvdata->virt_base + bank->pctl_offset;
+	reg = bank->pctl_base + bank->pctl_offset;
 
 	data = readl(reg + type->reg_offset[PINCFG_TYPE_DAT]);
 	data &= ~(1 << offset);
@@ -554,7 +557,7 @@ static int samsung_gpio_get(struct gpio_chip *gc, unsigned offset)
 	struct samsung_pin_bank *bank = gpiochip_get_data(gc);
 	const struct samsung_pin_bank_type *type = bank->type;
 
-	reg = bank->drvdata->virt_base + bank->pctl_offset;
+	reg = bank->pctl_base + bank->pctl_offset;
 
 	data = readl(reg + type->reg_offset[PINCFG_TYPE_DAT]);
 	data >>= offset;
@@ -581,8 +584,8 @@ static int samsung_gpio_set_direction(struct gpio_chip *gc,
 	type = bank->type;
 	drvdata = bank->drvdata;
 
-	reg = drvdata->virt_base + bank->pctl_offset +
-					type->reg_offset[PINCFG_TYPE_FUNC];
+	reg = bank->pctl_base + bank->pctl_offset
+			+ type->reg_offset[PINCFG_TYPE_FUNC];
 
 	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
 	shift = offset * type->fld_width[PINCFG_TYPE_FUNC];
@@ -979,6 +982,8 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 	const struct samsung_pin_bank_data *bdata;
 	const struct samsung_pin_ctrl *ctrl;
 	struct samsung_pin_bank *bank;
+	struct resource *res;
+	void __iomem *virt_base[SAMSUNG_PINCTRL_NUM_RESOURCES];
 	int i;
 
 	id = of_alias_get_id(node, "pinctrl");
@@ -997,6 +1002,17 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 	if (!d->pin_banks)
 		return ERR_PTR(-ENOMEM);
 
+	if (ctrl->nr_ext_resources + 1 > SAMSUNG_PINCTRL_NUM_RESOURCES)
+		return ERR_PTR(-EINVAL);
+
+	for (i = 0; i < ctrl->nr_ext_resources + 1; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
+		virt_base[i] = devm_ioremap(&pdev->dev, res->start,
+						resource_size(res));
+		if (IS_ERR(virt_base[i]))
+			return ERR_PTR(-EIO);
+	}
+
 	bank = d->pin_banks;
 	bdata = ctrl->pin_banks;
 	for (i = 0; i < ctrl->nr_banks; ++i, ++bdata, ++bank) {
@@ -1013,6 +1029,9 @@ samsung_pinctrl_get_soc_data(struct samsung_pinctrl_drv_data *d,
 		bank->drvdata = d;
 		bank->pin_base = d->nr_pins;
 		d->nr_pins += bank->nr_pins;
+
+		bank->eint_base = virt_base[0];
+		bank->pctl_base = virt_base[bdata->pctl_res_idx];
 	}
 
 	for_each_child_of_node(node, np) {
@@ -1052,11 +1071,6 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 	}
 	drvdata->dev = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	drvdata->virt_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(drvdata->virt_base))
-		return PTR_ERR(drvdata->virt_base);
-
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res)
 		drvdata->irq = res->start;
@@ -1094,12 +1108,11 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 static void samsung_pinctrl_suspend_dev(
 	struct samsung_pinctrl_drv_data *drvdata)
 {
-	void __iomem *virt_base = drvdata->virt_base;
 	int i;
 
 	for (i = 0; i < drvdata->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &drvdata->pin_banks[i];
-		void __iomem *reg = virt_base + bank->pctl_offset;
+		void __iomem *reg = bank->pctl_base + bank->pctl_offset;
 		const u8 *offs = bank->type->reg_offset;
 		const u8 *widths = bank->type->fld_width;
 		enum pincfg_type type;
@@ -1140,7 +1153,6 @@ static void samsung_pinctrl_suspend_dev(
  */
 static void samsung_pinctrl_resume_dev(struct samsung_pinctrl_drv_data *drvdata)
 {
-	void __iomem *virt_base = drvdata->virt_base;
 	int i;
 
 	if (drvdata->resume)
@@ -1148,7 +1160,7 @@ static void samsung_pinctrl_resume_dev(struct samsung_pinctrl_drv_data *drvdata)
 
 	for (i = 0; i < drvdata->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &drvdata->pin_banks[i];
-		void __iomem *reg = virt_base + bank->pctl_offset;
+		void __iomem *reg = bank->pctl_base + bank->pctl_offset;
 		const u8 *offs = bank->type->reg_offset;
 		const u8 *widths = bank->type->fld_width;
 		enum pincfg_type type;

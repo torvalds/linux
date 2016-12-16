@@ -127,14 +127,7 @@ void ib_cache_release_one(struct ib_device *device);
 static inline bool rdma_is_upper_dev_rcu(struct net_device *dev,
 					 struct net_device *upper)
 {
-	struct net_device *_upper = NULL;
-	struct list_head *iter;
-
-	netdev_for_each_all_upper_dev_rcu(dev, _upper, iter)
-		if (_upper == upper)
-			break;
-
-	return _upper == upper;
+	return netdev_has_upper_dev_all_rcu(dev, upper);
 }
 
 int addr_init(void);

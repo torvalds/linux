@@ -1410,6 +1410,7 @@ static int emac_dev_open(struct net_device *ndev)
 	int i = 0;
 	struct emac_priv *priv = netdev_priv(ndev);
 	struct phy_device *phydev = NULL;
+	struct device *phy = NULL;
 
 	ret = pm_runtime_get_sync(&priv->pdev->dev);
 	if (ret < 0) {
@@ -1488,19 +1489,20 @@ static int emac_dev_open(struct net_device *ndev)
 
 	/* use the first phy on the bus if pdata did not give us a phy id */
 	if (!phydev && !priv->phy_id) {
-		struct device *phy;
-
 		phy = bus_find_device(&mdio_bus_type, NULL, NULL,
 				      match_first_device);
-		if (phy)
+		if (phy) {
 			priv->phy_id = dev_name(phy);
+			if (!priv->phy_id || !*priv->phy_id)
+				put_device(phy);
+		}
 	}
 
 	if (!phydev && priv->phy_id && *priv->phy_id) {
 		phydev = phy_connect(ndev, priv->phy_id,
 				     &emac_adjust_link,
 				     PHY_INTERFACE_MODE_MII);
-
+		put_device(phy);	/* reference taken by bus_find_device */
 		if (IS_ERR(phydev)) {
 			dev_err(emac_dev, "could not connect to phy %s\n",
 				priv->phy_id);
@@ -1765,6 +1767,7 @@ static int davinci_emac_try_get_mac(struct platform_device *pdev,
  */
 static int davinci_emac_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
 	int rc = 0;
 	struct resource *res, *res_ctrl;
 	struct net_device *ndev;
@@ -1803,7 +1806,7 @@ static int davinci_emac_probe(struct platform_device *pdev)
 	if (!pdata) {
 		dev_err(&pdev->dev, "no platform data\n");
 		rc = -ENODEV;
-		goto no_pdata;
+		goto err_free_netdev;
 	}
 
 	/* MAC addr and PHY mask , RMII enable info from platform_data */
@@ -1939,6 +1942,10 @@ no_cpdma_chan:
 		cpdma_chan_destroy(priv->rxchan);
 	cpdma_ctlr_destroy(priv->dma);
 no_pdata:
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
+	of_node_put(priv->phy_node);
+err_free_netdev:
 	free_netdev(ndev);
 	return rc;
 }
@@ -1954,6 +1961,7 @@ static int davinci_emac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct emac_priv *priv = netdev_priv(ndev);
+	struct device_node *np = pdev->dev.of_node;
 
 	dev_notice(&ndev->dev, "DaVinci EMAC: davinci_emac_remove()\n");
 
@@ -1966,6 +1974,8 @@ static int davinci_emac_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	of_node_put(priv->phy_node);
 	pm_runtime_disable(&pdev->dev);
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
 	free_netdev(ndev);
 
 	return 0;

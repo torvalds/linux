@@ -199,13 +199,18 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 		       "TID\t\tRX\tDTKN\tSSN\t\tTX\tDTKN\tpending\n");
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
+		bool tid_rx_valid;
+
 		tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[i]);
 		tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[i]);
+		tid_rx_valid = test_bit(i, sta->ampdu_mlme.agg_session_valid);
 
 		p += scnprintf(p, sizeof(buf) + buf - p, "%02d", i);
-		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x", !!tid_rx);
+		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
+			       tid_rx_valid);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				tid_rx ? tid_rx->dialog_token : 0);
+			       tid_rx_valid ?
+					sta->ampdu_mlme.tid_rx_token[i] : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
 				tid_rx ? tid_rx->ssn : 0);
 

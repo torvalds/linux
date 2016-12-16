@@ -43,8 +43,8 @@ SYSCALL_DEFINE0(arc_gettls)
 
 SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
 {
-	int uval;
-	int ret;
+	struct pt_regs *regs = current_pt_regs();
+	int uval = -EFAULT;
 
 	/*
 	 * This is only for old cores lacking LLOCK/SCOND, which by defintion
@@ -54,24 +54,26 @@ SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
 	 */
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_SMP));
 
+	/* Z indicates to userspace if operation succeded */
+	regs->status32 &= ~STATUS_Z_MASK;
+
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
 	preempt_disable();
 
-	ret = __get_user(uval, uaddr);
-	if (ret)
+	if (__get_user(uval, uaddr))
 		goto done;
 
-	if (uval != expected)
-		ret = -EAGAIN;
-	else
-		ret = __put_user(new, uaddr);
+	if (uval == expected) {
+		if (!__put_user(new, uaddr))
+			regs->status32 |= STATUS_Z_MASK;
+	}
 
 done:
 	preempt_enable();
 
-	return ret;
+	return uval;
 }
 
 void arch_cpu_idle(void)

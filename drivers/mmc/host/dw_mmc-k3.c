@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -162,35 +163,13 @@ static int dw_mci_k3_probe(struct platform_device *pdev)
 	return dw_mci_pltfm_register(pdev, drv_data);
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int dw_mci_k3_suspend(struct device *dev)
-{
-	struct dw_mci *host = dev_get_drvdata(dev);
-	int ret;
-
-	ret = dw_mci_suspend(host);
-	if (!ret)
-		clk_disable_unprepare(host->ciu_clk);
-
-	return ret;
-}
-
-static int dw_mci_k3_resume(struct device *dev)
-{
-	struct dw_mci *host = dev_get_drvdata(dev);
-	int ret;
-
-	ret = clk_prepare_enable(host->ciu_clk);
-	if (ret) {
-		dev_err(host->dev, "failed to enable ciu clock\n");
-		return ret;
-	}
-
-	return dw_mci_resume(host);
-}
-#endif /* CONFIG_PM_SLEEP */
-
-static SIMPLE_DEV_PM_OPS(dw_mci_k3_pmops, dw_mci_k3_suspend, dw_mci_k3_resume);
+static const struct dev_pm_ops dw_mci_k3_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(dw_mci_runtime_suspend,
+			   dw_mci_runtime_resume,
+			   NULL)
+};
 
 static struct platform_driver dw_mci_k3_pltfm_driver = {
 	.probe		= dw_mci_k3_probe,
@@ -198,7 +177,7 @@ static struct platform_driver dw_mci_k3_pltfm_driver = {
 	.driver		= {
 		.name		= "dwmmc_k3",
 		.of_match_table	= dw_mci_k3_match,
-		.pm		= &dw_mci_k3_pmops,
+		.pm		= &dw_mci_k3_dev_pm_ops,
 	},
 };
 

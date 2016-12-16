@@ -216,7 +216,8 @@ struct rpcrdma_rep {
 enum rpcrdma_frmr_state {
 	FRMR_IS_INVALID,	/* ready to be used */
 	FRMR_IS_VALID,		/* in use */
-	FRMR_IS_STALE,		/* failed completion */
+	FRMR_FLUSHED_FR,	/* flushed FASTREG WR */
+	FRMR_FLUSHED_LI,	/* flushed LOCALINV WR */
 };
 
 struct rpcrdma_frmr {

@@ -306,6 +306,8 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 		       iwl_mvm_rx_stored_beacon_notif, RX_HANDLER_SYNC),
 	RX_HANDLER_GRP(DATA_PATH_GROUP, MU_GROUP_MGMT_NOTIF,
 		       iwl_mvm_mu_mimo_grp_notif, RX_HANDLER_SYNC),
+	RX_HANDLER_GRP(DATA_PATH_GROUP, STA_PM_NOTIF,
+		       iwl_mvm_sta_pm_notif, RX_HANDLER_SYNC),
 };
 #undef RX_HANDLER
 #undef RX_HANDLER_GRP
@@ -452,6 +454,7 @@ static const struct iwl_hcmd_names iwl_mvm_phy_names[] = {
 static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(UPDATE_MU_GROUPS_CMD),
 	HCMD_NAME(TRIGGER_RX_QUEUES_NOTIF_CMD),
+	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),
 };
@@ -619,6 +622,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	spin_lock_init(&mvm->refs_lock);
 	skb_queue_head_init(&mvm->d0i3_tx);
 	init_waitqueue_head(&mvm->d0i3_exit_waitq);
+	init_waitqueue_head(&mvm->rx_sync_waitq);
 
 	atomic_set(&mvm->queue_sync_counter, 0);
 

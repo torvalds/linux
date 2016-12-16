@@ -1199,6 +1199,9 @@ static int iwl_mvm_num_scans(struct iwl_mvm *mvm)
 
 static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 {
+	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
+					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
+
 	/* This looks a bit arbitrary, but the idea is that if we run
 	 * out of possible simultaneous scans and the userspace is
 	 * trying to run a scan type that is already running, we
@@ -1225,12 +1228,30 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 			return -EBUSY;
 		return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR, true);
 	case IWL_MVM_SCAN_NETDETECT:
-		/* No need to stop anything for net-detect since the
-		 * firmware is restarted anyway.  This way, any sched
-		 * scans that were running will be restarted when we
-		 * resume.
-		*/
-		return 0;
+		/* For non-unified images, there's no need to stop
+		 * anything for net-detect since the firmware is
+		 * restarted anyway.  This way, any sched scans that
+		 * were running will be restarted when we resume.
+		 */
+		if (!unified_image)
+			return 0;
+
+		/* If this is a unified image and we ran out of scans,
+		 * we need to stop something.  Prefer stopping regular
+		 * scans, because the results are useless at this
+		 * point, and we should be able to keep running
+		 * another scheduled scan while suspended.
+		 */
+		if (mvm->scan_status & IWL_MVM_SCAN_REGULAR_MASK)
+			return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_REGULAR,
+						 true);
+		if (mvm->scan_status & IWL_MVM_SCAN_SCHED_MASK)
+			return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED,
+						 true);
+
+		/* fall through, something is wrong if no scan was
+		 * running but we ran out of scans.
+		 */
 	default:
 		WARN_ON(1);
 		break;

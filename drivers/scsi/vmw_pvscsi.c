@@ -793,6 +793,7 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 	unsigned long flags;
 	int result = SUCCESS;
 	DECLARE_COMPLETION_ONSTACK(abort_cmp);
+	int done;
 
 	scmd_printk(KERN_DEBUG, cmd, "task abort on host %u, %p\n",
 		    adapter->host->host_no, cmd);
@@ -824,10 +825,10 @@ static int pvscsi_abort(struct scsi_cmnd *cmd)
 	pvscsi_abort_cmd(adapter, ctx);
 	spin_unlock_irqrestore(&adapter->hw_lock, flags);
 	/* Wait for 2 secs for the completion. */
-	wait_for_completion_timeout(&abort_cmp, msecs_to_jiffies(2000));
+	done = wait_for_completion_timeout(&abort_cmp, msecs_to_jiffies(2000));
 	spin_lock_irqsave(&adapter->hw_lock, flags);
 
-	if (!completion_done(&abort_cmp)) {
+	if (!done) {
 		/*
 		 * Failed to abort the command, unmark the fact that it
 		 * was requested to be aborted.

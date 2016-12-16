@@ -306,6 +306,7 @@ config MMP_TDMA
 	depends on ARCH_MMP || COMPILE_TEST
 	select DMA_ENGINE
 	select MMP_SRAM if ARCH_MMP
+	select GENERIC_ALLOCATOR
 	help
 	  Support the MMP Two-Channel DMA engine.
 	  This engine used for MMP Audio DMA and pxa910 SQU.
@@ -434,6 +435,20 @@ config STE_DMA40
 	select DMA_ENGINE
 	help
 	  Support for ST-Ericsson DMA40 controller
+
+config ST_FDMA
+	tristate "ST FDMA dmaengine support"
+	depends on ARCH_STI
+	depends on REMOTEPROC
+	select ST_SLIM_REMOTEPROC
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for ST FDMA controller.
+	  It supports 16 independent DMA channels, accepts up to 32 DMA requests
+
+	  Say Y here if you have such a chipset.
+	  If unsure, say N.
 
 config STM32_DMA
 	bool "STMicroelectronics STM32 DMA support"

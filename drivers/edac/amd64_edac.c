@@ -2913,7 +2913,7 @@ static int toggle_ecc_err_reporting(struct ecc_settings *s, u16 nid, bool on)
 
 	if (!zalloc_cpumask_var(&cmask, GFP_KERNEL)) {
 		amd64_warn("%s: error allocating mask\n", __func__);
-		return false;
+		return -ENOMEM;
 	}
 
 	get_cpus_on_this_dct_cpumask(cmask, nid);

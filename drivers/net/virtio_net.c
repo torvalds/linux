@@ -969,12 +969,17 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	struct virtnet_info *vi = netdev_priv(dev);
 	struct virtio_device *vdev = vi->vdev;
 	int ret;
-	struct sockaddr *addr = p;
+	struct sockaddr *addr;
 	struct scatterlist sg;
 
-	ret = eth_prepare_mac_addr_change(dev, p);
+	addr = kmalloc(sizeof(*addr), GFP_KERNEL);
+	if (!addr)
+		return -ENOMEM;
+	memcpy(addr, p, sizeof(*addr));
+
+	ret = eth_prepare_mac_addr_change(dev, addr);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_CTRL_MAC_ADDR)) {
 		sg_init_one(&sg, addr->sa_data, dev->addr_len);
@@ -982,7 +987,8 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 					  VIRTIO_NET_CTRL_MAC_ADDR_SET, &sg)) {
 			dev_warn(&vdev->dev,
 				 "Failed to set mac address by vq command.\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 	} else if (virtio_has_feature(vdev, VIRTIO_NET_F_MAC) &&
 		   !virtio_has_feature(vdev, VIRTIO_F_VERSION_1)) {
@@ -996,8 +1002,11 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	}
 
 	eth_commit_mac_addr_change(dev, p);
+	ret = 0;
 
-	return 0;
+out:
+	kfree(addr);
+	return ret;
 }
 
 static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,
@@ -1419,17 +1428,6 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.set_settings = virtnet_set_settings,
 };
 
-#define MIN_MTU 68
-#define MAX_MTU 65535
-
-static int virtnet_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < MIN_MTU || new_mtu > MAX_MTU)
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops virtnet_netdev = {
 	.ndo_open            = virtnet_open,
 	.ndo_stop   	     = virtnet_close,
@@ -1437,7 +1435,6 @@ static const struct net_device_ops virtnet_netdev = {
 	.ndo_validate_addr   = eth_validate_addr,
 	.ndo_set_mac_address = virtnet_set_mac_address,
 	.ndo_set_rx_mode     = virtnet_set_rx_mode,
-	.ndo_change_mtu	     = virtnet_change_mtu,
 	.ndo_get_stats64     = virtnet_stats,
 	.ndo_vlan_rx_add_vid = virtnet_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = virtnet_vlan_rx_kill_vid,
@@ -1496,6 +1493,11 @@ static void virtnet_free_queues(struct virtnet_info *vi)
 		napi_hash_del(&vi->rq[i].napi);
 		netif_napi_del(&vi->rq[i].napi);
 	}
+
+	/* We called napi_hash_del() before netif_napi_del(),
+	 * we need to respect an RCU grace period before freeing vi->rq
+	 */
+	synchronize_net();
 
 	kfree(vi->rq);
 	kfree(vi->sq);
@@ -1748,6 +1750,9 @@ static bool virtnet_validate_features(struct virtio_device *vdev)
 	return true;
 }
 
+#define MIN_MTU ETH_MIN_MTU
+#define MAX_MTU ETH_MAX_MTU
+
 static int virtnet_probe(struct virtio_device *vdev)
 {
 	int i, err;
@@ -1821,6 +1826,10 @@ static int virtnet_probe(struct virtio_device *vdev)
 
 	dev->vlan_features = dev->features;
 
+	/* MTU range: 68 - 65535 */
+	dev->min_mtu = MIN_MTU;
+	dev->max_mtu = MAX_MTU;
+
 	/* Configuration may specify what MAC to use.  Otherwise random. */
 	if (virtio_has_feature(vdev, VIRTIO_NET_F_MAC))
 		virtio_cread_bytes(vdev,
@@ -1875,15 +1884,22 @@ static int virtnet_probe(struct virtio_device *vdev)
 		mtu = virtio_cread16(vdev,
 				     offsetof(struct virtio_net_config,
 					      mtu));
-		if (virtnet_change_mtu(dev, mtu))
+		if (mtu < dev->min_mtu) {
 			__virtio_clear_bit(vdev, VIRTIO_NET_F_MTU);
+		} else {
+			dev->mtu = mtu;
+			dev->max_mtu = mtu;
+		}
 	}
 
 	if (vi->any_header_sg)
 		dev->needed_headroom = vi->hdr_len;
 
-	/* Use single tx/rx queue pair as default */
-	vi->curr_queue_pairs = 1;
+	/* Enable multiqueue by default */
+	if (num_online_cpus() >= max_queue_pairs)
+		vi->curr_queue_pairs = max_queue_pairs;
+	else
+		vi->curr_queue_pairs = num_online_cpus();
 	vi->max_queue_pairs = max_queue_pairs;
 
 	/* Allocate/initialize the rx/tx queues, and invoke find_vqs */
@@ -1913,6 +1929,8 @@ static int virtnet_probe(struct virtio_device *vdev)
 		pr_debug("virtio_net: registering cpu notifier failed\n");
 		goto free_unregister_netdev;
 	}
+
+	virtnet_set_affinity(vi);
 
 	/* Assume link up if device can't report link status,
 	   otherwise get link status from config. */
@@ -2038,23 +2056,33 @@ static struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
+#define VIRTNET_FEATURES \
+	VIRTIO_NET_F_CSUM, VIRTIO_NET_F_GUEST_CSUM, \
+	VIRTIO_NET_F_MAC, \
+	VIRTIO_NET_F_HOST_TSO4, VIRTIO_NET_F_HOST_UFO, VIRTIO_NET_F_HOST_TSO6, \
+	VIRTIO_NET_F_HOST_ECN, VIRTIO_NET_F_GUEST_TSO4, VIRTIO_NET_F_GUEST_TSO6, \
+	VIRTIO_NET_F_GUEST_ECN, VIRTIO_NET_F_GUEST_UFO, \
+	VIRTIO_NET_F_MRG_RXBUF, VIRTIO_NET_F_STATUS, VIRTIO_NET_F_CTRL_VQ, \
+	VIRTIO_NET_F_CTRL_RX, VIRTIO_NET_F_CTRL_VLAN, \
+	VIRTIO_NET_F_GUEST_ANNOUNCE, VIRTIO_NET_F_MQ, \
+	VIRTIO_NET_F_CTRL_MAC_ADDR, \
+	VIRTIO_NET_F_MTU
+
 static unsigned int features[] = {
-	VIRTIO_NET_F_CSUM, VIRTIO_NET_F_GUEST_CSUM,
-	VIRTIO_NET_F_GSO, VIRTIO_NET_F_MAC,
-	VIRTIO_NET_F_HOST_TSO4, VIRTIO_NET_F_HOST_UFO, VIRTIO_NET_F_HOST_TSO6,
-	VIRTIO_NET_F_HOST_ECN, VIRTIO_NET_F_GUEST_TSO4, VIRTIO_NET_F_GUEST_TSO6,
-	VIRTIO_NET_F_GUEST_ECN, VIRTIO_NET_F_GUEST_UFO,
-	VIRTIO_NET_F_MRG_RXBUF, VIRTIO_NET_F_STATUS, VIRTIO_NET_F_CTRL_VQ,
-	VIRTIO_NET_F_CTRL_RX, VIRTIO_NET_F_CTRL_VLAN,
-	VIRTIO_NET_F_GUEST_ANNOUNCE, VIRTIO_NET_F_MQ,
-	VIRTIO_NET_F_CTRL_MAC_ADDR,
+	VIRTNET_FEATURES,
+};
+
+static unsigned int features_legacy[] = {
+	VIRTNET_FEATURES,
+	VIRTIO_NET_F_GSO,
 	VIRTIO_F_ANY_LAYOUT,
-	VIRTIO_NET_F_MTU,
 };
 
 static struct virtio_driver virtio_net_driver = {
 	.feature_table = features,
 	.feature_table_size = ARRAY_SIZE(features),
+	.feature_table_legacy = features_legacy,
+	.feature_table_size_legacy = ARRAY_SIZE(features_legacy),
 	.driver.name =	KBUILD_MODNAME,
 	.driver.owner =	THIS_MODULE,
 	.id_table =	id_table,
