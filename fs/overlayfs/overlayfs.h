@@ -18,9 +18,6 @@ enum ovl_path_type {
 
 #define OVL_TYPE_UPPER(type)	((type) & __OVL_PATH_UPPER)
 #define OVL_TYPE_MERGE(type)	((type) & __OVL_PATH_MERGE)
-#define OVL_TYPE_MERGE_OR_LOWER(type) \
-	(OVL_TYPE_MERGE(type) || !OVL_TYPE_UPPER(type))
-
 
 #define OVL_XATTR_PREFIX XATTR_TRUSTED_PREFIX "overlay."
 #define OVL_XATTR_OPAQUE OVL_XATTR_PREFIX "opaque"
