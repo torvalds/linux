@@ -185,12 +185,12 @@ filesystem, so both st_dev and st_ino of the file may change.
 
 Any open files referring to this inode will access the old data.
 
-Any file locks (and leases) obtained before copy_up will not apply
-to the copied up file.
-
 If a file with multiple hard links is copied up, then this will
 "break" the link.  Changes will not be propagated to other names
 referring to the same inode.
+
+Directory trees are not copied up.  If rename(2) is performed on a directory
+which is on the lower layer or is merged, then -EXDEV will be returned.
 
 Changes to underlying filesystems
 ---------------------------------
