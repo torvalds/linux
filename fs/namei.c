@@ -4345,11 +4345,7 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	bool new_is_dir = false;
 	unsigned max_links = new_dir->i_sb->s_max_links;
 
-	/*
-	 * Check source == target.
-	 * On overlayfs need to look at underlying inodes.
-	 */
-	if (d_real_inode(old_dentry) == d_real_inode(new_dentry))
+	if (source == target)
 		return 0;
 
 	error = may_delete(old_dir, old_dentry, is_dir);
