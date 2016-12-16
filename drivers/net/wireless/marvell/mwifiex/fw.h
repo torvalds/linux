@@ -441,6 +441,7 @@ enum mwifiex_channel_flags {
 #define HostCmd_ACT_MAC_PROMISCUOUS_ENABLE    BIT(7)
 #define HostCmd_ACT_MAC_ALL_MULTICAST_ENABLE  BIT(8)
 #define HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON BIT(13)
+#define HostCmd_ACT_MAC_DYNAMIC_BW_ENABLE     BIT(16)
 
 #define HostCmd_BSS_MODE_IBSS               0x0002
 #define HostCmd_BSS_MODE_ANY                0x0003
