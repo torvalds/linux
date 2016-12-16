@@ -46,7 +46,14 @@ static bool is_last_task_frame(struct unwind_state *state)
 	unsigned long bp = (unsigned long)state->bp;
 	unsigned long regs = (unsigned long)task_pt_regs(state->task);
 
-	return bp == regs - FRAME_HEADER_SIZE;
+	/*
+	 * We have to check for the last task frame at two different locations
+	 * because gcc can occasionally decide to realign the stack pointer and
+	 * change the offset of the stack frame by a word in the prologue of a
+	 * function called by head/entry code.
+	 */
+	return bp == regs - FRAME_HEADER_SIZE ||
+	       bp == regs - FRAME_HEADER_SIZE - sizeof(long);
 }
 
 /*
