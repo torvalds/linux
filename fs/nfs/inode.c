@@ -160,6 +160,13 @@ int nfs_sync_mapping(struct address_space *mapping)
 	return ret;
 }
 
+static int nfs_attribute_timeout(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	return !time_in_range_open(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
+}
+
 static bool nfs_check_cache_invalid_delegated(struct inode *inode, unsigned long flags)
 {
 	unsigned long cache_validity = READ_ONCE(NFS_I(inode)->cache_validity);
@@ -1074,13 +1081,6 @@ out:
 	nfs_free_fattr(fattr);
 	trace_nfs_revalidate_inode_exit(inode, status);
 	return status;
-}
-
-int nfs_attribute_timeout(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	return !time_in_range_open(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
 }
 
 int nfs_attribute_cache_expired(struct inode *inode)
