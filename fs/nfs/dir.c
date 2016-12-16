@@ -1273,8 +1273,8 @@ out_error:
  */
 static int nfs_weak_revalidate(struct dentry *dentry, unsigned int flags)
 {
-	int error;
 	struct inode *inode = d_inode(dentry);
+	int error = 0;
 
 	/*
 	 * I believe we can only get a negative dentry here in the case of a
@@ -1293,7 +1293,8 @@ static int nfs_weak_revalidate(struct dentry *dentry, unsigned int flags)
 		return 0;
 	}
 
-	error = nfs_revalidate_inode(NFS_SERVER(inode), inode);
+	if (nfs_mapping_need_revalidate_inode(inode))
+		error = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	dfprintk(LOOKUPCACHE, "NFS: %s: inode %lu is %s\n",
 			__func__, inode->i_ino, error ? "invalid" : "valid");
 	return !error;
