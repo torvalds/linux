@@ -825,10 +825,20 @@ static int snd_byt_rt5640_mc_probe(struct platform_device *pdev)
 	if ((byt_rt5640_quirk & BYT_RT5640_MCLK_EN) && (is_valleyview())) {
 		priv->mclk = devm_clk_get(&pdev->dev, "pmc_plt_clk_3");
 		if (IS_ERR(priv->mclk)) {
+			ret_val = PTR_ERR(priv->mclk);
+
 			dev_err(&pdev->dev,
-				"Failed to get MCLK from pmc_plt_clk_3: %ld\n",
-				PTR_ERR(priv->mclk));
-			return PTR_ERR(priv->mclk);
+				"Failed to get MCLK from pmc_plt_clk_3: %d\n",
+				ret_val);
+
+			/*
+			 * Fall back to bit clock usage for -ENOENT (clock not
+			 * available likely due to missing dependencies), bail
+			 * for all other errors, including -EPROBE_DEFER
+			 */
+			if (ret_val != -ENOENT)
+				return ret_val;
+			byt_rt5640_quirk &= ~BYT_RT5640_MCLK_EN;
 		}
 	}
 
