@@ -826,18 +826,6 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 		err = -EXDEV;
 		if (!overwrite && OVL_TYPE_MERGE_OR_LOWER(new_type) && new_is_dir)
 			goto out;
-
-		err = 0;
-		if (!OVL_TYPE_UPPER(new_type) && !OVL_TYPE_UPPER(old_type)) {
-			if (ovl_dentry_lower(old)->d_inode ==
-			    ovl_dentry_lower(new)->d_inode)
-				goto out;
-		}
-		if (OVL_TYPE_UPPER(new_type) && OVL_TYPE_UPPER(old_type)) {
-			if (ovl_dentry_upper(old)->d_inode ==
-			    ovl_dentry_upper(new)->d_inode)
-				goto out;
-		}
 	} else {
 		if (ovl_dentry_is_opaque(new))
 			new_type = __OVL_PATH_UPPER;
@@ -931,6 +919,9 @@ static int ovl_rename(struct inode *olddir, struct dentry *old,
 	if (olddentry == trap)
 		goto out_dput;
 	if (newdentry == trap)
+		goto out_dput;
+
+	if (WARN_ON(olddentry->d_inode == newdentry->d_inode))
 		goto out_dput;
 
 	if (is_dir && !old_opaque && new_opaque) {
