@@ -13,26 +13,13 @@
 #include "overlayfs.h"
 #include "ovl_entry.h"
 
-static struct dentry *ovl_lookup_real(struct dentry *dir,
-				      const struct qstr *name)
-{
-	struct dentry *dentry;
-
-	dentry = lookup_one_len_unlocked(name->name, dir, name->len);
-	if (IS_ERR(dentry)) {
-		if (PTR_ERR(dentry) == -ENOENT ||
-		    PTR_ERR(dentry) == -ENAMETOOLONG)
-			dentry = NULL;
-	} else if (!dentry->d_inode) {
-		dput(dentry);
-		dentry = NULL;
-	} else if (ovl_dentry_weird(dentry)) {
-		dput(dentry);
-		/* Don't support traversing automounts and other weirdness */
-		dentry = ERR_PTR(-EREMOTE);
-	}
-	return dentry;
-}
+struct ovl_lookup_data {
+	struct qstr name;
+	bool is_dir;
+	bool opaque;
+	bool stop;
+	bool last;
+};
 
 static bool ovl_is_opaquedir(struct dentry *dentry)
 {
@@ -47,6 +34,64 @@ static bool ovl_is_opaquedir(struct dentry *dentry)
 		return true;
 
 	return false;
+}
+
+static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
+			     const char *name, unsigned int namelen,
+			     struct dentry **ret)
+{
+	struct dentry *this;
+	int err;
+
+	this = lookup_one_len_unlocked(name, base, namelen);
+	if (IS_ERR(this)) {
+		err = PTR_ERR(this);
+		this = NULL;
+		if (err == -ENOENT || err == -ENAMETOOLONG)
+			goto out;
+		goto out_err;
+	}
+	if (!this->d_inode)
+		goto put_and_out;
+
+	if (ovl_dentry_weird(this)) {
+		/* Don't support traversing automounts and other weirdness */
+		err = -EREMOTE;
+		goto out_err;
+	}
+	if (ovl_is_whiteout(this)) {
+		d->stop = d->opaque = true;
+		goto put_and_out;
+	}
+	if (!d_can_lookup(this)) {
+		d->stop = true;
+		if (d->is_dir)
+			goto put_and_out;
+		goto out;
+	}
+	d->is_dir = true;
+	if (!d->last && ovl_is_opaquedir(this)) {
+		d->stop = d->opaque = true;
+		goto out;
+	}
+out:
+	*ret = this;
+	return 0;
+
+put_and_out:
+	dput(this);
+	this = NULL;
+	goto out;
+
+out_err:
+	dput(this);
+	return err;
+}
+
+static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
+			    struct dentry **ret)
+{
+	return ovl_lookup_single(base, d, d->name.name, d->name.len, ret);
 }
 
 /*
@@ -82,11 +127,16 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	unsigned int ctr = 0;
 	struct inode *inode = NULL;
 	bool upperopaque = false;
-	bool stop = false;
-	bool isdir = false;
 	struct dentry *this;
 	unsigned int i;
 	int err;
+	struct ovl_lookup_data d = {
+		.name = dentry->d_name,
+		.is_dir = false,
+		.opaque = false,
+		.stop = false,
+		.last = !poe->numlower,
+	};
 
 	if (dentry->d_name.len > ofs->namelen)
 		return ERR_PTR(-ENAMETOOLONG);
@@ -94,70 +144,36 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	old_cred = ovl_override_creds(dentry->d_sb);
 	upperdir = ovl_upperdentry_dereference(poe);
 	if (upperdir) {
-		this = ovl_lookup_real(upperdir, &dentry->d_name);
-		err = PTR_ERR(this);
-		if (IS_ERR(this))
+		err = ovl_lookup_layer(upperdir, &d, &upperdentry);
+		if (err)
 			goto out;
 
-		if (this) {
-			if (unlikely(ovl_dentry_remote(this))) {
-				dput(this);
-				err = -EREMOTE;
-				goto out;
-			}
-			if (ovl_is_whiteout(this)) {
-				dput(this);
-				this = NULL;
-				stop = upperopaque = true;
-			} else if (!d_is_dir(this)) {
-				stop = true;
-			} else {
-				isdir = true;
-				if (poe->numlower && ovl_is_opaquedir(this))
-					stop = upperopaque = true;
-			}
+		if (upperdentry && unlikely(ovl_dentry_remote(upperdentry))) {
+			dput(upperdentry);
+			err = -EREMOTE;
+			goto out;
 		}
-		upperdentry = this;
+		upperopaque = d.opaque;
 	}
 
-	if (!stop && poe->numlower) {
+	if (!d.stop && poe->numlower) {
 		err = -ENOMEM;
-		stack = kcalloc(poe->numlower, sizeof(struct path), GFP_KERNEL);
+		stack = kcalloc(poe->numlower, sizeof(struct path),
+				GFP_TEMPORARY);
 		if (!stack)
 			goto out_put_upper;
 	}
 
-	for (i = 0; !stop && i < poe->numlower; i++) {
+	for (i = 0; !d.stop && i < poe->numlower; i++) {
 		struct path lowerpath = poe->lowerstack[i];
 
-		this = ovl_lookup_real(lowerpath.dentry, &dentry->d_name);
-		err = PTR_ERR(this);
-		if (IS_ERR(this))
+		d.last = i == poe->numlower - 1;
+		err = ovl_lookup_layer(lowerpath.dentry, &d, &this);
+		if (err)
 			goto out_put;
 
 		if (!this)
 			continue;
-		if (ovl_is_whiteout(this)) {
-			dput(this);
-			break;
-		}
-		/*
-		 * If this is a non-directory then stop here.
-		 */
-		if (!d_is_dir(this)) {
-			if (isdir) {
-				dput(this);
-				break;
-			}
-			stop = true;
-		} else {
-			/*
-			 * Only makes sense to check opaque dir if this is not
-			 * the lowermost layer.
-			 */
-			if (i < poe->numlower - 1 && ovl_is_opaquedir(this))
-				stop = true;
-		}
 
 		stack[ctr].dentry = this;
 		stack[ctr].mnt = lowerpath.mnt;
