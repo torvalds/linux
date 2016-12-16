@@ -12804,7 +12804,7 @@ static int nl80211_add_scan_req(struct sk_buff *msg,
 	return -ENOBUFS;
 }
 
-static int nl80211_send_scan_msg(struct sk_buff *msg,
+static int nl80211_prep_scan_msg(struct sk_buff *msg,
 				 struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev,
 				 u32 portid, u32 seq, int flags,
@@ -12835,7 +12835,7 @@ static int nl80211_send_scan_msg(struct sk_buff *msg,
 }
 
 static int
-nl80211_send_sched_scan_msg(struct sk_buff *msg,
+nl80211_prep_sched_scan_msg(struct sk_buff *msg,
 			    struct cfg80211_registered_device *rdev,
 			    struct net_device *netdev,
 			    u32 portid, u32 seq, int flags, u32 cmd)
@@ -12867,7 +12867,7 @@ void nl80211_send_scan_start(struct cfg80211_registered_device *rdev,
 	if (!msg)
 		return;
 
-	if (nl80211_send_scan_msg(msg, rdev, wdev, 0, 0, 0,
+	if (nl80211_prep_scan_msg(msg, rdev, wdev, 0, 0, 0,
 				  NL80211_CMD_TRIGGER_SCAN) < 0) {
 		nlmsg_free(msg);
 		return;
@@ -12886,7 +12886,7 @@ struct sk_buff *nl80211_build_scan_msg(struct cfg80211_registered_device *rdev,
 	if (!msg)
 		return NULL;
 
-	if (nl80211_send_scan_msg(msg, rdev, wdev, 0, 0, 0,
+	if (nl80211_prep_scan_msg(msg, rdev, wdev, 0, 0, 0,
 				  aborted ? NL80211_CMD_SCAN_ABORTED :
 					    NL80211_CMD_NEW_SCAN_RESULTS) < 0) {
 		nlmsg_free(msg);
@@ -12896,30 +12896,12 @@ struct sk_buff *nl80211_build_scan_msg(struct cfg80211_registered_device *rdev,
 	return msg;
 }
 
-void nl80211_send_scan_result(struct cfg80211_registered_device *rdev,
-			      struct sk_buff *msg)
+/* send message created by nl80211_build_scan_msg() */
+void nl80211_send_scan_msg(struct cfg80211_registered_device *rdev,
+			   struct sk_buff *msg)
 {
 	if (!msg)
 		return;
-
-	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
-				NL80211_MCGRP_SCAN, GFP_KERNEL);
-}
-
-void nl80211_send_sched_scan_results(struct cfg80211_registered_device *rdev,
-				     struct net_device *netdev)
-{
-	struct sk_buff *msg;
-
-	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
-	if (!msg)
-		return;
-
-	if (nl80211_send_sched_scan_msg(msg, rdev, netdev, 0, 0, 0,
-					NL80211_CMD_SCHED_SCAN_RESULTS) < 0) {
-		nlmsg_free(msg);
-		return;
-	}
 
 	genlmsg_multicast_netns(&nl80211_fam, wiphy_net(&rdev->wiphy), msg, 0,
 				NL80211_MCGRP_SCAN, GFP_KERNEL);
@@ -12934,7 +12916,7 @@ void nl80211_send_sched_scan(struct cfg80211_registered_device *rdev,
 	if (!msg)
 		return;
 
-	if (nl80211_send_sched_scan_msg(msg, rdev, netdev, 0, 0, 0, cmd) < 0) {
+	if (nl80211_prep_sched_scan_msg(msg, rdev, netdev, 0, 0, 0, cmd) < 0) {
 		nlmsg_free(msg);
 		return;
 	}
