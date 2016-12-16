@@ -530,7 +530,7 @@ struct mwifiex_private {
 	u8 tx_timeout_cnt;
 	struct net_device *netdev;
 	struct net_device_stats stats;
-	u16 curr_pkt_filter;
+	u32 curr_pkt_filter;
 	u32 bss_mode;
 	u32 pkt_tx_ctrl;
 	u16 tx_power_level;

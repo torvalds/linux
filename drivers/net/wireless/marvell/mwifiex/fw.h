@@ -434,14 +434,13 @@ enum mwifiex_channel_flags {
 #define HostCmd_ACT_BITWISE_SET               0x0002
 #define HostCmd_ACT_BITWISE_CLR               0x0003
 #define HostCmd_RESULT_OK                     0x0000
-
-#define HostCmd_ACT_MAC_RX_ON                 0x0001
-#define HostCmd_ACT_MAC_TX_ON                 0x0002
-#define HostCmd_ACT_MAC_WEP_ENABLE            0x0008
-#define HostCmd_ACT_MAC_ETHERNETII_ENABLE     0x0010
-#define HostCmd_ACT_MAC_PROMISCUOUS_ENABLE    0x0080
-#define HostCmd_ACT_MAC_ALL_MULTICAST_ENABLE  0x0100
-#define HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON     0x2000
+#define HostCmd_ACT_MAC_RX_ON                 BIT(0)
+#define HostCmd_ACT_MAC_TX_ON                 BIT(1)
+#define HostCmd_ACT_MAC_WEP_ENABLE            BIT(3)
+#define HostCmd_ACT_MAC_ETHERNETII_ENABLE     BIT(4)
+#define HostCmd_ACT_MAC_PROMISCUOUS_ENABLE    BIT(7)
+#define HostCmd_ACT_MAC_ALL_MULTICAST_ENABLE  BIT(8)
+#define HostCmd_ACT_MAC_ADHOC_G_PROTECTION_ON BIT(13)
 
 #define HostCmd_BSS_MODE_IBSS               0x0002
 #define HostCmd_BSS_MODE_ANY                0x0003
@@ -1084,8 +1083,7 @@ struct host_cmd_ds_802_11_mac_address {
 };
 
 struct host_cmd_ds_mac_control {
-	__le16 action;
-	__le16 reserved;
+	__le32 action;
 };
 
 struct host_cmd_ds_mac_multicast_adr {
