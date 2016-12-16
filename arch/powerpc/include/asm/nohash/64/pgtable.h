@@ -347,8 +347,6 @@ static inline void __ptep_set_access_flags(struct mm_struct *mm,
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
 #define __swp_entry_to_pte(x)		__pte((x).val)
 
-void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
-void pgtable_cache_init(void);
 extern int map_kernel_page(unsigned long ea, unsigned long pa,
 			   unsigned long flags);
 extern int __meminit vmemmap_create_mapping(unsigned long start,
