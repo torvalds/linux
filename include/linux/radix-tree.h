@@ -22,11 +22,13 @@
 #define _LINUX_RADIX_TREE_H
 
 #include <linux/bitops.h>
-#include <linux/preempt.h>
-#include <linux/types.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/preempt.h>
 #include <linux/rcupdate.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
 
 /*
  * The bottom two bits of the slot determine how the remaining bits in the
