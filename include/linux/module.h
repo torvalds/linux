@@ -282,8 +282,6 @@ enum module_state {
 	MODULE_STATE_UNFORMED,	/* Still setting it up. */
 };
 
-struct module;
-
 struct mod_tree_node {
 	struct module *mod;
 	struct latch_tree_node node;
