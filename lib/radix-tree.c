@@ -70,6 +70,14 @@ static struct kmem_cache *radix_tree_node_cachep;
 #define IDR_PRELOAD_SIZE	(IDR_MAX_PATH * 2 - 1)
 
 /*
+ * The IDA is even shorter since it uses a bitmap at the last level.
+ */
+#define IDA_INDEX_BITS		(8 * sizeof(int) - 1 - ilog2(IDA_BITMAP_BITS))
+#define IDA_MAX_PATH		(DIV_ROUND_UP(IDA_INDEX_BITS, \
+						RADIX_TREE_MAP_SHIFT))
+#define IDA_PRELOAD_SIZE	(IDA_MAX_PATH * 2 - 1)
+
+/*
  * Per-cpu pool of preloaded nodes
  */
 struct radix_tree_preload {
@@ -346,9 +354,8 @@ static void dump_ida_node(void *entry, unsigned long index)
 static void ida_dump(struct ida *ida)
 {
 	struct radix_tree_root *root = &ida->ida_rt;
-	pr_debug("ida: %p %p free %d bitmap %p\n", ida, root->rnode,
-				root->gfp_mask >> ROOT_TAG_SHIFT,
-				ida->free_bitmap);
+	pr_debug("ida: %p node %p free %d\n", ida, root->rnode,
+				root->gfp_mask >> ROOT_TAG_SHIFT);
 	dump_ida_node(root->rnode, 0);
 }
 #endif
@@ -2080,6 +2087,36 @@ void idr_preload(gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(idr_preload);
 
+/**
+ * ida_pre_get - reserve resources for ida allocation
+ * @ida: ida handle
+ * @gfp: memory allocation flags
+ *
+ * This function should be called before calling ida_get_new_above().  If it
+ * is unable to allocate memory, it will return %0.  On success, it returns %1.
+ */
+int ida_pre_get(struct ida *ida, gfp_t gfp)
+{
+	__radix_tree_preload(gfp, IDA_PRELOAD_SIZE);
+	/*
+	 * The IDA API has no preload_end() equivalent.  Instead,
+	 * ida_get_new() can return -EAGAIN, prompting the caller
+	 * to return to the ida_pre_get() step.
+	 */
+	preempt_enable();
+
+	if (!this_cpu_read(ida_bitmap)) {
+		struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
+		if (!bitmap)
+			return 0;
+		bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
+		kfree(bitmap);
+	}
+
+	return 1;
+}
+EXPORT_SYMBOL(ida_pre_get);
+
 void **idr_get_free(struct radix_tree_root *root,
 			struct radix_tree_iter *iter, gfp_t gfp, int end)
 {
@@ -2219,6 +2256,8 @@ static int radix_tree_cpu_dead(unsigned int cpu)
 		kmem_cache_free(radix_tree_node_cachep, node);
 		rtp->nr--;
 	}
+	kfree(per_cpu(ida_bitmap, cpu));
+	per_cpu(ida_bitmap, cpu) = NULL;
 	return 0;
 }
 

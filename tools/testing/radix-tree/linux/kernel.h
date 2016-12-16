@@ -24,6 +24,4 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-#define xchg(ptr, x)	uatomic_xchg(ptr, x)
-
 #endif /* _KERNEL_H */
