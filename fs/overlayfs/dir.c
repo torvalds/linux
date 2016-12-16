@@ -777,9 +777,9 @@ static int ovl_rmdir(struct inode *dir, struct dentry *dentry)
 	return ovl_do_remove(dentry, true);
 }
 
-static int ovl_rename2(struct inode *olddir, struct dentry *old,
-		       struct inode *newdir, struct dentry *new,
-		       unsigned int flags)
+static int ovl_rename(struct inode *olddir, struct dentry *old,
+		      struct inode *newdir, struct dentry *new,
+		      unsigned int flags)
 {
 	int err;
 	enum ovl_path_type old_type;
@@ -1009,7 +1009,7 @@ const struct inode_operations ovl_dir_inode_operations = {
 	.symlink	= ovl_symlink,
 	.unlink		= ovl_unlink,
 	.rmdir		= ovl_rmdir,
-	.rename		= ovl_rename2,
+	.rename		= ovl_rename,
 	.link		= ovl_link,
 	.setattr	= ovl_setattr,
 	.create		= ovl_create,
