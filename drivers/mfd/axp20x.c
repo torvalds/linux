@@ -118,7 +118,14 @@ static const struct regmap_range axp288_writeable_ranges[] = {
 };
 
 static const struct regmap_range axp288_volatile_ranges[] = {
+	regmap_reg_range(AXP20X_PWR_INPUT_STATUS, AXP288_POWER_REASON),
+	regmap_reg_range(AXP288_BC_GLOBAL, AXP288_BC_GLOBAL),
+	regmap_reg_range(AXP288_BC_DET_STAT, AXP288_BC_DET_STAT),
 	regmap_reg_range(AXP20X_IRQ1_EN, AXP20X_IPSOUT_V_HIGH_L),
+	regmap_reg_range(AXP20X_TIMER_CTRL, AXP20X_TIMER_CTRL),
+	regmap_reg_range(AXP22X_GPIO_STATE, AXP22X_GPIO_STATE),
+	regmap_reg_range(AXP288_RT_BATT_V_H, AXP288_RT_BATT_V_L),
+	regmap_reg_range(AXP20X_FG_RES, AXP288_FG_CC_CAP_REG),
 };
 
 static const struct regmap_access_table axp288_writeable_table = {
