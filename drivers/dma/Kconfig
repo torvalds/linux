@@ -494,7 +494,7 @@ config TEGRA20_APB_DMA
 	  or vice versa. It does not support memory to memory data transfer.
 
 config TEGRA210_ADMA
-	bool "NVIDIA Tegra210 ADMA support"
+	tristate "NVIDIA Tegra210 ADMA support"
 	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST) && PM_CLK
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS

@@ -98,3 +98,130 @@ config RD_LZ4
 	help
 	  Support loading of a LZ4 encoded initial ramdisk or cpio buffer
 	  If unsure, say N.
+
+choice
+	prompt "Built-in initramfs compression mode"
+	depends on INITRAMFS_SOURCE!=""
+	optional
+	help
+	  This option allows you to decide by which algorithm the builtin
+	  initramfs will be compressed.  Several compression algorithms are
+	  available, which differ in efficiency, compression and
+	  decompression speed.  Compression speed is only relevant
+	  when building a kernel.  Decompression speed is relevant at
+	  each boot. Also the memory usage during decompression may become
+	  relevant on memory constrained systems. This is usually based on the
+	  dictionary size of the algorithm with algorithms like XZ and LZMA
+	  featuring large dictionary sizes.
+
+	  High compression options are mostly useful for users who are
+	  low on RAM, since it reduces the memory consumption during
+	  boot.
+
+	  Keep in mind that your build system needs to provide the appropriate
+	  compression tool to compress the generated initram cpio file for
+	  embedding.
+
+	  If in doubt, select 'None'
+
+config INITRAMFS_COMPRESSION_NONE
+	bool "None"
+	help
+	  Do not compress the built-in initramfs at all. This may sound wasteful
+	  in space, but, you should be aware that the built-in initramfs will be
+	  compressed at a later stage anyways along with the rest of the kernel,
+	  on those architectures that support this. However, not compressing the
+	  initramfs may lead to slightly higher memory consumption during a
+	  short time at boot, while both the cpio image and the unpacked
+	  filesystem image will be present in memory simultaneously
+
+config INITRAMFS_COMPRESSION_GZIP
+	bool "Gzip"
+	depends on RD_GZIP
+	help
+	  Use the old and well tested gzip compression algorithm. Gzip provides
+	  a good balance between compression ratio and decompression speed and
+	  has a reasonable compression speed. It is also more likely to be
+	  supported by your build system as the gzip tool is present by default
+	  on most distros.
+
+config INITRAMFS_COMPRESSION_BZIP2
+	bool "Bzip2"
+	depends on RD_BZIP2
+	help
+	  It's compression ratio and speed is intermediate. Decompression speed
+	  is slowest among the choices. The initramfs size is about 10% smaller
+	  with bzip2, in comparison to gzip. Bzip2 uses a large amount of
+	  memory. For modern kernels you will need at least 8MB RAM or more for
+	  booting.
+
+	  If you choose this, keep in mind that you need to have the bzip2 tool
+	  available to be able to compress the initram.
+
+config INITRAMFS_COMPRESSION_LZMA
+	bool "LZMA"
+	depends on RD_LZMA
+	help
+	  This algorithm's compression ratio is best but has a large dictionary
+	  size which might cause issues in memory constrained systems.
+	  Decompression speed is between the other choices. Compression is
+	  slowest. The initramfs size is about 33% smaller with LZMA in
+	  comparison to gzip.
+
+	  If you choose this, keep in mind that you may need to install the xz
+	  or lzma tools to be able to compress the initram.
+
+config INITRAMFS_COMPRESSION_XZ
+	bool "XZ"
+	depends on RD_XZ
+	help
+	  XZ uses the LZMA2 algorithm and has a large dictionary which may cause
+	  problems on memory constrained systems. The initramfs size is about
+	  30% smaller with XZ in comparison to gzip. Decompression speed is
+	  better than that of bzip2 but worse than gzip and LZO. Compression is
+	  slow.
+
+	  If you choose this, keep in mind that you may need to install the xz
+	  tool to be able to compress the initram.
+
+config INITRAMFS_COMPRESSION_LZO
+	bool "LZO"
+	depends on RD_LZO
+	help
+	  It's compression ratio is the second poorest amongst the choices. The
+	  kernel size is about 10% bigger than gzip. Despite that, it's
+	  decompression speed is the second fastest and it's compression speed
+	  is quite fast too.
+
+	  If you choose this, keep in mind that you may need to install the lzop
+	  tool to be able to compress the initram.
+
+config INITRAMFS_COMPRESSION_LZ4
+	bool "LZ4"
+	depends on RD_LZ4
+	help
+	  It's compression ratio is the poorest amongst the choices. The kernel
+	  size is about 15% bigger than gzip; however its decompression speed
+	  is the fastest.
+
+	  If you choose this, keep in mind that most distros don't provide lz4
+	  by default which could cause a build failure.
+
+endchoice
+
+config INITRAMFS_COMPRESSION
+	string
+	default ""      if INITRAMFS_COMPRESSION_NONE
+	default ".gz"   if INITRAMFS_COMPRESSION_GZIP
+	default ".bz2"  if INITRAMFS_COMPRESSION_BZIP2
+	default ".lzma" if INITRAMFS_COMPRESSION_LZMA
+	default ".xz"   if INITRAMFS_COMPRESSION_XZ
+	default ".lzo"  if INITRAMFS_COMPRESSION_LZO
+	default ".lz4"  if INITRAMFS_COMPRESSION_LZ4
+	default ".gz"   if RD_GZIP
+	default ".lz4"  if RD_LZ4
+	default ".lzo"  if RD_LZO
+	default ".xz"   if RD_XZ
+	default ".lzma" if RD_LZMA
+	default ".bz2"  if RD_BZIP2
+	default ""

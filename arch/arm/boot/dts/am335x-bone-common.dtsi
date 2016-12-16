@@ -6,6 +6,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <dt-bindings/mfd/tps65217.h>
+
 / {
 	cpus {
 		cpu@0 {
@@ -310,7 +312,22 @@
 	 * by the hardware problems. (Tip: double-check by performing a current
 	 * measurement after shutdown: it should be less than 1 mA.)
 	 */
+
+	interrupts = <7>; /* NMI */
+	interrupt-parent = <&intc>;
+
 	ti,pmic-shutdown-controller;
+
+	charger {
+		interrupts = <TPS65217_IRQ_AC>, <TPS65217_IRQ_USB>;
+		interrupts-names = "AC", "USB";
+		status = "okay";
+	};
+
+	pwrbutton {
+		interrupts = <TPS65217_IRQ_PB>;
+		status = "okay";
+	};
 
 	regulators {
 		dcdc1_reg: regulator@0 {
@@ -392,4 +409,9 @@
 
 &sham {
 	status = "okay";
+};
+
+&rtc {
+	clocks = <&clk_32768_ck>, <&clkdiv32k_ick>;
+	clock-names = "ext-clk", "int-clk";
 };

@@ -527,13 +527,12 @@ static irqreturn_t stm32_dma_chan_irq(int irq, void *devid)
 {
 	struct stm32_dma_chan *chan = devid;
 	struct stm32_dma_device *dmadev = stm32_dma_get_dev(chan);
-	u32 status, scr, sfcr;
+	u32 status, scr;
 
 	spin_lock(&chan->vchan.lock);
 
 	status = stm32_dma_irq_status(chan);
 	scr = stm32_dma_read(dmadev, STM32_DMA_SCR(chan->id));
-	sfcr = stm32_dma_read(dmadev, STM32_DMA_SFCR(chan->id));
 
 	if ((status & STM32_DMA_TCI) && (scr & STM32_DMA_SCR_TCIE)) {
 		stm32_dma_irq_clear(chan, STM32_DMA_TCI);
@@ -574,15 +573,12 @@ static int stm32_dma_set_xfer_param(struct stm32_dma_chan *chan,
 	int src_bus_width, dst_bus_width;
 	int src_burst_size, dst_burst_size;
 	u32 src_maxburst, dst_maxburst;
-	dma_addr_t src_addr, dst_addr;
 	u32 dma_scr = 0;
 
 	src_addr_width = chan->dma_sconfig.src_addr_width;
 	dst_addr_width = chan->dma_sconfig.dst_addr_width;
 	src_maxburst = chan->dma_sconfig.src_maxburst;
 	dst_maxburst = chan->dma_sconfig.dst_maxburst;
-	src_addr = chan->dma_sconfig.src_addr;
-	dst_addr = chan->dma_sconfig.dst_addr;
 
 	switch (direction) {
 	case DMA_MEM_TO_DEV:

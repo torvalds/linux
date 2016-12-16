@@ -253,4 +253,10 @@ int iw_cm_disconnect(struct iw_cm_id *cm_id, int abrupt);
 int iw_cm_init_qp_attr(struct iw_cm_id *cm_id, struct ib_qp_attr *qp_attr,
 		       int *qp_attr_mask);
 
+/**
+ * iwcm_reject_msg - return a pointer to a reject message string.
+ * @reason: Value returned in the REJECT event status field.
+ */
+const char *__attribute_const__ iwcm_reject_msg(int reason);
+
 #endif /* IW_CM_H */

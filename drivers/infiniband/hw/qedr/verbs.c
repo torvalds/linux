@@ -511,8 +511,10 @@ int qedr_dealloc_pd(struct ib_pd *ibpd)
 	struct qedr_dev *dev = get_qedr_dev(ibpd->device);
 	struct qedr_pd *pd = get_qedr_pd(ibpd);
 
-	if (!pd)
+	if (!pd) {
 		pr_err("Invalid PD received in dealloc_pd\n");
+		return -EINVAL;
+	}
 
 	DP_DEBUG(dev, QEDR_MSG_INIT, "Deallocating PD %d\n", pd->pd_id);
 	dev->ops->rdma_dealloc_pd(dev->rdma_ctx, pd->pd_id);
@@ -1477,6 +1479,7 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	struct qedr_ucontext *ctx = NULL;
 	struct qedr_create_qp_ureq ureq;
 	struct qedr_qp *qp;
+	struct ib_qp *ibqp;
 	int rc = 0;
 
 	DP_DEBUG(dev, QEDR_MSG_QP, "create qp: called from %s, pd=%p\n",
@@ -1486,12 +1489,12 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 	if (rc)
 		return ERR_PTR(rc);
 
+	if (attrs->srq)
+		return ERR_PTR(-EINVAL);
+
 	qp = kzalloc(sizeof(*qp), GFP_KERNEL);
 	if (!qp)
 		return ERR_PTR(-ENOMEM);
-
-	if (attrs->srq)
-		return ERR_PTR(-EINVAL);
 
 	DP_DEBUG(dev, QEDR_MSG_QP,
 		 "create qp: sq_cq=%p, sq_icid=%d, rq_cq=%p, rq_icid=%d\n",
@@ -1508,7 +1511,10 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 			       "create qp: unexpected udata when creating GSI QP\n");
 			goto err0;
 		}
-		return qedr_create_gsi_qp(dev, attrs, qp);
+		ibqp = qedr_create_gsi_qp(dev, attrs, qp);
+		if (IS_ERR(ibqp))
+			kfree(qp);
+		return ibqp;
 	}
 
 	memset(&in_params, 0, sizeof(in_params));
@@ -2094,7 +2100,8 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 	return rc;
 }
 
-struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr)
+struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct ib_ah_attr *attr,
+			     struct ib_udata *udata)
 {
 	struct qedr_ah *ah;
 
@@ -2413,8 +2420,7 @@ static void handle_completed_mrs(struct qedr_dev *dev, struct mr_info *info)
 		 */
 		pbl = list_first_entry(&info->inuse_pbl_list,
 				       struct qedr_pbl, list_entry);
-		list_del(&pbl->list_entry);
-		list_add_tail(&pbl->list_entry, &info->free_pbl_list);
+		list_move_tail(&pbl->list_entry, &info->free_pbl_list);
 		info->completed_handled++;
 	}
 }
@@ -2978,11 +2984,6 @@ int qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		DP_DEBUG(dev, QEDR_MSG_CQ,
 			 "QP in wrong state! QP icid=0x%x state %d\n",
 			 qp->icid, qp->state);
-		return -EINVAL;
-	}
-
-	if (!wr) {
-		DP_ERR(dev, "Got an empty post send.\n");
 		return -EINVAL;
 	}
 

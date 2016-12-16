@@ -149,7 +149,7 @@ enum se_cmd_flags_table {
  * Used by transport_send_check_condition_and_sense()
  * to signal which ASC/ASCQ sense payload should be built.
  */
-typedef unsigned __bitwise__ sense_reason_t;
+typedef unsigned __bitwise sense_reason_t;
 
 enum tcm_sense_reason_table {
 #define R(x)	(__force sense_reason_t )(x)

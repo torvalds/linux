@@ -21,7 +21,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/io.h>
 #include <asm/mach_desc.h>
-#include <asm/mcip.h>
+#include <soc/arc/mcip.h>
 
 #define AXS_MB_CGU		0xE0010000
 #define AXS_MB_CREG		0xE0011000

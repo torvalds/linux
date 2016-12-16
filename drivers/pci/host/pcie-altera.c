@@ -550,10 +550,8 @@ static int altera_pcie_parse_dt(struct altera_pcie *pcie)
 
 	cra = platform_get_resource_byname(pdev, IORESOURCE_MEM, "Cra");
 	pcie->cra_base = devm_ioremap_resource(dev, cra);
-	if (IS_ERR(pcie->cra_base)) {
-		dev_err(dev, "failed to map cra memory\n");
+	if (IS_ERR(pcie->cra_base))
 		return PTR_ERR(pcie->cra_base);
-	}
 
 	/* setup IRQ */
 	pcie->irq = platform_get_irq(pdev, 0);
@@ -641,8 +639,4 @@ static struct platform_driver altera_pcie_driver = {
 	},
 };
 
-static int altera_pcie_init(void)
-{
-	return platform_driver_register(&altera_pcie_driver);
-}
-device_initcall(altera_pcie_init);
+builtin_platform_driver(altera_pcie_driver);

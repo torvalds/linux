@@ -110,14 +110,12 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 	if (ack_err_status) {
 		if (CHK_MAC_ERR_BIT(ack_err_status) ||
 		    CHK_PAD_ERR_BIT(ack_err_status))
-			error_status = -EINVAL;
+			error_status = -EBADMSG;
 	}
 	/* call completion callback with failure status */
 	if (req) {
-		if (!chcr_handle_resp(req, input, error_status))
-			req->complete(req, error_status);
-		else
-			return -EINVAL;
+		error_status = chcr_handle_resp(req, input, error_status);
+		req->complete(req, error_status);
 	} else {
 		pr_err("Incorrect request address from the firmware\n");
 		return -EFAULT;

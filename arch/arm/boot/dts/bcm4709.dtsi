@@ -1,0 +1,11 @@
+/*
+ * Copyright (C) 2016 Rafał Miłecki <rafal@milecki.pl>
+ *
+ * Licensed under the ISC license.
+ */
+
+#include "bcm4708.dtsi"
+
+&uart0 {
+	clock-frequency = <125000000>;
+};

@@ -117,6 +117,58 @@
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 	};
+
+	leds-iio {
+		status = "disabled";
+		compatible = "gpio-leds";
+		led-out0 {
+			label = "out0";
+			gpios = <&tpic2810 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out1 {
+			label = "out1";
+			gpios = <&tpic2810 1 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out2 {
+			label = "out2";
+			gpios = <&tpic2810 2 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out3 {
+			label = "out3";
+			gpios = <&tpic2810 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out4 {
+			label = "out4";
+			gpios = <&tpic2810 4 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out5 {
+			label = "out5";
+			gpios = <&tpic2810 5 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out6 {
+			label = "out6";
+			gpios = <&tpic2810 6 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+
+		led-out7 {
+			label = "out7";
+			gpios = <&tpic2810 7 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
 };
 
 &am43xx_pinmux {
@@ -175,6 +227,24 @@
 			AM4372_IOPAD(0x9f8, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x9fc, PIN_INPUT_PULLDOWN | MUX_MODE7)
 			AM4372_IOPAD(0x960, PIN_INPUT_PULLDOWN | MUX_MODE7)
+		>;
+	};
+
+	spi1_pins_default: spi1_pins_default {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x908, PIN_INPUT | MUX_MODE2)	/* mii1_col.spi1_sclk */
+			AM4372_IOPAD(0x910, PIN_INPUT | MUX_MODE2)	/* mii1_rx_er.spi1_d1 */
+			AM4372_IOPAD(0x944, PIN_OUTPUT | MUX_MODE2)	/* rmii1_ref_clk.spi1_cs0 */
+			AM4372_IOPAD(0x90c, PIN_OUTPUT | MUX_MODE7)	/* mii1_crs.gpio3_1 */
+		>;
+	};
+
+	spi1_pins_sleep: spi1_pins_sleep {
+		pinctrl-single,pins = <
+			AM4372_IOPAD(0x908, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x910, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x944, PIN_INPUT_PULLDOWN | MUX_MODE7)
+			AM4372_IOPAD(0x90c, PIN_INPUT_PULLDOWN | MUX_MODE7)
 		>;
 	};
 
@@ -290,6 +360,33 @@
 	pinctrl-0 = <&i2c2_pins_default>;
 	pinctrl-1 = <&i2c2_pins_sleep>;
 	clock-frequency = <100000>;
+
+	tpic2810: tpic2810@60 {
+		compatible = "ti,tpic2810";
+		reg = <0x60>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&spi1_pins_default>;
+	pinctrl-1 = <&spi1_pins_sleep>;
+	ti,pindir-d0-out-d1-in;
+
+	sn65hvs882: sn65hvs882@0 {
+		compatible = "pisosr-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		load-gpios = <&gpio3 1 GPIO_ACTIVE_LOW>;
+
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+		spi-cpol;
+	};
 };
 
 &epwmss0 {
@@ -307,6 +404,10 @@
 };
 
 &gpio1 {
+	status = "okay";
+};
+
+&gpio3 {
 	status = "okay";
 };
 
