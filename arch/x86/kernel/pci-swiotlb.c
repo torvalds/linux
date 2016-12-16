@@ -68,7 +68,7 @@ static struct dma_map_ops swiotlb_dma_ops = {
  */
 int __init pci_swiotlb_detect_override(void)
 {
-	if (swiotlb_force)
+	if (swiotlb_force == SWIOTLB_FORCE)
 		swiotlb = 1;
 
 	return swiotlb;
