@@ -888,13 +888,13 @@ static int cz_tf_update_low_mem_pstate(struct pp_hwmgr *hwmgr,
 }
 
 static const struct phm_master_table_item cz_set_power_state_list[] = {
-	{NULL, cz_tf_update_sclk_limit},
-	{NULL, cz_tf_set_deep_sleep_sclk_threshold},
-	{NULL, cz_tf_set_watermark_threshold},
-	{NULL, cz_tf_set_enabled_levels},
-	{NULL, cz_tf_enable_nb_dpm},
-	{NULL, cz_tf_update_low_mem_pstate},
-	{NULL, NULL}
+	{ .tableFunction = cz_tf_update_sclk_limit },
+	{ .tableFunction = cz_tf_set_deep_sleep_sclk_threshold },
+	{ .tableFunction = cz_tf_set_watermark_threshold },
+	{ .tableFunction = cz_tf_set_enabled_levels },
+	{ .tableFunction = cz_tf_enable_nb_dpm },
+	{ .tableFunction = cz_tf_update_low_mem_pstate },
+	{ }
 };
 
 static const struct phm_master_table_header cz_set_power_state_master = {
@@ -904,15 +904,15 @@ static const struct phm_master_table_header cz_set_power_state_master = {
 };
 
 static const struct phm_master_table_item cz_setup_asic_list[] = {
-	{NULL, cz_tf_reset_active_process_mask},
-	{NULL, cz_tf_upload_pptable_to_smu},
-	{NULL, cz_tf_init_sclk_limit},
-	{NULL, cz_tf_init_uvd_limit},
-	{NULL, cz_tf_init_vce_limit},
-	{NULL, cz_tf_init_acp_limit},
-	{NULL, cz_tf_init_power_gate_state},
-	{NULL, cz_tf_init_sclk_threshold},
-	{NULL, NULL}
+	{ .tableFunction = cz_tf_reset_active_process_mask },
+	{ .tableFunction = cz_tf_upload_pptable_to_smu },
+	{ .tableFunction = cz_tf_init_sclk_limit },
+	{ .tableFunction = cz_tf_init_uvd_limit },
+	{ .tableFunction = cz_tf_init_vce_limit },
+	{ .tableFunction = cz_tf_init_acp_limit },
+	{ .tableFunction = cz_tf_init_power_gate_state },
+	{ .tableFunction = cz_tf_init_sclk_threshold },
+	{ }
 };
 
 static const struct phm_master_table_header cz_setup_asic_master = {
@@ -957,10 +957,10 @@ static int cz_tf_reset_cc6_data(struct pp_hwmgr *hwmgr,
 }
 
 static const struct phm_master_table_item cz_power_down_asic_list[] = {
-	{NULL, cz_tf_power_up_display_clock_sys_pll},
-	{NULL, cz_tf_clear_nb_dpm_flag},
-	{NULL, cz_tf_reset_cc6_data},
-	{NULL, NULL}
+	{ .tableFunction = cz_tf_power_up_display_clock_sys_pll },
+	{ .tableFunction = cz_tf_clear_nb_dpm_flag },
+	{ .tableFunction = cz_tf_reset_cc6_data },
+	{ }
 };
 
 static const struct phm_master_table_header cz_power_down_asic_master = {
@@ -1068,8 +1068,8 @@ static int cz_tf_check_for_dpm_enabled(struct pp_hwmgr *hwmgr,
 }
 
 static const struct phm_master_table_item cz_disable_dpm_list[] = {
-	{ NULL, cz_tf_check_for_dpm_enabled},
-	{NULL, NULL},
+	{ .tableFunction = cz_tf_check_for_dpm_enabled },
+	{ },
 };
 
 
@@ -1080,13 +1080,13 @@ static const struct phm_master_table_header cz_disable_dpm_master = {
 };
 
 static const struct phm_master_table_item cz_enable_dpm_list[] = {
-	{ NULL, cz_tf_check_for_dpm_disabled },
-	{ NULL, cz_tf_program_voting_clients },
-	{ NULL, cz_tf_start_dpm},
-	{ NULL, cz_tf_program_bootup_state},
-	{ NULL, cz_tf_enable_didt },
-	{ NULL, cz_tf_reset_acp_boot_level },
-	{NULL, NULL},
+	{ .tableFunction = cz_tf_check_for_dpm_disabled },
+	{ .tableFunction = cz_tf_program_voting_clients },
+	{ .tableFunction = cz_tf_start_dpm },
+	{ .tableFunction = cz_tf_program_bootup_state },
+	{ .tableFunction = cz_tf_enable_didt },
+	{ .tableFunction = cz_tf_reset_acp_boot_level },
+	{ },
 };
 
 static const struct phm_master_table_header cz_enable_dpm_master = {
