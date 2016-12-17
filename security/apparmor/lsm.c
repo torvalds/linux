@@ -176,7 +176,7 @@ static int common_perm_dir_dentry(int op, const struct path *dir,
 				  struct dentry *dentry, u32 mask,
 				  struct path_cond *cond)
 {
-	struct path path = { dir->mnt, dentry };
+	struct path path = { .mnt = dir->mnt, .dentry = dentry };
 
 	return common_perm(op, &path, mask, cond);
 }
@@ -306,8 +306,10 @@ static int apparmor_path_rename(const struct path *old_dir, struct dentry *old_d
 
 	profile = aa_current_profile();
 	if (!unconfined(profile)) {
-		struct path old_path = { old_dir->mnt, old_dentry };
-		struct path new_path = { new_dir->mnt, new_dentry };
+		struct path old_path = { .mnt = old_dir->mnt,
+					 .dentry = old_dentry };
+		struct path new_path = { .mnt = new_dir->mnt,
+					 .dentry = new_dentry };
 		struct path_cond cond = { d_backing_inode(old_dentry)->i_uid,
 					  d_backing_inode(old_dentry)->i_mode
 		};
