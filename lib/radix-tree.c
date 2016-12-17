@@ -338,6 +338,14 @@ static void dump_ida_node(void *entry, unsigned long index)
 		for (i = 0; i < RADIX_TREE_MAP_SIZE; i++)
 			dump_ida_node(node->slots[i],
 					index | (i << node->shift));
+	} else if (radix_tree_exceptional_entry(entry)) {
+		pr_debug("ida excp: %p offset %d indices %lu-%lu data %lx\n",
+				entry, (int)(index & RADIX_TREE_MAP_MASK),
+				index * IDA_BITMAP_BITS,
+				index * IDA_BITMAP_BITS + BITS_PER_LONG -
+					RADIX_TREE_EXCEPTIONAL_SHIFT,
+				(unsigned long)entry >>
+					RADIX_TREE_EXCEPTIONAL_SHIFT);
 	} else {
 		struct ida_bitmap *bitmap = entry;
 

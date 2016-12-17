@@ -11,6 +11,7 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  */
+#include <linux/bitmap.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -214,7 +215,7 @@ void ida_check_nomem(void)
 	DEFINE_IDA(ida);
 	int id, err;
 
-	err = ida_get_new(&ida, &id);
+	err = ida_get_new_above(&ida, 256, &id);
 	assert(err == -EAGAIN);
 	err = ida_get_new_above(&ida, 1UL << 30, &id);
 	assert(err == -EAGAIN);
@@ -247,6 +248,66 @@ void ida_check_leaf(void)
 }
 
 /*
+ * Check handling of conversions between exceptional entries and full bitmaps.
+ */
+void ida_check_conv(void)
+{
+	DEFINE_IDA(ida);
+	int id;
+	unsigned long i;
+
+	for (i = 0; i < IDA_BITMAP_BITS * 2; i += IDA_BITMAP_BITS) {
+		assert(ida_pre_get(&ida, GFP_KERNEL));
+		assert(!ida_get_new_above(&ida, i + 1, &id));
+		assert(id == i + 1);
+		assert(!ida_get_new_above(&ida, i + BITS_PER_LONG, &id));
+		assert(id == i + BITS_PER_LONG);
+		ida_remove(&ida, i + 1);
+		ida_remove(&ida, i + BITS_PER_LONG);
+		assert(ida_is_empty(&ida));
+	}
+
+	assert(ida_pre_get(&ida, GFP_KERNEL));
+
+	for (i = 0; i < IDA_BITMAP_BITS * 2; i++) {
+		assert(ida_pre_get(&ida, GFP_KERNEL));
+		assert(!ida_get_new(&ida, &id));
+		assert(id == i);
+	}
+
+	for (i = IDA_BITMAP_BITS * 2; i > 0; i--) {
+		ida_remove(&ida, i - 1);
+	}
+	assert(ida_is_empty(&ida));
+
+	for (i = 0; i < IDA_BITMAP_BITS + BITS_PER_LONG - 4; i++) {
+		assert(ida_pre_get(&ida, GFP_KERNEL));
+		assert(!ida_get_new(&ida, &id));
+		assert(id == i);
+	}
+
+	for (i = IDA_BITMAP_BITS + BITS_PER_LONG - 4; i > 0; i--) {
+		ida_remove(&ida, i - 1);
+	}
+	assert(ida_is_empty(&ida));
+
+	radix_tree_cpu_dead(1);
+	for (i = 0; i < 1000000; i++) {
+		int err = ida_get_new(&ida, &id);
+		if (err == -EAGAIN) {
+			assert((i % IDA_BITMAP_BITS) == (BITS_PER_LONG - 2));
+			assert(ida_pre_get(&ida, GFP_KERNEL));
+			err = ida_get_new(&ida, &id);
+		} else {
+			assert((i % IDA_BITMAP_BITS) != (BITS_PER_LONG - 2));
+		}
+		assert(!err);
+		assert(id == i);
+	}
+	ida_destroy(&ida);
+}
+
+/*
  * Check allocations up to and slightly above the maximum allowed (2^31-1) ID.
  * Allocating up to 2^31-1 should succeed, and then allocating the next one
  * should fail.
@@ -271,6 +332,34 @@ void ida_check_max(void)
 		assert(ida_is_empty(&ida));
 		rcu_barrier();
 	}
+}
+
+void ida_check_random(void)
+{
+	DEFINE_IDA(ida);
+	DECLARE_BITMAP(bitmap, 2048);
+	int id;
+	unsigned int i;
+	time_t s = time(NULL);
+
+ repeat:
+	memset(bitmap, 0, sizeof(bitmap));
+	for (i = 0; i < 100000; i++) {
+		int i = rand();
+		int bit = i & 2047;
+		if (test_bit(bit, bitmap)) {
+			__clear_bit(bit, bitmap);
+			ida_remove(&ida, bit);
+		} else {
+			__set_bit(bit, bitmap);
+			ida_pre_get(&ida, GFP_KERNEL);
+			assert(!ida_get_new_above(&ida, bit, &id));
+			assert(id == bit);
+		}
+	}
+	ida_destroy(&ida);
+	if (time(NULL) < s + 10)
+		goto repeat;
 }
 
 void ida_checks(void)
@@ -337,6 +426,8 @@ void ida_checks(void)
 
 	ida_check_leaf();
 	ida_check_max();
+	ida_check_conv();
+	ida_check_random();
 
 	radix_tree_cpu_dead(1);
 }
