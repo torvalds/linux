@@ -107,10 +107,10 @@ nouveau_vram_manager_new(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func nouveau_vram_manager = {
-	nouveau_vram_manager_init,
-	nouveau_vram_manager_fini,
-	nouveau_vram_manager_new,
-	nouveau_vram_manager_del,
+	.init = nouveau_vram_manager_init,
+	.takedown = nouveau_vram_manager_fini,
+	.get_node = nouveau_vram_manager_new,
+	.put_node = nouveau_vram_manager_del,
 };
 
 static int
@@ -184,11 +184,11 @@ nouveau_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 }
 
 const struct ttm_mem_type_manager_func nouveau_gart_manager = {
-	nouveau_gart_manager_init,
-	nouveau_gart_manager_fini,
-	nouveau_gart_manager_new,
-	nouveau_gart_manager_del,
-	nouveau_gart_manager_debug
+	.init = nouveau_gart_manager_init,
+	.takedown = nouveau_gart_manager_fini,
+	.get_node = nouveau_gart_manager_new,
+	.put_node = nouveau_gart_manager_del,
+	.debug = nouveau_gart_manager_debug
 };
 
 /*XXX*/
@@ -257,11 +257,11 @@ nv04_gart_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 }
 
 const struct ttm_mem_type_manager_func nv04_gart_manager = {
-	nv04_gart_manager_init,
-	nv04_gart_manager_fini,
-	nv04_gart_manager_new,
-	nv04_gart_manager_del,
-	nv04_gart_manager_debug
+	.init = nv04_gart_manager_init,
+	.takedown = nv04_gart_manager_fini,
+	.get_node = nv04_gart_manager_new,
+	.put_node = nv04_gart_manager_del,
+	.debug = nv04_gart_manager_debug
 };
 
 int
