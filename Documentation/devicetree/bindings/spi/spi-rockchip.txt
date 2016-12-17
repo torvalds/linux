@@ -31,6 +31,10 @@ Optional Properties:
 - rx-sample-delay-ns: nanoseconds to delay after the SCLK edge before sampling
 		Rx data (may need to be fine tuned for high capacitance lines).
 		No delay (0) by default.
+- pinctrl-names: Names for the pin configuration(s); may be "default" or
+		"sleep", where the "sleep" configuration may describe the state
+		the pins should be in during system suspend. See also
+		pinctrl/pinctrl-bindings.txt.
 
 
 Example:
@@ -46,4 +50,7 @@ Example:
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_SPI0>, <&cru PCLK_SPI0>;
 		clock-names = "spiclk", "apb_pclk";
+		pinctrl-0 = <&spi1_pins>;
+		pinctrl-1 = <&spi1_sleep>;
+		pinctrl-names = "default", "sleep";
 	};
