@@ -470,10 +470,10 @@ static int vp8_enc_deinit(unsigned long handle)
 }
 
 static const struct venc_common_if venc_vp8_if = {
-	vp8_enc_init,
-	vp8_enc_encode,
-	vp8_enc_set_param,
-	vp8_enc_deinit,
+	.init = vp8_enc_init,
+	.encode = vp8_enc_encode,
+	.set_param = vp8_enc_set_param,
+	.deinit = vp8_enc_deinit,
 };
 
 const struct venc_common_if *get_vp8_enc_comm_if(void);
