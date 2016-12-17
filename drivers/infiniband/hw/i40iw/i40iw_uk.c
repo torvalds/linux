@@ -913,29 +913,29 @@ enum i40iw_status_code i40iw_get_wqe_shift(u32 wqdepth, u32 sge, u32 inline_data
 }
 
 static struct i40iw_qp_uk_ops iw_qp_uk_ops = {
-	i40iw_qp_post_wr,
-	i40iw_qp_ring_push_db,
-	i40iw_rdma_write,
-	i40iw_rdma_read,
-	i40iw_send,
-	i40iw_inline_rdma_write,
-	i40iw_inline_send,
-	i40iw_stag_local_invalidate,
-	i40iw_mw_bind,
-	i40iw_post_receive,
-	i40iw_nop
+	.iw_qp_post_wr = i40iw_qp_post_wr,
+	.iw_qp_ring_push_db = i40iw_qp_ring_push_db,
+	.iw_rdma_write = i40iw_rdma_write,
+	.iw_rdma_read = i40iw_rdma_read,
+	.iw_send = i40iw_send,
+	.iw_inline_rdma_write = i40iw_inline_rdma_write,
+	.iw_inline_send = i40iw_inline_send,
+	.iw_stag_local_invalidate = i40iw_stag_local_invalidate,
+	.iw_mw_bind = i40iw_mw_bind,
+	.iw_post_receive = i40iw_post_receive,
+	.iw_post_nop = i40iw_nop
 };
 
 static struct i40iw_cq_ops iw_cq_ops = {
-	i40iw_cq_request_notification,
-	i40iw_cq_poll_completion,
-	i40iw_cq_post_entries,
-	i40iw_clean_cq
+	.iw_cq_request_notification = i40iw_cq_request_notification,
+	.iw_cq_poll_completion = i40iw_cq_poll_completion,
+	.iw_cq_post_entries = i40iw_cq_post_entries,
+	.iw_cq_clean = i40iw_clean_cq
 };
 
 static struct i40iw_device_uk_ops iw_device_uk_ops = {
-	i40iw_cq_uk_init,
-	i40iw_qp_uk_init,
+	.iwarp_cq_uk_init = i40iw_cq_uk_init,
+	.iwarp_qp_uk_init = i40iw_qp_uk_init,
 };
 
 /**
