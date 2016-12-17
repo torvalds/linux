@@ -32,6 +32,9 @@
 MODULE_DESCRIPTION("TI DaVinci Video Port Interface driver");
 MODULE_LICENSE("GPL");
 
+#define VPIF_DRIVER_NAME	"vpif"
+MODULE_ALIAS("platform:" VPIF_DRIVER_NAME);
+
 #define VPIF_CH0_MAX_MODES	22
 #define VPIF_CH1_MAX_MODES	2
 #define VPIF_CH2_MAX_MODES	15
@@ -466,7 +469,7 @@ static const struct dev_pm_ops vpif_pm = {
 
 static struct platform_driver vpif_driver = {
 	.driver = {
-		.name	= "vpif",
+		.name	= VPIF_DRIVER_NAME,
 		.pm	= vpif_pm_ops,
 	},
 	.remove = vpif_remove,

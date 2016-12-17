@@ -42,6 +42,7 @@ module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level 0-1");
 
 #define VPIF_DRIVER_NAME	"vpif_display"
+MODULE_ALIAS("platform:" VPIF_DRIVER_NAME);
 
 /* Is set to 1 in case of SDTV formats, 2 in case of HDTV formats. */
 static int ycmux_mode;
@@ -1243,6 +1244,11 @@ static __init int vpif_probe(struct platform_device *pdev)
 	int subdev_count;
 	int res_idx = 0;
 	int i, err;
+
+	if (!pdev->dev.platform_data) {
+		dev_warn(&pdev->dev, "Missing platform data.  Giving up.\n");
+		return -EINVAL;
+	}
 
 	vpif_dev = &pdev->dev;
 	err = initialize_vpif();
