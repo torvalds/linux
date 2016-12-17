@@ -151,7 +151,7 @@ bool ether_addr_equal(const u8 *addr1, const u8 *addr2)
 #else
 	const u16 *a = (const u16 *)addr1;
 	const u16 *b = (const u16 *)addr2;
-	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) != 0;
+	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) == 0;
 #endif
 }
 
