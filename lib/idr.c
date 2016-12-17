@@ -194,6 +194,39 @@ EXPORT_SYMBOL(idr_replace);
  * limitation, it should be quite straightforward to raise the maximum.
  */
 
+/*
+ * Developer's notes:
+ *
+ * The IDA uses the functionality provided by the IDR & radix tree to store
+ * bitmaps in each entry.  The IDR_FREE tag means there is at least one bit
+ * free, unlike the IDR where it means at least one entry is free.
+ *
+ * I considered telling the radix tree that each slot is an order-10 node
+ * and storing the bit numbers in the radix tree, but the radix tree can't
+ * allow a single multiorder entry at index 0, which would significantly
+ * increase memory consumption for the IDA.  So instead we divide the index
+ * by the number of bits in the leaf bitmap before doing a radix tree lookup.
+ *
+ * As an optimisation, if there are only a few low bits set in any given
+ * leaf, instead of allocating a 128-byte bitmap, we use the 'exceptional
+ * entry' functionality of the radix tree to store BITS_PER_LONG - 2 bits
+ * directly in the entry.  By being really tricksy, we could store
+ * BITS_PER_LONG - 1 bits, but there're diminishing returns after optimising
+ * for 0-3 allocated IDs.
+ *
+ * We allow the radix tree 'exceptional' count to get out of date.  Nothing
+ * in the IDA nor the radix tree code checks it.  If it becomes important
+ * to maintain an accurate exceptional count, switch the rcu_assign_pointer()
+ * calls to radix_tree_iter_replace() which will correct the exceptional
+ * count.
+ *
+ * The IDA always requires a lock to alloc/free.  If we add a 'test_bit'
+ * equivalent, it will still need locking.  Going to RCU lookup would require
+ * using RCU to free bitmaps, and that's not trivial without embedding an
+ * RCU head in the bitmap, which adds a 2-pointer overhead to each 128-byte
+ * bitmap, which is excessive.
+ */
+
 #define IDA_MAX (0x80000000U / IDA_BITMAP_BITS)
 
 /**
@@ -221,11 +254,12 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 	struct radix_tree_iter iter;
 	struct ida_bitmap *bitmap;
 	unsigned long index;
-	unsigned bit;
+	unsigned bit, ebit;
 	int new;
 
 	index = start / IDA_BITMAP_BITS;
 	bit = start % IDA_BITMAP_BITS;
+	ebit = bit + RADIX_TREE_EXCEPTIONAL_SHIFT;
 
 	slot = radix_tree_iter_init(&iter, index);
 	for (;;) {
@@ -240,10 +274,29 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 				return PTR_ERR(slot);
 			}
 		}
-		if (iter.index > index)
+		if (iter.index > index) {
 			bit = 0;
+			ebit = RADIX_TREE_EXCEPTIONAL_SHIFT;
+		}
 		new = iter.index * IDA_BITMAP_BITS;
 		bitmap = rcu_dereference_raw(*slot);
+		if (radix_tree_exception(bitmap)) {
+			unsigned long tmp = (unsigned long)bitmap;
+			ebit = find_next_zero_bit(&tmp, BITS_PER_LONG, ebit);
+			if (ebit < BITS_PER_LONG) {
+				tmp |= 1UL << ebit;
+				rcu_assign_pointer(*slot, (void *)tmp);
+				*id = new + ebit - RADIX_TREE_EXCEPTIONAL_SHIFT;
+				return 0;
+			}
+			bitmap = this_cpu_xchg(ida_bitmap, NULL);
+			if (!bitmap)
+				return -EAGAIN;
+			memset(bitmap, 0, sizeof(*bitmap));
+			bitmap->bitmap[0] = tmp >> RADIX_TREE_EXCEPTIONAL_SHIFT;
+			rcu_assign_pointer(*slot, bitmap);
+		}
+
 		if (bitmap) {
 			bit = find_next_zero_bit(bitmap->bitmap,
 							IDA_BITMAP_BITS, bit);
@@ -261,6 +314,14 @@ int ida_get_new_above(struct ida *ida, int start, int *id)
 			new += bit;
 			if (new < 0)
 				return -ENOSPC;
+			if (ebit < BITS_PER_LONG) {
+				bitmap = (void *)((1UL << ebit) |
+						RADIX_TREE_EXCEPTIONAL_ENTRY);
+				radix_tree_iter_replace(root, &iter, slot,
+						bitmap);
+				*id = new;
+				return 0;
+			}
 			bitmap = this_cpu_xchg(ida_bitmap, NULL);
 			if (!bitmap)
 				return -EAGAIN;
@@ -287,6 +348,7 @@ void ida_remove(struct ida *ida, int id)
 	unsigned long index = id / IDA_BITMAP_BITS;
 	unsigned offset = id % IDA_BITMAP_BITS;
 	struct ida_bitmap *bitmap;
+	unsigned long *btmp;
 	struct radix_tree_iter iter;
 	void **slot;
 
@@ -295,12 +357,24 @@ void ida_remove(struct ida *ida, int id)
 		goto err;
 
 	bitmap = rcu_dereference_raw(*slot);
-	if (!test_bit(offset, bitmap->bitmap))
+	if (radix_tree_exception(bitmap)) {
+		btmp = (unsigned long *)slot;
+		offset += RADIX_TREE_EXCEPTIONAL_SHIFT;
+		if (offset >= BITS_PER_LONG)
+			goto err;
+	} else {
+		btmp = bitmap->bitmap;
+	}
+	if (!test_bit(offset, btmp))
 		goto err;
 
-	__clear_bit(offset, bitmap->bitmap);
+	__clear_bit(offset, btmp);
 	radix_tree_iter_tag_set(&ida->ida_rt, &iter, IDR_FREE);
-	if (bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
+	if (radix_tree_exception(bitmap)) {
+		if (rcu_dereference_raw(*slot) ==
+					(void *)RADIX_TREE_EXCEPTIONAL_ENTRY)
+			radix_tree_iter_delete(&ida->ida_rt, &iter, slot);
+	} else if (bitmap_empty(btmp, IDA_BITMAP_BITS)) {
 		kfree(bitmap);
 		radix_tree_iter_delete(&ida->ida_rt, &iter, slot);
 	}
@@ -326,7 +400,8 @@ void ida_destroy(struct ida *ida)
 
 	radix_tree_for_each_slot(slot, &ida->ida_rt, &iter, 0) {
 		struct ida_bitmap *bitmap = rcu_dereference_raw(*slot);
-		kfree(bitmap);
+		if (!radix_tree_exception(bitmap))
+			kfree(bitmap);
 		radix_tree_iter_delete(&ida->ida_rt, &iter, slot);
 	}
 }
