@@ -2288,6 +2288,9 @@ int amdgpu_gpu_reset(struct amdgpu_device *adev)
 	int resched;
 	bool need_full_reset;
 
+	if (amdgpu_sriov_vf(adev))
+		return 0;
+
 	if (!amdgpu_check_soft_reset(adev)) {
 		DRM_INFO("No hardware hang detected. Did some blocks stall?\n");
 		return 0;
