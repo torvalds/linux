@@ -5699,6 +5699,7 @@ static void nfs4_delegreturn_release(void *calldata)
 		if (data->lr.roc)
 			pnfs_roc_release(&data->lr.arg, &data->lr.res,
 					data->res.lr_ret);
+		nfs_post_op_update_inode_force_wcc(inode, &data->fattr);
 		nfs_iput_and_deactive(inode);
 	}
 	kfree(calldata);
@@ -5787,10 +5788,6 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	if (status != 0)
 		goto out;
 	status = data->rpc_status;
-	if (status == 0)
-		nfs_post_op_update_inode_force_wcc(inode, &data->fattr);
-	else
-		nfs_refresh_inode(inode, &data->fattr);
 out:
 	rpc_put_task(task);
 	return status;
