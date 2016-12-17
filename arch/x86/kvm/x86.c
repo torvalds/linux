@@ -2844,7 +2844,17 @@ static void kvm_steal_time_set_preempted(struct kvm_vcpu *vcpu)
 
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
+	/*
+	 * Disable page faults because we're in atomic context here.
+	 * kvm_write_guest_offset_cached() would call might_fault()
+	 * that relies on pagefault_disable() to tell if there's a
+	 * bug. NOTE: the write to guest memory may not go through if
+	 * during postcopy live migration or if there's heavy guest
+	 * paging.
+	 */
+	pagefault_disable();
 	kvm_steal_time_set_preempted(vcpu);
+	pagefault_enable();
 	kvm_x86_ops->vcpu_put(vcpu);
 	kvm_put_guest_fpu(vcpu);
 	vcpu->arch.last_host_tsc = rdtsc();
