@@ -148,10 +148,10 @@ static void ttm_bo_man_debug(struct ttm_mem_type_manager *man,
 }
 
 const struct ttm_mem_type_manager_func ttm_bo_manager_func = {
-	ttm_bo_man_init,
-	ttm_bo_man_takedown,
-	ttm_bo_man_get_node,
-	ttm_bo_man_put_node,
-	ttm_bo_man_debug
+	.init = ttm_bo_man_init,
+	.takedown = ttm_bo_man_takedown,
+	.get_node = ttm_bo_man_get_node,
+	.put_node = ttm_bo_man_put_node,
+	.debug = ttm_bo_man_debug
 };
 EXPORT_SYMBOL(ttm_bo_manager_func);
