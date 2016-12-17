@@ -383,7 +383,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	}
 
 	platform_set_drvdata(pdev, ddev);
-	ddev->platformdev = pdev;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {

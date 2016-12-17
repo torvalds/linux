@@ -273,8 +273,6 @@ static int sti_bind(struct device *dev)
 	if (IS_ERR(ddev))
 		return PTR_ERR(ddev);
 
-	ddev->platformdev = to_platform_device(dev);
-
 	ret = sti_init(ddev);
 	if (ret)
 		goto err_drm_dev_unref;

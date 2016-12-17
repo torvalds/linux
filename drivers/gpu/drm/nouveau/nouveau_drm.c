@@ -106,7 +106,7 @@ nouveau_name(struct drm_device *dev)
 	if (dev->pdev)
 		return nouveau_pci_name(dev->pdev);
 	else
-		return nouveau_platform_name(dev->platformdev);
+		return nouveau_platform_name(to_platform_device(dev->dev));
 }
 
 static int
@@ -1088,7 +1088,6 @@ nouveau_platform_device_create(const struct nvkm_device_tegra_func *func,
 		goto err_free;
 	}
 
-	drm->platformdev = pdev;
 	platform_set_drvdata(pdev, drm);
 
 	return drm;

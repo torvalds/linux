@@ -154,10 +154,9 @@ static int armada_drm_bind(struct device *dev)
 		return ret;
 	}
 
-	priv->drm.platformdev = to_platform_device(dev);
 	priv->drm.dev_private = priv;
 
-	platform_set_drvdata(priv->drm.platformdev, &priv->drm);
+	dev_set_drvdata(dev, &priv->drm);
 
 	INIT_WORK(&priv->fb_unref_work, armada_drm_unref_work);
 	INIT_KFIFO(priv->fb_unref);

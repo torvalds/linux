@@ -610,7 +610,6 @@ struct drm_device {
 	struct pci_controller *hose;
 #endif
 
-	struct platform_device *platformdev; /**< Platform device struture */
 	struct virtio_device *virtdev;
 
 	struct drm_sg_mem *sg;	/**< Scatter gather memory */
