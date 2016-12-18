@@ -50,7 +50,7 @@ struct tps65217_charger {
 	struct task_struct	*poll_task;
 };
 
-static enum power_supply_property tps65217_ac_props[] = {
+static enum power_supply_property tps65217_charger_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
@@ -191,8 +191,8 @@ static const struct power_supply_desc tps65217_charger_desc = {
 	.name			= "tps65217-ac",
 	.type			= POWER_SUPPLY_TYPE_MAINS,
 	.get_property		= tps65217_ac_get_property,
-	.properties		= tps65217_ac_props,
-	.num_properties		= ARRAY_SIZE(tps65217_ac_props),
+	.properties		= tps65217_charger_props,
+	.num_properties		= ARRAY_SIZE(tps65217_charger_props),
 };
 
 static int tps65217_charger_probe(struct platform_device *pdev)
