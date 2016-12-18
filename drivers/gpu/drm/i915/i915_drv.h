@@ -3518,6 +3518,13 @@ static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 	kref_put(&ctx->ref, i915_gem_context_free);
 }
 
+static inline void i915_gem_context_put_unlocked(struct i915_gem_context *ctx)
+{
+	kref_put_mutex(&ctx->ref,
+		       i915_gem_context_free,
+		       &ctx->i915->drm.struct_mutex);
+}
+
 static inline struct intel_timeline *
 i915_gem_context_lookup_timeline(struct i915_gem_context *ctx,
 				 struct intel_engine_cs *engine)
