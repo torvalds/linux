@@ -360,7 +360,7 @@ static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void gen8_get_stolen_reserved(struct drm_i915_private *dev_priv,
+static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 				     unsigned long *base, unsigned long *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
@@ -459,7 +459,7 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 			bdw_get_stolen_reserved(dev_priv, &reserved_base,
 						&reserved_size);
 		else
-			gen8_get_stolen_reserved(dev_priv, &reserved_base,
+			chv_get_stolen_reserved(dev_priv, &reserved_base,
 						 &reserved_size);
 		break;
 	}
