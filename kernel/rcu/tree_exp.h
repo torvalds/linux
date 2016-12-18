@@ -20,16 +20,26 @@
  * Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
  */
 
-/* Wrapper functions for expedited grace periods.  */
+/*
+ * Record the start of an expedited grace period.
+ */
 static void rcu_exp_gp_seq_start(struct rcu_state *rsp)
 {
 	rcu_seq_start(&rsp->expedited_sequence);
 }
+
+/*
+ * Record the end of an expedited grace period.
+ */
 static void rcu_exp_gp_seq_end(struct rcu_state *rsp)
 {
 	rcu_seq_end(&rsp->expedited_sequence);
 	smp_mb(); /* Ensure that consecutive grace periods serialize. */
 }
+
+/*
+ * Take a snapshot of the expedited-grace-period counter.
+ */
 static unsigned long rcu_exp_gp_seq_snap(struct rcu_state *rsp)
 {
 	unsigned long s;
@@ -39,6 +49,12 @@ static unsigned long rcu_exp_gp_seq_snap(struct rcu_state *rsp)
 	trace_rcu_exp_grace_period(rsp->name, s, TPS("snap"));
 	return s;
 }
+
+/*
+ * Given a counter snapshot from rcu_exp_gp_seq_snap(), return true
+ * if a full expedited grace period has elapsed since that snapshot
+ * was taken.
+ */
 static bool rcu_exp_gp_seq_done(struct rcu_state *rsp, unsigned long s)
 {
 	return rcu_seq_done(&rsp->expedited_sequence, s);
