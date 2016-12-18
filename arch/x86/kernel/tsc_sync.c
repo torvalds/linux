@@ -73,9 +73,11 @@ static void tsc_sanitize_first_cpu(struct tsc_adjust *cur, s64 bootval,
 	 * the TSC is in sync with the already running cpus.
 	 *
 	 * But we always force positive ADJUST values. Otherwise the TSC
-	 * deadline timer creates an interrupt storm. Sigh!
+	 * deadline timer creates an interrupt storm. We also have to
+	 * prevent values > 0x7FFFFFFF as those wreckage the timer as well.
 	 */
-	if ((bootcpu && bootval != 0) || (!bootcpu && bootval < 0)) {
+	if ((bootcpu && bootval != 0) || (!bootcpu && bootval < 0) ||
+	    (bootval > 0x7FFFFFFF)) {
 		pr_warn(FW_BUG "TSC ADJUST: CPU%u: %lld force to 0\n", cpu,
 			bootval);
 		wrmsrl(MSR_IA32_TSC_ADJUST, 0);
@@ -448,13 +450,22 @@ retry:
 	 * that the warp is not longer detectable when the observed warp
 	 * value is used. In the worst case the adjustment needs to go
 	 * through a 3rd run for fine tuning.
-	 *
-	 * But we must make sure that the value doesn't become negative
-	 * otherwise TSC deadline timer will create an interrupt storm.
 	 */
 	cur->adjusted += cur_max_warp;
+
+	/*
+	 * TSC deadline timer stops working or creates an interrupt storm
+	 * with adjust values < 0 and > x07ffffff.
+	 *
+	 * To allow adjust values > 0x7FFFFFFF we need to disable the
+	 * deadline timer and use the local APIC timer, but that requires
+	 * more intrusive changes and we do not have any useful information
+	 * from Intel about the underlying HW wreckage yet.
+	 */
 	if (cur->adjusted < 0)
 		cur->adjusted = 0;
+	if (cur->adjusted > 0x7FFFFFFF)
+		cur->adjusted = 0x7FFFFFFF;
 
 	pr_warn("TSC ADJUST compensate: CPU%u observed %lld warp. Adjust: %lld\n",
 		cpu, cur_max_warp, cur->adjusted);
