@@ -116,10 +116,11 @@ static inline u16 find_equiv_id(struct equiv_cpu_entry *equiv_cpu_table,
 
 /*
  * This scans the ucode blob for the proper container as we can have multiple
- * containers glued together.
+ * containers glued together. Returns the equivalence ID from the equivalence
+ * table or 0 if none found.
  */
-static struct container
-find_proper_container(u8 *ucode, size_t size, u16 *ret_id)
+static u16
+find_proper_container(u8 *ucode, size_t size, struct container *ret_cont)
 {
 	struct container ret = { NULL, 0 };
 	u32 eax, ebx, ecx, edx;
@@ -138,7 +139,7 @@ find_proper_container(u8 *ucode, size_t size, u16 *ret_id)
 	if (header[0] != UCODE_MAGIC ||
 	    header[1] != UCODE_EQUIV_CPU_TABLE_TYPE || /* type */
 	    header[2] == 0)                            /* size */
-		return ret;
+		return eq_id;
 
 	eax = 0x00000001;
 	ecx = 0;
@@ -163,8 +164,9 @@ find_proper_container(u8 *ucode, size_t size, u16 *ret_id)
 			 * ucode update loop below
 			 */
 			left = ret.size - offset;
-			*ret_id = eq_id;
-			return ret;
+
+			*ret_cont = ret;
+			return eq_id;
 		}
 
 		/*
@@ -189,7 +191,7 @@ find_proper_container(u8 *ucode, size_t size, u16 *ret_id)
 		ucode     = data;
 	}
 
-	return ret;
+	return eq_id;
 }
 
 static int __apply_microcode_amd(struct microcode_amd *mc_amd)
@@ -237,7 +239,7 @@ apply_microcode_early_amd(void *ucode, size_t size, bool save_patch)
 	if (check_current_patch_level(&rev, true))
 		return (struct container){ NULL, 0 };
 
-	ret = find_proper_container(ucode, size, &eq_id);
+	eq_id = find_proper_container(ucode, size, &ret);
 	if (!eq_id)
 		return (struct container){ NULL, 0 };
 
@@ -443,7 +445,7 @@ int __init save_microcode_in_initrd_amd(unsigned int fam)
 				return -EINVAL;
 			}
 
-			cont = find_proper_container(cp.data, cp.size, &eq_id);
+			eq_id = find_proper_container(cp.data, cp.size, &cont);
 			if (!eq_id) {
 				cont.size = -1;
 				return -EINVAL;
