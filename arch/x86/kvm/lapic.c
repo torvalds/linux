@@ -595,6 +595,12 @@ static void apic_update_ppr(struct kvm_lapic *apic)
 	}
 }
 
+void kvm_apic_update_ppr(struct kvm_vcpu *vcpu)
+{
+	apic_update_ppr(vcpu->arch.apic);
+}
+EXPORT_SYMBOL_GPL(kvm_apic_update_ppr);
+
 static void apic_set_tpr(struct kvm_lapic *apic, u32 tpr)
 {
 	kvm_lapic_set_reg(apic, APIC_TASKPRI, tpr);
