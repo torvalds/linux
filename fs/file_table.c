@@ -155,7 +155,7 @@ over:
  * @mode: the mode with which the new file will be opened
  * @fop: the 'struct file_operations' for the new file
  */
-struct file *alloc_file(struct path *path, fmode_t mode,
+struct file *alloc_file(const struct path *path, fmode_t mode,
 		const struct file_operations *fop)
 {
 	struct file *file;

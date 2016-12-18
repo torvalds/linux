@@ -2401,7 +2401,7 @@ int dquot_resume(struct super_block *sb, int type)
 EXPORT_SYMBOL(dquot_resume);
 
 int dquot_quota_on(struct super_block *sb, int type, int format_id,
-		   struct path *path)
+		   const struct path *path)
 {
 	int error = security_quota_on(path->dentry);
 	if (error)

@@ -66,7 +66,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 			 struct inode *inode,
 			 struct fsnotify_mark *inode_mark,
 			 struct fsnotify_mark *vfsmount_mark,
-			 u32 mask, void *data, int data_type,
+			 u32 mask, const void *data, int data_type,
 			 const unsigned char *file_name, u32 cookie)
 {
 	struct inotify_inode_mark *i_mark;
@@ -80,7 +80,7 @@ int inotify_handle_event(struct fsnotify_group *group,
 
 	if ((inode_mark->mask & FS_EXCL_UNLINK) &&
 	    (data_type == FSNOTIFY_EVENT_PATH)) {
-		struct path *path = data;
+		const struct path *path = data;
 
 		if (d_unlinked(path->dentry))
 			return 0;

@@ -834,7 +834,7 @@ static inline int btrfs_may_create(struct inode *dir, struct dentry *child)
  * sys_mkdirat and vfs_mkdir, but we only do a single component lookup
  * inside this filesystem so it's quite a bit simpler.
  */
-static noinline int btrfs_mksubvol(struct path *parent,
+static noinline int btrfs_mksubvol(const struct path *parent,
 				   char *name, int namelen,
 				   struct btrfs_root *snap_src,
 				   u64 *async_transid, bool readonly,
@@ -3984,18 +3984,6 @@ out_unlock:
 		btrfs_double_inode_unlock(src, inode);
 	else
 		inode_unlock(src);
-	return ret;
-}
-
-ssize_t btrfs_copy_file_range(struct file *file_in, loff_t pos_in,
-			      struct file *file_out, loff_t pos_out,
-			      size_t len, unsigned int flags)
-{
-	ssize_t ret;
-
-	ret = btrfs_clone_files(file_out, file_in, pos_in, len, pos_out);
-	if (ret == 0)
-		ret = len;
 	return ret;
 }
 

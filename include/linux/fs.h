@@ -1726,8 +1726,14 @@ extern ssize_t vfs_writev(struct file *, const struct iovec __user *,
 		unsigned long, loff_t *, int);
 extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
 				   loff_t, size_t, unsigned int);
+extern int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
+				      struct inode *inode_out, loff_t pos_out,
+				      u64 *len, bool is_dedupe);
 extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 		struct file *file_out, loff_t pos_out, u64 len);
+extern int vfs_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
+					 struct inode *dest, loff_t destoff,
+					 loff_t len, bool *is_same);
 extern int vfs_dedupe_file_range(struct file *file,
 				 struct file_dedupe_range *same);
 
@@ -2084,11 +2090,11 @@ extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
 extern long do_mount(const char *, const char __user *,
 		     const char *, unsigned long, void *);
-extern struct vfsmount *collect_mounts(struct path *);
+extern struct vfsmount *collect_mounts(const struct path *);
 extern void drop_collected_mounts(struct vfsmount *);
 extern int iterate_mounts(int (*)(struct vfsmount *, void *), void *,
 			  struct vfsmount *);
-extern int vfs_statfs(struct path *, struct kstatfs *);
+extern int vfs_statfs(const struct path *, struct kstatfs *);
 extern int user_statfs(const char __user *, struct kstatfs *);
 extern int fd_statfs(int, struct kstatfs *);
 extern int vfs_ustat(dev_t, struct kstatfs *);
@@ -2657,7 +2663,7 @@ extern struct file * open_exec(const char *);
  
 /* fs/dcache.c -- generic fs support functions */
 extern bool is_subdir(struct dentry *, struct dentry *);
-extern bool path_is_under(struct path *, struct path *);
+extern bool path_is_under(const struct path *, const struct path *);
 
 extern char *file_path(struct file *, char *, int);
 

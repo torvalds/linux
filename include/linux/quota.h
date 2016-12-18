@@ -431,7 +431,7 @@ struct qc_info {
 
 /* Operations handling requests from userspace */
 struct quotactl_ops {
-	int (*quota_on)(struct super_block *, int, int, struct path *);
+	int (*quota_on)(struct super_block *, int, int, const struct path *);
 	int (*quota_off)(struct super_block *, int);
 	int (*quota_enable)(struct super_block *, unsigned int);
 	int (*quota_disable)(struct super_block *, unsigned int);

@@ -1317,25 +1317,27 @@ static int ceph_write_end(struct file *file, struct address_space *mapping,
 			  struct page *page, void *fsdata)
 {
 	struct inode *inode = file_inode(file);
-	unsigned from = pos & (PAGE_SIZE - 1);
 	int check_cap = 0;
 
 	dout("write_end file %p inode %p page %p %d~%d (%d)\n", file,
 	     inode, page, (int)pos, (int)copied, (int)len);
 
 	/* zero the stale part of the page if we did a short copy */
-	if (copied < len)
-		zero_user_segment(page, from+copied, len);
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			copied = 0;
+			goto out;
+		}
+		SetPageUptodate(page);
+	}
 
 	/* did file size increase? */
 	if (pos+copied > i_size_read(inode))
 		check_cap = ceph_inode_set_size(inode, pos+copied);
 
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
-
 	set_page_dirty(page);
 
+out:
 	unlock_page(page);
 	put_page(page);
 
