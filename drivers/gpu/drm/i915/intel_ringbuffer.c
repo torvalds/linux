@@ -1939,8 +1939,26 @@ intel_ring_free(struct intel_ring *ring)
 	kfree(ring);
 }
 
-static int intel_ring_context_pin(struct i915_gem_context *ctx,
-				  struct intel_engine_cs *engine)
+static int context_pin(struct i915_gem_context *ctx, unsigned int flags)
+{
+	struct i915_vma *vma = ctx->engine[RCS].state;
+	int ret;
+
+	/* Clear this page out of any CPU caches for coherent swap-in/out.
+	 * We only want to do this on the first bind so that we do not stall
+	 * on an active context (which by nature is already on the GPU).
+	 */
+	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
+		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
+		if (ret)
+			return ret;
+	}
+
+	return i915_vma_pin(vma, 0, ctx->ggtt_alignment, PIN_GLOBAL | flags);
+}
+
+static int intel_ring_context_pin(struct intel_engine_cs *engine,
+				  struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 	int ret;
@@ -1951,13 +1969,15 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 		return 0;
 
 	if (ce->state) {
-		struct i915_vma *vma;
+		unsigned int flags;
 
-		vma = i915_gem_context_pin_legacy(ctx, PIN_HIGH);
-		if (IS_ERR(vma)) {
-			ret = PTR_ERR(vma);
+		flags = 0;
+		if (ctx == ctx->i915->kernel_context)
+			flags = PIN_HIGH;
+
+		ret = context_pin(ctx, flags);
+		if (ret)
 			goto error;
-		}
 	}
 
 	/* The kernel context is only used as a placeholder for flushing the
@@ -1978,12 +1998,13 @@ error:
 	return ret;
 }
 
-static void intel_ring_context_unpin(struct i915_gem_context *ctx,
-				     struct intel_engine_cs *engine)
+static void intel_ring_context_unpin(struct intel_engine_cs *engine,
+				     struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
+	GEM_BUG_ON(ce->pin_count == 0);
 
 	if (--ce->pin_count)
 		return;
@@ -2005,17 +2026,6 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	intel_engine_setup_common(engine);
 
 	ret = intel_engine_init_common(engine);
-	if (ret)
-		goto error;
-
-	/* We may need to do things with the shrinker which
-	 * require us to immediately switch back to the default
-	 * context. This can cause a problem as pinning the
-	 * default context also requires GTT space which may not
-	 * be available. To avoid this we always pin the default
-	 * context.
-	 */
-	ret = intel_ring_context_pin(dev_priv->kernel_context, engine);
 	if (ret)
 		goto error;
 
@@ -2077,8 +2087,6 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 
 	intel_engine_cleanup_common(engine);
 
-	intel_ring_context_unpin(dev_priv->kernel_context, engine);
-
 	engine->i915 = NULL;
 	dev_priv->engine[engine->id] = NULL;
 	kfree(engine);
@@ -2099,12 +2107,15 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 {
 	int ret;
 
+	GEM_BUG_ON(!request->ctx->engine[request->engine->id].pin_count);
+
 	/* Flush enough space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just
 	 * have to repeat work.
 	 */
 	request->reserved_space += LEGACY_REQUEST_SIZE;
 
+	GEM_BUG_ON(!request->engine->buffer);
 	request->ring = request->engine->buffer;
 
 	ret = intel_ring_begin(request, 0);
@@ -2583,6 +2594,9 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 	engine->init_hw = init_ring_common;
 	engine->reset_hw = reset_ring_common;
+
+	engine->context_pin = intel_ring_context_pin;
+	engine->context_unpin = intel_ring_context_unpin;
 
 	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = i9xx_emit_breadcrumb_sz;

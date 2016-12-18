@@ -6792,7 +6792,7 @@ static void __intel_autoenable_gt_powersave(struct work_struct *work)
 		goto out;
 
 	rcs = dev_priv->engine[RCS];
-	if (rcs->last_context)
+	if (rcs->last_retired_context)
 		goto out;
 
 	if (!rcs->init_context)

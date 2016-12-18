@@ -534,17 +534,6 @@ static void __i915_guc_submit(struct drm_i915_gem_request *rq)
 
 static void i915_guc_submit(struct drm_i915_gem_request *rq)
 {
-	struct intel_engine_cs *engine = rq->engine;
-
-	/* We keep the previous context alive until we retire the following
-	 * request. This ensures that any the context object is still pinned
-	 * for any residual writes the HW makes into it on the context switch
-	 * into the next object following the breadcrumb. Otherwise, we may
-	 * retire the context too early.
-	 */
-	rq->previous_context = engine->last_context;
-	engine->last_context = rq->ctx;
-
 	i915_gem_request_submit(rq);
 	__i915_guc_submit(rq);
 }

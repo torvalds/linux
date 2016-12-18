@@ -266,6 +266,10 @@ struct intel_engine_cs {
 	void		(*reset_hw)(struct intel_engine_cs *engine,
 				    struct drm_i915_gem_request *req);
 
+	int		(*context_pin)(struct intel_engine_cs *engine,
+				       struct i915_gem_context *ctx);
+	void		(*context_unpin)(struct intel_engine_cs *engine,
+					 struct i915_gem_context *ctx);
 	int		(*init_context)(struct drm_i915_gem_request *req);
 
 	int		(*emit_flush)(struct drm_i915_gem_request *request,
@@ -379,7 +383,24 @@ struct intel_engine_cs {
 	bool preempt_wa;
 	u32 ctx_desc_template;
 
-	struct i915_gem_context *last_context;
+	/* Contexts are pinned whilst they are active on the GPU. The last
+	 * context executed remains active whilst the GPU is idle - the
+	 * switch away and write to the context object only occurs on the
+	 * next execution.  Contexts are only unpinned on retirement of the
+	 * following request ensuring that we can always write to the object
+	 * on the context switch even after idling. Across suspend, we switch
+	 * to the kernel context and trash it as the save may not happen
+	 * before the hardware is powered down.
+	 */
+	struct i915_gem_context *last_retired_context;
+
+	/* We track the current MI_SET_CONTEXT in order to eliminate
+	 * redudant context switches. This presumes that requests are not
+	 * reordered! Or when they are the tracking is updated along with
+	 * the emission of individual requests into the legacy command
+	 * stream (ring).
+	 */
+	struct i915_gem_context *legacy_active_context;
 
 	struct intel_engine_hangcheck hangcheck;
 

@@ -416,21 +416,6 @@ out:
 	return ctx;
 }
 
-static void i915_gem_context_unpin(struct i915_gem_context *ctx,
-				   struct intel_engine_cs *engine)
-{
-	if (i915.enable_execlists) {
-		intel_lr_context_unpin(ctx, engine);
-	} else {
-		struct intel_context *ce = &ctx->engine[engine->id];
-
-		if (ce->state)
-			i915_vma_unpin(ce->state);
-
-		i915_gem_context_put(ctx);
-	}
-}
-
 int i915_gem_context_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
@@ -490,10 +475,13 @@ void i915_gem_context_lost(struct drm_i915_private *dev_priv)
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	for_each_engine(engine, dev_priv, id) {
-		if (engine->last_context) {
-			i915_gem_context_unpin(engine->last_context, engine);
-			engine->last_context = NULL;
-		}
+		engine->legacy_active_context = NULL;
+
+		if (!engine->last_retired_context)
+			continue;
+
+		engine->context_unpin(engine, engine->last_retired_context);
+		engine->last_retired_context = NULL;
 	}
 
 	/* Force the GPU state to be restored on enabling */
@@ -715,7 +703,7 @@ static inline bool skip_rcs_switch(struct i915_hw_ppgtt *ppgtt,
 	if (ppgtt && (intel_engine_flag(engine) & ppgtt->pd_dirty_rings))
 		return false;
 
-	return to == engine->last_context;
+	return to == engine->legacy_active_context;
 }
 
 static bool
@@ -727,11 +715,11 @@ needs_pd_load_pre(struct i915_hw_ppgtt *ppgtt,
 		return false;
 
 	/* Always load the ppgtt on first use */
-	if (!engine->last_context)
+	if (!engine->legacy_active_context)
 		return true;
 
 	/* Same context without new entries, skip */
-	if (engine->last_context == to &&
+	if (engine->legacy_active_context == to &&
 	    !(intel_engine_flag(engine) & ppgtt->pd_dirty_rings))
 		return false;
 
@@ -761,56 +749,19 @@ needs_pd_load_post(struct i915_hw_ppgtt *ppgtt,
 	return false;
 }
 
-struct i915_vma *
-i915_gem_context_pin_legacy(struct i915_gem_context *ctx,
-			    unsigned int flags)
-{
-	struct i915_vma *vma = ctx->engine[RCS].state;
-	int ret;
-
-	/* Clear this page out of any CPU caches for coherent swap-in/out.
-	 * We only want to do this on the first bind so that we do not stall
-	 * on an active context (which by nature is already on the GPU).
-	 */
-	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
-		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
-		if (ret)
-			return ERR_PTR(ret);
-	}
-
-	ret = i915_vma_pin(vma, 0, ctx->ggtt_alignment, PIN_GLOBAL | flags);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return vma;
-}
-
 static int do_rcs_switch(struct drm_i915_gem_request *req)
 {
 	struct i915_gem_context *to = req->ctx;
 	struct intel_engine_cs *engine = req->engine;
 	struct i915_hw_ppgtt *ppgtt = to->ppgtt ?: req->i915->mm.aliasing_ppgtt;
-	struct i915_vma *vma;
-	struct i915_gem_context *from;
+	struct i915_gem_context *from = engine->legacy_active_context;
 	u32 hw_flags;
 	int ret, i;
 
+	GEM_BUG_ON(engine->id != RCS);
+
 	if (skip_rcs_switch(ppgtt, engine, to))
 		return 0;
-
-	/* Trying to pin first makes error handling easier. */
-	vma = i915_gem_context_pin_legacy(to, 0);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	/*
-	 * Pin can switch back to the default context if we end up calling into
-	 * evict_everything - as a last ditch gtt defrag effort that also
-	 * switches to the default context. Hence we need to reload from here.
-	 *
-	 * XXX: Doing so is painfully broken!
-	 */
-	from = engine->last_context;
 
 	if (needs_pd_load_pre(ppgtt, engine, to)) {
 		/* Older GENs and non render rings still want the load first,
@@ -820,7 +771,7 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 		trace_switch_mm(engine, to);
 		ret = ppgtt->switch_mm(ppgtt, req);
 		if (ret)
-			goto err;
+			return ret;
 	}
 
 	if (!to->engine[RCS].initialised || i915_gem_context_is_default(to))
@@ -837,29 +788,10 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 	if (to != from || (hw_flags & MI_FORCE_RESTORE)) {
 		ret = mi_set_context(req, hw_flags);
 		if (ret)
-			goto err;
-	}
+			return ret;
 
-	/* The backing object for the context is done after switching to the
-	 * *next* context. Therefore we cannot retire the previous context until
-	 * the next context has already started running. In fact, the below code
-	 * is a bit suboptimal because the retiring can occur simply after the
-	 * MI_SET_CONTEXT instead of when the next seqno has completed.
-	 */
-	if (from != NULL) {
-		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
-		 * whole damn pipeline, we don't need to explicitly mark the
-		 * object dirty. The only exception is that the context must be
-		 * correct in case the object gets swapped out. Ideally we'd be
-		 * able to defer doing this until we know the object would be
-		 * swapped, but there is no way to do that yet.
-		 */
-		i915_vma_move_to_active(from->engine[RCS].state, req, 0);
-		/* state is kept alive until the next request */
-		i915_vma_unpin(from->engine[RCS].state);
-		i915_gem_context_put(from);
+		engine->legacy_active_context = to;
 	}
-	engine->last_context = i915_gem_context_get(to);
 
 	/* GEN8 does *not* require an explicit reload if the PDPs have been
 	 * setup, and we do not wish to move them.
@@ -900,10 +832,6 @@ static int do_rcs_switch(struct drm_i915_gem_request *req)
 	}
 
 	return 0;
-
-err:
-	i915_vma_unpin(vma);
-	return ret;
 }
 
 /**
@@ -941,12 +869,6 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 				return ret;
 
 			ppgtt->pd_dirty_rings &= ~intel_engine_flag(engine);
-		}
-
-		if (to != engine->last_context) {
-			if (engine->last_context)
-				i915_gem_context_put(engine->last_context);
-			engine->last_context = i915_gem_context_get(to);
 		}
 
 		return 0;

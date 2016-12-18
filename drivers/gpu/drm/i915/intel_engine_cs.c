@@ -304,15 +304,30 @@ int intel_engine_init_common(struct intel_engine_cs *engine)
 {
 	int ret;
 
-	ret = intel_engine_init_breadcrumbs(engine);
+	/* We may need to do things with the shrinker which
+	 * require us to immediately switch back to the default
+	 * context. This can cause a problem as pinning the
+	 * default context also requires GTT space which may not
+	 * be available. To avoid this we always pin the default
+	 * context.
+	 */
+	ret = engine->context_pin(engine, engine->i915->kernel_context);
 	if (ret)
 		return ret;
+
+	ret = intel_engine_init_breadcrumbs(engine);
+	if (ret)
+		goto err_unpin;
 
 	ret = i915_gem_render_state_init(engine);
 	if (ret)
-		return ret;
+		goto err_unpin;
 
 	return 0;
+
+err_unpin:
+	engine->context_unpin(engine, engine->i915->kernel_context);
+	return ret;
 }
 
 /**
@@ -330,6 +345,8 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 	i915_gem_batch_pool_fini(&engine->batch_pool);
+
+	engine->context_unpin(engine, engine->i915->kernel_context);
 }
 
 u64 intel_engine_get_active_head(struct intel_engine_cs *engine)

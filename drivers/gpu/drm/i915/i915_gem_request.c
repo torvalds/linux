@@ -206,6 +206,7 @@ void i915_gem_retire_noop(struct i915_gem_active *active,
 
 static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 {
+	struct intel_engine_cs *engine = request->engine;
 	struct i915_gem_active *active, *next;
 
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
@@ -216,9 +217,9 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	trace_i915_gem_request_retire(request);
 
-	spin_lock_irq(&request->engine->timeline->lock);
+	spin_lock_irq(&engine->timeline->lock);
 	list_del_init(&request->link);
-	spin_unlock_irq(&request->engine->timeline->lock);
+	spin_unlock_irq(&engine->timeline->lock);
 
 	/* We know the GPU must have read the request to have
 	 * sent us the seqno + interrupt, so use the position
@@ -266,17 +267,20 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	i915_gem_request_remove_from_client(request);
 
-	if (request->previous_context) {
-		if (i915.enable_execlists)
-			intel_lr_context_unpin(request->previous_context,
-					       request->engine);
-	}
-
 	/* Retirement decays the ban score as it is a sign of ctx progress */
 	if (request->ctx->ban_score > 0)
 		request->ctx->ban_score--;
 
-	i915_gem_context_put(request->ctx);
+	/* The backing object for the context is done after switching to the
+	 * *next* context. Therefore we cannot retire the previous context until
+	 * the next context has already started running. However, since we
+	 * cannot take the required locks at i915_gem_request_submit() we
+	 * defer the unpinning of the active context to now, retirement of
+	 * the subsequent request.
+	 */
+	if (engine->last_retired_context)
+		engine->context_unpin(engine, engine->last_retired_context);
+	engine->last_retired_context = request->ctx;
 
 	dma_fence_signal(&request->fence);
 
@@ -524,9 +528,17 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = reserve_global_seqno(dev_priv);
+	/* Pinning the contexts may generate requests in order to acquire
+	 * GGTT space, so do this first before we reserve a seqno for
+	 * ourselves.
+	 */
+	ret = engine->context_pin(engine, ctx);
 	if (ret)
 		return ERR_PTR(ret);
+
+	ret = reserve_global_seqno(dev_priv);
+	if (ret)
+		goto err_unpin;
 
 	/* Move the oldest request to the slab-cache (if not in use!) */
 	req = list_first_entry_or_null(&engine->timeline->requests,
@@ -593,11 +605,10 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 	INIT_LIST_HEAD(&req->active_list);
 	req->i915 = dev_priv;
 	req->engine = engine;
-	req->ctx = i915_gem_context_get(ctx);
+	req->ctx = ctx;
 
 	/* No zalloc, must clear what we need by hand */
 	req->global_seqno = 0;
-	req->previous_context = NULL;
 	req->file_priv = NULL;
 	req->batch = NULL;
 
@@ -633,10 +644,11 @@ err_ctx:
 	GEM_BUG_ON(!list_empty(&req->priotree.signalers_list));
 	GEM_BUG_ON(!list_empty(&req->priotree.waiters_list));
 
-	i915_gem_context_put(ctx);
 	kmem_cache_free(dev_priv->requests, req);
 err_unreserve:
 	dev_priv->gt.active_requests--;
+err_unpin:
+	engine->context_unpin(engine, ctx);
 	return ERR_PTR(ret);
 }
 

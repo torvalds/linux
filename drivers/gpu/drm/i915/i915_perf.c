@@ -743,7 +743,7 @@ static int i915_oa_read(struct i915_perf_stream *stream,
 static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
-	struct i915_vma *vma;
+	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 	int ret;
 
 	ret = i915_mutex_lock_interruptible(&dev_priv->drm);
@@ -755,19 +755,16 @@ static int oa_get_render_ctx_id(struct i915_perf_stream *stream)
 	 *
 	 * NB: implied RCS engine...
 	 */
-	vma = i915_gem_context_pin_legacy(stream->ctx, 0);
-	if (IS_ERR(vma)) {
-		ret = PTR_ERR(vma);
+	ret = engine->context_pin(engine, stream->ctx);
+	if (ret)
 		goto unlock;
-	}
-
-	dev_priv->perf.oa.pinned_rcs_vma = vma;
 
 	/* Explicitly track the ID (instead of calling i915_ggtt_offset()
 	 * on the fly) considering the difference with gen8+ and
 	 * execlists
 	 */
-	dev_priv->perf.oa.specific_ctx_id = i915_ggtt_offset(vma);
+	dev_priv->perf.oa.specific_ctx_id =
+		i915_ggtt_offset(stream->ctx->engine[engine->id].state);
 
 unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
@@ -785,13 +782,12 @@ unlock:
 static void oa_put_render_ctx_id(struct i915_perf_stream *stream)
 {
 	struct drm_i915_private *dev_priv = stream->dev_priv;
+	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 
 	mutex_lock(&dev_priv->drm.struct_mutex);
 
-	i915_vma_unpin(dev_priv->perf.oa.pinned_rcs_vma);
-	dev_priv->perf.oa.pinned_rcs_vma = NULL;
-
 	dev_priv->perf.oa.specific_ctx_id = INVALID_CTX_ID;
+	engine->context_unpin(engine, stream->ctx);
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
 }

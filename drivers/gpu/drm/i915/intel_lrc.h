@@ -79,13 +79,10 @@ int intel_engines_init(struct drm_i915_private *dev_priv);
 #define LRC_PPHWSP_PN	(LRC_GUCSHR_PN + 1)
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + 1)
 
+struct drm_i915_private;
 struct i915_gem_context;
 
 uint32_t intel_lr_context_size(struct intel_engine_cs *engine);
-void intel_lr_context_unpin(struct i915_gem_context *ctx,
-			    struct intel_engine_cs *engine);
-
-struct drm_i915_private;
 
 void intel_lr_context_resume(struct drm_i915_private *dev_priv);
 uint64_t intel_lr_context_descriptor(struct i915_gem_context *ctx,

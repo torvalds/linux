@@ -12295,7 +12295,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 		INIT_WORK(&work->mmio_work, intel_mmio_flip_work_func);
 		queue_work(system_unbound_wq, &work->mmio_work);
 	} else {
-		request = i915_gem_request_alloc(engine, engine->last_context);
+		request = i915_gem_request_alloc(engine,
+						 dev_priv->kernel_context);
 		if (IS_ERR(request)) {
 			ret = PTR_ERR(request);
 			goto cleanup_unpin;
