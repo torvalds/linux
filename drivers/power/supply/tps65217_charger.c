@@ -188,7 +188,7 @@ static int tps65217_charger_poll_task(void *data)
 }
 
 static const struct power_supply_desc tps65217_charger_desc = {
-	.name			= "tps65217-ac",
+	.name			= "tps65217-charger",
 	.type			= POWER_SUPPLY_TYPE_MAINS,
 	.get_property		= tps65217_charger_get_property,
 	.properties		= tps65217_charger_props,
