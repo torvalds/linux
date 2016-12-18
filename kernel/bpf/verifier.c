@@ -462,12 +462,17 @@ static void init_reg_state(struct bpf_reg_state *regs)
 	regs[BPF_REG_1].type = PTR_TO_CTX;
 }
 
-static void mark_reg_unknown_value(struct bpf_reg_state *regs, u32 regno)
+static void __mark_reg_unknown_value(struct bpf_reg_state *regs, u32 regno)
 {
-	BUG_ON(regno >= MAX_BPF_REG);
 	regs[regno].type = UNKNOWN_VALUE;
 	regs[regno].id = 0;
 	regs[regno].imm = 0;
+}
+
+static void mark_reg_unknown_value(struct bpf_reg_state *regs, u32 regno)
+{
+	BUG_ON(regno >= MAX_BPF_REG);
+	__mark_reg_unknown_value(regs, regno);
 }
 
 static void reset_reg_range_values(struct bpf_reg_state *regs, u32 regno)
@@ -1976,7 +1981,7 @@ static void mark_map_reg(struct bpf_reg_state *regs, u32 regno, u32 id,
 		 */
 		reg->id = 0;
 		if (type == UNKNOWN_VALUE)
-			mark_reg_unknown_value(regs, regno);
+			__mark_reg_unknown_value(regs, regno);
 	}
 }
 
@@ -2931,6 +2936,10 @@ static int replace_map_fd_with_map_ptr(struct bpf_verifier_env *env)
 	int insn_cnt = env->prog->len;
 	int i, j, err;
 
+	err = bpf_prog_calc_digest(env->prog);
+	if (err)
+		return err;
+
 	for (i = 0; i < insn_cnt; i++, insn++) {
 		if (BPF_CLASS(insn->code) == BPF_LDX &&
 		    (BPF_MODE(insn->code) != BPF_MEM || insn->imm != 0)) {
@@ -3177,8 +3186,6 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	} else {
 		log_level = 0;
 	}
-
-	bpf_prog_calc_digest(env->prog);
 
 	ret = replace_map_fd_with_map_ptr(env);
 	if (ret < 0)
