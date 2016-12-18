@@ -13,15 +13,19 @@ if [ -z "$origin_master" ]; then
     origin_master="origin/master"
 fi
 
+origin=$(dirname $origin_master)
+master=$(basename $origin_master)
+
 # make sure we fetch to avoid caching effects
-git fetch origin
+git fetch --tags $origin +refs/heads/$master:refs/remotes/$origin/$master
 
 # find the last upstream tag to avoid checking upstream commits during
 # upstream merges
 tag=`git tag --sort='-*authordate' | grep ^v | head -n1`
 tmp=`mktemp -d`
 
-for c in `git log --no-merges --pretty=format:%h HEAD ^$origin_master ^$tag`; do
+commits=$(git log --no-merges --pretty=format:%h HEAD ^$origin/$master ^$tag)
+for c in $commits; do
     git format-patch -1 -o $tmp $c
 done
 
