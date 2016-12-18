@@ -59,7 +59,7 @@ siginfo_t *mpx_generate_siginfo(struct pt_regs *regs);
 int mpx_handle_bd_fault(void);
 static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
 {
-	return (mm->bd_addr != MPX_INVALID_BOUNDS_DIR);
+	return (mm->context.bd_addr != MPX_INVALID_BOUNDS_DIR);
 }
 static inline void mpx_mm_init(struct mm_struct *mm)
 {
@@ -67,7 +67,7 @@ static inline void mpx_mm_init(struct mm_struct *mm)
 	 * NULL is theoretically a valid place to put the bounds
 	 * directory, so point this at an invalid address.
 	 */
-	mm->bd_addr = MPX_INVALID_BOUNDS_DIR;
+	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
 }
 void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
 		      unsigned long start, unsigned long end);
