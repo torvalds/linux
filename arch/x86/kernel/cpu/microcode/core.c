@@ -44,7 +44,7 @@
 #define DRIVER_VERSION	"2.2"
 
 static struct microcode_ops	*microcode_ops;
-static bool dis_ucode_ldr;
+static bool dis_ucode_ldr = true;
 
 LIST_HEAD(microcode_cache);
 
@@ -76,6 +76,7 @@ struct cpu_info_ctx {
 static bool __init check_loader_disabled_bsp(void)
 {
 	static const char *__dis_opt_str = "dis_ucode_ldr";
+	u32 a, b, c, d;
 
 #ifdef CONFIG_X86_32
 	const char *cmdline = (const char *)__pa_nodebug(boot_command_line);
@@ -88,8 +89,23 @@ static bool __init check_loader_disabled_bsp(void)
 	bool *res = &dis_ucode_ldr;
 #endif
 
-	if (cmdline_find_option_bool(cmdline, option))
-		*res = true;
+	if (!have_cpuid_p())
+		return *res;
+
+	a = 1;
+	c = 0;
+	native_cpuid(&a, &b, &c, &d);
+
+	/*
+	 * CPUID(1).ECX[31]: reserved for hypervisor use. This is still not
+	 * completely accurate as xen pv guests don't see that CPUID bit set but
+	 * that's good enough as they don't land on the BSP path anyway.
+	 */
+	if (c & BIT(31))
+		return *res;
+
+	if (cmdline_find_option_bool(cmdline, option) <= 0)
+		*res = false;
 
 	return *res;
 }
@@ -119,9 +135,6 @@ void __init load_ucode_bsp(void)
 	unsigned int family;
 
 	if (check_loader_disabled_bsp())
-		return;
-
-	if (!have_cpuid_p())
 		return;
 
 	vendor = x86_cpuid_vendor();
@@ -155,9 +168,6 @@ void load_ucode_ap(void)
 	int vendor, family;
 
 	if (check_loader_disabled_ap())
-		return;
-
-	if (!have_cpuid_p())
 		return;
 
 	vendor = x86_cpuid_vendor();
