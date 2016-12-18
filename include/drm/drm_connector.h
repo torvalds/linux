@@ -381,6 +381,8 @@ struct drm_connector_funcs {
 	 * core drm connector interfaces. Everything added from this callback
 	 * should be unregistered in the early_unregister callback.
 	 *
+	 * This is called while holding drm_connector->mutex.
+	 *
 	 * Returns:
 	 *
 	 * 0 on success, or a negative error code on failure.
@@ -395,6 +397,8 @@ struct drm_connector_funcs {
 	 * late_register(). It is called from drm_connector_unregister(),
 	 * early in the driver unload sequence to disable userspace access
 	 * before data structures are torndown.
+	 *
+	 * This is called while holding drm_connector->mutex.
 	 */
 	void (*early_unregister)(struct drm_connector *connector);
 
@@ -559,7 +563,6 @@ struct drm_cmdline_mode {
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
  * @stereo_allowed: can this connector handle stereo modes?
- * @registered: is this connector exposed (registered) with userspace?
  * @modes: modes available on this connector (from fill_modes() + user)
  * @status: one of the drm_connector_status enums (connected, not, or unknown)
  * @probed_modes: list of modes derived directly from the display
@@ -608,6 +611,13 @@ struct drm_connector {
 	char *name;
 
 	/**
+	 * @mutex: Lock for general connector state, but currently only protects
+	 * @registered. Most of the connector state is still protected by the
+	 * mutex in &drm_mode_config.
+	 */
+	struct mutex mutex;
+
+	/**
 	 * @index: Compacted connector index, which matches the position inside
 	 * the mode_config.list for drivers not supporting hot-add/removing. Can
 	 * be used as an array index. It is invariant over the lifetime of the
@@ -620,6 +630,10 @@ struct drm_connector {
 	bool interlace_allowed;
 	bool doublescan_allowed;
 	bool stereo_allowed;
+	/**
+	 * @registered: Is this connector exposed (registered) with userspace?
+	 * Protected by @mutex.
+	 */
 	bool registered;
 	struct list_head modes; /* list of modes on this connector */
 
