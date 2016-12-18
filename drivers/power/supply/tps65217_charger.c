@@ -115,9 +115,9 @@ static int tps65217_enable_charging(struct tps65217_charger *charger)
 	return 0;
 }
 
-static int tps65217_ac_get_property(struct power_supply *psy,
-			enum power_supply_property psp,
-			union power_supply_propval *val)
+static int tps65217_charger_get_property(struct power_supply *psy,
+					 enum power_supply_property psp,
+					 union power_supply_propval *val)
 {
 	struct tps65217_charger *charger = power_supply_get_drvdata(psy);
 
@@ -190,7 +190,7 @@ static int tps65217_charger_poll_task(void *data)
 static const struct power_supply_desc tps65217_charger_desc = {
 	.name			= "tps65217-ac",
 	.type			= POWER_SUPPLY_TYPE_MAINS,
-	.get_property		= tps65217_ac_get_property,
+	.get_property		= tps65217_charger_get_property,
 	.properties		= tps65217_charger_props,
 	.num_properties		= ARRAY_SIZE(tps65217_charger_props),
 };
