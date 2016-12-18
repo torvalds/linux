@@ -1259,6 +1259,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	const unsigned int idx = req->engine->id;
 
+	lockdep_assert_held(&req->i915->drm.struct_mutex);
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
 	/* Add a reference if we're newly entering the active list.
