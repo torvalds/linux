@@ -512,6 +512,15 @@
 			};
 		};
 
+		fpga_mgr: fpga-mgr@ffd03000 {
+			compatible = "altr,socfpga-a10-fpga-mgr";
+			reg = <0xffd03000 0x100
+			       0xffcfe400 0x20>;
+			clocks = <&l4_mp_clk>;
+			resets = <&rst FPGAMGR_RESET>;
+			reset-names = "fpgamgr";
+		};
+
 		i2c0: i2c@ffc02200 {
 			#address-cells = <1>;
 			#size-cells = <0>;
