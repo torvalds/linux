@@ -191,6 +191,12 @@ static const struct i2c_device_id ds1307_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ds1307_id);
 
+static struct i2c_board_info i2c_ds1307_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("ds1307", 0x68),
+	}
+};
+
 /*----------------------------------------------------------------------*/
 
 #define BLOCK_DATA_MAX_TRIES 10
@@ -332,6 +338,9 @@ static irqreturn_t ds1307_irq(int irq, void *dev_id)
 	struct ds1307		*ds1307 = i2c_get_clientdata(client);
 	struct mutex		*lock = &ds1307->rtc->ops_lock;
 	int			stat, control;
+	
+	i2c_register_board_info(1, i2c_ds1307_info,
+			ARRAY_SIZE(i2c_ds1307_info));
 
 	mutex_lock(lock);
 	stat = i2c_smbus_read_byte_data(client, DS1337_REG_STATUS);
