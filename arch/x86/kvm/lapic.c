@@ -607,7 +607,8 @@ static void apic_update_ppr(struct kvm_lapic *apic)
 {
 	u32 ppr;
 
-	if (__apic_update_ppr(apic, &ppr))
+	if (__apic_update_ppr(apic, &ppr) &&
+	    apic_has_interrupt_for_ppr(apic, ppr) != -1)
 		kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
 }
 
