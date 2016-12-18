@@ -301,6 +301,7 @@ static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
 void __init load_ucode_amd_bsp(unsigned int family)
 {
 	struct ucode_cpu_info *uci;
+	u32 eax, ebx, ecx, edx;
 	struct cpio_data cp;
 	const char *path;
 	bool use_pa;
@@ -322,7 +323,10 @@ void __init load_ucode_amd_bsp(unsigned int family)
 		return;
 
 	/* Get BSP's CPUID.EAX(1), needed in load_microcode_amd() */
-	uci->cpu_sig.sig = cpuid_eax(1);
+	eax = 1;
+	ecx = 0;
+	native_cpuid(&eax, &ebx, &ecx, &edx);
+	uci->cpu_sig.sig = eax;
 
 	apply_microcode_early_amd(cp.data, cp.size, true, NULL);
 }
