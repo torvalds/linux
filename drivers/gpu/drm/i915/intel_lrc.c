@@ -845,7 +845,7 @@ static void execlists_context_unpin(struct intel_engine_cs *engine,
 	i915_gem_context_put(ctx);
 }
 
-int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
+static int execlists_request_alloc(struct drm_i915_gem_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	struct intel_context *ce = &request->ctx->engine[engine->id];
@@ -1815,6 +1815,8 @@ logical_ring_default_vfuncs(struct intel_engine_cs *engine)
 
 	engine->context_pin = execlists_context_pin;
 	engine->context_unpin = execlists_context_unpin;
+
+	engine->request_alloc = execlists_request_alloc;
 
 	engine->emit_flush = gen8_emit_flush;
 	engine->emit_breadcrumb = gen8_emit_breadcrumb;

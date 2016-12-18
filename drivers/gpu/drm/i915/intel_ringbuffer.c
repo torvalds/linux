@@ -2103,7 +2103,7 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
 	}
 }
 
-int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
+static int ring_request_alloc(struct drm_i915_gem_request *request)
 {
 	int ret;
 
@@ -2597,6 +2597,8 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 
 	engine->context_pin = intel_ring_context_pin;
 	engine->context_unpin = intel_ring_context_unpin;
+
+	engine->request_alloc = ring_request_alloc;
 
 	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = i9xx_emit_breadcrumb_sz;
