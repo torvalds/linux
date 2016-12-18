@@ -2115,6 +2115,7 @@ int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
 {
 	int vector = kvm_apic_has_interrupt(vcpu);
 	struct kvm_lapic *apic = vcpu->arch.apic;
+	u32 ppr;
 
 	if (vector == -1)
 		return -1;
@@ -2126,13 +2127,23 @@ int kvm_get_apic_interrupt(struct kvm_vcpu *vcpu)
 	 * because the process would deliver it through the IDT.
 	 */
 
-	apic_set_isr(vector, apic);
-	apic_update_ppr(apic);
 	apic_clear_irr(vector, apic);
-
 	if (test_bit(vector, vcpu_to_synic(vcpu)->auto_eoi_bitmap)) {
-		apic_clear_isr(vector, apic);
+		/*
+		 * For auto-EOI interrupts, there might be another pending
+		 * interrupt above PPR, so check whether to raise another
+		 * KVM_REQ_EVENT.
+		 */
 		apic_update_ppr(apic);
+	} else {
+		/*
+		 * For normal interrupts, PPR has been raised and there cannot
+		 * be a higher-priority pending interrupt---except if there was
+		 * a concurrent interrupt injection, but that would have
+		 * triggered KVM_REQ_EVENT already.
+		 */
+		apic_set_isr(vector, apic);
+		__apic_update_ppr(apic, &ppr);
 	}
 
 	return vector;
