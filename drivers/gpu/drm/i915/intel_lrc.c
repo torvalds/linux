@@ -230,8 +230,6 @@ enum {
 
 static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 					    struct intel_engine_cs *engine);
-static int intel_lr_context_pin(struct i915_gem_context *ctx,
-				struct intel_engine_cs *engine);
 static void execlists_init_reg_state(u32 *reg_state,
 				     struct i915_gem_context *ctx,
 				     struct intel_engine_cs *engine,
@@ -774,71 +772,6 @@ static void execlists_schedule(struct drm_i915_gem_request *request, int prio)
 	/* XXX Do we need to preempt to make room for us and our deps? */
 }
 
-int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
-{
-	struct intel_engine_cs *engine = request->engine;
-	struct intel_context *ce = &request->ctx->engine[engine->id];
-	int ret;
-
-	/* Flush enough space to reduce the likelihood of waiting after
-	 * we start building the request - in which case we will just
-	 * have to repeat work.
-	 */
-	request->reserved_space += EXECLISTS_REQUEST_SIZE;
-
-	if (!ce->state) {
-		ret = execlists_context_deferred_alloc(request->ctx, engine);
-		if (ret)
-			return ret;
-	}
-
-	request->ring = ce->ring;
-
-	ret = intel_lr_context_pin(request->ctx, engine);
-	if (ret)
-		return ret;
-
-	if (i915.enable_guc_submission) {
-		/*
-		 * Check that the GuC has space for the request before
-		 * going any further, as the i915_add_request() call
-		 * later on mustn't fail ...
-		 */
-		ret = i915_guc_wq_reserve(request);
-		if (ret)
-			goto err_unpin;
-	}
-
-	ret = intel_ring_begin(request, 0);
-	if (ret)
-		goto err_unreserve;
-
-	if (!ce->initialised) {
-		ret = engine->init_context(request);
-		if (ret)
-			goto err_unreserve;
-
-		ce->initialised = true;
-	}
-
-	/* Note that after this point, we have committed to using
-	 * this request as it is being used to both track the
-	 * state of engine initialisation and liveness of the
-	 * golden renderstate above. Think twice before you try
-	 * to cancel/unwind this request now.
-	 */
-
-	request->reserved_space -= EXECLISTS_REQUEST_SIZE;
-	return 0;
-
-err_unreserve:
-	if (i915.enable_guc_submission)
-		i915_guc_wq_unreserve(request);
-err_unpin:
-	intel_lr_context_unpin(request->ctx, engine);
-	return ret;
-}
-
 static int intel_lr_context_pin(struct i915_gem_context *ctx,
 				struct intel_engine_cs *engine)
 {
@@ -909,6 +842,71 @@ void intel_lr_context_unpin(struct i915_gem_context *ctx,
 	i915_vma_unpin(ce->state);
 
 	i915_gem_context_put(ctx);
+}
+
+int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
+{
+	struct intel_engine_cs *engine = request->engine;
+	struct intel_context *ce = &request->ctx->engine[engine->id];
+	int ret;
+
+	/* Flush enough space to reduce the likelihood of waiting after
+	 * we start building the request - in which case we will just
+	 * have to repeat work.
+	 */
+	request->reserved_space += EXECLISTS_REQUEST_SIZE;
+
+	if (!ce->state) {
+		ret = execlists_context_deferred_alloc(request->ctx, engine);
+		if (ret)
+			return ret;
+	}
+
+	request->ring = ce->ring;
+
+	ret = intel_lr_context_pin(request->ctx, engine);
+	if (ret)
+		return ret;
+
+	if (i915.enable_guc_submission) {
+		/*
+		 * Check that the GuC has space for the request before
+		 * going any further, as the i915_add_request() call
+		 * later on mustn't fail ...
+		 */
+		ret = i915_guc_wq_reserve(request);
+		if (ret)
+			goto err_unpin;
+	}
+
+	ret = intel_ring_begin(request, 0);
+	if (ret)
+		goto err_unreserve;
+
+	if (!ce->initialised) {
+		ret = engine->init_context(request);
+		if (ret)
+			goto err_unreserve;
+
+		ce->initialised = true;
+	}
+
+	/* Note that after this point, we have committed to using
+	 * this request as it is being used to both track the
+	 * state of engine initialisation and liveness of the
+	 * golden renderstate above. Think twice before you try
+	 * to cancel/unwind this request now.
+	 */
+
+	request->reserved_space -= EXECLISTS_REQUEST_SIZE;
+	return 0;
+
+err_unreserve:
+	if (i915.enable_guc_submission)
+		i915_guc_wq_unreserve(request);
+err_unpin:
+	intel_lr_context_unpin(request->ctx, engine);
+	return ret;
 }
 
 static int intel_logical_ring_workarounds_emit(struct drm_i915_gem_request *req)
