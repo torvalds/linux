@@ -767,6 +767,7 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 				 struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
+	unsigned int flags;
 	void *vaddr;
 	int ret;
 
@@ -781,8 +782,11 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 			goto err;
 	}
 
-	ret = i915_vma_pin(ce->state, 0, GEN8_LR_CONTEXT_ALIGN,
-			   PIN_OFFSET_BIAS | GUC_WOPCM_TOP | PIN_GLOBAL);
+	flags = PIN_OFFSET_BIAS | GUC_WOPCM_TOP | PIN_GLOBAL;
+	if (ctx == ctx->i915->kernel_context)
+		flags |= PIN_HIGH;
+
+	ret = i915_vma_pin(ce->state, 0, GEN8_LR_CONTEXT_ALIGN, flags);
 	if (ret)
 		goto err;
 
