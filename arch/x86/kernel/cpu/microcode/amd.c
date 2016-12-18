@@ -216,17 +216,18 @@ static int __apply_microcode_amd(struct microcode_amd *mc_amd)
  * and on 32-bit during save_microcode_in_initrd_amd() -- we can call
  * load_microcode_amd() to save equivalent cpu table and microcode patches in
  * kernel heap memory.
+ *
+ * Returns true if container found (sets @ret_cont), false otherwise.
  */
-static struct container
-apply_microcode_early_amd(void *ucode, size_t size, bool save_patch)
+static bool apply_microcode_early_amd(void *ucode, size_t size, bool save_patch,
+				      struct container *ret_cont)
 {
-	struct container ret = { NULL, 0 };
 	u8 (*patch)[PATCH_MAX_SIZE];
+	u32 rev, *header, *new_rev;
+	struct container ret;
 	int offset, left;
-	u32 rev, *header;
-	u8  *data;
 	u16 eq_id = 0;
-	u32 *new_rev;
+	u8  *data;
 
 #ifdef CONFIG_X86_32
 	new_rev = (u32 *)__pa_nodebug(&ucode_new_rev);
@@ -237,11 +238,11 @@ apply_microcode_early_amd(void *ucode, size_t size, bool save_patch)
 #endif
 
 	if (check_current_patch_level(&rev, true))
-		return (struct container){ NULL, 0 };
+		return false;
 
 	eq_id = find_proper_container(ucode, size, &ret);
 	if (!eq_id)
-		return (struct container){ NULL, 0 };
+		return false;
 
 	this_equiv_id = eq_id;
 	header = (u32 *)ret.data;
@@ -275,7 +276,11 @@ apply_microcode_early_amd(void *ucode, size_t size, bool save_patch)
 		data   += offset;
 		left   -= offset;
 	}
-	return ret;
+
+	if (ret_cont)
+		*ret_cont = ret;
+
+	return true;
 }
 
 static bool get_builtin_microcode(struct cpio_data *cp, unsigned int family)
@@ -319,7 +324,7 @@ void __init load_ucode_amd_bsp(unsigned int family)
 	/* Get BSP's CPUID.EAX(1), needed in load_microcode_amd() */
 	uci->cpu_sig.sig = cpuid_eax(1);
 
-	apply_microcode_early_amd(cp.data, cp.size, true);
+	apply_microcode_early_amd(cp.data, cp.size, true, NULL);
 }
 
 #ifdef CONFIG_X86_32
@@ -351,7 +356,7 @@ void load_ucode_amd_ap(unsigned int family)
 	 * This would set amd_ucode_patch above so that the following APs can
 	 * use it directly instead of going down this path again.
 	 */
-	apply_microcode_early_amd(cp.data, cp.size, true);
+	apply_microcode_early_amd(cp.data, cp.size, true, NULL);
 }
 #else
 void load_ucode_amd_ap(unsigned int family)
@@ -389,8 +394,7 @@ reget:
 			}
 		}
 
-		cont = apply_microcode_early_amd(cp.data, cp.size, false);
-		if (!(cont.data && cont.size)) {
+		if (!apply_microcode_early_amd(cp.data, cp.size, false, &cont)) {
 			cont.size = -1;
 			return;
 		}
