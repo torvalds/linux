@@ -20,6 +20,7 @@ char doc[] = "";
 char args_doc[] = "-t fstype fsimage_path tar_path";
 static struct argp_option options[] = {
 	{"enable-printk", 'p', 0, 0, "show Linux printks"},
+	{"partition", 'P', "int", 0, "partition number"},
 	{"filesystem-type", 't', "string", 0,
 	 "select filesystem type - mandatory"},
 	{"selinux-contexts", 's', "file", 0,
@@ -29,6 +30,7 @@ static struct argp_option options[] = {
 
 static struct cl_args {
 	int printk;
+	int part;
 	const char *fsimg_type;
 	const char *fsimg_path;
 	const char *tar_path;
@@ -42,6 +44,9 @@ static error_t parse_opt(int key, char *arg, struct argp_state *state)
 	switch (key) {
 	case 'p':
 		cla->printk = 1;
+		break;
+	case 'P':
+		cla->part = atoi(arg);
 		break;
 	case 't':
 		cla->fsimg_type = arg;
@@ -362,8 +367,8 @@ int main(int argc, char **argv)
 
 	lkl_start_kernel(&lkl_host_ops, 10 * 1024 * 1024, "");
 
-	ret = lkl_mount_dev(disk_id, cla.fsimg_type, LKL_MS_RDONLY, NULL,
-			    mpoint, sizeof(mpoint));
+	ret = lkl_mount_dev(disk_id, cla.part, cla.fsimg_type, LKL_MS_RDONLY,
+			    NULL, mpoint, sizeof(mpoint));
 	if (ret) {
 		fprintf(stderr, "can't mount disk: %s\n", lkl_strerror(ret));
 		goto out_close;
@@ -388,7 +393,7 @@ int main(int argc, char **argv)
 		fclose(cla.selinux);
 
 out_umount:
-	lkl_umount_dev(disk_id, 0, 1000);
+	lkl_umount_dev(disk_id, cla.part, 0, 1000);
 
 out_close:
 	close(disk.fd);

@@ -23,6 +23,7 @@ struct lklfuse {
 	const char *opts;
 	struct lkl_disk disk;
 	int disk_id;
+	int part;
 	int ro;
 	int mb;
 } lklfuse = {
@@ -41,6 +42,7 @@ static struct fuse_opt lklfuse_opts[] = {
 	LKLFUSE_OPT("type=%s", type, 0),
 	LKLFUSE_OPT("mb=%d", mb, 0),
 	LKLFUSE_OPT("opts=%s", opts, 0),
+	LKLFUSE_OPT("part=%d", part, 0),
 	FUSE_OPT_KEY("-h", KEY_HELP),
 	FUSE_OPT_KEY("--help", KEY_HELP),
 	FUSE_OPT_KEY("-V",             KEY_VERSION),
@@ -62,6 +64,7 @@ static void usage(void)
 "    -o log=FILE            log file\n"
 "    -o type=fstype         filesystem type\n"
 "    -o mb=memory in mb     ammount of memory to allocate\n"
+"    -o part=parition       partition to mount\n"
 "    -o opts=options        mount options (use \\ to escape , and =)\n"
 );
 }
@@ -512,7 +515,7 @@ static int start_lkl(void)
 		goto out;
 	}
 
-	ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.type,
+	ret = lkl_mount_dev(lklfuse.disk_id, lklfuse.part, lklfuse.type,
 			    lklfuse.ro ? LKL_MS_RDONLY : 0, lklfuse.opts,
 			    mpoint, sizeof(mpoint));
 
@@ -531,7 +534,7 @@ static int start_lkl(void)
 	return 0;
 
 out_umount:
-	lkl_umount_dev(lklfuse.disk_id, 0, 1000);
+	lkl_umount_dev(lklfuse.disk_id, lklfuse.part, 0, 1000);
 
 out_halt:
 	lkl_sys_halt();

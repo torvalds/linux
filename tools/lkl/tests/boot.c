@@ -24,6 +24,7 @@ static struct cl_args {
 	const char *disk_filename;
 	const char *tap_ifname;
 	const char *fstype;
+	int part;
 } cla;
 
 static struct cl_option {
@@ -34,6 +35,7 @@ static struct cl_option {
 } options[] = {
 	{"enable-printk", 'p', "show Linux printks", 0},
 	{"disk-file", 'd', "disk file to use", 1},
+	{"partition", 'P', "partition to mount", 1},
 	{"net-tap", 'n', "tap interface to use", 1},
 	{"type", 't', "filesystem type", 1},
 	{0},
@@ -44,6 +46,9 @@ static int parse_opt(int key, char *arg)
 	switch (key) {
 	case 'p':
 		cla.printk = 1;
+		break;
+	case 'P':
+		cla.part = atoi(arg);
 		break;
 	case 'd':
 		cla.disk_filename = arg;
@@ -542,7 +547,7 @@ static int test_mount_dev(char *str, int len)
 {
 	long ret;
 
-	ret = lkl_mount_dev(disk_id, cla.fstype, 0, NULL, mnt_point,
+	ret = lkl_mount_dev(disk_id, cla.part, cla.fstype, 0, NULL, mnt_point,
 			    sizeof(mnt_point));
 
 	snprintf(str, len, "%ld", ret);
@@ -617,7 +622,7 @@ static int test_umount_dev(char *str, int len)
 
 	ret2 = lkl_sys_chdir("/");
 
-	ret3 = lkl_umount_dev(disk_id, 0, 1000);
+	ret3 = lkl_umount_dev(disk_id, cla.part, 0, 1000);
 
 	snprintf(str, len, "%ld %ld %ld", ret, ret2, ret3);
 
