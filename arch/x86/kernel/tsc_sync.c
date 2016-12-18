@@ -76,7 +76,8 @@ static void tsc_sanitize_first_cpu(struct tsc_adjust *cur, s64 bootval,
 	 * deadline timer creates an interrupt storm. Sigh!
 	 */
 	if ((bootcpu && bootval != 0) || (!bootcpu && bootval < 0)) {
-		pr_warn("TSC ADJUST: CPU%u: %lld force to 0\n", cpu, bootval);
+		pr_warn(FW_BUG "TSC ADJUST: CPU%u: %lld force to 0\n", cpu,
+			bootval);
 		wrmsrl(MSR_IA32_TSC_ADJUST, 0);
 		bootval = 0;
 	}
@@ -141,7 +142,7 @@ bool tsc_store_and_check_tsc_adjust(bool bootcpu)
 	 * package.
 	 */
 	if (bootval != ref->bootval) {
-		pr_warn("TSC ADJUST differs: Reference CPU%u: %lld CPU%u: %lld\n",
+		pr_warn(FW_BUG "TSC ADJUST differs: Reference CPU%u: %lld CPU%u: %lld\n",
 			refcpu, ref->bootval, cpu, bootval);
 	}
 	/*
