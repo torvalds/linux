@@ -141,10 +141,10 @@ CLANG ?= clang
 
 # Trick to allow make to be run from this directory
 all:
-	$(MAKE) -C ../../ $$PWD/
+	$(MAKE) -C ../../ $(CURDIR)/
 
 clean:
-	$(MAKE) -C ../../ M=$$PWD clean
+	$(MAKE) -C ../../ M=$(CURDIR) clean
 	@rm -f *~
 
 # Verify LLVM compiler tools are available and bpf target is supported by llc
