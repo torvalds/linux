@@ -425,7 +425,6 @@ static const char *proc_get_link(struct dentry *dentry,
 }
 
 const struct inode_operations proc_link_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= proc_get_link,
 };
 

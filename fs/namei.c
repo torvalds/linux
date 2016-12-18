@@ -4606,7 +4606,8 @@ out:
  * have ->get_link() not calling nd_jump_link().  Using (or not using) it
  * for any given inode is up to filesystem.
  */
-int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
+static int generic_readlink(struct dentry *dentry, char __user *buffer,
+			    int buflen)
 {
 	DEFINE_DELAYED_CALL(done);
 	struct inode *inode = d_inode(dentry);
@@ -4622,7 +4623,36 @@ int generic_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 	do_delayed_call(&done);
 	return res;
 }
-EXPORT_SYMBOL(generic_readlink);
+
+/**
+ * vfs_readlink - copy symlink body into userspace buffer
+ * @dentry: dentry on which to get symbolic link
+ * @buffer: user memory pointer
+ * @buflen: size of buffer
+ *
+ * Does not touch atime.  That's up to the caller if necessary
+ *
+ * Does not call security hook.
+ */
+int vfs_readlink(struct dentry *dentry, char __user *buffer, int buflen)
+{
+	struct inode *inode = d_inode(dentry);
+
+	if (unlikely(!(inode->i_opflags & IOP_DEFAULT_READLINK))) {
+		if (unlikely(inode->i_op->readlink))
+			return inode->i_op->readlink(dentry, buffer, buflen);
+
+		if (!d_is_symlink(dentry))
+			return -EINVAL;
+
+		spin_lock(&inode->i_lock);
+		inode->i_opflags |= IOP_DEFAULT_READLINK;
+		spin_unlock(&inode->i_lock);
+	}
+
+	return generic_readlink(dentry, buffer, buflen);
+}
+EXPORT_SYMBOL(vfs_readlink);
 
 /**
  * vfs_get_link - get symlink body
@@ -4739,7 +4769,6 @@ int page_symlink(struct inode *inode, const char *symname, int len)
 EXPORT_SYMBOL(page_symlink);
 
 const struct inode_operations page_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
 };
 EXPORT_SYMBOL(page_symlink_inode_operations);

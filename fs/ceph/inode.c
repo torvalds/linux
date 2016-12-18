@@ -1869,7 +1869,6 @@ retry:
  * symlinks
  */
 static const struct inode_operations ceph_symlink_iops = {
-	.readlink = generic_readlink,
 	.get_link = simple_get_link,
 	.setattr = ceph_setattr,
 	.getattr = ceph_getattr,

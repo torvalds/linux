@@ -3605,10 +3605,10 @@ nfsd4_encode_readlink(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd
 	if (!p)
 		return nfserr_resource;
 	/*
-	 * XXX: By default, the ->readlink() VFS op will truncate symlinks
-	 * if they would overflow the buffer.  Is this kosher in NFSv4?  If
-	 * not, one easy fix is: if ->readlink() precisely fills the buffer,
-	 * assume that truncation occurred, and return NFS4ERR_RESOURCE.
+	 * XXX: By default, vfs_readlink() will truncate symlinks if they
+	 * would overflow the buffer.  Is this kosher in NFSv4?  If not, one
+	 * easy fix is: if vfs_readlink() precisely fills the buffer, assume
+	 * that truncation occurred, and return NFS4ERR_RESOURCE.
 	 */
 	nfserr = nfsd_readlink(readlink->rl_rqstp, readlink->rl_fhp,
 						(char *)p, &maxcount);

@@ -1450,7 +1450,6 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 __be32
 nfsd_readlink(struct svc_rqst *rqstp, struct svc_fh *fhp, char *buf, int *lenp)
 {
-	struct inode	*inode;
 	mm_segment_t	oldfs;
 	__be32		err;
 	int		host_err;
@@ -1462,10 +1461,9 @@ nfsd_readlink(struct svc_rqst *rqstp, struct svc_fh *fhp, char *buf, int *lenp)
 
 	path.mnt = fhp->fh_export->ex_path.mnt;
 	path.dentry = fhp->fh_dentry;
-	inode = d_inode(path.dentry);
 
 	err = nfserr_inval;
-	if (!inode->i_op->readlink)
+	if (!d_is_symlink(path.dentry))
 		goto out;
 
 	touch_atime(&path);
@@ -1474,7 +1472,7 @@ nfsd_readlink(struct svc_rqst *rqstp, struct svc_fh *fhp, char *buf, int *lenp)
 	 */
 
 	oldfs = get_fs(); set_fs(KERNEL_DS);
-	host_err = inode->i_op->readlink(path.dentry, (char __user *)buf, *lenp);
+	host_err = vfs_readlink(path.dentry, (char __user *)buf, *lenp);
 	set_fs(oldfs);
 
 	if (host_err < 0)

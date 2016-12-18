@@ -296,7 +296,6 @@ static const struct inode_operations ovl_file_inode_operations = {
 static const struct inode_operations ovl_symlink_inode_operations = {
 	.setattr	= ovl_setattr,
 	.get_link	= ovl_get_link,
-	.readlink	= generic_readlink,
 	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
 	.update_time	= ovl_update_time,

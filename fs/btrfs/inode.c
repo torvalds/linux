@@ -10653,7 +10653,6 @@ static const struct inode_operations btrfs_special_inode_operations = {
 	.update_time	= btrfs_update_time,
 };
 static const struct inode_operations btrfs_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
