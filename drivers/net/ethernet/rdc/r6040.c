@@ -472,8 +472,6 @@ static void r6040_down(struct net_device *dev)
 	iowrite16(adrp[0], ioaddr + MID_0L);
 	iowrite16(adrp[1], ioaddr + MID_0M);
 	iowrite16(adrp[2], ioaddr + MID_0H);
-
-	phy_stop(dev->phydev);
 }
 
 static int r6040_close(struct net_device *dev)
@@ -481,12 +479,12 @@ static int r6040_close(struct net_device *dev)
 	struct r6040_private *lp = netdev_priv(dev);
 	struct pci_dev *pdev = lp->pdev;
 
-	spin_lock_irq(&lp->lock);
+	phy_stop(dev->phydev);
 	napi_disable(&lp->napi);
 	netif_stop_queue(dev);
-	r6040_down(dev);
 
-	free_irq(dev->irq, dev);
+	spin_lock_irq(&lp->lock);
+	r6040_down(dev);
 
 	/* Free RX buffer */
 	r6040_free_rxbufs(dev);
@@ -495,6 +493,8 @@ static int r6040_close(struct net_device *dev)
 	r6040_free_txbufs(dev);
 
 	spin_unlock_irq(&lp->lock);
+
+	free_irq(dev->irq, dev);
 
 	/* Free Descriptor memory */
 	if (lp->rx_ring) {

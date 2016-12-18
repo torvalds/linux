@@ -245,7 +245,6 @@
 #include <linux/tty.h>
 #include <linux/proc_fs.h>
 #include <linux/netdevice.h>
-#include <linux/miscdevice.h>
 #include <linux/poll.h>
 #include <linux/capability.h>
 #include <linux/ctype.h>	/* isspace() */

@@ -201,7 +201,7 @@ static struct dn_dev_sysctl_table {
 		.extra1 = &min_t3,
 		.extra2 = &max_t3
 	},
-	{0}
+	{ }
 	},
 };
 

@@ -252,7 +252,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	offload.cookie = (unsigned long)f;
 	offload.dissector = dissector;
 	offload.mask = mask;
-	offload.key = &f->key;
+	offload.key = &f->mkey;
 	offload.exts = &f->exts;
 
 	tc->type = TC_SETUP_CLSFLOWER;
@@ -509,6 +509,7 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 
 	if (tb[TCA_FLOWER_KEY_IPV4_SRC] || tb[TCA_FLOWER_KEY_IPV4_DST]) {
 		key->control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+		mask->control.addr_type = ~0;
 		fl_set_key_val(tb, &key->ipv4.src, TCA_FLOWER_KEY_IPV4_SRC,
 			       &mask->ipv4.src, TCA_FLOWER_KEY_IPV4_SRC_MASK,
 			       sizeof(key->ipv4.src));
@@ -517,6 +518,7 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 			       sizeof(key->ipv4.dst));
 	} else if (tb[TCA_FLOWER_KEY_IPV6_SRC] || tb[TCA_FLOWER_KEY_IPV6_DST]) {
 		key->control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+		mask->control.addr_type = ~0;
 		fl_set_key_val(tb, &key->ipv6.src, TCA_FLOWER_KEY_IPV6_SRC,
 			       &mask->ipv6.src, TCA_FLOWER_KEY_IPV6_SRC_MASK,
 			       sizeof(key->ipv6.src));
@@ -571,6 +573,7 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 	if (tb[TCA_FLOWER_KEY_ENC_IPV4_SRC] ||
 	    tb[TCA_FLOWER_KEY_ENC_IPV4_DST]) {
 		key->enc_control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
+		mask->enc_control.addr_type = ~0;
 		fl_set_key_val(tb, &key->enc_ipv4.src,
 			       TCA_FLOWER_KEY_ENC_IPV4_SRC,
 			       &mask->enc_ipv4.src,
@@ -586,6 +589,7 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 	if (tb[TCA_FLOWER_KEY_ENC_IPV6_SRC] ||
 	    tb[TCA_FLOWER_KEY_ENC_IPV6_DST]) {
 		key->enc_control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
+		mask->enc_control.addr_type = ~0;
 		fl_set_key_val(tb, &key->enc_ipv6.src,
 			       TCA_FLOWER_KEY_ENC_IPV6_SRC,
 			       &mask->enc_ipv6.src,
