@@ -267,6 +267,7 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 
 #define VLV_FEATURES  \
 	.gen = 7, .num_pipes = 2, \
+	.is_lp = 1, \
 	.has_psr = 1, \
 	.has_runtime_pm = 1, \
 	.has_rc6 = 1, \
@@ -326,6 +327,7 @@ static const struct intel_device_info intel_broadwell_gt3_info = {
 static const struct intel_device_info intel_cherryview_info = {
 	.gen = 8, .num_pipes = 3,
 	.has_hotplug = 1,
+	.is_lp = 1,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING | VEBOX_RING,
 	.platform = INTEL_CHERRYVIEW,
 	.has_64bit_reloc = 1,
