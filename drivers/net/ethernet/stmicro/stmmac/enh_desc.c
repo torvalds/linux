@@ -350,7 +350,7 @@ static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 		 * descriptors for the same frame has to be set before, to
 		 * avoid race condition.
 		 */
-		wmb();
+		dma_wmb();
 
 	p->des0 = cpu_to_le32(tdes0);
 }

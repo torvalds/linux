@@ -2125,7 +2125,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * descriptor and then barrier is needed to make sure that
 	 * all is coherent before granting the DMA engine.
 	 */
-	smp_wmb();
+	dma_wmb();
 
 	if (netif_msg_pktdata(priv)) {
 		pr_info("%s: curr=%d dirty=%d f=%d, e=%d, f_p=%p, nfrags %d\n",
@@ -2338,7 +2338,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * descriptor and then barrier is needed to make sure that
 		 * all is coherent before granting the DMA engine.
 		 */
-		smp_wmb();
+		dma_wmb();
 	}
 
 	netdev_sent_queue(dev, skb->len);
@@ -2443,14 +2443,14 @@ static inline void stmmac_rx_refill(struct stmmac_priv *priv)
 			netif_dbg(priv, rx_status, priv->dev,
 				  "refill entry #%d\n", entry);
 		}
-		wmb();
+		dma_wmb();
 
 		if (unlikely(priv->synopsys_id >= DWMAC_CORE_4_00))
 			priv->hw->desc->init_rx_desc(p, priv->use_riwt, 0, 0);
 		else
 			priv->hw->desc->set_rx_owner(p);
 
-		wmb();
+		dma_wmb();
 
 		entry = STMMAC_GET_ENTRY(entry, DMA_RX_SIZE);
 	}
