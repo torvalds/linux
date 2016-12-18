@@ -99,6 +99,7 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 {
 	struct f30_data *f30 = dev_get_drvdata(&fn->dev);
 	struct rmi_device *rmi_dev = fn->rmi_dev;
+	struct rmi_driver_data *drvdata = dev_get_drvdata(&rmi_dev->dev);
 	int retval;
 	int gpiled = 0;
 	int value = 0;
@@ -109,11 +110,15 @@ static int rmi_f30_attention(struct rmi_function *fn, unsigned long *irq_bits)
 		return 0;
 
 	/* Read the gpi led data. */
-	if (rmi_dev->xport->attn_data) {
-		memcpy(f30->data_regs, rmi_dev->xport->attn_data,
+	if (drvdata->attn_data.data) {
+		if (drvdata->attn_data.size < f30->register_count) {
+			dev_warn(&fn->dev, "F30 interrupted, but data is missing\n");
+			return 0;
+		}
+		memcpy(f30->data_regs, drvdata->attn_data.data,
 			f30->register_count);
-		rmi_dev->xport->attn_data += f30->register_count;
-		rmi_dev->xport->attn_size -= f30->register_count;
+		drvdata->attn_data.data += f30->register_count;
+		drvdata->attn_data.size -= f30->register_count;
 	} else {
 		retval = rmi_read_block(rmi_dev, fn->fd.data_base_addr,
 			f30->data_regs, f30->register_count);
@@ -192,7 +197,7 @@ static int rmi_f30_config(struct rmi_function *fn)
 				rmi_get_platform_data(fn->rmi_dev);
 	int error;
 
-	if (pdata->f30_data && pdata->f30_data->disable) {
+	if (pdata->f30_data.disable) {
 		drv->clear_irq_bits(fn->rmi_dev, fn->irq_mask);
 	} else {
 		/* Write Control Register values back to device */
@@ -351,7 +356,7 @@ static inline int rmi_f30_initialize(struct rmi_function *fn)
 	f30->gpioled_key_map = (u16 *)map_memory;
 
 	pdata = rmi_get_platform_data(rmi_dev);
-	if (pdata && f30->has_gpio) {
+	if (f30->has_gpio) {
 		button = BTN_LEFT;
 		for (i = 0; i < f30->gpioled_count; i++) {
 			if (rmi_f30_is_valid_button(i, f30->ctrl)) {
@@ -362,8 +367,7 @@ static inline int rmi_f30_initialize(struct rmi_function *fn)
 				 * f30->has_mech_mouse_btns, but I am
 				 * not sure, so use only the pdata info
 				 */
-				if (pdata->f30_data &&
-				    pdata->f30_data->buttonpad)
+				if (pdata->f30_data.buttonpad)
 					break;
 			}
 		}
@@ -378,7 +382,7 @@ static int rmi_f30_probe(struct rmi_function *fn)
 	const struct rmi_device_platform_data *pdata =
 				rmi_get_platform_data(fn->rmi_dev);
 
-	if (pdata->f30_data && pdata->f30_data->disable)
+	if (pdata->f30_data.disable)
 		return 0;
 
 	rc = rmi_f30_initialize(fn);

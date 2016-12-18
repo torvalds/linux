@@ -230,6 +230,9 @@ err_put_device:
 
 void rmi_unregister_function(struct rmi_function *fn)
 {
+	rmi_dbg(RMI_DEBUG_CORE, &fn->dev, "Unregistering F%02X.\n",
+			fn->fd.function_number);
+
 	device_del(&fn->dev);
 	of_node_put(fn->dev.of_node);
 	put_device(&fn->dev);
@@ -302,6 +305,9 @@ struct bus_type rmi_bus_type = {
 
 static struct rmi_function_handler *fn_handlers[] = {
 	&rmi_f01_handler,
+#ifdef CONFIG_RMI4_F03
+	&rmi_f03_handler,
+#endif
 #ifdef CONFIG_RMI4_F11
 	&rmi_f11_handler,
 #endif
@@ -311,8 +317,14 @@ static struct rmi_function_handler *fn_handlers[] = {
 #ifdef CONFIG_RMI4_F30
 	&rmi_f30_handler,
 #endif
+#ifdef CONFIG_RMI4_F34
+	&rmi_f34_handler,
+#endif
 #ifdef CONFIG_RMI4_F54
 	&rmi_f54_handler,
+#endif
+#ifdef CONFIG_RMI4_F55
+	&rmi_f55_handler,
 #endif
 };
 
