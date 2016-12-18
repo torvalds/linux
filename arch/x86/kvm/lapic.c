@@ -570,7 +570,15 @@ static void pv_eoi_clr_pending(struct kvm_vcpu *vcpu)
 	__clear_bit(KVM_APIC_PV_EOI_PENDING, &vcpu->arch.apic_attention);
 }
 
-static void apic_update_ppr(struct kvm_lapic *apic)
+static int apic_has_interrupt_for_ppr(struct kvm_lapic *apic, u32 ppr)
+{
+	int highest_irr = apic_find_highest_irr(apic);
+	if (highest_irr == -1 || (highest_irr & 0xF0) <= ppr)
+		return -1;
+	return highest_irr;
+}
+
+static bool __apic_update_ppr(struct kvm_lapic *apic, u32 *new_ppr)
 {
 	u32 tpr, isrv, ppr, old_ppr;
 	int isr;
@@ -588,11 +596,19 @@ static void apic_update_ppr(struct kvm_lapic *apic)
 	apic_debug("vlapic %p, ppr 0x%x, isr 0x%x, isrv 0x%x",
 		   apic, ppr, isr, isrv);
 
-	if (old_ppr != ppr) {
+	*new_ppr = ppr;
+	if (old_ppr != ppr)
 		kvm_lapic_set_reg(apic, APIC_PROCPRI, ppr);
-		if (ppr < old_ppr)
-			kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
-	}
+
+	return ppr < old_ppr;
+}
+
+static void apic_update_ppr(struct kvm_lapic *apic)
+{
+	u32 ppr;
+
+	if (__apic_update_ppr(apic, &ppr))
+		kvm_make_request(KVM_REQ_EVENT, apic->vcpu);
 }
 
 void kvm_apic_update_ppr(struct kvm_vcpu *vcpu)
@@ -2056,17 +2072,13 @@ nomem:
 int kvm_apic_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	int highest_irr;
+	u32 ppr;
 
 	if (!apic_enabled(apic))
 		return -1;
 
-	apic_update_ppr(apic);
-	highest_irr = apic_find_highest_irr(apic);
-	if ((highest_irr == -1) ||
-	    ((highest_irr & 0xF0) <= kvm_lapic_get_reg(apic, APIC_PROCPRI)))
-		return -1;
-	return highest_irr;
+	__apic_update_ppr(apic, &ppr);
+	return apic_has_interrupt_for_ppr(apic, ppr);
 }
 
 int kvm_apic_accept_pic_intr(struct kvm_vcpu *vcpu)
