@@ -112,7 +112,7 @@ struct axp288_extcon_info {
 	struct device *dev;
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *regmap_irqc;
-	struct axp288_extcon_pdata *pdata;
+	struct gpio_desc *gpio_mux_cntl;
 	int irq[EXTCON_IRQ_END];
 	struct extcon_dev *edev;
 	struct notifier_block extcon_nb;
@@ -216,8 +216,8 @@ notify_otg:
 		 * If VBUS is absent Connect D+/D- lines to PMIC for BC
 		 * detection. Else connect them to SOC for USB communication.
 		 */
-		if (info->pdata->gpio_mux_cntl)
-			gpiod_set_value(info->pdata->gpio_mux_cntl,
+		if (info->gpio_mux_cntl)
+			gpiod_set_value(info->gpio_mux_cntl,
 				vbus_attach ? EXTCON_GPIO_MUX_SEL_SOC
 						: EXTCON_GPIO_MUX_SEL_PMIC);
 
@@ -271,6 +271,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 {
 	struct axp288_extcon_info *info;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
+	struct axp288_extcon_pdata *pdata = pdev->dev.platform_data;
 	int ret, i, pirq, gpio;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -280,15 +281,9 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
-	info->pdata = pdev->dev.platform_data;
+	if (pdata)
+		info->gpio_mux_cntl = pdata->gpio_mux_cntl;
 
-	if (!info->pdata) {
-		/* Try ACPI provided pdata via device properties */
-		if (!device_property_present(&pdev->dev,
-					"axp288_extcon_data\n"))
-			dev_err(&pdev->dev, "failed to get platform data\n");
-		return -ENODEV;
-	}
 	platform_set_drvdata(pdev, info);
 
 	axp288_extcon_log_rsi(info);
@@ -316,15 +311,15 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	}
 
 	/* Set up gpio control for USB Mux */
-	if (info->pdata->gpio_mux_cntl) {
-		gpio = desc_to_gpio(info->pdata->gpio_mux_cntl);
+	if (info->gpio_mux_cntl) {
+		gpio = desc_to_gpio(info->gpio_mux_cntl);
 		ret = devm_gpio_request(&pdev->dev, gpio, "USB_MUX");
 		if (ret < 0) {
 			dev_err(&pdev->dev,
 				"failed to request the gpio=%d\n", gpio);
 			return ret;
 		}
-		gpiod_direction_output(info->pdata->gpio_mux_cntl,
+		gpiod_direction_output(info->gpio_mux_cntl,
 						EXTCON_GPIO_MUX_SEL_PMIC);
 	}
 
