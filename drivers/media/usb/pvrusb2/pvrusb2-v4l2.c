@@ -1050,7 +1050,7 @@ static int pvr2_v4l2_open(struct file *file)
 		pvr2_trace(PVR2_TRACE_STRUCT,
 			   "Destroying pvr_v4l2_fh id=%p (input mask error)",
 			   fhp);
-
+		v4l2_fh_exit(&fhp->fh);
 		kfree(fhp);
 		return ret;
 	}
@@ -1067,6 +1067,7 @@ static int pvr2_v4l2_open(struct file *file)
 		pvr2_trace(PVR2_TRACE_STRUCT,
 			   "Destroying pvr_v4l2_fh id=%p (input map failure)",
 			   fhp);
+		v4l2_fh_exit(&fhp->fh);
 		kfree(fhp);
 		return -ENOMEM;
 	}
