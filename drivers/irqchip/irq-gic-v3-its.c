@@ -411,6 +411,12 @@ static struct its_cmd_block *its_allocate_entry(struct its_node *its)
 	if (its->cmd_write == (its->cmd_base + ITS_CMD_QUEUE_NR_ENTRIES))
 		its->cmd_write = its->cmd_base;
 
+	/* Clear command  */
+	cmd->raw_cmd[0] = 0;
+	cmd->raw_cmd[1] = 0;
+	cmd->raw_cmd[2] = 0;
+	cmd->raw_cmd[3] = 0;
+
 	return cmd;
 }
 
