@@ -7,6 +7,9 @@ config REMOTEPROC
 	select FW_LOADER
 	select VIRTIO
 	select VIRTUALIZATION
+	help
+	  Support for remote processors (such as DSP coprocessors). These
+	  are mainly used on embedded systems.
 
 if REMOTEPROC
 
@@ -25,11 +28,11 @@ config OMAP_REMOTEPROC
 
 	  Currently only supported on OMAP4.
 
-	  Usually you want to say y here, in order to enable multimedia
+	  Usually you want to say Y here, in order to enable multimedia
 	  use-cases to run on your platform (multimedia codecs are
 	  offloaded to remote DSP processors using this framework).
 
-	  It's safe to say n here if you're not interested in multimedia
+	  It's safe to say N here if you're not interested in multimedia
 	  offloading or just want a bare minimum kernel.
 
 config WKUP_M3_RPROC
