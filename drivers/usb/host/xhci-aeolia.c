@@ -16,8 +16,6 @@
 
 #include "xhci.h"
 
-#define PCI_DEVICE_ID_AXHCI		0x90a4
-
 static const char hcd_name[] = "xhci_aeolia";
 
 static struct hc_driver __read_mostly xhci_aeolia_hc_driver;
@@ -202,7 +200,7 @@ static void xhci_aeolia_remove(struct pci_dev *dev)
 
 static const struct pci_device_id pci_ids[] = {
 	{
-		PCI_DEVICE(PCI_VENDOR_ID_SONY, PCI_DEVICE_ID_AXHCI),
+		PCI_DEVICE(PCI_VENDOR_ID_SONY, PCI_DEVICE_ID_SONY_AXHCI),
 	},
 	{ /* end: all zeroes */ }
 };

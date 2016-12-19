@@ -5,15 +5,6 @@
 #include <linux/pci.h>
 #include <linux/i2c.h>
 
-#define PCI_DEVICE_ID_AACPI		0x908f
-#define PCI_DEVICE_ID_AGBE		0x909e
-#define PCI_DEVICE_ID_AAHCI		0x909f
-#define PCI_DEVICE_ID_ASDHCI		0x90a0
-#define PCI_DEVICE_ID_APCIE		0x90a1
-#define PCI_DEVICE_ID_ADMAC		0x90a2
-#define PCI_DEVICE_ID_AMEM		0x90a3
-#define PCI_DEVICE_ID_AXHCI		0x90a4
-
 enum aeolia_func_id {
 	AEOLIA_FUNC_ID_ACPI = 0,
 	AEOLIA_FUNC_ID_GBE,

@@ -232,7 +232,7 @@ int apcie_assign_irqs(struct pci_dev *dev, int nvec)
 	sc_devfn = (dev->devfn & ~7) | AEOLIA_FUNC_ID_PCIE;
 	sc_dev = pci_get_slot(dev->bus, sc_devfn);
 	if (!sc_dev || sc_dev->vendor != PCI_VENDOR_ID_SONY ||
-		sc_dev->device != PCI_DEVICE_ID_APCIE) {
+		sc_dev->device != PCI_DEVICE_ID_SONY_APCIE) {
 		dev_err(&dev->dev, "apcie: this is not an Aeolia device\n");
 		ret = -ENODEV;
 		goto fail;
@@ -504,7 +504,7 @@ static int apcie_resume(struct pci_dev *dev) {
 #endif
 
 static const struct pci_device_id apcie_pci_tbl[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_SONY, PCI_DEVICE_ID_APCIE), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SONY, PCI_DEVICE_ID_SONY_APCIE), },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, apcie_pci_tbl);
