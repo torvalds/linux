@@ -677,7 +677,7 @@ static void i915_ring_seqno_info(struct seq_file *m,
 
 	spin_lock_irq(&b->lock);
 	for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-		struct intel_wait *w = container_of(rb, typeof(*w), node);
+		struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
 		seq_printf(m, "Waiting (%s): %s [%d] on %x\n",
 			   engine->name, w->tsk->comm, w->tsk->pid, w->seqno);
@@ -1329,7 +1329,7 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 
 		spin_lock_irq(&b->lock);
 		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-			struct intel_wait *w = container_of(rb, typeof(*w), node);
+			struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
 			seq_printf(m, "\t%s [%d] waiting for %x\n",
 				   w->tsk->comm, w->tsk->pid, w->seqno);
@@ -3261,7 +3261,7 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 
 		spin_lock_irq(&b->lock);
 		for (rb = rb_first(&b->waiters); rb; rb = rb_next(rb)) {
-			struct intel_wait *w = container_of(rb, typeof(*w), node);
+			struct intel_wait *w = rb_entry(rb, typeof(*w), node);
 
 			seq_printf(m, "\t%s [%d] waiting for %x\n",
 				   w->tsk->comm, w->tsk->pid, w->seqno);
