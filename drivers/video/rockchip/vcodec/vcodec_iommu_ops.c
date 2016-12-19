@@ -63,6 +63,7 @@ int vcodec_iommu_import(struct vcodec_iommu_info *iommu_info,
 		session_info->mmu_dev = iommu_info->mmu_dev;
 		session_info->dev = iommu_info->dev;
 		session_info->iommu_info = iommu_info;
+		session_info->buffer_nums = 0;
 		mutex_lock(&iommu_info->list_mutex);
 		list_add_tail(&session_info->head, &iommu_info->session_list);
 		mutex_unlock(&iommu_info->list_mutex);

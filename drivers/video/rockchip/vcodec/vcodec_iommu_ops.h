@@ -19,6 +19,8 @@
 #include <linux/platform_device.h>
 #include "vcodec_service.h"
 
+#define BUFFER_LIST_MAX_NUMS	30
+
 #define ALLOCATOR_USE_ION		0x00000000
 #define ALLOCATOR_USE_DRM		0x00000001
 
@@ -65,6 +67,7 @@ struct vcodec_iommu_ops {
 struct vcodec_iommu_session_info {
 	struct list_head head;
 	struct vpu_session *session;
+	int buffer_nums;
 	struct list_head buffer_list;
 	struct mutex list_mutex;
 	int max_idx;
