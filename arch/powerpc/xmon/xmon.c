@@ -418,7 +418,22 @@ int cpus_are_in_xmon(void)
 {
 	return !cpumask_empty(&cpus_in_xmon);
 }
-#endif
+
+static bool wait_for_other_cpus(int ncpus)
+{
+	unsigned long timeout;
+
+	/* We wait for 2s, which is a metric "little while" */
+	for (timeout = 20000; timeout != 0; --timeout) {
+		if (cpumask_weight(&cpus_in_xmon) >= ncpus)
+			return true;
+		udelay(100);
+		barrier();
+	}
+
+	return false;
+}
+#endif /* CONFIG_SMP */
 
 static inline int unrecoverable_excp(struct pt_regs *regs)
 {
@@ -440,7 +455,6 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 #ifdef CONFIG_SMP
 	int cpu;
 	int secondary;
-	unsigned long timeout;
 #endif
 
 	local_irq_save(flags);
@@ -527,13 +541,17 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 		xmon_owner = cpu;
 		mb();
 		if (ncpus > 1) {
-			smp_send_debugger_break();
-			/* wait for other cpus to come in */
-			for (timeout = 100000000; timeout != 0; --timeout) {
-				if (cpumask_weight(&cpus_in_xmon) >= ncpus)
-					break;
-				barrier();
-			}
+			/*
+			 * A system reset (trap == 0x100) can be triggered on
+			 * all CPUs, so when we come in via 0x100 try waiting
+			 * for the other CPUs to come in before we send the
+			 * debugger break (IPI). This is similar to
+			 * crash_kexec_secondary().
+			 */
+			if (TRAP(regs) != 0x100 || !wait_for_other_cpus(ncpus))
+				smp_send_debugger_break();
+
+			wait_for_other_cpus(ncpus);
 		}
 		remove_bpts();
 		disable_surveillance();
