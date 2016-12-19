@@ -23,6 +23,7 @@ find_next_bit.o: ../../lib/find_bit.c
 
 $(OFILES): *.h */*.h \
 	../../include/linux/*.h \
+	../../include/asm/*.h \
 	../../../include/linux/radix-tree.h
 
 radix-tree.c: ../../../lib/radix-tree.c
