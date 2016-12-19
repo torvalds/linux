@@ -11,6 +11,7 @@ obj-$(CONFIG_CRYPTO_DEV_IMGTEC_HASH) += img-hash.o
 obj-$(CONFIG_CRYPTO_DEV_IXP4XX) += ixp4xx_crypto.o
 obj-$(CONFIG_CRYPTO_DEV_MV_CESA) += mv_cesa.o
 obj-$(CONFIG_CRYPTO_DEV_MARVELL_CESA) += marvell/
+obj-$(CONFIG_CRYPTO_DEV_MEDIATEK) += mediatek/
 obj-$(CONFIG_CRYPTO_DEV_MXS_DCP) += mxs-dcp.o
 obj-$(CONFIG_CRYPTO_DEV_MXC_SCC) += mxc-scc.o
 obj-$(CONFIG_CRYPTO_DEV_NIAGARA2) += n2_crypto.o

@@ -553,6 +553,23 @@ config CRYPTO_DEV_ROCKCHIP
 	  This driver interfaces with the hardware crypto accelerator.
 	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
 
+config CRYPTO_DEV_MEDIATEK
+	tristate "MediaTek's EIP97 Cryptographic Engine driver"
+	depends on ARM && (ARCH_MEDIATEK || COMPILE_TEST)
+	select NEON
+	select KERNEL_MODE_NEON
+	select ARM_CRYPTO
+	select CRYPTO_AES
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_SHA1_ARM_NEON
+	select CRYPTO_SHA256_ARM
+	select CRYPTO_SHA512_ARM
+	select CRYPTO_HMAC
+	help
+	  This driver allows you to utilize the hardware crypto accelerator
+	  EIP97 which can be found on the MT7623 MT2701, MT8521p, etc ....
+	  Select this if you want to use it for AES/SHA1/SHA2 algorithms.
+
 source "drivers/crypto/chelsio/Kconfig"
 
 source "drivers/crypto/virtio/Kconfig"
