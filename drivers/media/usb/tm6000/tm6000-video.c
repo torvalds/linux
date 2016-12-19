@@ -1371,8 +1371,11 @@ static int __tm6000_open(struct file *file)
 
 	/* initialize hardware on analog mode */
 	rc = tm6000_init_analog_mode(dev);
-	if (rc < 0)
+	if (rc < 0) {
+		v4l2_fh_exit(&fh->fh);
+		kfree(fh);
 		return rc;
+	}
 
 	dev->mode = TM6000_MODE_ANALOG;
 
