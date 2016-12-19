@@ -1550,13 +1550,6 @@ static int nfs_post_op_update_inode_locked(struct inode *inode, struct nfs_fattr
 {
 	unsigned long invalid = NFS_INO_INVALID_ATTR;
 
-	/*
-	 * Don't revalidate the pagecache if we hold a delegation, but do
-	 * force an attribute update
-	 */
-	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
-		invalid = NFS_INO_INVALID_ATTR|NFS_INO_REVAL_FORCED;
-
 	if (S_ISDIR(inode->i_mode))
 		invalid |= NFS_INO_INVALID_DATA;
 	nfs_set_cache_invalid(inode, invalid);
