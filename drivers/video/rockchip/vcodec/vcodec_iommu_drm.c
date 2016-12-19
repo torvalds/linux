@@ -46,7 +46,6 @@ struct vcodec_drm_buffer {
 	};
 	void *cpu_addr;
 	unsigned long size;
-	int fd;
 	int index;
 	struct dma_buf_attachment *attach;
 	struct sg_table *sgt;
@@ -80,12 +79,19 @@ vcodec_drm_get_buffer_fd_no_lock(struct vcodec_iommu_session_info *session_info,
 				 int fd)
 {
 	struct vcodec_drm_buffer *drm_buffer = NULL, *n;
+	struct dma_buf *dma_buf = NULL;
+
+	dma_buf = dma_buf_get(fd);
 
 	list_for_each_entry_safe(drm_buffer, n, &session_info->buffer_list,
 				 list) {
-		if (drm_buffer->fd == fd)
+		if (drm_buffer->dma_buf == dma_buf) {
+			dma_buf_put(dma_buf);
 			return drm_buffer;
+		}
 	}
+
+	dma_buf_put(dma_buf);
 
 	return NULL;
 }
@@ -243,9 +249,9 @@ static void vcdoec_drm_dump_info(struct vcodec_iommu_session_info *session_info)
 	list_for_each_entry_safe(drm_buffer, n, &session_info->buffer_list,
 				 list) {
 		vpu_iommu_debug(session_info->debug_level, DEBUG_IOMMU_OPS_DUMP,
-				"index %d drm_buffer fd %d cpu_addr %p\n",
+				"index %d drm_buffer dma_buf %p cpu_addr %p\n",
 				drm_buffer->index,
-				drm_buffer->fd, drm_buffer->cpu_addr);
+				drm_buffer->dma_buf, drm_buffer->cpu_addr);
 	}
 }
 
@@ -431,12 +437,21 @@ static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
 	struct device *dev = session_info->dev;
 	struct dma_buf_attachment *attach;
 	struct sg_table *sgt;
+	struct dma_buf *dma_buf;
 	int ret = 0;
+
+	dma_buf = dma_buf_get(fd);
+	if (IS_ERR(dma_buf)) {
+		ret = PTR_ERR(dma_buf);
+		return ret;
+	}
 
 	list_for_each_entry_safe(drm_buffer, n,
 				 &session_info->buffer_list, list) {
-		if (drm_buffer->fd == fd)
+		if (drm_buffer->dma_buf == dma_buf) {
+			dma_buf_put(dma_buf);
 			return drm_buffer->index;
+		}
 	}
 
 	drm_buffer = kzalloc(sizeof(*drm_buffer), GFP_KERNEL);
@@ -445,13 +460,7 @@ static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
 		return ret;
 	}
 
-	drm_buffer->dma_buf = dma_buf_get(fd);
-	if (IS_ERR(drm_buffer->dma_buf)) {
-		ret = PTR_ERR(drm_buffer->dma_buf);
-		kfree(drm_buffer);
-		return ret;
-	}
-	drm_buffer->fd = fd;
+	drm_buffer->dma_buf = dma_buf;
 	drm_buffer->session_info = session_info;
 
 	kref_init(&drm_buffer->ref);
