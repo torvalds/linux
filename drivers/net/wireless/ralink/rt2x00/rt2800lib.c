@@ -4352,7 +4352,7 @@ void rt2800_vco_calibration(struct rt2x00_dev *rt2x00dev)
 		return;
 	}
 
-	mdelay(1);
+	usleep_range(1000, 1500);
 
 	rt2800_register_read(rt2x00dev, TX_PIN_CFG, &tx_pin);
 	if (rt2x00dev->rf_channel <= 14) {
