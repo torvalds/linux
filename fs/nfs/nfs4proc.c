@@ -5695,6 +5695,14 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	case -NFS4ERR_STALE_STATEID:
 		task->tk_status = 0;
 		break;
+	case -NFS4ERR_ACCESS:
+		if (data->args.bitmask) {
+			data->args.bitmask = NULL;
+			data->res.fattr = NULL;
+			task->tk_status = 0;
+			rpc_restart_call_prepare(task);
+			return;
+		}
 	default:
 		if (nfs4_async_handle_error(task, data->res.server,
 					    NULL, NULL) == -EAGAIN) {

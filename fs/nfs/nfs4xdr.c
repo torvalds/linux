@@ -2705,7 +2705,8 @@ static void nfs4_xdr_enc_delegreturn(struct rpc_rqst *req,
 	encode_putfh(xdr, args->fhandle, &hdr);
 	if (args->lr_args)
 		encode_layoutreturn(xdr, args->lr_args, &hdr);
-	encode_getfattr(xdr, args->bitmask, &hdr);
+	if (args->bitmask)
+		encode_getfattr(xdr, args->bitmask, &hdr);
 	encode_delegreturn(xdr, args->stateid, &hdr);
 	encode_nops(&hdr);
 }
@@ -6972,9 +6973,11 @@ static int nfs4_xdr_dec_delegreturn(struct rpc_rqst *rqstp,
 		if (status)
 			goto out;
 	}
-	status = decode_getfattr(xdr, res->fattr, res->server);
-	if (status != 0)
-		goto out;
+	if (res->fattr) {
+		status = decode_getfattr(xdr, res->fattr, res->server);
+		if (status != 0)
+			goto out;
+	}
 	status = decode_delegreturn(xdr);
 out:
 	return status;
