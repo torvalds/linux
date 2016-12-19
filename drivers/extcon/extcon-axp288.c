@@ -70,12 +70,6 @@
 #define DET_STAT_CDP			2
 #define DET_STAT_DCP			3
 
-/* IRQ enable-1 register */
-#define PWRSRC_IRQ_CFG_MASK		(BIT(4)|BIT(3)|BIT(2))
-
-/* IRQ enable-6 register */
-#define BC12_IRQ_CFG_MASK		BIT(1)
-
 enum axp288_extcon_reg {
 	AXP288_PS_STAT_REG		= 0x00,
 	AXP288_PS_BOOT_REASON_REG	= 0x02,
@@ -83,8 +77,6 @@ enum axp288_extcon_reg {
 	AXP288_BC_VBUS_CNTL_REG		= 0x2d,
 	AXP288_BC_USB_STAT_REG		= 0x2e,
 	AXP288_BC_DET_STAT_REG		= 0x2f,
-	AXP288_PWRSRC_IRQ_CFG_REG	= 0x40,
-	AXP288_BC12_IRQ_CFG_REG		= 0x45,
 };
 
 enum axp288_mux_select {
@@ -240,15 +232,10 @@ static irqreturn_t axp288_extcon_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void axp288_extcon_enable_irq(struct axp288_extcon_info *info)
+static void axp288_extcon_enable(struct axp288_extcon_info *info)
 {
-	/* Unmask VBUS interrupt */
-	regmap_write(info->regmap, AXP288_PWRSRC_IRQ_CFG_REG,
-						PWRSRC_IRQ_CFG_MASK);
 	regmap_update_bits(info->regmap, AXP288_BC_GLOBAL_REG,
 						BC_GLOBAL_RUN, 0);
-	/* Unmask the BC1.2 complete interrupts */
-	regmap_write(info->regmap, AXP288_BC12_IRQ_CFG_REG, BC12_IRQ_CFG_MASK);
 	/* Enable the charger detection logic */
 	regmap_update_bits(info->regmap, AXP288_BC_GLOBAL_REG,
 					BC_GLOBAL_RUN, BC_GLOBAL_RUN);
@@ -325,8 +312,8 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* Enable interrupts */
-	axp288_extcon_enable_irq(info);
+	/* Start charger cable type detection */
+	axp288_extcon_enable(info);
 
 	return 0;
 }
