@@ -426,7 +426,7 @@ void btrfs_put_tree_mod_seq(struct btrfs_fs_info *fs_info,
 	tm_root = &fs_info->tree_mod_log;
 	for (node = rb_first(tm_root); node; node = next) {
 		next = rb_next(node);
-		tm = container_of(node, struct tree_mod_elem, node);
+		tm = rb_entry(node, struct tree_mod_elem, node);
 		if (tm->seq > min_seq)
 			continue;
 		rb_erase(node, tm_root);
@@ -460,7 +460,7 @@ __tree_mod_log_insert(struct btrfs_fs_info *fs_info, struct tree_mod_elem *tm)
 	tm_root = &fs_info->tree_mod_log;
 	new = &tm_root->rb_node;
 	while (*new) {
-		cur = container_of(*new, struct tree_mod_elem, node);
+		cur = rb_entry(*new, struct tree_mod_elem, node);
 		parent = *new;
 		if (cur->logical < tm->logical)
 			new = &((*new)->rb_left);
@@ -746,7 +746,7 @@ __tree_mod_log_search(struct btrfs_fs_info *fs_info, u64 start, u64 min_seq,
 	tm_root = &fs_info->tree_mod_log;
 	node = tm_root->rb_node;
 	while (node) {
-		cur = container_of(node, struct tree_mod_elem, node);
+		cur = rb_entry(node, struct tree_mod_elem, node);
 		if (cur->logical < start) {
 			node = node->rb_left;
 		} else if (cur->logical > start) {
@@ -1326,7 +1326,7 @@ __tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 		next = rb_next(&tm->node);
 		if (!next)
 			break;
-		tm = container_of(next, struct tree_mod_elem, node);
+		tm = rb_entry(next, struct tree_mod_elem, node);
 		if (tm->logical != first_tm->logical)
 			break;
 	}
