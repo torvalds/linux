@@ -30,6 +30,8 @@ else
 obj-y		+= entry-armv.o
 endif
 
+obj-$(CONFIG_KUSER_HELPERS)	+= kuser.o
+
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 obj-$(CONFIG_ISA_DMA_API)	+= dma.o
 obj-$(CONFIG_FIQ)		+= fiq.o fiqasm.o
