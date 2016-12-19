@@ -1003,7 +1003,12 @@ static irqreturn_t es8316_irq_handler(int irq, void *data)
  */
 int es8316_headset_detect(int jack_insert)
 {
-	struct es8316_priv *es8316 = snd_soc_codec_get_drvdata(es8316_codec);
+	struct es8316_priv *es8316;
+
+	if (!es8316_codec)
+		return -1;
+
+	es8316 = snd_soc_codec_get_drvdata(es8316_codec);
 
 	es8316->hp_inserted = jack_insert;
 
