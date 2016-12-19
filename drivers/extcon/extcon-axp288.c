@@ -318,8 +318,15 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id axp288_extcon_table[] = {
+	{ .name = "axp288_extcon" },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, axp288_extcon_table);
+
 static struct platform_driver axp288_extcon_driver = {
 	.probe = axp288_extcon_probe,
+	.id_table = axp288_extcon_table,
 	.driver = {
 		.name = "axp288_extcon",
 	},
