@@ -494,43 +494,53 @@ static void its_wait_for_range_completion(struct its_node *its,
 	}
 }
 
-static void its_send_single_command(struct its_node *its,
-				    its_cmd_builder_t builder,
-				    struct its_cmd_desc *desc)
-{
-	struct its_cmd_block *cmd, *sync_cmd, *next_cmd;
-	struct its_collection *sync_col;
-	unsigned long flags;
-
-	raw_spin_lock_irqsave(&its->lock, flags);
-
-	cmd = its_allocate_entry(its);
-	if (!cmd) {		/* We're soooooo screewed... */
-		pr_err_ratelimited("ITS can't allocate, dropping command\n");
-		raw_spin_unlock_irqrestore(&its->lock, flags);
-		return;
-	}
-	sync_col = builder(cmd, desc);
-	its_flush_cmd(its, cmd);
-
-	if (sync_col) {
-		sync_cmd = its_allocate_entry(its);
-		if (!sync_cmd) {
-			pr_err_ratelimited("ITS can't SYNC, skipping\n");
-			goto post;
-		}
-		its_encode_cmd(sync_cmd, GITS_CMD_SYNC);
-		its_encode_target(sync_cmd, sync_col->target_address);
-		its_fixup_cmd(sync_cmd);
-		its_flush_cmd(its, sync_cmd);
-	}
-
-post:
-	next_cmd = its_post_commands(its);
-	raw_spin_unlock_irqrestore(&its->lock, flags);
-
-	its_wait_for_range_completion(its, cmd, next_cmd);
+/* Warning, macro hell follows */
+#define BUILD_SINGLE_CMD_FUNC(name, buildtype, synctype, buildfn)	\
+void name(struct its_node *its,						\
+	  buildtype builder,						\
+	  struct its_cmd_desc *desc)					\
+{									\
+	struct its_cmd_block *cmd, *sync_cmd, *next_cmd;		\
+	synctype *sync_obj;						\
+	unsigned long flags;						\
+									\
+	raw_spin_lock_irqsave(&its->lock, flags);			\
+									\
+	cmd = its_allocate_entry(its);					\
+	if (!cmd) {		/* We're soooooo screewed... */		\
+		raw_spin_unlock_irqrestore(&its->lock, flags);		\
+		return;							\
+	}								\
+	sync_obj = builder(cmd, desc);					\
+	its_flush_cmd(its, cmd);					\
+									\
+	if (sync_obj) {							\
+		sync_cmd = its_allocate_entry(its);			\
+		if (!sync_cmd)						\
+			goto post;					\
+									\
+		buildfn(sync_cmd, sync_obj);				\
+		its_flush_cmd(its, sync_cmd);				\
+	}								\
+									\
+post:									\
+	next_cmd = its_post_commands(its);				\
+	raw_spin_unlock_irqrestore(&its->lock, flags);			\
+									\
+	its_wait_for_range_completion(its, cmd, next_cmd);		\
 }
+
+static void its_build_sync_cmd(struct its_cmd_block *sync_cmd,
+			       struct its_collection *sync_col)
+{
+	its_encode_cmd(sync_cmd, GITS_CMD_SYNC);
+	its_encode_target(sync_cmd, sync_col->target_address);
+
+	its_fixup_cmd(sync_cmd);
+}
+
+static BUILD_SINGLE_CMD_FUNC(its_send_single_command, its_cmd_builder_t,
+			     struct its_collection, its_build_sync_cmd)
 
 static void its_send_inv(struct its_device *dev, u32 event_id)
 {
