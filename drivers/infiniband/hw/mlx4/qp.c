@@ -76,10 +76,6 @@ enum {
 	MLX4_IB_LSO_HEADER_SPARE	= 128,
 };
 
-enum {
-	MLX4_IB_IBOE_ETHERTYPE		= 0x8915
-};
-
 struct mlx4_ib_sqp {
 	struct mlx4_ib_qp	qp;
 	int			pkey_index;
@@ -2588,7 +2584,7 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_ud_wr *wr,
 		u16 ether_type;
 		u16 pcp = (be32_to_cpu(ah->av.ib.sl_tclass_flowlabel) >> 29) << 13;
 
-		ether_type = (!is_udp) ? MLX4_IB_IBOE_ETHERTYPE :
+		ether_type = (!is_udp) ? ETH_P_IBOE:
 			(ip_version == 4 ? ETH_P_IP : ETH_P_IPV6);
 
 		mlx->sched_prio = cpu_to_be16(pcp);
