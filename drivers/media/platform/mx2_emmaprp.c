@@ -724,10 +724,10 @@ static int emmaprp_buf_prepare(struct vb2_buffer *vb)
 	q_data = get_q_data(ctx, vb->vb2_queue->type);
 
 	if (vb2_plane_size(vb, 0) < q_data->sizeimage) {
-		dprintk(ctx->dev, "%s data will not fit into plane"
-				  "(%lu < %lu)\n", __func__,
-				  vb2_plane_size(vb, 0),
-				  (long)q_data->sizeimage);
+		dprintk(ctx->dev,
+			"%s data will not fit into plane(%lu < %lu)\n",
+			__func__, vb2_plane_size(vb, 0),
+			(long)q_data->sizeimage);
 		return -EINVAL;
 	}
 
@@ -937,7 +937,7 @@ static int emmaprp_probe(struct platform_device *pdev)
 	snprintf(vfd->name, sizeof(vfd->name), "%s", emmaprp_videodev.name);
 	pcdev->vfd = vfd;
 	v4l2_info(&pcdev->v4l2_dev, EMMAPRP_MODULE_NAME
-			" Device registered as /dev/video%d\n", vfd->num);
+		  " Device registered as /dev/video%d\n", vfd->num);
 
 	platform_set_drvdata(pdev, pcdev);
 

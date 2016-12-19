@@ -13,34 +13,6 @@
 #include <linux/posix_acl.h>
 #include "overlayfs.h"
 
-static int ovl_copy_up_truncate(struct dentry *dentry)
-{
-	int err;
-	struct dentry *parent;
-	struct kstat stat;
-	struct path lowerpath;
-	const struct cred *old_cred;
-
-	parent = dget_parent(dentry);
-	err = ovl_copy_up(parent);
-	if (err)
-		goto out_dput_parent;
-
-	ovl_path_lower(dentry, &lowerpath);
-
-	old_cred = ovl_override_creds(dentry->d_sb);
-	err = vfs_getattr(&lowerpath, &stat);
-	if (!err) {
-		stat.size = 0;
-		err = ovl_copy_up_one(parent, dentry, &lowerpath, &stat);
-	}
-	revert_creds(old_cred);
-
-out_dput_parent:
-	dput(parent);
-	return err;
-}
-
 int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int err;
@@ -64,26 +36,9 @@ int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		goto out;
 
-	if (attr->ia_valid & ATTR_SIZE) {
-		struct inode *realinode = d_inode(ovl_dentry_real(dentry));
-
-		err = -ETXTBSY;
-		if (atomic_read(&realinode->i_writecount) < 0)
-			goto out_drop_write;
-	}
-
 	err = ovl_copy_up(dentry);
 	if (!err) {
-		struct inode *winode = NULL;
-
 		upperdentry = ovl_dentry_upper(dentry);
-
-		if (attr->ia_valid & ATTR_SIZE) {
-			winode = d_inode(upperdentry);
-			err = get_write_access(winode);
-			if (err)
-				goto out_drop_write;
-		}
 
 		if (attr->ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID))
 			attr->ia_valid &= ~ATTR_MODE;
@@ -95,11 +50,7 @@ int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 		if (!err)
 			ovl_copyattr(upperdentry->d_inode, dentry->d_inode);
 		inode_unlock(upperdentry->d_inode);
-
-		if (winode)
-			put_write_access(winode);
 	}
-out_drop_write:
 	ovl_drop_write(dentry);
 out:
 	return err;
@@ -302,10 +253,7 @@ int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
 	if (ovl_open_need_copy_up(file_flags, type, realpath.dentry)) {
 		err = ovl_want_write(dentry);
 		if (!err) {
-			if (file_flags & O_TRUNC)
-				err = ovl_copy_up_truncate(dentry);
-			else
-				err = ovl_copy_up(dentry);
+			err = ovl_copy_up_flags(dentry, file_flags);
 			ovl_drop_write(dentry);
 		}
 	}
@@ -348,13 +296,12 @@ static const struct inode_operations ovl_file_inode_operations = {
 static const struct inode_operations ovl_symlink_inode_operations = {
 	.setattr	= ovl_setattr,
 	.get_link	= ovl_get_link,
-	.readlink	= generic_readlink,
 	.getattr	= ovl_getattr,
 	.listxattr	= ovl_listxattr,
 	.update_time	= ovl_update_time,
 };
 
-static void ovl_fill_inode(struct inode *inode, umode_t mode)
+static void ovl_fill_inode(struct inode *inode, umode_t mode, dev_t rdev)
 {
 	inode->i_ino = get_next_ino();
 	inode->i_mode = mode;
@@ -363,8 +310,11 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode)
 	inode->i_acl = inode->i_default_acl = ACL_DONT_CACHE;
 #endif
 
-	mode &= S_IFMT;
-	switch (mode) {
+	switch (mode & S_IFMT) {
+	case S_IFREG:
+		inode->i_op = &ovl_file_inode_operations;
+		break;
+
 	case S_IFDIR:
 		inode->i_op = &ovl_dir_inode_operations;
 		inode->i_fop = &ovl_dir_operations;
@@ -375,26 +325,19 @@ static void ovl_fill_inode(struct inode *inode, umode_t mode)
 		break;
 
 	default:
-		WARN(1, "illegal file type: %i\n", mode);
-		/* Fall through */
-
-	case S_IFREG:
-	case S_IFSOCK:
-	case S_IFBLK:
-	case S_IFCHR:
-	case S_IFIFO:
 		inode->i_op = &ovl_file_inode_operations;
+		init_special_inode(inode, mode, rdev);
 		break;
 	}
 }
 
-struct inode *ovl_new_inode(struct super_block *sb, umode_t mode)
+struct inode *ovl_new_inode(struct super_block *sb, umode_t mode, dev_t rdev)
 {
 	struct inode *inode;
 
 	inode = new_inode(sb);
 	if (inode)
-		ovl_fill_inode(inode, mode);
+		ovl_fill_inode(inode, mode, rdev);
 
 	return inode;
 }
@@ -418,7 +361,7 @@ struct inode *ovl_get_inode(struct super_block *sb, struct inode *realinode)
 	inode = iget5_locked(sb, (unsigned long) realinode,
 			     ovl_inode_test, ovl_inode_set, realinode);
 	if (inode && inode->i_state & I_NEW) {
-		ovl_fill_inode(inode, realinode->i_mode);
+		ovl_fill_inode(inode, realinode->i_mode, realinode->i_rdev);
 		set_nlink(inode, realinode->i_nlink);
 		unlock_new_inode(inode);
 	}

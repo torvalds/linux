@@ -472,12 +472,15 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove,
 
 	/* Validate that there are enough LMBs to satisfy the request */
 	for (i = 0; i < num_lmbs; i++) {
-		if (lmbs[i].flags & DRCONF_MEM_ASSIGNED)
+		if (lmb_is_removable(&lmbs[i]))
 			lmbs_available++;
 	}
 
-	if (lmbs_available < lmbs_to_remove)
+	if (lmbs_available < lmbs_to_remove) {
+		pr_info("Not enough LMBs available (%d of %d) to satisfy request\n",
+			lmbs_available, lmbs_to_remove);
 		return -EINVAL;
+	}
 
 	for (i = 0; i < num_lmbs && lmbs_removed < lmbs_to_remove; i++) {
 		rc = dlpar_remove_lmb(&lmbs[i]);

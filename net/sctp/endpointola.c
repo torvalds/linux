@@ -331,7 +331,9 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 	 * on this endpoint.
 	 */
 	if (!ep->base.bind_addr.port)
-		goto out;
+		return NULL;
+
+	rcu_read_lock();
 	t = sctp_epaddr_lookup_transport(ep, paddr);
 	if (!t)
 		goto out;
@@ -339,6 +341,7 @@ struct sctp_association *sctp_endpoint_lookup_assoc(
 	*transport = t;
 	asoc = t->asoc;
 out:
+	rcu_read_unlock();
 	return asoc;
 }
 

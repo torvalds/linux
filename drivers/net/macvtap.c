@@ -679,7 +679,6 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 	int depth;
 	bool zerocopy = false;
 	size_t linear;
-	ssize_t n;
 
 	if (q->flags & IFF_VNET_HDR) {
 		vnet_hdr_len = q->vnet_hdr_sz;
@@ -690,8 +689,7 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 		len -= vnet_hdr_len;
 
 		err = -EFAULT;
-		n = copy_from_iter(&vnet_hdr, sizeof(vnet_hdr), from);
-		if (n != sizeof(vnet_hdr))
+		if (!copy_from_iter_full(&vnet_hdr, sizeof(vnet_hdr), from))
 			goto err;
 		iov_iter_advance(from, vnet_hdr_len - sizeof(vnet_hdr));
 		if ((vnet_hdr.flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) &&

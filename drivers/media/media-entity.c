@@ -205,10 +205,16 @@ void media_gobj_destroy(struct media_gobj *gobj)
 {
 	dev_dbg_obj(__func__, gobj);
 
+	/* Do nothing if the object is not linked. */
+	if (gobj->mdev == NULL)
+		return;
+
 	gobj->mdev->topology_version++;
 
 	/* Remove the object from mdev list */
 	list_del(&gobj->list);
+
+	gobj->mdev = NULL;
 }
 
 int media_entity_pads_init(struct media_entity *entity, u16 num_pads,

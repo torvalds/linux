@@ -316,7 +316,7 @@ static int pxa27x_keypad_build_keycode_from_dt(struct pxa27x_keypad *keypad)
 	error = of_property_read_u32(np, "marvell,debounce-interval",
 				     &pdata->debounce_interval);
 	if (error) {
-		dev_err(dev, "failed to parse debpunce-interval\n");
+		dev_err(dev, "failed to parse debounce-interval\n");
 		return error;
 	}
 

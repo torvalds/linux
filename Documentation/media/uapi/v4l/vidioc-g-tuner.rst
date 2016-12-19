@@ -201,10 +201,10 @@ To change the radio frequency the
     * - ``V4L2_TUNER_SDR``
       - 4
       - Tuner controls the A/D and/or D/A block of a
-	Sofware Digital Radio (SDR)
+	Software Digital Radio (SDR)
     * - ``V4L2_TUNER_RF``
       - 5
-      - Tuner controls the RF part of a Sofware Digital Radio (SDR)
+      - Tuner controls the RF part of a Software Digital Radio (SDR)
 
 
 .. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|

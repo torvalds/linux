@@ -848,24 +848,6 @@ out_unlock:
 	return error;
 }
 
-STATIC ssize_t
-xfs_file_copy_range(
-	struct file	*file_in,
-	loff_t		pos_in,
-	struct file	*file_out,
-	loff_t		pos_out,
-	size_t		len,
-	unsigned int	flags)
-{
-	int		error;
-
-	error = xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-				     len, false);
-	if (error)
-		return error;
-	return len;
-}
-
 STATIC int
 xfs_file_clone_range(
 	struct file	*file_in,
@@ -1549,7 +1531,6 @@ const struct file_operations xfs_file_operations = {
 	.fsync		= xfs_file_fsync,
 	.get_unmapped_area = thp_get_unmapped_area,
 	.fallocate	= xfs_file_fallocate,
-	.copy_file_range = xfs_file_copy_range,
 	.clone_file_range = xfs_file_clone_range,
 	.dedupe_file_range = xfs_file_dedupe_range,
 };

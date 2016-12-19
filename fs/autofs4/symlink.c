@@ -25,6 +25,5 @@ static const char *autofs4_get_link(struct dentry *dentry,
 }
 
 const struct inode_operations autofs4_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= autofs4_get_link
 };

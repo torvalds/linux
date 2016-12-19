@@ -22,7 +22,6 @@
 #include <linux/of_platform.h>
 #include <linux/uaccess.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 /* DDR Ctrlr Error Registers */

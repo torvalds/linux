@@ -377,8 +377,8 @@ static int attach_xc5000(u8 addr, struct cx231xx *dev)
 	cfg.i2c_addr = addr;
 
 	if (!dev->dvb->frontend) {
-		dev_err(dev->dev, "%s/2: dvb frontend not attached. "
-		       "Can't attach xc5000\n", dev->name);
+		dev_err(dev->dev, "%s/2: dvb frontend not attached. Can't attach xc5000\n",
+			dev->name);
 		return -EINVAL;
 	}
 

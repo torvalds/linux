@@ -135,7 +135,6 @@ static const char *kernfs_iop_get_link(struct dentry *dentry,
 
 const struct inode_operations kernfs_symlink_iops = {
 	.listxattr	= kernfs_iop_listxattr,
-	.readlink	= generic_readlink,
 	.get_link	= kernfs_iop_get_link,
 	.setattr	= kernfs_iop_setattr,
 	.getattr	= kernfs_iop_getattr,

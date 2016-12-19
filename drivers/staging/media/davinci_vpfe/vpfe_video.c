@@ -198,7 +198,7 @@ static int vpfe_update_pipe_state(struct vpfe_video_device *video)
 	return 0;
 }
 
-/* checks wether pipeline is ready for enabling */
+/* checks whether pipeline is ready for enabling */
 int vpfe_video_is_pipe_ready(struct vpfe_pipeline *pipe)
 {
 	int i;
@@ -1362,7 +1362,7 @@ static int vpfe_reqbufs(struct file *file, void *priv,
 	ret = vb2_queue_init(q);
 	if (ret) {
 		v4l2_err(&vpfe_dev->v4l2_dev, "vb2_queue_init() failed\n");
-		return ret;
+		goto unlock_out;
 	}
 
 	fh->io_allowed = 1;

@@ -20,6 +20,8 @@
  *
  */
 
+#define pr_fmt(fmt) "dmxdev: " fmt
+
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -36,7 +38,11 @@ static int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Turn on/off debugging (default:off).");
 
-#define dprintk	if (debug) printk
+#define dprintk(fmt, arg...) do {					\
+	if (debug)							\
+		printk(KERN_DEBUG pr_fmt("%s: " fmt),			\
+			__func__, ##arg);				\
+} while (0)
 
 static int dvb_dmxdev_buffer_write(struct dvb_ringbuffer *buf,
 				   const u8 *src, size_t len)
@@ -50,7 +56,7 @@ static int dvb_dmxdev_buffer_write(struct dvb_ringbuffer *buf,
 
 	free = dvb_ringbuffer_free(buf);
 	if (len > free) {
-		dprintk("dmxdev: buffer overflow\n");
+		dprintk("buffer overflow\n");
 		return -EOVERFLOW;
 	}
 
@@ -126,7 +132,7 @@ static int dvb_dvr_open(struct inode *inode, struct file *file)
 	struct dmxdev *dmxdev = dvbdev->priv;
 	struct dmx_frontend *front;
 
-	dprintk("function : %s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if (mutex_lock_interruptible(&dmxdev->mutex))
 		return -ERESTARTSYS;
@@ -258,7 +264,7 @@ static int dvb_dvr_set_buffer_size(struct dmxdev *dmxdev,
 	void *newmem;
 	void *oldmem;
 
-	dprintk("function : %s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if (buf->size == size)
 		return 0;
@@ -367,7 +373,7 @@ static int dvb_dmxdev_section_callback(const u8 *buffer1, size_t buffer1_len,
 		return 0;
 	}
 	del_timer(&dmxdevfilter->timer);
-	dprintk("dmxdev: section callback %*ph\n", 6, buffer1);
+	dprintk("section callback %*ph\n", 6, buffer1);
 	ret = dvb_dmxdev_buffer_write(&dmxdevfilter->buffer, buffer1,
 				      buffer1_len);
 	if (ret == buffer1_len) {
@@ -589,7 +595,7 @@ static int dvb_dmxdev_start_feed(struct dmxdev *dmxdev,
 	tsfeed = feed->ts;
 	tsfeed->priv = filter;
 
-	ret = tsfeed->set(tsfeed, feed->pid, ts_type, ts_pes, 32768, timeout);
+	ret = tsfeed->set(tsfeed, feed->pid, ts_type, ts_pes, timeout);
 	if (ret < 0) {
 		dmxdev->demux->release_ts_feed(dmxdev->demux, tsfeed);
 		return ret;
@@ -655,15 +661,15 @@ static int dvb_dmxdev_filter_start(struct dmxdev_filter *filter)
 								   secfeed,
 								   dvb_dmxdev_section_callback);
 			if (ret < 0) {
-				printk("DVB (%s): could not alloc feed\n",
+				pr_err("DVB (%s): could not alloc feed\n",
 				       __func__);
 				return ret;
 			}
 
-			ret = (*secfeed)->set(*secfeed, para->pid, 32768,
+			ret = (*secfeed)->set(*secfeed, para->pid,
 					      (para->flags & DMX_CHECK_CRC) ? 1 : 0);
 			if (ret < 0) {
-				printk("DVB (%s): could not set feed\n",
+				pr_err("DVB (%s): could not set feed\n",
 				       __func__);
 				dvb_dmxdev_feed_restart(filter);
 				return ret;
@@ -844,7 +850,7 @@ static int dvb_dmxdev_filter_set(struct dmxdev *dmxdev,
 				 struct dmxdev_filter *dmxdevfilter,
 				 struct dmx_sct_filter_params *params)
 {
-	dprintk("function : %s, PID=0x%04x, flags=%02x, timeout=%d\n",
+	dprintk("%s: PID=0x%04x, flags=%02x, timeout=%d\n",
 		__func__, params->pid, params->flags, params->timeout);
 
 	dvb_dmxdev_filter_stop(dmxdevfilter);
@@ -1184,7 +1190,7 @@ static unsigned int dvb_dvr_poll(struct file *file, poll_table *wait)
 	struct dmxdev *dmxdev = dvbdev->priv;
 	unsigned int mask = 0;
 
-	dprintk("function : %s\n", __func__);
+	dprintk("%s\n", __func__);
 
 	if (dmxdev->exit)
 		return POLLERR;

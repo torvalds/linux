@@ -213,18 +213,14 @@ static inline int stcctm5(u64 num, u64 *val)
 /* Query sampling information */
 static inline int qsi(struct hws_qsi_info_block *info)
 {
-	int cc;
-	cc = 1;
+	int cc = 1;
 
 	asm volatile(
-		"0:	.insn	s,0xb2860000,0(%1)\n"
+		"0:	.insn	s,0xb2860000,%1\n"
 		"1:	lhi	%0,0\n"
 		"2:\n"
 		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
-		: "=d" (cc), "+a" (info)
-		: "m" (*info)
-		: "cc", "memory");
-
+		: "+d" (cc), "+Q" (*info));
 	return cc ? -EINVAL : 0;
 }
 
