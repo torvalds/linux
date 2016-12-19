@@ -265,26 +265,24 @@ static const struct intel_device_info intel_ivybridge_q_info = {
 	.has_l3_dpf = 1,
 };
 
-#define VLV_FEATURES  \
-	.gen = 7, .num_pipes = 2, \
-	.is_lp = 1, \
-	.has_psr = 1, \
-	.has_runtime_pm = 1, \
-	.has_rc6 = 1, \
-	.has_gmbus_irq = 1, \
-	.has_hw_contexts = 1, \
-	.has_gmch_display = 1, \
-	.has_hotplug = 1, \
-	.has_aliasing_ppgtt = 1, \
-	.has_full_ppgtt = 1, \
-	.ring_mask = RENDER_RING | BSD_RING | BLT_RING, \
-	.display_mmio_offset = VLV_DISPLAY_BASE, \
-	GEN_DEFAULT_PIPEOFFSETS, \
-	CURSOR_OFFSETS
-
 static const struct intel_device_info intel_valleyview_info = {
-	VLV_FEATURES,
 	.platform = INTEL_VALLEYVIEW,
+	.gen = 7,
+	.is_lp = 1,
+	.num_pipes = 2,
+	.has_psr = 1,
+	.has_runtime_pm = 1,
+	.has_rc6 = 1,
+	.has_gmbus_irq = 1,
+	.has_hw_contexts = 1,
+	.has_gmch_display = 1,
+	.has_hotplug = 1,
+	.has_aliasing_ppgtt = 1,
+	.has_full_ppgtt = 1,
+	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
+	.display_mmio_offset = VLV_DISPLAY_BASE,
+	GEN_DEFAULT_PIPEOFFSETS,
+	CURSOR_OFFSETS
 };
 
 #define HSW_FEATURES  \
