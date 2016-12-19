@@ -1890,6 +1890,7 @@ static int fman_reset(struct fman *fman)
 
 		goto _return;
 	} else {
+#ifdef CONFIG_PPC
 		struct device_node *guts_node;
 		struct ccsr_guts __iomem *guts_regs;
 		u32 devdisr2, reg;
@@ -1921,6 +1922,7 @@ static int fman_reset(struct fman *fman)
 
 		/* Enable all MACs */
 		iowrite32be(reg, &guts_regs->devdisr2);
+#endif
 
 		/* Perform FMan reset */
 		iowrite32be(FPM_RSTC_FM_RESET, &fman->fpm_regs->fm_rstc);
@@ -1932,25 +1934,31 @@ static int fman_reset(struct fman *fman)
 		} while (((ioread32be(&fman->fpm_regs->fm_rstc)) &
 			 FPM_RSTC_FM_RESET) && --count);
 		if (count == 0) {
+#ifdef CONFIG_PPC
 			iounmap(guts_regs);
 			of_node_put(guts_node);
+#endif
 			err = -EBUSY;
 			goto _return;
 		}
+#ifdef CONFIG_PPC
 
 		/* Restore devdisr2 value */
 		iowrite32be(devdisr2, &guts_regs->devdisr2);
 
 		iounmap(guts_regs);
 		of_node_put(guts_node);
+#endif
 
 		goto _return;
 
+#ifdef CONFIG_PPC
 guts_regs:
 		of_node_put(guts_node);
 guts_node:
 		dev_dbg(fman->dev, "%s: Didn't perform FManV3 reset due to Errata A007273!\n",
 			__func__);
+#endif
 	}
 _return:
 	return err;
