@@ -636,7 +636,7 @@ static int tango_nand_probe(struct platform_device *pdev)
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	nfc->chan = dma_request_chan(&pdev->dev, "nfc_sbox");
+	nfc->chan = dma_request_chan(&pdev->dev, "rxtx");
 	if (IS_ERR(nfc->chan))
 		return PTR_ERR(nfc->chan);
 
