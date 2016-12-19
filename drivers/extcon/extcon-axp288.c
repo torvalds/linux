@@ -154,7 +154,6 @@ static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 
 static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 {
-	static bool notify_otg, notify_charger;
 	static unsigned int cable;
 	int ret, stat, cfg, pwr_stat;
 	u8 chrg_type;
@@ -168,7 +167,7 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 
 	vbus_attach = (pwr_stat & PS_STAT_VBUS_PRESENT);
 	if (!vbus_attach)
-		goto notify_otg;
+		goto no_vbus;
 
 	/* Check charger detection completion status */
 	ret = regmap_read(info->regmap, AXP288_BC_GLOBAL_REG, &cfg);
@@ -188,19 +187,14 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 	switch (chrg_type) {
 	case DET_STAT_SDP:
 		dev_dbg(info->dev, "sdp cable is connected\n");
-		notify_otg = true;
-		notify_charger = true;
 		cable = EXTCON_CHG_USB_SDP;
 		break;
 	case DET_STAT_CDP:
 		dev_dbg(info->dev, "cdp cable is connected\n");
-		notify_otg = true;
-		notify_charger = true;
 		cable = EXTCON_CHG_USB_CDP;
 		break;
 	case DET_STAT_DCP:
 		dev_dbg(info->dev, "dcp cable is connected\n");
-		notify_charger = true;
 		cable = EXTCON_CHG_USB_DCP;
 		break;
 	default:
@@ -208,24 +202,17 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 			"disconnect or unknown or ID event\n");
 	}
 
-notify_otg:
-	if (notify_otg) {
-		/*
-		 * If VBUS is absent Connect D+/D- lines to PMIC for BC
-		 * detection. Else connect them to SOC for USB communication.
-		 */
-		if (info->gpio_mux_cntl)
-			gpiod_set_value(info->gpio_mux_cntl,
-				vbus_attach ? EXTCON_GPIO_MUX_SEL_SOC
-						: EXTCON_GPIO_MUX_SEL_PMIC);
-	}
+no_vbus:
+	/*
+	 * If VBUS is absent Connect D+/D- lines to PMIC for BC
+	 * detection. Else connect them to SOC for USB communication.
+	 */
+	if (info->gpio_mux_cntl)
+		gpiod_set_value(info->gpio_mux_cntl,
+			vbus_attach ? EXTCON_GPIO_MUX_SEL_SOC
+					: EXTCON_GPIO_MUX_SEL_PMIC);
 
-	if (notify_charger)
-		extcon_set_state_sync(info->edev, cable, vbus_attach);
-
-	/* Clear the flags on disconnect event */
-	if (!vbus_attach)
-		notify_otg = notify_charger = false;
+	extcon_set_state_sync(info->edev, cable, vbus_attach);
 
 	return 0;
 
