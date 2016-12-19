@@ -843,7 +843,19 @@ void mlx5e_disable_vlan_filter(struct mlx5e_priv *priv);
 
 int mlx5e_modify_channels_vsd(struct mlx5e_channels *chs, bool vsd);
 
-int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz, int ix);
+struct mlx5e_redirect_rqt_param {
+	bool is_rss;
+	union {
+		u32 rqn; /* Direct RQN (Non-RSS) */
+		struct {
+			u8 hfunc;
+			struct mlx5e_channels *channels;
+		} rss; /* RSS data */
+	};
+};
+
+int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz,
+		       struct mlx5e_redirect_rqt_param rrp);
 void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_priv *priv, void *tirc,
 				    enum mlx5e_traffic_types tt);
 
