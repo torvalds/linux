@@ -669,6 +669,7 @@
 		pinctrl-0 = <&hidkey_irq_gpio>;
 		reg = <0x68>;
 		hid-descr-addr = <0x0001>;
+		hid-support-wakeup;
 	};
 
 	ec_battery@76 {
