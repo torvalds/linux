@@ -784,8 +784,19 @@ static int brcm_avs_target_index(struct cpufreq_policy *policy,
 static int brcm_avs_suspend(struct cpufreq_policy *policy)
 {
 	struct private_data *priv = policy->driver_data;
+	int ret;
 
-	return brcm_avs_get_pmap(priv, &priv->pmap);
+	ret = brcm_avs_get_pmap(priv, &priv->pmap);
+	if (ret)
+		return ret;
+
+	/*
+	 * We can't use the P-state returned by brcm_avs_get_pmap(), since
+	 * that's the initial P-state from when the P-map was downloaded to the
+	 * AVS co-processor, not necessarily the P-state we are running at now.
+	 * So, we get the current P-state explicitly.
+	 */
+	return brcm_avs_get_pstate(priv, &priv->pmap.state);
 }
 
 static int brcm_avs_resume(struct cpufreq_policy *policy)
