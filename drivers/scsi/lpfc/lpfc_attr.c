@@ -4466,14 +4466,6 @@ LPFC_ATTR_R(sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT, LPFC_DEFAULT_SG_SEG_CNT,
 	    LPFC_MAX_SG_SEG_CNT, "Max Scatter Gather Segment Count");
 
 /*
- * This parameter will be depricated, the driver cannot limit the
- * protection data s/g list.
- */
-LPFC_ATTR_R(prot_sg_seg_cnt, LPFC_DEFAULT_SG_SEG_CNT,
-	    LPFC_DEFAULT_SG_SEG_CNT, LPFC_MAX_SG_SEG_CNT,
-	    "Max Protection Scatter Gather Segment Count");
-
-/*
  * lpfc_enable_mds_diags: Enable MDS Diagnostics
  *       0  = MDS Diagnostics disabled (default)
  *       1  = MDS Diagnostics enabled
@@ -4559,7 +4551,6 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_sg_seg_cnt,
 	&dev_attr_lpfc_max_scsicmpl_time,
 	&dev_attr_lpfc_stat_data_ctrl,
-	&dev_attr_lpfc_prot_sg_seg_cnt,
 	&dev_attr_lpfc_aer_support,
 	&dev_attr_lpfc_aer_state_cleanup,
 	&dev_attr_lpfc_sriov_nr_virtfn,
@@ -5576,7 +5567,6 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 		phba->cfg_poll = lpfc_poll;
 
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
-	lpfc_prot_sg_seg_cnt_init(phba, lpfc_prot_sg_seg_cnt);
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);
 	lpfc_aer_support_init(phba, lpfc_aer_support);
