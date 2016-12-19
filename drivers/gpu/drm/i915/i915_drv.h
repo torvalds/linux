@@ -3520,9 +3520,10 @@ static inline void i915_gem_context_put(struct i915_gem_context *ctx)
 
 static inline void i915_gem_context_put_unlocked(struct i915_gem_context *ctx)
 {
-	kref_put_mutex(&ctx->ref,
-		       i915_gem_context_free,
-		       &ctx->i915->drm.struct_mutex);
+	struct mutex *lock = &ctx->i915->drm.struct_mutex;
+
+	if (kref_put_mutex(&ctx->ref, i915_gem_context_free, lock))
+		mutex_unlock(lock);
 }
 
 static inline struct intel_timeline *
