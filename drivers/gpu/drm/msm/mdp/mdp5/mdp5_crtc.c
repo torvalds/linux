@@ -177,6 +177,21 @@ static void mdp5_crtc_destroy(struct drm_crtc *crtc)
 	kfree(mdp5_crtc);
 }
 
+static inline u32 mdp5_lm_use_fg_alpha_mask(enum mdp_mixer_stage_id stage)
+{
+	switch (stage) {
+	case STAGE0: return MDP5_LM_BLEND_COLOR_OUT_STAGE0_FG_ALPHA;
+	case STAGE1: return MDP5_LM_BLEND_COLOR_OUT_STAGE1_FG_ALPHA;
+	case STAGE2: return MDP5_LM_BLEND_COLOR_OUT_STAGE2_FG_ALPHA;
+	case STAGE3: return MDP5_LM_BLEND_COLOR_OUT_STAGE3_FG_ALPHA;
+	case STAGE4: return MDP5_LM_BLEND_COLOR_OUT_STAGE4_FG_ALPHA;
+	case STAGE5: return MDP5_LM_BLEND_COLOR_OUT_STAGE5_FG_ALPHA;
+	case STAGE6: return MDP5_LM_BLEND_COLOR_OUT_STAGE6_FG_ALPHA;
+	default:
+		return 0;
+	}
+}
+
 /*
  * blend_setup() - blend all the planes of a CRTC
  *
@@ -197,6 +212,8 @@ static void blend_setup(struct drm_crtc *crtc)
 	unsigned long flags;
 	enum mdp5_pipe stage[STAGE_MAX + 1] = { SSPP_NONE };
 	int i, plane_cnt = 0;
+	bool bg_alpha_enabled = false;
+	u32 mixer_op_mode = 0;
 #define blender(stage)	((stage) - STAGE0)
 
 	hw_cfg = mdp5_cfg_get_hw_config(mdp5_kms->cfg);
@@ -218,6 +235,11 @@ static void blend_setup(struct drm_crtc *crtc)
 	if (!pstates[STAGE_BASE]) {
 		ctl_blend_flags |= MDP5_CTL_BLEND_OP_FLAG_BORDER_OUT;
 		DBG("Border Color is enabled");
+	} else if (plane_cnt) {
+		format = to_mdp_format(msm_framebuffer_format(pstates[STAGE_BASE]->base.fb));
+
+		if (format->alpha_enable)
+			bg_alpha_enabled = true;
 	}
 
 	/* The reset for blending */
@@ -232,6 +254,12 @@ static void blend_setup(struct drm_crtc *crtc)
 			MDP5_LM_BLEND_OP_MODE_BG_ALPHA(BG_CONST);
 		fg_alpha = pstates[i]->alpha;
 		bg_alpha = 0xFF - pstates[i]->alpha;
+
+		if (!format->alpha_enable && bg_alpha_enabled)
+			mixer_op_mode = 0;
+		else
+			mixer_op_mode |= mdp5_lm_use_fg_alpha_mask(i);
+
 		DBG("Stage %d fg_alpha %x bg_alpha %x", i, fg_alpha, bg_alpha);
 
 		if (format->alpha_enable && pstates[i]->premultiplied) {
@@ -267,6 +295,8 @@ static void blend_setup(struct drm_crtc *crtc)
 		mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_BG_ALPHA(lm,
 				blender(i)), bg_alpha);
 	}
+
+	mdp5_write(mdp5_kms, REG_MDP5_LM_BLEND_COLOR_OUT(lm), mixer_op_mode);
 
 	mdp5_ctl_blend(mdp5_crtc->ctl, stage, plane_cnt, ctl_blend_flags);
 
