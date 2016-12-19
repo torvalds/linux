@@ -417,6 +417,9 @@ out:
 
 static void do_smp_send_nmi_ipi(int cpu)
 {
+	if (smp_ops->cause_nmi_ipi && smp_ops->cause_nmi_ipi(cpu))
+		return;
+
 	if (cpu >= 0) {
 		do_message_pass(cpu, PPC_MSG_NMI_IPI);
 	} else {

@@ -344,6 +344,7 @@ done:
 }
 
 struct smp_ops_t smp_85xx_ops = {
+	.cause_nmi_ipi = NULL,
 	.kick_cpu = smp_85xx_kick_cpu,
 	.cpu_bootable = smp_generic_cpu_bootable,
 #ifdef CONFIG_HOTPLUG_CPU

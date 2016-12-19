@@ -302,6 +302,7 @@ static void __init pnv_smp_probe(void)
 static struct smp_ops_t pnv_smp_ops = {
 	.message_pass	= NULL, /* Use smp_muxed_ipi_message_pass */
 	.cause_ipi	= NULL,	/* Filled at runtime by pnv_smp_probe() */
+	.cause_nmi_ipi	= NULL,
 	.probe		= pnv_smp_probe,
 	.prepare_cpu	= pnv_smp_prepare_cpu,
 	.kick_cpu	= pnv_smp_kick_cpu,
