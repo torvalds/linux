@@ -460,7 +460,7 @@
 			<32768>, <32768>;
 	};
 
-	gic: interrupt-controller@ffb70000 {
+	gic: interrupt-controller@ff811000 {
 		compatible = "arm,gic-400";
 		#interrupt-cells = <3>;
 		#address-cells = <0>;
