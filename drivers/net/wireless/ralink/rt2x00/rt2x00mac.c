@@ -320,6 +320,9 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 */
 	rt2x00queue_stop_queue(rt2x00dev->rx);
 
+	/* Do not race with with link tuner. */
+	mutex_lock(&rt2x00dev->conf_mutex);
+
 	/*
 	 * When we've just turned on the radio, we want to reprogram
 	 * everything to ensure a consistent state
@@ -334,6 +337,8 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	 * have been made since the last configuration change.
 	 */
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
+
+	mutex_unlock(&rt2x00dev->conf_mutex);
 
 	/* Turn RX back on */
 	rt2x00queue_start_queue(rt2x00dev->rx);

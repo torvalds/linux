@@ -834,6 +834,10 @@ struct rt2x00_dev {
 	struct mutex csr_mutex;
 
 	/*
+	 * Mutex to synchronize config and link tuner.
+	 */
+	struct mutex conf_mutex;
+	/*
 	 * Current packet filter configuration for the device.
 	 * This contains all currently active FIF_* flags send
 	 * to us by mac80211 during configure_filter().

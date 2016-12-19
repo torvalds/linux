@@ -363,6 +363,9 @@ static void rt2x00link_tuner(struct work_struct *work)
 	    test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
 		return;
 
+	/* Do not race with rt2x00mac_config(). */
+	mutex_lock(&rt2x00dev->conf_mutex);
+
 	if (rt2x00dev->intf_sta_count)
 		rt2x00link_tuner_sta(rt2x00dev, link);
 
@@ -374,6 +377,8 @@ static void rt2x00link_tuner(struct work_struct *work)
 	    rt2x00_has_cap_vco_recalibration(rt2x00dev) &&
 	    (link->count % (VCO_SECONDS / LINK_TUNE_SECONDS)) == 0)
 		rt2x00dev->ops->lib->vco_calibration(rt2x00dev);
+
+	mutex_unlock(&rt2x00dev->conf_mutex);
 
 	/*
 	 * Increase tuner counter, and reschedule the next link tuner run.
