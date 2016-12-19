@@ -287,8 +287,6 @@ static bool build_hw_curve_configuration(
 		uint32_t offset = 0;
 		int8_t begin = curve_config->begin;
 		int32_t region_number = 0;
-		struct fixed31_32 magic_number =
-				dal_fixed31_32_from_fraction(249, 1000);
 
 		i = begin;
 
@@ -370,10 +368,8 @@ static bool build_hw_curve_configuration(
 			++i;
 		}
 
-		points[index].x =
-				dal_fixed31_32_add(region1, magic_number);
-		points[index].adjusted_x =
-				dal_fixed31_32_add(region1, magic_number);
+		points[index].x = region1;
+		points[index].adjusted_x = region1;
 
 		*number_of_points = index;
 
@@ -1218,7 +1214,8 @@ static void rebuild_curve_configuration_magic(
 		struct curve_points *arr_points,
 		struct pwl_result_data *rgb_resulted,
 		const struct hw_x_point *coordinates_x,
-		uint32_t hw_points_num)
+		uint32_t hw_points_num,
+		enum dc_transfer_func_predefined tf)
 {
 	struct fixed31_32 y_r;
 	struct fixed31_32 y_g;
@@ -1264,6 +1261,18 @@ static void rebuild_curve_configuration_magic(
 	arr_points[2].y = y3_max;
 
 	arr_points[2].slope = dal_fixed31_32_zero;
+
+	/* for PQ, we want to have a straight line from last HW X point, and the
+	 * slope to be such that we hit 1.0 at 10000 nits.
+	 */
+	if (tf == TRANSFER_FUNCTION_PQ) {
+		const struct fixed31_32 end_value =
+				dal_fixed31_32_from_int(125);
+
+		arr_points[2].slope = dal_fixed31_32_div(
+			dal_fixed31_32_sub(dal_fixed31_32_one, arr_points[1].y),
+			dal_fixed31_32_sub(end_value, arr_points[1].x));
+	}
 }
 
 static bool convert_to_custom_float_format(
@@ -1424,6 +1433,8 @@ bool calculate_regamma_params(struct pwl_params *params,
 	struct pixel_gamma_point *coeff128_oem = NULL;
 	struct pixel_gamma_point *coeff128 = NULL;
 
+	enum dc_transfer_func_predefined tf = TRANSFER_FUNCTION_SRGB;
+
 	bool ret = false;
 
 	coordinates_x = dm_alloc(sizeof(*coordinates_x)*(256 + 3));
@@ -1452,6 +1463,9 @@ bool calculate_regamma_params(struct pwl_params *params,
 	dividers.divider2 = dal_fixed31_32_from_int(2);
 	dividers.divider3 = dal_fixed31_32_from_fraction(5, 2);
 
+	if (stream->public.out_transfer_func)
+		tf = stream->public.out_transfer_func->tf;
+
 	build_evenly_distributed_points(
 			axix_x_256,
 			256,
@@ -1460,8 +1474,7 @@ bool calculate_regamma_params(struct pwl_params *params,
 
 	scale_gamma(rgb_user, ramp, dividers);
 
-	if (stream->public.out_transfer_func &&
-		stream->public.out_transfer_func->tf == TRANSFER_FUNCTION_PQ) {
+	if (tf == TRANSFER_FUNCTION_PQ) {
 		setup_distribution_points_pq(arr_curve_points, arr_points,
 				&params->hw_points_num, coordinates_x,
 				surface->public.format);
@@ -1486,7 +1499,8 @@ bool calculate_regamma_params(struct pwl_params *params,
 			arr_points,
 			rgb_resulted,
 			coordinates_x,
-			params->hw_points_num);
+			params->hw_points_num,
+			tf);
 
 	convert_to_custom_float(rgb_resulted, arr_points,
 			params->hw_points_num);
