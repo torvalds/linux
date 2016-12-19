@@ -26,12 +26,6 @@ config LIRC_IMON
 
 	  Current generation iMON devices use the input layer imon driver.
 
-config LIRC_PARALLEL
-	tristate "Homebrew Parallel Port Receiver"
-	depends on LIRC && PARPORT
-	help
-	  Driver for Homebrew Parallel Port Receivers
-
 config LIRC_SASEM
 	tristate "Sasem USB IR Remote"
 	depends on LIRC && USB
