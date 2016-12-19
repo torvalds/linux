@@ -141,42 +141,6 @@ static int cz_send_msg_to_smc_with_parameter(struct pp_smumgr *smumgr,
 	return cz_send_msg_to_smc(smumgr, msg);
 }
 
-static int cz_request_smu_load_fw(struct pp_smumgr *smumgr)
-{
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)(smumgr->backend);
-	uint32_t smc_address;
-
-	if (!smumgr->reload_fw) {
-		pr_info("skip reloading...\n");
-		return 0;
-	}
-
-	smc_address = SMU8_FIRMWARE_HEADER_LOCATION +
-		offsetof(struct SMU8_Firmware_Header, UcodeLoadStatus);
-
-	cz_write_smc_sram_dword(smumgr, smc_address, 0, smc_address+4);
-
-	cz_send_msg_to_smc_with_parameter(smumgr,
-					PPSMC_MSG_DriverDramAddrHi,
-					cz_smu->toc_buffer.mc_addr_high);
-
-	cz_send_msg_to_smc_with_parameter(smumgr,
-					PPSMC_MSG_DriverDramAddrLo,
-					cz_smu->toc_buffer.mc_addr_low);
-
-	cz_send_msg_to_smc(smumgr, PPSMC_MSG_InitJobs);
-
-	cz_send_msg_to_smc_with_parameter(smumgr,
-					PPSMC_MSG_ExecuteJob,
-					cz_smu->toc_entry_aram);
-	cz_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_ExecuteJob,
-				cz_smu->toc_entry_power_profiling_index);
-
-	return cz_send_msg_to_smc_with_parameter(smumgr,
-					PPSMC_MSG_ExecuteJob,
-					cz_smu->toc_entry_initialize_index);
-}
-
 static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
 				   uint32_t firmware)
 {
@@ -248,34 +212,6 @@ static int cz_load_mec_firmware(struct pp_smumgr *smumgr)
 	cgs_write_register(smumgr->device, mmCP_CPC_IC_BASE_HI, reg_data);
 
 	return 0;
-}
-
-static int cz_start_smu(struct pp_smumgr *smumgr)
-{
-	int ret = 0;
-	uint32_t fw_to_check = UCODE_ID_RLC_G_MASK |
-				UCODE_ID_SDMA0_MASK |
-				UCODE_ID_SDMA1_MASK |
-				UCODE_ID_CP_CE_MASK |
-				UCODE_ID_CP_ME_MASK |
-				UCODE_ID_CP_PFP_MASK |
-				UCODE_ID_CP_MEC_JT1_MASK |
-				UCODE_ID_CP_MEC_JT2_MASK;
-
-	if (smumgr->chip_id == CHIP_STONEY)
-		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
-
-	ret = cz_request_smu_load_fw(smumgr);
-	if (ret)
-		pr_err("SMU firmware load failed\n");
-
-	cz_check_fw_load_finish(smumgr, fw_to_check);
-
-	ret = cz_load_mec_firmware(smumgr);
-	if (ret)
-		pr_err("Mec Firmware load failed\n");
-
-	return ret;
 }
 
 static uint8_t cz_translate_firmware_enum_to_arg(struct pp_smumgr *smumgr,
@@ -729,6 +665,76 @@ static int cz_upload_pptable_settings(struct pp_smumgr *smumgr)
 	return 0;
 }
 
+static int cz_request_smu_load_fw(struct pp_smumgr *smumgr)
+{
+	struct cz_smumgr *cz_smu = (struct cz_smumgr *)(smumgr->backend);
+	uint32_t smc_address;
+
+	if (!smumgr->reload_fw) {
+		pr_info("skip reloading...\n");
+		return 0;
+	}
+
+	cz_smu_populate_firmware_entries(smumgr);
+
+	cz_smu_construct_toc(smumgr);
+
+	smc_address = SMU8_FIRMWARE_HEADER_LOCATION +
+		offsetof(struct SMU8_Firmware_Header, UcodeLoadStatus);
+
+	cz_write_smc_sram_dword(smumgr, smc_address, 0, smc_address+4);
+
+	cz_send_msg_to_smc_with_parameter(smumgr,
+					PPSMC_MSG_DriverDramAddrHi,
+					cz_smu->toc_buffer.mc_addr_high);
+
+	cz_send_msg_to_smc_with_parameter(smumgr,
+					PPSMC_MSG_DriverDramAddrLo,
+					cz_smu->toc_buffer.mc_addr_low);
+
+	cz_send_msg_to_smc(smumgr, PPSMC_MSG_InitJobs);
+
+	cz_send_msg_to_smc_with_parameter(smumgr,
+					PPSMC_MSG_ExecuteJob,
+					cz_smu->toc_entry_aram);
+	cz_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_ExecuteJob,
+				cz_smu->toc_entry_power_profiling_index);
+
+	return cz_send_msg_to_smc_with_parameter(smumgr,
+					PPSMC_MSG_ExecuteJob,
+					cz_smu->toc_entry_initialize_index);
+}
+
+static int cz_start_smu(struct pp_smumgr *smumgr)
+{
+	int ret = 0;
+	uint32_t fw_to_check = 0;
+
+	fw_to_check = UCODE_ID_RLC_G_MASK |
+			UCODE_ID_SDMA0_MASK |
+			UCODE_ID_SDMA1_MASK |
+			UCODE_ID_CP_CE_MASK |
+			UCODE_ID_CP_ME_MASK |
+			UCODE_ID_CP_PFP_MASK |
+			UCODE_ID_CP_MEC_JT1_MASK |
+			UCODE_ID_CP_MEC_JT2_MASK;
+
+	if (smumgr->chip_id == CHIP_STONEY)
+		fw_to_check &= ~(UCODE_ID_SDMA1_MASK | UCODE_ID_CP_MEC_JT2_MASK);
+
+	ret = cz_request_smu_load_fw(smumgr);
+	if (ret)
+		pr_err("SMU firmware load failed\n");
+
+	cz_check_fw_load_finish(smumgr, fw_to_check);
+
+	ret = cz_load_mec_firmware(smumgr);
+	if (ret)
+		pr_err("Mec Firmware load failed\n");
+
+	return ret;
+}
+
 static int cz_smu_init(struct pp_smumgr *smumgr)
 {
 	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
@@ -769,7 +775,6 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 	cz_smu->smu_buffer.mc_addr_high = smu_upper_32_bits(mc_addr);
 	cz_smu->smu_buffer.mc_addr_low = smu_lower_32_bits(mc_addr);
 
-	cz_smu_populate_firmware_entries(smumgr);
 	if (0 != cz_smu_populate_single_scratch_entry(smumgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SCRATCH,
 		UCODE_ID_RLC_SCRATCH_SIZE_BYTE,
@@ -808,7 +813,6 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		pr_err("Error when Populate Firmware Entry.\n");
 		return -1;
 	}
-	cz_smu_construct_toc(smumgr);
 
 	return 0;
 }
