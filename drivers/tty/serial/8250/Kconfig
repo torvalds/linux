@@ -117,7 +117,7 @@ config SERIAL_8250_DMA
 	  compatible UART controllers that support DMA signaling.
 
 config SERIAL_8250_PCI
-	tristate "8250/16550 PCI device support" if EXPERT
+	tristate "8250/16550 PCI device support"
 	depends on SERIAL_8250 && PCI
 	default SERIAL_8250
 	help
