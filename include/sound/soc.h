@@ -951,8 +951,6 @@ struct snd_soc_platform_driver {
 
 	/* platform stream compress ops */
 	const struct snd_compr_ops *compr_ops;
-
-	int (*bespoke_trigger)(struct snd_pcm_substream *, int);
 };
 
 struct snd_soc_dai_link_component {
