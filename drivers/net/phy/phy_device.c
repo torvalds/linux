@@ -1187,8 +1187,8 @@ static int genphy_config_advert(struct phy_device *phydev)
  */
 static int genphy_config_eee_advert(struct phy_device *phydev)
 {
-	u32 broken = phydev->eee_broken_modes;
-	u32 old_adv, adv;
+	int broken = phydev->eee_broken_modes;
+	int old_adv, adv;
 
 	/* Nothing to disable */
 	if (!broken)
