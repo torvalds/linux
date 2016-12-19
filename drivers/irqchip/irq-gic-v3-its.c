@@ -167,6 +167,11 @@ struct its_cmd_desc {
 		struct {
 			struct its_device *dev;
 			u32 event_id;
+		} its_clear_cmd;
+
+		struct {
+			struct its_device *dev;
+			u32 event_id;
 		} its_int_cmd;
 
 		struct {
@@ -380,6 +385,40 @@ static struct its_collection *its_build_inv_cmd(struct its_cmd_block *cmd,
 	return col;
 }
 
+static struct its_collection *its_build_int_cmd(struct its_cmd_block *cmd,
+						struct its_cmd_desc *desc)
+{
+	struct its_collection *col;
+
+	col = dev_event_to_col(desc->its_int_cmd.dev,
+			       desc->its_int_cmd.event_id);
+
+	its_encode_cmd(cmd, GITS_CMD_INT);
+	its_encode_devid(cmd, desc->its_int_cmd.dev->device_id);
+	its_encode_event_id(cmd, desc->its_int_cmd.event_id);
+
+	its_fixup_cmd(cmd);
+
+	return col;
+}
+
+static struct its_collection *its_build_clear_cmd(struct its_cmd_block *cmd,
+						  struct its_cmd_desc *desc)
+{
+	struct its_collection *col;
+
+	col = dev_event_to_col(desc->its_clear_cmd.dev,
+			       desc->its_clear_cmd.event_id);
+
+	its_encode_cmd(cmd, GITS_CMD_CLEAR);
+	its_encode_devid(cmd, desc->its_clear_cmd.dev->device_id);
+	its_encode_event_id(cmd, desc->its_clear_cmd.event_id);
+
+	its_fixup_cmd(cmd);
+
+	return col;
+}
+
 static struct its_collection *its_build_invall_cmd(struct its_cmd_block *cmd,
 						   struct its_cmd_desc *desc)
 {
@@ -541,6 +580,26 @@ static void its_build_sync_cmd(struct its_cmd_block *sync_cmd,
 
 static BUILD_SINGLE_CMD_FUNC(its_send_single_command, its_cmd_builder_t,
 			     struct its_collection, its_build_sync_cmd)
+
+static void its_send_int(struct its_device *dev, u32 event_id)
+{
+	struct its_cmd_desc desc;
+
+	desc.its_int_cmd.dev = dev;
+	desc.its_int_cmd.event_id = event_id;
+
+	its_send_single_command(dev->its, its_build_int_cmd, &desc);
+}
+
+static void its_send_clear(struct its_device *dev, u32 event_id)
+{
+	struct its_cmd_desc desc;
+
+	desc.its_clear_cmd.dev = dev;
+	desc.its_clear_cmd.event_id = event_id;
+
+	its_send_single_command(dev->its, its_build_clear_cmd, &desc);
+}
 
 static void its_send_inv(struct its_device *dev, u32 event_id)
 {
@@ -708,6 +767,24 @@ static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 	iommu_dma_map_msi_msg(d->irq, msg);
 }
 
+static int its_irq_set_irqchip_state(struct irq_data *d,
+				     enum irqchip_irq_state which,
+				     bool state)
+{
+	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
+	u32 event = its_get_event_id(d);
+
+	if (which != IRQCHIP_STATE_PENDING)
+		return -EINVAL;
+
+	if (state)
+		its_send_int(its_dev, event);
+	else
+		its_send_clear(its_dev, event);
+
+	return 0;
+}
+
 static struct irq_chip its_irq_chip = {
 	.name			= "ITS",
 	.irq_mask		= its_mask_irq,
@@ -715,6 +792,7 @@ static struct irq_chip its_irq_chip = {
 	.irq_eoi		= irq_chip_eoi_parent,
 	.irq_set_affinity	= its_set_affinity,
 	.irq_compose_msi_msg	= its_irq_compose_msi_msg,
+	.irq_set_irqchip_state	= its_irq_set_irqchip_state,
 };
 
 /*
