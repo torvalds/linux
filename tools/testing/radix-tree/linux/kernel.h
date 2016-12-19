@@ -24,7 +24,6 @@
 #endif
 
 #define BUG_ON(expr)	assert(!(expr))
-#define WARN_ON(expr)	assert(!(expr))
 #define __init
 #define __must_check
 #define panic(expr)
