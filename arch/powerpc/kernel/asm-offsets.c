@@ -235,6 +235,7 @@ int main(void)
 #ifdef CONFIG_PPC_BOOK3S_64
 	OFFSET(PACAMCEMERGSP, paca_struct, mc_emergency_sp);
 	OFFSET(PACA_IN_MCE, paca_struct, in_mce);
+	OFFSET(PACA_IN_NMI, paca_struct, in_nmi);
 #endif
 	OFFSET(PACAHWCPUID, paca_struct, hw_cpu_id);
 	OFFSET(PACAKEXECSTATE, paca_struct, kexec_state);

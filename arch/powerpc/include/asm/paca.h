@@ -187,12 +187,15 @@ struct paca_struct {
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* Exclusive emergency stack pointer for machine check exception. */
 	void *mc_emergency_sp;
+
+	u16 in_nmi;			/* In nmi handler */
+
 	/*
 	 * Flag to check whether we are in machine check early handler
 	 * and already using emergency stack.
 	 */
 	u16 in_mce;
-	u8 hmi_event_available;		 /* HMI event is available */
+	u8 hmi_event_available;		/* HMI event is available */
 #endif
 
 	/* Stuff for accurate time accounting */

@@ -275,6 +275,12 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #endif
 
+/* Do not enable RI */
+#define EXCEPTION_PROLOG_PSERIES_NORI(area, label, h, extra, vec)	\
+	EXCEPTION_PROLOG_0(area);					\
+	EXCEPTION_PROLOG_1(area, extra, vec);				\
+	EXCEPTION_PROLOG_PSERIES_1_NORI(label, h);
+
 
 #define __KVM_HANDLER(area, h, n)					\
 	BEGIN_FTR_SECTION_NESTED(947)					\

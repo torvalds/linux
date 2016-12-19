@@ -282,11 +282,17 @@ void system_reset_exception(struct pt_regs *regs)
 	/* See if any machine dependent calls */
 	if (ppc_md.system_reset_exception) {
 		if (ppc_md.system_reset_exception(regs))
-			return;
+			goto out;
 	}
 
 	die("System Reset", regs, SIGABRT);
 
+out:
+#ifdef CONFIG_PPC_BOOK3S_64
+	BUG_ON(get_paca()->in_nmi == 0);
+	if (get_paca()->in_nmi > 1)
+		panic("Unrecoverable nested System Reset");
+#endif
 	/* Must die if the interrupt is not recoverable */
 	if (!(regs->msr & MSR_RI))
 		panic("Unrecoverable System Reset");
