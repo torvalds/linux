@@ -213,6 +213,7 @@ static int _apcie_icc_cmd(struct apcie_dev *sc, u8 major, u16 minor, const void 
 	if (ret < 0 || sc->icc.reply_pending) { /* interrupted or timed out */
 		sc->icc.reply_pending = false;
 		spin_unlock_irq(&sc->icc.reply_lock);
+		sc_err("icc: interrupted or timeout: ret = %d\n", rep_checksum);
 		return ret < 0 ? -EINTR : -ETIMEDOUT;
 	}
 	spin_unlock_irq(&sc->icc.reply_lock);
