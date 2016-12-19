@@ -2872,15 +2872,6 @@ int snd_soc_dpcm_can_be_params(struct snd_soc_pcm_runtime *fe,
 }
 EXPORT_SYMBOL_GPL(snd_soc_dpcm_can_be_params);
 
-int snd_soc_platform_trigger(struct snd_pcm_substream *substream,
-		int cmd, struct snd_soc_platform *platform)
-{
-	if (platform->driver->ops && platform->driver->ops->trigger)
-		return platform->driver->ops->trigger(substream, cmd);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(snd_soc_platform_trigger);
-
 #ifdef CONFIG_DEBUG_FS
 static const char *dpcm_state_string(enum snd_soc_dpcm_state state)
 {

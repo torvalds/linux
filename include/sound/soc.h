@@ -507,9 +507,6 @@ int snd_soc_params_to_bclk(struct snd_pcm_hw_params *parms);
 int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
 	const struct snd_pcm_hardware *hw);
 
-int snd_soc_platform_trigger(struct snd_pcm_substream *substream,
-		int cmd, struct snd_soc_platform *platform);
-
 int soc_dai_hw_params(struct snd_pcm_substream *substream,
 		      struct snd_pcm_hw_params *params,
 		      struct snd_soc_dai *dai);
