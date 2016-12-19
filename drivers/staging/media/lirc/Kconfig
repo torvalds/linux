@@ -40,7 +40,7 @@ config LIRC_SASEM
 
 config LIRC_SIR
 	tristate "Built-in SIR IrDA port"
-	depends on LIRC
+	depends on RC_CORE
 	help
 	  Driver for the SIR IrDA port
 
