@@ -459,7 +459,7 @@ static bool _regmap_range_add(struct regmap *map,
 
 	while (*new) {
 		struct regmap_range_node *this =
-			container_of(*new, struct regmap_range_node, node);
+			rb_entry(*new, struct regmap_range_node, node);
 
 		parent = *new;
 		if (data->range_max < this->range_min)
@@ -483,7 +483,7 @@ static struct regmap_range_node *_regmap_range_lookup(struct regmap *map,
 
 	while (node) {
 		struct regmap_range_node *this =
-			container_of(node, struct regmap_range_node, node);
+			rb_entry(node, struct regmap_range_node, node);
 
 		if (reg < this->range_min)
 			node = node->rb_left;
