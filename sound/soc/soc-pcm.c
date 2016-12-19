@@ -1116,13 +1116,6 @@ static snd_pcm_uframes_t soc_pcm_pointer(struct snd_pcm_substream *substream)
 	}
 	delay += codec_delay;
 
-	/*
-	 * None of the existing platform drivers implement delay(), so
-	 * for now the codec_dai of first multicodec entry is used
-	 */
-	if (platform->driver->delay)
-		delay += platform->driver->delay(substream, rtd->codec_dais[0]);
-
 	runtime->delay = delay;
 
 	return offset;
