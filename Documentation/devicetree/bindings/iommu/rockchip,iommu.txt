@@ -10,6 +10,13 @@ Required properties:
 - reg             : Address space for the configuration registers
 - interrupts      : Interrupt specifier for the IOMMU instance
 - interrupt-names : Interrupt name for the IOMMU instance
+- clocks          : Iommu share clocks with master, to make map buffer success
+                    when master disable clocks, iommu should control related
+                    clocks itself
+- clock-names     : Iommu related clock name, it should be "aclk" and "hclk" on
+                    RK3399 SoC platform
+- power-domains   : Iommu share power-domains with master, it have the same purpose
+                    with the clocks
 - #iommu-cells    : Should be <0>.  This indicates the iommu is a
                     "single-master" device, and needs no additional information
                     to associate with its master device.  See:
@@ -17,10 +24,13 @@ Required properties:
 
 Example:
 
-	vopl_mmu: iommu@ff940300 {
+	vopl_mmu: iommu@ff8f3f00 {
 		compatible = "rockchip,iommu";
-		reg = <0xff940300 0x100>;
-		interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0xff8f3f00 0x0 0x100>;
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vopl_mmu";
+		clocks = <&cru ACLK_VOP1>, <&cru HCLK_VOP1>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3399_PD_VOPL>;
 		#iommu-cells = <0>;
 	};
