@@ -3,7 +3,6 @@
 
 # Each configuration option enables a list of files.
 
-obj-$(CONFIG_LIRC_BT829)	+= lirc_bt829.o
 obj-$(CONFIG_LIRC_IMON)		+= lirc_imon.o
 obj-$(CONFIG_LIRC_SASEM)	+= lirc_sasem.o
 obj-$(CONFIG_LIRC_SIR)		+= lirc_sir.o
