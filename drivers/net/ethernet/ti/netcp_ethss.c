@@ -94,6 +94,7 @@
 
 /* offset relative to base of XGBE_SS_REG_INDEX */
 #define XGBE10_SGMII_MODULE_OFFSET	0x100
+#define IS_SS_ID_XGBE(d)		((d)->ss_version == XGBE_SS_VERSION_10)
 /* offset relative to base of XGBE_SM_REG_INDEX */
 #define XGBE10_HOST_PORT_OFFSET		0x34
 #define XGBE10_SLAVE_PORT_OFFSET	0x64
@@ -2322,7 +2323,7 @@ static void gbe_init_host_port(struct gbe_priv *priv)
 	int bypass_en = 1;
 
 	/* Host Tx Pri */
-	if (IS_SS_ID_NU(priv))
+	if (IS_SS_ID_NU(priv) || IS_SS_ID_XGBE(priv))
 		writel(HOST_TX_PRI_MAP_DEFAULT,
 		       GBE_REG_ADDR(priv, host_port_regs, tx_pri_map));
 
