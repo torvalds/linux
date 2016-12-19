@@ -971,6 +971,7 @@ static int zoran_open(struct file *file)
 	return 0;
 
 fail_fh:
+	v4l2_fh_exit(&fh->fh);
 	kfree(fh);
 fail_unlock:
 	mutex_unlock(&zr->lock);
