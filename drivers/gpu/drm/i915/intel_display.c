@@ -16962,17 +16962,9 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * the atomic core happy. It wants a valid mode if the
 			 * crtc's enabled, so we do the above call.
 			 *
-			 * At this point some state updated by the connectors
-			 * in their ->detect() callback has not run yet, so
-			 * no recalculation can be done yet.
-			 *
-			 * Even if we could do a recalculation and modeset
-			 * right now it would cause a double modeset if
-			 * fbdev or userspace chooses a different initial mode.
-			 *
-			 * If that happens, someone indicated they wanted a
-			 * mode change, which means it's safe to do a full
-			 * recalculation.
+			 * But we don't set all the derived state fully, hence
+			 * set a flag to indicate that a full recalculation is
+			 * needed on the next commit.
 			 */
 			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
 
