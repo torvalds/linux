@@ -627,7 +627,7 @@ struct rt2x00lib_ops {
 			struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta);
 	int (*sta_remove) (struct rt2x00_dev *rt2x00dev,
-			   int wcid);
+			   struct ieee80211_sta *sta);
 };
 
 /*

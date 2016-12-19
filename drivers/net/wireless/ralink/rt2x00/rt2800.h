@@ -2979,7 +2979,9 @@ struct rt2800_drv_data {
 	u8 bbp26;
 	u8 txmixer_gain_24g;
 	u8 txmixer_gain_5g;
+	u8 max_psdu;
 	unsigned int tbtt_tick;
+	unsigned int ampdu_factor_cnt[4];
 	DECLARE_BITMAP(sta_ids, STA_IDS_SIZE);
 };
 

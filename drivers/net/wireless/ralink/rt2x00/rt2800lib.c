@@ -1418,12 +1418,40 @@ int rt2800_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2800_config_pairwise_key);
 
+static void rt2800_set_max_psdu_len(struct rt2x00_dev *rt2x00dev)
+{
+	u8 i, max_psdu;
+	u32 reg;
+	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
+
+	for (i = 0; i < 3; i++)
+		if (drv_data->ampdu_factor_cnt[i] > 0)
+			break;
+
+	max_psdu = min(drv_data->max_psdu, i);
+
+	rt2800_register_read(rt2x00dev, MAX_LEN_CFG, &reg);
+	rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_PSDU, max_psdu);
+	rt2800_register_write(rt2x00dev, MAX_LEN_CFG, reg);
+}
+
 int rt2800_sta_add(struct rt2x00_dev *rt2x00dev, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta)
 {
 	int wcid;
 	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
+
+	/*
+	 * Limit global maximum TX AMPDU length to smallest value of all
+	 * connected stations. In AP mode this can be suboptimal, but we
+	 * do not have a choice if some connected STA is not capable to
+	 * receive the same amount of data like the others.
+	 */
+	if (sta->ht_cap.ht_supported) {
+		drv_data->ampdu_factor_cnt[sta->ht_cap.ampdu_factor & 3]++;
+		rt2800_set_max_psdu_len(rt2x00dev);
+	}
 
 	/*
 	 * Search for the first free WCID entry and return the corresponding
@@ -1457,9 +1485,16 @@ int rt2800_sta_add(struct rt2x00_dev *rt2x00dev, struct ieee80211_vif *vif,
 }
 EXPORT_SYMBOL_GPL(rt2800_sta_add);
 
-int rt2800_sta_remove(struct rt2x00_dev *rt2x00dev, int wcid)
+int rt2800_sta_remove(struct rt2x00_dev *rt2x00dev, struct ieee80211_sta *sta)
 {
 	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
+	struct rt2x00_sta *sta_priv = sta_to_rt2x00_sta(sta);
+	int wcid = sta_priv->wcid;
+
+	if (sta->ht_cap.ht_supported) {
+		drv_data->ampdu_factor_cnt[sta->ht_cap.ampdu_factor & 3]--;
+		rt2800_set_max_psdu_len(rt2x00dev);
+	}
 
 	if (wcid > WCID_END)
 		return 0;
@@ -4536,6 +4571,7 @@ EXPORT_SYMBOL_GPL(rt2800_link_tuner);
  */
 static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 {
+	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
 	u32 reg;
 	u16 eeprom;
 	unsigned int i;
@@ -4704,10 +4740,13 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_MPDU, AGGREGATION_SIZE);
 	if (rt2x00_rt_rev_gte(rt2x00dev, RT2872, REV_RT2872E) ||
 	    rt2x00_rt(rt2x00dev, RT2883) ||
-	    rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070E))
+	    rt2x00_rt_rev_lt(rt2x00dev, RT3070, REV_RT3070E)) {
+		drv_data->max_psdu = 2;
 		rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_PSDU, 2);
-	else
+	} else {
+		drv_data->max_psdu = 1;
 		rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_PSDU, 1);
+	}
 	rt2x00_set_field32(&reg, MAX_LEN_CFG_MIN_PSDU, 10);
 	rt2x00_set_field32(&reg, MAX_LEN_CFG_MIN_MPDU, 10);
 	rt2800_register_write(rt2x00dev, MAX_LEN_CFG, reg);
