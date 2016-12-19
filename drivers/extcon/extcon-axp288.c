@@ -115,6 +115,7 @@ struct axp288_extcon_info {
 	int irq[EXTCON_IRQ_END];
 	struct extcon_dev *edev;
 	struct notifier_block extcon_nb;
+	unsigned int previous_cable;
 };
 
 /* Power up/down reason string array */
@@ -154,9 +155,9 @@ static void axp288_extcon_log_rsi(struct axp288_extcon_info *info)
 
 static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 {
-	static unsigned int cable;
 	int ret, stat, cfg, pwr_stat;
 	u8 chrg_type;
+	unsigned int cable = info->previous_cable;
 	bool vbus_attach = false;
 
 	ret = regmap_read(info->regmap, AXP288_PS_STAT_REG, &pwr_stat);
@@ -212,7 +213,11 @@ no_vbus:
 			vbus_attach ? EXTCON_GPIO_MUX_SEL_SOC
 					: EXTCON_GPIO_MUX_SEL_PMIC);
 
-	extcon_set_state_sync(info->edev, cable, vbus_attach);
+	extcon_set_state_sync(info->edev, info->previous_cable, false);
+	if (vbus_attach) {
+		extcon_set_state_sync(info->edev, cable, vbus_attach);
+		info->previous_cable = cable;
+	}
 
 	return 0;
 
@@ -263,6 +268,7 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
+	info->previous_cable = EXTCON_NONE;
 	if (pdata)
 		info->gpio_mux_cntl = pdata->gpio_mux_cntl;
 
