@@ -407,6 +407,7 @@ union dc_cursor_attribute_flags {
 
 struct dc_cursor_attributes {
 	PHYSICAL_ADDRESS_LOC address;
+	uint32_t pitch;
 
 	/* Width and height should correspond to cursor surface width x heigh */
 	uint32_t width;
