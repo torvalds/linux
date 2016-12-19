@@ -169,6 +169,7 @@ static int snd_ivtv_pcm_capture_open(struct snd_pcm_substream *substream)
 	/* See if the stream is available */
 	if (ivtv_claim_stream(&item, item.type)) {
 		/* No, it's already in use */
+		v4l2_fh_exit(&item.fh);
 		snd_ivtv_unlock(itvsc);
 		return -EBUSY;
 	}
