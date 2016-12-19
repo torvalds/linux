@@ -17,6 +17,7 @@
 
 	compatible = "ti,omap5";
 	interrupt-parent = <&wakeupgen>;
+	chosen { };
 
 	aliases {
 		i2c0 = &i2c1;
