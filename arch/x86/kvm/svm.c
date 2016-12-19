@@ -4359,11 +4359,6 @@ static void svm_load_eoi_exitmap(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap)
 	return;
 }
 
-static void svm_sync_pir_to_irr(struct kvm_vcpu *vcpu)
-{
-	return;
-}
-
 static void svm_deliver_avic_intr(struct kvm_vcpu *vcpu, int vec)
 {
 	kvm_lapic_set_irr(vec, vcpu->arch.apic);
@@ -5373,7 +5368,6 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.get_enable_apicv = svm_get_enable_apicv,
 	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,
-	.sync_pir_to_irr = svm_sync_pir_to_irr,
 	.hwapic_irr_update = svm_hwapic_irr_update,
 	.hwapic_isr_update = svm_hwapic_isr_update,
 	.apicv_post_state_restore = avic_post_state_restore,
