@@ -417,7 +417,7 @@ config SERIAL_8250_LPSS
 	    - Intel Quark X1000 SoC
 
 config SERIAL_8250_MID
-	tristate "Support for serial ports on Intel MID platforms" if EXPERT
+	tristate "Support for serial ports on Intel MID platforms"
 	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
 	depends on X86 || COMPILE_TEST
