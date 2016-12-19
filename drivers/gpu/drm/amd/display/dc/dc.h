@@ -275,6 +275,7 @@ struct dc_surface {
 struct dc_plane_info {
 	union plane_size plane_size;
 	union dc_tiling_info tiling_info;
+	struct dc_plane_dcc_param dcc;
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
 	bool horizontal_mirror;
