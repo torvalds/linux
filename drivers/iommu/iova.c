@@ -62,7 +62,7 @@ __get_cached_rbnode(struct iova_domain *iovad, unsigned long *limit_pfn)
 	else {
 		struct rb_node *prev_node = rb_prev(iovad->cached32_node);
 		struct iova *curr_iova =
-			container_of(iovad->cached32_node, struct iova, node);
+			rb_entry(iovad->cached32_node, struct iova, node);
 		*limit_pfn = curr_iova->pfn_lo - 1;
 		return prev_node;
 	}
@@ -86,11 +86,11 @@ __cached_rbnode_delete_update(struct iova_domain *iovad, struct iova *free)
 	if (!iovad->cached32_node)
 		return;
 	curr = iovad->cached32_node;
-	cached_iova = container_of(curr, struct iova, node);
+	cached_iova = rb_entry(curr, struct iova, node);
 
 	if (free->pfn_lo >= cached_iova->pfn_lo) {
 		struct rb_node *node = rb_next(&free->node);
-		struct iova *iova = container_of(node, struct iova, node);
+		struct iova *iova = rb_entry(node, struct iova, node);
 
 		/* only cache if it's below 32bit pfn */
 		if (node && iova->pfn_lo < iovad->dma_32bit_pfn)
@@ -125,7 +125,7 @@ static int __alloc_and_insert_iova_range(struct iova_domain *iovad,
 	curr = __get_cached_rbnode(iovad, &limit_pfn);
 	prev = curr;
 	while (curr) {
-		struct iova *curr_iova = container_of(curr, struct iova, node);
+		struct iova *curr_iova = rb_entry(curr, struct iova, node);
 
 		if (limit_pfn < curr_iova->pfn_lo)
 			goto move_left;
@@ -171,8 +171,7 @@ move_left:
 
 		/* Figure out where to put new node */
 		while (*entry) {
-			struct iova *this = container_of(*entry,
-							struct iova, node);
+			struct iova *this = rb_entry(*entry, struct iova, node);
 			parent = *entry;
 
 			if (new->pfn_lo < this->pfn_lo)
@@ -201,7 +200,7 @@ iova_insert_rbtree(struct rb_root *root, struct iova *iova)
 	struct rb_node **new = &(root->rb_node), *parent = NULL;
 	/* Figure out where to put new node */
 	while (*new) {
-		struct iova *this = container_of(*new, struct iova, node);
+		struct iova *this = rb_entry(*new, struct iova, node);
 
 		parent = *new;
 
@@ -311,7 +310,7 @@ private_find_iova(struct iova_domain *iovad, unsigned long pfn)
 	assert_spin_locked(&iovad->iova_rbtree_lock);
 
 	while (node) {
-		struct iova *iova = container_of(node, struct iova, node);
+		struct iova *iova = rb_entry(node, struct iova, node);
 
 		/* If pfn falls within iova's range, return iova */
 		if ((pfn >= iova->pfn_lo) && (pfn <= iova->pfn_hi)) {
@@ -463,7 +462,7 @@ void put_iova_domain(struct iova_domain *iovad)
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	node = rb_first(&iovad->rbroot);
 	while (node) {
-		struct iova *iova = container_of(node, struct iova, node);
+		struct iova *iova = rb_entry(node, struct iova, node);
 
 		rb_erase(node, &iovad->rbroot);
 		free_iova_mem(iova);
@@ -477,7 +476,7 @@ static int
 __is_range_overlap(struct rb_node *node,
 	unsigned long pfn_lo, unsigned long pfn_hi)
 {
-	struct iova *iova = container_of(node, struct iova, node);
+	struct iova *iova = rb_entry(node, struct iova, node);
 
 	if ((pfn_lo <= iova->pfn_hi) && (pfn_hi >= iova->pfn_lo))
 		return 1;
@@ -541,7 +540,7 @@ reserve_iova(struct iova_domain *iovad,
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	for (node = rb_first(&iovad->rbroot); node; node = rb_next(node)) {
 		if (__is_range_overlap(node, pfn_lo, pfn_hi)) {
-			iova = container_of(node, struct iova, node);
+			iova = rb_entry(node, struct iova, node);
 			__adjust_overlap_range(iova, &pfn_lo, &pfn_hi);
 			if ((pfn_lo >= iova->pfn_lo) &&
 				(pfn_hi <= iova->pfn_hi))
@@ -578,7 +577,7 @@ copy_reserved_iova(struct iova_domain *from, struct iova_domain *to)
 
 	spin_lock_irqsave(&from->iova_rbtree_lock, flags);
 	for (node = rb_first(&from->rbroot); node; node = rb_next(node)) {
-		struct iova *iova = container_of(node, struct iova, node);
+		struct iova *iova = rb_entry(node, struct iova, node);
 		struct iova *new_iova;
 
 		new_iova = reserve_iova(to, iova->pfn_lo, iova->pfn_hi);
