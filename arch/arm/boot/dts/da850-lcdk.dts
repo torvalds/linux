@@ -6,6 +6,7 @@
 /dts-v1/;
 #include "da850.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "DA850/AM1808/OMAP-L138 LCDK";
@@ -49,6 +50,23 @@
 		link0_codec: simple-audio-card,codec {
 			sound-dai = <&tlv320aic3106>;
 			system-clock-frequency = <24576000>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		user1 {
+			label = "GPIO Key USER1";
+			linux,code = <BTN_0>;
+			gpios = <&gpio 36 GPIO_ACTIVE_LOW>;
+		};
+
+		user2 {
+			label = "GPIO Key USER2";
+			linux,code = <BTN_1>;
+			gpios = <&gpio 37 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
