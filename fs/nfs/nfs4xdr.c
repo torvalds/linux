@@ -2279,9 +2279,9 @@ static void nfs4_xdr_enc_close(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_putfh(xdr, args->fh, &hdr);
 	if (args->lr_args)
 		encode_layoutreturn(xdr, args->lr_args, &hdr);
-	encode_close(xdr, args, &hdr);
 	if (args->bitmask != NULL)
 		encode_getfattr(xdr, args->bitmask, &hdr);
+	encode_close(xdr, args, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -6494,16 +6494,12 @@ static int nfs4_xdr_dec_close(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 		if (status)
 			goto out;
 	}
+	if (res->fattr != NULL) {
+		status = decode_getfattr(xdr, res->fattr, res->server);
+		if (status != 0)
+			goto out;
+	}
 	status = decode_close(xdr, res);
-	if (status != 0)
-		goto out;
-	/*
-	 * Note: Server may do delete on close for this file
-	 * 	in which case the getattr call will fail with
-	 * 	an ESTALE error. Shouldn't be a problem,
-	 * 	though, since fattr->valid will remain unset.
-	 */
-	decode_getfattr(xdr, res->fattr, res->server);
 out:
 	return status;
 }
