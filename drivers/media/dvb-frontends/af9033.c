@@ -622,9 +622,9 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct af9033_dev *dev = fe->demodulator_priv;
 	struct i2c_client *client = dev->client;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i, tmp = 0;
+	int ret, tmp = 0;
 	u8 buf[7];
-	unsigned int utmp;
+	unsigned int utmp, utmp1;
 
 	dev_dbg(&client->dev, "\n");
 
@@ -686,15 +686,12 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 	/* CNR */
 	if (dev->fe_status & FE_HAS_VITERBI) {
-		u32 snr_val, snr_lut_size;
-		const struct val_snr *snr_lut = NULL;
-
 		/* Read raw SNR value */
 		ret = regmap_bulk_read(dev->regmap, 0x80002c, buf, 3);
 		if (ret)
 			goto err;
 
-		snr_val = (buf[2] << 16) | (buf[1] << 8) | (buf[0] << 0);
+		utmp1 = buf[2] << 16 | buf[1] << 8 | buf[0] << 0;
 
 		/* Read superframe number */
 		ret = regmap_read(dev->regmap, 0x80f78b, &utmp);
@@ -702,7 +699,7 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			goto err;
 
 		if (utmp)
-			snr_val /= utmp;
+			utmp1 /= utmp;
 
 		/* Read current transmission mode */
 		ret = regmap_read(dev->regmap, 0x80f900, &utmp);
@@ -711,16 +708,19 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 		switch ((utmp >> 0) & 3) {
 		case 0:
-			snr_val *= 4;
+			/* 2k */
+			utmp1 *= 4;
 			break;
 		case 1:
-			snr_val *= 1;
+			/* 8k */
+			utmp1 *= 1;
 			break;
 		case 2:
-			snr_val *= 2;
+			/* 4k */
+			utmp1 *= 2;
 			break;
 		default:
-			snr_val *= 0;
+			utmp1 *= 0;
 			break;
 		}
 
@@ -731,34 +731,48 @@ static int af9033_read_status(struct dvb_frontend *fe, enum fe_status *status)
 
 		switch ((utmp >> 0) & 3) {
 		case 0:
-			snr_lut_size = ARRAY_SIZE(qpsk_snr_lut);
-			snr_lut = qpsk_snr_lut;
+			/*
+			 * QPSK
+			 * CNR[dB] 13 * -log10((1690000 - value) / value) + 2.6
+			 * value [653799, 1689999], 2.6 / 13 = 3355443
+			 */
+			utmp1 = clamp(utmp1, 653799U, 1689999U);
+			utmp1 = ((u64)(intlog10(utmp1)
+				 - intlog10(1690000 - utmp1)
+				 + 3355443) * 13 * 1000) >> 24;
 			break;
 		case 1:
-			snr_lut_size = ARRAY_SIZE(qam16_snr_lut);
-			snr_lut = qam16_snr_lut;
+			/*
+			 * QAM-16
+			 * CNR[dB] 6 * log10((value - 370000) / (828000 - value)) + 15.7
+			 * value [371105, 827999], 15.7 / 6 = 43900382
+			 */
+			utmp1 = clamp(utmp1, 371105U, 827999U);
+			utmp1 = ((u64)(intlog10(utmp1 - 370000)
+				 - intlog10(828000 - utmp1)
+				 + 43900382) * 6 * 1000) >> 24;
 			break;
 		case 2:
-			snr_lut_size = ARRAY_SIZE(qam64_snr_lut);
-			snr_lut = qam64_snr_lut;
+			/*
+			 * QAM-64
+			 * CNR[dB] 8 * log10((value - 193000) / (425000 - value)) + 23.8
+			 * value [193246, 424999], 23.8 / 8 = 49912218
+			 */
+			utmp1 = clamp(utmp1, 193246U, 424999U);
+			utmp1 = ((u64)(intlog10(utmp1 - 193000)
+				 - intlog10(425000 - utmp1)
+				 + 49912218) * 8 * 1000) >> 24;
 			break;
 		default:
-			snr_lut_size = 0;
-			tmp = 0;
+			utmp1 = 0;
 			break;
 		}
 
-		for (i = 0; i < snr_lut_size; i++) {
-			tmp = snr_lut[i].snr * 1000;
-			if (snr_val < snr_lut[i].val)
-				break;
-		}
+		dev_dbg(&client->dev, "cnr=%u\n", utmp1);
 
-		c->cnr.len = 1;
 		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
-		c->cnr.stat[0].svalue = tmp;
+		c->cnr.stat[0].svalue = utmp1;
 	} else {
-		c->cnr.len = 1;
 		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 	}
 
