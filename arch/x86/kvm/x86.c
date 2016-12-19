@@ -6813,19 +6813,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_hv_process_stimers(vcpu);
 	}
 
-	/*
-	 * KVM_REQ_EVENT is not set when posted interrupts are set by
-	 * VT-d hardware, so we have to update RVI unconditionally.
-	 */
-	if (kvm_lapic_enabled(vcpu)) {
-		/*
-		 * Update architecture specific hints for APIC
-		 * virtual interrupt delivery.
-		 */
-		if (kvm_x86_ops->sync_pir_to_irr && vcpu->arch.apicv_active)
-			kvm_x86_ops->sync_pir_to_irr(vcpu);
-	}
-
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
 		++vcpu->stat.req_event;
 		kvm_apic_accept_events(vcpu);
@@ -6870,20 +6857,39 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	kvm_x86_ops->prepare_guest_switch(vcpu);
 	if (vcpu->fpu_active)
 		kvm_load_guest_fpu(vcpu);
+
+	/*
+	 * Disable IRQs before setting IN_GUEST_MODE.  Posted interrupt
+	 * IPI are then delayed after guest entry, which ensures that they
+	 * result in virtual interrupt delivery.
+	 */
+	local_irq_disable();
 	vcpu->mode = IN_GUEST_MODE;
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 
 	/*
-	 * We should set ->mode before check ->requests,
-	 * Please see the comment in kvm_make_all_cpus_request.
-	 * This also orders the write to mode from any reads
-	 * to the page tables done while the VCPU is running.
-	 * Please see the comment in kvm_flush_remote_tlbs.
+	 * 1) We should set ->mode before checking ->requests.  Please see
+	 * the comment in kvm_make_all_cpus_request.
+	 *
+	 * 2) For APICv, we should set ->mode before checking PIR.ON.  This
+	 * pairs with the memory barrier implicit in pi_test_and_set_on
+	 * (see vmx_deliver_posted_interrupt).
+	 *
+	 * 3) This also orders the write to mode from any reads to the page
+	 * tables done while the VCPU is running.  Please see the comment
+	 * in kvm_flush_remote_tlbs.
 	 */
 	smp_mb__after_srcu_read_unlock();
 
-	local_irq_disable();
+	/*
+	 * This handles the case where a posted interrupt was
+	 * notified with kvm_vcpu_kick.
+	 */
+	if (kvm_lapic_enabled(vcpu)) {
+		if (kvm_x86_ops->sync_pir_to_irr && vcpu->arch.apicv_active)
+			kvm_x86_ops->sync_pir_to_irr(vcpu);
+	}
 
 	if (vcpu->mode == EXITING_GUEST_MODE || vcpu->requests
 	    || need_resched() || signal_pending(current)) {

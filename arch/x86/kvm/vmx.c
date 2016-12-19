@@ -5051,9 +5051,11 @@ static void vmx_deliver_posted_interrupt(struct kvm_vcpu *vcpu, int vector)
 	if (pi_test_and_set_pir(vector, &vmx->pi_desc))
 		return;
 
-	r = pi_test_and_set_on(&vmx->pi_desc);
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
-	if (r || !kvm_vcpu_trigger_posted_interrupt(vcpu))
+	/* If a previous notification has sent the IPI, nothing to do.  */
+	if (pi_test_and_set_on(&vmx->pi_desc))
+		return;
+
+	if (!kvm_vcpu_trigger_posted_interrupt(vcpu))
 		kvm_vcpu_kick(vcpu);
 }
 

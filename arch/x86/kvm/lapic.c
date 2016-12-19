@@ -385,12 +385,8 @@ EXPORT_SYMBOL_GPL(__kvm_apic_update_irr);
 int kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	int max_irr;
 
-	max_irr = __kvm_apic_update_irr(pir, apic->regs);
-
-	kvm_make_request(KVM_REQ_EVENT, vcpu);
-	return max_irr;
+	return __kvm_apic_update_irr(pir, apic->regs);
 }
 EXPORT_SYMBOL_GPL(kvm_apic_update_irr);
 
@@ -423,9 +419,10 @@ static inline void apic_clear_irr(int vec, struct kvm_lapic *apic)
 	vcpu = apic->vcpu;
 
 	if (unlikely(vcpu->arch.apicv_active)) {
-		/* try to update RVI */
+		/* need to update RVI */
 		apic_clear_vector(vec, apic->regs + APIC_IRR);
-		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		kvm_x86_ops->hwapic_irr_update(vcpu,
+				apic_find_highest_irr(apic));
 	} else {
 		apic->irr_pending = false;
 		apic_clear_vector(vec, apic->regs + APIC_IRR);
