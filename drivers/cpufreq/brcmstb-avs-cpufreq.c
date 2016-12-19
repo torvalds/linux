@@ -954,9 +954,9 @@ static ssize_t show_brcm_avs_pmap(struct cpufreq_policy *policy, char *buf)
 	brcm_avs_parse_p1(pmap.p1, &mdiv_p0, &pdiv, &ndiv);
 	brcm_avs_parse_p2(pmap.p2, &mdiv_p1, &mdiv_p2, &mdiv_p3, &mdiv_p4);
 
-	return sprintf(buf, "0x%08x 0x%08x %u %u %u %u %u %u %u\n",
+	return sprintf(buf, "0x%08x 0x%08x %u %u %u %u %u %u %u %u %u\n",
 		pmap.p1, pmap.p2, ndiv, pdiv, mdiv_p0, mdiv_p1, mdiv_p2,
-		mdiv_p3, mdiv_p4);
+		mdiv_p3, mdiv_p4, pmap.mode, pmap.state);
 }
 
 static ssize_t show_brcm_avs_voltage(struct cpufreq_policy *policy, char *buf)
