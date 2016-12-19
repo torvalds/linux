@@ -2184,8 +2184,8 @@ int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 	 * must also discard the blockdev buffers so that we see the
 	 * changes done by userspace on the next quotaon() */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		if (toputinode[cnt]) {
-			WARN_ON_ONCE(sb_has_quota_loaded(sb, cnt));
+		/* This can happen when suspending quotas on remount-ro... */
+		if (toputinode[cnt] && !sb_has_quota_loaded(sb, cnt)) {
 			inode_lock(toputinode[cnt]);
 			toputinode[cnt]->i_flags &= ~(S_IMMUTABLE |
 				  S_NOATIME | S_NOQUOTA);
