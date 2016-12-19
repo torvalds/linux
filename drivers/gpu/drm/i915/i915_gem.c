@@ -2333,6 +2333,7 @@ static void i915_sg_trim(struct sg_table *orig_st)
 		/* called before being DMA mapped, no need to copy sg->dma_* */
 		new_sg = sg_next(new_sg);
 	}
+	GEM_BUG_ON(new_sg); /* Should walk exactly nents and hit the end */
 
 	sg_free_table(orig_st);
 
