@@ -80,6 +80,11 @@ config NR_IRQS
 	  /proc/interrupts. If you configure your system to have too few,
 	  drivers will fail to load or worse - handle with care.
 
+config NMI_IPI
+	bool
+	depends on SMP && (DEBUGGER || KEXEC_CORE)
+	default y
+
 config STACKTRACE_SUPPORT
 	bool
 	default y

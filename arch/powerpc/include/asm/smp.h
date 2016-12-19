@@ -112,13 +112,21 @@ extern int cpu_to_core_id(int cpu);
  *
  * Make sure this matches openpic_request_IPIs in open_pic.c, or what shows up
  * in /proc/interrupts will be wrong!!! --Troy */
-#define PPC_MSG_CALL_FUNCTION   0
-#define PPC_MSG_RESCHEDULE      1
+#define PPC_MSG_CALL_FUNCTION	0
+#define PPC_MSG_RESCHEDULE	1
 #define PPC_MSG_TICK_BROADCAST	2
-#define PPC_MSG_DEBUGGER_BREAK  3
+#define PPC_MSG_NMI_IPI		3
 
 /* This is only used by the powernv kernel */
 #define PPC_MSG_RM_HOST_ACTION	4
+
+#define NMI_IPI_ALL_OTHERS		-2
+
+#ifdef CONFIG_NMI_IPI
+extern int smp_handle_nmi_ipi(struct pt_regs *regs);
+#else
+static inline int smp_handle_nmi_ipi(struct pt_regs *regs) { return 0; }
+#endif
 
 /* for irq controllers that have dedicated ipis per message (4) */
 extern int smp_request_message_ipi(int virq, int message);
