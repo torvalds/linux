@@ -713,6 +713,7 @@ static int amdgpu_cgs_rel_firmware(struct cgs_device *cgs_device, enum cgs_ucode
 	CGS_FUNC_ADEV;
 	if ((CGS_UCODE_ID_SMU == type) || (CGS_UCODE_ID_SMU_SK == type)) {
 		release_firmware(adev->pm.fw);
+		adev->pm.fw = NULL;
 		return 0;
 	}
 	/* cannot release other firmware because they are not created by cgs */
@@ -807,6 +808,9 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		uint32_t ucode_start_address;
 		const uint8_t *src;
 		const struct smc_firmware_header_v1_0 *hdr;
+
+		if (CGS_UCODE_ID_SMU_SK == type)
+			amdgpu_cgs_rel_firmware(cgs_device, CGS_UCODE_ID_SMU);
 
 		if (!adev->pm.fw) {
 			switch (adev->asic_type) {
