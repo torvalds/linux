@@ -494,7 +494,7 @@ static int ndev_init_isr(struct intel_ntb_dev *ndev,
 
 err_msix_request:
 	while (i-- > 0)
-		free_irq(ndev->msix[i].vector, ndev);
+		free_irq(ndev->msix[i].vector, &ndev->vec[i]);
 	pci_disable_msix(pdev);
 err_msix_enable:
 	kfree(ndev->msix);
