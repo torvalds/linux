@@ -1319,6 +1319,9 @@
 		reg = <0x0 0xff650800 0x0 0x40>;
 		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vpu_mmu";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3399_PD_VCODEC>;
 		#iommu-cells = <0>;
 	};
 
@@ -1349,6 +1352,9 @@
 		reg = <0x0 0xff660480 0x0 0x40>, <0x0 0xff6604c0 0x0 0x40>;
 		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vdec_mmu";
+		clocks = <&cru ACLK_VDU>, <&cru HCLK_VDU>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3399_PD_VDU>;
 		#iommu-cells = <0>;
 	};
 
@@ -1738,6 +1744,9 @@
 		reg = <0x0 0xff8f3f00 0x0 0x100>;
 		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vopl_mmu";
+		clocks = <&cru ACLK_VOP1>, <&cru HCLK_VOP1>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3399_PD_VOPL>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1796,6 +1805,9 @@
 		reg = <0x0 0xff903f00 0x0 0x100>;
 		interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "vopb_mmu";
+		clocks = <&cru ACLK_VOP0>, <&cru HCLK_VOP0>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3399_PD_VOPB>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1806,6 +1818,9 @@
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "isp0_mmu";
 		#iommu-cells = <0>;
+		clocks = <&cru ACLK_ISP0_NOC>, <&cru HCLK_ISP0_NOC>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3399_PD_ISP0>;
 		rk_iommu,disable_reset_quirk;
 		status = "disabled";
 	};
@@ -1816,6 +1831,9 @@
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
 		interrupt-names = "isp1_mmu";
 		#iommu-cells = <0>;
+		clocks = <&cru ACLK_ISP1_NOC>, <&cru HCLK_ISP1_NOC>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3399_PD_ISP1>;
 		rk_iommu,disable_reset_quirk;
 		status = "disabled";
 	};
