@@ -37,6 +37,7 @@
 #include <linux/srcu.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/hash.h>
 
 #include <asm/page.h>
 #include <asm/cmpxchg.h>
@@ -1713,7 +1714,7 @@ static void kvm_mmu_free_page(struct kvm_mmu_page *sp)
 
 static unsigned kvm_page_table_hashfn(gfn_t gfn)
 {
-	return gfn & ((1 << KVM_MMU_HASH_SHIFT) - 1);
+	return hash_64(gfn, KVM_MMU_HASH_SHIFT);
 }
 
 static void mmu_page_add_parent_pte(struct kvm_vcpu *vcpu,
