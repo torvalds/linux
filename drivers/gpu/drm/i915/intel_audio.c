@@ -928,6 +928,9 @@ void i915_audio_component_init(struct drm_i915_private *dev_priv)
 {
 	int ret;
 
+	if (INTEL_INFO(dev_priv)->num_pipes == 0)
+		return;
+
 	ret = component_add(dev_priv->drm.dev, &i915_audio_component_bind_ops);
 	if (ret < 0) {
 		DRM_ERROR("failed to add audio component (%d)\n", ret);
