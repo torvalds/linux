@@ -454,13 +454,12 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 					 &reserved_size);
 		break;
 	default:
-		if (IS_BROADWELL(dev_priv) ||
-		    IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv))
-			bdw_get_stolen_reserved(dev_priv, &reserved_base,
+		if (IS_LP(dev_priv))
+			chv_get_stolen_reserved(dev_priv, &reserved_base,
 						&reserved_size);
 		else
-			chv_get_stolen_reserved(dev_priv, &reserved_base,
-						 &reserved_size);
+			bdw_get_stolen_reserved(dev_priv, &reserved_base,
+						&reserved_size);
 		break;
 	}
 
