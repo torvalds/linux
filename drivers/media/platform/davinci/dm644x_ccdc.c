@@ -354,8 +354,8 @@ static int ccdc_set_params(void __user *params)
 
 	x = copy_from_user(&ccdc_raw_params, params, sizeof(ccdc_raw_params));
 	if (x) {
-		dev_dbg(ccdc_cfg.dev, "ccdc_set_params: error in copying"
-			   "ccdc params, %d\n", x);
+		dev_dbg(ccdc_cfg.dev, "ccdc_set_params: error in copyingccdc params, %d\n",
+			x);
 		return -EFAULT;
 	}
 

@@ -1,0 +1,12 @@
+digraph board {
+	rankdir=TB
+	colorscheme=x11
+	scaler [label="{<scaler_0> 0} | Host\nScaler | {<scaler_1> 1} ", shape=Mrecord, style=filled, fillcolor=lightblue]
+	frontend [label="{<frontend_0> 0} | Host\nFrontend | {<frontend_1> 1}", shape=Mrecord, style=filled, fillcolor=lightblue]
+	sensor [label="Sensor | {<sensor_0> 0}", shape=Mrecord, style=filled, fillcolor=aquamarine]
+	io [label="{<io_0> 0} | V4L I/O", shape=Mrecord, style=filled, fillcolor=aquamarine]
+
+	sensor:sensor_0 -> frontend:frontend_0 [color=blue, label="HQ: 2592x1968\nHS: 1296x984"]
+	frontend:frontend_1 -> scaler:scaler_0 [color=blue, label="HQ: 2592x1968\nHS: 1296x984"]
+	scaler:scaler_1 -> io:io_0 [color=blue, label="HQ: 1280x720\nHS: 1280x720"]
+}

@@ -239,7 +239,8 @@ OPTIONS
 	Accumulate callchain of children to parent entry so that then can
 	show up in the output.  The output will have a new "Children" column
 	and will be sorted on the data.  It requires callchains are recorded.
-	See the `overhead calculation' section for more details.
+	See the `overhead calculation' section for more details. Enabled by
+	default, disable with --no-children.
 
 --max-stack::
 	Set the stack depth limit when parsing the callchain, anything
@@ -381,6 +382,13 @@ OPTIONS
 
 --header-only::
 	Show only perf.data header (forces --stdio).
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
 
 --itrace::
 	Options for decoding instruction tracing data. The options are:

@@ -1551,16 +1551,16 @@ LNetNIInit(lnet_pid_t requested_pid)
 
 		rc = lnet_check_routes();
 		if (rc)
-			goto err_destory_routes;
+			goto err_destroy_routes;
 
 		rc = lnet_rtrpools_alloc(im_a_router);
 		if (rc)
-			goto err_destory_routes;
+			goto err_destroy_routes;
 	}
 
 	rc = lnet_acceptor_start();
 	if (rc)
-		goto err_destory_routes;
+		goto err_destroy_routes;
 
 	the_lnet.ln_refcount = 1;
 	/* Now I may use my own API functions... */
@@ -1587,7 +1587,7 @@ err_stop_ping:
 err_acceptor_stop:
 	the_lnet.ln_refcount = 0;
 	lnet_acceptor_stop();
-err_destory_routes:
+err_destroy_routes:
 	if (!the_lnet.ln_nis_from_mod_params)
 		lnet_destroy_routes();
 err_shutdown_lndnis:

@@ -43,7 +43,7 @@ static void nft_queue_eval(const struct nft_expr *expr,
 			queue = priv->queuenum + cpu % priv->queues_total;
 		} else {
 			queue = nfqueue_hash(pkt->skb, queue,
-					     priv->queues_total, pkt->pf,
+					     priv->queues_total, nft_pf(pkt),
 					     jhash_initval);
 		}
 	}

@@ -15,6 +15,8 @@
 #define	VNET_MINTSO	 2048	/* VIO protocol's minimum TSO len */
 #define	VNET_MAXTSO	65535	/* VIO protocol's maximum TSO len */
 
+#define VNET_MAX_MTU	65535
+
 /* VNET packets are sent in buffers with the first 6 bytes skipped
  * so that after the ethernet header the IPv4/IPv6 headers are aligned
  * properly.
@@ -125,7 +127,6 @@ int sunvnet_close_common(struct net_device *dev);
 void sunvnet_set_rx_mode_common(struct net_device *dev, struct vnet *vp);
 int sunvnet_set_mac_addr_common(struct net_device *dev, void *p);
 void sunvnet_tx_timeout_common(struct net_device *dev);
-int sunvnet_change_mtu_common(struct net_device *dev, int new_mtu);
 int sunvnet_start_xmit_common(struct sk_buff *skb, struct net_device *dev,
 			   struct vnet_port *(*vnet_tx_port)
 			   (struct sk_buff *, struct net_device *));

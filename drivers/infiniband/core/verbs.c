@@ -315,7 +315,7 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 {
 	struct ib_ah *ah;
 
-	ah = pd->device->create_ah(pd, ah_attr);
+	ah = pd->device->create_ah(pd, ah_attr, NULL);
 
 	if (!IS_ERR(ah)) {
 		ah->device  = pd->device;
@@ -328,7 +328,7 @@ struct ib_ah *ib_create_ah(struct ib_pd *pd, struct ib_ah_attr *ah_attr)
 }
 EXPORT_SYMBOL(ib_create_ah);
 
-static int ib_get_header_version(const union rdma_network_hdr *hdr)
+int ib_get_rdma_header_version(const union rdma_network_hdr *hdr)
 {
 	const struct iphdr *ip4h = (struct iphdr *)&hdr->roce4grh;
 	struct iphdr ip4h_checked;
@@ -359,6 +359,7 @@ static int ib_get_header_version(const union rdma_network_hdr *hdr)
 		return 4;
 	return 6;
 }
+EXPORT_SYMBOL(ib_get_rdma_header_version);
 
 static enum rdma_network_type ib_get_net_type_by_grh(struct ib_device *device,
 						     u8 port_num,
@@ -369,7 +370,7 @@ static enum rdma_network_type ib_get_net_type_by_grh(struct ib_device *device,
 	if (rdma_protocol_ib(device, port_num))
 		return RDMA_NETWORK_IB;
 
-	grh_version = ib_get_header_version((union rdma_network_hdr *)grh);
+	grh_version = ib_get_rdma_header_version((union rdma_network_hdr *)grh);
 
 	if (grh_version == 4)
 		return RDMA_NETWORK_IPV4;
@@ -415,9 +416,9 @@ static int get_sgid_index_from_eth(struct ib_device *device, u8 port_num,
 				     &context, gid_index);
 }
 
-static int get_gids_from_rdma_hdr(union rdma_network_hdr *hdr,
-				  enum rdma_network_type net_type,
-				  union ib_gid *sgid, union ib_gid *dgid)
+int ib_get_gids_from_rdma_hdr(const union rdma_network_hdr *hdr,
+			      enum rdma_network_type net_type,
+			      union ib_gid *sgid, union ib_gid *dgid)
 {
 	struct sockaddr_in  src_in;
 	struct sockaddr_in  dst_in;
@@ -447,6 +448,7 @@ static int get_gids_from_rdma_hdr(union rdma_network_hdr *hdr,
 		return -EINVAL;
 	}
 }
+EXPORT_SYMBOL(ib_get_gids_from_rdma_hdr);
 
 int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 		       const struct ib_wc *wc, const struct ib_grh *grh,
@@ -469,8 +471,8 @@ int ib_init_ah_from_wc(struct ib_device *device, u8 port_num,
 			net_type = ib_get_net_type_by_grh(device, port_num, grh);
 		gid_type = ib_network_to_gid_type(net_type);
 	}
-	ret = get_gids_from_rdma_hdr((union rdma_network_hdr *)grh, net_type,
-				     &sgid, &dgid);
+	ret = ib_get_gids_from_rdma_hdr((union rdma_network_hdr *)grh, net_type,
+					&sgid, &dgid);
 	if (ret)
 		return ret;
 
@@ -1014,6 +1016,7 @@ static const struct {
 						 IB_QP_QKEY),
 				 [IB_QPT_GSI] = (IB_QP_CUR_STATE		|
 						 IB_QP_QKEY),
+				 [IB_QPT_RAW_PACKET] = IB_QP_RATE_LIMIT,
 			 }
 		}
 	},
@@ -1047,6 +1050,7 @@ static const struct {
 						IB_QP_QKEY),
 				[IB_QPT_GSI] = (IB_QP_CUR_STATE			|
 						IB_QP_QKEY),
+				[IB_QPT_RAW_PACKET] = IB_QP_RATE_LIMIT,
 			}
 		},
 		[IB_QPS_SQD]   = {
@@ -1196,66 +1200,66 @@ int ib_modify_qp_is_ok(enum ib_qp_state cur_state, enum ib_qp_state next_state,
 }
 EXPORT_SYMBOL(ib_modify_qp_is_ok);
 
-int ib_resolve_eth_dmac(struct ib_qp *qp,
-			struct ib_qp_attr *qp_attr, int *qp_attr_mask)
+int ib_resolve_eth_dmac(struct ib_device *device,
+			struct ib_ah_attr *ah_attr)
 {
 	int           ret = 0;
 
-	if (*qp_attr_mask & IB_QP_AV) {
-		if (qp_attr->ah_attr.port_num < rdma_start_port(qp->device) ||
-		    qp_attr->ah_attr.port_num > rdma_end_port(qp->device))
-			return -EINVAL;
+	if (ah_attr->port_num < rdma_start_port(device) ||
+	    ah_attr->port_num > rdma_end_port(device))
+		return -EINVAL;
 
-		if (!rdma_cap_eth_ah(qp->device, qp_attr->ah_attr.port_num))
-			return 0;
+	if (!rdma_cap_eth_ah(device, ah_attr->port_num))
+		return 0;
 
-		if (rdma_link_local_addr((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw)) {
-			rdma_get_ll_mac((struct in6_addr *)qp_attr->ah_attr.grh.dgid.raw,
-					qp_attr->ah_attr.dmac);
-		} else {
-			union ib_gid		sgid;
-			struct ib_gid_attr	sgid_attr;
-			int			ifindex;
-			int			hop_limit;
+	if (rdma_link_local_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
+		rdma_get_ll_mac((struct in6_addr *)ah_attr->grh.dgid.raw,
+				ah_attr->dmac);
+	} else {
+		union ib_gid		sgid;
+		struct ib_gid_attr	sgid_attr;
+		int			ifindex;
+		int			hop_limit;
 
-			ret = ib_query_gid(qp->device,
-					   qp_attr->ah_attr.port_num,
-					   qp_attr->ah_attr.grh.sgid_index,
-					   &sgid, &sgid_attr);
+		ret = ib_query_gid(device,
+				   ah_attr->port_num,
+				   ah_attr->grh.sgid_index,
+				   &sgid, &sgid_attr);
 
-			if (ret || !sgid_attr.ndev) {
-				if (!ret)
-					ret = -ENXIO;
-				goto out;
-			}
-
-			ifindex = sgid_attr.ndev->ifindex;
-
-			ret = rdma_addr_find_l2_eth_by_grh(&sgid,
-							   &qp_attr->ah_attr.grh.dgid,
-							   qp_attr->ah_attr.dmac,
-							   NULL, &ifindex, &hop_limit);
-
-			dev_put(sgid_attr.ndev);
-
-			qp_attr->ah_attr.grh.hop_limit = hop_limit;
+		if (ret || !sgid_attr.ndev) {
+			if (!ret)
+				ret = -ENXIO;
+			goto out;
 		}
+
+		ifindex = sgid_attr.ndev->ifindex;
+
+		ret = rdma_addr_find_l2_eth_by_grh(&sgid,
+						   &ah_attr->grh.dgid,
+						   ah_attr->dmac,
+						   NULL, &ifindex, &hop_limit);
+
+		dev_put(sgid_attr.ndev);
+
+		ah_attr->grh.hop_limit = hop_limit;
 	}
 out:
 	return ret;
 }
 EXPORT_SYMBOL(ib_resolve_eth_dmac);
 
-
 int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
 		 int qp_attr_mask)
 {
-	int ret;
 
-	ret = ib_resolve_eth_dmac(qp, qp_attr, &qp_attr_mask);
-	if (ret)
-		return ret;
+	if (qp_attr_mask & IB_QP_AV) {
+		int ret;
+
+		ret = ib_resolve_eth_dmac(qp->device, &qp_attr->ah_attr);
+		if (ret)
+			return ret;
+	}
 
 	return qp->device->modify_qp(qp->real_qp, qp_attr, qp_attr_mask, NULL);
 }
@@ -1734,8 +1738,10 @@ struct ib_flow *ib_create_flow(struct ib_qp *qp,
 		return ERR_PTR(-ENOSYS);
 
 	flow_id = qp->device->create_flow(qp, flow_attr, domain);
-	if (!IS_ERR(flow_id))
+	if (!IS_ERR(flow_id)) {
 		atomic_inc(&qp->usecnt);
+		flow_id->qp = qp;
+	}
 	return flow_id;
 }
 EXPORT_SYMBOL(ib_create_flow);

@@ -176,7 +176,7 @@ struct ceph_osd_request {
 	struct kref       r_kref;
 	bool              r_mempool;
 	struct completion r_completion;
-	struct completion r_safe_completion;  /* fsync waiter */
+	struct completion r_done_completion;  /* fsync waiter */
 	ceph_osdc_callback_t r_callback;
 	ceph_osdc_unsafe_callback_t r_unsafe_callback;
 	struct list_head  r_unsafe_item;

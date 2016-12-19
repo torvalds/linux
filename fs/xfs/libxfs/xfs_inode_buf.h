@@ -58,8 +58,8 @@ struct xfs_icdinode {
  */
 struct xfs_imap {
 	xfs_daddr_t	im_blkno;	/* starting BB of inode chunk */
-	ushort		im_len;		/* length in BBs of inode chunk */
-	ushort		im_boffset;	/* inode offset in block in bytes */
+	unsigned short	im_len;		/* length in BBs of inode chunk */
+	unsigned short	im_boffset;	/* inode offset in block in bytes */
 };
 
 int	xfs_imap_to_bp(struct xfs_mount *, struct xfs_trans *,

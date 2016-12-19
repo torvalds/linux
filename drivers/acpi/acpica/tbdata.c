@@ -832,9 +832,9 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
  *
  * FUNCTION:    acpi_tb_install_and_load_table
  *
- * PARAMETERS:  table                   - Pointer to the table
- *              address                 - Physical address of the table
+ * PARAMETERS:  address                 - Physical address of the table
  *              flags                   - Allocation flags of the table
+ *              override                - Whether override should be performed
  *              table_index             - Where table index is returned
  *
  * RETURN:      Status
@@ -844,15 +844,13 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
  ******************************************************************************/
 
 acpi_status
-acpi_tb_install_and_load_table(struct acpi_table_header *table,
-			       acpi_physical_address address,
+acpi_tb_install_and_load_table(acpi_physical_address address,
 			       u8 flags, u8 override, u32 *table_index)
 {
 	acpi_status status;
 	u32 i;
-	acpi_owner_id owner_id;
 
-	ACPI_FUNCTION_TRACE(acpi_load_table);
+	ACPI_FUNCTION_TRACE(tb_install_and_load_table);
 
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
@@ -864,45 +862,60 @@ acpi_tb_install_and_load_table(struct acpi_table_header *table,
 		goto unlock_and_exit;
 	}
 
-	/*
-	 * Note: Now table is "INSTALLED", it must be validated before
-	 * using.
-	 */
-	status = acpi_tb_validate_table(&acpi_gbl_root_table_list.tables[i]);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
-	status = acpi_ns_load_table(i, acpi_gbl_root_node);
-
-	/* Execute any module-level code that was found in the table */
-
-	if (!acpi_gbl_parse_table_as_term_list
-	    && acpi_gbl_group_module_level_code) {
-		acpi_ns_exec_module_code_list();
-	}
-
-	/*
-	 * Update GPEs for any new _Lxx/_Exx methods. Ignore errors. The host is
-	 * responsible for discovering any new wake GPEs by running _PRW methods
-	 * that may have been loaded by this table.
-	 */
-	status = acpi_tb_get_owner_id(i, &owner_id);
-	if (ACPI_SUCCESS(status)) {
-		acpi_ev_update_gpes(owner_id);
-	}
-
-	/* Invoke table handler if present */
-
-	if (acpi_gbl_table_handler) {
-		(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_LOAD, table,
-					     acpi_gbl_table_handler_context);
-	}
+	status = acpi_tb_load_table(i, acpi_gbl_root_node);
 	(void)acpi_ut_acquire_mutex(ACPI_MTX_TABLES);
 
 unlock_and_exit:
 	*table_index = i;
 	(void)acpi_ut_release_mutex(ACPI_MTX_TABLES);
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_tb_unload_table
+ *
+ * PARAMETERS:  table_index             - Table index
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Unload an ACPI table
+ *
+ ******************************************************************************/
+
+acpi_status acpi_tb_unload_table(u32 table_index)
+{
+	acpi_status status = AE_OK;
+	struct acpi_table_header *table;
+
+	ACPI_FUNCTION_TRACE(tb_unload_table);
+
+	/* Ensure the table is still loaded */
+
+	if (!acpi_tb_is_table_loaded(table_index)) {
+		return_ACPI_STATUS(AE_NOT_EXIST);
+	}
+
+	/* Invoke table handler if present */
+
+	if (acpi_gbl_table_handler) {
+		status = acpi_get_table_by_index(table_index, &table);
+		if (ACPI_SUCCESS(status)) {
+			(void)acpi_gbl_table_handler(ACPI_TABLE_EVENT_UNLOAD,
+						     table,
+						     acpi_gbl_table_handler_context);
+		}
+	}
+
+	/* Delete the portion of the namespace owned by this table */
+
+	status = acpi_tb_delete_namespace_by_owner(table_index);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	(void)acpi_tb_release_owner_id(table_index);
+	acpi_tb_set_table_loaded_flag(table_index, FALSE);
 	return_ACPI_STATUS(status);
 }

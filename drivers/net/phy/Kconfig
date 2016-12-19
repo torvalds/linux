@@ -15,6 +15,19 @@ if PHYLIB
 config SWPHY
 	bool
 
+config LED_TRIGGER_PHY
+	bool "Support LED triggers for tracking link state"
+	depends on LEDS_TRIGGERS
+	---help---
+	  Adds support for a set of LED trigger events per-PHY.  Link
+	  state change will trigger the events, for consumption by an
+	  LED class driver.  There are triggers for each link speed currently
+	  supported by the phy, and are of the form:
+	       <mii bus id>:<phy>:<speed>
+
+	  Where speed is in the form:
+		<Speed in megabits>Mbps or <Speed in gigabits>Gbps
+
 comment "MDIO bus device drivers"
 
 config MDIO_BCM_IPROC
@@ -204,7 +217,7 @@ config BROADCOM_PHY
 	select BCM_NET_PHYLIB
 	---help---
 	  Currently supports the BCM5411, BCM5421, BCM5461, BCM54616S, BCM5464,
-	  BCM5481 and BCM5482 PHYs.
+	  BCM5481, BCM54810 and BCM5482 PHYs.
 
 config CICADA_PHY
 	tristate "Cicada PHYs"
@@ -264,6 +277,11 @@ config MARVELL_PHY
 	---help---
 	  Currently has a driver for the 88E1011S
 
+config MESON_GXL_PHY
+	tristate "Amlogic Meson GXL Internal PHY"
+	---help---
+	  Currently has a driver for the Amlogic Meson GXL Internal PHY
+
 config MICREL_PHY
 	tristate "Micrel PHYs"
 	---help---
@@ -277,7 +295,7 @@ config MICROCHIP_PHY
 config MICROSEMI_PHY
 	tristate "Microsemi PHYs"
 	---help---
-	  Currently supports the VSC8531 and VSC8541 PHYs
+	  Currently supports VSC8530, VSC8531, VSC8540 and VSC8541 PHYs
 
 config NATIONAL_PHY
 	tristate "National Semiconductor PHYs"

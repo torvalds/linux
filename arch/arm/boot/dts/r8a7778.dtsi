@@ -14,8 +14,6 @@
  * kind, whether express or implied.
  */
 
-/include/ "skeleton.dtsi"
-
 #include <dt-bindings/clock/r8a7778-clock.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -23,6 +21,8 @@
 / {
 	compatible = "renesas,r8a7778";
 	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	cpus {
 		#address-cells = <1>;
@@ -625,5 +625,10 @@
 				"sru-src3", "sru-src4", "sru-src5",
 				"sru-src6", "sru-src7", "sru-src8";
 		};
+	};
+
+	rst: reset-controller@ffcc0000 {
+		compatible = "renesas,r8a7778-reset-wdt";
+		reg = <0xffcc0000 0x40>;
 	};
 };

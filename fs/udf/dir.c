@@ -30,6 +30,7 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
+#include <linux/bio.h>
 
 #include "udf_i.h"
 #include "udf_sb.h"

@@ -265,11 +265,10 @@ static int tda18218_init(struct dvb_frontend *fe)
 	return ret;
 }
 
-static int tda18218_release(struct dvb_frontend *fe)
+static void tda18218_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops tda18218_tuner_ops = {

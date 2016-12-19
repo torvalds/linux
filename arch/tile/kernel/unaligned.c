@@ -22,7 +22,7 @@
 #include <linux/mman.h>
 #include <linux/types.h>
 #include <linux/err.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/compat.h>
 #include <linux/prctl.h>
 #include <asm/cacheflush.h>

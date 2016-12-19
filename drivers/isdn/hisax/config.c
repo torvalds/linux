@@ -659,7 +659,7 @@ int jiftime(char *s, long mark)
 
 static u_char tmpbuf[HISAX_STATUS_BUFSIZE];
 
-void VHiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt,
+void VHiSax_putstatus(struct IsdnCardState *cs, char *head, const char *fmt,
 		      va_list args)
 {
 	/* if head == NULL the fmt contains the full info */
@@ -669,23 +669,24 @@ void VHiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt,
 	u_char		*p;
 	isdn_ctrl	ic;
 	int		len;
+	const u_char	*data;
 
 	if (!cs) {
 		printk(KERN_WARNING "HiSax: No CardStatus for message");
 		return;
 	}
 	spin_lock_irqsave(&cs->statlock, flags);
-	p = tmpbuf;
 	if (head) {
+		p = tmpbuf;
 		p += jiftime(p, jiffies);
 		p += sprintf(p, " %s", head);
 		p += vsprintf(p, fmt, args);
 		*p++ = '\n';
 		*p = 0;
 		len = p - tmpbuf;
-		p = tmpbuf;
+		data = tmpbuf;
 	} else {
-		p = fmt;
+		data = fmt;
 		len = strlen(fmt);
 	}
 	if (len > HISAX_STATUS_BUFSIZE) {
@@ -699,13 +700,12 @@ void VHiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt,
 	if (i >= len)
 		i = len;
 	len -= i;
-	memcpy(cs->status_write, p, i);
+	memcpy(cs->status_write, data, i);
 	cs->status_write += i;
 	if (cs->status_write > cs->status_end)
 		cs->status_write = cs->status_buf;
-	p += i;
 	if (len) {
-		memcpy(cs->status_write, p, len);
+		memcpy(cs->status_write, data + i, len);
 		cs->status_write += len;
 	}
 #ifdef KERNELSTACK_DEBUG
@@ -729,7 +729,7 @@ void VHiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt,
 	}
 }
 
-void HiSax_putstatus(struct IsdnCardState *cs, char *head, char *fmt, ...)
+void HiSax_putstatus(struct IsdnCardState *cs, char *head, const char *fmt, ...)
 {
 	va_list args;
 

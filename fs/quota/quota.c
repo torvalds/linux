@@ -80,7 +80,7 @@ unsigned int qtype_enforce_flag(int type)
 }
 
 static int quota_quotaon(struct super_block *sb, int type, qid_t id,
-		         struct path *path)
+		         const struct path *path)
 {
 	if (!sb->s_qcop->quota_on && !sb->s_qcop->quota_enable)
 		return -ENOSYS;
@@ -700,7 +700,7 @@ static int quota_rmxquota(struct super_block *sb, void __user *addr)
 
 /* Copy parameters and call proper function */
 static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
-		       void __user *addr, struct path *path)
+		       void __user *addr, const struct path *path)
 {
 	int ret;
 

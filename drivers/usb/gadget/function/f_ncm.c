@@ -998,7 +998,7 @@ static struct sk_buff *package_for_tx(struct f_ncm *ncm)
 	/* Merge the skbs */
 	swap(skb2, ncm->skb_tx_data);
 	if (ncm->skb_tx_data) {
-		dev_kfree_skb_any(ncm->skb_tx_data);
+		dev_consume_skb_any(ncm->skb_tx_data);
 		ncm->skb_tx_data = NULL;
 	}
 
@@ -1009,7 +1009,7 @@ static struct sk_buff *package_for_tx(struct f_ncm *ncm)
 	/* Copy NTB across. */
 	ntb_iter = (void *) skb_put(skb2, ncm->skb_tx_ndp->len);
 	memcpy(ntb_iter, ncm->skb_tx_ndp->data, ncm->skb_tx_ndp->len);
-	dev_kfree_skb_any(ncm->skb_tx_ndp);
+	dev_consume_skb_any(ncm->skb_tx_ndp);
 	ncm->skb_tx_ndp = NULL;
 
 	/* Insert zero'd datagram. */
@@ -1078,6 +1078,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 			if (!ncm->skb_tx_data)
 				goto err;
 
+			ncm->skb_tx_data->dev = ncm->netdev;
 			ntb_data = (void *) skb_put(ncm->skb_tx_data, ncb_len);
 			memset(ntb_data, 0, ncb_len);
 			/* dwSignature */
@@ -1096,6 +1097,8 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 						    GFP_ATOMIC);
 			if (!ncm->skb_tx_ndp)
 				goto err;
+
+			ncm->skb_tx_ndp->dev = ncm->netdev;
 			ntb_ndp = (void *) skb_put(ncm->skb_tx_ndp,
 						    opts->ndp_size);
 			memset(ntb_ndp, 0, ncb_len);
@@ -1133,7 +1136,7 @@ static struct sk_buff *ncm_wrap_ntb(struct gether *port,
 		memset(ntb_data, 0, dgram_pad);
 		ntb_data = (void *) skb_put(ncm->skb_tx_data, skb->len);
 		memcpy(ntb_data, skb->data, skb->len);
-		dev_kfree_skb_any(skb);
+		dev_consume_skb_any(skb);
 		skb = NULL;
 
 	} else if (ncm->skb_tx_data && ncm->timer_force_tx) {
@@ -1329,7 +1332,7 @@ static int ncm_unwrap_ntb(struct gether *port,
 		} while (ndp_len > 2 * (opts->dgram_item_len * 2));
 	} while (ndp_index);
 
-	dev_kfree_skb_any(skb);
+	dev_consume_skb_any(skb);
 
 	VDBG(port->func.config->cdev,
 	     "Parsed NTB with %d frames\n", dgram_counter);

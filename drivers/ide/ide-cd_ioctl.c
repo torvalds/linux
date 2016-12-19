@@ -305,7 +305,7 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
 
 	rq = blk_get_request(drive->queue, READ, __GFP_RECLAIM);
 	rq->cmd_type = REQ_TYPE_DRV_PRIV;
-	rq->cmd_flags = REQ_QUIET;
+	rq->rq_flags = RQF_QUIET;
 	ret = blk_execute_rq(drive->queue, cd->disk, rq, 0);
 	blk_put_request(rq);
 	/*
@@ -449,7 +449,7 @@ int ide_cdrom_packet(struct cdrom_device_info *cdi,
 			    struct packet_command *cgc)
 {
 	ide_drive_t *drive = cdi->handle;
-	unsigned int flags = 0;
+	req_flags_t flags = 0;
 	unsigned len = cgc->buflen;
 
 	if (cgc->timeout <= 0)
@@ -463,7 +463,7 @@ int ide_cdrom_packet(struct cdrom_device_info *cdi,
 		memset(cgc->sense, 0, sizeof(struct request_sense));
 
 	if (cgc->quiet)
-		flags |= REQ_QUIET;
+		flags |= RQF_QUIET;
 
 	cgc->stat = ide_cd_queue_pc(drive, cgc->cmd,
 				    cgc->data_direction == CGC_DATA_WRITE,

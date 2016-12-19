@@ -726,8 +726,8 @@ void saa7164_card_list(struct saa7164_dev *dev)
 			dev->name, dev->name, dev->name, dev->name);
 	}
 
-	printk(KERN_ERR "%s: Here are valid choices for the card=<n> insmod "
-		"option:\n", dev->name);
+	printk(KERN_ERR "%s: Here are valid choices for the card=<n> insmod option:\n",
+	       dev->name);
 
 	for (i = 0; i < saa7164_bcount; i++)
 		printk(KERN_ERR "%s:    card=%d -> %s\n",

@@ -211,7 +211,7 @@ void ide_prep_sense(ide_drive_t *drive, struct request *rq)
 	sense_rq->cmd[0] = GPCMD_REQUEST_SENSE;
 	sense_rq->cmd[4] = cmd_len;
 	sense_rq->cmd_type = REQ_TYPE_ATA_SENSE;
-	sense_rq->cmd_flags |= REQ_PREEMPT;
+	sense_rq->rq_flags |= RQF_PREEMPT;
 
 	if (drive->media == ide_tape)
 		sense_rq->cmd[13] = REQ_IDETAPE_PC1;
@@ -295,7 +295,7 @@ int ide_cd_expiry(ide_drive_t *drive)
 		wait = ATAPI_WAIT_PC;
 		break;
 	default:
-		if (!(rq->cmd_flags & REQ_QUIET))
+		if (!(rq->rq_flags & RQF_QUIET))
 			printk(KERN_INFO PFX "cmd 0x%x timed out\n",
 					 rq->cmd[0]);
 		wait = 0;
@@ -375,7 +375,7 @@ int ide_check_ireason(ide_drive_t *drive, struct request *rq, int len,
 	}
 
 	if (dev_is_idecd(drive) && rq->cmd_type == REQ_TYPE_ATA_PC)
-		rq->cmd_flags |= REQ_FAILED;
+		rq->rq_flags |= RQF_FAILED;
 
 	return 1;
 }

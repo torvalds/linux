@@ -577,12 +577,12 @@ static int pluto_read_serial(struct pluto *pluto)
 		for (j = 0; j < 32; j += 8) {
 			if ((val & 0xff) == 0xff)
 				goto out;
-			printk("%c", val & 0xff);
+			printk(KERN_CONT "%c", val & 0xff);
 			val >>= 8;
 		}
 	}
 out:
-	printk("\n");
+	printk(KERN_CONT "\n");
 	pci_iounmap(pdev, cis);
 
 	return 0;

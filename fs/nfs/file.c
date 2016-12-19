@@ -102,8 +102,11 @@ static int nfs_revalidate_file_size(struct inode *inode, struct file *filp)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_inode *nfsi = NFS_I(inode);
+	const unsigned long force_reval = NFS_INO_REVAL_PAGECACHE|NFS_INO_REVAL_FORCED;
+	unsigned long cache_validity = nfsi->cache_validity;
 
-	if (nfs_have_delegated_attributes(inode))
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ) &&
+	    (cache_validity & force_reval) != force_reval)
 		goto out_noreval;
 
 	if (filp->f_flags & O_DIRECT)
@@ -374,7 +377,7 @@ static int nfs_write_end(struct file *file, struct address_space *mapping,
 	 */
 	if (!PageUptodate(page)) {
 		unsigned pglen = nfs_page_length(page);
-		unsigned end = offset + len;
+		unsigned end = offset + copied;
 
 		if (pglen == 0) {
 			zero_user_segments(page, 0, offset,

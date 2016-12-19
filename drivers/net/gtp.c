@@ -77,7 +77,7 @@ struct gtp_dev {
 	struct hlist_head	*addr_hash;
 };
 
-static int gtp_net_id __read_mostly;
+static unsigned int gtp_net_id __read_mostly;
 
 struct gtp_net {
 	struct list_head gtp_dev_list;
@@ -158,9 +158,9 @@ static bool gtp_check_src_ms_ipv4(struct sk_buff *skb, struct pdp_ctx *pctx,
 	if (!pskb_may_pull(skb, hdrlen + sizeof(struct iphdr)))
 		return false;
 
-	iph = (struct iphdr *)(skb->data + hdrlen + sizeof(struct iphdr));
+	iph = (struct iphdr *)(skb->data + hdrlen);
 
-	return iph->saddr != pctx->ms_addr_ip4.s_addr;
+	return iph->saddr == pctx->ms_addr_ip4.s_addr;
 }
 
 /* Check if the inner IP source address in this packet is assigned to any
@@ -423,11 +423,11 @@ static inline void gtp1_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
 
 	/* Bits    8  7  6  5  4  3  2	1
 	 *	  +--+--+--+--+--+--+--+--+
-	 *	  |version |PT| 1| E| S|PN|
+	 *	  |version |PT| 0| E| S|PN|
 	 *	  +--+--+--+--+--+--+--+--+
 	 *	    0  0  1  1	1  0  0  0
 	 */
-	gtp1->flags	= 0x38; /* v1, GTP-non-prime. */
+	gtp1->flags	= 0x30; /* v1, GTP-non-prime. */
 	gtp1->type	= GTP_TPDU;
 	gtp1->length	= htons(payload_len);
 	gtp1->tid	= htonl(pctx->u.v1.o_tei);
@@ -1094,14 +1094,7 @@ static int gtp_genl_del_pdp(struct sk_buff *skb, struct genl_info *info)
 	return 0;
 }
 
-static struct genl_family gtp_genl_family = {
-	.id		= GENL_ID_GENERATE,
-	.name		= "gtp",
-	.version	= 0,
-	.hdrsize	= 0,
-	.maxattr	= GTPA_MAX,
-	.netnsok	= true,
-};
+static struct genl_family gtp_genl_family;
 
 static int gtp_genl_fill_info(struct sk_buff *skb, u32 snd_portid, u32 snd_seq,
 			      u32 type, struct pdp_ctx *pctx)
@@ -1297,6 +1290,17 @@ static const struct genl_ops gtp_genl_ops[] = {
 	},
 };
 
+static struct genl_family gtp_genl_family __ro_after_init = {
+	.name		= "gtp",
+	.version	= 0,
+	.hdrsize	= 0,
+	.maxattr	= GTPA_MAX,
+	.netnsok	= true,
+	.module		= THIS_MODULE,
+	.ops		= gtp_genl_ops,
+	.n_ops		= ARRAY_SIZE(gtp_genl_ops),
+};
+
 static int __net_init gtp_net_init(struct net *net)
 {
 	struct gtp_net *gn = net_generic(net, gtp_net_id);
@@ -1336,7 +1340,7 @@ static int __init gtp_init(void)
 	if (err < 0)
 		goto error_out;
 
-	err = genl_register_family_with_ops(&gtp_genl_family, gtp_genl_ops);
+	err = genl_register_family(&gtp_genl_family);
 	if (err < 0)
 		goto unreg_rtnl_link;
 

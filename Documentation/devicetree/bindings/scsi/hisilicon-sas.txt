@@ -6,6 +6,7 @@ Main node required properties:
   - compatible : value should be as follows:
 	(a) "hisilicon,hip05-sas-v1" for v1 hw in hip05 chipset
 	(b) "hisilicon,hip06-sas-v2" for v2 hw in hip06 chipset
+	(c) "hisilicon,hip07-sas-v2" for v2 hw in hip07 chipset
   - sas-addr : array of 8 bytes for host SAS address
   - reg : Address and length of the SAS register
   - hisilicon,sas-syscon: phandle of syscon used for sas control

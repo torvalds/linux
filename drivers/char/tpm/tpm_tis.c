@@ -28,6 +28,8 @@
 #include <linux/wait.h>
 #include <linux/acpi.h>
 #include <linux/freezer.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include "tpm.h"
 #include "tpm_tis_core.h"
 
@@ -354,12 +356,21 @@ static int tpm_tis_plat_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id tis_of_platform_match[] = {
+	{.compatible = "tcg,tpm-tis-mmio"},
+	{},
+};
+MODULE_DEVICE_TABLE(of, tis_of_platform_match);
+#endif
+
 static struct platform_driver tis_drv = {
 	.probe = tpm_tis_plat_probe,
 	.remove = tpm_tis_plat_remove,
 	.driver = {
 		.name		= "tpm_tis",
 		.pm		= &tpm_tis_pm,
+		.of_match_table = of_match_ptr(tis_of_platform_match),
 	},
 };
 

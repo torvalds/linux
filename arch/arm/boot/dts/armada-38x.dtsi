@@ -661,7 +661,7 @@
 	};
 
 	clocks {
-		/* 2 GHz fixed main PLL */
+		/* 1 GHz fixed main PLL */
 		mainpll: mainpll {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;

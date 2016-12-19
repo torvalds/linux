@@ -13,7 +13,6 @@
  */
 
 #include <linux/threads.h>
-#include <linux/kprobes.h>
 #include <asm/cacheflush.h>
 #include <asm/checksum.h>
 #include <asm/uaccess.h>

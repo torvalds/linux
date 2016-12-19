@@ -839,12 +839,10 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 	BUG_ON((pos + len) > (dibh->b_size - sizeof(struct gfs2_dinode)));
 	kaddr = kmap_atomic(page);
 	memcpy(buf + pos, kaddr + pos, copied);
-	memset(kaddr + pos + copied, 0, len - copied);
 	flush_dcache_page(page);
 	kunmap_atomic(kaddr);
 
-	if (!PageUptodate(page))
-		SetPageUptodate(page);
+	WARN_ON(!PageUptodate(page));
 	unlock_page(page);
 	put_page(page);
 

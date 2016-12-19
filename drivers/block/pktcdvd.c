@@ -721,7 +721,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 
 	rq->timeout = 60*HZ;
 	if (cgc->quiet)
-		rq->cmd_flags |= REQ_QUIET;
+		rq->rq_flags |= RQF_QUIET;
 
 	blk_execute_rq(rq->q, pd->bdev->bd_disk, rq, 0);
 	if (rq->errors)
@@ -941,39 +941,6 @@ static int pkt_set_segment_merging(struct pktcdvd_device *pd, struct request_que
 	} else {
 		pkt_err(pd, "cdrom max_phys_segments too small\n");
 		return -EIO;
-	}
-}
-
-/*
- * Copy all data for this packet to pkt->pages[], so that
- * a) The number of required segments for the write bio is minimized, which
- *    is necessary for some scsi controllers.
- * b) The data can be used as cache to avoid read requests if we receive a
- *    new write request for the same zone.
- */
-static void pkt_make_local_copy(struct packet_data *pkt, struct bio_vec *bvec)
-{
-	int f, p, offs;
-
-	/* Copy all data to pkt->pages[] */
-	p = 0;
-	offs = 0;
-	for (f = 0; f < pkt->frames; f++) {
-		if (bvec[f].bv_page != pkt->pages[p]) {
-			void *vfrom = kmap_atomic(bvec[f].bv_page) + bvec[f].bv_offset;
-			void *vto = page_address(pkt->pages[p]) + offs;
-			memcpy(vto, vfrom, CD_FRAMESIZE);
-			kunmap_atomic(vfrom);
-			bvec[f].bv_page = pkt->pages[p];
-			bvec[f].bv_offset = offs;
-		} else {
-			BUG_ON(bvec[f].bv_offset != offs);
-		}
-		offs += CD_FRAMESIZE;
-		if (offs >= PAGE_SIZE) {
-			offs = 0;
-			p++;
-		}
 	}
 }
 
@@ -1298,7 +1265,6 @@ try_next_bio:
 static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 {
 	int f;
-	struct bio_vec *bvec = pkt->w_bio->bi_io_vec;
 
 	bio_reset(pkt->w_bio);
 	pkt->w_bio->bi_iter.bi_sector = pkt->sector;
@@ -1308,9 +1274,10 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 
 	/* XXX: locking? */
 	for (f = 0; f < pkt->frames; f++) {
-		bvec[f].bv_page = pkt->pages[(f * CD_FRAMESIZE) / PAGE_SIZE];
-		bvec[f].bv_offset = (f * CD_FRAMESIZE) % PAGE_SIZE;
-		if (!bio_add_page(pkt->w_bio, bvec[f].bv_page, CD_FRAMESIZE, bvec[f].bv_offset))
+		struct page *page = pkt->pages[(f * CD_FRAMESIZE) / PAGE_SIZE];
+		unsigned offset = (f * CD_FRAMESIZE) % PAGE_SIZE;
+
+		if (!bio_add_page(pkt->w_bio, page, CD_FRAMESIZE, offset))
 			BUG();
 	}
 	pkt_dbg(2, pd, "vcnt=%d\n", pkt->w_bio->bi_vcnt);
@@ -1327,12 +1294,10 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 	pkt_dbg(2, pd, "Writing %d frames for zone %llx\n",
 		pkt->write_size, (unsigned long long)pkt->sector);
 
-	if (test_bit(PACKET_MERGE_SEGS, &pd->flags) || (pkt->write_size < pkt->frames)) {
-		pkt_make_local_copy(pkt, bvec);
+	if (test_bit(PACKET_MERGE_SEGS, &pd->flags) || (pkt->write_size < pkt->frames))
 		pkt->cache_valid = 1;
-	} else {
+	else
 		pkt->cache_valid = 0;
-	}
 
 	/* Start the write request */
 	atomic_set(&pkt->io_wait, 1);

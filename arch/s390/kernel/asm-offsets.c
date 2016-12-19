@@ -25,12 +25,14 @@
 int main(void)
 {
 	/* task struct offsets */
-	OFFSET(__TASK_thread_info, task_struct, stack);
+	OFFSET(__TASK_stack, task_struct, stack);
 	OFFSET(__TASK_thread, task_struct, thread);
 	OFFSET(__TASK_pid, task_struct, pid);
 	BLANK();
 	/* thread struct offsets */
 	OFFSET(__THREAD_ksp, thread_struct, ksp);
+	OFFSET(__THREAD_sysc_table,  thread_struct, sys_call_table);
+	OFFSET(__THREAD_last_break, thread_struct, last_break);
 	OFFSET(__THREAD_FPU_fpc, thread_struct, fpu.fpc);
 	OFFSET(__THREAD_FPU_regs, thread_struct, fpu.regs);
 	OFFSET(__THREAD_per_cause, thread_struct, per_event.cause);
@@ -39,14 +41,7 @@ int main(void)
 	OFFSET(__THREAD_trap_tdb, thread_struct, trap_tdb);
 	BLANK();
 	/* thread info offsets */
-	OFFSET(__TI_task, thread_info, task);
-	OFFSET(__TI_flags, thread_info, flags);
-	OFFSET(__TI_sysc_table, thread_info, sys_call_table);
-	OFFSET(__TI_cpu, thread_info, cpu);
-	OFFSET(__TI_precount, thread_info, preempt_count);
-	OFFSET(__TI_user_timer, thread_info, user_timer);
-	OFFSET(__TI_system_timer, thread_info, system_timer);
-	OFFSET(__TI_last_break, thread_info, last_break);
+	OFFSET(__TI_flags, task_struct, thread_info.flags);
 	BLANK();
 	/* pt_regs offsets */
 	OFFSET(__PT_ARGS, pt_regs, args);
@@ -79,6 +74,8 @@ int main(void)
 	OFFSET(__VDSO_ECTG_OK, vdso_data, ectg_available);
 	OFFSET(__VDSO_TK_MULT, vdso_data, tk_mult);
 	OFFSET(__VDSO_TK_SHIFT, vdso_data, tk_shift);
+	OFFSET(__VDSO_TS_DIR, vdso_data, ts_dir);
+	OFFSET(__VDSO_TS_END, vdso_data, ts_end);
 	OFFSET(__VDSO_ECTG_BASE, vdso_per_cpu_data, ectg_timer_base);
 	OFFSET(__VDSO_ECTG_USER, vdso_per_cpu_data, ectg_user_time);
 	OFFSET(__VDSO_CPU_NR, vdso_per_cpu_data, cpu_nr);
@@ -159,7 +156,6 @@ int main(void)
 	OFFSET(__LC_INT_CLOCK, lowcore, int_clock);
 	OFFSET(__LC_MCCK_CLOCK, lowcore, mcck_clock);
 	OFFSET(__LC_CURRENT, lowcore, current_task);
-	OFFSET(__LC_THREAD_INFO, lowcore, thread_info);
 	OFFSET(__LC_KERNEL_STACK, lowcore, kernel_stack);
 	OFFSET(__LC_ASYNC_STACK, lowcore, async_stack);
 	OFFSET(__LC_PANIC_STACK, lowcore, panic_stack);
@@ -173,6 +169,7 @@ int main(void)
 	OFFSET(__LC_PERCPU_OFFSET, lowcore, percpu_offset);
 	OFFSET(__LC_VDSO_PER_CPU, lowcore, vdso_per_cpu_data);
 	OFFSET(__LC_MACHINE_FLAGS, lowcore, machine_flags);
+	OFFSET(__LC_PREEMPT_COUNT, lowcore, preempt_count);
 	OFFSET(__LC_GMAP, lowcore, gmap);
 	OFFSET(__LC_PASTE, lowcore, paste);
 	/* software defined ABI-relevant lowcore locations 0xe00 - 0xe20 */

@@ -148,13 +148,12 @@ extern struct req_format RQF_MDS_GETATTR;
  */
 extern struct req_format RQF_MDS_GETATTR_NAME;
 extern struct req_format RQF_MDS_CLOSE;
-extern struct req_format RQF_MDS_RELEASE_CLOSE;
+extern struct req_format RQF_MDS_INTENT_CLOSE;
 extern struct req_format RQF_MDS_CONNECT;
 extern struct req_format RQF_MDS_DISCONNECT;
 extern struct req_format RQF_MDS_GET_INFO;
 extern struct req_format RQF_MDS_READPAGE;
 extern struct req_format RQF_MDS_WRITEPAGE;
-extern struct req_format RQF_MDS_DONE_WRITING;
 extern struct req_format RQF_MDS_REINT;
 extern struct req_format RQF_MDS_REINT_CREATE;
 extern struct req_format RQF_MDS_REINT_CREATE_ACL;
@@ -166,10 +165,9 @@ extern struct req_format RQF_MDS_REINT_LINK;
 extern struct req_format RQF_MDS_REINT_RENAME;
 extern struct req_format RQF_MDS_REINT_SETATTR;
 extern struct req_format RQF_MDS_REINT_SETXATTR;
-extern struct req_format RQF_MDS_QUOTACHECK;
 extern struct req_format RQF_MDS_QUOTACTL;
-extern struct req_format RQF_QC_CALLBACK;
 extern struct req_format RQF_MDS_SWAP_LAYOUTS;
+extern struct req_format RQF_MDS_REINT_MIGRATE;
 /* MDS hsm formats */
 extern struct req_format RQF_MDS_HSM_STATE_GET;
 extern struct req_format RQF_MDS_HSM_STATE_SET;
@@ -181,7 +179,6 @@ extern struct req_format RQF_MDS_HSM_REQUEST;
 /* OST req_format */
 extern struct req_format RQF_OST_CONNECT;
 extern struct req_format RQF_OST_DISCONNECT;
-extern struct req_format RQF_OST_QUOTACHECK;
 extern struct req_format RQF_OST_QUOTACTL;
 extern struct req_format RQF_OST_GETATTR;
 extern struct req_format RQF_OST_SETATTR;

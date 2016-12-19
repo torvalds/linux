@@ -287,6 +287,7 @@ void i40e_notify_client_of_netdev_close(struct i40e_vsi *vsi, bool reset)
 			}
 			cdev->client->ops->close(&cdev->lan_info, cdev->client,
 						 reset);
+			clear_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
 			i40e_client_release_qvlist(&cdev->lan_info);
 		}
 	}
@@ -403,37 +404,6 @@ int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id,
 	}
 	mutex_unlock(&i40e_client_instance_mutex);
 	return capable;
-}
-
-/**
- * i40e_vsi_lookup - finds a matching VSI from the PF list starting at start_vsi
- * @pf: board private structure
- * @type: vsi type
- * @start_vsi: a VSI pointer from where to start the search
- *
- * Returns non NULL on success or NULL for failure
- **/
-struct i40e_vsi *i40e_vsi_lookup(struct i40e_pf *pf,
-				 enum i40e_vsi_type type,
-				 struct i40e_vsi *start_vsi)
-{
-	struct i40e_vsi *vsi;
-	int i = 0;
-
-	if (start_vsi) {
-		for (i = 0; i < pf->num_alloc_vsi; i++) {
-			vsi = pf->vsi[i];
-			if (vsi == start_vsi)
-				break;
-		}
-	}
-	for (; i < pf->num_alloc_vsi; i++) {
-		vsi = pf->vsi[i];
-		if (vsi && vsi->type == type)
-			return vsi;
-	}
-
-	return NULL;
 }
 
 /**
@@ -565,7 +535,7 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			if (test_bit(__I40E_DOWN, &pf->vsi[pf->lan_vsi]->state))
 				continue;
 		} else {
-			dev_warn(&pf->pdev->dev, "This client %s is being instanciated at probe\n",
+			dev_warn(&pf->pdev->dev, "This client %s is being instantiated at probe\n",
 				 client->name);
 		}
 
@@ -575,29 +545,25 @@ void i40e_client_subtask(struct i40e_pf *pf)
 			continue;
 
 		if (!existing) {
-			/* Also up the ref_cnt for no. of instances of this
-			 * client.
-			 */
-			atomic_inc(&client->ref_cnt);
 			dev_info(&pf->pdev->dev, "Added instance of Client %s to PF%d bus=0x%02x func=0x%02x\n",
 				 client->name, pf->hw.pf_id,
 				 pf->hw.bus.device, pf->hw.bus.func);
 		}
 
 		mutex_lock(&i40e_client_instance_mutex);
-		/* Send an Open request to the client */
-		atomic_inc(&cdev->ref_cnt);
-		if (client->ops && client->ops->open)
-			ret = client->ops->open(&cdev->lan_info, client);
-		atomic_dec(&cdev->ref_cnt);
-		if (!ret) {
-			set_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state);
-		} else {
-			/* remove client instance */
-			mutex_unlock(&i40e_client_instance_mutex);
-			i40e_client_del_instance(pf, client);
-			atomic_dec(&client->ref_cnt);
-			continue;
+		if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED,
+			      &cdev->state)) {
+			/* Send an Open request to the client */
+			if (client->ops && client->ops->open)
+				ret = client->ops->open(&cdev->lan_info,
+							client);
+			if (!ret) {
+				set_bit(__I40E_CLIENT_INSTANCE_OPENED,
+					&cdev->state);
+			} else {
+				/* remove client instance */
+				i40e_client_del_instance(pf, client);
+			}
 		}
 		mutex_unlock(&i40e_client_instance_mutex);
 	}
@@ -694,10 +660,6 @@ static int i40e_client_release(struct i40e_client *client)
 			continue;
 		pf = (struct i40e_pf *)cdev->lan_info.pf;
 		if (test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state)) {
-			if (atomic_read(&cdev->ref_cnt) > 0) {
-				ret = I40E_ERR_NOT_READY;
-				goto out;
-			}
 			if (client->ops && client->ops->close)
 				client->ops->close(&cdev->lan_info, client,
 						   false);
@@ -710,11 +672,9 @@ static int i40e_client_release(struct i40e_client *client)
 		}
 		/* delete the client instance from the list */
 		list_move(&cdev->list, &cdevs_tmp);
-		atomic_dec(&client->ref_cnt);
 		dev_info(&pf->pdev->dev, "Deleted client instance of Client %s\n",
 			 client->name);
 	}
-out:
 	mutex_unlock(&i40e_client_instance_mutex);
 
 	/* free the client device and release its vsi */
@@ -1040,17 +1000,10 @@ int i40e_unregister_client(struct i40e_client *client)
 		ret = -ENODEV;
 		goto out;
 	}
-	if (atomic_read(&client->ref_cnt) == 0) {
-		clear_bit(__I40E_CLIENT_REGISTERED, &client->state);
-		list_del(&client->list);
-		pr_info("i40e: Unregistered client %s with return code %d\n",
-			client->name, ret);
-	} else {
-		ret = I40E_ERR_NOT_READY;
-		pr_err("i40e: Client %s failed unregister - client has open instances\n",
-		       client->name);
-	}
-
+	clear_bit(__I40E_CLIENT_REGISTERED, &client->state);
+	list_del(&client->list);
+	pr_info("i40e: Unregistered client %s with return code %d\n",
+		client->name, ret);
 out:
 	mutex_unlock(&i40e_client_mutex);
 	return ret;

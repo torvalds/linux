@@ -141,7 +141,7 @@ static void complete_commit(struct msm_commit *c, bool async)
 
 	kms->funcs->complete_commit(kms, state);
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 
 	commit_destroy(c);
 }
@@ -217,8 +217,9 @@ int msm_atomic_commit(struct drm_device *dev,
 		if ((plane->state->fb != plane_state->fb) && plane_state->fb) {
 			struct drm_gem_object *obj = msm_framebuffer_bo(plane_state->fb, 0);
 			struct msm_gem_object *msm_obj = to_msm_bo(obj);
+			struct dma_fence *fence = reservation_object_get_excl_rcu(msm_obj->resv);
 
-			plane_state->fence = reservation_object_get_excl_rcu(msm_obj->resv);
+			drm_atomic_set_fence_for_plane(plane_state, fence);
 		}
 	}
 
@@ -240,6 +241,10 @@ int msm_atomic_commit(struct drm_device *dev,
 
 	drm_atomic_helper_swap_state(state, true);
 
+	/* swap driver private state while still holding state_lock */
+	if (to_kms_state(state)->state)
+		priv->kms->funcs->swap_state(priv->kms, state);
+
 	/*
 	 * Everything below can be run asynchronously without the need to grab
 	 * any modeset locks at all under one conditions: It must be guaranteed
@@ -256,6 +261,7 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * current layout.
 	 */
 
+	drm_atomic_state_get(state);
 	if (nonblock) {
 		queue_work(priv->atomic_wq, &c->work);
 		return 0;
@@ -268,4 +274,31 @@ int msm_atomic_commit(struct drm_device *dev,
 error:
 	drm_atomic_helper_cleanup_planes(dev, state);
 	return ret;
+}
+
+struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev)
+{
+	struct msm_kms_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+
+	if (!state || drm_atomic_state_init(dev, &state->base) < 0) {
+		kfree(state);
+		return NULL;
+	}
+
+	return &state->base;
+}
+
+void msm_atomic_state_clear(struct drm_atomic_state *s)
+{
+	struct msm_kms_state *state = to_kms_state(s);
+	drm_atomic_state_default_clear(&state->base);
+	kfree(state->state);
+	state->state = NULL;
+}
+
+void msm_atomic_state_free(struct drm_atomic_state *state)
+{
+	kfree(to_kms_state(state)->state);
+	drm_atomic_state_default_release(state);
+	kfree(state);
 }

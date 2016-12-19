@@ -735,6 +735,11 @@
 						atmel,clk-output-range = <0 83000000>;
 					};
 
+					securam_clk: securam_clk {
+						#clock-cells = <0>;
+						reg = <51>;
+					};
+
 					i2s0_clk: i2s0_clk {
 						#clock-cells = <0>;
 						reg = <54>;
@@ -1030,6 +1035,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&twi0_clk>;
+				atmel,fifo-size = <16>;
 				status = "disabled";
 			};
 
@@ -1056,6 +1062,15 @@
 				#size-cells = <1>;
 				ranges = <0x0 0xf8038000 0x800>;
 				status = "disabled";
+			};
+
+			securam: sram@f8044000 {
+				compatible = "atmel,sama5d2-securam", "mmio-sram";
+				reg = <0xf8044000 0x1420>;
+				clocks = <&securam_clk>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0xf8044000 0x1420>;
 			};
 
 			rstc@f8048000 {
@@ -1088,30 +1103,12 @@
 				status = "disabled";
 			};
 
-			sckc@f8048050 {
-				compatible = "atmel,at91sam9x5-sckc";
+			clk32k: sckc@f8048050 {
+				compatible = "atmel,sama5d4-sckc";
 				reg = <0xf8048050 0x4>;
 
-				slow_rc_osc: slow_rc_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-rc-osc";
-					#clock-cells = <0>;
-					clock-frequency = <32768>;
-					clock-accuracy = <250000000>;
-					atmel,startup-time-usec = <75>;
-				};
-
-				slow_osc: slow_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-osc";
-					#clock-cells = <0>;
-					clocks = <&slow_xtal>;
-					atmel,startup-time-usec = <1200000>;
-				};
-
-				clk32k: slowck {
-					compatible = "atmel,at91sam9x5-clk-slow";
-					#clock-cells = <0>;
-					clocks = <&slow_rc_osc &slow_osc>;
-				};
+				clocks = <&slow_xtal>;
+				#clock-cells = <0>;
 			};
 
 			rtc@f80480b0 {
@@ -1231,6 +1228,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&twi1_clk>;
+				atmel,fifo-size = <16>;
 				status = "disabled";
 			};
 
@@ -1258,6 +1256,11 @@
 				gpio-controller;
 				#gpio-cells = <2>;
 				clocks = <&pioA_clk>;
+			};
+
+			secumod@fc040000 {
+				compatible = "atmel,sama5d2-secumod", "syscon";
+				reg = <0xfc040000 0x100>;
 			};
 
 			tdes@fc044000 {

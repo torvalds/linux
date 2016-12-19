@@ -5,7 +5,12 @@
  * test source files.
  */
 #include "lkdtm.h"
+#include <linux/list.h>
 #include <linux/sched.h>
+
+struct lkdtm_list {
+	struct list_head node;
+};
 
 /*
  * Make sure our attempts to over run the kernel stack doesn't trigger
@@ -80,7 +85,8 @@ noinline void lkdtm_CORRUPT_STACK(void)
 	/* Use default char array length that triggers stack protection. */
 	char data[8];
 
-	memset((void *)data, 0, 64);
+	memset((void *)data, 'a', 64);
+	pr_info("Corrupted stack with '%16s'...\n", data);
 }
 
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)
@@ -145,4 +151,67 @@ void lkdtm_ATOMIC_OVERFLOW(void)
 
 	pr_info("attempting bad atomic overflow\n");
 	atomic_inc(&over);
+}
+
+void lkdtm_CORRUPT_LIST_ADD(void)
+{
+	/*
+	 * Initially, an empty list via LIST_HEAD:
+	 *	test_head.next = &test_head
+	 *	test_head.prev = &test_head
+	 */
+	LIST_HEAD(test_head);
+	struct lkdtm_list good, bad;
+	void *target[2] = { };
+	void *redirection = &target;
+
+	pr_info("attempting good list addition\n");
+
+	/*
+	 * Adding to the list performs these actions:
+	 *	test_head.next->prev = &good.node
+	 *	good.node.next = test_head.next
+	 *	good.node.prev = test_head
+	 *	test_head.next = good.node
+	 */
+	list_add(&good.node, &test_head);
+
+	pr_info("attempting corrupted list addition\n");
+	/*
+	 * In simulating this "write what where" primitive, the "what" is
+	 * the address of &bad.node, and the "where" is the address held
+	 * by "redirection".
+	 */
+	test_head.next = redirection;
+	list_add(&bad.node, &test_head);
+
+	if (target[0] == NULL && target[1] == NULL)
+		pr_err("Overwrite did not happen, but no BUG?!\n");
+	else
+		pr_err("list_add() corruption not detected!\n");
+}
+
+void lkdtm_CORRUPT_LIST_DEL(void)
+{
+	LIST_HEAD(test_head);
+	struct lkdtm_list item;
+	void *target[2] = { };
+	void *redirection = &target;
+
+	list_add(&item.node, &test_head);
+
+	pr_info("attempting good list removal\n");
+	list_del(&item.node);
+
+	pr_info("attempting corrupted list removal\n");
+	list_add(&item.node, &test_head);
+
+	/* As with the list_add() test above, this corrupts "next". */
+	item.node.next = redirection;
+	list_del(&item.node);
+
+	if (target[0] == NULL && target[1] == NULL)
+		pr_err("Overwrite did not happen, but no BUG?!\n");
+	else
+		pr_err("list_del() corruption not detected!\n");
 }

@@ -170,7 +170,7 @@ static void ibmasm_remove_one(struct pci_dev *pdev)
 	ibmasm_unregister_uart(sp);
 	dbg("Sending OS down message\n");
 	if (ibmasm_send_os_state(sp, SYSTEM_STATE_OS_DOWN))
-		err("failed to get repsonse to 'Send OS State' command\n");
+		err("failed to get response to 'Send OS State' command\n");
 	dbg("Disabling heartbeats\n");
 	ibmasm_heartbeat_exit(sp);
 	dbg("Disabling interrupts\n");

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
+ * Copyright (c) 2016 Pablo Neira Ayuso <pablo@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,6 +18,10 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nf_tables.h>
+/* For layer 4 checksum field offset. */
+#include <linux/tcp.h>
+#include <linux/udp.h>
+#include <linux/icmpv6.h>
 
 /* add vlan header into the user buffer for if tag was removed by offloads */
 static bool
@@ -148,7 +153,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_payload_type;
 static const struct nft_expr_ops nft_payload_ops = {
 	.type		= &nft_payload_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_payload)),
@@ -164,6 +168,87 @@ const struct nft_expr_ops nft_payload_fast_ops = {
 	.init		= nft_payload_init,
 	.dump		= nft_payload_dump,
 };
+
+static inline void nft_csum_replace(__sum16 *sum, __wsum fsum, __wsum tsum)
+{
+	*sum = csum_fold(csum_add(csum_sub(~csum_unfold(*sum), fsum), tsum));
+	if (*sum == 0)
+		*sum = CSUM_MANGLED_0;
+}
+
+static bool nft_payload_udp_checksum(struct sk_buff *skb, unsigned int thoff)
+{
+	struct udphdr *uh, _uh;
+
+	uh = skb_header_pointer(skb, thoff, sizeof(_uh), &_uh);
+	if (!uh)
+		return false;
+
+	return uh->check;
+}
+
+static int nft_payload_l4csum_offset(const struct nft_pktinfo *pkt,
+				     struct sk_buff *skb,
+				     unsigned int *l4csum_offset)
+{
+	switch (pkt->tprot) {
+	case IPPROTO_TCP:
+		*l4csum_offset = offsetof(struct tcphdr, check);
+		break;
+	case IPPROTO_UDP:
+		if (!nft_payload_udp_checksum(skb, pkt->xt.thoff))
+			return -1;
+		/* Fall through. */
+	case IPPROTO_UDPLITE:
+		*l4csum_offset = offsetof(struct udphdr, check);
+		break;
+	case IPPROTO_ICMPV6:
+		*l4csum_offset = offsetof(struct icmp6hdr, icmp6_cksum);
+		break;
+	default:
+		return -1;
+	}
+
+	*l4csum_offset += pkt->xt.thoff;
+	return 0;
+}
+
+static int nft_payload_l4csum_update(const struct nft_pktinfo *pkt,
+				     struct sk_buff *skb,
+				     __wsum fsum, __wsum tsum)
+{
+	int l4csum_offset;
+	__sum16 sum;
+
+	/* If we cannot determine layer 4 checksum offset or this packet doesn't
+	 * require layer 4 checksum recalculation, skip this packet.
+	 */
+	if (nft_payload_l4csum_offset(pkt, skb, &l4csum_offset) < 0)
+		return 0;
+
+	if (skb_copy_bits(skb, l4csum_offset, &sum, sizeof(sum)) < 0)
+		return -1;
+
+	/* Checksum mangling for an arbitrary amount of bytes, based on
+	 * inet_proto_csum_replace*() functions.
+	 */
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		nft_csum_replace(&sum, fsum, tsum);
+		if (skb->ip_summed == CHECKSUM_COMPLETE) {
+			skb->csum = ~csum_add(csum_sub(~(skb->csum), fsum),
+					      tsum);
+		}
+	} else {
+		sum = ~csum_fold(csum_add(csum_sub(csum_unfold(sum), fsum),
+					  tsum));
+	}
+
+	if (!skb_make_writable(skb, l4csum_offset + sizeof(sum)) ||
+	    skb_store_bits(skb, l4csum_offset, &sum, sizeof(sum)) < 0)
+		return -1;
+
+	return 0;
+}
 
 static void nft_payload_set_eval(const struct nft_expr *expr,
 				 struct nft_regs *regs,
@@ -205,13 +290,14 @@ static void nft_payload_set_eval(const struct nft_expr *expr,
 
 		fsum = skb_checksum(skb, offset, priv->len, 0);
 		tsum = csum_partial(src, priv->len, 0);
-		sum = csum_fold(csum_add(csum_sub(~csum_unfold(sum), fsum),
-					 tsum));
-		if (sum == 0)
-			sum = CSUM_MANGLED_0;
+		nft_csum_replace(&sum, fsum, tsum);
 
 		if (!skb_make_writable(skb, csum_offset + sizeof(sum)) ||
 		    skb_store_bits(skb, csum_offset, &sum, sizeof(sum)) < 0)
+			goto err;
+
+		if (priv->csum_flags &&
+		    nft_payload_l4csum_update(pkt, skb, fsum, tsum) < 0)
 			goto err;
 	}
 
@@ -241,6 +327,15 @@ static int nft_payload_set_init(const struct nft_ctx *ctx,
 	if (tb[NFTA_PAYLOAD_CSUM_OFFSET])
 		priv->csum_offset =
 			ntohl(nla_get_be32(tb[NFTA_PAYLOAD_CSUM_OFFSET]));
+	if (tb[NFTA_PAYLOAD_CSUM_FLAGS]) {
+		u32 flags;
+
+		flags = ntohl(nla_get_be32(tb[NFTA_PAYLOAD_CSUM_FLAGS]));
+		if (flags & ~NFT_PAYLOAD_L4CSUM_PSEUDOHDR)
+			return -EINVAL;
+
+		priv->csum_flags = flags;
+	}
 
 	switch (priv->csum_type) {
 	case NFT_PAYLOAD_CSUM_NONE:
@@ -263,7 +358,8 @@ static int nft_payload_set_dump(struct sk_buff *skb, const struct nft_expr *expr
 	    nla_put_be32(skb, NFTA_PAYLOAD_LEN, htonl(priv->len)) ||
 	    nla_put_be32(skb, NFTA_PAYLOAD_CSUM_TYPE, htonl(priv->csum_type)) ||
 	    nla_put_be32(skb, NFTA_PAYLOAD_CSUM_OFFSET,
-			 htonl(priv->csum_offset)))
+			 htonl(priv->csum_offset)) ||
+	    nla_put_be32(skb, NFTA_PAYLOAD_CSUM_FLAGS, htonl(priv->csum_flags)))
 		goto nla_put_failure;
 	return 0;
 
@@ -320,20 +416,10 @@ nft_payload_select_ops(const struct nft_ctx *ctx,
 		return &nft_payload_ops;
 }
 
-static struct nft_expr_type nft_payload_type __read_mostly = {
+struct nft_expr_type nft_payload_type __read_mostly = {
 	.name		= "payload",
 	.select_ops	= nft_payload_select_ops,
 	.policy		= nft_payload_policy,
 	.maxattr	= NFTA_PAYLOAD_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_payload_module_init(void)
-{
-	return nft_register_expr(&nft_payload_type);
-}
-
-void nft_payload_module_exit(void)
-{
-	nft_unregister_expr(&nft_payload_type);
-}

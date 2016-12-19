@@ -363,8 +363,8 @@ obd_ioctl_unpack(struct obd_ioctl_data *data, char *pbuf, int max_len)
 /*	OBD_IOC_LOV_GETSTRIPE	155 LL_IOC_LOV_GETSTRIPE */
 /*	OBD_IOC_LOV_SETEA	156 LL_IOC_LOV_SETEA */
 /*	lustre/lustre_user.h	157-159 */
-#define	OBD_IOC_QUOTACHECK	_IOW('f', 160, int)
-#define	OBD_IOC_POLL_QUOTACHECK	_IOR('f', 161, struct if_quotacheck *)
+/*	OBD_IOC_QUOTACHECK	_IOW('f', 160, int) */
+/*	OBD_IOC_POLL_QUOTACHECK	_IOR('f', 161, struct if_quotacheck *) */
 #define OBD_IOC_QUOTACTL	_IOWR('f', 162, struct if_quotactl)
 /*	lustre/lustre_user.h	163-176 */
 #define OBD_IOC_CHANGELOG_REG	_IOW('f', 177, struct obd_ioctl_data)

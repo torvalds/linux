@@ -53,7 +53,7 @@ void s390_update_cpu_mhz(void)
 		on_each_cpu(update_cpu_mhz, NULL, 0);
 }
 
-void notrace cpu_relax(void)
+void notrace cpu_relax_yield(void)
 {
 	if (!smp_cpu_mtid && MACHINE_HAS_DIAG44) {
 		diag_stat_inc(DIAG_STAT_X044);
@@ -61,7 +61,7 @@ void notrace cpu_relax(void)
 	}
 	barrier();
 }
-EXPORT_SYMBOL(cpu_relax);
+EXPORT_SYMBOL(cpu_relax_yield);
 
 /*
  * cpu_init - initializes state that is per-CPU.

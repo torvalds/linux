@@ -791,7 +791,7 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	 * pointing to
 	 */
 	firstfraglen = skb->len - skb->data_len;
-	if (firstfraglen < ETH_HEADER_SIZE) {
+	if (firstfraglen < ETH_HLEN) {
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
 		devdata->busy_cnt++;
 		dev_err(&netdev->dev,
@@ -864,7 +864,7 @@ visornic_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* copy ethernet header from first frag into ocmdrsp
 	 * - everything else will be pass in frags & DMA'ed
 	 */
-	memcpy(cmdrsp->net.xmt.ethhdr, skb->data, ETH_HEADER_SIZE);
+	memcpy(cmdrsp->net.xmt.ethhdr, skb->data, ETH_HLEN);
 	/* copy frags info - from skb->data we need to only provide access
 	 * beyond eth header
 	 */
@@ -1371,7 +1371,7 @@ static ssize_t info_debugfs_read(struct file *file, char __user *buf,
 				     " num_rcv_bufs = %d\n",
 				     devdata->num_rcv_bufs);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
-				     " max_oustanding_next_xmits = %lu\n",
+				     " max_outstanding_next_xmits = %lu\n",
 				    devdata->max_outstanding_net_xmits);
 		str_pos += scnprintf(vbuf + str_pos, len - str_pos,
 				     " upper_threshold_net_xmits = %lu\n",

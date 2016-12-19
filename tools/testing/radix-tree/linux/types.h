@@ -6,8 +6,6 @@
 #define __rcu
 #define __read_mostly
 
-#define BITS_PER_LONG (sizeof(long) * 8)
-
 static inline void INIT_LIST_HEAD(struct list_head *list)
 {
 	list->next = list;

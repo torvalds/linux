@@ -75,7 +75,9 @@ int usnic_ib_dealloc_ucontext(struct ib_ucontext *ibcontext);
 int usnic_ib_mmap(struct ib_ucontext *context,
 			struct vm_area_struct *vma);
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
-					struct ib_ah_attr *ah_attr);
+				 struct ib_ah_attr *ah_attr,
+				 struct ib_udata *udata);
+
 int usnic_ib_destroy_ah(struct ib_ah *ah);
 int usnic_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			struct ib_send_wr **bad_wr);

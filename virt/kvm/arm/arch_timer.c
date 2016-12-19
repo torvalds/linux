@@ -425,6 +425,11 @@ int kvm_timer_hyp_init(void)
 	info = arch_timer_get_kvm_info();
 	timecounter = &info->timecounter;
 
+	if (!timecounter->cc) {
+		kvm_err("kvm_arch_timer: uninitialized timecounter\n");
+		return -ENODEV;
+	}
+
 	if (info->virtual_irq <= 0) {
 		kvm_err("kvm_arch_timer: invalid virtual timer IRQ: %d\n",
 			info->virtual_irq);
@@ -498,17 +503,7 @@ int kvm_timer_enable(struct kvm_vcpu *vcpu)
 	if (ret)
 		return ret;
 
-
-	/*
-	 * There is a potential race here between VCPUs starting for the first
-	 * time, which may be enabling the timer multiple times.  That doesn't
-	 * hurt though, because we're just setting a variable to the same
-	 * variable that it already was.  The important thing is that all
-	 * VCPUs have the enabled variable set, before entering the guest, if
-	 * the arch timers are enabled.
-	 */
-	if (timecounter)
-		timer->enabled = 1;
+	timer->enabled = 1;
 
 	return 0;
 }

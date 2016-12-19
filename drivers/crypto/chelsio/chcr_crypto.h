@@ -36,6 +36,14 @@
 #ifndef __CHCR_CRYPTO_H__
 #define __CHCR_CRYPTO_H__
 
+#define GHASH_BLOCK_SIZE    16
+#define GHASH_DIGEST_SIZE   16
+
+#define CCM_B0_SIZE             16
+#define CCM_AAD_FIELD_SIZE      2
+#define T5_MAX_AAD_SIZE 512
+
+
 /* Define following if h/w is not dropping the AAD and IV data before
  * giving the processed data
  */
@@ -63,22 +71,36 @@
 #define CHCR_SCMD_AUTH_CTRL_AUTH_CIPHER 0
 #define CHCR_SCMD_AUTH_CTRL_CIPHER_AUTH 1
 
-#define CHCR_SCMD_CIPHER_MODE_NOP           0
-#define CHCR_SCMD_CIPHER_MODE_AES_CBC       1
-#define CHCR_SCMD_CIPHER_MODE_GENERIC_AES   4
-#define CHCR_SCMD_CIPHER_MODE_AES_XTS       6
+#define CHCR_SCMD_CIPHER_MODE_NOP               0
+#define CHCR_SCMD_CIPHER_MODE_AES_CBC           1
+#define CHCR_SCMD_CIPHER_MODE_AES_GCM           2
+#define CHCR_SCMD_CIPHER_MODE_AES_CTR           3
+#define CHCR_SCMD_CIPHER_MODE_GENERIC_AES       4
+#define CHCR_SCMD_CIPHER_MODE_AES_XTS           6
+#define CHCR_SCMD_CIPHER_MODE_AES_CCM           7
 
 #define CHCR_SCMD_AUTH_MODE_NOP             0
 #define CHCR_SCMD_AUTH_MODE_SHA1            1
 #define CHCR_SCMD_AUTH_MODE_SHA224          2
 #define CHCR_SCMD_AUTH_MODE_SHA256          3
+#define CHCR_SCMD_AUTH_MODE_GHASH           4
 #define CHCR_SCMD_AUTH_MODE_SHA512_224      5
 #define CHCR_SCMD_AUTH_MODE_SHA512_256      6
 #define CHCR_SCMD_AUTH_MODE_SHA512_384      7
 #define CHCR_SCMD_AUTH_MODE_SHA512_512      8
+#define CHCR_SCMD_AUTH_MODE_CBCMAC          9
+#define CHCR_SCMD_AUTH_MODE_CMAC            10
 
 #define CHCR_SCMD_HMAC_CTRL_NOP             0
 #define CHCR_SCMD_HMAC_CTRL_NO_TRUNC        1
+#define CHCR_SCMD_HMAC_CTRL_TRUNC_RFC4366   2
+#define CHCR_SCMD_HMAC_CTRL_IPSEC_96BIT     3
+#define CHCR_SCMD_HMAC_CTRL_PL1		    4
+#define CHCR_SCMD_HMAC_CTRL_PL2		    5
+#define CHCR_SCMD_HMAC_CTRL_PL3		    6
+#define CHCR_SCMD_HMAC_CTRL_DIV2	    7
+#define VERIFY_HW 0
+#define VERIFY_SW 1
 
 #define CHCR_SCMD_IVGEN_CTRL_HW             0
 #define CHCR_SCMD_IVGEN_CTRL_SW             1
@@ -106,39 +128,74 @@
 #define IV_IMMEDIATE            1
 #define IV_DSGL			2
 
+#define AEAD_H_SIZE             16
+
 #define CRYPTO_ALG_SUB_TYPE_MASK            0x0f000000
 #define CRYPTO_ALG_SUB_TYPE_HASH_HMAC       0x01000000
+#define CRYPTO_ALG_SUB_TYPE_AEAD_RFC4106    0x02000000
+#define CRYPTO_ALG_SUB_TYPE_AEAD_GCM	    0x03000000
+#define CRYPTO_ALG_SUB_TYPE_AEAD_AUTHENC    0x04000000
+#define CRYPTO_ALG_SUB_TYPE_AEAD_CCM        0x05000000
+#define CRYPTO_ALG_SUB_TYPE_AEAD_RFC4309    0x06000000
+#define CRYPTO_ALG_SUB_TYPE_AEAD_NULL       0x07000000
+#define CRYPTO_ALG_SUB_TYPE_CTR             0x08000000
 #define CRYPTO_ALG_TYPE_HMAC (CRYPTO_ALG_TYPE_AHASH |\
 			      CRYPTO_ALG_SUB_TYPE_HASH_HMAC)
 
-#define MAX_SALT                4
 #define MAX_SCRATCH_PAD_SIZE    32
 
 #define CHCR_HASH_MAX_BLOCK_SIZE_64  64
 #define CHCR_HASH_MAX_BLOCK_SIZE_128 128
 
 /* Aligned to 128 bit boundary */
-struct _key_ctx {
-	__be32 ctx_hdr;
-	u8 salt[MAX_SALT];
-	__be64 reserverd;
-	unsigned char key[0];
-};
 
 struct ablk_ctx {
-	u8 enc;
-	unsigned int processed_len;
 	__be32 key_ctx_hdr;
 	unsigned int enckey_len;
-	unsigned int dst_nents;
-	struct scatterlist iv_sg;
 	u8 key[CHCR_AES_MAX_KEY_LEN];
-	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
 	unsigned char ciph_mode;
+	u8 rrkey[AES_MAX_KEY_SIZE];
+};
+struct chcr_aead_reqctx {
+	struct	sk_buff	*skb;
+	short int dst_nents;
+	u16 verify;
+	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
+	unsigned char scratch_pad[MAX_SCRATCH_PAD_SIZE];
 };
 
+struct chcr_gcm_ctx {
+	u8 ghash_h[AEAD_H_SIZE];
+};
+
+struct chcr_authenc_ctx {
+	u8 dec_rrkey[AES_MAX_KEY_SIZE];
+	u8 h_iopad[2 * CHCR_HASH_MAX_DIGEST_SIZE];
+	unsigned char auth_mode;
+};
+
+struct __aead_ctx {
+	struct chcr_gcm_ctx gcm[0];
+	struct chcr_authenc_ctx authenc[0];
+};
+
+
+
+struct chcr_aead_ctx {
+	__be32 key_ctx_hdr;
+	unsigned int enckey_len;
+	struct crypto_skcipher *null;
+	u8 salt[MAX_SALT];
+	u8 key[CHCR_AES_MAX_KEY_LEN];
+	u16 hmac_ctrl;
+	u16 mayverify;
+	struct	__aead_ctx ctx[0];
+};
+
+
+
 struct hmac_ctx {
-	struct shash_desc *desc;
+	struct crypto_shash *base_hash;
 	u8 ipad[CHCR_HASH_MAX_BLOCK_SIZE_128];
 	u8 opad[CHCR_HASH_MAX_BLOCK_SIZE_128];
 };
@@ -146,6 +203,7 @@ struct hmac_ctx {
 struct __crypto_ctx {
 	struct hmac_ctx hmacctx[0];
 	struct ablk_ctx ablkctx[0];
+	struct chcr_aead_ctx aeadctx[0];
 };
 
 struct chcr_context {
@@ -156,18 +214,22 @@ struct chcr_context {
 
 struct chcr_ahash_req_ctx {
 	u32 result;
-	char bfr[CHCR_HASH_MAX_BLOCK_SIZE_128];
-	u8 bfr_len;
+	u8 bfr1[CHCR_HASH_MAX_BLOCK_SIZE_128];
+	u8 bfr2[CHCR_HASH_MAX_BLOCK_SIZE_128];
+	u8 *reqbfr;
+	u8 *skbfr;
+	u8 reqlen;
 	/* DMA the partial hash in it */
 	u8 partial_hash[CHCR_HASH_MAX_DIGEST_SIZE];
 	u64 data_len;  /* Data len till time */
-	void *dummy_payload_ptr;
 	/* SKB which is being sent to the hardware for processing */
 	struct sk_buff *skb;
 };
 
 struct chcr_blkcipher_req_ctx {
 	struct sk_buff *skb;
+	unsigned int dst_nents;
+	u8 iv[CHCR_MAX_CRYPTO_IV_LEN];
 };
 
 struct chcr_alg_template {
@@ -176,16 +238,19 @@ struct chcr_alg_template {
 	union {
 		struct crypto_alg crypto;
 		struct ahash_alg hash;
+		struct aead_alg aead;
 	} alg;
 };
 
 struct chcr_req_ctx {
 	union {
 		struct ahash_request *ahash_req;
+		struct aead_request *aead_req;
 		struct ablkcipher_request *ablk_req;
 	} req;
 	union {
 		struct chcr_ahash_req_ctx *ahash_ctx;
+		struct chcr_aead_reqctx *reqctx;
 		struct chcr_blkcipher_req_ctx *ablk_ctx;
 	} ctx;
 };
@@ -195,9 +260,15 @@ struct sge_opaque_hdr {
 	dma_addr_t addr[MAX_SKB_FRAGS + 1];
 };
 
-typedef struct sk_buff *(*create_wr_t)(struct crypto_async_request *req,
-				       struct chcr_context *ctx,
+typedef struct sk_buff *(*create_wr_t)(struct aead_request *req,
 				       unsigned short qid,
+				       int size,
 				       unsigned short op_type);
+
+static int chcr_aead_op(struct aead_request *req_base,
+			  unsigned short op_type,
+			  int size,
+			  create_wr_t create_wr_fn);
+static inline int get_aead_subtype(struct crypto_aead *aead);
 
 #endif /* __CHCR_CRYPTO_H__ */

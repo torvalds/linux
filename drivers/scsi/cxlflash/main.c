@@ -35,67 +35,6 @@ MODULE_AUTHOR("Matthew R. Ochs <mrochs@linux.vnet.ibm.com>");
 MODULE_LICENSE("GPL");
 
 /**
- * cmd_checkout() - checks out an AFU command
- * @afu:	AFU to checkout from.
- *
- * Commands are checked out in a round-robin fashion. Note that since
- * the command pool is larger than the hardware queue, the majority of
- * times we will only loop once or twice before getting a command. The
- * buffer and CDB within the command are initialized (zeroed) prior to
- * returning.
- *
- * Return: The checked out command or NULL when command pool is empty.
- */
-static struct afu_cmd *cmd_checkout(struct afu *afu)
-{
-	int k, dec = CXLFLASH_NUM_CMDS;
-	struct afu_cmd *cmd;
-
-	while (dec--) {
-		k = (afu->cmd_couts++ & (CXLFLASH_NUM_CMDS - 1));
-
-		cmd = &afu->cmd[k];
-
-		if (!atomic_dec_if_positive(&cmd->free)) {
-			pr_devel("%s: returning found index=%d cmd=%p\n",
-				 __func__, cmd->slot, cmd);
-			memset(cmd->buf, 0, CMD_BUFSIZE);
-			memset(cmd->rcb.cdb, 0, sizeof(cmd->rcb.cdb));
-			return cmd;
-		}
-	}
-
-	return NULL;
-}
-
-/**
- * cmd_checkin() - checks in an AFU command
- * @cmd:	AFU command to checkin.
- *
- * Safe to pass commands that have already been checked in. Several
- * internal tracking fields are reset as part of the checkin. Note
- * that these are intentionally reset prior to toggling the free bit
- * to avoid clobbering values in the event that the command is checked
- * out right away.
- */
-static void cmd_checkin(struct afu_cmd *cmd)
-{
-	cmd->rcb.scp = NULL;
-	cmd->rcb.timeout = 0;
-	cmd->sa.ioasc = 0;
-	cmd->cmd_tmf = false;
-	cmd->sa.host_use[0] = 0; /* clears both completion and retry bytes */
-
-	if (unlikely(atomic_inc_return(&cmd->free) != 1)) {
-		pr_err("%s: Freeing cmd (%d) that is not in use!\n",
-		       __func__, cmd->slot);
-		return;
-	}
-
-	pr_devel("%s: released cmd %p index=%d\n", __func__, cmd, cmd->slot);
-}
-
-/**
  * process_cmd_err() - command error handler
  * @cmd:	AFU command that experienced the error.
  * @scp:	SCSI command associated with the AFU command in error.
@@ -212,7 +151,7 @@ static void process_cmd_err(struct afu_cmd *cmd, struct scsi_cmnd *scp)
  *
  * Prepares and submits command that has either completed or timed out to
  * the SCSI stack. Checks AFU command back into command pool for non-internal
- * (rcb.scp populated) commands.
+ * (cmd->scp populated) commands.
  */
 static void cmd_complete(struct afu_cmd *cmd)
 {
@@ -222,19 +161,14 @@ static void cmd_complete(struct afu_cmd *cmd)
 	struct cxlflash_cfg *cfg = afu->parent;
 	bool cmd_is_tmf;
 
-	spin_lock_irqsave(&cmd->slock, lock_flags);
-	cmd->sa.host_use_b[0] |= B_DONE;
-	spin_unlock_irqrestore(&cmd->slock, lock_flags);
-
-	if (cmd->rcb.scp) {
-		scp = cmd->rcb.scp;
+	if (cmd->scp) {
+		scp = cmd->scp;
 		if (unlikely(cmd->sa.ioasc))
 			process_cmd_err(cmd, scp);
 		else
 			scp->result = (DID_OK << 16);
 
 		cmd_is_tmf = cmd->cmd_tmf;
-		cmd_checkin(cmd); /* Don't use cmd after here */
 
 		pr_debug_ratelimited("%s: calling scsi_done scp=%p result=%X "
 				     "ioasc=%d\n", __func__, scp, scp->result,
@@ -254,49 +188,19 @@ static void cmd_complete(struct afu_cmd *cmd)
 }
 
 /**
- * context_reset() - timeout handler for AFU commands
+ * context_reset_ioarrin() - reset command owner context via IOARRIN register
  * @cmd:	AFU command that timed out.
- *
- * Sends a reset to the AFU.
  */
-static void context_reset(struct afu_cmd *cmd)
+static void context_reset_ioarrin(struct afu_cmd *cmd)
 {
 	int nretry = 0;
 	u64 rrin = 0x1;
-	u64 room = 0;
 	struct afu *afu = cmd->parent;
-	ulong lock_flags;
+	struct cxlflash_cfg *cfg = afu->parent;
+	struct device *dev = &cfg->dev->dev;
 
 	pr_debug("%s: cmd=%p\n", __func__, cmd);
 
-	spin_lock_irqsave(&cmd->slock, lock_flags);
-
-	/* Already completed? */
-	if (cmd->sa.host_use_b[0] & B_DONE) {
-		spin_unlock_irqrestore(&cmd->slock, lock_flags);
-		return;
-	}
-
-	cmd->sa.host_use_b[0] |= (B_DONE | B_ERROR | B_TIMEOUT);
-	spin_unlock_irqrestore(&cmd->slock, lock_flags);
-
-	/*
-	 * We really want to send this reset at all costs, so spread
-	 * out wait time on successive retries for available room.
-	 */
-	do {
-		room = readq_be(&afu->host_map->cmd_room);
-		atomic64_set(&afu->room, room);
-		if (room)
-			goto write_rrin;
-		udelay(1 << nretry);
-	} while (nretry++ < MC_ROOM_RETRY_CNT);
-
-	pr_err("%s: no cmd_room to send reset\n", __func__);
-	return;
-
-write_rrin:
-	nretry = 0;
 	writeq_be(rrin, &afu->host_map->ioarrin);
 	do {
 		rrin = readq_be(&afu->host_map->ioarrin);
@@ -305,93 +209,81 @@ write_rrin:
 		/* Double delay each time */
 		udelay(1 << nretry);
 	} while (nretry++ < MC_ROOM_RETRY_CNT);
+
+	dev_dbg(dev, "%s: returning rrin=0x%016llX nretry=%d\n",
+		__func__, rrin, nretry);
 }
 
 /**
- * send_cmd() - sends an AFU command
+ * send_cmd_ioarrin() - sends an AFU command via IOARRIN register
  * @afu:	AFU associated with the host.
  * @cmd:	AFU command to send.
  *
  * Return:
  *	0 on success, SCSI_MLQUEUE_HOST_BUSY on failure
  */
-static int send_cmd(struct afu *afu, struct afu_cmd *cmd)
+static int send_cmd_ioarrin(struct afu *afu, struct afu_cmd *cmd)
 {
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
-	int nretry = 0;
 	int rc = 0;
-	u64 room;
-	long newval;
+	s64 room;
+	ulong lock_flags;
 
 	/*
-	 * This routine is used by critical users such an AFU sync and to
-	 * send a task management function (TMF). Thus we want to retry a
-	 * bit before returning an error. To avoid the performance penalty
-	 * of MMIO, we spread the update of 'room' over multiple commands.
+	 * To avoid the performance penalty of MMIO, spread the update of
+	 * 'room' over multiple commands.
 	 */
-retry:
-	newval = atomic64_dec_if_positive(&afu->room);
-	if (!newval) {
-		do {
-			room = readq_be(&afu->host_map->cmd_room);
-			atomic64_set(&afu->room, room);
-			if (room)
-				goto write_ioarrin;
-			udelay(1 << nretry);
-		} while (nretry++ < MC_ROOM_RETRY_CNT);
-
-		dev_err(dev, "%s: no cmd_room to send 0x%X\n",
-		       __func__, cmd->rcb.cdb[0]);
-
-		goto no_room;
-	} else if (unlikely(newval < 0)) {
-		/* This should be rare. i.e. Only if two threads race and
-		 * decrement before the MMIO read is done. In this case
-		 * just benefit from the other thread having updated
-		 * afu->room.
-		 */
-		if (nretry++ < MC_ROOM_RETRY_CNT) {
-			udelay(1 << nretry);
-			goto retry;
+	spin_lock_irqsave(&afu->rrin_slock, lock_flags);
+	if (--afu->room < 0) {
+		room = readq_be(&afu->host_map->cmd_room);
+		if (room <= 0) {
+			dev_dbg_ratelimited(dev, "%s: no cmd_room to send "
+					    "0x%02X, room=0x%016llX\n",
+					    __func__, cmd->rcb.cdb[0], room);
+			afu->room = 0;
+			rc = SCSI_MLQUEUE_HOST_BUSY;
+			goto out;
 		}
-
-		goto no_room;
+		afu->room = room - 1;
 	}
 
-write_ioarrin:
 	writeq_be((u64)&cmd->rcb, &afu->host_map->ioarrin);
 out:
+	spin_unlock_irqrestore(&afu->rrin_slock, lock_flags);
 	pr_devel("%s: cmd=%p len=%d ea=%p rc=%d\n", __func__, cmd,
 		 cmd->rcb.data_len, (void *)cmd->rcb.data_ea, rc);
 	return rc;
-
-no_room:
-	afu->read_room = true;
-	kref_get(&cfg->afu->mapcount);
-	schedule_work(&cfg->work_q);
-	rc = SCSI_MLQUEUE_HOST_BUSY;
-	goto out;
 }
 
 /**
  * wait_resp() - polls for a response or timeout to a sent AFU command
  * @afu:	AFU associated with the host.
  * @cmd:	AFU command that was sent.
+ *
+ * Return:
+ *	0 on success, -1 on timeout/error
  */
-static void wait_resp(struct afu *afu, struct afu_cmd *cmd)
+static int wait_resp(struct afu *afu, struct afu_cmd *cmd)
 {
+	int rc = 0;
 	ulong timeout = msecs_to_jiffies(cmd->rcb.timeout * 2 * 1000);
 
 	timeout = wait_for_completion_timeout(&cmd->cevent, timeout);
-	if (!timeout)
-		context_reset(cmd);
+	if (!timeout) {
+		afu->context_reset(cmd);
+		rc = -1;
+	}
 
-	if (unlikely(cmd->sa.ioasc != 0))
+	if (unlikely(cmd->sa.ioasc != 0)) {
 		pr_err("%s: CMD 0x%X failed, IOASC: flags 0x%X, afu_rc 0x%X, "
 		       "scsi_rc 0x%X, fc_rc 0x%X\n", __func__, cmd->rcb.cdb[0],
 		       cmd->sa.rc.flags, cmd->sa.rc.afu_rc, cmd->sa.rc.scsi_rc,
 		       cmd->sa.rc.fc_rc);
+		rc = -1;
+	}
+
+	return rc;
 }
 
 /**
@@ -405,23 +297,14 @@ static void wait_resp(struct afu *afu, struct afu_cmd *cmd)
  */
 static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 {
-	struct afu_cmd *cmd;
-
 	u32 port_sel = scp->device->channel + 1;
-	short lflag = 0;
 	struct Scsi_Host *host = scp->device->host;
 	struct cxlflash_cfg *cfg = (struct cxlflash_cfg *)host->hostdata;
+	struct afu_cmd *cmd = sc_to_afucz(scp);
 	struct device *dev = &cfg->dev->dev;
 	ulong lock_flags;
 	int rc = 0;
 	ulong to;
-
-	cmd = cmd_checkout(afu);
-	if (unlikely(!cmd)) {
-		dev_err(dev, "%s: could not get a free command\n", __func__);
-		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto out;
-	}
 
 	/* When Task Management Function is active do not send another */
 	spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
@@ -430,28 +313,23 @@ static int send_tmf(struct afu *afu, struct scsi_cmnd *scp, u64 tmfcmd)
 						  !cfg->tmf_active,
 						  cfg->tmf_slock);
 	cfg->tmf_active = true;
-	cmd->cmd_tmf = true;
 	spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
 
+	cmd->scp = scp;
+	cmd->parent = afu;
+	cmd->cmd_tmf = true;
+
 	cmd->rcb.ctx_id = afu->ctx_hndl;
+	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
 	cmd->rcb.port_sel = port_sel;
 	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
-
-	lflag = SISL_REQ_FLAGS_TMF_CMD;
-
 	cmd->rcb.req_flags = (SISL_REQ_FLAGS_PORT_LUN_ID |
-			      SISL_REQ_FLAGS_SUP_UNDERRUN | lflag);
-
-	/* Stash the scp in the reserved field, for reuse during interrupt */
-	cmd->rcb.scp = scp;
-
-	/* Copy the CDB from the cmd passed in */
+			      SISL_REQ_FLAGS_SUP_UNDERRUN |
+			      SISL_REQ_FLAGS_TMF_CMD);
 	memcpy(cmd->rcb.cdb, &tmfcmd, sizeof(tmfcmd));
 
-	/* Send the command */
-	rc = send_cmd(afu, cmd);
+	rc = afu->send_cmd(afu, cmd);
 	if (unlikely(rc)) {
-		cmd_checkin(cmd);
 		spin_lock_irqsave(&cfg->tmf_slock, lock_flags);
 		cfg->tmf_active = false;
 		spin_unlock_irqrestore(&cfg->tmf_slock, lock_flags);
@@ -507,12 +385,12 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 	struct cxlflash_cfg *cfg = (struct cxlflash_cfg *)host->hostdata;
 	struct afu *afu = cfg->afu;
 	struct device *dev = &cfg->dev->dev;
-	struct afu_cmd *cmd;
+	struct afu_cmd *cmd = sc_to_afucz(scp);
+	struct scatterlist *sg = scsi_sglist(scp);
 	u32 port_sel = scp->device->channel + 1;
-	int nseg, i, ncount;
-	struct scatterlist *sg;
+	u16 req_flags = SISL_REQ_FLAGS_SUP_UNDERRUN;
 	ulong lock_flags;
-	short lflag = 0;
+	int nseg = 0;
 	int rc = 0;
 	int kref_got = 0;
 
@@ -552,55 +430,38 @@ static int cxlflash_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *scp)
 		break;
 	}
 
-	cmd = cmd_checkout(afu);
-	if (unlikely(!cmd)) {
-		dev_err(dev, "%s: could not get a free command\n", __func__);
-		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto out;
-	}
-
 	kref_get(&cfg->afu->mapcount);
 	kref_got = 1;
 
-	cmd->rcb.ctx_id = afu->ctx_hndl;
-	cmd->rcb.port_sel = port_sel;
-	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
+	if (likely(sg)) {
+		nseg = scsi_dma_map(scp);
+		if (unlikely(nseg < 0)) {
+			dev_err(dev, "%s: Fail DMA map!\n", __func__);
+			rc = SCSI_MLQUEUE_HOST_BUSY;
+			goto out;
+		}
 
-	if (scp->sc_data_direction == DMA_TO_DEVICE)
-		lflag = SISL_REQ_FLAGS_HOST_WRITE;
-	else
-		lflag = SISL_REQ_FLAGS_HOST_READ;
-
-	cmd->rcb.req_flags = (SISL_REQ_FLAGS_PORT_LUN_ID |
-			      SISL_REQ_FLAGS_SUP_UNDERRUN | lflag);
-
-	/* Stash the scp in the reserved field, for reuse during interrupt */
-	cmd->rcb.scp = scp;
-
-	nseg = scsi_dma_map(scp);
-	if (unlikely(nseg < 0)) {
-		dev_err(dev, "%s: Fail DMA map! nseg=%d\n",
-			__func__, nseg);
-		rc = SCSI_MLQUEUE_HOST_BUSY;
-		goto out;
-	}
-
-	ncount = scsi_sg_count(scp);
-	scsi_for_each_sg(scp, sg, ncount, i) {
 		cmd->rcb.data_len = sg_dma_len(sg);
 		cmd->rcb.data_ea = sg_dma_address(sg);
 	}
 
-	/* Copy the CDB from the scsi_cmnd passed in */
+	cmd->scp = scp;
+	cmd->parent = afu;
+
+	cmd->rcb.ctx_id = afu->ctx_hndl;
+	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
+	cmd->rcb.port_sel = port_sel;
+	cmd->rcb.lun_id = lun_to_lunid(scp->device->lun);
+
+	if (scp->sc_data_direction == DMA_TO_DEVICE)
+		req_flags |= SISL_REQ_FLAGS_HOST_WRITE;
+
+	cmd->rcb.req_flags = req_flags;
 	memcpy(cmd->rcb.cdb, scp->cmnd, sizeof(cmd->rcb.cdb));
 
-	/* Send the command */
-	rc = send_cmd(afu, cmd);
-	if (unlikely(rc)) {
-		cmd_checkin(cmd);
+	rc = afu->send_cmd(afu, cmd);
+	if (unlikely(rc))
 		scsi_dma_unmap(scp);
-	}
-
 out:
 	if (kref_got)
 		kref_put(&afu->mapcount, afu_unmap);
@@ -628,17 +489,9 @@ static void cxlflash_wait_for_pci_err_recovery(struct cxlflash_cfg *cfg)
  */
 static void free_mem(struct cxlflash_cfg *cfg)
 {
-	int i;
-	char *buf = NULL;
 	struct afu *afu = cfg->afu;
 
 	if (cfg->afu) {
-		for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-			buf = afu->cmd[i].buf;
-			if (!((u64)buf & (PAGE_SIZE - 1)))
-				free_page((ulong)buf);
-		}
-
 		free_pages((ulong)afu, get_order(sizeof(struct afu)));
 		cfg->afu = NULL;
 	}
@@ -650,30 +503,16 @@ static void free_mem(struct cxlflash_cfg *cfg)
  *
  * Safe to call with AFU in a partially allocated/initialized state.
  *
- * Cleans up all state associated with the command queue, and unmaps
+ * Waits for any active internal AFU commands to timeout and then unmaps
  * the MMIO space.
- *
- *  - complete() will take care of commands we initiated (they'll be checked
- *  in as part of the cleanup that occurs after the completion)
- *
- *  - cmd_checkin() will take care of entries that we did not initiate and that
- *  have not (and will not) complete because they are sitting on a [now stale]
- *  hardware queue
  */
 static void stop_afu(struct cxlflash_cfg *cfg)
 {
-	int i;
 	struct afu *afu = cfg->afu;
-	struct afu_cmd *cmd;
 
 	if (likely(afu)) {
-		for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-			cmd = &afu->cmd[i];
-			complete(&cmd->cevent);
-			if (!atomic_read(&cmd->free))
-				cmd_checkin(cmd);
-		}
-
+		while (atomic_read(&afu->cmds_active))
+			ssleep(1);
 		if (likely(afu->afu_map)) {
 			cxl_psa_unmap((void __iomem *)afu->afu_map);
 			afu->afu_map = NULL;
@@ -886,8 +725,6 @@ static void cxlflash_remove(struct pci_dev *pdev)
 static int alloc_mem(struct cxlflash_cfg *cfg)
 {
 	int rc = 0;
-	int i;
-	char *buf = NULL;
 	struct device *dev = &cfg->dev->dev;
 
 	/* AFU is ~12k, i.e. only one 64k page or up to four 4k pages */
@@ -901,25 +738,6 @@ static int alloc_mem(struct cxlflash_cfg *cfg)
 	}
 	cfg->afu->parent = cfg;
 	cfg->afu->afu_map = NULL;
-
-	for (i = 0; i < CXLFLASH_NUM_CMDS; buf += CMD_BUFSIZE, i++) {
-		if (!((u64)buf & (PAGE_SIZE - 1))) {
-			buf = (void *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
-			if (unlikely(!buf)) {
-				dev_err(dev,
-					"%s: Allocate command buffers fail!\n",
-				       __func__);
-				rc = -ENOMEM;
-				free_mem(cfg);
-				goto out;
-			}
-		}
-
-		cfg->afu->cmd[i].buf = buf;
-		atomic_set(&cfg->afu->cmd[i].free, 1);
-		cfg->afu->cmd[i].slot = i;
-	}
-
 out:
 	return rc;
 }
@@ -1549,13 +1367,6 @@ static void init_pcr(struct cxlflash_cfg *cfg)
 
 	/* Program the Endian Control for the master context */
 	writeq_be(SISL_ENDIAN_CTRL, &afu->host_map->endian_ctrl);
-
-	/* Initialize cmd fields that never change */
-	for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-		afu->cmd[i].rcb.ctx_id = afu->ctx_hndl;
-		afu->cmd[i].rcb.msi = SISL_MSI_RRQ_UPDATED;
-		afu->cmd[i].rcb.rrq = 0x0;
-	}
 }
 
 /**
@@ -1644,18 +1455,7 @@ out:
 static int start_afu(struct cxlflash_cfg *cfg)
 {
 	struct afu *afu = cfg->afu;
-	struct afu_cmd *cmd;
-
-	int i = 0;
 	int rc = 0;
-
-	for (i = 0; i < CXLFLASH_NUM_CMDS; i++) {
-		cmd = &afu->cmd[i];
-
-		init_completion(&cmd->cevent);
-		spin_lock_init(&cmd->slock);
-		cmd->parent = afu;
-	}
 
 	init_pcr(cfg);
 
@@ -1829,6 +1629,9 @@ static int init_afu(struct cxlflash_cfg *cfg)
 		goto err2;
 	}
 
+	afu->send_cmd = send_cmd_ioarrin;
+	afu->context_reset = context_reset_ioarrin;
+
 	pr_debug("%s: afu version %s, interface version 0x%llX\n", __func__,
 		 afu->version, afu->interface_version);
 
@@ -1840,7 +1643,8 @@ static int init_afu(struct cxlflash_cfg *cfg)
 	}
 
 	afu_err_intr_init(cfg->afu);
-	atomic64_set(&afu->room, readq_be(&afu->host_map->cmd_room));
+	spin_lock_init(&afu->rrin_slock);
+	afu->room = readq_be(&afu->host_map->cmd_room);
 
 	/* Restore the LUN mappings */
 	cxlflash_restore_luntable(cfg);
@@ -1884,8 +1688,8 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	struct cxlflash_cfg *cfg = afu->parent;
 	struct device *dev = &cfg->dev->dev;
 	struct afu_cmd *cmd = NULL;
+	char *buf = NULL;
 	int rc = 0;
-	int retry_cnt = 0;
 	static DEFINE_MUTEX(sync_active);
 
 	if (cfg->state != STATE_NORMAL) {
@@ -1894,27 +1698,23 @@ int cxlflash_afu_sync(struct afu *afu, ctx_hndl_t ctx_hndl_u,
 	}
 
 	mutex_lock(&sync_active);
-retry:
-	cmd = cmd_checkout(afu);
-	if (unlikely(!cmd)) {
-		retry_cnt++;
-		udelay(1000 * retry_cnt);
-		if (retry_cnt < MC_RETRY_CNT)
-			goto retry;
-		dev_err(dev, "%s: could not get a free command\n", __func__);
+	atomic_inc(&afu->cmds_active);
+	buf = kzalloc(sizeof(*cmd) + __alignof__(*cmd) - 1, GFP_KERNEL);
+	if (unlikely(!buf)) {
+		dev_err(dev, "%s: no memory for command\n", __func__);
 		rc = -1;
 		goto out;
 	}
 
+	cmd = (struct afu_cmd *)PTR_ALIGN(buf, __alignof__(*cmd));
+	init_completion(&cmd->cevent);
+	cmd->parent = afu;
+
 	pr_debug("%s: afu=%p cmd=%p %d\n", __func__, afu, cmd, ctx_hndl_u);
 
-	memset(cmd->rcb.cdb, 0, sizeof(cmd->rcb.cdb));
-
 	cmd->rcb.req_flags = SISL_REQ_FLAGS_AFU_CMD;
-	cmd->rcb.port_sel = 0x0;	/* NA */
-	cmd->rcb.lun_id = 0x0;	/* NA */
-	cmd->rcb.data_len = 0x0;
-	cmd->rcb.data_ea = 0x0;
+	cmd->rcb.ctx_id = afu->ctx_hndl;
+	cmd->rcb.msi = SISL_MSI_RRQ_UPDATED;
 	cmd->rcb.timeout = MC_AFU_SYNC_TIMEOUT;
 
 	cmd->rcb.cdb[0] = 0xC0;	/* AFU Sync */
@@ -1924,20 +1724,17 @@ retry:
 	*((__be16 *)&cmd->rcb.cdb[2]) = cpu_to_be16(ctx_hndl_u);
 	*((__be32 *)&cmd->rcb.cdb[4]) = cpu_to_be32(res_hndl_u);
 
-	rc = send_cmd(afu, cmd);
+	rc = afu->send_cmd(afu, cmd);
 	if (unlikely(rc))
 		goto out;
 
-	wait_resp(afu, cmd);
-
-	/* Set on timeout */
-	if (unlikely((cmd->sa.ioasc != 0) ||
-		     (cmd->sa.host_use_b[0] & B_ERROR)))
+	rc = wait_resp(afu, cmd);
+	if (unlikely(rc))
 		rc = -1;
 out:
+	atomic_dec(&afu->cmds_active);
 	mutex_unlock(&sync_active);
-	if (cmd)
-		cmd_checkin(cmd);
+	kfree(buf);
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
 }
@@ -2376,8 +2173,9 @@ static struct scsi_host_template driver_template = {
 	.change_queue_depth = cxlflash_change_queue_depth,
 	.cmd_per_lun = CXLFLASH_MAX_CMDS_PER_LUN,
 	.can_queue = CXLFLASH_MAX_CMDS,
+	.cmd_size = sizeof(struct afu_cmd) + __alignof__(struct afu_cmd) - 1,
 	.this_id = -1,
-	.sg_tablesize = SG_NONE,	/* No scatter gather support */
+	.sg_tablesize = 1,	/* No scatter gather support */
 	.max_sectors = CXLFLASH_MAX_SECTORS,
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = cxlflash_host_attrs,
@@ -2412,7 +2210,6 @@ MODULE_DEVICE_TABLE(pci, cxlflash_pci_table);
  * Handles the following events:
  * - Link reset which cannot be performed on interrupt context due to
  * blocking up to a few seconds
- * - Read AFU command room
  * - Rescan the host
  */
 static void cxlflash_worker_thread(struct work_struct *work)
@@ -2447,11 +2244,6 @@ static void cxlflash_worker_thread(struct work_struct *work)
 		}
 
 		cfg->lr_state = LINK_RESET_COMPLETE;
-	}
-
-	if (afu->read_room) {
-		atomic64_set(&afu->room, readq_be(&afu->host_map->cmd_room));
-		afu->read_room = false;
 	}
 
 	spin_unlock_irqrestore(cfg->host->host_lock, lock_flags);

@@ -704,9 +704,8 @@ static int handle_mcast(struct vnet_port *port, void *msgbuf)
 	return 0;
 }
 
-/* Got back a STOPPED LDC message on port. If the queue is stopped,
- * wake it up so that we'll send out another START message at the
- * next TX.
+/* If the queue is stopped, wake it up so that we'll
+ * send out another START message at the next TX.
  */
 static void maybe_tx_wakeup(struct vnet_port *port)
 {
@@ -734,6 +733,7 @@ EXPORT_SYMBOL_GPL(sunvnet_port_is_up_common);
 
 static int vnet_event_napi(struct vnet_port *port, int budget)
 {
+	struct net_device *dev = VNET_PORT_TO_NET_DEVICE(port);
 	struct vio_driver_state *vio = &port->vio;
 	int tx_wakeup, err;
 	int npkts = 0;
@@ -747,6 +747,16 @@ ldc_ctrl:
 		if (event == LDC_EVENT_RESET) {
 			vnet_port_reset(port);
 			vio_port_up(vio);
+
+			/* If the device is running but its tx queue was
+			 * stopped (due to flow control), restart it.
+			 * This is necessary since vnet_port_reset()
+			 * clears the tx drings and thus we may never get
+			 * back a VIO_TYPE_DATA ACK packet - which is
+			 * the normal mechanism to restart the tx queue.
+			 */
+			if (netif_running(dev))
+				maybe_tx_wakeup(port);
 		}
 		port->rx_event = 0;
 		return 0;
@@ -1582,16 +1592,6 @@ void sunvnet_set_rx_mode_common(struct net_device *dev, struct vnet *vp)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(sunvnet_set_rx_mode_common);
-
-int sunvnet_change_mtu_common(struct net_device *dev, int new_mtu)
-{
-	if (new_mtu < 68 || new_mtu > 65535)
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(sunvnet_change_mtu_common);
 
 int sunvnet_set_mac_addr_common(struct net_device *dev, void *p)
 {

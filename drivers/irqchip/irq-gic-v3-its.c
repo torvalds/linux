@@ -37,7 +37,6 @@
 #include <linux/irqchip.h>
 #include <linux/irqchip/arm-gic-v3.h>
 
-#include <asm/cacheflush.h>
 #include <asm/cputype.h>
 #include <asm/exception.h>
 
@@ -196,7 +195,7 @@ typedef struct its_collection *(*its_cmd_builder_t)(struct its_cmd_block *,
 
 static void its_encode_cmd(struct its_cmd_block *cmd, u8 cmd_nr)
 {
-	cmd->raw_cmd[0] &= ~0xffUL;
+	cmd->raw_cmd[0] &= ~0xffULL;
 	cmd->raw_cmd[0] |= cmd_nr;
 }
 
@@ -208,43 +207,43 @@ static void its_encode_devid(struct its_cmd_block *cmd, u32 devid)
 
 static void its_encode_event_id(struct its_cmd_block *cmd, u32 id)
 {
-	cmd->raw_cmd[1] &= ~0xffffffffUL;
+	cmd->raw_cmd[1] &= ~0xffffffffULL;
 	cmd->raw_cmd[1] |= id;
 }
 
 static void its_encode_phys_id(struct its_cmd_block *cmd, u32 phys_id)
 {
-	cmd->raw_cmd[1] &= 0xffffffffUL;
+	cmd->raw_cmd[1] &= 0xffffffffULL;
 	cmd->raw_cmd[1] |= ((u64)phys_id) << 32;
 }
 
 static void its_encode_size(struct its_cmd_block *cmd, u8 size)
 {
-	cmd->raw_cmd[1] &= ~0x1fUL;
+	cmd->raw_cmd[1] &= ~0x1fULL;
 	cmd->raw_cmd[1] |= size & 0x1f;
 }
 
 static void its_encode_itt(struct its_cmd_block *cmd, u64 itt_addr)
 {
-	cmd->raw_cmd[2] &= ~0xffffffffffffUL;
-	cmd->raw_cmd[2] |= itt_addr & 0xffffffffff00UL;
+	cmd->raw_cmd[2] &= ~0xffffffffffffULL;
+	cmd->raw_cmd[2] |= itt_addr & 0xffffffffff00ULL;
 }
 
 static void its_encode_valid(struct its_cmd_block *cmd, int valid)
 {
-	cmd->raw_cmd[2] &= ~(1UL << 63);
+	cmd->raw_cmd[2] &= ~(1ULL << 63);
 	cmd->raw_cmd[2] |= ((u64)!!valid) << 63;
 }
 
 static void its_encode_target(struct its_cmd_block *cmd, u64 target_addr)
 {
-	cmd->raw_cmd[2] &= ~(0xffffffffUL << 16);
-	cmd->raw_cmd[2] |= (target_addr & (0xffffffffUL << 16));
+	cmd->raw_cmd[2] &= ~(0xffffffffULL << 16);
+	cmd->raw_cmd[2] |= (target_addr & (0xffffffffULL << 16));
 }
 
 static void its_encode_collection(struct its_cmd_block *cmd, u16 col)
 {
-	cmd->raw_cmd[2] &= ~0xffffUL;
+	cmd->raw_cmd[2] &= ~0xffffULL;
 	cmd->raw_cmd[2] |= col;
 }
 
@@ -433,7 +432,7 @@ static void its_flush_cmd(struct its_node *its, struct its_cmd_block *cmd)
 	 * the ITS.
 	 */
 	if (its->flags & ITS_FLAGS_CMDQ_NEEDS_FLUSHING)
-		__flush_dcache_area(cmd, sizeof(*cmd));
+		gic_flush_dcache_to_poc(cmd, sizeof(*cmd));
 	else
 		dsb(ishst);
 }
@@ -602,7 +601,7 @@ static void lpi_set_config(struct irq_data *d, bool enable)
 	 * Humpf...
 	 */
 	if (gic_rdists->flags & RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING)
-		__flush_dcache_area(cfg, sizeof(*cfg));
+		gic_flush_dcache_to_poc(cfg, sizeof(*cfg));
 	else
 		dsb(ishst);
 	its_send_inv(its_dev, id);
@@ -657,8 +656,8 @@ static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
 	its = its_dev->its;
 	addr = its->phys_base + GITS_TRANSLATER;
 
-	msg->address_lo		= addr & ((1UL << 32) - 1);
-	msg->address_hi		= addr >> 32;
+	msg->address_lo		= lower_32_bits(addr);
+	msg->address_hi		= upper_32_bits(addr);
 	msg->data		= its_get_event_id(d);
 
 	iommu_dma_map_msi_msg(d->irq, msg);
@@ -817,7 +816,7 @@ static int __init its_alloc_lpi_tables(void)
 	       LPI_PROPBASE_SZ);
 
 	/* Make sure the GIC will observe the written configuration */
-	__flush_dcache_area(page_address(gic_rdists->prop_page), LPI_PROPBASE_SZ);
+	gic_flush_dcache_to_poc(page_address(gic_rdists->prop_page), LPI_PROPBASE_SZ);
 
 	return 0;
 }
@@ -836,7 +835,7 @@ static u64 its_read_baser(struct its_node *its, struct its_baser *baser)
 {
 	u32 idx = baser - its->tables;
 
-	return readq_relaxed(its->base + GITS_BASER + (idx << 3));
+	return gits_read_baser(its->base + GITS_BASER + (idx << 3));
 }
 
 static void its_write_baser(struct its_node *its, struct its_baser *baser,
@@ -844,7 +843,7 @@ static void its_write_baser(struct its_node *its, struct its_baser *baser,
 {
 	u32 idx = baser - its->tables;
 
-	writeq_relaxed(val, its->base + GITS_BASER + (idx << 3));
+	gits_write_baser(val, its->base + GITS_BASER + (idx << 3));
 	baser->val = its_read_baser(its, baser);
 }
 
@@ -910,7 +909,7 @@ retry_baser:
 		shr = tmp & GITS_BASER_SHAREABILITY_MASK;
 		if (!shr) {
 			cache = GITS_BASER_nC;
-			__flush_dcache_area(base, PAGE_ORDER_TO_SIZE(order));
+			gic_flush_dcache_to_poc(base, PAGE_ORDER_TO_SIZE(order));
 		}
 		goto retry_baser;
 	}
@@ -935,9 +934,9 @@ retry_baser:
 	}
 
 	if (val != tmp) {
-		pr_err("ITS@%pa: %s doesn't stick: %lx %lx\n",
+		pr_err("ITS@%pa: %s doesn't stick: %llx %llx\n",
 		       &its->phys_base, its_base_type_string[type],
-		       (unsigned long) val, (unsigned long) tmp);
+		       val, tmp);
 		free_pages((unsigned long)base, order);
 		return -ENXIO;
 	}
@@ -948,7 +947,7 @@ retry_baser:
 	tmp = indirect ? GITS_LVL1_ENTRY_SIZE : esz;
 
 	pr_info("ITS@%pa: allocated %d %s @%lx (%s, esz %d, psz %dK, shr %d)\n",
-		&its->phys_base, (int)(PAGE_ORDER_TO_SIZE(order) / tmp),
+		&its->phys_base, (int)(PAGE_ORDER_TO_SIZE(order) / (int)tmp),
 		its_base_type_string[type],
 		(unsigned long)virt_to_phys(base),
 		indirect ? "indirect" : "flat", (int)esz,
@@ -983,7 +982,7 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 			 * which is reported by ITS hardware times lvl1 table
 			 * entry size.
 			 */
-			ids -= ilog2(psz / esz);
+			ids -= ilog2(psz / (int)esz);
 			esz = GITS_LVL1_ENTRY_SIZE;
 		}
 	}
@@ -998,7 +997,7 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 	new_order = max_t(u32, get_order(esz << ids), new_order);
 	if (new_order >= MAX_ORDER) {
 		new_order = MAX_ORDER - 1;
-		ids = ilog2(PAGE_ORDER_TO_SIZE(new_order) / esz);
+		ids = ilog2(PAGE_ORDER_TO_SIZE(new_order) / (int)esz);
 		pr_warn("ITS@%pa: Device Table too large, reduce ids %u->%u\n",
 			&its->phys_base, its->device_ids, ids);
 	}
@@ -1102,7 +1101,7 @@ static void its_cpu_init_lpis(void)
 		}
 
 		/* Make sure the GIC will observe the zero-ed page */
-		__flush_dcache_area(page_address(pend_page), LPI_PENDBASE_SZ);
+		gic_flush_dcache_to_poc(page_address(pend_page), LPI_PENDBASE_SZ);
 
 		paddr = page_to_phys(pend_page);
 		pr_info("CPU%d: using LPI pending table @%pa\n",
@@ -1126,8 +1125,8 @@ static void its_cpu_init_lpis(void)
 	       GICR_PROPBASER_WaWb |
 	       ((LPI_NRBITS - 1) & GICR_PROPBASER_IDBITS_MASK));
 
-	writeq_relaxed(val, rbase + GICR_PROPBASER);
-	tmp = readq_relaxed(rbase + GICR_PROPBASER);
+	gicr_write_propbaser(val, rbase + GICR_PROPBASER);
+	tmp = gicr_read_propbaser(rbase + GICR_PROPBASER);
 
 	if ((tmp ^ val) & GICR_PROPBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GICR_PROPBASER_SHAREABILITY_MASK)) {
@@ -1139,7 +1138,7 @@ static void its_cpu_init_lpis(void)
 			val &= ~(GICR_PROPBASER_SHAREABILITY_MASK |
 				 GICR_PROPBASER_CACHEABILITY_MASK);
 			val |= GICR_PROPBASER_nC;
-			writeq_relaxed(val, rbase + GICR_PROPBASER);
+			gicr_write_propbaser(val, rbase + GICR_PROPBASER);
 		}
 		pr_info_once("GIC: using cache flushing for LPI property table\n");
 		gic_rdists->flags |= RDIST_FLAGS_PROPBASE_NEEDS_FLUSHING;
@@ -1150,8 +1149,8 @@ static void its_cpu_init_lpis(void)
 	       GICR_PENDBASER_InnerShareable |
 	       GICR_PENDBASER_WaWb);
 
-	writeq_relaxed(val, rbase + GICR_PENDBASER);
-	tmp = readq_relaxed(rbase + GICR_PENDBASER);
+	gicr_write_pendbaser(val, rbase + GICR_PENDBASER);
+	tmp = gicr_read_pendbaser(rbase + GICR_PENDBASER);
 
 	if (!(tmp & GICR_PENDBASER_SHAREABILITY_MASK)) {
 		/*
@@ -1161,7 +1160,7 @@ static void its_cpu_init_lpis(void)
 		val &= ~(GICR_PENDBASER_SHAREABILITY_MASK |
 			 GICR_PENDBASER_CACHEABILITY_MASK);
 		val |= GICR_PENDBASER_nC;
-		writeq_relaxed(val, rbase + GICR_PENDBASER);
+		gicr_write_pendbaser(val, rbase + GICR_PENDBASER);
 	}
 
 	/* Enable LPIs */
@@ -1287,13 +1286,13 @@ static bool its_alloc_device_table(struct its_node *its, u32 dev_id)
 
 		/* Flush Lvl2 table to PoC if hw doesn't support coherency */
 		if (!(baser->val & GITS_BASER_SHAREABILITY_MASK))
-			__flush_dcache_area(page_address(page), baser->psz);
+			gic_flush_dcache_to_poc(page_address(page), baser->psz);
 
 		table[idx] = cpu_to_le64(page_to_phys(page) | GITS_BASER_VALID);
 
 		/* Flush Lvl1 entry to PoC if hw doesn't support coherency */
 		if (!(baser->val & GITS_BASER_SHAREABILITY_MASK))
-			__flush_dcache_area(table + idx, GITS_LVL1_ENTRY_SIZE);
+			gic_flush_dcache_to_poc(table + idx, GITS_LVL1_ENTRY_SIZE);
 
 		/* Ensure updated table contents are visible to ITS hardware */
 		dsb(sy);
@@ -1340,7 +1339,7 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 		return NULL;
 	}
 
-	__flush_dcache_area(itt, sz);
+	gic_flush_dcache_to_poc(itt, sz);
 
 	dev->its = its;
 	dev->itt = itt;
@@ -1717,8 +1716,8 @@ static int __init its_probe_one(struct resource *res,
 		 (ITS_CMD_QUEUE_SZ / SZ_4K - 1)	|
 		 GITS_CBASER_VALID);
 
-	writeq_relaxed(baser, its->base + GITS_CBASER);
-	tmp = readq_relaxed(its->base + GITS_CBASER);
+	gits_write_cbaser(baser, its->base + GITS_CBASER);
+	tmp = gits_read_cbaser(its->base + GITS_CBASER);
 
 	if ((tmp ^ baser) & GITS_CBASER_SHAREABILITY_MASK) {
 		if (!(tmp & GITS_CBASER_SHAREABILITY_MASK)) {
@@ -1730,13 +1729,13 @@ static int __init its_probe_one(struct resource *res,
 			baser &= ~(GITS_CBASER_SHAREABILITY_MASK |
 				   GITS_CBASER_CACHEABILITY_MASK);
 			baser |= GITS_CBASER_nC;
-			writeq_relaxed(baser, its->base + GITS_CBASER);
+			gits_write_cbaser(baser, its->base + GITS_CBASER);
 		}
 		pr_info("ITS: using cache flushing for cmd queue\n");
 		its->flags |= ITS_FLAGS_CMDQ_NEEDS_FLUSHING;
 	}
 
-	writeq_relaxed(0, its->base + GITS_CWRITER);
+	gits_write_cwriter(0, its->base + GITS_CWRITER);
 	writel_relaxed(GITS_CTLR_ENABLE, its->base + GITS_CTLR);
 
 	err = its_init_domain(handle, its);

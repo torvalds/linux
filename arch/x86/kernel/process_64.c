@@ -44,7 +44,6 @@
 #include <asm/desc.h>
 #include <asm/proto.h>
 #include <asm/ia32.h>
-#include <asm/idle.h>
 #include <asm/syscalls.h>
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
@@ -61,10 +60,15 @@ void __show_regs(struct pt_regs *regs, int all)
 	unsigned int fsindex, gsindex;
 	unsigned int ds, cs, es;
 
-	printk(KERN_DEFAULT "RIP: %04lx:[<%016lx>] ", regs->cs & 0xffff, regs->ip);
-	printk_address(regs->ip);
-	printk(KERN_DEFAULT "RSP: %04lx:%016lx  EFLAGS: %08lx\n", regs->ss,
-			regs->sp, regs->flags);
+	printk(KERN_DEFAULT "RIP: %04lx:%pS\n", regs->cs & 0xffff,
+		(void *)regs->ip);
+	printk(KERN_DEFAULT "RSP: %04lx:%016lx EFLAGS: %08lx", regs->ss,
+		regs->sp, regs->flags);
+	if (regs->orig_ax != -1)
+		pr_cont(" ORIG_RAX: %016lx\n", regs->orig_ax);
+	else
+		pr_cont("\n");
+
 	printk(KERN_DEFAULT "RAX: %016lx RBX: %016lx RCX: %016lx\n",
 	       regs->ax, regs->bx, regs->cx);
 	printk(KERN_DEFAULT "RDX: %016lx RSI: %016lx RDI: %016lx\n",
@@ -265,9 +269,8 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	int cpu = smp_processor_id();
 	struct tss_struct *tss = &per_cpu(cpu_tss, cpu);
 	unsigned prev_fsindex, prev_gsindex;
-	fpu_switch_t fpu_switch;
 
-	fpu_switch = switch_fpu_prepare(prev_fpu, next_fpu, cpu);
+	switch_fpu_prepare(prev_fpu, cpu);
 
 	/* We must save %fs and %gs before load_TLS() because
 	 * %fs and %gs may be cleared by load_TLS().
@@ -417,7 +420,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 		prev->gsbase = 0;
 	prev->gsindex = prev_gsindex;
 
-	switch_fpu_finish(next_fpu, fpu_switch);
+	switch_fpu_finish(next_fpu, cpu);
 
 	/*
 	 * Switch the PDA and FPU contexts.

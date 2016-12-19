@@ -39,4 +39,15 @@ config STM_SOURCE_HEARTBEAT
 	  If you want to send heartbeat messages over STM devices,
 	  say Y.
 
+config STM_SOURCE_FTRACE
+	tristate "Copy the output from kernel Ftrace to STM engine"
+	depends on FUNCTION_TRACER
+	help
+	  This option can be used to copy the output from kernel Ftrace
+	  to STM engine. Enabling this option will introduce a slight
+	  timing effect.
+
+	  If you want to send kernel Ftrace messages over STM devices,
+	  say Y.
+
 endif

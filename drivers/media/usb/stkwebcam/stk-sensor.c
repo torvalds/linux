@@ -228,7 +228,7 @@
 static int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 {
 	int i = 0;
-	int tmpval = 0;
+	u8 tmpval = 0;
 
 	if (stk_camera_write_reg(dev, STK_IIC_TX_INDEX, reg))
 		return 1;
@@ -253,7 +253,7 @@ static int stk_sensor_outb(struct stk_camera *dev, u8 reg, u8 val)
 static int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
 {
 	int i = 0;
-	int tmpval = 0;
+	u8 tmpval = 0;
 
 	if (stk_camera_write_reg(dev, STK_IIC_RX_INDEX, reg))
 		return 1;
@@ -274,7 +274,7 @@ static int stk_sensor_inb(struct stk_camera *dev, u8 reg, u8 *val)
 	if (stk_camera_read_reg(dev, STK_IIC_RX_VALUE, &tmpval))
 		return 1;
 
-	*val = (u8) tmpval;
+	*val = tmpval;
 	return 0;
 }
 
@@ -391,8 +391,8 @@ int stk_sensor_init(struct stk_camera *dev)
 	}
 	stk_sensor_write_regvals(dev, ov_initvals);
 	msleep(10);
-	STK_INFO("OmniVision sensor detected, id %02X%02X"
-		" at address %x\n", idh, idl, SENSOR_ADDRESS);
+	STK_INFO("OmniVision sensor detected, id %02X%02X at address %x\n",
+		 idh, idl, SENSOR_ADDRESS);
 	return 0;
 }
 
