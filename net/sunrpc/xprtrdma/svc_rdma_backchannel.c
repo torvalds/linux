@@ -164,12 +164,8 @@ static int
 xprt_rdma_bc_allocate(struct rpc_task *task)
 {
 	struct rpc_rqst *rqst = task->tk_rqstp;
-	struct svc_xprt *sxprt = rqst->rq_xprt->bc_xprt;
 	size_t size = rqst->rq_callsize;
-	struct svcxprt_rdma *rdma;
 	struct page *page;
-
-	rdma = container_of(sxprt, struct svcxprt_rdma, sc_xprt);
 
 	if (size > PAGE_SIZE) {
 		WARN_ONCE(1, "svcrdma: large bc buffer request (size %zu)\n",
@@ -359,6 +355,7 @@ xprt_setup_rdma_bc(struct xprt_create *args)
 out_fail:
 	xprt_rdma_free_addresses(xprt);
 	args->bc_xprt->xpt_bc_xprt = NULL;
+	args->bc_xprt->xpt_bc_xps = NULL;
 	xprt_put(xprt);
 	xprt_free(xprt);
 	return ERR_PTR(-EINVAL);

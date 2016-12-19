@@ -739,14 +739,8 @@ static int stv090x_write_regs(struct stv090x_state *state, unsigned int reg, u8 
 	buf[1] = reg & 0xff;
 	memcpy(&buf[2], data, count);
 
-	if (unlikely(*state->verbose >= FE_DEBUGREG)) {
-		int i;
-
-		printk(KERN_DEBUG "%s [0x%04x]:", __func__, reg);
-		for (i = 0; i < count; i++)
-			printk(" %02x", data[i]);
-		printk("\n");
-	}
+	dprintk(FE_DEBUGREG, 1, "%s [0x%04x]: %*ph",
+		__func__, reg, count, data);
 
 	ret = i2c_transfer(state->i2c, &i2c_msg, 1);
 	if (ret != 1) {
@@ -3698,9 +3692,12 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 			}
 			val /= 16;
 			last = ARRAY_SIZE(stv090x_s2cn_tab) - 1;
-			div = stv090x_s2cn_tab[0].read -
-			      stv090x_s2cn_tab[last].read;
-			*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+			div = stv090x_s2cn_tab[last].real -
+			      stv090x_s2cn_tab[3].real;
+			val = stv090x_table_lookup(stv090x_s2cn_tab, last, val);
+			if (val < 0)
+				val = 0;
+			*cnr = val * 0xFFFF / div;
 		}
 		break;
 
@@ -3720,9 +3717,10 @@ static int stv090x_read_cnr(struct dvb_frontend *fe, u16 *cnr)
 			}
 			val /= 16;
 			last = ARRAY_SIZE(stv090x_s1cn_tab) - 1;
-			div = stv090x_s1cn_tab[0].read -
-			      stv090x_s1cn_tab[last].read;
-			*cnr = 0xFFFF - ((val * 0xFFFF) / div);
+			div = stv090x_s1cn_tab[last].real -
+			      stv090x_s1cn_tab[0].real;
+			val = stv090x_table_lookup(stv090x_s1cn_tab, last, val);
+			*cnr = val * 0xFFFF / div;
 		}
 		break;
 	default:
@@ -4886,7 +4884,7 @@ static int stv090x_set_gpio(struct dvb_frontend *fe, u8 gpio, u8 dir,
 	return stv090x_write_reg(state, STV090x_GPIOxCFG(gpio), reg);
 }
 
-static struct dvb_frontend_ops stv090x_ops = {
+static const struct dvb_frontend_ops stv090x_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
 		.name			= "STV090x Multistandard",

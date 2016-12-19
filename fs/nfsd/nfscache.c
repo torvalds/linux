@@ -9,6 +9,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/sunrpc/addr.h>
 #include <linux/highmem.h>
 #include <linux/log2.h>
@@ -174,8 +175,12 @@ int nfsd_reply_cache_init(void)
 		goto out_nomem;
 
 	drc_hashtbl = kcalloc(hashsize, sizeof(*drc_hashtbl), GFP_KERNEL);
-	if (!drc_hashtbl)
-		goto out_nomem;
+	if (!drc_hashtbl) {
+		drc_hashtbl = vzalloc(hashsize * sizeof(*drc_hashtbl));
+		if (!drc_hashtbl)
+			goto out_nomem;
+	}
+
 	for (i = 0; i < hashsize; i++) {
 		INIT_LIST_HEAD(&drc_hashtbl[i].lru_head);
 		spin_lock_init(&drc_hashtbl[i].cache_lock);
@@ -204,7 +209,7 @@ void nfsd_reply_cache_shutdown(void)
 		}
 	}
 
-	kfree (drc_hashtbl);
+	kvfree(drc_hashtbl);
 	drc_hashtbl = NULL;
 	drc_hashsize = 0;
 

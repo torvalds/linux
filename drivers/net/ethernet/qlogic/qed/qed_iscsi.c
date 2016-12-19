@@ -1265,7 +1265,7 @@ static const struct qed_iscsi_ops qed_iscsi_ops_pass = {
 	.get_stats = &qed_iscsi_stats,
 };
 
-const struct qed_iscsi_ops *qed_get_iscsi_ops()
+const struct qed_iscsi_ops *qed_get_iscsi_ops(void)
 {
 	return &qed_iscsi_ops_pass;
 }

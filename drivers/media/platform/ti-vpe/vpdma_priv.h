@@ -28,6 +28,10 @@
 #define VPDMA_MAX_SIZE1		0x34
 #define VPDMA_MAX_SIZE2		0x38
 #define VPDMA_MAX_SIZE3		0x3c
+#define VPDMA_MAX_SIZE_WIDTH_MASK	0xffff
+#define VPDMA_MAX_SIZE_WIDTH_SHFT	16
+#define VPDMA_MAX_SIZE_HEIGHT_MASK	0xffff
+#define VPDMA_MAX_SIZE_HEIGHT_SHFT	0
 
 /* Interrupts */
 #define VPDMA_INT_CHAN_STAT(grp)	(0x40 + grp * 8)
@@ -39,9 +43,11 @@
 #define VPDMA_INT_LIST0_STAT		0x88
 #define VPDMA_INT_LIST0_MASK		0x8c
 
+#define VPDMA_INTX_OFFSET		0x50
+
 #define VPDMA_PERFMON(i)		(0x200 + i * 4)
 
-/* VPE specific client registers */
+/* VIP/VPE client registers */
 #define VPDMA_DEI_CHROMA1_CSTAT		0x0300
 #define VPDMA_DEI_LUMA1_CSTAT		0x0304
 #define VPDMA_DEI_LUMA2_CSTAT		0x0308
@@ -50,6 +56,8 @@
 #define VPDMA_DEI_CHROMA3_CSTAT		0x0314
 #define VPDMA_DEI_MV_IN_CSTAT		0x0330
 #define VPDMA_DEI_MV_OUT_CSTAT		0x033c
+#define VPDMA_VIP_LO_Y_CSTAT		0x0388
+#define VPDMA_VIP_LO_UV_CSTAT		0x038c
 #define VPDMA_VIP_UP_Y_CSTAT		0x0390
 #define VPDMA_VIP_UP_UV_CSTAT		0x0394
 #define VPDMA_VPI_CTL_CSTAT		0x03d0
@@ -69,41 +77,63 @@
 #define VPDMA_LIST_TYPE_SHFT		16
 #define VPDMA_LIST_SIZE_MASK		0xffff
 
-/* VPDMA data type values for data formats */
+/*
+ * The YUV data type definition below are taken from
+ * both the TRM and i839 Errata information.
+ * Use the correct data type considering byte
+ * reordering of components.
+ *
+ * Also since the single use of "C" in the 422 case
+ * to mean "Cr" (i.e. V component). It was decided
+ * to explicitly label them CR to remove any confusion.
+ * Bear in mind that the type label refer to the memory
+ * packed order (LSB - MSB).
+ */
 #define DATA_TYPE_Y444				0x0
 #define DATA_TYPE_Y422				0x1
 #define DATA_TYPE_Y420				0x2
 #define DATA_TYPE_C444				0x4
 #define DATA_TYPE_C422				0x5
 #define DATA_TYPE_C420				0x6
-#define DATA_TYPE_YC422				0x7
 #define DATA_TYPE_YC444				0x8
-#define DATA_TYPE_CY422				0x27
+#define DATA_TYPE_YCB422			0x7
+#define DATA_TYPE_YCR422			0x17
+#define DATA_TYPE_CBY422			0x27
+#define DATA_TYPE_CRY422			0x37
 
-#define DATA_TYPE_RGB16_565			0x0
-#define DATA_TYPE_ARGB_1555			0x1
-#define DATA_TYPE_ARGB_4444			0x2
-#define DATA_TYPE_RGBA_5551			0x3
-#define DATA_TYPE_RGBA_4444			0x4
-#define DATA_TYPE_ARGB24_6666			0x5
-#define DATA_TYPE_RGB24_888			0x6
-#define DATA_TYPE_ARGB32_8888			0x7
-#define DATA_TYPE_RGBA24_6666			0x8
-#define DATA_TYPE_RGBA32_8888			0x9
-#define DATA_TYPE_BGR16_565			0x10
-#define DATA_TYPE_ABGR_1555			0x11
-#define DATA_TYPE_ABGR_4444			0x12
-#define DATA_TYPE_BGRA_5551			0x13
-#define DATA_TYPE_BGRA_4444			0x14
-#define DATA_TYPE_ABGR24_6666			0x15
-#define DATA_TYPE_BGR24_888			0x16
-#define DATA_TYPE_ABGR32_8888			0x17
-#define DATA_TYPE_BGRA24_6666			0x18
-#define DATA_TYPE_BGRA32_8888			0x19
+/*
+ * The RGB data type definition below are defined
+ * to follow Errata i819.
+ * The initial values were taken from:
+ * VPDMA_data_type_mapping_v0.2vayu_c.pdf
+ * But some of the ARGB definition appeared to be wrong
+ * in the document also. As they would yield RGBA instead.
+ * They have been corrected based on experimentation.
+ */
+#define DATA_TYPE_RGB16_565			0x10
+#define DATA_TYPE_ARGB_1555			0x13
+#define DATA_TYPE_ARGB_4444			0x14
+#define DATA_TYPE_RGBA_5551			0x11
+#define DATA_TYPE_RGBA_4444			0x12
+#define DATA_TYPE_ARGB24_6666			0x18
+#define DATA_TYPE_RGB24_888			0x16
+#define DATA_TYPE_ARGB32_8888			0x17
+#define DATA_TYPE_RGBA24_6666			0x15
+#define DATA_TYPE_RGBA32_8888			0x19
+#define DATA_TYPE_BGR16_565			0x0
+#define DATA_TYPE_ABGR_1555			0x3
+#define DATA_TYPE_ABGR_4444			0x4
+#define DATA_TYPE_BGRA_5551			0x1
+#define DATA_TYPE_BGRA_4444			0x2
+#define DATA_TYPE_ABGR24_6666			0x8
+#define DATA_TYPE_BGR24_888			0x6
+#define DATA_TYPE_ABGR32_8888			0x7
+#define DATA_TYPE_BGRA24_6666			0x5
+#define DATA_TYPE_BGRA32_8888			0x9
 
 #define DATA_TYPE_MV				0x3
 
-/* VPDMA channel numbers(only VPE channels for now) */
+/* VPDMA channel numbers, some are common between VIP/VPE and appear twice */
 #define	VPE_CHAN_NUM_LUMA1_IN		0
 #define	VPE_CHAN_NUM_CHROMA1_IN		1
 #define	VPE_CHAN_NUM_LUMA2_IN		2
@@ -112,10 +142,15 @@
 #define	VPE_CHAN_NUM_CHROMA3_IN		5
 #define	VPE_CHAN_NUM_MV_IN		12
 #define	VPE_CHAN_NUM_MV_OUT		15
+#define VIP1_CHAN_NUM_MULT_PORT_A_SRC0	38
+#define VIP1_CHAN_NUM_MULT_ANC_A_SRC0	70
 #define	VPE_CHAN_NUM_LUMA_OUT		102
 #define	VPE_CHAN_NUM_CHROMA_OUT		103
+#define VIP1_CHAN_NUM_PORT_A_LUMA	102
+#define VIP1_CHAN_NUM_PORT_A_CHROMA	103
 #define	VPE_CHAN_NUM_RGB_OUT		106
-
+#define VIP1_CHAN_NUM_PORT_A_RGB	106
+#define VIP1_CHAN_NUM_PORT_B_RGB	107
 /*
  * a VPDMA address data block payload for a configuration descriptor needs to
  * have each sub block length as a multiple of 16 bytes. Therefore, the overall
@@ -203,6 +238,7 @@ struct vpdma_dtd {
 #define DTD_V_START_MASK	0xffff
 #define DTD_V_START_SHFT	0
 
+#define DTD_DESC_START_MASK	0xffffffe0
 #define DTD_DESC_START_SHIFT	5
 #define DTD_WRITE_DESC_MASK	0x01
 #define DTD_WRITE_DESC_SHIFT	2
@@ -216,42 +252,6 @@ struct vpdma_dtd {
 #define DTD_MAX_WIDTH_SHFT	4
 #define DTD_MAX_HEIGHT_MASK	0x07
 #define DTD_MAX_HEIGHT_SHFT	0
-
-/* max width configurations */
- /* unlimited width */
-#define	MAX_OUT_WIDTH_UNLIMITED		0
-/* as specified in max_size1 reg */
-#define MAX_OUT_WIDTH_REG1		1
-/* as specified in max_size2 reg */
-#define MAX_OUT_WIDTH_REG2		2
-/* as specified in max_size3 reg */
-#define	MAX_OUT_WIDTH_REG3		3
-/* maximum of 352 pixels as width */
-#define MAX_OUT_WIDTH_352		4
-/* maximum of 768 pixels as width */
-#define	MAX_OUT_WIDTH_768		5
-/* maximum of 1280 pixels width */
-#define	MAX_OUT_WIDTH_1280		6
-/* maximum of 1920 pixels as width */
-#define	MAX_OUT_WIDTH_1920		7
-
-/* max height configurations */
- /* unlimited height */
-#define	MAX_OUT_HEIGHT_UNLIMITED	0
-/* as specified in max_size1 reg */
-#define MAX_OUT_HEIGHT_REG1		1
-/* as specified in max_size2 reg */
-#define MAX_OUT_HEIGHT_REG2		2
-/* as specified in max_size3 reg */
-#define	MAX_OUT_HEIGHT_REG3		3
-/* maximum of 288 lines as height */
-#define MAX_OUT_HEIGHT_288		4
-/* maximum of 576 lines as height */
-#define	MAX_OUT_HEIGHT_576		5
-/* maximum of 720 lines as height */
-#define	MAX_OUT_HEIGHT_720		6
-/* maximum of 1080 lines as height */
-#define	MAX_OUT_HEIGHT_1080		7
 
 static inline u32 dtd_type_ctl_stride(int type, bool notify, int field,
 			bool one_d, bool even_line_skip, bool odd_line_skip,
@@ -285,7 +285,7 @@ static inline u32 dtd_frame_width_height(int width, int height)
 static inline u32 dtd_desc_write_addr(unsigned int addr, bool write_desc,
 			bool drop_data, bool use_desc)
 {
-	return (addr << DTD_DESC_START_SHIFT) |
+	return (addr & DTD_DESC_START_MASK) |
 		(write_desc << DTD_WRITE_DESC_SHIFT) |
 		(drop_data << DTD_DROP_DATA_SHIFT) |
 		use_desc;
@@ -390,7 +390,7 @@ static inline int dtd_get_frame_height(struct vpdma_dtd *dtd)
 
 static inline int dtd_get_desc_write_addr(struct vpdma_dtd *dtd)
 {
-	return dtd->desc_write_addr >> DTD_DESC_START_SHIFT;
+	return dtd->desc_write_addr & DTD_DESC_START_MASK;
 }
 
 static inline bool dtd_get_write_desc(struct vpdma_dtd *dtd)

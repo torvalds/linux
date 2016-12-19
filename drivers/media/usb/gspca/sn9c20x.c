@@ -29,8 +29,7 @@
 
 #include <linux/dmi.h>
 
-MODULE_AUTHOR("Brian Johnson <brijohn@gmail.com>, "
-		"microdia project <microdia@googlegroups.com>");
+MODULE_AUTHOR("Brian Johnson <brijohn@gmail.com>, microdia project <microdia@googlegroups.com>");
 MODULE_DESCRIPTION("GSPCA/SN9C20X USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -1948,8 +1947,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 		intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
 
 		if (intf->num_altsetting != 9) {
-			pr_warn("sn9c20x camera with unknown number of alt "
-				"settings (%d), please report!\n",
+			pr_warn("sn9c20x camera with unknown number of alt settings (%d), please report!\n",
 				intf->num_altsetting);
 			gspca_dev->alt = intf->num_altsetting;
 			return 0;

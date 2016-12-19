@@ -16,7 +16,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include "edac_core.h"
+#include "edac_module.h"
 #include "fsl_ddr_edac.h"
 
 static const struct of_device_id fsl_ddr_mc_err_of_match[] = {

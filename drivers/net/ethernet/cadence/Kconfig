@@ -31,4 +31,13 @@ config MACB
 	  To compile this driver as a module, choose M here: the module
 	  will be called macb.
 
+config MACB_PCI
+	tristate "Cadence PCI MACB/GEM support"
+	depends on MACB && PCI && COMMON_CLK
+	---help---
+	  This is PCI wrapper for MACB driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macb_pci.
+
 endif # NET_CADENCE

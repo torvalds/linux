@@ -2174,6 +2174,8 @@ static int ip6_route_del(struct fib6_config *cfg)
 				continue;
 			if (cfg->fc_metric && cfg->fc_metric != rt->rt6i_metric)
 				continue;
+			if (cfg->fc_protocol && cfg->fc_protocol != rt->rt6i_protocol)
+				continue;
 			dst_hold(&rt->dst);
 			read_unlock_bh(&table->tb6_lock);
 

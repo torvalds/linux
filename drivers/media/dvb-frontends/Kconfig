@@ -642,7 +642,7 @@ config DVB_S5H1409
 	  to support this frontend.
 
 config DVB_AU8522
-	depends on I2C
+	depends on DVB_CORE && I2C
 	tristate
 
 config DVB_AU8522_DTV
@@ -656,7 +656,7 @@ config DVB_AU8522_DTV
 
 config DVB_AU8522_V4L
 	tristate "Auvitek AU8522 based ATV demod"
-	depends on VIDEO_V4L2 && I2C
+	depends on VIDEO_V4L2 && DVB_CORE && I2C
 	select DVB_AU8522
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
@@ -722,7 +722,7 @@ config DVB_PLL
 
 config DVB_TUNER_DIB0070
 	tristate "DiBcom DiB0070 silicon base-band tuner"
-	depends on I2C
+	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A driver for the silicon baseband tuner DiB0070 from DiBcom.
@@ -731,7 +731,7 @@ config DVB_TUNER_DIB0070
 
 config DVB_TUNER_DIB0090
 	tristate "DiBcom DiB0090 silicon base-band tuner"
-	depends on I2C
+	depends on DVB_CORE && I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  A driver for the silicon baseband tuner DiB0090 from DiBcom.
@@ -879,5 +879,6 @@ comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
+	depends on DVB_CORE
 	default n
 endmenu

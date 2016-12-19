@@ -1092,7 +1092,7 @@ static ssize_t gb_camera_debugfs_read(struct file *file, char __user *buf,
 				      size_t len, loff_t *offset)
 {
 	const struct gb_camera_debugfs_entry *op = file->private_data;
-	struct gb_camera *gcam = file->f_inode->i_private;
+	struct gb_camera *gcam = file_inode(file)->i_private;
 	struct gb_camera_debugfs_buffer *buffer;
 	ssize_t ret;
 
@@ -1114,7 +1114,7 @@ static ssize_t gb_camera_debugfs_write(struct file *file,
 				       loff_t *offset)
 {
 	const struct gb_camera_debugfs_entry *op = file->private_data;
-	struct gb_camera *gcam = file->f_inode->i_private;
+	struct gb_camera *gcam = file_inode(file)->i_private;
 	ssize_t ret;
 	char *kbuf;
 

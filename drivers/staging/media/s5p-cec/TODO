@@ -1,7 +1,7 @@
-This driver depends on the CEC framework, which is currently in
-staging, so therefor this driver is in staging as well.
+This driver requires that userspace sets the physical address.
+However, this should be passed on from the corresponding
+Samsung HDMI driver.
 
-In addition, this driver requires that userspace sets the physical
-address. However, this should be passed on from the corresponding
-samsung HDMI driver. It is very annoying if userspace has to do this,
-and other than USB CEC adapters this must be handled automatically.
+We have to wait until the HDMI notifier framework has been merged
+in order to handle this gracefully, until that time this driver
+has to remain in staging.

@@ -177,10 +177,12 @@ static void rmi_2d_sensor_set_input_params(struct rmi_2d_sensor *sensor)
 				sensor->dmax = DMAX * res_x;
 		}
 
-		input_set_abs_params(input, ABS_MT_PRESSURE, 0,	0xff, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR,	0, 0x0f, 0, 0);
-		input_set_abs_params(input, ABS_MT_TOUCH_MINOR,	0, 0x0f, 0, 0);
-		input_set_abs_params(input, ABS_MT_ORIENTATION,	0, 1, 0, 0);
+		input_set_abs_params(input, ABS_MT_PRESSURE, 0, 0xff, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MAJOR, 0, 0x0f, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOUCH_MINOR, 0, 0x0f, 0, 0);
+		input_set_abs_params(input, ABS_MT_ORIENTATION, 0, 1, 0, 0);
+		input_set_abs_params(input, ABS_MT_TOOL_TYPE,
+				     0, MT_TOOL_MAX, 0, 0);
 
 		if (sensor->sensor_type == rmi_sensor_touchpad)
 			input_flags = INPUT_MT_POINTER;
