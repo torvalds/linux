@@ -1152,7 +1152,7 @@ static int mmc_blk_issue_discard_rq(struct mmc_queue *mq, struct request *req)
 
 	if (!mmc_can_erase(card)) {
 		err = -EOPNOTSUPP;
-		goto out;
+		goto fail;
 	}
 
 	from = blk_rq_pos(req);
@@ -1181,6 +1181,7 @@ out:
 		goto retry;
 	if (!err)
 		mmc_blk_reset_success(md, type);
+fail:
 	blk_end_request(req, err, blk_rq_bytes(req));
 
 	return err ? 0 : 1;
