@@ -684,17 +684,18 @@ static inline u32 its_get_event_id(struct irq_data *d)
 	return d->hwirq - its_dev->event_map.lpi_base;
 }
 
-static void lpi_set_config(struct irq_data *d, bool enable)
+static void lpi_update_config(struct irq_data *d, u8 clr, u8 set)
 {
 	struct its_device *its_dev = irq_data_get_irq_chip_data(d);
 	irq_hw_number_t hwirq = d->hwirq;
-	u32 id = its_get_event_id(d);
-	u8 *cfg = page_address(gic_rdists->prop_page) + hwirq - 8192;
+	struct page *prop_page;
+	u8 *cfg;
 
-	if (enable)
-		*cfg |= LPI_PROP_ENABLED;
-	else
-		*cfg &= ~LPI_PROP_ENABLED;
+	prop_page = gic_rdists->prop_page;
+
+	cfg = page_address(prop_page) + hwirq - 8192;
+	*cfg &= ~clr;
+	*cfg |= set;
 
 	/*
 	 * Make the above write visible to the redistributors.
@@ -705,17 +706,17 @@ static void lpi_set_config(struct irq_data *d, bool enable)
 		gic_flush_dcache_to_poc(cfg, sizeof(*cfg));
 	else
 		dsb(ishst);
-	its_send_inv(its_dev, id);
+	its_send_inv(its_dev, its_get_event_id(d));
 }
 
 static void its_mask_irq(struct irq_data *d)
 {
-	lpi_set_config(d, false);
+	lpi_update_config(d, LPI_PROP_ENABLED, 0);
 }
 
 static void its_unmask_irq(struct irq_data *d)
 {
-	lpi_set_config(d, true);
+	lpi_update_config(d, 0, LPI_PROP_ENABLED);
 }
 
 static int its_set_affinity(struct irq_data *d, const struct cpumask *mask_val,
