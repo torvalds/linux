@@ -71,8 +71,8 @@ int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 bool kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 			   int short_hand, unsigned int dest, int dest_mode);
 
-void __kvm_apic_update_irr(u32 *pir, void *regs);
-void kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
+int __kvm_apic_update_irr(u32 *pir, void *regs);
+int kvm_apic_update_irr(struct kvm_vcpu *vcpu, u32 *pir);
 void kvm_apic_update_ppr(struct kvm_vcpu *vcpu);
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq,
 		     struct dest_map *dest_map);
