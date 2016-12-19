@@ -2342,7 +2342,8 @@ static struct sg_table *
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	int page_count, i;
+	const unsigned long page_count = obj->base.size / PAGE_SIZE;
+	unsigned long i;
 	struct address_space *mapping;
 	struct sg_table *st;
 	struct scatterlist *sg;
@@ -2368,7 +2369,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	if (st == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	page_count = obj->base.size / PAGE_SIZE;
+rebuild_st:
 	if (sg_alloc_table(st, page_count, GFP_KERNEL)) {
 		kfree(st);
 		return ERR_PTR(-ENOMEM);
@@ -2427,8 +2428,25 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	i915_sg_trim(st);
 
 	ret = i915_gem_gtt_prepare_pages(obj, st);
-	if (ret)
-		goto err_pages;
+	if (ret) {
+		/* DMA remapping failed? One possible cause is that
+		 * it could not reserve enough large entries, asking
+		 * for PAGE_SIZE chunks instead may be helpful.
+		 */
+		if (max_segment > PAGE_SIZE) {
+			for_each_sgt_page(page, sgt_iter, st)
+				put_page(page);
+			sg_free_table(st);
+
+			max_segment = PAGE_SIZE;
+			goto rebuild_st;
+		} else {
+			dev_warn(&dev_priv->drm.pdev->dev,
+				 "Failed to DMA remap %lu pages\n",
+				 page_count);
+			goto err_pages;
+		}
+	}
 
 	if (i915_gem_object_needs_bit17_swizzle(obj))
 		i915_gem_object_do_bit_17_swizzle(obj, st);
