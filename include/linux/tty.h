@@ -338,7 +338,6 @@ struct tty_file_private {
 #define TTY_EXCLUSIVE 		3	/* Exclusive open mode */
 #define TTY_DEBUG 		4	/* Debugging */
 #define TTY_DO_WRITE_WAKEUP 	5	/* Call write_wakeup after queuing new */
-#define TTY_OTHER_DONE		6	/* Closed pty has completed input processing */
 #define TTY_LDISC_OPEN	 	11	/* Line discipline is open */
 #define TTY_PTY_LOCK 		16	/* pty private */
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
@@ -469,6 +468,7 @@ extern void tty_buffer_init(struct tty_port *port);
 extern void tty_buffer_set_lock_subclass(struct tty_port *port);
 extern bool tty_buffer_restart_work(struct tty_port *port);
 extern bool tty_buffer_cancel_work(struct tty_port *port);
+extern void tty_buffer_flush_work(struct tty_port *port);
 extern speed_t tty_termios_baud_rate(struct ktermios *termios);
 extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);
 extern void tty_termios_encode_baud_rate(struct ktermios *termios,
@@ -594,7 +594,7 @@ static inline int tty_ldisc_receive_buf(struct tty_ldisc *ld, unsigned char *p,
 		count = ld->ops->receive_buf2(ld->tty, p, f, count);
 	else {
 		count = min_t(int, count, ld->tty->receive_room);
-		if (count)
+		if (count && ld->ops->receive_buf)
 			ld->ops->receive_buf(ld->tty, p, f, count);
 	}
 	return count;
@@ -654,6 +654,7 @@ extern long vt_compat_ioctl(struct tty_struct *tty,
 /* tty_mutex.c */
 /* functions for preparation of BKL removal */
 extern void __lockfunc tty_lock(struct tty_struct *tty);
+extern int  tty_lock_interruptible(struct tty_struct *tty);
 extern void __lockfunc tty_unlock(struct tty_struct *tty);
 extern void __lockfunc tty_lock_slave(struct tty_struct *tty);
 extern void __lockfunc tty_unlock_slave(struct tty_struct *tty);

@@ -2950,13 +2950,13 @@ u32 intel_fb_stride_alignment(struct drm_device *dev, uint64_t fb_modifier,
 	}
 }
 
-unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
-				     struct drm_i915_gem_object *obj,
-				     unsigned int plane)
+u32 intel_plane_obj_offset(struct intel_plane *intel_plane,
+			   struct drm_i915_gem_object *obj,
+			   unsigned int plane)
 {
 	const struct i915_ggtt_view *view = &i915_ggtt_view_normal;
 	struct i915_vma *vma;
-	unsigned char *offset;
+	u64 offset;
 
 	if (intel_rotation_90_or_270(intel_plane->base.state->rotation))
 		view = &i915_ggtt_view_rotated;
@@ -2966,14 +2966,16 @@ unsigned long intel_plane_obj_offset(struct intel_plane *intel_plane,
 		view->type))
 		return -1;
 
-	offset = (unsigned char *)vma->node.start;
+	offset = vma->node.start;
 
 	if (plane == 1) {
 		offset += vma->ggtt_view.rotation_info.uv_start_page *
 			  PAGE_SIZE;
 	}
 
-	return (unsigned long)offset;
+	WARN_ON(upper_32_bits(offset));
+
+	return lower_32_bits(offset);
 }
 
 static void skl_detach_scaler(struct intel_crtc *intel_crtc, int id)
@@ -3099,7 +3101,7 @@ static void skylake_update_primary_plane(struct drm_crtc *crtc,
 	u32 tile_height, plane_offset, plane_size;
 	unsigned int rotation;
 	int x_offset, y_offset;
-	unsigned long surf_addr;
+	u32 surf_addr;
 	struct intel_crtc_state *crtc_state = intel_crtc->config;
 	struct intel_plane_state *plane_state;
 	int src_x = 0, src_y = 0, src_w = 0, src_h = 0;
@@ -4447,7 +4449,7 @@ int skl_update_scaler_crtc(struct intel_crtc_state *state)
 		      intel_crtc->base.base.id, intel_crtc->pipe, SKL_CRTC_INDEX);
 
 	return skl_update_scaler(state, !state->base.active, SKL_CRTC_INDEX,
-		&state->scaler_state.scaler_id, DRM_ROTATE_0,
+		&state->scaler_state.scaler_id, BIT(DRM_ROTATE_0),
 		state->pipe_src_w, state->pipe_src_h,
 		adjusted_mode->crtc_hdisplay, adjusted_mode->crtc_vdisplay);
 }
@@ -8228,12 +8230,14 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *encoder;
+	int i;
 	u32 val, final;
 	bool has_lvds = false;
 	bool has_cpu_edp = false;
 	bool has_panel = false;
 	bool has_ck505 = false;
 	bool can_ssc = false;
+	bool using_ssc_source = false;
 
 	/* We need to take the global config into account */
 	for_each_intel_encoder(dev, encoder) {
@@ -8260,8 +8264,22 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		can_ssc = true;
 	}
 
-	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_ck505 %d\n",
-		      has_panel, has_lvds, has_ck505);
+	/* Check if any DPLLs are using the SSC source */
+	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		u32 temp = I915_READ(PCH_DPLL(i));
+
+		if (!(temp & DPLL_VCO_ENABLE))
+			continue;
+
+		if ((temp & PLL_REF_INPUT_MASK) ==
+		    PLLB_REF_INPUT_SPREADSPECTRUMIN) {
+			using_ssc_source = true;
+			break;
+		}
+	}
+
+	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_ck505 %d using_ssc_source %d\n",
+		      has_panel, has_lvds, has_ck505, using_ssc_source);
 
 	/* Ironlake: try to setup display ref clock before DPLL
 	 * enabling. This is only under driver's control after
@@ -8298,9 +8316,9 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 				final |= DREF_CPU_SOURCE_OUTPUT_NONSPREAD;
 		} else
 			final |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
-	} else {
-		final |= DREF_SSC_SOURCE_DISABLE;
-		final |= DREF_CPU_SOURCE_OUTPUT_DISABLE;
+	} else if (using_ssc_source) {
+		final |= DREF_SSC_SOURCE_ENABLE;
+		final |= DREF_SSC1_ENABLE;
 	}
 
 	if (final == val)
@@ -8346,7 +8364,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 	} else {
-		DRM_DEBUG_KMS("Disabling SSC entirely\n");
+		DRM_DEBUG_KMS("Disabling CPU source output\n");
 
 		val &= ~DREF_CPU_SOURCE_OUTPUT_MASK;
 
@@ -8357,16 +8375,20 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		POSTING_READ(PCH_DREF_CONTROL);
 		udelay(200);
 
-		/* Turn off the SSC source */
-		val &= ~DREF_SSC_SOURCE_MASK;
-		val |= DREF_SSC_SOURCE_DISABLE;
+		if (!using_ssc_source) {
+			DRM_DEBUG_KMS("Disabling SSC source\n");
 
-		/* Turn off SSC1 */
-		val &= ~DREF_SSC1_ENABLE;
+			/* Turn off the SSC source */
+			val &= ~DREF_SSC_SOURCE_MASK;
+			val |= DREF_SSC_SOURCE_DISABLE;
 
-		I915_WRITE(PCH_DREF_CONTROL, val);
-		POSTING_READ(PCH_DREF_CONTROL);
-		udelay(200);
+			/* Turn off SSC1 */
+			val &= ~DREF_SSC1_ENABLE;
+
+			I915_WRITE(PCH_DREF_CONTROL, val);
+			POSTING_READ(PCH_DREF_CONTROL);
+			udelay(200);
+		}
 	}
 
 	BUG_ON(val != final);
@@ -9668,6 +9690,8 @@ static void broadwell_set_cdclk(struct drm_device *dev, int cdclk)
 	mutex_lock(&dev_priv->rps.hw_lock);
 	sandybridge_pcode_write(dev_priv, HSW_PCODE_DE_WRITE_FREQ_REQ, data);
 	mutex_unlock(&dev_priv->rps.hw_lock);
+
+	I915_WRITE(CDCLK_FREQ, DIV_ROUND_CLOSEST(cdclk, 1000) - 1);
 
 	intel_update_cdclk(dev);
 
@@ -13537,11 +13561,12 @@ intel_check_primary_plane(struct drm_plane *plane,
 	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
 	bool can_position = false;
 
-	/* use scaler when colorkey is not required */
-	if (INTEL_INFO(plane->dev)->gen >= 9 &&
-	    state->ckey.flags == I915_SET_COLORKEY_NONE) {
-		min_scale = 1;
-		max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
+	if (INTEL_INFO(plane->dev)->gen >= 9) {
+		/* use scaler when colorkey is not required */
+		if (state->ckey.flags == I915_SET_COLORKEY_NONE) {
+			min_scale = 1;
+			max_scale = skl_max_scale(to_intel_crtc(crtc), crtc_state);
+		}
 		can_position = true;
 	}
 
@@ -14137,6 +14162,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_D) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_D, PORT_D);
 	} else if (IS_VALLEYVIEW(dev)) {
+		bool has_edp, has_port;
+
 		/*
 		 * The DP_DETECTED bit is the latched state of the DDC
 		 * SDA pin at boot. However since eDP doesn't require DDC
@@ -14145,27 +14172,37 @@ static void intel_setup_outputs(struct drm_device *dev)
 		 * Thus we can't rely on the DP_DETECTED bit alone to detect
 		 * eDP ports. Consult the VBT as well as DP_DETECTED to
 		 * detect eDP ports.
+		 *
+		 * Sadly the straps seem to be missing sometimes even for HDMI
+		 * ports (eg. on Voyo V3 - CHT x7-Z8700), so check both strap
+		 * and VBT for the presence of the port. Additionally we can't
+		 * trust the port type the VBT declares as we've seen at least
+		 * HDMI ports that the VBT claim are DP or eDP.
 		 */
-		if (I915_READ(VLV_HDMIB) & SDVO_DETECTED &&
-		    !intel_dp_is_edp(dev, PORT_B))
+		has_edp = intel_dp_is_edp(dev, PORT_B);
+		has_port = intel_bios_is_port_present(dev_priv, PORT_B);
+		if (I915_READ(VLV_DP_B) & DP_DETECTED || has_port)
+			has_edp &= intel_dp_init(dev, VLV_DP_B, PORT_B);
+		if ((I915_READ(VLV_HDMIB) & SDVO_DETECTED || has_port) && !has_edp)
 			intel_hdmi_init(dev, VLV_HDMIB, PORT_B);
-		if (I915_READ(VLV_DP_B) & DP_DETECTED ||
-		    intel_dp_is_edp(dev, PORT_B))
-			intel_dp_init(dev, VLV_DP_B, PORT_B);
 
-		if (I915_READ(VLV_HDMIC) & SDVO_DETECTED &&
-		    !intel_dp_is_edp(dev, PORT_C))
+		has_edp = intel_dp_is_edp(dev, PORT_C);
+		has_port = intel_bios_is_port_present(dev_priv, PORT_C);
+		if (I915_READ(VLV_DP_C) & DP_DETECTED || has_port)
+			has_edp &= intel_dp_init(dev, VLV_DP_C, PORT_C);
+		if ((I915_READ(VLV_HDMIC) & SDVO_DETECTED || has_port) && !has_edp)
 			intel_hdmi_init(dev, VLV_HDMIC, PORT_C);
-		if (I915_READ(VLV_DP_C) & DP_DETECTED ||
-		    intel_dp_is_edp(dev, PORT_C))
-			intel_dp_init(dev, VLV_DP_C, PORT_C);
 
 		if (IS_CHERRYVIEW(dev)) {
-			/* eDP not supported on port D, so don't check VBT */
-			if (I915_READ(CHV_HDMID) & SDVO_DETECTED)
-				intel_hdmi_init(dev, CHV_HDMID, PORT_D);
-			if (I915_READ(CHV_DP_D) & DP_DETECTED)
+			/*
+			 * eDP not supported on port D,
+			 * so no need to worry about it
+			 */
+			has_port = intel_bios_is_port_present(dev_priv, PORT_D);
+			if (I915_READ(CHV_DP_D) & DP_DETECTED || has_port)
 				intel_dp_init(dev, CHV_DP_D, PORT_D);
+			if (I915_READ(CHV_HDMID) & SDVO_DETECTED || has_port)
+				intel_hdmi_init(dev, CHV_HDMID, PORT_D);
 		}
 
 		intel_dsi_init(dev);
@@ -15565,6 +15602,8 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	intel_cleanup_gt_powersave(dev);
 	mutex_unlock(&dev->struct_mutex);
+
+	intel_teardown_gmbus(dev);
 }
 
 /*

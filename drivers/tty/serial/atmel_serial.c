@@ -277,6 +277,13 @@ static bool atmel_use_dma_rx(struct uart_port *port)
 	return atmel_port->use_dma_rx;
 }
 
+static bool atmel_use_fifo(struct uart_port *port)
+{
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
+
+	return atmel_port->fifo_size;
+}
+
 static unsigned int atmel_get_lines_status(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
@@ -478,19 +485,21 @@ static void atmel_start_tx(struct uart_port *port)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
-	if (atmel_use_pdc_tx(port)) {
-		if (atmel_uart_readl(port, ATMEL_PDC_PTSR) & ATMEL_PDC_TXTEN)
-			/* The transmitter is already running.  Yes, we
-			   really need this.*/
-			return;
+	if (atmel_use_pdc_tx(port) && (atmel_uart_readl(port, ATMEL_PDC_PTSR)
+				       & ATMEL_PDC_TXTEN))
+		/* The transmitter is already running.  Yes, we
+		   really need this.*/
+		return;
 
+	if (atmel_use_pdc_tx(port) || atmel_use_dma_tx(port))
 		if ((port->rs485.flags & SER_RS485_ENABLED) &&
 		    !(port->rs485.flags & SER_RS485_RX_DURING_TX))
 			atmel_stop_rx(port);
 
+	if (atmel_use_pdc_tx(port))
 		/* re-enable PDC transmit */
 		atmel_uart_writel(port, ATMEL_PDC_PTCR, ATMEL_PDC_TXTEN);
-	}
+
 	/* Enable interrupts */
 	atmel_uart_writel(port, ATMEL_US_IER, atmel_port->tx_done_mask);
 }
@@ -2066,6 +2075,7 @@ static void atmel_serial_pm(struct uart_port *port, unsigned int state,
 static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 			      struct ktermios *old)
 {
+	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned long flags;
 	unsigned int old_mode, mode, imr, quot, baud;
 
@@ -2169,7 +2179,30 @@ static void atmel_set_termios(struct uart_port *port, struct ktermios *termios,
 		mode |= ATMEL_US_USMODE_RS485;
 	} else if (termios->c_cflag & CRTSCTS) {
 		/* RS232 with hardware handshake (RTS/CTS) */
-		mode |= ATMEL_US_USMODE_HWHS;
+		if (atmel_use_fifo(port) &&
+		    !mctrl_gpio_to_gpiod(atmel_port->gpios, UART_GPIO_CTS)) {
+			/*
+			 * with ATMEL_US_USMODE_HWHS set, the controller will
+			 * be able to drive the RTS pin high/low when the RX
+			 * FIFO is above RXFTHRES/below RXFTHRES2.
+			 * It will also disable the transmitter when the CTS
+			 * pin is high.
+			 * This mode is not activated if CTS pin is a GPIO
+			 * because in this case, the transmitter is always
+			 * disabled (there must be an internal pull-up
+			 * responsible for this behaviour).
+			 * If the RTS pin is a GPIO, the controller won't be
+			 * able to drive it according to the FIFO thresholds,
+			 * but it will be handled by the driver.
+			 */
+			mode |= ATMEL_US_USMODE_HWHS;
+		} else {
+			/*
+			 * For platforms without FIFO, the flow control is
+			 * handled by the driver.
+			 */
+			mode |= ATMEL_US_USMODE_NORMAL;
+		}
 	} else {
 		/* RS232 without hadware handshake */
 		mode |= ATMEL_US_USMODE_NORMAL;

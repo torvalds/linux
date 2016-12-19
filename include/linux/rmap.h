@@ -108,20 +108,6 @@ static inline void put_anon_vma(struct anon_vma *anon_vma)
 		__put_anon_vma(anon_vma);
 }
 
-static inline void vma_lock_anon_vma(struct vm_area_struct *vma)
-{
-	struct anon_vma *anon_vma = vma->anon_vma;
-	if (anon_vma)
-		down_write(&anon_vma->root->rwsem);
-}
-
-static inline void vma_unlock_anon_vma(struct vm_area_struct *vma)
-{
-	struct anon_vma *anon_vma = vma->anon_vma;
-	if (anon_vma)
-		up_write(&anon_vma->root->rwsem);
-}
-
 static inline void anon_vma_lock_write(struct anon_vma *anon_vma)
 {
 	down_write(&anon_vma->root->rwsem);

@@ -89,6 +89,9 @@ static int f2fs_create_encryption_context_from_policy(
 int f2fs_process_policy(const struct f2fs_encryption_policy *policy,
 			struct inode *inode)
 {
+	if (!inode_owner_or_capable(inode))
+		return -EACCES;
+
 	if (policy->version != 0)
 		return -EINVAL;
 

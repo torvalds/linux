@@ -180,6 +180,7 @@ static __be16 tnl_flags_to_gre_flags(__be16 tflags)
 	return flags;
 }
 
+/* Fills in tpi and returns header length to be pulled. */
 static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 			    bool *csum_err)
 {
@@ -239,7 +240,7 @@ static int parse_gre_header(struct sk_buff *skb, struct tnl_ptk_info *tpi,
 				return -EINVAL;
 		}
 	}
-	return iptunnel_pull_header(skb, hdr_len, tpi->proto);
+	return hdr_len;
 }
 
 static void ipgre_err(struct sk_buff *skb, u32 info,
@@ -342,7 +343,7 @@ static void gre_err(struct sk_buff *skb, u32 info)
 	struct tnl_ptk_info tpi;
 	bool csum_err = false;
 
-	if (parse_gre_header(skb, &tpi, &csum_err)) {
+	if (parse_gre_header(skb, &tpi, &csum_err) < 0) {
 		if (!csum_err)		/* ignore csum errors. */
 			return;
 	}
@@ -420,6 +421,7 @@ static int gre_rcv(struct sk_buff *skb)
 {
 	struct tnl_ptk_info tpi;
 	bool csum_err = false;
+	int hdr_len;
 
 #ifdef CONFIG_NET_IPGRE_BROADCAST
 	if (ipv4_is_multicast(ip_hdr(skb)->daddr)) {
@@ -429,7 +431,10 @@ static int gre_rcv(struct sk_buff *skb)
 	}
 #endif
 
-	if (parse_gre_header(skb, &tpi, &csum_err) < 0)
+	hdr_len = parse_gre_header(skb, &tpi, &csum_err);
+	if (hdr_len < 0)
+		goto drop;
+	if (iptunnel_pull_header(skb, hdr_len, tpi.proto) < 0)
 		goto drop;
 
 	if (ipgre_rcv(skb, &tpi) == PACKET_RCVD)
@@ -1242,6 +1247,14 @@ struct net_device *gretap_fb_dev_create(struct net *net, const char *name,
 	err = ipgre_newlink(net, dev, tb, NULL);
 	if (err < 0)
 		goto out;
+
+	/* openvswitch users expect packet sizes to be unrestricted,
+	 * so set the largest MTU we can.
+	 */
+	err = __ip_tunnel_change_mtu(dev, IP_MAX_MTU, false);
+	if (err)
+		goto out;
+
 	return dev;
 out:
 	free_netdev(dev);

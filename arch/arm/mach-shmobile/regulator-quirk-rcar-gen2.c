@@ -41,39 +41,26 @@
 
 #define REGULATOR_IRQ_MASK	BIT(2)	/* IRQ2, active low */
 
+/* start of DA9210 System Control and Event Registers */
+#define DA9210_REG_MASK_A		0x54
+
 static void __iomem *irqc;
 
-static const u8 da9063_mask_regs[] = {
-	DA9063_REG_IRQ_MASK_A,
-	DA9063_REG_IRQ_MASK_B,
-	DA9063_REG_IRQ_MASK_C,
-	DA9063_REG_IRQ_MASK_D,
+/* first byte sets the memory pointer, following are consecutive reg values */
+static u8 da9063_irq_clr[] = { DA9063_REG_IRQ_MASK_A, 0xff, 0xff, 0xff, 0xff };
+static u8 da9210_irq_clr[] = { DA9210_REG_MASK_A, 0xff, 0xff };
+
+static struct i2c_msg da9xxx_msgs[2] = {
+	{
+		.addr = 0x58,
+		.len = ARRAY_SIZE(da9063_irq_clr),
+		.buf = da9063_irq_clr,
+	}, {
+		.addr = 0x68,
+		.len = ARRAY_SIZE(da9210_irq_clr),
+		.buf = da9210_irq_clr,
+	},
 };
-
-/* DA9210 System Control and Event Registers */
-#define DA9210_REG_MASK_A		0x54
-#define DA9210_REG_MASK_B		0x55
-
-static const u8 da9210_mask_regs[] = {
-	DA9210_REG_MASK_A,
-	DA9210_REG_MASK_B,
-};
-
-static void da9xxx_mask_irqs(struct i2c_client *client, const u8 regs[],
-			     unsigned int nregs)
-{
-	unsigned int i;
-
-	dev_info(&client->dev, "Masking %s interrupt sources\n", client->name);
-
-	for (i = 0; i < nregs; i++) {
-		int error = i2c_smbus_write_byte_data(client, regs[i], ~0);
-		if (error) {
-			dev_err(&client->dev, "i2c error %d\n", error);
-			return;
-		}
-	}
-}
 
 static int regulator_quirk_notify(struct notifier_block *nb,
 				  unsigned long action, void *data)
@@ -93,12 +80,15 @@ static int regulator_quirk_notify(struct notifier_block *nb,
 	client = to_i2c_client(dev);
 	dev_dbg(dev, "Detected %s\n", client->name);
 
-	if ((client->addr == 0x58 && !strcmp(client->name, "da9063")))
-		da9xxx_mask_irqs(client, da9063_mask_regs,
-				 ARRAY_SIZE(da9063_mask_regs));
-	else if (client->addr == 0x68 && !strcmp(client->name, "da9210"))
-		da9xxx_mask_irqs(client, da9210_mask_regs,
-				 ARRAY_SIZE(da9210_mask_regs));
+	if ((client->addr == 0x58 && !strcmp(client->name, "da9063")) ||
+	    (client->addr == 0x68 && !strcmp(client->name, "da9210"))) {
+		int ret;
+
+		dev_info(&client->dev, "clearing da9063/da9210 interrupts\n");
+		ret = i2c_transfer(client->adapter, da9xxx_msgs, ARRAY_SIZE(da9xxx_msgs));
+		if (ret != ARRAY_SIZE(da9xxx_msgs))
+			dev_err(&client->dev, "i2c error %d\n", ret);
+	}
 
 	mon = ioread32(irqc + IRQC_MONITOR);
 	if (mon & REGULATOR_IRQ_MASK)

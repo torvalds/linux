@@ -1943,5 +1943,8 @@ bool dm_pool_metadata_needs_check(struct dm_pool_metadata *pmd)
 
 void dm_pool_issue_prefetches(struct dm_pool_metadata *pmd)
 {
-	dm_tm_issue_prefetches(pmd->tm);
+	down_read(&pmd->root_lock);
+	if (!pmd->fail_io)
+		dm_tm_issue_prefetches(pmd->tm);
+	up_read(&pmd->root_lock);
 }

@@ -27,7 +27,6 @@ EXPORT_SYMBOL(__flushw_user);
 EXPORT_SYMBOL_GPL(real_hard_smp_processor_id);
 
 /* from head_64.S */
-EXPORT_SYMBOL(__ret_efault);
 EXPORT_SYMBOL(tlb_type);
 EXPORT_SYMBOL(sun4v_chip_type);
 EXPORT_SYMBOL(prom_root_node);

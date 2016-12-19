@@ -87,6 +87,8 @@ void __init arm_dt_init_cpu_maps(void)
 		return;
 
 	for_each_child_of_node(cpus, cpu) {
+		const __be32 *cell;
+		int prop_bytes;
 		u32 hwid;
 
 		if (of_node_cmp(cpu->type, "cpu"))
@@ -98,7 +100,8 @@ void __init arm_dt_init_cpu_maps(void)
 		 * properties is considered invalid to build the
 		 * cpu_logical_map.
 		 */
-		if (of_property_read_u32(cpu, "reg", &hwid)) {
+		cell = of_get_property(cpu, "reg", &prop_bytes);
+		if (!cell || prop_bytes < sizeof(*cell)) {
 			pr_debug(" * %s missing reg property\n",
 				     cpu->full_name);
 			of_node_put(cpu);
@@ -106,10 +109,15 @@ void __init arm_dt_init_cpu_maps(void)
 		}
 
 		/*
-		 * 8 MSBs must be set to 0 in the DT since the reg property
+		 * Bits n:24 must be set to 0 in the DT since the reg property
 		 * defines the MPIDR[23:0].
 		 */
-		if (hwid & ~MPIDR_HWID_BITMASK) {
+		do {
+			hwid = be32_to_cpu(*cell++);
+			prop_bytes -= sizeof(*cell);
+		} while (!hwid && prop_bytes > 0);
+
+		if (prop_bytes || (hwid & ~MPIDR_HWID_BITMASK)) {
 			of_node_put(cpu);
 			return;
 		}

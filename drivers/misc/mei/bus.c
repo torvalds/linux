@@ -53,6 +53,11 @@ ssize_t __mei_cl_send(struct mei_cl *cl, u8 *buf, size_t length,
 	bus = cl->dev;
 
 	mutex_lock(&bus->device_lock);
+	if (bus->dev_state != MEI_DEV_ENABLED) {
+		rets = -ENODEV;
+		goto out;
+	}
+
 	if (!mei_cl_is_connected(cl)) {
 		rets = -ENODEV;
 		goto out;
@@ -109,6 +114,10 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 	bus = cl->dev;
 
 	mutex_lock(&bus->device_lock);
+	if (bus->dev_state != MEI_DEV_ENABLED) {
+		rets = -ENODEV;
+		goto out;
+	}
 
 	cb = mei_cl_read_cb(cl, NULL);
 	if (cb)
@@ -135,7 +144,7 @@ ssize_t __mei_cl_recv(struct mei_cl *cl, u8 *buf, size_t length)
 		mutex_lock(&bus->device_lock);
 
 		if (!mei_cl_is_connected(cl)) {
-			rets = -EBUSY;
+			rets = -ENODEV;
 			goto out;
 		}
 	}
@@ -213,8 +222,11 @@ EXPORT_SYMBOL_GPL(mei_cldev_recv);
 static void mei_cl_bus_event_work(struct work_struct *work)
 {
 	struct mei_cl_device *cldev;
+	struct mei_device *bus;
 
 	cldev = container_of(work, struct mei_cl_device, event_work);
+
+	bus = cldev->bus;
 
 	if (cldev->event_cb)
 		cldev->event_cb(cldev, cldev->events, cldev->event_context);
@@ -222,8 +234,11 @@ static void mei_cl_bus_event_work(struct work_struct *work)
 	cldev->events = 0;
 
 	/* Prepare for the next read */
-	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX))
+	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
+		mutex_lock(&bus->device_lock);
 		mei_cl_read_start(cldev->cl, 0, NULL);
+		mutex_unlock(&bus->device_lock);
+	}
 }
 
 /**
@@ -287,6 +302,7 @@ int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
 				unsigned long events_mask,
 				mei_cldev_event_cb_t event_cb, void *context)
 {
+	struct mei_device *bus = cldev->bus;
 	int ret;
 
 	if (cldev->event_cb)
@@ -299,15 +315,17 @@ int mei_cldev_register_event_cb(struct mei_cl_device *cldev,
 	INIT_WORK(&cldev->event_work, mei_cl_bus_event_work);
 
 	if (cldev->events_mask & BIT(MEI_CL_EVENT_RX)) {
+		mutex_lock(&bus->device_lock);
 		ret = mei_cl_read_start(cldev->cl, 0, NULL);
+		mutex_unlock(&bus->device_lock);
 		if (ret && ret != -EBUSY)
 			return ret;
 	}
 
 	if (cldev->events_mask & BIT(MEI_CL_EVENT_NOTIF)) {
-		mutex_lock(&cldev->cl->dev->device_lock);
+		mutex_lock(&bus->device_lock);
 		ret = mei_cl_notify_request(cldev->cl, NULL, event_cb ? 1 : 0);
-		mutex_unlock(&cldev->cl->dev->device_lock);
+		mutex_unlock(&bus->device_lock);
 		if (ret)
 			return ret;
 	}

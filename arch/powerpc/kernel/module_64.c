@@ -335,7 +335,7 @@ static void dedotify(Elf64_Sym *syms, unsigned int numsyms, char *strtab)
 		if (syms[i].st_shndx == SHN_UNDEF) {
 			char *name = strtab + syms[i].st_name;
 			if (name[0] == '.')
-				memmove(name, name+1, strlen(name));
+				syms[i].st_name++;
 		}
 	}
 }
@@ -633,6 +633,33 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 			 * That would only save us one instruction, so ignore
 			 * it.
 			 */
+			break;
+
+		case R_PPC64_ENTRY:
+			/*
+			 * Optimize ELFv2 large code model entry point if
+			 * the TOC is within 2GB range of current location.
+			 */
+			value = my_r2(sechdrs, me) - (unsigned long)location;
+			if (value + 0x80008000 > 0xffffffff)
+				break;
+			/*
+			 * Check for the large code model prolog sequence:
+		         *	ld r2, ...(r12)
+			 *	add r2, r2, r12
+			 */
+			if ((((uint32_t *)location)[0] & ~0xfffc)
+			    != 0xe84c0000)
+				break;
+			if (((uint32_t *)location)[1] != 0x7c426214)
+				break;
+			/*
+			 * If found, replace it with:
+			 *	addis r2, r12, (.TOC.-func)@ha
+			 *	addi r2, r12, (.TOC.-func)@l
+			 */
+			((uint32_t *)location)[0] = 0x3c4c0000 + PPC_HA(value);
+			((uint32_t *)location)[1] = 0x38420000 + PPC_LO(value);
 			break;
 
 		case R_PPC64_REL16_HA:

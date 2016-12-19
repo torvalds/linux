@@ -701,8 +701,7 @@ static int zpci_restore(struct device *dev)
 		goto out;
 
 	zpci_map_resources(pdev);
-	zpci_register_ioat(zdev, 0, zdev->start_dma + PAGE_OFFSET,
-			   zdev->start_dma + zdev->iommu_size - 1,
+	zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
 			   (u64) zdev->dma_table);
 
 out:
@@ -871,8 +870,11 @@ static inline int barsize(u8 size)
 
 static int zpci_mem_init(void)
 {
+	BUILD_BUG_ON(!is_power_of_2(__alignof__(struct zpci_fmb)) ||
+		     __alignof__(struct zpci_fmb) < sizeof(struct zpci_fmb));
+
 	zdev_fmb_cache = kmem_cache_create("PCI_FMB_cache", sizeof(struct zpci_fmb),
-				16, 0, NULL);
+					   __alignof__(struct zpci_fmb), 0, NULL);
 	if (!zdev_fmb_cache)
 		goto error_zdev;
 

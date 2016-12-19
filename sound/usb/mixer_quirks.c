@@ -793,7 +793,7 @@ static int snd_nativeinstruments_control_put(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	kcontrol->private_value &= ~(0xff << 24);
-	kcontrol->private_value |= newval;
+	kcontrol->private_value |= (unsigned int)newval << 24;
 	err = snd_ni_update_cur_val(list);
 	return err < 0 ? err : 1;
 }
@@ -1519,7 +1519,11 @@ static int snd_microii_spdif_default_get(struct snd_kcontrol *kcontrol,
 
 	/* use known values for that card: interface#1 altsetting#1 */
 	iface = usb_ifnum_to_if(chip->dev, 1);
+	if (!iface || iface->num_altsetting < 2)
+		return -EINVAL;
 	alts = &iface->altsetting[1];
+	if (get_iface_desc(alts)->bNumEndpoints < 1)
+		return -EINVAL;
 	ep = get_endpoint(alts, 0)->bEndpointAddress;
 
 	err = snd_usb_ctl_msg(chip->dev,
@@ -1827,6 +1831,7 @@ void snd_usb_mixer_rc_memory_change(struct usb_mixer_interface *mixer,
 }
 
 static void snd_dragonfly_quirk_db_scale(struct usb_mixer_interface *mixer,
+					 struct usb_mixer_elem_info *cval,
 					 struct snd_kcontrol *kctl)
 {
 	/* Approximation using 10 ranges based on output measurement on hw v1.2.
@@ -1844,10 +1849,19 @@ static void snd_dragonfly_quirk_db_scale(struct usb_mixer_interface *mixer,
 		41, 50, TLV_DB_MINMAX_ITEM(-441, 0),
 	);
 
-	usb_audio_info(mixer->chip, "applying DragonFly dB scale quirk\n");
-	kctl->tlv.p = scale;
-	kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
-	kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+	if (cval->min == 0 && cval->max == 50) {
+		usb_audio_info(mixer->chip, "applying DragonFly dB scale quirk (0-50 variant)\n");
+		kctl->tlv.p = scale;
+		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+
+	} else if (cval->min == 0 && cval->max <= 1000) {
+		/* Some other clearly broken DragonFly variant.
+		 * At least a 0..53 variant (hw v1.0) exists.
+		 */
+		usb_audio_info(mixer->chip, "ignoring too narrow dB range on a DragonFly device");
+		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+	}
 }
 
 void snd_usb_mixer_fu_apply_quirk(struct usb_mixer_interface *mixer,
@@ -1856,8 +1870,8 @@ void snd_usb_mixer_fu_apply_quirk(struct usb_mixer_interface *mixer,
 {
 	switch (mixer->chip->usb_id) {
 	case USB_ID(0x21b4, 0x0081): /* AudioQuest DragonFly */
-		if (unitid == 7 && cval->min == 0 && cval->max == 50)
-			snd_dragonfly_quirk_db_scale(mixer, kctl);
+		if (unitid == 7 && cval->control == UAC_FU_VOLUME)
+			snd_dragonfly_quirk_db_scale(mixer, cval, kctl);
 		break;
 	}
 }

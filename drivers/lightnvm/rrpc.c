@@ -287,6 +287,10 @@ static int rrpc_move_valid_pages(struct rrpc *rrpc, struct rrpc_block *rblk)
 	}
 
 	page = mempool_alloc(rrpc->page_pool, GFP_NOIO);
+	if (!page) {
+		bio_put(bio);
+		return -ENOMEM;
+	}
 
 	while ((slot = find_first_zero_bit(rblk->invalid_pages,
 					    nr_pgs_per_blk)) < nr_pgs_per_blk) {
@@ -427,7 +431,7 @@ static void rrpc_lun_gc(struct work_struct *work)
 	if (nr_blocks_need < rrpc->nr_luns)
 		nr_blocks_need = rrpc->nr_luns;
 
-	spin_lock(&lun->lock);
+	spin_lock(&rlun->lock);
 	while (nr_blocks_need > lun->nr_free_blocks &&
 					!list_empty(&rlun->prio_list)) {
 		struct rrpc_block *rblock = block_prio_find_max(rlun);
@@ -436,15 +440,15 @@ static void rrpc_lun_gc(struct work_struct *work)
 		if (!rblock->nr_invalid_pages)
 			break;
 
+		gcb = mempool_alloc(rrpc->gcb_pool, GFP_ATOMIC);
+		if (!gcb)
+			break;
+
 		list_del_init(&rblock->prio);
 
 		BUG_ON(!block_is_full(rrpc, rblock));
 
 		pr_debug("rrpc: selected block '%lu' for GC\n", block->id);
-
-		gcb = mempool_alloc(rrpc->gcb_pool, GFP_ATOMIC);
-		if (!gcb)
-			break;
 
 		gcb->rrpc = rrpc;
 		gcb->rblk = rblock;
@@ -454,7 +458,7 @@ static void rrpc_lun_gc(struct work_struct *work)
 
 		nr_blocks_need--;
 	}
-	spin_unlock(&lun->lock);
+	spin_unlock(&rlun->lock);
 
 	/* TODO: Hint that request queue can be started again */
 }
@@ -650,11 +654,12 @@ static int rrpc_end_io(struct nvm_rq *rqd, int error)
 	if (bio_data_dir(rqd->bio) == WRITE)
 		rrpc_end_io_write(rrpc, rrqd, laddr, npages);
 
+	bio_put(rqd->bio);
+
 	if (rrqd->flags & NVM_IOTYPE_GC)
 		return 0;
 
 	rrpc_unlock_rq(rrpc, rqd);
-	bio_put(rqd->bio);
 
 	if (npages > 1)
 		nvm_dev_dma_free(rrpc->dev, rqd->ppa_list, rqd->dma_ppa_list);
@@ -841,6 +846,13 @@ static int rrpc_submit_io(struct rrpc *rrpc, struct bio *bio,
 	err = nvm_submit_io(rrpc->dev, rqd);
 	if (err) {
 		pr_err("rrpc: I/O submission failed: %d\n", err);
+		bio_put(bio);
+		if (!(flags & NVM_IOTYPE_GC)) {
+			rrpc_unlock_rq(rrpc, rqd);
+			if (rqd->nr_pages > 1)
+				nvm_dev_dma_free(rrpc->dev,
+			rqd->ppa_list, rqd->dma_ppa_list);
+		}
 		return NVM_IO_ERR;
 	}
 

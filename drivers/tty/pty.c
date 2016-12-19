@@ -59,7 +59,7 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 	if (!tty->link)
 		return;
 	set_bit(TTY_OTHER_CLOSED, &tty->link->flags);
-	tty_flip_buffer_push(tty->link->port);
+	wake_up_interruptible(&tty->link->read_wait);
 	wake_up_interruptible(&tty->link->write_wait);
 	if (tty->driver->subtype == PTY_TYPE_MASTER) {
 		set_bit(TTY_OTHER_CLOSED, &tty->flags);
@@ -247,9 +247,7 @@ static int pty_open(struct tty_struct *tty, struct file *filp)
 		goto out;
 
 	clear_bit(TTY_IO_ERROR, &tty->flags);
-	/* TTY_OTHER_CLOSED must be cleared before TTY_OTHER_DONE */
 	clear_bit(TTY_OTHER_CLOSED, &tty->link->flags);
-	clear_bit(TTY_OTHER_DONE, &tty->link->flags);
 	set_bit(TTY_THROTTLED, &tty->flags);
 	return 0;
 
@@ -681,7 +679,14 @@ static void pty_unix98_remove(struct tty_driver *driver, struct tty_struct *tty)
 /* this is called once with whichever end is closed last */
 static void pty_unix98_shutdown(struct tty_struct *tty)
 {
-	devpts_kill_index(tty->driver_data, tty->index);
+	struct pts_fs_info *fsi;
+
+	if (tty->driver->subtype == PTY_TYPE_MASTER)
+		fsi = tty->driver_data;
+	else
+		fsi = tty->link->driver_data;
+	devpts_kill_index(fsi, tty->index);
+	devpts_put_ref(fsi);
 }
 
 static const struct tty_operations ptm_unix98_ops = {
@@ -733,6 +738,7 @@ static const struct tty_operations pty_unix98_ops = {
 
 static int ptmx_open(struct inode *inode, struct file *filp)
 {
+	struct pts_fs_info *fsi;
 	struct tty_struct *tty;
 	struct inode *slave_inode;
 	int retval;
@@ -747,35 +753,41 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	if (retval)
 		return retval;
 
+	fsi = devpts_get_ref(inode, filp);
+	retval = -ENODEV;
+	if (!fsi)
+		goto out_free_file;
+
 	/* find a device that is not in use. */
 	mutex_lock(&devpts_mutex);
-	index = devpts_new_index(inode);
-	if (index < 0) {
-		retval = index;
-		mutex_unlock(&devpts_mutex);
-		goto err_file;
-	}
-
+	index = devpts_new_index(fsi);
 	mutex_unlock(&devpts_mutex);
+
+	retval = index;
+	if (index < 0)
+		goto out_put_ref;
+
 
 	mutex_lock(&tty_mutex);
 	tty = tty_init_dev(ptm_driver, index);
-
-	if (IS_ERR(tty)) {
-		retval = PTR_ERR(tty);
-		goto out;
-	}
-
 	/* The tty returned here is locked so we can safely
 	   drop the mutex */
 	mutex_unlock(&tty_mutex);
 
+	retval = PTR_ERR(tty);
+	if (IS_ERR(tty))
+		goto out;
+
+	/*
+	 * From here on out, the tty is "live", and the index and
+	 * fsi will be killed/put by the tty_release()
+	 */
 	set_bit(TTY_PTY_LOCK, &tty->flags); /* LOCK THE SLAVE */
-	tty->driver_data = inode;
+	tty->driver_data = fsi;
 
 	tty_add_file(tty, filp);
 
-	slave_inode = devpts_pty_new(inode,
+	slave_inode = devpts_pty_new(fsi,
 			MKDEV(UNIX98_PTY_SLAVE_MAJOR, index), index,
 			tty->link);
 	if (IS_ERR(slave_inode)) {
@@ -794,12 +806,14 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 	return 0;
 err_release:
 	tty_unlock(tty);
+	// This will also put-ref the fsi
 	tty_release(inode, filp);
 	return retval;
 out:
-	mutex_unlock(&tty_mutex);
-	devpts_kill_index(inode, index);
-err_file:
+	devpts_kill_index(fsi, index);
+out_put_ref:
+	devpts_put_ref(fsi);
+out_free_file:
 	tty_free_file(filp);
 	return retval;
 }

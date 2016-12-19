@@ -419,6 +419,38 @@ static struct intel_th_subdevice {
 	},
 };
 
+#ifdef CONFIG_MODULES
+static void __intel_th_request_hub_module(struct work_struct *work)
+{
+	struct intel_th *th = container_of(work, struct intel_th,
+					   request_module_work);
+
+	request_module("intel_th_%s", th->hub->name);
+}
+
+static int intel_th_request_hub_module(struct intel_th *th)
+{
+	INIT_WORK(&th->request_module_work, __intel_th_request_hub_module);
+	schedule_work(&th->request_module_work);
+
+	return 0;
+}
+
+static void intel_th_request_hub_module_flush(struct intel_th *th)
+{
+	flush_work(&th->request_module_work);
+}
+#else
+static inline int intel_th_request_hub_module(struct intel_th *th)
+{
+	return -EINVAL;
+}
+
+static inline void intel_th_request_hub_module_flush(struct intel_th *th)
+{
+}
+#endif /* CONFIG_MODULES */
+
 static int intel_th_populate(struct intel_th *th, struct resource *devres,
 			     unsigned int ndevres, int irq)
 {
@@ -488,7 +520,7 @@ static int intel_th_populate(struct intel_th *th, struct resource *devres,
 		/* need switch driver to be loaded to enumerate the rest */
 		if (subdev->type == INTEL_TH_SWITCH && !req) {
 			th->hub = thdev;
-			err = request_module("intel_th_%s", subdev->name);
+			err = intel_th_request_hub_module(th);
 			if (!err)
 				req++;
 		}
@@ -603,6 +635,7 @@ void intel_th_free(struct intel_th *th)
 {
 	int i;
 
+	intel_th_request_hub_module_flush(th);
 	for (i = 0; i < TH_SUBDEVICE_MAX; i++)
 		if (th->thdev[i] != th->hub)
 			intel_th_device_remove(th->thdev[i]);

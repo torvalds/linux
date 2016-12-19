@@ -156,6 +156,9 @@ int amdgpu_uvd_sw_init(struct amdgpu_device *adev)
 	DRM_INFO("Found UVD firmware Version: %hu.%hu Family ID: %hu\n",
 		version_major, version_minor, family_id);
 
+	adev->uvd.fw_version = ((version_major << 24) | (version_minor << 16) |
+				(family_id << 8));
+
 	bo_size = AMDGPU_GPU_PAGE_ALIGN(le32_to_cpu(hdr->ucode_size_bytes) + 8)
 		 +  AMDGPU_UVD_STACK_SIZE + AMDGPU_UVD_HEAP_SIZE;
 	r = amdgpu_bo_create(adev, bo_size, PAGE_SIZE, true,
@@ -272,6 +275,8 @@ int amdgpu_uvd_resume(struct amdgpu_device *adev)
 	offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
 	memcpy(adev->uvd.cpu_addr, (adev->uvd.fw->data) + offset,
 		(adev->uvd.fw->size) - offset);
+
+	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
 	size = amdgpu_bo_size(adev->uvd.vcpu_bo);
 	size -= le32_to_cpu(hdr->ucode_size_bytes);

@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/completion.h>
+#include <linux/delay.h>
 #include <linux/hyperv.h>
 
 #include "hyperv_vmbus.h"
@@ -191,6 +192,8 @@ void hv_process_channel_removal(struct vmbus_channel *channel, u32 relid)
 	if (channel == NULL)
 		return;
 
+	BUG_ON(!channel->rescind);
+
 	if (channel->target_cpu != get_cpu()) {
 		put_cpu();
 		smp_call_function_single(channel->target_cpu,
@@ -230,9 +233,7 @@ void vmbus_free_channels(void)
 
 	list_for_each_entry_safe(channel, tmp, &vmbus_connection.chn_list,
 		listentry) {
-		/* if we don't set rescind to true, vmbus_close_internal()
-		 * won't invoke hv_process_channel_removal().
-		 */
+		/* hv_process_channel_removal() needs this */
 		channel->rescind = true;
 
 		vmbus_device_unregister(channel->device_obj);
@@ -459,6 +460,17 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 		    cpumask_of_node(primary->numa_node));
 
 	cur_cpu = -1;
+
+	/*
+	 * Normally Hyper-V host doesn't create more subchannels than there
+	 * are VCPUs on the node but it is possible when not all present VCPUs
+	 * on the node are initialized by guest. Clear the alloced_cpus_in_node
+	 * to start over.
+	 */
+	if (cpumask_equal(&primary->alloced_cpus_in_node,
+			  cpumask_of_node(primary->numa_node)))
+		cpumask_clear(&primary->alloced_cpus_in_node);
+
 	while (true) {
 		cur_cpu = cpumask_next(cur_cpu, &available_mask);
 		if (cur_cpu >= nr_cpu_ids) {
@@ -488,6 +500,40 @@ static void init_vp_index(struct vmbus_channel *channel, const uuid_le *type_gui
 	channel->target_vp = hv_context.vp_index[cur_cpu];
 }
 
+static void vmbus_wait_for_unload(void)
+{
+	int cpu = smp_processor_id();
+	void *page_addr = hv_context.synic_message_page[cpu];
+	struct hv_message *msg = (struct hv_message *)page_addr +
+				  VMBUS_MESSAGE_SINT;
+	struct vmbus_channel_message_header *hdr;
+	bool unloaded = false;
+
+	while (1) {
+		if (msg->header.message_type == HVMSG_NONE) {
+			mdelay(10);
+			continue;
+		}
+
+		hdr = (struct vmbus_channel_message_header *)msg->u.payload;
+		if (hdr->msgtype == CHANNELMSG_UNLOAD_RESPONSE)
+			unloaded = true;
+
+		msg->header.message_type = HVMSG_NONE;
+		/*
+		 * header.message_type needs to be written before we do
+		 * wrmsrl() below.
+		 */
+		mb();
+
+		if (msg->header.message_flags.msg_pending)
+			wrmsrl(HV_X64_MSR_EOM, 0);
+
+		if (unloaded)
+			break;
+	}
+}
+
 /*
  * vmbus_unload_response - Handler for the unload response.
  */
@@ -513,7 +559,14 @@ void vmbus_initiate_unload(void)
 	hdr.msgtype = CHANNELMSG_UNLOAD;
 	vmbus_post_msg(&hdr, sizeof(struct vmbus_channel_message_header));
 
-	wait_for_completion(&vmbus_connection.unload_event);
+	/*
+	 * vmbus_initiate_unload() is also called on crash and the crash can be
+	 * happening in an interrupt context, where scheduling is impossible.
+	 */
+	if (!in_interrupt())
+		wait_for_completion(&vmbus_connection.unload_event);
+	else
+		vmbus_wait_for_unload();
 }
 
 /*

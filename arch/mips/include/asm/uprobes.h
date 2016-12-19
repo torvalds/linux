@@ -36,7 +36,6 @@ struct arch_uprobe {
 	unsigned long	resume_epc;
 	u32	insn[2];
 	u32	ixol[2];
-	union	mips_instruction orig_inst[MAX_UINSN_BYTES / 4];
 };
 
 struct arch_uprobe_task {

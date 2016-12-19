@@ -900,3 +900,30 @@ s32 igb_pll_workaround_i210(struct e1000_hw *hw)
 	wr32(E1000_MDICNFG, mdicnfg);
 	return ret_val;
 }
+
+/**
+ *  igb_get_cfg_done_i210 - Read config done bit
+ *  @hw: pointer to the HW structure
+ *
+ *  Read the management control register for the config done bit for
+ *  completion status.  NOTE: silicon which is EEPROM-less will fail trying
+ *  to read the config done bit, so an error is *ONLY* logged and returns
+ *  0.  If we were to return with error, EEPROM-less silicon
+ *  would not be able to be reset or change link.
+ **/
+s32 igb_get_cfg_done_i210(struct e1000_hw *hw)
+{
+	s32 timeout = PHY_CFG_TIMEOUT;
+	u32 mask = E1000_NVM_CFG_DONE_PORT_0;
+
+	while (timeout) {
+		if (rd32(E1000_EEMNGCTL_I210) & mask)
+			break;
+		usleep_range(1000, 2000);
+		timeout--;
+	}
+	if (!timeout)
+		hw_dbg("MNG configuration cycle has not completed.\n");
+
+	return 0;
+}

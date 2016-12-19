@@ -351,6 +351,7 @@ void __init parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
 	unsigned long size, start;
+	unsigned long threshold;
 
 	alltime = mfctl(16);
 	flush_data_cache();
@@ -364,26 +365,30 @@ void __init parisc_setup_cache_timing(void)
 	printk(KERN_DEBUG "Whole cache flush %lu cycles, flushing %lu bytes %lu cycles\n",
 		alltime, size, rangetime);
 
-	/* Racy, but if we see an intermediate value, it's ok too... */
-	parisc_cache_flush_threshold = size * alltime / rangetime;
-
-	parisc_cache_flush_threshold = L1_CACHE_ALIGN(parisc_cache_flush_threshold);
-	if (!parisc_cache_flush_threshold)
-		parisc_cache_flush_threshold = FLUSH_THRESHOLD;
-
-	if (parisc_cache_flush_threshold > cache_info.dc_size)
-		parisc_cache_flush_threshold = cache_info.dc_size;
-
-	printk(KERN_INFO "Setting cache flush threshold to %lu kB\n",
+	threshold = L1_CACHE_ALIGN(size * alltime / rangetime);
+	if (threshold > cache_info.dc_size)
+		threshold = cache_info.dc_size;
+	if (threshold)
+		parisc_cache_flush_threshold = threshold;
+	printk(KERN_INFO "Cache flush threshold set to %lu KiB\n",
 		parisc_cache_flush_threshold/1024);
 
 	/* calculate TLB flush threshold */
+
+	/* On SMP machines, skip the TLB measure of kernel text which
+	 * has been mapped as huge pages. */
+	if (num_online_cpus() > 1 && !parisc_requires_coherency()) {
+		threshold = max(cache_info.it_size, cache_info.dt_size);
+		threshold *= PAGE_SIZE;
+		threshold /= num_online_cpus();
+		goto set_tlb_threshold;
+	}
 
 	alltime = mfctl(16);
 	flush_tlb_all();
 	alltime = mfctl(16) - alltime;
 
-	size = PAGE_SIZE;
+	size = 0;
 	start = (unsigned long) _text;
 	rangetime = mfctl(16);
 	while (start < (unsigned long) _end) {
@@ -396,13 +401,12 @@ void __init parisc_setup_cache_timing(void)
 	printk(KERN_DEBUG "Whole TLB flush %lu cycles, flushing %lu bytes %lu cycles\n",
 		alltime, size, rangetime);
 
-	parisc_tlb_flush_threshold = size * alltime / rangetime;
-	parisc_tlb_flush_threshold *= num_online_cpus();
-	parisc_tlb_flush_threshold = PAGE_ALIGN(parisc_tlb_flush_threshold);
-	if (!parisc_tlb_flush_threshold)
-		parisc_tlb_flush_threshold = FLUSH_TLB_THRESHOLD;
+	threshold = PAGE_ALIGN(num_online_cpus() * size * alltime / rangetime);
 
-	printk(KERN_INFO "Setting TLB flush threshold to %lu kB\n",
+set_tlb_threshold:
+	if (threshold)
+		parisc_tlb_flush_threshold = threshold;
+	printk(KERN_INFO "TLB flush threshold set to %lu KiB\n",
 		parisc_tlb_flush_threshold/1024);
 }
 

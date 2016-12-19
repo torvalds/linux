@@ -74,6 +74,15 @@ static void for_each_companion(struct pci_dev *pdev, struct usb_hcd *hcd,
 		if (companion->bus != pdev->bus ||
 				PCI_SLOT(companion->devfn) != slot)
 			continue;
+
+		/*
+		 * Companion device should be either UHCI,OHCI or EHCI host
+		 * controller, otherwise skip.
+		 */
+		if (companion->class != CL_UHCI && companion->class != CL_OHCI &&
+				companion->class != CL_EHCI)
+			continue;
+
 		companion_hcd = pci_get_drvdata(companion);
 		if (!companion_hcd || !companion_hcd->self.root_hub)
 			continue;
@@ -197,7 +206,7 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	 * The xHCI driver has its own irq management
 	 * make sure irq setup is not touched for xhci in generic hcd code
 	 */
-	if ((driver->flags & HCD_MASK) != HCD_USB3) {
+	if ((driver->flags & HCD_MASK) < HCD_USB3) {
 		if (!dev->irq) {
 			dev_err(&dev->dev,
 			"Found HC with no IRQ. Check BIOS/PCI %s setup!\n",

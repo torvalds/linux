@@ -181,6 +181,7 @@ int main(void)
 	OFFSET(__LC_PSW_SAVE_AREA, _lowcore, psw_save_area);
 	OFFSET(__LC_PREFIX_SAVE_AREA, _lowcore, prefixreg_save_area);
 	OFFSET(__LC_FP_CREG_SAVE_AREA, _lowcore, fpt_creg_save_area);
+	OFFSET(__LC_TOD_PROGREG_SAVE_AREA, _lowcore, tod_progreg_save_area);
 	OFFSET(__LC_CPU_TIMER_SAVE_AREA, _lowcore, cpu_timer_save_area);
 	OFFSET(__LC_CLOCK_COMP_SAVE_AREA, _lowcore, clock_comp_save_area);
 	OFFSET(__LC_AREGS_SAVE_AREA, _lowcore, access_regs_save_area);

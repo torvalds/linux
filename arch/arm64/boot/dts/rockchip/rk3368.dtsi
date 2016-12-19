@@ -262,6 +262,8 @@
 		#io-channel-cells = <1>;
 		clocks = <&cru SCLK_SARADC>, <&cru PCLK_SARADC>;
 		clock-names = "saradc", "apb_pclk";
+		resets = <&cru SRST_SARADC>;
+		reset-names = "saradc-apb";
 		status = "disabled";
 	};
 
@@ -517,7 +519,7 @@
 		#address-cells = <0>;
 
 		reg = <0x0 0xffb71000 0x0 0x1000>,
-		      <0x0 0xffb72000 0x0 0x1000>,
+		      <0x0 0xffb72000 0x0 0x2000>,
 		      <0x0 0xffb74000 0x0 0x2000>,
 		      <0x0 0xffb76000 0x0 0x2000>;
 		interrupts = <GIC_PPI 9

@@ -1584,9 +1584,18 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	unsigned long long now;
 	int expires;
 
+	cqr = (struct dasd_ccw_req *) intparm;
 	if (IS_ERR(irb)) {
 		switch (PTR_ERR(irb)) {
 		case -EIO:
+			if (cqr && cqr->status == DASD_CQR_CLEAR_PENDING) {
+				device = (struct dasd_device *) cqr->startdev;
+				cqr->status = DASD_CQR_CLEARED;
+				dasd_device_clear_timer(device);
+				wake_up(&dasd_flush_wq);
+				dasd_schedule_device_bh(device);
+				return;
+			}
 			break;
 		case -ETIMEDOUT:
 			DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s: "
@@ -1602,7 +1611,6 @@ void dasd_int_handler(struct ccw_device *cdev, unsigned long intparm,
 	}
 
 	now = get_tod_clock();
-	cqr = (struct dasd_ccw_req *) intparm;
 	/* check for conditions that should be handled immediately */
 	if (!cqr ||
 	    !(scsw_dstat(&irb->scsw) == (DEV_STAT_CHN_END | DEV_STAT_DEV_END) &&
@@ -3031,6 +3039,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 		max = block->base->discipline->max_blocks << block->s2b_shift;
 	}
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, block->request_queue);
+	block->request_queue->limits.max_dev_sectors = max;
 	blk_queue_logical_block_size(block->request_queue,
 				     block->bp_block);
 	blk_queue_max_hw_sectors(block->request_queue, max);

@@ -411,8 +411,29 @@ int irq_map_generic_chip(struct irq_domain *d, unsigned int virq,
 }
 EXPORT_SYMBOL_GPL(irq_map_generic_chip);
 
+static void irq_unmap_generic_chip(struct irq_domain *d, unsigned int virq)
+{
+	struct irq_data *data = irq_domain_get_irq_data(d, virq);
+	struct irq_domain_chip_generic *dgc = d->gc;
+	unsigned int hw_irq = data->hwirq;
+	struct irq_chip_generic *gc;
+	int irq_idx;
+
+	gc = irq_get_domain_generic_chip(d, hw_irq);
+	if (!gc)
+		return;
+
+	irq_idx = hw_irq % dgc->irqs_per_chip;
+
+	clear_bit(irq_idx, &gc->installed);
+	irq_domain_set_info(d, virq, hw_irq, &no_irq_chip, NULL, NULL, NULL,
+			    NULL);
+
+}
+
 struct irq_domain_ops irq_generic_chip_ops = {
 	.map	= irq_map_generic_chip,
+	.unmap  = irq_unmap_generic_chip,
 	.xlate	= irq_domain_xlate_onetwocell,
 };
 EXPORT_SYMBOL_GPL(irq_generic_chip_ops);

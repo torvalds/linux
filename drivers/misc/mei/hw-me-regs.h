@@ -121,6 +121,10 @@
 #define MEI_DEV_ID_SPT_2      0x9D3B  /* Sunrise Point 2 */
 #define MEI_DEV_ID_SPT_H      0xA13A  /* Sunrise Point H */
 #define MEI_DEV_ID_SPT_H_2    0xA13B  /* Sunrise Point H 2 */
+
+#define MEI_DEV_ID_KBP        0xA2BA  /* Kaby Point */
+#define MEI_DEV_ID_KBP_2      0xA2BB  /* Kaby Point 2 */
+
 /*
  * MEI HW Section
  */

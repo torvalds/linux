@@ -695,7 +695,7 @@ static int do_of_entry (const char *filename, void *symval, char *alias)
 	len = sprintf(alias, "of:N%sT%s", (*name)[0] ? *name : "*",
 		      (*type)[0] ? *type : "*");
 
-	if (compatible[0])
+	if ((*compatible)[0])
 		sprintf(&alias[len], "%sC%s", (*type)[0] ? "*" : "",
 			*compatible);
 

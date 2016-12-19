@@ -263,6 +263,9 @@ static void sh_msiof_spi_set_clk_regs(struct sh_msiof_spi_priv *p,
 
 	for (k = 0; k < ARRAY_SIZE(sh_msiof_spi_div_table); k++) {
 		brps = DIV_ROUND_UP(div, sh_msiof_spi_div_table[k].div);
+		/* SCR_BRDV_DIV_1 is valid only if BRPS is x 1/1 or x 1/2 */
+		if (sh_msiof_spi_div_table[k].div == 1 && brps > 2)
+			continue;
 		if (brps <= 32) /* max of brdv is 32 */
 			break;
 	}

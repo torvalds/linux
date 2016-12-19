@@ -739,9 +739,9 @@ static int xgene_ahci_probe(struct platform_device *pdev)
 				dev_warn(&pdev->dev, "%s: Error reading device info. Assume version1\n",
 					__func__);
 				version = XGENE_AHCI_V1;
-			}
-			if (info->valid & ACPI_VALID_CID)
+			} else if (info->valid & ACPI_VALID_CID) {
 				version = XGENE_AHCI_V2;
+			}
 		}
 	}
 #endif

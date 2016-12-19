@@ -57,7 +57,7 @@
 #include <linux/vmalloc.h> /* TODO: replace with more sophisticated array */
 #include <linux/kthread.h>
 #include <linux/delay.h>
-
+#include <linux/cpuset.h>
 #include <linux/atomic.h>
 
 /*
@@ -236,6 +236,9 @@ static int cgroup_addrm_files(struct cgroup_subsys_state *css,
  */
 static bool cgroup_ssid_enabled(int ssid)
 {
+	if (CGROUP_SUBSYS_COUNT == 0)
+		return false;
+
 	return static_key_enabled(cgroup_subsys_enabled_key[ssid]);
 }
 
@@ -2498,6 +2501,14 @@ static void cgroup_migrate_add_src(struct css_set *src_cset,
 	lockdep_assert_held(&cgroup_mutex);
 	lockdep_assert_held(&css_set_lock);
 
+	/*
+	 * If ->dead, @src_set is associated with one or more dead cgroups
+	 * and doesn't contain any migratable tasks.  Ignore it early so
+	 * that the rest of migration path doesn't get confused by it.
+	 */
+	if (src_cset->dead)
+		return;
+
 	src_cgrp = cset_cgroup_from_root(src_cset, dst_cgrp->root);
 
 	if (!list_empty(&src_cset->mg_preload_node))
@@ -2713,9 +2724,10 @@ static ssize_t __cgroup_procs_write(struct kernfs_open_file *of, char *buf,
 				    size_t nbytes, loff_t off, bool threadgroup)
 {
 	struct task_struct *tsk;
+	struct cgroup_subsys *ss;
 	struct cgroup *cgrp;
 	pid_t pid;
-	int ret;
+	int ssid, ret;
 
 	if (kstrtoint(strstrip(buf), 0, &pid) || pid < 0)
 		return -EINVAL;
@@ -2763,6 +2775,9 @@ out_unlock_rcu:
 	rcu_read_unlock();
 out_unlock_threadgroup:
 	percpu_up_write(&cgroup_threadgroup_rwsem);
+	for_each_subsys(ss, ssid)
+		if (ss->post_attach)
+			ss->post_attach();
 	cgroup_kn_unlock(of->kn);
 	return ret ?: nbytes;
 }
@@ -4680,14 +4695,15 @@ static void css_free_work_fn(struct work_struct *work)
 
 	if (ss) {
 		/* css free path */
+		struct cgroup_subsys_state *parent = css->parent;
 		int id = css->id;
-
-		if (css->parent)
-			css_put(css->parent);
 
 		ss->css_free(css);
 		cgroup_idr_remove(&ss->css_idr, id);
 		cgroup_put(cgrp);
+
+		if (parent)
+			css_put(parent);
 	} else {
 		/* cgroup free path */
 		atomic_dec(&cgrp->root->nr_cgrps);
@@ -4780,9 +4796,11 @@ static void init_and_link_css(struct cgroup_subsys_state *css,
 	memset(css, 0, sizeof(*css));
 	css->cgroup = cgrp;
 	css->ss = ss;
+	css->id = -1;
 	INIT_LIST_HEAD(&css->sibling);
 	INIT_LIST_HEAD(&css->children);
 	css->serial_nr = css_serial_nr_next++;
+	atomic_set(&css->online_cnt, 0);
 
 	if (cgroup_parent(cgrp)) {
 		css->parent = cgroup_css(cgroup_parent(cgrp), ss);
@@ -4805,6 +4823,10 @@ static int online_css(struct cgroup_subsys_state *css)
 	if (!ret) {
 		css->flags |= CSS_ONLINE;
 		rcu_assign_pointer(css->cgroup->subsys[ss->id], css);
+
+		atomic_inc(&css->online_cnt);
+		if (css->parent)
+			atomic_inc(&css->parent->online_cnt);
 	}
 	return ret;
 }
@@ -5036,10 +5058,15 @@ static void css_killed_work_fn(struct work_struct *work)
 		container_of(work, struct cgroup_subsys_state, destroy_work);
 
 	mutex_lock(&cgroup_mutex);
-	offline_css(css);
-	mutex_unlock(&cgroup_mutex);
 
-	css_put(css);
+	do {
+		offline_css(css);
+		css_put(css);
+		/* @css can't go away while we're holding cgroup_mutex */
+		css = css->parent;
+	} while (css && atomic_dec_and_test(&css->online_cnt));
+
+	mutex_unlock(&cgroup_mutex);
 }
 
 /* css kill confirmation processing requires process context, bounce */
@@ -5048,8 +5075,10 @@ static void css_killed_ref_fn(struct percpu_ref *ref)
 	struct cgroup_subsys_state *css =
 		container_of(ref, struct cgroup_subsys_state, refcnt);
 
-	INIT_WORK(&css->destroy_work, css_killed_work_fn);
-	queue_work(cgroup_destroy_wq, &css->destroy_work);
+	if (atomic_dec_and_test(&css->online_cnt)) {
+		INIT_WORK(&css->destroy_work, css_killed_work_fn);
+		queue_work(cgroup_destroy_wq, &css->destroy_work);
+	}
 }
 
 /**
@@ -5118,6 +5147,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
 {
 	struct cgroup_subsys_state *css;
+	struct cgrp_cset_link *link;
 	int ssid;
 
 	lockdep_assert_held(&cgroup_mutex);
@@ -5138,10 +5168,17 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		return -EBUSY;
 
 	/*
-	 * Mark @cgrp dead.  This prevents further task migration and child
-	 * creation by disabling cgroup_lock_live_group().
+	 * Mark @cgrp and the associated csets dead.  The former prevents
+	 * further task migration and child creation by disabling
+	 * cgroup_lock_live_group().  The latter makes the csets ignored by
+	 * the migration path.
 	 */
 	cgrp->self.flags &= ~CSS_ONLINE;
+
+	spin_lock_bh(&css_set_lock);
+	list_for_each_entry(link, &cgrp->cset_links, cset_link)
+		link->cset->dead = true;
+	spin_unlock_bh(&css_set_lock);
 
 	/* initiate massacre of all css's */
 	for_each_css(css, ssid, cgrp)

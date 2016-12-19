@@ -461,9 +461,8 @@ sun4v_chip_type:
 	subcc	%g3, 1, %g3
 	bne,pt	%xcc, 41b
 	add	%g1, 1, %g1
-	mov	SUN4V_CHIP_SPARC64X, %g4
 	ba,pt	%xcc, 5f
-	nop
+	 mov	SUN4V_CHIP_SPARC64X, %g4
 
 49:
 	mov	SUN4V_CHIP_UNKNOWN, %g4
@@ -548,8 +547,7 @@ sun4u_init:
 	stxa		%g0, [%g7] ASI_DMMU
 	membar	#Sync
 
-	ba,pt		%xcc, sun4u_continue
-	 nop
+	ba,a,pt		%xcc, sun4u_continue
 
 sun4v_init:
 	/* Set ctx 0 */
@@ -560,14 +558,12 @@ sun4v_init:
 	mov		SECONDARY_CONTEXT, %g7
 	stxa		%g0, [%g7] ASI_MMU
 	membar		#Sync
-	ba,pt		%xcc, niagara_tlb_fixup
-	 nop
+	ba,a,pt		%xcc, niagara_tlb_fixup
 
 sun4u_continue:
 	BRANCH_IF_ANY_CHEETAH(g1, g7, cheetah_tlb_fixup)
 
-	ba,pt	%xcc, spitfire_tlb_fixup
-	 nop
+	ba,a,pt	%xcc, spitfire_tlb_fixup
 
 niagara_tlb_fixup:
 	mov	3, %g2		/* Set TLB type to hypervisor. */
@@ -639,8 +635,7 @@ niagara_patch:
 	call	hypervisor_patch_cachetlbops
 	 nop
 
-	ba,pt	%xcc, tlb_fixup_done
-	 nop
+	ba,a,pt	%xcc, tlb_fixup_done
 
 cheetah_tlb_fixup:
 	mov	2, %g2		/* Set TLB type to cheetah+. */
@@ -659,8 +654,7 @@ cheetah_tlb_fixup:
 	call	cheetah_patch_cachetlbops
 	 nop
 
-	ba,pt	%xcc, tlb_fixup_done
-	 nop
+	ba,a,pt	%xcc, tlb_fixup_done
 
 spitfire_tlb_fixup:
 	/* Set TLB type to spitfire. */
@@ -782,8 +776,7 @@ setup_trap_table:
 	call	%o1
 	 add	%sp, (2047 + 128), %o0
 
-	ba,pt	%xcc, 2f
-	 nop
+	ba,a,pt	%xcc, 2f
 
 1:	sethi	%hi(sparc64_ttable_tl0), %o0
 	set	prom_set_trap_table_name, %g2
@@ -822,8 +815,7 @@ setup_trap_table:
 
 	BRANCH_IF_ANY_CHEETAH(o2, o3, 1f)
 
-	ba,pt	%xcc, 2f
-	 nop
+	ba,a,pt	%xcc, 2f
 
 	/* Disable STICK_INT interrupts. */
 1:
@@ -930,46 +922,10 @@ prom_tba:	.xword	0
 tlb_type:	.word	0	/* Must NOT end up in BSS */
 	.section	".fixup",#alloc,#execinstr
 
-	.globl	__ret_efault, __retl_efault, __ret_one, __retl_one
-ENTRY(__ret_efault)
-	ret
-	 restore %g0, -EFAULT, %o0
-ENDPROC(__ret_efault)
-
 ENTRY(__retl_efault)
 	retl
 	 mov	-EFAULT, %o0
 ENDPROC(__retl_efault)
-
-ENTRY(__retl_one)
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_one)
-
-ENTRY(__retl_one_fp)
-	VISExitHalf
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_one_fp)
-
-ENTRY(__ret_one_asi)
-	wr	%g0, ASI_AIUS, %asi
-	ret
-	 restore %g0, 1, %o0
-ENDPROC(__ret_one_asi)
-
-ENTRY(__retl_one_asi)
-	wr	%g0, ASI_AIUS, %asi
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_one_asi)
-
-ENTRY(__retl_one_asi_fp)
-	wr	%g0, ASI_AIUS, %asi
-	VISExitHalf
-	retl
-	 mov	1, %o0
-ENDPROC(__retl_one_asi_fp)
 
 ENTRY(__retl_o1)
 	retl

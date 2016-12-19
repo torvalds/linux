@@ -47,6 +47,8 @@
 #include "armada-39x.dtsi"
 
 / {
+	compatible = "marvell,armada390";
+
 	soc {
 		internal-regs {
 			pinctrl@18000 {
@@ -54,4 +56,5 @@
 				reg = <0x18000 0x20>;
 			};
 		};
+	};
 };

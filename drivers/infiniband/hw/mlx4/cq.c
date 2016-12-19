@@ -253,10 +253,13 @@ struct ib_cq *mlx4_ib_create_cq(struct ib_device *ibdev,
 	if (context)
 		if (ib_copy_to_udata(udata, &cq->mcq.cqn, sizeof (__u32))) {
 			err = -EFAULT;
-			goto err_dbmap;
+			goto err_cq_free;
 		}
 
 	return &cq->ibcq;
+
+err_cq_free:
+	mlx4_cq_free(dev->dev, &cq->mcq);
 
 err_dbmap:
 	if (context)

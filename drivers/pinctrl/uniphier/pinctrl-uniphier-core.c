@@ -73,6 +73,12 @@ static void uniphier_pctl_pin_dbg_show(struct pinctrl_dev *pctldev,
 	case UNIPHIER_PIN_PULL_DOWN:
 		pull_dir = "DOWN";
 		break;
+	case UNIPHIER_PIN_PULL_UP_FIXED:
+		pull_dir = "UP(FIXED)";
+		break;
+	case UNIPHIER_PIN_PULL_DOWN_FIXED:
+		pull_dir = "DOWN(FIXED)";
+		break;
 	case UNIPHIER_PIN_PULL_NONE:
 		pull_dir = "NONE";
 		break;

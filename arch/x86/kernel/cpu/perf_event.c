@@ -67,7 +67,7 @@ u64 x86_perf_event_update(struct perf_event *event)
 	int shift = 64 - x86_pmu.cntval_bits;
 	u64 prev_raw_count, new_raw_count;
 	int idx = hwc->idx;
-	s64 delta;
+	u64 delta;
 
 	if (idx == INTEL_PMC_IDX_FIXED_BTS)
 		return 0;
@@ -593,6 +593,19 @@ void x86_pmu_disable_all(void)
 	}
 }
 
+/*
+ * There may be PMI landing after enabled=0. The PMI hitting could be before or
+ * after disable_all.
+ *
+ * If PMI hits before disable_all, the PMU will be disabled in the NMI handler.
+ * It will not be re-enabled in the NMI handler again, because enabled=0. After
+ * handling the NMI, disable_all will be called, which will not change the
+ * state either. If PMI hits after disable_all, the PMU is already disabled
+ * before entering NMI handler. The NMI handler will not change the state
+ * either.
+ *
+ * So either situation is harmless.
+ */
 static void x86_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);

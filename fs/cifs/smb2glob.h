@@ -44,6 +44,7 @@
 #define SMB2_OP_DELETE 7
 #define SMB2_OP_HARDLINK 8
 #define SMB2_OP_SET_EOF 9
+#define SMB2_OP_RMDIR 10
 
 /* Used when constructing chained read requests. */
 #define CHAINED_REQUEST 1
@@ -59,5 +60,15 @@
 
 /* Maximum buffer size value we can send with 1 credit */
 #define SMB2_MAX_BUFFER_SIZE 65536
+
+/*
+ * Maximum number of credits to keep available.
+ * This value is chosen somewhat arbitrarily. The Windows client
+ * defaults to 128 credits, the Windows server allows clients up to
+ * 512 credits, and the NetApp server does not limit clients at all.
+ * Choose a high enough value such that the client shouldn't limit
+ * performance.
+ */
+#define SMB2_MAX_CREDITS_AVAILABLE 32000
 
 #endif	/* _SMB2_GLOB_H */

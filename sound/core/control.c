@@ -160,6 +160,8 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 	
 	if (snd_BUG_ON(!card || !id))
 		return;
+	if (card->shutdown)
+		return;
 	read_lock(&card->ctl_files_rwlock);
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
 	card->mixer_oss_change_count++;
@@ -1404,6 +1406,8 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 	if (copy_from_user(&tlv, _tlv, sizeof(tlv)))
 		return -EFAULT;
 	if (tlv.length < sizeof(unsigned int) * 2)
+		return -EINVAL;
+	if (!tlv.numid)
 		return -EINVAL;
 	down_read(&card->controls_rwsem);
 	kctl = snd_ctl_find_numid(card, tlv.numid);

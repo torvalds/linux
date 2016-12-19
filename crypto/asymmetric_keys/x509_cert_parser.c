@@ -494,7 +494,7 @@ int x509_decode_time(time64_t *_t,  size_t hdrlen,
 		     unsigned char tag,
 		     const unsigned char *value, size_t vlen)
 {
-	static const unsigned char month_lengths[] = { 31, 29, 31, 30, 31, 30,
+	static const unsigned char month_lengths[] = { 31, 28, 31, 30, 31, 30,
 						       31, 31, 30, 31, 30, 31 };
 	const unsigned char *p = value;
 	unsigned year, mon, day, hour, min, sec, mon_len;
@@ -540,9 +540,9 @@ int x509_decode_time(time64_t *_t,  size_t hdrlen,
 		if (year % 4 == 0) {
 			mon_len = 29;
 			if (year % 100 == 0) {
-				year /= 100;
-				if (year % 4 != 0)
-					mon_len = 28;
+				mon_len = 28;
+				if (year % 400 == 0)
+					mon_len = 29;
 			}
 		}
 	}

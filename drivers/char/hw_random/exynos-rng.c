@@ -89,6 +89,7 @@ static int exynos_read(struct hwrng *rng, void *buf,
 						struct exynos_rng, rng);
 	u32 *data = buf;
 	int retry = 100;
+	int ret = 4;
 
 	pm_runtime_get_sync(exynos_rng->dev);
 
@@ -97,23 +98,27 @@ static int exynos_read(struct hwrng *rng, void *buf,
 	while (!(exynos_rng_readl(exynos_rng,
 			EXYNOS_PRNG_STATUS_OFFSET) & PRNG_DONE) && --retry)
 		cpu_relax();
-	if (!retry)
-		return -ETIMEDOUT;
+	if (!retry) {
+		ret = -ETIMEDOUT;
+		goto out;
+	}
 
 	exynos_rng_writel(exynos_rng, PRNG_DONE, EXYNOS_PRNG_STATUS_OFFSET);
 
 	*data = exynos_rng_readl(exynos_rng, EXYNOS_PRNG_OUT1_OFFSET);
 
+out:
 	pm_runtime_mark_last_busy(exynos_rng->dev);
 	pm_runtime_put_sync_autosuspend(exynos_rng->dev);
 
-	return 4;
+	return ret;
 }
 
 static int exynos_rng_probe(struct platform_device *pdev)
 {
 	struct exynos_rng *exynos_rng;
 	struct resource *res;
+	int ret;
 
 	exynos_rng = devm_kzalloc(&pdev->dev, sizeof(struct exynos_rng),
 					GFP_KERNEL);
@@ -141,7 +146,13 @@ static int exynos_rng_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
-	return devm_hwrng_register(&pdev->dev, &exynos_rng->rng);
+	ret = devm_hwrng_register(&pdev->dev, &exynos_rng->rng);
+	if (ret) {
+		pm_runtime_dont_use_autosuspend(&pdev->dev);
+		pm_runtime_disable(&pdev->dev);
+	}
+
+	return ret;
 }
 
 #ifdef CONFIG_PM

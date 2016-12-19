@@ -204,9 +204,12 @@ int hvutil_transport_send(struct hvutil_transport *hvt, void *msg, int len)
 		goto out_unlock;
 	}
 	hvt->outmsg = kzalloc(len, GFP_KERNEL);
-	memcpy(hvt->outmsg, msg, len);
-	hvt->outmsg_len = len;
-	wake_up_interruptible(&hvt->outmsg_q);
+	if (hvt->outmsg) {
+		memcpy(hvt->outmsg, msg, len);
+		hvt->outmsg_len = len;
+		wake_up_interruptible(&hvt->outmsg_q);
+	} else
+		ret = -ENOMEM;
 out_unlock:
 	mutex_unlock(&hvt->outmsg_lock);
 	return ret;

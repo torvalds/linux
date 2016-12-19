@@ -1211,12 +1211,12 @@ void perf_evlist__set_maps(struct perf_evlist *evlist, struct cpu_map *cpus,
 	 */
 	if (cpus != evlist->cpus) {
 		cpu_map__put(evlist->cpus);
-		evlist->cpus = cpus;
+		evlist->cpus = cpu_map__get(cpus);
 	}
 
 	if (threads != evlist->threads) {
 		thread_map__put(evlist->threads);
-		evlist->threads = threads;
+		evlist->threads = thread_map__get(threads);
 	}
 
 	perf_evlist__propagate_maps(evlist);

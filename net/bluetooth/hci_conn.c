@@ -722,8 +722,12 @@ static void hci_req_add_le_create_conn(struct hci_request *req,
 	if (hci_update_random_address(req, false, &own_addr_type))
 		return;
 
+	/* Set window to be the same value as the interval to enable
+	 * continuous scanning.
+	 */
 	cp.scan_interval = cpu_to_le16(hdev->le_scan_interval);
-	cp.scan_window = cpu_to_le16(hdev->le_scan_window);
+	cp.scan_window = cp.scan_interval;
+
 	bacpy(&cp.peer_addr, &conn->dst);
 	cp.peer_addr_type = conn->dst_type;
 	cp.own_address_type = own_addr_type;
