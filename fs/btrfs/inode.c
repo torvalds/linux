@@ -388,6 +388,15 @@ static inline int inode_need_compress(struct inode *inode)
 	return 0;
 }
 
+static inline void inode_should_defrag(struct inode *inode,
+		u64 start, u64 end, u64 num_bytes, u64 small_write)
+{
+	/* If this is a small write inside eof, kick off a defrag */
+	if (num_bytes < small_write &&
+	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
+		btrfs_add_inode_defrag(NULL, inode);
+}
+
 /*
  * we create compressed extents in two phases.  The first
  * phase compresses a range of pages that have already been
@@ -430,10 +439,7 @@ static noinline void compress_file_range(struct inode *inode,
 	int compress_type = fs_info->compress_type;
 	int redirty = 0;
 
-	/* if this is a small write inside eof, kick off a defrag */
-	if ((end - start + 1) < SZ_16K &&
-	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
-		btrfs_add_inode_defrag(NULL, inode);
+	inode_should_defrag(inode, start, end, end - start + 1, SZ_16K);
 
 	actual_end = min_t(u64, isize, end + 1);
 again:
@@ -965,10 +971,7 @@ static noinline int cow_file_range(struct inode *inode,
 	num_bytes = max(blocksize,  num_bytes);
 	disk_num_bytes = num_bytes;
 
-	/* if this is a small write inside eof, kick off defrag */
-	if (num_bytes < SZ_64K &&
-	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
-		btrfs_add_inode_defrag(NULL, inode);
+	inode_should_defrag(inode, start, end, num_bytes, SZ_64K);
 
 	if (start == 0) {
 		/* lets try to make an inline extent */
