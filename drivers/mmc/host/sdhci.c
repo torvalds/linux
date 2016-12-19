@@ -2021,8 +2021,8 @@ static void sdhci_send_tuning(struct sdhci_host *host, u32 opcode,
 			      unsigned long flags)
 {
 	struct mmc_host *mmc = host->mmc;
-	struct mmc_command cmd = {0};
-	struct mmc_request mrq = {NULL};
+	struct mmc_command cmd = {};
+	struct mmc_request mrq = {};
 
 	cmd.opcode = opcode;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
