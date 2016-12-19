@@ -116,7 +116,7 @@ EXC_VIRT_NONE(0x4000, 0x100)
 
 EXC_REAL_BEGIN(system_reset, 0x100, 0x100)
 	SET_SCRATCH0(r13)
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
+	EXCEPTION_PROLOG_PSERIES(PACA_EXNMI, system_reset_common, EXC_STD,
 				 IDLETEST, 0x100)
 
 EXC_REAL_END(system_reset, 0x100, 0x100)
@@ -127,7 +127,10 @@ EXC_COMMON_BEGIN(system_reset_idle_common)
 	b	pnv_powersave_wakeup
 #endif
 
-EXC_COMMON(system_reset_common, 0x100, system_reset_exception)
+EXC_COMMON_BEGIN(system_reset_common)
+	EXCEPTION_COMMON(PACA_EXNMI, 0x100,
+			system_reset, system_reset_exception,
+			ret_from_except, ADD_NVGPRS;ADD_RECONCILE)
 
 #ifdef CONFIG_PPC_PSERIES
 /*
@@ -135,7 +138,7 @@ EXC_COMMON(system_reset_common, 0x100, system_reset_exception)
  */
 TRAMP_REAL_BEGIN(system_reset_fwnmi)
 	SET_SCRATCH0(r13)		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common, EXC_STD,
+	EXCEPTION_PROLOG_PSERIES(PACA_EXNMI, system_reset_common, EXC_STD,
 				 NOTEST, 0x100)
 #endif /* CONFIG_PPC_PSERIES */
 

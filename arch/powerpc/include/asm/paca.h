@@ -99,7 +99,6 @@ struct paca_struct {
 	 */
 	/* used for most interrupts/exceptions */
 	u64 exgen[13] __attribute__((aligned(0x80)));
-	u64 exmc[13];		/* used for machine checks */
 	u64 exslb[13];		/* used for SLB/segment table misses
  				 * on the linear mapping */
 	/* SLB related definitions */
@@ -180,6 +179,11 @@ struct paca_struct {
 	struct paca_struct **thread_sibling_pacas;
 #endif
 
+#ifdef CONFIG_PPC_STD_MMU_64
+	/* Non-maskable exceptions that are not performance critical */
+	u64 exnmi[13];		/* used for system reset (nmi) */
+	u64 exmc[13];		/* used for machine checks */
+#endif
 #ifdef CONFIG_PPC_BOOK3S_64
 	/* Exclusive emergency stack pointer for machine check exception. */
 	void *mc_emergency_sp;
