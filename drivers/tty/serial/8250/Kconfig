@@ -402,7 +402,7 @@ config SERIAL_8250_INGENIC
 	  its UARTs, say Y to this option. If unsure, say N.
 
 config SERIAL_8250_LPSS
-	tristate "Support for serial ports on Intel LPSS platforms" if EXPERT
+	tristate "Support for serial ports on Intel LPSS platforms"
 	default SERIAL_8250
 	depends on SERIAL_8250 && PCI
 	depends on X86 || COMPILE_TEST
