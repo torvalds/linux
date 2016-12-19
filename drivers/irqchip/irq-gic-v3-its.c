@@ -1077,10 +1077,13 @@ retry_baser:
 	return 0;
 }
 
-static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser,
-				   u32 psz, u32 *order)
+static bool its_parse_indirect_baser(struct its_node *its,
+				     struct its_baser *baser,
+				     u32 psz, u32 *order)
 {
-	u64 esz = GITS_BASER_ENTRY_SIZE(its_read_baser(its, baser));
+	u64 tmp = its_read_baser(its, baser);
+	u64 type = GITS_BASER_TYPE(tmp);
+	u64 esz = GITS_BASER_ENTRY_SIZE(tmp);
 	u64 val = GITS_BASER_InnerShareable | GITS_BASER_RaWaWb;
 	u32 ids = its->device_ids;
 	u32 new_order = *order;
@@ -1119,8 +1122,9 @@ static bool its_parse_baser_device(struct its_node *its, struct its_baser *baser
 	if (new_order >= MAX_ORDER) {
 		new_order = MAX_ORDER - 1;
 		ids = ilog2(PAGE_ORDER_TO_SIZE(new_order) / (int)esz);
-		pr_warn("ITS@%pa: Device Table too large, reduce ids %u->%u\n",
-			&its->phys_base, its->device_ids, ids);
+		pr_warn("ITS@%pa: %s Table too large, reduce ids %u->%u\n",
+			&its->phys_base, its_base_type_string[type],
+			its->device_ids, ids);
 	}
 
 	*order = new_order;
@@ -1168,11 +1172,16 @@ static int its_alloc_tables(struct its_node *its)
 		u32 order = get_order(psz);
 		bool indirect = false;
 
-		if (type == GITS_BASER_TYPE_NONE)
+		switch (type) {
+		case GITS_BASER_TYPE_NONE:
 			continue;
 
-		if (type == GITS_BASER_TYPE_DEVICE)
-			indirect = its_parse_baser_device(its, baser, psz, &order);
+		case GITS_BASER_TYPE_DEVICE:
+		case GITS_BASER_TYPE_VCPU:
+			indirect = its_parse_indirect_baser(its, baser,
+							    psz, &order);
+			break;
+		}
 
 		err = its_setup_baser(its, baser, cache, shr, psz, order, indirect);
 		if (err < 0) {
