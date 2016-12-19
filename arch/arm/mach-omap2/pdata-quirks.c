@@ -484,15 +484,15 @@ static struct pwm_omap_dmtimer_pdata pwm_dmtimer_pdata = {
 };
 #endif
 
-static struct lirc_rx51_platform_data __maybe_unused rx51_lirc_data = {
+static struct ir_rx51_platform_data __maybe_unused rx51_ir_data = {
 	.set_max_mpu_wakeup_lat = omap_pm_set_max_mpu_wakeup_lat,
 };
 
-static struct platform_device __maybe_unused rx51_lirc_device = {
-	.name           = "lirc_rx51",
+static struct platform_device __maybe_unused rx51_ir_device = {
+	.name           = "ir_rx51",
 	.id             = -1,
 	.dev            = {
-		.platform_data = &rx51_lirc_data,
+		.platform_data = &rx51_ir_data,
 	},
 };
 
