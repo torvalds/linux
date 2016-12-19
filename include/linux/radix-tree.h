@@ -125,7 +125,7 @@ do {									\
 	(root)->rnode = NULL;						\
 } while (0)
 
-static inline bool radix_tree_empty(struct radix_tree_root *root)
+static inline bool radix_tree_empty(const struct radix_tree_root *root)
 {
 	return root->rnode == NULL;
 }
@@ -294,10 +294,10 @@ static inline int radix_tree_insert(struct radix_tree_root *root,
 {
 	return __radix_tree_insert(root, index, 0, entry);
 }
-void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
+void *__radix_tree_lookup(const struct radix_tree_root *, unsigned long index,
 			  struct radix_tree_node **nodep, void ***slotp);
-void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
-void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
+void *radix_tree_lookup(const struct radix_tree_root *, unsigned long);
+void **radix_tree_lookup_slot(const struct radix_tree_root *, unsigned long);
 typedef void (*radix_tree_update_node_t)(struct radix_tree_node *, void *);
 void __radix_tree_replace(struct radix_tree_root *root,
 			  struct radix_tree_node *node,
@@ -316,10 +316,10 @@ void *radix_tree_delete(struct radix_tree_root *, unsigned long);
 void radix_tree_clear_tags(struct radix_tree_root *root,
 			   struct radix_tree_node *node,
 			   void **slot);
-unsigned int radix_tree_gang_lookup(struct radix_tree_root *root,
+unsigned int radix_tree_gang_lookup(const struct radix_tree_root *,
 			void **results, unsigned long first_index,
 			unsigned int max_items);
-unsigned int radix_tree_gang_lookup_slot(struct radix_tree_root *root,
+unsigned int radix_tree_gang_lookup_slot(const struct radix_tree_root *,
 			void ***results, unsigned long *indices,
 			unsigned long first_index, unsigned int max_items);
 int radix_tree_preload(gfp_t gfp_mask);
@@ -330,19 +330,19 @@ void *radix_tree_tag_set(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag);
 void *radix_tree_tag_clear(struct radix_tree_root *root,
 			unsigned long index, unsigned int tag);
-int radix_tree_tag_get(struct radix_tree_root *root,
+int radix_tree_tag_get(const struct radix_tree_root *,
 			unsigned long index, unsigned int tag);
 void radix_tree_iter_tag_set(struct radix_tree_root *root,
 		const struct radix_tree_iter *iter, unsigned int tag);
 unsigned int
-radix_tree_gang_lookup_tag(struct radix_tree_root *root, void **results,
+radix_tree_gang_lookup_tag(const struct radix_tree_root *, void **results,
 		unsigned long first_index, unsigned int max_items,
 		unsigned int tag);
 unsigned int
-radix_tree_gang_lookup_tag_slot(struct radix_tree_root *root, void ***results,
+radix_tree_gang_lookup_tag_slot(const struct radix_tree_root *, void ***results,
 		unsigned long first_index, unsigned int max_items,
 		unsigned int tag);
-int radix_tree_tagged(struct radix_tree_root *root, unsigned int tag);
+int radix_tree_tagged(const struct radix_tree_root *root, unsigned int tag);
 
 static inline void radix_tree_preload_end(void)
 {
@@ -395,7 +395,7 @@ radix_tree_iter_init(struct radix_tree_iter *iter, unsigned long start)
  * Also it fills @iter with data about chunk: position in the tree (index),
  * its end (next_index), and constructs a bit mask for tagged iterating (tags).
  */
-void **radix_tree_next_chunk(struct radix_tree_root *root,
+void **radix_tree_next_chunk(const struct radix_tree_root *,
 			     struct radix_tree_iter *iter, unsigned flags);
 
 /**
