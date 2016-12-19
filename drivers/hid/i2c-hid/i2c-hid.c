@@ -38,6 +38,9 @@
 #include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/gpio/consumer.h>
+#include <linux/fb.h>
+#include <linux/notifier.h>
+#include <linux/rk_keys.h>
 
 #include <linux/i2c/i2c-hid.h>
 
@@ -151,7 +154,39 @@ struct i2c_hid {
 	struct i2c_hid_platform_data pdata;
 
 	bool			irq_wake_enabled;
+
+	struct notifier_block fb_notif;
+	int is_suspend;
 };
+
+static int ihid_fb_notifier_callback(struct notifier_block *self,
+				     unsigned long action, void *data)
+{
+	struct i2c_hid *ihid;
+	struct fb_event *event = data;
+
+	ihid = container_of(self, struct i2c_hid, fb_notif);
+
+	if (action == FB_EARLY_EVENT_BLANK) {
+		switch (*((int *)event->data)) {
+		case FB_BLANK_UNBLANK:
+			break;
+		default:
+			ihid->is_suspend = 1;
+			break;
+		}
+	} else if (action == FB_EVENT_BLANK) {
+		switch (*((int *)event->data)) {
+		case FB_BLANK_UNBLANK:
+			ihid->is_suspend = 0;
+			break;
+		default:
+			break;
+		}
+	}
+
+	return NOTIFY_OK;
+}
 
 static int __i2c_hid_command(struct i2c_client *client,
 		const struct i2c_hid_cmd *command, u8 reportID,
@@ -426,6 +461,9 @@ static irqreturn_t i2c_hid_irq(int irq, void *dev_id)
 		return IRQ_HANDLED;
 
 	i2c_hid_get_input(ihid);
+
+	if (ihid->is_suspend == 1)
+		rk_send_wakeup_key();
 
 	return IRQ_HANDLED;
 }
@@ -1013,6 +1051,16 @@ static int i2c_hid_probe(struct i2c_client *client,
 	ret = i2c_hid_init_irq(client);
 	if (ret < 0)
 		goto err_pm;
+
+	if (client->dev.of_node) {
+		ret = of_property_read_bool(client->dev.of_node, "hid-support-wakeup");
+		if (ret) {
+			device_init_wakeup(&client->dev, true);
+			ihid->is_suspend = 0;
+			ihid->fb_notif.notifier_call = ihid_fb_notifier_callback;
+			fb_register_client(&ihid->fb_notif);
+		}
+	}
 
 	hid = hid_allocate_device();
 	if (IS_ERR(hid)) {
