@@ -2204,8 +2204,7 @@ int kvm_apic_set_state(struct kvm_vcpu *vcpu, struct kvm_lapic_state *s)
 				1 : count_vectors(apic->regs + APIC_ISR);
 	apic->highest_isr_cache = -1;
 	if (vcpu->arch.apicv_active) {
-		if (kvm_x86_ops->apicv_post_state_restore)
-			kvm_x86_ops->apicv_post_state_restore(vcpu);
+		kvm_x86_ops->apicv_post_state_restore(vcpu);
 		kvm_x86_ops->hwapic_irr_update(vcpu,
 				apic_find_highest_irr(apic));
 		kvm_x86_ops->hwapic_isr_update(vcpu,
