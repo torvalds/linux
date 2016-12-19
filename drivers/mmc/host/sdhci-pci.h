@@ -98,6 +98,7 @@ struct sdhci_pci_chip {
 	const struct sdhci_pci_fixes *fixes;
 
 	int			num_slots;	/* Slots on controller */
+	int			first_bar;	/* First valid BAR */
 	struct sdhci_pci_slot	*slots[MAX_SLOTS]; /* Pointers to host slots */
 };
 

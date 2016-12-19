@@ -28,6 +28,10 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/mmc/sdhci-pci-data.h>
 
+#ifdef CONFIG_X86_PS4
+#include <asm/ps4.h>
+#endif
+
 #include "sdhci.h"
 #include "sdhci-pci.h"
 #include "sdhci-pci-o2micro.h"
@@ -116,6 +120,42 @@ static const struct sdhci_pci_fixes sdhci_cafe = {
 static const struct sdhci_pci_fixes sdhci_intel_qrk = {
 	.quirks		= SDHCI_QUIRK_NO_HISPD_BIT,
 };
+
+#ifdef CONFIG_X86_PS4
+static int aeolia_probe(struct sdhci_pci_chip *chip)
+{
+	chip->num_slots = 1;
+	chip->first_bar = 0;
+	if (apcie_status() == 0)
+		return -EPROBE_DEFER;
+
+	chip->pdev->class &= ~0x0000FF;
+	chip->pdev->class |= PCI_SDHCI_IFDMA;
+	return 0;
+}
+
+static int aeolia_probe_slot(struct sdhci_pci_slot *slot)
+{
+	int err = apcie_assign_irqs(slot->chip->pdev, 1);
+	if (err <= 0) {
+		dev_err(&slot->chip->pdev->dev, "failed to get IRQ: %d\n", err);
+		return -ENODEV;
+	}
+	slot->host->irq = slot->chip->pdev->irq;
+	return 0;
+}
+
+static void aeolia_remove_slot(struct sdhci_pci_slot *slot, int dead)
+{
+	apcie_free_irqs(slot->chip->pdev->irq, 1);
+}
+
+static const struct sdhci_pci_fixes sdhci_aeolia = {
+	.probe		= aeolia_probe,
+	.probe_slot	= aeolia_probe_slot,
+	.remove_slot	= aeolia_remove_slot,
+};
+#endif
 
 static int mrst_hc_probe_slot(struct sdhci_pci_slot *slot)
 {
@@ -1355,6 +1395,15 @@ static const struct pci_device_id pci_ids[] = {
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_o2,
 	},
+#ifdef CONFIG_X86_PS4
+	{
+		.vendor		= PCI_VENDOR_ID_SONY,
+		.device		= PCI_DEVICE_ID_SONY_ASDHCI,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_aeolia,
+	},
+#endif
 	{
 		.vendor		= PCI_VENDOR_ID_AMD,
 		.device		= PCI_ANY_ID,
@@ -1640,12 +1689,11 @@ static const struct dev_pm_ops sdhci_pci_pm_ops = {
 \*****************************************************************************/
 
 static struct sdhci_pci_slot *sdhci_pci_probe_slot(
-	struct pci_dev *pdev, struct sdhci_pci_chip *chip, int first_bar,
-	int slotno)
+	struct pci_dev *pdev, struct sdhci_pci_chip *chip, int slotno)
 {
 	struct sdhci_pci_slot *slot;
 	struct sdhci_host *host;
-	int ret, bar = first_bar + slotno;
+	int ret, bar = chip->first_bar + slotno;
 
 	if (!(pci_resource_flags(pdev, bar) & IORESOURCE_MEM)) {
 		dev_err(&pdev->dev, "BAR %d is not iomem. Aborting.\n", bar);
@@ -1865,6 +1913,7 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 		chip->allow_runtime_pm = chip->fixes->allow_runtime_pm;
 	}
 	chip->num_slots = slots;
+	chip->first_bar = first_bar;
 
 	pci_set_drvdata(pdev, chip);
 
@@ -1877,7 +1926,7 @@ static int sdhci_pci_probe(struct pci_dev *pdev,
 	slots = chip->num_slots;	/* Quirk may have changed this */
 
 	for (i = 0; i < slots; i++) {
-		slot = sdhci_pci_probe_slot(pdev, chip, first_bar, i);
+		slot = sdhci_pci_probe_slot(pdev, chip, i);
 		if (IS_ERR(slot)) {
 			for (i--; i >= 0; i--)
 				sdhci_pci_remove_slot(chip->slots[i]);
