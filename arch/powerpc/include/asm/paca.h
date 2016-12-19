@@ -185,7 +185,8 @@ struct paca_struct {
 	u64 exmc[13];		/* used for machine checks */
 #endif
 #ifdef CONFIG_PPC_BOOK3S_64
-	/* Exclusive emergency stack pointer for machine check exception. */
+	/* Exclusive stacks for system reset and machine check exception. */
+	void *nmi_emergency_sp;
 	void *mc_emergency_sp;
 
 	u16 in_nmi;			/* In nmi handler */

@@ -144,10 +144,12 @@ EXC_COMMON_BEGIN(system_reset_common)
 	li	r10,MSR_RI
 	mtmsrd 	r10,1
 
-	EXCEPTION_COMMON(PACA_EXNMI, 0x100,
-			system_reset, system_reset_exception, 1f,
+	mr	r10,r1
+	ld	r1,PACA_NMI_EMERG_SP(r13)
+	subi	r1,r1,INT_FRAME_SIZE
+	EXCEPTION_COMMON_NORET_STACK(PACA_EXNMI, 0x100,
+			system_reset, system_reset_exception,
 			ADD_NVGPRS;ADD_RECONCILE)
-1: /* EXCEPTION_COMMON continues here */
 
 	/*
 	 * The stack is no longer in use, decrement in_nmi.

@@ -2235,6 +2235,7 @@ static void dump_one_paca(int cpu)
 	DUMP(p, kernel_msr, "lx");
 	DUMP(p, emergency_sp, "p");
 #ifdef CONFIG_PPC_BOOK3S_64
+	DUMP(p, nmi_emergency_sp, "p");
 	DUMP(p, mc_emergency_sp, "p");
 	DUMP(p, in_nmi, "x");
 	DUMP(p, in_mce, "x");

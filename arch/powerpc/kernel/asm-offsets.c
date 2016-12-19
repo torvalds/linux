@@ -234,6 +234,7 @@ int main(void)
 	OFFSET(PACAEMERGSP, paca_struct, emergency_sp);
 #ifdef CONFIG_PPC_BOOK3S_64
 	OFFSET(PACAMCEMERGSP, paca_struct, mc_emergency_sp);
+	OFFSET(PACA_NMI_EMERG_SP, paca_struct, nmi_emergency_sp);
 	OFFSET(PACA_IN_MCE, paca_struct, in_mce);
 	OFFSET(PACA_IN_NMI, paca_struct, in_nmi);
 #endif

@@ -563,6 +563,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_CTRL)
 	bl	hdlr;						\
 	b	ret
 
+/*
+ * Exception where stack is already set in r1, r1 is saved in r10, and it
+ * continues rather than returns.
+ */
+#define EXCEPTION_COMMON_NORET_STACK(area, trap, label, hdlr, additions) \
+	EXCEPTION_PROLOG_COMMON_1();				\
+	EXCEPTION_PROLOG_COMMON_2(area);			\
+	EXCEPTION_PROLOG_COMMON_3(trap);			\
+	/* Volatile regs are potentially clobbered here */	\
+	additions;						\
+	addi	r3,r1,STACK_FRAME_OVERHEAD;			\
+	bl	hdlr
+
 #define STD_EXCEPTION_COMMON(trap, label, hdlr)			\
 	EXCEPTION_COMMON(PACA_EXGEN, trap, label, hdlr,		\
 		ret_from_except, ADD_NVGPRS;ADD_RECONCILE)
