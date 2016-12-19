@@ -27,7 +27,6 @@
 #define __DAL_LINK_SERVICE_TYPES_H__
 
 #include "grph_object_id.h"
-#include "dpcd_defs.h"
 #include "dal_types.h"
 #include "irq_types.h"
 

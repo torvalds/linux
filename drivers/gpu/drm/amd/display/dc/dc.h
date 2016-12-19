@@ -27,7 +27,6 @@
 #define DC_INTERFACE_H_
 
 #include "dc_types.h"
-#include "dpcd_defs.h"
 #include "grph_object_defs.h"
 #include "logger_types.h"
 #include "gpio_types.h"

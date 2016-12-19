@@ -39,6 +39,7 @@
 #include "resource.h"
 #include "fixed31_32.h"
 #include "include/asic_capability_interface.h"
+#include "dpcd_defs.h"
 
 #include "dce/dce_11_0_d.h"
 #include "dce/dce_11_0_enum.h"
