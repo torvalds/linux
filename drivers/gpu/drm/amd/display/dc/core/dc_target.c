@@ -148,56 +148,49 @@ bool dc_target_set_cursor_attributes(
 	struct dc_target *dc_target,
 	const struct dc_cursor_attributes *attributes)
 {
-	uint8_t i, j;
-	struct core_target *target;
-	struct core_dc *core_dc;
-	struct resource_context *res_ctx;
+	int i, j;
+	struct core_target *target = DC_TARGET_TO_CORE(dc_target);
+	struct core_dc *core_dc = DC_TO_CORE(target->ctx->dc);
+	struct resource_context *res_ctx = &core_dc->current_context->res_ctx;
+	bool ret = false;
 
 	if (NULL == dc_target) {
 		dm_error("DC: dc_target is NULL!\n");
 			return false;
-
 	}
 	if (NULL == attributes) {
 		dm_error("DC: attributes is NULL!\n");
 			return false;
-
 	}
 
-	target = DC_TARGET_TO_CORE(dc_target);
-	core_dc = DC_TO_CORE(target->ctx->dc);
-	res_ctx = &core_dc->current_context->res_ctx;
+	for (i = 0; i < dc_target->stream_count; i++) {
+		const struct dc_stream *stream = dc_target->streams[i];
 
-	for (i = 0; i < target->public.stream_count; i++) {
 		for (j = 0; j < MAX_PIPES; j++) {
-			struct input_pixel_processor *ipp =
-						res_ctx->pipe_ctx[j].ipp;
+			struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[j];
 
-			if (res_ctx->pipe_ctx[j].stream !=
-				DC_STREAM_TO_CORE(target->public.streams[i]))
-				continue;
+			if (&pipe_ctx->stream->public == stream) {
+				struct input_pixel_processor *ipp = pipe_ctx->ipp;
 
-			/* As of writing of this code cursor is on the top
-			 * plane so we only need to set it on first pipe we
-			 * find. May need to make this code dce specific later.
-			 */
-			if (ipp->funcs->ipp_cursor_set_attributes(
-							ipp, attributes))
-				return true;
+				if (ipp->funcs->ipp_cursor_set_attributes(
+						ipp, attributes))
+					ret = true;
+			}
 		}
 	}
 
-	return false;
+	return ret;
 }
 
 bool dc_target_set_cursor_position(
 	struct dc_target *dc_target,
 	const struct dc_cursor_position *position)
 {
-	uint8_t i, j;
-	struct core_target *target;
-	struct core_dc *core_dc;
-	struct resource_context *res_ctx;
+	int i, j;
+	struct core_target *target = DC_TARGET_TO_CORE(dc_target);
+	struct core_dc *core_dc = DC_TO_CORE(target->ctx->dc);
+	struct resource_context *res_ctx = &core_dc->current_context->res_ctx;
+	bool ret = false;
 
 	if (NULL == dc_target) {
 		dm_error("DC: dc_target is NULL!\n");
@@ -209,29 +202,29 @@ bool dc_target_set_cursor_position(
 		return false;
 	}
 
-	target = DC_TARGET_TO_CORE(dc_target);
-	core_dc = DC_TO_CORE(target->ctx->dc);
-	res_ctx = &core_dc->current_context->res_ctx;
+	for (i = 0; i < dc_target->stream_count; i++) {
+		const struct dc_stream *stream = dc_target->streams[i];
 
-	for (i = 0; i < target->public.stream_count; i++) {
 		for (j = 0; j < MAX_PIPES; j++) {
-			struct input_pixel_processor *ipp =
-						res_ctx->pipe_ctx[j].ipp;
+			struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[j];
 
-			if (res_ctx->pipe_ctx[j].stream !=
-				DC_STREAM_TO_CORE(target->public.streams[i]))
-				continue;
+			if (&pipe_ctx->stream->public == stream) {
+				struct input_pixel_processor *ipp = pipe_ctx->ipp;
+				struct dc_cursor_mi_param param = {
+					.pixel_clk_khz = stream->timing.pix_clk_khz,
+					.ref_clk_khz = 48000,/*todo refclk*/
+					.viewport_x_start = pipe_ctx->scl_data.viewport.x,
+					.viewport_width = pipe_ctx->scl_data.viewport.width,
+					.h_scale_ratio = pipe_ctx->scl_data.ratios.horz,
+				};
 
-			/* As of writing of this code cursor is on the top
-			 * plane so we only need to set it on first pipe we
-			 * find. May need to make this code dce specific later.
-			 */
-			ipp->funcs->ipp_cursor_set_position(ipp, position);
-			return true;
+				ipp->funcs->ipp_cursor_set_position(ipp, position, &param);
+				ret = true;
+			}
 		}
 	}
 
-	return false;
+	return ret;
 }
 
 uint32_t dc_target_get_vblank_counter(const struct dc_target *dc_target)

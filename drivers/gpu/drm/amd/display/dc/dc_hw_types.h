@@ -27,6 +27,7 @@
 #define DC_HW_TYPES_H
 
 #include "os_types.h"
+#include "fixed31_32.h"
 
 /******************************************************************************
  * Data types for Virtual HW Layer of DAL3.
@@ -357,6 +358,14 @@ struct dc_cursor_position {
 	 * programmed
 	 */
 	bool hot_spot_enable;
+};
+
+struct dc_cursor_mi_param {
+	unsigned int pixel_clk_khz;
+	unsigned int ref_clk_khz;
+	unsigned int viewport_x_start;
+	unsigned int viewport_width;
+	struct fixed31_32 h_scale_ratio;
 };
 
 /* IPP related types */

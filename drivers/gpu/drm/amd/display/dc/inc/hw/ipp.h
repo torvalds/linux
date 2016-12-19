@@ -83,7 +83,8 @@ struct ipp_funcs {
 	/*** cursor ***/
 	void (*ipp_cursor_set_position)(
 		struct input_pixel_processor *ipp,
-		const struct dc_cursor_position *position);
+		const struct dc_cursor_position *position,
+		const struct dc_cursor_mi_param *param);
 
 	bool (*ipp_cursor_set_attributes)(
 		struct input_pixel_processor *ipp,

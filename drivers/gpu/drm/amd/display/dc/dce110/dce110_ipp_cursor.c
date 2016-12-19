@@ -72,7 +72,8 @@ static void program_address(
 
 void dce110_ipp_cursor_set_position(
 	struct input_pixel_processor *ipp,
-	const struct dc_cursor_position *position)
+	const struct dc_cursor_position *position,
+	const struct dc_cursor_mi_param *param)
 {
 	struct dce110_ipp *ipp110 = TO_DCE110_IPP(ipp);
 
