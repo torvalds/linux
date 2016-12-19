@@ -633,3 +633,10 @@ void multiorder_checks(void)
 
 	radix_tree_cpu_dead(0);
 }
+
+int __weak main(void)
+{
+	radix_tree_init();
+	multiorder_checks();
+	return 0;
+}

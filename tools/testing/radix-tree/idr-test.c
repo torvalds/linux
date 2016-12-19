@@ -431,3 +431,14 @@ void ida_checks(void)
 
 	radix_tree_cpu_dead(1);
 }
+
+int __weak main(void)
+{
+	radix_tree_init();
+	idr_checks();
+	ida_checks();
+	rcu_barrier();
+	if (nr_allocated)
+		printf("nr_allocated = %d\n", nr_allocated);
+	return 0;
+}
