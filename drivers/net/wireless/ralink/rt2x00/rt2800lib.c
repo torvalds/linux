@@ -1939,7 +1939,7 @@ static void rt2800_config_lna_gain(struct rt2x00_dev *rt2x00dev,
 
 #define FREQ_OFFSET_BOUND	0x5f
 
-static void rt2800_adjust_freq_offset(struct rt2x00_dev *rt2x00dev)
+static void rt2800_freq_cal_mode1(struct rt2x00_dev *rt2x00dev)
 {
 	u8 freq_offset, prev_freq_offset;
 	u8 rfcsr, prev_rfcsr;
@@ -2415,7 +2415,7 @@ static void rt2800_config_channel_rf3053(struct rt2x00_dev *rt2x00dev,
 	}
 	rt2800_rfcsr_write(rt2x00dev, 1, rfcsr);
 
-	rt2800_adjust_freq_offset(rt2x00dev);
+	rt2800_freq_cal_mode1(rt2x00dev);
 
 	if (conf_is_ht40(conf)) {
 		txrx_agc_fc = rt2x00_get_field8(drv_data->calibration_bw40,
@@ -2605,7 +2605,7 @@ static void rt2800_config_channel_rf3290(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field8(&rfcsr, RFCSR49_TX, info->default_power1);
 	rt2800_rfcsr_write(rt2x00dev, 49, rfcsr);
 
-	rt2800_adjust_freq_offset(rt2x00dev);
+	rt2800_freq_cal_mode1(rt2x00dev);
 
 	if (rf->channel <= 14) {
 		if (rf->channel == 6)
@@ -2646,7 +2646,7 @@ static void rt2800_config_channel_rf3322(struct rt2x00_dev *rt2x00dev,
 	else
 		rt2800_rfcsr_write(rt2x00dev, 48, info->default_power2);
 
-	rt2800_adjust_freq_offset(rt2x00dev);
+	rt2800_freq_cal_mode1(rt2x00dev);
 
 	rt2800_rfcsr_read(rt2x00dev, 1, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR1_RX0_PD, 1);
@@ -2711,7 +2711,7 @@ static void rt2800_config_channel_rf53xx(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field8(&rfcsr, RFCSR1_TX0_PD, 1);
 	rt2800_rfcsr_write(rt2x00dev, 1, rfcsr);
 
-	rt2800_adjust_freq_offset(rt2x00dev);
+	rt2800_freq_cal_mode1(rt2x00dev);
 
 	if (rf->channel <= 14) {
 		int idx = rf->channel-1;
@@ -3006,7 +3006,7 @@ static void rt2800_config_channel_rf55xx(struct rt2x00_dev *rt2x00dev,
 	}
 
 	/* TODO proper frequency adjustment */
-	rt2800_adjust_freq_offset(rt2x00dev);
+	rt2800_freq_cal_mode1(rt2x00dev);
 
 	/* TODO merge with others */
 	rt2800_rfcsr_read(rt2x00dev, 3, &rfcsr);
@@ -6454,7 +6454,7 @@ static void rt2800_init_rfcsr_3593(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field8(&rfcsr, RFCSR2_RESCAL_EN, 1);
 	rt2800_rfcsr_write(rt2x00dev, 2, rfcsr);
 
-	rt2800_adjust_freq_offset(rt2x00dev);
+	rt2800_freq_cal_mode1(rt2x00dev);
 
 	rt2800_rfcsr_read(rt2x00dev, 18, &rfcsr);
 	rt2x00_set_field8(&rfcsr, RFCSR18_XO_TUNE_BYPASS, 1);
@@ -6680,7 +6680,7 @@ static void rt2800_init_rfcsr_5592(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write(rt2x00dev, 2, 0x80);
 	msleep(1);
 
-	rt2800_adjust_freq_offset(rt2x00dev);
+	rt2800_freq_cal_mode1(rt2x00dev);
 
 	/* Enable DC filter */
 	if (rt2x00_rt_rev_gte(rt2x00dev, RT5592, REV_RT5592C))
