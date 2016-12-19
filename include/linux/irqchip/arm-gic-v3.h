@@ -204,6 +204,7 @@
 
 #define GICR_TYPER_PLPIS		(1U << 0)
 #define GICR_TYPER_VLPIS		(1U << 1)
+#define GICR_TYPER_DirectLPIS		(1U << 3)
 #define GICR_TYPER_LAST			(1U << 4)
 
 #define GIC_V3_REDIST_SIZE		0x20000
@@ -487,6 +488,8 @@ struct rdists {
 	struct page		*prop_page;
 	int			id_bits;
 	u64			flags;
+	bool			has_vlpis;
+	bool			has_direct_lpi;
 };
 
 struct irq_domain;
