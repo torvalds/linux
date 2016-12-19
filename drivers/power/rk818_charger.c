@@ -113,6 +113,7 @@ struct charger_platform_data {
 	bool support_dc_det;
 	int virtual_power;
 	int sample_res;
+	int otg5v_suspend_enable;
 	bool extcon;
 };
 
@@ -150,6 +151,7 @@ struct rk818_charger {
 	u8 chrg_input;
 	u8 chrg_current;
 	u8 res_div;
+	u8 sleep_set_off_reg1;
 	u8 plugin_trigger;
 	u8 plugout_trigger;
 	int plugin_irq;
@@ -1174,6 +1176,13 @@ static int rk818_cg_parse_dt(struct rk818_charger *cg)
 		dev_err(dev, "sample_res missing!\n");
 	}
 
+	ret = of_property_read_u32(np, "otg5v_suspend_enable",
+				   &pdata->otg5v_suspend_enable);
+	if (ret < 0) {
+		pdata->otg5v_suspend_enable = 1;
+		dev_err(dev, "otg5v_suspend_enable missing!\n");
+	}
+
 	if (!is_battery_exist(cg))
 		pdata->virtual_power = 1;
 
@@ -1306,8 +1315,47 @@ static void rk818_charger_shutdown(struct platform_device *pdev)
 		cg->ac_in, cg->usb_in, cg->dc_in, cg->otg_in);
 }
 
+static int rk818_charger_suspend(struct platform_device *pdev,
+				 pm_message_t state)
+{
+	struct rk818_charger *cg = platform_get_drvdata(pdev);
+
+	cg->sleep_set_off_reg1 = rk818_reg_read(cg, RK818_SLEEP_SET_OFF_REG1);
+
+	/* enable sleep boost5v and otg5v */
+	if (cg->pdata->otg5v_suspend_enable) {
+		if ((cg->otg_in && !cg->dc_in) ||
+		    (cg->otg_in && cg->dc_in && !cg->pdata->power_dc2otg)) {
+			rk818_reg_clear_bits(cg, RK818_SLEEP_SET_OFF_REG1,
+					     OTG_BOOST_SLP_OFF);
+			CG_INFO("suspend: otg 5v on\n");
+			return 0;
+		}
+	}
+
+	/* disable sleep otg5v */
+	rk818_reg_set_bits(cg, RK818_SLEEP_SET_OFF_REG1,
+			   OTG_SLP_SET_OFF, OTG_SLP_SET_OFF);
+	CG_INFO("suspend: otg 5v off\n");
+
+	return 0;
+}
+
+static int rk818_charger_resume(struct platform_device *pdev)
+{
+	struct rk818_charger *cg = platform_get_drvdata(pdev);
+
+	/* resume sleep boost5v and otg5v */
+	rk818_reg_set_bits(cg, RK818_SLEEP_SET_OFF_REG1,
+			   OTG_BOOST_SLP_OFF, cg->sleep_set_off_reg1);
+
+	return 0;
+}
+
 static struct platform_driver rk818_charger_driver = {
 	.probe = rk818_charger_probe,
+	.suspend = rk818_charger_suspend,
+	.resume = rk818_charger_resume,
 	.shutdown = rk818_charger_shutdown,
 	.driver = {
 		.name	= "rk818-charger",
