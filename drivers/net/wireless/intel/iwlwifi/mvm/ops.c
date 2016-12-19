@@ -452,6 +452,7 @@ static const struct iwl_hcmd_names iwl_mvm_phy_names[] = {
  * Access is done through binary search
  */
 static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
+	HCMD_NAME(DQA_ENABLE_CMD),
 	HCMD_NAME(UPDATE_MU_GROUPS_CMD),
 	HCMD_NAME(TRIGGER_RX_QUEUES_NOTIF_CMD),
 	HCMD_NAME(STA_PM_NOTIF),
