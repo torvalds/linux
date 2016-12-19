@@ -41,6 +41,7 @@
 #define CS_COMMON_REG_LIST_DCE_112(id) \
 		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, id)
 
+
 #define CS_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
@@ -48,11 +49,11 @@
 	CS_SF(PLL_CNTL, PLL_REF_DIV_SRC, mask_sh),\
 	CS_SF(PIXCLK1_RESYNC_CNTL, DCCG_DEEP_COLOR_CNTL1, mask_sh),\
 	CS_SF(PLL_POST_DIV, PLL_POST_DIV_PIXCLK, mask_sh),\
-	CS_SF(PLL_REF_DIV, PLL_REF_DIV, mask_sh),\
+	CS_SF(PLL_REF_DIV, PLL_REF_DIV, mask_sh)
 
 #define CS_COMMON_MASK_SH_LIST_DCE_112(mask_sh)\
 	CS_SF(PHYPLLA_PIXCLK_RESYNC_CNTL, PHYPLLA_DCCG_DEEP_COLOR_CNTL, mask_sh),\
-	CS_SF(PHYPLLA_PIXCLK_RESYNC_CNTL, PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE, mask_sh),\
+	CS_SF(PHYPLLA_PIXCLK_RESYNC_CNTL, PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE, mask_sh)
 
 #define CS_REG_FIELD_LIST(type) \
 	type PLL_REF_DIV_SRC; \
@@ -61,6 +62,7 @@
 	type PHYPLLA_PIXCLK_DOUBLE_RATE_ENABLE; \
 	type PLL_POST_DIV_PIXCLK; \
 	type PLL_REF_DIV; \
+	type DP_DTO0_ENABLE;
 
 struct dce110_clk_src_shift {
 	CS_REG_FIELD_LIST(uint8_t)
@@ -74,6 +76,9 @@ struct dce110_clk_src_regs {
 	uint32_t RESYNC_CNTL;
 	uint32_t PIXCLK_RESYNC_CNTL;
 	uint32_t PLL_CNTL;
+	uint32_t PHASE;
+	uint32_t MODULO;
+	uint32_t PIXEL_RATE_CNTL;
 };
 
 struct dce110_clk_src {

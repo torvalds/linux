@@ -465,7 +465,6 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 		struct pll_settings *pll_settings,
 		struct pixel_clk_params *pix_clk_params)
 {
-	uint32_t value = 0;
 	uint32_t field = 0;
 	uint32_t pll_calc_error = MAX_PLL_CALC_ERROR;
 
@@ -473,7 +472,6 @@ static uint32_t dce110_get_pix_clk_dividers_helper (
 	* HW Dce80 spec:
 	* 00 - PCIE_REFCLK, 01 - XTALIN,    02 - GENERICA,    03 - GENERICB
 	* 04 - HSYNCA,      05 - GENLK_CLK, 06 - PCIE_REFCLK, 07 - DVOCLK0 */
-	value = REG_READ(PLL_CNTL);
 	REG_GET(PLL_CNTL, PLL_REF_DIV_SRC, &field);
 	pll_settings->use_external_clk = (field > 1);
 
@@ -807,51 +805,30 @@ static void dce112_program_pixel_clk_resync(
 }
 
 static bool dce110_program_pix_clk(
-		struct clock_source *clk_src,
+		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
 		struct pll_settings *pll_settings)
 {
-	struct dce110_clk_src *dce110_clk_src = TO_DCE110_CLK_SRC(clk_src);
+	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 
 	/* First disable SS
 	 * ATOMBIOS will enable by default SS on PLL for DP,
 	 * do not disable it here
 	 */
-	if (clk_src->id != CLOCK_SOURCE_ID_EXTERNAL &&
+	if (clock_source->id != CLOCK_SOURCE_ID_EXTERNAL &&
 			!dc_is_dp_signal(pix_clk_params->signal_type) &&
-			clk_src->ctx->dce_version <= DCE_VERSION_11_0)
-		disable_spread_spectrum(dce110_clk_src);
+			clock_source->ctx->dce_version <= DCE_VERSION_11_0)
+		disable_spread_spectrum(clk_src);
 
 	/*ATOMBIOS expects pixel rate adjusted by deep color ratio)*/
 	bp_pc_params.controller_id = pix_clk_params->controller_id;
-	bp_pc_params.pll_id = clk_src->id;
+	bp_pc_params.pll_id = clock_source->id;
 	bp_pc_params.target_pixel_clock = pll_settings->actual_pix_clk;
 	bp_pc_params.encoder_object_id = pix_clk_params->encoder_object_id;
 	bp_pc_params.signal_type = pix_clk_params->signal_type;
 
-	switch (clk_src->ctx->dce_version) {
-	case DCE_VERSION_11_2:
-		if (clk_src->id != CLOCK_SOURCE_ID_DP_DTO) {
-			bp_pc_params.flags.SET_GENLOCK_REF_DIV_SRC =
-							pll_settings->use_external_clk;
-			bp_pc_params.flags.SET_XTALIN_REF_SRC =
-							!pll_settings->use_external_clk;
-			if (pix_clk_params->flags.SUPPORT_YCBCR420) {
-				bp_pc_params.target_pixel_clock = pll_settings->actual_pix_clk / 2;
-				bp_pc_params.flags.SUPPORT_YUV_420 = 1;
-			}
-		}
-		if (dce110_clk_src->bios->funcs->set_pixel_clock(
-				dce110_clk_src->bios, &bp_pc_params) != BP_RESULT_OK)
-			return false;
-		/* Resync deep color DTO */
-		if (clk_src->id != CLOCK_SOURCE_ID_DP_DTO)
-			dce112_program_pixel_clk_resync(dce110_clk_src,
-						pix_clk_params->signal_type,
-						pix_clk_params->color_depth,
-						pix_clk_params->flags.SUPPORT_YCBCR420);
-		break;
+	switch (clock_source->ctx->dce_version) {
 	case DCE_VERSION_8_0:
 	case DCE_VERSION_10_0:
 	case DCE_VERSION_11_0:
@@ -864,27 +841,48 @@ static bool dce110_program_pix_clk(
 		bp_pc_params.flags.SET_EXTERNAL_REF_DIV_SRC =
 						pll_settings->use_external_clk;
 
-		if (dce110_clk_src->bios->funcs->set_pixel_clock(
-				dce110_clk_src->bios, &bp_pc_params) != BP_RESULT_OK)
+		if (clk_src->bios->funcs->set_pixel_clock(
+				clk_src->bios, &bp_pc_params) != BP_RESULT_OK)
 			return false;
 		/* Enable SS
 		 * ATOMBIOS will enable by default SS for DP on PLL ( DP ID clock),
 		 * based on HW display PLL team, SS control settings should be programmed
 		 * during PLL Reset, but they do not have effect
 		 * until SS_EN is asserted.*/
-		if (clk_src->id != CLOCK_SOURCE_ID_EXTERNAL
+		if (clock_source->id != CLOCK_SOURCE_ID_EXTERNAL
 			&& pix_clk_params->flags.ENABLE_SS && !dc_is_dp_signal(
 							pix_clk_params->signal_type)) {
 
-			if (!enable_spread_spectrum(dce110_clk_src,
+			if (!enable_spread_spectrum(clk_src,
 							pix_clk_params->signal_type,
 							pll_settings))
 				return false;
 			/* Resync deep color DTO */
-			dce110_program_pixel_clk_resync(dce110_clk_src,
+			dce110_program_pixel_clk_resync(clk_src,
 						pix_clk_params->signal_type,
 						pix_clk_params->color_depth);
 		}
+		break;
+	case DCE_VERSION_11_2:
+		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
+			bp_pc_params.flags.SET_GENLOCK_REF_DIV_SRC =
+							pll_settings->use_external_clk;
+			bp_pc_params.flags.SET_XTALIN_REF_SRC =
+							!pll_settings->use_external_clk;
+			if (pix_clk_params->flags.SUPPORT_YCBCR420) {
+				bp_pc_params.target_pixel_clock = pll_settings->actual_pix_clk / 2;
+				bp_pc_params.flags.SUPPORT_YUV_420 = 1;
+			}
+		}
+		if (clk_src->bios->funcs->set_pixel_clock(
+				clk_src->bios, &bp_pc_params) != BP_RESULT_OK)
+			return false;
+		/* Resync deep color DTO */
+		if (clock_source->id != CLOCK_SOURCE_ID_DP_DTO)
+			dce112_program_pixel_clk_resync(clk_src,
+						pix_clk_params->signal_type,
+						pix_clk_params->color_depth,
+						pix_clk_params->flags.SUPPORT_YCBCR420);
 		break;
 	default:
 		break;
