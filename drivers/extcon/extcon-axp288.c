@@ -21,7 +21,6 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
-#include <linux/usb/phy.h>
 #include <linux/notifier.h>
 #include <linux/extcon.h>
 #include <linux/regmap.h>
@@ -116,7 +115,6 @@ struct axp288_extcon_info {
 	int irq[EXTCON_IRQ_END];
 	struct extcon_dev *edev;
 	struct notifier_block extcon_nb;
-	struct usb_phy *otg;
 };
 
 /* Power up/down reason string array */
@@ -220,9 +218,6 @@ notify_otg:
 			gpiod_set_value(info->gpio_mux_cntl,
 				vbus_attach ? EXTCON_GPIO_MUX_SEL_SOC
 						: EXTCON_GPIO_MUX_SEL_PMIC);
-
-		atomic_notifier_call_chain(&info->otg->notifier,
-			vbus_attach ? USB_EVENT_VBUS : USB_EVENT_NONE, NULL);
 	}
 
 	if (notify_charger)
@@ -301,13 +296,6 @@ static int axp288_extcon_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
 		return ret;
-	}
-
-	/* Get otg transceiver phy */
-	info->otg = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
-	if (IS_ERR(info->otg)) {
-		dev_err(&pdev->dev, "failed to get otg transceiver\n");
-		return PTR_ERR(info->otg);
 	}
 
 	/* Set up gpio control for USB Mux */
