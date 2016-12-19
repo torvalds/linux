@@ -316,8 +316,14 @@ static int apcie_glue_init(struct apcie_dev *sc)
 		ioread32(sc->bar2 + APCIE_REG_CHIPREV));
 
 	/* Mask all MSIs first, to avoid spurious IRQs */
-	for (i = 0; i < AEOLIA_NUM_FUNCS; i++)
+	for (i = 0; i < AEOLIA_NUM_FUNCS; i++) {
 		glue_write32(sc, APCIE_REG_MSI_MASK(i), 0);
+		glue_write32(sc, APCIE_REG_MSI_ADDR(i), 0);
+		glue_write32(sc, APCIE_REG_MSI_DATA_HI(i), 0);
+	}
+
+	for (i = 0; i < 0xfc; i += 4)
+		glue_write32(sc, APCIE_REG_MSI_DATA_LO(i), 0);
 
 	glue_set_region(sc, AEOLIA_FUNC_ID_GBE, 0, 0xbfa00000, 0x3fff);
 	glue_set_region(sc, AEOLIA_FUNC_ID_AHCI, 5, 0xbfa04000, 0xfff);
