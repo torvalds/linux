@@ -7593,7 +7593,7 @@ static int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 
 	spec->ht.cap |= rx_chains << IEEE80211_HT_CAP_RX_STBC_SHIFT;
 
-	spec->ht.ampdu_factor = 3;
+	spec->ht.ampdu_factor = (rx_chains > 1) ? 3 : 2;
 	spec->ht.ampdu_density = 4;
 	spec->ht.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 	if (tx_chains != rx_chains) {
