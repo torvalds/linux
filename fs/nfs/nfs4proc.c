@@ -3122,6 +3122,16 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			res_stateid = &calldata->res.stateid;
 			renew_lease(server, calldata->timestamp);
 			break;
+		case -NFS4ERR_ACCESS:
+			if (calldata->arg.bitmask != NULL) {
+				calldata->arg.bitmask = NULL;
+				calldata->res.fattr = NULL;
+				task->tk_status = 0;
+				rpc_restart_call_prepare(task);
+				goto out_release;
+
+			}
+			break;
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
