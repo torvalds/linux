@@ -1715,6 +1715,11 @@ repeat:
 	if (len == PAGE_SIZE || PageUptodate(page))
 		return 0;
 
+	if (!(pos & (PAGE_SIZE - 1)) && (pos + len) >= i_size_read(inode)) {
+		zero_user_segment(page, len, PAGE_SIZE);
+		return 0;
+	}
+
 	if (blkaddr == NEW_ADDR) {
 		zero_user_segment(page, 0, PAGE_SIZE);
 		SetPageUptodate(page);
@@ -1768,7 +1773,7 @@ static int f2fs_write_end(struct file *file,
 	 * let generic_perform_write() try to copy data again through copied=0.
 	 */
 	if (!PageUptodate(page)) {
-		if (unlikely(copied != PAGE_SIZE))
+		if (unlikely(copied != len))
 			copied = 0;
 		else
 			SetPageUptodate(page);
