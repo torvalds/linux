@@ -78,11 +78,6 @@ DEFINE_PER_CPU(struct cpuinfo_parisc, cpu_data);
 static void
 init_percpu_prof(unsigned long cpunum)
 {
-	struct cpuinfo_parisc *p;
-
-	p = &per_cpu(cpu_data, cpunum);
-	p->prof_counter = 1;
-	p->prof_multiplier = 1;
 }
 
 
