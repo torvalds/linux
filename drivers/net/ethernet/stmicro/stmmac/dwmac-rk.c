@@ -979,6 +979,10 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 	int ret;
 	struct device *dev = &bsp_priv->pdev->dev;
 
+	ret = gmac_clk_enable(bsp_priv, true);
+	if (ret)
+		return ret;
+
 	/*rmii or rgmii*/
 	switch (bsp_priv->phy_iface) {
 	case PHY_INTERFACE_MODE_RGMII:
@@ -1007,10 +1011,6 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 	}
 
 	ret = phy_power_on(bsp_priv, true);
-	if (ret)
-		return ret;
-
-	ret = gmac_clk_enable(bsp_priv, true);
 	if (ret)
 		return ret;
 
