@@ -115,6 +115,8 @@ MODULE_FIRMWARE("radeon/hainan_rlc.bin");
 MODULE_FIRMWARE("radeon/hainan_smc.bin");
 MODULE_FIRMWARE("radeon/hainan_k_smc.bin");
 
+MODULE_FIRMWARE("radeon/si58_mc.bin");
+
 static u32 si_get_cu_active_bitmap(struct radeon_device *rdev, u32 se, u32 sh);
 static void si_pcie_gen3_enable(struct radeon_device *rdev);
 static void si_program_aspm(struct radeon_device *rdev);
@@ -1650,6 +1652,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 	int err;
 	int new_fw = 0;
 	bool new_smc = false;
+	bool si58_fw = false;
 
 	DRM_DEBUG("\n");
 
@@ -1741,6 +1744,10 @@ static int si_init_microcode(struct radeon_device *rdev)
 		break;
 	default: BUG();
 	}
+
+	/* this memory configuration requires special firmware */
+	if (((RREG32(MC_SEQ_MISC0) & 0xff000000) >> 24) == 0x58)
+		si58_fw = true;
 
 	DRM_INFO("Loading %s Microcode\n", new_chip_name);
 
@@ -1845,7 +1852,10 @@ static int si_init_microcode(struct radeon_device *rdev)
 		}
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", new_chip_name);
+	if (si58_fw)
+		snprintf(fw_name, sizeof(fw_name), "radeon/si58_mc.bin");
+	else
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", new_chip_name);
 	err = request_firmware(&rdev->mc_fw, fw_name, rdev->dev);
 	if (err) {
 		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc2.bin", chip_name);
