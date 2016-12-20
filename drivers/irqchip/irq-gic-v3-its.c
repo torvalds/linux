@@ -161,7 +161,7 @@ struct its_cmd_desc {
 			struct its_device *dev;
 			u32 phys_id;
 			u32 event_id;
-		} its_mapvi_cmd;
+		} its_mapti_cmd;
 
 		struct {
 			struct its_device *dev;
@@ -287,18 +287,18 @@ static struct its_collection *its_build_mapc_cmd(struct its_cmd_block *cmd,
 	return desc->its_mapc_cmd.col;
 }
 
-static struct its_collection *its_build_mapvi_cmd(struct its_cmd_block *cmd,
+static struct its_collection *its_build_mapti_cmd(struct its_cmd_block *cmd,
 						  struct its_cmd_desc *desc)
 {
 	struct its_collection *col;
 
-	col = dev_event_to_col(desc->its_mapvi_cmd.dev,
-			       desc->its_mapvi_cmd.event_id);
+	col = dev_event_to_col(desc->its_mapti_cmd.dev,
+			       desc->its_mapti_cmd.event_id);
 
-	its_encode_cmd(cmd, GITS_CMD_MAPVI);
-	its_encode_devid(cmd, desc->its_mapvi_cmd.dev->device_id);
-	its_encode_event_id(cmd, desc->its_mapvi_cmd.event_id);
-	its_encode_phys_id(cmd, desc->its_mapvi_cmd.phys_id);
+	its_encode_cmd(cmd, GITS_CMD_MAPTI);
+	its_encode_devid(cmd, desc->its_mapti_cmd.dev->device_id);
+	its_encode_event_id(cmd, desc->its_mapti_cmd.event_id);
+	its_encode_phys_id(cmd, desc->its_mapti_cmd.phys_id);
 	its_encode_collection(cmd, col->col_id);
 
 	its_fixup_cmd(cmd);
@@ -529,15 +529,15 @@ static void its_send_mapc(struct its_node *its, struct its_collection *col,
 	its_send_single_command(its, its_build_mapc_cmd, &desc);
 }
 
-static void its_send_mapvi(struct its_device *dev, u32 irq_id, u32 id)
+static void its_send_mapti(struct its_device *dev, u32 irq_id, u32 id)
 {
 	struct its_cmd_desc desc;
 
-	desc.its_mapvi_cmd.dev = dev;
-	desc.its_mapvi_cmd.phys_id = irq_id;
-	desc.its_mapvi_cmd.event_id = id;
+	desc.its_mapti_cmd.dev = dev;
+	desc.its_mapti_cmd.phys_id = irq_id;
+	desc.its_mapti_cmd.event_id = id;
 
-	its_send_single_command(dev->its, its_build_mapvi_cmd, &desc);
+	its_send_single_command(dev->its, its_build_mapti_cmd, &desc);
 }
 
 static void its_send_movi(struct its_device *dev,
@@ -1496,7 +1496,7 @@ static void its_irq_domain_activate(struct irq_domain *domain,
 	its_dev->event_map.col_map[event] = cpumask_first(cpu_mask);
 
 	/* Map the GIC IRQ and event to the device */
-	its_send_mapvi(its_dev, d->hwirq, event);
+	its_send_mapti(its_dev, d->hwirq, event);
 }
 
 static void its_irq_domain_deactivate(struct irq_domain *domain,

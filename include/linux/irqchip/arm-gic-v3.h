@@ -320,8 +320,6 @@
 #define GITS_CMD_MAPD			0x08
 #define GITS_CMD_MAPC			0x09
 #define GITS_CMD_MAPTI			0x0a
-/* older GIC documentation used MAPVI for this command */
-#define GITS_CMD_MAPVI			GITS_CMD_MAPTI
 #define GITS_CMD_MAPI			0x0b
 #define GITS_CMD_MOVI			0x01
 #define GITS_CMD_DISCARD		0x0f
