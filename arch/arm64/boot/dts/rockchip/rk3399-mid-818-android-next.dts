@@ -1009,4 +1009,5 @@
 
 &route_edp {
 	status = "okay";
+	logo,mode = "center";
 };
