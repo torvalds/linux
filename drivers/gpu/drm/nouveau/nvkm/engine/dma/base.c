@@ -34,7 +34,7 @@ nvkm_dma_search(struct nvkm_dma *dma, struct nvkm_client *client, u64 object)
 	struct rb_node *node = client->dmaroot.rb_node;
 	while (node) {
 		struct nvkm_dmaobj *dmaobj =
-			container_of(node, typeof(*dmaobj), rb);
+			rb_entry(node, typeof(*dmaobj), rb);
 		if (object < dmaobj->handle)
 			node = node->rb_left;
 		else
@@ -67,7 +67,7 @@ nvkm_dma_oclass_new(struct nvkm_device *device,
 	dmaobj->handle = oclass->object;
 
 	while (*ptr) {
-		struct nvkm_dmaobj *obj = container_of(*ptr, typeof(*obj), rb);
+		struct nvkm_dmaobj *obj = rb_entry(*ptr, typeof(*obj), rb);
 		parent = *ptr;
 		if (dmaobj->handle < obj->handle)
 			ptr = &parent->rb_left;
