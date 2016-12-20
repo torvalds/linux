@@ -416,7 +416,7 @@ static int bq24735_charger_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (!charger->status_gpio || bq24735_charger_is_present(charger)) {
+	if (bq24735_charger_is_present(charger)) {
 		ret = bq24735_read_word(client, BQ24735_MANUFACTURER_ID);
 		if (ret < 0) {
 			dev_err(&client->dev, "Failed to read manufacturer id : %d\n",
@@ -437,10 +437,7 @@ static int bq24735_charger_probe(struct i2c_client *client,
 				"device id mismatch. 0x000b != 0x%04x\n", ret);
 			return -ENODEV;
 		}
-	}
 
-	/* check for AC adapter presence */
-	if (bq24735_charger_is_present(charger)) {
 		ret = bq24735_enable_charging(charger);
 		if (ret < 0) {
 			dev_err(&client->dev, "Failed to enable charging\n");
