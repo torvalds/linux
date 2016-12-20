@@ -91,4 +91,7 @@ struct its_cmd_info {
 	};
 };
 
+int its_alloc_vcpu_irqs(struct its_vm *vm);
+void its_free_vcpu_irqs(struct its_vm *vm);
+
 #endif
