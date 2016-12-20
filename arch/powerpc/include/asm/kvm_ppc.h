@@ -186,8 +186,8 @@ extern long kvmppc_h_stuff_tce(struct kvm_vcpu *vcpu,
 		unsigned long tce_value, unsigned long npages);
 extern long kvmppc_h_get_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
 			     unsigned long ioba);
-extern struct page *kvm_alloc_hpt(unsigned long nr_pages);
-extern void kvm_release_hpt(struct page *page, unsigned long nr_pages);
+extern struct page *kvm_alloc_hpt_cma(unsigned long nr_pages);
+extern void kvm_free_hpt_cma(struct page *page, unsigned long nr_pages);
 extern int kvmppc_core_init_vm(struct kvm *kvm);
 extern void kvmppc_core_destroy_vm(struct kvm *kvm);
 extern void kvmppc_core_free_memslot(struct kvm *kvm,
