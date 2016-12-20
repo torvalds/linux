@@ -218,7 +218,7 @@ count_tree(struct net *net, struct rb_root *root,
 		int diff;
 		bool addit;
 
-		rbconn = container_of(*rbnode, struct xt_connlimit_rb, node);
+		rbconn = rb_entry(*rbnode, struct xt_connlimit_rb, node);
 
 		parent = *rbnode;
 		diff = same_source_net(addr, mask, &rbconn->addr, family);
@@ -398,7 +398,7 @@ static void destroy_tree(struct rb_root *r)
 	struct rb_node *node;
 
 	while ((node = rb_first(r)) != NULL) {
-		rbconn = container_of(node, struct xt_connlimit_rb, node);
+		rbconn = rb_entry(node, struct xt_connlimit_rb, node);
 
 		rb_erase(node, r);
 
