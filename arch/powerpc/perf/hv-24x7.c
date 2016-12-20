@@ -571,7 +571,7 @@ static int event_uniq_add(struct rb_root *root, const char *name, int nl,
 		struct event_uniq *it;
 		int result;
 
-		it = container_of(*new, struct event_uniq, node);
+		it = rb_entry(*new, struct event_uniq, node);
 		result = ev_uniq_ord(name, nl, domain, it->name, it->nl,
 					it->domain);
 
