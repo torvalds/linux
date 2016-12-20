@@ -2032,6 +2032,13 @@ static const struct irq_domain_ops its_domain_ops = {
 	.deactivate		= its_irq_domain_deactivate,
 };
 
+static struct irq_chip its_vpe_irq_chip = {
+	.name			= "GICv4-vpe",
+};
+
+static const struct irq_domain_ops its_vpe_domain_ops = {
+};
+
 static int its_force_quiescent(void __iomem *base)
 {
 	u32 count = 1000000;	/* 1s */
@@ -2145,6 +2152,11 @@ static int its_init_domain(struct fwnode_handle *handle, struct its_node *its)
 	info->data = its;
 	inner_domain->host_data = info;
 
+	return 0;
+}
+
+static int its_init_vpe_domain(void)
+{
 	return 0;
 }
 
@@ -2490,6 +2502,9 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 		    struct irq_domain *parent_domain)
 {
 	struct device_node *of_node;
+	struct its_node *its;
+	bool has_v4 = false;
+	int err;
 
 	its_parent = parent_domain;
 	of_node = to_of_node(handle);
@@ -2504,5 +2519,19 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 	}
 
 	gic_rdists = rdists;
-	return its_alloc_lpi_tables();
+	err = its_alloc_lpi_tables();
+	if (err)
+		return err;
+
+	list_for_each_entry(its, &its_nodes, entry)
+		has_v4 |= its->is_v4;
+
+	if (has_v4 & rdists->has_vlpis) {
+		if (its_init_vpe_domain()) {
+			rdists->has_vlpis = false;
+			pr_err("ITS: Disabling GICv4 support\n");
+		}
+	}
+
+	return 0;
 }
