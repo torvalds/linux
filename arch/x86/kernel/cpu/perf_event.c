@@ -67,7 +67,7 @@ u64 x86_perf_event_update(struct perf_event *event)
 	int shift = 64 - x86_pmu.cntval_bits;
 	u64 prev_raw_count, new_raw_count;
 	int idx = hwc->idx;
-	s64 delta;
+	u64 delta;
 
 	if (idx == INTEL_PMC_IDX_FIXED_BTS)
 		return 0;
