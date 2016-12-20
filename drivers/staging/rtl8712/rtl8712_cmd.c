@@ -425,7 +425,7 @@ _next:
 	thread_exit();
 }
 
-void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
+void r8712_event_handle(struct _adapter *padapter, __le32 *peventbuf)
 {
 	u8 evt_code, evt_seq;
 	u16 evt_sz;
