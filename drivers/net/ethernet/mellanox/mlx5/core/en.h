@@ -358,6 +358,7 @@ struct mlx5e_txqsq {
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
 	int                        tc;
+	int                        txq_ix;
 	u32                        rate_limit;
 } ____cacheline_aligned_in_smp;
 
@@ -732,8 +733,8 @@ struct mlx5e_profile {
 
 struct mlx5e_priv {
 	/* priv data path fields - start */
-	struct mlx5e_txqsq         **txq_to_sq_map;
-	int channeltc_to_txq_map[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
+	struct mlx5e_txqsq *txq2sq[MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC];
+	int channel_tc2txq[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
 	struct bpf_prog *xdp_prog;
 	/* priv data path fields - end */
 

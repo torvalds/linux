@@ -269,7 +269,7 @@ static void mlx5e_fill_stats_strings(struct mlx5e_priv *priv, uint8_t *data)
 			for (j = 0; j < NUM_SQ_STATS; j++)
 				sprintf(data + (idx++) * ETH_GSTRING_LEN,
 					sq_stats_desc[j].format,
-					priv->channeltc_to_txq_map[i][tc]);
+					priv->channel_tc2txq[i][tc]);
 }
 
 static void mlx5e_get_strings(struct net_device *dev,

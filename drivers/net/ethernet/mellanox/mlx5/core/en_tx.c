@@ -103,7 +103,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 		channel_ix = reciprocal_scale(channel_ix,
 					      priv->params.num_channels);
 
-	return priv->channeltc_to_txq_map[channel_ix][up];
+	return priv->channel_tc2txq[channel_ix][up];
 }
 
 static inline int mlx5e_skb_l2_header_offset(struct sk_buff *skb)
@@ -339,7 +339,7 @@ dma_unmap_wqe_err:
 netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
-	struct mlx5e_txqsq *sq = priv->txq_to_sq_map[skb_get_queue_mapping(skb)];
+	struct mlx5e_txqsq *sq = priv->txq2sq[skb_get_queue_mapping(skb)];
 
 	return mlx5e_sq_xmit(sq, skb);
 }
