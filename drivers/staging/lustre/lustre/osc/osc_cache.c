@@ -142,10 +142,7 @@ static const char *oes_strings[] = {
 
 static inline struct osc_extent *rb_extent(struct rb_node *n)
 {
-	if (!n)
-		return NULL;
-
-	return container_of(n, struct osc_extent, oe_node);
+	return rb_entry_safe(n, struct osc_extent, oe_node);
 }
 
 static inline struct osc_extent *next_extent(struct osc_extent *ext)
