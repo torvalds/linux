@@ -229,7 +229,7 @@ enum WIFI_REG_DOMAIN {
 #define GetOrder(pbuf)	(((*(unsigned short *)(pbuf)) & \
 			le16_to_cpu(_ORDER_)) != 0)
 
-#define GetFrameType(pbuf)	(le16_to_cpu(*(unsigned short *)(pbuf)) & \
+#define GetFrameType(pbuf)	(le16_to_cpu(*(__le16 *)(pbuf)) & \
 				(BIT(3) | BIT(2)))
 
 #define SetFrameType(pbuf, type)	\
@@ -239,7 +239,7 @@ enum WIFI_REG_DOMAIN {
 		*(unsigned short *)(pbuf) |= cpu_to_le16(type); \
 	} while (0)
 
-#define GetFrameSubType(pbuf)	(cpu_to_le16(*(unsigned short *)(pbuf)) & \
+#define GetFrameSubType(pbuf)	(le16_to_cpu(*(__le16 *)(pbuf)) & \
 				(BIT(7) | BIT(6) | BIT(5) | BIT(4) | BIT(3) | \
 				BIT(2)))
 
