@@ -307,7 +307,7 @@ static void platform_set_vbus_lvl_enable(struct fusb30x_chip *chip, int vbus_5v,
 	} else {
 		extcon_set_state(chip->extcon, EXTCON_USB_VBUS_EN, vbus_5v);
 		extcon_sync(chip->extcon, EXTCON_USB_VBUS_EN);
-		dev_info(chip->dev, "fusb302 send extcon to enable vbus 5v\n");
+		dev_info(chip->dev, "fusb302 send extcon to %s vbus 5v\n", vbus_5v ? "enable" : "disable");
 	}
 
 	if (chip->gpio_vbus_other)
@@ -362,7 +362,6 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 
 	if (chip->cc_state & 0x04) {
 		regmap_read(chip->regmap, FUSB_REG_SWITCHES0, &store);
-
 		/* measure cc1 first */
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
 				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
@@ -389,52 +388,56 @@ static int tcpm_get_cc(struct fusb30x_chip *chip, int *CC1, int *CC2)
 		val &= STATUS0_BC_LVL;
 		if (val)
 			*CC2 = val;
-
 		regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
 				   SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2,
 				   store);
 	} else {
+		regmap_read(chip->regmap, FUSB_REG_SWITCHES0, &store);
+		val = store;
+		val &= ~(SWITCHES0_MEAS_CC1 | SWITCHES0_MEAS_CC2 |
+				SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2);
 		if (chip->cc_state & 0x01) {
-			regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
-					   SWITCHES0_MEAS_CC1 |
-					   SWITCHES0_MEAS_CC2 |
-					   SWITCHES0_PU_EN1 |
-					   SWITCHES0_PU_EN2 |
-					   SWITCHES0_PDWN1 |
-					   SWITCHES0_PDWN2,
-					   SWITCHES0_MEAS_CC1 |
-					   SWITCHES0_PU_EN1);
+			val |= SWITCHES0_MEAS_CC1 | SWITCHES0_PU_EN1;
 		} else {
-			regmap_update_bits(chip->regmap, FUSB_REG_SWITCHES0,
-					   SWITCHES0_MEAS_CC1 |
-					   SWITCHES0_MEAS_CC2 |
-					   SWITCHES0_PU_EN1 |
-					   SWITCHES0_PU_EN2 |
-					   SWITCHES0_PDWN1 |
-					   SWITCHES0_PDWN2,
-					   SWITCHES0_MEAS_CC2 |
-					   SWITCHES0_PU_EN2);
+			val |= SWITCHES0_MEAS_CC2 | SWITCHES0_PU_EN2;
 		}
+		regmap_write(chip->regmap, FUSB_REG_SWITCHES0, val);
 
-		regmap_write(chip->regmap, FUSB_REG_MEASURE, 0x26 << 2);
+		regmap_write(chip->regmap, FUSB_REG_MEASURE, chip->cc_meas_high);
 		usleep_range(250, 300);
 
 		regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
-
 		if (val & STATUS0_COMP) {
-			*CC_MEASURE = TYPEC_CC_VOLT_OPEN;
+			int retry = 3;
+			int comp_times = 0;
+
+			while (retry--) {
+				regmap_write(chip->regmap, FUSB_REG_MEASURE, chip->cc_meas_high);
+				usleep_range(250, 300);
+				regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
+				if (val & STATUS0_COMP) {
+					comp_times++;
+					if (comp_times == 3) {
+						*CC_MEASURE = TYPEC_CC_VOLT_OPEN;
+						regmap_write(chip->regmap, FUSB_REG_SWITCHES0, store);
+					}
+				}
+			}
 		} else {
-			regmap_write(chip->regmap, FUSB_REG_MEASURE, 0x05 << 2);
+			regmap_write(chip->regmap, FUSB_REG_MEASURE, chip->cc_meas_low);
+			regmap_read(chip->regmap, FUSB_REG_MEASURE, &val);
 			usleep_range(250, 300);
 
 			regmap_read(chip->regmap, FUSB_REG_STATUS0, &val);
 
 			if (val & STATUS0_COMP)
-				*CC_MEASURE = TYPEC_CC_VOLT_RA;
-			else
 				*CC_MEASURE = TYPEC_CC_VOLT_RD;
+			else
+				*CC_MEASURE = TYPEC_CC_VOLT_RA;
+			regmap_write(chip->regmap, FUSB_REG_SWITCHES0, store);
 		}
 	}
+
 	return 0;
 }
 
@@ -579,6 +582,45 @@ static void fusb302_pd_reset(struct fusb30x_chip *chip)
 	regmap_reinit_cache(chip->regmap, &fusb302_regmap_config);
 }
 
+static void tcpm_select_rp_value(struct fusb30x_chip *chip, u32 rp)
+{
+	u32 control0_reg;
+
+	regmap_read(chip->regmap, FUSB_REG_CONTROL0, &control0_reg);
+
+	control0_reg &= ~CONTROL0_HOST_CUR;
+	/*
+	 * according to the host current, the compare value is different
+	*/
+	switch (rp) {
+	/* host pull up current is 80ua , high voltage is 1.596v, low is 0.21v */
+	case TYPEC_RP_USB:
+		chip->cc_meas_high = 0x26;
+		chip->cc_meas_low = 0x5;
+		control0_reg |= CONTROL0_HOST_CUR_USB;
+		break;
+	/* host pull up current is 180ua , high voltage is 1.596v, low is 0.42v */
+	case TYPEC_RP_1A5:
+		chip->cc_meas_high = 0x26;
+		chip->cc_meas_low = 0xa;
+		control0_reg |= CONTROL0_HOST_CUR_1A5;
+		break;
+	/* host pull up current is 330ua , high voltage is 2.604v, low is 0.798v*/
+	case TYPEC_RP_3A0:
+		chip->cc_meas_high = 0x26;
+		chip->cc_meas_low = 0x13;
+		control0_reg |= CONTROL0_HOST_CUR_3A0;
+		break;
+	default:
+		chip->cc_meas_high = 0x26;
+		chip->cc_meas_low = 0xa;
+		control0_reg |= CONTROL0_HOST_CUR_1A5;
+		break;
+	}
+
+	regmap_write(chip->regmap, FUSB_REG_CONTROL0, control0_reg);
+}
+
 static void tcpm_init(struct fusb30x_chip *chip)
 {
 	u8 val;
@@ -623,6 +665,8 @@ static void tcpm_init(struct fusb30x_chip *chip)
 				   CONTROL2_TOG_RD_ONLY,
 				   CONTROL2_TOG_RD_ONLY);
 #endif
+
+	tcpm_select_rp_value(chip, TYPEC_RP_1A5);
 	/* Interrupts Enable */
 	regmap_update_bits(chip->regmap, FUSB_REG_CONTROL0, CONTROL0_INT_MASK,
 			   ~CONTROL0_INT_MASK);
@@ -674,7 +718,7 @@ static void tcpc_alert(struct fusb30x_chip *chip, int *evt)
 		val &= ~(SWITCHES0_PU_EN1 | SWITCHES0_PU_EN2 |
 			 SWITCHES0_PDWN1 | SWITCHES0_PDWN2);
 
-		if (chip->cc_state | 0x01)
+		if (chip->cc_state & 0x01)
 			val |= SWITCHES0_PU_EN1;
 		else
 			val |= SWITCHES0_PU_EN2;
@@ -1385,7 +1429,8 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 		tcpm_get_cc(chip, &cc1, &cc2);
 
 		if ((chip->cc1 == cc1) && (chip->cc2 == cc2)) {
-			chip->debounce_cnt++;
+			if (chip->debounce_cnt++ == 0)
+				platform_set_vbus_lvl_enable(chip, 1, 0);
 		} else {
 			chip->cc1 = cc1;
 			chip->cc2 = cc2;
@@ -1413,7 +1458,6 @@ static void fusb_state_attach_wait_source(struct fusb30x_chip *chip, int evt)
 static void fusb_state_attached_source(struct fusb30x_chip *chip, int evt)
 {
 	tcpm_set_polarity(chip, !(chip->cc_state & 0x01));
-	platform_set_vbus_lvl_enable(chip, 1, 0);
 	tcpm_set_vconn(chip, 1);
 
 	chip->notify.is_cc_connected = 1;

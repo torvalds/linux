@@ -90,6 +90,13 @@ enum connection_state {
 	policy_snk_transition_default,
 };
 
+enum tcpm_rp_value {
+	TYPEC_RP_USB = 0,
+	TYPEC_RP_1A5 = 1,
+	TYPEC_RP_3A0 = 2,
+	TYPEC_RP_RESERVED = 3,
+};
+
 #define SBF(s, v)		((s) << (v))
 #define SWITCHES0_PDWN1		SBF(1, 0)
 #define SWITCHES0_PDWN2		SBF(1, 1)
@@ -116,6 +123,9 @@ enum connection_state {
 #define CONTROL0_TX_START	SBF(1, 0)
 #define CONTROL0_AUTO_PRE	SBF(1, 1)
 #define CONTROL0_HOST_CUR	SBF(3, 2)
+#define CONTROL0_HOST_CUR_USB		SBF(1, 2)
+#define CONTROL0_HOST_CUR_1A5		SBF(2, 2)
+#define CONTROL0_HOST_CUR_3A0		SBF(3, 2)
 #define CONTROL0_INT_MASK	SBF(1, 5)
 #define CONTROL0_TX_FLUSH	SBF(1, 6)
 
@@ -269,7 +279,7 @@ enum connection_state {
 #define VDM_TYPE_BUSY		3
 
 #define N_DEBOUNCE_CNT		(10 - 1)
-#define N_CAPS_COUNT		50
+#define N_CAPS_COUNT		100
 #define N_HARDRESET_COUNT	0
 
 #define T_NO_RESPONSE		5000
@@ -422,6 +432,8 @@ struct fusb30x_chip {
 	int togdone_pullup;
 	int pd_output_vol;
 	int pd_output_cur;
+	int cc_meas_high;
+	int cc_meas_low;
 };
 
 #endif /* FUSB302_H */
