@@ -403,14 +403,6 @@ static struct snd_soc_dai_driver sun4i_spdif_dai = {
 	.name = "spdif",
 };
 
-static const struct snd_soc_dapm_widget dit_widgets[] = {
-	SND_SOC_DAPM_OUTPUT("spdif-out"),
-};
-
-static const struct snd_soc_dapm_route dit_routes[] = {
-	{ "spdif-out", NULL, "Playback" },
-};
-
 static const struct of_device_id sun4i_spdif_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-spdif", },
 	{ .compatible = "allwinner,sun6i-a31-spdif", },
