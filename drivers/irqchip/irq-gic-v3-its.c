@@ -136,6 +136,13 @@ struct its_device {
 	u32			device_id;
 };
 
+static struct {
+	raw_spinlock_t		lock;
+	struct its_device	*dev;
+	struct its_vpe		**vpes;
+	int			next_victim;
+} vpe_proxy;
+
 static LIST_HEAD(its_nodes);
 static DEFINE_SPINLOCK(its_lock);
 static struct rdists *gic_rdists;
@@ -2090,6 +2097,16 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 	msi_info = msi_get_domain_info(domain);
 	its = msi_info->data;
 
+	if (!gic_rdists->has_direct_lpi &&
+	    vpe_proxy.dev &&
+	    vpe_proxy.dev->its == its &&
+	    dev_id == vpe_proxy.dev->device_id) {
+		/* Bad luck. Get yourself a better implementation */
+		WARN_ONCE(1, "DevId %x clashes with GICv4 VPE proxy device\n",
+			  dev_id);
+		return -EINVAL;
+	}
+
 	its_dev = its_find_device(its, dev_id);
 	if (its_dev) {
 		/*
@@ -2237,6 +2254,70 @@ static const struct irq_domain_ops its_domain_ops = {
 	.deactivate		= its_irq_domain_deactivate,
 };
 
+/*
+ * This is insane.
+ *
+ * If a GICv4 doesn't implement Direct LPIs (which is extremely
+ * likely), the only way to perform an invalidate is to use a fake
+ * device to issue an INV command, implying that the LPI has first
+ * been mapped to some event on that device. Since this is not exactly
+ * cheap, we try to keep that mapping around as long as possible, and
+ * only issue an UNMAP if we're short on available slots.
+ *
+ * Broken by design(tm).
+ */
+static void its_vpe_db_proxy_unmap_locked(struct its_vpe *vpe)
+{
+	/* Already unmapped? */
+	if (vpe->vpe_proxy_event == -1)
+		return;
+
+	its_send_discard(vpe_proxy.dev, vpe->vpe_proxy_event);
+	vpe_proxy.vpes[vpe->vpe_proxy_event] = NULL;
+
+	/*
+	 * We don't track empty slots at all, so let's move the
+	 * next_victim pointer if we can quickly reuse that slot
+	 * instead of nuking an existing entry. Not clear that this is
+	 * always a win though, and this might just generate a ripple
+	 * effect... Let's just hope VPEs don't migrate too often.
+	 */
+	if (vpe_proxy.vpes[vpe_proxy.next_victim])
+		vpe_proxy.next_victim = vpe->vpe_proxy_event;
+
+	vpe->vpe_proxy_event = -1;
+}
+
+static void its_vpe_db_proxy_unmap(struct its_vpe *vpe)
+{
+	if (!gic_rdists->has_direct_lpi) {
+		unsigned long flags;
+
+		raw_spin_lock_irqsave(&vpe_proxy.lock, flags);
+		its_vpe_db_proxy_unmap_locked(vpe);
+		raw_spin_unlock_irqrestore(&vpe_proxy.lock, flags);
+	}
+}
+
+static void its_vpe_db_proxy_map_locked(struct its_vpe *vpe)
+{
+	/* Already mapped? */
+	if (vpe->vpe_proxy_event != -1)
+		return;
+
+	/* This slot was already allocated. Kick the other VPE out. */
+	if (vpe_proxy.vpes[vpe_proxy.next_victim])
+		its_vpe_db_proxy_unmap_locked(vpe_proxy.vpes[vpe_proxy.next_victim]);
+
+	/* Map the new VPE instead */
+	vpe_proxy.vpes[vpe_proxy.next_victim] = vpe;
+	vpe->vpe_proxy_event = vpe_proxy.next_victim;
+	vpe_proxy.next_victim = (vpe_proxy.next_victim + 1) % vpe_proxy.dev->nr_ites;
+
+	vpe_proxy.dev->event_map.col_map[vpe->vpe_proxy_event] = vpe->col_idx;
+	its_send_mapti(vpe_proxy.dev, vpe->vpe_db_lpi, vpe->vpe_proxy_event);
+}
+
 static int its_vpe_set_affinity(struct irq_data *d,
 				const struct cpumask *mask_val,
 				bool force)
@@ -2246,9 +2327,11 @@ static int its_vpe_set_affinity(struct irq_data *d,
 
 	/*
 	 * Changing affinity is mega expensive, so let's be as lazy as
-	 * we can and only do it if we really have to.
+	 * we can and only do it if we really have to. Also, if mapped
+	 * into the proxy device, we need to nuke that mapping.
 	 */
 	if (vpe->col_idx != cpu) {
+		its_vpe_db_proxy_unmap(vpe);
 		vpe->col_idx = cpu;
 		its_send_vmovp(vpe);
 	}
@@ -2343,15 +2426,33 @@ static int its_vpe_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
 	}
 }
 
+static void its_vpe_send_cmd(struct its_vpe *vpe,
+			     void (*cmd)(struct its_device *, u32))
+{
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&vpe_proxy.lock, flags);
+
+	its_vpe_db_proxy_map_locked(vpe);
+	cmd(vpe_proxy.dev, vpe->vpe_proxy_event);
+
+	raw_spin_unlock_irqrestore(&vpe_proxy.lock, flags);
+}
+
 static void its_vpe_send_inv(struct irq_data *d)
 {
 	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
-	void __iomem *rdbase;
 
-	rdbase = per_cpu_ptr(gic_rdists->rdist, vpe->col_idx)->rd_base;
-	gic_write_lpir(vpe->vpe_db_lpi, rdbase + GICR_INVLPIR);
-	while (gic_read_lpir(rdbase + GICR_SYNCR) & 1)
-		cpu_relax();
+	if (gic_rdists->has_direct_lpi) {
+		void __iomem *rdbase;
+
+		rdbase = per_cpu_ptr(gic_rdists->rdist, vpe->col_idx)->rd_base;
+		gic_write_lpir(vpe->vpe_db_lpi, rdbase + GICR_INVLPIR);
+		while (gic_read_lpir(rdbase + GICR_SYNCR) & 1)
+			cpu_relax();
+	} else {
+		its_vpe_send_cmd(vpe, its_send_inv);
+	}
 }
 
 static void its_vpe_mask_irq(struct irq_data *d)
@@ -2417,12 +2518,14 @@ static int its_vpe_init(struct its_vpe *vpe)
 
 	vpe->vpe_id = vpe_id;
 	vpe->vpt_page = vpt_page;
+	vpe->vpe_proxy_event = -1;
 
 	return 0;
 }
 
 static void its_vpe_teardown(struct its_vpe *vpe)
 {
+	its_vpe_db_proxy_unmap(vpe);
 	its_vpe_id_free(vpe->vpe_id);
 	its_free_pending_table(vpe->vpt_page);
 }
@@ -2653,6 +2756,42 @@ static int its_init_domain(struct fwnode_handle *handle, struct its_node *its)
 
 static int its_init_vpe_domain(void)
 {
+	struct its_node *its;
+	u32 devid;
+	int entries;
+
+	if (gic_rdists->has_direct_lpi) {
+		pr_info("ITS: Using DirectLPI for VPE invalidation\n");
+		return 0;
+	}
+
+	/* Any ITS will do, even if not v4 */
+	its = list_first_entry(&its_nodes, struct its_node, entry);
+
+	entries = roundup_pow_of_two(nr_cpu_ids);
+	vpe_proxy.vpes = kzalloc(sizeof(*vpe_proxy.vpes) * entries,
+				 GFP_KERNEL);
+	if (!vpe_proxy.vpes) {
+		pr_err("ITS: Can't allocate GICv4 proxy device array\n");
+		return -ENOMEM;
+	}
+
+	/* Use the last possible DevID */
+	devid = GENMASK(its->device_ids - 1, 0);
+	vpe_proxy.dev = its_create_device(its, devid, entries, false);
+	if (!vpe_proxy.dev) {
+		kfree(vpe_proxy.vpes);
+		pr_err("ITS: Can't allocate GICv4 proxy device\n");
+		return -ENOMEM;
+	}
+
+	BUG_ON(entries != vpe_proxy.dev->nr_ites);
+
+	raw_spin_lock_init(&vpe_proxy.lock);
+	vpe_proxy.next_victim = 0;
+	pr_info("ITS: Allocated DevID %x as GICv4 proxy device (%d slots)\n",
+		devid, vpe_proxy.dev->nr_ites);
+
 	return 0;
 }
 
