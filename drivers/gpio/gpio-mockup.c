@@ -126,7 +126,7 @@ static int mockup_gpio_probe(struct platform_device *pdev)
 	int i;
 	int base;
 	int ngpio;
-	char chip_name[sizeof(GPIO_NAME) + 3];
+	char *chip_name;
 
 	if (gpio_mockup_params_nr < 2)
 		return -EINVAL;
@@ -146,8 +146,12 @@ static int mockup_gpio_probe(struct platform_device *pdev)
 			ngpio = gpio_mockup_ranges[i * 2 + 1] - base;
 
 		if (ngpio >= 0) {
-			sprintf(chip_name, "%s-%c", GPIO_NAME,
-				pins_name_start + i);
+			chip_name = devm_kasprintf(dev, GFP_KERNEL,
+						   "%s-%c", GPIO_NAME,
+						   pins_name_start + i);
+			if (!chip_name)
+				return -ENOMEM;
+
 			ret = mockup_gpio_add(dev, &cntr[i],
 					      chip_name, base, ngpio);
 		} else {
