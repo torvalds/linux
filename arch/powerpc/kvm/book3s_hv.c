@@ -3197,7 +3197,7 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 		goto out;	/* another vcpu beat us to it */
 
 	/* Allocate hashed page table (if not done already) and reset it */
-	if (!kvm->arch.hpt_virt) {
+	if (!kvm->arch.hpt.virt) {
 		err = kvmppc_alloc_hpt(kvm, NULL);
 		if (err) {
 			pr_err("KVM: Couldn't alloc HPT\n");
