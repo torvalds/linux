@@ -180,7 +180,7 @@ static struct rt2880_pmx_func spi_cs1_grp_mt7628[] = {
 
 static struct rt2880_pmx_func spis_grp_mt7628[] = {
 	FUNC("pwm_uart2", 3, 14, 4),
-	FUNC("util", 2, 14, 4),
+	FUNC("utif", 2, 14, 4),
 	FUNC("gpio", 1, 14, 4),
 	FUNC("spis", 0, 14, 4),
 };
@@ -194,28 +194,28 @@ static struct rt2880_pmx_func gpio_grp_mt7628[] = {
 
 static struct rt2880_pmx_func p4led_kn_grp_mt7628[] = {
 	FUNC("jtag", 3, 30, 1),
-	FUNC("util", 2, 30, 1),
+	FUNC("utif", 2, 30, 1),
 	FUNC("gpio", 1, 30, 1),
 	FUNC("p4led_kn", 0, 30, 1),
 };
 
 static struct rt2880_pmx_func p3led_kn_grp_mt7628[] = {
 	FUNC("jtag", 3, 31, 1),
-	FUNC("util", 2, 31, 1),
+	FUNC("utif", 2, 31, 1),
 	FUNC("gpio", 1, 31, 1),
 	FUNC("p3led_kn", 0, 31, 1),
 };
 
 static struct rt2880_pmx_func p2led_kn_grp_mt7628[] = {
 	FUNC("jtag", 3, 32, 1),
-	FUNC("util", 2, 32, 1),
+	FUNC("utif", 2, 32, 1),
 	FUNC("gpio", 1, 32, 1),
 	FUNC("p2led_kn", 0, 32, 1),
 };
 
 static struct rt2880_pmx_func p1led_kn_grp_mt7628[] = {
 	FUNC("jtag", 3, 33, 1),
-	FUNC("util", 2, 33, 1),
+	FUNC("utif", 2, 33, 1),
 	FUNC("gpio", 1, 33, 1),
 	FUNC("p1led_kn", 0, 33, 1),
 };
@@ -236,28 +236,28 @@ static struct rt2880_pmx_func wled_kn_grp_mt7628[] = {
 
 static struct rt2880_pmx_func p4led_an_grp_mt7628[] = {
 	FUNC("jtag", 3, 39, 1),
-	FUNC("util", 2, 39, 1),
+	FUNC("utif", 2, 39, 1),
 	FUNC("gpio", 1, 39, 1),
 	FUNC("p4led_an", 0, 39, 1),
 };
 
 static struct rt2880_pmx_func p3led_an_grp_mt7628[] = {
 	FUNC("jtag", 3, 40, 1),
-	FUNC("util", 2, 40, 1),
+	FUNC("utif", 2, 40, 1),
 	FUNC("gpio", 1, 40, 1),
 	FUNC("p3led_an", 0, 40, 1),
 };
 
 static struct rt2880_pmx_func p2led_an_grp_mt7628[] = {
 	FUNC("jtag", 3, 41, 1),
-	FUNC("util", 2, 41, 1),
+	FUNC("utif", 2, 41, 1),
 	FUNC("gpio", 1, 41, 1),
 	FUNC("p2led_an", 0, 41, 1),
 };
 
 static struct rt2880_pmx_func p1led_an_grp_mt7628[] = {
 	FUNC("jtag", 3, 42, 1),
-	FUNC("util", 2, 42, 1),
+	FUNC("utif", 2, 42, 1),
 	FUNC("gpio", 1, 42, 1),
 	FUNC("p1led_an", 0, 42, 1),
 };
