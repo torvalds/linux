@@ -5420,14 +5420,15 @@ static int atlas7_pinmux_probe(struct platform_device *pdev)
 	sys2pci_np = of_find_node_by_name(NULL, "sys2pci");
 	if (!sys2pci_np)
 		return -EINVAL;
+
 	ret = of_address_to_resource(sys2pci_np, 0, &res);
+	of_node_put(sys2pci_np);
 	if (ret)
 		return ret;
+
 	pmx->sys2pci_base = devm_ioremap_resource(&pdev->dev, &res);
-	if (IS_ERR(pmx->sys2pci_base)) {
-		of_node_put(sys2pci_np);
+	if (IS_ERR(pmx->sys2pci_base))
 		return -ENOMEM;
-	}
 
 	pmx->dev = &pdev->dev;
 
