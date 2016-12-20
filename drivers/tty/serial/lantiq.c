@@ -16,7 +16,7 @@
  *
  * Copyright (C) 2004 Infineon IFAP DC COM CPE
  * Copyright (C) 2007 Felix Fietkau <nbd@openwrt.org>
- * Copyright (C) 2007 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2007 John Crispin <john@phrozen.org>
  * Copyright (C) 2010 Thomas Langer, <thomas.langer@lantiq.com>
  */
 
