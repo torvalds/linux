@@ -3226,7 +3226,8 @@ int __init its_init(struct fwnode_handle *handle, struct rdists *rdists,
 		has_v4 |= its->is_v4;
 
 	if (has_v4 & rdists->has_vlpis) {
-		if (its_init_vpe_domain()) {
+		if (its_init_vpe_domain() ||
+		    its_init_v4(parent_domain, &its_vpe_domain_ops)) {
 			rdists->has_vlpis = false;
 			pr_err("ITS: Disabling GICv4 support\n");
 		}
