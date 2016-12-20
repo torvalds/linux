@@ -107,25 +107,6 @@ static int bq24735_update_word(struct i2c_client *client, u8 reg,
 	return bq24735_write_word(client, reg, tmp);
 }
 
-static inline int bq24735_enable_charging(struct bq24735 *charger)
-{
-	if (charger->pdata->ext_control)
-		return 0;
-
-	return bq24735_update_word(charger->client, BQ24735_CHG_OPT,
-				   BQ24735_CHG_OPT_CHARGE_DISABLE, 0);
-}
-
-static inline int bq24735_disable_charging(struct bq24735 *charger)
-{
-	if (charger->pdata->ext_control)
-		return 0;
-
-	return bq24735_update_word(charger->client, BQ24735_CHG_OPT,
-				   BQ24735_CHG_OPT_CHARGE_DISABLE,
-				   BQ24735_CHG_OPT_CHARGE_DISABLE);
-}
-
 static int bq24735_config_charger(struct bq24735 *charger)
 {
 	struct bq24735_platform *pdata = charger->pdata;
@@ -175,6 +156,25 @@ static int bq24735_config_charger(struct bq24735 *charger)
 	}
 
 	return 0;
+}
+
+static inline int bq24735_enable_charging(struct bq24735 *charger)
+{
+	if (charger->pdata->ext_control)
+		return 0;
+
+	return bq24735_update_word(charger->client, BQ24735_CHG_OPT,
+				   BQ24735_CHG_OPT_CHARGE_DISABLE, 0);
+}
+
+static inline int bq24735_disable_charging(struct bq24735 *charger)
+{
+	if (charger->pdata->ext_control)
+		return 0;
+
+	return bq24735_update_word(charger->client, BQ24735_CHG_OPT,
+				   BQ24735_CHG_OPT_CHARGE_DISABLE,
+				   BQ24735_CHG_OPT_CHARGE_DISABLE);
 }
 
 static bool bq24735_charger_is_present(struct bq24735 *charger)
