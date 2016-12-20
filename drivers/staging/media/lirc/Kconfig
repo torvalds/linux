@@ -12,14 +12,6 @@ menuconfig LIRC_STAGING
 
 if LIRC_STAGING
 
-config LIRC_IMON
-	tristate "Legacy SoundGraph iMON Receiver and Display"
-	depends on LIRC && USB
-	help
-	  Driver for the original SoundGraph iMON IR Receiver and Display
-
-	  Current generation iMON devices use the input layer imon driver.
-
 config LIRC_SASEM
 	tristate "Sasem USB IR Remote"
 	depends on LIRC && USB
