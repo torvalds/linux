@@ -43,7 +43,7 @@ static int gpio_mockup_ranges[MAX_GC << 1];
 static int gpio_mockup_params_nr;
 module_param_array(gpio_mockup_ranges, int, &gpio_mockup_params_nr, 0400);
 
-const char pins_name_start = 'A';
+static const char pins_name_start = 'A';
 
 static int mockup_gpio_get(struct gpio_chip *gc, unsigned int offset)
 {
