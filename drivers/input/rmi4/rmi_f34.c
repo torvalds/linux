@@ -441,8 +441,6 @@ static int rmi_f34_probe(struct rmi_function *fn)
 	/* v5 code only supported version 0, try V7 probe */
 	if (version > 0)
 		return rmi_f34v7_probe(f34);
-	else if (version != 0)
-		return -ENODEV;
 
 	f34->bl_version = 5;
 
