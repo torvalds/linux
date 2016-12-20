@@ -2498,13 +2498,7 @@ int mlx5e_open_locked(struct net_device *netdev)
 		goto err_clear_state_opened_flag;
 	}
 
-	err = mlx5e_refresh_tirs_self_loopback(priv->mdev, false);
-	if (err) {
-		netdev_err(netdev, "%s: mlx5e_refresh_tirs_self_loopback_enable failed, %d\n",
-			   __func__, err);
-		goto err_close_channels;
-	}
-
+	mlx5e_refresh_tirs(priv, false);
 	mlx5e_redirect_rqts_to_channels(priv, &priv->channels);
 	mlx5e_update_carrier(priv);
 	mlx5e_timestamp_init(priv);
