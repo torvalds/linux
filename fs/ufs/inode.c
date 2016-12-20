@@ -1191,7 +1191,7 @@ out:
 	return err;
 }
 
-void ufs_truncate_blocks(struct inode *inode)
+static void ufs_truncate_blocks(struct inode *inode)
 {
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 	      S_ISLNK(inode->i_mode)))
