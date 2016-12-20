@@ -152,6 +152,7 @@ static DEFINE_IDA(its_vpeid_ida);
 
 #define gic_data_rdist()		(raw_cpu_ptr(gic_rdists->rdist))
 #define gic_data_rdist_rd_base()	(gic_data_rdist()->rd_base)
+#define gic_data_rdist_vlpi_base()	(gic_data_rdist_rd_base() + SZ_128K)
 
 static struct its_collection *dev_event_to_col(struct its_device *its_dev,
 					       u32 event)
@@ -2153,8 +2154,92 @@ static const struct irq_domain_ops its_domain_ops = {
 	.deactivate		= its_irq_domain_deactivate,
 };
 
+static void its_vpe_schedule(struct its_vpe *vpe)
+{
+	void * __iomem vlpi_base = gic_data_rdist_vlpi_base();
+	u64 val;
+
+	/* Schedule the VPE */
+	val  = virt_to_phys(page_address(vpe->its_vm->vprop_page)) &
+		GENMASK_ULL(51, 12);
+	val |= (LPI_NRBITS - 1) & GICR_VPROPBASER_IDBITS_MASK;
+	val |= GICR_VPROPBASER_RaWb;
+	val |= GICR_VPROPBASER_InnerShareable;
+	gits_write_vpropbaser(val, vlpi_base + GICR_VPROPBASER);
+
+	val  = virt_to_phys(page_address(vpe->vpt_page)) &
+		GENMASK_ULL(51, 16);
+	val |= GICR_VPENDBASER_RaWaWb;
+	val |= GICR_VPENDBASER_NonShareable;
+	/*
+	 * There is no good way of finding out if the pending table is
+	 * empty as we can race against the doorbell interrupt very
+	 * easily. So in the end, vpe->pending_last is only an
+	 * indication that the vcpu has something pending, not one
+	 * that the pending table is empty. A good implementation
+	 * would be able to read its coarse map pretty quickly anyway,
+	 * making this a tolerable issue.
+	 */
+	val |= GICR_VPENDBASER_PendingLast;
+	val |= vpe->idai ? GICR_VPENDBASER_IDAI : 0;
+	val |= GICR_VPENDBASER_Valid;
+	gits_write_vpendbaser(val, vlpi_base + GICR_VPENDBASER);
+}
+
+static void its_vpe_deschedule(struct its_vpe *vpe)
+{
+	void * __iomem vlpi_base = gic_data_rdist_vlpi_base();
+	u32 count = 1000000;	/* 1s! */
+	bool clean;
+	u64 val;
+
+	/* We're being scheduled out */
+	val = gits_read_vpendbaser(vlpi_base + GICR_VPENDBASER);
+	val &= ~GICR_VPENDBASER_Valid;
+	gits_write_vpendbaser(val, vlpi_base + GICR_VPENDBASER);
+
+	do {
+		val = gits_read_vpendbaser(vlpi_base + GICR_VPENDBASER);
+		clean = !(val & GICR_VPENDBASER_Dirty);
+		if (!clean) {
+			count--;
+			cpu_relax();
+			udelay(1);
+		}
+	} while (!clean && count);
+
+	if (unlikely(!clean && !count)) {
+		pr_err_ratelimited("ITS virtual pending table not cleaning\n");
+		vpe->idai = false;
+		vpe->pending_last = true;
+	} else {
+		vpe->idai = !!(val & GICR_VPENDBASER_IDAI);
+		vpe->pending_last = !!(val & GICR_VPENDBASER_PendingLast);
+	}
+}
+
+static int its_vpe_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
+{
+	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
+	struct its_cmd_info *info = vcpu_info;
+
+	switch (info->cmd_type) {
+	case SCHEDULE_VPE:
+		its_vpe_schedule(vpe);
+		return 0;
+
+	case DESCHEDULE_VPE:
+		its_vpe_deschedule(vpe);
+		return 0;
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static struct irq_chip its_vpe_irq_chip = {
 	.name			= "GICv4-vpe",
+	.irq_set_vcpu_affinity	= its_vpe_set_vcpu_affinity,
 };
 
 static int its_vpe_id_alloc(void)
