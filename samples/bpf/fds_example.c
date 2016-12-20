@@ -49,7 +49,7 @@ static int bpf_map_create(void)
 
 static int bpf_prog_create(const char *object)
 {
-	static const struct bpf_insn insns[] = {
+	static struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 1),
 		BPF_EXIT_INSN(),
 	};
