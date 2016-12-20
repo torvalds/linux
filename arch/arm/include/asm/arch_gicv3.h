@@ -276,6 +276,12 @@ static inline u64 __gic_readq_nonatomic(const volatile void __iomem *addr)
 #define gicr_write_pendbaser(v, c)	__gic_writeq_nonatomic(v, c)
 
 /*
+ * GICR_xLPIR - only the lower bits are significant
+ */
+#define gic_read_lpir(c)		readl_relaxed(c)
+#define gic_write_lpir(v, c)		writel_relaxed(lower_32_bits(v), c)
+
+/*
  * GITS_TYPER is an ID register and doesn't need atomicity.
  */
 #define gits_read_typer(c)		__gic_readq_nonatomic(c)

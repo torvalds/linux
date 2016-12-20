@@ -2336,8 +2336,41 @@ static int its_vpe_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
 	}
 }
 
+static void its_vpe_send_inv(struct irq_data *d)
+{
+	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
+	void __iomem *rdbase;
+
+	rdbase = per_cpu_ptr(gic_rdists->rdist, vpe->col_idx)->rd_base;
+	gic_write_lpir(vpe->vpe_db_lpi, rdbase + GICR_INVLPIR);
+	while (gic_read_lpir(rdbase + GICR_SYNCR) & 1)
+		cpu_relax();
+}
+
+static void its_vpe_mask_irq(struct irq_data *d)
+{
+	/*
+	 * We need to unmask the LPI, which is described by the parent
+	 * irq_data. Instead of calling into the parent (which won't
+	 * exactly do the right thing, let's simply use the
+	 * parent_data pointer. Yes, I'm naughty.
+	 */
+	lpi_write_config(d->parent_data, LPI_PROP_ENABLED, 0);
+	its_vpe_send_inv(d);
+}
+
+static void its_vpe_unmask_irq(struct irq_data *d)
+{
+	/* Same hack as above... */
+	lpi_write_config(d->parent_data, 0, LPI_PROP_ENABLED);
+	its_vpe_send_inv(d);
+}
+
 static struct irq_chip its_vpe_irq_chip = {
 	.name			= "GICv4-vpe",
+	.irq_mask		= its_vpe_mask_irq,
+	.irq_unmask		= its_vpe_unmask_irq,
+	.irq_eoi		= irq_chip_eoi_parent,
 	.irq_set_affinity	= its_vpe_set_affinity,
 	.irq_set_vcpu_affinity	= its_vpe_set_vcpu_affinity,
 };
