@@ -182,7 +182,8 @@ static void kvmppc_fast_vcpu_kick_hv(struct kvm_vcpu *vcpu)
 		++vcpu->stat.halt_wakeup;
 	}
 
-	if (kvmppc_ipi_thread(vcpu->arch.thread_cpu))
+	cpu = READ_ONCE(vcpu->arch.thread_cpu);
+	if (cpu >= 0 && kvmppc_ipi_thread(cpu))
 		return;
 
 	/* CPU points to the first thread of the core */
