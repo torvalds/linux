@@ -297,14 +297,13 @@ struct dw_mipi_dsi {
 	struct clk *pclk;
 	struct clk *phy_cfg_clk;
 
-	int dpms_mode;
 	unsigned int lane_mbps; /* per lane */
 	u32 channel;
 	u32 lanes;
 	u32 format;
 	u16 input_div;
 	u16 feedback_div;
-	struct drm_display_mode *mode;
+	struct drm_display_mode mode;
 
 	const struct dw_mipi_dsi_plat_data *pdata;
 };
@@ -352,7 +351,7 @@ static void dw_mipi_dsi_wait_for_two_frames(struct dw_mipi_dsi *dsi)
 {
 	int refresh, two_frames;
 
-	refresh = drm_mode_vrefresh(dsi->mode);
+	refresh = drm_mode_vrefresh(&dsi->mode);
 	two_frames = DIV_ROUND_UP(MSEC_PER_SEC, refresh) * 2;
 	msleep(two_frames);
 }
@@ -502,7 +501,7 @@ static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi)
 		return bpp;
 	}
 
-	mpclk = DIV_ROUND_UP(dsi->mode->clock, MSEC_PER_SEC);
+	mpclk = DIV_ROUND_UP(dsi->mode.clock, MSEC_PER_SEC);
 	if (mpclk) {
 		/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
 		tmp = mpclk * (bpp / dsi->lanes) * 10 / 9;
@@ -788,8 +787,8 @@ static u32 dw_mipi_dsi_get_hcomponent_lbcc(struct dw_mipi_dsi *dsi,
 
 	lbcc = hcomponent * dsi->lane_mbps * MSEC_PER_SEC / 8;
 
-	frac = lbcc % dsi->mode->clock;
-	lbcc = lbcc / dsi->mode->clock;
+	frac = lbcc % dsi->mode.clock;
+	lbcc = lbcc / dsi->mode.clock;
 	if (frac)
 		lbcc++;
 
@@ -799,7 +798,7 @@ static u32 dw_mipi_dsi_get_hcomponent_lbcc(struct dw_mipi_dsi *dsi,
 static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi)
 {
 	u32 htotal, hsa, hbp, lbcc;
-	struct drm_display_mode *mode = dsi->mode;
+	struct drm_display_mode *mode = &dsi->mode;
 
 	htotal = mode->htotal;
 	hsa = mode->hsync_end - mode->hsync_start;
@@ -818,7 +817,7 @@ static void dw_mipi_dsi_line_timer_config(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_vertical_timing_config(struct dw_mipi_dsi *dsi)
 {
 	u32 vactive, vsa, vfp, vbp;
-	struct drm_display_mode *mode = dsi->mode;
+	struct drm_display_mode *mode = &dsi->mode;
 
 	vactive = mode->vdisplay;
 	vsa = mode->vsync_end - mode->vsync_start;
@@ -859,47 +858,13 @@ static void dw_mipi_dsi_encoder_mode_set(struct drm_encoder *encoder,
 					struct drm_display_mode *adjusted_mode)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
-	int ret;
 
-	if (dsi->dpms_mode == DRM_MODE_DPMS_ON)
-		return;
-
-	dsi->mode = adjusted_mode;
-
-	ret = dw_mipi_dsi_get_lane_bps(dsi);
-	if (ret < 0)
-		return;
-
-	if (clk_prepare_enable(dsi->pclk)) {
-		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
-		return;
-	}
-
-	pm_runtime_get_sync(dsi->dev);
-
-	dw_mipi_dsi_init(dsi);
-	dw_mipi_dsi_dpi_config(dsi, mode);
-	dw_mipi_dsi_packet_handler_config(dsi);
-	dw_mipi_dsi_video_mode_config(dsi);
-	dw_mipi_dsi_video_packet_config(dsi, mode);
-	dw_mipi_dsi_command_mode_config(dsi);
-	dw_mipi_dsi_line_timer_config(dsi);
-	dw_mipi_dsi_vertical_timing_config(dsi);
-	dw_mipi_dsi_dphy_timing_config(dsi);
-	dw_mipi_dsi_dphy_interface_config(dsi);
-	dw_mipi_dsi_clear_err(dsi);
-	if (drm_panel_prepare(dsi->panel))
-		dev_err(dsi->dev, "failed to prepare panel\n");
-
-	clk_disable_unprepare(dsi->pclk);
+	drm_mode_copy(&dsi->mode, adjusted_mode);
 }
 
 static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
-
-	if (dsi->dpms_mode != DRM_MODE_DPMS_ON)
-		return;
 
 	drm_panel_disable(dsi->panel);
 
@@ -922,7 +887,6 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 	dw_mipi_dsi_disable(dsi);
 	pm_runtime_put(dsi->dev);
 	clk_disable_unprepare(dsi->pclk);
-	dsi->dpms_mode = DRM_MODE_DPMS_OFF;
 }
 
 static bool dw_mipi_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
@@ -932,17 +896,38 @@ static bool dw_mipi_dsi_encoder_mode_fixup(struct drm_encoder *encoder,
 	return true;
 }
 
-static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
+static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->pdata;
 	int mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node, encoder);
+	int ret;
 	u32 val;
 
 	if (clk_prepare_enable(dsi->pclk)) {
 		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
 		return;
 	}
+
+	ret = dw_mipi_dsi_get_lane_bps(dsi);
+	if (ret < 0)
+		return;
+
+	pm_runtime_get_sync(dsi->dev);
+
+	dw_mipi_dsi_init(dsi);
+	dw_mipi_dsi_dpi_config(dsi, &dsi->mode);
+	dw_mipi_dsi_packet_handler_config(dsi);
+	dw_mipi_dsi_video_mode_config(dsi);
+	dw_mipi_dsi_video_packet_config(dsi, &dsi->mode);
+	dw_mipi_dsi_command_mode_config(dsi);
+	dw_mipi_dsi_line_timer_config(dsi);
+	dw_mipi_dsi_vertical_timing_config(dsi);
+	dw_mipi_dsi_dphy_timing_config(dsi);
+	dw_mipi_dsi_dphy_interface_config(dsi);
+	dw_mipi_dsi_clear_err(dsi);
+	if (drm_panel_prepare(dsi->panel))
+		dev_err(dsi->dev, "failed to prepare panel\n");
 
 	if (pdata->grf_dsi0_mode_reg)
 		regmap_write(dsi->grf_regmap, pdata->grf_dsi0_mode_reg,
@@ -963,7 +948,6 @@ static void dw_mipi_dsi_encoder_commit(struct drm_encoder *encoder)
 
 	regmap_write(dsi->grf_regmap, pdata->grf_switch_reg, val);
 	dev_dbg(dsi->dev, "vop %s output to dsi0\n", (mux) ? "LIT" : "BIG");
-	dsi->dpms_mode = DRM_MODE_DPMS_ON;
 }
 
 static int
@@ -1001,8 +985,8 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 static struct drm_encoder_helper_funcs
 dw_mipi_dsi_encoder_helper_funcs = {
 	.mode_fixup = dw_mipi_dsi_encoder_mode_fixup,
-	.commit = dw_mipi_dsi_encoder_commit,
 	.mode_set = dw_mipi_dsi_encoder_mode_set,
+	.enable = dw_mipi_dsi_encoder_enable,
 	.disable = dw_mipi_dsi_encoder_disable,
 	.atomic_check = dw_mipi_dsi_encoder_atomic_check,
 };
@@ -1161,8 +1145,6 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	struct dw_mipi_dsi *dsi = dev_get_drvdata(dev);
 	struct resource *res;
 	int ret;
-
-	dsi->dpms_mode = DRM_MODE_DPMS_OFF;
 
 	if (!dsi->panel)
 		return -EPROBE_DEFER;
