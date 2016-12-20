@@ -258,7 +258,7 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 		/* get ether_type */
 		ptr = ptr + pfhdr->attrib.hdrlen + LLC_HEADER_SIZE;
 		memcpy(&ether_type, ptr, 2);
-		ether_type = ntohs((unsigned short)ether_type);
+		be16_to_cpus(&ether_type);
 
 		if ((psta != NULL) && (psta->ieee8021x_blocked)) {
 			/* blocked
