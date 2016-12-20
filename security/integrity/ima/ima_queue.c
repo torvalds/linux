@@ -149,3 +149,13 @@ out:
 			    op, audit_cause, result, audit_info);
 	return result;
 }
+
+int ima_restore_measurement_entry(struct ima_template_entry *entry)
+{
+	int result = 0;
+
+	mutex_lock(&ima_extend_list_mutex);
+	result = ima_add_digest_entry(entry);
+	mutex_unlock(&ima_extend_list_mutex);
+	return result;
+}

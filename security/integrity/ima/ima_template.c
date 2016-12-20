@@ -37,6 +37,7 @@ static struct ima_template_field supported_fields[] = {
 	{.field_id = "sig", .field_init = ima_eventsig_init,
 	 .field_show = ima_show_template_sig},
 };
+#define MAX_TEMPLATE_NAME_LEN 15
 
 static struct ima_template_desc *ima_template;
 static struct ima_template_desc *lookup_template_desc(const char *name);
@@ -204,4 +205,180 @@ int __init ima_init_template(void)
 		       template->name : template->fmt), result);
 
 	return result;
+}
+
+static int ima_restore_template_data(struct ima_template_desc *template_desc,
+				     void *template_data,
+				     int template_data_size,
+				     struct ima_template_entry **entry)
+{
+	struct binary_field_data {
+		u32 len;
+		u8 data[0];
+	} __packed;
+
+	struct binary_field_data *field_data;
+	int offset = 0;
+	int ret = 0;
+	int i;
+
+	*entry = kzalloc(sizeof(**entry) +
+		    template_desc->num_fields * sizeof(struct ima_field_data),
+		    GFP_NOFS);
+	if (!*entry)
+		return -ENOMEM;
+
+	(*entry)->template_desc = template_desc;
+	for (i = 0; i < template_desc->num_fields; i++) {
+		field_data = template_data + offset;
+
+		/* Each field of the template data is prefixed with a length. */
+		if (offset > (template_data_size - sizeof(*field_data))) {
+			pr_err("Restoring the template field failed\n");
+			ret = -EINVAL;
+			break;
+		}
+		offset += sizeof(*field_data);
+
+		if (offset > (template_data_size - field_data->len)) {
+			pr_err("Restoring the template field data failed\n");
+			ret = -EINVAL;
+			break;
+		}
+		offset += field_data->len;
+
+		(*entry)->template_data[i].len = field_data->len;
+		(*entry)->template_data_len += sizeof(field_data->len);
+
+		(*entry)->template_data[i].data =
+			kzalloc(field_data->len + 1, GFP_KERNEL);
+		if (!(*entry)->template_data[i].data) {
+			ret = -ENOMEM;
+			break;
+		}
+		memcpy((*entry)->template_data[i].data, field_data->data,
+			field_data->len);
+		(*entry)->template_data_len += field_data->len;
+	}
+
+	if (ret < 0) {
+		ima_free_template_entry(*entry);
+		*entry = NULL;
+	}
+
+	return ret;
+}
+
+/* Restore the serialized binary measurement list without extending PCRs. */
+int ima_restore_measurement_list(loff_t size, void *buf)
+{
+	struct binary_hdr_v1 {
+		u32 pcr;
+		u8 digest[TPM_DIGEST_SIZE];
+		u32 template_name_len;
+		char template_name[0];
+	} __packed;
+	char template_name[MAX_TEMPLATE_NAME_LEN];
+
+	struct binary_data_v1 {
+		u32 template_data_size;
+		char template_data[0];
+	} __packed;
+
+	struct ima_kexec_hdr *khdr = buf;
+	struct binary_hdr_v1 *hdr_v1;
+	struct binary_data_v1 *data_v1;
+
+	void *bufp = buf + sizeof(*khdr);
+	void *bufendp = buf + khdr->buffer_size;
+	struct ima_template_entry *entry;
+	struct ima_template_desc *template_desc;
+	unsigned long count = 0;
+	int ret = 0;
+
+	if (!buf || size < sizeof(*khdr))
+		return 0;
+
+	if (khdr->version != 1) {
+		pr_err("attempting to restore a incompatible measurement list");
+		return -EINVAL;
+	}
+
+	if (khdr->count > ULONG_MAX - 1) {
+		pr_err("attempting to restore too many measurements");
+		return -EINVAL;
+	}
+
+	/*
+	 * ima kexec buffer prefix: version, buffer size, count
+	 * v1 format: pcr, digest, template-name-len, template-name,
+	 *	      template-data-size, template-data
+	 */
+	while ((bufp < bufendp) && (count++ < khdr->count)) {
+		hdr_v1 = bufp;
+		if (bufp > (bufendp - sizeof(*hdr_v1))) {
+			pr_err("attempting to restore partial measurement\n");
+			ret = -EINVAL;
+			break;
+		}
+		bufp += sizeof(*hdr_v1);
+
+		if ((hdr_v1->template_name_len >= MAX_TEMPLATE_NAME_LEN) ||
+		    (bufp > (bufendp - hdr_v1->template_name_len))) {
+			pr_err("attempting to restore a template name \
+				that is too long\n");
+			ret = -EINVAL;
+			break;
+		}
+		data_v1 = bufp += (u_int8_t)hdr_v1->template_name_len;
+
+		/* template name is not null terminated */
+		memcpy(template_name, hdr_v1->template_name,
+		       hdr_v1->template_name_len);
+		template_name[hdr_v1->template_name_len] = 0;
+
+		if (strcmp(template_name, "ima") == 0) {
+			pr_err("attempting to restore an unsupported \
+				template \"%s\" failed\n", template_name);
+			ret = -EINVAL;
+			break;
+		}
+
+		/* get template format */
+		template_desc = lookup_template_desc(template_name);
+		if (!template_desc) {
+			pr_err("template \"%s\" not found\n", template_name);
+			ret = -EINVAL;
+			break;
+		}
+
+		if (bufp > (bufendp - sizeof(data_v1->template_data_size))) {
+			pr_err("restoring the template data size failed\n");
+			ret = -EINVAL;
+			break;
+		}
+		bufp += (u_int8_t) sizeof(data_v1->template_data_size);
+
+		if (bufp > (bufendp - data_v1->template_data_size)) {
+			pr_err("restoring the template data failed\n");
+			ret = -EINVAL;
+			break;
+		}
+		bufp += data_v1->template_data_size;
+
+		ret = ima_restore_template_data(template_desc,
+						data_v1->template_data,
+						data_v1->template_data_size,
+						&entry);
+		if (ret < 0)
+			break;
+
+		memcpy(entry->digest, hdr_v1->digest, TPM_DIGEST_SIZE);
+		entry->pcr = hdr_v1->pcr;
+		ret = ima_restore_measurement_entry(entry);
+		if (ret < 0)
+			break;
+
+	}
+	return ret;
 }
