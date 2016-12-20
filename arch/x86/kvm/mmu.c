@@ -1904,17 +1904,17 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
  * since it has been deleted from active_mmu_pages but still can be found
  * at hast list.
  *
- * for_each_gfn_valid_sp() has skipped that kind of pages.
+ * for_each_valid_sp() has skipped that kind of pages.
  */
-#define for_each_gfn_valid_sp(_kvm, _sp, _gfn)				\
+#define for_each_valid_sp(_kvm, _sp, _gfn)				\
 	hlist_for_each_entry(_sp,					\
 	  &(_kvm)->arch.mmu_page_hash[kvm_page_table_hashfn(_gfn)], hash_link) \
-		if ((_sp)->gfn != (_gfn) || is_obsolete_sp((_kvm), (_sp)) \
-			|| (_sp)->role.invalid) {} else
+		if (is_obsolete_sp((_kvm), (_sp)) || (_sp)->role.invalid) {    \
+		} else
 
 #define for_each_gfn_indirect_valid_sp(_kvm, _sp, _gfn)			\
-	for_each_gfn_valid_sp(_kvm, _sp, _gfn)				\
-		if ((_sp)->role.direct) {} else
+	for_each_valid_sp(_kvm, _sp, _gfn)				\
+		if ((_sp)->gfn != (_gfn) || (_sp)->role.direct) {} else
 
 /* @sp->gfn should be write-protected at the call site */
 static bool __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
@@ -2116,6 +2116,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	struct kvm_mmu_page *sp;
 	bool need_sync = false;
 	bool flush = false;
+	int collisions = 0;
 	LIST_HEAD(invalid_list);
 
 	role = vcpu->arch.mmu.base_role;
@@ -2130,7 +2131,12 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
 		role.quadrant = quadrant;
 	}
-	for_each_gfn_valid_sp(vcpu->kvm, sp, gfn) {
+	for_each_valid_sp(vcpu->kvm, sp, gfn) {
+		if (sp->gfn != gfn) {
+			collisions++;
+			continue;
+		}
+
 		if (!need_sync && sp->unsync)
 			need_sync = true;
 
@@ -2153,7 +2159,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 
 		__clear_sp_write_flooding_count(sp);
 		trace_kvm_mmu_get_page(sp, false);
-		return sp;
+		goto out;
 	}
 
 	++vcpu->kvm->stat.mmu_cache_miss;
@@ -2183,6 +2189,9 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	trace_kvm_mmu_get_page(sp, true);
 
 	kvm_mmu_flush_or_zap(vcpu, &invalid_list, false, flush);
+out:
+	if (collisions > vcpu->kvm->stat.max_mmu_page_hash_collisions)
+		vcpu->kvm->stat.max_mmu_page_hash_collisions = collisions;
 	return sp;
 }
 
