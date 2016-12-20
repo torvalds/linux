@@ -3025,14 +3025,7 @@ static void sched_freq_tick_walt(int cpu)
 
 static void sched_freq_tick(int cpu)
 {
-	unsigned long capacity_orig, capacity_curr;
-
 	if (!sched_freq())
-		return;
-
-	capacity_orig = capacity_orig_of(cpu);
-	capacity_curr = capacity_curr_of(cpu);
-	if (capacity_curr == capacity_orig)
 		return;
 
 	_sched_freq_tick(cpu);
