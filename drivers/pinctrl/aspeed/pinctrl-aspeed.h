@@ -260,6 +260,7 @@
 #define SCUA0           0xA0 /* Multi-function Pin Control #7 */
 #define SCUA4           0xA4 /* Multi-function Pin Control #8 */
 #define SCUA8           0xA8 /* Multi-function Pin Control #9 */
+#define SCUAC           0xAC /* Multi-function Pin Control #10 */
 #define HW_STRAP2       0xD0 /* Strapping */
 
  /**
