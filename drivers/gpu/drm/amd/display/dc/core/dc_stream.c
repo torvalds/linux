@@ -99,6 +99,8 @@ static void destruct(struct core_stream *stream)
 void dc_stream_retain(const struct dc_stream *dc_stream)
 {
 	struct stream *stream = DC_STREAM_TO_STREAM(dc_stream);
+
+	ASSERT(stream->ref_count > 0);
 	stream->ref_count++;
 }
 
@@ -108,6 +110,7 @@ void dc_stream_release(const struct dc_stream *public)
 	struct core_stream *protected = DC_STREAM_TO_CORE(public);
 
 	if (public != NULL) {
+		ASSERT(stream->ref_count > 0);
 		stream->ref_count--;
 
 		if (stream->ref_count == 0) {
@@ -134,7 +137,7 @@ struct dc_stream *dc_create_stream_for_sink(
 	if (false == construct(&stream->protected, dc_sink))
 			goto construct_fail;
 
-	dc_stream_retain(&stream->protected.public);
+	stream->ref_count++;
 
 	return &stream->protected.public;
 

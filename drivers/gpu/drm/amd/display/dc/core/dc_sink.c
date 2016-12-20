@@ -71,6 +71,7 @@ void dc_sink_retain(const struct dc_sink *dc_sink)
 {
 	struct sink *sink = DC_SINK_TO_SINK(dc_sink);
 
+	ASSERT(sink->ref_count > 0);
 	++sink->ref_count;
 }
 
@@ -78,6 +79,7 @@ void dc_sink_release(const struct dc_sink *dc_sink)
 {
 	struct sink *sink = DC_SINK_TO_SINK(dc_sink);
 
+	ASSERT(sink->ref_count > 0);
 	--sink->ref_count;
 
 	if (sink->ref_count == 0) {
@@ -96,8 +98,7 @@ struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 	if (false == construct(sink, init_params))
 		goto construct_fail;
 
-	/* TODO should we move this outside to where the assignment actually happens? */
-	dc_sink_retain(&sink->protected.public);
+	++sink->ref_count;
 
 	return &sink->protected.public;
 

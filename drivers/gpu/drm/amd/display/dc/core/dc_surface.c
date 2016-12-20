@@ -105,7 +105,7 @@ struct dc_surface *dc_create_surface(const struct dc *dc)
 	if (false == construct(core_dc->ctx, surface))
 		goto construct_fail;
 
-	dc_surface_retain(&surface->protected.public);
+	++surface->ref_count;
 
 	return &surface->protected.public;
 
@@ -162,6 +162,7 @@ void dc_surface_retain(const struct dc_surface *dc_surface)
 {
 	struct surface *surface = DC_SURFACE_TO_SURFACE(dc_surface);
 
+	ASSERT(surface->ref_count > 0);
 	++surface->ref_count;
 }
 
@@ -169,6 +170,7 @@ void dc_surface_release(const struct dc_surface *dc_surface)
 {
 	struct surface *surface = DC_SURFACE_TO_SURFACE(dc_surface);
 
+	ASSERT(surface->ref_count > 0);
 	--surface->ref_count;
 
 	if (surface->ref_count == 0) {
@@ -181,12 +183,15 @@ void dc_gamma_retain(const struct dc_gamma *dc_gamma)
 {
 	struct gamma *gamma = DC_GAMMA_TO_GAMMA(dc_gamma);
 
+	ASSERT(gamma->ref_count > 0);
 	++gamma->ref_count;
 }
 
 void dc_gamma_release(const struct dc_gamma *dc_gamma)
 {
 	struct gamma *gamma = DC_GAMMA_TO_GAMMA(dc_gamma);
+
+	ASSERT(gamma->ref_count > 0);
 	--gamma->ref_count;
 
 	if (gamma->ref_count == 0)
@@ -200,7 +205,7 @@ struct dc_gamma *dc_create_gamma()
 	if (gamma == NULL)
 		goto alloc_fail;
 
-	dc_gamma_retain(&gamma->protected.public);
+	++gamma->ref_count;
 
 	return &gamma->protected.public;
 
@@ -212,12 +217,15 @@ void dc_transfer_func_retain(const struct dc_transfer_func *dc_tf)
 {
 	struct transfer_func *tf = DC_TRANSFER_FUNC_TO_TRANSFER_FUNC(dc_tf);
 
+	ASSERT(tf->ref_count > 0);
 	++tf->ref_count;
 }
 
 void dc_transfer_func_release(const struct dc_transfer_func *dc_tf)
 {
 	struct transfer_func *tf = DC_TRANSFER_FUNC_TO_TRANSFER_FUNC(dc_tf);
+
+	ASSERT(tf->ref_count > 0);
 	--tf->ref_count;
 
 	if (tf->ref_count == 0)
@@ -231,7 +239,7 @@ struct dc_transfer_func *dc_create_transfer_func()
 	if (tf == NULL)
 		goto alloc_fail;
 
-	dc_transfer_func_retain(&tf->protected.public);
+	++tf->ref_count;
 
 	return &tf->protected.public;
 

@@ -71,6 +71,7 @@ void dc_target_retain(const struct dc_target *dc_target)
 {
 	struct target *target = DC_TARGET_TO_TARGET(dc_target);
 
+	ASSERT(target->ref_count > 0);
 	target->ref_count++;
 }
 
@@ -81,6 +82,7 @@ void dc_target_release(const struct dc_target *dc_target)
 
 	ASSERT(target->ref_count > 0);
 	target->ref_count--;
+
 	if (target->ref_count == 0) {
 		destruct(protected);
 		dm_free(target);
@@ -120,7 +122,7 @@ struct dc_target *dc_create_target_for_streams(
 
 	construct(&target->protected, stream->ctx, dc_streams, stream_count);
 
-	dc_target_retain(&target->protected.public);
+	target->ref_count++;
 
 	return &target->protected.public;
 
