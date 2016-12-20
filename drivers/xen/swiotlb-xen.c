@@ -275,6 +275,10 @@ retry:
 		rc = 0;
 	} else
 		rc = swiotlb_late_init_with_tbl(xen_io_tlb_start, xen_io_tlb_nslabs);
+
+	if (!rc)
+		swiotlb_set_max_segment(PAGE_SIZE);
+
 	return rc;
 error:
 	if (repeat--) {
