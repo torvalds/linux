@@ -557,21 +557,17 @@ static int ep0_out_pio(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 {
 	u32		i;
 	int		nret   = 0;
-	u32		iWordLength = 0;
+	u32 numreads = length / sizeof(u32);
 	union usb_reg_access *pBuf32 = (union usb_reg_access *)pBuf;
 
 	/*------------------------------------------------------------*/
-	/* Read Length */
-	iWordLength = length / sizeof(u32);
-
-	/*------------------------------------------------------------*/
 	/* PIO Read */
-	if (iWordLength) {
-		for (i = 0; i < iWordLength; i++) {
+	if (numreads) {
+		for (i = 0; i < numreads; i++) {
 			pBuf32->dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
 			pBuf32++;
 		}
-		nret = iWordLength * sizeof(u32);
+		nret = numreads * sizeof(u32);
 	}
 
 	return nret;
