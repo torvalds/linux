@@ -11,7 +11,7 @@
  *
  * This file is based on kernel/irq/devres.c
  *
- * Copyright (c) 2011 John Crispin <blogic@openwrt.org>
+ * Copyright (c) 2011 John Crispin <john@phrozen.org>
  */
 
 #include <linux/module.h>
