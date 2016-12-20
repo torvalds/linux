@@ -34,8 +34,10 @@ void intel_uc_init_early(struct drm_i915_private *dev_priv)
  * Read GuC command/status register (SOFT_SCRATCH_0)
  * Return true if it contains a response rather than a command
  */
-bool intel_guc_recv(struct drm_i915_private *dev_priv, u32 *status)
+static bool intel_guc_recv(struct intel_guc *guc, u32 *status)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+
 	u32 val = I915_READ(SOFT_SCRATCH(0));
 	*status = val;
 	return INTEL_GUC_RECV_IS_RESPONSE(val);
@@ -69,9 +71,9 @@ int intel_guc_send(struct intel_guc *guc, const u32 *action, u32 len)
 	 * up to that length of time, then switch to a slower sleep-wait loop.
 	 * No inte_guc_send command should ever take longer than 10ms.
 	 */
-	ret = wait_for_us(intel_guc_recv(dev_priv, &status), 10);
+	ret = wait_for_us(intel_guc_recv(guc, &status), 10);
 	if (ret)
-		ret = wait_for(intel_guc_recv(dev_priv, &status), 10);
+		ret = wait_for(intel_guc_recv(guc, &status), 10);
 	if (status != INTEL_GUC_STATUS_SUCCESS) {
 		/*
 		 * Either the GuC explicitly returned an error (which
