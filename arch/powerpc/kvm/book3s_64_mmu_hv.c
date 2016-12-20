@@ -102,10 +102,10 @@ void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info)
 		info->virt, (long)info->order, kvm->arch.lpid);
 }
 
-long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
+long kvmppc_alloc_reset_hpt(struct kvm *kvm, int order)
 {
 	long err = -EBUSY;
-	long order;
+	struct kvm_hpt_info info;
 
 	if (kvm_is_radix(kvm))
 		return -EINVAL;
@@ -120,8 +120,9 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
 			goto out;
 		}
 	}
-	if (kvm->arch.hpt.virt) {
-		order = kvm->arch.hpt.order;
+	if (kvm->arch.hpt.order == order) {
+		/* We already have a suitable HPT */
+
 		/* Set the entire HPT to 0, i.e. invalid HPTEs */
 		memset((void *)kvm->arch.hpt.virt, 0, 1ul << order);
 		/*
@@ -130,17 +131,19 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
 		kvmppc_rmap_reset(kvm);
 		/* Ensure that each vcpu will flush its TLB on next entry. */
 		cpumask_setall(&kvm->arch.need_tlb_flush);
-		*htab_orderp = order;
 		err = 0;
-	} else {
-		struct kvm_hpt_info info;
-
-		err = kvmppc_allocate_hpt(&info, *htab_orderp);
-		if (err < 0)
-			goto out;
-		kvmppc_set_hpt(kvm, &info);
+		goto out;
 	}
- out:
+
+	if (kvm->arch.hpt.virt)
+		kvmppc_free_hpt(&kvm->arch.hpt);
+
+	err = kvmppc_allocate_hpt(&info, order);
+	if (err < 0)
+		goto out;
+	kvmppc_set_hpt(kvm, &info);
+
+out:
 	mutex_unlock(&kvm->lock);
 	return err;
 }

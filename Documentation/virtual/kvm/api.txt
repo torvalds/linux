@@ -2443,18 +2443,20 @@ are, it will do nothing and return an EBUSY error.
 The parameter is a pointer to a 32-bit unsigned integer variable
 containing the order (log base 2) of the desired size of the hash
 table, which must be between 18 and 46.  On successful return from the
-ioctl, it will have been updated with the order of the hash table that
-was allocated.
+ioctl, the value will not be changed by the kernel.
 
 If no hash table has been allocated when any vcpu is asked to run
 (with the KVM_RUN ioctl), the host kernel will allocate a
 default-sized hash table (16 MB).
 
 If this ioctl is called when a hash table has already been allocated,
-the kernel will clear out the existing hash table (zero all HPTEs) and
-return the hash table order in the parameter.  (If the guest is using
-the virtualized real-mode area (VRMA) facility, the kernel will
-re-create the VMRA HPTEs on the next KVM_RUN of any vcpu.)
+with a different order from the existing hash table, the existing hash
+table will be freed and a new one allocated.  If this is ioctl is
+called when a hash table has already been allocated of the same order
+as specified, the kernel will clear out the existing hash table (zero
+all HPTEs).  In either case, if the guest is using the virtualized
+real-mode area (VRMA) facility, the kernel will re-create the VMRA
+HPTEs on the next KVM_RUN of any vcpu.
 
 4.77 KVM_S390_INTERRUPT
 
