@@ -160,8 +160,14 @@ static int bq24735_config_charger(struct bq24735 *charger)
 
 static inline int bq24735_enable_charging(struct bq24735 *charger)
 {
+	int ret;
+
 	if (charger->pdata->ext_control)
 		return 0;
+
+	ret = bq24735_config_charger(charger);
+	if (ret)
+		return ret;
 
 	return bq24735_update_word(charger->client, BQ24735_CHG_OPT,
 				   BQ24735_CHG_OPT_CHARGE_DISABLE, 0);
@@ -292,7 +298,6 @@ static int bq24735_charger_set_property(struct power_supply *psy,
 			mutex_unlock(&charger->lock);
 			if (ret)
 				return ret;
-			bq24735_config_charger(charger);
 			break;
 		case POWER_SUPPLY_STATUS_DISCHARGING:
 		case POWER_SUPPLY_STATUS_NOT_CHARGING:
@@ -432,12 +437,6 @@ static int bq24735_charger_probe(struct i2c_client *client,
 				"device id mismatch. 0x000b != 0x%04x\n", ret);
 			return -ENODEV;
 		}
-	}
-
-	ret = bq24735_config_charger(charger);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed in configuring charger");
-		return ret;
 	}
 
 	/* check for AC adapter presence */
