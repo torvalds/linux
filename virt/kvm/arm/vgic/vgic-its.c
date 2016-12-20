@@ -1466,6 +1466,19 @@ static void vgic_its_destroy(struct kvm_device *kvm_dev)
 	kfree(its);
 }
 
+int vgic_its_has_attr_regs(struct kvm_device *dev,
+			   struct kvm_device_attr *attr)
+{
+	return -ENXIO;
+}
+
+int vgic_its_attr_regs_access(struct kvm_device *dev,
+			      struct kvm_device_attr *attr,
+			      u64 *reg, bool is_write)
+{
+	return -ENXIO;
+}
+
 static int vgic_its_has_attr(struct kvm_device *dev,
 			     struct kvm_device_attr *attr)
 {
@@ -1482,6 +1495,8 @@ static int vgic_its_has_attr(struct kvm_device *dev,
 			return 0;
 		}
 		break;
+	case KVM_DEV_ARM_VGIC_GRP_ITS_REGS:
+		return vgic_its_has_attr_regs(dev, attr);
 	}
 	return -ENXIO;
 }
@@ -1521,6 +1536,15 @@ static int vgic_its_set_attr(struct kvm_device *dev,
 			return 0;
 		}
 		break;
+	case KVM_DEV_ARM_VGIC_GRP_ITS_REGS: {
+		u64 __user *uaddr = (u64 __user *)(long)attr->addr;
+		u64 reg;
+
+		if (get_user(reg, uaddr))
+			return -EFAULT;
+
+		return vgic_its_attr_regs_access(dev, attr, &reg, true);
+	}
 	}
 	return -ENXIO;
 }
@@ -1541,9 +1565,19 @@ static int vgic_its_get_attr(struct kvm_device *dev,
 		if (copy_to_user(uaddr, &addr, sizeof(addr)))
 			return -EFAULT;
 		break;
+	}
+	case KVM_DEV_ARM_VGIC_GRP_ITS_REGS: {
+		u64 __user *uaddr = (u64 __user *)(long)attr->addr;
+		u64 reg;
+		int ret;
+
+		ret = vgic_its_attr_regs_access(dev, attr, &reg, false);
+		if (ret)
+			return ret;
+		return put_user(reg, uaddr);
+	}
 	default:
 		return -ENXIO;
-	}
 	}
 
 	return 0;
