@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -26,8 +27,8 @@
 
 #define ASPEED_G5_NR_PINS 228
 
-#define COND1		{ SCU90, BIT(6), 0, 0 }
-#define COND2		{ SCU94, GENMASK(1, 0), 0, 0 }
+#define COND1		{ ASPEED_IP_SCU, SCU90, BIT(6), 0, 0 }
+#define COND2		{ ASPEED_IP_SCU, SCU94, GENMASK(1, 0), 0, 0 }
 
 #define B14 0
 SSSF_PIN_DECL(B14, GPIOA0, MAC1LINK, SIG_DESC_SET(SCU80, 0));
@@ -186,9 +187,12 @@ MS_PIN_DECL(C20, GPIOE1, NDCD3, GPIE0OUT);
 
 FUNC_GROUP_DECL(GPIE0, B20, C20);
 
-#define SPI1_DESC		{ HW_STRAP1, GENMASK(13, 12), 1, 0 }
-#define SPI1DEBUG_DESC		{ HW_STRAP1, GENMASK(13, 12), 2, 0 }
-#define SPI1PASSTHRU_DESC	{ HW_STRAP1, GENMASK(13, 12), 3, 0 }
+#define SPI1_DESC \
+	{ ASPEED_IP_SCU, HW_STRAP1, GENMASK(13, 12), 1, 0 }
+#define SPI1DEBUG_DESC \
+	{ ASPEED_IP_SCU, HW_STRAP1, GENMASK(13, 12), 2, 0 }
+#define SPI1PASSTHRU_DESC \
+	{ ASPEED_IP_SCU, HW_STRAP1, GENMASK(13, 12), 3, 0 }
 
 #define C18 64
 SIG_EXPR_DECL(SYSCS, SPI1DEBUG, COND1, SPI1DEBUG_DESC);
@@ -325,10 +329,11 @@ SS_PIN_DECL(R1, GPIOK7, SDA8);
 
 FUNC_GROUP_DECL(I2C8, P2, R1);
 
-#define VPIOFF0_DESC    { SCU90, GENMASK(5, 4), 0, 0 }
-#define VPIOFF1_DESC    { SCU90, GENMASK(5, 4), 1, 0 }
-#define VPI24_DESC      { SCU90, GENMASK(5, 4), 2, 0 }
-#define VPIRSVD_DESC    { SCU90, GENMASK(5, 4), 3, 0 }
+#define VPIOFF0_DESC    { ASPEED_IP_SCU, SCU90, GENMASK(5, 4), 0, 0 }
+#define VPIOFF1_DESC    { ASPEED_IP_SCU, SCU90, GENMASK(5, 4), 1, 0 }
+#define VPI24_DESC      { ASPEED_IP_SCU, SCU90, GENMASK(5, 4), 2, 0 }
+#define VPIRSVD_DESC    { ASPEED_IP_SCU, SCU90, GENMASK(5, 4), 3, 0 }
+
 
 #define V2 104
 #define V2_DESC         SIG_DESC_SET(SCU88, 0)
@@ -848,9 +853,34 @@ static struct pinctrl_desc aspeed_g5_pinctrl_desc = {
 static int aspeed_g5_pinctrl_probe(struct platform_device *pdev)
 {
 	int i;
+	struct regmap *map;
+	struct device_node *node;
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_g5_pins); i++)
 		aspeed_g5_pins[i].number = i;
+
+	node = of_parse_phandle(pdev->dev.of_node, "aspeed,external-nodes", 0);
+	map = syscon_node_to_regmap(node);
+	of_node_put(node);
+	if (IS_ERR(map)) {
+		dev_warn(&pdev->dev, "No GFX phandle found, some mux configurations may fail\n");
+		map = NULL;
+	}
+	aspeed_g5_pinctrl_data.maps[ASPEED_IP_GFX] = map;
+
+	node = of_parse_phandle(pdev->dev.of_node, "aspeed,external-nodes", 1);
+	if (node) {
+		map = syscon_node_to_regmap(node->parent);
+		if (IS_ERR(map)) {
+			dev_warn(&pdev->dev, "LHC parent is not a syscon, some mux configurations may fail\n");
+			map = NULL;
+		}
+	} else {
+		dev_warn(&pdev->dev, "No LHC phandle found, some mux configurations may fail\n");
+		map = NULL;
+	}
+	of_node_put(node);
+	aspeed_g5_pinctrl_data.maps[ASPEED_IP_LPC] = map;
 
 	return aspeed_pinctrl_probe(pdev, &aspeed_g5_pinctrl_desc,
 			&aspeed_g5_pinctrl_data);

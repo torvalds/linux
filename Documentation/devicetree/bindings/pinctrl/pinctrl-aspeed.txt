@@ -1,15 +1,23 @@
+======================
 Aspeed Pin Controllers
-----------------------
+======================
 
 The Aspeed SoCs vary in functionality inside a generation but have a common mux
 device register layout.
 
-Required properties:
-- compatible : Should be any one of the following:
-		"aspeed,ast2400-pinctrl"
-		"aspeed,g4-pinctrl"
-		"aspeed,ast2500-pinctrl"
-		"aspeed,g5-pinctrl"
+Required properties for g4:
+- compatible : 			Should be one of the following:
+				"aspeed,ast2400-pinctrl"
+				"aspeed,g4-pinctrl"
+
+Required properties for g5:
+- compatible : 			Should be one of the following:
+				"aspeed,ast2500-pinctrl"
+				"aspeed,g5-pinctrl"
+
+- aspeed,external-nodes:	A cell of phandles to external controller nodes:
+				0: compatible with "aspeed,ast2500-gfx", "syscon"
+				1: compatible with "aspeed,ast2500-lhc", "syscon"
 
 The pin controller node should be the child of a syscon node with the required
 property:
@@ -24,7 +32,7 @@ Refer to the the bindings described in
 Documentation/devicetree/bindings/mfd/syscon.txt
 
 Subnode Format
---------------
+==============
 
 The required properties of child nodes are (as defined in pinctrl-bindings):
 - function
@@ -51,8 +59,11 @@ I2C9 MAC1LINK MDIO1 MDIO2 OSCCLK PEWAKE PWM0 PWM1 PWM2 PWM3 PWM4 PWM5 PWM6 PWM7
 RGMII1 RGMII2 RMII1 RMII2 SD1 SPI1 SPI1DEBUG SPI1PASSTHRU TIMER4 TIMER5 TIMER6
 TIMER7 TIMER8 VGABIOSROM
 
+Examples
+========
 
-Examples:
+g4 Example
+----------
 
 syscon: scu@1e6e2000 {
 	compatible = "aspeed,ast2400-scu", "syscon", "simple-mfd";
@@ -64,6 +75,57 @@ syscon: scu@1e6e2000 {
 		pinctrl_i2c3_default: i2c3_default {
 			function = "I2C3";
 			groups = "I2C3";
+		};
+	};
+};
+
+g5 Example
+----------
+
+ahb {
+	apb {
+		syscon: scu@1e6e2000 {
+			compatible = "aspeed,ast2500-scu", "syscon", "simple-mfd";
+			reg = <0x1e6e2000 0x1a8>;
+
+			pinctrl: pinctrl {
+				compatible = "aspeed,g5-pinctrl";
+				aspeed,external-nodes = <&gfx &lhc>;
+
+				pinctrl_i2c3_default: i2c3_default {
+					function = "I2C3";
+					groups = "I2C3";
+				};
+			};
+		};
+
+		gfx: display@1e6e6000 {
+			compatible = "aspeed,ast2500-gfx", "syscon";
+			reg = <0x1e6e6000 0x1000>;
+		};
+	};
+
+	lpc: lpc@1e789000 {
+		compatible = "aspeed,ast2500-lpc", "simple-mfd";
+		reg = <0x1e789000 0x1000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x1e789000 0x1000>;
+
+		lpc_host: lpc-host@80 {
+			compatible = "aspeed,ast2500-lpc-host", "simple-mfd", "syscon";
+			reg = <0x80 0x1e0>;
+			reg-io-width = <4>;
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x80 0x1e0>;
+
+			lhc: lhc@20 {
+			       compatible = "aspeed,ast2500-lhc";
+			       reg = <0x20 0x24 0x48 0x8>;
+			};
 		};
 	};
 };
