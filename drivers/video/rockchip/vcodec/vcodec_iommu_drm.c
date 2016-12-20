@@ -282,6 +282,8 @@ static int vcodec_drm_free(struct vcodec_iommu_session_info *session_info,
 		list_del_init(&drm_buffer->list);
 		kfree(drm_buffer);
 		session_info->buffer_nums--;
+		vpu_iommu_debug(session_info->debug_level, DEBUG_IOMMU_NORMAL,
+			"buffer nums %d\n", session_info->buffer_nums);
 	}
 	mutex_unlock(&session_info->list_mutex);
 
@@ -393,6 +395,8 @@ vcodec_drm_free_fd(struct vcodec_iommu_session_info *session_info, int fd)
 		list_del_init(&drm_buffer->list);
 		kfree(drm_buffer);
 		session_info->buffer_nums--;
+		vpu_iommu_debug(session_info->debug_level, DEBUG_IOMMU_NORMAL,
+			"buffer nums %d\n", session_info->buffer_nums);
 	}
 	mutex_unlock(&session_info->list_mutex);
 
@@ -513,6 +517,8 @@ static int vcodec_drm_import(struct vcodec_iommu_session_info *session_info,
 	INIT_LIST_HEAD(&drm_buffer->list);
 	mutex_lock(&session_info->list_mutex);
 	session_info->buffer_nums++;
+	vpu_iommu_debug(session_info->debug_level, DEBUG_IOMMU_NORMAL,
+			"buffer nums %d\n", session_info->buffer_nums);
 	if (session_info->buffer_nums > BUFFER_LIST_MAX_NUMS) {
 		list_for_each_entry_safe(loop_buffer, n,
 				 &session_info->buffer_list, list) {

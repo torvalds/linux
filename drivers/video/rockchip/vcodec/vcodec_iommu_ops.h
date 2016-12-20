@@ -25,6 +25,7 @@
 #define ALLOCATOR_USE_DRM		0x00000001
 
 #define DEBUG_IOMMU_OPS_DUMP	0x00020000
+#define DEBUG_IOMMU_NORMAL	0x00040000
 
 #define vpu_iommu_debug_func(debug_level, type, fmt, args...)	\
 	do {							\
