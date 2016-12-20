@@ -55,7 +55,10 @@ static int dram_type;
 static struct rt2880_pmx_func i2c_grp[] =  { FUNC("i2c", 0, 1, 2) };
 static struct rt2880_pmx_func spi_grp[] = { FUNC("spi", 0, 3, 4) };
 static struct rt2880_pmx_func uartlite_grp[] = { FUNC("uartlite", 0, 15, 2) };
-static struct rt2880_pmx_func mdio_grp[] = { FUNC("mdio", 0, 22, 2) };
+static struct rt2880_pmx_func mdio_grp[] = {
+	FUNC("mdio", MT7620_GPIO_MODE_MDIO, 22, 2),
+	FUNC("refclk", MT7620_GPIO_MODE_MDIO_REFCLK, 22, 2),
+};
 static struct rt2880_pmx_func rgmii1_grp[] = { FUNC("rgmii1", 0, 24, 12) };
 static struct rt2880_pmx_func refclk_grp[] = { FUNC("spi refclk", 0, 37, 3) };
 static struct rt2880_pmx_func ephy_grp[] = { FUNC("ephy", 0, 40, 5) };
@@ -92,7 +95,8 @@ static struct rt2880_pmx_group mt7620a_pinmux_data[] = {
 	GRP("uartlite", uartlite_grp, 1, MT7620_GPIO_MODE_UART1),
 	GRP_G("wdt", wdt_grp, MT7620_GPIO_MODE_WDT_MASK,
 		MT7620_GPIO_MODE_WDT_GPIO, MT7620_GPIO_MODE_WDT_SHIFT),
-	GRP("mdio", mdio_grp, 1, MT7620_GPIO_MODE_MDIO),
+	GRP_G("mdio", mdio_grp, MT7620_GPIO_MODE_MDIO_MASK,
+		MT7620_GPIO_MODE_MDIO_GPIO, MT7620_GPIO_MODE_MDIO_SHIFT),
 	GRP("rgmii1", rgmii1_grp, 1, MT7620_GPIO_MODE_RGMII1),
 	GRP("spi refclk", refclk_grp, 1, MT7620_GPIO_MODE_SPI_REF_CLK),
 	GRP_G("pcie", pcie_rst_grp, MT7620_GPIO_MODE_PCIE_MASK,
