@@ -26,7 +26,7 @@ config CONSOLE_LOGLEVEL_DEFAULT
 	  the kernel bootargs. loglevel=<x> continues to override whatever
 	  value is specified here as well.
 
-	  Note: This does not affect the log level of un-prefixed prink()
+	  Note: This does not affect the log level of un-prefixed printk()
 	  usage in the kernel. That is controlled by the MESSAGE_LOGLEVEL_DEFAULT
 	  option.
 
