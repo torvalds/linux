@@ -485,7 +485,8 @@
 		};
 
 		msiof0: spi@e6e90000 {
-			compatible = "renesas,msiof-r8a7796";
+			compatible = "renesas,msiof-r8a7796",
+				     "renesas,rcar-gen3-msiof";
 			reg = <0 0xe6e90000 0 0x0064>;
 			interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 211>;
@@ -499,7 +500,8 @@
 		};
 
 		msiof1: spi@e6ea0000 {
-			compatible = "renesas,msiof-r8a7796";
+			compatible = "renesas,msiof-r8a7796",
+				     "renesas,rcar-gen3-msiof";
 			reg = <0 0xe6ea0000 0 0x0064>;
 			interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 210>;
@@ -513,7 +515,8 @@
 		};
 
 		msiof2: spi@e6c00000 {
-			compatible = "renesas,msiof-r8a7796";
+			compatible = "renesas,msiof-r8a7796",
+				     "renesas,rcar-gen3-msiof";
 			reg = <0 0xe6c00000 0 0x0064>;
 			interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 209>;
@@ -526,7 +529,8 @@
 		};
 
 		msiof3: spi@e6c10000 {
-			compatible = "renesas,msiof-r8a7796";
+			compatible = "renesas,msiof-r8a7796",
+				     "renesas,rcar-gen3-msiof";
 			reg = <0 0xe6c10000 0 0x0064>;
 			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cpg CPG_MOD 208>;
