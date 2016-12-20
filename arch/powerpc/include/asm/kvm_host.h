@@ -246,8 +246,6 @@ struct kvm_hpt_info {
 	unsigned long virt;
 	/* Array of reverse mapping entries for each guest HPTE */
 	struct revmap_entry *rev;
-	unsigned long npte;
-	unsigned long mask;
 	/* Guest HPT size is 2**(order) bytes */
 	u32 order;
 	/* 1 if HPT allocated with CMA, 0 otherwise */
