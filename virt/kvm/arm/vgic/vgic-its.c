@@ -1469,14 +1469,89 @@ static void vgic_its_destroy(struct kvm_device *kvm_dev)
 int vgic_its_has_attr_regs(struct kvm_device *dev,
 			   struct kvm_device_attr *attr)
 {
-	return -ENXIO;
+	const struct vgic_register_region *region;
+	gpa_t offset = attr->attr;
+	int align;
+
+	align = (offset < GITS_TYPER) || (offset >= GITS_PIDR4) ? 0x3 : 0x7;
+
+	if (offset & align)
+		return -EINVAL;
+
+	region = vgic_find_mmio_region(its_registers,
+				       ARRAY_SIZE(its_registers),
+				       offset);
+	if (!region)
+		return -ENXIO;
+
+	return 0;
 }
 
 int vgic_its_attr_regs_access(struct kvm_device *dev,
 			      struct kvm_device_attr *attr,
 			      u64 *reg, bool is_write)
 {
-	return -ENXIO;
+	const struct vgic_register_region *region;
+	struct vgic_its *its;
+	gpa_t addr, offset;
+	unsigned int len;
+	int align, ret = 0;
+
+	its = dev->private;
+	offset = attr->attr;
+
+	/*
+	 * Although the spec supports upper/lower 32-bit accesses to
+	 * 64-bit ITS registers, the userspace ABI requires 64-bit
+	 * accesses to all 64-bit wide registers. We therefore only
+	 * support 32-bit accesses to GITS_CTLR, GITS_IIDR and GITS ID
+	 * registers
+	 */
+	if ((offset < GITS_TYPER) || (offset >= GITS_PIDR4))
+		align = 0x3;
+	else
+		align = 0x7;
+
+	if (offset & align)
+		return -EINVAL;
+
+	mutex_lock(&dev->kvm->lock);
+
+	if (IS_VGIC_ADDR_UNDEF(its->vgic_its_base)) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	region = vgic_find_mmio_region(its_registers,
+				       ARRAY_SIZE(its_registers),
+				       offset);
+	if (!region) {
+		ret = -ENXIO;
+		goto out;
+	}
+
+	if (!lock_all_vcpus(dev->kvm)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	addr = its->vgic_its_base + offset;
+
+	len = region->access_flags & VGIC_ACCESS_64bit ? 8 : 4;
+
+	if (is_write) {
+		if (region->uaccess_its_write)
+			ret = region->uaccess_its_write(dev->kvm, its, addr,
+							len, *reg);
+		else
+			region->its_write(dev->kvm, its, addr, len, *reg);
+	} else {
+		*reg = region->its_read(dev->kvm, its, addr, len);
+	}
+	unlock_all_vcpus(dev->kvm);
+out:
+	mutex_unlock(&dev->kvm->lock);
+	return ret;
 }
 
 static int vgic_its_has_attr(struct kvm_device *dev,

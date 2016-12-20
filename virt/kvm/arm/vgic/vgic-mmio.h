@@ -36,8 +36,13 @@ struct vgic_register_region {
 	};
 	unsigned long (*uaccess_read)(struct kvm_vcpu *vcpu, gpa_t addr,
 				      unsigned int len);
-	void (*uaccess_write)(struct kvm_vcpu *vcpu, gpa_t addr,
-			      unsigned int len, unsigned long val);
+	union {
+		void (*uaccess_write)(struct kvm_vcpu *vcpu, gpa_t addr,
+				      unsigned int len, unsigned long val);
+		int (*uaccess_its_write)(struct kvm *kvm, struct vgic_its *its,
+					 gpa_t addr, unsigned int len,
+					 unsigned long val);
+	};
 };
 
 extern struct kvm_io_device_ops kvm_io_gic_ops;
