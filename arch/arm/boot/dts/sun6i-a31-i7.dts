@@ -71,6 +71,12 @@
 	};
 };
 
+&codec {
+	allwinner,audio-routing =
+		"Headphone", "HP";
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
