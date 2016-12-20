@@ -982,7 +982,7 @@ static const struct of_device_id sh_msiof_match[] = {
 	{ .compatible = "renesas,rcar-gen2-msiof", .data = &r8a779x_data },
 	{ .compatible = "renesas,msiof-r8a7796",   .data = &r8a779x_data },
 	{ .compatible = "renesas,rcar-gen3-msiof", .data = &r8a779x_data },
-	{ .compatible = "renesas,sh-msiof",        .data = &sh_data }, // Deprecated
+	{ .compatible = "renesas,sh-msiof",        .data = &sh_data }, /* Deprecated */
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_msiof_match);
