@@ -822,7 +822,7 @@ static int __init its_alloc_lpi_tables(void)
 static const char *its_base_type_string[] = {
 	[GITS_BASER_TYPE_DEVICE]	= "Devices",
 	[GITS_BASER_TYPE_VCPU]		= "Virtual CPUs",
-	[GITS_BASER_TYPE_CPU]		= "Physical CPUs",
+	[GITS_BASER_TYPE_RESERVED3]	= "Reserved (3)",
 	[GITS_BASER_TYPE_COLLECTION]	= "Interrupt Collections",
 	[GITS_BASER_TYPE_RESERVED5] 	= "Reserved (5)",
 	[GITS_BASER_TYPE_RESERVED6] 	= "Reserved (6)",
