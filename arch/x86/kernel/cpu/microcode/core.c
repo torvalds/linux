@@ -243,14 +243,12 @@ struct cpio_data find_microcode_in_initrd(const char *path, bool use_pa)
 # endif
 
 	/*
-	 * Did we relocate the ramdisk?
-	 *
-	 * So we possibly relocate the ramdisk *after* applying microcode on the
-	 * BSP so we rely on use_pa (use physical addresses) - even if it is not
-	 * absolutely correct - to determine whether we've done the ramdisk
-	 * relocation already.
+	 * Fixup the start address: after reserve_initrd() runs, initrd_start
+	 * has the virtual address of the beginning of the initrd. It also
+	 * possibly relocates the ramdisk. In either case, initrd_start contains
+	 * the updated address so use that instead.
 	 */
-	if (!use_pa && relocated_ramdisk)
+	if (!use_pa && initrd_start)
 		start = initrd_start;
 
 	return find_cpio_data(path, (void *)start, size, NULL);
