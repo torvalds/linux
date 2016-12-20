@@ -105,7 +105,10 @@ struct radix_tree_node {
 	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
 };
 
-/* root tags are stored in gfp_mask, shifted by __GFP_BITS_SHIFT */
+/* The top bits of gfp_mask are used to store the root tags and the IDR flag */
+#define ROOT_IS_IDR	((__force gfp_t)(1 << __GFP_BITS_SHIFT))
+#define ROOT_TAG_SHIFT	(__GFP_BITS_SHIFT + 1)
+
 struct radix_tree_root {
 	gfp_t			gfp_mask;
 	struct radix_tree_node	__rcu *rnode;
@@ -358,10 +361,14 @@ int radix_tree_split(struct radix_tree_root *, unsigned long index,
 			unsigned new_order);
 int radix_tree_join(struct radix_tree_root *, unsigned long index,
 			unsigned new_order, void *);
+void **idr_get_free(struct radix_tree_root *, struct radix_tree_iter *,
+			gfp_t, int end);
 
-#define RADIX_TREE_ITER_TAG_MASK	0x00FF	/* tag index in lower byte */
-#define RADIX_TREE_ITER_TAGGED		0x0100	/* lookup tagged slots */
-#define RADIX_TREE_ITER_CONTIG		0x0200	/* stop at first hole */
+enum {
+	RADIX_TREE_ITER_TAG_MASK = 0x0f,	/* tag index in lower nybble */
+	RADIX_TREE_ITER_TAGGED   = 0x10,	/* lookup tagged slots */
+	RADIX_TREE_ITER_CONTIG   = 0x20,	/* stop at first hole */
+};
 
 /**
  * radix_tree_iter_init - initialize radix tree iterator
@@ -401,6 +408,40 @@ radix_tree_iter_init(struct radix_tree_iter *iter, unsigned long start)
  */
 void **radix_tree_next_chunk(const struct radix_tree_root *,
 			     struct radix_tree_iter *iter, unsigned flags);
+
+/**
+ * radix_tree_iter_lookup - look up an index in the radix tree
+ * @root: radix tree root
+ * @iter: iterator state
+ * @index: key to look up
+ *
+ * If @index is present in the radix tree, this function returns the slot
+ * containing it and updates @iter to describe the entry.  If @index is not
+ * present, it returns NULL.
+ */
+static inline void **radix_tree_iter_lookup(const struct radix_tree_root *root,
+			struct radix_tree_iter *iter, unsigned long index)
+{
+	radix_tree_iter_init(iter, index);
+	return radix_tree_next_chunk(root, iter, RADIX_TREE_ITER_CONTIG);
+}
+
+/**
+ * radix_tree_iter_find - find a present entry
+ * @root: radix tree root
+ * @iter: iterator state
+ * @index: start location
+ *
+ * This function returns the slot containing the entry with the lowest index
+ * which is at least @index.  If @index is larger than any present entry, this
+ * function returns NULL.  The @iter is updated to describe the entry found.
+ */
+static inline void **radix_tree_iter_find(const struct radix_tree_root *root,
+			struct radix_tree_iter *iter, unsigned long index)
+{
+	radix_tree_iter_init(iter, index);
+	return radix_tree_next_chunk(root, iter, 0);
+}
 
 /**
  * radix_tree_iter_retry - retry this chunk of the iteration
