@@ -120,12 +120,9 @@ err:
 
 static int mockup_gpio_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct mockup_gpio_controller *cntr;
-	int ret;
-	int i;
-	int base;
-	int ngpio;
+	struct device *dev = &pdev->dev;
+	int ret, i, base, ngpio;
 	char *chip_name;
 
 	if (gpio_mockup_params_nr < 2)
@@ -174,8 +171,8 @@ static int mockup_gpio_probe(struct platform_device *pdev)
 
 static struct platform_driver mockup_gpio_driver = {
 	.driver = {
-		   .name = GPIO_NAME,
-		   },
+		.name = GPIO_NAME,
+	},
 	.probe = mockup_gpio_probe,
 };
 
