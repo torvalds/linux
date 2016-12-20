@@ -200,6 +200,8 @@ void __init ralink_clk_init(void)
 
 	ralink_clk_add("cpu", cpu_rate);
 	ralink_clk_add("sys", sys_rate);
+	ralink_clk_add("10000900.i2c", uart_rate);
+	ralink_clk_add("10000a00.i2s", uart_rate);
 	ralink_clk_add("10000b00.spi", sys_rate);
 	ralink_clk_add("10000b40.spi", sys_rate);
 	ralink_clk_add("10000100.timer", wdt_rate);

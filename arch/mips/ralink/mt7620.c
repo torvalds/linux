@@ -509,6 +509,7 @@ void __init ralink_clk_init(void)
 	unsigned long sys_rate;
 	unsigned long dram_rate;
 	unsigned long periph_rate;
+	unsigned long pcmi2s_rate;
 
 	xtal_rate = mt7620_get_xtal_rate();
 
@@ -523,6 +524,7 @@ void __init ralink_clk_init(void)
 			cpu_rate = MHZ(575);
 		dram_rate = sys_rate = cpu_rate / 3;
 		periph_rate = MHZ(40);
+		pcmi2s_rate = MHZ(480);
 
 		ralink_clk_add("10000d00.uartlite", periph_rate);
 		ralink_clk_add("10000e00.uartlite", periph_rate);
@@ -534,6 +536,7 @@ void __init ralink_clk_init(void)
 		dram_rate = mt7620_get_dram_rate(pll_rate);
 		sys_rate = mt7620_get_sys_rate(cpu_rate);
 		periph_rate = mt7620_get_periph_rate(xtal_rate);
+		pcmi2s_rate = periph_rate;
 
 		pr_debug(RFMT("XTAL") RFMT("CPU_PLL") RFMT("PLL"),
 			 RINT(xtal_rate), RFRAC(xtal_rate),
@@ -555,6 +558,8 @@ void __init ralink_clk_init(void)
 	ralink_clk_add("cpu", cpu_rate);
 	ralink_clk_add("10000100.timer", periph_rate);
 	ralink_clk_add("10000120.watchdog", periph_rate);
+	ralink_clk_add("10000900.i2c", periph_rate);
+	ralink_clk_add("10000a00.i2s", pcmi2s_rate);
 	ralink_clk_add("10000b00.spi", sys_rate);
 	ralink_clk_add("10000b40.spi", sys_rate);
 	ralink_clk_add("10000c00.uartlite", periph_rate);
