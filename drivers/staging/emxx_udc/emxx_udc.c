@@ -556,21 +556,19 @@ static void _nbu2ss_dma_unmap_single(
 static int ep0_out_pio(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 {
 	u32		i;
-	int		nret   = 0;
 	u32 numreads = length / sizeof(u32);
 	union usb_reg_access *pBuf32 = (union usb_reg_access *)pBuf;
 
-	/*------------------------------------------------------------*/
+	if (!numreads)
+		return 0;
+
 	/* PIO Read */
-	if (numreads) {
-		for (i = 0; i < numreads; i++) {
-			pBuf32->dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
-			pBuf32++;
-		}
-		nret = numreads * sizeof(u32);
+	for (i = 0; i < numreads; i++) {
+		pBuf32->dw = _nbu2ss_readl(&udc->p_regs->EP0_READ);
+		pBuf32++;
 	}
 
-	return nret;
+	return  numreads * sizeof(u32);
 }
 
 /*-------------------------------------------------------------------------*/
