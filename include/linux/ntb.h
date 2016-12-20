@@ -178,10 +178,12 @@ static inline int ntb_client_ops_is_valid(const struct ntb_client_ops *ops)
  * struct ntb_ctx_ops - ntb driver context operations
  * @link_event:		See ntb_link_event().
  * @db_event:		See ntb_db_event().
+ * @msg_event:		See ntb_msg_event().
  */
 struct ntb_ctx_ops {
 	void (*link_event)(void *ctx);
 	void (*db_event)(void *ctx, int db_vector);
+	void (*msg_event)(void *ctx);
 };
 
 static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
@@ -190,6 +192,7 @@ static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
 	return
 		/* ops->link_event		&& */
 		/* ops->db_event		&& */
+		/* ops->msg_event		&& */
 		1;
 }
 
@@ -234,6 +237,15 @@ static inline int ntb_ctx_ops_is_valid(const struct ntb_ctx_ops *ops)
  * @peer_spad_addr:	See ntb_peer_spad_addr().
  * @peer_spad_read:	See ntb_peer_spad_read().
  * @peer_spad_write:	See ntb_peer_spad_write().
+ * @msg_count:		See ntb_msg_count().
+ * @msg_inbits:		See ntb_msg_inbits().
+ * @msg_outbits:	See ntb_msg_outbits().
+ * @msg_read_sts:	See ntb_msg_read_sts().
+ * @msg_clear_sts:	See ntb_msg_clear_sts().
+ * @msg_set_mask:	See ntb_msg_set_mask().
+ * @msg_clear_mask:	See ntb_msg_clear_mask().
+ * @msg_read:		See ntb_msg_read().
+ * @msg_write:		See ntb_msg_write().
  */
 struct ntb_dev_ops {
 	int (*port_number)(struct ntb_dev *ntb);
@@ -296,6 +308,16 @@ struct ntb_dev_ops {
 	u32 (*peer_spad_read)(struct ntb_dev *ntb, int pidx, int sidx);
 	int (*peer_spad_write)(struct ntb_dev *ntb, int pidx, int sidx,
 			       u32 val);
+
+	int (*msg_count)(struct ntb_dev *ntb);
+	u64 (*msg_inbits)(struct ntb_dev *ntb);
+	u64 (*msg_outbits)(struct ntb_dev *ntb);
+	u64 (*msg_read_sts)(struct ntb_dev *ntb);
+	int (*msg_clear_sts)(struct ntb_dev *ntb, u64 sts_bits);
+	int (*msg_set_mask)(struct ntb_dev *ntb, u64 mask_bits);
+	int (*msg_clear_mask)(struct ntb_dev *ntb, u64 mask_bits);
+	int (*msg_read)(struct ntb_dev *ntb, int midx, int *pidx, u32 *msg);
+	int (*msg_write)(struct ntb_dev *ntb, int midx, int pidx, u32 msg);
 };
 
 static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
@@ -342,6 +364,15 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		/* !ops->peer_spad_addr == !ops->spad_count	&& */
 		/* !ops->peer_spad_read == !ops->spad_count	&& */
 		!ops->peer_spad_write == !ops->spad_count	&&
+
+		!ops->msg_inbits == !ops->msg_count		&&
+		!ops->msg_outbits == !ops->msg_count		&&
+		!ops->msg_read_sts == !ops->msg_count		&&
+		!ops->msg_clear_sts == !ops->msg_count		&&
+		/* !ops->msg_set_mask == !ops->msg_count	&& */
+		/* !ops->msg_clear_mask == !ops->msg_count	&& */
+		!ops->msg_read == !ops->msg_count		&&
+		!ops->msg_write == !ops->msg_count		&&
 		1;
 }
 
@@ -483,6 +514,18 @@ void ntb_link_event(struct ntb_dev *ntb);
  * those bits are associated with the vector number.
  */
 void ntb_db_event(struct ntb_dev *ntb, int vector);
+
+/**
+ * ntb_msg_event() - notify driver context of a message event
+ * @ntb:	NTB device context.
+ *
+ * Notify the driver context of a message event.  If hardware supports
+ * message registers, this event indicates, that a new message arrived in
+ * some incoming message register or last sent message couldn't be delivered.
+ * The events can be masked/unmasked by the methods ntb_msg_set_mask() and
+ * ntb_msg_clear_mask().
+ */
+void ntb_msg_event(struct ntb_dev *ntb);
 
 /**
  * ntb_default_port_number() - get the default local port number
@@ -1280,6 +1323,168 @@ static inline int ntb_peer_spad_write(struct ntb_dev *ntb, int pidx, int sidx,
 		return -EINVAL;
 
 	return ntb->ops->peer_spad_write(ntb, pidx, sidx, val);
+}
+
+/**
+ * ntb_msg_count() - get the number of message registers
+ * @ntb:	NTB device context.
+ *
+ * Hardware may support a different number of message registers.
+ *
+ * Return: the number of message registers.
+ */
+static inline int ntb_msg_count(struct ntb_dev *ntb)
+{
+	if (!ntb->ops->msg_count)
+		return 0;
+
+	return ntb->ops->msg_count(ntb);
+}
+
+/**
+ * ntb_msg_inbits() - get a bitfield of inbound message registers status
+ * @ntb:	NTB device context.
+ *
+ * The method returns the bitfield of status and mask registers, which related
+ * to inbound message registers.
+ *
+ * Return: bitfield of inbound message registers.
+ */
+static inline u64 ntb_msg_inbits(struct ntb_dev *ntb)
+{
+	if (!ntb->ops->msg_inbits)
+		return 0;
+
+	return ntb->ops->msg_inbits(ntb);
+}
+
+/**
+ * ntb_msg_outbits() - get a bitfield of outbound message registers status
+ * @ntb:	NTB device context.
+ *
+ * The method returns the bitfield of status and mask registers, which related
+ * to outbound message registers.
+ *
+ * Return: bitfield of outbound message registers.
+ */
+static inline u64 ntb_msg_outbits(struct ntb_dev *ntb)
+{
+	if (!ntb->ops->msg_outbits)
+		return 0;
+
+	return ntb->ops->msg_outbits(ntb);
+}
+
+/**
+ * ntb_msg_read_sts() - read the message registers status
+ * @ntb:	NTB device context.
+ *
+ * Read the status of message register. Inbound and outbound message registers
+ * related bits can be filtered by masks retrieved from ntb_msg_inbits() and
+ * ntb_msg_outbits().
+ *
+ * Return: status bits of message registers
+ */
+static inline u64 ntb_msg_read_sts(struct ntb_dev *ntb)
+{
+	if (!ntb->ops->msg_read_sts)
+		return 0;
+
+	return ntb->ops->msg_read_sts(ntb);
+}
+
+/**
+ * ntb_msg_clear_sts() - clear status bits of message registers
+ * @ntb:	NTB device context.
+ * @sts_bits:	Status bits to clear.
+ *
+ * Clear bits in the status register.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_clear_sts(struct ntb_dev *ntb, u64 sts_bits)
+{
+	if (!ntb->ops->msg_clear_sts)
+		return -EINVAL;
+
+	return ntb->ops->msg_clear_sts(ntb, sts_bits);
+}
+
+/**
+ * ntb_msg_set_mask() - set mask of message register status bits
+ * @ntb:	NTB device context.
+ * @mask_bits:	Mask bits.
+ *
+ * Mask the message registers status bits from raising the message event.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_set_mask(struct ntb_dev *ntb, u64 mask_bits)
+{
+	if (!ntb->ops->msg_set_mask)
+		return -EINVAL;
+
+	return ntb->ops->msg_set_mask(ntb, mask_bits);
+}
+
+/**
+ * ntb_msg_clear_mask() - clear message registers mask
+ * @ntb:	NTB device context.
+ * @mask_bits:	Mask bits to clear.
+ *
+ * Clear bits in the message events mask register.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_clear_mask(struct ntb_dev *ntb, u64 mask_bits)
+{
+	if (!ntb->ops->msg_clear_mask)
+		return -EINVAL;
+
+	return ntb->ops->msg_clear_mask(ntb, mask_bits);
+}
+
+/**
+ * ntb_msg_read() - read message register with specified index
+ * @ntb:	NTB device context.
+ * @midx:	Message register index
+ * @pidx:	OUT - Port index of peer device a message retrieved from
+ * @msg:	OUT - Data
+ *
+ * Read data from the specified message register. Source port index of a
+ * message is retrieved as well.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_read(struct ntb_dev *ntb, int midx, int *pidx,
+			       u32 *msg)
+{
+	if (!ntb->ops->msg_read)
+		return -EINVAL;
+
+	return ntb->ops->msg_read(ntb, midx, pidx, msg);
+}
+
+/**
+ * ntb_msg_write() - write data to the specified message register
+ * @ntb:	NTB device context.
+ * @midx:	Message register index
+ * @pidx:	Port index of peer device a message being sent to
+ * @msg:	Data to send
+ *
+ * Send data to a specified peer device using the defined message register.
+ * Message event can be raised if the midx registers isn't empty while
+ * calling this method and the corresponding interrupt isn't masked.
+ *
+ * Return: Zero on success, otherwise a negative error number.
+ */
+static inline int ntb_msg_write(struct ntb_dev *ntb, int midx, int pidx,
+				u32 msg)
+{
+	if (!ntb->ops->msg_write)
+		return -EINVAL;
+
+	return ntb->ops->msg_write(ntb, midx, pidx, msg);
 }
 
 #endif
