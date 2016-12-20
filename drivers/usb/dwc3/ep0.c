@@ -39,18 +39,13 @@ static void __dwc3_ep0_do_control_status(struct dwc3 *dwc, struct dwc3_ep *dep);
 static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
 		struct dwc3_ep *dep, struct dwc3_request *req);
 
-static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
-		u32 len, u32 type, bool chain)
+static void dwc3_ep0_prepare_one_trb(struct dwc3 *dwc, u8 epnum,
+		dma_addr_t buf_dma, u32 len, u32 type, bool chain)
 {
-	struct dwc3_gadget_ep_cmd_params params;
 	struct dwc3_trb			*trb;
 	struct dwc3_ep			*dep;
 
-	int				ret;
-
 	dep = dwc->eps[epnum];
-	if (dep->flags & DWC3_EP_BUSY)
-		return 0;
 
 	trb = &dwc->ep0_trb[dep->trb_enqueue];
 
@@ -71,14 +66,25 @@ static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
 		trb->ctrl |= (DWC3_TRB_CTRL_IOC
 				| DWC3_TRB_CTRL_LST);
 
-	if (chain)
+	trace_dwc3_prepare_trb(dep, trb);
+}
+
+static int dwc3_ep0_start_trans(struct dwc3 *dwc, u8 epnum, dma_addr_t buf_dma,
+		u32 len, u32 type, bool chain)
+{
+	struct dwc3_gadget_ep_cmd_params params;
+	struct dwc3_ep			*dep;
+	int				ret;
+
+	dep = dwc->eps[epnum];
+	if (dep->flags & DWC3_EP_BUSY)
 		return 0;
+
+	dwc3_ep0_prepare_one_trb(dwc, epnum, buf_dma, len, type, chain);
 
 	memset(&params, 0, sizeof(params));
 	params.param0 = upper_32_bits(dwc->ep0_trb_addr);
 	params.param1 = lower_32_bits(dwc->ep0_trb_addr);
-
-	trace_dwc3_prepare_trb(dep, trb);
 
 	ret = dwc3_send_gadget_ep_cmd(dep, DWC3_DEPCMD_STARTTRANSFER, &params);
 	if (ret < 0)
