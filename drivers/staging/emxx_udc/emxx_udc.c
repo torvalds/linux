@@ -553,7 +553,7 @@ static void _nbu2ss_dma_unmap_single(
 
 /*-------------------------------------------------------------------------*/
 /* Endpoint 0 OUT Transfer (PIO) */
-static int EP0_out_PIO(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
+static int ep0_out_pio(struct nbu2ss_udc *udc, u8 *pBuf, u32 length)
 {
 	u32		i;
 	int		nret   = 0;
@@ -758,7 +758,7 @@ static int _nbu2ss_ep0_out_transfer(
 		pBuffer = (u8 *)req->req.buf;
 		pBuffer += req->req.actual;
 
-		result = EP0_out_PIO(udc, pBuffer
+		result = ep0_out_pio(udc, pBuffer
 					, min(iRemainSize, iRecvLength));
 		if (result < 0)
 			return result;
