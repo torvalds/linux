@@ -2232,6 +2232,10 @@ static int its_vpe_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
 		its_vpe_deschedule(vpe);
 		return 0;
 
+	case INVALL_VPE:
+		its_send_vinvall(vpe);
+		return 0;
+
 	default:
 		return -EINVAL;
 	}
