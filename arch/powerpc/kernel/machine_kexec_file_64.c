@@ -27,6 +27,7 @@
 #include <linux/memblock.h>
 #include <linux/of_fdt.h>
 #include <linux/libfdt.h>
+#include <asm/ima.h>
 
 #define SLAVE_CODE_SIZE		256
 
@@ -180,7 +181,7 @@ int setup_purgatory(struct kimage *image, const void *slave_code,
  *
  * Return: 0 on success, or negative errno on error.
  */
-static int delete_fdt_mem_rsv(void *fdt, unsigned long start, unsigned long size)
+int delete_fdt_mem_rsv(void *fdt, unsigned long start, unsigned long size)
 {
 	int i, ret, num_rsvs = fdt_num_mem_rsv(fdt);
 
@@ -327,6 +328,8 @@ int setup_new_fdt(void *fdt, unsigned long initrd_load_addr,
 			return -EINVAL;
 		}
 	}
+
+	remove_ima_buffer(fdt, chosen_node);
 
 	ret = fdt_setprop(fdt, chosen_node, "linux,booted-from-kexec", NULL, 0);
 	if (ret) {
