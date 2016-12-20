@@ -160,24 +160,26 @@
 		regulator-boot-on;
 	};
 
-	es8316-sound {
+	cx2072x-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
-		simple-audio-card,name = "rockchip,es8316-codec";
+		simple-audio-card,name = "rockchip,cx2072x-codec";
 		simple-audio-card,mclk-fs = <256>;
 		simple-audio-card,widgets =
-			"Microphone", "Mic Jack",
-			"Headphone", "Headphone Jack";
+			"Microphone", "Microphone Jack",
+			"Line", "Microphone Headset",
+			"Headphone", "Headphone Jack",
+			"Speaker", "Speaker External";
 		simple-audio-card,routing =
-			"Mic Jack", "MICBIAS1",
-			"IN1P", "Mic Jack",
-			"Headphone Jack", "HPOL",
-			"Headphone Jack", "HPOR";
+			"PORTC", "Microphone Jack",
+			"PortD Mic Bias", "Microphone Headset",
+			"Headphone Jack", "PORTA",
+			"Speaker External", "PORTG";
 		simple-audio-card,cpu {
 			sound-dai = <&i2s0>;
 		};
 		simple-audio-card,codec {
-			sound-dai = <&es8316>;
+			sound-dai = <&cx2072x>;
 		};
 	};
 
@@ -417,6 +419,7 @@
 	rockchip,i2s-broken-burst-len;
 	rockchip,playback-channels = <8>;
 	rockchip,capture-channels = <8>;
+	rockchip,bclk-fs = <32>;
 	#sound-dai-cells = <0>;
 };
 
@@ -591,7 +594,8 @@
 				regulator-max-microvolt = <3000000>;
 				regulator-name = "vcca3v0_codec";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3000000>;
 				};
 			};
 
@@ -614,7 +618,8 @@
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcca1v8_codec";
 				regulator-state-mem {
-					regulator-off-in-suspend;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
 				};
 			};
 
@@ -656,10 +661,11 @@
 	i2c-scl-rising-time-ns = <140>;
 	i2c-scl-falling-time-ns = <30>;
 
-	es8316: es8316@10 {
+	cx2072x:cx2072x@33 {
+		status = "okay";
 		#sound-dai-cells = <0>;
-		compatible = "everest,es8316";
-		reg = <0x11>;
+		compatible = "cnxt,cx20723";
+		reg = <0x33>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "mclk";
 		spk-con-gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
