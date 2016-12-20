@@ -3198,11 +3198,22 @@ static int kvmppc_hv_setup_htab_rma(struct kvm_vcpu *vcpu)
 
 	/* Allocate hashed page table (if not done already) and reset it */
 	if (!kvm->arch.hpt.virt) {
-		err = kvmppc_alloc_hpt(kvm, NULL);
-		if (err) {
+		int order = KVM_DEFAULT_HPT_ORDER;
+		struct kvm_hpt_info info;
+
+		err = kvmppc_allocate_hpt(&info, order);
+		/* If we get here, it means userspace didn't specify a
+		 * size explicitly.  So, try successively smaller
+		 * sizes if the default failed. */
+		while ((err == -ENOMEM) && --order >= PPC_MIN_HPT_ORDER)
+			err  = kvmppc_allocate_hpt(&info, order);
+
+		if (err < 0) {
 			pr_err("KVM: Couldn't alloc HPT\n");
 			goto out;
 		}
+
+		kvmppc_set_hpt(kvm, &info);
 	}
 
 	/* Look up the memslot for guest physical address 0 */
@@ -3467,7 +3478,7 @@ static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 	if (kvm_is_radix(kvm))
 		kvmppc_free_radix(kvm);
 	else
-		kvmppc_free_hpt(kvm);
+		kvmppc_free_hpt(&kvm->arch.hpt);
 
 	kvmppc_free_pimap(kvm);
 }

@@ -40,74 +40,66 @@
 
 #include "trace_hv.h"
 
-/* Power architecture requires HPT is at least 256kB */
-#define PPC_MIN_HPT_ORDER	18
-
 static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
 				long pte_index, unsigned long pteh,
 				unsigned long ptel, unsigned long *pte_idx_ret);
 static void kvmppc_rmap_reset(struct kvm *kvm);
 
-long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
+int kvmppc_allocate_hpt(struct kvm_hpt_info *info, u32 order)
 {
 	unsigned long hpt = 0;
-	struct revmap_entry *rev;
+	int cma = 0;
 	struct page *page = NULL;
-	long order = KVM_DEFAULT_HPT_ORDER;
+	struct revmap_entry *rev;
+	unsigned long npte;
 
-	if (htab_orderp) {
-		order = *htab_orderp;
-		if (order < PPC_MIN_HPT_ORDER)
-			order = PPC_MIN_HPT_ORDER;
-	}
+	if ((order < PPC_MIN_HPT_ORDER) || (order > PPC_MAX_HPT_ORDER))
+		return -EINVAL;
 
-	kvm->arch.hpt.cma = 0;
 	page = kvm_alloc_hpt_cma(1ul << (order - PAGE_SHIFT));
 	if (page) {
 		hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
 		memset((void *)hpt, 0, (1ul << order));
-		kvm->arch.hpt.cma = 1;
+		cma = 1;
 	}
 
-	/* Lastly try successively smaller sizes from the page allocator */
-	/* Only do this if userspace didn't specify a size via ioctl */
-	while (!hpt && order > PPC_MIN_HPT_ORDER && !htab_orderp) {
-		hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT|
-				       __GFP_NOWARN, order - PAGE_SHIFT);
-		if (!hpt)
-			--order;
-	}
+	if (!hpt)
+		hpt = __get_free_pages(GFP_KERNEL|__GFP_ZERO|__GFP_REPEAT
+				       |__GFP_NOWARN, order - PAGE_SHIFT);
 
 	if (!hpt)
 		return -ENOMEM;
 
-	kvm->arch.hpt.virt = hpt;
-	kvm->arch.hpt.order = order;
-
-	atomic64_set(&kvm->arch.mmio_update, 0);
+	/* HPTEs are 2**4 bytes long */
+	npte = 1ul << (order - 4);
 
 	/* Allocate reverse map array */
-	rev = vmalloc(sizeof(struct revmap_entry) * kvmppc_hpt_npte(&kvm->arch.hpt));
+	rev = vmalloc(sizeof(struct revmap_entry) * npte);
 	if (!rev) {
-		pr_err("kvmppc_alloc_hpt: Couldn't alloc reverse map array\n");
-		goto out_freehpt;
+		pr_err("kvmppc_allocate_hpt: Couldn't alloc reverse map array\n");
+		if (cma)
+			kvm_free_hpt_cma(page, 1 << (order - PAGE_SHIFT));
+		else
+			free_pages(hpt, order - PAGE_SHIFT);
+		return -ENOMEM;
 	}
-	kvm->arch.hpt.rev = rev;
-	kvm->arch.sdr1 = __pa(hpt) | (order - 18);
+
+	info->order = order;
+	info->virt = hpt;
+	info->cma = cma;
+	info->rev = rev;
+
+	return 0;
+}
+
+void kvmppc_set_hpt(struct kvm *kvm, struct kvm_hpt_info *info)
+{
+	atomic64_set(&kvm->arch.mmio_update, 0);
+	kvm->arch.hpt = *info;
+	kvm->arch.sdr1 = __pa(info->virt) | (info->order - 18);
 
 	pr_info("KVM guest htab at %lx (order %ld), LPID %x\n",
-		hpt, order, kvm->arch.lpid);
-
-	if (htab_orderp)
-		*htab_orderp = order;
-	return 0;
-
- out_freehpt:
-	if (kvm->arch.hpt.cma)
-		kvm_free_hpt_cma(page, 1 << (order - PAGE_SHIFT));
-	else
-		free_pages(hpt, order - PAGE_SHIFT);
-	return -ENOMEM;
+		info->virt, (long)info->order, kvm->arch.lpid);
 }
 
 long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
@@ -141,23 +133,28 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
 		*htab_orderp = order;
 		err = 0;
 	} else {
-		err = kvmppc_alloc_hpt(kvm, htab_orderp);
-		order = *htab_orderp;
+		struct kvm_hpt_info info;
+
+		err = kvmppc_allocate_hpt(&info, *htab_orderp);
+		if (err < 0)
+			goto out;
+		kvmppc_set_hpt(kvm, &info);
 	}
  out:
 	mutex_unlock(&kvm->lock);
 	return err;
 }
 
-void kvmppc_free_hpt(struct kvm *kvm)
+void kvmppc_free_hpt(struct kvm_hpt_info *info)
 {
-	vfree(kvm->arch.hpt.rev);
-	if (kvm->arch.hpt.cma)
-		kvm_free_hpt_cma(virt_to_page(kvm->arch.hpt.virt),
-				 1 << (kvm->arch.hpt.order - PAGE_SHIFT));
-	else if (kvm->arch.hpt.virt)
-		free_pages(kvm->arch.hpt.virt,
-			   kvm->arch.hpt.order - PAGE_SHIFT);
+	vfree(info->rev);
+	if (info->cma)
+		kvm_free_hpt_cma(virt_to_page(info->virt),
+				 1 << (info->order - PAGE_SHIFT));
+	else if (info->virt)
+		free_pages(info->virt, info->order - PAGE_SHIFT);
+	info->virt = 0;
+	info->order = 0;
 }
 
 /* Bits in first HPTE dword for pagesize 4k, 64k or 16M */
