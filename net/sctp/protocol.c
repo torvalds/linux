@@ -220,6 +220,9 @@ int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *bp,
 		     !(copy_flags & SCTP_ADDR6_PEERSUPP)))
 			continue;
 
+		if (sctp_bind_addr_state(bp, &addr->a) != -1)
+			continue;
+
 		error = sctp_add_bind_addr(bp, &addr->a, sizeof(addr->a),
 					   SCTP_ADDR_SRC, GFP_ATOMIC);
 		if (error)
