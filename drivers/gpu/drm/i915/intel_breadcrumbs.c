@@ -154,7 +154,7 @@ static void __intel_breadcrumbs_disable_irq(struct intel_breadcrumbs *b)
 
 static inline struct intel_wait *to_wait(struct rb_node *node)
 {
-	return container_of(node, struct intel_wait, node);
+	return rb_entry(node, struct intel_wait, node);
 }
 
 static inline void __intel_breadcrumbs_finish(struct intel_breadcrumbs *b,
@@ -427,7 +427,7 @@ static bool signal_complete(struct drm_i915_gem_request *request)
 
 static struct drm_i915_gem_request *to_signaler(struct rb_node *rb)
 {
-	return container_of(rb, struct drm_i915_gem_request, signaling.node);
+	return rb_entry(rb, struct drm_i915_gem_request, signaling.node);
 }
 
 static void signaler_set_rtpriority(void)
