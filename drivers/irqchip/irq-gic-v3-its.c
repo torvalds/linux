@@ -215,6 +215,16 @@ struct its_cmd_desc {
 
 		struct {
 			struct its_vpe *vpe;
+		} its_vinvall_cmd;
+
+		struct {
+			struct its_vpe *vpe;
+			struct its_collection *col;
+			bool valid;
+		} its_vmapp_cmd;
+
+		struct {
+			struct its_vpe *vpe;
 			struct its_device *dev;
 			u32 virt_id;
 			u32 event_id;
@@ -316,6 +326,16 @@ static void its_encode_db_phys_id(struct its_cmd_block *cmd, u32 db_phys_id)
 static void its_encode_db_valid(struct its_cmd_block *cmd, bool db_valid)
 {
 	its_mask_encode(&cmd->raw_cmd[2], db_valid, 0, 0);
+}
+
+static void its_encode_vpt_addr(struct its_cmd_block *cmd, u64 vpt_pa)
+{
+	its_mask_encode(&cmd->raw_cmd[3], vpt_pa >> 16, 50, 16);
+}
+
+static void its_encode_vpt_size(struct its_cmd_block *cmd, u8 vpt_size)
+{
+	its_mask_encode(&cmd->raw_cmd[3], vpt_size, 4, 0);
 }
 
 static inline void its_fixup_cmd(struct its_cmd_block *cmd)
@@ -474,6 +494,36 @@ static struct its_collection *its_build_invall_cmd(struct its_cmd_block *cmd,
 	its_fixup_cmd(cmd);
 
 	return NULL;
+}
+
+static struct its_vpe *its_build_vinvall_cmd(struct its_cmd_block *cmd,
+					     struct its_cmd_desc *desc)
+{
+	its_encode_cmd(cmd, GITS_CMD_VINVALL);
+	its_encode_vpeid(cmd, desc->its_vinvall_cmd.vpe->vpe_id);
+
+	its_fixup_cmd(cmd);
+
+	return desc->its_vinvall_cmd.vpe;
+}
+
+static struct its_vpe *its_build_vmapp_cmd(struct its_cmd_block *cmd,
+					   struct its_cmd_desc *desc)
+{
+	unsigned long vpt_addr;
+
+	vpt_addr = virt_to_phys(page_address(desc->its_vmapp_cmd.vpe->vpt_page));
+
+	its_encode_cmd(cmd, GITS_CMD_VMAPP);
+	its_encode_vpeid(cmd, desc->its_vmapp_cmd.vpe->vpe_id);
+	its_encode_valid(cmd, desc->its_vmapp_cmd.valid);
+	its_encode_target(cmd, desc->its_vmapp_cmd.col->target_address);
+	its_encode_vpt_addr(cmd, vpt_addr);
+	its_encode_vpt_size(cmd, LPI_NRBITS - 1);
+
+	its_fixup_cmd(cmd);
+
+	return desc->its_vmapp_cmd.vpe;
 }
 
 static struct its_vpe *its_build_vmapti_cmd(struct its_cmd_block *cmd,
@@ -801,6 +851,37 @@ static void its_send_vmovi(struct its_device *dev, u32 id)
 	desc.its_vmovi_cmd.db_enabled = map->db_enabled;
 
 	its_send_single_vcommand(dev->its, its_build_vmovi_cmd, &desc);
+}
+
+static void its_send_vmapp(struct its_vpe *vpe, bool valid)
+{
+	struct its_cmd_desc desc;
+	struct its_node *its;
+
+	desc.its_vmapp_cmd.vpe = vpe;
+	desc.its_vmapp_cmd.valid = valid;
+
+	list_for_each_entry(its, &its_nodes, entry) {
+		if (!its->is_v4)
+			continue;
+
+		desc.its_vmapp_cmd.col = &its->collections[vpe->col_idx];
+		its_send_single_vcommand(its, its_build_vmapp_cmd, &desc);
+	}
+}
+
+static void its_send_vinvall(struct its_vpe *vpe)
+{
+	struct its_cmd_desc desc;
+	struct its_node *its;
+
+	desc.its_vinvall_cmd.vpe = vpe;
+
+	list_for_each_entry(its, &its_nodes, entry) {
+		if (!its->is_v4)
+			continue;
+		its_send_single_vcommand(its, its_build_vinvall_cmd, &desc);
+	}
 }
 
 /*
@@ -2203,9 +2284,30 @@ static int its_vpe_irq_domain_alloc(struct irq_domain *domain, unsigned int virq
 	return err;
 }
 
+static void its_vpe_irq_domain_activate(struct irq_domain *domain,
+					struct irq_data *d)
+{
+	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
+
+	/* Map the VPE to the first possible CPU */
+	vpe->col_idx = cpumask_first(cpu_online_mask);
+	its_send_vmapp(vpe, true);
+	its_send_vinvall(vpe);
+}
+
+static void its_vpe_irq_domain_deactivate(struct irq_domain *domain,
+					  struct irq_data *d)
+{
+	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
+
+	its_send_vmapp(vpe, false);
+}
+
 static const struct irq_domain_ops its_vpe_domain_ops = {
 	.alloc			= its_vpe_irq_domain_alloc,
 	.free			= its_vpe_irq_domain_free,
+	.activate		= its_vpe_irq_domain_activate,
+	.deactivate		= its_vpe_irq_domain_deactivate,
 };
 
 static int its_force_quiescent(void __iomem *base)
