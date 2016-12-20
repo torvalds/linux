@@ -348,6 +348,18 @@
 #define GITS_CMD_SYNC			0x05
 
 /*
+ * GICv4 ITS specific commands
+ */
+#define GITS_CMD_GICv4(x)		((x) | 0x20)
+#define GITS_CMD_VINVALL		GITS_CMD_GICv4(GITS_CMD_INVALL)
+#define GITS_CMD_VMAPP			GITS_CMD_GICv4(GITS_CMD_MAPC)
+#define GITS_CMD_VMAPTI			GITS_CMD_GICv4(GITS_CMD_MAPTI)
+#define GITS_CMD_VMOVI			GITS_CMD_GICv4(GITS_CMD_MOVI)
+#define GITS_CMD_VSYNC			GITS_CMD_GICv4(GITS_CMD_SYNC)
+/* VMOVP is the odd one, as it doesn't have a physical counterpart */
+#define GITS_CMD_VMOVP			GITS_CMD_GICv4(2)
+
+/*
  * ITS error numbers
  */
 #define E_ITS_MOVI_UNMAPPED_INTERRUPT		0x010107
