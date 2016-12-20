@@ -1,12 +1,15 @@
 #ifndef __BPF_LOAD_H
 #define __BPF_LOAD_H
 
+#include "libbpf.h"
+
 #define MAX_MAPS 32
 #define MAX_PROGS 32
 
 extern int map_fd[MAX_MAPS];
 extern int prog_fd[MAX_PROGS];
 extern int event_fd[MAX_PROGS];
+extern char bpf_log_buf[BPF_LOG_BUF_SIZE];
 extern int prog_cnt;
 
 /* parses elf file compiled by llvm .c->.o

@@ -854,7 +854,8 @@ bpf_object__create_maps(struct bpf_object *obj)
 		*pfd = bpf_create_map(def->type,
 				      def->key_size,
 				      def->value_size,
-				      def->max_entries);
+				      def->max_entries,
+				      0);
 		if (*pfd < 0) {
 			size_t j;
 			int err = *pfd;
