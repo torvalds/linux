@@ -3177,7 +3177,7 @@ of IOMMU pages.
 
 The rest of functionality is identical to KVM_CREATE_SPAPR_TCE.
 
-4.98 KVM_REINJECT_CONTROL
+4.99 KVM_REINJECT_CONTROL
 
 Capability: KVM_CAP_REINJECT_CONTROL
 Architectures: x86
@@ -3201,7 +3201,7 @@ struct kvm_reinject_control {
 pit_reinject = 0 (!reinject mode) is recommended, unless running an old
 operating system that uses the PIT for timing (e.g. Linux 2.4.x).
 
-4.99 KVM_PPC_CONFIGURE_V3_MMU
+4.100 KVM_PPC_CONFIGURE_V3_MMU
 
 Capability: KVM_CAP_PPC_RADIX_MMU or KVM_CAP_PPC_HASH_MMU_V3
 Architectures: ppc
@@ -3232,7 +3232,7 @@ process table, which is in the guest's space.  This field is formatted
 as the second doubleword of the partition table entry, as defined in
 the Power ISA V3.00, Book III section 5.7.6.1.
 
-4.100 KVM_PPC_GET_RMMU_INFO
+4.101 KVM_PPC_GET_RMMU_INFO
 
 Capability: KVM_CAP_PPC_RADIX_MMU
 Architectures: ppc
