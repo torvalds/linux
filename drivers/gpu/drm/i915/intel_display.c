@@ -16749,7 +16749,6 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 	for_each_intel_crtc(dev, crtc) {
 		struct intel_crtc_state *crtc_state = crtc->config;
-		int pixclk = 0;
 
 		__drm_atomic_helper_crtc_destroy_state(&crtc_state->base);
 		memset(crtc_state, 0, sizeof(*crtc_state));
@@ -16761,22 +16760,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		crtc->base.enabled = crtc_state->base.enable;
 		crtc->active = crtc_state->base.active;
 
-		if (crtc_state->base.active) {
+		if (crtc_state->base.active)
 			dev_priv->active_crtcs |= 1 << crtc->pipe;
-
-			if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
-				pixclk = ilk_pipe_pixel_rate(crtc_state);
-			else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-				pixclk = crtc_state->base.adjusted_mode.crtc_clock;
-			else
-				WARN_ON(dev_priv->display.modeset_calc_cdclk);
-
-			/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-			if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
-				pixclk = DIV_ROUND_UP(pixclk * 100, 95);
-		}
-
-		dev_priv->min_pixclk[crtc->pipe] = pixclk;
 
 		readout_plane_state(crtc);
 
@@ -16851,6 +16836,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	}
 
 	for_each_intel_crtc(dev, crtc) {
+		int pixclk = 0;
+
 		crtc->base.hwmode = crtc->config->base.adjusted_mode;
 
 		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
@@ -16878,9 +16865,22 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 */
 			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
 
+			if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
+				pixclk = ilk_pipe_pixel_rate(crtc->config);
+			else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+				pixclk = crtc->config->base.adjusted_mode.crtc_clock;
+			else
+				WARN_ON(dev_priv->display.modeset_calc_cdclk);
+
+			/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
+			if (IS_BROADWELL(dev_priv) && crtc->config->ips_enabled)
+				pixclk = DIV_ROUND_UP(pixclk * 100, 95);
+
 			drm_calc_timestamping_constants(&crtc->base, &crtc->base.hwmode);
 			update_scanline_offset(crtc);
 		}
+
+		dev_priv->min_pixclk[crtc->pipe] = pixclk;
 
 		intel_pipe_config_sanity_check(dev_priv, crtc->config);
 	}
