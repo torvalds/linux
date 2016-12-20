@@ -326,12 +326,17 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 {
 	/* commented callbacks are not required: */
 	return
+		/* Port operations are required for multiport devices */
 		!ops->peer_port_count == !ops->port_number	&&
 		!ops->peer_port_number == !ops->port_number	&&
 		!ops->peer_port_idx == !ops->port_number	&&
+
+		/* Link operations are required */
 		ops->link_is_up				&&
 		ops->link_enable			&&
 		ops->link_disable			&&
+
+		/* One or both MW interfaces should be developed */
 		ops->mw_count				&&
 		ops->mw_get_align			&&
 		(ops->mw_set_trans			||
@@ -341,12 +346,11 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		ops->peer_mw_get_addr			&&
 		/* ops->peer_mw_clear_trans		&& */
 
+		/* Doorbell operations are mostly required */
 		/* ops->db_is_unsafe			&& */
 		ops->db_valid_mask			&&
-
 		/* both set, or both unset */
-		(!ops->db_vector_count == !ops->db_vector_mask) &&
-
+		(!ops->db_vector_count == !ops->db_vector_mask)	&&
 		ops->db_read				&&
 		/* ops->db_set				&& */
 		ops->db_clear				&&
@@ -360,6 +364,8 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		/* ops->peer_db_read_mask		&& */
 		/* ops->peer_db_set_mask		&& */
 		/* ops->peer_db_clear_mask		&& */
+
+		/* Scrachpads interface is optional */
 		/* !ops->spad_is_unsafe == !ops->spad_count	&& */
 		!ops->spad_read == !ops->spad_count		&&
 		!ops->spad_write == !ops->spad_count		&&
@@ -367,6 +373,7 @@ static inline int ntb_dev_ops_is_valid(const struct ntb_dev_ops *ops)
 		/* !ops->peer_spad_read == !ops->spad_count	&& */
 		!ops->peer_spad_write == !ops->spad_count	&&
 
+		/* Messaging interface is optional */
 		!ops->msg_inbits == !ops->msg_count		&&
 		!ops->msg_outbits == !ops->msg_count		&&
 		!ops->msg_read_sts == !ops->msg_count		&&
@@ -387,13 +394,12 @@ struct ntb_client {
 	struct device_driver		drv;
 	const struct ntb_client_ops	ops;
 };
-
 #define drv_ntb_client(__drv) container_of((__drv), struct ntb_client, drv)
 
 /**
  * struct ntb_device - ntb device
  * @dev:		Linux device object.
- * @pdev:		Pci device entry of the ntb.
+ * @pdev:		PCI device entry of the ntb.
  * @topo:		Detected topology of the ntb.
  * @ops:		See &ntb_dev_ops.
  * @ctx:		See &ntb_ctx_ops.
@@ -414,7 +420,6 @@ struct ntb_dev {
 	/* block unregister until device is fully released */
 	struct completion		released;
 };
-
 #define dev_ntb(__dev) container_of((__dev), struct ntb_dev, dev)
 
 /**
@@ -511,7 +516,7 @@ void ntb_link_event(struct ntb_dev *ntb);
  * multiple interrupt vectors for doorbells, the vector number indicates which
  * vector received the interrupt.  The vector number is relative to the first
  * vector used for doorbells, starting at zero, and must be less than
- ** ntb_db_vector_count().  The driver may call ntb_db_read() to check which
+ * ntb_db_vector_count().  The driver may call ntb_db_read() to check which
  * doorbell bits need service, and ntb_db_vector_mask() to determine which of
  * those bits are associated with the vector number.
  */
