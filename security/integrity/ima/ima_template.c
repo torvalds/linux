@@ -302,6 +302,9 @@ static int ima_restore_template_data(struct ima_template_desc *template_desc,
 		}
 		offset += sizeof(*field_data);
 
+		if (ima_canonical_fmt)
+			field_data->len = le32_to_cpu(field_data->len);
+
 		if (offset > (template_data_size - field_data->len)) {
 			pr_err("Restoring the template field data failed\n");
 			ret = -EINVAL;
@@ -352,7 +355,7 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 	struct binary_data_v1 *data_v1;
 
 	void *bufp = buf + sizeof(*khdr);
-	void *bufendp = buf + khdr->buffer_size;
+	void *bufendp;
 	struct ima_template_entry *entry;
 	struct ima_template_desc *template_desc;
 	unsigned long count = 0;
@@ -360,6 +363,12 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 
 	if (!buf || size < sizeof(*khdr))
 		return 0;
+
+	if (ima_canonical_fmt) {
+		khdr->version = le16_to_cpu(khdr->version);
+		khdr->count = le64_to_cpu(khdr->count);
+		khdr->buffer_size = le64_to_cpu(khdr->buffer_size);
+	}
 
 	if (khdr->version != 1) {
 		pr_err("attempting to restore a incompatible measurement list");
@@ -376,6 +385,7 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 	 * v1 format: pcr, digest, template-name-len, template-name,
 	 *	      template-data-size, template-data
 	 */
+	bufendp = buf + khdr->buffer_size;
 	while ((bufp < bufendp) && (count++ < khdr->count)) {
 		hdr_v1 = bufp;
 		if (bufp > (bufendp - sizeof(*hdr_v1))) {
@@ -384,6 +394,10 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 			break;
 		}
 		bufp += sizeof(*hdr_v1);
+
+		if (ima_canonical_fmt)
+			hdr_v1->template_name_len =
+			    le32_to_cpu(hdr_v1->template_name_len);
 
 		if ((hdr_v1->template_name_len >= MAX_TEMPLATE_NAME_LEN) ||
 		    (bufp > (bufendp - hdr_v1->template_name_len))) {
@@ -434,6 +448,10 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 		}
 		bufp += (u_int8_t) sizeof(data_v1->template_data_size);
 
+		if (ima_canonical_fmt)
+			data_v1->template_data_size =
+			    le32_to_cpu(data_v1->template_data_size);
+
 		if (bufp > (bufendp - data_v1->template_data_size)) {
 			pr_err("restoring the template data failed\n");
 			ret = -EINVAL;
@@ -449,7 +467,8 @@ int ima_restore_measurement_list(loff_t size, void *buf)
 			break;
 
 		memcpy(entry->digest, hdr_v1->digest, TPM_DIGEST_SIZE);
-		entry->pcr = hdr_v1->pcr;
+		entry->pcr =
+		    !ima_canonical_fmt ? hdr_v1->pcr : le32_to_cpu(hdr_v1->pcr);
 		ret = ima_restore_measurement_entry(entry);
 		if (ret < 0)
 			break;

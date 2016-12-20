@@ -122,6 +122,12 @@ void ima_load_kexec_buffer(void);
 static inline void ima_load_kexec_buffer(void) {}
 #endif /* CONFIG_HAVE_IMA_KEXEC */
 
+/*
+ * The default binary_runtime_measurements list format is defined as the
+ * platform native format.  The canonical format is defined as little-endian.
+ */
+extern bool ima_canonical_fmt;
+
 /* Internal IMA function definitions */
 int ima_init(void);
 int ima_fs_init(void);
