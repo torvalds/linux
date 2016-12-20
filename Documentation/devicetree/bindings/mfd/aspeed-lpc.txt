@@ -109,3 +109,29 @@ lpc: lpc@1e789000 {
 	};
 };
 
+Host Node Children
+==================
+
+LPC Host Controller
+-------------------
+
+The Aspeed LPC Host Controller configures the Low Pin Count (LPC) bus behaviour
+between the host and the baseboard management controller. The registers exist
+in the "host" portion of the Aspeed LPC controller, which must be the parent of
+the LPC host controller node.
+
+Required properties:
+
+- compatible:	One of:
+		"aspeed,ast2400-lhc";
+		"aspeed,ast2500-lhc";
+
+- reg:		contains offset/length values of the LHC memory regions. In the
+		AST2400 and AST2500 there are two regions.
+
+Example:
+
+lhc: lhc@20 {
+	compatible = "aspeed,ast2500-lhc";
+	reg = <0x20 0x24 0x48 0x8>;
+};
