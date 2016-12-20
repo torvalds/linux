@@ -90,7 +90,8 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 			pagefault_disable();
 		}
 
-		if (submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) {
+		if ((submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) ||
+			!(submit_bo.flags & MSM_SUBMIT_BO_FLAGS)) {
 			DRM_ERROR("invalid flags: %x\n", submit_bo.flags);
 			ret = -EINVAL;
 			goto out_unlock;
