@@ -35,8 +35,10 @@
 /* IPP RELATED */
 struct input_pixel_processor {
 	struct  dc_context *ctx;
-	uint32_t inst;
+	unsigned int inst;
 	const struct ipp_funcs *funcs;
+
+	unsigned int cusor_width;
 };
 
 enum ipp_prescale_mode {
