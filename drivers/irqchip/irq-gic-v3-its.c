@@ -148,6 +148,9 @@ static struct irq_domain *its_parent;
 #define ITS_LIST_MAX		16
 
 static unsigned long its_list_map;
+static u16 vmovp_seq_num;
+static DEFINE_RAW_SPINLOCK(vmovp_lock);
+
 static DEFINE_IDA(its_vpeid_ida);
 
 #define gic_data_rdist()		(raw_cpu_ptr(gic_rdists->rdist))
@@ -238,6 +241,13 @@ struct its_cmd_desc {
 			u32 event_id;
 			bool db_enabled;
 		} its_vmovi_cmd;
+
+		struct {
+			struct its_vpe *vpe;
+			struct its_collection *col;
+			u16 seq_num;
+			u16 its_list;
+		} its_vmovp_cmd;
 	};
 };
 
@@ -327,6 +337,16 @@ static void its_encode_db_phys_id(struct its_cmd_block *cmd, u32 db_phys_id)
 static void its_encode_db_valid(struct its_cmd_block *cmd, bool db_valid)
 {
 	its_mask_encode(&cmd->raw_cmd[2], db_valid, 0, 0);
+}
+
+static void its_encode_seq_num(struct its_cmd_block *cmd, u16 seq_num)
+{
+	its_mask_encode(&cmd->raw_cmd[0], seq_num, 47, 32);
+}
+
+static void its_encode_its_list(struct its_cmd_block *cmd, u16 its_list)
+{
+	its_mask_encode(&cmd->raw_cmd[1], its_list, 15, 0);
 }
 
 static void its_encode_vpt_addr(struct its_cmd_block *cmd, u64 vpt_pa)
@@ -569,6 +589,20 @@ static struct its_vpe *its_build_vmovi_cmd(struct its_cmd_block *cmd,
 	its_fixup_cmd(cmd);
 
 	return desc->its_vmovi_cmd.vpe;
+}
+
+static struct its_vpe *its_build_vmovp_cmd(struct its_cmd_block *cmd,
+					   struct its_cmd_desc *desc)
+{
+	its_encode_cmd(cmd, GITS_CMD_VMOVP);
+	its_encode_seq_num(cmd, desc->its_vmovp_cmd.seq_num);
+	its_encode_its_list(cmd, desc->its_vmovp_cmd.its_list);
+	its_encode_vpeid(cmd, desc->its_vmovp_cmd.vpe->vpe_id);
+	its_encode_target(cmd, desc->its_vmovp_cmd.col->target_address);
+
+	its_fixup_cmd(cmd);
+
+	return desc->its_vmovp_cmd.vpe;
 }
 
 static u64 its_cmd_ptr_to_offset(struct its_node *its,
@@ -869,6 +903,48 @@ static void its_send_vmapp(struct its_vpe *vpe, bool valid)
 		desc.its_vmapp_cmd.col = &its->collections[vpe->col_idx];
 		its_send_single_vcommand(its, its_build_vmapp_cmd, &desc);
 	}
+}
+
+static void its_send_vmovp(struct its_vpe *vpe)
+{
+	struct its_cmd_desc desc;
+	struct its_node *its;
+	unsigned long flags;
+	int col_id = vpe->col_idx;
+
+	desc.its_vmovp_cmd.vpe = vpe;
+	desc.its_vmovp_cmd.its_list = (u16)its_list_map;
+
+	if (!its_list_map) {
+		its = list_first_entry(&its_nodes, struct its_node, entry);
+		desc.its_vmovp_cmd.seq_num = 0;
+		desc.its_vmovp_cmd.col = &its->collections[col_id];
+		its_send_single_vcommand(its, its_build_vmovp_cmd, &desc);
+		return;
+	}
+
+	/*
+	 * Yet another marvel of the architecture. If using the
+	 * its_list "feature", we need to make sure that all ITSs
+	 * receive all VMOVP commands in the same order. The only way
+	 * to guarantee this is to make vmovp a serialization point.
+	 *
+	 * Wall <-- Head.
+	 */
+	raw_spin_lock_irqsave(&vmovp_lock, flags);
+
+	desc.its_vmovp_cmd.seq_num = vmovp_seq_num++;
+
+	/* Emit VMOVPs */
+	list_for_each_entry(its, &its_nodes, entry) {
+		if (!its->is_v4)
+			continue;
+
+		desc.its_vmovp_cmd.col = &its->collections[col_id];
+		its_send_single_vcommand(its, its_build_vmovp_cmd, &desc);
+	}
+
+	raw_spin_unlock_irqrestore(&vmovp_lock, flags);
 }
 
 static void its_send_vinvall(struct its_vpe *vpe)
@@ -2154,6 +2230,25 @@ static const struct irq_domain_ops its_domain_ops = {
 	.deactivate		= its_irq_domain_deactivate,
 };
 
+static int its_vpe_set_affinity(struct irq_data *d,
+				const struct cpumask *mask_val,
+				bool force)
+{
+	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
+	int cpu = cpumask_first(mask_val);
+
+	/*
+	 * Changing affinity is mega expensive, so let's be as lazy as
+	 * we can and only do it if we really have to.
+	 */
+	if (vpe->col_idx != cpu) {
+		vpe->col_idx = cpu;
+		its_send_vmovp(vpe);
+	}
+
+	return IRQ_SET_MASK_OK_DONE;
+}
+
 static void its_vpe_schedule(struct its_vpe *vpe)
 {
 	void * __iomem vlpi_base = gic_data_rdist_vlpi_base();
@@ -2243,6 +2338,7 @@ static int its_vpe_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
 
 static struct irq_chip its_vpe_irq_chip = {
 	.name			= "GICv4-vpe",
+	.irq_set_affinity	= its_vpe_set_affinity,
 	.irq_set_vcpu_affinity	= its_vpe_set_vcpu_affinity,
 };
 
