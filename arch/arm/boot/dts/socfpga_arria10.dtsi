@@ -595,7 +595,7 @@
 		};
 
 		sdr: sdr@ffc25000 {
-			compatible = "syscon";
+			compatible = "altr,sdr-ctl", "syscon";
 			reg = <0xffcfb100 0x80>;
 		};
 
