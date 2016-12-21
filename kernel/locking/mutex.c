@@ -615,6 +615,52 @@ __ww_mutex_lock_check_stamp(struct mutex *lock, struct ww_acquire_ctx *ctx)
 	return 0;
 }
 
+static inline int __sched
+__ww_mutex_add_waiter(struct mutex_waiter *waiter,
+		      struct mutex *lock,
+		      struct ww_acquire_ctx *ww_ctx)
+{
+	struct mutex_waiter *cur;
+	struct list_head *pos;
+
+	if (!ww_ctx) {
+		list_add_tail(&waiter->list, &lock->wait_list);
+		return 0;
+	}
+
+	/*
+	 * Add the waiter before the first waiter with a higher stamp.
+	 * Waiters without a context are skipped to avoid starving
+	 * them.
+	 */
+	pos = &lock->wait_list;
+	list_for_each_entry_reverse(cur, &lock->wait_list, list) {
+		if (!cur->ww_ctx)
+			continue;
+
+		if (__ww_ctx_stamp_after(ww_ctx, cur->ww_ctx)) {
+			/* Back off immediately if necessary. */
+			if (ww_ctx->acquired > 0) {
+#ifdef CONFIG_DEBUG_MUTEXES
+				struct ww_mutex *ww;
+
+				ww = container_of(lock, struct ww_mutex, base);
+				DEBUG_LOCKS_WARN_ON(ww_ctx->contending_lock);
+				ww_ctx->contending_lock = ww;
+#endif
+				return -EDEADLK;
+			}
+
+			break;
+		}
+
+		pos = &cur->list;
+	}
+
+	list_add_tail(&waiter->list, pos);
+	return 0;
+}
+
 /*
  * Lock a mutex (possibly interruptible), slowpath:
  */
@@ -659,14 +705,24 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	debug_mutex_lock_common(lock, &waiter);
 	debug_mutex_add_waiter(lock, &waiter, current);
 
-	/* add waiting tasks to the end of the waitqueue (FIFO): */
-	list_add_tail(&waiter.list, &lock->wait_list);
+	lock_contended(&lock->dep_map, ip);
+
+	if (!use_ww_ctx) {
+		/* add waiting tasks to the end of the waitqueue (FIFO): */
+		list_add_tail(&waiter.list, &lock->wait_list);
+	} else {
+		/* Add in stamp order, waking up waiters that must back off. */
+		ret = __ww_mutex_add_waiter(&waiter, lock, ww_ctx);
+		if (ret)
+			goto err_early_backoff;
+
+		waiter.ww_ctx = ww_ctx;
+	}
+
 	waiter.task = current;
 
 	if (__mutex_waiter_is_first(lock, &waiter))
 		__mutex_set_flag(lock, MUTEX_FLAG_WAITERS);
-
-	lock_contended(&lock->dep_map, ip);
 
 	set_current_state(state);
 	for (;;) {
@@ -698,9 +754,14 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		spin_unlock_mutex(&lock->wait_lock, flags);
 		schedule_preempt_disabled();
 
-		if (!first && __mutex_waiter_is_first(lock, &waiter)) {
-			first = true;
-			__mutex_set_flag(lock, MUTEX_FLAG_HANDOFF);
+		/*
+		 * ww_mutex needs to always recheck its position since its waiter
+		 * list is not FIFO ordered.
+		 */
+		if ((use_ww_ctx && ww_ctx) || !first) {
+			first = __mutex_waiter_is_first(lock, &waiter);
+			if (first)
+				__mutex_set_flag(lock, MUTEX_FLAG_HANDOFF);
 		}
 
 		set_current_state(state);
@@ -739,6 +800,7 @@ skip_wait:
 err:
 	__set_current_state(TASK_RUNNING);
 	mutex_remove_waiter(lock, &waiter, current);
+err_early_backoff:
 	spin_unlock_mutex(&lock->wait_lock, flags);
 	debug_mutex_free_waiter(&waiter);
 	mutex_release(&lock->dep_map, 1, ip);
