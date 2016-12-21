@@ -1430,6 +1430,8 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 	overlay->contrast = 75;
 	overlay->saturation = 146;
 
+	init_request_active(&overlay->last_flip, NULL);
+
 	regs = intel_overlay_map_regs(overlay);
 	if (!regs)
 		goto out_unpin_bo;
