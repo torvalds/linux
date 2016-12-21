@@ -30,11 +30,6 @@
 
 #include "../internal.h"
 
-void fsnotify_recalc_inode_mask(struct inode *inode)
-{
-	fsnotify_recalc_mask(inode->i_fsnotify_marks);
-}
-
 /*
  * Given a group clear all of the inode marks associated with that group.
  */

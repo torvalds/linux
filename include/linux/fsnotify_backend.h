@@ -338,10 +338,6 @@ extern struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group 
 
 /* Calculate mask of events for a list of marks */
 extern void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn);
-/* run all marks associated with a vfsmount and update mnt->mnt_fsnotify_mask */
-extern void fsnotify_recalc_vfsmount_mask(struct vfsmount *mnt);
-/* run all marks associated with an inode and update inode->i_fsnotify_mask */
-extern void fsnotify_recalc_inode_mask(struct inode *inode);
 extern void fsnotify_init_mark(struct fsnotify_mark *mark, void (*free_mark)(struct fsnotify_mark *mark));
 /* find (and take a reference) to a mark associated with group and inode */
 extern struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group, struct inode *inode);
