@@ -395,21 +395,6 @@ static struct inotify_inode_mark *inotify_idr_find(struct fsnotify_group *group,
 	return i_mark;
 }
 
-static void do_inotify_remove_from_idr(struct fsnotify_group *group,
-				       struct inotify_inode_mark *i_mark)
-{
-	struct idr *idr = &group->inotify_data.idr;
-	spinlock_t *idr_lock = &group->inotify_data.idr_lock;
-	int wd = i_mark->wd;
-
-	assert_spin_locked(idr_lock);
-
-	idr_remove(idr, wd);
-
-	/* removed from the idr, drop that ref */
-	fsnotify_put_mark(&i_mark->fsn_mark);
-}
-
 /*
  * Remove the mark from the idr (if present) and drop the reference
  * on the mark because it was in the idr.
@@ -417,6 +402,7 @@ static void do_inotify_remove_from_idr(struct fsnotify_group *group,
 static void inotify_remove_from_idr(struct fsnotify_group *group,
 				    struct inotify_inode_mark *i_mark)
 {
+	struct idr *idr = &group->inotify_data.idr;
 	spinlock_t *idr_lock = &group->inotify_data.idr_lock;
 	struct inotify_inode_mark *found_i_mark = NULL;
 	int wd;
@@ -468,13 +454,15 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 		BUG();
 	}
 
-	do_inotify_remove_from_idr(group, i_mark);
+	idr_remove(idr, wd);
+	/* Removed from the idr, drop that ref. */
+	fsnotify_put_mark(&i_mark->fsn_mark);
 out:
+	i_mark->wd = -1;
+	spin_unlock(idr_lock);
 	/* match the ref taken by inotify_idr_find_locked() */
 	if (found_i_mark)
 		fsnotify_put_mark(&found_i_mark->fsn_mark);
-	i_mark->wd = -1;
-	spin_unlock(idr_lock);
 }
 
 /*
