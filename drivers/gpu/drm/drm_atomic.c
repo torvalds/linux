@@ -35,19 +35,14 @@
 
 #include "drm_crtc_internal.h"
 
-static void crtc_commit_free(struct kref *kref)
+void __drm_crtc_commit_free(struct kref *kref)
 {
 	struct drm_crtc_commit *commit =
 		container_of(kref, struct drm_crtc_commit, ref);
 
 	kfree(commit);
 }
-
-void drm_crtc_commit_put(struct drm_crtc_commit *commit)
-{
-	kref_put(&commit->ref, crtc_commit_free);
-}
-EXPORT_SYMBOL(drm_crtc_commit_put);
+EXPORT_SYMBOL(__drm_crtc_commit_free);
 
 /**
  * drm_atomic_state_default_release -

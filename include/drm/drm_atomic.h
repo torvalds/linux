@@ -189,10 +189,29 @@ struct drm_atomic_state {
 	struct work_struct commit_work;
 };
 
-void drm_crtc_commit_put(struct drm_crtc_commit *commit);
+void __drm_crtc_commit_free(struct kref *kref);
+
+/**
+ * drm_crtc_commit_get - acquire a reference to the CRTC commit
+ * @commit: CRTC commit
+ *
+ * Increases the reference of @commit.
+ */
 static inline void drm_crtc_commit_get(struct drm_crtc_commit *commit)
 {
 	kref_get(&commit->ref);
+}
+
+/**
+ * drm_crtc_commit_put - release a reference to the CRTC commmit
+ * @commit: CRTC commit
+ *
+ * This releases a reference to @commit which is freed after removing the
+ * final reference. No locking required and callable from any context.
+ */
+static inline void drm_crtc_commit_put(struct drm_crtc_commit *commit)
+{
+	kref_put(&commit->ref, __drm_crtc_commit_free);
 }
 
 struct drm_atomic_state * __must_check
