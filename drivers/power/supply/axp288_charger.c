@@ -143,7 +143,6 @@ enum {
 
 struct axp288_chrg_info {
 	struct platform_device *pdev;
-	struct axp20x_chrg_pdata *pdata;
 	struct regmap *regmap;
 	struct regmap_irq_chip_data *regmap_irqc;
 	int irq[CHRG_INTR_END];
@@ -769,60 +768,42 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 		return ret;
 	}
 
-	/* Init charging current and voltage */
-	info->max_cc = info->pdata->max_cc;
-	info->max_cv = info->pdata->max_cv;
-
 	/* Read current charge voltage and current limit */
 	ret = regmap_read(info->regmap, AXP20X_CHRG_CTRL1, &val);
 	if (ret < 0) {
-		/* Assume default if cannot read */
-		info->cc = info->pdata->def_cc;
-		info->cv = info->pdata->def_cv;
-	} else {
-		/* Determine charge voltage */
-		cv = (val & CHRG_CCCV_CV_MASK) >> CHRG_CCCV_CV_BIT_POS;
-		switch (cv) {
-		case CHRG_CCCV_CV_4100MV:
-			info->cv = CV_4100MV;
-			break;
-		case CHRG_CCCV_CV_4150MV:
-			info->cv = CV_4150MV;
-			break;
-		case CHRG_CCCV_CV_4200MV:
-			info->cv = CV_4200MV;
-			break;
-		case CHRG_CCCV_CV_4350MV:
-			info->cv = CV_4350MV;
-			break;
-		default:
-			info->cv = INT_MAX;
-			break;
-		}
-
-		/* Determine charge current limit */
-		cc = (ret & CHRG_CCCV_CC_MASK) >> CHRG_CCCV_CC_BIT_POS;
-		cc = (cc * CHRG_CCCV_CC_LSB_RES) + CHRG_CCCV_CC_OFFSET;
-		info->cc = cc;
-
-		/* Program default charging voltage and current */
-		cc = min(info->pdata->def_cc, info->max_cc);
-		cv = min(info->pdata->def_cv, info->max_cv);
-
-		ret = axp288_charger_set_cc(info, cc);
-		if (ret < 0) {
-			dev_err(&info->pdev->dev,
-					"error(%d) in setting CC\n", ret);
-			return ret;
-		}
-
-		ret = axp288_charger_set_cv(info, cv);
-		if (ret < 0) {
-			dev_err(&info->pdev->dev,
-					"error(%d) in setting CV\n", ret);
-			return ret;
-		}
+		dev_err(&info->pdev->dev, "register(%x) read error(%d)\n",
+			AXP20X_CHRG_CTRL1, ret);
+		return ret;
 	}
+
+	/* Determine charge voltage */
+	cv = (val & CHRG_CCCV_CV_MASK) >> CHRG_CCCV_CV_BIT_POS;
+	switch (cv) {
+	case CHRG_CCCV_CV_4100MV:
+		info->cv = CV_4100MV;
+		break;
+	case CHRG_CCCV_CV_4150MV:
+		info->cv = CV_4150MV;
+		break;
+	case CHRG_CCCV_CV_4200MV:
+		info->cv = CV_4200MV;
+		break;
+	case CHRG_CCCV_CV_4350MV:
+		info->cv = CV_4350MV;
+		break;
+	}
+
+	/* Determine charge current limit */
+	cc = (ret & CHRG_CCCV_CC_MASK) >> CHRG_CCCV_CC_BIT_POS;
+	cc = (cc * CHRG_CCCV_CC_LSB_RES) + CHRG_CCCV_CC_OFFSET;
+	info->cc = cc;
+
+	/*
+	 * Do not allow the user to configure higher settings then those
+	 * set by the firmware
+	 */
+	info->max_cv = info->cv;
+	info->max_cc = info->cc;
 
 	return 0;
 }
@@ -841,15 +822,6 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	info->pdev = pdev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
-	info->pdata = pdev->dev.platform_data;
-
-	if (!info->pdata) {
-		/* Try ACPI provided pdata via device properties */
-		if (!device_property_present(&pdev->dev,
-						"axp288_charger_data\n"))
-			dev_err(&pdev->dev, "failed to get platform data\n");
-		return -ENODEV;
-	}
 
 	info->cable.edev = extcon_get_extcon_dev(AXP288_EXTCON_DEV_NAME);
 	if (info->cable.edev == NULL) {
