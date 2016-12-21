@@ -583,7 +583,7 @@ static int __init armada_370_xp_mpic_of_init(struct device_node *node,
 #endif
 	} else {
 #ifdef CONFIG_SMP
-		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_ARMADA_CASC_STARTING,
+		cpuhp_setup_state_nocalls(CPUHP_AP_IRQ_ARMADA_XP_STARTING,
 					  "irqchip/armada/cascade:starting",
 					  mpic_cascaded_starting_cpu, NULL);
 #endif
