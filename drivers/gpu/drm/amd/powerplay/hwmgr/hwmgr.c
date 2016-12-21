@@ -767,16 +767,9 @@ int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 
 int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 {
-	/* power tune caps Assume disabled */
+
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_SQRamping);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-						PHM_PlatformCaps_DBRamping);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-						PHM_PlatformCaps_TDRamping);
-	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-						PHM_PlatformCaps_TCPRamping);
-
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 						PHM_PlatformCaps_RegulatorHot);
 
@@ -786,9 +779,19 @@ int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr)
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_TablelessHardwareInterface);
 
-	if ((hwmgr->chip_id == CHIP_POLARIS11) || (hwmgr->chip_id == CHIP_POLARIS12))
+
+	if (hwmgr->chip_id != CHIP_POLARIS10)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_SPLLShutdownSupport);
+
+	if (hwmgr->chip_id != CHIP_POLARIS11) {
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+							PHM_PlatformCaps_DBRamping);
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+							PHM_PlatformCaps_TDRamping);
+		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+							PHM_PlatformCaps_TCPRamping);
+	}
 	return 0;
 }
 
