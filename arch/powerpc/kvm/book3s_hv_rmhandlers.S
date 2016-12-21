@@ -1057,19 +1057,18 @@ hdec_soon:
 kvmppc_interrupt_hv:
 	/*
 	 * Register contents:
-	 * R12		= interrupt vector
+	 * R12		= (guest CR << 32) | interrupt vector
 	 * R13		= PACA
-	 * guest CR, R12 saved in shadow VCPU SCRATCH1/0
+	 * guest R12 saved in shadow VCPU SCRATCH0
 	 * guest R13 saved in SPRN_SCRATCH0
 	 */
-	std	r9, HSTATE_SCRATCH2(r13)
-
+	std	r9, HSTATE_SCRATCH1(r13)
 	lbz	r9, HSTATE_IN_GUEST(r13)
 	cmpwi	r9, KVM_GUEST_MODE_HOST_HV
 	beq	kvmppc_bad_host_intr
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 	cmpwi	r9, KVM_GUEST_MODE_GUEST
-	ld	r9, HSTATE_SCRATCH2(r13)
+	ld	r9, HSTATE_SCRATCH1(r13)
 	beq	kvmppc_interrupt_pr
 #endif
 	/* We're now back in the host but in guest MMU context */
@@ -1089,13 +1088,14 @@ kvmppc_interrupt_hv:
 	std	r6, VCPU_GPR(R6)(r9)
 	std	r7, VCPU_GPR(R7)(r9)
 	std	r8, VCPU_GPR(R8)(r9)
-	ld	r0, HSTATE_SCRATCH2(r13)
+	ld	r0, HSTATE_SCRATCH1(r13)
 	std	r0, VCPU_GPR(R9)(r9)
 	std	r10, VCPU_GPR(R10)(r9)
 	std	r11, VCPU_GPR(R11)(r9)
 	ld	r3, HSTATE_SCRATCH0(r13)
-	lwz	r4, HSTATE_SCRATCH1(r13)
 	std	r3, VCPU_GPR(R12)(r9)
+	/* CR is in the high half of r12 */
+	srdi	r4, r12, 32
 	stw	r4, VCPU_CR(r9)
 BEGIN_FTR_SECTION
 	ld	r3, HSTATE_CFAR(r13)
@@ -1114,6 +1114,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	mfspr	r11, SPRN_SRR1
 	std	r10, VCPU_SRR0(r9)
 	std	r11, VCPU_SRR1(r9)
+	/* trap is in the low half of r12, clear CR from the high half */
+	clrldi	r12, r12, 32
 	andi.	r0, r12, 2		/* need to read HSRR0/1? */
 	beq	1f
 	mfspr	r10, SPRN_HSRR0

@@ -233,7 +233,7 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 
 #endif
 
-#define __KVM_HANDLER_PROLOG(area, n)					\
+#define __KVM_HANDLER(area, h, n)					\
 	BEGIN_FTR_SECTION_NESTED(947)					\
 	ld	r10,area+EX_CFAR(r13);					\
 	std	r10,HSTATE_CFAR(r13);					\
@@ -243,30 +243,28 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	std	r10,HSTATE_PPR(r13);					\
 	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
 	ld	r10,area+EX_R10(r13);					\
-	stw	r9,HSTATE_SCRATCH1(r13);				\
-	ld	r9,area+EX_R9(r13);					\
 	std	r12,HSTATE_SCRATCH0(r13);				\
-
-#define __KVM_HANDLER(area, h, n)					\
-	__KVM_HANDLER_PROLOG(area, n)					\
-	li	r12,n;							\
+	sldi	r12,r9,32;						\
+	ori	r12,r12,(n);						\
+	ld	r9,area+EX_R9(r13);					\
 	b	kvmppc_interrupt
 
 #define __KVM_HANDLER_SKIP(area, h, n)					\
 	cmpwi	r10,KVM_GUEST_MODE_SKIP;				\
-	ld	r10,area+EX_R10(r13);					\
 	beq	89f;							\
-	stw	r9,HSTATE_SCRATCH1(r13);				\
 	BEGIN_FTR_SECTION_NESTED(948)					\
-	ld	r9,area+EX_PPR(r13);					\
-	std	r9,HSTATE_PPR(r13);					\
+	ld	r10,area+EX_PPR(r13);					\
+	std	r10,HSTATE_PPR(r13);					\
 	END_FTR_SECTION_NESTED(CPU_FTR_HAS_PPR,CPU_FTR_HAS_PPR,948);	\
-	ld	r9,area+EX_R9(r13);					\
+	ld	r10,area+EX_R10(r13);					\
 	std	r12,HSTATE_SCRATCH0(r13);				\
-	li	r12,n;							\
+	sldi	r12,r9,32;						\
+	ori	r12,r12,(n);						\
+	ld	r9,area+EX_R9(r13);					\
 	b	kvmppc_interrupt;					\
 89:	mtocrf	0x80,r9;						\
 	ld	r9,area+EX_R9(r13);					\
+	ld	r10,area+EX_R10(r13);					\
 	b	kvmppc_skip_##h##interrupt
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
