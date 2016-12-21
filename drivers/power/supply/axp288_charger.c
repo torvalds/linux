@@ -172,7 +172,7 @@ struct axp288_chrg_info {
 	int cv;
 	int max_cc;
 	int max_cv;
-	bool is_charger_enabled;
+	int is_charger_enabled;
 };
 
 static inline int axp288_charger_set_cc(struct axp288_chrg_info *info, int cc)
@@ -301,7 +301,7 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 {
 	int ret;
 
-	if (enable == info->is_charger_enabled)
+	if ((int)enable == info->is_charger_enabled)
 		return 0;
 
 	if (enable)
@@ -654,7 +654,17 @@ static void axp288_charger_otg_evt_worker(struct work_struct *work)
 {
 	struct axp288_chrg_info *info =
 	    container_of(work, struct axp288_chrg_info, otg.work);
-	int ret;
+	struct extcon_dev *edev = info->otg.cable;
+	int ret, usb_host = extcon_get_state(edev, EXTCON_USB_HOST);
+
+	dev_dbg(&info->pdev->dev, "external connector USB-Host is %s\n",
+				usb_host ? "attached" : "detached");
+
+	/*
+	 * Set usb_id_short flag to avoid running charger detection logic
+	 * in case usb host.
+	 */
+	info->otg.id_short = usb_host;
 
 	/* Disable VBUS path before enabling the 5V boost */
 	ret = axp288_charger_vbus_path_select(info, !info->otg.id_short);
@@ -667,17 +677,7 @@ static int axp288_charger_handle_otg_evt(struct notifier_block *nb,
 {
 	struct axp288_chrg_info *info =
 	    container_of(nb, struct axp288_chrg_info, otg.id_nb);
-	struct extcon_dev *edev = info->otg.cable;
-	int usb_host = extcon_get_state(edev, EXTCON_USB_HOST);
 
-	dev_dbg(&info->pdev->dev, "external connector USB-Host is %s\n",
-				usb_host ? "attached" : "detached");
-
-	/*
-	 * Set usb_id_short flag to avoid running charger detection logic
-	 * in case usb host.
-	 */
-	info->otg.id_short = usb_host;
 	schedule_work(&info->otg.work);
 
 	return NOTIFY_OK;
@@ -808,6 +808,8 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	info->pdev = pdev;
 	info->regmap = axp20x->regmap;
 	info->regmap_irqc = axp20x->regmap_irqc;
+	info->cable.chg_type = -1;
+	info->is_charger_enabled = -1;
 
 	info->cable.edev = extcon_get_extcon_dev(AXP288_EXTCON_DEV_NAME);
 	if (info->cable.edev == NULL) {
@@ -851,6 +853,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+	schedule_work(&info->cable.work);
 
 	/* Register for OTG notification */
 	INIT_WORK(&info->otg.work, axp288_charger_otg_evt_worker);
@@ -861,8 +864,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register EXTCON_USB_HOST notifier\n");
 		return ret;
 	}
-	info->otg.id_short = extcon_get_cable_state_(info->otg.cable,
-						     EXTCON_USB_HOST);
+	schedule_work(&info->otg.work);
 
 	/* Register charger interrupts */
 	for (i = 0; i < CHRG_INTR_END; i++) {
