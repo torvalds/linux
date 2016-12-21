@@ -90,20 +90,6 @@
 #define CHRG_VLTFC_0C			0xA5	/* 0 DegC */
 #define CHRG_VHTFC_45C			0x1F	/* 45 DegC */
 
-#define BAT_IRQ_CFG_CHRG_DONE		(1 << 2)
-#define BAT_IRQ_CFG_CHRG_START		(1 << 3)
-#define BAT_IRQ_CFG_BAT_SAFE_EXIT	(1 << 4)
-#define BAT_IRQ_CFG_BAT_SAFE_ENTER	(1 << 5)
-#define BAT_IRQ_CFG_BAT_DISCON		(1 << 6)
-#define BAT_IRQ_CFG_BAT_CONN		(1 << 7)
-#define BAT_IRQ_CFG_BAT_MASK		0xFC
-
-#define TEMP_IRQ_CFG_QCBTU		(1 << 4)
-#define TEMP_IRQ_CFG_CBTU		(1 << 5)
-#define TEMP_IRQ_CFG_QCBTO		(1 << 6)
-#define TEMP_IRQ_CFG_CBTO		(1 << 7)
-#define TEMP_IRQ_CFG_MASK		0xF0
-
 #define FG_CNTL_OCV_ADJ_EN		(1 << 3)
 
 #define CV_4100MV			4100	/* 4100mV */
@@ -710,24 +696,6 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 	if (ret < 0) {
 		dev_err(&info->pdev->dev, "register(%x) write error(%d)\n",
 						AXP20X_CHRG_CTRL2, ret);
-		return ret;
-	}
-
-	/* Enable interrupts */
-	ret = regmap_update_bits(info->regmap,
-				AXP20X_IRQ2_EN,
-				BAT_IRQ_CFG_BAT_MASK, 1);
-	if (ret < 0) {
-		dev_err(&info->pdev->dev, "register(%x) write error(%d)\n",
-						AXP20X_IRQ2_EN, ret);
-		return ret;
-	}
-
-	ret = regmap_update_bits(info->regmap, AXP20X_IRQ3_EN,
-				TEMP_IRQ_CFG_MASK, 1);
-	if (ret < 0) {
-		dev_err(&info->pdev->dev, "register(%x) write error(%d)\n",
-						AXP20X_IRQ3_EN, ret);
 		return ret;
 	}
 
