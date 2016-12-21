@@ -563,10 +563,10 @@ out_err:
  * These marks may be used for the fsnotify backend to determine which
  * event types should be delivered to which group.
  */
-int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
-			     struct fsnotify_group *group, struct inode *inode,
+int fsnotify_add_mark_locked(struct fsnotify_mark *mark, struct inode *inode,
 			     struct vfsmount *mnt, int allow_dups)
 {
+	struct fsnotify_group *group = mark->group;
 	int ret = 0;
 
 	BUG_ON(inode && mnt);
@@ -582,8 +582,6 @@ int fsnotify_add_mark_locked(struct fsnotify_mark *mark,
 	spin_lock(&mark->lock);
 	mark->flags |= FSNOTIFY_MARK_FLAG_ALIVE | FSNOTIFY_MARK_FLAG_ATTACHED;
 
-	fsnotify_get_group(group);
-	mark->group = group;
 	list_add(&mark->g_list, &group->marks_list);
 	atomic_inc(&group->num_marks);
 	fsnotify_get_mark(mark); /* for g_list */
@@ -608,12 +606,14 @@ err:
 	return ret;
 }
 
-int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *group,
-		      struct inode *inode, struct vfsmount *mnt, int allow_dups)
+int fsnotify_add_mark(struct fsnotify_mark *mark, struct inode *inode,
+		      struct vfsmount *mnt, int allow_dups)
 {
 	int ret;
+	struct fsnotify_group *group = mark->group;
+
 	mutex_lock(&group->mark_mutex);
-	ret = fsnotify_add_mark_locked(mark, group, inode, mnt, allow_dups);
+	ret = fsnotify_add_mark_locked(mark, inode, mnt, allow_dups);
 	mutex_unlock(&group->mark_mutex);
 	return ret;
 }
@@ -732,12 +732,15 @@ void fsnotify_destroy_marks(struct fsnotify_mark_connector __rcu **connp)
  * Nothing fancy, just initialize lists and locks and counters.
  */
 void fsnotify_init_mark(struct fsnotify_mark *mark,
+			struct fsnotify_group *group,
 			void (*free_mark)(struct fsnotify_mark *mark))
 {
 	memset(mark, 0, sizeof(*mark));
 	spin_lock_init(&mark->lock);
 	atomic_set(&mark->refcnt, 1);
 	mark->free_mark = free_mark;
+	fsnotify_get_group(group);
+	mark->group = group;
 }
 
 /*

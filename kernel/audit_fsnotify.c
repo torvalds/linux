@@ -103,15 +103,16 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 		goto out;
 	}
 
-	fsnotify_init_mark(&audit_mark->mark, audit_fsnotify_free_mark);
+	fsnotify_init_mark(&audit_mark->mark, audit_fsnotify_group,
+			   audit_fsnotify_free_mark);
 	audit_mark->mark.mask = AUDIT_FS_EVENTS;
 	audit_mark->path = pathname;
 	audit_update_mark(audit_mark, dentry->d_inode);
 	audit_mark->rule = krule;
 
-	ret = fsnotify_add_mark(&audit_mark->mark, audit_fsnotify_group, inode, NULL, true);
+	ret = fsnotify_add_mark(&audit_mark->mark, inode, NULL, true);
 	if (ret < 0) {
-		audit_fsnotify_mark_free(audit_mark);
+		fsnotify_put_mark(&audit_mark->mark);
 		audit_mark = ERR_PTR(ret);
 	}
 out:
