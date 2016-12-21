@@ -959,7 +959,6 @@ static void ntb_qp_link_work(struct work_struct *work)
 	ntb_peer_spad_write(nt->ndev, QP_LINKS, val | BIT(qp->qp_num));
 
 	/* query remote spad for qp ready bits */
-	ntb_peer_spad_read(nt->ndev, QP_LINKS);
 	dev_dbg_ratelimited(&pdev->dev, "Remote QP link status = %x\n", val);
 
 	/* See if the remote side is up */
