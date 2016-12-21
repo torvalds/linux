@@ -11,14 +11,18 @@
 #define NVIF_CLASS_SW_GF100                                   /* if0005.h */ -7
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
+#define NV_NULL_CLASS                                                0x00000030
+
 #define NV_DEVICE                                     /* cl0080.h */ 0x00000080
 
 #define NV_DMA_FROM_MEMORY                            /* cl0002.h */ 0x00000002
 #define NV_DMA_TO_MEMORY                              /* cl0002.h */ 0x00000003
 #define NV_DMA_IN_MEMORY                              /* cl0002.h */ 0x0000003d
 
+#define NV50_TWOD                                                    0x0000502d
 #define FERMI_TWOD_A                                                 0x0000902d
 
+#define NV50_MEMORY_TO_MEMORY_FORMAT                                 0x00005039
 #define FERMI_MEMORY_TO_MEMORY_FORMAT_A                              0x00009039
 
 #define KEPLER_INLINE_TO_MEMORY_A                                    0x0000a040
@@ -99,6 +103,12 @@
 #define GF110_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000907e
 #define GK104_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000917e
 
+#define NV50_TESLA                                                   0x00005097
+#define G82_TESLA                                                    0x00008297
+#define GT200_TESLA                                                  0x00008397
+#define GT214_TESLA                                                  0x00008597
+#define GT21A_TESLA                                                  0x00008697
+
 #define FERMI_A                                       /* cl9097.h */ 0x00009097
 #define FERMI_B                                       /* cl9097.h */ 0x00009197
 #define FERMI_C                                       /* cl9097.h */ 0x00009297
@@ -140,6 +150,8 @@
 
 #define FERMI_DECOMPRESS                                             0x000090b8
 
+#define NV50_COMPUTE                                                 0x000050c0
+#define GT214_COMPUTE                                                0x000085c0
 #define FERMI_COMPUTE_A                                              0x000090c0
 #define FERMI_COMPUTE_B                                              0x000091c0
 #define KEPLER_COMPUTE_A                                             0x0000a0c0
