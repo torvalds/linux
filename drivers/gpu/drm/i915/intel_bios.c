@@ -1161,6 +1161,7 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	info->supports_dvi = is_dvi;
 	info->supports_hdmi = is_hdmi;
 	info->supports_dp = is_dp;
+	info->supports_edp = is_edp;
 
 	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d\n",
 		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt);
@@ -1663,6 +1664,9 @@ bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port)
 		[PORT_E] = DVO_PORT_DPE,
 	};
 	int i;
+
+	if (HAS_DDI(dev_priv))
+		return dev_priv->vbt.ddi_port_info[port].supports_edp;
 
 	if (!dev_priv->vbt.child_dev_num)
 		return false;

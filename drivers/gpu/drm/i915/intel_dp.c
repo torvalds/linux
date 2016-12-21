@@ -4975,7 +4975,7 @@ bool intel_dp_is_edp(struct drm_i915_private *dev_priv, enum port port)
 	if (INTEL_GEN(dev_priv) < 5)
 		return false;
 
-	if (port == PORT_A)
+	if (INTEL_GEN(dev_priv) < 9 && port == PORT_A)
 		return true;
 
 	return intel_bios_is_port_edp(dev_priv, port);
