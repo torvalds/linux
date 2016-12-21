@@ -24,10 +24,6 @@ extern struct srcu_struct fsnotify_mark_srcu;
 extern int fsnotify_compare_groups(struct fsnotify_group *a,
 				   struct fsnotify_group *b);
 
-/* Find mark belonging to given group in the list of marks */
-extern struct fsnotify_mark *fsnotify_find_mark(
-				struct fsnotify_mark_connector __rcu **connp,
-				struct fsnotify_group *group);
 /* Destroy all marks connected via given connector */
 extern void fsnotify_destroy_marks(struct fsnotify_mark_connector __rcu **connp);
 /* run the list of all marks associated with inode and destroy them */

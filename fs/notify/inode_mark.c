@@ -30,16 +30,6 @@
 
 #include "../internal.h"
 
-/*
- * given a group and inode, find the mark associated with that combination.
- * if found take a reference to that mark and return it, else return NULL
- */
-struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group,
-					       struct inode *inode)
-{
-	return fsnotify_find_mark(&inode->i_fsnotify_marks, group);
-}
-
 /**
  * fsnotify_unmount_inodes - an sb is unmounting.  handle any watched inodes.
  * @sb: superblock being unmounted.

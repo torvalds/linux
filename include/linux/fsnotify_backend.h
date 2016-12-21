@@ -341,10 +341,10 @@ extern struct fsnotify_event *fsnotify_remove_first_event(struct fsnotify_group 
 /* Calculate mask of events for a list of marks */
 extern void fsnotify_recalc_mask(struct fsnotify_mark_connector *conn);
 extern void fsnotify_init_mark(struct fsnotify_mark *mark, void (*free_mark)(struct fsnotify_mark *mark));
-/* find (and take a reference) to a mark associated with group and inode */
-extern struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group, struct inode *inode);
-/* find (and take a reference) to a mark associated with group and vfsmount */
-extern struct fsnotify_mark *fsnotify_find_vfsmount_mark(struct fsnotify_group *group, struct vfsmount *mnt);
+/* Find mark belonging to given group in the list of marks */
+extern struct fsnotify_mark *fsnotify_find_mark(
+				struct fsnotify_mark_connector __rcu **connp,
+				struct fsnotify_group *group);
 /* attach the mark to both the group and the inode */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *group,
 			     struct inode *inode, struct vfsmount *mnt, int allow_dups);
