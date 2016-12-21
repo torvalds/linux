@@ -66,14 +66,16 @@ void fsnotify_destroy_group(struct fsnotify_group *group)
 	 */
 	fsnotify_group_stop_queueing(group);
 
-	/* clear all inode marks for this group, attach them to destroy_list */
+	/* Clear all marks for this group and queue them for destruction */
 	fsnotify_detach_group_marks(group);
 
 	/*
-	 * Wait for fsnotify_mark_srcu period to end and free all marks in
-	 * destroy_list
+	 * Wait until all marks get really destroyed. We could actually destroy
+	 * them ourselves instead of waiting for worker to do it, however that
+	 * would be racy as worker can already be processing some marks before
+	 * we even entered fsnotify_destroy_group().
 	 */
-	fsnotify_mark_destroy_list();
+	fsnotify_wait_marks_destroyed();
 
 	/*
 	 * Since we have waited for fsnotify_mark_srcu in

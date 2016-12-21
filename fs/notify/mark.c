@@ -703,7 +703,7 @@ void fsnotify_init_mark(struct fsnotify_mark *mark,
  * Destroy all marks in destroy_list, waits for SRCU period to finish before
  * actually freeing marks.
  */
-void fsnotify_mark_destroy_list(void)
+static void fsnotify_mark_destroy_workfn(struct work_struct *work)
 {
 	struct fsnotify_mark *mark, *next;
 	struct list_head private_destroy_list;
@@ -721,7 +721,8 @@ void fsnotify_mark_destroy_list(void)
 	}
 }
 
-static void fsnotify_mark_destroy_workfn(struct work_struct *work)
+/* Wait for all marks queued for destruction to be actually destroyed */
+void fsnotify_wait_marks_destroyed(void)
 {
-	fsnotify_mark_destroy_list();
+	flush_delayed_work(&reaper_work);
 }
