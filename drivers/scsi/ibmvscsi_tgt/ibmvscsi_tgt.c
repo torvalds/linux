@@ -30,6 +30,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/string.h>
+#include <linux/delay.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
