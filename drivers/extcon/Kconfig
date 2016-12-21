@@ -42,6 +42,16 @@ config EXTCON_GPIO
 	  Say Y here to enable GPIO based extcon support. Note that GPIO
 	  extcon supports single state per extcon instance.
 
+config EXTCON_INTEL_INT3496
+	tristate "Intel INT3496 ACPI device extcon driver"
+	depends on GPIOLIB && ACPI
+	help
+	  Say Y here to enable extcon support for USB OTG ports controlled by
+	  an Intel INT3496 ACPI device.
+
+	  This ACPI device is typically found on Intel Baytrail or Cherrytrail
+	  based tablets, or other Baytrail / Cherrytrail devices.
+
 config EXTCON_MAX14577
 	tristate "Maxim MAX14577/77836 EXTCON Support"
 	depends on MFD_MAX14577
