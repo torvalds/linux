@@ -689,7 +689,6 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 {
 	struct rtable *rt;
 	struct neighbour *n = NULL;
-	int ttl;
 
 #if IS_ENABLED(CONFIG_INET)
 	int ret;
@@ -708,7 +707,7 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	ttl = ip4_dst_hoplimit(&rt->dst);
+	*out_ttl = ip4_dst_hoplimit(&rt->dst);
 	n = dst_neigh_lookup(&rt->dst, &fl4->daddr);
 	ip_rt_put(rt);
 	if (!n)
@@ -716,7 +715,6 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 
 	*out_n = n;
 	*saddr = fl4->saddr;
-	*out_ttl = ttl;
 	*out_dev = rt->dst.dev;
 
 	return 0;
@@ -792,14 +790,14 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	if (err)
 		goto out;
 
-	e->n = n;
-	e->out_dev = *out_dev;
-
 	if (!(n->nud_state & NUD_VALID)) {
 		pr_warn("%s: can't offload, neighbour to %pI4 invalid\n", __func__, &fl4.daddr);
 		err = -EOPNOTSUPP;
 		goto out;
 	}
+
+	e->n = n;
+	e->out_dev = *out_dev;
 
 	neigh_ha_snapshot(e->h_dest, n, *out_dev);
 
