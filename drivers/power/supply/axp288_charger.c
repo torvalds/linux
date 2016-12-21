@@ -836,6 +836,10 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->lock);
 
+	ret = charger_init_hw_regs(info);
+	if (ret)
+		return ret;
+
 	/* Register with power supply class */
 	charger_cfg.drv_data = info;
 	info->psy_usb = devm_power_supply_register(dev, &axp288_charger_desc,
@@ -889,10 +893,6 @@ static int axp288_charger_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
-
-	ret = charger_init_hw_regs(info);
-	if (ret)
-		return ret;
 
 	return 0;
 }
