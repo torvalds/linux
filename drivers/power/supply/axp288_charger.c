@@ -127,6 +127,7 @@
 #define ILIM_3000MA			3000	/* 3000mA */
 
 #define AXP288_EXTCON_DEV_NAME		"axp288_extcon"
+#define USB_HOST_EXTCON_DEV_NAME	"INT3496:00"
 
 enum {
 	VBUS_OV_IRQ = 0,
@@ -833,6 +834,12 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
+	info->otg.cable = extcon_get_extcon_dev(USB_HOST_EXTCON_DEV_NAME);
+	if (info->otg.cable == NULL) {
+		dev_dbg(dev, "EXTCON_USB_HOST is not ready, probe deferred\n");
+		return -EPROBE_DEFER;
+	}
+
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->lock);
 
@@ -868,12 +875,12 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	info->otg.id_nb.notifier_call = axp288_charger_handle_otg_evt;
 	ret = devm_extcon_register_notifier(&pdev->dev, info->otg.cable,
 					EXTCON_USB_HOST, &info->otg.id_nb);
-	if (ret)
-		dev_warn(&pdev->dev, "failed to register otg notifier\n");
-
-	if (info->otg.cable)
-		info->otg.id_short = extcon_get_state(
-					info->otg.cable, EXTCON_USB_HOST);
+	if (ret) {
+		dev_err(dev, "failed to register EXTCON_USB_HOST notifier\n");
+		return ret;
+	}
+	info->otg.id_short = extcon_get_cable_state_(info->otg.cable,
+						     EXTCON_USB_HOST);
 
 	/* Register charger interrupts */
 	for (i = 0; i < CHRG_INTR_END; i++) {
