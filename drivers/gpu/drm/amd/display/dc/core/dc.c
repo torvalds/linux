@@ -167,24 +167,20 @@ static bool stream_adjust_vmin_vmax(struct dc *dc,
 	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream[0]);
 	int i = 0;
 	bool ret = false;
-	struct pipe_ctx *pipes;
-	unsigned int underlay_idx = core_dc->res_pool->underlay_pipe_index;
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (core_dc->current_context->res_ctx.pipe_ctx[i].stream == core_stream
-				&& i != underlay_idx) {
+		struct pipe_ctx *pipe = &core_dc->current_context->res_ctx.pipe_ctx[i];
 
-			pipes = &core_dc->current_context->res_ctx.pipe_ctx[i];
-			core_dc->hwss.set_drr(&pipes, 1, vmin, vmax);
+		if (pipe->stream == core_stream && pipe->stream_enc) {
+			core_dc->hwss.set_drr(&pipe, 1, vmin, vmax);
 
 			/* build and update the info frame */
-			resource_build_info_frame(pipes);
-			core_dc->hwss.update_info_frame(pipes);
+			resource_build_info_frame(pipe);
+			core_dc->hwss.update_info_frame(pipe);
 
 			ret = true;
 		}
 	}
-
 	return ret;
 }
 
