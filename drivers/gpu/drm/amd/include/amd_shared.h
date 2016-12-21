@@ -23,7 +23,7 @@
 #ifndef __AMD_SHARED_H__
 #define __AMD_SHARED_H__
 
-#define AMD_MAX_USEC_TIMEOUT		100000  /* 100 ms */
+#define AMD_MAX_USEC_TIMEOUT		200000  /* 200 ms */
 
 /*
  * Supported ASIC types
