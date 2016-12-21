@@ -594,6 +594,14 @@
 				bias-pull-up;
 			};
 
+			mmc2_4bit_pins_a: mmc2-4bit@0 {
+				pins = "PC6", "PC7", "PC8", "PC9",
+				       "PC10", "PC11";
+				function = "mmc2";
+				drive-strength = <30>;
+				bias-pull-up;
+			};
+
 			spi2_pins_a: spi2@0 {
 				pins = "PE1", "PE2", "PE3";
 				function = "spi2";
