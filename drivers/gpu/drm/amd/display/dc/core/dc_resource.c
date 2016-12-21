@@ -288,6 +288,11 @@ static bool is_sharable_clk_src(
 	if (pipe_with_clk_src->clock_source == NULL)
 		return false;
 
+	if (pipe_with_clk_src->stream == NULL) {
+		ASSERT(0);
+		return false;
+	}
+
 	if (pipe_with_clk_src->stream->signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
