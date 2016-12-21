@@ -42,6 +42,7 @@ struct i40iw_ucontext {
 	spinlock_t cq_reg_mem_list_lock; /* memory list for cq's */
 	struct list_head qp_reg_mem_list;
 	spinlock_t qp_reg_mem_list_lock; /* memory list for qp's */
+	int abi_ver;
 };
 
 struct i40iw_pd {

@@ -280,6 +280,7 @@ struct i40iw_sc_pd {
 	u32 size;
 	struct i40iw_sc_dev *dev;
 	u16 pd_id;
+	int abi_ver;
 };
 
 struct i40iw_cqp_quanta {
@@ -852,6 +853,7 @@ struct i40iw_qp_init_info {
 	u64 host_ctx_pa;
 	u64 q2_pa;
 	u64 shadow_area_pa;
+	int abi_ver;
 	u8 sq_tph_val;
 	u8 rq_tph_val;
 	u8 type;
@@ -1051,7 +1053,7 @@ struct i40iw_aeq_ops {
 };
 
 struct i40iw_pd_ops {
-	void (*pd_init)(struct i40iw_sc_dev *, struct i40iw_sc_pd *, u16);
+	void (*pd_init)(struct i40iw_sc_dev *, struct i40iw_sc_pd *, u16, int);
 };
 
 struct i40iw_priv_qp_ops {
