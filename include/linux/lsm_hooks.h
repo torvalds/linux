@@ -352,8 +352,7 @@
  *	Return 0 if permission is granted.
  * @inode_getattr:
  *	Check permission before obtaining file attributes.
- *	@mnt is the vfsmount where the dentry was looked up
- *	@dentry contains the dentry structure for the file.
+ *	@path contains the path structure for the file.
  *	Return 0 if permission is granted.
  * @inode_setxattr:
  *	Check permission before setting the extended attributes
