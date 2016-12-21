@@ -513,14 +513,12 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 
 	spin_lock(&fsn_mark->lock);
-
 	old_mask = fsn_mark->mask;
 	if (add)
-		fsnotify_set_mark_mask_locked(fsn_mark, (fsn_mark->mask | mask));
+		fsn_mark->mask |= mask;
 	else
-		fsnotify_set_mark_mask_locked(fsn_mark, mask);
+		fsn_mark->mask = mask;
 	new_mask = fsn_mark->mask;
-
 	spin_unlock(&fsn_mark->lock);
 
 	if (old_mask != new_mask) {

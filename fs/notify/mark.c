@@ -393,20 +393,6 @@ void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 	fsnotify_free_mark(mark);
 }
 
-void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask)
-{
-	assert_spin_locked(&mark->lock);
-
-	mark->mask = mask;
-}
-
-void fsnotify_set_mark_ignored_mask_locked(struct fsnotify_mark *mark, __u32 mask)
-{
-	assert_spin_locked(&mark->lock);
-
-	mark->ignored_mask = mask;
-}
-
 /*
  * Sorting function for lists of fsnotify marks.
  *

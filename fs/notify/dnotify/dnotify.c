@@ -52,7 +52,7 @@ struct dnotify_mark {
  */
 static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
 {
-	__u32 new_mask, old_mask;
+	__u32 new_mask = 0;
 	struct dnotify_struct *dn;
 	struct dnotify_mark *dn_mark  = container_of(fsn_mark,
 						     struct dnotify_mark,
@@ -60,14 +60,11 @@ static void dnotify_recalc_inode_mask(struct fsnotify_mark *fsn_mark)
 
 	assert_spin_locked(&fsn_mark->lock);
 
-	old_mask = fsn_mark->mask;
-	new_mask = 0;
 	for (dn = dn_mark->dn; dn != NULL; dn = dn->dn_next)
 		new_mask |= (dn->dn_mask & ~FS_DN_MULTISHOT);
-	fsnotify_set_mark_mask_locked(fsn_mark, new_mask);
-
-	if (old_mask == new_mask)
+	if (fsn_mark->mask == new_mask)
 		return;
+	fsn_mark->mask = new_mask;
 
 	fsnotify_recalc_mask(fsn_mark->connector);
 }

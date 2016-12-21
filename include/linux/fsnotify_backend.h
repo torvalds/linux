@@ -347,10 +347,6 @@ extern void fsnotify_init_mark(struct fsnotify_mark *mark, void (*free_mark)(str
 extern struct fsnotify_mark *fsnotify_find_inode_mark(struct fsnotify_group *group, struct inode *inode);
 /* find (and take a reference) to a mark associated with group and vfsmount */
 extern struct fsnotify_mark *fsnotify_find_vfsmount_mark(struct fsnotify_group *group, struct vfsmount *mnt);
-/* set the ignored_mask of a mark */
-extern void fsnotify_set_mark_ignored_mask_locked(struct fsnotify_mark *mark, __u32 mask);
-/* set the mask of a mark (might pin the object into memory */
-extern void fsnotify_set_mark_mask_locked(struct fsnotify_mark *mark, __u32 mask);
 /* attach the mark to both the group and the inode */
 extern int fsnotify_add_mark(struct fsnotify_mark *mark, struct fsnotify_group *group,
 			     struct inode *inode, struct vfsmount *mnt, int allow_dups);
