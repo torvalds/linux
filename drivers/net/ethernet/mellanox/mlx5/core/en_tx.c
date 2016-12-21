@@ -88,6 +88,7 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	int channel_ix = fallback(dev, skb);
+	u16 num_channels;
 	int up = 0;
 
 	if (!netdev_get_num_tc(dev))
@@ -99,9 +100,9 @@ u16 mlx5e_select_queue(struct net_device *dev, struct sk_buff *skb,
 	/* channel_ix can be larger than num_channels since
 	 * dev->num_real_tx_queues = num_channels * num_tc
 	 */
-	if (channel_ix >= priv->params.num_channels)
-		channel_ix = reciprocal_scale(channel_ix,
-					      priv->params.num_channels);
+	num_channels = priv->channels.params.num_channels;
+	if (channel_ix >= num_channels)
+		channel_ix = reciprocal_scale(channel_ix, num_channels);
 
 	return priv->channel_tc2txq[channel_ix][up];
 }

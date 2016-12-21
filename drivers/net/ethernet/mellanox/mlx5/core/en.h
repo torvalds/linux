@@ -182,15 +182,15 @@ enum mlx5e_priv_flag {
 	MLX5E_PFLAG_RX_CQE_COMPRESS = (1 << 1),
 };
 
-#define MLX5E_SET_PFLAG(priv, pflag, enable)			\
+#define MLX5E_SET_PFLAG(params, pflag, enable)			\
 	do {							\
 		if (enable)					\
-			(priv)->params.pflags |= (pflag);	\
+			(params)->pflags |= (pflag);		\
 		else						\
-			(priv)->params.pflags &= ~(pflag);	\
+			(params)->pflags &= ~(pflag);		\
 	} while (0)
 
-#define MLX5E_GET_PFLAG(priv, pflag) (!!((priv)->params.pflags & (pflag)))
+#define MLX5E_GET_PFLAG(params, pflag) (!!((params)->pflags & (pflag)))
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 #define MLX5E_MAX_BW_ALLOC 100 /* Max percentage of BW allocation */
@@ -213,7 +213,6 @@ struct mlx5e_params {
 	bool rx_cqe_compress_def;
 	struct mlx5e_cq_moder rx_cq_moderation;
 	struct mlx5e_cq_moder tx_cq_moderation;
-	u16 min_rx_wqes;
 	bool lro_en;
 	u32 lro_wqe_sz;
 	u16 tx_max_inline;
@@ -225,6 +224,7 @@ struct mlx5e_params {
 	bool rx_am_enabled;
 	u32 lro_timeout;
 	u32 pflags;
+	struct bpf_prog *xdp_prog;
 };
 
 #ifdef CONFIG_MLX5_CORE_EN_DCB
@@ -357,7 +357,6 @@ struct mlx5e_txqsq {
 	/* control path */
 	struct mlx5_wq_ctrl        wq_ctrl;
 	struct mlx5e_channel      *channel;
-	int                        tc;
 	int                        txq_ix;
 	u32                        rate_limit;
 } ____cacheline_aligned_in_smp;
@@ -564,6 +563,7 @@ struct mlx5e_channel {
 struct mlx5e_channels {
 	struct mlx5e_channel **c;
 	unsigned int           num;
+	struct mlx5e_params    params;
 };
 
 enum mlx5e_traffic_types {
@@ -735,7 +735,6 @@ struct mlx5e_priv {
 	/* priv data path fields - start */
 	struct mlx5e_txqsq *txq2sq[MLX5E_MAX_NUM_CHANNELS * MLX5E_MAX_NUM_TC];
 	int channel_tc2txq[MLX5E_MAX_NUM_CHANNELS][MLX5E_MAX_NUM_TC];
-	struct bpf_prog *xdp_prog;
 	/* priv data path fields - end */
 
 	unsigned long              state;
@@ -752,7 +751,6 @@ struct mlx5e_priv {
 	struct mlx5e_flow_steering fs;
 	struct mlx5e_vxlan_db      vxlan;
 
-	struct mlx5e_params        params;
 	struct workqueue_struct    *wq;
 	struct work_struct         update_carrier_work;
 	struct work_struct         set_rx_mode_work;
@@ -857,8 +855,9 @@ struct mlx5e_redirect_rqt_param {
 
 int mlx5e_redirect_rqt(struct mlx5e_priv *priv, u32 rqtn, int sz,
 		       struct mlx5e_redirect_rqt_param rrp);
-void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_priv *priv, void *tirc,
-				    enum mlx5e_traffic_types tt);
+void mlx5e_build_indir_tir_ctx_hash(struct mlx5e_params *params,
+				    enum mlx5e_traffic_types tt,
+				    void *tirc);
 
 int mlx5e_open_locked(struct net_device *netdev);
 int mlx5e_close_locked(struct net_device *netdev);
@@ -869,7 +868,8 @@ int mlx5e_get_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed);
 
 void mlx5e_set_rx_cq_mode_params(struct mlx5e_params *params,
 				 u8 cq_period_mode);
-void mlx5e_set_rq_type_params(struct mlx5e_priv *priv, u8 rq_type);
+void mlx5e_set_rq_type_params(struct mlx5_core_dev *mdev,
+			      struct mlx5e_params *params, u8 rq_type);
 
 static inline
 struct mlx5e_tx_wqe *mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)

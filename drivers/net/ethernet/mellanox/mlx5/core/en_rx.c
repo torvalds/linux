@@ -163,19 +163,19 @@ void mlx5e_modify_rx_cqe_compression_locked(struct mlx5e_priv *priv, bool val)
 	if (!MLX5_CAP_GEN(priv->mdev, cqe_compression))
 		return;
 
-	if (MLX5E_GET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS) == val)
+	if (MLX5E_GET_PFLAG(&priv->channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS) == val)
 		return;
 
 	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (was_opened)
 		mlx5e_close_locked(priv->netdev);
 
-	MLX5E_SET_PFLAG(priv, MLX5E_PFLAG_RX_CQE_COMPRESS, val);
-	mlx5e_set_rq_type_params(priv, priv->params.rq_wq_type);
+	MLX5E_SET_PFLAG(&priv->channels.params, MLX5E_PFLAG_RX_CQE_COMPRESS, val);
+	mlx5e_set_rq_type_params(priv->mdev, &priv->channels.params,
+				 priv->channels.params.rq_wq_type);
 
 	if (was_opened)
 		mlx5e_open_locked(priv->netdev);
-
 }
 
 #define RQ_PAGE_SIZE(rq) ((1 << rq->buff.page_order) << PAGE_SHIFT)

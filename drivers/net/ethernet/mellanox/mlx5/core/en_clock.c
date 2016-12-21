@@ -111,7 +111,7 @@ int mlx5e_hwstamp_set(struct net_device *dev, struct ifreq *ifr)
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		/* Reset CQE compression to Admin default */
-		mlx5e_modify_rx_cqe_compression_locked(priv, priv->params.rx_cqe_compress_def);
+		mlx5e_modify_rx_cqe_compression_locked(priv, priv->channels.params.rx_cqe_compress_def);
 		break;
 	case HWTSTAMP_FILTER_ALL:
 	case HWTSTAMP_FILTER_SOME:

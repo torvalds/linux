@@ -390,7 +390,7 @@ static int validate_flow(struct mlx5e_priv *priv,
 	if (fs->location >= MAX_NUM_OF_ETHTOOL_RULES)
 		return -EINVAL;
 
-	if (fs->ring_cookie >= priv->params.num_channels &&
+	if (fs->ring_cookie >= priv->channels.params.num_channels &&
 	    fs->ring_cookie != RX_CLS_FLOW_DISC)
 		return -EINVAL;
 
