@@ -96,6 +96,7 @@ static const unsigned int axp288_extcon_cables[] = {
 	EXTCON_CHG_USB_SDP,
 	EXTCON_CHG_USB_CDP,
 	EXTCON_CHG_USB_DCP,
+	EXTCON_USB,
 	EXTCON_NONE,
 };
 
@@ -206,8 +207,15 @@ no_vbus:
 					: EXTCON_GPIO_MUX_SEL_PMIC);
 
 	extcon_set_state_sync(info->edev, info->previous_cable, false);
+	if (info->previous_cable == EXTCON_CHG_USB_SDP)
+		extcon_set_state_sync(info->edev, EXTCON_USB, false);
+
 	if (vbus_attach) {
 		extcon_set_state_sync(info->edev, cable, vbus_attach);
+		if (cable == EXTCON_CHG_USB_SDP)
+			extcon_set_state_sync(info->edev, EXTCON_USB,
+						vbus_attach);
+
 		info->previous_cable = cable;
 	}
 
