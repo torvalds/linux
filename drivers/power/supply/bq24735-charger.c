@@ -192,7 +192,7 @@ static bool bq24735_charger_is_present(struct bq24735 *charger)
 
 		ac = bq24735_read_word(charger->client, BQ24735_CHG_OPT);
 		if (ac < 0) {
-			dev_err(&charger->client->dev,
+			dev_dbg(&charger->client->dev,
 				"Failed to read charger options : %d\n",
 				ac);
 			return false;
