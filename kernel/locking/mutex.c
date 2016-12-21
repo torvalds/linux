@@ -281,6 +281,13 @@ static __always_inline void ww_mutex_lock_acquired(struct ww_mutex *ww,
 	ww_ctx->acquired++;
 }
 
+static inline bool __sched
+__ww_ctx_stamp_after(struct ww_acquire_ctx *a, struct ww_acquire_ctx *b)
+{
+	return a->stamp - b->stamp <= LONG_MAX &&
+	       (a->stamp != b->stamp || a > b);
+}
+
 /*
  * After acquiring lock with fastpath or when we lost out in contested
  * slowpath, set ctx and wake up any waiters so they can recheck.
@@ -597,8 +604,7 @@ __ww_mutex_lock_check_stamp(struct mutex *lock, struct ww_acquire_ctx *ctx)
 	if (!hold_ctx)
 		return 0;
 
-	if (ctx->stamp - hold_ctx->stamp <= LONG_MAX &&
-	    (ctx->stamp != hold_ctx->stamp || ctx > hold_ctx)) {
+	if (__ww_ctx_stamp_after(ctx, hold_ctx)) {
 #ifdef CONFIG_DEBUG_MUTEXES
 		DEBUG_LOCKS_WARN_ON(ctx->contending_lock);
 		ctx->contending_lock = ww;
