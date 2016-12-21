@@ -355,12 +355,18 @@ extern void fsnotify_destroy_mark(struct fsnotify_mark *mark,
 extern void fsnotify_detach_mark(struct fsnotify_mark *mark);
 /* free mark */
 extern void fsnotify_free_mark(struct fsnotify_mark *mark);
-/* run all the marks in a group, and clear all of the vfsmount marks */
-extern void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group);
-/* run all the marks in a group, and clear all of the inode marks */
-extern void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group);
 /* run all the marks in a group, and clear all of the marks attached to given object type */
 extern void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group, unsigned int flags);
+/* run all the marks in a group, and clear all of the vfsmount marks */
+static inline void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
+{
+	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT);
+}
+/* run all the marks in a group, and clear all of the inode marks */
+static inline void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
+{
+	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_OBJ_TYPE_INODE);
+}
 extern void fsnotify_get_mark(struct fsnotify_mark *mark);
 extern void fsnotify_put_mark(struct fsnotify_mark *mark);
 extern void fsnotify_unmount_inodes(struct super_block *sb);

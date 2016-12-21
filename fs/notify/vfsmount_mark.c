@@ -29,11 +29,6 @@
 #include <linux/fsnotify_backend.h>
 #include "fsnotify.h"
 
-void fsnotify_clear_vfsmount_marks_by_group(struct fsnotify_group *group)
-{
-	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_OBJ_TYPE_VFSMOUNT);
-}
-
 /*
  * given a group and vfsmount, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL

@@ -31,14 +31,6 @@
 #include "../internal.h"
 
 /*
- * Given a group clear all of the inode marks associated with that group.
- */
-void fsnotify_clear_inode_marks_by_group(struct fsnotify_group *group)
-{
-	fsnotify_clear_marks_by_group_flags(group, FSNOTIFY_OBJ_TYPE_INODE);
-}
-
-/*
  * given a group and inode, find the mark associated with that combination.
  * if found take a reference to that mark and return it, else return NULL
  */
