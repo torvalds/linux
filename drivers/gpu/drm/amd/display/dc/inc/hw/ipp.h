@@ -110,6 +110,10 @@ struct ipp_funcs {
 			struct input_pixel_processor *ipp,
 			struct ipp_prescale_params *params);
 
+	void (*ipp_program_input_lut)(
+			struct input_pixel_processor *ipp,
+			const struct dc_gamma *gamma);
+
 	/*** DEGAMMA RELATED ***/
 	bool (*ipp_set_degamma)(
 		struct input_pixel_processor *ipp,

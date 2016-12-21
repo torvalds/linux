@@ -32,21 +32,39 @@
 #include "dce/dce_11_0_sh_mask.h"
 
 #include "dce110_ipp.h"
-#include "gamma_types.h"
 
 #define DCP_REG(reg)\
-	(reg + ipp110->offsets.dcp_offset)
+	(mm##reg + ipp110->offsets.dcp_offset)
 
-enum {
-	MAX_INPUT_LUT_ENTRY = 256
-};
+#define DCP_REG_SET_N(reg_name, n, ...)	\
+	generic_reg_update_ex(ipp110->base.ctx, \
+			DCP_REG(reg_name), \
+			0, n, __VA_ARGS__)
 
-/*PROTOTYPE DECLARATIONS*/
-static void set_lut_inc(
-	struct dce110_ipp *ipp110,
-	uint8_t inc,
-	bool is_float,
-	bool is_signed);
+#define DCP_REG_SET(reg, field1, val1) \
+		DCP_REG_SET_N(reg, 1, FD(reg##__##field1), val1)
+
+#define DCP_REG_SET_2(reg, field1, val1, field2, val2) \
+		DCP_REG_SET_N(reg, 2, \
+			FD(reg##__##field1), val1, \
+			FD(reg##__##field2), val2)
+
+#define DCP_REG_SET_3(reg, field1, val1, field2, val2, field3, val3) \
+		DCP_REG_SET_N(reg, 3, \
+			FD(reg##__##field1), val1, \
+			FD(reg##__##field2), val2, \
+			FD(reg##__##field3), val3)
+
+#define DCP_REG_UPDATE_N(reg_name, n, ...)	\
+	generic_reg_update_ex(ipp110->base.ctx, \
+			DCP_REG(reg_name), \
+			dm_read_reg(ipp110->base.ctx, DCP_REG(reg_name)), \
+			n, __VA_ARGS__)
+
+#define DCP_REG_UPDATE(reg, field, val)	\
+		DCP_REG_UPDATE_N(reg, 1, FD(reg##__##field), val)
+
+
 
 bool dce110_ipp_set_degamma(
 	struct input_pixel_processor *ipp,
@@ -61,25 +79,11 @@ bool dce110_ipp_set_degamma(
 	ASSERT(mode == IPP_DEGAMMA_MODE_BYPASS ||
 			mode == IPP_DEGAMMA_MODE_HW_sRGB);
 
-	set_reg_field_value(
-		value,
-		degamma_type,
+	DCP_REG_SET_3(
 		DEGAMMA_CONTROL,
-		GRPH_DEGAMMA_MODE);
-
-	set_reg_field_value(
-		value,
-		degamma_type,
-		DEGAMMA_CONTROL,
-		CURSOR_DEGAMMA_MODE);
-
-	set_reg_field_value(
-		value,
-		degamma_type,
-		DEGAMMA_CONTROL,
-		CURSOR2_DEGAMMA_MODE);
-
-	dm_write_reg(ipp110->base.ctx, DCP_REG(mmDEGAMMA_CONTROL), value);
+		GRPH_DEGAMMA_MODE, degamma_type,
+		CURSOR_DEGAMMA_MODE, degamma_type,
+		CURSOR2_DEGAMMA_MODE, degamma_type);
 
 	return true;
 }
@@ -90,214 +94,70 @@ void dce110_ipp_program_prescale(
 {
 	struct dce110_ipp *ipp110 = TO_DCE110_IPP(ipp);
 
-	uint32_t prescale_control = 0;
-	uint32_t prescale_value = 0;
-	uint32_t legacy_lut_control = 0;
+	/* set to bypass mode first before change */
+	DCP_REG_UPDATE(PRESCALE_GRPH_CONTROL,
+		GRPH_PRESCALE_BYPASS, 1);
 
-	prescale_control = dm_read_reg(ipp110->base.ctx,
-			DCP_REG(mmPRESCALE_GRPH_CONTROL));
+	DCP_REG_SET_2(PRESCALE_VALUES_GRPH_R,
+		GRPH_PRESCALE_SCALE_R, params->scale,
+		GRPH_PRESCALE_BIAS_R, params->bias);
+
+	DCP_REG_SET_2(PRESCALE_VALUES_GRPH_G,
+		GRPH_PRESCALE_SCALE_G, params->scale,
+		GRPH_PRESCALE_BIAS_G, params->bias);
+
+	DCP_REG_SET_2(PRESCALE_VALUES_GRPH_B,
+		GRPH_PRESCALE_SCALE_B, params->scale,
+		GRPH_PRESCALE_BIAS_B, params->bias);
 
 	if (params->mode != IPP_PRESCALE_MODE_BYPASS) {
-
-		set_reg_field_value(
-			prescale_control,
-			0,
-			PRESCALE_GRPH_CONTROL,
-			GRPH_PRESCALE_BYPASS);
-
-		/*
-		 * If prescale is in use, then legacy lut should
-		 * be bypassed
-		 */
-		legacy_lut_control = dm_read_reg(ipp110->base.ctx,
-			DCP_REG(mmINPUT_GAMMA_CONTROL));
-
-		set_reg_field_value(
-			legacy_lut_control,
-			1,
-			INPUT_GAMMA_CONTROL,
-			GRPH_INPUT_GAMMA_MODE);
-
-		dm_write_reg(ipp110->base.ctx,
-			DCP_REG(mmINPUT_GAMMA_CONTROL),
-			legacy_lut_control);
-	} else {
-		set_reg_field_value(
-			prescale_control,
-			1,
-			PRESCALE_GRPH_CONTROL,
-			GRPH_PRESCALE_BYPASS);
+		/* If prescale is in use, then legacy lut should be bypassed */
+		DCP_REG_UPDATE(PRESCALE_GRPH_CONTROL, GRPH_PRESCALE_BYPASS, 0);
+		DCP_REG_UPDATE(INPUT_GAMMA_CONTROL, GRPH_INPUT_GAMMA_MODE, 1);
 	}
-
-	set_reg_field_value(
-		prescale_value,
-		params->scale,
-		PRESCALE_VALUES_GRPH_R,
-		GRPH_PRESCALE_SCALE_R);
-
-	set_reg_field_value(
-		prescale_value,
-		params->bias,
-		PRESCALE_VALUES_GRPH_R,
-		GRPH_PRESCALE_BIAS_R);
-
-	dm_write_reg(ipp110->base.ctx,
-		DCP_REG(mmPRESCALE_GRPH_CONTROL),
-		prescale_control);
-
-	dm_write_reg(ipp110->base.ctx,
-		DCP_REG(mmPRESCALE_VALUES_GRPH_R),
-		prescale_value);
-
-	dm_write_reg(ipp110->base.ctx,
-		DCP_REG(mmPRESCALE_VALUES_GRPH_G),
-		prescale_value);
-
-	dm_write_reg(ipp110->base.ctx,
-		DCP_REG(mmPRESCALE_VALUES_GRPH_B),
-		prescale_value);
 }
 
-static void set_lut_inc(
-	struct dce110_ipp *ipp110,
-	uint8_t inc,
-	bool is_float,
-	bool is_signed)
+static void dce110_helper_select_lut(struct dce110_ipp *ipp110)
 {
-	const uint32_t addr = DCP_REG(mmDC_LUT_CONTROL);
+	/* enable all */
+	DCP_REG_SET(DC_LUT_WRITE_EN_MASK, DC_LUT_WRITE_EN_MASK, 0x7);
 
-	uint32_t value = dm_read_reg(ipp110->base.ctx, addr);
+	/* 256 entry mode */
+	DCP_REG_UPDATE(DC_LUT_RW_MODE, DC_LUT_RW_MODE, 0);
 
-	set_reg_field_value(
-		value,
-		inc,
-		DC_LUT_CONTROL,
-		DC_LUT_INC_R);
+	/* LUT-256, unsigned, integer, new u0.12 format */
+	DCP_REG_SET_3(DC_LUT_CONTROL,
+		DC_LUT_DATA_R_FORMAT, 3,
+		DC_LUT_DATA_G_FORMAT, 3,
+		DC_LUT_DATA_B_FORMAT, 3);
 
-	set_reg_field_value(
-		value,
-		inc,
-		DC_LUT_CONTROL,
-		DC_LUT_INC_G);
-
-	set_reg_field_value(
-		value,
-		inc,
-		DC_LUT_CONTROL,
-		DC_LUT_INC_B);
-
-	set_reg_field_value(
-		value,
-		is_float,
-		DC_LUT_CONTROL,
-		DC_LUT_DATA_R_FLOAT_POINT_EN);
-
-	set_reg_field_value(
-		value,
-		is_float,
-		DC_LUT_CONTROL,
-		DC_LUT_DATA_G_FLOAT_POINT_EN);
-
-	set_reg_field_value(
-		value,
-		is_float,
-		DC_LUT_CONTROL,
-		DC_LUT_DATA_B_FLOAT_POINT_EN);
-
-	set_reg_field_value(
-		value,
-		is_signed,
-		DC_LUT_CONTROL,
-		DC_LUT_DATA_R_SIGNED_EN);
-
-	set_reg_field_value(
-		value,
-		is_signed,
-		DC_LUT_CONTROL,
-		DC_LUT_DATA_G_SIGNED_EN);
-
-	set_reg_field_value(
-		value,
-		is_signed,
-		DC_LUT_CONTROL,
-		DC_LUT_DATA_B_SIGNED_EN);
-
-	dm_write_reg(ipp110->base.ctx, addr, value);
+	/* start from index 0 */
+	DCP_REG_SET(DC_LUT_RW_INDEX, DC_LUT_RW_INDEX, 0);
 }
 
-void dce110_helper_select_lut(struct dce110_ipp *ipp110)
+void dce110_ipp_program_input_lut(
+	struct input_pixel_processor *ipp,
+	const struct dc_gamma *gamma)
 {
-	uint32_t value = 0;
+	int i;
+	struct dce110_ipp *ipp110 = TO_DCE110_IPP(ipp);
 
-	set_lut_inc(ipp110, 0, false, false);
+	dce110_helper_select_lut(ipp110);
 
-	{
-		const uint32_t addr = DCP_REG(mmDC_LUT_WRITE_EN_MASK);
+	/* power on LUT memory and give it time to settle */
+	DCP_REG_SET(DCFE_MEM_PWR_CTRL, DCP_LUT_MEM_PWR_DIS, 1);
+	udelay(10);
 
-		value = dm_read_reg(ipp110->base.ctx, addr);
-
-		/* enable all */
-		set_reg_field_value(
-			value,
-			0x7,
-			DC_LUT_WRITE_EN_MASK,
-			DC_LUT_WRITE_EN_MASK);
-
-		dm_write_reg(ipp110->base.ctx, addr, value);
+	for (i = 0; i < INPUT_LUT_ENTRIES; i++) {
+		DCP_REG_SET(DC_LUT_SEQ_COLOR, DC_LUT_SEQ_COLOR, gamma->red[i]);
+		DCP_REG_SET(DC_LUT_SEQ_COLOR, DC_LUT_SEQ_COLOR, gamma->green[i]);
+		DCP_REG_SET(DC_LUT_SEQ_COLOR, DC_LUT_SEQ_COLOR, gamma->blue[i]);
 	}
 
-	{
-		const uint32_t addr = DCP_REG(mmDC_LUT_RW_MODE);
+	/* power off LUT memory */
+	DCP_REG_SET(DCFE_MEM_PWR_CTRL, DCP_LUT_MEM_PWR_DIS, 0);
 
-		value = dm_read_reg(ipp110->base.ctx, addr);
-
-		set_reg_field_value(
-			value,
-			0,
-			DC_LUT_RW_MODE,
-			DC_LUT_RW_MODE);
-
-		dm_write_reg(ipp110->base.ctx, addr, value);
-	}
-
-	{
-		const uint32_t addr = DCP_REG(mmDC_LUT_CONTROL);
-
-		value = dm_read_reg(ipp110->base.ctx, addr);
-
-		/* 00 - new u0.12 */
-		set_reg_field_value(
-			value,
-			3,
-			DC_LUT_CONTROL,
-			DC_LUT_DATA_R_FORMAT);
-
-		set_reg_field_value(
-			value,
-			3,
-			DC_LUT_CONTROL,
-			DC_LUT_DATA_G_FORMAT);
-
-		set_reg_field_value(
-			value,
-			3,
-			DC_LUT_CONTROL,
-			DC_LUT_DATA_B_FORMAT);
-
-		dm_write_reg(ipp110->base.ctx, addr, value);
-	}
-
-	{
-		const uint32_t addr = DCP_REG(mmDC_LUT_RW_INDEX);
-
-		value = dm_read_reg(ipp110->base.ctx, addr);
-
-		set_reg_field_value(
-			value,
-			0,
-			DC_LUT_RW_INDEX,
-			DC_LUT_RW_INDEX);
-
-		dm_write_reg(ipp110->base.ctx, addr, value);
-	}
+	/* bypass prescale, enable legacy LUT */
+	DCP_REG_UPDATE(PRESCALE_GRPH_CONTROL, GRPH_PRESCALE_BYPASS, 1);
+	DCP_REG_UPDATE(INPUT_GAMMA_CONTROL, GRPH_INPUT_GAMMA_MODE, 0);
 }

@@ -29,10 +29,6 @@
 #include "opp.h"
 #include "core_types.h"
 
-#include "gamma_types.h" /* decprecated */
-
-struct gamma_parameters;
-
 bool dce110_opp_v_construct(struct dce110_opp *opp110,
 	struct dc_context *ctx);
 

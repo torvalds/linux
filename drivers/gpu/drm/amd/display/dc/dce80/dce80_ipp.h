@@ -33,8 +33,6 @@
 
 struct dce110_ipp;
 struct dce110_ipp_reg_offsets;
-struct gamma_parameters;
-struct dev_c_lut;
 
 bool dce80_ipp_construct(
 	struct dce110_ipp *ipp,

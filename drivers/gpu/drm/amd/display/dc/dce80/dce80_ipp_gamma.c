@@ -34,14 +34,9 @@
 
 #include "dce80_ipp.h"
 #include "dce110/dce110_ipp.h"
-#include "gamma_types.h"
 
 #define DCP_REG(reg)\
 	(reg + ipp80->offsets.dcp_offset)
-
-enum {
-	MAX_INPUT_LUT_ENTRY = 256
-};
 
 /*PROTOTYPE DECLARATIONS*/
 

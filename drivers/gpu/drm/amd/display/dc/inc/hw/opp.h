@@ -30,7 +30,6 @@
 #include "transform.h"
 
 struct fixed31_32;
-struct gamma_parameters;
 
 /* TODO: Need cleanup */
 enum clamping_range {

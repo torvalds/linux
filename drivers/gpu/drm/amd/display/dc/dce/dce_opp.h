@@ -29,10 +29,6 @@
 #include "opp.h"
 #include "core_types.h"
 
-#include "gamma_types.h" /* decprecated */
-
-struct gamma_parameters;
-
 #define FROM_DCE11_OPP(opp)\
 	container_of(opp, struct dce110_opp, base)
 

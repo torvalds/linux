@@ -28,8 +28,6 @@
 #include "core_types.h"
 #include "timing_generator.h"
 
-struct gamma_parameters;
-
 enum pipe_gating_control {
 	PIPE_GATING_CONTROL_DISABLE = 0,
 	PIPE_GATING_CONTROL_ENABLE,

@@ -28,9 +28,6 @@
 
 #include "ipp.h"
 
-struct gamma_parameters;
-struct dev_c_lut;
-
 #define TO_DCE110_IPP(input_pixel_processor)\
 	container_of(input_pixel_processor, struct dce110_ipp, base)
 
@@ -69,9 +66,9 @@ bool dce110_ipp_set_degamma(
 void dce110_ipp_program_prescale(
 	struct input_pixel_processor *ipp,
 	struct ipp_prescale_params *params);
-/*
- * Helper functions to be resused in other ASICs
- */
-void dce110_helper_select_lut(struct dce110_ipp *ipp110);
+
+void dce110_ipp_program_input_lut(
+	struct input_pixel_processor *ipp,
+	const struct dc_gamma *gamma);
 
 #endif /*__DC_IPP_DCE110_H__*/

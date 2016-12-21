@@ -32,8 +32,6 @@
 #include "dce/dce_opp.h"
 #include "dce110_opp_v.h"
 
-#include "gamma_types.h"
-
 /*****************************************/
 /* Constructor, Destructor               */
 /*****************************************/

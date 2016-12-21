@@ -228,10 +228,11 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 		break;
 	default:
 		ASSERT(false);
+		break;
 	}
 }
 
-static bool dce110_set_degamma(
+static bool dce110_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct core_surface *surface)
 {
@@ -248,6 +249,9 @@ static bool dce110_set_degamma(
 
 	build_prescale_params(&prescale_params, surface);
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
+
+	if (surface->public.gamma_correction)
+	    ipp->funcs->ipp_program_input_lut(ipp, surface->public.gamma_correction);
 
 	if (tf == NULL) {
 		/* Default case if no input transfer function specified */
@@ -272,6 +276,7 @@ static bool dce110_set_degamma(
 			break;
 		default:
 			result = false;
+			break;
 		}
 	} else {
 		/*TF_TYPE_DISTRIBUTED_POINTS - Not supported in DCE 11*/
@@ -303,8 +308,11 @@ static bool dce110_set_output_transfer_func(
 
 	opp->funcs->opp_power_on_regamma_lut(opp, true);
 
-	if (ramp && calculate_regamma_params(
-				regamma_params, ramp, surface, stream)) {
+	if (stream->public.out_transfer_func &&
+	    stream->public.out_transfer_func->type == TF_TYPE_PREDEFINED &&
+	    stream->public.out_transfer_func->tf == TRANSFER_FUNCTION_SRGB) {
+		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_SRGB);
+	} else if (ramp && calculate_regamma_params(regamma_params, ramp, surface, stream)) {
 		opp->funcs->opp_program_regamma_pwl(opp, regamma_params);
 		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_USER);
 	} else {
@@ -1318,7 +1326,6 @@ enum dc_status dce110_apply_ctx_to_hw(
 			* instead of per pipe.
 			*/
 			struct audio_output audio_output;
-			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 			build_audio_output(pipe_ctx, &audio_output);
 
@@ -1945,7 +1952,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_plane_config = set_plane_config,
 	.update_plane_addr = update_plane_addr,
 	.update_pending_status = dce110_update_pending_status,
-	.set_input_transfer_func = dce110_set_degamma,
+	.set_input_transfer_func = dce110_set_input_transfer_func,
 	.set_output_transfer_func = dce110_set_output_transfer_func,
 	.power_down = dce110_power_down,
 	.enable_accelerated_mode = dce110_enable_accelerated_mode,

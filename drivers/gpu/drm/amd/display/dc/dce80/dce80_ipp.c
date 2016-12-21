@@ -37,6 +37,7 @@ static const struct ipp_funcs funcs = {
 		.ipp_cursor_set_attributes = dce110_ipp_cursor_set_attributes,
 		.ipp_cursor_set_position = dce110_ipp_cursor_set_position,
 		.ipp_program_prescale = dce110_ipp_program_prescale,
+		.ipp_program_input_lut = dce110_ipp_program_input_lut,
 		.ipp_set_degamma = dce110_ipp_set_degamma,
 };
 

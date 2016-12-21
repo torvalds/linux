@@ -573,7 +573,7 @@ static bool find_software_points(
 	uint32_t *index_right,
 	enum hw_point_position *pos)
 {
-	const uint32_t max_number = RGB_256X3X16 + 3;
+	const uint32_t max_number = INPUT_LUT_ENTRIES + 3;
 
 	struct fixed31_32 left, right;
 
@@ -686,12 +686,12 @@ static bool build_custom_gamma_mapping_coefficients_worker(
 			return false;
 		}
 
-		if (index_left >= RGB_256X3X16 + 3) {
+		if (index_left >= INPUT_LUT_ENTRIES + 3) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
 
-		if (index_right >= RGB_256X3X16 + 3) {
+		if (index_right >= INPUT_LUT_ENTRIES + 3) {
 			BREAK_TO_DEBUGGER();
 			return false;
 		}
@@ -958,20 +958,13 @@ static bool scale_gamma(struct pwl_float_data *pwl_rgb,
 		const struct core_gamma *ramp,
 		struct dividers dividers)
 {
-	const struct dc_gamma_ramp_rgb256x3x16 *gamma;
+	const struct dc_gamma *gamma = &ramp->public;
 	const uint16_t max_driver = 0xFFFF;
 	const uint16_t max_os = 0xFF00;
 	uint16_t scaler = max_os;
-	uint32_t i;
+	uint32_t i = 0;
 	struct pwl_float_data *rgb = pwl_rgb;
-	struct pwl_float_data *rgb_last = rgb + RGB_256X3X16 - 1;
-
-	if (ramp->public.type == GAMMA_RAMP_RBG256X3X16)
-		gamma = &ramp->public.gamma_ramp_rgb256x3x16;
-	else
-		return false; /* invalid option */
-
-	i = 0;
+	struct pwl_float_data *rgb_last = rgb + INPUT_LUT_ENTRIES - 1;
 
 	do {
 		if ((gamma->red[i] > max_os) ||
@@ -981,7 +974,7 @@ static bool scale_gamma(struct pwl_float_data *pwl_rgb,
 			break;
 		}
 		++i;
-	} while (i != RGB_256X3X16);
+	} while (i != INPUT_LUT_ENTRIES);
 
 	i = 0;
 
@@ -995,7 +988,7 @@ static bool scale_gamma(struct pwl_float_data *pwl_rgb,
 
 		++rgb;
 		++i;
-	} while (i != RGB_256X3X16);
+	} while (i != INPUT_LUT_ENTRIES);
 
 	rgb->r = dal_fixed31_32_mul(rgb_last->r,
 			dividers.divider1);
@@ -1110,7 +1103,7 @@ static bool calculate_interpolated_hardware_curve(
 		return false;
 
 	coeff = coeff128;
-	max_entries += RGB_256X3X16;
+	max_entries += INPUT_LUT_ENTRIES;
 
 	/* TODO: float point case */
 
@@ -1440,13 +1433,13 @@ bool calculate_regamma_params(struct pwl_params *params,
 	coordinates_x = dm_alloc(sizeof(*coordinates_x)*(256 + 3));
 	if (!coordinates_x)
 		goto coordinates_x_alloc_fail;
-	rgb_user = dm_alloc(sizeof(*rgb_user) * (FLOAT_GAMMA_RAMP_MAX + 3));
+	rgb_user = dm_alloc(sizeof(*rgb_user) * (TRANSFER_FUNC_POINTS + 3));
 	if (!rgb_user)
 		goto rgb_user_alloc_fail;
 	rgb_regamma = dm_alloc(sizeof(*rgb_regamma) * (256 + 3));
 	if (!rgb_regamma)
 		goto rgb_regamma_alloc_fail;
-	rgb_oem = dm_alloc(sizeof(*rgb_oem) * (FLOAT_GAMMA_RAMP_MAX + 3));
+	rgb_oem = dm_alloc(sizeof(*rgb_oem) * (TRANSFER_FUNC_POINTS + 3));
 	if (!rgb_oem)
 		goto rgb_oem_alloc_fail;
 	axix_x_256 = dm_alloc(sizeof(*axix_x_256) * (256 + 3));

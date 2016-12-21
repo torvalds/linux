@@ -183,41 +183,7 @@ void dc_destroy(struct dc **dc);
  ******************************************************************************/
 
 enum {
-	RGB_256X3X16 = 256,
-	FLOAT_GAMMA_RAMP_MAX = 1025,
 	TRANSFER_FUNC_POINTS = 1025
-};
-
-enum dc_gamma_ramp_type {
-	GAMMA_RAMP_RBG256X3X16,
-	GAMMA_RAMP_FLOAT,
-};
-
-struct float_rgb {
-	struct fixed32_32 red;
-	struct fixed32_32 green;
-	struct fixed32_32 blue;
-};
-
-struct dc_gamma_ramp_float {
-	struct float_rgb scale;
-	struct float_rgb offset;
-	struct float_rgb gamma_curve[FLOAT_GAMMA_RAMP_MAX];
-};
-
-struct dc_gamma_ramp_rgb256x3x16 {
-	uint16_t red[RGB_256X3X16];
-	uint16_t green[RGB_256X3X16];
-	uint16_t blue[RGB_256X3X16];
-};
-
-struct dc_gamma {
-	enum dc_gamma_ramp_type type;
-	union {
-		struct dc_gamma_ramp_rgb256x3x16 gamma_ramp_rgb256x3x16;
-		struct dc_gamma_ramp_float gamma_ramp_float;
-	};
-	uint32_t size;
 };
 
 enum dc_transfer_func_type {
@@ -266,9 +232,7 @@ struct dc_surface {
 	bool horizontal_mirror;
 	enum plane_stereo_format stereo_format;
 
-	/* TO BE REMOVED AFTER BELOW TRANSFER FUNCTIONS IMPLEMENTED */
 	const struct dc_gamma *gamma_correction;
-
 	const struct dc_transfer_func *in_transfer_func;
 };
 

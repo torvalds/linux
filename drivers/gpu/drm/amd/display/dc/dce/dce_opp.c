@@ -28,8 +28,6 @@
 
 #include "dce_opp.h"
 
-#include "gamma_types.h"
-
 #include "reg_helper.h"
 
 #define REG(reg)\

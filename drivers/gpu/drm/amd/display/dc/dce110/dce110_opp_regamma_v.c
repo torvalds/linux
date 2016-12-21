@@ -30,7 +30,6 @@
 #include "dce/dce_11_0_sh_mask.h"
 
 #include "dce/dce_opp.h"
-#include "gamma_types.h"
 
 static void power_on_lut(struct output_pixel_processor *opp,
 	bool power_on, bool inputgamma, bool regamma)

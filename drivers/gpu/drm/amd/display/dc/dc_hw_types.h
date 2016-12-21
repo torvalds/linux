@@ -370,6 +370,16 @@ struct dc_cursor_mi_param {
 
 /* IPP related types */
 
+enum {
+	INPUT_LUT_ENTRIES = 256
+};
+
+struct dc_gamma {
+	uint16_t red[INPUT_LUT_ENTRIES];
+	uint16_t green[INPUT_LUT_ENTRIES];
+	uint16_t blue[INPUT_LUT_ENTRIES];
+};
+
 /* Used by both ipp amd opp functions*/
 /* TODO: to be consolidated with enum color_space */
 

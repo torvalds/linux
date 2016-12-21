@@ -521,13 +521,10 @@ static void fill_gamma_from_crtc(
 		return;
 
 	for (i = 0; i < NUM_OF_RAW_GAMMA_RAMP_RGB_256; i++) {
-		gamma->gamma_ramp_rgb256x3x16.red[i] = lut[i].red;
-		gamma->gamma_ramp_rgb256x3x16.green[i] = lut[i].green;
-		gamma->gamma_ramp_rgb256x3x16.blue[i] = lut[i].blue;
+		gamma->red[i] = lut[i].red;
+		gamma->green[i] = lut[i].green;
+		gamma->blue[i] = lut[i].blue;
 	}
-
-	gamma->type = GAMMA_RAMP_RBG256X3X16;
-	gamma->size = sizeof(gamma->gamma_ramp_rgb256x3x16);
 
 	dc_surface->gamma_correction = gamma;
 
@@ -822,6 +819,12 @@ static void fill_stream_properties_from_drm_display_mode(
 
 	stream->output_color_space = get_output_color_space(timing_out);
 
+	{
+		struct dc_transfer_func *tf = dc_create_transfer_func();
+		tf->type = TF_TYPE_PREDEFINED;
+		tf->tf = TRANSFER_FUNCTION_SRGB;
+		stream->out_transfer_func = tf;
+	}
 }
 
 static void fill_audio_info(
@@ -3066,7 +3069,7 @@ static bool is_dp_capable_without_timing_msa(
 	    dc_read_dpcd(dc, amdgpu_connector->dc_link->link_index,
 			 DP_DOWN_STREAM_PORT_COUNT,
 			 &dpcd_data, sizeof(dpcd_data)) )
-		capable = dpcd_data & DP_MSA_TIMING_PAR_IGNORED? true:false;
+		capable = (dpcd_data & DP_MSA_TIMING_PAR_IGNORED) ? true:false;
 
 	return capable;
 }

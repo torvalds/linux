@@ -2433,7 +2433,7 @@ bool mod_color_set_input_gamma_correction(struct mod_color *mod_color,
 
 		if (surface != NULL) {
 			struct dc_transfer_func *input_tf =
-					dc_create_transfer_func(core_color->dc);
+					dc_create_transfer_func();
 			struct dc_surface_update updates = {0};
 
 			if (input_tf != NULL) {
@@ -2724,7 +2724,7 @@ bool mod_color_update_gamut_info(struct mod_color *mod_color,
 		/* 3. ---- SET DEGAMMA ---- */
 		struct dc_transfer_func *input_tf = NULL;
 
-		input_tf = dc_create_transfer_func(core_color->dc);
+		input_tf = dc_create_transfer_func();
 
 		if (input_tf != NULL) {
 			input_tf->type = TF_TYPE_PREDEFINED;
@@ -2747,7 +2747,7 @@ bool mod_color_update_gamut_info(struct mod_color *mod_color,
 		/* 4. ---- SET REGAMMA ---- */
 		struct dc_transfer_func *output_tf = NULL;
 
-		output_tf = dc_create_transfer_func(core_color->dc);
+		output_tf = dc_create_transfer_func();
 
 		if (output_tf != NULL) {
 			output_tf->type = TF_TYPE_PREDEFINED;
