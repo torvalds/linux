@@ -779,12 +779,11 @@ DEFINE_EVENT_CONDITION(f2fs__submit_page_bio, f2fs_submit_page_mbio,
 	TP_CONDITION(page->mapping)
 );
 
-DECLARE_EVENT_CLASS(f2fs__submit_bio,
+DECLARE_EVENT_CLASS(f2fs__bio,
 
-	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
-						struct bio *bio),
+	TP_PROTO(struct super_block *sb, int type, struct bio *bio),
 
-	TP_ARGS(sb, fio, bio),
+	TP_ARGS(sb, type, bio),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
@@ -797,9 +796,9 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 
 	TP_fast_assign(
 		__entry->dev		= sb->s_dev;
-		__entry->op		= fio->op;
-		__entry->op_flags	= fio->op_flags;
-		__entry->type		= fio->type;
+		__entry->op		= bio_op(bio);
+		__entry->op_flags	= bio->bi_rw;
+		__entry->type		= type;
 		__entry->sector		= bio->bi_iter.bi_sector;
 		__entry->size		= bio->bi_iter.bi_size;
 	),
@@ -812,22 +811,38 @@ DECLARE_EVENT_CLASS(f2fs__submit_bio,
 		__entry->size)
 );
 
-DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_write_bio,
+DEFINE_EVENT_CONDITION(f2fs__bio, f2fs_prepare_write_bio,
 
-	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
-							struct bio *bio),
+	TP_PROTO(struct super_block *sb, int type, struct bio *bio),
 
-	TP_ARGS(sb, fio, bio),
+	TP_ARGS(sb, type, bio),
 
 	TP_CONDITION(bio)
 );
 
-DEFINE_EVENT_CONDITION(f2fs__submit_bio, f2fs_submit_read_bio,
+DEFINE_EVENT_CONDITION(f2fs__bio, f2fs_prepare_read_bio,
 
-	TP_PROTO(struct super_block *sb, struct f2fs_io_info *fio,
-							struct bio *bio),
+	TP_PROTO(struct super_block *sb, int type, struct bio *bio),
 
-	TP_ARGS(sb, fio, bio),
+	TP_ARGS(sb, type, bio),
+
+	TP_CONDITION(bio)
+);
+
+DEFINE_EVENT_CONDITION(f2fs__bio, f2fs_submit_read_bio,
+
+	TP_PROTO(struct super_block *sb, int type, struct bio *bio),
+
+	TP_ARGS(sb, type, bio),
+
+	TP_CONDITION(bio)
+);
+
+DEFINE_EVENT_CONDITION(f2fs__bio, f2fs_submit_write_bio,
+
+	TP_PROTO(struct super_block *sb, int type, struct bio *bio),
+
+	TP_ARGS(sb, type, bio),
 
 	TP_CONDITION(bio)
 );
