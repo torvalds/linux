@@ -1382,6 +1382,15 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 	return ret < 0 ? ret : 0;
 }
 
+void release_crtc_commit(struct completion *completion)
+{
+	struct drm_crtc_commit *commit = container_of(completion,
+						      typeof(*commit),
+						      flip_done);
+
+	drm_crtc_commit_put(commit);
+}
+
 /**
  * drm_atomic_helper_setup_commit - setup possibly nonblocking commit
  * @state: new modeset state to be committed
@@ -1474,6 +1483,8 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		}
 
 		crtc_state->event->base.completion = &commit->flip_done;
+		crtc_state->event->base.completion_release = release_crtc_commit;
+		drm_crtc_commit_get(commit);
 	}
 
 	return 0;

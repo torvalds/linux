@@ -361,6 +361,7 @@ struct drm_ioctl_desc {
 /* Event queued up for userspace to read */
 struct drm_pending_event {
 	struct completion *completion;
+	void (*completion_release)(struct completion *completion);
 	struct drm_event *event;
 	struct fence *fence;
 	struct list_head link;
