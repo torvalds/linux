@@ -596,23 +596,34 @@ void __sched ww_mutex_unlock(struct ww_mutex *lock)
 EXPORT_SYMBOL(ww_mutex_unlock);
 
 static inline int __sched
-__ww_mutex_lock_check_stamp(struct mutex *lock, struct ww_acquire_ctx *ctx)
+__ww_mutex_lock_check_stamp(struct mutex *lock, struct mutex_waiter *waiter,
+			    struct ww_acquire_ctx *ctx)
 {
 	struct ww_mutex *ww = container_of(lock, struct ww_mutex, base);
 	struct ww_acquire_ctx *hold_ctx = READ_ONCE(ww->ctx);
+	struct mutex_waiter *cur;
 
-	if (!hold_ctx)
-		return 0;
+	if (hold_ctx && __ww_ctx_stamp_after(ctx, hold_ctx))
+		goto deadlock;
 
-	if (__ww_ctx_stamp_after(ctx, hold_ctx)) {
-#ifdef CONFIG_DEBUG_MUTEXES
-		DEBUG_LOCKS_WARN_ON(ctx->contending_lock);
-		ctx->contending_lock = ww;
-#endif
-		return -EDEADLK;
+	/*
+	 * If there is a waiter in front of us that has a context, then its
+	 * stamp is earlier than ours and we must back off.
+	 */
+	cur = waiter;
+	list_for_each_entry_continue_reverse(cur, &lock->wait_list, list) {
+		if (cur->ww_ctx)
+			goto deadlock;
 	}
 
 	return 0;
+
+deadlock:
+#ifdef CONFIG_DEBUG_MUTEXES
+	DEBUG_LOCKS_WARN_ON(ctx->contending_lock);
+	ctx->contending_lock = ww;
+#endif
+	return -EDEADLK;
 }
 
 static inline int __sched
@@ -655,6 +666,15 @@ __ww_mutex_add_waiter(struct mutex_waiter *waiter,
 		}
 
 		pos = &cur->list;
+
+		/*
+		 * Wake up the waiter so that it gets a chance to back
+		 * off.
+		 */
+		if (cur->ww_ctx->acquired > 0) {
+			debug_mutex_wake_waiter(lock, cur);
+			wake_up_process(cur->task);
+		}
 	}
 
 	list_add_tail(&waiter->list, pos);
@@ -746,7 +766,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		}
 
 		if (use_ww_ctx && ww_ctx && ww_ctx->acquired > 0) {
-			ret = __ww_mutex_lock_check_stamp(lock, ww_ctx);
+			ret = __ww_mutex_lock_check_stamp(lock, &waiter, ww_ctx);
 			if (ret)
 				goto err;
 		}
