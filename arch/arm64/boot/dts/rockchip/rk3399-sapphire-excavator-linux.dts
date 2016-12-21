@@ -43,6 +43,7 @@
 /dts-v1/;
 
 #include "rk3399-excavator-sapphire.dtsi"
+#include "rk3399-linux.dtsi"
 #include <dt-bindings/input/input.h>
 
 / {
@@ -108,6 +109,18 @@
 			debounce-interval = <100>;
 		};
 	};
+};
+
+&vpu {
+	status = "okay";
+	/* 0 means ion, 1 means drm */
+	//allocator = <0>;
+};
+
+&rkvdec {
+	status = "okay";
+	/* 0 means ion, 1 means drm */
+	//allocator = <0>;
 };
 
 &backlight {
