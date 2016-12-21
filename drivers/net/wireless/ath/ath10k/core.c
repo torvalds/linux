@@ -1510,6 +1510,7 @@ static int ath10k_init_hw_params(struct ath10k *ar)
 static void ath10k_core_restart(struct work_struct *work)
 {
 	struct ath10k *ar = container_of(work, struct ath10k, restart_work);
+	int ret;
 
 	set_bit(ATH10K_FLAG_CRASH_FLUSH, &ar->dev_flags);
 
@@ -1561,6 +1562,11 @@ static void ath10k_core_restart(struct work_struct *work)
 	}
 
 	mutex_unlock(&ar->conf_mutex);
+
+	ret = ath10k_debug_fw_devcoredump(ar);
+	if (ret)
+		ath10k_warn(ar, "failed to send firmware crash dump via devcoredump: %d",
+			    ret);
 }
 
 static void ath10k_core_set_coverage_class_work(struct work_struct *work)
