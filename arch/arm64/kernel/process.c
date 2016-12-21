@@ -339,7 +339,7 @@ static void entry_task_switch(struct task_struct *next)
 /*
  * Thread switching.
  */
-struct task_struct *__switch_to(struct task_struct *prev,
+__notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next)
 {
 	struct task_struct *last;
