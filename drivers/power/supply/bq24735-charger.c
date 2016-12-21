@@ -468,7 +468,7 @@ static int bq24735_charger_probe(struct i2c_client *client,
 				client->irq, ret);
 			return ret;
 		}
-	} else if (charger->status_gpio) {
+	} else {
 		ret = device_property_read_u32(&client->dev, "poll-interval",
 					       &charger->poll_interval);
 		if (ret)
