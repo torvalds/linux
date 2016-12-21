@@ -35,7 +35,7 @@ config SPI_ASPEED_SMC
 	depends on HAS_IOMEM && OF
 	help
 	  This enables support for the Firmware Memory controller (FMC)
-	  in the Aspeed AST2500 SoC when attached to SPI NOR chips,
+	  in the Aspeed AST2500/AST2400 SoCs when attached to SPI NOR chips,
 	  and support for the SPI flash memory controller (SPI) for
 	  the host firmware. The implementation only supports SPI NOR.
 

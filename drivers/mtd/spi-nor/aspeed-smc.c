@@ -44,7 +44,26 @@ struct aspeed_smc_info {
 	void (*set_4b)(struct aspeed_smc_chip *chip);
 };
 
+static void aspeed_smc_chip_set_4b_spi_2400(struct aspeed_smc_chip *chip);
 static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip);
+
+static const struct aspeed_smc_info fmc_2400_info = {
+	.maxsize = 64 * 1024 * 1024,
+	.nce = 5,
+	.hastype = true,
+	.we0 = 16,
+	.ctl0 = 0x10,
+	.set_4b = aspeed_smc_chip_set_4b,
+};
+
+static const struct aspeed_smc_info spi_2400_info = {
+	.maxsize = 64 * 1024 * 1024,
+	.nce = 1,
+	.hastype = false,
+	.we0 = 0,
+	.ctl0 = 0x04,
+	.set_4b = aspeed_smc_chip_set_4b_spi_2400,
+};
 
 static const struct aspeed_smc_info fmc_2500_info = {
 	.maxsize = 256 * 1024 * 1024,
@@ -135,6 +154,7 @@ struct aspeed_smc_controller {
 #define CONTROL_IO_DUMMY_HI		BIT(14)
 #define CONTROL_IO_DUMMY_HI_SHIFT	14
 #define CONTROL_CLK_DIV4		BIT(13) /* others */
+#define CONTROL_IO_ADDRESS_4B		BIT(13) /* AST2400 SPI */
 #define CONTROL_RW_MERGE		BIT(12)
 #define CONTROL_IO_DUMMY_LO_SHIFT	6
 #define CONTROL_IO_DUMMY_LO		GENMASK(7, \
@@ -397,6 +417,8 @@ static int aspeed_smc_remove(struct platform_device *dev)
 }
 
 static const struct of_device_id aspeed_smc_matches[] = {
+	{ .compatible = "aspeed,ast2400-fmc", .data = &fmc_2400_info },
+	{ .compatible = "aspeed,ast2400-spi", .data = &spi_2400_info },
 	{ .compatible = "aspeed,ast2500-fmc", .data = &fmc_2500_info },
 	{ .compatible = "aspeed,ast2500-spi", .data = &spi_2500_info },
 	{ }
@@ -468,6 +490,17 @@ static void aspeed_smc_chip_set_4b(struct aspeed_smc_chip *chip)
 		reg |= 1 << chip->cs;
 		writel(reg, controller->regs + CE_CONTROL_REG);
 	}
+}
+
+/*
+ * The AST2400 SPI flash controller does not have a CE Control
+ * register. It uses the CE0 control register to set 4Byte mode at the
+ * controller level.
+ */
+static void aspeed_smc_chip_set_4b_spi_2400(struct aspeed_smc_chip *chip)
+{
+	chip->ctl_val[smc_base] |= CONTROL_IO_ADDRESS_4B;
+	chip->ctl_val[smc_read] |= CONTROL_IO_ADDRESS_4B;
 }
 
 static int aspeed_smc_chip_setup_init(struct aspeed_smc_chip *chip,
