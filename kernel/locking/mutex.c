@@ -289,6 +289,36 @@ __ww_ctx_stamp_after(struct ww_acquire_ctx *a, struct ww_acquire_ctx *b)
 }
 
 /*
+ * Wake up any waiters that may have to back off when the lock is held by the
+ * given context.
+ *
+ * Due to the invariants on the wait list, this can only affect the first
+ * waiter with a context.
+ *
+ * The current task must not be on the wait list.
+ */
+static void __sched
+__ww_mutex_wakeup_for_backoff(struct mutex *lock, struct ww_acquire_ctx *ww_ctx)
+{
+	struct mutex_waiter *cur;
+
+	lockdep_assert_held(&lock->wait_lock);
+
+	list_for_each_entry(cur, &lock->wait_list, list) {
+		if (!cur->ww_ctx)
+			continue;
+
+		if (cur->ww_ctx->acquired > 0 &&
+		    __ww_ctx_stamp_after(cur->ww_ctx, ww_ctx)) {
+			debug_mutex_wake_waiter(lock, cur);
+			wake_up_process(cur->task);
+		}
+
+		break;
+	}
+}
+
+/*
  * After acquiring lock with fastpath or when we lost out in contested
  * slowpath, set ctx and wake up any waiters so they can recheck.
  */
@@ -297,7 +327,6 @@ ww_mutex_set_context_fastpath(struct ww_mutex *lock,
 			       struct ww_acquire_ctx *ctx)
 {
 	unsigned long flags;
-	struct mutex_waiter *cur;
 
 	ww_mutex_lock_acquired(lock, ctx);
 
@@ -323,16 +352,15 @@ ww_mutex_set_context_fastpath(struct ww_mutex *lock,
 	 * so they can see the new lock->ctx.
 	 */
 	spin_lock_mutex(&lock->base.wait_lock, flags);
-	list_for_each_entry(cur, &lock->base.wait_list, list) {
-		debug_mutex_wake_waiter(&lock->base, cur);
-		wake_up_process(cur->task);
-	}
+	__ww_mutex_wakeup_for_backoff(&lock->base, ctx);
 	spin_unlock_mutex(&lock->base.wait_lock, flags);
 }
 
 /*
- * After acquiring lock in the slowpath set ctx and wake up any
- * waiters so they can recheck.
+ * After acquiring lock in the slowpath set ctx.
+ *
+ * Unlike for the fast path, the caller ensures that waiters are woken up where
+ * necessary.
  *
  * Callers must hold the mutex wait_lock.
  */
@@ -340,19 +368,8 @@ static __always_inline void
 ww_mutex_set_context_slowpath(struct ww_mutex *lock,
 			      struct ww_acquire_ctx *ctx)
 {
-	struct mutex_waiter *cur;
-
 	ww_mutex_lock_acquired(lock, ctx);
 	lock->ctx = ctx;
-
-	/*
-	 * Give any possible sleeping processes the chance to wake up,
-	 * so they can recheck if they have to back off.
-	 */
-	list_for_each_entry(cur, &lock->base.wait_list, list) {
-		debug_mutex_wake_waiter(&lock->base, cur);
-		wake_up_process(cur->task);
-	}
 }
 
 #ifdef CONFIG_MUTEX_SPIN_ON_OWNER
@@ -719,8 +736,12 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	/*
 	 * After waiting to acquire the wait_lock, try again.
 	 */
-	if (__mutex_trylock(lock))
+	if (__mutex_trylock(lock)) {
+		if (use_ww_ctx && ww_ctx)
+			__ww_mutex_wakeup_for_backoff(lock, ww_ctx);
+
 		goto skip_wait;
+	}
 
 	debug_mutex_lock_common(lock, &waiter);
 	debug_mutex_add_waiter(lock, &waiter, current);
