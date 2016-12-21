@@ -1432,23 +1432,53 @@ static int cpuhp_cb_check(enum cpuhp_state state)
 	return 0;
 }
 
-static void cpuhp_store_callbacks(enum cpuhp_state state,
-				  const char *name,
-				  int (*startup)(unsigned int cpu),
-				  int (*teardown)(unsigned int cpu),
-				  bool multi_instance)
+/*
+ * Returns a free for dynamic slot assignment of the Online state. The states
+ * are protected by the cpuhp_slot_states mutex and an empty slot is identified
+ * by having no name assigned.
+ */
+static int cpuhp_reserve_state(enum cpuhp_state state)
+{
+	enum cpuhp_state i;
+
+	for (i = CPUHP_AP_ONLINE_DYN; i <= CPUHP_AP_ONLINE_DYN_END; i++) {
+		if (!cpuhp_ap_states[i].name)
+			return i;
+	}
+	WARN(1, "No more dynamic states available for CPU hotplug\n");
+	return -ENOSPC;
+}
+
+static int cpuhp_store_callbacks(enum cpuhp_state state, const char *name,
+				 int (*startup)(unsigned int cpu),
+				 int (*teardown)(unsigned int cpu),
+				 bool multi_instance)
 {
 	/* (Un)Install the callbacks for further cpu hotplug operations */
 	struct cpuhp_step *sp;
+	int ret = 0;
 
 	mutex_lock(&cpuhp_state_mutex);
+
+	if (state == CPUHP_AP_ONLINE_DYN) {
+		ret = cpuhp_reserve_state(state);
+		if (ret < 0)
+			goto out;
+		state = ret;
+	}
 	sp = cpuhp_get_step(state);
+	if (name && sp->name) {
+		ret = -EBUSY;
+		goto out;
+	}
 	sp->startup.single = startup;
 	sp->teardown.single = teardown;
 	sp->name = name;
 	sp->multi_instance = multi_instance;
 	INIT_HLIST_HEAD(&sp->list);
+out:
 	mutex_unlock(&cpuhp_state_mutex);
+	return ret;
 }
 
 static void *cpuhp_get_teardown_cb(enum cpuhp_state state)
@@ -1509,29 +1539,6 @@ static void cpuhp_rollback_install(int failedcpu, enum cpuhp_state state,
 	}
 }
 
-/*
- * Returns a free for dynamic slot assignment of the Online state. The states
- * are protected by the cpuhp_slot_states mutex and an empty slot is identified
- * by having no name assigned.
- */
-static int cpuhp_reserve_state(enum cpuhp_state state)
-{
-	enum cpuhp_state i;
-
-	mutex_lock(&cpuhp_state_mutex);
-	for (i = CPUHP_AP_ONLINE_DYN; i <= CPUHP_AP_ONLINE_DYN_END; i++) {
-		if (cpuhp_ap_states[i].name)
-			continue;
-
-		cpuhp_ap_states[i].name = "Reserved";
-		mutex_unlock(&cpuhp_state_mutex);
-		return i;
-	}
-	mutex_unlock(&cpuhp_state_mutex);
-	WARN(1, "No more dynamic states available for CPU hotplug\n");
-	return -ENOSPC;
-}
-
 int __cpuhp_state_add_instance(enum cpuhp_state state, struct hlist_node *node,
 			       bool invoke)
 {
@@ -1580,11 +1587,13 @@ EXPORT_SYMBOL_GPL(__cpuhp_state_add_instance);
 
 /**
  * __cpuhp_setup_state - Setup the callbacks for an hotplug machine state
- * @state:	The state to setup
- * @invoke:	If true, the startup function is invoked for cpus where
- *		cpu state >= @state
- * @startup:	startup callback function
- * @teardown:	teardown callback function
+ * @state:		The state to setup
+ * @invoke:		If true, the startup function is invoked for cpus where
+ *			cpu state >= @state
+ * @startup:		startup callback function
+ * @teardown:		teardown callback function
+ * @multi_instance:	State is set up for multiple instances which get
+ *			added afterwards.
  *
  * Returns:
  *   On success:
@@ -1599,25 +1608,16 @@ int __cpuhp_setup_state(enum cpuhp_state state,
 			bool multi_instance)
 {
 	int cpu, ret = 0;
-	int dyn_state = 0;
 
 	if (cpuhp_cb_check(state) || !name)
 		return -EINVAL;
 
 	get_online_cpus();
 
-	/* currently assignments for the ONLINE state are possible */
-	if (state == CPUHP_AP_ONLINE_DYN) {
-		dyn_state = 1;
-		ret = cpuhp_reserve_state(state);
-		if (ret < 0)
-			goto out;
-		state = ret;
-	}
+	ret = cpuhp_store_callbacks(state, name, startup, teardown,
+				    multi_instance);
 
-	cpuhp_store_callbacks(state, name, startup, teardown, multi_instance);
-
-	if (!invoke || !startup)
+	if (ret || !invoke || !startup)
 		goto out;
 
 	/*
@@ -1641,7 +1641,11 @@ int __cpuhp_setup_state(enum cpuhp_state state,
 	}
 out:
 	put_online_cpus();
-	if (!ret && dyn_state)
+	/*
+	 * If the requested state is CPUHP_AP_ONLINE_DYN, return the
+	 * dynamically allocated state in case of success.
+	 */
+	if (!ret && state == CPUHP_AP_ONLINE_DYN)
 		return state;
 	return ret;
 }
