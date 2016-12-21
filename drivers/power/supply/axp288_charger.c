@@ -706,7 +706,7 @@ static int charger_init_hw_regs(struct axp288_chrg_info *info)
 	/* Do not turn-off charger o/p after charge cycle ends */
 	ret = regmap_update_bits(info->regmap,
 				AXP20X_CHRG_CTRL2,
-				CNTL2_CHG_OUT_TURNON, 1);
+				CNTL2_CHG_OUT_TURNON, CNTL2_CHG_OUT_TURNON);
 	if (ret < 0) {
 		dev_err(&info->pdev->dev, "register(%x) write error(%d)\n",
 						AXP20X_CHRG_CTRL2, ret);
