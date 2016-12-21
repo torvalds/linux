@@ -218,7 +218,7 @@ name:
 
 #ifdef CONFIG_KVM_BOOK3S_64_HANDLER
 #define TRAMP_KVM_BEGIN(name)						\
-	TRAMP_REAL_BEGIN(name)
+	TRAMP_VIRT_BEGIN(name)
 #else
 #define TRAMP_KVM_BEGIN(name)
 #endif
