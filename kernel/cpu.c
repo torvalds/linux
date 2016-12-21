@@ -183,23 +183,16 @@ EXPORT_SYMBOL_GPL(cpuhp_tasks_frozen);
 /*
  * The following two APIs (cpu_maps_update_begin/done) must be used when
  * attempting to serialize the updates to cpu_online_mask & cpu_present_mask.
- * The APIs cpu_notifier_register_begin/done() must be used to protect CPU
- * hotplug callback (un)registration performed using __register_cpu_notifier()
- * or __unregister_cpu_notifier().
  */
 void cpu_maps_update_begin(void)
 {
 	mutex_lock(&cpu_add_remove_lock);
 }
-EXPORT_SYMBOL(cpu_notifier_register_begin);
 
 void cpu_maps_update_done(void)
 {
 	mutex_unlock(&cpu_add_remove_lock);
 }
-EXPORT_SYMBOL(cpu_notifier_register_done);
-
-static RAW_NOTIFIER_HEAD(cpu_chain);
 
 /* If set, cpu_up and cpu_down will return -EBUSY and do nothing.
  * Should always be manipulated under cpu_add_remove_lock
@@ -349,66 +342,7 @@ void cpu_hotplug_enable(void)
 EXPORT_SYMBOL_GPL(cpu_hotplug_enable);
 #endif	/* CONFIG_HOTPLUG_CPU */
 
-/* Need to know about CPUs going up/down? */
-int register_cpu_notifier(struct notifier_block *nb)
-{
-	int ret;
-	cpu_maps_update_begin();
-	ret = raw_notifier_chain_register(&cpu_chain, nb);
-	cpu_maps_update_done();
-	return ret;
-}
-
-int __register_cpu_notifier(struct notifier_block *nb)
-{
-	return raw_notifier_chain_register(&cpu_chain, nb);
-}
-
-static int __cpu_notify(unsigned long val, unsigned int cpu, int nr_to_call,
-			int *nr_calls)
-{
-	unsigned long mod = cpuhp_tasks_frozen ? CPU_TASKS_FROZEN : 0;
-	void *hcpu = (void *)(long)cpu;
-
-	int ret;
-
-	ret = __raw_notifier_call_chain(&cpu_chain, val | mod, hcpu, nr_to_call,
-					nr_calls);
-
-	return notifier_to_errno(ret);
-}
-
-static int cpu_notify(unsigned long val, unsigned int cpu)
-{
-	return __cpu_notify(val, cpu, -1, NULL);
-}
-
-static void cpu_notify_nofail(unsigned long val, unsigned int cpu)
-{
-	BUG_ON(cpu_notify(val, cpu));
-}
-
 /* Notifier wrappers for transitioning to state machine */
-static int notify_prepare(unsigned int cpu)
-{
-	int nr_calls = 0;
-	int ret;
-
-	ret = __cpu_notify(CPU_UP_PREPARE, cpu, -1, &nr_calls);
-	if (ret) {
-		nr_calls--;
-		printk(KERN_WARNING "%s: attempt to bring up CPU %u failed\n",
-				__func__, cpu);
-		__cpu_notify(CPU_UP_CANCELED, cpu, nr_calls, NULL);
-	}
-	return ret;
-}
-
-static int notify_online(unsigned int cpu)
-{
-	cpu_notify(CPU_ONLINE, cpu);
-	return 0;
-}
 
 static int bringup_wait_for_ap(unsigned int cpu)
 {
@@ -433,10 +367,8 @@ static int bringup_cpu(unsigned int cpu)
 	/* Arch-specific enabling code. */
 	ret = __cpu_up(cpu, idle);
 	irq_unlock_sparse();
-	if (ret) {
-		cpu_notify(CPU_UP_CANCELED, cpu);
+	if (ret)
 		return ret;
-	}
 	ret = bringup_wait_for_ap(cpu);
 	BUG_ON(!cpu_online(cpu));
 	return ret;
@@ -565,11 +497,6 @@ static void cpuhp_thread_fun(unsigned int cpu)
 		BUG_ON(st->state < CPUHP_AP_ONLINE_IDLE);
 
 		undo_cpu_down(cpu, st);
-		/*
-		 * This is a momentary workaround to keep the notifier users
-		 * happy. Will go away once we got rid of the notifiers.
-		 */
-		cpu_notify_nofail(CPU_DOWN_FAILED, cpu);
 		st->rollback = false;
 	} else {
 		/* Cannot happen .... */
@@ -659,22 +586,6 @@ void __init cpuhp_threads_init(void)
 	kthread_unpark(this_cpu_read(cpuhp_state.thread));
 }
 
-EXPORT_SYMBOL(register_cpu_notifier);
-EXPORT_SYMBOL(__register_cpu_notifier);
-void unregister_cpu_notifier(struct notifier_block *nb)
-{
-	cpu_maps_update_begin();
-	raw_notifier_chain_unregister(&cpu_chain, nb);
-	cpu_maps_update_done();
-}
-EXPORT_SYMBOL(unregister_cpu_notifier);
-
-void __unregister_cpu_notifier(struct notifier_block *nb)
-{
-	raw_notifier_chain_unregister(&cpu_chain, nb);
-}
-EXPORT_SYMBOL(__unregister_cpu_notifier);
-
 #ifdef CONFIG_HOTPLUG_CPU
 /**
  * clear_tasks_mm_cpumask - Safely clear tasks' mm_cpumask for a CPU
@@ -739,20 +650,6 @@ static inline void check_for_tasks(int dead_cpu)
 			p->comm, task_pid_nr(p), dead_cpu, p->state, p->flags);
 	}
 	read_unlock(&tasklist_lock);
-}
-
-static int notify_down_prepare(unsigned int cpu)
-{
-	int err, nr_calls = 0;
-
-	err = __cpu_notify(CPU_DOWN_PREPARE, cpu, -1, &nr_calls);
-	if (err) {
-		nr_calls--;
-		__cpu_notify(CPU_DOWN_FAILED, cpu, nr_calls, NULL);
-		pr_warn("%s: attempt to take down CPU %u failed\n",
-				__func__, cpu);
-	}
-	return err;
 }
 
 /* Take this CPU down. */
@@ -833,13 +730,6 @@ static int takedown_cpu(unsigned int cpu)
 	return 0;
 }
 
-static int notify_dead(unsigned int cpu)
-{
-	cpu_notify_nofail(CPU_DEAD, cpu);
-	check_for_tasks(cpu);
-	return 0;
-}
-
 static void cpuhp_complete_idle_dead(void *arg)
 {
 	struct cpuhp_cpu_state *st = arg;
@@ -863,9 +753,7 @@ void cpuhp_report_idle_dead(void)
 }
 
 #else
-#define notify_down_prepare	NULL
 #define takedown_cpu		NULL
-#define notify_dead		NULL
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -924,9 +812,6 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen,
 	hasdied = prev_state != st->state && st->state == CPUHP_OFFLINE;
 out:
 	cpu_hotplug_done();
-	/* This post dead nonsense must die */
-	if (!ret && hasdied)
-		cpu_notify_nofail(CPU_POST_DEAD, cpu);
 	return ret;
 }
 
@@ -1292,17 +1177,6 @@ static struct cpuhp_step cpuhp_bp_states[] = {
 		.teardown.single	= rcutree_dead_cpu,
 	},
 	/*
-	 * Preparatory and dead notifiers. Will be replaced once the notifiers
-	 * are converted to states.
-	 */
-	[CPUHP_NOTIFY_PREPARE] = {
-		.name			= "notify:prepare",
-		.startup.single		= notify_prepare,
-		.teardown.single	= notify_dead,
-		.skip_onerr		= true,
-		.cant_stop		= true,
-	},
-	/*
 	 * On the tear-down path, timers_dead_cpu() must be invoked
 	 * before blk_mq_queue_reinit_notify() from notify_dead(),
 	 * otherwise a RCU stall occurs.
@@ -1390,17 +1264,6 @@ static struct cpuhp_step cpuhp_ap_states[] = {
 		.name			= "RCU/tree:online",
 		.startup.single		= rcutree_online_cpu,
 		.teardown.single	= rcutree_offline_cpu,
-	},
-
-	/*
-	 * Online/down_prepare notifiers. Will be removed once the notifiers
-	 * are converted to states.
-	 */
-	[CPUHP_AP_NOTIFY_ONLINE] = {
-		.name			= "notify:online",
-		.startup.single		= notify_online,
-		.teardown.single	= notify_down_prepare,
-		.skip_onerr		= true,
 	},
 #endif
 	/*
