@@ -71,11 +71,15 @@ static bool construct(struct dc_context *ctx, struct surface *surface)
 
 static void destruct(struct surface *surface)
 {
-	if (surface->protected.public.gamma_correction != NULL)
+	if (surface->protected.public.gamma_correction != NULL) {
 		dc_gamma_release(surface->protected.public.gamma_correction);
-	if (surface->protected.public.in_transfer_func != NULL)
+		surface->protected.public.gamma_correction = NULL;
+	}
+	if (surface->protected.public.in_transfer_func != NULL) {
 		dc_transfer_func_release(
 				surface->protected.public.in_transfer_func);
+		surface->protected.public.in_transfer_func = NULL;
+	}
 }
 
 /*******************************************************************************
