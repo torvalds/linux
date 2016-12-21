@@ -856,8 +856,15 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct platform_device_id axp288_charger_id_table[] = {
+	{ .name = "axp288_charger" },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, axp288_charger_id_table);
+
 static struct platform_driver axp288_charger_driver = {
 	.probe = axp288_charger_probe,
+	.id_table = axp288_charger_id_table,
 	.driver = {
 		.name = "axp288_charger",
 	},
