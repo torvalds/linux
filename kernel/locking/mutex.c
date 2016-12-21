@@ -469,7 +469,7 @@ static bool mutex_optimistic_spin(struct mutex *lock,
 	for (;;) {
 		struct task_struct *owner;
 
-		if (use_ww_ctx && ww_ctx->acquired > 0) {
+		if (use_ww_ctx && ww_ctx && ww_ctx->acquired > 0) {
 			struct ww_mutex *ww;
 
 			ww = container_of(lock, struct ww_mutex, base);
@@ -629,8 +629,9 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	struct ww_mutex *ww;
 	int ret;
 
-	if (use_ww_ctx) {
-		ww = container_of(lock, struct ww_mutex, base);
+	ww = container_of(lock, struct ww_mutex, base);
+
+	if (use_ww_ctx && ww_ctx) {
 		if (unlikely(ww_ctx == READ_ONCE(ww->ctx)))
 			return -EALREADY;
 	}
@@ -642,7 +643,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	    mutex_optimistic_spin(lock, ww_ctx, use_ww_ctx, false)) {
 		/* got the lock, yay! */
 		lock_acquired(&lock->dep_map, ip);
-		if (use_ww_ctx)
+		if (use_ww_ctx && ww_ctx)
 			ww_mutex_set_context_fastpath(ww, ww_ctx);
 		preempt_enable();
 		return 0;
@@ -688,7 +689,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 			goto err;
 		}
 
-		if (use_ww_ctx && ww_ctx->acquired > 0) {
+		if (use_ww_ctx && ww_ctx && ww_ctx->acquired > 0) {
 			ret = __ww_mutex_lock_check_stamp(lock, ww_ctx);
 			if (ret)
 				goto err;
@@ -728,7 +729,7 @@ skip_wait:
 	/* got the lock - cleanup and rejoice! */
 	lock_acquired(&lock->dep_map, ip);
 
-	if (use_ww_ctx)
+	if (use_ww_ctx && ww_ctx)
 		ww_mutex_set_context_slowpath(ww, ww_ctx);
 
 	spin_unlock_mutex(&lock->wait_lock, flags);
@@ -816,8 +817,9 @@ __ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 
 	might_sleep();
 	ret =  __mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE,
-				   0, &ctx->dep_map, _RET_IP_, ctx, 1);
-	if (!ret && ctx->acquired > 1)
+				   0, ctx ? &ctx->dep_map : NULL, _RET_IP_,
+				   ctx, 1);
+	if (!ret && ctx && ctx->acquired > 1)
 		return ww_mutex_deadlock_injection(lock, ctx);
 
 	return ret;
@@ -831,9 +833,10 @@ __ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 
 	might_sleep();
 	ret = __mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE,
-				  0, &ctx->dep_map, _RET_IP_, ctx, 1);
+				  0, ctx ? &ctx->dep_map : NULL, _RET_IP_,
+				  ctx, 1);
 
-	if (!ret && ctx->acquired > 1)
+	if (!ret && ctx && ctx->acquired > 1)
 		return ww_mutex_deadlock_injection(lock, ctx);
 
 	return ret;
@@ -1021,7 +1024,8 @@ __ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 	might_sleep();
 
 	if (__mutex_trylock_fast(&lock->base)) {
-		ww_mutex_set_context_fastpath(lock, ctx);
+		if (ctx)
+			ww_mutex_set_context_fastpath(lock, ctx);
 		return 0;
 	}
 
@@ -1035,7 +1039,8 @@ __ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 	might_sleep();
 
 	if (__mutex_trylock_fast(&lock->base)) {
-		ww_mutex_set_context_fastpath(lock, ctx);
+		if (ctx)
+			ww_mutex_set_context_fastpath(lock, ctx);
 		return 0;
 	}
 

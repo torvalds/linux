@@ -222,11 +222,7 @@ extern int __must_check __ww_mutex_lock_interruptible(struct ww_mutex *lock,
  */
 static inline int ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
-	if (ctx)
-		return __ww_mutex_lock(lock, ctx);
-
-	mutex_lock(&lock->base);
-	return 0;
+	return __ww_mutex_lock(lock, ctx);
 }
 
 /**
@@ -262,10 +258,7 @@ static inline int ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ct
 static inline int __must_check ww_mutex_lock_interruptible(struct ww_mutex *lock,
 							   struct ww_acquire_ctx *ctx)
 {
-	if (ctx)
-		return __ww_mutex_lock_interruptible(lock, ctx);
-	else
-		return mutex_lock_interruptible(&lock->base);
+	return __ww_mutex_lock_interruptible(lock, ctx);
 }
 
 /**
