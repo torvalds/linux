@@ -612,12 +612,6 @@ extern const struct comedi_lrange range_unknown;
 
 #define range_digital		range_unipolar5
 
-#if __GNUC__ >= 3
-#define GCC_ZERO_LENGTH_ARRAY
-#else
-#define GCC_ZERO_LENGTH_ARRAY 0
-#endif
-
 /**
  * struct comedi_lrange - Describes a COMEDI range table
  * @length: Number of entries in the range table.
@@ -631,7 +625,7 @@ extern const struct comedi_lrange range_unknown;
  */
 struct comedi_lrange {
 	int length;
-	struct comedi_krange range[GCC_ZERO_LENGTH_ARRAY];
+	struct comedi_krange range[];
 };
 
 /**
