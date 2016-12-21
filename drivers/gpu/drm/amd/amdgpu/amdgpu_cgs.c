@@ -763,6 +763,23 @@ static uint16_t amdgpu_get_firmware_version(struct cgs_device *cgs_device,
 	return fw_version;
 }
 
+static int amdgpu_cgs_enter_safe_mode(struct cgs_device *cgs_device,
+					bool en)
+{
+	CGS_FUNC_ADEV;
+
+	if (adev->gfx.rlc.funcs->enter_safe_mode == NULL ||
+		adev->gfx.rlc.funcs->exit_safe_mode == NULL)
+		return 0;
+
+	if (en)
+		adev->gfx.rlc.funcs->enter_safe_mode(adev);
+	else
+		adev->gfx.rlc.funcs->exit_safe_mode(adev);
+
+	return 0;
+}
+
 static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					enum cgs_ucode_id type,
 					struct cgs_firmware_info *info)
@@ -1243,6 +1260,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.call_acpi_method = amdgpu_cgs_call_acpi_method,
 	.query_system_info = amdgpu_cgs_query_system_info,
 	.is_virtualization_enabled = amdgpu_cgs_is_virtualization_enabled,
+	.enter_safe_mode = amdgpu_cgs_enter_safe_mode,
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
