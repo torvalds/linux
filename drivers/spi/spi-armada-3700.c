@@ -170,12 +170,12 @@ static int a3700_spi_pin_mode_set(struct a3700_spi *a3700_spi,
 	val &= ~(A3700_SPI_DATA_PIN0 | A3700_SPI_DATA_PIN1);
 
 	switch (pin_mode) {
-	case 1:
+	case SPI_NBITS_SINGLE:
 		break;
-	case 2:
+	case SPI_NBITS_DUAL:
 		val |= A3700_SPI_DATA_PIN0;
 		break;
-	case 4:
+	case SPI_NBITS_QUAD:
 		val |= A3700_SPI_DATA_PIN1;
 		break;
 	default:
