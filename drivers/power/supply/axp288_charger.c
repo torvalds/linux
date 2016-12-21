@@ -815,6 +815,8 @@ static int axp288_charger_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config charger_cfg = {};
+	unsigned int cable_ids[] = { EXTCON_CHG_USB_SDP, EXTCON_CHG_USB_CDP,
+				     EXTCON_CHG_USB_DCP };
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -831,33 +833,6 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
-	/* Register for extcon notification */
-	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);
-	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
-	ret = devm_extcon_register_notifier(&pdev->dev, info->cable.edev,
-					EXTCON_CHG_USB_SDP, &info->cable.nb);
-	if (ret) {
-		dev_err(&info->pdev->dev,
-			"failed to register extcon notifier for SDP %d\n", ret);
-		return ret;
-	}
-
-	ret = devm_extcon_register_notifier(&pdev->dev, info->cable.edev,
-					EXTCON_CHG_USB_CDP, &info->cable.nb);
-	if (ret) {
-		dev_err(&info->pdev->dev,
-			"failed to register extcon notifier for CDP %d\n", ret);
-		return ret;
-	}
-
-	ret = devm_extcon_register_notifier(&pdev->dev, info->cable.edev,
-					EXTCON_CHG_USB_DCP, &info->cable.nb);
-	if (ret) {
-		dev_err(&info->pdev->dev,
-			"failed to register extcon notifier for DCP %d\n", ret);
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, info);
 	mutex_init(&info->lock);
 
@@ -869,6 +844,19 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		ret = PTR_ERR(info->psy_usb);
 		dev_err(dev, "failed to register power supply: %d\n", ret);
 		return ret;
+	}
+
+	/* Register for extcon notification */
+	INIT_WORK(&info->cable.work, axp288_charger_extcon_evt_worker);
+	info->cable.nb.notifier_call = axp288_charger_handle_cable_evt;
+	for (i = 0; i < ARRAY_SIZE(cable_ids); i++) {
+		ret = devm_extcon_register_notifier(dev, info->cable.edev,
+						cable_ids[i], &info->cable.nb);
+		if (ret) {
+			dev_err(dev, "failed to register extcon notifier for %u: %d\n",
+				cable_ids[i], ret);
+			return ret;
+		}
 	}
 
 	/* Register for OTG notification */
