@@ -112,6 +112,15 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		return r;
 	}
 
+	ring = &adev->vcn.ring_enc[0];
+	rq = &ring->sched.sched_rq[AMD_SCHED_PRIORITY_NORMAL];
+	r = amd_sched_entity_init(&ring->sched, &adev->vcn.entity_enc,
+				  rq, amdgpu_sched_jobs);
+	if (r != 0) {
+		DRM_ERROR("Failed setting up VCN enc run queue.\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -120,6 +129,8 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 	kfree(adev->vcn.saved_bo);
 
 	amd_sched_entity_fini(&adev->vcn.ring_dec.sched, &adev->vcn.entity_dec);
+
+	amd_sched_entity_fini(&adev->vcn.ring_enc[0].sched, &adev->vcn.entity_enc);
 
 	amdgpu_bo_free_kernel(&adev->vcn.vcpu_bo,
 			      &adev->vcn.gpu_addr,
@@ -421,5 +432,197 @@ int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	dma_fence_put(fence);
 
 error:
+	return r;
+}
+
+static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+			      struct dma_fence **fence)
+{
+	const unsigned ib_size_dw = 1024;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
+	struct dma_fence *f = NULL;
+	uint64_t dummy;
+	int i, r;
+
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	if (r)
+		return r;
+
+	ib = &job->ibs[0];
+
+	dummy = ib->gpu_addr + 1024;
+
+	/* stitch together an VCN enc create msg */
+	ib->length_dw = 0;
+	ib->ptr[ib->length_dw++] = 0x0000000c; /* len */
+	ib->ptr[ib->length_dw++] = 0x00000001; /* session cmd */
+	ib->ptr[ib->length_dw++] = handle;
+
+	ib->ptr[ib->length_dw++] = 0x00000040; /* len */
+	ib->ptr[ib->length_dw++] = 0x01000001; /* create cmd */
+	ib->ptr[ib->length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0x00000042;
+	ib->ptr[ib->length_dw++] = 0x0000000a;
+	ib->ptr[ib->length_dw++] = 0x00000001;
+	ib->ptr[ib->length_dw++] = 0x00000080;
+	ib->ptr[ib->length_dw++] = 0x00000060;
+	ib->ptr[ib->length_dw++] = 0x00000100;
+	ib->ptr[ib->length_dw++] = 0x00000100;
+	ib->ptr[ib->length_dw++] = 0x0000000c;
+	ib->ptr[ib->length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0x00000000;
+
+	ib->ptr[ib->length_dw++] = 0x00000014; /* len */
+	ib->ptr[ib->length_dw++] = 0x05000005; /* feedback buffer */
+	ib->ptr[ib->length_dw++] = upper_32_bits(dummy);
+	ib->ptr[ib->length_dw++] = dummy;
+	ib->ptr[ib->length_dw++] = 0x00000001;
+
+	for (i = ib->length_dw; i < ib_size_dw; ++i)
+		ib->ptr[i] = 0x0;
+
+	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+	job->fence = dma_fence_get(f);
+	if (r)
+		goto err;
+
+	amdgpu_job_free(job);
+	if (fence)
+		*fence = dma_fence_get(f);
+	dma_fence_put(f);
+	return 0;
+
+err:
+	amdgpu_job_free(job);
+	return r;
+}
+
+static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
+			       bool direct, struct dma_fence **fence)
+{
+	const unsigned ib_size_dw = 1024;
+	struct amdgpu_job *job;
+	struct amdgpu_ib *ib;
+	struct dma_fence *f = NULL;
+	int i, r;
+
+	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
+	if (r)
+		return r;
+
+	ib = &job->ibs[0];
+
+	/* stitch together an VCN enc destroy msg */
+	ib->length_dw = 0;
+	ib->ptr[ib->length_dw++] = 0x0000000c; /* len */
+	ib->ptr[ib->length_dw++] = 0x00000001; /* session cmd */
+	ib->ptr[ib->length_dw++] = handle;
+
+	ib->ptr[ib->length_dw++] = 0x00000020; /* len */
+	ib->ptr[ib->length_dw++] = 0x00000002; /* task info */
+	ib->ptr[ib->length_dw++] = 0xffffffff; /* next task info, set to 0xffffffff if no */
+	ib->ptr[ib->length_dw++] = 0x00000001; /* destroy session */
+	ib->ptr[ib->length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0x00000000;
+	ib->ptr[ib->length_dw++] = 0xffffffff; /* feedback is not needed, set to 0xffffffff and firmware will not output feedback */
+	ib->ptr[ib->length_dw++] = 0x00000000;
+
+	ib->ptr[ib->length_dw++] = 0x00000008; /* len */
+	ib->ptr[ib->length_dw++] = 0x02000001; /* destroy cmd */
+
+	for (i = ib->length_dw; i < ib_size_dw; ++i)
+		ib->ptr[i] = 0x0;
+
+	if (direct) {
+		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
+		job->fence = dma_fence_get(f);
+		if (r)
+			goto err;
+
+		amdgpu_job_free(job);
+	} else {
+		r = amdgpu_job_submit(job, ring, &ring->adev->vcn.entity_enc,
+				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
+		if (r)
+			goto err;
+	}
+
+	if (fence)
+		*fence = dma_fence_get(f);
+	dma_fence_put(f);
+	return 0;
+
+err:
+	amdgpu_job_free(job);
+	return r;
+}
+
+int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	uint32_t rptr = amdgpu_ring_get_rptr(ring);
+	unsigned i;
+	int r;
+
+	r = amdgpu_ring_alloc(ring, 16);
+	if (r) {
+		DRM_ERROR("amdgpu: vcn enc failed to lock ring %d (%d).\n",
+			  ring->idx, r);
+		return r;
+	}
+	amdgpu_ring_write(ring, VCE_CMD_END);
+	amdgpu_ring_commit(ring);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (amdgpu_ring_get_rptr(ring) != rptr)
+			break;
+		DRM_UDELAY(1);
+	}
+
+	if (i < adev->usec_timeout) {
+		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+			 ring->idx, i);
+	} else {
+		DRM_ERROR("amdgpu: ring %d test failed\n",
+			  ring->idx);
+		r = -ETIMEDOUT;
+	}
+
+	return r;
+}
+
+int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout)
+{
+	struct dma_fence *fence = NULL;
+	long r;
+
+	r = amdgpu_vcn_enc_get_create_msg(ring, 1, NULL);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+		goto error;
+	}
+
+	r = amdgpu_vcn_enc_get_destroy_msg(ring, 1, true, &fence);
+	if (r) {
+		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+		goto error;
+	}
+
+	r = dma_fence_wait_timeout(fence, false, timeout);
+	if (r == 0) {
+		DRM_ERROR("amdgpu: IB test timed out.\n");
+		r = -ETIMEDOUT;
+	} else if (r < 0) {
+		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
+	} else {
+		DRM_INFO("ib test on ring %d succeeded\n", ring->idx);
+		r = 0;
+	}
+error:
+	dma_fence_put(fence);
 	return r;
 }

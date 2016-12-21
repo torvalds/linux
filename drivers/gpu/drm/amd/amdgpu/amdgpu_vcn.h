@@ -32,4 +32,7 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_vcn_ring_end_use(struct amdgpu_ring *ring);
 int amdgpu_vcn_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout);
 
+int amdgpu_vcn_enc_ring_test_ring(struct amdgpu_ring *ring);
+int amdgpu_vcn_enc_ring_test_ib(struct amdgpu_ring *ring, long timeout);
+
 #endif
