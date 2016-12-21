@@ -194,7 +194,7 @@ struct thermal_attr {
  * @governor:	pointer to the governor for this thermal zone
  * @governor_data:	private pointer for governor data
  * @thermal_instances:	list of &struct thermal_instance of this thermal zone
- * @idr:	&struct idr to generate unique id for this zone's cooling
+ * @ida:	&struct ida to generate unique id for this zone's cooling
  *		devices
  * @lock:	lock to protect thermal_instances list
  * @node:	node in thermal_tz_list (in thermal_core.c)
@@ -227,7 +227,7 @@ struct thermal_zone_device {
 	struct thermal_governor *governor;
 	void *governor_data;
 	struct list_head thermal_instances;
-	struct idr idr;
+	struct ida ida;
 	struct mutex lock;
 	struct list_head node;
 	struct delayed_work poll_queue;
