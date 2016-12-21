@@ -569,8 +569,7 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			if (*minorp == '.') {
 				if (num != 4)
 					return -EINVAL;
-				minor = simple_strtoul(minorp+1, NULL, 0);
-				if (minor == 0)
+				if (kstrtouint(minorp+1, 0, &minor) < 0)
 					return -EINVAL;
 				if (nfsd_minorversion(minor, sign == '-' ?
 						     NFSD_CLEAR : NFSD_SET) < 0)
@@ -613,8 +612,13 @@ static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 			tlen += len;
 		}
 	if (nfsd_vers(4, NFSD_AVAIL))
-		for (minor = 1; minor <= NFSD_SUPPORTED_MINOR_VERSION;
+		for (minor = 0; minor <= NFSD_SUPPORTED_MINOR_VERSION;
 		     minor++) {
+			if (minor == 0 && nfsd_minorversion(minor, NFSD_TEST))
+				/* for backward compatibility, don't report
+				 * +4.0
+				 */
+				continue;
 			len = snprintf(buf, remaining, " %c4.%u",
 					(nfsd_vers(4, NFSD_TEST) &&
 					 nfsd_minorversion(minor, NFSD_TEST)) ?
