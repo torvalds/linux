@@ -74,6 +74,14 @@
 					bias-pull-down;
 				};
 
+				s2 {
+					regulator-min-microvolt = <1300000>;
+					regulator-max-microvolt = <1300000>;
+					qcom,switch-mode-frequency = <1600000>;
+					bias-pull-down;
+					regulator-always-on;
+				};
+
 				s3 {
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1400000>;
