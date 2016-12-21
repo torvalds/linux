@@ -97,3 +97,45 @@ int its_invall_vpe(struct its_vpe *vpe)
 
 	return its_send_vpe_cmd(vpe, &info);
 }
+
+int its_map_vlpi(int irq, struct its_vlpi_map *map)
+{
+	struct its_cmd_info info = {
+		.cmd_type = MAP_VLPI,
+		.map      = map,
+	};
+
+	/*
+	 * The host will never see that interrupt firing again, so it
+	 * is vital that we don't do any lazy masking.
+	 */
+	irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
+
+	return irq_set_vcpu_affinity(irq, &info);
+}
+
+int its_get_vlpi(int irq, struct its_vlpi_map *map)
+{
+	struct its_cmd_info info = {
+		.cmd_type = GET_VLPI,
+		.map      = map,
+	};
+
+	return irq_set_vcpu_affinity(irq, &info);
+}
+
+int its_unmap_vlpi(int irq)
+{
+	irq_clear_status_flags(irq, IRQ_DISABLE_UNLAZY);
+	return irq_set_vcpu_affinity(irq, NULL);
+}
+
+int its_prop_update_vlpi(int irq, u8 config, bool inv)
+{
+	struct its_cmd_info info = {
+		.cmd_type = inv ? PROP_UPDATE_AND_INV_VLPI : PROP_UPDATE_VLPI,
+		.config   = config,
+	};
+
+	return irq_set_vcpu_affinity(irq, &info);
+}
