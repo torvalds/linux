@@ -812,6 +812,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 {
 	int ret, i, pirq;
 	struct axp288_chrg_info *info;
+	struct device *dev = &pdev->dev;
 	struct axp20x_dev *axp20x = dev_get_drvdata(pdev->dev.parent);
 	struct power_supply_config charger_cfg = {};
 
@@ -862,12 +863,12 @@ static int axp288_charger_probe(struct platform_device *pdev)
 
 	/* Register with power supply class */
 	charger_cfg.drv_data = info;
-	info->psy_usb = power_supply_register(&pdev->dev, &axp288_charger_desc,
-						&charger_cfg);
+	info->psy_usb = devm_power_supply_register(dev, &axp288_charger_desc,
+						   &charger_cfg);
 	if (IS_ERR(info->psy_usb)) {
-		dev_err(&pdev->dev, "failed to register power supply charger\n");
 		ret = PTR_ERR(info->psy_usb);
-		goto psy_reg_failed;
+		dev_err(dev, "failed to register power supply: %d\n", ret);
+		return ret;
 	}
 
 	/* Register for OTG notification */
@@ -889,8 +890,7 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		if (info->irq[i] < 0) {
 			dev_warn(&info->pdev->dev,
 				"failed to get virtual interrupt=%d\n", pirq);
-			ret = info->irq[i];
-			goto intr_reg_failed;
+			return info->irq[i];
 		}
 		ret = devm_request_threaded_irq(&info->pdev->dev, info->irq[i],
 					NULL, axp288_charger_irq_thread_handler,
@@ -898,34 +898,19 @@ static int axp288_charger_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "failed to request interrupt=%d\n",
 								info->irq[i]);
-			goto intr_reg_failed;
+			return ret;
 		}
 	}
 
 	ret = charger_init_hw_regs(info);
 	if (ret)
-		goto intr_reg_failed;
-
-	return 0;
-
-intr_reg_failed:
-	power_supply_unregister(info->psy_usb);
-psy_reg_failed:
-	return ret;
-}
-
-static int axp288_charger_remove(struct platform_device *pdev)
-{
-	struct axp288_chrg_info *info =  dev_get_drvdata(&pdev->dev);
-
-	power_supply_unregister(info->psy_usb);
+		return ret;
 
 	return 0;
 }
 
 static struct platform_driver axp288_charger_driver = {
 	.probe = axp288_charger_probe,
-	.remove = axp288_charger_remove,
 	.driver = {
 		.name = "axp288_charger",
 	},
