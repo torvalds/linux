@@ -8852,17 +8852,22 @@ F:	drivers/video/fbdev/nvidia/
 NVM EXPRESS DRIVER
 M:	Keith Busch <keith.busch@intel.com>
 M:	Jens Axboe <axboe@fb.com>
+M:	Christoph Hellwig <hch@lst.de>
+M:	Sagi Grimberg <sagi@grimberg.me>
 L:	linux-nvme@lists.infradead.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
-W:	https://kernel.googlesource.com/pub/scm/linux/kernel/git/axboe/linux-block/
+T:	git://git.infradead.org/nvme.git
+W:	http://git.infradead.org/nvme.git
 S:	Supported
 F:	drivers/nvme/host/
 F:	include/linux/nvme.h
+F:	include/uapi/linux/nvme_ioctl.h
 
 NVM EXPRESS TARGET DRIVER
 M:	Christoph Hellwig <hch@lst.de>
 M:	Sagi Grimberg <sagi@grimberg.me>
 L:	linux-nvme@lists.infradead.org
+T:	git://git.infradead.org/nvme.git
+W:	http://git.infradead.org/nvme.git
 S:	Supported
 F:	drivers/nvme/target/
 
