@@ -801,6 +801,19 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 			8);
 	intel_dsi->clk_hs_to_lp_count += extra_byte_count;
 
+	DRM_DEBUG_KMS("Pclk %d\n", intel_dsi->pclk);
+	DRM_DEBUG_KMS("Pixel overlap %d\n", intel_dsi->pixel_overlap);
+	DRM_DEBUG_KMS("Lane count %d\n", intel_dsi->lane_count);
+	DRM_DEBUG_KMS("DPHY param reg 0x%x\n", intel_dsi->dphy_reg);
+	DRM_DEBUG_KMS("Video mode format %s\n",
+		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_PULSE ?
+		      "non-burst with sync pulse" :
+		      intel_dsi->video_mode_format == VIDEO_MODE_NON_BURST_WITH_SYNC_EVENTS ?
+		      "non-burst with sync events" :
+		      intel_dsi->video_mode_format == VIDEO_MODE_BURST ?
+		      "burst" : "<unknown>");
+	DRM_DEBUG_KMS("Burst mode ratio %d\n", intel_dsi->burst_mode_ratio);
+	DRM_DEBUG_KMS("Reset timer %d\n", intel_dsi->rst_timer_val);
 	DRM_DEBUG_KMS("Eot %s\n", enableddisabled(intel_dsi->eotp_pkt));
 	DRM_DEBUG_KMS("Clockstop %s\n", enableddisabled(!intel_dsi->clock_stop));
 	DRM_DEBUG_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
