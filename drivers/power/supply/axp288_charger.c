@@ -175,7 +175,6 @@ struct axp288_chrg_info {
 	int max_cv;
 	bool online;
 	bool present;
-	bool enable_charger;
 	bool is_charger_enabled;
 };
 
@@ -304,6 +303,9 @@ static int axp288_charger_enable_charger(struct axp288_chrg_info *info,
 								bool enable)
 {
 	int ret;
+
+	if (enable == info->is_charger_enabled)
+		return 0;
 
 	if (enable)
 		ret = regmap_update_bits(info->regmap, AXP20X_CHRG_CTRL1,
@@ -579,6 +581,7 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 	bool changed = false;
 	struct extcon_dev *edev = info->cable.edev;
 	bool old_connected = info->cable.connected;
+	enum power_supply_type old_chg_type = info->cable.chg_type;
 
 	/* Determine cable/charger type */
 	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
@@ -601,7 +604,8 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 	}
 
 	/* Cable status changed */
-	if (old_connected != info->cable.connected)
+	if (old_connected != info->cable.connected ||
+	    old_chg_type != info->cable.chg_type)
 		changed = true;
 
 	if (!changed)
@@ -609,14 +613,9 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 
 	mutex_lock(&info->lock);
 
-	if (info->is_charger_enabled && !info->cable.connected) {
-		info->enable_charger = false;
-		ret = axp288_charger_enable_charger(info, info->enable_charger);
-		if (ret < 0)
-			dev_err(&info->pdev->dev,
-				"cannot disable charger (%d)", ret);
+	if (info->cable.connected) {
+		axp288_charger_enable_charger(info, false);
 
-	} else if (!info->is_charger_enabled && info->cable.connected) {
 		switch (info->cable.chg_type) {
 		case POWER_SUPPLY_TYPE_USB:
 			current_limit = ILIM_500MA;
@@ -635,17 +634,13 @@ static void axp288_charger_extcon_evt_worker(struct work_struct *work)
 
 		/* Set vbus current limit first, then enable charger */
 		ret = axp288_charger_set_vbus_inlmt(info, current_limit);
-		if (ret < 0) {
+		if (ret == 0)
+			axp288_charger_enable_charger(info, true);
+		else
 			dev_err(&info->pdev->dev,
 				"error setting current limit (%d)", ret);
-		} else {
-			info->enable_charger = (current_limit > 0);
-			ret = axp288_charger_enable_charger(info,
-							info->enable_charger);
-			if (ret < 0)
-				dev_err(&info->pdev->dev,
-					"cannot enable charger (%d)", ret);
-		}
+	} else {
+		axp288_charger_enable_charger(info, false);
 	}
 
 	if (changed)
