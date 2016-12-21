@@ -420,7 +420,7 @@ static void a3700_spi_fifo_thres_set(struct a3700_spi *a3700_spi,
 }
 
 static void a3700_spi_transfer_setup(struct spi_device *spi,
-				    struct spi_transfer *xfer)
+				     struct spi_transfer *xfer)
 {
 	struct a3700_spi *a3700_spi;
 	unsigned int byte_len;
@@ -561,6 +561,7 @@ static int a3700_spi_fifo_read(struct a3700_spi *a3700_spi)
 		val = spireg_read(a3700_spi, A3700_SPI_DATA_IN_REG);
 		if (a3700_spi->buf_len >= 4) {
 			u32 data = le32_to_cpu(val);
+
 			memcpy(a3700_spi->rx_buf, &data, 4);
 
 			a3700_spi->buf_len -= 4;
