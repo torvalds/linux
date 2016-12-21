@@ -135,6 +135,7 @@ static void dnotify_free_mark(struct fsnotify_mark *fsn_mark)
 
 static struct fsnotify_ops dnotify_fsnotify_ops = {
 	.handle_event = dnotify_handle_event,
+	.free_mark = dnotify_free_mark,
 };
 
 /*
@@ -305,7 +306,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 
 	/* set up the new_fsn_mark and new_dn_mark */
 	new_fsn_mark = &new_dn_mark->fsn_mark;
-	fsnotify_init_mark(new_fsn_mark, dnotify_group, dnotify_free_mark);
+	fsnotify_init_mark(new_fsn_mark, dnotify_group);
 	new_fsn_mark->mask = mask;
 	new_dn_mark->dn = NULL;
 

@@ -262,8 +262,14 @@ static void fanotify_free_event(struct fsnotify_event *fsn_event)
 	kmem_cache_free(fanotify_event_cachep, event);
 }
 
+static void fanotify_free_mark(struct fsnotify_mark *fsn_mark)
+{
+	kmem_cache_free(fanotify_mark_cache, fsn_mark);
+}
+
 const struct fsnotify_ops fanotify_fsnotify_ops = {
 	.handle_event = fanotify_handle_event,
 	.free_group_priv = fanotify_free_group_priv,
 	.free_event = fanotify_free_event,
+	.free_mark = fanotify_free_mark,
 };

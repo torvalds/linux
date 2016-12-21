@@ -103,8 +103,7 @@ struct audit_fsnotify_mark *audit_alloc_mark(struct audit_krule *krule, char *pa
 		goto out;
 	}
 
-	fsnotify_init_mark(&audit_mark->mark, audit_fsnotify_group,
-			   audit_fsnotify_free_mark);
+	fsnotify_init_mark(&audit_mark->mark, audit_fsnotify_group);
 	audit_mark->mark.mask = AUDIT_FS_EVENTS;
 	audit_mark->path = pathname;
 	audit_update_mark(audit_mark, dentry->d_inode);
@@ -203,6 +202,7 @@ static int audit_mark_handle_event(struct fsnotify_group *group,
 
 static const struct fsnotify_ops audit_mark_fsnotify_ops = {
 	.handle_event =	audit_mark_handle_event,
+	.free_mark = audit_fsnotify_free_mark,
 };
 
 static int __init audit_fsnotify_init(void)

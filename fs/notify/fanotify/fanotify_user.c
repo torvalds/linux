@@ -41,7 +41,7 @@
 
 extern const struct fsnotify_ops fanotify_fsnotify_ops;
 
-static struct kmem_cache *fanotify_mark_cache __read_mostly;
+struct kmem_cache *fanotify_mark_cache __read_mostly;
 struct kmem_cache *fanotify_event_cachep __read_mostly;
 struct kmem_cache *fanotify_perm_event_cachep __read_mostly;
 
@@ -445,11 +445,6 @@ static const struct file_operations fanotify_fops = {
 	.llseek		= noop_llseek,
 };
 
-static void fanotify_free_mark(struct fsnotify_mark *fsn_mark)
-{
-	kmem_cache_free(fanotify_mark_cache, fsn_mark);
-}
-
 static int fanotify_find_path(int dfd, const char __user *filename,
 			      struct path *path, unsigned int flags)
 {
@@ -628,7 +623,7 @@ static struct fsnotify_mark *fanotify_add_new_mark(struct fsnotify_group *group,
 	if (!mark)
 		return ERR_PTR(-ENOMEM);
 
-	fsnotify_init_mark(mark, group, fanotify_free_mark);
+	fsnotify_init_mark(mark, group);
 	ret = fsnotify_add_mark_locked(mark, inode, mnt, 0);
 	if (ret) {
 		fsnotify_put_mark(mark);

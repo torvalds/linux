@@ -154,8 +154,7 @@ static struct audit_chunk *alloc_chunk(int count)
 		INIT_LIST_HEAD(&chunk->owners[i].list);
 		chunk->owners[i].index = i;
 	}
-	fsnotify_init_mark(&chunk->mark, audit_tree_group,
-			   audit_tree_destroy_watch);
+	fsnotify_init_mark(&chunk->mark, audit_tree_group);
 	chunk->mark.mask = FS_IN_IGNORED;
 	return chunk;
 }
@@ -1013,6 +1012,7 @@ static void audit_tree_freeing_mark(struct fsnotify_mark *entry, struct fsnotify
 static const struct fsnotify_ops audit_tree_ops = {
 	.handle_event = audit_tree_handle_event,
 	.freeing_mark = audit_tree_freeing_mark,
+	.free_mark = audit_tree_destroy_watch,
 };
 
 static int __init audit_tree_init(void)

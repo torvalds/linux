@@ -195,9 +195,12 @@ static struct inode *fsnotify_detach_connector_from_object(
 
 static void fsnotify_final_mark_destroy(struct fsnotify_mark *mark)
 {
-	if (mark->group)
-		fsnotify_put_group(mark->group);
-	mark->free_mark(mark);
+	struct fsnotify_group *group = mark->group;
+
+	if (WARN_ON_ONCE(!group))
+		return;
+	group->ops->free_mark(mark);
+	fsnotify_put_group(group);
 }
 
 void fsnotify_put_mark(struct fsnotify_mark *mark)
@@ -732,13 +735,11 @@ void fsnotify_destroy_marks(struct fsnotify_mark_connector __rcu **connp)
  * Nothing fancy, just initialize lists and locks and counters.
  */
 void fsnotify_init_mark(struct fsnotify_mark *mark,
-			struct fsnotify_group *group,
-			void (*free_mark)(struct fsnotify_mark *mark))
+			struct fsnotify_group *group)
 {
 	memset(mark, 0, sizeof(*mark));
 	spin_lock_init(&mark->lock);
 	atomic_set(&mark->refcnt, 1);
-	mark->free_mark = free_mark;
 	fsnotify_get_group(group);
 	mark->group = group;
 }

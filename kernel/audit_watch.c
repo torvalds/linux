@@ -157,8 +157,7 @@ static struct audit_parent *audit_init_parent(struct path *path)
 
 	INIT_LIST_HEAD(&parent->watches);
 
-	fsnotify_init_mark(&parent->mark, audit_watch_group,
-			   audit_watch_free_mark);
+	fsnotify_init_mark(&parent->mark, audit_watch_group);
 	parent->mark.mask = AUDIT_FS_WATCH;
 	ret = fsnotify_add_mark(&parent->mark, inode, NULL, 0);
 	if (ret < 0) {
@@ -508,6 +507,7 @@ static int audit_watch_handle_event(struct fsnotify_group *group,
 
 static const struct fsnotify_ops audit_watch_fsnotify_ops = {
 	.handle_event = 	audit_watch_handle_event,
+	.free_mark =		audit_watch_free_mark,
 };
 
 static int __init audit_watch_init(void)
