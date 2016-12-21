@@ -177,6 +177,7 @@ static struct vpu_task_info task_vpu[TASK_TYPE_BUTT] = {
 	},
 	{
 		.name = "vpu_dec_pp",
+		.reg_rlc = 12,
 		.reg_en = VPU_REG_EN_DEC,
 		.reg_irq = VPU_DEC_INTERRUPT_REGISTER,
 		.reg_len = 12,
