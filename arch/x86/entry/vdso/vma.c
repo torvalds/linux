@@ -371,7 +371,7 @@ static int __init init_vdso(void)
 
 	/* notifier priority > KVM */
 	return cpuhp_setup_state(CPUHP_AP_X86_VDSO_VMA_ONLINE,
-				 "AP_X86_VDSO_VMA_ONLINE", vgetcpu_online, NULL);
+				 "x86/vdso/vma:online", vgetcpu_online, NULL);
 }
 subsys_initcall(init_vdso);
 #endif /* CONFIG_X86_64 */

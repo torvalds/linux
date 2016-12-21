@@ -309,7 +309,7 @@ static int __init arc_clockevent_setup(struct device_node *node)
 	}
 
 	ret = cpuhp_setup_state(CPUHP_AP_ARC_TIMER_STARTING,
-				"AP_ARC_TIMER_STARTING",
+				"clockevents/arc/timer:starting",
 				arc_timer_starting_cpu,
 				arc_timer_dying_cpu);
 	if (ret) {

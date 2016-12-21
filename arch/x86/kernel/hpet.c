@@ -1051,11 +1051,11 @@ static __init int hpet_late_init(void)
 		return 0;
 
 	/* This notifier should be called after workqueue is ready */
-	ret = cpuhp_setup_state(CPUHP_AP_X86_HPET_ONLINE, "AP_X86_HPET_ONLINE",
+	ret = cpuhp_setup_state(CPUHP_AP_X86_HPET_ONLINE, "x86/hpet:online",
 				hpet_cpuhp_online, NULL);
 	if (ret)
 		return ret;
-	ret = cpuhp_setup_state(CPUHP_X86_HPET_DEAD, "X86_HPET_DEAD", NULL,
+	ret = cpuhp_setup_state(CPUHP_X86_HPET_DEAD, "x86/hpet:dead", NULL,
 				hpet_cpuhp_dead);
 	if (ret)
 		goto err_cpuhp;

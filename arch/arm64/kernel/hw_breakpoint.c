@@ -1001,7 +1001,7 @@ static int __init arch_hw_breakpoint_init(void)
 	 * debugger will leave the world in a nice state for us.
 	 */
 	ret = cpuhp_setup_state(CPUHP_AP_PERF_ARM_HW_BREAKPOINT_STARTING,
-			  "CPUHP_AP_PERF_ARM_HW_BREAKPOINT_STARTING",
+			  "perf/arm64/hw_breakpoint:starting",
 			  hw_breakpoint_reset, NULL);
 	if (ret)
 		pr_err("failed to register CPU hotplug notifier: %d\n", ret);

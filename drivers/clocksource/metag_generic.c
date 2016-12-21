@@ -154,6 +154,6 @@ int __init metag_generic_timer_init(void)
 
 	/* Hook cpu boot to configure the CPU's timers */
 	return cpuhp_setup_state(CPUHP_AP_METAG_TIMER_STARTING,
-				 "AP_METAG_TIMER_STARTING",
+				 "clockevents/metag:starting",
 				 arch_timer_starting_cpu, NULL);
 }

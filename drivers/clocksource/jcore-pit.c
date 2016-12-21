@@ -240,7 +240,7 @@ static int __init jcore_pit_init(struct device_node *node)
 	}
 
 	cpuhp_setup_state(CPUHP_AP_JCORE_TIMER_STARTING,
-			  "AP_JCORE_TIMER_STARTING",
+			  "clockevents/jcore:starting",
 			  jcore_pit_local_init, NULL);
 
 	return 0;

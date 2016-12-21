@@ -140,7 +140,7 @@ static int clear_os_lock(unsigned int cpu)
 static int debug_monitors_init(void)
 {
 	return cpuhp_setup_state(CPUHP_AP_ARM64_DEBUG_MONITORS_STARTING,
-				 "CPUHP_AP_ARM64_DEBUG_MONITORS_STARTING",
+				 "arm64/debug_monitors:starting",
 				 clear_os_lock, NULL);
 }
 postcore_initcall(debug_monitors_init);

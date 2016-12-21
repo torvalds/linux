@@ -407,7 +407,7 @@ hip04_of_init(struct device_node *node, struct device_node *parent)
 	set_handle_irq(hip04_handle_irq);
 
 	hip04_irq_dist_init(&hip04_data);
-	cpuhp_setup_state(CPUHP_AP_IRQ_HIP04_STARTING, "AP_IRQ_HIP04_STARTING",
+	cpuhp_setup_state(CPUHP_AP_IRQ_HIP04_STARTING, "irqchip/hip04:starting",
 			  hip04_irq_starting_cpu, NULL);
 	return 0;
 }

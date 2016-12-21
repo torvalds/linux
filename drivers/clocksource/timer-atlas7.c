@@ -221,7 +221,7 @@ static int __init sirfsoc_clockevent_init(void)
 
 	/* Install and invoke hotplug callbacks */
 	return cpuhp_setup_state(CPUHP_AP_MARCO_TIMER_STARTING,
-				 "AP_MARCO_TIMER_STARTING",
+				 "clockevents/marco:starting",
 				 sirfsoc_local_timer_starting_cpu,
 				 sirfsoc_local_timer_dying_cpu);
 }
