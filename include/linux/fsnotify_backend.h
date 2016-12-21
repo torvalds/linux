@@ -245,9 +245,9 @@ struct fsnotify_mark {
 	struct list_head g_list;
 	/* Protects inode / mnt pointers, flags, masks */
 	spinlock_t lock;
-	/* List of marks for inode / vfsmount [connector->lock] */
+	/* List of marks for inode / vfsmount [connector->lock, mark ref] */
 	struct hlist_node obj_list;
-	/* Head of list of marks for an object [mark->lock, group->mark_mutex] */
+	/* Head of list of marks for an object [mark ref] */
 	struct fsnotify_mark_connector *connector;
 	/* Events types to ignore [mark->lock, group->mark_mutex] */
 	__u32 ignored_mask;
