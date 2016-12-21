@@ -9,6 +9,7 @@
 
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/t10-pi.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_bsg_fc.h>
 #include <scsi/scsi_eh.h>

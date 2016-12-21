@@ -160,6 +160,43 @@ int nfs_sync_mapping(struct address_space *mapping)
 	return ret;
 }
 
+static int nfs_attribute_timeout(struct inode *inode)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+
+	return !time_in_range_open(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
+}
+
+static bool nfs_check_cache_invalid_delegated(struct inode *inode, unsigned long flags)
+{
+	unsigned long cache_validity = READ_ONCE(NFS_I(inode)->cache_validity);
+
+	/* Special case for the pagecache or access cache */
+	if (flags == NFS_INO_REVAL_PAGECACHE &&
+	    !(cache_validity & NFS_INO_REVAL_FORCED))
+		return false;
+	return (cache_validity & flags) != 0;
+}
+
+static bool nfs_check_cache_invalid_not_delegated(struct inode *inode, unsigned long flags)
+{
+	unsigned long cache_validity = READ_ONCE(NFS_I(inode)->cache_validity);
+
+	if ((cache_validity & flags) != 0)
+		return true;
+	if (nfs_attribute_timeout(inode))
+		return true;
+	return false;
+}
+
+bool nfs_check_cache_invalid(struct inode *inode, unsigned long flags)
+{
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
+		return nfs_check_cache_invalid_delegated(inode, flags);
+
+	return nfs_check_cache_invalid_not_delegated(inode, flags);
+}
+
 static void nfs_set_cache_invalid(struct inode *inode, unsigned long flags)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -795,6 +832,8 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 	if (!is_sync)
 		return;
 	inode = d_inode(ctx->dentry);
+	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
+		return;
 	nfsi = NFS_I(inode);
 	if (inode->i_mapping->nrpages == 0)
 		return;
@@ -1044,13 +1083,6 @@ out:
 	return status;
 }
 
-int nfs_attribute_timeout(struct inode *inode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-
-	return !time_in_range_open(jiffies, nfsi->read_cache_jiffies, nfsi->read_cache_jiffies + nfsi->attrtimeo);
-}
-
 int nfs_attribute_cache_expired(struct inode *inode)
 {
 	if (nfs_have_delegated_attributes(inode))
@@ -1072,15 +1104,6 @@ int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 	return __nfs_revalidate_inode(server, inode);
 }
 EXPORT_SYMBOL_GPL(nfs_revalidate_inode);
-
-int nfs_revalidate_inode_rcu(struct nfs_server *server, struct inode *inode)
-{
-	if (!(NFS_I(inode)->cache_validity &
-			(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_LABEL))
-			&& !nfs_attribute_cache_expired(inode))
-		return NFS_STALE(inode) ? -ESTALE : 0;
-	return -ECHILD;
-}
 
 static int nfs_invalidate_mapping(struct inode *inode, struct address_space *mapping)
 {
@@ -1114,17 +1137,8 @@ static int nfs_invalidate_mapping(struct inode *inode, struct address_space *map
 
 bool nfs_mapping_need_revalidate_inode(struct inode *inode)
 {
-	unsigned long cache_validity = NFS_I(inode)->cache_validity;
-
-	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ)) {
-		const unsigned long force_reval =
-			NFS_INO_REVAL_PAGECACHE|NFS_INO_REVAL_FORCED;
-		return (cache_validity & force_reval) == force_reval;
-	}
-
-	return (cache_validity & NFS_INO_REVAL_PAGECACHE)
-		|| nfs_attribute_timeout(inode)
-		|| NFS_STALE(inode);
+	return nfs_check_cache_invalid(inode, NFS_INO_REVAL_PAGECACHE) ||
+		NFS_STALE(inode);
 }
 
 int nfs_revalidate_mapping_rcu(struct inode *inode)
@@ -1535,13 +1549,6 @@ EXPORT_SYMBOL_GPL(nfs_refresh_inode);
 static int nfs_post_op_update_inode_locked(struct inode *inode, struct nfs_fattr *fattr)
 {
 	unsigned long invalid = NFS_INO_INVALID_ATTR;
-
-	/*
-	 * Don't revalidate the pagecache if we hold a delegation, but do
-	 * force an attribute update
-	 */
-	if (NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
-		invalid = NFS_INO_INVALID_ATTR|NFS_INO_REVAL_FORCED;
 
 	if (S_ISDIR(inode->i_mode))
 		invalid |= NFS_INO_INVALID_DATA;

@@ -1126,7 +1126,8 @@ static int ff_layout_async_handle_error_v4(struct rpc_task *task,
 	case -EPIPE:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
-		nfs4_mark_deviceid_unavailable(devid);
+		nfs4_delete_deviceid(devid->ld, devid->nfs_client,
+				&devid->deviceid);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		/* fall through */
 	default:
@@ -1175,7 +1176,8 @@ static int ff_layout_async_handle_error_v3(struct rpc_task *task,
 	default:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
-		nfs4_mark_deviceid_unavailable(devid);
+		nfs4_delete_deviceid(devid->ld, devid->nfs_client,
+				&devid->deviceid);
 	}
 	/* FIXME: Need to prevent infinite looping here. */
 	return -NFS4ERR_RESET_TO_PNFS;

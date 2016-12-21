@@ -129,6 +129,8 @@ int __init ima_init(void)
 	if (rc != 0)
 		return rc;
 
+	ima_load_kexec_buffer();
+
 	rc = ima_add_boot_aggregate();	/* boot aggregate must be first entry */
 	if (rc != 0)
 		return rc;

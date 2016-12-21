@@ -177,7 +177,7 @@ out_err:
 static void ff_layout_mark_devid_invalid(struct pnfs_layout_segment *lseg,
 		struct nfs4_deviceid_node *devid)
 {
-	nfs4_mark_deviceid_unavailable(devid);
+	nfs4_delete_deviceid(devid->ld, devid->nfs_client, &devid->deviceid);
 	if (!ff_layout_has_available_ds(lseg))
 		pnfs_error_mark_layout_for_return(lseg->pls_layout->plh_inode,
 				lseg);
