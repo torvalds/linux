@@ -2847,7 +2847,7 @@ static void ftrace_shutdown_sysctl(void)
 	}
 }
 
-static cycle_t		ftrace_update_time;
+static u64		ftrace_update_time;
 unsigned long		ftrace_update_tot_cnt;
 
 static inline int ops_traces_mod(struct ftrace_ops *ops)
@@ -2894,7 +2894,7 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 {
 	struct ftrace_page *pg;
 	struct dyn_ftrace *p;
-	cycle_t start, stop;
+	u64 start, stop;
 	unsigned long update_cnt = 0;
 	unsigned long rec_flags = 0;
 	int i;

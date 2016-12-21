@@ -247,7 +247,7 @@ void apbt_setup_secondary_clock(void) {}
 static int apbt_clocksource_register(void)
 {
 	u64 start, now;
-	cycle_t t1;
+	u64 t1;
 
 	/* Start the counter, use timer 2 as source, timer 0/1 for event */
 	dw_apb_clocksource_start(clocksource_apbt);
@@ -355,7 +355,7 @@ unsigned long apbt_quick_calibrate(void)
 {
 	int i, scale;
 	u64 old, new;
-	cycle_t t1, t2;
+	u64 t1, t2;
 	unsigned long khz = 0;
 	u32 loop, shift;
 

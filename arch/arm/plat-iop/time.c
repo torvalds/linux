@@ -38,7 +38,7 @@
 /*
  * IOP clocksource (free-running timer 1).
  */
-static cycle_t notrace iop_clocksource_read(struct clocksource *unused)
+static u64 notrace iop_clocksource_read(struct clocksource *unused)
 {
 	return 0xffffffffu - read_tcr1();
 }

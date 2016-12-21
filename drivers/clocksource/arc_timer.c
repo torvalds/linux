@@ -56,7 +56,7 @@ static int noinline arc_get_timer_clk(struct device_node *node)
 
 #ifdef CONFIG_ARC_TIMERS_64BIT
 
-static cycle_t arc_read_gfrc(struct clocksource *cs)
+static u64 arc_read_gfrc(struct clocksource *cs)
 {
 	unsigned long flags;
 	u32 l, h;
@@ -71,7 +71,7 @@ static cycle_t arc_read_gfrc(struct clocksource *cs)
 
 	local_irq_restore(flags);
 
-	return (((cycle_t)h) << 32) | l;
+	return (((u64)h) << 32) | l;
 }
 
 static struct clocksource arc_counter_gfrc = {
@@ -105,7 +105,7 @@ CLOCKSOURCE_OF_DECLARE(arc_gfrc, "snps,archs-timer-gfrc", arc_cs_setup_gfrc);
 #define AUX_RTC_LOW	0x104
 #define AUX_RTC_HIGH	0x105
 
-static cycle_t arc_read_rtc(struct clocksource *cs)
+static u64 arc_read_rtc(struct clocksource *cs)
 {
 	unsigned long status;
 	u32 l, h;
@@ -122,7 +122,7 @@ static cycle_t arc_read_rtc(struct clocksource *cs)
 		status = read_aux_reg(AUX_RTC_CTRL);
 	} while (!(status & _BITUL(31)));
 
-	return (((cycle_t)h) << 32) | l;
+	return (((u64)h) << 32) | l;
 }
 
 static struct clocksource arc_counter_rtc = {
@@ -166,9 +166,9 @@ CLOCKSOURCE_OF_DECLARE(arc_rtc, "snps,archs-timer-rtc", arc_cs_setup_rtc);
  * 32bit TIMER1 to keep counting monotonically and wraparound
  */
 
-static cycle_t arc_read_timer1(struct clocksource *cs)
+static u64 arc_read_timer1(struct clocksource *cs)
 {
-	return (cycle_t) read_aux_reg(ARC_REG_TIMER1_CNT);
+	return (u64) read_aux_reg(ARC_REG_TIMER1_CNT);
 }
 
 static struct clocksource arc_counter_timer1 = {

@@ -57,7 +57,7 @@ static notrace u64 jcore_sched_clock_read(void)
 	return seclo * NSEC_PER_SEC + nsec;
 }
 
-static cycle_t jcore_clocksource_read(struct clocksource *cs)
+static u64 jcore_clocksource_read(struct clocksource *cs)
 {
 	return jcore_sched_clock_read();
 }

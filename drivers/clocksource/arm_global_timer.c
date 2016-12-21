@@ -195,7 +195,7 @@ static int gt_dying_cpu(unsigned int cpu)
 	return 0;
 }
 
-static cycle_t gt_clocksource_read(struct clocksource *cs)
+static u64 gt_clocksource_read(struct clocksource *cs)
 {
 	return gt_counter_read();
 }

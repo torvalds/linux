@@ -137,7 +137,7 @@ EXPORT_SYMBOL(profile_pc);
 
 /* clock source code */
 
-static cycle_t notrace read_cr16(struct clocksource *cs)
+static u64 notrace read_cr16(struct clocksource *cs)
 {
 	return get_cycles();
 }

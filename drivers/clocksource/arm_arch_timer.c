@@ -562,12 +562,12 @@ static u64 arch_counter_get_cntvct_mem(void)
  */
 u64 (*arch_timer_read_counter)(void) = arch_counter_get_cntvct;
 
-static cycle_t arch_counter_read(struct clocksource *cs)
+static u64 arch_counter_read(struct clocksource *cs)
 {
 	return arch_timer_read_counter();
 }
 
-static cycle_t arch_counter_read_cc(const struct cyclecounter *cc)
+static u64 arch_counter_read_cc(const struct cyclecounter *cc)
 {
 	return arch_timer_read_counter();
 }

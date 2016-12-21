@@ -493,7 +493,7 @@ static u64 notrace ixp4xx_read_sched_clock(void)
  * clocksource
  */
 
-static cycle_t ixp4xx_clocksource_read(struct clocksource *c)
+static u64 ixp4xx_clocksource_read(struct clocksource *c)
 {
 	return *IXP4XX_OSTS;
 }

@@ -27,7 +27,7 @@ struct txx9_clocksource {
 	struct txx9_tmr_reg __iomem *tmrptr;
 };
 
-static cycle_t txx9_cs_read(struct clocksource *cs)
+static u64 txx9_cs_read(struct clocksource *cs)
 {
 	struct txx9_clocksource *txx9_cs =
 		container_of(cs, struct txx9_clocksource, cs);

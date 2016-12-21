@@ -768,7 +768,7 @@ struct kvm_arch {
 	spinlock_t pvclock_gtod_sync_lock;
 	bool use_master_clock;
 	u64 master_kernel_ns;
-	cycle_t master_cycle_now;
+	u64 master_cycle_now;
 	struct delayed_work kvmclock_update_work;
 	struct delayed_work kvmclock_sync_work;
 

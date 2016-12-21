@@ -56,7 +56,7 @@ static int metag_timer_set_next_event(unsigned long delta,
 	return 0;
 }
 
-static cycle_t metag_clocksource_read(struct clocksource *cs)
+static u64 metag_clocksource_read(struct clocksource *cs)
 {
 	return __core_reg_get(TXTIMER);
 }

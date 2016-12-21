@@ -85,7 +85,7 @@ static irqreturn_t sirfsoc_timer_interrupt(int irq, void *dev_id)
 }
 
 /* read 64-bit timer counter */
-static cycle_t sirfsoc_timer_read(struct clocksource *cs)
+static u64 sirfsoc_timer_read(struct clocksource *cs)
 {
 	u64 cycles;
 
