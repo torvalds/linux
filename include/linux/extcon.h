@@ -46,7 +46,14 @@
 #define EXTCON_USB		1
 #define EXTCON_USB_HOST		2
 
-/* Charging external connector */
+/*
+ * Charging external connector
+ *
+ * When one SDP charger connector was reported, we should also report
+ * the USB connector, which means EXTCON_CHG_USB_SDP should always
+ * appear together with EXTCON_USB. The same as ACA charger connector,
+ * EXTCON_CHG_USB_ACA would normally appear with EXTCON_USB_HOST.
+ */
 #define EXTCON_CHG_USB_SDP	5	/* Standard Downstream Port */
 #define EXTCON_CHG_USB_DCP	6	/* Dedicated Charging Port */
 #define EXTCON_CHG_USB_CDP	7	/* Charging Downstream Port */
