@@ -22,8 +22,8 @@ EXPORT_SYMBOL(rk_vendor_read);
 
 int rk_vendor_write(u32 id, void *pbuf, u32 size)
 {
-	if (_vendor_read)
-		return _vendor_read(id, pbuf, size);
+	if (_vendor_write)
+		return _vendor_write(id, pbuf, size);
 	return -1;
 }
 EXPORT_SYMBOL(rk_vendor_write);
