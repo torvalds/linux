@@ -135,7 +135,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		}
 
 		/* Try to retire some entries */
-		drm_mm_scan_init(&scan, &mmu->mm, size, 0, 0);
+		drm_mm_scan_init(&scan, &mmu->mm, size, 0, 0, 0);
 
 		found = 0;
 		INIT_LIST_HEAD(&list);

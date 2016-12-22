@@ -718,10 +718,10 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  * @color: opaque tag value to use for the allocation
  * @start: start of the allowed range for the allocation
  * @end: end of the allowed range for the allocation
+ * @flags: flags to specify how the allocation will be performed afterwards
  *
  * This simply sets up the scanning routines with the parameters for the desired
- * hole. Note that there's no need to specify allocation flags, since they only
- * change the place a node is allocated from within a suitable hole.
+ * hole.
  *
  * Warning:
  * As long as the scan list is non-empty, no other operations than
@@ -733,7 +733,8 @@ void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
 				 u64 alignment,
 				 unsigned long color,
 				 u64 start,
-				 u64 end)
+				 u64 end,
+				 unsigned int flags)
 {
 	DRM_MM_BUG_ON(start >= end);
 	DRM_MM_BUG_ON(!size || size > end - start);
@@ -744,6 +745,7 @@ void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
 	scan->color = color;
 	scan->alignment = alignment;
 	scan->size = size;
+	scan->flags = flags;
 
 	DRM_MM_BUG_ON(end <= start);
 	scan->range_start = start;
@@ -778,7 +780,7 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	DRM_MM_BUG_ON(node->mm != mm);
 	DRM_MM_BUG_ON(!node->allocated);
 	DRM_MM_BUG_ON(node->scanned_block);
-	node->scanned_block = 1;
+	node->scanned_block = true;
 	mm->scan_active++;
 
 	hole = list_prev_entry(node, node_list);
@@ -800,15 +802,53 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 
 	adj_start = max(col_start, scan->range_start);
 	adj_end = min(col_end, scan->range_end);
+	if (adj_end <= adj_start || adj_end - adj_start < scan->size)
+		return false;
 
-	if (check_free_hole(adj_start, adj_end,
-			    scan->size, scan->alignment)) {
-		scan->hit_start = hole_start;
-		scan->hit_end = hole_end;
-		return true;
+	if (scan->flags == DRM_MM_CREATE_TOP)
+		adj_start = adj_end - scan->size;
+
+	if (scan->alignment) {
+		u64 rem;
+
+		div64_u64_rem(adj_start, scan->alignment, &rem);
+		if (rem) {
+			adj_start -= rem;
+			if (scan->flags != DRM_MM_CREATE_TOP)
+				adj_start += scan->alignment;
+			if (adj_start < max(col_start, scan->range_start) ||
+			    min(col_end, scan->range_end) - adj_start < scan->size)
+				return false;
+
+			if (adj_end <= adj_start ||
+			    adj_end - adj_start < scan->size)
+				return false;
+		}
 	}
 
-	return false;
+	if (mm->color_adjust) {
+		/* If allocations need adjusting due to neighbouring colours,
+		 * we do not have enough information to decide if we need
+		 * to evict nodes on either side of [adj_start, adj_end].
+		 * What almost works is
+		 * hit_start = adj_start + (hole_start - col_start);
+		 * hit_end = adj_start + scan->size + (hole_end - col_end);
+		 * but because the decision is only made on the final hole,
+		 * we may underestimate the required adjustments for an
+		 * interior allocation.
+		 */
+		scan->hit_start = hole_start;
+		scan->hit_end = hole_end;
+	} else {
+		scan->hit_start = adj_start;
+		scan->hit_end = adj_start + scan->size;
+	}
+
+	DRM_MM_BUG_ON(scan->hit_start >= scan->hit_end);
+	DRM_MM_BUG_ON(scan->hit_start < hole_start);
+	DRM_MM_BUG_ON(scan->hit_end > hole_end);
+
+	return true;
 }
 EXPORT_SYMBOL(drm_mm_scan_add_block);
 
@@ -836,7 +876,7 @@ bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
 
 	DRM_MM_BUG_ON(node->mm != scan->mm);
 	DRM_MM_BUG_ON(!node->scanned_block);
-	node->scanned_block = 0;
+	node->scanned_block = false;
 
 	DRM_MM_BUG_ON(!node->mm->scan_active);
 	node->mm->scan_active--;
@@ -846,7 +886,7 @@ bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
 	prev_node->hole_follows = node->scanned_preceeds_hole;
 	list_add(&node->node_list, &prev_node->node_list);
 
-	return (drm_mm_hole_node_end(node) > scan->hit_start &&
+	return (node->start + node->size > scan->hit_start &&
 		node->start < scan->hit_end);
 }
 EXPORT_SYMBOL(drm_mm_scan_remove_block);

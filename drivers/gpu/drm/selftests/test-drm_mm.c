@@ -1199,7 +1199,7 @@ static bool evict_nothing(struct drm_mm *mm,
 	struct drm_mm_node *node;
 	unsigned int n;
 
-	drm_mm_scan_init(&scan, mm, 1, 0, 0);
+	drm_mm_scan_init(&scan, mm, 1, 0, 0, 0);
 	for (n = 0; n < total_size; n++) {
 		e = &nodes[n];
 		list_add(&e->link, &evict_list);
@@ -1246,7 +1246,7 @@ static bool evict_everything(struct drm_mm *mm,
 	unsigned int n;
 	int err;
 
-	drm_mm_scan_init(&scan, mm, total_size, 0, 0);
+	drm_mm_scan_init(&scan, mm, total_size, 0, 0, 0);
 	for (n = 0; n < total_size; n++) {
 		e = &nodes[n];
 		list_add(&e->link, &evict_list);
@@ -1296,7 +1296,8 @@ static int evict_something(struct drm_mm *mm,
 
 	drm_mm_scan_init_with_range(&scan, mm,
 				    size, alignment, 0,
-				    range_start, range_end);
+				    range_start, range_end,
+				    mode->create_flags);
 	if (!evict_nodes(&scan,
 			 nodes, order, count,
 			 &evict_list))
@@ -1874,7 +1875,8 @@ static int evict_color(struct drm_mm *mm,
 
 	drm_mm_scan_init_with_range(&scan, mm,
 				    size, alignment, color,
-				    range_start, range_end);
+				    range_start, range_end,
+				    mode->create_flags);
 	if (!evict_nodes(&scan,
 			 nodes, order, count,
 			 &evict_list))
