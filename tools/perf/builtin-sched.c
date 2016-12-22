@@ -1817,7 +1817,7 @@ static void timehist_header(struct perf_sched *sched)
 		printf(" ");
 	}
 
-	printf(" %-20s  %9s  %9s  %9s",
+	printf(" %-*s  %9s  %9s  %9s", comm_width,
 		"task name", "wait time", "sch delay", "run time");
 
 	printf("\n");
@@ -1830,7 +1830,8 @@ static void timehist_header(struct perf_sched *sched)
 	if (sched->show_cpu_visual)
 		printf(" %*s ", ncpus, "");
 
-	printf(" %-20s  %9s  %9s  %9s\n", "[tid/pid]", "(msec)", "(msec)", "(msec)");
+	printf(" %-*s  %9s  %9s  %9s\n", comm_width,
+	       "[tid/pid]", "(msec)", "(msec)", "(msec)");
 
 	/*
 	 * separator
@@ -1840,7 +1841,7 @@ static void timehist_header(struct perf_sched *sched)
 	if (sched->show_cpu_visual)
 		printf(" %.*s ", ncpus, graph_dotted_line);
 
-	printf(" %.20s  %.9s  %.9s  %.9s",
+	printf(" %.*s  %.9s  %.9s  %.9s", comm_width,
 		graph_dotted_line, graph_dotted_line, graph_dotted_line,
 		graph_dotted_line);
 
