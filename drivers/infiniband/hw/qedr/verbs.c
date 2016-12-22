@@ -985,8 +985,13 @@ int qedr_destroy_cq(struct ib_cq *ibcq)
 
 	/* GSIs CQs are handled by driver, so they don't exist in the FW */
 	if (cq->cq_type != QEDR_CQ_TYPE_GSI) {
+		int rc;
+
 		iparams.icid = cq->icid;
-		dev->ops->rdma_destroy_cq(dev->rdma_ctx, &iparams, &oparams);
+		rc = dev->ops->rdma_destroy_cq(dev->rdma_ctx, &iparams,
+					       &oparams);
+		if (rc)
+			return rc;
 		dev->ops->common->chain_free(dev->cdev, &cq->pbl);
 	}
 
