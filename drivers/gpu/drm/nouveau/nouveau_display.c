@@ -162,7 +162,7 @@ nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (nouveau_crtc(crtc)->index == pipe) {
 			struct drm_display_mode *mode;
-			if (dev->mode_config.funcs->atomic_commit)
+			if (drm_drv_uses_atomic_modeset(dev))
 				mode = &crtc->state->adjusted_mode;
 			else
 				mode = &crtc->hwmode;
@@ -738,7 +738,7 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct drm_crtc *crtc;
 
-	if (dev->mode_config.funcs->atomic_commit) {
+	if (drm_drv_uses_atomic_modeset(dev)) {
 		if (!runtime) {
 			disp->suspend = nouveau_atomic_suspend(dev);
 			if (IS_ERR(disp->suspend)) {
@@ -784,7 +784,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 	struct drm_crtc *crtc;
 	int ret;
 
-	if (dev->mode_config.funcs->atomic_commit) {
+	if (drm_drv_uses_atomic_modeset(dev)) {
 		nouveau_display_init(dev);
 		if (disp->suspend) {
 			drm_atomic_helper_resume(dev, disp->suspend);

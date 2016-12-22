@@ -419,5 +419,4 @@ drm_atomic_crtc_needs_modeset(const struct drm_crtc_state *state)
 	       state->connectors_changed;
 }
 
-
 #endif /* DRM_ATOMIC_H_ */

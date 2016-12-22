@@ -41,6 +41,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_atomic.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
@@ -524,7 +525,7 @@ nouveau_fbcon_init(struct drm_device *dev)
 		preferred_bpp = 32;
 
 	/* disable all the possible outputs/crtcs before entering KMS mode */
-	if (!dev->mode_config.funcs->atomic_commit)
+	if (!drm_drv_uses_atomic_modeset(dev))
 		drm_helper_disable_unused_functions(dev);
 
 	ret = drm_fb_helper_initial_config(&fbcon->helper, preferred_bpp);
