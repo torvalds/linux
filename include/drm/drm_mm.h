@@ -180,7 +180,19 @@ static inline u64 drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
 	return __drm_mm_hole_node_end(hole_node);
 }
 
-#define __drm_mm_nodes(mm) (&(mm)->head_node.node_list)
+/**
+ * drm_mm_nodes - list of nodes under the drm_mm range manager
+ * @mm: the struct drm_mm range manger
+ *
+ * As the drm_mm range manager hides its node_list deep with its
+ * structure, extracting it looks painful and repetitive. This is
+ * not expected to be used outside of the drm_mm_for_each_node()
+ * macros and similar internal functions.
+ *
+ * Returns:
+ * The node list, may be empty.
+ */
+#define drm_mm_nodes(mm) (&(mm)->head_node.node_list)
 
 /**
  * drm_mm_for_each_node - iterator to walk over all allocated nodes
@@ -191,7 +203,7 @@ static inline u64 drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
  * with list_for_each, so not save against removal of elements.
  */
 #define drm_mm_for_each_node(entry, mm) \
-	list_for_each_entry(entry, __drm_mm_nodes(mm), node_list)
+	list_for_each_entry(entry, drm_mm_nodes(mm), node_list)
 
 /**
  * drm_mm_for_each_node_safe - iterator to walk over all allocated nodes
@@ -203,7 +215,7 @@ static inline u64 drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
  * with list_for_each_safe, so save against removal of elements.
  */
 #define drm_mm_for_each_node_safe(entry, next, mm) \
-	list_for_each_entry_safe(entry, next, __drm_mm_nodes(mm), node_list)
+	list_for_each_entry_safe(entry, next, drm_mm_nodes(mm), node_list)
 
 #define __drm_mm_for_each_hole(entry, mm, hole_start, hole_end, backwards) \
 	for (entry = list_entry((backwards) ? (mm)->hole_stack.prev : (mm)->hole_stack.next, struct drm_mm_node, hole_stack); \

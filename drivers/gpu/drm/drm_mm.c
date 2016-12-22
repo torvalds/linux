@@ -138,7 +138,7 @@ static void show_leaks(struct drm_mm *mm)
 	if (!buf)
 		return;
 
-	list_for_each_entry(node, __drm_mm_nodes(mm), node_list) {
+	list_for_each_entry(node, drm_mm_nodes(mm), node_list) {
 		struct stack_trace trace = {
 			.entries = entries,
 			.max_entries = STACKDEPTH
@@ -320,7 +320,7 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 		if (hole->start < end)
 			return -ENOSPC;
 	} else {
-		hole = list_entry(__drm_mm_nodes(mm), typeof(*hole), node_list);
+		hole = list_entry(drm_mm_nodes(mm), typeof(*hole), node_list);
 	}
 
 	hole = list_last_entry(&hole->node_list, typeof(*hole), node_list);
@@ -883,7 +883,7 @@ EXPORT_SYMBOL(drm_mm_scan_remove_block);
  */
 bool drm_mm_clean(const struct drm_mm *mm)
 {
-	const struct list_head *head = __drm_mm_nodes(mm);
+	const struct list_head *head = drm_mm_nodes(mm);
 
 	return (head->next->next == head);
 }
@@ -929,7 +929,7 @@ EXPORT_SYMBOL(drm_mm_init);
  */
 void drm_mm_takedown(struct drm_mm *mm)
 {
-	if (WARN(!list_empty(__drm_mm_nodes(mm)),
+	if (WARN(!list_empty(drm_mm_nodes(mm)),
 		 "Memory manager not clean during takedown.\n"))
 		show_leaks(mm);
 
