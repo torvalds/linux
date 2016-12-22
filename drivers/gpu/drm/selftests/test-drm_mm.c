@@ -1007,6 +1007,109 @@ static int igt_insert_range(void *ignored)
 	return 0;
 }
 
+static int igt_align(void *ignored)
+{
+	const struct insert_mode *mode;
+	const unsigned int max_count = min(8192u, max_prime);
+	struct drm_mm mm;
+	struct drm_mm_node *nodes, *node, *next;
+	unsigned int prime;
+	int ret = -EINVAL;
+
+	/* For each of the possible insertion modes, we pick a few
+	 * arbitrary alignments and check that the inserted node
+	 * meets our requirements.
+	 */
+
+	nodes = vzalloc(max_count * sizeof(*nodes));
+	if (!nodes)
+		goto err;
+
+	drm_mm_init(&mm, 1, U64_MAX - 2);
+
+	for (mode = insert_modes; mode->name; mode++) {
+		unsigned int i = 0;
+
+		for_each_prime_number_from(prime, 1, max_count) {
+			u64 size = next_prime_number(prime);
+
+			if (!expect_insert(&mm, &nodes[i],
+					   size, prime, i,
+					   mode)) {
+				pr_err("%s insert failed with alignment=%d",
+				       mode->name, prime);
+				goto out;
+			}
+
+			i++;
+		}
+
+		drm_mm_for_each_node_safe(node, next, &mm)
+			drm_mm_remove_node(node);
+		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	vfree(nodes);
+err:
+	return ret;
+}
+
+static int igt_align_pot(int max)
+{
+	struct drm_mm mm;
+	struct drm_mm_node *node, *next;
+	int bit;
+	int ret = -EINVAL;
+
+	/* Check that we can align to the full u64 address space */
+
+	drm_mm_init(&mm, 1, U64_MAX - 2);
+
+	for (bit = max - 1; bit; bit--) {
+		u64 align, size;
+
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
+		if (!node) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		align = BIT_ULL(bit);
+		size = BIT_ULL(bit-1) + 1;
+		if (!expect_insert(&mm, node,
+				   size, align, bit,
+				   &insert_modes[0])) {
+			pr_err("insert failed with alignment=%llx [%d]",
+			       align, bit);
+			goto out;
+		}
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, next, &mm) {
+		drm_mm_remove_node(node);
+		kfree(node);
+	}
+	drm_mm_takedown(&mm);
+	return ret;
+}
+
+static int igt_align32(void *ignored)
+{
+	return igt_align_pot(32);
+}
+
+static int igt_align64(void *ignored)
+{
+	return igt_align_pot(64);
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_mm_init(void)
