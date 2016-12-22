@@ -285,40 +285,6 @@ static inline u64 drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
  * Basic range manager support (drm_mm.c)
  */
 int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node);
-
-int drm_mm_insert_node_generic(struct drm_mm *mm,
-			       struct drm_mm_node *node,
-			       u64 size,
-			       u64 alignment,
-			       unsigned long color,
-			       enum drm_mm_search_flags sflags,
-			       enum drm_mm_allocator_flags aflags);
-/**
- * drm_mm_insert_node - search for space and insert @node
- * @mm: drm_mm to allocate from
- * @node: preallocate node to insert
- * @size: size of the allocation
- * @alignment: alignment of the allocation
- * @flags: flags to fine-tune the allocation
- *
- * This is a simplified version of drm_mm_insert_node_generic() with @color set
- * to 0.
- *
- * The preallocated node must be cleared to 0.
- *
- * Returns:
- * 0 on success, -ENOSPC if there's no suitable hole.
- */
-static inline int drm_mm_insert_node(struct drm_mm *mm,
-				     struct drm_mm_node *node,
-				     u64 size,
-				     u64 alignment,
-				     enum drm_mm_search_flags flags)
-{
-	return drm_mm_insert_node_generic(mm, node, size, alignment, 0, flags,
-					  DRM_MM_CREATE_DEFAULT);
-}
-
 int drm_mm_insert_node_in_range_generic(struct drm_mm *mm,
 					struct drm_mm_node *node,
 					u64 size,
@@ -328,6 +294,7 @@ int drm_mm_insert_node_in_range_generic(struct drm_mm *mm,
 					u64 end,
 					enum drm_mm_search_flags sflags,
 					enum drm_mm_allocator_flags aflags);
+
 /**
  * drm_mm_insert_node_in_range - ranged search for space and insert @node
  * @mm: drm_mm to allocate from
@@ -357,6 +324,61 @@ static inline int drm_mm_insert_node_in_range(struct drm_mm *mm,
 	return drm_mm_insert_node_in_range_generic(mm, node, size, alignment,
 						   0, start, end, flags,
 						   DRM_MM_CREATE_DEFAULT);
+}
+
+/**
+ * drm_mm_insert_node_generic - search for space and insert @node
+ * @mm: drm_mm to allocate from
+ * @node: preallocate node to insert
+ * @size: size of the allocation
+ * @alignment: alignment of the allocation
+ * @color: opaque tag value to use for this node
+ * @sflags: flags to fine-tune the allocation search
+ * @aflags: flags to fine-tune the allocation behavior
+ *
+ * The preallocated node must be cleared to 0.
+ *
+ * Returns:
+ * 0 on success, -ENOSPC if there's no suitable hole.
+ */
+static inline int
+drm_mm_insert_node_generic(struct drm_mm *mm, struct drm_mm_node *node,
+			   u64 size, u64 alignment,
+			   unsigned long color,
+			   enum drm_mm_search_flags sflags,
+			   enum drm_mm_allocator_flags aflags)
+{
+	return drm_mm_insert_node_in_range_generic(mm, node,
+						   size, alignment, 0,
+						   0, U64_MAX,
+						   sflags, aflags);
+}
+
+/**
+ * drm_mm_insert_node - search for space and insert @node
+ * @mm: drm_mm to allocate from
+ * @node: preallocate node to insert
+ * @size: size of the allocation
+ * @alignment: alignment of the allocation
+ * @flags: flags to fine-tune the allocation
+ *
+ * This is a simplified version of drm_mm_insert_node_generic() with @color set
+ * to 0.
+ *
+ * The preallocated node must be cleared to 0.
+ *
+ * Returns:
+ * 0 on success, -ENOSPC if there's no suitable hole.
+ */
+static inline int drm_mm_insert_node(struct drm_mm *mm,
+				     struct drm_mm_node *node,
+				     u64 size,
+				     u64 alignment,
+				     enum drm_mm_search_flags flags)
+{
+	return drm_mm_insert_node_generic(mm, node,
+					  size, alignment, 0,
+					  flags, DRM_MM_CREATE_DEFAULT);
 }
 
 void drm_mm_remove_node(struct drm_mm_node *node);
