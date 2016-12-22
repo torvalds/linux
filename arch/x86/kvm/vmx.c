@@ -132,12 +132,6 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
 
 #define VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE 5
 
-#define VMX_VPID_EXTENT_SUPPORTED_MASK		\
-	(VMX_VPID_EXTENT_INDIVIDUAL_ADDR_BIT |	\
-	VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT |	\
-	VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT |	\
-	VMX_VPID_EXTENT_SINGLE_NON_GLOBAL_BIT)
-
 /*
  * Hyper-V requires all of these, so mark them as supported even though
  * they are just treated the same as all-context.
