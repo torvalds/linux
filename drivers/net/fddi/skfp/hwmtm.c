@@ -158,7 +158,7 @@ u_int mac_drv_check_space(void);
 SMbuf* smt_get_mbuf(struct s_smc *smc);
 
 #ifdef DEBUG
-	void mac_drv_debug_lev(void);
+	void mac_drv_debug_lev(struct s_smc *smc, int flag, int lev);
 #endif
 
 /*
