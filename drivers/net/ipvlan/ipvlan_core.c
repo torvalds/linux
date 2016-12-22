@@ -207,6 +207,9 @@ void ipvlan_process_multicast(struct work_struct *work)
 	spin_unlock_bh(&port->backlog.lock);
 
 	while ((skb = __skb_dequeue(&list)) != NULL) {
+		struct net_device *dev = skb->dev;
+		bool consumed = false;
+
 		ethh = eth_hdr(skb);
 		hlocal = ether_addr_equal(ethh->h_source, port->dev->dev_addr);
 		mac_hash = ipvlan_mac_hash(ethh->h_dest);
@@ -219,27 +222,29 @@ void ipvlan_process_multicast(struct work_struct *work)
 		dlocal = false;
 		rcu_read_lock();
 		list_for_each_entry_rcu(ipvlan, &port->ipvlans, pnode) {
-			if (hlocal && (ipvlan->dev == skb->dev)) {
+			if (hlocal && (ipvlan->dev == dev)) {
 				dlocal = true;
 				continue;
 			}
 			if (!test_bit(mac_hash, ipvlan->mac_filters))
 				continue;
-
+			if (!(ipvlan->dev->flags & IFF_UP))
+				continue;
 			ret = NET_RX_DROP;
 			len = skb->len + ETH_HLEN;
 			nskb = skb_clone(skb, GFP_ATOMIC);
-			if (!nskb)
-				goto acct;
-
-			nskb->pkt_type = pkt_type;
-			nskb->dev = ipvlan->dev;
-			if (hlocal)
-				ret = dev_forward_skb(ipvlan->dev, nskb);
-			else
-				ret = netif_rx(nskb);
-acct:
+			local_bh_disable();
+			if (nskb) {
+				consumed = true;
+				nskb->pkt_type = pkt_type;
+				nskb->dev = ipvlan->dev;
+				if (hlocal)
+					ret = dev_forward_skb(ipvlan->dev, nskb);
+				else
+					ret = netif_rx(nskb);
+			}
 			ipvlan_count_rx(ipvlan, len, ret == NET_RX_SUCCESS, true);
+			local_bh_enable();
 		}
 		rcu_read_unlock();
 
@@ -249,8 +254,13 @@ acct:
 			skb->pkt_type = pkt_type;
 			dev_queue_xmit(skb);
 		} else {
-			kfree_skb(skb);
+			if (consumed)
+				consume_skb(skb);
+			else
+				kfree_skb(skb);
 		}
+		if (dev)
+			dev_put(dev);
 	}
 }
 
@@ -479,6 +489,8 @@ static void ipvlan_multicast_enqueue(struct ipvl_port *port,
 
 	spin_lock(&port->backlog.lock);
 	if (skb_queue_len(&port->backlog) < IPVLAN_QBACKLOG_LIMIT) {
+		if (skb->dev)
+			dev_hold(skb->dev);
 		__skb_queue_tail(&port->backlog, skb);
 		spin_unlock(&port->backlog.lock);
 		schedule_work(&port->wq);
