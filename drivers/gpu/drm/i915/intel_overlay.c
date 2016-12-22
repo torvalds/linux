@@ -407,7 +407,6 @@ static void intel_overlay_off_tail(struct i915_gem_active *active,
 /* overlay needs to be disabled in OCMD reg */
 static int intel_overlay_off(struct intel_overlay *overlay)
 {
-	struct drm_i915_private *dev_priv = overlay->i915;
 	struct drm_i915_gem_request *req;
 	struct intel_ring *ring;
 	u32 flip_addr = overlay->flip_addr;
@@ -432,23 +431,17 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	}
 
 	ring = req->ring;
+
 	/* wait for overlay to go idle */
 	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_CONTINUE);
 	intel_ring_emit(ring, flip_addr);
 	intel_ring_emit(ring, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+
 	/* turn overlay off */
-	if (IS_I830(dev_priv)) {
-		/* Workaround: Don't disable the overlay fully, since otherwise
-		 * it dies on the next OVERLAY_ON cmd. */
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_emit(ring, MI_NOOP);
-		intel_ring_emit(ring, MI_NOOP);
-	} else {
-		intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
-		intel_ring_emit(ring, flip_addr);
-		intel_ring_emit(ring,
-				MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
-	}
+	intel_ring_emit(ring, MI_OVERLAY_FLIP | MI_OVERLAY_OFF);
+	intel_ring_emit(ring, flip_addr);
+	intel_ring_emit(ring, MI_WAIT_FOR_EVENT | MI_WAIT_FOR_OVERLAY_FLIP);
+
 	intel_ring_advance(ring);
 
 	intel_overlay_flip_prepare(overlay, NULL);
