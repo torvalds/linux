@@ -101,6 +101,7 @@ enum {
 	Opt_noinline_data,
 	Opt_data_flush,
 	Opt_mode,
+	Opt_io_size_bits,
 	Opt_fault_injection,
 	Opt_lazytime,
 	Opt_nolazytime,
@@ -133,6 +134,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_noinline_data, "noinline_data"},
 	{Opt_data_flush, "data_flush"},
 	{Opt_mode, "mode=%s"},
+	{Opt_io_size_bits, "io_bits=%u"},
 	{Opt_fault_injection, "fault_injection=%u"},
 	{Opt_lazytime, "lazytime"},
 	{Opt_nolazytime, "nolazytime"},
@@ -535,6 +537,17 @@ static int parse_options(struct super_block *sb, char *options)
 			}
 			kfree(name);
 			break;
+		case Opt_io_size_bits:
+			if (args->from && match_int(args, &arg))
+				return -EINVAL;
+			if (arg > __ilog2_u32(BIO_MAX_PAGES)) {
+				f2fs_msg(sb, KERN_WARNING,
+					"Not support %d, larger than %d",
+					1 << arg, BIO_MAX_PAGES);
+				return -EINVAL;
+			}
+			sbi->write_io_size_bits = arg;
+			break;
 		case Opt_fault_injection:
 			if (args->from && match_int(args, &arg))
 				return -EINVAL;
@@ -557,6 +570,13 @@ static int parse_options(struct super_block *sb, char *options)
 				p);
 			return -EINVAL;
 		}
+	}
+
+	if (F2FS_IO_SIZE_BITS(sbi) && !test_opt(sbi, LFS)) {
+		f2fs_msg(sb, KERN_ERR,
+				"Should set mode=lfs with %uKB-sized IO",
+				F2FS_IO_SIZE_KB(sbi));
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -918,6 +938,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 	else if (test_opt(sbi, LFS))
 		seq_puts(seq, "lfs");
 	seq_printf(seq, ",active_logs=%u", sbi->active_logs);
+	if (F2FS_IO_SIZE_BITS(sbi))
+		seq_printf(seq, ",io_size=%uKB", F2FS_IO_SIZE_KB(sbi));
 
 	return 0;
 }
