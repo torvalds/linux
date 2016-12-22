@@ -845,7 +845,7 @@ fcloop_create_remote_port(struct device *dev, struct device_attribute *attr,
 	rport->lport = nport->lport;
 	nport->rport = rport;
 
-	return ret ? ret : count;
+	return count;
 }
 
 
@@ -952,7 +952,7 @@ fcloop_create_target_port(struct device *dev, struct device_attribute *attr,
 	tport->lport = nport->lport;
 	nport->tport = tport;
 
-	return ret ? ret : count;
+	return count;
 }
 
 
