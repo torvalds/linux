@@ -1279,6 +1279,7 @@ static bool evict_everything(struct drm_mm *mm,
 }
 
 static int evict_something(struct drm_mm *mm,
+			   u64 range_start, u64 range_end,
 			   struct evict_node *nodes,
 			   unsigned int *order,
 			   unsigned int count,
@@ -1291,7 +1292,9 @@ static int evict_something(struct drm_mm *mm,
 	struct drm_mm_node tmp;
 	int err;
 
-	drm_mm_init_scan(mm, size, alignment, 0);
+	drm_mm_init_scan_with_range(mm,
+				    size, alignment, 0,
+				    range_start, range_end);
 	if (!evict_nodes(mm,
 			 nodes, order, count,
 			 &evict_list))
@@ -1307,6 +1310,12 @@ static int evict_something(struct drm_mm *mm,
 		show_scan(mm);
 		show_holes(mm, 3);
 		return err;
+	}
+
+	if (tmp.start < range_start || tmp.start + tmp.size > range_end) {
+		pr_err("Inserted [address=%llu + %llu] did not fit into the request range [%llu, %llu]\n",
+		       tmp.start, tmp.size, range_start, range_end);
+		err = -EINVAL;
 	}
 
 	if (!assert_node(&tmp, mm, size, alignment, 0) || tmp.hole_follows) {
@@ -1390,7 +1399,7 @@ static int igt_evict(void *ignored)
 	for (mode = evict_modes; mode->name; mode++) {
 		for (n = 1; n <= size; n <<= 1) {
 			drm_random_reorder(order, size, &prng);
-			err = evict_something(&mm,
+			err = evict_something(&mm, 0, U64_MAX,
 					      nodes, order, size,
 					      n, 1,
 					      mode);
@@ -1404,7 +1413,7 @@ static int igt_evict(void *ignored)
 
 		for (n = 1; n < size; n <<= 1) {
 			drm_random_reorder(order, size, &prng);
-			err = evict_something(&mm,
+			err = evict_something(&mm, 0, U64_MAX,
 					      nodes, order, size,
 					      size/2, n,
 					      mode);
@@ -1422,7 +1431,7 @@ static int igt_evict(void *ignored)
 			DRM_MM_BUG_ON(!nsize);
 
 			drm_random_reorder(order, size, &prng);
-			err = evict_something(&mm,
+			err = evict_something(&mm, 0, U64_MAX,
 					      nodes, order, size,
 					      nsize, n,
 					      mode);
@@ -1430,6 +1439,102 @@ static int igt_evict(void *ignored)
 				pr_err("%s evict_something(size=%u, alignment=%u) failed\n",
 				       mode->name, nsize, n);
 				ret = err;
+				goto out;
+			}
+		}
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	kfree(order);
+err_nodes:
+	vfree(nodes);
+err:
+	return ret;
+}
+
+static int igt_evict_range(void *ignored)
+{
+	DRM_RND_STATE(prng, random_seed);
+	const unsigned int size = 8192;
+	const unsigned int range_size = size / 2;
+	const unsigned int range_start = size / 4;
+	const unsigned int range_end = range_start + range_size;
+	const struct insert_mode *mode;
+	struct drm_mm mm;
+	struct evict_node *nodes;
+	struct drm_mm_node *node, *next;
+	unsigned int *order, n;
+	int ret, err;
+
+	/* Like igt_evict() but now we are limiting the search to a
+	 * small portion of the full drm_mm.
+	 */
+
+	ret = -ENOMEM;
+	nodes = vzalloc(size * sizeof(*nodes));
+	if (!nodes)
+		goto err;
+
+	order = drm_random_order(size, &prng);
+	if (!order)
+		goto err_nodes;
+
+	ret = -EINVAL;
+	drm_mm_init(&mm, 0, size);
+	for (n = 0; n < size; n++) {
+		err = drm_mm_insert_node(&mm, &nodes[n].node, 1, 0,
+					 DRM_MM_SEARCH_DEFAULT);
+		if (err) {
+			pr_err("insert failed, step %d\n", n);
+			ret = err;
+			goto out;
+		}
+	}
+
+	for (mode = evict_modes; mode->name; mode++) {
+		for (n = 1; n <= range_size; n <<= 1) {
+			drm_random_reorder(order, size, &prng);
+			err = evict_something(&mm, range_start, range_end,
+					      nodes, order, size,
+					      n, 1,
+					      mode);
+			if (err) {
+				pr_err("%s evict_something(size=%u) failed with range [%u, %u]\n",
+				       mode->name, n, range_start, range_end);
+				goto out;
+			}
+		}
+
+		for (n = 1; n <= range_size; n <<= 1) {
+			drm_random_reorder(order, size, &prng);
+			err = evict_something(&mm, range_start, range_end,
+					      nodes, order, size,
+					      range_size/2, n,
+					      mode);
+			if (err) {
+				pr_err("%s evict_something(size=%u, alignment=%u) failed with range [%u, %u]\n",
+				       mode->name, range_size/2, n, range_start, range_end);
+				goto out;
+			}
+		}
+
+		for_each_prime_number_from(n, 1, min(range_size, max_prime)) {
+			unsigned int nsize = (range_size - n + 1) / 2;
+
+			DRM_MM_BUG_ON(!nsize);
+
+			drm_random_reorder(order, size, &prng);
+			err = evict_something(&mm, range_start, range_end,
+					      nodes, order, size,
+					      nsize, n,
+					      mode);
+			if (err) {
+				pr_err("%s evict_something(size=%u, alignment=%u) failed with range [%u, %u]\n",
+				       mode->name, nsize, n, range_start, range_end);
 				goto out;
 			}
 		}
