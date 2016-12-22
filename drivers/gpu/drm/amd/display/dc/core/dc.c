@@ -1333,6 +1333,7 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 	bool is_new_pipe_surface[MAX_PIPES];
 	const struct dc_surface *new_surfaces[MAX_SURFACES] = { 0 };
 	bool need_apply_clk_constraints = false;
+	bool can_skip_context_building = true;
 
 	update_surface_trace(dc, updates, surface_count);
 
@@ -1355,17 +1356,26 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 
 	for (i = 0 ; i < surface_count; i++) {
 		struct core_surface *surface = DC_SURFACE_TO_CORE(updates[i].surface);
+		bool existing_surface = false;
 
 		new_surfaces[i] = updates[i].surface;
+
 		for (j = 0; j < context->res_ctx.pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-			if (surface == pipe_ctx->surface)
+			if (surface == pipe_ctx->surface) {
+				existing_surface = true;
 				is_new_pipe_surface[j] = false;
+			}
 		}
+
+		if (updates[i].plane_info ||
+			updates[i].scaling_info ||
+			!existing_surface)
+			can_skip_context_building = false;
 	}
 
-	if (dc_target) {
+	if (!can_skip_context_building && dc_target) {
 		struct core_target *target = DC_TARGET_TO_CORE(dc_target);
 
 		if (core_dc->current_context->target_count == 0)
