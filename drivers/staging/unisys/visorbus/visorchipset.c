@@ -728,8 +728,11 @@ bus_create(struct controlvm_message *inmsg)
 
 	POSTCODE_LINUX(BUS_CREATE_ENTRY_PC, 0, bus_no, DIAG_SEVERITY_PRINT);
 
-	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0)
-		save_crash_message(inmsg, CRASH_BUS);
+	if (uuid_le_cmp(cmd->create_bus.bus_inst_uuid, spar_siovm_uuid) == 0) {
+		err = save_crash_message(inmsg, CRASH_BUS);
+		if (err)
+			goto err_free_bus_info;
+	}
 
 	if (inmsg->hdr.flags.response_expected == 1) {
 		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr),
