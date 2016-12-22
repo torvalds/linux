@@ -110,6 +110,7 @@ struct drm_mm_scan {
 
 	u64 size;
 	u64 alignment;
+	u64 remainder_mask;
 
 	u64 range_start;
 	u64 range_end;

@@ -742,8 +742,12 @@ void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
 
 	scan->mm = mm;
 
+	if (alignment <= 1)
+		alignment = 0;
+
 	scan->color = color;
 	scan->alignment = alignment;
+	scan->remainder_mask = is_power_of_2(alignment) ? alignment - 1 : 0;
 	scan->size = size;
 	scan->flags = flags;
 
@@ -811,7 +815,10 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	if (scan->alignment) {
 		u64 rem;
 
-		div64_u64_rem(adj_start, scan->alignment, &rem);
+		if (likely(scan->remainder_mask))
+			rem = adj_start & scan->remainder_mask;
+		else
+			div64_u64_rem(adj_start, scan->alignment, &rem);
 		if (rem) {
 			adj_start -= rem;
 			if (scan->flags != DRM_MM_CREATE_TOP)
