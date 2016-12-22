@@ -4014,8 +4014,8 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 		return;
 
 	/* FIXME: we need to synchronize this sort of stuff with hardware
-	 * readout */
-	if (WARN_ON_ONCE(!intel_dp->lane_count))
+	 * readout. Currently fast link training doesn't work on boot-up. */
+	if (!intel_dp->lane_count)
 		return;
 
 	/* if link training is requested we should perform it always */
