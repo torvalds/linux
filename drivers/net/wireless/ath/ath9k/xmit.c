@@ -2713,7 +2713,7 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		fifo_list = &txq->txq_fifo[txq->txq_tailidx];
 		if (list_empty(fifo_list)) {
 			ath_txq_unlock(sc, txq);
-			return;
+			break;
 		}
 
 		bf = list_first_entry(fifo_list, struct ath_buf, list);
