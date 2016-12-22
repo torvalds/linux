@@ -422,6 +422,7 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 			   struct drm_mm_node *node);
 bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
 			      struct drm_mm_node *node);
+struct drm_mm_node *drm_mm_scan_color_evict(struct drm_mm_scan *scan);
 
 void drm_mm_debug_table(const struct drm_mm *mm, const char *prefix);
 #ifdef CONFIG_DEBUG_FS

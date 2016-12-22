@@ -1162,6 +1162,7 @@ static bool evict_nodes(struct drm_mm_scan *scan,
 			struct evict_node *nodes,
 			unsigned int *order,
 			unsigned int count,
+			bool use_color,
 			struct list_head *evict_list)
 {
 	struct evict_node *e, *en;
@@ -1185,6 +1186,21 @@ static bool evict_nodes(struct drm_mm_scan *scan,
 
 	list_for_each_entry(e, evict_list, link)
 		drm_mm_remove_node(&e->node);
+
+	if (use_color) {
+		struct drm_mm_node *node;
+
+		while ((node = drm_mm_scan_color_evict(scan))) {
+			e = container_of(node, typeof(*e), node);
+			drm_mm_remove_node(&e->node);
+			list_add(&e->link, evict_list);
+		}
+	} else {
+		if (drm_mm_scan_color_evict(scan)) {
+			pr_err("drm_mm_scan_color_evict unexpectedly reported overlapping nodes!\n");
+			return false;
+		}
+	}
 
 	return true;
 }
@@ -1299,7 +1315,7 @@ static int evict_something(struct drm_mm *mm,
 				    range_start, range_end,
 				    mode->create_flags);
 	if (!evict_nodes(&scan,
-			 nodes, order, count,
+			 nodes, order, count, false,
 			 &evict_list))
 		return -EINVAL;
 
@@ -1878,7 +1894,7 @@ static int evict_color(struct drm_mm *mm,
 				    range_start, range_end,
 				    mode->create_flags);
 	if (!evict_nodes(&scan,
-			 nodes, order, count,
+			 nodes, order, count, true,
 			 &evict_list))
 		return -EINVAL;
 

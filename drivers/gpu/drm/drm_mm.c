@@ -692,19 +692,21 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  * The DRM range allocator supports this use-case through the scanning
  * interfaces. First a scan operation needs to be initialized with
  * drm_mm_scan_init() or drm_mm_scan_init_with_range(). The driver adds
- * objects to the roaster (probably by walking an LRU list, but this can be
- * freely implemented) until a suitable hole is found or there's no further
- * evictable object.
+ * objects to the roster (probably by walking an LRU list, but this can be
+ * freely implemented) (using drm_mm_scan_add_block()) until a suitable hole
+ * is found or there are no further evictable objects.
  *
  * The driver must walk through all objects again in exactly the reverse
  * order to restore the allocator state. Note that while the allocator is used
  * in the scan mode no other operation is allowed.
  *
- * Finally the driver evicts all objects selected in the scan. Adding and
- * removing an object is O(1), and since freeing a node is also O(1) the overall
- * complexity is O(scanned_objects). So like the free stack which needs to be
- * walked before a scan operation even begins this is linear in the number of
- * objects. It doesn't seem to hurt badly.
+ * Finally the driver evicts all objects selected (drm_mm_scan_remove_block()
+ * reported true) in the scan, and any overlapping nodes after color adjustment
+ * (drm_mm_scan_evict_color()). Adding and removing an object is O(1), and
+ * since freeing a node is also O(1) the overall complexity is
+ * O(scanned_objects). So like the free stack which needs to be walked before a
+ * scan operation even begins this is linear in the number of objects. It
+ * doesn't seem to hurt too badly.
  */
 
 /**
@@ -829,23 +831,8 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 		}
 	}
 
-	if (mm->color_adjust) {
-		/* If allocations need adjusting due to neighbouring colours,
-		 * we do not have enough information to decide if we need
-		 * to evict nodes on either side of [adj_start, adj_end].
-		 * What almost works is
-		 * hit_start = adj_start + (hole_start - col_start);
-		 * hit_end = adj_start + scan->size + (hole_end - col_end);
-		 * but because the decision is only made on the final hole,
-		 * we may underestimate the required adjustments for an
-		 * interior allocation.
-		 */
-		scan->hit_start = hole_start;
-		scan->hit_end = hole_end;
-	} else {
-		scan->hit_start = adj_start;
-		scan->hit_end = adj_start + scan->size;
-	}
+	scan->hit_start = adj_start;
+	scan->hit_end = adj_start + scan->size;
 
 	DRM_MM_BUG_ON(scan->hit_start >= scan->hit_end);
 	DRM_MM_BUG_ON(scan->hit_start < hole_start);
@@ -901,6 +888,45 @@ bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
 		node->start < scan->hit_end);
 }
 EXPORT_SYMBOL(drm_mm_scan_remove_block);
+
+/**
+ * drm_mm_scan_color_evict - evict overlapping nodes on either side of hole
+ * @scan: drm_mm scan with target hole
+ *
+ * After completing an eviction scan and removing the selected nodes, we may
+ * need to remove a few more nodes from either side of the target hole if
+ * mm.color_adjust is being used.
+ *
+ * Returns:
+ * A node to evict, or NULL if there are no overlapping nodes.
+ */
+struct drm_mm_node *drm_mm_scan_color_evict(struct drm_mm_scan *scan)
+{
+	struct drm_mm *mm = scan->mm;
+	struct drm_mm_node *hole;
+	u64 hole_start, hole_end;
+
+	DRM_MM_BUG_ON(list_empty(&mm->hole_stack));
+
+	if (!mm->color_adjust)
+		return NULL;
+
+	hole = list_first_entry(&mm->hole_stack, typeof(*hole), hole_stack);
+	hole_start = __drm_mm_hole_node_start(hole);
+	hole_end = __drm_mm_hole_node_end(hole);
+
+	DRM_MM_BUG_ON(hole_start > scan->hit_start);
+	DRM_MM_BUG_ON(hole_end < scan->hit_end);
+
+	mm->color_adjust(hole, scan->color, &hole_start, &hole_end);
+	if (hole_start > scan->hit_start)
+		return hole;
+	if (hole_end < scan->hit_end)
+		return list_next_entry(hole, node_list);
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_mm_scan_color_evict);
 
 /**
  * drm_mm_init - initialize a drm-mm allocator

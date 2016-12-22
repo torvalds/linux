@@ -108,6 +108,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 		NULL,
 	}, **phase;
 	struct i915_vma *vma, *next;
+	struct drm_mm_node *node;
 	int ret;
 
 	lockdep_assert_held(&vm->dev->struct_mutex);
@@ -211,6 +212,12 @@ found:
 		if (ret == 0)
 			ret = i915_vma_unbind(vma);
 	}
+
+	while (ret == 0 && (node = drm_mm_scan_color_evict(&scan))) {
+		vma = container_of(node, struct i915_vma, node);
+		ret = i915_vma_unbind(vma);
+	}
+
 	return ret;
 }
 
