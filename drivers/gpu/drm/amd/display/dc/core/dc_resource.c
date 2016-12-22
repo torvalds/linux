@@ -32,7 +32,6 @@
 #include "timing_generator.h"
 #include "transform.h"
 #include "set_mode_types.h"
-
 #include "virtual/virtual_stream_encoder.h"
 
 #include "dce80/dce80_resource.h"
@@ -1303,6 +1302,13 @@ static void translate_info_frame(const struct hw_info_frame *hw_info_frame,
 						&hw_info_frame->vsc_packet,
 						sizeof(struct hw_info_packet));
 	}
+
+	if (hw_info_frame->hdrsmd_packet.valid) {
+		memmove(
+						&encoder_info_frame->hdrsmd,
+						&hw_info_frame->hdrsmd_packet,
+						sizeof(struct hw_info_packet));
+	}
 }
 
 static void set_avi_info_frame(
@@ -1720,6 +1726,108 @@ static void set_spd_info_packet(struct core_stream *stream,
 	info_packet->valid = true;
 }
 
+static void set_hdr_static_info_packet(
+		struct core_surface *surface,
+		struct core_stream *stream,
+		struct hw_info_packet *info_packet)
+{
+	uint16_t i;
+	enum signal_type signal = stream->signal;
+
+	if (!surface)
+		return;
+
+	struct dc_hdr_static_metadata hdr_metadata =
+			surface->public.hdr_static_ctx;
+
+	if (dc_is_hdmi_signal(signal)) {
+		info_packet->valid = true;
+
+		info_packet->hb0 = 0x87;
+		info_packet->hb1 = 0x01;
+		info_packet->hb2 = 0x1A;
+		i = 1;
+	} else if (dc_is_dp_signal(signal)) {
+		info_packet->valid = true;
+
+		info_packet->hb0 = 0x00;
+		info_packet->hb1 = 0x87;
+		info_packet->hb2 = 0x1D;
+		info_packet->hb3 = (0x13 << 2);
+		i = 2;
+	}
+
+	uint32_t data;
+
+	data = hdr_metadata.is_hdr;
+	info_packet->sb[i++] = data ? 0x02 : 0x00;
+	info_packet->sb[i++] = 0x00;
+
+	data = hdr_metadata.chromaticity_green_x / 2;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.chromaticity_green_y / 2;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.chromaticity_blue_x / 2;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.chromaticity_blue_y / 2;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.chromaticity_red_x / 2;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.chromaticity_red_y / 2;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.chromaticity_white_point_x / 2;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.chromaticity_white_point_y / 2;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.max_luminance;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.min_luminance;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.maximum_content_light_level;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	data = hdr_metadata.maximum_frame_average_light_level;
+	info_packet->sb[i++] = data & 0xFF;
+	info_packet->sb[i++] = (data & 0xFF00) >> 8;
+
+	if (dc_is_hdmi_signal(signal)) {
+		uint32_t checksum = 0;
+
+		checksum += info_packet->hb0;
+		checksum += info_packet->hb1;
+		checksum += info_packet->hb2;
+
+		for (i = 1; i <= info_packet->hb2; i++)
+			checksum += info_packet->sb[i];
+
+		info_packet->sb[0] = 0x100 - checksum;
+	} else if (dc_is_dp_signal(signal)) {
+		info_packet->sb[0] = 0x01;
+		info_packet->sb[1] = 0x1A;
+	}
+}
+
 static void set_vsc_info_packet(struct core_stream *stream,
 		struct hw_info_packet *info_packet)
 {
@@ -1830,6 +1938,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 	info_frame.vendor_info_packet.valid = false;
 	info_frame.spd_packet.valid = false;
 	info_frame.vsc_packet.valid = false;
+	info_frame.hdrsmd_packet.valid = false;
 
 	signal = pipe_ctx->stream->signal;
 
@@ -1840,9 +1949,13 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 		set_vendor_info_packet(
 			pipe_ctx->stream, &info_frame.vendor_info_packet);
 		set_spd_info_packet(pipe_ctx->stream, &info_frame.spd_packet);
+		set_hdr_static_info_packet(pipe_ctx->surface,
+				pipe_ctx->stream, &info_frame.hdrsmd_packet);
 	} else if (dc_is_dp_signal(signal)) {
 		set_vsc_info_packet(pipe_ctx->stream, &info_frame.vsc_packet);
 		set_spd_info_packet(pipe_ctx->stream, &info_frame.spd_packet);
+		set_hdr_static_info_packet(pipe_ctx->surface,
+				pipe_ctx->stream, &info_frame.hdrsmd_packet);
 	}
 
 	translate_info_frame(&info_frame,

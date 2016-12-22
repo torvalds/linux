@@ -31,6 +31,8 @@ struct encoder_info_frame {
 	struct encoder_info_packet spd;
 	/* video stream configuration */
 	struct encoder_info_packet vsc;
+	/* HDR Static MetaData */
+	struct encoder_info_packet hdrsmd;
 };
 
 struct encoder_unblank_param {

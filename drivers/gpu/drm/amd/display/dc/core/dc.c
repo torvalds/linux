@@ -1489,6 +1489,9 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				stream->public.out_transfer_func =
 						updates[i].out_transfer_func;
 			}
+			if (updates[i].hdr_static_metadata)
+				surface->public.hdr_static_ctx =
+					*(updates[i].hdr_static_metadata);
 		}
 	}
 
@@ -1522,6 +1525,10 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				}
 			}
 
+			if (updates[i].hdr_static_metadata) {
+				resource_build_info_frame(pipe_ctx);
+				core_dc->hwss.update_info_frame(pipe_ctx);
+			}
 			if (is_new_pipe_surface[j] ||
 					updates[i].in_transfer_func)
 				core_dc->hwss.set_input_transfer_func(

@@ -87,22 +87,6 @@ enum hdr_tf_support_flag {
 	smpte_st2084 = 0x04
 };
 
-struct color_mastering_info {
-	unsigned int chromaticity_green_x;
-	unsigned int chromaticity_green_y;
-	unsigned int chromaticity_blue_x;
-	unsigned int chromaticity_blue_y;
-	unsigned int chromaticity_red_x;
-	unsigned int chromaticity_red_y;
-	unsigned int chromaticity_white_point_x;
-	unsigned int chromaticity_white_point_y;
-
-	unsigned int min_luminance;
-	unsigned int max_luminance;
-	unsigned int maximum_content_light_level;
-	unsigned int maximum_frame_average_light_level;
-};
-
 struct mod_color {
 	int dummy;
 };
@@ -206,11 +190,11 @@ bool mod_color_get_user_enable(struct mod_color *mod_color,
 
 bool mod_color_set_mastering_info(struct mod_color *mod_color,
 		const struct dc_stream **streams, int num_streams,
-		struct color_mastering_info *mastering_info);
+		const struct dc_hdr_static_metadata *mastering_info);
 
 bool mod_color_get_mastering_info(struct mod_color *mod_color,
 		const struct dc_sink *sink,
-		struct color_mastering_info *mastering_info);
+		struct dc_hdr_static_metadata *mastering_info);
 
 bool mod_color_set_user_enable(struct mod_color *mod_color,
 		const struct dc_stream **streams, int num_streams,

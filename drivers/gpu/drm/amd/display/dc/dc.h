@@ -186,6 +186,25 @@ enum {
 	TRANSFER_FUNC_POINTS = 1025
 };
 
+struct dc_hdr_static_metadata {
+	bool is_hdr;
+
+	/* display chromaticities and white point in units of 0.00001 */
+	unsigned int chromaticity_green_x;
+	unsigned int chromaticity_green_y;
+	unsigned int chromaticity_blue_x;
+	unsigned int chromaticity_blue_y;
+	unsigned int chromaticity_red_x;
+	unsigned int chromaticity_red_y;
+	unsigned int chromaticity_white_point_x;
+	unsigned int chromaticity_white_point_y;
+
+	uint32_t min_luminance;
+	uint32_t max_luminance;
+	uint32_t maximum_content_light_level;
+	uint32_t maximum_frame_average_light_level;
+};
+
 enum dc_transfer_func_type {
 	TF_TYPE_PREDEFINED,
 	TF_TYPE_DISTRIBUTED_POINTS,
@@ -232,6 +251,8 @@ struct dc_surface {
 	bool horizontal_mirror;
 	enum plane_stereo_format stereo_format;
 
+	struct dc_hdr_static_metadata hdr_static_ctx;
+
 	const struct dc_gamma *gamma_correction;
 	const struct dc_transfer_func *in_transfer_func;
 };
@@ -267,7 +288,7 @@ struct dc_surface_update {
 	 */
 	/* gamma TO BE REMOVED */
 	struct dc_gamma *gamma;
-
+	struct dc_hdr_static_metadata *hdr_static_metadata;
 	struct dc_transfer_func *in_transfer_func;
 	struct dc_transfer_func *out_transfer_func;
 

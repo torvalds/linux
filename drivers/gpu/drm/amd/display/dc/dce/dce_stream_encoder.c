@@ -518,6 +518,7 @@ static void dce110_stream_encoder_update_hdmi_info_packets(
 		dce110_update_hdmi_info_packet(enc110, 0, &info_frame->vendor);
 		dce110_update_hdmi_info_packet(enc110, 1, &info_frame->gamut);
 		dce110_update_hdmi_info_packet(enc110, 2, &info_frame->spd);
+		dce110_update_hdmi_info_packet(enc110, 3, &info_frame->hdrsmd);
 	}
 
 }
@@ -554,16 +555,25 @@ static void dce110_stream_encoder_update_dp_info_packets(
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
 	uint32_t value = REG_READ(DP_SEC_CNTL);
 
-	if (info_frame->vsc.valid)
-		dce110_update_generic_info_packet(
+	dce110_update_generic_info_packet(
+				enc110,
+				0,  /* packetIndex */
+				&info_frame->vsc);
+	dce110_update_generic_info_packet(
 			enc110,
-			0,  /* packetIndex */
-			&info_frame->vsc);
+			2,  /* packetIndex */
+			&info_frame->spd);
+	dce110_update_generic_info_packet(
+			enc110,
+			3,  /* packetIndex */
+			&info_frame->hdrsmd);
 
 	/* enable/disable transmission of packet(s).
 	*  If enabled, packet transmission begins on the next frame
 	*/
-		REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP0_ENABLE, info_frame->vsc.valid);
+	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP0_ENABLE, info_frame->vsc.valid);
+	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP2_ENABLE, info_frame->spd.valid);
+	REG_UPDATE(DP_SEC_CNTL, DP_SEC_GSP3_ENABLE, info_frame->hdrsmd.valid);
 
 	/* This bit is the master enable bit.
 	* When enabling secondary stream engine,

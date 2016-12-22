@@ -66,6 +66,8 @@ struct transfer_func {
 static bool construct(struct dc_context *ctx, struct surface *surface)
 {
 	surface->protected.ctx = ctx;
+	memset(&surface->protected.public.hdr_static_ctx,
+			0, sizeof(struct dc_hdr_static_metadata));
 	return true;
 }
 

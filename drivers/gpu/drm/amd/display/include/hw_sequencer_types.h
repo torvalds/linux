@@ -88,7 +88,7 @@ struct hw_info_packet {
 	uint8_t hb1;
 	uint8_t hb2;
 	uint8_t hb3;
-	uint8_t sb[28];
+	uint8_t sb[32];
 };
 
 struct hw_info_frame {
@@ -100,6 +100,7 @@ struct hw_info_frame {
 	struct hw_info_packet spd_packet;
 	/* Video Stream Configuration */
 	struct hw_info_packet vsc_packet;
+	struct hw_info_packet hdrsmd_packet;
 };
 
 #endif

@@ -82,7 +82,6 @@ static bool construct(struct core_stream *stream,
 	stream->public.timing.flags.LTE_340MCSC_SCRAMBLE = dc_sink_data->edid_caps.lte_340mcsc_scramble;
 
 	stream->status.link = &stream->sink->link->public;
-
 	return true;
 }
 

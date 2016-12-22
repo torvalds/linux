@@ -74,7 +74,7 @@ struct color_state {
 	struct color_gamut_data destination_gamut;
 	enum color_transfer_func input_transfer_function;
 	enum color_transfer_func output_transfer_function;
-	struct color_mastering_info mastering_info;
+	struct dc_hdr_static_metadata mastering_info;
 };
 
 struct core_color {
@@ -1970,7 +1970,7 @@ bool mod_color_set_white_point(struct mod_color *mod_color,
 
 bool mod_color_set_mastering_info(struct mod_color *mod_color,
 		const struct dc_stream **streams, int num_streams,
-		struct color_mastering_info *mastering_info)
+		const struct dc_hdr_static_metadata *mastering_info)
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 	unsigned int stream_index, sink_index;
@@ -1980,14 +1980,14 @@ bool mod_color_set_mastering_info(struct mod_color *mod_color,
 				streams[stream_index]->sink);
 		memcpy(&core_color->state[sink_index].mastering_info,
 				mastering_info,
-				sizeof(struct color_mastering_info));
+				sizeof(struct dc_hdr_static_metadata));
 	}
 	return true;
 }
 
 bool mod_color_get_mastering_info(struct mod_color *mod_color,
 		const struct dc_sink *sink,
-		struct color_mastering_info *mastering_info)
+		struct dc_hdr_static_metadata *mastering_info)
 {
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
@@ -1995,7 +1995,7 @@ bool mod_color_get_mastering_info(struct mod_color *mod_color,
 	unsigned int sink_index = sink_index_from_sink(core_color, sink);
 
 	memcpy(mastering_info, &core_color->state[sink_index].mastering_info,
-			sizeof(struct color_mastering_info));
+			sizeof(struct dc_hdr_static_metadata));
 
 	return true;
 }
@@ -2756,8 +2756,10 @@ bool mod_color_update_gamut_info(struct mod_color *mod_color,
 			else
 				output_tf->tf = TRANSFER_FUNCTION_SRGB;
 		}
+		/* 5. ---- POPULATE HDR METADATA ---- */
+		core_color->state[sink_index].mastering_info.is_hdr = is_hdr;
 
-		/* 5. ---- TODO: UPDATE INFOPACKETS ---- */
+		/* 6. ---- TODO: UPDATE INFOPACKETS ---- */
 
 		if (!mod_color_update_gamut_to_stream(
 				mod_color, streams, num_streams))
@@ -2769,6 +2771,8 @@ bool mod_color_update_gamut_info(struct mod_color *mod_color,
 		updates[0].gamma = core_color->state[sink_index].gamma;
 		updates[0].in_transfer_func = input_tf;
 		updates[0].out_transfer_func = output_tf;
+		updates[0].hdr_static_metadata =
+				&core_color->state[sink_index].mastering_info;
 
 		dc_update_surfaces_for_target(core_color->dc, updates, 1, NULL);
 
