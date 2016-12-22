@@ -1,6 +1,7 @@
 /**************************************************************************
  *
  * Copyright 2006-2008 Tungsten Graphics, Inc., Cedar Park, TX. USA.
+ * Copyright 2016 Intel Corporation
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -117,7 +118,10 @@ struct drm_mm {
  * drm_mm_node_allocated - checks whether a node is allocated
  * @node: drm_mm_node to check
  *
- * Drivers should use this helpers for proper encapusulation of drm_mm
+ * Drivers are required to clear a node prior to using it with the
+ * drm_mm range manager.
+ *
+ * Drivers should use this helper for proper encapsulation of drm_mm
  * internals.
  *
  * Returns:
@@ -132,7 +136,10 @@ static inline bool drm_mm_node_allocated(const struct drm_mm_node *node)
  * drm_mm_initialized - checks whether an allocator is initialized
  * @mm: drm_mm to check
  *
- * Drivers should use this helpers for proper encapusulation of drm_mm
+ * Drivers should clear the struct drm_mm prior to initialisation if they
+ * want to use this function.
+ *
+ * Drivers should use this helper for proper encapsulation of drm_mm
  * internals.
  *
  * Returns:
@@ -152,8 +159,8 @@ static inline u64 __drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
  * drm_mm_hole_node_start - computes the start of the hole following @node
  * @hole_node: drm_mm_node which implicitly tracks the following hole
  *
- * This is useful for driver-sepific debug dumpers. Otherwise drivers should not
- * inspect holes themselves. Drivers must check first whether a hole indeed
+ * This is useful for driver-specific debug dumpers. Otherwise drivers should
+ * not inspect holes themselves. Drivers must check first whether a hole indeed
  * follows by looking at node->hole_follows.
  *
  * Returns:
@@ -174,8 +181,8 @@ static inline u64 __drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
  * drm_mm_hole_node_end - computes the end of the hole following @node
  * @hole_node: drm_mm_node which implicitly tracks the following hole
  *
- * This is useful for driver-sepific debug dumpers. Otherwise drivers should not
- * inspect holes themselves. Drivers must check first whether a hole indeed
+ * This is useful for driver-specific debug dumpers. Otherwise drivers should
+ * not inspect holes themselves. Drivers must check first whether a hole indeed
  * follows by looking at node->hole_follows.
  *
  * Returns:

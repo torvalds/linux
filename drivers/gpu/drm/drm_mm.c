@@ -1,6 +1,7 @@
 /**************************************************************************
  *
  * Copyright 2006 Tungsten Graphics, Inc., Bismarck, ND., USA.
+ * Copyright 2016 Intel Corporation
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -31,9 +32,9 @@
  * class implementation for more advanced memory managers.
  *
  * Note that the algorithm used is quite simple and there might be substantial
- * performance gains if a smarter free list is implemented. Currently it is just an
- * unordered stack of free regions. This could easily be improved if an RB-tree
- * is used instead. At least if we expect heavy fragmentation.
+ * performance gains if a smarter free list is implemented. Currently it is
+ * just an unordered stack of free regions. This could easily be improved if
+ * an RB-tree is used instead. At least if we expect heavy fragmentation.
  *
  * Aligned allocations can also see improvement.
  *
@@ -67,7 +68,7 @@
  * where an object needs to be created which exactly matches the firmware's
  * scanout target. As long as the range is still free it can be inserted anytime
  * after the allocator is initialized, which helps with avoiding looped
- * depencies in the driver load sequence.
+ * dependencies in the driver load sequence.
  *
  * drm_mm maintains a stack of most recently freed holes, which of all
  * simplistic datastructures seems to be a fairly decent approach to clustering
@@ -78,14 +79,14 @@
  *
  * drm_mm supports a few features: Alignment and range restrictions can be
  * supplied. Further more every &drm_mm_node has a color value (which is just an
- * opaqua unsigned long) which in conjunction with a driver callback can be used
+ * opaque unsigned long) which in conjunction with a driver callback can be used
  * to implement sophisticated placement restrictions. The i915 DRM driver uses
  * this to implement guard pages between incompatible caching domains in the
  * graphics TT.
  *
- * Two behaviors are supported for searching and allocating: bottom-up and top-down.
- * The default is bottom-up. Top-down allocation can be used if the memory area
- * has different restrictions, or just to reduce fragmentation.
+ * Two behaviors are supported for searching and allocating: bottom-up and
+ * top-down. The default is bottom-up. Top-down allocation can be used if the
+ * memory area has different restrictions, or just to reduce fragmentation.
  *
  * Finally iteration helpers to walk all nodes and all holes are provided as are
  * some basic allocator dumpers for debugging.
@@ -510,7 +511,7 @@ EXPORT_SYMBOL(drm_mm_insert_node_in_range_generic);
  *
  * This just removes a node from its drm_mm allocator. The node does not need to
  * be cleared again before it can be re-inserted into this or any other drm_mm
- * allocator. It is a bug to call this function on a un-allocated node.
+ * allocator. It is a bug to call this function on a unallocated node.
  */
 void drm_mm_remove_node(struct drm_mm_node *node)
 {
@@ -689,16 +690,16 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  * efficient when we simply start to select all objects from the tail of an LRU
  * until there's a suitable hole: Especially for big objects or nodes that
  * otherwise have special allocation constraints there's a good chance we evict
- * lots of (smaller) objects unecessarily.
+ * lots of (smaller) objects unnecessarily.
  *
  * The DRM range allocator supports this use-case through the scanning
  * interfaces. First a scan operation needs to be initialized with
- * drm_mm_init_scan() or drm_mm_init_scan_with_range(). The the driver adds
+ * drm_mm_init_scan() or drm_mm_init_scan_with_range(). The driver adds
  * objects to the roaster (probably by walking an LRU list, but this can be
  * freely implemented) until a suitable hole is found or there's no further
- * evitable object.
+ * evictable object.
  *
- * The the driver must walk through all objects again in exactly the reverse
+ * The driver must walk through all objects again in exactly the reverse
  * order to restore the allocator state. Note that while the allocator is used
  * in the scan mode no other operation is allowed.
  *
@@ -838,9 +839,10 @@ EXPORT_SYMBOL(drm_mm_scan_add_block);
  * drm_mm_scan_remove_block - remove a node from the scan list
  * @node: drm_mm_node to remove
  *
- * Nodes _must_ be removed in the exact same order from the scan list as they
- * have been added, otherwise the internal state of the memory manager will be
- * corrupted.
+ * Nodes _must_ be removed in exactly the reverse order from the scan list as
+ * they have been added (e.g. using list_add as they are added and then
+ * list_for_each over that eviction list to remove), otherwise the internal
+ * state of the memory manager will be corrupted.
  *
  * When the scan list is empty, the selected memory nodes can be freed. An
  * immediately following drm_mm_search_free with !DRM_MM_SEARCH_BEST will then
