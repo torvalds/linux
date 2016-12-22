@@ -233,7 +233,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			      &hw_data->accel_capabilities_mask);
 
 	/* Find and map all the device's BARS */
-	i = 0;
+	i = (hw_data->fuses & ADF_DEVICE_FUSECTL_MASK) ? 1 : 0;
 	bar_mask = pci_select_bars(pdev, IORESOURCE_MEM);
 	for_each_set_bit(bar_nr, (const unsigned long *)&bar_mask,
 			 ADF_PCI_MAX_BARS * 2) {
