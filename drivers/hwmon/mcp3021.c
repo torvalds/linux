@@ -86,8 +86,8 @@ static inline u16 volts_from_reg(struct mcp3021_data *data, u16 val)
 	return DIV_ROUND_CLOSEST(data->vdd * val, 1 << data->output_res);
 }
 
-static ssize_t show_in_input(struct device *dev, struct device_attribute *attr,
-		char *buf)
+static ssize_t in0_input_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct mcp3021_data *data = i2c_get_clientdata(client);
@@ -102,7 +102,7 @@ static ssize_t show_in_input(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", in_input);
 }
 
-static DEVICE_ATTR(in0_input, 0444, show_in_input, NULL);
+static DEVICE_ATTR_RO(in0_input);
 
 static int mcp3021_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
