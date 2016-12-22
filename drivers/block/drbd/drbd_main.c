@@ -2915,11 +2915,9 @@ out_idr_remove_vol:
 	idr_remove(&connection->peer_devices, vnr);
 out_idr_remove_from_resource:
 	for_each_connection(connection, resource) {
-		peer_device = idr_find(&connection->peer_devices, vnr);
-		if (peer_device) {
-			idr_remove(&connection->peer_devices, vnr);
+		peer_device = idr_remove(&connection->peer_devices, vnr);
+		if (peer_device)
 			kref_put(&connection->kref, drbd_destroy_connection);
-		}
 	}
 	for_each_peer_device_safe(peer_device, tmp_peer_device, device) {
 		list_del(&peer_device->peer_devices);

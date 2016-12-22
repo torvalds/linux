@@ -88,9 +88,9 @@ void *idr_get_next(struct idr *, int *nextid);
 void *idr_replace(struct idr *, void *, int id);
 void idr_destroy(struct idr *);
 
-static inline void idr_remove(struct idr *idr, int id)
+static inline void *idr_remove(struct idr *idr, int id)
 {
-	radix_tree_delete(&idr->idr_rt, id);
+	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
 }
 
 static inline void idr_init(struct idr *idr)
