@@ -113,6 +113,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 
 	while (1) {
 		struct etnaviv_vram_mapping *m, *n;
+		struct drm_mm_scan scan;
 		struct list_head list;
 		bool found;
 
@@ -134,7 +135,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		}
 
 		/* Try to retire some entries */
-		drm_mm_init_scan(&mmu->mm, size, 0, 0);
+		drm_mm_scan_init(&scan, &mmu->mm, size, 0, 0);
 
 		found = 0;
 		INIT_LIST_HEAD(&list);
@@ -151,7 +152,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 				continue;
 
 			list_add(&free->scan_node, &list);
-			if (drm_mm_scan_add_block(&free->vram_node)) {
+			if (drm_mm_scan_add_block(&scan, &free->vram_node)) {
 				found = true;
 				break;
 			}
@@ -160,7 +161,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		if (!found) {
 			/* Nothing found, clean up and fail */
 			list_for_each_entry_safe(m, n, &list, scan_node)
-				BUG_ON(drm_mm_scan_remove_block(&m->vram_node));
+				BUG_ON(drm_mm_scan_remove_block(&scan, &m->vram_node));
 			break;
 		}
 
@@ -171,7 +172,7 @@ static int etnaviv_iommu_find_iova(struct etnaviv_iommu *mmu,
 		 * can leave the block pinned.
 		 */
 		list_for_each_entry_safe(m, n, &list, scan_node)
-			if (!drm_mm_scan_remove_block(&m->vram_node))
+			if (!drm_mm_scan_remove_block(&scan, &m->vram_node))
 				list_del_init(&m->scan_node);
 
 		/*

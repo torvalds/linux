@@ -1114,11 +1114,11 @@ static int igt_align64(void *ignored)
 	return igt_align_pot(64);
 }
 
-static void show_scan(const struct drm_mm *scan)
+static void show_scan(const struct drm_mm_scan *scan)
 {
 	pr_info("scan: hit [%llx, %llx], size=%lld, align=%lld, color=%ld\n",
-		scan->scan_hit_start, scan->scan_hit_end,
-		scan->scan_size, scan->scan_alignment, scan->scan_color);
+		scan->hit_start, scan->hit_end,
+		scan->size, scan->alignment, scan->color);
 }
 
 static void show_holes(const struct drm_mm *mm, int count)
@@ -1158,7 +1158,7 @@ struct evict_node {
 	struct list_head link;
 };
 
-static bool evict_nodes(struct drm_mm *mm,
+static bool evict_nodes(struct drm_mm_scan *scan,
 			struct evict_node *nodes,
 			unsigned int *order,
 			unsigned int count,
@@ -1170,18 +1170,16 @@ static bool evict_nodes(struct drm_mm *mm,
 	for (i = 0; i < count; i++) {
 		e = &nodes[order ? order[i] : i];
 		list_add(&e->link, evict_list);
-		if (drm_mm_scan_add_block(&e->node))
+		if (drm_mm_scan_add_block(scan, &e->node))
 			break;
 	}
 	list_for_each_entry_safe(e, en, evict_list, link) {
-		if (!drm_mm_scan_remove_block(&e->node))
+		if (!drm_mm_scan_remove_block(scan, &e->node))
 			list_del(&e->link);
 	}
 	if (list_empty(evict_list)) {
 		pr_err("Failed to find eviction: size=%lld [avail=%d], align=%lld (color=%lu)\n",
-		       mm->scan_size, count,
-		       mm->scan_alignment,
-		       mm->scan_color);
+		       scan->size, count, scan->alignment, scan->color);
 		return false;
 	}
 
@@ -1195,19 +1193,20 @@ static bool evict_nothing(struct drm_mm *mm,
 			  unsigned int total_size,
 			  struct evict_node *nodes)
 {
+	struct drm_mm_scan scan;
 	LIST_HEAD(evict_list);
 	struct evict_node *e;
 	struct drm_mm_node *node;
 	unsigned int n;
 
-	drm_mm_init_scan(mm, 1, 0, 0);
+	drm_mm_scan_init(&scan, mm, 1, 0, 0);
 	for (n = 0; n < total_size; n++) {
 		e = &nodes[n];
 		list_add(&e->link, &evict_list);
-		drm_mm_scan_add_block(&e->node);
+		drm_mm_scan_add_block(&scan, &e->node);
 	}
 	list_for_each_entry(e, &evict_list, link)
-		drm_mm_scan_remove_block(&e->node);
+		drm_mm_scan_remove_block(&scan, &e->node);
 
 	for (n = 0; n < total_size; n++) {
 		e = &nodes[n];
@@ -1241,19 +1240,21 @@ static bool evict_everything(struct drm_mm *mm,
 			     unsigned int total_size,
 			     struct evict_node *nodes)
 {
+	struct drm_mm_scan scan;
 	LIST_HEAD(evict_list);
 	struct evict_node *e;
 	unsigned int n;
 	int err;
 
-	drm_mm_init_scan(mm, total_size, 0, 0);
+	drm_mm_scan_init(&scan, mm, total_size, 0, 0);
 	for (n = 0; n < total_size; n++) {
 		e = &nodes[n];
 		list_add(&e->link, &evict_list);
-		drm_mm_scan_add_block(&e->node);
+		if (drm_mm_scan_add_block(&scan, &e->node))
+			break;
 	}
 	list_for_each_entry(e, &evict_list, link) {
-		if (!drm_mm_scan_remove_block(&e->node)) {
+		if (!drm_mm_scan_remove_block(&scan, &e->node)) {
 			pr_err("Node %lld not marked for eviction!\n",
 			       e->node.start);
 			list_del(&e->link);
@@ -1287,15 +1288,16 @@ static int evict_something(struct drm_mm *mm,
 			   unsigned int alignment,
 			   const struct insert_mode *mode)
 {
+	struct drm_mm_scan scan;
 	LIST_HEAD(evict_list);
 	struct evict_node *e;
 	struct drm_mm_node tmp;
 	int err;
 
-	drm_mm_init_scan_with_range(mm,
+	drm_mm_scan_init_with_range(&scan, mm,
 				    size, alignment, 0,
 				    range_start, range_end);
-	if (!evict_nodes(mm,
+	if (!evict_nodes(&scan,
 			 nodes, order, count,
 			 &evict_list))
 		return -EINVAL;
@@ -1307,7 +1309,7 @@ static int evict_something(struct drm_mm *mm,
 	if (err) {
 		pr_err("Failed to insert into eviction hole: size=%d, align=%d\n",
 		       size, alignment);
-		show_scan(mm);
+		show_scan(&scan);
 		show_holes(mm, 3);
 		return err;
 	}
@@ -1864,15 +1866,16 @@ static int evict_color(struct drm_mm *mm,
 		       unsigned long color,
 		       const struct insert_mode *mode)
 {
+	struct drm_mm_scan scan;
 	LIST_HEAD(evict_list);
 	struct evict_node *e;
 	struct drm_mm_node tmp;
 	int err;
 
-	drm_mm_init_scan_with_range(mm,
+	drm_mm_scan_init_with_range(&scan, mm,
 				    size, alignment, color,
 				    range_start, range_end);
-	if (!evict_nodes(mm,
+	if (!evict_nodes(&scan,
 			 nodes, order, count,
 			 &evict_list))
 		return -EINVAL;
@@ -1884,7 +1887,7 @@ static int evict_color(struct drm_mm *mm,
 	if (err) {
 		pr_err("Failed to insert into eviction hole: size=%d, align=%d, color=%lu, err=%d\n",
 		       size, alignment, color, err);
-		show_scan(mm);
+		show_scan(&scan);
 		show_holes(mm, 3);
 		return err;
 	}

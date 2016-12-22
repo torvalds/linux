@@ -574,7 +574,7 @@ static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 	u64 adj_end;
 	u64 best_size;
 
-	DRM_MM_BUG_ON(mm->scanned_blocks);
+	DRM_MM_BUG_ON(mm->scan_active);
 
 	best = NULL;
 	best_size = ~0UL;
@@ -618,7 +618,7 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 	u64 adj_end;
 	u64 best_size;
 
-	DRM_MM_BUG_ON(mm->scanned_blocks);
+	DRM_MM_BUG_ON(mm->scan_active);
 
 	best = NULL;
 	best_size = ~0UL;
@@ -693,7 +693,7 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  *
  * The DRM range allocator supports this use-case through the scanning
  * interfaces. First a scan operation needs to be initialized with
- * drm_mm_init_scan() or drm_mm_init_scan_with_range(). The driver adds
+ * drm_mm_scan_init() or drm_mm_scan_init_with_range(). The driver adds
  * objects to the roaster (probably by walking an LRU list, but this can be
  * freely implemented) until a suitable hole is found or there's no further
  * evictable object.
@@ -710,7 +710,8 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  */
 
 /**
- * drm_mm_init_scan - initialize lru scanning
+ * drm_mm_scan_init - initialize lru scanning
+ * @scan: scan state
  * @mm: drm_mm to scan
  * @size: size of the allocation
  * @alignment: alignment of the allocation
@@ -724,26 +725,33 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  * As long as the scan list is non-empty, no other operations than
  * adding/removing nodes to/from the scan list are allowed.
  */
-void drm_mm_init_scan(struct drm_mm *mm,
+void drm_mm_scan_init(struct drm_mm_scan *scan,
+		      struct drm_mm *mm,
 		      u64 size,
 		      u64 alignment,
 		      unsigned long color)
 {
 	DRM_MM_BUG_ON(!size);
+	DRM_MM_BUG_ON(mm->scan_active);
 
-	mm->scan_color = color;
-	mm->scan_alignment = alignment;
-	mm->scan_size = size;
-	mm->scanned_blocks = 0;
-	mm->scan_hit_start = 0;
-	mm->scan_hit_end = 0;
-	mm->scan_check_range = 0;
-	mm->prev_scanned_node = NULL;
+	scan->mm = mm;
+
+	scan->color = color;
+	scan->alignment = alignment;
+	scan->size = size;
+
+	scan->check_range = 0;
+
+	scan->hit_start = U64_MAX;
+	scan->hit_end = 0;
+
+	scan->prev_scanned_node = NULL;
 }
-EXPORT_SYMBOL(drm_mm_init_scan);
+EXPORT_SYMBOL(drm_mm_scan_init);
 
 /**
- * drm_mm_init_scan - initialize range-restricted lru scanning
+ * drm_mm_scan_init_with_range - initialize range-restricted lru scanning
+ * @scan: scan state
  * @mm: drm_mm to scan
  * @size: size of the allocation
  * @alignment: alignment of the allocation
@@ -759,7 +767,8 @@ EXPORT_SYMBOL(drm_mm_init_scan);
  * As long as the scan list is non-empty, no other operations than
  * adding/removing nodes to/from the scan list are allowed.
  */
-void drm_mm_init_scan_with_range(struct drm_mm *mm,
+void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
+				 struct drm_mm *mm,
 				 u64 size,
 				 u64 alignment,
 				 unsigned long color,
@@ -768,19 +777,25 @@ void drm_mm_init_scan_with_range(struct drm_mm *mm,
 {
 	DRM_MM_BUG_ON(start >= end);
 	DRM_MM_BUG_ON(!size || size > end - start);
+	DRM_MM_BUG_ON(mm->scan_active);
 
-	mm->scan_color = color;
-	mm->scan_alignment = alignment;
-	mm->scan_size = size;
-	mm->scanned_blocks = 0;
-	mm->scan_hit_start = 0;
-	mm->scan_hit_end = 0;
-	mm->scan_start = start;
-	mm->scan_end = end;
-	mm->scan_check_range = 1;
-	mm->prev_scanned_node = NULL;
+	scan->mm = mm;
+
+	scan->color = color;
+	scan->alignment = alignment;
+	scan->size = size;
+
+	DRM_MM_BUG_ON(end <= start);
+	scan->range_start = start;
+	scan->range_end = end;
+	scan->check_range = 1;
+
+	scan->hit_start = U64_MAX;
+	scan->hit_end = 0;
+
+	scan->prev_scanned_node = NULL;
 }
-EXPORT_SYMBOL(drm_mm_init_scan_with_range);
+EXPORT_SYMBOL(drm_mm_scan_init_with_range);
 
 /**
  * drm_mm_scan_add_block - add a node to the scan list
@@ -792,46 +807,46 @@ EXPORT_SYMBOL(drm_mm_init_scan_with_range);
  * Returns:
  * True if a hole has been found, false otherwise.
  */
-bool drm_mm_scan_add_block(struct drm_mm_node *node)
+bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
+			   struct drm_mm_node *node)
 {
-	struct drm_mm *mm = node->mm;
+	struct drm_mm *mm = scan->mm;
 	struct drm_mm_node *prev_node;
 	u64 hole_start, hole_end;
 	u64 adj_start, adj_end;
 
-	mm->scanned_blocks++;
-
+	DRM_MM_BUG_ON(node->mm != mm);
+	DRM_MM_BUG_ON(!node->allocated);
 	DRM_MM_BUG_ON(node->scanned_block);
 	node->scanned_block = 1;
+	mm->scan_active++;
 
-	prev_node = list_entry(node->node_list.prev, struct drm_mm_node,
-			       node_list);
+	prev_node = list_prev_entry(node, node_list);
 
 	node->scanned_preceeds_hole = prev_node->hole_follows;
 	prev_node->hole_follows = 1;
 	list_del(&node->node_list);
 	node->node_list.prev = &prev_node->node_list;
-	node->node_list.next = &mm->prev_scanned_node->node_list;
-	mm->prev_scanned_node = node;
+	node->node_list.next = &scan->prev_scanned_node->node_list;
+	scan->prev_scanned_node = node;
 
 	adj_start = hole_start = drm_mm_hole_node_start(prev_node);
 	adj_end = hole_end = drm_mm_hole_node_end(prev_node);
 
-	if (mm->scan_check_range) {
-		if (adj_start < mm->scan_start)
-			adj_start = mm->scan_start;
-		if (adj_end > mm->scan_end)
-			adj_end = mm->scan_end;
+	if (scan->check_range) {
+		if (adj_start < scan->range_start)
+			adj_start = scan->range_start;
+		if (adj_end > scan->range_end)
+			adj_end = scan->range_end;
 	}
 
 	if (mm->color_adjust)
-		mm->color_adjust(prev_node, mm->scan_color,
-				 &adj_start, &adj_end);
+		mm->color_adjust(prev_node, scan->color, &adj_start, &adj_end);
 
 	if (check_free_hole(adj_start, adj_end,
-			    mm->scan_size, mm->scan_alignment)) {
-		mm->scan_hit_start = hole_start;
-		mm->scan_hit_end = hole_end;
+			    scan->size, scan->alignment)) {
+		scan->hit_start = hole_start;
+		scan->hit_end = hole_end;
 		return true;
 	}
 
@@ -856,24 +871,25 @@ EXPORT_SYMBOL(drm_mm_scan_add_block);
  * True if this block should be evicted, false otherwise. Will always
  * return false when no hole has been found.
  */
-bool drm_mm_scan_remove_block(struct drm_mm_node *node)
+bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
+			      struct drm_mm_node *node)
 {
-	struct drm_mm *mm = node->mm;
 	struct drm_mm_node *prev_node;
 
-	mm->scanned_blocks--;
-
+	DRM_MM_BUG_ON(node->mm != scan->mm);
 	DRM_MM_BUG_ON(!node->scanned_block);
 	node->scanned_block = 0;
 
-	prev_node = list_entry(node->node_list.prev, struct drm_mm_node,
-			       node_list);
+	DRM_MM_BUG_ON(!node->mm->scan_active);
+	node->mm->scan_active--;
+
+	prev_node = list_prev_entry(node, node_list);
 
 	prev_node->hole_follows = node->scanned_preceeds_hole;
 	list_add(&node->node_list, &prev_node->node_list);
 
-	 return (drm_mm_hole_node_end(node) > mm->scan_hit_start &&
-		 node->start < mm->scan_hit_end);
+	return (drm_mm_hole_node_end(node) > scan->hit_start &&
+		node->start < scan->hit_end);
 }
 EXPORT_SYMBOL(drm_mm_scan_remove_block);
 
@@ -890,7 +906,7 @@ void drm_mm_init(struct drm_mm *mm, u64 start, u64 size)
 	DRM_MM_BUG_ON(start + size <= start);
 
 	INIT_LIST_HEAD(&mm->hole_stack);
-	mm->scanned_blocks = 0;
+	mm->scan_active = 0;
 
 	/* Clever trick to avoid a special case in the free hole tracking. */
 	INIT_LIST_HEAD(&mm->head_node.node_list);

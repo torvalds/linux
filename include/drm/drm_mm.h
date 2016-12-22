@@ -98,20 +98,29 @@ struct drm_mm {
 	/* Keep an interval_tree for fast lookup of drm_mm_nodes by address. */
 	struct rb_root interval_tree;
 
-	unsigned int scan_check_range : 1;
-	unsigned int scanned_blocks;
-	unsigned long scan_color;
-	u64 scan_alignment;
-	u64 scan_size;
-	u64 scan_hit_start;
-	u64 scan_hit_end;
-	u64 scan_start;
-	u64 scan_end;
-	struct drm_mm_node *prev_scanned_node;
-
 	void (*color_adjust)(const struct drm_mm_node *node,
 			     unsigned long color,
 			     u64 *start, u64 *end);
+
+	unsigned long scan_active;
+};
+
+struct drm_mm_scan {
+	struct drm_mm *mm;
+
+	u64 size;
+	u64 alignment;
+
+	u64 range_start;
+	u64 range_end;
+
+	u64 hit_start;
+	u64 hit_end;
+
+	struct drm_mm_node *prev_scanned_node;
+
+	unsigned long color;
+	bool check_range : 1;
 };
 
 /**
@@ -378,18 +387,22 @@ __drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last);
 	     node__ && node__->start < (end__);				\
 	     node__ = list_next_entry(node__, node_list))
 
-void drm_mm_init_scan(struct drm_mm *mm,
+void drm_mm_scan_init(struct drm_mm_scan *scan,
+		      struct drm_mm *mm,
 		      u64 size,
 		      u64 alignment,
 		      unsigned long color);
-void drm_mm_init_scan_with_range(struct drm_mm *mm,
+void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
+				 struct drm_mm *mm,
 				 u64 size,
 				 u64 alignment,
 				 unsigned long color,
 				 u64 start,
 				 u64 end);
-bool drm_mm_scan_add_block(struct drm_mm_node *node);
-bool drm_mm_scan_remove_block(struct drm_mm_node *node);
+bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
+			   struct drm_mm_node *node);
+bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
+			      struct drm_mm_node *node);
 
 void drm_mm_debug_table(const struct drm_mm *mm, const char *prefix);
 #ifdef CONFIG_DEBUG_FS
