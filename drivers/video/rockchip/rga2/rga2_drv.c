@@ -91,6 +91,7 @@ struct rga2_drvdata_t {
 	struct clk *rga2;
 
 	struct ion_client * ion_client;
+	char version[16];
 };
 
 struct rga2_drvdata_t *rga2_drvdata;
@@ -146,6 +147,26 @@ static inline void rga2_write(u32 b, u32 r)
 static inline u32 rga2_read(u32 r)
 {
 	return *((volatile unsigned int *)(rga2_drvdata->rga_base + r));
+}
+
+static inline int rga2_init_version(void)
+{
+	struct rga2_drvdata_t *rga = rga2_drvdata;
+	u32 major_version, minor_version;
+	u32 reg_version;
+
+	if (!rga) {
+		pr_err("rga2_drvdata is null\n");
+		return -EINVAL;
+	}
+
+	reg_version = rga2_read(0x028);
+	major_version = (reg_version & RGA2_MAJOR_VERSION_MASK) >> 24;
+	minor_version = (reg_version & RGA2_MINOR_VERSION_MASK) >> 20;
+
+	sprintf(rga->version, "%d.%02d", major_version, minor_version);
+
+	return 0;
 }
 
 static void rga2_soft_reset(void)
@@ -928,11 +949,16 @@ static int rga2_blit_sync(rga2_session *session, struct rga2_req *req)
 
 static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
+	struct rga2_drvdata_t *rga = rga2_drvdata;
 	struct rga2_req req, req_first;
 	struct rga_req req_rga;
 	int ret = 0;
 	rga2_session *session;
 
+	if (!rga) {
+		pr_err("rga2_drvdata is null, rga2 is not init\n");
+		return -ENODEV;
+	}
 	memset(&req, 0x0, sizeof(req));
 
 	mutex_lock(&rga2_service.mutex);
@@ -1039,8 +1065,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			break;
 		case RGA_GET_VERSION:
 		case RGA2_GET_VERSION:
-			ret = copy_to_user((void *)arg, RGA2_VERSION, sizeof(RGA2_VERSION));
-			//ret = 0;
+			ret = copy_to_user((void *)arg, rga->version, 16);
 			break;
 		default:
 			ERR("unknown ioctl cmd!\n");
@@ -1056,11 +1081,16 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 #ifdef CONFIG_COMPAT
 static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
+	struct rga2_drvdata_t *rga = rga2_drvdata;
 	struct rga2_req req, req_first;
 	struct rga_req_32 req_rga;
 	int ret = 0;
 	rga2_session *session;
 
+	if (!rga) {
+		pr_err("rga2_drvdata is null, rga2 is not init\n");
+		return -ENODEV;
+	}
 	memset(&req, 0x0, sizeof(req));
 
 	mutex_lock(&rga2_service.mutex);
@@ -1172,8 +1202,7 @@ static long compat_rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			break;
 		case RGA_GET_VERSION:
 		case RGA2_GET_VERSION:
-			ret = copy_to_user((void *)arg, RGA2_VERSION, sizeof(RGA2_VERSION));
-			//ret = 0;
+			ret = copy_to_user((void *)arg, rga->version, 16);
 			break;
 		default:
 			ERR("unknown ioctl cmd!\n");
@@ -1378,12 +1407,11 @@ static int rga2_drv_probe(struct platform_device *pdev)
 		ERR("cannot register miscdev (%d)\n", ret);
 		goto err_misc_register;
 	}
-
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
 	pm_runtime_enable(&pdev->dev);
 #endif
-
-	pr_info("Driver loaded succesfully\n");
+	rga2_init_version();
+	pr_info("Driver loaded successfully ver:%s\n", rga2_drvdata->version);
 
 	return 0;
 
