@@ -121,6 +121,8 @@ struct rockchip_drm_private {
 	unsigned int cpu_fence_context;
 	atomic_t cpu_fence_seqno;
 #endif
+	/* protect drm_mm on multi-threads */
+	struct mutex mm_lock;
 	struct drm_mm mm;
 };
 

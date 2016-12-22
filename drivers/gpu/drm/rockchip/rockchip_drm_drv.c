@@ -754,6 +754,7 @@ static int rockchip_drm_init_iommu(struct drm_device *drm_dev)
 	DRM_DEBUG("IOMMU context initialized (aperture: %#llx-%#llx)\n",
 		  start, end);
 	drm_mm_init(&private->mm, start, end - start + 1);
+	mutex_init(&private->mm_lock);
 
 	return 0;
 }
