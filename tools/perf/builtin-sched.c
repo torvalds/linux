@@ -2405,7 +2405,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	if (ptime->start && ptime->start > t)
 		goto out;
 
-	if (ptime->start > tprev)
+	if (tprev && ptime->start > tprev)
 		tprev = ptime->start;
 
 	/*
