@@ -114,16 +114,18 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	panel_fixed_mode->hsync_start = panel_fixed_mode->hdisplay +
 		((dvo_timing->hsync_off_hi << 8) | dvo_timing->hsync_off_lo);
 	panel_fixed_mode->hsync_end = panel_fixed_mode->hsync_start +
-		dvo_timing->hsync_pulse_width;
+		((dvo_timing->hsync_pulse_width_hi << 8) |
+			dvo_timing->hsync_pulse_width_lo);
 	panel_fixed_mode->htotal = panel_fixed_mode->hdisplay +
 		((dvo_timing->hblank_hi << 8) | dvo_timing->hblank_lo);
 
 	panel_fixed_mode->vdisplay = (dvo_timing->vactive_hi << 8) |
 		dvo_timing->vactive_lo;
 	panel_fixed_mode->vsync_start = panel_fixed_mode->vdisplay +
-		dvo_timing->vsync_off;
+		((dvo_timing->vsync_off_hi << 4) | dvo_timing->vsync_off_lo);
 	panel_fixed_mode->vsync_end = panel_fixed_mode->vsync_start +
-		dvo_timing->vsync_pulse_width;
+		((dvo_timing->vsync_pulse_width_hi << 4) |
+			dvo_timing->vsync_pulse_width_lo);
 	panel_fixed_mode->vtotal = panel_fixed_mode->vdisplay +
 		((dvo_timing->vblank_hi << 8) | dvo_timing->vblank_lo);
 	panel_fixed_mode->clock = dvo_timing->clock * 10;
