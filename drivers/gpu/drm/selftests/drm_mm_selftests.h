@@ -6,3 +6,4 @@
  * Tests are executed in order by igt/drm_mm
  */
 selftest(sanitycheck, igt_sanitycheck) /* keep first (selfcheck for igt) */
+selftest(init, igt_init)

@@ -27,6 +27,120 @@ static int igt_sanitycheck(void *ignored)
 	return 0;
 }
 
+static bool assert_no_holes(const struct drm_mm *mm)
+{
+	struct drm_mm_node *hole;
+	u64 hole_start, hole_end;
+	unsigned long count;
+
+	count = 0;
+	drm_mm_for_each_hole(hole, mm, hole_start, hole_end)
+		count++;
+	if (count) {
+		pr_err("Expected to find no holes (after reserve), found %lu instead\n", count);
+		return false;
+	}
+
+	drm_mm_for_each_node(hole, mm) {
+		if (hole->hole_follows) {
+			pr_err("Hole follows node, expected none!\n");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static bool assert_one_hole(const struct drm_mm *mm, u64 start, u64 end)
+{
+	struct drm_mm_node *hole;
+	u64 hole_start, hole_end;
+	unsigned long count;
+	bool ok = true;
+
+	if (end <= start)
+		return true;
+
+	count = 0;
+	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
+		if (start != hole_start || end != hole_end) {
+			if (ok)
+				pr_err("empty mm has incorrect hole, found (%llx, %llx), expect (%llx, %llx)\n",
+				       hole_start, hole_end,
+				       start, end);
+			ok = false;
+		}
+		count++;
+	}
+	if (count != 1) {
+		pr_err("Expected to find one hole, found %lu instead\n", count);
+		ok = false;
+	}
+
+	return ok;
+}
+
+static int igt_init(void *ignored)
+{
+	const unsigned int size = 4096;
+	struct drm_mm mm;
+	struct drm_mm_node tmp;
+	int ret = -EINVAL;
+
+	/* Start with some simple checks on initialising the struct drm_mm */
+	memset(&mm, 0, sizeof(mm));
+	if (drm_mm_initialized(&mm)) {
+		pr_err("zeroed mm claims to be initialized\n");
+		return ret;
+	}
+
+	memset(&mm, 0xff, sizeof(mm));
+	drm_mm_init(&mm, 0, size);
+	if (!drm_mm_initialized(&mm)) {
+		pr_err("mm claims not to be initialized\n");
+		goto out;
+	}
+
+	if (!drm_mm_clean(&mm)) {
+		pr_err("mm not empty on creation\n");
+		goto out;
+	}
+
+	/* After creation, it should all be one massive hole */
+	if (!assert_one_hole(&mm, 0, size)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.start = 0;
+	tmp.size = size;
+	ret = drm_mm_reserve_node(&mm, &tmp);
+	if (ret) {
+		pr_err("failed to reserve whole drm_mm\n");
+		goto out;
+	}
+
+	/* After filling the range entirely, there should be no holes */
+	if (!assert_no_holes(&mm)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* And then after emptying it again, the massive hole should be back */
+	drm_mm_remove_node(&tmp);
+	if (!assert_one_hole(&mm, 0, size)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+out:
+	if (ret)
+		drm_mm_debug_table(&mm, __func__);
+	drm_mm_takedown(&mm);
+	return ret;
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_mm_init(void)
