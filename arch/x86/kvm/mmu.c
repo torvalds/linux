@@ -3088,13 +3088,15 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
 		return false;
 
 	walk_shadow_page_lockless_begin(vcpu);
-	for_each_shadow_entry_lockless(vcpu, gva, iterator, spte)
-		if (!is_shadow_present_pte(spte) || iterator.level < level)
-			break;
 
 	do {
 		bool remove_write_prot = false;
 		bool remove_acc_track;
+
+		for_each_shadow_entry_lockless(vcpu, gva, iterator, spte)
+			if (!is_shadow_present_pte(spte) ||
+			    iterator.level < level)
+				break;
 
 		sp = page_header(__pa(iterator.sptep));
 		if (!is_last_spte(spte, sp->role.level))
@@ -3175,8 +3177,6 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
 				"kvm: Fast #PF retrying more than 4 times.\n");
 			break;
 		}
-
-		spte = mmu_spte_get_lockless(iterator.sptep);
 
 	} while (true);
 
