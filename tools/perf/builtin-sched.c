@@ -1775,7 +1775,7 @@ static u64 perf_evsel__get_time(struct perf_evsel *evsel, u32 cpu)
 	return r->last_time[cpu];
 }
 
-static int comm_width = 20;
+static int comm_width = 30;
 
 static char *timehist_get_commstr(struct thread *thread)
 {
