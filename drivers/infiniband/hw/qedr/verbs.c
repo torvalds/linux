@@ -2636,7 +2636,9 @@ static u32 qedr_prepare_sq_rdma_data(struct qedr_dev *dev,
 	rwqe2->r_key = cpu_to_le32(rdma_wr(wr)->rkey);
 	DMA_REGPAIR_LE(rwqe2->remote_va, rdma_wr(wr)->remote_addr);
 
-	if (wr->send_flags & IB_SEND_INLINE) {
+	if (wr->send_flags & IB_SEND_INLINE &&
+	    (wr->opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
+	     wr->opcode == IB_WR_RDMA_WRITE)) {
 		u8 flags = 0;
 
 		SET_FIELD2(flags, RDMA_SQ_RDMA_WQE_1ST_INLINE_FLG, 1);
