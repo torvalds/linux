@@ -211,6 +211,7 @@ u32 rtw_free_uc_swdec_pending_queue(struct adapter *adapter)
 {
 	u32 cnt = 0;
 	struct recv_frame *pending_frame;
+
 	while ((pending_frame = rtw_alloc_recvframe(&adapter->recvpriv.uc_swdec_pending_queue))) {
 		rtw_free_recvframe(pending_frame, &adapter->recvpriv.free_recv_queue);
 		DBG_88E("%s: dequeue uc_swdec_pending_queue\n", __func__);
@@ -296,6 +297,7 @@ static int recvframe_chkmic(struct adapter *adapter,
 					 *(pframemic-10), *(pframemic-9)));
 				{
 					uint i;
+
 					RT_TRACE(_module_rtl871x_recv_c_, _drv_err_,
 						 ("\n ======demp packet (len=%d)======\n",
 						 precvframe->len));
@@ -373,6 +375,7 @@ static struct recv_frame *decryptor(struct adapter *padapter,
 
 	if (prxattrib->encrypt > 0) {
 		u8 *iv = precv_frame->rx_data+prxattrib->hdrlen;
+
 		prxattrib->key_index = (((iv[3])>>6)&0x3);
 
 		if (prxattrib->key_index > WEP_KEYS) {
@@ -880,6 +883,7 @@ static int sta2ap_data_frame(struct adapter *adapter,
 		}
 	} else {
 		u8 *myhwaddr = myid(&adapter->eeprompriv);
+
 		if (memcmp(pattrib->ra, myhwaddr, ETH_ALEN)) {
 			ret = RTW_RX_HANDLED;
 			goto exit;
@@ -1197,6 +1201,7 @@ static int validate_recv_frame(struct adapter *adapter,
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
 		int ch_set_idx = rtw_ch_set_search_ch(pmlmeext->channel_set, rtw_get_oper_ch(adapter));
+
 		if (ch_set_idx >= 0)
 			pmlmeext->channel_set[ch_set_idx].rx_count++;
 	}
@@ -1265,6 +1270,7 @@ static int validate_recv_frame(struct adapter *adapter,
 		retval = validate_recv_data_frame(adapter, precv_frame);
 		if (retval == _FAIL) {
 			struct recv_priv *precvpriv = &adapter->recvpriv;
+
 			precvpriv->rx_drop++;
 		}
 		break;
@@ -1466,6 +1472,7 @@ struct recv_frame *recvframe_chk_defrag(struct adapter *padapter,
 	psta = rtw_get_stainfo(pstapriv, psta_addr);
 	if (psta == NULL) {
 		u8 type = GetFrameType(pfhdr->rx_data);
+
 		if (type != WIFI_DATA_TYPE) {
 			psta = rtw_get_bcmc_stainfo(padapter);
 			pdefrag_q = &psta->sta_recvpriv.defrag_q;
@@ -1548,8 +1555,8 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 	struct sk_buff *sub_skb, *subframes[MAX_SUBFRAME_COUNT];
 	struct recv_priv *precvpriv = &padapter->recvpriv;
 	struct __queue *pfree_recv_queue = &(precvpriv->free_recv_queue);
-	nr_subframes = 0;
 
+	nr_subframes = 0;
 	pattrib = &prframe->attrib;
 
 	recvframe_pull(prframe, prframe->attrib.hdrlen);

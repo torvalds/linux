@@ -279,6 +279,7 @@ exit:
 static void pwr_state_check_handler(unsigned long data)
 {
 	struct adapter *padapter = (struct adapter *)data;
+
 	rtw_ps_cmd(padapter);
 }
 

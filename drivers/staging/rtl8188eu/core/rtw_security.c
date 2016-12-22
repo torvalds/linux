@@ -36,6 +36,7 @@ static void arcfour_init(struct arc4context *parc4ctx, u8 *key, u32	key_len)
 	u32	stateindex;
 	u8 *state;
 	u32	counter;
+
 	state = parc4ctx->state;
 	parc4ctx->x = 0;
 	parc4ctx->y = 0;
@@ -60,6 +61,7 @@ static u32 arcfour_byte(struct arc4context *parc4ctx)
 	u32 y;
 	u32 sx, sy;
 	u8 *state;
+
 	state = parc4ctx->state;
 	x = (parc4ctx->x + 1) & 0xff;
 	sx = state[x];
@@ -75,6 +77,7 @@ static u32 arcfour_byte(struct arc4context *parc4ctx)
 static void arcfour_encrypt(struct arc4context *parc4ctx, u8 *dest, u8 *src, u32 len)
 {
 	u32	i;
+
 	for (i = 0; i < len; i++)
 		dest[i] = src[i] ^ (unsigned char)arcfour_byte(parc4ctx);
 }
@@ -120,6 +123,7 @@ static __le32 getcrc32(u8 *buf, int len)
 {
 	u8 *p;
 	u32  crc;
+
 	if (bcrc32initialized == 0)
 		crc32_init();
 
@@ -242,6 +246,7 @@ static u32 secmicgetuint32(u8 *p)
 {
 	s32 i;
 	u32 res = 0;
+
 	for (i = 0; i < 4; i++)
 		res |= ((u32)(*p++)) << (8*i);
 	return res;
@@ -251,6 +256,7 @@ static void secmicputuint32(u8 *p, u32 val)
 /*  Convert from Us3232 to Byte[] in a portable way */
 {
 	long i;
+
 	for (i = 0; i < 4; i++) {
 		*p++ = (u8)(val & 0xff);
 		val >>= 8;
@@ -328,6 +334,7 @@ void rtw_seccalctkipmic(u8 *key, u8 *header, u8 *data, u32 data_len, u8 *mic_cod
 {
 	struct mic_data	micdata;
 	u8 priority[4] = {0x0, 0x0, 0x0, 0x0};
+
 	rtw_secmicsetkey(&micdata, key);
 	priority[0] = pri;
 
@@ -776,6 +783,7 @@ static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext);
 static void xor_128(u8 *a, u8 *b, u8 *out)
 {
 	int i;
+
 	for (i = 0; i < 16; i++)
 		out[i] = a[i] ^ b[i];
 }
@@ -783,6 +791,7 @@ static void xor_128(u8 *a, u8 *b, u8 *out)
 static void xor_32(u8 *a, u8 *b, u8 *out)
 {
 	int i;
+
 	for (i = 0; i < 4; i++)
 		out[i] = a[i] ^ b[i];
 }
@@ -800,6 +809,7 @@ static void next_key(u8 *key, int round)
 		0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80,
 		0x1b, 0x36, 0x36, 0x36
 	};
+
 	sbox_key[0] = sbox(key[13]);
 	sbox_key[1] = sbox(key[14]);
 	sbox_key[2] = sbox(key[15]);
@@ -853,6 +863,7 @@ static void mix_column(u8 *in, u8 *out)
 	u8 rotr[4];
 	u8 temp[4];
 	u8 tempb[4];
+
 	for (i = 0 ; i < 4; i++) {
 		if ((in[i] & 0x80) == 0x80)
 			add1b[i] = 0x1b;
@@ -905,6 +916,7 @@ static void aes128k128d(u8 *key, u8 *data, u8 *ciphertext)
 	u8 intermediatea[16];
 	u8 intermediateb[16];
 	u8 round_key[16];
+
 	for (i = 0; i < 16; i++)
 		round_key[i] = key[i];
 	for (round = 0; round < 11; round++) {
@@ -936,6 +948,7 @@ static void construct_mic_iv(u8 *mic_iv, int qc_exists, int a4_exists, u8 *mpdu,
 			     uint payload_length, u8 *pn_vector)
 {
 	int i;
+
 	mic_iv[0] = 0x59;
 	if (qc_exists && a4_exists)
 		mic_iv[1] = mpdu[30] & 0x0f;    /* QoS_TC	   */
@@ -984,6 +997,7 @@ static void construct_mic_header1(u8 *mic_header1, int header_length, u8 *mpdu)
 static void construct_mic_header2(u8 *mic_header2, u8 *mpdu, int a4_exists, int qc_exists)
 {
 	int i;
+
 	for (i = 0; i < 16; i++)
 		mic_header2[i] = 0x00;
 
@@ -1025,6 +1039,7 @@ static void construct_mic_header2(u8 *mic_header2, u8 *mpdu, int a4_exists, int 
 static void construct_ctr_preload(u8 *ctr_preload, int a4_exists, int qc_exists, u8 *mpdu, u8 *pn_vector, int c)
 {
 	int i;
+
 	for (i = 0; i < 16; i++)
 		ctr_preload[i] = 0x00;
 	i = 0;
@@ -1050,6 +1065,7 @@ static void construct_ctr_preload(u8 *ctr_preload, int a4_exists, int qc_exists,
 static void bitwise_xor(u8 *ina, u8 *inb, u8 *out)
 {
 	int i;
+
 	for (i = 0; i < 16; i++)
 		out[i] = ina[i] ^ inb[i];
 }
@@ -1256,6 +1272,7 @@ static int aes_decipher(u8 *key, uint	hdrlen,
 	uint	qc_exists, a4_exists, i, j, payload_remainder,
 			num_blocks, payload_index;
 	int res = _SUCCESS;
+
 	u8 pn_vector[6];
 	u8 mic_iv[16];
 	u8 mic_header1[16];
@@ -1452,6 +1469,7 @@ u32	rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 	struct	rx_pkt_attrib	 *prxattrib = &((struct recv_frame *)precvframe)->attrib;
 	struct	security_priv	*psecuritypriv = &padapter->securitypriv;
 	u32	res = _SUCCESS;
+
 	pframe = (unsigned char *)((struct recv_frame *)precvframe)->rx_data;
 	/* 4 start to encrypt each fragment */
 	if (prxattrib->encrypt == _AES_) {
