@@ -74,11 +74,8 @@ struct drm_mm_node {
 	struct list_head hole_stack;
 	struct rb_node rb;
 	unsigned hole_follows : 1;
-	unsigned scanned_block : 1;
-	unsigned scanned_prev_free : 1;
-	unsigned scanned_next_free : 1;
-	unsigned scanned_preceeds_hole : 1;
 	unsigned allocated : 1;
+	bool scanned_block : 1;
 	unsigned long color;
 	u64 start;
 	u64 size;
@@ -117,8 +114,6 @@ struct drm_mm_scan {
 
 	u64 hit_start;
 	u64 hit_end;
-
-	struct drm_mm_node *prev_scanned_node;
 
 	unsigned long color;
 	unsigned int flags;

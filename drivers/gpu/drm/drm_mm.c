@@ -518,9 +518,7 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 	struct drm_mm_node *prev_node;
 
 	DRM_MM_BUG_ON(!node->allocated);
-	DRM_MM_BUG_ON(node->scanned_block ||
-		      node->scanned_prev_free ||
-		      node->scanned_next_free);
+	DRM_MM_BUG_ON(node->scanned_block);
 
 	prev_node =
 	    list_entry(node->node_list.prev, struct drm_mm_node, node_list);
@@ -757,8 +755,6 @@ void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
 
 	scan->hit_start = U64_MAX;
 	scan->hit_end = 0;
-
-	scan->prev_scanned_node = NULL;
 }
 EXPORT_SYMBOL(drm_mm_scan_init_with_range);
 
@@ -787,14 +783,14 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	node->scanned_block = true;
 	mm->scan_active++;
 
+	/* Remove this block from the node_list so that we enlarge the hole
+	 * (distance between the end of our previous node and the start of
+	 * or next), without poisoning the link so that we can restore it
+	 * later in drm_mm_scan_remove_block().
+	 */
 	hole = list_prev_entry(node, node_list);
-
-	node->scanned_preceeds_hole = hole->hole_follows;
-	hole->hole_follows = 1;
-	list_del(&node->node_list);
-	node->node_list.prev = &hole->node_list;
-	node->node_list.next = &scan->prev_scanned_node->node_list;
-	scan->prev_scanned_node = node;
+	DRM_MM_BUG_ON(list_next_entry(hole, node_list) != node);
+	__list_del_entry(&node->node_list);
 
 	hole_start = __drm_mm_hole_node_start(hole);
 	hole_end = __drm_mm_hole_node_end(hole);
@@ -888,9 +884,17 @@ bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,
 	DRM_MM_BUG_ON(!node->mm->scan_active);
 	node->mm->scan_active--;
 
+	/* During drm_mm_scan_add_block() we decoupled this node leaving
+	 * its pointers intact. Now that the caller is walking back along
+	 * the eviction list we can restore this block into its rightful
+	 * place on the full node_list. To confirm that the caller is walking
+	 * backwards correctly we check that prev_node->next == node->next,
+	 * i.e. both believe the same node should be on the other side of the
+	 * hole.
+	 */
 	prev_node = list_prev_entry(node, node_list);
-
-	prev_node->hole_follows = node->scanned_preceeds_hole;
+	DRM_MM_BUG_ON(list_next_entry(prev_node, node_list) !=
+		      list_next_entry(node, node_list));
 	list_add(&node->node_list, &prev_node->node_list);
 
 	return (node->start + node->size > scan->hit_start &&
@@ -917,9 +921,6 @@ void drm_mm_init(struct drm_mm *mm, u64 start, u64 size)
 	INIT_LIST_HEAD(&mm->head_node.node_list);
 	mm->head_node.allocated = 0;
 	mm->head_node.hole_follows = 1;
-	mm->head_node.scanned_block = 0;
-	mm->head_node.scanned_prev_free = 0;
-	mm->head_node.scanned_next_free = 0;
 	mm->head_node.mm = mm;
 	mm->head_node.start = start + size;
 	mm->head_node.size = start - mm->head_node.start;
