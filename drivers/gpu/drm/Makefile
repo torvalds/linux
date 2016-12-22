@@ -38,6 +38,7 @@ drm_kms_helper-$(CONFIG_DRM_KMS_CMA_HELPER) += drm_fb_cma_helper.o
 drm_kms_helper-$(CONFIG_DRM_DP_AUX_CHARDEV) += drm_dp_aux_dev.o
 
 obj-$(CONFIG_DRM_KMS_HELPER) += drm_kms_helper.o
+obj-$(CONFIG_DRM_DEBUG_MM_SELFTEST) += selftests/test-drm_mm.o
 
 CFLAGS_drm_trace_points.o := -I$(src)
 
