@@ -308,7 +308,8 @@ static int pvr2_stream_buffer_count(struct pvr2_stream *sp,unsigned int cnt)
 	if (cnt > sp->buffer_total_count) {
 		if (scnt > sp->buffer_slot_count) {
 			struct pvr2_buffer **nb;
-			nb = kmalloc(scnt * sizeof(*nb),GFP_KERNEL);
+
+			nb = kmalloc_array(scnt, sizeof(*nb), GFP_KERNEL);
 			if (!nb) return -ENOMEM;
 			if (sp->buffer_slot_count) {
 				memcpy(nb,sp->buffers,
