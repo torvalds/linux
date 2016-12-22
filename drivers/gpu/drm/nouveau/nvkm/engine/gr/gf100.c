@@ -1136,7 +1136,7 @@ gf100_gr_trap_intr(struct gf100_gr *gr)
 	if (trap & 0x00000008) {
 		u32 stat = nvkm_rd32(device, 0x408030);
 
-		nvkm_snprintbf(error, sizeof(error), gf100_m2mf_error,
+		nvkm_snprintbf(error, sizeof(error), gf100_ccache_error,
 			       stat & 0x3fffffff);
 		nvkm_error(subdev, "CCACHE %08x [%s]\n", stat, error);
 		nvkm_wr32(device, 0x408030, 0xc0000000);
