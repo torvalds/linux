@@ -1468,7 +1468,7 @@ exit:
  * Miscellaneous sysfs attributes
  * --------------------------------------------------------------------- */
 
-static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
+static ssize_t vrm_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -1477,8 +1477,8 @@ static ssize_t show_vrm(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", data->vrm);
 }
 
-static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
-		       const char *buf, size_t count)
+static ssize_t vrm_store(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
 {
 	struct dme1737_data *data = dev_get_drvdata(dev);
 	unsigned long val;
@@ -1495,15 +1495,15 @@ static ssize_t set_vrm(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_vid(struct device *dev, struct device_attribute *attr,
-			char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct dme1737_data *data = dme1737_update_device(dev);
 
 	return sprintf(buf, "%d\n", vid_from_reg(data->vid, data->vrm));
 }
 
-static ssize_t show_name(struct device *dev, struct device_attribute *attr,
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
 {
 	struct dme1737_data *data = dev_get_drvdata(dev);
@@ -1645,9 +1645,9 @@ SENSOR_DEVICE_ATTR_PWM_5TO6(6);
 
 /* Misc */
 
-static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
-static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);   /* for ISA devices */
+static DEVICE_ATTR_RW(vrm);
+static DEVICE_ATTR_RO(cpu0_vid);
+static DEVICE_ATTR_RO(name);   /* for ISA devices */
 
 /*
  * This struct holds all the attributes that are always present and need to be
