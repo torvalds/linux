@@ -2627,9 +2627,6 @@ static void timehist_print_summary(struct perf_sched *sched,
 
 	memset(&totals, 0, sizeof(totals));
 
-	if (comm_width < 30)
-		comm_width = 30;
-
 	if (sched->idle_hist) {
 		printf("\nIdle-time summary\n");
 		printf("%*s  parent  sched-out  ", comm_width, "comm");
