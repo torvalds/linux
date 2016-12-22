@@ -1552,6 +1552,125 @@ err:
 	return ret;
 }
 
+static unsigned int node_index(const struct drm_mm_node *node)
+{
+	return div64_u64(node->start, node->size);
+}
+
+static int igt_topdown(void *ignored)
+{
+	const struct insert_mode *topdown = &insert_modes[TOPDOWN];
+	DRM_RND_STATE(prng, random_seed);
+	const unsigned int count = 8192;
+	unsigned int size;
+	unsigned long *bitmap = NULL;
+	struct drm_mm mm;
+	struct drm_mm_node *nodes, *node, *next;
+	unsigned int *order, n, m, o = 0;
+	int ret;
+
+	/* When allocating top-down, we expect to be returned a node
+	 * from a suitable hole at the top of the drm_mm. We check that
+	 * the returned node does match the highest available slot.
+	 */
+
+	ret = -ENOMEM;
+	nodes = vzalloc(count * sizeof(*nodes));
+	if (!nodes)
+		goto err;
+
+	bitmap = kzalloc(count / BITS_PER_LONG * sizeof(unsigned long),
+			 GFP_TEMPORARY);
+	if (!bitmap)
+		goto err_nodes;
+
+	order = drm_random_order(count, &prng);
+	if (!order)
+		goto err_bitmap;
+
+	ret = -EINVAL;
+	for (size = 1; size <= 64; size <<= 1) {
+		drm_mm_init(&mm, 0, size*count);
+		for (n = 0; n < count; n++) {
+			if (!expect_insert(&mm, &nodes[n],
+					   size, 0, n,
+					   topdown)) {
+				pr_err("insert failed, size %u step %d\n", size, n);
+				goto out;
+			}
+
+			if (nodes[n].hole_follows) {
+				pr_err("hole after topdown insert %d, start=%llx\n, size=%u",
+				       n, nodes[n].start, size);
+				goto out;
+			}
+
+			if (!assert_one_hole(&mm, 0, size*(count - n - 1)))
+				goto out;
+		}
+
+		if (!assert_continuous(&mm, size))
+			goto out;
+
+		drm_random_reorder(order, count, &prng);
+		for_each_prime_number_from(n, 1, min(count, max_prime)) {
+			for (m = 0; m < n; m++) {
+				node = &nodes[order[(o + m) % count]];
+				drm_mm_remove_node(node);
+				__set_bit(node_index(node), bitmap);
+			}
+
+			for (m = 0; m < n; m++) {
+				unsigned int last;
+
+				node = &nodes[order[(o + m) % count]];
+				if (!expect_insert(&mm, node,
+						   size, 0, 0,
+						   topdown)) {
+					pr_err("insert failed, step %d/%d\n", m, n);
+					goto out;
+				}
+
+				if (node->hole_follows) {
+					pr_err("hole after topdown insert %d/%d, start=%llx\n",
+					       m, n, node->start);
+					goto out;
+				}
+
+				last = find_last_bit(bitmap, count);
+				if (node_index(node) != last) {
+					pr_err("node %d/%d, size %d, not inserted into upmost hole, expected %d, found %d\n",
+					       m, n, size, last, node_index(node));
+					goto out;
+				}
+
+				__clear_bit(last, bitmap);
+			}
+
+			DRM_MM_BUG_ON(find_first_bit(bitmap, count) != count);
+
+			o += n;
+		}
+
+		drm_mm_for_each_node_safe(node, next, &mm)
+			drm_mm_remove_node(node);
+		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	kfree(order);
+err_bitmap:
+	kfree(bitmap);
+err_nodes:
+	vfree(nodes);
+err:
+	return ret;
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_mm_init(void)
