@@ -983,7 +983,7 @@ err_respond:
 	return err;
 }
 
-static void
+static int
 my_device_changestate(struct controlvm_message *inmsg)
 {
 	struct controlvm_message_packet *cmd = &inmsg->cmd;
@@ -992,30 +992,30 @@ my_device_changestate(struct controlvm_message *inmsg)
 	u32 dev_no = cmd->device_change_state.dev_no;
 	struct spar_segment_state state = cmd->device_change_state.state;
 	struct visor_device *dev_info;
-	int rc = CONTROLVM_RESP_SUCCESS;
+	int err;
 
 	dev_info = visorbus_get_device_by_id(bus_no, dev_no, NULL);
 	if (!dev_info) {
 		POSTCODE_LINUX(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
 			       DIAG_SEVERITY_ERR);
-		rc = -CONTROLVM_RESP_DEVICE_INVALID;
+		err = -ENODEV;
 		goto err_respond;
 	}
 	if (dev_info->state.created == 0) {
 		POSTCODE_LINUX(DEVICE_CHANGESTATE_FAILURE_PC, dev_no, bus_no,
 			       DIAG_SEVERITY_ERR);
-		rc = -CONTROLVM_RESP_DEVICE_INVALID;
+		err = -EINVAL;
 		goto err_respond;
 	}
 	if (dev_info->pending_msg_hdr) {
 		/* only non-NULL if dev is still waiting on a response */
-		rc = -CONTROLVM_RESP_ID_INVALID_FOR_CLIENT;
+		err = -EIO;
 		goto err_respond;
 	}
 	if (inmsg->hdr.flags.response_expected == 1) {
 		pmsg_hdr = kzalloc(sizeof(*pmsg_hdr), GFP_KERNEL);
 		if (!pmsg_hdr) {
-			rc = -CONTROLVM_RESP_KMALLOC_FAILED;
+			err = -ENOMEM;
 			goto err_respond;
 		}
 
@@ -1036,12 +1036,12 @@ my_device_changestate(struct controlvm_message *inmsg)
 		 * Response will be sent from chipset_device_pause.
 		 */
 		chipset_device_pause(dev_info);
-
-	return;
+	return 0;
 
 err_respond:
 	if (inmsg->hdr.flags.response_expected == 1)
-		device_responder(inmsg->hdr.id, &inmsg->hdr, rc);
+		device_responder(inmsg->hdr.id, &inmsg->hdr, err);
+	return err;
 }
 
 static void
