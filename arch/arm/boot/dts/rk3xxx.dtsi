@@ -255,7 +255,7 @@
 			mode-normal = <BOOT_NORMAL>;
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-bootloader = <BOOT_FASTBOOT>;
-			mode-loader = <BOOT_LOADER>;
+			mode-loader = <BOOT_BL_DOWNLOAD>;
 			mode-ums = <BOOT_UMS>;
 		};
 	};

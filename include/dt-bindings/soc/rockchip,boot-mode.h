@@ -5,8 +5,8 @@
 #define REBOOT_FLAG		0x5242C300
 /* normal boot */
 #define BOOT_NORMAL		(REBOOT_FLAG + 0)
-/* enter loader rockusb mode */
-#define BOOT_LOADER		(REBOOT_FLAG + 1)
+/* enter bootloader rockusb mode */
+#define BOOT_BL_DOWNLOAD	(REBOOT_FLAG + 1)
 /* enter recovery */
 #define BOOT_RECOVERY		(REBOOT_FLAG + 3)
 /* enter fastboot mode */
