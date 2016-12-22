@@ -607,8 +607,6 @@ int c4iw_register_device(struct c4iw_dev *dev)
 	dev->ibdev.uverbs_abi_ver = C4IW_UVERBS_ABI_VERSION;
 	dev->ibdev.get_port_immutable = c4iw_port_immutable;
 	dev->ibdev.get_dev_fw_str = get_dev_fw_str;
-	dev->ibdev.drain_sq = c4iw_drain_sq;
-	dev->ibdev.drain_rq = c4iw_drain_rq;
 
 	dev->ibdev.iwcm = kmalloc(sizeof(struct iw_cm_verbs), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)

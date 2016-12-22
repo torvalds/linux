@@ -776,6 +776,64 @@ static int ring_kernel_rq_db(struct c4iw_qp *qhp, u16 inc)
 	return 0;
 }
 
+static void complete_sq_drain_wr(struct c4iw_qp *qhp, struct ib_send_wr *wr)
+{
+	struct t4_cqe cqe = {};
+	struct c4iw_cq *schp;
+	unsigned long flag;
+	struct t4_cq *cq;
+
+	schp = to_c4iw_cq(qhp->ibqp.send_cq);
+	cq = &schp->cq;
+
+	cqe.u.drain_cookie = wr->wr_id;
+	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
+				 CQE_OPCODE_V(C4IW_DRAIN_OPCODE) |
+				 CQE_TYPE_V(1) |
+				 CQE_SWCQE_V(1) |
+				 CQE_QPID_V(qhp->wq.sq.qid));
+
+	spin_lock_irqsave(&schp->lock, flag);
+	cqe.bits_type_ts = cpu_to_be64(CQE_GENBIT_V((u64)cq->gen));
+	cq->sw_queue[cq->sw_pidx] = cqe;
+	t4_swcq_produce(cq);
+	spin_unlock_irqrestore(&schp->lock, flag);
+
+	spin_lock_irqsave(&schp->comp_handler_lock, flag);
+	(*schp->ibcq.comp_handler)(&schp->ibcq,
+				   schp->ibcq.cq_context);
+	spin_unlock_irqrestore(&schp->comp_handler_lock, flag);
+}
+
+static void complete_rq_drain_wr(struct c4iw_qp *qhp, struct ib_recv_wr *wr)
+{
+	struct t4_cqe cqe = {};
+	struct c4iw_cq *rchp;
+	unsigned long flag;
+	struct t4_cq *cq;
+
+	rchp = to_c4iw_cq(qhp->ibqp.recv_cq);
+	cq = &rchp->cq;
+
+	cqe.u.drain_cookie = wr->wr_id;
+	cqe.header = cpu_to_be32(CQE_STATUS_V(T4_ERR_SWFLUSH) |
+				 CQE_OPCODE_V(C4IW_DRAIN_OPCODE) |
+				 CQE_TYPE_V(0) |
+				 CQE_SWCQE_V(1) |
+				 CQE_QPID_V(qhp->wq.sq.qid));
+
+	spin_lock_irqsave(&rchp->lock, flag);
+	cqe.bits_type_ts = cpu_to_be64(CQE_GENBIT_V((u64)cq->gen));
+	cq->sw_queue[cq->sw_pidx] = cqe;
+	t4_swcq_produce(cq);
+	spin_unlock_irqrestore(&rchp->lock, flag);
+
+	spin_lock_irqsave(&rchp->comp_handler_lock, flag);
+	(*rchp->ibcq.comp_handler)(&rchp->ibcq,
+				   rchp->ibcq.cq_context);
+	spin_unlock_irqrestore(&rchp->comp_handler_lock, flag);
+}
+
 int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		   struct ib_send_wr **bad_wr)
 {
@@ -794,8 +852,8 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (t4_wq_in_error(&qhp->wq)) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		*bad_wr = wr;
-		return -EINVAL;
+		complete_sq_drain_wr(qhp, wr);
+		return err;
 	}
 	num_wrs = t4_sq_avail(&qhp->wq);
 	if (num_wrs == 0) {
@@ -937,8 +995,8 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (t4_wq_in_error(&qhp->wq)) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		*bad_wr = wr;
-		return -EINVAL;
+		complete_rq_drain_wr(qhp, wr);
+		return err;
 	}
 	num_wrs = t4_rq_avail(&qhp->wq);
 	if (num_wrs == 0) {
@@ -1550,7 +1608,12 @@ int c4iw_modify_qp(struct c4iw_dev *rhp, struct c4iw_qp *qhp,
 		}
 		break;
 	case C4IW_QP_STATE_CLOSING:
-		if (!internal) {
+
+		/*
+		 * Allow kernel users to move to ERROR for qp draining.
+		 */
+		if (!internal && (qhp->ibqp.uobject || attrs->next_state !=
+				  C4IW_QP_STATE_ERROR)) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1763,8 +1826,6 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	qhp->attr.max_ird = 0;
 	qhp->sq_sig_all = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 	spin_lock_init(&qhp->lock);
-	init_completion(&qhp->sq_drained);
-	init_completion(&qhp->rq_drained);
 	mutex_init(&qhp->mutex);
 	init_waitqueue_head(&qhp->wait);
 	kref_init(&qhp->kref);
@@ -1957,41 +2018,4 @@ int c4iw_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	init_attr->cap.max_inline_data = T4_MAX_SEND_INLINE;
 	init_attr->sq_sig_type = qhp->sq_sig_all ? IB_SIGNAL_ALL_WR : 0;
 	return 0;
-}
-
-static void move_qp_to_err(struct c4iw_qp *qp)
-{
-	struct c4iw_qp_attributes attrs = { .next_state = C4IW_QP_STATE_ERROR };
-
-	(void)c4iw_modify_qp(qp->rhp, qp, C4IW_QP_ATTR_NEXT_STATE, &attrs, 1);
-}
-
-void c4iw_drain_sq(struct ib_qp *ibqp)
-{
-	struct c4iw_qp *qp = to_c4iw_qp(ibqp);
-	unsigned long flag;
-	bool need_to_wait;
-
-	move_qp_to_err(qp);
-	spin_lock_irqsave(&qp->lock, flag);
-	need_to_wait = !t4_sq_empty(&qp->wq);
-	spin_unlock_irqrestore(&qp->lock, flag);
-
-	if (need_to_wait)
-		wait_for_completion(&qp->sq_drained);
-}
-
-void c4iw_drain_rq(struct ib_qp *ibqp)
-{
-	struct c4iw_qp *qp = to_c4iw_qp(ibqp);
-	unsigned long flag;
-	bool need_to_wait;
-
-	move_qp_to_err(qp);
-	spin_lock_irqsave(&qp->lock, flag);
-	need_to_wait = !t4_rq_empty(&qp->wq);
-	spin_unlock_irqrestore(&qp->lock, flag);
-
-	if (need_to_wait)
-		wait_for_completion(&qp->rq_drained);
 }
