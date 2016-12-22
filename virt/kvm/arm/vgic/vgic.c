@@ -749,10 +749,18 @@ next:
 		vgic_clear_lr(vcpu, count);
 }
 
+static inline void vgic_save_state(struct kvm_vcpu *vcpu)
+{
+	if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+		vgic_v2_save_state(vcpu);
+}
+
 /* Sync back the hardware VGIC state into our emulation after a guest's run. */
 void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+
+	vgic_save_state(vcpu);
 
 	WARN_ON(vgic_v4_sync_hwstate(vcpu));
 
@@ -763,6 +771,12 @@ void kvm_vgic_sync_hwstate(struct kvm_vcpu *vcpu)
 	if (vgic_cpu->used_lrs)
 		vgic_fold_lr_state(vcpu);
 	vgic_prune_ap_list(vcpu);
+}
+
+static inline void vgic_restore_state(struct kvm_vcpu *vcpu)
+{
+	if (!static_branch_unlikely(&kvm_vgic_global_state.gicv3_cpuif))
+		vgic_v2_restore_state(vcpu);
 }
 
 /* Flush our emulation state into the GIC hardware before entering the guest. */
@@ -780,13 +794,16 @@ void kvm_vgic_flush_hwstate(struct kvm_vcpu *vcpu)
 	 * this.
 	 */
 	if (list_empty(&vcpu->arch.vgic_cpu.ap_list_head))
-		return;
+		goto out;
 
 	DEBUG_SPINLOCK_BUG_ON(!irqs_disabled());
 
 	spin_lock(&vcpu->arch.vgic_cpu.ap_list_lock);
 	vgic_flush_lr_state(vcpu);
 	spin_unlock(&vcpu->arch.vgic_cpu.ap_list_lock);
+
+out:
+	vgic_restore_state(vcpu);
 }
 
 void kvm_vgic_load(struct kvm_vcpu *vcpu)
