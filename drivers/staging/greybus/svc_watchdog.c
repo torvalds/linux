@@ -11,7 +11,7 @@
 #include <linux/workqueue.h>
 #include "greybus.h"
 
-#define SVC_WATCHDOG_PERIOD	(2*HZ)
+#define SVC_WATCHDOG_PERIOD	(2 * HZ)
 
 struct gb_svc_watchdog {
 	struct delayed_work	work;
