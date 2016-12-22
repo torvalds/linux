@@ -2110,6 +2110,27 @@ again:
 		    GLOBAL_STATUS_LBRS_FROZEN);
 	if (!status)
 		goto done;
+	/*
+	 * In case multiple PEBS events are sampled at the same time,
+	 * it is possible to have GLOBAL_STATUS bit 62 set indicating
+	 * PEBS buffer overflow and also seeing at most 3 PEBS counters
+	 * having their bits set in the status register. This is a sign
+	 * that there was at least one PEBS record pending at the time
+	 * of the PMU interrupt. PEBS counters must only be processed
+	 * via the drain_pebs() calls and not via the regular sample
+	 * processing loop coming after that the function, otherwise
+	 * phony regular samples may be generated in the sampling buffer
+	 * not marked with the EXACT tag. Another possibility is to have
+	 * one PEBS event and at least one non-PEBS event whic hoverflows
+	 * while PEBS has armed. In this case, bit 62 of GLOBAL_STATUS will
+	 * not be set, yet the overflow status bit for the PEBS counter will
+	 * be on Skylake.
+	 *
+	 * To avoid this problem, we systematically ignore the PEBS-enabled
+	 * counters from the GLOBAL_STATUS mask and we always process PEBS
+	 * events via drain_pebs().
+	 */
+	status &= ~cpuc->pebs_enabled;
 
 	/*
 	 * PEBS overflow sets bit 62 in the global status register
@@ -2117,15 +2138,6 @@ again:
 	if (__test_and_clear_bit(62, (unsigned long *)&status)) {
 		handled++;
 		x86_pmu.drain_pebs(regs);
-		/*
-		 * There are cases where, even though, the PEBS ovfl bit is set
-		 * in GLOBAL_OVF_STATUS, the PEBS events may also have their
-		 * overflow bits set for their counters. We must clear them
-		 * here because they have been processed as exact samples in
-		 * the drain_pebs() routine. They must not be processed again
-		 * in the for_each_bit_set() loop for regular samples below.
-		 */
-		status &= ~cpuc->pebs_enabled;
 		status &= x86_pmu.intel_ctrl | GLOBAL_STATUS_TRACE_TOPAPMI;
 	}
 
