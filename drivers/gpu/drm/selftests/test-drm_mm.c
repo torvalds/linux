@@ -738,6 +738,275 @@ static int igt_replace(void *ignored)
 	return 0;
 }
 
+static bool expect_insert_in_range(struct drm_mm *mm, struct drm_mm_node *node,
+				   u64 size, u64 alignment, unsigned long color,
+				   u64 range_start, u64 range_end,
+				   const struct insert_mode *mode)
+{
+	int err;
+
+	err = drm_mm_insert_node_in_range_generic(mm, node,
+						  size, alignment, color,
+						  range_start, range_end,
+						  mode->search_flags,
+						  mode->create_flags);
+	if (err) {
+		pr_err("insert (size=%llu, alignment=%llu, color=%lu, mode=%s) nto range [%llx, %llx] failed with err=%d\n",
+		       size, alignment, color, mode->name,
+		       range_start, range_end, err);
+		return false;
+	}
+
+	if (!assert_node(node, mm, size, alignment, color)) {
+		drm_mm_remove_node(node);
+		return false;
+	}
+
+	return true;
+}
+
+static bool expect_insert_in_range_fail(struct drm_mm *mm,
+					u64 size,
+					u64 range_start,
+					u64 range_end)
+{
+	struct drm_mm_node tmp = {};
+	int err;
+
+	err = drm_mm_insert_node_in_range_generic(mm, &tmp,
+						  size, 0, 0,
+						  range_start, range_end,
+						  DRM_MM_SEARCH_DEFAULT,
+						  DRM_MM_CREATE_DEFAULT);
+	if (likely(err == -ENOSPC))
+		return true;
+
+	if (!err) {
+		pr_err("impossible insert succeeded, node %llx + %llu, range [%llx, %llx]\n",
+		       tmp.start, tmp.size, range_start, range_end);
+		drm_mm_remove_node(&tmp);
+	} else {
+		pr_err("impossible insert failed with wrong error %d [expected %d], size %llu, range [%llx, %llx]\n",
+		       err, -ENOSPC, size, range_start, range_end);
+	}
+
+	return false;
+}
+
+static bool assert_contiguous_in_range(struct drm_mm *mm,
+				       u64 size,
+				       u64 start,
+				       u64 end)
+{
+	struct drm_mm_node *node;
+	unsigned int n;
+
+	if (!expect_insert_in_range_fail(mm, size, start, end))
+		return false;
+
+	n = div64_u64(start + size - 1, size);
+	drm_mm_for_each_node(node, mm) {
+		if (node->start < start || node->start + node->size > end) {
+			pr_err("node %d out of range, address [%llx + %llu], range [%llx, %llx]\n",
+			       n, node->start, node->start + node->size, start, end);
+			return false;
+		}
+
+		if (node->start != n * size) {
+			pr_err("node %d out of order, expected start %llx, found %llx\n",
+			       n, n * size, node->start);
+			return false;
+		}
+
+		if (node->size != size) {
+			pr_err("node %d has wrong size, expected size %llx, found %llx\n",
+			       n, size, node->size);
+			return false;
+		}
+
+		if (node->hole_follows && drm_mm_hole_node_end(node) < end) {
+			pr_err("node %d is followed by a hole!\n", n);
+			return false;
+		}
+
+		n++;
+	}
+
+	drm_mm_for_each_node_in_range(node, mm, 0, start) {
+		if (node) {
+			pr_err("node before start: node=%llx+%llu, start=%llx\n",
+			       node->start, node->size, start);
+			return false;
+		}
+	}
+
+	drm_mm_for_each_node_in_range(node, mm, end, U64_MAX) {
+		if (node) {
+			pr_err("node after end: node=%llx+%llu, end=%llx\n",
+			       node->start, node->size, end);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static int __igt_insert_range(unsigned int count, u64 size, u64 start, u64 end)
+{
+	const struct insert_mode *mode;
+	struct drm_mm mm;
+	struct drm_mm_node *nodes, *node, *next;
+	unsigned int n, start_n, end_n;
+	int ret;
+
+	DRM_MM_BUG_ON(!count);
+	DRM_MM_BUG_ON(!size);
+	DRM_MM_BUG_ON(end <= start);
+
+	/* Very similar to __igt_insert(), but now instead of populating the
+	 * full range of the drm_mm, we try to fill a small portion of it.
+	 */
+
+	ret = -ENOMEM;
+	nodes = vzalloc(count * sizeof(*nodes));
+	if (!nodes)
+		goto err;
+
+	ret = -EINVAL;
+	drm_mm_init(&mm, 0, count * size);
+
+	start_n = div64_u64(start + size - 1, size);
+	end_n = div64_u64(end - size, size);
+
+	for (mode = insert_modes; mode->name; mode++) {
+		for (n = start_n; n <= end_n; n++) {
+			if (!expect_insert_in_range(&mm, &nodes[n],
+						    size, size, n,
+						    start, end, mode)) {
+				pr_err("%s insert failed, size %llu, step %d [%d, %d], range [%llx, %llx]\n",
+				       mode->name, size, n,
+				       start_n, end_n,
+				       start, end);
+				goto out;
+			}
+		}
+
+		if (!assert_contiguous_in_range(&mm, size, start, end)) {
+			pr_err("%s: range [%llx, %llx] not full after initialisation, size=%llu\n",
+			       mode->name, start, end, size);
+			goto out;
+		}
+
+		/* Remove one and reinsert, it should refill itself */
+		for (n = start_n; n <= end_n; n++) {
+			u64 addr = nodes[n].start;
+
+			drm_mm_remove_node(&nodes[n]);
+			if (!expect_insert_in_range(&mm, &nodes[n],
+						    size, size, n,
+						    start, end, mode)) {
+				pr_err("%s reinsert failed, step %d\n", mode->name, n);
+				goto out;
+			}
+
+			if (nodes[n].start != addr) {
+				pr_err("%s reinsert node moved, step %d, expected %llx, found %llx\n",
+				       mode->name, n, addr, nodes[n].start);
+				goto out;
+			}
+		}
+
+		if (!assert_contiguous_in_range(&mm, size, start, end)) {
+			pr_err("%s: range [%llx, %llx] not full after reinsertion, size=%llu\n",
+			       mode->name, start, end, size);
+			goto out;
+		}
+
+		drm_mm_for_each_node_safe(node, next, &mm)
+			drm_mm_remove_node(node);
+		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	vfree(nodes);
+err:
+	return ret;
+}
+
+static int insert_outside_range(void)
+{
+	struct drm_mm mm;
+	const unsigned int start = 1024;
+	const unsigned int end = 2048;
+	const unsigned int size = end - start;
+
+	drm_mm_init(&mm, start, size);
+
+	if (!expect_insert_in_range_fail(&mm, 1, 0, start))
+		return -EINVAL;
+
+	if (!expect_insert_in_range_fail(&mm, size,
+					 start - size/2, start + (size+1)/2))
+		return -EINVAL;
+
+	if (!expect_insert_in_range_fail(&mm, size,
+					 end - (size+1)/2, end + size/2))
+		return -EINVAL;
+
+	if (!expect_insert_in_range_fail(&mm, 1, end, end + size))
+		return -EINVAL;
+
+	drm_mm_takedown(&mm);
+	return 0;
+}
+
+static int igt_insert_range(void *ignored)
+{
+	const unsigned int count = min_t(unsigned int, BIT(13), max_iterations);
+	unsigned int n;
+	int ret;
+
+	/* Check that requests outside the bounds of drm_mm are rejected. */
+	ret = insert_outside_range();
+	if (ret)
+		return ret;
+
+	for_each_prime_number_from(n, 1, 50) {
+		const u64 size = BIT_ULL(n);
+		const u64 max = count * size;
+
+		ret = __igt_insert_range(count, size, 0, max);
+		if (ret)
+			return ret;
+
+		ret = __igt_insert_range(count, size, 1, max);
+		if (ret)
+			return ret;
+
+		ret = __igt_insert_range(count, size, 0, max - 1);
+		if (ret)
+			return ret;
+
+		ret = __igt_insert_range(count, size, 0, max/2);
+		if (ret)
+			return ret;
+
+		ret = __igt_insert_range(count, size, max/2, max);
+		if (ret)
+			return ret;
+
+		ret = __igt_insert_range(count, size, max/4+1, 3*max/4-1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_mm_init(void)
