@@ -262,13 +262,11 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 
 	BUG_ON(!hole_node->hole_follows || node->allocated);
 
-	if (adj_start < start)
-		adj_start = start;
-	if (adj_end > end)
-		adj_end = end;
-
 	if (mm->color_adjust)
 		mm->color_adjust(hole_node, color, &adj_start, &adj_end);
+
+	adj_start = max(adj_start, start);
+	adj_end = min(adj_end, end);
 
 	if (flags & DRM_MM_CREATE_TOP)
 		adj_start = adj_end - size;
@@ -475,16 +473,14 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 			       flags & DRM_MM_SEARCH_BELOW) {
 		u64 hole_size = adj_end - adj_start;
 
-		if (adj_start < start)
-			adj_start = start;
-		if (adj_end > end)
-			adj_end = end;
-
 		if (mm->color_adjust) {
 			mm->color_adjust(entry, color, &adj_start, &adj_end);
 			if (adj_end <= adj_start)
 				continue;
 		}
+
+		adj_start = max(adj_start, start);
+		adj_end = min(adj_end, end);
 
 		if (!check_free_hole(adj_start, adj_end, size, alignment))
 			continue;
