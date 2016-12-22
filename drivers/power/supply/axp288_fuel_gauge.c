@@ -50,18 +50,6 @@
 #define CHRG_CCCV_CV_4350MV			0x3     /* 4.35V */
 #define CHRG_CCCV_CHG_EN			(1 << 7)
 
-#define TEMP_IRQ_CFG_QWBTU			(1 << 0)
-#define TEMP_IRQ_CFG_WBTU			(1 << 1)
-#define TEMP_IRQ_CFG_QWBTO			(1 << 2)
-#define TEMP_IRQ_CFG_WBTO			(1 << 3)
-#define TEMP_IRQ_CFG_MASK			0xf
-
-#define FG_IRQ_CFG_LOWBATT_WL2		(1 << 0)
-#define FG_IRQ_CFG_LOWBATT_WL1		(1 << 1)
-#define FG_IRQ_CFG_LOWBATT_MASK		0x3
-#define LOWBAT_IRQ_STAT_LOWBATT_WL2	(1 << 0)
-#define LOWBAT_IRQ_STAT_LOWBATT_WL1	(1 << 1)
-
 #define FG_CNTL_OCV_ADJ_STAT		(1 << 2)
 #define FG_CNTL_OCV_ADJ_EN			(1 << 3)
 #define FG_CNTL_CAP_ADJ_STAT		(1 << 4)
@@ -710,20 +698,6 @@ intr_failed:
 	}
 }
 
-static void fuel_gauge_init_hw_regs(struct axp288_fg_info *info)
-{
-	unsigned int val;
-
-	/* enable interrupts */
-	val = fuel_gauge_reg_readb(info, AXP20X_IRQ3_EN);
-	val |= TEMP_IRQ_CFG_MASK;
-	fuel_gauge_reg_writeb(info, AXP20X_IRQ3_EN, val);
-
-	val = fuel_gauge_reg_readb(info, AXP20X_IRQ4_EN);
-	val |= FG_IRQ_CFG_LOWBATT_MASK;
-	val = fuel_gauge_reg_writeb(info, AXP20X_IRQ4_EN, val);
-}
-
 static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -782,7 +756,6 @@ static int axp288_fuel_gauge_probe(struct platform_device *pdev)
 
 	fuel_gauge_create_debugfs(info);
 	fuel_gauge_init_irq(info);
-	fuel_gauge_init_hw_regs(info);
 	schedule_delayed_work(&info->status_monitor, STATUS_MON_DELAY_JIFFIES);
 
 	return 0;
