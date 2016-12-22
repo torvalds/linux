@@ -1855,6 +1855,7 @@ out:
 }
 
 static int evict_color(struct drm_mm *mm,
+		       u64 range_start, u64 range_end,
 		       struct evict_node *nodes,
 		       unsigned int *order,
 		       unsigned int count,
@@ -1868,7 +1869,9 @@ static int evict_color(struct drm_mm *mm,
 	struct drm_mm_node tmp;
 	int err;
 
-	drm_mm_init_scan(mm, size, alignment, color);
+	drm_mm_init_scan_with_range(mm,
+				    size, alignment, color,
+				    range_start, range_end);
 	if (!evict_nodes(mm,
 			 nodes, order, count,
 			 &evict_list))
@@ -1884,6 +1887,12 @@ static int evict_color(struct drm_mm *mm,
 		show_scan(mm);
 		show_holes(mm, 3);
 		return err;
+	}
+
+	if (tmp.start < range_start || tmp.start + tmp.size > range_end) {
+		pr_err("Inserted [address=%llu + %llu] did not fit into the request range [%llu, %llu]\n",
+		       tmp.start, tmp.size, range_start, range_end);
+		err = -EINVAL;
 	}
 
 	if (colors_abutt(&tmp))
@@ -1954,7 +1963,7 @@ static int igt_color_evict(void *ignored)
 	for (mode = evict_modes; mode->name; mode++) {
 		for (n = 1; n <= total_size; n <<= 1) {
 			drm_random_reorder(order, total_size, &prng);
-			err = evict_color(&mm,
+			err = evict_color(&mm, 0, U64_MAX,
 					  nodes, order, total_size,
 					  n, 1, color++,
 					  mode);
@@ -1967,7 +1976,7 @@ static int igt_color_evict(void *ignored)
 
 		for (n = 1; n < total_size; n <<= 1) {
 			drm_random_reorder(order, total_size, &prng);
-			err = evict_color(&mm,
+			err = evict_color(&mm, 0, U64_MAX,
 					  nodes, order, total_size,
 					  total_size/2, n, color++,
 					  mode);
@@ -1984,13 +1993,112 @@ static int igt_color_evict(void *ignored)
 			DRM_MM_BUG_ON(!nsize);
 
 			drm_random_reorder(order, total_size, &prng);
-			err = evict_color(&mm,
+			err = evict_color(&mm, 0, U64_MAX,
 					  nodes, order, total_size,
 					  nsize, n, color++,
 					  mode);
 			if (err) {
 				pr_err("%s evict_color(size=%u, alignment=%u) failed\n",
 				       mode->name, nsize, n);
+				goto out;
+			}
+		}
+	}
+
+	ret = 0;
+out:
+	if (ret)
+		drm_mm_debug_table(&mm, __func__);
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	kfree(order);
+err_nodes:
+	vfree(nodes);
+err:
+	return ret;
+}
+
+static int igt_color_evict_range(void *ignored)
+{
+	DRM_RND_STATE(prng, random_seed);
+	const unsigned int total_size = 8192;
+	const unsigned int range_size = total_size / 2;
+	const unsigned int range_start = total_size / 4;
+	const unsigned int range_end = range_start + range_size;
+	const struct insert_mode *mode;
+	unsigned long color = 0;
+	struct drm_mm mm;
+	struct evict_node *nodes;
+	struct drm_mm_node *node, *next;
+	unsigned int *order, n;
+	int ret, err;
+
+	/* Like igt_color_evict(), but limited to small portion of the full
+	 * drm_mm range.
+	 */
+
+	ret = -ENOMEM;
+	nodes = vzalloc(total_size * sizeof(*nodes));
+	if (!nodes)
+		goto err;
+
+	order = drm_random_order(total_size, &prng);
+	if (!order)
+		goto err_nodes;
+
+	ret = -EINVAL;
+	drm_mm_init(&mm, 0, 2*total_size - 1);
+	mm.color_adjust = separate_adjacent_colors;
+	for (n = 0; n < total_size; n++) {
+		if (!expect_insert(&mm, &nodes[n].node,
+				   1, 0, color++,
+				   &insert_modes[0])) {
+			pr_err("insert failed, step %d\n", n);
+			goto out;
+		}
+	}
+
+	for (mode = evict_modes; mode->name; mode++) {
+		for (n = 1; n <= range_size; n <<= 1) {
+			drm_random_reorder(order, range_size, &prng);
+			err = evict_color(&mm, range_start, range_end,
+					  nodes, order, total_size,
+					  n, 1, color++,
+					  mode);
+			if (err) {
+				pr_err("%s evict_color(size=%u) failed for range [%x, %x]\n",
+				       mode->name, n, range_start, range_end);
+				goto out;
+			}
+		}
+
+		for (n = 1; n < range_size; n <<= 1) {
+			drm_random_reorder(order, total_size, &prng);
+			err = evict_color(&mm, range_start, range_end,
+					  nodes, order, total_size,
+					  range_size/2, n, color++,
+					  mode);
+			if (err) {
+				pr_err("%s evict_color(size=%u, alignment=%u) failed for range [%x, %x]\n",
+				       mode->name, total_size/2, n, range_start, range_end);
+				goto out;
+			}
+		}
+
+		for_each_prime_number_from(n, 1, min(range_size, max_prime)) {
+			unsigned int nsize = (range_size - n + 1) / 2;
+
+			DRM_MM_BUG_ON(!nsize);
+
+			drm_random_reorder(order, total_size, &prng);
+			err = evict_color(&mm, range_start, range_end,
+					  nodes, order, total_size,
+					  nsize, n, color++,
+					  mode);
+			if (err) {
+				pr_err("%s evict_color(size=%u, alignment=%u) failed for range [%x, %x]\n",
+				       mode->name, nsize, n, range_start, range_end);
 				goto out;
 			}
 		}
