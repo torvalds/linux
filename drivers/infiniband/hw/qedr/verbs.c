@@ -890,6 +890,8 @@ struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 
 		pbl_ptr = cq->q.pbl_tbl->pa;
 		page_cnt = cq->q.pbl_info.num_pbes;
+
+		cq->ibcq.cqe = chain_entries;
 	} else {
 		cq->cq_type = QEDR_CQ_TYPE_KERNEL;
 
@@ -905,6 +907,7 @@ struct ib_cq *qedr_create_cq(struct ib_device *ibdev,
 
 		page_cnt = qed_chain_get_page_cnt(&cq->pbl);
 		pbl_ptr = qed_chain_get_pbl_phys(&cq->pbl);
+		cq->ibcq.cqe = cq->pbl.capacity;
 	}
 
 	qedr_init_cq_params(cq, ctx, dev, vector, chain_entries, page_cnt,
