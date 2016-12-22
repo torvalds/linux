@@ -811,7 +811,7 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 			   struct drm_mm_node *node)
 {
 	struct drm_mm *mm = scan->mm;
-	struct drm_mm_node *prev_node;
+	struct drm_mm_node *hole;
 	u64 hole_start, hole_end;
 	u64 adj_start, adj_end;
 
@@ -821,17 +821,17 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	node->scanned_block = 1;
 	mm->scan_active++;
 
-	prev_node = list_prev_entry(node, node_list);
+	hole = list_prev_entry(node, node_list);
 
-	node->scanned_preceeds_hole = prev_node->hole_follows;
-	prev_node->hole_follows = 1;
+	node->scanned_preceeds_hole = hole->hole_follows;
+	hole->hole_follows = 1;
 	list_del(&node->node_list);
-	node->node_list.prev = &prev_node->node_list;
+	node->node_list.prev = &hole->node_list;
 	node->node_list.next = &scan->prev_scanned_node->node_list;
 	scan->prev_scanned_node = node;
 
-	adj_start = hole_start = drm_mm_hole_node_start(prev_node);
-	adj_end = hole_end = drm_mm_hole_node_end(prev_node);
+	adj_start = hole_start = drm_mm_hole_node_start(hole);
+	adj_end = hole_end = drm_mm_hole_node_end(hole);
 
 	if (scan->check_range) {
 		if (adj_start < scan->range_start)
@@ -841,7 +841,7 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	}
 
 	if (mm->color_adjust)
-		mm->color_adjust(prev_node, scan->color, &adj_start, &adj_end);
+		mm->color_adjust(hole, scan->color, &adj_start, &adj_end);
 
 	if (check_free_hole(adj_start, adj_end,
 			    scan->size, scan->alignment)) {
