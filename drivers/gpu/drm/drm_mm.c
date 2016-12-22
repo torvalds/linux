@@ -308,10 +308,9 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 	u64 hole_start, hole_end;
 	u64 adj_start, adj_end;
 
-	if (WARN_ON(node->size == 0))
-		return -EINVAL;
-
 	end = node->start + node->size;
+	if (unlikely(end <= node->start))
+		return -ENOSPC;
 
 	/* Find the relevant hole to add our node to */
 	hole = drm_mm_interval_tree_iter_first(&mm->interval_tree,
