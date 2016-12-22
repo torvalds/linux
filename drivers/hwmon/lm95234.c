@@ -450,8 +450,8 @@ static ssize_t set_offset(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t show_interval(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t update_interval_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
 {
 	struct lm95234_data *data = dev_get_drvdata(dev);
 	int ret = lm95234_update_device(data);
@@ -463,8 +463,9 @@ static ssize_t show_interval(struct device *dev, struct device_attribute *attr,
 		       DIV_ROUND_CLOSEST(data->interval * 1000, HZ));
 }
 
-static ssize_t set_interval(struct device *dev, struct device_attribute *attr,
-			    const char *buf, size_t count)
+static ssize_t update_interval_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
 {
 	struct lm95234_data *data = dev_get_drvdata(dev);
 	int ret = lm95234_update_device(data);
@@ -566,8 +567,7 @@ static SENSOR_DEVICE_ATTR(temp4_offset, S_IWUSR | S_IRUGO, show_offset,
 static SENSOR_DEVICE_ATTR(temp5_offset, S_IWUSR | S_IRUGO, show_offset,
 			  set_offset, 3);
 
-static DEVICE_ATTR(update_interval, S_IWUSR | S_IRUGO, show_interval,
-		   set_interval);
+static DEVICE_ATTR_RW(update_interval);
 
 static struct attribute *lm95234_common_attrs[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
