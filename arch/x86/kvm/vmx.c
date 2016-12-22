@@ -5236,10 +5236,8 @@ static void ept_set_mmio_spte_mask(void)
 	/*
 	 * EPT Misconfigurations can be generated if the value of bits 2:0
 	 * of an EPT paging-structure entry is 110b (write/execute).
-	 * Also, special bit (62) is set to quickly identify mmio spte.
 	 */
-	kvm_mmu_set_mmio_spte_mask(SPTE_SPECIAL_MASK |
-				   VMX_EPT_MISCONFIG_WX_VALUE);
+	kvm_mmu_set_mmio_spte_mask(VMX_EPT_MISCONFIG_WX_VALUE);
 }
 
 #define VMX_XSS_EXIT_BITMAP 0
@@ -6585,7 +6583,7 @@ void vmx_enable_tdp(void)
 		enable_ept_ad_bits ? VMX_EPT_DIRTY_BIT : 0ull,
 		0ull, VMX_EPT_EXECUTABLE_MASK,
 		cpu_has_vmx_ept_execute_only() ? 0ull : VMX_EPT_READABLE_MASK,
-		enable_ept_ad_bits ? 0ull : SPTE_SPECIAL_MASK | VMX_EPT_RWX_MASK);
+		enable_ept_ad_bits ? 0ull : VMX_EPT_RWX_MASK);
 
 	ept_set_mmio_spte_mask();
 	kvm_enable_tdp();

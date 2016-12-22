@@ -208,7 +208,7 @@ static void mmu_free_roots(struct kvm_vcpu *vcpu);
 
 void kvm_mmu_set_mmio_spte_mask(u64 mmio_mask)
 {
-	shadow_mmio_mask = mmio_mask;
+	shadow_mmio_mask = mmio_mask | SPTE_SPECIAL_MASK;
 }
 EXPORT_SYMBOL_GPL(kvm_mmu_set_mmio_spte_mask);
 
@@ -318,6 +318,9 @@ void kvm_mmu_set_mask_ptes(u64 user_mask, u64 accessed_mask,
 		u64 dirty_mask, u64 nx_mask, u64 x_mask, u64 p_mask,
 		u64 acc_track_mask)
 {
+	if (acc_track_mask != 0)
+		acc_track_mask |= SPTE_SPECIAL_MASK;
+
 	shadow_user_mask = user_mask;
 	shadow_accessed_mask = accessed_mask;
 	shadow_dirty_mask = dirty_mask;

@@ -5952,9 +5952,6 @@ static void kvm_set_mmio_spte_mask(void)
 	 /* Mask the reserved physical address bits. */
 	mask = rsvd_bits(maxphyaddr, 51);
 
-	/* Bit 62 is always reserved for 32bit host. */
-	mask |= 0x3ull << 62;
-
 	/* Set the present bit. */
 	mask |= 1ull;
 
