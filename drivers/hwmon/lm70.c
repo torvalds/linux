@@ -54,8 +54,8 @@ struct lm70 {
 };
 
 /* sysfs hook function */
-static ssize_t lm70_sense_temp(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t temp1_input_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct lm70 *p_lm70 = dev_get_drvdata(dev);
 	struct spi_device *spi = p_lm70->spi;
@@ -120,7 +120,7 @@ out:
 	return status;
 }
 
-static DEVICE_ATTR(temp1_input, S_IRUGO, lm70_sense_temp, NULL);
+static DEVICE_ATTR_RO(temp1_input);
 
 static struct attribute *lm70_attrs[] = {
 	&dev_attr_temp1_input.attr,
