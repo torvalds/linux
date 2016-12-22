@@ -6375,13 +6375,13 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	trace_kvm_page_fault(gpa, exit_qualification);
 
 	/* Is it a read fault? */
-	error_code = (exit_qualification & EPT_VIOLATION_READ)
+	error_code = (exit_qualification & EPT_VIOLATION_ACC_READ)
 		     ? PFERR_USER_MASK : 0;
 	/* Is it a write fault? */
-	error_code |= (exit_qualification & EPT_VIOLATION_WRITE)
+	error_code |= (exit_qualification & EPT_VIOLATION_ACC_WRITE)
 		      ? PFERR_WRITE_MASK : 0;
 	/* Is it a fetch fault? */
-	error_code |= (exit_qualification & EPT_VIOLATION_INSTR)
+	error_code |= (exit_qualification & EPT_VIOLATION_ACC_INSTR)
 		      ? PFERR_FETCH_MASK : 0;
 	/* ept page table entry is present? */
 	error_code |= (exit_qualification &
