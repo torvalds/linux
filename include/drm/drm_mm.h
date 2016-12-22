@@ -120,7 +120,6 @@ struct drm_mm_scan {
 	struct drm_mm_node *prev_scanned_node;
 
 	unsigned long color;
-	bool check_range : 1;
 };
 
 /**
@@ -387,11 +386,6 @@ __drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last);
 	     node__ && node__->start < (end__);				\
 	     node__ = list_next_entry(node__, node_list))
 
-void drm_mm_scan_init(struct drm_mm_scan *scan,
-		      struct drm_mm *mm,
-		      u64 size,
-		      u64 alignment,
-		      unsigned long color);
 void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
 				 struct drm_mm *mm,
 				 u64 size,
@@ -399,6 +393,33 @@ void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
 				 unsigned long color,
 				 u64 start,
 				 u64 end);
+
+/**
+ * drm_mm_scan_init - initialize lru scanning
+ * @scan: scan state
+ * @mm: drm_mm to scan
+ * @size: size of the allocation
+ * @alignment: alignment of the allocation
+ * @color: opaque tag value to use for the allocation
+ *
+ * This simply sets up the scanning routines with the parameters for the desired
+ * hole. Note that there's no need to specify allocation flags, since they only
+ * change the place a node is allocated from within a suitable hole.
+ *
+ * Warning:
+ * As long as the scan list is non-empty, no other operations than
+ * adding/removing nodes to/from the scan list are allowed.
+ */
+static inline void drm_mm_scan_init(struct drm_mm_scan *scan,
+				    struct drm_mm *mm,
+				    u64 size,
+				    u64 alignment,
+				    unsigned long color)
+{
+	drm_mm_scan_init_with_range(scan, mm, size, alignment, color,
+				    0, U64_MAX);
+}
+
 bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 			   struct drm_mm_node *node);
 bool drm_mm_scan_remove_block(struct drm_mm_scan *scan,

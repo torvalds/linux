@@ -710,46 +710,6 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  */
 
 /**
- * drm_mm_scan_init - initialize lru scanning
- * @scan: scan state
- * @mm: drm_mm to scan
- * @size: size of the allocation
- * @alignment: alignment of the allocation
- * @color: opaque tag value to use for the allocation
- *
- * This simply sets up the scanning routines with the parameters for the desired
- * hole. Note that there's no need to specify allocation flags, since they only
- * change the place a node is allocated from within a suitable hole.
- *
- * Warning:
- * As long as the scan list is non-empty, no other operations than
- * adding/removing nodes to/from the scan list are allowed.
- */
-void drm_mm_scan_init(struct drm_mm_scan *scan,
-		      struct drm_mm *mm,
-		      u64 size,
-		      u64 alignment,
-		      unsigned long color)
-{
-	DRM_MM_BUG_ON(!size);
-	DRM_MM_BUG_ON(mm->scan_active);
-
-	scan->mm = mm;
-
-	scan->color = color;
-	scan->alignment = alignment;
-	scan->size = size;
-
-	scan->check_range = 0;
-
-	scan->hit_start = U64_MAX;
-	scan->hit_end = 0;
-
-	scan->prev_scanned_node = NULL;
-}
-EXPORT_SYMBOL(drm_mm_scan_init);
-
-/**
  * drm_mm_scan_init_with_range - initialize range-restricted lru scanning
  * @scan: scan state
  * @mm: drm_mm to scan
@@ -788,7 +748,6 @@ void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
 	DRM_MM_BUG_ON(end <= start);
 	scan->range_start = start;
 	scan->range_end = end;
-	scan->check_range = 1;
 
 	scan->hit_start = U64_MAX;
 	scan->hit_end = 0;
@@ -830,15 +789,11 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	node->node_list.next = &scan->prev_scanned_node->node_list;
 	scan->prev_scanned_node = node;
 
-	adj_start = hole_start = drm_mm_hole_node_start(hole);
-	adj_end = hole_end = drm_mm_hole_node_end(hole);
+	hole_start = drm_mm_hole_node_start(hole);
+	hole_end = drm_mm_hole_node_end(hole);
 
-	if (scan->check_range) {
-		if (adj_start < scan->range_start)
-			adj_start = scan->range_start;
-		if (adj_end > scan->range_end)
-			adj_end = scan->range_end;
-	}
+	adj_start = max(hole_start, scan->range_start);
+	adj_end = min(hole_end, scan->range_end);
 
 	if (mm->color_adjust)
 		mm->color_adjust(hole, scan->color, &adj_start, &adj_end);

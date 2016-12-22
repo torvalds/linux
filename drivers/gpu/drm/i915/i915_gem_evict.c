@@ -126,13 +126,9 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	 * On each list, the oldest objects lie at the HEAD with the freshest
 	 * object on the TAIL.
 	 */
-	if (start != 0 || end != vm->total) {
-		drm_mm_scan_init_with_range(&scan, &vm->mm, min_size,
-					    alignment, cache_level,
-					    start, end);
-	} else
-		drm_mm_scan_init(&scan, &vm->mm, min_size,
-				 alignment, cache_level);
+	drm_mm_scan_init_with_range(&scan, &vm->mm,
+				    min_size, alignment, cache_level,
+				    start, end);
 
 	if (flags & PIN_NONBLOCK)
 		phases[1] = NULL;
