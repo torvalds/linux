@@ -76,9 +76,13 @@ struct dce110_clk_src_regs {
 	uint32_t RESYNC_CNTL;
 	uint32_t PIXCLK_RESYNC_CNTL;
 	uint32_t PLL_CNTL;
-	uint32_t PHASE;
-	uint32_t MODULO;
-	uint32_t PIXEL_RATE_CNTL;
+
+	/* below are for DTO.
+	 * todo: should probably use different struct to not waste space
+	 */
+	uint32_t PHASE[4];
+	uint32_t MODULO[4];
+	uint32_t PIXEL_RATE_CNTL[4];
 };
 
 struct dce110_clk_src {
