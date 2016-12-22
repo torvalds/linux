@@ -772,6 +772,7 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	struct drm_mm *mm = scan->mm;
 	struct drm_mm_node *hole;
 	u64 hole_start, hole_end;
+	u64 col_start, col_end;
 	u64 adj_start, adj_end;
 
 	DRM_MM_BUG_ON(node->mm != mm);
@@ -789,14 +790,16 @@ bool drm_mm_scan_add_block(struct drm_mm_scan *scan,
 	node->node_list.next = &scan->prev_scanned_node->node_list;
 	scan->prev_scanned_node = node;
 
-	hole_start = drm_mm_hole_node_start(hole);
-	hole_end = drm_mm_hole_node_end(hole);
+	hole_start = __drm_mm_hole_node_start(hole);
+	hole_end = __drm_mm_hole_node_end(hole);
 
-	adj_start = max(hole_start, scan->range_start);
-	adj_end = min(hole_end, scan->range_end);
-
+	col_start = hole_start;
+	col_end = hole_end;
 	if (mm->color_adjust)
-		mm->color_adjust(hole, scan->color, &adj_start, &adj_end);
+		mm->color_adjust(hole, scan->color, &col_start, &col_end);
+
+	adj_start = max(col_start, scan->range_start);
+	adj_end = min(col_end, scan->range_end);
 
 	if (check_free_hole(adj_start, adj_end,
 			    scan->size, scan->alignment)) {
