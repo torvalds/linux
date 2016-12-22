@@ -1070,12 +1070,13 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 					  struct rxe_pkt_info *pkt)
 {
 	enum resp_states rc;
+	u32 prev_psn = (qp->resp.psn - 1) & BTH_PSN_MASK;
 
 	if (pkt->mask & RXE_SEND_MASK ||
 	    pkt->mask & RXE_WRITE_MASK) {
 		/* SEND. Ack again and cleanup. C9-105. */
 		if (bth_ack(pkt))
-			send_ack(qp, pkt, AETH_ACK_UNLIMITED, qp->resp.psn - 1);
+			send_ack(qp, pkt, AETH_ACK_UNLIMITED, prev_psn);
 		rc = RESPST_CLEANUP;
 		goto out;
 	} else if (pkt->mask & RXE_READ_MASK) {
