@@ -1671,6 +1671,189 @@ err:
 	return ret;
 }
 
+static void separate_adjacent_colors(const struct drm_mm_node *node,
+				     unsigned long color,
+				     u64 *start,
+				     u64 *end)
+{
+	if (node->allocated && node->color != color)
+		++*start;
+
+	node = list_next_entry(node, node_list);
+	if (node->allocated && node->color != color)
+		--*end;
+}
+
+static bool colors_abutt(const struct drm_mm_node *node)
+{
+	if (!node->hole_follows &&
+	    list_next_entry(node, node_list)->allocated) {
+		pr_err("colors abutt; %ld [%llx + %llx] is next to %ld [%llx + %llx]!\n",
+		       node->color, node->start, node->size,
+		       list_next_entry(node, node_list)->color,
+		       list_next_entry(node, node_list)->start,
+		       list_next_entry(node, node_list)->size);
+		return true;
+	}
+
+	return false;
+}
+
+static int igt_color(void *ignored)
+{
+	const unsigned int count = min(4096u, max_iterations);
+	const struct insert_mode *mode;
+	struct drm_mm mm;
+	struct drm_mm_node *node, *nn;
+	unsigned int n;
+	int ret = -EINVAL, err;
+
+	/* Color adjustment complicates everything. First we just check
+	 * that when we insert a node we apply any color_adjustment callback.
+	 * The callback we use should ensure that there is a gap between
+	 * any two nodes, and so after each insertion we check that those
+	 * holes are inserted and that they are preserved.
+	 */
+
+	drm_mm_init(&mm, 0, U64_MAX);
+
+	for (n = 1; n <= count; n++) {
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
+		if (!node) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		if (!expect_insert(&mm, node,
+				   n, 0, n,
+				   &insert_modes[0])) {
+			pr_err("insert failed, step %d\n", n);
+			kfree(node);
+			goto out;
+		}
+	}
+
+	drm_mm_for_each_node_safe(node, nn, &mm) {
+		if (node->color != node->size) {
+			pr_err("invalid color stored: expected %lld, found %ld\n",
+			       node->size, node->color);
+
+			goto out;
+		}
+
+		drm_mm_remove_node(node);
+		kfree(node);
+	}
+
+	/* Now, let's start experimenting with applying a color callback */
+	mm.color_adjust = separate_adjacent_colors;
+	for (mode = insert_modes; mode->name; mode++) {
+		u64 last;
+
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
+		if (!node) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		node->size = 1 + 2*count;
+		node->color = node->size;
+
+		err = drm_mm_reserve_node(&mm, node);
+		if (err) {
+			pr_err("initial reserve failed!\n");
+			ret = err;
+			goto out;
+		}
+
+		last = node->start + node->size;
+
+		for (n = 1; n <= count; n++) {
+			int rem;
+
+			node = kzalloc(sizeof(*node), GFP_KERNEL);
+			if (!node) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			node->start = last;
+			node->size = n + count;
+			node->color = node->size;
+
+			err = drm_mm_reserve_node(&mm, node);
+			if (err != -ENOSPC) {
+				pr_err("reserve %d did not report color overlap! err=%d\n",
+				       n, err);
+				goto out;
+			}
+
+			node->start += n + 1;
+			rem = misalignment(node, n + count);
+			node->start += n + count - rem;
+
+			err = drm_mm_reserve_node(&mm, node);
+			if (err) {
+				pr_err("reserve %d failed, err=%d\n", n, err);
+				ret = err;
+				goto out;
+			}
+
+			last = node->start + node->size;
+		}
+
+		for (n = 1; n <= count; n++) {
+			node = kzalloc(sizeof(*node), GFP_KERNEL);
+			if (!node) {
+				ret = -ENOMEM;
+				goto out;
+			}
+
+			if (!expect_insert(&mm, node,
+					   n, n, n,
+					   mode)) {
+				pr_err("%s insert failed, step %d\n",
+				       mode->name, n);
+				kfree(node);
+				goto out;
+			}
+		}
+
+		drm_mm_for_each_node_safe(node, nn, &mm) {
+			u64 rem;
+
+			if (node->color != node->size) {
+				pr_err("%s invalid color stored: expected %lld, found %ld\n",
+				       mode->name, node->size, node->color);
+
+				goto out;
+			}
+
+			if (colors_abutt(node))
+				goto out;
+
+			div64_u64_rem(node->start, node->size, &rem);
+			if (rem) {
+				pr_err("%s colored node misaligned, start=%llx expected alignment=%lld [rem=%lld]\n",
+				       mode->name, node->start, node->size, rem);
+				goto out;
+			}
+
+			drm_mm_remove_node(node);
+			kfree(node);
+		}
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, nn, &mm) {
+		drm_mm_remove_node(node);
+		kfree(node);
+	}
+	drm_mm_takedown(&mm);
+	return ret;
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_mm_init(void)
