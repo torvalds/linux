@@ -48,6 +48,12 @@
 #include <linux/stackdepot.h>
 #endif
 
+#ifdef CONFIG_DRM_DEBUG_MM
+#define DRM_MM_BUG_ON(expr) BUG_ON(expr)
+#else
+#define DRM_MM_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
+#endif
+
 enum drm_mm_search_flags {
 	DRM_MM_SEARCH_DEFAULT =		0,
 	DRM_MM_SEARCH_BEST =		1 << 0,
@@ -155,7 +161,7 @@ static inline u64 __drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
  */
 static inline u64 drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
 {
-	BUG_ON(!hole_node->hole_follows);
+	DRM_MM_BUG_ON(!hole_node->hole_follows);
 	return __drm_mm_hole_node_start(hole_node);
 }
 

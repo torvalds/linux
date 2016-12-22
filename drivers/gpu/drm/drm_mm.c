@@ -237,7 +237,7 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	u64 adj_start = hole_start;
 	u64 adj_end = hole_end;
 
-	BUG_ON(node->allocated);
+	DRM_MM_BUG_ON(node->allocated);
 
 	if (mm->color_adjust)
 		mm->color_adjust(hole_node, color, &adj_start, &adj_end);
@@ -258,8 +258,8 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 		}
 	}
 
-	BUG_ON(adj_start < hole_start);
-	BUG_ON(adj_end > hole_end);
+	DRM_MM_BUG_ON(adj_start < hole_start);
+	DRM_MM_BUG_ON(adj_end > hole_end);
 
 	if (adj_start == hole_start) {
 		hole_node->hole_follows = 0;
@@ -276,7 +276,7 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 
 	drm_mm_interval_tree_add_node(hole_node, node);
 
-	BUG_ON(node->start + node->size > adj_end);
+	DRM_MM_BUG_ON(node->start + node->size > adj_end);
 
 	node->hole_follows = 0;
 	if (__drm_mm_hole_node_start(node) < hole_end) {
@@ -409,7 +409,7 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	u64 adj_start = hole_start;
 	u64 adj_end = hole_end;
 
-	BUG_ON(!hole_node->hole_follows || node->allocated);
+	DRM_MM_BUG_ON(!hole_node->hole_follows || node->allocated);
 
 	if (adj_start < start)
 		adj_start = start;
@@ -450,10 +450,10 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 
 	drm_mm_interval_tree_add_node(hole_node, node);
 
-	BUG_ON(node->start < start);
-	BUG_ON(node->start < adj_start);
-	BUG_ON(node->start + node->size > adj_end);
-	BUG_ON(node->start + node->size > end);
+	DRM_MM_BUG_ON(node->start < start);
+	DRM_MM_BUG_ON(node->start < adj_start);
+	DRM_MM_BUG_ON(node->start + node->size > adj_end);
+	DRM_MM_BUG_ON(node->start + node->size > end);
 
 	node->hole_follows = 0;
 	if (__drm_mm_hole_node_start(node) < hole_end) {
@@ -519,22 +519,21 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 	struct drm_mm *mm = node->mm;
 	struct drm_mm_node *prev_node;
 
-	if (WARN_ON(!node->allocated))
-		return;
-
-	BUG_ON(node->scanned_block || node->scanned_prev_free
-				   || node->scanned_next_free);
+	DRM_MM_BUG_ON(!node->allocated);
+	DRM_MM_BUG_ON(node->scanned_block ||
+		      node->scanned_prev_free ||
+		      node->scanned_next_free);
 
 	prev_node =
 	    list_entry(node->node_list.prev, struct drm_mm_node, node_list);
 
 	if (node->hole_follows) {
-		BUG_ON(__drm_mm_hole_node_start(node) ==
-		       __drm_mm_hole_node_end(node));
+		DRM_MM_BUG_ON(__drm_mm_hole_node_start(node) ==
+			      __drm_mm_hole_node_end(node));
 		list_del(&node->hole_stack);
 	} else
-		BUG_ON(__drm_mm_hole_node_start(node) !=
-		       __drm_mm_hole_node_end(node));
+		DRM_MM_BUG_ON(__drm_mm_hole_node_start(node) !=
+			      __drm_mm_hole_node_end(node));
 
 
 	if (!prev_node->hole_follows) {
@@ -578,7 +577,7 @@ static struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 	u64 adj_end;
 	u64 best_size;
 
-	BUG_ON(mm->scanned_blocks);
+	DRM_MM_BUG_ON(mm->scanned_blocks);
 
 	best = NULL;
 	best_size = ~0UL;
@@ -622,7 +621,7 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
 	u64 adj_end;
 	u64 best_size;
 
-	BUG_ON(mm->scanned_blocks);
+	DRM_MM_BUG_ON(mm->scanned_blocks);
 
 	best = NULL;
 	best_size = ~0UL;
@@ -668,6 +667,8 @@ static struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_
  */
 void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 {
+	DRM_MM_BUG_ON(!old->allocated);
+
 	list_replace(&old->node_list, &new->node_list);
 	list_replace(&old->hole_stack, &new->hole_stack);
 	rb_replace_node(&old->rb, &new->rb, &old->mm->interval_tree);
@@ -798,7 +799,7 @@ bool drm_mm_scan_add_block(struct drm_mm_node *node)
 
 	mm->scanned_blocks++;
 
-	BUG_ON(node->scanned_block);
+	DRM_MM_BUG_ON(node->scanned_block);
 	node->scanned_block = 1;
 
 	prev_node = list_entry(node->node_list.prev, struct drm_mm_node,
@@ -859,7 +860,7 @@ bool drm_mm_scan_remove_block(struct drm_mm_node *node)
 
 	mm->scanned_blocks--;
 
-	BUG_ON(!node->scanned_block);
+	DRM_MM_BUG_ON(!node->scanned_block);
 	node->scanned_block = 0;
 
 	prev_node = list_entry(node->node_list.prev, struct drm_mm_node,
