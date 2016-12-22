@@ -155,6 +155,22 @@ static inline bool drm_mm_initialized(const struct drm_mm *mm)
 	return mm->hole_stack.next;
 }
 
+/**
+ * drm_mm_hole_follows - checks whether a hole follows this node
+ * @node: drm_mm_node to check
+ *
+ * Holes are embedded into the drm_mm using the tail of a drm_mm_node.
+ * If you wish to know whether a hole follows this particular node,
+ * query this function.
+ *
+ * Returns:
+ * True if a hole follows the @node.
+ */
+static inline bool drm_mm_hole_follows(const struct drm_mm_node *node)
+{
+	return node->hole_follows;
+}
+
 static inline u64 __drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
 {
 	return hole_node->start + hole_node->size;
@@ -166,14 +182,14 @@ static inline u64 __drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
  *
  * This is useful for driver-specific debug dumpers. Otherwise drivers should
  * not inspect holes themselves. Drivers must check first whether a hole indeed
- * follows by looking at node->hole_follows.
+ * follows by looking at drm_mm_hole_follows()
  *
  * Returns:
  * Start of the subsequent hole.
  */
 static inline u64 drm_mm_hole_node_start(const struct drm_mm_node *hole_node)
 {
-	DRM_MM_BUG_ON(!hole_node->hole_follows);
+	DRM_MM_BUG_ON(!drm_mm_hole_follows(hole_node));
 	return __drm_mm_hole_node_start(hole_node);
 }
 
@@ -188,7 +204,7 @@ static inline u64 __drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
  *
  * This is useful for driver-specific debug dumpers. Otherwise drivers should
  * not inspect holes themselves. Drivers must check first whether a hole indeed
- * follows by looking at node->hole_follows.
+ * follows by looking at drm_mm_hole_follows().
  *
  * Returns:
  * End of the subsequent hole.

@@ -63,7 +63,7 @@ static bool assert_no_holes(const struct drm_mm *mm)
 	}
 
 	drm_mm_for_each_node(hole, mm) {
-		if (hole->hole_follows) {
+		if (drm_mm_hole_follows(hole)) {
 			pr_err("Hole follows node, expected none!\n");
 			return false;
 		}
@@ -125,7 +125,7 @@ static bool assert_continuous(const struct drm_mm *mm, u64 size)
 			return false;
 		}
 
-		if (node->hole_follows) {
+		if (drm_mm_hole_follows(node)) {
 			pr_err("node[%ld] is followed by a hole!\n", n);
 			return false;
 		}
@@ -828,7 +828,8 @@ static bool assert_contiguous_in_range(struct drm_mm *mm,
 			return false;
 		}
 
-		if (node->hole_follows && drm_mm_hole_node_end(node) < end) {
+		if (drm_mm_hole_follows(node) &&
+		    drm_mm_hole_node_end(node) < end) {
 			pr_err("node %d is followed by a hole!\n", n);
 			return false;
 		}
@@ -1337,11 +1338,12 @@ static int evict_something(struct drm_mm *mm,
 		err = -EINVAL;
 	}
 
-	if (!assert_node(&tmp, mm, size, alignment, 0) || tmp.hole_follows) {
+	if (!assert_node(&tmp, mm, size, alignment, 0) ||
+	    drm_mm_hole_follows(&tmp)) {
 		pr_err("Inserted did not fill the eviction hole: size=%lld [%d], align=%d [rem=%lld], start=%llx, hole-follows?=%d\n",
 		       tmp.size, size,
 		       alignment, misalignment(&tmp, alignment),
-		       tmp.start, tmp.hole_follows);
+		       tmp.start, drm_mm_hole_follows(&tmp));
 		err = -EINVAL;
 	}
 
@@ -1618,7 +1620,7 @@ static int igt_topdown(void *ignored)
 				goto out;
 			}
 
-			if (nodes[n].hole_follows) {
+			if (drm_mm_hole_follows(&nodes[n])) {
 				pr_err("hole after topdown insert %d, start=%llx\n, size=%u",
 				       n, nodes[n].start, size);
 				goto out;
@@ -1650,7 +1652,7 @@ static int igt_topdown(void *ignored)
 					goto out;
 				}
 
-				if (node->hole_follows) {
+				if (drm_mm_hole_follows(node)) {
 					pr_err("hole after topdown insert %d/%d, start=%llx\n",
 					       m, n, node->start);
 					goto out;
@@ -1705,7 +1707,7 @@ static void separate_adjacent_colors(const struct drm_mm_node *node,
 
 static bool colors_abutt(const struct drm_mm_node *node)
 {
-	if (!node->hole_follows &&
+	if (!drm_mm_hole_follows(node) &&
 	    list_next_entry(node, node_list)->allocated) {
 		pr_err("colors abutt; %ld [%llx + %llx] is next to %ld [%llx + %llx]!\n",
 		       node->color, node->start, node->size,

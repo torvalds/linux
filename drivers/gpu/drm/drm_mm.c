@@ -323,7 +323,7 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 	}
 
 	hole = list_last_entry(&hole->node_list, typeof(*hole), node_list);
-	if (!hole->hole_follows)
+	if (!drm_mm_hole_follows(hole))
 		return -ENOSPC;
 
 	adj_start = hole_start = __drm_mm_hole_node_start(hole);
@@ -408,7 +408,7 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	u64 adj_start = hole_start;
 	u64 adj_end = hole_end;
 
-	DRM_MM_BUG_ON(!hole_node->hole_follows || node->allocated);
+	DRM_MM_BUG_ON(!drm_mm_hole_follows(hole_node) || node->allocated);
 
 	if (adj_start < start)
 		adj_start = start;
@@ -523,16 +523,16 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 	prev_node =
 	    list_entry(node->node_list.prev, struct drm_mm_node, node_list);
 
-	if (node->hole_follows) {
+	if (drm_mm_hole_follows(node)) {
 		DRM_MM_BUG_ON(__drm_mm_hole_node_start(node) ==
 			      __drm_mm_hole_node_end(node));
 		list_del(&node->hole_stack);
-	} else
+	} else {
 		DRM_MM_BUG_ON(__drm_mm_hole_node_start(node) !=
 			      __drm_mm_hole_node_end(node));
+	}
 
-
-	if (!prev_node->hole_follows) {
+	if (!drm_mm_hole_follows(prev_node)) {
 		prev_node->hole_follows = 1;
 		list_add(&prev_node->hole_stack, &mm->hole_stack);
 	} else
