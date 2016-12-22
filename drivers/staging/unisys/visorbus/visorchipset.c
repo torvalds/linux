@@ -1159,23 +1159,24 @@ initialize_controlvm_payload(void)
 }
 
 /*
- * The general parahotplug flow works as follows. The visorchipset
- * driver receives a DEVICE_CHANGESTATE message from Command
- * specifying a physical device to enable or disable. The CONTROLVM
- * message handler calls parahotplug_process_message, which then adds
- * the message to a global list and kicks off a udev event which
- * causes a user level script to enable or disable the specified
- * device. The udev script then writes to
- * /proc/visorchipset/parahotplug, which causes parahotplug_proc_write
- * to get called, at which point the appropriate CONTROLVM message is
- * retrieved from the list and responded to.
+ * The general parahotplug flow works as follows. The visorchipset receives
+ * a DEVICE_CHANGESTATE message from Command specifying a physical device
+ * to enable or disable. The CONTROLVM message handler calls
+ * parahotplug_process_message, which then adds the message to a global list
+ * and kicks off a udev event which causes a user level script to enable or
+ * disable the specified device. The udev script then writes to
+ * /sys/devices/platform/visorchipset/parahotplug, which causes the
+ * parahotplug store functions to get called, at which point the
+ * appropriate CONTROLVM message is retrieved from the list and responded
+ * to.
  */
 
 #define PARAHOTPLUG_TIMEOUT_MS 2000
 
 /**
- * parahotplug_next_id() - generate unique int to match an outstanding CONTROLVM
- *                         message with a udev script /proc response
+ * parahotplug_next_id() - generate unique int to match an outstanding
+ *                         CONTROLVM message with a udev script /sys
+ *                         response
  *
  * Return: a unique integer value
  */
@@ -1242,7 +1243,7 @@ static DEFINE_SPINLOCK(parahotplug_request_list_lock);	/* lock for above */
  * @id:     the id of the request
  * @active: indicates whether the request is assigned to active partition
  *
- * Called from the /proc handler, which means the user script has
+ * Called from the /sys handler, which means the user script has
  * finished the enable/disable. Find the matching identifier, and
  * respond to the CONTROLVM message with success.
  *
