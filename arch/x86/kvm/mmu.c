@@ -708,9 +708,9 @@ static u64 mark_spte_for_access_track(u64 spte)
 		return spte;
 
 	/*
-	 * Verify that the write-protection that we do below will be fixable
-	 * via the fast page fault path. Currently, that is always the case, at
-	 * least when using EPT (which is when access tracking would be used).
+	 * Making an Access Tracking PTE will result in removal of write access
+	 * from the PTE. So, verify that we will be able to restore the write
+	 * access in the fast page fault path later on.
 	 */
 	WARN_ONCE((spte & PT_WRITABLE_MASK) &&
 		  !spte_can_locklessly_be_made_writable(spte),
