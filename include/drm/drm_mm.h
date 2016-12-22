@@ -98,12 +98,12 @@ struct drm_mm {
 	struct rb_root interval_tree;
 
 	unsigned int scan_check_range : 1;
-	unsigned scan_alignment;
+	unsigned int scanned_blocks;
 	unsigned long scan_color;
+	u64 scan_alignment;
 	u64 scan_size;
 	u64 scan_hit_start;
 	u64 scan_hit_end;
-	unsigned scanned_blocks;
 	u64 scan_start;
 	u64 scan_end;
 	struct drm_mm_node *prev_scanned_node;
@@ -261,7 +261,7 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node);
 int drm_mm_insert_node_generic(struct drm_mm *mm,
 			       struct drm_mm_node *node,
 			       u64 size,
-			       unsigned alignment,
+			       u64 alignment,
 			       unsigned long color,
 			       enum drm_mm_search_flags sflags,
 			       enum drm_mm_allocator_flags aflags);
@@ -284,7 +284,7 @@ int drm_mm_insert_node_generic(struct drm_mm *mm,
 static inline int drm_mm_insert_node(struct drm_mm *mm,
 				     struct drm_mm_node *node,
 				     u64 size,
-				     unsigned alignment,
+				     u64 alignment,
 				     enum drm_mm_search_flags flags)
 {
 	return drm_mm_insert_node_generic(mm, node, size, alignment, 0, flags,
@@ -294,7 +294,7 @@ static inline int drm_mm_insert_node(struct drm_mm *mm,
 int drm_mm_insert_node_in_range_generic(struct drm_mm *mm,
 					struct drm_mm_node *node,
 					u64 size,
-					unsigned alignment,
+					u64 alignment,
 					unsigned long color,
 					u64 start,
 					u64 end,
@@ -321,7 +321,7 @@ int drm_mm_insert_node_in_range_generic(struct drm_mm *mm,
 static inline int drm_mm_insert_node_in_range(struct drm_mm *mm,
 					      struct drm_mm_node *node,
 					      u64 size,
-					      unsigned alignment,
+					      u64 alignment,
 					      u64 start,
 					      u64 end,
 					      enum drm_mm_search_flags flags)
@@ -361,11 +361,11 @@ __drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last);
 
 void drm_mm_init_scan(struct drm_mm *mm,
 		      u64 size,
-		      unsigned alignment,
+		      u64 alignment,
 		      unsigned long color);
 void drm_mm_init_scan_with_range(struct drm_mm *mm,
 				 u64 size,
-				 unsigned alignment,
+				 u64 alignment,
 				 unsigned long color,
 				 u64 start,
 				 u64 end);

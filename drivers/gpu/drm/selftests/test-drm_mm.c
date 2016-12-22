@@ -1116,7 +1116,7 @@ static int igt_align64(void *ignored)
 
 static void show_scan(const struct drm_mm *scan)
 {
-	pr_info("scan: hit [%llx, %llx], size=%lld, align=%d, color=%ld\n",
+	pr_info("scan: hit [%llx, %llx], size=%lld, align=%lld, color=%ld\n",
 		scan->scan_hit_start, scan->scan_hit_end,
 		scan->scan_size, scan->scan_alignment, scan->scan_color);
 }
@@ -1178,7 +1178,7 @@ static bool evict_nodes(struct drm_mm *mm,
 			list_del(&e->link);
 	}
 	if (list_empty(evict_list)) {
-		pr_err("Failed to find eviction: size=%lld [avail=%d], align=%d (color=%lu)\n",
+		pr_err("Failed to find eviction: size=%lld [avail=%d], align=%lld (color=%lu)\n",
 		       mm->scan_size, count,
 		       mm->scan_alignment,
 		       mm->scan_color);
