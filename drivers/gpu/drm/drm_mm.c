@@ -873,22 +873,6 @@ bool drm_mm_scan_remove_block(struct drm_mm_node *node)
 EXPORT_SYMBOL(drm_mm_scan_remove_block);
 
 /**
- * drm_mm_clean - checks whether an allocator is clean
- * @mm: drm_mm allocator to check
- *
- * Returns:
- * True if the allocator is completely free, false if there's still a node
- * allocated in it.
- */
-bool drm_mm_clean(const struct drm_mm *mm)
-{
-	const struct list_head *head = drm_mm_nodes(mm);
-
-	return (head->next->next == head);
-}
-EXPORT_SYMBOL(drm_mm_clean);
-
-/**
  * drm_mm_init - initialize a drm-mm allocator
  * @mm: the drm_mm structure to initialize
  * @start: start of the range managed by @mm
@@ -928,10 +912,9 @@ EXPORT_SYMBOL(drm_mm_init);
  */
 void drm_mm_takedown(struct drm_mm *mm)
 {
-	if (WARN(!list_empty(drm_mm_nodes(mm)),
+	if (WARN(!drm_mm_clean(mm),
 		 "Memory manager not clean during takedown.\n"))
 		show_leaks(mm);
-
 }
 EXPORT_SYMBOL(drm_mm_takedown);
 

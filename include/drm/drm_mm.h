@@ -342,7 +342,19 @@ void drm_mm_remove_node(struct drm_mm_node *node);
 void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new);
 void drm_mm_init(struct drm_mm *mm, u64 start, u64 size);
 void drm_mm_takedown(struct drm_mm *mm);
-bool drm_mm_clean(const struct drm_mm *mm);
+
+/**
+ * drm_mm_clean - checks whether an allocator is clean
+ * @mm: drm_mm allocator to check
+ *
+ * Returns:
+ * True if the allocator is completely free, false if there's still a node
+ * allocated in it.
+ */
+static inline bool drm_mm_clean(const struct drm_mm *mm)
+{
+	return list_empty(drm_mm_nodes(mm));
+}
 
 struct drm_mm_node *
 __drm_mm_interval_first(const struct drm_mm *mm, u64 start, u64 last);
