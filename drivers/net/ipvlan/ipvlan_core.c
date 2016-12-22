@@ -198,7 +198,7 @@ void ipvlan_process_multicast(struct work_struct *work)
 	unsigned int mac_hash;
 	int ret;
 	u8 pkt_type;
-	bool hlocal, dlocal;
+	bool tx_pkt;
 
 	__skb_queue_head_init(&list);
 
@@ -211,7 +211,7 @@ void ipvlan_process_multicast(struct work_struct *work)
 		bool consumed = false;
 
 		ethh = eth_hdr(skb);
-		hlocal = ether_addr_equal(ethh->h_source, port->dev->dev_addr);
+		tx_pkt = IPVL_SKB_CB(skb)->tx_pkt;
 		mac_hash = ipvlan_mac_hash(ethh->h_dest);
 
 		if (ether_addr_equal(ethh->h_dest, port->dev->broadcast))
@@ -219,13 +219,10 @@ void ipvlan_process_multicast(struct work_struct *work)
 		else
 			pkt_type = PACKET_MULTICAST;
 
-		dlocal = false;
 		rcu_read_lock();
 		list_for_each_entry_rcu(ipvlan, &port->ipvlans, pnode) {
-			if (hlocal && (ipvlan->dev == dev)) {
-				dlocal = true;
+			if (tx_pkt && (ipvlan->dev == skb->dev))
 				continue;
-			}
 			if (!test_bit(mac_hash, ipvlan->mac_filters))
 				continue;
 			if (!(ipvlan->dev->flags & IFF_UP))
@@ -238,7 +235,7 @@ void ipvlan_process_multicast(struct work_struct *work)
 				consumed = true;
 				nskb->pkt_type = pkt_type;
 				nskb->dev = ipvlan->dev;
-				if (hlocal)
+				if (tx_pkt)
 					ret = dev_forward_skb(ipvlan->dev, nskb);
 				else
 					ret = netif_rx(nskb);
@@ -248,7 +245,7 @@ void ipvlan_process_multicast(struct work_struct *work)
 		}
 		rcu_read_unlock();
 
-		if (dlocal) {
+		if (tx_pkt) {
 			/* If the packet originated here, send it out. */
 			skb->dev = port->dev;
 			skb->pkt_type = pkt_type;
@@ -480,12 +477,19 @@ out:
 }
 
 static void ipvlan_multicast_enqueue(struct ipvl_port *port,
-				     struct sk_buff *skb)
+				     struct sk_buff *skb, bool tx_pkt)
 {
 	if (skb->protocol == htons(ETH_P_PAUSE)) {
 		kfree_skb(skb);
 		return;
 	}
+
+	/* Record that the deferred packet is from TX or RX path. By
+	 * looking at mac-addresses on packet will lead to erronus decisions.
+	 * (This would be true for a loopback-mode on master device or a
+	 * hair-pin mode of the switch.)
+	 */
+	IPVL_SKB_CB(skb)->tx_pkt = tx_pkt;
 
 	spin_lock(&port->backlog.lock);
 	if (skb_queue_len(&port->backlog) < IPVLAN_QBACKLOG_LIMIT) {
@@ -549,7 +553,7 @@ static int ipvlan_xmit_mode_l2(struct sk_buff *skb, struct net_device *dev)
 
 	} else if (is_multicast_ether_addr(eth->h_dest)) {
 		ipvlan_skb_crossing_ns(skb, NULL);
-		ipvlan_multicast_enqueue(ipvlan->port, skb);
+		ipvlan_multicast_enqueue(ipvlan->port, skb, true);
 		return NET_XMIT_SUCCESS;
 	}
 
@@ -646,7 +650,7 @@ static rx_handler_result_t ipvlan_handle_mode_l2(struct sk_buff **pskb,
 			 */
 			if (nskb) {
 				ipvlan_skb_crossing_ns(nskb, NULL);
-				ipvlan_multicast_enqueue(port, nskb);
+				ipvlan_multicast_enqueue(port, nskb, false);
 			}
 		}
 	} else {
