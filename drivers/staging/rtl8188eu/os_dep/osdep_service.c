@@ -41,8 +41,8 @@ u8 *_rtw_malloc(u32 sz)
 void *rtw_malloc2d(int h, int w, int size)
 {
 	int j;
-
 	void **a = kzalloc(h * sizeof(void *) + h * w * size, GFP_KERNEL);
+
 	if (!a)
 		goto out;
 
