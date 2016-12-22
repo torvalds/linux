@@ -613,17 +613,8 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
 		return err;
 	}
 
-	if (typ == CRASH_BUS) {
-		err = visorchannel_write(controlvm_channel,
-					 local_crash_msg_offset,
-					 msg,
-					sizeof(struct controlvm_message));
-		if (err) {
-			POSTCODE_LINUX(SAVE_MSG_BUS_FAILURE_PC, 0, 0,
-				       DIAG_SEVERITY_ERR);
-			return err;
-		}
-	} else {
+	switch (typ) {
+	case CRASH_DEV:
 		local_crash_msg_offset += sizeof(struct controlvm_message);
 		err = visorchannel_write(controlvm_channel,
 					 local_crash_msg_offset,
@@ -634,6 +625,21 @@ save_crash_message(struct controlvm_message *msg, enum crash_obj_type typ)
 				       DIAG_SEVERITY_ERR);
 			return err;
 		}
+		break;
+	case CRASH_BUS:
+		err = visorchannel_write(controlvm_channel,
+					 local_crash_msg_offset,
+					 msg,
+					 sizeof(struct controlvm_message));
+		if (err) {
+			POSTCODE_LINUX(SAVE_MSG_BUS_FAILURE_PC, 0, 0,
+				       DIAG_SEVERITY_ERR);
+			return err;
+		}
+		break;
+	default:
+		pr_info("Invalid crash_obj_type\n");
+		break;
 	}
 	return 0;
 }
