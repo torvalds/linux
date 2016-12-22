@@ -8391,7 +8391,6 @@ void intel_mode_from_pipe_config(struct drm_display_mode *mode,
 	mode->type = DRM_MODE_TYPE_DRIVER;
 
 	mode->clock = pipe_config->base.adjusted_mode.crtc_clock;
-	mode->flags |= pipe_config->base.adjusted_mode.flags;
 
 	mode->hsync = drm_mode_hsync(mode);
 	mode->vrefresh = drm_mode_vrefresh(mode);
