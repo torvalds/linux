@@ -56,7 +56,7 @@ static void greybus_reset(struct work_struct *work)
 		NULL,
 	};
 
-	printk(KERN_ERR "svc_watchdog: calling \"%s %s\" to reset greybus network!\n",
+	pr_err("svc_watchdog: calling \"%s %s\" to reset greybus network!\n",
 	       argv[0], argv[1]);
 	call_usermodehelper(start_path, argv, envp, UMH_WAIT_EXEC);
 }
