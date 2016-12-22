@@ -80,6 +80,57 @@ static bool assert_one_hole(const struct drm_mm *mm, u64 start, u64 end)
 	return ok;
 }
 
+static bool assert_continuous(const struct drm_mm *mm, u64 size)
+{
+	struct drm_mm_node *node, *check, *found;
+	unsigned long n;
+	u64 addr;
+
+	if (!assert_no_holes(mm))
+		return false;
+
+	n = 0;
+	addr = 0;
+	drm_mm_for_each_node(node, mm) {
+		if (node->start != addr) {
+			pr_err("node[%ld] list out of order, expected %llx found %llx\n",
+			       n, addr, node->start);
+			return false;
+		}
+
+		if (node->size != size) {
+			pr_err("node[%ld].size incorrect, expected %llx, found %llx\n",
+			       n, size, node->size);
+			return false;
+		}
+
+		if (node->hole_follows) {
+			pr_err("node[%ld] is followed by a hole!\n", n);
+			return false;
+		}
+
+		found = NULL;
+		drm_mm_for_each_node_in_range(check, mm, addr, addr + size) {
+			if (node != check) {
+				pr_err("lookup return wrong node, expected start %llx, found %llx\n",
+				       node->start, check->start);
+				return false;
+			}
+			found = check;
+		}
+		if (!found) {
+			pr_err("lookup failed for node %llx + %llx\n",
+			       addr, size);
+			return false;
+		}
+
+		addr += size;
+		n++;
+	}
+
+	return true;
+}
+
 static int igt_init(void *ignored)
 {
 	const unsigned int size = 4096;
@@ -173,6 +224,230 @@ static int igt_debug(void *ignored)
 	}
 
 	drm_mm_debug_table(&mm, __func__);
+	return 0;
+}
+
+static struct drm_mm_node *set_node(struct drm_mm_node *node,
+				    u64 start, u64 size)
+{
+	node->start = start;
+	node->size = size;
+	return node;
+}
+
+static bool expect_reserve_fail(struct drm_mm *mm, struct drm_mm_node *node)
+{
+	int err;
+
+	err = drm_mm_reserve_node(mm, node);
+	if (likely(err == -ENOSPC))
+		return true;
+
+	if (!err) {
+		pr_err("impossible reserve succeeded, node %llu + %llu\n",
+		       node->start, node->size);
+		drm_mm_remove_node(node);
+	} else {
+		pr_err("impossible reserve failed with wrong error %d [expected %d], node %llu + %llu\n",
+		       err, -ENOSPC, node->start, node->size);
+	}
+	return false;
+}
+
+static bool check_reserve_boundaries(struct drm_mm *mm,
+				     unsigned int count,
+				     u64 size)
+{
+	const struct boundary {
+		u64 start, size;
+		const char *name;
+	} boundaries[] = {
+#define B(st, sz) { (st), (sz), "{ " #st ", " #sz "}" }
+		B(0, 0),
+		B(-size, 0),
+		B(size, 0),
+		B(size * count, 0),
+		B(-size, size),
+		B(-size, -size),
+		B(-size, 2*size),
+		B(0, -size),
+		B(size, -size),
+		B(count*size, size),
+		B(count*size, -size),
+		B(count*size, count*size),
+		B(count*size, -count*size),
+		B(count*size, -(count+1)*size),
+		B((count+1)*size, size),
+		B((count+1)*size, -size),
+		B((count+1)*size, -2*size),
+#undef B
+	};
+	struct drm_mm_node tmp = {};
+	int n;
+
+	for (n = 0; n < ARRAY_SIZE(boundaries); n++) {
+		if (!expect_reserve_fail(mm,
+					 set_node(&tmp,
+						  boundaries[n].start,
+						  boundaries[n].size))) {
+			pr_err("boundary[%d:%s] failed, count=%u, size=%lld\n",
+			       n, boundaries[n].name, count, size);
+			return false;
+		}
+	}
+
+	return true;
+}
+
+static int __igt_reserve(unsigned int count, u64 size)
+{
+	DRM_RND_STATE(prng, random_seed);
+	struct drm_mm mm;
+	struct drm_mm_node tmp, *nodes, *node, *next;
+	unsigned int *order, n, m, o = 0;
+	int ret, err;
+
+	/* For exercising drm_mm_reserve_node(), we want to check that
+	 * reservations outside of the drm_mm range are rejected, and to
+	 * overlapping and otherwise already occupied ranges. Afterwards,
+	 * the tree and nodes should be intact.
+	 */
+
+	DRM_MM_BUG_ON(!count);
+	DRM_MM_BUG_ON(!size);
+
+	ret = -ENOMEM;
+	order = drm_random_order(count, &prng);
+	if (!order)
+		goto err;
+
+	nodes = vzalloc(sizeof(*nodes) * count);
+	if (!nodes)
+		goto err_order;
+
+	ret = -EINVAL;
+	drm_mm_init(&mm, 0, count * size);
+
+	if (!check_reserve_boundaries(&mm, count, size))
+		goto out;
+
+	for (n = 0; n < count; n++) {
+		nodes[n].start = order[n] * size;
+		nodes[n].size = size;
+
+		err = drm_mm_reserve_node(&mm, &nodes[n]);
+		if (err) {
+			pr_err("reserve failed, step %d, start %llu\n",
+			       n, nodes[n].start);
+			ret = err;
+			goto out;
+		}
+
+		if (!drm_mm_node_allocated(&nodes[n])) {
+			pr_err("reserved node not allocated! step %d, start %llu\n",
+			       n, nodes[n].start);
+			goto out;
+		}
+
+		if (!expect_reserve_fail(&mm, &nodes[n]))
+			goto out;
+	}
+
+	/* After random insertion the nodes should be in order */
+	if (!assert_continuous(&mm, size))
+		goto out;
+
+	/* Repeated use should then fail */
+	drm_random_reorder(order, count, &prng);
+	for (n = 0; n < count; n++) {
+		if (!expect_reserve_fail(&mm,
+					 set_node(&tmp, order[n] * size, 1)))
+			goto out;
+
+		/* Remove and reinsert should work */
+		drm_mm_remove_node(&nodes[order[n]]);
+		err = drm_mm_reserve_node(&mm, &nodes[order[n]]);
+		if (err) {
+			pr_err("reserve failed, step %d, start %llu\n",
+			       n, nodes[n].start);
+			ret = err;
+			goto out;
+		}
+	}
+
+	if (!assert_continuous(&mm, size))
+		goto out;
+
+	/* Overlapping use should then fail */
+	for (n = 0; n < count; n++) {
+		if (!expect_reserve_fail(&mm, set_node(&tmp, 0, size*count)))
+			goto out;
+	}
+	for (n = 0; n < count; n++) {
+		if (!expect_reserve_fail(&mm,
+					 set_node(&tmp,
+						  size * n,
+						  size * (count - n))))
+			goto out;
+	}
+
+	/* Remove several, reinsert, check full */
+	for_each_prime_number(n, min(max_prime, count)) {
+		for (m = 0; m < n; m++) {
+			node = &nodes[order[(o + m) % count]];
+			drm_mm_remove_node(node);
+		}
+
+		for (m = 0; m < n; m++) {
+			node = &nodes[order[(o + m) % count]];
+			err = drm_mm_reserve_node(&mm, node);
+			if (err) {
+				pr_err("reserve failed, step %d/%d, start %llu\n",
+				       m, n, node->start);
+				ret = err;
+				goto out;
+			}
+		}
+
+		o += n;
+
+		if (!assert_continuous(&mm, size))
+			goto out;
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	vfree(nodes);
+err_order:
+	kfree(order);
+err:
+	return ret;
+}
+
+static int igt_reserve(void *ignored)
+{
+	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
+	int n, ret;
+
+	for_each_prime_number_from(n, 1, 54) {
+		u64 size = BIT_ULL(n);
+
+		ret = __igt_reserve(count, size - 1);
+		if (ret)
+			return ret;
+
+		ret = __igt_reserve(count, size);
+		if (ret)
+			return ret;
+
+		ret = __igt_reserve(count, size + 1);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 
