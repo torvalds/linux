@@ -321,3 +321,7 @@ config DRM_SAVAGE
 	  chipset. If M is selected the module will be called savage.
 
 endif # DRM_LEGACY
+
+config DRM_LIB_RANDOM
+	bool
+	default n
