@@ -25,6 +25,65 @@
 #include <core/client.h>
 #include <core/engine.h>
 
+struct nvkm_object *
+nvkm_object_search(struct nvkm_client *client, u64 handle,
+		   const struct nvkm_object_func *func)
+{
+	struct nvkm_object *object;
+
+	if (handle) {
+		struct rb_node *node = client->objroot.rb_node;
+		while (node) {
+			object = rb_entry(node, typeof(*object), node);
+			if (handle < object->object)
+				node = node->rb_left;
+			else
+			if (handle > object->object)
+				node = node->rb_right;
+			else
+				goto done;
+		}
+		return ERR_PTR(-ENOENT);
+	} else {
+		object = &client->object;
+	}
+
+done:
+	if (unlikely(func && object->func != func))
+		return ERR_PTR(-EINVAL);
+	return object;
+}
+
+void
+nvkm_object_remove(struct nvkm_object *object)
+{
+	if (!RB_EMPTY_NODE(&object->node))
+		rb_erase(&object->node, &object->client->objroot);
+}
+
+bool
+nvkm_object_insert(struct nvkm_object *object)
+{
+	struct rb_node **ptr = &object->client->objroot.rb_node;
+	struct rb_node *parent = NULL;
+
+	while (*ptr) {
+		struct nvkm_object *this = rb_entry(*ptr, typeof(*this), node);
+		parent = *ptr;
+		if (object->object < this->object)
+			ptr = &parent->rb_left;
+		else
+		if (object->object > this->object)
+			ptr = &parent->rb_right;
+		else
+			return false;
+	}
+
+	rb_link_node(&object->node, parent, ptr);
+	rb_insert_color(&object->node, &object->client->objroot);
+	return true;
+}
+
 int
 nvkm_object_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
@@ -214,7 +273,7 @@ nvkm_object_del(struct nvkm_object **pobject)
 	struct nvkm_object *object = *pobject;
 	if (object && !WARN_ON(!object->func)) {
 		*pobject = nvkm_object_dtor(object);
-		nvkm_client_remove(object->client, object);
+		nvkm_object_remove(object);
 		list_del(&object->head);
 		kfree(*pobject);
 		*pobject = NULL;

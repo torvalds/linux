@@ -62,6 +62,11 @@ int nvkm_object_wr32(struct nvkm_object *, u64 addr, u32  data);
 int nvkm_object_bind(struct nvkm_object *, struct nvkm_gpuobj *, int align,
 		     struct nvkm_gpuobj **);
 
+bool nvkm_object_insert(struct nvkm_object *);
+void nvkm_object_remove(struct nvkm_object *);
+struct nvkm_object *nvkm_object_search(struct nvkm_client *, u64 object,
+				       const struct nvkm_object_func *);
+
 struct nvkm_sclass {
 	int minver;
 	int maxver;
