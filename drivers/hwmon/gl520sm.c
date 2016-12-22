@@ -200,13 +200,13 @@ static struct gl520_data *gl520_update_device(struct device *dev)
  * Sysfs stuff
  */
 
-static ssize_t get_cpu_vid(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t cpu0_vid_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct gl520_data *data = gl520_update_device(dev);
 	return sprintf(buf, "%u\n", vid_from_reg(data->vid, data->vrm));
 }
-static DEVICE_ATTR(cpu0_vid, S_IRUGO, get_cpu_vid, NULL);
+static DEVICE_ATTR_RO(cpu0_vid);
 
 #define VDD_FROM_REG(val) (((val) * 95 + 2) / 4)
 #define VDD_TO_REG(val) clamp_val((((val) * 4 + 47) / 95), 0, 255)
@@ -381,8 +381,8 @@ static ssize_t get_fan_div(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", DIV_FROM_REG(data->fan_div[n]));
 }
 
-static ssize_t get_fan_off(struct device *dev, struct device_attribute *attr,
-			   char *buf)
+static ssize_t fan1_off_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct gl520_data *data = gl520_update_device(dev);
 	return sprintf(buf, "%d\n", data->fan_off);
@@ -476,8 +476,9 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static ssize_t set_fan_off(struct device *dev, struct device_attribute *attr,
-			   const char *buf, size_t count)
+static ssize_t fan1_off_store(struct device *dev,
+			      struct device_attribute *attr, const char *buf,
+			      size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -510,8 +511,7 @@ static SENSOR_DEVICE_ATTR(fan1_div, S_IRUGO | S_IWUSR,
 		get_fan_div, set_fan_div, 0);
 static SENSOR_DEVICE_ATTR(fan2_div, S_IRUGO | S_IWUSR,
 		get_fan_div, set_fan_div, 1);
-static DEVICE_ATTR(fan1_off, S_IRUGO | S_IWUSR,
-		get_fan_off, set_fan_off);
+static DEVICE_ATTR_RW(fan1_off);
 
 #define TEMP_FROM_REG(val) (((val) - 130) * 1000)
 #define TEMP_TO_REG(val) clamp_val(((((val) < 0 ? \
@@ -596,29 +596,30 @@ static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IRUGO | S_IWUSR,
 static SENSOR_DEVICE_ATTR(temp2_max_hyst, S_IRUGO | S_IWUSR,
 		get_temp_max_hyst, set_temp_max_hyst, 1);
 
-static ssize_t get_alarms(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t alarms_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
 	struct gl520_data *data = gl520_update_device(dev);
 	return sprintf(buf, "%d\n", data->alarms);
 }
 
-static ssize_t get_beep_enable(struct device *dev, struct device_attribute
-			       *attr, char *buf)
+static ssize_t beep_enable_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	struct gl520_data *data = gl520_update_device(dev);
 	return sprintf(buf, "%d\n", data->beep_enable);
 }
 
-static ssize_t get_beep_mask(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t beep_mask_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct gl520_data *data = gl520_update_device(dev);
 	return sprintf(buf, "%d\n", data->beep_mask);
 }
 
-static ssize_t set_beep_enable(struct device *dev, struct device_attribute
-			       *attr, const char *buf, size_t count)
+static ssize_t beep_enable_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -641,8 +642,9 @@ static ssize_t set_beep_enable(struct device *dev, struct device_attribute
 	return count;
 }
 
-static ssize_t set_beep_mask(struct device *dev, struct device_attribute *attr,
-			     const char *buf, size_t count)
+static ssize_t beep_mask_store(struct device *dev,
+			       struct device_attribute *attr, const char *buf,
+			       size_t count)
 {
 	struct gl520_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -661,11 +663,9 @@ static ssize_t set_beep_mask(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-static DEVICE_ATTR(alarms, S_IRUGO, get_alarms, NULL);
-static DEVICE_ATTR(beep_enable, S_IRUGO | S_IWUSR,
-		get_beep_enable, set_beep_enable);
-static DEVICE_ATTR(beep_mask, S_IRUGO | S_IWUSR,
-		get_beep_mask, set_beep_mask);
+static DEVICE_ATTR_RO(alarms);
+static DEVICE_ATTR_RW(beep_enable);
+static DEVICE_ATTR_RW(beep_mask);
 
 static ssize_t get_alarm(struct device *dev, struct device_attribute *attr,
 			 char *buf)
