@@ -204,6 +204,47 @@
 		reset-gpios = <&gpio0 10 GPIO_ACTIVE_LOW>; /* GPIO0_B2 */
 	};
 
+	leds: gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 =<&leds_gpio>;
+
+		led@1 {
+			gpios = <&gpio1 GPIO_C6 GPIO_ACTIVE_HIGH>;
+			label = "battery_led_amber";
+		};
+
+		led@2 {
+			gpios = <&gpio1 GPIO_D0 GPIO_ACTIVE_HIGH>;
+			label = "battery_led_white";
+		};
+
+		led@3 {
+			gpios = <&gpio3 GPIO_A5 GPIO_ACTIVE_HIGH>;
+			label = "call_answer_led";
+		};
+
+		led@4 {
+			gpios = <&gpio3 GPIO_B1 GPIO_ACTIVE_HIGH>;
+			label = "call_decline_led";
+		};
+
+		led@5 {
+			gpios = <&gpio2 GPIO_D3 GPIO_ACTIVE_HIGH>;
+			label = "rec_mute_led";
+		};
+
+		led@6 {
+			gpios = <&gpio2 GPIO_D4 GPIO_ACTIVE_HIGH>;
+			label = "play_mute_led";
+		};
+
+		led@7 {
+			gpios = <&gpio4 GPIO_D2 GPIO_ACTIVE_HIGH>;
+			label = "wl_led";
+		};
+	};
+
 	wireless-wlan {
 		compatible = "wlan-platdata";
 		rockchip,grf = <&grf>;
@@ -965,6 +1006,19 @@
 		charger_ok: charge-ok {
 			rockchip,pins =
 				<1 23 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	gpio-leds {
+		leds_gpio: leds-gpio {
+			rockchip,pins =
+				<1 GPIO_C6 RK_FUNC_GPIO &pcfg_pull_up>,
+				<1 GPIO_D0 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 GPIO_A5 RK_FUNC_GPIO &pcfg_pull_up>,
+				<3 GPIO_B1 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 GPIO_D3 RK_FUNC_GPIO &pcfg_pull_up>,
+				<2 GPIO_D4 RK_FUNC_GPIO &pcfg_pull_up>,
+				<4 GPIO_D2 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
