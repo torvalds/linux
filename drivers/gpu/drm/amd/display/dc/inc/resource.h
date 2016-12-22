@@ -94,7 +94,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx);
 
 void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
-		struct clock_source *clock_source);
+		struct clock_source **clock_source);
 
 void resource_reference_clock_source(
 		struct resource_context *res_ctx,

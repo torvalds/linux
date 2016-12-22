@@ -1028,7 +1028,7 @@ static void switch_dp_clock_sources(
 			if (clk_src &&
 				clk_src != pipe_ctx->clock_source) {
 				resource_unreference_clock_source(
-					res_ctx, pipe_ctx->clock_source);
+					res_ctx, &pipe_ctx->clock_source);
 				pipe_ctx->clock_source = clk_src;
 				resource_reference_clock_source(res_ctx, clk_src);
 
@@ -1056,7 +1056,7 @@ static void reset_single_pipe_hw_ctx(
 	pipe_ctx->mi->funcs->free_mem_input(
 				pipe_ctx->mi, context->target_count);
 	resource_unreference_clock_source(
-			&context->res_ctx, pipe_ctx->clock_source);
+			&context->res_ctx, &pipe_ctx->clock_source);
 
 	dc->hwss.power_down_front_end((struct core_dc *)dc, pipe_ctx);
 

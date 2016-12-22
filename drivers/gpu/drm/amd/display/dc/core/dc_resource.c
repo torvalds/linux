@@ -211,27 +211,28 @@ bool resource_construct(
 
 void resource_unreference_clock_source(
 		struct resource_context *res_ctx,
-		struct clock_source *clock_source)
+		struct clock_source **clock_source)
 {
 	int i;
 	for (i = 0; i < res_ctx->pool->clk_src_count; i++) {
-		if (res_ctx->pool->clock_sources[i] != clock_source)
+		if (res_ctx->pool->clock_sources[i] != *clock_source)
 			continue;
 
 		res_ctx->clock_source_ref_count[i]--;
 
 		if (res_ctx->clock_source_ref_count[i] == 0)
-			clock_source->funcs->cs_power_down(clock_source);
+			(*clock_source)->funcs->cs_power_down(*clock_source);
 
 		break;
 	}
 
-	if (res_ctx->pool->dp_clock_source == clock_source) {
+	if (res_ctx->pool->dp_clock_source == *clock_source) {
 		res_ctx->dp_clock_source_ref_count--;
 
 		if (res_ctx->dp_clock_source_ref_count == 0)
-			clock_source->funcs->cs_power_down(clock_source);
+			(*clock_source)->funcs->cs_power_down(*clock_source);
 	}
+	*clock_source = NULL;
 }
 
 void resource_reference_clock_source(
@@ -287,11 +288,6 @@ static bool is_sharable_clk_src(
 {
 	if (pipe_with_clk_src->clock_source == NULL)
 		return false;
-
-	if (pipe_with_clk_src->stream == NULL) {
-		ASSERT(0);
-		return false;
-	}
 
 	if (pipe_with_clk_src->stream->signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
@@ -1147,6 +1143,10 @@ enum dc_status resource_map_pool_resources(
 
 				pipe_ctx->stream = stream;
 				copy_pipe_ctx(old_pipe_ctx, pipe_ctx);
+
+				/* Split pipe resource, do not acquire back end */
+				if (!pipe_ctx->stream_enc)
+					continue;
 
 				set_stream_engine_in_use(
 					&context->res_ctx,
