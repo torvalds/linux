@@ -1008,11 +1008,22 @@ static int gb_loopback_fn(void *data)
 
 		/* Optionally terminate */
 		if (gb->send_count == gb->iteration_max) {
+			mutex_unlock(&gb->mutex);
+
+			/* Wait for synchronous and asynchronus completion */
+			gb_loopback_async_wait_all(gb);
+
+			/* Mark complete unless user-space has poked us */
+			mutex_lock(&gb->mutex);
 			if (gb->iteration_count == gb->iteration_max) {
 				gb->type = 0;
 				gb->send_count = 0;
 				sysfs_notify(&gb->dev->kobj,  NULL,
 						"iteration_count");
+				dev_dbg(&bundle->dev, "load test complete\n");
+			} else {
+				dev_dbg(&bundle->dev,
+					"continuing on with new test set\n");
 			}
 			mutex_unlock(&gb->mutex);
 			continue;
