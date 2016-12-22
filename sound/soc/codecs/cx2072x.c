@@ -56,6 +56,8 @@
 #define PLAT_CLK_FORCE_OFF	2
 #endif
 
+static struct snd_soc_codec *cx2072x_codec;
+
 /* FIXME: need to move the EQ/DRC setting to device tree */
 static unsigned char cx2072x_eq_coeff_array[MAX_EQ_BAND][MAC_EQ_COEFF] = {
 	{0x77, 0x26, 0x13, 0xb3, 0x76, 0x26, 0x0a, 0x3d, 0xd4, 0xe2, 0x04},
@@ -1315,7 +1317,25 @@ int cx2072x_hs_jack_report(struct snd_soc_codec *codec)
 		type, state);
 	return state;
 }
-EXPORT_SYMBOL_GPL(cx2072x_hs_jack_report);
+
+int cx2072x_jack_report(void)
+{
+	u32 state, old_state;
+
+	if (!cx2072x_codec)
+		return -1;
+
+	msleep(400);
+
+	do {
+		old_state = cx2072x_hs_jack_report(cx2072x_codec);
+		msleep(50);
+		state = cx2072x_hs_jack_report(cx2072x_codec);
+	} while (state != old_state);
+
+	return state;
+}
+EXPORT_SYMBOL_GPL(cx2072x_jack_report);
 
 static int cx2072x_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 				unsigned int rx_mask, int slots, int slot_width)
@@ -1751,6 +1771,7 @@ static int cx2072x_probe(struct snd_soc_codec *codec)
 	int ret = 0;
 	unsigned int ven_id;
 
+	cx2072x_codec = codec;
 	cx2072x->codec = codec;
 	codec->control_data = cx2072x->regmap;
 

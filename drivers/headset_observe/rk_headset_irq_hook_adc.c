@@ -84,6 +84,9 @@ extern int rt3261_headset_mic_detect(int jack_insert);
 #if defined(CONFIG_SND_SOC_ES8316)
 extern int es8316_headset_detect(int jack_insert);
 #endif
+#if defined(CONFIG_SND_SOC_CX2072X)
+extern int cx2072x_jack_report(void);
+#endif
 
 /* headset private data */
 struct headset_priv {
@@ -211,7 +214,7 @@ static irqreturn_t headset_interrupt(int irq, void *dev_id)
 			#endif
 			#ifdef CONFIG_SND_SOC_RT5631_PHONE
 			rt5631_headset_mic_detect(false);
-			#endif				
+			#endif
 			headset_info->isMic = 0;
 		}	
 
@@ -296,6 +299,13 @@ static void hook_once_work(struct work_struct *work)
 	}
 
 	headset_info->cur_headset_status = headset_info->isMic ? BIT_HEADSET:BIT_HEADSET_NO_MIC;
+
+	#if defined(CONFIG_SND_SOC_CX2072X)
+	if (cx2072x_jack_report() != -1)
+		headset_info->cur_headset_status =
+			(cx2072x_jack_report() == 3) ?
+			BIT_HEADSET : BIT_HEADSET_NO_MIC;
+	#endif
 	
 	switch_set_state(&headset_info->sdev, headset_info->cur_headset_status);	
 	DBG("%s notice android headset status = %d\n",__func__,headset_info->cur_headset_status);
@@ -463,13 +473,8 @@ int rk_headset_adc_probe(struct platform_device *pdev,struct rk_headset_pdata *p
 	}
 
 	input_set_capability(headset->input_dev, EV_KEY, HOOK_KEY_CODE);
-//------------------------------------------------------------------
-	if (pdata->headset_gpio) {
-		if(!pdata->headset_gpio){
-			dev_err(&pdev->dev,"failed init headset,please full hook_io_init function in board\n");
-			goto failed_free_dev;
-		}
 
+	if (pdata->headset_gpio) {
 		headset->irq[HEADSET] = gpio_to_irq(pdata->headset_gpio);
 
 		if(pdata->headset_insert_type == HEADSET_IN_HIGH)
@@ -481,10 +486,11 @@ int rk_headset_adc_probe(struct platform_device *pdev,struct rk_headset_pdata *p
 			goto failed_free_dev;
 		if (pdata->headset_wakeup)
 			enable_irq_wake(headset->irq[HEADSET]);
-	}
-	else
+	} else {
+		dev_err(&pdev->dev, "failed init headset,please full hook_io_init function in board\n");
 		goto failed_free_dev;
-//------------------------------------------------------------------
+	}
+
 	if(pdata->chan != NULL)
 	{
 		headset->chan = pdata->chan;
