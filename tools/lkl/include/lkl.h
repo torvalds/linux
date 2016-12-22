@@ -7,7 +7,13 @@ extern "C" {
 
 #define _LKL_LIBC_COMPAT_H
 
+#ifdef __cplusplus
+#define class __lkl__class
+#endif
 #include <lkl/asm/syscalls.h>
+#ifdef __cplusplus
+#undef class __lkl__class
+#endif
 
 #if __LKL__BITS_PER_LONG == 64
 #define lkl_sys_stat lkl_sys_newstat
