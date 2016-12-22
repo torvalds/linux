@@ -371,6 +371,7 @@ struct acpi_table_desc {
 	union acpi_name_union signature;
 	acpi_owner_id owner_id;
 	u8 flags;
+	u16 validation_count;
 };
 
 /* Masks for Flags field above */
