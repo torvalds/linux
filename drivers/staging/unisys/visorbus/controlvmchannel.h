@@ -43,8 +43,6 @@
 		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_VERSIONID, \
 		ULTRA_CONTROLVM_CHANNEL_PROTOCOL_SIGNATURE)
 
-#define MAX_SERIAL_NUM	32
-
 /* Defines for various channel queues */
 #define CONTROLVM_QUEUE_REQUEST		0
 #define CONTROLVM_QUEUE_RESPONSE	1
@@ -435,26 +433,6 @@ struct spar_controlvm_channel_protocol {
 	 /* Message stored during IOVM creation to be reused after crash */
 	 struct controlvm_message saved_crash_msg[CONTROLVM_CRASHMSG_MAX];
 };
-
-/* Offsets for VM channel attributes */
-#define VM_CH_REQ_QUEUE_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, request_queue)
-#define VM_CH_RESP_QUEUE_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, response_queue)
-#define VM_CH_EVENT_QUEUE_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, event_queue)
-#define VM_CH_ACK_QUEUE_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, event_ack_queue)
-#define VM_CH_REQ_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, request_msg)
-#define VM_CH_RESP_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, response_msg)
-#define VM_CH_EVENT_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, event_msg)
-#define VM_CH_ACK_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, event_ack_msg)
-#define VM_CH_CRASH_MSG_OFFSET \
-	offsetof(struct spar_controlvm_channel_protocol, saved_crash_msg)
 
 /* The following header will be located at the beginning of PayloadVmOffset for
  * various ControlVm commands. The receiver of a ControlVm command with a
