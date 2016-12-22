@@ -23,6 +23,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/debugfs.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
@@ -30,15 +31,19 @@
 #include <linux/freezer.h>
 #include <linux/iopoll.h>
 #include <linux/reset.h>
+#include <linux/uaccess.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/ch9.h>
 
 #include "core.h"
 #include "io.h"
 #include "../host/xhci.h"
 
-#define DWC3_ROCKCHIP_AUTOSUSPEND_DELAY  500 /* ms */
-#define PERIPHERAL_DISCONNECT_TIMEOUT 1000000 /* us */
+#define DWC3_ROCKCHIP_AUTOSUSPEND_DELAY	500 /* ms */
+#define PERIPHERAL_DISCONNECT_TIMEOUT	1000000 /* us */
+#define WAIT_FOR_HCD_READY_TIMEOUT	5000000 /* us */
+#define XHCI_TSTCTRL_MASK		(0xf << 28)
 
 struct dwc3_rockchip {
 	int			num_clocks;
@@ -48,6 +53,7 @@ struct dwc3_rockchip {
 	struct device		*dev;
 	struct clk		**clks;
 	struct dwc3		*dwc;
+	struct dentry		*root;
 	struct reset_control	*otg_rst;
 	struct extcon_dev	*edev;
 	struct notifier_block	device_nb;
@@ -55,6 +61,212 @@ struct dwc3_rockchip {
 	struct work_struct	otg_work;
 	struct mutex		lock;
 };
+
+static int dwc3_rockchip_host_testmode_show(struct seq_file *s, void *unused)
+{
+	struct dwc3_rockchip	*rockchip = s->private;
+	struct dwc3		*dwc = rockchip->dwc;
+	struct usb_hcd		*hcd  = dev_get_drvdata(&dwc->xhci->dev);
+	struct xhci_hcd		*xhci = hcd_to_xhci(hcd);
+	__le32 __iomem		**port_array;
+	u32			reg;
+
+	if (rockchip->dwc->dr_mode == USB_DR_MODE_PERIPHERAL) {
+		dev_warn(rockchip->dev, "USB HOST not support!\n");
+		return 0;
+	}
+
+	if (hcd->state == HC_STATE_HALT) {
+		dev_warn(rockchip->dev, "HOST is halted, set test mode first!\n");
+		return 0;
+	}
+
+	port_array = xhci->usb2_ports;
+	reg = readl(port_array[0] + PORTPMSC);
+	reg &= XHCI_TSTCTRL_MASK;
+	reg >>= 28;
+
+	switch (reg) {
+	case 0:
+		seq_puts(s, "U2: no test\n");
+		break;
+	case TEST_J:
+		seq_puts(s, "U2: test_j\n");
+		break;
+	case TEST_K:
+		seq_puts(s, "U2: test_k\n");
+		break;
+	case TEST_SE0_NAK:
+		seq_puts(s, "U2: test_se0_nak\n");
+		break;
+	case TEST_PACKET:
+		seq_puts(s, "U2: test_packet\n");
+		break;
+	case TEST_FORCE_EN:
+		seq_puts(s, "U2: test_force_enable\n");
+		break;
+	default:
+		seq_printf(s, "U2: UNKNOWN %d\n", reg);
+	}
+
+	port_array = xhci->usb3_ports;
+	reg = readl(port_array[0]);
+	reg &= PORT_PLS_MASK;
+	if (reg == USB_SS_PORT_LS_COMP_MOD)
+		seq_puts(s, "U3: compliance mode\n");
+	else
+		seq_printf(s, "U3: UNKNOWN %d\n", reg >> 5);
+
+	return 0;
+}
+
+static int dwc3_rockchip_host_testmode_open(struct inode *inode,
+					    struct file *file)
+{
+	return single_open(file, dwc3_rockchip_host_testmode_show,
+			   inode->i_private);
+}
+
+/**
+ * dwc3_rockchip_set_test_mode - Enables USB2/USB3 HOST Test Modes
+ * @rockchip: pointer to our context structure
+ * @mode: the mode to set (U2: J, K SE0 NAK, Test_packet,
+ * Force Enable; U3: Compliance mode)
+ *
+ * This function will return 0 on success or -EINVAL if wrong Test
+ * Selector is passed.
+ */
+static int dwc3_rockchip_set_test_mode(struct dwc3_rockchip *rockchip,
+				       u32 mode)
+{
+	struct dwc3	*dwc = rockchip->dwc;
+	struct usb_hcd	*hcd  = dev_get_drvdata(&dwc->xhci->dev);
+	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
+	__le32 __iomem	**port_array;
+	int		ret, val;
+	u32		reg;
+
+	ret = readx_poll_timeout(readl, &hcd->state, val,
+				 val != HC_STATE_HALT, 1000,
+				 WAIT_FOR_HCD_READY_TIMEOUT);
+	if (ret < 0) {
+		dev_err(rockchip->dev, "Wait for HCD ready timeout\n");
+		return -EINVAL;
+	}
+
+	switch (mode) {
+	case TEST_J:
+	case TEST_K:
+	case TEST_SE0_NAK:
+	case TEST_PACKET:
+	case TEST_FORCE_EN:
+		port_array = xhci->usb2_ports;
+		reg = readl(port_array[0] + PORTPMSC);
+		reg &= ~XHCI_TSTCTRL_MASK;
+		reg |= mode << 28;
+		writel(reg, port_array[0] + PORTPMSC);
+		break;
+	case USB_SS_PORT_LS_COMP_MOD:
+		port_array = xhci->usb3_ports;
+		xhci_set_link_state(xhci, port_array, 0, mode);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	dev_info(rockchip->dev, "set USB HOST test mode successfully!\n");
+
+	return 0;
+}
+
+static ssize_t dwc3_rockchip_host_testmode_write(struct file *file,
+						 const char __user *ubuf,
+						 size_t count, loff_t *ppos)
+{
+	struct seq_file			*s = file->private_data;
+	struct dwc3_rockchip		*rockchip = s->private;
+	struct extcon_dev		*edev = rockchip->edev;
+	u32				testmode = 0;
+	bool				flip = 0;
+	char				buf[32];
+	union extcon_property_value	property;
+
+	if (rockchip->dwc->dr_mode == USB_DR_MODE_PERIPHERAL) {
+		dev_warn(rockchip->dev, "USB HOST not support!\n");
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
+		return -EFAULT;
+
+	if (!strncmp(buf, "test_j", 6)) {
+		testmode = TEST_J;
+	} else if (!strncmp(buf, "test_k", 6)) {
+		testmode = TEST_K;
+	} else if (!strncmp(buf, "test_se0_nak", 12)) {
+		testmode = TEST_SE0_NAK;
+	} else if (!strncmp(buf, "test_packet", 11)) {
+		testmode = TEST_PACKET;
+	} else if (!strncmp(buf, "test_force_enable", 17)) {
+		testmode = TEST_FORCE_EN;
+	} else if (!strncmp(buf, "test_u3", 7)) {
+		testmode = USB_SS_PORT_LS_COMP_MOD;
+	} else if (!strncmp(buf, "test_flip_u3", 12)) {
+		testmode = USB_SS_PORT_LS_COMP_MOD;
+		flip = 1;
+	} else {
+		dev_warn(rockchip->dev, "Test cmd not support!\n");
+		return -EINVAL;
+	}
+
+	if (edev && !extcon_get_cable_state_(edev, EXTCON_USB_HOST)) {
+		if (extcon_get_cable_state_(edev, EXTCON_USB) > 0)
+			extcon_set_cable_state_(edev, EXTCON_USB, false);
+
+		property.intval = flip;
+		extcon_set_property(edev, EXTCON_USB_HOST,
+				    EXTCON_PROP_USB_TYPEC_POLARITY, property);
+		extcon_set_cable_state_(edev, EXTCON_USB_HOST, true);
+
+		/* Add a delay 1~1.5s to wait for XHCI HCD init */
+		usleep_range(1000000, 1500000);
+	}
+
+	dwc3_rockchip_set_test_mode(rockchip, testmode);
+
+	return count;
+}
+
+static const struct file_operations dwc3_host_testmode_fops = {
+	.open			= dwc3_rockchip_host_testmode_open,
+	.write			= dwc3_rockchip_host_testmode_write,
+	.read			= seq_read,
+	.llseek			= seq_lseek,
+	.release		= single_release,
+};
+
+static void dwc3_rockchip_debugfs_init(struct dwc3_rockchip *rockchip)
+{
+	struct dentry	*root;
+	struct dentry	*file;
+
+	root = debugfs_create_dir(dev_name(rockchip->dev), NULL);
+	if (IS_ERR_OR_NULL(root)) {
+		if (!root)
+			dev_err(rockchip->dev, "Can't create debugfs root\n");
+		return;
+	}
+	rockchip->root = root;
+
+	if (IS_ENABLED(CONFIG_USB_DWC3_DUAL_ROLE) ||
+	    IS_ENABLED(CONFIG_USB_DWC3_HOST)) {
+		file = debugfs_create_file("host_testmode", S_IRUSR | S_IWUSR,
+					   root, rockchip,
+					   &dwc3_host_testmode_fops);
+		if (!file)
+			dev_dbg(rockchip->dev, "Can't create debugfs host_testmode\n");
+	}
+}
 
 static int dwc3_rockchip_device_notifier(struct notifier_block *nb,
 					 unsigned long event, void *ptr)
@@ -492,6 +704,8 @@ static int dwc3_rockchip_probe(struct platform_device *pdev)
 					     EXTCON_USB_HOST) > 0))
 			schedule_work(&rockchip->otg_work);
 	}
+
+	dwc3_rockchip_debugfs_init(rockchip);
 
 	mutex_unlock(&rockchip->lock);
 
