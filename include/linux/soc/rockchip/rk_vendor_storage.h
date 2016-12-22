@@ -10,6 +10,12 @@
 #ifndef __PLAT_RK_VENDOR_STORAGE_H
 #define __PLAT_RK_VENDOR_STORAGE_H
 
+#define RSV_ID		0
+#define SN_ID		1
+#define WIFI_MAC_ID	2
+#define LAN_MAC_ID	3
+#define BT_MAC_ID	4
+
 int rk_vendor_read(u32 id, void *pbuf, u32 size);
 int rk_vendor_write(u32 id, void *pbuf, u32 size);
 int rk_vendor_register(void *read, void *write);
