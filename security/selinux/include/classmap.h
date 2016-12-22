@@ -1,3 +1,5 @@
+#include <linux/capability.h>
+
 #define COMMON_FILE_SOCK_PERMS "ioctl", "read", "write", "create", \
     "getattr", "setattr", "lock", "relabelfrom", "relabelto", "append"
 
