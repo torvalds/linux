@@ -2078,8 +2078,10 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 	DP_DEBUG(dev, QEDR_MSG_QP, "destroy qp: destroying %p, qp type=%d\n",
 		 qp, qp->qp_type);
 
-	if (qp->state != (QED_ROCE_QP_STATE_RESET | QED_ROCE_QP_STATE_ERR |
-			  QED_ROCE_QP_STATE_INIT)) {
+	if ((qp->state != QED_ROCE_QP_STATE_RESET) &&
+	    (qp->state != QED_ROCE_QP_STATE_ERR) &&
+	    (qp->state != QED_ROCE_QP_STATE_INIT)) {
+
 		attr.qp_state = IB_QPS_ERR;
 		attr_mask |= IB_QP_STATE;
 
