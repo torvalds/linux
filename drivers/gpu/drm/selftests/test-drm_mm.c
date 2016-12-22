@@ -36,6 +36,10 @@ static const struct insert_mode {
 	[TOPDOWN] = { "top-down", DRM_MM_SEARCH_BELOW, DRM_MM_CREATE_TOP },
 	[BEST] = { "best", DRM_MM_SEARCH_BEST, DRM_MM_CREATE_DEFAULT },
 	{}
+}, evict_modes[] = {
+	{ "default", DRM_MM_SEARCH_DEFAULT, DRM_MM_CREATE_DEFAULT },
+	{ "top-down", DRM_MM_SEARCH_BELOW, DRM_MM_CREATE_TOP },
+	{}
 };
 
 static int igt_sanitycheck(void *ignored)
@@ -1108,6 +1112,339 @@ static int igt_align32(void *ignored)
 static int igt_align64(void *ignored)
 {
 	return igt_align_pot(64);
+}
+
+static void show_scan(const struct drm_mm *scan)
+{
+	pr_info("scan: hit [%llx, %llx], size=%lld, align=%d, color=%ld\n",
+		scan->scan_hit_start, scan->scan_hit_end,
+		scan->scan_size, scan->scan_alignment, scan->scan_color);
+}
+
+static void show_holes(const struct drm_mm *mm, int count)
+{
+	u64 hole_start, hole_end;
+	struct drm_mm_node *hole;
+
+	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
+		struct drm_mm_node *next = list_next_entry(hole, node_list);
+		const char *node1 = NULL, *node2 = NULL;
+
+		if (hole->allocated)
+			node1 = kasprintf(GFP_KERNEL,
+					  "[%llx + %lld, color=%ld], ",
+					  hole->start, hole->size, hole->color);
+
+		if (next->allocated)
+			node2 = kasprintf(GFP_KERNEL,
+					  ", [%llx + %lld, color=%ld]",
+					  next->start, next->size, next->color);
+
+		pr_info("%sHole [%llx - %llx, size %lld]%s\n",
+			node1,
+			hole_start, hole_end, hole_end - hole_start,
+			node2);
+
+		kfree(node2);
+		kfree(node1);
+
+		if (!--count)
+			break;
+	}
+}
+
+struct evict_node {
+	struct drm_mm_node node;
+	struct list_head link;
+};
+
+static bool evict_nodes(struct drm_mm *mm,
+			struct evict_node *nodes,
+			unsigned int *order,
+			unsigned int count,
+			struct list_head *evict_list)
+{
+	struct evict_node *e, *en;
+	unsigned int i;
+
+	for (i = 0; i < count; i++) {
+		e = &nodes[order ? order[i] : i];
+		list_add(&e->link, evict_list);
+		if (drm_mm_scan_add_block(&e->node))
+			break;
+	}
+	list_for_each_entry_safe(e, en, evict_list, link) {
+		if (!drm_mm_scan_remove_block(&e->node))
+			list_del(&e->link);
+	}
+	if (list_empty(evict_list)) {
+		pr_err("Failed to find eviction: size=%lld [avail=%d], align=%d (color=%lu)\n",
+		       mm->scan_size, count,
+		       mm->scan_alignment,
+		       mm->scan_color);
+		return false;
+	}
+
+	list_for_each_entry(e, evict_list, link)
+		drm_mm_remove_node(&e->node);
+
+	return true;
+}
+
+static bool evict_nothing(struct drm_mm *mm,
+			  unsigned int total_size,
+			  struct evict_node *nodes)
+{
+	LIST_HEAD(evict_list);
+	struct evict_node *e;
+	struct drm_mm_node *node;
+	unsigned int n;
+
+	drm_mm_init_scan(mm, 1, 0, 0);
+	for (n = 0; n < total_size; n++) {
+		e = &nodes[n];
+		list_add(&e->link, &evict_list);
+		drm_mm_scan_add_block(&e->node);
+	}
+	list_for_each_entry(e, &evict_list, link)
+		drm_mm_scan_remove_block(&e->node);
+
+	for (n = 0; n < total_size; n++) {
+		e = &nodes[n];
+
+		if (!drm_mm_node_allocated(&e->node)) {
+			pr_err("node[%d] no longer allocated!\n", n);
+			return false;
+		}
+
+		e->link.next = NULL;
+	}
+
+	drm_mm_for_each_node(node, mm) {
+		e = container_of(node, typeof(*e), node);
+		e->link.next = &e->link;
+	}
+
+	for (n = 0; n < total_size; n++) {
+		e = &nodes[n];
+
+		if (!e->link.next) {
+			pr_err("node[%d] no longer connected!\n", n);
+			return false;
+		}
+	}
+
+	return assert_continuous(mm, nodes[0].node.size);
+}
+
+static bool evict_everything(struct drm_mm *mm,
+			     unsigned int total_size,
+			     struct evict_node *nodes)
+{
+	LIST_HEAD(evict_list);
+	struct evict_node *e;
+	unsigned int n;
+	int err;
+
+	drm_mm_init_scan(mm, total_size, 0, 0);
+	for (n = 0; n < total_size; n++) {
+		e = &nodes[n];
+		list_add(&e->link, &evict_list);
+		drm_mm_scan_add_block(&e->node);
+	}
+	list_for_each_entry(e, &evict_list, link) {
+		if (!drm_mm_scan_remove_block(&e->node)) {
+			pr_err("Node %lld not marked for eviction!\n",
+			       e->node.start);
+			list_del(&e->link);
+		}
+	}
+
+	list_for_each_entry(e, &evict_list, link)
+		drm_mm_remove_node(&e->node);
+
+	if (!assert_one_hole(mm, 0, total_size))
+		return false;
+
+	list_for_each_entry(e, &evict_list, link) {
+		err = drm_mm_reserve_node(mm, &e->node);
+		if (err) {
+			pr_err("Failed to reinsert node after eviction: start=%llx\n",
+			       e->node.start);
+			return false;
+		}
+	}
+
+	return assert_continuous(mm, nodes[0].node.size);
+}
+
+static int evict_something(struct drm_mm *mm,
+			   struct evict_node *nodes,
+			   unsigned int *order,
+			   unsigned int count,
+			   unsigned int size,
+			   unsigned int alignment,
+			   const struct insert_mode *mode)
+{
+	LIST_HEAD(evict_list);
+	struct evict_node *e;
+	struct drm_mm_node tmp;
+	int err;
+
+	drm_mm_init_scan(mm, size, alignment, 0);
+	if (!evict_nodes(mm,
+			 nodes, order, count,
+			 &evict_list))
+		return -EINVAL;
+
+	memset(&tmp, 0, sizeof(tmp));
+	err = drm_mm_insert_node_generic(mm, &tmp, size, alignment, 0,
+					 mode->search_flags,
+					 mode->create_flags);
+	if (err) {
+		pr_err("Failed to insert into eviction hole: size=%d, align=%d\n",
+		       size, alignment);
+		show_scan(mm);
+		show_holes(mm, 3);
+		return err;
+	}
+
+	if (!assert_node(&tmp, mm, size, alignment, 0) || tmp.hole_follows) {
+		pr_err("Inserted did not fill the eviction hole: size=%lld [%d], align=%d [rem=%lld], start=%llx, hole-follows?=%d\n",
+		       tmp.size, size,
+		       alignment, misalignment(&tmp, alignment),
+		       tmp.start, tmp.hole_follows);
+		err = -EINVAL;
+	}
+
+	drm_mm_remove_node(&tmp);
+	if (err)
+		return err;
+
+	list_for_each_entry(e, &evict_list, link) {
+		err = drm_mm_reserve_node(mm, &e->node);
+		if (err) {
+			pr_err("Failed to reinsert node after eviction: start=%llx\n",
+			       e->node.start);
+			return err;
+		}
+	}
+
+	if (!assert_continuous(mm, nodes[0].node.size)) {
+		pr_err("range is no longer continuous\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int igt_evict(void *ignored)
+{
+	DRM_RND_STATE(prng, random_seed);
+	const unsigned int size = 8192;
+	const struct insert_mode *mode;
+	struct drm_mm mm;
+	struct evict_node *nodes;
+	struct drm_mm_node *node, *next;
+	unsigned int *order, n;
+	int ret, err;
+
+	/* Here we populate a full drm_mm and then try and insert a new node
+	 * by evicting other nodes in a random order. The drm_mm_scan should
+	 * pick the first matching hole it finds from the random list. We
+	 * repeat that for different allocation strategies, alignments and
+	 * sizes to try and stress the hole finder.
+	 */
+
+	ret = -ENOMEM;
+	nodes = vzalloc(size * sizeof(*nodes));
+	if (!nodes)
+		goto err;
+
+	order = drm_random_order(size, &prng);
+	if (!order)
+		goto err_nodes;
+
+	ret = -EINVAL;
+	drm_mm_init(&mm, 0, size);
+	for (n = 0; n < size; n++) {
+		err = drm_mm_insert_node(&mm, &nodes[n].node, 1, 0,
+					 DRM_MM_SEARCH_DEFAULT);
+		if (err) {
+			pr_err("insert failed, step %d\n", n);
+			ret = err;
+			goto out;
+		}
+	}
+
+	/* First check that using the scanner doesn't break the mm */
+	if (!evict_nothing(&mm, size, nodes)) {
+		pr_err("evict_nothing() failed\n");
+		goto out;
+	}
+	if (!evict_everything(&mm, size, nodes)) {
+		pr_err("evict_everything() failed\n");
+		goto out;
+	}
+
+	for (mode = evict_modes; mode->name; mode++) {
+		for (n = 1; n <= size; n <<= 1) {
+			drm_random_reorder(order, size, &prng);
+			err = evict_something(&mm,
+					      nodes, order, size,
+					      n, 1,
+					      mode);
+			if (err) {
+				pr_err("%s evict_something(size=%u) failed\n",
+				       mode->name, n);
+				ret = err;
+				goto out;
+			}
+		}
+
+		for (n = 1; n < size; n <<= 1) {
+			drm_random_reorder(order, size, &prng);
+			err = evict_something(&mm,
+					      nodes, order, size,
+					      size/2, n,
+					      mode);
+			if (err) {
+				pr_err("%s evict_something(size=%u, alignment=%u) failed\n",
+				       mode->name, size/2, n);
+				ret = err;
+				goto out;
+			}
+		}
+
+		for_each_prime_number_from(n, 1, min(size, max_prime)) {
+			unsigned int nsize = (size - n + 1) / 2;
+
+			DRM_MM_BUG_ON(!nsize);
+
+			drm_random_reorder(order, size, &prng);
+			err = evict_something(&mm,
+					      nodes, order, size,
+					      nsize, n,
+					      mode);
+			if (err) {
+				pr_err("%s evict_something(size=%u, alignment=%u) failed\n",
+				       mode->name, nsize, n);
+				ret = err;
+				goto out;
+			}
+		}
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	kfree(order);
+err_nodes:
+	vfree(nodes);
+err:
+	return ret;
 }
 
 #include "drm_selftest.c"
