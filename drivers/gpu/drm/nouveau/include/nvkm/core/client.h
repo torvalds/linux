@@ -19,10 +19,6 @@ struct nvkm_client {
 	struct nvkm_vm *vm;
 };
 
-bool nvkm_client_insert(struct nvkm_client *, struct nvkm_object *);
-void nvkm_client_remove(struct nvkm_client *, struct nvkm_object *);
-struct nvkm_object *nvkm_client_search(struct nvkm_client *, u64 object);
-
 int  nvkm_client_new(const char *name, u64 device, const char *cfg,
 		     const char *dbg, struct nvkm_client **);
 void nvkm_client_del(struct nvkm_client **);

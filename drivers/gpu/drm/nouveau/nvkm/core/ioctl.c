@@ -128,7 +128,7 @@ nvkm_ioctl_new(struct nvkm_object *parent, void *data, u32 size)
 			object->route = args->v0.route;
 			object->token = args->v0.token;
 			object->object = args->v0.object;
-			if (nvkm_client_insert(client, object)) {
+			if (nvkm_object_insert(object)) {
 				client->data = object;
 				return 0;
 			}
@@ -389,13 +389,10 @@ nvkm_ioctl_path(struct nvkm_client *client, u64 handle, u32 type,
 	struct nvkm_object *object;
 	int ret;
 
-	if (handle)
-		object = nvkm_client_search(client, handle);
-	else
-		object = &client->object;
-	if (unlikely(!object)) {
+	object = nvkm_object_search(client, handle, NULL);
+	if (IS_ERR(object)) {
 		nvif_ioctl(&client->object, "object not found\n");
-		return -ENOENT;
+		return PTR_ERR(object);
 	}
 
 	if (owner != NVIF_IOCTL_V0_OWNER_ANY && owner != object->route) {

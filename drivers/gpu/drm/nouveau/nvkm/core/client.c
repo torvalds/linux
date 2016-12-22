@@ -206,55 +206,6 @@ nvkm_client_object_func = {
 	.sclass = nvkm_client_child_get,
 };
 
-void
-nvkm_client_remove(struct nvkm_client *client, struct nvkm_object *object)
-{
-	if (!RB_EMPTY_NODE(&object->node))
-		rb_erase(&object->node, &client->objroot);
-}
-
-bool
-nvkm_client_insert(struct nvkm_client *client, struct nvkm_object *object)
-{
-	struct rb_node **ptr = &client->objroot.rb_node;
-	struct rb_node *parent = NULL;
-
-	while (*ptr) {
-		struct nvkm_object *this =
-			container_of(*ptr, typeof(*this), node);
-		parent = *ptr;
-		if (object->object < this->object)
-			ptr = &parent->rb_left;
-		else
-		if (object->object > this->object)
-			ptr = &parent->rb_right;
-		else
-			return false;
-	}
-
-	rb_link_node(&object->node, parent, ptr);
-	rb_insert_color(&object->node, &client->objroot);
-	return true;
-}
-
-struct nvkm_object *
-nvkm_client_search(struct nvkm_client *client, u64 handle)
-{
-	struct rb_node *node = client->objroot.rb_node;
-	while (node) {
-		struct nvkm_object *object =
-			container_of(node, typeof(*object), node);
-		if (handle < object->object)
-			node = node->rb_left;
-		else
-		if (handle > object->object)
-			node = node->rb_right;
-		else
-			return object;
-	}
-	return NULL;
-}
-
 int
 nvkm_client_fini(struct nvkm_client *client, bool suspend)
 {
