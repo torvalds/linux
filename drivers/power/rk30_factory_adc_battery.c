@@ -36,6 +36,7 @@
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/power/rockchip-adc-battery.h>
+#include <linux/rk_keys.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/machine.h>
 #include <linux/iio/driver.h>
@@ -237,7 +238,6 @@ extern int get_gadget_connect_flag(void);
 extern int dwc_otg_check_dpdm(void);
 static int  is_charge_ok(struct rk30_adc_battery_data *bat);
 static void rk30_adc_battery_voltage_samples(struct rk30_adc_battery_data *bat);
-extern void rk_send_wakeup_key(void);
 static  bool batt_gpio_is_valid(int number)
 {
 	return number > 0 && number < 256;

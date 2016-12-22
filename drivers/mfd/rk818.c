@@ -957,7 +957,6 @@ static struct rk818_attribute rk818_attrs[] = {
 #endif
 
 #if 0
-extern void rk_send_wakeup_key(void);
 static irqreturn_t rk818_vbat_lo_irq(int irq, void *data)
 {
         printk("rk818 vbat low %s:irq=%d\n",__func__,irq);

@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/rk_keys.h>
 #include <linux/rtc.h>
 
 #include <linux/interrupt.h>
@@ -3351,7 +3352,6 @@ static void usb_det_irq_work(struct work_struct *work)
 	RICOH_FG_DBG("PMU:%s Out\n", __func__);
 }
 
-extern void rk_send_wakeup_key(void);
 static irqreturn_t charger_in_isr(int irq, void *battery_info)
 {
 	struct ricoh619_battery_info *info = battery_info;

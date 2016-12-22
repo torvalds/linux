@@ -68,7 +68,6 @@ void ricoh619_pwrkey_timer(unsigned long t)
 	queue_work(g_pwrkey->workqueue, &g_pwrkey->work);
 }
 #endif
-//extern void rk_send_wakeup_key(void);
 extern u8 ricoh619_pwr_key_reg;
 static void ricoh619_irq_work(struct work_struct *work)
 {

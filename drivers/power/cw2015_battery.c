@@ -23,6 +23,7 @@
 #include <linux/time.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/rk_keys.h>
 #include <linux/slab.h>
 
 #include <linux/power/cw2015_battery.h>

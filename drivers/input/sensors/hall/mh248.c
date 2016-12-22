@@ -32,6 +32,7 @@
 #include <linux/sensor-dev.h>
 #include <linux/fb.h>
 #include <linux/notifier.h>
+#include <linux/rk_keys.h>
 
 struct mh248_para {
 	struct device *dev;
@@ -42,9 +43,6 @@ struct mh248_para {
 	int irq;
 	int active_value;
 };
-
-extern void rk_send_power_key(int state);
-extern void rk_send_wakeup_key(void);
 
 static int hall_fb_notifier_callback(struct notifier_block *self,
 				     unsigned long action, void *data)

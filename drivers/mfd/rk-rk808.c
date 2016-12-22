@@ -1032,7 +1032,6 @@ static struct rk808_attribute rk808_attrs[] = {
 };
 #endif
 #if 0
-extern void rk_send_wakeup_key(void);
 static irqreturn_t rk808_vbat_lo_irq(int irq, void *data)
 {
         printk("rk808 vbat low %s:irq=%d\n",__func__,irq);

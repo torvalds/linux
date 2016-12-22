@@ -31,6 +31,7 @@
 #include <linux/power_supply.h>
 #include <linux/power/rk_usbbc.h>
 #include <linux/regmap.h>
+#include <linux/rk_keys.h>
 #include <linux/rtc.h>
 #include <linux/timer.h>
 #include <linux/wakelock.h>

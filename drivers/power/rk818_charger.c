@@ -30,6 +30,7 @@
 #include <linux/power_supply.h>
 #include <linux/power/rk_usbbc.h>
 #include <linux/regmap.h>
+#include <linux/rk_keys.h>
 #include <linux/rtc.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -78,8 +79,6 @@ module_param_named(dbg_level, dbg_enable, int, 0644);
 #define GG_EN			BIT(7)
 
 #define DRIVER_VERSION		"1.0"
-
-extern void rk_send_wakeup_key(void);
 
 static const u16 chrg_vol_sel_array[] = {
 	4050, 4100, 4150, 4200, 4250, 4300, 4350

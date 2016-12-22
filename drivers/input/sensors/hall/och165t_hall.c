@@ -29,6 +29,7 @@
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
+#include <linux/rk_keys.h>
 #include <linux/sensor-dev.h>
 
 
@@ -44,8 +45,6 @@
 #define COMMAND_ALS_DATA 	50 		//ALS: 15:8 MSB 8bits data
 						//7:0 LSB 8bits data
 
-extern  void rk_send_power_key(int state);
-extern  void rk_send_wakeup_key(void); 
 /****************operate according to sensor chip:start************/
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)

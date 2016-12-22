@@ -35,6 +35,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
 #include <linux/of_platform.h>
+#include <linux/rk_keys.h>
 
 #define EMPTY_DEFAULT_ADVALUE		1024
 #define DRIFT_DEFAULT_ADVALUE		70

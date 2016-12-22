@@ -104,7 +104,6 @@ struct cw_battery {
 #if defined(CONFIG_ARCH_ROCKCHIP)
 int get_gadget_connect_flag(void);
 int dwc_otg_check_dpdm(void);
-void rk_send_wakeup_key(void);
 int dwc_vbus_status(void);
 #else
 static inline int get_gadget_connect_flag(void)
@@ -115,10 +114,6 @@ static inline int get_gadget_connect_flag(void)
 static inline int dwc_otg_check_dpdm(bool wait)
 {
 	return 0;
-}
-
-static inline void rk_send_wakeup_key(void)
-{
 }
 
 static inline int dwc_vbus_status(void);
