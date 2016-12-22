@@ -3186,6 +3186,7 @@ static int process_req(struct qedr_dev *dev, struct qedr_qp *qp,
 
 		/* fill WC */
 		wc->status = status;
+		wc->vendor_err = 0;
 		wc->wc_flags = 0;
 		wc->src_qp = qp->id;
 		wc->qp = &qp->ibqp;
@@ -3375,6 +3376,7 @@ static void __process_resp_one(struct qedr_dev *dev, struct qedr_qp *qp,
 
 	/* fill WC */
 	wc->status = wc_status;
+	wc->vendor_err = 0;
 	wc->src_qp = qp->id;
 	wc->qp = &qp->ibqp;
 	wc->wr_id = wr_id;
@@ -3403,6 +3405,7 @@ static int process_resp_flush(struct qedr_qp *qp, struct qedr_cq *cq,
 	while (num_entries && qp->rq.wqe_cons != hw_cons) {
 		/* fill WC */
 		wc->status = IB_WC_WR_FLUSH_ERR;
+		wc->vendor_err = 0;
 		wc->wc_flags = 0;
 		wc->src_qp = qp->id;
 		wc->byte_len = 0;
