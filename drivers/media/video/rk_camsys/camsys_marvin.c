@@ -393,13 +393,43 @@ static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 
 	dev = &camsys_dev->pdev->dev;
 	iommu = (camsys_iommu_t *)(devctl->rev);
-	index = camsys_dev->dma_buf_cnt;
 	if (devctl->on) {
-		if (index == 0) {
+		/*ummap mapped fd first*/
+		int cur_mapped_cnt = camsys_dev->dma_buf_cnt;
+
+		for (index = 0; index < cur_mapped_cnt; index++) {
+			if (camsys_dev->dma_buf[index].fd == iommu->map_fd)
+				break;
+		}
+		if (index != cur_mapped_cnt) {
+			attach = camsys_dev->dma_buf[index].attach;
+			dma_buf = camsys_dev->dma_buf[index].dma_buf;
+			sgt = camsys_dev->dma_buf[index].sgt;
+			dma_buf_unmap_attachment
+				(attach,
+				sgt,
+				DMA_BIDIRECTIONAL);
+			dma_buf_detach(dma_buf, attach);
+			dma_buf_put(dma_buf);
+			if (camsys_dev->dma_buf_cnt == 1)
+				camsys_drm_dma_detach_device(camsys_dev);
+			camsys_dev->dma_buf_cnt--;
+			camsys_dev->dma_buf[index].fd = -1;
+		}
+		/*get a free slot*/
+		for (index = 0; index < CAMSYS_DMA_BUF_MAX_NUM; index++)
+			if (camsys_dev->dma_buf[index].fd == -1)
+				break;
+
+		if (index == CAMSYS_DMA_BUF_MAX_NUM)
+			return -ENOMEM;
+
+		if (camsys_dev->dma_buf_cnt == 0) {
 			ret = camsys_drm_dma_attach_device(camsys_dev);
 			if (ret)
 				return ret;
 		}
+
 		dma_buf = dma_buf_get(iommu->map_fd);
 		if (IS_ERR(dma_buf))
 			return PTR_ERR(dma_buf);
@@ -423,10 +453,25 @@ static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 		iommu->linear_addr = dma_addr;
 		iommu->len = sg_dma_len(sgt->sgl);
 		camsys_dev->dma_buf_cnt++;
+		camsys_trace
+			(
+			1,
+			"%s:iommu map dma_addr 0x%lx,attach %p,"
+			"dma_buf %p,sgt %p,fd %d,buf_cnt %d",
+			__func__,
+			(unsigned long)dma_addr,
+			attach,
+			dma_buf,
+			sgt,
+			iommu->map_fd,
+			camsys_dev->dma_buf_cnt);
 	} else {
-		if ((camsys_dev->dma_buf_cnt == 0) || (index < 0) ||
-				(index >= CAMSYS_DMA_BUF_MAX_NUM))
+		if (
+			(camsys_dev->dma_buf_cnt == 0) ||
+			(index < 0) ||
+			(index >= CAMSYS_DMA_BUF_MAX_NUM))
 			return -EINVAL;
+
 		for (index = 0; index < camsys_dev->dma_buf_cnt; index++) {
 			if (camsys_dev->dma_buf[index].fd == iommu->map_fd)
 				break;
@@ -438,6 +483,16 @@ static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 		attach = camsys_dev->dma_buf[index].attach;
 		dma_buf = camsys_dev->dma_buf[index].dma_buf;
 		sgt = camsys_dev->dma_buf[index].sgt;
+		camsys_trace
+				(
+				1,
+				"%s:iommu map ,attach %p,"
+				"dma_buf %p,sgt %p,index %d",
+				__func__,
+				attach,
+				dma_buf,
+				sgt,
+				index);
 		dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 		dma_buf_detach(dma_buf, attach);
 		dma_buf_put(dma_buf);
@@ -445,6 +500,7 @@ static int camsys_mrv_drm_iommu_cb(void *ptr, camsys_sysctrl_t *devctl)
 			camsys_drm_dma_detach_device(camsys_dev);
 
 		camsys_dev->dma_buf_cnt--;
+		camsys_dev->dma_buf[index].fd = -1;
 	}
 
 	return ret;
@@ -1043,6 +1099,7 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 
 	np = of_find_node_by_name(NULL, "isp0_mmu");
 	if (!np) {
+		int index = 0;
 		/* iommu domain */
 		domain = iommu_domain_alloc(&platform_bus_type);
 		if (!domain)
@@ -1070,6 +1127,8 @@ int camsys_mrv_probe_cb(struct platform_device *pdev, camsys_dev_t *camsys_dev)
 		camsys_dev->domain = domain;
 		camsys_dev->dma_buf_cnt = 0;
 		camsys_dev->iommu_cb = camsys_mrv_drm_iommu_cb;
+		for (index = 0; index < CAMSYS_DMA_BUF_MAX_NUM; index++)
+			camsys_dev->dma_buf[index].fd = -1;
 	} else {
 		camsys_dev->iommu_cb = camsys_mrv_iommu_cb;
 	}

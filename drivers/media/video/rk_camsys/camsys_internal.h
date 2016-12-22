@@ -146,8 +146,13 @@
 *       1) remove memset function wrong called code.
 *v0.0x21.8:
 *       1) flash module exist risk, fix up it.
+*v0.0x21.9:
+	1) fix drm iommu crash.
+	if process cameraserver was died during streaming, iommu resource
+	was not released correctly. when cameraserver was recovered and
+	streaming again, iommu resource may be conflicted.
 */
-#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 8)
+#define CAMSYS_DRIVER_VERSION                   KERNEL_VERSION(0, 0x21, 9)
 
 #define CAMSYS_PLATFORM_DRV_NAME                "RockChip-CamSys"
 #define CAMSYS_PLATFORM_MARVIN_NAME             "Platform_MarvinDev"
