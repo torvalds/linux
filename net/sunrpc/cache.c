@@ -1855,3 +1855,15 @@ void sunrpc_cache_unregister_pipefs(struct cache_detail *cd)
 }
 EXPORT_SYMBOL_GPL(sunrpc_cache_unregister_pipefs);
 
+void sunrpc_cache_unhash(struct cache_detail *cd, struct cache_head *h)
+{
+	write_lock(&cd->hash_lock);
+	if (!hlist_unhashed(&h->cache_list)){
+		hlist_del_init(&h->cache_list);
+		cd->entries--;
+		write_unlock(&cd->hash_lock);
+		cache_put(h, cd);
+	} else
+		write_unlock(&cd->hash_lock);
+}
+EXPORT_SYMBOL_GPL(sunrpc_cache_unhash);
