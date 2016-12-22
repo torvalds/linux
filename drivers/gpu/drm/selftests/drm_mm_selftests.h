@@ -9,3 +9,4 @@ selftest(sanitycheck, igt_sanitycheck) /* keep first (selfcheck for igt) */
 selftest(init, igt_init)
 selftest(debug, igt_debug)
 selftest(reserve, igt_reserve)
+selftest(insert, igt_insert)

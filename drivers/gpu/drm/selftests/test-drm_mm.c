@@ -21,6 +21,23 @@ static unsigned int random_seed;
 static unsigned int max_iterations = 8192;
 static unsigned int max_prime = 128;
 
+enum {
+	DEFAULT,
+	TOPDOWN,
+	BEST,
+};
+
+static const struct insert_mode {
+	const char *name;
+	unsigned int search_flags;
+	unsigned int create_flags;
+} insert_modes[] = {
+	[DEFAULT] = { "default", DRM_MM_SEARCH_DEFAULT, DRM_MM_CREATE_DEFAULT },
+	[TOPDOWN] = { "top-down", DRM_MM_SEARCH_BELOW, DRM_MM_CREATE_TOP },
+	[BEST] = { "best", DRM_MM_SEARCH_BEST, DRM_MM_CREATE_DEFAULT },
+	{}
+};
+
 static int igt_sanitycheck(void *ignored)
 {
 	pr_info("%s - ok!\n", __func__);
@@ -129,6 +146,48 @@ static bool assert_continuous(const struct drm_mm *mm, u64 size)
 	}
 
 	return true;
+}
+
+static u64 misalignment(struct drm_mm_node *node, u64 alignment)
+{
+	u64 rem;
+
+	if (!alignment)
+		return 0;
+
+	div64_u64_rem(node->start, alignment, &rem);
+	return rem;
+}
+
+static bool assert_node(struct drm_mm_node *node, struct drm_mm *mm,
+			u64 size, u64 alignment, unsigned long color)
+{
+	bool ok = true;
+
+	if (!drm_mm_node_allocated(node) || node->mm != mm) {
+		pr_err("node not allocated\n");
+		ok = false;
+	}
+
+	if (node->size != size) {
+		pr_err("node has wrong size, found %llu, expected %llu\n",
+		       node->size, size);
+		ok = false;
+	}
+
+	if (misalignment(node, alignment)) {
+		pr_err("node is misalinged, start %llx rem %llu, expected alignment %llu\n",
+		       node->start, misalignment(node, alignment), alignment);
+		ok = false;
+	}
+
+	if (node->color != color) {
+		pr_err("node has wrong color, found %lu, expected %lu\n",
+		       node->color, color);
+		ok = false;
+	}
+
+	return ok;
 }
 
 static int igt_init(void *ignored)
@@ -444,6 +503,181 @@ static int igt_reserve(void *ignored)
 			return ret;
 
 		ret = __igt_reserve(count, size + 1);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static bool expect_insert(struct drm_mm *mm, struct drm_mm_node *node,
+			  u64 size, u64 alignment, unsigned long color,
+			  const struct insert_mode *mode)
+{
+	int err;
+
+	err = drm_mm_insert_node_generic(mm, node,
+					 size, alignment, color,
+					 mode->search_flags,
+					 mode->create_flags);
+	if (err) {
+		pr_err("insert (size=%llu, alignment=%llu, color=%lu, mode=%s) failed with err=%d\n",
+		       size, alignment, color, mode->name, err);
+		return false;
+	}
+
+	if (!assert_node(node, mm, size, alignment, color)) {
+		drm_mm_remove_node(node);
+		return false;
+	}
+
+	return true;
+}
+
+static bool expect_insert_fail(struct drm_mm *mm, u64 size)
+{
+	struct drm_mm_node tmp = {};
+	int err;
+
+	err = drm_mm_insert_node(mm, &tmp, size, 0, DRM_MM_SEARCH_DEFAULT);
+	if (likely(err == -ENOSPC))
+		return true;
+
+	if (!err) {
+		pr_err("impossible insert succeeded, node %llu + %llu\n",
+		       tmp.start, tmp.size);
+		drm_mm_remove_node(&tmp);
+	} else {
+		pr_err("impossible insert failed with wrong error %d [expected %d], size %llu\n",
+		       err, -ENOSPC, size);
+	}
+	return false;
+}
+
+static int __igt_insert(unsigned int count, u64 size)
+{
+	DRM_RND_STATE(prng, random_seed);
+	const struct insert_mode *mode;
+	struct drm_mm mm;
+	struct drm_mm_node *nodes, *node, *next;
+	unsigned int *order, n, m, o = 0;
+	int ret;
+
+	/* Fill a range with lots of nodes, check it doesn't fail too early */
+
+	DRM_MM_BUG_ON(!count);
+	DRM_MM_BUG_ON(!size);
+
+	ret = -ENOMEM;
+	nodes = vzalloc(count * sizeof(*nodes));
+	if (!nodes)
+		goto err;
+
+	order = drm_random_order(count, &prng);
+	if (!order)
+		goto err_nodes;
+
+	ret = -EINVAL;
+	drm_mm_init(&mm, 0, count * size);
+
+	for (mode = insert_modes; mode->name; mode++) {
+		for (n = 0; n < count; n++) {
+			if (!expect_insert(&mm, &nodes[n], size, 0, n, mode)) {
+				pr_err("%s insert failed, size %llu step %d\n",
+				       mode->name, size, n);
+				goto out;
+			}
+		}
+
+		/* After random insertion the nodes should be in order */
+		if (!assert_continuous(&mm, size))
+			goto out;
+
+		/* Repeated use should then fail */
+		if (!expect_insert_fail(&mm, size))
+			goto out;
+
+		/* Remove one and reinsert, as the only hole it should refill itself */
+		for (n = 0; n < count; n++) {
+			u64 addr = nodes[n].start;
+
+			drm_mm_remove_node(&nodes[n]);
+			if (!expect_insert(&mm, &nodes[n], size, 0, n, mode)) {
+				pr_err("%s reinsert failed, size %llu step %d\n",
+				       mode->name, size, n);
+				goto out;
+			}
+
+			if (nodes[n].start != addr) {
+				pr_err("%s reinsert node moved, step %d, expected %llx, found %llx\n",
+				       mode->name, n, addr, nodes[n].start);
+				goto out;
+			}
+
+			if (!assert_continuous(&mm, size))
+				goto out;
+		}
+
+		/* Remove several, reinsert, check full */
+		for_each_prime_number(n, min(max_prime, count)) {
+			for (m = 0; m < n; m++) {
+				node = &nodes[order[(o + m) % count]];
+				drm_mm_remove_node(node);
+			}
+
+			for (m = 0; m < n; m++) {
+				node = &nodes[order[(o + m) % count]];
+				if (!expect_insert(&mm, node, size, 0, n, mode)) {
+					pr_err("%s multiple reinsert failed, size %llu step %d\n",
+					       mode->name, size, n);
+					goto out;
+				}
+			}
+
+			o += n;
+
+			if (!assert_continuous(&mm, size))
+				goto out;
+
+			if (!expect_insert_fail(&mm, size))
+				goto out;
+		}
+
+		drm_mm_for_each_node_safe(node, next, &mm)
+			drm_mm_remove_node(node);
+		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
+	}
+
+	ret = 0;
+out:
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	kfree(order);
+err_nodes:
+	vfree(nodes);
+err:
+	return ret;
+}
+
+static int igt_insert(void *ignored)
+{
+	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
+	unsigned int n;
+	int ret;
+
+	for_each_prime_number_from(n, 1, 54) {
+		u64 size = BIT_ULL(n);
+
+		ret = __igt_insert(count, size - 1);
+		if (ret)
+			return ret;
+
+		ret = __igt_insert(count, size);
+		if (ret)
+			return ret;
+
+		ret = __igt_insert(count, size + 1);
 		if (ret)
 			return ret;
 	}
