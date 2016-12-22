@@ -16985,7 +16985,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	dev_priv->active_crtcs = 0;
 
 	for_each_intel_crtc(dev, crtc) {
-		struct intel_crtc_state *crtc_state = crtc->config;
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
 
 		__drm_atomic_helper_crtc_destroy_state(&crtc_state->base);
 		memset(crtc_state, 0, sizeof(*crtc_state));
@@ -17004,7 +17005,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		DRM_DEBUG_KMS("[CRTC:%d:%s] hw state readout: %s\n",
 			      crtc->base.base.id, crtc->base.name,
-			      enableddisabled(crtc->active));
+			      enableddisabled(crtc_state->base.active));
 	}
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
@@ -17014,7 +17015,11 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 						  &pll->state.hw_state);
 		pll->state.crtc_mask = 0;
 		for_each_intel_crtc(dev, crtc) {
-			if (crtc->active && crtc->config->shared_dpll == pll)
+			struct intel_crtc_state *crtc_state =
+				to_intel_crtc_state(crtc->base.state);
+
+			if (crtc_state->base.active &&
+			    crtc_state->shared_dpll == pll)
 				pll->state.crtc_mask |= 1 << crtc->pipe;
 		}
 		pll->active_mask = pll->state.crtc_mask;
@@ -17027,11 +17032,14 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		pipe = 0;
 
 		if (encoder->get_hw_state(encoder, &pipe)) {
+			struct intel_crtc_state *crtc_state;
+
 			crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
+			crtc_state = to_intel_crtc_state(crtc->base.state);
 
 			encoder->base.crtc = &crtc->base;
-			crtc->config->output_types |= 1 << encoder->type;
-			encoder->get_config(encoder, crtc->config);
+			crtc_state->output_types |= 1 << encoder->type;
+			encoder->get_config(encoder, crtc_state);
 		} else {
 			encoder->base.crtc = NULL;
 		}
@@ -17072,14 +17080,16 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 	}
 
 	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
 		int pixclk = 0;
 
-		crtc->base.hwmode = crtc->config->base.adjusted_mode;
+		crtc->base.hwmode = crtc_state->base.adjusted_mode;
 
 		memset(&crtc->base.mode, 0, sizeof(crtc->base.mode));
-		if (crtc->base.state->active) {
-			intel_mode_from_pipe_config(&crtc->base.mode, crtc->config);
-			intel_mode_from_pipe_config(&crtc->base.state->adjusted_mode, crtc->config);
+		if (crtc_state->base.active) {
+			intel_mode_from_pipe_config(&crtc->base.mode, crtc_state);
+			intel_mode_from_pipe_config(&crtc_state->base.adjusted_mode, crtc_state);
 			WARN_ON(drm_atomic_set_mode_for_crtc(crtc->base.state, &crtc->base.mode));
 
 			/*
@@ -17091,17 +17101,17 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			 * set a flag to indicate that a full recalculation is
 			 * needed on the next commit.
 			 */
-			crtc->base.state->mode.private_flags = I915_MODE_FLAG_INHERITED;
+			crtc_state->base.mode.private_flags = I915_MODE_FLAG_INHERITED;
 
 			if (INTEL_GEN(dev_priv) >= 9 || IS_BROADWELL(dev_priv))
-				pixclk = ilk_pipe_pixel_rate(crtc->config);
+				pixclk = ilk_pipe_pixel_rate(crtc_state);
 			else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-				pixclk = crtc->config->base.adjusted_mode.crtc_clock;
+				pixclk = crtc_state->base.adjusted_mode.crtc_clock;
 			else
 				WARN_ON(dev_priv->display.modeset_calc_cdclk);
 
 			/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
-			if (IS_BROADWELL(dev_priv) && crtc->config->ips_enabled)
+			if (IS_BROADWELL(dev_priv) && crtc_state->ips_enabled)
 				pixclk = DIV_ROUND_UP(pixclk * 100, 95);
 
 			drm_calc_timestamping_constants(&crtc->base, &crtc->base.hwmode);
@@ -17110,7 +17120,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 		dev_priv->min_pixclk[crtc->pipe] = pixclk;
 
-		intel_pipe_config_sanity_check(dev_priv, crtc->config);
+		intel_pipe_config_sanity_check(dev_priv, crtc_state);
 	}
 }
 
