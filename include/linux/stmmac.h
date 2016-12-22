@@ -182,6 +182,7 @@ struct plat_stmmacenet_data {
 	void (*serdes_powerdown)(struct net_device *ndev, void *priv);
 	int (*init)(struct platform_device *pdev, void *priv);
 	void (*exit)(struct platform_device *pdev, void *priv);
+	void (*get_eth_addr)(void *priv, unsigned char *addr);
 	struct mac_device_info *(*setup)(void *priv);
 	void *bsp_priv;
 	struct clk *stmmac_clk;

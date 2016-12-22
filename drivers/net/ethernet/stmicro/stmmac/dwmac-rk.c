@@ -22,7 +22,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/soc/rockchip/rk_vendor_storage.h>
 #include "stmmac_platform.h"
 
 struct rk_priv_data;
@@ -1379,6 +1379,35 @@ static void rk_fix_speed(void *priv, unsigned int speed)
 	}
 }
 
+static void rk_get_eth_addr(void *priv, unsigned char *addr)
+{
+	int ret;
+	struct rk_priv_data *bsp_priv = priv;
+	struct device *dev = &bsp_priv->pdev->dev;
+
+	if (is_valid_ether_addr(addr))
+		goto out;
+
+	ret = rk_vendor_read(LAN_MAC_ID, addr, 6);
+	if (ret != 6 || is_zero_ether_addr(addr)) {
+		dev_err(dev, "%s: rk_vendor_read eth mac address failed (%d)",
+					__func__, ret);
+		random_ether_addr(addr);
+		dev_err(dev, "%s: generate random eth mac address: %02x:%02x:%02x:%02x:%02x:%02x",
+					__func__, addr[0], addr[1], addr[2],
+					addr[3], addr[4], addr[5]);
+		ret = rk_vendor_write(LAN_MAC_ID, addr, 6);
+		if (ret != 0)
+			dev_err(dev, "%s: rk_vendor_write eth mac address failed (%d)",
+					__func__, ret);
+	}
+
+out:
+	dev_err(dev, "%s: mac address: %02x:%02x:%02x:%02x:%02x:%02x",
+				__func__, addr[0], addr[1], addr[2],
+				addr[3], addr[4], addr[5]);
+}
+
 static int rk_gmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -1402,6 +1431,7 @@ static int rk_gmac_probe(struct platform_device *pdev)
 
 	plat_dat->has_gmac = true;
 	plat_dat->fix_mac_speed = rk_fix_speed;
+	plat_dat->get_eth_addr = rk_get_eth_addr;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, plat_dat, data);
 	if (IS_ERR(plat_dat->bsp_priv)) {
