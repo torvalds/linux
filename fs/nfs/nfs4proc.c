@@ -1089,8 +1089,15 @@ static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 
 	spin_lock(&dir->i_lock);
 	nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA;
-	if (!cinfo->atomic || cinfo->before != dir->i_version)
+	if (cinfo->atomic && cinfo->before == dir->i_version) {
+		nfsi->cache_validity &= ~NFS_INO_REVAL_PAGECACHE;
+		nfsi->attrtimeo_timestamp = jiffies;
+	} else {
 		nfs_force_lookup_revalidate(dir);
+		if (cinfo->before != dir->i_version)
+			nfsi->cache_validity |= NFS_INO_INVALID_ACCESS |
+				NFS_INO_INVALID_ACL;
+	}
 	dir->i_version = cinfo->after;
 	nfsi->attr_gencount = nfs_inc_attr_generation_counter();
 	nfs_fscache_invalidate(dir);
@@ -3115,6 +3122,16 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			res_stateid = &calldata->res.stateid;
 			renew_lease(server, calldata->timestamp);
 			break;
+		case -NFS4ERR_ACCESS:
+			if (calldata->arg.bitmask != NULL) {
+				calldata->arg.bitmask = NULL;
+				calldata->res.fattr = NULL;
+				task->tk_status = 0;
+				rpc_restart_call_prepare(task);
+				goto out_release;
+
+			}
+			break;
 		case -NFS4ERR_ADMIN_REVOKED:
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
@@ -3140,7 +3157,7 @@ static void nfs4_close_done(struct rpc_task *task, void *data)
 			res_stateid, calldata->arg.fmode);
 out_release:
 	nfs_release_seqid(calldata->arg.seqid);
-	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
+	nfs_refresh_inode(calldata->inode, &calldata->fattr);
 	dprintk("%s: done, ret = %d!\n", __func__, task->tk_status);
 }
 
@@ -3193,9 +3210,10 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		goto out_wait;
 	}
 
-	if (calldata->arg.fmode == 0) {
+	if (calldata->arg.fmode == 0)
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_CLOSE];
 
+	if (calldata->arg.fmode == 0 || calldata->arg.fmode == FMODE_READ) {
 		/* Close-to-open cache consistency revalidation */
 		if (!nfs4_have_delegation(inode, FMODE_READ))
 			calldata->arg.bitmask = NFS_SERVER(inode)->cache_consistency_bitmask;
@@ -3207,7 +3225,10 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 		nfs4_map_atomic_open_share(NFS_SERVER(inode),
 				calldata->arg.fmode, 0);
 
-	nfs_fattr_init(calldata->res.fattr);
+	if (calldata->res.fattr == NULL)
+		calldata->arg.bitmask = NULL;
+	else if (calldata->arg.bitmask == NULL)
+		calldata->res.fattr = NULL;
 	calldata->timestamp = jiffies;
 	if (nfs4_setup_sequence(NFS_SERVER(inode),
 				&calldata->arg.seq_args,
@@ -3274,6 +3295,7 @@ int nfs4_do_close(struct nfs4_state *state, gfp_t gfp_mask, int wait)
 	calldata->arg.seqid = alloc_seqid(&state->owner->so_seqid, gfp_mask);
 	if (IS_ERR(calldata->arg.seqid))
 		goto out_free_calldata;
+	nfs_fattr_init(&calldata->fattr);
 	calldata->arg.fmode = 0;
 	calldata->lr.arg.ld_private = &calldata->lr.ld_private;
 	calldata->res.fattr = &calldata->fattr;
@@ -5673,6 +5695,14 @@ static void nfs4_delegreturn_done(struct rpc_task *task, void *calldata)
 	case -NFS4ERR_STALE_STATEID:
 		task->tk_status = 0;
 		break;
+	case -NFS4ERR_ACCESS:
+		if (data->args.bitmask) {
+			data->args.bitmask = NULL;
+			data->res.fattr = NULL;
+			task->tk_status = 0;
+			rpc_restart_call_prepare(task);
+			return;
+		}
 	default:
 		if (nfs4_async_handle_error(task, data->res.server,
 					    NULL, NULL) == -EAGAIN) {
@@ -5692,6 +5722,7 @@ static void nfs4_delegreturn_release(void *calldata)
 		if (data->lr.roc)
 			pnfs_roc_release(&data->lr.arg, &data->lr.res,
 					data->res.lr_ret);
+		nfs_post_op_update_inode_force_wcc(inode, &data->fattr);
 		nfs_iput_and_deactive(inode);
 	}
 	kfree(calldata);
@@ -5780,10 +5811,6 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	if (status != 0)
 		goto out;
 	status = data->rpc_status;
-	if (status == 0)
-		nfs_post_op_update_inode_force_wcc(inode, &data->fattr);
-	else
-		nfs_refresh_inode(inode, &data->fattr);
 out:
 	rpc_put_task(task);
 	return status;

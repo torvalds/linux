@@ -1,5 +1,6 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/module.h>
 #include <target/iscsi/iscsi_transport.h>
 
 static LIST_HEAD(g_transport_list);
