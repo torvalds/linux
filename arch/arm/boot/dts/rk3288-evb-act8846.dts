@@ -86,6 +86,11 @@
 	cpu0-supply = <&vdd_cpu>;
 };
 
+&edp {
+	vcc-supply = <&vdd10_lcd>;
+	vccio-supply = <&vcc18_lcd>;
+};
+
 &gpu {
 	status = "okay";
 	mali-supply = <&vdd_gpu>;
