@@ -5228,6 +5228,10 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 			ath10k_warn(ar, "failed to recalc monitor: %d\n", ret);
 	}
 
+	ret = ath10k_mac_txpower_recalc(ar);
+	if (ret)
+		ath10k_warn(ar, "failed to recalc tx power: %d\n", ret);
+
 	spin_lock_bh(&ar->htt.tx_lock);
 	ath10k_mac_vif_tx_unlock_all(arvif);
 	spin_unlock_bh(&ar->htt.tx_lock);
