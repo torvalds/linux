@@ -13,6 +13,7 @@ Core utilities
 
    assoc_array
    atomic_ops
+   cpu_hotplug
    local_ops
    workqueue
 
