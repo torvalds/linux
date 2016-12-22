@@ -103,6 +103,14 @@ static int cdn_dp_clk_enable(struct cdn_dp_device *dp)
 		return ret;
 	}
 
+	reset_control_assert(dp->apb_rst);
+	reset_control_assert(dp->core_rst);
+	reset_control_assert(dp->dptx_rst);
+	udelay(1);
+	reset_control_deassert(dp->dptx_rst);
+	reset_control_deassert(dp->core_rst);
+	reset_control_deassert(dp->apb_rst);
+
 	ret = cdn_dp_set_fw_rate(dp);
 	if (ret < 0) {
 		dev_err(dp->dev, "cannot get set fw rate %d\n", ret);
@@ -402,17 +410,16 @@ static int cdn_dp_init(struct cdn_dp_device *dp)
 		return PTR_ERR(dp->apb_rst);
 	}
 
+	dp->core_rst = devm_reset_control_get(dev, "core");
+	if (IS_ERR(dp->core_rst)) {
+		DRM_DEV_ERROR(dev, "no core reset control found\n");
+		return PTR_ERR(dp->core_rst);
+	}
+
 	dp->dpms_mode = DRM_MODE_DPMS_OFF;
 	dp->fw_clk_enabled = false;
 
 	pm_runtime_enable(dev);
-
-	reset_control_assert(dp->dptx_rst);
-	udelay(15);
-	reset_control_deassert(dp->dptx_rst);
-	reset_control_assert(dp->apb_rst);
-	udelay(15);
-	reset_control_deassert(dp->apb_rst);
 
 	mutex_init(&dp->lock);
 	wake_lock_init(&dp->wake_lock, WAKE_LOCK_SUSPEND, "cdn_dp_fb");
@@ -578,10 +585,12 @@ static void cdn_dp_enter_standy(struct cdn_dp_device *dp,
 {
 	int i, ret;
 
-	ret = phy_power_off(port->phy);
-	if (ret) {
-		dev_err(dp->dev, "phy power off failed: %d", ret);
-		return;
+	if (port->phy_status) {
+		ret = phy_power_off(port->phy);
+		if (ret) {
+			dev_err(dp->dev, "phy power off failed: %d", ret);
+			return;
+		}
 	}
 
 	port->phy_status = false;
@@ -591,9 +600,12 @@ static void cdn_dp_enter_standy(struct cdn_dp_device *dp,
 			return;
 
 	memset(dp->dpcd, 0, DP_RECEIVER_CAP_SIZE);
-	if (dp->fw_loaded)
+	if (dp->fw_actived)
 		cdn_dp_set_firmware_active(dp, false);
-	cdn_dp_clk_disable(dp);
+	if (dp->fw_clk_enabled) {
+		cdn_dp_clk_disable(dp);
+		dp->fw_clk_enabled = false;
+	}
 	dp->hpd_status = connector_status_disconnected;
 
 	hpd_change(dp->dev, 0);
@@ -624,7 +636,8 @@ static int cdn_dp_start_work(struct cdn_dp_device *dp,
 			}
 
 			return ret;
-		}
+		} else
+			dp->fw_loaded = true;
 	}
 
 	ret = cdn_dp_clk_enable(dp);
@@ -632,8 +645,6 @@ static int cdn_dp_start_work(struct cdn_dp_device *dp,
 		dev_err(dp->dev, "failed to enable clock for dp: %d\n", ret);
 		return ret;
 	}
-	if (dp->fw_loaded)
-		cdn_dp_set_firmware_active(dp, true);
 
 	ret = phy_power_on(port->phy);
 	if (ret) {
@@ -643,12 +654,10 @@ static int cdn_dp_start_work(struct cdn_dp_device *dp,
 
 	port->phy_status = true;
 
-	if (!dp->fw_loaded) {
-		ret = cdn_dp_firmware_init(dp);
-		if (ret) {
-			dev_err(dp->dev, "firmware init failed: %d", ret);
-			goto err_firmware;
-		}
+	ret = cdn_dp_firmware_init(dp);
+	if (ret) {
+		dev_err(dp->dev, "firmware init failed: %d", ret);
+		goto err_firmware;
 	}
 
 	ret = cdn_dp_grf_write(dp, GRF_SOC_CON26,
@@ -687,7 +696,8 @@ err_hpd:
 			 DPTX_HPD_SEL_MASK | DPTX_HPD_DEL);
 
 err_grf:
-	cdn_dp_set_firmware_active(dp, false);
+	if (dp->fw_actived)
+		cdn_dp_set_firmware_active(dp, false);
 
 err_firmware:
 	if (phy_power_off(port->phy))
@@ -696,9 +706,8 @@ err_firmware:
 		port->phy_status = false;
 
 err_phy:
-	if (dp->fw_loaded)
-		cdn_dp_set_firmware_active(dp, false);
 	cdn_dp_clk_disable(dp);
+	dp->fw_clk_enabled = false;
 	return ret;
 }
 
@@ -854,13 +863,6 @@ int cdn_dp_resume(void *dp_dev)
 	int i;
 	if (dp->suspend) {
 		dp->suspend = false;
-		reset_control_assert(dp->dptx_rst);
-		udelay(15);
-		reset_control_deassert(dp->dptx_rst);
-		reset_control_assert(dp->apb_rst);
-		udelay(15);
-		reset_control_deassert(dp->apb_rst);
-
 		for (i = 0; i < dp->ports; i++) {
 			port = dp->port[i];
 			schedule_delayed_work(&port->event_wq, 0);

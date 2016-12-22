@@ -536,6 +536,7 @@ struct cdn_dp_device {
 	struct reset_control *spdif_rst;
 	struct reset_control *dptx_rst;
 	struct reset_control *apb_rst;
+	struct reset_control *core_rst;
 	struct audio_info audio_info;
 	struct video_info video_info;
 	struct drm_dp_link link;
