@@ -550,4 +550,11 @@ config STACKDEPOT
 config SBITMAP
 	bool
 
+config PRIME_NUMBERS
+	tristate "Prime number generator"
+	default n
+	help
+	  Provides a helper module to generate prime numbers. Useful for writing
+	  test code, especially when checking multiplication and divison.
+
 endmenu
