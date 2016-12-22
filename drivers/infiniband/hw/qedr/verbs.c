@@ -2989,8 +2989,9 @@ int qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 
 	spin_lock_irqsave(&qp->q_lock, flags);
 
-	if ((qp->state == QED_ROCE_QP_STATE_RESET) ||
-	    (qp->state == QED_ROCE_QP_STATE_ERR)) {
+	if ((qp->state != QED_ROCE_QP_STATE_RTS) &&
+	    (qp->state != QED_ROCE_QP_STATE_ERR) &&
+	    (qp->state != QED_ROCE_QP_STATE_SQD)) {
 		spin_unlock_irqrestore(&qp->q_lock, flags);
 		*bad_wr = wr;
 		DP_DEBUG(dev, QEDR_MSG_CQ,
@@ -3043,8 +3044,7 @@ int qedr_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	spin_lock_irqsave(&qp->q_lock, flags);
 
-	if ((qp->state == QED_ROCE_QP_STATE_RESET) ||
-	    (qp->state == QED_ROCE_QP_STATE_ERR)) {
+	if (qp->state == QED_ROCE_QP_STATE_RESET) {
 		spin_unlock_irqrestore(&qp->q_lock, flags);
 		*bad_wr = wr;
 		return -EINVAL;
