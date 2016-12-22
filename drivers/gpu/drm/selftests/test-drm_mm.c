@@ -1854,6 +1854,162 @@ out:
 	return ret;
 }
 
+static int evict_color(struct drm_mm *mm,
+		       struct evict_node *nodes,
+		       unsigned int *order,
+		       unsigned int count,
+		       unsigned int size,
+		       unsigned int alignment,
+		       unsigned long color,
+		       const struct insert_mode *mode)
+{
+	LIST_HEAD(evict_list);
+	struct evict_node *e;
+	struct drm_mm_node tmp;
+	int err;
+
+	drm_mm_init_scan(mm, size, alignment, color);
+	if (!evict_nodes(mm,
+			 nodes, order, count,
+			 &evict_list))
+		return -EINVAL;
+
+	memset(&tmp, 0, sizeof(tmp));
+	err = drm_mm_insert_node_generic(mm, &tmp, size, alignment, color,
+					 mode->search_flags,
+					 mode->create_flags);
+	if (err) {
+		pr_err("Failed to insert into eviction hole: size=%d, align=%d, color=%lu, err=%d\n",
+		       size, alignment, color, err);
+		show_scan(mm);
+		show_holes(mm, 3);
+		return err;
+	}
+
+	if (colors_abutt(&tmp))
+		err = -EINVAL;
+
+	if (!assert_node(&tmp, mm, size, alignment, color)) {
+		pr_err("Inserted did not fit the eviction hole: size=%lld [%d], align=%d [rem=%lld], start=%llx\n",
+		       tmp.size, size,
+		       alignment, misalignment(&tmp, alignment), tmp.start);
+		err = -EINVAL;
+	}
+
+	drm_mm_remove_node(&tmp);
+	if (err)
+		return err;
+
+	list_for_each_entry(e, &evict_list, link) {
+		err = drm_mm_reserve_node(mm, &e->node);
+		if (err) {
+			pr_err("Failed to reinsert node after eviction: start=%llx\n",
+			       e->node.start);
+			return err;
+		}
+	}
+
+	return 0;
+}
+
+static int igt_color_evict(void *ignored)
+{
+	DRM_RND_STATE(prng, random_seed);
+	const unsigned int total_size = min(8192u, max_iterations);
+	const struct insert_mode *mode;
+	unsigned long color = 0;
+	struct drm_mm mm;
+	struct evict_node *nodes;
+	struct drm_mm_node *node, *next;
+	unsigned int *order, n;
+	int ret, err;
+
+	/* Check that the drm_mm_scan also honours color adjustment when
+	 * choosing its victims to create a hole. Our color_adjust does not
+	 * allow two nodes to be placed together without an intervening hole
+	 * enlarging the set of victims that must be evicted.
+	 */
+
+	ret = -ENOMEM;
+	nodes = vzalloc(total_size * sizeof(*nodes));
+	if (!nodes)
+		goto err;
+
+	order = drm_random_order(total_size, &prng);
+	if (!order)
+		goto err_nodes;
+
+	ret = -EINVAL;
+	drm_mm_init(&mm, 0, 2*total_size - 1);
+	mm.color_adjust = separate_adjacent_colors;
+	for (n = 0; n < total_size; n++) {
+		if (!expect_insert(&mm, &nodes[n].node,
+				   1, 0, color++,
+				   &insert_modes[0])) {
+			pr_err("insert failed, step %d\n", n);
+			goto out;
+		}
+	}
+
+	for (mode = evict_modes; mode->name; mode++) {
+		for (n = 1; n <= total_size; n <<= 1) {
+			drm_random_reorder(order, total_size, &prng);
+			err = evict_color(&mm,
+					  nodes, order, total_size,
+					  n, 1, color++,
+					  mode);
+			if (err) {
+				pr_err("%s evict_color(size=%u) failed\n",
+				       mode->name, n);
+				goto out;
+			}
+		}
+
+		for (n = 1; n < total_size; n <<= 1) {
+			drm_random_reorder(order, total_size, &prng);
+			err = evict_color(&mm,
+					  nodes, order, total_size,
+					  total_size/2, n, color++,
+					  mode);
+			if (err) {
+				pr_err("%s evict_color(size=%u, alignment=%u) failed\n",
+				       mode->name, total_size/2, n);
+				goto out;
+			}
+		}
+
+		for_each_prime_number_from(n, 1, min(total_size, max_prime)) {
+			unsigned int nsize = (total_size - n + 1) / 2;
+
+			DRM_MM_BUG_ON(!nsize);
+
+			drm_random_reorder(order, total_size, &prng);
+			err = evict_color(&mm,
+					  nodes, order, total_size,
+					  nsize, n, color++,
+					  mode);
+			if (err) {
+				pr_err("%s evict_color(size=%u, alignment=%u) failed\n",
+				       mode->name, nsize, n);
+				goto out;
+			}
+		}
+	}
+
+	ret = 0;
+out:
+	if (ret)
+		drm_mm_debug_table(&mm, __func__);
+	drm_mm_for_each_node_safe(node, next, &mm)
+		drm_mm_remove_node(node);
+	drm_mm_takedown(&mm);
+	kfree(order);
+err_nodes:
+	vfree(nodes);
+err:
+	return ret;
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_mm_init(void)
