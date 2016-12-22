@@ -554,7 +554,7 @@ static bool expect_insert_fail(struct drm_mm *mm, u64 size)
 	return false;
 }
 
-static int __igt_insert(unsigned int count, u64 size)
+static int __igt_insert(unsigned int count, u64 size, bool replace)
 {
 	DRM_RND_STATE(prng, random_seed);
 	const struct insert_mode *mode;
@@ -569,7 +569,7 @@ static int __igt_insert(unsigned int count, u64 size)
 	DRM_MM_BUG_ON(!size);
 
 	ret = -ENOMEM;
-	nodes = vzalloc(count * sizeof(*nodes));
+	nodes = vmalloc(count * sizeof(*nodes));
 	if (!nodes)
 		goto err;
 
@@ -582,10 +582,36 @@ static int __igt_insert(unsigned int count, u64 size)
 
 	for (mode = insert_modes; mode->name; mode++) {
 		for (n = 0; n < count; n++) {
-			if (!expect_insert(&mm, &nodes[n], size, 0, n, mode)) {
+			struct drm_mm_node tmp;
+
+			node = replace ? &tmp : &nodes[n];
+			memset(node, 0, sizeof(*node));
+			if (!expect_insert(&mm, node, size, 0, n, mode)) {
 				pr_err("%s insert failed, size %llu step %d\n",
 				       mode->name, size, n);
 				goto out;
+			}
+
+			if (replace) {
+				drm_mm_replace_node(&tmp, &nodes[n]);
+				if (drm_mm_node_allocated(&tmp)) {
+					pr_err("replaced old-node still allocated! step %d\n",
+					       n);
+					goto out;
+				}
+
+				if (!assert_node(&nodes[n], &mm, size, 0, n)) {
+					pr_err("replaced node did not inherit parameters, size %llu step %d\n",
+					       size, n);
+					goto out;
+				}
+
+				if (tmp.start != nodes[n].start) {
+					pr_err("replaced node mismatch location expected [%llx + %llx], found [%llx + %llx]\n",
+					       tmp.start, size,
+					       nodes[n].start, nodes[n].size);
+					goto out;
+				}
 			}
 		}
 
@@ -669,17 +695,44 @@ static int igt_insert(void *ignored)
 	for_each_prime_number_from(n, 1, 54) {
 		u64 size = BIT_ULL(n);
 
-		ret = __igt_insert(count, size - 1);
+		ret = __igt_insert(count, size - 1, false);
 		if (ret)
 			return ret;
 
-		ret = __igt_insert(count, size);
+		ret = __igt_insert(count, size, false);
 		if (ret)
 			return ret;
 
-		ret = __igt_insert(count, size + 1);
+		ret = __igt_insert(count, size + 1, false);
+	}
+
+	return 0;
+}
+
+static int igt_replace(void *ignored)
+{
+	const unsigned int count = min_t(unsigned int, BIT(10), max_iterations);
+	unsigned int n;
+	int ret;
+
+	/* Reuse igt_insert to exercise replacement by inserting a dummy node,
+	 * then replacing it with the intended node. We want to check that
+	 * the tree is intact and all the information we need is carried
+	 * across to the target node.
+	 */
+
+	for_each_prime_number_from(n, 1, 54) {
+		u64 size = BIT_ULL(n);
+
+		ret = __igt_insert(count, size - 1, true);
 		if (ret)
 			return ret;
+
+		ret = __igt_insert(count, size, true);
+		if (ret)
+			return ret;
+
+		ret = __igt_insert(count, size + 1, true);
 	}
 
 	return 0;
