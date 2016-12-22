@@ -1852,8 +1852,7 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 	int allocbytes = sizeof(struct parser_context) + bytes;
 	struct parser_context *ctx;
 
-	if (retry)
-		*retry = false;
+	*retry = false;
 
 	/*
 	 * alloc an 0 extra byte to ensure payload is
@@ -1862,14 +1861,12 @@ parser_init_byte_stream(u64 addr, u32 bytes, bool local, bool *retry)
 	allocbytes++;
 	if ((controlvm_payload_bytes_buffered + bytes)
 	    > MAX_CONTROLVM_PAYLOAD_BYTES) {
-		if (retry)
-			*retry = true;
+		*retry = true;
 		return NULL;
 	}
 	ctx = kzalloc(allocbytes, GFP_KERNEL | __GFP_NORETRY);
 	if (!ctx) {
-		if (retry)
-			*retry = true;
+		*retry = true;
 		return NULL;
 	}
 
