@@ -7,3 +7,4 @@
  */
 selftest(sanitycheck, igt_sanitycheck) /* keep first (selfcheck for igt) */
 selftest(init, igt_init)
+selftest(debug, igt_debug)

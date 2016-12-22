@@ -141,6 +141,41 @@ out:
 	return ret;
 }
 
+static int igt_debug(void *ignored)
+{
+	struct drm_mm mm;
+	struct drm_mm_node nodes[2];
+	int ret;
+
+	/* Create a small drm_mm with a couple of nodes and a few holes, and
+	 * check that the debug iterator doesn't explode over a trivial drm_mm.
+	 */
+
+	drm_mm_init(&mm, 0, 4096);
+
+	memset(nodes, 0, sizeof(nodes));
+	nodes[0].start = 512;
+	nodes[0].size = 1024;
+	ret = drm_mm_reserve_node(&mm, &nodes[0]);
+	if (ret) {
+		pr_err("failed to reserve node[0] {start=%lld, size=%lld)\n",
+		       nodes[0].start, nodes[0].size);
+		return ret;
+	}
+
+	nodes[1].size = 1024;
+	nodes[1].start = 4096 - 512 - nodes[1].size;
+	ret = drm_mm_reserve_node(&mm, &nodes[1]);
+	if (ret) {
+		pr_err("failed to reserve node[1] {start=%lld, size=%lld)\n",
+		       nodes[1].start, nodes[1].size);
+		return ret;
+	}
+
+	drm_mm_debug_table(&mm, __func__);
+	return 0;
+}
+
 #include "drm_selftest.c"
 
 static int __init test_drm_mm_init(void)
