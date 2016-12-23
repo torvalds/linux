@@ -135,13 +135,6 @@ enum amd_pp_event {
 	AMD_PP_EVENT_MAX
 };
 
-enum amd_dpm_forced_level {
-	AMD_DPM_FORCED_LEVEL_AUTO = 0,
-	AMD_DPM_FORCED_LEVEL_LOW = 1,
-	AMD_DPM_FORCED_LEVEL_HIGH = 2,
-	AMD_DPM_FORCED_LEVEL_MANUAL = 3,
-};
-
 struct amd_pp_init {
 	struct cgs_device *device;
 	uint32_t chip_family;

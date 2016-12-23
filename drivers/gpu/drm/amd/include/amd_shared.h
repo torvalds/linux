@@ -80,6 +80,13 @@ enum amd_clockgating_state {
 	AMD_CG_STATE_UNGATE,
 };
 
+enum amd_dpm_forced_level {
+	AMD_DPM_FORCED_LEVEL_AUTO = 0x1,
+	AMD_DPM_FORCED_LEVEL_MANUAL = 0x2,
+	AMD_DPM_FORCED_LEVEL_LOW = 0x4,
+	AMD_DPM_FORCED_LEVEL_HIGH = 0x8,
+};
+
 enum amd_powergating_state {
 	AMD_PG_STATE_GATE = 0,
 	AMD_PG_STATE_UNGATE,

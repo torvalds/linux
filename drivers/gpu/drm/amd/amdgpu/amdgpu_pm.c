@@ -112,28 +112,19 @@ static ssize_t amdgpu_get_dpm_forced_performance_level(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
+	enum amd_dpm_forced_level level;
 
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return snprintf(buf, PAGE_SIZE, "off\n");
 
-	if (adev->pp_enabled) {
-		enum amd_dpm_forced_level level;
-
-		level = amdgpu_dpm_get_performance_level(adev);
-		return snprintf(buf, PAGE_SIZE, "%s\n",
-				(level == AMD_DPM_FORCED_LEVEL_AUTO) ? "auto" :
-				(level == AMD_DPM_FORCED_LEVEL_LOW) ? "low" :
-				(level == AMD_DPM_FORCED_LEVEL_HIGH) ? "high" :
-				(level == AMD_DPM_FORCED_LEVEL_MANUAL) ? "manual" : "unknown");
-	} else {
-		enum amdgpu_dpm_forced_level level;
-
-		level = adev->pm.dpm.forced_level;
-		return snprintf(buf, PAGE_SIZE, "%s\n",
-				(level == AMDGPU_DPM_FORCED_LEVEL_AUTO) ? "auto" :
-				(level == AMDGPU_DPM_FORCED_LEVEL_LOW) ? "low" : "high");
-	}
+	level = amdgpu_dpm_get_performance_level(adev);
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+			(level & (AMD_DPM_FORCED_LEVEL_AUTO) ? "auto" :
+			(level & AMD_DPM_FORCED_LEVEL_LOW) ? "low" :
+			(level & AMD_DPM_FORCED_LEVEL_HIGH) ? "high" :
+			(level & AMD_DPM_FORCED_LEVEL_MANUAL) ? "manual" :
+			"unknown"));
 }
 
 static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
@@ -143,7 +134,7 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
-	enum amdgpu_dpm_forced_level level;
+	enum amd_dpm_forced_level level;
 	int ret = 0;
 
 	/* Can't force performance level when the card is off */
@@ -152,13 +143,13 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		return -EINVAL;
 
 	if (strncmp("low", buf, strlen("low")) == 0) {
-		level = AMDGPU_DPM_FORCED_LEVEL_LOW;
+		level = AMD_DPM_FORCED_LEVEL_LOW;
 	} else if (strncmp("high", buf, strlen("high")) == 0) {
-		level = AMDGPU_DPM_FORCED_LEVEL_HIGH;
+		level = AMD_DPM_FORCED_LEVEL_HIGH;
 	} else if (strncmp("auto", buf, strlen("auto")) == 0) {
-		level = AMDGPU_DPM_FORCED_LEVEL_AUTO;
+		level = AMD_DPM_FORCED_LEVEL_AUTO;
 	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
-		level = AMDGPU_DPM_FORCED_LEVEL_MANUAL;
+		level = AMD_DPM_FORCED_LEVEL_MANUAL;
 	} else {
 		count = -EINVAL;
 		goto fail;
@@ -1060,9 +1051,9 @@ static void amdgpu_dpm_change_power_state_locked(struct amdgpu_device *adev)
 
 	if (adev->pm.funcs->force_performance_level) {
 		if (adev->pm.dpm.thermal_active) {
-			enum amdgpu_dpm_forced_level level = adev->pm.dpm.forced_level;
+			enum amd_dpm_forced_level level = adev->pm.dpm.forced_level;
 			/* force low perf level for thermal */
-			amdgpu_dpm_force_performance_level(adev, AMDGPU_DPM_FORCED_LEVEL_LOW);
+			amdgpu_dpm_force_performance_level(adev, AMD_DPM_FORCED_LEVEL_LOW);
 			/* save the user's level */
 			adev->pm.dpm.forced_level = level;
 		} else {

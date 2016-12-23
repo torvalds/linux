@@ -4336,13 +4336,13 @@ static u32 ci_get_lowest_enabled_level(struct amdgpu_device *adev,
 
 
 static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
-					  enum amdgpu_dpm_forced_level level)
+					  enum amd_dpm_forced_level level)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 	u32 tmp, levels, i;
 	int ret;
 
-	if (level == AMDGPU_DPM_FORCED_LEVEL_HIGH) {
+	if (level == AMD_DPM_FORCED_LEVEL_HIGH) {
 		if ((!pi->pcie_dpm_key_disabled) &&
 		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
 			levels = 0;
@@ -4403,7 +4403,7 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 				}
 			}
 		}
-	} else if (level == AMDGPU_DPM_FORCED_LEVEL_LOW) {
+	} else if (level == AMD_DPM_FORCED_LEVEL_LOW) {
 		if ((!pi->sclk_dpm_key_disabled) &&
 		    pi->dpm_level_enable_mask.sclk_dpm_enable_mask) {
 			levels = ci_get_lowest_enabled_level(adev,
@@ -4452,7 +4452,7 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 				udelay(1);
 			}
 		}
-	} else if (level == AMDGPU_DPM_FORCED_LEVEL_AUTO) {
+	} else if (level == AMD_DPM_FORCED_LEVEL_AUTO) {
 		if (!pi->pcie_dpm_key_disabled) {
 			PPSMC_Result smc_result;
 
@@ -6262,7 +6262,7 @@ static int ci_dpm_sw_init(void *handle)
 	/* default to balanced state */
 	adev->pm.dpm.state = POWER_STATE_TYPE_BALANCED;
 	adev->pm.dpm.user_state = POWER_STATE_TYPE_BALANCED;
-	adev->pm.dpm.forced_level = AMDGPU_DPM_FORCED_LEVEL_AUTO;
+	adev->pm.dpm.forced_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	adev->pm.default_sclk = adev->clock.default_sclk;
 	adev->pm.default_mclk = adev->clock.default_mclk;
 	adev->pm.current_sclk = adev->clock.default_sclk;
@@ -6572,7 +6572,7 @@ static int ci_dpm_force_clock_level(struct amdgpu_device *adev,
 	struct ci_power_info *pi = ci_get_pi(adev);
 
 	if (adev->pm.dpm.forced_level
-			!= AMDGPU_DPM_FORCED_LEVEL_MANUAL)
+			!= AMD_DPM_FORCED_LEVEL_MANUAL)
 		return -EINVAL;
 
 	switch (type) {
