@@ -358,13 +358,16 @@ void i40iw_qp_add_qos(struct i40iw_sc_qp *qp)
  * @dev: sc device struct
  * @pd: sc pd ptr
  * @pd_id: pd_id for allocated pd
+ * @abi_ver: ABI version from user context, -1 if not valid
  */
 static void i40iw_sc_pd_init(struct i40iw_sc_dev *dev,
 			     struct i40iw_sc_pd *pd,
-			     u16 pd_id)
+			     u16 pd_id,
+			     int abi_ver)
 {
 	pd->size = sizeof(*pd);
 	pd->pd_id = pd_id;
+	pd->abi_ver = abi_ver;
 	pd->dev = dev;
 }
 
@@ -2252,6 +2255,7 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 					      offset);
 
 	info->qp_uk_init_info.wqe_alloc_reg = wqe_alloc_reg;
+	info->qp_uk_init_info.abi_ver = qp->pd->abi_ver;
 	ret_code = i40iw_qp_uk_init(&qp->qp_uk, &info->qp_uk_init_info);
 	if (ret_code)
 		return ret_code;
@@ -2270,10 +2274,21 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 						    false);
 	i40iw_debug(qp->dev, I40IW_DEBUG_WQE, "%s: hw_sq_size[%04d] sq_ring.size[%04d]\n",
 		    __func__, qp->hw_sq_size, qp->qp_uk.sq_ring.size);
-	ret_code = i40iw_fragcnt_to_wqesize_rq(qp->qp_uk.max_rq_frag_cnt,
-					       &wqe_size);
-	if (ret_code)
-		return ret_code;
+
+	switch (qp->pd->abi_ver) {
+	case 4:
+		ret_code = i40iw_fragcnt_to_wqesize_rq(qp->qp_uk.max_rq_frag_cnt,
+						       &wqe_size);
+		if (ret_code)
+			return ret_code;
+		break;
+	case 5: /* fallthrough until next ABI version */
+	default:
+		if (qp->qp_uk.max_rq_frag_cnt > I40IW_MAX_WQ_FRAGMENT_COUNT)
+			return I40IW_ERR_INVALID_FRAG_COUNT;
+		wqe_size = I40IW_MAX_WQE_SIZE_RQ;
+		break;
+	}
 	qp->hw_rq_size = i40iw_get_encoded_wqe_size(qp->qp_uk.rq_size *
 				(wqe_size / I40IW_QP_WQE_MIN_SIZE), false);
 	i40iw_debug(qp->dev, I40IW_DEBUG_WQE,

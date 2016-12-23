@@ -930,7 +930,7 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_vsi *vsi,
 	INIT_LIST_HEAD(&rsrc->txpend);
 
 	rsrc->tx_wqe_avail_cnt = info->sq_size - 1;
-	dev->iw_pd_ops->pd_init(dev, &rsrc->sc_pd, info->pd_id);
+	dev->iw_pd_ops->pd_init(dev, &rsrc->sc_pd, info->pd_id, -1);
 	rsrc->qp_id = info->qp_id;
 	rsrc->cq_id = info->cq_id;
 	rsrc->sq_size = info->sq_size;

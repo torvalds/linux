@@ -224,7 +224,7 @@ static inline enum comp_state check_psn(struct rxe_qp *qp,
 		else
 			return COMPST_DONE;
 	} else if ((diff > 0) && (wqe->mask & WR_ATOMIC_OR_READ_MASK)) {
-		return COMPST_ERROR_RETRY;
+		return COMPST_DONE;
 	} else {
 		return COMPST_CHECK_ACK;
 	}
