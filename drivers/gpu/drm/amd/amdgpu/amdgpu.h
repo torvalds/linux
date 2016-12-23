@@ -183,6 +183,11 @@ enum amdgpu_thermal_irq {
 	AMDGPU_THERMAL_IRQ_LAST
 };
 
+enum amdgpu_kiq_irq {
+	AMDGPU_CP_KIQ_IRQ_DRIVER0 = 0,
+	AMDGPU_CP_KIQ_IRQ_LAST
+};
+
 int amdgpu_set_clockgating_state(struct amdgpu_device *adev,
 				  enum amd_ip_block_type block_type,
 				  enum amd_clockgating_state state);
@@ -775,6 +780,13 @@ struct amdgpu_mec {
 	u32 num_queue;
 };
 
+struct amdgpu_kiq {
+	u64			eop_gpu_addr;
+	struct amdgpu_bo	*eop_obj;
+	struct amdgpu_ring	ring;
+	struct amdgpu_irq_src	irq;
+};
+
 /*
  * GPU scratch registers structures, functions & helpers
  */
@@ -850,6 +862,7 @@ struct amdgpu_gfx {
 	struct amdgpu_gca_config	config;
 	struct amdgpu_rlc		rlc;
 	struct amdgpu_mec		mec;
+	struct amdgpu_kiq		kiq;
 	struct amdgpu_scratch		scratch;
 	const struct firmware		*me_fw;	/* ME firmware */
 	uint32_t			me_fw_version;
