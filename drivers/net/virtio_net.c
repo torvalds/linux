@@ -483,7 +483,7 @@ xdp_xmit:
  * anymore.
  */
 static struct page *xdp_linearize_page(struct receive_queue *rq,
-				       u16 num_buf,
+				       u16 *num_buf,
 				       struct page *p,
 				       int offset,
 				       unsigned int *len)
@@ -497,7 +497,7 @@ static struct page *xdp_linearize_page(struct receive_queue *rq,
 	memcpy(page_address(page) + page_off, page_address(p) + offset, *len);
 	page_off += *len;
 
-	while (--num_buf) {
+	while (--*num_buf) {
 		unsigned int buflen;
 		unsigned long ctx;
 		void *buf;
@@ -507,19 +507,22 @@ static struct page *xdp_linearize_page(struct receive_queue *rq,
 		if (unlikely(!ctx))
 			goto err_buf;
 
-		/* guard against a misconfigured or uncooperative backend that
-		 * is sending packet larger than the MTU.
-		 */
-		if ((page_off + buflen) > PAGE_SIZE)
-			goto err_buf;
-
 		buf = mergeable_ctx_to_buf_address(ctx);
 		p = virt_to_head_page(buf);
 		off = buf - page_address(p);
 
+		/* guard against a misconfigured or uncooperative backend that
+		 * is sending packet larger than the MTU.
+		 */
+		if ((page_off + buflen) > PAGE_SIZE) {
+			put_page(p);
+			goto err_buf;
+		}
+
 		memcpy(page_address(page) + page_off,
 		       page_address(p) + off, buflen);
 		page_off += buflen;
+		put_page(p);
 	}
 
 	*len = page_off;
@@ -555,7 +558,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		/* This happens when rx buffer size is underestimated */
 		if (unlikely(num_buf > 1)) {
 			/* linearize data for XDP */
-			xdp_page = xdp_linearize_page(rq, num_buf,
+			xdp_page = xdp_linearize_page(rq, &num_buf,
 						      page, offset, &len);
 			if (!xdp_page)
 				goto err_xdp;
