@@ -4123,7 +4123,7 @@ unlock:
 
 	if (val & DROP_FREED) {
 		synchronize_rcu();
-		flush_work(&dev_priv->mm.free_work);
+		i915_gem_drain_freed_objects(dev_priv);
 	}
 
 	return ret;
