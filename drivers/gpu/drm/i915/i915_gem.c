@@ -1515,7 +1515,7 @@ static void i915_gem_object_bump_inactive_ggtt(struct drm_i915_gem_object *obj)
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
 		if (!i915_vma_is_ggtt(vma))
-			continue;
+			break;
 
 		if (i915_vma_is_active(vma))
 			continue;
