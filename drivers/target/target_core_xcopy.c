@@ -201,9 +201,11 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 			" multiple of %d\n", XCOPY_TARGET_DESC_LEN);
 		return -EINVAL;
 	}
-	if (tdll > 64) {
+	if (tdll > RCR_OP_MAX_TARGET_DESC_COUNT * XCOPY_TARGET_DESC_LEN) {
 		pr_err("XCOPY target descriptor supports a maximum"
 			" two src/dest descriptors, tdll: %hu too large..\n", tdll);
+		/* spc4r37 6.4.3.4 CSCD DESCRIPTOR LIST LENGTH field */
+		*sense_ret = TCM_TOO_MANY_TARGET_DESCS;
 		return -EINVAL;
 	}
 	/*
