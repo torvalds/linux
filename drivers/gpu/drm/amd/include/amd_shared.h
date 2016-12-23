@@ -126,6 +126,10 @@ enum amd_vce_level {
 #define AMD_CG_SUPPORT_HDP_LS			(1 << 15)
 #define AMD_CG_SUPPORT_HDP_MGCG			(1 << 16)
 #define AMD_CG_SUPPORT_ROM_MGCG			(1 << 17)
+#define AMD_CG_SUPPORT_DRM_LS			(1 << 18)
+#define AMD_CG_SUPPORT_BIF_MGCG			(1 << 19)
+#define AMD_CG_SUPPORT_GFX_3D_CGCG		(1 << 20)
+#define AMD_CG_SUPPORT_GFX_3D_CGLS		(1 << 21)
 
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
