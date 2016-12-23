@@ -246,14 +246,16 @@ err_phys:
 
 static void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
-				struct sg_table *pages)
+				struct sg_table *pages,
+				bool needs_clflush)
 {
 	GEM_BUG_ON(obj->mm.madv == __I915_MADV_PURGED);
 
 	if (obj->mm.madv == I915_MADV_DONTNEED)
 		obj->mm.dirty = false;
 
-	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
+	if (needs_clflush &&
+	    (obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
 	    !cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
 		drm_clflush_sg(pages);
 
@@ -265,7 +267,7 @@ static void
 i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
-	__i915_gem_object_release_shmem(obj, pages);
+	__i915_gem_object_release_shmem(obj, pages, false);
 
 	if (obj->mm.dirty) {
 		struct address_space *mapping = obj->base.filp->f_mapping;
@@ -2233,7 +2235,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 	struct sgt_iter sgt_iter;
 	struct page *page;
 
-	__i915_gem_object_release_shmem(obj, pages);
+	__i915_gem_object_release_shmem(obj, pages, true);
 
 	i915_gem_gtt_finish_pages(obj, pages);
 
