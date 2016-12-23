@@ -1471,7 +1471,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 	 * threshold.  The idea is to recover slowly, but up
 	 * to the initial advertised window.
 	 */
-	if (asoc->rwnd_press && asoc->rwnd >= asoc->rwnd_press) {
+	if (asoc->rwnd_press) {
 		int change = min(asoc->pathmtu, asoc->rwnd_press);
 		asoc->rwnd += change;
 		asoc->rwnd_press -= change;
