@@ -19,6 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <dt-bindings/power/rk3288-power.h>
+#include <dt-bindings/power/rk3328-power.h>
 #include <dt-bindings/power/rk3368-power.h>
 #include <dt-bindings/power/rk3399-power.h>
 
@@ -103,6 +104,9 @@ struct rockchip_pmu {
 
 #define DOMAIN_RK3288(pwr, status, req, wakeup)		\
 	DOMAIN(pwr, status, req, req, (req) + 16, wakeup)
+
+#define DOMAIN_RK3328(pwr, status, req, wakeup)		\
+	DOMAIN_M(pwr, pwr, req, (req) + 10, req, wakeup)
 
 #define DOMAIN_RK3368(pwr, status, req, wakeup)		\
 	DOMAIN(pwr, status, req, (req) + 16, req, wakeup)
@@ -714,6 +718,18 @@ static const struct rockchip_domain_info rk3288_pm_domains[] = {
 	[RK3288_PD_GPU]		= DOMAIN_RK3288(9, 9, 2, false),
 };
 
+static const struct rockchip_domain_info rk3328_pm_domains[] = {
+	[RK3328_PD_CORE]	= DOMAIN_RK3328(-1, 0, 0, false),
+	[RK3328_PD_GPU]		= DOMAIN_RK3328(-1, 1, 1, false),
+	[RK3328_PD_BUS]		= DOMAIN_RK3328(-1, 2, 2, true),
+	[RK3328_PD_MSCH]	= DOMAIN_RK3328(-1, 3, 3, true),
+	[RK3328_PD_PERI]	= DOMAIN_RK3328(-1, 4, 4, true),
+	[RK3328_PD_VIDEO]	= DOMAIN_RK3328(-1, 5, 5, false),
+	[RK3328_PD_HEVC]	= DOMAIN_RK3328(-1, 6, 6, false),
+	[RK3328_PD_VIO]		= DOMAIN_RK3328(-1, 8, 8, false),
+	[RK3328_PD_VPU]		= DOMAIN_RK3328(-1, 9, 9, false),
+};
+
 static const struct rockchip_domain_info rk3368_pm_domains[] = {
 	[RK3368_PD_PERI]	= DOMAIN_RK3368(13, 12, 6, true),
 	[RK3368_PD_VIO]		= DOMAIN_RK3368(15, 14, 8, false),
@@ -769,6 +785,15 @@ static const struct rockchip_pmu_info rk3288_pmu = {
 	.domain_info = rk3288_pm_domains,
 };
 
+static const struct rockchip_pmu_info rk3328_pmu = {
+	.req_offset = 0x414,
+	.idle_offset = 0x484,
+	.ack_offset = 0x484,
+
+	.num_domains = ARRAY_SIZE(rk3328_pm_domains),
+	.domain_info = rk3328_pm_domains,
+};
+
 static const struct rockchip_pmu_info rk3368_pmu = {
 	.pwr_offset = 0x0c,
 	.status_offset = 0x10,
@@ -803,6 +828,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,rk3288-power-controller",
 		.data = (void *)&rk3288_pmu,
+	},
+	{
+		.compatible = "rockchip,rk3328-power-controller",
+		.data = (void *)&rk3328_pmu,
 	},
 	{
 		.compatible = "rockchip,rk3368-power-controller",
