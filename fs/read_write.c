@@ -1669,6 +1669,9 @@ static int clone_verify_area(struct file *file, loff_t pos, u64 len, bool write)
  * Check that the two inodes are eligible for cloning, the ranges make
  * sense, and then flush all dirty data.  Caller must ensure that the
  * inodes have been locked against any other modifications.
+ *
+ * Returns: 0 for "nothing to clone", 1 for "something to clone", or
+ * the usual negative error code.
  */
 int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
 			       struct inode *inode_out, loff_t pos_out,
@@ -1695,17 +1698,15 @@ int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
 
 	/* Are we going all the way to the end? */
 	isize = i_size_read(inode_in);
-	if (isize == 0) {
-		*len = 0;
+	if (isize == 0)
 		return 0;
-	}
 
 	/* Zero length dedupe exits immediately; reflink goes to EOF. */
 	if (*len == 0) {
-		if (is_dedupe) {
-			*len = 0;
+		if (is_dedupe || pos_in == isize)
 			return 0;
-		}
+		if (pos_in > isize)
+			return -EINVAL;
 		*len = isize - pos_in;
 	}
 
@@ -1769,7 +1770,7 @@ int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
 			return -EBADE;
 	}
 
-	return 0;
+	return 1;
 }
 EXPORT_SYMBOL(vfs_clone_file_prep_inodes);
 
@@ -1954,6 +1955,9 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 	if (ret < 0)
 		goto out;
 	ret = 0;
+
+	if (off + len > i_size_read(src))
+		return -EINVAL;
 
 	/* pre-format output fields to sane values */
 	for (i = 0; i < count; i++) {
