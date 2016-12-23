@@ -240,7 +240,7 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	if (WARN_ON(bytes > 4))
 		return -EINVAL;
 
-	if (WARN_ON(offset + bytes >= INTEL_GVT_MAX_CFG_SPACE_SZ))
+	if (WARN_ON(offset + bytes > INTEL_GVT_MAX_CFG_SPACE_SZ))
 		return -EINVAL;
 
 	/* First check if it's PCI_COMMAND */
