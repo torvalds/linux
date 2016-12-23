@@ -241,8 +241,8 @@ void __sched mutex_lock(struct mutex *lock)
 EXPORT_SYMBOL(mutex_lock);
 #endif
 
-static __always_inline void ww_mutex_lock_acquired(struct ww_mutex *ww,
-						   struct ww_acquire_ctx *ww_ctx)
+static __always_inline void
+ww_mutex_lock_acquired(struct ww_mutex *ww, struct ww_acquire_ctx *ww_ctx)
 {
 #ifdef CONFIG_DEBUG_MUTEXES
 	/*
@@ -323,8 +323,7 @@ __ww_mutex_wakeup_for_backoff(struct mutex *lock, struct ww_acquire_ctx *ww_ctx)
  * slowpath, set ctx and wake up any waiters so they can recheck.
  */
 static __always_inline void
-ww_mutex_set_context_fastpath(struct ww_mutex *lock,
-			       struct ww_acquire_ctx *ctx)
+ww_mutex_set_context_fastpath(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
 	unsigned long flags;
 
@@ -365,8 +364,7 @@ ww_mutex_set_context_fastpath(struct ww_mutex *lock,
  * Callers must hold the mutex wait_lock.
  */
 static __always_inline void
-ww_mutex_set_context_slowpath(struct ww_mutex *lock,
-			      struct ww_acquire_ctx *ctx)
+ww_mutex_set_context_slowpath(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
 	ww_mutex_lock_acquired(lock, ctx);
 	lock->ctx = ctx;
@@ -459,9 +457,9 @@ static inline int mutex_can_spin_on_owner(struct mutex *lock)
  * with the spinner at the head of the OSQ, if present, until the owner is
  * changed to itself.
  */
-static bool mutex_optimistic_spin(struct mutex *lock,
-				  struct ww_acquire_ctx *ww_ctx,
-				  const bool use_ww_ctx, const bool waiter)
+static __always_inline bool
+mutex_optimistic_spin(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
+		      const bool use_ww_ctx, const bool waiter)
 {
 	if (!waiter) {
 		/*
@@ -551,9 +549,9 @@ fail:
 	return false;
 }
 #else
-static bool mutex_optimistic_spin(struct mutex *lock,
-				  struct ww_acquire_ctx *ww_ctx,
-				  const bool use_ww_ctx, const bool waiter)
+static __always_inline bool
+mutex_optimistic_spin(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
+		      const bool use_ww_ctx, const bool waiter)
 {
 	return false;
 }
@@ -712,8 +710,9 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	struct ww_mutex *ww;
 	int ret;
 
-	ww = container_of(lock, struct ww_mutex, base);
+	might_sleep();
 
+	ww = container_of(lock, struct ww_mutex, base);
 	if (use_ww_ctx && ww_ctx) {
 		if (unlikely(ww_ctx == READ_ONCE(ww->ctx)))
 			return -EALREADY;
@@ -849,13 +848,26 @@ err_early_backoff:
 	return ret;
 }
 
+static int __sched
+__mutex_lock(struct mutex *lock, long state, unsigned int subclass,
+	     struct lockdep_map *nest_lock, unsigned long ip)
+{
+	return __mutex_lock_common(lock, state, subclass, nest_lock, ip, NULL, false);
+}
+
+static int __sched
+__ww_mutex_lock(struct mutex *lock, long state, unsigned int subclass,
+		struct lockdep_map *nest_lock, unsigned long ip,
+		struct ww_acquire_ctx *ww_ctx)
+{
+	return __mutex_lock_common(lock, state, subclass, nest_lock, ip, ww_ctx, true);
+}
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void __sched
 mutex_lock_nested(struct mutex *lock, unsigned int subclass)
 {
-	might_sleep();
-	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE,
-			    subclass, NULL, _RET_IP_, NULL, 0);
+	__mutex_lock(lock, TASK_UNINTERRUPTIBLE, subclass, NULL, _RET_IP_);
 }
 
 EXPORT_SYMBOL_GPL(mutex_lock_nested);
@@ -863,27 +875,21 @@ EXPORT_SYMBOL_GPL(mutex_lock_nested);
 void __sched
 _mutex_lock_nest_lock(struct mutex *lock, struct lockdep_map *nest)
 {
-	might_sleep();
-	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE,
-			    0, nest, _RET_IP_, NULL, 0);
+	__mutex_lock(lock, TASK_UNINTERRUPTIBLE, 0, nest, _RET_IP_);
 }
 EXPORT_SYMBOL_GPL(_mutex_lock_nest_lock);
 
 int __sched
 mutex_lock_killable_nested(struct mutex *lock, unsigned int subclass)
 {
-	might_sleep();
-	return __mutex_lock_common(lock, TASK_KILLABLE,
-				   subclass, NULL, _RET_IP_, NULL, 0);
+	return __mutex_lock(lock, TASK_KILLABLE, subclass, NULL, _RET_IP_);
 }
 EXPORT_SYMBOL_GPL(mutex_lock_killable_nested);
 
 int __sched
 mutex_lock_interruptible_nested(struct mutex *lock, unsigned int subclass)
 {
-	might_sleep();
-	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE,
-				   subclass, NULL, _RET_IP_, NULL, 0);
+	return __mutex_lock(lock, TASK_INTERRUPTIBLE, subclass, NULL, _RET_IP_);
 }
 EXPORT_SYMBOL_GPL(mutex_lock_interruptible_nested);
 
@@ -919,9 +925,9 @@ ww_mutex_lock(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 	int ret;
 
 	might_sleep();
-	ret =  __mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE,
-				   0, ctx ? &ctx->dep_map : NULL, _RET_IP_,
-				   ctx, 1);
+	ret =  __ww_mutex_lock(&lock->base, TASK_UNINTERRUPTIBLE,
+			       0, ctx ? &ctx->dep_map : NULL, _RET_IP_,
+			       ctx);
 	if (!ret && ctx && ctx->acquired > 1)
 		return ww_mutex_deadlock_injection(lock, ctx);
 
@@ -935,9 +941,9 @@ ww_mutex_lock_interruptible(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 	int ret;
 
 	might_sleep();
-	ret = __mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE,
-				  0, ctx ? &ctx->dep_map : NULL, _RET_IP_,
-				  ctx, 1);
+	ret = __ww_mutex_lock(&lock->base, TASK_INTERRUPTIBLE,
+			      0, ctx ? &ctx->dep_map : NULL, _RET_IP_,
+			      ctx);
 
 	if (!ret && ctx && ctx->acquired > 1)
 		return ww_mutex_deadlock_injection(lock, ctx);
@@ -1060,37 +1066,34 @@ EXPORT_SYMBOL(mutex_lock_killable);
 static noinline void __sched
 __mutex_lock_slowpath(struct mutex *lock)
 {
-	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, 0,
-			    NULL, _RET_IP_, NULL, 0);
+	__mutex_lock(lock, TASK_UNINTERRUPTIBLE, 0, NULL, _RET_IP_);
 }
 
 static noinline int __sched
 __mutex_lock_killable_slowpath(struct mutex *lock)
 {
-	return __mutex_lock_common(lock, TASK_KILLABLE, 0,
-				   NULL, _RET_IP_, NULL, 0);
+	return __mutex_lock(lock, TASK_KILLABLE, 0, NULL, _RET_IP_);
 }
 
 static noinline int __sched
 __mutex_lock_interruptible_slowpath(struct mutex *lock)
 {
-	return __mutex_lock_common(lock, TASK_INTERRUPTIBLE, 0,
-				   NULL, _RET_IP_, NULL, 0);
+	return __mutex_lock(lock, TASK_INTERRUPTIBLE, 0, NULL, _RET_IP_);
 }
 
 static noinline int __sched
 __ww_mutex_lock_slowpath(struct ww_mutex *lock, struct ww_acquire_ctx *ctx)
 {
-	return __mutex_lock_common(&lock->base, TASK_UNINTERRUPTIBLE, 0,
-				   NULL, _RET_IP_, ctx, 1);
+	return __ww_mutex_lock(&lock->base, TASK_UNINTERRUPTIBLE, 0, NULL,
+			       _RET_IP_, ctx);
 }
 
 static noinline int __sched
 __ww_mutex_lock_interruptible_slowpath(struct ww_mutex *lock,
 					    struct ww_acquire_ctx *ctx)
 {
-	return __mutex_lock_common(&lock->base, TASK_INTERRUPTIBLE, 0,
-				   NULL, _RET_IP_, ctx, 1);
+	return __ww_mutex_lock(&lock->base, TASK_INTERRUPTIBLE, 0, NULL,
+			       _RET_IP_, ctx);
 }
 
 #endif
