@@ -47,7 +47,8 @@ struct tps65910_rtc {
 /* Multiplier for ppb conversions */
 #define PPB_MULT	(1000000000LL)
 
-static int tps65910_rtc_alarm_irq_enable(struct device *dev, unsigned enabled)
+static int tps65910_rtc_alarm_irq_enable(struct device *dev,
+					 unsigned int enabled)
 {
 	struct tps65910 *tps = dev_get_drvdata(dev->parent);
 	u8 val = 0;
