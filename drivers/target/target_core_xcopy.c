@@ -894,6 +894,12 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 	 */
 	tdll = get_unaligned_be16(&p[2]);
 	sdll = get_unaligned_be32(&p[8]);
+	if (tdll + sdll > RCR_OP_MAX_DESC_LIST_LEN) {
+		pr_err("XCOPY descriptor list length %u exceeds maximum %u\n",
+		       tdll + sdll, RCR_OP_MAX_DESC_LIST_LEN);
+		ret = TCM_PARAMETER_LIST_LENGTH_ERROR;
+		goto out;
+	}
 
 	inline_dl = get_unaligned_be32(&p[12]);
 	if (inline_dl != 0) {
