@@ -219,6 +219,44 @@ DEFINE_EVENT(ufshcd_template, ufshcd_init,
 	     TP_PROTO(const char *dev_name, int err, s64 usecs,
 		      int dev_state, int link_state),
 	     TP_ARGS(dev_name, err, usecs, dev_state, link_state));
+
+TRACE_EVENT(ufshcd_command,
+	TP_PROTO(const char *dev_name, const char *str, unsigned int tag,
+			u32 doorbell, int transfer_len, u32 intr, u64 lba,
+			u8 opcode),
+
+	TP_ARGS(dev_name, str, tag, doorbell, transfer_len, intr, lba, opcode),
+
+	TP_STRUCT__entry(
+		__string(dev_name, dev_name)
+		__string(str, str)
+		__field(unsigned int, tag)
+		__field(u32, doorbell)
+		__field(int, transfer_len)
+		__field(u32, intr)
+		__field(u64, lba)
+		__field(u8, opcode)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev_name, dev_name);
+		__assign_str(str, str);
+		__entry->tag = tag;
+		__entry->doorbell = doorbell;
+		__entry->transfer_len = transfer_len;
+		__entry->intr = intr;
+		__entry->lba = lba;
+		__entry->opcode = opcode;
+	),
+
+	TP_printk(
+		"%s: %s: tag: %u, DB: 0x%x, size: %d, IS: %u, LBA: %llu, opcode: 0x%x",
+		__get_str(str), __get_str(dev_name), __entry->tag,
+		__entry->doorbell, __entry->transfer_len,
+		__entry->intr, __entry->lba, (u32)__entry->opcode
+	)
+);
+
 #endif /* if !defined(_TRACE_UFS_H) || defined(TRACE_HEADER_MULTI_READ) */
 
 /* This part must be outside protection */
