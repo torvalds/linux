@@ -342,6 +342,8 @@ struct ufs_clk_scaling {
 	bool is_busy_started;
 	unsigned long  tot_busy_t;
 	unsigned long window_start_t;
+	struct device_attribute enable_attr;
+	bool is_allowed;
 };
 
 /**
@@ -580,7 +582,7 @@ static inline bool ufshcd_can_hibern8_during_gating(struct ufs_hba *hba)
 {
 	return hba->caps & UFSHCD_CAP_HIBERN8_WITH_CLK_GATING;
 }
-static inline int ufshcd_is_clkscaling_enabled(struct ufs_hba *hba)
+static inline int ufshcd_is_clkscaling_supported(struct ufs_hba *hba)
 {
 	return hba->caps & UFSHCD_CAP_CLK_SCALING;
 }
