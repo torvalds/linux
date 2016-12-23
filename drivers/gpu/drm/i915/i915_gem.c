@@ -2326,7 +2326,7 @@ static void i915_sg_trim(struct sg_table *orig_st)
 	if (orig_st->nents == orig_st->orig_nents)
 		return;
 
-	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL))
+	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL | __GFP_NOWARN))
 		return;
 
 	new_sg = new_st.sgl;
