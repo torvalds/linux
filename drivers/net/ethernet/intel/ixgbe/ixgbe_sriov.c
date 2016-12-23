@@ -298,6 +298,7 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 #ifdef CONFIG_PCI_IOV
 	struct ixgbe_adapter *adapter = pci_get_drvdata(dev);
 	int err = 0;
+	u8 num_tc;
 	int i;
 	int pre_existing_vfs = pci_num_vf(dev);
 
@@ -310,16 +311,35 @@ static int ixgbe_pci_sriov_enable(struct pci_dev *dev, int num_vfs)
 		return err;
 
 	/* While the SR-IOV capability structure reports total VFs to be 64,
-	 * we have to limit the actual number allocated based on two factors.
+	 * we limit the actual number allocated as below based on two factors.
+	 *    Num_TCs	MAX_VFs
+	 *	1	  63
+	 *	<=4	  31
+	 *	>4	  15
 	 * First, we reserve some transmit/receive resources for the PF.
 	 * Second, VMDQ also uses the same pools that SR-IOV does. We need to
 	 * account for this, so that we don't accidentally allocate more VFs
 	 * than we have available pools. The PCI bus driver already checks for
 	 * other values out of range.
 	 */
-	if ((num_vfs + adapter->num_rx_pools) > IXGBE_MAX_VF_FUNCTIONS)
-		return -EPERM;
+	num_tc = netdev_get_num_tc(adapter->netdev);
 
+	if (num_tc > 4) {
+		if ((num_vfs + adapter->num_rx_pools) > IXGBE_MAX_VFS_8TC) {
+			e_dev_err("Currently the device is configured with %d TCs, Creating more than %d VFs is not allowed\n", num_tc, IXGBE_MAX_VFS_8TC);
+			return -EPERM;
+		}
+	} else if ((num_tc > 1) && (num_tc <= 4)) {
+		if ((num_vfs + adapter->num_rx_pools) > IXGBE_MAX_VFS_4TC) {
+			e_dev_err("Currently the device is configured with %d TCs, Creating more than %d VFs is not allowed\n", num_tc, IXGBE_MAX_VFS_4TC);
+			return -EPERM;
+		}
+	} else {
+		if ((num_vfs + adapter->num_rx_pools) > IXGBE_MAX_VFS_1TC) {
+			e_dev_err("Currently the device is configured with %d TCs, Creating more than %d VFs is not allowed\n", num_tc, IXGBE_MAX_VFS_1TC);
+			return -EPERM;
+		}
+	}
 	adapter->num_vfs = num_vfs;
 
 	err = __ixgbe_enable_sriov(adapter);
