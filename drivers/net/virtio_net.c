@@ -572,7 +572,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		if (unlikely(hdr->hdr.gso_type || hdr->hdr.flags))
 			goto err_xdp;
 
-		act = do_xdp_prog(vi, rq, xdp_prog, page, offset, len);
+		act = do_xdp_prog(vi, rq, xdp_prog, xdp_page, offset, len);
 		switch (act) {
 		case XDP_PASS:
 			if (unlikely(xdp_page != page))
