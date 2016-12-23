@@ -134,8 +134,8 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 			saddr = nla_get_in6_addr(tb[TCA_TUNNEL_KEY_ENC_IPV6_SRC]);
 			daddr = nla_get_in6_addr(tb[TCA_TUNNEL_KEY_ENC_IPV6_DST]);
 
-			metadata = __ipv6_tun_set_dst(&saddr, &daddr, 0, 0, 0,
-						      dst_port, TUNNEL_KEY,
+			metadata = __ipv6_tun_set_dst(&saddr, &daddr, 0, 0, dst_port,
+						      0, TUNNEL_KEY,
 						      key_id, 0);
 		}
 
