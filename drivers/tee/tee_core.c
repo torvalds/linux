@@ -152,11 +152,11 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 			return -EFAULT;
 
 		/* All unused attribute bits has to be zero */
-		if (ip.attr & ~TEE_IOCTL_PARAM_ATTR_TYPE_MASK)
+		if (ip.attr & ~TEE_IOCTL_PARAM_ATTR_MASK)
 			return -EINVAL;
 
 		params[n].attr = ip.attr;
-		switch (ip.attr) {
+		switch (ip.attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_NONE:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
 			break;
@@ -394,8 +394,8 @@ static int params_to_supp(struct tee_context *ctx,
 		struct tee_ioctl_param ip;
 		struct tee_param *p = params + n;
 
-		ip.attr = p->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK;
-		switch (p->attr) {
+		ip.attr = p->attr;
+		switch (p->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
 			ip.a = p->u.value.a;
@@ -459,6 +459,10 @@ static int tee_ioctl_supp_recv(struct tee_context *ctx,
 	if (!params)
 		return -ENOMEM;
 
+	rc = params_from_user(ctx, params, num_params, uarg->params);
+	if (rc)
+		goto out;
+
 	rc = ctx->teedev->desc->ops->supp_recv(ctx, &func, &num_params, params);
 	if (rc)
 		goto out;
@@ -488,11 +492,11 @@ static int params_from_supp(struct tee_param *params, size_t num_params,
 			return -EFAULT;
 
 		/* All unused attribute bits has to be zero */
-		if (ip.attr & ~TEE_IOCTL_PARAM_ATTR_TYPE_MASK)
+		if (ip.attr & ~TEE_IOCTL_PARAM_ATTR_MASK)
 			return -EINVAL;
 
 		p->attr = ip.attr;
-		switch (ip.attr) {
+		switch (ip.attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_OUTPUT:
 		case TEE_IOCTL_PARAM_ATTR_TYPE_VALUE_INOUT:
 			/* Only out and in/out values can be updated */
