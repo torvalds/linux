@@ -12,7 +12,7 @@ extern "C" {
 #endif
 #include <lkl/asm/syscalls.h>
 #ifdef __cplusplus
-#undef class __lkl__class
+#undef class
 #endif
 
 #if __LKL__BITS_PER_LONG == 64
