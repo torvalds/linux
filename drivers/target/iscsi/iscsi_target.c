@@ -4136,7 +4136,7 @@ int iscsit_close_connection(
 	/*
 	 * During Connection recovery drop unacknowledged out of order
 	 * commands for this connection, and prepare the other commands
-	 * for realligence.
+	 * for reallegiance.
 	 *
 	 * During normal operation clear the out of order commands (but
 	 * do not free the struct iscsi_ooo_cmdsn's) and release all
@@ -4144,7 +4144,7 @@ int iscsit_close_connection(
 	 */
 	if (atomic_read(&conn->connection_recovery)) {
 		iscsit_discard_unacknowledged_ooo_cmdsns_for_conn(conn);
-		iscsit_prepare_cmds_for_realligance(conn);
+		iscsit_prepare_cmds_for_reallegiance(conn);
 	} else {
 		iscsit_clear_ooo_cmdsns_for_conn(conn);
 		iscsit_release_commands_from_conn(conn);
