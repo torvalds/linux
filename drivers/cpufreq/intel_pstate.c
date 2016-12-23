@@ -964,10 +964,6 @@ static void __init intel_pstate_debug_expose_params(void)
 	struct dentry *debugfs_parent;
 	int i = 0;
 
-	if (hwp_active ||
-	    pstate_funcs.get_target_pstate == get_target_pstate_use_cpu_load)
-		return;
-
 	debugfs_parent = debugfs_create_dir("pstate_snb", NULL);
 	if (IS_ERR_OR_NULL(debugfs_parent))
 		return;
@@ -2433,7 +2429,10 @@ hwp_cpu_matched:
 	if (rc)
 		goto out;
 
-	intel_pstate_debug_expose_params();
+	if (intel_pstate_driver == &intel_pstate && !hwp_active &&
+	    pstate_funcs.get_target_pstate != get_target_pstate_use_cpu_load)
+		intel_pstate_debug_expose_params();
+
 	intel_pstate_sysfs_expose_params();
 
 	if (hwp_active)
