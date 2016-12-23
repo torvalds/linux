@@ -318,7 +318,7 @@ void dc_surface_retain(const struct dc_surface *dc_surface);
 void dc_surface_release(const struct dc_surface *dc_surface);
 
 void dc_gamma_retain(const struct dc_gamma *dc_gamma);
-void dc_gamma_release(const struct dc_gamma *dc_gamma);
+void dc_gamma_release(const struct dc_gamma **dc_gamma);
 struct dc_gamma *dc_create_gamma(void);
 
 void dc_transfer_func_retain(const struct dc_transfer_func *dc_tf);

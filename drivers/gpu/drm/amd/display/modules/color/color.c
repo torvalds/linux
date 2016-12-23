@@ -1557,7 +1557,7 @@ void mod_color_destroy(struct mod_color *mod_color)
 
 		for (i = 0; i < core_color->num_sinks; i++)
 			if (core_color->state[i].gamma)
-				dc_gamma_release(core_color->state[i].gamma);
+				dc_gamma_release(&core_color->state[i].gamma);
 
 		dm_free(core_color->state);
 
@@ -1749,8 +1749,7 @@ bool mod_color_remove_sink(struct mod_color *mod_color,
 	for (i = 0; i < core_color->num_sinks; i++) {
 		if (core_color->caps[i].sink == sink) {
 			if (core_color->state[i].gamma) {
-				dc_gamma_release(core_color->state[i].gamma);
-				core_color->state[i].gamma = NULL;
+				dc_gamma_release(&core_color->state[i].gamma);
 			}
 
 			/* To remove this sink, shift everything after down */
@@ -2444,8 +2443,7 @@ bool mod_color_set_input_gamma_correction(struct mod_color *mod_color,
 			if (core_color->state[sink_index].gamma != gamma) {
 				if (core_color->state[sink_index].gamma)
 					dc_gamma_release(
-						core_color->state[sink_index].
-						gamma);
+						&core_color->state[sink_index].gamma);
 
 				dc_gamma_retain(gamma);
 				core_color->state[sink_index].gamma = gamma;

@@ -74,8 +74,7 @@ static bool construct(struct dc_context *ctx, struct surface *surface)
 static void destruct(struct surface *surface)
 {
 	if (surface->protected.public.gamma_correction != NULL) {
-		dc_gamma_release(surface->protected.public.gamma_correction);
-		surface->protected.public.gamma_correction = NULL;
+		dc_gamma_release(&surface->protected.public.gamma_correction);
 	}
 	if (surface->protected.public.in_transfer_func != NULL) {
 		dc_transfer_func_release(
@@ -189,15 +188,17 @@ void dc_gamma_retain(const struct dc_gamma *dc_gamma)
 	++gamma->ref_count;
 }
 
-void dc_gamma_release(const struct dc_gamma *dc_gamma)
+void dc_gamma_release(const struct dc_gamma **dc_gamma)
 {
-	struct gamma *gamma = DC_GAMMA_TO_GAMMA(dc_gamma);
+	struct gamma *gamma = DC_GAMMA_TO_GAMMA(*dc_gamma);
 
 	ASSERT(gamma->ref_count > 0);
 	--gamma->ref_count;
 
 	if (gamma->ref_count == 0)
 		dm_free(gamma);
+
+	*dc_gamma = NULL;
 }
 
 struct dc_gamma *dc_create_gamma()
