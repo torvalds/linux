@@ -136,6 +136,13 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	unsigned long size_remaining = PAGE_ALIGN(size);
 	unsigned int max_order = orders[0];
 
+	struct list_head lists[8];
+	unsigned int block_index[8] = {0};
+	unsigned int block_1M = 0;
+	unsigned int block_64K = 0;
+	unsigned int maximum;
+	int j;
+
 	if (align > PAGE_SIZE)
 		return -EINVAL;
 
@@ -143,16 +150,38 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&pages);
+
+	for (i = 0; i < 8; i++)
+		INIT_LIST_HEAD(&lists[i]);
+
+	i = 0;
 	while (size_remaining > 0) {
 		page = alloc_largest_available(sys_heap, buffer, size_remaining,
 						max_order);
 		if (!page)
 			goto free_pages;
-		list_add_tail(&page->lru, &pages);
+
 		size_remaining -= PAGE_SIZE << compound_order(page);
 		max_order = compound_order(page);
+		if (max_order) {
+			if (max_order == 8)
+				block_1M++;
+			if (max_order == 4)
+				block_64K++;
+			list_add_tail(&page->lru, &pages);
+		} else {
+			dma_addr_t phys = page_to_phys(page);
+			unsigned int bit12_14 = (phys >> 12) & 0x7;
+
+			list_add_tail(&page->lru, &lists[bit12_14]);
+			block_index[bit12_14]++;
+		}
+
 		i++;
 	}
+
+	pr_debug("%s, %d, i = %d, size = %ld\n", __func__, __LINE__, i, size);
+
 	table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!table)
 		goto free_pages;
@@ -160,11 +189,33 @@ static int ion_system_heap_allocate(struct ion_heap *heap,
 	if (sg_alloc_table(table, i, GFP_KERNEL))
 		goto free_table;
 
+	maximum = block_index[0];
+	for (i = 1; i < 8; i++)
+		maximum = max(maximum, block_index[i]);
+
+	pr_debug("%s, %d, maximum = %d, block_1M = %d, block_64K = %d\n",
+		 __func__, __LINE__, maximum, block_1M, block_64K);
+
+	for (i = 0; i < 8; i++)
+		pr_debug("block_index[%d] = %d\n", i, block_index[i]);
+
 	sg = table->sgl;
 	list_for_each_entry_safe(page, tmp_page, &pages, lru) {
 		sg_set_page(sg, page, PAGE_SIZE << compound_order(page), 0);
 		sg = sg_next(sg);
 		list_del(&page->lru);
+	}
+
+	for (i = 0; i < maximum; i++) {
+		for (j = 0; j < 8; j++) {
+			if (!list_empty(&lists[j])) {
+				page = list_first_entry(&lists[j], struct page,
+							lru);
+				sg_set_page(sg, page, PAGE_SIZE, 0);
+				sg = sg_next(sg);
+				list_del(&page->lru);
+			}
+		}
 	}
 
 	buffer->priv_virt = table;
@@ -175,6 +226,11 @@ free_table:
 free_pages:
 	list_for_each_entry_safe(page, tmp_page, &pages, lru)
 		free_buffer_page(sys_heap, buffer, page);
+
+	for (i = 0; i < 8; i++) {
+		list_for_each_entry_safe(page, tmp_page, &lists[i], lru)
+			free_buffer_page(sys_heap, buffer, page);
+	}
 	return -ENOMEM;
 }
 
