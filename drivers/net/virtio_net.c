@@ -440,7 +440,7 @@ static struct sk_buff *receive_big(struct net_device *dev,
 		struct virtio_net_hdr_mrg_rxbuf *hdr = buf;
 		u32 act;
 
-		if (unlikely(hdr->hdr.gso_type || hdr->hdr.flags))
+		if (unlikely(hdr->hdr.gso_type))
 			goto err_xdp;
 		act = do_xdp_prog(vi, rq, xdp_prog, page, 0, len);
 		switch (act) {
@@ -572,7 +572,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		 * the receive path after XDP is loaded. In practice I
 		 * was not able to create this condition.
 		 */
-		if (unlikely(hdr->hdr.gso_type || hdr->hdr.flags))
+		if (unlikely(hdr->hdr.gso_type))
 			goto err_xdp;
 
 		act = do_xdp_prog(vi, rq, xdp_prog, xdp_page, offset, len);
