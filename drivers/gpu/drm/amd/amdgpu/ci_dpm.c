@@ -6571,8 +6571,8 @@ static int ci_dpm_force_clock_level(struct amdgpu_device *adev,
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 
-	if (adev->pm.dpm.forced_level
-			!= AMD_DPM_FORCED_LEVEL_MANUAL)
+	if (!(adev->pm.dpm.forced_level &
+		(AMD_DPM_FORCED_LEVEL_MANUAL | AMD_DPM_FORCED_LEVEL_PROFILING)))
 		return -EINVAL;
 
 	switch (type) {

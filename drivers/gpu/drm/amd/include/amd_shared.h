@@ -85,6 +85,7 @@ enum amd_dpm_forced_level {
 	AMD_DPM_FORCED_LEVEL_MANUAL = 0x2,
 	AMD_DPM_FORCED_LEVEL_LOW = 0x4,
 	AMD_DPM_FORCED_LEVEL_HIGH = 0x8,
+	AMD_DPM_FORCED_LEVEL_PROFILING = 0x10,
 };
 
 enum amd_powergating_state {

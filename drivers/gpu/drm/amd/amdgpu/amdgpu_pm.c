@@ -124,6 +124,7 @@ static ssize_t amdgpu_get_dpm_forced_performance_level(struct device *dev,
 			(level & AMD_DPM_FORCED_LEVEL_LOW) ? "low" :
 			(level & AMD_DPM_FORCED_LEVEL_HIGH) ? "high" :
 			(level & AMD_DPM_FORCED_LEVEL_MANUAL) ? "manual" :
+			(level & AMD_DPM_FORCED_LEVEL_PROFILING) ? "profiling" :
 			"unknown"));
 }
 
@@ -135,12 +136,15 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
 	enum amd_dpm_forced_level level;
+	enum amd_dpm_forced_level current_level;
 	int ret = 0;
 
 	/* Can't force performance level when the card is off */
 	if  ((adev->flags & AMD_IS_PX) &&
 	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
 		return -EINVAL;
+
+	current_level = amdgpu_dpm_get_performance_level(adev);
 
 	if (strncmp("low", buf, strlen("low")) == 0) {
 		level = AMD_DPM_FORCED_LEVEL_LOW;
@@ -150,10 +154,23 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		level = AMD_DPM_FORCED_LEVEL_AUTO;
 	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
 		level = AMD_DPM_FORCED_LEVEL_MANUAL;
+	} else if (strncmp("profile", buf, strlen("profile")) == 0) {
+		level = AMD_DPM_FORCED_LEVEL_PROFILING;
 	} else {
 		count = -EINVAL;
 		goto fail;
 	}
+
+	if (current_level == level)
+		return 0;
+
+	if (level == AMD_DPM_FORCED_LEVEL_PROFILING)
+		amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_GFX,
+						AMD_CG_STATE_UNGATE);
+	else if (level != AMD_DPM_FORCED_LEVEL_PROFILING &&
+			current_level == AMD_DPM_FORCED_LEVEL_PROFILING)
+		amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_GFX,
+						AMD_CG_STATE_GATE);
 
 	if (adev->pp_enabled)
 		amdgpu_dpm_force_performance_level(adev, level);
