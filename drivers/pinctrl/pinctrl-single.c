@@ -1134,7 +1134,7 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 
 	rows = pinctrl_count_index_with_args(np, name);
 	if (rows <= 0) {
-		dev_err(pcs->dev, "Ivalid number of rows: %d\n", rows);
+		dev_err(pcs->dev, "Invalid number of rows: %d\n", rows);
 		return -EINVAL;
 	}
 
