@@ -993,6 +993,9 @@ bool dce110_link_encoder_construct(
 	enc110->base.features.max_deep_color = COLOR_DEPTH_121212;
 	enc110->base.features.max_hdmi_deep_color = COLOR_DEPTH_121212;
 
+	if (enc110->base.ctx->dc->debug.disable_hdmi_deep_color)
+		enc110->base.features.max_hdmi_deep_color = COLOR_DEPTH_888;
+
 	/* set the flag to indicate whether driver poll the I2C data pin
 	 * while doing the DP sink detect
 	 */
