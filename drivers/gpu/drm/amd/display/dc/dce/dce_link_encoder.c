@@ -1472,6 +1472,9 @@ void dce110_link_encoder_dp_set_phy_pattern(
 	case DP_TEST_PATTERN_TRAINING_PATTERN3:
 		dce110_link_encoder_set_dp_phy_pattern_training_pattern(enc, 2);
 		break;
+	case DP_TEST_PATTERN_TRAINING_PATTERN4:
+		dce110_link_encoder_set_dp_phy_pattern_training_pattern(enc, 3);
+		break;
 	case DP_TEST_PATTERN_D102:
 		set_dp_phy_pattern_d102(enc110);
 		break;
