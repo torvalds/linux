@@ -78,10 +78,6 @@ static int amdgpu_powerplay_init(struct amdgpu_device *adev)
 			amd_pp->ip_funcs = &kv_dpm_ip_funcs;
 			break;
 #endif
-		case CHIP_CARRIZO:
-		case CHIP_STONEY:
-			amd_pp->ip_funcs = &cz_dpm_ip_funcs;
-			break;
 		default:
 			ret = -EINVAL;
 			break;
@@ -102,11 +98,9 @@ static int amdgpu_pp_early_init(void *handle)
 	case CHIP_TONGA:
 	case CHIP_FIJI:
 	case CHIP_TOPAZ:
-		adev->pp_enabled = true;
-		break;
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-		adev->pp_enabled = (amdgpu_powerplay == 0) ? false : true;
+		adev->pp_enabled = true;
 		break;
 	/* These chips don't have powerplay implemenations */
 	case CHIP_BONAIRE:
