@@ -117,7 +117,8 @@ struct dc_link_funcs {
 			struct dc_link_settings *link_setting,
 			bool skip_video_pattern);
 	void (*set_preferred_link_settings)(struct dc *dc,
-			struct dc_link_settings *link_setting);
+			struct dc_link_settings *link_setting,
+			const struct dc_link *link);
 	void (*enable_hpd)(const struct dc_link *link);
 	void (*disable_hpd)(const struct dc_link *link);
 	void (*set_test_pattern)(

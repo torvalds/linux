@@ -357,17 +357,18 @@ static void perform_link_training(struct dc *dc,
 }
 
 static void set_preferred_link_settings(struct dc *dc,
-		struct dc_link_settings *link_setting)
+		struct dc_link_settings *link_setting,
+		const struct dc_link *link)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
-	int i;
+	struct core_link *core_link = DC_LINK_TO_CORE(link);
 
-	for (i = 0; i < core_dc->link_count; i++) {
-		core_dc->links[i]->public.verified_link_cap.lane_count =
+	core_link->public.verified_link_cap.lane_count =
 				link_setting->lane_count;
-		core_dc->links[i]->public.verified_link_cap.link_rate =
+	core_link->public.verified_link_cap.link_rate =
 				link_setting->link_rate;
-	}
+	dp_retrain_link_physi(core_link,
+			link_setting,
+			false);
 }
 
 static void enable_hpd(const struct dc_link *link)
