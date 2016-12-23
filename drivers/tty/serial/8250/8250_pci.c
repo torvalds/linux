@@ -1477,10 +1477,15 @@ static int pci_fintek_init(struct pci_dev *dev)
 {
 	unsigned long iobase;
 	u32 max_port, i;
-	u32 bar_data[3];
+	resource_size_t bar_data[3];
 	u8 config_base;
 	struct serial_private *priv = pci_get_drvdata(dev);
 	struct uart_8250_port *port;
+
+	if (!(pci_resource_flags(dev, 5) & IORESOURCE_IO) ||
+			!(pci_resource_flags(dev, 4) & IORESOURCE_IO) ||
+			!(pci_resource_flags(dev, 3) & IORESOURCE_IO))
+		return -ENODEV;
 
 	switch (dev->device) {
 	case 0x1104: /* 4 ports */
@@ -1495,9 +1500,9 @@ static int pci_fintek_init(struct pci_dev *dev)
 	}
 
 	/* Get the io address dispatch from the BIOS */
-	pci_read_config_dword(dev, 0x24, &bar_data[0]);
-	pci_read_config_dword(dev, 0x20, &bar_data[1]);
-	pci_read_config_dword(dev, 0x1c, &bar_data[2]);
+	bar_data[0] = pci_resource_start(dev, 5);
+	bar_data[1] = pci_resource_start(dev, 4);
+	bar_data[2] = pci_resource_start(dev, 3);
 
 	for (i = 0; i < max_port; ++i) {
 		/* UART0 configuration offset start from 0x40 */
