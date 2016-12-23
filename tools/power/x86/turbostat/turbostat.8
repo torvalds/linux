@@ -25,6 +25,28 @@ Some information is not available on older processors.
 .SS Options
 Options can be specified with a single or double '-', and only as much of the option
 name as necessary to disambiguate it from others is necessary.  Note that options are case-sensitive.
+.PP
+\fB--add attributes\fP add column with counter having specified 'attributes'.  The 'location' attribute is required, all others are optional.
+.nf
+	location: {\fBmsrDDD\fP | \fBmsr0xXXX\fP}
+		msrDDD is a decimal offset, eg. msr16
+		msr0xXXX is a hex offset, eg. msr0x10
+
+	scope: {\fBcpu\fP | \fBcore\fP | \fBpackage\fP}
+		sample and print the counter for every cpu, core, or package.
+		default: cpu
+
+	size: {\fBu32\fP | \fBu64\fP }
+		MSRs are read as 64-bits, u32 truncates the displayed value to 32-bits.
+		default: u64
+
+	format: {\fBraw\fP | \fBdelta\fP | \fBpercent\fP}
+		'raw' shows the MSR contents in hex.
+		'delta' shows the difference in values during the measurement interval.
+		'percent' shows the delta as a percentage of the cycles elapsed.
+		default: delta
+.fi
+.PP
 \fB--Counter MSR#\fP shows the delta of the specified 64-bit MSR counter.
 .PP
 \fB--counter MSR#\fP shows the delta of the specified 32-bit MSR counter.

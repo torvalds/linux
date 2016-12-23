@@ -147,6 +147,12 @@ unsigned int has_hwp_pkg;		/* IA32_HWP_REQUEST_PKG */
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+/*
+ * buffer size used by sscanf() for added column names
+ * Usually truncated to 7 characters, but also handles 18 columns for raw 64-bit counters
+ */
+#define	NAME_BYTES 20
+
 int backwards_count;
 char *progname;
 
@@ -168,6 +174,7 @@ struct thread_data {
 	unsigned int flags;
 #define CPU_IS_FIRST_THREAD_IN_CORE	0x2
 #define CPU_IS_FIRST_CORE_IN_PACKAGE	0x4
+	unsigned long long counter[1];
 } *thread_even, *thread_odd;
 
 struct core_data {
@@ -176,6 +183,7 @@ struct core_data {
 	unsigned long long c7;
 	unsigned int core_temp_c;
 	unsigned int core_id;
+	unsigned long long counter[1];
 } *core_even, *core_odd;
 
 struct pkg_data {
@@ -200,7 +208,7 @@ struct pkg_data {
 	unsigned int rapl_pkg_perf_status;	/* MSR_PKG_PERF_STATUS */
 	unsigned int rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
 	unsigned int pkg_temp_c;
-
+	unsigned long long counter[1];
 } *package_even, *package_odd;
 
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
@@ -214,11 +222,33 @@ struct pkg_data {
 	(core_base + (pkg_no) * topo.num_cores_per_pkg + (core_no))
 #define GET_PKG(pkg_base, pkg_no) (pkg_base + pkg_no)
 
+enum counter_scope {SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE};
+enum counter_type {COUNTER_CYCLES, COUNTER_SECONDS};
+enum counter_format {FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT};
+
+struct msr_counter {
+	unsigned int msr_num;
+	char name[NAME_BYTES];
+	unsigned int width;
+	enum counter_type type;
+	enum counter_format format;
+	struct msr_counter *next;
+};
+
+struct sys_counters {
+	unsigned int thread_counter_bytes;
+	unsigned int core_counter_bytes;
+	unsigned int package_counter_bytes;
+	struct msr_counter *tp;
+	struct msr_counter *cp;
+	struct msr_counter *pp;
+} sys;
+
 struct system_summary {
 	struct thread_data threads;
 	struct core_data cores;
 	struct pkg_data packages;
-} sum, average;
+} average;
 
 
 struct topo_params {
@@ -320,12 +350,14 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 /*
  * Example Format w/ field column widths:
  *
- *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     IRQ   SMI   Busy% CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 CoreTmp  PkgTmp  GFXMHz Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt
+ *  Package    Core     CPU Avg_MHz Bzy_MHz TSC_MHz     IRQ   SMI   Busy% CPU_%c1 CPU_%c3 CPU_%c6 CPU_%c7 ThreadC CoreTmp  CoreCnt PkgTmp  GFXMHz Pkg%pc2 Pkg%pc3 Pkg%pc6 Pkg%pc7 PkgWatt CorWatt GFXWatt PkgCnt
  * 12345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678123456781234567812345678
  */
 
 void print_header(void)
 {
+	struct msr_counter *mp;
+
 	if (show_pkg)
 		outp += sprintf(outp, "\tPackage");
 	if (show_core)
@@ -366,8 +398,31 @@ void print_header(void)
 	if (do_snb_cstates)
 		outp += sprintf(outp, "\tCPU%%c7");
 
+	for (mp = sys.tp; mp; mp = mp->next) {
+		if (mp->format == FORMAT_RAW) {
+			if (mp->width == 64)
+				outp += sprintf(outp, "\t%18.18s", mp->name);
+			else
+				outp += sprintf(outp, "\t%10.10s", mp->name);
+		} else {
+			outp += sprintf(outp, "\t%-7.7s", mp->name);
+		}
+	}
+
 	if (do_dts)
 		outp += sprintf(outp, "\tCoreTmp");
+
+	for (mp = sys.cp; mp; mp = mp->next) {
+		if (mp->format == FORMAT_RAW) {
+			if (mp->width == 64)
+				outp += sprintf(outp, "\t%18.18s", mp->name);
+			else
+				outp += sprintf(outp, "\t%10.10s", mp->name);
+		} else {
+			outp += sprintf(outp, "\t%-7.7s", mp->name);
+		}
+	}
+
 	if (do_ptm)
 		outp += sprintf(outp, "\tPkgTmp");
 
@@ -425,13 +480,27 @@ void print_header(void)
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
 			outp += sprintf(outp, "\tRAM_%%");
 	}
-    done:
+	for (mp = sys.pp; mp; mp = mp->next) {
+		if (mp->format == FORMAT_RAW) {
+			if (mp->width == 64)
+				outp += sprintf(outp, "\t%18.18s", mp->name);
+			else
+				outp += sprintf(outp, "\t%10.10s", mp->name);
+		} else {
+			outp += sprintf(outp, "\t%-7.7s", mp->name);
+		}
+	}
+
+done:
 	outp += sprintf(outp, "\n");
 }
 
 int dump_counters(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p)
 {
+	int i;
+	struct msr_counter *mp;
+
 	outp += sprintf(outp, "t %p, c %p, p %p\n", t, c, p);
 
 	if (t) {
@@ -453,6 +522,11 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 			outp += sprintf(outp, "IRQ: %08X\n", t->irq_count);
 		if (do_smi)
 			outp += sprintf(outp, "SMI: %08X\n", t->smi_count);
+
+		for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
+			outp += sprintf(outp, "tADDED [%d] msr0x%x: %08llX\n",
+				i, mp->msr_num, t->counter[i]);
+		}
 	}
 
 	if (c) {
@@ -461,6 +535,11 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "c6: %016llX\n", c->c6);
 		outp += sprintf(outp, "c7: %016llX\n", c->c7);
 		outp += sprintf(outp, "DTS: %dC\n", c->core_temp_c);
+
+		for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
+			outp += sprintf(outp, "cADDED [%d] msr0x%x: %08llX\n",
+				i, mp->msr_num, c->counter[i]);
+		}
 	}
 
 	if (p) {
@@ -490,6 +569,11 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "Throttle RAM: %0X\n",
 			p->rapl_dram_perf_status);
 		outp += sprintf(outp, "PTM: %dC\n", p->pkg_temp_c);
+
+		for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
+			outp += sprintf(outp, "pADDED [%d] msr0x%x: %08llX\n",
+				i, mp->msr_num, p->counter[i]);
+		}
 	}
 
 	outp += sprintf(outp, "\n");
@@ -505,6 +589,8 @@ int format_counters(struct thread_data *t, struct core_data *c,
 {
 	double interval_float;
 	char *fmt8;
+	int i;
+	struct msr_counter *mp;
 
 	 /* if showing only 1st thread in core and this isn't one, bail out */
 	if (show_core_only && !(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
@@ -602,8 +688,35 @@ int format_counters(struct thread_data *t, struct core_data *c,
 	if (do_snb_cstates)
 		outp += sprintf(outp, "\t%.2f", 100.0 * c->c7/t->tsc);
 
+	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW) {
+			if (mp->width == 32)
+				outp += sprintf(outp, "\t0x%08lx", (unsigned long) t->counter[i]);
+			else
+				outp += sprintf(outp, "\t0x%016llx", t->counter[i]);
+		} else if (mp->format == FORMAT_DELTA) {
+			outp += sprintf(outp, "\t%8lld", t->counter[i]);
+		} else if (mp->format == FORMAT_PERCENT) {
+			outp += sprintf(outp, "\t%.2f", 100.0 * t->counter[i]/t->tsc);
+		}
+	}
+
+
 	if (do_dts)
 		outp += sprintf(outp, "\t%d", c->core_temp_c);
+
+	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW) {
+			if (mp->width == 32)
+				outp += sprintf(outp, "\t0x%08lx", (unsigned long) c->counter[i]);
+			else
+				outp += sprintf(outp, "\t0x%016llx", c->counter[i]);
+		} else if (mp->format == FORMAT_DELTA) {
+			outp += sprintf(outp, "\t%8lld", c->counter[i]);
+		} else if (mp->format == FORMAT_PERCENT) {
+			outp += sprintf(outp, "\t%.2f", 100.0 * c->counter[i]/t->tsc);
+		}
+	}
 
 	/* print per-package data only for 1st core in package */
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
@@ -689,6 +802,19 @@ int format_counters(struct thread_data *t, struct core_data *c,
 		if (do_rapl & RAPL_DRAM_PERF_STATUS)
 			outp += sprintf(outp, fmt8, 100.0 * p->rapl_dram_perf_status * rapl_time_units / interval_float);
 	}
+	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW) {
+			if (mp->width == 32)
+				outp += sprintf(outp, "\t0x%08lx", (unsigned long) p->counter[i]);
+			else
+				outp += sprintf(outp, "\t0x%016llx", p->counter[i]);
+		} else if (mp->format == FORMAT_DELTA) {
+			outp += sprintf(outp, "\t%8lld", p->counter[i]);
+		} else if (mp->format == FORMAT_PERCENT) {
+			outp += sprintf(outp, "\t%.2f", 100.0 * p->counter[i]/t->tsc);
+		}
+	}
+
 done:
 	outp += sprintf(outp, "\n");
 
@@ -744,6 +870,8 @@ void format_all_counters(struct thread_data *t, struct core_data *c, struct pkg_
 int
 delta_package(struct pkg_data *new, struct pkg_data *old)
 {
+	int i;
+	struct msr_counter *mp;
 
 	if (do_skl_residency) {
 		old->pkg_wtd_core_c0 = new->pkg_wtd_core_c0 - old->pkg_wtd_core_c0;
@@ -778,16 +906,33 @@ delta_package(struct pkg_data *new, struct pkg_data *old)
 	DELTA_WRAP32(new->rapl_pkg_perf_status, old->rapl_pkg_perf_status);
 	DELTA_WRAP32(new->rapl_dram_perf_status, old->rapl_dram_perf_status);
 
+	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			old->counter[i] = new->counter[i];
+		else
+			old->counter[i] = new->counter[i] - old->counter[i];
+	}
+
 	return 0;
 }
 
 void
 delta_core(struct core_data *new, struct core_data *old)
 {
+	int i;
+	struct msr_counter *mp;
+
 	old->c3 = new->c3 - old->c3;
 	old->c6 = new->c6 - old->c6;
 	old->c7 = new->c7 - old->c7;
 	old->core_temp_c = new->core_temp_c;
+
+	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			old->counter[i] = new->counter[i];
+		else
+			old->counter[i] = new->counter[i] - old->counter[i];
+	}
 }
 
 /*
@@ -797,6 +942,9 @@ int
 delta_thread(struct thread_data *new, struct thread_data *old,
 	struct core_data *core_delta)
 {
+	int i;
+	struct msr_counter *mp;
+
 	old->tsc = new->tsc - old->tsc;
 
 	/* check for TSC < 1 Mcycles over interval */
@@ -860,6 +1008,12 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 	if (do_smi)
 		old->smi_count = new->smi_count - old->smi_count;
 
+	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			old->counter[i] = new->counter[i];
+		else
+			old->counter[i] = new->counter[i] - old->counter[i];
+	}
 	return 0;
 }
 
@@ -887,6 +1041,9 @@ int delta_cpu(struct thread_data *t, struct core_data *c,
 
 void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 {
+	int i;
+	struct msr_counter  *mp;
+
 	t->tsc = 0;
 	t->aperf = 0;
 	t->mperf = 0;
@@ -932,10 +1089,22 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 
 	p->gfx_rc6_ms = 0;
 	p->gfx_mhz = 0;
+
+	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next)
+		t->counter[i] = 0;
+
+	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next)
+		c->counter[i] = 0;
+
+	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next)
+		p->counter[i] = 0;
 }
 int sum_counters(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p)
 {
+	int i;
+	struct msr_counter *mp;
+
 	average.threads.tsc += t->tsc;
 	average.threads.aperf += t->aperf;
 	average.threads.mperf += t->mperf;
@@ -947,6 +1116,12 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.threads.irq_count += t->irq_count;
 	average.threads.smi_count += t->smi_count;
 
+	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			continue;
+		average.threads.counter[i] += t->counter[i];
+	}
+
 	/* sum per-core values only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		return 0;
@@ -956,6 +1131,12 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.cores.c7 += c->c7;
 
 	average.cores.core_temp_c = MAX(average.cores.core_temp_c, c->core_temp_c);
+
+	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			continue;
+		average.cores.counter[i] += c->counter[i];
+	}
 
 	/* sum per-pkg values only for 1st core in pkg */
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
@@ -991,6 +1172,12 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 
 	average.packages.rapl_pkg_perf_status += p->rapl_pkg_perf_status;
 	average.packages.rapl_dram_perf_status += p->rapl_dram_perf_status;
+
+	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			continue;
+		average.packages.counter[i] += p->counter[i];
+	}
 	return 0;
 }
 /*
@@ -1000,6 +1187,9 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 void compute_average(struct thread_data *t, struct core_data *c,
 	struct pkg_data *p)
 {
+	int i;
+	struct msr_counter *mp;
+
 	clear_counters(&average.threads, &average.cores, &average.packages);
 
 	for_all_cpus(sum_counters, t, c, p);
@@ -1036,6 +1226,22 @@ void compute_average(struct thread_data *t, struct core_data *c,
 	average.packages.pc8 /= topo.num_packages;
 	average.packages.pc9 /= topo.num_packages;
 	average.packages.pc10 /= topo.num_packages;
+
+	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			continue;
+		average.threads.counter[i] /= topo.num_cpus;
+	}
+	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			continue;
+		average.cores.counter[i] /= topo.num_cores;
+	}
+	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
+		if (mp->format == FORMAT_RAW)
+			continue;
+		average.packages.counter[i] /= topo.num_packages;
+	}
 }
 
 static unsigned long long rdtsc(void)
@@ -1057,6 +1263,8 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	int cpu = t->cpu_id;
 	unsigned long long msr;
 	int aperf_mperf_retry_count = 0;
+	struct msr_counter *mp;
+	int i;
 
 	if (cpu_migrate(cpu)) {
 		fprintf(outf, "Could not migrate to CPU %d\n", cpu);
@@ -1154,6 +1362,12 @@ retry:
 			return -6;
 	}
 
+	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
+		if (get_msr(cpu, mp->msr_num, &t->counter[i]))
+			return -10;
+	}
+
+
 	/* collect core counters only for 1st thread in core */
 	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		return 0;
@@ -1181,6 +1395,10 @@ retry:
 		c->core_temp_c = tcc_activation_temp - ((msr >> 16) & 0x7F);
 	}
 
+	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
+		if (get_msr(cpu, mp->msr_num, &c->counter[i]))
+			return -10;
+	}
 
 	/* collect package counters only for 1st core in package */
 	if (!(t->flags & CPU_IS_FIRST_CORE_IN_PACKAGE))
@@ -1257,6 +1475,11 @@ retry:
 
 	if (do_gfx_mhz)
 		p->gfx_mhz = gfx_cur_mhz;
+
+	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
+		if (get_msr(cpu, mp->msr_num, &p->counter[i]))
+			return -10;
+	}
 
 	return 0;
 }
@@ -2740,7 +2963,7 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 	cpu = t->cpu_id;
 
 	/* DTS is per-core, no need to print for each thread */
-	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE)) 
+	if (!(t->flags & CPU_IS_FIRST_THREAD_IN_CORE))
 		return 0;
 
 	if (cpu_migrate(cpu)) {
@@ -3391,6 +3614,8 @@ void help()
 	"when COMMAND completes.\n"
 	"If no COMMAND is specified, turbostat wakes every 5-seconds\n"
 	"to print statistics, until interrupted.\n"
+	"--add		add a counter\n"
+	"		eg. --add msr0x10,u64,cpu,delta,MY_TSC\n"
 	"--debug	run in \"debug\" mode\n"
 	"--interval sec	Override default 5-second measurement interval\n"
 	"--help		print this help message\n"
@@ -3521,7 +3746,7 @@ allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data 
 	int i;
 
 	*t = calloc(topo.num_threads_per_core * topo.num_cores_per_pkg *
-		topo.num_packages, sizeof(struct thread_data));
+		topo.num_packages, sizeof(struct thread_data) + sys.thread_counter_bytes);
 	if (*t == NULL)
 		goto error;
 
@@ -3530,14 +3755,14 @@ allocate_counters(struct thread_data **t, struct core_data **c, struct pkg_data 
 		(*t)[i].cpu_id = -1;
 
 	*c = calloc(topo.num_cores_per_pkg * topo.num_packages,
-		sizeof(struct core_data));
+		sizeof(struct core_data) + sys.core_counter_bytes);
 	if (*c == NULL)
 		goto error;
 
 	for (i = 0; i < topo.num_cores_per_pkg * topo.num_packages; i++)
 		(*c)[i].core_id = -1;
 
-	*p = calloc(topo.num_packages, sizeof(struct pkg_data));
+	*p = calloc(topo.num_packages, sizeof(struct pkg_data) + sys.package_counter_bytes);
 	if (*p == NULL)
 		goto error;
 
@@ -3735,15 +3960,165 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 4.14 22 Apr 2016"
+	fprintf(outf, "turbostat version 4.15 21 Dec 2016"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
+int add_counter(unsigned int msr_num, char *name, unsigned int width,
+	enum counter_scope scope, enum counter_type type,
+	enum counter_format format)
+{
+	struct msr_counter *msrp;
+
+	msrp = calloc(1, sizeof(struct msr_counter));
+	if (msrp == NULL) {
+		perror("calloc");
+		exit(1);
+	}
+
+	msrp->msr_num = msr_num;
+	strncpy(msrp->name, name, NAME_BYTES);
+	msrp->width = width;
+	msrp->type = type;
+	msrp->format = format;
+
+	switch (scope) {
+
+	case SCOPE_CPU:
+		sys.thread_counter_bytes += 64;
+		msrp->next = sys.tp;
+		sys.tp = msrp;
+		sys.thread_counter_bytes += sizeof(unsigned long long);
+		break;
+
+	case SCOPE_CORE:
+		sys.core_counter_bytes += 64;
+		msrp->next = sys.cp;
+		sys.cp = msrp;
+		sys.core_counter_bytes += sizeof(unsigned long long);
+		break;
+
+	case SCOPE_PACKAGE:
+		sys.package_counter_bytes += 64;
+		msrp->next = sys.pp;
+		sys.pp = msrp;
+		sys.package_counter_bytes += sizeof(unsigned long long);
+		break;
+	}
+
+	return 0;
+}
+
+void parse_add_command(char *add_command)
+{
+	int msr_num = 0;
+	char name_buffer[NAME_BYTES];
+	int width = 64;
+	int fail = 0;
+	enum counter_scope scope = SCOPE_CPU;
+	enum counter_type type = COUNTER_CYCLES;
+	enum counter_format format = FORMAT_DELTA;
+
+	while (add_command) {
+
+		if (sscanf(add_command, "msr0x%x", &msr_num) == 1)
+			goto next;
+
+		if (sscanf(add_command, "msr%d", &msr_num) == 1)
+			goto next;
+
+		if (sscanf(add_command, "u%d", &width) == 1) {
+			if ((width == 32) || (width == 64))
+				goto next;
+			width = 64;
+		}
+		if (!strncmp(add_command, "cpu", strlen("cpu"))) {
+			scope = SCOPE_CPU;
+			goto next;
+		}
+		if (!strncmp(add_command, "core", strlen("core"))) {
+			scope = SCOPE_CORE;
+			goto next;
+		}
+		if (!strncmp(add_command, "package", strlen("package"))) {
+			scope = SCOPE_PACKAGE;
+			goto next;
+		}
+		if (!strncmp(add_command, "cycles", strlen("cycles"))) {
+			type = COUNTER_CYCLES;
+			goto next;
+		}
+		if (!strncmp(add_command, "seconds", strlen("seconds"))) {
+			type = COUNTER_SECONDS;
+			goto next;
+		}
+		if (!strncmp(add_command, "raw", strlen("raw"))) {
+			format = FORMAT_RAW;
+			goto next;
+		}
+		if (!strncmp(add_command, "delta", strlen("delta"))) {
+			format = FORMAT_DELTA;
+			goto next;
+		}
+		if (!strncmp(add_command, "percent", strlen("percent"))) {
+			format = FORMAT_PERCENT;
+			goto next;
+		}
+
+		if (sscanf(add_command, "%18s,%*s", name_buffer) == 1) {	/* 18 < NAME_BYTES */
+			char *eos;
+
+			eos = strchr(name_buffer, ',');
+			if (eos)
+				*eos = '\0';
+			goto next;
+		}
+
+next:
+		add_command = strchr(add_command, ',');
+		if (add_command)
+			add_command++;
+
+	}
+	if (msr_num == 0) {
+		fprintf(stderr, "--add: (msrDDD | msr0xXXX) required\n");
+		fail++;
+	}
+
+	/* generate default column header */
+	if (*name_buffer == '\0') {
+		if (format == FORMAT_RAW) {
+			if (width == 32)
+				sprintf(name_buffer, "msr%d", msr_num);
+			else
+				sprintf(name_buffer, "MSR%d", msr_num);
+		} else if (format == FORMAT_DELTA) {
+			if (width == 32)
+				sprintf(name_buffer, "cnt%d", msr_num);
+			else
+				sprintf(name_buffer, "CNT%d", msr_num);
+		} else if (format == FORMAT_PERCENT) {
+			if (width == 32)
+				sprintf(name_buffer, "msr%d%%", msr_num);
+			else
+				sprintf(name_buffer, "MSR%d%%", msr_num);
+		}
+	}
+
+	if (add_counter(msr_num, name_buffer, width, scope, type, format))
+		fail++;
+
+	if (fail) {
+		help();
+		exit(1);
+	}
+}
 void cmdline(int argc, char **argv)
 {
 	int opt;
 	int option_index = 0;
 	static struct option long_options[] = {
+		{"add",		required_argument,	0, 'a'},
 		{"Counter",	required_argument,	0, 'C'},
 		{"counter",	required_argument,	0, 'c'},
 		{"Dump",	no_argument,		0, 'D'},
@@ -3767,6 +4142,9 @@ void cmdline(int argc, char **argv)
 	while ((opt = getopt_long_only(argc, argv, "+C:c:Ddhi:JM:m:o:PpST:v",
 				long_options, &option_index)) != -1) {
 		switch (opt) {
+		case 'a':
+			parse_add_command(optarg);
+			break;
 		case 'C':
 			sscanf(optarg, "%x", &extra_delta_offset64);
 			break;
