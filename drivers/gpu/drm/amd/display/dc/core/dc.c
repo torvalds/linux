@@ -1526,6 +1526,9 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				}
 			}
 
+			if (dc->debug.disable_color_module)
+				continue;  /* skip below color updates */
+
 			if (updates[i].hdr_static_metadata) {
 				resource_build_info_frame(pipe_ctx);
 				core_dc->hwss.update_info_frame(pipe_ctx);
