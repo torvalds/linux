@@ -643,10 +643,10 @@ static void initialize_fix_point_color_values(
 /* Given a specific dc_sink* this function finds its equivalent
  * on the dc_sink array and returns the corresponding index
  */
-static unsigned int sink_index_from_sink(struct core_color *core_color,
+static int sink_index_from_sink(struct core_color *core_color,
 		const struct dc_sink *sink)
 {
-	unsigned int index = 0;
+	int index = 0;
 
 	for (index = 0; index < core_color->num_sinks; index++)
 		if (core_color->caps[index].sink == sink)
@@ -654,7 +654,7 @@ static unsigned int sink_index_from_sink(struct core_color *core_color,
 
 	/* Could not find sink requested */
 	ASSERT(false);
-	return index;
+	return -1;
 }
 
 static void calculate_rgb_matrix_legacy(struct core_color *core_color,
@@ -1427,6 +1427,65 @@ static bool update_color_gamut_data(struct color_gamut_data *input_data,
 	return true;
 }
 
+void initialize_color_state(struct core_color *core_color, int index)
+{
+	core_color->state[index].user_enable_color_temperature = true;
+
+	core_color->state[index].custom_color_temperature = 6500;
+
+	core_color->state[index].contrast.current = 100;
+	core_color->state[index].contrast.min = 0;
+	core_color->state[index].contrast.max = 200;
+
+	core_color->state[index].saturation.current = 100;
+	core_color->state[index].saturation.min = 0;
+	core_color->state[index].saturation.max = 200;
+
+	core_color->state[index].brightness.current = 0;
+	core_color->state[index].brightness.min = -100;
+	core_color->state[index].brightness.max = 100;
+
+	core_color->state[index].hue.current = 0;
+	core_color->state[index].hue.min = -30;
+	core_color->state[index].hue.max = 30;
+
+	core_color->state[index].gamma = NULL;
+
+	core_color->state[index].preferred_quantization_range =
+		QUANTIZATION_RANGE_FULL;
+
+	core_color->state[index].source_gamut.color_space =
+		color_space_srgb;
+	core_color->state[index].source_gamut.white_point =
+		color_white_point_type_6500k_noon;
+	core_color->state[index].source_gamut.gamut.blueX = 1500;
+	core_color->state[index].source_gamut.gamut.blueY = 600;
+	core_color->state[index].source_gamut.gamut.greenX = 3000;
+	core_color->state[index].source_gamut.gamut.greenY = 6000;
+	core_color->state[index].source_gamut.gamut.redX = 6400;
+	core_color->state[index].source_gamut.gamut.redY = 3300;
+	core_color->state[index].source_gamut.gamut.whiteX = 3127;
+	core_color->state[index].source_gamut.gamut.whiteY = 3290;
+
+	core_color->state[index].destination_gamut.color_space =
+		color_space_srgb;
+	core_color->state[index].destination_gamut.white_point =
+		color_white_point_type_6500k_noon;
+	core_color->state[index].destination_gamut.gamut.blueX = 1500;
+	core_color->state[index].destination_gamut.gamut.blueY = 600;
+	core_color->state[index].destination_gamut.gamut.greenX = 3000;
+	core_color->state[index].destination_gamut.gamut.greenY = 6000;
+	core_color->state[index].destination_gamut.gamut.redX = 6400;
+	core_color->state[index].destination_gamut.gamut.redY = 3300;
+	core_color->state[index].destination_gamut.gamut.whiteX = 3127;
+	core_color->state[index].destination_gamut.gamut.whiteY = 3290;
+
+	core_color->state[index].input_transfer_function =
+				transfer_func_srgb;
+	core_color->state[index].output_transfer_function =
+				transfer_func_srgb;
+}
+
 struct mod_color *mod_color_create(struct dc *dc)
 {
 	int i = 0;
@@ -1452,54 +1511,7 @@ struct mod_color *mod_color_create(struct dc *dc)
 
 	/*hardcoded to sRGB with 6500 color temperature*/
 	for (i = 0; i < MOD_COLOR_MAX_CONCURRENT_SINKS; i++) {
-		core_color->state[i].source_gamut.color_space =
-				color_space_srgb;
-		core_color->state[i].source_gamut.white_point =
-				color_white_point_type_6500k_noon;
-		core_color->state[i].source_gamut.gamut.blueX = 1500;
-		core_color->state[i].source_gamut.gamut.blueY = 600;
-		core_color->state[i].source_gamut.gamut.greenX = 3000;
-		core_color->state[i].source_gamut.gamut.greenY = 6000;
-		core_color->state[i].source_gamut.gamut.redX = 6400;
-		core_color->state[i].source_gamut.gamut.redY = 3300;
-		core_color->state[i].source_gamut.gamut.whiteX = 3127;
-		core_color->state[i].source_gamut.gamut.whiteY = 3290;
-
-		core_color->state[i].destination_gamut.color_space =
-				color_space_srgb;
-		core_color->state[i].destination_gamut.white_point =
-				color_white_point_type_6500k_noon;
-		core_color->state[i].destination_gamut.gamut.blueX = 1500;
-		core_color->state[i].destination_gamut.gamut.blueY = 600;
-		core_color->state[i].destination_gamut.gamut.greenX = 3000;
-		core_color->state[i].destination_gamut.gamut.greenY = 6000;
-		core_color->state[i].destination_gamut.gamut.redX = 6400;
-		core_color->state[i].destination_gamut.gamut.redY = 3300;
-		core_color->state[i].destination_gamut.gamut.whiteX = 3127;
-		core_color->state[i].destination_gamut.gamut.whiteY = 3290;
-
-		core_color->state[i].input_transfer_function =
-						transfer_func_srgb;
-		core_color->state[i].output_transfer_function =
-						transfer_func_srgb;
-
-		core_color->state[i].custom_color_temperature = 6500;
-
-		core_color->state[i].contrast.current = 100;
-		core_color->state[i].contrast.min = 0;
-		core_color->state[i].contrast.max = 200;
-
-		core_color->state[i].saturation.current = 100;
-		core_color->state[i].saturation.min = 0;
-		core_color->state[i].saturation.max = 200;
-
-		core_color->state[i].brightness.current = 0;
-		core_color->state[i].brightness.min = -100;
-		core_color->state[i].brightness.max = 100;
-
-		core_color->state[i].hue.current = 0;
-		core_color->state[i].hue.min = -30;
-		core_color->state[i].hue.max = 30;
+		initialize_color_state(core_color, i);
 	}
 
 	if (core_color->state == NULL)
@@ -1589,8 +1601,8 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 	if (core_color->num_sinks < MOD_COLOR_MAX_CONCURRENT_SINKS) {
 		dc_sink_retain(sink);
 		core_color->caps[core_color->num_sinks].sink = sink;
-		core_color->state[core_color->num_sinks].
-				user_enable_color_temperature = true;
+
+		initialize_color_state(core_color, core_color->num_sinks);
 
 		core_color->edid_caps[core_color->num_sinks].colorimetry_caps =
 				edid_caps->colorimetry_caps;
@@ -1601,7 +1613,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 		flag.save_per_edid = true;
 		flag.save_per_link = false;
 
-
 		if (dm_read_persistent_data(core_dc->ctx, sink,
 						COLOR_REGISTRY_NAME,
 						"enablecolortempadj",
@@ -1610,9 +1621,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 			core_color->state[core_color->num_sinks].
 				user_enable_color_temperature =
 						persistent_color_temp_enable;
-		else
-			core_color->state[core_color->num_sinks].
-				user_enable_color_temperature = true;
 
 		if (dm_read_persistent_data(core_dc->ctx, sink,
 						COLOR_REGISTRY_NAME,
@@ -1622,9 +1630,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 			core_color->state[core_color->num_sinks].
 					custom_color_temperature
 					= persistent_custom_color_temp;
-		else
-			core_color->state[core_color->num_sinks].
-					custom_color_temperature = 6500;
 
 		if (dm_read_persistent_data(core_dc->ctx, sink,
 					COLOR_REGISTRY_NAME,
@@ -1635,23 +1640,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 			memcpy(&core_color->state[core_color->num_sinks].
 				source_gamut.gamut, &persistent_source_gamut,
 				sizeof(struct color_space_coordinates));
-		} else {
-			core_color->state[core_color->num_sinks].
-					source_gamut.gamut.blueX = 1500;
-			core_color->state[core_color->num_sinks].
-					source_gamut.gamut.blueY = 600;
-			core_color->state[core_color->num_sinks].
-					source_gamut.gamut.greenX = 3000;
-			core_color->state[core_color->num_sinks].
-					source_gamut.gamut.greenY = 6000;
-			core_color->state[core_color->num_sinks].
-					source_gamut.gamut.redX = 6400;
-			core_color->state[core_color->num_sinks].
-					source_gamut.gamut.redY = 3300;
-			core_color->state[core_color->num_sinks].
-					source_gamut.gamut.whiteX = 3127;
-			core_color->state[core_color->num_sinks].
-					source_gamut.gamut.whiteY = 3290;
 		}
 
 		if (dm_read_persistent_data(core_dc->ctx, sink, COLOR_REGISTRY_NAME,
@@ -1663,23 +1651,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 				destination_gamut.gamut,
 				&persistent_destination_gamut,
 				sizeof(struct color_space_coordinates));
-		} else {
-			core_color->state[core_color->num_sinks].
-					destination_gamut.gamut.blueX = 1500;
-			core_color->state[core_color->num_sinks].
-					destination_gamut.gamut.blueY = 600;
-			core_color->state[core_color->num_sinks].
-					destination_gamut.gamut.greenX = 3000;
-			core_color->state[core_color->num_sinks].
-					destination_gamut.gamut.greenY = 6000;
-			core_color->state[core_color->num_sinks].
-					destination_gamut.gamut.redX = 6400;
-			core_color->state[core_color->num_sinks].
-					destination_gamut.gamut.redY = 3300;
-			core_color->state[core_color->num_sinks].
-					destination_gamut.gamut.whiteX = 3127;
-			core_color->state[core_color->num_sinks].
-					destination_gamut.gamut.whiteY = 3290;
 		}
 
 		if (dm_read_persistent_data(core_dc->ctx, sink, COLOR_REGISTRY_NAME,
@@ -1688,9 +1659,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 						sizeof(int), &flag))
 			core_color->state[core_color->num_sinks].
 				brightness.current = persistent_brightness;
-		else
-			core_color->state[core_color->num_sinks].
-				brightness.current = 0;
 
 		if (dm_read_persistent_data(core_dc->ctx, sink, COLOR_REGISTRY_NAME,
 						"contrast",
@@ -1698,9 +1666,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 						sizeof(int), &flag))
 			core_color->state[core_color->num_sinks].
 				contrast.current = persistent_contrast;
-		else
-			core_color->state[core_color->num_sinks].
-				contrast.current = 100;
 
 		if (dm_read_persistent_data(core_dc->ctx, sink, COLOR_REGISTRY_NAME,
 						"hue",
@@ -1708,9 +1673,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 						sizeof(int), &flag))
 			core_color->state[core_color->num_sinks].
 				hue.current = persistent_hue;
-		else
-			core_color->state[core_color->num_sinks].
-				hue.current = 0;
 
 		if (dm_read_persistent_data(core_dc->ctx, sink, COLOR_REGISTRY_NAME,
 						"saturation",
@@ -1718,9 +1680,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 						sizeof(int), &flag))
 			core_color->state[core_color->num_sinks].
 				saturation.current = persistent_saturation;
-		else
-			core_color->state[core_color->num_sinks].
-				saturation.current = 100;
 
 		if (dm_read_persistent_data(core_dc->ctx, sink,
 						COLOR_REGISTRY_NAME,
@@ -1730,9 +1689,6 @@ bool mod_color_add_sink(struct mod_color *mod_color, const struct dc_sink *sink,
 			core_color->state[core_color->num_sinks].
 			preferred_quantization_range =
 					persistent_quantization_range;
-		else
-			core_color->state[core_color->num_sinks].
-			preferred_quantization_range = QUANTIZATION_RANGE_FULL;
 
 		core_color->num_sinks++;
 		return true;
@@ -1751,6 +1707,10 @@ bool mod_color_remove_sink(struct mod_color *mod_color,
 			if (core_color->state[i].gamma) {
 				dc_gamma_release(&core_color->state[i].gamma);
 			}
+			memset(&core_color->state[i], 0,
+					sizeof(struct color_state));
+			memset(&core_color->edid_caps[i], 0,
+					sizeof(struct color_edid_caps));
 
 			/* To remove this sink, shift everything after down */
 			for (j = i; j < core_color->num_sinks - 1; j++) {
@@ -1765,6 +1725,11 @@ bool mod_color_remove_sink(struct mod_color *mod_color,
 					&core_color->edid_caps[j + 1],
 					sizeof(struct color_edid_caps));
 			}
+
+			memset(&core_color->state[core_color->num_sinks - 1], 0,
+				sizeof(struct color_state));
+			memset(&core_color->edid_caps[core_color->num_sinks - 1], 0,
+				sizeof(struct color_edid_caps));
 
 			core_color->num_sinks--;
 
@@ -1786,11 +1751,14 @@ bool mod_color_update_gamut_to_stream(struct mod_color *mod_color,
 	struct gamut_src_dst_matrix *matrix =
 			dm_alloc(sizeof(struct gamut_src_dst_matrix));
 
-	unsigned int stream_index, sink_index, j;
+	unsigned int stream_index, j;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		/* Write persistent data in registry*/
 		flag.save_per_edid = true;
@@ -1880,11 +1848,14 @@ bool mod_color_adjust_source_gamut(struct mod_color *mod_color,
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		update_color_gamut_data(input_gamut_data,
 				&core_color->state[sink_index].source_gamut);
@@ -1903,11 +1874,14 @@ bool mod_color_adjust_source_gamut_and_tf(struct mod_color *mod_color,
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 		update_color_gamut_data(input_gamut_data,
 				&core_color->state[sink_index].source_gamut);
 		core_color->state[sink_index].input_transfer_function =
@@ -1926,11 +1900,14 @@ bool mod_color_adjust_destination_gamut(struct mod_color *mod_color,
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		update_color_gamut_data(input_gamut_data,
 			&core_color->state[sink_index].destination_gamut);
@@ -1948,12 +1925,15 @@ bool mod_color_set_white_point(struct mod_color *mod_color,
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams;
 			stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 		core_color->state[sink_index].source_gamut.gamut.whiteX =
 				white_point->whiteX;
 		core_color->state[sink_index].source_gamut.gamut.whiteY =
@@ -1972,11 +1952,14 @@ bool mod_color_set_mastering_info(struct mod_color *mod_color,
 		const struct dc_hdr_static_metadata *mastering_info)
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 		memcpy(&core_color->state[sink_index].mastering_info,
 				mastering_info,
 				sizeof(struct dc_hdr_static_metadata));
@@ -1991,7 +1974,10 @@ bool mod_color_get_mastering_info(struct mod_color *mod_color,
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
 
 	memcpy(mastering_info, &core_color->state[sink_index].mastering_info,
 			sizeof(struct dc_hdr_static_metadata));
@@ -2007,11 +1993,14 @@ bool mod_color_set_user_enable(struct mod_color *mod_color,
 			MOD_COLOR_TO_CORE(mod_color);
 	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
 	struct persistent_data_flag flag;
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 		core_color->state[sink_index].user_enable_color_temperature
 				= user_enable;
 
@@ -2037,7 +2026,10 @@ bool mod_color_get_user_enable(struct mod_color *mod_color,
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
 
 	*user_enable = core_color->state[sink_index].
 					user_enable_color_temperature;
@@ -2052,7 +2044,10 @@ bool mod_color_get_custom_color_temperature(struct mod_color *mod_color,
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
 
 	*color_temperature = core_color->state[sink_index].
 			custom_color_temperature;
@@ -2068,11 +2063,14 @@ bool mod_color_set_custom_color_temperature(struct mod_color *mod_color,
 			MOD_COLOR_TO_CORE(mod_color);
 	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
 	struct persistent_data_flag flag;
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 		core_color->state[sink_index].custom_color_temperature
 				= color_temperature;
 
@@ -2098,7 +2096,10 @@ bool mod_color_get_color_saturation(struct mod_color *mod_color,
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
 
 	*color_saturation = core_color->state[sink_index].saturation;
 
@@ -2112,7 +2113,10 @@ bool mod_color_get_color_contrast(struct mod_color *mod_color,
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
 
 	*color_contrast = core_color->state[sink_index].contrast;
 
@@ -2126,7 +2130,10 @@ bool mod_color_get_color_brightness(struct mod_color *mod_color,
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
 
 	*color_brightness = core_color->state[sink_index].brightness;
 
@@ -2140,7 +2147,10 @@ bool mod_color_get_color_hue(struct mod_color *mod_color,
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
 
 	*color_hue = core_color->state[sink_index].hue;
 
@@ -2154,7 +2164,10 @@ bool mod_color_get_source_gamut(struct mod_color *mod_color,
 	struct core_color *core_color =
 			MOD_COLOR_TO_CORE(mod_color);
 
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
 
 	*source_gamut = core_color->state[sink_index].source_gamut.gamut;
 
@@ -2169,11 +2182,14 @@ bool mod_color_notify_mode_change(struct mod_color *mod_color,
 	struct gamut_src_dst_matrix *matrix =
 			dm_alloc(sizeof(struct gamut_src_dst_matrix));
 
-	unsigned int stream_index, sink_index, j;
+	unsigned int stream_index, j;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		if (!build_gamut_remap_matrix
 			(core_color->state[sink_index].source_gamut.gamut,
@@ -2247,11 +2263,14 @@ bool mod_color_set_brightness(struct mod_color *mod_color,
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
 	struct persistent_data_flag flag;
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		struct core_stream *core_stream =
 						DC_STREAM_TO_CORE
@@ -2291,11 +2310,14 @@ bool mod_color_set_contrast(struct mod_color *mod_color,
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
 	struct persistent_data_flag flag;
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		struct core_stream *core_stream =
 						DC_STREAM_TO_CORE
@@ -2335,11 +2357,14 @@ bool mod_color_set_hue(struct mod_color *mod_color,
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
 	struct persistent_data_flag flag;
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		struct core_stream *core_stream =
 						DC_STREAM_TO_CORE
@@ -2378,11 +2403,14 @@ bool mod_color_set_saturation(struct mod_color *mod_color,
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
 	struct persistent_data_flag flag;
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		struct core_stream *core_stream =
 						DC_STREAM_TO_CORE
@@ -2420,11 +2448,14 @@ bool mod_color_set_input_gamma_correction(struct mod_color *mod_color,
 		struct dc_gamma *gamma)
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 
 		struct dc_surface *surface =
 				dc_stream_to_surface_from_pipe_ctx(core_color,
@@ -2471,9 +2502,12 @@ bool mod_color_persist_user_preferred_quantization_range(
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
 	struct core_dc *core_dc = DC_TO_CORE(core_color->dc);
 	struct persistent_data_flag flag;
-	unsigned int sink_index;
+	int sink_index;
 
 	sink_index = sink_index_from_sink(core_color, sink);
+	if (sink_index == -1)
+		return false;
+
 	if (core_color->state[sink_index].
 			preferred_quantization_range != quantization_range) {
 		core_color->state[sink_index].preferred_quantization_range =
@@ -2498,7 +2532,11 @@ bool mod_color_get_preferred_quantization_range(struct mod_color *mod_color,
 		enum dc_quantization_range *quantization_range)
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
-	unsigned int sink_index = sink_index_from_sink(core_color, sink);
+	int sink_index = sink_index_from_sink(core_color, sink);
+
+	if (sink_index == -1)
+		return false;
+
 	enum dc_quantization_range user_preferred_quantization_range =
 			core_color->state[sink_index].
 				preferred_quantization_range;
@@ -2601,7 +2639,8 @@ bool mod_color_update_gamut_info(struct mod_color *mod_color,
 		const struct dc_stream **streams, int num_streams)
 {
 	struct core_color *core_color = MOD_COLOR_TO_CORE(mod_color);
-	unsigned int stream_index, sink_index;
+	unsigned int stream_index;
+	int sink_index;
 	bool should_defer = false;
 	bool is_hdr = false;
 	enum color_color_space source_color_space;
@@ -2612,6 +2651,8 @@ bool mod_color_update_gamut_info(struct mod_color *mod_color,
 	for (stream_index = 0; stream_index < num_streams; stream_index++) {
 		sink_index = sink_index_from_sink(core_color,
 				streams[stream_index]->sink);
+		if (sink_index == -1)
+			continue;
 		source_color_space =
 			core_color->state[sink_index].source_gamut.color_space;
 		input_transfer_function =
