@@ -6868,7 +6868,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 
 	err = brcmf_p2p_attach(cfg, p2pdev_forced);
 	if (err) {
-		brcmf_err("P2P initilisation failed (%d)\n", err);
+		brcmf_err("P2P initialisation failed (%d)\n", err);
 		goto wiphy_unreg_out;
 	}
 	err = brcmf_btcoex_attach(cfg);
@@ -6893,7 +6893,7 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 	err = brcmf_fweh_activate_events(ifp);
 	if (err) {
 		brcmf_err("FWEH activation failed (%d)\n", err);
-		goto wiphy_unreg_out;
+		goto detach;
 	}
 
 	/* Fill in some of the advertised nl80211 supported features */
@@ -6908,6 +6908,9 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr,
 
 	return cfg;
 
+detach:
+	brcmf_btcoex_detach(cfg);
+	brcmf_p2p_detach(&cfg->p2p);
 wiphy_unreg_out:
 	wiphy_unregister(cfg->wiphy);
 priv_out:

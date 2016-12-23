@@ -137,6 +137,7 @@ static int brcmf_pno_add_ssid(struct brcmf_if *ifp, struct cfg80211_ssid *ssid,
 	pfn.wpa_auth = cpu_to_le32(BRCMF_PNO_WPA_AUTH_ANY);
 	pfn.wsec = cpu_to_le32(0);
 	pfn.infra = cpu_to_le32(1);
+	pfn.flags = 0;
 	if (active)
 		pfn.flags = cpu_to_le32(1 << BRCMF_PNO_HIDDEN_BIT);
 	pfn.ssid.SSID_len = cpu_to_le32(ssid->ssid_len);
