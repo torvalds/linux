@@ -1236,10 +1236,9 @@ static int virtnet_set_mac_address(struct net_device *dev, void *p)
 	struct sockaddr *addr;
 	struct scatterlist sg;
 
-	addr = kmalloc(sizeof(*addr), GFP_KERNEL);
+	addr = kmemdup(p, sizeof(*addr), GFP_KERNEL);
 	if (!addr)
 		return -ENOMEM;
-	memcpy(addr, p, sizeof(*addr));
 
 	ret = eth_prepare_mac_addr_change(dev, addr);
 	if (ret)
