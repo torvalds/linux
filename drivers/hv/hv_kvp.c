@@ -88,6 +88,7 @@ static DECLARE_WORK(kvp_sendkey_work, kvp_send_key);
 static const char kvp_devname[] = "vmbus/hv_kvp";
 static u8 *recv_buffer;
 static struct hvutil_transport *hvt;
+static struct completion release_event;
 /*
  * Register the kernel component with the user-level daemon.
  * As part of this registration, pass the LIC version number.
@@ -716,6 +717,7 @@ static void kvp_on_reset(void)
 	if (cancel_delayed_work_sync(&kvp_timeout_work))
 		kvp_respond_to_host(NULL, HV_E_FAIL);
 	kvp_transaction.state = HVUTIL_DEVICE_INIT;
+	complete(&release_event);
 }
 
 int
@@ -724,6 +726,7 @@ hv_kvp_init(struct hv_util_service *srv)
 	recv_buffer = srv->recv_buffer;
 	kvp_transaction.recv_channel = srv->channel;
 
+	init_completion(&release_event);
 	/*
 	 * When this driver loads, the user level daemon that
 	 * processes the host requests may not yet be running.
@@ -747,4 +750,5 @@ void hv_kvp_deinit(void)
 	cancel_delayed_work_sync(&kvp_timeout_work);
 	cancel_work_sync(&kvp_sendkey_work);
 	hvutil_transport_destroy(hvt);
+	wait_for_completion(&release_event);
 }
