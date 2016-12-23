@@ -1539,7 +1539,7 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned int len)
 			asoc->rwnd = 0;
 		}
 	} else {
-		asoc->rwnd_over = len - asoc->rwnd;
+		asoc->rwnd_over += len - asoc->rwnd;
 		asoc->rwnd = 0;
 	}
 
