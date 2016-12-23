@@ -119,6 +119,27 @@ u32 optee_supp_thrd_req(struct tee_context *ctx, u32 func, size_t num_params,
 	return ret;
 }
 
+static int supp_check_recv_params(size_t num_params, struct tee_param *params)
+{
+	size_t n;
+
+	/*
+	 * If there's memrefs we need to decrease those as they where
+	 * increased earlier and we'll even refuse to accept any below.
+	 */
+	for (n = 0; n < num_params; n++)
+		if (tee_param_is_memref(params + n) && params[n].u.memref.shm)
+			tee_shm_put(params[n].u.memref.shm);
+
+	/*
+	 * We only expect parameters as TEE_IOCTL_PARAM_ATTR_TYPE_NONE (0).
+	 */
+	for (n = 0; n < num_params; n++)
+		if (params[n].attr)
+			return -EINVAL;
+	return 0;
+}
+
 /**
  * optee_supp_recv() - receive request for supplicant
  * @ctx:	context receiving the request
@@ -136,6 +157,10 @@ int optee_supp_recv(struct tee_context *ctx, u32 *func, u32 *num_params,
 	struct optee *optee = tee_get_drvdata(teedev);
 	struct optee_supp *supp = &optee->supp;
 	int rc;
+
+	rc = supp_check_recv_params(*num_params, param);
+	if (rc)
+		return rc;
 
 	/*
 	 * In case two threads in one supplicant is calling this function
