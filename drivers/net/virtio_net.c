@@ -552,14 +552,8 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		struct page *xdp_page;
 		u32 act;
 
-		/* No known backend devices should send packets with
-		 * more than a single buffer when XDP conditions are
-		 * met. However it is not strictly illegal so the case
-		 * is handled as an exception and a warning is thrown.
-		 */
+		/* This happens when rx buffer size is underestimated */
 		if (unlikely(num_buf > 1)) {
-			bpf_warn_invalid_xdp_buffer();
-
 			/* linearize data for XDP */
 			xdp_page = xdp_linearize_page(rq, num_buf,
 						      page, offset, &len);
