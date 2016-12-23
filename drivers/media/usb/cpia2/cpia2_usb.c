@@ -547,11 +547,9 @@ static int write_packet(struct usb_device *udev,
 	if (!registers || size <= 0)
 		return -EINVAL;
 
-	buf = kmalloc(size, GFP_KERNEL);
+	buf = kmemdup(registers, size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
-
-	memcpy(buf, registers, size);
 
 	ret = usb_control_msg(udev,
 			       usb_sndctrlpipe(udev, 0),
