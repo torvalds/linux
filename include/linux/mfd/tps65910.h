@@ -134,6 +134,7 @@
 
 /* RTC_CTRL_REG bitfields */
 #define TPS65910_RTC_CTRL_STOP_RTC			0x01 /*0=stop, 1=run */
+#define TPS65910_RTC_CTRL_AUTO_COMP			0x04
 #define TPS65910_RTC_CTRL_GET_TIME			0x40
 
 /* RTC_STATUS_REG bitfields */
