@@ -81,8 +81,8 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	value |= (phyaddr << priv->hw->mii.addr_shift)
 		& priv->hw->mii.addr_mask;
 	value |= (phyreg << priv->hw->mii.reg_shift) & priv->hw->mii.reg_mask;
-	value |= (priv->clk_csr & priv->hw->mii.clk_csr_mask)
-		<< priv->hw->mii.clk_csr_shift;
+	value |= (priv->clk_csr << priv->hw->mii.clk_csr_shift)
+		& priv->hw->mii.clk_csr_mask;
 	if (priv->plat->has_gmac4)
 		value |= MII_GMAC4_READ;
 
@@ -122,8 +122,8 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 		& priv->hw->mii.addr_mask;
 	value |= (phyreg << priv->hw->mii.reg_shift) & priv->hw->mii.reg_mask;
 
-	value |= ((priv->clk_csr & priv->hw->mii.clk_csr_mask)
-		<< priv->hw->mii.clk_csr_shift);
+	value |= (priv->clk_csr << priv->hw->mii.clk_csr_shift)
+		& priv->hw->mii.clk_csr_mask;
 	if (priv->plat->has_gmac4)
 		value |= MII_GMAC4_WRITE;
 
