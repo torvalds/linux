@@ -782,7 +782,9 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 			goto err;
 	}
 
-	flags = PIN_OFFSET_BIAS | GUC_WOPCM_TOP | PIN_GLOBAL;
+	flags = PIN_GLOBAL;
+	if (ctx->ggtt_offset_bias)
+		flags |= PIN_OFFSET_BIAS | ctx->ggtt_offset_bias;
 	if (ctx == ctx->i915->kernel_context)
 		flags |= PIN_HIGH;
 
