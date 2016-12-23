@@ -147,6 +147,29 @@ static const struct {
 	{ HV_RDV_GUID	},
 };
 
+/*
+ * The rescinded channel may be blocked waiting for a response from the host;
+ * take care of that.
+ */
+static void vmbus_rescind_cleanup(struct vmbus_channel *channel)
+{
+	struct vmbus_channel_msginfo *msginfo;
+	unsigned long flags;
+
+
+	spin_lock_irqsave(&vmbus_connection.channelmsg_lock, flags);
+
+	list_for_each_entry(msginfo, &vmbus_connection.chn_msg_list,
+				msglistentry) {
+
+		if (msginfo->waiting_channel == channel) {
+			complete(&msginfo->waitevent);
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&vmbus_connection.channelmsg_lock, flags);
+}
+
 static bool is_unsupported_vmbus_devs(const uuid_le *guid)
 {
 	int i;
@@ -824,6 +847,8 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 	spin_lock_irqsave(&channel->lock, flags);
 	channel->rescind = true;
 	spin_unlock_irqrestore(&channel->lock, flags);
+
+	vmbus_rescind_cleanup(channel);
 
 	if (channel->device_obj) {
 		if (channel->chn_rescind_callback) {

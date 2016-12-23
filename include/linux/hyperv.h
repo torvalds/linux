@@ -641,6 +641,7 @@ struct vmbus_channel_msginfo {
 
 	/* Synchronize the request/response if needed */
 	struct completion  waitevent;
+	struct vmbus_channel *waiting_channel;
 	union {
 		struct vmbus_channel_version_supported version_supported;
 		struct vmbus_channel_open_result open_result;
