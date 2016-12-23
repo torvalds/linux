@@ -1068,9 +1068,19 @@ bool dce110_link_encoder_construct(
 			&bp_cap_info))
 		enc110->base.features.flags.bits.IS_HBR2_CAPABLE =
 				bp_cap_info.DP_HBR2_CAP;
+		enc110->base.features.flags.bits.IS_HBR3_CAPABLE =
+				bp_cap_info.DP_HBR3_EN;
+
 	}
+
+	/* TODO: check PPLIB maxPhyClockInKHz <= 540000, if yes,
+	 * IS_HBR3_CAPABLE = 0.
+	 */
+
 	/* test pattern 3 support */
 	enc110->base.features.flags.bits.IS_TPS3_CAPABLE = true;
+	/* test pattern 4 support */
+	enc110->base.features.flags.bits.IS_TPS4_CAPABLE = true;
 
 	enc110->base.features.flags.bits.IS_Y_ONLY_CAPABLE = false;
 	/*
