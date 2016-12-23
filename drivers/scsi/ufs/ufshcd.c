@@ -3512,6 +3512,10 @@ link_startup:
 		goto link_startup;
 	}
 
+	/* Mark that link is up in PWM-G1, 1-lane, SLOW-AUTO mode */
+	ufshcd_init_pwr_info(hba);
+	ufshcd_print_pwr_info(hba);
+
 	if (hba->quirks & UFSHCD_QUIRK_BROKEN_LCC) {
 		ret = ufshcd_disable_device_tx_lcc(hba);
 		if (ret)
@@ -5546,9 +5550,6 @@ static int ufshcd_probe_hba(struct ufs_hba *hba)
 	ret = ufshcd_link_startup(hba);
 	if (ret)
 		goto out;
-
-	ufshcd_init_pwr_info(hba);
-	ufshcd_print_pwr_info(hba);
 
 	/* set the default level for urgent bkops */
 	hba->urgent_bkops_lvl = BKOPS_STATUS_PERF_IMPACT;
