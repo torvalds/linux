@@ -29,6 +29,8 @@ struct rockchip_domain_info {
 	int idle_mask;
 	int ack_mask;
 	bool active_wakeup;
+	int pwr_w_mask;
+	int req_w_mask;
 };
 
 struct rockchip_pmu_info {
@@ -87,6 +89,18 @@ struct rockchip_pmu {
 	.active_wakeup = wakeup,			\
 }
 
+#define DOMAIN_M(pwr, status, req, idle, ack, wakeup)	\
+{							\
+	.pwr_w_mask = (pwr >= 0) ? BIT(pwr + 16) : 0,	\
+	.pwr_mask = (pwr >= 0) ? BIT(pwr) : 0,		\
+	.status_mask = (status >= 0) ? BIT(status) : 0,	\
+	.req_w_mask = (req >= 0) ?  BIT(req + 16) : 0,	\
+	.req_mask = (req >= 0) ?  BIT(req) : 0,		\
+	.idle_mask = (idle >= 0) ? BIT(idle) : 0,	\
+	.ack_mask = (ack >= 0) ? BIT(ack) : 0,		\
+	.active_wakeup = wakeup,			\
+}
+
 #define DOMAIN_RK3288(pwr, status, req, wakeup)		\
 	DOMAIN(pwr, status, req, req, (req) + 16, wakeup)
 
@@ -127,9 +141,13 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 
 	if (pd_info->req_mask == 0)
 		return 0;
-
-	regmap_update_bits(pmu->regmap, pmu->info->req_offset,
-			   pd_info->req_mask, idle ? -1U : 0);
+	else if (pd_info->req_w_mask)
+		regmap_write(pmu->regmap, pmu->info->req_offset,
+			     idle ? (pd_info->req_mask | pd_info->req_w_mask) :
+			     pd_info->req_w_mask);
+	else
+		regmap_update_bits(pmu->regmap, pmu->info->req_offset,
+				   pd_info->req_mask, idle ? -1U : 0);
 
 	dsb(sy);
 
@@ -230,9 +248,13 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 
 	if (pd->info->pwr_mask == 0)
 		return;
-
-	regmap_update_bits(pmu->regmap, pmu->info->pwr_offset,
-			   pd->info->pwr_mask, on ? 0 : -1U);
+	else if (pd->info->pwr_w_mask)
+		regmap_write(pmu->regmap, pmu->info->pwr_offset,
+			     on ? pd->info->pwr_mask :
+			     (pd->info->pwr_mask | pd->info->pwr_w_mask));
+	else
+		regmap_update_bits(pmu->regmap, pmu->info->pwr_offset,
+				   pd->info->pwr_mask, on ? 0 : -1U);
 
 	dsb(sy);
 
