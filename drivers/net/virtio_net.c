@@ -578,8 +578,14 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		act = do_xdp_prog(vi, rq, xdp_prog, xdp_page, offset, len);
 		switch (act) {
 		case XDP_PASS:
-			if (unlikely(xdp_page != page))
-				__free_pages(xdp_page, 0);
+			/* We can only create skb based on xdp_page. */
+			if (unlikely(xdp_page != page)) {
+				rcu_read_unlock();
+				put_page(page);
+				head_skb = page_to_skb(vi, rq, xdp_page,
+						       0, len, PAGE_SIZE);
+				return head_skb;
+			}
 			break;
 		case XDP_TX:
 			if (unlikely(xdp_page != page))
