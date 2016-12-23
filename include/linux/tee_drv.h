@@ -286,6 +286,18 @@ int tee_shm_get_id(struct tee_shm *shm);
  */
 struct tee_shm *tee_shm_get_from_id(struct tee_context *ctx, int id);
 
+static inline bool tee_param_is_memref(struct tee_param *param)
+{
+	switch (param->attr & TEE_IOCTL_PARAM_ATTR_TYPE_MASK) {
+	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INPUT:
+	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_OUTPUT:
+	case TEE_IOCTL_PARAM_ATTR_TYPE_MEMREF_INOUT:
+		return true;
+	default:
+		return false;
+	}
+}
+
 struct tee_context *tee_client_open_context(struct tee_context *start,
 			int (*match)(struct tee_ioctl_version_data *,
 				const void *),
