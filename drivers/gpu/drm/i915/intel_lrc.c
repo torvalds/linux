@@ -796,7 +796,7 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 		goto unpin_vma;
 	}
 
-	ret = intel_ring_pin(ce->ring);
+	ret = intel_ring_pin(ce->ring, ctx->ggtt_offset_bias);
 	if (ret)
 		goto unpin_map;
 

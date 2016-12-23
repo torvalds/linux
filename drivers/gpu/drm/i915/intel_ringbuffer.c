@@ -1805,10 +1805,9 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 	return 0;
 }
 
-int intel_ring_pin(struct intel_ring *ring)
+int intel_ring_pin(struct intel_ring *ring, unsigned int offset_bias)
 {
-	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
-	unsigned int flags = PIN_GLOBAL | PIN_OFFSET_BIAS | 4096;
+	unsigned int flags;
 	enum i915_map_type map;
 	struct i915_vma *vma = ring->vma;
 	void *addr;
@@ -1818,6 +1817,9 @@ int intel_ring_pin(struct intel_ring *ring)
 
 	map = HAS_LLC(ring->engine->i915) ? I915_MAP_WB : I915_MAP_WC;
 
+	flags = PIN_GLOBAL;
+	if (offset_bias)
+		flags |= PIN_OFFSET_BIAS | offset_bias;
 	if (vma->obj->stolen)
 		flags |= PIN_MAPPABLE;
 
@@ -2046,7 +2048,8 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 			goto error;
 	}
 
-	ret = intel_ring_pin(ring);
+	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
+	ret = intel_ring_pin(ring, 4096);
 	if (ret) {
 		intel_ring_free(ring);
 		goto error;

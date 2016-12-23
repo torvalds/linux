@@ -1087,6 +1087,7 @@ struct i915_gem_context {
 	int priority; /* greater priorities are serviced first */
 
 	u32 ggtt_alignment;
+	u32 ggtt_offset_bias;
 
 	struct intel_context {
 		struct i915_vma *state;

@@ -335,6 +335,15 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 			     GEN8_CTX_ADDRESSING_MODE_SHIFT;
 	ATOMIC_INIT_NOTIFIER_HEAD(&ctx->status_notifier);
 
+	/* GuC requires the ring to be placed above GUC_WOPCM_TOP. If GuC is not
+	 * present or not in use we still need a small bias as ring wraparound
+	 * at offset 0 sometimes hangs. No idea why.
+	 */
+	if (HAS_GUC(dev_priv) && i915.enable_guc_loading)
+		ctx->ggtt_offset_bias = GUC_WOPCM_TOP;
+	else
+		ctx->ggtt_offset_bias = 4096;
+
 	return ctx;
 
 err_pid:
