@@ -1396,6 +1396,7 @@ static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry = nh->neigh_entry;
 
+	__mlxsw_sp_nexthop_neigh_update(nh, true);
 	list_del(&nh->neigh_list_node);
 
 	/* If that is the last nexthop connected to that neigh, remove from
@@ -1454,6 +1455,8 @@ mlxsw_sp_nexthop_group_destroy(struct mlxsw_sp *mlxsw_sp,
 		nh = &nh_grp->nexthops[i];
 		mlxsw_sp_nexthop_fini(mlxsw_sp, nh);
 	}
+	mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh_grp);
+	WARN_ON_ONCE(nh_grp->adj_index_valid);
 	kfree(nh_grp);
 }
 
