@@ -308,15 +308,24 @@ static int target_xcopy_parse_segdesc_02(struct se_cmd *se_cmd, struct xcopy_op 
 
 static int target_xcopy_parse_segment_descriptors(struct se_cmd *se_cmd,
 				struct xcopy_op *xop, unsigned char *p,
-				unsigned int sdll)
+				unsigned int sdll, sense_reason_t *sense_ret)
 {
 	unsigned char *desc = p;
 	unsigned int start = 0;
 	int offset = sdll % XCOPY_SEGMENT_DESC_LEN, rc, ret = 0;
 
+	*sense_ret = TCM_INVALID_PARAMETER_LIST;
+
 	if (offset != 0) {
 		pr_err("XCOPY segment descriptor list length is not"
 			" multiple of %d\n", XCOPY_SEGMENT_DESC_LEN);
+		return -EINVAL;
+	}
+	if (sdll > RCR_OP_MAX_SG_DESC_COUNT * XCOPY_SEGMENT_DESC_LEN) {
+		pr_err("XCOPY supports %u segment descriptor(s), sdll: %u too"
+			" large..\n", RCR_OP_MAX_SG_DESC_COUNT, sdll);
+		/* spc4r37 6.4.3.5 SEGMENT DESCRIPTOR LIST LENGTH field */
+		*sense_ret = TCM_TOO_MANY_SEGMENT_DESCS;
 		return -EINVAL;
 	}
 
@@ -916,7 +925,8 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 	seg_desc = &p[16];
 	seg_desc += (rc * XCOPY_TARGET_DESC_LEN);
 
-	rc = target_xcopy_parse_segment_descriptors(se_cmd, xop, seg_desc, sdll);
+	rc = target_xcopy_parse_segment_descriptors(se_cmd, xop, seg_desc,
+						    sdll, &ret);
 	if (rc <= 0) {
 		xcopy_pt_undepend_remotedev(xop);
 		goto out;
