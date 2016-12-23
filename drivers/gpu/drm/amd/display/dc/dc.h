@@ -148,6 +148,7 @@ struct dc_debug {
 	bool disable_clock_gate;
 	bool disable_dmcu;
 	bool disable_hdmi_deep_color;
+	bool disable_color_module;
 };
 
 struct dc {

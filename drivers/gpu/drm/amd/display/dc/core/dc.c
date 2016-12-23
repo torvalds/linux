@@ -1452,8 +1452,11 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 				}
 			}
 
-			if (updates[i].gamma && updates[i].gamma !=
-				surface->public.gamma_correction) {
+			if (dc->debug.disable_color_module)
+				continue;  /* skip below color updates */
+
+			if (updates[i].gamma &&
+				updates[i].gamma != surface->public.gamma_correction) {
 				if (surface->public.gamma_correction != NULL)
 					dc_gamma_release(surface->public.
 							gamma_correction);
@@ -1464,8 +1467,7 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 			}
 
 			if (updates[i].in_transfer_func &&
-					updates[i].in_transfer_func !=
-					surface->public.in_transfer_func) {
+				updates[i].in_transfer_func != surface->public.in_transfer_func) {
 				if (surface->public.in_transfer_func != NULL)
 					dc_transfer_func_release(
 							surface->public.
@@ -1478,8 +1480,7 @@ void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *upda
 			}
 
 			if (updates[i].out_transfer_func &&
-					updates[i].out_transfer_func !=
-					stream->public.out_transfer_func) {
+				updates[i].out_transfer_func != stream->public.out_transfer_func) {
 				if (stream->public.out_transfer_func != NULL)
 					dc_transfer_func_release(
 							stream->public.
