@@ -151,9 +151,9 @@ bool dc_target_set_cursor_attributes(
 	const struct dc_cursor_attributes *attributes)
 {
 	int i, j;
-	struct core_target *target = DC_TARGET_TO_CORE(dc_target);
-	struct core_dc *core_dc = DC_TO_CORE(target->ctx->dc);
-	struct resource_context *res_ctx = &core_dc->current_context->res_ctx;
+	struct core_target *target;
+	struct core_dc *core_dc;
+	struct resource_context *res_ctx;
 	bool ret = false;
 
 	if (NULL == dc_target) {
@@ -164,6 +164,10 @@ bool dc_target_set_cursor_attributes(
 		dm_error("DC: attributes is NULL!\n");
 			return false;
 	}
+
+	target = DC_TARGET_TO_CORE(dc_target);
+	core_dc = DC_TO_CORE(target->ctx->dc);
+	res_ctx = &core_dc->current_context->res_ctx;
 
 	for (i = 0; i < dc_target->stream_count; i++) {
 		const struct dc_stream *stream = dc_target->streams[i];
