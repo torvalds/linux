@@ -2742,6 +2742,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	struct drm_i915_gem_request *request;
 	struct i915_gem_context *incomplete_ctx;
 	struct intel_timeline *timeline;
+	unsigned long flags;
 	bool ring_hung;
 
 	if (engine->irq_seqno_barrier)
@@ -2785,13 +2786,20 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	if (i915_gem_context_is_default(incomplete_ctx))
 		return;
 
+	timeline = i915_gem_context_lookup_timeline(incomplete_ctx, engine);
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock(&timeline->lock);
+
 	list_for_each_entry_continue(request, &engine->timeline->requests, link)
 		if (request->ctx == incomplete_ctx)
 			reset_request(request);
 
-	timeline = i915_gem_context_lookup_timeline(incomplete_ctx, engine);
 	list_for_each_entry(request, &timeline->requests, link)
 		reset_request(request);
+
+	spin_unlock(&timeline->lock);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
 void i915_gem_reset(struct drm_i915_private *dev_priv)
