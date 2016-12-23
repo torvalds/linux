@@ -95,8 +95,13 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 	if (view) {
 		vma->ggtt_view = *view;
 		if (view->type == I915_GGTT_VIEW_PARTIAL) {
+			GEM_BUG_ON(range_overflows_t(u64,
+						     view->params.partial.offset,
+						     view->params.partial.size,
+						     obj->base.size >> PAGE_SHIFT));
 			vma->size = view->params.partial.size;
 			vma->size <<= PAGE_SHIFT;
+			GEM_BUG_ON(vma->size >= obj->base.size);
 		} else if (view->type == I915_GGTT_VIEW_ROTATED) {
 			vma->size =
 				intel_rotation_info_size(&view->params.rotated);
