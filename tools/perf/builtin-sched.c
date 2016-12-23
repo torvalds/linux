@@ -1775,7 +1775,7 @@ static u64 perf_evsel__get_time(struct perf_evsel *evsel, u32 cpu)
 	return r->last_time[cpu];
 }
 
-static int comm_width = 20;
+static int comm_width = 30;
 
 static char *timehist_get_commstr(struct thread *thread)
 {
@@ -1817,7 +1817,7 @@ static void timehist_header(struct perf_sched *sched)
 		printf(" ");
 	}
 
-	printf(" %-20s  %9s  %9s  %9s",
+	printf(" %-*s  %9s  %9s  %9s", comm_width,
 		"task name", "wait time", "sch delay", "run time");
 
 	printf("\n");
@@ -1830,7 +1830,8 @@ static void timehist_header(struct perf_sched *sched)
 	if (sched->show_cpu_visual)
 		printf(" %*s ", ncpus, "");
 
-	printf(" %-20s  %9s  %9s  %9s\n", "[tid/pid]", "(msec)", "(msec)", "(msec)");
+	printf(" %-*s  %9s  %9s  %9s\n", comm_width,
+	       "[tid/pid]", "(msec)", "(msec)", "(msec)");
 
 	/*
 	 * separator
@@ -1840,7 +1841,7 @@ static void timehist_header(struct perf_sched *sched)
 	if (sched->show_cpu_visual)
 		printf(" %.*s ", ncpus, graph_dotted_line);
 
-	printf(" %.20s  %.9s  %.9s  %.9s",
+	printf(" %.*s  %.9s  %.9s  %.9s", comm_width,
 		graph_dotted_line, graph_dotted_line, graph_dotted_line,
 		graph_dotted_line);
 
@@ -2404,7 +2405,7 @@ static int timehist_sched_change_event(struct perf_tool *tool,
 	if (ptime->start && ptime->start > t)
 		goto out;
 
-	if (ptime->start > tprev)
+	if (tprev && ptime->start > tprev)
 		tprev = ptime->start;
 
 	/*
@@ -2625,9 +2626,6 @@ static void timehist_print_summary(struct perf_sched *sched,
 	int i;
 
 	memset(&totals, 0, sizeof(totals));
-
-	if (comm_width < 30)
-		comm_width = 30;
 
 	if (sched->idle_hist) {
 		printf("\nIdle-time summary\n");
