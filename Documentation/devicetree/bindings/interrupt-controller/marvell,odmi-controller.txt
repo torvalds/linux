@@ -31,7 +31,7 @@ Required properties:
 Example:
 
 	odmi: odmi@300000 {
-		compatible = "marvell,ap806-odm-controller",
+		compatible = "marvell,ap806-odmi-controller",
 			     "marvell,odmi-controller";
 		interrupt-controller;
 		msi-controller;

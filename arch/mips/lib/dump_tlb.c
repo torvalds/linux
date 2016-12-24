@@ -135,42 +135,42 @@ static void dump_tlb(int first, int last)
 		c0 = (entrylo0 & ENTRYLO_C) >> ENTRYLO_C_SHIFT;
 		c1 = (entrylo1 & ENTRYLO_C) >> ENTRYLO_C_SHIFT;
 
-		printk("va=%0*lx asid=%0*lx",
-		       vwidth, (entryhi & ~0x1fffUL),
-		       asidwidth, entryhi & asidmask);
+		pr_cont("va=%0*lx asid=%0*lx",
+			vwidth, (entryhi & ~0x1fffUL),
+			asidwidth, entryhi & asidmask);
 		if (cpu_has_guestid)
-			printk(" gid=%02lx",
-			       (guestctl1 & MIPS_GCTL1_RID)
+			pr_cont(" gid=%02lx",
+				(guestctl1 & MIPS_GCTL1_RID)
 					>> MIPS_GCTL1_RID_SHIFT);
 		/* RI/XI are in awkward places, so mask them off separately */
 		pa = entrylo0 & ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
 		if (xpa)
 			pa |= (unsigned long long)readx_c0_entrylo0() << 30;
 		pa = (pa << 6) & PAGE_MASK;
-		printk("\n\t[");
+		pr_cont("\n\t[");
 		if (cpu_has_rixi)
-			printk("ri=%d xi=%d ",
-			       (entrylo0 & MIPS_ENTRYLO_RI) ? 1 : 0,
-			       (entrylo0 & MIPS_ENTRYLO_XI) ? 1 : 0);
-		printk("pa=%0*llx c=%d d=%d v=%d g=%d] [",
-		       pwidth, pa, c0,
-		       (entrylo0 & ENTRYLO_D) ? 1 : 0,
-		       (entrylo0 & ENTRYLO_V) ? 1 : 0,
-		       (entrylo0 & ENTRYLO_G) ? 1 : 0);
+			pr_cont("ri=%d xi=%d ",
+				(entrylo0 & MIPS_ENTRYLO_RI) ? 1 : 0,
+				(entrylo0 & MIPS_ENTRYLO_XI) ? 1 : 0);
+		pr_cont("pa=%0*llx c=%d d=%d v=%d g=%d] [",
+			pwidth, pa, c0,
+			(entrylo0 & ENTRYLO_D) ? 1 : 0,
+			(entrylo0 & ENTRYLO_V) ? 1 : 0,
+			(entrylo0 & ENTRYLO_G) ? 1 : 0);
 		/* RI/XI are in awkward places, so mask them off separately */
 		pa = entrylo1 & ~(MIPS_ENTRYLO_RI | MIPS_ENTRYLO_XI);
 		if (xpa)
 			pa |= (unsigned long long)readx_c0_entrylo1() << 30;
 		pa = (pa << 6) & PAGE_MASK;
 		if (cpu_has_rixi)
-			printk("ri=%d xi=%d ",
-			       (entrylo1 & MIPS_ENTRYLO_RI) ? 1 : 0,
-			       (entrylo1 & MIPS_ENTRYLO_XI) ? 1 : 0);
-		printk("pa=%0*llx c=%d d=%d v=%d g=%d]\n",
-		       pwidth, pa, c1,
-		       (entrylo1 & ENTRYLO_D) ? 1 : 0,
-		       (entrylo1 & ENTRYLO_V) ? 1 : 0,
-		       (entrylo1 & ENTRYLO_G) ? 1 : 0);
+			pr_cont("ri=%d xi=%d ",
+				(entrylo1 & MIPS_ENTRYLO_RI) ? 1 : 0,
+				(entrylo1 & MIPS_ENTRYLO_XI) ? 1 : 0);
+		pr_cont("pa=%0*llx c=%d d=%d v=%d g=%d]\n",
+			pwidth, pa, c1,
+			(entrylo1 & ENTRYLO_D) ? 1 : 0,
+			(entrylo1 & ENTRYLO_V) ? 1 : 0,
+			(entrylo1 & ENTRYLO_G) ? 1 : 0);
 	}
 	printk("\n");
 

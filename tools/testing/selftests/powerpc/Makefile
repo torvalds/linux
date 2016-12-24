@@ -19,6 +19,7 @@ SUB_DIRS = alignment		\
 	   dscr			\
 	   mm			\
 	   pmu			\
+	   signal		\
 	   primitives		\
 	   stringloops		\
 	   switch_endian	\

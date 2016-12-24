@@ -15,10 +15,7 @@
 #include "string.h"
 #include "stdio.h"
 #include "ops.h"
-#include "gunzip_util.h"
 #include "reg.h"
-
-static struct gunzip_state gzstate;
 
 struct addr_range {
 	void *addr;
@@ -30,15 +27,21 @@ struct addr_range {
 static struct addr_range prep_kernel(void)
 {
 	char elfheader[256];
-	void *vmlinuz_addr = _vmlinux_start;
+	unsigned char *vmlinuz_addr = (unsigned char *)_vmlinux_start;
 	unsigned long vmlinuz_size = _vmlinux_end - _vmlinux_start;
 	void *addr = 0;
 	struct elf_info ei;
-	int len;
+	long len;
+	int uncompressed_image = 0;
 
-	/* gunzip the ELF header of the kernel */
-	gunzip_start(&gzstate, vmlinuz_addr, vmlinuz_size);
-	gunzip_exactly(&gzstate, elfheader, sizeof(elfheader));
+	len = partial_decompress(vmlinuz_addr, vmlinuz_size,
+		elfheader, sizeof(elfheader), 0);
+	/* assume uncompressed data if -1 is returned */
+	if (len == -1) {
+		uncompressed_image = 1;
+		memcpy(elfheader, vmlinuz_addr, sizeof(elfheader));
+		printf("No valid compressed data found, assume uncompressed data\n\r");
+	}
 
 	if (!parse_elf64(elfheader, &ei) && !parse_elf32(elfheader, &ei))
 		fatal("Error: not a valid PPC32 or PPC64 ELF file!\n\r");
@@ -51,7 +54,7 @@ static struct addr_range prep_kernel(void)
 	 * the kernel bss must be claimed (it will be zero'd by the
 	 * kernel itself)
 	 */
-	printf("Allocating 0x%lx bytes for kernel ...\n\r", ei.memsize);
+	printf("Allocating 0x%lx bytes for kernel...\n\r", ei.memsize);
 
 	if (platform_ops.vmlinux_alloc) {
 		addr = platform_ops.vmlinux_alloc(ei.memsize);
@@ -71,17 +74,29 @@ static struct addr_range prep_kernel(void)
 					"device tree\n\r");
 	}
 
-	/* Finally, gunzip the kernel */
-	printf("gunzipping (0x%p <- 0x%p:0x%p)...", addr,
-	       vmlinuz_addr, vmlinuz_addr+vmlinuz_size);
-	/* discard up to the actual load data */
-	gunzip_discard(&gzstate, ei.elfoffset - sizeof(elfheader));
-	len = gunzip_finish(&gzstate, addr, ei.loadsize);
-	if (len != ei.loadsize)
-		fatal("ran out of data!  only got 0x%x of 0x%lx bytes.\n\r",
-				len, ei.loadsize);
-	printf("done 0x%x bytes\n\r", len);
+	if (uncompressed_image) {
+		memcpy(addr, vmlinuz_addr + ei.elfoffset, ei.loadsize);
+		printf("0x%lx bytes of uncompressed data copied\n\r",
+		       ei.loadsize);
+		goto out;
+	}
 
+	/* Finally, decompress the kernel */
+	printf("Decompressing (0x%p <- 0x%p:0x%p)...\n\r", addr,
+	       vmlinuz_addr, vmlinuz_addr+vmlinuz_size);
+
+	len = partial_decompress(vmlinuz_addr, vmlinuz_size,
+		addr, ei.loadsize, ei.elfoffset);
+
+	if (len < 0)
+		fatal("Decompression failed with error code %ld\n\r", len);
+
+	if (len != ei.loadsize)
+		 fatal("Decompression error: got 0x%lx bytes, expected 0x%lx.\n\r",
+			 len, ei.loadsize);
+
+	printf("Done! Decompressed 0x%lx bytes\n\r", len);
+out:
 	flush_cache(addr, ei.loadsize);
 
 	return (struct addr_range){addr, ei.memsize};
@@ -217,8 +232,12 @@ void start(void)
 		console_ops.close();
 
 	kentry = (kernel_entry_t) vmlinux.addr;
-	if (ft_addr)
-		kentry(ft_addr, 0, NULL);
+	if (ft_addr) {
+		if(platform_ops.kentry)
+			platform_ops.kentry(ft_addr, vmlinux.addr);
+		else
+			kentry(ft_addr, 0, NULL);
+	}
 	else
 		kentry((unsigned long)initrd.addr, initrd.size,
 		       loader_info.promptr);

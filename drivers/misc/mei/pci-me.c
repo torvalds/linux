@@ -91,6 +91,9 @@ static const struct pci_device_id mei_me_pci_tbl[] = {
 	{MEI_PCI_DEVICE(MEI_DEV_ID_BXT_M, mei_me_pch8_cfg)},
 	{MEI_PCI_DEVICE(MEI_DEV_ID_APL_I, mei_me_pch8_cfg)},
 
+	{MEI_PCI_DEVICE(MEI_DEV_ID_KBP, mei_me_pch8_cfg)},
+	{MEI_PCI_DEVICE(MEI_DEV_ID_KBP_2, mei_me_pch8_cfg)},
+
 	/* required last entry */
 	{0, }
 };
@@ -216,8 +219,6 @@ static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto stop;
 
 	pci_set_drvdata(pdev, dev);
-
-	schedule_delayed_work(&dev->timer_work, HZ);
 
 	/*
 	* For not wake-able HW runtime pm framework
@@ -400,6 +401,9 @@ static int mei_me_pm_runtime_suspend(struct device *device)
 
 	dev_dbg(&pdev->dev, "rpm: me: runtime suspend ret=%d\n", ret);
 
+	if (ret && ret != -EAGAIN)
+		schedule_work(&dev->reset_work);
+
 	return ret;
 }
 
@@ -422,6 +426,9 @@ static int mei_me_pm_runtime_resume(struct device *device)
 	mutex_unlock(&dev->device_lock);
 
 	dev_dbg(&pdev->dev, "rpm: me: runtime resume ret = %d\n", ret);
+
+	if (ret)
+		schedule_work(&dev->reset_work);
 
 	return ret;
 }

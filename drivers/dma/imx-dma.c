@@ -663,9 +663,7 @@ static void imxdma_tasklet(unsigned long data)
 out:
 	spin_unlock_irqrestore(&imxdma->lock, flags);
 
-	if (desc->desc.callback)
-		desc->desc.callback(desc->desc.callback_param);
-
+	dmaengine_desc_get_callback_invoke(&desc->desc, NULL);
 }
 
 static int imxdma_terminate_all(struct dma_chan *chan)

@@ -35,7 +35,12 @@ _ResetVector:
 
 	.align 4
 RomInitAddr:
-	.word	LOAD_MEMORY_ADDRESS
+#if defined(CONFIG_INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX) && \
+	XCHAL_HAVE_PTP_MMU && XCHAL_HAVE_SPANNING_WAY
+	.word	CONFIG_KERNEL_LOAD_ADDRESS
+#else
+	.word	KERNELOFFSET
+#endif
 RomBootParam:
 	.word _bootparam
 _bootparam:

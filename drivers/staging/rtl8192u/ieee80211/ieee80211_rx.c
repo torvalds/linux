@@ -1027,7 +1027,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 				ieee,
 				(PTS_COMMON_INFO *) &pRxTS,
 				hdr->addr2,
-				(u8)Frame_QoSTID((u8 *)(skb->data)),
+				Frame_QoSTID((u8 *)(skb->data)),
 				RX_DIR,
 				true))
 		{

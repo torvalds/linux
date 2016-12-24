@@ -73,17 +73,6 @@ struct ion_platform_data {
 };
 
 /**
- * ion_reserve() - reserve memory for ion heaps if applicable
- * @data:	platform data specifying starting physical address and
- *		size
- *
- * Calls memblock reserve to set aside memory for heaps that are
- * located at specific memory addresses or of specific sizes not
- * managed by the kernel
- */
-void ion_reserve(struct ion_platform_data *data);
-
-/**
  * ion_client_create() -  allocate a client and returns it
  * @dev:		the global ion device
  * @name:		used for debugging
@@ -128,36 +117,6 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
  * Free the provided handle.
  */
 void ion_free(struct ion_client *client, struct ion_handle *handle);
-
-/**
- * ion_phys - returns the physical address and len of a handle
- * @client:	the client
- * @handle:	the handle
- * @addr:	a pointer to put the address in
- * @len:	a pointer to put the length in
- *
- * This function queries the heap for a particular handle to get the
- * handle's physical address.  It't output is only correct if
- * a heap returns physically contiguous memory -- in other cases
- * this api should not be implemented -- ion_sg_table should be used
- * instead.  Returns -EINVAL if the handle is invalid.  This has
- * no implications on the reference counting of the handle --
- * the returned value may not be valid if the caller is not
- * holding a reference.
- */
-int ion_phys(struct ion_client *client, struct ion_handle *handle,
-	     ion_phys_addr_t *addr, size_t *len);
-
-/**
- * ion_map_dma - return an sg_table describing a handle
- * @client:	the client
- * @handle:	the handle
- *
- * This function returns the sg_table describing
- * a particular ion handle.
- */
-struct sg_table *ion_sg_table(struct ion_client *client,
-			      struct ion_handle *handle);
 
 /**
  * ion_map_kernel - create mapping for the given handle

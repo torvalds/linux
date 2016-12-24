@@ -226,8 +226,7 @@ static void __td_start_dma(struct timb_dma_chan *td_chan)
 
 static void __td_finish(struct timb_dma_chan *td_chan)
 {
-	dma_async_tx_callback		callback;
-	void				*param;
+	struct dmaengine_desc_callback	cb;
 	struct dma_async_tx_descriptor	*txd;
 	struct timb_dma_desc		*td_desc;
 
@@ -252,8 +251,7 @@ static void __td_finish(struct timb_dma_chan *td_chan)
 	dma_cookie_complete(txd);
 	td_chan->ongoing = false;
 
-	callback = txd->callback;
-	param = txd->callback_param;
+	dmaengine_desc_get_callback(txd, &cb);
 
 	list_move(&td_desc->desc_node, &td_chan->free_list);
 
@@ -262,8 +260,7 @@ static void __td_finish(struct timb_dma_chan *td_chan)
 	 * The API requires that no submissions are done from a
 	 * callback, so we don't need to drop the lock here
 	 */
-	if (callback)
-		callback(param);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 }
 
 static u32 __td_ier_mask(struct timb_dma *td)

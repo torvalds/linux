@@ -394,7 +394,7 @@ static int timbuart_verify_port(struct uart_port *port,
 	return -EINVAL;
 }
 
-static struct uart_ops timbuart_ops = {
+static const struct uart_ops timbuart_ops = {
 	.tx_empty = timbuart_tx_empty,
 	.set_mctrl = timbuart_set_mctrl,
 	.get_mctrl = timbuart_get_mctrl,

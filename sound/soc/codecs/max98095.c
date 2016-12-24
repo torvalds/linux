@@ -2108,12 +2108,14 @@ static struct snd_soc_codec_driver soc_codec_dev_max98095 = {
 	.suspend = max98095_suspend,
 	.resume  = max98095_resume,
 	.set_bias_level = max98095_set_bias_level,
-	.controls = max98095_snd_controls,
-	.num_controls = ARRAY_SIZE(max98095_snd_controls),
-	.dapm_widgets	  = max98095_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(max98095_dapm_widgets),
-	.dapm_routes     = max98095_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(max98095_audio_map),
+	.component_driver = {
+		.controls		= max98095_snd_controls,
+		.num_controls		= ARRAY_SIZE(max98095_snd_controls),
+		.dapm_widgets		= max98095_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(max98095_dapm_widgets),
+		.dapm_routes		= max98095_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(max98095_audio_map),
+	},
 };
 
 static int max98095_i2c_probe(struct i2c_client *i2c,

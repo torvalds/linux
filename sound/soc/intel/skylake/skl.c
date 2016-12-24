@@ -587,7 +587,7 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 		return -ENXIO;
 	}
 
-	snd_hdac_ext_bus_parse_capabilities(ebus);
+	snd_hdac_bus_parse_capabilities(bus);
 
 	if (skl_acquire_irq(ebus, 0) < 0)
 		return -EBUSY;
@@ -674,7 +674,7 @@ static int skl_probe(struct pci_dev *pci,
 
 	if (skl->nhlt == NULL) {
 		err = -ENODEV;
-		goto out_free;
+		goto out_display_power_off;
 	}
 
 	skl_nhlt_update_topology_bin(skl);
@@ -684,7 +684,7 @@ static int skl_probe(struct pci_dev *pci,
 	skl_dmic_data.dmic_num = skl_get_dmic_geo(skl);
 
 	/* check if dsp is there */
-	if (ebus->ppcap) {
+	if (bus->ppcap) {
 		err = skl_machine_device_register(skl,
 				  (void *)pci_id->driver_data);
 		if (err < 0)
@@ -698,7 +698,7 @@ static int skl_probe(struct pci_dev *pci,
 		skl->skl_sst->enable_miscbdcge = skl_enable_miscbdcge;
 
 	}
-	if (ebus->mlcap)
+	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(ebus);
 
 	/* create device for soc dmic */
@@ -746,6 +746,9 @@ out_mach_free:
 	skl_machine_device_unregister(skl);
 out_nhlt_free:
 	skl_nhlt_free(skl->nhlt);
+out_display_power_off:
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI))
+		snd_hdac_display_power(bus, false);
 out_free:
 	skl->init_failed = 1;
 	skl_free(ebus);
@@ -785,8 +788,7 @@ static void skl_remove(struct pci_dev *pci)
 
 	release_firmware(skl->tplg);
 
-	if (pci_dev_run_wake(pci))
-		pm_runtime_get_noresume(&pci->dev);
+	pm_runtime_get_noresume(&pci->dev);
 
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(ebus);

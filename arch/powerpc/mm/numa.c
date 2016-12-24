@@ -845,7 +845,7 @@ void __init dump_numa_cpu_topology(void)
 		return;
 
 	for_each_online_node(node) {
-		printk(KERN_DEBUG "Node %d CPUs:", node);
+		pr_info("Node %d CPUs:", node);
 
 		count = 0;
 		/*
@@ -856,52 +856,18 @@ void __init dump_numa_cpu_topology(void)
 			if (cpumask_test_cpu(cpu,
 					node_to_cpumask_map[node])) {
 				if (count == 0)
-					printk(" %u", cpu);
+					pr_cont(" %u", cpu);
 				++count;
 			} else {
 				if (count > 1)
-					printk("-%u", cpu - 1);
+					pr_cont("-%u", cpu - 1);
 				count = 0;
 			}
 		}
 
 		if (count > 1)
-			printk("-%u", nr_cpu_ids - 1);
-		printk("\n");
-	}
-}
-
-static void __init dump_numa_memory_topology(void)
-{
-	unsigned int node;
-	unsigned int count;
-
-	if (min_common_depth == -1 || !numa_enabled)
-		return;
-
-	for_each_online_node(node) {
-		unsigned long i;
-
-		printk(KERN_DEBUG "Node %d Memory:", node);
-
-		count = 0;
-
-		for (i = 0; i < memblock_end_of_DRAM();
-		     i += (1 << SECTION_SIZE_BITS)) {
-			if (early_pfn_to_nid(i >> PAGE_SHIFT) == node) {
-				if (count == 0)
-					printk(" 0x%lx", i);
-				++count;
-			} else {
-				if (count > 0)
-					printk("-0x%lx", i);
-				count = 0;
-			}
-		}
-
-		if (count > 0)
-			printk("-0x%lx", i);
-		printk("\n");
+			pr_cont("-%u", nr_cpu_ids - 1);
+		pr_cont("\n");
 	}
 }
 
@@ -947,8 +913,6 @@ void __init initmem_init(void)
 
 	if (parse_numa_properties())
 		setup_nonnuma();
-	else
-		dump_numa_memory_topology();
 
 	memblock_dump_all();
 

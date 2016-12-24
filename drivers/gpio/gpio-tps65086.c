@@ -72,7 +72,7 @@ static void tps65086_gpio_set(struct gpio_chip *chip, unsigned offset,
 			   BIT(4 + offset), value ? BIT(4 + offset) : 0);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "tps65086-gpio",
 	.owner			= THIS_MODULE,
 	.get_direction		= tps65086_gpio_get_direction,

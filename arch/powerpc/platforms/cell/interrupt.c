@@ -123,7 +123,7 @@ static void iic_ioexc_cascade(struct irq_desc *desc)
 				unsigned int cirq =
 					irq_linear_revmap(iic_host,
 							  base | cascade);
-				if (cirq != NO_IRQ)
+				if (cirq)
 					generic_handle_irq(cirq);
 			}
 		/* post-ack level interrupts */
@@ -153,10 +153,10 @@ static unsigned int iic_get_irq(void)
 	*(unsigned long *) &pending =
 		in_be64((u64 __iomem *) &iic->regs->pending_destr);
 	if (!(pending.flags & CBE_IIC_IRQ_VALID))
-		return NO_IRQ;
+		return 0;
 	virq = irq_linear_revmap(iic_host, iic_pending_to_hwnum(pending));
-	if (virq == NO_IRQ)
-		return NO_IRQ;
+	if (!virq)
+		return 0;
 	iic->eoi_stack[++iic->eoi_ptr] = pending.prio;
 	BUG_ON(iic->eoi_ptr > 15);
 	return virq;
@@ -187,18 +187,12 @@ void iic_message_pass(int cpu, int msg)
 	out_be64(&per_cpu(cpu_iic, cpu).regs->generate, (0xf - msg) << 4);
 }
 
-struct irq_domain *iic_get_irq_host(int node)
-{
-	return iic_host;
-}
-EXPORT_SYMBOL_GPL(iic_get_irq_host);
-
 static void iic_request_ipi(int msg)
 {
 	int virq;
 
 	virq = irq_create_mapping(iic_host, iic_msg_to_irq(msg));
-	if (virq == NO_IRQ) {
+	if (!virq) {
 		printk(KERN_ERR
 		       "iic: failed to map IPI %s\n", smp_ipi_name[msg]);
 		return;
@@ -353,7 +347,7 @@ static int __init setup_iic(void)
 		cascade |= 1 << IIC_IRQ_CLASS_SHIFT;
 		cascade |= IIC_UNIT_IIC;
 		cascade = irq_create_mapping(iic_host, cascade);
-		if (cascade == NO_IRQ)
+		if (!cascade)
 			continue;
 		/*
 		 * irq_data is a generic pointer that gets passed back

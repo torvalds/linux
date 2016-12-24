@@ -23,9 +23,7 @@
 #include "meter.h"
 #include "ade7754.h"
 
-static int ade7754_spi_write_reg_8(struct device *dev,
-		u8 reg_address,
-		u8 val)
+static int ade7754_spi_write_reg_8(struct device *dev, u8 reg_address, u8 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -42,8 +40,7 @@ static int ade7754_spi_write_reg_8(struct device *dev,
 }
 
 static int ade7754_spi_write_reg_16(struct device *dev,
-		u8 reg_address,
-		u16 value)
+				    u8 reg_address, u16 value)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -59,9 +56,7 @@ static int ade7754_spi_write_reg_16(struct device *dev,
 	return ret;
 }
 
-static int ade7754_spi_read_reg_8(struct device *dev,
-		u8 reg_address,
-		u8 *val)
+static int ade7754_spi_read_reg_8(struct device *dev, u8 reg_address, u8 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7754_state *st = iio_priv(indio_dev);
@@ -70,7 +65,7 @@ static int ade7754_spi_read_reg_8(struct device *dev,
 	ret = spi_w8r8(st->us, ADE7754_READ_REG(reg_address));
 	if (ret < 0) {
 		dev_err(&st->us->dev, "problem when reading 8 bit register 0x%02X",
-				reg_address);
+			reg_address);
 		return ret;
 	}
 	*val = ret;
@@ -79,8 +74,7 @@ static int ade7754_spi_read_reg_8(struct device *dev,
 }
 
 static int ade7754_spi_read_reg_16(struct device *dev,
-		u8 reg_address,
-		u16 *val)
+				   u8 reg_address, u16 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7754_state *st = iio_priv(indio_dev);
@@ -99,8 +93,7 @@ static int ade7754_spi_read_reg_16(struct device *dev,
 }
 
 static int ade7754_spi_read_reg_24(struct device *dev,
-		u8 reg_address,
-		u32 *val)
+				   u8 reg_address, u32 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7754_state *st = iio_priv(indio_dev);
@@ -123,7 +116,7 @@ static int ade7754_spi_read_reg_24(struct device *dev,
 	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
 		dev_err(&st->us->dev, "problem when reading 24 bit register 0x%02X",
-				reg_address);
+			reg_address);
 		goto error_ret;
 	}
 	*val = (st->rx[1] << 16) | (st->rx[2] << 8) | st->rx[3];
@@ -134,8 +127,8 @@ error_ret:
 }
 
 static ssize_t ade7754_read_8bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	int ret;
 	u8 val = 0;
@@ -149,8 +142,8 @@ static ssize_t ade7754_read_8bit(struct device *dev,
 }
 
 static ssize_t ade7754_read_16bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u16 val = 0;
@@ -164,8 +157,8 @@ static ssize_t ade7754_read_16bit(struct device *dev,
 }
 
 static ssize_t ade7754_read_24bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u32 val = 0;
@@ -179,9 +172,9 @@ static ssize_t ade7754_read_24bit(struct device *dev,
 }
 
 static ssize_t ade7754_write_8bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				  struct device_attribute *attr,
+				  const char *buf,
+				  size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
@@ -197,9 +190,9 @@ error_ret:
 }
 
 static ssize_t ade7754_write_16bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
@@ -403,16 +396,14 @@ err_ret:
 }
 
 static ssize_t ade7754_read_frequency(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	int ret;
 	u8 t;
 	int sps;
 
-	ret = ade7754_spi_read_reg_8(dev,
-			ADE7754_WAVMODE,
-			&t);
+	ret = ade7754_spi_read_reg_8(dev, ADE7754_WAVMODE, &t);
 	if (ret)
 		return ret;
 
@@ -423,9 +414,9 @@ static ssize_t ade7754_read_frequency(struct device *dev,
 }
 
 static ssize_t ade7754_write_frequency(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				       struct device_attribute *attr,
+				       const char *buf,
+				       size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7754_state *st = iio_priv(indio_dev);

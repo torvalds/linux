@@ -11,11 +11,13 @@ Name
 
 VIDEO_PLAY
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_PLAY)
+.. c:function:: int ioctl(fd, VIDEO_PLAY)
+    :name: VIDEO_PLAY
 
 
 Arguments

@@ -1262,7 +1262,7 @@ int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	dbg_gen("ino %lu, mode %#x, ia_valid %#x",
 		inode->i_ino, inode->i_mode, attr->ia_valid);
-	err = inode_change_ok(inode, attr);
+	err = setattr_prepare(dentry, attr);
 	if (err)
 		return err;
 
@@ -1397,7 +1397,7 @@ int ubifs_update_time(struct inode *inode, struct timespec *time,
 #endif
 
 /**
- * update_ctime - update mtime and ctime of an inode.
+ * update_mctime - update mtime and ctime of an inode.
  * @inode: inode to update
  *
  * This function updates mtime and ctime of the inode if it is not equivalent to
@@ -1621,10 +1621,7 @@ const struct address_space_operations ubifs_file_address_operations = {
 const struct inode_operations ubifs_file_inode_operations = {
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
-	.setxattr    = generic_setxattr,
-	.getxattr    = generic_getxattr,
 	.listxattr   = ubifs_listxattr,
-	.removexattr = generic_removexattr,
 #ifdef CONFIG_UBIFS_ATIME_SUPPORT
 	.update_time = ubifs_update_time,
 #endif
@@ -1635,10 +1632,7 @@ const struct inode_operations ubifs_symlink_inode_operations = {
 	.get_link    = simple_get_link,
 	.setattr     = ubifs_setattr,
 	.getattr     = ubifs_getattr,
-	.setxattr    = generic_setxattr,
-	.getxattr    = generic_getxattr,
 	.listxattr   = ubifs_listxattr,
-	.removexattr = generic_removexattr,
 #ifdef CONFIG_UBIFS_ATIME_SUPPORT
 	.update_time = ubifs_update_time,
 #endif

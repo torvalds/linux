@@ -128,10 +128,8 @@ static void update_display_visual(struct usb_sevsegdev *mydev, gfp_t mf)
 		return;
 
 	buffer = kzalloc(MAXLEN, mf);
-	if (!buffer) {
-		dev_err(&mydev->udev->dev, "out of memory\n");
+	if (!buffer)
 		return;
-	}
 
 	/* The device is right to left, where as you write left to right */
 	for (i = 0; i < mydev->textlength; i++)
@@ -346,10 +344,8 @@ static int sevseg_probe(struct usb_interface *interface,
 	int rc = -ENOMEM;
 
 	mydev = kzalloc(sizeof(struct usb_sevsegdev), GFP_KERNEL);
-	if (mydev == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!mydev)
 		goto error_mem;
-	}
 
 	mydev->udev = usb_get_dev(udev);
 	mydev->intf = interface;

@@ -139,6 +139,7 @@ struct msm_dsi_host {
 
 	u32 err_work_state;
 	struct work_struct err_work;
+	struct work_struct hpd_work;
 	struct workqueue_struct *workqueue;
 
 	/* DSI 6G TX buffer*/
@@ -1294,6 +1295,14 @@ static void dsi_sw_reset_restore(struct msm_dsi_host *msm_host)
 	wmb();	/* make sure dsi controller enabled again */
 }
 
+static void dsi_hpd_worker(struct work_struct *work)
+{
+	struct msm_dsi_host *msm_host =
+		container_of(work, struct msm_dsi_host, hpd_work);
+
+	drm_helper_hpd_irq_event(msm_host->dev);
+}
+
 static void dsi_err_worker(struct work_struct *work)
 {
 	struct msm_dsi_host *msm_host =
@@ -1480,7 +1489,7 @@ static int dsi_host_attach(struct mipi_dsi_host *host,
 
 	DBG("id=%d", msm_host->id);
 	if (msm_host->dev)
-		drm_helper_hpd_irq_event(msm_host->dev);
+		queue_work(msm_host->workqueue, &msm_host->hpd_work);
 
 	return 0;
 }
@@ -1494,7 +1503,7 @@ static int dsi_host_detach(struct mipi_dsi_host *host,
 
 	DBG("id=%d", msm_host->id);
 	if (msm_host->dev)
-		drm_helper_hpd_irq_event(msm_host->dev);
+		queue_work(msm_host->workqueue, &msm_host->hpd_work);
 
 	return 0;
 }
@@ -1748,6 +1757,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	/* setup workqueue */
 	msm_host->workqueue = alloc_ordered_workqueue("dsi_drm_work", 0);
 	INIT_WORK(&msm_host->err_work, dsi_err_worker);
+	INIT_WORK(&msm_host->hpd_work, dsi_hpd_worker);
 
 	msm_dsi->host = &msm_host->base;
 	msm_dsi->id = msm_host->id;

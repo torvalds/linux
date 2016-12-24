@@ -279,18 +279,6 @@
 					reg = <0x180000 0x780000>;   /* 7.5MB */
 				};
 			};
-
-			spi0: spi@10600 {
-				status = "okay";
-
-				spi-flash@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "everspin,mr25h256";
-					reg = <0>; /* Chip select 0 */
-					spi-max-frequency = <40000000>;
-				};
-			};
 		};
 	};
 
@@ -396,5 +384,17 @@
 	gpio_fan_pin: gpio-fan-pin {
 		marvell,pins = "mpp24";
 		marvell,function = "gpio";
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "everspin,mr25h256";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <40000000>;
 	};
 };

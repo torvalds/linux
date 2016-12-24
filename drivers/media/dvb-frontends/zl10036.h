@@ -21,7 +21,6 @@
 #ifndef DVB_ZL10036_H
 #define DVB_ZL10036_H
 
-#include <linux/kconfig.h>
 #include <linux/i2c.h>
 #include "dvb_frontend.h"
 

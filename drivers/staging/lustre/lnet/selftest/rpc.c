@@ -91,9 +91,9 @@ srpc_add_bulk_page(struct srpc_bulk *bk, struct page *pg, int i, int nob)
 	LASSERT(nob > 0);
 	LASSERT(i >= 0 && i < bk->bk_niov);
 
-	bk->bk_iovs[i].kiov_offset = 0;
-	bk->bk_iovs[i].kiov_page = pg;
-	bk->bk_iovs[i].kiov_len = nob;
+	bk->bk_iovs[i].bv_offset = 0;
+	bk->bk_iovs[i].bv_page = pg;
+	bk->bk_iovs[i].bv_len = nob;
 	return nob;
 }
 
@@ -106,7 +106,7 @@ srpc_free_bulk(struct srpc_bulk *bk)
 	LASSERT(bk);
 
 	for (i = 0; i < bk->bk_niov; i++) {
-		pg = bk->bk_iovs[i].kiov_page;
+		pg = bk->bk_iovs[i].bv_page;
 		if (!pg)
 			break;
 

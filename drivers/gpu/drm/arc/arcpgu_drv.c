@@ -198,8 +198,8 @@ static int arcpgu_probe(struct platform_device *pdev)
 	int ret;
 
 	drm = drm_dev_alloc(&arcpgu_drm_driver, &pdev->dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	ret = arcpgu_load(drm);
 	if (ret)

@@ -102,10 +102,6 @@ int hfi1_get_proc_affinity(int);
 /* Release a CPU used by a user process. */
 void hfi1_put_proc_affinity(int);
 
-int hfi1_get_sdma_affinity(struct hfi1_devdata *dd, char *buf);
-int hfi1_set_sdma_affinity(struct hfi1_devdata *dd, const char *buf,
-			   size_t count);
-
 struct hfi1_affinity_node {
 	int node;
 	struct cpu_mask_set def_intr;
@@ -121,8 +117,7 @@ struct hfi1_affinity_node_list {
 	int num_core_siblings;
 	int num_online_nodes;
 	int num_online_cpus;
-	/* protect affinity node list */
-	spinlock_t lock;
+	struct mutex lock; /* protects affinity nodes */
 };
 
 int node_affinity_init(void);

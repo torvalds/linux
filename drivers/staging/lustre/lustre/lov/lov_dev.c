@@ -516,6 +516,5 @@ struct lu_device_type lov_device_type = {
 	.ldt_ops      = &lov_device_type_ops,
 	.ldt_ctx_tags = LCT_CL_THREAD
 };
-EXPORT_SYMBOL(lov_device_type);
 
 /** @} lov */

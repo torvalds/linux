@@ -339,7 +339,7 @@ enum bpf_func_id {
 	BPF_FUNC_skb_change_type,
 
 	/**
-	 * bpf_skb_in_cgroup(skb, map, index) - Check cgroup2 membership of skb
+	 * bpf_skb_under_cgroup(skb, map, index) - Check cgroup2 membership of skb
 	 * @skb: pointer to skb
 	 * @map: pointer to bpf_map in BPF_MAP_TYPE_CGROUP_ARRAY type
 	 * @index: index of the cgroup in the bpf_map
@@ -348,7 +348,7 @@ enum bpf_func_id {
 	 *   == 1 skb succeeded the cgroup2 descendant test
 	 *    < 0 error
 	 */
-	BPF_FUNC_skb_in_cgroup,
+	BPF_FUNC_skb_under_cgroup,
 
 	/**
 	 * bpf_get_hash_recalc(skb)

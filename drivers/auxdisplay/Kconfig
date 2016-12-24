@@ -119,4 +119,13 @@ config CFAG12864B_RATE
 	  If you compile this as a module, you can still override this
 	  value using the module parameters.
 
+config IMG_ASCII_LCD
+	tristate "Imagination Technologies ASCII LCD Display"
+	default y if MIPS_MALTA || MIPS_SEAD3
+	select SYSCON
+	help
+	  Enable this to support the simple ASCII LCD displays found on
+	  development boards such as the MIPS Boston, MIPS Malta & MIPS SEAD3
+	  from Imagination Technologies.
+
 endif # AUXDISPLAY

@@ -65,6 +65,7 @@
 #include "../../include/obd_support.h"
 #include "../../include/obd_class.h"
 #include "../../include/lprocfs_status.h"
+#include "../../include/lustre/lustre_ioctl.h"
 #include "../../include/lustre_ver.h"
 
 /* buffer MUST be at least the size of obd_ioctl_hdr */
@@ -157,7 +158,6 @@ int obd_ioctl_popdata(void __user *arg, void *data, int len)
 	err = copy_to_user(arg, data, len) ? -EFAULT : 0;
 	return err;
 }
-EXPORT_SYMBOL(obd_ioctl_popdata);
 
 /*  opening /dev/obd */
 static int obd_class_open(struct inode *inode, struct file *file)
@@ -191,7 +191,7 @@ static long obd_class_ioctl(struct file *filp, unsigned int cmd,
 }
 
 /* declare character device */
-static struct file_operations obd_psdev_fops = {
+static const struct file_operations obd_psdev_fops = {
 	.owner	  = THIS_MODULE,
 	.unlocked_ioctl = obd_class_ioctl, /* unlocked_ioctl */
 	.open	   = obd_class_open,      /* open */
@@ -291,7 +291,7 @@ static ssize_t jobid_name_store(struct kobject *kobj, struct attribute *attr,
 				const char *buffer,
 				size_t count)
 {
-	if (!count || count > JOBSTATS_JOBID_SIZE)
+	if (!count || count > LUSTRE_JOBID_SIZE)
 		return -EINVAL;
 
 	memcpy(obd_jobid_node, buffer, count);

@@ -1102,8 +1102,7 @@ static void nbpf_chan_tasklet(unsigned long data)
 {
 	struct nbpf_channel *chan = (struct nbpf_channel *)data;
 	struct nbpf_desc *desc, *tmp;
-	dma_async_tx_callback callback;
-	void *param;
+	struct dmaengine_desc_callback cb;
 
 	while (!list_empty(&chan->done)) {
 		bool found = false, must_put, recycling = false;
@@ -1151,14 +1150,12 @@ static void nbpf_chan_tasklet(unsigned long data)
 			must_put = false;
 		}
 
-		callback = desc->async_tx.callback;
-		param = desc->async_tx.callback_param;
+		dmaengine_desc_get_callback(&desc->async_tx, &cb);
 
 		/* ack and callback completed descriptor */
 		spin_unlock_irq(&chan->lock);
 
-		if (callback)
-			callback(param);
+		dmaengine_desc_callback_invoke(&cb, NULL);
 
 		if (must_put)
 			nbpf_desc_put(desc);

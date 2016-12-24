@@ -835,6 +835,83 @@ int ceph_monc_get_version_async(struct ceph_mon_client *monc, const char *what,
 }
 EXPORT_SYMBOL(ceph_monc_get_version_async);
 
+static void handle_command_ack(struct ceph_mon_client *monc,
+			       struct ceph_msg *msg)
+{
+	struct ceph_mon_generic_request *req;
+	void *p = msg->front.iov_base;
+	void *const end = p + msg->front_alloc_len;
+	u64 tid = le64_to_cpu(msg->hdr.tid);
+
+	dout("%s msg %p tid %llu\n", __func__, msg, tid);
+
+	ceph_decode_need(&p, end, sizeof(struct ceph_mon_request_header) +
+							    sizeof(u32), bad);
+	p += sizeof(struct ceph_mon_request_header);
+
+	mutex_lock(&monc->mutex);
+	req = lookup_generic_request(&monc->generic_request_tree, tid);
+	if (!req) {
+		mutex_unlock(&monc->mutex);
+		return;
+	}
+
+	req->result = ceph_decode_32(&p);
+	__finish_generic_request(req);
+	mutex_unlock(&monc->mutex);
+
+	complete_generic_request(req);
+	return;
+
+bad:
+	pr_err("corrupt mon_command ack, tid %llu\n", tid);
+	ceph_msg_dump(msg);
+}
+
+int ceph_monc_blacklist_add(struct ceph_mon_client *monc,
+			    struct ceph_entity_addr *client_addr)
+{
+	struct ceph_mon_generic_request *req;
+	struct ceph_mon_command *h;
+	int ret = -ENOMEM;
+	int len;
+
+	req = alloc_generic_request(monc, GFP_NOIO);
+	if (!req)
+		goto out;
+
+	req->request = ceph_msg_new(CEPH_MSG_MON_COMMAND, 256, GFP_NOIO, true);
+	if (!req->request)
+		goto out;
+
+	req->reply = ceph_msg_new(CEPH_MSG_MON_COMMAND_ACK, 512, GFP_NOIO,
+				  true);
+	if (!req->reply)
+		goto out;
+
+	mutex_lock(&monc->mutex);
+	register_generic_request(req);
+	h = req->request->front.iov_base;
+	h->monhdr.have_version = 0;
+	h->monhdr.session_mon = cpu_to_le16(-1);
+	h->monhdr.session_mon_tid = 0;
+	h->fsid = monc->monmap->fsid;
+	h->num_strs = cpu_to_le32(1);
+	len = sprintf(h->str, "{ \"prefix\": \"osd blacklist\", \
+		                 \"blacklistop\": \"add\", \
+				 \"addr\": \"%pISpc/%u\" }",
+		      &client_addr->in_addr, le32_to_cpu(client_addr->nonce));
+	h->str_len = cpu_to_le32(len);
+	send_generic_request(monc, req);
+	mutex_unlock(&monc->mutex);
+
+	ret = wait_generic_request(req);
+out:
+	put_generic_request(req);
+	return ret;
+}
+EXPORT_SYMBOL(ceph_monc_blacklist_add);
+
 /*
  * Resend pending generic requests.
  */
@@ -1139,6 +1216,10 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 		handle_get_version_reply(monc, msg);
 		break;
 
+	case CEPH_MSG_MON_COMMAND_ACK:
+		handle_command_ack(monc, msg);
+		break;
+
 	case CEPH_MSG_MON_MAP:
 		ceph_monc_handle_map(monc, msg);
 		break;
@@ -1178,6 +1259,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 		m = ceph_msg_get(monc->m_subscribe_ack);
 		break;
 	case CEPH_MSG_STATFS_REPLY:
+	case CEPH_MSG_MON_COMMAND_ACK:
 		return get_generic_reply(con, hdr, skip);
 	case CEPH_MSG_AUTH_REPLY:
 		m = ceph_msg_get(monc->m_auth_reply);

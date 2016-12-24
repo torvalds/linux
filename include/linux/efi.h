@@ -20,6 +20,7 @@
 #include <linux/ioport.h>
 #include <linux/pfn.h>
 #include <linux/pstore.h>
+#include <linux/range.h>
 #include <linux/reboot.h>
 #include <linux/uuid.h>
 #include <linux/screen_info.h>
@@ -37,6 +38,7 @@
 #define EFI_WRITE_PROTECTED	( 8 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_OUT_OF_RESOURCES	( 9 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_NOT_FOUND		(14 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_ABORTED		(21 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_SECURITY_VIOLATION	(26 | (1UL << (BITS_PER_LONG-1)))
 
 typedef unsigned long efi_status_t;
@@ -678,6 +680,18 @@ typedef struct {
 	unsigned long tables;
 } efi_system_table_t;
 
+/*
+ * Architecture independent structure for describing a memory map for the
+ * benefit of efi_memmap_init_early(), saving us the need to pass four
+ * parameters.
+ */
+struct efi_memory_map_data {
+	phys_addr_t phys_map;
+	unsigned long size;
+	unsigned long desc_version;
+	unsigned long desc_size;
+};
+
 struct efi_memory_map {
 	phys_addr_t phys_map;
 	void *map;
@@ -685,6 +699,12 @@ struct efi_memory_map {
 	int nr_map;
 	unsigned long desc_version;
 	unsigned long desc_size;
+	bool late;
+};
+
+struct efi_mem_range {
+	struct range range;
+	u64 attribute;
 };
 
 struct efi_fdt_params {
@@ -909,6 +929,16 @@ static inline efi_status_t efi_query_variable_store(u32 attributes,
 }
 #endif
 extern void __iomem *efi_lookup_mapped_addr(u64 phys_addr);
+
+extern int __init efi_memmap_init_early(struct efi_memory_map_data *data);
+extern int __init efi_memmap_init_late(phys_addr_t addr, unsigned long size);
+extern void __init efi_memmap_unmap(void);
+extern int __init efi_memmap_install(phys_addr_t addr, unsigned int nr_map);
+extern int __init efi_memmap_split_count(efi_memory_desc_t *md,
+					 struct range *range);
+extern void __init efi_memmap_insert(struct efi_memory_map *old_memmap,
+				     void *buf, struct efi_mem_range *mem);
+
 extern int efi_config_init(efi_config_table_type_t *arch_tables);
 #ifdef CONFIG_EFI_ESRT
 extern void __init efi_esrt_init(void);
@@ -924,6 +954,7 @@ extern u64 efi_mem_attribute (unsigned long phys_addr, unsigned long size);
 extern int __init efi_uart_console_only (void);
 extern u64 efi_mem_desc_end(efi_memory_desc_t *md);
 extern int efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md);
+extern void efi_mem_reserve(phys_addr_t addr, u64 size);
 extern void efi_initialize_iomem_resources(struct resource *code_resource,
 		struct resource *data_resource, struct resource *bss_resource);
 extern void efi_reserve_boot_services(void);
@@ -1136,12 +1167,6 @@ struct efivar_operations {
 };
 
 struct efivars {
-	/*
-	 * ->lock protects two things:
-	 * 1) efivarfs_list and efivars_sysfs_list
-	 * 2) ->ops calls
-	 */
-	spinlock_t lock;
 	struct kset *kset;
 	struct kobject *kobject;
 	const struct efivar_operations *ops;
@@ -1282,8 +1307,8 @@ struct kobject *efivars_kobject(void);
 int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 		void *data, bool duplicates, struct list_head *head);
 
-void efivar_entry_add(struct efivar_entry *entry, struct list_head *head);
-void efivar_entry_remove(struct efivar_entry *entry);
+int efivar_entry_add(struct efivar_entry *entry, struct list_head *head);
+int efivar_entry_remove(struct efivar_entry *entry);
 
 int __efivar_entry_delete(struct efivar_entry *entry);
 int efivar_entry_delete(struct efivar_entry *entry);
@@ -1300,7 +1325,7 @@ int efivar_entry_set_get_size(struct efivar_entry *entry, u32 attributes,
 int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
 			  bool block, unsigned long size, void *data);
 
-void efivar_entry_iter_begin(void);
+int efivar_entry_iter_begin(void);
 void efivar_entry_iter_end(void);
 
 int __efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
@@ -1336,7 +1361,6 @@ extern int efi_capsule_update(efi_capsule_header_t *capsule,
 
 #ifdef CONFIG_EFI_RUNTIME_MAP
 int efi_runtime_map_init(struct kobject *);
-void efi_runtime_map_setup(void *, int, u32);
 int efi_get_runtime_map_size(void);
 int efi_get_runtime_map_desc_size(void);
 int efi_runtime_map_copy(void *buf, size_t bufsz);
@@ -1345,9 +1369,6 @@ static inline int efi_runtime_map_init(struct kobject *kobj)
 {
 	return 0;
 }
-
-static inline void
-efi_runtime_map_setup(void *map, int nr_entries, u32 desc_size) {}
 
 static inline int efi_get_runtime_map_size(void)
 {

@@ -1254,85 +1254,6 @@ static int pagetypeinfo_showblockcount(struct seq_file *m, void *arg)
 	return 0;
 }
 
-#ifdef CONFIG_PAGE_OWNER
-static void pagetypeinfo_showmixedcount_print(struct seq_file *m,
-							pg_data_t *pgdat,
-							struct zone *zone)
-{
-	struct page *page;
-	struct page_ext *page_ext;
-	unsigned long pfn = zone->zone_start_pfn, block_end_pfn;
-	unsigned long end_pfn = pfn + zone->spanned_pages;
-	unsigned long count[MIGRATE_TYPES] = { 0, };
-	int pageblock_mt, page_mt;
-	int i;
-
-	/* Scan block by block. First and last block may be incomplete */
-	pfn = zone->zone_start_pfn;
-
-	/*
-	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
-	 * a zone boundary, it will be double counted between zones. This does
-	 * not matter as the mixed block count will still be correct
-	 */
-	for (; pfn < end_pfn; ) {
-		if (!pfn_valid(pfn)) {
-			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
-			continue;
-		}
-
-		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
-		block_end_pfn = min(block_end_pfn, end_pfn);
-
-		page = pfn_to_page(pfn);
-		pageblock_mt = get_pageblock_migratetype(page);
-
-		for (; pfn < block_end_pfn; pfn++) {
-			if (!pfn_valid_within(pfn))
-				continue;
-
-			page = pfn_to_page(pfn);
-
-			if (page_zone(page) != zone)
-				continue;
-
-			if (PageBuddy(page)) {
-				pfn += (1UL << page_order(page)) - 1;
-				continue;
-			}
-
-			if (PageReserved(page))
-				continue;
-
-			page_ext = lookup_page_ext(page);
-			if (unlikely(!page_ext))
-				continue;
-
-			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
-				continue;
-
-			page_mt = gfpflags_to_migratetype(page_ext->gfp_mask);
-			if (pageblock_mt != page_mt) {
-				if (is_migrate_cma(pageblock_mt))
-					count[MIGRATE_MOVABLE]++;
-				else
-					count[pageblock_mt]++;
-
-				pfn = block_end_pfn;
-				break;
-			}
-			pfn += (1UL << page_ext->order) - 1;
-		}
-	}
-
-	/* Print counts */
-	seq_printf(m, "Node %d, zone %8s ", pgdat->node_id, zone->name);
-	for (i = 0; i < MIGRATE_TYPES; i++)
-		seq_printf(m, "%12lu ", count[i]);
-	seq_putc(m, '\n');
-}
-#endif /* CONFIG_PAGE_OWNER */
-
 /*
  * Print out the number of pageblocks for each migratetype that contain pages
  * of other types. This gives an indication of how well fallbacks are being
@@ -1592,7 +1513,10 @@ static int vmstat_show(struct seq_file *m, void *arg)
 {
 	unsigned long *l = arg;
 	unsigned long off = l - (unsigned long *)m->private;
-	seq_printf(m, "%s %lu\n", vmstat_text[off], *l);
+
+	seq_puts(m, vmstat_text[off]);
+	seq_put_decimal_ull(m, " ", *l);
+	seq_putc(m, '\n');
 	return 0;
 }
 
@@ -1794,6 +1718,16 @@ static void __init start_shepherd_timer(void)
 		round_jiffies_relative(sysctl_stat_interval));
 }
 
+static void __init init_cpu_node_state(void)
+{
+	int cpu;
+
+	get_online_cpus();
+	for_each_online_cpu(cpu)
+		node_set_state(cpu_to_node(cpu), N_CPU);
+	put_online_cpus();
+}
+
 static void vmstat_cpu_dead(int node)
 {
 	int cpu;
@@ -1851,6 +1785,7 @@ static int __init setup_vmstat(void)
 #ifdef CONFIG_SMP
 	cpu_notifier_register_begin();
 	__register_cpu_notifier(&vmstat_notifier);
+	init_cpu_node_state();
 
 	start_shepherd_timer();
 	cpu_notifier_register_done();

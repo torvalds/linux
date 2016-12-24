@@ -23,6 +23,7 @@
 #include <asm/x86_init.h>
 #include <asm/geode.h>
 #include <asm/apic.h>
+#include <asm/intel-family.h>
 
 unsigned int __read_mostly cpu_khz;	/* TSC clocks / usec, not used here */
 EXPORT_SYMBOL(cpu_khz);
@@ -686,11 +687,16 @@ unsigned long native_calibrate_tsc(void)
 
 	if (crystal_khz == 0) {
 		switch (boot_cpu_data.x86_model) {
-		case 0x4E:	/* SKL */
-		case 0x5E:	/* SKL */
+		case INTEL_FAM6_SKYLAKE_MOBILE:
+		case INTEL_FAM6_SKYLAKE_DESKTOP:
+		case INTEL_FAM6_KABYLAKE_MOBILE:
+		case INTEL_FAM6_KABYLAKE_DESKTOP:
 			crystal_khz = 24000;	/* 24.0 MHz */
 			break;
-		case 0x5C:	/* BXT */
+		case INTEL_FAM6_SKYLAKE_X:
+			crystal_khz = 25000;	/* 25.0 MHz */
+			break;
+		case INTEL_FAM6_ATOM_GOLDMONT:
 			crystal_khz = 19200;	/* 19.2 MHz */
 			break;
 		}

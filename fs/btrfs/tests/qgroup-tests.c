@@ -480,7 +480,7 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	 */
 	root->fs_info->tree_root = root;
 	root->fs_info->quota_root = root;
-	root->fs_info->quota_enabled = 1;
+	set_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags);
 
 	/*
 	 * Can't use bytenr 0, some things freak out

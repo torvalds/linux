@@ -18,7 +18,6 @@
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/cpu-regs.h>
-#include <asm/uaccess.h>
 #include <asm/current.h>
 
 /* Forward declaration, a strange C thing */

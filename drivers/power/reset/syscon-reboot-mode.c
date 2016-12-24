@@ -53,8 +53,6 @@ static int syscon_reboot_mode_probe(struct platform_device *pdev)
 	syscon_rbm->reboot.write = syscon_reboot_mode_write;
 	syscon_rbm->mask = 0xffffffff;
 
-	dev_set_drvdata(&pdev->dev, syscon_rbm);
-
 	syscon_rbm->map = syscon_node_to_regmap(pdev->dev.parent->of_node);
 	if (IS_ERR(syscon_rbm->map))
 		return PTR_ERR(syscon_rbm->map);
@@ -65,18 +63,11 @@ static int syscon_reboot_mode_probe(struct platform_device *pdev)
 
 	of_property_read_u32(pdev->dev.of_node, "mask", &syscon_rbm->mask);
 
-	ret = reboot_mode_register(&syscon_rbm->reboot);
+	ret = devm_reboot_mode_register(&pdev->dev, &syscon_rbm->reboot);
 	if (ret)
 		dev_err(&pdev->dev, "can't register reboot mode\n");
 
 	return ret;
-}
-
-static int syscon_reboot_mode_remove(struct platform_device *pdev)
-{
-	struct syscon_reboot_mode *syscon_rbm = dev_get_drvdata(&pdev->dev);
-
-	return reboot_mode_unregister(&syscon_rbm->reboot);
 }
 
 static const struct of_device_id syscon_reboot_mode_of_match[] = {
@@ -86,7 +77,6 @@ static const struct of_device_id syscon_reboot_mode_of_match[] = {
 
 static struct platform_driver syscon_reboot_mode_driver = {
 	.probe = syscon_reboot_mode_probe,
-	.remove = syscon_reboot_mode_remove,
 	.driver = {
 		.name = "syscon-reboot-mode",
 		.of_match_table = syscon_reboot_mode_of_match,

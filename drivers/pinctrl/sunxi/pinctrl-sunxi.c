@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 
 #include "../core.h"
-#include "../../gpio/gpiolib.h"
 #include "pinctrl-sunxi.h"
 
 static struct irq_chip sunxi_pinctrl_edge_irq_chip;

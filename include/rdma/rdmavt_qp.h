@@ -466,6 +466,25 @@ static inline struct rvt_rwqe *rvt_get_rwqe_ptr(struct rvt_rq *rq, unsigned n)
 }
 
 /**
+ * rvt_get_qp - get a QP reference
+ * @qp - the QP to hold
+ */
+static inline void rvt_get_qp(struct rvt_qp *qp)
+{
+	atomic_inc(&qp->refcount);
+}
+
+/**
+ * rvt_put_qp - release a QP reference
+ * @qp - the QP to release
+ */
+static inline void rvt_put_qp(struct rvt_qp *qp)
+{
+	if (qp && atomic_dec_and_test(&qp->refcount))
+		wake_up(&qp->wait);
+}
+
+/**
  * rvt_qp_wqe_reserve - reserve operation
  * @qp - the rvt qp
  * @wqe - the send wqe

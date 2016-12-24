@@ -1734,7 +1734,7 @@ static void acpi_default_enumeration(struct acpi_device *device)
 			       &is_spi_i2c_slave);
 	acpi_dev_free_resource_list(&resource_list);
 	if (!is_spi_i2c_slave) {
-		acpi_create_platform_device(device);
+		acpi_create_platform_device(device, NULL);
 		acpi_device_set_enumerated(device);
 	} else {
 		blocking_notifier_call_chain(&acpi_reconfig_chain,
@@ -2002,6 +2002,7 @@ int __init acpi_scan_init(void)
 	acpi_pnp_init();
 	acpi_int340x_thermal_init();
 	acpi_amba_init();
+	acpi_watchdog_init();
 
 	acpi_scan_add_handler(&generic_device_handler);
 
@@ -2044,6 +2045,7 @@ int __init acpi_scan_init(void)
 	}
 
 	acpi_update_all_gpes();
+	acpi_ec_ecdt_start();
 
 	acpi_scan_initialized = true;
 

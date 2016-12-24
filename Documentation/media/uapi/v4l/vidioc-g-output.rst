@@ -15,7 +15,11 @@ VIDIOC_G_OUTPUT - VIDIOC_S_OUTPUT - Query or select the current video output
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, int *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_OUTPUT, int *argp )
+    :name: VIDIOC_G_OUTPUT
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_OUTPUT, int *argp )
+    :name: VIDIOC_S_OUTPUT
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_OUTPUT, VIDIOC_S_OUTPUT
 
 ``argp``
 
@@ -36,7 +37,7 @@ Description
 To query the current video output applications call the
 :ref:`VIDIOC_G_OUTPUT <VIDIOC_G_OUTPUT>` ioctl with a pointer to an integer where the driver
 stores the number of the output, as in the struct
-:ref:`v4l2_output <v4l2-output>` ``index`` field. This ioctl will
+:c:type:`v4l2_output` ``index`` field. This ioctl will
 fail only when there are no video outputs, returning the ``EINVAL`` error
 code.
 

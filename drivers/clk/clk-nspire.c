@@ -69,7 +69,7 @@ static void __init nspire_ahbdiv_setup(struct device_node *node,
 {
 	u32 val;
 	void __iomem *io;
-	struct clk *clk;
+	struct clk_hw *hw;
 	const char *clk_name = node->name;
 	const char *parent_name;
 	struct nspire_clk_info info;
@@ -85,10 +85,10 @@ static void __init nspire_ahbdiv_setup(struct device_node *node,
 	of_property_read_string(node, "clock-output-names", &clk_name);
 	parent_name = of_clk_get_parent_name(node, 0);
 
-	clk = clk_register_fixed_factor(NULL, clk_name, parent_name, 0,
-					1, info.base_ahb_ratio);
-	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	hw = clk_hw_register_fixed_factor(NULL, clk_name, parent_name, 0,
+					  1, info.base_ahb_ratio);
+	if (!IS_ERR(hw))
+		of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
 }
 
 static void __init nspire_ahbdiv_setup_cx(struct device_node *node)
@@ -111,7 +111,7 @@ static void __init nspire_clk_setup(struct device_node *node,
 {
 	u32 val;
 	void __iomem *io;
-	struct clk *clk;
+	struct clk_hw *hw;
 	const char *clk_name = node->name;
 	struct nspire_clk_info info;
 
@@ -125,9 +125,10 @@ static void __init nspire_clk_setup(struct device_node *node,
 
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
-	clk = clk_register_fixed_rate(NULL, clk_name, NULL, 0, info.base_clock);
-	if (!IS_ERR(clk))
-		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+	hw = clk_hw_register_fixed_rate(NULL, clk_name, NULL, 0,
+					info.base_clock);
+	if (!IS_ERR(hw))
+		of_clk_add_hw_provider(node, of_clk_hw_simple_get, hw);
 	else
 		return;
 

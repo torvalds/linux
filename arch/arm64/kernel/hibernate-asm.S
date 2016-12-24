@@ -36,8 +36,8 @@
 .macro break_before_make_ttbr_switch zero_page, page_table
 	msr	ttbr1_el1, \zero_page
 	isb
-	tlbi	vmalle1is
-	dsb	ish
+	tlbi	vmalle1
+	dsb	nsh
 	msr	ttbr1_el1, \page_table
 	isb
 .endm
@@ -96,7 +96,7 @@ ENTRY(swsusp_arch_suspend_exit)
 
 	add	x1, x10, #PAGE_SIZE
 	/* Clean the copied page to PoU - based on flush_icache_range() */
-	dcache_line_size x2, x3
+	raw_dcache_line_size x2, x3
 	sub	x3, x2, #1
 	bic	x4, x10, x3
 2:	dc	cvau, x4	/* clean D line / unified line */

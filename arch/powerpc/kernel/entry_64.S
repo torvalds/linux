@@ -38,6 +38,7 @@
 #include <asm/context_tracking.h>
 #include <asm/tm.h>
 #include <asm/ppc-opcode.h>
+#include <asm/export.h>
 
 /*
  * System calls.
@@ -139,7 +140,7 @@ END_FW_FTR_SECTION_IFSET(FW_FEATURE_SPLPAR)
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	1
 #else
-	ld	r11,PACAKMSR(r13)
+	li	r11,MSR_RI
 	ori	r11,r11,MSR_EE
 	mtmsrd	r11,1
 #endif /* CONFIG_PPC_BOOK3E */
@@ -195,7 +196,6 @@ system_call:			/* label this so stack traces look sane */
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	0
 #else
-	ld	r10,PACAKMSR(r13)
 	/*
 	 * For performance reasons we clear RI the same time that we
 	 * clear EE. We only need to clear RI just before we restore r13
@@ -203,8 +203,7 @@ system_call:			/* label this so stack traces look sane */
 	 * We have to be careful to restore RI if we branch anywhere from
 	 * here (eg syscall_exit_work).
 	 */
-	li	r9,MSR_RI
-	andc	r11,r10,r9
+	li	r11,0
 	mtmsrd	r11,1
 #endif /* CONFIG_PPC_BOOK3E */
 
@@ -221,13 +220,12 @@ system_call:			/* label this so stack traces look sane */
 #endif
 2:	addi    r3,r1,STACK_FRAME_OVERHEAD
 #ifdef CONFIG_PPC_BOOK3S
+	li	r10,MSR_RI
 	mtmsrd	r10,1		/* Restore RI */
 #endif
 	bl	restore_math
 #ifdef CONFIG_PPC_BOOK3S
-	ld	r10,PACAKMSR(r13)
-	li	r9,MSR_RI
-	andc	r11,r10,r9 /* Re-clear RI */
+	li	r11,0
 	mtmsrd	r11,1
 #endif
 	ld	r8,_MSR(r1)
@@ -308,6 +306,7 @@ syscall_enosys:
 	
 syscall_exit_work:
 #ifdef CONFIG_PPC_BOOK3S
+	li	r10,MSR_RI
 	mtmsrd	r10,1		/* Restore RI */
 #endif
 	/* If TIF_RESTOREALL is set, don't scribble on either r3 or ccr.
@@ -354,7 +353,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	1
 #else
-	ld	r10,PACAKMSR(r13)
+	li	r10,MSR_RI
 	ori	r10,r10,MSR_EE
 	mtmsrd	r10,1
 #endif /* CONFIG_PPC_BOOK3E */
@@ -619,7 +618,7 @@ _GLOBAL(ret_from_except_lite)
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	0
 #else
-	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
+	li	r10,MSR_RI
 	mtmsrd	r10,1		  /* Update machine state */
 #endif /* CONFIG_PPC_BOOK3E */
 
@@ -751,7 +750,7 @@ resume_kernel:
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	0
 #else
-	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
+	li	r10,MSR_RI
 	mtmsrd	r10,1		  /* Update machine state */
 #endif /* CONFIG_PPC_BOOK3E */
 #endif /* CONFIG_PREEMPT */
@@ -841,8 +840,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	 * userspace and we take an exception after restoring r13,
 	 * we end up corrupting the userspace r13 value.
 	 */
-	ld	r4,PACAKMSR(r13) /* Get kernel MSR without EE */
-	andc	r4,r4,r0	 /* r0 contains MSR_RI here */
+	li	r4,0
 	mtmsrd	r4,1
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
@@ -1180,6 +1178,7 @@ _GLOBAL(enter_prom)
 #ifdef CONFIG_DYNAMIC_FTRACE
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
+EXPORT_SYMBOL(_mcount)
 	mflr	r12
 	mtctr	r12
 	mtlr	r0
@@ -1416,6 +1415,7 @@ livepatch_handler:
 
 #else
 _GLOBAL_TOC(_mcount)
+EXPORT_SYMBOL(_mcount)
 	/* Taken from output of objdump from lib64/glibc */
 	mflr	r3
 	ld	r11, 0(r1)

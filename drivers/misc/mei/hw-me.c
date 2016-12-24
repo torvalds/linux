@@ -18,6 +18,7 @@
 
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 
 #include "mei_dev.h"
 #include "hbm.h"
@@ -1062,6 +1063,8 @@ static int mei_me_hw_reset(struct mei_device *dev, bool intr_enable)
 				return ret;
 		}
 	}
+
+	pm_runtime_set_active(dev->dev);
 
 	hcsr = mei_hcsr_read(dev);
 	/* H_RST may be found lit before reset is started,

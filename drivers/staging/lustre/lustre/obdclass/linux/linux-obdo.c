@@ -44,7 +44,7 @@
 
 #include <linux/fs.h>
 
-void obdo_refresh_inode(struct inode *dst, struct obdo *src, u32 valid)
+void obdo_refresh_inode(struct inode *dst, const struct obdo *src, u32 valid)
 {
 	valid &= src->o_valid;
 

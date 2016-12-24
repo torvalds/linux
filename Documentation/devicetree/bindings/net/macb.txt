@@ -21,6 +21,7 @@ Required properties:
 - clock-names: Tuple listing input clock names.
 	Required elements: 'pclk', 'hclk'
 	Optional elements: 'tx_clk'
+	Optional elements: 'rx_clk' applies to cdns,zynqmp-gem
 - clocks: Phandles to input clocks.
 
 Optional properties for PHY child node:

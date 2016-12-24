@@ -123,9 +123,12 @@ The DAX code does not work correctly on architectures which have virtually
 mapped caches such as ARM, MIPS and SPARC.
 
 Calling get_user_pages() on a range of user memory that has been mmaped
-from a DAX file will fail as there are no 'struct page' to describe
-those pages.  This problem is being worked on.  That means that O_DIRECT
-reads/writes to those memory ranges from a non-DAX file will fail (note
-that O_DIRECT reads/writes _of a DAX file_ do work, it is the memory
-that is being accessed that is key here).  Other things that will not
-work include RDMA, sendfile() and splice().
+from a DAX file will fail when there are no 'struct page' to describe
+those pages.  This problem has been addressed in some device drivers
+by adding optional struct page support for pages under the control of
+the driver (see CONFIG_NVDIMM_PFN in drivers/nvdimm for an example of
+how to do this). In the non struct page cases O_DIRECT reads/writes to
+those memory ranges from a non-DAX file will fail (note that O_DIRECT
+reads/writes _of a DAX file_ do work, it is the memory that is being
+accessed that is key here).  Other things that will not work in the
+non struct page case include RDMA, sendfile() and splice().

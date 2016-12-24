@@ -16,7 +16,7 @@ device special files named ``/dev/video`` and ``/dev/video0`` to
 ``/dev/video`` is typically a symbolic link to the preferred video
 device.
 
-..note:: The same device file names are used also for video capture devices.
+.. note:: The same device file names are used also for video capture devices.
 
 
 Querying Capabilities
@@ -25,7 +25,7 @@ Querying Capabilities
 Devices supporting the video output interface set the
 ``V4L2_CAP_VIDEO_OUTPUT`` or ``V4L2_CAP_VIDEO_OUTPUT_MPLANE`` flag in
 the ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. As secondary device
 functions they may also support the :ref:`raw VBI output <raw-vbi>`
 (``V4L2_CAP_VBI_OUTPUT``) interface. At least one of the read/write or
@@ -62,17 +62,17 @@ Cropping initialization at minimum requires to reset the parameters to
 defaults. An example is given in :ref:`crop`.
 
 To query the current image format applications set the ``type`` field of
-a struct :ref:`v4l2_format <v4l2-format>` to
+a struct :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT`` or ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``
 and call the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>` ioctl with a pointer
 to this structure. Drivers fill the struct
-:ref:`v4l2_pix_format <v4l2-pix-format>` ``pix`` or the struct
-:ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` ``pix_mp``
+:c:type:`v4l2_pix_format` ``pix`` or the struct
+:c:type:`v4l2_pix_format_mplane` ``pix_mp``
 member of the ``fmt`` union.
 
 To request different parameters applications set the ``type`` field of a
-struct :ref:`v4l2_format <v4l2-format>` as above and initialize all
-fields of the struct :ref:`v4l2_pix_format <v4l2-pix-format>`
+struct :c:type:`v4l2_format` as above and initialize all
+fields of the struct :c:type:`v4l2_pix_format`
 ``vbi`` member of the ``fmt`` union, or better just modify the results
 of :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, and call the :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>`
 ioctl with a pointer to this structure. Drivers may adjust the
@@ -83,8 +83,8 @@ Like :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` the :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`
 can be used to learn about hardware limitations without disabling I/O or
 possibly time consuming hardware preparations.
 
-The contents of struct :ref:`v4l2_pix_format <v4l2-pix-format>` and
-struct :ref:`v4l2_pix_format_mplane <v4l2-pix-format-mplane>` are
+The contents of struct :c:type:`v4l2_pix_format` and
+struct :c:type:`v4l2_pix_format_mplane` are
 discussed in :ref:`pixfmt`. See also the specification of the
 :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`, :ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` and :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` ioctls for
 details. Video output devices must implement both the :ref:`VIDIOC_G_FMT <VIDIOC_G_FMT>`

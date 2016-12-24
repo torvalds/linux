@@ -43,7 +43,7 @@ struct exynos_dp_device {
 	struct analogix_dp_plat_data plat_data;
 };
 
-int exynos_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
+static int exynos_dp_crtc_clock_enable(struct analogix_dp_plat_data *plat_data,
 				bool enable)
 {
 	struct exynos_dp_device *dp = to_dp(plat_data);

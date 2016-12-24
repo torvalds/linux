@@ -98,8 +98,8 @@ _GLOBAL(__setup_cpu_power9)
 	li	r0,0
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
-	ori	r3, r3, LPCR_PECEDH
-	ori	r3, r3, LPCR_HVICE
+	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE)
+	or	r3, r3, r4
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power9
@@ -118,8 +118,8 @@ _GLOBAL(__restore_cpu_power9)
 	li	r0,0
 	mtspr	SPRN_LPID,r0
 	mfspr   r3,SPRN_LPCR
-	ori	r3, r3, LPCR_PECEDH
-	ori	r3, r3, LPCR_HVICE
+	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE)
+	or	r3, r3, r4
 	bl	__init_LPCR
 	bl	__init_HFSCR
 	bl	__init_tlb_power9

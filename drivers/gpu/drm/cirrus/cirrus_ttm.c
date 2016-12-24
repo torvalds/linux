@@ -150,7 +150,8 @@ static int cirrus_bo_verify_access(struct ttm_buffer_object *bo, struct file *fi
 {
 	struct cirrus_bo *cirrusbo = cirrus_bo(bo);
 
-	return drm_vma_node_verify_access(&cirrusbo->gem.vma_node, filp);
+	return drm_vma_node_verify_access(&cirrusbo->gem.vma_node,
+					  filp->private_data);
 }
 
 static int cirrus_ttm_io_mem_reserve(struct ttm_bo_device *bdev,
@@ -266,6 +267,9 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 		return ret;
 	}
 
+	arch_io_reserve_memtype_wc(pci_resource_start(dev->pdev, 0),
+				   pci_resource_len(dev->pdev, 0));
+
 	cirrus->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					   pci_resource_len(dev->pdev, 0));
 
@@ -275,6 +279,8 @@ int cirrus_mm_init(struct cirrus_device *cirrus)
 
 void cirrus_mm_fini(struct cirrus_device *cirrus)
 {
+	struct drm_device *dev = cirrus->dev;
+
 	if (!cirrus->mm_inited)
 		return;
 
@@ -284,6 +290,8 @@ void cirrus_mm_fini(struct cirrus_device *cirrus)
 
 	arch_phys_wc_del(cirrus->fb_mtrr);
 	cirrus->fb_mtrr = 0;
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
 }
 
 void cirrus_ttm_placement(struct cirrus_bo *bo, int domain)

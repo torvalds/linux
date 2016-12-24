@@ -134,11 +134,11 @@ lnet_md_build(lnet_libmd_t *lmd, lnet_md_t *umd, int unlink)
 
 		for (i = 0; i < (int)niov; i++) {
 			/* We take the page pointer on trust */
-			if (lmd->md_iov.kiov[i].kiov_offset +
-			    lmd->md_iov.kiov[i].kiov_len > PAGE_SIZE)
+			if (lmd->md_iov.kiov[i].bv_offset +
+			    lmd->md_iov.kiov[i].bv_len > PAGE_SIZE)
 				return -EINVAL; /* invalid length */
 
-			total_length += lmd->md_iov.kiov[i].kiov_len;
+			total_length += lmd->md_iov.kiov[i].bv_len;
 		}
 
 		lmd->md_length = total_length;
@@ -292,11 +292,12 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 		return -ENOMEM;
 
 	rc = lnet_md_build(md, &umd, unlink);
+	if (rc)
+		goto out_free;
+
 	cpt = lnet_cpt_of_cookie(meh.cookie);
 
 	lnet_res_lock(cpt);
-	if (rc)
-		goto failed;
 
 	me = lnet_handle2me(&meh);
 	if (!me)
@@ -307,7 +308,7 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 		rc = lnet_md_link(md, umd.eq_handle, cpt);
 
 	if (rc)
-		goto failed;
+		goto out_unlock;
 
 	/*
 	 * attach this MD to portal of ME and check if it matches any
@@ -324,10 +325,10 @@ LNetMDAttach(lnet_handle_me_t meh, lnet_md_t umd,
 
 	return 0;
 
- failed:
-	lnet_md_free(md);
-
+out_unlock:
 	lnet_res_unlock(cpt);
+out_free:
+	lnet_md_free(md);
 	return rc;
 }
 EXPORT_SYMBOL(LNetMDAttach);
@@ -370,24 +371,25 @@ LNetMDBind(lnet_md_t umd, lnet_unlink_t unlink, lnet_handle_md_t *handle)
 		return -ENOMEM;
 
 	rc = lnet_md_build(md, &umd, unlink);
+	if (rc)
+		goto out_free;
 
 	cpt = lnet_res_lock_current();
-	if (rc)
-		goto failed;
 
 	rc = lnet_md_link(md, umd.eq_handle, cpt);
 	if (rc)
-		goto failed;
+		goto out_unlock;
 
 	lnet_md2handle(handle, md);
 
 	lnet_res_unlock(cpt);
 	return 0;
 
- failed:
+out_unlock:
+	lnet_res_unlock(cpt);
+out_free:
 	lnet_md_free(md);
 
-	lnet_res_unlock(cpt);
 	return rc;
 }
 EXPORT_SYMBOL(LNetMDBind);

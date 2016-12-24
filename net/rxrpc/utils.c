@@ -30,6 +30,7 @@ int rxrpc_extract_addr_from_skb(struct sockaddr_rxrpc *srx, struct sk_buff *skb)
 		srx->transport.sin.sin_addr.s_addr = ip_hdr(skb)->saddr;
 		return 0;
 
+#ifdef CONFIG_AF_RXRPC_IPV6
 	case ETH_P_IPV6:
 		srx->transport_type = SOCK_DGRAM;
 		srx->transport_len = sizeof(srx->transport.sin6);
@@ -37,6 +38,7 @@ int rxrpc_extract_addr_from_skb(struct sockaddr_rxrpc *srx, struct sk_buff *skb)
 		srx->transport.sin6.sin6_port = udp_hdr(skb)->source;
 		srx->transport.sin6.sin6_addr = ipv6_hdr(skb)->saddr;
 		return 0;
+#endif
 
 	default:
 		pr_warn_ratelimited("AF_RXRPC: Unknown eth protocol %u\n",

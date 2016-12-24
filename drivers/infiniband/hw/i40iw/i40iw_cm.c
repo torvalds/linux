@@ -3166,8 +3166,11 @@ void i40iw_setup_cm_core(struct i40iw_device *iwdev)
 	spin_lock_init(&cm_core->ht_lock);
 	spin_lock_init(&cm_core->listen_list_lock);
 
-	cm_core->event_wq = create_singlethread_workqueue("iwewq");
-	cm_core->disconn_wq = create_singlethread_workqueue("iwdwq");
+	cm_core->event_wq = alloc_ordered_workqueue("iwewq",
+						    WQ_MEM_RECLAIM);
+
+	cm_core->disconn_wq = alloc_ordered_workqueue("iwdwq",
+						      WQ_MEM_RECLAIM);
 }
 
 /**

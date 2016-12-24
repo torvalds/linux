@@ -897,7 +897,7 @@ static int acp_dma_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static struct snd_pcm_ops acp_dma_ops = {
+static const struct snd_pcm_ops acp_dma_ops = {
 	.open = acp_dma_open,
 	.close = acp_dma_close,
 	.ioctl = snd_pcm_lib_ioctl,

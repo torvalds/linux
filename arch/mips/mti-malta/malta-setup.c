@@ -42,9 +42,6 @@
 #define ROCIT_CONFIG_GEN0		0x1f403000
 #define  ROCIT_CONFIG_GEN0_PCI_IOCU	BIT(7)
 
-extern void malta_be_init(void);
-extern int malta_be_handler(struct pt_regs *regs, int is_fixup);
-
 static struct resource standard_io_resources[] = {
 	{
 		.name = "dma1",
@@ -154,12 +151,12 @@ static void __init plat_setup_iocoherency(void)
 	 * coherency instead.
 	 */
 	if (plat_enable_iocoherency()) {
-		if (coherentio == 0)
+		if (coherentio == IO_COHERENCE_DISABLED)
 			pr_info("Hardware DMA cache coherency disabled\n");
 		else
 			pr_info("Hardware DMA cache coherency enabled\n");
 	} else {
-		if (coherentio == 1)
+		if (coherentio == IO_COHERENCE_ENABLED)
 			pr_info("Hardware DMA cache coherency unsupported, but enabled from command line!\n");
 		else
 			pr_info("Software DMA cache coherency enabled\n");
@@ -301,7 +298,4 @@ void __init plat_mem_setup(void)
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 	screen_info_setup();
 #endif
-
-	board_be_init = malta_be_init;
-	board_be_handler = malta_be_handler;
 }

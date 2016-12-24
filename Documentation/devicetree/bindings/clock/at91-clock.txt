@@ -6,7 +6,8 @@ This binding uses the common clock binding[1].
 
 Required properties:
 - compatible : shall be one of the following:
-	"atmel,at91sam9x5-sckc":
+	"atmel,at91sam9x5-sckc" or
+	"atmel,sama5d4-sckc":
 		at91 SCKC (Slow Clock Controller)
 		This node contains the slow clock definitions.
 

@@ -35,7 +35,7 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
 #endif
 	changed = !pmd_same(*(pmdp), entry);
 	if (changed) {
-		__ptep_set_access_flags(pmdp_ptep(pmdp), pmd_pte(entry));
+		__ptep_set_access_flags(vma->vm_mm, pmdp_ptep(pmdp), pmd_pte(entry));
 		flush_pmd_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
 	}
 	return changed;
@@ -116,3 +116,12 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
 	return;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+/* For use by kexec */
+void mmu_cleanup_all(void)
+{
+	if (radix_enabled())
+		radix__mmu_cleanup_all();
+	else if (mmu_hash_ops.hpte_clear_all)
+		mmu_hash_ops.hpte_clear_all();
+}

@@ -315,22 +315,6 @@ enum odm_ability {
 	ODM_PSD2AFH		= 0x00000800
 };
 
-/*  2011/20/20 MH For MP driver RT_WLAN_STA =  struct sta_info */
-/*  Please declare below ODM relative info in your STA info structure. */
-
-struct odm_sta_info {
-	/*  Driver Write */
-	bool	bUsed;		/*  record the sta status link or not? */
-	u8	IOTPeer;	/*  Enum value.	HT_IOT_PEER_E */
-
-	/*  ODM Write */
-	/* 1 PHY_STATUS_INFO */
-	u8	RSSI_Path[4];		/*  */
-	u8	RSSI_Ave;
-	u8	RXEVM[4];
-	u8	RXSNR[4];
-};
-
 /*  2011/10/20 MH Define Common info enum for all team. */
 
 enum odm_common_info_def {
@@ -740,8 +724,6 @@ struct odm_dm_struct {
 	u32	SupportICType;
 	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
 	u8	CutVersion;
-	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8	RFType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/. = 0/1/2/3/4/. */
 	u8	BoardType;
 	/*  with external LNA  NO/Yes = 0/1 */

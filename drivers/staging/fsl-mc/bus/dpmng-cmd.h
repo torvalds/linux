@@ -1,4 +1,5 @@
-/* Copyright 2013-2016 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,12 +31,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*************************************************************************//*
- dpmng-cmd.h
-
- defines portal commands
-
- *//**************************************************************************/
+/*
+ * dpmng-cmd.h
+ *
+ * defines portal commands
+ *
+ */
 
 #ifndef __FSL_DPMNG_CMD_H
 #define __FSL_DPMNG_CMD_H

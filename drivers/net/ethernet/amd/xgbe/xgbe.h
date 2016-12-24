@@ -956,8 +956,9 @@ struct xgbe_prv_data {
 void xgbe_init_function_ptrs_dev(struct xgbe_hw_if *);
 void xgbe_init_function_ptrs_phy(struct xgbe_phy_if *);
 void xgbe_init_function_ptrs_desc(struct xgbe_desc_if *);
-struct net_device_ops *xgbe_get_netdev_ops(void);
-struct ethtool_ops *xgbe_get_ethtool_ops(void);
+const struct net_device_ops *xgbe_get_netdev_ops(void);
+const struct ethtool_ops *xgbe_get_ethtool_ops(void);
+
 #ifdef CONFIG_AMD_XGBE_DCB
 const struct dcbnl_rtnl_ops *xgbe_get_dcbnl_ops(void);
 #endif

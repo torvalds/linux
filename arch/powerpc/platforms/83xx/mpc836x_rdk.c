@@ -31,10 +31,7 @@ machine_device_initcall(mpc836x_rdk, mpc83xx_declare_of_platform_devices);
 
 static void __init mpc836x_rdk_setup_arch(void)
 {
-	if (ppc_md.progress)
-		ppc_md.progress("mpc836x_rdk_setup_arch()", 0);
-
-	mpc83xx_setup_pci();
+	mpc83xx_setup_arch();
 }
 
 /*

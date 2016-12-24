@@ -26,14 +26,18 @@
 
 #include "gpiolib.h"
 
-static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
+static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 {
-	return chip->gpiodev->dev.of_node == data;
+	struct of_phandle_args *gpiospec = data;
+
+	return chip->gpiodev->dev.of_node == gpiospec->np &&
+				chip->of_xlate(chip, gpiospec, NULL) >= 0;
 }
 
-static struct gpio_chip *of_find_gpiochip_by_node(struct device_node *np)
+static struct gpio_chip *of_find_gpiochip_by_xlate(
+					struct of_phandle_args *gpiospec)
 {
-	return gpiochip_find(np, of_gpiochip_match_node);
+	return gpiochip_find(gpiospec, of_gpiochip_match_node_and_xlate);
 }
 
 static struct gpio_desc *of_xlate_and_get_gpiod_flags(struct gpio_chip *chip,
@@ -79,7 +83,7 @@ struct gpio_desc *of_get_named_gpiod_flags(struct device_node *np,
 		return ERR_PTR(ret);
 	}
 
-	chip = of_find_gpiochip_by_node(gpiospec.np);
+	chip = of_find_gpiochip_by_xlate(&gpiospec);
 	if (!chip) {
 		desc = ERR_PTR(-EPROBE_DEFER);
 		goto out;
@@ -112,6 +116,45 @@ int of_get_named_gpio_flags(struct device_node *np, const char *list_name,
 		return desc_to_gpio(desc);
 }
 EXPORT_SYMBOL(of_get_named_gpio_flags);
+
+struct gpio_desc *of_find_gpio(struct device *dev, const char *con_id,
+			       unsigned int idx,
+			       enum gpio_lookup_flags *flags)
+{
+	char prop_name[32]; /* 32 is max size of property name */
+	enum of_gpio_flags of_flags;
+	struct gpio_desc *desc;
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(gpio_suffixes); i++) {
+		if (con_id)
+			snprintf(prop_name, sizeof(prop_name), "%s-%s", con_id,
+				 gpio_suffixes[i]);
+		else
+			snprintf(prop_name, sizeof(prop_name), "%s",
+				 gpio_suffixes[i]);
+
+		desc = of_get_named_gpiod_flags(dev->of_node, prop_name, idx,
+						&of_flags);
+		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
+			break;
+	}
+
+	if (IS_ERR(desc))
+		return desc;
+
+	if (of_flags & OF_GPIO_ACTIVE_LOW)
+		*flags |= GPIO_ACTIVE_LOW;
+
+	if (of_flags & OF_GPIO_SINGLE_ENDED) {
+		if (of_flags & OF_GPIO_ACTIVE_LOW)
+			*flags |= GPIO_OPEN_DRAIN;
+		else
+			*flags |= GPIO_OPEN_SOURCE;
+	}
+
+	return desc;
+}
 
 /**
  * of_parse_own_gpio() - Get a GPIO hog descriptor, names and flags for GPIO API

@@ -33,7 +33,6 @@
 #include <linux/mount.h>
 #include <linux/slab.h>
 #include <drm/drmP.h>
-#include <drm/drm_core.h>
 #include "drm_crtc_internal.h"
 #include "drm_legacy.h"
 #include "drm_internal.h"
@@ -46,8 +45,8 @@
 unsigned int drm_debug = 0;
 EXPORT_SYMBOL(drm_debug);
 
-MODULE_AUTHOR(CORE_AUTHOR);
-MODULE_DESCRIPTION(CORE_DESC);
+MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
+MODULE_DESCRIPTION("DRM shared core routines");
 MODULE_LICENSE("GPL and additional rights");
 MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
 "\t\tBit 0 (0x01) will enable CORE messages (drm core code)\n"
@@ -63,37 +62,52 @@ static struct idr drm_minors_idr;
 
 static struct dentry *drm_debugfs_root;
 
-void drm_err(const char *format, ...)
+#define DRM_PRINTK_FMT "[" DRM_NAME ":%s]%s %pV"
+
+void drm_dev_printk(const struct device *dev, const char *level,
+		    unsigned int category, const char *function_name,
+		    const char *prefix, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
 
-	va_start(args, format);
-
-	vaf.fmt = format;
-	vaf.va = &args;
-
-	printk(KERN_ERR "[" DRM_NAME ":%ps] *ERROR* %pV",
-	       __builtin_return_address(0), &vaf);
-
-	va_end(args);
-}
-EXPORT_SYMBOL(drm_err);
-
-void drm_ut_debug_printk(const char *function_name, const char *format, ...)
-{
-	struct va_format vaf;
-	va_list args;
+	if (category != DRM_UT_NONE && !(drm_debug & category))
+		return;
 
 	va_start(args, format);
 	vaf.fmt = format;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "[" DRM_NAME ":%s] %pV", function_name, &vaf);
+	if (dev)
+		dev_printk(level, dev, DRM_PRINTK_FMT, function_name, prefix,
+			   &vaf);
+	else
+		printk("%s" DRM_PRINTK_FMT, level, function_name, prefix, &vaf);
 
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_ut_debug_printk);
+EXPORT_SYMBOL(drm_dev_printk);
+
+void drm_printk(const char *level, unsigned int category,
+		const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	if (category != DRM_UT_NONE && !(drm_debug & category))
+		return;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	printk("%s" "[" DRM_NAME ":%ps]%s %pV",
+	       level, __builtin_return_address(0),
+	       strcmp(level, KERN_ERR) == 0 ? " *ERROR*" : "", &vaf);
+
+	va_end(args);
+}
+EXPORT_SYMBOL(drm_printk);
 
 /*
  * DRM Minors
@@ -112,7 +126,7 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 					     unsigned int type)
 {
 	switch (type) {
-	case DRM_MINOR_LEGACY:
+	case DRM_MINOR_PRIMARY:
 		return &dev->primary;
 	case DRM_MINOR_RENDER:
 		return &dev->render;
@@ -325,6 +339,9 @@ void drm_minor_release(struct drm_minor *minor)
 
 static int drm_dev_set_unique(struct drm_device *dev, const char *name)
 {
+	if (!name)
+		return -EINVAL;
+
 	kfree(dev->unique);
 	dev->unique = kstrdup(name, GFP_KERNEL);
 
@@ -512,7 +529,7 @@ int drm_dev_init(struct drm_device *dev,
 			goto err_minors;
 	}
 
-	ret = drm_minor_alloc(dev, DRM_MINOR_LEGACY);
+	ret = drm_minor_alloc(dev, DRM_MINOR_PRIMARY);
 	if (ret)
 		goto err_minors;
 
@@ -545,7 +562,7 @@ err_ctxbitmap:
 	drm_legacy_ctxbitmap_cleanup(dev);
 	drm_ht_remove(&dev->map_hash);
 err_minors:
-	drm_minor_free(dev, DRM_MINOR_LEGACY);
+	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 	drm_fs_inode_free(dev->anon_inode);
@@ -575,7 +592,7 @@ EXPORT_SYMBOL(drm_dev_init);
  * own struct should look at using drm_dev_init() instead.
  *
  * RETURNS:
- * Pointer to new DRM device, or NULL if out of memory.
+ * Pointer to new DRM device, or ERR_PTR on failure.
  */
 struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 				 struct device *parent)
@@ -585,12 +602,12 @@ struct drm_device *drm_dev_alloc(struct drm_driver *driver,
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ret = drm_dev_init(dev, driver, parent);
 	if (ret) {
 		kfree(dev);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	return dev;
@@ -608,7 +625,7 @@ static void drm_dev_release(struct kref *ref)
 	drm_ht_remove(&dev->map_hash);
 	drm_fs_inode_free(dev->anon_inode);
 
-	drm_minor_free(dev, DRM_MINOR_LEGACY);
+	drm_minor_free(dev, DRM_MINOR_PRIMARY);
 	drm_minor_free(dev, DRM_MINOR_RENDER);
 	drm_minor_free(dev, DRM_MINOR_CONTROL);
 
@@ -684,7 +701,7 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_minors;
 
-	ret = drm_minor_register(dev, DRM_MINOR_LEGACY);
+	ret = drm_minor_register(dev, DRM_MINOR_PRIMARY);
 	if (ret)
 		goto err_minors;
 
@@ -701,7 +718,7 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	goto out_unlock;
 
 err_minors:
-	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
+	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 out_unlock:
@@ -741,7 +758,7 @@ void drm_dev_unregister(struct drm_device *dev)
 	list_for_each_entry_safe(r_list, list_temp, &dev->maplist, head)
 		drm_legacy_rmmap(dev, r_list->map);
 
-	drm_minor_unregister(dev, DRM_MINOR_LEGACY);
+	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
 	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
 }
@@ -807,52 +824,47 @@ static const struct file_operations drm_stub_fops = {
 	.llseek = noop_llseek,
 };
 
+static void drm_core_exit(void)
+{
+	unregister_chrdev(DRM_MAJOR, "drm");
+	debugfs_remove(drm_debugfs_root);
+	drm_sysfs_destroy();
+	idr_destroy(&drm_minors_idr);
+	drm_connector_ida_destroy();
+	drm_global_release();
+}
+
 static int __init drm_core_init(void)
 {
-	int ret = -ENOMEM;
+	int ret;
 
 	drm_global_init();
 	drm_connector_ida_init();
 	idr_init(&drm_minors_idr);
 
-	if (register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops))
-		goto err_p1;
-
 	ret = drm_sysfs_init();
 	if (ret < 0) {
-		printk(KERN_ERR "DRM: Error creating drm class.\n");
-		goto err_p2;
+		DRM_ERROR("Cannot create DRM class: %d\n", ret);
+		goto error;
 	}
 
 	drm_debugfs_root = debugfs_create_dir("dri", NULL);
 	if (!drm_debugfs_root) {
-		DRM_ERROR("Cannot create /sys/kernel/debug/dri\n");
-		ret = -1;
-		goto err_p3;
+		ret = -ENOMEM;
+		DRM_ERROR("Cannot create debugfs-root: %d\n", ret);
+		goto error;
 	}
 
-	DRM_INFO("Initialized %s %d.%d.%d %s\n",
-		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
+	ret = register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops);
+	if (ret < 0)
+		goto error;
+
+	DRM_INFO("Initialized\n");
 	return 0;
-err_p3:
-	drm_sysfs_destroy();
-err_p2:
-	unregister_chrdev(DRM_MAJOR, "drm");
 
-	idr_destroy(&drm_minors_idr);
-err_p1:
+error:
+	drm_core_exit();
 	return ret;
-}
-
-static void __exit drm_core_exit(void)
-{
-	debugfs_remove(drm_debugfs_root);
-	drm_sysfs_destroy();
-
-	unregister_chrdev(DRM_MAJOR, "drm");
-
-	drm_connector_ida_destroy();
-	idr_destroy(&drm_minors_idr);
 }
 
 module_init(drm_core_init);

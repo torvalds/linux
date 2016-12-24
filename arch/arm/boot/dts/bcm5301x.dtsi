@@ -140,6 +140,15 @@
 		};
 	};
 
+	usb2_phy: usb2-phy {
+		compatible = "brcm,ns-usb2-phy";
+		reg = <0x1800c000 0x1000>;
+		reg-names = "dmu";
+		#phy-cells = <0>;
+		clocks = <&genpll BCM_NSP_GENPLL_USB_PHY_REF_CLK>;
+		clock-names = "phy-ref-clk";
+	};
+
 	axi@18000000 {
 		compatible = "brcm,bus-axi";
 		reg = <0x18000000 0x1000>;
@@ -232,6 +241,8 @@
 
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			phys = <&usb2_phy>;
 		};
 
 		usb3: usb3@23000 {

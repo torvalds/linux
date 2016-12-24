@@ -16,6 +16,7 @@ SECTIONS
 	HEAD_TEXT
 	TEXT_TEXT
 	SCHED_TEXT
+	CPUIDLE_TEXT
 	LOCK_TEXT
 	*(.fixup)
 	*(.gnu.warning)

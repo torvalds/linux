@@ -157,12 +157,13 @@ struct fid {
  *    @fh_to_dentry is given a &struct super_block (@sb) and a file handle
  *    fragment (@fh, @fh_len). It should return a &struct dentry which refers
  *    to the same file that the file handle fragment refers to.  If it cannot,
- *    it should return a %NULL pointer if the file was found but no acceptable
- *    &dentries were available, or an %ERR_PTR error code indicating why it
- *    couldn't be found (e.g. %ENOENT or %ENOMEM).  Any suitable dentry can be
- *    returned including, if necessary, a new dentry created with d_alloc_root.
- *    The caller can then find any other extant dentries by following the
- *    d_alias links.
+ *    it should return a %NULL pointer if the file cannot be found, or an
+ *    %ERR_PTR error code of %ENOMEM if a memory allocation failure occurred.
+ *    Any other error code is treated like %NULL, and will cause an %ESTALE error
+ *    for callers of exportfs_decode_fh().
+ *    Any suitable dentry can be returned including, if necessary, a new dentry
+ *    created with d_alloc_root.  The caller can then find any other extant
+ *    dentries by following the d_alias links.
  *
  * fh_to_parent:
  *    Same as @fh_to_dentry, except that it returns a pointer to the parent

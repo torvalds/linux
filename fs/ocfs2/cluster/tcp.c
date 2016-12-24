@@ -2104,7 +2104,7 @@ int o2net_start_listening(struct o2nm_node *node)
 	BUG_ON(o2net_listen_sock != NULL);
 
 	mlog(ML_KTHREAD, "starting o2net thread...\n");
-	o2net_wq = create_singlethread_workqueue("o2net");
+	o2net_wq = alloc_ordered_workqueue("o2net", WQ_MEM_RECLAIM);
 	if (o2net_wq == NULL) {
 		mlog(ML_ERROR, "unable to launch o2net thread\n");
 		return -ENOMEM; /* ? */

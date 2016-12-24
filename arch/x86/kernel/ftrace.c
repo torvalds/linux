@@ -1029,7 +1029,7 @@ void prepare_ftrace_return(unsigned long self_addr, unsigned long *parent,
 	}
 
 	if (ftrace_push_return_trace(old, self_addr, &trace.depth,
-		    frame_pointer) == -EBUSY) {
+				     frame_pointer, parent) == -EBUSY) {
 		*parent = old;
 		return;
 	}

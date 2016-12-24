@@ -655,8 +655,7 @@ static void handle_cont_sngl_cycle_dma_done(struct tegra_dma_channel *tdc,
 static void tegra_dma_tasklet(unsigned long data)
 {
 	struct tegra_dma_channel *tdc = (struct tegra_dma_channel *)data;
-	dma_async_tx_callback callback = NULL;
-	void *callback_param = NULL;
+	struct dmaengine_desc_callback cb;
 	struct tegra_dma_desc *dma_desc;
 	unsigned long flags;
 	int cb_count;
@@ -666,13 +665,12 @@ static void tegra_dma_tasklet(unsigned long data)
 		dma_desc  = list_first_entry(&tdc->cb_desc,
 					typeof(*dma_desc), cb_node);
 		list_del(&dma_desc->cb_node);
-		callback = dma_desc->txd.callback;
-		callback_param = dma_desc->txd.callback_param;
+		dmaengine_desc_get_callback(&dma_desc->txd, &cb);
 		cb_count = dma_desc->cb_count;
 		dma_desc->cb_count = 0;
 		spin_unlock_irqrestore(&tdc->lock, flags);
-		while (cb_count-- && callback)
-			callback(callback_param);
+		while (cb_count--)
+			dmaengine_desc_callback_invoke(&cb, NULL);
 		spin_lock_irqsave(&tdc->lock, flags);
 	}
 	spin_unlock_irqrestore(&tdc->lock, flags);

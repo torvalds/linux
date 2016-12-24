@@ -3,7 +3,7 @@
 
 #include <linux/list.h>
 #include <linux/elf.h>
-#include <asm/uaccess.h>
+#include <asm/extable.h>
 
 struct mod_arch_specific {
 	/* Data Bus Error exception tables */

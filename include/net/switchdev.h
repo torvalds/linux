@@ -68,7 +68,6 @@ struct switchdev_attr {
 enum switchdev_obj_id {
 	SWITCHDEV_OBJ_ID_UNDEFINED,
 	SWITCHDEV_OBJ_ID_PORT_VLAN,
-	SWITCHDEV_OBJ_ID_IPV4_FIB,
 	SWITCHDEV_OBJ_ID_PORT_FDB,
 	SWITCHDEV_OBJ_ID_PORT_MDB,
 };
@@ -91,21 +90,6 @@ struct switchdev_obj_port_vlan {
 
 #define SWITCHDEV_OBJ_PORT_VLAN(obj) \
 	container_of(obj, struct switchdev_obj_port_vlan, obj)
-
-/* SWITCHDEV_OBJ_ID_IPV4_FIB */
-struct switchdev_obj_ipv4_fib {
-	struct switchdev_obj obj;
-	u32 dst;
-	int dst_len;
-	struct fib_info *fi;
-	u8 tos;
-	u8 type;
-	u32 nlflags;
-	u32 tb_id;
-};
-
-#define SWITCHDEV_OBJ_IPV4_FIB(obj) \
-	container_of(obj, struct switchdev_obj_ipv4_fib, obj)
 
 /* SWITCHDEV_OBJ_ID_PORT_FDB */
 struct switchdev_obj_port_fdb {
@@ -209,11 +193,6 @@ int switchdev_port_bridge_setlink(struct net_device *dev,
 				  struct nlmsghdr *nlh, u16 flags);
 int switchdev_port_bridge_dellink(struct net_device *dev,
 				  struct nlmsghdr *nlh, u16 flags);
-int switchdev_fib_ipv4_add(u32 dst, int dst_len, struct fib_info *fi,
-			   u8 tos, u8 type, u32 nlflags, u32 tb_id);
-int switchdev_fib_ipv4_del(u32 dst, int dst_len, struct fib_info *fi,
-			   u8 tos, u8 type, u32 tb_id);
-void switchdev_fib_ipv4_abort(struct fib_info *fi);
 int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev, const unsigned char *addr,
 			   u16 vid, u16 nlm_flags);
@@ -222,7 +201,7 @@ int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			   u16 vid);
 int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			    struct net_device *dev,
-			    struct net_device *filter_dev, int idx);
+			    struct net_device *filter_dev, int *idx);
 void switchdev_port_fwd_mark_set(struct net_device *dev,
 				 struct net_device *group_dev,
 				 bool joining);
@@ -304,25 +283,6 @@ static inline int switchdev_port_bridge_dellink(struct net_device *dev,
 	return -EOPNOTSUPP;
 }
 
-static inline int switchdev_fib_ipv4_add(u32 dst, int dst_len,
-					 struct fib_info *fi,
-					 u8 tos, u8 type,
-					 u32 nlflags, u32 tb_id)
-{
-	return 0;
-}
-
-static inline int switchdev_fib_ipv4_del(u32 dst, int dst_len,
-					 struct fib_info *fi,
-					 u8 tos, u8 type, u32 tb_id)
-{
-	return 0;
-}
-
-static inline void switchdev_fib_ipv4_abort(struct fib_info *fi)
-{
-}
-
 static inline int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 					 struct net_device *dev,
 					 const unsigned char *addr,
@@ -342,15 +302,9 @@ static inline int switchdev_port_fdb_dump(struct sk_buff *skb,
 					  struct netlink_callback *cb,
 					  struct net_device *dev,
 					  struct net_device *filter_dev,
-					  int idx)
+					  int *idx)
 {
-       return idx;
-}
-
-static inline void switchdev_port_fwd_mark_set(struct net_device *dev,
-					       struct net_device *group_dev,
-					       bool joining)
-{
+       return *idx;
 }
 
 static inline bool switchdev_port_same_parent_id(struct net_device *a,

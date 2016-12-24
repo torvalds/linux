@@ -34,7 +34,7 @@ static struct nf_loginfo trace_loginfo = {
 	.u = {
 		.log = {
 			.level = LOGLEVEL_WARNING,
-			.logflags = NF_LOG_MASK,
+			.logflags = NF_LOG_DEFAULT_MASK,
 	        },
 	},
 };
@@ -93,12 +93,15 @@ static bool nft_payload_fast_eval(const struct nft_expr *expr,
 
 	if (priv->base == NFT_PAYLOAD_NETWORK_HEADER)
 		ptr = skb_network_header(skb);
-	else
+	else {
+		if (!pkt->tprot_set)
+			return false;
 		ptr = skb_network_header(skb) + pkt->xt.thoff;
+	}
 
 	ptr += priv->offset;
 
-	if (unlikely(ptr + priv->len >= skb_tail_pointer(skb)))
+	if (unlikely(ptr + priv->len > skb_tail_pointer(skb)))
 		return false;
 
 	*dest = 0;
@@ -260,8 +263,13 @@ int __init nf_tables_core_module_init(void)
 	if (err < 0)
 		goto err7;
 
-	return 0;
+	err = nft_range_module_init();
+	if (err < 0)
+		goto err8;
 
+	return 0;
+err8:
+	nft_dynset_module_exit();
 err7:
 	nft_payload_module_exit();
 err6:

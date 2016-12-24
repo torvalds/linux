@@ -1903,10 +1903,8 @@ int bitmap_copy_from_slot(struct mddev *mddev, int slot,
 	struct bitmap_counts *counts;
 	struct bitmap *bitmap = bitmap_create(mddev, slot);
 
-	if (IS_ERR(bitmap)) {
-		bitmap_free(bitmap);
+	if (IS_ERR(bitmap))
 		return PTR_ERR(bitmap);
-	}
 
 	rv = bitmap_init_from_disk(bitmap, 0);
 	if (rv)

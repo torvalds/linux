@@ -823,7 +823,7 @@ int vivid_vid_cap_g_selection(struct file *file, void *priv,
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (vivid_is_webcam(dev))
-		return -EINVAL;
+		return -ENODATA;
 
 	sel->r.left = sel->r.top = 0;
 	switch (sel->target) {
@@ -872,7 +872,7 @@ int vivid_vid_cap_s_selection(struct file *file, void *fh, struct v4l2_selection
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (vivid_is_webcam(dev))
-		return -EINVAL;
+		return -ENODATA;
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_CROP:

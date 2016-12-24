@@ -261,6 +261,7 @@ struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
 	tdma->op = op;
 	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
 	tdma->src = cpu_to_le32(dma_handle);
+	tdma->dst = CESA_SA_CFG_SRAM_OFFSET;
 	tdma->flags = CESA_TDMA_DST_IN_SRAM | CESA_TDMA_OP;
 
 	return op;

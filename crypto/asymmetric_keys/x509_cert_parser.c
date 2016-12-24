@@ -133,7 +133,6 @@ struct x509_certificate *x509_cert_parse(const void *data, size_t datalen)
 	return cert;
 
 error_decode:
-	kfree(cert->pub->key);
 	kfree(ctx);
 error_no_ctx:
 	x509_free_certificate(cert);

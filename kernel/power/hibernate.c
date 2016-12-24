@@ -306,8 +306,10 @@ static int create_image(int platform_mode)
 	if (error)
 		printk(KERN_ERR "PM: Error %d creating hibernation image\n",
 			error);
-	if (!in_suspend)
+	if (!in_suspend) {
 		events_check_enabled = false;
+		clear_free_pages();
+	}
 
 	platform_leave(platform_mode);
 
@@ -1189,22 +1191,6 @@ static int __init nohibernate_setup(char *str)
 	return 1;
 }
 
-static int __init page_poison_nohibernate_setup(char *str)
-{
-#ifdef CONFIG_PAGE_POISONING_ZERO
-	/*
-	 * The zeroing option for page poison skips the checks on alloc.
-	 * since hibernation doesn't save free pages there's no way to
-	 * guarantee the pages will still be zeroed.
-	 */
-	if (!strcmp(str, "on")) {
-		pr_info("Disabling hibernation due to page poisoning\n");
-		return nohibernate_setup(str);
-	}
-#endif
-	return 1;
-}
-
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);
 __setup("resume=", resume_setup);
@@ -1212,4 +1198,3 @@ __setup("hibernate=", hibernate_setup);
 __setup("resumewait", resumewait_setup);
 __setup("resumedelay=", resumedelay_setup);
 __setup("nohibernate", nohibernate_setup);
-__setup("page_poison=", page_poison_nohibernate_setup);

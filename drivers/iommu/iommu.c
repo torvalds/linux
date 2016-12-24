@@ -31,6 +31,7 @@
 #include <linux/err.h>
 #include <linux/pci.h>
 #include <linux/bitops.h>
+#include <linux/property.h>
 #include <trace/events/iommu.h>
 
 static struct kset *iommu_group_kset;
@@ -1613,3 +1614,60 @@ out:
 
 	return ret;
 }
+
+int iommu_fwspec_init(struct device *dev, struct fwnode_handle *iommu_fwnode,
+		      const struct iommu_ops *ops)
+{
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+
+	if (fwspec)
+		return ops == fwspec->ops ? 0 : -EINVAL;
+
+	fwspec = kzalloc(sizeof(*fwspec), GFP_KERNEL);
+	if (!fwspec)
+		return -ENOMEM;
+
+	of_node_get(to_of_node(iommu_fwnode));
+	fwspec->iommu_fwnode = iommu_fwnode;
+	fwspec->ops = ops;
+	dev->iommu_fwspec = fwspec;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_fwspec_init);
+
+void iommu_fwspec_free(struct device *dev)
+{
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+
+	if (fwspec) {
+		fwnode_handle_put(fwspec->iommu_fwnode);
+		kfree(fwspec);
+		dev->iommu_fwspec = NULL;
+	}
+}
+EXPORT_SYMBOL_GPL(iommu_fwspec_free);
+
+int iommu_fwspec_add_ids(struct device *dev, u32 *ids, int num_ids)
+{
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	size_t size;
+	int i;
+
+	if (!fwspec)
+		return -EINVAL;
+
+	size = offsetof(struct iommu_fwspec, ids[fwspec->num_ids + num_ids]);
+	if (size > sizeof(*fwspec)) {
+		fwspec = krealloc(dev->iommu_fwspec, size, GFP_KERNEL);
+		if (!fwspec)
+			return -ENOMEM;
+	}
+
+	for (i = 0; i < num_ids; i++)
+		fwspec->ids[fwspec->num_ids + i] = ids[i];
+
+	fwspec->num_ids += num_ids;
+	dev->iommu_fwspec = fwspec;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_fwspec_add_ids);

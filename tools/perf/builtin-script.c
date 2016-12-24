@@ -24,6 +24,7 @@
 #include "util/thread-stack.h"
 #include <linux/bitmap.h>
 #include <linux/stringify.h>
+#include <linux/time64.h>
 #include "asm/bug.h"
 #include "util/mem-events.h"
 
@@ -464,9 +465,9 @@ static void print_sample_start(struct perf_sample *sample,
 
 	if (PRINT_FIELD(TIME)) {
 		nsecs = sample->time;
-		secs = nsecs / NSECS_PER_SEC;
-		nsecs -= secs * NSECS_PER_SEC;
-		usecs = nsecs / NSECS_PER_USEC;
+		secs = nsecs / NSEC_PER_SEC;
+		nsecs -= secs * NSEC_PER_SEC;
+		usecs = nsecs / NSEC_PER_USEC;
 		if (nanosecs)
 			printf("%5lu.%09llu: ", secs, nsecs);
 		else
@@ -521,11 +522,11 @@ static void print_sample_brstacksym(struct perf_sample *sample,
 
 		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, from, &alf);
 		if (alf.map)
-			alf.sym = map__find_symbol(alf.map, alf.addr, NULL);
+			alf.sym = map__find_symbol(alf.map, alf.addr);
 
 		thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, to, &alt);
 		if (alt.map)
-			alt.sym = map__find_symbol(alt.map, alt.addr, NULL);
+			alt.sym = map__find_symbol(alt.map, alt.addr);
 
 		symbol__fprintf_symname_offs(alf.sym, &alf, stdout);
 		putchar('/');

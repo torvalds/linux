@@ -27,7 +27,7 @@
 #include <asm/uaccess.h>
 #include <asm/rtas.h>
 
-struct workqueue_struct *pseries_hp_wq;
+static struct workqueue_struct *pseries_hp_wq;
 
 struct pseries_hp_work {
 	struct work_struct work;
@@ -377,7 +377,7 @@ static int handle_dlpar_errorlog(struct pseries_hp_errorlog *hp_elog)
 	return rc;
 }
 
-void pseries_hp_work_fn(struct work_struct *work)
+static void pseries_hp_work_fn(struct work_struct *work)
 {
 	struct pseries_hp_work *hp_work =
 			container_of(work, struct pseries_hp_work, work);
@@ -413,6 +413,7 @@ void queue_hotplug_event(struct pseries_hp_errorlog *hp_errlog,
 		queue_work(pseries_hp_wq, (struct work_struct *)work);
 	} else {
 		*rc = -ENOMEM;
+		kfree(hp_errlog_copy);
 		complete(hotplug_done);
 	}
 }

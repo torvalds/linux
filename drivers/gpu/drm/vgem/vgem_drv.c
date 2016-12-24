@@ -334,8 +334,8 @@ static int __init vgem_init(void)
 	int ret;
 
 	vgem_device = drm_dev_alloc(&vgem_driver, NULL);
-	if (!vgem_device) {
-		ret = -ENOMEM;
+	if (IS_ERR(vgem_device)) {
+		ret = PTR_ERR(vgem_device);
 		goto out;
 	}
 

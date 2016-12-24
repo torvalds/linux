@@ -61,6 +61,39 @@ enum mlx5_an_status {
 #define MLX5_I2C_ADDR_HIGH		0x51
 #define MLX5_EEPROM_PAGE_LENGTH		256
 
+enum mlx5e_link_mode {
+	MLX5E_1000BASE_CX_SGMII	 = 0,
+	MLX5E_1000BASE_KX	 = 1,
+	MLX5E_10GBASE_CX4	 = 2,
+	MLX5E_10GBASE_KX4	 = 3,
+	MLX5E_10GBASE_KR	 = 4,
+	MLX5E_20GBASE_KR2	 = 5,
+	MLX5E_40GBASE_CR4	 = 6,
+	MLX5E_40GBASE_KR4	 = 7,
+	MLX5E_56GBASE_R4	 = 8,
+	MLX5E_10GBASE_CR	 = 12,
+	MLX5E_10GBASE_SR	 = 13,
+	MLX5E_10GBASE_ER	 = 14,
+	MLX5E_40GBASE_SR4	 = 15,
+	MLX5E_40GBASE_LR4	 = 16,
+	MLX5E_50GBASE_SR2	 = 18,
+	MLX5E_100GBASE_CR4	 = 20,
+	MLX5E_100GBASE_SR4	 = 21,
+	MLX5E_100GBASE_KR4	 = 22,
+	MLX5E_100GBASE_LR4	 = 23,
+	MLX5E_100BASE_TX	 = 24,
+	MLX5E_1000BASE_T	 = 25,
+	MLX5E_10GBASE_T		 = 26,
+	MLX5E_25GBASE_CR	 = 27,
+	MLX5E_25GBASE_KR	 = 28,
+	MLX5E_25GBASE_SR	 = 29,
+	MLX5E_50GBASE_CR2	 = 30,
+	MLX5E_50GBASE_KR2	 = 31,
+	MLX5E_LINK_MODES_NUMBER,
+};
+
+#define MLX5E_PROT_MASK(link_mode) (1 << link_mode)
+
 int mlx5_set_port_caps(struct mlx5_core_dev *dev, u8 port_num, u32 caps);
 int mlx5_query_port_ptys(struct mlx5_core_dev *dev, u32 *ptys,
 			 int ptys_size, int proto_mask, u8 local_port);
@@ -70,9 +103,10 @@ int mlx5_query_port_proto_admin(struct mlx5_core_dev *dev,
 				u32 *proto_admin, int proto_mask);
 int mlx5_query_port_link_width_oper(struct mlx5_core_dev *dev,
 				    u8 *link_width_oper, u8 local_port);
-int mlx5_query_port_proto_oper(struct mlx5_core_dev *dev,
-			       u8 *proto_oper, int proto_mask,
-			       u8 local_port);
+int mlx5_query_port_ib_proto_oper(struct mlx5_core_dev *dev,
+				  u8 *proto_oper, u8 local_port);
+int mlx5_query_port_eth_proto_oper(struct mlx5_core_dev *dev,
+				   u32 *proto_oper, u8 local_port);
 int mlx5_set_port_ptys(struct mlx5_core_dev *dev, bool an_disable,
 		       u32 proto_admin, int proto_mask);
 void mlx5_toggle_port_link(struct mlx5_core_dev *dev);

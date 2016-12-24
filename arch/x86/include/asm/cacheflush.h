@@ -4,7 +4,6 @@
 /* Caches aren't brain-dead on the intel. */
 #include <asm-generic/cacheflush.h>
 #include <asm/special_insns.h>
-#include <asm/uaccess.h>
 
 /*
  * The set_memory_* API can be used to change various attributes of a virtual

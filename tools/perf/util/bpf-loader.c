@@ -531,7 +531,7 @@ static int map_prologue(struct perf_probe_event *pev, int *mapping,
 
 	ptevs = malloc(array_sz);
 	if (!ptevs) {
-		pr_debug("No ehough memory: alloc ptevs failed\n");
+		pr_debug("No enough memory: alloc ptevs failed\n");
 		return -ENOMEM;
 	}
 

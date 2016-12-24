@@ -332,6 +332,7 @@ int main(int argc, char **argv)
 	regression1_test();
 	regression2_test();
 	regression3_test();
+	iteration_test();
 	single_thread_tests(long_run);
 
 	sleep(1);

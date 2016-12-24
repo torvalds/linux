@@ -30,10 +30,24 @@
 
 #include "octeon_config.h"
 
-#define LIQUIDIO_BASE_VERSION   "1.4"
-#define LIQUIDIO_MICRO_VERSION  ".1"
 #define LIQUIDIO_PACKAGE ""
-#define LIQUIDIO_VERSION  "1.4.1"
+#define LIQUIDIO_BASE_MAJOR_VERSION 1
+#define LIQUIDIO_BASE_MINOR_VERSION 4
+#define LIQUIDIO_BASE_MICRO_VERSION 1
+#define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
+				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
+#define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
+#define LIQUIDIO_VERSION        LIQUIDIO_PACKAGE \
+				__stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
+				__stringify(LIQUIDIO_BASE_MINOR_VERSION) \
+				"." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
+
+struct lio_version {
+	u16  major;
+	u16  minor;
+	u16  micro;
+	u16  reserved;
+};
 
 #define CONTROL_IQ 0
 /** Tag types used by Octeon cores in its work. */
@@ -218,6 +232,9 @@ static inline void add_sg_size(struct octeon_sg_entry *sg_entry,
 #define   OCTNET_CMD_ADD_VLAN_FILTER  0x17
 #define   OCTNET_CMD_DEL_VLAN_FILTER  0x18
 #define   OCTNET_CMD_VXLAN_PORT_CONFIG 0x19
+
+#define   OCTNET_CMD_ID_ACTIVE         0x1a
+
 #define   OCTNET_CMD_VXLAN_PORT_ADD    0x0
 #define   OCTNET_CMD_VXLAN_PORT_DEL    0x1
 #define   OCTNET_CMD_RXCSUM_ENABLE     0x0
@@ -295,6 +312,13 @@ union octnet_cmd {
 };
 
 #define   OCTNET_CMD_SIZE     (sizeof(union octnet_cmd))
+
+/*pkiih3 + irh + ossp[0] + ossp[1] + rdp + rptr = 40 bytes */
+#define LIO_SOFTCMDRESP_IH2       40
+#define LIO_SOFTCMDRESP_IH3       (40 + 8)
+
+#define LIO_PCICMD_O2             24
+#define LIO_PCICMD_O3             (24 + 8)
 
 /* Instruction Header(DPI) - for OCTEON-III models */
 struct  octeon_instr_ih3 {
@@ -814,6 +838,8 @@ struct oct_link_stats {
 #define VITESSE_PHY_GPIO_DRIVEOFF 0x4
 #define VITESSE_PHY_GPIO_HIGH     0x2
 #define VITESSE_PHY_GPIO_LOW      0x3
+#define LED_IDENTIFICATION_ON     0x1
+#define LED_IDENTIFICATION_OFF    0x0
 
 struct oct_mdio_cmd {
 	u64 op;
@@ -832,7 +858,7 @@ struct oct_mdio_cmd {
 /* intrmod: max. packets to trigger interrupt */
 #define LIO_INTRMOD_RXMAXCNT_TRIGGER	384
 /* intrmod: min. packets to trigger interrupt */
-#define LIO_INTRMOD_RXMINCNT_TRIGGER	1
+#define LIO_INTRMOD_RXMINCNT_TRIGGER	0
 /* intrmod: max. time to trigger interrupt */
 #define LIO_INTRMOD_RXMAXTMR_TRIGGER	128
 /* 66xx:intrmod: min. time to trigger interrupt

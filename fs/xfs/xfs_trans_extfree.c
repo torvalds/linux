@@ -79,7 +79,8 @@ xfs_trans_free_extent(
 
 	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno, ext_len);
 
-	error = xfs_free_extent(tp, start_block, ext_len, oinfo);
+	error = xfs_free_extent(tp, start_block, ext_len, oinfo,
+			XFS_AG_RESV_NONE);
 
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the

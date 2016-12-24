@@ -80,10 +80,6 @@ static inline unsigned long __read_cr4(void)
 {
 	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr4);
 }
-static inline unsigned long __read_cr4_safe(void)
-{
-	return PVOP_CALL0(unsigned long, pv_cpu_ops.read_cr4_safe);
-}
 
 static inline void __write_cr4(unsigned long x)
 {
@@ -661,8 +657,6 @@ static inline void __set_fixmap(unsigned /* enum fixed_addresses */ idx,
 
 #if defined(CONFIG_SMP) && defined(CONFIG_PARAVIRT_SPINLOCKS)
 
-#ifdef CONFIG_QUEUED_SPINLOCKS
-
 static __always_inline void pv_queued_spin_lock_slowpath(struct qspinlock *lock,
 							u32 val)
 {
@@ -683,22 +677,6 @@ static __always_inline void pv_kick(int cpu)
 {
 	PVOP_VCALL1(pv_lock_ops.kick, cpu);
 }
-
-#else /* !CONFIG_QUEUED_SPINLOCKS */
-
-static __always_inline void __ticket_lock_spinning(struct arch_spinlock *lock,
-							__ticket_t ticket)
-{
-	PVOP_VCALLEE2(pv_lock_ops.lock_spinning, lock, ticket);
-}
-
-static __always_inline void __ticket_unlock_kick(struct arch_spinlock *lock,
-							__ticket_t ticket)
-{
-	PVOP_VCALL2(pv_lock_ops.unlock_kick, lock, ticket);
-}
-
-#endif /* CONFIG_QUEUED_SPINLOCKS */
 
 #endif /* SMP && PARAVIRT_SPINLOCKS */
 

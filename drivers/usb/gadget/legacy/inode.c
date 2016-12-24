@@ -1913,7 +1913,7 @@ gadgetfs_make_inode (struct super_block *sb,
 		inode->i_uid = make_kuid(&init_user_ns, default_uid);
 		inode->i_gid = make_kgid(&init_user_ns, default_gid);
 		inode->i_atime = inode->i_mtime = inode->i_ctime
-				= CURRENT_TIME;
+				= current_time(inode);
 		inode->i_private = data;
 		inode->i_fop = fops;
 	}

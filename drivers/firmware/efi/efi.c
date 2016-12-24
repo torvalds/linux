@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/acpi.h>
 #include <linux/ucs2_string.h>
+#include <linux/memblock.h>
 
 #include <asm/early_ioremap.h>
 
@@ -347,56 +348,31 @@ subsys_initcall(efisubsys_init);
 
 /*
  * Find the efi memory descriptor for a given physical address.  Given a
- * physicall address, determine if it exists within an EFI Memory Map entry,
+ * physical address, determine if it exists within an EFI Memory Map entry,
  * and if so, populate the supplied memory descriptor with the appropriate
  * data.
  */
 int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 {
-	struct efi_memory_map *map = &efi.memmap;
-	phys_addr_t p, e;
+	efi_memory_desc_t *md;
 
 	if (!efi_enabled(EFI_MEMMAP)) {
 		pr_err_once("EFI_MEMMAP is not enabled.\n");
 		return -EINVAL;
 	}
 
-	if (!map) {
-		pr_err_once("efi.memmap is not set.\n");
-		return -EINVAL;
-	}
 	if (!out_md) {
 		pr_err_once("out_md is null.\n");
 		return -EINVAL;
         }
-	if (WARN_ON_ONCE(!map->phys_map))
-		return -EINVAL;
-	if (WARN_ON_ONCE(map->nr_map == 0) || WARN_ON_ONCE(map->desc_size == 0))
-		return -EINVAL;
 
-	e = map->phys_map + map->nr_map * map->desc_size;
-	for (p = map->phys_map; p < e; p += map->desc_size) {
-		efi_memory_desc_t *md;
+	for_each_efi_memory_desc(md) {
 		u64 size;
 		u64 end;
-
-		/*
-		 * If a driver calls this after efi_free_boot_services,
-		 * ->map will be NULL, and the target may also not be mapped.
-		 * So just always get our own virtual map on the CPU.
-		 *
-		 */
-		md = early_memremap(p, sizeof (*md));
-		if (!md) {
-			pr_err_once("early_memremap(%pa, %zu) failed.\n",
-				    &p, sizeof (*md));
-			return -ENOMEM;
-		}
 
 		if (!(md->attribute & EFI_MEMORY_RUNTIME) &&
 		    md->type != EFI_BOOT_SERVICES_DATA &&
 		    md->type != EFI_RUNTIME_SERVICES_DATA) {
-			early_memunmap(md, sizeof (*md));
 			continue;
 		}
 
@@ -404,11 +380,8 @@ int __init efi_mem_desc_lookup(u64 phys_addr, efi_memory_desc_t *out_md)
 		end = md->phys_addr + size;
 		if (phys_addr >= md->phys_addr && phys_addr < end) {
 			memcpy(out_md, md, sizeof(*out_md));
-			early_memunmap(md, sizeof (*md));
 			return 0;
 		}
-
-		early_memunmap(md, sizeof (*md));
 	}
 	pr_err_once("requested map not found.\n");
 	return -ENOENT;
@@ -422,6 +395,35 @@ u64 __init efi_mem_desc_end(efi_memory_desc_t *md)
 	u64 size = md->num_pages << EFI_PAGE_SHIFT;
 	u64 end = md->phys_addr + size;
 	return end;
+}
+
+void __init __weak efi_arch_mem_reserve(phys_addr_t addr, u64 size) {}
+
+/**
+ * efi_mem_reserve - Reserve an EFI memory region
+ * @addr: Physical address to reserve
+ * @size: Size of reservation
+ *
+ * Mark a region as reserved from general kernel allocation and
+ * prevent it being released by efi_free_boot_services().
+ *
+ * This function should be called drivers once they've parsed EFI
+ * configuration tables to figure out where their data lives, e.g.
+ * efi_esrt_init().
+ */
+void __init efi_mem_reserve(phys_addr_t addr, u64 size)
+{
+	if (!memblock_is_region_reserved(addr, size))
+		memblock_reserve(addr, size);
+
+	/*
+	 * Some architectures (x86) reserve all boot services ranges
+	 * until efi_free_boot_services() because of buggy firmware
+	 * implementations. This means the above memblock_reserve() is
+	 * superfluous on x86 and instead what it needs to do is
+	 * ensure the @start, @size is not freed.
+	 */
+	efi_arch_mem_reserve(addr, size);
 }
 
 static __initdata efi_config_table_type_t common_tables[] = {
@@ -810,6 +812,9 @@ int efi_status_to_err(efi_status_t status)
 		break;
 	case EFI_NOT_FOUND:
 		err = -ENOENT;
+		break;
+	case EFI_ABORTED:
+		err = -EINTR;
 		break;
 	default:
 		err = -EINVAL;

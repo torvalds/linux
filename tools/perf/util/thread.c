@@ -14,13 +14,12 @@
 
 int thread__init_map_groups(struct thread *thread, struct machine *machine)
 {
-	struct thread *leader;
 	pid_t pid = thread->pid_;
 
 	if (pid == thread->tid || pid == -1) {
 		thread->mg = map_groups__new(machine);
 	} else {
-		leader = __machine__findnew_thread(machine, pid, pid);
+		struct thread *leader = __machine__findnew_thread(machine, pid, pid);
 		if (leader) {
 			thread->mg = map_groups__get(leader->mg);
 			thread__put(leader);
@@ -130,11 +129,10 @@ int __thread__set_comm(struct thread *thread, const char *str, u64 timestamp,
 		       bool exec)
 {
 	struct comm *new, *curr = thread__comm(thread);
-	int err;
 
 	/* Override the default :tid entry */
 	if (!thread->comm_set) {
-		err = comm__override(curr, str, timestamp, exec);
+		int err = comm__override(curr, str, timestamp, exec);
 		if (err)
 			return err;
 	} else {
@@ -270,10 +268,9 @@ static int thread__clone_map_groups(struct thread *thread,
 
 int thread__fork(struct thread *thread, struct thread *parent, u64 timestamp)
 {
-	int err;
-
 	if (parent->comm_set) {
 		const char *comm = thread__comm_str(parent);
+		int err;
 		if (!comm)
 			return -ENOMEM;
 		err = thread__set_comm(thread, comm, timestamp);

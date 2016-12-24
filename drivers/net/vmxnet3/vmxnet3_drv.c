@@ -1641,7 +1641,7 @@ static void vmxnet3_rq_destroy(struct vmxnet3_rx_queue *rq,
 	}
 }
 
-void
+static void
 vmxnet3_rq_destroy_all_rxdataring(struct vmxnet3_adapter *adapter)
 {
 	int i;
@@ -2279,6 +2279,7 @@ vmxnet3_set_mc(struct net_device *netdev)
 					&adapter->shared->devRead.rxFilterConf;
 	u8 *new_table = NULL;
 	dma_addr_t new_table_pa = 0;
+	bool new_table_pa_valid = false;
 	u32 new_mode = VMXNET3_RXM_UCAST;
 
 	if (netdev->flags & IFF_PROMISC) {
@@ -2307,13 +2308,15 @@ vmxnet3_set_mc(struct net_device *netdev)
 							new_table,
 							sz,
 							PCI_DMA_TODEVICE);
+				if (!dma_mapping_error(&adapter->pdev->dev,
+						       new_table_pa)) {
+					new_mode |= VMXNET3_RXM_MCAST;
+					new_table_pa_valid = true;
+					rxConf->mfTablePA = cpu_to_le64(
+								new_table_pa);
+				}
 			}
-
-			if (!dma_mapping_error(&adapter->pdev->dev,
-					       new_table_pa)) {
-				new_mode |= VMXNET3_RXM_MCAST;
-				rxConf->mfTablePA = cpu_to_le64(new_table_pa);
-			} else {
+			if (!new_table_pa_valid) {
 				netdev_info(netdev,
 					    "failed to copy mcast list, setting ALL_MULTI\n");
 				new_mode |= VMXNET3_RXM_ALL_MULTI;
@@ -2338,7 +2341,7 @@ vmxnet3_set_mc(struct net_device *netdev)
 			       VMXNET3_CMD_UPDATE_MAC_FILTERS);
 	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
-	if (new_table_pa)
+	if (new_table_pa_valid)
 		dma_unmap_single(&adapter->pdev->dev, new_table_pa,
 				 rxConf->mfTableLen, PCI_DMA_TODEVICE);
 	kfree(new_table);
@@ -3186,7 +3189,6 @@ vmxnet3_tx_timeout(struct net_device *netdev)
 
 	netdev_err(adapter->netdev, "tx hang\n");
 	schedule_work(&adapter->work);
-	netif_wake_queue(adapter->netdev);
 }
 
 
@@ -3213,6 +3215,7 @@ vmxnet3_reset_work(struct work_struct *data)
 	}
 	rtnl_unlock();
 
+	netif_wake_queue(adapter->netdev);
 	clear_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state);
 }
 

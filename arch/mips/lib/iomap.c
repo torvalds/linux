@@ -6,7 +6,7 @@
  * (C) Copyright 2007 MIPS Technologies, Inc.
  *     written by Ralf Baechle <ralf@linux-mips.org>
  */
-#include <linux/module.h>
+#include <linux/export.h>
 #include <asm/io.h>
 
 /*

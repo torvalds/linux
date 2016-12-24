@@ -68,6 +68,7 @@
 extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
 extern void flush_icache_range(unsigned long start, unsigned long end);
 extern void __flush_dcache_area(void *addr, size_t len);
+extern void __clean_dcache_area_poc(void *addr, size_t len);
 extern void __clean_dcache_area_pou(void *addr, size_t len);
 extern long __flush_cache_user_range(unsigned long start, unsigned long end);
 
@@ -85,7 +86,7 @@ static inline void flush_cache_page(struct vm_area_struct *vma,
  */
 extern void __dma_map_area(const void *, size_t, int);
 extern void __dma_unmap_area(const void *, size_t, int);
-extern void __dma_flush_range(const void *, const void *);
+extern void __dma_flush_area(const void *, size_t);
 
 /*
  * Copy user data from/to a page which is mapped into a different

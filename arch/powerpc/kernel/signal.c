@@ -99,22 +99,24 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 	}
 }
 
-static void do_signal(struct pt_regs *regs)
+static void do_signal(struct task_struct *tsk)
 {
 	sigset_t *oldset = sigmask_to_save();
 	struct ksignal ksig;
 	int ret;
 	int is32 = is_32bit_task();
 
+	BUG_ON(tsk != current);
+
 	get_signal(&ksig);
 
 	/* Is there any syscall restart business here ? */
-	check_syscall_restart(regs, &ksig.ka, ksig.sig > 0);
+	check_syscall_restart(tsk->thread.regs, &ksig.ka, ksig.sig > 0);
 
 	if (ksig.sig <= 0) {
 		/* No signal to deliver -- put the saved sigmask back */
 		restore_saved_sigmask();
-		regs->trap = 0;
+		tsk->thread.regs->trap = 0;
 		return;               /* no signals delivered */
 	}
 
@@ -124,23 +126,22 @@ static void do_signal(struct pt_regs *regs)
 	 * user space. The DABR will have been cleared if it
 	 * triggered inside the kernel.
 	 */
-	if (current->thread.hw_brk.address &&
-		current->thread.hw_brk.type)
-		__set_breakpoint(&current->thread.hw_brk);
+	if (tsk->thread.hw_brk.address && tsk->thread.hw_brk.type)
+		__set_breakpoint(&tsk->thread.hw_brk);
 #endif
 	/* Re-enable the breakpoints for the signal stack */
-	thread_change_pc(current, regs);
+	thread_change_pc(tsk, tsk->thread.regs);
 
 	if (is32) {
         	if (ksig.ka.sa.sa_flags & SA_SIGINFO)
-			ret = handle_rt_signal32(&ksig, oldset, regs);
+			ret = handle_rt_signal32(&ksig, oldset, tsk);
 		else
-			ret = handle_signal32(&ksig, oldset, regs);
+			ret = handle_signal32(&ksig, oldset, tsk);
 	} else {
-		ret = handle_rt_signal64(&ksig, oldset, regs);
+		ret = handle_rt_signal64(&ksig, oldset, tsk);
 	}
 
-	regs->trap = 0;
+	tsk->thread.regs->trap = 0;
 	signal_setup_done(ret, &ksig, test_thread_flag(TIF_SINGLESTEP));
 }
 
@@ -151,8 +152,10 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 	if (thread_info_flags & _TIF_UPROBE)
 		uprobe_notify_resume(regs);
 
-	if (thread_info_flags & _TIF_SIGPENDING)
-		do_signal(regs);
+	if (thread_info_flags & _TIF_SIGPENDING) {
+		BUG_ON(regs != current->thread.regs);
+		do_signal(current);
+	}
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
@@ -162,7 +165,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 	user_enter();
 }
 
-unsigned long get_tm_stackpointer(struct pt_regs *regs)
+unsigned long get_tm_stackpointer(struct task_struct *tsk)
 {
 	/* When in an active transaction that takes a signal, we need to be
 	 * careful with the stack.  It's possible that the stack has moved back
@@ -187,11 +190,13 @@ unsigned long get_tm_stackpointer(struct pt_regs *regs)
 	 */
 
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-	if (MSR_TM_ACTIVE(regs->msr)) {
+	BUG_ON(tsk != current);
+
+	if (MSR_TM_ACTIVE(tsk->thread.regs->msr)) {
 		tm_reclaim_current(TM_CAUSE_SIGNAL);
-		if (MSR_TM_TRANSACTIONAL(regs->msr))
-			return current->thread.ckpt_regs.gpr[1];
+		if (MSR_TM_TRANSACTIONAL(tsk->thread.regs->msr))
+			return tsk->thread.ckpt_regs.gpr[1];
 	}
 #endif
-	return regs->gpr[1];
+	return tsk->thread.regs->gpr[1];
 }

@@ -20,7 +20,8 @@
 	model = "Insignal Arndale evaluation board based on EXYNOS5250";
 	compatible = "insignal,arndale", "samsung,exynos5250", "samsung,exynos5";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
 
@@ -152,7 +153,7 @@
 };
 
 &hdmi {
-	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_LOW>;
+	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_LOW>;
 	vdd_osc-supply = <&ldo10_reg>;
 	vdd_pll-supply = <&ldo8_reg>;
 	vdd-supply = <&ldo8_reg>;

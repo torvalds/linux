@@ -19,11 +19,13 @@
  * published by the Free Software Foundation.
 */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/s5pv210.h>
 #include <dt-bindings/clock/s5pv210-audss.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		csis0 = &csis0;
 		fimc0 = &fimc0;

@@ -23,6 +23,7 @@
 #include <asm/percpu.h>
 #include <asm/nops.h>
 #include <asm/bootparam.h>
+#include <asm/export.h>
 
 /* Physical address */
 #define pa(X) ((X) - __PAGE_OFFSET)
@@ -94,7 +95,7 @@ RESERVE_BRK(pagetables, INIT_MAP_SIZE)
  */
 __HEAD
 ENTRY(startup_32)
-	movl pa(stack_start),%ecx
+	movl pa(initial_stack),%ecx
 	
 	/* test KEEP_SEGMENTS flag to see if the bootloader is asking
 		us to not reload segments */
@@ -286,7 +287,7 @@ num_subarch_entries = (. - subarch_entries) / 4
  * start_secondary().
  */
 ENTRY(start_cpu0)
-	movl stack_start, %ecx
+	movl initial_stack, %ecx
 	movl %ecx, %esp
 	jmp  *(initial_code)
 ENDPROC(start_cpu0)
@@ -307,7 +308,7 @@ ENTRY(startup_32_smp)
 	movl %eax,%es
 	movl %eax,%fs
 	movl %eax,%gs
-	movl pa(stack_start),%ecx
+	movl pa(initial_stack),%ecx
 	movl %eax,%ss
 	leal -__PAGE_OFFSET(%ecx),%esp
 
@@ -664,15 +665,19 @@ __PAGE_ALIGNED_BSS
 initial_pg_pmd:
 	.fill 1024*KPMDS,4,0
 #else
-ENTRY(initial_page_table)
+.globl initial_page_table
+initial_page_table:
 	.fill 1024,4,0
 #endif
 initial_pg_fixmap:
 	.fill 1024,4,0
-ENTRY(empty_zero_page)
+.globl empty_zero_page
+empty_zero_page:
 	.fill 4096,1,0
-ENTRY(swapper_pg_dir)
+.globl swapper_pg_dir
+swapper_pg_dir:
 	.fill 1024,4,0
+EXPORT_SYMBOL(empty_zero_page)
 
 /*
  * This starts the data section.
@@ -703,7 +708,7 @@ ENTRY(initial_page_table)
 
 .data
 .balign 4
-ENTRY(stack_start)
+ENTRY(initial_stack)
 	.long init_thread_union+THREAD_SIZE
 
 __INITRODATA

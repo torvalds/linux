@@ -140,7 +140,7 @@ static int coh901331_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	return 0;
 }
 
-static struct rtc_class_ops coh901331_ops = {
+static const struct rtc_class_ops coh901331_ops = {
 	.read_time = coh901331_read_time,
 	.set_mmss = coh901331_set_mmss,
 	.read_alarm = coh901331_read_alarm,

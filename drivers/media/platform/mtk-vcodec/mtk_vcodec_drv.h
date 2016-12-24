@@ -239,7 +239,7 @@ struct mtk_vcodec_ctx {
 	enum mtk_encode_param param_change;
 	struct mtk_enc_params enc_params;
 
-	struct venc_common_if *enc_if;
+	const struct venc_common_if *enc_if;
 	unsigned long drv_handle;
 
 	int int_cond;

@@ -598,13 +598,14 @@ posix_acl_create(struct inode *dir, umode_t *mode,
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
+	ret = -ENOMEM;
 	clone = posix_acl_clone(p, GFP_NOFS);
 	if (!clone)
-		goto no_mem;
+		goto err_release;
 
 	ret = posix_acl_create_masq(clone, mode);
 	if (ret < 0)
-		goto no_mem_clone;
+		goto err_release_clone;
 
 	if (ret == 0)
 		posix_acl_release(clone);
@@ -618,13 +619,44 @@ posix_acl_create(struct inode *dir, umode_t *mode,
 
 	return 0;
 
-no_mem_clone:
+err_release_clone:
 	posix_acl_release(clone);
-no_mem:
+err_release:
 	posix_acl_release(p);
-	return -ENOMEM;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(posix_acl_create);
+
+/**
+ * posix_acl_update_mode  -  update mode in set_acl
+ *
+ * Update the file mode when setting an ACL: compute the new file permission
+ * bits based on the ACL.  In addition, if the ACL is equivalent to the new
+ * file mode, set *acl to NULL to indicate that no ACL should be set.
+ *
+ * As with chmod, clear the setgit bit if the caller is not in the owning group
+ * or capable of CAP_FSETID (see inode_change_ok).
+ *
+ * Called from set_acl inode operations.
+ */
+int posix_acl_update_mode(struct inode *inode, umode_t *mode_p,
+			  struct posix_acl **acl)
+{
+	umode_t mode = inode->i_mode;
+	int error;
+
+	error = posix_acl_equiv_mode(*acl, &mode);
+	if (error < 0)
+		return error;
+	if (error == 0)
+		*acl = NULL;
+	if (!in_group_p(inode->i_gid) &&
+	    !capable_wrt_inode_uidgid(inode, CAP_FSETID))
+		mode &= ~S_ISGID;
+	*mode_p = mode;
+	return 0;
+}
+EXPORT_SYMBOL(posix_acl_update_mode);
 
 /*
  * Fix up the uids and gids in posix acl extended attributes in place.
@@ -633,15 +665,15 @@ static void posix_acl_fix_xattr_userns(
 	struct user_namespace *to, struct user_namespace *from,
 	void *value, size_t size)
 {
-	posix_acl_xattr_header *header = (posix_acl_xattr_header *)value;
-	posix_acl_xattr_entry *entry = (posix_acl_xattr_entry *)(header+1), *end;
+	struct posix_acl_xattr_header *header = value;
+	struct posix_acl_xattr_entry *entry = (void *)(header + 1), *end;
 	int count;
 	kuid_t uid;
 	kgid_t gid;
 
 	if (!value)
 		return;
-	if (size < sizeof(posix_acl_xattr_header))
+	if (size < sizeof(struct posix_acl_xattr_header))
 		return;
 	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
 		return;
@@ -691,15 +723,15 @@ struct posix_acl *
 posix_acl_from_xattr(struct user_namespace *user_ns,
 		     const void *value, size_t size)
 {
-	posix_acl_xattr_header *header = (posix_acl_xattr_header *)value;
-	posix_acl_xattr_entry *entry = (posix_acl_xattr_entry *)(header+1), *end;
+	const struct posix_acl_xattr_header *header = value;
+	const struct posix_acl_xattr_entry *entry = (const void *)(header + 1), *end;
 	int count;
 	struct posix_acl *acl;
 	struct posix_acl_entry *acl_e;
 
 	if (!value)
 		return NULL;
-	if (size < sizeof(posix_acl_xattr_header))
+	if (size < sizeof(struct posix_acl_xattr_header))
 		 return ERR_PTR(-EINVAL);
 	if (header->a_version != cpu_to_le32(POSIX_ACL_XATTR_VERSION))
 		return ERR_PTR(-EOPNOTSUPP);
@@ -760,8 +792,8 @@ int
 posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
 		   void *buffer, size_t size)
 {
-	posix_acl_xattr_header *ext_acl = (posix_acl_xattr_header *)buffer;
-	posix_acl_xattr_entry *ext_entry;
+	struct posix_acl_xattr_header *ext_acl = buffer;
+	struct posix_acl_xattr_entry *ext_entry;
 	int real_size, n;
 
 	real_size = posix_acl_xattr_size(acl->a_count);
@@ -770,7 +802,7 @@ posix_acl_to_xattr(struct user_namespace *user_ns, const struct posix_acl *acl,
 	if (real_size > size)
 		return -ERANGE;
 
-	ext_entry = ext_acl->a_entries;
+	ext_entry = (void *)(ext_acl + 1);
 	ext_acl->a_version = cpu_to_le32(POSIX_ACL_XATTR_VERSION);
 
 	for (n=0; n < acl->a_count; n++, ext_entry++) {
@@ -897,7 +929,7 @@ int simple_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			acl = NULL;
 	}
 
-	inode->i_ctime = CURRENT_TIME;
+	inode->i_ctime = current_time(inode);
 	set_cached_acl(inode, type, acl);
 	return 0;
 }

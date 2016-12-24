@@ -1,0 +1,88 @@
+/*
+ * Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "msm8996.dtsi"
+#include "apq8096-db820c-pins.dtsi"
+
+/ {
+	aliases {
+		serial0 = &blsp2_uart1;
+		serial1 = &blsp2_uart2;
+		i2c0	= &blsp1_i2c2;
+		i2c1	= &blsp2_i2c1;
+		i2c2	= &blsp2_i2c0;
+		spi0	= &blsp1_spi0;
+		spi1	= &blsp2_spi5;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	soc {
+		serial@75b0000 {
+			label = "LS-UART1";
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_uart1_2pins_default>;
+			pinctrl-1 = <&blsp2_uart1_2pins_sleep>;
+		};
+
+		serial@75b1000 {
+			label = "LS-UART0";
+			status = "okay";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&blsp2_uart2_4pins_default>;
+			pinctrl-1 = <&blsp2_uart2_4pins_sleep>;
+		};
+
+		i2c@07577000 {
+		/* On Low speed expansion */
+			label = "LS-I2C0";
+			status = "okay";
+		};
+
+		i2c@075b6000 {
+		/* On Low speed expansion */
+			label = "LS-I2C1";
+			status = "okay";
+		};
+
+		spi@07575000 {
+		/* On Low speed expansion */
+			label = "LS-SPI0";
+			status = "okay";
+		};
+
+		i2c@075b5000 {
+		/* On High speed expansion */
+			label = "HS-I2C2";
+			status = "okay";
+		};
+
+		spi@075ba000{
+		/* On High speed expansion */
+			label = "HS-SPI1";
+			status = "okay";
+		};
+
+		sdhci@74a4900 {
+		/* External SD card */
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
+			pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+			cd-gpios = <&msmgpio 38 0x1>;
+			status = "okay";
+		};
+	};
+};

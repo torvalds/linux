@@ -109,7 +109,7 @@ struct verbs_txreq *__get_txreq(struct hfi1_ibdev *dev,
 			qp->s_flags |= RVT_S_WAIT_TX;
 			list_add_tail(&priv->s_iowait.list, &dev->txwait);
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_TX);
-			atomic_inc(&qp->refcount);
+			rvt_get_qp(qp);
 		}
 		qp->s_flags &= ~RVT_S_BUSY;
 	}

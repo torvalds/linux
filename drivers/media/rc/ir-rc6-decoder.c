@@ -248,7 +248,7 @@ again:
 				toggle = 0;
 				break;
 			case 24:
-				protocol = RC_BIT_RC6_6A_24;
+				protocol = RC_TYPE_RC6_6A_24;
 				toggle = 0;
 				break;
 			case 32:
@@ -257,7 +257,7 @@ again:
 					toggle = !!(scancode & RC6_6A_MCE_TOGGLE_MASK);
 					scancode &= ~RC6_6A_MCE_TOGGLE_MASK;
 				} else {
-					protocol = RC_BIT_RC6_6A_32;
+					protocol = RC_TYPE_RC6_6A_32;
 					toggle = 0;
 				}
 				break;

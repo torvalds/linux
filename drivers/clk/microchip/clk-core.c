@@ -199,9 +199,9 @@ static int pbclk_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	spin_unlock_irqrestore(&pb->core->reg_lock, flags);
 
-	/* wait again, for pbdivready */
-	err = readl_poll_timeout_atomic(pb->ctrl_reg, v, v & PB_DIV_READY,
-					1, LOCK_TIMEOUT_US);
+	/* wait again for DIV_READY */
+	err = readl_poll_timeout(pb->ctrl_reg, v, v & PB_DIV_READY,
+				 1, LOCK_TIMEOUT_US);
 	if (err)
 		return err;
 

@@ -5,7 +5,7 @@
  * Copy a null-terminated string from SRC to DST.  Return a pointer
  * to the null-terminator in the source.
  */
-
+#include <asm/export.h>
 	.text
 
 	.align 3
@@ -21,3 +21,4 @@ strcpy:
 	br	__stxcpy	# do the copy
 
 	.end strcpy
+	EXPORT_SYMBOL(strcpy)

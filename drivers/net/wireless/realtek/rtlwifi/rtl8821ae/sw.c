@@ -93,6 +93,7 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	char *fw_name, *wowlan_fw_name;
 
 	rtl8821ae_bt_reg_init(hw);
 	rtlpriv->btcoexist.btc_ops = rtl_btc_get_ops_pointer();
@@ -203,17 +204,17 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 	}
 
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8812AE) {
-		rtlpriv->cfg->fw_name = "rtlwifi/rtl8812aefw.bin";
-		rtlpriv->cfg->wowlan_fw_name = "rtlwifi/rtl8812aefw_wowlan.bin";
+		fw_name = "rtlwifi/rtl8812aefw.bin";
+		wowlan_fw_name = "rtlwifi/rtl8812aefw_wowlan.bin";
 	} else {
-		rtlpriv->cfg->fw_name = "rtlwifi/rtl8821aefw.bin";
-		rtlpriv->cfg->wowlan_fw_name = "rtlwifi/rtl8821aefw_wowlan.bin";
+		fw_name = "rtlwifi/rtl8821aefw.bin";
+		wowlan_fw_name = "rtlwifi/rtl8821aefw_wowlan.bin";
 	}
 
 	rtlpriv->max_fw_size = 0x8000;
 	/*load normal firmware*/
-	pr_info("Using firmware %s\n", rtlpriv->cfg->fw_name);
-	err = request_firmware_nowait(THIS_MODULE, 1, rtlpriv->cfg->fw_name,
+	pr_info("Using firmware %s\n", fw_name);
+	err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
@@ -222,9 +223,9 @@ int rtl8821ae_init_sw_vars(struct ieee80211_hw *hw)
 		return 1;
 	}
 	/*load wowlan firmware*/
-	pr_info("Using firmware %s\n", rtlpriv->cfg->wowlan_fw_name);
+	pr_info("Using firmware %s\n", wowlan_fw_name);
 	err = request_firmware_nowait(THIS_MODULE, 1,
-				      rtlpriv->cfg->wowlan_fw_name,
+				      wowlan_fw_name,
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_wowlan_fw_cb);
 	if (err) {
@@ -316,11 +317,10 @@ static struct rtl_mod_params rtl8821ae_mod_params = {
 	.disable_watchdog = 0,
 };
 
-static struct rtl_hal_cfg rtl8821ae_hal_cfg = {
+static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8821ae_pci",
-	.fw_name = "rtlwifi/rtl8821aefw.bin",
 	.ops = &rtl8821ae_hal_ops,
 	.mod_params = &rtl8821ae_mod_params,
 	.maps[SYS_ISO_CTRL] = REG_SYS_ISO_CTRL,

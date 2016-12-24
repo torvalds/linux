@@ -321,10 +321,8 @@ static int lcd_probe(struct usb_interface *interface,
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!dev)
 		goto error;
-	}
 	kref_init(&dev->kref);
 	sema_init(&dev->limit_sem, USB_LCD_CONCURRENT_WRITES);
 	init_usb_anchor(&dev->submitted);
@@ -351,11 +349,8 @@ static int lcd_probe(struct usb_interface *interface,
 			dev->bulk_in_size = buffer_size;
 			dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
 			dev->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
-			if (!dev->bulk_in_buffer) {
-				dev_err(&interface->dev,
-					"Could not allocate bulk_in_buffer\n");
+			if (!dev->bulk_in_buffer)
 				goto error;
-			}
 		}
 
 		if (!dev->bulk_out_endpointAddr &&

@@ -265,7 +265,8 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 
 		if ((psta != NULL) && (psta->ieee8021x_blocked)) {
 			/* blocked
-			 * only accept EAPOL frame */
+			 * only accept EAPOL frame
+			 */
 			if (ether_type == 0x888e) {
 				prtnframe = precv_frame;
 			} else {
@@ -277,7 +278,8 @@ union recv_frame *r8712_portctrl(struct _adapter *adapter,
 		} else {
 			/* allowed
 			 * check decryption status, and decrypt the
-			 * frame if needed */
+			 * frame if needed
+			 */
 			prtnframe = precv_frame;
 			/* check is the EAPOL frame or not (Rekey) */
 			if (ether_type == 0x888e) {
@@ -334,19 +336,22 @@ static sint sta2sta_data_frame(struct _adapter *adapter,
 		sta_addr = pattrib->src;
 	} else if (check_fwstate(pmlmepriv, WIFI_STATION_STATE)) {
 		/* For Station mode, sa and bssid should always be BSSID,
-		 * and DA is my mac-address */
+		 * and DA is my mac-address
+		 */
 		if (memcmp(pattrib->bssid, pattrib->src, ETH_ALEN))
 			return _FAIL;
 	       sta_addr = pattrib->bssid;
 	} else if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		if (bmcast) {
 			/* For AP mode, if DA == MCAST, then BSSID should
-			 * be also MCAST */
+			 * be also MCAST
+			 */
 			if (!IS_MCAST(pattrib->bssid))
 				return _FAIL;
 		} else { /* not mc-frame */
 			/* For AP mode, if DA is non-MCAST, then it must be
-			 *  BSSID, and bssid == BSSID */
+			 * BSSID, and bssid == BSSID
+			 */
 			if (memcmp(pattrib->bssid, pattrib->dst, ETH_ALEN))
 				return _FAIL;
 			sta_addr = pattrib->src;
@@ -391,7 +396,8 @@ static sint ap2sta_data_frame(struct _adapter *adapter,
 		if ((GetFrameSubType(ptr)) == WIFI_DATA_NULL)
 			return _FAIL;
 		/* drop QoS-SubType Data, including QoS NULL,
-		 * excluding QoS-Data */
+		 * excluding QoS-Data
+		 */
 		if ((GetFrameSubType(ptr) & WIFI_QOS_DATA_TYPE) ==
 		     WIFI_QOS_DATA_TYPE) {
 			if (GetFrameSubType(ptr) & (BIT(4) | BIT(5) | BIT(6)))
@@ -445,7 +451,8 @@ static sint sta2ap_data_frame(struct _adapter *adapter,
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE)) {
 		/* For AP mode, if DA is non-MCAST, then it must be BSSID,
 		 * and bssid == BSSID
-		 * For AP mode, RA=BSSID, TX=STA(SRC_ADDR), A3=DST_ADDR */
+		 * For AP mode, RA=BSSID, TX=STA(SRC_ADDR), A3=DST_ADDR
+		 */
 		if (memcmp(pattrib->bssid, mybssid, ETH_ALEN))
 			return _FAIL;
 		*psta = r8712_get_stainfo(pstapriv, pattrib->src);
@@ -619,7 +626,8 @@ sint r8712_wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	    (memcmp(psnap_type, (void *)SNAP_ETH_TYPE_APPLETALK_AARP, 2))) ||
 	     !memcmp(psnap, (void *)bridge_tunnel_header, SNAP_SIZE)) {
 		/* remove RFC1042 or Bridge-Tunnel encapsulation and
-		 * replace EtherType */
+		 * replace EtherType
+		 */
 		bsnaphdr = true;
 	} else {
 		/* Leave Ethernet header part of hdr and full payload */

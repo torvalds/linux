@@ -628,4 +628,20 @@ out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;
 }
+
+__be32 nfs4_callback_notify_lock(struct cb_notify_lock_args *args, void *dummy,
+				 struct cb_process_state *cps)
+{
+	if (!cps->clp) /* set in cb_sequence */
+		return htonl(NFS4ERR_OP_NOT_IN_SESSION);
+
+	dprintk_rcu("NFS: CB_NOTIFY_LOCK request from %s\n",
+		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR));
+
+	/* Don't wake anybody if the string looked bogus */
+	if (args->cbnl_valid)
+		__wake_up(&cps->clp->cl_lock_waitq, TASK_NORMAL, 0, args);
+
+	return htonl(NFS4_OK);
+}
 #endif /* CONFIG_NFS_V4_1 */

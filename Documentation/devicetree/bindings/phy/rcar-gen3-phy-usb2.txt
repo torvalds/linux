@@ -6,6 +6,8 @@ This file provides information on what the device node for the R-Car generation
 Required properties:
 - compatible: "renesas,usb2-phy-r8a7795" if the device is a part of an R8A7795
 	      SoC.
+	      "renesas,usb2-phy-r8a7796" if the device is a part of an R8A7796
+	      SoC.
 	      "renesas,rcar-gen3-usb2-phy" for a generic R-Car Gen3 compatible device.
 
 	      When compatible with the generic version, nodes must list the
@@ -30,11 +32,11 @@ Example (R-Car H3):
 		compatible = "renesas,usb2-phy-r8a7795", "renesas,rcar-gen3-usb2-phy";
 		reg = <0 0xee080200 0 0x700>;
 		interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&mstp7_clks R8A7795_CLK_EHCI0>;
+		clocks = <&cpg CPG_MOD 703>;
 	};
 
 	usb-phy@ee0a0200 {
 		compatible = "renesas,usb2-phy-r8a7795", "renesas,rcar-gen3-usb2-phy";
 		reg = <0 0xee0a0200 0 0x700>;
-		clocks = <&mstp7_clks R8A7795_CLK_EHCI0>;
+		clocks = <&cpg CPG_MOD 702>;
 	};

@@ -177,7 +177,7 @@ static int efx_ef10_get_vf_index(struct efx_nic *efx)
 
 static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 {
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_OUT_LEN);
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_CAPABILITIES_V2_OUT_LEN);
 	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t outlen;
 	int rc;
@@ -188,7 +188,7 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		return rc;
-	if (outlen < sizeof(outbuf)) {
+	if (outlen < MC_CMD_GET_CAPABILITIES_OUT_LEN) {
 		netif_err(efx, drv, efx->net_dev,
 			  "unable to read datapath firmware capabilities\n");
 		return -EIO;
@@ -196,6 +196,12 @@ static int efx_ef10_init_datapath_caps(struct efx_nic *efx)
 
 	nic_data->datapath_caps =
 		MCDI_DWORD(outbuf, GET_CAPABILITIES_OUT_FLAGS1);
+
+	if (outlen >= MC_CMD_GET_CAPABILITIES_V2_OUT_LEN)
+		nic_data->datapath_caps2 = MCDI_DWORD(outbuf,
+				GET_CAPABILITIES_V2_OUT_FLAGS2);
+	else
+		nic_data->datapath_caps2 = 0;
 
 	/* record the DPCPU firmware IDs to determine VEB vswitching support.
 	 */
@@ -225,6 +231,116 @@ static int efx_ef10_get_sysclk_freq(struct efx_nic *efx)
 		return rc;
 	rc = MCDI_DWORD(outbuf, GET_CLOCK_OUT_SYS_FREQ);
 	return rc > 0 ? rc : -ERANGE;
+}
+
+static int efx_ef10_get_timer_workarounds(struct efx_nic *efx)
+{
+	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	unsigned int implemented;
+	unsigned int enabled;
+	int rc;
+
+	nic_data->workaround_35388 = false;
+	nic_data->workaround_61265 = false;
+
+	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
+
+	if (rc == -ENOSYS) {
+		/* Firmware without GET_WORKAROUNDS - not a problem. */
+		rc = 0;
+	} else if (rc == 0) {
+		/* Bug61265 workaround is always enabled if implemented. */
+		if (enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG61265)
+			nic_data->workaround_61265 = true;
+
+		if (enabled & MC_CMD_GET_WORKAROUNDS_OUT_BUG35388) {
+			nic_data->workaround_35388 = true;
+		} else if (implemented & MC_CMD_GET_WORKAROUNDS_OUT_BUG35388) {
+			/* Workaround is implemented but not enabled.
+			 * Try to enable it.
+			 */
+			rc = efx_mcdi_set_workaround(efx,
+						     MC_CMD_WORKAROUND_BUG35388,
+						     true, NULL);
+			if (rc == 0)
+				nic_data->workaround_35388 = true;
+			/* If we failed to set the workaround just carry on. */
+			rc = 0;
+		}
+	}
+
+	netif_dbg(efx, probe, efx->net_dev,
+		  "workaround for bug 35388 is %sabled\n",
+		  nic_data->workaround_35388 ? "en" : "dis");
+	netif_dbg(efx, probe, efx->net_dev,
+		  "workaround for bug 61265 is %sabled\n",
+		  nic_data->workaround_61265 ? "en" : "dis");
+
+	return rc;
+}
+
+static void efx_ef10_process_timer_config(struct efx_nic *efx,
+					  const efx_dword_t *data)
+{
+	unsigned int max_count;
+
+	if (EFX_EF10_WORKAROUND_61265(efx)) {
+		efx->timer_quantum_ns = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_STEP_NS);
+		efx->timer_max_ns = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_MCDI_TMR_MAX_NS);
+	} else if (EFX_EF10_WORKAROUND_35388(efx)) {
+		efx->timer_quantum_ns = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_NS_PER_COUNT);
+		max_count = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_BUG35388_TMR_MAX_COUNT);
+		efx->timer_max_ns = max_count * efx->timer_quantum_ns;
+	} else {
+		efx->timer_quantum_ns = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_NS_PER_COUNT);
+		max_count = MCDI_DWORD(data,
+			GET_EVQ_TMR_PROPERTIES_OUT_TMR_REG_MAX_COUNT);
+		efx->timer_max_ns = max_count * efx->timer_quantum_ns;
+	}
+
+	netif_dbg(efx, probe, efx->net_dev,
+		  "got timer properties from MC: quantum %u ns; max %u ns\n",
+		  efx->timer_quantum_ns, efx->timer_max_ns);
+}
+
+static int efx_ef10_get_timer_config(struct efx_nic *efx)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_LEN);
+	int rc;
+
+	rc = efx_ef10_get_timer_workarounds(efx);
+	if (rc)
+		return rc;
+
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_GET_EVQ_TMR_PROPERTIES, NULL, 0,
+				outbuf, sizeof(outbuf), NULL);
+
+	if (rc == 0) {
+		efx_ef10_process_timer_config(efx, outbuf);
+	} else if (rc == -ENOSYS || rc == -EPERM) {
+		/* Not available - fall back to Huntington defaults. */
+		unsigned int quantum;
+
+		rc = efx_ef10_get_sysclk_freq(efx);
+		if (rc < 0)
+			return rc;
+
+		quantum = 1536000 / rc; /* 1536 cycles */
+		efx->timer_quantum_ns = quantum;
+		efx->timer_max_ns = efx->type->timer_period_max * quantum;
+		rc = 0;
+	} else {
+		efx_mcdi_display_error(efx, MC_CMD_GET_EVQ_TMR_PROPERTIES,
+				       MC_CMD_GET_EVQ_TMR_PROPERTIES_OUT_LEN,
+				       NULL, 0, rc);
+	}
+
+	return rc;
 }
 
 static int efx_ef10_get_mac_address_pf(struct efx_nic *efx, u8 *mac_address)
@@ -527,32 +643,9 @@ static int efx_ef10_probe(struct efx_nic *efx)
 	if (rc)
 		goto fail5;
 
-	rc = efx_ef10_get_sysclk_freq(efx);
+	rc = efx_ef10_get_timer_config(efx);
 	if (rc < 0)
 		goto fail5;
-	efx->timer_quantum_ns = 1536000 / rc; /* 1536 cycles */
-
-	/* Check whether firmware supports bug 35388 workaround.
-	 * First try to enable it, then if we get EPERM, just
-	 * ask if it's already enabled
-	 */
-	rc = efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG35388, true, NULL);
-	if (rc == 0) {
-		nic_data->workaround_35388 = true;
-	} else if (rc == -EPERM) {
-		unsigned int enabled;
-
-		rc = efx_mcdi_get_workarounds(efx, NULL, &enabled);
-		if (rc)
-			goto fail3;
-		nic_data->workaround_35388 = enabled &
-			MC_CMD_GET_WORKAROUNDS_OUT_BUG35388;
-	} else if (rc != -ENOSYS && rc != -ENOENT) {
-		goto fail5;
-	}
-	netif_dbg(efx, probe, efx->net_dev,
-		  "workaround for bug 35388 is %sabled\n",
-		  nic_data->workaround_35388 ? "en" : "dis");
 
 	rc = efx_mcdi_mon_probe(efx);
 	if (rc && rc != -EPERM)
@@ -1440,9 +1533,10 @@ static const struct efx_hw_stat_desc efx_ef10_stat_desc[EF10_STAT_COUNT] = {
 			       (1ULL << GENERIC_STAT_rx_nodesc_trunc) |	\
 			       (1ULL << GENERIC_STAT_rx_noskb_drops))
 
-/* These statistics are only provided by the 10G MAC.  For a 10G/40G
- * switchable port we do not expose these because they might not
- * include all the packets they should.
+/* On 7000 series NICs, these statistics are only provided by the 10G MAC.
+ * For a 10G/40G switchable port we do not expose these because they might
+ * not include all the packets they should.
+ * On 8000 series NICs these statistics are always provided.
  */
 #define HUNT_10G_ONLY_STAT_MASK ((1ULL << EF10_STAT_port_tx_control) |	\
 				 (1ULL << EF10_STAT_port_tx_lt64) |	\
@@ -1488,10 +1582,15 @@ static u64 efx_ef10_raw_stat_mask(struct efx_nic *efx)
 	      1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_LINKCTRL))
 		return 0;
 
-	if (port_caps & (1 << MC_CMD_PHY_CAP_40000FDX_LBN))
+	if (port_caps & (1 << MC_CMD_PHY_CAP_40000FDX_LBN)) {
 		raw_mask |= HUNT_40G_EXTRA_STAT_MASK;
-	else
+		/* 8000 series have everything even at 40G */
+		if (nic_data->datapath_caps2 &
+		    (1 << MC_CMD_GET_CAPABILITIES_V2_OUT_MAC_STATS_40G_TX_SIZE_BINS_LBN))
+			raw_mask |= HUNT_10G_ONLY_STAT_MASK;
+	} else {
 		raw_mask |= HUNT_10G_ONLY_STAT_MASK;
+	}
 
 	if (nic_data->datapath_caps &
 	    (1 << MC_CMD_GET_CAPABILITIES_OUT_PM_AND_RXDP_COUNTERS_LBN))
@@ -1617,7 +1716,6 @@ static int efx_ef10_try_update_nic_stats_pf(struct efx_nic *efx)
 	efx_ef10_get_stat_mask(efx, mask);
 
 	dma_stats = efx->stats_buffer.addr;
-	nic_data = efx->nic_data;
 
 	generation_end = dma_stats[MC_CMD_MAC_GENERATION_END];
 	if (generation_end == EFX_MC_STATS_GENERATION_INVALID)
@@ -1744,27 +1842,43 @@ static size_t efx_ef10_update_stats_vf(struct efx_nic *efx, u64 *full_stats,
 static void efx_ef10_push_irq_moderation(struct efx_channel *channel)
 {
 	struct efx_nic *efx = channel->efx;
-	unsigned int mode, value;
+	unsigned int mode, usecs;
 	efx_dword_t timer_cmd;
 
-	if (channel->irq_moderation) {
+	if (channel->irq_moderation_us) {
 		mode = 3;
-		value = channel->irq_moderation - 1;
+		usecs = channel->irq_moderation_us;
 	} else {
 		mode = 0;
-		value = 0;
+		usecs = 0;
 	}
 
-	if (EFX_EF10_WORKAROUND_35388(efx)) {
+	if (EFX_EF10_WORKAROUND_61265(efx)) {
+		MCDI_DECLARE_BUF(inbuf, MC_CMD_SET_EVQ_TMR_IN_LEN);
+		unsigned int ns = usecs * 1000;
+
+		MCDI_SET_DWORD(inbuf, SET_EVQ_TMR_IN_INSTANCE,
+			       channel->channel);
+		MCDI_SET_DWORD(inbuf, SET_EVQ_TMR_IN_TMR_LOAD_REQ_NS, ns);
+		MCDI_SET_DWORD(inbuf, SET_EVQ_TMR_IN_TMR_RELOAD_REQ_NS, ns);
+		MCDI_SET_DWORD(inbuf, SET_EVQ_TMR_IN_TMR_MODE, mode);
+
+		efx_mcdi_rpc_async(efx, MC_CMD_SET_EVQ_TMR,
+				   inbuf, sizeof(inbuf), 0, NULL, 0);
+	} else if (EFX_EF10_WORKAROUND_35388(efx)) {
+		unsigned int ticks = efx_usecs_to_ticks(efx, usecs);
+
 		EFX_POPULATE_DWORD_3(timer_cmd, ERF_DD_EVQ_IND_TIMER_FLAGS,
 				     EFE_DD_EVQ_IND_TIMER_FLAGS,
 				     ERF_DD_EVQ_IND_TIMER_MODE, mode,
-				     ERF_DD_EVQ_IND_TIMER_VAL, value);
+				     ERF_DD_EVQ_IND_TIMER_VAL, ticks);
 		efx_writed_page(efx, &timer_cmd, ER_DD_EVQ_INDIRECT,
 				channel->channel);
 	} else {
+		unsigned int ticks = efx_usecs_to_ticks(efx, usecs);
+
 		EFX_POPULATE_DWORD_2(timer_cmd, ERF_DZ_TC_TIMER_MODE, mode,
-				     ERF_DZ_TC_TIMER_VAL, value);
+				     ERF_DZ_TC_TIMER_VAL, ticks);
 		efx_writed_page(efx, &timer_cmd, ER_DZ_EVQ_TMR,
 				channel->channel);
 	}
@@ -1935,14 +2049,18 @@ static irqreturn_t efx_ef10_legacy_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void efx_ef10_irq_test_generate(struct efx_nic *efx)
+static int efx_ef10_irq_test_generate(struct efx_nic *efx)
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_TRIGGER_INTERRUPT_IN_LEN);
+
+	if (efx_mcdi_set_workaround(efx, MC_CMD_WORKAROUND_BUG41750, true,
+				    NULL) == 0)
+		return -ENOTSUPP;
 
 	BUILD_BUG_ON(MC_CMD_TRIGGER_INTERRUPT_OUT_LEN != 0);
 
 	MCDI_SET_DWORD(inbuf, TRIGGER_INTERRUPT_IN_INTR_LEVEL, efx->irq_level);
-	(void) efx_mcdi_rpc(efx, MC_CMD_TRIGGER_INTERRUPT,
+	return efx_mcdi_rpc(efx, MC_CMD_TRIGGER_INTERRUPT,
 			    inbuf, sizeof(inbuf), NULL, 0, NULL);
 }
 
@@ -2536,13 +2654,12 @@ fail:
 static int efx_ef10_ev_init(struct efx_channel *channel)
 {
 	MCDI_DECLARE_BUF(inbuf,
-			 MC_CMD_INIT_EVQ_IN_LEN(EFX_MAX_EVQ_SIZE * 8 /
-						EFX_BUF_SIZE));
-	MCDI_DECLARE_BUF(outbuf, MC_CMD_INIT_EVQ_OUT_LEN);
+			 MC_CMD_INIT_EVQ_V2_IN_LEN(EFX_MAX_EVQ_SIZE * 8 /
+						   EFX_BUF_SIZE));
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_INIT_EVQ_V2_OUT_LEN);
 	size_t entries = channel->eventq.buf.len / EFX_BUF_SIZE;
 	struct efx_nic *efx = channel->efx;
 	struct efx_ef10_nic_data *nic_data;
-	bool supports_rx_merge;
 	size_t inlen, outlen;
 	unsigned int enabled, implemented;
 	dma_addr_t dma_addr;
@@ -2550,9 +2667,6 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 	int i;
 
 	nic_data = efx->nic_data;
-	supports_rx_merge =
-		!!(nic_data->datapath_caps &
-		   1 << MC_CMD_GET_CAPABILITIES_OUT_RX_BATCHING_LBN);
 
 	/* Fill event queue with all ones (i.e. empty events) */
 	memset(channel->eventq.buf.addr, 0xff, channel->eventq.buf.len);
@@ -2561,11 +2675,6 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_INSTANCE, channel->channel);
 	/* INIT_EVQ expects index in vector table, not absolute */
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_IRQ_NUM, channel->channel);
-	MCDI_POPULATE_DWORD_4(inbuf, INIT_EVQ_IN_FLAGS,
-			      INIT_EVQ_IN_FLAG_INTERRUPTING, 1,
-			      INIT_EVQ_IN_FLAG_RX_MERGE, 1,
-			      INIT_EVQ_IN_FLAG_TX_MERGE, 1,
-			      INIT_EVQ_IN_FLAG_CUT_THRU, !supports_rx_merge);
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_TMR_MODE,
 		       MC_CMD_INIT_EVQ_IN_TMR_MODE_DIS);
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_TMR_LOAD, 0);
@@ -2573,6 +2682,27 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_COUNT_MODE,
 		       MC_CMD_INIT_EVQ_IN_COUNT_MODE_DIS);
 	MCDI_SET_DWORD(inbuf, INIT_EVQ_IN_COUNT_THRSHLD, 0);
+
+	if (nic_data->datapath_caps2 &
+	    1 << MC_CMD_GET_CAPABILITIES_V2_OUT_INIT_EVQ_V2_LBN) {
+		/* Use the new generic approach to specifying event queue
+		 * configuration, requesting lower latency or higher throughput.
+		 * The options that actually get used appear in the output.
+		 */
+		MCDI_POPULATE_DWORD_2(inbuf, INIT_EVQ_V2_IN_FLAGS,
+				      INIT_EVQ_V2_IN_FLAG_INTERRUPTING, 1,
+				      INIT_EVQ_V2_IN_FLAG_TYPE,
+				      MC_CMD_INIT_EVQ_V2_IN_FLAG_TYPE_AUTO);
+	} else {
+		bool cut_thru = !(nic_data->datapath_caps &
+			1 << MC_CMD_GET_CAPABILITIES_OUT_RX_BATCHING_LBN);
+
+		MCDI_POPULATE_DWORD_4(inbuf, INIT_EVQ_IN_FLAGS,
+				      INIT_EVQ_IN_FLAG_INTERRUPTING, 1,
+				      INIT_EVQ_IN_FLAG_RX_MERGE, 1,
+				      INIT_EVQ_IN_FLAG_TX_MERGE, 1,
+				      INIT_EVQ_IN_FLAG_CUT_THRU, cut_thru);
+	}
 
 	dma_addr = channel->eventq.buf.dma_addr;
 	for (i = 0; i < entries; ++i) {
@@ -2584,6 +2714,13 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_INIT_EVQ, inbuf, inlen,
 			  outbuf, sizeof(outbuf), &outlen);
+
+	if (outlen >= MC_CMD_INIT_EVQ_V2_OUT_LEN)
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Channel %d using event queue flags %08x\n",
+			  channel->channel,
+			  MCDI_DWORD(outbuf, INIT_EVQ_V2_OUT_FLAGS));
+
 	/* IRQ return is ignored */
 	if (channel->channel || rc)
 		return rc;
@@ -2591,8 +2728,8 @@ static int efx_ef10_ev_init(struct efx_channel *channel)
 	/* Successfully created event queue on channel 0 */
 	rc = efx_mcdi_get_workarounds(efx, &implemented, &enabled);
 	if (rc == -ENOSYS) {
-		/* GET_WORKAROUNDS was implemented before the bug26807
-		 * workaround, thus the latter must be unavailable in this fw
+		/* GET_WORKAROUNDS was implemented before this workaround,
+		 * thus it must be unavailable in this firmware.
 		 */
 		nic_data->workaround_26807 = false;
 		rc = 0;

@@ -18,8 +18,6 @@
 #include <asm/unaligned.h>
 #include <linux/skbuff.h>
 
-#include "util.h"
-
 #define MT_DMA_HDR_LEN			4
 #define MT_RX_INFO_LEN			4
 #define MT_FCE_INFO_LEN			4
@@ -79,9 +77,9 @@ static inline int mt7601u_dma_skb_wrap(struct sk_buff *skb,
 	 */
 
 	info = flags |
-		MT76_SET(MT_TXD_INFO_LEN, round_up(skb->len, 4)) |
-		MT76_SET(MT_TXD_INFO_D_PORT, d_port) |
-		MT76_SET(MT_TXD_INFO_TYPE, type);
+		FIELD_PREP(MT_TXD_INFO_LEN, round_up(skb->len, 4)) |
+		FIELD_PREP(MT_TXD_INFO_D_PORT, d_port) |
+		FIELD_PREP(MT_TXD_INFO_TYPE, type);
 
 	put_unaligned_le32(info, skb_push(skb, sizeof(info)));
 	return skb_put_padto(skb, round_up(skb->len, 4) + 4);
@@ -90,7 +88,7 @@ static inline int mt7601u_dma_skb_wrap(struct sk_buff *skb,
 static inline int
 mt7601u_dma_skb_wrap_pkt(struct sk_buff *skb, enum mt76_qsel qsel, u32 flags)
 {
-	flags |= MT76_SET(MT_TXD_PKT_INFO_QSEL, qsel);
+	flags |= FIELD_PREP(MT_TXD_PKT_INFO_QSEL, qsel);
 	return mt7601u_dma_skb_wrap(skb, WLAN_PORT, DMA_PACKET, flags);
 }
 

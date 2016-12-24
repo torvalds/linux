@@ -4,6 +4,7 @@
  * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -24,9 +25,6 @@
 #include <linux/ccp.h>
 
 #include "ccp-dev.h"
-
-#define IO_BAR				2
-#define IO_OFFSET			0x20000
 
 #define MSIX_VECTORS			2
 
@@ -143,10 +141,11 @@ static void ccp_free_irqs(struct ccp_device *ccp)
 			free_irq(ccp_pci->msix[ccp_pci->msix_count].vector,
 				 dev);
 		pci_disable_msix(pdev);
-	} else {
+	} else if (ccp->irq) {
 		free_irq(ccp->irq, dev);
 		pci_disable_msi(pdev);
 	}
+	ccp->irq = 0;
 }
 
 static int ccp_find_mmio_area(struct ccp_device *ccp)
@@ -156,10 +155,11 @@ static int ccp_find_mmio_area(struct ccp_device *ccp)
 	resource_size_t io_len;
 	unsigned long io_flags;
 
-	io_flags = pci_resource_flags(pdev, IO_BAR);
-	io_len = pci_resource_len(pdev, IO_BAR);
-	if ((io_flags & IORESOURCE_MEM) && (io_len >= (IO_OFFSET + 0x800)))
-		return IO_BAR;
+	io_flags = pci_resource_flags(pdev, ccp->vdata->bar);
+	io_len = pci_resource_len(pdev, ccp->vdata->bar);
+	if ((io_flags & IORESOURCE_MEM) &&
+	    (io_len >= (ccp->vdata->offset + 0x800)))
+		return ccp->vdata->bar;
 
 	return -EIO;
 }
@@ -216,7 +216,7 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		dev_err(dev, "pci_iomap failed\n");
 		goto e_device;
 	}
-	ccp->io_regs = ccp->io_map + IO_OFFSET;
+	ccp->io_regs = ccp->io_map + ccp->vdata->offset;
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(48));
 	if (ret) {
@@ -229,6 +229,9 @@ static int ccp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	dev_set_drvdata(dev, ccp);
+
+	if (ccp->vdata->setup)
+		ccp->vdata->setup(ccp);
 
 	ret = ccp->vdata->perform->init(ccp);
 	if (ret)
@@ -322,6 +325,8 @@ static int ccp_pci_resume(struct pci_dev *pdev)
 
 static const struct pci_device_id ccp_pci_table[] = {
 	{ PCI_VDEVICE(AMD, 0x1537), (kernel_ulong_t)&ccpv3 },
+	{ PCI_VDEVICE(AMD, 0x1456), (kernel_ulong_t)&ccpv5a },
+	{ PCI_VDEVICE(AMD, 0x1468), (kernel_ulong_t)&ccpv5b },
 	/* Last entry must be zero */
 	{ 0, }
 };

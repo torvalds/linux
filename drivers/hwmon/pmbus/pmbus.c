@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pmbus.h>
 #include "pmbus.h"
 
 /*
@@ -167,14 +168,26 @@ static int pmbus_probe(struct i2c_client *client,
 		       const struct i2c_device_id *id)
 {
 	struct pmbus_driver_info *info;
+	struct pmbus_platform_data *pdata = NULL;
+	struct device *dev = &client->dev;
 
-	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
-			    GFP_KERNEL);
+	info = devm_kzalloc(dev, sizeof(struct pmbus_driver_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
+	if (!strcmp(id->name, "dps460") || !strcmp(id->name, "dps800") ||
+	    !strcmp(id->name, "sgd009")) {
+		pdata = devm_kzalloc(dev, sizeof(struct pmbus_platform_data),
+				     GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		pdata->flags = PMBUS_SKIP_STATUS_CHECK;
+	}
+
 	info->pages = id->driver_data;
 	info->identify = pmbus_identify;
+	dev->platform_data = pdata;
 
 	return pmbus_do_probe(client, id, info);
 }
@@ -186,6 +199,8 @@ static const struct i2c_device_id pmbus_id[] = {
 	{"adp4000", 1},
 	{"bmr453", 1},
 	{"bmr454", 1},
+	{"dps460", 1},
+	{"dps800", 1},
 	{"mdt040", 1},
 	{"ncp4200", 1},
 	{"ncp4208", 1},
@@ -193,6 +208,7 @@ static const struct i2c_device_id pmbus_id[] = {
 	{"pdt006", 1},
 	{"pdt012", 1},
 	{"pmbus", 0},
+	{"sgd009", 1},
 	{"tps40400", 1},
 	{"tps544b20", 1},
 	{"tps544b25", 1},

@@ -1482,14 +1482,11 @@ static dma_cookie_t ppc440spe_adma_run_tx_complete_actions(
 		cookie = desc->async_tx.cookie;
 		desc->async_tx.cookie = 0;
 
+		dma_descriptor_unmap(&desc->async_tx);
 		/* call the callback (must not sleep or submit new
 		 * operations to this channel)
 		 */
-		if (desc->async_tx.callback)
-			desc->async_tx.callback(
-				desc->async_tx.callback_param);
-
-		dma_descriptor_unmap(&desc->async_tx);
+		dmaengine_desc_get_callback_invoke(&desc->async_tx, NULL);
 	}
 
 	/* run dependent operations */
@@ -3891,7 +3888,7 @@ static int ppc440spe_adma_setup_irqs(struct ppc440spe_adma_device *adev,
 	np = ofdev->dev.of_node;
 	if (adev->id != PPC440SPE_XOR_ID) {
 		adev->err_irq = irq_of_parse_and_map(np, 1);
-		if (adev->err_irq == NO_IRQ) {
+		if (!adev->err_irq) {
 			dev_warn(adev->dev, "no err irq resource?\n");
 			*initcode = PPC_ADMA_INIT_IRQ2;
 			adev->err_irq = -ENXIO;
@@ -3902,7 +3899,7 @@ static int ppc440spe_adma_setup_irqs(struct ppc440spe_adma_device *adev,
 	}
 
 	adev->irq = irq_of_parse_and_map(np, 0);
-	if (adev->irq == NO_IRQ) {
+	if (!adev->irq) {
 		dev_err(adev->dev, "no irq resource\n");
 		*initcode = PPC_ADMA_INIT_IRQ1;
 		ret = -ENXIO;

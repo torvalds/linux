@@ -56,7 +56,7 @@ ucs2_utf8size(const ucs2_char_t *src)
 	unsigned long i;
 	unsigned long j = 0;
 
-	for (i = 0; i < ucs2_strlen(src); i++) {
+	for (i = 0; src[i]; i++) {
 		u16 c = src[i];
 
 		if (c >= 0x800)

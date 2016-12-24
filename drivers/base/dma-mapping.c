@@ -198,10 +198,13 @@ int dmam_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 
 	rc = dma_declare_coherent_memory(dev, phys_addr, device_addr, size,
 					 flags);
-	if (rc == 0)
+	if (rc) {
 		devres_add(dev, res);
-	else
+		rc = 0;
+	} else {
 		devres_free(res);
+		rc = -ENOMEM;
+	}
 
 	return rc;
 }
@@ -247,7 +250,7 @@ int dma_common_mmap(struct device *dev, struct vm_area_struct *vma,
 {
 	int ret = -ENXIO;
 #if defined(CONFIG_MMU) && !defined(CONFIG_ARCH_NO_COHERENT_DMA_MMAP)
-	unsigned long user_count = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+	unsigned long user_count = vma_pages(vma);
 	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	unsigned long pfn = page_to_pfn(virt_to_page(cpu_addr));
 	unsigned long off = vma->vm_pgoff;
@@ -334,7 +337,7 @@ void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags)
 		return;
 	}
 
-	unmap_kernel_range((unsigned long)cpu_addr, size);
+	unmap_kernel_range((unsigned long)cpu_addr, PAGE_ALIGN(size));
 	vunmap(cpu_addr);
 }
 #endif

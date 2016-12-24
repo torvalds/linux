@@ -41,7 +41,8 @@ size_t ovs_tun_key_attr_size(void);
 size_t ovs_key_attr_size(void);
 
 void ovs_match_init(struct sw_flow_match *match,
-		    struct sw_flow_key *key, struct sw_flow_mask *mask);
+		    struct sw_flow_key *key, bool reset_key,
+		    struct sw_flow_mask *mask);
 
 int ovs_nla_put_key(const struct sw_flow_key *, const struct sw_flow_key *,
 		    int attr, bool is_mask, struct sk_buff *);

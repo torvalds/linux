@@ -10,6 +10,7 @@ Required properties:
   * allwinner,sun8i-a23-usb-phy
   * allwinner,sun8i-a33-usb-phy
   * allwinner,sun8i-h3-usb-phy
+  * allwinner,sun50i-a64-usb-phy
 - reg : a list of offset + length pairs
 - reg-names :
   * "phy_ctrl"

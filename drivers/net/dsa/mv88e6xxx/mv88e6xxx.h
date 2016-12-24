@@ -30,11 +30,13 @@
 #define SMI_CMD_OP_45_READ_DATA_INC	((3 << 10) | SMI_CMD_BUSY)
 #define SMI_DATA		0x01
 
-/* Fiber/SERDES Registers are located at SMI address F, page 1 */
-#define REG_FIBER_SERDES	0x0f
-#define PAGE_FIBER_SERDES	0x01
+/* PHY Registers */
+#define PHY_PAGE		0x16
+#define PHY_PAGE_COPPER		0x00
 
-#define REG_PORT(p)		(0x10 + (p))
+#define ADDR_SERDES		0x0f
+#define SERDES_PAGE_FIBER	0x01
+
 #define PORT_STATUS		0x00
 #define PORT_STATUS_PAUSE_EN	BIT(15)
 #define PORT_STATUS_MY_PAUSE	BIT(14)
@@ -157,7 +159,6 @@
 #define PORT_TAG_REGMAP_0123	0x18
 #define PORT_TAG_REGMAP_4567	0x19
 
-#define REG_GLOBAL		0x1b
 #define GLOBAL_STATUS		0x00
 #define GLOBAL_STATUS_PPU_STATE BIT(15) /* 6351 and 6171 */
 /* Two bits for 6165, 6185 etc */
@@ -169,8 +170,8 @@
 #define GLOBAL_MAC_01		0x01
 #define GLOBAL_MAC_23		0x02
 #define GLOBAL_MAC_45		0x03
-#define GLOBAL_ATU_FID		0x01	/* 6097 6165 6351 6352 */
-#define GLOBAL_VTU_FID		0x02	/* 6097 6165 6351 6352 */
+#define GLOBAL_ATU_FID		0x01
+#define GLOBAL_VTU_FID		0x02
 #define GLOBAL_VTU_FID_MASK	0xfff
 #define GLOBAL_VTU_SID		0x03	/* 6097 6165 6351 6352 */
 #define GLOBAL_VTU_SID_MASK	0x3f
@@ -275,7 +276,6 @@
 #define GLOBAL_STATS_COUNTER_32	0x1e
 #define GLOBAL_STATS_COUNTER_01	0x1f
 
-#define REG_GLOBAL2		0x1c
 #define GLOBAL2_INT_SOURCE	0x00
 #define GLOBAL2_INT_MASK	0x01
 #define GLOBAL2_MGMT_EN_2X	0x02
@@ -329,17 +329,16 @@
 #define GLOBAL2_EEPROM_DATA	0x15
 #define GLOBAL2_PTP_AVB_OP	0x16
 #define GLOBAL2_PTP_AVB_DATA	0x17
-#define GLOBAL2_SMI_OP		0x18
-#define GLOBAL2_SMI_OP_BUSY		BIT(15)
-#define GLOBAL2_SMI_OP_CLAUSE_22	BIT(12)
-#define GLOBAL2_SMI_OP_22_WRITE		((1 << 10) | GLOBAL2_SMI_OP_BUSY | \
-					 GLOBAL2_SMI_OP_CLAUSE_22)
-#define GLOBAL2_SMI_OP_22_READ		((2 << 10) | GLOBAL2_SMI_OP_BUSY | \
-					 GLOBAL2_SMI_OP_CLAUSE_22)
-#define GLOBAL2_SMI_OP_45_WRITE_ADDR	((0 << 10) | GLOBAL2_SMI_OP_BUSY)
-#define GLOBAL2_SMI_OP_45_WRITE_DATA	((1 << 10) | GLOBAL2_SMI_OP_BUSY)
-#define GLOBAL2_SMI_OP_45_READ_DATA	((2 << 10) | GLOBAL2_SMI_OP_BUSY)
-#define GLOBAL2_SMI_DATA	0x19
+#define GLOBAL2_SMI_PHY_CMD			0x18
+#define GLOBAL2_SMI_PHY_CMD_BUSY		BIT(15)
+#define GLOBAL2_SMI_PHY_CMD_MODE_22		BIT(12)
+#define GLOBAL2_SMI_PHY_CMD_OP_22_WRITE_DATA	((0x1 << 10) | \
+						 GLOBAL2_SMI_PHY_CMD_MODE_22 | \
+						 GLOBAL2_SMI_PHY_CMD_BUSY)
+#define GLOBAL2_SMI_PHY_CMD_OP_22_READ_DATA	((0x2 << 10) | \
+						 GLOBAL2_SMI_PHY_CMD_MODE_22 | \
+						 GLOBAL2_SMI_PHY_CMD_BUSY)
+#define GLOBAL2_SMI_PHY_DATA			0x19
 #define GLOBAL2_SCRATCH_MISC	0x1a
 #define GLOBAL2_SCRATCH_BUSY		BIT(15)
 #define GLOBAL2_SCRATCH_REGISTER_SHIFT	8
@@ -384,9 +383,35 @@ enum mv88e6xxx_family {
 };
 
 enum mv88e6xxx_cap {
+	/* Two different tag protocols can be used by the driver. All
+	 * switches support DSA, but only later generations support
+	 * EDSA.
+	 */
+	MV88E6XXX_CAP_EDSA,
+
 	/* Energy Efficient Ethernet.
 	 */
 	MV88E6XXX_CAP_EEE,
+
+	/* Multi-chip Addressing Mode.
+	 * Some chips respond to only 2 registers of its own SMI device address
+	 * when it is non-zero, and use indirect access to internal registers.
+	 */
+	MV88E6XXX_CAP_SMI_CMD,		/* (0x00) SMI Command */
+	MV88E6XXX_CAP_SMI_DATA,		/* (0x01) SMI Data */
+
+	/* PHY Registers.
+	 */
+	MV88E6XXX_CAP_PHY_PAGE,		/* (0x16) Page Register */
+
+	/* Fiber/SERDES Registers (SMI address F).
+	 */
+	MV88E6XXX_CAP_SERDES,
+
+	/* Switch Global (1) Registers.
+	 */
+	MV88E6XXX_CAP_G1_ATU_FID,	/* (0x01) ATU FID Register */
+	MV88E6XXX_CAP_G1_VTU_FID,	/* (0x02) VTU FID Register */
 
 	/* Switch Global 2 Registers.
 	 * The device contains a second set of global 16-bit registers.
@@ -398,28 +423,13 @@ enum mv88e6xxx_cap {
 	MV88E6XXX_CAP_G2_IRL_DATA,	/* (0x0a) Ingress Rate Data */
 	MV88E6XXX_CAP_G2_PVT_ADDR,	/* (0x0b) Cross Chip Port VLAN Addr */
 	MV88E6XXX_CAP_G2_PVT_DATA,	/* (0x0c) Cross Chip Port VLAN Data */
-	MV88E6XXX_CAP_G2_SWITCH_MAC,	/* (0x0d) Switch MAC/WoL/WoF */
 	MV88E6XXX_CAP_G2_POT,		/* (0x0f) Priority Override Table */
-	MV88E6XXX_CAP_G2_EEPROM_CMD,	/* (0x14) EEPROM Command */
-	MV88E6XXX_CAP_G2_EEPROM_DATA,	/* (0x15) EEPROM Data */
-
-	/* Multi-chip Addressing Mode.
-	 * Some chips require an indirect SMI access when their SMI device
-	 * address is not zero. See SMI_CMD and SMI_DATA.
-	 */
-	MV88E6XXX_CAP_MULTI_CHIP,
 
 	/* PHY Polling Unit.
 	 * See GLOBAL_CONTROL_PPU_ENABLE and GLOBAL_STATUS_PPU_POLLING.
 	 */
 	MV88E6XXX_CAP_PPU,
 	MV88E6XXX_CAP_PPU_ACTIVE,
-
-	/* SMI PHY Command and Data registers.
-	 * This requires an indirect access to PHY registers through
-	 * GLOBAL2_SMI_OP, otherwise direct access to PHY registers is done.
-	 */
-	MV88E6XXX_CAP_SMI_PHY,
 
 	/* Per VLAN Spanning Tree Unit (STU).
 	 * The Port State database, if present, is accessed through VTU
@@ -440,130 +450,148 @@ enum mv88e6xxx_cap {
 };
 
 /* Bitmask of capabilities */
-#define MV88E6XXX_FLAG_EEE		BIT(MV88E6XXX_CAP_EEE)
-#define MV88E6XXX_FLAG_GLOBAL2		BIT(MV88E6XXX_CAP_GLOBAL2)
-#define MV88E6XXX_FLAG_G2_MGMT_EN_2X	BIT(MV88E6XXX_CAP_G2_MGMT_EN_2X)
-#define MV88E6XXX_FLAG_G2_MGMT_EN_0X	BIT(MV88E6XXX_CAP_G2_MGMT_EN_0X)
-#define MV88E6XXX_FLAG_G2_IRL_CMD	BIT(MV88E6XXX_CAP_G2_IRL_CMD)
-#define MV88E6XXX_FLAG_G2_IRL_DATA	BIT(MV88E6XXX_CAP_G2_IRL_DATA)
-#define MV88E6XXX_FLAG_G2_PVT_ADDR	BIT(MV88E6XXX_CAP_G2_PVT_ADDR)
-#define MV88E6XXX_FLAG_G2_PVT_DATA	BIT(MV88E6XXX_CAP_G2_PVT_DATA)
-#define MV88E6XXX_FLAG_G2_SWITCH_MAC	BIT(MV88E6XXX_CAP_G2_SWITCH_MAC)
-#define MV88E6XXX_FLAG_G2_POT		BIT(MV88E6XXX_CAP_G2_POT)
-#define MV88E6XXX_FLAG_G2_EEPROM_CMD	BIT(MV88E6XXX_CAP_G2_EEPROM_CMD)
-#define MV88E6XXX_FLAG_G2_EEPROM_DATA	BIT(MV88E6XXX_CAP_G2_EEPROM_DATA)
-#define MV88E6XXX_FLAG_MULTI_CHIP	BIT(MV88E6XXX_CAP_MULTI_CHIP)
-#define MV88E6XXX_FLAG_PPU		BIT(MV88E6XXX_CAP_PPU)
-#define MV88E6XXX_FLAG_PPU_ACTIVE	BIT(MV88E6XXX_CAP_PPU_ACTIVE)
-#define MV88E6XXX_FLAG_SMI_PHY		BIT(MV88E6XXX_CAP_SMI_PHY)
-#define MV88E6XXX_FLAG_STU		BIT(MV88E6XXX_CAP_STU)
-#define MV88E6XXX_FLAG_TEMP		BIT(MV88E6XXX_CAP_TEMP)
-#define MV88E6XXX_FLAG_TEMP_LIMIT	BIT(MV88E6XXX_CAP_TEMP_LIMIT)
-#define MV88E6XXX_FLAG_VTU		BIT(MV88E6XXX_CAP_VTU)
+#define MV88E6XXX_FLAG_EDSA		BIT_ULL(MV88E6XXX_CAP_EDSA)
+#define MV88E6XXX_FLAG_EEE		BIT_ULL(MV88E6XXX_CAP_EEE)
 
-/* EEPROM Programming via Global2 with 16-bit data */
-#define MV88E6XXX_FLAGS_EEPROM16	\
-	(MV88E6XXX_FLAG_G2_EEPROM_CMD |	\
-	 MV88E6XXX_FLAG_G2_EEPROM_DATA)
+#define MV88E6XXX_FLAG_SMI_CMD		BIT_ULL(MV88E6XXX_CAP_SMI_CMD)
+#define MV88E6XXX_FLAG_SMI_DATA		BIT_ULL(MV88E6XXX_CAP_SMI_DATA)
+
+#define MV88E6XXX_FLAG_PHY_PAGE		BIT_ULL(MV88E6XXX_CAP_PHY_PAGE)
+
+#define MV88E6XXX_FLAG_SERDES		BIT_ULL(MV88E6XXX_CAP_SERDES)
+
+#define MV88E6XXX_FLAG_G1_ATU_FID	BIT_ULL(MV88E6XXX_CAP_G1_ATU_FID)
+#define MV88E6XXX_FLAG_G1_VTU_FID	BIT_ULL(MV88E6XXX_CAP_G1_VTU_FID)
+
+#define MV88E6XXX_FLAG_GLOBAL2		BIT_ULL(MV88E6XXX_CAP_GLOBAL2)
+#define MV88E6XXX_FLAG_G2_MGMT_EN_2X	BIT_ULL(MV88E6XXX_CAP_G2_MGMT_EN_2X)
+#define MV88E6XXX_FLAG_G2_MGMT_EN_0X	BIT_ULL(MV88E6XXX_CAP_G2_MGMT_EN_0X)
+#define MV88E6XXX_FLAG_G2_IRL_CMD	BIT_ULL(MV88E6XXX_CAP_G2_IRL_CMD)
+#define MV88E6XXX_FLAG_G2_IRL_DATA	BIT_ULL(MV88E6XXX_CAP_G2_IRL_DATA)
+#define MV88E6XXX_FLAG_G2_PVT_ADDR	BIT_ULL(MV88E6XXX_CAP_G2_PVT_ADDR)
+#define MV88E6XXX_FLAG_G2_PVT_DATA	BIT_ULL(MV88E6XXX_CAP_G2_PVT_DATA)
+#define MV88E6XXX_FLAG_G2_POT		BIT_ULL(MV88E6XXX_CAP_G2_POT)
+
+#define MV88E6XXX_FLAG_PPU		BIT_ULL(MV88E6XXX_CAP_PPU)
+#define MV88E6XXX_FLAG_PPU_ACTIVE	BIT_ULL(MV88E6XXX_CAP_PPU_ACTIVE)
+#define MV88E6XXX_FLAG_STU		BIT_ULL(MV88E6XXX_CAP_STU)
+#define MV88E6XXX_FLAG_TEMP		BIT_ULL(MV88E6XXX_CAP_TEMP)
+#define MV88E6XXX_FLAG_TEMP_LIMIT	BIT_ULL(MV88E6XXX_CAP_TEMP_LIMIT)
+#define MV88E6XXX_FLAG_VTU		BIT_ULL(MV88E6XXX_CAP_VTU)
 
 /* Ingress Rate Limit unit */
 #define MV88E6XXX_FLAGS_IRL		\
 	(MV88E6XXX_FLAG_G2_IRL_CMD |	\
 	 MV88E6XXX_FLAG_G2_IRL_DATA)
 
+/* Multi-chip Addressing Mode */
+#define MV88E6XXX_FLAGS_MULTI_CHIP	\
+	(MV88E6XXX_FLAG_SMI_CMD |	\
+	 MV88E6XXX_FLAG_SMI_DATA)
+
 /* Cross-chip Port VLAN Table */
 #define MV88E6XXX_FLAGS_PVT		\
 	(MV88E6XXX_FLAG_G2_PVT_ADDR |	\
 	 MV88E6XXX_FLAG_G2_PVT_DATA)
 
+/* Fiber/SERDES Registers at SMI address F, page 1 */
+#define MV88E6XXX_FLAGS_SERDES		\
+	(MV88E6XXX_FLAG_PHY_PAGE |	\
+	 MV88E6XXX_FLAG_SERDES)
+
 #define MV88E6XXX_FLAGS_FAMILY_6095	\
 	(MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU |		\
-	 MV88E6XXX_FLAG_VTU)
+	 MV88E6XXX_FLAG_VTU |		\
+	 MV88E6XXX_FLAGS_MULTI_CHIP)
 
 #define MV88E6XXX_FLAGS_FAMILY_6097	\
-	(MV88E6XXX_FLAG_GLOBAL2 |	\
+	(MV88E6XXX_FLAG_G1_ATU_FID |	\
+	 MV88E6XXX_FLAG_G1_VTU_FID |	\
+	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU |		\
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6165	\
-	(MV88E6XXX_FLAG_GLOBAL2 |	\
+	(MV88E6XXX_FLAG_G1_ATU_FID |	\
+	 MV88E6XXX_FLAG_G1_VTU_FID |	\
+	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_SWITCH_MAC |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6185	\
 	(MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_MULTI_CHIP |	\
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU |		\
 	 MV88E6XXX_FLAG_VTU)
 
 #define MV88E6XXX_FLAGS_FAMILY_6320	\
-	(MV88E6XXX_FLAG_EEE |		\
+	(MV88E6XXX_FLAG_EDSA |		\
+	 MV88E6XXX_FLAG_EEE |		\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_SWITCH_MAC |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
-	 MV88E6XXX_FLAG_SMI_PHY |	\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
-	 MV88E6XXX_FLAGS_EEPROM16 |	\
 	 MV88E6XXX_FLAGS_IRL |		\
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6351	\
-	(MV88E6XXX_FLAG_GLOBAL2 |	\
+	(MV88E6XXX_FLAG_EDSA |		\
+	 MV88E6XXX_FLAG_G1_ATU_FID |	\
+	 MV88E6XXX_FLAG_G1_VTU_FID |	\
+	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_SWITCH_MAC |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
-	 MV88E6XXX_FLAG_SMI_PHY |	\
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_VTU |		\
 	 MV88E6XXX_FLAGS_IRL |		\
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
 	 MV88E6XXX_FLAGS_PVT)
 
 #define MV88E6XXX_FLAGS_FAMILY_6352	\
-	(MV88E6XXX_FLAG_EEE |		\
+	(MV88E6XXX_FLAG_EDSA |		\
+	 MV88E6XXX_FLAG_EEE |		\
+	 MV88E6XXX_FLAG_G1_ATU_FID |	\
+	 MV88E6XXX_FLAG_G1_VTU_FID |	\
 	 MV88E6XXX_FLAG_GLOBAL2 |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_2X |	\
 	 MV88E6XXX_FLAG_G2_MGMT_EN_0X |	\
-	 MV88E6XXX_FLAG_G2_SWITCH_MAC |	\
 	 MV88E6XXX_FLAG_G2_POT |	\
-	 MV88E6XXX_FLAG_MULTI_CHIP |	\
 	 MV88E6XXX_FLAG_PPU_ACTIVE |	\
-	 MV88E6XXX_FLAG_SMI_PHY |	\
 	 MV88E6XXX_FLAG_STU |		\
 	 MV88E6XXX_FLAG_TEMP |		\
 	 MV88E6XXX_FLAG_TEMP_LIMIT |	\
 	 MV88E6XXX_FLAG_VTU |		\
-	 MV88E6XXX_FLAGS_EEPROM16 |	\
 	 MV88E6XXX_FLAGS_IRL |		\
-	 MV88E6XXX_FLAGS_PVT)
+	 MV88E6XXX_FLAGS_MULTI_CHIP |	\
+	 MV88E6XXX_FLAGS_PVT |		\
+	 MV88E6XXX_FLAGS_SERDES)
+
+struct mv88e6xxx_ops;
 
 struct mv88e6xxx_info {
 	enum mv88e6xxx_family family;
@@ -572,8 +600,10 @@ struct mv88e6xxx_info {
 	unsigned int num_databases;
 	unsigned int num_ports;
 	unsigned int port_base_addr;
+	unsigned int global1_addr;
 	unsigned int age_time_coeff;
-	unsigned long flags;
+	unsigned long long flags;
+	const struct mv88e6xxx_ops *ops;
 };
 
 struct mv88e6xxx_atu_entry {
@@ -584,18 +614,15 @@ struct mv88e6xxx_atu_entry {
 	u8	mac[ETH_ALEN];
 };
 
-struct mv88e6xxx_vtu_stu_entry {
-	/* VTU only */
+struct mv88e6xxx_vtu_entry {
 	u16	vid;
 	u16	fid;
-
-	/* VTU and STU */
 	u8	sid;
 	bool	valid;
 	u8	data[DSA_MAX_PORTS];
 };
 
-struct mv88e6xxx_ops;
+struct mv88e6xxx_bus_ops;
 
 struct mv88e6xxx_priv_port {
 	struct net_device *bridge_dev;
@@ -616,13 +643,14 @@ struct mv88e6xxx_chip {
 	/* The MII bus and the address on the bus that is used to
 	 * communication with the switch
 	 */
-	const struct mv88e6xxx_ops *smi_ops;
+	const struct mv88e6xxx_bus_ops *smi_ops;
 	struct mii_bus *bus;
 	int sw_addr;
 
 	/* Handles automatic disabling and re-enabling of the PHY
 	 * polling unit.
 	 */
+	const struct mv88e6xxx_bus_ops *phy_ops;
 	struct mutex		ppu_mutex;
 	int			ppu_disabled;
 	struct work_struct	ppu_work;
@@ -651,9 +679,23 @@ struct mv88e6xxx_chip {
 	struct mii_bus *mdio_bus;
 };
 
-struct mv88e6xxx_ops {
+struct mv88e6xxx_bus_ops {
 	int (*read)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
 	int (*write)(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
+};
+
+struct mv88e6xxx_ops {
+	int (*get_eeprom)(struct mv88e6xxx_chip *chip,
+			  struct ethtool_eeprom *eeprom, u8 *data);
+	int (*set_eeprom)(struct mv88e6xxx_chip *chip,
+			  struct ethtool_eeprom *eeprom, u8 *data);
+
+	int (*set_switch_mac)(struct mv88e6xxx_chip *chip, u8 *addr);
+
+	int (*phy_read)(struct mv88e6xxx_chip *chip, int addr, int reg,
+			u16 *val);
+	int (*phy_write)(struct mv88e6xxx_chip *chip, int addr, int reg,
+			 u16 val);
 };
 
 enum stat_type {
@@ -674,5 +716,21 @@ static inline bool mv88e6xxx_has(struct mv88e6xxx_chip *chip,
 {
 	return (chip->info->flags & flags) == flags;
 }
+
+static inline unsigned int mv88e6xxx_num_databases(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->num_databases;
+}
+
+static inline unsigned int mv88e6xxx_num_ports(struct mv88e6xxx_chip *chip)
+{
+	return chip->info->num_ports;
+}
+
+int mv88e6xxx_read(struct mv88e6xxx_chip *chip, int addr, int reg, u16 *val);
+int mv88e6xxx_write(struct mv88e6xxx_chip *chip, int addr, int reg, u16 val);
+int mv88e6xxx_update(struct mv88e6xxx_chip *chip, int addr, int reg,
+		     u16 update);
+int mv88e6xxx_wait(struct mv88e6xxx_chip *chip, int addr, int reg, u16 mask);
 
 #endif

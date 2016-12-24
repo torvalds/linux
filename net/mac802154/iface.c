@@ -663,6 +663,7 @@ ieee802154_if_add(struct ieee802154_local *local, const char *name,
 
 	/* TODO check this */
 	SET_NETDEV_DEV(ndev, &local->phy->dev);
+	dev_net_set(ndev, wpan_phy_net(local->hw.phy));
 	sdata = netdev_priv(ndev);
 	ndev->ieee802154_ptr = &sdata->wpan_dev;
 	memcpy(sdata->name, ndev->name, IFNAMSIZ);

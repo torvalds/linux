@@ -177,6 +177,42 @@ static int int340x_thermal_get_trip_config(acpi_handle handle, char *name,
 	return 0;
 }
 
+int int340x_thermal_read_trips(struct int34x_thermal_zone *int34x_zone)
+{
+	int trip_cnt = int34x_zone->aux_trip_nr;
+	int i;
+
+	int34x_zone->crt_trip_id = -1;
+	if (!int340x_thermal_get_trip_config(int34x_zone->adev->handle, "_CRT",
+					     &int34x_zone->crt_temp))
+		int34x_zone->crt_trip_id = trip_cnt++;
+
+	int34x_zone->hot_trip_id = -1;
+	if (!int340x_thermal_get_trip_config(int34x_zone->adev->handle, "_HOT",
+					     &int34x_zone->hot_temp))
+		int34x_zone->hot_trip_id = trip_cnt++;
+
+	int34x_zone->psv_trip_id = -1;
+	if (!int340x_thermal_get_trip_config(int34x_zone->adev->handle, "_PSV",
+					     &int34x_zone->psv_temp))
+		int34x_zone->psv_trip_id = trip_cnt++;
+
+	for (i = 0; i < INT340X_THERMAL_MAX_ACT_TRIP_COUNT; i++) {
+		char name[5] = { '_', 'A', 'C', '0' + i, '\0' };
+
+		if (int340x_thermal_get_trip_config(int34x_zone->adev->handle,
+					name,
+					&int34x_zone->act_trips[i].temp))
+			break;
+
+		int34x_zone->act_trips[i].id = trip_cnt++;
+		int34x_zone->act_trips[i].valid = true;
+	}
+
+	return trip_cnt;
+}
+EXPORT_SYMBOL_GPL(int340x_thermal_read_trips);
+
 static struct thermal_zone_params int340x_thermal_params = {
 	.governor_name = "user_space",
 	.no_hwmon = true,
@@ -188,7 +224,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	struct int34x_thermal_zone *int34x_thermal_zone;
 	acpi_status status;
 	unsigned long long trip_cnt;
-	int trip_mask = 0, i;
+	int trip_mask = 0;
 	int ret;
 
 	int34x_thermal_zone = kzalloc(sizeof(*int34x_thermal_zone),
@@ -214,28 +250,8 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 		int34x_thermal_zone->aux_trip_nr = trip_cnt;
 	}
 
-	int34x_thermal_zone->crt_trip_id = -1;
-	if (!int340x_thermal_get_trip_config(adev->handle, "_CRT",
-					     &int34x_thermal_zone->crt_temp))
-		int34x_thermal_zone->crt_trip_id = trip_cnt++;
-	int34x_thermal_zone->hot_trip_id = -1;
-	if (!int340x_thermal_get_trip_config(adev->handle, "_HOT",
-					     &int34x_thermal_zone->hot_temp))
-		int34x_thermal_zone->hot_trip_id = trip_cnt++;
-	int34x_thermal_zone->psv_trip_id = -1;
-	if (!int340x_thermal_get_trip_config(adev->handle, "_PSV",
-					     &int34x_thermal_zone->psv_temp))
-		int34x_thermal_zone->psv_trip_id = trip_cnt++;
-	for (i = 0; i < INT340X_THERMAL_MAX_ACT_TRIP_COUNT; i++) {
-		char name[5] = { '_', 'A', 'C', '0' + i, '\0' };
+	trip_cnt = int340x_thermal_read_trips(int34x_thermal_zone);
 
-		if (int340x_thermal_get_trip_config(adev->handle, name,
-				&int34x_thermal_zone->act_trips[i].temp))
-			break;
-
-		int34x_thermal_zone->act_trips[i].id = trip_cnt++;
-		int34x_thermal_zone->act_trips[i].valid = true;
-	}
 	int34x_thermal_zone->lpat_table = acpi_lpat_get_conversion_table(
 								adev->handle);
 

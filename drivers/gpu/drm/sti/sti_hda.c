@@ -62,13 +62,7 @@
 #define SCALE_CTRL_CR_DFLT              0x00DB0249
 
 /* Video DACs control */
-#define VIDEO_DACS_CONTROL_MASK         0x0FFF
-#define VIDEO_DACS_CONTROL_SYSCFG2535   0x085C /* for stih416 */
-#define DAC_CFG_HD_OFF_SHIFT            5
-#define DAC_CFG_HD_OFF_MASK             (0x7 << DAC_CFG_HD_OFF_SHIFT)
-#define VIDEO_DACS_CONTROL_SYSCFG5072   0x0120 /* for stih407 */
 #define DAC_CFG_HD_HZUVW_OFF_MASK       BIT(1)
-
 
 /* Upsampler values for the alternative 2X Filter */
 #define SAMPLER_COEF_NB                 8
@@ -300,28 +294,14 @@ static bool hda_get_mode_idx(struct drm_display_mode mode, int *idx)
  */
 static void hda_enable_hd_dacs(struct sti_hda *hda, bool enable)
 {
-	u32 mask;
-
 	if (hda->video_dacs_ctrl) {
 		u32 val;
 
-		switch ((u32)hda->video_dacs_ctrl & VIDEO_DACS_CONTROL_MASK) {
-		case VIDEO_DACS_CONTROL_SYSCFG2535:
-			mask = DAC_CFG_HD_OFF_MASK;
-			break;
-		case VIDEO_DACS_CONTROL_SYSCFG5072:
-			mask = DAC_CFG_HD_HZUVW_OFF_MASK;
-			break;
-		default:
-			DRM_INFO("Video DACS control register not supported!");
-			return;
-		}
-
 		val = readl(hda->video_dacs_ctrl);
 		if (enable)
-			val &= ~mask;
+			val &= ~DAC_CFG_HD_HZUVW_OFF_MASK;
 		else
-			val |= mask;
+			val |= DAC_CFG_HD_HZUVW_OFF_MASK;
 
 		writel(val, hda->video_dacs_ctrl);
 	}
@@ -352,24 +332,11 @@ static void hda_dbg_awg_microcode(struct seq_file *s, void __iomem *reg)
 static void hda_dbg_video_dacs_ctrl(struct seq_file *s, void __iomem *reg)
 {
 	u32 val = readl(reg);
-	u32 mask;
-
-	switch ((u32)reg & VIDEO_DACS_CONTROL_MASK) {
-	case VIDEO_DACS_CONTROL_SYSCFG2535:
-		mask = DAC_CFG_HD_OFF_MASK;
-		break;
-	case VIDEO_DACS_CONTROL_SYSCFG5072:
-		mask = DAC_CFG_HD_HZUVW_OFF_MASK;
-		break;
-	default:
-		DRM_DEBUG_DRIVER("Warning: DACS ctrl register not supported!");
-		return;
-	}
 
 	seq_puts(s, "\n");
 	seq_printf(s, "\n  %-25s 0x%08X", "VIDEO_DACS_CONTROL", val);
 	seq_puts(s, "\tHD DACs ");
-	seq_puts(s, val & mask ? "disabled" : "enabled");
+	seq_puts(s, val & DAC_CFG_HD_HZUVW_OFF_MASK ? "disabled" : "enabled");
 }
 
 static int hda_dbg_show(struct seq_file *s, void *data)

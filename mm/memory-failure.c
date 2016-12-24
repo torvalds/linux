@@ -1112,10 +1112,10 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 	}
 
 	if (!PageHuge(p) && PageTransHuge(hpage)) {
-		lock_page(hpage);
-		if (!PageAnon(hpage) || unlikely(split_huge_page(hpage))) {
-			unlock_page(hpage);
-			if (!PageAnon(hpage))
+		lock_page(p);
+		if (!PageAnon(p) || unlikely(split_huge_page(p))) {
+			unlock_page(p);
+			if (!PageAnon(p))
 				pr_err("Memory failure: %#lx: non anonymous thp\n",
 					pfn);
 			else
@@ -1126,9 +1126,7 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
 			put_hwpoison_page(p);
 			return -EBUSY;
 		}
-		unlock_page(hpage);
-		get_hwpoison_page(p);
-		put_hwpoison_page(hpage);
+		unlock_page(p);
 		VM_BUG_ON_PAGE(!page_count(p), p);
 		hpage = compound_head(p);
 	}

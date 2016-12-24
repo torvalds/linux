@@ -38,8 +38,7 @@ void tmc_wait_for_tmcready(struct tmc_drvdata *drvdata)
 	if (coresight_timeout(drvdata->base,
 			      TMC_STS, TMC_STS_TMCREADY_BIT, 1)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			TMC_STS);
+			"timeout while waiting for TMC to be Ready\n");
 	}
 }
 
@@ -56,8 +55,7 @@ void tmc_flush_and_stop(struct tmc_drvdata *drvdata)
 	if (coresight_timeout(drvdata->base,
 			      TMC_FFCR, TMC_FFCR_FLUSHMAN_BIT, 0)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			TMC_FFCR);
+		"timeout while waiting for completion of Manual Flush\n");
 	}
 
 	tmc_wait_for_tmcready(drvdata);
@@ -140,8 +138,8 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 						   struct tmc_drvdata, miscdev);
 	char *bufp = drvdata->buf + *ppos;
 
-	if (*ppos + len > drvdata->size)
-		len = drvdata->size - *ppos;
+	if (*ppos + len > drvdata->len)
+		len = drvdata->len - *ppos;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		if (bufp == (char *)(drvdata->vaddr + drvdata->size))
@@ -160,7 +158,7 @@ static ssize_t tmc_read(struct file *file, char __user *data, size_t len,
 	*ppos += len;
 
 	dev_dbg(drvdata->dev, "%s: %zu bytes copied, %d bytes left\n",
-		__func__, len, (int)(drvdata->size - *ppos));
+		__func__, len, (int)(drvdata->len - *ppos));
 	return len;
 }
 
@@ -220,7 +218,7 @@ static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
 }
 
 #define coresight_tmc_simple_func(name, offset)			\
-	coresight_simple_func(struct tmc_drvdata, name, offset)
+	coresight_simple_func(struct tmc_drvdata, NULL, name, offset)
 
 coresight_tmc_simple_func(rsz, TMC_RSZ);
 coresight_tmc_simple_func(sts, TMC_STS);
@@ -249,8 +247,8 @@ static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	NULL,
 };
 
-ssize_t trigger_cntr_show(struct device *dev,
-			  struct device_attribute *attr, char *buf)
+static ssize_t trigger_cntr_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	struct tmc_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val = drvdata->trigger_cntr;
@@ -304,27 +302,32 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	struct coresight_platform_data *pdata = NULL;
 	struct tmc_drvdata *drvdata;
 	struct resource *res = &adev->res;
-	struct coresight_desc *desc;
+	struct coresight_desc desc = { 0 };
 	struct device_node *np = adev->dev.of_node;
 
 	if (np) {
 		pdata = of_get_coresight_platform_data(dev, np);
-		if (IS_ERR(pdata))
-			return PTR_ERR(pdata);
+		if (IS_ERR(pdata)) {
+			ret = PTR_ERR(pdata);
+			goto out;
+		}
 		adev->dev.platform_data = pdata;
 	}
 
+	ret = -ENOMEM;
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
-		return -ENOMEM;
+		goto out;
 
 	drvdata->dev = &adev->dev;
 	dev_set_drvdata(dev, drvdata);
 
 	/* Validity for the resource is already checked by the AMBA core */
 	base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(base))
-		return PTR_ERR(base);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
+		goto out;
+	}
 
 	drvdata->base = base;
 
@@ -347,33 +350,28 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 
 	pm_runtime_put(&adev->dev);
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc) {
-		ret = -ENOMEM;
-		goto err_devm_kzalloc;
-	}
-
-	desc->pdata = pdata;
-	desc->dev = dev;
-	desc->subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
-	desc->groups = coresight_tmc_groups;
+	desc.pdata = pdata;
+	desc.dev = dev;
+	desc.groups = coresight_tmc_groups;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETB) {
-		desc->type = CORESIGHT_DEV_TYPE_SINK;
-		desc->ops = &tmc_etb_cs_ops;
+		desc.type = CORESIGHT_DEV_TYPE_SINK;
+		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
+		desc.ops = &tmc_etb_cs_ops;
 	} else if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
-		desc->type = CORESIGHT_DEV_TYPE_SINK;
-		desc->ops = &tmc_etr_cs_ops;
+		desc.type = CORESIGHT_DEV_TYPE_SINK;
+		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
+		desc.ops = &tmc_etr_cs_ops;
 	} else {
-		desc->type = CORESIGHT_DEV_TYPE_LINKSINK;
-		desc->subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_FIFO;
-		desc->ops = &tmc_etf_cs_ops;
+		desc.type = CORESIGHT_DEV_TYPE_LINKSINK;
+		desc.subtype.link_subtype = CORESIGHT_DEV_SUBTYPE_LINK_FIFO;
+		desc.ops = &tmc_etf_cs_ops;
 	}
 
-	drvdata->csdev = coresight_register(desc);
+	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev)) {
 		ret = PTR_ERR(drvdata->csdev);
-		goto err_devm_kzalloc;
+		goto out;
 	}
 
 	drvdata->miscdev.name = pdata->name;
@@ -381,16 +379,8 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	drvdata->miscdev.fops = &tmc_fops;
 	ret = misc_register(&drvdata->miscdev);
 	if (ret)
-		goto err_misc_register;
-
-	return 0;
-
-err_misc_register:
-	coresight_unregister(drvdata->csdev);
-err_devm_kzalloc:
-	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR)
-		dma_free_coherent(dev, drvdata->size,
-				drvdata->vaddr, drvdata->paddr);
+		coresight_unregister(drvdata->csdev);
+out:
 	return ret;
 }
 

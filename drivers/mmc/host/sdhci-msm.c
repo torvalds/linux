@@ -647,6 +647,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (msm_host->pwr_irq < 0) {
 		dev_err(&pdev->dev, "Get pwr_irq failed (%d)\n",
 			msm_host->pwr_irq);
+		ret = msm_host->pwr_irq;
 		goto clk_disable;
 	}
 

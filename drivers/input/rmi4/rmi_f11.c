@@ -12,7 +12,6 @@
 #include <linux/device.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
-#include <linux/kconfig.h>
 #include <linux/rmi.h>
 #include <linux/slab.h>
 #include <linux/of.h>

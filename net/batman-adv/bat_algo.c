@@ -20,12 +20,18 @@
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/moduleparam.h>
+#include <linux/netlink.h>
 #include <linux/printk.h>
 #include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
+#include <net/genetlink.h>
+#include <net/netlink.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "bat_algo.h"
+#include "netlink.h"
 
 char batadv_routing_algo[20] = "BATMAN_IV";
 static struct hlist_head batadv_algo_list;
@@ -95,6 +101,7 @@ int batadv_algo_select(struct batadv_priv *bat_priv, char *name)
 	return 0;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUGFS
 int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct batadv_algo_ops *bat_algo_ops;
@@ -107,6 +114,7 @@ int batadv_algo_seq_print_text(struct seq_file *seq, void *offset)
 
 	return 0;
 }
+#endif
 
 static int batadv_param_set_ra(const char *val, const struct kernel_param *kp)
 {
@@ -138,3 +146,65 @@ static struct kparam_string batadv_param_string_ra = {
 
 module_param_cb(routing_algo, &batadv_param_ops_ra, &batadv_param_string_ra,
 		0644);
+
+/**
+ * batadv_algo_dump_entry - fill in information about one supported routing
+ *  algorithm
+ * @msg: netlink message to be sent back
+ * @portid: Port to reply to
+ * @seq: Sequence number of message
+ * @bat_algo_ops: Algorithm to be dumped
+ *
+ * Return: Error number, or 0 on success
+ */
+static int batadv_algo_dump_entry(struct sk_buff *msg, u32 portid, u32 seq,
+				  struct batadv_algo_ops *bat_algo_ops)
+{
+	void *hdr;
+
+	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family,
+			  NLM_F_MULTI, BATADV_CMD_GET_ROUTING_ALGOS);
+	if (!hdr)
+		return -EMSGSIZE;
+
+	if (nla_put_string(msg, BATADV_ATTR_ALGO_NAME, bat_algo_ops->name))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+/**
+ * batadv_algo_dump - fill in information about supported routing
+ *  algorithms
+ * @msg: netlink message to be sent back
+ * @cb: Parameters to the netlink request
+ *
+ * Return: Length of reply message.
+ */
+int batadv_algo_dump(struct sk_buff *msg, struct netlink_callback *cb)
+{
+	int portid = NETLINK_CB(cb->skb).portid;
+	struct batadv_algo_ops *bat_algo_ops;
+	int skip = cb->args[0];
+	int i = 0;
+
+	hlist_for_each_entry(bat_algo_ops, &batadv_algo_list, list) {
+		if (i++ < skip)
+			continue;
+
+		if (batadv_algo_dump_entry(msg, portid, cb->nlh->nlmsg_seq,
+					   bat_algo_ops)) {
+			i--;
+			break;
+		}
+	}
+
+	cb->args[0] = i;
+
+	return msg->len;
+}

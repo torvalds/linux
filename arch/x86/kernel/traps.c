@@ -292,12 +292,30 @@ DO_ERROR(X86_TRAP_NP,     SIGBUS,  "segment not present",	segment_not_present)
 DO_ERROR(X86_TRAP_SS,     SIGBUS,  "stack segment",		stack_segment)
 DO_ERROR(X86_TRAP_AC,     SIGBUS,  "alignment check",		alignment_check)
 
+#ifdef CONFIG_VMAP_STACK
+__visible void __noreturn handle_stack_overflow(const char *message,
+						struct pt_regs *regs,
+						unsigned long fault_address)
+{
+	printk(KERN_EMERG "BUG: stack guard page was hit at %p (stack is %p..%p)\n",
+		 (void *)fault_address, current->stack,
+		 (char *)current->stack + THREAD_SIZE - 1);
+	die(message, regs, 0);
+
+	/* Be absolutely certain we don't return. */
+	panic(message);
+}
+#endif
+
 #ifdef CONFIG_X86_64
 /* Runs on IST stack */
 dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 {
 	static const char str[] = "double fault";
 	struct task_struct *tsk = current;
+#ifdef CONFIG_VMAP_STACK
+	unsigned long cr2;
+#endif
 
 #ifdef CONFIG_X86_ESPFIX64
 	extern unsigned char native_irq_return_iret[];
@@ -331,6 +349,49 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = X86_TRAP_DF;
+
+#ifdef CONFIG_VMAP_STACK
+	/*
+	 * If we overflow the stack into a guard page, the CPU will fail
+	 * to deliver #PF and will send #DF instead.  Similarly, if we
+	 * take any non-IST exception while too close to the bottom of
+	 * the stack, the processor will get a page fault while
+	 * delivering the exception and will generate a double fault.
+	 *
+	 * According to the SDM (footnote in 6.15 under "Interrupt 14 -
+	 * Page-Fault Exception (#PF):
+	 *
+	 *   Processors update CR2 whenever a page fault is detected. If a
+	 *   second page fault occurs while an earlier page fault is being
+	 *   deliv- ered, the faulting linear address of the second fault will
+	 *   overwrite the contents of CR2 (replacing the previous
+	 *   address). These updates to CR2 occur even if the page fault
+	 *   results in a double fault or occurs during the delivery of a
+	 *   double fault.
+	 *
+	 * The logic below has a small possibility of incorrectly diagnosing
+	 * some errors as stack overflows.  For example, if the IDT or GDT
+	 * gets corrupted such that #GP delivery fails due to a bad descriptor
+	 * causing #GP and we hit this condition while CR2 coincidentally
+	 * points to the stack guard page, we'll think we overflowed the
+	 * stack.  Given that we're going to panic one way or another
+	 * if this happens, this isn't necessarily worth fixing.
+	 *
+	 * If necessary, we could improve the test by only diagnosing
+	 * a stack overflow if the saved RSP points within 47 bytes of
+	 * the bottom of the stack: if RSP == tsk_stack + 48 and we
+	 * take an exception, the stack is already aligned and there
+	 * will be enough room SS, RSP, RFLAGS, CS, RIP, and a
+	 * possible error code, so a stack overflow would *not* double
+	 * fault.  With any less space left, exception delivery could
+	 * fail, and, as a practical matter, we've overflowed the
+	 * stack even if the actual trigger for the double fault was
+	 * something else.
+	 */
+	cr2 = read_cr2();
+	if ((unsigned long)task_stack_page(tsk) - 1 - cr2 < PAGE_SIZE)
+		handle_stack_overflow("kernel stack overflow (double-fault)", regs, cr2);
+#endif
 
 #ifdef CONFIG_DOUBLEFAULT
 	df_debug(regs, error_code);

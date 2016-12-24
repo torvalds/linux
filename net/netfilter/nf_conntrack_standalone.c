@@ -212,6 +212,11 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	if (unlikely(!atomic_inc_not_zero(&ct->ct_general.use)))
 		return 0;
 
+	if (nf_ct_should_gc(ct)) {
+		nf_ct_kill(ct);
+		goto release;
+	}
+
 	/* we only want to print DIR_ORIGINAL */
 	if (NF_CT_DIRECTION(hash))
 		goto release;
@@ -228,8 +233,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 	seq_printf(s, "%-8s %u %-8s %u %ld ",
 		   l3proto->name, nf_ct_l3num(ct),
 		   l4proto->name, nf_ct_protonum(ct),
-		   timer_pending(&ct->timeout)
-		   ? (long)(ct->timeout.expires - jiffies)/HZ : 0);
+		   nf_ct_expires(ct)  / HZ);
 
 	if (l4proto->print_conntrack)
 		l4proto->print_conntrack(s, ct);
@@ -353,13 +357,13 @@ static int ct_cpu_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "%08x  %08x %08x %08x %08x %08x %08x %08x "
 			"%08x %08x %08x %08x %08x  %08x %08x %08x %08x\n",
 		   nr_conntracks,
-		   st->searched,
+		   0,
 		   st->found,
-		   st->new,
+		   0,
 		   st->invalid,
 		   st->ignore,
-		   st->delete,
-		   st->delete_list,
+		   0,
+		   0,
 		   st->insert,
 		   st->insert_failed,
 		   st->drop,

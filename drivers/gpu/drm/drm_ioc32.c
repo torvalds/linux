@@ -32,7 +32,6 @@
 #include <linux/export.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_core.h>
 
 #define DRM_IOCTL_VERSION32		DRM_IOWR(0x00, drm_version32_t)
 #define DRM_IOCTL_GET_UNIQUE32		DRM_IOWR(0x01, drm_unique32_t)
@@ -346,6 +345,7 @@ static int compat_drm_getstats(struct file *file, unsigned int cmd,
 	struct drm_stats __user *stats;
 	int i, err;
 
+	memset(&s32, 0, sizeof(drm_stats32_t));
 	stats = compat_alloc_user_space(sizeof(*stats));
 	if (!stats)
 		return -EFAULT;

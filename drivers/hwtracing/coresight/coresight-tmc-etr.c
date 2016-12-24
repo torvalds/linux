@@ -20,7 +20,7 @@
 #include "coresight-priv.h"
 #include "coresight-tmc.h"
 
-void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
+static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 {
 	u32 axictl;
 
@@ -64,11 +64,17 @@ static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
 	rwp = readl_relaxed(drvdata->base + TMC_RWP);
 	val = readl_relaxed(drvdata->base + TMC_STS);
 
-	/* How much memory do we still have */
-	if (val & BIT(0))
+	/*
+	 * Adjust the buffer to point to the beginning of the trace data
+	 * and update the available trace data.
+	 */
+	if (val & TMC_STS_FULL) {
 		drvdata->buf = drvdata->vaddr + rwp - drvdata->paddr;
-	else
+		drvdata->len = drvdata->size;
+	} else {
 		drvdata->buf = drvdata->vaddr;
+		drvdata->len = rwp - drvdata->paddr;
+	}
 }
 
 static void tmc_etr_disable_hw(struct tmc_drvdata *drvdata)

@@ -234,39 +234,35 @@ int st_sensors_power_enable(struct iio_dev *indio_dev)
 	int err;
 
 	/* Regulators not mandatory, but if requested we should enable them. */
-	pdata->vdd = devm_regulator_get_optional(indio_dev->dev.parent, "vdd");
-	if (!IS_ERR(pdata->vdd)) {
-		err = regulator_enable(pdata->vdd);
-		if (err != 0) {
-			dev_warn(&indio_dev->dev,
-				 "Failed to enable specified Vdd supply\n");
-			return err;
-		}
-	} else {
-		err = PTR_ERR(pdata->vdd);
-		if (err != -ENODEV)
-			return err;
+	pdata->vdd = devm_regulator_get(indio_dev->dev.parent, "vdd");
+	if (IS_ERR(pdata->vdd)) {
+		dev_err(&indio_dev->dev, "unable to get Vdd supply\n");
+		return PTR_ERR(pdata->vdd);
+	}
+	err = regulator_enable(pdata->vdd);
+	if (err != 0) {
+		dev_warn(&indio_dev->dev,
+			 "Failed to enable specified Vdd supply\n");
+		return err;
 	}
 
-	pdata->vdd_io = devm_regulator_get_optional(indio_dev->dev.parent, "vddio");
-	if (!IS_ERR(pdata->vdd_io)) {
-		err = regulator_enable(pdata->vdd_io);
-		if (err != 0) {
-			dev_warn(&indio_dev->dev,
-				 "Failed to enable specified Vdd_IO supply\n");
-			goto st_sensors_disable_vdd;
-		}
-	} else {
+	pdata->vdd_io = devm_regulator_get(indio_dev->dev.parent, "vddio");
+	if (IS_ERR(pdata->vdd_io)) {
+		dev_err(&indio_dev->dev, "unable to get Vdd_IO supply\n");
 		err = PTR_ERR(pdata->vdd_io);
-		if (err != -ENODEV)
-			goto st_sensors_disable_vdd;
+		goto st_sensors_disable_vdd;
+	}
+	err = regulator_enable(pdata->vdd_io);
+	if (err != 0) {
+		dev_warn(&indio_dev->dev,
+			 "Failed to enable specified Vdd_IO supply\n");
+		goto st_sensors_disable_vdd;
 	}
 
 	return 0;
 
 st_sensors_disable_vdd:
-	if (!IS_ERR_OR_NULL(pdata->vdd))
-		regulator_disable(pdata->vdd);
+	regulator_disable(pdata->vdd);
 	return err;
 }
 EXPORT_SYMBOL(st_sensors_power_enable);
@@ -275,11 +271,8 @@ void st_sensors_power_disable(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *pdata = iio_priv(indio_dev);
 
-	if (!IS_ERR_OR_NULL(pdata->vdd))
-		regulator_disable(pdata->vdd);
-
-	if (!IS_ERR_OR_NULL(pdata->vdd_io))
-		regulator_disable(pdata->vdd_io);
+	regulator_disable(pdata->vdd);
+	regulator_disable(pdata->vdd_io);
 }
 EXPORT_SYMBOL(st_sensors_power_disable);
 
@@ -619,7 +612,7 @@ EXPORT_SYMBOL(st_sensors_sysfs_sampling_frequency_avail);
 ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	int i, len = 0;
+	int i, len = 0, q, r;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
@@ -628,8 +621,10 @@ ssize_t st_sensors_sysfs_scale_avail(struct device *dev,
 		if (sdata->sensor_settings->fs.fs_avl[i].num == 0)
 			break;
 
-		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
-				sdata->sensor_settings->fs.fs_avl[i].gain);
+		q = sdata->sensor_settings->fs.fs_avl[i].gain / 1000000;
+		r = sdata->sensor_settings->fs.fs_avl[i].gain % 1000000;
+
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%u.%06u ", q, r);
 	}
 	mutex_unlock(&indio_dev->mlock);
 	buf[len - 1] = '\n';

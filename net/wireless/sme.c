@@ -726,7 +726,8 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 
 	wdev->current_bss = bss_from_pub(bss);
 
-	cfg80211_upload_connect_keys(wdev);
+	if (!(wdev->wiphy->flags & WIPHY_FLAG_HAS_STATIC_WEP))
+		cfg80211_upload_connect_keys(wdev);
 
 	rcu_read_lock();
 	country_ie = ieee80211_bss_get_ie(bss, WLAN_EID_COUNTRY);
@@ -1043,6 +1044,12 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 				connect->crypto.ciphers_pairwise[0] = cipher;
 			}
 		}
+
+		connect->crypto.wep_keys = connkeys->params;
+		connect->crypto.wep_tx_key = connkeys->def;
+	} else {
+		if (WARN_ON(connkeys))
+			return -EINVAL;
 	}
 
 	wdev->connect_keys = connkeys;

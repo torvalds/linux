@@ -199,7 +199,7 @@ static void pci_dma_dev_setup_pasemi(struct pci_dev *dev)
 	set_iommu_table_base(&dev->dev, &iommu_table_iobmap);
 }
 
-int __init iob_init(struct device_node *dn)
+static int __init iob_init(struct device_node *dn)
 {
 	unsigned long tmp;
 	u32 regword;

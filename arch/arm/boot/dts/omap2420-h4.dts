@@ -13,7 +13,7 @@
 	model = "TI OMAP2420 H4 board";
 	compatible = "ti,omap2420-h4", "ti,omap2420", "ti,omap2";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x4000000>; /* 64 MB */
 	};

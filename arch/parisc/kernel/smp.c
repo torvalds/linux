@@ -412,8 +412,8 @@ void smp_cpus_done(unsigned int cpu_max)
 
 int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	if (cpu != 0 && cpu < parisc_max_cpus)
-		smp_boot_one_cpu(cpu, tidle);
+	if (cpu != 0 && cpu < parisc_max_cpus && smp_boot_one_cpu(cpu, tidle))
+		return -ENOSYS;
 
 	return cpu_online(cpu) ? 0 : -ENOSYS;
 }

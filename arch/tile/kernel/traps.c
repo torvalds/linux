@@ -20,6 +20,8 @@
 #include <linux/reboot.h>
 #include <linux/uaccess.h>
 #include <linux/ptrace.h>
+#include <linux/hardirq.h>
+#include <linux/nmi.h>
 #include <asm/stack.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
@@ -392,14 +394,17 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 
 void do_nmi(struct pt_regs *regs, int fault_num, unsigned long reason)
 {
+	nmi_enter();
 	switch (reason) {
+#ifdef arch_trigger_cpumask_backtrace
 	case TILE_NMI_DUMP_STACK:
-		do_nmi_dump_stack(regs);
+		nmi_cpu_backtrace(regs);
 		break;
+#endif
 	default:
 		panic("Unexpected do_nmi type %ld", reason);
-		return;
 	}
+	nmi_exit();
 }
 
 /* Deprecated function currently only used here. */

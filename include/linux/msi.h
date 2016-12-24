@@ -68,7 +68,7 @@ struct msi_desc {
 	unsigned int			nvec_used;
 	struct device			*dev;
 	struct msi_msg			msg;
-	const struct cpumask		*affinity;
+	struct cpumask			*affinity;
 
 	union {
 		/* PCI MSI/X specific data */
@@ -123,7 +123,8 @@ static inline void *msi_desc_to_pci_sysdata(struct msi_desc *desc)
 }
 #endif /* CONFIG_PCI_MSI */
 
-struct msi_desc *alloc_msi_entry(struct device *dev);
+struct msi_desc *alloc_msi_entry(struct device *dev, int nvec,
+				 const struct cpumask *affinity);
 void free_msi_entry(struct msi_desc *entry);
 void __pci_read_msi_msg(struct msi_desc *entry, struct msi_msg *msg);
 void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg);

@@ -79,7 +79,7 @@
 /* Address offsets, in DWORDS, from base of DMA buffer. */
 #define S626_DAC_WDMABUF_OS	S626_ADC_DMABUF_DWORDS
 
-/*  Interrupt enable bit in ISR and IER. */
+/* Interrupt enable bit in ISR and IER. */
 #define S626_IRQ_GPIO3		0x00000040	/* IRQ enable for GPIO3. */
 #define S626_IRQ_RPS1		0x10000000
 #define S626_ISR_AFOU		0x00000800
@@ -329,7 +329,7 @@
 						 * WS1-WS4 = CS* outputs.
 						 */
 
-#if S626_PLATFORM == S626_INTEL		/*
+#if (S626_PLATFORM == S626_INTEL)	/*
 					 * Base ACON1 config: always run
 					 * A1 based on TSL1.
 					 */

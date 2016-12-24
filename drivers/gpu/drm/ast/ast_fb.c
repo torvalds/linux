@@ -33,7 +33,6 @@
 #include <linux/tty.h>
 #include <linux/sysrq.h>
 #include <linux/delay.h>
-#include <linux/fb.h>
 #include <linux/init.h>
 
 

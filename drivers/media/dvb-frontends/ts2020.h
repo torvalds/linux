@@ -22,7 +22,6 @@
 #ifndef TS2020_H
 #define TS2020_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 struct ts2020_config {

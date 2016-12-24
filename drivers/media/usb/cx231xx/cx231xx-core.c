@@ -712,6 +712,7 @@ int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode)
 			break;
 		case CX231XX_BOARD_CNXT_RDE_253S:
 		case CX231XX_BOARD_CNXT_RDU_253S:
+		case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 			errCode = cx231xx_set_agc_analog_digital_mux_select(dev, 1);
 			break;
 		case CX231XX_BOARD_HAUPPAUGE_EXETER:
@@ -738,14 +739,21 @@ int cx231xx_set_mode(struct cx231xx *dev, enum cx231xx_mode set_mode)
 		case CX231XX_BOARD_PV_PLAYTV_USB_HYBRID:
 		case CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL:
 		case CX231XX_BOARD_HAUPPAUGE_USB2_FM_NTSC:
-		errCode = cx231xx_set_agc_analog_digital_mux_select(dev, 0);
+			errCode = cx231xx_set_agc_analog_digital_mux_select(dev, 0);
 			break;
 		default:
 			break;
 		}
 	}
 
-	return errCode ? -EINVAL : 0;
+	if (errCode < 0) {
+		dev_err(dev->dev, "Failed to set devmode to %s: error: %i",
+			dev->mode == CX231XX_DIGITAL_MODE ? "digital" : "analog",
+			errCode);
+		return errCode;
+	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(cx231xx_set_mode);
 
@@ -799,7 +807,7 @@ static void cx231xx_isoc_irq_callback(struct urb *urb)
 	case -ESHUTDOWN:
 		return;
 	default:		/* error */
-		cx231xx_isocdbg("urb completition error %d.\n", urb->status);
+		cx231xx_isocdbg("urb completion error %d.\n", urb->status);
 		break;
 	}
 
@@ -842,8 +850,11 @@ static void cx231xx_bulk_irq_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		return;
+	case -EPIPE:		/* stall */
+		cx231xx_isocdbg("urb completion error - device is stalled.\n");
+		return;
 	default:		/* error */
-		cx231xx_isocdbg("urb completition error %d.\n", urb->status);
+		cx231xx_isocdbg("urb completion error %d.\n", urb->status);
 		break;
 	}
 
@@ -867,6 +878,7 @@ void cx231xx_uninit_isoc(struct cx231xx *dev)
 	struct cx231xx_dmaqueue *dma_q = &dev->video_mode.vidq;
 	struct urb *urb;
 	int i;
+	bool broken_pipe = false;
 
 	cx231xx_isocdbg("cx231xx: called cx231xx_uninit_isoc\n");
 
@@ -886,12 +898,19 @@ void cx231xx_uninit_isoc(struct cx231xx *dev)
 						  transfer_buffer[i],
 						  urb->transfer_dma);
 			}
+			if (urb->status == -EPIPE) {
+				broken_pipe = true;
+			}
 			usb_free_urb(urb);
 			dev->video_mode.isoc_ctl.urb[i] = NULL;
 		}
 		dev->video_mode.isoc_ctl.transfer_buffer[i] = NULL;
 	}
 
+	if (broken_pipe) {
+		cx231xx_isocdbg("Reset endpoint to recover broken pipe.");
+		usb_reset_endpoint(dev->udev, dev->video_mode.end_point_addr);
+	}
 	kfree(dev->video_mode.isoc_ctl.urb);
 	kfree(dev->video_mode.isoc_ctl.transfer_buffer);
 	kfree(dma_q->p_left_data);
@@ -918,6 +937,7 @@ void cx231xx_uninit_bulk(struct cx231xx *dev)
 	struct cx231xx_dmaqueue *dma_q = &dev->video_mode.vidq;
 	struct urb *urb;
 	int i;
+	bool broken_pipe = false;
 
 	cx231xx_isocdbg("cx231xx: called cx231xx_uninit_bulk\n");
 
@@ -937,12 +957,19 @@ void cx231xx_uninit_bulk(struct cx231xx *dev)
 						transfer_buffer[i],
 						urb->transfer_dma);
 			}
+			if (urb->status == -EPIPE) {
+				broken_pipe = true;
+			}
 			usb_free_urb(urb);
 			dev->video_mode.bulk_ctl.urb[i] = NULL;
 		}
 		dev->video_mode.bulk_ctl.transfer_buffer[i] = NULL;
 	}
 
+	if (broken_pipe) {
+		cx231xx_isocdbg("Reset endpoint to recover broken pipe.");
+		usb_reset_endpoint(dev->udev, dev->video_mode.end_point_addr);
+	}
 	kfree(dev->video_mode.bulk_ctl.urb);
 	kfree(dev->video_mode.bulk_ctl.transfer_buffer);
 	kfree(dma_q->p_left_data);
@@ -1035,8 +1062,6 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 	for (i = 0; i < dev->video_mode.isoc_ctl.num_bufs; i++) {
 		urb = usb_alloc_urb(max_packets, GFP_KERNEL);
 		if (!urb) {
-			dev_err(dev->dev,
-				"cannot alloc isoc_ctl.urb %i\n", i);
 			cx231xx_uninit_isoc(dev);
 			return -ENOMEM;
 		}
@@ -1172,8 +1197,6 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 	for (i = 0; i < dev->video_mode.bulk_ctl.num_bufs; i++) {
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			dev_err(dev->dev,
-				"cannot alloc bulk_ctl.urb %i\n", i);
 			cx231xx_uninit_bulk(dev);
 			return -ENOMEM;
 		}
@@ -1301,15 +1324,29 @@ int cx231xx_dev_init(struct cx231xx *dev)
 	dev->i2c_bus[2].i2c_reserve = 0;
 
 	/* register I2C buses */
-	cx231xx_i2c_register(&dev->i2c_bus[0]);
-	cx231xx_i2c_register(&dev->i2c_bus[1]);
-	cx231xx_i2c_register(&dev->i2c_bus[2]);
-
-	errCode = cx231xx_i2c_mux_create(dev);
+	errCode = cx231xx_i2c_register(&dev->i2c_bus[0]);
 	if (errCode < 0)
 		return errCode;
-	cx231xx_i2c_mux_register(dev, 0);
-	cx231xx_i2c_mux_register(dev, 1);
+	errCode = cx231xx_i2c_register(&dev->i2c_bus[1]);
+	if (errCode < 0)
+		return errCode;
+	errCode = cx231xx_i2c_register(&dev->i2c_bus[2]);
+	if (errCode < 0)
+		return errCode;
+
+	errCode = cx231xx_i2c_mux_create(dev);
+	if (errCode < 0) {
+		dev_err(dev->dev,
+			"%s: Failed to create I2C mux\n", __func__);
+		return errCode;
+	}
+	errCode = cx231xx_i2c_mux_register(dev, 0);
+	if (errCode < 0)
+		return errCode;
+
+	errCode = cx231xx_i2c_mux_register(dev, 1);
+	if (errCode < 0)
+		return errCode;
 
 	/* scan the real bus segments in the order of physical port numbers */
 	cx231xx_do_i2c_scan(dev, I2C_0);
@@ -1452,14 +1489,14 @@ int cx231xx_send_gpio_cmd(struct cx231xx *dev, u32 gpio_bit, u8 *gpio_val,
 	/* set request */
 	if (!request) {
 		if (direction)
-			ven_req.bRequest = VRT_GET_GPIO;	/* 0x8 gpio */
+			ven_req.bRequest = VRT_GET_GPIO;	/* 0x9 gpio */
 		else
-			ven_req.bRequest = VRT_SET_GPIO;	/* 0x9 gpio */
+			ven_req.bRequest = VRT_SET_GPIO;	/* 0x8 gpio */
 	} else {
 		if (direction)
-			ven_req.bRequest = VRT_GET_GPIE;	/* 0xa gpie */
+			ven_req.bRequest = VRT_GET_GPIE;	/* 0xb gpie */
 		else
-			ven_req.bRequest = VRT_SET_GPIE;	/* 0xb gpie */
+			ven_req.bRequest = VRT_SET_GPIE;	/* 0xa gpie */
 	}
 
 	/* set index value */

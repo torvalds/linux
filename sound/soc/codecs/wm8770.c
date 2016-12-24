@@ -608,17 +608,19 @@ err_reg_enable:
 	return ret;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8770 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8770 = {
 	.probe = wm8770_probe,
 	.set_bias_level = wm8770_set_bias_level,
 	.idle_bias_off = true,
 
-	.controls = wm8770_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8770_snd_controls),
-	.dapm_widgets = wm8770_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8770_dapm_widgets),
-	.dapm_routes = wm8770_intercon,
-	.num_dapm_routes = ARRAY_SIZE(wm8770_intercon),
+	.component_driver = {
+		.controls		= wm8770_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8770_snd_controls),
+		.dapm_widgets		= wm8770_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8770_dapm_widgets),
+		.dapm_routes		= wm8770_intercon,
+		.num_dapm_routes	= ARRAY_SIZE(wm8770_intercon),
+	},
 };
 
 static const struct of_device_id wm8770_of_match[] = {

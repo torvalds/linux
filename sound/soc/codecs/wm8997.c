@@ -1095,7 +1095,7 @@ static struct regmap *wm8997_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8997 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8997 = {
 	.probe = wm8997_codec_probe,
 	.remove = wm8997_codec_remove,
 	.get_regmap =   wm8997_get_regmap,
@@ -1105,12 +1105,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8997 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = wm8997_set_fll,
 
-	.controls = wm8997_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8997_snd_controls),
-	.dapm_widgets = wm8997_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8997_dapm_widgets),
-	.dapm_routes = wm8997_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8997_dapm_routes),
+	.component_driver = {
+		.controls		= wm8997_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8997_snd_controls),
+		.dapm_widgets		= wm8997_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8997_dapm_widgets),
+		.dapm_routes		= wm8997_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8997_dapm_routes),
+	},
 };
 
 static int wm8997_probe(struct platform_device *pdev)

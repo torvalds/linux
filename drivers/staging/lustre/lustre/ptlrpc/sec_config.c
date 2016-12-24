@@ -58,7 +58,6 @@ enum lustre_sec_part sptlrpc_target_sec_part(struct obd_device *obd)
 	CERROR("unknown target %p(%s)\n", obd, type);
 	return LUSTRE_SP_ANY;
 }
-EXPORT_SYMBOL(sptlrpc_target_sec_part);
 
 /****************************************
  * user supplied flavor string parsing  *

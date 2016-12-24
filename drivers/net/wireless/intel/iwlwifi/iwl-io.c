@@ -267,7 +267,7 @@ static const char *get_rfh_string(int cmd)
 		IWL_CMD_MQ(cmd, RFH_Q_FRBDCB_WIDX, i);
 		IWL_CMD_MQ(cmd, RFH_Q_FRBDCB_RIDX, i);
 		IWL_CMD_MQ(cmd, RFH_Q_URBD_STTS_WPTR_LSB, i);
-	};
+	}
 
 	switch (cmd) {
 	IWL_CMD(RFH_RXF_DMA_CFG);

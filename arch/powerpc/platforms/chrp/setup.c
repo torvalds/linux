@@ -368,7 +368,7 @@ static void chrp_8259_cascade(struct irq_desc *desc)
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	unsigned int cascade_irq = i8259_irq();
 
-	if (cascade_irq != NO_IRQ)
+	if (cascade_irq)
 		generic_handle_irq(cascade_irq);
 
 	chip->irq_eoi(&desc->irq_data);
@@ -514,7 +514,7 @@ static void __init chrp_find_8259(void)
 	}
 	if (chrp_mpic != NULL) {
 		cascade_irq = irq_of_parse_and_map(pic, 0);
-		if (cascade_irq == NO_IRQ)
+		if (!cascade_irq)
 			printk(KERN_ERR "i8259: failed to map cascade irq\n");
 		else
 			irq_set_chained_handler(cascade_irq,

@@ -1156,12 +1156,14 @@ static struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
 	.suspend_bias_off = true,
 	.ignore_pmdown_time = true,
 
-	.controls = twl6040_snd_controls,
-	.num_controls = ARRAY_SIZE(twl6040_snd_controls),
-	.dapm_widgets = twl6040_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(twl6040_dapm_widgets),
-	.dapm_routes = intercon,
-	.num_dapm_routes = ARRAY_SIZE(intercon),
+	.component_driver = {
+		.controls		= twl6040_snd_controls,
+		.num_controls		= ARRAY_SIZE(twl6040_snd_controls),
+		.dapm_widgets		= twl6040_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(twl6040_dapm_widgets),
+		.dapm_routes		= intercon,
+		.num_dapm_routes	= ARRAY_SIZE(intercon),
+	},
 };
 
 static int twl6040_codec_probe(struct platform_device *pdev)

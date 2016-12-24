@@ -981,7 +981,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	ret = i2c_add_numbered_adapter(adap);
 	if (ret < 0) {
 		sh_mobile_i2c_release_dma(pd);
-		dev_err(&dev->dev, "cannot add numbered adapter\n");
 		return ret;
 	}
 

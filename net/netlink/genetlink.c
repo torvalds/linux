@@ -404,7 +404,7 @@ int __genl_register_family(struct genl_family *family)
 
 	err = genl_validate_assign_mc_groups(family);
 	if (err)
-		goto errout_locked;
+		goto errout_free;
 
 	list_add_tail(&family->family_list, genl_family_chain(family->id));
 	genl_unlock_all();
@@ -417,6 +417,8 @@ int __genl_register_family(struct genl_family *family)
 
 	return 0;
 
+errout_free:
+	kfree(family->attrbuf);
 errout_locked:
 	genl_unlock_all();
 errout:
@@ -977,7 +979,7 @@ static int genl_ctrl_event(int event, struct genl_family *family,
 	return 0;
 }
 
-static struct genl_ops genl_ctrl_ops[] = {
+static const struct genl_ops genl_ctrl_ops[] = {
 	{
 		.cmd		= CTRL_CMD_GETFAMILY,
 		.doit		= ctrl_getfamily,
@@ -986,7 +988,7 @@ static struct genl_ops genl_ctrl_ops[] = {
 	},
 };
 
-static struct genl_multicast_group genl_ctrl_groups[] = {
+static const struct genl_multicast_group genl_ctrl_groups[] = {
 	{ .name = "notify", },
 };
 

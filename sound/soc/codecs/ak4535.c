@@ -395,12 +395,14 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4535 = {
 	.set_bias_level = ak4535_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = ak4535_snd_controls,
-	.num_controls = ARRAY_SIZE(ak4535_snd_controls),
-	.dapm_widgets = ak4535_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ak4535_dapm_widgets),
-	.dapm_routes = ak4535_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(ak4535_audio_map),
+	.component_driver = {
+		.controls		= ak4535_snd_controls,
+		.num_controls		= ARRAY_SIZE(ak4535_snd_controls),
+		.dapm_widgets		= ak4535_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ak4535_dapm_widgets),
+		.dapm_routes		= ak4535_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(ak4535_audio_map),
+	},
 };
 
 static int ak4535_i2c_probe(struct i2c_client *i2c,

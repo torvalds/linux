@@ -131,7 +131,7 @@
 				#address-cells = <0x1>;
 				#size-cells = <0x0>;
 				cell-index = <1>;
-				clocks = <&cpm_syscon0 0 3>;
+				clocks = <&cpm_syscon0 1 21>;
 				status = "disabled";
 			};
 
@@ -176,6 +176,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
@@ -201,6 +202,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =
@@ -227,6 +229,7 @@
 			#interrupt-cells = <1>;
 			device_type = "pci";
 			dma-coherent;
+			msi-parent = <&gic_v2m0>;
 
 			bus-range = <0 0xff>;
 			ranges =

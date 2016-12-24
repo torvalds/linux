@@ -559,9 +559,11 @@ static void kvm_destroy_vm_debugfs(struct kvm *kvm)
 
 	debugfs_remove_recursive(kvm->debugfs_dentry);
 
-	for (i = 0; i < kvm_debugfs_num_entries; i++)
-		kfree(kvm->debugfs_stat_data[i]);
-	kfree(kvm->debugfs_stat_data);
+	if (kvm->debugfs_stat_data) {
+		for (i = 0; i < kvm_debugfs_num_entries; i++)
+			kfree(kvm->debugfs_stat_data[i]);
+		kfree(kvm->debugfs_stat_data);
+	}
 }
 
 static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
@@ -1344,21 +1346,19 @@ unsigned long kvm_vcpu_gfn_to_hva_prot(struct kvm_vcpu *vcpu, gfn_t gfn, bool *w
 static int get_user_page_nowait(unsigned long start, int write,
 		struct page **page)
 {
-	int flags = FOLL_TOUCH | FOLL_NOWAIT | FOLL_HWPOISON | FOLL_GET;
+	int flags = FOLL_NOWAIT | FOLL_HWPOISON;
 
 	if (write)
 		flags |= FOLL_WRITE;
 
-	return __get_user_pages(current, current->mm, start, 1, flags, page,
-			NULL, NULL);
+	return get_user_pages(start, 1, flags, page, NULL);
 }
 
 static inline int check_user_page_hwpoison(unsigned long addr)
 {
-	int rc, flags = FOLL_TOUCH | FOLL_HWPOISON | FOLL_WRITE;
+	int rc, flags = FOLL_HWPOISON | FOLL_WRITE;
 
-	rc = __get_user_pages(current, current->mm, addr, 1,
-			      flags, NULL, NULL, NULL);
+	rc = get_user_pages(addr, 1, flags, NULL, NULL);
 	return rc == -EHWPOISON;
 }
 
@@ -1414,10 +1414,15 @@ static int hva_to_pfn_slow(unsigned long addr, bool *async, bool write_fault,
 		down_read(&current->mm->mmap_sem);
 		npages = get_user_page_nowait(addr, write_fault, page);
 		up_read(&current->mm->mmap_sem);
-	} else
+	} else {
+		unsigned int flags = FOLL_TOUCH | FOLL_HWPOISON;
+
+		if (write_fault)
+			flags |= FOLL_WRITE;
+
 		npages = __get_user_pages_unlocked(current, current->mm, addr, 1,
-						   write_fault, 0, page,
-						   FOLL_TOUCH|FOLL_HWPOISON);
+						   page, flags);
+	}
 	if (npages != 1)
 		return npages;
 
@@ -2369,6 +2374,7 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 
+	debugfs_remove_recursive(vcpu->debugfs_dentry);
 	kvm_put_kvm(vcpu->kvm);
 	return 0;
 }
@@ -2389,6 +2395,32 @@ static struct file_operations kvm_vcpu_fops = {
 static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 {
 	return anon_inode_getfd("kvm-vcpu", &kvm_vcpu_fops, vcpu, O_RDWR | O_CLOEXEC);
+}
+
+static int kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
+{
+	char dir_name[ITOA_MAX_LEN * 2];
+	int ret;
+
+	if (!kvm_arch_has_vcpu_debugfs())
+		return 0;
+
+	if (!debugfs_initialized())
+		return 0;
+
+	snprintf(dir_name, sizeof(dir_name), "vcpu%d", vcpu->vcpu_id);
+	vcpu->debugfs_dentry = debugfs_create_dir(dir_name,
+								vcpu->kvm->debugfs_dentry);
+	if (!vcpu->debugfs_dentry)
+		return -ENOMEM;
+
+	ret = kvm_arch_create_vcpu_debugfs(vcpu);
+	if (ret < 0) {
+		debugfs_remove_recursive(vcpu->debugfs_dentry);
+		return ret;
+	}
+
+	return 0;
 }
 
 /*
@@ -2423,6 +2455,10 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	if (r)
 		goto vcpu_destroy;
 
+	r = kvm_create_vcpu_debugfs(vcpu);
+	if (r)
+		goto vcpu_destroy;
+
 	mutex_lock(&kvm->lock);
 	if (kvm_get_vcpu_by_id(kvm, id)) {
 		r = -EEXIST;
@@ -2454,6 +2490,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 
 unlock_vcpu_destroy:
 	mutex_unlock(&kvm->lock);
+	debugfs_remove_recursive(vcpu->debugfs_dentry);
 vcpu_destroy:
 	kvm_arch_vcpu_destroy(vcpu);
 vcpu_decrement:
@@ -2852,10 +2889,10 @@ static int kvm_ioctl_create_device(struct kvm *kvm,
 
 	ret = anon_inode_getfd(ops->name, &kvm_device_fops, dev, O_RDWR | O_CLOEXEC);
 	if (ret < 0) {
-		ops->destroy(dev);
 		mutex_lock(&kvm->lock);
 		list_del(&dev->vm_node);
 		mutex_unlock(&kvm->lock);
+		ops->destroy(dev);
 		return ret;
 	}
 
@@ -3619,7 +3656,7 @@ static int vm_stat_get_per_vm(void *data, u64 *val)
 {
 	struct kvm_stat_data *stat_data = (struct kvm_stat_data *)data;
 
-	*val = *(u32 *)((void *)stat_data->kvm + stat_data->offset);
+	*val = *(ulong *)((void *)stat_data->kvm + stat_data->offset);
 
 	return 0;
 }
@@ -3649,7 +3686,7 @@ static int vcpu_stat_get_per_vm(void *data, u64 *val)
 	*val = 0;
 
 	kvm_for_each_vcpu(i, vcpu, stat_data->kvm)
-		*val += *(u32 *)((void *)vcpu + stat_data->offset);
+		*val += *(u64 *)((void *)vcpu + stat_data->offset);
 
 	return 0;
 }

@@ -7,6 +7,15 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 
+#ifdef __BIG_ENDIAN__
+#define LWZ(rt, d, ra)	\
+	lwz	rt,d(ra)
+#else
+#define LWZ(rt, d, ra)	\
+	li	rt,d;	\
+	lwbrx	rt,rt,ra
+#endif
+
 /*
  * We roll the registers for T, A, B, C, D, E around on each
  * iteration; T on iteration t is A on iteration t+1, and so on.
@@ -23,7 +32,7 @@
 #define W(t)	(((t)%16)+16)
 
 #define LOADW(t)				\
-	lwz	W(t),(t)*4(r4)
+	LWZ(W(t),(t)*4,r4)
 
 #define STEPD0_LOAD(t)				\
 	andc	r0,RD(t),RB(t);		\
@@ -33,7 +42,7 @@
 	add	r0,RE(t),r15;			\
 	add	RT(t),RT(t),r6;		\
 	add	r14,r0,W(t);			\
-	lwz	W((t)+4),((t)+4)*4(r4);	\
+	LWZ(W((t)+4),((t)+4)*4,r4);	\
 	rotlwi	RB(t),RB(t),30;			\
 	add	RT(t),RT(t),r14
 

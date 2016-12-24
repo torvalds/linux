@@ -23,10 +23,8 @@
  * task when irq is in progress while we read rq->clock. That is a worthy
  * compromise in place of having locks on each irq in account_system_time.
  */
-DEFINE_PER_CPU(u64, cpu_hardirq_time);
-DEFINE_PER_CPU(u64, cpu_softirq_time);
+DEFINE_PER_CPU(struct irqtime, cpu_irqtime);
 
-static DEFINE_PER_CPU(u64, irq_start_time);
 static int sched_clock_irqtime;
 
 void enable_sched_clock_irqtime(void)
@@ -39,16 +37,13 @@ void disable_sched_clock_irqtime(void)
 	sched_clock_irqtime = 0;
 }
 
-#ifndef CONFIG_64BIT
-DEFINE_PER_CPU(seqcount_t, irq_time_seq);
-#endif /* CONFIG_64BIT */
-
 /*
  * Called before incrementing preempt_count on {soft,}irq_enter
  * and before decrementing preempt_count on {soft,}irq_exit.
  */
 void irqtime_account_irq(struct task_struct *curr)
 {
+	struct irqtime *irqtime = this_cpu_ptr(&cpu_irqtime);
 	s64 delta;
 	int cpu;
 
@@ -56,10 +51,10 @@ void irqtime_account_irq(struct task_struct *curr)
 		return;
 
 	cpu = smp_processor_id();
-	delta = sched_clock_cpu(cpu) - __this_cpu_read(irq_start_time);
-	__this_cpu_add(irq_start_time, delta);
+	delta = sched_clock_cpu(cpu) - irqtime->irq_start_time;
+	irqtime->irq_start_time += delta;
 
-	irq_time_write_begin();
+	u64_stats_update_begin(&irqtime->sync);
 	/*
 	 * We do not account for softirq time from ksoftirqd here.
 	 * We want to continue accounting softirq time to ksoftirqd thread
@@ -67,42 +62,36 @@ void irqtime_account_irq(struct task_struct *curr)
 	 * that do not consume any time, but still wants to run.
 	 */
 	if (hardirq_count())
-		__this_cpu_add(cpu_hardirq_time, delta);
+		irqtime->hardirq_time += delta;
 	else if (in_serving_softirq() && curr != this_cpu_ksoftirqd())
-		__this_cpu_add(cpu_softirq_time, delta);
+		irqtime->softirq_time += delta;
 
-	irq_time_write_end();
+	u64_stats_update_end(&irqtime->sync);
 }
 EXPORT_SYMBOL_GPL(irqtime_account_irq);
 
-static cputime_t irqtime_account_hi_update(cputime_t maxtime)
+static cputime_t irqtime_account_update(u64 irqtime, int idx, cputime_t maxtime)
 {
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
-	unsigned long flags;
 	cputime_t irq_cputime;
 
-	local_irq_save(flags);
-	irq_cputime = nsecs_to_cputime64(this_cpu_read(cpu_hardirq_time)) -
-		      cpustat[CPUTIME_IRQ];
+	irq_cputime = nsecs_to_cputime64(irqtime) - cpustat[idx];
 	irq_cputime = min(irq_cputime, maxtime);
-	cpustat[CPUTIME_IRQ] += irq_cputime;
-	local_irq_restore(flags);
+	cpustat[idx] += irq_cputime;
+
 	return irq_cputime;
+}
+
+static cputime_t irqtime_account_hi_update(cputime_t maxtime)
+{
+	return irqtime_account_update(__this_cpu_read(cpu_irqtime.hardirq_time),
+				      CPUTIME_IRQ, maxtime);
 }
 
 static cputime_t irqtime_account_si_update(cputime_t maxtime)
 {
-	u64 *cpustat = kcpustat_this_cpu->cpustat;
-	unsigned long flags;
-	cputime_t softirq_cputime;
-
-	local_irq_save(flags);
-	softirq_cputime = nsecs_to_cputime64(this_cpu_read(cpu_softirq_time)) -
-			  cpustat[CPUTIME_SOFTIRQ];
-	softirq_cputime = min(softirq_cputime, maxtime);
-	cpustat[CPUTIME_SOFTIRQ] += softirq_cputime;
-	local_irq_restore(flags);
-	return softirq_cputime;
+	return irqtime_account_update(__this_cpu_read(cpu_irqtime.softirq_time),
+				      CPUTIME_SOFTIRQ, maxtime);
 }
 
 #else /* CONFIG_IRQ_TIME_ACCOUNTING */
@@ -295,6 +284,9 @@ static inline cputime_t account_other_time(cputime_t max)
 {
 	cputime_t accounted;
 
+	/* Shall be converted to a lockdep-enabled lightweight check */
+	WARN_ON_ONCE(!irqs_disabled());
+
 	accounted = steal_account_process_time(max);
 
 	if (accounted < max)
@@ -305,6 +297,26 @@ static inline cputime_t account_other_time(cputime_t max)
 
 	return accounted;
 }
+
+#ifdef CONFIG_64BIT
+static inline u64 read_sum_exec_runtime(struct task_struct *t)
+{
+	return t->se.sum_exec_runtime;
+}
+#else
+static u64 read_sum_exec_runtime(struct task_struct *t)
+{
+	u64 ns;
+	struct rq_flags rf;
+	struct rq *rq;
+
+	rq = task_rq_lock(t, &rf);
+	ns = t->se.sum_exec_runtime;
+	task_rq_unlock(rq, t, &rf);
+
+	return ns;
+}
+#endif
 
 /*
  * Accumulate raw cputime values of dead tasks (sig->[us]time) and live
@@ -317,6 +329,17 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 	struct task_struct *t;
 	unsigned int seq, nextseq;
 	unsigned long flags;
+
+	/*
+	 * Update current task runtime to account pending time since last
+	 * scheduler action or thread_group_cputime() call. This thread group
+	 * might have other running tasks on different CPUs, but updating
+	 * their runtime can affect syscall performance, so we skip account
+	 * those pending times and rely only on values updated on tick or
+	 * other scheduler action.
+	 */
+	if (same_thread_group(current, tsk))
+		(void) task_sched_runtime(current);
 
 	rcu_read_lock();
 	/* Attempt a lockless read on the first round. */
@@ -332,7 +355,7 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 			task_cputime(t, &utime, &stime);
 			times->utime += utime;
 			times->stime += stime;
-			times->sum_exec_runtime += task_sched_runtime(t);
+			times->sum_exec_runtime += read_sum_exec_runtime(t);
 		}
 		/* If lockless access failed, take the lock. */
 		nextseq = 1;

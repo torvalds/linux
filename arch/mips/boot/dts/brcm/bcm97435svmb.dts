@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "bcm7435.dtsi"
+/include/ "bcm97xxx-nand-cs1-bch24.dtsi"
 
 / {
 	compatible = "brcm,bcm97435svmb", "brcm,bcm7435";
@@ -51,6 +52,14 @@
 	status = "okay";
 };
 
+&pwma {
+	status = "okay";
+};
+
+&pwmb {
+	status = "okay";
+};
+
 &enet0 {
 	status = "okay";
 };
@@ -87,10 +96,22 @@
 	status = "okay";
 };
 
+&nand {
+	status = "okay";
+};
+
 &sata {
 	status = "okay";
 };
 
 &sata_phy {
+	status = "okay";
+};
+
+&sdhci0 {
+	status = "okay";
+};
+
+&sdhci1 {
 	status = "okay";
 };

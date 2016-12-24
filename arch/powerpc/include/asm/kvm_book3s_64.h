@@ -20,6 +20,8 @@
 #ifndef __ASM_KVM_BOOK3S_64_H__
 #define __ASM_KVM_BOOK3S_64_H__
 
+#include <asm/book3s/64/mmu-hash.h>
+
 #ifdef CONFIG_KVM_BOOK3S_PR_POSSIBLE
 static inline struct kvmppc_book3s_shadow_vcpu *svcpu_get(struct kvm_vcpu *vcpu)
 {
@@ -97,56 +99,20 @@ static inline void __unlock_hpte(__be64 *hpte, unsigned long hpte_v)
 	hpte[0] = cpu_to_be64(hpte_v);
 }
 
-static inline int __hpte_actual_psize(unsigned int lp, int psize)
-{
-	int i, shift;
-	unsigned int mask;
-
-	/* start from 1 ignoring MMU_PAGE_4K */
-	for (i = 1; i < MMU_PAGE_COUNT; i++) {
-
-		/* invalid penc */
-		if (mmu_psize_defs[psize].penc[i] == -1)
-			continue;
-		/*
-		 * encoding bits per actual page size
-		 *        PTE LP     actual page size
-		 *    rrrr rrrz		>=8KB
-		 *    rrrr rrzz		>=16KB
-		 *    rrrr rzzz		>=32KB
-		 *    rrrr zzzz		>=64KB
-		 * .......
-		 */
-		shift = mmu_psize_defs[i].shift - LP_SHIFT;
-		if (shift > LP_BITS)
-			shift = LP_BITS;
-		mask = (1 << shift) - 1;
-		if ((lp & mask) == mmu_psize_defs[psize].penc[i])
-			return i;
-	}
-	return -1;
-}
-
 static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 					     unsigned long pte_index)
 {
-	int b_psize = MMU_PAGE_4K, a_psize = MMU_PAGE_4K;
+	int i, b_psize = MMU_PAGE_4K, a_psize = MMU_PAGE_4K;
 	unsigned int penc;
 	unsigned long rb = 0, va_low, sllp;
 	unsigned int lp = (r >> LP_SHIFT) & ((1 << LP_BITS) - 1);
 
 	if (v & HPTE_V_LARGE) {
-		for (b_psize = 0; b_psize < MMU_PAGE_COUNT; b_psize++) {
-
-			/* valid entries have a shift value */
-			if (!mmu_psize_defs[b_psize].shift)
-				continue;
-
-			a_psize = __hpte_actual_psize(lp, b_psize);
-			if (a_psize != -1)
-				break;
-		}
+		i = hpte_page_sizes[lp];
+		b_psize = i & 0xf;
+		a_psize = i >> 4;
 	}
+
 	/*
 	 * Ignore the top 14 bits of va
 	 * v have top two bits covering segment size, hence move
@@ -159,7 +125,6 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 	/* This covers 14..54 bits of va*/
 	rb = (v & ~0x7fUL) << 16;		/* AVA field */
 
-	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/*  B field */
 	/*
 	 * AVA in v had cleared lower 23 bits. We need to derive
 	 * that from pteg index
@@ -211,47 +176,8 @@ static inline unsigned long compute_tlbie_rb(unsigned long v, unsigned long r,
 		break;
 	}
 	}
-	rb |= (v >> 54) & 0x300;		/* B field */
+	rb |= (v >> HPTE_V_SSIZE_SHIFT) << 8;	/* B field */
 	return rb;
-}
-
-static inline unsigned long __hpte_page_size(unsigned long h, unsigned long l,
-					     bool is_base_size)
-{
-
-	int size, a_psize;
-	/* Look at the 8 bit LP value */
-	unsigned int lp = (l >> LP_SHIFT) & ((1 << LP_BITS) - 1);
-
-	/* only handle 4k, 64k and 16M pages for now */
-	if (!(h & HPTE_V_LARGE))
-		return 1ul << 12;
-	else {
-		for (size = 0; size < MMU_PAGE_COUNT; size++) {
-			/* valid entries have a shift value */
-			if (!mmu_psize_defs[size].shift)
-				continue;
-
-			a_psize = __hpte_actual_psize(lp, size);
-			if (a_psize != -1) {
-				if (is_base_size)
-					return 1ul << mmu_psize_defs[size].shift;
-				return 1ul << mmu_psize_defs[a_psize].shift;
-			}
-		}
-
-	}
-	return 0;
-}
-
-static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
-{
-	return __hpte_page_size(h, l, 0);
-}
-
-static inline unsigned long hpte_base_page_size(unsigned long h, unsigned long l)
-{
-	return __hpte_page_size(h, l, 1);
 }
 
 static inline unsigned long hpte_rpn(unsigned long ptel, unsigned long psize)

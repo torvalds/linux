@@ -289,12 +289,14 @@ static const struct regmap_config pcm1681_regmap = {
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_pcm1681 = {
-	.controls		= pcm1681_controls,
-	.num_controls		= ARRAY_SIZE(pcm1681_controls),
-	.dapm_widgets		= pcm1681_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(pcm1681_dapm_widgets),
-	.dapm_routes		= pcm1681_dapm_routes,
-	.num_dapm_routes	= ARRAY_SIZE(pcm1681_dapm_routes),
+	.component_driver = {
+		.controls		= pcm1681_controls,
+		.num_controls		= ARRAY_SIZE(pcm1681_controls),
+		.dapm_widgets		= pcm1681_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(pcm1681_dapm_widgets),
+		.dapm_routes		= pcm1681_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(pcm1681_dapm_routes),
+	},
 };
 
 static const struct i2c_device_id pcm1681_i2c_id[] = {

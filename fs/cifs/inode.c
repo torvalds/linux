@@ -1951,7 +1951,7 @@ int cifs_revalidate_dentry_attr(struct dentry *dentry)
 
 	cifs_dbg(FYI, "Update attributes: %s inode 0x%p count %d dentry: 0x%p d_time %ld jiffies %ld\n",
 		 full_path, inode, inode->i_count.counter,
-		 dentry, dentry->d_time, jiffies);
+		 dentry, cifs_get_time(dentry), jiffies);
 
 	if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, full_path, sb, xid);
@@ -2154,7 +2154,7 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = inode_change_ok(inode, attrs);
+	rc = setattr_prepare(direntry, attrs);
 	if (rc < 0)
 		goto out;
 
@@ -2294,7 +2294,7 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
 		attrs->ia_valid |= ATTR_FORCE;
 
-	rc = inode_change_ok(inode, attrs);
+	rc = setattr_prepare(direntry, attrs);
 	if (rc < 0) {
 		free_xid(xid);
 		return rc;

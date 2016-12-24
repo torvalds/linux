@@ -72,7 +72,7 @@ static int probe_default(void)
 	return 1;
 }
 
-static struct apic apic_default = {
+static struct apic apic_default __ro_after_init = {
 
 	.name				= "default",
 	.probe				= probe_default,
@@ -126,7 +126,7 @@ static struct apic apic_default = {
 
 apic_driver(apic_default);
 
-struct apic *apic = &apic_default;
+struct apic *apic __ro_after_init = &apic_default;
 EXPORT_SYMBOL_GPL(apic);
 
 static int cmdline_apic __initdata;
@@ -152,7 +152,7 @@ early_param("apic", parse_apic);
 
 void __init default_setup_apic_routing(void)
 {
-	int version = apic_version[boot_cpu_physical_apicid];
+	int version = boot_cpu_apic_version;
 
 	if (num_possible_cpus() > 8) {
 		switch (boot_cpu_data.x86_vendor) {

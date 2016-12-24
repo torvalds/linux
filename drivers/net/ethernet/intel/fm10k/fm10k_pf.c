@@ -867,10 +867,6 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 	vf_q_idx = fm10k_vf_queue_index(hw, vf_idx);
 	qmap_idx = qmap_stride * vf_idx;
 
-	/* MAP Tx queue back to 0 temporarily, and disable it */
-	fm10k_write_reg(hw, FM10K_TQMAP(qmap_idx), 0);
-	fm10k_write_reg(hw, FM10K_TXDCTL(vf_q_idx), 0);
-
 	/* Determine correct default VLAN ID. The FM10K_VLAN_OVERRIDE bit is
 	 * used here to indicate to the VF that it will not have privilege to
 	 * write VLAN_TABLE. All policy is enforced on the PF but this allows
@@ -886,9 +882,35 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 	fm10k_tlv_attr_put_mac_vlan(msg, FM10K_MAC_VLAN_MSG_DEFAULT_MAC,
 				    vf_info->mac, vf_vid);
 
-	/* load onto outgoing mailbox, ignore any errors on enqueue */
-	if (vf_info->mbx.ops.enqueue_tx)
-		vf_info->mbx.ops.enqueue_tx(hw, &vf_info->mbx, msg);
+	/* Configure Queue control register with new VLAN ID. The TXQCTL
+	 * register is RO from the VF, so the PF must do this even in the
+	 * case of notifying the VF of a new VID via the mailbox.
+	 */
+	txqctl = ((u32)vf_vid << FM10K_TXQCTL_VID_SHIFT) &
+		 FM10K_TXQCTL_VID_MASK;
+	txqctl |= (vf_idx << FM10K_TXQCTL_TC_SHIFT) |
+		  FM10K_TXQCTL_VF | vf_idx;
+
+	for (i = 0; i < queues_per_pool; i++)
+		fm10k_write_reg(hw, FM10K_TXQCTL(vf_q_idx + i), txqctl);
+
+	/* try loading a message onto outgoing mailbox first */
+	if (vf_info->mbx.ops.enqueue_tx) {
+		err = vf_info->mbx.ops.enqueue_tx(hw, &vf_info->mbx, msg);
+		if (err != FM10K_MBX_ERR_NO_MBX)
+			return err;
+		err = 0;
+	}
+
+	/* If we aren't connected to a mailbox, this is most likely because
+	 * the VF driver is not running. It should thus be safe to re-map
+	 * queues and use the registers to pass the MAC address so that the VF
+	 * driver gets correct information during its initialization.
+	 */
+
+	/* MAP Tx queue back to 0 temporarily, and disable it */
+	fm10k_write_reg(hw, FM10K_TQMAP(qmap_idx), 0);
+	fm10k_write_reg(hw, FM10K_TXDCTL(vf_q_idx), 0);
 
 	/* verify ring has disabled before modifying base address registers */
 	txdctl = fm10k_read_reg(hw, FM10K_TXDCTL(vf_q_idx));
@@ -927,16 +949,6 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 						   FM10K_TDLEN_ITR_SCALE_SHIFT);
 
 err_out:
-	/* configure Queue control register */
-	txqctl = ((u32)vf_vid << FM10K_TXQCTL_VID_SHIFT) &
-		 FM10K_TXQCTL_VID_MASK;
-	txqctl |= (vf_idx << FM10K_TXQCTL_TC_SHIFT) |
-		  FM10K_TXQCTL_VF | vf_idx;
-
-	/* assign VLAN ID */
-	for (i = 0; i < queues_per_pool; i++)
-		fm10k_write_reg(hw, FM10K_TXQCTL(vf_q_idx + i), txqctl);
-
 	/* restore the queue back to VF ownership */
 	fm10k_write_reg(hw, FM10K_TQMAP(qmap_idx), vf_q_idx);
 	return err;

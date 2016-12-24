@@ -3,7 +3,9 @@
 Introduction
 ============
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 HDMI connectors provide a single pin for use by the Consumer Electronics

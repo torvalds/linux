@@ -125,19 +125,19 @@ static int seq_client_rpc(struct lu_client_seq *seq,
 
 	if (!range_is_sane(output)) {
 		CERROR("%s: Invalid range received from server: "
-		       DRANGE"\n", seq->lcs_name, PRANGE(output));
+		       DRANGE "\n", seq->lcs_name, PRANGE(output));
 		rc = -EINVAL;
 		goto out_req;
 	}
 
 	if (range_is_exhausted(output)) {
 		CERROR("%s: Range received from server is exhausted: "
-		       DRANGE"]\n", seq->lcs_name, PRANGE(output));
+		       DRANGE "]\n", seq->lcs_name, PRANGE(output));
 		rc = -EINVAL;
 		goto out_req;
 	}
 
-	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence "DRANGE"]\n",
+	CDEBUG_LIMIT(debug_mask, "%s: Allocated %s-sequence " DRANGE "]\n",
 		     seq->lcs_name, opcname, PRANGE(output));
 
 out_req:
@@ -179,7 +179,7 @@ static int seq_client_alloc_seq(const struct lu_env *env,
 			       seq->lcs_name, rc);
 			return rc;
 		}
-		CDEBUG(D_INFO, "%s: New range - "DRANGE"\n",
+		CDEBUG(D_INFO, "%s: New range - " DRANGE "\n",
 		       seq->lcs_name, PRANGE(&seq->lcs_space));
 	} else {
 		rc = 0;

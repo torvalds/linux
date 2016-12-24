@@ -899,9 +899,6 @@ static const struct inode_operations nfs3_dir_inode_operations = {
 	.setattr	= nfs_setattr,
 #ifdef CONFIG_NFS_V3_ACL
 	.listxattr	= nfs3_listxattr,
-	.getxattr	= generic_getxattr,
-	.setxattr	= generic_setxattr,
-	.removexattr	= generic_removexattr,
 	.get_acl	= nfs3_get_acl,
 	.set_acl	= nfs3_set_acl,
 #endif
@@ -913,9 +910,6 @@ static const struct inode_operations nfs3_file_inode_operations = {
 	.setattr	= nfs_setattr,
 #ifdef CONFIG_NFS_V3_ACL
 	.listxattr	= nfs3_listxattr,
-	.getxattr	= generic_getxattr,
-	.setxattr	= generic_setxattr,
-	.removexattr	= generic_removexattr,
 	.get_acl	= nfs3_get_acl,
 	.set_acl	= nfs3_set_acl,
 #endif

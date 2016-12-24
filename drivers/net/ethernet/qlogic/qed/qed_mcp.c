@@ -54,8 +54,7 @@ bool qed_mcp_is_init(struct qed_hwfn *p_hwfn)
 	return true;
 }
 
-void qed_mcp_cmd_port_init(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt)
+void qed_mcp_cmd_port_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
 					PUBLIC_PORT);
@@ -68,8 +67,7 @@ void qed_mcp_cmd_port_init(struct qed_hwfn *p_hwfn,
 		   p_hwfn->mcp_info->port_addr, MFW_PORT(p_hwfn));
 }
 
-void qed_mcp_read_mb(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt)
+void qed_mcp_read_mb(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 length = MFW_DRV_MSG_MAX_DWORDS(p_hwfn->mcp_info->mfw_mb_length);
 	u32 tmp, i;
@@ -99,8 +97,7 @@ int qed_mcp_free(struct qed_hwfn *p_hwfn)
 	return 0;
 }
 
-static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn,
-				struct qed_ptt *p_ptt)
+static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_mcp_info *p_info = p_hwfn->mcp_info;
 	u32 drv_mb_offsize, mfw_mb_offsize;
@@ -143,8 +140,7 @@ static int qed_load_mcp_offsets(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt)
+int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_mcp_info *p_info;
 	u32 size;
@@ -165,9 +161,7 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn,
 
 	size = MFW_DRV_MSG_MAX_DWORDS(p_info->mfw_mb_length) * sizeof(u32);
 	p_info->mfw_mb_cur = kzalloc(size, GFP_KERNEL);
-	p_info->mfw_mb_shadow =
-		kzalloc(sizeof(u32) * MFW_DRV_MSG_MAX_DWORDS(
-				p_info->mfw_mb_length), GFP_KERNEL);
+	p_info->mfw_mb_shadow = kzalloc(size, GFP_KERNEL);
 	if (!p_info->mfw_mb_shadow || !p_info->mfw_mb_addr)
 		goto err;
 
@@ -177,7 +171,6 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn,
 	return 0;
 
 err:
-	DP_NOTICE(p_hwfn, "Failed to allocate mcp memory\n");
 	qed_mcp_free(p_hwfn);
 	return -ENOMEM;
 }
@@ -189,8 +182,7 @@ err:
  * access is achieved by setting a blocking flag, which will fail other
  * competing contexts to send their mailboxes.
  */
-static int qed_mcp_mb_lock(struct qed_hwfn *p_hwfn,
-			   u32 cmd)
+static int qed_mcp_mb_lock(struct qed_hwfn *p_hwfn, u32 cmd)
 {
 	spin_lock_bh(&p_hwfn->mcp_info->lock);
 
@@ -221,15 +213,13 @@ static int qed_mcp_mb_lock(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-static void qed_mcp_mb_unlock(struct qed_hwfn	*p_hwfn,
-			      u32		cmd)
+static void qed_mcp_mb_unlock(struct qed_hwfn *p_hwfn, u32 cmd)
 {
 	if (cmd != DRV_MSG_CODE_LOAD_REQ && cmd != DRV_MSG_CODE_UNLOAD_REQ)
 		spin_unlock_bh(&p_hwfn->mcp_info->lock);
 }
 
-int qed_mcp_reset(struct qed_hwfn *p_hwfn,
-		  struct qed_ptt *p_ptt)
+int qed_mcp_reset(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 seq = ++p_hwfn->mcp_info->drv_mb_seq;
 	u8 delay = CHIP_MCP_RESP_ITER_US;
@@ -326,7 +316,8 @@ static int qed_do_mcp_cmd(struct qed_hwfn *p_hwfn,
 		*o_mcp_param = DRV_MB_RD(p_hwfn, p_ptt, fw_mb_param);
 	} else {
 		/* FW BUG! */
-		DP_ERR(p_hwfn, "MFW failed to respond!\n");
+		DP_ERR(p_hwfn, "MFW failed to respond [cmd 0x%x param 0x%x]\n",
+		       cmd, param);
 		*o_mcp_resp = 0;
 		rc = -EAGAIN;
 	}
@@ -342,7 +333,7 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 
 	/* MCP not initialized */
 	if (!qed_mcp_is_init(p_hwfn)) {
-		DP_NOTICE(p_hwfn, "MFW is not initialized !\n");
+		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
 		return -EBUSY;
 	}
 
@@ -398,9 +389,36 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       u32 cmd,
+		       u32 param,
+		       u32 *o_mcp_resp,
+		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf)
+{
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data union_data;
+	int rc;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = cmd;
+	mb_params.param = param;
+	mb_params.p_data_dst = &union_data;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	*o_mcp_resp = mb_params.mcp_resp;
+	*o_mcp_param = mb_params.mcp_param;
+
+	*o_txn_size = *o_mcp_param;
+	memcpy(o_buf, &union_data.raw_data, *o_txn_size);
+
+	return 0;
+}
+
 int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
-		     struct qed_ptt *p_ptt,
-		     u32 *p_load_code)
+		     struct qed_ptt *p_ptt, u32 *p_load_code)
 {
 	struct qed_dev *cdev = p_hwfn->cdev;
 	struct qed_mcp_mb_params mb_params;
@@ -527,8 +545,7 @@ static void qed_mcp_handle_transceiver_change(struct qed_hwfn *p_hwfn,
 		   "Received transceiver state update [0x%08x] from mfw [Addr 0x%x]\n",
 		   transceiver_state,
 		   (u32)(p_hwfn->mcp_info->port_addr +
-			 offsetof(struct public_port,
-				  transceiver_data)));
+			  offsetof(struct public_port, transceiver_data)));
 
 	transceiver_state = GET_FIELD(transceiver_state,
 				      ETH_TRANSCEIVER_STATE);
@@ -540,8 +557,7 @@ static void qed_mcp_handle_transceiver_change(struct qed_hwfn *p_hwfn,
 }
 
 static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
-				       struct qed_ptt *p_ptt,
-				       bool b_reset)
+				       struct qed_ptt *p_ptt, bool b_reset)
 {
 	struct qed_mcp_link_state *p_link;
 	u8 max_bw, min_bw;
@@ -557,8 +573,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 			   "Received link update [0x%08x] from mfw [Addr 0x%x]\n",
 			   status,
 			   (u32)(p_hwfn->mcp_info->port_addr +
-				 offsetof(struct public_port,
-					  link_status)));
+				 offsetof(struct public_port, link_status)));
 	} else {
 		DP_VERBOSE(p_hwfn, NETIF_MSG_LINK,
 			   "Resetting link indications\n");
@@ -634,6 +649,9 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 	p_link->partner_adv_speed |=
 		(status & LINK_STATUS_LINK_PARTNER_20G_CAPABLE) ?
 		QED_LINK_PARTNER_SPEED_20G : 0;
+	p_link->partner_adv_speed |=
+		(status & LINK_STATUS_LINK_PARTNER_25G_CAPABLE) ?
+		QED_LINK_PARTNER_SPEED_25G : 0;
 	p_link->partner_adv_speed |=
 		(status & LINK_STATUS_LINK_PARTNER_40G_CAPABLE) ?
 		QED_LINK_PARTNER_SPEED_40G : 0;
@@ -722,6 +740,48 @@ int qed_mcp_set_link(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, bool b_up)
 	return 0;
 }
 
+static void qed_mcp_send_protocol_stats(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					enum MFW_DRV_MSG_TYPE type)
+{
+	enum qed_mcp_protocol_type stats_type;
+	union qed_mcp_protocol_stats stats;
+	struct qed_mcp_mb_params mb_params;
+	union drv_union_data union_data;
+	u32 hsi_param;
+
+	switch (type) {
+	case MFW_DRV_MSG_GET_LAN_STATS:
+		stats_type = QED_MCP_LAN_STATS;
+		hsi_param = DRV_MSG_CODE_STATS_TYPE_LAN;
+		break;
+	case MFW_DRV_MSG_GET_FCOE_STATS:
+		stats_type = QED_MCP_FCOE_STATS;
+		hsi_param = DRV_MSG_CODE_STATS_TYPE_FCOE;
+		break;
+	case MFW_DRV_MSG_GET_ISCSI_STATS:
+		stats_type = QED_MCP_ISCSI_STATS;
+		hsi_param = DRV_MSG_CODE_STATS_TYPE_ISCSI;
+		break;
+	case MFW_DRV_MSG_GET_RDMA_STATS:
+		stats_type = QED_MCP_RDMA_STATS;
+		hsi_param = DRV_MSG_CODE_STATS_TYPE_RDMA;
+		break;
+	default:
+		DP_NOTICE(p_hwfn, "Invalid protocol type %d\n", type);
+		return;
+	}
+
+	qed_get_protocol_stats(p_hwfn->cdev, stats_type, &stats);
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_GET_STATS;
+	mb_params.param = hsi_param;
+	memcpy(&union_data, &stats, sizeof(stats));
+	mb_params.p_data_src = &union_data;
+	qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+}
+
 static void qed_read_pf_bandwidth(struct qed_hwfn *p_hwfn,
 				  struct public_func *p_shmem_info)
 {
@@ -752,8 +812,7 @@ static void qed_read_pf_bandwidth(struct qed_hwfn *p_hwfn,
 
 static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
 				  struct qed_ptt *p_ptt,
-				  struct public_func *p_data,
-				  int pfid)
+				  struct public_func *p_data, int pfid)
 {
 	u32 addr = SECTION_OFFSIZE_ADDR(p_hwfn->mcp_info->public_base,
 					PUBLIC_FUNC);
@@ -763,51 +822,20 @@ static u32 qed_mcp_get_shmem_func(struct qed_hwfn *p_hwfn,
 
 	memset(p_data, 0, sizeof(*p_data));
 
-	size = min_t(u32, sizeof(*p_data),
-		     QED_SECTION_SIZE(mfw_path_offsize));
+	size = min_t(u32, sizeof(*p_data), QED_SECTION_SIZE(mfw_path_offsize));
 	for (i = 0; i < size / sizeof(u32); i++)
 		((u32 *)p_data)[i] = qed_rd(p_hwfn, p_ptt,
 					    func_addr + (i << 2));
 	return size;
 }
 
-int qed_hw_init_first_eth(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, u8 *p_pf)
-{
-	struct public_func shmem_info;
-	int i;
-
-	/* Find first Ethernet interface in port */
-	for (i = 0; i < NUM_OF_ENG_PFS(p_hwfn->cdev);
-	     i += p_hwfn->cdev->num_ports_in_engines) {
-		qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
-				       MCP_PF_ID_BY_REL(p_hwfn, i));
-
-		if (shmem_info.config & FUNC_MF_CFG_FUNC_HIDE)
-			continue;
-
-		if ((shmem_info.config & FUNC_MF_CFG_PROTOCOL_MASK) ==
-		    FUNC_MF_CFG_PROTOCOL_ETHERNET) {
-			*p_pf = (u8)i;
-			return 0;
-		}
-	}
-
-	DP_NOTICE(p_hwfn,
-		  "Failed to find on port an ethernet interface in MF_SI mode\n");
-
-	return -EINVAL;
-}
-
-static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn,
-			      struct qed_ptt *p_ptt)
+static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_mcp_function_info *p_info;
 	struct public_func shmem_info;
 	u32 resp = 0, param = 0;
 
-	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
-			       MCP_PF_ID(p_hwfn));
+	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info, MCP_PF_ID(p_hwfn));
 
 	qed_read_pf_bandwidth(p_hwfn, &shmem_info);
 
@@ -866,6 +894,12 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE:
 			qed_mcp_handle_transceiver_change(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_GET_LAN_STATS:
+		case MFW_DRV_MSG_GET_FCOE_STATS:
+		case MFW_DRV_MSG_GET_ISCSI_STATS:
+		case MFW_DRV_MSG_GET_RDMA_STATS:
+			qed_mcp_send_protocol_stats(p_hwfn, p_ptt, i);
 			break;
 		case MFW_DRV_MSG_BW_UPDATE:
 			qed_mcp_update_bw(p_hwfn, p_ptt);
@@ -940,8 +974,7 @@ int qed_mcp_get_mfw_ver(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-int qed_mcp_get_media_type(struct qed_dev *cdev,
-			   u32 *p_media_type)
+int qed_mcp_get_media_type(struct qed_dev *cdev, u32 *p_media_type)
 {
 	struct qed_hwfn *p_hwfn = &cdev->hwfns[0];
 	struct qed_ptt  *p_ptt;
@@ -950,7 +983,7 @@ int qed_mcp_get_media_type(struct qed_dev *cdev,
 		return -EINVAL;
 
 	if (!qed_mcp_is_init(p_hwfn)) {
-		DP_NOTICE(p_hwfn, "MFW is not initialized !\n");
+		DP_NOTICE(p_hwfn, "MFW is not initialized!\n");
 		return -EBUSY;
 	}
 
@@ -1003,15 +1036,13 @@ int qed_mcp_fill_shmem_func_info(struct qed_hwfn *p_hwfn,
 	struct qed_mcp_function_info *info;
 	struct public_func shmem_info;
 
-	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info,
-			       MCP_PF_ID(p_hwfn));
+	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info, MCP_PF_ID(p_hwfn));
 	info = &p_hwfn->mcp_info->func_info;
 
 	info->pause_on_host = (shmem_info.config &
 			       FUNC_MF_CFG_PAUSE_ON_HOST_RING) ? 1 : 0;
 
-	if (qed_mcp_get_shmem_proto(p_hwfn, &shmem_info,
-				    &info->protocol)) {
+	if (qed_mcp_get_shmem_proto(p_hwfn, &shmem_info, &info->protocol)) {
 		DP_ERR(p_hwfn, "Unknown personality %08x\n",
 		       (u32)(shmem_info.config & FUNC_MF_CFG_PROTOCOL_MASK));
 		return -EINVAL;
@@ -1072,15 +1103,13 @@ struct qed_mcp_link_capabilities
 	return &p_hwfn->mcp_info->link_capabilities;
 }
 
-int qed_mcp_drain(struct qed_hwfn *p_hwfn,
-		  struct qed_ptt *p_ptt)
+int qed_mcp_drain(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	u32 resp = 0, param = 0;
 	int rc;
 
 	rc = qed_mcp_cmd(p_hwfn, p_ptt,
-			 DRV_MSG_CODE_NIG_DRAIN, 1000,
-			 &resp, &param);
+			 DRV_MSG_CODE_NIG_DRAIN, 1000, &resp, &param);
 
 	/* Wait for the drain to complete before returning */
 	msleep(1020);
@@ -1089,8 +1118,7 @@ int qed_mcp_drain(struct qed_hwfn *p_hwfn,
 }
 
 int qed_mcp_get_flash_size(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt,
-			   u32 *p_flash_size)
+			   struct qed_ptt *p_ptt, u32 *p_flash_size)
 {
 	u32 flash_size;
 
@@ -1168,8 +1196,35 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int qed_mcp_set_led(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-		    enum qed_led_mode mode)
+int qed_mcp_halt(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 resp = 0, param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_MCP_HALT, 0, &resp,
+			 &param);
+	if (rc)
+		DP_ERR(p_hwfn, "MCP response failure, aborting\n");
+
+	return rc;
+}
+
+int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	u32 value, cpu_mode;
+
+	qed_wr(p_hwfn, p_ptt, MCP_REG_CPU_STATE, 0xffffffff);
+
+	value = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
+	value &= ~MCP_REG_CPU_MODE_SOFT_HALT;
+	qed_wr(p_hwfn, p_ptt, MCP_REG_CPU_MODE, value);
+	cpu_mode = qed_rd(p_hwfn, p_ptt, MCP_REG_CPU_MODE);
+
+	return (cpu_mode & MCP_REG_CPU_MODE_SOFT_HALT) ? -EAGAIN : 0;
+}
+
+int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt, enum qed_led_mode mode)
 {
 	u32 resp = 0, param = 0, drv_mb_param;
 	int rc;
@@ -1191,6 +1246,27 @@ int qed_mcp_set_led(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 
 	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_SET_LED_MODE,
 			 drv_mb_param, &resp, &param);
+
+	return rc;
+}
+
+int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u32 mask_parities)
+{
+	u32 resp = 0, param = 0;
+	int rc;
+
+	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_MASK_PARITIES,
+			 mask_parities, &resp, &param);
+
+	if (rc) {
+		DP_ERR(p_hwfn,
+		       "MCP response failure for mask parities, aborting\n");
+	} else if (resp != FW_MSG_CODE_OK) {
+		DP_ERR(p_hwfn,
+		       "MCP did not acknowledge mask parity request. Old MFW?\n");
+		rc = -EINVAL;
+	}
 
 	return rc;
 }

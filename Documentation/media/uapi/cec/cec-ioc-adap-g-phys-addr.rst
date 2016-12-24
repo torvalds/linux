@@ -17,24 +17,27 @@ CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR - Get or set the physical address
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, __u16 *argp )
+.. c:function:: int ioctl( int fd, CEC_ADAP_G_PHYS_ADDR, __u16 *argp )
+    :name: CEC_ADAP_G_PHYS_ADDR
+
+.. c:function:: int ioctl( int fd, CEC_ADAP_S_PHYS_ADDR, __u16 *argp )
+    :name: CEC_ADAP_S_PHYS_ADDR
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_ADAP_G_PHYS_ADDR, CEC_ADAP_S_PHYS_ADDR
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-
+    Pointer to the CEC address.
 
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 To query the current physical address applications call

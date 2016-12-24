@@ -997,6 +997,13 @@ int dma_async_device_register(struct dma_device *device)
 		}
 		chan->client_count = 0;
 	}
+
+	if (!chancnt) {
+		dev_err(device->dev, "%s: device has no channels!\n", __func__);
+		rc = -ENODEV;
+		goto err_out;
+	}
+
 	device->chancnt = chancnt;
 
 	mutex_lock(&dma_list_mutex);

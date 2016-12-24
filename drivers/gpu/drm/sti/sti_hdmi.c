@@ -22,7 +22,6 @@
 
 #include "sti_hdmi.h"
 #include "sti_hdmi_tx3g4c28phy.h"
-#include "sti_hdmi_tx3g0c55phy.h"
 #include "sti_vtg.h"
 
 #define HDMI_CFG                        0x0000
@@ -203,7 +202,7 @@ static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 
 	/* Audio FIFO underrun IRQ */
 	if (hdmi->irq_status & HDMI_INT_AUDIO_FIFO_XRUN)
-		DRM_INFO("Warning: audio FIFO underrun occurs!");
+		DRM_INFO("Warning: audio FIFO underrun occurs!\n");
 
 	return IRQ_HANDLED;
 }
@@ -569,7 +568,7 @@ static void hdmi_swreset(struct sti_hdmi *hdmi)
 
 	/* Wait reset completed */
 	wait_event_interruptible_timeout(hdmi->wait_event,
-					 hdmi->event_received == true,
+					 hdmi->event_received,
 					 msecs_to_jiffies
 					 (HDMI_TIMEOUT_SWRESET));
 
@@ -1054,6 +1053,7 @@ static int sti_hdmi_late_register(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs sti_hdmi_connector_funcs = {
+	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = sti_hdmi_connector_detect,
 	.destroy = drm_connector_cleanup,
@@ -1181,7 +1181,7 @@ static void hdmi_audio_shutdown(struct device *dev, void *data)
 		    HDMI_AUD_CFG_ONE_BIT_INVALID;
 	hdmi_write(hdmi, audio_cfg, HDMI_AUDIO_CFG);
 
-	hdmi->audio.enabled = 0;
+	hdmi->audio.enabled = false;
 	hdmi_audio_infoframe_config(hdmi);
 }
 
@@ -1213,7 +1213,7 @@ static int hdmi_audio_hw_params(struct device *dev,
 		return -EINVAL;
 	}
 
-	audio.enabled = 1;
+	audio.enabled = true;
 
 	ret = hdmi_audio_configure(hdmi, &audio);
 	if (ret < 0)
@@ -1265,7 +1265,7 @@ static int sti_hdmi_register_audio_driver(struct device *dev,
 
 	DRM_DEBUG_DRIVER("\n");
 
-	hdmi->audio.enabled = 0;
+	hdmi->audio.enabled = false;
 
 	hdmi->audio_pdev = platform_device_register_data(
 		dev, HDMI_CODEC_DRV_NAME, PLATFORM_DEVID_AUTO,
@@ -1373,9 +1373,6 @@ static const struct component_ops sti_hdmi_ops = {
 
 static const struct of_device_id hdmi_of_match[] = {
 	{
-		.compatible = "st,stih416-hdmi",
-		.data = &tx3g0c55phy_ops,
-	}, {
 		.compatible = "st,stih407-hdmi",
 		.data = &tx3g4c28phy_ops,
 	}, {
@@ -1420,22 +1417,6 @@ static int sti_hdmi_probe(struct platform_device *pdev)
 	if (!hdmi->regs) {
 		ret = -ENOMEM;
 		goto release_adapter;
-	}
-
-	if (of_device_is_compatible(np, "st,stih416-hdmi")) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-						   "syscfg");
-		if (!res) {
-			DRM_ERROR("Invalid syscfg resource\n");
-			ret = -ENOMEM;
-			goto release_adapter;
-		}
-		hdmi->syscfg = devm_ioremap_nocache(dev, res->start,
-						    resource_size(res));
-		if (!hdmi->syscfg) {
-			ret = -ENOMEM;
-			goto release_adapter;
-		}
 	}
 
 	hdmi->phy_ops = (struct hdmi_phy_ops *)

@@ -22,7 +22,7 @@ Description:
 What:		/sys/class/power_supply/max14577-charger/device/fast_charge_timer
 Date:		October 2014
 KernelVersion:	3.18.0
-Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Contact:	Krzysztof Kozlowski <krzk@kernel.org>
 Description:
 		This entry shows and sets the maximum time the max14577
 		charger operates in fast-charge mode. When the timer expires
@@ -36,7 +36,7 @@ Description:
 What:		/sys/class/power_supply/max77693-charger/device/fast_charge_timer
 Date:		January 2015
 KernelVersion:	3.19.0
-Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Contact:	Krzysztof Kozlowski <krzk@kernel.org>
 Description:
 		This entry shows and sets the maximum time the max77693
 		charger operates in fast-charge mode. When the timer expires
@@ -50,7 +50,7 @@ Description:
 What:		/sys/class/power_supply/max77693-charger/device/top_off_threshold_current
 Date:		January 2015
 KernelVersion:	3.19.0
-Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Contact:	Krzysztof Kozlowski <krzk@kernel.org>
 Description:
 		This entry shows and sets the charging current threshold for
 		entering top-off charging mode. When charging current in fast
@@ -65,7 +65,7 @@ Description:
 What:		/sys/class/power_supply/max77693-charger/device/top_off_timer
 Date:		January 2015
 KernelVersion:	3.19.0
-Contact:	Krzysztof Kozlowski <k.kozlowski@samsung.com>
+Contact:	Krzysztof Kozlowski <krzk@kernel.org>
 Description:
 		This entry shows and sets the maximum time the max77693
 		charger operates in top-off charge mode. When the timer expires

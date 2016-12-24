@@ -1572,13 +1572,21 @@ static int _sunxi_nand_lookup_timing(const s32 *lut, int lut_size, u32 duration,
 #define sunxi_nand_lookup_timing(l, p, c) \
 			_sunxi_nand_lookup_timing(l, ARRAY_SIZE(l), p, c)
 
-static int sunxi_nand_chip_set_timings(struct sunxi_nand_chip *chip,
-				       const struct nand_sdr_timings *timings)
+static int sunxi_nfc_setup_data_interface(struct mtd_info *mtd,
+					const struct nand_data_interface *conf,
+					bool check_only)
 {
+	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct sunxi_nand_chip *chip = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(chip->nand.controller);
+	const struct nand_sdr_timings *timings;
 	u32 min_clk_period = 0;
 	s32 tWB, tADL, tWHR, tRHW, tCAD;
 	long real_clk_rate;
+
+	timings = nand_get_sdr_timings(conf);
+	if (IS_ERR(timings))
+		return -ENOTSUPP;
 
 	/* T1 <=> tCLS */
 	if (timings->tCLS_min > min_clk_period)
@@ -1679,6 +1687,9 @@ static int sunxi_nand_chip_set_timings(struct sunxi_nand_chip *chip,
 		return tRHW;
 	}
 
+	if (check_only)
+		return 0;
+
 	/*
 	 * TODO: according to ONFI specs this value only applies for DDR NAND,
 	 * but Allwinner seems to set this to 0x7. Mimic them for now.
@@ -1710,44 +1721,6 @@ static int sunxi_nand_chip_set_timings(struct sunxi_nand_chip *chip,
 			   NFC_TIMING_CTL_EDO : 0;
 
 	return 0;
-}
-
-static int sunxi_nand_chip_init_timings(struct sunxi_nand_chip *chip,
-					struct device_node *np)
-{
-	struct mtd_info *mtd = nand_to_mtd(&chip->nand);
-	const struct nand_sdr_timings *timings;
-	int ret;
-	int mode;
-
-	mode = onfi_get_async_timing_mode(&chip->nand);
-	if (mode == ONFI_TIMING_MODE_UNKNOWN) {
-		mode = chip->nand.onfi_timing_mode_default;
-	} else {
-		uint8_t feature[ONFI_SUBFEATURE_PARAM_LEN] = {};
-		int i;
-
-		mode = fls(mode) - 1;
-		if (mode < 0)
-			mode = 0;
-
-		feature[0] = mode;
-		for (i = 0; i < chip->nsels; i++) {
-			chip->nand.select_chip(mtd, i);
-			ret = chip->nand.onfi_set_features(mtd,	&chip->nand,
-						ONFI_FEATURE_ADDR_TIMING_MODE,
-						feature);
-			chip->nand.select_chip(mtd, -1);
-			if (ret)
-				return ret;
-		}
-	}
-
-	timings = onfi_async_timing_mode_to_sdr_timings(mode);
-	if (IS_ERR(timings))
-		return PTR_ERR(timings);
-
-	return sunxi_nand_chip_set_timings(chip, timings);
 }
 
 static int sunxi_nand_ooblayout_ecc(struct mtd_info *mtd, int section,
@@ -1813,6 +1786,35 @@ static int sunxi_nand_hw_common_ecc_ctrl_init(struct mtd_info *mtd,
 	int nsectors;
 	int ret;
 	int i;
+
+	if (ecc->options & NAND_ECC_MAXIMIZE) {
+		int bytes;
+
+		ecc->size = 1024;
+		nsectors = mtd->writesize / ecc->size;
+
+		/* Reserve 2 bytes for the BBM */
+		bytes = (mtd->oobsize - 2) / nsectors;
+
+		/* 4 non-ECC bytes are added before each ECC bytes section */
+		bytes -= 4;
+
+		/* and bytes has to be even. */
+		if (bytes % 2)
+			bytes--;
+
+		ecc->strength = bytes * 8 / fls(8 * ecc->size);
+
+		for (i = 0; i < ARRAY_SIZE(strengths); i++) {
+			if (strengths[i] > ecc->strength)
+				break;
+		}
+
+		if (!i)
+			ecc->strength = 0;
+		else
+			ecc->strength = strengths[i - 1];
+	}
 
 	if (ecc->size != 512 && ecc->size != 1024)
 		return -EINVAL;
@@ -1975,7 +1977,6 @@ static int sunxi_nand_ecc_init(struct mtd_info *mtd, struct nand_ecc_ctrl *ecc,
 static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 				struct device_node *np)
 {
-	const struct nand_sdr_timings *timings;
 	struct sunxi_nand_chip *chip;
 	struct mtd_info *mtd;
 	struct nand_chip *nand;
@@ -2065,24 +2066,10 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	nand->read_buf = sunxi_nfc_read_buf;
 	nand->write_buf = sunxi_nfc_write_buf;
 	nand->read_byte = sunxi_nfc_read_byte;
+	nand->setup_data_interface = sunxi_nfc_setup_data_interface;
 
 	mtd = nand_to_mtd(nand);
 	mtd->dev.parent = dev;
-
-	timings = onfi_async_timing_mode_to_sdr_timings(0);
-	if (IS_ERR(timings)) {
-		ret = PTR_ERR(timings);
-		dev_err(dev,
-			"could not retrieve timings for ONFI mode 0: %d\n",
-			ret);
-		return ret;
-	}
-
-	ret = sunxi_nand_chip_set_timings(chip, timings);
-	if (ret) {
-		dev_err(dev, "could not configure chip timings: %d\n", ret);
-		return ret;
-	}
 
 	ret = nand_scan_ident(mtd, nsels, NULL);
 	if (ret)
@@ -2095,12 +2082,6 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 		nand->options |= NAND_NO_SUBPAGE_WRITE;
 
 	nand->options |= NAND_SUBPAGE_READ;
-
-	ret = sunxi_nand_chip_init_timings(chip, np);
-	if (ret) {
-		dev_err(dev, "could not configure chip timings: %d\n", ret);
-		return ret;
-	}
 
 	ret = sunxi_nand_ecc_init(mtd, &nand->ecc, np);
 	if (ret) {
@@ -2175,8 +2156,7 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	nfc->dev = dev;
-	spin_lock_init(&nfc->controller.lock);
-	init_waitqueue_head(&nfc->controller.wq);
+	nand_hw_control_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);

@@ -189,19 +189,19 @@ static int axp288_handle_chrg_det_event(struct axp288_extcon_info *info)
 
 	switch (chrg_type) {
 	case DET_STAT_SDP:
-		dev_dbg(info->dev, "sdp cable is connecetd\n");
+		dev_dbg(info->dev, "sdp cable is connected\n");
 		notify_otg = true;
 		notify_charger = true;
 		cable = EXTCON_CHG_USB_SDP;
 		break;
 	case DET_STAT_CDP:
-		dev_dbg(info->dev, "cdp cable is connecetd\n");
+		dev_dbg(info->dev, "cdp cable is connected\n");
 		notify_otg = true;
 		notify_charger = true;
 		cable = EXTCON_CHG_USB_CDP;
 		break;
 	case DET_STAT_DCP:
-		dev_dbg(info->dev, "dcp cable is connecetd\n");
+		dev_dbg(info->dev, "dcp cable is connected\n");
 		notify_charger = true;
 		cable = EXTCON_CHG_USB_DCP;
 		break;
@@ -226,7 +226,7 @@ notify_otg:
 	}
 
 	if (notify_charger)
-		extcon_set_cable_state_(info->edev, cable, vbus_attach);
+		extcon_set_state_sync(info->edev, cable, vbus_attach);
 
 	/* Clear the flags on disconnect event */
 	if (!vbus_attach)

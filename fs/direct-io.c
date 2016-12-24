@@ -246,6 +246,9 @@ static ssize_t dio_complete(struct dio *dio, ssize_t ret, bool is_async)
 		if ((dio->op == REQ_OP_READ) &&
 		    ((offset + transferred) > dio->i_size))
 			transferred = dio->i_size - offset;
+		/* ignore EFAULT if some IO has been done */
+		if (unlikely(ret == -EFAULT) && transferred)
+			ret = 0;
 	}
 
 	if (ret == 0)

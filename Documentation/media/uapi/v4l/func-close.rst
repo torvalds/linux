@@ -20,8 +20,8 @@ Synopsis
     #include <unistd.h>
 
 
-.. cpp:function:: int close( int fd )
-
+.. c:function:: int close( int fd )
+    :name: v4l2-close
 
 Arguments
 =========

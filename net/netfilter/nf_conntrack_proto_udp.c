@@ -44,8 +44,8 @@ static bool udp_pkt_to_tuple(const struct sk_buff *skb,
 	const struct udphdr *hp;
 	struct udphdr _hdr;
 
-	/* Actually only need first 8 bytes. */
-	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
+	/* Actually only need first 4 bytes to get ports. */
+	hp = skb_header_pointer(skb, dataoff, 4, &_hdr);
 	if (hp == NULL)
 		return false;
 
@@ -218,23 +218,6 @@ static struct ctl_table udp_sysctl_table[] = {
 	},
 	{ }
 };
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-static struct ctl_table udp_compat_sysctl_table[] = {
-	{
-		.procname	= "ip_conntrack_udp_timeout",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ip_conntrack_udp_timeout_stream",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ }
-};
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
 static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
@@ -254,27 +237,8 @@ static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int udp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
-					   struct nf_udp_net *un)
-{
-#ifdef CONFIG_SYSCTL
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	pn->ctl_compat_table = kmemdup(udp_compat_sysctl_table,
-				       sizeof(udp_compat_sysctl_table),
-				       GFP_KERNEL);
-	if (!pn->ctl_compat_table)
-		return -ENOMEM;
-
-	pn->ctl_compat_table[0].data = &un->timeouts[UDP_CT_UNREPLIED];
-	pn->ctl_compat_table[1].data = &un->timeouts[UDP_CT_REPLIED];
-#endif
-#endif
-	return 0;
-}
-
 static int udp_init_net(struct net *net, u_int16_t proto)
 {
-	int ret;
 	struct nf_udp_net *un = udp_pernet(net);
 	struct nf_proto_net *pn = &un->pn;
 
@@ -285,18 +249,7 @@ static int udp_init_net(struct net *net, u_int16_t proto)
 			un->timeouts[i] = udp_timeouts[i];
 	}
 
-	if (proto == AF_INET) {
-		ret = udp_kmemdup_compat_sysctl_table(pn, un);
-		if (ret < 0)
-			return ret;
-
-		ret = udp_kmemdup_sysctl_table(pn, un);
-		if (ret < 0)
-			nf_ct_kfree_compat_sysctl_table(pn);
-	} else
-		ret = udp_kmemdup_sysctl_table(pn, un);
-
-	return ret;
+	return udp_kmemdup_sysctl_table(pn, un);
 }
 
 static struct nf_proto_net *udp_get_net_proto(struct net *net)

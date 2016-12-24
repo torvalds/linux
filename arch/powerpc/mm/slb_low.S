@@ -178,11 +178,9 @@ BEGIN_FTR_SECTION
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	b	slb_finish_load
 
-8:	/* invalid EA */
-	li	r10,0			/* BAD_VSID */
-	li	r9,0			/* BAD_VSID */
-	li	r11,SLB_VSID_USER	/* flags don't much matter */
-	b	slb_finish_load
+8:	/* invalid EA - return an error indication */
+	crset	4*cr0+eq		/* indicate failure */
+	blr
 
 /*
  * Finish loading of an SLB entry and return

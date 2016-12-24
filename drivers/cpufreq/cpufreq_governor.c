@@ -260,7 +260,7 @@ static void dbs_irq_work(struct irq_work *irq_work)
 }
 
 static void dbs_update_util_handler(struct update_util_data *data, u64 time,
-				    unsigned long util, unsigned long max)
+				    unsigned int flags)
 {
 	struct cpu_dbs_info *cdbs = container_of(data, struct cpu_dbs_info, update_util);
 	struct policy_dbs_info *policy_dbs = cdbs->policy_dbs;

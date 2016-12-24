@@ -75,35 +75,6 @@
  */
 
 /**
- * drm_helper_move_panel_connectors_to_head() - move panels to the front in the
- * 						connector list
- * @dev: drm device to operate on
- *
- * Some userspace presumes that the first connected connector is the main
- * display, where it's supposed to display e.g. the login screen. For
- * laptops, this should be the main panel. Use this function to sort all
- * (eDP/LVDS) panels to the front of the connector list, instead of
- * painstakingly trying to initialize them in the right order.
- */
-void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
-{
-	struct drm_connector *connector, *tmp;
-	struct list_head panel_list;
-
-	INIT_LIST_HEAD(&panel_list);
-
-	list_for_each_entry_safe(connector, tmp,
-				 &dev->mode_config.connector_list, head) {
-		if (connector->connector_type == DRM_MODE_CONNECTOR_LVDS ||
-		    connector->connector_type == DRM_MODE_CONNECTOR_eDP)
-			list_move_tail(&connector->head, &panel_list);
-	}
-
-	list_splice(&panel_list, &dev->mode_config.connector_list);
-}
-EXPORT_SYMBOL(drm_helper_move_panel_connectors_to_head);
-
-/**
  * drm_helper_encoder_in_use - check if a given encoder is in use
  * @encoder: encoder to check
  *
@@ -911,33 +882,6 @@ int drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 	return 0;
 }
 EXPORT_SYMBOL(drm_helper_connector_dpms);
-
-/**
- * drm_helper_mode_fill_fb_struct - fill out framebuffer metadata
- * @fb: drm_framebuffer object to fill out
- * @mode_cmd: metadata from the userspace fb creation request
- *
- * This helper can be used in a drivers fb_create callback to pre-fill the fb's
- * metadata fields.
- */
-void drm_helper_mode_fill_fb_struct(struct drm_framebuffer *fb,
-				    const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	int i;
-
-	fb->width = mode_cmd->width;
-	fb->height = mode_cmd->height;
-	for (i = 0; i < 4; i++) {
-		fb->pitches[i] = mode_cmd->pitches[i];
-		fb->offsets[i] = mode_cmd->offsets[i];
-		fb->modifier[i] = mode_cmd->modifier[i];
-	}
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &fb->depth,
-				    &fb->bits_per_pixel);
-	fb->pixel_format = mode_cmd->pixel_format;
-	fb->flags = mode_cmd->flags;
-}
-EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
 
 /**
  * drm_helper_resume_force_mode - force-restore mode setting configuration

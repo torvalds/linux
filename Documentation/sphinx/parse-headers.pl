@@ -2,11 +2,17 @@
 use strict;
 use Text::Tabs;
 
-# Uncomment if debug is needed
-#use Data::Dumper;
-
-# change to 1 to generate some debug prints
 my $debug = 0;
+
+while ($ARGV[0] =~ m/^-(.*)/) {
+	my $cmd = shift @ARGV;
+	if ($cmd eq "--debug") {
+		require Data::Dumper;
+		$debug = 1;
+		next;
+	}
+	die "argument $cmd unknown";
+}
 
 if (scalar @ARGV < 2 || scalar @ARGV > 3) {
 	die "Usage:\n\t$0 <file in> <file out> [<exceptions file>]\n";
@@ -51,7 +57,7 @@ while (<IN>) {
 		$n =~ tr/A-Z/a-z/;
 		$n =~ tr/_/-/;
 
-		$enum_symbols{$s} = $n;
+		$enum_symbols{$s} =  "\\ :ref:`$s <$n>`\\ ";
 
 		$is_enum = 0 if ($is_enum && m/\}/);
 		next;
@@ -63,7 +69,7 @@ while (<IN>) {
 		my $n = $1;
 		$n =~ tr/A-Z/a-z/;
 
-		$ioctls{$s} = $n;
+		$ioctls{$s} = "\\ :ref:`$s <$n>`\\ ";
 		next;
 	}
 
@@ -73,17 +79,15 @@ while (<IN>) {
 		$n =~ tr/A-Z/a-z/;
 		$n =~ tr/_/-/;
 
-		$defines{$s} = $n;
+		$defines{$s} = "\\ :ref:`$s <$n>`\\ ";
 		next;
 	}
 
-	if ($ln =~ m/^\s*typedef\s+.*\s+([_\w][\w\d_]+);/) {
-		my $s = $1;
-		my $n = $1;
-		$n =~ tr/A-Z/a-z/;
-		$n =~ tr/_/-/;
+	if ($ln =~ m/^\s*typedef\s+([_\w][\w\d_]+)\s+(.*)\s+([_\w][\w\d_]+);/) {
+		my $s = $2;
+		my $n = $3;
 
-		$typedefs{$s} = $n;
+		$typedefs{$n} = "\\ :c:type:`$n <$s>`\\ ";
 		next;
 	}
 	if ($ln =~ m/^\s*enum\s+([_\w][\w\d_]+)\s+\{/
@@ -91,11 +95,8 @@ while (<IN>) {
 	    || $ln =~ m/^\s*typedef\s*enum\s+([_\w][\w\d_]+)\s+\{/
 	    || $ln =~ m/^\s*typedef\s*enum\s+([_\w][\w\d_]+)$/) {
 		my $s = $1;
-		my $n = $1;
-		$n =~ tr/A-Z/a-z/;
-		$n =~ tr/_/-/;
 
-		$enums{$s} = $n;
+		$enums{$s} =  "enum :c:type:`$s`\\ ";
 
 		$is_enum = $1;
 		next;
@@ -106,11 +107,8 @@ while (<IN>) {
 	    || $ln =~ m/^\s*typedef\s*struct\s+([[_\w][\w\d_]+)$/
 	    ) {
 		my $s = $1;
-		my $n = $1;
-		$n =~ tr/A-Z/a-z/;
-		$n =~ tr/_/-/;
 
-		$structs{$s} = $n;
+		$structs{$s} = "struct :c:type:`$s`\\ ";
 		next;
 	}
 }
@@ -123,18 +121,24 @@ close IN;
 my @matches = ($data =~ m/typedef\s+struct\s+\S+?\s*\{[^\}]+\}\s*(\S+)\s*\;/g,
 	       $data =~ m/typedef\s+enum\s+\S+?\s*\{[^\}]+\}\s*(\S+)\s*\;/g,);
 foreach my $m (@matches) {
-		my $s = $m;
-		my $n = $m;
-		$n =~ tr/A-Z/a-z/;
-		$n =~ tr/_/-/;
+	my $s = $m;
 
-		$typedefs{$s} = $n;
+	$typedefs{$s} = "\\ :c:type:`$s`\\ ";
 	next;
 }
 
 #
 # Handle exceptions, if any
 #
+
+my %def_reftype = (
+	"ioctl"   => ":ref",
+	"define"  => ":ref",
+	"symbol"  => ":ref",
+	"typedef" => ":c:type",
+	"enum"    => ":c:type",
+	"struct"  => ":c:type",
+);
 
 if ($file_exceptions) {
 	open IN, $file_exceptions or die "Can't read $file_exceptions";
@@ -169,29 +173,49 @@ if ($file_exceptions) {
 		}
 
 		# Parsers to replace a symbol
+		my ($type, $old, $new, $reftype);
 
-		if (m/^replace\s+ioctl\s+(\S+)\s+(\S+)/) {
-			$ioctls{$1} = $2 if (exists($ioctls{$1}));
+		if (m/^replace\s+(\S+)\s+(\S+)\s+(\S+)/) {
+			$type = $1;
+			$old = $2;
+			$new = $3;
+		} else {
+			die "Can't parse $file_exceptions: $_";
+		}
+
+		if ($new =~ m/^\:c\:(data|func|macro|type)\:\`(.+)\`/) {
+			$reftype = ":c:$1";
+			$new = $2;
+		} elsif ($new =~ m/\:ref\:\`(.+)\`/) {
+			$reftype = ":ref";
+			$new = $1;
+		} else {
+			$reftype = $def_reftype{$type};
+		}
+		$new = "$reftype:`$old <$new>`";
+
+		if ($type eq "ioctl") {
+			$ioctls{$old} = $new if (exists($ioctls{$old}));
 			next;
 		}
-		if (m/^replace\s+define\s+(\S+)\s+(\S+)/) {
-			$defines{$1} = $2 if (exists($defines{$1}));
+		if ($type eq "define") {
+			$defines{$old} = $new if (exists($defines{$old}));
 			next;
 		}
-		if (m/^replace\s+typedef\s+(\S+)\s+(\S+)/) {
-			$typedefs{$1} = $2 if (exists($typedefs{$1}));
+		if ($type eq "symbol") {
+			$enum_symbols{$old} = $new if (exists($enum_symbols{$old}));
 			next;
 		}
-		if (m/^replace\s+enum\s+(\S+)\s+(\S+)/) {
-			$enums{$1} = $2 if (exists($enums{$1}));
+		if ($type eq "typedef") {
+			$typedefs{$old} = $new if (exists($typedefs{$old}));
 			next;
 		}
-		if (m/^replace\s+symbol\s+(\S+)\s+(\S+)/) {
-			$enum_symbols{$1} = $2 if (exists($enum_symbols{$1}));
+		if ($type eq "enum") {
+			$enums{$old} = $new if (exists($enums{$old}));
 			next;
 		}
-		if (m/^replace\s+struct\s+(\S+)\s+(\S+)/) {
-			$structs{$1} = $2 if (exists($structs{$1}));
+		if ($type eq "struct") {
+			$structs{$old} = $new if (exists($structs{$old}));
 			next;
 		}
 
@@ -220,7 +244,7 @@ $data =~ s/\n\s+\n/\n\n/g;
 #
 # Add escape codes for special characters
 #
-$data =~ s,([\_\`\*\<\>\&\\\\:\/\|]),\\$1,g;
+$data =~ s,([\_\`\*\<\>\&\\\\:\/\|\%\$\#\{\}\~\^]),\\$1,g;
 
 $data =~ s,DEPRECATED,**DEPRECATED**,g;
 
@@ -232,9 +256,7 @@ my $start_delim = "[ \n\t\(\=\*\@]";
 my $end_delim = "(\\s|,|\\\\=|\\\\:|\\;|\\\)|\\}|\\{)";
 
 foreach my $r (keys %ioctls) {
-	my $n = $ioctls{$r};
-
-	my $s = "\\ :ref:`$r <$n>`\\ ";
+	my $s = $ioctls{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -244,9 +266,7 @@ foreach my $r (keys %ioctls) {
 }
 
 foreach my $r (keys %defines) {
-	my $n = $defines{$r};
-
-	my $s = "\\ :ref:`$r <$n>`\\ ";
+	my $s = $defines{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -256,9 +276,7 @@ foreach my $r (keys %defines) {
 }
 
 foreach my $r (keys %enum_symbols) {
-	my $n = $enum_symbols{$r};
-
-	my $s = "\\ :ref:`$r <$n>`\\ ";
+	my $s = $enum_symbols{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -268,9 +286,7 @@ foreach my $r (keys %enum_symbols) {
 }
 
 foreach my $r (keys %enums) {
-	my $n = $enums{$r};
-
-	my $s = "\\ :ref:`enum $r <$n>`\\ ";
+	my $s = $enums{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -280,9 +296,7 @@ foreach my $r (keys %enums) {
 }
 
 foreach my $r (keys %structs) {
-	my $n = $structs{$r};
-
-	my $s = "\\ :ref:`struct $r <$n>`\\ ";
+	my $s = $structs{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
@@ -292,18 +306,15 @@ foreach my $r (keys %structs) {
 }
 
 foreach my $r (keys %typedefs) {
-	my $n = $typedefs{$r};
-
-	my $s = "\\ :ref:`$r <$n>`\\ ";
+	my $s = $typedefs{$r};
 
 	$r =~ s,([\_\`\*\<\>\&\\\\:\/]),\\\\$1,g;
 
 	print "$r -> $s\n" if ($debug);
-
 	$data =~ s/($start_delim)($r)$end_delim/$1$s$3/g;
 }
 
-$data =~ s/\\ \n/\n/g;
+$data =~ s/\\ ([\n\s])/\1/g;
 
 #
 # Generate output file

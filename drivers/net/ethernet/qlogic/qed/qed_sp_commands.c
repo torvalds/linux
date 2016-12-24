@@ -25,9 +25,7 @@
 
 int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 			struct qed_spq_entry **pp_ent,
-			u8 cmd,
-			u8 protocol,
-			struct qed_sp_init_data *p_data)
+			u8 cmd, u8 protocol, struct qed_sp_init_data *p_data)
 {
 	u32 opaque_cid = p_data->opaque_fid << 16 | p_data->cid;
 	struct qed_spq_entry *p_ent = NULL;
@@ -38,7 +36,7 @@ int qed_sp_init_request(struct qed_hwfn *p_hwfn,
 
 	rc = qed_spq_get_entry(p_hwfn, pp_ent);
 
-	if (rc != 0)
+	if (rc)
 		return rc;
 
 	p_ent = *pp_ent;
@@ -321,8 +319,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
 				 COMMON_RAMROD_PF_START,
-				 PROTOCOLID_COMMON,
-				 &init_data);
+				 PROTOCOLID_COMMON, &init_data);
 	if (rc)
 		return rc;
 
@@ -356,8 +353,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 	DMA_REGPAIR_LE(p_ramrod->consolid_q_pbl_addr,
 		       p_hwfn->p_consq->chain.pbl.p_phys_table);
 
-	qed_tunn_set_pf_start_params(p_hwfn, p_tunn,
-				     &p_ramrod->tunnel_config);
+	qed_tunn_set_pf_start_params(p_hwfn, p_tunn, &p_ramrod->tunnel_config);
 
 	if (IS_MF_SI(p_hwfn))
 		p_ramrod->allow_npar_tx_switching = allow_npar_tx_switch;
@@ -389,8 +385,7 @@ int qed_sp_pf_start(struct qed_hwfn *p_hwfn,
 
 	DP_VERBOSE(p_hwfn, QED_MSG_SPQ,
 		   "Setting event_ring_sb [id %04x index %02x], outer_tag [%d]\n",
-		   sb, sb_index,
-		   p_ramrod->outer_tag);
+		   sb, sb_index, p_ramrod->outer_tag);
 
 	rc = qed_spq_post(p_hwfn, p_ent, NULL);
 

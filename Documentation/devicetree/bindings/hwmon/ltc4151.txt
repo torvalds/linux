@@ -1,0 +1,18 @@
+LTC4151 High Voltage I2C Current and Voltage Monitor
+
+Required properties:
+- compatible: Must be "lltc,ltc4151"
+- reg: I2C address
+
+Optional properties:
+- shunt-resistor-micro-ohms
+	Shunt resistor value in micro-Ohms
+	Defaults to <1000> if unset.
+
+Example:
+
+ltc4151@6e {
+	compatible = "lltc,ltc4151";
+	reg = <0x6e>;
+	shunt-resistor-micro-ohms = <1500>;
+};

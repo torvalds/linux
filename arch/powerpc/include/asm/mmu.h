@@ -29,6 +29,12 @@
  */
 
 /*
+ * Kernel read only support.
+ * We added the ppp value 0b110 in ISA 2.04.
+ */
+#define MMU_FTR_KERNEL_RO		ASM_CONST(0x00004000)
+
+/*
  * We need to clear top 16bits of va (from the remaining 64 bits )in
  * tlbie* instructions
  */
@@ -103,10 +109,10 @@
 #define MMU_FTRS_POWER4		MMU_FTRS_DEFAULT_HPTE_ARCH_V2
 #define MMU_FTRS_PPC970		MMU_FTRS_POWER4 | MMU_FTR_TLBIE_CROP_VA
 #define MMU_FTRS_POWER5		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
-#define MMU_FTRS_POWER6		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
-#define MMU_FTRS_POWER7		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
-#define MMU_FTRS_POWER8		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
-#define MMU_FTRS_POWER9		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE
+#define MMU_FTRS_POWER6		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_KERNEL_RO
+#define MMU_FTRS_POWER7		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_KERNEL_RO
+#define MMU_FTRS_POWER8		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_KERNEL_RO
+#define MMU_FTRS_POWER9		MMU_FTRS_POWER4 | MMU_FTR_LOCKLESS_TLBIE | MMU_FTR_KERNEL_RO
 #define MMU_FTRS_CELL		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
@@ -204,6 +210,10 @@ extern unsigned int __start___mmu_ftr_fixup, __stop___mmu_ftr_fixup;
  * make it match the size our of bolted TLB area
  */
 extern u64 ppc64_rma_size;
+
+/* Cleanup function used by kexec */
+extern void mmu_cleanup_all(void);
+extern void radix__mmu_cleanup_all(void);
 #endif /* CONFIG_PPC64 */
 
 struct mm_struct;
@@ -271,6 +281,7 @@ static inline bool early_radix_enabled(void)
 #define MMU_PAGE_16G	13
 #define MMU_PAGE_64G	14
 
+/* N.B. we need to change the type of hpte_page_sizes if this gets to be > 16 */
 #define MMU_PAGE_COUNT	15
 
 #ifdef CONFIG_PPC_BOOK3S_64

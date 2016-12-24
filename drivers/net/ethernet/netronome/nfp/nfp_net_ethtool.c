@@ -106,6 +106,18 @@ static const struct _nfp_net_et_stats nfp_net_et_stats[] = {
 	{"dev_tx_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_FRAMES)},
 	{"dev_tx_mc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_MC_FRAMES)},
 	{"dev_tx_bc_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_TX_BC_FRAMES)},
+
+	{"bpf_pass_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP0_FRAMES)},
+	{"bpf_pass_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP0_BYTES)},
+	/* see comments in outro functions in nfp_bpf_jit.c to find out
+	 * how different BPF modes use app-specific counters
+	 */
+	{"bpf_app1_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP1_FRAMES)},
+	{"bpf_app1_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP1_BYTES)},
+	{"bpf_app2_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP2_FRAMES)},
+	{"bpf_app2_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP2_BYTES)},
+	{"bpf_app3_pkts", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP3_FRAMES)},
+	{"bpf_app3_bytes", NN_ET_DEV_STAT(NFP_NET_CFG_STATS_APP3_BYTES)},
 };
 
 #define NN_ET_GLOBAL_STATS_LEN ARRAY_SIZE(nfp_net_et_stats)

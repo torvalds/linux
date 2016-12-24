@@ -309,6 +309,9 @@
 /* Port VLAN mask (16 bit) IMP port is always 8, also on 5325 & co */
 #define B53_PVLAN_PORT_MASK(i)		((i) * 2)
 
+/* Join all VLANs register (16 bit) */
+#define B53_JOIN_ALL_VLAN_EN		0x50
+
 /*************************************************************************
  * 802.1Q Page Registers
  *************************************************************************/

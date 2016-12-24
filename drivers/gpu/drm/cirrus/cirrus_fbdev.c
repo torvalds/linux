@@ -13,8 +13,6 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_crtc_helper.h>
 
-#include <linux/fb.h>
-
 #include "cirrus_drv.h"
 
 static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,

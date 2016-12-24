@@ -243,9 +243,9 @@ static u32 start_drv_threads(struct _adapter *padapter)
 void r8712_stop_drv_threads(struct _adapter *padapter)
 {
 	/*Below is to terminate r8712_cmd_thread & event_thread...*/
-	up(&padapter->cmdpriv.cmd_queue_sema);
+	complete(&padapter->cmdpriv.cmd_queue_comp);
 	if (padapter->cmdThread)
-		_down_sema(&padapter->cmdpriv.terminate_cmdthread_sema);
+		wait_for_completion_interruptible(&padapter->cmdpriv.terminate_cmdthread_comp);
 	padapter->cmdpriv.cmd_seq = 1;
 }
 
@@ -425,7 +425,7 @@ static int netdev_open(struct net_device *pnetdev)
 	else
 		netif_wake_queue(pnetdev);
 
-	 if (video_mode)
+	if (video_mode)
 		enable_video_mode(padapter, cbw40_enable);
 	/* start driver mlme relation timer */
 	start_drv_timers(padapter);

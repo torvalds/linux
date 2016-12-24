@@ -232,8 +232,9 @@ struct coresight_ops_source {
 	int (*cpu_id)(struct coresight_device *csdev);
 	int (*trace_id)(struct coresight_device *csdev);
 	int (*enable)(struct coresight_device *csdev,
-		      struct perf_event_attr *attr,  u32 mode);
-	void (*disable)(struct coresight_device *csdev);
+		      struct perf_event *event,  u32 mode);
+	void (*disable)(struct coresight_device *csdev,
+			struct perf_event *event);
 };
 
 struct coresight_ops {

@@ -252,7 +252,8 @@ acpi_tb_get_root_table_entry(u8 *table_entry, u32 table_entry_size)
  *
  ******************************************************************************/
 
-acpi_status __init acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
+acpi_status ACPI_INIT_FUNCTION
+acpi_tb_parse_root_table(acpi_physical_address rsdp_address)
 {
 	struct acpi_table_rsdp *rsdp;
 	u32 table_entry_size;

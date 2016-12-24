@@ -169,32 +169,34 @@ static int page_cache_tree_insert(struct address_space *mapping,
 static void page_cache_tree_delete(struct address_space *mapping,
 				   struct page *page, void *shadow)
 {
-	struct radix_tree_node *node;
 	int i, nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
 
 	VM_BUG_ON_PAGE(!PageLocked(page), page);
 	VM_BUG_ON_PAGE(PageTail(page), page);
 	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
 
-	if (shadow) {
-		mapping->nrexceptional += nr;
-		/*
-		 * Make sure the nrexceptional update is committed before
-		 * the nrpages update so that final truncate racing
-		 * with reclaim does not see both counters 0 at the
-		 * same time and miss a shadow entry.
-		 */
-		smp_wmb();
-	}
-	mapping->nrpages -= nr;
-
 	for (i = 0; i < nr; i++) {
-		node = radix_tree_replace_clear_tags(&mapping->page_tree,
-				page->index + i, shadow);
+		struct radix_tree_node *node;
+		void **slot;
+
+		__radix_tree_lookup(&mapping->page_tree, page->index + i,
+				    &node, &slot);
+
+		radix_tree_clear_tags(&mapping->page_tree, node, slot);
+
 		if (!node) {
 			VM_BUG_ON_PAGE(nr != 1, page);
-			return;
+			/*
+			 * We need a node to properly account shadow
+			 * entries. Don't plant any without. XXX
+			 */
+			shadow = NULL;
 		}
+
+		radix_tree_replace_slot(slot, shadow);
+
+		if (!node)
+			break;
 
 		workingset_node_pages_dec(node);
 		if (shadow)
@@ -219,6 +221,18 @@ static void page_cache_tree_delete(struct address_space *mapping,
 					&node->private_list);
 		}
 	}
+
+	if (shadow) {
+		mapping->nrexceptional += nr;
+		/*
+		 * Make sure the nrexceptional update is committed before
+		 * the nrpages update so that final truncate racing
+		 * with reclaim does not see both counters 0 at the
+		 * same time and miss a shadow entry.
+		 */
+		smp_wmb();
+	}
+	mapping->nrpages -= nr;
 }
 
 /*
@@ -619,7 +633,6 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
 		__delete_from_page_cache(old, NULL);
 		error = page_cache_tree_insert(mapping, new, NULL);
 		BUG_ON(error);
-		mapping->nrpages++;
 
 		/*
 		 * hugetlb pages do not participate in page cache accounting.
@@ -777,9 +790,7 @@ EXPORT_SYMBOL(__page_cache_alloc);
  */
 wait_queue_head_t *page_waitqueue(struct page *page)
 {
-	const struct zone *zone = page_zone(page);
-
-	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
+	return bit_waitqueue(page, 0);
 }
 EXPORT_SYMBOL(page_waitqueue);
 
@@ -1674,6 +1685,10 @@ static ssize_t do_generic_file_read(struct file *filp, loff_t *ppos,
 	unsigned int prev_offset;
 	int error = 0;
 
+	if (unlikely(*ppos >= inode->i_sb->s_maxbytes))
+		return -EINVAL;
+	iov_iter_truncate(iter, inode->i_sb->s_maxbytes);
+
 	index = *ppos >> PAGE_SHIFT;
 	prev_index = ra->prev_pos >> PAGE_SHIFT;
 	prev_offset = ra->prev_pos & (PAGE_SIZE-1);
@@ -1708,12 +1723,17 @@ find_page:
 			 * wait_on_page_locked is used to avoid unnecessarily
 			 * serialisations and why it's safe.
 			 */
-			wait_on_page_locked_killable(page);
+			error = wait_on_page_locked_killable(page);
+			if (unlikely(error))
+				goto readpage_error;
 			if (PageUptodate(page))
 				goto page_ok;
 
 			if (inode->i_blkbits == PAGE_SHIFT ||
 					!mapping->a_ops->is_partially_uptodate)
+				goto page_not_up_to_date;
+			/* pipes can't handle partially uptodate pages */
+			if (unlikely(iter->type & ITER_PIPE))
 				goto page_not_up_to_date;
 			if (!trylock_page(page))
 				goto page_not_up_to_date;
@@ -1910,17 +1930,19 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (iocb->ki_flags & IOCB_DIRECT) {
 		struct address_space *mapping = file->f_mapping;
 		struct inode *inode = mapping->host;
+		struct iov_iter data = *iter;
 		loff_t size;
 
 		size = i_size_read(inode);
 		retval = filemap_write_and_wait_range(mapping, iocb->ki_pos,
 					iocb->ki_pos + count - 1);
-		if (!retval) {
-			struct iov_iter data = *iter;
-			retval = mapping->a_ops->direct_IO(iocb, &data);
-		}
+		if (retval < 0)
+			goto out;
 
-		if (retval > 0) {
+		file_accessed(file);
+
+		retval = mapping->a_ops->direct_IO(iocb, &data);
+		if (retval >= 0) {
 			iocb->ki_pos += retval;
 			iov_iter_advance(iter, retval);
 		}
@@ -1935,10 +1957,8 @@ generic_file_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 		 * DAX files, so don't bother trying.
 		 */
 		if (retval < 0 || !iov_iter_count(iter) || iocb->ki_pos >= size ||
-		    IS_DAX(inode)) {
-			file_accessed(file);
+		    IS_DAX(inode))
 			goto out;
-		}
 	}
 
 	retval = do_generic_file_read(file, &iocb->ki_pos, iter, retval);

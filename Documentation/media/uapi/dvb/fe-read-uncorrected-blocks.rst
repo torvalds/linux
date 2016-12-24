@@ -11,40 +11,23 @@ Name
 
 FE_READ_UNCORRECTED_BLOCKS
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request =FE_READ_UNCORRECTED_BLOCKS, uint32_t *ublocks)
+.. c:function:: int ioctl( int fd, FE_READ_UNCORRECTED_BLOCKS, uint32_t *ublocks)
+    :name: FE_READ_UNCORRECTED_BLOCKS
 
 
 Arguments
 =========
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals
-	  :ref:`FE_READ_UNCORRECTED_BLOCKS`
-	  for this command.
-
-    -  .. row 3
-
-       -  uint32_t \*ublocks
-
-       -  The total number of uncorrected blocks seen by the driver so far.
+``ublocks``
+    The total number of uncorrected blocks seen by the driver so far.
 
 
 Description

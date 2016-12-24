@@ -538,7 +538,7 @@ static int __init register_perf_event_array_map(void)
 }
 late_initcall(register_perf_event_array_map);
 
-#ifdef CONFIG_SOCK_CGROUP_DATA
+#ifdef CONFIG_CGROUPS
 static void *cgroup_fd_array_get_ptr(struct bpf_map *map,
 				     struct file *map_file /* not used */,
 				     int fd)

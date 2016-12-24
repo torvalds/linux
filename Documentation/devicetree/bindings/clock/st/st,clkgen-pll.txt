@@ -9,24 +9,10 @@ Base address is located to the parent node. See clock binding[2]
 Required properties:
 
 - compatible : shall be:
-	"st,clkgena-prediv-c65",	"st,clkgena-prediv"
-	"st,clkgena-prediv-c32",	"st,clkgena-prediv"
-
-	"st,clkgena-plls-c65"
-	"st,plls-c32-a1x-0",		"st,clkgen-plls-c32"
-	"st,plls-c32-a1x-1",		"st,clkgen-plls-c32"
-	"st,stih415-plls-c32-a9",	"st,clkgen-plls-c32"
-	"st,stih415-plls-c32-ddr",	"st,clkgen-plls-c32"
-	"st,stih416-plls-c32-a9",	"st,clkgen-plls-c32"
-	"st,stih416-plls-c32-ddr",	"st,clkgen-plls-c32"
-	"st,stih407-plls-c32-a0",	"st,clkgen-plls-c32"
-	"st,stih407-plls-c32-a9",	"st,clkgen-plls-c32"
-	"sst,plls-c32-cx_0",		"st,clkgen-plls-c32"
-	"sst,plls-c32-cx_1",		"st,clkgen-plls-c32"
-	"st,stih418-plls-c28-a9",	"st,clkgen-plls-c32"
-
-	"st,stih415-gpu-pll-c32",	"st,clkgengpu-pll-c32"
-	"st,stih416-gpu-pll-c32",	"st,clkgengpu-pll-c32"
+	"st,clkgen-pll0"
+	"st,clkgen-pll1"
+	"st,stih407-clkgen-plla9"
+	"st,stih418-clkgen-plla9"
 
 - #clock-cells : From common clock binding; shall be set to 1.
 
@@ -36,17 +22,16 @@ Required properties:
 
 Example:
 
-	clockgen-a@fee62000 {
-		reg = <0xfee62000 0xb48>;
+	clockgen-a9@92b0000 {
+		compatible = "st,clkgen-c32";
+		reg = <0x92b0000 0xffff>;
 
-		clk_s_a0_pll: clk-s-a0-pll {
+		clockgen_a9_pll: clockgen-a9-pll {
 			#clock-cells = <1>;
-			compatible = "st,clkgena-plls-c65";
+			compatible = "st,stih407-clkgen-plla9";
 
 			clocks = <&clk_sysin>;
 
-			clock-output-names = "clk-s-a0-pll0-hs",
-					     "clk-s-a0-pll0-ls",
-					     "clk-s-a0-pll1";
+			clock-output-names = "clockgen-a9-pll-odf";
 		};
 	};

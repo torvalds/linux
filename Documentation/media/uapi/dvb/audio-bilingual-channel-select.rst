@@ -11,11 +11,13 @@ Name
 
 AUDIO_BILINGUAL_CHANNEL_SELECT
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = AUDIO_BILINGUAL_CHANNEL_SELECT, audio_channel_select_t)
+.. c:function:: int ioctl(int fd, AUDIO_BILINGUAL_CHANNEL_SELECT, struct *audio_channel_select)
+    :name: AUDIO_BILINGUAL_CHANNEL_SELECT
 
 
 Arguments
@@ -25,20 +27,13 @@ Arguments
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
+    -
 
        -  int fd
 
        -  File descriptor returned by a previous call to open().
 
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_BILINGUAL_CHANNEL_SELECT for this command.
-
-    -  .. row 3
+    -
 
        -  audio_channel_select_t ch
 

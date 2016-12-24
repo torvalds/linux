@@ -46,6 +46,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/phy.h>
+#include <linux/usb/otg.h>
 
 #include "usb.h"
 
@@ -2517,10 +2518,8 @@ struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 	struct usb_hcd *hcd;
 
 	hcd = kzalloc(sizeof(*hcd) + driver->hcd_priv_size, GFP_KERNEL);
-	if (!hcd) {
-		dev_dbg (dev, "hcd alloc failed\n");
+	if (!hcd)
 		return NULL;
-	}
 	if (primary_hcd == NULL) {
 		hcd->address0_mutex = kmalloc(sizeof(*hcd->address0_mutex),
 				GFP_KERNEL);
@@ -3033,7 +3032,7 @@ EXPORT_SYMBOL_GPL(usb_hcd_platform_shutdown);
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)
+#if IS_ENABLED(CONFIG_USB_MON)
 
 const struct usb_mon_operations *mon_ops;
 

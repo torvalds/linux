@@ -57,10 +57,7 @@ static int fsl_tcon_init_regmap(struct device *dev,
 
 	tcon->regs = devm_regmap_init_mmio(dev, regs,
 					   &fsl_tcon_regmap_config);
-	if (IS_ERR(tcon->regs))
-		return PTR_ERR(tcon->regs);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(tcon->regs);
 }
 
 struct fsl_tcon *fsl_tcon_init(struct device *dev)

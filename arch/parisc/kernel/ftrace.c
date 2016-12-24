@@ -48,7 +48,7 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 		return;
 
         if (ftrace_push_return_trace(old, self_addr, &trace.depth,
-			0 ) == -EBUSY)
+				     0, NULL) == -EBUSY)
                 return;
 
 	/* activate parisc_return_to_handler() as return point */

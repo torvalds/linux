@@ -36,7 +36,19 @@ config ION_TEGRA
 config ION_HISI
 	tristate "Ion for Hisilicon"
 	depends on ARCH_HISI && ION
+	select ION_OF
 	help
 	  Choose this option if you wish to use ion on Hisilicon Platform.
 
 source "drivers/staging/android/ion/hisilicon/Kconfig"
+
+config ION_OF
+	bool "Devicetree support for Ion"
+	depends on ION && OF_ADDRESS
+	help
+	  Provides base support for defining Ion heaps in devicetree
+	  and setting them up. Also includes functions for platforms
+	  to parse the devicetree and expand for their own custom
+	  extensions
+
+	  If using Ion and devicetree, you should say Y here

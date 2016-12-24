@@ -129,42 +129,6 @@ enum batadv_tt_data_flags {
 };
 
 /**
- * enum batadv_tt_client_flags - TT client specific flags
- * @BATADV_TT_CLIENT_DEL: the client has to be deleted from the table
- * @BATADV_TT_CLIENT_ROAM: the client roamed to/from another node and the new
- *  update telling its new real location has not been received/sent yet
- * @BATADV_TT_CLIENT_WIFI: this client is connected through a wifi interface.
- *  This information is used by the "AP Isolation" feature
- * @BATADV_TT_CLIENT_ISOLA: this client is considered "isolated". This
- *  information is used by the Extended Isolation feature
- * @BATADV_TT_CLIENT_NOPURGE: this client should never be removed from the table
- * @BATADV_TT_CLIENT_NEW: this client has been added to the local table but has
- *  not been announced yet
- * @BATADV_TT_CLIENT_PENDING: this client is marked for removal but it is kept
- *  in the table for one more originator interval for consistency purposes
- * @BATADV_TT_CLIENT_TEMP: this global client has been detected to be part of
- *  the network but no nnode has already announced it
- *
- * Bits from 0 to 7 are called _remote flags_ because they are sent on the wire.
- * Bits from 8 to 15 are called _local flags_ because they are used for local
- * computations only.
- *
- * Bits from 4 to 7 - a subset of remote flags - are ensured to be in sync with
- * the other nodes in the network. To achieve this goal these flags are included
- * in the TT CRC computation.
- */
-enum batadv_tt_client_flags {
-	BATADV_TT_CLIENT_DEL     = BIT(0),
-	BATADV_TT_CLIENT_ROAM    = BIT(1),
-	BATADV_TT_CLIENT_WIFI    = BIT(4),
-	BATADV_TT_CLIENT_ISOLA	 = BIT(5),
-	BATADV_TT_CLIENT_NOPURGE = BIT(8),
-	BATADV_TT_CLIENT_NEW     = BIT(9),
-	BATADV_TT_CLIENT_PENDING = BIT(10),
-	BATADV_TT_CLIENT_TEMP	 = BIT(11),
-};
-
-/**
  * enum batadv_vlan_flags - flags for the four MSB of any vlan ID field
  * @BATADV_VLAN_HAS_TAG: whether the field contains a valid vlan tag or not
  */

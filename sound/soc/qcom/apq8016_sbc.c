@@ -85,6 +85,15 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 		return ERR_PTR(ret);
 	}
 
+	/* DAPM routes */
+	if (of_property_read_bool(node, "qcom,audio-routing")) {
+		ret = snd_soc_of_parse_audio_routing(card,
+					"qcom,audio-routing");
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+
 	/* Populate links */
 	num_links = of_get_child_count(node);
 
@@ -147,6 +156,15 @@ static struct apq8016_sbc_data *apq8016_sbc_parse_of(struct snd_soc_card *card)
 	return data;
 }
 
+static const struct snd_soc_dapm_widget apq8016_sbc_dapm_widgets[] = {
+
+	SND_SOC_DAPM_MIC("Handset Mic", NULL),
+	SND_SOC_DAPM_MIC("Headset Mic", NULL),
+	SND_SOC_DAPM_MIC("Secondary Mic", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic1", NULL),
+	SND_SOC_DAPM_MIC("Digital Mic2", NULL),
+};
+
 static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -159,6 +177,8 @@ static int apq8016_sbc_platform_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	card->dev = dev;
+	card->dapm_widgets = apq8016_sbc_dapm_widgets;
+	card->num_dapm_widgets = ARRAY_SIZE(apq8016_sbc_dapm_widgets);
 	data = apq8016_sbc_parse_of(card);
 	if (IS_ERR(data)) {
 		dev_err(&pdev->dev, "Error resolving dai links: %ld\n",

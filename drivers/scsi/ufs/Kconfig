@@ -63,7 +63,7 @@ config SCSI_UFSHCD_PCI
 
 config SCSI_UFS_DWC_TC_PCI
 	tristate "DesignWare pci support using a G210 Test Chip"
-	depends on SCSI_UFSHCD && PCI
+	depends on SCSI_UFSHCD_PCI
 	---help---
 	  Synopsys Test Chip is a PHY for prototyping purposes.
 

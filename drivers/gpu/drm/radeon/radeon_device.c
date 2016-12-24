@@ -104,6 +104,14 @@ static const char radeon_family_name[][16] = {
 	"LAST",
 };
 
+#if defined(CONFIG_VGA_SWITCHEROO)
+bool radeon_has_atpx_dgpu_power_cntl(void);
+bool radeon_is_atpx_hybrid(void);
+#else
+static inline bool radeon_has_atpx_dgpu_power_cntl(void) { return false; }
+static inline bool radeon_is_atpx_hybrid(void) { return false; }
+#endif
+
 #define RADEON_PX_QUIRK_DISABLE_PX  (1 << 0)
 #define RADEON_PX_QUIRK_LONG_WAKEUP (1 << 1)
 
@@ -159,6 +167,11 @@ static void radeon_device_handle_px_quirks(struct radeon_device *rdev)
 	}
 
 	if (rdev->px_quirk_flags & RADEON_PX_QUIRK_DISABLE_PX)
+		rdev->flags &= ~RADEON_IS_PX;
+
+	/* disable PX is the system doesn't support dGPU power control or hybrid gfx */
+	if (!radeon_is_atpx_hybrid() &&
+	    !radeon_has_atpx_dgpu_power_cntl())
 		rdev->flags &= ~RADEON_IS_PX;
 }
 
@@ -639,7 +652,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
  * Used at driver startup.
  * Returns true if virtual or false if not.
  */
-static bool radeon_device_is_virtual(void)
+bool radeon_device_is_virtual(void)
 {
 #ifdef CONFIG_X86
 	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
@@ -661,8 +674,9 @@ bool radeon_card_posted(struct radeon_device *rdev)
 {
 	uint32_t reg;
 
-	/* for pass through, always force asic_init */
-	if (radeon_device_is_virtual())
+	/* for pass through, always force asic_init for CI */
+	if (rdev->family >= CHIP_BONAIRE &&
+	    radeon_device_is_virtual())
 		return false;
 
 	/* required for EFI mode on macbook2,1 which uses an r5xx asic */
@@ -1956,14 +1970,3 @@ static void radeon_debugfs_remove_files(struct radeon_device *rdev)
 	}
 #endif
 }
-
-#if defined(CONFIG_DEBUG_FS)
-int radeon_debugfs_init(struct drm_minor *minor)
-{
-	return 0;
-}
-
-void radeon_debugfs_cleanup(struct drm_minor *minor)
-{
-}
-#endif

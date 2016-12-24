@@ -107,7 +107,7 @@ static struct watchdog_info bcm7038_wdt_info = {
 				WDIOF_MAGICCLOSE
 };
 
-static struct watchdog_ops bcm7038_wdt_ops = {
+static const struct watchdog_ops bcm7038_wdt_ops = {
 	.owner		= THIS_MODULE,
 	.start		= bcm7038_wdt_start,
 	.stop		= bcm7038_wdt_stop,

@@ -30,7 +30,7 @@ config GENERIC_CALIBRATE_DELAY
 	default y
 
 config NO_IOPORT_MAP
-	def_bool y
+	def_bool y if !PCI
 
 config FORCE_MAX_ZONEORDER
 	int

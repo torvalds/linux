@@ -53,8 +53,8 @@ int w1_max_slave_ttl = 10;
 module_param_named(timeout, w1_timeout, int, 0);
 MODULE_PARM_DESC(timeout, "time in seconds between automatic slave searches");
 module_param_named(timeout_us, w1_timeout_us, int, 0);
-MODULE_PARM_DESC(timeout, "time in microseconds between automatic slave"
-		          " searches");
+MODULE_PARM_DESC(timeout_us,
+		 "time in microseconds between automatic slave searches");
 /* A search stops when w1_max_slave_count devices have been found in that
  * search.  The next search will start over and detect the same set of devices
  * on a static 1-wire bus.  Memory is not allocated based on this number, just

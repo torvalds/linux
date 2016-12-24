@@ -555,8 +555,6 @@ static const struct imxi2c_platform_data mx35_3ds_i2c0_data __initconst = {
  */
 static void __init mx35_3ds_init(void)
 {
-	struct platform_device *imx35_fb_pdev;
-
 	imx35_soc_init();
 
 	mxc_iomux_v3_setup_multiple_pads(mx35pdk_pads, ARRAY_SIZE(mx35pdk_pads));
@@ -579,9 +577,6 @@ static void __init mx35_3ds_init(void)
 	imx35_add_mxc_nand(&mx35pdk_nand_board_info);
 	imx35_add_sdhci_esdhc_imx(0, NULL);
 
-	if (mxc_expio_init(MX35_CS5_BASE_ADDR, IMX_GPIO_NR(1, 1)))
-		pr_warn("Init of the debugboard failed, all "
-				"devices on the debugboard are unusable.\n");
 	imx35_add_imx_i2c0(&mx35_3ds_i2c0_data);
 
 	i2c_register_board_info(
@@ -590,6 +585,15 @@ static void __init mx35_3ds_init(void)
 	imx35_add_ipu_core();
 	platform_device_register(&mx35_3ds_ov2640);
 	imx35_3ds_init_camera();
+}
+
+static void __init mx35_3ds_late_init(void)
+{
+	struct platform_device *imx35_fb_pdev;
+
+	if (mxc_expio_init(MX35_CS5_BASE_ADDR, IMX_GPIO_NR(1, 1)))
+		pr_warn("Init of the debugboard failed, all "
+			"devices on the debugboard are unusable.\n");
 
 	imx35_fb_pdev = imx35_add_mx3_sdc_fb(&mx3fb_pdata);
 	mx35_3ds_lcd.dev.parent = &imx35_fb_pdev->dev;
@@ -618,6 +622,7 @@ MACHINE_START(MX35_3DS, "Freescale MX35PDK")
 	.init_irq = mx35_init_irq,
 	.init_time	= mx35pdk_timer_init,
 	.init_machine = mx35_3ds_init,
+	.init_late	= mx35_3ds_late_init,
 	.reserve = mx35_3ds_reserve,
 	.restart	= mxc_restart,
 MACHINE_END

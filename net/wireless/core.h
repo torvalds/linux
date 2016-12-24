@@ -71,6 +71,7 @@ struct cfg80211_registered_device {
 	struct list_head bss_list;
 	struct rb_root bss_tree;
 	u32 bss_generation;
+	u32 bss_entries;
 	struct cfg80211_scan_request *scan_req; /* protected by RTNL */
 	struct sk_buff *scan_msg;
 	struct cfg80211_sched_scan_request __rcu *sched_scan_req;
@@ -249,9 +250,9 @@ struct cfg80211_event {
 };
 
 struct cfg80211_cached_keys {
-	struct key_params params[6];
-	u8 data[6][WLAN_MAX_KEY_LEN];
-	int def, defmgmt;
+	struct key_params params[CFG80211_MAX_WEP_KEYS];
+	u8 data[CFG80211_MAX_WEP_KEYS][WLAN_KEY_LEN_WEP104];
+	int def;
 };
 
 enum cfg80211_chan_mode {
@@ -487,6 +488,9 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 
 void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev);
+
+void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
+		       struct wireless_dev *wdev);
 
 #define CFG80211_MAX_NUM_DIFFERENT_CHANNELS 10
 

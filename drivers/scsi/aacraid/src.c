@@ -613,7 +613,7 @@ static int aac_src_restart_adapter(struct aac_dev *dev, int bled)
  *	@dev: Adapter
  *	@comm: communications method
  */
-int aac_src_select_comm(struct aac_dev *dev, int comm)
+static int aac_src_select_comm(struct aac_dev *dev, int comm)
 {
 	switch (comm) {
 	case AAC_COMM_MESSAGE:

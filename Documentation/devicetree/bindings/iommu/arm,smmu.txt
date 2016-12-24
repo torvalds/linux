@@ -35,12 +35,16 @@ conditions.
                   interrupt per context bank. In the case of a single,
                   combined interrupt, it must be listed multiple times.
 
-- mmu-masters   : A list of phandles to device nodes representing bus
-                  masters for which the SMMU can provide a translation
-                  and their corresponding StreamIDs (see example below).
-                  Each device node linked from this list must have a
-                  "#stream-id-cells" property, indicating the number of
-                  StreamIDs associated with it.
+- #iommu-cells  : See Documentation/devicetree/bindings/iommu/iommu.txt
+                  for details. With a value of 1, each "iommus" entry
+                  represents a distinct stream ID emitted by that device
+                  into the relevant SMMU.
+
+                  SMMUs with stream matching support and complex masters
+                  may use a value of 2, where the second cell represents
+                  an SMR mask to combine with the ID in the first cell.
+                  Care must be taken to ensure the set of matched IDs
+                  does not result in conflicts.
 
 ** System MMU optional properties:
 
@@ -56,9 +60,20 @@ conditions.
                   aliases of secure registers have to be used during
                   SMMU configuration.
 
-Example:
+** Deprecated properties:
 
-        smmu {
+- mmu-masters (deprecated in favour of the generic "iommus" binding) :
+                  A list of phandles to device nodes representing bus
+                  masters for which the SMMU can provide a translation
+                  and their corresponding Stream IDs. Each device node
+                  linked from this list must have a "#stream-id-cells"
+                  property, indicating the number of Stream ID
+                  arguments associated with its phandle.
+
+** Examples:
+
+        /* SMMU with stream matching or stream indexing */
+        smmu1: iommu {
                 compatible = "arm,smmu-v1";
                 reg = <0xba5e0000 0x10000>;
                 #global-interrupts = <2>;
@@ -68,11 +83,29 @@ Example:
                              <0 35 4>,
                              <0 36 4>,
                              <0 37 4>;
+                #iommu-cells = <1>;
+        };
 
-                /*
-                 * Two DMA controllers, the first with two StreamIDs (0xd01d
-                 * and 0xd01e) and the second with only one (0xd11c).
-                 */
-                mmu-masters = <&dma0 0xd01d 0xd01e>,
-                              <&dma1 0xd11c>;
+        /* device with two stream IDs, 0 and 7 */
+        master1 {
+                iommus = <&smmu1 0>,
+                         <&smmu1 7>;
+        };
+
+
+        /* SMMU with stream matching */
+        smmu2: iommu {
+                ...
+                #iommu-cells = <2>;
+        };
+
+        /* device with stream IDs 0 and 7 */
+        master2 {
+                iommus = <&smmu2 0 0>,
+                         <&smmu2 7 0>;
+        };
+
+        /* device with stream IDs 1, 17, 33 and 49 */
+        master3 {
+                iommus = <&smmu2 1 0x30>;
         };

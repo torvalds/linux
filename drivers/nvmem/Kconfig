@@ -101,4 +101,14 @@ config NVMEM_VF610_OCOTP
 	  This driver can also be build as a module. If so, the module will
 	  be called nvmem-vf610-ocotp.
 
+config MESON_EFUSE
+	tristate "Amlogic eFuse Support"
+	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
+	help
+	  This is a driver to retrieve specific values from the eFuse found on
+	  the Amlogic Meson SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_meson_efuse.
+
 endif

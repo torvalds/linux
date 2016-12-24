@@ -58,16 +58,6 @@ typedef enum {
 #define CVMX_HELPER_BOARD_MGMT_IPD_PORT	    -10
 
 /**
- * cvmx_override_board_link_get(int ipd_port) is a function
- * pointer. It is meant to allow customization of the process of
- * talking to a PHY to determine link speed. It is called every
- * time a PHY must be polled for link status. Users should set
- * this pointer to a function before calling any cvmx-helper
- * operations.
- */
-extern cvmx_helper_link_info_t(*cvmx_override_board_link_get) (int ipd_port);
-
-/**
  * Return the MII PHY address associated with the given IPD
  * port. A result of -1 means there isn't a MII capable PHY
  * connected to this port. On chips supporting multiple MII
@@ -84,26 +74,6 @@ extern cvmx_helper_link_info_t(*cvmx_override_board_link_get) (int ipd_port);
  * Returns MII PHY address and bus number or -1.
  */
 extern int cvmx_helper_board_get_mii_address(int ipd_port);
-
-/**
- * This function as a board specific method of changing the PHY
- * speed, duplex, and autonegotiation. This programs the PHY and
- * not Octeon. This can be used to force Octeon's links to
- * specific settings.
- *
- * @phy_addr:  The address of the PHY to program
- * @link_flags:
- *		    Flags to control autonegotiation.  Bit 0 is autonegotiation
- *		    enable/disable to maintain backward compatibility.
- * @link_info: Link speed to program. If the speed is zero and autonegotiation
- *		    is enabled, all possible negotiation speeds are advertised.
- *
- * Returns Zero on success, negative on failure
- */
-int cvmx_helper_board_link_set_phy(int phy_addr,
-				   cvmx_helper_board_set_phy_link_flags_types_t
-				   link_flags,
-				   cvmx_helper_link_info_t link_info);
 
 /**
  * This function is the board specific method of determining an

@@ -163,14 +163,6 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	int vblank_lines;
 	int ret = 0;
 
-	/*
-	 * XXX Doesn't work well in interlaced mode yet, partially due
-	 * to problems in vc4 kms or drm core interlaced mode handling,
-	 * so disable for now in interlaced mode.
-	 */
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		return ret;
-
 	/* preempt_disable_rt() should go right here in PREEMPT_RT patchset. */
 
 	/* Get optional system timestamp before query. */
@@ -191,10 +183,15 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 
 	/* Vertical position of hvs composed scanline. */
 	*vpos = VC4_GET_FIELD(val, SCALER_DISPSTATX_LINE);
+	*hpos = 0;
 
-	/* No hpos info available. */
-	if (hpos)
-		*hpos = 0;
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		*vpos /= 2;
+
+		/* Use hpos to correct for field offset in interlaced mode. */
+		if (VC4_GET_FIELD(val, SCALER_DISPSTATX_FRAME_COUNT) % 2)
+			*hpos += mode->crtc_htotal / 2;
+	}
 
 	/* This is the offset we need for translating hvs -> pv scanout pos. */
 	fifo_lines = vc4_crtc->cob_size / mode->crtc_hdisplay;
@@ -217,8 +214,6 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 		 * position of the PV.
 		 */
 		*vpos -= fifo_lines + 1;
-		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			*vpos /= 2;
 
 		ret |= DRM_SCANOUTPOS_ACCURATE;
 		return ret;
@@ -234,7 +229,7 @@ int vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 	 * and need to make things up in a approximative but consistent way.
 	 */
 	ret |= DRM_SCANOUTPOS_IN_VBLANK;
-	vblank_lines = mode->crtc_vtotal - mode->crtc_vdisplay;
+	vblank_lines = mode->vtotal - mode->vdisplay;
 
 	if (flags & DRM_CALLED_FROM_VBLIRQ) {
 		/*
@@ -383,7 +378,7 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	struct drm_crtc_state *state = crtc->state;
 	struct drm_display_mode *mode = &state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
-	u32 vactive = (mode->vdisplay >> (interlace ? 1 : 0));
+	u32 pixel_rep = (mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1;
 	u32 format = PV_CONTROL_FORMAT_24;
 	bool debug_dump_regs = false;
 	int clock_select = vc4_get_clock_select(crtc);
@@ -399,47 +394,65 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	CRTC_WRITE(PV_CONTROL, 0);
 
 	CRTC_WRITE(PV_HORZA,
-		   VC4_SET_FIELD(mode->htotal - mode->hsync_end,
+		   VC4_SET_FIELD((mode->htotal -
+				  mode->hsync_end) * pixel_rep,
 				 PV_HORZA_HBP) |
-		   VC4_SET_FIELD(mode->hsync_end - mode->hsync_start,
+		   VC4_SET_FIELD((mode->hsync_end -
+				  mode->hsync_start) * pixel_rep,
 				 PV_HORZA_HSYNC));
 	CRTC_WRITE(PV_HORZB,
-		   VC4_SET_FIELD(mode->hsync_start - mode->hdisplay,
+		   VC4_SET_FIELD((mode->hsync_start -
+				  mode->hdisplay) * pixel_rep,
 				 PV_HORZB_HFP) |
-		   VC4_SET_FIELD(mode->hdisplay, PV_HORZB_HACTIVE));
+		   VC4_SET_FIELD(mode->hdisplay * pixel_rep, PV_HORZB_HACTIVE));
 
 	CRTC_WRITE(PV_VERTA,
-		   VC4_SET_FIELD(mode->vtotal - mode->vsync_end,
+		   VC4_SET_FIELD(mode->crtc_vtotal - mode->crtc_vsync_end,
 				 PV_VERTA_VBP) |
-		   VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
+		   VC4_SET_FIELD(mode->crtc_vsync_end - mode->crtc_vsync_start,
 				 PV_VERTA_VSYNC));
 	CRTC_WRITE(PV_VERTB,
-		   VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
+		   VC4_SET_FIELD(mode->crtc_vsync_start - mode->crtc_vdisplay,
 				 PV_VERTB_VFP) |
-		   VC4_SET_FIELD(vactive, PV_VERTB_VACTIVE));
+		   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
 
 	if (interlace) {
 		CRTC_WRITE(PV_VERTA_EVEN,
-			   VC4_SET_FIELD(mode->vtotal - mode->vsync_end - 1,
+			   VC4_SET_FIELD(mode->crtc_vtotal -
+					 mode->crtc_vsync_end - 1,
 					 PV_VERTA_VBP) |
-			   VC4_SET_FIELD(mode->vsync_end - mode->vsync_start,
+			   VC4_SET_FIELD(mode->crtc_vsync_end -
+					 mode->crtc_vsync_start,
 					 PV_VERTA_VSYNC));
 		CRTC_WRITE(PV_VERTB_EVEN,
-			   VC4_SET_FIELD(mode->vsync_start - mode->vdisplay,
+			   VC4_SET_FIELD(mode->crtc_vsync_start -
+					 mode->crtc_vdisplay,
 					 PV_VERTB_VFP) |
-			   VC4_SET_FIELD(vactive, PV_VERTB_VACTIVE));
+			   VC4_SET_FIELD(mode->crtc_vdisplay, PV_VERTB_VACTIVE));
+
+		/* We set up first field even mode for HDMI.  VEC's
+		 * NTSC mode would want first field odd instead, once
+		 * we support it (to do so, set ODD_FIRST and put the
+		 * delay in VSYNCD_EVEN instead).
+		 */
+		CRTC_WRITE(PV_V_CONTROL,
+			   PV_VCONTROL_CONTINUOUS |
+			   PV_VCONTROL_INTERLACE |
+			   VC4_SET_FIELD(mode->htotal * pixel_rep / 2,
+					 PV_VCONTROL_ODD_DELAY));
+		CRTC_WRITE(PV_VSYNCD_EVEN, 0);
+	} else {
+		CRTC_WRITE(PV_V_CONTROL, PV_VCONTROL_CONTINUOUS);
 	}
 
-	CRTC_WRITE(PV_HACT_ACT, mode->hdisplay);
+	CRTC_WRITE(PV_HACT_ACT, mode->hdisplay * pixel_rep);
 
-	CRTC_WRITE(PV_V_CONTROL,
-		   PV_VCONTROL_CONTINUOUS |
-		   (interlace ? PV_VCONTROL_INTERLACE : 0));
 
 	CRTC_WRITE(PV_CONTROL,
 		   VC4_SET_FIELD(format, PV_CONTROL_FORMAT) |
 		   VC4_SET_FIELD(vc4_get_fifo_full_level(format),
 				 PV_CONTROL_FIFO_LEVEL) |
+		   VC4_SET_FIELD(pixel_rep - 1, PV_CONTROL_PIXEL_REP) |
 		   PV_CONTROL_CLR_AT_START |
 		   PV_CONTROL_TRIGGER_UNDERFLOW |
 		   PV_CONTROL_WAIT_HSTART |
@@ -479,6 +492,9 @@ static void vc4_crtc_disable(struct drm_crtc *crtc)
 	u32 chan = vc4_crtc->channel;
 	int ret;
 	require_hvs_enabled(dev);
+
+	/* Disable vblank irq handling before crtc is disabled. */
+	drm_crtc_vblank_off(crtc);
 
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) & ~PV_VCONTROL_VIDEN);
@@ -530,6 +546,23 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 	/* Turn on the pixel valve, which will emit the vstart signal. */
 	CRTC_WRITE(PV_V_CONTROL,
 		   CRTC_READ(PV_V_CONTROL) | PV_VCONTROL_VIDEN);
+
+	/* Enable vblank irq handling after crtc is started. */
+	drm_crtc_vblank_on(crtc);
+}
+
+static bool vc4_crtc_mode_fixup(struct drm_crtc *crtc,
+				const struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	/* Do not allow doublescan modes from user space */
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN) {
+		DRM_DEBUG_KMS("[CRTC:%d] Doublescan mode rejected.\n",
+			      crtc->base.id);
+		return false;
+	}
+
+	return true;
 }
 
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
@@ -819,6 +852,7 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.mode_set_nofb = vc4_crtc_mode_set_nofb,
 	.disable = vc4_crtc_disable,
 	.enable = vc4_crtc_enable,
+	.mode_fixup = vc4_crtc_mode_fixup,
 	.atomic_check = vc4_crtc_atomic_check,
 	.atomic_flush = vc4_crtc_atomic_flush,
 };

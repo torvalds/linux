@@ -8,7 +8,7 @@ Streaming I/O (Memory Mapping)
 
 Input and output devices support this I/O method when the
 ``V4L2_CAP_STREAMING`` flag in the ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl is set. There are two
 streaming methods, to determine if the memory mapping flavor is
 supported applications must call the :ref:`VIDIOC_REQBUFS` ioctl
@@ -39,10 +39,10 @@ address space with the :ref:`mmap() <func-mmap>` function. The
 location of the buffers in device memory can be determined with the
 :ref:`VIDIOC_QUERYBUF` ioctl. In the single-planar
 API case, the ``m.offset`` and ``length`` returned in a struct
-:ref:`v4l2_buffer <v4l2-buffer>` are passed as sixth and second
+:c:type:`v4l2_buffer` are passed as sixth and second
 parameter to the :ref:`mmap() <func-mmap>` function. When using the
-multi-planar API, struct :ref:`v4l2_buffer <v4l2-buffer>` contains an
-array of struct :ref:`v4l2_plane <v4l2-plane>` structures, each
+multi-planar API, struct :c:type:`v4l2_buffer` contains an
+array of struct :c:type:`v4l2_plane` structures, each
 containing its own ``m.offset`` and ``length``. When using the
 multi-planar API, every plane of every buffer has to be mapped
 separately, so the number of calls to :ref:`mmap() <func-mmap>` should
@@ -218,7 +218,7 @@ to function, apart of this no limit exists on the number of buffers
 applications can enqueue in advance, or dequeue and process. They can
 also enqueue in a different order than buffers have been dequeued, and
 the driver can *fill* enqueued *empty* buffers in any order.  [#f2]_ The
-index number of a buffer (struct :ref:`v4l2_buffer <v4l2-buffer>`
+index number of a buffer (struct :c:type:`v4l2_buffer`
 ``index``) plays no role here, it only identifies the buffer.
 
 Initially all mapped buffers are in dequeued state, inaccessible by the
@@ -251,7 +251,7 @@ To start and stop capturing or output applications call the
    removes all buffers from both queues as a side effect. Since there is
    no notion of doing anything "now" on a multitasking system, if an
    application needs to synchronize with another event it should examine
-   the struct ::ref:`v4l2_buffer <v4l2-buffer>` ``timestamp`` of captured
+   the struct ::c:type:`v4l2_buffer` ``timestamp`` of captured
    or outputted buffers.
 
 Drivers implementing memory mapping I/O must support the

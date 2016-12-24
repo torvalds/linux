@@ -148,12 +148,12 @@ static const char * const mc6_mce_desc[] = {
 };
 
 /* Scalable MCA error strings */
-static const char * const f17h_ls_mce_desc[] = {
+static const char * const smca_ls_mce_desc[] = {
 	"Load queue parity",
 	"Store queue parity",
 	"Miss address buffer payload parity",
 	"L1 TLB parity",
-	"",						/* reserved */
+	"Reserved",
 	"DC tag error type 6",
 	"DC tag error type 1",
 	"Internal error type 1",
@@ -172,7 +172,7 @@ static const char * const f17h_ls_mce_desc[] = {
 	"L2 fill data error",
 };
 
-static const char * const f17h_if_mce_desc[] = {
+static const char * const smca_if_mce_desc[] = {
 	"microtag probe port parity error",
 	"IC microtag or full tag multi-hit error",
 	"IC full tag parity",
@@ -185,19 +185,22 @@ static const char * const f17h_if_mce_desc[] = {
 	"BPQ snoop parity on Thread 1",
 	"L1 BTB multi-match error",
 	"L2 BTB multi-match error",
+	"L2 Cache Response Poison error",
+	"System Read Data error",
 };
 
-static const char * const f17h_l2_mce_desc[] = {
+static const char * const smca_l2_mce_desc[] = {
 	"L2M tag multi-way-hit error",
 	"L2M tag ECC error",
 	"L2M data ECC error",
 	"HW assert",
 };
 
-static const char * const f17h_de_mce_desc[] = {
+static const char * const smca_de_mce_desc[] = {
 	"uop cache tag parity error",
 	"uop cache data parity error",
 	"Insn buffer parity error",
+	"uop queue parity error",
 	"Insn dispatch queue parity error",
 	"Fetch address FIFO parity",
 	"Patch RAM data parity",
@@ -205,7 +208,7 @@ static const char * const f17h_de_mce_desc[] = {
 	"uop buffer parity"
 };
 
-static const char * const f17h_ex_mce_desc[] = {
+static const char * const smca_ex_mce_desc[] = {
 	"Watchdog timeout error",
 	"Phy register file parity",
 	"Flag register file parity",
@@ -214,18 +217,22 @@ static const char * const f17h_ex_mce_desc[] = {
 	"EX payload parity",
 	"Checkpoint queue parity",
 	"Retire dispatch queue parity",
+	"Retire status queue parity error",
+	"Scheduling queue parity error",
+	"Branch buffer queue parity error",
 };
 
-static const char * const f17h_fp_mce_desc[] = {
+static const char * const smca_fp_mce_desc[] = {
 	"Physical register file parity",
 	"Freelist parity error",
 	"Schedule queue parity",
 	"NSQ parity error",
 	"Retire queue parity",
 	"Status register file parity",
+	"Hardware assertion",
 };
 
-static const char * const f17h_l3_mce_desc[] = {
+static const char * const smca_l3_mce_desc[] = {
 	"Shadow tag macro ECC error",
 	"Shadow tag macro multi-way-hit error",
 	"L3M tag ECC error",
@@ -236,7 +243,7 @@ static const char * const f17h_l3_mce_desc[] = {
 	"L3 HW assert",
 };
 
-static const char * const f17h_cs_mce_desc[] = {
+static const char * const smca_cs_mce_desc[] = {
 	"Illegal request from transport layer",
 	"Address violation",
 	"Security violation",
@@ -248,14 +255,14 @@ static const char * const f17h_cs_mce_desc[] = {
 	"ECC error on probe filter access",
 };
 
-static const char * const f17h_pie_mce_desc[] = {
+static const char * const smca_pie_mce_desc[] = {
 	"HW assert",
 	"Internal PIE register security violation",
 	"Error on GMI link",
 	"Poison data written to internal PIE register",
 };
 
-static const char * const f17h_umc_mce_desc[] = {
+static const char * const smca_umc_mce_desc[] = {
 	"DRAM ECC error",
 	"Data poison error on DRAM",
 	"SDP parity error",
@@ -264,16 +271,37 @@ static const char * const f17h_umc_mce_desc[] = {
 	"Write data CRC error",
 };
 
-static const char * const f17h_pb_mce_desc[] = {
+static const char * const smca_pb_mce_desc[] = {
 	"Parameter Block RAM ECC error",
 };
 
-static const char * const f17h_psp_mce_desc[] = {
+static const char * const smca_psp_mce_desc[] = {
 	"PSP RAM ECC or parity error",
 };
 
-static const char * const f17h_smu_mce_desc[] = {
+static const char * const smca_smu_mce_desc[] = {
 	"SMU RAM ECC or parity error",
+};
+
+struct smca_mce_desc {
+	const char * const *descs;
+	unsigned int num_descs;
+};
+
+static struct smca_mce_desc smca_mce_descs[] = {
+	[SMCA_LS]	= { smca_ls_mce_desc,	ARRAY_SIZE(smca_ls_mce_desc)	},
+	[SMCA_IF]	= { smca_if_mce_desc,	ARRAY_SIZE(smca_if_mce_desc)	},
+	[SMCA_L2_CACHE]	= { smca_l2_mce_desc,	ARRAY_SIZE(smca_l2_mce_desc)	},
+	[SMCA_DE]	= { smca_de_mce_desc,	ARRAY_SIZE(smca_de_mce_desc)	},
+	[SMCA_EX]	= { smca_ex_mce_desc,	ARRAY_SIZE(smca_ex_mce_desc)	},
+	[SMCA_FP]	= { smca_fp_mce_desc,	ARRAY_SIZE(smca_fp_mce_desc)	},
+	[SMCA_L3_CACHE]	= { smca_l3_mce_desc,	ARRAY_SIZE(smca_l3_mce_desc)	},
+	[SMCA_CS]	= { smca_cs_mce_desc,	ARRAY_SIZE(smca_cs_mce_desc)	},
+	[SMCA_PIE]	= { smca_pie_mce_desc,	ARRAY_SIZE(smca_pie_mce_desc)	},
+	[SMCA_UMC]	= { smca_umc_mce_desc,	ARRAY_SIZE(smca_umc_mce_desc)	},
+	[SMCA_PB]	= { smca_pb_mce_desc,	ARRAY_SIZE(smca_pb_mce_desc)	},
+	[SMCA_PSP]	= { smca_psp_mce_desc,	ARRAY_SIZE(smca_psp_mce_desc)	},
+	[SMCA_SMU]	= { smca_smu_mce_desc,	ARRAY_SIZE(smca_smu_mce_desc)	},
 };
 
 static bool f12h_mc0_mce(u16 ec, u8 xec)
@@ -820,175 +848,35 @@ static void decode_mc6_mce(struct mce *m)
 	pr_emerg(HW_ERR "Corrupted MC6 MCE info?\n");
 }
 
-static void decode_f17h_core_errors(const char *ip_name, u8 xec,
-				   unsigned int mca_type)
-{
-	const char * const *error_desc_array;
-	size_t len;
-
-	pr_emerg(HW_ERR "%s Error: ", ip_name);
-
-	switch (mca_type) {
-	case SMCA_LS:
-		error_desc_array = f17h_ls_mce_desc;
-		len = ARRAY_SIZE(f17h_ls_mce_desc) - 1;
-
-		if (xec == 0x4) {
-			pr_cont("Unrecognized LS MCA error code.\n");
-			return;
-		}
-		break;
-
-	case SMCA_IF:
-		error_desc_array = f17h_if_mce_desc;
-		len = ARRAY_SIZE(f17h_if_mce_desc) - 1;
-		break;
-
-	case SMCA_L2_CACHE:
-		error_desc_array = f17h_l2_mce_desc;
-		len = ARRAY_SIZE(f17h_l2_mce_desc) - 1;
-		break;
-
-	case SMCA_DE:
-		error_desc_array = f17h_de_mce_desc;
-		len = ARRAY_SIZE(f17h_de_mce_desc) - 1;
-		break;
-
-	case SMCA_EX:
-		error_desc_array = f17h_ex_mce_desc;
-		len = ARRAY_SIZE(f17h_ex_mce_desc) - 1;
-		break;
-
-	case SMCA_FP:
-		error_desc_array = f17h_fp_mce_desc;
-		len = ARRAY_SIZE(f17h_fp_mce_desc) - 1;
-		break;
-
-	case SMCA_L3_CACHE:
-		error_desc_array = f17h_l3_mce_desc;
-		len = ARRAY_SIZE(f17h_l3_mce_desc) - 1;
-		break;
-
-	default:
-		pr_cont("Corrupted MCA core error info.\n");
-		return;
-	}
-
-	if (xec > len) {
-		pr_cont("Unrecognized %s MCA bank error code.\n",
-			 amd_core_mcablock_names[mca_type]);
-		return;
-	}
-
-	pr_cont("%s.\n", error_desc_array[xec]);
-}
-
-static void decode_df_errors(u8 xec, unsigned int mca_type)
-{
-	const char * const *error_desc_array;
-	size_t len;
-
-	pr_emerg(HW_ERR "Data Fabric Error: ");
-
-	switch (mca_type) {
-	case  SMCA_CS:
-		error_desc_array = f17h_cs_mce_desc;
-		len = ARRAY_SIZE(f17h_cs_mce_desc) - 1;
-		break;
-
-	case SMCA_PIE:
-		error_desc_array = f17h_pie_mce_desc;
-		len = ARRAY_SIZE(f17h_pie_mce_desc) - 1;
-		break;
-
-	default:
-		pr_cont("Corrupted MCA Data Fabric info.\n");
-		return;
-	}
-
-	if (xec > len) {
-		pr_cont("Unrecognized %s MCA bank error code.\n",
-			 amd_df_mcablock_names[mca_type]);
-		return;
-	}
-
-	pr_cont("%s.\n", error_desc_array[xec]);
-}
-
 /* Decode errors according to Scalable MCA specification */
 static void decode_smca_errors(struct mce *m)
 {
-	u32 addr = MSR_AMD64_SMCA_MCx_IPID(m->bank);
-	unsigned int hwid, mca_type, i;
-	u8 xec = XEC(m->status, xec_mask);
-	const char * const *error_desc_array;
+	struct smca_hwid_mcatype *type;
+	unsigned int bank_type;
 	const char *ip_name;
-	u32 low, high;
-	size_t len;
+	u8 xec = XEC(m->status, xec_mask);
 
-	if (rdmsr_safe(addr, &low, &high)) {
-		pr_emerg("Invalid IP block specified, error information is unreliable.\n");
+	if (m->bank >= ARRAY_SIZE(smca_banks))
 		return;
-	}
 
-	hwid = high & MCI_IPID_HWID;
-	mca_type = (high & MCI_IPID_MCATYPE) >> 16;
+	if (boot_cpu_data.x86 >= 0x17 && m->bank == 4)
+		pr_emerg(HW_ERR "Bank 4 is reserved on Fam17h.\n");
 
-	pr_emerg(HW_ERR "MC%d IPID value: 0x%08x%08x\n", m->bank, high, low);
-
-	/*
-	 * Based on hwid and mca_type values, decode errors from respective IPs.
-	 * Note: mca_type values make sense only in the context of an hwid.
-	 */
-	for (i = 0; i < ARRAY_SIZE(amd_hwids); i++)
-		if (amd_hwids[i].hwid == hwid)
-			break;
-
-	switch (i) {
-	case SMCA_F17H_CORE:
-		ip_name = (mca_type == SMCA_L3_CACHE) ?
-			  "L3 Cache" : "F17h Core";
-		return decode_f17h_core_errors(ip_name, xec, mca_type);
-		break;
-
-	case SMCA_DF:
-		return decode_df_errors(xec, mca_type);
-		break;
-
-	case SMCA_UMC:
-		error_desc_array = f17h_umc_mce_desc;
-		len = ARRAY_SIZE(f17h_umc_mce_desc) - 1;
-		break;
-
-	case SMCA_PB:
-		error_desc_array = f17h_pb_mce_desc;
-		len = ARRAY_SIZE(f17h_pb_mce_desc) - 1;
-		break;
-
-	case SMCA_PSP:
-		error_desc_array = f17h_psp_mce_desc;
-		len = ARRAY_SIZE(f17h_psp_mce_desc) - 1;
-		break;
-
-	case SMCA_SMU:
-		error_desc_array = f17h_smu_mce_desc;
-		len = ARRAY_SIZE(f17h_smu_mce_desc) - 1;
-		break;
-
-	default:
-		pr_emerg(HW_ERR "HWID:%d does not match any existing IPs.\n", hwid);
+	type = smca_banks[m->bank].type;
+	if (!type)
 		return;
+
+	bank_type = type->bank_type;
+	ip_name = smca_bank_names[bank_type].long_name;
+
+	pr_emerg(HW_ERR "%s Extended Error Code: %d\n", ip_name, xec);
+
+	/* Only print the decode of valid error codes */
+	if (xec < smca_mce_descs[bank_type].num_descs &&
+			(type->xec_bitmap & BIT_ULL(xec))) {
+		pr_emerg(HW_ERR "%s Error: ", ip_name);
+		pr_cont("%s.\n", smca_mce_descs[bank_type].descs[xec]);
 	}
-
-	ip_name = amd_hwids[i].name;
-	pr_emerg(HW_ERR "%s Error: ", ip_name);
-
-	if (xec > len) {
-		pr_cont("Unrecognized %s MCA bank error code.\n", ip_name);
-		return;
-	}
-
-	pr_cont("%s.\n", error_desc_array[xec]);
 }
 
 static inline void amd_decode_err_code(u16 ec)
@@ -1078,6 +966,8 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 		u32 low, high;
 		u32 addr = MSR_AMD64_SMCA_MCx_CONFIG(m->bank);
 
+		pr_cont("|%s", ((m->status & MCI_STATUS_SYNDV) ? "SyndV" : "-"));
+
 		if (!rdmsr_safe(addr, &low, &high) &&
 		    (low & MCI_CONFIG_MCAX))
 			pr_cont("|%s", ((m->status & MCI_STATUS_TCC) ? "TCC" : "-"));
@@ -1091,12 +981,20 @@ int amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 	pr_cont("]: 0x%016llx\n", m->status);
 
 	if (m->status & MCI_STATUS_ADDRV)
-		pr_emerg(HW_ERR "MC%d Error Address: 0x%016llx\n", m->bank, m->addr);
+		pr_emerg(HW_ERR "Error Addr: 0x%016llx", m->addr);
 
 	if (boot_cpu_has(X86_FEATURE_SMCA)) {
+		if (m->status & MCI_STATUS_SYNDV)
+			pr_cont(", Syndrome: 0x%016llx", m->synd);
+
+		pr_cont(", IPID: 0x%016llx", m->ipid);
+
+		pr_cont("\n");
+
 		decode_smca_errors(m);
 		goto err_code;
-	}
+	} else
+		pr_cont("\n");
 
 	if (!fam_ops)
 		goto err_code;

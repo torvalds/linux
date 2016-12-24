@@ -496,6 +496,11 @@ EXPORT_SYMBOL(bitmap_print_to_pagebuf);
  * ranges.  Consecutively set bits are shown as two hyphen-separated
  * decimal numbers, the smallest and largest bit numbers set in
  * the range.
+ * Optionally each range can be postfixed to denote that only parts of it
+ * should be set. The range will divided to groups of specific size.
+ * From each group will be used only defined amount of bits.
+ * Syntax: range:used_size/group_size
+ * Example: 0-1023:2/256 ==> 0,1,256,257,512,513,768,769
  *
  * Returns 0 on success, -errno on invalid input strings.
  * Error values:
@@ -507,16 +512,20 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 		int is_user, unsigned long *maskp,
 		int nmaskbits)
 {
-	unsigned a, b;
+	unsigned int a, b, old_a, old_b;
+	unsigned int group_size, used_size;
 	int c, old_c, totaldigits, ndigits;
 	const char __user __force *ubuf = (const char __user __force *)buf;
-	int at_start, in_range;
+	int at_start, in_range, in_partial_range;
 
 	totaldigits = c = 0;
+	old_a = old_b = 0;
+	group_size = used_size = 0;
 	bitmap_zero(maskp, nmaskbits);
 	do {
 		at_start = 1;
 		in_range = 0;
+		in_partial_range = 0;
 		a = b = 0;
 		ndigits = totaldigits;
 
@@ -547,6 +556,24 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 			if ((totaldigits != ndigits) && isspace(old_c))
 				return -EINVAL;
 
+			if (c == '/') {
+				used_size = a;
+				at_start = 1;
+				in_range = 0;
+				a = b = 0;
+				continue;
+			}
+
+			if (c == ':') {
+				old_a = a;
+				old_b = b;
+				at_start = 1;
+				in_range = 0;
+				in_partial_range = 1;
+				a = b = 0;
+				continue;
+			}
+
 			if (c == '-') {
 				if (at_start || in_range)
 					return -EINVAL;
@@ -567,15 +594,30 @@ static int __bitmap_parselist(const char *buf, unsigned int buflen,
 		}
 		if (ndigits == totaldigits)
 			continue;
+		if (in_partial_range) {
+			group_size = a;
+			a = old_a;
+			b = old_b;
+			old_a = old_b = 0;
+		}
 		/* if no digit is after '-', it's wrong*/
 		if (at_start && in_range)
 			return -EINVAL;
-		if (!(a <= b))
+		if (!(a <= b) || !(used_size <= group_size))
 			return -EINVAL;
 		if (b >= nmaskbits)
 			return -ERANGE;
 		while (a <= b) {
-			set_bit(a, maskp);
+			if (in_partial_range) {
+				static int pos_in_group = 1;
+
+				if (pos_in_group <= used_size)
+					set_bit(a, maskp);
+
+				if (a == b || ++pos_in_group > group_size)
+					pos_in_group = 1;
+			} else
+				set_bit(a, maskp);
 			a++;
 		}
 	} while (buflen && c == ',');

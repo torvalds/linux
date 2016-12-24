@@ -62,7 +62,7 @@
    For comments look at net/ipv4/ip_gre.c --ANK
  */
 
-#define HASH_SIZE  16
+#define IP6_SIT_HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
 static bool log_ecn_error = true;
@@ -78,9 +78,9 @@ static struct rtnl_link_ops sit_link_ops __read_mostly;
 
 static int sit_net_id __read_mostly;
 struct sit_net {
-	struct ip_tunnel __rcu *tunnels_r_l[HASH_SIZE];
-	struct ip_tunnel __rcu *tunnels_r[HASH_SIZE];
-	struct ip_tunnel __rcu *tunnels_l[HASH_SIZE];
+	struct ip_tunnel __rcu *tunnels_r_l[IP6_SIT_HASH_SIZE];
+	struct ip_tunnel __rcu *tunnels_r[IP6_SIT_HASH_SIZE];
+	struct ip_tunnel __rcu *tunnels_l[IP6_SIT_HASH_SIZE];
 	struct ip_tunnel __rcu *tunnels_wc[1];
 	struct ip_tunnel __rcu **tunnels[4];
 
@@ -1126,7 +1126,7 @@ static int ipip6_tunnel_update_6rd(struct ip_tunnel *t,
 }
 #endif
 
-bool ipip6_valid_ip_proto(u8 ipproto)
+static bool ipip6_valid_ip_proto(u8 ipproto)
 {
 	return ipproto == IPPROTO_IPV6 ||
 		ipproto == IPPROTO_IPIP ||
@@ -1783,7 +1783,7 @@ static void __net_exit sit_destroy_tunnels(struct net *net,
 
 	for (prio = 1; prio < 4; prio++) {
 		int h;
-		for (h = 0; h < HASH_SIZE; h++) {
+		for (h = 0; h < IP6_SIT_HASH_SIZE; h++) {
 			struct ip_tunnel *t;
 
 			t = rtnl_dereference(sitn->tunnels[prio][h]);

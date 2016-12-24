@@ -33,7 +33,6 @@
 #include <linux/stat.h>
 #include <linux/types.h>
 
-#include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
@@ -43,7 +42,6 @@
 
 #include <linux/phy.h>
 #include <linux/mii.h>
-#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 
@@ -982,11 +980,13 @@ static int dwceqos_mii_probe(struct net_device *ndev)
 	if (netif_msg_probe(lp))
 		phy_attached_info(phydev);
 
-	phydev->supported &= PHY_GBIT_FEATURES;
+	phydev->supported &= PHY_GBIT_FEATURES | SUPPORTED_Pause |
+			     SUPPORTED_Asym_Pause;
 
 	lp->link    = 0;
 	lp->speed   = 0;
 	lp->duplex  = DUPLEX_UNKNOWN;
+	lp->flowcontrol.autoneg = AUTONEG_ENABLE;
 
 	return 0;
 }
@@ -2743,7 +2743,7 @@ static void dwceqos_set_msglevel(struct net_device *ndev, u32 msglevel)
 	lp->msg_enable = msglevel;
 }
 
-static struct ethtool_ops dwceqos_ethtool_ops = {
+static const struct ethtool_ops dwceqos_ethtool_ops = {
 	.get_drvinfo    = dwceqos_get_drvinfo,
 	.get_link       = ethtool_op_get_link,
 	.get_pauseparam = dwceqos_get_pauseparam,
@@ -2761,7 +2761,7 @@ static struct ethtool_ops dwceqos_ethtool_ops = {
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
 };
 
-static struct net_device_ops netdev_ops = {
+static const struct net_device_ops netdev_ops = {
 	.ndo_open		= dwceqos_open,
 	.ndo_stop		= dwceqos_stop,
 	.ndo_start_xmit		= dwceqos_start_xmit,
@@ -2881,7 +2881,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 	ret = of_get_phy_mode(lp->pdev->dev.of_node);
 	if (ret < 0) {
 		dev_err(&lp->pdev->dev, "error in getting phy i/f\n");
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	lp->phy_interface = ret;
@@ -2889,14 +2889,14 @@ static int dwceqos_probe(struct platform_device *pdev)
 	ret = dwceqos_mii_init(lp);
 	if (ret) {
 		dev_err(&lp->pdev->dev, "error in dwceqos_mii_init\n");
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	ret = dwceqos_mii_probe(ndev);
 	if (ret != 0) {
 		netdev_err(ndev, "mii_probe fail.\n");
 		ret = -ENXIO;
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	dwceqos_set_umac_addr(lp, lp->ndev->dev_addr, 0);
@@ -2914,7 +2914,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&lp->pdev->dev, "Unable to retrieve DT, error %d\n",
 			ret);
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 	dev_info(&lp->pdev->dev, "pdev->id %d, baseaddr 0x%08lx, irq %d\n",
 		 pdev->id, ndev->base_addr, ndev->irq);
@@ -2924,7 +2924,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&lp->pdev->dev, "Unable to request IRQ %d, error %d\n",
 			ndev->irq, ret);
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	if (netif_msg_probe(lp))
@@ -2935,11 +2935,14 @@ static int dwceqos_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
-			goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	return 0;
 
+err_out_deregister_fixed_link:
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
 err_out_clk_dis_phy:
 	clk_disable_unprepare(lp->phy_ref_clk);
 err_out_clk_dis_aper:
@@ -2959,8 +2962,11 @@ static int dwceqos_remove(struct platform_device *pdev)
 	if (ndev) {
 		lp = netdev_priv(ndev);
 
-		if (ndev->phydev)
+		if (ndev->phydev) {
 			phy_disconnect(ndev->phydev);
+			if (of_phy_is_fixed_link(pdev->dev.of_node))
+				of_phy_deregister_fixed_link(pdev->dev.of_node);
+		}
 		mdiobus_unregister(lp->mii_bus);
 		mdiobus_free(lp->mii_bus);
 

@@ -139,7 +139,6 @@ int class_add_uuid(const char *uuid, __u64 nid)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(class_add_uuid);
 
 /* Delete the nids for one uuid if specified, otherwise delete all */
 int class_del_uuid(const char *uuid)

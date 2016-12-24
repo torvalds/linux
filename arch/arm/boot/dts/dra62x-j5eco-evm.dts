@@ -12,13 +12,13 @@
 	model = "DRA62x J5 Eco EVM";
 	compatible = "ti,dra62x-j5eco-evm", "ti,dra62x", "ti,dm8148";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>;	/* 1 GB */
 	};
 
 	/* MIC94060YC6 controlled by SD1_POW pin */
-	vmmcsd_fixed: fixedregulator@0 {
+	vmmcsd_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmcsd_fixed";
 		regulator-min-microvolt = <3300000>;

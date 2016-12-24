@@ -411,9 +411,9 @@ static int sm5502_muic_cable_handler(struct sm5502_muic_info *info,
 		return ret;
 
 	/* Change the state of external accessory */
-	extcon_set_cable_state_(info->edev, id, attached);
+	extcon_set_state_sync(info->edev, id, attached);
 	if (id == EXTCON_USB)
-		extcon_set_cable_state_(info->edev, EXTCON_CHG_USB_SDP,
+		extcon_set_state_sync(info->edev, EXTCON_CHG_USB_SDP,
 					attached);
 
 	return 0;

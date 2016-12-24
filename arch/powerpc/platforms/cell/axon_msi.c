@@ -271,7 +271,7 @@ static int axon_msi_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 
 	for_each_pci_msi_entry(entry, dev) {
 		virq = irq_create_direct_mapping(msic->irq_domain);
-		if (virq == NO_IRQ) {
+		if (!virq) {
 			dev_warn(&dev->dev,
 				 "axon_msi: virq allocation failed!\n");
 			return -1;
@@ -293,7 +293,7 @@ static void axon_msi_teardown_msi_irqs(struct pci_dev *dev)
 	dev_dbg(&dev->dev, "axon_msi: tearing down msi irqs\n");
 
 	for_each_pci_msi_entry(entry, dev) {
-		if (entry->irq == NO_IRQ)
+		if (!entry->irq)
 			continue;
 
 		irq_set_msi_desc(entry->irq, NULL);
@@ -375,7 +375,7 @@ static int axon_msi_probe(struct platform_device *device)
 	}
 
 	virq = irq_of_parse_and_map(dn, 0);
-	if (virq == NO_IRQ) {
+	if (!virq) {
 		printk(KERN_ERR "axon_msi: irq parse and map failed for %s\n",
 		       dn->full_name);
 		goto out_free_fifo;

@@ -694,7 +694,6 @@ static int piix4_add_adapter(struct pci_dev *dev, unsigned short smba,
 
 	retval = i2c_add_adapter(adap);
 	if (retval) {
-		dev_err(&dev->dev, "Couldn't register adapter!\n");
 		kfree(adapdata);
 		kfree(adap);
 		release_region(smba, SMBIOSIZE);

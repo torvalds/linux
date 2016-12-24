@@ -1269,25 +1269,34 @@ EXPORT_SYMBOL(__sb_start_write);
 static void sb_wait_write(struct super_block *sb, int level)
 {
 	percpu_down_write(sb->s_writers.rw_sem + level-1);
-	/*
-	 * We are going to return to userspace and forget about this lock, the
-	 * ownership goes to the caller of thaw_super() which does unlock.
-	 *
-	 * FIXME: we should do this before return from freeze_super() after we
-	 * called sync_filesystem(sb) and s_op->freeze_fs(sb), and thaw_super()
-	 * should re-acquire these locks before s_op->unfreeze_fs(sb). However
-	 * this leads to lockdep false-positives, so currently we do the early
-	 * release right after acquire.
-	 */
-	percpu_rwsem_release(sb->s_writers.rw_sem + level-1, 0, _THIS_IP_);
 }
 
-static void sb_freeze_unlock(struct super_block *sb)
+/*
+ * We are going to return to userspace and forget about these locks, the
+ * ownership goes to the caller of thaw_super() which does unlock().
+ */
+static void lockdep_sb_freeze_release(struct super_block *sb)
+{
+	int level;
+
+	for (level = SB_FREEZE_LEVELS - 1; level >= 0; level--)
+		percpu_rwsem_release(sb->s_writers.rw_sem + level, 0, _THIS_IP_);
+}
+
+/*
+ * Tell lockdep we are holding these locks before we call ->unfreeze_fs(sb).
+ */
+static void lockdep_sb_freeze_acquire(struct super_block *sb)
 {
 	int level;
 
 	for (level = 0; level < SB_FREEZE_LEVELS; ++level)
 		percpu_rwsem_acquire(sb->s_writers.rw_sem + level, 0, _THIS_IP_);
+}
+
+static void sb_freeze_unlock(struct super_block *sb)
+{
+	int level;
 
 	for (level = SB_FREEZE_LEVELS - 1; level >= 0; level--)
 		percpu_up_write(sb->s_writers.rw_sem + level);
@@ -1379,10 +1388,11 @@ int freeze_super(struct super_block *sb)
 		}
 	}
 	/*
-	 * This is just for debugging purposes so that fs can warn if it
-	 * sees write activity when frozen is set to SB_FREEZE_COMPLETE.
+	 * For debugging purposes so that fs can warn if it sees write activity
+	 * when frozen is set to SB_FREEZE_COMPLETE, and for thaw_super().
 	 */
 	sb->s_writers.frozen = SB_FREEZE_COMPLETE;
+	lockdep_sb_freeze_release(sb);
 	up_write(&sb->s_umount);
 	return 0;
 }
@@ -1399,7 +1409,7 @@ int thaw_super(struct super_block *sb)
 	int error;
 
 	down_write(&sb->s_umount);
-	if (sb->s_writers.frozen == SB_UNFROZEN) {
+	if (sb->s_writers.frozen != SB_FREEZE_COMPLETE) {
 		up_write(&sb->s_umount);
 		return -EINVAL;
 	}
@@ -1409,11 +1419,14 @@ int thaw_super(struct super_block *sb)
 		goto out;
 	}
 
+	lockdep_sb_freeze_acquire(sb);
+
 	if (sb->s_op->unfreeze_fs) {
 		error = sb->s_op->unfreeze_fs(sb);
 		if (error) {
 			printk(KERN_ERR
 				"VFS:Filesystem thaw failed\n");
+			lockdep_sb_freeze_release(sb);
 			up_write(&sb->s_umount);
 			return error;
 		}

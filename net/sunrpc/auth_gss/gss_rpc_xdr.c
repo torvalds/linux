@@ -229,7 +229,7 @@ static int gssx_dec_linux_creds(struct xdr_stream *xdr,
 		kgid = make_kgid(&init_user_ns, tmp);
 		if (!gid_valid(kgid))
 			goto out_free_groups;
-		GROUP_AT(creds->cr_group_info, i) = kgid;
+		creds->cr_group_info->gid[i] = kgid;
 	}
 
 	return 0;

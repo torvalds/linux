@@ -190,7 +190,8 @@ int sst_driver_ops(struct intel_sst_drv *sst)
 
 	default:
 		dev_err(sst->dev,
-			"SST Driver capablities missing for dev_id: %x", sst->dev_id);
+			"SST Driver capabilities missing for dev_id: %x",
+			sst->dev_id);
 		return -EINVAL;
 	};
 }
@@ -441,7 +442,7 @@ static int intel_sst_suspend(struct device *dev)
 		struct stream_info *stream = &ctx->streams[i];
 
 		if (stream->status == STREAM_RUNNING) {
-			dev_err(dev, "stream %d is running, cant susupend, abort\n", i);
+			dev_err(dev, "stream %d is running, can't suspend, abort\n", i);
 			return -EBUSY;
 		}
 	}

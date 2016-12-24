@@ -404,58 +404,47 @@ void kfd_unbind_process_from_device(struct kfd_dev *dev, unsigned int pasid)
 {
 	struct kfd_process *p;
 	struct kfd_process_device *pdd;
-	int idx, i;
 
 	BUG_ON(dev == NULL);
-
-	idx = srcu_read_lock(&kfd_processes_srcu);
 
 	/*
 	 * Look for the process that matches the pasid. If there is no such
 	 * process, we either released it in amdkfd's own notifier, or there
 	 * is a bug. Unfortunately, there is no way to tell...
 	 */
-	hash_for_each_rcu(kfd_processes_table, i, p, kfd_processes)
-		if (p->pasid == pasid) {
+	p = kfd_lookup_process_by_pasid(pasid);
+	if (!p)
+		return;
 
-			srcu_read_unlock(&kfd_processes_srcu, idx);
+	pr_debug("Unbinding process %d from IOMMU\n", pasid);
 
-			pr_debug("Unbinding process %d from IOMMU\n", pasid);
+	if ((dev->dbgmgr) && (dev->dbgmgr->pasid == p->pasid))
+		kfd_dbgmgr_destroy(dev->dbgmgr);
 
-			mutex_lock(&p->mutex);
+	pqm_uninit(&p->pqm);
 
-			if ((dev->dbgmgr) && (dev->dbgmgr->pasid == p->pasid))
-				kfd_dbgmgr_destroy(dev->dbgmgr);
+	pdd = kfd_get_process_device_data(dev, p);
 
-			pqm_uninit(&p->pqm);
+	if (!pdd) {
+		mutex_unlock(&p->mutex);
+		return;
+	}
 
-			pdd = kfd_get_process_device_data(dev, p);
+	if (pdd->reset_wavefronts) {
+		dbgdev_wave_reset_wavefronts(pdd->dev, p);
+		pdd->reset_wavefronts = false;
+	}
 
-			if (!pdd) {
-				mutex_unlock(&p->mutex);
-				return;
-			}
+	/*
+	 * Just mark pdd as unbound, because we still need it
+	 * to call amd_iommu_unbind_pasid() in when the
+	 * process exits.
+	 * We don't call amd_iommu_unbind_pasid() here
+	 * because the IOMMU called us.
+	 */
+	pdd->bound = false;
 
-			if (pdd->reset_wavefronts) {
-				dbgdev_wave_reset_wavefronts(pdd->dev, p);
-				pdd->reset_wavefronts = false;
-			}
-
-			/*
-			 * Just mark pdd as unbound, because we still need it
-			 * to call amd_iommu_unbind_pasid() in when the
-			 * process exits.
-			 * We don't call amd_iommu_unbind_pasid() here
-			 * because the IOMMU called us.
-			 */
-			pdd->bound = false;
-
-			mutex_unlock(&p->mutex);
-
-			return;
-		}
-
-	srcu_read_unlock(&kfd_processes_srcu, idx);
+	mutex_unlock(&p->mutex);
 }
 
 struct kfd_process_device *kfd_get_first_process_device_data(struct kfd_process *p)

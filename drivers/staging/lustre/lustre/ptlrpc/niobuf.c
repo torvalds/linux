@@ -295,7 +295,6 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_unregister_bulk);
 
 static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 {
@@ -398,7 +397,8 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 	lustre_msg_set_status(req->rq_repmsg,
 			      ptlrpc_status_hton(req->rq_status));
 	lustre_msg_set_opc(req->rq_repmsg,
-		req->rq_reqmsg ? lustre_msg_get_opc(req->rq_reqmsg) : 0);
+			   req->rq_reqmsg ?
+			   lustre_msg_get_opc(req->rq_reqmsg) : 0);
 
 	target_pack_pool_reply(req);
 
@@ -433,7 +433,6 @@ out:
 	ptlrpc_connection_put(conn);
 	return rc;
 }
-EXPORT_SYMBOL(ptlrpc_send_reply);
 
 int ptlrpc_reply(struct ptlrpc_request *req)
 {
@@ -441,7 +440,6 @@ int ptlrpc_reply(struct ptlrpc_request *req)
 		return 0;
 	return ptlrpc_send_reply(req, 0);
 }
-EXPORT_SYMBOL(ptlrpc_reply);
 
 /**
  * For request \a req send an error reply back. Create empty
@@ -468,13 +466,11 @@ int ptlrpc_send_error(struct ptlrpc_request *req, int may_be_difficult)
 	rc = ptlrpc_send_reply(req, may_be_difficult);
 	return rc;
 }
-EXPORT_SYMBOL(ptlrpc_send_error);
 
 int ptlrpc_error(struct ptlrpc_request *req)
 {
 	return ptlrpc_send_error(req, 0);
 }
-EXPORT_SYMBOL(ptlrpc_error);
 
 /**
  * Send request \a request.
@@ -490,7 +486,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	struct ptlrpc_connection *connection;
 	lnet_handle_me_t reply_me_h;
 	lnet_md_t reply_md;
-	struct obd_device *obd = request->rq_import->imp_obd;
+	struct obd_import *imp = request->rq_import;
+	struct obd_device *obd = imp->imp_obd;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DROP_RPC))
 		return 0;
@@ -503,7 +500,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	 */
 	LASSERT(!request->rq_receiving_reply);
 	LASSERT(!((lustre_msg_get_flags(request->rq_reqmsg) & MSG_REPLAY) &&
-		  (request->rq_import->imp_state == LUSTRE_IMP_FULL)));
+		  (imp->imp_state == LUSTRE_IMP_FULL)));
 
 	if (unlikely(obd && obd->obd_fail)) {
 		CDEBUG(D_HA, "muting rpc for failed imp obd %s\n",
@@ -516,15 +513,22 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		return -ENODEV;
 	}
 
-	connection = request->rq_import->imp_connection;
+	connection = imp->imp_connection;
 
 	lustre_msg_set_handle(request->rq_reqmsg,
-			      &request->rq_import->imp_remote_handle);
+			      &imp->imp_remote_handle);
 	lustre_msg_set_type(request->rq_reqmsg, PTL_RPC_MSG_REQUEST);
-	lustre_msg_set_conn_cnt(request->rq_reqmsg,
-				request->rq_import->imp_conn_cnt);
-	lustre_msghdr_set_flags(request->rq_reqmsg,
-				request->rq_import->imp_msghdr_flags);
+	lustre_msg_set_conn_cnt(request->rq_reqmsg, imp->imp_conn_cnt);
+	lustre_msghdr_set_flags(request->rq_reqmsg, imp->imp_msghdr_flags);
+
+	/**
+	 * For enabled AT all request should have AT_SUPPORT in the
+	 * FULL import state when OBD_CONNECT_AT is set
+	 */
+	LASSERT(AT_OFF || imp->imp_state != LUSTRE_IMP_FULL ||
+		(imp->imp_msghdr_flags & MSGHDR_AT_SUPPORT) ||
+		!(imp->imp_connect_data.ocd_connect_flags &
+		OBD_CONNECT_AT));
 
 	if (request->rq_resend)
 		lustre_msg_add_flags(request->rq_reqmsg, MSG_RESENT);
@@ -628,7 +632,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	ptlrpc_request_addref(request);
 	if (obd && obd->obd_svc_stats)
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQACTIVE_CNTR,
-			atomic_read(&request->rq_import->imp_inflight));
+			atomic_read(&imp->imp_inflight));
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_PTLRPC_DELAY_SEND, request->rq_timeout + 5);
 
@@ -640,7 +644,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	request->rq_deadline = request->rq_sent + request->rq_timeout +
 		ptlrpc_at_get_net_latency(request);
 
-	ptlrpc_pinger_sending_on_import(request->rq_import);
+	ptlrpc_pinger_sending_on_import(imp);
 
 	DEBUG_REQ(D_INFO, request, "send flg=%x",
 		  lustre_msg_get_flags(request->rq_reqmsg));

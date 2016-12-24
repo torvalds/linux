@@ -49,7 +49,26 @@
 #include "common.h"
 #include "eprom.h"
 
+/*
+ * The EPROM is logically divided into three partitions:
+ *	partition 0: the first 128K, visible from PCI ROM BAR
+ *	partition 1: 4K config file (sector size)
+ *	partition 2: the rest
+ */
+#define P0_SIZE (128 * 1024)
+#define P1_SIZE   (4 * 1024)
+#define P1_START P0_SIZE
+#define P2_START (P0_SIZE + P1_SIZE)
+
+/* controller page size, in bytes */
+#define EP_PAGE_SIZE 256
+#define EP_PAGE_MASK (EP_PAGE_SIZE - 1)
+#define EP_PAGE_DWORDS (EP_PAGE_SIZE / sizeof(u32))
+
+/* controller commands */
 #define CMD_SHIFT 24
+#define CMD_NOP			    (0)
+#define CMD_READ_DATA(addr)	    ((0x03 << CMD_SHIFT) | addr)
 #define CMD_RELEASE_POWERDOWN_NOID  ((0xab << CMD_SHIFT))
 
 /* controller interface speeds */
@@ -61,6 +80,90 @@
  * Double it for safety.
  */
 #define EPROM_TIMEOUT 80000 /* ms */
+
+/*
+ * Read a 256 byte (64 dword) EPROM page.
+ * All callers have verified the offset is at a page boundary.
+ */
+static void read_page(struct hfi1_devdata *dd, u32 offset, u32 *result)
+{
+	int i;
+
+	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_READ_DATA(offset));
+	for (i = 0; i < EP_PAGE_DWORDS; i++)
+		result[i] = (u32)read_csr(dd, ASIC_EEP_DATA);
+	write_csr(dd, ASIC_EEP_ADDR_CMD, CMD_NOP); /* close open page */
+}
+
+/*
+ * Read length bytes starting at offset from the start of the EPROM.
+ */
+static int read_length(struct hfi1_devdata *dd, u32 start, u32 len, void *dest)
+{
+	u32 buffer[EP_PAGE_DWORDS];
+	u32 end;
+	u32 start_offset;
+	u32 read_start;
+	u32 bytes;
+
+	if (len == 0)
+		return 0;
+
+	end = start + len;
+
+	/*
+	 * Make sure the read range is not outside of the controller read
+	 * command address range.  Note that '>' is correct below - the end
+	 * of the range is OK if it stops at the limit, but no higher.
+	 */
+	if (end > (1 << CMD_SHIFT))
+		return -EINVAL;
+
+	/* read the first partial page */
+	start_offset = start & EP_PAGE_MASK;
+	if (start_offset) {
+		/* partial starting page */
+
+		/* align and read the page that contains the start */
+		read_start = start & ~EP_PAGE_MASK;
+		read_page(dd, read_start, buffer);
+
+		/* the rest of the page is available data */
+		bytes = EP_PAGE_SIZE - start_offset;
+
+		if (len <= bytes) {
+			/* end is within this page */
+			memcpy(dest, (u8 *)buffer + start_offset, len);
+			return 0;
+		}
+
+		memcpy(dest, (u8 *)buffer + start_offset, bytes);
+
+		start += bytes;
+		len -= bytes;
+		dest += bytes;
+	}
+	/* start is now page aligned */
+
+	/* read whole pages */
+	while (len >= EP_PAGE_SIZE) {
+		read_page(dd, start, buffer);
+		memcpy(dest, buffer, EP_PAGE_SIZE);
+
+		start += EP_PAGE_SIZE;
+		len -= EP_PAGE_SIZE;
+		dest += EP_PAGE_SIZE;
+	}
+
+	/* read the last partial page */
+	if (len) {
+		read_page(dd, start, buffer);
+		memcpy(dest, buffer, len);
+	}
+
+	return 0;
+}
+
 /*
  * Initialize the EPROM handler.
  */
@@ -98,5 +201,87 @@ int eprom_init(struct hfi1_devdata *dd)
 	dd->eprom_available = true;
 	release_chip_resource(dd, CR_EPROM);
 done_asic:
+	return ret;
+}
+
+/* magic character sequence that trails an image */
+#define IMAGE_TRAIL_MAGIC "egamiAPO"
+
+/*
+ * Read all of partition 1.  The actual file is at the front.  Adjust
+ * the returned size if a trailing image magic is found.
+ */
+static int read_partition_platform_config(struct hfi1_devdata *dd, void **data,
+					  u32 *size)
+{
+	void *buffer;
+	void *p;
+	u32 length;
+	int ret;
+
+	buffer = kmalloc(P1_SIZE, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	ret = read_length(dd, P1_START, P1_SIZE, buffer);
+	if (ret) {
+		kfree(buffer);
+		return ret;
+	}
+
+	/* scan for image magic that may trail the actual data */
+	p = strnstr(buffer, IMAGE_TRAIL_MAGIC, P1_SIZE);
+	if (p)
+		length = p - buffer;
+	else
+		length = P1_SIZE;
+
+	*data = buffer;
+	*size = length;
+	return 0;
+}
+
+/*
+ * Read the platform configuration file from the EPROM.
+ *
+ * On success, an allocated buffer containing the data and its size are
+ * returned.  It is up to the caller to free this buffer.
+ *
+ * Return value:
+ *   0	      - success
+ *   -ENXIO   - no EPROM is available
+ *   -EBUSY   - not able to acquire access to the EPROM
+ *   -ENOENT  - no recognizable file written
+ *   -ENOMEM  - buffer could not be allocated
+ */
+int eprom_read_platform_config(struct hfi1_devdata *dd, void **data, u32 *size)
+{
+	u32 directory[EP_PAGE_DWORDS]; /* aligned buffer */
+	int ret;
+
+	if (!dd->eprom_available)
+		return -ENXIO;
+
+	ret = acquire_chip_resource(dd, CR_EPROM, EPROM_TIMEOUT);
+	if (ret)
+		return -EBUSY;
+
+	/* read the last page of P0 for the EPROM format magic */
+	ret = read_length(dd, P1_START - EP_PAGE_SIZE, EP_PAGE_SIZE, directory);
+	if (ret)
+		goto done;
+
+	/* last dword of P0 contains a magic indicator */
+	if (directory[EP_PAGE_DWORDS - 1] == 0) {
+		/* partition format */
+		ret = read_partition_platform_config(dd, data, size);
+		goto done;
+	}
+
+	/* nothing recognized */
+	ret = -ENOENT;
+
+done:
+	release_chip_resource(dd, CR_EPROM);
 	return ret;
 }

@@ -35,7 +35,8 @@
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/workqueue.h>
+#include <net/net_namespace.h>
+#include <net/rtnetlink.h>
 
 #include "bat_v.h"
 #include "bridge_loop_avoidance.h"
@@ -85,25 +86,55 @@ out:
 }
 
 /**
+ * batadv_getlink_net - return link net namespace (of use fallback)
+ * @netdev: net_device to check
+ * @fallback_net: return in case get_link_net is not available for @netdev
+ *
+ * Return: result of rtnl_link_ops->get_link_net or @fallback_net
+ */
+static const struct net *batadv_getlink_net(const struct net_device *netdev,
+					    const struct net *fallback_net)
+{
+	if (!netdev->rtnl_link_ops)
+		return fallback_net;
+
+	if (!netdev->rtnl_link_ops->get_link_net)
+		return fallback_net;
+
+	return netdev->rtnl_link_ops->get_link_net(netdev);
+}
+
+/**
  * batadv_mutual_parents - check if two devices are each others parent
- * @dev1: 1st net_device
- * @dev2: 2nd net_device
+ * @dev1: 1st net dev
+ * @net1: 1st devices netns
+ * @dev2: 2nd net dev
+ * @net2: 2nd devices netns
  *
  * veth devices come in pairs and each is the parent of the other!
  *
  * Return: true if the devices are each others parent, otherwise false
  */
 static bool batadv_mutual_parents(const struct net_device *dev1,
-				  const struct net_device *dev2)
+				  const struct net *net1,
+				  const struct net_device *dev2,
+				  const struct net *net2)
 {
 	int dev1_parent_iflink = dev_get_iflink(dev1);
 	int dev2_parent_iflink = dev_get_iflink(dev2);
+	const struct net *dev1_parent_net;
+	const struct net *dev2_parent_net;
+
+	dev1_parent_net = batadv_getlink_net(dev1, net1);
+	dev2_parent_net = batadv_getlink_net(dev2, net2);
 
 	if (!dev1_parent_iflink || !dev2_parent_iflink)
 		return false;
 
 	return (dev1_parent_iflink == dev2->ifindex) &&
-	       (dev2_parent_iflink == dev1->ifindex);
+	       (dev2_parent_iflink == dev1->ifindex) &&
+	       net_eq(dev1_parent_net, net2) &&
+	       net_eq(dev2_parent_net, net1);
 }
 
 /**
@@ -121,8 +152,9 @@ static bool batadv_mutual_parents(const struct net_device *dev1,
  */
 static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 {
-	struct net_device *parent_dev;
 	struct net *net = dev_net(net_dev);
+	struct net_device *parent_dev;
+	const struct net *parent_net;
 	bool ret;
 
 	/* check if this is a batman-adv mesh interface */
@@ -134,13 +166,16 @@ static bool batadv_is_on_batman_iface(const struct net_device *net_dev)
 	    dev_get_iflink(net_dev) == net_dev->ifindex)
 		return false;
 
+	parent_net = batadv_getlink_net(net_dev, net);
+
 	/* recurse over the parent device */
-	parent_dev = __dev_get_by_index(net, dev_get_iflink(net_dev));
+	parent_dev = __dev_get_by_index((struct net *)parent_net,
+					dev_get_iflink(net_dev));
 	/* if we got a NULL parent_dev there is something broken.. */
 	if (WARN(!parent_dev, "Cannot find parent device"))
 		return false;
 
-	if (batadv_mutual_parents(net_dev, parent_dev))
+	if (batadv_mutual_parents(net_dev, net, parent_dev, parent_net))
 		return false;
 
 	ret = batadv_is_on_batman_iface(parent_dev);
@@ -625,25 +660,6 @@ out:
 		batadv_hardif_put(primary_if);
 }
 
-/**
- * batadv_hardif_remove_interface_finish - cleans up the remains of a hardif
- * @work: work queue item
- *
- * Free the parts of the hard interface which can not be removed under
- * rtnl lock (to prevent deadlock situations).
- */
-static void batadv_hardif_remove_interface_finish(struct work_struct *work)
-{
-	struct batadv_hard_iface *hard_iface;
-
-	hard_iface = container_of(work, struct batadv_hard_iface,
-				  cleanup_work);
-
-	batadv_debugfs_del_hardif(hard_iface);
-	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
-	batadv_hardif_put(hard_iface);
-}
-
 static struct batadv_hard_iface *
 batadv_hardif_add_interface(struct net_device *net_dev)
 {
@@ -676,10 +692,9 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	INIT_LIST_HEAD(&hard_iface->list);
 	INIT_HLIST_HEAD(&hard_iface->neigh_list);
-	INIT_WORK(&hard_iface->cleanup_work,
-		  batadv_hardif_remove_interface_finish);
 
 	spin_lock_init(&hard_iface->neigh_list_lock);
+	kref_init(&hard_iface->refcount);
 
 	hard_iface->num_bcasts = BATADV_NUM_BCASTS_DEFAULT;
 	if (batadv_is_wifi_netdev(net_dev))
@@ -687,11 +702,8 @@ batadv_hardif_add_interface(struct net_device *net_dev)
 
 	batadv_v_hardif_init(hard_iface);
 
-	/* extra reference for return */
-	kref_init(&hard_iface->refcount);
-	kref_get(&hard_iface->refcount);
-
 	batadv_check_known_mac_addr(hard_iface->net_dev);
+	kref_get(&hard_iface->refcount);
 	list_add_tail_rcu(&hard_iface->list, &batadv_hardif_list);
 
 	return hard_iface;
@@ -713,13 +725,15 @@ static void batadv_hardif_remove_interface(struct batadv_hard_iface *hard_iface)
 	/* first deactivate interface */
 	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		batadv_hardif_disable_interface(hard_iface,
-						BATADV_IF_CLEANUP_AUTO);
+						BATADV_IF_CLEANUP_KEEP);
 
 	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
 		return;
 
 	hard_iface->if_status = BATADV_IF_TO_BE_REMOVED;
-	queue_work(batadv_event_workqueue, &hard_iface->cleanup_work);
+	batadv_debugfs_del_hardif(hard_iface);
+	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
+	batadv_hardif_put(hard_iface);
 }
 
 void batadv_hardif_remove_interfaces(void)

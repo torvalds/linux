@@ -35,9 +35,9 @@ static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__ptep_ipte_local(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_LOCAL);
 	else
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -56,7 +56,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 		pte_val(*ptep) |= _PAGE_INVALID;
 		mm->context.flush_mm = 1;
 	} else
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -301,9 +301,9 @@ static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pmdp_idte_local(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_LOCAL);
 	else
-		__pmdp_idte(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -322,7 +322,7 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
 		mm->context.flush_mm = 1;
 	} else if (MACHINE_HAS_IDTE)
-		__pmdp_idte(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_GLOBAL);
 	else
 		__pmdp_csp(pmdp);
 	atomic_dec(&mm->context.flush_count);
@@ -374,9 +374,9 @@ static inline pud_t pudp_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pudp_idte_local(addr, pudp);
+		__pudp_idte(addr, pudp, IDTE_LOCAL);
 	else
-		__pudp_idte(addr, pudp);
+		__pudp_idte(addr, pudp, IDTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -620,7 +620,7 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
 		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
 			pte_val(pte) |= _PAGE_PROTECT;
 		else

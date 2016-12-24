@@ -71,6 +71,7 @@ config SOC_AM43XX
 	select HAVE_ARM_TWD
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_775420
+	select OMAP_INTERCONNECT
 
 config SOC_DRA7XX
 	bool "TI DRA7XX"
@@ -192,12 +193,6 @@ config MACH_OMAP2_TUSB6010
 	depends on ARCH_OMAP2 && SOC_OMAP2420
 	default y if MACH_NOKIA_N8X0
 
-config MACH_OMAP_LDP
-	bool "OMAP3 LDP board"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
-
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
 	depends on ARCH_OMAP3
@@ -221,12 +216,6 @@ config MACH_NOKIA_N8X0
 	default y
 	select MACH_NOKIA_N810
 	select MACH_NOKIA_N810_WIMAX
-
-config MACH_NOKIA_RX51
-	bool "Nokia N900 (RX-51) phone"
-	depends on ARCH_OMAP3
-	default y
-	select OMAP_PACKAGE_CBB
 
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"

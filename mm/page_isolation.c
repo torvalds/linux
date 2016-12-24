@@ -55,7 +55,7 @@ static int set_migratetype_isolate(struct page *page,
 		ret = 0;
 
 	/*
-	 * immobile means "not-on-lru" paes. If immobile is larger than
+	 * immobile means "not-on-lru" pages. If immobile is larger than
 	 * removable-by-driver pages reported by notifier, we'll fail.
 	 */
 

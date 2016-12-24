@@ -148,7 +148,6 @@ int lio_setup_cn68xx_octeon_device(struct octeon_device *oct)
 	oct->fn_list.process_interrupt_regs = lio_cn6xxx_process_interrupt_regs;
 	oct->fn_list.soft_reset = lio_cn68xx_soft_reset;
 	oct->fn_list.setup_device_regs = lio_cn68xx_setup_device_regs;
-	oct->fn_list.reinit_regs = lio_cn6xxx_reinit_regs;
 	oct->fn_list.update_iq_read_idx = lio_cn6xxx_update_read_index;
 
 	oct->fn_list.bar1_idx_setup = lio_cn6xxx_bar1_idx_setup;

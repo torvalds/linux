@@ -37,6 +37,7 @@
 #define DEBUG_SUBSYSTEM S_CLASS
 #include "../include/obd_class.h"
 #include <linux/string.h>
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_log.h"
 #include "../include/lprocfs_status.h"
 #include "../include/lustre_param.h"
@@ -237,7 +238,7 @@ static int class_attach(struct lustre_cfg *lcfg)
 	/* recovery data */
 	init_waitqueue_head(&obd->obd_evict_inprogress_waitq);
 
-	llog_group_init(&obd->obd_olg, FID_SEQ_LLOG);
+	llog_group_init(&obd->obd_olg);
 
 	obd->obd_conn_inprogress = 0;
 
@@ -249,15 +250,6 @@ static int class_attach(struct lustre_cfg *lcfg)
 		goto out;
 	}
 	memcpy(obd->obd_uuid.uuid, uuid, len);
-
-	/* do the attach */
-	if (OBP(obd, attach)) {
-		rc = OBP(obd, attach)(obd, sizeof(*lcfg), lcfg);
-		if (rc) {
-			rc = -EINVAL;
-			goto out;
-		}
-	}
 
 	/* Detach drops this */
 	spin_lock(&obd->obd_dev_lock);
@@ -422,16 +414,11 @@ static int class_cleanup(struct obd_device *obd, struct lustre_cfg *lcfg)
 	}
 	/* Leave this on forever */
 	obd->obd_stopping = 1;
-
-	/* wait for already-arrived-connections to finish. */
-	while (obd->obd_conn_inprogress > 0) {
-		spin_unlock(&obd->obd_dev_lock);
-
-		cond_resched();
-
-		spin_lock(&obd->obd_dev_lock);
-	}
 	spin_unlock(&obd->obd_dev_lock);
+
+	while (obd->obd_conn_inprogress > 0)
+		yield();
+	smp_rmb();
 
 	if (lcfg->lcfg_bufcount >= 2 && LUSTRE_CFG_BUFLEN(lcfg, 1) > 0) {
 		for (flag = lustre_cfg_string(lcfg, 1); *flag != 0; flag++)
@@ -525,11 +512,6 @@ void class_decref(struct obd_device *obd, const char *scope, const void *source)
 			if (err)
 				CERROR("Cleanup %s returned %d\n",
 				       obd->obd_name, err);
-		}
-		if (OBP(obd, detach)) {
-			err = OBP(obd, detach)(obd);
-			if (err)
-				CERROR("Detach returned %d\n", err);
 		}
 		class_release_dev(obd);
 	}
@@ -756,7 +738,7 @@ static int process_param2_config(struct lustre_cfg *lcfg)
 	}
 
 	start = ktime_get();
-	rc = call_usermodehelper(argv[0], argv, NULL, 1);
+	rc = call_usermodehelper(argv[0], argv, NULL, UMH_WAIT_PROC);
 	end = ktime_get();
 
 	if (rc < 0) {
@@ -1026,7 +1008,7 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 
 					oldfs = get_fs();
 					set_fs(KERNEL_DS);
-					rc = (var->fops->write)(&fakefile, sval,
+					rc = var->fops->write(&fakefile, sval,
 								vallen, NULL);
 					set_fs(oldfs);
 				}
@@ -1059,8 +1041,6 @@ int class_process_proc_param(char *prefix, struct lprocfs_vars *lvars,
 	return rc;
 }
 EXPORT_SYMBOL(class_process_proc_param);
-
-extern int lustre_check_exclusion(struct super_block *sb, char *svname);
 
 /** Parse a configuration llog, doing various manipulations on them
  * for various reasons, (modifications for compatibility, skip obsolete
@@ -1317,33 +1297,33 @@ static int class_config_parse_rec(struct llog_rec_hdr *rec, char *buf,
 	if (rc < 0)
 		return rc;
 
-	ptr += snprintf(ptr, end-ptr, "cmd=%05x ", lcfg->lcfg_command);
+	ptr += snprintf(ptr, end - ptr, "cmd=%05x ", lcfg->lcfg_command);
 	if (lcfg->lcfg_flags)
-		ptr += snprintf(ptr, end-ptr, "flags=%#08x ",
+		ptr += snprintf(ptr, end - ptr, "flags=%#08x ",
 				lcfg->lcfg_flags);
 
 	if (lcfg->lcfg_num)
-		ptr += snprintf(ptr, end-ptr, "num=%#08x ", lcfg->lcfg_num);
+		ptr += snprintf(ptr, end - ptr, "num=%#08x ", lcfg->lcfg_num);
 
 	if (lcfg->lcfg_nid) {
 		char nidstr[LNET_NIDSTR_SIZE];
 
 		libcfs_nid2str_r(lcfg->lcfg_nid, nidstr, sizeof(nidstr));
-		ptr += snprintf(ptr, end-ptr, "nid=%s(%#llx)\n     ",
+		ptr += snprintf(ptr, end - ptr, "nid=%s(%#llx)\n     ",
 				nidstr, lcfg->lcfg_nid);
 	}
 
 	if (lcfg->lcfg_command == LCFG_MARKER) {
 		struct cfg_marker *marker = lustre_cfg_buf(lcfg, 1);
 
-		ptr += snprintf(ptr, end-ptr, "marker=%d(%#x)%s '%s'",
+		ptr += snprintf(ptr, end - ptr, "marker=%d(%#x)%s '%s'",
 				marker->cm_step, marker->cm_flags,
 				marker->cm_tgtname, marker->cm_comment);
 	} else {
 		int i;
 
 		for (i = 0; i <  lcfg->lcfg_bufcount; i++) {
-			ptr += snprintf(ptr, end-ptr, "%d:%s  ", i,
+			ptr += snprintf(ptr, end - ptr, "%d:%s  ", i,
 					lustre_cfg_string(lcfg, i));
 		}
 	}

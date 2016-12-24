@@ -111,7 +111,7 @@ static void rtl_fw_do_work(const struct firmware *firmware, void *context,
 			if (!err)
 				goto found_alt;
 		}
-		pr_err("Firmware %s not available\n", rtlpriv->cfg->fw_name);
+		pr_err("Selected firmware is not available\n");
 		rtlpriv->max_fw_size = 0;
 		return;
 	}
@@ -765,7 +765,8 @@ static int rtl_op_config(struct ieee80211_hw *hw, u32 changed)
 					mac->bw_40 = false;
 					mac->bw_80 = false;
 					RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-						 "switch case not processed\n");
+						 "switch case %#x not processed\n",
+						 channel_type);
 					break;
 			}
 		}
@@ -1135,7 +1136,7 @@ static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 					mac->mode = WIRELESS_MODE_AC_24G;
 			}
 
-			if (vif->type == NL80211_IFTYPE_STATION && sta)
+			if (vif->type == NL80211_IFTYPE_STATION)
 				rtlpriv->cfg->ops->update_rate_tbl(hw, sta, 0);
 			rcu_read_unlock();
 

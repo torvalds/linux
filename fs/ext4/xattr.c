@@ -61,18 +61,12 @@
 #include "acl.h"
 
 #ifdef EXT4_XATTR_DEBUG
-# define ea_idebug(inode, f...) do { \
-		printk(KERN_DEBUG "inode %s:%lu: ", \
-			inode->i_sb->s_id, inode->i_ino); \
-		printk(f); \
-		printk("\n"); \
-	} while (0)
-# define ea_bdebug(bh, f...) do { \
-		printk(KERN_DEBUG "block %pg:%lu: ",		   \
-		       bh->b_bdev, (unsigned long) bh->b_blocknr); \
-		printk(f); \
-		printk("\n"); \
-	} while (0)
+# define ea_idebug(inode, fmt, ...)					\
+	printk(KERN_DEBUG "inode %s:%lu: " fmt "\n",			\
+	       inode->i_sb->s_id, inode->i_ino, ##__VA_ARGS__)
+# define ea_bdebug(bh, fmt, ...)					\
+	printk(KERN_DEBUG "block %pg:%lu: " fmt "\n",			\
+	       bh->b_bdev, (unsigned long)bh->b_blocknr, ##__VA_ARGS__)
 #else
 # define ea_idebug(inode, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 # define ea_bdebug(bh, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
@@ -199,6 +193,8 @@ ext4_xattr_check_names(struct ext4_xattr_entry *entry, void *end,
 	}
 
 	while (!IS_LAST_ENTRY(entry)) {
+		if (entry->e_value_block != 0)
+			return -EFSCORRUPTED;
 		if (entry->e_value_size != 0 &&
 		    (value_start + le16_to_cpu(entry->e_value_offs) <
 		     (void *)e + sizeof(__u32) ||
@@ -239,7 +235,7 @@ __xattr_check_inode(struct inode *inode, struct ext4_xattr_ibody_header *header,
 	int error = -EFSCORRUPTED;
 
 	if (((void *) header >= end) ||
-	    (header->h_magic != le32_to_cpu(EXT4_XATTR_MAGIC)))
+	    (header->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC)))
 		goto errout;
 	error = ext4_xattr_check_names(entry, end, entry);
 errout:
@@ -641,7 +637,7 @@ static size_t ext4_xattr_free_space(struct ext4_xattr_entry *last,
 				    size_t *min_offs, void *base, int *total)
 {
 	for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
-		if (!last->e_value_block && last->e_value_size) {
+		if (last->e_value_size) {
 			size_t offs = le16_to_cpu(last->e_value_offs);
 			if (offs < *min_offs)
 				*min_offs = offs;
@@ -661,7 +657,7 @@ ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s)
 	/* Compute min_offs and last. */
 	last = s->first;
 	for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
-		if (!last->e_value_block && last->e_value_size) {
+		if (last->e_value_size) {
 			size_t offs = le16_to_cpu(last->e_value_offs);
 			if (offs < min_offs)
 				min_offs = offs;
@@ -669,7 +665,7 @@ ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s)
 	}
 	free = min_offs - ((void *)last - s->base) - sizeof(__u32);
 	if (!s->not_found) {
-		if (!s->here->e_value_block && s->here->e_value_size) {
+		if (s->here->e_value_size) {
 			size_t size = le32_to_cpu(s->here->e_value_size);
 			free += EXT4_XATTR_SIZE(size);
 		}
@@ -691,7 +687,7 @@ ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s)
 		s->here->e_name_len = name_len;
 		memcpy(s->here->e_name, i->name, name_len);
 	} else {
-		if (!s->here->e_value_block && s->here->e_value_size) {
+		if (s->here->e_value_size) {
 			void *first_val = s->base + min_offs;
 			size_t offs = le16_to_cpu(s->here->e_value_offs);
 			void *val = s->base + offs;
@@ -725,8 +721,7 @@ ext4_xattr_set_entry(struct ext4_xattr_info *i, struct ext4_xattr_search *s)
 			last = s->first;
 			while (!IS_LAST_ENTRY(last)) {
 				size_t o = le16_to_cpu(last->e_value_offs);
-				if (!last->e_value_block &&
-				    last->e_value_size && o < offs)
+				if (last->e_value_size && o < offs)
 					last->e_value_offs =
 						cpu_to_le16(o + size);
 				last = EXT4_XATTR_NEXT(last);
@@ -1318,23 +1313,159 @@ retry:
  */
 static void ext4_xattr_shift_entries(struct ext4_xattr_entry *entry,
 				     int value_offs_shift, void *to,
-				     void *from, size_t n, int blocksize)
+				     void *from, size_t n)
 {
 	struct ext4_xattr_entry *last = entry;
 	int new_offs;
 
+	/* We always shift xattr headers further thus offsets get lower */
+	BUG_ON(value_offs_shift > 0);
+
 	/* Adjust the value offsets of the entries */
 	for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
-		if (!last->e_value_block && last->e_value_size) {
+		if (last->e_value_size) {
 			new_offs = le16_to_cpu(last->e_value_offs) +
 							value_offs_shift;
-			BUG_ON(new_offs + le32_to_cpu(last->e_value_size)
-				 > blocksize);
 			last->e_value_offs = cpu_to_le16(new_offs);
 		}
 	}
 	/* Shift the entries by n bytes */
 	memmove(to, from, n);
+}
+
+/*
+ * Move xattr pointed to by 'entry' from inode into external xattr block
+ */
+static int ext4_xattr_move_to_block(handle_t *handle, struct inode *inode,
+				    struct ext4_inode *raw_inode,
+				    struct ext4_xattr_entry *entry)
+{
+	struct ext4_xattr_ibody_find *is = NULL;
+	struct ext4_xattr_block_find *bs = NULL;
+	char *buffer = NULL, *b_entry_name = NULL;
+	size_t value_offs, value_size;
+	struct ext4_xattr_info i = {
+		.value = NULL,
+		.value_len = 0,
+		.name_index = entry->e_name_index,
+	};
+	struct ext4_xattr_ibody_header *header = IHDR(inode, raw_inode);
+	int error;
+
+	value_offs = le16_to_cpu(entry->e_value_offs);
+	value_size = le32_to_cpu(entry->e_value_size);
+
+	is = kzalloc(sizeof(struct ext4_xattr_ibody_find), GFP_NOFS);
+	bs = kzalloc(sizeof(struct ext4_xattr_block_find), GFP_NOFS);
+	buffer = kmalloc(value_size, GFP_NOFS);
+	b_entry_name = kmalloc(entry->e_name_len + 1, GFP_NOFS);
+	if (!is || !bs || !buffer || !b_entry_name) {
+		error = -ENOMEM;
+		goto out;
+	}
+
+	is->s.not_found = -ENODATA;
+	bs->s.not_found = -ENODATA;
+	is->iloc.bh = NULL;
+	bs->bh = NULL;
+
+	/* Save the entry name and the entry value */
+	memcpy(buffer, (void *)IFIRST(header) + value_offs, value_size);
+	memcpy(b_entry_name, entry->e_name, entry->e_name_len);
+	b_entry_name[entry->e_name_len] = '\0';
+	i.name = b_entry_name;
+
+	error = ext4_get_inode_loc(inode, &is->iloc);
+	if (error)
+		goto out;
+
+	error = ext4_xattr_ibody_find(inode, &i, is);
+	if (error)
+		goto out;
+
+	/* Remove the chosen entry from the inode */
+	error = ext4_xattr_ibody_set(handle, inode, &i, is);
+	if (error)
+		goto out;
+
+	i.name = b_entry_name;
+	i.value = buffer;
+	i.value_len = value_size;
+	error = ext4_xattr_block_find(inode, &i, bs);
+	if (error)
+		goto out;
+
+	/* Add entry which was removed from the inode into the block */
+	error = ext4_xattr_block_set(handle, inode, &i, bs);
+	if (error)
+		goto out;
+	error = 0;
+out:
+	kfree(b_entry_name);
+	kfree(buffer);
+	if (is)
+		brelse(is->iloc.bh);
+	kfree(is);
+	kfree(bs);
+
+	return error;
+}
+
+static int ext4_xattr_make_inode_space(handle_t *handle, struct inode *inode,
+				       struct ext4_inode *raw_inode,
+				       int isize_diff, size_t ifree,
+				       size_t bfree, int *total_ino)
+{
+	struct ext4_xattr_ibody_header *header = IHDR(inode, raw_inode);
+	struct ext4_xattr_entry *small_entry;
+	struct ext4_xattr_entry *entry;
+	struct ext4_xattr_entry *last;
+	unsigned int entry_size;	/* EA entry size */
+	unsigned int total_size;	/* EA entry size + value size */
+	unsigned int min_total_size;
+	int error;
+
+	while (isize_diff > ifree) {
+		entry = NULL;
+		small_entry = NULL;
+		min_total_size = ~0U;
+		last = IFIRST(header);
+		/* Find the entry best suited to be pushed into EA block */
+		for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
+			total_size =
+			EXT4_XATTR_SIZE(le32_to_cpu(last->e_value_size)) +
+					EXT4_XATTR_LEN(last->e_name_len);
+			if (total_size <= bfree &&
+			    total_size < min_total_size) {
+				if (total_size + ifree < isize_diff) {
+					small_entry = last;
+				} else {
+					entry = last;
+					min_total_size = total_size;
+				}
+			}
+		}
+
+		if (entry == NULL) {
+			if (small_entry == NULL)
+				return -ENOSPC;
+			entry = small_entry;
+		}
+
+		entry_size = EXT4_XATTR_LEN(entry->e_name_len);
+		total_size = entry_size +
+			EXT4_XATTR_SIZE(le32_to_cpu(entry->e_value_size));
+		error = ext4_xattr_move_to_block(handle, inode, raw_inode,
+						 entry);
+		if (error)
+			return error;
+
+		*total_ino -= entry_size;
+		ifree += total_size;
+		bfree -= total_size;
+	}
+
+	return 0;
 }
 
 /*
@@ -1345,14 +1476,11 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			       struct ext4_inode *raw_inode, handle_t *handle)
 {
 	struct ext4_xattr_ibody_header *header;
-	struct ext4_xattr_entry *entry, *last, *first;
 	struct buffer_head *bh = NULL;
-	struct ext4_xattr_ibody_find *is = NULL;
-	struct ext4_xattr_block_find *bs = NULL;
-	char *buffer = NULL, *b_entry_name = NULL;
-	size_t min_offs, free;
+	size_t min_offs;
+	size_t ifree, bfree;
 	int total_ino;
-	void *base, *start, *end;
+	void *base, *end;
 	int error = 0, tried_min_extra_isize = 0;
 	int s_min_extra_isize = le16_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_min_extra_isize);
 	int isize_diff;	/* How much do we need to grow i_extra_isize */
@@ -1368,34 +1496,24 @@ retry:
 		goto out;
 
 	header = IHDR(inode, raw_inode);
-	entry = IFIRST(header);
 
 	/*
 	 * Check if enough free space is available in the inode to shift the
 	 * entries ahead by new_extra_isize.
 	 */
 
-	base = start = entry;
+	base = IFIRST(header);
 	end = (void *)raw_inode + EXT4_SB(inode->i_sb)->s_inode_size;
 	min_offs = end - base;
-	last = entry;
 	total_ino = sizeof(struct ext4_xattr_ibody_header);
 
 	error = xattr_check_inode(inode, header, end);
 	if (error)
 		goto cleanup;
 
-	free = ext4_xattr_free_space(last, &min_offs, base, &total_ino);
-	if (free >= isize_diff) {
-		entry = IFIRST(header);
-		ext4_xattr_shift_entries(entry,	EXT4_I(inode)->i_extra_isize
-				- new_extra_isize, (void *)raw_inode +
-				EXT4_GOOD_OLD_INODE_SIZE + new_extra_isize,
-				(void *)header, total_ino,
-				inode->i_sb->s_blocksize);
-		EXT4_I(inode)->i_extra_isize = new_extra_isize;
-		goto out;
-	}
+	ifree = ext4_xattr_free_space(base, &min_offs, base, &total_ino);
+	if (ifree >= isize_diff)
+		goto shift;
 
 	/*
 	 * Enough free space isn't available in the inode, check if
@@ -1413,146 +1531,44 @@ retry:
 			goto cleanup;
 		}
 		base = BHDR(bh);
-		first = BFIRST(bh);
 		end = bh->b_data + bh->b_size;
 		min_offs = end - base;
-		free = ext4_xattr_free_space(first, &min_offs, base, NULL);
-		if (free < isize_diff) {
+		bfree = ext4_xattr_free_space(BFIRST(bh), &min_offs, base,
+					      NULL);
+		if (bfree + ifree < isize_diff) {
 			if (!tried_min_extra_isize && s_min_extra_isize) {
 				tried_min_extra_isize++;
 				new_extra_isize = s_min_extra_isize;
 				brelse(bh);
 				goto retry;
 			}
-			error = -1;
+			error = -ENOSPC;
 			goto cleanup;
 		}
 	} else {
-		free = inode->i_sb->s_blocksize;
+		bfree = inode->i_sb->s_blocksize;
 	}
 
-	while (isize_diff > 0) {
-		size_t offs, size, entry_size;
-		struct ext4_xattr_entry *small_entry = NULL;
-		struct ext4_xattr_info i = {
-			.value = NULL,
-			.value_len = 0,
-		};
-		unsigned int total_size;  /* EA entry size + value size */
-		unsigned int shift_bytes; /* No. of bytes to shift EAs by? */
-		unsigned int min_total_size = ~0U;
-
-		is = kzalloc(sizeof(struct ext4_xattr_ibody_find), GFP_NOFS);
-		bs = kzalloc(sizeof(struct ext4_xattr_block_find), GFP_NOFS);
-		if (!is || !bs) {
-			error = -ENOMEM;
-			goto cleanup;
+	error = ext4_xattr_make_inode_space(handle, inode, raw_inode,
+					    isize_diff, ifree, bfree,
+					    &total_ino);
+	if (error) {
+		if (error == -ENOSPC && !tried_min_extra_isize &&
+		    s_min_extra_isize) {
+			tried_min_extra_isize++;
+			new_extra_isize = s_min_extra_isize;
+			brelse(bh);
+			goto retry;
 		}
-
-		is->s.not_found = -ENODATA;
-		bs->s.not_found = -ENODATA;
-		is->iloc.bh = NULL;
-		bs->bh = NULL;
-
-		last = IFIRST(header);
-		/* Find the entry best suited to be pushed into EA block */
-		entry = NULL;
-		for (; !IS_LAST_ENTRY(last); last = EXT4_XATTR_NEXT(last)) {
-			total_size =
-			EXT4_XATTR_SIZE(le32_to_cpu(last->e_value_size)) +
-					EXT4_XATTR_LEN(last->e_name_len);
-			if (total_size <= free && total_size < min_total_size) {
-				if (total_size < isize_diff) {
-					small_entry = last;
-				} else {
-					entry = last;
-					min_total_size = total_size;
-				}
-			}
-		}
-
-		if (entry == NULL) {
-			if (small_entry) {
-				entry = small_entry;
-			} else {
-				if (!tried_min_extra_isize &&
-				    s_min_extra_isize) {
-					tried_min_extra_isize++;
-					new_extra_isize = s_min_extra_isize;
-					kfree(is); is = NULL;
-					kfree(bs); bs = NULL;
-					brelse(bh);
-					goto retry;
-				}
-				error = -1;
-				goto cleanup;
-			}
-		}
-		offs = le16_to_cpu(entry->e_value_offs);
-		size = le32_to_cpu(entry->e_value_size);
-		entry_size = EXT4_XATTR_LEN(entry->e_name_len);
-		i.name_index = entry->e_name_index,
-		buffer = kmalloc(EXT4_XATTR_SIZE(size), GFP_NOFS);
-		b_entry_name = kmalloc(entry->e_name_len + 1, GFP_NOFS);
-		if (!buffer || !b_entry_name) {
-			error = -ENOMEM;
-			goto cleanup;
-		}
-		/* Save the entry name and the entry value */
-		memcpy(buffer, (void *)IFIRST(header) + offs,
-		       EXT4_XATTR_SIZE(size));
-		memcpy(b_entry_name, entry->e_name, entry->e_name_len);
-		b_entry_name[entry->e_name_len] = '\0';
-		i.name = b_entry_name;
-
-		error = ext4_get_inode_loc(inode, &is->iloc);
-		if (error)
-			goto cleanup;
-
-		error = ext4_xattr_ibody_find(inode, &i, is);
-		if (error)
-			goto cleanup;
-
-		/* Remove the chosen entry from the inode */
-		error = ext4_xattr_ibody_set(handle, inode, &i, is);
-		if (error)
-			goto cleanup;
-		total_ino -= entry_size;
-
-		entry = IFIRST(header);
-		if (entry_size + EXT4_XATTR_SIZE(size) >= isize_diff)
-			shift_bytes = isize_diff;
-		else
-			shift_bytes = entry_size + EXT4_XATTR_SIZE(size);
-		/* Adjust the offsets and shift the remaining entries ahead */
-		ext4_xattr_shift_entries(entry, -shift_bytes,
-			(void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE +
-			EXT4_I(inode)->i_extra_isize + shift_bytes,
-			(void *)header, total_ino, inode->i_sb->s_blocksize);
-
-		isize_diff -= shift_bytes;
-		EXT4_I(inode)->i_extra_isize += shift_bytes;
-		header = IHDR(inode, raw_inode);
-
-		i.name = b_entry_name;
-		i.value = buffer;
-		i.value_len = size;
-		error = ext4_xattr_block_find(inode, &i, bs);
-		if (error)
-			goto cleanup;
-
-		/* Add entry which was removed from the inode into the block */
-		error = ext4_xattr_block_set(handle, inode, &i, bs);
-		if (error)
-			goto cleanup;
-		kfree(b_entry_name);
-		kfree(buffer);
-		b_entry_name = NULL;
-		buffer = NULL;
-		brelse(is->iloc.bh);
-		kfree(is);
-		kfree(bs);
+		goto cleanup;
 	}
+shift:
+	/* Adjust the offsets and shift the remaining entries ahead */
+	ext4_xattr_shift_entries(IFIRST(header), EXT4_I(inode)->i_extra_isize
+			- new_extra_isize, (void *)raw_inode +
+			EXT4_GOOD_OLD_INODE_SIZE + new_extra_isize,
+			(void *)header, total_ino);
+	EXT4_I(inode)->i_extra_isize = new_extra_isize;
 	brelse(bh);
 out:
 	ext4_clear_inode_state(inode, EXT4_STATE_NO_EXPAND);
@@ -1560,12 +1576,6 @@ out:
 	return 0;
 
 cleanup:
-	kfree(b_entry_name);
-	kfree(buffer);
-	if (is)
-		brelse(is->iloc.bh);
-	kfree(is);
-	kfree(bs);
 	brelse(bh);
 	/*
 	 * We deliberately leave EXT4_STATE_NO_EXPAND set here since inode
@@ -1734,7 +1744,7 @@ static inline void ext4_xattr_hash_entry(struct ext4_xattr_header *header,
 		       *name++;
 	}
 
-	if (entry->e_value_block == 0 && entry->e_value_size != 0) {
+	if (entry->e_value_size != 0) {
 		__le32 *value = (__le32 *)((char *)header +
 			le16_to_cpu(entry->e_value_offs));
 		for (n = (le32_to_cpu(entry->e_value_size) +

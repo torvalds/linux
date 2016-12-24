@@ -1029,8 +1029,6 @@ static int ppc4xx_edac_mc_init(struct mem_ctl_info *mci,
 	pdata			= mci->pvt_info;
 
 	pdata->dcr_host		= *dcr_host;
-	pdata->irqs.sec		= NO_IRQ;
-	pdata->irqs.ded		= NO_IRQ;
 
 	/* Initialize controller capabilities and configuration */
 
@@ -1111,7 +1109,7 @@ static int ppc4xx_edac_register_irq(struct platform_device *op,
 	ded_irq = irq_of_parse_and_map(np, INTMAP_ECCDED_INDEX);
 	sec_irq = irq_of_parse_and_map(np, INTMAP_ECCSEC_INDEX);
 
-	if (ded_irq == NO_IRQ || sec_irq == NO_IRQ) {
+	if (!ded_irq || !sec_irq) {
 		ppc4xx_edac_mc_printk(KERN_ERR, mci,
 				      "Unable to map interrupts.\n");
 		status = -ENODEV;

@@ -51,6 +51,7 @@
 #include <linux/platform_device.h>
 #include <linux/poll.h>
 #include <linux/ratelimit.h>
+#include <linux/rbtree.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -127,6 +128,7 @@ struct dma_buf_attachment;
  * run-time by echoing the debug value in its sysfs node:
  *   # echo 0xf > /sys/module/drm/parameters/debug
  */
+#define DRM_UT_NONE		0x00
 #define DRM_UT_CORE 		0x01
 #define DRM_UT_DRIVER		0x02
 #define DRM_UT_KMS		0x04
@@ -134,11 +136,14 @@ struct dma_buf_attachment;
 #define DRM_UT_ATOMIC		0x10
 #define DRM_UT_VBL		0x20
 
-extern __printf(2, 3)
-void drm_ut_debug_printk(const char *function_name,
-			 const char *format, ...);
-extern __printf(1, 2)
-void drm_err(const char *format, ...);
+extern __printf(6, 7)
+void drm_dev_printk(const struct device *dev, const char *level,
+		    unsigned int category, const char *function_name,
+		    const char *prefix, const char *format, ...);
+
+extern __printf(3, 4)
+void drm_printk(const char *level, unsigned int category,
+		const char *format, ...);
 
 /***********************************************************************/
 /** \name DRM template customization defaults */
@@ -146,6 +151,7 @@ void drm_err(const char *format, ...);
 
 /* driver capabilities and requirements mask */
 #define DRIVER_USE_AGP			0x1
+#define DRIVER_LEGACY			0x2
 #define DRIVER_PCI_DMA			0x8
 #define DRIVER_SG			0x10
 #define DRIVER_HAVE_DMA			0x20
@@ -162,14 +168,37 @@ void drm_err(const char *format, ...);
 /** \name Macros to make printk easier */
 /*@{*/
 
+#define _DRM_PRINTK(once, level, fmt, ...)				\
+	do {								\
+		printk##once(KERN_##level "[" DRM_NAME "] " fmt,	\
+			     ##__VA_ARGS__);				\
+	} while (0)
+
+#define DRM_INFO(fmt, ...)						\
+	_DRM_PRINTK(, INFO, fmt, ##__VA_ARGS__)
+#define DRM_NOTE(fmt, ...)						\
+	_DRM_PRINTK(, NOTICE, fmt, ##__VA_ARGS__)
+#define DRM_WARN(fmt, ...)						\
+	_DRM_PRINTK(, WARNING, fmt, ##__VA_ARGS__)
+
+#define DRM_INFO_ONCE(fmt, ...)						\
+	_DRM_PRINTK(_once, INFO, fmt, ##__VA_ARGS__)
+#define DRM_NOTE_ONCE(fmt, ...)						\
+	_DRM_PRINTK(_once, NOTICE, fmt, ##__VA_ARGS__)
+#define DRM_WARN_ONCE(fmt, ...)						\
+	_DRM_PRINTK(_once, WARNING, fmt, ##__VA_ARGS__)
+
 /**
  * Error output.
  *
  * \param fmt printf() like format string.
  * \param arg arguments
  */
-#define DRM_ERROR(fmt, ...)				\
-	drm_err(fmt, ##__VA_ARGS__)
+#define DRM_DEV_ERROR(dev, fmt, ...)					\
+	drm_dev_printk(dev, KERN_ERR, DRM_UT_NONE, __func__, " *ERROR*",\
+		       fmt, ##__VA_ARGS__)
+#define DRM_ERROR(fmt, ...)						\
+	drm_printk(KERN_ERR, DRM_UT_NONE, fmt,	##__VA_ARGS__)
 
 /**
  * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
@@ -177,21 +206,30 @@ void drm_err(const char *format, ...);
  * \param fmt printf() like format string.
  * \param arg arguments
  */
-#define DRM_ERROR_RATELIMITED(fmt, ...)				\
+#define DRM_DEV_ERROR_RATELIMITED(dev, fmt, ...)			\
 ({									\
 	static DEFINE_RATELIMIT_STATE(_rs,				\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
 				      DEFAULT_RATELIMIT_BURST);		\
 									\
 	if (__ratelimit(&_rs))						\
-		drm_err(fmt, ##__VA_ARGS__);				\
+		DRM_DEV_ERROR(dev, fmt, ##__VA_ARGS__);			\
 })
+#define DRM_ERROR_RATELIMITED(fmt, ...)					\
+	DRM_DEV_ERROR_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
-#define DRM_INFO(fmt, ...)				\
-	printk(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
+#define DRM_DEV_INFO(dev, fmt, ...)					\
+	drm_dev_printk(dev, KERN_INFO, DRM_UT_NONE, __func__, "", fmt,	\
+		       ##__VA_ARGS__)
 
-#define DRM_INFO_ONCE(fmt, ...)				\
-	printk_once(KERN_INFO "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
+#define DRM_DEV_INFO_ONCE(dev, fmt, ...)				\
+({									\
+	static bool __print_once __read_mostly;				\
+	if (!__print_once) {						\
+		__print_once = true;					\
+		DRM_DEV_INFO(dev, fmt, ##__VA_ARGS__);			\
+	}								\
+})
 
 /**
  * Debug output.
@@ -199,37 +237,74 @@ void drm_err(const char *format, ...);
  * \param fmt printf() like format string.
  * \param arg arguments
  */
-#define DRM_DEBUG(fmt, args...)						\
-	do {								\
-		if (unlikely(drm_debug & DRM_UT_CORE))			\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
-	} while (0)
+#define DRM_DEV_DEBUG(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_CORE, __func__, "", fmt,	\
+		       ##args)
+#define DRM_DEBUG(fmt, ...)						\
+	drm_printk(KERN_DEBUG, DRM_UT_CORE, fmt, ##__VA_ARGS__)
 
-#define DRM_DEBUG_DRIVER(fmt, args...)					\
-	do {								\
-		if (unlikely(drm_debug & DRM_UT_DRIVER))		\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
-	} while (0)
-#define DRM_DEBUG_KMS(fmt, args...)					\
-	do {								\
-		if (unlikely(drm_debug & DRM_UT_KMS))			\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
-	} while (0)
-#define DRM_DEBUG_PRIME(fmt, args...)					\
-	do {								\
-		if (unlikely(drm_debug & DRM_UT_PRIME))			\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
-	} while (0)
-#define DRM_DEBUG_ATOMIC(fmt, args...)					\
-	do {								\
-		if (unlikely(drm_debug & DRM_UT_ATOMIC))		\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
-	} while (0)
-#define DRM_DEBUG_VBL(fmt, args...)					\
-	do {								\
-		if (unlikely(drm_debug & DRM_UT_VBL))			\
-			drm_ut_debug_printk(__func__, fmt, ##args);	\
-	} while (0)
+#define DRM_DEV_DEBUG_DRIVER(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_DRIVER, __func__, "",	\
+		       fmt, ##args)
+#define DRM_DEBUG_DRIVER(fmt, ...)					\
+	drm_printk(KERN_DEBUG, DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_KMS(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_KMS, __func__, "", fmt,	\
+		       ##args)
+#define DRM_DEBUG_KMS(fmt, ...)					\
+	drm_printk(KERN_DEBUG, DRM_UT_KMS, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_PRIME(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_PRIME, __func__, "",	\
+		       fmt, ##args)
+#define DRM_DEBUG_PRIME(fmt, ...)					\
+	drm_printk(KERN_DEBUG, DRM_UT_PRIME, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_ATOMIC(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_ATOMIC, __func__, "",	\
+		       fmt, ##args)
+#define DRM_DEBUG_ATOMIC(fmt, ...)					\
+	drm_printk(KERN_DEBUG, DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_VBL(dev, fmt, args...)				\
+	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_VBL, __func__, "", fmt,	\
+		       ##args)
+#define DRM_DEBUG_VBL(fmt, ...)					\
+	drm_printk(KERN_DEBUG, DRM_UT_VBL, fmt, ##__VA_ARGS__)
+
+#define _DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, level, fmt, args...)	\
+({									\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+	if (__ratelimit(&_rs))						\
+		drm_dev_printk(dev, KERN_DEBUG, DRM_UT_ ## level,	\
+			       __func__, "", fmt, ##args);		\
+})
+
+/**
+ * Rate limited debug output. Like DRM_DEBUG() but won't flood the log.
+ *
+ * \param fmt printf() like format string.
+ * \param arg arguments
+ */
+#define DRM_DEV_DEBUG_RATELIMITED(dev, fmt, args...)			\
+	DEV__DRM_DEFINE_DEBUG_RATELIMITED(dev, CORE, fmt, ##args)
+#define DRM_DEBUG_RATELIMITED(fmt, args...)				\
+	DRM_DEV_DEBUG_RATELIMITED(NULL, fmt, ##args)
+#define DRM_DEV_DEBUG_DRIVER_RATELIMITED(dev, fmt, args...)		\
+	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRIVER, fmt, ##args)
+#define DRM_DEBUG_DRIVER_RATELIMITED(fmt, args...)			\
+	DRM_DEV_DEBUG_DRIVER_RATELIMITED(NULL, fmt, ##args)
+#define DRM_DEV_DEBUG_KMS_RATELIMITED(dev, fmt, args...)		\
+	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, KMS, fmt, ##args)
+#define DRM_DEBUG_KMS_RATELIMITED(fmt, args...)				\
+	DRM_DEV_DEBUG_KMS_RATELIMITED(NULL, fmt, ##args)
+#define DRM_DEV_DEBUG_PRIME_RATELIMITED(dev, fmt, args...)		\
+	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, PRIME, fmt, ##args)
+#define DRM_DEBUG_PRIME_RATELIMITED(fmt, args...)			\
+	DRM_DEV_DEBUG_PRIME_RATELIMITED(NULL, fmt, ##args)
 
 /*@}*/
 
@@ -295,10 +370,10 @@ struct drm_pending_event {
 		      we deliver the event, for tracing only */
 };
 
-/* initial implementaton using a linked list - todo hashtab */
 struct drm_prime_file_private {
-	struct list_head head;
 	struct mutex lock;
+	struct rb_root dmabufs;
+	struct rb_root handles;
 };
 
 /** File private data */
@@ -320,7 +395,6 @@ struct drm_file {
 	unsigned is_master:1;
 
 	struct pid *pid;
-	kuid_t uid;
 	drm_magic_t magic;
 	struct list_head lhead;
 	struct drm_minor *minor;
@@ -642,7 +716,7 @@ struct drm_driver {
 };
 
 enum drm_minor_type {
-	DRM_MINOR_LEGACY,
+	DRM_MINOR_PRIMARY,
 	DRM_MINOR_CONTROL,
 	DRM_MINOR_RENDER,
 	DRM_MINOR_CNT,
@@ -856,7 +930,7 @@ static inline bool drm_is_control_client(const struct drm_file *file_priv)
 
 static inline bool drm_is_primary_client(const struct drm_file *file_priv)
 {
-	return file_priv->minor->type == DRM_MINOR_LEGACY;
+	return file_priv->minor->type == DRM_MINOR_PRIMARY;
 }
 
 /******************************************************************/
@@ -937,8 +1011,11 @@ static inline int drm_debugfs_remove_files(const struct drm_info_list *files,
 }
 #endif
 
+struct dma_buf_export_info;
+
 extern struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
-		struct drm_gem_object *obj, int flags);
+					    struct drm_gem_object *obj,
+					    int flags);
 extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
 		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
 		int *prime_fd);
@@ -946,6 +1023,8 @@ extern struct drm_gem_object *drm_gem_prime_import(struct drm_device *dev,
 		struct dma_buf *dma_buf);
 extern int drm_gem_prime_fd_to_handle(struct drm_device *dev,
 		struct drm_file *file_priv, int prime_fd, uint32_t *handle);
+struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
+				      struct dma_buf_export_info *exp_info);
 extern void drm_gem_dmabuf_release(struct dma_buf *dma_buf);
 
 extern int drm_prime_sg_to_page_addr_arrays(struct sg_table *sgt, struct page **pages,

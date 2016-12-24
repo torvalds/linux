@@ -12,6 +12,7 @@
 #include <asm/traps.h>
 
 #include <linux/hardirq.h>
+#include <linux/pkeys.h>
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/fpu.h>
@@ -505,6 +506,9 @@ static inline void copy_init_fpstate_to_fpregs(void)
 		copy_kernel_to_fxregs(&init_fpstate.fxsave);
 	else
 		copy_kernel_to_fregs(&init_fpstate.fsave);
+
+	if (boot_cpu_has(X86_FEATURE_OSPKE))
+		copy_init_pkru_to_fpregs();
 }
 
 /*
@@ -517,14 +521,14 @@ void fpu__clear(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu != &current->thread.fpu); /* Almost certainly an anomaly */
 
-	if (!use_eager_fpu() || !static_cpu_has(X86_FEATURE_FPU)) {
-		/* FPU state will be reallocated lazily at the first use. */
-		fpu__drop(fpu);
-	} else {
-		if (!fpu->fpstate_active) {
-			fpu__activate_curr(fpu);
-			user_fpu_begin();
-		}
+	fpu__drop(fpu);
+
+	/*
+	 * Make sure fpstate is cleared and initialized.
+	 */
+	if (static_cpu_has(X86_FEATURE_FPU)) {
+		fpu__activate_curr(fpu);
+		user_fpu_begin();
 		copy_init_fpstate_to_fpregs();
 	}
 }

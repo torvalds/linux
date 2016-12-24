@@ -863,8 +863,10 @@ static int q6v5_probe(struct platform_device *pdev)
 		goto free_rproc;
 
 	qproc->state = qcom_smem_state_get(&pdev->dev, "stop", &qproc->stop_bit);
-	if (IS_ERR(qproc->state))
+	if (IS_ERR(qproc->state)) {
+		ret = PTR_ERR(qproc->state);
 		goto free_rproc;
+	}
 
 	ret = rproc_add(rproc);
 	if (ret)
@@ -873,7 +875,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	return 0;
 
 free_rproc:
-	rproc_put(rproc);
+	rproc_free(rproc);
 
 	return ret;
 }
@@ -883,7 +885,7 @@ static int q6v5_remove(struct platform_device *pdev)
 	struct q6v5 *qproc = platform_get_drvdata(pdev);
 
 	rproc_del(qproc->rproc);
-	rproc_put(qproc->rproc);
+	rproc_free(qproc->rproc);
 
 	return 0;
 }

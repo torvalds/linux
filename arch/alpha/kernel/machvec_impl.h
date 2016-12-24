@@ -144,9 +144,11 @@
    else beforehand.  Fine.  We'll do it ourselves.  */
 #if 0
 #define ALIAS_MV(system) \
-  struct alpha_machine_vector alpha_mv __attribute__((alias(#system "_mv")));
+  struct alpha_machine_vector alpha_mv __attribute__((alias(#system "_mv"))); \
+  EXPORT_SYMBOL(alpha_mv);
 #else
 #define ALIAS_MV(system) \
-  asm(".global alpha_mv\nalpha_mv = " #system "_mv");
+  asm(".global alpha_mv\nalpha_mv = " #system "_mv"); \
+  EXPORT_SYMBOL(alpha_mv);
 #endif
 #endif /* GENERIC */

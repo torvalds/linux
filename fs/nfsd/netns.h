@@ -85,10 +85,16 @@ struct nfsd_net {
 	struct list_head close_lru;
 	struct list_head del_recall_lru;
 
+	/* protected by blocked_locks_lock */
+	struct list_head blocked_locks_lru;
+
 	struct delayed_work laundromat_work;
 
 	/* client_lock protects the client lru list and session hash table */
 	spinlock_t client_lock;
+
+	/* protects blocked_locks_lru */
+	spinlock_t blocked_locks_lock;
 
 	struct file *rec_file;
 	bool in_grace;

@@ -6,13 +6,13 @@
 # To add a new book the only step required is to add the book to the
 # list of DOCBOOKS.
 
-DOCBOOKS := z8530book.xml device-drivers.xml \
+DOCBOOKS := z8530book.xml  \
 	    kernel-hacking.xml kernel-locking.xml deviceiobook.xml \
 	    writing_usb_driver.xml networking.xml \
 	    kernel-api.xml filesystems.xml lsm.xml usb.xml kgdb.xml \
 	    gadget.xml libata.xml mtdnand.xml librs.xml rapidio.xml \
 	    genericirq.xml s390-drivers.xml uio-howto.xml scsi.xml \
-	    80211.xml debugobjects.xml sh.xml regulator.xml \
+	    debugobjects.xml sh.xml regulator.xml \
 	    alsa-driver-api.xml writing-an-alsa-driver.xml \
 	    tracepoint.xml w1.xml \
 	    writing_musb_glue_layer.xml crypto-API.xml iio.xml
@@ -22,8 +22,14 @@ ifeq ($(DOCBOOKS),)
 # Skip DocBook build if the user explicitly requested no DOCBOOKS.
 .DEFAULT:
 	@echo "  SKIP    DocBook $@ target (DOCBOOKS=\"\" specified)."
-
 else
+ifneq ($(SPHINXDIRS),)
+
+# Skip DocBook build if the user explicitly requested a sphinx dir
+.DEFAULT:
+	@echo "  SKIP    DocBook $@ target (SPHINXDIRS specified)."
+else
+
 
 ###
 # The build process is as follows (targets):
@@ -66,6 +72,7 @@ installmandocs: mandocs
 
 # no-op for the DocBook toolchain
 epubdocs:
+latexdocs:
 
 ###
 #External programs used
@@ -221,6 +228,7 @@ silent_gen_xml = :
 	   echo "</programlisting>")  > $@
 
 endif # DOCBOOKS=""
+endif # SPHINDIR=...
 
 ###
 # Help targets as used by the top-level makefile

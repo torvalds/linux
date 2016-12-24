@@ -317,8 +317,10 @@ static const struct snd_soc_codec_driver sta529_codec_driver = {
 	.set_bias_level = sta529_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = sta529_snd_controls,
-	.num_controls = ARRAY_SIZE(sta529_snd_controls),
+	.component_driver = {
+		.controls		= sta529_snd_controls,
+		.num_controls		= ARRAY_SIZE(sta529_snd_controls),
+	},
 };
 
 static const struct regmap_config sta529_regmap = {

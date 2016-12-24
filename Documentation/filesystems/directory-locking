@@ -19,7 +19,7 @@ locks victim and calls the method.  Locks are exclusive.
 
 4) rename() that is _not_ cross-directory.  Locking rules: caller locks
 the parent and finds source and target.  In case of exchange (with
-RENAME_EXCHANGE in rename2() flags argument) lock both.  In any case,
+RENAME_EXCHANGE in flags argument) lock both.  In any case,
 if the target already exists, lock it.  If the source is a non-directory,
 lock it.  If we need to lock both, lock them in inode pointer order.
 Then call the method.  All locks are exclusive.

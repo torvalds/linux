@@ -1262,6 +1262,7 @@ static int srp_map_finish_fmr(struct srp_map_state *state,
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
+	struct ib_pd *pd = target->pd;
 	struct ib_pool_fmr *fmr;
 	u64 io_addr = 0;
 
@@ -1273,9 +1274,9 @@ static int srp_map_finish_fmr(struct srp_map_state *state,
 	if (state->npages == 0)
 		return 0;
 
-	if (state->npages == 1 && target->global_mr) {
+	if (state->npages == 1 && (pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY)) {
 		srp_map_desc(state, state->base_dma_addr, state->dma_len,
-			     target->global_mr->rkey);
+			     pd->unsafe_global_rkey);
 		goto reset_state;
 	}
 
@@ -1315,6 +1316,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
+	struct ib_pd *pd = target->pd;
 	struct ib_send_wr *bad_wr;
 	struct ib_reg_wr wr;
 	struct srp_fr_desc *desc;
@@ -1326,12 +1328,12 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 
 	WARN_ON_ONCE(!dev->use_fast_reg);
 
-	if (sg_nents == 1 && target->global_mr) {
+	if (sg_nents == 1 && (pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY)) {
 		unsigned int sg_offset = sg_offset_p ? *sg_offset_p : 0;
 
 		srp_map_desc(state, sg_dma_address(state->sg) + sg_offset,
 			     sg_dma_len(state->sg) - sg_offset,
-			     target->global_mr->rkey);
+			     pd->unsafe_global_rkey);
 		if (sg_offset_p)
 			*sg_offset_p = 0;
 		return 1;
@@ -1386,7 +1388,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 
 static int srp_map_sg_entry(struct srp_map_state *state,
 			    struct srp_rdma_ch *ch,
-			    struct scatterlist *sg, int sg_index)
+			    struct scatterlist *sg)
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
@@ -1400,7 +1402,9 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 
 	while (dma_len) {
 		unsigned offset = dma_addr & ~dev->mr_page_mask;
-		if (state->npages == dev->max_pages_per_mr || offset != 0) {
+
+		if (state->npages == dev->max_pages_per_mr ||
+		    (state->npages > 0 && offset != 0)) {
 			ret = srp_map_finish_fmr(state, ch);
 			if (ret)
 				return ret;
@@ -1417,12 +1421,12 @@ static int srp_map_sg_entry(struct srp_map_state *state,
 	}
 
 	/*
-	 * If the last entry of the MR wasn't a full page, then we need to
+	 * If the end of the MR is not on a page boundary then we need to
 	 * close it out and start a new one -- we can only merge at page
 	 * boundaries.
 	 */
 	ret = 0;
-	if (len != dev->mr_page_size)
+	if ((dma_addr & ~dev->mr_page_mask) != 0)
 		ret = srp_map_finish_fmr(state, ch);
 	return ret;
 }
@@ -1439,7 +1443,7 @@ static int srp_map_sg_fmr(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	state->fmr.end = req->fmr_list + ch->target->mr_per_cmd;
 
 	for_each_sg(scat, sg, count, i) {
-		ret = srp_map_sg_entry(state, ch, sg, i);
+		ret = srp_map_sg_entry(state, ch, sg);
 		if (ret)
 			return ret;
 	}
@@ -1491,7 +1495,7 @@ static int srp_map_sg_dma(struct srp_map_state *state, struct srp_rdma_ch *ch,
 	for_each_sg(scat, sg, count, i) {
 		srp_map_desc(state, ib_sg_dma_address(dev->dev, sg),
 			     ib_sg_dma_len(dev->dev, sg),
-			     target->global_mr->rkey);
+			     target->pd->unsafe_global_rkey);
 	}
 
 	return 0;
@@ -1591,6 +1595,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 			struct srp_request *req)
 {
 	struct srp_target_port *target = ch->target;
+	struct ib_pd *pd = target->pd;
 	struct scatterlist *scat;
 	struct srp_cmd *cmd = req->cmd->buf;
 	int len, nents, count, ret;
@@ -1626,7 +1631,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	fmt = SRP_DATA_DESC_DIRECT;
 	len = sizeof (struct srp_cmd) +	sizeof (struct srp_direct_buf);
 
-	if (count == 1 && target->global_mr) {
+	if (count == 1 && (pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY)) {
 		/*
 		 * The midlayer only generated a single gather/scatter
 		 * entry, or DMA mapping coalesced everything to a
@@ -1636,7 +1641,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		struct srp_direct_buf *buf = (void *) cmd->add_data;
 
 		buf->va  = cpu_to_be64(ib_sg_dma_address(ibdev, scat));
-		buf->key = cpu_to_be32(target->global_mr->rkey);
+		buf->key = cpu_to_be32(pd->unsafe_global_rkey);
 		buf->len = cpu_to_be32(ib_sg_dma_len(ibdev, scat));
 
 		req->nmdesc = 0;
@@ -1709,14 +1714,14 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	memcpy(indirect_hdr->desc_list, req->indirect_desc,
 	       count * sizeof (struct srp_direct_buf));
 
-	if (!target->global_mr) {
+	if (!(pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY)) {
 		ret = srp_map_idb(ch, req, state.gen.next, state.gen.end,
 				  idb_len, &idb_rkey);
 		if (ret < 0)
 			goto unmap;
 		req->nmdesc++;
 	} else {
-		idb_rkey = cpu_to_be32(target->global_mr->rkey);
+		idb_rkey = cpu_to_be32(pd->unsafe_global_rkey);
 	}
 
 	indirect_hdr->table_desc.va = cpu_to_be64(req->indirect_dma_addr);
@@ -3268,8 +3273,8 @@ static ssize_t srp_create_target(struct device *dev,
 	target->io_class	= SRP_REV16A_IB_IO_CLASS;
 	target->scsi_host	= target_host;
 	target->srp_host	= host;
+	target->pd		= host->srp_dev->pd;
 	target->lkey		= host->srp_dev->pd->local_dma_lkey;
-	target->global_mr	= host->srp_dev->global_mr;
 	target->cmd_sg_cnt	= cmd_sg_entries;
 	target->sg_tablesize	= indirect_sg_entries ? : cmd_sg_entries;
 	target->allow_ext_sg	= allow_ext_sg;
@@ -3524,6 +3529,7 @@ static void srp_add_one(struct ib_device *device)
 	struct srp_host *host;
 	int mr_page_shift, p;
 	u64 max_pages_per_mr;
+	unsigned int flags = 0;
 
 	srp_dev = kzalloc(sizeof(*srp_dev), GFP_KERNEL);
 	if (!srp_dev)
@@ -3558,6 +3564,10 @@ static void srp_add_one(struct ib_device *device)
 		srp_dev->use_fmr = !srp_dev->use_fast_reg && srp_dev->has_fmr;
 	}
 
+	if (never_register || !register_always ||
+	    (!srp_dev->has_fmr && !srp_dev->has_fr))
+		flags |= IB_PD_UNSAFE_GLOBAL_RKEY;
+
 	if (srp_dev->use_fast_reg) {
 		srp_dev->max_pages_per_mr =
 			min_t(u32, srp_dev->max_pages_per_mr,
@@ -3573,19 +3583,10 @@ static void srp_add_one(struct ib_device *device)
 	INIT_LIST_HEAD(&srp_dev->dev_list);
 
 	srp_dev->dev = device;
-	srp_dev->pd  = ib_alloc_pd(device);
+	srp_dev->pd  = ib_alloc_pd(device, flags);
 	if (IS_ERR(srp_dev->pd))
 		goto free_dev;
 
-	if (never_register || !register_always ||
-	    (!srp_dev->has_fmr && !srp_dev->has_fr)) {
-		srp_dev->global_mr = ib_get_dma_mr(srp_dev->pd,
-						   IB_ACCESS_LOCAL_WRITE |
-						   IB_ACCESS_REMOTE_READ |
-						   IB_ACCESS_REMOTE_WRITE);
-		if (IS_ERR(srp_dev->global_mr))
-			goto err_pd;
-	}
 
 	for (p = rdma_start_port(device); p <= rdma_end_port(device); ++p) {
 		host = srp_add_port(srp_dev, p);
@@ -3595,9 +3596,6 @@ static void srp_add_one(struct ib_device *device)
 
 	ib_set_client_data(device, &srp_client, srp_dev);
 	return;
-
-err_pd:
-	ib_dealloc_pd(srp_dev->pd);
 
 free_dev:
 	kfree(srp_dev);
@@ -3638,8 +3636,6 @@ static void srp_remove_one(struct ib_device *device, void *client_data)
 		kfree(host);
 	}
 
-	if (srp_dev->global_mr)
-		ib_dereg_mr(srp_dev->global_mr);
 	ib_dealloc_pd(srp_dev->pd);
 
 	kfree(srp_dev);

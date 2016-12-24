@@ -60,14 +60,14 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 
 	/* Enable DMA of protection information */
 	if (scsi_host_get_guard(sdkp->device->host) & SHOST_DIX_GUARD_IP) {
-		if (type == SD_DIF_TYPE3_PROTECTION)
+		if (type == T10_PI_TYPE3_PROTECTION)
 			bi.profile = &t10_pi_type3_ip;
 		else
 			bi.profile = &t10_pi_type1_ip;
 
 		bi.flags |= BLK_INTEGRITY_IP_CHECKSUM;
 	} else
-		if (type == SD_DIF_TYPE3_PROTECTION)
+		if (type == T10_PI_TYPE3_PROTECTION)
 			bi.profile = &t10_pi_type3_crc;
 		else
 			bi.profile = &t10_pi_type1_crc;
@@ -82,7 +82,7 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		if (!sdkp->ATO)
 			goto out;
 
-		if (type == SD_DIF_TYPE3_PROTECTION)
+		if (type == T10_PI_TYPE3_PROTECTION)
 			bi.tag_size = sizeof(u16) + sizeof(u32);
 		else
 			bi.tag_size = sizeof(u16);
@@ -121,7 +121,7 @@ void sd_dif_prepare(struct scsi_cmnd *scmd)
 
 	sdkp = scsi_disk(scmd->request->rq_disk);
 
-	if (sdkp->protection_type == SD_DIF_TYPE3_PROTECTION)
+	if (sdkp->protection_type == T10_PI_TYPE3_PROTECTION)
 		return;
 
 	phys = scsi_prot_ref_tag(scmd);
@@ -172,7 +172,7 @@ void sd_dif_complete(struct scsi_cmnd *scmd, unsigned int good_bytes)
 
 	sdkp = scsi_disk(scmd->request->rq_disk);
 
-	if (sdkp->protection_type == SD_DIF_TYPE3_PROTECTION || good_bytes == 0)
+	if (sdkp->protection_type == T10_PI_TYPE3_PROTECTION || good_bytes == 0)
 		return;
 
 	intervals = good_bytes / scsi_prot_interval(scmd);

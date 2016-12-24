@@ -440,7 +440,18 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	dev->dev.bus = &usb_bus_type;
 	dev->dev.type = &usb_device_type;
 	dev->dev.groups = usb_device_groups;
+	/*
+	 * Fake a dma_mask/offset for the USB device:
+	 * We cannot really use the dma-mapping API (dma_alloc_* and
+	 * dma_map_*) for USB devices but instead need to use
+	 * usb_alloc_coherent and pass data in 'urb's, but some subsystems
+	 * manually look into the mask/offset pair to determine whether
+	 * they need bounce buffers.
+	 * Note: calling dma_set_mask() on a USB device would set the
+	 * mask for the entire HCD, so don't do that.
+	 */
 	dev->dev.dma_mask = bus->controller->dma_mask;
+	dev->dev.dma_pfn_offset = bus->controller->dma_pfn_offset;
 	set_dev_node(&dev->dev, dev_to_node(bus->controller));
 	dev->state = USB_STATE_ATTACHED;
 	dev->lpm_disable_count = 1;

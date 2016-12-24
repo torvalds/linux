@@ -151,12 +151,11 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 		vaf.fmt = fmt;
 		vaf.va = &args;
 
-		printk(KERN_CRIT
-			"BTRFS: error (device %s) in %s:%d: errno=%d %s (%pV)\n",
+		pr_crit("BTRFS: error (device %s) in %s:%d: errno=%d %s (%pV)\n",
 			sb->s_id, function, line, errno, errstr, &vaf);
 		va_end(args);
 	} else {
-		printk(KERN_CRIT "BTRFS: error (device %s) in %s:%d: errno=%d %s\n",
+		pr_crit("BTRFS: error (device %s) in %s:%d: errno=%d %s\n",
 			sb->s_id, function, line, errno, errstr);
 	}
 #endif
@@ -462,9 +461,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 		case Opt_datasum:
 			if (btrfs_test_opt(info, NODATASUM)) {
 				if (btrfs_test_opt(info, NODATACOW))
-					btrfs_info(root->fs_info, "setting datasum, datacow enabled");
+					btrfs_info(root->fs_info,
+						   "setting datasum, datacow enabled");
 				else
-					btrfs_info(root->fs_info, "setting datasum");
+					btrfs_info(root->fs_info,
+						   "setting datasum");
 			}
 			btrfs_clear_opt(info->mount_opt, NODATACOW);
 			btrfs_clear_opt(info->mount_opt, NODATASUM);
@@ -476,7 +477,8 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 					btrfs_info(root->fs_info,
 						   "setting nodatacow, compression disabled");
 				} else {
-					btrfs_info(root->fs_info, "setting nodatacow");
+					btrfs_info(root->fs_info,
+						   "setting nodatacow");
 				}
 			}
 			btrfs_clear_opt(info->mount_opt, COMPRESS);
@@ -608,8 +610,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 				info->alloc_start = memparse(num, NULL);
 				mutex_unlock(&info->chunk_mutex);
 				kfree(num);
-				btrfs_info(root->fs_info, "allocations start at %llu",
-					info->alloc_start);
+				btrfs_info(root->fs_info,
+					   "allocations start at %llu",
+					   info->alloc_start);
 			} else {
 				ret = -ENOMEM;
 				goto out;
@@ -762,8 +765,9 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 				goto out;
 			} else if (intarg >= 0) {
 				info->check_integrity_print_mask = intarg;
-				btrfs_info(root->fs_info, "check_integrity_print_mask 0x%x",
-				       info->check_integrity_print_mask);
+				btrfs_info(root->fs_info,
+					   "check_integrity_print_mask 0x%x",
+					   info->check_integrity_print_mask);
 			} else {
 				ret = -EINVAL;
 				goto out;
@@ -794,19 +798,22 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 			intarg = 0;
 			ret = match_int(&args[0], &intarg);
 			if (ret < 0) {
-				btrfs_err(root->fs_info, "invalid commit interval");
+				btrfs_err(root->fs_info,
+					  "invalid commit interval");
 				ret = -EINVAL;
 				goto out;
 			}
 			if (intarg > 0) {
 				if (intarg > 300) {
-					btrfs_warn(root->fs_info, "excessive commit interval %d",
-							intarg);
+					btrfs_warn(root->fs_info,
+						"excessive commit interval %d",
+						intarg);
 				}
 				info->commit_interval = intarg;
 			} else {
-				btrfs_info(root->fs_info, "using default commit interval %ds",
-				    BTRFS_DEFAULT_COMMIT_INTERVAL);
+				btrfs_info(root->fs_info,
+					   "using default commit interval %ds",
+					   BTRFS_DEFAULT_COMMIT_INTERVAL);
 				info->commit_interval = BTRFS_DEFAULT_COMMIT_INTERVAL;
 			}
 			break;
@@ -827,7 +834,8 @@ int btrfs_parse_options(struct btrfs_root *root, char *options,
 			break;
 #endif
 		case Opt_err:
-			btrfs_info(root->fs_info, "unrecognized mount option '%s'", p);
+			btrfs_info(root->fs_info,
+				   "unrecognized mount option '%s'", p);
 			ret = -EINVAL;
 			goto out;
 		default:
@@ -916,9 +924,7 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			}
 			break;
 		case Opt_subvolrootid:
-			printk(KERN_WARNING
-				"BTRFS: 'subvolrootid' mount option is deprecated and has "
-				"no effect\n");
+			pr_warn("BTRFS: 'subvolrootid' mount option is deprecated and has no effect\n");
 			break;
 		case Opt_device:
 			device_name = match_strdup(&args[0]);
@@ -1142,7 +1148,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	sb->s_iflags |= SB_I_CGROUPWB;
 	err = open_ctree(sb, fs_devices, (char *)data);
 	if (err) {
-		printk(KERN_ERR "BTRFS: open_ctree failed\n");
+		btrfs_err(fs_info, "open_ctree failed");
 		return err;
 	}
 
@@ -1440,12 +1446,13 @@ static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
 
 	if (!IS_ERR(root)) {
 		struct super_block *s = root->d_sb;
+		struct btrfs_fs_info *fs_info = btrfs_sb(s);
 		struct inode *root_inode = d_inode(root);
 		u64 root_objectid = BTRFS_I(root_inode)->root->root_key.objectid;
 
 		ret = 0;
 		if (!is_subvolume_inode(root_inode)) {
-			pr_err("BTRFS: '%s' is not a valid subvolume\n",
+			btrfs_err(fs_info, "'%s' is not a valid subvolume",
 			       subvol_name);
 			ret = -EINVAL;
 		}
@@ -1455,8 +1462,9 @@ static struct dentry *mount_subvol(const char *subvol_name, u64 subvol_objectid,
 			 * subvolume which was passed by ID is renamed and
 			 * another subvolume is renamed over the old location.
 			 */
-			pr_err("BTRFS: subvol '%s' does not match subvolid %llu\n",
-			       subvol_name, subvol_objectid);
+			btrfs_err(fs_info,
+				  "subvol '%s' does not match subvolid %llu",
+				  subvol_name, subvol_objectid);
 			ret = -EINVAL;
 		}
 		if (ret) {
@@ -1830,13 +1838,15 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 			btrfs_info(fs_info, "creating UUID tree");
 			ret = btrfs_create_uuid_tree(fs_info);
 			if (ret) {
-				btrfs_warn(fs_info, "failed to create the UUID tree %d", ret);
+				btrfs_warn(fs_info,
+					   "failed to create the UUID tree %d",
+					   ret);
 				goto restore;
 			}
 		}
 		sb->s_flags &= ~MS_RDONLY;
 
-		fs_info->open = 1;
+		set_bit(BTRFS_FS_OPEN, &fs_info->flags);
 	}
 out:
 	wake_up_process(fs_info->transaction_kthread);
@@ -2346,7 +2356,7 @@ static void btrfs_interface_exit(void)
 
 static void btrfs_print_mod_info(void)
 {
-	printk(KERN_INFO "Btrfs loaded, crc32c=%s"
+	pr_info("Btrfs loaded, crc32c=%s"
 #ifdef CONFIG_BTRFS_DEBUG
 			", debug=on"
 #endif

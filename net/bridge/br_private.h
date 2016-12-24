@@ -251,6 +251,9 @@ struct net_bridge_port
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
+#ifdef CONFIG_NET_SWITCHDEV
+	int				offload_fwd_mark;
+#endif
 };
 
 #define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)
@@ -359,6 +362,11 @@ struct net_bridge
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
 	u32				auto_cnt;
+
+#ifdef CONFIG_NET_SWITCHDEV
+	int offload_fwd_mark;
+#endif
+
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 	u8				vlan_enabled;
@@ -380,6 +388,10 @@ struct br_input_skb_cb {
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
+#endif
+
+#ifdef CONFIG_NET_SWITCHDEV
+	int offload_fwd_mark;
 #endif
 };
 
@@ -496,7 +508,7 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 int br_fdb_add(struct ndmsg *nlh, struct nlattr *tb[], struct net_device *dev,
 	       const unsigned char *addr, u16 vid, u16 nlh_flags);
 int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
-		struct net_device *dev, struct net_device *fdev, int idx);
+		struct net_device *dev, struct net_device *fdev, int *idx);
 int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p);
 void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p);
 int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
@@ -505,12 +517,17 @@ int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 			      const unsigned char *addr, u16 vid);
 
 /* br_forward.c */
+enum br_pkt_type {
+	BR_PKT_UNICAST,
+	BR_PKT_MULTICAST,
+	BR_PKT_BROADCAST
+};
 int br_dev_queue_push_xmit(struct net *net, struct sock *sk, struct sk_buff *skb);
 void br_forward(const struct net_bridge_port *to, struct sk_buff *skb,
 		bool local_rcv, bool local_orig);
 int br_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
 void br_flood(struct net_bridge *br, struct sk_buff *skb,
-	      bool unicast, bool local_rcv, bool local_orig);
+	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig);
 
 /* br_if.c */
 void br_port_carrier_check(struct net_bridge_port *p);
@@ -1033,5 +1050,30 @@ static inline int br_sysfs_renameif(struct net_bridge_port *p) { return 0; }
 static inline int br_sysfs_addbr(struct net_device *dev) { return 0; }
 static inline void br_sysfs_delbr(struct net_device *dev) { return; }
 #endif /* CONFIG_SYSFS */
+
+/* br_switchdev.c */
+#ifdef CONFIG_NET_SWITCHDEV
+int nbp_switchdev_mark_set(struct net_bridge_port *p);
+void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
+			      struct sk_buff *skb);
+bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
+				  const struct sk_buff *skb);
+#else
+static inline int nbp_switchdev_mark_set(struct net_bridge_port *p)
+{
+	return 0;
+}
+
+static inline void nbp_switchdev_frame_mark(const struct net_bridge_port *p,
+					    struct sk_buff *skb)
+{
+}
+
+static inline bool nbp_switchdev_allowed_egress(const struct net_bridge_port *p,
+						const struct sk_buff *skb)
+{
+	return true;
+}
+#endif /* CONFIG_NET_SWITCHDEV */
 
 #endif

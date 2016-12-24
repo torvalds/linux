@@ -4,8 +4,8 @@
  * Copyright 2012 Dialog Semiconductors Ltd.
  * Copyright 2013 Philipp Zabel, Pengutronix
  *
- * Author: Krystian Garbaciak <krystian.garbaciak@diasemi.com>,
- *         Michal Hajduk <michal.hajduk@diasemi.com>
+ * Author: Krystian Garbaciak, Dialog Semiconductor
+ * Author: Michal Hajduk, Dialog Semiconductor
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -242,5 +242,6 @@ void da9063_device_exit(struct da9063 *da9063)
 }
 
 MODULE_DESCRIPTION("PMIC driver for Dialog DA9063");
-MODULE_AUTHOR("Krystian Garbaciak <krystian.garbaciak@diasemi.com>, Michal Hajduk <michal.hajduk@diasemi.com>");
+MODULE_AUTHOR("Krystian Garbaciak");
+MODULE_AUTHOR("Michal Hajduk");
 MODULE_LICENSE("GPL");

@@ -735,8 +735,6 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 }
 
 static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
-	.prepare_fb = NULL,
-	.cleanup_fb = NULL,
 	.atomic_check = vc4_plane_atomic_check,
 	.atomic_update = vc4_plane_atomic_update,
 };

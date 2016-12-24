@@ -55,7 +55,7 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM hfi1_ibhdrs
 
-u8 ibhdr_exhdr_len(struct hfi1_ib_header *hdr);
+u8 ibhdr_exhdr_len(struct ib_header *hdr);
 const char *parse_everbs_hdrs(struct trace_seq *p, u8 opcode, void *ehdrs);
 
 #define __parse_ib_ehdrs(op, ehdrs) parse_everbs_hdrs(p, op, ehdrs)
@@ -74,7 +74,7 @@ __print_symbolic(lrh,                    \
 
 DECLARE_EVENT_CLASS(hfi1_ibhdr_template,
 		    TP_PROTO(struct hfi1_devdata *dd,
-			     struct hfi1_ib_header *hdr),
+			     struct ib_header *hdr),
 		    TP_ARGS(dd, hdr),
 		    TP_STRUCT__entry(
 			DD_DEV_ENTRY(dd)
@@ -102,7 +102,7 @@ DECLARE_EVENT_CLASS(hfi1_ibhdr_template,
 			__dynamic_array(u8, ehdrs, ibhdr_exhdr_len(hdr))
 			),
 		      TP_fast_assign(
-			struct hfi1_other_headers *ohdr;
+			struct ib_other_headers *ohdr;
 
 			DD_DEV_ASSIGN(dd);
 			/* LRH */
@@ -185,19 +185,19 @@ DECLARE_EVENT_CLASS(hfi1_ibhdr_template,
 );
 
 DEFINE_EVENT(hfi1_ibhdr_template, input_ibhdr,
-	     TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ib_header *hdr),
+	     TP_PROTO(struct hfi1_devdata *dd, struct ib_header *hdr),
 	     TP_ARGS(dd, hdr));
 
 DEFINE_EVENT(hfi1_ibhdr_template, pio_output_ibhdr,
-	     TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ib_header *hdr),
+	     TP_PROTO(struct hfi1_devdata *dd, struct ib_header *hdr),
 	     TP_ARGS(dd, hdr));
 
 DEFINE_EVENT(hfi1_ibhdr_template, ack_output_ibhdr,
-	     TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ib_header *hdr),
+	     TP_PROTO(struct hfi1_devdata *dd, struct ib_header *hdr),
 	     TP_ARGS(dd, hdr));
 
 DEFINE_EVENT(hfi1_ibhdr_template, sdma_output_ibhdr,
-	     TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ib_header *hdr),
+	     TP_PROTO(struct hfi1_devdata *dd, struct ib_header *hdr),
 	     TP_ARGS(dd, hdr));
 
 #endif /* __HFI1_TRACE_IBHDRS_H */

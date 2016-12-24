@@ -472,7 +472,7 @@ config USB_OHCI_HCD_AT91
 
 config USB_OHCI_HCD_OMAP3
 	tristate "OHCI support for OMAP3 and later chips"
-	depends on (ARCH_OMAP3 || ARCH_OMAP4)
+	depends on (ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5)
 	default y
 	---help---
 	  Enables support for the on-chip OHCI controller on

@@ -1,4 +1,5 @@
-/* Copyright 2013-2016 Freescale Semiconductor Inc.
+/*
+ * Copyright 2013-2016 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,12 +31,12 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/*************************************************************************//*
- dprc-cmd.h
-
- defines dprc portal commands
-
- *//**************************************************************************/
+/*
+ * dprc-cmd.h
+ *
+ * defines dprc portal commands
+ *
+ */
 
 #ifndef _FSL_DPRC_CMD_H
 #define _FSL_DPRC_CMD_H

@@ -32,13 +32,6 @@
  * onwards to drive newly added DMC (Display microcontroller) in display
  * engine to save and restore the state of display engine when it enter into
  * low-power state and comes back to normal.
- *
- * Firmware loading status will be one of the below states: FW_UNINITIALIZED,
- * FW_LOADED, FW_FAILED.
- *
- * Once the firmware is written into the registers status will be moved from
- * FW_UNINITIALIZED to FW_LOADED and for any erroneous condition status will
- * be moved to FW_FAILED.
  */
 
 #define I915_CSR_KBL "i915/kbl_dmc_ver1_01.bin"

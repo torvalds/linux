@@ -307,6 +307,10 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 	u32 ctl;
 
 	ctl = bgmac_read(bgmac, ring->mmio_base + BGMAC_DMA_RX_CTL);
+
+	/* preserve ONLY bits 16-17 from current hardware value */
+	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
+
 	if (bgmac->feature_flags & BGMAC_FEAT_RX_MASK_SETUP) {
 		ctl &= ~BGMAC_DMA_RX_BL_MASK;
 		ctl |= BGMAC_DMA_RX_BL_128 << BGMAC_DMA_RX_BL_SHIFT;
@@ -317,7 +321,6 @@ static void bgmac_dma_rx_enable(struct bgmac *bgmac,
 		ctl &= ~BGMAC_DMA_RX_PT_MASK;
 		ctl |= BGMAC_DMA_RX_PT_1 << BGMAC_DMA_RX_PT_SHIFT;
 	}
-	ctl &= BGMAC_DMA_RX_ADDREXT_MASK;
 	ctl |= BGMAC_DMA_RX_ENABLE;
 	ctl |= BGMAC_DMA_RX_PARITY_DISABLE;
 	ctl |= BGMAC_DMA_RX_OVERFLOW_CONT;
@@ -932,7 +935,8 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 			et_swtype <<= 4;
 			sw_type = et_swtype;
 		} else if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_EPHYRMII) {
-			sw_type = BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
+			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RMII |
+				  BGMAC_CHIPCTL_1_SW_TYPE_EPHYRMII;
 		} else if (bgmac->feature_flags & BGMAC_FEAT_SW_TYPE_RGMII) {
 			sw_type = BGMAC_CHIPCTL_1_IF_TYPE_RGMII |
 				  BGMAC_CHIPCTL_1_SW_TYPE_RGMII;
@@ -940,6 +944,27 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 		bgmac_cco_ctl_maskset(bgmac, 1, ~(BGMAC_CHIPCTL_1_IF_TYPE_MASK |
 						  BGMAC_CHIPCTL_1_SW_TYPE_MASK),
 				      sw_type);
+	} else if (bgmac->feature_flags & BGMAC_FEAT_CC4_IF_SW_TYPE) {
+		u32 sw_type = BGMAC_CHIPCTL_4_IF_TYPE_MII |
+			      BGMAC_CHIPCTL_4_SW_TYPE_EPHY;
+		u8 et_swtype = 0;
+		char buf[4];
+
+		if (bcm47xx_nvram_getenv("et_swtype", buf, sizeof(buf)) > 0) {
+			if (kstrtou8(buf, 0, &et_swtype))
+				dev_err(bgmac->dev, "Failed to parse et_swtype (%s)\n",
+					buf);
+			sw_type = (et_swtype & 0x0f) << 12;
+		} else if (bgmac->feature_flags & BGMAC_FEAT_CC4_IF_SW_TYPE_RGMII) {
+			sw_type = BGMAC_CHIPCTL_4_IF_TYPE_RGMII |
+				  BGMAC_CHIPCTL_4_SW_TYPE_RGMII;
+		}
+		bgmac_cco_ctl_maskset(bgmac, 4, ~(BGMAC_CHIPCTL_4_IF_TYPE_MASK |
+						  BGMAC_CHIPCTL_4_SW_TYPE_MASK),
+				      sw_type);
+	} else if (bgmac->feature_flags & BGMAC_FEAT_CC7_IF_TYPE_RGMII) {
+		bgmac_cco_ctl_maskset(bgmac, 7, ~BGMAC_CHIPCTL_7_IF_TYPE_MASK,
+				      BGMAC_CHIPCTL_7_IF_TYPE_RGMII);
 	}
 
 	if (iost & BGMAC_BCMA_IOST_ATTACHED && !bgmac->has_robosw)
@@ -1026,7 +1051,7 @@ static void bgmac_enable(struct bgmac *bgmac)
 		BGMAC_DS_MM_SHIFT;
 	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST || mode != 0)
 		bgmac_set(bgmac, BCMA_CLKCTLST, BCMA_CLKCTLST_FORCEHT);
-	if (bgmac->feature_flags & BGMAC_FEAT_CLKCTLST && mode == 2)
+	if (!(bgmac->feature_flags & BGMAC_FEAT_CLKCTLST) && mode == 2)
 		bgmac_cco_ctl_maskset(bgmac, 1, ~0,
 				      BGMAC_CHIPCTL_1_RXC_DLL_BYPASS);
 
@@ -1427,7 +1452,7 @@ static int bgmac_phy_connect(struct bgmac *bgmac)
 	phy_dev = phy_connect(bgmac->net_dev, bus_id, &bgmac_adjust_link,
 			      PHY_INTERFACE_MODE_MII);
 	if (IS_ERR(phy_dev)) {
-		dev_err(bgmac->dev, "PHY connecton failed\n");
+		dev_err(bgmac->dev, "PHY connection failed\n");
 		return PTR_ERR(phy_dev);
 	}
 
@@ -1466,6 +1491,10 @@ int bgmac_enet_probe(struct bgmac *info)
 	 * Broadcom does it in arch PCI code when enabling fake PCI device.
 	 */
 	bgmac_clk_enable(bgmac, 0);
+
+	/* This seems to be fixing IRQ by assigning OOB #6 to the core */
+	if (bgmac->feature_flags & BGMAC_FEAT_IRQ_ID_OOB_6)
+		bgmac_idm_write(bgmac, BCMA_OOB_SEL_OUT_A30, 0x86);
 
 	bgmac_chip_reset(bgmac);
 

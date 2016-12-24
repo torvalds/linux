@@ -44,7 +44,7 @@ struct ccu_mp {
 		.enable	= _gate,					\
 		.m	= _SUNXI_CCU_DIV(_mshift, _mwidth),		\
 		.p	= _SUNXI_CCU_DIV(_pshift, _pwidth),		\
-		.mux	= SUNXI_CLK_MUX(_muxshift, _muxwidth),		\
+		.mux	= _SUNXI_CCU_MUX(_muxshift, _muxwidth),		\
 		.common	= {						\
 			.reg		= _reg,				\
 			.hw.init	= CLK_HW_INIT_PARENTS(_name,	\

@@ -25,6 +25,10 @@
 #define SPRN_MD_RAM0	825
 #define SPRN_MD_RAM1	826
 
+/* Special MSR manipulation registers */
+#define SPRN_EIE	80	/* External interrupt enable (EE=1, RI=1) */
+#define SPRN_EID	81	/* External interrupt disable (EE=0, RI=1) */
+
 /* Commands.  Only the first few are available to the instruction cache.
 */
 #define	IDC_ENABLE	0x02000000	/* Cache enable */

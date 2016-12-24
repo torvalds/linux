@@ -128,15 +128,18 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 		memcpy(dest, &count, sizeof(count));
 		return;
 	}
+	case NFT_CT_L3PROTOCOL:
+		*dest = nf_ct_l3num(ct);
+		return;
+	case NFT_CT_PROTOCOL:
+		*dest = nf_ct_protonum(ct);
+		return;
 	default:
 		break;
 	}
 
 	tuple = &ct->tuplehash[priv->dir].tuple;
 	switch (priv->key) {
-	case NFT_CT_L3PROTOCOL:
-		*dest = nf_ct_l3num(ct);
-		return;
 	case NFT_CT_SRC:
 		memcpy(dest, tuple->src.u3.all,
 		       nf_ct_l3num(ct) == NFPROTO_IPV4 ? 4 : 16);
@@ -144,9 +147,6 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 	case NFT_CT_DST:
 		memcpy(dest, tuple->dst.u3.all,
 		       nf_ct_l3num(ct) == NFPROTO_IPV4 ? 4 : 16);
-		return;
-	case NFT_CT_PROTOCOL:
-		*dest = nf_ct_protonum(ct);
 		return;
 	case NFT_CT_PROTO_SRC:
 		*dest = (__force __u16)tuple->src.u.all;
@@ -283,8 +283,9 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 
 	case NFT_CT_L3PROTOCOL:
 	case NFT_CT_PROTOCOL:
-		if (tb[NFTA_CT_DIRECTION] == NULL)
-			return -EINVAL;
+		/* For compatibility, do not report error if NFTA_CT_DIRECTION
+		 * attribute is specified.
+		 */
 		len = sizeof(u8);
 		break;
 	case NFT_CT_SRC:
@@ -363,6 +364,8 @@ static int nft_ct_set_init(const struct nft_ctx *ctx,
 	switch (priv->key) {
 #ifdef CONFIG_NF_CONNTRACK_MARK
 	case NFT_CT_MARK:
+		if (tb[NFTA_CT_DIRECTION])
+			return -EINVAL;
 		len = FIELD_SIZEOF(struct nf_conn, mark);
 		break;
 #endif
@@ -432,8 +435,6 @@ static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		goto nla_put_failure;
 
 	switch (priv->key) {
-	case NFT_CT_L3PROTOCOL:
-	case NFT_CT_PROTOCOL:
 	case NFT_CT_SRC:
 	case NFT_CT_DST:
 	case NFT_CT_PROTO_SRC:

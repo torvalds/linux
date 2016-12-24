@@ -84,7 +84,8 @@ xfs_dir2_sf_getdents(
 
 	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
 
-	ASSERT(dp->i_d.di_size >= xfs_dir2_sf_hdr_size(sfp->i8count));
+	if (dp->i_d.di_size < xfs_dir2_sf_hdr_size(sfp->i8count))
+		return -EFSCORRUPTED;
 
 	/*
 	 * If the block number in the offset is out of range, we're done.

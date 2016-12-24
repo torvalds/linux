@@ -1154,8 +1154,8 @@ static const struct x86_cpu_id rapl_ids[] __initconst = {
 
 	RAPL_CPU(INTEL_FAM6_ATOM_SILVERMONT1,	rapl_defaults_byt),
 	RAPL_CPU(INTEL_FAM6_ATOM_AIRMONT,	rapl_defaults_cht),
-	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD1,	rapl_defaults_tng),
-	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD2,	rapl_defaults_ann),
+	RAPL_CPU(INTEL_FAM6_ATOM_MERRIFIELD,	rapl_defaults_tng),
+	RAPL_CPU(INTEL_FAM6_ATOM_MOOREFIELD,	rapl_defaults_ann),
 	RAPL_CPU(INTEL_FAM6_ATOM_GOLDMONT,	rapl_defaults_core),
 	RAPL_CPU(INTEL_FAM6_ATOM_DENVERTON,	rapl_defaults_core),
 

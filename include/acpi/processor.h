@@ -359,7 +359,7 @@ extern int acpi_processor_set_throttling(struct acpi_processor *pr,
  * onlined/offlined. In such case the flags.throttling will be updated.
  */
 extern void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
-			unsigned long action);
+			bool is_dead);
 extern const struct file_operations acpi_processor_throttling_fops;
 extern void acpi_processor_throttling_init(void);
 #else
@@ -380,7 +380,7 @@ static inline int acpi_processor_set_throttling(struct acpi_processor *pr,
 }
 
 static inline void acpi_processor_reevaluate_tstate(struct acpi_processor *pr,
-			unsigned long action) {}
+			bool is_dead) {}
 
 static inline void acpi_processor_throttling_init(void) {}
 #endif	/* CONFIG_ACPI_CPU_FREQ_PSS */

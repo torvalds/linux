@@ -15,6 +15,7 @@
 
 #include <linux/list.h>
 #include <linux/rbtree.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/bug.h>
 #include <linux/lockdep.h>
@@ -116,22 +117,22 @@ struct reg_sequence {
 #define regmap_read_poll_timeout(map, addr, val, cond, sleep_us, timeout_us) \
 ({ \
 	ktime_t timeout = ktime_add_us(ktime_get(), timeout_us); \
-	int ret; \
+	int pollret; \
 	might_sleep_if(sleep_us); \
 	for (;;) { \
-		ret = regmap_read((map), (addr), &(val)); \
-		if (ret) \
+		pollret = regmap_read((map), (addr), &(val)); \
+		if (pollret) \
 			break; \
 		if (cond) \
 			break; \
 		if (timeout_us && ktime_compare(ktime_get(), timeout) > 0) { \
-			ret = regmap_read((map), (addr), &(val)); \
+			pollret = regmap_read((map), (addr), &(val)); \
 			break; \
 		} \
 		if (sleep_us) \
 			usleep_range((sleep_us >> 2) + 1, sleep_us); \
 	} \
-	ret ?: ((cond) ? 0 : -ETIMEDOUT); \
+	pollret ?: ((cond) ? 0 : -ETIMEDOUT); \
 })
 
 #ifdef CONFIG_REGMAP
@@ -241,9 +242,9 @@ typedef void (*regmap_unlock)(void *);
  *                register cache support).
  * @num_reg_defaults: Number of elements in reg_defaults.
  *
- * @read_flag_mask: Mask to be set in the top byte of the register when doing
+ * @read_flag_mask: Mask to be set in the top bytes of the register when doing
  *                  a read.
- * @write_flag_mask: Mask to be set in the top byte of the register when doing
+ * @write_flag_mask: Mask to be set in the top bytes of the register when doing
  *                   a write. If both read_flag_mask and write_flag_mask are
  *                   empty the regmap_bus default masks are used.
  * @use_single_rw: If set, converts the bulk read and write operations into
@@ -299,8 +300,8 @@ struct regmap_config {
 	const void *reg_defaults_raw;
 	unsigned int num_reg_defaults_raw;
 
-	u8 read_flag_mask;
-	u8 write_flag_mask;
+	unsigned long read_flag_mask;
+	unsigned long write_flag_mask;
 
 	bool use_single_rw;
 	bool can_multi_write;

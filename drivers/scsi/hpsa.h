@@ -69,6 +69,7 @@ struct hpsa_scsi_dev_t {
 	u64 sas_address;
 	unsigned char vendor[8];        /* bytes 8-15 of inquiry data */
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
+	unsigned char rev;		/* byte 2 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
 	unsigned char volume_offline;	/* discovered via TUR or VPD */
 	u16 queue_depth;		/* max queue_depth for this device */
@@ -312,7 +313,6 @@ struct offline_device_entry {
 #define HPSA_DEVICE_RESET_MSG 1
 #define HPSA_RESET_TYPE_CONTROLLER 0x00
 #define HPSA_RESET_TYPE_BUS 0x01
-#define HPSA_RESET_TYPE_TARGET 0x03
 #define HPSA_RESET_TYPE_LUN 0x04
 #define HPSA_PHYS_TARGET_RESET 0x99 /* not defined by cciss spec */
 #define HPSA_MSG_SEND_RETRY_LIMIT 10
@@ -403,6 +403,7 @@ struct offline_device_entry {
 #define HPSA_RAID_VOLUME_BUS		1
 #define HPSA_EXTERNAL_RAID_VOLUME_BUS	2
 #define HPSA_HBA_BUS			0
+#define HPSA_LEGACY_HBA_BUS		3
 
 /*
 	Send the command to the hardware

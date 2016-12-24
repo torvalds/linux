@@ -90,9 +90,6 @@ struct policy_result {
 	dm_cblock_t cblock;	/* POLICY_HIT, POLICY_NEW, POLICY_REPLACE */
 };
 
-typedef int (*policy_walk_fn)(void *context, dm_cblock_t cblock,
-			      dm_oblock_t oblock, uint32_t hint);
-
 /*
  * The cache policy object.  Just a bunch of methods.  It is envisaged that
  * this structure will be embedded in a bigger, policy specific structure
@@ -158,8 +155,11 @@ struct dm_cache_policy {
 	int (*load_mapping)(struct dm_cache_policy *p, dm_oblock_t oblock,
 			    dm_cblock_t cblock, uint32_t hint, bool hint_valid);
 
-	int (*walk_mappings)(struct dm_cache_policy *p, policy_walk_fn fn,
-			     void *context);
+	/*
+	 * Gets the hint for a given cblock.  Called in a single threaded
+	 * context.  So no locking required.
+	 */
+	uint32_t (*get_hint)(struct dm_cache_policy *p, dm_cblock_t cblock);
 
 	/*
 	 * Override functions used on the error paths of the core target.

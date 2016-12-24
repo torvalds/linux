@@ -32,6 +32,7 @@
 #include <linux/mii.h>
 #include <linux/if.h>
 #include <linux/if_vlan.h>
+#include <linux/rtc.h>
 #include <net/ip.h>
 #include <net/tcp.h>
 #include <net/udp.h>
@@ -93,50 +94,49 @@ enum board_idx {
 	BCM57404_NPAR,
 	BCM57406_NPAR,
 	BCM57407_SFP,
+	BCM57407_NPAR,
 	BCM57414_NPAR,
 	BCM57416_NPAR,
-	BCM57304_VF,
-	BCM57404_VF,
-	BCM57414_VF,
-	BCM57314_VF,
+	NETXTREME_E_VF,
+	NETXTREME_C_VF,
 };
 
 /* indexed by enum above */
 static const struct {
 	char *name;
 } board_info[] = {
-	{ "Broadcom BCM57301 NetXtreme-C Single-port 10Gb Ethernet" },
-	{ "Broadcom BCM57302 NetXtreme-C Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57304 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	{ "Broadcom BCM57301 NetXtreme-C 10Gb Ethernet" },
+	{ "Broadcom BCM57302 NetXtreme-C 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57304 NetXtreme-C 10Gb/25Gb/40Gb/50Gb Ethernet" },
 	{ "Broadcom BCM57417 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM58700 Nitro 4-port 1Gb/2.5Gb/10Gb Ethernet" },
-	{ "Broadcom BCM57311 NetXtreme-C Single-port 10Gb Ethernet" },
-	{ "Broadcom BCM57312 NetXtreme-C Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57402 NetXtreme-E Dual-port 10Gb Ethernet" },
-	{ "Broadcom BCM57404 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57406 NetXtreme-E Dual-port 10GBase-T Ethernet" },
+	{ "Broadcom BCM58700 Nitro 1Gb/2.5Gb/10Gb Ethernet" },
+	{ "Broadcom BCM57311 NetXtreme-C 10Gb Ethernet" },
+	{ "Broadcom BCM57312 NetXtreme-C 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57402 NetXtreme-E 10Gb Ethernet" },
+	{ "Broadcom BCM57404 NetXtreme-E 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57406 NetXtreme-E 10GBase-T Ethernet" },
 	{ "Broadcom BCM57402 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57407 NetXtreme-E Dual-port 10GBase-T Ethernet" },
-	{ "Broadcom BCM57412 NetXtreme-E Dual-port 10Gb Ethernet" },
-	{ "Broadcom BCM57414 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57416 NetXtreme-E Dual-port 10GBase-T Ethernet" },
-	{ "Broadcom BCM57417 NetXtreme-E Dual-port 10GBase-T Ethernet" },
+	{ "Broadcom BCM57407 NetXtreme-E 10GBase-T Ethernet" },
+	{ "Broadcom BCM57412 NetXtreme-E 10Gb Ethernet" },
+	{ "Broadcom BCM57414 NetXtreme-E 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57416 NetXtreme-E 10GBase-T Ethernet" },
+	{ "Broadcom BCM57417 NetXtreme-E 10GBase-T Ethernet" },
 	{ "Broadcom BCM57412 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57314 NetXtreme-C Dual-port 10Gb/25Gb/40Gb/50Gb Ethernet" },
-	{ "Broadcom BCM57417 NetXtreme-E Dual-port 10Gb/25Gb Ethernet" },
-	{ "Broadcom BCM57416 NetXtreme-E Dual-port 10Gb Ethernet" },
+	{ "Broadcom BCM57314 NetXtreme-C 10Gb/25Gb/40Gb/50Gb Ethernet" },
+	{ "Broadcom BCM57417 NetXtreme-E 10Gb/25Gb Ethernet" },
+	{ "Broadcom BCM57416 NetXtreme-E 10Gb Ethernet" },
 	{ "Broadcom BCM57404 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57406 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57407 NetXtreme-E Dual-port 25Gb Ethernet" },
+	{ "Broadcom BCM57407 NetXtreme-E 25Gb Ethernet" },
+	{ "Broadcom BCM57407 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57414 NetXtreme-E Ethernet Partition" },
 	{ "Broadcom BCM57416 NetXtreme-E Ethernet Partition" },
-	{ "Broadcom BCM57304 NetXtreme-C Ethernet Virtual Function" },
-	{ "Broadcom BCM57404 NetXtreme-E Ethernet Virtual Function" },
-	{ "Broadcom BCM57414 NetXtreme-E Ethernet Virtual Function" },
-	{ "Broadcom BCM57314 NetXtreme-E Ethernet Virtual Function" },
+	{ "Broadcom NetXtreme-E Ethernet Virtual Function" },
+	{ "Broadcom NetXtreme-C Ethernet Virtual Function" },
 };
 
 static const struct pci_device_id bnxt_pci_tbl[] = {
+	{ PCI_VDEVICE(BROADCOM, 0x16c0), .driver_data = BCM57417_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16c8), .driver_data = BCM57301 },
 	{ PCI_VDEVICE(BROADCOM, 0x16c9), .driver_data = BCM57302 },
 	{ PCI_VDEVICE(BROADCOM, 0x16ca), .driver_data = BCM57304 },
@@ -160,13 +160,19 @@ static const struct pci_device_id bnxt_pci_tbl[] = {
 	{ PCI_VDEVICE(BROADCOM, 0x16e7), .driver_data = BCM57404_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16e8), .driver_data = BCM57406_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16e9), .driver_data = BCM57407_SFP },
+	{ PCI_VDEVICE(BROADCOM, 0x16ea), .driver_data = BCM57407_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16eb), .driver_data = BCM57412_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16ec), .driver_data = BCM57414_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16ed), .driver_data = BCM57414_NPAR },
 	{ PCI_VDEVICE(BROADCOM, 0x16ee), .driver_data = BCM57416_NPAR },
+	{ PCI_VDEVICE(BROADCOM, 0x16ef), .driver_data = BCM57416_NPAR },
 #ifdef CONFIG_BNXT_SRIOV
-	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = BCM57304_VF },
-	{ PCI_VDEVICE(BROADCOM, 0x16d3), .driver_data = BCM57404_VF },
-	{ PCI_VDEVICE(BROADCOM, 0x16dc), .driver_data = BCM57414_VF },
-	{ PCI_VDEVICE(BROADCOM, 0x16e1), .driver_data = BCM57314_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16c1), .driver_data = NETXTREME_E_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16cb), .driver_data = NETXTREME_C_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16d3), .driver_data = NETXTREME_E_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16dc), .driver_data = NETXTREME_E_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16e1), .driver_data = NETXTREME_C_VF },
+	{ PCI_VDEVICE(BROADCOM, 0x16e5), .driver_data = NETXTREME_C_VF },
 #endif
 	{ 0 }
 };
@@ -189,8 +195,7 @@ static const u16 bnxt_async_events_arr[] = {
 
 static bool bnxt_vf_pciid(enum board_idx idx)
 {
-	return (idx == BCM57304_VF || idx == BCM57404_VF ||
-		idx == BCM57314_VF || idx == BCM57414_VF);
+	return (idx == NETXTREME_C_VF || idx == NETXTREME_E_VF);
 }
 
 #define DB_CP_REARM_FLAGS	(DB_KEY_CP | DB_IDX_VALID)
@@ -1806,6 +1811,9 @@ static int bnxt_busy_poll(struct napi_struct *napi)
 	if (atomic_read(&bp->intr_sem) != 0)
 		return LL_FLUSH_FAILED;
 
+	if (!bp->link_info.link_up)
+		return LL_FLUSH_FAILED;
+
 	if (!bnxt_lock_poll(bnapi))
 		return LL_FLUSH_BUSY;
 
@@ -3205,11 +3213,17 @@ static int bnxt_hwrm_tunnel_dst_port_alloc(struct bnxt *bp, __be16 port,
 		goto err_out;
 	}
 
-	if (tunnel_type & TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN)
+	switch (tunnel_type) {
+	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_VXLAN:
 		bp->vxlan_fw_dst_port_id = resp->tunnel_dst_port_id;
-
-	else if (tunnel_type & TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE)
+		break;
+	case TUNNEL_DST_PORT_ALLOC_REQ_TUNNEL_TYPE_GENEVE:
 		bp->nge_fw_dst_port_id = resp->tunnel_dst_port_id;
+		break;
+	default:
+		break;
+	}
+
 err_out:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
@@ -3419,10 +3433,10 @@ static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_RSS_CFG, -1, -1);
 	if (set_rss) {
-		vnic->hash_type = BNXT_RSS_HASH_TYPE_FLAG_IPV4 |
-				 BNXT_RSS_HASH_TYPE_FLAG_TCP_IPV4 |
-				 BNXT_RSS_HASH_TYPE_FLAG_IPV6 |
-				 BNXT_RSS_HASH_TYPE_FLAG_TCP_IPV6;
+		vnic->hash_type = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6;
 
 		req.hash_type = cpu_to_le32(vnic->hash_type);
 
@@ -4106,7 +4120,7 @@ static int bnxt_hwrm_stat_ctx_alloc(struct bnxt *bp)
 		bp->grp_info[i].fw_stats_ctx = cpr->hw_stats_ctx_id;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
-	return 0;
+	return rc;
 }
 
 static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
@@ -4156,6 +4170,11 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	if (rc)
 		goto hwrm_func_qcaps_exit;
 
+	bp->tx_push_thresh = 0;
+	if (resp->flags &
+	    cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED))
+		bp->tx_push_thresh = BNXT_TX_PUSH_THRESH;
+
 	if (BNXT_PF(bp)) {
 		struct bnxt_pf_info *pf = &bp->pf;
 
@@ -4187,12 +4206,6 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		struct bnxt_vf_info *vf = &bp->vf;
 
 		vf->fw_fid = le16_to_cpu(resp->fid);
-		memcpy(vf->mac_addr, resp->mac_address, ETH_ALEN);
-		if (is_valid_ether_addr(vf->mac_addr))
-			/* overwrite netdev dev_adr with admin VF MAC */
-			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
-		else
-			random_ether_addr(bp->dev->dev_addr);
 
 		vf->max_rsscos_ctxs = le16_to_cpu(resp->max_rsscos_ctx);
 		vf->max_cp_rings = le16_to_cpu(resp->max_cmpl_rings);
@@ -4204,13 +4217,20 @@ int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		vf->max_l2_ctxs = le16_to_cpu(resp->max_l2_ctxs);
 		vf->max_vnics = le16_to_cpu(resp->max_vnics);
 		vf->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
+
+		memcpy(vf->mac_addr, resp->mac_address, ETH_ALEN);
+		mutex_unlock(&bp->hwrm_cmd_lock);
+
+		if (is_valid_ether_addr(vf->mac_addr)) {
+			/* overwrite netdev dev_adr with admin VF MAC */
+			memcpy(bp->dev->dev_addr, vf->mac_addr, ETH_ALEN);
+		} else {
+			random_ether_addr(bp->dev->dev_addr);
+			rc = bnxt_approve_mac(bp, bp->dev->dev_addr);
+		}
+		return rc;
 #endif
 	}
-
-	bp->tx_push_thresh = 0;
-	if (resp->flags &
-	    cpu_to_le32(FUNC_QCAPS_RESP_FLAGS_PUSH_MODE_SUPPORTED))
-		bp->tx_push_thresh = BNXT_TX_PUSH_THRESH;
 
 hwrm_func_qcaps_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -4248,6 +4268,9 @@ static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp)
 	bp->max_tc = resp->max_configurable_queues;
 	if (bp->max_tc > BNXT_MAX_QUEUE)
 		bp->max_tc = BNXT_MAX_QUEUE;
+
+	if (resp->queue_cfg_info & QUEUE_QPORTCFG_RESP_QUEUE_CFG_INFO_ASYM_CFG)
+		bp->max_tc = 1;
 
 	qptr = &resp->queue_id0;
 	for (i = 0; i < bp->max_tc; i++) {
@@ -4305,6 +4328,31 @@ static int bnxt_hwrm_ver_get(struct bnxt *bp)
 hwrm_ver_get_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
+}
+
+int bnxt_hwrm_fw_set_time(struct bnxt *bp)
+{
+#if IS_ENABLED(CONFIG_RTC_LIB)
+	struct hwrm_fw_set_time_input req = {0};
+	struct rtc_time tm;
+	struct timeval tv;
+
+	if (bp->hwrm_spec_code < 0x10400)
+		return -EOPNOTSUPP;
+
+	do_gettimeofday(&tv);
+	rtc_time_to_tm(tv.tv_sec, &tm);
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FW_SET_TIME, -1, -1);
+	req.year = cpu_to_le16(1900 + tm.tm_year);
+	req.month = 1 + tm.tm_mon;
+	req.day = tm.tm_mday;
+	req.hour = tm.tm_hour;
+	req.minute = tm.tm_min;
+	req.second = tm.tm_sec;
+	return hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+#else
+	return -EOPNOTSUPP;
+#endif
 }
 
 static int bnxt_hwrm_port_qstats(struct bnxt *bp)
@@ -4895,6 +4943,10 @@ static void bnxt_del_napi(struct bnxt *bp)
 		napi_hash_del(&bnapi->napi);
 		netif_napi_del(&bnapi->napi);
 	}
+	/* We called napi_hash_del() before netif_napi_del(), we need
+	 * to respect an RCU grace period before freeing napi structures.
+	 */
+	synchronize_net();
 }
 
 static void bnxt_init_napi(struct bnxt *bp)
@@ -6270,6 +6322,7 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 			 struct tc_to_netdev *ntc)
 {
 	struct bnxt *bp = netdev_priv(dev);
+	bool sh = false;
 	u8 tc;
 
 	if (ntc->type != TC_SETUP_MQPRIO)
@@ -6286,12 +6339,11 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 	if (netdev_get_num_tc(dev) == tc)
 		return 0;
 
+	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
+		sh = true;
+
 	if (tc) {
 		int max_rx_rings, max_tx_rings, rc;
-		bool sh = false;
-
-		if (bp->flags & BNXT_FLAG_SHARED_RINGS)
-			sh = true;
 
 		rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
 		if (rc || bp->tx_nr_rings_per_tc * tc > max_tx_rings)
@@ -6309,7 +6361,8 @@ static int bnxt_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
 		bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 		netdev_reset_tc(dev);
 	}
-	bp->cp_nr_rings = max_t(int, bp->tx_nr_rings, bp->rx_nr_rings);
+	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
+			       bp->tx_nr_rings + bp->rx_nr_rings;
 	bp->num_stat_ctxs = bp->cp_nr_rings;
 
 	if (netif_running(bp->dev))
@@ -6803,6 +6856,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_hwrm_ver_get(bp);
 	if (rc)
 		goto init_err;
+
+	bnxt_hwrm_fw_set_time(bp);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM | NETIF_F_SG |
 			   NETIF_F_TSO | NETIF_F_TSO6 |

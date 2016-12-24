@@ -50,23 +50,6 @@ typedef int (*ndctl_fn)(struct nvdimm_bus_descriptor *nd_desc,
 		struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc);
 
-struct nd_namespace_label;
-struct nvdimm_drvdata;
-
-struct nd_mapping {
-	struct nvdimm *nvdimm;
-	struct nd_namespace_label **labels;
-	u64 start;
-	u64 size;
-	/*
-	 * @ndd is for private use at region enable / disable time for
-	 * get_ndd() + put_ndd(), all other nd_mapping to ndd
-	 * conversions use to_ndd() which respects enabled state of the
-	 * nvdimm.
-	 */
-	struct nvdimm_drvdata *ndd;
-};
-
 struct nvdimm_bus_descriptor {
 	const struct attribute_group **attr_groups;
 	unsigned long cmd_mask;
@@ -89,9 +72,15 @@ struct nd_interleave_set {
 	u64 cookie;
 };
 
+struct nd_mapping_desc {
+	struct nvdimm *nvdimm;
+	u64 start;
+	u64 size;
+};
+
 struct nd_region_desc {
 	struct resource *res;
-	struct nd_mapping *nd_mapping;
+	struct nd_mapping_desc *mapping;
 	u16 num_mappings;
 	const struct attribute_group **attr_groups;
 	struct nd_interleave_set *nd_set;
@@ -129,6 +118,8 @@ static inline struct nd_blk_region_desc *to_blk_region_desc(
 }
 
 int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length);
+void nvdimm_clear_from_poison_list(struct nvdimm_bus *nvdimm_bus,
+		phys_addr_t start, unsigned int len);
 struct nvdimm_bus *nvdimm_bus_register(struct device *parent,
 		struct nvdimm_bus_descriptor *nfit_desc);
 void nvdimm_bus_unregister(struct nvdimm_bus *nvdimm_bus);
@@ -139,6 +130,7 @@ struct nd_blk_region *to_nd_blk_region(struct device *dev);
 struct nvdimm_bus_descriptor *to_nd_desc(struct nvdimm_bus *nvdimm_bus);
 struct device *to_nvdimm_bus_dev(struct nvdimm_bus *nvdimm_bus);
 const char *nvdimm_name(struct nvdimm *nvdimm);
+struct kobject *nvdimm_kobj(struct nvdimm *nvdimm);
 unsigned long nvdimm_cmd_mask(struct nvdimm *nvdimm);
 void *nvdimm_provider_data(struct nvdimm *nvdimm);
 struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus, void *provider_data,
@@ -151,7 +143,7 @@ u32 nd_cmd_in_size(struct nvdimm *nvdimm, int cmd,
 		const struct nd_cmd_desc *desc, int idx, void *buf);
 u32 nd_cmd_out_size(struct nvdimm *nvdimm, int cmd,
 		const struct nd_cmd_desc *desc, int idx, const u32 *in_field,
-		const u32 *out_field);
+		const u32 *out_field, unsigned long remainder);
 int nvdimm_bus_check_dimm_count(struct nvdimm_bus *nvdimm_bus, int dimm_count);
 struct nd_region *nvdimm_pmem_region_create(struct nvdimm_bus *nvdimm_bus,
 		struct nd_region_desc *ndr_desc);

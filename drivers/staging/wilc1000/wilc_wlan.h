@@ -192,7 +192,7 @@
 
 #define ENABLE_RX_VMM		(SEL_VMM_TBL1 | EN_VMM)
 #define ENABLE_TX_VMM		(SEL_VMM_TBL0 | EN_VMM)
-/*time for expiring the semaphores of cfg packets*/
+/*time for expiring the completion of cfg packets*/
 #define CFG_PKTS_TIMEOUT	2000
 /********************************************
  *
