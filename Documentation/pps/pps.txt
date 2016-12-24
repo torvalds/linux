@@ -72,8 +72,11 @@ PPS with USB to serial devices
 It is possible to grab the PPS from an USB to serial device. However,
 you should take into account the latencies and jitter introduced by
 the USB stack. Users have reported clock instability around +-1ms when
-synchronized with PPS through USB. This isn't suited for time server
-synchronization.
+synchronized with PPS through USB. With USB 2.0, jitter may decrease
+down to the order of 125 microseconds.
+
+This may be suitable for time server synchronization with NTP because
+of its undersampling and algorithms.
 
 If your device doesn't report PPS, you can check that the feature is
 supported by its driver. Most of the time, you only need to add a call
