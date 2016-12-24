@@ -248,7 +248,7 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 	 */
 	if (ppmu->flags & PPMU_NO_SIPR) {
 		unsigned long siar = mfspr(SPRN_SIAR);
-		if (siar >= PAGE_OFFSET)
+		if (is_kernel_addr(siar))
 			return PERF_RECORD_MISC_KERNEL;
 		return PERF_RECORD_MISC_USER;
 	}
