@@ -71,10 +71,6 @@ unsigned int units = 1000000;	/* MHz etc */
 unsigned int genuine_intel;
 unsigned int has_invariant_tsc;
 unsigned int do_nhm_platform_info;
-unsigned int extra_msr_offset32;
-unsigned int extra_msr_offset64;
-unsigned int extra_delta_offset32;
-unsigned int extra_delta_offset64;
 unsigned int aperf_mperf_multiplier = 1;
 int do_irq = 1;
 int do_smi;
@@ -164,10 +160,6 @@ struct thread_data {
 	unsigned long long aperf;
 	unsigned long long mperf;
 	unsigned long long c1;
-	unsigned long long extra_msr64;
-	unsigned long long extra_delta64;
-	unsigned long long extra_msr32;
-	unsigned long long extra_delta32;
 	unsigned int irq_count;
 	unsigned int smi_count;
 	unsigned int cpu_id;
@@ -372,15 +364,6 @@ void print_header(void)
 		outp += sprintf(outp, "\tBzy_MHz");
 	outp += sprintf(outp, "\tTSC_MHz");
 
-	if (extra_delta_offset32)
-		outp += sprintf(outp, "\tcount 0x%03X", extra_delta_offset32);
-	if (extra_delta_offset64)
-		outp += sprintf(outp, "\tCOUNT 0x%03X", extra_delta_offset64);
-	if (extra_msr_offset32)
-		outp += sprintf(outp, "\t         MSR 0x%03X", extra_msr_offset32);
-	if (extra_msr_offset64)
-		outp += sprintf(outp, "\tMSR 0x%03X", extra_msr_offset64);
-
 	if (!debug)
 		goto done;
 
@@ -510,14 +493,7 @@ int dump_counters(struct thread_data *t, struct core_data *c,
 		outp += sprintf(outp, "aperf: %016llX\n", t->aperf);
 		outp += sprintf(outp, "mperf: %016llX\n", t->mperf);
 		outp += sprintf(outp, "c1: %016llX\n", t->c1);
-		outp += sprintf(outp, "msr0x%x: %08llX\n",
-			extra_delta_offset32, t->extra_delta32);
-		outp += sprintf(outp, "msr0x%x: %016llX\n",
-			extra_delta_offset64, t->extra_delta64);
-		outp += sprintf(outp, "msr0x%x: %08llX\n",
-			extra_msr_offset32, t->extra_msr32);
-		outp += sprintf(outp, "msr0x%x: %016llX\n",
-			extra_msr_offset64, t->extra_msr64);
+
 		if (do_irq)
 			outp += sprintf(outp, "IRQ: %08X\n", t->irq_count);
 		if (do_smi)
@@ -647,21 +623,6 @@ int format_counters(struct thread_data *t, struct core_data *c,
 
 	/* TSC_MHz */
 	outp += sprintf(outp, "\t%.0f", 1.0 * t->tsc/units/interval_float);
-
-	/* delta */
-	if (extra_delta_offset32)
-		outp += sprintf(outp, "\t%11llu", t->extra_delta32);
-
-	/* DELTA */
-	if (extra_delta_offset64)
-		outp += sprintf(outp, "\t%11llu", t->extra_delta64);
-	/* msr */
-	if (extra_msr_offset32)
-		outp += sprintf(outp, "\t0x%08llx", t->extra_msr32);
-
-	/* MSR */
-	if (extra_msr_offset64)
-		outp += sprintf(outp, "\t0x%016llx", t->extra_msr64);
 
 	if (!debug)
 		goto done;
@@ -991,17 +952,6 @@ delta_thread(struct thread_data *new, struct thread_data *old,
 		old->mperf = 1;	/* divide by 0 protection */
 	}
 
-	old->extra_delta32 = new->extra_delta32 - old->extra_delta32;
-	old->extra_delta32 &= 0xFFFFFFFF;
-
-	old->extra_delta64 = new->extra_delta64 - old->extra_delta64;
-
-	/*
-	 * Extra MSR is just a snapshot, simply copy latest w/o subtracting
-	 */
-	old->extra_msr32 = new->extra_msr32;
-	old->extra_msr64 = new->extra_msr64;
-
 	if (do_irq)
 		old->irq_count = new->irq_count - old->irq_count;
 
@@ -1048,9 +998,6 @@ void clear_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 	t->aperf = 0;
 	t->mperf = 0;
 	t->c1 = 0;
-
-	t->extra_delta32 = 0;
-	t->extra_delta64 = 0;
 
 	t->irq_count = 0;
 	t->smi_count = 0;
@@ -1109,9 +1056,6 @@ int sum_counters(struct thread_data *t, struct core_data *c,
 	average.threads.aperf += t->aperf;
 	average.threads.mperf += t->mperf;
 	average.threads.c1 += t->c1;
-
-	average.threads.extra_delta32 += t->extra_delta32;
-	average.threads.extra_delta64 += t->extra_delta64;
 
 	average.threads.irq_count += t->irq_count;
 	average.threads.smi_count += t->smi_count;
@@ -1198,11 +1142,6 @@ void compute_average(struct thread_data *t, struct core_data *c,
 	average.threads.aperf /= topo.num_cpus;
 	average.threads.mperf /= topo.num_cpus;
 	average.threads.c1 /= topo.num_cpus;
-
-	average.threads.extra_delta32 /= topo.num_cpus;
-	average.threads.extra_delta32 &= 0xFFFFFFFF;
-
-	average.threads.extra_delta64 /= topo.num_cpus;
 
 	average.cores.c3 /= topo.num_cores;
 	average.cores.c6 /= topo.num_cores;
@@ -1337,25 +1276,6 @@ retry:
 			return -5;
 		t->smi_count = msr & 0xFFFFFFFF;
 	}
-	if (extra_delta_offset32) {
-		if (get_msr(cpu, extra_delta_offset32, &msr))
-			return -5;
-		t->extra_delta32 = msr & 0xFFFFFFFF;
-	}
-
-	if (extra_delta_offset64)
-		if (get_msr(cpu, extra_delta_offset64, &t->extra_delta64))
-			return -5;
-
-	if (extra_msr_offset32) {
-		if (get_msr(cpu, extra_msr_offset32, &msr))
-			return -5;
-		t->extra_msr32 = msr & 0xFFFFFFFF;
-	}
-
-	if (extra_msr_offset64)
-		if (get_msr(cpu, extra_msr_offset64, &t->extra_msr64))
-			return -5;
 
 	if (use_c1_residency_msr) {
 		if (get_msr(cpu, MSR_CORE_C1_RES, &t->c1))
@@ -3619,11 +3539,7 @@ void help()
 	"--debug	run in \"debug\" mode\n"
 	"--interval sec	Override default 5-second measurement interval\n"
 	"--help		print this help message\n"
-	"--counter msr	print 32-bit counter at address \"msr\"\n"
-	"--Counter msr	print 64-bit Counter at address \"msr\"\n"
 	"--out file	create or truncate \"file\" for all output\n"
-	"--msr msr	print 32-bit value at address \"msr\"\n"
-	"--MSR msr	print 64-bit Value at address \"msr\"\n"
 	"--version	print version information\n"
 	"\n"
 	"For more help, run \"man turbostat\"\n");
@@ -3960,7 +3876,7 @@ int get_and_dump_counters(void)
 }
 
 void print_version() {
-	fprintf(outf, "turbostat version 4.15 21 Dec 2016"
+	fprintf(outf, "turbostat version 4.16 24 Dec 2016"
 		" - Len Brown <lenb@kernel.org>\n");
 }
 
@@ -4119,15 +4035,11 @@ void cmdline(int argc, char **argv)
 	int option_index = 0;
 	static struct option long_options[] = {
 		{"add",		required_argument,	0, 'a'},
-		{"Counter",	required_argument,	0, 'C'},
-		{"counter",	required_argument,	0, 'c'},
 		{"Dump",	no_argument,		0, 'D'},
 		{"debug",	no_argument,		0, 'd'},
 		{"interval",	required_argument,	0, 'i'},
 		{"help",	no_argument,		0, 'h'},
 		{"Joules",	no_argument,		0, 'J'},
-		{"MSR",		required_argument,	0, 'M'},
-		{"msr",		required_argument,	0, 'm'},
 		{"out",		required_argument,	0, 'o'},
 		{"Package",	no_argument,		0, 'p'},
 		{"processor",	no_argument,		0, 'p'},
@@ -4144,12 +4056,6 @@ void cmdline(int argc, char **argv)
 		switch (opt) {
 		case 'a':
 			parse_add_command(optarg);
-			break;
-		case 'C':
-			sscanf(optarg, "%x", &extra_delta_offset64);
-			break;
-		case 'c':
-			sscanf(optarg, "%x", &extra_delta_offset32);
 			break;
 		case 'D':
 			dump_only++;
@@ -4177,12 +4083,6 @@ void cmdline(int argc, char **argv)
 			break;
 		case 'J':
 			rapl_joules++;
-			break;
-		case 'M':
-			sscanf(optarg, "%x", &extra_msr_offset64);
-			break;
-		case 'm':
-			sscanf(optarg, "%x", &extra_msr_offset32);
 			break;
 		case 'o':
 			outf = fopen_or_die(optarg, "w");
