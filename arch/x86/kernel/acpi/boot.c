@@ -930,6 +930,13 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
 		x86_platform.legacy.devices.pnpbios = 0;
 	}
 
+	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
+	    !(acpi_gbl_FADT.boot_flags & ACPI_FADT_8042) &&
+	    x86_platform.legacy.i8042 != X86_LEGACY_I8042_PLATFORM_ABSENT) {
+		pr_debug("ACPI: i8042 controller is absent\n");
+		x86_platform.legacy.i8042 = X86_LEGACY_I8042_FIRMWARE_ABSENT;
+	}
+
 	if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_CMOS_RTC) {
 		pr_debug("ACPI: not registering RTC platform device\n");
 		x86_platform.legacy.rtc = 0;

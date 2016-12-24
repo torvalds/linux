@@ -368,6 +368,26 @@ next:
 	return patch;
 }
 
+static void cpuid_1(void)
+{
+	/*
+	 * According to the Intel SDM, Volume 3, 9.11.7:
+	 *
+	 *   CPUID returns a value in a model specific register in
+	 *   addition to its usual register return values. The
+	 *   semantics of CPUID cause it to deposit an update ID value
+	 *   in the 64-bit model-specific register at address 08BH
+	 *   (IA32_BIOS_SIGN_ID). If no update is present in the
+	 *   processor, the value in the MSR remains unmodified.
+	 *
+	 * Use native_cpuid -- this code runs very early and we don't
+	 * want to mess with paravirt.
+	 */
+	unsigned int eax = 1, ebx, ecx = 0, edx;
+
+	native_cpuid(&eax, &ebx, &ecx, &edx);
+}
+
 static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 {
 	unsigned int val[2];
@@ -393,7 +413,7 @@ static int collect_cpu_info_early(struct ucode_cpu_info *uci)
 	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
-	sync_core();
+	cpuid_1();
 
 	/* get the current revision from MSR 0x8B */
 	native_rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
@@ -593,7 +613,7 @@ static int apply_microcode_early(struct ucode_cpu_info *uci, bool early)
 	native_wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
-	sync_core();
+	cpuid_1();
 
 	/* get the current revision from MSR 0x8B */
 	native_rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
@@ -805,7 +825,7 @@ static int apply_microcode_intel(int cpu)
 	wrmsrl(MSR_IA32_UCODE_REV, 0);
 
 	/* As documented in the SDM: Do a CPUID 1 here */
-	sync_core();
+	cpuid_1();
 
 	/* get the current revision from MSR 0x8B */
 	rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
