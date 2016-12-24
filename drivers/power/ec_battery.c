@@ -15,6 +15,7 @@
  *
  */
 
+#include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/power_supply.h>
@@ -52,6 +53,7 @@ struct ec_battery {
 	bool			is_battery_low;
 	bool			is_battery_in;
 	bool			is_ac_in;
+	struct gpio_desc	*ec_notify_io;
 };
 
 enum bat_mode {
@@ -132,6 +134,7 @@ static int ec_get_battery_info(struct ec_battery *bat)
 	u16 voltage2;
 	u16 full_charge_capacity_1;
 	u16 design_capacity;
+	u16 cur;
 	int ret;
 	int soc;
 
@@ -139,7 +142,13 @@ static int ec_get_battery_info(struct ec_battery *bat)
 			  EC_GET_PARAMETER_NUM);
 	if ((EC_GET_PARAMETER_NUM - 1) == buf[0]) {
 		bat->status = buf[2] << 8 | buf[1];
-		bat->current_now = buf[4] << 8 | buf[3];
+		cur = (buf[4] << 8 | buf[3]);
+		bat->current_now = cur;
+		if (buf[4] & 0x80) {
+			bat->current_now = (~cur) & 0xffff;
+			bat->current_now = -(bat->current_now);
+		}
+
 		bat->rem_capacity = buf[6] << 8 | buf[5];
 		bat->voltage_now = buf[8] << 8 | buf[7];
 		bat->full_charge_capacity = buf[10] << 8 | buf[9];
@@ -158,10 +167,12 @@ static int ec_get_battery_info(struct ec_battery *bat)
 
 	ret = ec_i2c_read(bat, EC_GET_BATTERY_OTHER_COMMOND, buf,
 			  EC_GET_BATTERYINFO_NUM);
-	full_charge_capacity_1 = buf[2] << 8 | buf[1];
-	voltage2 = buf[4] << 8 | buf[3];	/* the same to uppo */
-	design_capacity = buf[6] << 8 | buf[5];	/* the same to uppo */
-	bat->design_capacity = design_capacity;
+	if ((EC_GET_BATTERYINFO_NUM - 1) == buf[0]) {
+		full_charge_capacity_1 = buf[2] << 8 | buf[1];
+		voltage2 = buf[4] << 8 | buf[3];	/* the same to uppo */
+		design_capacity = buf[6] << 8 | buf[5];	/* the same to uppo */
+		bat->design_capacity = design_capacity;
+	}
 
 	ec_dump_info(bat);
 
@@ -223,6 +234,12 @@ static int ec_bat_parse_dt(struct ec_battery *bat)
 		dev_err(bat->dev, "monitor_sec missing!\n");
 	else
 		bat->monitor_sec = out_value * TIMER_MS_COUNTS;
+
+	bat->ec_notify_io =
+		devm_gpiod_get_optional(bat->dev, "ec-notify",
+					GPIOD_IN);
+	if (!IS_ERR_OR_NULL(bat->ec_notify_io))
+		gpiod_direction_output(bat->ec_notify_io, 0);
 
 	return 0;
 }
@@ -383,6 +400,37 @@ static int ec_charger_probe(struct i2c_client *client,
 	return ret;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ec_bat_pm_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ec_battery *ec_bat = i2c_get_clientdata(client);
+
+	cancel_delayed_work_sync(&ec_bat->bat_delay_work);
+
+	if (!IS_ERR_OR_NULL(ec_bat->ec_notify_io))
+		gpiod_direction_output(ec_bat->ec_notify_io, 1);
+
+	return 0;
+}
+
+static int ec_bat_pm_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ec_battery *ec_bat = i2c_get_clientdata(client);
+
+	if (!IS_ERR_OR_NULL(ec_bat->ec_notify_io))
+		gpiod_direction_output(ec_bat->ec_notify_io, 0);
+
+	queue_delayed_work(ec_bat->bat_monitor_wq, &ec_bat->bat_delay_work,
+			   msecs_to_jiffies(TIMER_MS_COUNTS * 1));
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(ec_bat_pm_ops, ec_bat_pm_suspend, ec_bat_pm_resume);
+
 static const struct i2c_device_id ec_battery_i2c_ids[] = {
 	{ "ec_battery" },
 	{ },
@@ -403,8 +451,9 @@ static const struct of_device_id ec_of_match[] = {
 
 static struct i2c_driver ec_i2c_driver = {
 	.driver = {
-		.name = "ec_battery",
-		.of_match_table = ec_of_match,
+		.name		= "ec_battery",
+		.pm		= &ec_bat_pm_ops,
+		.of_match_table	= ec_of_match,
 	},
 	.id_table	= ec_battery_i2c_ids,
 	.probe		= ec_charger_probe,
