@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
-#include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/idr.h>
