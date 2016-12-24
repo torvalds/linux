@@ -192,7 +192,7 @@ static int booke_wdt_set_timeout(struct watchdog_device *wdt_dev,
 	return 0;
 }
 
-static struct watchdog_info booke_wdt_info = {
+static struct watchdog_info booke_wdt_info __ro_after_init = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity = "PowerPC Book-E Watchdog",
 };
