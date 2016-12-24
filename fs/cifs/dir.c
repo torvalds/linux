@@ -47,7 +47,7 @@ renew_parental_timestamps(struct dentry *direntry)
 
 char *
 cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
-			struct cifs_tcon *tcon)
+			struct cifs_tcon *tcon, int add_treename)
 {
 	int pplen = vol->prepath ? strlen(vol->prepath) + 1 : 0;
 	int dfsplen;
@@ -59,7 +59,7 @@ cifs_build_path_to_root(struct smb_vol *vol, struct cifs_sb_info *cifs_sb,
 		return full_path;
 	}
 
-	if (tcon->Flags & SMB_SHARE_IS_IN_DFS)
+	if (add_treename)
 		dfsplen = strnlen(tcon->treeName, MAX_TREE_SIZE + 1);
 	else
 		dfsplen = 0;
