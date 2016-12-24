@@ -6581,9 +6581,6 @@ qlt_24xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_24xx *nv)
 		return;
 	}
 
-	/* out-of-order frames reassembly */
-	nv->firmware_options_3 |= BIT_6|BIT_9;
-
 	if (ha->tgt.enable_class_2) {
 		if (vha->flags.init_done)
 			fc_host_supported_classes(vha->host) =
@@ -6684,9 +6681,6 @@ qlt_81xx_config_nvram_stage1(struct scsi_qla_host *vha, struct nvram_81xx *nv)
 		}
 		return;
 	}
-
-	/* out-of-order frames reassembly */
-	nv->firmware_options_3 |= BIT_6|BIT_9;
 
 	if (ha->tgt.enable_class_2) {
 		if (vha->flags.init_done)
