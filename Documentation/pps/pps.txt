@@ -166,7 +166,8 @@ Testing the PPS support
 
 In order to test the PPS support even without specific hardware you can use
 the ktimer driver (see the client subsection in the PPS configuration menu)
-and the userland tools provided in the Documentation/pps/ directory.
+and the userland tools available in your distribution's pps-tools package,
+http://linuxpps.org , or https://github.com/ago/pps-tools .
 
 Once you have enabled the compilation of ktimer just modprobe it (if
 not statically compiled):
@@ -183,8 +184,8 @@ and the run ppstest as follow:
    source 0 - assert 1186592700.388931295, sequence: 365 - clear  0.000000000, sequence: 0
    source 0 - assert 1186592701.389032765, sequence: 366 - clear  0.000000000, sequence: 0
 
-Please, note that to compile userland programs you need the file timepps.h
-(see Documentation/pps/).
+Please, note that to compile userland programs you need the file timepps.h .
+This is available in the pps-tools repository mentioned above.
 
 
 Generators
