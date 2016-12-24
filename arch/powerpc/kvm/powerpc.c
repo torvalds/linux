@@ -30,7 +30,7 @@
 #include <linux/irqbypass.h>
 #include <linux/kvm_irqfd.h>
 #include <asm/cputable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/tlbflush.h>
 #include <asm/cputhreads.h>

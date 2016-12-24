@@ -21,7 +21,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/timex.h>
 #include <asm/cpacf.h>
 

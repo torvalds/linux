@@ -51,7 +51,7 @@
 #include <pcmcia/ds.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "wl3501.h"
 

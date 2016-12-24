@@ -5,7 +5,7 @@
 
 #include <linux/futex.h>
 #include <asm/errno.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 extern int futex_atomic_op_inuser(int encoded_op, u32 __user *uaddr);
 

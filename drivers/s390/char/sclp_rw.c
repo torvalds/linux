@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/ctype.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sclp.h"
 #include "sclp_rw.h"

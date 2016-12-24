@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 #include <linux/times.h>
 #include <net/net_namespace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "br_private.h"
 
 static int get_bridge_ifindices(struct net *net, int *indices, int num)

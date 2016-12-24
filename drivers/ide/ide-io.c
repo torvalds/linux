@@ -51,7 +51,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 int ide_end_rq(ide_drive_t *drive, struct request *rq, int error,

@@ -79,7 +79,7 @@
 
 #define pr_fmt(fmt) "UDP: " fmt
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 #include <linux/bootmem.h>
 #include <linux/highmem.h>

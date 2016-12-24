@@ -42,7 +42,7 @@
 #include <linux/mount.h>
 
 #include <asm/kmap_types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 

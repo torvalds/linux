@@ -42,7 +42,7 @@
 #include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "../pci.h"
 #include "cpci_hotplug.h"
 

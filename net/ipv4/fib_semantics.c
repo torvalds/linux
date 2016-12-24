@@ -13,7 +13,7 @@
  *		2 of the License, or (at your option) any later version.
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

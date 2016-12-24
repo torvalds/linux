@@ -11,7 +11,7 @@
 #include <linux/oprofile.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <irq.h>
 #include <loongson.h>
 #include "op_impl.h"

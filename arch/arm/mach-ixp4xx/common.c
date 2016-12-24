@@ -34,7 +34,7 @@
 #include <mach/udc.h>
 #include <mach/hardware.h>
 #include <mach/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>

@@ -72,7 +72,7 @@ static int max_interrupt_work = 20;
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 

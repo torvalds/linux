@@ -45,7 +45,7 @@
 #include <asm/smp.h>
 #include <asm/sections.h>
 #include <asm/cpudata.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq_regs.h>
 
 #include "entry.h"

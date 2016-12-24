@@ -11,7 +11,7 @@
 #include <linux/export.h>
 #include <linux/backing-dev.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmx.h>
 #include <asm/asm.h>
 

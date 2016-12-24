@@ -14,7 +14,7 @@
 #include <linux/hrtimer.h>
 #include <trace/events/timer.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /**
  * itimer_get_remtime - get remaining time for the timer

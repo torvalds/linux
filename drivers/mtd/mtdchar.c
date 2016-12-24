@@ -37,7 +37,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/map.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "mtdcore.h"
 

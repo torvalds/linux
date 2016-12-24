@@ -40,7 +40,7 @@
 #include <net/netfilter/br_netfilter.h>
 #include <net/netns/generic.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "br_private.h"
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>

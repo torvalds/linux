@@ -50,7 +50,7 @@
 #include <linux/stringify.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "common.h"
 #include "cxgb3_ioctl.h"

@@ -32,7 +32,7 @@
 
 #include <asm/setup.h>
 #include <asm/fpu.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/traps.h>
 #include <asm/pgalloc.h>
 #include <asm/machdep.h>

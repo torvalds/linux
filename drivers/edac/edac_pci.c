@@ -10,7 +10,7 @@
  *
  */
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/ctype.h>
 #include <linux/highmem.h>
 #include <linux/init.h>

@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/times.h>
 #include <linux/uio.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>

@@ -19,7 +19,7 @@
 #include <linux/crc32.h>
 #include <linux/fiemap.h>
 #include <linux/security.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "gfs2.h"
 #include "incore.h"

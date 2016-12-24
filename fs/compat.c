@@ -49,7 +49,7 @@
 #include <linux/pagemap.h>
 #include <linux/aio.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/ioctls.h>
 #include "internal.h"

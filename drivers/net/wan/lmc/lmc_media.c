@@ -19,7 +19,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "lmc.h"
 #include "lmc_var.h"

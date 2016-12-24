@@ -15,7 +15,7 @@
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 void generic_fillattr(struct inode *inode, struct kstat *stat)

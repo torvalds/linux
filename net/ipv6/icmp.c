@@ -70,7 +70,7 @@
 #include <net/dsfield.h>
 #include <net/l3mdev.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  *	The ICMP socket(s). This is the most convenient way to flow control

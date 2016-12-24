@@ -36,7 +36,7 @@
 #include <linux/time.h>
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/compiler.h>

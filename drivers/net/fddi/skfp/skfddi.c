@@ -88,7 +88,7 @@ static const char * const boot_msg =
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include	"h/types.h"
 #undef ADDR			// undo Linux definition

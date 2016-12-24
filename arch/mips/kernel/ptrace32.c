@@ -32,7 +32,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/reg.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/bootinfo.h>
 
 /*

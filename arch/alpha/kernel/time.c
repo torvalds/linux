@@ -34,7 +34,7 @@
 #include <linux/profile.h>
 #include <linux/irq_work.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/hwrpb.h>
 

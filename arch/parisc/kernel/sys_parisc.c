@@ -23,7 +23,7 @@
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/elf.h>
 #include <linux/file.h>
 #include <linux/fs.h>

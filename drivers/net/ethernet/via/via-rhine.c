@@ -114,7 +114,7 @@ static const int multicast_filter_limit = 32;
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/dmi.h>
 
 /* These identify the driver base version and may not be removed. */

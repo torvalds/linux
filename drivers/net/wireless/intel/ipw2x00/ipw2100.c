@@ -148,7 +148,7 @@ that only one external action is invoked at a time.
 #include <linux/dma-mapping.h>
 #include <linux/proc_fs.h>
 #include <linux/skbuff.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
