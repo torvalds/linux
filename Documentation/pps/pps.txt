@@ -63,7 +63,7 @@ for instance) is a PPS source too, and if not they should provide the
 possibility to open another device as PPS source.
 
 In LinuxPPS the PPS sources are simply char devices usually mapped
-into files /dev/pps0, /dev/pps1, etc..
+into files /dev/pps0, /dev/pps1, etc.
 
 
 PPS with USB to serial devices
@@ -71,7 +71,7 @@ PPS with USB to serial devices
 
 It is possible to grab the PPS from an USB to serial device. However,
 you should take into account the latencies and jitter introduced by
-the USB stack. Users has reported clock instability around +-1ms when
+the USB stack. Users have reported clock instability around +-1ms when
 synchronized with PPS through USB. This isn't suited for time server
 synchronization.
 
