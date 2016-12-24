@@ -677,6 +677,7 @@
 		reg = <0x76>;
 		virtual_power = <0>;
 		monitor_sec = <5>;
+		ec-notify-gpios = <&gpio1 GPIO_C4 GPIO_ACTIVE_HIGH>;
 	};
 };
 
