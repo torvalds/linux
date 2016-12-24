@@ -220,14 +220,14 @@ static void guc_params_init(struct drm_i915_private *dev_priv)
 		params[GUC_CTL_DEBUG] = GUC_LOG_DISABLED;
 
 	if (guc->ads_vma) {
-		u32 ads = i915_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
+		u32 ads = guc_ggtt_offset(guc->ads_vma) >> PAGE_SHIFT;
 		params[GUC_CTL_DEBUG] |= ads << GUC_ADS_ADDR_SHIFT;
 		params[GUC_CTL_DEBUG] |= GUC_ADS_ENABLED;
 	}
 
 	/* If GuC submission is enabled, set up additional parameters here */
 	if (i915.enable_guc_submission) {
-		u32 pgs = i915_ggtt_offset(dev_priv->guc.ctx_pool_vma);
+		u32 pgs = guc_ggtt_offset(dev_priv->guc.ctx_pool_vma);
 		u32 ctx_in_16 = GUC_MAX_GPU_CONTEXTS / 16;
 
 		pgs >>= PAGE_SHIFT;
@@ -297,7 +297,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
 	I915_WRITE(DMA_COPY_SIZE, guc_fw->header_size + guc_fw->ucode_size);
 
 	/* Set the source address for the new blob */
-	offset = i915_ggtt_offset(vma) + guc_fw->header_offset;
+	offset = guc_ggtt_offset(vma) + guc_fw->header_offset;
 	I915_WRITE(DMA_ADDR_0_LOW, lower_32_bits(offset));
 	I915_WRITE(DMA_ADDR_0_HIGH, upper_32_bits(offset) & 0xFFFF);
 

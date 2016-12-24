@@ -28,6 +28,8 @@
 #include "i915_guc_reg.h"
 #include "intel_ringbuffer.h"
 
+#include "i915_vma.h"
+
 struct drm_i915_gem_request;
 
 /*
@@ -197,5 +199,12 @@ void i915_guc_flush_logs(struct drm_i915_private *dev_priv);
 void i915_guc_register(struct drm_i915_private *dev_priv);
 void i915_guc_unregister(struct drm_i915_private *dev_priv);
 int i915_guc_log_control(struct drm_i915_private *dev_priv, u64 control_val);
+
+static inline u32 guc_ggtt_offset(struct i915_vma *vma)
+{
+	u32 offset = i915_ggtt_offset(vma);
+	GEM_BUG_ON(offset < GUC_WOPCM_TOP);
+	return offset;
+}
 
 #endif
