@@ -28,7 +28,7 @@ static void clear_stats(int fd)
 
 	memset(values, 0, sizeof(values));
 	for (key = 0; key < SLOTS; key++)
-		bpf_update_elem(fd, &key, values, BPF_ANY);
+		bpf_map_update_elem(fd, &key, values, BPF_ANY);
 }
 
 const char *color[] = {
@@ -89,7 +89,7 @@ static void print_hist(int fd)
 	int i;
 
 	for (key = 0; key < SLOTS; key++) {
-		bpf_lookup_elem(fd, &key, values);
+		bpf_map_lookup_elem(fd, &key, values);
 		value = 0;
 		for (i = 0; i < nr_cpus; i++)
 			value += values[i];

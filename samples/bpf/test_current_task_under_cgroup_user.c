@@ -36,7 +36,7 @@ int main(int argc, char **argv)
 	if (!cg2)
 		goto err;
 
-	if (bpf_update_elem(map_fd[0], &idx, &cg2, BPF_ANY)) {
+	if (bpf_map_update_elem(map_fd[0], &idx, &cg2, BPF_ANY)) {
 		log_err("Adding target cgroup to map");
 		goto err;
 	}
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 	 */
 
 	sync();
-	bpf_lookup_elem(map_fd[1], &idx, &remote_pid);
+	bpf_map_lookup_elem(map_fd[1], &idx, &remote_pid);
 
 	if (local_pid != remote_pid) {
 		fprintf(stderr,
@@ -64,10 +64,10 @@ int main(int argc, char **argv)
 		goto err;
 
 	remote_pid = 0;
-	bpf_update_elem(map_fd[1], &idx, &remote_pid, BPF_ANY);
+	bpf_map_update_elem(map_fd[1], &idx, &remote_pid, BPF_ANY);
 
 	sync();
-	bpf_lookup_elem(map_fd[1], &idx, &remote_pid);
+	bpf_map_lookup_elem(map_fd[1], &idx, &remote_pid);
 
 	if (local_pid == remote_pid) {
 		fprintf(stderr, "BPF cgroup negative test did not work\n");

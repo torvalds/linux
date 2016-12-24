@@ -23,6 +23,8 @@
 
 #include "libbpf.h"
 
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
+
 static int prog_load(int idx)
 {
 	struct bpf_insn prog[] = {
@@ -33,9 +35,10 @@ static int prog_load(int idx)
 		BPF_MOV64_IMM(BPF_REG_0, 1), /* r0 = verdict */
 		BPF_EXIT_INSN(),
 	};
+	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
 
-	return bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCK, prog, sizeof(prog),
-			     "GPL", 0);
+	return bpf_load_program(BPF_PROG_TYPE_CGROUP_SOCK, prog, insns_cnt,
+				"GPL", 0, bpf_log_buf, BPF_LOG_BUF_SIZE);
 }
 
 static int usage(const char *argv0)
