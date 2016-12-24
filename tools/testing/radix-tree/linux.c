@@ -13,6 +13,7 @@
 
 int nr_allocated;
 int preempt_count;
+int kmalloc_verbose;
 
 struct kmem_cache {
 	pthread_mutex_t lock;
@@ -44,6 +45,8 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
 	}
 
 	uatomic_inc(&nr_allocated);
+	if (kmalloc_verbose)
+		printf("Allocating %p from slab\n", node);
 	return node;
 }
 
@@ -51,6 +54,8 @@ void kmem_cache_free(struct kmem_cache *cachep, void *objp)
 {
 	assert(objp);
 	uatomic_dec(&nr_allocated);
+	if (kmalloc_verbose)
+		printf("Freeing %p to slab\n", objp);
 	pthread_mutex_lock(&cachep->lock);
 	if (cachep->nr_objs > 10) {
 		memset(objp, POISON_FREE, cachep->size);
@@ -68,6 +73,8 @@ void *kmalloc(size_t size, gfp_t gfp)
 {
 	void *ret = malloc(size);
 	uatomic_inc(&nr_allocated);
+	if (kmalloc_verbose)
+		printf("Allocating %p from malloc\n", ret);
 	return ret;
 }
 
@@ -76,6 +83,8 @@ void kfree(void *p)
 	if (!p)
 		return;
 	uatomic_dec(&nr_allocated);
+	if (kmalloc_verbose)
+		printf("Freeing %p to malloc\n", p);
 	free(p);
 }
 
