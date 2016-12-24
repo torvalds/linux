@@ -95,7 +95,6 @@
 };
 
 &ecspi5 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio1 17 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi5>;

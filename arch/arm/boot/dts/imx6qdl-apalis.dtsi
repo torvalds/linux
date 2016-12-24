@@ -175,7 +175,6 @@
 
 /* Apalis SPI1 */
 &ecspi1 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio5 25 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
@@ -184,7 +183,6 @@
 
 /* Apalis SPI2 */
 &ecspi2 {
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio2 26 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi2>;
