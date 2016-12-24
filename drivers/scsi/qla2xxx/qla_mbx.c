@@ -323,20 +323,33 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		}
 	} else {
 
-		uint16_t mb0;
-		uint32_t ictrl;
+		uint16_t mb[8];
+		uint32_t ictrl, host_status, hccr;
 		uint16_t        w;
 
 		if (IS_FWI2_CAPABLE(ha)) {
-			mb0 = RD_REG_WORD(&reg->isp24.mailbox0);
+			mb[0] = RD_REG_WORD(&reg->isp24.mailbox0);
+			mb[1] = RD_REG_WORD(&reg->isp24.mailbox1);
+			mb[2] = RD_REG_WORD(&reg->isp24.mailbox2);
+			mb[3] = RD_REG_WORD(&reg->isp24.mailbox3);
+			mb[7] = RD_REG_WORD(&reg->isp24.mailbox7);
 			ictrl = RD_REG_DWORD(&reg->isp24.ictrl);
+			host_status = RD_REG_DWORD(&reg->isp24.host_status);
+			hccr = RD_REG_DWORD(&reg->isp24.hccr);
+
+			ql_log(ql_log_warn, vha, 0x1119,
+			    "MBX Command timeout for cmd %x, iocontrol=%x jiffies=%lx "
+			    "mb[0-3]=[0x%x 0x%x 0x%x 0x%x] mb7 0x%x host_status 0x%x hccr 0x%x\n",
+			    command, ictrl, jiffies, mb[0], mb[1], mb[2], mb[3],
+			    mb[7], host_status, hccr);
+
 		} else {
-			mb0 = RD_MAILBOX_REG(ha, &reg->isp, 0);
+			mb[0] = RD_MAILBOX_REG(ha, &reg->isp, 0);
 			ictrl = RD_REG_WORD(&reg->isp.ictrl);
+			ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1119,
+			    "MBX Command timeout for cmd %x, iocontrol=%x jiffies=%lx "
+			    "mb[0]=0x%x\n", command, ictrl, jiffies, mb[0]);
 		}
-		ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1119,
-		    "MBX Command timeout for cmd %x, iocontrol=%x jiffies=%lx "
-		    "mb[0]=0x%x\n", command, ictrl, jiffies, mb0);
 		ql_dump_regs(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1019);
 
 		/* Capture FW dump only, if PCI device active */
