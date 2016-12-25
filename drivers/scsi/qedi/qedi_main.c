@@ -1612,30 +1612,29 @@ static int qedi_percpu_io_thread(void *arg)
 	return 0;
 }
 
-static void qedi_percpu_thread_create(unsigned int cpu)
+static int qedi_cpu_online(unsigned int cpu)
 {
-	struct qedi_percpu_s *p;
+	struct qedi_percpu_s *p = this_cpu_ptr(&qedi_percpu);
 	struct task_struct *thread;
-
-	p = &per_cpu(qedi_percpu, cpu);
 
 	thread = kthread_create_on_node(qedi_percpu_io_thread, (void *)p,
 					cpu_to_node(cpu),
 					"qedi_thread/%d", cpu);
-	if (likely(!IS_ERR(thread))) {
-		kthread_bind(thread, cpu);
-		p->iothread = thread;
-		wake_up_process(thread);
-	}
+	if (IS_ERR(thread))
+		return PTR_ERR(thread);
+
+	kthread_bind(thread, cpu);
+	p->iothread = thread;
+	wake_up_process(thread);
+	return 0;
 }
 
-static void qedi_percpu_thread_destroy(unsigned int cpu)
+static int qedi_cpu_offline(unsigned int cpu)
 {
-	struct qedi_percpu_s *p;
-	struct task_struct *thread;
+	struct qedi_percpu_s *p = this_cpu_ptr(&qedi_percpu);
 	struct qedi_work *work, *tmp;
+	struct task_struct *thread;
 
-	p = &per_cpu(qedi_percpu, cpu);
 	spin_lock_bh(&p->p_work_lock);
 	thread = p->iothread;
 	p->iothread = NULL;
@@ -1650,34 +1649,8 @@ static void qedi_percpu_thread_destroy(unsigned int cpu)
 	spin_unlock_bh(&p->p_work_lock);
 	if (thread)
 		kthread_stop(thread);
+	return 0;
 }
-
-static int qedi_cpu_callback(struct notifier_block *nfb,
-			     unsigned long action, void *hcpu)
-{
-	unsigned int cpu = (unsigned long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		QEDI_ERR(NULL, "CPU %d online.\n", cpu);
-		qedi_percpu_thread_create(cpu);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		QEDI_ERR(NULL, "CPU %d offline.\n", cpu);
-		qedi_percpu_thread_destroy(cpu);
-		break;
-	default:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block qedi_cpu_notifier = {
-	.notifier_call = qedi_cpu_callback,
-};
 
 void qedi_reset_host_mtu(struct qedi_ctx *qedi, u16 mtu)
 {
@@ -2038,6 +2011,8 @@ static struct pci_device_id qedi_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, qedi_pci_tbl);
 
+static enum cpuhp_state qedi_cpuhp_state;
+
 static struct pci_driver qedi_pci_driver = {
 	.name = QEDI_MODULE_NAME,
 	.id_table = qedi_pci_tbl,
@@ -2047,16 +2022,13 @@ static struct pci_driver qedi_pci_driver = {
 
 static int __init qedi_init(void)
 {
-	int rc = 0;
-	int ret;
 	struct qedi_percpu_s *p;
-	unsigned int cpu = 0;
+	int cpu, rc = 0;
 
 	qedi_ops = qed_get_iscsi_ops();
 	if (!qedi_ops) {
 		QEDI_ERR(NULL, "Failed to get qed iSCSI operations\n");
-		rc = -EINVAL;
-		goto exit_qedi_init_0;
+		return -EINVAL;
 	}
 
 #ifdef CONFIG_DEBUG_FS
@@ -2070,15 +2042,6 @@ static int __init qedi_init(void)
 		goto exit_qedi_init_1;
 	}
 
-	register_hotcpu_notifier(&qedi_cpu_notifier);
-
-	ret = pci_register_driver(&qedi_pci_driver);
-	if (ret) {
-		QEDI_ERR(NULL, "Failed to register driver\n");
-		rc = -EINVAL;
-		goto exit_qedi_init_2;
-	}
-
 	for_each_possible_cpu(cpu) {
 		p = &per_cpu(qedi_percpu, cpu);
 		INIT_LIST_HEAD(&p->work_list);
@@ -2086,11 +2049,22 @@ static int __init qedi_init(void)
 		p->iothread = NULL;
 	}
 
-	for_each_online_cpu(cpu)
-		qedi_percpu_thread_create(cpu);
+	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "scsi/qedi:online",
+			       qedi_cpu_online, qedi_cpu_offline);
+	if (rc < 0)
+		goto exit_qedi_init_2;
+	qedi_cpuhp_state = rc;
 
-	return rc;
+	rc = pci_register_driver(&qedi_pci_driver);
+	if (rc) {
+		QEDI_ERR(NULL, "Failed to register driver\n");
+		goto exit_qedi_hp;
+	}
 
+	return 0;
+
+exit_qedi_hp:
+	cpuhp_remove_state(qedi_cpuhp_state);
 exit_qedi_init_2:
 	iscsi_unregister_transport(&qedi_iscsi_transport);
 exit_qedi_init_1:
@@ -2098,19 +2072,13 @@ exit_qedi_init_1:
 	qedi_dbg_exit();
 #endif
 	qed_put_iscsi_ops();
-exit_qedi_init_0:
 	return rc;
 }
 
 static void __exit qedi_cleanup(void)
 {
-	unsigned int cpu = 0;
-
-	for_each_online_cpu(cpu)
-		qedi_percpu_thread_destroy(cpu);
-
 	pci_unregister_driver(&qedi_pci_driver);
-	unregister_hotcpu_notifier(&qedi_cpu_notifier);
+	cpuhp_remove_state(qedi_cpuhp_state);
 	iscsi_unregister_transport(&qedi_iscsi_transport);
 
 #ifdef CONFIG_DEBUG_FS

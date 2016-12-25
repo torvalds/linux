@@ -552,7 +552,7 @@ static int __init exynos4_timer_resources(struct device_node *np, void __iomem *
 
 	/* Install hotplug callbacks which configure the timer on this CPU */
 	err = cpuhp_setup_state(CPUHP_AP_EXYNOS4_MCT_TIMER_STARTING,
-				"AP_EXYNOS4_MCT_TIMER_STARTING",
+				"clockevents/exynos4/mct_timer:starting",
 				exynos4_mct_starting_cpu,
 				exynos4_mct_dying_cpu);
 	if (err)

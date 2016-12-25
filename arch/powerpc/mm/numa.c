@@ -944,7 +944,7 @@ void __init initmem_init(void)
 	 * _nocalls() + manual invocation is used because cpuhp is not yet
 	 * initialized for the boot CPU.
 	 */
-	cpuhp_setup_state_nocalls(CPUHP_POWER_NUMA_PREPARE, "POWER_NUMA_PREPARE",
+	cpuhp_setup_state_nocalls(CPUHP_POWER_NUMA_PREPARE, "powerpc/numa:prepare",
 				  ppc_numa_cpu_prepare, ppc_numa_cpu_dead);
 	for_each_present_cpu(cpu)
 		numa_setup_cpu(cpu);

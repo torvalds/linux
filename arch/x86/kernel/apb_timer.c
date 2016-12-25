@@ -234,7 +234,7 @@ static __init int apbt_late_init(void)
 	if (intel_mid_timer_options == INTEL_MID_TIMER_LAPIC_APBT ||
 		!apb_timer_block_enabled)
 		return 0;
-	return cpuhp_setup_state(CPUHP_X86_APB_DEAD, "X86_APB_DEAD", NULL,
+	return cpuhp_setup_state(CPUHP_X86_APB_DEAD, "x86/apb:dead", NULL,
 				 apbt_cpu_dead);
 }
 fs_initcall(apbt_late_init);

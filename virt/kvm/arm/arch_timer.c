@@ -456,7 +456,7 @@ int kvm_timer_hyp_init(void)
 	kvm_info("virtual timer IRQ%d\n", host_vtimer_irq);
 
 	cpuhp_setup_state(CPUHP_AP_KVM_ARM_TIMER_STARTING,
-			  "AP_KVM_ARM_TIMER_STARTING", kvm_timer_starting_cpu,
+			  "kvm/arm/timer:starting", kvm_timer_starting_cpu,
 			  kvm_timer_dying_cpu);
 	return err;
 }

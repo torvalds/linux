@@ -5855,7 +5855,7 @@ static void kvm_timer_init(void)
 	}
 	pr_debug("kvm: max_tsc_khz = %ld\n", max_tsc_khz);
 
-	cpuhp_setup_state(CPUHP_AP_X86_KVM_CLK_ONLINE, "AP_X86_KVM_CLK_ONLINE",
+	cpuhp_setup_state(CPUHP_AP_X86_KVM_CLK_ONLINE, "x86/kvm/clk:online",
 			  kvmclock_cpu_online, kvmclock_cpu_down_prep);
 }
 
