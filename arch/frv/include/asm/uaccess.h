@@ -18,6 +18,7 @@
 #include <linux/mm.h>
 #include <asm/segment.h>
 #include <asm/sections.h>
+#include <asm/extable.h>
 
 #define __ptr(x) ((unsigned long __force *)(x))
 
@@ -58,26 +59,6 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 
 #define access_ok(type,addr,size) (__range_ok((void __user *)(addr), (size)) == 0)
 #define __access_ok(addr,size) (__range_ok((addr), (size)) == 0)
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
-
-/* Returns 0 if exception not found and fixup otherwise.  */
-extern unsigned long search_exception_table(unsigned long);
 
 
 /*
@@ -313,7 +294,5 @@ extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern long strnlen_user(const char __user *src, long count);
 
 #define strlen_user(str) strnlen_user(str, 32767)
-
-extern unsigned long search_exception_table(unsigned long addr);
 
 #endif /* _ASM_UACCESS_H */
