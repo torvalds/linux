@@ -40,8 +40,9 @@ static void xhci_aeolia_quirks(struct device *dev, struct xhci_hcd *xhci)
 {
 	/*
 	 * Do not try to enable MSIs, we provide the MSIs ourselves
+	 * Do not touch DMA mask, we need a custom one
 	 */
-	xhci->quirks |= XHCI_PLAT;
+	xhci->quirks |= XHCI_PLAT | XHCI_PLAT_DMA;
 }
 
 /* called during probe() after chip reset completes */
@@ -160,6 +161,11 @@ static int xhci_aeolia_probe(struct pci_dev *dev, const struct pci_device_id *id
 	}
 
 	pci_set_master(dev);
+
+	if (pci_set_dma_mask(dev, DMA_BIT_MASK(31)) ||
+		pci_set_consistent_dma_mask(dev, DMA_BIT_MASK(31))) {
+		return -ENODEV;
+	}
 
 	for (idx = 0; idx < NR_DEVICES; idx++) {
 		retval = xhci_aeolia_probe_one(dev, idx);
