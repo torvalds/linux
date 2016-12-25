@@ -88,8 +88,7 @@ static void ehci_enable_event(struct ehci_hcd *ehci, unsigned event,
 	ktime_t		*timeout = &ehci->hr_timeouts[event];
 
 	if (resched)
-		*timeout = ktime_add(ktime_get(),
-				ktime_set(0, event_delays_ns[event]));
+		*timeout = ktime_add(ktime_get(), event_delays_ns[event]);
 	ehci->enabled_hrtimer_events |= (1 << event);
 
 	/* Track only the lowest-numbered pending event */

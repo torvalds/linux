@@ -1005,7 +1005,7 @@ static int print_wakeup_source_stats(struct seq_file *m,
 			prevent_sleep_time = ktime_add(prevent_sleep_time,
 				ktime_sub(now, ws->start_prevent_time));
 	} else {
-		active_time = ktime_set(0, 0);
+		active_time = 0;
 	}
 
 	seq_printf(m, "%-12s\t%lu\t\t%lu\t\t%lu\t\t%lu\t\t%lld\t\t%lld\t\t%lld\t\t%lld\t\t%lld\n",

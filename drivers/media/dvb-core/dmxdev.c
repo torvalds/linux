@@ -562,7 +562,7 @@ static int dvb_dmxdev_start_feed(struct dmxdev *dmxdev,
 				 struct dmxdev_filter *filter,
 				 struct dmxdev_feed *feed)
 {
-	ktime_t timeout = ktime_set(0, 0);
+	ktime_t timeout = 0;
 	struct dmx_pes_filter_params *para = &filter->params.pes;
 	dmx_output_t otype;
 	int ret;

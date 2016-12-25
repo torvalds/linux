@@ -177,7 +177,7 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 	if (rt2800usb_txstatus_pending(rt2x00dev)) {
 		/* Read register after 1 ms */
 		hrtimer_start(&rt2x00dev->txstatus_timer,
-			      ktime_set(0, TXSTATUS_READ_INTERVAL),
+			      TXSTATUS_READ_INTERVAL,
 			      HRTIMER_MODE_REL);
 		return false;
 	}
@@ -204,7 +204,7 @@ static void rt2800usb_async_read_tx_status(struct rt2x00_dev *rt2x00dev)
 
 	/* Read TX_STA_FIFO register after 2 ms */
 	hrtimer_start(&rt2x00dev->txstatus_timer,
-		      ktime_set(0, 2*TXSTATUS_READ_INTERVAL),
+		      2 * TXSTATUS_READ_INTERVAL,
 		      HRTIMER_MODE_REL);
 }
 

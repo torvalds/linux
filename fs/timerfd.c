@@ -155,7 +155,7 @@ static ktime_t timerfd_get_remaining(struct timerfd_ctx *ctx)
 	else
 		remaining = hrtimer_expires_remaining_adjusted(&ctx->t.tmr);
 
-	return remaining < 0 ? ktime_set(0, 0): remaining;
+	return remaining < 0 ? 0: remaining;
 }
 
 static int timerfd_setup(struct timerfd_ctx *ctx, int flags,

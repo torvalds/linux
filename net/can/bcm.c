@@ -643,7 +643,7 @@ static enum hrtimer_restart bcm_rx_thr_handler(struct hrtimer *hrtimer)
 		return HRTIMER_RESTART;
 	} else {
 		/* rearm throttle handling */
-		op->kt_lastmsg = ktime_set(0, 0);
+		op->kt_lastmsg = 0;
 		return HRTIMER_NORESTART;
 	}
 }
@@ -1196,7 +1196,7 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 			 * In any case cancel the throttle timer, flush
 			 * potentially blocked msgs and reset throttle handling
 			 */
-			op->kt_lastmsg = ktime_set(0, 0);
+			op->kt_lastmsg = 0;
 			hrtimer_cancel(&op->thrtimer);
 			bcm_rx_thr_flush(op, 1);
 		}

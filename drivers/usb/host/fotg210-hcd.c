@@ -1080,8 +1080,7 @@ static void fotg210_enable_event(struct fotg210_hcd *fotg210, unsigned event,
 	ktime_t *timeout = &fotg210->hr_timeouts[event];
 
 	if (resched)
-		*timeout = ktime_add(ktime_get(),
-				ktime_set(0, event_delays_ns[event]));
+		*timeout = ktime_add(ktime_get(), event_delays_ns[event]);
 	fotg210->enabled_hrtimer_events |= (1 << event);
 
 	/* Track only the lowest-numbered pending event */

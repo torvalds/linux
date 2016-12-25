@@ -1395,7 +1395,7 @@ static int nodeid_warned(int nodeid, int num_nodes, int *warned)
 void dlm_scan_waiters(struct dlm_ls *ls)
 {
 	struct dlm_lkb *lkb;
-	ktime_t zero = ktime_set(0, 0);
+	ktime_t zero = 0;
 	s64 us;
 	s64 debug_maxus = 0;
 	u32 debug_scanned = 0;

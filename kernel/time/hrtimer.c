@@ -955,7 +955,7 @@ static inline ktime_t hrtimer_update_lowres(struct hrtimer *timer, ktime_t tim,
 	 */
 	timer->is_rel = mode & HRTIMER_MODE_REL;
 	if (timer->is_rel)
-		tim = ktime_add_safe(tim, ktime_set(0, hrtimer_resolution));
+		tim = ktime_add_safe(tim, hrtimer_resolution);
 #endif
 	return tim;
 }

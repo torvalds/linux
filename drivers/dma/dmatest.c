@@ -429,8 +429,8 @@ static int dmatest_func(void *data)
 	int			dst_cnt;
 	int			i;
 	ktime_t			ktime, start, diff;
-	ktime_t			filltime = ktime_set(0, 0);
-	ktime_t			comparetime = ktime_set(0, 0);
+	ktime_t			filltime = 0;
+	ktime_t			comparetime = 0;
 	s64			runtime = 0;
 	unsigned long long	total_len = 0;
 	u8			align = 0;
