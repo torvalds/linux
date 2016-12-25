@@ -150,10 +150,22 @@ static void aeolia_remove_slot(struct sdhci_pci_slot *slot, int dead)
 	apcie_free_irqs(slot->chip->pdev->irq, 1);
 }
 
+static int aeolia_enable_dma(struct sdhci_pci_slot *slot)
+{
+	if (pci_set_dma_mask(slot->chip->pdev, DMA_BIT_MASK(31))) {
+		return -EINVAL;
+	}
+	if (pci_set_consistent_dma_mask(slot->chip->pdev, DMA_BIT_MASK(31))) {
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static const struct sdhci_pci_fixes sdhci_aeolia = {
 	.probe		= aeolia_probe,
 	.probe_slot	= aeolia_probe_slot,
 	.remove_slot	= aeolia_remove_slot,
+	.enable_dma	= aeolia_enable_dma,
 };
 #endif
 
@@ -1444,6 +1456,10 @@ static int sdhci_pci_enable_dma(struct sdhci_host *host)
 	}
 
 	pci_set_master(pdev);
+
+	if (slot->chip->fixes && slot->chip->fixes->enable_dma) {
+		return slot->chip->fixes->enable_dma(slot);
+	}
 
 	return 0;
 }
