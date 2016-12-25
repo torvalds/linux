@@ -750,6 +750,4 @@ extern long arc_strnlen_user_noinline(const char __user *src, long n);
 
 #include <asm-generic/uaccess.h>
 
-extern int fixup_exception(struct pt_regs *regs);
-
 #endif
