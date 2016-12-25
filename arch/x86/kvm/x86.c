@@ -1131,8 +1131,8 @@ struct pvclock_gtod_data {
 
 	struct { /* extract of a clocksource struct */
 		int vclock_mode;
-		cycle_t	cycle_last;
-		cycle_t	mask;
+		u64	cycle_last;
+		u64	mask;
 		u32	mult;
 		u32	shift;
 	} clock;
@@ -1572,9 +1572,9 @@ static inline void adjust_tsc_offset_host(struct kvm_vcpu *vcpu, s64 adjustment)
 
 #ifdef CONFIG_X86_64
 
-static cycle_t read_tsc(void)
+static u64 read_tsc(void)
 {
-	cycle_t ret = (cycle_t)rdtsc_ordered();
+	u64 ret = (u64)rdtsc_ordered();
 	u64 last = pvclock_gtod_data.clock.cycle_last;
 
 	if (likely(ret >= last))
@@ -1592,7 +1592,7 @@ static cycle_t read_tsc(void)
 	return last;
 }
 
-static inline u64 vgettsc(cycle_t *cycle_now)
+static inline u64 vgettsc(u64 *cycle_now)
 {
 	long v;
 	struct pvclock_gtod_data *gtod = &pvclock_gtod_data;
@@ -1603,7 +1603,7 @@ static inline u64 vgettsc(cycle_t *cycle_now)
 	return v * gtod->clock.mult;
 }
 
-static int do_monotonic_boot(s64 *t, cycle_t *cycle_now)
+static int do_monotonic_boot(s64 *t, u64 *cycle_now)
 {
 	struct pvclock_gtod_data *gtod = &pvclock_gtod_data;
 	unsigned long seq;
@@ -1624,7 +1624,7 @@ static int do_monotonic_boot(s64 *t, cycle_t *cycle_now)
 }
 
 /* returns true if host is using tsc clocksource */
-static bool kvm_get_time_and_clockread(s64 *kernel_ns, cycle_t *cycle_now)
+static bool kvm_get_time_and_clockread(s64 *kernel_ns, u64 *cycle_now)
 {
 	/* checked again under seqlock below */
 	if (pvclock_gtod_data.clock.vclock_mode != VCLOCK_TSC)

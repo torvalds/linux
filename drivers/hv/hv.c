@@ -135,9 +135,9 @@ u64 hv_do_hypercall(u64 control, void *input, void *output)
 EXPORT_SYMBOL_GPL(hv_do_hypercall);
 
 #ifdef CONFIG_X86_64
-static cycle_t read_hv_clock_tsc(struct clocksource *arg)
+static u64 read_hv_clock_tsc(struct clocksource *arg)
 {
-	cycle_t current_tick;
+	u64 current_tick;
 	struct ms_hyperv_tsc_page *tsc_pg = hv_context.tsc_page;
 
 	if (tsc_pg->tsc_sequence != 0) {
@@ -146,7 +146,7 @@ static cycle_t read_hv_clock_tsc(struct clocksource *arg)
 		 */
 
 		while (1) {
-			cycle_t tmp;
+			u64 tmp;
 			u32 sequence = tsc_pg->tsc_sequence;
 			u64 cur_tsc;
 			u64 scale = tsc_pg->tsc_scale;
@@ -350,7 +350,7 @@ int hv_post_message(union hv_connection_id connection_id,
 static int hv_ce_set_next_event(unsigned long delta,
 				struct clock_event_device *evt)
 {
-	cycle_t current_tick;
+	u64 current_tick;
 
 	WARN_ON(!clockevent_state_oneshot(evt));
 

@@ -4913,7 +4913,7 @@ static void mvpp2_timer_set(struct mvpp2_port_pcpu *port_pcpu)
 
 	if (!port_pcpu->timer_scheduled) {
 		port_pcpu->timer_scheduled = true;
-		interval = ktime_set(0, MVPP2_TXDONE_HRTIMER_PERIOD_NS);
+		interval = MVPP2_TXDONE_HRTIMER_PERIOD_NS;
 		hrtimer_start(&port_pcpu->tx_done_timer, interval,
 			      HRTIMER_MODE_REL_PINNED);
 	}

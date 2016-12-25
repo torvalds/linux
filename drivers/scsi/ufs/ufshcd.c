@@ -930,7 +930,7 @@ static void ufshcd_clk_scaling_update_busy(struct ufs_hba *hba)
 	if (!hba->outstanding_reqs && scaling->is_busy_started) {
 		scaling->tot_busy_t += ktime_to_us(ktime_sub(ktime_get(),
 					scaling->busy_start_t));
-		scaling->busy_start_t = ktime_set(0, 0);
+		scaling->busy_start_t = 0;
 		scaling->is_busy_started = false;
 	}
 }
@@ -6661,7 +6661,7 @@ start_window:
 		scaling->busy_start_t = ktime_get();
 		scaling->is_busy_started = true;
 	} else {
-		scaling->busy_start_t = ktime_set(0, 0);
+		scaling->busy_start_t = 0;
 		scaling->is_busy_started = false;
 	}
 	spin_unlock_irqrestore(hba->host->host_lock, flags);

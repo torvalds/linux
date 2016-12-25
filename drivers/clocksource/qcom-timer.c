@@ -89,7 +89,7 @@ static struct clock_event_device __percpu *msm_evt;
 
 static void __iomem *source_base;
 
-static notrace cycle_t msm_read_timer_count(struct clocksource *cs)
+static notrace u64 msm_read_timer_count(struct clocksource *cs)
 {
 	return readl_relaxed(source_base + TIMER_COUNT_VAL);
 }

@@ -125,7 +125,7 @@ static int gic_clockevent_init(void)
 	return 0;
 }
 
-static cycle_t gic_hpt_read(struct clocksource *cs)
+static u64 gic_hpt_read(struct clocksource *cs)
 {
 	return gic_read_count();
 }

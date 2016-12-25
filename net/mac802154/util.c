@@ -80,11 +80,11 @@ void ieee802154_xmit_complete(struct ieee802154_hw *hw, struct sk_buff *skb,
 
 		if (skb->len > max_sifs_size)
 			hrtimer_start(&local->ifs_timer,
-				      ktime_set(0, hw->phy->lifs_period * NSEC_PER_USEC),
+				      hw->phy->lifs_period * NSEC_PER_USEC,
 				      HRTIMER_MODE_REL);
 		else
 			hrtimer_start(&local->ifs_timer,
-				      ktime_set(0, hw->phy->sifs_period * NSEC_PER_USEC),
+				      hw->phy->sifs_period * NSEC_PER_USEC,
 				      HRTIMER_MODE_REL);
 	} else {
 		ieee802154_wake_queue(hw);

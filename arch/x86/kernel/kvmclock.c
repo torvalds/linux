@@ -32,7 +32,7 @@
 static int kvmclock __ro_after_init = 1;
 static int msr_kvm_system_time = MSR_KVM_SYSTEM_TIME;
 static int msr_kvm_wall_clock = MSR_KVM_WALL_CLOCK;
-static cycle_t kvm_sched_clock_offset;
+static u64 kvm_sched_clock_offset;
 
 static int parse_no_kvmclock(char *arg)
 {
@@ -79,10 +79,10 @@ static int kvm_set_wallclock(const struct timespec *now)
 	return -1;
 }
 
-static cycle_t kvm_clock_read(void)
+static u64 kvm_clock_read(void)
 {
 	struct pvclock_vcpu_time_info *src;
-	cycle_t ret;
+	u64 ret;
 	int cpu;
 
 	preempt_disable_notrace();
@@ -93,12 +93,12 @@ static cycle_t kvm_clock_read(void)
 	return ret;
 }
 
-static cycle_t kvm_clock_get_cycles(struct clocksource *cs)
+static u64 kvm_clock_get_cycles(struct clocksource *cs)
 {
 	return kvm_clock_read();
 }
 
-static cycle_t kvm_sched_clock_read(void)
+static u64 kvm_sched_clock_read(void)
 {
 	return kvm_clock_read() - kvm_sched_clock_offset;
 }

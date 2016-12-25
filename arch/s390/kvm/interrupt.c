@@ -1019,7 +1019,7 @@ int kvm_s390_handle_wait(struct kvm_vcpu *vcpu)
 		return 0;
 
 	__set_cpu_idle(vcpu);
-	hrtimer_start(&vcpu->arch.ckc_timer, ktime_set (0, sltime) , HRTIMER_MODE_REL);
+	hrtimer_start(&vcpu->arch.ckc_timer, sltime, HRTIMER_MODE_REL);
 	VCPU_EVENT(vcpu, 4, "enabled wait: %llu ns", sltime);
 no_timer:
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);

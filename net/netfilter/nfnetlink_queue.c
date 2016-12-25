@@ -384,7 +384,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 		+ nla_total_size(sizeof(u_int32_t))	/* skbinfo */
 		+ nla_total_size(sizeof(u_int32_t));	/* cap_len */
 
-	if (entskb->tstamp.tv64)
+	if (entskb->tstamp)
 		size += nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
 
 	size += nfqnl_get_bridge_size(entry);
@@ -555,7 +555,7 @@ nfqnl_build_packet_message(struct net *net, struct nfqnl_instance *queue,
 	if (nfqnl_put_bridge(entry, skb) < 0)
 		goto nla_put_failure;
 
-	if (entskb->tstamp.tv64) {
+	if (entskb->tstamp) {
 		struct nfqnl_msg_packet_timestamp ts;
 		struct timespec64 kts = ktime_to_timespec64(entskb->tstamp);
 

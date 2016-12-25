@@ -31,7 +31,7 @@
 
 #include "fsyscall_gtod_data.h"
 
-static cycle_t itc_get_cycles(struct clocksource *cs);
+static u64 itc_get_cycles(struct clocksource *cs);
 
 struct fsyscall_gtod_data_t fsyscall_gtod_data;
 
@@ -323,7 +323,7 @@ void ia64_init_itm(void)
 	}
 }
 
-static cycle_t itc_get_cycles(struct clocksource *cs)
+static u64 itc_get_cycles(struct clocksource *cs)
 {
 	unsigned long lcycle, now, ret;
 
@@ -397,7 +397,7 @@ void update_vsyscall_tz(void)
 }
 
 void update_vsyscall_old(struct timespec *wall, struct timespec *wtm,
-			 struct clocksource *c, u32 mult, cycle_t cycle_last)
+			 struct clocksource *c, u32 mult, u64 cycle_last)
 {
 	write_seqcount_begin(&fsyscall_gtod_data.seq);
 

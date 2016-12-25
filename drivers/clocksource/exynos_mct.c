@@ -183,7 +183,7 @@ static u64 exynos4_read_count_64(void)
 		hi2 = readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_U);
 	} while (hi != hi2);
 
-	return ((cycle_t)hi << 32) | lo;
+	return ((u64)hi << 32) | lo;
 }
 
 /**
@@ -199,7 +199,7 @@ static u32 notrace exynos4_read_count_32(void)
 	return readl_relaxed(reg_base + EXYNOS4_MCT_G_CNT_L);
 }
 
-static cycle_t exynos4_frc_read(struct clocksource *cs)
+static u64 exynos4_frc_read(struct clocksource *cs)
 {
 	return exynos4_read_count_32();
 }
@@ -266,7 +266,7 @@ static void exynos4_mct_comp0_stop(void)
 static void exynos4_mct_comp0_start(bool periodic, unsigned long cycles)
 {
 	unsigned int tcon;
-	cycle_t comp_cycle;
+	u64 comp_cycle;
 
 	tcon = readl_relaxed(reg_base + EXYNOS4_MCT_G_TCON);
 

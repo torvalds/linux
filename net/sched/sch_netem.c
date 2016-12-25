@@ -627,7 +627,7 @@ deliver:
 			 * from the network (tstamp will be updated).
 			 */
 			if (G_TC_FROM(skb->tc_verd) & AT_INGRESS)
-				skb->tstamp.tv64 = 0;
+				skb->tstamp = 0;
 #endif
 
 			if (q->qdisc) {

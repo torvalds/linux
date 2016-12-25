@@ -49,7 +49,7 @@ void mlx5e_fill_hwstamp(struct mlx5e_tstamp *tstamp, u64 timestamp,
 	hwts->hwtstamp = ns_to_ktime(nsec);
 }
 
-static cycle_t mlx5e_read_internal_timer(const struct cyclecounter *cc)
+static u64 mlx5e_read_internal_timer(const struct cyclecounter *cc)
 {
 	struct mlx5e_tstamp *tstamp = container_of(cc, struct mlx5e_tstamp,
 						   cycles);

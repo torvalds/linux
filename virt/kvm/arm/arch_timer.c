@@ -39,7 +39,7 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 	vcpu->arch.timer_cpu.active_cleared_last = false;
 }
 
-static cycle_t kvm_phys_timer_read(void)
+static u64 kvm_phys_timer_read(void)
 {
 	return timecounter->cc->read(timecounter->cc);
 }
@@ -102,7 +102,7 @@ static void kvm_timer_inject_irq_work(struct work_struct *work)
 
 static u64 kvm_timer_compute_delta(struct kvm_vcpu *vcpu)
 {
-	cycle_t cval, now;
+	u64 cval, now;
 
 	cval = vcpu->arch.timer_cpu.cntv_cval;
 	now = kvm_phys_timer_read() - vcpu->kvm->arch.timer.cntvoff;
@@ -155,7 +155,7 @@ static bool kvm_timer_irq_can_fire(struct kvm_vcpu *vcpu)
 bool kvm_timer_should_fire(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
-	cycle_t cval, now;
+	u64 cval, now;
 
 	if (!kvm_timer_irq_can_fire(vcpu))
 		return false;

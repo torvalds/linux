@@ -363,7 +363,7 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 		rtc_timer_remove(rtc, &rtc->aie_timer);
 
 	rtc->aie_timer.node.expires = rtc_tm_to_ktime(alarm->time);
-	rtc->aie_timer.period = ktime_set(0, 0);
+	rtc->aie_timer.period = 0;
 	if (alarm->enabled)
 		err = rtc_timer_enqueue(rtc, &rtc->aie_timer);
 
@@ -391,11 +391,11 @@ int rtc_initialize_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 		return err;
 
 	rtc->aie_timer.node.expires = rtc_tm_to_ktime(alarm->time);
-	rtc->aie_timer.period = ktime_set(0, 0);
+	rtc->aie_timer.period = 0;
 
 	/* Alarm has to be enabled & in the future for us to enqueue it */
-	if (alarm->enabled && (rtc_tm_to_ktime(now).tv64 <
-			 rtc->aie_timer.node.expires.tv64)) {
+	if (alarm->enabled && (rtc_tm_to_ktime(now) <
+			 rtc->aie_timer.node.expires)) {
 
 		rtc->aie_timer.enabled = 1;
 		timerqueue_add(&rtc->timerqueue, &rtc->aie_timer.node);
@@ -554,7 +554,7 @@ enum hrtimer_restart rtc_pie_update_irq(struct hrtimer *timer)
 	int count;
 	rtc = container_of(timer, struct rtc_device, pie_timer);
 
-	period = ktime_set(0, NSEC_PER_SEC/rtc->irq_freq);
+	period = NSEC_PER_SEC / rtc->irq_freq;
 	count = hrtimer_forward_now(timer, period);
 
 	rtc_handle_legacy_irq(rtc, count, RTC_PF);
@@ -665,7 +665,7 @@ static int rtc_update_hrtimer(struct rtc_device *rtc, int enabled)
 		return -1;
 
 	if (enabled) {
-		ktime_t period = ktime_set(0, NSEC_PER_SEC / rtc->irq_freq);
+		ktime_t period = NSEC_PER_SEC / rtc->irq_freq;
 
 		hrtimer_start(&rtc->pie_timer, period, HRTIMER_MODE_REL);
 	}
@@ -766,7 +766,7 @@ static int rtc_timer_enqueue(struct rtc_device *rtc, struct rtc_timer *timer)
 
 	/* Skip over expired timers */
 	while (next) {
-		if (next->expires.tv64 >= now.tv64)
+		if (next->expires >= now)
 			break;
 		next = timerqueue_iterate_next(next);
 	}
@@ -858,7 +858,7 @@ again:
 	__rtc_read_time(rtc, &tm);
 	now = rtc_tm_to_ktime(tm);
 	while ((next = timerqueue_getnext(&rtc->timerqueue))) {
-		if (next->expires.tv64 > now.tv64)
+		if (next->expires > now)
 			break;
 
 		/* expire timer */
