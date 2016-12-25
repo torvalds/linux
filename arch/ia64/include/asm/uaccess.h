@@ -39,6 +39,7 @@
 #include <asm/intrinsics.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
+#include <asm/extable.h>
 
 /*
  * For historical reasons, the following macros are grossly misnamed:
@@ -340,13 +341,6 @@ extern unsigned long __strnlen_user (const char __user *, long);
 		__su_ret = __strnlen_user(__su_str, len);	\
 	__su_ret;						\
 })
-
-#define ARCH_HAS_RELATIVE_EXTABLE
-
-struct exception_table_entry {
-	int insn;	/* location-relative address of insn this fixup is for */
-	int fixup;	/* location-relative continuation addr.; if bit 2 is set, r9 is set to 0 */
-};
 
 #define ARCH_HAS_TRANSLATE_MEM_PTR	1
 static __inline__ void *
