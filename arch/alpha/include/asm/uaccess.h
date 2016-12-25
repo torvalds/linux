@@ -334,45 +334,17 @@ __asm__ __volatile__("1: stb %r2,%1\n"				\
  * Complex access routines
  */
 
-/* This little bit of silliness is to get the GP loaded for a function
-   that ordinarily wouldn't.  Otherwise we could have it done by the macro
-   directly, which can be optimized the linker.  */
-#ifdef MODULE
-#define __module_address(sym)		"r"(sym),
-#define __module_call(ra, arg, sym)	"jsr $" #ra ",(%" #arg ")," #sym
-#else
-#define __module_address(sym)
-#define __module_call(ra, arg, sym)	"bsr $" #ra "," #sym " !samegp"
-#endif
+extern long __copy_user(void *to, const void *from, long len);
 
-extern void __copy_user(void);
-
-extern inline long
-__copy_tofrom_user_nocheck(void *to, const void *from, long len)
-{
-	register void * __cu_to __asm__("$6") = to;
-	register const void * __cu_from __asm__("$7") = from;
-	register long __cu_len __asm__("$0") = len;
-
-	__asm__ __volatile__(
-		__module_call(28, 3, __copy_user)
-		: "=r" (__cu_len), "=r" (__cu_from), "=r" (__cu_to)
-		: __module_address(__copy_user)
-		  "0" (__cu_len), "1" (__cu_from), "2" (__cu_to)
-		: "$1", "$2", "$3", "$4", "$5", "$28", "memory");
-
-	return __cu_len;
-}
-
-#define __copy_to_user(to, from, n)					\
-({									\
-	__chk_user_ptr(to);						\
-	__copy_tofrom_user_nocheck((__force void *)(to), (from), (n));	\
+#define __copy_to_user(to, from, n)			\
+({							\
+	__chk_user_ptr(to);				\
+	__copy_user((__force void *)(to), (from), (n));	\
 })
-#define __copy_from_user(to, from, n)					\
-({									\
-	__chk_user_ptr(from);						\
-	__copy_tofrom_user_nocheck((to), (__force void *)(from), (n));	\
+#define __copy_from_user(to, from, n)			\
+({							\
+	__chk_user_ptr(from);				\
+	__copy_user((to), (__force void *)(from), (n));	\
 })
 
 #define __copy_to_user_inatomic __copy_to_user
@@ -382,7 +354,7 @@ extern inline long
 copy_to_user(void __user *to, const void *from, long n)
 {
 	if (likely(__access_ok((unsigned long)to, n, get_fs())))
-		n = __copy_tofrom_user_nocheck((__force void *)to, from, n);
+		n = __copy_user((__force void *)to, from, n);
 	return n;
 }
 
@@ -397,21 +369,7 @@ copy_from_user(void *to, const void __user *from, long n)
 	return res;
 }
 
-extern void __do_clear_user(void);
-
-extern inline long
-__clear_user(void __user *to, long len)
-{
-	register void __user * __cl_to __asm__("$6") = to;
-	register long __cl_len __asm__("$0") = len;
-	__asm__ __volatile__(
-		__module_call(28, 2, __do_clear_user)
-		: "=r"(__cl_len), "=r"(__cl_to)
-		: __module_address(__do_clear_user)
-		  "0"(__cl_len), "1"(__cl_to)
-		: "$1", "$2", "$3", "$4", "$5", "$28", "memory");
-	return __cl_len;
-}
+extern long __clear_user(void __user *to, long len);
 
 extern inline long
 clear_user(void __user *to, long len)
@@ -420,9 +378,6 @@ clear_user(void __user *to, long len)
 		len = __clear_user(to, len);
 	return len;
 }
-
-#undef __module_address
-#undef __module_call
 
 #define user_addr_max() \
         (uaccess_kernel() ? ~0UL : TASK_SIZE)
