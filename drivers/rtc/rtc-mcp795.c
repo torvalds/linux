@@ -170,6 +170,7 @@ static int mcp795_set_time(struct device *dev, struct rtc_time *tim)
 	data[0] = (data[0] & 0x80) | bin2bcd(tim->tm_sec);
 	data[1] = (data[1] & 0x80) | bin2bcd(tim->tm_min);
 	data[2] = bin2bcd(tim->tm_hour);
+	data[3] = (data[3] & 0xF8) | bin2bcd(tim->tm_wday + 1);
 	data[4] = bin2bcd(tim->tm_mday);
 	data[5] = (data[5] & MCP795_LP_BIT) | bin2bcd(tim->tm_mon + 1);
 
@@ -198,9 +199,9 @@ static int mcp795_set_time(struct device *dev, struct rtc_time *tim)
 	if (ret)
 		return ret;
 
-	dev_dbg(dev, "Set mcp795: %04d-%02d-%02d %02d:%02d:%02d\n",
+	dev_dbg(dev, "Set mcp795: %04d-%02d-%02d(%d) %02d:%02d:%02d\n",
 			tim->tm_year + 1900, tim->tm_mon, tim->tm_mday,
-			tim->tm_hour, tim->tm_min, tim->tm_sec);
+			tim->tm_wday, tim->tm_hour, tim->tm_min, tim->tm_sec);
 
 	return 0;
 }
@@ -218,13 +219,14 @@ static int mcp795_read_time(struct device *dev, struct rtc_time *tim)
 	tim->tm_sec	= bcd2bin(data[0] & 0x7F);
 	tim->tm_min	= bcd2bin(data[1] & 0x7F);
 	tim->tm_hour	= bcd2bin(data[2] & 0x3F);
+	tim->tm_wday	= bcd2bin(data[3] & 0x07) - 1;
 	tim->tm_mday	= bcd2bin(data[4] & 0x3F);
 	tim->tm_mon	= bcd2bin(data[5] & 0x1F) - 1;
 	tim->tm_year	= bcd2bin(data[6]) + 100; /* Assume we are in 20xx */
 
-	dev_dbg(dev, "Read from mcp795: %04d-%02d-%02d %02d:%02d:%02d\n",
-				tim->tm_year + 1900, tim->tm_mon, tim->tm_mday,
-				tim->tm_hour, tim->tm_min, tim->tm_sec);
+	dev_dbg(dev, "Read from mcp795: %04d-%02d-%02d(%d) %02d:%02d:%02d\n",
+			tim->tm_year + 1900, tim->tm_mon, tim->tm_mday,
+			tim->tm_wday, tim->tm_hour, tim->tm_min, tim->tm_sec);
 
 	return rtc_valid_tm(tim);
 }
