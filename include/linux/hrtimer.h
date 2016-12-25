@@ -228,8 +228,8 @@ static inline void hrtimer_set_expires_range_ns(struct hrtimer *timer, ktime_t t
 
 static inline void hrtimer_set_expires_tv64(struct hrtimer *timer, s64 tv64)
 {
-	timer->node.expires.tv64 = tv64;
-	timer->_softexpires.tv64 = tv64;
+	timer->node.expires = tv64;
+	timer->_softexpires = tv64;
 }
 
 static inline void hrtimer_add_expires(struct hrtimer *timer, ktime_t time)
@@ -256,11 +256,11 @@ static inline ktime_t hrtimer_get_softexpires(const struct hrtimer *timer)
 
 static inline s64 hrtimer_get_expires_tv64(const struct hrtimer *timer)
 {
-	return timer->node.expires.tv64;
+	return timer->node.expires;
 }
 static inline s64 hrtimer_get_softexpires_tv64(const struct hrtimer *timer)
 {
-	return timer->_softexpires.tv64;
+	return timer->_softexpires;
 }
 
 static inline s64 hrtimer_get_expires_ns(const struct hrtimer *timer)
@@ -297,7 +297,7 @@ extern void hrtimer_peek_ahead_timers(void);
  * this resolution values.
  */
 # define HIGH_RES_NSEC		1
-# define KTIME_HIGH_RES		(ktime_t) { .tv64 = HIGH_RES_NSEC }
+# define KTIME_HIGH_RES		(HIGH_RES_NSEC)
 # define MONOTONIC_RES_NSEC	HIGH_RES_NSEC
 # define KTIME_MONOTONIC_RES	KTIME_HIGH_RES
 
@@ -333,7 +333,7 @@ __hrtimer_expires_remaining_adjusted(const struct hrtimer *timer, ktime_t now)
 	 * hrtimer_start_range_ns() to prevent short timeouts.
 	 */
 	if (IS_ENABLED(CONFIG_TIME_LOW_RES) && timer->is_rel)
-		rem.tv64 -= hrtimer_resolution;
+		rem -= hrtimer_resolution;
 	return rem;
 }
 

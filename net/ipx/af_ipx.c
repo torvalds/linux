@@ -1809,7 +1809,7 @@ static int ipx_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	rc = skb_copy_datagram_msg(skb, sizeof(struct ipxhdr), msg, copied);
 	if (rc)
 		goto out_free;
-	if (skb->tstamp.tv64)
+	if (skb->tstamp)
 		sk->sk_stamp = skb->tstamp;
 
 	if (sipx) {
