@@ -323,9 +323,6 @@ extern long __strnlen_user(const char __user *__s, long __n);
 
 #define strlen_user(s) strnlen_user(s, ~0UL >> 1)
 
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
+#include <asm/extable.h>
 
 #endif /* __ASM_AVR32_UACCESS_H */
