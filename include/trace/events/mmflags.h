@@ -95,7 +95,6 @@
 	{1UL << PG_private_2,		"private_2"	},		\
 	{1UL << PG_writeback,		"writeback"	},		\
 	{1UL << PG_head,		"head"		},		\
-	{1UL << PG_swapcache,		"swapcache"	},		\
 	{1UL << PG_mappedtodisk,	"mappedtodisk"	},		\
 	{1UL << PG_reclaim,		"reclaim"	},		\
 	{1UL << PG_swapbacked,		"swapbacked"	},		\
