@@ -18,6 +18,7 @@
 
 #include <linux/prefetch.h>
 #include <asm/types.h>
+#include <asm/extable.h>
 
 /*
  * The fs value determines whether argument validity checking should
@@ -341,11 +342,5 @@ static inline long strnlen_user(const char *str, long len)
 		return 0;
 	return __strnlen_user(str, len);
 }
-
-
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
 
 #endif	/* _XTENSA_UACCESS_H */
