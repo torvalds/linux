@@ -96,21 +96,6 @@ static inline ktime_t timeval_to_ktime(struct timeval tv)
 /* Convert ktime_t to nanoseconds - NOP in the scalar storage format: */
 #define ktime_to_ns(kt)			(kt)
 
-
-/**
- * ktime_equal - Compares two ktime_t variables to see if they are equal
- * @cmp1:	comparable1
- * @cmp2:	comparable2
- *
- * Compare two ktime_t variables.
- *
- * Return: 1 if equal.
- */
-static inline int ktime_equal(const ktime_t cmp1, const ktime_t cmp2)
-{
-	return cmp1 == cmp2;
-}
-
 /**
  * ktime_compare - Compares two ktime_t variables for less, greater or equal
  * @cmp1:	comparable1
