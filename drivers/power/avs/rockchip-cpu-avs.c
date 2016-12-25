@@ -54,6 +54,7 @@ struct rockchip_cpu_avs {
 	struct cluster_info *cluster;
 	struct notifier_block cpufreq_notify;
 	unsigned int check_done[MAX_CLUSTERS];
+	struct cpumask allowed_cpus[MAX_CLUSTERS];
 };
 
 #define notifier_to_avs(_n) container_of(_n, struct rockchip_cpu_avs, \
@@ -107,11 +108,28 @@ static int rockchip_cpu_avs_notifier(struct notifier_block *nb,
 	int i, id, cpu = policy->cpu;
 	int ret;
 
+	if (event == CPUFREQ_CREATE_POLICY) {
+		for (id = 0; id < MAX_CLUSTERS; id++) {
+			if (cpumask_test_cpu(policy->cpu,
+					     &avs->allowed_cpus[id]))
+				break;
+			if (cpumask_empty(&avs->allowed_cpus[id])) {
+				cpumask_copy(&avs->allowed_cpus[id],
+					     policy->related_cpus);
+				break;
+			}
+		}
+		goto out;
+	}
+
 	if (event != CPUFREQ_START)
 		goto out;
 
-	id = topology_physical_package_id(cpu);
-	if (id < 0 || id >= MAX_CLUSTERS) {
+	for (id = 0; id < MAX_CLUSTERS; id++) {
+		if (cpumask_test_cpu(cpu, &avs->allowed_cpus[id]))
+			break;
+	}
+	if (id == MAX_CLUSTERS) {
 		pr_err("cpu%d invalid cluster id\n", cpu);
 		goto out;
 	}
