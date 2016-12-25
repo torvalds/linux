@@ -2,6 +2,7 @@
 #define __ASM_SH_UACCESS_H
 
 #include <asm/segment.h>
+#include <asm/extable.h>
 
 #define __addr_ok(addr) \
 	((unsigned long __force)(addr) < current_thread_info()->addr_limit.seg)
@@ -165,28 +166,6 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 
 	return __copy_size;
 }
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-struct exception_table_entry {
-	unsigned long insn, fixup;
-};
-
-#if defined(CONFIG_SUPERH64) && defined(CONFIG_MMU)
-#define ARCH_HAS_SEARCH_EXTABLE
-#endif
-
-int fixup_exception(struct pt_regs *regs);
 
 extern void *set_exception_table_vec(unsigned int vec, void *handler);
 
