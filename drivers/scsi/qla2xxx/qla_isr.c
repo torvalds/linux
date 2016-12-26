@@ -3003,14 +3003,14 @@ struct qla_init_msix_entry {
 	irq_handler_t handler;
 };
 
-static struct qla_init_msix_entry msix_entries[] = {
+static const struct qla_init_msix_entry msix_entries[] = {
 	{ "qla2xxx (default)", qla24xx_msix_default },
 	{ "qla2xxx (rsp_q)", qla24xx_msix_rsp_q },
 	{ "qla2xxx (atio_q)", qla83xx_msix_atio_q },
 	{ "qla2xxx (qpair_multiq)", qla2xxx_msix_rsp_q },
 };
 
-static struct qla_init_msix_entry qla82xx_msix_entries[] = {
+static const struct qla_init_msix_entry qla82xx_msix_entries[] = {
 	{ "qla2xxx (default)", qla82xx_msix_default },
 	{ "qla2xxx (rsp_q)", qla82xx_msix_rsp_q },
 };
@@ -3284,7 +3284,7 @@ qla2x00_free_irqs(scsi_qla_host_t *vha)
 int qla25xx_request_irq(struct qla_hw_data *ha, struct qla_qpair *qpair,
 	struct qla_msix_entry *msix, int vector_type)
 {
-	struct qla_init_msix_entry *intr = &msix_entries[vector_type];
+	const struct qla_init_msix_entry *intr = &msix_entries[vector_type];
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 	int ret;
 
