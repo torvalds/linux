@@ -82,7 +82,7 @@ static int pp_sw_init(void *handle)
 			goto err2;
 	}
 
-	pr_info("amdgpu: powerplay initialized\n");
+	pr_info("initialized.\n");
 
 	return 0;
 err2:
@@ -92,7 +92,7 @@ err1:
 	if (hwmgr->pptable_func->pptable_fini)
 		hwmgr->pptable_func->pptable_fini(hwmgr);
 err:
-	pr_err("amdgpu: powerplay initialization failed\n");
+	pr_err("initialization failed\n");
 	return ret;
 }
 
@@ -144,13 +144,13 @@ static int pp_hw_init(void *handle)
 
 	ret = smumgr->smumgr_funcs->smu_init(smumgr);
 	if (ret) {
-		printk(KERN_ERR "[ powerplay ] smc initialization failed\n");
+		pr_err("smc initialization failed\n");
 		return ret;
 	}
 
 	ret = smumgr->smumgr_funcs->start_smu(smumgr);
 	if (ret) {
-		printk(KERN_ERR "[ powerplay ] smc start failed\n");
+		pr_err("smc start failed\n");
 		smumgr->smumgr_funcs->smu_fini(smumgr);
 		return ret;
 	}
@@ -219,7 +219,7 @@ int amd_set_clockgating_by_smu(void *handle, uint32_t msg_id)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->update_clock_gatings == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -239,7 +239,7 @@ static int pp_set_powergating_state(void *handle,
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->enable_per_cu_power_gating == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -285,7 +285,7 @@ static int pp_resume(void *handle)
 
 	ret = smumgr->smumgr_funcs->start_smu(smumgr);
 	if (ret) {
-		printk(KERN_ERR "[ powerplay ] smc start failed\n");
+		pr_err("smc start failed\n");
 		smumgr->smumgr_funcs->smu_fini(smumgr);
 		return ret;
 	}
@@ -340,7 +340,7 @@ static int pp_dpm_force_performance_level(void *handle,
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->force_dpm_level == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -376,7 +376,7 @@ static int pp_dpm_get_sclk(void *handle, bool low)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->get_sclk == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -395,7 +395,7 @@ static int pp_dpm_get_mclk(void *handle, bool low)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->get_mclk == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -414,7 +414,7 @@ static int pp_dpm_powergate_vce(void *handle, bool gate)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->powergate_vce == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -433,7 +433,7 @@ static int pp_dpm_powergate_uvd(void *handle, bool gate)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->powergate_uvd == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -539,7 +539,7 @@ static int pp_dpm_set_fan_control_mode(void *handle, uint32_t mode)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->set_fan_control_mode == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -558,7 +558,7 @@ static int pp_dpm_get_fan_control_mode(void *handle)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->get_fan_control_mode == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -577,7 +577,7 @@ static int pp_dpm_set_fan_speed_percent(void *handle, uint32_t percent)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->set_fan_speed_percent == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -596,7 +596,7 @@ static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->get_fan_speed_percent == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -632,7 +632,7 @@ static int pp_dpm_get_temperature(void *handle)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->get_temperature == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -738,7 +738,7 @@ static int pp_dpm_force_clock_level(void *handle,
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->force_clock_level == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -758,7 +758,7 @@ static int pp_dpm_print_clock_levels(void *handle,
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->print_clock_levels == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 	return hwmgr->hwmgr_func->print_clock_levels(hwmgr, type, buf);
@@ -776,7 +776,7 @@ static int pp_dpm_get_sclk_od(void *handle)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->get_sclk_od == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -795,7 +795,7 @@ static int pp_dpm_set_sclk_od(void *handle, uint32_t value)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->set_sclk_od == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -814,7 +814,7 @@ static int pp_dpm_get_mclk_od(void *handle)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->get_mclk_od == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -833,7 +833,7 @@ static int pp_dpm_set_mclk_od(void *handle, uint32_t value)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->set_mclk_od == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
@@ -852,7 +852,7 @@ static int pp_dpm_read_sensor(void *handle, int idx, int32_t *value)
 	PP_CHECK_HW(hwmgr);
 
 	if (hwmgr->hwmgr_func->read_sensor == NULL) {
-		printk(KERN_INFO "%s was not implemented.\n", __func__);
+		pr_info("%s was not implemented.\n", __func__);
 		return 0;
 	}
 
