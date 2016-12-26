@@ -651,7 +651,7 @@ int smu7_enable_power_containment(struct pp_hwmgr *hwmgr)
 						POWERCONTAINMENT_FEATURE_PkgPwrLimit;
 
 				if (smu7_set_power_limit(hwmgr, default_limit))
-					printk(KERN_ERR "Failed to set Default Power Limit in SMC!");
+					pr_err("Failed to set Default Power Limit in SMC!");
 			}
 		}
 	}

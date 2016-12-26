@@ -198,7 +198,7 @@ int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 	uint32_t cur_value;
 
 	if (hwmgr == NULL || hwmgr->device == NULL) {
-		printk(KERN_ERR "[ powerplay ] Invalid Hardware Manager!");
+		pr_err("Invalid Hardware Manager!");
 		return -EINVAL;
 	}
 
@@ -228,7 +228,7 @@ void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t mask)
 {
 	if (hwmgr == NULL || hwmgr->device == NULL) {
-		printk(KERN_ERR "[ powerplay ] Invalid Hardware Manager!");
+		pr_err("Invalid Hardware Manager!");
 		return;
 	}
 
@@ -550,7 +550,7 @@ int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr *hwmgr
 	table_clk_vlt = kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
-		printk(KERN_ERR "[ powerplay ] Can not allocate space for vddc_dep_on_dal_pwrl! \n");
+		pr_err("Can not allocate space for vddc_dep_on_dal_pwrl! \n");
 		return -ENOMEM;
 	} else {
 		table_clk_vlt->count = 4;
@@ -626,7 +626,7 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 			return;
 		}
 	}
-	printk(KERN_ERR "DAL requested level can not"
+	pr_err("DAL requested level can not"
 			" found a available voltage in VDDC DPM Table \n");
 }
 

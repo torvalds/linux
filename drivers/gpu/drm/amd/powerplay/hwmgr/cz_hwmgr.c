@@ -287,7 +287,7 @@ static int cz_init_dynamic_state_adjustment_rule_settings(
 					kzalloc(table_size, GFP_KERNEL);
 
 	if (NULL == table_clk_vlt) {
-		printk(KERN_ERR "[ powerplay ] Can not allocate memory!\n");
+		pr_err("Can not allocate memory!\n");
 		return -ENOMEM;
 	}
 
@@ -328,12 +328,12 @@ static int cz_get_system_info_data(struct pp_hwmgr *hwmgr)
 			&size, &frev, &crev);
 
 	if (crev != 9) {
-		printk(KERN_ERR "[ powerplay ] Unsupported IGP table: %d %d\n", frev, crev);
+		pr_err("Unsupported IGP table: %d %d\n", frev, crev);
 		return -EINVAL;
 	}
 
 	if (info == NULL) {
-		printk(KERN_ERR "[ powerplay ] Could not retrieve the Integrated System Info Table!\n");
+		pr_err("Could not retrieve the Integrated System Info Table!\n");
 		return -EINVAL;
 	}
 
@@ -360,7 +360,7 @@ static int cz_get_system_info_data(struct pp_hwmgr *hwmgr)
 
 	if (cz_hwmgr->sys_info.htc_tmp_lmt <=
 			cz_hwmgr->sys_info.htc_hyst_lmt) {
-		printk(KERN_ERR "[ powerplay ] The htcTmpLmt should be larger than htcHystLmt.\n");
+		pr_err("The htcTmpLmt should be larger than htcHystLmt.\n");
 		return -EINVAL;
 	}
 
@@ -722,7 +722,7 @@ static int cz_tf_update_sclk_limit(struct pp_hwmgr *hwmgr,
 
 	clock = hwmgr->display_config.min_core_set_clock;
 	if (clock == 0)
-		printk(KERN_INFO "[ powerplay ] min_core_set_clock not set\n");
+		pr_info("min_core_set_clock not set\n");
 
 	if (cz_hwmgr->sclk_dpm.hard_min_clk != clock) {
 		cz_hwmgr->sclk_dpm.hard_min_clk = clock;
@@ -1161,13 +1161,13 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 	result = cz_initialize_dpm_defaults(hwmgr);
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] cz_initialize_dpm_defaults failed\n");
+		pr_err("cz_initialize_dpm_defaults failed\n");
 		return result;
 	}
 
 	result = cz_get_system_info_data(hwmgr);
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] cz_get_system_info_data failed\n");
+		pr_err("cz_get_system_info_data failed\n");
 		return result;
 	}
 
@@ -1176,40 +1176,40 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	result = phm_construct_table(hwmgr, &cz_setup_asic_master,
 				&(hwmgr->setup_asic));
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] Fail to construct setup ASIC\n");
+		pr_err("Fail to construct setup ASIC\n");
 		return result;
 	}
 
 	result = phm_construct_table(hwmgr, &cz_power_down_asic_master,
 				&(hwmgr->power_down_asic));
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] Fail to construct power down ASIC\n");
+		pr_err("Fail to construct power down ASIC\n");
 		return result;
 	}
 
 	result = phm_construct_table(hwmgr, &cz_disable_dpm_master,
 				&(hwmgr->disable_dynamic_state_management));
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] Fail to disable_dynamic_state\n");
+		pr_err("Fail to disable_dynamic_state\n");
 		return result;
 	}
 	result = phm_construct_table(hwmgr, &cz_enable_dpm_master,
 				&(hwmgr->enable_dynamic_state_management));
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] Fail to enable_dynamic_state\n");
+		pr_err("Fail to enable_dynamic_state\n");
 		return result;
 	}
 	result = phm_construct_table(hwmgr, &cz_set_power_state_master,
 				&(hwmgr->set_power_state));
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] Fail to construct set_power_state\n");
+		pr_err("Fail to construct set_power_state\n");
 		return result;
 	}
 	hwmgr->platform_descriptor.hardwareActivityPerformanceLevels =  CZ_MAX_HARDWARE_POWERLEVELS;
 
 	result = phm_construct_table(hwmgr, &cz_phm_enable_clock_power_gatings_master, &(hwmgr->enable_clock_power_gatings));
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] Fail to construct enable_clock_power_gatings\n");
+		pr_err("Fail to construct enable_clock_power_gatings\n");
 		return result;
 	}
 	return result;
