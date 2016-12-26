@@ -37,7 +37,7 @@
  */
 
 /* How many cycles per second we are running at. */
-static cycles_t cycles_per_sec __write_once;
+static cycles_t cycles_per_sec __ro_after_init;
 
 cycles_t get_clock_rate(void)
 {
@@ -68,7 +68,7 @@ EXPORT_SYMBOL(get_cycles);
  */
 #define SCHED_CLOCK_SHIFT 10
 
-static unsigned long sched_clock_mult __write_once;
+static unsigned long sched_clock_mult __ro_after_init;
 
 static cycles_t clocksource_get_cycles(struct clocksource *cs)
 {
@@ -218,8 +218,8 @@ void do_timer_interrupt(struct pt_regs *regs, int fault_num)
  */
 unsigned long long sched_clock(void)
 {
-	return clocksource_cyc2ns(get_cycles(),
-				  sched_clock_mult, SCHED_CLOCK_SHIFT);
+	return mult_frac(get_cycles(),
+			 sched_clock_mult, 1ULL << SCHED_CLOCK_SHIFT);
 }
 
 int setup_profiling_timer(unsigned int multiplier)

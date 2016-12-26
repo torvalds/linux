@@ -114,11 +114,6 @@ static struct platform_driver of_pci_phb_driver = {
 	},
 };
 
-static __init int of_pci_phb_init(void)
-{
-	return platform_driver_register(&of_pci_phb_driver);
-}
-
-device_initcall(of_pci_phb_init);
+builtin_platform_driver(of_pci_phb_driver);
 
 #endif /* CONFIG_PPC_OF_PLATFORM_PCI */

@@ -10,6 +10,8 @@
  *      as published by the Free Software Foundation; either version
  *      2 of the License, or (at your option) any later version.
  */
+
+#include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -225,6 +227,7 @@ Commands:\n\
 #endif
   "\
   dr	dump stream of raw bytes\n\
+  dt	dump the tracing buffers (uses printk)\n\
   e	print exception information\n\
   f	flush cache\n\
   la	lookup symbol+offset of specified address\n\
@@ -2364,6 +2367,9 @@ dump(void)
 		dump_log_buf();
 	} else if (c == 'o') {
 		dump_opal_msglog();
+	} else if (c == 't') {
+		ftrace_dump(DUMP_ALL);
+		tracing_on();
 	} else if (c == 'r') {
 		scanhex(&ndump);
 		if (ndump == 0)

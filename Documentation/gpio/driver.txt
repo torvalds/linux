@@ -175,8 +175,8 @@ The IRQ portions of the GPIO block are implemented using an irqchip, using
 the header <linux/irq.h>. So basically such a driver is utilizing two sub-
 systems simultaneously: gpio and irq.
 
-RT_FULL: GPIO driver should not use spinlock_t or any sleepable APIs
-(like PM runtime) as part of its irq_chip implementation on -RT.
+RT_FULL: a realtime compliant GPIO driver should not use spinlock_t or any
+sleepable APIs (like PM runtime) as part of its irq_chip implementation.
 - spinlock_t should be replaced with raw_spinlock_t [1].
 - If sleepable APIs have to be used, these can be done from the .irq_bus_lock()
   and .irq_bus_unlock() callbacks, as these are the only slowpath callbacks
@@ -185,33 +185,32 @@ RT_FULL: GPIO driver should not use spinlock_t or any sleepable APIs
 GPIO irqchips usually fall in one of two categories:
 
 * CHAINED GPIO irqchips: these are usually the type that is embedded on
-  an SoC. This means that there is a fast IRQ handler for the GPIOs that
+  an SoC. This means that there is a fast IRQ flow handler for the GPIOs that
   gets called in a chain from the parent IRQ handler, most typically the
-  system interrupt controller. This means the GPIO irqchip is registered
-  using irq_set_chained_handler() or the corresponding
-  gpiochip_set_chained_irqchip() helper function, and the GPIO irqchip
-  handler will be called immediately from the parent irqchip, while
-  holding the IRQs disabled. The GPIO irqchip will then end up calling
-  something like this sequence in its interrupt handler:
+  system interrupt controller. This means that the GPIO irqchip handler will
+  be called immediately from the parent irqchip, while holding the IRQs
+  disabled. The GPIO irqchip will then end up calling something like this
+  sequence in its interrupt handler:
 
-  static irqreturn_t tc3589x_gpio_irq(int irq, void *data)
+  static irqreturn_t foo_gpio_irq(int irq, void *data)
       chained_irq_enter(...);
       generic_handle_irq(...);
       chained_irq_exit(...);
 
   Chained GPIO irqchips typically can NOT set the .can_sleep flag on
-  struct gpio_chip, as everything happens directly in the callbacks.
+  struct gpio_chip, as everything happens directly in the callbacks: no
+  slow bus traffic like I2C can be used.
 
   RT_FULL: Note, chained IRQ handlers will not be forced threaded on -RT.
   As result, spinlock_t or any sleepable APIs (like PM runtime) can't be used
   in chained IRQ handler.
-  if required (and if it can't be converted to the nested threaded GPIO irqchip)
-  - chained IRQ handler can be converted to generic irq handler and this way
-  it will be threaded IRQ handler on -RT and hard IRQ handler on non-RT
+  If required (and if it can't be converted to the nested threaded GPIO irqchip)
+  a chained IRQ handler can be converted to generic irq handler and this way
+  it will be a threaded IRQ handler on -RT and a hard IRQ handler on non-RT
   (for example, see [3]).
   Know W/A: The generic_handle_irq() is expected to be called with IRQ disabled,
-  so IRQ core will complain if it will be called from IRQ handler which is
-  forced thread. The "fake?" raw lock can be used to W/A this problem:
+  so the IRQ core will complain if it is called from an IRQ handler which is
+  forced to a thread. The "fake?" raw lock can be used to W/A this problem:
 
 	raw_spinlock_t wa_lock;
 	static irqreturn_t omap_gpio_irq_handler(int irq, void *gpiobank)
@@ -243,7 +242,7 @@ GPIO irqchips usually fall in one of two categories:
   by the driver. The hallmark of this driver is to call something like
   this in its interrupt handler:
 
-  static irqreturn_t tc3589x_gpio_irq(int irq, void *data)
+  static irqreturn_t foo_gpio_irq(int irq, void *data)
       ...
       handle_nested_irq(irq);
 
@@ -256,23 +255,31 @@ associated irqdomain and resource allocation callbacks, the gpiolib has
 some helpers that can be enabled by selecting the GPIOLIB_IRQCHIP Kconfig
 symbol:
 
-* gpiochip_irqchip_add(): adds an irqchip to a gpiochip. It will pass
+* gpiochip_irqchip_add(): adds a chained irqchip to a gpiochip. It will pass
   the struct gpio_chip* for the chip to all IRQ callbacks, so the callbacks
   need to embed the gpio_chip in its state container and obtain a pointer
   to the container using container_of().
   (See Documentation/driver-model/design-patterns.txt)
 
-  If there is a need to exclude certain GPIOs from the IRQ domain, one can
-  set .irq_need_valid_mask of the gpiochip before gpiochip_add_data() is
-  called. This allocates .irq_valid_mask with as many bits set as there are
-  GPIOs in the chip. Drivers can exclude GPIOs by clearing bits from this
-  mask. The mask must be filled in before gpiochip_irqchip_add() is called.
+* gpiochip_irqchip_add_nested(): adds a nested irqchip to a gpiochip.
+  Apart from that it works exactly like the chained irqchip.
 
 * gpiochip_set_chained_irqchip(): sets up a chained irq handler for a
   gpio_chip from a parent IRQ and passes the struct gpio_chip* as handler
   data. (Notice handler data, since the irqchip data is likely used by the
-  parent irqchip!) This is for the chained type of chip. This is also used
-  to set up a nested irqchip if NULL is passed as handler.
+  parent irqchip!).
+
+* gpiochip_set_nested_irqchip(): sets up a nested irq handler for a
+  gpio_chip from a parent IRQ. As the parent IRQ has usually been
+  explicitly requested by the driver, this does very little more than
+  mark all the child IRQs as having the other IRQ as parent.
+
+If there is a need to exclude certain GPIOs from the IRQ domain, you can
+set .irq_need_valid_mask of the gpiochip before gpiochip_add_data() is
+called. This allocates an .irq_valid_mask with as many bits set as there
+are GPIOs in the chip. Drivers can exclude GPIOs by clearing bits from this
+mask. The mask must be filled in before gpiochip_irqchip_add() or
+gpiochip_irqchip_add_nested() is called.
 
 To use the helpers please keep the following in mind:
 
@@ -322,6 +329,9 @@ is released:
 When implementing an irqchip inside a GPIO driver, these two functions should
 typically be called in the .startup() and .shutdown() callbacks from the
 irqchip.
+
+When using the gpiolib irqchip helpers, these callback are automatically
+assigned.
 
 Real-Time compliance for GPIO IRQ chips
 ---------------------------------------

@@ -3,7 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "sfp-util.h"
 #include <math-emu/soft-fp.h>

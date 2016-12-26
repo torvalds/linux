@@ -15,12 +15,11 @@
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
 #include <linux/pm_qos.h>
-#include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/tick.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PROMOTION_COUNT 4
 #define DEMOTION_COUNT 1
@@ -177,7 +176,6 @@ static struct cpuidle_governor ladder_governor = {
 	.enable =	ladder_enable_device,
 	.select =	ladder_select_state,
 	.reflect =	ladder_reflect,
-	.owner =	THIS_MODULE,
 };
 
 /**

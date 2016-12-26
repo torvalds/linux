@@ -100,7 +100,7 @@
 #include <linux/in.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <net/net_namespace.h>
@@ -315,7 +315,7 @@ static struct sock *unix_find_socket_byinode(struct inode *i)
 		    &unix_socket_table[i->i_ino & (UNIX_HASH_SIZE - 1)]) {
 		struct dentry *dentry = unix_sk(s)->path.dentry;
 
-		if (dentry && d_real_inode(dentry) == i) {
+		if (dentry && d_backing_inode(dentry) == i) {
 			sock_hold(s);
 			goto found;
 		}
@@ -913,7 +913,7 @@ static struct sock *unix_find_other(struct net *net,
 		err = kern_path(sunname->sun_path, LOOKUP_FOLLOW, &path);
 		if (err)
 			goto fail;
-		inode = d_real_inode(path.dentry);
+		inode = d_backing_inode(path.dentry);
 		err = inode_permission(inode, MAY_WRITE);
 		if (err)
 			goto put_fail;
@@ -1040,7 +1040,7 @@ static int unix_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			goto out_up;
 		}
 		addr->hash = UNIX_HASH_SIZE;
-		hash = d_real_inode(path.dentry)->i_ino & (UNIX_HASH_SIZE - 1);
+		hash = d_backing_inode(path.dentry)->i_ino & (UNIX_HASH_SIZE - 1);
 		spin_lock(&unix_table_lock);
 		u->path = path;
 		list = &unix_socket_table[hash];
@@ -2113,8 +2113,8 @@ static int unix_dgram_recvmsg(struct socket *sock, struct msghdr *msg,
 		mutex_lock(&u->iolock);
 
 		skip = sk_peek_offset(sk, flags);
-		skb = __skb_try_recv_datagram(sk, flags, &peeked, &skip, &err,
-					      &last);
+		skb = __skb_try_recv_datagram(sk, flags, NULL, &peeked, &skip,
+					      &err, &last);
 		if (skb)
 			break;
 
@@ -2199,7 +2199,8 @@ out:
  *	Sleep until more data has arrived. But check for races..
  */
 static long unix_stream_data_wait(struct sock *sk, long timeo,
-				  struct sk_buff *last, unsigned int last_len)
+				  struct sk_buff *last, unsigned int last_len,
+				  bool freezable)
 {
 	struct sk_buff *tail;
 	DEFINE_WAIT(wait);
@@ -2220,7 +2221,10 @@ static long unix_stream_data_wait(struct sock *sk, long timeo,
 
 		sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		unix_state_unlock(sk);
-		timeo = freezable_schedule_timeout(timeo);
+		if (freezable)
+			timeo = freezable_schedule_timeout(timeo);
+		else
+			timeo = schedule_timeout(timeo);
 		unix_state_lock(sk);
 
 		if (sock_flag(sk, SOCK_DEAD))
@@ -2250,7 +2254,8 @@ struct unix_stream_read_state {
 	unsigned int splice_flags;
 };
 
-static int unix_stream_read_generic(struct unix_stream_read_state *state)
+static int unix_stream_read_generic(struct unix_stream_read_state *state,
+				    bool freezable)
 {
 	struct scm_cookie scm;
 	struct socket *sock = state->socket;
@@ -2330,7 +2335,7 @@ again:
 			mutex_unlock(&u->iolock);
 
 			timeo = unix_stream_data_wait(sk, timeo, last,
-						      last_len);
+						      last_len, freezable);
 
 			if (signal_pending(current)) {
 				err = sock_intr_errno(timeo);
@@ -2472,7 +2477,7 @@ static int unix_stream_recvmsg(struct socket *sock, struct msghdr *msg,
 		.flags = flags
 	};
 
-	return unix_stream_read_generic(&state);
+	return unix_stream_read_generic(&state, true);
 }
 
 static int unix_stream_splice_actor(struct sk_buff *skb,
@@ -2503,7 +2508,7 @@ static ssize_t unix_stream_splice_read(struct socket *sock,  loff_t *ppos,
 	    flags & SPLICE_F_NONBLOCK)
 		state.flags = MSG_DONTWAIT;
 
-	return unix_stream_read_generic(&state);
+	return unix_stream_read_generic(&state, false);
 }
 
 static int unix_shutdown(struct socket *sock, int mode)

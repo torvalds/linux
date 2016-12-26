@@ -44,6 +44,7 @@
 #define	DWMAC_CORE_4_00	0x40
 #define STMMAC_CHAN0	0	/* Always supported and default for all chips */
 
+/* These need to be power of two, and >= 4 */
 #define DMA_TX_SIZE 512
 #define DMA_RX_SIZE 512
 #define STMMAC_GET_ENTRY(x, size)	((x + 1) & (size - 1))
@@ -120,14 +121,17 @@ struct stmmac_extra_stats {
 	unsigned long ip_csum_bypassed;
 	unsigned long ipv4_pkt_rcvd;
 	unsigned long ipv6_pkt_rcvd;
-	unsigned long rx_msg_type_ext_no_ptp;
-	unsigned long rx_msg_type_sync;
-	unsigned long rx_msg_type_follow_up;
-	unsigned long rx_msg_type_delay_req;
-	unsigned long rx_msg_type_delay_resp;
-	unsigned long rx_msg_type_pdelay_req;
-	unsigned long rx_msg_type_pdelay_resp;
-	unsigned long rx_msg_type_pdelay_follow_up;
+	unsigned long no_ptp_rx_msg_type_ext;
+	unsigned long ptp_rx_msg_type_sync;
+	unsigned long ptp_rx_msg_type_follow_up;
+	unsigned long ptp_rx_msg_type_delay_req;
+	unsigned long ptp_rx_msg_type_delay_resp;
+	unsigned long ptp_rx_msg_type_pdelay_req;
+	unsigned long ptp_rx_msg_type_pdelay_resp;
+	unsigned long ptp_rx_msg_type_pdelay_follow_up;
+	unsigned long ptp_rx_msg_type_announce;
+	unsigned long ptp_rx_msg_type_management;
+	unsigned long ptp_rx_msg_pkt_reserved_type;
 	unsigned long ptp_frame_type;
 	unsigned long ptp_ver;
 	unsigned long timestamp_dropped;
@@ -408,8 +412,8 @@ extern const struct stmmac_desc_ops ndesc_ops;
 struct stmmac_dma_ops {
 	/* DMA core initialization */
 	int (*reset)(void __iomem *ioaddr);
-	void (*init)(void __iomem *ioaddr, int pbl, int fb, int mb,
-		     int aal, u32 dma_tx, u32 dma_rx, int atds);
+	void (*init)(void __iomem *ioaddr, struct stmmac_dma_cfg *dma_cfg,
+		     u32 dma_tx, u32 dma_rx, int atds);
 	/* Configure the AXI Bus Mode Register */
 	void (*axi)(void __iomem *ioaddr, struct stmmac_axi *axi);
 	/* Dump DMA registers */
@@ -482,11 +486,12 @@ struct stmmac_ops {
 /* PTP and HW Timer helpers */
 struct stmmac_hwtimestamp {
 	void (*config_hw_tstamping) (void __iomem *ioaddr, u32 data);
-	u32 (*config_sub_second_increment) (void __iomem *ioaddr, u32 clk_rate);
+	u32 (*config_sub_second_increment)(void __iomem *ioaddr, u32 ptp_clock,
+					   int gmac4);
 	int (*init_systime) (void __iomem *ioaddr, u32 sec, u32 nsec);
 	int (*config_addend) (void __iomem *ioaddr, u32 addend);
 	int (*adjust_systime) (void __iomem *ioaddr, u32 sec, u32 nsec,
-			       int add_sub);
+			       int add_sub, int gmac4);
 	 u64(*get_systime) (void __iomem *ioaddr);
 };
 
@@ -502,6 +507,12 @@ struct mac_link {
 struct mii_regs {
 	unsigned int addr;	/* MII Address */
 	unsigned int data;	/* MII Data */
+	unsigned int addr_shift;	/* MII address shift */
+	unsigned int reg_shift;		/* MII reg shift */
+	unsigned int addr_mask;		/* MII address mask */
+	unsigned int reg_mask;		/* MII reg mask */
+	unsigned int clk_csr_shift;
+	unsigned int clk_csr_mask;
 };
 
 /* Helpers to manage the descriptors for chain and ring modes */

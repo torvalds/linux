@@ -23,7 +23,7 @@
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <net/iucv/iucv.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ebcdic.h>
 #include <asm/extmem.h>
 

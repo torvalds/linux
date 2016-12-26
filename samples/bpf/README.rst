@@ -1,8 +1,8 @@
 eBPF sample programs
 ====================
 
-This directory contains a mini eBPF library, test stubs, verifier
-test-suite and examples for using eBPF.
+This directory contains a test stubs, verifier test-suite and examples
+for using eBPF. The examples use libbpf from tools/lib/bpf.
 
 Build dependencies
 ==================

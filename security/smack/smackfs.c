@@ -2998,9 +2998,6 @@ static int __init init_smk_fs(void)
 	rc = smk_preset_netlabel(&smack_known_huh);
 	if (err == 0 && rc < 0)
 		err = rc;
-	rc = smk_preset_netlabel(&smack_known_invalid);
-	if (err == 0 && rc < 0)
-		err = rc;
 	rc = smk_preset_netlabel(&smack_known_star);
 	if (err == 0 && rc < 0)
 		err = rc;

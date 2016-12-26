@@ -782,7 +782,8 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 			(raid->regTypeReqOnRead != REGION_TYPE_UNUSED))))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
-			pd = MR_ArPdGet(arRef, physArm + 1, map);
+			physArm = physArm + 1;
+			pd = MR_ArPdGet(arRef, physArm, map);
 			if (pd != MR_PD_INVALID)
 				*pDevHandle = MR_PdDevHandleGet(pd, map);
 		}
@@ -879,7 +880,8 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			/* Get alternate Pd. */
-			pd = MR_ArPdGet(arRef, physArm + 1, map);
+			physArm = physArm + 1;
+			pd = MR_ArPdGet(arRef, physArm, map);
 			if (pd != MR_PD_INVALID)
 				/* Get dev handle from Pd */
 				*pDevHandle = MR_PdDevHandleGet(pd, map);

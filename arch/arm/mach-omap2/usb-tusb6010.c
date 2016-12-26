@@ -22,8 +22,6 @@
 
 #include "gpmc.h"
 
-#include "mux.h"
-
 static u8		async_cs, sync_cs;
 static unsigned		refclk_psec;
 
@@ -225,25 +223,6 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 		return -ENODEV;
 	}
 	tusb_device.dev.platform_data = data;
-
-	/* REVISIT let the driver know what DMA channels work */
-	if (!dmachan)
-		tusb_device.dev.dma_mask = NULL;
-	else {
-		/* assume OMAP 2420 ES2.0 and later */
-		if (dmachan & (1 << 0))
-			omap_mux_init_signal("sys_ndmareq0", 0);
-		if (dmachan & (1 << 1))
-			omap_mux_init_signal("sys_ndmareq1", 0);
-		if (dmachan & (1 << 2))
-			omap_mux_init_signal("sys_ndmareq2", 0);
-		if (dmachan & (1 << 3))
-			omap_mux_init_signal("sys_ndmareq3", 0);
-		if (dmachan & (1 << 4))
-			omap_mux_init_signal("sys_ndmareq4", 0);
-		if (dmachan & (1 << 5))
-			omap_mux_init_signal("sys_ndmareq5", 0);
-	}
 
 	/* so far so good ... register the device */
 	status = platform_device_register(&tusb_device);

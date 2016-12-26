@@ -430,7 +430,8 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 	if (!skb)
 		return -ENOBUFS;
 
-	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq, 0, event) <= 0) {
+	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq,
+			  n->nlmsg_flags, event) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -680,6 +681,30 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts)
 	return 0;
 }
 EXPORT_SYMBOL(tcf_exts_dump_stats);
+
+int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
+		     struct net_device **hw_dev)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	const struct tc_action *a;
+	LIST_HEAD(actions);
+
+	if (tc_no_actions(exts))
+		return -EINVAL;
+
+	tcf_exts_to_list(exts, &actions);
+	list_for_each_entry(a, &actions, list) {
+		if (a->ops->get_dev) {
+			a->ops->get_dev(a, dev_net(dev), hw_dev);
+			break;
+		}
+	}
+	if (*hw_dev)
+		return 0;
+#endif
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(tcf_exts_get_dev);
 
 static int __init tc_filter_init(void)
 {

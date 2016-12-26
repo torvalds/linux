@@ -52,10 +52,10 @@ cirrus_user_framebuffer_create(struct drm_device *dev,
 	struct cirrus_device *cdev = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct cirrus_framebuffer *cirrus_fb;
+	u32 bpp;
 	int ret;
-	u32 bpp, depth;
 
-	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
+	bpp = drm_format_plane_cpp(mode_cmd->pixel_format, 0) * 8;
 
 	if (!cirrus_check_framebuffer(cdev, mode_cmd->width, mode_cmd->height,
 				      bpp, mode_cmd->pitches[0]))

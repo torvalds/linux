@@ -289,7 +289,7 @@ static char *myri10ge_fw_names[MYRI10GE_MAX_BOARDS] =
     {[0 ... (MYRI10GE_MAX_BOARDS - 1)] = NULL };
 module_param_array_named(myri10ge_fw_names, myri10ge_fw_names, charp, NULL,
 			 0444);
-MODULE_PARM_DESC(myri10ge_fw_name, "Firmware image names per board");
+MODULE_PARM_DESC(myri10ge_fw_names, "Firmware image names per board");
 
 static int myri10ge_ecrc_enable = 1;
 module_param(myri10ge_ecrc_enable, int, S_IRUGO);
@@ -3232,10 +3232,6 @@ static int myri10ge_change_mtu(struct net_device *dev, int new_mtu)
 	struct myri10ge_priv *mgp = netdev_priv(dev);
 	int error = 0;
 
-	if ((new_mtu < 68) || (ETH_HLEN + new_mtu > MYRI10GE_MAX_ETHER_MTU)) {
-		netdev_err(dev, "new mtu (%d) is not valid\n", new_mtu);
-		return -EINVAL;
-	}
 	netdev_info(dev, "changing mtu from %d to %d\n", dev->mtu, new_mtu);
 	if (mgp->running) {
 		/* if we change the mtu on an active device, we must
@@ -4086,13 +4082,19 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	myri10ge_setup_dca(mgp);
 #endif
 	pci_set_drvdata(pdev, mgp);
-	if ((myri10ge_initial_mtu + ETH_HLEN) > MYRI10GE_MAX_ETHER_MTU)
-		myri10ge_initial_mtu = MYRI10GE_MAX_ETHER_MTU - ETH_HLEN;
-	if ((myri10ge_initial_mtu + ETH_HLEN) < 68)
-		myri10ge_initial_mtu = 68;
+
+	/* MTU range: 68 - 9000 */
+	netdev->min_mtu = ETH_MIN_MTU;
+	netdev->max_mtu = MYRI10GE_MAX_ETHER_MTU - ETH_HLEN;
+
+	if (myri10ge_initial_mtu > netdev->max_mtu)
+		myri10ge_initial_mtu = netdev->max_mtu;
+	if (myri10ge_initial_mtu < netdev->min_mtu)
+		myri10ge_initial_mtu = netdev->min_mtu;
+
+	netdev->mtu = myri10ge_initial_mtu;
 
 	netdev->netdev_ops = &myri10ge_netdev_ops;
-	netdev->mtu = myri10ge_initial_mtu;
 	netdev->hw_features = mgp->features | NETIF_F_RXCSUM;
 
 	/* fake NETIF_F_HW_VLAN_CTAG_RX for good GRO performance */

@@ -26,7 +26,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/switch_to.h>
 #include "entry.h"
@@ -461,7 +461,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		}
 		return 0;
 	case PTRACE_GET_LAST_BREAK:
-		put_user(task_thread_info(child)->last_break,
+		put_user(child->thread.last_break,
 			 (unsigned long __user *) data);
 		return 0;
 	case PTRACE_ENABLE_TE:
@@ -811,7 +811,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 		}
 		return 0;
 	case PTRACE_GET_LAST_BREAK:
-		put_user(task_thread_info(child)->last_break,
+		put_user(child->thread.last_break,
 			 (unsigned int __user *) data);
 		return 0;
 	}
@@ -997,10 +997,10 @@ static int s390_last_break_get(struct task_struct *target,
 	if (count > 0) {
 		if (kbuf) {
 			unsigned long *k = kbuf;
-			*k = task_thread_info(target)->last_break;
+			*k = target->thread.last_break;
 		} else {
 			unsigned long  __user *u = ubuf;
-			if (__put_user(task_thread_info(target)->last_break, u))
+			if (__put_user(target->thread.last_break, u))
 				return -EFAULT;
 		}
 	}
@@ -1113,7 +1113,7 @@ static int s390_system_call_get(struct task_struct *target,
 				unsigned int pos, unsigned int count,
 				void *kbuf, void __user *ubuf)
 {
-	unsigned int *data = &task_thread_info(target)->system_call;
+	unsigned int *data = &target->thread.system_call;
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   data, 0, sizeof(unsigned int));
 }
@@ -1123,7 +1123,7 @@ static int s390_system_call_set(struct task_struct *target,
 				unsigned int pos, unsigned int count,
 				const void *kbuf, const void __user *ubuf)
 {
-	unsigned int *data = &task_thread_info(target)->system_call;
+	unsigned int *data = &target->thread.system_call;
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  data, 0, sizeof(unsigned int));
 }
@@ -1327,7 +1327,7 @@ static int s390_compat_last_break_get(struct task_struct *target,
 	compat_ulong_t last_break;
 
 	if (count > 0) {
-		last_break = task_thread_info(target)->last_break;
+		last_break = target->thread.last_break;
 		if (kbuf) {
 			unsigned long *k = kbuf;
 			*k = last_break;

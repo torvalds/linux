@@ -28,7 +28,6 @@
 #include <linux/uidgid.h>
 #include <linux/lockdep.h>
 #include <linux/percpu-rwsem.h>
-#include <linux/blk_types.h>
 #include <linux/workqueue.h>
 #include <linux/percpu-rwsem.h>
 #include <linux/delayed_call.h>
@@ -38,6 +37,7 @@
 
 struct backing_dev_info;
 struct bdi_writeback;
+struct bio;
 struct export_operations;
 struct hd_geometry;
 struct iovec;
@@ -150,58 +150,6 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  * points too.
  */
 #define CHECK_IOVEC_ONLY -1
-
-/*
- * The below are the various read and write flags that we support. Some of
- * them include behavioral modifiers that send information down to the
- * block layer and IO scheduler. They should be used along with a req_op.
- * Terminology:
- *
- *	The block layer uses device plugging to defer IO a little bit, in
- *	the hope that we will see more IO very shortly. This increases
- *	coalescing of adjacent IO and thus reduces the number of IOs we
- *	have to send to the device. It also allows for better queuing,
- *	if the IO isn't mergeable. If the caller is going to be waiting
- *	for the IO, then he must ensure that the device is unplugged so
- *	that the IO is dispatched to the driver.
- *
- *	All IO is handled async in Linux. This is fine for background
- *	writes, but for reads or writes that someone waits for completion
- *	on, we want to notify the block layer and IO scheduler so that they
- *	know about it. That allows them to make better scheduling
- *	decisions. So when the below references 'sync' and 'async', it
- *	is referencing this priority hint.
- *
- * With that in mind, the available types are:
- *
- * READ			A normal read operation. Device will be plugged.
- * READ_SYNC		A synchronous read. Device is not plugged, caller can
- *			immediately wait on this read without caring about
- *			unplugging.
- * WRITE		A normal async write. Device will be plugged.
- * WRITE_SYNC		Synchronous write. Identical to WRITE, but passes down
- *			the hint that someone will be waiting on this IO
- *			shortly. The write equivalent of READ_SYNC.
- * WRITE_ODIRECT	Special case write for O_DIRECT only.
- * WRITE_FLUSH		Like WRITE_SYNC but with preceding cache flush.
- * WRITE_FUA		Like WRITE_SYNC but data is guaranteed to be on
- *			non-volatile media on completion.
- * WRITE_FLUSH_FUA	Combination of WRITE_FLUSH and FUA. The IO is preceded
- *			by a cache flush and data is guaranteed to be on
- *			non-volatile media on completion.
- *
- */
-#define RW_MASK			REQ_OP_WRITE
-
-#define READ			REQ_OP_READ
-#define WRITE			REQ_OP_WRITE
-
-#define READ_SYNC		REQ_SYNC
-#define WRITE_SYNC		(REQ_SYNC | REQ_NOIDLE)
-#define WRITE_ODIRECT		REQ_SYNC
-#define WRITE_FLUSH		(REQ_SYNC | REQ_NOIDLE | REQ_PREFLUSH)
-#define WRITE_FUA		(REQ_SYNC | REQ_NOIDLE | REQ_FUA)
-#define WRITE_FLUSH_FUA		(REQ_SYNC | REQ_NOIDLE | REQ_PREFLUSH | REQ_FUA)
 
 /*
  * Attribute flags.  These should be or-ed together to figure out what
@@ -595,6 +543,7 @@ is_uncached_acl(struct posix_acl *acl)
 #define IOP_LOOKUP	0x0002
 #define IOP_NOFOLLOW	0x0004
 #define IOP_XATTR	0x0008
+#define IOP_DEFAULT_READLINK	0x0010
 
 /*
  * Keep mostly read-only and often accessed (especially for
@@ -1778,10 +1727,29 @@ extern ssize_t vfs_writev(struct file *, const struct iovec __user *,
 		unsigned long, loff_t *, int);
 extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
 				   loff_t, size_t, unsigned int);
+extern int vfs_clone_file_prep_inodes(struct inode *inode_in, loff_t pos_in,
+				      struct inode *inode_out, loff_t pos_out,
+				      u64 *len, bool is_dedupe);
 extern int vfs_clone_file_range(struct file *file_in, loff_t pos_in,
 		struct file *file_out, loff_t pos_out, u64 len);
+extern int vfs_dedupe_file_range_compare(struct inode *src, loff_t srcoff,
+					 struct inode *dest, loff_t destoff,
+					 loff_t len, bool *is_same);
 extern int vfs_dedupe_file_range(struct file *file,
 				 struct file_dedupe_range *same);
+
+static inline int do_clone_file_range(struct file *file_in, loff_t pos_in,
+				      struct file *file_out, loff_t pos_out,
+				      u64 len)
+{
+	int ret;
+
+	sb_start_write(file_inode(file_out)->i_sb);
+	ret = vfs_clone_file_range(file_in, pos_in, file_out, pos_out, len);
+	sb_end_write(file_inode(file_out)->i_sb);
+
+	return ret;
+}
 
 struct super_operations {
    	struct inode *(*alloc_inode)(struct super_block *sb);
@@ -2123,11 +2091,11 @@ extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
 extern long do_mount(const char *, const char __user *,
 		     const char *, unsigned long, void *);
-extern struct vfsmount *collect_mounts(struct path *);
+extern struct vfsmount *collect_mounts(const struct path *);
 extern void drop_collected_mounts(struct vfsmount *);
 extern int iterate_mounts(int (*)(struct vfsmount *, void *), void *,
 			  struct vfsmount *);
-extern int vfs_statfs(struct path *, struct kstatfs *);
+extern int vfs_statfs(const struct path *, struct kstatfs *);
 extern int user_statfs(const char __user *, struct kstatfs *);
 extern int fd_statfs(int, struct kstatfs *);
 extern int vfs_ustat(dev_t, struct kstatfs *);
@@ -2499,19 +2467,6 @@ extern void make_bad_inode(struct inode *);
 extern bool is_bad_inode(struct inode *);
 
 #ifdef CONFIG_BLOCK
-static inline bool op_is_write(unsigned int op)
-{
-	return op == REQ_OP_READ ? false : true;
-}
-
-/*
- * return data direction, READ or WRITE
- */
-static inline int bio_data_dir(struct bio *bio)
-{
-	return op_is_write(bio_op(bio)) ? WRITE : READ;
-}
-
 extern void check_disk_size_change(struct gendisk *disk,
 				   struct block_device *bdev);
 extern int revalidate_disk(struct gendisk *);
@@ -2709,7 +2664,7 @@ extern struct file * open_exec(const char *);
  
 /* fs/dcache.c -- generic fs support functions */
 extern bool is_subdir(struct dentry *, struct dentry *);
-extern bool path_is_under(struct path *, struct path *);
+extern bool path_is_under(const struct path *, const struct path *);
 
 extern char *file_path(struct file *, char *, int);
 
@@ -2782,7 +2737,6 @@ static inline void remove_inode_hash(struct inode *inode)
 extern void inode_sb_list_add(struct inode *inode);
 
 #ifdef CONFIG_BLOCK
-extern blk_qc_t submit_bio(struct bio *);
 extern int bdev_read_only(struct block_device *);
 #endif
 extern int set_blocksize(struct block_device *, int);
@@ -2914,7 +2868,6 @@ extern int __page_symlink(struct inode *inode, const char *symname, int len,
 extern int page_symlink(struct inode *inode, const char *symname, int len);
 extern const struct inode_operations page_symlink_inode_operations;
 extern void kfree_link(void *);
-extern int generic_readlink(struct dentry *, char __user *, int);
 extern void generic_fillattr(struct inode *, struct kstat *);
 int vfs_getattr_nosec(struct path *path, struct kstat *stat);
 extern int vfs_getattr(struct path *, struct kstat *);
@@ -2935,6 +2888,7 @@ extern int vfs_lstat(const char __user *, struct kstat *);
 extern int vfs_fstat(unsigned int, struct kstat *);
 extern int vfs_fstatat(int , const char __user *, struct kstat *, int);
 extern const char *vfs_get_link(struct dentry *, struct delayed_call *);
+extern int vfs_readlink(struct dentry *, char __user *, int);
 
 extern int __generic_block_fiemap(struct inode *inode,
 				  struct fiemap_extent_info *fieinfo,
@@ -2949,8 +2903,10 @@ extern void put_filesystem(struct file_system_type *fs);
 extern struct file_system_type *get_fs_type(const char *name);
 extern struct super_block *get_super(struct block_device *);
 extern struct super_block *get_super_thawed(struct block_device *);
+extern struct super_block *get_super_exclusive_thawed(struct block_device *bdev);
 extern struct super_block *get_active_super(struct block_device *bdev);
 extern void drop_super(struct super_block *sb);
+extern void drop_super_exclusive(struct super_block *sb);
 extern void iterate_supers(void (*)(struct super_block *, void *), void *);
 extern void iterate_supers_type(struct file_system_type *,
 			        void (*)(struct super_block *, void *), void *);

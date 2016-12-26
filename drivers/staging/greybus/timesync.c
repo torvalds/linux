@@ -807,11 +807,11 @@ static int gb_timesync_schedule(struct gb_timesync_svc *timesync_svc, int state)
 		return -EINVAL;
 
 	mutex_lock(&timesync_svc->mutex);
-	if (timesync_svc->state !=  GB_TIMESYNC_STATE_INVALID) {
+	if (timesync_svc->state !=  GB_TIMESYNC_STATE_INVALID)
 		gb_timesync_set_state_atomic(timesync_svc, state);
-	} else {
+	else
 		ret = -ENODEV;
-	}
+
 	mutex_unlock(&timesync_svc->mutex);
 	return ret;
 }
@@ -921,7 +921,7 @@ EXPORT_SYMBOL_GPL(gb_timesync_schedule_asynchronous);
 static ssize_t gb_timesync_ping_read(struct file *file, char __user *ubuf,
 				     size_t len, loff_t *offset, bool ktime)
 {
-	struct gb_timesync_svc *timesync_svc = file->f_inode->i_private;
+	struct gb_timesync_svc *timesync_svc = file_inode(file)->i_private;
 	char *buf;
 	ssize_t ret = 0;
 

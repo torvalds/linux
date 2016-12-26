@@ -67,6 +67,8 @@ struct rmi_2d_sensor {
 	u8 report_rel;
 	u8 x_mm;
 	u8 y_mm;
+	enum rmi_reg_state dribble;
+	enum rmi_reg_state palm_detect;
 };
 
 int rmi_2d_sensor_of_probe(struct device *dev,

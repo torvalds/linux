@@ -224,7 +224,7 @@ struct ocfs2_orphan_scan {
 	struct ocfs2_super 	*os_osb;
 	struct ocfs2_lock_res 	os_lockres;     /* lock to synchronize scans */
 	struct delayed_work 	os_orphan_scan_work;
-	struct timespec		os_scantime;  /* time this node ran the scan */
+	time64_t		os_scantime;  /* time this node ran the scan */
 	u32			os_count;      /* tracks node specific scans */
 	u32  			os_seqno;       /* tracks cluster wide scans */
 	atomic_t		os_state;              /* ACTIVE or INACTIVE */

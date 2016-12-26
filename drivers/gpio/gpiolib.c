@@ -986,7 +986,8 @@ static int gpio_chrdev_open(struct inode *inode, struct file *filp)
 		return -ENODEV;
 	get_device(&gdev->dev);
 	filp->private_data = gdev;
-	return 0;
+
+	return nonseekable_open(inode, filp);
 }
 
 /**
@@ -1011,7 +1012,7 @@ static const struct file_operations gpio_fileops = {
 	.release = gpio_chrdev_release,
 	.open = gpio_chrdev_open,
 	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
+	.llseek = no_llseek,
 	.unlocked_ioctl = gpio_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = gpio_ioctl_compat,
@@ -1512,7 +1513,7 @@ static bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gpiochip,
 }
 
 /**
- * gpiochip_set_chained_irqchip() - sets a chained irqchip to a gpiochip
+ * gpiochip_set_cascaded_irqchip() - connects a cascaded irqchip to a gpiochip
  * @gpiochip: the gpiochip to set the irqchip chain to
  * @irqchip: the irqchip to chain to the gpiochip
  * @parent_irq: the irq number corresponding to the parent IRQ for this
@@ -1521,10 +1522,10 @@ static bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gpiochip,
  * coming out of the gpiochip. If the interrupt is nested rather than
  * cascaded, pass NULL in this handler argument
  */
-void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
-				  struct irq_chip *irqchip,
-				  int parent_irq,
-				  irq_flow_handler_t parent_handler)
+static void gpiochip_set_cascaded_irqchip(struct gpio_chip *gpiochip,
+					  struct irq_chip *irqchip,
+					  int parent_irq,
+					  irq_flow_handler_t parent_handler)
 {
 	unsigned int offset;
 
@@ -1548,7 +1549,7 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 		irq_set_chained_handler_and_data(parent_irq, parent_handler,
 						 gpiochip);
 
-		gpiochip->irq_parent = parent_irq;
+		gpiochip->irq_chained_parent = parent_irq;
 	}
 
 	/* Set the parent IRQ for all affected IRQs */
@@ -1559,7 +1560,46 @@ void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
 			       parent_irq);
 	}
 }
+
+/**
+ * gpiochip_set_chained_irqchip() - connects a chained irqchip to a gpiochip
+ * @gpiochip: the gpiochip to set the irqchip chain to
+ * @irqchip: the irqchip to chain to the gpiochip
+ * @parent_irq: the irq number corresponding to the parent IRQ for this
+ * chained irqchip
+ * @parent_handler: the parent interrupt handler for the accumulated IRQ
+ * coming out of the gpiochip. If the interrupt is nested rather than
+ * cascaded, pass NULL in this handler argument
+ */
+void gpiochip_set_chained_irqchip(struct gpio_chip *gpiochip,
+				  struct irq_chip *irqchip,
+				  int parent_irq,
+				  irq_flow_handler_t parent_handler)
+{
+	gpiochip_set_cascaded_irqchip(gpiochip, irqchip, parent_irq,
+				      parent_handler);
+}
 EXPORT_SYMBOL_GPL(gpiochip_set_chained_irqchip);
+
+/**
+ * gpiochip_set_nested_irqchip() - connects a nested irqchip to a gpiochip
+ * @gpiochip: the gpiochip to set the irqchip nested handler to
+ * @irqchip: the irqchip to nest to the gpiochip
+ * @parent_irq: the irq number corresponding to the parent IRQ for this
+ * nested irqchip
+ */
+void gpiochip_set_nested_irqchip(struct gpio_chip *gpiochip,
+				 struct irq_chip *irqchip,
+				 int parent_irq)
+{
+	if (!gpiochip->irq_nested) {
+		chip_err(gpiochip, "tried to nest a chained gpiochip\n");
+		return;
+	}
+	gpiochip_set_cascaded_irqchip(gpiochip, irqchip, parent_irq,
+				      NULL);
+}
+EXPORT_SYMBOL_GPL(gpiochip_set_nested_irqchip);
 
 /**
  * gpiochip_irq_map() - maps an IRQ into a GPIO irqchip
@@ -1583,8 +1623,8 @@ static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
 	 */
 	irq_set_lockdep_class(irq, chip->lock_key);
 	irq_set_chip_and_handler(irq, chip->irqchip, chip->irq_handler);
-	/* Chips that can sleep need nested thread handlers */
-	if (chip->can_sleep && !chip->irq_not_threaded)
+	/* Chips that use nested thread handlers have them marked */
+	if (chip->irq_nested)
 		irq_set_nested_thread(irq, 1);
 	irq_set_noprobe(irq);
 
@@ -1602,7 +1642,7 @@ static void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
 	struct gpio_chip *chip = d->host_data;
 
-	if (chip->can_sleep)
+	if (chip->irq_nested)
 		irq_set_nested_thread(irq, 0);
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
@@ -1657,9 +1697,9 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
 
 	acpi_gpiochip_free_interrupts(gpiochip);
 
-	if (gpiochip->irq_parent) {
-		irq_set_chained_handler(gpiochip->irq_parent, NULL);
-		irq_set_handler_data(gpiochip->irq_parent, NULL);
+	if (gpiochip->irq_chained_parent) {
+		irq_set_chained_handler(gpiochip->irq_chained_parent, NULL);
+		irq_set_handler_data(gpiochip->irq_chained_parent, NULL);
 	}
 
 	/* Remove all IRQ mappings and delete the domain */
@@ -1683,7 +1723,7 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
 }
 
 /**
- * gpiochip_irqchip_add() - adds an irqchip to a gpiochip
+ * _gpiochip_irqchip_add() - adds an irqchip to a gpiochip
  * @gpiochip: the gpiochip to add the irqchip to
  * @irqchip: the irqchip to add to the gpiochip
  * @first_irq: if not dynamically assigned, the base (first) IRQ to
@@ -1691,6 +1731,8 @@ static void gpiochip_irqchip_remove(struct gpio_chip *gpiochip)
  * @handler: the irq handler to use (often a predefined irq core function)
  * @type: the default type for IRQs on this irqchip, pass IRQ_TYPE_NONE
  * to have the core avoid setting up any default type in the hardware.
+ * @nested: whether this is a nested irqchip calling handle_nested_irq()
+ * in its IRQ handler
  * @lock_key: lockdep class
  *
  * This function closely associates a certain irqchip with a certain
@@ -1712,6 +1754,7 @@ int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 			  unsigned int first_irq,
 			  irq_flow_handler_t handler,
 			  unsigned int type,
+			  bool nested,
 			  struct lock_class_key *lock_key)
 {
 	struct device_node *of_node;
@@ -1726,6 +1769,7 @@ int _gpiochip_irqchip_add(struct gpio_chip *gpiochip,
 		pr_err("missing gpiochip .dev parent pointer\n");
 		return -EINVAL;
 	}
+	gpiochip->irq_nested = nested;
 	of_node = gpiochip->parent->of_node;
 #ifdef CONFIG_OF_GPIO
 	/*
@@ -2223,6 +2267,7 @@ EXPORT_SYMBOL_GPL(gpiod_direction_input);
 static int _gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 {
 	struct gpio_chip *gc = desc->gdev->chip;
+	int val = !!value;
 	int ret;
 
 	/* GPIOs used for IRQs shall not be set as output */
@@ -2242,7 +2287,7 @@ static int _gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 				goto set_output_value;
 		}
 		/* Emulate open drain by not actively driving the line high */
-		if (value)
+		if (val)
 			return gpiod_direction_input(desc);
 	}
 	else if (test_bit(FLAG_OPEN_SOURCE, &desc->flags)) {
@@ -2253,7 +2298,7 @@ static int _gpiod_direction_output_raw(struct gpio_desc *desc, int value)
 				goto set_output_value;
 		}
 		/* Emulate open source by not actively driving the line low */
-		if (!value)
+		if (!val)
 			return gpiod_direction_input(desc);
 	} else {
 		/* Make sure to disable open drain/source hardware, if any */
@@ -2271,10 +2316,10 @@ set_output_value:
 		return -EIO;
 	}
 
-	ret = gc->direction_output(gc, gpio_chip_hwgpio(desc), value);
+	ret = gc->direction_output(gc, gpio_chip_hwgpio(desc), val);
 	if (!ret)
 		set_bit(FLAG_IS_OUT, &desc->flags);
-	trace_gpio_value(desc_to_gpio(desc), 0, value);
+	trace_gpio_value(desc_to_gpio(desc), 0, val);
 	trace_gpio_direction(desc_to_gpio(desc), 0, ret);
 	return ret;
 }
@@ -2314,6 +2359,8 @@ int gpiod_direction_output(struct gpio_desc *desc, int value)
 	VALIDATE_DESC(desc);
 	if (test_bit(FLAG_ACTIVE_LOW, &desc->flags))
 		value = !value;
+	else
+		value = !!value;
 	return _gpiod_direction_output_raw(desc, value);
 }
 EXPORT_SYMBOL_GPL(gpiod_direction_output);
@@ -2758,6 +2805,15 @@ int gpiochip_lock_as_irq(struct gpio_chip *chip, unsigned int offset)
 	}
 
 	set_bit(FLAG_USED_AS_IRQ, &desc->flags);
+
+	/*
+	 * If the consumer has not set up a label (such as when the
+	 * IRQ is referenced from .to_irq()) we set up a label here
+	 * so it is clear this is used as an interrupt.
+	 */
+	if (!desc->label)
+		desc_set_label(desc, "interrupt");
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(gpiochip_lock_as_irq);
@@ -2772,10 +2828,17 @@ EXPORT_SYMBOL_GPL(gpiochip_lock_as_irq);
  */
 void gpiochip_unlock_as_irq(struct gpio_chip *chip, unsigned int offset)
 {
-	if (offset >= chip->ngpio)
+	struct gpio_desc *desc;
+
+	desc = gpiochip_get_desc(chip, offset);
+	if (IS_ERR(desc))
 		return;
 
-	clear_bit(FLAG_USED_AS_IRQ, &chip->gpiodev->descs[offset].flags);
+	clear_bit(FLAG_USED_AS_IRQ, &desc->flags);
+
+	/* If we only had this marking, erase it */
+	if (desc->label && !strcmp(desc->label, "interrupt"))
+		desc_set_label(desc, NULL);
 }
 EXPORT_SYMBOL_GPL(gpiochip_unlock_as_irq);
 
@@ -3170,7 +3233,7 @@ static int gpiod_configure_flags(struct gpio_desc *desc, const char *con_id,
 	/* Process flags */
 	if (dflags & GPIOD_FLAGS_BIT_DIR_OUT)
 		status = gpiod_direction_output(desc,
-					      dflags & GPIOD_FLAGS_BIT_DIR_VAL);
+				!!(dflags & GPIOD_FLAGS_BIT_DIR_VAL));
 	else
 		status = gpiod_direction_input(desc);
 

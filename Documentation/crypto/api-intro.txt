@@ -44,12 +44,9 @@ one block while the former can operate on an arbitrary amount of data,
 subject to block size requirements (i.e., non-stream ciphers can only
 process multiples of blocks).
 
-Support for hardware crypto devices via an asynchronous interface is
-under development.
-
 Here's an example of how to use the API:
 
-	#include <crypto/ahash.h>
+	#include <crypto/hash.h>
 	#include <linux/err.h>
 	#include <linux/scatterlist.h>
 	

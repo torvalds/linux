@@ -18,7 +18,106 @@
 #include <linux/of_pci.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
+#include <linux/pci.h>
+#include <linux/pci-acpi.h>
+#include <linux/pci-ecam.h>
 #include <linux/regmap.h>
+#include "../pci.h"
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
+
+static int hisi_pcie_acpi_rd_conf(struct pci_bus *bus, u32 devfn, int where,
+				  int size, u32 *val)
+{
+	struct pci_config_window *cfg = bus->sysdata;
+	int dev = PCI_SLOT(devfn);
+
+	if (bus->number == cfg->busr.start) {
+		/* access only one slot on each root port */
+		if (dev > 0)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+		else
+			return pci_generic_config_read32(bus, devfn, where,
+							 size, val);
+	}
+
+	return pci_generic_config_read(bus, devfn, where, size, val);
+}
+
+static int hisi_pcie_acpi_wr_conf(struct pci_bus *bus, u32 devfn,
+				  int where, int size, u32 val)
+{
+	struct pci_config_window *cfg = bus->sysdata;
+	int dev = PCI_SLOT(devfn);
+
+	if (bus->number == cfg->busr.start) {
+		/* access only one slot on each root port */
+		if (dev > 0)
+			return PCIBIOS_DEVICE_NOT_FOUND;
+		else
+			return pci_generic_config_write32(bus, devfn, where,
+							  size, val);
+	}
+
+	return pci_generic_config_write(bus, devfn, where, size, val);
+}
+
+static void __iomem *hisi_pcie_map_bus(struct pci_bus *bus, unsigned int devfn,
+				       int where)
+{
+	struct pci_config_window *cfg = bus->sysdata;
+	void __iomem *reg_base = cfg->priv;
+
+	if (bus->number == cfg->busr.start)
+		return reg_base + where;
+	else
+		return pci_ecam_map_bus(bus, devfn, where);
+}
+
+static int hisi_pcie_init(struct pci_config_window *cfg)
+{
+	struct device *dev = cfg->parent;
+	struct acpi_device *adev = to_acpi_device(dev);
+	struct acpi_pci_root *root = acpi_driver_data(adev);
+	struct resource *res;
+	void __iomem *reg_base;
+	int ret;
+
+	/*
+	 * Retrieve RC base and size from a HISI0081 device with _UID
+	 * matching our segment.
+	 */
+	res = devm_kzalloc(dev, sizeof(*res), GFP_KERNEL);
+	if (!res)
+		return -ENOMEM;
+
+	ret = acpi_get_rc_resources(dev, "HISI0081", root->segment, res);
+	if (ret) {
+		dev_err(dev, "can't get rc base address\n");
+		return -ENOMEM;
+	}
+
+	reg_base = devm_ioremap(dev, res->start, resource_size(res));
+	if (!reg_base)
+		return -ENOMEM;
+
+	cfg->priv = reg_base;
+	return 0;
+}
+
+struct pci_ecam_ops hisi_pcie_ops = {
+	.bus_shift    = 20,
+	.init         =  hisi_pcie_init,
+	.pci_ops      = {
+		.map_bus    = hisi_pcie_map_bus,
+		.read       = hisi_pcie_acpi_rd_conf,
+		.write      = hisi_pcie_acpi_wr_conf,
+	}
+};
+
+#endif
+
+#ifdef CONFIG_PCI_HISI
 
 #include "pcie-designware.h"
 
@@ -185,16 +284,12 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 
 	reg = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rc_dbi");
 	pp->dbi_base = devm_ioremap_resource(dev, reg);
-	if (IS_ERR(pp->dbi_base)) {
-		dev_err(dev, "cannot get rc_dbi base\n");
+	if (IS_ERR(pp->dbi_base))
 		return PTR_ERR(pp->dbi_base);
-	}
 
 	ret = hisi_add_pcie_port(hisi_pcie, pdev);
 	if (ret)
 		return ret;
-
-	dev_warn(dev, "only 32-bit config accesses supported; smaller writes may corrupt adjacent RW1C fields\n");
 
 	return 0;
 }
@@ -227,3 +322,5 @@ static struct platform_driver hisi_pcie_driver = {
 	},
 };
 builtin_platform_driver(hisi_pcie_driver);
+
+#endif

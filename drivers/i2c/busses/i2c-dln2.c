@@ -182,7 +182,7 @@ static const struct i2c_algorithm dln2_i2c_usb_algorithm = {
 	.functionality = dln2_i2c_func,
 };
 
-static struct i2c_adapter_quirks dln2_i2c_quirks = {
+static const struct i2c_adapter_quirks dln2_i2c_quirks = {
 	.max_read_len = DLN2_I2C_MAX_XFER_SIZE,
 	.max_write_len = DLN2_I2C_MAX_XFER_SIZE,
 };

@@ -187,7 +187,7 @@ static int mioa701_wm9713_probe(struct platform_device *pdev)
 	mioa701.dev = &pdev->dev;
 	rc = devm_snd_soc_register_card(&pdev->dev, &mioa701);
 	if (!rc)
-		dev_warn(&pdev->dev, "Be warned that incorrect mixers/muxes setup will"
+		dev_warn(&pdev->dev, "Be warned that incorrect mixers/muxes setup will "
 			 "lead to overheating and possible destruction of your device."
 			 " Do not use without a good knowledge of mio's board design!\n");
 	return rc;

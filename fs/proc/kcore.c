@@ -23,7 +23,7 @@
 #include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <linux/list.h>
 #include <linux/ioport.h>

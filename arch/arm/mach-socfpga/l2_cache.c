@@ -74,7 +74,7 @@ void socfpga_init_arria10_l2_ecc(void)
 	}
 
 	if (!sys_manager_base_addr) {
-		pr_err("System Mananger not mapped for L2 ECC\n");
+		pr_err("System Manager not mapped for L2 ECC\n");
 		goto exit;
 	}
 	/* Clear any pending IRQs */

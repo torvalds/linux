@@ -39,8 +39,8 @@
 
 #include <linux/types.h>
 
-#define I40IW_ABI_USERSPACE_VER 4
-#define I40IW_ABI_KERNEL_VER    4
+#define I40IW_ABI_VER 5
+
 struct i40iw_alloc_ucontext_req {
 	__u32 reserved32;
 	__u8 userspace_ver;

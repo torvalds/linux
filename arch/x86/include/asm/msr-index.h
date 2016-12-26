@@ -37,6 +37,10 @@
 #define EFER_FFXSR		(1<<_EFER_FFXSR)
 
 /* Intel MSRs. Some also available on other CPUs */
+
+#define MSR_PPIN_CTL			0x0000004e
+#define MSR_PPIN			0x0000004f
+
 #define MSR_IA32_PERFCTR0		0x000000c1
 #define MSR_IA32_PERFCTR1		0x000000c2
 #define MSR_FSB_FREQ			0x000000cd

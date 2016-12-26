@@ -39,6 +39,12 @@ enum {
 	EVENT_DATA_ERROR,
 };
 
+enum dw_mci_cookie {
+	COOKIE_UNMAPPED,
+	COOKIE_PRE_MAPPED,	/* mapped by pre_req() of dwmmc */
+	COOKIE_MAPPED,		/* mapped by prepare_data() of dwmmc */
+};
+
 struct mmc_data;
 
 enum {

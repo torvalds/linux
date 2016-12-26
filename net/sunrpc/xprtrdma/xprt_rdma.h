@@ -75,6 +75,7 @@ struct rpcrdma_ia {
 	unsigned int		ri_max_inline_write;
 	unsigned int		ri_max_inline_read;
 	bool			ri_reminv_expected;
+	enum ib_mr_type		ri_mrtype;
 	struct ib_qp_attr	ri_qp_attr;
 	struct ib_qp_init_attr	ri_qp_init_attr;
 };
@@ -95,8 +96,24 @@ struct rpcrdma_ep {
 	struct delayed_work	rep_connect_worker;
 };
 
-#define INIT_CQCOUNT(ep) atomic_set(&(ep)->rep_cqcount, (ep)->rep_cqinit)
-#define DECR_CQCOUNT(ep) atomic_sub_return(1, &(ep)->rep_cqcount)
+static inline void
+rpcrdma_init_cqcount(struct rpcrdma_ep *ep, int count)
+{
+	atomic_set(&ep->rep_cqcount, ep->rep_cqinit - count);
+}
+
+/* To update send queue accounting, provider must take a
+ * send completion every now and then.
+ */
+static inline void
+rpcrdma_set_signaled(struct rpcrdma_ep *ep, struct ib_send_wr *send_wr)
+{
+	send_wr->send_flags = 0;
+	if (unlikely(atomic_sub_return(1, &ep->rep_cqcount) <= 0)) {
+		rpcrdma_init_cqcount(ep, 0);
+		send_wr->send_flags = IB_SEND_SIGNALED;
+	}
+}
 
 /* Pre-allocate extra Work Requests for handling backward receives
  * and sends. This is a fixed value because the Work Queues are
@@ -473,6 +490,7 @@ int rpcrdma_ep_create(struct rpcrdma_ep *, struct rpcrdma_ia *,
 				struct rpcrdma_create_data_internal *);
 void rpcrdma_ep_destroy(struct rpcrdma_ep *, struct rpcrdma_ia *);
 int rpcrdma_ep_connect(struct rpcrdma_ep *, struct rpcrdma_ia *);
+void rpcrdma_conn_func(struct rpcrdma_ep *ep);
 void rpcrdma_ep_disconnect(struct rpcrdma_ep *, struct rpcrdma_ia *);
 
 int rpcrdma_ep_post(struct rpcrdma_ia *, struct rpcrdma_ep *,
@@ -532,13 +550,6 @@ rpcrdma_data_dir(bool writing)
 }
 
 /*
- * RPC/RDMA connection management calls - xprtrdma/rpc_rdma.c
- */
-void rpcrdma_connect_worker(struct work_struct *);
-void rpcrdma_conn_func(struct rpcrdma_ep *);
-void rpcrdma_reply_handler(struct work_struct *);
-
-/*
  * RPC/RDMA protocol calls - xprtrdma/rpc_rdma.c
  */
 
@@ -555,12 +566,14 @@ bool rpcrdma_prepare_send_sges(struct rpcrdma_ia *, struct rpcrdma_req *,
 void rpcrdma_unmap_sges(struct rpcrdma_ia *, struct rpcrdma_req *);
 int rpcrdma_marshal_req(struct rpc_rqst *);
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);
+void rpcrdma_reply_handler(struct work_struct *work);
 
 /* RPC/RDMA module init - xprtrdma/transport.c
  */
 extern unsigned int xprt_rdma_max_inline_read;
 void xprt_rdma_format_addresses(struct rpc_xprt *xprt, struct sockaddr *sap);
 void xprt_rdma_free_addresses(struct rpc_xprt *xprt);
+void rpcrdma_connect_worker(struct work_struct *work);
 void xprt_rdma_print_stats(struct rpc_xprt *xprt, struct seq_file *seq);
 int xprt_rdma_init(void);
 void xprt_rdma_cleanup(void);

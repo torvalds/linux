@@ -30,7 +30,7 @@
 
 #include "ixgb.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define IXGB_ALL_RAR_ENTRIES 16
 

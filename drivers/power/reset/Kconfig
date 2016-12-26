@@ -104,6 +104,16 @@ config POWER_RESET_MSM
 	help
 	  Power off and restart support for Qualcomm boards.
 
+config POWER_RESET_PIIX4_POWEROFF
+	tristate "Intel PIIX4 power-off driver"
+	depends on PCI
+	depends on MIPS || COMPILE_TEST
+	help
+	  This driver supports powering off a system using the Intel PIIX4
+	  southbridge, for example the MIPS Malta development board. The
+	  southbridge SOff state is entered in response to a request to
+	  power off the system.
+
 config POWER_RESET_LTC2952
 	bool "LTC2952 PowerPath power-off driver"
 	depends on OF_GPIO

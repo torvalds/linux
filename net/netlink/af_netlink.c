@@ -40,7 +40,7 @@
 #include <linux/net.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
@@ -113,7 +113,7 @@ static atomic_t nl_table_users = ATOMIC_INIT(0);
 
 #define nl_deref_protected(X) rcu_dereference_protected(X, lockdep_is_held(&nl_table_lock));
 
-static ATOMIC_NOTIFIER_HEAD(netlink_chain);
+static BLOCKING_NOTIFIER_HEAD(netlink_chain);
 
 static DEFINE_SPINLOCK(netlink_tap_lock);
 static struct list_head netlink_tap_all __read_mostly;
@@ -329,7 +329,6 @@ static void netlink_sock_destruct(struct sock *sk)
 	if (nlk->cb_running) {
 		if (nlk->cb.done)
 			nlk->cb.done(&nlk->cb);
-
 		module_put(nlk->cb.module);
 		kfree_skb(nlk->cb.skb);
 	}
@@ -344,6 +343,14 @@ static void netlink_sock_destruct(struct sock *sk)
 	WARN_ON(atomic_read(&sk->sk_rmem_alloc));
 	WARN_ON(atomic_read(&sk->sk_wmem_alloc));
 	WARN_ON(nlk_sk(sk)->groups);
+}
+
+static void netlink_sock_destruct_work(struct work_struct *work)
+{
+	struct netlink_sock *nlk = container_of(work, struct netlink_sock,
+						work);
+
+	sk_free(&nlk->sk);
 }
 
 /* This lock without WQ_FLAG_EXCLUSIVE is good on UP and it is _very_ bad on
@@ -648,8 +655,18 @@ out_module:
 static void deferred_put_nlk_sk(struct rcu_head *head)
 {
 	struct netlink_sock *nlk = container_of(head, struct netlink_sock, rcu);
+	struct sock *sk = &nlk->sk;
 
-	sock_put(&nlk->sk);
+	if (!atomic_dec_and_test(&sk->sk_refcnt))
+		return;
+
+	if (nlk->cb_running && nlk->cb.done) {
+		INIT_WORK(&nlk->work, netlink_sock_destruct_work);
+		schedule_work(&nlk->work);
+		return;
+	}
+
+	sk_free(sk);
 }
 
 static int netlink_release(struct socket *sock)
@@ -694,7 +711,7 @@ static int netlink_release(struct socket *sock)
 						.protocol = sk->sk_protocol,
 						.portid = nlk->portid,
 					  };
-		atomic_notifier_call_chain(&netlink_chain,
+		blocking_notifier_call_chain(&netlink_chain,
 				NETLINK_URELEASE, &n);
 	}
 
@@ -2487,13 +2504,13 @@ static const struct file_operations netlink_seq_fops = {
 
 int netlink_register_notifier(struct notifier_block *nb)
 {
-	return atomic_notifier_chain_register(&netlink_chain, nb);
+	return blocking_notifier_chain_register(&netlink_chain, nb);
 }
 EXPORT_SYMBOL(netlink_register_notifier);
 
 int netlink_unregister_notifier(struct notifier_block *nb)
 {
-	return atomic_notifier_chain_unregister(&netlink_chain, nb);
+	return blocking_notifier_chain_unregister(&netlink_chain, nb);
 }
 EXPORT_SYMBOL(netlink_unregister_notifier);
 

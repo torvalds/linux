@@ -263,6 +263,46 @@ int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb,
 	return 0;
 }
 
+int hns_mac_add_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
+			const unsigned char *addr)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	struct dsaf_drv_mac_single_dest_entry mac_entry;
+	int ret;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return -ENOSPC;
+
+	memset(&mac_entry, 0, sizeof(mac_entry));
+	memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
+	mac_entry.in_port_num = mac_cb->mac_id;
+	ret = hns_mac_get_inner_port_num(mac_cb, vf_id, &mac_entry.port_num);
+	if (ret)
+		return ret;
+
+	return hns_dsaf_set_mac_uc_entry(dsaf_dev, &mac_entry);
+}
+
+int hns_mac_rm_uc_addr(struct hns_mac_cb *mac_cb, u8 vf_id,
+		       const unsigned char *addr)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	struct dsaf_drv_mac_single_dest_entry mac_entry;
+	int ret;
+
+	if (HNS_DSAF_IS_DEBUG(dsaf_dev))
+		return -ENOSPC;
+
+	memset(&mac_entry, 0, sizeof(mac_entry));
+	memcpy(mac_entry.addr, addr, sizeof(mac_entry.addr));
+	mac_entry.in_port_num = mac_cb->mac_id;
+	ret = hns_mac_get_inner_port_num(mac_cb, vf_id, &mac_entry.port_num);
+	if (ret)
+		return ret;
+
+	return hns_dsaf_rm_mac_addr(dsaf_dev, &mac_entry);
+}
+
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
 		      u32 port_num, char *addr, bool enable)
 {
@@ -330,13 +370,24 @@ int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac)
 	return 0;
 }
 
+int hns_mac_clr_multicast(struct hns_mac_cb *mac_cb, int vfn)
+{
+	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
+	u8 port_num;
+	int ret = hns_mac_get_inner_port_num(mac_cb, vfn, &port_num);
+
+	if (ret)
+		return ret;
+
+	return hns_dsaf_clr_mac_mc_port(dsaf_dev, mac_cb->mac_id, port_num);
+}
+
 static void hns_mac_param_get(struct mac_params *param,
 			      struct hns_mac_cb *mac_cb)
 {
 	param->vaddr = (void *)mac_cb->vaddr;
 	param->mac_mode = hns_get_enet_interface(mac_cb);
-	memcpy(param->addr, mac_cb->addr_entry_idx[0].addr,
-	       MAC_NUM_OCTETS_PER_ADDR);
+	ether_addr_copy(param->addr, mac_cb->addr_entry_idx[0].addr);
 	param->mac_id = mac_cb->mac_id;
 	param->dev = mac_cb->dev;
 }
@@ -353,8 +404,7 @@ static int hns_mac_port_config_bc_en(struct hns_mac_cb *mac_cb,
 {
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR]
-		= {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
 	/* directy return ok in debug network mode */
@@ -389,8 +439,7 @@ int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vmid, bool enable)
 	int ret;
 	struct dsaf_device *dsaf_dev = mac_cb->dsaf_dev;
 	u8 port_num;
-	u8 addr[MAC_NUM_OCTETS_PER_ADDR]
-		= {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	u8 addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct mac_entry_idx *uc_mac_entry;
 	struct dsaf_drv_mac_single_dest_entry mac_entry;
 
@@ -453,8 +502,7 @@ int hns_mac_set_mtu(struct hns_mac_cb *mac_cb, u32 new_mtu)
 	if (mac_cb->mac_type == HNAE_PORT_DEBUG)
 		max_frm = MAC_MAX_MTU_DBG;
 
-	if ((new_mtu < MAC_MIN_MTU) || (new_frm > max_frm) ||
-	    (new_frm > HNS_RCB_RING_MAX_BD_PER_PKT * buf_size))
+	if (new_frm > HNS_RCB_RING_MAX_BD_PER_PKT * buf_size)
 		return -EINVAL;
 
 	if (!drv->config_max_frame_length)
@@ -869,6 +917,13 @@ static int  hns_mac_get_info(struct hns_mac_cb *mac_cb)
 		}
 	}
 
+	if (fwnode_property_read_u8_array(mac_cb->fw_port, "mc-mac-mask",
+					  mac_cb->mc_mask, ETH_ALEN)) {
+		dev_warn(mac_cb->dev,
+			 "no mc-mac-mask property, set to default value.\n");
+		eth_broadcast_addr(mac_cb->mc_mask);
+	}
+
 	return 0;
 }
 
@@ -1081,6 +1136,8 @@ int hns_mac_get_sset_count(struct hns_mac_cb *mac_cb, int stringset)
 void hns_mac_set_promisc(struct hns_mac_cb *mac_cb, u8 en)
 {
 	struct mac_driver *mac_ctrl_drv = hns_mac_get_drv(mac_cb);
+
+	hns_dsaf_set_promisc_tcam(mac_cb->dsaf_dev, mac_cb->mac_id, !!en);
 
 	if (mac_ctrl_drv->set_promiscuous)
 		mac_ctrl_drv->set_promiscuous(mac_ctrl_drv, en);

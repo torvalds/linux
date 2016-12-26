@@ -90,7 +90,7 @@
 #include <linux/random.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/inet.h>
 #include <linux/igmp.h>
@@ -374,8 +374,18 @@ lookup_protocol:
 
 	if (sk->sk_prot->init) {
 		err = sk->sk_prot->init(sk);
-		if (err)
+		if (err) {
 			sk_common_release(sk);
+			goto out;
+		}
+	}
+
+	if (!kern) {
+		err = BPF_CGROUP_RUN_PROG_INET_SOCK(sk);
+		if (err) {
+			sk_common_release(sk);
+			goto out;
+		}
 	}
 out:
 	return err;
@@ -1233,7 +1243,7 @@ struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 		fixedid = !!(skb_shinfo(skb)->gso_type & SKB_GSO_TCP_FIXEDID);
 
 		/* fixed ID is invalid if DF bit is not set */
-		if (fixedid && !(iph->frag_off & htons(IP_DF)))
+		if (fixedid && !(ip_hdr(skb)->frag_off & htons(IP_DF)))
 			goto out;
 	}
 

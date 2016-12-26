@@ -341,7 +341,7 @@ void output_pm_defines(void)
 
 void output_kvm_defines(void)
 {
-	COMMENT(" KVM/MIPS Specfic offsets. ");
+	COMMENT(" KVM/MIPS Specific offsets. ");
 
 	OFFSET(VCPU_FPR0, kvm_vcpu_arch, fpu.fpr[0]);
 	OFFSET(VCPU_FPR1, kvm_vcpu_arch, fpu.fpr[1]);

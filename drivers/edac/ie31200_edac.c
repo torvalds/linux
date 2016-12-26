@@ -41,7 +41,7 @@
 #include <linux/edac.h>
 
 #include <linux/io-64-nonatomic-lo-hi.h>
-#include "edac_core.h"
+#include "edac_module.h"
 
 #define IE31200_REVISION "1.0"
 #define EDAC_MOD_STR "ie31200_edac"

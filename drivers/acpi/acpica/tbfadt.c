@@ -311,6 +311,8 @@ void acpi_tb_parse_fadt(void)
 {
 	u32 length;
 	struct acpi_table_header *table;
+	struct acpi_table_desc *fadt_desc;
+	acpi_status status;
 
 	/*
 	 * The FADT has multiple versions with different lengths,
@@ -319,14 +321,12 @@ void acpi_tb_parse_fadt(void)
 	 * Get a local copy of the FADT and convert it to a common format
 	 * Map entire FADT, assumed to be smaller than one page.
 	 */
-	length = acpi_gbl_root_table_list.tables[acpi_gbl_fadt_index].length;
-
-	table =
-	    acpi_os_map_memory(acpi_gbl_root_table_list.
-			       tables[acpi_gbl_fadt_index].address, length);
-	if (!table) {
+	fadt_desc = &acpi_gbl_root_table_list.tables[acpi_gbl_fadt_index];
+	status = acpi_tb_get_table(fadt_desc, &table);
+	if (ACPI_FAILURE(status)) {
 		return;
 	}
+	length = fadt_desc->length;
 
 	/*
 	 * Validate the FADT checksum before we copy the table. Ignore
@@ -340,7 +340,7 @@ void acpi_tb_parse_fadt(void)
 
 	/* All done with the real FADT, unmap it */
 
-	acpi_os_unmap_memory(table, length);
+	acpi_tb_put_table(fadt_desc);
 
 	/* Obtain the DSDT and FACS tables via their addresses within the FADT */
 

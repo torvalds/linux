@@ -155,10 +155,9 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		clk_put(clk);
 	}
 
-	if (nand_scan(mtd, 1)) {
-		ret = -ENXIO;
+	ret = nand_scan(mtd, 1);
+	if (ret)
 		goto no_dev;
-	}
 
 	mtd->name = "orion_nand";
 	ret = mtd_device_register(mtd, board->parts, board->nr_parts);

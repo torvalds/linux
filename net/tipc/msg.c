@@ -268,7 +268,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		__skb_queue_tail(list, skb);
 		skb_copy_to_linear_data(skb, mhdr, mhsz);
 		pktpos = skb->data + mhsz;
-		if (copy_from_iter(pktpos, dsz, &m->msg_iter) == dsz)
+		if (copy_from_iter_full(pktpos, dsz, &m->msg_iter))
 			return dsz;
 		rc = -EFAULT;
 		goto error;
@@ -299,7 +299,7 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		if (drem < pktrem)
 			pktrem = drem;
 
-		if (copy_from_iter(pktpos, pktrem, &m->msg_iter) != pktrem) {
+		if (!copy_from_iter_full(pktpos, pktrem, &m->msg_iter)) {
 			rc = -EFAULT;
 			goto error;
 		}

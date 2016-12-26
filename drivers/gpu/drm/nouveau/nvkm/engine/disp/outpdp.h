@@ -29,10 +29,10 @@ struct nvkm_output_dp {
 	bool present;
 	u8 dpcd[16];
 
+	struct mutex mutex;
 	struct {
-		struct work_struct work;
-		wait_queue_head_t wait;
 		atomic_t done;
+		bool mst;
 	} lt;
 };
 
@@ -41,9 +41,11 @@ struct nvkm_output_dp_func {
 	int (*lnk_pwr)(struct nvkm_output_dp *, int nr);
 	int (*lnk_ctl)(struct nvkm_output_dp *, int nr, int bw, bool ef);
 	int (*drv_ctl)(struct nvkm_output_dp *, int ln, int vs, int pe, int pc);
+	void (*vcpi)(struct nvkm_output_dp *, int head, u8 start_slot,
+		     u8 num_slots, u16 pbn, u16 aligned_pbn);
 };
 
-int nvkm_output_dp_train(struct nvkm_output *, u32 rate, bool wait);
+int nvkm_output_dp_train(struct nvkm_output *, u32 rate);
 
 int nvkm_output_dp_ctor(const struct nvkm_output_dp_func *, struct nvkm_disp *,
 			int index, struct dcb_output *, struct nvkm_i2c_aux *,
@@ -63,6 +65,7 @@ int gf119_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		     struct nvkm_output **);
 int gf119_sor_dp_lnk_ctl(struct nvkm_output_dp *, int, int, bool);
 int gf119_sor_dp_drv_ctl(struct nvkm_output_dp *, int, int, int, int);
+void gf119_sor_dp_vcpi(struct nvkm_output_dp *, int, u8, u8, u16, u16);
 
 int gm107_sor_dp_new(struct nvkm_disp *, int, struct dcb_output *,
 		     struct nvkm_output **);

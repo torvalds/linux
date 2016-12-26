@@ -86,7 +86,7 @@ static int rx_copybreak;
 #include <linux/crc32.h>
 #include <linux/bitops.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 /* These identify the driver base version and may not be removed. */
@@ -313,7 +313,6 @@ static const struct net_device_ops epic_netdev_ops = {
 	.ndo_get_stats		= epic_get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_do_ioctl 		= netdev_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

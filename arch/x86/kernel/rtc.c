@@ -64,6 +64,15 @@ void mach_get_cmos_time(struct timespec *now)
 	unsigned int status, year, mon, day, hour, min, sec, century = 0;
 	unsigned long flags;
 
+	/*
+	 * If pm_trace abused the RTC as storage, set the timespec to 0,
+	 * which tells the caller that this RTC value is unusable.
+	 */
+	if (!pm_trace_rtc_valid()) {
+		now->tv_sec = now->tv_nsec = 0;
+		return;
+	}
+
 	spin_lock_irqsave(&rtc_lock, flags);
 
 	/*

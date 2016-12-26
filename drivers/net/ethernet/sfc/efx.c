@@ -82,7 +82,6 @@ const char *const efx_reset_type_names[] = {
 	[RESET_TYPE_DISABLE]            = "DISABLE",
 	[RESET_TYPE_TX_WATCHDOG]        = "TX_WATCHDOG",
 	[RESET_TYPE_INT_ERROR]          = "INT_ERROR",
-	[RESET_TYPE_RX_RECOVERY]        = "RX_RECOVERY",
 	[RESET_TYPE_DMA_ERROR]          = "DMA_ERROR",
 	[RESET_TYPE_TX_SKIP]            = "TX_SKIP",
 	[RESET_TYPE_MC_FAILURE]         = "MC_FAILURE",
@@ -356,7 +355,7 @@ static int efx_probe_eventq(struct efx_channel *channel)
 	/* Build an event queue with room for one event per tx and rx buffer,
 	 * plus some extra for link state events and MCDI completions. */
 	entries = roundup_pow_of_two(efx->rxq_entries + efx->txq_entries + 128);
-	EFX_BUG_ON_PARANOID(entries > EFX_MAX_EVQ_SIZE);
+	EFX_WARN_ON_PARANOID(entries > EFX_MAX_EVQ_SIZE);
 	channel->eventq_mask = max(entries, EFX_MIN_EVQ_SIZE) - 1;
 
 	return efx_nic_probe_eventq(channel);
@@ -733,16 +732,7 @@ static void efx_stop_datapath(struct efx_nic *efx)
 	}
 
 	rc = efx->type->fini_dmaq(efx);
-	if (rc && EFX_WORKAROUND_7803(efx)) {
-		/* Schedule a reset to recover from the flush failure. The
-		 * descriptor caches reference memory we're about to free,
-		 * but falcon_reconfigure_mac_wrapper() won't reconnect
-		 * the MACs because of the pending reset.
-		 */
-		netif_err(efx, drv, efx->net_dev,
-			  "Resetting to recover from flush failure\n");
-		efx_schedule_reset(efx, RESET_TYPE_ALL);
-	} else if (rc) {
+	if (rc) {
 		netif_err(efx, drv, efx->net_dev, "failed to flush queues\n");
 	} else {
 		netif_dbg(efx, drv, efx->net_dev,
@@ -1892,15 +1882,13 @@ static void efx_start_all(struct efx_nic *efx)
 		queue_delayed_work(efx->workqueue, &efx->monitor_work,
 				   efx_monitor_interval);
 
-	/* If link state detection is normally event-driven, we have
+	/* Link state detection is normally event-driven; we have
 	 * to poll now because we could have missed a change
 	 */
-	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0) {
-		mutex_lock(&efx->mac_lock);
-		if (efx->phy_op->poll(efx))
-			efx_link_status_changed(efx);
-		mutex_unlock(&efx->mac_lock);
-	}
+	mutex_lock(&efx->mac_lock);
+	if (efx->phy_op->poll(efx))
+		efx_link_status_changed(efx);
+	mutex_unlock(&efx->mac_lock);
 
 	efx->type->start_stats(efx);
 	efx->type->pull_stats(efx);
@@ -2113,10 +2101,9 @@ static void efx_init_napi(struct efx_nic *efx)
 
 static void efx_fini_napi_channel(struct efx_channel *channel)
 {
-	if (channel->napi_dev) {
+	if (channel->napi_dev)
 		netif_napi_del(&channel->napi_str);
-		napi_hash_del(&channel->napi_str);
-	}
+
 	channel->napi_dev = NULL;
 }
 
@@ -2266,18 +2253,6 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 	rc = efx_check_disabled(efx);
 	if (rc)
 		return rc;
-	if (new_mtu > EFX_MAX_MTU) {
-		netif_err(efx, drv, efx->net_dev,
-			  "Requested MTU of %d too big (max: %d)\n",
-			  new_mtu, EFX_MAX_MTU);
-		return -EINVAL;
-	}
-	if (new_mtu < EFX_MIN_MTU) {
-		netif_err(efx, drv, efx->net_dev,
-			  "Requested MTU of %d too small (min: %d)\n",
-			  new_mtu, EFX_MIN_MTU);
-		return -EINVAL;
-	}
 
 	netif_dbg(efx, drv, efx->net_dev, "changing MTU to %d\n", new_mtu);
 
@@ -2481,6 +2456,8 @@ static int efx_register_netdev(struct efx_nic *efx)
 		net_dev->priv_flags |= IFF_UNICAST_FLT;
 	net_dev->ethtool_ops = &efx_ethtool_ops;
 	net_dev->gso_max_segs = EFX_TSO_MAX_SEGS;
+	net_dev->min_mtu = EFX_MIN_MTU;
+	net_dev->max_mtu = EFX_MAX_MTU;
 
 	rtnl_lock();
 
@@ -2853,12 +2830,6 @@ void efx_schedule_reset(struct efx_nic *efx, enum reset_type type)
 
 /* PCI device ID table */
 static const struct pci_device_id efx_pci_table[] = {
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE,
-		    PCI_DEVICE_ID_SOLARFLARE_SFC4000A_0),
-	 .driver_data = (unsigned long) &falcon_a1_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE,
-		    PCI_DEVICE_ID_SOLARFLARE_SFC4000B),
-	 .driver_data = (unsigned long) &falcon_b0_nic_type},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0803),	/* SFC9020 */
 	 .driver_data = (unsigned long) &siena_a0_nic_type},
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0813),	/* SFL9021 */
@@ -3211,23 +3182,6 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	efx = netdev_priv(net_dev);
 	efx->type = (const struct efx_nic_type *) entry->driver_data;
 	efx->fixed_features |= NETIF_F_HIGHDMA;
-	net_dev->features |= (efx->type->offload_features | NETIF_F_SG |
-			      NETIF_F_TSO | NETIF_F_RXCSUM);
-	if (efx->type->offload_features & (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))
-		net_dev->features |= NETIF_F_TSO6;
-	/* Mask for features that also apply to VLAN devices */
-	net_dev->vlan_features |= (NETIF_F_HW_CSUM | NETIF_F_SG |
-				   NETIF_F_HIGHDMA | NETIF_F_ALL_TSO |
-				   NETIF_F_RXCSUM);
-
-	net_dev->hw_features = net_dev->features & ~efx->fixed_features;
-
-	/* Disable VLAN filtering by default.  It may be enforced if
-	 * the feature is fixed (i.e. VLAN filters are required to
-	 * receive VLAN tagged packets due to vPort restrictions).
-	 */
-	net_dev->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
-	net_dev->features |= efx->fixed_features;
 
 	pci_set_drvdata(pci_dev, efx);
 	SET_NETDEV_DEV(net_dev, &pci_dev->dev);
@@ -3249,6 +3203,27 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 	rc = efx_pci_probe_main(efx);
 	if (rc)
 		goto fail3;
+
+	net_dev->features |= (efx->type->offload_features | NETIF_F_SG |
+			      NETIF_F_TSO | NETIF_F_RXCSUM);
+	if (efx->type->offload_features & (NETIF_F_IPV6_CSUM | NETIF_F_HW_CSUM))
+		net_dev->features |= NETIF_F_TSO6;
+	/* Check whether device supports TSO */
+	if (!efx->type->tso_versions || !efx->type->tso_versions(efx))
+		net_dev->features &= ~NETIF_F_ALL_TSO;
+	/* Mask for features that also apply to VLAN devices */
+	net_dev->vlan_features |= (NETIF_F_HW_CSUM | NETIF_F_SG |
+				   NETIF_F_HIGHDMA | NETIF_F_ALL_TSO |
+				   NETIF_F_RXCSUM);
+
+	net_dev->hw_features = net_dev->features & ~efx->fixed_features;
+
+	/* Disable VLAN filtering by default.  It may be enforced if
+	 * the feature is fixed (i.e. VLAN filters are required to
+	 * receive VLAN tagged packets due to vPort restrictions).
+	 */
+	net_dev->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
+	net_dev->features |= efx->fixed_features;
 
 	rc = efx_register_netdev(efx);
 	if (rc)

@@ -32,7 +32,7 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/blkdev.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/highmem.h> /* For flush_kernel_dcache_page */
 #include <linux/module.h>
 

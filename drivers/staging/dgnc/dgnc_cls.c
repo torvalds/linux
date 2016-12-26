@@ -385,9 +385,8 @@ static void cls_copy_data_from_uart_to_queue(struct channel_t *ch)
 		ch->ch_rxcount++;
 	}
 
-	/*
-	 * Write new final heads to channel structure.
-	 */
+	/* Write new final heads to channel structure. */
+
 	ch->ch_r_head = head & RQUEUEMASK;
 	ch->ch_e_head = head & EQUEUEMASK;
 
@@ -666,9 +665,8 @@ static void cls_param(struct tty_struct *tty)
 	if (!bd || bd->magic != DGNC_BOARD_MAGIC)
 		return;
 
-	/*
-	 * If baud rate is zero, flush queues, and set mval to drop DTR.
-	 */
+	/* If baud rate is zero, flush queues, and set mval to drop DTR. */
+
 	if ((ch->ch_c_cflag & (CBAUD)) == 0) {
 		ch->ch_r_head = 0;
 		ch->ch_r_tail = 0;
@@ -887,9 +885,8 @@ static void cls_param(struct tty_struct *tty)
 	cls_parse_modem(ch, readb(&ch->ch_cls_uart->msr));
 }
 
-/*
- * Our board poller function.
- */
+/* Our board poller function. */
+
 static void cls_tasklet(unsigned long data)
 {
 	struct dgnc_board *bd = (struct dgnc_board *)data;
@@ -914,9 +911,8 @@ static void cls_tasklet(unsigned long data)
 	 */
 	spin_lock_irqsave(&bd->bd_intr_lock, flags);
 
-	/*
-	 * If board is ready, parse deeper to see if there is anything to do.
-	 */
+	/* If board is ready, parse deeper to see if there is anything to do. */
+
 	if ((state == BOARD_READY) && (ports > 0)) {
 		/* Loop on each port */
 		for (i = 0; i < ports; i++) {
@@ -938,9 +934,8 @@ static void cls_tasklet(unsigned long data)
 			cls_copy_data_from_queue_to_uart(ch);
 			dgnc_wakeup_writes(ch);
 
-			/*
-			 * Check carrier function.
-			 */
+			/* Check carrier function. */
+
 			dgnc_carrier(ch);
 
 			/*
@@ -992,9 +987,8 @@ static irqreturn_t cls_intr(int irq, void *voidbrd)
 	for (i = 0; i < brd->nasync; i++)
 		cls_parse_isr(brd, i);
 
-	/*
-	 * Schedule tasklet to more in-depth servicing at a better time.
-	 */
+	/* Schedule tasklet to more in-depth servicing at a better time. */
+
 	tasklet_schedule(&brd->helper_tasklet);
 
 	spin_unlock_irqrestore(&brd->bd_intr_lock, flags);
@@ -1043,9 +1037,7 @@ static int cls_drain(struct tty_struct *tty, uint seconds)
 	un->un_flags |= UN_EMPTY;
 	spin_unlock_irqrestore(&ch->ch_lock, flags);
 
-	/*
-	 * NOTE: Do something with time passed in.
-	 */
+	/* NOTE: Do something with time passed in. */
 
 	/* If ret is non-zero, user ctrl-c'ed us */
 
@@ -1112,9 +1104,8 @@ static void cls_uart_init(struct channel_t *ch)
 	readb(&ch->ch_cls_uart->msr);
 }
 
-/*
- * Turns off UART.
- */
+/* Turns off UART.  */
+
 static void cls_uart_off(struct channel_t *ch)
 {
 	writeb(0, &ch->ch_cls_uart->ier);
@@ -1160,9 +1151,8 @@ static void cls_send_break(struct channel_t *ch, int msecs)
 	if (!ch || ch->magic != DGNC_CHANNEL_MAGIC)
 		return;
 
-	/*
-	 * If we receive a time of 0, this means turn off the break.
-	 */
+	/* If we receive a time of 0, this means turn off the break. */
+
 	if (msecs == 0) {
 		/* Turn break off, and unset some variables */
 		if (ch->ch_flags & CH_BREAK_SENDING) {

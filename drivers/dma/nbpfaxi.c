@@ -225,6 +225,8 @@ struct nbpf_channel {
 struct nbpf_device {
 	struct dma_device dma_dev;
 	void __iomem *base;
+	u32 max_burst_mem_read;
+	u32 max_burst_mem_write;
 	struct clk *clk;
 	const struct nbpf_config *config;
 	unsigned int eirq;
@@ -425,10 +427,33 @@ static void nbpf_chan_configure(struct nbpf_channel *chan)
 	nbpf_chan_write(chan, NBPF_CHAN_CFG, NBPF_CHAN_CFG_DMS | chan->dmarq_cfg);
 }
 
-static u32 nbpf_xfer_ds(struct nbpf_device *nbpf, size_t size)
+static u32 nbpf_xfer_ds(struct nbpf_device *nbpf, size_t size,
+			enum dma_transfer_direction direction)
 {
+	int max_burst = nbpf->config->buffer_size * 8;
+
+	if (nbpf->max_burst_mem_read || nbpf->max_burst_mem_write) {
+		switch (direction) {
+		case DMA_MEM_TO_MEM:
+			max_burst = min_not_zero(nbpf->max_burst_mem_read,
+						 nbpf->max_burst_mem_write);
+			break;
+		case DMA_MEM_TO_DEV:
+			if (nbpf->max_burst_mem_read)
+				max_burst = nbpf->max_burst_mem_read;
+			break;
+		case DMA_DEV_TO_MEM:
+			if (nbpf->max_burst_mem_write)
+				max_burst = nbpf->max_burst_mem_write;
+			break;
+		case DMA_DEV_TO_DEV:
+		default:
+			break;
+		}
+	}
+
 	/* Maximum supported bursts depend on the buffer size */
-	return min_t(int, __ffs(size), ilog2(nbpf->config->buffer_size * 8));
+	return min_t(int, __ffs(size), ilog2(max_burst));
 }
 
 static size_t nbpf_xfer_size(struct nbpf_device *nbpf,
@@ -458,7 +483,7 @@ static size_t nbpf_xfer_size(struct nbpf_device *nbpf,
 		size = burst;
 	}
 
-	return nbpf_xfer_ds(nbpf, size);
+	return nbpf_xfer_ds(nbpf, size, DMA_TRANS_NONE);
 }
 
 /*
@@ -507,7 +532,7 @@ static int nbpf_prep_one(struct nbpf_link_desc *ldesc,
 	 * transfers we enable the SBE bit and terminate the transfer in our
 	 * .device_pause handler.
 	 */
-	mem_xfer = nbpf_xfer_ds(chan->nbpf, size);
+	mem_xfer = nbpf_xfer_ds(chan->nbpf, size, direction);
 
 	switch (direction) {
 	case DMA_DEV_TO_MEM:
@@ -1312,6 +1337,11 @@ static int nbpf_probe(struct platform_device *pdev)
 	nbpf->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(nbpf->clk))
 		return PTR_ERR(nbpf->clk);
+
+	of_property_read_u32(np, "max-burst-mem-read",
+			     &nbpf->max_burst_mem_read);
+	of_property_read_u32(np, "max-burst-mem-write",
+			     &nbpf->max_burst_mem_write);
 
 	nbpf->config = cfg;
 

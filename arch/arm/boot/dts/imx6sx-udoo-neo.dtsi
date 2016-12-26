@@ -1,0 +1,293 @@
+/*
+ * Copyright (c) 2016 Andreas Färber
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+#include "imx6sx.dtsi"
+
+/ {
+	compatible = "fsl,imx6sx";
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		red {
+			label = "udoo-neo:red:mmc";
+			gpios = <&gpio6 0 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "mmc0";
+		};
+
+		orange {
+			label = "udoo-neo:orange:user";
+			gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>;
+			default-state = "keep";
+		};
+	};
+
+	reg_sdio_pwr: regulator-sdio-pwr {
+		compatible = "regulator-fixed";
+		gpio = <&gpio6 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-name = "SDIO_PWR";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+	};
+};
+
+&cpu0 {
+	arm-supply = <&sw1a_reg>;
+	soc-supply = <&sw1c_reg>;
+};
+
+&fec1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet1>;
+	phy-mode = "rmii";
+	phy-reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	clock-frequency = <100000>;
+	status = "okay";
+
+	pmic: pmic@08 {
+		compatible = "fsl,pfuze3000";
+		reg = <0x08>;
+
+		regulators {
+			sw1a_reg: sw1a {
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1475000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <6250>;
+			};
+
+			sw1c_reg: sw1b {
+				regulator-min-microvolt = <700000>;
+				regulator-max-microvolt = <1475000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-ramp-delay = <6250>;
+			};
+
+			sw2_reg: sw2 {
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1850000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw3a_reg: sw3 {
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <1650000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			swbst_reg: swbst {
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5150000>;
+			};
+
+			snvs_reg: vsnvs {
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <3000000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vref_reg: vrefddr {
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			vgen1_reg: vldo1 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vgen2_reg: vldo2 {
+				regulator-min-microvolt = <800000>;
+				regulator-max-microvolt = <1550000>;
+			};
+
+			vgen3_reg: vccsd {
+				regulator-min-microvolt = <2850000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vgen4_reg: v33 {
+				regulator-min-microvolt = <2850000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vgen5_reg: vldo3 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+
+			vgen6_reg: vldo4 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&iomuxc {
+	pinctrl_enet1: enet1grp {
+		fsl,pins =
+			<MX6SX_PAD_ENET1_CRS__GPIO2_IO_1	0xa0b1>,
+			<MX6SX_PAD_ENET1_MDC__ENET1_MDC		0xa0b1>,
+			<MX6SX_PAD_ENET1_MDIO__ENET1_MDIO	0xa0b1>,
+			<MX6SX_PAD_RGMII1_TD0__ENET1_TX_DATA_0	0xa0b1>,
+			<MX6SX_PAD_RGMII1_TD1__ENET1_TX_DATA_1	0xa0b1>,
+			<MX6SX_PAD_RGMII1_TX_CTL__ENET1_TX_EN	0xa0b1>,
+
+			<MX6SX_PAD_ENET1_TX_CLK__ENET1_REF_CLK1	0x3081>,
+			<MX6SX_PAD_ENET2_TX_CLK__GPIO2_IO_9	0x3081>,
+			<MX6SX_PAD_RGMII1_RD0__ENET1_RX_DATA_0	0x3081>,
+			<MX6SX_PAD_RGMII1_RD1__ENET1_RX_DATA_1	0x3081>,
+			<MX6SX_PAD_RGMII1_RX_CTL__ENET1_RX_EN	0x3081>,
+			<MX6SX_PAD_RGMII1_RXC__ENET1_RX_ER	0x3081>,
+
+			<MX6SX_PAD_ENET2_RX_CLK__ENET2_REF_CLK_25M	0x91>;
+	};
+
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins =
+			<MX6SX_PAD_GPIO1_IO00__I2C1_SCL		0x4001b8b1>,
+			<MX6SX_PAD_GPIO1_IO01__I2C1_SDA		0x4001b8b1>;
+	};
+
+	pinctrl_uart1: uart1grp {
+		fsl,pins =
+			<MX6SX_PAD_GPIO1_IO04__UART1_TX		0x1b0b1>,
+			<MX6SX_PAD_GPIO1_IO05__UART1_RX		0x1b0b1>;
+	};
+
+	pinctrl_uart2: uart2grp {
+		fsl,pins =
+			<MX6SX_PAD_GPIO1_IO06__UART2_TX		0x1b0b1>,
+			<MX6SX_PAD_GPIO1_IO07__UART2_RX		0x1b0b1>;
+	};
+
+	pinctrl_uart5: uart5grp {
+		fsl,pins =
+			<MX6SX_PAD_SD4_DATA4__UART5_RX		0x1b0b1>,
+			<MX6SX_PAD_SD4_DATA5__UART5_TX		0x1b0b1>;
+	};
+
+	pinctrl_uart6: uart6grp {
+		fsl,pins =
+			<MX6SX_PAD_CSI_DATA00__UART6_RI_B	0x1b0b1>,
+			<MX6SX_PAD_CSI_DATA01__UART6_DSR_B	0x1b0b1>,
+			<MX6SX_PAD_CSI_DATA02__UART6_DTR_B	0x1b0b1>,
+			<MX6SX_PAD_CSI_DATA03__UART6_DCD_B	0x1b0b1>,
+			<MX6SX_PAD_CSI_DATA04__UART6_RX		0x1b0b1>,
+			<MX6SX_PAD_CSI_DATA05__UART6_TX		0x1b0b1>,
+			<MX6SX_PAD_CSI_DATA06__UART6_RTS_B	0x1b0b1>,
+			<MX6SX_PAD_CSI_DATA07__UART6_CTS_B	0x1b0b1>;
+	};
+
+	pinctrl_usdhc2: usdhc2grp {
+		fsl,pins =
+			<MX6SX_PAD_SD2_CMD__USDHC2_CMD		0x17059>,
+			<MX6SX_PAD_SD2_CLK__USDHC2_CLK		0x10059>,
+			<MX6SX_PAD_SD2_DATA0__USDHC2_DATA0	0x17059>,
+			<MX6SX_PAD_SD2_DATA1__USDHC2_DATA1	0x17059>,
+			<MX6SX_PAD_SD2_DATA2__USDHC2_DATA2	0x17059>,
+			<MX6SX_PAD_SD2_DATA3__USDHC2_DATA3	0x17059>,
+			<MX6SX_PAD_SD1_DATA0__GPIO6_IO_2	0x17059>; /* CD */
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart1>;
+	status = "okay";
+};
+
+/* Cortex-M4 serial */
+&uart2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2>;
+	status = "disabled";
+};
+
+/* Arduino serial */
+&uart5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart5>;
+	status = "disabled";
+};
+
+&uart6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart6>;
+	uart-has-rtscts;
+	status = "disabled";
+};
+
+&usdhc2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc2>;
+	vmmc-supply = <&reg_sdio_pwr>;
+	bus-width = <4>;
+	cd-gpios = <&gpio6 2 GPIO_ACTIVE_LOW>;
+	no-1-8-v;
+	keep-power-in-suspend;
+	wakeup-source;
+	status = "okay";
+};

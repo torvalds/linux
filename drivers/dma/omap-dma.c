@@ -166,6 +166,9 @@ enum {
 	CSDP_DST_BURST_16	= 1 << 14,
 	CSDP_DST_BURST_32	= 2 << 14,
 	CSDP_DST_BURST_64	= 3 << 14,
+	CSDP_WRITE_NON_POSTED	= 0 << 16,
+	CSDP_WRITE_POSTED	= 1 << 16,
+	CSDP_WRITE_LAST_NON_POSTED = 2 << 16,
 
 	CICR_TOUT_IE		= BIT(0),	/* OMAP1 only */
 	CICR_DROP_IE		= BIT(1),
@@ -422,7 +425,30 @@ static void omap_dma_start(struct omap_chan *c, struct omap_desc *d)
 	c->running = true;
 }
 
-static void omap_dma_stop(struct omap_chan *c)
+static void omap_dma_drain_chan(struct omap_chan *c)
+{
+	int i;
+	u32 val;
+
+	/* Wait for sDMA FIFO to drain */
+	for (i = 0; ; i++) {
+		val = omap_dma_chan_read(c, CCR);
+		if (!(val & (CCR_RD_ACTIVE | CCR_WR_ACTIVE)))
+			break;
+
+		if (i > 100)
+			break;
+
+		udelay(5);
+	}
+
+	if (val & (CCR_RD_ACTIVE | CCR_WR_ACTIVE))
+		dev_err(c->vc.chan.device->dev,
+			"DMA drain did not complete on lch %d\n",
+			c->dma_ch);
+}
+
+static int omap_dma_stop(struct omap_chan *c)
 {
 	struct omap_dmadev *od = to_omap_dma_dev(c->vc.chan.device);
 	uint32_t val;
@@ -435,7 +461,6 @@ static void omap_dma_stop(struct omap_chan *c)
 	val = omap_dma_chan_read(c, CCR);
 	if (od->plat->errata & DMA_ERRATA_i541 && val & CCR_TRIGGER_SRC) {
 		uint32_t sysconfig;
-		unsigned i;
 
 		sysconfig = omap_dma_glbl_read(od, OCP_SYSCONFIG);
 		val = sysconfig & ~DMA_SYSCONFIG_MIDLEMODE_MASK;
@@ -446,27 +471,19 @@ static void omap_dma_stop(struct omap_chan *c)
 		val &= ~CCR_ENABLE;
 		omap_dma_chan_write(c, CCR, val);
 
-		/* Wait for sDMA FIFO to drain */
-		for (i = 0; ; i++) {
-			val = omap_dma_chan_read(c, CCR);
-			if (!(val & (CCR_RD_ACTIVE | CCR_WR_ACTIVE)))
-				break;
-
-			if (i > 100)
-				break;
-
-			udelay(5);
-		}
-
-		if (val & (CCR_RD_ACTIVE | CCR_WR_ACTIVE))
-			dev_err(c->vc.chan.device->dev,
-				"DMA drain did not complete on lch %d\n",
-			        c->dma_ch);
+		if (!(c->ccr & CCR_BUFFERING_DISABLE))
+			omap_dma_drain_chan(c);
 
 		omap_dma_glbl_write(od, OCP_SYSCONFIG, sysconfig);
 	} else {
+		if (!(val & CCR_ENABLE))
+			return -EINVAL;
+
 		val &= ~CCR_ENABLE;
 		omap_dma_chan_write(c, CCR, val);
+
+		if (!(c->ccr & CCR_BUFFERING_DISABLE))
+			omap_dma_drain_chan(c);
 	}
 
 	mb();
@@ -481,8 +498,8 @@ static void omap_dma_stop(struct omap_chan *c)
 
 		omap_dma_chan_write(c, CLNK_CTRL, val);
 	}
-
 	c->running = false;
+	return 0;
 }
 
 static void omap_dma_start_sg(struct omap_chan *c, struct omap_desc *d)
@@ -836,6 +853,8 @@ static enum dma_status omap_dma_tx_status(struct dma_chan *chan,
 	} else {
 		txstate->residue = 0;
 	}
+	if (ret == DMA_IN_PROGRESS && c->paused)
+		ret = DMA_PAUSED;
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 
 	return ret;
@@ -865,15 +884,18 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 	unsigned i, es, en, frame_bytes;
 	bool ll_failed = false;
 	u32 burst;
+	u32 port_window, port_window_bytes;
 
 	if (dir == DMA_DEV_TO_MEM) {
 		dev_addr = c->cfg.src_addr;
 		dev_width = c->cfg.src_addr_width;
 		burst = c->cfg.src_maxburst;
+		port_window = c->cfg.src_port_window_size;
 	} else if (dir == DMA_MEM_TO_DEV) {
 		dev_addr = c->cfg.dst_addr;
 		dev_width = c->cfg.dst_addr_width;
 		burst = c->cfg.dst_maxburst;
+		port_window = c->cfg.dst_port_window_size;
 	} else {
 		dev_err(chan->device->dev, "%s: bad direction?\n", __func__);
 		return NULL;
@@ -894,6 +916,12 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		return NULL;
 	}
 
+	/* When the port_window is used, one frame must cover the window */
+	if (port_window) {
+		burst = port_window;
+		port_window_bytes = port_window * es_bytes[es];
+	}
+
 	/* Now allocate and setup the descriptor. */
 	d = kzalloc(sizeof(*d) + sglen * sizeof(d->sg[0]), GFP_ATOMIC);
 	if (!d)
@@ -905,11 +933,45 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 
 	d->ccr = c->ccr | CCR_SYNC_FRAME;
 	if (dir == DMA_DEV_TO_MEM) {
-		d->ccr |= CCR_DST_AMODE_POSTINC | CCR_SRC_AMODE_CONSTANT;
 		d->csdp = CSDP_DST_BURST_64 | CSDP_DST_PACKED;
+
+		d->ccr |= CCR_DST_AMODE_POSTINC;
+		if (port_window) {
+			d->ccr |= CCR_SRC_AMODE_DBLIDX;
+			d->ei = 1;
+			/*
+			 * One frame covers the port_window and by  configure
+			 * the source frame index to be -1 * (port_window - 1)
+			 * we instruct the sDMA that after a frame is processed
+			 * it should move back to the start of the window.
+			 */
+			d->fi = -(port_window_bytes - 1);
+
+			if (port_window_bytes >= 64)
+				d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
+			else if (port_window_bytes >= 32)
+				d->csdp = CSDP_SRC_BURST_32 | CSDP_SRC_PACKED;
+			else if (port_window_bytes >= 16)
+				d->csdp = CSDP_SRC_BURST_16 | CSDP_SRC_PACKED;
+		} else {
+			d->ccr |= CCR_SRC_AMODE_CONSTANT;
+		}
 	} else {
-		d->ccr |= CCR_DST_AMODE_CONSTANT | CCR_SRC_AMODE_POSTINC;
 		d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
+
+		d->ccr |= CCR_SRC_AMODE_POSTINC;
+		if (port_window) {
+			d->ccr |= CCR_DST_AMODE_DBLIDX;
+
+			if (port_window_bytes >= 64)
+				d->csdp = CSDP_DST_BURST_64 | CSDP_DST_PACKED;
+			else if (port_window_bytes >= 32)
+				d->csdp = CSDP_DST_BURST_32 | CSDP_DST_PACKED;
+			else if (port_window_bytes >= 16)
+				d->csdp = CSDP_DST_BURST_16 | CSDP_DST_PACKED;
+		} else {
+			d->ccr |= CCR_DST_AMODE_CONSTANT;
+		}
 	}
 
 	d->cicr = CICR_DROP_IE | CICR_BLOCK_IE;
@@ -927,6 +989,9 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 			d->ccr |= CCR_TRIGGER_SRC;
 
 		d->cicr |= CICR_MISALIGNED_ERR_IE | CICR_TRANS_ERR_IE;
+
+		if (port_window)
+			d->csdp |= CSDP_WRITE_LAST_NON_POSTED;
 	}
 	if (od->plat->errata & DMA_ERRATA_PARALLEL_CHANNELS)
 		d->clnk_ctrl = c->dma_ch;
@@ -952,6 +1017,16 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		osg->addr = sg_dma_address(sgent);
 		osg->en = en;
 		osg->fn = sg_dma_len(sgent) / frame_bytes;
+		if (port_window && dir == DMA_MEM_TO_DEV) {
+			osg->ei = 1;
+			/*
+			 * One frame covers the port_window and by  configure
+			 * the source frame index to be -1 * (port_window - 1)
+			 * we instruct the sDMA that after a frame is processed
+			 * it should move back to the start of the window.
+			 */
+			osg->fi = -(port_window_bytes - 1);
+		}
 
 		if (d->using_ll) {
 			osg->t2_desc = dma_pool_alloc(od->desc_pool, GFP_ATOMIC,
@@ -1247,10 +1322,8 @@ static int omap_dma_terminate_all(struct dma_chan *chan)
 			omap_dma_stop(c);
 	}
 
-	if (c->cyclic) {
-		c->cyclic = false;
-		c->paused = false;
-	}
+	c->cyclic = false;
+	c->paused = false;
 
 	vchan_get_all_descriptors(&c->vc, &head);
 	spin_unlock_irqrestore(&c->vc.lock, flags);
@@ -1269,28 +1342,66 @@ static void omap_dma_synchronize(struct dma_chan *chan)
 static int omap_dma_pause(struct dma_chan *chan)
 {
 	struct omap_chan *c = to_omap_dma_chan(chan);
+	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
+	unsigned long flags;
+	int ret = -EINVAL;
+	bool can_pause = false;
 
-	/* Pause/Resume only allowed with cyclic mode */
-	if (!c->cyclic)
-		return -EINVAL;
+	spin_lock_irqsave(&od->irq_lock, flags);
 
-	if (!c->paused) {
-		omap_dma_stop(c);
-		c->paused = true;
+	if (!c->desc)
+		goto out;
+
+	if (c->cyclic)
+		can_pause = true;
+
+	/*
+	 * We do not allow DMA_MEM_TO_DEV transfers to be paused.
+	 * From the AM572x TRM, 16.1.4.18 Disabling a Channel During Transfer:
+	 * "When a channel is disabled during a transfer, the channel undergoes
+	 * an abort, unless it is hardware-source-synchronized …".
+	 * A source-synchronised channel is one where the fetching of data is
+	 * under control of the device. In other words, a device-to-memory
+	 * transfer. So, a destination-synchronised channel (which would be a
+	 * memory-to-device transfer) undergoes an abort if the the CCR_ENABLE
+	 * bit is cleared.
+	 * From 16.1.4.20.4.6.2 Abort: "If an abort trigger occurs, the channel
+	 * aborts immediately after completion of current read/write
+	 * transactions and then the FIFO is cleaned up." The term "cleaned up"
+	 * is not defined. TI recommends to check that RD_ACTIVE and WR_ACTIVE
+	 * are both clear _before_ disabling the channel, otherwise data loss
+	 * will occur.
+	 * The problem is that if the channel is active, then device activity
+	 * can result in DMA activity starting between reading those as both
+	 * clear and the write to DMA_CCR to clear the enable bit hitting the
+	 * hardware. If the DMA hardware can't drain the data in its FIFO to the
+	 * destination, then data loss "might" occur (say if we write to an UART
+	 * and the UART is not accepting any further data).
+	 */
+	else if (c->desc->dir == DMA_DEV_TO_MEM)
+		can_pause = true;
+
+	if (can_pause && !c->paused) {
+		ret = omap_dma_stop(c);
+		if (!ret)
+			c->paused = true;
 	}
+out:
+	spin_unlock_irqrestore(&od->irq_lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int omap_dma_resume(struct dma_chan *chan)
 {
 	struct omap_chan *c = to_omap_dma_chan(chan);
+	struct omap_dmadev *od = to_omap_dma_dev(chan->device);
+	unsigned long flags;
+	int ret = -EINVAL;
 
-	/* Pause/Resume only allowed with cyclic mode */
-	if (!c->cyclic)
-		return -EINVAL;
+	spin_lock_irqsave(&od->irq_lock, flags);
 
-	if (c->paused) {
+	if (c->paused && c->desc) {
 		mb();
 
 		/* Restore channel link register */
@@ -1298,9 +1409,11 @@ static int omap_dma_resume(struct dma_chan *chan)
 
 		omap_dma_start(c, c->desc);
 		c->paused = false;
+		ret = 0;
 	}
+	spin_unlock_irqrestore(&od->irq_lock, flags);
 
-	return 0;
+	return ret;
 }
 
 static int omap_dma_chan_init(struct omap_dmadev *od)

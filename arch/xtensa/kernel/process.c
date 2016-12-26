@@ -35,7 +35,7 @@
 #include <linux/rcupdate.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/platform.h>

@@ -111,9 +111,8 @@ static struct at_desc *atc_alloc_descriptor(struct dma_chan *chan,
 	struct at_dma	*atdma = to_at_dma(chan->device);
 	dma_addr_t phys;
 
-	desc = dma_pool_alloc(atdma->dma_desc_pool, gfp_flags, &phys);
+	desc = dma_pool_zalloc(atdma->dma_desc_pool, gfp_flags, &phys);
 	if (desc) {
-		memset(desc, 0, sizeof(struct at_desc));
 		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		/* txd.flags will be overwritten in prep functions */

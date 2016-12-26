@@ -321,7 +321,6 @@ static struct snd_soc_dai_driver cs42xx8_dai = {
 };
 
 static const struct reg_default cs42xx8_reg[] = {
-	{ 0x01, 0x01 },   /* Chip I.D. and Revision Register */
 	{ 0x02, 0x00 },   /* Power Control */
 	{ 0x03, 0xF0 },   /* Functional Mode */
 	{ 0x04, 0x46 },   /* Interface Formats */
@@ -498,13 +497,6 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap)
 	/* Make sure hardware reset done */
 	msleep(5);
 
-	/*
-	 * We haven't marked the chip revision as volatile due to
-	 * sharing a register with the right input volume; explicitly
-	 * bypass the cache to read it.
-	 */
-	regcache_cache_bypass(cs42xx8->regmap, true);
-
 	/* Validate the chip ID */
 	ret = regmap_read(cs42xx8->regmap, CS42XX8_CHIPID, &val);
 	if (ret < 0) {
@@ -522,8 +514,6 @@ int cs42xx8_probe(struct device *dev, struct regmap *regmap)
 
 	dev_info(dev, "found device, revision %X\n",
 			val & CS42XX8_CHIPID_REV_ID_MASK);
-
-	regcache_cache_bypass(cs42xx8->regmap, false);
 
 	cs42xx8_dai.name = cs42xx8->drvdata->name;
 

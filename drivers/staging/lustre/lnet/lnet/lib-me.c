@@ -271,21 +271,3 @@ lnet_me_unlink(lnet_me_t *me)
 	lnet_res_lh_invalidate(&me->me_lh);
 	lnet_me_free(me);
 }
-
-#if 0
-static void
-lib_me_dump(lnet_me_t *me)
-{
-	CWARN("Match Entry %p (%#llx)\n", me,
-	      me->me_lh.lh_cookie);
-
-	CWARN("\tMatch/Ignore\t= %016lx / %016lx\n",
-	      me->me_match_bits, me->me_ignore_bits);
-
-	CWARN("\tMD\t= %p\n", me->md);
-	CWARN("\tprev\t= %p\n",
-	      list_entry(me->me_list.prev, lnet_me_t, me_list));
-	CWARN("\tnext\t= %p\n",
-	      list_entry(me->me_list.next, lnet_me_t, me_list));
-}
-#endif

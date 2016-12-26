@@ -19,6 +19,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/workqueue.h>
+#include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mm.h>
@@ -259,16 +260,14 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 {
 	struct lowcore *lc = pcpu->lowcore;
-	struct thread_info *ti = task_thread_info(tsk);
 
 	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
 		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
-	lc->thread_info = (unsigned long) task_thread_info(tsk);
 	lc->current_task = (unsigned long) tsk;
 	lc->lpp = LPP_MAGIC;
 	lc->current_pid = tsk->pid;
-	lc->user_timer = ti->user_timer;
-	lc->system_timer = ti->system_timer;
+	lc->user_timer = tsk->thread.user_timer;
+	lc->system_timer = tsk->thread.system_timer;
 	lc->steal_timer = 0;
 }
 
@@ -368,10 +367,15 @@ int smp_find_processor_id(u16 address)
 	return -1;
 }
 
-int smp_vcpu_scheduled(int cpu)
+bool arch_vcpu_is_preempted(int cpu)
 {
-	return pcpu_running(pcpu_devices + cpu);
+	if (test_cpu_flag_of(CIF_ENABLED_WAIT, cpu))
+		return false;
+	if (pcpu_running(pcpu_devices + cpu))
+		return false;
+	return true;
 }
+EXPORT_SYMBOL(arch_vcpu_is_preempted);
 
 void smp_yield_cpu(int cpu)
 {
@@ -657,14 +661,12 @@ int smp_cpu_get_polarization(int cpu)
 	return pcpu_devices[cpu].polarization;
 }
 
-static struct sclp_core_info *smp_get_core_info(void)
+static void __ref smp_get_core_info(struct sclp_core_info *info, int early)
 {
 	static int use_sigp_detection;
-	struct sclp_core_info *info;
 	int address;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (info && (use_sigp_detection || sclp_get_core_info(info))) {
+	if (use_sigp_detection || sclp_get_core_info(info, early)) {
 		use_sigp_detection = 1;
 		for (address = 0;
 		     address < (SCLP_MAX_CORES << smp_cpu_mt_shift);
@@ -678,7 +680,6 @@ static struct sclp_core_info *smp_get_core_info(void)
 		}
 		info->combined = info->configured;
 	}
-	return info;
 }
 
 static int smp_add_present_cpu(int cpu);
@@ -719,17 +720,15 @@ static int __smp_rescan_cpus(struct sclp_core_info *info, int sysfs_add)
 	return nr;
 }
 
-static void __init smp_detect_cpus(void)
+void __init smp_detect_cpus(void)
 {
 	unsigned int cpu, mtid, c_cpus, s_cpus;
 	struct sclp_core_info *info;
 	u16 address;
 
 	/* Get CPU information */
-	info = smp_get_core_info();
-	if (!info)
-		panic("smp_detect_cpus failed to allocate memory\n");
-
+	info = memblock_virt_alloc(sizeof(*info), 8);
+	smp_get_core_info(info, 1);
 	/* Find boot CPU type */
 	if (sclp.has_core_type) {
 		address = stap();
@@ -765,7 +764,7 @@ static void __init smp_detect_cpus(void)
 	get_online_cpus();
 	__smp_rescan_cpus(info, 0);
 	put_online_cpus();
-	kfree(info);
+	memblock_free_early((unsigned long)info, sizeof(*info));
 }
 
 /*
@@ -802,7 +801,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 	pcpu = pcpu_devices + cpu;
 	if (pcpu->state != CPU_STATE_CONFIGURED)
 		return -EIO;
-	base = cpu - (cpu % (smp_cpu_mtid + 1));
+	base = smp_get_base_cpu(cpu);
 	for (i = 0; i <= smp_cpu_mtid; i++) {
 		if (base + i < nr_cpu_ids)
 			if (cpu_online(base + i))
@@ -902,7 +901,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* request the 0x1202 external call external interrupt */
 	if (register_external_irq(EXT_IRQ_EXTERNAL_CALL, do_ext_call_interrupt))
 		panic("Couldn't request external interrupt 0x1202");
-	smp_detect_cpus();
 }
 
 void __init smp_prepare_boot_cpu(void)
@@ -968,7 +966,7 @@ static ssize_t cpu_configure_store(struct device *dev,
 	rc = -EBUSY;
 	/* disallow configuration changes of online cpus and cpu 0 */
 	cpu = dev->id;
-	cpu -= cpu % (smp_cpu_mtid + 1);
+	cpu = smp_get_base_cpu(cpu);
 	if (cpu == 0)
 		goto out;
 	for (i = 0; i <= smp_cpu_mtid; i++)
@@ -1047,22 +1045,18 @@ static struct attribute_group cpu_online_attr_group = {
 	.attrs = cpu_online_attrs,
 };
 
-static int smp_cpu_notify(struct notifier_block *self, unsigned long action,
-			  void *hcpu)
+static int smp_cpu_online(unsigned int cpu)
 {
-	unsigned int cpu = (unsigned int)(long)hcpu;
 	struct device *s = &per_cpu(cpu_device, cpu)->dev;
-	int err = 0;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-		err = sysfs_create_group(&s->kobj, &cpu_online_attr_group);
-		break;
-	case CPU_DEAD:
-		sysfs_remove_group(&s->kobj, &cpu_online_attr_group);
-		break;
-	}
-	return notifier_from_errno(err);
+	return sysfs_create_group(&s->kobj, &cpu_online_attr_group);
+}
+static int smp_cpu_pre_down(unsigned int cpu)
+{
+	struct device *s = &per_cpu(cpu_device, cpu)->dev;
+
+	sysfs_remove_group(&s->kobj, &cpu_online_attr_group);
+	return 0;
 }
 
 static int smp_add_present_cpu(int cpu)
@@ -1083,20 +1077,12 @@ static int smp_add_present_cpu(int cpu)
 	rc = sysfs_create_group(&s->kobj, &cpu_common_attr_group);
 	if (rc)
 		goto out_cpu;
-	if (cpu_online(cpu)) {
-		rc = sysfs_create_group(&s->kobj, &cpu_online_attr_group);
-		if (rc)
-			goto out_online;
-	}
 	rc = topology_cpu_init(c);
 	if (rc)
 		goto out_topology;
 	return 0;
 
 out_topology:
-	if (cpu_online(cpu))
-		sysfs_remove_group(&s->kobj, &cpu_online_attr_group);
-out_online:
 	sysfs_remove_group(&s->kobj, &cpu_common_attr_group);
 out_cpu:
 #ifdef CONFIG_HOTPLUG_CPU
@@ -1113,9 +1099,10 @@ int __ref smp_rescan_cpus(void)
 	struct sclp_core_info *info;
 	int nr;
 
-	info = smp_get_core_info();
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
+	smp_get_core_info(info, 0);
 	get_online_cpus();
 	mutex_lock(&smp_cpu_state_mutex);
 	nr = __smp_rescan_cpus(info, 1);
@@ -1149,17 +1136,15 @@ static int __init s390_smp_init(void)
 	if (rc)
 		return rc;
 #endif
-	cpu_notifier_register_begin();
 	for_each_present_cpu(cpu) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)
 			goto out;
 	}
 
-	__hotcpu_notifier(smp_cpu_notify, 0);
-
+	rc = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "s390/smp:online",
+			       smp_cpu_online, smp_cpu_pre_down);
 out:
-	cpu_notifier_register_done();
 	return rc;
 }
 subsys_initcall(s390_smp_init);

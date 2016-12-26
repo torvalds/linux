@@ -38,7 +38,7 @@
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 #include <asm/pdc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_64BIT
 #define FRAME_SIZE	128

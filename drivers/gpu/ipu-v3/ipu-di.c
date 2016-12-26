@@ -535,7 +535,7 @@ int ipu_di_adjust_videomode(struct ipu_di *di, struct videomode *mode)
 		return -EINVAL;
 	}
 
-	dev_warn(di->ipu->dev, "videomode adapted for IPU restrictions\n");
+	dev_dbg(di->ipu->dev, "videomode adapted for IPU restrictions\n");
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ipu_di_adjust_videomode);

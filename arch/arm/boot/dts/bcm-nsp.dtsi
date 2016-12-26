@@ -160,7 +160,7 @@
 
 	axi {
 		compatible = "simple-bus";
-		ranges = <0x00000000 0x18000000 0x0011ba08>;
+		ranges = <0x00000000 0x18000000 0x0011c40a>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 
@@ -241,6 +241,16 @@
 			brcm,nand-has-wp;
 		};
 
+		gpiob: gpio@30000 {
+			compatible = "brcm,iproc-nsp-gpio", "brcm,iproc-gpio";
+			reg = <0x30000 0x50>;
+			#gpio-cells = <2>;
+			gpio-controller;
+			ngpios = <4>;
+			interrupt-controller;
+			interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		pwm: pwm@31000 {
 			compatible = "brcm,iproc-pwm";
 			reg = <0x31000 0x28>;
@@ -252,6 +262,35 @@
 		rng: rng@33000 {
 			compatible = "brcm,bcm-nsp-rng";
 			reg = <0x33000 0x14>;
+		};
+
+		qspi: qspi@27200 {
+			compatible = "brcm,spi-bcm-qspi", "brcm,spi-nsp-qspi";
+			reg = <0x027200 0x184>,
+			      <0x027000 0x124>,
+			      <0x11c408 0x004>,
+			      <0x0273a0 0x01c>;
+			reg-names = "mspi", "bspi", "intr_regs",
+				    "intr_status_reg";
+			interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "spi_lr_fullness_reached",
+					  "spi_lr_session_aborted",
+					  "spi_lr_impatient",
+					  "spi_lr_session_done",
+					  "spi_lr_overhead",
+					  "mspi_done",
+					  "mspi_halted";
+			clocks = <&iprocmed>;
+			clock-names = "iprocmed";
+			num-cs = <2>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		ccbtimer0: timer@34000 {

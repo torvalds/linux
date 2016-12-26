@@ -114,6 +114,7 @@ void xen_uninit_lock_cpu(int cpu)
 	per_cpu(irq_name, cpu) = NULL;
 }
 
+PV_CALLEE_SAVE_REGS_THUNK(xen_vcpu_stolen);
 
 /*
  * Our init of PV spinlocks is split in two init functions due to us
@@ -137,6 +138,7 @@ void __init xen_init_spinlocks(void)
 	pv_lock_ops.queued_spin_unlock = PV_CALLEE_SAVE(__pv_queued_spin_unlock);
 	pv_lock_ops.wait = xen_qlock_wait;
 	pv_lock_ops.kick = xen_qlock_kick;
+	pv_lock_ops.vcpu_is_preempted = PV_CALLEE_SAVE(xen_vcpu_stolen);
 }
 
 /*

@@ -19,7 +19,7 @@ obj-$(subst m,y,$(CONFIG_SPI_SPIDEV)) += platform_spidev.o
 # I2C Devices
 obj-$(subst m,y,$(CONFIG_SENSORS_EMC1403)) += platform_emc1403.o
 obj-$(subst m,y,$(CONFIG_SENSORS_LIS3LV02D)) += platform_lis331.o
-obj-$(subst m,y,$(CONFIG_INPUT_MPU3050)) += platform_mpu3050.o
+obj-$(subst m,y,$(CONFIG_MPU3050_I2C)) += platform_mpu3050.o
 obj-$(subst m,y,$(CONFIG_INPUT_BMA150)) += platform_bma023.o
 obj-$(subst m,y,$(CONFIG_DRM_MEDFIELD)) += platform_tc35876x.o
 # I2C GPIO Expanders
@@ -28,4 +28,4 @@ obj-$(subst m,y,$(CONFIG_GPIO_PCA953X)) += platform_pcal9555a.o
 obj-$(subst m,y,$(CONFIG_GPIO_PCA953X)) += platform_tca6416.o
 # MISC Devices
 obj-$(subst m,y,$(CONFIG_KEYBOARD_GPIO)) += platform_gpio_keys.o
-obj-$(subst m,y,$(CONFIG_INTEL_MID_WATCHDOG)) += platform_wdt.o
+obj-$(subst m,y,$(CONFIG_INTEL_MID_WATCHDOG)) += platform_mrfld_wdt.o

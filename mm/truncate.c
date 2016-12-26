@@ -44,28 +44,13 @@ static void clear_exceptional_entry(struct address_space *mapping,
 	 * without the tree itself locked.  These unlocked entries
 	 * need verification under the tree lock.
 	 */
-	if (!__radix_tree_lookup(&mapping->page_tree, index, &node,
-				&slot))
+	if (!__radix_tree_lookup(&mapping->page_tree, index, &node, &slot))
 		goto unlock;
 	if (*slot != entry)
 		goto unlock;
-	radix_tree_replace_slot(slot, NULL);
+	__radix_tree_replace(&mapping->page_tree, node, slot, NULL,
+			     workingset_update_node, mapping);
 	mapping->nrexceptional--;
-	if (!node)
-		goto unlock;
-	workingset_node_shadows_dec(node);
-	/*
-	 * Don't track node without shadow entries.
-	 *
-	 * Avoid acquiring the list_lru lock if already untracked.
-	 * The list_empty() test is safe as node->private_list is
-	 * protected by mapping->tree_lock.
-	 */
-	if (!workingset_node_shadows(node) &&
-	    !list_empty(&node->private_list))
-		list_lru_del(&workingset_shadow_nodes,
-				&node->private_list);
-	__radix_tree_delete_node(&mapping->page_tree, node);
 unlock:
 	spin_unlock_irq(&mapping->tree_lock);
 }
@@ -283,7 +268,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 
 			if (!trylock_page(page))
 				continue;
-			WARN_ON(page_to_pgoff(page) != index);
+			WARN_ON(page_to_index(page) != index);
 			if (PageWriteback(page)) {
 				unlock_page(page);
 				continue;
@@ -371,7 +356,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
 			}
 
 			lock_page(page);
-			WARN_ON(page_to_pgoff(page) != index);
+			WARN_ON(page_to_index(page) != index);
 			wait_on_page_writeback(page);
 			truncate_inode_page(mapping, page);
 			unlock_page(page);
@@ -492,7 +477,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
 			if (!trylock_page(page))
 				continue;
 
-			WARN_ON(page_to_pgoff(page) != index);
+			WARN_ON(page_to_index(page) != index);
 
 			/* Middle of THP: skip */
 			if (PageTransTail(page)) {
@@ -612,7 +597,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
 			}
 
 			lock_page(page);
-			WARN_ON(page_to_pgoff(page) != index);
+			WARN_ON(page_to_index(page) != index);
 			if (page->mapping != mapping) {
 				unlock_page(page);
 				continue;

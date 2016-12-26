@@ -35,7 +35,7 @@
 #include <asm/page.h>
 #include <asm/param.h>
 #include <asm/delay.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/udbg.h>
 #include <asm/syscalls.h>
 #include <asm/smp.h>

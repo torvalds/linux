@@ -31,7 +31,7 @@
 #include <linux/poll.h>
 #include <linux/string.h>
 #include <linux/crc32.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 
 #include "dvb_demux.h"

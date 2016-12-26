@@ -120,12 +120,12 @@ static int gic_clockevent_init(void)
 	}
 
 	cpuhp_setup_state(CPUHP_AP_MIPS_GIC_TIMER_STARTING,
-			  "AP_MIPS_GIC_TIMER_STARTING", gic_starting_cpu,
-			  gic_dying_cpu);
+			  "clockevents/mips/gic/timer:starting",
+			  gic_starting_cpu, gic_dying_cpu);
 	return 0;
 }
 
-static cycle_t gic_hpt_read(struct clocksource *cs)
+static u64 gic_hpt_read(struct clocksource *cs)
 {
 	return gic_read_count();
 }

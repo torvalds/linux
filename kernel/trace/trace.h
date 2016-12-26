@@ -15,6 +15,7 @@
 #include <linux/trace_events.h>
 #include <linux/compiler.h>
 #include <linux/trace_seq.h>
+#include <linux/glob.h>
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 #include <asm/unistd.h>		/* For NR_SYSCALLS	     */
@@ -39,6 +40,7 @@ enum trace_type {
 	TRACE_BLK,
 	TRACE_BPUTS,
 	TRACE_HWLAT,
+	TRACE_RAW_DATA,
 
 	__TRACE_LAST_TYPE,
 };
@@ -157,7 +159,7 @@ struct trace_array_cpu {
 	unsigned long		policy;
 	unsigned long		rt_priority;
 	unsigned long		skipped_entries;
-	cycle_t			preempt_timestamp;
+	u64			preempt_timestamp;
 	pid_t			pid;
 	kuid_t			uid;
 	char			comm[TASK_COMM_LEN];
@@ -175,7 +177,7 @@ struct trace_buffer {
 	struct trace_array		*tr;
 	struct ring_buffer		*buffer;
 	struct trace_array_cpu __percpu	*data;
-	cycle_t				time_start;
+	u64				time_start;
 	int				cpu;
 };
 
@@ -330,6 +332,7 @@ extern void __ftrace_bad_type(void);
 		IF_ASSIGN(var, ent, struct bprint_entry, TRACE_BPRINT);	\
 		IF_ASSIGN(var, ent, struct bputs_entry, TRACE_BPUTS);	\
 		IF_ASSIGN(var, ent, struct hwlat_entry, TRACE_HWLAT);	\
+		IF_ASSIGN(var, ent, struct raw_data_entry, TRACE_RAW_DATA);\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_rw,		\
 			  TRACE_MMIO_RW);				\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_map,		\
@@ -599,8 +602,8 @@ struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 struct trace_entry *trace_find_next_entry(struct trace_iterator *iter,
 					  int *ent_cpu, u64 *ent_ts);
 
-void __buffer_unlock_commit(struct ring_buffer *buffer,
-			    struct ring_buffer_event *event);
+void trace_buffer_unlock_commit_nostack(struct ring_buffer *buffer,
+					struct ring_buffer_event *event);
 
 int trace_empty(struct trace_iterator *iter);
 
@@ -686,7 +689,7 @@ static inline void __trace_stack(struct trace_array *tr, unsigned long flags,
 }
 #endif /* CONFIG_STACKTRACE */
 
-extern cycle_t ftrace_now(int cpu);
+extern u64 ftrace_now(int cpu);
 
 extern void trace_find_cmdline(int pid, char comm[]);
 extern void trace_event_follow_fork(struct trace_array *tr, bool enable);
@@ -733,7 +736,7 @@ extern int trace_selftest_startup_branch(struct tracer *trace,
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
-extern unsigned long long ns2usecs(cycle_t nsec);
+extern unsigned long long ns2usecs(u64 nsec);
 extern int
 trace_vbprintk(unsigned long ip, const char *fmt, va_list args);
 extern int
@@ -843,6 +846,17 @@ static inline int ftrace_graph_notrace_addr(unsigned long addr)
 	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
+
+extern unsigned int fgraph_max_depth;
+
+static inline bool ftrace_graph_ignore_func(struct ftrace_graph_ent *trace)
+{
+	/* trace it when it is-nested-in or is a function enabled. */
+	return !(trace->depth || ftrace_graph_addr(trace->func)) ||
+		(trace->depth < 0) ||
+		(fgraph_max_depth && trace->depth >= fgraph_max_depth);
+}
+
 #else /* CONFIG_FUNCTION_GRAPH_TRACER */
 static inline enum print_line_t
 print_graph_function_flags(struct trace_iterator *iter, u32 flags)
@@ -1257,6 +1271,7 @@ enum regex_type {
 	MATCH_FRONT_ONLY,
 	MATCH_MIDDLE_ONLY,
 	MATCH_END_ONLY,
+	MATCH_GLOB,
 };
 
 struct regex {

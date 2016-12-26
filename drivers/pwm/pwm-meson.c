@@ -474,6 +474,7 @@ static int meson_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(meson->base))
 		return PTR_ERR(meson->base);
 
+	spin_lock_init(&meson->lock);
 	meson->chip.dev = &pdev->dev;
 	meson->chip.ops = &meson_pwm_ops;
 	meson->chip.base = -1;
@@ -523,7 +524,6 @@ static struct platform_driver meson_pwm_driver = {
 };
 module_platform_driver(meson_pwm_driver);
 
-MODULE_ALIAS("platform:meson-pwm");
 MODULE_DESCRIPTION("Amlogic Meson PWM Generator driver");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
 MODULE_LICENSE("Dual BSD/GPL");

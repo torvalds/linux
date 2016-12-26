@@ -553,7 +553,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 		memcpy(hdr, hdr11->addr3, ETH_ALEN); /* DA */
 		memcpy(hdr + ETH_ALEN, hdr11->addr4, ETH_ALEN); /* SA */
 		break;
-	case 0:
+	default:
 		memcpy(hdr, hdr11->addr1, ETH_ALEN); /* DA */
 		memcpy(hdr + ETH_ALEN, hdr11->addr2, ETH_ALEN); /* SA */
 		break;

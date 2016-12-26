@@ -108,16 +108,13 @@ static const struct file_operations virtio_gpu_driver_fops = {
 	.read = drm_read,
 	.unlocked_ioctl	= drm_ioctl,
 	.release = drm_release,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
 
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_RENDER | DRIVER_ATOMIC,
-	.set_busid = drm_virtio_set_busid,
 	.load = virtio_gpu_driver_load,
 	.unload = virtio_gpu_driver_unload,
 	.open = virtio_gpu_driver_open,

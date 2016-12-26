@@ -21,6 +21,7 @@ extern struct proc_dir_entry *proc_mkdir_data(const char *, umode_t,
 					      struct proc_dir_entry *, void *);
 extern struct proc_dir_entry *proc_mkdir_mode(const char *, umode_t,
 					      struct proc_dir_entry *);
+struct proc_dir_entry *proc_create_mount_point(const char *name);
  
 extern struct proc_dir_entry *proc_create_data(const char *, umode_t,
 					       struct proc_dir_entry *,
@@ -56,6 +57,7 @@ static inline struct proc_dir_entry *proc_symlink(const char *name,
 		struct proc_dir_entry *parent,const char *dest) { return NULL;}
 static inline struct proc_dir_entry *proc_mkdir(const char *name,
 	struct proc_dir_entry *parent) {return NULL;}
+static inline struct proc_dir_entry *proc_create_mount_point(const char *name) { return NULL; }
 static inline struct proc_dir_entry *proc_mkdir_data(const char *name,
 	umode_t mode, struct proc_dir_entry *parent, void *data) { return NULL; }
 static inline struct proc_dir_entry *proc_mkdir_mode(const char *name,
@@ -81,5 +83,9 @@ static inline struct proc_dir_entry *proc_net_mkdir(
 {
 	return proc_mkdir_data(name, 0, parent, net);
 }
+
+struct ns_common;
+int open_related_ns(struct ns_common *ns,
+		   struct ns_common *(*get_ns)(struct ns_common *ns));
 
 #endif /* _LINUX_PROC_FS_H */

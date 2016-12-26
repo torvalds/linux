@@ -181,14 +181,17 @@ static int __dma_purge_tlb(struct zpci_dev *zdev, dma_addr_t dma_addr,
 	/*
 	 * With zdev->tlb_refresh == 0, rpcit is not required to establish new
 	 * translations when previously invalid translation-table entries are
-	 * validated. With lazy unmap, it also is skipped for previously valid
+	 * validated. With lazy unmap, rpcit is skipped for previously valid
 	 * entries, but a global rpcit is then required before any address can
 	 * be re-used, i.e. after each iommu bitmap wrap-around.
 	 */
-	if (!zdev->tlb_refresh &&
-			(!s390_iommu_strict ||
-			((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID)))
-		return 0;
+	if ((flags & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID) {
+		if (!zdev->tlb_refresh)
+			return 0;
+	} else {
+		if (!s390_iommu_strict)
+			return 0;
+	}
 
 	return zpci_refresh_trans((u64) zdev->fh << 32, dma_addr,
 				  PAGE_ALIGN(size));
@@ -257,7 +260,7 @@ static dma_addr_t dma_alloc_address(struct device *dev, int size)
 	spin_lock_irqsave(&zdev->iommu_bitmap_lock, flags);
 	offset = __dma_alloc_iommu(dev, zdev->next_bit, size);
 	if (offset == -1) {
-		if (!zdev->tlb_refresh && !s390_iommu_strict) {
+		if (!s390_iommu_strict) {
 			/* global flush before DMA addresses are reused */
 			if (zpci_refresh_global(zdev))
 				goto out_error;
@@ -292,7 +295,7 @@ static void dma_free_address(struct device *dev, dma_addr_t dma_addr, int size)
 	if (!zdev->iommu_bitmap)
 		goto out;
 
-	if (zdev->tlb_refresh || s390_iommu_strict)
+	if (s390_iommu_strict)
 		bitmap_clear(zdev->iommu_bitmap, offset, size);
 	else
 		bitmap_set(zdev->lazy_bitmap, offset, size);
@@ -388,8 +391,6 @@ static void *s390_dma_alloc(struct device *dev, size_t size,
 		return NULL;
 
 	pa = page_to_phys(page);
-	memset((void *) pa, 0, size);
-
 	map = s390_dma_map_pages(dev, page, 0, size, DMA_BIDIRECTIONAL, 0);
 	if (dma_mapping_error(dev, map)) {
 		free_pages(pa, get_order(size));
@@ -419,6 +420,7 @@ static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 			     size_t size, dma_addr_t *handle,
 			     enum dma_data_direction dir)
 {
+	unsigned long nr_pages = PAGE_ALIGN(size) >> PAGE_SHIFT;
 	struct zpci_dev *zdev = to_zpci(to_pci_dev(dev));
 	dma_addr_t dma_addr_base, dma_addr;
 	int flags = ZPCI_PTE_VALID;
@@ -426,8 +428,7 @@ static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 	unsigned long pa = 0;
 	int ret;
 
-	size = PAGE_ALIGN(size);
-	dma_addr_base = dma_alloc_address(dev, size >> PAGE_SHIFT);
+	dma_addr_base = dma_alloc_address(dev, nr_pages);
 	if (dma_addr_base == DMA_ERROR_CODE)
 		return -ENOMEM;
 
@@ -436,26 +437,27 @@ static int __s390_dma_map_sg(struct device *dev, struct scatterlist *sg,
 		flags |= ZPCI_TABLE_PROTECTED;
 
 	for (s = sg; dma_addr < dma_addr_base + size; s = sg_next(s)) {
-		pa = page_to_phys(sg_page(s)) + s->offset;
-		ret = __dma_update_trans(zdev, pa, dma_addr, s->length, flags);
+		pa = page_to_phys(sg_page(s));
+		ret = __dma_update_trans(zdev, pa, dma_addr,
+					 s->offset + s->length, flags);
 		if (ret)
 			goto unmap;
 
-		dma_addr += s->length;
+		dma_addr += s->offset + s->length;
 	}
 	ret = __dma_purge_tlb(zdev, dma_addr_base, size, flags);
 	if (ret)
 		goto unmap;
 
 	*handle = dma_addr_base;
-	atomic64_add(size >> PAGE_SHIFT, &zdev->mapped_pages);
+	atomic64_add(nr_pages, &zdev->mapped_pages);
 
 	return ret;
 
 unmap:
 	dma_update_trans(zdev, 0, dma_addr_base, dma_addr - dma_addr_base,
 			 ZPCI_PTE_INVALID);
-	dma_free_address(dev, dma_addr_base, size >> PAGE_SHIFT);
+	dma_free_address(dev, dma_addr_base, nr_pages);
 	zpci_err("map error:\n");
 	zpci_err_dma(ret, pa);
 	return ret;
@@ -564,7 +566,7 @@ int zpci_dma_init_device(struct zpci_dev *zdev)
 		rc = -ENOMEM;
 		goto free_dma_table;
 	}
-	if (!zdev->tlb_refresh && !s390_iommu_strict) {
+	if (!s390_iommu_strict) {
 		zdev->lazy_bitmap = vzalloc(zdev->iommu_pages / 8);
 		if (!zdev->lazy_bitmap) {
 			rc = -ENOMEM;

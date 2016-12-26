@@ -14,7 +14,7 @@
 #include <linux/io.h>
 #include <linux/suspend.h>
 #include <asm/suspend.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 #include <asm/bl_bit.h>
 

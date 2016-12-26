@@ -382,12 +382,10 @@ static void mlxsw_sp_lpm_init(struct mlxsw_sp *mlxsw_sp)
 
 static struct mlxsw_sp_vr *mlxsw_sp_vr_find_unused(struct mlxsw_sp *mlxsw_sp)
 {
-	struct mlxsw_resources *resources;
 	struct mlxsw_sp_vr *vr;
 	int i;
 
-	resources = mlxsw_core_resources_get(mlxsw_sp->core);
-	for (i = 0; i < resources->max_virtual_routers; i++) {
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
 		vr = &mlxsw_sp->router.vrs[i];
 		if (!vr->used)
 			return vr;
@@ -429,14 +427,12 @@ static struct mlxsw_sp_vr *mlxsw_sp_vr_find(struct mlxsw_sp *mlxsw_sp,
 					    u32 tb_id,
 					    enum mlxsw_sp_l3proto proto)
 {
-	struct mlxsw_resources *resources;
 	struct mlxsw_sp_vr *vr;
 	int i;
 
 	tb_id = mlxsw_sp_fix_tb_id(tb_id);
 
-	resources = mlxsw_core_resources_get(mlxsw_sp->core);
-	for (i = 0; i < resources->max_virtual_routers; i++) {
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
 		vr = &mlxsw_sp->router.vrs[i];
 		if (vr->used && vr->proto == proto && vr->tb_id == tb_id)
 			return vr;
@@ -572,21 +568,20 @@ static void mlxsw_sp_vr_put(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr)
 
 static int mlxsw_sp_vrs_init(struct mlxsw_sp *mlxsw_sp)
 {
-	struct mlxsw_resources *resources;
 	struct mlxsw_sp_vr *vr;
+	u64 max_vrs;
 	int i;
 
-	resources = mlxsw_core_resources_get(mlxsw_sp->core);
-	if (!resources->max_virtual_routers_valid)
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_VRS))
 		return -EIO;
 
-	mlxsw_sp->router.vrs = kcalloc(resources->max_virtual_routers,
-				       sizeof(struct mlxsw_sp_vr),
+	max_vrs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS);
+	mlxsw_sp->router.vrs = kcalloc(max_vrs, sizeof(struct mlxsw_sp_vr),
 				       GFP_KERNEL);
 	if (!mlxsw_sp->router.vrs)
 		return -ENOMEM;
 
-	for (i = 0; i < resources->max_virtual_routers; i++) {
+	for (i = 0; i < max_vrs; i++) {
 		vr = &mlxsw_sp->router.vrs[i];
 		vr->id = i;
 	}
@@ -598,6 +593,14 @@ static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp);
 
 static void mlxsw_sp_vrs_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	/* At this stage we're guaranteed not to have new incoming
+	 * FIB notifications and the work queue is free from FIBs
+	 * sitting on top of mlxsw netdevs. However, we can still
+	 * have other FIBs queued. Flush the queue before flushing
+	 * the device's tables. No need for locks, as we're the only
+	 * writer.
+	 */
+	mlxsw_core_flush_owq();
 	mlxsw_sp_router_fib_flush(mlxsw_sp);
 	kfree(mlxsw_sp->router.vrs);
 }
@@ -939,7 +942,7 @@ static void mlxsw_sp_router_neigh_update_hw(struct work_struct *work)
 	char rauht_pl[MLXSW_REG_RAUHT_LEN];
 	struct net_device *dev;
 	bool entry_connected;
-	u8 nud_state;
+	u8 nud_state, dead;
 	bool updating;
 	bool removing;
 	bool adding;
@@ -950,10 +953,11 @@ static void mlxsw_sp_router_neigh_update_hw(struct work_struct *work)
 	dip = ntohl(*((__be32 *) n->primary_key));
 	memcpy(neigh_entry->ha, n->ha, sizeof(neigh_entry->ha));
 	nud_state = n->nud_state;
+	dead = n->dead;
 	dev = n->dev;
 	read_unlock_bh(&n->lock);
 
-	entry_connected = nud_state & NUD_VALID;
+	entry_connected = nud_state & NUD_VALID && !dead;
 	adding = (!neigh_entry->offloaded) && entry_connected;
 	updating = neigh_entry->offloaded && entry_connected;
 	removing = neigh_entry->offloaded && !entry_connected;
@@ -1348,7 +1352,7 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_neigh_entry *neigh_entry;
 	struct net_device *dev = fib_nh->nh_dev;
 	struct neighbour *n;
-	u8 nud_state;
+	u8 nud_state, dead;
 
 	/* Take a reference of neigh here ensuring that neigh would
 	 * not be detructed before the nexthop entry is finished.
@@ -1380,8 +1384,9 @@ static int mlxsw_sp_nexthop_init(struct mlxsw_sp *mlxsw_sp,
 	list_add_tail(&nh->neigh_list_node, &neigh_entry->nexthop_list);
 	read_lock_bh(&n->lock);
 	nud_state = n->nud_state;
+	dead = n->dead;
 	read_unlock_bh(&n->lock);
-	__mlxsw_sp_nexthop_neigh_update(nh, !(nud_state & NUD_VALID));
+	__mlxsw_sp_nexthop_neigh_update(nh, !(nud_state & NUD_VALID && !dead));
 
 	return 0;
 }
@@ -1391,6 +1396,7 @@ static void mlxsw_sp_nexthop_fini(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_neigh_entry *neigh_entry = nh->neigh_entry;
 
+	__mlxsw_sp_nexthop_neigh_update(nh, true);
 	list_del(&nh->neigh_list_node);
 
 	/* If that is the last nexthop connected to that neigh, remove from
@@ -1449,6 +1455,8 @@ mlxsw_sp_nexthop_group_destroy(struct mlxsw_sp *mlxsw_sp,
 		nh = &nh_grp->nexthops[i];
 		mlxsw_sp_nexthop_fini(mlxsw_sp, nh);
 	}
+	mlxsw_sp_nexthop_group_refresh(mlxsw_sp, nh_grp);
+	WARN_ON_ONCE(nh_grp->adj_index_valid);
 	kfree(nh_grp);
 }
 
@@ -1872,14 +1880,12 @@ static int mlxsw_sp_router_set_abort_trap(struct mlxsw_sp *mlxsw_sp)
 
 static void mlxsw_sp_router_fib_flush(struct mlxsw_sp *mlxsw_sp)
 {
-	struct mlxsw_resources *resources;
 	struct mlxsw_sp_fib_entry *fib_entry;
 	struct mlxsw_sp_fib_entry *tmp;
 	struct mlxsw_sp_vr *vr;
 	int i;
 
-	resources = mlxsw_core_resources_get(mlxsw_sp->core);
-	for (i = 0; i < resources->max_virtual_routers; i++) {
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_VRS); i++) {
 		vr = &mlxsw_sp->router.vrs[i];
 
 		if (!vr->used)
@@ -1903,6 +1909,9 @@ static void mlxsw_sp_router_fib4_abort(struct mlxsw_sp *mlxsw_sp)
 {
 	int err;
 
+	if (mlxsw_sp->router.aborted)
+		return;
+	dev_warn(mlxsw_sp->bus_info->dev, "FIB abort triggered. Note that FIB entries are no longer being offloaded to this device.\n");
 	mlxsw_sp_router_fib_flush(mlxsw_sp);
 	mlxsw_sp->router.aborted = true;
 	err = mlxsw_sp_router_set_abort_trap(mlxsw_sp);
@@ -1912,21 +1921,21 @@ static void mlxsw_sp_router_fib4_abort(struct mlxsw_sp *mlxsw_sp)
 
 static int __mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 {
-	struct mlxsw_resources *resources;
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
+	u64 max_rifs;
 	int err;
 
-	resources = mlxsw_core_resources_get(mlxsw_sp->core);
-	if (!resources->max_rif_valid)
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_RIFS))
 		return -EIO;
 
-	mlxsw_sp->rifs = kcalloc(resources->max_rif,
-				 sizeof(struct mlxsw_sp_rif *), GFP_KERNEL);
+	max_rifs = MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS);
+	mlxsw_sp->rifs = kcalloc(max_rifs, sizeof(struct mlxsw_sp_rif *),
+				 GFP_KERNEL);
 	if (!mlxsw_sp->rifs)
 		return -ENOMEM;
 
 	mlxsw_reg_rgcr_pack(rgcr_pl, true);
-	mlxsw_reg_rgcr_max_router_interfaces_set(rgcr_pl, resources->max_rif);
+	mlxsw_reg_rgcr_max_router_interfaces_set(rgcr_pl, max_rifs);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rgcr), rgcr_pl);
 	if (err)
 		goto err_rgcr_fail;
@@ -1940,45 +1949,99 @@ err_rgcr_fail:
 
 static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	struct mlxsw_resources *resources;
 	char rgcr_pl[MLXSW_REG_RGCR_LEN];
 	int i;
 
 	mlxsw_reg_rgcr_pack(rgcr_pl, false);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(rgcr), rgcr_pl);
 
-	resources = mlxsw_core_resources_get(mlxsw_sp->core);
-	for (i = 0; i < resources->max_rif; i++)
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++)
 		WARN_ON_ONCE(mlxsw_sp->rifs[i]);
 
 	kfree(mlxsw_sp->rifs);
 }
 
-static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
-				     unsigned long event, void *ptr)
+struct mlxsw_sp_fib_event_work {
+	struct delayed_work dw;
+	struct fib_entry_notifier_info fen_info;
+	struct mlxsw_sp *mlxsw_sp;
+	unsigned long event;
+};
+
+static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 {
-	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
-	struct fib_entry_notifier_info *fen_info = ptr;
+	struct mlxsw_sp_fib_event_work *fib_work =
+		container_of(work, struct mlxsw_sp_fib_event_work, dw.work);
+	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
 	int err;
 
-	if (!net_eq(fen_info->info.net, &init_net))
-		return NOTIFY_DONE;
-
-	switch (event) {
+	/* Protect internal structures from changes */
+	rtnl_lock();
+	switch (fib_work->event) {
 	case FIB_EVENT_ENTRY_ADD:
-		err = mlxsw_sp_router_fib4_add(mlxsw_sp, fen_info);
+		err = mlxsw_sp_router_fib4_add(mlxsw_sp, &fib_work->fen_info);
 		if (err)
 			mlxsw_sp_router_fib4_abort(mlxsw_sp);
+		fib_info_put(fib_work->fen_info.fi);
 		break;
 	case FIB_EVENT_ENTRY_DEL:
-		mlxsw_sp_router_fib4_del(mlxsw_sp, fen_info);
+		mlxsw_sp_router_fib4_del(mlxsw_sp, &fib_work->fen_info);
+		fib_info_put(fib_work->fen_info.fi);
 		break;
 	case FIB_EVENT_RULE_ADD: /* fall through */
 	case FIB_EVENT_RULE_DEL:
 		mlxsw_sp_router_fib4_abort(mlxsw_sp);
 		break;
 	}
+	rtnl_unlock();
+	kfree(fib_work);
+}
+
+/* Called with rcu_read_lock() */
+static int mlxsw_sp_router_fib_event(struct notifier_block *nb,
+				     unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
+	struct mlxsw_sp_fib_event_work *fib_work;
+	struct fib_notifier_info *info = ptr;
+
+	if (!net_eq(info->net, &init_net))
+		return NOTIFY_DONE;
+
+	fib_work = kzalloc(sizeof(*fib_work), GFP_ATOMIC);
+	if (WARN_ON(!fib_work))
+		return NOTIFY_BAD;
+
+	INIT_DELAYED_WORK(&fib_work->dw, mlxsw_sp_router_fib_event_work);
+	fib_work->mlxsw_sp = mlxsw_sp;
+	fib_work->event = event;
+
+	switch (event) {
+	case FIB_EVENT_ENTRY_ADD: /* fall through */
+	case FIB_EVENT_ENTRY_DEL:
+		memcpy(&fib_work->fen_info, ptr, sizeof(fib_work->fen_info));
+		/* Take referece on fib_info to prevent it from being
+		 * freed while work is queued. Release it afterwards.
+		 */
+		fib_info_hold(fib_work->fen_info.fi);
+		break;
+	}
+
+	mlxsw_core_schedule_odw(&fib_work->dw, 0);
+
 	return NOTIFY_DONE;
+}
+
+static void mlxsw_sp_router_fib_dump_flush(struct notifier_block *nb)
+{
+	struct mlxsw_sp *mlxsw_sp = container_of(nb, struct mlxsw_sp, fib_nb);
+
+	/* Flush pending FIB notifications and then flush the device's
+	 * table before requesting another dump. The FIB notification
+	 * block is unregistered, so no need to take RTNL.
+	 */
+	mlxsw_core_flush_owq();
+	mlxsw_sp_router_fib_flush(mlxsw_sp);
 }
 
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
@@ -1996,14 +2059,20 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_vrs_init;
 
-	err =  mlxsw_sp_neigh_init(mlxsw_sp);
+	err = mlxsw_sp_neigh_init(mlxsw_sp);
 	if (err)
 		goto err_neigh_init;
 
 	mlxsw_sp->fib_nb.notifier_call = mlxsw_sp_router_fib_event;
-	register_fib_notifier(&mlxsw_sp->fib_nb);
+	err = register_fib_notifier(&mlxsw_sp->fib_nb,
+				    mlxsw_sp_router_fib_dump_flush);
+	if (err)
+		goto err_register_fib_notifier;
+
 	return 0;
 
+err_register_fib_notifier:
+	mlxsw_sp_neigh_fini(mlxsw_sp);
 err_neigh_init:
 	mlxsw_sp_vrs_fini(mlxsw_sp);
 err_vrs_init:

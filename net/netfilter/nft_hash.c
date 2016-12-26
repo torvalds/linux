@@ -53,11 +53,11 @@ static int nft_hash_init(const struct nft_ctx *ctx,
 {
 	struct nft_hash *priv = nft_expr_priv(expr);
 	u32 len;
+	int err;
 
 	if (!tb[NFTA_HASH_SREG] ||
 	    !tb[NFTA_HASH_DREG] ||
 	    !tb[NFTA_HASH_LEN]  ||
-	    !tb[NFTA_HASH_SEED] ||
 	    !tb[NFTA_HASH_MODULUS])
 		return -EINVAL;
 
@@ -67,8 +67,10 @@ static int nft_hash_init(const struct nft_ctx *ctx,
 	priv->sreg = nft_parse_register(tb[NFTA_HASH_SREG]);
 	priv->dreg = nft_parse_register(tb[NFTA_HASH_DREG]);
 
-	len = ntohl(nla_get_be32(tb[NFTA_HASH_LEN]));
-	if (len == 0 || len > U8_MAX)
+	err = nft_parse_u32_check(tb[NFTA_HASH_LEN], U8_MAX, &len);
+	if (err < 0)
+		return err;
+	if (len == 0)
 		return -ERANGE;
 
 	priv->len = len;
@@ -80,7 +82,10 @@ static int nft_hash_init(const struct nft_ctx *ctx,
 	if (priv->offset + priv->modulus - 1 < priv->offset)
 		return -EOVERFLOW;
 
-	priv->seed = ntohl(nla_get_be32(tb[NFTA_HASH_SEED]));
+	if (tb[NFTA_HASH_SEED])
+		priv->seed = ntohl(nla_get_be32(tb[NFTA_HASH_SEED]));
+	else
+		get_random_bytes(&priv->seed, sizeof(priv->seed));
 
 	return nft_validate_register_load(priv->sreg, len) &&
 	       nft_validate_register_store(ctx, priv->dreg, NULL,

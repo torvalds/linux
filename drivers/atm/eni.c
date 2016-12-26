@@ -21,7 +21,7 @@
 #include <linux/slab.h>
 #include <asm/io.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/string.h>
 #include <asm/byteorder.h>
 
@@ -1727,7 +1727,7 @@ static int eni_do_init(struct atm_dev *dev)
 		printk("\n");
 		printk(KERN_ERR DEV_LABEL "(itf %d): can't set up page "
 		    "mapping\n",dev->number);
-		return error;
+		return -ENOMEM;
 	}
 	eni_dev->ioaddr = base;
 	eni_dev->base_diff = real_base - (unsigned long) base;

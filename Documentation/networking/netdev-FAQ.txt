@@ -136,14 +136,14 @@ A: Normally Greg Kroah-Hartman collects stable commits himself, but
 
 Q: I see a network patch and I think it should be backported to stable.
    Should I request it via "stable@vger.kernel.org" like the references in
-   the kernel's Documentation/stable_kernel_rules.txt file say?
+   the kernel's Documentation/process/stable-kernel-rules.rst file say?
 
 A: No, not for networking.  Check the stable queues as per above 1st to see
    if it is already queued.  If not, then send a mail to netdev, listing
    the upstream commit ID and why you think it should be a stable candidate.
 
    Before you jump to go do the above, do note that the normal stable rules
-   in Documentation/stable_kernel_rules.txt still apply.  So you need to
+   in Documentation/process/stable-kernel-rules.rst still apply.  So you need to
    explicitly indicate why it is a critical fix and exactly what users are
    impacted.  In addition, you need to convince yourself that you _really_
    think it has been overlooked, vs. having been considered and rejected.
@@ -165,7 +165,7 @@ A: No.  See above answer.  In short, if you think it really belongs in
 
    If you think there is some valid information relating to it being in
    stable that does _not_ belong in the commit log, then use the three
-   dash marker line as described in Documentation/SubmittingPatches to
+   dash marker line as described in Documentation/process/submitting-patches.rst to
    temporarily embed that information into the patch that you send.
 
 Q: Someone said that the comment style and coding convention is different
@@ -220,5 +220,5 @@ A: Attention to detail.  Re-read your own work as if you were the
    If it is your first patch, mail it to yourself so you can test apply
    it to an unpatched tree to confirm infrastructure didn't mangle it.
 
-   Finally, go back and read Documentation/SubmittingPatches to be
+   Finally, go back and read Documentation/process/submitting-patches.rst to be
    sure you are not repeating some common mistake documented there.

@@ -260,7 +260,7 @@ smb2_push_mandatory_locks(struct cifsFileInfo *cfile)
 	 * and check it for zero before using.
 	 */
 	max_buf = tlink_tcon(cfile->tlink)->ses->server->maxBuf;
-	if (!max_buf) {
+	if (max_buf < sizeof(struct smb2_lock_element)) {
 		free_xid(xid);
 		return -EINVAL;
 	}
