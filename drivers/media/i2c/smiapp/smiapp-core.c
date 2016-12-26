@@ -2741,9 +2741,7 @@ static const struct v4l2_subdev_internal_ops smiapp_internal_ops = {
  * I2C Driver
  */
 
-#ifdef CONFIG_PM
-
-static int smiapp_suspend(struct device *dev)
+static int __maybe_unused smiapp_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
@@ -2768,7 +2766,7 @@ static int smiapp_suspend(struct device *dev)
 	return 0;
 }
 
-static int smiapp_resume(struct device *dev)
+static int __maybe_unused smiapp_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
@@ -2782,13 +2780,6 @@ static int smiapp_resume(struct device *dev)
 
 	return rval;
 }
-
-#else
-
-#define smiapp_suspend	NULL
-#define smiapp_resume	NULL
-
-#endif /* CONFIG_PM */
 
 static struct smiapp_hwconfig *smiapp_get_hwconfig(struct device *dev)
 {
@@ -2913,13 +2904,9 @@ static int smiapp_probe(struct i2c_client *client,
 	if (IS_ERR(sensor->xshutdown))
 		return PTR_ERR(sensor->xshutdown);
 
-	pm_runtime_enable(&client->dev);
-
-	rval = pm_runtime_get_sync(&client->dev);
-	if (rval < 0) {
-		rval = -ENODEV;
-		goto out_power_off;
-	}
+	rval = smiapp_power_on(&client->dev);
+	if (rval < 0)
+		return rval;
 
 	rval = smiapp_identify_module(sensor);
 	if (rval) {
@@ -3100,6 +3087,9 @@ static int smiapp_probe(struct i2c_client *client,
 	if (rval < 0)
 		goto out_media_entity_cleanup;
 
+	pm_runtime_set_active(&client->dev);
+	pm_runtime_get_noresume(&client->dev);
+	pm_runtime_enable(&client->dev);
 	pm_runtime_set_autosuspend_delay(&client->dev, 1000);
 	pm_runtime_use_autosuspend(&client->dev);
 	pm_runtime_put_autosuspend(&client->dev);
@@ -3113,8 +3103,7 @@ out_cleanup:
 	smiapp_cleanup(sensor);
 
 out_power_off:
-	pm_runtime_put(&client->dev);
-	pm_runtime_disable(&client->dev);
+	smiapp_power_off(&client->dev);
 
 	return rval;
 }
@@ -3127,8 +3116,10 @@ static int smiapp_remove(struct i2c_client *client)
 
 	v4l2_async_unregister_subdev(subdev);
 
-	pm_runtime_suspend(&client->dev);
 	pm_runtime_disable(&client->dev);
+	if (!pm_runtime_status_suspended(&client->dev))
+		smiapp_power_off(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 
 	for (i = 0; i < sensor->ssds_used; i++) {
 		v4l2_device_unregister_subdev(&sensor->ssds[i].sd);
