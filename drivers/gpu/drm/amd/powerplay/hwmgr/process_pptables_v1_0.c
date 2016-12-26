@@ -20,13 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 
 #include "process_pptables_v1_0.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
-#include "pp_debug.h"
 #include "hwmgr.h"
 #include "cgs_common.h"
 #include "pptable_v1_0.h"

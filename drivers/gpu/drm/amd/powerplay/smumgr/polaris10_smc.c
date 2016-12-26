@@ -21,13 +21,13 @@
  *
  */
 
+#include "pp_debug.h"
 #include "polaris10_smc.h"
 #include "smu7_dyn_defaults.h"
 
 #include "smu7_hwmgr.h"
 #include "hardwaremanager.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "atombios.h"
 #include "polaris10_smumgr.h"

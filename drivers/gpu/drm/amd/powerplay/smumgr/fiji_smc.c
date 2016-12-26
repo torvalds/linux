@@ -21,13 +21,13 @@
  *
  */
 
+#include "pp_debug.h"
 #include "fiji_smc.h"
 #include "smu7_dyn_defaults.h"
 
 #include "smu7_hwmgr.h"
 #include "hardwaremanager.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "atombios.h"
 #include "fiji_smumgr.h"

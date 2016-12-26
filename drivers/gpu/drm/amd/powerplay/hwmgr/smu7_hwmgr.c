@@ -20,13 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <asm/div64.h>
 #include "linux/delay.h"
 #include "pp_acpi.h"
-#include "pp_debug.h"
 #include "ppatomctrl.h"
 #include "atombios.h"
 #include "pptable_v1_0.h"

@@ -20,6 +20,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
+#include "pp_debug.h"
 #include "linux/delay.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -29,7 +31,6 @@
 #include "power_state.h"
 #include "hwmgr.h"
 #include "pppcielanes.h"
-#include "pp_debug.h"
 #include "ppatomctrl.h"
 #include "ppsmc.h"
 #include "pp_acpi.h"

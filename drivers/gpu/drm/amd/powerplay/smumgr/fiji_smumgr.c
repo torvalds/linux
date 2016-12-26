@@ -21,6 +21,7 @@
  *
  */
 
+#include "pp_debug.h"
 #include "smumgr.h"
 #include "smu73.h"
 #include "smu_ucode_xfer_vi.h"
@@ -36,7 +37,6 @@
 #include "gca/gfx_8_0_d.h"
 #include "bif/bif_5_0_d.h"
 #include "bif/bif_5_0_sh_mask.h"
-#include "pp_debug.h"
 #include "fiji_pwrvirus.h"
 #include "fiji_smc.h"
 

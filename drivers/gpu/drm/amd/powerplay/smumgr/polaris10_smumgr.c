@@ -21,6 +21,7 @@
  *
  */
 
+#include "pp_debug.h"
 #include "smumgr.h"
 #include "smu74.h"
 #include "smu_ucode_xfer_vi.h"
@@ -36,7 +37,6 @@
 #include "bif/bif_5_0_sh_mask.h"
 #include "polaris10_pwrvirus.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "polaris10_smc.h"
 #include "smu7_ppsmc.h"

@@ -20,11 +20,11 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include "hwmgr.h"
 #include "smumgr.h"
 #include "smu7_hwmgr.h"
 #include "smu7_powertune.h"
-#include "pp_debug.h"
 #include "smu7_common.h"
 
 #define VOLTAGE_SCALE  4

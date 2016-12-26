@@ -20,13 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/module.h>
 #include <linux/slab.h>
 
 #include "ppatomctrl.h"
 #include "atombios.h"
 #include "cgs_common.h"
-#include "pp_debug.h"
 #include "ppevvmath.h"
 
 #define MEM_ID_MASK           0xff000000

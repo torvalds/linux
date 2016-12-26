@@ -22,12 +22,12 @@
  */
 
 
+#include "pp_debug.h"
 #include "smumgr.h"
 #include "smu_ucode_xfer_vi.h"
 #include "smu/smu_7_1_3_d.h"
 #include "smu/smu_7_1_3_sh_mask.h"
 #include "ppatomctrl.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "smu7_ppsmc.h"
 #include "smu7_smumgr.h"

@@ -22,6 +22,7 @@
  * Author: Huang Rui <ray.huang@amd.com>
  *
  */
+#include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -29,7 +30,6 @@
 
 #include "smumgr.h"
 #include "iceland_smumgr.h"
-#include "pp_debug.h"
 #include "smu_ucode_xfer_vi.h"
 #include "ppsmc.h"
 #include "smu/smu_7_1_1_d.h"

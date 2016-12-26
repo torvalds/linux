@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/gfp.h>
@@ -29,7 +30,6 @@
 #include "pp_instance.h"
 #include "power_state.h"
 #include "eventmanager.h"
-#include "pp_debug.h"
 
 
 #define PP_CHECK(handle)						\

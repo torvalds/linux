@@ -20,13 +20,13 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+#include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include "atom-types.h"
 #include "atombios.h"
 #include "processpptables.h"
-#include "pp_debug.h"
 #include "cgs_common.h"
 #include "smu/smu_8_0_d.h"
 #include "smu8_fusion.h"
@@ -38,7 +38,6 @@
 #include "cz_hwmgr.h"
 #include "power_state.h"
 #include "cz_clockpowergating.h"
-#include "pp_debug.h"
 
 #define ixSMUSVI_NB_CURRENTVID 0xD8230044
 #define CURRENT_NB_VID_MASK 0xff000000
