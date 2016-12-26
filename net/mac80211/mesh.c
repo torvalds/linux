@@ -279,8 +279,6 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	/* Mesh PS mode. See IEEE802.11-2012 8.4.2.100.8 */
 	*pos |= ifmsh->ps_peers_deep_sleep ?
 			IEEE80211_MESHCONF_CAPAB_POWER_SAVE_LEVEL : 0x00;
-	*pos++ = 0x00;
-
 	return 0;
 }
 
