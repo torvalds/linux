@@ -22,6 +22,7 @@ Required properties:
    - "i2s_clk" : clock for I2S controller
 - rockchip,playback-channels: max playback channels, if not set, 8 channels default.
 - rockchip,capture-channels: max capture channels, if not set, 2 channels default.
+- rockchip,bclk-fs: configure the i2s bclk fs.
 
 Required properties for controller which support multi channels
 playback/capture:
@@ -40,4 +41,5 @@ i2s@ff890000 {
 	clocks = <&cru HCLK_I2S0>, <&cru SCLK_I2S0>;
 	rockchip,playback-channels = <8>;
 	rockchip,capture-channels = <2>;
+	rockchip,bclk-fs = <64>;
 };

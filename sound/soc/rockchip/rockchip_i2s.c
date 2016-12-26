@@ -51,6 +51,7 @@ struct rk_i2s_dev {
 	bool rx_start;
 	bool is_master_mode;
 	const struct rk_i2s_pins *pins;
+	unsigned int bclk_fs;
 };
 
 static int i2s_runtime_suspend(struct device *dev)
@@ -252,7 +253,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	if (i2s->is_master_mode) {
 		mclk_rate = clk_get_rate(i2s->mclk);
-		bclk_rate = 2 * 32 * params_rate(params);
+		bclk_rate = i2s->bclk_fs * params_rate(params);
 		if (bclk_rate && mclk_rate % bclk_rate)
 			return -EINVAL;
 
@@ -629,6 +630,12 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(node, "rockchip,capture-channels", &val)) {
 		if (val >= 2 && val <= 8)
 			soc_dai->capture.channels_max = val;
+	}
+
+	i2s->bclk_fs = 64;
+	if (!of_property_read_u32(node, "rockchip,bclk-fs", &val)) {
+		if ((val >= 32) && (val % 2 == 0))
+			i2s->bclk_fs = val;
 	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
