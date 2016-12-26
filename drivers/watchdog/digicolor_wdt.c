@@ -105,7 +105,7 @@ static struct watchdog_ops dc_wdt_ops = {
 	.restart        = dc_wdt_restart,
 };
 
-static struct watchdog_info dc_wdt_info = {
+static const struct watchdog_info dc_wdt_info = {
 	.options	= WDIOF_SETTIMEOUT | WDIOF_MAGICCLOSE
 			| WDIOF_KEEPALIVEPING,
 	.identity	= "Conexant Digicolor Watchdog",

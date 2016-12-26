@@ -108,7 +108,7 @@ static int da9055_wdt_stop(struct watchdog_device *wdt_dev)
 	return da9055_wdt_set_timeout(wdt_dev, 0);
 }
 
-static struct watchdog_info da9055_wdt_info = {
+static const struct watchdog_info da9055_wdt_info = {
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity	= "DA9055 Watchdog",
 };

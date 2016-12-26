@@ -207,7 +207,7 @@ static irqreturn_t sbsa_gwdt_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct watchdog_info sbsa_gwdt_info = {
+static const struct watchdog_info sbsa_gwdt_info = {
 	.identity	= WATCHDOG_NAME,
 	.options	= WDIOF_SETTIMEOUT |
 			  WDIOF_KEEPALIVEPING |

@@ -140,7 +140,7 @@ err_strobe:
 	return ret;
 }
 
-static struct watchdog_info da9052_wdt_info = {
+static const struct watchdog_info da9052_wdt_info = {
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity	= "DA9052 Watchdog",
 };
