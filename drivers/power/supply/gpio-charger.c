@@ -14,7 +14,7 @@
  */
 
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio.h> /* For legacy platform data */
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -23,7 +23,7 @@
 #include <linux/power_supply.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 
 #include <linux/power/gpio-charger.h>
 
@@ -34,6 +34,8 @@ struct gpio_charger {
 
 	struct power_supply *charger;
 	struct power_supply_desc charger_desc;
+	struct gpio_desc *gpiod;
+	bool legacy_gpio_requested;
 };
 
 static irqreturn_t gpio_charger_irq(int irq, void *devid)
@@ -58,7 +60,8 @@ static int gpio_charger_get_property(struct power_supply *psy,
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_ONLINE:
-		val->intval = !!gpio_get_value_cansleep(pdata->gpio);
+		val->intval = gpiod_get_value_cansleep(gpio_charger->gpiod);
+		/* This xor is only ever used with legacy pdata GPIO */
 		val->intval ^= pdata->gpio_active_low;
 		break;
 	default:
@@ -78,7 +81,6 @@ struct gpio_charger_platform_data *gpio_charger_parse_dt(struct device *dev)
 	struct device_node *np = dev->of_node;
 	struct gpio_charger_platform_data *pdata;
 	const char *chargetype;
-	enum of_gpio_flags flags;
 	int ret;
 
 	if (!np)
@@ -89,16 +91,6 @@ struct gpio_charger_platform_data *gpio_charger_parse_dt(struct device *dev)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->name = np->name;
-
-	pdata->gpio = of_get_gpio_flags(np, 0, &flags);
-	if (pdata->gpio < 0) {
-		if (pdata->gpio != -EPROBE_DEFER)
-			dev_err(dev, "could not get charger gpio\n");
-		return ERR_PTR(pdata->gpio);
-	}
-
-	pdata->gpio_active_low = !!(flags & OF_GPIO_ACTIVE_LOW);
-
 	pdata->type = POWER_SUPPLY_TYPE_UNKNOWN;
 	ret = of_property_read_string(np, "charger-type", &chargetype);
 	if (ret >= 0) {
@@ -144,16 +136,50 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (!gpio_is_valid(pdata->gpio)) {
-		dev_err(&pdev->dev, "Invalid gpio pin\n");
-		return -EINVAL;
-	}
-
 	gpio_charger = devm_kzalloc(&pdev->dev, sizeof(*gpio_charger),
 					GFP_KERNEL);
 	if (!gpio_charger) {
 		dev_err(&pdev->dev, "Failed to alloc driver structure\n");
 		return -ENOMEM;
+	}
+
+	/*
+	 * This will fetch a GPIO descriptor from device tree, ACPI or
+	 * boardfile descriptor tables. It's good to try this first.
+	 */
+	gpio_charger->gpiod = devm_gpiod_get(&pdev->dev, NULL, GPIOD_IN);
+
+	/*
+	 * If this fails and we're not using device tree, try the
+	 * legacy platform data method.
+	 */
+	if (IS_ERR(gpio_charger->gpiod) && !pdev->dev.of_node) {
+		/* Non-DT: use legacy GPIO numbers */
+		if (!gpio_is_valid(pdata->gpio)) {
+			dev_err(&pdev->dev, "Invalid gpio pin in pdata\n");
+			return -EINVAL;
+		}
+		ret = gpio_request(pdata->gpio, dev_name(&pdev->dev));
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to request gpio pin: %d\n",
+				ret);
+			return ret;
+		}
+		gpio_charger->legacy_gpio_requested = true;
+		ret = gpio_direction_input(pdata->gpio);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to set gpio to input: %d\n",
+				ret);
+			goto err_gpio_free;
+		}
+		/* Then convert this to gpiod for now */
+		gpio_charger->gpiod = gpio_to_desc(pdata->gpio);
+	} else if (IS_ERR(gpio_charger->gpiod)) {
+		/* Just try again if this happens */
+		if (PTR_ERR(gpio_charger->gpiod) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+		dev_err(&pdev->dev, "error getting GPIO descriptor\n");
+		return PTR_ERR(gpio_charger->gpiod);
 	}
 
 	charger_desc = &gpio_charger->charger_desc;
@@ -169,17 +195,6 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	psy_cfg.of_node = pdev->dev.of_node;
 	psy_cfg.drv_data = gpio_charger;
 
-	ret = gpio_request(pdata->gpio, dev_name(&pdev->dev));
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to request gpio pin: %d\n", ret);
-		goto err_free;
-	}
-	ret = gpio_direction_input(pdata->gpio);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to set gpio to input: %d\n", ret);
-		goto err_gpio_free;
-	}
-
 	gpio_charger->pdata = pdata;
 
 	gpio_charger->charger = power_supply_register(&pdev->dev,
@@ -191,7 +206,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		goto err_gpio_free;
 	}
 
-	irq = gpio_to_irq(pdata->gpio);
+	irq = gpiod_to_irq(gpio_charger->gpiod);
 	if (irq > 0) {
 		ret = request_any_context_irq(irq, gpio_charger_irq,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
@@ -209,8 +224,8 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	return 0;
 
 err_gpio_free:
-	gpio_free(pdata->gpio);
-err_free:
+	if (gpio_charger->legacy_gpio_requested)
+		gpio_free(pdata->gpio);
 	return ret;
 }
 
@@ -223,7 +238,8 @@ static int gpio_charger_remove(struct platform_device *pdev)
 
 	power_supply_unregister(gpio_charger->charger);
 
-	gpio_free(gpio_charger->pdata->gpio);
+	if (gpio_charger->legacy_gpio_requested)
+		gpio_free(gpio_charger->pdata->gpio);
 
 	return 0;
 }
