@@ -745,21 +745,24 @@ static void cdn_dp_pd_event_wq(struct work_struct *work)
 		 * attached, that means something on the Type-C Dock/Dongle
 		 * changed, check the sink count by DPCD. If sink count became
 		 * 0, this port phy can be powered off; if the sink count does
-		 * not change, it means the sink device status has update,
-		 * re-training to make it work again.
+		 * not change and dp is connected, don't do anything, because
+		 * dp video output maybe ongoing. if dp is not connected, that
+		 * means something is wrong, we don't do anything here, just
+		 * output error log.
 		 */
-		ret = cdn_dp_dpcd_read(dp, DP_SINK_COUNT, &sink_count, 1);
-		if (ret || sink_count) {
-			if (dp->dpms_mode == DRM_MODE_DPMS_ON) {
-				dev_warn(dp->dev,
-					"hpd interrupt is triggered when dp is already connected successfully\n");
-				ret = cdn_dp_training_start(dp);
-				if (!ret)
-					cdn_dp_get_training_status(dp);
-			}
+		cdn_dp_dpcd_read(dp, DP_SINK_COUNT, &sink_count, 1);
+		if (sink_count) {
+			if (dp->hpd_status == connector_status_connected)
+				dev_info(dp->dev,
+					 "hpd interrupt is triggered when dp has been already connected\n");
+			else
+				dev_err(dp->dev,
+					"something is wrong, hpd is triggered before dp is connected\n");
+
 			goto out;
+		} else {
+			new_cap_lanes = 0;
 		}
-		new_cap_lanes = 0;
 	}
 
 	if (dp->hpd_status == connector_status_connected && new_cap_lanes) {
