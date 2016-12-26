@@ -317,11 +317,17 @@ struct clk *rockchip_clk_register_inverter(const char *name,
 				void __iomem *reg, int shift, int flags,
 				spinlock_t *lock);
 
+struct clk *rockchip_clk_register_muxgrf(const char *name,
+				const char *const *parent_names, u8 num_parents,
+				int flags, struct regmap *grf, int reg,
+				int shift, int width, int mux_flags);
+
 #define PNAME(x) static const char *const x[] __initconst
 
 enum rockchip_clk_branch_type {
 	branch_composite,
 	branch_mux,
+	branch_muxgrf,
 	branch_divider,
 	branch_fraction_divider,
 	branch_gate,
@@ -540,6 +546,21 @@ struct rockchip_clk_branch {
 	{							\
 		.id		= _id,				\
 		.branch_type	= branch_mux,			\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.muxdiv_offset	= o,				\
+		.mux_shift	= s,				\
+		.mux_width	= w,				\
+		.mux_flags	= mf,				\
+		.gate_offset	= -1,				\
+	}
+
+#define MUXGRF(_id, cname, pnames, f, o, s, w, mf)		\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_muxgrf,		\
 		.name		= cname,			\
 		.parent_names	= pnames,			\
 		.num_parents	= ARRAY_SIZE(pnames),		\
