@@ -2477,7 +2477,7 @@ again:
 
 		if (ci->i_ceph_flags & CEPH_I_CAP_DROPPED) {
 			int mds_wanted;
-			if (ACCESS_ONCE(mdsc->fsc->mount_state) ==
+			if (READ_ONCE(mdsc->fsc->mount_state) ==
 			    CEPH_MOUNT_SHUTDOWN) {
 				dout("get_cap_refs %p forced umount\n", inode);
 				*err = -EIO;
