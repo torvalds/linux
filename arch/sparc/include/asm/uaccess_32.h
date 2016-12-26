@@ -71,8 +71,6 @@ struct exception_table_entry
 /* Returns 0 if exception not found and fixup otherwise.  */
 unsigned long search_extables_range(unsigned long addr, unsigned long *g2);
 
-void __ret_efault(void);
-
 /* Uh, these should become the main single-value transfer routines..
  * They automatically use the right size if we just have the right
  * pointer type..
