@@ -31,6 +31,10 @@
  * eSDHC register definition
  */
 
+/* Present State Register */
+#define ESDHC_PRSSTAT			0x24
+#define ESDHC_CLOCK_STABLE		0x00000008
+
 /* Protocol Control Register */
 #define ESDHC_PROCTL			0x28
 #define ESDHC_CTRL_4BITBUS		(0x1 << 1)
@@ -43,6 +47,7 @@
 #define ESDHC_CLOCK_MASK		0x0000fff0
 #define ESDHC_PREDIV_SHIFT		8
 #define ESDHC_DIVIDER_SHIFT		4
+#define ESDHC_CLOCK_SDCLKEN		0x00000008
 #define ESDHC_CLOCK_PEREN		0x00000004
 #define ESDHC_CLOCK_HCKEN		0x00000002
 #define ESDHC_CLOCK_IPGEN		0x00000001
