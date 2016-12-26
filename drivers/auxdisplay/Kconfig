@@ -132,9 +132,9 @@ config HT16K33
 	tristate "Holtek Ht16K33 LED controller with keyscan"
 	depends on FB && OF && I2C && INPUT
 	select FB_SYS_FOPS
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
 	select INPUT_MATRIXKMAP
 	select FB_BACKLIGHT
 	help
