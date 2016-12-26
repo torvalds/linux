@@ -39,16 +39,16 @@ static irqreturn_t max3355_id_irq(int irq, void *dev_id)
 		 * As we don't have event for USB peripheral cable attached,
 		 * we simulate USB peripheral attach here.
 		 */
-		extcon_set_cable_state_(data->edev, EXTCON_USB_HOST, false);
-		extcon_set_cable_state_(data->edev, EXTCON_USB, true);
+		extcon_set_state_sync(data->edev, EXTCON_USB_HOST, false);
+		extcon_set_state_sync(data->edev, EXTCON_USB, true);
 	} else {
 		/*
 		 * ID = 0 means USB HOST cable attached.
 		 * As we don't have event for USB peripheral cable detached,
 		 * we simulate USB peripheral detach here.
 		 */
-		extcon_set_cable_state_(data->edev, EXTCON_USB, false);
-		extcon_set_cable_state_(data->edev, EXTCON_USB_HOST, true);
+		extcon_set_state_sync(data->edev, EXTCON_USB, false);
+		extcon_set_state_sync(data->edev, EXTCON_USB_HOST, true);
 	}
 
 	return IRQ_HANDLED;

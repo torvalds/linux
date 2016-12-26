@@ -34,16 +34,17 @@ KSZ9031:
 
   All skew control options are specified in picoseconds. The minimum
   value is 0, and the maximum is property-dependent. The increment
-  step is 60ps.
+  step is 60ps. The default value is the neutral setting, so setting
+  rxc-skew-ps=<0> actually results in -900 picoseconds adjustment.
 
   Optional properties:
 
-    Maximum value of 1860:
+    Maximum value of 1860, default value 900:
 
       - rxc-skew-ps : Skew control of RX clock pad
       - txc-skew-ps : Skew control of TX clock pad
 
-    Maximum value of 900:
+    Maximum value of 900, default value 420:
 
       - rxdv-skew-ps : Skew control of RX CTL pad
       - txen-skew-ps : Skew control of TX CTL pad

@@ -11,8 +11,7 @@
  *
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
+#include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
@@ -81,7 +80,6 @@ static const struct i2c_device_id smsc_i2c_id[] = {
 	{ "smscece1099", 0},
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, smsc_i2c_id);
 
 static struct i2c_driver smsc_i2c_driver = {
 	.driver = {
@@ -90,9 +88,4 @@ static struct i2c_driver smsc_i2c_driver = {
 	.probe = smsc_i2c_probe,
 	.id_table = smsc_i2c_id,
 };
-
-module_i2c_driver(smsc_i2c_driver);
-
-MODULE_AUTHOR("Sourav Poddar <sourav.poddar@ti.com>");
-MODULE_DESCRIPTION("SMSC chip multi-function driver");
-MODULE_LICENSE("GPL v2");
+builtin_i2c_driver(smsc_i2c_driver);

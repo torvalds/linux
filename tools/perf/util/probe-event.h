@@ -128,6 +128,8 @@ char *synthesize_perf_probe_point(struct perf_probe_point *pp);
 int perf_probe_event__copy(struct perf_probe_event *dst,
 			   struct perf_probe_event *src);
 
+bool perf_probe_with_var(struct perf_probe_event *pev);
+
 /* Check the perf_probe_event needs debuginfo */
 bool perf_probe_event_need_dwarf(struct perf_probe_event *pev);
 
@@ -147,6 +149,7 @@ int line_range__init(struct line_range *lr);
 int add_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int convert_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int apply_perf_probe_events(struct perf_probe_event *pevs, int npevs);
+int show_probe_trace_events(struct perf_probe_event *pevs, int npevs);
 void cleanup_perf_probe_events(struct perf_probe_event *pevs, int npevs);
 int del_perf_probe_events(struct strfilter *filter);
 

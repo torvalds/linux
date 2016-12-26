@@ -14,11 +14,17 @@
 
 import sys
 import os
+import sphinx
+
+# Get Sphinx version
+major, minor, patch = map(int, sphinx.__version__.split("."))
+
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('sphinx'))
+from load_config import loadConfig
 
 # -- General configuration ------------------------------------------------
 
@@ -28,14 +34,13 @@ sys.path.insert(0, os.path.abspath('sphinx'))
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['kernel-doc', 'rstFlatTable', 'kernel_include']
+extensions = ['kernel-doc', 'rstFlatTable', 'kernel_include', 'cdomain']
 
-# Gracefully handle missing rst2pdf.
-try:
-    import rst2pdf
-    extensions += ['rst2pdf.pdfbuilder']
-except ImportError:
-    pass
+# The name of the math extension changed on Sphinx 1.4
+if minor > 3:
+    extensions.append("sphinx.ext.imgmath")
+else:
+    extensions.append("sphinx.ext.pngmath")
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -252,23 +257,92 @@ htmlhelp_basename = 'TheLinuxKerneldoc'
 
 latex_elements = {
 # The paper size ('letterpaper' or 'a4paper').
-#'papersize': 'letterpaper',
+'papersize': 'a4paper',
 
 # The font size ('10pt', '11pt' or '12pt').
-#'pointsize': '10pt',
-
-# Additional stuff for the LaTeX preamble.
-#'preamble': '',
+'pointsize': '8pt',
 
 # Latex figure (float) alignment
 #'figure_align': 'htbp',
+
+# Don't mangle with UTF-8 chars
+'inputenc': '',
+'utf8extra': '',
+
+# Additional stuff for the LaTeX preamble.
+    'preamble': '''
+	% Adjust margins
+	\\usepackage[margin=0.5in, top=1in, bottom=1in]{geometry}
+
+        % Allow generate some pages in landscape
+        \\usepackage{lscape}
+
+        % Put notes in color and let them be inside a table
+	\\definecolor{NoteColor}{RGB}{204,255,255}
+	\\definecolor{WarningColor}{RGB}{255,204,204}
+	\\definecolor{AttentionColor}{RGB}{255,255,204}
+	\\definecolor{OtherColor}{RGB}{204,204,204}
+        \\newlength{\\mynoticelength}
+        \\makeatletter\\newenvironment{coloredbox}[1]{%
+	   \\setlength{\\fboxrule}{1pt}
+	   \\setlength{\\fboxsep}{7pt}
+	   \\setlength{\\mynoticelength}{\\linewidth}
+	   \\addtolength{\\mynoticelength}{-2\\fboxsep}
+	   \\addtolength{\\mynoticelength}{-2\\fboxrule}
+           \\begin{lrbox}{\\@tempboxa}\\begin{minipage}{\\mynoticelength}}{\\end{minipage}\\end{lrbox}%
+	   \\ifthenelse%
+	      {\\equal{\\py@noticetype}{note}}%
+	      {\\colorbox{NoteColor}{\\usebox{\\@tempboxa}}}%
+	      {%
+	         \\ifthenelse%
+	         {\\equal{\\py@noticetype}{warning}}%
+	         {\\colorbox{WarningColor}{\\usebox{\\@tempboxa}}}%
+		 {%
+	            \\ifthenelse%
+	            {\\equal{\\py@noticetype}{attention}}%
+	            {\\colorbox{AttentionColor}{\\usebox{\\@tempboxa}}}%
+	            {\\colorbox{OtherColor}{\\usebox{\\@tempboxa}}}%
+		 }%
+	      }%
+        }\\makeatother
+
+        \\makeatletter
+        \\renewenvironment{notice}[2]{%
+          \\def\\py@noticetype{#1}
+          \\begin{coloredbox}{#1}
+          \\bf\\it
+          \\par\\strong{#2}
+          \\csname py@noticestart@#1\\endcsname
+        }
+	{
+          \\csname py@noticeend@\\py@noticetype\\endcsname
+          \\end{coloredbox}
+        }
+	\\makeatother
+
+	% Use some font with UTF-8 support with XeLaTeX
+        \\usepackage{fontspec}
+        \\setsansfont{DejaVu Serif}
+        \\setromanfont{DejaVu Sans}
+        \\setmonofont{DejaVu Sans Mono}
+
+	% To allow adjusting table sizes
+	\\usepackage{adjustbox}
+
+     '''
 }
 
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'TheLinuxKernel.tex', 'The Linux Kernel Documentation',
+    ('kernel-documentation', 'kernel-documentation.tex', 'The Linux Kernel Documentation',
+     'The kernel development community', 'manual'),
+    ('development-process/index', 'development-process.tex', 'Linux Kernel Development Documentation',
+     'The kernel development community', 'manual'),
+    ('gpu/index', 'gpu.tex', 'Linux GPU Driver Developer\'s Guide',
+     'The kernel development community', 'manual'),
+    ('media/index', 'media.tex', 'Linux Media Subsystem Documentation',
      'The kernel development community', 'manual'),
 ]
 
@@ -419,3 +493,9 @@ pdf_documents = [
 # line arguments.
 kerneldoc_bin = '../scripts/kernel-doc'
 kerneldoc_srctree = '..'
+
+# ------------------------------------------------------------------------------
+# Since loadConfig overwrites settings from the global namespace, it has to be
+# the last statement in the conf.py file
+# ------------------------------------------------------------------------------
+loadConfig(globals())

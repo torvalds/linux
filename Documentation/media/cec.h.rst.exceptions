@@ -1,12 +1,6 @@
 # Ignore header name
 ignore define _CEC_UAPI_H
 
-# Rename some symbols, to avoid namespace conflicts
-replace struct cec_event_state_change cec-event-state-change_s
-replace struct cec_event_lost_msgs cec-event-lost-msgs_s
-replace enum cec_mode_initiator cec-mode-initiator_e
-replace enum cec_mode_follower cec-mode-follower_e
-
 # define macros to ignore
 
 ignore define CEC_MAX_MSG_SIZE

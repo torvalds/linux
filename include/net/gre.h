@@ -7,7 +7,15 @@
 struct gre_base_hdr {
 	__be16 flags;
 	__be16 protocol;
-};
+} __packed;
+
+struct gre_full_hdr {
+	struct gre_base_hdr fixed_header;
+	__be16 csum;
+	__be16 reserved1;
+	__be32 key;
+	__be32 seq;
+} __packed;
 #define GRE_HEADER_SECTION 4
 
 #define GREPROTO_CISCO		0

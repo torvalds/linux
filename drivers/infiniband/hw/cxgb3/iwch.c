@@ -36,7 +36,7 @@
 
 #include "cxgb3_offload.h"
 #include "iwch_provider.h"
-#include "iwch_user.h"
+#include <rdma/cxgb3-abi.h>
 #include "iwch.h"
 #include "iwch_cm.h"
 

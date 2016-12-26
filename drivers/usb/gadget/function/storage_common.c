@@ -369,6 +369,12 @@ ssize_t fsg_show_removable(struct fsg_lun *curlun, char *buf)
 }
 EXPORT_SYMBOL_GPL(fsg_show_removable);
 
+ssize_t fsg_show_inquiry_string(struct fsg_lun *curlun, char *buf)
+{
+	return sprintf(buf, "%s\n", curlun->inquiry_string);
+}
+EXPORT_SYMBOL_GPL(fsg_show_inquiry_string);
+
 /*
  * The caller must hold fsg->filesem for reading when calling this function.
  */
@@ -498,5 +504,23 @@ ssize_t fsg_store_removable(struct fsg_lun *curlun, const char *buf,
 	return count;
 }
 EXPORT_SYMBOL_GPL(fsg_store_removable);
+
+ssize_t fsg_store_inquiry_string(struct fsg_lun *curlun, const char *buf,
+				 size_t count)
+{
+	const size_t len = min(count, sizeof(curlun->inquiry_string));
+
+	if (len == 0 || buf[0] == '\n') {
+		curlun->inquiry_string[0] = 0;
+	} else {
+		snprintf(curlun->inquiry_string,
+			 sizeof(curlun->inquiry_string), "%-28s", buf);
+		if (curlun->inquiry_string[len-1] == '\n')
+			curlun->inquiry_string[len-1] = ' ';
+	}
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(fsg_store_inquiry_string);
 
 MODULE_LICENSE("GPL");

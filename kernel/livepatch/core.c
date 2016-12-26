@@ -274,7 +274,6 @@ static int klp_write_object_relocations(struct module *pmod,
 
 	objname = klp_is_module(obj) ? obj->name : "vmlinux";
 
-	module_disable_ro(pmod);
 	/* For each klp relocation section */
 	for (i = 1; i < pmod->klp_info->hdr.e_shnum; i++) {
 		sec = pmod->klp_info->sechdrs + i;
@@ -309,7 +308,6 @@ static int klp_write_object_relocations(struct module *pmod,
 			break;
 	}
 
-	module_enable_ro(pmod, true);
 	return ret;
 }
 
@@ -547,9 +545,6 @@ static int __klp_enable_patch(struct klp_patch *patch)
 	    list_prev_entry(patch, list)->state == KLP_DISABLED)
 		return -EBUSY;
 
-	pr_notice_once("tainting kernel with TAINT_LIVEPATCH\n");
-	add_taint(TAINT_LIVEPATCH, LOCKDEP_STILL_OK);
-
 	pr_notice("enabling patch '%s'\n", patch->mod->name);
 
 	klp_for_each_object(patch, obj) {
@@ -763,6 +758,12 @@ static int klp_init_func(struct klp_object *obj, struct klp_func *func)
 				    func->old_sympos ? func->old_sympos : 1);
 }
 
+/* Arches may override this to finish any remaining arch-specific tasks */
+void __weak arch_klp_init_object_loaded(struct klp_patch *patch,
+					struct klp_object *obj)
+{
+}
+
 /* parts of the initialization that is done only when the object is loaded */
 static int klp_init_object_loaded(struct klp_patch *patch,
 				  struct klp_object *obj)
@@ -770,9 +771,15 @@ static int klp_init_object_loaded(struct klp_patch *patch,
 	struct klp_func *func;
 	int ret;
 
+	module_disable_ro(patch->mod);
 	ret = klp_write_object_relocations(patch->mod, obj);
-	if (ret)
+	if (ret) {
+		module_enable_ro(patch->mod, true);
 		return ret;
+	}
+
+	arch_klp_init_object_loaded(patch, obj);
+	module_enable_ro(patch->mod, true);
 
 	klp_for_each_func(obj, func) {
 		ret = klp_find_object_symbol(obj->name, func->old_name,

@@ -9,7 +9,6 @@
  *   published by the Free Software Foundation.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/compiler.h>
@@ -70,10 +69,6 @@ static const struct iw_handler_def ks_wlan_handler_def;
 /*
  *	function prototypes
  */
-extern int ks_wlan_hw_tx(struct ks_wlan_private *priv, void *p,
-			 unsigned long size,
-			 void (*complete_handler) (void *arg1, void *arg2),
-			 void *arg1, void *arg2);
 static int ks_wlan_open(struct net_device *dev);
 static void ks_wlan_tx_timeout(struct net_device *dev);
 static int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev);
@@ -238,9 +233,9 @@ static int ks_wlan_set_freq(struct net_device *dev,
 		/* We should do a better check than that,
 		 * based on the card capability !!! */
 		if ((channel < 1) || (channel > 14)) {
-			printk(KERN_DEBUG
-			       "%s: New channel value of %d is invalid!\n",
-			       dev->name, fwrq->m);
+			netdev_dbg(dev,
+				   "%s: New channel value of %d is invalid!\n",
+				   dev->name, fwrq->m);
 			rc = -EINVAL;
 		} else {
 			/* Yes ! We can set it !!! */
@@ -402,7 +397,7 @@ static int ks_wlan_set_wap(struct net_device *dev, struct iw_request_info *info,
 			priv->need_commit |= SME_MODE_SET;
 		}
 	} else {
-		memset(priv->reg.bssid, 0x0, ETH_ALEN);
+		eth_zero_addr(priv->reg.bssid);
 		return -EOPNOTSUPP;
 	}
 
@@ -433,7 +428,7 @@ static int ks_wlan_get_wap(struct net_device *dev, struct iw_request_info *info,
 	if ((priv->connect_status & CONNECT_STATUS_MASK) == CONNECT_STATUS) {
 		memcpy(awrq->sa_data, &(priv->current_ap.bssid[0]), ETH_ALEN);
 	} else {
-		memset(awrq->sa_data, 0, ETH_ALEN);
+		eth_zero_addr(awrq->sa_data);
 	}
 
 	awrq->sa_family = ARPHRD_ETHER;
@@ -2092,7 +2087,7 @@ static int ks_wlan_set_pmksa(struct net_device *dev,
 			list_for_each(ptr, &priv->pmklist.head) {
 				pmk = list_entry(ptr, struct pmk_t, list);
 				if (!memcmp(pmksa->bssid.sa_data, pmk->bssid, ETH_ALEN)) {	/* match address! list del. */
-					memset(pmk->bssid, 0, ETH_ALEN);
+					eth_zero_addr(pmk->bssid);
 					memset(pmk->pmkid, 0, IW_PMKID_LEN);
 					list_del_init(&pmk->list);
 					break;
@@ -2676,17 +2671,17 @@ static int ks_wlan_set_sleep_mode(struct net_device *dev,
 
 	if (*uwrq == SLP_SLEEP) {
 		priv->sleep_mode = *uwrq;
-		printk("SET_SLEEP_MODE %d\n", priv->sleep_mode);
+		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
 
 		hostif_sme_enqueue(priv, SME_STOP_REQUEST);
 		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 
 	} else if (*uwrq == SLP_ACTIVE) {
 		priv->sleep_mode = *uwrq;
-		printk("SET_SLEEP_MODE %d\n", priv->sleep_mode);
+		netdev_info(dev, "SET_SLEEP_MODE %d\n", priv->sleep_mode);
 		hostif_sme_enqueue(priv, SME_SLEEP_REQUEST);
 	} else {
-		printk("SET_SLEEP_MODE %d errror\n", *uwrq);
+		netdev_err(dev, "SET_SLEEP_MODE %d errror\n", *uwrq);
 		return -EINVAL;
 	}
 
@@ -2788,7 +2783,7 @@ static int ks_wlan_get_wps_enable(struct net_device *dev,
 	}
 	/* for SLEEP MODE */
 	*uwrq = priv->wps.wps_enabled;
-	printk("return=%d\n", *uwrq);
+	netdev_info(dev, "return=%d\n", *uwrq);
 
 	return 0;
 }
@@ -2978,117 +2973,117 @@ static int ks_wlan_get_eeprom_cksum(struct net_device *dev,
 	return 0;
 }
 
-static void print_hif_event(int event)
+static void print_hif_event(struct net_device *dev, int event)
 {
 
 	switch (event) {
 	case HIF_DATA_REQ:
-		printk("HIF_DATA_REQ\n");
+		netdev_info(dev, "HIF_DATA_REQ\n");
 		break;
 	case HIF_DATA_IND:
-		printk("HIF_DATA_IND\n");
+		netdev_info(dev, "HIF_DATA_IND\n");
 		break;
 	case HIF_MIB_GET_REQ:
-		printk("HIF_MIB_GET_REQ\n");
+		netdev_info(dev, "HIF_MIB_GET_REQ\n");
 		break;
 	case HIF_MIB_GET_CONF:
-		printk("HIF_MIB_GET_CONF\n");
+		netdev_info(dev, "HIF_MIB_GET_CONF\n");
 		break;
 	case HIF_MIB_SET_REQ:
-		printk("HIF_MIB_SET_REQ\n");
+		netdev_info(dev, "HIF_MIB_SET_REQ\n");
 		break;
 	case HIF_MIB_SET_CONF:
-		printk("HIF_MIB_SET_CONF\n");
+		netdev_info(dev, "HIF_MIB_SET_CONF\n");
 		break;
 	case HIF_POWERMGT_REQ:
-		printk("HIF_POWERMGT_REQ\n");
+		netdev_info(dev, "HIF_POWERMGT_REQ\n");
 		break;
 	case HIF_POWERMGT_CONF:
-		printk("HIF_POWERMGT_CONF\n");
+		netdev_info(dev, "HIF_POWERMGT_CONF\n");
 		break;
 	case HIF_START_REQ:
-		printk("HIF_START_REQ\n");
+		netdev_info(dev, "HIF_START_REQ\n");
 		break;
 	case HIF_START_CONF:
-		printk("HIF_START_CONF\n");
+		netdev_info(dev, "HIF_START_CONF\n");
 		break;
 	case HIF_CONNECT_IND:
-		printk("HIF_CONNECT_IND\n");
+		netdev_info(dev, "HIF_CONNECT_IND\n");
 		break;
 	case HIF_STOP_REQ:
-		printk("HIF_STOP_REQ\n");
+		netdev_info(dev, "HIF_STOP_REQ\n");
 		break;
 	case HIF_STOP_CONF:
-		printk("HIF_STOP_CONF\n");
+		netdev_info(dev, "HIF_STOP_CONF\n");
 		break;
 	case HIF_PS_ADH_SET_REQ:
-		printk("HIF_PS_ADH_SET_REQ\n");
+		netdev_info(dev, "HIF_PS_ADH_SET_REQ\n");
 		break;
 	case HIF_PS_ADH_SET_CONF:
-		printk("HIF_PS_ADH_SET_CONF\n");
+		netdev_info(dev, "HIF_PS_ADH_SET_CONF\n");
 		break;
 	case HIF_INFRA_SET_REQ:
-		printk("HIF_INFRA_SET_REQ\n");
+		netdev_info(dev, "HIF_INFRA_SET_REQ\n");
 		break;
 	case HIF_INFRA_SET_CONF:
-		printk("HIF_INFRA_SET_CONF\n");
+		netdev_info(dev, "HIF_INFRA_SET_CONF\n");
 		break;
 	case HIF_ADH_SET_REQ:
-		printk("HIF_ADH_SET_REQ\n");
+		netdev_info(dev, "HIF_ADH_SET_REQ\n");
 		break;
 	case HIF_ADH_SET_CONF:
-		printk("HIF_ADH_SET_CONF\n");
+		netdev_info(dev, "HIF_ADH_SET_CONF\n");
 		break;
 	case HIF_AP_SET_REQ:
-		printk("HIF_AP_SET_REQ\n");
+		netdev_info(dev, "HIF_AP_SET_REQ\n");
 		break;
 	case HIF_AP_SET_CONF:
-		printk("HIF_AP_SET_CONF\n");
+		netdev_info(dev, "HIF_AP_SET_CONF\n");
 		break;
 	case HIF_ASSOC_INFO_IND:
-		printk("HIF_ASSOC_INFO_IND\n");
+		netdev_info(dev, "HIF_ASSOC_INFO_IND\n");
 		break;
 	case HIF_MIC_FAILURE_REQ:
-		printk("HIF_MIC_FAILURE_REQ\n");
+		netdev_info(dev, "HIF_MIC_FAILURE_REQ\n");
 		break;
 	case HIF_MIC_FAILURE_CONF:
-		printk("HIF_MIC_FAILURE_CONF\n");
+		netdev_info(dev, "HIF_MIC_FAILURE_CONF\n");
 		break;
 	case HIF_SCAN_REQ:
-		printk("HIF_SCAN_REQ\n");
+		netdev_info(dev, "HIF_SCAN_REQ\n");
 		break;
 	case HIF_SCAN_CONF:
-		printk("HIF_SCAN_CONF\n");
+		netdev_info(dev, "HIF_SCAN_CONF\n");
 		break;
 	case HIF_PHY_INFO_REQ:
-		printk("HIF_PHY_INFO_REQ\n");
+		netdev_info(dev, "HIF_PHY_INFO_REQ\n");
 		break;
 	case HIF_PHY_INFO_CONF:
-		printk("HIF_PHY_INFO_CONF\n");
+		netdev_info(dev, "HIF_PHY_INFO_CONF\n");
 		break;
 	case HIF_SLEEP_REQ:
-		printk("HIF_SLEEP_REQ\n");
+		netdev_info(dev, "HIF_SLEEP_REQ\n");
 		break;
 	case HIF_SLEEP_CONF:
-		printk("HIF_SLEEP_CONF\n");
+		netdev_info(dev, "HIF_SLEEP_CONF\n");
 		break;
 	case HIF_PHY_INFO_IND:
-		printk("HIF_PHY_INFO_IND\n");
+		netdev_info(dev, "HIF_PHY_INFO_IND\n");
 		break;
 	case HIF_SCAN_IND:
-		printk("HIF_SCAN_IND\n");
+		netdev_info(dev, "HIF_SCAN_IND\n");
 		break;
 	case HIF_INFRA_SET2_REQ:
-		printk("HIF_INFRA_SET2_REQ\n");
+		netdev_info(dev, "HIF_INFRA_SET2_REQ\n");
 		break;
 	case HIF_INFRA_SET2_CONF:
-		printk("HIF_INFRA_SET2_CONF\n");
+		netdev_info(dev, "HIF_INFRA_SET2_CONF\n");
 		break;
 	case HIF_ADH_SET2_REQ:
-		printk("HIF_ADH_SET2_REQ\n");
+		netdev_info(dev, "HIF_ADH_SET2_REQ\n");
 		break;
 	case HIF_ADH_SET2_CONF:
-		printk("HIF_ADH_SET2_CONF\n");
+		netdev_info(dev, "HIF_ADH_SET2_CONF\n");
 	}
 }
 
@@ -3105,7 +3100,7 @@ static int ks_wlan_hostt(struct net_device *dev, struct iw_request_info *info,
 		event =
 		    priv->hostt.buff[(priv->hostt.qtail - 1 - i) %
 				     SME_EVENT_BUFF_SIZE];
-		print_hif_event(event);
+		print_hif_event(dev, event);
 	}
 	return 0;
 }
@@ -3335,7 +3330,7 @@ int ks_wlan_set_mac_address(struct net_device *dev, void *addr)
 
 	priv->mac_address_valid = 0;
 	hostif_sme_enqueue(priv, SME_MACADDRESS_SET_REQUEST);
-	printk(KERN_INFO
+	netdev_info(dev,
 	       "ks_wlan: MAC ADDRESS = %02x:%02x:%02x:%02x:%02x:%02x\n",
 	       priv->eth_addr[0], priv->eth_addr[1], priv->eth_addr[2],
 	       priv->eth_addr[3], priv->eth_addr[4], priv->eth_addr[5]);
@@ -3354,8 +3349,6 @@ void ks_wlan_tx_timeout(struct net_device *dev)
 	}
 	priv->nstats.tx_errors++;
 	netif_wake_queue(dev);
-
-	return;
 }
 
 static
@@ -3366,8 +3359,8 @@ int ks_wlan_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	DPRINTK(3, "in_interrupt()=%ld\n", in_interrupt());
 
-	if (skb == NULL) {
-		printk(KERN_ERR "ks_wlan:  skb == NULL!!!\n");
+	if (!skb) {
+		netdev_err(dev, "ks_wlan:  skb == NULL!!!\n");
 		return 0;
 	}
 	if (priv->dev_state < DEVICE_STATE_READY) {
@@ -3396,13 +3389,13 @@ void send_packet_complete(void *arg1, void *arg2)
 
 	DPRINTK(3, "\n");
 
-	priv->nstats.tx_bytes += packet->len;
 	priv->nstats.tx_packets++;
 
 	if (netif_queue_stopped(priv->net_dev))
 		netif_wake_queue(priv->net_dev);
 
 	if (packet) {
+		priv->nstats.tx_bytes += packet->len;
 		dev_kfree_skb(packet);
 		packet = NULL;
 	}
@@ -3421,8 +3414,6 @@ void ks_wlan_set_multicast_list(struct net_device *dev)
 		return;	/* not finished initialize */
 	}
 	hostif_sme_enqueue(priv, SME_MULTICAST_REQUEST);
-
-	return;
 }
 
 static
@@ -3433,7 +3424,7 @@ int ks_wlan_open(struct net_device *dev)
 	priv->cur_rx = 0;
 
 	if (!priv->mac_address_valid) {
-		printk(KERN_ERR "ks_wlan : %s Not READY !!\n", dev->name);
+		netdev_err(dev, "ks_wlan : %s Not READY !!\n", dev->name);
 		return -EBUSY;
 	} else
 		netif_start_queue(dev);
@@ -3512,17 +3503,11 @@ int ks_wlan_net_stop(struct net_device *dev)
 {
 	struct ks_wlan_private *priv = netdev_priv(dev);
 
-	int ret = 0;
 	priv->device_open_status = 0;
 	del_timer_sync(&update_phyinfo_timer);
 
 	if (netif_running(dev))
 		netif_stop_queue(dev);
 
-	return ret;
-}
-
-int ks_wlan_reset(struct net_device *dev)
-{
 	return 0;
 }

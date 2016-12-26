@@ -41,8 +41,7 @@ struct hsu_dma_chip {
 /* Export to the internal users */
 int hsu_dma_get_status(struct hsu_dma_chip *chip, unsigned short nr,
 		       u32 *status);
-irqreturn_t hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr,
-			   u32 status);
+int hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr, u32 status);
 
 /* Export to the platform drivers */
 int hsu_dma_probe(struct hsu_dma_chip *chip);
@@ -53,10 +52,10 @@ static inline int hsu_dma_get_status(struct hsu_dma_chip *chip,
 {
 	return 0;
 }
-static inline irqreturn_t hsu_dma_do_irq(struct hsu_dma_chip *chip,
-					 unsigned short nr, u32 status)
+static inline int hsu_dma_do_irq(struct hsu_dma_chip *chip, unsigned short nr,
+				 u32 status)
 {
-	return IRQ_NONE;
+	return 0;
 }
 static inline int hsu_dma_probe(struct hsu_dma_chip *chip) { return -ENODEV; }
 static inline int hsu_dma_remove(struct hsu_dma_chip *chip) { return 0; }

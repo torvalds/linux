@@ -849,6 +849,34 @@ static const struct panel_desc innolux_at070tn92 = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
+static const struct display_timing innolux_g101ice_l01_timing = {
+	.pixelclock = { 60400000, 71100000, 74700000 },
+	.hactive = { 1280, 1280, 1280 },
+	.hfront_porch = { 41, 80, 100 },
+	.hback_porch = { 40, 79, 99 },
+	.hsync_len = { 1, 1, 1 },
+	.vactive = { 800, 800, 800 },
+	.vfront_porch = { 5, 11, 14 },
+	.vback_porch = { 4, 11, 14 },
+	.vsync_len = { 1, 1, 1 },
+	.flags = DISPLAY_FLAGS_DE_HIGH,
+};
+
+static const struct panel_desc innolux_g101ice_l01 = {
+	.timings = &innolux_g101ice_l01_timing,
+	.num_timings = 1,
+	.bpc = 8,
+	.size = {
+		.width = 217,
+		.height = 135,
+	},
+	.delay = {
+		.enable = 200,
+		.disable = 200,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG,
+};
+
 static const struct drm_display_mode innolux_g121i1_l01_mode = {
 	.clock = 71000,
 	.hdisplay = 1280,
@@ -1186,7 +1214,7 @@ static const struct panel_desc olimex_lcd_olinuxino_43ts = {
 		.width = 105,
 		.height = 67,
 	},
-	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
 /*
@@ -1245,6 +1273,7 @@ static const struct panel_desc ortustech_com43h4m85ulc = {
 		.height = 93,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_POSEDGE,
 };
 
 static const struct drm_display_mode qd43003c0_40_mode = {
@@ -1384,6 +1413,11 @@ static const struct panel_desc sharp_lq123p1jx31 = {
 		.width = 259,
 		.height = 173,
 	},
+	.delay = {
+		.prepare = 110,
+		.enable = 50,
+		.unprepare = 550,
+	},
 };
 
 static const struct drm_display_mode shelly_sca07010_bfn_lnn_mode = {
@@ -1429,6 +1463,11 @@ static const struct panel_desc starry_kr122ea0sra = {
 	.size = {
 		.width = 263,
 		.height = 164,
+	},
+	.delay = {
+		.prepare = 10 + 200,
+		.enable = 50,
+		.unprepare = 10 + 500,
 	},
 };
 
@@ -1574,6 +1613,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "innolux,at070tn92",
 		.data = &innolux_at070tn92,
+	}, {
+		.compatible ="innolux,g101ice-l01",
+		.data = &innolux_g101ice_l01
 	}, {
 		.compatible ="innolux,g121i1-l01",
 		.data = &innolux_g121i1_l01

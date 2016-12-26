@@ -672,7 +672,7 @@
 	};
 
 	usb@7d000000 {
-		compatible = "nvidia,tegra30-ehci", "usb-ehci";
+		compatible = "nvidia,tegra114-ehci", "nvidia,tegra30-ehci", "usb-ehci";
 		reg = <0x7d000000 0x4000>;
 		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
@@ -684,7 +684,7 @@
 	};
 
 	phy1: usb-phy@7d000000 {
-		compatible = "nvidia,tegra30-usb-phy";
+		compatible = "nvidia,tegra114-usb-phy", "nvidia,tegra30-usb-phy";
 		reg = <0x7d000000 0x4000 0x7d000000 0x4000>;
 		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA114_CLK_USBD>,
@@ -708,7 +708,7 @@
 	};
 
 	usb@7d008000 {
-		compatible = "nvidia,tegra30-ehci", "usb-ehci";
+		compatible = "nvidia,tegra114-ehci", "nvidia,tegra30-ehci", "usb-ehci";
 		reg = <0x7d008000 0x4000>;
 		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		phy_type = "utmi";
@@ -720,7 +720,7 @@
 	};
 
 	phy3: usb-phy@7d008000 {
-		compatible = "nvidia,tegra30-usb-phy";
+		compatible = "nvidia,tegra114-usb-phy", "nvidia,tegra30-usb-phy";
 		reg = <0x7d008000 0x4000 0x7d000000 0x4000>;
 		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA114_CLK_USB3>,

@@ -699,7 +699,7 @@ to use the dma_sync_*() interfaces.
 		dma_addr_t mapping;
 
 		mapping = dma_map_single(cp->dev, buffer, len, DMA_FROM_DEVICE);
-		if (dma_mapping_error(cp->dev, dma_handle)) {
+		if (dma_mapping_error(cp->dev, mapping)) {
 			/*
 			 * reduce current DMA mapping usage,
 			 * delay and try again later or
@@ -931,10 +931,8 @@ to "Closing".
 
 1) Struct scatterlist requirements.
 
-   Don't invent the architecture specific struct scatterlist; just use
-   <asm-generic/scatterlist.h>. You need to enable
-   CONFIG_NEED_SG_DMA_LENGTH if the architecture supports IOMMUs
-   (including software IOMMU).
+   You need to enable CONFIG_NEED_SG_DMA_LENGTH if the architecture
+   supports IOMMUs (including software IOMMU).
 
 2) ARCH_DMA_MINALIGN
 

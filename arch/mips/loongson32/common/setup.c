@@ -22,7 +22,11 @@ const char *get_system_type(void)
 
 	switch (processor_id & PRID_REV_MASK) {
 	case PRID_REV_LOONGSON1B:
+#if defined(CONFIG_LOONGSON1_LS1B)
 		return "LOONGSON LS1B";
+#elif defined(CONFIG_LOONGSON1_LS1C)
+		return "LOONGSON LS1C";
+#endif
 	default:
 		return "LOONGSON (unknown)";
 	}

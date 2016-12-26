@@ -82,6 +82,7 @@ struct btrfs_transaction {
 	spinlock_t dropped_roots_lock;
 	struct btrfs_delayed_ref_root delayed_refs;
 	int aborted;
+	struct btrfs_fs_info *fs_info;
 };
 
 #define __TRANS_FREEZABLE	(1U << 0)

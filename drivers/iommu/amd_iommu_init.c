@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include <linux/list.h>
+#include <linux/bitmap.h>
 #include <linux/slab.h>
 #include <linux/syscore_ops.h>
 #include <linux/interrupt.h>
@@ -84,6 +85,7 @@
 #define ACPI_DEVFLAG_LINT1              0x80
 #define ACPI_DEVFLAG_ATSDIS             0x10000000
 
+#define LOOP_TIMEOUT	100000
 /*
  * ACPI table definitions
  *
@@ -144,6 +146,8 @@ struct ivmd_header {
 
 bool amd_iommu_dump;
 bool amd_iommu_irq_remap __read_mostly;
+
+int amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_VAPIC;
 
 static bool amd_iommu_detected;
 static bool __initdata amd_iommu_disabled;
@@ -385,6 +389,10 @@ static void iommu_disable(struct amd_iommu *iommu)
 	/* Disable event logging and event interrupts */
 	iommu_feature_disable(iommu, CONTROL_EVT_INT_EN);
 	iommu_feature_disable(iommu, CONTROL_EVT_LOG_EN);
+
+	/* Disable IOMMU GA_LOG */
+	iommu_feature_disable(iommu, CONTROL_GALOG_EN);
+	iommu_feature_disable(iommu, CONTROL_GAINT_EN);
 
 	/* Disable IOMMU hardware itself */
 	iommu_feature_disable(iommu, CONTROL_IOMMU_EN);
@@ -669,6 +677,99 @@ static void __init free_ppr_log(struct amd_iommu *iommu)
 		return;
 
 	free_pages((unsigned long)iommu->ppr_log, get_order(PPR_LOG_SIZE));
+}
+
+static void free_ga_log(struct amd_iommu *iommu)
+{
+#ifdef CONFIG_IRQ_REMAP
+	if (iommu->ga_log)
+		free_pages((unsigned long)iommu->ga_log,
+			    get_order(GA_LOG_SIZE));
+	if (iommu->ga_log_tail)
+		free_pages((unsigned long)iommu->ga_log_tail,
+			    get_order(8));
+#endif
+}
+
+static int iommu_ga_log_enable(struct amd_iommu *iommu)
+{
+#ifdef CONFIG_IRQ_REMAP
+	u32 status, i;
+
+	if (!iommu->ga_log)
+		return -EINVAL;
+
+	status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
+
+	/* Check if already running */
+	if (status & (MMIO_STATUS_GALOG_RUN_MASK))
+		return 0;
+
+	iommu_feature_enable(iommu, CONTROL_GAINT_EN);
+	iommu_feature_enable(iommu, CONTROL_GALOG_EN);
+
+	for (i = 0; i < LOOP_TIMEOUT; ++i) {
+		status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
+		if (status & (MMIO_STATUS_GALOG_RUN_MASK))
+			break;
+	}
+
+	if (i >= LOOP_TIMEOUT)
+		return -EINVAL;
+#endif /* CONFIG_IRQ_REMAP */
+	return 0;
+}
+
+#ifdef CONFIG_IRQ_REMAP
+static int iommu_init_ga_log(struct amd_iommu *iommu)
+{
+	u64 entry;
+
+	if (!AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
+		return 0;
+
+	iommu->ga_log = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(GA_LOG_SIZE));
+	if (!iommu->ga_log)
+		goto err_out;
+
+	iommu->ga_log_tail = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+					get_order(8));
+	if (!iommu->ga_log_tail)
+		goto err_out;
+
+	entry = (u64)virt_to_phys(iommu->ga_log) | GA_LOG_SIZE_512;
+	memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_BASE_OFFSET,
+		    &entry, sizeof(entry));
+	entry = ((u64)virt_to_phys(iommu->ga_log) & 0xFFFFFFFFFFFFFULL) & ~7ULL;
+	memcpy_toio(iommu->mmio_base + MMIO_GA_LOG_TAIL_OFFSET,
+		    &entry, sizeof(entry));
+	writel(0x00, iommu->mmio_base + MMIO_GA_HEAD_OFFSET);
+	writel(0x00, iommu->mmio_base + MMIO_GA_TAIL_OFFSET);
+
+	return 0;
+err_out:
+	free_ga_log(iommu);
+	return -EINVAL;
+}
+#endif /* CONFIG_IRQ_REMAP */
+
+static int iommu_init_ga(struct amd_iommu *iommu)
+{
+	int ret = 0;
+
+#ifdef CONFIG_IRQ_REMAP
+	/* Note: We have already checked GASup from IVRS table.
+	 *       Now, we need to make sure that GAMSup is set.
+	 */
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir) &&
+	    !iommu_feature(iommu, FEATURE_GAM_VAPIC))
+		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
+
+	ret = iommu_init_ga_log(iommu);
+#endif /* CONFIG_IRQ_REMAP */
+
+	return ret;
 }
 
 static void iommu_enable_gt(struct amd_iommu *iommu)
@@ -1144,6 +1245,7 @@ static void __init free_iommu_one(struct amd_iommu *iommu)
 	free_command_buffer(iommu);
 	free_event_buffer(iommu);
 	free_ppr_log(iommu);
+	free_ga_log(iommu);
 	iommu_unmap_mmio_space(iommu);
 }
 
@@ -1258,6 +1360,8 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 			iommu->mmio_phys_end = MMIO_REG_END_OFFSET;
 		else
 			iommu->mmio_phys_end = MMIO_CNTR_CONF_OFFSET;
+		if (((h->efr_attr & (0x1 << IOMMU_FEAT_GASUP_SHIFT)) == 0))
+			amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY;
 		break;
 	case 0x11:
 	case 0x40:
@@ -1265,6 +1369,8 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 			iommu->mmio_phys_end = MMIO_REG_END_OFFSET;
 		else
 			iommu->mmio_phys_end = MMIO_CNTR_CONF_OFFSET;
+		if (((h->efr_reg & (0x1 << IOMMU_EFR_GASUP_SHIFT)) == 0))
+			amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY;
 		break;
 	default:
 		return -EINVAL;
@@ -1432,6 +1538,7 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 {
 	int cap_ptr = iommu->cap_ptr;
 	u32 range, misc, low, high;
+	int ret;
 
 	iommu->dev = pci_get_bus_and_slot(PCI_BUS_NUM(iommu->devid),
 					  iommu->devid & 0xff);
@@ -1487,6 +1594,10 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 
 	if (iommu_feature(iommu, FEATURE_PPR) && alloc_ppr_log(iommu))
 		return -ENOMEM;
+
+	ret = iommu_init_ga(iommu);
+	if (ret)
+		return ret;
 
 	if (iommu->cap & (1UL << IOMMU_CAP_NPCACHE))
 		amd_iommu_np_cache = true;
@@ -1545,16 +1656,24 @@ static void print_iommu_info(void)
 			dev_name(&iommu->dev->dev), iommu->cap_ptr);
 
 		if (iommu->cap & (1 << IOMMU_CAP_EFR)) {
-			pr_info("AMD-Vi:  Extended features: ");
+			pr_info("AMD-Vi: Extended features (%#llx):\n",
+				iommu->features);
 			for (i = 0; i < ARRAY_SIZE(feat_str); ++i) {
 				if (iommu_feature(iommu, (1ULL << i)))
 					pr_cont(" %s", feat_str[i]);
 			}
+
+			if (iommu->features & FEATURE_GAM_VAPIC)
+				pr_cont(" GA_vAPIC");
+
 			pr_cont("\n");
 		}
 	}
-	if (irq_remapping_enabled)
+	if (irq_remapping_enabled) {
 		pr_info("AMD-Vi: Interrupt remapping enabled\n");
+		if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
+			pr_info("AMD-Vi: virtual APIC enabled\n");
+	}
 }
 
 static int __init amd_iommu_init_pci(void)
@@ -1644,6 +1763,8 @@ enable_faults:
 
 	if (iommu->ppr_log != NULL)
 		iommu_feature_enable(iommu, CONTROL_PPFINT_EN);
+
+	iommu_ga_log_enable(iommu);
 
 	return 0;
 }
@@ -1862,6 +1983,24 @@ static void iommu_apply_resume_quirks(struct amd_iommu *iommu)
 			       iommu->stored_addr_lo | 1);
 }
 
+static void iommu_enable_ga(struct amd_iommu *iommu)
+{
+#ifdef CONFIG_IRQ_REMAP
+	switch (amd_iommu_guest_ir) {
+	case AMD_IOMMU_GUEST_IR_VAPIC:
+		iommu_feature_enable(iommu, CONTROL_GAM_EN);
+		/* Fall through */
+	case AMD_IOMMU_GUEST_IR_LEGACY_GA:
+		iommu_feature_enable(iommu, CONTROL_GA_EN);
+		iommu->irte_ops = &irte_128_ops;
+		break;
+	default:
+		iommu->irte_ops = &irte_32_ops;
+		break;
+	}
+#endif
+}
+
 /*
  * This function finally enables all IOMMUs found in the system after
  * they have been initialized
@@ -1877,9 +2016,15 @@ static void early_enable_iommus(void)
 		iommu_enable_command_buffer(iommu);
 		iommu_enable_event_buffer(iommu);
 		iommu_set_exclusion_range(iommu);
+		iommu_enable_ga(iommu);
 		iommu_enable(iommu);
 		iommu_flush_all_caches(iommu);
 	}
+
+#ifdef CONFIG_IRQ_REMAP
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
+		amd_iommu_irq_ops.capability |= (1 << IRQ_POSTING_CAP);
+#endif
 }
 
 static void enable_iommus_v2(void)
@@ -1905,6 +2050,11 @@ static void disable_iommus(void)
 
 	for_each_iommu(iommu)
 		iommu_disable(iommu);
+
+#ifdef CONFIG_IRQ_REMAP
+	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
+		amd_iommu_irq_ops.capability &= ~(1 << IRQ_POSTING_CAP);
+#endif
 }
 
 /*
@@ -2059,7 +2209,7 @@ static int __init early_amd_iommu_init(void)
 	struct acpi_table_header *ivrs_base;
 	acpi_size ivrs_size;
 	acpi_status status;
-	int i, ret = 0;
+	int i, remap_cache_sz, ret = 0;
 
 	if (!amd_iommu_detected)
 		return -ENODEV;
@@ -2136,7 +2286,7 @@ static int __init early_amd_iommu_init(void)
 	 * never allocate domain 0 because its used as the non-allocated and
 	 * error value placeholder
 	 */
-	amd_iommu_pd_alloc_bitmap[0] = 1;
+	__set_bit(0, amd_iommu_pd_alloc_bitmap);
 
 	spin_lock_init(&amd_iommu_pd_lock);
 
@@ -2157,10 +2307,14 @@ static int __init early_amd_iommu_init(void)
 		 * remapping tables.
 		 */
 		ret = -ENOMEM;
+		if (!AMD_IOMMU_GUEST_IR_GA(amd_iommu_guest_ir))
+			remap_cache_sz = MAX_IRQS_PER_TABLE * sizeof(u32);
+		else
+			remap_cache_sz = MAX_IRQS_PER_TABLE * (sizeof(u64) * 2);
 		amd_iommu_irq_cache = kmem_cache_create("irq_remap_cache",
-				MAX_IRQS_PER_TABLE * sizeof(u32),
-				IRQ_TABLE_ALIGNMENT,
-				0, NULL);
+							remap_cache_sz,
+							IRQ_TABLE_ALIGNMENT,
+							0, NULL);
 		if (!amd_iommu_irq_cache)
 			goto out;
 
@@ -2413,6 +2567,21 @@ static int __init parse_amd_iommu_dump(char *str)
 	return 1;
 }
 
+static int __init parse_amd_iommu_intr(char *str)
+{
+	for (; *str; ++str) {
+		if (strncmp(str, "legacy", 6) == 0) {
+			amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY;
+			break;
+		}
+		if (strncmp(str, "vapic", 5) == 0) {
+			amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_VAPIC;
+			break;
+		}
+	}
+	return 1;
+}
+
 static int __init parse_amd_iommu_options(char *str)
 {
 	for (; *str; ++str) {
@@ -2521,6 +2690,7 @@ static int __init parse_ivrs_acpihid(char *str)
 
 __setup("amd_iommu_dump",	parse_amd_iommu_dump);
 __setup("amd_iommu=",		parse_amd_iommu_options);
+__setup("amd_iommu_intr=",	parse_amd_iommu_intr);
 __setup("ivrs_ioapic",		parse_ivrs_ioapic);
 __setup("ivrs_hpet",		parse_ivrs_hpet);
 __setup("ivrs_acpihid",		parse_ivrs_acpihid);

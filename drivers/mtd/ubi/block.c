@@ -351,7 +351,6 @@ static int ubiblock_init_request(void *data, struct request *req,
 static struct blk_mq_ops ubiblock_mq_ops = {
 	.queue_rq       = ubiblock_queue_rq,
 	.init_request	= ubiblock_init_request,
-	.map_queue      = blk_mq_map_queue,
 };
 
 static DEFINE_IDR(ubiblock_minor_idr);

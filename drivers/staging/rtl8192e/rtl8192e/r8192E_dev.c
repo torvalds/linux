@@ -1487,8 +1487,8 @@ static void _rtl92e_query_rxphystatus(
 	struct phy_ofdm_rx_status_rxsc_sgien_exintfflag *prxsc;
 	u8 *prxpkt;
 	u8 i, max_spatial_stream, tmp_rxsnr, tmp_rxevm, rxsc_sgien_exflg;
-	char rx_pwr[4], rx_pwr_all = 0;
-	char rx_snrX, rx_evmX;
+	s8 rx_pwr[4], rx_pwr_all = 0;
+	s8 rx_snrX, rx_evmX;
 	u8 evm, pwdb_all;
 	u32 RSSI, total_rssi = 0;
 	u8 is_cck_rate = 0;
@@ -1613,7 +1613,7 @@ static void _rtl92e_query_rxphystatus(
 				     2) - 110;
 
 			tmp_rxsnr = pofdm_buf->rxsnr_X[i];
-			rx_snrX = (char)(tmp_rxsnr);
+			rx_snrX = (s8)(tmp_rxsnr);
 			rx_snrX /= 2;
 			priv->stats.rxSNRdB[i] = (long)rx_snrX;
 
@@ -1643,7 +1643,7 @@ static void _rtl92e_query_rxphystatus(
 
 		for (i = 0; i < max_spatial_stream; i++) {
 			tmp_rxevm = pofdm_buf->rxevm_X[i];
-			rx_evmX = (char)(tmp_rxevm);
+			rx_evmX = (s8)(tmp_rxevm);
 
 			rx_evmX /= 2;
 

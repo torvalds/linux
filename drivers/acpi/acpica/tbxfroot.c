@@ -142,7 +142,8 @@ acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
  *
  ******************************************************************************/
 
-acpi_status __init acpi_find_root_pointer(acpi_physical_address *table_address)
+acpi_status ACPI_INIT_FUNCTION
+acpi_find_root_pointer(acpi_physical_address *table_address)
 {
 	u8 *table_ptr;
 	u8 *mem_rover;
@@ -243,6 +244,8 @@ acpi_status __init acpi_find_root_pointer(acpi_physical_address *table_address)
 	ACPI_BIOS_ERROR((AE_INFO, "A valid RSDP was not found"));
 	return_ACPI_STATUS(AE_NOT_FOUND);
 }
+
+ACPI_EXPORT_SYMBOL_INIT(acpi_find_root_pointer)
 
 /*******************************************************************************
  *

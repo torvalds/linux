@@ -782,8 +782,8 @@ void mlx5_ib_odp_remove_one(struct mlx5_ib_dev *ibdev)
 
 int __init mlx5_ib_odp_init(void)
 {
-	mlx5_ib_page_fault_wq =
-		create_singlethread_workqueue("mlx5_ib_page_faults");
+	mlx5_ib_page_fault_wq = alloc_ordered_workqueue("mlx5_ib_page_faults",
+							WQ_MEM_RECLAIM);
 	if (!mlx5_ib_page_fault_wq)
 		return -ENOMEM;
 

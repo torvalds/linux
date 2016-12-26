@@ -341,6 +341,7 @@ static int quota_getstate(struct super_block *sb, struct fs_quota_stat *fqs)
 	struct qc_state state;
 	int ret;
 
+	memset(&state, 0, sizeof (struct qc_state));
 	ret = sb->s_qcop->get_state(sb, &state);
 	if (ret < 0)
 		return ret;
@@ -365,17 +366,19 @@ static int quota_getstate(struct super_block *sb, struct fs_quota_stat *fqs)
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
 	fqs->qs_bwarnlimit = state.s_state[type].spc_warnlimit;
 	fqs->qs_iwarnlimit = state.s_state[type].ino_warnlimit;
-	if (state.s_state[USRQUOTA].flags & QCI_ACCT_ENABLED) {
+
+	/* Inodes may be allocated even if inactive; copy out if present */
+	if (state.s_state[USRQUOTA].ino) {
 		fqs->qs_uquota.qfs_ino = state.s_state[USRQUOTA].ino;
 		fqs->qs_uquota.qfs_nblks = state.s_state[USRQUOTA].blocks;
 		fqs->qs_uquota.qfs_nextents = state.s_state[USRQUOTA].nextents;
 	}
-	if (state.s_state[GRPQUOTA].flags & QCI_ACCT_ENABLED) {
+	if (state.s_state[GRPQUOTA].ino) {
 		fqs->qs_gquota.qfs_ino = state.s_state[GRPQUOTA].ino;
 		fqs->qs_gquota.qfs_nblks = state.s_state[GRPQUOTA].blocks;
 		fqs->qs_gquota.qfs_nextents = state.s_state[GRPQUOTA].nextents;
 	}
-	if (state.s_state[PRJQUOTA].flags & QCI_ACCT_ENABLED) {
+	if (state.s_state[PRJQUOTA].ino) {
 		/*
 		 * Q_XGETQSTAT doesn't have room for both group and project
 		 * quotas.  So, allow the project quota values to be copied out
@@ -411,6 +414,7 @@ static int quota_getstatev(struct super_block *sb, struct fs_quota_statv *fqs)
 	struct qc_state state;
 	int ret;
 
+	memset(&state, 0, sizeof (struct qc_state));
 	ret = sb->s_qcop->get_state(sb, &state);
 	if (ret < 0)
 		return ret;
@@ -435,17 +439,19 @@ static int quota_getstatev(struct super_block *sb, struct fs_quota_statv *fqs)
 	fqs->qs_rtbtimelimit = state.s_state[type].rt_spc_timelimit;
 	fqs->qs_bwarnlimit = state.s_state[type].spc_warnlimit;
 	fqs->qs_iwarnlimit = state.s_state[type].ino_warnlimit;
-	if (state.s_state[USRQUOTA].flags & QCI_ACCT_ENABLED) {
+
+	/* Inodes may be allocated even if inactive; copy out if present */
+	if (state.s_state[USRQUOTA].ino) {
 		fqs->qs_uquota.qfs_ino = state.s_state[USRQUOTA].ino;
 		fqs->qs_uquota.qfs_nblks = state.s_state[USRQUOTA].blocks;
 		fqs->qs_uquota.qfs_nextents = state.s_state[USRQUOTA].nextents;
 	}
-	if (state.s_state[GRPQUOTA].flags & QCI_ACCT_ENABLED) {
+	if (state.s_state[GRPQUOTA].ino) {
 		fqs->qs_gquota.qfs_ino = state.s_state[GRPQUOTA].ino;
 		fqs->qs_gquota.qfs_nblks = state.s_state[GRPQUOTA].blocks;
 		fqs->qs_gquota.qfs_nextents = state.s_state[GRPQUOTA].nextents;
 	}
-	if (state.s_state[PRJQUOTA].flags & QCI_ACCT_ENABLED) {
+	if (state.s_state[PRJQUOTA].ino) {
 		fqs->qs_pquota.qfs_ino = state.s_state[PRJQUOTA].ino;
 		fqs->qs_pquota.qfs_nblks = state.s_state[PRJQUOTA].blocks;
 		fqs->qs_pquota.qfs_nextents = state.s_state[PRJQUOTA].nextents;

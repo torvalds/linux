@@ -22,7 +22,6 @@
 #ifndef __ATBM8830_H__
 #define __ATBM8830_H__
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
 

@@ -124,7 +124,8 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	bool skip_preamble, need_ctx_switch;
 	unsigned patch_offset = ~0;
 	struct amdgpu_vm *vm;
-	uint64_t ctx;
+	uint64_t fence_ctx;
+	uint32_t status = 0, alloc_size;
 
 	unsigned i;
 	int r = 0;
@@ -135,14 +136,14 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* ring tests don't use a job */
 	if (job) {
 		vm = job->vm;
-		ctx = job->ctx;
+		fence_ctx = job->fence_ctx;
 	} else {
 		vm = NULL;
-		ctx = 0;
+		fence_ctx = 0;
 	}
 
 	if (!ring->ready) {
-		dev_err(adev->dev, "couldn't schedule ib\n");
+		dev_err(adev->dev, "couldn't schedule ib on ring <%s>\n", ring->name);
 		return -EINVAL;
 	}
 
@@ -151,7 +152,10 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		return -EINVAL;
 	}
 
-	r = amdgpu_ring_alloc(ring, 256 * num_ibs);
+	alloc_size = amdgpu_ring_get_dma_frame_size(ring) +
+		num_ibs * amdgpu_ring_get_emit_ib_size(ring);
+
+	r = amdgpu_ring_alloc(ring, alloc_size);
 	if (r) {
 		dev_err(adev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
@@ -174,13 +178,22 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	/* always set cond_exec_polling to CONTINUE */
 	*ring->cond_exe_cpu_addr = 1;
 
-	skip_preamble = ring->current_ctx == ctx;
-	need_ctx_switch = ring->current_ctx != ctx;
+	skip_preamble = ring->current_ctx == fence_ctx;
+	need_ctx_switch = ring->current_ctx != fence_ctx;
+	if (job && ring->funcs->emit_cntxcntl) {
+		if (need_ctx_switch)
+			status |= AMDGPU_HAVE_CTX_SWITCH;
+		status |= job->preamble_status;
+		amdgpu_ring_emit_cntxcntl(ring, status);
+	}
+
 	for (i = 0; i < num_ibs; ++i) {
 		ib = &ibs[i];
 
 		/* drop preamble IBs if we don't have a context switch */
-		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) && skip_preamble)
+		if ((ib->flags & AMDGPU_IB_FLAG_PREAMBLE) &&
+			skip_preamble &&
+			!(status & AMDGPU_PREAMBLE_IB_PRESENT_FIRST))
 			continue;
 
 		amdgpu_ring_emit_ib(ring, ib, job ? job->vm_id : 0,
@@ -209,7 +222,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 	if (patch_offset != ~0 && ring->funcs->patch_cond_exec)
 		amdgpu_ring_patch_cond_exec(ring, patch_offset);
 
-	ring->current_ctx = ctx;
+	ring->current_ctx = fence_ctx;
+	if (ring->funcs->emit_switch_buffer)
+		amdgpu_ring_emit_switch_buffer(ring);
 	amdgpu_ring_commit(ring);
 	return 0;
 }

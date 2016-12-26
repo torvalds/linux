@@ -655,10 +655,10 @@ static int xilly_obtain_idt(struct xilly_endpoint *endpoint)
 
 	version = channel->wr_buffers[0]->addr;
 
-	/* Check version number. Accept anything below 0x82 for now. */
+	/* Check version number. Reject anything above 0x82. */
 	if (*version > 0x82) {
 		dev_err(endpoint->dev,
-			"No support for IDT version 0x%02x. Maybe the xillybus driver needs an upgarde. Aborting.\n",
+			"No support for IDT version 0x%02x. Maybe the xillybus driver needs an upgrade. Aborting.\n",
 			*version);
 		return -ENODEV;
 	}

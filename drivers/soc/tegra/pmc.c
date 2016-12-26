@@ -967,8 +967,8 @@ static void tegra_io_rail_unprepare(void)
 
 int tegra_io_rail_power_on(unsigned int id)
 {
-	unsigned long request, status, value;
-	unsigned int bit, mask;
+	unsigned long request, status;
+	unsigned int bit;
 	int err;
 
 	mutex_lock(&pmc->powergates_lock);
@@ -977,15 +977,9 @@ int tegra_io_rail_power_on(unsigned int id)
 	if (err)
 		goto error;
 
-	mask = 1 << bit;
+	tegra_pmc_writel(IO_DPD_REQ_CODE_OFF | BIT(bit), request);
 
-	value = tegra_pmc_readl(request);
-	value |= mask;
-	value &= ~IO_DPD_REQ_CODE_MASK;
-	value |= IO_DPD_REQ_CODE_OFF;
-	tegra_pmc_writel(value, request);
-
-	err = tegra_io_rail_poll(status, mask, 0, 250);
+	err = tegra_io_rail_poll(status, BIT(bit), 0, 250);
 	if (err) {
 		pr_info("tegra_io_rail_poll() failed: %d\n", err);
 		goto error;
@@ -1002,8 +996,8 @@ EXPORT_SYMBOL(tegra_io_rail_power_on);
 
 int tegra_io_rail_power_off(unsigned int id)
 {
-	unsigned long request, status, value;
-	unsigned int bit, mask;
+	unsigned long request, status;
+	unsigned int bit;
 	int err;
 
 	mutex_lock(&pmc->powergates_lock);
@@ -1014,15 +1008,9 @@ int tegra_io_rail_power_off(unsigned int id)
 		goto error;
 	}
 
-	mask = 1 << bit;
+	tegra_pmc_writel(IO_DPD_REQ_CODE_ON | BIT(bit), request);
 
-	value = tegra_pmc_readl(request);
-	value |= mask;
-	value &= ~IO_DPD_REQ_CODE_MASK;
-	value |= IO_DPD_REQ_CODE_ON;
-	tegra_pmc_writel(value, request);
-
-	err = tegra_io_rail_poll(status, mask, mask, 250);
+	err = tegra_io_rail_poll(status, BIT(bit), BIT(bit), 250);
 	if (err)
 		goto error;
 

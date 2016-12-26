@@ -267,7 +267,7 @@ static int b53_mdio_phy_write16(struct b53_device *dev, int addr, int reg,
 	return mdiobus_write_nested(bus, addr, reg, value);
 }
 
-static struct b53_io_ops b53_mdio_ops = {
+static const struct b53_io_ops b53_mdio_ops = {
 	.read8 = b53_mdio_read8,
 	.read16 = b53_mdio_read16,
 	.read32 = b53_mdio_read32,

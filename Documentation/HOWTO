@@ -1,5 +1,5 @@
 HOWTO do Linux kernel development
----------------------------------
+=================================
 
 This is the be-all, end-all document on this topic.  It contains
 instructions on how to become a Linux kernel developer and how to learn
@@ -28,6 +28,7 @@ kernel development.  Assembly (any architecture) is not required unless
 you plan to do low-level development for that architecture.  Though they
 are not a good substitute for a solid C education and/or years of
 experience, the following books are good for, if anything, reference:
+
  - "The C Programming Language" by Kernighan and Ritchie [Prentice Hall]
  - "Practical C Programming" by Steve Oualline [O'Reilly]
  - "C:  A Reference Manual" by Harbison and Steele [Prentice Hall]
@@ -64,7 +65,8 @@ people on the mailing lists are not lawyers, and you should not rely on
 their statements on legal matters.
 
 For common questions and answers about the GPL, please see:
-	http://www.gnu.org/licenses/gpl-faq.html
+
+	https://www.gnu.org/licenses/gpl-faq.html
 
 
 Documentation
@@ -82,96 +84,118 @@ linux-api@vger.kernel.org.
 
 Here is a list of files that are in the kernel source tree that are
 required reading:
+
   README
     This file gives a short background on the Linux kernel and describes
     what is necessary to do to configure and build the kernel.  People
     who are new to the kernel should start here.
 
-  Documentation/Changes
+  :ref:`Documentation/Changes <changes>`
     This file gives a list of the minimum levels of various software
     packages that are necessary to build and run the kernel
     successfully.
 
-  Documentation/CodingStyle
+  :ref:`Documentation/CodingStyle <codingstyle>`
     This describes the Linux kernel coding style, and some of the
     rationale behind it. All new code is expected to follow the
     guidelines in this document. Most maintainers will only accept
     patches if these rules are followed, and many people will only
     review code if it is in the proper style.
 
-  Documentation/SubmittingPatches
-  Documentation/SubmittingDrivers
+  :ref:`Documentation/SubmittingPatches <submittingpatches>` and :ref:`Documentation/SubmittingDrivers <submittingdrivers>`
     These files describe in explicit detail how to successfully create
     and send a patch, including (but not limited to):
+
        - Email contents
        - Email format
        - Who to send it to
+
     Following these rules will not guarantee success (as all patches are
     subject to scrutiny for content and style), but not following them
     will almost always prevent it.
 
     Other excellent descriptions of how to create patches properly are:
+
 	"The Perfect Patch"
-		http://www.ozlabs.org/~akpm/stuff/tpp.txt
+		https://www.ozlabs.org/~akpm/stuff/tpp.txt
+
 	"Linux kernel patch submission format"
 		http://linux.yyz.us/patch-format.html
 
-  Documentation/stable_api_nonsense.txt
+  :ref:`Documentation/stable_api_nonsense.txt <stable_api_nonsense>`
     This file describes the rationale behind the conscious decision to
     not have a stable API within the kernel, including things like:
+
       - Subsystem shim-layers (for compatibility?)
       - Driver portability between Operating Systems.
       - Mitigating rapid change within the kernel source tree (or
 	preventing rapid change)
+
     This document is crucial for understanding the Linux development
     philosophy and is very important for people moving to Linux from
     development on other Operating Systems.
 
-  Documentation/SecurityBugs
+  :ref:`Documentation/SecurityBugs <securitybugs>`
     If you feel you have found a security problem in the Linux kernel,
     please follow the steps in this document to help notify the kernel
     developers, and help solve the issue.
 
-  Documentation/ManagementStyle
+  :ref:`Documentation/ManagementStyle <managementstyle>`
     This document describes how Linux kernel maintainers operate and the
     shared ethos behind their methodologies.  This is important reading
     for anyone new to kernel development (or anyone simply curious about
     it), as it resolves a lot of common misconceptions and confusion
     about the unique behavior of kernel maintainers.
 
-  Documentation/stable_kernel_rules.txt
+  :ref:`Documentation/stable_kernel_rules.txt <stable_kernel_rules>`
     This file describes the rules on how the stable kernel releases
     happen, and what to do if you want to get a change into one of these
     releases.
 
-  Documentation/kernel-docs.txt
+  :ref:`Documentation/kernel-docs.txt <kernel_docs>`
     A list of external documentation that pertains to kernel
     development.  Please consult this list if you do not find what you
     are looking for within the in-kernel documentation.
 
-  Documentation/applying-patches.txt
+  :ref:`Documentation/applying-patches.txt <applying_patches>`
     A good introduction describing exactly what a patch is and how to
     apply it to the different development branches of the kernel.
 
 The kernel also has a large number of documents that can be
-automatically generated from the source code itself.  This includes a
+automatically generated from the source code itself or from
+ReStructuredText markups (ReST), like this one. This includes a
 full description of the in-kernel API, and rules on how to handle
-locking properly.  The documents will be created in the
-Documentation/DocBook/ directory and can be generated as PDF,
-Postscript, HTML, and man pages by running:
+locking properly.
+
+All such documents can be generated as PDF or HTML by running::
+
 	make pdfdocs
-	make psdocs
 	make htmldocs
-	make mandocs
+
 respectively from the main kernel source directory.
 
+The documents that uses ReST markup will be generated at Documentation/output.
+They can also be generated on LaTeX and ePub formats with::
+
+	make latexdocs
+	make epubdocs
+
+Currently, there are some documents written on DocBook that are in
+the process of conversion to ReST. Such documents will be created in the
+Documentation/DocBook/ directory and can be generated also as
+Postscript or man pages by running::
+
+	make psdocs
+	make mandocs
 
 Becoming A Kernel Developer
 ---------------------------
 
 If you do not know anything about Linux kernel development, you should
 look at the Linux KernelNewbies project:
-	http://kernelnewbies.org
+
+	https://kernelnewbies.org
+
 It consists of a helpful mailing list where you can ask almost any type
 of basic kernel development question (make sure to search the archives
 first, before asking something that has already been answered in the
@@ -187,7 +211,9 @@ apply a patch.
 If you do not know where you want to start, but you want to look for
 some task to start doing to join into the kernel development community,
 go to the Linux Kernel Janitor's project:
-	http://kernelnewbies.org/KernelJanitors
+
+	https://kernelnewbies.org/KernelJanitors
+
 It is a great place to start.  It describes a list of relatively simple
 problems that need to be cleaned up and fixed within the Linux kernel
 source tree.  Working with the developers in charge of this project, you
@@ -199,7 +225,8 @@ If you already have a chunk of code that you want to put into the kernel
 tree, but need some help getting it in the proper form, the
 kernel-mentors project was created to help you out with this.  It is a
 mailing list, and can be found at:
-	http://selenic.com/mailman/listinfo/kernel-mentors
+
+	https://selenic.com/mailman/listinfo/kernel-mentors
 
 Before making any actual modifications to the Linux kernel code, it is
 imperative to understand how the code in question works.  For this
@@ -209,6 +236,7 @@ tools.  One such tool that is particularly recommended is the Linux
 Cross-Reference project, which is able to present source code in a
 self-referential, indexed webpage format. An excellent up-to-date
 repository of the kernel code may be found at:
+
 	http://lxr.free-electrons.com/
 
 
@@ -218,6 +246,7 @@ The development process
 Linux kernel development process currently consists of a few different
 main kernel "branches" and lots of different subsystem-specific kernel
 branches.  These different branches are:
+
   - main 4.x kernel tree
   - 4.x.y -stable kernel tree
   - 4.x -git kernel patches
@@ -227,14 +256,15 @@ branches.  These different branches are:
 4.x kernel tree
 -----------------
 4.x kernels are maintained by Linus Torvalds, and can be found on
-kernel.org in the pub/linux/kernel/v4.x/ directory.  Its development
+https://kernel.org in the pub/linux/kernel/v4.x/ directory.  Its development
 process is as follows:
+
   - As soon as a new kernel is released a two weeks window is open,
     during this period of time maintainers can submit big diffs to
     Linus, usually the patches that have already been included in the
     -next kernel for a few weeks.  The preferred way to submit big changes
     is using git (the kernel's source management tool, more information
-    can be found at http://git-scm.com/) but plain patches are also just
+    can be found at https://git-scm.com/) but plain patches are also just
     fine.
   - After two weeks a -rc1 kernel is released it is now possible to push
     only patches that do not include new features that could affect the
@@ -253,9 +283,10 @@ process is as follows:
 
 It is worth mentioning what Andrew Morton wrote on the linux-kernel
 mailing list about kernel releases:
-	"Nobody knows when a kernel will be released, because it's
+
+	*"Nobody knows when a kernel will be released, because it's
 	released according to perceived bug status, not according to a
-	preconceived timeline."
+	preconceived timeline."*
 
 4.x.y -stable kernel tree
 -------------------------
@@ -301,7 +332,7 @@ submission and other already ongoing work are avoided.
 Most of these repositories are git trees, but there are also other SCMs
 in use, or patch queues being published as quilt series.  Addresses of
 these subsystem repositories are listed in the MAINTAINERS file.  Many
-of them can be browsed at http://git.kernel.org/.
+of them can be browsed at https://git.kernel.org/.
 
 Before a proposed patch is committed to such a subsystem tree, it is
 subject to review which primarily happens on mailing lists (see the
@@ -310,7 +341,7 @@ process is tracked with the tool patchwork.  Patchwork offers a web
 interface which shows patch postings, any comments on a patch or
 revisions to it, and maintainers can mark patches as under review,
 accepted, or rejected.  Most of these patchwork sites are listed at
-http://patchwork.kernel.org/.
+https://patchwork.kernel.org/.
 
 4.x -next kernel tree for integration tests
 -------------------------------------------
@@ -318,7 +349,8 @@ Before updates from subsystem trees are merged into the mainline 4.x
 tree, they need to be integration-tested.  For this purpose, a special
 testing repository exists into which virtually all subsystem trees are
 pulled on an almost daily basis:
-	http://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
+
+	https://git.kernel.org/?p=linux/kernel/git/next/linux-next.git
 
 This way, the -next kernel gives a summary outlook onto what will be
 expected to go into the mainline kernel at the next merge period.
@@ -328,10 +360,11 @@ Adventurous testers are very welcome to runtime-test the -next kernel.
 Bug Reporting
 -------------
 
-bugzilla.kernel.org is where the Linux kernel developers track kernel
+https://bugzilla.kernel.org is where the Linux kernel developers track kernel
 bugs.  Users are encouraged to report all bugs that they find in this
 tool.  For details on how to use the kernel bugzilla, please see:
-	http://bugzilla.kernel.org/page.cgi?id=faq.html
+
+	https://bugzilla.kernel.org/page.cgi?id=faq.html
 
 The file REPORTING-BUGS in the main kernel source directory has a good
 template for how to report a possible kernel bug, and details what kind
@@ -349,13 +382,14 @@ your skills, and other developers will be aware of your presence. Fixing
 bugs is one of the best ways to get merits among other developers, because
 not many people like wasting time fixing other people's bugs.
 
-To work in the already reported bug reports, go to http://bugzilla.kernel.org.
+To work in the already reported bug reports, go to https://bugzilla.kernel.org.
 If you want to be advised of the future bug reports, you can subscribe to the
 bugme-new mailing list (only new bug reports are mailed here) or to the
 bugme-janitor mailing list (every change in the bugzilla is mailed here)
 
-	http://lists.linux-foundation.org/mailman/listinfo/bugme-new
-	http://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
+	https://lists.linux-foundation.org/mailman/listinfo/bugme-new
+
+	https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
 
 
 
@@ -365,10 +399,14 @@ Mailing lists
 As some of the above documents describe, the majority of the core kernel
 developers participate on the Linux Kernel Mailing list.  Details on how
 to subscribe and unsubscribe from the list can be found at:
+
 	http://vger.kernel.org/vger-lists.html#linux-kernel
+
 There are archives of the mailing list on the web in many different
 places.  Use a search engine to find these archives.  For example:
+
 	http://dir.gmane.org/gmane.linux.kernel
+
 It is highly recommended that you search the archives about the topic
 you want to bring up, before you post it to the list. A lot of things
 already discussed in detail are only recorded at the mailing list
@@ -381,11 +419,13 @@ groups.
 
 Many of the lists are hosted on kernel.org. Information on them can be
 found at:
+
 	http://vger.kernel.org/vger-lists.html
 
 Please remember to follow good behavioral habits when using the lists.
 Though a bit cheesy, the following URL has some simple guidelines for
 interacting with the list (or any list):
+
 	http://www.albion.com/netiquette/
 
 If multiple people respond to your mail, the CC: list of recipients may
@@ -400,13 +440,14 @@ add your statements between the individual quoted sections instead of
 writing at the top of the mail.
 
 If you add patches to your mail, make sure they are plain readable text
-as stated in Documentation/SubmittingPatches. Kernel developers don't
-want to deal with attachments or compressed patches; they may want
-to comment on individual lines of your patch, which works only that way.
-Make sure you use a mail program that does not mangle spaces and tab
-characters. A good first test is to send the mail to yourself and try
-to apply your own patch by yourself. If that doesn't work, get your
-mail program fixed or change it until it works.
+as stated in Documentation/SubmittingPatches.
+Kernel developers don't want to deal with
+attachments or compressed patches; they may want to comment on
+individual lines of your patch, which works only that way. Make sure you
+use a mail program that does not mangle spaces and tab characters. A
+good first test is to send the mail to yourself and try to apply your
+own patch by yourself. If that doesn't work, get your mail program fixed
+or change it until it works.
 
 Above all, please remember to show respect to other subscribers.
 
@@ -418,6 +459,7 @@ The goal of the kernel community is to provide the best possible kernel
 there is.  When you submit a patch for acceptance, it will be reviewed
 on its technical merits and those alone.  So, what should you be
 expecting?
+
   - criticism
   - comments
   - requests for change
@@ -432,6 +474,7 @@ If there are no responses to your posting, wait a few days and try
 again, sometimes things get lost in the huge volume.
 
 What should you not do?
+
   - expect your patch to be accepted without question
   - become defensive
   - ignore comments
@@ -445,8 +488,8 @@ Remember, being wrong is acceptable as long as you are willing to work
 toward a solution that is right.
 
 It is normal that the answers to your first patch might simply be a list
-of a dozen things you should correct.  This does _not_ imply that your
-patch will not be accepted, and it is _not_ meant against you
+of a dozen things you should correct.  This does **not** imply that your
+patch will not be accepted, and it is **not** meant against you
 personally.  Simply correct all issues raised against your patch and
 resend it.
 
@@ -457,7 +500,9 @@ Differences between the kernel community and corporate structures
 The kernel community works differently than most traditional corporate
 development environments.  Here are a list of things that you can try to
 do to avoid problems:
+
   Good things to say regarding your proposed changes:
+
     - "This solves multiple problems."
     - "This deletes 2000 lines of code."
     - "Here is a patch that explains what I am trying to describe."
@@ -466,6 +511,7 @@ do to avoid problems:
     - "This increases performance on typical machines..."
 
   Bad things you should avoid saying:
+
     - "We did it this way in AIX/ptx/Solaris, so therefore it must be
       good..."
     - "I've being doing this for 20 years, so..."
@@ -527,17 +573,18 @@ The reasons for breaking things up are the following:
    and simplify (or simply re-order) patches before submitting them.
 
 Here is an analogy from kernel developer Al Viro:
-	"Think of a teacher grading homework from a math student.  The
+
+	*"Think of a teacher grading homework from a math student.  The
 	teacher does not want to see the student's trials and errors
 	before they came up with the solution. They want to see the
 	cleanest, most elegant answer.  A good student knows this, and
 	would never submit her intermediate work before the final
-	solution."
+	solution.*
 
-	The same is true of kernel development. The maintainers and
+	*The same is true of kernel development. The maintainers and
 	reviewers do not want to see the thought process behind the
 	solution to the problem one is solving. They want to see a
-	simple and elegant solution."
+	simple and elegant solution."*
 
 It may be challenging to keep the balance between presenting an elegant
 solution and working together with the community and discussing your
@@ -565,6 +612,7 @@ When sending in your patches, pay special attention to what you say in
 the text in your email.  This information will become the ChangeLog
 information for the patch, and will be preserved for everyone to see for
 all time.  It should describe the patch completely, containing:
+
   - why the change is necessary
   - the overall design approach in the patch
   - implementation details
@@ -572,10 +620,9 @@ all time.  It should describe the patch completely, containing:
 
 For more details on what this should all look like, please see the
 ChangeLog section of the document:
+
   "The Perfect Patch"
       http://www.ozlabs.org/~akpm/stuff/tpp.txt
-
-
 
 
 All of these things are sometimes very hard to do. It can take years to
@@ -588,8 +635,9 @@ start exactly where you are now.
 
 
 ----------
+
 Thanks to Paolo Ciarrocchi who allowed the "Development Process"
-(http://lwn.net/Articles/94386/) section
+(https://lwn.net/Articles/94386/) section
 to be based on text he had written, and to Randy Dunlap and Gerrit
 Huizenga for some of the list of things you should and should not say.
 Also thanks to Pat Mochel, Hanna Linder, Randy Dunlap, Kay Sievers,

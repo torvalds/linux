@@ -46,7 +46,8 @@ IRQ.txt
 Intel-IOMMU.txt
 	- basic info on the Intel IOMMU virtualization support.
 Makefile
-	- some files in Documentation dir are actually sample code to build
+	- This file does nothing. Removing it breaks make htmldocs and
+	  make distclean.
 ManagementStyle
 	- how to (attempt to) manage kernel hackers.
 RCU/

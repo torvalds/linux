@@ -217,6 +217,8 @@ long nvdimm_clear_poison(struct device *dev, phys_addr_t phys,
 		return rc;
 	if (cmd_rc < 0)
 		return cmd_rc;
+
+	nvdimm_clear_from_poison_list(nvdimm_bus, phys, len);
 	return clear_err.cleared;
 }
 EXPORT_SYMBOL_GPL(nvdimm_clear_poison);
@@ -713,7 +715,7 @@ EXPORT_SYMBOL_GPL(nd_cmd_in_size);
 
 u32 nd_cmd_out_size(struct nvdimm *nvdimm, int cmd,
 		const struct nd_cmd_desc *desc, int idx, const u32 *in_field,
-		const u32 *out_field)
+		const u32 *out_field, unsigned long remainder)
 {
 	if (idx >= desc->out_num)
 		return UINT_MAX;
@@ -725,9 +727,24 @@ u32 nd_cmd_out_size(struct nvdimm *nvdimm, int cmd,
 		return in_field[1];
 	else if (nvdimm && cmd == ND_CMD_VENDOR && idx == 2)
 		return out_field[1];
-	else if (!nvdimm && cmd == ND_CMD_ARS_STATUS && idx == 2)
-		return out_field[1] - 8;
-	else if (cmd == ND_CMD_CALL) {
+	else if (!nvdimm && cmd == ND_CMD_ARS_STATUS && idx == 2) {
+		/*
+		 * Per table 9-276 ARS Data in ACPI 6.1, out_field[1] is
+		 * "Size of Output Buffer in bytes, including this
+		 * field."
+		 */
+		if (out_field[1] < 4)
+			return 0;
+		/*
+		 * ACPI 6.1 is ambiguous if 'status' is included in the
+		 * output size. If we encounter an output size that
+		 * overshoots the remainder by 4 bytes, assume it was
+		 * including 'status'.
+		 */
+		if (out_field[1] - 8 == remainder)
+			return remainder;
+		return out_field[1] - 4;
+	} else if (cmd == ND_CMD_CALL) {
 		struct nd_cmd_pkg *pkg = (struct nd_cmd_pkg *) in_field;
 
 		return pkg->nd_size_out;
@@ -874,7 +891,7 @@ static int __nd_ioctl(struct nvdimm_bus *nvdimm_bus, struct nvdimm *nvdimm,
 	/* process an output envelope */
 	for (i = 0; i < desc->out_num; i++) {
 		u32 out_size = nd_cmd_out_size(nvdimm, cmd, desc, i,
-				(u32 *) in_env, (u32 *) out_env);
+				(u32 *) in_env, (u32 *) out_env, 0);
 		u32 copy;
 
 		if (out_size == UINT_MAX) {

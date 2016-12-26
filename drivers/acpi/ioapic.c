@@ -46,7 +46,7 @@ static acpi_status setup_res(struct acpi_resource *acpi_res, void *data)
 	struct resource_win win;
 
 	res->flags = 0;
-	if (acpi_dev_filter_resource_type(acpi_res, IORESOURCE_MEM) == 0)
+	if (acpi_dev_filter_resource_type(acpi_res, IORESOURCE_MEM))
 		return AE_OK;
 
 	if (!acpi_dev_resource_memory(acpi_res, res)) {
@@ -97,7 +97,7 @@ static acpi_status handle_ioapic_add(acpi_handle handle, u32 lvl,
 	unsigned long long gsi_base;
 	struct acpi_pci_ioapic *ioapic;
 	struct pci_dev *dev = NULL;
-	struct resource *res = NULL;
+	struct resource *res = NULL, *pci_res = NULL, *crs_res;
 	char *type = NULL;
 
 	if (!acpi_is_ioapic(handle, &type))
@@ -137,22 +137,29 @@ static acpi_status handle_ioapic_add(acpi_handle handle, u32 lvl,
 		pci_set_master(dev);
 		if (pci_request_region(dev, 0, type))
 			goto exit_disable;
-		res = &dev->resource[0];
+		pci_res = &dev->resource[0];
 		ioapic->pdev = dev;
 	} else {
 		pci_dev_put(dev);
 		dev = NULL;
-
-		res = &ioapic->res;
-		acpi_walk_resources(handle, METHOD_NAME__CRS, setup_res, res);
-		if (res->flags == 0) {
-			acpi_handle_warn(handle, "failed to get resource\n");
-			goto exit_free;
-		} else if (request_resource(&iomem_resource, res)) {
-			acpi_handle_warn(handle, "failed to insert resource\n");
-			goto exit_free;
-		}
 	}
+
+	crs_res = &ioapic->res;
+	acpi_walk_resources(handle, METHOD_NAME__CRS, setup_res, crs_res);
+	crs_res->name = type;
+	crs_res->flags |= IORESOURCE_BUSY;
+	if (crs_res->flags == 0) {
+		acpi_handle_warn(handle, "failed to get resource\n");
+		goto exit_release;
+	} else if (insert_resource(&iomem_resource, crs_res)) {
+		acpi_handle_warn(handle, "failed to insert resource\n");
+		goto exit_release;
+	}
+
+	/* try pci resource first, then "_CRS" resource */
+	res = pci_res;
+	if (!res || !res->flags)
+		res = crs_res;
 
 	if (acpi_register_ioapic(handle, res->start, (u32)gsi_base)) {
 		acpi_handle_warn(handle, "failed to register IOAPIC\n");
@@ -174,14 +181,13 @@ done:
 exit_release:
 	if (dev)
 		pci_release_region(dev, 0);
-	else
-		release_resource(res);
+	if (ioapic->res.flags && ioapic->res.parent)
+		release_resource(&ioapic->res);
 exit_disable:
 	if (dev)
 		pci_disable_device(dev);
 exit_put:
 	pci_dev_put(dev);
-exit_free:
 	kfree(ioapic);
 exit:
 	mutex_unlock(&ioapic_list_lock);
@@ -189,13 +195,13 @@ exit:
 	return AE_OK;
 }
 
-int acpi_ioapic_add(struct acpi_pci_root *root)
+int acpi_ioapic_add(acpi_handle root_handle)
 {
 	acpi_status status, retval = AE_OK;
 
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, root->device->handle,
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, root_handle,
 				     UINT_MAX, handle_ioapic_add, NULL,
-				     root->device->handle, (void **)&retval);
+				     root_handle, (void **)&retval);
 
 	return ACPI_SUCCESS(status) && ACPI_SUCCESS(retval) ? 0 : -ENODEV;
 }
@@ -217,9 +223,9 @@ int acpi_ioapic_remove(struct acpi_pci_root *root)
 			pci_release_region(ioapic->pdev, 0);
 			pci_disable_device(ioapic->pdev);
 			pci_dev_put(ioapic->pdev);
-		} else if (ioapic->res.flags && ioapic->res.parent) {
-			release_resource(&ioapic->res);
 		}
+		if (ioapic->res.flags && ioapic->res.parent)
+			release_resource(&ioapic->res);
 		list_del(&ioapic->list);
 		kfree(ioapic);
 	}

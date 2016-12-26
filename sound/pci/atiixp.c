@@ -1148,7 +1148,7 @@ static int snd_atiixp_spdif_close(struct snd_pcm_substream *substream)
 }
 
 /* AC97 playback */
-static struct snd_pcm_ops snd_atiixp_playback_ops = {
+static const struct snd_pcm_ops snd_atiixp_playback_ops = {
 	.open =		snd_atiixp_playback_open,
 	.close =	snd_atiixp_playback_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1160,7 +1160,7 @@ static struct snd_pcm_ops snd_atiixp_playback_ops = {
 };
 
 /* AC97 capture */
-static struct snd_pcm_ops snd_atiixp_capture_ops = {
+static const struct snd_pcm_ops snd_atiixp_capture_ops = {
 	.open =		snd_atiixp_capture_open,
 	.close =	snd_atiixp_capture_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -1172,7 +1172,7 @@ static struct snd_pcm_ops snd_atiixp_capture_ops = {
 };
 
 /* SPDIF playback */
-static struct snd_pcm_ops snd_atiixp_spdif_ops = {
+static const struct snd_pcm_ops snd_atiixp_spdif_ops = {
 	.open =		snd_atiixp_spdif_open,
 	.close =	snd_atiixp_spdif_close,
 	.ioctl =	snd_pcm_lib_ioctl,

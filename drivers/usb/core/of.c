@@ -18,6 +18,7 @@
  */
 
 #include <linux/of.h>
+#include <linux/usb/of.h>
 
 /**
  * usb_of_get_child_node - Find the device node match port number

@@ -113,14 +113,14 @@ void crisv32_intmem_free(void* addr)
 
 			allocation->status = STATUS_FREE;
 			/* Join with prev and/or next if also free */
-			if ((prev != &intmem_allocations) &&
+			if ((&prev->entry != &intmem_allocations) &&
 					(prev->status == STATUS_FREE)) {
 				prev->size += allocation->size;
 				list_del(&allocation->entry);
 				kfree(allocation);
 				allocation = prev;
 			}
-			if ((next != &intmem_allocations) &&
+			if ((&next->entry != &intmem_allocations) &&
 					(next->status == STATUS_FREE)) {
 				allocation->size += next->size;
 				list_del(&next->entry);
@@ -145,5 +145,12 @@ unsigned long crisv32_intmem_virt_to_phys(void* addr)
 		(unsigned long)intmem_virtual + MEM_INTMEM_START +
 		RESERVED_SIZE);
 }
-device_initcall(crisv32_intmem_init);
+
+static int __init crisv32_intmem_setup(void)
+{
+	crisv32_intmem_init();
+
+	return 0;
+}
+device_initcall(crisv32_intmem_setup);
 

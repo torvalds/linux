@@ -112,6 +112,15 @@ struct chameleon_bdd {
 	u32 size;
 } __packed;
 
+struct chameleon_bar {
+	u32 addr;
+	u32 size;
+};
+
+#define BAR_CNT(x) ((x) & 0x07)
+#define CHAMELEON_BAR_MAX	6
+#define BAR_DESC_SIZE(x)	((x) * sizeof(struct chameleon_bar) + sizeof(__le32))
+
 int chameleon_parse_cells(struct mcb_bus *bus, phys_addr_t mapbase,
 			  void __iomem *base);
 

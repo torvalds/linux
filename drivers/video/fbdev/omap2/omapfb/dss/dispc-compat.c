@@ -644,6 +644,7 @@ int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 {
 
 	int r;
+	long time_left;
 	DECLARE_COMPLETION_ONSTACK(completion);
 
 	r = omap_dispc_register_isr(dispc_irq_wait_handler, &completion,
@@ -652,15 +653,15 @@ int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 	if (r)
 		return r;
 
-	timeout = wait_for_completion_interruptible_timeout(&completion,
+	time_left = wait_for_completion_interruptible_timeout(&completion,
 			timeout);
 
 	omap_dispc_unregister_isr(dispc_irq_wait_handler, &completion, irqmask);
 
-	if (timeout == 0)
+	if (time_left == 0)
 		return -ETIMEDOUT;
 
-	if (timeout == -ERESTARTSYS)
+	if (time_left == -ERESTARTSYS)
 		return -ERESTARTSYS;
 
 	return 0;

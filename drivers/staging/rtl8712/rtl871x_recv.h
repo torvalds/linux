@@ -153,7 +153,8 @@ static inline u8 *get_recvframe_data(union recv_frame *precvframe)
 static inline u8 *recvframe_pull(union recv_frame *precvframe, sint sz)
 {
 	/* used for extract sz bytes from rx_data, update rx_data and return
-	 *  the updated rx_data to the caller */
+	 * the updated rx_data to the caller
+	 */
 	if (precvframe == NULL)
 		return NULL;
 	precvframe->u.hdr.rx_data += sz;
@@ -169,7 +170,8 @@ static inline u8 *recvframe_put(union recv_frame *precvframe, sint sz)
 {
 	/* used for append sz bytes from ptr to rx_tail, update rx_tail and
 	 * return the updated rx_tail to the caller
-	 * after putting, rx_tail must be still larger than rx_end. */
+	 * after putting, rx_tail must be still larger than rx_end.
+	 */
 	if (precvframe == NULL)
 		return NULL;
 	precvframe->u.hdr.rx_tail += sz;
@@ -186,7 +188,8 @@ static inline u8 *recvframe_pull_tail(union recv_frame *precvframe, sint sz)
 	/* rmv data from rx_tail (by yitsen)
 	 * used for extract sz bytes from rx_end, update rx_end and return the
 	 * updated rx_end to the caller
-	 * after pulling, rx_end must be still larger than rx_data. */
+	 * after pulling, rx_end must be still larger than rx_data.
+	 */
 	if (precvframe == NULL)
 		return NULL;
 	precvframe->u.hdr.rx_tail -= sz;

@@ -233,3 +233,7 @@
 		};
 	};
 };
+
+&panel {
+	power-supply = <&vcc_lcd>;
+};

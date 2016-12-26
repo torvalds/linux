@@ -22,9 +22,10 @@
 #include <asm/setup.h>
 
 static int l2_line_sz;
-int ioc_exists;
-volatile int slc_enable = 1, ioc_enable = 1;
+static int ioc_exists;
+int slc_enable = 1, ioc_enable = 0;
 unsigned long perip_base = ARC_UNCACHED_ADDR_SPACE; /* legacy value for boot */
+unsigned long perip_end = 0xFFFFFFFF; /* legacy value */
 
 void (*_cache_line_loop_ic_fn)(phys_addr_t paddr, unsigned long vaddr,
 			       unsigned long sz, const int cacheop);
@@ -52,18 +53,15 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 	PR_CACHE(&cpuinfo_arc700[c].icache, CONFIG_ARC_HAS_ICACHE, "I-Cache");
 	PR_CACHE(&cpuinfo_arc700[c].dcache, CONFIG_ARC_HAS_DCACHE, "D-Cache");
 
-	if (!is_isa_arcv2())
-                return buf;
-
 	p = &cpuinfo_arc700[c].slc;
 	if (p->ver)
 		n += scnprintf(buf + n, len - n,
 			       "SLC\t\t: %uK, %uB Line%s\n",
 			       p->sz_k, p->line_len, IS_USED_RUN(slc_enable));
 
-	if (ioc_exists)
-		n += scnprintf(buf + n, len - n, "IOC\t\t:%s\n",
-				IS_DISABLED_RUN(ioc_enable));
+	n += scnprintf(buf + n, len - n, "Peripherals\t: %#lx%s%s\n",
+		       perip_base,
+		       IS_AVAIL3(ioc_exists, ioc_enable, ", IO-Coherency "));
 
 	return buf;
 }
@@ -76,7 +74,6 @@ char *arc_cache_mumbojumbo(int c, char *buf, int len)
 static void read_decode_cache_bcr_arcv2(int cpu)
 {
 	struct cpuinfo_arc_cache *p_slc = &cpuinfo_arc700[cpu].slc;
-	struct bcr_generic uncached_space;
 	struct bcr_generic sbcr;
 
 	struct bcr_slc_cfg {
@@ -95,6 +92,15 @@ static void read_decode_cache_bcr_arcv2(int cpu)
 #endif
 	} cbcr;
 
+	struct bcr_volatile {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		unsigned int start:4, limit:4, pad:22, order:1, disable:1;
+#else
+		unsigned int disable:1, order:1, pad:22, limit:4, start:4;
+#endif
+	} vol;
+
+
 	READ_BCR(ARC_REG_SLC_BCR, sbcr);
 	if (sbcr.ver) {
 		READ_BCR(ARC_REG_SLC_CFG, slc_cfg);
@@ -104,13 +110,19 @@ static void read_decode_cache_bcr_arcv2(int cpu)
 	}
 
 	READ_BCR(ARC_REG_CLUSTER_BCR, cbcr);
-	if (cbcr.c && ioc_enable)
+	if (cbcr.c)
 		ioc_exists = 1;
+	else
+		ioc_enable = 0;
 
-	/* Legacy Data Uncached BCR is deprecated from v3 onwards */
-	READ_BCR(ARC_REG_D_UNCACH_BCR, uncached_space);
-	if (uncached_space.ver > 2)
-		perip_base = read_aux_reg(AUX_NON_VOL) & 0xF0000000;
+	/* HS 2.0 didn't have AUX_VOL */
+	if (cpuinfo_arc700[cpu].core.family > 0x51) {
+		READ_BCR(AUX_VOL, vol);
+		perip_base = vol.start << 28;
+		/* HS 3.0 has limit and strict-ordering fields */
+		if (cpuinfo_arc700[cpu].core.family > 0x52)
+			perip_end = (vol.limit << 28) - 1;
+	}
 }
 
 void read_decode_cache_bcr(void)
@@ -989,7 +1001,7 @@ void arc_cache_init(void)
 			read_aux_reg(ARC_REG_SLC_CTRL) | SLC_CTRL_DISABLE);
 	}
 
-	if (is_isa_arcv2() && ioc_exists) {
+	if (is_isa_arcv2() && ioc_enable) {
 		/* IO coherency base - 0x8z */
 		write_aux_reg(ARC_REG_IO_COH_AP0_BASE, 0x80000);
 		/* IO coherency aperture size - 512Mb: 0x8z-0xAz */

@@ -90,10 +90,6 @@ config OF_PCI_IRQ
 	help
 	  OpenFirmware PCI IRQ routing helpers
 
-config OF_MTD
-	depends on MTD
-	def_bool y
-
 config OF_RESERVED_MEM
 	depends on OF_EARLY_FLATTREE
 	bool

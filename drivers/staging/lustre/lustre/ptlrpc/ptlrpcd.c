@@ -412,7 +412,7 @@ static int ptlrpcd(void *arg)
 	 * an argument, describing its "scope".
 	 */
 	rc = lu_context_init(&env.le_ctx,
-			     LCT_CL_THREAD|LCT_REMEMBER|LCT_NOREF);
+			     LCT_CL_THREAD | LCT_REMEMBER | LCT_NOREF);
 	if (rc == 0) {
 		rc = lu_context_init(env.le_ses,
 				     LCT_SESSION | LCT_REMEMBER | LCT_NOREF);
@@ -567,7 +567,7 @@ int ptlrpcd_start(struct ptlrpcd_ctl *pc)
 	 * ptlrpcd thread (or a thread-set) has to be given an argument,
 	 * describing its "scope".
 	 */
-	rc = lu_context_init(&pc->pc_env.le_ctx, LCT_CL_THREAD|LCT_REMEMBER);
+	rc = lu_context_init(&pc->pc_env.le_ctx, LCT_CL_THREAD | LCT_REMEMBER);
 	if (rc != 0)
 		goto out;
 

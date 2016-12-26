@@ -516,7 +516,7 @@ static irqreturn_t sx9500_irq_thread_handler(int irq, void *private)
 		sx9500_push_events(indio_dev);
 
 	if (val & SX9500_CONVDONE_IRQ)
-		complete_all(&data->completion);
+		complete(&data->completion);
 
 out:
 	mutex_unlock(&data->mutex);
@@ -1025,6 +1025,12 @@ static const struct acpi_device_id sx9500_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, sx9500_acpi_match);
 
+static const struct of_device_id sx9500_of_match[] = {
+	{ .compatible = "semtech,sx9500", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sx9500_of_match);
+
 static const struct i2c_device_id sx9500_id[] = {
 	{"sx9500", 0},
 	{ },
@@ -1035,6 +1041,7 @@ static struct i2c_driver sx9500_driver = {
 	.driver = {
 		.name	= SX9500_DRIVER_NAME,
 		.acpi_match_table = ACPI_PTR(sx9500_acpi_match),
+		.of_match_table = of_match_ptr(sx9500_of_match),
 		.pm = &sx9500_pm_ops,
 	},
 	.probe		= sx9500_probe,

@@ -3041,13 +3041,9 @@ static int prism2_ioctl_priv_download(local_info_t *local, struct iw_point *p)
 	    p->length > 1024 || !p->pointer)
 		return -EINVAL;
 
-	param = kmalloc(p->length, GFP_KERNEL);
-	if (param == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(param, p->pointer, p->length)) {
-		ret = -EFAULT;
-		goto out;
+	param = memdup_user(p->pointer, p->length);
+	if (IS_ERR(param)) {
+		return PTR_ERR(param);
 	}
 
 	if (p->length < sizeof(struct prism2_download_param) +
@@ -3803,13 +3799,9 @@ static int prism2_ioctl_priv_hostapd(local_info_t *local, struct iw_point *p)
 	    p->length > PRISM2_HOSTAPD_MAX_BUF_SIZE || !p->pointer)
 		return -EINVAL;
 
-	param = kmalloc(p->length, GFP_KERNEL);
-	if (param == NULL)
-		return -ENOMEM;
-
-	if (copy_from_user(param, p->pointer, p->length)) {
-		ret = -EFAULT;
-		goto out;
+	param = memdup_user(p->pointer, p->length);
+	if (IS_ERR(param)) {
+		return PTR_ERR(param);
 	}
 
 	switch (param->cmd) {

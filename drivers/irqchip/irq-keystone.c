@@ -109,7 +109,7 @@ static void keystone_irq_handler(struct irq_desc *desc)
 			dev_dbg(kirq->dev, "dispatch bit %d, virq %d\n",
 				src, virq);
 			if (!virq)
-				dev_warn(kirq->dev, "sporious irq detected hwirq %d, virq %d\n",
+				dev_warn(kirq->dev, "spurious irq detected hwirq %d, virq %d\n",
 					 src, virq);
 			generic_handle_irq(virq);
 		}

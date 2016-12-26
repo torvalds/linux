@@ -145,7 +145,7 @@ static ssize_t tpm_write(struct file *file, const char __user *buf,
 		return -EPIPE;
 	}
 	out_size = tpm_transmit(priv->chip, priv->data_buffer,
-				sizeof(priv->data_buffer));
+				sizeof(priv->data_buffer), 0);
 
 	tpm_put_ops(priv->chip);
 	if (out_size < 0) {

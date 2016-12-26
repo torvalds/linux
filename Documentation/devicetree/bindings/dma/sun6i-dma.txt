@@ -7,6 +7,7 @@ Required properties:
 - compatible:	Must be one of
 		  "allwinner,sun6i-a31-dma"
 		  "allwinner,sun8i-a23-dma"
+		  "allwinner,sun8i-a83t-dma"
 		  "allwinner,sun8i-h3-dma"
 - reg:		Should contain the registers base address and length
 - interrupts:	Should contain a reference to the interrupt used by this device

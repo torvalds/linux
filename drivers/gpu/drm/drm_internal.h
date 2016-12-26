@@ -21,6 +21,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#define DRM_IF_MAJOR 1
+#define DRM_IF_MINOR 4
+
 /* drm_irq.c */
 extern unsigned int drm_timestamp_monotonic;
 

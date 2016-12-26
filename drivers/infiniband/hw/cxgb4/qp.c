@@ -609,10 +609,42 @@ static int build_rdma_recv(struct c4iw_qp *qhp, union t4_recv_wr *wqe,
 	return 0;
 }
 
-static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
-			struct ib_reg_wr *wr, u8 *len16, bool dsgl_supported)
+static void build_tpte_memreg(struct fw_ri_fr_nsmr_tpte_wr *fr,
+			      struct ib_reg_wr *wr, struct c4iw_mr *mhp,
+			      u8 *len16)
 {
-	struct c4iw_mr *mhp = to_c4iw_mr(wr->mr);
+	__be64 *p = (__be64 *)fr->pbl;
+
+	fr->r2 = cpu_to_be32(0);
+	fr->stag = cpu_to_be32(mhp->ibmr.rkey);
+
+	fr->tpte.valid_to_pdid = cpu_to_be32(FW_RI_TPTE_VALID_F |
+		FW_RI_TPTE_STAGKEY_V((mhp->ibmr.rkey & FW_RI_TPTE_STAGKEY_M)) |
+		FW_RI_TPTE_STAGSTATE_V(1) |
+		FW_RI_TPTE_STAGTYPE_V(FW_RI_STAG_NSMR) |
+		FW_RI_TPTE_PDID_V(mhp->attr.pdid));
+	fr->tpte.locread_to_qpid = cpu_to_be32(
+		FW_RI_TPTE_PERM_V(c4iw_ib_to_tpt_access(wr->access)) |
+		FW_RI_TPTE_ADDRTYPE_V(FW_RI_VA_BASED_TO) |
+		FW_RI_TPTE_PS_V(ilog2(wr->mr->page_size) - 12));
+	fr->tpte.nosnoop_pbladdr = cpu_to_be32(FW_RI_TPTE_PBLADDR_V(
+		PBL_OFF(&mhp->rhp->rdev, mhp->attr.pbl_addr)>>3));
+	fr->tpte.dca_mwbcnt_pstag = cpu_to_be32(0);
+	fr->tpte.len_hi = cpu_to_be32(0);
+	fr->tpte.len_lo = cpu_to_be32(mhp->ibmr.length);
+	fr->tpte.va_hi = cpu_to_be32(mhp->ibmr.iova >> 32);
+	fr->tpte.va_lo_fbo = cpu_to_be32(mhp->ibmr.iova & 0xffffffff);
+
+	p[0] = cpu_to_be64((u64)mhp->mpl[0]);
+	p[1] = cpu_to_be64((u64)mhp->mpl[1]);
+
+	*len16 = DIV_ROUND_UP(sizeof(*fr), 16);
+}
+
+static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
+			struct ib_reg_wr *wr, struct c4iw_mr *mhp, u8 *len16,
+			bool dsgl_supported)
+{
 	struct fw_ri_immd *imdp;
 	__be64 *p;
 	int i;
@@ -674,8 +706,7 @@ static int build_memreg(struct t4_sq *sq, union t4_wr *wqe,
 	return 0;
 }
 
-static int build_inv_stag(union t4_wr *wqe, struct ib_send_wr *wr,
-			  u8 *len16)
+static int build_inv_stag(union t4_wr *wqe, struct ib_send_wr *wr, u8 *len16)
 {
 	wqe->inv.stag_inv = cpu_to_be32(wr->ex.invalidate_rkey);
 	wqe->inv.r2 = 0;
@@ -762,11 +793,13 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (t4_wq_in_error(&qhp->wq)) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
+		*bad_wr = wr;
 		return -EINVAL;
 	}
 	num_wrs = t4_sq_avail(&qhp->wq);
 	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
+		*bad_wr = wr;
 		return -ENOMEM;
 	}
 	while (wr) {
@@ -805,10 +838,13 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		case IB_WR_RDMA_READ_WITH_INV:
 			fw_opcode = FW_RI_RDMA_READ_WR;
 			swsqe->opcode = FW_RI_READ_REQ;
-			if (wr->opcode == IB_WR_RDMA_READ_WITH_INV)
+			if (wr->opcode == IB_WR_RDMA_READ_WITH_INV) {
+				c4iw_invalidate_mr(qhp->rhp,
+						   wr->sg_list[0].lkey);
 				fw_flags = FW_RI_RDMA_READ_INVALIDATE;
-			else
+			} else {
 				fw_flags = 0;
+			}
 			err = build_rdma_read(wqe, wr, &len16);
 			if (err)
 				break;
@@ -816,18 +852,33 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			if (!qhp->wq.sq.oldest_read)
 				qhp->wq.sq.oldest_read = swsqe;
 			break;
-		case IB_WR_REG_MR:
-			fw_opcode = FW_RI_FR_NSMR_WR;
+		case IB_WR_REG_MR: {
+			struct c4iw_mr *mhp = to_c4iw_mr(reg_wr(wr)->mr);
+
 			swsqe->opcode = FW_RI_FAST_REGISTER;
-			err = build_memreg(&qhp->wq.sq, wqe, reg_wr(wr), &len16,
-				qhp->rhp->rdev.lldi.ulptx_memwrite_dsgl);
+			if (qhp->rhp->rdev.lldi.fr_nsmr_tpte_wr_support &&
+			    !mhp->attr.state && mhp->mpl_len <= 2) {
+				fw_opcode = FW_RI_FR_NSMR_TPTE_WR;
+				build_tpte_memreg(&wqe->fr_tpte, reg_wr(wr),
+						  mhp, &len16);
+			} else {
+				fw_opcode = FW_RI_FR_NSMR_WR;
+				err = build_memreg(&qhp->wq.sq, wqe, reg_wr(wr),
+				       mhp, &len16,
+				       qhp->rhp->rdev.lldi.ulptx_memwrite_dsgl);
+				if (err)
+					break;
+			}
+			mhp->attr.state = 1;
 			break;
+		}
 		case IB_WR_LOCAL_INV:
 			if (wr->send_flags & IB_SEND_FENCE)
 				fw_flags |= FW_RI_LOCAL_FENCE_FLAG;
 			fw_opcode = FW_RI_INV_LSTAG_WR;
 			swsqe->opcode = FW_RI_LOCAL_INV;
 			err = build_inv_stag(wqe, wr, &len16);
+			c4iw_invalidate_mr(qhp->rhp, wr->ex.invalidate_rkey);
 			break;
 		default:
 			PDBG("%s post of type=%d TBD!\n", __func__,
@@ -885,11 +936,13 @@ int c4iw_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (t4_wq_in_error(&qhp->wq)) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
+		*bad_wr = wr;
 		return -EINVAL;
 	}
 	num_wrs = t4_rq_avail(&qhp->wq);
 	if (num_wrs == 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
+		*bad_wr = wr;
 		return -ENOMEM;
 	}
 	while (wr) {

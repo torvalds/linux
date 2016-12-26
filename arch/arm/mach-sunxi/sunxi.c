@@ -22,6 +22,7 @@ static const char * const sunxi_board_dt_compat[] = {
 	"allwinner,sun5i-a10s",
 	"allwinner,sun5i-a13",
 	"allwinner,sun5i-r8",
+	"nextthing,gr8",
 	NULL,
 };
 

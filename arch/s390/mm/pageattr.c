@@ -309,11 +309,11 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 	int i;
 
 	if (test_facility(13)) {
-		__ptep_ipte_range(address, nr - 1, pte);
+		__ptep_ipte_range(address, nr - 1, pte, IPTE_GLOBAL);
 		return;
 	}
 	for (i = 0; i < nr; i++) {
-		__ptep_ipte(address, pte);
+		__ptep_ipte(address, pte, IPTE_GLOBAL);
 		address += PAGE_SIZE;
 		pte++;
 	}

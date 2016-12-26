@@ -49,8 +49,13 @@ static enum retry_state ecache_work_evict_list(struct ct_pcpu *pcpu)
 
 	hlist_nulls_for_each_entry(h, n, &pcpu->dying, hnnode) {
 		struct nf_conn *ct = nf_ct_tuplehash_to_ctrack(h);
+		struct nf_conntrack_ecache *e;
 
-		if (nf_ct_is_dying(ct))
+		if (!nf_ct_is_confirmed(ct))
+			continue;
+
+		e = nf_ct_ecache_find(ct);
+		if (!e || e->state != NFCT_ECACHE_DESTROY_FAIL)
 			continue;
 
 		if (nf_conntrack_event(IPCT_DESTROY, ct)) {
@@ -58,8 +63,7 @@ static enum retry_state ecache_work_evict_list(struct ct_pcpu *pcpu)
 			break;
 		}
 
-		/* we've got the event delivered, now it's dying */
-		set_bit(IPS_DYING_BIT, &ct->status);
+		e->state = NFCT_ECACHE_DESTROY_SENT;
 		refs[evicted] = ct;
 
 		if (++evicted >= ARRAY_SIZE(refs)) {
@@ -130,7 +134,7 @@ int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 	if (!e)
 		goto out_unlock;
 
-	if (nf_ct_is_confirmed(ct) && !nf_ct_is_dying(ct)) {
+	if (nf_ct_is_confirmed(ct)) {
 		struct nf_ct_event item = {
 			.ct	= ct,
 			.portid	= e->portid ? e->portid : portid,
@@ -150,11 +154,13 @@ int nf_conntrack_eventmask_report(unsigned int eventmask, struct nf_conn *ct,
 				 * triggered by a process, we store the PORTID
 				 * to include it in the retransmission.
 				 */
-				if (eventmask & (1 << IPCT_DESTROY) &&
-				    e->portid == 0 && portid != 0)
-					e->portid = portid;
-				else
+				if (eventmask & (1 << IPCT_DESTROY)) {
+					if (e->portid == 0 && portid != 0)
+						e->portid = portid;
+					e->state = NFCT_ECACHE_DESTROY_FAIL;
+				} else {
 					e->missed |= eventmask;
+				}
 			} else {
 				e->missed &= ~missed;
 			}

@@ -43,7 +43,8 @@ struct ca91cx42_driver {
 	wait_queue_head_t dma_queue;
 	wait_queue_head_t iack_queue;
 	wait_queue_head_t mbox_queue;
-	void (*lm_callback[4])(int);	/* Called in interrupt handler */
+	void (*lm_callback[4])(void *);	/* Called in interrupt handler */
+	void *lm_data[4];
 	void *crcsr_kernel;
 	dma_addr_t crcsr_bus;
 	struct mutex vme_rmw;		/* Only one RMW cycle at a time */

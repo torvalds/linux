@@ -141,6 +141,7 @@ static void usbtmc_delete(struct kref *kref)
 	struct usbtmc_device_data *data = to_usbtmc_data(kref);
 
 	usb_put_dev(data->usb_dev);
+	kfree(data);
 }
 
 static int usbtmc_open(struct inode *inode, struct file *filp)
@@ -1379,7 +1380,7 @@ static int usbtmc_probe(struct usb_interface *intf,
 
 	dev_dbg(&intf->dev, "%s called\n", __func__);
 
-	data = devm_kzalloc(&intf->dev, sizeof(*data), GFP_KERNEL);
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1467,10 +1468,8 @@ static int usbtmc_probe(struct usb_interface *intf,
 	if (data->iin_ep_present) {
 		/* allocate int urb */
 		data->iin_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!data->iin_urb) {
-			dev_err(&intf->dev, "Failed to allocate int urb\n");
+		if (!data->iin_urb)
 			goto error_register;
-		}
 
 		/* will reference data in int urb */
 		kref_get(&data->kref);
@@ -1478,10 +1477,8 @@ static int usbtmc_probe(struct usb_interface *intf,
 		/* allocate buffer for interrupt in */
 		data->iin_buffer = kmalloc(data->iin_wMaxPacketSize,
 					GFP_KERNEL);
-		if (!data->iin_buffer) {
-			dev_err(&intf->dev, "Failed to allocate int buf\n");
+		if (!data->iin_buffer)
 			goto error_register;
-		}
 
 		/* fill interrupt urb */
 		usb_fill_int_urb(data->iin_urb, data->usb_dev,

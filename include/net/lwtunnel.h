@@ -13,6 +13,13 @@
 /* lw tunnel state flags */
 #define LWTUNNEL_STATE_OUTPUT_REDIRECT	BIT(0)
 #define LWTUNNEL_STATE_INPUT_REDIRECT	BIT(1)
+#define LWTUNNEL_STATE_XMIT_REDIRECT	BIT(2)
+
+enum {
+	LWTUNNEL_XMIT_DONE,
+	LWTUNNEL_XMIT_CONTINUE,
+};
+
 
 struct lwtunnel_state {
 	__u16		type;
@@ -21,6 +28,7 @@ struct lwtunnel_state {
 	int		(*orig_output)(struct net *net, struct sock *sk, struct sk_buff *skb);
 	int		(*orig_input)(struct sk_buff *);
 	int             len;
+	__u16		headroom;
 	__u8            data[0];
 };
 
@@ -34,6 +42,7 @@ struct lwtunnel_encap_ops {
 			  struct lwtunnel_state *lwtstate);
 	int (*get_encap_size)(struct lwtunnel_state *lwtstate);
 	int (*cmp_encap)(struct lwtunnel_state *a, struct lwtunnel_state *b);
+	int (*xmit)(struct sk_buff *skb);
 };
 
 #ifdef CONFIG_LWTUNNEL
@@ -75,6 +84,24 @@ static inline bool lwtunnel_input_redirect(struct lwtunnel_state *lwtstate)
 
 	return false;
 }
+
+static inline bool lwtunnel_xmit_redirect(struct lwtunnel_state *lwtstate)
+{
+	if (lwtstate && (lwtstate->flags & LWTUNNEL_STATE_XMIT_REDIRECT))
+		return true;
+
+	return false;
+}
+
+static inline unsigned int lwtunnel_headroom(struct lwtunnel_state *lwtstate,
+					     unsigned int mtu)
+{
+	if (lwtunnel_xmit_redirect(lwtstate) && lwtstate->headroom < mtu)
+		return lwtstate->headroom;
+
+	return 0;
+}
+
 int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *op,
 			   unsigned int num);
 int lwtunnel_encap_del_ops(const struct lwtunnel_encap_ops *op,
@@ -90,6 +117,7 @@ struct lwtunnel_state *lwtunnel_state_alloc(int hdr_len);
 int lwtunnel_cmp_encap(struct lwtunnel_state *a, struct lwtunnel_state *b);
 int lwtunnel_output(struct net *net, struct sock *sk, struct sk_buff *skb);
 int lwtunnel_input(struct sk_buff *skb);
+int lwtunnel_xmit(struct sk_buff *skb);
 
 #else
 
@@ -115,6 +143,17 @@ static inline bool lwtunnel_output_redirect(struct lwtunnel_state *lwtstate)
 static inline bool lwtunnel_input_redirect(struct lwtunnel_state *lwtstate)
 {
 	return false;
+}
+
+static inline bool lwtunnel_xmit_redirect(struct lwtunnel_state *lwtstate)
+{
+	return false;
+}
+
+static inline unsigned int lwtunnel_headroom(struct lwtunnel_state *lwtstate,
+					     unsigned int mtu)
+{
+	return 0;
 }
 
 static inline int lwtunnel_encap_add_ops(const struct lwtunnel_encap_ops *op,
@@ -166,6 +205,11 @@ static inline int lwtunnel_output(struct net *net, struct sock *sk, struct sk_bu
 }
 
 static inline int lwtunnel_input(struct sk_buff *skb)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int lwtunnel_xmit(struct sk_buff *skb)
 {
 	return -EOPNOTSUPP;
 }

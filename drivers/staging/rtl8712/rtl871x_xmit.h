@@ -58,7 +58,8 @@ do { \
 } while (0)
 
 /* Fixed the Big Endian bug when doing the Tx.
- * The Linksys WRH54G will check this.*/
+ * The Linksys WRH54G will check this.
+ */
 #define TKIP_IV(pattrib_iv, txpn, keyidx)\
 do { \
 	pattrib_iv[0] = txpn._byte_.TSC1;\
@@ -105,7 +106,8 @@ struct pkt_attrib {
 	u16	seqnum;
 	u16	ether_type;
 	u16	pktlen;		/* the original 802.3 pkt raw_data len
-				 * (not include ether_hdr data) */
+				 * (not include ether_hdr data)
+				 */
 	u16	last_txcmdsz;
 
 	u8	pkt_hdrlen;	/*the original 802.3 pkt header len*/
@@ -119,7 +121,8 @@ struct pkt_attrib {
 
 	u8	priority;
 	u8	encrypt;	/* when 0 indicate no encrypt. when non-zero,
-				 * indicate the encrypt algorithm*/
+				 * indicate the encrypt algorithm
+				 */
 	u8	iv_len;
 	u8	icv_len;
 	unsigned char iv[8];
@@ -176,7 +179,8 @@ struct sta_xmit_priv {
 	spinlock_t lock;
 	sint	option;
 	sint	apsd_setting;	/* When bit mask is on, the associated edca
-				 * queue supports APSD.*/
+				 * queue supports APSD.
+				 */
 	struct tx_servq	be_q;	/* priority == 0,3 */
 	struct tx_servq	bk_q;	/* priority == 1,2*/
 	struct tx_servq	vi_q;	/*priority == 4,5*/

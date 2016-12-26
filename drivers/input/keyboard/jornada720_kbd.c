@@ -25,8 +25,6 @@
 #include <linux/slab.h>
 
 #include <mach/jornada720.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
 
 MODULE_AUTHOR("Kristoffer Ericson <Kristoffer.Ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 710/720/728 keyboard driver");
@@ -66,10 +64,8 @@ static irqreturn_t jornada720_kbd_interrupt(int irq, void *dev_id)
 	jornada_ssp_start();
 
 	if (jornada_ssp_inout(GETSCANKEYCODE) != TXDUMMY) {
-		printk(KERN_DEBUG
-			"jornada720_kbd: "
-			"GetKeycode command failed with ETIMEDOUT, "
-			"flushed bus\n");
+		dev_dbg(&pdev->dev,
+			"GetKeycode command failed with ETIMEDOUT, flushed bus\n");
 	} else {
 		/* How many keycodes are waiting for us? */
 		count = jornada_ssp_byte(TXDUMMY);
@@ -97,14 +93,16 @@ static int jornada720_kbd_probe(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd;
 	struct input_dev *input_dev;
-	int i, err;
+	int i, err, irq;
 
-	jornadakbd = kzalloc(sizeof(struct jornadakbd), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!jornadakbd || !input_dev) {
-		err = -ENOMEM;
-		goto fail1;
-	}
+	irq = platform_get_irq(pdev, 0);
+	if (irq <= 0)
+		return irq < 0 ? irq : -EINVAL;
+
+	jornadakbd = devm_kzalloc(&pdev->dev, sizeof(*jornadakbd), GFP_KERNEL);
+	input_dev = devm_input_allocate_device(&pdev->dev);
+	if (!jornadakbd || !input_dev)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, jornadakbd);
 
@@ -127,39 +125,15 @@ static int jornada720_kbd_probe(struct platform_device *pdev)
 
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	err = request_irq(IRQ_GPIO0,
-			  jornada720_kbd_interrupt,
-			  IRQF_TRIGGER_FALLING,
-			  "jornadakbd", pdev);
+	err = devm_request_irq(&pdev->dev, irq, jornada720_kbd_interrupt,
+			       IRQF_TRIGGER_FALLING, "jornadakbd", pdev);
 	if (err) {
-		printk(KERN_INFO "jornadakbd720_kbd: Unable to grab IRQ\n");
-		goto fail1;
+		dev_err(&pdev->dev, "unable to grab IRQ%d: %d\n", irq, err);
+		return err;
 	}
 
-	err = input_register_device(jornadakbd->input);
-	if (err)
-		goto fail2;
-
-	return 0;
-
- fail2:	/* IRQ, DEVICE, MEMORY */
-	free_irq(IRQ_GPIO0, pdev);
- fail1:	/* DEVICE, MEMORY */
-	input_free_device(input_dev);
-	kfree(jornadakbd);
-	return err;
+	return input_register_device(jornadakbd->input);
 };
-
-static int jornada720_kbd_remove(struct platform_device *pdev)
-{
-	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
-
-	free_irq(IRQ_GPIO0, pdev);
-	input_unregister_device(jornadakbd->input);
-	kfree(jornadakbd);
-
-	return 0;
-}
 
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:jornada720_kbd");
@@ -169,6 +143,5 @@ static struct platform_driver jornada720_kbd_driver = {
 		.name    = "jornada720_kbd",
 	 },
 	.probe   = jornada720_kbd_probe,
-	.remove  = jornada720_kbd_remove,
 };
 module_platform_driver(jornada720_kbd_driver);

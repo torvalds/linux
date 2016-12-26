@@ -251,6 +251,41 @@ drop:
 }
 EXPORT_SYMBOL(lwtunnel_output);
 
+int lwtunnel_xmit(struct sk_buff *skb)
+{
+	struct dst_entry *dst = skb_dst(skb);
+	const struct lwtunnel_encap_ops *ops;
+	struct lwtunnel_state *lwtstate;
+	int ret = -EINVAL;
+
+	if (!dst)
+		goto drop;
+
+	lwtstate = dst->lwtstate;
+
+	if (lwtstate->type == LWTUNNEL_ENCAP_NONE ||
+	    lwtstate->type > LWTUNNEL_ENCAP_MAX)
+		return 0;
+
+	ret = -EOPNOTSUPP;
+	rcu_read_lock();
+	ops = rcu_dereference(lwtun_encaps[lwtstate->type]);
+	if (likely(ops && ops->xmit))
+		ret = ops->xmit(skb);
+	rcu_read_unlock();
+
+	if (ret == -EOPNOTSUPP)
+		goto drop;
+
+	return ret;
+
+drop:
+	kfree_skb(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(lwtunnel_xmit);
+
 int lwtunnel_input(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);

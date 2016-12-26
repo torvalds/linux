@@ -182,7 +182,7 @@ static void mqprio_attach(struct Qdisc *sch)
 		if (old)
 			qdisc_destroy(old);
 		if (ntx < dev->real_num_tx_queues)
-			qdisc_list_add(qdisc);
+			qdisc_hash_add(qdisc);
 	}
 	kfree(priv->qdiscs);
 	priv->qdiscs = NULL;

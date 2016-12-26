@@ -24,6 +24,7 @@
 #include "util/annotate.h"
 #include "util/config.h"
 #include "util/color.h"
+#include "util/drv_configs.h"
 #include "util/evlist.h"
 #include "util/evsel.h"
 #include "util/machine.h"
@@ -68,6 +69,7 @@
 #include <sys/mman.h>
 
 #include <linux/stringify.h>
+#include <linux/time64.h>
 #include <linux/types.h>
 
 static volatile int done;
@@ -624,7 +626,7 @@ static void *display_thread(void *arg)
 	display_setup_sig();
 	pthread__unblock_sigwinch();
 repeat:
-	delay_msecs = top->delay_secs * 1000;
+	delay_msecs = top->delay_secs * MSEC_PER_SEC;
 	set_term_quiet_input(&save);
 	/* trash return*/
 	getc(stdin);
@@ -654,34 +656,6 @@ repeat:
 
 	tcsetattr(0, TCSAFLUSH, &save);
 	return NULL;
-}
-
-static int symbol_filter(struct map *map, struct symbol *sym)
-{
-	const char *name = sym->name;
-
-	if (!__map__is_kernel(map))
-		return 0;
-	/*
-	 * ppc64 uses function descriptors and appends a '.' to the
-	 * start of every instruction address. Remove it.
-	 */
-	if (name[0] == '.')
-		name++;
-
-	if (!strcmp(name, "_text") ||
-	    !strcmp(name, "_etext") ||
-	    !strcmp(name, "_sinittext") ||
-	    !strncmp("init_module", name, 11) ||
-	    !strncmp("cleanup_module", name, 14) ||
-	    strstr(name, "_text_start") ||
-	    strstr(name, "_text_end"))
-		return 1;
-
-	if (symbol__is_idle(sym))
-		sym->ignore = true;
-
-	return 0;
 }
 
 static int hist_iter__top_callback(struct hist_entry_iter *iter,
@@ -782,7 +756,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 		}
 	}
 
-	if (al.sym == NULL || !al.sym->ignore) {
+	if (al.sym == NULL || !al.sym->idle) {
 		struct hists *hists = evsel__hists(evsel);
 		struct hist_entry_iter iter = {
 			.evsel		= evsel,
@@ -940,6 +914,10 @@ static int callchain_param__setup_sample_type(struct callchain_param *callchain)
 
 static int __cmd_top(struct perf_top *top)
 {
+	char msg[512];
+	struct perf_evsel *pos;
+	struct perf_evsel_config_term *err_term;
+	struct perf_evlist *evlist = top->evlist;
 	struct record_opts *opts = &top->record_opts;
 	pthread_t thread;
 	int ret;
@@ -947,8 +925,6 @@ static int __cmd_top(struct perf_top *top)
 	top->session = perf_session__new(NULL, false, NULL);
 	if (top->session == NULL)
 		return -1;
-
-	machines__set_symbol_filter(&top->session->machines, symbol_filter);
 
 	if (!objdump_path) {
 		ret = perf_env__lookup_objdump(&top->session->header.env);
@@ -975,6 +951,14 @@ static int __cmd_top(struct perf_top *top)
 	ret = perf_top__start_counters(top);
 	if (ret)
 		goto out_delete;
+
+	ret = perf_evlist__apply_drv_configs(evlist, &pos, &err_term);
+	if (ret) {
+		error("failed to set config \"%s\" on event %s with %d (%s)\n",
+			err_term->val.drv_cfg, perf_evsel__name(pos), errno,
+			str_error_r(errno, msg, sizeof(msg)));
+		goto out_delete;
+	}
 
 	top->session->evlist = top->evlist;
 	perf_session__set_id_hdr_size(top->session);
@@ -1323,7 +1307,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (symbol_conf.cumulate_callchain && !callchain_param.order_set)
 		callchain_param.order = ORDER_CALLER;
 
-	symbol_conf.priv_size = sizeof(struct annotation);
+	status = symbol__annotation_init();
+	if (status < 0)
+		goto out_delete_evlist;
 
 	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init(NULL) < 0)

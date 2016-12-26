@@ -29,7 +29,7 @@
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
 
-static int kvmclock = 1;
+static int kvmclock __ro_after_init = 1;
 static int msr_kvm_system_time = MSR_KVM_SYSTEM_TIME;
 static int msr_kvm_wall_clock = MSR_KVM_WALL_CLOCK;
 static cycle_t kvm_sched_clock_offset;

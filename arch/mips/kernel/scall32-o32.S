@@ -597,3 +597,6 @@ EXPORT(sys_call_table)
 	PTR	sys_copy_file_range		/* 4360 */
 	PTR	sys_preadv2
 	PTR	sys_pwritev2
+	PTR	sys_pkey_mprotect
+	PTR	sys_pkey_alloc
+	PTR	sys_pkey_free			/* 4365 */

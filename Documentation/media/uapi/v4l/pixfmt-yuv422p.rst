@@ -6,7 +6,6 @@
 V4L2_PIX_FMT_YUV422P ('422P')
 *****************************
 
-*man V4L2_PIX_FMT_YUV422P(2)*
 
 Format with ½ horizontal chroma resolution, also known as YUV 4:2:2.
 Planar layout as opposed to ``V4L2_PIX_FMT_YUYV``
@@ -34,123 +33,55 @@ Each cell is one byte.
 
 
 
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  Y'\ :sub:`00`
-
-       -  Y'\ :sub:`01`
-
-       -  Y'\ :sub:`02`
-
-       -  Y'\ :sub:`03`
-
-    -  .. row 2
-
-       -  start + 4:
-
-       -  Y'\ :sub:`10`
-
-       -  Y'\ :sub:`11`
-
-       -  Y'\ :sub:`12`
-
-       -  Y'\ :sub:`13`
-
-    -  .. row 3
-
-       -  start + 8:
-
-       -  Y'\ :sub:`20`
-
-       -  Y'\ :sub:`21`
-
-       -  Y'\ :sub:`22`
-
-       -  Y'\ :sub:`23`
-
-    -  .. row 4
-
-       -  start + 12:
-
-       -  Y'\ :sub:`30`
-
-       -  Y'\ :sub:`31`
-
-       -  Y'\ :sub:`32`
-
-       -  Y'\ :sub:`33`
-
-    -  .. row 5
-
-       -  start + 16:
-
-       -  Cb\ :sub:`00`
-
-       -  Cb\ :sub:`01`
-
-    -  .. row 6
-
-       -  start + 18:
-
-       -  Cb\ :sub:`10`
-
-       -  Cb\ :sub:`11`
-
-    -  .. row 7
-
-       -  start + 20:
-
-       -  Cb\ :sub:`20`
-
-       -  Cb\ :sub:`21`
-
-    -  .. row 8
-
-       -  start + 22:
-
-       -  Cb\ :sub:`30`
-
-       -  Cb\ :sub:`31`
-
-    -  .. row 9
-
-       -  start + 24:
-
-       -  Cr\ :sub:`00`
-
-       -  Cr\ :sub:`01`
-
-    -  .. row 10
-
-       -  start + 26:
-
-       -  Cr\ :sub:`10`
-
-       -  Cr\ :sub:`11`
-
-    -  .. row 11
-
-       -  start + 28:
-
-       -  Cr\ :sub:`20`
-
-       -  Cr\ :sub:`21`
-
-    -  .. row 12
-
-       -  start + 30:
-
-       -  Cr\ :sub:`30`
-
-       -  Cr\ :sub:`31`
+    * - start + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * - start + 16:
+      - Cb\ :sub:`00`
+      - Cb\ :sub:`01`
+    * - start + 18:
+      - Cb\ :sub:`10`
+      - Cb\ :sub:`11`
+    * - start + 20:
+      - Cb\ :sub:`20`
+      - Cb\ :sub:`21`
+    * - start + 22:
+      - Cb\ :sub:`30`
+      - Cb\ :sub:`31`
+    * - start + 24:
+      - Cr\ :sub:`00`
+      - Cr\ :sub:`01`
+    * - start + 26:
+      - Cr\ :sub:`10`
+      - Cr\ :sub:`11`
+    * - start + 28:
+      - Cr\ :sub:`20`
+      - Cr\ :sub:`21`
+    * - start + 30:
+      - Cr\ :sub:`30`
+      - Cr\ :sub:`31`
 
 
 **Color Sample Location..**
@@ -161,80 +92,38 @@ Each cell is one byte.
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -
-       -  0
-
-       -
-       -  1
-
-       -  2
-
-       -
-       -  3
-
-    -  .. row 2
-
-       -  0
-
-       -  Y
-
-       -  C
-
-       -  Y
-
-       -  Y
-
-       -  C
-
-       -  Y
-
-    -  .. row 3
-
-       -  1
-
-       -  Y
-
-       -  C
-
-       -  Y
-
-       -  Y
-
-       -  C
-
-       -  Y
-
-    -  .. row 4
-
-       -  2
-
-       -  Y
-
-       -  C
-
-       -  Y
-
-       -  Y
-
-       -  C
-
-       -  Y
-
-    -  .. row 5
-
-       -  3
-
-       -  Y
-
-       -  C
-
-       -  Y
-
-       -  Y
-
-       -  C
-
-       -  Y
+    * -
+      - 0
+      -
+      - 1
+      - 2
+      -
+      - 3
+    * - 0
+      - Y
+      - C
+      - Y
+      - Y
+      - C
+      - Y
+    * - 1
+      - Y
+      - C
+      - Y
+      - Y
+      - C
+      - Y
+    * - 2
+      - Y
+      - C
+      - Y
+      - Y
+      - C
+      - Y
+    * - 3
+      - Y
+      - C
+      - Y
+      - Y
+      - C
+      - Y

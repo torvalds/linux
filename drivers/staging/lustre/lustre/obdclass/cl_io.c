@@ -73,7 +73,6 @@ int cl_io_is_going(const struct lu_env *env)
 {
 	return cl_env_info(env)->clt_current_io != NULL;
 }
-EXPORT_SYMBOL(cl_io_is_going);
 
 /**
  * cl_io invariant that holds at all times when exported cl_io_*() functions
@@ -859,9 +858,6 @@ void cl_page_list_add(struct cl_page_list *plist, struct cl_page *page)
 	LASSERT(page->cp_owner);
 	LINVRNT(plist->pl_owner == current);
 
-	lockdep_off();
-	mutex_lock(&page->cp_mutex);
-	lockdep_on();
 	LASSERT(list_empty(&page->cp_batch));
 	list_add_tail(&page->cp_batch, &plist->pl_pages);
 	++plist->pl_nr;
@@ -877,12 +873,10 @@ void cl_page_list_del(const struct lu_env *env, struct cl_page_list *plist,
 		      struct cl_page *page)
 {
 	LASSERT(plist->pl_nr > 0);
+	LASSERT(cl_page_is_vmlocked(env, page));
 	LINVRNT(plist->pl_owner == current);
 
 	list_del_init(&page->cp_batch);
-	lockdep_off();
-	mutex_unlock(&page->cp_mutex);
-	lockdep_on();
 	--plist->pl_nr;
 	lu_ref_del_at(&page->cp_reference, &page->cp_queue_ref, "queue", plist);
 	cl_page_put(env, page);
@@ -941,8 +935,6 @@ void cl_page_list_splice(struct cl_page_list *list, struct cl_page_list *head)
 }
 EXPORT_SYMBOL(cl_page_list_splice);
 
-void cl_page_disown0(const struct lu_env *env,
-		     struct cl_io *io, struct cl_page *pg);
 
 /**
  * Disowns pages in a queue.
@@ -959,9 +951,6 @@ void cl_page_list_disown(const struct lu_env *env,
 		LASSERT(plist->pl_nr > 0);
 
 		list_del_init(&page->cp_batch);
-		lockdep_off();
-		mutex_unlock(&page->cp_mutex);
-		lockdep_on();
 		--plist->pl_nr;
 		/*
 		 * cl_page_disown0 rather than usual cl_page_disown() is used,
@@ -1221,7 +1210,7 @@ void cl_req_page_add(const struct lu_env *env,
 {
 	struct cl_object  *obj;
 	struct cl_req_obj *rqo;
-	int i;
+	unsigned int i;
 
 	LASSERT(list_empty(&page->cp_flight));
 	LASSERT(!page->cp_req);
@@ -1268,7 +1257,7 @@ EXPORT_SYMBOL(cl_req_page_done);
  */
 int cl_req_prep(const struct lu_env *env, struct cl_req *req)
 {
-	int i;
+	unsigned int i;
 	int result;
 	const struct cl_req_slice *slice;
 
@@ -1301,7 +1290,7 @@ void cl_req_attr_set(const struct lu_env *env, struct cl_req *req,
 {
 	const struct cl_req_slice *slice;
 	struct cl_page	    *page;
-	int i;
+	unsigned int i;
 
 	LASSERT(!list_empty(&req->crq_pages));
 

@@ -245,7 +245,7 @@ static inline struct team_port *team_get_port_by_index(struct team *team,
 	return NULL;
 }
 
-static inline int team_num_to_port_index(struct team *team, int num)
+static inline int team_num_to_port_index(struct team *team, unsigned int num)
 {
 	int en_port_count = ACCESS_ONCE(team->en_port_count);
 

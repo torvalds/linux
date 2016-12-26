@@ -63,10 +63,7 @@
 #define _COMPONENT          ACPI_OS_SERVICES
 ACPI_MODULE_NAME("osunixxf")
 
-u8 acpi_gbl_debug_timeout = FALSE;
-
 /* Upcalls to acpi_exec */
-
 void
 ae_table_override(struct acpi_table_header *existing_table,
 		  struct acpi_table_header **new_table);

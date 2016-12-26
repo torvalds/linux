@@ -1,0 +1,23 @@
+Driver for Broadcom Northstar USB 3.0 PHY
+
+Required properties:
+
+- compatible: one of: "brcm,ns-ax-usb3-phy", "brcm,ns-bx-usb3-phy".
+- reg: register mappings for DMP (Device Management Plugin) and ChipCommon B
+       MMI.
+- reg-names: "dmp" and "ccb-mii"
+
+Initialization of USB 3.0 PHY depends on Northstar version. There are currently
+three known series: Ax, Bx and Cx.
+Known A0: BCM4707 rev 0
+Known B0: BCM4707 rev 4, BCM53573 rev 2
+Known B1: BCM4707 rev 6
+Known C0: BCM47094 rev 0
+
+Example:
+	usb3-phy {
+		compatible = "brcm,ns-ax-usb3-phy";
+		reg = <0x18105000 0x1000>, <0x18003000 0x1000>;
+		reg-names = "dmp", "ccb-mii";
+		#phy-cells = <0>;
+	};

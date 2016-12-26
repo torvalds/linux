@@ -80,7 +80,8 @@ enum skl_module_type {
 	SKL_MODULE_TYPE_UPDWMIX,
 	SKL_MODULE_TYPE_SRCINT,
 	SKL_MODULE_TYPE_ALGO,
-	SKL_MODULE_TYPE_BASE_OUTFMT
+	SKL_MODULE_TYPE_BASE_OUTFMT,
+	SKL_MODULE_TYPE_KPB,
 };
 
 enum skl_core_affinity {
@@ -148,78 +149,6 @@ enum skl_module_param_type {
 	SKL_PARAM_BIND
 };
 
-struct skl_dfw_module_pin {
-	u16 module_id;
-	u16 instance_id;
-} __packed;
-
-struct skl_dfw_module_fmt {
-	u32 channels;
-	u32 freq;
-	u32 bit_depth;
-	u32 valid_bit_depth;
-	u32 ch_cfg;
-	u32 interleaving_style;
-	u32 sample_type;
-	u32 ch_map;
-} __packed;
-
-struct skl_dfw_module_caps {
-	u32 set_params:2;
-	u32 rsvd:30;
-	u32 param_id;
-	u32 caps_size;
-	u32 caps[HDA_SST_CFG_MAX];
-};
-
-struct skl_dfw_pipe {
-	u8 pipe_id;
-	u8 pipe_priority;
-	u16 conn_type:4;
-	u16 rsvd:4;
-	u16 memory_pages:8;
-} __packed;
-
-struct skl_dfw_module {
-	u8 uuid[16];
-
-	u16 module_id;
-	u16 instance_id;
-	u32 max_mcps;
-	u32 mem_pages;
-	u32 obs;
-	u32 ibs;
-	u32 vbus_id;
-
-	u32 max_in_queue:8;
-	u32 max_out_queue:8;
-	u32 time_slot:8;
-	u32 core_id:4;
-	u32 rsvd1:4;
-
-	u32 module_type:8;
-	u32 conn_type:4;
-	u32 dev_type:4;
-	u32 hw_conn_type:4;
-	u32 rsvd2:12;
-
-	u32 params_fixup:8;
-	u32 converter:8;
-	u32 input_pin_type:1;
-	u32 output_pin_type:1;
-	u32 is_dynamic_in_pin:1;
-	u32 is_dynamic_out_pin:1;
-	u32 is_loadable:1;
-	u32 rsvd3:11;
-
-	struct skl_dfw_pipe pipe;
-	struct skl_dfw_module_fmt in_fmt[MAX_IN_QUEUE];
-	struct skl_dfw_module_fmt out_fmt[MAX_OUT_QUEUE];
-	struct skl_dfw_module_pin in_pin[MAX_IN_QUEUE];
-	struct skl_dfw_module_pin out_pin[MAX_OUT_QUEUE];
-	struct skl_dfw_module_caps caps;
-} __packed;
-
 struct skl_dfw_algo_data {
 	u32 set_params:2;
 	u32 rsvd:30;
@@ -227,5 +156,27 @@ struct skl_dfw_algo_data {
 	u32 max;
 	char params[0];
 } __packed;
+
+#define LIB_NAME_LENGTH	128
+#define HDA_MAX_LIB	16
+
+struct lib_info {
+	char name[LIB_NAME_LENGTH];
+} __packed;
+
+struct skl_dfw_manifest {
+	u32 lib_count;
+	struct lib_info lib[HDA_MAX_LIB];
+} __packed;
+
+enum skl_tkn_dir {
+	SKL_DIR_IN,
+	SKL_DIR_OUT
+};
+
+enum skl_tuple_type {
+	SKL_TYPE_TUPLE,
+	SKL_TYPE_DATA
+};
 
 #endif

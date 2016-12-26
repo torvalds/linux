@@ -84,6 +84,9 @@ static inline int send_tx_flowc_wr(struct cxgbi_sock *);
 
 static const struct cxgb4_uld_info cxgb4i_uld_info = {
 	.name = DRV_MODULE_NAME,
+	.nrxq = MAX_ULD_QSETS,
+	.rxq_size = 1024,
+	.lro = false,
 	.add = t4_uld_add,
 	.rx_handler = t4_uld_rx_handler,
 	.state_change = t4_uld_state_change,
@@ -682,6 +685,11 @@ static int push_tx_frames(struct cxgbi_sock *csk, int req_completion)
 					req_completion);
 			csk->snd_nxt += len;
 			cxgbi_skcb_clear_flag(skb, SKCBF_TX_NEED_HDR);
+		} else if (cxgbi_skcb_test_flag(skb, SKCBF_TX_FLAG_COMPL) &&
+			   (csk->wr_una_cred >= (csk->wr_max_cred / 2))) {
+			struct cpl_close_con_req *req =
+				(struct cpl_close_con_req *)skb->data;
+			req->wr.wr_hi |= htonl(FW_WR_COMPL_F);
 		}
 		total_size += skb->truesize;
 		t4_set_arp_err_handler(skb, csk, arp_failure_skb_discard);

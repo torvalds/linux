@@ -30,16 +30,22 @@ struct s3c24xx_dma_channel {
 	u16 chansel;
 };
 
+struct dma_slave_map;
+
 /**
  * struct s3c24xx_dma_platdata - platform specific settings
  * @num_phy_channels: number of physical channels
  * @channels: array of virtual channel descriptions
  * @num_channels: number of virtual channels
+ * @slave_map: dma slave map matching table
+ * @slavecnt: number of elements in slave_map
  */
 struct s3c24xx_dma_platdata {
 	int num_phy_channels;
 	struct s3c24xx_dma_channel *channels;
 	int num_channels;
+	const struct dma_slave_map *slave_map;
+	int slavecnt;
 };
 
 struct dma_chan;

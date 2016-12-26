@@ -544,41 +544,41 @@ struct vpfe_isif_raw_config {
 /* IPIPE module configurations */
 
 /* IPIPE input configuration */
-#define VPFE_IPIPE_INPUT_CONFIG		(1 << 0)
+#define VPFE_IPIPE_INPUT_CONFIG		BIT(0)
 /* LUT based Defect Pixel Correction */
-#define VPFE_IPIPE_LUTDPC		(1 << 1)
+#define VPFE_IPIPE_LUTDPC		BIT(1)
 /* On the fly (OTF) Defect Pixel Correction */
-#define VPFE_IPIPE_OTFDPC		(1 << 2)
+#define VPFE_IPIPE_OTFDPC		BIT(2)
 /* Noise Filter - 1 */
-#define VPFE_IPIPE_NF1			(1 << 3)
+#define VPFE_IPIPE_NF1			BIT(3)
 /* Noise Filter - 2 */
-#define VPFE_IPIPE_NF2			(1 << 4)
+#define VPFE_IPIPE_NF2			BIT(4)
 /* White Balance.  Also a control ID */
-#define VPFE_IPIPE_WB			(1 << 5)
+#define VPFE_IPIPE_WB			BIT(5)
 /* 1st RGB to RBG Blend module */
-#define VPFE_IPIPE_RGB2RGB_1		(1 << 6)
+#define VPFE_IPIPE_RGB2RGB_1		BIT(6)
 /* 2nd RGB to RBG Blend module */
-#define VPFE_IPIPE_RGB2RGB_2		(1 << 7)
+#define VPFE_IPIPE_RGB2RGB_2		BIT(7)
 /* Gamma Correction */
-#define VPFE_IPIPE_GAMMA		(1 << 8)
+#define VPFE_IPIPE_GAMMA		BIT(8)
 /* 3D LUT color conversion */
-#define VPFE_IPIPE_3D_LUT		(1 << 9)
+#define VPFE_IPIPE_3D_LUT		BIT(9)
 /* RGB to YCbCr module */
-#define VPFE_IPIPE_RGB2YUV		(1 << 10)
+#define VPFE_IPIPE_RGB2YUV		BIT(10)
 /* YUV 422 conversion module */
-#define VPFE_IPIPE_YUV422_CONV		(1 << 11)
+#define VPFE_IPIPE_YUV422_CONV		BIT(11)
 /* Edge Enhancement */
-#define VPFE_IPIPE_YEE			(1 << 12)
+#define VPFE_IPIPE_YEE			BIT(12)
 /* Green Imbalance Correction */
-#define VPFE_IPIPE_GIC			(1 << 13)
+#define VPFE_IPIPE_GIC			BIT(13)
 /* CFA Interpolation */
-#define VPFE_IPIPE_CFA			(1 << 14)
+#define VPFE_IPIPE_CFA			BIT(14)
 /* Chroma Artifact Reduction */
-#define VPFE_IPIPE_CAR			(1 << 15)
+#define VPFE_IPIPE_CAR			BIT(15)
 /* Chroma Gain Suppression */
-#define VPFE_IPIPE_CGS			(1 << 16)
+#define VPFE_IPIPE_CGS			BIT(16)
 /* Global brightness and contrast control */
-#define VPFE_IPIPE_GBCE			(1 << 17)
+#define VPFE_IPIPE_GBCE			BIT(17)
 
 #define VPFE_IPIPE_MAX_MODULES		18
 

@@ -64,7 +64,7 @@
 #define LM87_ALARM_TEMP_INT		0x10
 #define LM87_ALARM_TEMP_EXT1		0x20
 
-#if defined(CONFIG_SENSORS_LM87) || defined(CONFIG_SENSORS_LM87_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_LM87)
 
 static int efx_poke_lm87(struct i2c_client *client, const u8 *reg_values)
 {
@@ -455,7 +455,7 @@ static int sfe4001_init(struct efx_nic *efx)
 	struct falcon_board *board = falcon_board(efx);
 	int rc;
 
-#if defined(CONFIG_SENSORS_LM90) || defined(CONFIG_SENSORS_LM90_MODULE)
+#if IS_ENABLED(CONFIG_SENSORS_LM90)
 	board->hwmon_client =
 		i2c_new_device(&board->i2c_adap, &sfe4001_hwmon_info);
 #else

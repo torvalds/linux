@@ -30,4 +30,6 @@ Returns: -ENODEV: PMUv3 not supported
                  attribute
          -EBUSY: PMUv3 already initialized
 
-Request the initialization of the PMUv3.
+Request the initialization of the PMUv3.  This must be done after creating the
+in-kernel irqchip.  Creating a PMU with a userspace irqchip is currently not
+supported.

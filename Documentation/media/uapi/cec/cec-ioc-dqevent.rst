@@ -15,7 +15,8 @@ CEC_DQEVENT - Dequeue a CEC event
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_event *argp )
+.. c:function:: int ioctl( int fd, CEC_DQEVENT, struct cec_event *argp )
+    :name: CEC_DQEVENT
 
 Arguments
 =========
@@ -23,20 +24,19 @@ Arguments
 ``fd``
     File descriptor returned by :ref:`open() <cec-func-open>`.
 
-``request``
-    CEC_DQEVENT
-
 ``argp``
 
 
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
+.. note::
+
+   This documents the proposed CEC API. This API is not yet finalized
    and is currently only available as a staging kernel module.
 
 CEC devices can send asynchronous events. These can be retrieved by
-calling :ref:`ioctl CEC_DQEVENT <CEC_DQEVENT>`. If the file descriptor is in
+calling :c:func:`CEC_DQEVENT`. If the file descriptor is in
 non-blocking mode and no event is pending, then it will return -1 and
 set errno to the ``EAGAIN`` error code.
 
@@ -49,8 +49,9 @@ two :ref:`CEC_EVENT_STATE_CHANGE <CEC-EVENT-STATE-CHANGE>` events with
 the same state). In that case the intermediate state changes were lost but
 it is guaranteed that the state did change in between the two events.
 
+.. tabularcolumns:: |p{1.2cm}|p{2.9cm}|p{13.4cm}|
 
-.. _cec-event-state-change_s:
+.. c:type:: cec_event_state_change
 
 .. flat-table:: struct cec_event_state_change
     :header-rows:  0
@@ -79,8 +80,9 @@ it is guaranteed that the state did change in between the two events.
 	  has the unregistered logical address. In that case all other bits are 0.
 
 
+.. c:type:: cec_event_lost_msgs
 
-.. _cec-event-lost-msgs_s:
+.. tabularcolumns:: |p{1.0cm}|p{2.0cm}|p{14.5cm}|
 
 .. flat-table:: struct cec_event_lost_msgs
     :header-rows:  0
@@ -105,8 +107,9 @@ it is guaranteed that the state did change in between the two events.
 	  this is more than enough.
 
 
+.. tabularcolumns:: |p{1.0cm}|p{4.2cm}|p{2.5cm}|p{8.8cm}|
 
-.. _cec-event:
+.. c:type:: cec_event
 
 .. flat-table:: struct cec_event
     :header-rows:  0
@@ -120,11 +123,10 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``ts``
 
-       -  Timestamp of the event in ns.
-	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
-	  the same clock from userspace use :c:func:`clock_gettime(2)`.
+       -  :cspan:`1` Timestamp of the event in ns.
 
-       -
+	  The timestamp has been taken from the ``CLOCK_MONOTONIC`` clock. To access
+	  the same clock from userspace use :c:func:`clock_gettime`.
 
     -  .. row 2
 
@@ -132,9 +134,7 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``event``
 
-       -  The CEC event type, see :ref:`cec-events`.
-
-       -
+       -  :cspan:`1` The CEC event type, see :ref:`cec-events`.
 
     -  .. row 3
 
@@ -142,9 +142,7 @@ it is guaranteed that the state did change in between the two events.
 
        -  ``flags``
 
-       -  Event flags, see :ref:`cec-event-flags`.
-
-       -
+       -  :cspan:`1` Event flags, see :ref:`cec-event-flags`.
 
     -  .. row 4
 
@@ -176,6 +174,7 @@ it is guaranteed that the state did change in between the two events.
 	  event.
 
 
+.. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
 
 .. _cec-events:
 
@@ -205,6 +204,7 @@ it is guaranteed that the state did change in between the two events.
 	  application didn't dequeue CEC messages fast enough.
 
 
+.. tabularcolumns:: |p{6.0cm}|p{0.6cm}|p{10.9cm}|
 
 .. _cec-event-flags:
 

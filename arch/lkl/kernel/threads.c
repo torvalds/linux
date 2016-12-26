@@ -63,9 +63,9 @@ static void kill_thread(struct thread_info *ti)
 
 }
 
-void free_thread_stack(unsigned long *stack)
+void free_thread_stack(struct task_struct *tsk)
 {
-	struct thread_info *ti = (struct thread_info *)stack;
+	struct thread_info *ti = task_thread_info(tsk);
 
 	kill_thread(ti);
 	kfree(ti);

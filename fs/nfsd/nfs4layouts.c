@@ -174,7 +174,8 @@ nfsd4_free_layout_stateid(struct nfs4_stid *stid)
 	list_del_init(&ls->ls_perfile);
 	spin_unlock(&fp->fi_lock);
 
-	vfs_setlease(ls->ls_file, F_UNLCK, NULL, (void **)&ls);
+	if (!nfsd4_layout_ops[ls->ls_layout_type]->disable_recalls)
+		vfs_setlease(ls->ls_file, F_UNLCK, NULL, (void **)&ls);
 	fput(ls->ls_file);
 
 	if (ls->ls_recalled)
@@ -188,6 +189,9 @@ nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
 {
 	struct file_lock *fl;
 	int status;
+
+	if (nfsd4_layout_ops[ls->ls_layout_type]->disable_recalls)
+		return 0;
 
 	fl = locks_alloc_lock();
 	if (!fl)

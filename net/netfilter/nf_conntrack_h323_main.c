@@ -736,7 +736,7 @@ static int callforward_do_filter(struct net *net,
 	const struct nf_afinfo *afinfo;
 	int ret = 0;
 
-	/* rcu_read_lock()ed by nf_hook_slow() */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	afinfo = nf_get_afinfo(family);
 	if (!afinfo)
 		return 0;

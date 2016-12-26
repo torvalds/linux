@@ -5827,13 +5827,13 @@ bfa_fcs_lport_get_rport_max_speed(bfa_fcs_lport_t *port)
 	bfa_port_speed_t max_speed = 0;
 	struct bfa_port_attr_s port_attr;
 	bfa_port_speed_t port_speed, rport_speed;
-	bfa_boolean_t trl_enabled = bfa_fcport_is_ratelim(port->fcs->bfa);
-
+	bfa_boolean_t trl_enabled;
 
 	if (port == NULL)
 		return 0;
 
 	fcs = port->fcs;
+	trl_enabled = bfa_fcport_is_ratelim(port->fcs->bfa);
 
 	/* Get Physical port's current speed */
 	bfa_fcport_get_attr(port->fcs->bfa, &port_attr);

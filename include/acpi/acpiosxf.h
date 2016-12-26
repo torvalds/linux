@@ -371,6 +371,12 @@ acpi_status acpi_os_wait_command_ready(void);
 acpi_status acpi_os_notify_command_complete(void);
 #endif
 
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
+void
+acpi_os_trace_point(acpi_trace_event_type type,
+		    u8 begin, u8 *aml, char *pathname);
+#endif
+
 /*
  * Obtain ACPI table(s)
  */
@@ -414,43 +420,6 @@ char *acpi_os_get_next_filename(void *dir_handle);
 
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_directory
 void acpi_os_close_directory(void *dir_handle);
-#endif
-
-/*
- * File I/O and related support
- */
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_open_file
-ACPI_FILE acpi_os_open_file(const char *path, u8 modes);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_close_file
-void acpi_os_close_file(ACPI_FILE file);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_read_file
-int
-acpi_os_read_file(ACPI_FILE file,
-		  void *buffer, acpi_size size, acpi_size count);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_write_file
-int
-acpi_os_write_file(ACPI_FILE file,
-		   void *buffer, acpi_size size, acpi_size count);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_file_offset
-long acpi_os_get_file_offset(ACPI_FILE file);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_set_file_offset
-acpi_status acpi_os_set_file_offset(ACPI_FILE file, long offset, u8 from);
-#endif
-
-#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_trace_point
-void
-acpi_os_trace_point(acpi_trace_event_type type,
-		    u8 begin, u8 *aml, char *pathname);
 #endif
 
 #endif				/* __ACPIOSXF_H__ */

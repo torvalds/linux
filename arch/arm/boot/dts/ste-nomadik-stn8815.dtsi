@@ -166,6 +166,24 @@
 				};
 			};
 		};
+		clcd {
+			/*
+			 * This should be activated to use the additional
+			 * 8 lines for bits 16 thru 23 from the CLCD block.
+			 */
+			clcd_24bit_mux: clcd_mux {
+				clcd_24bit_mux {
+					function = "clcd";
+					groups = "clcd_16_23_b_1";
+				};
+			};
+		};
+	};
+
+	/* Power Management Unit */
+	pmu: pmu@101e9000 {
+		compatible = "stericsson,nomadik-pmu", "syscon";
+		reg = <0x101e0000 0x1000>;
 	};
 
 	src: src@101e0000 {
@@ -725,6 +743,16 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		clcd@10120000 {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0x10120000 0x1000>;
+			interrupt-names = "combined";
+			interrupts = <14>;
+			clocks = <&clcdclk>, <&hclkclcd>;
+			clock-names = "clcdclk", "apb_pclk";
+			status = "disabled";
+		};
 
 		vica: intc@10140000 {
 			compatible = "arm,versatile-vic";

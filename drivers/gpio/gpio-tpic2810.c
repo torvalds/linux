@@ -87,7 +87,7 @@ static void tpic2810_set_multiple(struct gpio_chip *chip, unsigned long *mask,
 	tpic2810_set_mask_bits(chip, *mask, *bits);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "tpic2810",
 	.owner			= THIS_MODULE,
 	.get_direction		= tpic2810_get_direction,

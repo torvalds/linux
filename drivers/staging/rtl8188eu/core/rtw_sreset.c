@@ -16,18 +16,16 @@
 #include <rtw_sreset.h>
 #include <usb_ops_linux.h>
 
-void sreset_init_value(struct adapter *padapter)
+void rtw_hal_sreset_init(struct adapter *padapter)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
+	struct sreset_priv *psrtpriv = &padapter->HalData->srestpriv;
 
 	psrtpriv->Wifi_Error_Status = WIFI_STATUS_SUCCESS;
 }
 
 u8 sreset_get_wifi_status(struct adapter *padapter)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-	struct sreset_priv *psrtpriv = &pHalData->srestpriv;
+	struct sreset_priv *psrtpriv = &padapter->HalData->srestpriv;
 
 	u8 status = WIFI_STATUS_SUCCESS;
 	u32 val32 = 0;
@@ -54,6 +52,5 @@ u8 sreset_get_wifi_status(struct adapter *padapter)
 
 void sreset_set_wifi_error_status(struct adapter *padapter, u32 status)
 {
-	struct hal_data_8188e	*pHalData = GET_HAL_DATA(padapter);
-	pHalData->srestpriv.Wifi_Error_Status = status;
+	padapter->HalData->srestpriv.Wifi_Error_Status = status;
 }

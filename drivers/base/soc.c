@@ -6,7 +6,6 @@
  */
 
 #include <linux/sysfs.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
@@ -160,11 +159,3 @@ static int __init soc_bus_register(void)
 	return bus_register(&soc_bus_type);
 }
 core_initcall(soc_bus_register);
-
-static void __exit soc_bus_unregister(void)
-{
-	ida_destroy(&soc_ida);
-
-	bus_unregister(&soc_bus_type);
-}
-module_exit(soc_bus_unregister);

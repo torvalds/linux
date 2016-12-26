@@ -32,6 +32,24 @@
 #include "kvm-s390.h"
 #include "trace.h"
 
+static int handle_ri(struct kvm_vcpu *vcpu)
+{
+	if (test_kvm_facility(vcpu->kvm, 64)) {
+		vcpu->arch.sie_block->ecb3 |= 0x01;
+		kvm_s390_retry_instr(vcpu);
+		return 0;
+	} else
+		return kvm_s390_inject_program_int(vcpu, PGM_OPERATION);
+}
+
+int kvm_s390_handle_aa(struct kvm_vcpu *vcpu)
+{
+	if ((vcpu->arch.sie_block->ipa & 0xf) <= 4)
+		return handle_ri(vcpu);
+	else
+		return -EOPNOTSUPP;
+}
+
 /* Handle SCK (SET CLOCK) interception */
 static int handle_set_clock(struct kvm_vcpu *vcpu)
 {
@@ -1093,6 +1111,9 @@ static int handle_stctg(struct kvm_vcpu *vcpu)
 static const intercept_handler_t eb_handlers[256] = {
 	[0x2f] = handle_lctlg,
 	[0x25] = handle_stctg,
+	[0x60] = handle_ri,
+	[0x61] = handle_ri,
+	[0x62] = handle_ri,
 };
 
 int kvm_s390_handle_eb(struct kvm_vcpu *vcpu)

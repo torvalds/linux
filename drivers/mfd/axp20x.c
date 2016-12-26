@@ -38,6 +38,7 @@ static const char * const axp20x_model_names[] = {
 	"AXP221",
 	"AXP223",
 	"AXP288",
+	"AXP806",
 	"AXP809",
 };
 
@@ -127,6 +128,27 @@ static const struct regmap_access_table axp288_writeable_table = {
 static const struct regmap_access_table axp288_volatile_table = {
 	.yes_ranges	= axp288_volatile_ranges,
 	.n_yes_ranges	= ARRAY_SIZE(axp288_volatile_ranges),
+};
+
+static const struct regmap_range axp806_writeable_ranges[] = {
+	regmap_reg_range(AXP20X_DATACACHE(0), AXP20X_DATACACHE(3)),
+	regmap_reg_range(AXP806_PWR_OUT_CTRL1, AXP806_CLDO3_V_CTRL),
+	regmap_reg_range(AXP20X_IRQ1_EN, AXP20X_IRQ2_EN),
+	regmap_reg_range(AXP20X_IRQ1_STATE, AXP20X_IRQ2_STATE),
+};
+
+static const struct regmap_range axp806_volatile_ranges[] = {
+	regmap_reg_range(AXP20X_IRQ1_STATE, AXP20X_IRQ2_STATE),
+};
+
+static const struct regmap_access_table axp806_writeable_table = {
+	.yes_ranges	= axp806_writeable_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(axp806_writeable_ranges),
+};
+
+static const struct regmap_access_table axp806_volatile_table = {
+	.yes_ranges	= axp806_volatile_ranges,
+	.n_yes_ranges	= ARRAY_SIZE(axp806_volatile_ranges),
 };
 
 static struct resource axp152_pek_resources[] = {
@@ -278,6 +300,15 @@ static const struct regmap_config axp288_regmap_config = {
 	.cache_type	= REGCACHE_RBTREE,
 };
 
+static const struct regmap_config axp806_regmap_config = {
+	.reg_bits	= 8,
+	.val_bits	= 8,
+	.wr_table	= &axp806_writeable_table,
+	.volatile_table	= &axp806_volatile_table,
+	.max_register	= AXP806_VREF_TEMP_WARN_L,
+	.cache_type	= REGCACHE_RBTREE,
+};
+
 #define INIT_REGMAP_IRQ(_variant, _irq, _off, _mask)			\
 	[_variant##_IRQ_##_irq] = { .reg_offset = (_off), .mask = BIT(_mask) }
 
@@ -409,6 +440,21 @@ static const struct regmap_irq axp288_regmap_irqs[] = {
 	INIT_REGMAP_IRQ(AXP288, BC_USB_CHNG,            5, 1),
 };
 
+static const struct regmap_irq axp806_regmap_irqs[] = {
+	INIT_REGMAP_IRQ(AXP806, DIE_TEMP_HIGH_LV1,	0, 0),
+	INIT_REGMAP_IRQ(AXP806, DIE_TEMP_HIGH_LV2,	0, 1),
+	INIT_REGMAP_IRQ(AXP806, DCDCA_V_LOW,		0, 3),
+	INIT_REGMAP_IRQ(AXP806, DCDCB_V_LOW,		0, 4),
+	INIT_REGMAP_IRQ(AXP806, DCDCC_V_LOW,		0, 5),
+	INIT_REGMAP_IRQ(AXP806, DCDCD_V_LOW,		0, 6),
+	INIT_REGMAP_IRQ(AXP806, DCDCE_V_LOW,		0, 7),
+	INIT_REGMAP_IRQ(AXP806, PWROK_LONG,		1, 0),
+	INIT_REGMAP_IRQ(AXP806, PWROK_SHORT,		1, 1),
+	INIT_REGMAP_IRQ(AXP806, WAKEUP,			1, 4),
+	INIT_REGMAP_IRQ(AXP806, PWROK_FALL,		1, 5),
+	INIT_REGMAP_IRQ(AXP806, PWROK_RISE,		1, 6),
+};
+
 static const struct regmap_irq axp809_regmap_irqs[] = {
 	INIT_REGMAP_IRQ(AXP809, ACIN_OVER_V,		0, 7),
 	INIT_REGMAP_IRQ(AXP809, ACIN_PLUGIN,		0, 6),
@@ -494,6 +540,18 @@ static const struct regmap_irq_chip axp288_regmap_irq_chip = {
 
 };
 
+static const struct regmap_irq_chip axp806_regmap_irq_chip = {
+	.name			= "axp806",
+	.status_base		= AXP20X_IRQ1_STATE,
+	.ack_base		= AXP20X_IRQ1_STATE,
+	.mask_base		= AXP20X_IRQ1_EN,
+	.mask_invert		= true,
+	.init_ack_masked	= true,
+	.irqs			= axp806_regmap_irqs,
+	.num_irqs		= ARRAY_SIZE(axp806_regmap_irqs),
+	.num_regs		= 2,
+};
+
 static const struct regmap_irq_chip axp809_regmap_irq_chip = {
 	.name			= "axp809",
 	.status_base		= AXP20X_IRQ1_STATE,
@@ -508,6 +566,9 @@ static const struct regmap_irq_chip axp809_regmap_irq_chip = {
 
 static struct mfd_cell axp20x_cells[] = {
 	{
+		.name		= "axp20x-gpio",
+		.of_compatible	= "x-powers,axp209-gpio",
+	}, {
 		.name		= "axp20x-pek",
 		.num_resources	= ARRAY_SIZE(axp20x_pek_resources),
 		.resources	= axp20x_pek_resources,
@@ -660,12 +721,20 @@ static struct mfd_cell axp288_cells[] = {
 	},
 };
 
+static struct mfd_cell axp806_cells[] = {
+	{
+		.id			= 2,
+		.name			= "axp20x-regulator",
+	},
+};
+
 static struct mfd_cell axp809_cells[] = {
 	{
 		.name			= "axp20x-pek",
 		.num_resources		= ARRAY_SIZE(axp809_pek_resources),
 		.resources		= axp809_pek_resources,
 	}, {
+		.id			= 1,
 		.name			= "axp20x-regulator",
 	},
 };
@@ -731,6 +800,12 @@ int axp20x_match_device(struct axp20x_dev *axp20x)
 		axp20x->nr_cells = ARRAY_SIZE(axp288_cells);
 		axp20x->regmap_cfg = &axp288_regmap_config;
 		axp20x->regmap_irq_chip = &axp288_regmap_irq_chip;
+		break;
+	case AXP806_ID:
+		axp20x->nr_cells = ARRAY_SIZE(axp806_cells);
+		axp20x->cells = axp806_cells;
+		axp20x->regmap_cfg = &axp806_regmap_config;
+		axp20x->regmap_irq_chip = &axp806_regmap_irq_chip;
 		break;
 	case AXP809_ID:
 		axp20x->nr_cells = ARRAY_SIZE(axp809_cells);

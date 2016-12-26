@@ -25,6 +25,7 @@
 #define INT3403_TYPE_CHARGER		0x0B
 #define INT3403_TYPE_BATTERY		0x0C
 #define INT3403_PERF_CHANGED_EVENT	0x80
+#define INT3403_PERF_TRIP_POINT_CHANGED	0x81
 #define INT3403_THERMAL_EVENT		0x90
 
 /* Preserved structure for future expandbility */
@@ -72,7 +73,13 @@ static void int3403_notify(acpi_handle handle,
 	case INT3403_PERF_CHANGED_EVENT:
 		break;
 	case INT3403_THERMAL_EVENT:
-		int340x_thermal_zone_device_update(obj->int340x_zone);
+		int340x_thermal_zone_device_update(obj->int340x_zone,
+						   THERMAL_TRIP_VIOLATED);
+		break;
+	case INT3403_PERF_TRIP_POINT_CHANGED:
+		int340x_thermal_read_trips(obj->int340x_zone);
+		int340x_thermal_zone_device_update(obj->int340x_zone,
+						   THERMAL_TRIP_CHANGED);
 		break;
 	default:
 		dev_err(&priv->pdev->dev, "Unsupported event [0x%x]\n", event);

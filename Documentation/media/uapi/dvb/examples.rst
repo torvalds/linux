@@ -9,7 +9,9 @@ Examples
 In this section we would like to present some examples for using the DVB
 API.
 
-..note:: This section is out of date, and the code below won't even
+.. note::
+
+   This section is out of date, and the code below won't even
    compile. Please refer to the
    `libdvbv5 <https://linuxtv.org/docs/libdvbv5/index.html>`__ for
    updated/recommended examples.

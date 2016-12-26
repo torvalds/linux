@@ -2077,7 +2077,6 @@ struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 }
 
 static struct blk_mq_ops scsi_mq_ops = {
-	.map_queue	= blk_mq_map_queue,
 	.queue_rq	= scsi_queue_rq,
 	.complete	= scsi_softirq_done,
 	.timeout	= scsi_timeout,

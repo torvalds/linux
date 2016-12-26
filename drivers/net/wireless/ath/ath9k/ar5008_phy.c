@@ -260,8 +260,8 @@ void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
 	int cur_bin;
 	int upper, lower, cur_vit_mask;
 	int i;
-	int8_t mask_m[123];
-	int8_t mask_p[123];
+	int8_t mask_m[123] = {0};
+	int8_t mask_p[123] = {0};
 	int8_t mask_amt;
 	int tmp_mask;
 	static const int pilot_mask_reg[4] = {
@@ -273,9 +273,6 @@ void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
 		AR_PHY_CHANNEL_MASK_01_30, AR_PHY_CHANNEL_MASK_31_60
 	};
 	static const int inc[4] = { 0, 100, 0, 0 };
-
-	memset(&mask_m, 0, sizeof(int8_t) * 123);
-	memset(&mask_p, 0, sizeof(int8_t) * 123);
 
 	cur_bin = -6000;
 	upper = bin + 100;
@@ -302,7 +299,7 @@ void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
 	upper = bin + 120;
 	lower = bin - 120;
 
-	for (i = 0; i < 123; i++) {
+	for (i = 0; i < ARRAY_SIZE(mask_m); i++) {
 		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
 			/* workaround for gcc bug #37014 */
 			volatile int tmp_v = abs(cur_vit_mask - bin);

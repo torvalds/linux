@@ -11,38 +11,23 @@ Name
 
 FE_READ_SNR
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 ========
 
-.. cpp:function:: int  ioctl(int fd, int request = FE_READ_SNR, int16_t *snr)
+.. c:function:: int  ioctl(int fd, FE_READ_SNR, int16_t *snr)
+    :name: FE_READ_SNR
 
 
 Arguments
 =========
 
-.. flat-table::
-    :header-rows:  0
-    :stub-columns: 0
+``fd``
+    File descriptor returned by :c:func:`open() <dvb-fe-open>`.
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals :ref:`FE_READ_SNR` for this command.
-
-    -  .. row 3
-
-       -  uint16_t \*snr
-
-       -  The signal-to-noise ratio is stored into \*snr.
+``snr``
+    The signal-to-noise ratio is stored into \*snr.
 
 
 Description

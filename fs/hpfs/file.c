@@ -189,6 +189,11 @@ static sector_t _hpfs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, hpfs_get_block);
 }
 
+static int hpfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo, u64 start, u64 len)
+{
+	return generic_block_fiemap(inode, fieinfo, start, len, hpfs_get_block);
+}
+
 const struct address_space_operations hpfs_aops = {
 	.readpage = hpfs_readpage,
 	.writepage = hpfs_writepage,
@@ -214,4 +219,5 @@ const struct file_operations hpfs_file_ops =
 const struct inode_operations hpfs_file_iops =
 {
 	.setattr	= hpfs_setattr,
+	.fiemap		= hpfs_fiemap,
 };

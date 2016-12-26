@@ -21,7 +21,7 @@ Querying Capabilities
 Devices supporting the SDR receiver interface set the
 ``V4L2_CAP_SDR_CAPTURE`` and ``V4L2_CAP_TUNER`` flag in the
 ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. That flag means the
 device has an Analog to Digital Converter (ADC), which is a mandatory
 element for the SDR receiver.
@@ -29,7 +29,7 @@ element for the SDR receiver.
 Devices supporting the SDR transmitter interface set the
 ``V4L2_CAP_SDR_OUTPUT`` and ``V4L2_CAP_MODULATOR`` flag in the
 ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP` ioctl. That flag means the
 device has an Digital to Analog Converter (DAC), which is a mandatory
 element for the SDR transmitter.
@@ -67,53 +67,40 @@ basic :ref:`format` ioctls, the
 well.
 
 To use the :ref:`format` ioctls applications set the ``type``
-field of a struct :ref:`v4l2_format <v4l2-format>` to
+field of a struct :c:type:`v4l2_format` to
 ``V4L2_BUF_TYPE_SDR_CAPTURE`` or ``V4L2_BUF_TYPE_SDR_OUTPUT`` and use
-the struct :ref:`v4l2_sdr_format <v4l2-sdr-format>` ``sdr`` member
+the struct :c:type:`v4l2_sdr_format` ``sdr`` member
 of the ``fmt`` union as needed per the desired operation. Currently
 there is two fields, ``pixelformat`` and ``buffersize``, of struct
-struct :ref:`v4l2_sdr_format <v4l2-sdr-format>` which are used.
+struct :c:type:`v4l2_sdr_format` which are used.
 Content of the ``pixelformat`` is V4L2 FourCC code of the data format.
 The ``buffersize`` field is maximum buffer size in bytes required for
 data transfer, set by the driver in order to inform application.
 
 
-.. _v4l2-sdr-format:
+.. c:type:: v4l2_sdr_format
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_sdr_format
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``pixelformat``
-
-       -  The data format or type of compression, set by the application.
-	  This is a little endian
-	  :ref:`four character code <v4l2-fourcc>`. V4L2 defines SDR
-	  formats in :ref:`sdr-formats`.
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``buffersize``
-
-       -  Maximum size in bytes required for data. Value is set by the
-	  driver.
-
-    -  .. row 3
-
-       -  __u8
-
-       -  ``reserved[24]``
-
-       -  This array is reserved for future extensions. Drivers and
-	  applications must set it to zero.
+    * - __u32
+      - ``pixelformat``
+      - The data format or type of compression, set by the application.
+	This is a little endian
+	:ref:`four character code <v4l2-fourcc>`. V4L2 defines SDR
+	formats in :ref:`sdr-formats`.
+    * - __u32
+      - ``buffersize``
+      - Maximum size in bytes required for data. Value is set by the
+	driver.
+    * - __u8
+      - ``reserved[24]``
+      - This array is reserved for future extensions. Drivers and
+	applications must set it to zero.
 
 
 An SDR device may support :ref:`read/write <rw>` and/or streaming

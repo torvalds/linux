@@ -1408,7 +1408,7 @@ void sctp_assoc_sync_pmtu(struct sock *sk, struct sctp_association *asoc)
 				transports) {
 		if (t->pmtu_pending && t->dst) {
 			sctp_transport_update_pmtu(sk, t,
-						   WORD_TRUNC(dst_mtu(t->dst)));
+						   SCTP_TRUNC4(dst_mtu(t->dst)));
 			t->pmtu_pending = 0;
 		}
 		if (!pmtu || (t->pathmtu < pmtu))

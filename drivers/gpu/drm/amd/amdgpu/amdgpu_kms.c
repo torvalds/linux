@@ -99,6 +99,8 @@ int amdgpu_driver_load_kms(struct drm_device *dev, unsigned long flags)
 
 	if ((amdgpu_runtime_pm != 0) &&
 	    amdgpu_has_atpx() &&
+	    (amdgpu_is_atpx_hybrid() ||
+	     amdgpu_has_atpx_dgpu_power_cntl()) &&
 	    ((flags & AMD_IS_APU) == 0))
 		flags |= AMD_IS_PX;
 
@@ -292,14 +294,14 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			type = AMD_IP_BLOCK_TYPE_UVD;
 			ring_mask = adev->uvd.ring.ready ? 1 : 0;
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+			ib_size_alignment = 16;
 			break;
 		case AMDGPU_HW_IP_VCE:
 			type = AMD_IP_BLOCK_TYPE_VCE;
-			for (i = 0; i < AMDGPU_MAX_VCE_RINGS; i++)
+			for (i = 0; i < adev->vce.num_rings; i++)
 				ring_mask |= ((adev->vce.ring[i].ready ? 1 : 0) << i);
 			ib_start_alignment = AMDGPU_GPU_PAGE_SIZE;
-			ib_size_alignment = 8;
+			ib_size_alignment = 1;
 			break;
 		default:
 			return -EINVAL;
@@ -372,6 +374,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	}
 	case AMDGPU_INFO_NUM_BYTES_MOVED:
 		ui64 = atomic64_read(&adev->num_bytes_moved);
+		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
+	case AMDGPU_INFO_NUM_EVICTIONS:
+		ui64 = atomic64_read(&adev->num_evictions);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VRAM_USAGE:
 		ui64 = atomic64_read(&adev->vram_usage);
@@ -456,10 +461,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		/* return all clocks in KHz */
 		dev_info.gpu_counter_freq = amdgpu_asic_get_xclk(adev) * 10;
 		if (adev->pm.dpm_enabled) {
-			dev_info.max_engine_clock =
-				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.sclk * 10;
-			dev_info.max_memory_clock =
-				adev->pm.dpm.dyn_state.max_clock_voltage_on_ac.mclk * 10;
+			dev_info.max_engine_clock = amdgpu_dpm_get_sclk(adev, false) * 10;
+			dev_info.max_memory_clock = amdgpu_dpm_get_mclk(adev, false) * 10;
 		} else {
 			dev_info.max_engine_clock = adev->pm.default_sclk * 10;
 			dev_info.max_memory_clock = adev->pm.default_mclk * 10;
@@ -539,12 +542,16 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 		return r;
 
 	fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
-	if (unlikely(!fpriv))
-		return -ENOMEM;
+	if (unlikely(!fpriv)) {
+		r = -ENOMEM;
+		goto out_suspend;
+	}
 
 	r = amdgpu_vm_init(adev, &fpriv->vm);
-	if (r)
-		goto error_free;
+	if (r) {
+		kfree(fpriv);
+		goto out_suspend;
+	}
 
 	mutex_init(&fpriv->bo_list_lock);
 	idr_init(&fpriv->bo_list_handles);
@@ -553,12 +560,9 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 
 	file_priv->driver_priv = fpriv;
 
+out_suspend:
 	pm_runtime_mark_last_busy(dev->dev);
 	pm_runtime_put_autosuspend(dev->dev);
-	return 0;
-
-error_free:
-	kfree(fpriv);
 
 	return r;
 }
@@ -597,6 +601,9 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 
 	kfree(fpriv);
 	file_priv->driver_priv = NULL;
+
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
 }
 
 /**
@@ -611,6 +618,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 void amdgpu_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
+	pm_runtime_get_sync(dev->dev);
 }
 
 /*

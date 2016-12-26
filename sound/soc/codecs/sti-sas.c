@@ -424,7 +424,7 @@ static const struct snd_soc_dai_ops stih407_dac_ops = {
 static const struct regmap_config stih407_sas_regmap = {
 	.reg_bits = 32,
 	.val_bits = 32,
-
+	.fast_io = true,
 	.max_register = STIH407_AUDIO_DAC_CTRL,
 	.reg_defaults = stih407_sas_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(stih407_sas_reg_defaults),
@@ -591,11 +591,11 @@ static int sti_sas_driver_probe(struct platform_device *pdev)
 	sti_sas_dai[STI_SAS_DAI_ANALOG_OUT].ops = drvdata->dev_data->dac_ops;
 
 	/* Set dapms*/
-	sti_sas_driver.dapm_widgets = drvdata->dev_data->dapm_widgets;
-	sti_sas_driver.num_dapm_widgets = drvdata->dev_data->num_dapm_widgets;
+	sti_sas_driver.component_driver.dapm_widgets = drvdata->dev_data->dapm_widgets;
+	sti_sas_driver.component_driver.num_dapm_widgets = drvdata->dev_data->num_dapm_widgets;
 
-	sti_sas_driver.dapm_routes = drvdata->dev_data->dapm_routes;
-	sti_sas_driver.num_dapm_routes = drvdata->dev_data->num_dapm_routes;
+	sti_sas_driver.component_driver.dapm_routes = drvdata->dev_data->dapm_routes;
+	sti_sas_driver.component_driver.num_dapm_routes = drvdata->dev_data->num_dapm_routes;
 
 	/* Store context */
 	dev_set_drvdata(&pdev->dev, drvdata);

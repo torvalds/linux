@@ -198,22 +198,16 @@ static int if_usb_probe(struct usb_interface *intf,
 	}
 
 	cardp->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!cardp->rx_urb) {
-		lbtf_deb_usbd(&udev->dev, "Rx URB allocation failed\n");
+	if (!cardp->rx_urb)
 		goto dealloc;
-	}
 
 	cardp->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!cardp->tx_urb) {
-		lbtf_deb_usbd(&udev->dev, "Tx URB allocation failed\n");
+	if (!cardp->tx_urb)
 		goto dealloc;
-	}
 
 	cardp->cmd_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!cardp->cmd_urb) {
-		lbtf_deb_usbd(&udev->dev, "Cmd URB allocation failed\n");
+	if (!cardp->cmd_urb)
 		goto dealloc;
-	}
 
 	cardp->ep_out_buf = kmalloc(MRVDRV_ETH_TX_PACKET_BUFFER_SIZE,
 				    GFP_KERNEL);

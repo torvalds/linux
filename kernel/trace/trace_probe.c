@@ -36,24 +36,28 @@ const char *reserved_field_names[] = {
 };
 
 /* Printing  in basic type function template */
-#define DEFINE_BASIC_PRINT_TYPE_FUNC(type, fmt)				\
-int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s, const char *name,	\
+#define DEFINE_BASIC_PRINT_TYPE_FUNC(tname, type, fmt)			\
+int PRINT_TYPE_FUNC_NAME(tname)(struct trace_seq *s, const char *name,	\
 				void *data, void *ent)			\
 {									\
 	trace_seq_printf(s, " %s=" fmt, name, *(type *)data);		\
 	return !trace_seq_has_overflowed(s);				\
 }									\
-const char PRINT_TYPE_FMT_NAME(type)[] = fmt;				\
-NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(type));
+const char PRINT_TYPE_FMT_NAME(tname)[] = fmt;				\
+NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(tname));
 
-DEFINE_BASIC_PRINT_TYPE_FUNC(u8 , "0x%x")
-DEFINE_BASIC_PRINT_TYPE_FUNC(u16, "0x%x")
-DEFINE_BASIC_PRINT_TYPE_FUNC(u32, "0x%x")
-DEFINE_BASIC_PRINT_TYPE_FUNC(u64, "0x%Lx")
-DEFINE_BASIC_PRINT_TYPE_FUNC(s8,  "%d")
-DEFINE_BASIC_PRINT_TYPE_FUNC(s16, "%d")
-DEFINE_BASIC_PRINT_TYPE_FUNC(s32, "%d")
-DEFINE_BASIC_PRINT_TYPE_FUNC(s64, "%Ld")
+DEFINE_BASIC_PRINT_TYPE_FUNC(u8,  u8,  "%u")
+DEFINE_BASIC_PRINT_TYPE_FUNC(u16, u16, "%u")
+DEFINE_BASIC_PRINT_TYPE_FUNC(u32, u32, "%u")
+DEFINE_BASIC_PRINT_TYPE_FUNC(u64, u64, "%Lu")
+DEFINE_BASIC_PRINT_TYPE_FUNC(s8,  s8,  "%d")
+DEFINE_BASIC_PRINT_TYPE_FUNC(s16, s16, "%d")
+DEFINE_BASIC_PRINT_TYPE_FUNC(s32, s32, "%d")
+DEFINE_BASIC_PRINT_TYPE_FUNC(s64, s64, "%Ld")
+DEFINE_BASIC_PRINT_TYPE_FUNC(x8,  u8,  "0x%x")
+DEFINE_BASIC_PRINT_TYPE_FUNC(x16, u16, "0x%x")
+DEFINE_BASIC_PRINT_TYPE_FUNC(x32, u32, "0x%x")
+DEFINE_BASIC_PRINT_TYPE_FUNC(x64, u64, "0x%Lx")
 
 /* Print type function for string type */
 int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, const char *name,

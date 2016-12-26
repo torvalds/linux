@@ -1613,7 +1613,7 @@ static const struct regmap_config wm8993_regmap = {
 	.num_reg_defaults = ARRAY_SIZE(wm8993_reg_defaults),
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8993 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8993 = {
 	.probe = 	wm8993_probe,
 	.suspend =	wm8993_suspend,
 	.resume =	wm8993_resume,

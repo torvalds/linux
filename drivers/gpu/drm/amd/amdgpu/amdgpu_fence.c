@@ -68,6 +68,7 @@ int amdgpu_fence_slab_init(void)
 
 void amdgpu_fence_slab_fini(void)
 {
+	rcu_barrier();
 	kmem_cache_destroy(amdgpu_fence_slab);
 }
 /*
@@ -454,6 +455,7 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
 			fence_put(ring->fence_drv.fences[j]);
 		kfree(ring->fence_drv.fences);
+		ring->fence_drv.fences = NULL;
 		ring->fence_drv.initialized = false;
 	}
 }

@@ -59,7 +59,6 @@ struct hns_nic_priv {
 	u32 port_id;
 	int phy_mode;
 	int phy_led_val;
-	struct phy_device *phy;
 	struct net_device *netdev;
 	struct device *dev;
 	struct hnae_handle *ae_handle;

@@ -11,11 +11,13 @@ Name
 
 VIDEO_GET_PTS
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(int fd, int request = VIDEO_GET_PTS, __u64 *pts)
+.. c:function:: int ioctl(int fd, VIDEO_GET_PTS, __u64 *pts)
+    :name: VIDEO_GET_PTS
 
 
 Arguments

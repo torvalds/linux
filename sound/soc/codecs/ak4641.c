@@ -505,12 +505,14 @@ static struct snd_soc_dai_driver ak4641_dai[] = {
 };
 
 static struct snd_soc_codec_driver soc_codec_dev_ak4641 = {
-	.controls		= ak4641_snd_controls,
-	.num_controls		= ARRAY_SIZE(ak4641_snd_controls),
-	.dapm_widgets		= ak4641_dapm_widgets,
-	.num_dapm_widgets	= ARRAY_SIZE(ak4641_dapm_widgets),
-	.dapm_routes		= ak4641_audio_map,
-	.num_dapm_routes	= ARRAY_SIZE(ak4641_audio_map),
+	.component_driver = {
+		.controls		= ak4641_snd_controls,
+		.num_controls		= ARRAY_SIZE(ak4641_snd_controls),
+		.dapm_widgets		= ak4641_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ak4641_dapm_widgets),
+		.dapm_routes		= ak4641_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(ak4641_audio_map),
+	},
 	.set_bias_level		= ak4641_set_bias_level,
 	.suspend_bias_off	= true,
 };

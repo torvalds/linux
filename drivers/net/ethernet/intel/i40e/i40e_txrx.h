@@ -463,4 +463,13 @@ static inline bool i40e_rx_is_fcoe(u16 ptype)
 	return (ptype >= I40E_RX_PTYPE_L2_FCOE_PAY3) &&
 	       (ptype <= I40E_RX_PTYPE_L2_FCOE_VFT_FCOTHER);
 }
+
+/**
+ * txring_txq - Find the netdev Tx ring based on the i40e Tx ring
+ * @ring: Tx ring to find the netdev equivalent of
+ **/
+static inline struct netdev_queue *txring_txq(const struct i40e_ring *ring)
+{
+	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
+}
 #endif /* _I40E_TXRX_H_ */

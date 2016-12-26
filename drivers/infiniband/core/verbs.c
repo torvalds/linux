@@ -227,9 +227,11 @@ EXPORT_SYMBOL(rdma_port_get_link_layer);
  * Every PD has a local_dma_lkey which can be used as the lkey value for local
  * memory operations.
  */
-struct ib_pd *ib_alloc_pd(struct ib_device *device)
+struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
+		const char *caller)
 {
 	struct ib_pd *pd;
+	int mr_access_flags = 0;
 
 	pd = device->alloc_pd(device, NULL, NULL);
 	if (IS_ERR(pd))
@@ -237,26 +239,46 @@ struct ib_pd *ib_alloc_pd(struct ib_device *device)
 
 	pd->device = device;
 	pd->uobject = NULL;
-	pd->local_mr = NULL;
+	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
+	pd->flags = flags;
 
 	if (device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY)
 		pd->local_dma_lkey = device->local_dma_lkey;
-	else {
+	else
+		mr_access_flags |= IB_ACCESS_LOCAL_WRITE;
+
+	if (flags & IB_PD_UNSAFE_GLOBAL_RKEY) {
+		pr_warn("%s: enabling unsafe global rkey\n", caller);
+		mr_access_flags |= IB_ACCESS_REMOTE_READ | IB_ACCESS_REMOTE_WRITE;
+	}
+
+	if (mr_access_flags) {
 		struct ib_mr *mr;
 
-		mr = ib_get_dma_mr(pd, IB_ACCESS_LOCAL_WRITE);
+		mr = pd->device->get_dma_mr(pd, mr_access_flags);
 		if (IS_ERR(mr)) {
 			ib_dealloc_pd(pd);
-			return (struct ib_pd *)mr;
+			return ERR_CAST(mr);
 		}
 
-		pd->local_mr = mr;
-		pd->local_dma_lkey = pd->local_mr->lkey;
+		mr->device	= pd->device;
+		mr->pd		= pd;
+		mr->uobject	= NULL;
+		mr->need_inval	= false;
+
+		pd->__internal_mr = mr;
+
+		if (!(device->attrs.device_cap_flags & IB_DEVICE_LOCAL_DMA_LKEY))
+			pd->local_dma_lkey = pd->__internal_mr->lkey;
+
+		if (flags & IB_PD_UNSAFE_GLOBAL_RKEY)
+			pd->unsafe_global_rkey = pd->__internal_mr->rkey;
 	}
+
 	return pd;
 }
-EXPORT_SYMBOL(ib_alloc_pd);
+EXPORT_SYMBOL(__ib_alloc_pd);
 
 /**
  * ib_dealloc_pd - Deallocates a protection domain.
@@ -270,10 +292,10 @@ void ib_dealloc_pd(struct ib_pd *pd)
 {
 	int ret;
 
-	if (pd->local_mr) {
-		ret = ib_dereg_mr(pd->local_mr);
+	if (pd->__internal_mr) {
+		ret = pd->device->dereg_mr(pd->__internal_mr);
 		WARN_ON(ret);
-		pd->local_mr = NULL;
+		pd->__internal_mr = NULL;
 	}
 
 	/* uverbs manipulates usecnt with proper locking, while the kabi
@@ -821,7 +843,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 		if (ret) {
 			pr_err("failed to init MR pool ret= %d\n", ret);
 			ib_destroy_qp(qp);
-			qp = ERR_PTR(ret);
+			return ERR_PTR(ret);
 		}
 	}
 
@@ -1391,29 +1413,6 @@ EXPORT_SYMBOL(ib_resize_cq);
 
 /* Memory regions */
 
-struct ib_mr *ib_get_dma_mr(struct ib_pd *pd, int mr_access_flags)
-{
-	struct ib_mr *mr;
-	int err;
-
-	err = ib_check_mr_access(mr_access_flags);
-	if (err)
-		return ERR_PTR(err);
-
-	mr = pd->device->get_dma_mr(pd, mr_access_flags);
-
-	if (!IS_ERR(mr)) {
-		mr->device  = pd->device;
-		mr->pd      = pd;
-		mr->uobject = NULL;
-		atomic_inc(&pd->usecnt);
-		mr->need_inval = false;
-	}
-
-	return mr;
-}
-EXPORT_SYMBOL(ib_get_dma_mr);
-
 int ib_dereg_mr(struct ib_mr *mr)
 {
 	struct ib_pd *pd = mr->pd;
@@ -1812,13 +1811,13 @@ EXPORT_SYMBOL(ib_set_vf_guid);
  *
  * Constraints:
  * - The first sg element is allowed to have an offset.
- * - Each sg element must be aligned to page_size (or physically
- *   contiguous to the previous element). In case an sg element has a
- *   non contiguous offset, the mapping prefix will not include it.
+ * - Each sg element must either be aligned to page_size or virtually
+ *   contiguous to the previous element. In case an sg element has a
+ *   non-contiguous offset, the mapping prefix will not include it.
  * - The last sg element is allowed to have length less than page_size.
  * - If sg_nents total byte length exceeds the mr max_num_sge * page_size
  *   then only max_num_sg entries will be mapped.
- * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS_REG, non of these
+ * - If the MR was allocated with type IB_MR_TYPE_SG_GAPS, none of these
  *   constraints holds and the page_size argument is ignored.
  *
  * Returns the number of sg elements that were mapped to the memory region.

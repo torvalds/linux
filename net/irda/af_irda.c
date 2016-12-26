@@ -845,9 +845,6 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	if (sock->state != SS_UNCONNECTED)
 		goto out;
 
-	if ((sk = sock->sk) == NULL)
-		goto out;
-
 	err = -EOPNOTSUPP;
 	if ((sk->sk_type != SOCK_STREAM) && (sk->sk_type != SOCK_SEQPACKET) &&
 	    (sk->sk_type != SOCK_DGRAM))

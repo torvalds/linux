@@ -22,7 +22,6 @@
 #ifndef CXD2841ER_H
 #define CXD2841ER_H
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 enum cxd2841er_xtal {

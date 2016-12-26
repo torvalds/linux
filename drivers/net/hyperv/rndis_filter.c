@@ -663,13 +663,14 @@ cleanup:
 	return ret;
 }
 
-u8 netvsc_hash_key[HASH_KEYLEN] = {
+static const u8 netvsc_hash_key[] = {
 	0x6d, 0x5a, 0x56, 0xda, 0x25, 0x5b, 0x0e, 0xc2,
 	0x41, 0x67, 0x25, 0x3d, 0x43, 0xa3, 0x8f, 0xb0,
 	0xd0, 0xca, 0x2b, 0xcb, 0xae, 0x7b, 0x30, 0xb4,
 	0x77, 0xcb, 0x2d, 0xa3, 0x80, 0x30, 0xf2, 0x0c,
 	0x6a, 0x42, 0xb7, 0x3b, 0xbe, 0xac, 0x01, 0xfa
 };
+#define HASH_KEYLEN ARRAY_SIZE(netvsc_hash_key)
 
 static int rndis_filter_set_rss_param(struct rndis_device *rdev, int num_queue)
 {
@@ -720,7 +721,6 @@ static int rndis_filter_set_rss_param(struct rndis_device *rdev, int num_queue)
 	for (i = 0; i < HASH_KEYLEN; i++)
 		keyp[i] = netvsc_hash_key[i];
 
-
 	ret = rndis_filter_send_request(rdev, request);
 	if (ret != 0)
 		goto cleanup;
@@ -738,7 +738,6 @@ cleanup:
 	return ret;
 }
 
-
 static int rndis_filter_query_device_link_status(struct rndis_device *dev)
 {
 	u32 size = sizeof(u32);
@@ -748,6 +747,28 @@ static int rndis_filter_query_device_link_status(struct rndis_device *dev)
 	ret = rndis_filter_query_device(dev,
 				      RNDIS_OID_GEN_MEDIA_CONNECT_STATUS,
 				      &link_status, &size);
+
+	return ret;
+}
+
+static int rndis_filter_query_link_speed(struct rndis_device *dev)
+{
+	u32 size = sizeof(u32);
+	u32 link_speed;
+	struct net_device_context *ndc;
+	int ret;
+
+	ret = rndis_filter_query_device(dev, RNDIS_OID_GEN_LINK_SPEED,
+					&link_speed, &size);
+
+	if (!ret) {
+		ndc = netdev_priv(dev->ndev);
+
+		/* The link speed reported from host is in 100bps unit, so
+		 * we convert it to Mbps here.
+		 */
+		ndc->speed = link_speed / 10000;
+	}
 
 	return ret;
 }
@@ -791,7 +812,6 @@ cleanup:
 		put_rndis_request(dev, request);
 	return ret;
 }
-
 
 static int rndis_filter_init_device(struct rndis_device *dev)
 {
@@ -875,11 +895,11 @@ cleanup:
 
 	/* Wait for all send completions */
 	wait_event(nvdev->wait_drain,
-		atomic_read(&nvdev->num_outstanding_sends) == 0);
+		   atomic_read(&nvdev->num_outstanding_sends) == 0 &&
+		   atomic_read(&nvdev->num_outstanding_recvs) == 0);
 
 	if (request)
 		put_rndis_request(dev, request);
-	return;
 }
 
 static int rndis_filter_open_device(struct rndis_device *dev)
@@ -931,6 +951,9 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	set_per_channel_state(new_sc, nvscdev->sub_cb_buf + (chn_index - 1) *
 			      NETVSC_PACKET_SIZE);
 
+	nvscdev->mrc[chn_index].buf = vzalloc(NETVSC_RECVSLOT_MAX *
+					      sizeof(struct recv_comp_data));
+
 	ret = vmbus_open(new_sc, nvscdev->ring_size * PAGE_SIZE,
 			 nvscdev->ring_size * PAGE_SIZE, NULL, 0,
 			 netvsc_channel_cb, new_sc);
@@ -946,7 +969,7 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 }
 
 int rndis_filter_device_add(struct hv_device *dev,
-				  void *additional_info)
+			    void *additional_info)
 {
 	int ret;
 	struct net_device *net = hv_get_drvdata(dev);
@@ -1028,7 +1051,6 @@ int rndis_filter_device_add(struct hv_device *dev,
 	offloads.udp_ip_v6_csum = NDIS_OFFLOAD_PARAMETERS_TX_RX_ENABLED;
 	offloads.lso_v2_ipv4 = NDIS_OFFLOAD_PARAMETERS_LSOV2_ENABLED;
 
-
 	ret = rndis_filter_set_offload_params(net, &offloads);
 	if (ret)
 		goto err_dev_remv;
@@ -1043,6 +1065,8 @@ int rndis_filter_device_add(struct hv_device *dev,
 
 	if (net_device->nvsp_version < NVSP_PROTOCOL_VERSION_5)
 		return 0;
+
+	rndis_filter_query_link_speed(rndis_device);
 
 	/* vRSS setup */
 	memset(&rsscap, 0, rsscap_size);
@@ -1151,7 +1175,6 @@ void rndis_filter_device_remove(struct hv_device *dev)
 
 	netvsc_device_remove(dev);
 }
-
 
 int rndis_filter_open(struct netvsc_device *nvdev)
 {

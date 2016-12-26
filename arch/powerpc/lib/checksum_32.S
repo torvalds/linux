@@ -17,6 +17,7 @@
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 	.text
 
@@ -68,6 +69,7 @@ _GLOBAL(__csum_partial)
 	adde	r5,r5,r0
 5:	addze	r3,r5		/* add in final carry */
 	blr
+EXPORT_SYMBOL(__csum_partial)
 
 /*
  * Computes the checksum of a memory block at src, length len,
@@ -297,3 +299,4 @@ dst_error:
 	.long	41b,dst_error
 	.long	50b,src_error
 	.long	51b,dst_error
+EXPORT_SYMBOL(csum_partial_copy_generic)

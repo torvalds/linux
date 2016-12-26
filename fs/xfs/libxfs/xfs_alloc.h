@@ -85,20 +85,33 @@ typedef struct xfs_alloc_arg {
 	xfs_extlen_t	len;		/* output: actual size of extent */
 	xfs_alloctype_t	type;		/* allocation type XFS_ALLOCTYPE_... */
 	xfs_alloctype_t	otype;		/* original allocation type */
+	int		datatype;	/* mask defining data type treatment */
 	char		wasdel;		/* set if allocation was prev delayed */
 	char		wasfromfl;	/* set if allocation is from freelist */
-	char		isfl;		/* set if is freelist blocks - !acctg */
-	char		userdata;	/* mask defining userdata treatment */
 	xfs_fsblock_t	firstblock;	/* io first block allocated */
 	struct xfs_owner_info	oinfo;	/* owner of blocks being allocated */
+	enum xfs_ag_resv_type	resv;	/* block reservation to use */
 } xfs_alloc_arg_t;
 
 /*
- * Defines for userdata
+ * Defines for datatype
  */
 #define XFS_ALLOC_USERDATA		(1 << 0)/* allocation is for user data*/
 #define XFS_ALLOC_INITIAL_USER_DATA	(1 << 1)/* special case start of file */
 #define XFS_ALLOC_USERDATA_ZERO		(1 << 2)/* zero extent on allocation */
+#define XFS_ALLOC_NOBUSY		(1 << 3)/* Busy extents not allowed */
+
+static inline bool
+xfs_alloc_is_userdata(int datatype)
+{
+	return (datatype & ~XFS_ALLOC_NOBUSY) != 0;
+}
+
+static inline bool
+xfs_alloc_allow_busy_reuse(int datatype)
+{
+	return (datatype & XFS_ALLOC_NOBUSY) == 0;
+}
 
 /* freespace limit calculations */
 #define XFS_ALLOC_AGFL_RESERVE	4
@@ -106,7 +119,8 @@ unsigned int xfs_alloc_set_aside(struct xfs_mount *mp);
 unsigned int xfs_alloc_ag_max_usable(struct xfs_mount *mp);
 
 xfs_extlen_t xfs_alloc_longest_free_extent(struct xfs_mount *mp,
-		struct xfs_perag *pag, xfs_extlen_t need);
+		struct xfs_perag *pag, xfs_extlen_t need,
+		xfs_extlen_t reserved);
 unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
 		struct xfs_perag *pag);
 
@@ -184,7 +198,8 @@ xfs_free_extent(
 	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_fsblock_t		bno,	/* starting block number of extent */
 	xfs_extlen_t		len,	/* length of extent */
-	struct xfs_owner_info	*oinfo);/* extent owner */
+	struct xfs_owner_info	*oinfo,	/* extent owner */
+	enum xfs_ag_resv_type	type);	/* block reservation type */
 
 int				/* error */
 xfs_alloc_lookup_ge(

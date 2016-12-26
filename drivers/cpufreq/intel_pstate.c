@@ -179,8 +179,11 @@ struct _pid {
 /**
  * struct cpudata -	Per CPU instance data storage
  * @cpu:		CPU number for this instance data
+ * @policy:		CPUFreq policy value
  * @update_util:	CPUFreq utility callback information
  * @update_util_set:	CPUFreq utility callback is set
+ * @iowait_boost:	iowait-related boost fraction
+ * @last_update:	Time of the last update.
  * @pstate:		Stores P state limits for this CPU
  * @vid:		Stores VID limits for this CPU
  * @pid:		Stores PID parameters for this CPU
@@ -199,6 +202,7 @@ struct _pid {
 struct cpudata {
 	int cpu;
 
+	unsigned int policy;
 	struct update_util_data update_util;
 	bool   update_util_set;
 
@@ -206,6 +210,7 @@ struct cpudata {
 	struct vid_data vid;
 	struct _pid pid;
 
+	u64	last_update;
 	u64	last_sample_time;
 	u64	prev_aperf;
 	u64	prev_mperf;
@@ -216,12 +221,13 @@ struct cpudata {
 	struct acpi_processor_performance acpi_perf_data;
 	bool valid_pss_table;
 #endif
+	unsigned int iowait_boost;
 };
 
 static struct cpudata **all_cpu_data;
 
 /**
- * struct pid_adjust_policy - Stores static PID configuration data
+ * struct pstate_adjust_policy - Stores static PID configuration data
  * @sample_rate_ms:	PID calculation sample rate in ms
  * @sample_rate_ns:	Sample rate calculation in ns
  * @deadband:		PID deadband
@@ -229,6 +235,7 @@ static struct cpudata **all_cpu_data;
  * @p_gain_pct:		PID proportional gain
  * @i_gain_pct:		PID integral gain
  * @d_gain_pct:		PID derivative gain
+ * @boost_iowait:	Whether or not to use iowait boosting.
  *
  * Stores per CPU model static PID configuration data.
  */
@@ -240,6 +247,7 @@ struct pstate_adjust_policy {
 	int p_gain_pct;
 	int d_gain_pct;
 	int i_gain_pct;
+	bool boost_iowait;
 };
 
 /**
@@ -556,12 +564,12 @@ static void intel_pstate_hwp_set(const struct cpumask *cpumask)
 	int min, hw_min, max, hw_max, cpu, range, adj_range;
 	u64 value, cap;
 
-	rdmsrl(MSR_HWP_CAPABILITIES, cap);
-	hw_min = HWP_LOWEST_PERF(cap);
-	hw_max = HWP_HIGHEST_PERF(cap);
-	range = hw_max - hw_min;
-
 	for_each_cpu(cpu, cpumask) {
+		rdmsrl_on_cpu(cpu, MSR_HWP_CAPABILITIES, &cap);
+		hw_min = HWP_LOWEST_PERF(cap);
+		hw_max = HWP_HIGHEST_PERF(cap);
+		range = hw_max - hw_min;
+
 		rdmsrl_on_cpu(cpu, MSR_HWP_REQUEST, &value);
 		adj_range = limits->min_perf_pct * range / 100;
 		min = hw_min + adj_range;
@@ -1029,7 +1037,7 @@ static struct cpu_defaults core_params = {
 	},
 };
 
-static struct cpu_defaults silvermont_params = {
+static const struct cpu_defaults silvermont_params = {
 	.pid_policy = {
 		.sample_rate_ms = 10,
 		.deadband = 0,
@@ -1037,6 +1045,7 @@ static struct cpu_defaults silvermont_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
+		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = atom_get_max_pstate,
@@ -1050,7 +1059,7 @@ static struct cpu_defaults silvermont_params = {
 	},
 };
 
-static struct cpu_defaults airmont_params = {
+static const struct cpu_defaults airmont_params = {
 	.pid_policy = {
 		.sample_rate_ms = 10,
 		.deadband = 0,
@@ -1058,6 +1067,7 @@ static struct cpu_defaults airmont_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
+		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = atom_get_max_pstate,
@@ -1071,7 +1081,7 @@ static struct cpu_defaults airmont_params = {
 	},
 };
 
-static struct cpu_defaults knl_params = {
+static const struct cpu_defaults knl_params = {
 	.pid_policy = {
 		.sample_rate_ms = 10,
 		.deadband = 0,
@@ -1091,7 +1101,7 @@ static struct cpu_defaults knl_params = {
 	},
 };
 
-static struct cpu_defaults bxt_params = {
+static const struct cpu_defaults bxt_params = {
 	.pid_policy = {
 		.sample_rate_ms = 10,
 		.deadband = 0,
@@ -1099,6 +1109,7 @@ static struct cpu_defaults bxt_params = {
 		.p_gain_pct = 14,
 		.d_gain_pct = 0,
 		.i_gain_pct = 4,
+		.boost_iowait = true,
 	},
 	.funcs = {
 		.get_max = core_get_max_pstate,
@@ -1133,10 +1144,8 @@ static void intel_pstate_get_min_max(struct cpudata *cpu, int *min, int *max)
 	*min = clamp_t(int, min_perf, cpu->pstate.min_pstate, max_perf);
 }
 
-static void intel_pstate_set_min_pstate(struct cpudata *cpu)
+static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 {
-	int pstate = cpu->pstate.min_pstate;
-
 	trace_cpu_frequency(pstate * cpu->pstate.scaling, cpu->cpu);
 	cpu->pstate.current_pstate = pstate;
 	/*
@@ -1146,6 +1155,20 @@ static void intel_pstate_set_min_pstate(struct cpudata *cpu)
 	 */
 	wrmsrl_on_cpu(cpu->cpu, MSR_IA32_PERF_CTL,
 		      pstate_funcs.get_val(cpu, pstate));
+}
+
+static void intel_pstate_set_min_pstate(struct cpudata *cpu)
+{
+	intel_pstate_set_pstate(cpu, cpu->pstate.min_pstate);
+}
+
+static void intel_pstate_max_within_limits(struct cpudata *cpu)
+{
+	int min_pstate, max_pstate;
+
+	update_turbo_state();
+	intel_pstate_get_min_max(cpu, &min_pstate, &max_pstate);
+	intel_pstate_set_pstate(cpu, max_pstate);
 }
 
 static void intel_pstate_get_cpu_pstates(struct cpudata *cpu)
@@ -1222,36 +1245,38 @@ static inline int32_t get_avg_pstate(struct cpudata *cpu)
 static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
 {
 	struct sample *sample = &cpu->sample;
-	u64 cummulative_iowait, delta_iowait_us;
-	u64 delta_iowait_mperf;
-	u64 mperf, now;
-	int32_t cpu_load;
+	int32_t busy_frac, boost;
+	int target, avg_pstate;
 
-	cummulative_iowait = get_cpu_iowait_time_us(cpu->cpu, &now);
+	busy_frac = div_fp(sample->mperf, sample->tsc);
+
+	boost = cpu->iowait_boost;
+	cpu->iowait_boost >>= 1;
+
+	if (busy_frac < boost)
+		busy_frac = boost;
+
+	sample->busy_scaled = busy_frac * 100;
+
+	target = limits->no_turbo || limits->turbo_disabled ?
+			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
+	target += target >> 2;
+	target = mul_fp(target, busy_frac);
+	if (target < cpu->pstate.min_pstate)
+		target = cpu->pstate.min_pstate;
 
 	/*
-	 * Convert iowait time into number of IO cycles spent at max_freq.
-	 * IO is considered as busy only for the cpu_load algorithm. For
-	 * performance this is not needed since we always try to reach the
-	 * maximum P-State, so we are already boosting the IOs.
+	 * If the average P-state during the previous cycle was higher than the
+	 * current target, add 50% of the difference to the target to reduce
+	 * possible performance oscillations and offset possible performance
+	 * loss related to moving the workload from one CPU to another within
+	 * a package/module.
 	 */
-	delta_iowait_us = cummulative_iowait - cpu->prev_cummulative_iowait;
-	delta_iowait_mperf = div64_u64(delta_iowait_us * cpu->pstate.scaling *
-		cpu->pstate.max_pstate, MSEC_PER_SEC);
+	avg_pstate = get_avg_pstate(cpu);
+	if (avg_pstate > target)
+		target += (avg_pstate - target) >> 1;
 
-	mperf = cpu->sample.mperf + delta_iowait_mperf;
-	cpu->prev_cummulative_iowait = cummulative_iowait;
-
-	/*
-	 * The load can be estimated as the ratio of the mperf counter
-	 * running at a constant frequency during active periods
-	 * (C0) and the time stamp counter running at the same frequency
-	 * also during C-states.
-	 */
-	cpu_load = div64_u64(int_tofp(100) * mperf, sample->tsc);
-	cpu->sample.busy_scaled = cpu_load;
-
-	return get_avg_pstate(cpu) - pid_calc(&cpu->pid, cpu_load);
+	return target;
 }
 
 static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
@@ -1260,10 +1285,11 @@ static inline int32_t get_target_pstate_use_performance(struct cpudata *cpu)
 	u64 duration_ns;
 
 	/*
-	 * perf_scaled is the average performance during the last sampling
-	 * period scaled by the ratio of the maximum P-state to the P-state
-	 * requested last time (in percent).  That measures the system's
-	 * response to the previous P-state selection.
+	 * perf_scaled is the ratio of the average P-state during the last
+	 * sampling period to the P-state requested last time (in percent).
+	 *
+	 * That measures the system's response to the previous P-state
+	 * selection.
 	 */
 	max_pstate = cpu->pstate.max_pstate_physical;
 	current_pstate = cpu->pstate.current_pstate;
@@ -1313,7 +1339,8 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 
 	from = cpu->pstate.current_pstate;
 
-	target_pstate = pstate_funcs.get_target_pstate(cpu);
+	target_pstate = cpu->policy == CPUFREQ_POLICY_PERFORMANCE ?
+		cpu->pstate.turbo_pstate : pstate_funcs.get_target_pstate(cpu);
 
 	intel_pstate_update_pstate(cpu, target_pstate);
 
@@ -1325,15 +1352,29 @@ static inline void intel_pstate_adjust_busy_pstate(struct cpudata *cpu)
 		sample->mperf,
 		sample->aperf,
 		sample->tsc,
-		get_avg_frequency(cpu));
+		get_avg_frequency(cpu),
+		fp_toint(cpu->iowait_boost * 100));
 }
 
 static void intel_pstate_update_util(struct update_util_data *data, u64 time,
-				     unsigned long util, unsigned long max)
+				     unsigned int flags)
 {
 	struct cpudata *cpu = container_of(data, struct cpudata, update_util);
-	u64 delta_ns = time - cpu->sample.time;
+	u64 delta_ns;
 
+	if (pid_params.boost_iowait) {
+		if (flags & SCHED_CPUFREQ_IOWAIT) {
+			cpu->iowait_boost = int_tofp(1);
+		} else if (cpu->iowait_boost) {
+			/* Clear iowait_boost if the CPU may have been idle. */
+			delta_ns = time - cpu->last_update;
+			if (delta_ns > TICK_NSEC)
+				cpu->iowait_boost = 0;
+		}
+		cpu->last_update = time;
+	}
+
+	delta_ns = time - cpu->sample.time;
 	if ((s64)delta_ns >= pid_params.sample_rate_ns) {
 		bool sample_taken = intel_pstate_sample(cpu, time);
 
@@ -1465,7 +1506,9 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	pr_debug("set_policy cpuinfo.max %u policy->max %u\n",
 		 policy->cpuinfo.max_freq, policy->max);
 
-	cpu = all_cpu_data[0];
+	cpu = all_cpu_data[policy->cpu];
+	cpu->policy = policy->policy;
+
 	if (cpu->pstate.max_pstate_physical > cpu->pstate.max_pstate &&
 	    policy->max < policy->cpuinfo.max_freq &&
 	    policy->max > cpu->pstate.max_pstate * cpu->pstate.scaling) {
@@ -1473,7 +1516,7 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		policy->max = policy->cpuinfo.max_freq;
 	}
 
-	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
+	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		limits = &performance_limits;
 		if (policy->max >= policy->cpuinfo.max_freq) {
 			pr_debug("set performance\n");
@@ -1509,6 +1552,15 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	limits->max_perf = round_up(limits->max_perf, FRAC_BITS);
 
  out:
+	if (cpu->policy == CPUFREQ_POLICY_PERFORMANCE) {
+		/*
+		 * NOHZ_FULL CPUs need this as the governor callback may not
+		 * be invoked on them.
+		 */
+		intel_pstate_clear_update_util_hook(policy->cpu);
+		intel_pstate_max_within_limits(cpu);
+	}
+
 	intel_pstate_set_update_util_hook(policy->cpu);
 
 	intel_pstate_hwp_set_policy(policy);

@@ -80,6 +80,7 @@ void fman_sp_set_buf_pools_in_asc_order_of_buf_sizes(struct fman_ext_pools
 		}
 	}
 }
+EXPORT_SYMBOL(fman_sp_set_buf_pools_in_asc_order_of_buf_sizes);
 
 int fman_sp_build_buffer_struct(struct fman_sp_int_context_data_copy *
 				int_context_data_copy,
@@ -164,3 +165,5 @@ int fman_sp_build_buffer_struct(struct fman_sp_int_context_data_copy *
 
 	return 0;
 }
+EXPORT_SYMBOL(fman_sp_build_buffer_struct);
+

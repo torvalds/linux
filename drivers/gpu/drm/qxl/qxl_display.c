@@ -211,6 +211,7 @@ static void qxl_crtc_destroy(struct drm_crtc *crtc)
 	struct qxl_crtc *qxl_crtc = to_qxl_crtc(crtc);
 
 	drm_crtc_cleanup(crtc);
+	qxl_bo_unref(&qxl_crtc->cursor_bo);
 	kfree(qxl_crtc);
 }
 
@@ -294,6 +295,52 @@ qxl_hide_cursor(struct qxl_device *qdev)
 	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
 	qxl_release_fence_buffer_objects(release);
 	return 0;
+}
+
+static int qxl_crtc_apply_cursor(struct drm_crtc *crtc)
+{
+	struct qxl_crtc *qcrtc = to_qxl_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_cursor_cmd *cmd;
+	struct qxl_release *release;
+	int ret = 0;
+
+	if (!qcrtc->cursor_bo)
+		return 0;
+
+	ret = qxl_alloc_release_reserved(qdev, sizeof(*cmd),
+					 QXL_RELEASE_CURSOR_CMD,
+					 &release, NULL);
+	if (ret)
+		return ret;
+
+	ret = qxl_release_list_add(release, qcrtc->cursor_bo);
+	if (ret)
+		goto out_free_release;
+
+	ret = qxl_release_reserve_list(release, false);
+	if (ret)
+		goto out_free_release;
+
+	cmd = (struct qxl_cursor_cmd *)qxl_release_map(qdev, release);
+	cmd->type = QXL_CURSOR_SET;
+	cmd->u.set.position.x = qcrtc->cur_x + qcrtc->hot_spot_x;
+	cmd->u.set.position.y = qcrtc->cur_y + qcrtc->hot_spot_y;
+
+	cmd->u.set.shape = qxl_bo_physical_address(qdev, qcrtc->cursor_bo, 0);
+
+	cmd->u.set.visible = 1;
+	qxl_release_unmap(qdev, release, &cmd->release_info);
+
+	qxl_push_cursor_ring_release(qdev, release, QXL_CMD_CURSOR, false);
+	qxl_release_fence_buffer_objects(release);
+
+	return ret;
+
+out_free_release:
+	qxl_release_free(qdev, release);
+	return ret;
 }
 
 static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
@@ -400,7 +447,8 @@ static int qxl_crtc_cursor_set2(struct drm_crtc *crtc,
 	}
 	drm_gem_object_unreference_unlocked(obj);
 
-	qxl_bo_unref(&cursor_bo);
+	qxl_bo_unref (&qcrtc->cursor_bo);
+	qcrtc->cursor_bo = cursor_bo;
 
 	return ret;
 
@@ -655,6 +703,12 @@ static int qxl_crtc_mode_set(struct drm_crtc *crtc,
 			   bo->surf.stride, bo->surf.format);
 		qxl_io_create_primary(qdev, 0, bo);
 		bo->is_primary = true;
+
+		ret = qxl_crtc_apply_cursor(crtc);
+		if (ret) {
+			DRM_ERROR("could not set cursor after modeset");
+			ret = 0;
+		}
 	}
 
 	if (bo->is_primary) {

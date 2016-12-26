@@ -91,17 +91,17 @@
 #include "cfg80211.c"
 
 /* netdevice method functions */
-static int p80211knetdev_init(netdevice_t *netdev);
-static int p80211knetdev_open(netdevice_t *netdev);
-static int p80211knetdev_stop(netdevice_t *netdev);
+static int p80211knetdev_init(struct net_device *netdev);
+static int p80211knetdev_open(struct net_device *netdev);
+static int p80211knetdev_stop(struct net_device *netdev);
 static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
-					 netdevice_t *netdev);
-static void p80211knetdev_set_multicast_list(netdevice_t *dev);
-static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr,
+					 struct net_device *netdev);
+static void p80211knetdev_set_multicast_list(struct net_device *dev);
+static int p80211knetdev_do_ioctl(struct net_device *dev, struct ifreq *ifr,
 				  int cmd);
-static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr);
-static void p80211knetdev_tx_timeout(netdevice_t *netdev);
-static int p80211_rx_typedrop(wlandevice_t *wlandev, u16 fc);
+static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr);
+static void p80211knetdev_tx_timeout(struct net_device *netdev);
+static int p80211_rx_typedrop(struct wlandevice *wlandev, u16 fc);
 
 int wlan_watchdog = 5000;
 module_param(wlan_watchdog, int, 0644);
@@ -123,7 +123,7 @@ MODULE_PARM_DESC(wlan_wext_write, "enable write wireless extensions");
 * Returns:
 *	nothing
 ----------------------------------------------------------------*/
-static int p80211knetdev_init(netdevice_t *netdev)
+static int p80211knetdev_init(struct net_device *netdev)
 {
 	/* Called in response to register_netdev */
 	/* This is usually the probe function, but the probe has */
@@ -146,10 +146,10 @@ static int p80211knetdev_init(netdevice_t *netdev)
 * Returns:
 *	zero on success, non-zero otherwise
 ----------------------------------------------------------------*/
-static int p80211knetdev_open(netdevice_t *netdev)
+static int p80211knetdev_open(struct net_device *netdev)
 {
 	int result = 0;		/* success */
-	wlandevice_t *wlandev = netdev->ml_priv;
+	struct wlandevice *wlandev = netdev->ml_priv;
 
 	/* Check to make sure the MSD is running */
 	if (wlandev->msdstate != WLAN_MSD_RUNNING)
@@ -181,10 +181,10 @@ static int p80211knetdev_open(netdevice_t *netdev)
 * Returns:
 *	zero on success, non-zero otherwise
 ----------------------------------------------------------------*/
-static int p80211knetdev_stop(netdevice_t *netdev)
+static int p80211knetdev_stop(struct net_device *netdev)
 {
 	int result = 0;
-	wlandevice_t *wlandev = netdev->ml_priv;
+	struct wlandevice *wlandev = netdev->ml_priv;
 
 	if (wlandev->close)
 		result = wlandev->close(wlandev);
@@ -208,7 +208,7 @@ static int p80211knetdev_stop(netdevice_t *netdev)
 * Side effects:
 *
 ----------------------------------------------------------------*/
-void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
+void p80211netdev_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	/* Enqueue for post-irq processing */
 	skb_queue_tail(&wlandev->nsd_rxq, skb);
@@ -227,11 +227,11 @@ void p80211netdev_rx(wlandevice_t *wlandev, struct sk_buff *skb)
  *	    CONV_TO_ETHER_FAILED if conversion failed
  *	    CONV_TO_ETHER_SKIPPED if frame is ignored
  */
-static int p80211_convert_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
+static int p80211_convert_to_ether(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	struct p80211_hdr_a3 *hdr;
 
-	hdr = (struct p80211_hdr_a3 *) skb->data;
+	hdr = (struct p80211_hdr_a3 *)skb->data;
 	if (p80211_rx_typedrop(wlandev, hdr->fc))
 		return CONV_TO_ETHER_SKIPPED;
 
@@ -265,9 +265,9 @@ static int p80211_convert_to_ether(wlandevice_t *wlandev, struct sk_buff *skb)
  */
 static void p80211netdev_rx_bh(unsigned long arg)
 {
-	wlandevice_t *wlandev = (wlandevice_t *) arg;
+	struct wlandevice *wlandev = (struct wlandevice *)arg;
 	struct sk_buff *skb = NULL;
-	netdevice_t *dev = wlandev->netdev;
+	struct net_device *dev = wlandev->netdev;
 
 	/* Let's empty our our queue */
 	while ((skb = skb_dequeue(&wlandev->nsd_rxq))) {
@@ -318,11 +318,11 @@ static void p80211netdev_rx_bh(unsigned long arg)
 *	zero on success, non-zero on failure.
 ----------------------------------------------------------------*/
 static int p80211knetdev_hard_start_xmit(struct sk_buff *skb,
-					 netdevice_t *netdev)
+					 struct net_device *netdev)
 {
 	int result = 0;
 	int txresult = -1;
-	wlandevice_t *wlandev = netdev->ml_priv;
+	struct wlandevice *wlandev = netdev->ml_priv;
 	union p80211_hdr p80211_hdr;
 	struct p80211_metawep p80211_wep;
 
@@ -446,9 +446,9 @@ failed:
 * Returns:
 *	nothing
 ----------------------------------------------------------------*/
-static void p80211knetdev_set_multicast_list(netdevice_t *dev)
+static void p80211knetdev_set_multicast_list(struct net_device *dev)
 {
-	wlandevice_t *wlandev = dev->ml_priv;
+	struct wlandevice *wlandev = dev->ml_priv;
 
 	/* TODO:  real multicast support as well */
 
@@ -459,7 +459,7 @@ static void p80211knetdev_set_multicast_list(netdevice_t *dev)
 
 #ifdef SIOCETHTOOL
 
-static int p80211netdev_ethtool(wlandevice_t *wlandev, void __user *useraddr)
+static int p80211netdev_ethtool(struct wlandevice *wlandev, void __user *useraddr)
 {
 	u32 ethcmd;
 	struct ethtool_drvinfo info;
@@ -531,11 +531,11 @@ static int p80211netdev_ethtool(wlandevice_t *wlandev, void __user *useraddr)
 *	Process thread (ioctl caller).  TODO: SMP support may require
 *	locks.
 ----------------------------------------------------------------*/
-static int p80211knetdev_do_ioctl(netdevice_t *dev, struct ifreq *ifr, int cmd)
+static int p80211knetdev_do_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	int result = 0;
-	struct p80211ioctl_req *req = (struct p80211ioctl_req *) ifr;
-	wlandevice_t *wlandev = dev->ml_priv;
+	struct p80211ioctl_req *req = (struct p80211ioctl_req *)ifr;
+	struct wlandevice *wlandev = dev->ml_priv;
 	u8 *msgbuf;
 
 	netdev_dbg(dev, "rx'd ioctl, cmd=%d, len=%d\n", cmd, req->len);
@@ -610,13 +610,13 @@ bail:
 *
 * by: Collin R. Mulliner <collin@mulliner.org>
 ----------------------------------------------------------------*/
-static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
+static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 {
 	struct sockaddr *new_addr = addr;
 	struct p80211msg_dot11req_mibset dot11req;
-	p80211item_unk392_t *mibattr;
-	p80211item_pstr6_t *macaddr;
-	p80211item_uint32_t *resultcode;
+	struct p80211item_unk392 *mibattr;
+	struct p80211item_pstr6 *macaddr;
+	struct p80211item_uint32 *resultcode;
 	int result;
 
 	/* If we're running, we don't allow MAC address changes */
@@ -625,7 +625,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 
 	/* Set up some convenience pointers. */
 	mibattr = &dot11req.mibattribute;
-	macaddr = (p80211item_pstr6_t *) &mibattr->data;
+	macaddr = (struct p80211item_pstr6 *)&mibattr->data;
 	resultcode = &dot11req.resultcode;
 
 	/* Set up a dot11req_mibset */
@@ -633,7 +633,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	dot11req.msgcode = DIDmsg_dot11req_mibset;
 	dot11req.msglen = sizeof(struct p80211msg_dot11req_mibset);
 	memcpy(dot11req.devname,
-	       ((wlandevice_t *) dev->ml_priv)->name, WLAN_DEVNAMELEN_MAX - 1);
+	       ((struct wlandevice *)dev->ml_priv)->name, WLAN_DEVNAMELEN_MAX - 1);
 
 	/* Set up the mibattribute argument */
 	mibattr->did = DIDmsg_dot11req_mibset_mibattribute;
@@ -653,7 +653,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	resultcode->data = 0;
 
 	/* now fire the request */
-	result = p80211req_dorequest(dev->ml_priv, (u8 *) &dot11req);
+	result = p80211req_dorequest(dev->ml_priv, (u8 *)&dot11req);
 
 	/* If the request wasn't successful, report an error and don't
 	 * change the netdev address
@@ -669,7 +669,7 @@ static int p80211knetdev_set_mac_address(netdevice_t *dev, void *addr)
 	return result;
 }
 
-static int wlan_change_mtu(netdevice_t *dev, int new_mtu)
+static int wlan_change_mtu(struct net_device *dev, int new_mtu)
 {
 	/* 2312 is max 802.11 payload, 20 is overhead, (ether + llc +snap)
 	   and another 8 for wep. */
@@ -717,10 +717,10 @@ static const struct net_device_ops p80211_netdev_ops = {
 *	compiled drivers, this function will be called in the
 *	context of the kernel startup code.
 ----------------------------------------------------------------*/
-int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
+int wlan_setup(struct wlandevice *wlandev, struct device *physdev)
 {
 	int result = 0;
-	netdevice_t *netdev;
+	struct net_device *netdev;
 	struct wiphy *wiphy;
 	struct wireless_dev *wdev;
 
@@ -783,7 +783,7 @@ int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
 *	compiled drivers, this function will be called in the
 *	context of the kernel startup code.
 ----------------------------------------------------------------*/
-void wlan_unsetup(wlandevice_t *wlandev)
+void wlan_unsetup(struct wlandevice *wlandev)
 {
 	struct wireless_dev *wdev;
 
@@ -817,7 +817,7 @@ void wlan_unsetup(wlandevice_t *wlandev)
 * Call Context:
 *	Can be either interrupt or not.
 ----------------------------------------------------------------*/
-int register_wlandev(wlandevice_t *wlandev)
+int register_wlandev(struct wlandevice *wlandev)
 {
 	return register_netdev(wlandev->netdev);
 }
@@ -839,7 +839,7 @@ int register_wlandev(wlandevice_t *wlandev)
 * Call Context:
 *	Can be either interrupt or not.
 ----------------------------------------------------------------*/
-int unregister_wlandev(wlandevice_t *wlandev)
+int unregister_wlandev(struct wlandevice *wlandev)
 {
 	struct sk_buff *skb;
 
@@ -882,7 +882,7 @@ int unregister_wlandev(wlandevice_t *wlandev)
 * Call context:
 *	Usually interrupt.
 ----------------------------------------------------------------*/
-void p80211netdev_hwremoved(wlandevice_t *wlandev)
+void p80211netdev_hwremoved(struct wlandevice *wlandev)
 {
 	wlandev->hwremoved = 1;
 	if (wlandev->state == WLAN_DEVICE_OPEN)
@@ -912,7 +912,7 @@ void p80211netdev_hwremoved(wlandevice_t *wlandev)
 * Call context:
 *	interrupt
 ----------------------------------------------------------------*/
-static int p80211_rx_typedrop(wlandevice_t *wlandev, u16 fc)
+static int p80211_rx_typedrop(struct wlandevice *wlandev, u16 fc)
 {
 	u16 ftype;
 	u16 fstype;
@@ -1071,9 +1071,9 @@ static int p80211_rx_typedrop(wlandevice_t *wlandev, u16 fc)
 	return drop;
 }
 
-static void p80211knetdev_tx_timeout(netdevice_t *netdev)
+static void p80211knetdev_tx_timeout(struct net_device *netdev)
 {
-	wlandevice_t *wlandev = netdev->ml_priv;
+	struct wlandevice *wlandev = netdev->ml_priv;
 
 	if (wlandev->tx_timeout) {
 		wlandev->tx_timeout(wlandev);

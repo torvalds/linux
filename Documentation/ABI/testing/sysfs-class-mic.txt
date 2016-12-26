@@ -153,7 +153,7 @@ Description:
 
 What:		/sys/class/mic/mic(x)/heartbeat_enable
 Date:		March 2015
-KernelVersion:	3.20
+KernelVersion:	4.4
 Contact:	Ashutosh Dixit <ashutosh.dixit@intel.com>
 Description:
 		The MIC drivers detect and inform user space about card crashes

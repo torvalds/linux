@@ -36,6 +36,10 @@
 #define FTS_EVENT_STATUS_REG		0x0006
 #define FTS_GLOBAL_CONTROL_REG		0x0007
 
+#define FTS_DEVICE_DETECT_REG_1		0x0C
+#define FTS_DEVICE_DETECT_REG_2		0x0D
+#define FTS_DEVICE_DETECT_REG_3		0x0E
+
 #define FTS_SENSOR_EVENT_REG		0x0010
 
 #define FTS_FAN_EVENT_REG		0x0014
@@ -53,6 +57,8 @@
 #define FTS_NO_FAN_SENSORS		0x08
 #define FTS_NO_TEMP_SENSORS		0x10
 #define FTS_NO_VOLT_SENSORS		0x04
+
+static const unsigned short normal_i2c[] = { 0x73, I2C_CLIENT_END };
 
 static struct i2c_device_id fts_id[] = {
 	{ "ftsteutates", 0 },
@@ -734,6 +740,42 @@ static const struct attribute_group *fts_attr_groups[] = {
 /*****************************************************************************/
 /* Module initialization / remove functions				     */
 /*****************************************************************************/
+static int fts_detect(struct i2c_client *client,
+		      struct i2c_board_info *info)
+{
+	int val;
+
+	/* detection works with revsion greater or equal to 0x2b */
+	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_REVISION_REG);
+	if (val < 0x2b)
+		return -ENODEV;
+
+	/* Device Detect Regs must have 0x17 0x34 and 0x54 */
+	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_DETECT_REG_1);
+	if (val != 0x17)
+		return -ENODEV;
+
+	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_DETECT_REG_2);
+	if (val != 0x34)
+		return -ENODEV;
+
+	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_DETECT_REG_3);
+	if (val != 0x54)
+		return -ENODEV;
+
+	/*
+	 * 0x10 == Baseboard Management Controller, 0x01 == Teutates
+	 * Device ID Reg needs to be 0x11
+	 */
+	val = i2c_smbus_read_byte_data(client, FTS_DEVICE_ID_REG);
+	if (val != 0x11)
+		return -ENODEV;
+
+	strlcpy(info->type, fts_id[0].name, I2C_NAME_SIZE);
+	info->flags = 0;
+	return 0;
+}
+
 static int fts_remove(struct i2c_client *client)
 {
 	struct fts_data *data = dev_get_drvdata(&client->dev);
@@ -804,12 +846,15 @@ static int fts_probe(struct i2c_client *client, const struct i2c_device_id *id)
 /* Module Details							     */
 /*****************************************************************************/
 static struct i2c_driver fts_driver = {
+	.class = I2C_CLASS_HWMON,
 	.driver = {
 		.name = "ftsteutates",
 	},
 	.id_table = fts_id,
 	.probe = fts_probe,
 	.remove = fts_remove,
+	.detect = fts_detect,
+	.address_list = normal_i2c,
 };
 
 module_i2c_driver(fts_driver);

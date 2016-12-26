@@ -92,7 +92,8 @@ void fbtft_write_reg8_bus9(struct fbtft_par *par, int len, ...)
 
 	if (par->spi && (par->spi->bits_per_word == 8)) {
 		/* we're emulating 9-bit, pad start of buffer with no-ops
-		   (assuming here that zero is a no-op) */
+		 * (assuming here that zero is a no-op)
+		 */
 		pad = (len % 4) ? 4 - (len % 4) : 0;
 		for (i = 0; i < pad; i++)
 			*buf++ = 0x000;

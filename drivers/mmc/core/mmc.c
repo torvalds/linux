@@ -26,6 +26,8 @@
 #include "mmc_ops.h"
 #include "sd_ops.h"
 
+#define DEFAULT_CMD6_TIMEOUT_MS	500
+
 static const unsigned int tran_exp[] = {
 	10000,		100000,		1000000,	10000000,
 	0,		0,		0,		0
@@ -571,6 +573,7 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		card->erased_byte = 0x0;
 
 	/* eMMC v4.5 or later */
+	card->ext_csd.generic_cmd6_time = DEFAULT_CMD6_TIMEOUT_MS;
 	if (card->ext_csd.rev >= 6) {
 		card->ext_csd.feature_support |= MMC_DISCARD_FEATURE;
 
@@ -1029,6 +1032,10 @@ static int mmc_select_hs(struct mmc_card *card)
 		err = mmc_switch_status(card);
 	}
 
+	if (err)
+		pr_warn("%s: switch to high-speed failed, err:%d\n",
+			mmc_hostname(card->host), err);
+
 	return err;
 }
 
@@ -1259,17 +1266,26 @@ static int mmc_select_hs400es(struct mmc_card *card)
 		goto out_err;
 	}
 
+	if (card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400_1_2V)
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
+
+	if (err && card->mmc_avail_type & EXT_CSD_CARD_TYPE_HS400_1_8V)
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
+
+	/* If fails try again during next card power cycle */
+	if (err)
+		goto out_err;
+
 	err = mmc_select_bus_width(card);
 	if (err < 0)
 		goto out_err;
 
 	/* Switch card to HS mode */
 	err = mmc_select_hs(card);
-	if (err) {
-		pr_err("%s: switch to high-speed failed, err:%d\n",
-			mmc_hostname(host), err);
+	if (err)
 		goto out_err;
-	}
+
+	mmc_set_clock(host, card->ext_csd.hs_max_dtr);
 
 	err = mmc_switch_status(card);
 	if (err)

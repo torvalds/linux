@@ -125,6 +125,11 @@ struct nfs_fattr {
 		| NFS_ATTR_FATTR_V4_SECURITY_LABEL)
 
 /*
+ * Maximal number of supported layout drivers.
+ */
+#define NFS_MAX_LAYOUT_TYPES 8
+
+/*
  * Info on the file system
  */
 struct nfs_fsinfo {
@@ -139,7 +144,8 @@ struct nfs_fsinfo {
 	__u64			maxfilesize;
 	struct timespec		time_delta; /* server time granularity */
 	__u32			lease_time; /* in seconds */
-	__u32			layouttype; /* supported pnfs layout driver */
+	__u32			nlayouttypes; /* number of layouttypes */
+	__u32			layouttype[NFS_MAX_LAYOUT_TYPES]; /* supported pnfs layout driver */
 	__u32			blksize; /* preferred pnfs io block size */
 	__u32			clone_blksize; /* granularity of a CLONE operation */
 };

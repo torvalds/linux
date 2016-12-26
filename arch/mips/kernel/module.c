@@ -20,6 +20,7 @@
 
 #undef DEBUG
 
+#include <linux/extable.h>
 #include <linux/moduleloader.h>
 #include <linux/elf.h>
 #include <linux/mm.h>

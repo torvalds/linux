@@ -50,4 +50,8 @@
 #define EFX_WORKAROUND_35388(efx)					\
 	(efx_nic_rev(efx) == EFX_REV_HUNT_A0 && EFX_EF10_WORKAROUND_35388(efx))
 
+/* Moderation timer access must go through MCDI */
+#define EFX_EF10_WORKAROUND_61265(efx)					\
+	(((struct efx_ef10_nic_data *)efx->nic_data)->workaround_61265)
+
 #endif /* EFX_WORKAROUNDS_H */

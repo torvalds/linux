@@ -250,6 +250,8 @@ struct NCR5380_cmd {
 
 #define NCR5380_CMD_SIZE		(sizeof(struct NCR5380_cmd))
 
+#define NCR5380_PIO_CHUNK_SIZE		256
+
 static inline struct scsi_cmnd *NCR5380_to_scmd(struct NCR5380_cmd *ncmd_ptr)
 {
 	return ((struct scsi_cmnd *)ncmd_ptr) - 1;
@@ -292,8 +294,14 @@ static void NCR5380_reselect(struct Scsi_Host *instance);
 static struct scsi_cmnd *NCR5380_select(struct Scsi_Host *, struct scsi_cmnd *);
 static int NCR5380_transfer_dma(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
 static int NCR5380_transfer_pio(struct Scsi_Host *instance, unsigned char *phase, int *count, unsigned char **data);
-static int NCR5380_poll_politely(struct Scsi_Host *, int, int, int, int);
 static int NCR5380_poll_politely2(struct Scsi_Host *, int, int, int, int, int, int, int);
+
+static inline int NCR5380_poll_politely(struct Scsi_Host *instance,
+					int reg, int bit, int val, int wait)
+{
+	return NCR5380_poll_politely2(instance, reg, bit, val,
+						reg, bit, val, wait);
+}
 
 #endif				/* __KERNEL__ */
 #endif				/* NCR5380_H */

@@ -43,12 +43,14 @@
 #define STATUS_AE_BIT		5	/* Exception active */
 #define STATUS_DE_BIT		6	/* PC is in delay slot */
 #define STATUS_U_BIT		7	/* User/Kernel mode */
+#define STATUS_Z_BIT            11
 #define STATUS_L_BIT		12	/* Loop inhibit */
 
 /* These masks correspond to the status word(STATUS_32) bits */
 #define STATUS_AE_MASK		(1<<STATUS_AE_BIT)
 #define STATUS_DE_MASK		(1<<STATUS_DE_BIT)
 #define STATUS_U_MASK		(1<<STATUS_U_BIT)
+#define STATUS_Z_MASK		(1<<STATUS_Z_BIT)
 #define STATUS_L_MASK		(1<<STATUS_L_BIT)
 
 /*
@@ -95,7 +97,7 @@
 /* Auxiliary registers */
 #define AUX_IDENTITY		4
 #define AUX_INTR_VEC_BASE	0x25
-#define AUX_NON_VOL		0x5e
+#define AUX_VOL			0x5e
 
 /*
  * Floating Pt Registers
@@ -240,14 +242,6 @@ struct bcr_extn_xymem {
 #endif
 };
 
-struct bcr_perip {
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	unsigned int start:8, pad2:8, sz:8, ver:8;
-#else
-	unsigned int ver:8, sz:8, pad2:8, start:8;
-#endif
-};
-
 struct bcr_iccm_arcompact {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int base:16, pad:5, sz:3, ver:8;
@@ -357,10 +351,11 @@ struct cpuinfo_arc {
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
 	struct bcr_isa isa;
+	const char *details, *name;
 	unsigned int vec_base;
 	struct cpuinfo_arc_ccm iccm, dccm;
 	struct {
-		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, pad1:3,
+		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
 			     fpu_sp:1, fpu_dp:1, pad2:6,
 			     debug:1, ap:1, smart:1, rtt:1, pad3:4,
 			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;

@@ -35,6 +35,7 @@
  *
  */
 
+#include <asm/unaligned.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -63,51 +64,80 @@ module_param(debug, int, 0644);    /* debug level (0,1,2) */
 /* ----------------------------------------------------------------------- */
 
 static int get_key_haup_common(struct IR_i2c *ir, enum rc_type *protocol,
-			       u32 *scancode, u8 *ptoggle, int size, int offset)
+					u32 *scancode, u8 *ptoggle, int size)
 {
 	unsigned char buf[6];
-	int start, range, toggle, dev, code, ircode;
+	int start, range, toggle, dev, code, ircode, vendor;
 
 	/* poll IR chip */
 	if (size != i2c_master_recv(ir->c, buf, size))
 		return -EIO;
 
-	/* split rc5 data block ... */
-	start  = (buf[offset] >> 7) &    1;
-	range  = (buf[offset] >> 6) &    1;
-	toggle = (buf[offset] >> 5) &    1;
-	dev    =  buf[offset]       & 0x1f;
-	code   = (buf[offset+1] >> 2) & 0x3f;
+	if (buf[0] & 0x80) {
+		int offset = (size == 6) ? 3 : 0;
 
-	/* rc5 has two start bits
-	 * the first bit must be one
-	 * the second bit defines the command range (1 = 0-63, 0 = 64 - 127)
-	 */
-	if (!start)
-		/* no key pressed */
-		return 0;
+		/* split rc5 data block ... */
+		start  = (buf[offset] >> 7) &    1;
+		range  = (buf[offset] >> 6) &    1;
+		toggle = (buf[offset] >> 5) &    1;
+		dev    =  buf[offset]       & 0x1f;
+		code   = (buf[offset+1] >> 2) & 0x3f;
 
-	/* filter out invalid key presses */
-	ircode = (start << 12) | (toggle << 11) | (dev << 6) | code;
-	if ((ircode & 0x1fff) == 0x1fff)
-		return 0;
+		/* rc5 has two start bits
+		 * the first bit must be one
+		 * the second bit defines the command range:
+		 * 1 = 0-63, 0 = 64 - 127
+		 */
+		if (!start)
+			/* no key pressed */
+			return 0;
 
-	if (!range)
-		code += 64;
+		/* filter out invalid key presses */
+		ircode = (start << 12) | (toggle << 11) | (dev << 6) | code;
+		if ((ircode & 0x1fff) == 0x1fff)
+			return 0;
 
-	dprintk(1,"ir hauppauge (rc5): s%d r%d t%d dev=%d code=%d\n",
-		start, range, toggle, dev, code);
+		if (!range)
+			code += 64;
 
-	*protocol = RC_TYPE_RC5;
-	*scancode = RC_SCANCODE_RC5(dev, code);
-	*ptoggle = toggle;
-	return 1;
+		dprintk(1, "ir hauppauge (rc5): s%d r%d t%d dev=%d code=%d\n",
+			start, range, toggle, dev, code);
+
+		*protocol = RC_TYPE_RC5;
+		*scancode = RC_SCANCODE_RC5(dev, code);
+		*ptoggle = toggle;
+
+		return 1;
+	} else if (size == 6 && (buf[0] & 0x40)) {
+		code = buf[4];
+		dev = buf[3];
+		vendor = get_unaligned_be16(buf + 1);
+
+		if (vendor == 0x800f) {
+			*ptoggle = (dev & 0x80) != 0;
+			*protocol = RC_TYPE_RC6_MCE;
+			dev &= 0x7f;
+			dprintk(1, "ir hauppauge (rc6-mce): t%d vendor=%d dev=%d code=%d\n",
+						*ptoggle, vendor, dev, code);
+		} else {
+			*ptoggle = 0;
+			*protocol = RC_TYPE_RC6_6A_32;
+			dprintk(1, "ir hauppauge (rc6-6a-32): vendor=%d dev=%d code=%d\n",
+							vendor, dev, code);
+		}
+
+		*scancode = RC_SCANCODE_RC6_6A(vendor, dev, code);
+
+		return 1;
+	}
+
+	return 0;
 }
 
 static int get_key_haup(struct IR_i2c *ir, enum rc_type *protocol,
 			u32 *scancode, u8 *toggle)
 {
-	return get_key_haup_common (ir, protocol, scancode, toggle, 3, 0);
+	return get_key_haup_common(ir, protocol, scancode, toggle, 3);
 }
 
 static int get_key_haup_xvr(struct IR_i2c *ir, enum rc_type *protocol,
@@ -126,7 +156,7 @@ static int get_key_haup_xvr(struct IR_i2c *ir, enum rc_type *protocol,
 	if (ret != 1)
 		return (ret < 0) ? ret : -EINVAL;
 
-	return get_key_haup_common(ir, protocol, scancode, toggle, 6, 3);
+	return get_key_haup_common(ir, protocol, scancode, toggle, 6);
 }
 
 static int get_key_pixelview(struct IR_i2c *ir, enum rc_type *protocol,
@@ -347,7 +377,7 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	case 0x71:
 		name        = "Hauppauge/Zilog Z8";
 		ir->get_key = get_key_haup_xvr;
-		rc_type     = RC_BIT_RC5;
+		rc_type     = RC_BIT_RC5 | RC_BIT_RC6_MCE | RC_BIT_RC6_6A_32;
 		ir_codes    = RC_MAP_HAUPPAUGE;
 		break;
 	}

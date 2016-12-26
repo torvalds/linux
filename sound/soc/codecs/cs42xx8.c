@@ -411,12 +411,14 @@ static const struct snd_soc_codec_driver cs42xx8_driver = {
 	.probe = cs42xx8_codec_probe,
 	.idle_bias_off = true,
 
-	.controls = cs42xx8_snd_controls,
-	.num_controls = ARRAY_SIZE(cs42xx8_snd_controls),
-	.dapm_widgets = cs42xx8_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(cs42xx8_dapm_widgets),
-	.dapm_routes = cs42xx8_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(cs42xx8_dapm_routes),
+	.component_driver = {
+		.controls		= cs42xx8_snd_controls,
+		.num_controls		= ARRAY_SIZE(cs42xx8_snd_controls),
+		.dapm_widgets		= cs42xx8_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(cs42xx8_dapm_widgets),
+		.dapm_routes		= cs42xx8_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(cs42xx8_dapm_routes),
+	},
 };
 
 const struct cs42xx8_driver_data cs42448_data = {

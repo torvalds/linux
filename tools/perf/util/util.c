@@ -15,6 +15,7 @@
 #include <byteswap.h>
 #include <linux/kernel.h>
 #include <linux/log2.h>
+#include <linux/time64.h>
 #include <unistd.h>
 #include "callchain.h"
 #include "strlist.h"

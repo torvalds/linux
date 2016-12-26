@@ -71,12 +71,7 @@ static int omap3_rom_rng_get_random(void *buf, unsigned int count)
 	return 0;
 }
 
-static int omap3_rom_rng_data_present(struct hwrng *rng, int wait)
-{
-	return 1;
-}
-
-static int omap3_rom_rng_data_read(struct hwrng *rng, u32 *data)
+static int omap3_rom_rng_read(struct hwrng *rng, void *data, size_t max, bool w)
 {
 	int r;
 
@@ -88,8 +83,7 @@ static int omap3_rom_rng_data_read(struct hwrng *rng, u32 *data)
 
 static struct hwrng omap3_rom_rng_ops = {
 	.name		= "omap3-rom",
-	.data_present	= omap3_rom_rng_data_present,
-	.data_read	= omap3_rom_rng_data_read,
+	.read		= omap3_rom_rng_read,
 };
 
 static int omap3_rom_rng_probe(struct platform_device *pdev)

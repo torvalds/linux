@@ -114,7 +114,7 @@ static struct line6_pcm_properties toneport_pcm_properties = {
 	.rates = {
 			    .nrats = 1,
 			    .rats = &toneport_ratden},
-	.bytes_per_frame = 4
+	.bytes_per_channel = 2
 };
 
 static const struct {
@@ -177,7 +177,7 @@ static int snd_toneport_monitor_put(struct snd_kcontrol *kcontrol,
 	line6pcm->volume_monitor = ucontrol->value.integer.value[0];
 
 	if (line6pcm->volume_monitor > 0) {
-		err = line6_pcm_acquire(line6pcm, LINE6_STREAM_MONITOR);
+		err = line6_pcm_acquire(line6pcm, LINE6_STREAM_MONITOR, true);
 		if (err < 0) {
 			line6pcm->volume_monitor = 0;
 			line6_pcm_release(line6pcm, LINE6_STREAM_MONITOR);
@@ -246,7 +246,7 @@ static void toneport_start_pcm(unsigned long arg)
 	struct usb_line6_toneport *toneport = (struct usb_line6_toneport *)arg;
 	struct usb_line6 *line6 = &toneport->line6;
 
-	line6_pcm_acquire(line6->line6pcm, LINE6_STREAM_MONITOR);
+	line6_pcm_acquire(line6->line6pcm, LINE6_STREAM_MONITOR, true);
 }
 
 /* control definition */

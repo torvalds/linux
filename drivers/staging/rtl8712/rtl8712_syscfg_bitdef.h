@@ -68,11 +68,13 @@
 #define SYS_CLKSEL		BIT(SYS_CLKSEL_SHT) /* System Clock 80MHz*/
 #define PS_CLKSEL_SHT		1
 #define PS_CLKSEL		BIT(PS_CLKSEL_SHT) /*System power save
-						    * clock select.*/
+						    * clock select.
+						    */
 #define CPU_CLKSEL_SHT		2
 #define CPU_CLKSEL		BIT(CPU_CLKSEL_SHT) /* System Clock select,
 						     * 1: AFE source,
-						     * 0: System clock(L-Bus)*/
+						     * 0: System clock(L-Bus)
+						     */
 #define INT32K_EN_SHT		3
 #define INT32K_EN		BIT(INT32K_EN_SHT)
 #define MACSLP_SHT		4
@@ -85,10 +87,12 @@
 #define RING_CLK_EN		BIT(RING_CLK_EN_SHT)
 #define SWHW_SEL_SHT		14
 #define SWHW_SEL		BIT(SWHW_SEL_SHT) /* Load done,
-						   * control path switch.*/
+						   * control path switch.
+						   */
 #define FWHW_SEL_SHT		15
 #define FWHW_SEL		BIT(FWHW_SEL_SHT) /* Sleep exit,
-						   * control path switch.*/
+						   * control path switch.
+						   */
 
 /*9346CR*/
 #define	_VPDIDX_MSK		0xFF00
@@ -118,10 +122,12 @@
 #define	AFE_MISC_E32_EN		BIT(AFE_MISC_E32_EN_SHT)
 #define	AFE_MISC_MBEN_SHT	1
 #define	AFE_MISC_MBEN		BIT(AFE_MISC_MBEN_SHT)/* Enable AFE Macro
-						       * Block's Mbias.*/
+						       * Block's Mbias.
+						       */
 #define	AFE_MISC_BGEN_SHT	0
 #define	AFE_MISC_BGEN		BIT(AFE_MISC_BGEN_SHT)/* Enable AFE Macro
-						       * Block's Bandgap.*/
+						       * Block's Bandgap.
+						       */
 
 
 /*--------------------------------------------------------------------------*/
@@ -149,10 +155,12 @@
 
 /* EFUSE_CTRL*/
 #define EF_FLAG			BIT(31)		/* Access Flag, Write:1;
-						 *	        Read:0*/
+						 *	        Read:0
+						 */
 #define EF_PGPD			0x70000000	/* E-fuse Program time*/
 #define EF_RDT			0x0F000000	/* E-fuse read time: in the
-						 * unit of cycle time*/
+						 * unit of cycle time
+						 */
 #define EF_PDN_EN		BIT(19)		/* EFuse Power down enable*/
 #define ALD_EN			BIT(18)		/* Autoload Enable*/
 #define EF_ADDR			0x0003FF00	/* Access Address*/
@@ -164,7 +172,8 @@
 /* EFUSE_CLK_CTRL*/
 #define EFUSE_CLK_EN		BIT(1)		/* E-Fuse Clock Enable*/
 #define EFUSE_CLK_SEL		BIT(0)		/* E-Fuse Clock Select,
-						 * 0:500K, 1:40M*/
+						 * 0:500K, 1:40M
+						 */
 
 #endif	/*__RTL8712_SYSCFG_BITDEF_H__*/
 

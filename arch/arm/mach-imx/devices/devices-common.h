@@ -154,18 +154,6 @@ struct platform_device *__init imx_add_imx_ssi(
 		const struct imx_ssi_platform_data *pdata);
 
 #include <linux/platform_data/serial-imx.h>
-struct imx_imx_uart_3irq_data {
-	int id;
-	resource_size_t iobase;
-	resource_size_t iosize;
-	resource_size_t irqrx;
-	resource_size_t irqtx;
-	resource_size_t irqrts;
-};
-struct platform_device *__init imx_add_imx_uart_3irq(
-		const struct imx_imx_uart_3irq_data *data,
-		const struct imxuart_platform_data *pdata);
-
 struct imx_imx_uart_1irq_data {
 	int id;
 	resource_size_t iobase;

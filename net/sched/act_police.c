@@ -249,6 +249,8 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 			police->tcfp_t_c = now;
 			police->tcfp_toks = toks;
 			police->tcfp_ptoks = ptoks;
+			if (police->tcfp_result == TC_ACT_SHOT)
+				police->tcf_qstats.drops++;
 			spin_unlock(&police->tcf_lock);
 			return police->tcfp_result;
 		}
@@ -261,8 +263,8 @@ static int tcf_act_police(struct sk_buff *skb, const struct tc_action *a,
 	return police->tcf_action;
 }
 
-static int
-tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+static int tcf_act_police_dump(struct sk_buff *skb, struct tc_action *a,
+			       int bind, int ref)
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_police *police = to_police(a);
@@ -347,14 +349,12 @@ static struct pernet_operations police_net_ops = {
 	.size = sizeof(struct tc_action_net),
 };
 
-static int __init
-police_init_module(void)
+static int __init police_init_module(void)
 {
 	return tcf_register_action(&act_police_ops, &police_net_ops);
 }
 
-static void __exit
-police_cleanup_module(void)
+static void __exit police_cleanup_module(void)
 {
 	tcf_unregister_action(&act_police_ops, &police_net_ops);
 }

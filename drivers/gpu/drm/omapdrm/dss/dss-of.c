@@ -125,16 +125,15 @@ u32 dss_of_port_get_port_number(struct device_node *port)
 
 static struct device_node *omapdss_of_get_remote_port(const struct device_node *node)
 {
-	struct device_node *np, *np_parent;
+	struct device_node *np;
 
 	np = of_parse_phandle(node, "remote-endpoint", 0);
 	if (!np)
 		return NULL;
 
-	np_parent = of_get_next_parent(np);
-	of_node_put(np);
+	np = of_get_next_parent(np);
 
-	return np_parent;
+	return np;
 }
 
 struct device_node *

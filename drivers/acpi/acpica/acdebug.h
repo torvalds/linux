@@ -155,7 +155,7 @@ acpi_status acpi_db_disassemble_method(char *name);
 
 void acpi_db_disassemble_aml(char *statements, union acpi_parse_object *op);
 
-void acpi_db_batch_execute(char *count_arg);
+void acpi_db_evaluate_predefined_names(void);
 
 /*
  * dbnames - namespace commands

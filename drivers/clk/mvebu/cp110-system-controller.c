@@ -81,13 +81,6 @@ enum {
 #define CP110_GATE_EIP150		25
 #define CP110_GATE_EIP197		26
 
-static struct clk *cp110_clks[CP110_CLK_NUM];
-
-static struct clk_onecell_data cp110_clk_data = {
-	.clks = cp110_clks,
-	.clk_num = CP110_CLK_NUM,
-};
-
 struct cp110_gate_clk {
 	struct clk_hw hw;
 	struct regmap *regmap;
@@ -142,6 +135,8 @@ static struct clk *cp110_register_gate(const char *name,
 	if (!gate)
 		return ERR_PTR(-ENOMEM);
 
+	memset(&init, 0, sizeof(init));
+
 	init.name = name;
 	init.ops = &cp110_gate_ops;
 	init.parent_names = &parent_name;
@@ -194,7 +189,8 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 	struct regmap *regmap;
 	struct device_node *np = pdev->dev.of_node;
 	const char *ppv2_name, *apll_name, *core_name, *eip_name, *nand_name;
-	struct clk *clk;
+	struct clk_onecell_data *cp110_clk_data;
+	struct clk *clk, **cp110_clks;
 	u32 nand_clk_ctrl;
 	int i, ret;
 
@@ -206,6 +202,20 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 			  &nand_clk_ctrl);
 	if (ret)
 		return ret;
+
+	cp110_clks = devm_kcalloc(&pdev->dev, sizeof(struct clk *),
+				  CP110_CLK_NUM, GFP_KERNEL);
+	if (!cp110_clks)
+		return -ENOMEM;
+
+	cp110_clk_data = devm_kzalloc(&pdev->dev,
+				      sizeof(*cp110_clk_data),
+				      GFP_KERNEL);
+	if (!cp110_clk_data)
+		return -ENOMEM;
+
+	cp110_clk_data->clks = cp110_clks;
+	cp110_clk_data->clk_num = CP110_CLK_NUM;
 
 	/* Register the APLL which is the root of the clk tree */
 	of_property_read_string_index(np, "core-clock-output-names",
@@ -334,9 +344,11 @@ static int cp110_syscon_clk_probe(struct platform_device *pdev)
 		cp110_clks[CP110_MAX_CORE_CLOCKS + i] = clk;
 	}
 
-	ret = of_clk_add_provider(np, cp110_of_clk_get, &cp110_clk_data);
+	ret = of_clk_add_provider(np, cp110_of_clk_get, cp110_clk_data);
 	if (ret)
 		goto fail_clk_add;
+
+	platform_set_drvdata(pdev, cp110_clks);
 
 	return 0;
 
@@ -364,6 +376,7 @@ fail0:
 
 static int cp110_syscon_clk_remove(struct platform_device *pdev)
 {
+	struct clk **cp110_clks = platform_get_drvdata(pdev);
 	int i;
 
 	of_clk_del_provider(pdev->dev.of_node);

@@ -260,11 +260,12 @@ static int ext4_readdir(struct file *file, struct dir_context *ctx)
 					/* Directory is encrypted */
 					err = fscrypt_fname_disk_to_usr(inode,
 						0, 0, &de_name, &fstr);
+					de_name = fstr;
 					fstr.len = save_len;
-					if (err < 0)
+					if (err)
 						goto errout;
 					if (!dir_emit(ctx,
-					    fstr.name, err,
+					    de_name.name, de_name.len,
 					    le32_to_cpu(de->inode),
 					    get_dtype(sb, de->file_type)))
 						goto done;
@@ -627,7 +628,7 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 		      int buf_size)
 {
 	struct ext4_dir_entry_2 *de;
-	int nlen, rlen;
+	int rlen;
 	unsigned int offset = 0;
 	char *top;
 
@@ -637,7 +638,6 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 		if (ext4_check_dir_entry(dir, NULL, de, bh,
 					 buf, buf_size, offset))
 			return -EFSCORRUPTED;
-		nlen = EXT4_DIR_REC_LEN(de->name_len);
 		rlen = ext4_rec_len_from_disk(de->rec_len, buf_size);
 		de = (struct ext4_dir_entry_2 *)((char *)de + rlen);
 		offset += rlen;

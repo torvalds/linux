@@ -159,13 +159,8 @@
  * PFNs are used to describe any physical page; this means
  * PFN 0 == physical address 0.
  */
-#if defined(__virt_to_phys)
-#define PHYS_OFFSET	PLAT_PHYS_OFFSET
-#define PHYS_PFN_OFFSET	((unsigned long)(PHYS_OFFSET >> PAGE_SHIFT))
 
-#define virt_to_pfn(kaddr) (__pa(kaddr) >> PAGE_SHIFT)
-
-#elif defined(CONFIG_ARM_PATCH_PHYS_VIRT)
+#if defined(CONFIG_ARM_PATCH_PHYS_VIRT)
 
 /*
  * Constants used to force the right instruction encodings and shifts
@@ -181,10 +176,6 @@ extern const void *__pv_table_begin, *__pv_table_end;
 
 #define PHYS_OFFSET	((phys_addr_t)__pv_phys_pfn_offset << PAGE_SHIFT)
 #define PHYS_PFN_OFFSET	(__pv_phys_pfn_offset)
-
-#define virt_to_pfn(kaddr) \
-	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
-	 PHYS_PFN_OFFSET)
 
 #define __pv_stub(from,to,instr,type)			\
 	__asm__("@ __pv_stub\n"				\
@@ -257,11 +248,11 @@ static inline unsigned long __phys_to_virt(phys_addr_t x)
 	return x - PHYS_OFFSET + PAGE_OFFSET;
 }
 
+#endif
+
 #define virt_to_pfn(kaddr) \
 	((((unsigned long)(kaddr) - PAGE_OFFSET) >> PAGE_SHIFT) + \
 	 PHYS_PFN_OFFSET)
-
-#endif
 
 /*
  * These are *only* valid on the kernel direct mapped RAM memory.

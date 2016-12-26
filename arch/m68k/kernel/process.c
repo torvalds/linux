@@ -203,11 +203,8 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 }
 
 /* Fill in the fpu structure for a core dump.  */
-#ifdef CONFIG_FPU
 int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 {
-	char fpustate[216];
-
 	if (FPU_IS_EMU) {
 		int i;
 
@@ -222,37 +219,40 @@ int dump_fpu (struct pt_regs *regs, struct user_m68kfp_struct *fpu)
 		return 1;
 	}
 
-	/* First dump the fpu context to avoid protocol violation.  */
-	asm volatile ("fsave %0" :: "m" (fpustate[0]) : "memory");
-	if (!CPU_IS_060 ? !fpustate[0] : !fpustate[2])
-		return 0;
+	if (IS_ENABLED(CONFIG_FPU)) {
+		char fpustate[216];
 
-	if (CPU_IS_COLDFIRE) {
-		asm volatile ("fmovel %/fpiar,%0\n\t"
-			      "fmovel %/fpcr,%1\n\t"
-			      "fmovel %/fpsr,%2\n\t"
-			      "fmovemd %/fp0-%/fp7,%3"
-			      :
-			      : "m" (fpu->fpcntl[0]),
-				"m" (fpu->fpcntl[1]),
-				"m" (fpu->fpcntl[2]),
-				"m" (fpu->fpregs[0])
-			      : "memory");
-	} else {
-		asm volatile ("fmovem %/fpiar/%/fpcr/%/fpsr,%0"
-			      :
-			      : "m" (fpu->fpcntl[0])
-			      : "memory");
-		asm volatile ("fmovemx %/fp0-%/fp7,%0"
-			      :
-			      : "m" (fpu->fpregs[0])
-			      : "memory");
+		/* First dump the fpu context to avoid protocol violation.  */
+		asm volatile ("fsave %0" :: "m" (fpustate[0]) : "memory");
+		if (!CPU_IS_060 ? !fpustate[0] : !fpustate[2])
+			return 0;
+
+		if (CPU_IS_COLDFIRE) {
+			asm volatile ("fmovel %/fpiar,%0\n\t"
+				      "fmovel %/fpcr,%1\n\t"
+				      "fmovel %/fpsr,%2\n\t"
+				      "fmovemd %/fp0-%/fp7,%3"
+				      :
+				      : "m" (fpu->fpcntl[0]),
+					"m" (fpu->fpcntl[1]),
+					"m" (fpu->fpcntl[2]),
+					"m" (fpu->fpregs[0])
+				      : "memory");
+		} else {
+			asm volatile ("fmovem %/fpiar/%/fpcr/%/fpsr,%0"
+				      :
+				      : "m" (fpu->fpcntl[0])
+				      : "memory");
+			asm volatile ("fmovemx %/fp0-%/fp7,%0"
+				      :
+				      : "m" (fpu->fpregs[0])
+				      : "memory");
+		}
 	}
 
 	return 1;
 }
 EXPORT_SYMBOL(dump_fpu);
-#endif /* CONFIG_FPU */
 
 unsigned long get_wchan(struct task_struct *p)
 {

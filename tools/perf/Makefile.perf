@@ -144,6 +144,10 @@ $(call allow-override,LD,$(CROSS_COMPILE)ld)
 
 LD += $(EXTRA_LDFLAGS)
 
+HOSTCC  ?= gcc
+HOSTLD  ?= ld
+HOSTAR  ?= ar
+
 PKG_CONFIG = $(CROSS_COMPILE)pkg-config
 
 RM      = rm -f
@@ -165,7 +169,7 @@ SUBCMD_DIR	= $(srctree)/tools/lib/subcmd/
 # non-config cases
 config := 1
 
-NON_CONFIG_TARGETS := clean TAGS tags cscope help
+NON_CONFIG_TARGETS := clean TAGS tags cscope help install-doc
 
 ifdef MAKECMDGOALS
 ifeq ($(filter-out $(NON_CONFIG_TARGETS),$(MAKECMDGOALS)),)
@@ -345,7 +349,17 @@ strip: $(PROGRAMS) $(OUTPUT)perf
 PERF_IN := $(OUTPUT)perf-in.o
 
 export srctree OUTPUT RM CC LD AR CFLAGS V BISON FLEX AWK
+export HOSTCC HOSTLD HOSTAR
 include $(srctree)/tools/build/Makefile.include
+
+JEVENTS       := $(OUTPUT)pmu-events/jevents
+JEVENTS_IN    := $(OUTPUT)pmu-events/jevents-in.o
+
+PMU_EVENTS_IN := $(OUTPUT)pmu-events/pmu-events-in.o
+
+export JEVENTS
+
+build := -f $(srctree)/tools/build/Makefile.build dir=. obj
 
 $(PERF_IN): prepare FORCE
 	@(test -f ../../include/uapi/linux/perf_event.h && ( \
@@ -429,11 +443,32 @@ $(PERF_IN): prepare FORCE
 	@(test -f ../../include/asm-generic/bitops/fls64.h && ( \
         (diff -B ../include/asm-generic/bitops/fls64.h ../../include/asm-generic/bitops/fls64.h >/dev/null) \
         || echo "Warning: tools/include/asm-generic/bitops/fls64.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/linux/coresight-pmu.h && ( \
+	(diff -B ../include/linux/coresight-pmu.h ../../include/linux/coresight-pmu.h >/dev/null) \
+	|| echo "Warning: tools/include/linux/coresight-pmu.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/asm-generic/mman-common.h && ( \
+	(diff -B ../include/uapi/asm-generic/mman-common.h ../../include/uapi/asm-generic/mman-common.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/asm-generic/mman-common.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/asm-generic/mman.h && ( \
+	(diff -B -I "^#include <\(uapi/\)*asm-generic/mman-common.h>$$" ../include/uapi/asm-generic/mman.h ../../include/uapi/asm-generic/mman.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/asm-generic/mman.h differs from kernel" >&2 )) || true
+	@(test -f ../../include/uapi/linux/mman.h && ( \
+	(diff -B -I "^#include <\(uapi/\)*asm/mman.h>$$" ../include/uapi/linux/mman.h ../../include/uapi/linux/mman.h >/dev/null) \
+	|| echo "Warning: tools/include/uapi/linux/mman.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=perf
 
-$(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)
+$(JEVENTS_IN): FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=pmu-events obj=jevents
+
+$(JEVENTS): $(JEVENTS_IN)
+	$(QUIET_LINK)$(HOSTCC) $(JEVENTS_IN) -o $@
+
+$(PMU_EVENTS_IN): $(JEVENTS) FORCE
+	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=pmu-events obj=pmu-events
+
+$(OUTPUT)perf: $(PERFLIBS) $(PERF_IN) $(PMU_EVENTS_IN) $(LIBTRACEEVENT_DYNAMIC_LIST)
 	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $(LIBTRACEEVENT_DYNAMIC_LIST_LDFLAGS) \
-		$(PERF_IN) $(LIBS) -o $@
+		$(PERF_IN) $(PMU_EVENTS_IN) $(LIBS) -o $@
 
 $(GTK_IN): fixdep FORCE
 	$(Q)$(MAKE) $(build)=gtk
@@ -461,6 +496,8 @@ perf.spec $(SCRIPTS) \
 #
 ifneq ($(OUTPUT),)
 %.o: $(OUTPUT)%.o
+	@echo "    # Redirected target $@ => $(OUTPUT)$@"
+pmu-events/%.o: $(OUTPUT)pmu-events/%.o
 	@echo "    # Redirected target $@ => $(OUTPUT)$@"
 util/%.o: $(OUTPUT)util/%.o
 	@echo "    # Redirected target $@ => $(OUTPUT)$@"
@@ -717,10 +754,11 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIB_FILE) $(OUTPUT)perf-archive $(OUTPUT)perf-with-kcore $(LANG_BINDINGS)
 	$(Q)find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
-	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32
+	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32 $(OUTPUT)pmu-events/jevents
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex* \
 		$(OUTPUT)util/intel-pt-decoder/inat-tables.c $(OUTPUT)fixdep \
-		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue,relocation}.c
+		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue,relocation}.c \
+		$(OUTPUT)pmu-events/pmu-events.c
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
 	$(python-clean)
 

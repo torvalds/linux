@@ -6,5 +6,5 @@ config OCTEON_USB
 	  Networks' products in the Octeon family.
 
 	  To compile this driver as a module, choose M here. The module
-	  will be called octeon-usb.
+	  will be called octeon-hcd.
 

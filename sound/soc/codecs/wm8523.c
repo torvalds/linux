@@ -413,17 +413,19 @@ static int wm8523_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8523 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8523 = {
 	.probe =	wm8523_probe,
 	.set_bias_level = wm8523_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = wm8523_controls,
-	.num_controls = ARRAY_SIZE(wm8523_controls),
-	.dapm_widgets = wm8523_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8523_dapm_widgets),
-	.dapm_routes = wm8523_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm8523_dapm_routes),
+	.component_driver = {
+		.controls		= wm8523_controls,
+		.num_controls		= ARRAY_SIZE(wm8523_controls),
+		.dapm_widgets		= wm8523_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8523_dapm_widgets),
+		.dapm_routes		= wm8523_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm8523_dapm_routes),
+	},
 };
 
 static const struct of_device_id wm8523_of_match[] = {

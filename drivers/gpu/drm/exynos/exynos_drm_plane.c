@@ -238,7 +238,6 @@ static void exynos_plane_atomic_update(struct drm_plane *plane,
 		return;
 
 	plane->crtc = state->crtc;
-	exynos_plane->pending_fb = state->fb;
 
 	if (exynos_crtc->ops->update_plane)
 		exynos_crtc->ops->update_plane(exynos_crtc, exynos_plane);

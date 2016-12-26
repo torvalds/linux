@@ -8,7 +8,7 @@
 
 #include <linux/linkage.h>
 
-ENTRY(strcmp)
+ENTRY_CFI(strcmp)
 	or	r2, r0, r1
 	bmsk_s	r2, r2, 1
 	brne	r2, 0, @.Lcharloop
@@ -75,4 +75,4 @@ ENTRY(strcmp)
 .Lcmpend:
 	j_s.d	[blink]
 	sub	r0, r2, r3
-END(strcmp)
+END_CFI(strcmp)

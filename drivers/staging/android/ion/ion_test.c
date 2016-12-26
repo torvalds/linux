@@ -42,7 +42,8 @@ struct ion_test_data {
 };
 
 static int ion_handle_test_dma(struct device *dev, struct dma_buf *dma_buf,
-		void __user *ptr, size_t offset, size_t size, bool write)
+			       void __user *ptr, size_t offset, size_t size,
+			       bool write)
 {
 	int ret = 0;
 	struct dma_buf_attachment *attach;
@@ -98,7 +99,7 @@ err:
 }
 
 static int ion_handle_test_kernel(struct dma_buf *dma_buf, void __user *ptr,
-		size_t offset, size_t size, bool write)
+				  size_t offset, size_t size, bool write)
 {
 	int ret;
 	unsigned long page_offset = offset >> PAGE_SHIFT;
@@ -144,7 +145,7 @@ err:
 }
 
 static long ion_test_ioctl(struct file *filp, unsigned int cmd,
-						unsigned long arg)
+			   unsigned long arg)
 {
 	struct ion_test_data *test_data = filp->private_data;
 	int ret = 0;
@@ -179,17 +180,19 @@ static long ion_test_ioctl(struct file *filp, unsigned int cmd,
 	case ION_IOC_TEST_DMA_MAPPING:
 	{
 		ret = ion_handle_test_dma(test_data->dev, test_data->dma_buf,
-					u64_to_uptr(data.test_rw.ptr),
-					data.test_rw.offset, data.test_rw.size,
-					data.test_rw.write);
+					  u64_to_uptr(data.test_rw.ptr),
+					  data.test_rw.offset,
+					  data.test_rw.size,
+					  data.test_rw.write);
 		break;
 	}
 	case ION_IOC_TEST_KERNEL_MAPPING:
 	{
 		ret = ion_handle_test_kernel(test_data->dma_buf,
-					u64_to_uptr(data.test_rw.ptr),
-					data.test_rw.offset, data.test_rw.size,
-					data.test_rw.write);
+					     u64_to_uptr(data.test_rw.ptr),
+					     data.test_rw.offset,
+					     data.test_rw.size,
+					     data.test_rw.write);
 		break;
 	}
 	default:
@@ -242,7 +245,7 @@ static int __init ion_test_probe(struct platform_device *pdev)
 	struct ion_test_device *testdev;
 
 	testdev = devm_kzalloc(&pdev->dev, sizeof(struct ion_test_device),
-				GFP_KERNEL);
+			       GFP_KERNEL);
 	if (!testdev)
 		return -ENOMEM;
 

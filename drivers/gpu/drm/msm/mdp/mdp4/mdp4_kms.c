@@ -228,18 +228,21 @@ static struct device_node *mdp4_detect_lcdc_panel(struct drm_device *dev)
 	struct device_node *endpoint, *panel_node;
 	struct device_node *np = dev->dev->of_node;
 
-	endpoint = of_graph_get_next_endpoint(np, NULL);
+	/*
+	 * LVDS/LCDC is the first port described in the list of ports in the
+	 * MDP4 DT node.
+	 */
+	endpoint = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!endpoint) {
-		DBG("no endpoint in MDP4 to fetch LVDS panel\n");
+		DBG("no LVDS remote endpoint\n");
 		return NULL;
 	}
 
-	/* don't proceed if we have an endpoint but no panel_node tied to it */
 	panel_node = of_graph_get_remote_port_parent(endpoint);
 	if (!panel_node) {
-		dev_err(dev->dev, "no valid panel node\n");
+		DBG("no valid panel node in LVDS endpoint\n");
 		of_node_put(endpoint);
-		return ERR_PTR(-ENODEV);
+		return NULL;
 	}
 
 	of_node_put(endpoint);
@@ -262,14 +265,12 @@ static int mdp4_modeset_init_intf(struct mdp4_kms *mdp4_kms,
 	switch (intf_type) {
 	case DRM_MODE_ENCODER_LVDS:
 		/*
-		 * bail out early if:
-		 * - there is no panel node (no need to initialize lcdc
-		 *   encoder and lvds connector), or
-		 * - panel node is a bad pointer
+		 * bail out early if there is no panel node (no need to
+		 * initialize LCDC encoder and LVDS connector)
 		 */
 		panel_node = mdp4_detect_lcdc_panel(dev);
-		if (IS_ERR_OR_NULL(panel_node))
-			return PTR_ERR(panel_node);
+		if (!panel_node)
+			return 0;
 
 		encoder = mdp4_lcdc_encoder_init(dev, panel_node);
 		if (IS_ERR(encoder)) {

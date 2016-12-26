@@ -238,10 +238,12 @@ static struct regmap *si476x_get_regmap(struct device *dev)
 
 static struct snd_soc_codec_driver soc_codec_dev_si476x = {
 	.get_regmap = si476x_get_regmap,
-	.dapm_widgets = si476x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(si476x_dapm_widgets),
-	.dapm_routes = si476x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(si476x_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= si476x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(si476x_dapm_widgets),
+		.dapm_routes		= si476x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(si476x_dapm_routes),
+	},
 };
 
 static int si476x_platform_probe(struct platform_device *pdev)

@@ -308,8 +308,10 @@ static int mxs_gpio_probe(struct platform_device *pdev)
 	writel(~0U, port->base + PINCTRL_IRQSTAT(port) + MXS_CLR);
 
 	irq_base = irq_alloc_descs(-1, 0, 32, numa_node_id());
-	if (irq_base < 0)
-		return irq_base;
+	if (irq_base < 0) {
+		err = irq_base;
+		goto out_iounmap;
+	}
 
 	port->domain = irq_domain_add_legacy(np, 32, irq_base, 0,
 					     &irq_domain_simple_ops, NULL);
@@ -349,6 +351,8 @@ out_irqdomain_remove:
 	irq_domain_remove(port->domain);
 out_irqdesc_free:
 	irq_free_descs(irq_base, 32);
+out_iounmap:
+	iounmap(port->base);
 	return err;
 }
 

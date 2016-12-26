@@ -86,6 +86,7 @@ struct svc_rdma_op_ctxt {
 	unsigned long flags;
 	enum dma_data_direction direction;
 	int count;
+	unsigned int mapped_sges;
 	struct ib_sge sge[RPCSVC_MAXPAGES];
 	struct page *pages[RPCSVC_MAXPAGES];
 };
@@ -136,6 +137,7 @@ struct svcxprt_rdma {
 	int		     sc_ord;		/* RDMA read limit */
 	int                  sc_max_sge;
 	int                  sc_max_sge_rd;	/* max sge for read target */
+	bool		     sc_snd_w_inv;	/* OK to use Send With Invalidate */
 
 	atomic_t             sc_sq_count;	/* Number of SQ WR on queue */
 	unsigned int	     sc_sq_depth;	/* Depth of SQ */
@@ -192,6 +194,14 @@ struct svcxprt_rdma {
 #define RPCRDMA_MAX_BC_REQUESTS	2
 
 #define RPCSVC_MAXPAYLOAD_RDMA	RPCSVC_MAXPAYLOAD
+
+/* Track DMA maps for this transport and context */
+static inline void svc_rdma_count_mappings(struct svcxprt_rdma *rdma,
+					   struct svc_rdma_op_ctxt *ctxt)
+{
+	ctxt->mapped_sges++;
+	atomic_inc(&rdma->sc_dma_used);
+}
 
 /* svc_rdma_backchannel.c */
 extern int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt,

@@ -230,13 +230,6 @@ static int NCR5380_poll_politely2(struct Scsi_Host *instance,
 	return -ETIMEDOUT;
 }
 
-static inline int NCR5380_poll_politely(struct Scsi_Host *instance,
-                                        int reg, int bit, int val, int wait)
-{
-	return NCR5380_poll_politely2(instance, reg, bit, val,
-	                                        reg, bit, val, wait);
-}
-
 #if NDEBUG
 static struct {
 	unsigned char mask;
@@ -360,7 +353,7 @@ static void NCR5380_print_phase(struct Scsi_Host *instance)
 #endif
 
 
-static int probe_irq __initdata;
+static int probe_irq;
 
 /**
  * probe_intr	-	helper for IRQ autoprobe
@@ -372,7 +365,7 @@ static int probe_irq __initdata;
  * used by the IRQ probe code.
  */
 
-static irqreturn_t __init probe_intr(int irq, void *dev_id)
+static irqreturn_t probe_intr(int irq, void *dev_id)
 {
 	probe_irq = irq;
 	return IRQ_HANDLED;
@@ -387,7 +380,7 @@ static irqreturn_t __init probe_intr(int irq, void *dev_id)
  * and then looking to see what interrupt actually turned up.
  */
 
-static int __init __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
+static int __maybe_unused NCR5380_probe_irq(struct Scsi_Host *instance,
 						int possible)
 {
 	struct NCR5380_hostdata *hostdata = shost_priv(instance);
@@ -1854,11 +1847,11 @@ static void NCR5380_information_transfer(struct Scsi_Host *instance)
 						/* XXX - need to source or sink data here, as appropriate */
 					}
 				} else {
-					/* Break up transfer into 3 ms chunks,
-					 * presuming 6 accesses per handshake.
+					/* Transfer a small chunk so that the
+					 * irq mode lock is not held too long.
 					 */
-					transfersize = min((unsigned long)cmd->SCp.this_residual,
-					                   hostdata->accesses_per_ms / 2);
+					transfersize = min(cmd->SCp.this_residual,
+							   NCR5380_PIO_CHUNK_SIZE);
 					len = transfersize;
 					NCR5380_transfer_pio(instance, &phase, &len,
 					                     (unsigned char **)&cmd->SCp.ptr);

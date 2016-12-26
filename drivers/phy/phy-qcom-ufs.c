@@ -283,10 +283,8 @@ static int __ufs_qcom_phy_init_vreg(struct phy *phy,
 			err = 0;
 		}
 		snprintf(prop_name, MAX_PROP_NAME, "%s-always-on", name);
-		if (of_get_property(dev->of_node, prop_name, NULL))
-			vreg->is_always_on = true;
-		else
-			vreg->is_always_on = false;
+		vreg->is_always_on = of_property_read_bool(dev->of_node,
+							   prop_name);
 	}
 
 	if (!strcmp(name, "vdda-pll")) {

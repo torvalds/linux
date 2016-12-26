@@ -30,7 +30,7 @@ divided into five parts.
    called as DVB API, in fact it covers several different video standards
    including DVB-T/T2, DVB-S/S2, DVB-C, ATSC, ISDB-T, ISDB-S, DTMB, etc. The
    complete list of supported standards can be found at
-   :ref:`fe-delivery-system-t`.
+   :c:type:`fe_delivery_system`.
 
 3. The :ref:`third part <remote_controllers>` covers the Remote Controller API.
 

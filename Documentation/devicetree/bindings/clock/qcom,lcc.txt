@@ -7,6 +7,7 @@ Required properties :
 			"qcom,lcc-msm8960"
 			"qcom,lcc-apq8064"
 			"qcom,lcc-ipq8064"
+			"qcom,lcc-mdm9615"
 
 - reg : shall contain base register location and length
 - #clock-cells : shall contain 1

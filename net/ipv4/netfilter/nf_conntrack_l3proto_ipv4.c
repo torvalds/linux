@@ -110,7 +110,7 @@ static unsigned int ipv4_helper(void *priv,
 	if (!help)
 		return NF_ACCEPT;
 
-	/* rcu_read_lock()ed by nf_hook_slow */
+	/* rcu_read_lock()ed by nf_hook_thresh */
 	helper = rcu_dereference(help->helper);
 	if (!helper)
 		return NF_ACCEPT;
@@ -201,47 +201,6 @@ static struct nf_hook_ops ipv4_conntrack_ops[] __read_mostly = {
 		.priority	= NF_IP_PRI_CONNTRACK_CONFIRM,
 	},
 };
-
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-static int log_invalid_proto_min = 0;
-static int log_invalid_proto_max = 255;
-
-static struct ctl_table ip_ct_sysctl_table[] = {
-	{
-		.procname	= "ip_conntrack_max",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "ip_conntrack_count",
-		.maxlen		= sizeof(int),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "ip_conntrack_buckets",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0444,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "ip_conntrack_checksum",
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
-		.procname	= "ip_conntrack_log_invalid",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &log_invalid_proto_min,
-		.extra2		= &log_invalid_proto_max,
-	},
-	{ }
-};
-#endif /* CONFIG_SYSCTL && CONFIG_NF_CONNTRACK_PROC_COMPAT */
 
 /* Fast function for those who don't want to parse /proc (and I don't
    blame them). */
@@ -350,20 +309,6 @@ static struct nf_sockopt_ops so_getorigdst = {
 
 static int ipv4_init_net(struct net *net)
 {
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	struct nf_ip_net *in = &net->ct.nf_ct_proto;
-	in->ctl_table = kmemdup(ip_ct_sysctl_table,
-				sizeof(ip_ct_sysctl_table),
-				GFP_KERNEL);
-	if (!in->ctl_table)
-		return -ENOMEM;
-
-	in->ctl_table[0].data = &nf_conntrack_max;
-	in->ctl_table[1].data = &net->ct.count;
-	in->ctl_table[2].data = &nf_conntrack_htable_size;
-	in->ctl_table[3].data = &net->ct.sysctl_checksum;
-	in->ctl_table[4].data = &net->ct.sysctl_log_invalid;
-#endif
 	return 0;
 }
 
@@ -379,9 +324,6 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv4 __read_mostly = {
 	.nlattr_tuple_size = ipv4_nlattr_tuple_size,
 	.nlattr_to_tuple = ipv4_nlattr_to_tuple,
 	.nla_policy	 = ipv4_nla_policy,
-#endif
-#if defined(CONFIG_SYSCTL) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	.ctl_table_path  = "net/ipv4/netfilter",
 #endif
 	.init_net	 = ipv4_init_net,
 	.me		 = THIS_MODULE,
@@ -492,16 +434,7 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 		goto cleanup_icmpv4;
 	}
 
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	ret = nf_conntrack_ipv4_compat_init();
-	if (ret < 0)
-		goto cleanup_proto;
-#endif
 	return ret;
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
- cleanup_proto:
-	nf_ct_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
-#endif
  cleanup_icmpv4:
 	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_icmp);
  cleanup_udp4:
@@ -520,9 +453,6 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 static void __exit nf_conntrack_l3proto_ipv4_fini(void)
 {
 	synchronize_net();
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)
-	nf_conntrack_ipv4_compat_fini();
-#endif
 	nf_ct_l3proto_unregister(&nf_conntrack_l3proto_ipv4);
 	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_icmp);
 	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_udp4);

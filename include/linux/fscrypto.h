@@ -111,23 +111,6 @@ struct fscrypt_completion_result {
 	struct fscrypt_completion_result ecr = { \
 		COMPLETION_INITIALIZER((ecr).completion), 0 }
 
-static inline int fscrypt_key_size(int mode)
-{
-	switch (mode) {
-	case FS_ENCRYPTION_MODE_AES_256_XTS:
-		return FS_AES_256_XTS_KEY_SIZE;
-	case FS_ENCRYPTION_MODE_AES_256_GCM:
-		return FS_AES_256_GCM_KEY_SIZE;
-	case FS_ENCRYPTION_MODE_AES_256_CBC:
-		return FS_AES_256_CBC_KEY_SIZE;
-	case FS_ENCRYPTION_MODE_AES_256_CTS:
-		return FS_AES_256_CTS_KEY_SIZE;
-	default:
-		BUG();
-	}
-	return 0;
-}
-
 #define FS_FNAME_NUM_SCATTER_ENTRIES	4
 #define FS_CRYPTO_BLOCK_SIZE		16
 #define FS_FNAME_CRYPTO_DIGEST_SIZE	32
@@ -200,13 +183,6 @@ static inline bool fscrypt_valid_contents_enc_mode(u32 mode)
 static inline bool fscrypt_valid_filenames_enc_mode(u32 mode)
 {
 	return (mode == FS_ENCRYPTION_MODE_AES_256_CTS);
-}
-
-static inline u32 fscrypt_validate_encryption_key_size(u32 mode, u32 size)
-{
-	if (size == fscrypt_key_size(mode))
-		return size;
-	return 0;
 }
 
 static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)

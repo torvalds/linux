@@ -780,7 +780,7 @@ static int cfg_wait_idle(void)
 static int __init chp_init(void)
 {
 	struct chp_id chpid;
-	int ret;
+	int state, ret;
 
 	ret = crw_register_handler(CRW_RSC_CPATH, chp_process_crw);
 	if (ret)
@@ -791,7 +791,9 @@ static int __init chp_init(void)
 		return 0;
 	/* Register available channel-paths. */
 	chp_id_for_each(&chpid) {
-		if (chp_info_get_status(chpid) != CHP_STATUS_NOT_RECOGNIZED)
+		state = chp_info_get_status(chpid);
+		if (state == CHP_STATUS_CONFIGURED ||
+		    state == CHP_STATUS_STANDBY)
 			chp_new(chpid);
 	}
 

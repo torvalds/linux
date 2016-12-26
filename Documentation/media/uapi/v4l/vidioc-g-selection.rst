@@ -15,7 +15,12 @@ VIDIOC_G_SELECTION - VIDIOC_S_SELECTION - Get or set one of the selection rectan
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_selection *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_SELECTION, struct v4l2_selection *argp )
+    :name: VIDIOC_G_SELECTION
+
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_SELECTION, struct v4l2_selection *argp )
+    :name: VIDIOC_S_SELECTION
 
 
 Arguments
@@ -36,43 +41,43 @@ Description
 The ioctls are used to query and configure selection rectangles.
 
 To query the cropping (composing) rectangle set struct
-:ref:`v4l2_selection <v4l2-selection>` ``type`` field to the
+:c:type:`v4l2_selection` ``type`` field to the
 respective buffer type. Do not use the multiplanar buffer types. Use
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` instead of
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE`` and use
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT`` instead of
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``. The next step is setting the
-value of struct :ref:`v4l2_selection <v4l2-selection>` ``target``
+value of struct :c:type:`v4l2_selection` ``target``
 field to ``V4L2_SEL_TGT_CROP`` (``V4L2_SEL_TGT_COMPOSE``). Please refer
 to table :ref:`v4l2-selections-common` or :ref:`selection-api` for
 additional targets. The ``flags`` and ``reserved`` fields of struct
-:ref:`v4l2_selection <v4l2-selection>` are ignored and they must be
+:c:type:`v4l2_selection` are ignored and they must be
 filled with zeros. The driver fills the rest of the structure or returns
 EINVAL error code if incorrect buffer type or target was used. If
 cropping (composing) is not supported then the active rectangle is not
 mutable and it is always equal to the bounds rectangle. Finally, the
-struct :ref:`v4l2_rect <v4l2-rect>` ``r`` rectangle is filled with
+struct :c:type:`v4l2_rect` ``r`` rectangle is filled with
 the current cropping (composing) coordinates. The coordinates are
 expressed in driver-dependent units. The only exception are rectangles
 for images in raw formats, whose coordinates are always expressed in
 pixels.
 
 To change the cropping (composing) rectangle set the struct
-:ref:`v4l2_selection <v4l2-selection>` ``type`` field to the
+:c:type:`v4l2_selection` ``type`` field to the
 respective buffer type. Do not use multiplanar buffers. Use
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE`` instead of
 ``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``. Use
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT`` instead of
 ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``. The next step is setting the
-value of struct :ref:`v4l2_selection <v4l2-selection>` ``target`` to
+value of struct :c:type:`v4l2_selection` ``target`` to
 ``V4L2_SEL_TGT_CROP`` (``V4L2_SEL_TGT_COMPOSE``). Please refer to table
 :ref:`v4l2-selections-common` or :ref:`selection-api` for additional
-targets. The struct :ref:`v4l2_rect <v4l2-rect>` ``r`` rectangle need
+targets. The struct :c:type:`v4l2_rect` ``r`` rectangle need
 to be set to the desired active area. Field struct
-:ref:`v4l2_selection <v4l2-selection>` ``reserved`` is ignored and
+:c:type:`v4l2_selection` ``reserved`` is ignored and
 must be filled with zeros. The driver may adjust coordinates of the
 requested rectangle. An application may introduce constraints to control
-rounding behaviour. The struct :ref:`v4l2_selection <v4l2-selection>`
+rounding behaviour. The struct :c:type:`v4l2_selection`
 ``flags`` field must be set to one of the following:
 
 -  ``0`` - The driver can adjust the rectangle size freely and shall
@@ -97,7 +102,7 @@ horizontal and vertical offset and sizes are chosen according to
 following priority:
 
 1. Satisfy constraints from struct
-   :ref:`v4l2_selection <v4l2-selection>` ``flags``.
+   :c:type:`v4l2_selection` ``flags``.
 
 2. Adjust width, height, left, and top to hardware limits and
    alignments.
@@ -110,7 +115,7 @@ following priority:
 5. Keep horizontal and vertical offset as close as possible to original
    ones.
 
-On success the struct :ref:`v4l2_rect <v4l2-rect>` ``r`` field
+On success the struct :c:type:`v4l2_rect` ``r`` field
 contains the adjusted rectangle. When the parameters are unsuitable the
 application may modify the cropping (composing) or image parameters and
 repeat the cycle until satisfactory parameters have been negotiated. If
@@ -135,57 +140,34 @@ Selection targets and flags are documented in
 
 
 
-.. _v4l2-selection:
+.. c:type:: v4l2_selection
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_selection
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``type``
-
-       -  Type of the buffer (from enum
-	  :ref:`v4l2_buf_type <v4l2-buf-type>`).
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``target``
-
-       -  Used to select between
-	  :ref:`cropping and composing rectangles <v4l2-selections-common>`.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``flags``
-
-       -  Flags controlling the selection rectangle adjustments, refer to
-	  :ref:`selection flags <v4l2-selection-flags>`.
-
-    -  .. row 4
-
-       -  struct :ref:`v4l2_rect <v4l2-rect>`
-
-       -  ``r``
-
-       -  The selection rectangle.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``reserved[9]``
-
-       -  Reserved fields for future use. Drivers and applications must zero
-	  this array.
+    * - __u32
+      - ``type``
+      - Type of the buffer (from enum
+	:c:type:`v4l2_buf_type`).
+    * - __u32
+      - ``target``
+      - Used to select between
+	:ref:`cropping and composing rectangles <v4l2-selections-common>`.
+    * - __u32
+      - ``flags``
+      - Flags controlling the selection rectangle adjustments, refer to
+	:ref:`selection flags <v4l2-selection-flags>`.
+    * - struct :c:type:`v4l2_rect`
+      - ``r``
+      - The selection rectangle.
+    * - __u32
+      - ``reserved[9]``
+      - Reserved fields for future use. Drivers and applications must zero
+	this array.
 
 
 Return Value
@@ -200,9 +182,12 @@ EINVAL
     supported, or the ``flags`` argument is not valid.
 
 ERANGE
-    It is not possible to adjust struct :ref:`v4l2_rect <v4l2-rect>`
+    It is not possible to adjust struct :c:type:`v4l2_rect`
     ``r`` rectangle to satisfy all constraints given in the ``flags``
     argument.
+
+ENODATA
+    Selection is not supported for this input or output.
 
 EBUSY
     It is not possible to apply change of the selection rectangle at the

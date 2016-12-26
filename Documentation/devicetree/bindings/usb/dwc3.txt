@@ -13,7 +13,8 @@ Optional properties:
    in the array is expected to be a handle to the USB2/HS PHY and
    the second element is expected to be a handle to the USB3/SS PHY
  - phys: from the *Generic PHY* bindings
- - phy-names: from the *Generic PHY* bindings
+ - phy-names: from the *Generic PHY* bindings; supported names are "usb2-phy"
+	or "usb3-phy".
  - snps,usb3_lpm_capable: determines if platform is USB3 LPM capable
  - snps,disable_scramble_quirk: true when SW should disable data scrambling.
 	Only really useful for FPGA builds.
@@ -39,6 +40,11 @@ Optional properties:
 			disabling the suspend signal to the PHY.
  - snps,dis_rxdet_inp3_quirk: when set core will disable receiver detection
 			in PHY P3 power state.
+ - snps,dis-u2-freeclk-exists-quirk: when set, clear the u2_freeclk_exists
+			in GUSB2PHYCFG, specify that USB2 PHY doesn't provide
+			a free-running PHY clock.
+ - snps,dis-del-phy-power-chg-quirk: when set core will change PHY power
+			from P0 to P1/P2/P3 without delay.
  - snps,is-utmi-l1-suspend: true when DWC3 asserts output signal
 			utmi_l1_suspend_n, false when asserts utmi_sleep_n
  - snps,hird-threshold: HIRD threshold

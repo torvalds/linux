@@ -96,6 +96,9 @@
 #define DIBUSB_IOCTL_CMD_ENABLE_STREAM	0x01
 #define DIBUSB_IOCTL_CMD_DISABLE_STREAM	0x02
 
+/* Max transfer size done by I2C transfer functions */
+#define MAX_XFER_SIZE  64
+
 struct dibusb_state {
 	struct dib_fe_xfer_ops ops;
 	int mt2060_present;

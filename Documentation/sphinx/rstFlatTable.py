@@ -73,6 +73,12 @@ def setup(app):
     roles.register_local_role('cspan', c_span)
     roles.register_local_role('rspan', r_span)
 
+    return dict(
+        version = __version__,
+        parallel_read_safe = True,
+        parallel_write_safe = True
+    )
+
 # ==============================================================================
 def c_span(name, rawtext, text, lineno, inliner, options=None, content=None):
 # ==============================================================================

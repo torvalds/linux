@@ -88,13 +88,15 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		}
 	}
 
-	ret = snd_skl_parse_uuids(ctx, SKL_ADSP_FW_BIN_HDR_OFFSET);
-	if (ret < 0) {
-		dev_err(ctx->dev,
-				"UUID parsing err: %d\n", ret);
-		release_firmware(ctx->fw);
-		skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
-		return ret;
+	/* prase uuids on first boot */
+	if (skl->is_first_boot) {
+		ret = snd_skl_parse_uuids(ctx, ctx->fw, SKL_ADSP_FW_BIN_HDR_OFFSET, 0);
+		if (ret < 0) {
+			dev_err(ctx->dev, "UUID parsing err: %d\n", ret);
+			release_firmware(ctx->fw);
+			skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
+			return ret;
+		}
 	}
 
 	/* check for extended manifest */
@@ -105,13 +107,13 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 
 	ret = skl_dsp_boot(ctx);
 	if (ret < 0) {
-		dev_err(ctx->dev, "Boot dsp core failed ret: %d", ret);
+		dev_err(ctx->dev, "Boot dsp core failed ret: %d\n", ret);
 		goto skl_load_base_firmware_failed;
 	}
 
 	ret = skl_cldma_prepare(ctx);
 	if (ret < 0) {
-		dev_err(ctx->dev, "CL dma prepare failed : %d", ret);
+		dev_err(ctx->dev, "CL dma prepare failed : %d\n", ret);
 		goto skl_load_base_firmware_failed;
 	}
 
@@ -484,25 +486,32 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		return ret;
 
 	skl->cores.count = 2;
-
-	ret = sst->fw_ops.load_fw(sst);
-	if (ret < 0) {
-		dev_err(dev, "Load base fw failed : %d", ret);
-		goto cleanup;
-	}
-
-	skl_dsp_init_core_state(sst);
+	skl->is_first_boot = true;
 
 	if (dsp)
 		*dsp = skl;
 
 	return ret;
-
-cleanup:
-	skl_sst_dsp_cleanup(dev, skl);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
+
+int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
+{
+	int ret;
+	struct sst_dsp *sst = ctx->dsp;
+
+	ret = sst->fw_ops.load_fw(sst);
+	if (ret < 0) {
+		dev_err(dev, "Load base fw failed : %d\n", ret);
+		return ret;
+	}
+
+	skl_dsp_init_core_state(sst);
+	ctx->is_first_boot = false;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(skl_sst_init_fw);
 
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {

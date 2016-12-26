@@ -1,0 +1,54 @@
+/dts-v1/;
+
+/ {
+	compatible = "cdns,xtensa-xtfpga";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	interrupt-parent = <&pic>;
+
+	chosen {
+		bootargs = "earlycon=cdns,0xfd000000,115200 console=tty0 console=ttyPS0,115200 root=/dev/ram0 rw earlyprintk xilinx_uartps.rx_trigger_level=32 loglevel=8 nohz=off ignore_loglevel";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x40000000>;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cpu@0 {
+			compatible = "cdns,xtensa-cpu";
+			reg = <0>;
+		};
+	};
+
+	pic: pic {
+		compatible = "cdns,xtensa-pic";
+		#interrupt-cells = <2>;
+		interrupt-controller;
+	};
+
+	clocks {
+		osc: main-oscillator {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+		};
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0x00000000 0xf0000000 0x10000000>;
+
+		uart0: serial@0d000000 {
+			compatible = "xlnx,xuartps", "cdns,uart-r1p8";
+			clocks = <&osc>, <&osc>;
+			clock-names = "uart_clk", "pclk";
+			reg = <0x0d000000 0x1000>;
+			interrupts = <0 1>;
+		};
+	};
+};

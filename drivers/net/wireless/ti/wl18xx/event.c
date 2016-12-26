@@ -22,6 +22,7 @@
 #include <net/genetlink.h>
 #include "event.h"
 #include "scan.h"
+#include "conf.h"
 #include "../wlcore/cmd.h"
 #include "../wlcore/debug.h"
 #include "../wlcore/vendor_cmd.h"

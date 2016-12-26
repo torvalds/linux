@@ -300,10 +300,6 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 static void check_local_dest(struct hsr_priv *hsr, struct sk_buff *skb,
 			     struct hsr_frame_info *frame)
 {
-	struct net_device *master_dev;
-
-	master_dev = hsr_port_get_hsr(hsr, HSR_PT_MASTER)->dev;
-
 	if (hsr_addr_is_self(hsr, eth_hdr(skb)->h_dest)) {
 		frame->is_local_exclusive = true;
 		skb->pkt_type = PACKET_HOST;

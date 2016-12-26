@@ -43,7 +43,7 @@ static void nft_lookup_eval(const struct nft_expr *expr,
 		return;
 	}
 
-	if (found && set->flags & NFT_SET_MAP)
+	if (set->flags & NFT_SET_MAP)
 		nft_data_copy(&regs->data[priv->dreg],
 			      nft_set_ext_data(ext), set->dlen);
 

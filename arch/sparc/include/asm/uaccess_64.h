@@ -13,6 +13,7 @@
 #include <asm/asi.h>
 #include <asm/spitfire.h>
 #include <asm-generic/uaccess-unaligned.h>
+#include <asm/extable_64.h>
 #endif
 
 #ifndef __ASSEMBLY__
@@ -81,24 +82,6 @@ static inline int access_ok(int type, const void __user * addr, unsigned long si
 	return 1;
 }
 
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry {
-        unsigned int insn, fixup;
-};
-
-void __ret_efault(void);
 void __retl_efault(void);
 
 /* Uh, these should become the main single-value transfer routines..
@@ -205,55 +188,34 @@ int __get_user_bad(void);
 unsigned long __must_check ___copy_from_user(void *to,
 					     const void __user *from,
 					     unsigned long size);
-unsigned long copy_from_user_fixup(void *to, const void __user *from,
-				   unsigned long size);
 static inline unsigned long __must_check
 copy_from_user(void *to, const void __user *from, unsigned long size)
 {
-	unsigned long ret;
-
 	check_object_size(to, size, false);
 
-	ret = ___copy_from_user(to, from, size);
-	if (unlikely(ret))
-		ret = copy_from_user_fixup(to, from, size);
-
-	return ret;
+	return ___copy_from_user(to, from, size);
 }
 #define __copy_from_user copy_from_user
 
 unsigned long __must_check ___copy_to_user(void __user *to,
 					   const void *from,
 					   unsigned long size);
-unsigned long copy_to_user_fixup(void __user *to, const void *from,
-				 unsigned long size);
 static inline unsigned long __must_check
 copy_to_user(void __user *to, const void *from, unsigned long size)
 {
-	unsigned long ret;
-
 	check_object_size(from, size, true);
 
-	ret = ___copy_to_user(to, from, size);
-	if (unlikely(ret))
-		ret = copy_to_user_fixup(to, from, size);
-	return ret;
+	return ___copy_to_user(to, from, size);
 }
 #define __copy_to_user copy_to_user
 
 unsigned long __must_check ___copy_in_user(void __user *to,
 					   const void __user *from,
 					   unsigned long size);
-unsigned long copy_in_user_fixup(void __user *to, void __user *from,
-				 unsigned long size);
 static inline unsigned long __must_check
 copy_in_user(void __user *to, void __user *from, unsigned long size)
 {
-	unsigned long ret = ___copy_in_user(to, from, size);
-
-	if (unlikely(ret))
-		ret = copy_in_user_fixup(to, from, size);
-	return ret;
+	return ___copy_in_user(to, from, size);
 }
 #define __copy_in_user copy_in_user
 

@@ -14,11 +14,14 @@ config SOC_CAMERA_MT9M001
 	  and colour models.
 
 config SOC_CAMERA_MT9M111
-	tristate "mt9m111, mt9m112 and mt9m131 support"
+	tristate "legacy soc_camera mt9m111, mt9m112 and mt9m131 support"
 	depends on SOC_CAMERA && I2C
+	select VIDEO_MT9M111
 	help
 	  This driver supports MT9M111, MT9M112 and MT9M131 cameras from
-	  Micron/Aptina
+	  Micron/Aptina.
+	  This is the legacy configuration which shouldn't be used anymore,
+	  while VIDEO_MT9M111 should be used instead.
 
 config SOC_CAMERA_MT9T031
 	tristate "mt9t031 support"

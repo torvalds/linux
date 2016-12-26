@@ -7,6 +7,7 @@
  * publishhed by the Free Software Foundation.
  */
 #include "stih41x-b2020x.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 / {
 	memory{
 		device_type = "memory";
@@ -30,13 +31,12 @@
 		leds {
 			compatible	= "gpio-leds";
 			red {
-				#gpio-cells = <1>;
 				label	= "Front Panel LED";
-				gpios	= <&pio4 1>;
+				gpios	= <&pio4 1 GPIO_ACTIVE_HIGH>;
 				linux,default-trigger	= "heartbeat";
 			};
 			green {
-				gpios	= <&pio4 7>;
+				gpios	= <&pio4 7 GPIO_ACTIVE_HIGH>;
 				default-state = "off";
 			};
 		};

@@ -88,6 +88,8 @@ struct octeon_instr_queue {
 	/** A spinlock to protect while posting on the ring.  */
 	spinlock_t post_lock;
 
+	u32 pkt_in_done;
+
 	/** A spinlock to protect access to the input ring.*/
 	spinlock_t iq_flush_running_lock;
 

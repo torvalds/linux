@@ -867,39 +867,48 @@ static int mt9t112_set_params(struct mt9t112_priv *priv,
 	return 0;
 }
 
-static int mt9t112_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= MAX_WIDTH;
-	a->bounds.height		= MAX_HEIGHT;
-	a->defrect.left			= 0;
-	a->defrect.top			= 0;
-	a->defrect.width		= VGA_WIDTH;
-	a->defrect.height		= VGA_HEIGHT;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
-}
-
-static int mt9t112_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int mt9t112_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t112_priv *priv = to_mt9t112(client);
 
-	a->c	= priv->frame;
-	a->type	= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = MAX_WIDTH;
+		sel->r.height = MAX_HEIGHT;
+		return 0;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = VGA_WIDTH;
+		sel->r.height = VGA_HEIGHT;
+		return 0;
+	case V4L2_SEL_TGT_CROP:
+		sel->r = priv->frame;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
-static int mt9t112_s_crop(struct v4l2_subdev *sd, const struct v4l2_crop *a)
+static int mt9t112_set_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9t112_priv *priv = to_mt9t112(client);
-	const struct v4l2_rect *rect = &a->c;
+	const struct v4l2_rect *rect = &sel->r;
+
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE ||
+	    sel->target != V4L2_SEL_TGT_CROP)
+		return -EINVAL;
 
 	return mt9t112_set_params(priv, rect, priv->format->code);
 }
@@ -1024,15 +1033,14 @@ static int mt9t112_s_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops mt9t112_subdev_video_ops = {
 	.s_stream	= mt9t112_s_stream,
-	.cropcap	= mt9t112_cropcap,
-	.g_crop		= mt9t112_g_crop,
-	.s_crop		= mt9t112_s_crop,
 	.g_mbus_config	= mt9t112_g_mbus_config,
 	.s_mbus_config	= mt9t112_s_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops mt9t112_subdev_pad_ops = {
 	.enum_mbus_code = mt9t112_enum_mbus_code,
+	.get_selection	= mt9t112_get_selection,
+	.set_selection	= mt9t112_set_selection,
 	.get_fmt	= mt9t112_get_fmt,
 	.set_fmt	= mt9t112_set_fmt,
 };

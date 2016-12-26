@@ -22,12 +22,36 @@
  * more details.
  */
 
+/*
+ * Driver: addi_apci_3501
+ * Description: ADDI-DATA APCI-3501 Analog output board
+ * Devices: [ADDI-DATA] APCI-3501 (addi_apci_3501)
+ * Author: H Hartley Sweeten <hsweeten@visionengravers.com>
+ * Updated: Mon, 20 Jun 2016 10:57:01 -0700
+ * Status: untested
+ *
+ * Configuration Options: not applicable, uses comedi PCI auto config
+ *
+ * This board has the following features:
+ *   - 4 or 8 analog output channels
+ *   - 2 optically isolated digital inputs
+ *   - 2 optically isolated digital outputs
+ *   - 1 12-bit watchdog/timer
+ *
+ * There are 2 versions of the APCI-3501:
+ *   - APCI-3501-4  4 analog output channels
+ *   - APCI-3501-8  8 analog output channels
+ *
+ * These boards use the same PCI Vendor/Device IDs. The number of output
+ * channels used by this driver is determined by reading the EEPROM on
+ * the board.
+ *
+ * The watchdog/timer subdevice is not currently supported.
+ */
+
 #include <linux/module.h>
-#include <linux/interrupt.h>
-#include <linux/sched.h>
 
 #include "../comedi_pci.h"
-#include "addi_tcw.h"
 #include "amcc_s5933.h"
 
 /*
@@ -67,8 +91,6 @@
 
 struct apci3501_private {
 	unsigned long amcc;
-	unsigned long tcw;
-	struct task_struct *tsk_Current;
 	unsigned char timer_mode;
 };
 
@@ -138,8 +160,6 @@ static int apci3501_ao_insn_write(struct comedi_device *dev,
 
 	return insn->n;
 }
-
-#include "addi-data/hwdrv_apci3501.c"
 
 static int apci3501_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
@@ -253,37 +273,6 @@ static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static irqreturn_t apci3501_interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	struct apci3501_private *devpriv = dev->private;
-	unsigned int status;
-	unsigned int ctrl;
-
-	/*  Disable Interrupt */
-	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
-	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
-		  ADDI_TCW_CTRL_IRQ_ENA);
-	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
-
-	status = inl(devpriv->tcw + ADDI_TCW_IRQ_REG);
-	if (!(status & ADDI_TCW_IRQ)) {
-		dev_err(dev->class_dev, "IRQ from unknown source\n");
-		return IRQ_NONE;
-	}
-
-	/* Enable Interrupt Send a signal to from kernel to user space */
-	send_sig(SIGIO, devpriv->tsk_Current, 0);
-	ctrl = inl(devpriv->tcw + ADDI_TCW_CTRL_REG);
-	ctrl &= ~(ADDI_TCW_CTRL_GATE | ADDI_TCW_CTRL_TRIG |
-		  ADDI_TCW_CTRL_IRQ_ENA);
-	ctrl |= ADDI_TCW_CTRL_IRQ_ENA;
-	outl(ctrl, devpriv->tcw + ADDI_TCW_CTRL_REG);
-	inl(devpriv->tcw + ADDI_TCW_STATUS_REG);
-
-	return IRQ_HANDLED;
-}
-
 static int apci3501_reset(struct comedi_device *dev)
 {
 	unsigned int val;
@@ -333,16 +322,8 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 
 	devpriv->amcc = pci_resource_start(pcidev, 0);
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->tcw = dev->iobase + APCI3501_TIMER_BASE;
 
 	ao_n_chan = apci3501_eeprom_get_ao_n_chan(dev);
-
-	if (pcidev->irq > 0) {
-		ret = request_irq(pcidev->irq, apci3501_interrupt, IRQF_SHARED,
-				  dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = pcidev->irq;
-	}
 
 	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
@@ -383,17 +364,9 @@ static int apci3501_auto_attach(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= apci3501_do_insn_bits;
 
-	/* Initialize the timer/watchdog subdevice */
+	/* Timer/Watchdog subdevice */
 	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_TIMER;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 1;
-	s->maxdata = 0;
-	s->len_chanlist = 1;
-	s->range_table = &range_digital;
-	s->insn_write = apci3501_write_insn_timer;
-	s->insn_read = apci3501_read_insn_timer;
-	s->insn_config = apci3501_config_insn_timer;
+	s->type		= COMEDI_SUBD_UNUSED;
 
 	/* Initialize the eeprom subdevice */
 	s = &dev->subdevices[4];

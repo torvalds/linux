@@ -296,6 +296,14 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->fflags & US_FL_BROKEN_FUA)
 			sdev->broken_fua = 1;
 
+		/* Some even totally fail to indicate a cache */
+		if (us->fflags & US_FL_ALWAYS_SYNC) {
+			/* don't read caching information */
+			sdev->skip_ms_page_8 = 1;
+			sdev->skip_ms_page_3f = 1;
+			/* assume sync is needed */
+			sdev->wce_default_on = 1;
+		}
 	} else {
 
 		/*

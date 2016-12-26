@@ -35,7 +35,6 @@
 #include <linux/earlycpio.h>
 #include <linux/memblock.h>
 #include <linux/initrd.h>
-#include <linux/acpi.h>
 #include "internal.h"
 
 #ifdef CONFIG_ACPI_CUSTOM_DSDT
@@ -246,6 +245,7 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 	struct acpi_subtable_header *entry;
 	unsigned long table_end;
 	int count = 0;
+	int errs = 0;
 	int i;
 
 	if (acpi_disabled)
@@ -278,10 +278,12 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 			if (entry->type != proc[i].id)
 				continue;
 			if (!proc[i].handler ||
-			     proc[i].handler(entry, table_end))
-				return -EINVAL;
+			     (!errs && proc[i].handler(entry, table_end))) {
+				errs++;
+				continue;
+			}
 
-			proc->count++;
+			proc[i].count++;
 			break;
 		}
 		if (i != proc_num)
@@ -301,11 +303,11 @@ acpi_parse_entries_array(char *id, unsigned long table_size,
 	}
 
 	if (max_entries && count > max_entries) {
-		pr_warn("[%4.4s:0x%02x] ignored %i entries of %i found\n",
-			id, proc->id, count - max_entries, count);
+		pr_warn("[%4.4s:0x%02x] found the maximum %i entries\n",
+			id, proc->id, count);
 	}
 
-	return count;
+	return errs ? -EINVAL : count;
 }
 
 int __init

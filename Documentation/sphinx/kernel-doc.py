@@ -39,6 +39,8 @@ from docutils.parsers.rst import directives
 from sphinx.util.compat import Directive
 from sphinx.ext.autodoc import AutodocReporter
 
+__version__  = '1.0'
+
 class KernelDocDirective(Directive):
     """Extract kernel-doc comments from the specified file"""
     required_argument = 1
@@ -139,3 +141,9 @@ def setup(app):
     app.add_config_value('kerneldoc_verbosity', 1, 'env')
 
     app.add_directive('kernel-doc', KernelDocDirective)
+
+    return dict(
+        version = __version__,
+        parallel_read_safe = True,
+        parallel_write_safe = True
+    )

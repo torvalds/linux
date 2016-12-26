@@ -928,7 +928,7 @@ int rsnd_ssi_probe(struct rsnd_priv *priv)
 		}
 
 		ops = &rsnd_ssi_non_ops;
-		if (of_get_property(np, "pio-transfer", NULL))
+		if (of_property_read_bool(np, "pio-transfer"))
 			ops = &rsnd_ssi_pio_ops;
 		else
 			ops = &rsnd_ssi_dma_ops;

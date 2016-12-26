@@ -25,7 +25,6 @@
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
-#include <linux/platform_data/gpio-lpc32xx.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -67,6 +66,20 @@
 #define GPIO3_PIN5_IN_SEL(x)			(((x) >> 24) & 1)
 #define GPI3_PIN_IN_SEL(x, y)			(((x) >> (y)) & 1)
 #define GPO3_PIN_IN_SEL(x, y)			(((x) >> (y)) & 1)
+
+#define LPC32XX_GPIO_P0_MAX	8
+#define LPC32XX_GPIO_P1_MAX	24
+#define LPC32XX_GPIO_P2_MAX	13
+#define LPC32XX_GPIO_P3_MAX	6
+#define LPC32XX_GPI_P3_MAX	29
+#define LPC32XX_GPO_P3_MAX	24
+
+#define LPC32XX_GPIO_P0_GRP	0
+#define LPC32XX_GPIO_P1_GRP	(LPC32XX_GPIO_P0_GRP + LPC32XX_GPIO_P0_MAX)
+#define LPC32XX_GPIO_P2_GRP	(LPC32XX_GPIO_P1_GRP + LPC32XX_GPIO_P1_MAX)
+#define LPC32XX_GPIO_P3_GRP	(LPC32XX_GPIO_P2_GRP + LPC32XX_GPIO_P2_MAX)
+#define LPC32XX_GPI_P3_GRP	(LPC32XX_GPIO_P3_GRP + LPC32XX_GPIO_P3_MAX)
+#define LPC32XX_GPO_P3_GRP	(LPC32XX_GPI_P3_GRP + LPC32XX_GPI_P3_MAX)
 
 struct gpio_regs {
 	void __iomem *inp_state;

@@ -73,7 +73,7 @@ static int vfio_platform_acpi_probe(struct vfio_platform_device *vdev,
 	return WARN_ON(!vdev->acpihid) ? -EINVAL : 0;
 }
 
-int vfio_platform_acpi_call_reset(struct vfio_platform_device *vdev,
+static int vfio_platform_acpi_call_reset(struct vfio_platform_device *vdev,
 				  const char **extra_dbg)
 {
 #ifdef CONFIG_ACPI
@@ -95,7 +95,7 @@ int vfio_platform_acpi_call_reset(struct vfio_platform_device *vdev,
 #endif
 }
 
-bool vfio_platform_acpi_has_reset(struct vfio_platform_device *vdev)
+static bool vfio_platform_acpi_has_reset(struct vfio_platform_device *vdev)
 {
 #ifdef CONFIG_ACPI
 	struct device *dev = vdev->device;
@@ -637,7 +637,7 @@ static const struct vfio_device_ops vfio_platform_ops = {
 	.mmap		= vfio_platform_mmap,
 };
 
-int vfio_platform_of_probe(struct vfio_platform_device *vdev,
+static int vfio_platform_of_probe(struct vfio_platform_device *vdev,
 			   struct device *dev)
 {
 	int ret;

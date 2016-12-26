@@ -48,19 +48,15 @@ static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
 #endif
 }
 
-static int num_vma_bound(struct drm_i915_gem_object *obj)
+static bool any_vma_pinned(struct drm_i915_gem_object *obj)
 {
 	struct i915_vma *vma;
-	int count = 0;
 
-	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (drm_mm_node_allocated(&vma->node))
-			count++;
-		if (vma->pin_count)
-			count++;
-	}
+	list_for_each_entry(vma, &obj->vma_list, obj_link)
+		if (i915_vma_is_pinned(vma))
+			return true;
 
-	return count;
+	return false;
 }
 
 static bool swap_available(void)
@@ -82,7 +78,10 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	 * to the GPU, simply unbinding from the GPU is not going to succeed
 	 * in releasing our pin count on the pages themselves.
 	 */
-	if (obj->pages_pin_count != num_vma_bound(obj))
+	if (obj->pages_pin_count > obj->bind_count)
+		return false;
+
+	if (any_vma_pinned(obj))
 		return false;
 
 	/* We can only return physical pages to the system if we can either
@@ -163,17 +162,16 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 	 */
 	for (phase = phases; phase->list; phase++) {
 		struct list_head still_in_list;
+		struct drm_i915_gem_object *obj;
 
 		if ((flags & phase->bit) == 0)
 			continue;
 
 		INIT_LIST_HEAD(&still_in_list);
-		while (count < target && !list_empty(phase->list)) {
-			struct drm_i915_gem_object *obj;
-			struct i915_vma *vma, *v;
-
-			obj = list_first_entry(phase->list,
-					       typeof(*obj), global_list);
+		while (count < target &&
+		       (obj = list_first_entry_or_null(phase->list,
+						       typeof(*obj),
+						       global_list))) {
 			list_move_tail(&obj->global_list, &still_in_list);
 
 			if (flags & I915_SHRINK_PURGEABLE &&
@@ -184,24 +182,21 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 			    !is_vmalloc_addr(obj->mapping))
 				continue;
 
-			if ((flags & I915_SHRINK_ACTIVE) == 0 && obj->active)
+			if ((flags & I915_SHRINK_ACTIVE) == 0 &&
+			    i915_gem_object_is_active(obj))
 				continue;
 
 			if (!can_release_pages(obj))
 				continue;
 
-			drm_gem_object_reference(&obj->base);
+			i915_gem_object_get(obj);
 
 			/* For the unbound phase, this should be a no-op! */
-			list_for_each_entry_safe(vma, v,
-						 &obj->vma_list, obj_link)
-				if (i915_vma_unbind(vma))
-					break;
-
+			i915_gem_object_unbind(obj);
 			if (i915_gem_object_put_pages(obj) == 0)
 				count += obj->base.size >> PAGE_SHIFT;
 
-			drm_gem_object_unreference(&obj->base);
+			i915_gem_object_put(obj);
 		}
 		list_splice(&still_in_list, phase->list);
 	}
@@ -210,6 +205,8 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
 		intel_runtime_pm_put(dev_priv);
 
 	i915_gem_retire_requests(dev_priv);
+	/* expedite the RCU grace period to free some request slabs */
+	synchronize_rcu_expedited();
 
 	return count;
 }
@@ -230,19 +227,21 @@ i915_gem_shrink(struct drm_i915_private *dev_priv,
  */
 unsigned long i915_gem_shrink_all(struct drm_i915_private *dev_priv)
 {
-	return i915_gem_shrink(dev_priv, -1UL,
-			       I915_SHRINK_BOUND |
-			       I915_SHRINK_UNBOUND |
-			       I915_SHRINK_ACTIVE);
+	unsigned long freed;
+
+	freed = i915_gem_shrink(dev_priv, -1UL,
+				I915_SHRINK_BOUND |
+				I915_SHRINK_UNBOUND |
+				I915_SHRINK_ACTIVE);
+	rcu_barrier(); /* wait until our RCU delayed slab frees are completed */
+
+	return freed;
 }
 
 static bool i915_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 {
 	if (!mutex_trylock(&dev->struct_mutex)) {
 		if (!mutex_is_locked_by(&dev->struct_mutex, current))
-			return false;
-
-		if (to_i915(dev)->mm.shrinker_no_lock_stealing)
 			return false;
 
 		*unlock = false;
@@ -273,7 +272,7 @@ i915_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
 			count += obj->base.size >> PAGE_SHIFT;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
-		if (!obj->active && can_release_pages(obj))
+		if (!i915_gem_object_is_active(obj) && can_release_pages(obj))
 			count += obj->base.size >> PAGE_SHIFT;
 	}
 
@@ -321,17 +320,22 @@ i915_gem_shrinker_lock_uninterruptible(struct drm_i915_private *dev_priv,
 				       struct shrinker_lock_uninterruptible *slu,
 				       int timeout_ms)
 {
-	unsigned long timeout = msecs_to_jiffies(timeout_ms) + 1;
+	unsigned long timeout = jiffies + msecs_to_jiffies_timeout(timeout_ms);
 
-	while (!i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock)) {
+	do {
+		if (i915_gem_wait_for_idle(dev_priv, 0) == 0 &&
+		    i915_gem_shrinker_lock(&dev_priv->drm, &slu->unlock))
+			break;
+
 		schedule_timeout_killable(1);
 		if (fatal_signal_pending(current))
 			return false;
-		if (--timeout == 0) {
+
+		if (time_after(jiffies, timeout)) {
 			pr_err("Unable to lock GPU to purge memory.\n");
 			return false;
 		}
-	}
+	} while (1);
 
 	slu->was_interruptible = dev_priv->mm.interruptible;
 	dev_priv->mm.interruptible = false;
@@ -410,7 +414,7 @@ i915_gem_shrinker_vmap(struct notifier_block *nb, unsigned long event, void *ptr
 		return NOTIFY_DONE;
 
 	/* Force everything onto the inactive lists */
-	ret = i915_gem_wait_for_idle(dev_priv);
+	ret = i915_gem_wait_for_idle(dev_priv, I915_WAIT_LOCKED);
 	if (ret)
 		goto out;
 

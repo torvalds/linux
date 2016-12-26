@@ -102,7 +102,7 @@ static void sis_driver_postclose(struct drm_device *dev, struct drm_file *file)
 }
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_USE_AGP,
+	.driver_features = DRIVER_USE_AGP | DRIVER_LEGACY,
 	.load = sis_driver_load,
 	.unload = sis_driver_unload,
 	.open = sis_driver_open,

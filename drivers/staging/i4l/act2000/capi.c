@@ -113,7 +113,9 @@ actcapi_chkhdr(act2000_card *card, actcapi_msghdr *hdr)
 			m->hdr.cmd.cmd = c;			\
 			m->hdr.cmd.subcmd = s;			\
 			m->hdr.msgnum = actcapi_nextsmsg(card); \
-		} else m = NULL;				\
+		} else {					\
+			m = NULL;				\
+		}						\
 	}
 
 #define ACTCAPI_CHKSKB if (!skb) {					\
@@ -547,12 +549,11 @@ static int
 actcapi_data_b3_ind(act2000_card *card, struct sk_buff *skb) {
 	__u16 plci;
 	__u16 ncci;
-	__u16 controller;
 	__u8  blocknr;
 	int chan;
 	actcapi_msg *msg = (actcapi_msg *)skb->data;
 
-	EVAL_NCCI(msg->msg.data_b3_ind.fakencci, plci, controller, ncci);
+	EVAL_NCCI(msg->msg.data_b3_ind.fakencci, plci, ncci);
 	chan = find_ncci(card, ncci);
 	if (chan < 0)
 		return 0;
@@ -617,7 +618,7 @@ handle_ack(act2000_card *card, act2000_chan *chan, __u8 blocknr) {
 		spin_lock_irqsave(&card->lock, flags);
 		tmp = skb_peek((struct sk_buff_head *)tmp);
 		spin_unlock_irqrestore(&card->lock, flags);
-		if ((tmp == skb) || (tmp == NULL)) {
+		if ((tmp == skb) || !tmp) {
 			/* reached end of queue */
 			printk(KERN_WARNING "act2000: handle_ack nothing found!\n");
 			return 0;
@@ -990,7 +991,8 @@ actcapi_debug_dlpd(actcapi_dlpd *dlpd)
 }
 
 #ifdef DEBUG_DUMP_SKB
-static void dump_skb(struct sk_buff *skb) {
+static void dump_skb(struct sk_buff *skb)
+{
 	char tmp[80];
 	char *p = skb->data;
 	char *t = tmp;

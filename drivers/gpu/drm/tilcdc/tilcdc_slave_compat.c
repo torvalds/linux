@@ -139,7 +139,7 @@ static void __init tilcdc_node_disable(struct device_node *node)
 	of_update_property(node, prop);
 }
 
-struct device_node * __init tilcdc_get_overlay(struct kfree_table *kft)
+static struct device_node * __init tilcdc_get_overlay(struct kfree_table *kft)
 {
 	const int size = __dtb_tilcdc_slave_compat_end -
 		__dtb_tilcdc_slave_compat_begin;
@@ -195,7 +195,7 @@ static const char * const tilcdc_slave_props[] __initconst = {
 	NULL
 };
 
-void __init tilcdc_convert_slave_node(void)
+static void __init tilcdc_convert_slave_node(void)
 {
 	struct device_node *slave = NULL, *lcdc = NULL;
 	struct device_node *i2c = NULL, *fragment = NULL;
@@ -207,7 +207,7 @@ void __init tilcdc_convert_slave_node(void)
 	int ret;
 
 	if (kfree_table_init(&kft))
-		goto out;
+		return;
 
 	lcdc = of_find_matching_node(NULL, tilcdc_of_match);
 	slave = of_find_matching_node(NULL, tilcdc_slave_of_match);
@@ -261,7 +261,7 @@ out:
 	of_node_put(fragment);
 }
 
-int __init tilcdc_slave_compat_init(void)
+static int __init tilcdc_slave_compat_init(void)
 {
 	tilcdc_convert_slave_node();
 	return 0;

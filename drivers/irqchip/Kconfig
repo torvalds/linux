@@ -39,6 +39,7 @@ config ARM_GIC_V3_ITS
 	bool
 	depends on PCI
 	depends on PCI_MSI
+	select ACPI_IORT if ACPI
 
 config ARM_NVIC
 	bool
@@ -156,6 +157,13 @@ config PIC32_EVIC
 	select GENERIC_IRQ_CHIP
 	select IRQ_DOMAIN
 
+config JCORE_AIC
+	bool "J-Core integrated AIC" if COMPILE_TEST
+	depends on OF
+	select IRQ_DOMAIN
+	help
+	  Support for the J-Core integrated AIC.
+
 config RENESAS_INTC_IRQPIN
 	bool
 	select IRQ_DOMAIN
@@ -251,6 +259,9 @@ config IRQ_MXS
 config MVEBU_ODMI
 	bool
 
+config MVEBU_PIC
+	bool
+
 config LS_SCFG_MSI
 	def_bool y if SOC_LS1021A || ARCH_LAYERSCAPE
 	depends on PCI && PCI_MSI
@@ -264,3 +275,7 @@ config EZNPS_GIC
 	select IRQ_DOMAIN
 	help
 	  Support the EZchip NPS400 global interrupt controller
+
+config STM32_EXTI
+	bool
+	select IRQ_DOMAIN

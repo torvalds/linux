@@ -18,6 +18,17 @@ config DRM_PANEL_SIMPLE
 	  that it can be automatically turned off when the panel goes into a
 	  low power state.
 
+config DRM_PANEL_JDI_LT070ME05000
+	tristate "JDI LT070ME05000 WUXGA DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for JDI DSI video mode
+	  panel as found in Google Nexus 7 (2013) devices.
+	  The panel has a 1200(RGB)×1920 (WUXGA) resolution and uses
+	  24 bit per pixel.
+
 config DRM_PANEL_SAMSUNG_LD9040
 	tristate "Samsung LD9040 RGB/SPI panel"
 	depends on OF && SPI

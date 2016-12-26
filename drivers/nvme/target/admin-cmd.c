@@ -14,6 +14,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <generated/utsrelease.h>
+#include <asm/unaligned.h>
 #include "nvmet.h"
 
 u32 nvmet_get_log_page_len(struct nvme_command *cmd)
@@ -29,8 +30,84 @@ u32 nvmet_get_log_page_len(struct nvme_command *cmd)
 	return len;
 }
 
+static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
+		struct nvme_smart_log *slog)
+{
+	u16 status;
+	struct nvmet_ns *ns;
+	u64 host_reads, host_writes, data_units_read, data_units_written;
+
+	status = NVME_SC_SUCCESS;
+	ns = nvmet_find_namespace(req->sq->ctrl, req->cmd->get_log_page.nsid);
+	if (!ns) {
+		status = NVME_SC_INVALID_NS;
+		pr_err("nvmet : Counld not find namespace id : %d\n",
+				le32_to_cpu(req->cmd->get_log_page.nsid));
+		goto out;
+	}
+
+	host_reads = part_stat_read(ns->bdev->bd_part, ios[READ]);
+	data_units_read = part_stat_read(ns->bdev->bd_part, sectors[READ]);
+	host_writes = part_stat_read(ns->bdev->bd_part, ios[WRITE]);
+	data_units_written = part_stat_read(ns->bdev->bd_part, sectors[WRITE]);
+
+	put_unaligned_le64(host_reads, &slog->host_reads[0]);
+	put_unaligned_le64(data_units_read, &slog->data_units_read[0]);
+	put_unaligned_le64(host_writes, &slog->host_writes[0]);
+	put_unaligned_le64(data_units_written, &slog->data_units_written[0]);
+	nvmet_put_namespace(ns);
+out:
+	return status;
+}
+
+static u16 nvmet_get_smart_log_all(struct nvmet_req *req,
+		struct nvme_smart_log *slog)
+{
+	u16 status;
+	u64 host_reads = 0, host_writes = 0;
+	u64 data_units_read = 0, data_units_written = 0;
+	struct nvmet_ns *ns;
+	struct nvmet_ctrl *ctrl;
+
+	status = NVME_SC_SUCCESS;
+	ctrl = req->sq->ctrl;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ns, &ctrl->subsys->namespaces, dev_link) {
+		host_reads += part_stat_read(ns->bdev->bd_part, ios[READ]);
+		data_units_read +=
+			part_stat_read(ns->bdev->bd_part, sectors[READ]);
+		host_writes += part_stat_read(ns->bdev->bd_part, ios[WRITE]);
+		data_units_written +=
+			part_stat_read(ns->bdev->bd_part, sectors[WRITE]);
+
+	}
+	rcu_read_unlock();
+
+	put_unaligned_le64(host_reads, &slog->host_reads[0]);
+	put_unaligned_le64(data_units_read, &slog->data_units_read[0]);
+	put_unaligned_le64(host_writes, &slog->host_writes[0]);
+	put_unaligned_le64(data_units_written, &slog->data_units_written[0]);
+
+	return status;
+}
+
+static u16 nvmet_get_smart_log(struct nvmet_req *req,
+		struct nvme_smart_log *slog)
+{
+	u16 status;
+
+	WARN_ON(req == NULL || slog == NULL);
+	if (req->cmd->get_log_page.nsid == 0xFFFFFFFF)
+		status = nvmet_get_smart_log_all(req, slog);
+	else
+		status = nvmet_get_smart_log_nsid(req, slog);
+	return status;
+}
+
 static void nvmet_execute_get_log_page(struct nvmet_req *req)
 {
+	struct nvme_smart_log *smart_log;
 	size_t data_len = nvmet_get_log_page_len(req->cmd);
 	void *buf;
 	u16 status = 0;
@@ -59,6 +136,16 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 		 * available (e.g. units or commands read/written) those aren't
 		 * persistent over power loss.
 		 */
+		if (data_len != sizeof(*smart_log)) {
+			status = NVME_SC_INTERNAL;
+			goto err;
+		}
+		smart_log = buf;
+		status = nvmet_get_smart_log(req, smart_log);
+		if (status) {
+			memset(buf, '\0', data_len);
+			goto err;
+		}
 		break;
 	case 0x03:
 		/*
@@ -73,6 +160,7 @@ static void nvmet_execute_get_log_page(struct nvmet_req *req)
 
 	status = nvmet_copy_to_sgl(req, 0, buf, data_len);
 
+err:
 	kfree(buf);
 out:
 	nvmet_req_complete(req, status);
@@ -111,7 +199,7 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	 */
 
 	/* we support multiple ports and multiples hosts: */
-	id->mic = (1 << 0) | (1 << 1);
+	id->cmic = (1 << 0) | (1 << 1);
 
 	/* no limit on data transfer sizes for now */
 	id->mdts = 0;
@@ -423,13 +511,13 @@ int nvmet_parse_admin_cmd(struct nvmet_req *req)
 	case nvme_admin_identify:
 		req->data_len = 4096;
 		switch (le32_to_cpu(cmd->identify.cns)) {
-		case 0x00:
+		case NVME_ID_CNS_NS:
 			req->execute = nvmet_execute_identify_ns;
 			return 0;
-		case 0x01:
+		case NVME_ID_CNS_CTRL:
 			req->execute = nvmet_execute_identify_ctrl;
 			return 0;
-		case 0x02:
+		case NVME_ID_CNS_NS_ACTIVE_LIST:
 			req->execute = nvmet_execute_identify_nslist;
 			return 0;
 		}

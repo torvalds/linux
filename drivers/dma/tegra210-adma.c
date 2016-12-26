@@ -670,7 +670,6 @@ static int tegra_adma_probe(struct platform_device *pdev)
 	const struct tegra_adma_chip_data *cdata;
 	struct tegra_adma *tdma;
 	struct resource	*res;
-	struct clk *clk;
 	int ret, i;
 
 	cdata = of_device_get_match_data(&pdev->dev);
@@ -697,18 +696,9 @@ static int tegra_adma_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	clk = clk_get(&pdev->dev, "d_audio");
-	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "ADMA clock not found\n");
-		ret = PTR_ERR(clk);
+	ret = of_pm_clk_add_clk(&pdev->dev, "d_audio");
+	if (ret)
 		goto clk_destroy;
-	}
-
-	ret = pm_clk_add_clk(&pdev->dev, clk);
-	if (ret) {
-		clk_put(clk);
-		goto clk_destroy;
-	}
 
 	pm_runtime_enable(&pdev->dev);
 

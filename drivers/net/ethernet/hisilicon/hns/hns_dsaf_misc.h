@@ -34,5 +34,6 @@
 #define DSAF_LED_ANCHOR_B 5
 
 struct dsaf_misc_op *hns_misc_op_get(struct dsaf_device *dsaf_dev);
-
+struct
+platform_device *hns_dsaf_find_platform_device(struct fwnode_handle *fwnode);
 #endif

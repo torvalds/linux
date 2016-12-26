@@ -33,7 +33,8 @@
 
 #define MAX_EA_VALUE_SIZE 65535
 #define CIFS_XATTR_CIFS_ACL "system.cifs_acl"
-
+#define CIFS_XATTR_ATTRIB "cifs.dosattrib"  /* full name: user.cifs.dosattrib */
+#define CIFS_XATTR_CREATETIME "cifs.creationtime"  /* user.cifs.creationtime */
 /* BB need to add server (Samba e.g) support for security and trusted prefix */
 
 enum { XATTR_USER, XATTR_CIFS_ACL, XATTR_ACL_ACCESS, XATTR_ACL_DEFAULT };
@@ -144,6 +145,54 @@ out:
 	return rc;
 }
 
+static int cifs_attrib_get(struct dentry *dentry,
+			   struct inode *inode, void *value,
+			   size_t size)
+{
+	ssize_t rc;
+	__u32 *pattribute;
+
+	rc = cifs_revalidate_dentry_attr(dentry);
+
+	if (rc)
+		return rc;
+
+	if ((value == NULL) || (size == 0))
+		return sizeof(__u32);
+	else if (size < sizeof(__u32))
+		return -ERANGE;
+
+	/* return dos attributes as pseudo xattr */
+	pattribute = (__u32 *)value;
+	*pattribute = CIFS_I(inode)->cifsAttrs;
+
+	return sizeof(__u32);
+}
+
+static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
+				  void *value, size_t size)
+{
+	ssize_t rc;
+	__u64 * pcreatetime;
+
+	rc = cifs_revalidate_dentry_attr(dentry);
+	if (rc)
+		return rc;
+
+	if ((value == NULL) || (size == 0))
+		return sizeof(__u64);
+	else if (size < sizeof(__u64))
+		return -ERANGE;
+
+	/* return dos attributes as pseudo xattr */
+	pcreatetime = (__u64 *)value;
+	*pcreatetime = CIFS_I(inode)->createtime;
+	return sizeof(__u64);
+
+	return rc;
+}
+
+
 static int cifs_xattr_get(const struct xattr_handler *handler,
 			  struct dentry *dentry, struct inode *inode,
 			  const char *name, void *value, size_t size)
@@ -168,10 +217,19 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		rc = -ENOMEM;
 		goto out;
 	}
-	/* return dos attributes as pseudo xattr */
+
 	/* return alt name if available as pseudo attr */
 	switch (handler->flags) {
 	case XATTR_USER:
+		cifs_dbg(FYI, "%s:querying user xattr %s\n", __func__, name);
+		if (strcmp(name, CIFS_XATTR_ATTRIB) == 0) {
+			rc = cifs_attrib_get(dentry, inode, value, size);
+			break;
+		} else if (strcmp(name, CIFS_XATTR_CREATETIME) == 0) {
+			rc = cifs_creation_time_get(dentry, inode, value, size);
+			break;
+		}
+
 		if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_XATTR)
 			goto out;
 

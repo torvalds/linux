@@ -170,15 +170,16 @@ static const struct clk_ops programmable_ops = {
 	.set_rate = clk_programmable_set_rate,
 };
 
-static struct clk * __init
+static struct clk_hw * __init
 at91_clk_register_programmable(struct regmap *regmap,
 			       const char *name, const char **parent_names,
 			       u8 num_parents, u8 id,
 			       const struct clk_programmable_layout *layout)
 {
 	struct clk_programmable *prog;
-	struct clk *clk = NULL;
+	struct clk_hw *hw;
 	struct clk_init_data init;
+	int ret;
 
 	if (id > PROG_ID_MAX)
 		return ERR_PTR(-EINVAL);
@@ -198,11 +199,14 @@ at91_clk_register_programmable(struct regmap *regmap,
 	prog->hw.init = &init;
 	prog->regmap = regmap;
 
-	clk = clk_register(NULL, &prog->hw);
-	if (IS_ERR(clk))
+	hw = &prog->hw;
+	ret = clk_hw_register(NULL, &prog->hw);
+	if (ret) {
 		kfree(prog);
+		hw = ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
 }
 
 static const struct clk_programmable_layout at91rm9200_programmable_layout = {
@@ -229,7 +233,7 @@ of_at91_clk_prog_setup(struct device_node *np,
 {
 	int num;
 	u32 id;
-	struct clk *clk;
+	struct clk_hw *hw;
 	unsigned int num_parents;
 	const char *parent_names[PROG_SOURCE_MAX];
 	const char *name;
@@ -257,13 +261,13 @@ of_at91_clk_prog_setup(struct device_node *np,
 		if (of_property_read_string(np, "clock-output-names", &name))
 			name = progclknp->name;
 
-		clk = at91_clk_register_programmable(regmap, name,
+		hw = at91_clk_register_programmable(regmap, name,
 						     parent_names, num_parents,
 						     id, layout);
-		if (IS_ERR(clk))
+		if (IS_ERR(hw))
 			continue;
 
-		of_clk_add_provider(progclknp, of_clk_src_simple_get, clk);
+		of_clk_add_hw_provider(progclknp, of_clk_hw_simple_get, hw);
 	}
 }
 

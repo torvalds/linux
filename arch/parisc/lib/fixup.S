@@ -65,34 +65,34 @@
 	.section .fixup, "ax"
 
 	/* get_user() fixups, store -EFAULT in r8, and 0 in r9 */
-ENTRY(fixup_get_user_skip_1)
+ENTRY_CFI(fixup_get_user_skip_1)
 	get_fault_ip %r1,%r8
 	ldo 4(%r1), %r1
 	ldi -EFAULT, %r8
 	bv %r0(%r1)
 	copy %r0, %r9
-ENDPROC(fixup_get_user_skip_1)
+ENDPROC_CFI(fixup_get_user_skip_1)
 
-ENTRY(fixup_get_user_skip_2)
+ENTRY_CFI(fixup_get_user_skip_2)
 	get_fault_ip %r1,%r8
 	ldo 8(%r1), %r1
 	ldi -EFAULT, %r8
 	bv %r0(%r1)
 	copy %r0, %r9
-ENDPROC(fixup_get_user_skip_2)
+ENDPROC_CFI(fixup_get_user_skip_2)
 
 	/* put_user() fixups, store -EFAULT in r8 */
-ENTRY(fixup_put_user_skip_1)
+ENTRY_CFI(fixup_put_user_skip_1)
 	get_fault_ip %r1,%r8
 	ldo 4(%r1), %r1
 	bv %r0(%r1)
 	ldi -EFAULT, %r8
-ENDPROC(fixup_put_user_skip_1)
+ENDPROC_CFI(fixup_put_user_skip_1)
 
-ENTRY(fixup_put_user_skip_2)
+ENTRY_CFI(fixup_put_user_skip_2)
 	get_fault_ip %r1,%r8
 	ldo 8(%r1), %r1
 	bv %r0(%r1)
 	ldi -EFAULT, %r8
-ENDPROC(fixup_put_user_skip_2)
+ENDPROC_CFI(fixup_put_user_skip_2)
 

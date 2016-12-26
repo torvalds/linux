@@ -1323,18 +1323,20 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 {
 	lockdep_assert_held(&phba->hbalock);
 
-	BUG_ON(!piocb || !piocb->vport);
+	BUG_ON(!piocb);
 
 	list_add_tail(&piocb->list, &pring->txcmplq);
 	piocb->iocb_flag |= LPFC_IO_ON_TXCMPLQ;
 
 	if ((unlikely(pring->ringno == LPFC_ELS_RING)) &&
 	   (piocb->iocb.ulpCommand != CMD_ABORT_XRI_CN) &&
-	   (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN) &&
-	    (!(piocb->vport->load_flag & FC_UNLOADING)))
-		mod_timer(&piocb->vport->els_tmofunc,
-			  jiffies +
-			  msecs_to_jiffies(1000 * (phba->fc_ratov << 1)));
+	   (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN)) {
+		BUG_ON(!piocb->vport);
+		if (!(piocb->vport->load_flag & FC_UNLOADING))
+			mod_timer(&piocb->vport->els_tmofunc,
+				  jiffies +
+				  msecs_to_jiffies(1000 * (phba->fc_ratov << 1)));
+	}
 
 	return 0;
 }
@@ -5689,7 +5691,7 @@ lpfc_sli4_dealloc_extent(struct lpfc_hba *phba, uint16_t type)
 	return rc;
 }
 
-void
+static void
 lpfc_set_features(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 		  uint32_t feature)
 {
@@ -8968,7 +8970,7 @@ lpfc_sli_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
  * Since ABORTS must go on the same WQ of the command they are
  * aborting, we use command's fcp_wqidx.
  */
-int
+static int
 lpfc_sli_calc_ring(struct lpfc_hba *phba, uint32_t ring_number,
 		    struct lpfc_iocbq *piocb)
 {

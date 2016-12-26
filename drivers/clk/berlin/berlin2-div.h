@@ -19,7 +19,7 @@
 #ifndef __BERLIN2_DIV_H
 #define __BERLIN2_DIV_H
 
-struct clk;
+struct clk_hw;
 
 #define BERLIN2_DIV_HAS_GATE		BIT(0)
 #define BERLIN2_DIV_HAS_MUX		BIT(1)
@@ -80,7 +80,7 @@ struct berlin2_div_data {
 	u8 div_flags;
 };
 
-struct clk * __init
+struct clk_hw *
 berlin2_div_register(const struct berlin2_div_map *map,
 	     void __iomem *base,  const char *name, u8 div_flags,
 	     const char **parent_names, int num_parents,

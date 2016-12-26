@@ -2489,7 +2489,7 @@ static int fore200e_load_and_start_fw(struct fore200e *fore200e)
 {
     const struct firmware *firmware;
     struct device *device;
-    struct fw_header *fw_header;
+    const struct fw_header *fw_header;
     const __le32 *fw_data;
     u32 fw_size;
     u32 __iomem *load_addr;
@@ -2511,9 +2511,9 @@ static int fore200e_load_and_start_fw(struct fore200e *fore200e)
 	return err;
     }
 
-    fw_data = (__le32 *) firmware->data;
+    fw_data = (const __le32 *)firmware->data;
     fw_size = firmware->size / sizeof(u32);
-    fw_header = (struct fw_header *) firmware->data;
+    fw_header = (const struct fw_header *)firmware->data;
     load_addr = fore200e->virt_base + le32_to_cpu(fw_header->load_offset);
 
     DPRINTK(2, "device %s firmware being loaded at 0x%p (%d words)\n",

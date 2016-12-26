@@ -98,6 +98,10 @@ Mount Options
 	size.
 
   rsize=X
+	Specify the maximum read size in bytes.  By default there is no
+	maximum.
+
+  rasize=X
 	Specify the maximum readahead.
 
   mount_timeout=X

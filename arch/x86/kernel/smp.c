@@ -32,6 +32,8 @@
 #include <asm/nmi.h>
 #include <asm/mce.h>
 #include <asm/trace/irq_vectors.h>
+#include <asm/kexec.h>
+
 /*
  *	Some notes on x86 processor bugs affecting SMP operation:
  *
@@ -259,8 +261,10 @@ static inline void __smp_reschedule_interrupt(void)
 
 __visible void smp_reschedule_interrupt(struct pt_regs *regs)
 {
+	irq_enter();
 	ack_APIC_irq();
 	__smp_reschedule_interrupt();
+	irq_exit();
 	/*
 	 * KVM uses this interrupt to force a cpu out of guest mode
 	 */
@@ -342,6 +346,9 @@ struct smp_ops smp_ops = {
 	.smp_cpus_done		= native_smp_cpus_done,
 
 	.stop_other_cpus	= native_stop_other_cpus,
+#if defined(CONFIG_KEXEC_CORE)
+	.crash_stop_other_cpus	= kdump_nmi_shootdown_cpus,
+#endif
 	.smp_send_reschedule	= native_smp_send_reschedule,
 
 	.cpu_up			= native_cpu_up,

@@ -184,8 +184,7 @@ static void etb_disable_hw(struct etb_drvdata *drvdata)
 
 	if (coresight_timeout(drvdata->base, ETB_FFCR, ETB_FFCR_BIT, 0)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			ETB_FFCR);
+		"timeout while waiting for completion of Manual Flush\n");
 	}
 
 	/* disable trace capture */
@@ -193,8 +192,7 @@ static void etb_disable_hw(struct etb_drvdata *drvdata)
 
 	if (coresight_timeout(drvdata->base, ETB_FFSR, ETB_FFSR_BIT, 1)) {
 		dev_err(drvdata->dev,
-			"timeout observed when probing at offset %#x\n",
-			ETB_FFCR);
+			"timeout while waiting for Formatter to Stop\n");
 	}
 
 	CS_LOCK(drvdata->base);
@@ -561,7 +559,7 @@ static const struct file_operations etb_fops = {
 };
 
 #define coresight_etb10_simple_func(name, offset)                       \
-	coresight_simple_func(struct etb_drvdata, name, offset)
+	coresight_simple_func(struct etb_drvdata, NULL, name, offset)
 
 coresight_etb10_simple_func(rdp, ETB_RAM_DEPTH_REG);
 coresight_etb10_simple_func(sts, ETB_STATUS_REG);
@@ -638,7 +636,7 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 	struct coresight_platform_data *pdata = NULL;
 	struct etb_drvdata *drvdata;
 	struct resource *res = &adev->res;
-	struct coresight_desc *desc;
+	struct coresight_desc desc = { 0 };
 	struct device_node *np = adev->dev.of_node;
 
 	if (np) {
@@ -684,17 +682,13 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 		return -ENOMEM;
 	}
 
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc)
-		return -ENOMEM;
-
-	desc->type = CORESIGHT_DEV_TYPE_SINK;
-	desc->subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
-	desc->ops = &etb_cs_ops;
-	desc->pdata = pdata;
-	desc->dev = dev;
-	desc->groups = coresight_etb_groups;
-	drvdata->csdev = coresight_register(desc);
+	desc.type = CORESIGHT_DEV_TYPE_SINK;
+	desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
+	desc.ops = &etb_cs_ops;
+	desc.pdata = pdata;
+	desc.dev = dev;
+	desc.groups = coresight_etb_groups;
+	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev))
 		return PTR_ERR(drvdata->csdev);
 

@@ -43,6 +43,32 @@ struct hns_mac_cb;
 #define DSAF_PRIO_NR	8
 #define DSAF_REG_PER_ZONE	3
 
+#define DSAF_ROCE_CREDIT_CHN	8
+#define DSAF_ROCE_CHAN_MODE	3
+
+enum dsaf_roce_port_mode {
+	DSAF_ROCE_6PORT_MODE,
+	DSAF_ROCE_4PORT_MODE,
+	DSAF_ROCE_2PORT_MODE,
+	DSAF_ROCE_CHAN_MODE_NUM,
+};
+
+enum dsaf_roce_port_num {
+	DSAF_ROCE_PORT_0,
+	DSAF_ROCE_PORT_1,
+	DSAF_ROCE_PORT_2,
+	DSAF_ROCE_PORT_3,
+	DSAF_ROCE_PORT_4,
+	DSAF_ROCE_PORT_5,
+};
+
+enum dsaf_roce_qos_sl {
+	DSAF_ROCE_SL_0,
+	DSAF_ROCE_SL_1,
+	DSAF_ROCE_SL_2,
+	DSAF_ROCE_SL_3,
+};
+
 #define DSAF_STATS_READ(p, offset) (*((u64 *)((u8 *)(p) + (offset))))
 #define HNS_DSAF_IS_DEBUG(dev) (dev->dsaf_mode == DSAF_MODE_DISABLE_SP)
 
@@ -279,7 +305,7 @@ struct dsaf_misc_op {
 	void (*cpld_reset_led)(struct hns_mac_cb *mac_cb);
 	int (*cpld_set_led_id)(struct hns_mac_cb *mac_cb,
 			       enum hnae_led_state status);
-	/* reset seris function, it will be reset if the dereseet is 0 */
+	/* reset series function, it will be reset if the dereset is 0 */
 	void (*dsaf_reset)(struct dsaf_device *dsaf_dev, bool dereset);
 	void (*xge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*xge_core_srst)(struct dsaf_device *dsaf_dev, u32 port,
@@ -287,6 +313,9 @@ struct dsaf_misc_op {
 	void (*ge_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*ppe_srst)(struct dsaf_device *dsaf_dev, u32 port, bool dereset);
 	void (*ppe_comm_srst)(struct dsaf_device *dsaf_dev, bool dereset);
+	void (*hns_dsaf_srst_chns)(struct dsaf_device *dsaf_dev, u32 msk,
+				   bool dereset);
+	void (*hns_dsaf_roce_srst)(struct dsaf_device *dsaf_dev, bool dereset);
 
 	phy_interface_t (*get_phy_if)(struct hns_mac_cb *mac_cb);
 	int (*get_sfp_prsnt)(struct hns_mac_cb *mac_cb, int *sfp_prsnt);
@@ -437,6 +466,5 @@ void hns_dsaf_get_rx_mac_pause_en(struct dsaf_device *dsaf_dev, int mac_id,
 				  u32 *en);
 int hns_dsaf_set_rx_mac_pause_en(struct dsaf_device *dsaf_dev, int mac_id,
 				 u32 en);
-void hns_dsaf_set_inner_lb(struct dsaf_device *dsaf_dev, u32 mac_id, u32 en);
 
 #endif /* __HNS_DSAF_MAIN_H__ */

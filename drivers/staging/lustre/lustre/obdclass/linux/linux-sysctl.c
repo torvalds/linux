@@ -45,6 +45,7 @@
 
 #include "../../include/obd_support.h"
 #include "../../include/lprocfs_status.h"
+#include "../../include/obd_class.h"
 
 struct static_lustre_uintvalue_attr {
 	struct {
@@ -95,8 +96,8 @@ LUSTRE_STATIC_UINT_ATTR(timeout, &obd_timeout);
 static ssize_t max_dirty_mb_show(struct kobject *kobj, struct attribute *attr,
 				 char *buf)
 {
-	return sprintf(buf, "%ul\n",
-			obd_max_dirty_pages / (1 << (20 - PAGE_SHIFT)));
+	return sprintf(buf, "%lu\n",
+		       obd_max_dirty_pages / (1 << (20 - PAGE_SHIFT)));
 }
 
 static ssize_t max_dirty_mb_store(struct kobject *kobj, struct attribute *attr,

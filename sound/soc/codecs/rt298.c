@@ -249,6 +249,11 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 			snd_soc_dapm_force_enable_pin(dapm, "LDO1");
 			snd_soc_dapm_sync(dapm);
 
+			regmap_update_bits(rt298->regmap,
+				RT298_POWER_CTRL1, 0x1001, 0);
+			regmap_update_bits(rt298->regmap,
+				RT298_POWER_CTRL2, 0x4, 0x4);
+
 			regmap_write(rt298->regmap, RT298_SET_MIC1, 0x24);
 			msleep(50);
 
@@ -1095,12 +1100,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt298 = {
 	.resume = rt298_resume,
 	.set_bias_level = rt298_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt298_snd_controls,
-	.num_controls = ARRAY_SIZE(rt298_snd_controls),
-	.dapm_widgets = rt298_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt298_dapm_widgets),
-	.dapm_routes = rt298_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt298_dapm_routes),
+	.component_driver = {
+		.controls		= rt298_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt298_snd_controls),
+		.dapm_widgets		= rt298_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt298_dapm_widgets),
+		.dapm_routes		= rt298_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt298_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt298_regmap = {

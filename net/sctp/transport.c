@@ -233,7 +233,7 @@ void sctp_transport_pmtu(struct sctp_transport *transport, struct sock *sk)
 	}
 
 	if (transport->dst) {
-		transport->pathmtu = WORD_TRUNC(dst_mtu(transport->dst));
+		transport->pathmtu = SCTP_TRUNC4(dst_mtu(transport->dst));
 	} else
 		transport->pathmtu = SCTP_DEFAULT_MAXSEGMENT;
 }
@@ -287,7 +287,7 @@ void sctp_transport_route(struct sctp_transport *transport,
 		return;
 	}
 	if (transport->dst) {
-		transport->pathmtu = WORD_TRUNC(dst_mtu(transport->dst));
+		transport->pathmtu = SCTP_TRUNC4(dst_mtu(transport->dst));
 
 		/* Initialize sk->sk_rcv_saddr, if the transport is the
 		 * association's active path for getsockname().

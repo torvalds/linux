@@ -11,12 +11,16 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-#include "skeleton.dtsi"
-
 / {
 	compatible = "ti,am4372", "ti,am43";
 	interrupt-parent = <&wakeupgen>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0>;
+	};
 
 	aliases {
 		i2c0 = &i2c0;
@@ -132,7 +136,7 @@
 		cache-level = <2>;
 	};
 
-	ocp {
+	ocp@44000000 {
 		compatible = "ti,am4372-l3-noc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

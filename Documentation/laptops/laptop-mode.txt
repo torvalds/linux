@@ -779,4 +779,4 @@ Monitoring tool
 ---------------
 
 Bartek Kania submitted this, it can be used to measure how much time your disk
-spends spun up/down.  See Documentation/laptops/dslm.c
+spends spun up/down.  See tools/laptop/dslm/dslm.c

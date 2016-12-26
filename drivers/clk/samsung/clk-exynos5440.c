@@ -112,6 +112,11 @@ static struct notifier_block exynos5440_clk_restart_handler = {
 	.priority = 128,
 };
 
+static const struct samsung_pll_clock exynos5440_plls[] __initconst = {
+	PLL(pll_2550x, CLK_CPLLA, "cplla", "xtal", 0, 0x4c, NULL),
+	PLL(pll_2550x, CLK_CPLLB, "cpllb", "xtal", 0, 0x50, NULL),
+};
+
 /* register exynos5440 clocks */
 static void __init exynos5440_clk_init(struct device_node *np)
 {
@@ -129,8 +134,8 @@ static void __init exynos5440_clk_init(struct device_node *np)
 	samsung_clk_of_register_fixed_ext(ctx, exynos5440_fixed_rate_ext_clks,
 		ARRAY_SIZE(exynos5440_fixed_rate_ext_clks), ext_clk_match);
 
-	samsung_clk_register_pll2550x("cplla", "xtal", reg_base + 0x1c, 0x10);
-	samsung_clk_register_pll2550x("cpllb", "xtal", reg_base + 0x20, 0x10);
+	samsung_clk_register_pll(ctx, exynos5440_plls,
+			ARRAY_SIZE(exynos5440_plls), ctx->reg_base);
 
 	samsung_clk_register_fixed_rate(ctx, exynos5440_fixed_rate_clks,
 			ARRAY_SIZE(exynos5440_fixed_rate_clks));

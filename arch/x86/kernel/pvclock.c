@@ -80,7 +80,7 @@ cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 
 	do {
 		version = pvclock_read_begin(src);
-		ret = __pvclock_read_cycles(src);
+		ret = __pvclock_read_cycles(src, rdtsc_ordered());
 		flags = src->flags;
 	} while (pvclock_read_retry(src, version));
 

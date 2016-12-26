@@ -123,7 +123,6 @@ struct greth_private {
 	struct napi_struct napi;
 	spinlock_t devlock;
 
-	struct phy_device *phy;
 	struct mii_bus *mdio;
 	unsigned int link;
 	unsigned int speed;

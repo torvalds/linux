@@ -4,12 +4,8 @@ highres.txt
 	- High resolution timers and dynamic ticks design notes
 hpet.txt
 	- High Precision Event Timer Driver for Linux
-hpet_example.c
-	- sample hpet timer test program
 hrtimers.txt
 	- subsystem for high-resolution kernel timers
-Makefile
-	- Build and link hpet_example
 NO_HZ.txt
 	- Summary of the different methods for the scheduler clock-interrupts management.
 timekeeping.txt

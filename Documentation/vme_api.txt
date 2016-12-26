@@ -8,13 +8,14 @@ As with other subsystems within the Linux kernel, VME device drivers register
 with the VME subsystem, typically called from the devices init routine.  This is
 achieved via a call to the following function:
 
-	int vme_register_driver (struct vme_driver *driver);
+	int vme_register_driver (struct vme_driver *driver, unsigned int ndevs);
 
 If driver registration is successful this function returns zero, if an error
 occurred a negative error code will be returned.
 
 A pointer to a structure of type 'vme_driver' must be provided to the
-registration function. The structure is as follows:
+registration function. Along with ndevs, which is the number of devices your
+driver is able to support. The structure is as follows:
 
 	struct vme_driver {
 		struct list_head node;
@@ -32,8 +33,8 @@ At the minimum, the '.name', '.match' and '.probe' elements of this structure
 should be correctly set. The '.name' element is a pointer to a string holding
 the device driver's name.
 
-The '.match' function allows controlling the number of devices that need to
-be registered. The match function should return 1 if a device should be
+The '.match' function allows control over which VME devices should be registered
+with the driver. The match function should return 1 if a device should be
 probed and 0 otherwise. This example match function (from vme_user.c) limits
 the number of devices probed to one:
 
@@ -385,13 +386,13 @@ location monitor location. Each location monitor can monitor a number of
 adjacent locations:
 
 	int vme_lm_attach(struct vme_resource *res, int num,
-		void (*callback)(int));
+		void (*callback)(void *));
 
 	int vme_lm_detach(struct vme_resource *res, int num);
 
 The callback function is declared as follows.
 
-	void callback(int num);
+	void callback(void *data);
 
 
 Slot Detection

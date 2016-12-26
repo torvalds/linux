@@ -21,7 +21,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>; /* 512 MB */
 	};
@@ -102,7 +102,7 @@
 
 	backlight {
 		compatible = "pwm-backlight";
-		pwms = <&pwm11 0 2000000 0>;
+		pwms = <&pwm11 0 12000000 0>;
 		pwm-names = "backlight";
 		brightness-levels = <0 11 20 30 40 50 60 70 80 90 100>;
 		default-brightness-level = <9>;	/* => 90 */

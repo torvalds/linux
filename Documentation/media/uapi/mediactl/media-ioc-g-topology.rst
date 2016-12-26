@@ -15,7 +15,8 @@ MEDIA_IOC_G_TOPOLOGY - Enumerate the graph topology and graph element properties
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct media_v2_topology *argp )
+.. c:function:: int ioctl( int fd, MEDIA_IOC_G_TOPOLOGY, struct media_v2_topology *argp )
+    :name: MEDIA_IOC_G_TOPOLOGY
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <media-func-open>`.
-
-``request``
-    MEDIA_IOC_G_TOPOLOGY
 
 ``argp``
 
@@ -35,7 +33,7 @@ Description
 
 The typical usage of this ioctl is to call it twice. On the first call,
 the structure defined at struct
-:ref:`media_v2_topology <media-v2-topology>` should be zeroed. At
+:c:type:`media_v2_topology` should be zeroed. At
 return, if no errors happen, this ioctl will return the
 ``topology_version`` and the total number of entities, interfaces, pads
 and links.
@@ -48,8 +46,9 @@ other values untouched.
 If the ``topology_version`` remains the same, the ioctl should fill the
 desired arrays with the media graph elements.
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-topology:
+.. c:type:: media_v2_topology
 
 .. flat-table:: struct media_v2_topology
     :header-rows:  0
@@ -142,8 +141,9 @@ desired arrays with the media graph elements.
 	  won't store the links. It will just update ``num_links``
 
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-entity:
+.. c:type:: media_v2_entity
 
 .. flat-table:: struct media_v2_entity
     :header-rows:  0
@@ -185,8 +185,9 @@ desired arrays with the media graph elements.
 	  this array to zero.
 
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-interface:
+.. c:type:: media_v2_interface
 
 .. flat-table:: struct media_v2_interface
     :header-rows:  0
@@ -233,11 +234,12 @@ desired arrays with the media graph elements.
        -  ``devnode``
 
        -  Used only for device node interfaces. See
-	  :ref:`media-v2-intf-devnode` for details..
+	  :c:type:`media_v2_intf_devnode` for details..
 
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-intf-devnode:
+.. c:type:: media_v2_intf_devnode
 
 .. flat-table:: struct media_v2_interface
     :header-rows:  0
@@ -262,8 +264,9 @@ desired arrays with the media graph elements.
        -  Device node minor number.
 
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-pad:
+.. c:type:: media_v2_pad
 
 .. flat-table:: struct media_v2_pad
     :header-rows:  0
@@ -305,8 +308,9 @@ desired arrays with the media graph elements.
 	  this array to zero.
 
 
+.. tabularcolumns:: |p{1.6cm}|p{3.2cm}|p{12.7cm}|
 
-.. _media-v2-link:
+.. c:type:: media_v2_link
 
 .. flat-table:: struct media_v2_pad
     :header-rows:  0

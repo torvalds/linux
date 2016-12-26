@@ -40,10 +40,10 @@
 #include "../include/lprocfs_status.h"
 #include <linux/list.h>
 #include "../include/cl_object.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "llog_internal.h"
 
 struct obd_device *obd_devs[MAX_OBD_DEVICES];
-EXPORT_SYMBOL(obd_devs);
 struct list_head obd_types;
 DEFINE_RWLOCK(obd_dev_lock);
 
@@ -54,11 +54,9 @@ unsigned int obd_dump_on_timeout;
 EXPORT_SYMBOL(obd_dump_on_timeout);
 unsigned int obd_dump_on_eviction;
 EXPORT_SYMBOL(obd_dump_on_eviction);
-unsigned int obd_max_dirty_pages = 256;
+unsigned long obd_max_dirty_pages;
 EXPORT_SYMBOL(obd_max_dirty_pages);
-atomic_t obd_unstable_pages;
-EXPORT_SYMBOL(obd_unstable_pages);
-atomic_t obd_dirty_pages;
+atomic_long_t obd_dirty_pages;
 EXPORT_SYMBOL(obd_dirty_pages);
 unsigned int obd_timeout = OBD_TIMEOUT_DEFAULT;   /* seconds */
 EXPORT_SYMBOL(obd_timeout);
@@ -76,13 +74,11 @@ EXPORT_SYMBOL(at_early_margin);
 int at_extra = 30;
 EXPORT_SYMBOL(at_extra);
 
-atomic_t obd_dirty_transit_pages;
+atomic_long_t obd_dirty_transit_pages;
 EXPORT_SYMBOL(obd_dirty_transit_pages);
 
 char obd_jobid_var[JOBSTATS_JOBID_VAR_MAX_LEN + 1] = JOBSTATS_DISABLE;
-EXPORT_SYMBOL(obd_jobid_var);
-
-char obd_jobid_node[JOBSTATS_JOBID_SIZE + 1];
+char obd_jobid_node[LUSTRE_JOBID_SIZE + 1];
 
 /* Get jobid of current process from stored variable or calculate
  * it from pid and user_id.
@@ -93,14 +89,14 @@ char obd_jobid_node[JOBSTATS_JOBID_SIZE + 1];
  */
 int lustre_get_jobid(char *jobid)
 {
-	memset(jobid, 0, JOBSTATS_JOBID_SIZE);
+	memset(jobid, 0, LUSTRE_JOBID_SIZE);
 	/* Jobstats isn't enabled */
 	if (strcmp(obd_jobid_var, JOBSTATS_DISABLE) == 0)
 		return 0;
 
 	/* Use process name + fsuid as jobid */
 	if (strcmp(obd_jobid_var, JOBSTATS_PROCNAME_UID) == 0) {
-		snprintf(jobid, JOBSTATS_JOBID_SIZE, "%s.%u",
+		snprintf(jobid, LUSTRE_JOBID_SIZE, "%s.%u",
 			 current_comm(),
 			 from_kuid(&init_user_ns, current_fsuid()));
 		return 0;
@@ -115,19 +111,6 @@ int lustre_get_jobid(char *jobid)
 	return -ENOENT;
 }
 EXPORT_SYMBOL(lustre_get_jobid);
-
-static inline void obd_data2conn(struct lustre_handle *conn,
-				 struct obd_ioctl_data *data)
-{
-	memset(conn, 0, sizeof(*conn));
-	conn->cookie = data->ioc_cookie;
-}
-
-static inline void obd_conn2data(struct obd_ioctl_data *data,
-				 struct lustre_handle *conn)
-{
-	data->ioc_cookie = conn->cookie;
-}
 
 static int class_resolve_dev_name(__u32 len, const char *name)
 {
@@ -284,13 +267,6 @@ int class_handle_ioctl(unsigned int cmd, unsigned long arg)
 					sizeof(*data));
 		if (err)
 			err = -EFAULT;
-		goto out;
-	}
-
-	case OBD_IOC_CLOSE_UUID: {
-		CDEBUG(D_IOCTL, "closing all connections to uuid %s (NOOP)\n",
-		       data->ioc_inlbuf1);
-		err = 0;
 		goto out;
 	}
 
@@ -467,14 +443,9 @@ static int obd_init_checks(void)
 	return ret;
 }
 
-extern int class_procfs_init(void);
-extern int class_procfs_clean(void);
-
 static int __init obdclass_init(void)
 {
 	int i, err;
-
-	int lustre_register_fs(void);
 
 	LCONSOLE_INFO("Lustre: Build Version: " LUSTRE_VERSION_STRING "\n");
 
@@ -542,23 +513,9 @@ static int __init obdclass_init(void)
 
 static void obdclass_exit(void)
 {
-	int i;
-
-	int lustre_unregister_fs(void);
-
 	lustre_unregister_fs();
 
 	misc_deregister(&obd_psdev);
-	for (i = 0; i < class_devno_max(); i++) {
-		struct obd_device *obd = class_num2obd(i);
-
-		if (obd && obd->obd_set_up &&
-		    OBT(obd) && OBP(obd, detach)) {
-			/* XXX should this call generic detach otherwise? */
-			LASSERT(obd->obd_magic == OBD_DEVICE_MAGIC);
-			OBP(obd, detach)(obd);
-		}
-	}
 	llog_info_fini();
 	cl_global_fini();
 	lu_global_fini();

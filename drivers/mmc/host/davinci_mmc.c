@@ -1216,9 +1216,11 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 	}
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	irq = platform_get_irq(pdev, 0);
-	if (!r || irq == NO_IRQ)
+	if (!r)
 		return -ENODEV;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	mem_size = resource_size(r);
 	mem = devm_request_mem_region(&pdev->dev, r->start, mem_size,

@@ -154,7 +154,7 @@ struct credit_return {
 /* NUMA indexed credit return array */
 struct credit_return_base {
 	struct credit_return *va;
-	dma_addr_t pa;
+	dma_addr_t dma;
 };
 
 /* send context configuration sizes (one per type) */

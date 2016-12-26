@@ -110,6 +110,14 @@ Given a $HOME/.perfconfig like this:
 		order = caller
 		sort-key = function
 
+	[report]
+		# Defaults
+		sort-order = comm,dso,symbol
+		percent-limit = 0
+		queue-size = 0
+		children = true
+		group = true
+
 Variables
 ~~~~~~~~~
 
@@ -382,6 +390,10 @@ call-graph.*::
 		histogram entry. Default is 0 which means no limitation.
 
 report.*::
+	report.sort_order::
+		Allows changing the default sort order from "comm,dso,symbol" to
+		some other default, for instance "sym,dso" may be more fitting for
+		kernel developers.
 	report.percent-limit::
 		This one is mostly the same as call-graph.threshold but works for
 		histogram entries. Entries having an overhead lower than this

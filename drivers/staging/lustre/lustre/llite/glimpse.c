@@ -42,7 +42,6 @@
 #include "../include/obd.h"
 
 #include "../include/lustre_dlm.h"
-#include "../include/lustre_lite.h"
 #include "../include/lustre_mdc.h"
 #include <linux/pagemap.h>
 #include <linux/file.h>

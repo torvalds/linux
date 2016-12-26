@@ -46,11 +46,12 @@
 #define USB8766_DEFAULT_FW_NAME	"mrvl/usb8766_uapsta.bin"
 #define USB8797_DEFAULT_FW_NAME	"mrvl/usb8797_uapsta.bin"
 #define USB8801_DEFAULT_FW_NAME	"mrvl/usb8801_uapsta.bin"
-#define USB8997_DEFAULT_FW_NAME	"mrvl/usb8997_uapsta.bin"
+#define USB8997_DEFAULT_FW_NAME	"mrvl/usbusb8997_combo_v4.bin"
 
 #define FW_DNLD_TX_BUF_SIZE	620
 #define FW_DNLD_RX_BUF_SIZE	2048
 #define FW_HAS_LAST_BLOCK	0x00000004
+#define FW_CMD_7		0x00000007
 
 #define FW_DATA_XMIT_SIZE \
 	(sizeof(struct fw_header) + dlen + sizeof(u32))

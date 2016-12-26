@@ -419,10 +419,6 @@ again:
 
 	vc4_flush_caches(dev);
 
-	/* Disable the binner's pre-loaded overflow memory address */
-	V3D_WRITE(V3D_BPOA, 0);
-	V3D_WRITE(V3D_BPOS, 0);
-
 	/* Either put the job in the binner if it uses the binner, or
 	 * immediately move it to the to-be-rendered queue.
 	 */
@@ -470,6 +466,11 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 
 	list_for_each_entry(bo, &exec->unref_list, unref_head) {
 		bo->seqno = seqno;
+	}
+
+	for (i = 0; i < exec->rcl_write_bo_count; i++) {
+		bo = to_vc4_bo(&exec->rcl_write_bo[i]->base);
+		bo->write_seqno = seqno;
 	}
 }
 
@@ -673,6 +674,14 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 		goto fail;
 
 	ret = vc4_validate_shader_recs(dev, exec);
+	if (ret)
+		goto fail;
+
+	/* Block waiting on any previous rendering into the CS's VBO,
+	 * IB, or textures, so that pixels are actually written by the
+	 * time we try to read them.
+	 */
+	ret = vc4_wait_for_seqno(dev, exec->bin_dep_seqno, ~0ull, true);
 
 fail:
 	drm_free_large(temp);

@@ -359,7 +359,6 @@ struct iwl_cfg {
 	    high_temp:1,
 	    mac_addr_from_csr:1,
 	    lp_xtal_workaround:1,
-	    no_power_up_nic_in_init:1,
 	    disable_dummy_notification:1,
 	    apmg_not_supported:1,
 	    mq_rx_supported:1,
@@ -445,13 +444,17 @@ extern const struct iwl_cfg iwl7265d_n_cfg;
 extern const struct iwl_cfg iwl8260_2n_cfg;
 extern const struct iwl_cfg iwl8260_2ac_cfg;
 extern const struct iwl_cfg iwl8265_2ac_cfg;
+extern const struct iwl_cfg iwl8275_2ac_cfg;
 extern const struct iwl_cfg iwl4165_2ac_cfg;
 extern const struct iwl_cfg iwl8260_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl8265_2ac_sdio_cfg;
 extern const struct iwl_cfg iwl4165_2ac_sdio_cfg;
+extern const struct iwl_cfg iwl9000lc_2ac_cfg;
+extern const struct iwl_cfg iwl9160_2ac_cfg;
 extern const struct iwl_cfg iwl9260_2ac_cfg;
-extern const struct iwl_cfg iwl9260lc_2ac_cfg;
-extern const struct iwl_cfg iwl5165_2ac_cfg;
+extern const struct iwl_cfg iwl9270_2ac_cfg;
+extern const struct iwl_cfg iwl9460_2ac_cfg;
+extern const struct iwl_cfg iwl9560_2ac_cfg;
 extern const struct iwl_cfg iwla000_2ac_cfg;
 #endif /* CONFIG_IWLMVM */
 

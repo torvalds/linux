@@ -662,7 +662,7 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ns_get_node
+ * FUNCTION:    acpi_ns_get_node_unlocked
  *
  * PARAMETERS:  *pathname   - Name to be found, in external (ASL) format. The
  *                            \ (backslash) and ^ (carat) prefixes, and the
@@ -678,20 +678,21 @@ u32 acpi_ns_opens_scope(acpi_object_type type)
  * DESCRIPTION: Look up a name relative to a given scope and return the
  *              corresponding Node. NOTE: Scope can be null.
  *
- * MUTEX:       Locks namespace
+ * MUTEX:       Doesn't locks namespace
  *
  ******************************************************************************/
 
 acpi_status
-acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
-		 const char *pathname,
-		 u32 flags, struct acpi_namespace_node **return_node)
+acpi_ns_get_node_unlocked(struct acpi_namespace_node *prefix_node,
+			  const char *pathname,
+			  u32 flags, struct acpi_namespace_node **return_node)
 {
 	union acpi_generic_state scope_info;
 	acpi_status status;
 	char *internal_path;
 
-	ACPI_FUNCTION_TRACE_PTR(ns_get_node, ACPI_CAST_PTR(char, pathname));
+	ACPI_FUNCTION_TRACE_PTR(ns_get_node_unlocked,
+				ACPI_CAST_PTR(char, pathname));
 
 	/* Simplest case is a null pathname */
 
@@ -718,13 +719,6 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Must lock namespace during lookup */
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		goto cleanup;
-	}
-
 	/* Setup lookup scope (search starting point) */
 
 	scope_info.scope.node = prefix_node;
@@ -740,9 +734,49 @@ acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
 				  pathname, acpi_format_exception(status)));
 	}
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-
-cleanup:
 	ACPI_FREE(internal_path);
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_get_node
+ *
+ * PARAMETERS:  *pathname   - Name to be found, in external (ASL) format. The
+ *                            \ (backslash) and ^ (carat) prefixes, and the
+ *                            . (period) to separate segments are supported.
+ *              prefix_node  - Root of subtree to be searched, or NS_ALL for the
+ *                            root of the name space. If Name is fully
+ *                            qualified (first s8 is '\'), the passed value
+ *                            of Scope will not be accessed.
+ *              flags       - Used to indicate whether to perform upsearch or
+ *                            not.
+ *              return_node - Where the Node is returned
+ *
+ * DESCRIPTION: Look up a name relative to a given scope and return the
+ *              corresponding Node. NOTE: Scope can be null.
+ *
+ * MUTEX:       Locks namespace
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_get_node(struct acpi_namespace_node *prefix_node,
+		 const char *pathname,
+		 u32 flags, struct acpi_namespace_node **return_node)
+{
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE_PTR(ns_get_node, ACPI_CAST_PTR(char, pathname));
+
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	status = acpi_ns_get_node_unlocked(prefix_node, pathname,
+					   flags, return_node);
+
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 	return_ACPI_STATUS(status);
 }

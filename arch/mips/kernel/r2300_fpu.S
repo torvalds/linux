@@ -21,106 +21,84 @@
 #define EX(a,b)							\
 9:	a,##b;							\
 	.section __ex_table,"a";				\
+	PTR	9b,fault;					\
+	.previous
+
+#define EX2(a,b)						\
+9:	a,##b;							\
+	.section __ex_table,"a";				\
 	PTR	9b,bad_stack;					\
+	PTR	9b+4,bad_stack;					\
 	.previous
 
 	.set	noreorder
 	.set	mips1
-	/* Save floating point context */
+
+/**
+ * _save_fp_context() - save FP context from the FPU
+ * @a0 - pointer to fpregs field of sigcontext
+ * @a1 - pointer to fpc_csr field of sigcontext
+ *
+ * Save FP context, including the 32 FP data registers and the FP
+ * control & status register, from the FPU to signal context.
+ */
 LEAF(_save_fp_context)
 	.set	push
 	SET_HARDFLOAT
 	li	v0, 0					# assume success
-	cfc1	t1,fcr31
-	EX(swc1 $f0,(SC_FPREGS+0)(a0))
-	EX(swc1 $f1,(SC_FPREGS+8)(a0))
-	EX(swc1 $f2,(SC_FPREGS+16)(a0))
-	EX(swc1 $f3,(SC_FPREGS+24)(a0))
-	EX(swc1 $f4,(SC_FPREGS+32)(a0))
-	EX(swc1 $f5,(SC_FPREGS+40)(a0))
-	EX(swc1 $f6,(SC_FPREGS+48)(a0))
-	EX(swc1 $f7,(SC_FPREGS+56)(a0))
-	EX(swc1 $f8,(SC_FPREGS+64)(a0))
-	EX(swc1 $f9,(SC_FPREGS+72)(a0))
-	EX(swc1 $f10,(SC_FPREGS+80)(a0))
-	EX(swc1 $f11,(SC_FPREGS+88)(a0))
-	EX(swc1 $f12,(SC_FPREGS+96)(a0))
-	EX(swc1 $f13,(SC_FPREGS+104)(a0))
-	EX(swc1 $f14,(SC_FPREGS+112)(a0))
-	EX(swc1 $f15,(SC_FPREGS+120)(a0))
-	EX(swc1 $f16,(SC_FPREGS+128)(a0))
-	EX(swc1 $f17,(SC_FPREGS+136)(a0))
-	EX(swc1 $f18,(SC_FPREGS+144)(a0))
-	EX(swc1 $f19,(SC_FPREGS+152)(a0))
-	EX(swc1 $f20,(SC_FPREGS+160)(a0))
-	EX(swc1 $f21,(SC_FPREGS+168)(a0))
-	EX(swc1 $f22,(SC_FPREGS+176)(a0))
-	EX(swc1 $f23,(SC_FPREGS+184)(a0))
-	EX(swc1 $f24,(SC_FPREGS+192)(a0))
-	EX(swc1 $f25,(SC_FPREGS+200)(a0))
-	EX(swc1 $f26,(SC_FPREGS+208)(a0))
-	EX(swc1 $f27,(SC_FPREGS+216)(a0))
-	EX(swc1 $f28,(SC_FPREGS+224)(a0))
-	EX(swc1 $f29,(SC_FPREGS+232)(a0))
-	EX(swc1 $f30,(SC_FPREGS+240)(a0))
-	EX(swc1 $f31,(SC_FPREGS+248)(a0))
-	EX(sw	t1,(SC_FPC_CSR)(a0))
-	cfc1	t0,$0				# implementation/version
+	cfc1	t1, fcr31
+	EX2(s.d $f0, 0(a0))
+	EX2(s.d $f2, 16(a0))
+	EX2(s.d $f4, 32(a0))
+	EX2(s.d $f6, 48(a0))
+	EX2(s.d $f8, 64(a0))
+	EX2(s.d $f10, 80(a0))
+	EX2(s.d $f12, 96(a0))
+	EX2(s.d $f14, 112(a0))
+	EX2(s.d $f16, 128(a0))
+	EX2(s.d $f18, 144(a0))
+	EX2(s.d $f20, 160(a0))
+	EX2(s.d $f22, 176(a0))
+	EX2(s.d $f24, 192(a0))
+	EX2(s.d $f26, 208(a0))
+	EX2(s.d $f28, 224(a0))
+	EX2(s.d $f30, 240(a0))
 	jr	ra
+	 EX(sw	t1, (a1))
 	.set	pop
-	.set	nomacro
-	 EX(sw	t0,(SC_FPC_EIR)(a0))
-	.set	macro
 	END(_save_fp_context)
 
-/*
- * Restore FPU state:
- *  - fp gp registers
- *  - cp1 status/control register
+/**
+ * _restore_fp_context() - restore FP context to the FPU
+ * @a0 - pointer to fpregs field of sigcontext
+ * @a1 - pointer to fpc_csr field of sigcontext
  *
- * We base the decision which registers to restore from the signal stack
- * frame on the current content of c0_status, not on the content of the
- * stack frame which might have been changed by the user.
+ * Restore FP context, including the 32 FP data registers and the FP
+ * control & status register, from signal context to the FPU.
  */
 LEAF(_restore_fp_context)
 	.set	push
 	SET_HARDFLOAT
 	li	v0, 0					# assume success
-	EX(lw t0,(SC_FPC_CSR)(a0))
-	EX(lwc1 $f0,(SC_FPREGS+0)(a0))
-	EX(lwc1 $f1,(SC_FPREGS+8)(a0))
-	EX(lwc1 $f2,(SC_FPREGS+16)(a0))
-	EX(lwc1 $f3,(SC_FPREGS+24)(a0))
-	EX(lwc1 $f4,(SC_FPREGS+32)(a0))
-	EX(lwc1 $f5,(SC_FPREGS+40)(a0))
-	EX(lwc1 $f6,(SC_FPREGS+48)(a0))
-	EX(lwc1 $f7,(SC_FPREGS+56)(a0))
-	EX(lwc1 $f8,(SC_FPREGS+64)(a0))
-	EX(lwc1 $f9,(SC_FPREGS+72)(a0))
-	EX(lwc1 $f10,(SC_FPREGS+80)(a0))
-	EX(lwc1 $f11,(SC_FPREGS+88)(a0))
-	EX(lwc1 $f12,(SC_FPREGS+96)(a0))
-	EX(lwc1 $f13,(SC_FPREGS+104)(a0))
-	EX(lwc1 $f14,(SC_FPREGS+112)(a0))
-	EX(lwc1 $f15,(SC_FPREGS+120)(a0))
-	EX(lwc1 $f16,(SC_FPREGS+128)(a0))
-	EX(lwc1 $f17,(SC_FPREGS+136)(a0))
-	EX(lwc1 $f18,(SC_FPREGS+144)(a0))
-	EX(lwc1 $f19,(SC_FPREGS+152)(a0))
-	EX(lwc1 $f20,(SC_FPREGS+160)(a0))
-	EX(lwc1 $f21,(SC_FPREGS+168)(a0))
-	EX(lwc1 $f22,(SC_FPREGS+176)(a0))
-	EX(lwc1 $f23,(SC_FPREGS+184)(a0))
-	EX(lwc1 $f24,(SC_FPREGS+192)(a0))
-	EX(lwc1 $f25,(SC_FPREGS+200)(a0))
-	EX(lwc1 $f26,(SC_FPREGS+208)(a0))
-	EX(lwc1 $f27,(SC_FPREGS+216)(a0))
-	EX(lwc1 $f28,(SC_FPREGS+224)(a0))
-	EX(lwc1 $f29,(SC_FPREGS+232)(a0))
-	EX(lwc1 $f30,(SC_FPREGS+240)(a0))
-	EX(lwc1 $f31,(SC_FPREGS+248)(a0))
+	EX(lw t0, (a1))
+	EX2(l.d $f0, 0(a0))
+	EX2(l.d $f2, 16(a0))
+	EX2(l.d $f4, 32(a0))
+	EX2(l.d $f6, 48(a0))
+	EX2(l.d $f8, 64(a0))
+	EX2(l.d $f10, 80(a0))
+	EX2(l.d $f12, 96(a0))
+	EX2(l.d $f14, 112(a0))
+	EX2(l.d $f16, 128(a0))
+	EX2(l.d $f18, 144(a0))
+	EX2(l.d $f20, 160(a0))
+	EX2(l.d $f22, 176(a0))
+	EX2(l.d $f24, 192(a0))
+	EX2(l.d $f26, 208(a0))
+	EX2(l.d $f28, 224(a0))
+	EX2(l.d $f30, 240(a0))
 	jr	ra
-	 ctc1	t0,fcr31
+	 ctc1	t0, fcr31
 	.set	pop
 	END(_restore_fp_context)
 	.set	reorder

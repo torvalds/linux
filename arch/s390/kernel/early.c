@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <linux/ctype.h>
 #include <linux/lockdep.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/pfn.h>
 #include <linux/uaccess.h>
 #include <linux/kernel.h>

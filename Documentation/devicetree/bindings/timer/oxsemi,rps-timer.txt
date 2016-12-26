@@ -2,7 +2,7 @@ Oxford Semiconductor OXNAS SoCs Family RPS Timer
 ================================================
 
 Required properties:
-- compatible: Should be "oxsemi,ox810se-rps-timer"
+- compatible: Should be "oxsemi,ox810se-rps-timer" or "oxsemi,ox820-rps-timer"
 - reg : Specifies base physical address and size of the registers.
 - interrupts : The interrupts of the two timers
 - clocks : The phandle of the timer clock source

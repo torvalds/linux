@@ -15,7 +15,8 @@ VIDIOC_EXPBUF - Export a buffer as a DMABUF file descriptor.
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct v4l2_exportbuffer *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_EXPBUF, struct v4l2_exportbuffer *argp )
+    :name: VIDIOC_EXPBUF
 
 
 Arguments
@@ -23,9 +24,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_EXPBUF
 
 ``argp``
 
@@ -40,13 +38,13 @@ buffers have been allocated with the
 :ref:`VIDIOC_REQBUFS` ioctl.
 
 To export a buffer, applications fill struct
-:ref:`v4l2_exportbuffer <v4l2-exportbuffer>`. The ``type`` field is
+:c:type:`v4l2_exportbuffer`. The ``type`` field is
 set to the same buffer type as was previously used with struct
-:ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``.
+:c:type:`v4l2_requestbuffers` ``type``.
 Applications must also set the ``index`` field. Valid index numbers
 range from zero to the number of buffers allocated with
 :ref:`VIDIOC_REQBUFS` (struct
-:ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``count``) minus
+:c:type:`v4l2_requestbuffers` ``count``) minus
 one. For the multi-planar API, applications set the ``plane`` field to
 the index of the plane to be exported. Valid planes range from zero to
 the maximal number of valid planes for the currently active format. For
@@ -116,73 +114,45 @@ Examples
     }
 
 
-.. _v4l2-exportbuffer:
+.. c:type:: v4l2_exportbuffer
+
+.. tabularcolumns:: |p{4.4cm}|p{4.4cm}|p{8.7cm}|
 
 .. flat-table:: struct v4l2_exportbuffer
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
-       -  ``type``
-
-       -  Type of the buffer, same as struct
-	  :ref:`v4l2_format <v4l2-format>` ``type`` or struct
-	  :ref:`v4l2_requestbuffers <v4l2-requestbuffers>` ``type``, set
-	  by the application. See :ref:`v4l2-buf-type`
-
-    -  .. row 2
-
-       -  __u32
-
-       -  ``index``
-
-       -  Number of the buffer, set by the application. This field is only
-	  used for :ref:`memory mapping <mmap>` I/O and can range from
-	  zero to the number of buffers allocated with the
-	  :ref:`VIDIOC_REQBUFS` and/or
-	  :ref:`VIDIOC_CREATE_BUFS` ioctls.
-
-    -  .. row 3
-
-       -  __u32
-
-       -  ``plane``
-
-       -  Index of the plane to be exported when using the multi-planar API.
-	  Otherwise this value must be set to zero.
-
-    -  .. row 4
-
-       -  __u32
-
-       -  ``flags``
-
-       -  Flags for the newly created file, currently only ``O_CLOEXEC``,
-	  ``O_RDONLY``, ``O_WRONLY``, and ``O_RDWR`` are supported, refer to
-	  the manual of open() for more details.
-
-    -  .. row 5
-
-       -  __s32
-
-       -  ``fd``
-
-       -  The DMABUF file descriptor associated with a buffer. Set by the
-	  driver.
-
-    -  .. row 6
-
-       -  __u32
-
-       -  ``reserved[11]``
-
-       -  Reserved field for future use. Drivers and applications must set
-	  the array to zero.
+    * - __u32
+      - ``type``
+      - Type of the buffer, same as struct
+	:c:type:`v4l2_format` ``type`` or struct
+	:c:type:`v4l2_requestbuffers` ``type``, set
+	by the application. See :c:type:`v4l2_buf_type`
+    * - __u32
+      - ``index``
+      - Number of the buffer, set by the application. This field is only
+	used for :ref:`memory mapping <mmap>` I/O and can range from
+	zero to the number of buffers allocated with the
+	:ref:`VIDIOC_REQBUFS` and/or
+	:ref:`VIDIOC_CREATE_BUFS` ioctls.
+    * - __u32
+      - ``plane``
+      - Index of the plane to be exported when using the multi-planar API.
+	Otherwise this value must be set to zero.
+    * - __u32
+      - ``flags``
+      - Flags for the newly created file, currently only ``O_CLOEXEC``,
+	``O_RDONLY``, ``O_WRONLY``, and ``O_RDWR`` are supported, refer to
+	the manual of open() for more details.
+    * - __s32
+      - ``fd``
+      - The DMABUF file descriptor associated with a buffer. Set by the
+	driver.
+    * - __u32
+      - ``reserved[11]``
+      - Reserved field for future use. Drivers and applications must set
+	the array to zero.
 
 
 Return Value

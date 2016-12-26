@@ -49,14 +49,12 @@
 #define UV_NET_ENDPOINT_INTD		(is_uv1_hub() ?			\
 			UV1_NET_ENDPOINT_INTD : UV2_NET_ENDPOINT_INTD)
 #define UV_DESC_PSHIFT			49
-#define UV_PAYLOADQ_PNODE_SHIFT		49
+#define UV_PAYLOADQ_GNODE_SHIFT		49
 #define UV_PTC_BASENAME			"sgi_uv/ptc_statistics"
 #define UV_BAU_BASENAME			"sgi_uv/bau_tunables"
 #define UV_BAU_TUNABLES_DIR		"sgi_uv"
 #define UV_BAU_TUNABLES_FILE		"bau_tunables"
 #define WHITESPACE			" \t\n"
-#define uv_mmask			((1UL << uv_hub_info->m_val) - 1)
-#define uv_physnodeaddr(x)		((__pa((unsigned long)(x)) & uv_mmask))
 #define cpubit_isset(cpu, bau_local_cpumask) \
 	test_bit((cpu), (bau_local_cpumask).bits)
 
@@ -387,6 +385,17 @@ struct uv2_3_bau_msg_header {
 	/* bits 127:120 */
 };
 
+/* Abstracted BAU functions */
+struct bau_operations {
+	unsigned long (*read_l_sw_ack)(void);
+	unsigned long (*read_g_sw_ack)(int pnode);
+	unsigned long (*bau_gpa_to_offset)(unsigned long vaddr);
+	void (*write_l_sw_ack)(unsigned long mmr);
+	void (*write_g_sw_ack)(int pnode, unsigned long mmr);
+	void (*write_payload_first)(int pnode, unsigned long mmr);
+	void (*write_payload_last)(int pnode, unsigned long mmr);
+};
+
 /*
  * The activation descriptor:
  * The format of the message to send, plus all accompanying control
@@ -655,6 +664,16 @@ static inline void write_gmmr_activation(int pnode, unsigned long mmr_image)
 	write_gmmr(pnode, UVH_LB_BAU_SB_ACTIVATION_CONTROL, mmr_image);
 }
 
+static inline void write_mmr_proc_payload_first(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UV4H_LB_PROC_INTD_QUEUE_FIRST, mmr_image);
+}
+
+static inline void write_mmr_proc_payload_last(int pnode, unsigned long mmr_image)
+{
+	write_gmmr(pnode, UV4H_LB_PROC_INTD_QUEUE_LAST, mmr_image);
+}
+
 static inline void write_mmr_payload_first(int pnode, unsigned long mmr_image)
 {
 	write_gmmr(pnode, UVH_LB_BAU_INTD_PAYLOAD_QUEUE_FIRST, mmr_image);
@@ -698,6 +717,26 @@ static inline unsigned long read_mmr_sw_ack(void)
 static inline unsigned long read_gmmr_sw_ack(int pnode)
 {
 	return read_gmmr(pnode, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
+}
+
+static inline void write_mmr_proc_sw_ack(unsigned long mr)
+{
+	uv_write_local_mmr(UV4H_LB_PROC_INTD_SOFT_ACK_CLEAR, mr);
+}
+
+static inline void write_gmmr_proc_sw_ack(int pnode, unsigned long mr)
+{
+	write_gmmr(pnode, UV4H_LB_PROC_INTD_SOFT_ACK_CLEAR, mr);
+}
+
+static inline unsigned long read_mmr_proc_sw_ack(void)
+{
+	return read_lmmr(UV4H_LB_PROC_INTD_SOFT_ACK_PENDING);
+}
+
+static inline unsigned long read_gmmr_proc_sw_ack(int pnode)
+{
+	return read_gmmr(pnode, UV4H_LB_PROC_INTD_SOFT_ACK_PENDING);
 }
 
 static inline void write_mmr_data_config(int pnode, unsigned long mr)

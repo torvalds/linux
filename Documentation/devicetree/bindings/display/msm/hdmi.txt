@@ -14,17 +14,16 @@ Required properties:
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: device clocks
   See ../clocks/clock-bindings.txt for details.
-- qcom,hdmi-tx-ddc-clk-gpio: ddc clk pin
-- qcom,hdmi-tx-ddc-data-gpio: ddc data pin
-- qcom,hdmi-tx-hpd-gpio: hpd pin
 - core-vdda-supply: phandle to supply regulator
 - hdmi-mux-supply: phandle to mux regulator
 - phys: the phandle for the HDMI PHY device
 - phy-names: the name of the corresponding PHY device
 
 Optional properties:
-- qcom,hdmi-tx-mux-en-gpio: hdmi mux enable pin
-- qcom,hdmi-tx-mux-sel-gpio: hdmi mux select pin
+- hpd-gpios: hpd pin
+- qcom,hdmi-tx-mux-en-gpios: hdmi mux enable pin
+- qcom,hdmi-tx-mux-sel-gpios: hdmi mux select pin
+- qcom,hdmi-tx-mux-lpm-gpios: hdmi mux lpm pin
 - power-domains: reference to the power domain(s), if available.
 - pinctrl-names: the pin control state names; should contain "default"
 - pinctrl-0: the default pinctrl state (active)

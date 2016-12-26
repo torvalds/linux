@@ -6,9 +6,11 @@
 #include "ddk750_sii164.h"
 
 
-/* This global variable contains all the supported driver and its corresponding
-   function API. Please set the function pointer to NULL whenever the function
-   is not supported. */
+/*
+ * This global variable contains all the supported driver and its corresponding
+ * function API. Please set the function pointer to NULL whenever the function
+ * is not supported.
+ */
 static dvi_ctrl_device_t g_dcftSupportedDviController[] = {
 #ifdef DVI_CTRL_SII164
 	{

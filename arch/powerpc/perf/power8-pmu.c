@@ -204,7 +204,7 @@ static struct attribute *power8_pmu_format_attr[] = {
 	NULL,
 };
 
-struct attribute_group power8_pmu_format_group = {
+static struct attribute_group power8_pmu_format_group = {
 	.name = "format",
 	.attrs = power8_pmu_format_attr,
 };

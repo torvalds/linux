@@ -73,11 +73,10 @@ static void print_both_open_warning(int kerr, int uerr)
 static int open_probe_events(const char *trace_file, bool readwrite)
 {
 	char buf[PATH_MAX];
-	const char *tracing_dir = "";
 	int ret;
 
-	ret = e_snprintf(buf, PATH_MAX, "%s/%s%s",
-			 tracing_path, tracing_dir, trace_file);
+	ret = e_snprintf(buf, PATH_MAX, "%s/%s",
+			 tracing_path, trace_file);
 	if (ret >= 0) {
 		pr_debug("Opening %s write=%d\n", buf, readwrite);
 		if (readwrite && !probe_event_dry_run)
@@ -700,7 +699,7 @@ int probe_cache__scan_sdt(struct probe_cache *pcache, const char *pathname)
 	INIT_LIST_HEAD(&sdtlist);
 	ret = get_sdt_note_list(&sdtlist, pathname);
 	if (ret < 0) {
-		pr_debug("Failed to get sdt note: %d\n", ret);
+		pr_debug4("Failed to get sdt note: %d\n", ret);
 		return ret;
 	}
 	list_for_each_entry(note, &sdtlist, note_list) {
@@ -876,4 +875,61 @@ int probe_cache__show_all_caches(struct strfilter *filter)
 	strlist__delete(bidlist);
 
 	return 0;
+}
+
+static struct {
+	const char *pattern;
+	bool	avail;
+	bool	checked;
+} probe_type_table[] = {
+#define DEFINE_TYPE(idx, pat, def_avail)	\
+	[idx] = {.pattern = pat, .avail = (def_avail)}
+	DEFINE_TYPE(PROBE_TYPE_U, "* u8/16/32/64,*", true),
+	DEFINE_TYPE(PROBE_TYPE_S, "* s8/16/32/64,*", true),
+	DEFINE_TYPE(PROBE_TYPE_X, "* x8/16/32/64,*", false),
+	DEFINE_TYPE(PROBE_TYPE_STRING, "* string,*", true),
+	DEFINE_TYPE(PROBE_TYPE_BITFIELD,
+		    "* b<bit-width>@<bit-offset>/<container-size>", true),
+};
+
+bool probe_type_is_available(enum probe_type type)
+{
+	FILE *fp;
+	char *buf = NULL;
+	size_t len = 0;
+	bool target_line = false;
+	bool ret = probe_type_table[type].avail;
+
+	if (type >= PROBE_TYPE_END)
+		return false;
+	/* We don't have to check the type which supported by default */
+	if (ret || probe_type_table[type].checked)
+		return ret;
+
+	if (asprintf(&buf, "%s/README", tracing_path) < 0)
+		return ret;
+
+	fp = fopen(buf, "r");
+	if (!fp)
+		goto end;
+
+	zfree(&buf);
+	while (getline(&buf, &len, fp) > 0 && !ret) {
+		if (!target_line) {
+			target_line = !!strstr(buf, " type: ");
+			if (!target_line)
+				continue;
+		} else if (strstr(buf, "\t          ") != buf)
+			break;
+		ret = strglobmatch(buf, probe_type_table[type].pattern);
+	}
+	/* Cache the result */
+	probe_type_table[type].checked = true;
+	probe_type_table[type].avail = ret;
+
+	fclose(fp);
+end:
+	free(buf);
+
+	return ret;
 }

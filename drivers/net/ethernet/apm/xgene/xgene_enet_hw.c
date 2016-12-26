@@ -204,17 +204,6 @@ static u32 xgene_enet_ring_len(struct xgene_enet_desc_ring *ring)
 	return num_msgs;
 }
 
-static void xgene_enet_setup_coalescing(struct xgene_enet_desc_ring *ring)
-{
-	u32 data = 0x7777;
-
-	xgene_enet_ring_wr32(ring, CSR_PBM_COAL, 0x8e);
-	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK1, data);
-	xgene_enet_ring_wr32(ring, CSR_PBM_CTICK2, data << 16);
-	xgene_enet_ring_wr32(ring, CSR_THRESHOLD0_SET1, 0x40);
-	xgene_enet_ring_wr32(ring, CSR_THRESHOLD1_SET1, 0x80);
-}
-
 void xgene_enet_parse_error(struct xgene_enet_desc_ring *ring,
 			    struct xgene_enet_pdata *pdata,
 			    enum xgene_enet_err_code status)
@@ -713,7 +702,7 @@ static void xgene_enet_adjust_link(struct net_device *ndev)
 {
 	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
 	const struct xgene_mac_ops *mac_ops = pdata->mac_ops;
-	struct phy_device *phydev = pdata->phy_dev;
+	struct phy_device *phydev = ndev->phydev;
 
 	if (phydev->link) {
 		if (pdata->phy_speed != phydev->speed) {
@@ -761,31 +750,25 @@ int xgene_enet_phy_connect(struct net_device *ndev)
 	if (dev->of_node) {
 		for (i = 0 ; i < 2; i++) {
 			np = of_parse_phandle(dev->of_node, "phy-handle", i);
-			if (np)
+			phy_dev = of_phy_connect(ndev, np,
+						 &xgene_enet_adjust_link,
+						 0, pdata->phy_mode);
+			of_node_put(np);
+			if (phy_dev)
 				break;
 		}
 
-		if (!np) {
-			netdev_dbg(ndev, "No phy-handle found in DT\n");
-			return -ENODEV;
-		}
-
-		phy_dev = of_phy_connect(ndev, np, &xgene_enet_adjust_link,
-					 0, pdata->phy_mode);
-		of_node_put(np);
 		if (!phy_dev) {
 			netdev_err(ndev, "Could not connect to PHY\n");
 			return -ENODEV;
 		}
-
-		pdata->phy_dev = phy_dev;
 	} else {
 #ifdef CONFIG_ACPI
 		struct acpi_device *adev = acpi_phy_find_device(dev);
 		if (adev)
-			pdata->phy_dev =  adev->driver_data;
-
-		phy_dev = pdata->phy_dev;
+			phy_dev = adev->driver_data;
+		else
+			phy_dev = NULL;
 
 		if (!phy_dev ||
 		    phy_connect_direct(ndev, phy_dev, &xgene_enet_adjust_link,
@@ -853,8 +836,6 @@ static int xgene_mdiobus_register(struct xgene_enet_pdata *pdata,
 	if (!phy)
 		return -EIO;
 
-	pdata->phy_dev = phy;
-
 	return ret;
 }
 
@@ -894,14 +875,18 @@ int xgene_enet_mdio_config(struct xgene_enet_pdata *pdata)
 
 void xgene_enet_phy_disconnect(struct xgene_enet_pdata *pdata)
 {
-	if (pdata->phy_dev)
-		phy_disconnect(pdata->phy_dev);
+	struct net_device *ndev = pdata->ndev;
+
+	if (ndev->phydev)
+		phy_disconnect(ndev->phydev);
 }
 
 void xgene_enet_mdio_remove(struct xgene_enet_pdata *pdata)
 {
-	if (pdata->phy_dev)
-		phy_disconnect(pdata->phy_dev);
+	struct net_device *ndev = pdata->ndev;
+
+	if (ndev->phydev)
+		phy_disconnect(ndev->phydev);
 
 	mdiobus_unregister(pdata->mdio_bus);
 	mdiobus_free(pdata->mdio_bus);
@@ -933,5 +918,4 @@ struct xgene_ring_ops xgene_ring1_ops = {
 	.clear = xgene_enet_clear_ring,
 	.wr_cmd = xgene_enet_wr_cmd,
 	.len = xgene_enet_ring_len,
-	.coalesce = xgene_enet_setup_coalescing,
 };

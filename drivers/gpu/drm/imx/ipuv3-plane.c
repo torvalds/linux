@@ -103,11 +103,11 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	       (state->src_x >> 16) / 2 - eba;
 }
 
-static void ipu_plane_atomic_set_base(struct ipu_plane *ipu_plane,
-				      struct drm_plane_state *old_state)
+static void ipu_plane_atomic_set_base(struct ipu_plane *ipu_plane)
 {
 	struct drm_plane *plane = &ipu_plane->base;
 	struct drm_plane_state *state = plane->state;
+	struct drm_crtc_state *crtc_state = state->crtc->state;
 	struct drm_framebuffer *fb = state->fb;
 	unsigned long eba, ubo, vbo;
 	int active;
@@ -117,7 +117,7 @@ static void ipu_plane_atomic_set_base(struct ipu_plane *ipu_plane,
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_YUV420:
 	case DRM_FORMAT_YVU420:
-		if (old_state->fb)
+		if (!drm_atomic_crtc_needs_modeset(crtc_state))
 			break;
 
 		/*
@@ -149,7 +149,7 @@ static void ipu_plane_atomic_set_base(struct ipu_plane *ipu_plane,
 		break;
 	}
 
-	if (old_state->fb) {
+	if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
 		active = ipu_idmac_get_current_buffer(ipu_plane->ipu_ch);
 		ipu_cpmem_set_buffer(ipu_plane->ipu_ch, !active, eba);
 		ipu_idmac_select_buffer(ipu_plane->ipu_ch, !active);
@@ -213,8 +213,12 @@ static void ipu_plane_enable(struct ipu_plane *ipu_plane)
 		ipu_dp_enable_channel(ipu_plane->dp);
 }
 
-static void ipu_plane_disable(struct ipu_plane *ipu_plane)
+static int ipu_disable_plane(struct drm_plane *plane)
 {
+	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
 	ipu_idmac_wait_busy(ipu_plane->ipu_ch, 50);
 
 	if (ipu_plane->dp)
@@ -223,15 +227,6 @@ static void ipu_plane_disable(struct ipu_plane *ipu_plane)
 	ipu_dmfc_disable_channel(ipu_plane->dmfc);
 	if (ipu_plane->dp)
 		ipu_dp_disable(ipu_plane->ipu);
-}
-
-static int ipu_disable_plane(struct drm_plane *plane)
-{
-	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
-
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
-
-	ipu_plane_disable(ipu_plane);
 
 	return 0;
 }
@@ -242,7 +237,6 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
-	ipu_disable_plane(plane);
 	drm_plane_cleanup(plane);
 	kfree(ipu_plane);
 }
@@ -265,6 +259,7 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_framebuffer *old_fb = old_state->fb;
 	unsigned long eba, ubo, vbo, old_ubo, old_vbo;
+	int hsub, vsub;
 
 	/* Ok to disable */
 	if (!fb)
@@ -320,8 +315,10 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 
 	/*
 	 * We support resizing active plane or changing its format by
-	 * forcing CRTC mode change and disabling-enabling plane in plane's
-	 * ->atomic_update callback.
+	 * forcing CRTC mode change in plane's ->atomic_check callback
+	 * and disabling all affected active planes in CRTC's ->atomic_disable
+	 * callback.  The planes will be reenabled in plane's ->atomic_update
+	 * callback.
 	 */
 	if (old_fb && (state->src_w != old_state->src_w ||
 			      state->src_h != old_state->src_h ||
@@ -359,7 +356,9 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		if ((ubo > 0xfffff8) || (vbo > 0xfffff8))
 			return -EINVAL;
 
-		if (old_fb) {
+		if (old_fb &&
+		    (old_fb->pixel_format == DRM_FORMAT_YUV420 ||
+		     old_fb->pixel_format == DRM_FORMAT_YVU420)) {
 			old_ubo = drm_plane_state_to_ubo(old_state);
 			old_vbo = drm_plane_state_to_vbo(old_state);
 			if (ubo != old_ubo || vbo != old_vbo)
@@ -374,6 +373,16 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 
 		if (old_fb && old_fb->pitches[1] != fb->pitches[1])
 			crtc_state->mode_changed = true;
+
+		/*
+		 * The x/y offsets must be even in case of horizontal/vertical
+		 * chroma subsampling.
+		 */
+		hsub = drm_format_horz_chroma_subsampling(fb->pixel_format);
+		vsub = drm_format_vert_chroma_subsampling(fb->pixel_format);
+		if (((state->src_x >> 16) & (hsub - 1)) ||
+		    ((state->src_y >> 16) & (vsub - 1)))
+			return -EINVAL;
 	}
 
 	return 0;
@@ -395,12 +404,10 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	if (old_state->fb) {
 		struct drm_crtc_state *crtc_state = state->crtc->state;
 
-		if (!crtc_state->mode_changed) {
-			ipu_plane_atomic_set_base(ipu_plane, old_state);
+		if (!drm_atomic_crtc_needs_modeset(crtc_state)) {
+			ipu_plane_atomic_set_base(ipu_plane);
 			return;
 		}
-
-		ipu_disable_plane(plane);
 	}
 
 	switch (ipu_plane->dp_flow) {
@@ -430,6 +437,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
 			break;
 		default:
+			ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
 			break;
 		}
 	}
@@ -443,7 +451,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, state->fb->pitches[0]);
-	ipu_plane_atomic_set_base(ipu_plane, old_state);
+	ipu_plane_atomic_set_base(ipu_plane);
 	ipu_plane_enable(ipu_plane);
 }
 

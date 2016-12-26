@@ -40,7 +40,7 @@ renew_parental_timestamps(struct dentry *direntry)
 	/* BB check if there is a way to get the kernel to do this or if we
 	   really need this */
 	do {
-		direntry->d_time = jiffies;
+		cifs_set_time(direntry, jiffies);
 		direntry = direntry->d_parent;
 	} while (!IS_ROOT(direntry));
 }
@@ -802,7 +802,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	} else if (rc == -ENOENT) {
 		rc = 0;
-		direntry->d_time = jiffies;
+		cifs_set_time(direntry, jiffies);
 		d_add(direntry, NULL);
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
@@ -862,7 +862,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 	if (flags & (LOOKUP_CREATE | LOOKUP_RENAME_TARGET))
 		return 0;
 
-	if (time_after(jiffies, direntry->d_time + HZ) || !lookupCacheEnabled)
+	if (time_after(jiffies, cifs_get_time(direntry) + HZ) || !lookupCacheEnabled)
 		return 0;
 
 	return 1;

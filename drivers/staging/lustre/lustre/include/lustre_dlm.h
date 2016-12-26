@@ -573,6 +573,11 @@ enum lvb_type {
 };
 
 /**
+ * LDLM_GID_ANY is used to match any group id in ldlm_lock_match().
+ */
+#define LDLM_GID_ANY	((__u64)-1)
+
+/**
  * LDLM lock structure
  *
  * Represents a single LDLM lock and its state in memory. Each lock is
@@ -968,6 +973,7 @@ struct ldlm_enqueue_info {
 	void *ei_cb_cp;  /** lock completion callback */
 	void *ei_cb_gl;  /** lock glimpse callback */
 	void *ei_cbdata; /** Data to be passed into callbacks. */
+	unsigned int ei_enq_slave:1; /* whether enqueue slave stripes */
 };
 
 extern struct obd_ops ldlm_obd_ops;
@@ -1280,16 +1286,6 @@ int ldlm_cli_cancel_list(struct list_head *head, int count,
 /* This has to be here because recursive inclusion sucks. */
 int intent_disposition(struct ldlm_reply *rep, int flag);
 void intent_set_disposition(struct ldlm_reply *rep, int flag);
-
-/* ioctls for trying requests */
-#define IOC_LDLM_TYPE		   'f'
-#define IOC_LDLM_MIN_NR		 40
-
-#define IOC_LDLM_TEST		   _IOWR('f', 40, long)
-#define IOC_LDLM_DUMP		   _IOWR('f', 41, long)
-#define IOC_LDLM_REGRESS_START	  _IOWR('f', 42, long)
-#define IOC_LDLM_REGRESS_STOP	   _IOWR('f', 43, long)
-#define IOC_LDLM_MAX_NR		 43
 
 /**
  * "Modes" of acquiring lock_res, necessary to tell lockdep that taking more
