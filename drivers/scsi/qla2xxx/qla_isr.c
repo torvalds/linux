@@ -3080,7 +3080,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		qentry->handle = rsp;
 		rsp->msix = qentry;
 		scnprintf(qentry->name, sizeof(qentry->name),
-		    msix_entries[i].name);
+		    "%s", msix_entries[i].name);
 		if (IS_P3P_TYPE(ha))
 			ret = request_irq(qentry->vector,
 				qla82xx_msix_entries[i].handler,
@@ -3116,7 +3116,7 @@ qla24xx_enable_msix(struct qla_hw_data *ha, struct rsp_que *rsp)
 		rsp->msix = qentry;
 		qentry->handle = rsp;
 		scnprintf(qentry->name, sizeof(qentry->name),
-		    msix_entries[QLA_ATIO_VECTOR].name);
+		    "%s", msix_entries[QLA_ATIO_VECTOR].name);
 		qentry->in_use = 1;
 		ret = request_irq(qentry->vector,
 			msix_entries[QLA_ATIO_VECTOR].handler,
