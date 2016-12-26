@@ -84,7 +84,7 @@ static int polaris10_setup_pwr_virus(struct pp_smumgr *smumgr)
 			break;
 
 		default:
-			printk("Table Exit with Invalid Command!");
+			pr_info("Table Exit with Invalid Command!");
 			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
 			result = -1;
 			break;
@@ -102,7 +102,7 @@ static int polaris10_perform_btc(struct pp_smumgr *smumgr)
 
 	if (0 != smu_data->avfs.avfs_btc_param) {
 		if (0 != smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_PerformBtc, smu_data->avfs.avfs_btc_param)) {
-			printk("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
+			pr_info("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
 			result = -1;
 		}
 	}
@@ -189,7 +189,7 @@ polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 		return -1);
 
 		if (smu_data->avfs.avfs_btc_param > 1) {
-			printk("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
+			pr_info("[AVFS][Polaris10_AVFSEventMgr] AC BTC has not been successfully verified on Fiji. There may be in this setting.");
 			smu_data->avfs.avfs_btc_status = AVFS_BTC_VIRUS_FAIL;
 			PP_ASSERT_WITH_CODE(-1 == polaris10_setup_pwr_virus(smumgr),
 			"[AVFS][Polaris10_AVFSEventMgr] Could not setup Pwr Virus for AVFS ",
@@ -208,7 +208,7 @@ polaris10_avfs_event_mgr(struct pp_smumgr *smumgr, bool SMU_VFT_INTACT)
 		break;
 
 	default:
-		printk("[AVFS] Something is broken. See log!");
+		pr_info("[AVFS] Something is broken. See log!");
 		break;
 	}
 

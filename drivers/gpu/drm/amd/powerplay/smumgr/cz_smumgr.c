@@ -70,7 +70,7 @@ static int cz_send_msg_to_smc_async(struct pp_smumgr *smumgr,
 	result = SMUM_WAIT_FIELD_UNEQUAL(smumgr,
 					SMU_MP1_SRBM2P_RESP_0, CONTENT, 0);
 	if (result != 0) {
-		printk(KERN_ERR "[ powerplay ] cz_send_msg_to_smc_async failed\n");
+		pr_err("cz_send_msg_to_smc_async failed\n");
 		return result;
 	}
 
@@ -100,12 +100,12 @@ static int cz_set_smc_sram_address(struct pp_smumgr *smumgr,
 		return -EINVAL;
 
 	if (0 != (3 & smc_address)) {
-		printk(KERN_ERR "[ powerplay ] SMC address must be 4 byte aligned\n");
+		pr_err("SMC address must be 4 byte aligned\n");
 		return -EINVAL;
 	}
 
 	if (limit <= (smc_address + 3)) {
-		printk(KERN_ERR "[ powerplay ] SMC address beyond the SMC RAM area\n");
+		pr_err("SMC address beyond the SMC RAM area\n");
 		return -EINVAL;
 	}
 
@@ -147,7 +147,7 @@ static int cz_request_smu_load_fw(struct pp_smumgr *smumgr)
 	uint32_t smc_address;
 
 	if (!smumgr->reload_fw) {
-		printk(KERN_INFO "[ powerplay ] skip reloading...\n");
+		pr_info("skip reloading...\n");
 		return 0;
 	}
 
@@ -198,7 +198,7 @@ static int cz_check_fw_load_finish(struct pp_smumgr *smumgr,
 	}
 
 	if (i >= smumgr->usec_timeout) {
-		printk(KERN_ERR "[ powerplay ] SMU check loaded firmware failed.\n");
+		pr_err("SMU check loaded firmware failed.\n");
 		return -EINVAL;
 	}
 
@@ -267,13 +267,13 @@ static int cz_start_smu(struct pp_smumgr *smumgr)
 
 	ret = cz_request_smu_load_fw(smumgr);
 	if (ret)
-		printk(KERN_ERR "[ powerplay] SMU firmware load failed\n");
+		pr_err("SMU firmware load failed\n");
 
 	cz_check_fw_load_finish(smumgr, fw_to_check);
 
 	ret = cz_load_mec_firmware(smumgr);
 	if (ret)
-		printk(KERN_ERR "[ powerplay ] Mec Firmware load failed\n");
+		pr_err("Mec Firmware load failed\n");
 
 	return ret;
 }
@@ -406,7 +406,7 @@ static int cz_smu_populate_single_scratch_task(
 			break;
 
 	if (i >= cz_smu->scratch_buffer_length) {
-		printk(KERN_ERR "[ powerplay ] Invalid Firmware Type\n");
+		pr_err("Invalid Firmware Type\n");
 		return -EINVAL;
 	}
 
@@ -443,7 +443,7 @@ static int cz_smu_populate_single_ucode_load_task(
 			break;
 
 	if (i >= cz_smu->driver_buffer_length) {
-		printk(KERN_ERR "[ powerplay ] Invalid Firmware Type\n");
+		pr_err("Invalid Firmware Type\n");
 		return -EINVAL;
 	}
 
@@ -774,7 +774,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SCRATCH,
 		UCODE_ID_RLC_SCRATCH_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
-		printk(KERN_ERR "[ powerplay ] Error when Populate Firmware Entry.\n");
+		pr_err("Error when Populate Firmware Entry.\n");
 		return -1;
 	}
 
@@ -782,14 +782,14 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_ARAM,
 		UCODE_ID_RLC_SRM_ARAM_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
-		printk(KERN_ERR "[ powerplay ] Error when Populate Firmware Entry.\n");
+		pr_err("Error when Populate Firmware Entry.\n");
 		return -1;
 	}
 	if (0 != cz_smu_populate_single_scratch_entry(smumgr,
 		CZ_SCRATCH_ENTRY_UCODE_ID_RLC_SRM_DRAM,
 		UCODE_ID_RLC_SRM_DRAM_SIZE_BYTE,
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
-		printk(KERN_ERR "[ powerplay ] Error when Populate Firmware Entry.\n");
+		pr_err("Error when Populate Firmware Entry.\n");
 		return -1;
 	}
 
@@ -797,7 +797,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		CZ_SCRATCH_ENTRY_UCODE_ID_POWER_PROFILING,
 		sizeof(struct SMU8_MultimediaPowerLogData),
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
-		printk(KERN_ERR "[ powerplay ] Error when Populate Firmware Entry.\n");
+		pr_err("Error when Populate Firmware Entry.\n");
 		return -1;
 	}
 
@@ -805,7 +805,7 @@ static int cz_smu_init(struct pp_smumgr *smumgr)
 		CZ_SCRATCH_ENTRY_SMU8_FUSION_CLKTABLE,
 		sizeof(struct SMU8_Fusion_ClkTable),
 		&cz_smu->scratch_buffer[cz_smu->scratch_buffer_length++])) {
-		printk(KERN_ERR "[ powerplay ] Error when Populate Firmware Entry.\n");
+		pr_err("Error when Populate Firmware Entry.\n");
 		return -1;
 	}
 	cz_smu_construct_toc(smumgr);

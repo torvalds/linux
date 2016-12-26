@@ -176,7 +176,7 @@ static int iceland_start_smu(struct pp_smumgr *smumgr)
 		return result;
 
 	if (!smu7_is_smc_ram_running(smumgr)) {
-		printk("smu not running, upload firmware again \n");
+		pr_info("smu not running, upload firmware again \n");
 		result = iceland_smu_upload_firmware_image(smumgr);
 		if (result)
 			return result;

@@ -84,7 +84,7 @@ static int tonga_start_in_protection_mode(struct pp_smumgr *smumgr)
 	/* Check pass/failed indicator */
 	if (1 != SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device,
 				CGS_IND_REG__SMC, SMU_STATUS, SMU_PASS)) {
-		printk(KERN_ERR "[ powerplay ] SMU Firmware start failed\n");
+		pr_err("SMU Firmware start failed\n");
 		return -EINVAL;
 	}
 

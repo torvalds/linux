@@ -179,7 +179,7 @@ static int fiji_setup_pwr_virus(struct pp_smumgr *smumgr)
 			result = 0;
 			break;
 		default:
-			printk(KERN_ERR "Table Exit with Invalid Command!");
+			pr_err("Table Exit with Invalid Command!");
 			priv->avfs.AvfsBtcStatus = AVFS_BTC_VIRUS_FAIL;
 			result = -1;
 			break;
@@ -202,13 +202,13 @@ static int fiji_start_avfs_btc(struct pp_smumgr *smumgr)
 				priv->avfs.AvfsBtcStatus = AVFS_BTC_COMPLETED_UNSAVED;
 				result = 0;
 			} else {
-				printk(KERN_ERR "[AVFS][fiji_start_avfs_btc] Attempt"
+				pr_err("[AVFS][fiji_start_avfs_btc] Attempt"
 						" to Enable AVFS Failed!");
 				smum_send_msg_to_smc(smumgr, PPSMC_MSG_DisableAvfs);
 				result = -1;
 			}
 		} else {
-			printk(KERN_ERR "[AVFS][fiji_start_avfs_btc] "
+			pr_err("[AVFS][fiji_start_avfs_btc] "
 					"PerformBTC SMU msg failed");
 			result = -1;
 		}
@@ -384,7 +384,7 @@ static int fiji_avfs_event_mgr(struct pp_smumgr *smumgr, bool smu_started)
 	case AVFS_BTC_NOTSUPPORTED: /* Do nothing */
 		break;
 	default:
-		printk(KERN_ERR "[AVFS] Something is broken. See log!");
+		pr_err("[AVFS] Something is broken. See log!");
 		break;
 	}
 	return 0;
