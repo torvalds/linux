@@ -32,13 +32,13 @@
  *  - AND "addr+size" doesn't have any high-bits set
  *  - OR we are in kernel mode.
  */
-#define __access_ok(addr, size, segment) \
-	(((segment).seg & (addr | size | (addr+size))) == 0)
+#define __access_ok(addr, size) \
+	((get_fs().seg & (addr | size | (addr+size))) == 0)
 
-#define access_ok(type, addr, size)				\
-({								\
-	__chk_user_ptr(addr);					\
-	__access_ok(((unsigned long)(addr)), (size), get_fs());	\
+#define access_ok(type, addr, size)			\
+({							\
+	__chk_user_ptr(addr);				\
+	__access_ok(((unsigned long)(addr)), (size));	\
 })
 
 /*
@@ -93,23 +93,23 @@ extern void __get_user_unknown(void);
 	__gu_err;						\
 })
 
-#define __get_user_check(x, ptr, size)					\
-({									\
-	long __gu_err = -EFAULT;					\
-	unsigned long __gu_val = 0;					\
-	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
-	if (__access_ok((unsigned long)__gu_addr, size, get_fs())) {	\
-		__gu_err = 0;						\
-		switch (size) {						\
-		  case 1: __get_user_8(__gu_addr); break;		\
-		  case 2: __get_user_16(__gu_addr); break;		\
-		  case 4: __get_user_32(__gu_addr); break;		\
-		  case 8: __get_user_64(__gu_addr); break;		\
-		  default: __get_user_unknown(); break;			\
-		}							\
-	}								\
-	(x) = (__force __typeof__(*(ptr))) __gu_val;			\
-	__gu_err;							\
+#define __get_user_check(x, ptr, size)				\
+({								\
+	long __gu_err = -EFAULT;				\
+	unsigned long __gu_val = 0;				\
+	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);	\
+	if (__access_ok((unsigned long)__gu_addr, size)) {	\
+		__gu_err = 0;					\
+		switch (size) {					\
+		  case 1: __get_user_8(__gu_addr); break;	\
+		  case 2: __get_user_16(__gu_addr); break;	\
+		  case 4: __get_user_32(__gu_addr); break;	\
+		  case 8: __get_user_64(__gu_addr); break;	\
+		  default: __get_user_unknown(); break;		\
+		}						\
+	}							\
+	(x) = (__force __typeof__(*(ptr))) __gu_val;		\
+	__gu_err;						\
 })
 
 struct __large_struct { unsigned long buf[100]; };
@@ -208,21 +208,21 @@ extern void __put_user_unknown(void);
 	__pu_err;						\
 })
 
-#define __put_user_check(x, ptr, size)					\
-({									\
-	long __pu_err = -EFAULT;					\
-	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
-	if (__access_ok((unsigned long)__pu_addr, size, get_fs())) {	\
-		__pu_err = 0;						\
-		switch (size) {						\
-		  case 1: __put_user_8(x, __pu_addr); break;		\
-		  case 2: __put_user_16(x, __pu_addr); break;		\
-		  case 4: __put_user_32(x, __pu_addr); break;		\
-		  case 8: __put_user_64(x, __pu_addr); break;		\
-		  default: __put_user_unknown(); break;			\
-		}							\
-	}								\
-	__pu_err;							\
+#define __put_user_check(x, ptr, size)				\
+({								\
+	long __pu_err = -EFAULT;				\
+	__typeof__(*(ptr)) __user *__pu_addr = (ptr);		\
+	if (__access_ok((unsigned long)__pu_addr, size)) {	\
+		__pu_err = 0;					\
+		switch (size) {					\
+		  case 1: __put_user_8(x, __pu_addr); break;	\
+		  case 2: __put_user_16(x, __pu_addr); break;	\
+		  case 4: __put_user_32(x, __pu_addr); break;	\
+		  case 8: __put_user_64(x, __pu_addr); break;	\
+		  default: __put_user_unknown(); break;		\
+		}						\
+	}							\
+	__pu_err;						\
 })
 
 /*
@@ -353,7 +353,7 @@ extern long __copy_user(void *to, const void *from, long len);
 extern inline long
 copy_to_user(void __user *to, const void *from, long n)
 {
-	if (likely(__access_ok((unsigned long)to, n, get_fs())))
+	if (likely(__access_ok((unsigned long)to, n)))
 		n = __copy_user((__force void *)to, from, n);
 	return n;
 }
@@ -362,7 +362,7 @@ extern inline long
 copy_from_user(void *to, const void __user *from, long n)
 {
 	long res = n;
-	if (likely(__access_ok((unsigned long)from, n, get_fs())))
+	if (likely(__access_ok((unsigned long)from, n)))
 		res = __copy_from_user_inatomic(to, from, n);
 	if (unlikely(res))
 		memset(to + (n - res), 0, res);
@@ -374,7 +374,7 @@ extern long __clear_user(void __user *to, long len);
 extern inline long
 clear_user(void __user *to, long len)
 {
-	if (__access_ok((unsigned long)to, len, get_fs()))
+	if (__access_ok((unsigned long)to, len))
 		len = __clear_user(to, len);
 	return len;
 }
