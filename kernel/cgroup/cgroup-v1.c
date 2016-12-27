@@ -694,7 +694,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	 * @kn->priv is RCU safe.  Let's do the RCU dancing.
 	 */
 	rcu_read_lock();
-	cgrp = rcu_dereference(kn->priv);
+	cgrp = rcu_dereference(*(void __rcu __force **)&kn->priv);
 	if (!cgrp || cgroup_is_dead(cgrp)) {
 		rcu_read_unlock();
 		mutex_unlock(&cgroup_mutex);

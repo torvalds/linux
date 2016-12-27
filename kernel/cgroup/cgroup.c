@@ -4932,7 +4932,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
 	 * have been or be removed at any point.  @kn->priv is RCU
 	 * protected for this access.  See css_release_work_fn() for details.
 	 */
-	cgrp = rcu_dereference(kn->priv);
+	cgrp = rcu_dereference(*(void __rcu __force **)&kn->priv);
 	if (cgrp)
 		css = cgroup_css(cgrp, ss);
 
