@@ -74,13 +74,10 @@
 
 #define  IWL9000_FW_PRE "iwlwifi-9000-pu-a0-jf-a0-"
 #define  IWL9260_FW_PRE "iwlwifi-9260-th-a0-jf-a0-"
-#define  IWL9000LC_FW_PRE "iwlwifi-9000-pu-a0-lc-a0-"
 #define IWL9000_MODULE_FIRMWARE(api) \
 	IWL9000_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL9260_MODULE_FIRMWARE(api) \
 	IWL9260_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL9000LC_MODULE_FIRMWARE(api) \
-	IWL9000LC_FW_PRE "-" __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_9000		10
 
@@ -198,21 +195,5 @@ const struct iwl_cfg iwl9560_2ac_cfg = {
 	.integrated = true,
 };
 
-/*
- * TODO the struct below is for internal testing only this should be
- * removed by EO 2016~
- */
-const struct iwl_cfg iwl9000lc_2ac_cfg = {
-	.name = "Intel(R) Dual Band Wireless AC 9000",
-	.fw_name_pre = IWL9000LC_FW_PRE,
-	IWL_DEVICE_9000,
-	.ht_params = &iwl9000_ht_params,
-	.nvm_ver = IWL9000_NVM_VERSION,
-	.nvm_calib_ver = IWL9000_TX_POWER_VERSION,
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,
-	.integrated = true,
-};
-
 MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL9260_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL9000LC_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));

@@ -348,7 +348,6 @@ enum {
 
 /* RF_ID value */
 #define CSR_HW_RF_ID_TYPE_JF		(0x00105000)
-#define CSR_HW_RF_ID_TYPE_LC		(0x00101000)
 #define CSR_HW_RF_ID_TYPE_HR		(0x00109000)
 
 /* EEPROM REG */

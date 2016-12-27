@@ -667,18 +667,11 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		iwl_trans->cfg = cfg_7265d;
 	}
 
-	if (iwl_trans->cfg->rf_id) {
-		if (cfg == &iwl9460_2ac_cfg &&
-		    iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_LC) {
-			cfg = &iwl9000lc_2ac_cfg;
-			iwl_trans->cfg = cfg;
-		}
-
-		if (cfg == &iwla000_2ac_cfg_hr &&
-		    iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_JF) {
-			cfg = &iwla000_2ac_cfg_jf;
-			iwl_trans->cfg = cfg;
-		}
+	if (iwl_trans->cfg->rf_id &&
+	    (cfg == &iwla000_2ac_cfg_hr &&
+	     iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_JF)) {
+		cfg = &iwla000_2ac_cfg_jf;
+		iwl_trans->cfg = cfg;
 	}
 #endif
 
