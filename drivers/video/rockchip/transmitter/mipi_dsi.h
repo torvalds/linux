@@ -112,7 +112,6 @@ typedef unsigned long u64;
 
 //iomux
 #define OLD_RK_IOMUX 0
-#define CMD_LEN_MAX 0x100
 
 struct spi_t {
 	u32 cs;

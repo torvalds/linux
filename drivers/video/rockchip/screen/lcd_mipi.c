@@ -397,28 +397,20 @@ static int rk_mipi_screen_init_dt(struct device *dev,
 			dcs_cmd = kmalloc(sizeof(struct mipi_dcs_cmd_ctr_list), GFP_KERNEL);
 			strcpy(dcs_cmd->dcs_cmd.name, childnode->name);
 
+			prop = of_find_property(childnode, "rockchip,cmd", &length);
+			if (!prop) {
+				MIPI_SCREEN_DBG("Can not read property: cmds\n");
+				return -EINVAL;
+			}
+
+			MIPI_SCREEN_DBG("\n childnode->name =%s:length=%d\n", childnode->name, (length / sizeof(u32)));
+
 			dcs_cmd->dcs_cmd.cmds =
-				devm_kzalloc(dev, CMD_LEN_MAX, GFP_KERNEL);
+				devm_kzalloc(dev, length, GFP_KERNEL);
 			if (!dcs_cmd->dcs_cmd.cmds) {
 				pr_err("malloc cmds fail!\n");
 				return -ENOMEM;
 			}
-
-			prop = of_find_property(childnode, "rockchip,cmd", &length);
-			if (!prop) {
-				MIPI_SCREEN_DBG("Can not read property: cmds\n");
-				kfree(dcs_cmd->dcs_cmd.cmds);
-				dcs_cmd->dcs_cmd.cmds = NULL;
-				return -EINVAL;
-			}
-
-			if ((length / sizeof(u32)) > CMD_LEN_MAX) {
-				/* the length can not longer than the cmds arrary in struct dcs_cmds */
-				MIPI_SCREEN_DBG("error: the dcs cmd length is %d, but the max length supported is %d\n",
-						length / sizeof(u32),
-						CMD_LEN_MAX);
-			}
-			MIPI_SCREEN_DBG("\n childnode->name =%s:length=%d\n", childnode->name, (length / sizeof(u32)));
 
 			ret = of_property_read_u32_array(childnode,
 							 "rockchip,cmd",
@@ -672,7 +664,7 @@ static int rk_mipi_screen_init_dt(struct mipi_screen *screen)
 			fdt_getprop(blob, noffset, "rockchip,cmd", &length);
 			dcs_cmd->dcs_cmd.cmd_len = length / sizeof(u32) ;
 
-			dcs_cmd->dcs_cmd.cmds = calloc(1, CMD_LEN_MAX);
+			dcs_cmd->dcs_cmd.cmds = calloc(1, length);
 			if (!dcs_cmd->dcs_cmd.cmds) {
 				pr_err("calloc cmds fail!\n");
 				return -1;
