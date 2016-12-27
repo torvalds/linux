@@ -1557,28 +1557,6 @@ static void call_console_drivers(int level,
 	}
 }
 
-/*
- * Zap console related locks when oopsing.
- * To leave time for slow consoles to print a full oops,
- * only zap at most once every 30 seconds.
- */
-static void zap_locks(void)
-{
-	static unsigned long oops_timestamp;
-
-	if (time_after_eq(jiffies, oops_timestamp) &&
-	    !time_after(jiffies, oops_timestamp + 30 * HZ))
-		return;
-
-	oops_timestamp = jiffies;
-
-	debug_locks_off();
-	/* If a crash is occurring, make sure we can't deadlock */
-	raw_spin_lock_init(&logbuf_lock);
-	/* And make sure that we print immediately */
-	sema_init(&console_sem, 1);
-}
-
 int printk_delay_msec __read_mostly;
 
 static inline void printk_delay(void)
@@ -1688,17 +1666,13 @@ asmlinkage int vprintk_emit(int facility, int level,
 			    const char *dict, size_t dictlen,
 			    const char *fmt, va_list args)
 {
-	static bool recursion_bug;
 	static char textbuf[LOG_LINE_MAX];
 	char *text = textbuf;
 	size_t text_len = 0;
 	enum log_flags lflags = 0;
 	unsigned long flags;
-	int this_cpu;
 	int printed_len = 0;
 	bool in_sched = false;
-	/* cpu currently holding logbuf_lock in this function */
-	static unsigned int logbuf_cpu = UINT_MAX;
 
 	if (level == LOGLEVEL_SCHED) {
 		level = LOGLEVEL_DEFAULT;
@@ -1709,42 +1683,8 @@ asmlinkage int vprintk_emit(int facility, int level,
 	printk_delay();
 
 	printk_safe_enter_irqsave(flags);
-	this_cpu = smp_processor_id();
-
-	/*
-	 * Ouch, printk recursed into itself!
-	 */
-	if (unlikely(logbuf_cpu == this_cpu)) {
-		/*
-		 * If a crash is occurring during printk() on this CPU,
-		 * then try to get the crash message out but make sure
-		 * we can't deadlock. Otherwise just return to avoid the
-		 * recursion and return - but flag the recursion so that
-		 * it can be printed at the next appropriate moment:
-		 */
-		if (!oops_in_progress && !lockdep_recursing(current)) {
-			recursion_bug = true;
-			printk_safe_exit_irqrestore(flags);
-			return 0;
-		}
-		zap_locks();
-	}
-
 	/* This stops the holder of console_sem just where we want him */
 	raw_spin_lock(&logbuf_lock);
-	logbuf_cpu = this_cpu;
-
-	if (unlikely(recursion_bug)) {
-		static const char recursion_msg[] =
-			"BUG: recent printk recursion!";
-
-		recursion_bug = false;
-		/* emit KERN_CRIT message */
-		printed_len += log_store(0, 2, LOG_PREFIX|LOG_NEWLINE, 0,
-					 NULL, 0, recursion_msg,
-					 strlen(recursion_msg));
-	}
-
 	/*
 	 * The printf needs to come first; we need the syslog
 	 * prefix which might be passed-in as a parameter.
@@ -1787,7 +1727,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 
 	printed_len += log_output(facility, level, lflags, dict, dictlen, text, text_len);
 
-	logbuf_cpu = UINT_MAX;
 	raw_spin_unlock(&logbuf_lock);
 	printk_safe_exit_irqrestore(flags);
 
