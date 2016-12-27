@@ -466,7 +466,7 @@ static void qla2x00_free_queues(struct qla_hw_data *ha)
 			continue;
 
 		rsp = ha->rsp_q_map[cnt];
-		clear_bit(cnt, ha->req_qid_map);
+		clear_bit(cnt, ha->rsp_qid_map);
 		ha->rsp_q_map[cnt] =  NULL;
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		qla2x00_free_rsp_que(ha, rsp);
