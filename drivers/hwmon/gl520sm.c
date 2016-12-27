@@ -208,11 +208,13 @@ static ssize_t get_cpu_vid(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, get_cpu_vid, NULL);
 
-#define VDD_FROM_REG(val) (((val) * 95 + 2) / 4)
-#define VDD_TO_REG(val) clamp_val((((val) * 4 + 47) / 95), 0, 255)
+#define VDD_FROM_REG(val)	DIV_ROUND_CLOSEST((val) * 95, 4)
+#define VDD_CLAMP(val)		clamp_val(val, 0, 255 * 95 / 4)
+#define VDD_TO_REG(val)		DIV_ROUND_CLOSEST(VDD_CLAMP(val) * 4, 95)
 
-#define IN_FROM_REG(val) ((val) * 19)
-#define IN_TO_REG(val) clamp_val((((val) + 9) / 19), 0, 255)
+#define IN_FROM_REG(val)	((val) * 19)
+#define IN_CLAMP(val)		clamp_val(val, 0, 255 * 19)
+#define IN_TO_REG(val)		DIV_ROUND_CLOSEST(IN_CLAMP(val), 19)
 
 static ssize_t get_in_input(struct device *dev, struct device_attribute *attr,
 			    char *buf)
@@ -349,8 +351,13 @@ static SENSOR_DEVICE_ATTR(in4_max, S_IRUGO | S_IWUSR,
 
 #define DIV_FROM_REG(val) (1 << (val))
 #define FAN_FROM_REG(val, div) ((val) == 0 ? 0 : (480000 / ((val) << (div))))
-#define FAN_TO_REG(val, div) ((val) <= 0 ? 0 : \
-	clamp_val((480000 + ((val) << ((div)-1))) / ((val) << (div)), 1, 255))
+
+#define FAN_BASE(div)		(480000 >> (div))
+#define FAN_CLAMP(val, div)	clamp_val(val, FAN_BASE(div) / 255, \
+					  FAN_BASE(div))
+#define FAN_TO_REG(val, div)	((val) == 0 ? 0 : \
+				 DIV_ROUND_CLOSEST(480000, \
+						FAN_CLAMP(val, div) << (div)))
 
 static ssize_t get_fan_input(struct device *dev, struct device_attribute *attr,
 			     char *buf)
@@ -513,9 +520,9 @@ static SENSOR_DEVICE_ATTR(fan2_div, S_IRUGO | S_IWUSR,
 static DEVICE_ATTR(fan1_off, S_IRUGO | S_IWUSR,
 		get_fan_off, set_fan_off);
 
-#define TEMP_FROM_REG(val) (((val) - 130) * 1000)
-#define TEMP_TO_REG(val) clamp_val(((((val) < 0 ? \
-			(val) - 500 : (val) + 500) / 1000) + 130), 0, 255)
+#define TEMP_FROM_REG(val)	(((val) - 130) * 1000)
+#define TEMP_CLAMP(val)		clamp_val(val, -130000, 125000)
+#define TEMP_TO_REG(val)	(DIV_ROUND_CLOSEST(TEMP_CLAMP(val), 1000) + 130)
 
 static ssize_t get_temp_input(struct device *dev, struct device_attribute *attr,
 			      char *buf)
