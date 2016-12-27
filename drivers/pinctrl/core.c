@@ -1996,6 +1996,9 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 #ifdef CONFIG_GENERIC_PINCTRL_GROUPS
 	INIT_RADIX_TREE(&pctldev->pin_group_tree, GFP_KERNEL);
 #endif
+#ifdef CONFIG_GENERIC_PINMUX_FUNCTIONS
+	INIT_RADIX_TREE(&pctldev->pin_function_tree, GFP_KERNEL);
+#endif
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
 	INIT_DELAYED_WORK(&pctldev->late_init, pinctrl_late_init);
 	pctldev->dev = dev;
@@ -2076,6 +2079,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	mutex_lock(&pctldev->mutex);
 	/* TODO: check that no pinmuxes are still active? */
 	list_del(&pctldev->node);
+	pinmux_generic_free_functions(pctldev);
 	pinctrl_generic_free_groups(pctldev);
 	/* Destroy descriptor tree */
 	pinctrl_free_pindescs(pctldev, pctldev->desc->pins,

@@ -14,6 +14,10 @@ config GENERIC_PINCTRL_GROUPS
 config PINMUX
 	bool "Support pin multiplexing controllers" if COMPILE_TEST
 
+config GENERIC_PINMUX_FUNCTIONS
+	bool
+	select PINMUX
+
 config PINCONF
 	bool "Support pin configuration controllers" if COMPILE_TEST
 

@@ -26,6 +26,8 @@ struct pinctrl_gpio_range;
  *	this radix tree
  * @pin_group_tree: optionally each pin group can be stored in this radix tree
  * @num_groups: optionally number of groups can be kept here
+ * @pin_function_tree: optionally each function can be stored in this radix tree
+ * @num_functions: optionally number of functions can be kept here
  * @gpio_ranges: a list of GPIO ranges that is handled by this pin controller,
  *	ranges are added to this list at runtime
  * @dev: the device entry for this pin controller
@@ -46,6 +48,10 @@ struct pinctrl_dev {
 #ifdef CONFIG_GENERIC_PINCTRL_GROUPS
 	struct radix_tree_root pin_group_tree;
 	unsigned int num_groups;
+#endif
+#ifdef CONFIG_GENERIC_PINMUX_FUNCTIONS
+	struct radix_tree_root pin_function_tree;
+	unsigned int num_functions;
 #endif
 	struct list_head gpio_ranges;
 	struct device *dev;
