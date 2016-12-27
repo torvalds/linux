@@ -59,14 +59,14 @@
  * address TASK_SIZE is never valid.  We also need to make sure that the address doesn't
  * point inside the virtually mapped linear page table.
  */
-#define __access_ok(addr, size, segment)						\
-({											\
-	__chk_user_ptr(addr);								\
-	(likely((unsigned long) (addr) <= (segment).seg)				\
-	 && ((segment).seg == KERNEL_DS.seg						\
-	     || likely(REGION_OFFSET((unsigned long) (addr)) < RGN_MAP_LIMIT)));	\
-})
-#define access_ok(type, addr, size)	__access_ok((addr), (size), get_fs())
+static inline int __access_ok(const void __user *p, unsigned long size)
+{
+	unsigned long addr = (unsigned long)p;
+	unsigned long seg = get_fs().seg;
+	return likely(addr <= seg) &&
+	 (seg == KERNEL_DS.seg || likely(REGION_OFFSET(addr) < RGN_MAP_LIMIT));
+}
+#define access_ok(type, addr, size)	__access_ok((addr), (size))
 
 /*
  * These are the main single-value transfer routines.  They automatically
@@ -186,7 +186,7 @@ extern void __get_user_unknown (void);
 	__typeof__ (size) __gu_size = (size);						\
 	long __gu_err = -EFAULT;							\
 	unsigned long __gu_val = 0;							\
-	if (!check || __access_ok(__gu_ptr, size, get_fs()))				\
+	if (!check || __access_ok(__gu_ptr, size))					\
 		switch (__gu_size) {							\
 		      case 1: __get_user_size(__gu_val, __gu_ptr, 1, __gu_err); break;	\
 		      case 2: __get_user_size(__gu_val, __gu_ptr, 2, __gu_err); break;	\
@@ -214,7 +214,7 @@ extern void __put_user_unknown (void);
 	__typeof__ (size) __pu_size = (size);						\
 	long __pu_err = -EFAULT;							\
 											\
-	if (!check || __access_ok(__pu_ptr, __pu_size, get_fs()))			\
+	if (!check || __access_ok(__pu_ptr, __pu_size))					\
 		switch (__pu_size) {							\
 		      case 1: __put_user_size(__pu_x, __pu_ptr, 1, __pu_err); break;	\
 		      case 2: __put_user_size(__pu_x, __pu_ptr, 2, __pu_err); break;	\
@@ -258,7 +258,7 @@ __copy_from_user (void *to, const void __user *from, unsigned long count)
 	const void *__cu_from = (from);							\
 	long __cu_len = (n);								\
 											\
-	if (__access_ok(__cu_to, __cu_len, get_fs())) {					\
+	if (__access_ok(__cu_to, __cu_len)) {						\
 		check_object_size(__cu_from, __cu_len, true);			\
 		__cu_len = __copy_user(__cu_to, (__force void __user *)  __cu_from, __cu_len);	\
 	}										\
@@ -269,7 +269,7 @@ static inline unsigned long
 copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	check_object_size(to, n, false);
-	if (likely(__access_ok(from, n, get_fs())))
+	if (likely(__access_ok(from, n)))
 		n = __copy_user((__force void __user *) to, from, n);
 	else
 		memset(to, 0, n);
@@ -293,7 +293,7 @@ extern unsigned long __do_clear_user (void __user *, unsigned long);
 #define clear_user(to, n)					\
 ({								\
 	unsigned long __cu_len = (n);				\
-	if (__access_ok(to, __cu_len, get_fs()))		\
+	if (__access_ok(to, __cu_len))				\
 		__cu_len = __do_clear_user(to, __cu_len);	\
 	__cu_len;						\
 })
@@ -309,7 +309,7 @@ extern long __must_check __strncpy_from_user (char *to, const char __user *from,
 ({									\
 	const char __user * __sfu_from = (from);			\
 	long __sfu_ret = -EFAULT;					\
-	if (__access_ok(__sfu_from, 0, get_fs()))			\
+	if (__access_ok(__sfu_from, 0))					\
 		__sfu_ret = __strncpy_from_user((to), __sfu_from, (n));	\
 	__sfu_ret;							\
 })
@@ -321,7 +321,7 @@ extern unsigned long __strlen_user (const char __user *);
 ({							\
 	const char __user *__su_str = (str);		\
 	unsigned long __su_ret = 0;			\
-	if (__access_ok(__su_str, 0, get_fs()))		\
+	if (__access_ok(__su_str, 0))			\
 		__su_ret = __strlen_user(__su_str);	\
 	__su_ret;					\
 })
@@ -337,7 +337,7 @@ extern unsigned long __strnlen_user (const char __user *, long);
 ({								\
 	const char __user *__su_str = (str);			\
 	unsigned long __su_ret = 0;				\
-	if (__access_ok(__su_str, 0, get_fs()))			\
+	if (__access_ok(__su_str, 0))				\
 		__su_ret = __strnlen_user(__su_str, len);	\
 	__su_ret;						\
 })
