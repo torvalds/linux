@@ -1,5 +1,5 @@
 /*
- * nmi.c - Safe printk in NMI context
+ * printk_safe.c - Safe printk in NMI context
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -39,18 +39,18 @@
  * were handled or when IRQs are blocked.
  */
 DEFINE_PER_CPU(printk_func_t, printk_func) = vprintk_default;
-static int printk_nmi_irq_ready;
+static int printk_safe_irq_ready;
 atomic_t nmi_message_lost;
 
-#define NMI_LOG_BUF_LEN ((1 << CONFIG_NMI_LOG_BUF_SHIFT) -		\
+#define SAFE_LOG_BUF_LEN ((1 << CONFIG_PRINTK_SAFE_LOG_BUF_SHIFT) -	\
 			 sizeof(atomic_t) - sizeof(struct irq_work))
 
-struct nmi_seq_buf {
+struct printk_safe_seq_buf {
 	atomic_t		len;	/* length of written data */
 	struct irq_work		work;	/* IRQ work that flushes the buffer */
-	unsigned char		buffer[NMI_LOG_BUF_LEN];
+	unsigned char		buffer[SAFE_LOG_BUF_LEN];
 };
-static DEFINE_PER_CPU(struct nmi_seq_buf, nmi_print_seq);
+static DEFINE_PER_CPU(struct printk_safe_seq_buf, nmi_print_seq);
 
 /*
  * Safe printk() for NMI context. It uses a per-CPU buffer to
@@ -60,7 +60,7 @@ static DEFINE_PER_CPU(struct nmi_seq_buf, nmi_print_seq);
  */
 static int vprintk_nmi(const char *fmt, va_list args)
 {
-	struct nmi_seq_buf *s = this_cpu_ptr(&nmi_print_seq);
+	struct printk_safe_seq_buf *s = this_cpu_ptr(&nmi_print_seq);
 	int add = 0;
 	size_t len;
 
@@ -91,7 +91,7 @@ again:
 		goto again;
 
 	/* Get flushed in a more safe context. */
-	if (add && printk_nmi_irq_ready) {
+	if (add && printk_safe_irq_ready) {
 		/* Make sure that IRQ work is really initialized. */
 		smp_rmb();
 		irq_work_queue(&s->work);
@@ -100,7 +100,7 @@ again:
 	return add;
 }
 
-static void printk_nmi_flush_line(const char *text, int len)
+static void printk_safe_flush_line(const char *text, int len)
 {
 	/*
 	 * The buffers are flushed in NMI only on panic.  The messages must
@@ -111,11 +111,10 @@ static void printk_nmi_flush_line(const char *text, int len)
 		printk_deferred("%.*s", len, text);
 	else
 		printk("%.*s", len, text);
-
 }
 
 /* printk part of the temporary buffer line by line */
-static int printk_nmi_flush_buffer(const char *start, size_t len)
+static int printk_safe_flush_buffer(const char *start, size_t len)
 {
 	const char *c, *end;
 	bool header;
@@ -127,7 +126,7 @@ static int printk_nmi_flush_buffer(const char *start, size_t len)
 	/* Print line by line. */
 	while (c < end) {
 		if (*c == '\n') {
-			printk_nmi_flush_line(start, c - start + 1);
+			printk_safe_flush_line(start, c - start + 1);
 			start = ++c;
 			header = true;
 			continue;
@@ -140,7 +139,7 @@ static int printk_nmi_flush_buffer(const char *start, size_t len)
 				continue;
 			}
 
-			printk_nmi_flush_line(start, c - start);
+			printk_safe_flush_line(start, c - start);
 			start = c++;
 			header = true;
 			continue;
@@ -154,8 +153,8 @@ static int printk_nmi_flush_buffer(const char *start, size_t len)
 	if (start < end && !header) {
 		static const char newline[] = KERN_CONT "\n";
 
-		printk_nmi_flush_line(start, end - start);
-		printk_nmi_flush_line(newline, strlen(newline));
+		printk_safe_flush_line(start, end - start);
+		printk_safe_flush_line(newline, strlen(newline));
 	}
 
 	return len;
@@ -165,11 +164,12 @@ static int printk_nmi_flush_buffer(const char *start, size_t len)
  * Flush data from the associated per_CPU buffer. The function
  * can be called either via IRQ work or independently.
  */
-static void __printk_nmi_flush(struct irq_work *work)
+static void __printk_safe_flush(struct irq_work *work)
 {
 	static raw_spinlock_t read_lock =
 		__RAW_SPIN_LOCK_INITIALIZER(read_lock);
-	struct nmi_seq_buf *s = container_of(work, struct nmi_seq_buf, work);
+	struct printk_safe_seq_buf *s =
+		container_of(work, struct printk_safe_seq_buf, work);
 	unsigned long flags;
 	size_t len;
 	int i;
@@ -194,9 +194,9 @@ more:
 	 * buffer size.
 	 */
 	if ((i && i >= len) || len > sizeof(s->buffer)) {
-		const char *msg = "printk_nmi_flush: internal error\n";
+		const char *msg = "printk_safe_flush: internal error\n";
 
-		printk_nmi_flush_line(msg, strlen(msg));
+		printk_safe_flush_line(msg, strlen(msg));
 		len = 0;
 	}
 
@@ -205,7 +205,7 @@ more:
 
 	/* Make sure that data has been written up to the @len */
 	smp_rmb();
-	i += printk_nmi_flush_buffer(s->buffer + i, len - i);
+	i += printk_safe_flush_buffer(s->buffer + i, len - i);
 
 	/*
 	 * Check that nothing has got added in the meantime and truncate
@@ -221,31 +221,31 @@ out:
 }
 
 /**
- * printk_nmi_flush - flush all per-cpu nmi buffers.
+ * printk_safe_flush - flush all per-cpu nmi buffers.
  *
  * The buffers are flushed automatically via IRQ work. This function
  * is useful only when someone wants to be sure that all buffers have
  * been flushed at some point.
  */
-void printk_nmi_flush(void)
+void printk_safe_flush(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		__printk_nmi_flush(&per_cpu(nmi_print_seq, cpu).work);
+		__printk_safe_flush(&per_cpu(nmi_print_seq, cpu).work);
 }
 
 /**
- * printk_nmi_flush_on_panic - flush all per-cpu nmi buffers when the system
+ * printk_safe_flush_on_panic - flush all per-cpu nmi buffers when the system
  *	goes down.
  *
- * Similar to printk_nmi_flush() but it can be called even in NMI context when
+ * Similar to printk_safe_flush() but it can be called even in NMI context when
  * the system goes down. It does the best effort to get NMI messages into
  * the main ring buffer.
  *
  * Note that it could try harder when there is only one CPU online.
  */
-void printk_nmi_flush_on_panic(void)
+void printk_safe_flush_on_panic(void)
 {
 	/*
 	 * Make sure that we could access the main ring buffer.
@@ -259,25 +259,25 @@ void printk_nmi_flush_on_panic(void)
 		raw_spin_lock_init(&logbuf_lock);
 	}
 
-	printk_nmi_flush();
+	printk_safe_flush();
 }
 
-void __init printk_nmi_init(void)
+void __init printk_safe_init(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		struct nmi_seq_buf *s = &per_cpu(nmi_print_seq, cpu);
+		struct printk_safe_seq_buf *s = &per_cpu(nmi_print_seq, cpu);
 
-		init_irq_work(&s->work, __printk_nmi_flush);
+		init_irq_work(&s->work, __printk_safe_flush);
 	}
 
 	/* Make sure that IRQ works are initialized before enabling. */
 	smp_wmb();
-	printk_nmi_irq_ready = 1;
+	printk_safe_irq_ready = 1;
 
 	/* Flush pending messages that did not have scheduled IRQ works. */
-	printk_nmi_flush();
+	printk_safe_flush();
 }
 
 void printk_nmi_enter(void)
