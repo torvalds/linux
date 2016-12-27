@@ -95,8 +95,8 @@ extern const struct file_operations proc_cgroupstats_operations;
 
 bool cgroup_ssid_no_v1(int ssid);
 void cgroup_pidlist_destroy_all(struct cgroup *cgrp);
-int cgroup_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
-		  const char *new_name_str);
+int cgroup1_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
+		   const char *new_name_str);
 void cgroup_release_agent(struct work_struct *work);
 void check_for_release(struct cgroup *cgrp);
 
