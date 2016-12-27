@@ -794,28 +794,6 @@ static const struct hdmi_video_timing hdmi_mode[] = {
 		.interface = OUT_P888,
 	},
 	{
-		.mode = {
-			.name = "1440x2560@60Hz",
-			.refresh = 60,
-			.xres = 1440,
-			.yres = 2560,
-			.pixclock = 269390000,
-			.left_margin = 80,
-			.right_margin = 180,
-			.upper_margin = 7,
-			.lower_margin = 7,
-			.hsync_len = 40,
-			.vsync_len = 6,
-			.sync = 0,
-			.vmode = 0,
-			.flag = 0,
-		},
-		.vic = HDMI_VIDEO_DISCRETE_VR | 2,
-		.vic_2nd = 0,
-		.pixelrepeat = 1,
-		.interface = OUT_P888,
-	},
-	{
 		/* AUO 3.81 */
 		.mode = {
 			.name = "2160x1200@75Hz",
