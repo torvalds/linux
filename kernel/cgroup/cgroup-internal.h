@@ -26,6 +26,16 @@ struct cgrp_cset_link {
 	struct list_head	cgrp_link;
 };
 
+struct cgroup_sb_opts {
+	u16 subsys_mask;
+	unsigned int flags;
+	char *release_agent;
+	bool cpuset_clone_children;
+	char *name;
+	/* User explicitly requested empty subsystem */
+	bool none;
+};
+
 extern struct mutex cgroup_mutex;
 extern spinlock_t css_set_lock;
 extern struct cgroup_subsys *cgroup_subsys[];
@@ -66,7 +76,13 @@ void cgroup_kn_unlock(struct kernfs_node *kn);
 int cgroup_path_ns_locked(struct cgroup *cgrp, char *buf, size_t buflen,
 			  struct cgroup_namespace *ns);
 
+void cgroup_free_root(struct cgroup_root *root);
+void init_cgroup_root(struct cgroup_root *root, struct cgroup_sb_opts *opts);
+int cgroup_setup_root(struct cgroup_root *root, u16 ss_mask);
 int rebind_subsystems(struct cgroup_root *dst_root, u16 ss_mask);
+struct dentry *cgroup_do_mount(struct file_system_type *fs_type, int flags,
+			       struct cgroup_root *root, unsigned long magic,
+			       struct cgroup_namespace *ns);
 
 bool cgroup_may_migrate_to(struct cgroup *dst_cgrp);
 void cgroup_migrate_finish(struct list_head *preloaded_csets);
@@ -86,18 +102,24 @@ ssize_t cgroup_procs_write(struct kernfs_open_file *of, char *buf, size_t nbytes
 
 void cgroup_lock_and_drain_offline(struct cgroup *cgrp);
 
+int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode);
+int cgroup_rmdir(struct kernfs_node *kn);
+int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
+		     struct kernfs_root *kf_root);
+
 /*
  * cgroup-v1.c
  */
-extern spinlock_t release_agent_path_lock;
 extern struct cftype cgroup_legacy_base_files[];
 extern const struct file_operations proc_cgroupstats_operations;
+extern struct kernfs_syscall_ops cgroup1_kf_syscall_ops;
 
 bool cgroup_ssid_no_v1(int ssid);
 void cgroup_pidlist_destroy_all(struct cgroup *cgrp);
-int cgroup1_rename(struct kernfs_node *kn, struct kernfs_node *new_parent,
-		   const char *new_name_str);
 void cgroup_release_agent(struct work_struct *work);
 void check_for_release(struct cgroup *cgrp);
+struct dentry *cgroup1_mount(struct file_system_type *fs_type, int flags,
+			     void *data, unsigned long magic,
+			     struct cgroup_namespace *ns);
 
 #endif /* __CGROUP_INTERNAL_H */
