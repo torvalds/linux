@@ -80,6 +80,7 @@ static const struct snd_pcm_hardware dw_pcm_hardware = {
 	.rate_min = 32000,
 	.rate_max = 48000,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |
+		SNDRV_PCM_FMTBIT_S24_LE |
 		SNDRV_PCM_FMTBIT_S32_LE,
 	.channels_min = 2,
 	.channels_max = 2,
@@ -175,6 +176,7 @@ static int dw_pcm_hw_params(struct snd_pcm_substream *substream,
 		dev->tx_fn = dw_pcm_tx_16;
 		dev->rx_fn = dw_pcm_rx_16;
 		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		dev->tx_fn = dw_pcm_tx_32;
 		dev->rx_fn = dw_pcm_rx_32;
