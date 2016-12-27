@@ -41,7 +41,8 @@ config RMI4_SMB
 
 config RMI4_F03
         bool "RMI4 Function 03 (PS2 Guest)"
-        depends on RMI4_CORE && SERIO
+	depends on RMI4_CORE
+	depends on SERIO=y || RMI4_CORE=SERIO
         help
           Say Y here if you want to add support for RMI4 function 03.
 
