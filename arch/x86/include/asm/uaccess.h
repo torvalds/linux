@@ -3,10 +3,8 @@
 /*
  * User space memory access functions
  */
-#include <linux/errno.h>
 #include <linux/compiler.h>
 #include <linux/kasan-checks.h>
-#include <linux/thread_info.h>
 #include <linux/string.h>
 #include <asm/asm.h>
 #include <asm/page.h>

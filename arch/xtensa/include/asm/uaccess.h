@@ -16,11 +16,8 @@
 #ifndef _XTENSA_UACCESS_H
 #define _XTENSA_UACCESS_H
 
-#include <linux/errno.h>
 #include <linux/prefetch.h>
 #include <asm/types.h>
-
-#include <linux/sched.h>
 
 /*
  * The fs value determines whether argument validity checking should

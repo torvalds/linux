@@ -4,8 +4,6 @@
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 
-#include <linux/sched.h>
-#include <linux/errno.h>
 #include <asm/asm-compat.h>
 #include <asm/ppc_asm.h>
 #include <asm/processor.h>

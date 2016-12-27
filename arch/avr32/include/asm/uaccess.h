@@ -8,9 +8,6 @@
 #ifndef __ASM_AVR32_UACCESS_H
 #define __ASM_AVR32_UACCESS_H
 
-#include <linux/errno.h>
-#include <linux/sched.h>
-
 typedef struct {
 	unsigned int is_user_space;
 } mm_segment_t;

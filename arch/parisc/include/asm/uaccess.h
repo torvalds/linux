@@ -6,12 +6,10 @@
  */
 #include <asm/page.h>
 #include <asm/cache.h>
-#include <asm/errno.h>
 #include <asm-generic/uaccess-unaligned.h>
 
 #include <linux/bug.h>
 #include <linux/string.h>
-#include <linux/thread_info.h>
 
 #define KERNEL_DS	((mm_segment_t){0})
 #define USER_DS 	((mm_segment_t){1})

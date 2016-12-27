@@ -5,7 +5,6 @@
  * User space memory access functions
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
 #include <linux/lockdep.h>
 #include <linux/kasan-checks.h>
 #include <asm/alternative.h>

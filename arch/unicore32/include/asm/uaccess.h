@@ -12,9 +12,6 @@
 #ifndef __UNICORE_UACCESS_H__
 #define __UNICORE_UACCESS_H__
 
-#include <linux/thread_info.h>
-#include <linux/errno.h>
-
 #include <asm/memory.h>
 
 #define __copy_from_user	__copy_from_user

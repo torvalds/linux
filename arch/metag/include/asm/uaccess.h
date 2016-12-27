@@ -4,7 +4,6 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
 
 /*
  * The fs value determines whether argument validity checking should be

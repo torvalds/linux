@@ -4,7 +4,6 @@
 /*
  * User space memory access functions
  */
-#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/string.h>
 

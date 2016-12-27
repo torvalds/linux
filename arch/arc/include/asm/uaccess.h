@@ -24,8 +24,6 @@
 #ifndef _ASM_ARC_UACCESS_H
 #define _ASM_ARC_UACCESS_H
 
-#include <linux/sched.h>
-#include <asm/errno.h>
 #include <linux/string.h>	/* for generic string functions */
 
 

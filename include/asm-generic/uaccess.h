@@ -6,7 +6,6 @@
  * on any machine that has kernel and user data in the same
  * address space, e.g. all NOMMU machines.
  */
-#include <linux/sched.h>
 #include <linux/string.h>
 
 #include <asm/segment.h>

@@ -1,10 +1,6 @@
 #ifndef __ALPHA_UACCESS_H
 #define __ALPHA_UACCESS_H
 
-#include <linux/errno.h>
-#include <linux/sched.h>
-
-
 /*
  * The fs value determines whether argument validity checking should be
  * performed or not.  If get_fs() == USER_DS, checking is performed, with

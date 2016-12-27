@@ -2,8 +2,6 @@
 #define __SCORE_UACCESS_H
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/thread_info.h>
 #include <asm/extable.h>
 
 #define get_ds()		(KERNEL_DS)

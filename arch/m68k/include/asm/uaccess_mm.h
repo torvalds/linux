@@ -5,9 +5,7 @@
  * User space memory access functions
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <asm/segment.h>
 
 /* We let the MMU do all checking */

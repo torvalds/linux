@@ -2,6 +2,7 @@
 #define __LINUX_UACCESS_H__
 
 #include <linux/sched.h>
+#include <linux/thread_info.h>
 
 #define VERIFY_READ 0
 #define VERIFY_WRITE 1

@@ -33,8 +33,6 @@
  */
 
 #include <linux/compiler.h>
-#include <linux/errno.h>
-#include <linux/sched.h>
 #include <linux/page-flags.h>
 #include <linux/mm.h>
 

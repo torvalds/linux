@@ -9,9 +9,7 @@
 
 #ifdef __KERNEL__
 #include <linux/compiler.h>
-#include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/errno.h>
 #endif
 
 #ifndef __ASSEMBLY__

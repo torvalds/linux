@@ -15,8 +15,6 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/sched.h> /* RLIMIT_FSIZE */
 #include <linux/mm.h>
 
 #include <asm/mmu.h>

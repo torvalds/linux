@@ -7,7 +7,6 @@
 #ifndef __UM_UACCESS_H
 #define __UM_UACCESS_H
 
-#include <asm/thread_info.h>
 #include <asm/elf.h>
 
 #define __under_task_size(addr, size) \
