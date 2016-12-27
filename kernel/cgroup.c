@@ -4618,40 +4618,10 @@ after:
  * sorted by task pointer.  As pidlists can be fairly large, allocating one
  * per open file is dangerous, so cgroup had to implement shared pool of
  * pidlists keyed by cgroup and namespace.
- *
- * All this extra complexity was caused by the original implementation
- * committing to an entirely unnecessary property.  In the long term, we
- * want to do away with it.  Explicitly scramble sort order if on the
- * default hierarchy so that no such expectation exists in the new
- * interface.
- *
- * Scrambling is done by swapping every two consecutive bits, which is
- * non-identity one-to-one mapping which disturbs sort order sufficiently.
  */
-static pid_t pid_fry(pid_t pid)
-{
-	unsigned a = pid & 0x55555555;
-	unsigned b = pid & 0xAAAAAAAA;
-
-	return (a << 1) | (b >> 1);
-}
-
-static pid_t cgroup_pid_fry(struct cgroup *cgrp, pid_t pid)
-{
-	if (cgroup_on_dfl(cgrp))
-		return pid_fry(pid);
-	else
-		return pid;
-}
-
 static int cmppid(const void *a, const void *b)
 {
 	return *(pid_t *)a - *(pid_t *)b;
-}
-
-static int fried_cmppid(const void *a, const void *b)
-{
-	return pid_fry(*(pid_t *)a) - pid_fry(*(pid_t *)b);
 }
 
 static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
@@ -4741,10 +4711,7 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	css_task_iter_end(&it);
 	length = n;
 	/* now sort & (if procs) strip out duplicates */
-	if (cgroup_on_dfl(cgrp))
-		sort(array, length, sizeof(pid_t), fried_cmppid, NULL);
-	else
-		sort(array, length, sizeof(pid_t), cmppid, NULL);
+	sort(array, length, sizeof(pid_t), cmppid, NULL);
 	if (type == CGROUP_FILE_PROCS)
 		length = pidlist_uniq(array, length);
 
@@ -4876,10 +4843,10 @@ static void *cgroup_pidlist_start(struct seq_file *s, loff_t *pos)
 
 		while (index < end) {
 			int mid = (index + end) / 2;
-			if (cgroup_pid_fry(cgrp, l->list[mid]) == pid) {
+			if (l->list[mid] == pid) {
 				index = mid;
 				break;
-			} else if (cgroup_pid_fry(cgrp, l->list[mid]) <= pid)
+			} else if (l->list[mid] <= pid)
 				index = mid + 1;
 			else
 				end = mid;
@@ -4890,7 +4857,7 @@ static void *cgroup_pidlist_start(struct seq_file *s, loff_t *pos)
 		return NULL;
 	/* Update the abstract position to be the actual pid that we found */
 	iter = l->list + index;
-	*pos = cgroup_pid_fry(cgrp, *iter);
+	*pos = *iter;
 	return iter;
 }
 
@@ -4919,7 +4886,7 @@ static void *cgroup_pidlist_next(struct seq_file *s, void *v, loff_t *pos)
 	if (p >= end) {
 		return NULL;
 	} else {
-		*pos = cgroup_pid_fry(seq_css(s)->cgroup, *p);
+		*pos = *p;
 		return p;
 	}
 }
