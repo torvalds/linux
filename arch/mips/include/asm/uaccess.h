@@ -128,23 +128,14 @@ static inline bool eva_kernel_access(void)
  * this function, memory access functions may still return -EFAULT.
  */
 
-#define __access_mask get_fs().seg
-
-#define __access_ok(addr, size, mask)					\
-({									\
-	unsigned long __addr = (unsigned long) (addr);			\
-	unsigned long __size = size;					\
-	unsigned long __mask = mask;					\
-	unsigned long __ok;						\
-									\
-	__chk_user_ptr(addr);						\
-	__ok = (signed long)(__mask & (__addr | (__addr + __size) |	\
-		__ua_size(__size)));					\
-	__ok == 0;							\
-})
+static inline int __access_ok(const void __user *p, unsigned long size)
+{
+	unsigned long addr = (unsigned long)p;
+	return (get_fs().seg & (addr | (addr + size) | __ua_size(size))) == 0;
+}
 
 #define access_ok(type, addr, size)					\
-	likely(__access_ok((addr), (size), __access_mask))
+	likely(__access_ok((addr), (size)))
 
 /*
  * put_user: - Write a simple value into user space.
