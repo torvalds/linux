@@ -720,7 +720,8 @@ static struct pinctrl_state *create_state(struct pinctrl *p,
 	return state;
 }
 
-static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
+static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
+		       struct pinctrl_map const *map)
 {
 	struct pinctrl_state *state;
 	struct pinctrl_setting *setting;
@@ -744,7 +745,11 @@ static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
 
 	setting->type = map->type;
 
-	setting->pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
+	if (pctldev)
+		setting->pctldev = pctldev;
+	else
+		setting->pctldev =
+			get_pinctrl_dev_from_devname(map->ctrl_dev_name);
 	if (setting->pctldev == NULL) {
 		kfree(setting);
 		/* Do not defer probing of hogs (circular loop) */
@@ -800,7 +805,8 @@ static struct pinctrl *find_pinctrl(struct device *dev)
 
 static void pinctrl_free(struct pinctrl *p, bool inlist);
 
-static struct pinctrl *create_pinctrl(struct device *dev)
+static struct pinctrl *create_pinctrl(struct device *dev,
+				      struct pinctrl_dev *pctldev)
 {
 	struct pinctrl *p;
 	const char *devname;
@@ -823,7 +829,7 @@ static struct pinctrl *create_pinctrl(struct device *dev)
 	INIT_LIST_HEAD(&p->states);
 	INIT_LIST_HEAD(&p->dt_maps);
 
-	ret = pinctrl_dt_to_map(p);
+	ret = pinctrl_dt_to_map(p, pctldev);
 	if (ret < 0) {
 		kfree(p);
 		return ERR_PTR(ret);
@@ -838,7 +844,7 @@ static struct pinctrl *create_pinctrl(struct device *dev)
 		if (strcmp(map->dev_name, devname))
 			continue;
 
-		ret = add_setting(p, map);
+		ret = add_setting(p, pctldev, map);
 		/*
 		 * At this point the adding of a setting may:
 		 *
@@ -899,7 +905,7 @@ struct pinctrl *pinctrl_get(struct device *dev)
 		return p;
 	}
 
-	return create_pinctrl(dev);
+	return create_pinctrl(dev, NULL);
 }
 EXPORT_SYMBOL_GPL(pinctrl_get);
 
@@ -1738,6 +1744,46 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
 }
 
 /**
+ * pinctrl_late_init() - finish pin controller device registration
+ * @work: work struct
+ */
+static void pinctrl_late_init(struct work_struct *work)
+{
+	struct pinctrl_dev *pctldev;
+
+	pctldev = container_of(work, struct pinctrl_dev, late_init.work);
+
+	pctldev->p = create_pinctrl(pctldev->dev, pctldev);
+	if (!IS_ERR(pctldev->p)) {
+		kref_get(&pctldev->p->users);
+		pctldev->hog_default =
+			pinctrl_lookup_state(pctldev->p, PINCTRL_STATE_DEFAULT);
+		if (IS_ERR(pctldev->hog_default)) {
+			dev_dbg(pctldev->dev,
+				"failed to lookup the default state\n");
+		} else {
+			if (pinctrl_select_state(pctldev->p,
+						 pctldev->hog_default))
+				dev_err(pctldev->dev,
+					"failed to select default state\n");
+		}
+
+		pctldev->hog_sleep =
+			pinctrl_lookup_state(pctldev->p,
+					     PINCTRL_STATE_SLEEP);
+		if (IS_ERR(pctldev->hog_sleep))
+			dev_dbg(pctldev->dev,
+				"failed to lookup the sleep state\n");
+	}
+
+	mutex_lock(&pinctrldev_list_mutex);
+	list_add_tail(&pctldev->node, &pinctrldev_list);
+	mutex_unlock(&pinctrldev_list_mutex);
+
+	pinctrl_init_device_debugfs(pctldev);
+}
+
+/**
  * pinctrl_register() - register a pin controller device
  * @pctldesc: descriptor for this pin controller
  * @dev: parent device for this pin controller
@@ -1766,6 +1812,7 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	pctldev->driver_data = driver_data;
 	INIT_RADIX_TREE(&pctldev->pin_desc_tree, GFP_KERNEL);
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
+	INIT_DELAYED_WORK(&pctldev->late_init, pinctrl_late_init);
 	pctldev->dev = dev;
 	mutex_init(&pctldev->mutex);
 
@@ -1800,32 +1847,10 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		goto out_err;
 	}
 
-	mutex_lock(&pinctrldev_list_mutex);
-	list_add_tail(&pctldev->node, &pinctrldev_list);
-	mutex_unlock(&pinctrldev_list_mutex);
-
-	pctldev->p = pinctrl_get(pctldev->dev);
-
-	if (!IS_ERR(pctldev->p)) {
-		pctldev->hog_default =
-			pinctrl_lookup_state(pctldev->p, PINCTRL_STATE_DEFAULT);
-		if (IS_ERR(pctldev->hog_default)) {
-			dev_dbg(dev, "failed to lookup the default state\n");
-		} else {
-			if (pinctrl_select_state(pctldev->p,
-						pctldev->hog_default))
-				dev_err(dev,
-					"failed to select default state\n");
-		}
-
-		pctldev->hog_sleep =
-			pinctrl_lookup_state(pctldev->p,
-						    PINCTRL_STATE_SLEEP);
-		if (IS_ERR(pctldev->hog_sleep))
-			dev_dbg(dev, "failed to lookup the sleep state\n");
-	}
-
-	pinctrl_init_device_debugfs(pctldev);
+	if (pinctrl_dt_has_hogs(pctldev))
+		schedule_delayed_work(&pctldev->late_init, 0);
+	else
+		pinctrl_late_init(&pctldev->late_init.work);
 
 	return pctldev;
 
@@ -1848,6 +1873,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	if (pctldev == NULL)
 		return;
 
+	cancel_delayed_work_sync(&pctldev->late_init);
 	mutex_lock(&pctldev->mutex);
 	pinctrl_remove_device_debugfs(pctldev);
 	mutex_unlock(&pctldev->mutex);
