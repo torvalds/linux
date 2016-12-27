@@ -41,12 +41,12 @@ static void dump_message(struct apcie_dev *sc, int offset)
 	struct icc_message_hdr hdr;
 	memcpy_fromio(&hdr, sc->icc.spm + offset, ICC_HDR_SIZE);
 
-	sc_dbg("icc: hdr: [%02x] %02x:%04x unk %x #%d len %d cksum 0x%x\n",
+	sc_err("icc: hdr: [%02x] %02x:%04x unk %x #%d len %d cksum 0x%x\n",
 	       hdr.magic, hdr.major, hdr.minor, hdr.unknown, hdr.cookie,
 	       hdr.length, hdr.checksum);
 	len = min(hdr.length - ICC_HDR_SIZE, ICC_MAX_PAYLOAD);
 	if (len > 0) {
-		sc_dbg("icc: data:");
+		sc_err("icc: data:");
 		while (len--)
 			printk(" %02x", ioread8(sc->icc.spm + (offset++) +
 			                         ICC_HDR_SIZE));
@@ -109,6 +109,7 @@ static void handle_message(struct apcie_dev *sc)
 				(int)(msg.length - off));
 		memcpy_fromio(sc->icc.reply_buffer, REPLY + off, copy_size);
 		off += copy_size;
+		sc->icc.reply_extra_checksum = 0;
 		while (off < msg.length)
 			sc->icc.reply_extra_checksum += ioread8(REPLY + off++);
 		sc->icc.reply_pending = false;
@@ -213,7 +214,7 @@ static int _apcie_icc_cmd(struct apcie_dev *sc, u8 major, u16 minor, const void 
 	if (ret < 0 || sc->icc.reply_pending) { /* interrupted or timed out */
 		sc->icc.reply_pending = false;
 		spin_unlock_irq(&sc->icc.reply_lock);
-		sc_err("icc: interrupted or timeout: ret = %d\n", rep_checksum);
+		sc_err("icc: interrupted or timeout: ret = %d\n", ret);
 		return ret < 0 ? -EINTR : -ETIMEDOUT;
 	}
 	spin_unlock_irq(&sc->icc.reply_lock);
@@ -353,12 +354,12 @@ int apcie_icc_init(struct apcie_dev *sc)
 		goto free_irq;
 	}
 
+	mutex_lock(&icc_mutex);
+	icc_sc = sc;
+
 	/* Enable IRQs */
 	iowrite32(APCIE_ICC_SEND | APCIE_ICC_ACK,
 		  sc->bar4 + APCIE_REG_ICC_IRQ_MASK);
-
-	mutex_lock(&icc_mutex);
-	icc_sc = sc;
 	mutex_unlock(&icc_mutex);
 
 	ret = icc_i2c_init(sc);
@@ -373,9 +374,9 @@ int apcie_icc_init(struct apcie_dev *sc)
 
 unassign_global:
 	mutex_lock(&icc_mutex);
+	iowrite32(0, sc->bar4 + APCIE_REG_ICC_IRQ_MASK);
 	icc_sc = NULL;
 	mutex_unlock(&icc_mutex);
-	iowrite32(0, sc->bar4 + APCIE_REG_ICC_IRQ_MASK);
 free_irq:
 	free_irq(apcie_irqnum(sc, APCIE_SUBFUNC_ICC), sc);
 iounmap:
@@ -390,8 +391,10 @@ release_icc:
 
 void apcie_icc_remove(struct apcie_dev *sc)
 {
+	sc_err("apcie_icc_remove: shouldn't normally be called\n");
 	icc_i2c_remove(sc);
 	mutex_lock(&icc_mutex);
+	iowrite32(0, sc->bar4 + APCIE_REG_ICC_IRQ_MASK);
 	icc_sc = NULL;
 	mutex_unlock(&icc_mutex);
 	free_irq(apcie_irqnum(sc, APCIE_SUBFUNC_ICC), sc);
