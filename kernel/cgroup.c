@@ -4426,6 +4426,60 @@ out_err:
 	return ret;
 }
 
+static void cgroup_procs_release(struct kernfs_open_file *of)
+{
+	if (of->priv) {
+		css_task_iter_end(of->priv);
+		kfree(of->priv);
+	}
+}
+
+static void *cgroup_procs_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	struct kernfs_open_file *of = s->private;
+	struct css_task_iter *it = of->priv;
+	struct task_struct *task;
+
+	do {
+		task = css_task_iter_next(it);
+	} while (task && !thread_group_leader(task));
+
+	return task;
+}
+
+static void *cgroup_procs_start(struct seq_file *s, loff_t *pos)
+{
+	struct kernfs_open_file *of = s->private;
+	struct cgroup *cgrp = seq_css(s)->cgroup;
+	struct css_task_iter *it = of->priv;
+
+	/*
+	 * When a seq_file is seeked, it's always traversed sequentially
+	 * from position 0, so we can simply keep iterating on !0 *pos.
+	 */
+	if (!it) {
+		if (WARN_ON_ONCE((*pos)++))
+			return ERR_PTR(-EINVAL);
+
+		it = kzalloc(sizeof(*it), GFP_KERNEL);
+		if (!it)
+			return ERR_PTR(-ENOMEM);
+		of->priv = it;
+		css_task_iter_start(&cgrp->self, it);
+	} else if (!(*pos)++) {
+		css_task_iter_end(it);
+		css_task_iter_start(&cgrp->self, it);
+	}
+
+	return cgroup_procs_next(s, NULL, NULL);
+}
+
+static int cgroup_procs_show(struct seq_file *s, void *v)
+{
+	seq_printf(s, "%d\n", task_tgid_vnr(v));
+	return 0;
+}
+
 /*
  * Stuff for reading the 'tasks'/'procs' files.
  *
@@ -4914,11 +4968,10 @@ static struct cftype cgroup_dfl_base_files[] = {
 	{
 		.name = "cgroup.procs",
 		.file_offset = offsetof(struct cgroup, procs_file),
-		.seq_start = cgroup_pidlist_start,
-		.seq_next = cgroup_pidlist_next,
-		.seq_stop = cgroup_pidlist_stop,
-		.seq_show = cgroup_pidlist_show,
-		.private = CGROUP_FILE_PROCS,
+		.release = cgroup_procs_release,
+		.seq_start = cgroup_procs_start,
+		.seq_next = cgroup_procs_next,
+		.seq_show = cgroup_procs_show,
 		.write = cgroup_procs_write,
 	},
 	{
