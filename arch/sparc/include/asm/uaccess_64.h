@@ -5,16 +5,12 @@
  * User space memory access functions
  */
 
-#ifdef __KERNEL__
 #include <linux/compiler.h>
 #include <linux/string.h>
 #include <asm/asi.h>
 #include <asm/spitfire.h>
 #include <asm-generic/uaccess-unaligned.h>
 #include <asm/extable_64.h>
-#endif
-
-#ifndef __ASSEMBLY__
 
 #include <asm/processor.h>
 
@@ -228,7 +224,5 @@ struct pt_regs;
 unsigned long compute_effective_address(struct pt_regs *,
 					unsigned int insn,
 					unsigned int rd);
-
-#endif  /* __ASSEMBLY__ */
 
 #endif /* _ASM_UACCESS_H */

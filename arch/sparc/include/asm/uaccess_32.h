@@ -7,12 +7,8 @@
 #ifndef _ASM_UACCESS_H
 #define _ASM_UACCESS_H
 
-#ifdef __KERNEL__
 #include <linux/compiler.h>
 #include <linux/string.h>
-#endif
-
-#ifndef __ASSEMBLY__
 
 #include <asm/processor.h>
 
@@ -306,7 +302,5 @@ static inline unsigned long clear_user(void __user *addr, unsigned long n)
 
 __must_check long strlen_user(const char __user *str);
 __must_check long strnlen_user(const char __user *str, long n);
-
-#endif  /* __ASSEMBLY__ */
 
 #endif /* _ASM_UACCESS_H */

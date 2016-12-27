@@ -15,7 +15,6 @@
 #ifndef _CRIS_UACCESS_H
 #define _CRIS_UACCESS_H
 
-#ifndef __ASSEMBLY__
 #include <asm/processor.h>
 #include <asm/page.h>
 
@@ -410,7 +409,5 @@ __generic_clear_user_nocheck(void __user *to, unsigned long n)
 #define __clear_user(to, n) __generic_clear_user_nocheck((to), (n))
 
 #define strlen_user(str)	strnlen_user((str), 0x7ffffffe)
-
-#endif  /* __ASSEMBLY__ */
 
 #endif	/* _CRIS_UACCESS_H */

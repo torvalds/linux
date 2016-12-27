@@ -11,9 +11,6 @@
 #ifndef _ASM_MICROBLAZE_UACCESS_H
 #define _ASM_MICROBLAZE_UACCESS_H
 
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-
 #include <linux/kernel.h>
 #include <linux/mm.h>
 
@@ -416,8 +413,5 @@ static inline long strnlen_user(const char __user *src, long n)
 		return 0;
 	return __strnlen_user(src, n);
 }
-
-#endif  /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 
 #endif /* _ASM_MICROBLAZE_UACCESS_H */

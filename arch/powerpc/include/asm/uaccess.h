@@ -1,9 +1,6 @@
 #ifndef _ARCH_POWERPC_UACCESS_H
 #define _ARCH_POWERPC_UACCESS_H
 
-#ifdef __KERNEL__
-#ifndef __ASSEMBLY__
-
 #include <asm/asm-compat.h>
 #include <asm/ppc_asm.h>
 #include <asm/processor.h>
@@ -416,8 +413,5 @@ static inline unsigned long clear_user(void __user *addr, unsigned long size)
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
-
-#endif  /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */
