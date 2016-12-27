@@ -65,6 +65,33 @@ static inline bool notify_on_release(const struct cgroup *cgrp)
 	return test_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
 }
 
+void put_css_set_locked(struct css_set *cset);
+
+static inline void put_css_set(struct css_set *cset)
+{
+	unsigned long flags;
+
+	/*
+	 * Ensure that the refcount doesn't hit zero while any readers
+	 * can see it. Similar to atomic_dec_and_lock(), but for an
+	 * rwlock
+	 */
+	if (atomic_add_unless(&cset->refcount, -1, 1))
+		return;
+
+	spin_lock_irqsave(&css_set_lock, flags);
+	put_css_set_locked(cset);
+	spin_unlock_irqrestore(&css_set_lock, flags);
+}
+
+/*
+ * refcounted get/put for css_set objects
+ */
+static inline void get_css_set(struct css_set *cset)
+{
+	atomic_inc(&cset->refcount);
+}
+
 bool cgroup_ssid_enabled(int ssid);
 bool cgroup_on_dfl(const struct cgroup *cgrp);
 
@@ -106,6 +133,11 @@ int cgroup_mkdir(struct kernfs_node *parent_kn, const char *name, umode_t mode);
 int cgroup_rmdir(struct kernfs_node *kn);
 int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 		     struct kernfs_root *kf_root);
+
+/*
+ * namespace.c
+ */
+extern const struct proc_ns_operations cgroupns_operations;
 
 /*
  * cgroup-v1.c
