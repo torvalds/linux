@@ -199,7 +199,7 @@ struct cgroup_namespace init_cgroup_ns = {
 static u16 have_canfork_callback __read_mostly;
 
 static struct file_system_type cgroup2_fs_type;
-static struct cftype cgroup_dfl_base_files[];
+static struct cftype cgroup_base_files[];
 
 static int cgroup_apply_control(struct cgroup *cgrp);
 static void cgroup_finalize_control(struct cgroup *cgrp, int ret);
@@ -609,7 +609,7 @@ static void cgroup_update_populated(struct cgroup *cgrp, bool populated)
 		if (!trigger)
 			break;
 
-		check_for_release(cgrp);
+		cgroup1_check_for_release(cgrp);
 		cgroup_file_notify(&cgrp->events_file);
 
 		cgrp = cgroup_parent(cgrp);
@@ -1440,9 +1440,9 @@ static int css_populate_dir(struct cgroup_subsys_state *css)
 
 	if (!css->ss) {
 		if (cgroup_on_dfl(cgrp))
-			cfts = cgroup_dfl_base_files;
+			cfts = cgroup_base_files;
 		else
-			cfts = cgroup_legacy_base_files;
+			cfts = cgroup1_base_files;
 
 		return cgroup_addrm_files(&cgrp->self, cgrp, cfts, true);
 	}
@@ -1645,7 +1645,7 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 		INIT_LIST_HEAD(&cgrp->e_csets[ssid]);
 
 	init_waitqueue_head(&cgrp->offline_waitq);
-	INIT_WORK(&cgrp->release_agent_work, cgroup_release_agent);
+	INIT_WORK(&cgrp->release_agent_work, cgroup1_release_agent);
 }
 
 void init_cgroup_root(struct cgroup_root *root, struct cgroup_sb_opts *opts)
@@ -3836,7 +3836,7 @@ static int cgroup_procs_show(struct seq_file *s, void *v)
 }
 
 /* cgroup core interface files for the default hierarchy */
-static struct cftype cgroup_dfl_base_files[] = {
+static struct cftype cgroup_base_files[] = {
 	{
 		.name = "cgroup.procs",
 		.file_offset = offsetof(struct cgroup, procs_file),
@@ -3909,7 +3909,7 @@ static void css_free_work_fn(struct work_struct *work)
 	} else {
 		/* cgroup free path */
 		atomic_dec(&cgrp->root->nr_cgrps);
-		cgroup_pidlist_destroy_all(cgrp);
+		cgroup1_pidlist_destroy_all(cgrp);
 		cancel_work_sync(&cgrp->release_agent_work);
 
 		if (cgroup_parent(cgrp)) {
@@ -4411,7 +4411,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 */
 	kernfs_remove(cgrp->kn);
 
-	check_for_release(cgroup_parent(cgrp));
+	cgroup1_check_for_release(cgroup_parent(cgrp));
 
 	/* put the base reference */
 	percpu_ref_kill(&cgrp->self.refcnt);
@@ -4548,8 +4548,8 @@ int __init cgroup_init(void)
 
 	BUILD_BUG_ON(CGROUP_SUBSYS_COUNT > 16);
 	BUG_ON(percpu_init_rwsem(&cgroup_threadgroup_rwsem));
-	BUG_ON(cgroup_init_cftypes(NULL, cgroup_dfl_base_files));
-	BUG_ON(cgroup_init_cftypes(NULL, cgroup_legacy_base_files));
+	BUG_ON(cgroup_init_cftypes(NULL, cgroup_base_files));
+	BUG_ON(cgroup_init_cftypes(NULL, cgroup1_base_files));
 
 	/*
 	 * The latency of the synchronize_sched() is too high for cgroups,
@@ -4599,7 +4599,7 @@ int __init cgroup_init(void)
 			continue;
 		}
 
-		if (cgroup_ssid_no_v1(ssid))
+		if (cgroup1_ssid_disabled(ssid))
 			printk(KERN_INFO "Disabling %s control group subsystem in v1 mounts\n",
 			       ss->name);
 

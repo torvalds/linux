@@ -36,7 +36,7 @@ static struct workqueue_struct *cgroup_pidlist_destroy_wq;
  */
 static DEFINE_SPINLOCK(release_agent_path_lock);
 
-bool cgroup_ssid_no_v1(int ssid)
+bool cgroup1_ssid_disabled(int ssid)
 {
 	return cgroup_no_v1_mask & (1 << ssid);
 }
@@ -201,7 +201,7 @@ static void pidlist_free(void *p)
  * Used to destroy all pidlists lingering waiting for destroy timer.  None
  * should be left afterwards.
  */
-void cgroup_pidlist_destroy_all(struct cgroup *cgrp)
+void cgroup1_pidlist_destroy_all(struct cgroup *cgrp)
 {
 	struct cgroup_pidlist *l, *tmp_l;
 
@@ -585,7 +585,7 @@ static int cgroup_clone_children_write(struct cgroup_subsys_state *css,
 }
 
 /* cgroup core interface files for the legacy hierarchies */
-struct cftype cgroup_legacy_base_files[] = {
+struct cftype cgroup1_base_files[] = {
 	{
 		.name = "cgroup.procs",
 		.seq_start = cgroup_pidlist_start,
@@ -729,7 +729,7 @@ int cgroupstats_build(struct cgroupstats *stats, struct dentry *dentry)
 	return 0;
 }
 
-void check_for_release(struct cgroup *cgrp)
+void cgroup1_check_for_release(struct cgroup *cgrp)
 {
 	if (notify_on_release(cgrp) && !cgroup_is_populated(cgrp) &&
 	    !css_has_online_children(&cgrp->self) && !cgroup_is_dead(cgrp))
@@ -759,7 +759,7 @@ void check_for_release(struct cgroup *cgrp)
  * this routine has no use for the exit status of the release agent
  * task, so no sense holding our caller up for that.
  */
-void cgroup_release_agent(struct work_struct *work)
+void cgroup1_release_agent(struct work_struct *work)
 {
 	struct cgroup *cgrp =
 		container_of(work, struct cgroup, release_agent_work);
@@ -946,7 +946,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 				continue;
 			if (!cgroup_ssid_enabled(i))
 				continue;
-			if (cgroup_ssid_no_v1(i))
+			if (cgroup1_ssid_disabled(i))
 				continue;
 
 			/* Mutually exclusive option 'all' + subsystem name */
@@ -968,7 +968,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 	 */
 	if (all_ss || (!one_ss && !opts->none && !opts->name))
 		for_each_subsys(ss, i)
-			if (cgroup_ssid_enabled(i) && !cgroup_ssid_no_v1(i))
+			if (cgroup_ssid_enabled(i) && !cgroup1_ssid_disabled(i))
 				opts->subsys_mask |= (1 << i);
 
 	/*

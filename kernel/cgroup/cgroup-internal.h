@@ -110,14 +110,14 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 /*
  * cgroup-v1.c
  */
-extern struct cftype cgroup_legacy_base_files[];
+extern struct cftype cgroup1_base_files[];
 extern const struct file_operations proc_cgroupstats_operations;
 extern struct kernfs_syscall_ops cgroup1_kf_syscall_ops;
 
-bool cgroup_ssid_no_v1(int ssid);
-void cgroup_pidlist_destroy_all(struct cgroup *cgrp);
-void cgroup_release_agent(struct work_struct *work);
-void check_for_release(struct cgroup *cgrp);
+bool cgroup1_ssid_disabled(int ssid);
+void cgroup1_pidlist_destroy_all(struct cgroup *cgrp);
+void cgroup1_release_agent(struct work_struct *work);
+void cgroup1_check_for_release(struct cgroup *cgrp);
 struct dentry *cgroup1_mount(struct file_system_type *fs_type, int flags,
 			     void *data, unsigned long magic,
 			     struct cgroup_namespace *ns);
