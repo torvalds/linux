@@ -65,7 +65,7 @@ static int map_vgpu_opregion(struct intel_vgpu *vgpu, bool map)
 	int i, ret;
 
 	for (i = 0; i < INTEL_GVT_OPREGION_PAGES; i++) {
-		mfn = intel_gvt_hypervisor_virt_to_mfn(vgpu_opregion(vgpu)
+		mfn = intel_gvt_hypervisor_virt_to_mfn(vgpu_opregion(vgpu)->va
 			+ i * PAGE_SIZE);
 		if (mfn == INTEL_GVT_INVALID_ADDR) {
 			gvt_err("fail to get MFN from VA\n");

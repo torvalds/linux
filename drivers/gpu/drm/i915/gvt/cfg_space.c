@@ -123,6 +123,7 @@ static int emulate_pci_command_write(struct intel_vgpu *vgpu,
 	u8 changed = old ^ new;
 	int ret;
 
+	memcpy(vgpu_cfg_space(vgpu) + offset, p_data, bytes);
 	if (!(changed & PCI_COMMAND_MEMORY))
 		return 0;
 
@@ -142,7 +143,6 @@ static int emulate_pci_command_write(struct intel_vgpu *vgpu,
 			return ret;
 	}
 
-	memcpy(vgpu_cfg_space(vgpu) + offset, p_data, bytes);
 	return 0;
 }
 
@@ -240,7 +240,7 @@ int intel_vgpu_emulate_cfg_write(struct intel_vgpu *vgpu, unsigned int offset,
 	if (WARN_ON(bytes > 4))
 		return -EINVAL;
 
-	if (WARN_ON(offset + bytes >= INTEL_GVT_MAX_CFG_SPACE_SZ))
+	if (WARN_ON(offset + bytes > INTEL_GVT_MAX_CFG_SPACE_SZ))
 		return -EINVAL;
 
 	/* First check if it's PCI_COMMAND */
