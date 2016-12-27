@@ -220,7 +220,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 		default:
 			/*should not hit here*/
 			gvt_err("invalid forcewake offset 0x%x\n", offset);
-			return 1;
+			return -EINVAL;
 		}
 	} else {
 		ack_reg_offset = FORCEWAKE_ACK_HSW_REG;
