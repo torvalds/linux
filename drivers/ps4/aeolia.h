@@ -132,6 +132,7 @@ struct apcie_icc_dev {
 	wait_queue_head_t wq;
 
 	struct i2c_adapter i2c;
+	struct input_dev *pwrbutton_dev;
 };
 
 struct apcie_dev {

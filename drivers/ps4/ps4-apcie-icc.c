@@ -5,6 +5,8 @@
 #include <linux/wait.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
+#include <asm/ps4.h>
 #include "aeolia.h"
 
 /* There should normally be only one Aeolia device in a system. This allows
@@ -25,6 +27,13 @@ DEFINE_MUTEX(icc_mutex);
 
 /* Seconds. Yes, some ICC requests can be slow. */
 int icc_timeout = 15;
+
+int icc_i2c_init(struct apcie_dev *sc);
+void icc_i2c_remove(struct apcie_dev *sc);
+int icc_pwrbutton_init(struct apcie_dev *sc);
+void icc_pwrbutton_remove(struct apcie_dev *sc);
+void icc_pwrbutton_trigger(struct apcie_dev *sc, int state);
+
 
 static u16 checksum(const void *p, int length)
 {
@@ -54,6 +63,22 @@ static void dump_message(struct apcie_dev *sc, int offset)
 	}
 }
 
+static void handle_event(struct apcie_dev *sc, struct icc_message_hdr *msg)
+{
+	switch ((msg->major << 16) | msg->minor) {
+		case 0x088010:
+			icc_pwrbutton_trigger(sc, 1);
+			break;
+		case 0x088011:
+			icc_pwrbutton_trigger(sc, 0);
+			break;
+		default:
+			sc_err("icc: event arrived, not yet supported.\n");
+			dump_message(sc, APCIE_SPM_ICC_REPLY);
+			break;
+	}
+}
+
 static void handle_message(struct apcie_dev *sc)
 {
 	u32 rep_empty, rep_full;
@@ -77,8 +102,7 @@ static void handle_message(struct apcie_dev *sc)
 			dump_message(sc, APCIE_SPM_ICC_REPLY);
 			return;
 		}
-		sc_err("icc: event arrived, not yet supported.\n");
-		dump_message(sc, APCIE_SPM_ICC_REPLY);
+		handle_event(sc, &msg);
 	} else if (msg.minor & ICC_REPLY) {
 		if (msg.magic != ICC_MAGIC) {
 			sc_err("icc: reply has bad magic\n");
@@ -290,8 +314,30 @@ void do_icc_init(void) {
 		reply[0], reply[1], reply[2], reply[3],
 		reply[4], reply[5], reply[6], reply[7]);
 }
-int icc_i2c_init(struct apcie_dev *sc);
-void icc_i2c_remove(struct apcie_dev *sc);
+
+static void icc_shutdown(void)
+{
+	uint8_t command[] = {
+		0, 0, 2, 0, 1, 0
+	};
+	if (apcie_status() != 1)
+		return;
+	apcie_icc_cmd(4, 1, command, sizeof(command), NULL, 0);
+	mdelay(3000);
+	WARN_ON(1);
+}
+
+void icc_reboot(void)
+{
+	uint8_t command[] = {
+		0, 1, 2, 0, 1, 0
+	};
+	if (apcie_status() != 1)
+		return;
+	apcie_icc_cmd(4, 1, command, sizeof(command), NULL, 0);
+	mdelay(3000);
+	WARN_ON(1);
+}
 
 int apcie_icc_init(struct apcie_dev *sc)
 {
@@ -368,7 +414,13 @@ int apcie_icc_init(struct apcie_dev *sc)
 		goto unassign_global;
 	}
 
+	ret = icc_pwrbutton_init(sc);
+	/* Not fatal */
+	if (ret)
+		sc_err("icc: pwrbutton init failed: %d\n", ret);
+
 	do_icc_init();
+	pm_power_off = &icc_shutdown;
 
 	return 0;
 
@@ -392,6 +444,8 @@ release_icc:
 void apcie_icc_remove(struct apcie_dev *sc)
 {
 	sc_err("apcie_icc_remove: shouldn't normally be called\n");
+	pm_power_off = NULL;
+	icc_pwrbutton_remove(sc);
 	icc_i2c_remove(sc);
 	mutex_lock(&icc_mutex);
 	iowrite32(0, sc->bar4 + APCIE_REG_ICC_IRQ_MASK);
