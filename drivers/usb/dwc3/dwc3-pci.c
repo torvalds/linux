@@ -115,7 +115,7 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 		int ret;
 
 		struct property_entry properties[] = {
-			PROPERTY_ENTRY_STRING("dr-mode", "peripheral"),
+			PROPERTY_ENTRY_STRING("dr_mode", "peripheral"),
 			{ }
 		};
 
