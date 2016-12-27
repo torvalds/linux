@@ -540,6 +540,182 @@ void pinctrl_remove_gpio_range(struct pinctrl_dev *pctldev,
 }
 EXPORT_SYMBOL_GPL(pinctrl_remove_gpio_range);
 
+#ifdef CONFIG_GENERIC_PINCTRL
+
+/**
+ * pinctrl_generic_get_group_count() - returns the number of pin groups
+ * @pctldev: pin controller device
+ */
+int pinctrl_generic_get_group_count(struct pinctrl_dev *pctldev)
+{
+	return pctldev->num_groups;
+}
+EXPORT_SYMBOL_GPL(pinctrl_generic_get_group_count);
+
+/**
+ * pinctrl_generic_get_group_name() - returns the name of a pin group
+ * @pctldev: pin controller device
+ * @selector: group number
+ */
+const char *pinctrl_generic_get_group_name(struct pinctrl_dev *pctldev,
+					   unsigned int selector)
+{
+	struct group_desc *group;
+
+	group = radix_tree_lookup(&pctldev->pin_group_tree,
+				  selector);
+	if (!group)
+		return NULL;
+
+	return group->name;
+}
+EXPORT_SYMBOL_GPL(pinctrl_generic_get_group_name);
+
+/**
+ * pinctrl_generic_get_group_pins() - gets the pin group pins
+ * @pctldev: pin controller device
+ * @selector: group number
+ * @pins: pins in the group
+ * @num_pins: number of pins in the group
+ */
+int pinctrl_generic_get_group_pins(struct pinctrl_dev *pctldev,
+				   unsigned int selector,
+				   const unsigned int **pins,
+				   unsigned int *num_pins)
+{
+	struct group_desc *group;
+
+	group = radix_tree_lookup(&pctldev->pin_group_tree,
+				  selector);
+	if (!group) {
+		dev_err(pctldev->dev, "%s could not find pingroup%i\n",
+			__func__, selector);
+		return -EINVAL;
+	}
+
+	*pins = group->pins;
+	*num_pins = group->num_pins;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pinctrl_generic_get_group_pins);
+
+/**
+ * pinctrl_generic_get_group() - returns a pin group based on the number
+ * @pctldev: pin controller device
+ * @gselector: group number
+ */
+struct group_desc *pinctrl_generic_get_group(struct pinctrl_dev *pctldev,
+					     unsigned int selector)
+{
+	struct group_desc *group;
+
+	group = radix_tree_lookup(&pctldev->pin_group_tree,
+				  selector);
+	if (!group)
+		return NULL;
+
+	return group;
+}
+EXPORT_SYMBOL_GPL(pinctrl_generic_get_group);
+
+/**
+ * pinctrl_generic_add_group() - adds a new pin group
+ * @pctldev: pin controller device
+ * @name: name of the pin group
+ * @pins: pins in the pin group
+ * @num_pins: number of pins in the pin group
+ * @data: pin controller driver specific data
+ *
+ * Note that the caller must take care of locking.
+ */
+int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
+			      int *pins, int num_pins, void *data)
+{
+	struct group_desc *group;
+
+	group = devm_kzalloc(pctldev->dev, sizeof(*group), GFP_KERNEL);
+	if (!group)
+		return -ENOMEM;
+
+	group->name = name;
+	group->pins = pins;
+	group->num_pins = num_pins;
+	group->data = data;
+
+	radix_tree_insert(&pctldev->pin_group_tree, pctldev->num_groups,
+			  group);
+
+	pctldev->num_groups++;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pinctrl_generic_add_group);
+
+/**
+ * pinctrl_generic_remove_group() - removes a numbered pin group
+ * @pctldev: pin controller device
+ * @selector: group number
+ *
+ * Note that the caller must take care of locking.
+ */
+int pinctrl_generic_remove_group(struct pinctrl_dev *pctldev,
+				 unsigned int selector)
+{
+	struct group_desc *group;
+
+	group = radix_tree_lookup(&pctldev->pin_group_tree,
+				  selector);
+	if (!group)
+		return -ENOENT;
+
+	radix_tree_delete(&pctldev->pin_group_tree, selector);
+	devm_kfree(pctldev->dev, group);
+
+	pctldev->num_groups--;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pinctrl_generic_remove_group);
+
+/**
+ * pinctrl_generic_free_groups() - removes all pin groups
+ * @pctldev: pin controller device
+ *
+ * Note that the caller must take care of locking.
+ */
+static void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
+{
+	struct radix_tree_iter iter;
+	struct group_desc *group;
+	unsigned long *indices;
+	void **slot;
+	int i = 0;
+
+	indices = devm_kzalloc(pctldev->dev, sizeof(*indices) *
+			       pctldev->num_groups, GFP_KERNEL);
+	if (!indices)
+		return;
+
+	radix_tree_for_each_slot(slot, &pctldev->pin_group_tree, &iter, 0)
+		indices[i++] = iter.index;
+
+	for (i = 0; i < pctldev->num_groups; i++) {
+		group = radix_tree_lookup(&pctldev->pin_group_tree,
+					  indices[i]);
+		radix_tree_delete(&pctldev->pin_group_tree, indices[i]);
+		devm_kfree(pctldev->dev, group);
+	}
+
+	pctldev->num_groups = 0;
+}
+
+#else
+static inline void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
+{
+}
+#endif /* CONFIG_GENERIC_PINCTRL */
+
 /**
  * pinctrl_get_group_selector() - returns the group selector for a group
  * @pctldev: the pin controller handling the group
@@ -1817,6 +1993,7 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	pctldev->desc = pctldesc;
 	pctldev->driver_data = driver_data;
 	INIT_RADIX_TREE(&pctldev->pin_desc_tree, GFP_KERNEL);
+	INIT_RADIX_TREE(&pctldev->pin_group_tree, GFP_KERNEL);
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
 	INIT_DELAYED_WORK(&pctldev->late_init, pinctrl_late_init);
 	pctldev->dev = dev;
@@ -1897,6 +2074,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	mutex_lock(&pctldev->mutex);
 	/* TODO: check that no pinmuxes are still active? */
 	list_del(&pctldev->node);
+	pinctrl_generic_free_groups(pctldev);
 	/* Destroy descriptor tree */
 	pinctrl_free_pindescs(pctldev, pctldev->desc->pins,
 			      pctldev->desc->npins);

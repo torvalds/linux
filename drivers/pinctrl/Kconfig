@@ -8,6 +8,9 @@ config PINCTRL
 menu "Pin controllers"
 	depends on PINCTRL
 
+config GENERIC_PINCTRL
+	bool
+
 config PINMUX
 	bool "Support pin multiplexing controllers" if COMPILE_TEST
 
