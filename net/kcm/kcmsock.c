@@ -1160,10 +1160,11 @@ out:
 	return copied ? : err;
 }
 
-static ssize_t kcm_splice_read(struct socket *sock, loff_t *ppos,
+static ssize_t kcm_splice_read(struct file *file, loff_t *ppos,
 			       struct pipe_inode_info *pipe, size_t len,
 			       unsigned int flags)
 {
+	struct socket *sock = file->private_data;
 	struct sock *sk = sock->sk;
 	struct kcm_sock *kcm = kcm_sk(sk);
 	long timeo;
@@ -1189,7 +1190,7 @@ static ssize_t kcm_splice_read(struct socket *sock, loff_t *ppos,
 	if (len > rxm->full_len)
 		len = rxm->full_len;
 
-	copied = skb_splice_bits(skb, sk, rxm->offset, pipe, len, flags);
+	copied = skb_splice_bits(skb, sk, rxm->offset, pipe, len);
 	if (copied < 0) {
 		err = copied;
 		goto err_out;

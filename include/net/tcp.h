@@ -359,7 +359,7 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 void tcp_rcv_space_adjust(struct sock *sk);
 int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp);
 void tcp_twsk_destructor(struct sock *sk);
-ssize_t tcp_splice_read(struct socket *sk, loff_t *ppos,
+ssize_t tcp_splice_read(struct file *file, loff_t *ppos,
 			struct pipe_inode_info *pipe, size_t len,
 			unsigned int flags);
 
