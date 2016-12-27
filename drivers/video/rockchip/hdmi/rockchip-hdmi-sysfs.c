@@ -225,6 +225,14 @@ static int hdmi_get_color(struct rk_display_device *device, char *buf)
 		      "Supported EOTF: 0x%x\n", hdmi->edid.hdr.hdrinfo.eotf);
 	i += snprintf(buf + i, PAGE_SIZE - i,
 		      "Current EOTF: 0x%x\n", hdmi->eotf);
+	i += snprintf(buf + i, PAGE_SIZE - i,
+		      "HDR MeteData: %d %d %d %d %d %d %d %d %d %d %d %d\n",
+		      hdmi->hdr.prim_x0, hdmi->hdr.prim_y0,
+		      hdmi->hdr.prim_x1, hdmi->hdr.prim_y1,
+		      hdmi->hdr.prim_x2, hdmi->hdr.prim_y2,
+		      hdmi->hdr.white_px, hdmi->hdr.white_py,
+		      hdmi->hdr.max_dml, hdmi->hdr.min_dml,
+		      hdmi->hdr.max_cll, hdmi->hdr.max_fall);
 	return i;
 }
 
@@ -253,6 +261,8 @@ static int hdmi_set_color(struct rk_display_device *device,
 			 hdmi->colordepth, value);
 		if (hdmi->colordepth != value)
 			hdmi->colordepth = value;
+		else
+			return 0;
 	} else if (!strncmp(buf, "colorimetry", 11)) {
 		if (sscanf(buf, "colorimetry=%d", &value) == -1)
 			return -1;
@@ -260,6 +270,8 @@ static int hdmi_set_color(struct rk_display_device *device,
 			 hdmi->colorimetry, value);
 		if (hdmi->colorimetry != value)
 			hdmi->colorimetry = value;
+		else
+			return 0;
 	} else if (!strncmp(buf, "hdr", 3)) {
 		if (sscanf(buf, "hdr=%d", &value) == -1)
 			return -1;
@@ -267,8 +279,23 @@ static int hdmi_set_color(struct rk_display_device *device,
 			hdmi->eotf, value);
 		if (hdmi->eotf != value &&
 		    (value & hdmi->edid.hdr.hdrinfo.eotf ||
-		     value == 0))
+		     value == 0)) {
 			hdmi->eotf = value;
+			if (hdmi->hotplug == HDMI_HPD_ACTIVATED)
+				hdmi_submit_work(hdmi, HDMI_SET_HDR, 0, 0);
+		}
+		return 0;
+	} else if (!strncmp(buf, "hdrmdata", 8)) {
+		value = sscanf(buf,
+			       "hdrmdata=%u %u %u %u %u %u %u %u %u %u %u %u",
+			       &hdmi->hdr.prim_x0, &hdmi->hdr.prim_y0,
+			       &hdmi->hdr.prim_x1, &hdmi->hdr.prim_y1,
+			       &hdmi->hdr.prim_x2, &hdmi->hdr.prim_y2,
+			       &hdmi->hdr.white_px, &hdmi->hdr.white_py,
+			       &hdmi->hdr.max_dml, &hdmi->hdr.min_dml,
+			       &hdmi->hdr.max_cll, &hdmi->hdr.max_fall);
+		if (value == -1)
+			return -1;
 		else
 			return 0;
 	} else {

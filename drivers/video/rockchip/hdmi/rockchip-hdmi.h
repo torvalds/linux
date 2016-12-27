@@ -293,18 +293,18 @@ enum hdmi_hdr_eotf {
 };
 
 struct hdmi_hdr_metadata {
-	u16	prim_x0;
-	u16	prim_y0;
-	u16	prim_x1;
-	u16	prim_y1;
-	u16	prim_x2;
-	u16	prim_y2;
-	u16	white_px;
-	u16	white_py;
-	u16	max_dml;
-	u16	min_dml;
-	u16	max_cll;		/*max content light level*/
-	u16	max_fall;		/*max frame-average light level*/
+	u32	prim_x0;
+	u32	prim_y0;
+	u32	prim_x1;
+	u32	prim_y1;
+	u32	prim_x2;
+	u32	prim_y2;
+	u32	white_px;
+	u32	white_py;
+	u32	max_dml;
+	u32	min_dml;
+	u32	max_cll;		/*max content light level*/
+	u32	max_fall;		/*max frame-average light level*/
 };
 
 struct hdmi_hdr {
@@ -406,6 +406,8 @@ struct hdmi_ops {
 	int (*setmute)(struct hdmi *, int);
 	int (*setvsi)(struct hdmi *, unsigned char, unsigned char);
 	int (*setcec)(struct hdmi *);
+	void (*sethdr)(struct hdmi *, int, struct hdmi_hdr_metadata *);
+	void (*setavi)(struct hdmi *, struct hdmi_video *);
 	/* call back for hdcp operatoion */
 	void (*hdcp_cb)(struct hdmi *);
 	void (*hdcp_auth2nd)(struct hdmi *);
@@ -492,6 +494,7 @@ struct hdmi {
 	int vic;			/* HDMI output video information code*/
 	int mode_3d;			/* HDMI output video 3d mode*/
 	int eotf;			/* HDMI HDR EOTF */
+	struct hdmi_hdr_metadata hdr;	/* HDMI HDR MedeData */
 	struct hdmi_audio audio;	/* HDMI output audio information.*/
 	struct hdmi_video video;	/* HDMI output video information.*/
 	int xscale;
@@ -556,6 +559,7 @@ struct hdmi {
 #define HDMI_SET_COLOR			(HDMI_SYSFS_SRC		| 10)
 #define HDMI_ENABLE_HDCP		(HDMI_SYSFS_SRC		| 11)
 #define HDMI_HDCP_AUTH_2ND		(HDMI_IRQ_SRC		| 12)
+#define HDMI_SET_HDR			(HDMI_SYSFS_SRC		| 13)
 
 #define HDMI_DEFAULT_SCALE		95
 #define HDMI_AUTO_CONFIG		false
