@@ -73,7 +73,7 @@
 	};
 
 	sound {
-		compatible = "rockchip,rk3399-gru-sound";
+		compatible = "rockchip,cdndp-sound";
 		rockchip,cpu = <&i2s2>;
 		rockchip,codec = <&cdn_dp>;
 	};
