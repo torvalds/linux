@@ -26,9 +26,6 @@
 #define __put_user_unaligned __put_user
 #endif
 
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
-
 /*
  * The exception table consists of pairs of addresses: the first is the
  * address of an instruction that is allowed to fault, and the second is

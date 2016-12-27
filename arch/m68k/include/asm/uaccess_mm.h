@@ -10,9 +10,6 @@
 #include <linux/sched.h>
 #include <asm/segment.h>
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 /* We let the MMU do all checking */
 static inline int access_ok(int type, const void __user *addr,
 			    unsigned long size)

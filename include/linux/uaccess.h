@@ -2,6 +2,10 @@
 #define __LINUX_UACCESS_H__
 
 #include <linux/sched.h>
+
+#define VERIFY_READ 0
+#define VERIFY_WRITE 1
+
 #include <asm/uaccess.h>
 
 static __always_inline void pagefault_disabled_inc(void)

@@ -36,9 +36,6 @@
 #define KERNEL_DS   ((mm_segment_t) { ASI_P })
 #define USER_DS     ((mm_segment_t) { ASI_AIUS })	/* har har har */
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 #define get_fs() ((mm_segment_t){(current_thread_info()->current_ds)})
 #define get_ds() (KERNEL_DS)
 

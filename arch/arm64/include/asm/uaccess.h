@@ -36,9 +36,6 @@
 #include <asm/memory.h>
 #include <asm/compiler.h>
 
-#define VERIFY_READ 0
-#define VERIFY_WRITE 1
-
 /*
  * The exception table consists of pairs of relative offsets: the first
  * is the relative offset to an instruction that is allowed to fault,

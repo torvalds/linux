@@ -30,9 +30,6 @@
 #define KERNEL_DS   ((mm_segment_t) { 0 })
 #define USER_DS     ((mm_segment_t) { -1 })
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 #define get_ds()	(KERNEL_DS)
 #define get_fs()	(current->thread.current_ds)
 #define set_fs(val)	((current->thread.current_ds) = (val))

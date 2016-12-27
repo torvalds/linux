@@ -20,9 +20,6 @@
 #define KERNEL_DS	((mm_segment_t) { 0UL })
 #define USER_DS		((mm_segment_t) { -0x40000000000UL })
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 #define get_fs()  (current_thread_info()->addr_limit)
 #define get_ds()  (KERNEL_DS)
 #define set_fs(x) (current_thread_info()->addr_limit = (x))

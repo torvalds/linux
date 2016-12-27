@@ -24,9 +24,6 @@
 #include <asm/pgtable.h>
 #include <linux/string.h>
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 /*
  * On Microblaze the fs value is actually the top of the corresponding
  * address space.

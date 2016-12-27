@@ -11,9 +11,6 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 typedef struct {
 	unsigned int is_user_space;
 } mm_segment_t;

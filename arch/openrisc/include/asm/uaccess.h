@@ -28,9 +28,6 @@
 #include <linux/string.h>
 #include <asm/page.h>
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 /*
  * The fs value determines whether argument validity checking should be
  * performed or not.  If get_fs() == USER_DS, checking is performed, with

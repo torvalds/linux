@@ -5,9 +5,6 @@
 #include <linux/sched.h>
 #include <asm/segment.h>
 
-#define VERIFY_READ    0
-#define VERIFY_WRITE   1
-
 #define __addr_ok(addr) \
 	((unsigned long __force)(addr) < current_thread_info()->addr_limit.seg)
 

@@ -35,9 +35,6 @@ static inline void set_fs(mm_segment_t fs)
 #define segment_eq(a, b) ((a).seg == (b).seg)
 #endif
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 #define access_ok(type, addr, size) __access_ok((unsigned long)(addr),(size))
 
 /*

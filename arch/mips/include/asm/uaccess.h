@@ -71,9 +71,6 @@ extern u64 __ua_limit;
 #define USER_DS		((mm_segment_t) { __UA_LIMIT })
 #endif
 
-#define VERIFY_READ    0
-#define VERIFY_WRITE   1
-
 #define get_ds()	(KERNEL_DS)
 #define get_fs()	(current_thread_info()->addr_limit)
 #define set_fs(x)	(current_thread_info()->addr_limit = (x))

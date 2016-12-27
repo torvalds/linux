@@ -10,9 +10,6 @@
 
 #include <asm/segment.h>
 
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
-
 #define access_ok(type,addr,size)	_access_ok((unsigned long)(addr),(size))
 
 /*
