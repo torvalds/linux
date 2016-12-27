@@ -19,6 +19,8 @@
 
 static inline void memblock_physmem_add(phys_addr_t start, phys_addr_t size)
 {
+	memblock_dbg("memblock_physmem_add: [%#016llx-%#016llx]\n",
+		     start, start + size - 1);
 	memblock_add_range(&memblock.memory, start, size, 0, 0);
 	memblock_add_range(&memblock.physmem, start, size, 0, 0);
 }
@@ -55,4 +57,5 @@ void __init detect_memory_memblock(void)
 	memblock_set_bottom_up(false);
 	if (!max_physmem_end)
 		max_physmem_end = memblock_end_of_DRAM();
+	memblock_dump_all();
 }
