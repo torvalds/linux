@@ -13,10 +13,6 @@
 #include <linux/compiler.h>
 #include <linux/string.h>
 
-#ifdef CONFIG_ACCESS_CHECK
-#define __access_ok _access_ok
-#endif
-
 /*
  * __copy_from_user/copy_to_user are based on ones in asm-generic/uaccess.h
  *
