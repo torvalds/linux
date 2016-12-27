@@ -28,7 +28,7 @@
 #include <linux/cpufreq.h>
 #include <linux/acpi.h>
 #include <acpi/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PREFIX "ACPI: "
 

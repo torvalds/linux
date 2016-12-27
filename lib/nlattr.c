@@ -14,7 +14,7 @@
 #include <linux/types.h>
 #include <net/netlink.h>
 
-static const u16 nla_attr_minlen[NLA_TYPE_MAX+1] = {
+static const u8 nla_attr_minlen[NLA_TYPE_MAX+1] = {
 	[NLA_U8]	= sizeof(u8),
 	[NLA_U16]	= sizeof(u16),
 	[NLA_U32]	= sizeof(u32),

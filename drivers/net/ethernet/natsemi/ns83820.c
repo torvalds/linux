@@ -119,7 +119,7 @@
 #include <linux/slab.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define DRV_NAME "ns83820"
 
@@ -919,7 +919,7 @@ netdev_mangle_me_harder_failed:
 				ndev->stats.rx_dropped++;
 			}
 		} else {
-			kfree_skb(skb);
+			dev_kfree_skb_irq(skb);
 		}
 
 		nr++;
@@ -1679,14 +1679,6 @@ static void ns83820_getmac(struct ns83820 *dev, u8 *mac)
 	}
 }
 
-static int ns83820_change_mtu(struct net_device *ndev, int new_mtu)
-{
-	if (new_mtu > RX_BUF_SIZE)
-		return -EINVAL;
-	ndev->mtu = new_mtu;
-	return 0;
-}
-
 static void ns83820_set_multicast(struct net_device *ndev)
 {
 	struct ns83820 *dev = PRIV(ndev);
@@ -1933,7 +1925,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_stop		= ns83820_stop,
 	.ndo_start_xmit		= ns83820_hard_start_xmit,
 	.ndo_get_stats		= ns83820_get_stats,
-	.ndo_change_mtu		= ns83820_change_mtu,
 	.ndo_set_rx_mode	= ns83820_set_multicast,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
@@ -2189,6 +2180,8 @@ static int ns83820_init_one(struct pci_dev *pci_dev,
 	/* Yes, we support dumb IP checksum on transmit */
 	ndev->features |= NETIF_F_SG;
 	ndev->features |= NETIF_F_IP_CSUM;
+
+	ndev->min_mtu = 0;
 
 #ifdef NS83820_VLAN_ACCEL_SUPPORT
 	/* We also support hardware vlan acceleration */

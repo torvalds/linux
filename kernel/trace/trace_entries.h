@@ -244,6 +244,21 @@ FTRACE_ENTRY(print, print_entry,
 	FILTER_OTHER
 );
 
+FTRACE_ENTRY(raw_data, raw_data_entry,
+
+	TRACE_RAW_DATA,
+
+	F_STRUCT(
+		__field(	unsigned int,	id	)
+		__dynamic_array(	char,	buf	)
+	),
+
+	F_printk("id:%04x %08x",
+		 __entry->id, (int)__entry->buf[0]),
+
+	FILTER_OTHER
+);
+
 FTRACE_ENTRY(bputs, bputs_entry,
 
 	TRACE_BPUTS,

@@ -992,11 +992,12 @@ static void emit_relocs(int as_text, int use_real_mode)
 		die("Segment relocations found but --realmode not specified\n");
 
 	/* Order the relocations for more efficient processing */
-	sort_relocs(&relocs16);
 	sort_relocs(&relocs32);
 #if ELF_BITS == 64
 	sort_relocs(&relocs32neg);
 	sort_relocs(&relocs64);
+#else
+	sort_relocs(&relocs16);
 #endif
 
 	/* Print the relocations */

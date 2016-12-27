@@ -190,17 +190,17 @@ static u64 xilinx_clock_read(void)
 	return read_fn(timer_baseaddr + TCR1);
 }
 
-static cycle_t xilinx_read(struct clocksource *cs)
+static u64 xilinx_read(struct clocksource *cs)
 {
 	/* reading actual value of timer 1 */
-	return (cycle_t)xilinx_clock_read();
+	return (u64)xilinx_clock_read();
 }
 
 static struct timecounter xilinx_tc = {
 	.cc = NULL,
 };
 
-static cycle_t xilinx_cc_read(const struct cyclecounter *cc)
+static u64 xilinx_cc_read(const struct cyclecounter *cc)
 {
 	return xilinx_read(NULL);
 }
@@ -259,7 +259,7 @@ static int __init xilinx_timer_init(struct device_node *timer)
 	int ret;
 
 	if (initialized)
-		return;
+		return -EINVAL;
 
 	initialized = 1;
 

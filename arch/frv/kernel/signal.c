@@ -22,7 +22,7 @@
 #include <linux/personality.h>
 #include <linux/tracehook.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
 #define DEBUG_SIG 0

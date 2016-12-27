@@ -403,6 +403,19 @@ del_out:
 }
 
 /**
+ * i40iw_vf_init_pestat - Initialize stats for VF
+ * @devL pointer to the VF Device
+ * @stats: Statistics structure pointer
+ * @index: Stats index
+ */
+static void i40iw_vf_init_pestat(struct i40iw_sc_dev *dev, struct i40iw_vsi_pestat *stats, u16 index)
+{
+	stats->hw = dev->hw;
+	i40iw_hw_stats_init(stats, (u8)index, false);
+	spin_lock_init(&stats->lock);
+}
+
+/**
  * i40iw_vchnl_recv_pf - Receive PF virtual channel messages
  * @dev: IWARP device pointer
  * @vf_id: Virtual function ID associated with the message
@@ -421,9 +434,8 @@ enum i40iw_status_code i40iw_vchnl_recv_pf(struct i40iw_sc_dev *dev,
 	u16 first_avail_iw_vf = I40IW_MAX_PE_ENABLED_VF_COUNT;
 	struct i40iw_virt_mem vf_dev_mem;
 	struct i40iw_virtchnl_work_info work_info;
-	struct i40iw_dev_pestat *devstat;
+	struct i40iw_vsi_pestat *stats;
 	enum i40iw_status_code ret_code;
-	unsigned long flags;
 
 	if (!dev || !msg || !len)
 		return I40IW_ERR_PARAM;
@@ -496,14 +508,7 @@ enum i40iw_status_code i40iw_vchnl_recv_pf(struct i40iw_sc_dev *dev,
 				i40iw_debug(dev, I40IW_DEBUG_VIRT,
 					    "VF%u error CQP HMC Function operation.\n",
 					    vf_id);
-			ret_code = i40iw_device_init_pestat(&vf_dev->dev_pestat);
-			if (ret_code)
-				i40iw_debug(dev, I40IW_DEBUG_VIRT,
-					    "VF%u - i40iw_device_init_pestat failed\n",
-					    vf_id);
-			vf_dev->dev_pestat.ops.iw_hw_stat_init(&vf_dev->dev_pestat,
-							      (u8)vf_dev->pmf_index,
-							      dev->hw, false);
+			i40iw_vf_init_pestat(dev, &vf_dev->pestat, vf_dev->pmf_index);
 			vf_dev->stats_initialized = true;
 		} else {
 			if (vf_dev) {
@@ -534,12 +539,10 @@ enum i40iw_status_code i40iw_vchnl_recv_pf(struct i40iw_sc_dev *dev,
 	case I40IW_VCHNL_OP_GET_STATS:
 		if (!vf_dev)
 			return I40IW_ERR_BAD_PTR;
-		devstat = &vf_dev->dev_pestat;
-		spin_lock_irqsave(&dev->dev_pestat.stats_lock, flags);
-		devstat->ops.iw_hw_stat_read_all(devstat, &devstat->hw_stats);
-		spin_unlock_irqrestore(&dev->dev_pestat.stats_lock, flags);
+		stats = &vf_dev->pestat;
+		i40iw_hw_stats_read_all(stats, &stats->hw_stats);
 		vf_dev->msg_count--;
-		vchnl_pf_send_get_pe_stats_resp(dev, vf_id, vchnl_msg, &devstat->hw_stats);
+		vchnl_pf_send_get_pe_stats_resp(dev, vf_id, vchnl_msg, &stats->hw_stats);
 		break;
 	default:
 		i40iw_debug(dev, I40IW_DEBUG_VIRT,

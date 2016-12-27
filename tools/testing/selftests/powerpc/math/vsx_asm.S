@@ -7,8 +7,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include "../basic_asm.h"
-#include "../vsx_asm.h"
+#include "basic_asm.h"
+#include "vsx_asm.h"
 
 #long check_vsx(vector int *r3);
 #This function wraps storeing VSX regs to the end of an array and a

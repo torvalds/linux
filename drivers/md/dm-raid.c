@@ -160,7 +160,6 @@ struct raid_dev {
 				 CTR_FLAG_DAEMON_SLEEP | \
 				 CTR_FLAG_MIN_RECOVERY_RATE | \
 				 CTR_FLAG_MAX_RECOVERY_RATE | \
-				 CTR_FLAG_MAX_WRITE_BEHIND | \
 				 CTR_FLAG_STRIPE_CACHE | \
 				 CTR_FLAG_REGION_SIZE | \
 				 CTR_FLAG_DELTA_DISKS | \
@@ -171,7 +170,6 @@ struct raid_dev {
 				 CTR_FLAG_DAEMON_SLEEP | \
 				 CTR_FLAG_MIN_RECOVERY_RATE | \
 				 CTR_FLAG_MAX_RECOVERY_RATE | \
-				 CTR_FLAG_MAX_WRITE_BEHIND | \
 				 CTR_FLAG_STRIPE_CACHE | \
 				 CTR_FLAG_REGION_SIZE | \
 				 CTR_FLAG_DELTA_DISKS | \
@@ -2011,7 +2009,7 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 		sb->compat_features = cpu_to_le32(FEATURE_FLAG_SUPPORTS_V190);
 
 		/* Force writing of superblocks to disk */
-		set_bit(MD_CHANGE_DEVS, &rdev->mddev->flags);
+		set_bit(MD_SB_CHANGE_DEVS, &rdev->mddev->sb_flags);
 
 		/* Any superblock is better than none, choose that if given */
 		return refdev ? 0 : 1;
@@ -2050,16 +2048,17 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 
 	mddev->reshape_position = MaxSector;
 
+	mddev->raid_disks = le32_to_cpu(sb->num_devices);
+	mddev->level = le32_to_cpu(sb->level);
+	mddev->layout = le32_to_cpu(sb->layout);
+	mddev->chunk_sectors = le32_to_cpu(sb->stripe_sectors);
+
 	/*
 	 * Reshaping is supported, e.g. reshape_position is valid
 	 * in superblock and superblock content is authoritative.
 	 */
 	if (le32_to_cpu(sb->compat_features) & FEATURE_FLAG_SUPPORTS_V190) {
 		/* Superblock is authoritative wrt given raid set layout! */
-		mddev->raid_disks = le32_to_cpu(sb->num_devices);
-		mddev->level = le32_to_cpu(sb->level);
-		mddev->layout = le32_to_cpu(sb->layout);
-		mddev->chunk_sectors = le32_to_cpu(sb->stripe_sectors);
 		mddev->new_level = le32_to_cpu(sb->new_level);
 		mddev->new_layout = le32_to_cpu(sb->new_layout);
 		mddev->new_chunk_sectors = le32_to_cpu(sb->new_stripe_sectors);
@@ -2087,38 +2086,44 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 		/*
 		 * No takeover/reshaping, because we don't have the extended v1.9.0 metadata
 		 */
-		if (le32_to_cpu(sb->level) != mddev->new_level) {
-			DMERR("Reshaping/takeover raid sets not yet supported. (raid level/stripes/size change)");
-			return -EINVAL;
-		}
-		if (le32_to_cpu(sb->layout) != mddev->new_layout) {
-			DMERR("Reshaping raid sets not yet supported. (raid layout change)");
-			DMERR("	 0x%X vs 0x%X", le32_to_cpu(sb->layout), mddev->layout);
-			DMERR("	 Old layout: %s w/ %d copies",
-			      raid10_md_layout_to_format(le32_to_cpu(sb->layout)),
-			      raid10_md_layout_to_copies(le32_to_cpu(sb->layout)));
-			DMERR("	 New layout: %s w/ %d copies",
-			      raid10_md_layout_to_format(mddev->layout),
-			      raid10_md_layout_to_copies(mddev->layout));
-			return -EINVAL;
-		}
-		if (le32_to_cpu(sb->stripe_sectors) != mddev->new_chunk_sectors) {
-			DMERR("Reshaping raid sets not yet supported. (stripe sectors change)");
-			return -EINVAL;
-		}
+		struct raid_type *rt_cur = get_raid_type_by_ll(mddev->level, mddev->layout);
+		struct raid_type *rt_new = get_raid_type_by_ll(mddev->new_level, mddev->new_layout);
 
-		/* We can only change the number of devices in raid1 with old (i.e. pre 1.0.7) metadata */
-		if (!rt_is_raid1(rs->raid_type) &&
-		    (le32_to_cpu(sb->num_devices) != mddev->raid_disks)) {
-			DMERR("Reshaping raid sets not yet supported. (device count change from %u to %u)",
-			      sb->num_devices, mddev->raid_disks);
+		if (rs_takeover_requested(rs)) {
+			if (rt_cur && rt_new)
+				DMERR("Takeover raid sets from %s to %s not yet supported by metadata. (raid level change)",
+				      rt_cur->name, rt_new->name);
+			else
+				DMERR("Takeover raid sets not yet supported by metadata. (raid level change)");
+			return -EINVAL;
+		} else if (rs_reshape_requested(rs)) {
+			DMERR("Reshaping raid sets not yet supported by metadata. (raid layout change keeping level)");
+			if (mddev->layout != mddev->new_layout) {
+				if (rt_cur && rt_new)
+					DMERR("	 current layout %s vs new layout %s",
+					      rt_cur->name, rt_new->name);
+				else
+					DMERR("	 current layout 0x%X vs new layout 0x%X",
+					      le32_to_cpu(sb->layout), mddev->new_layout);
+			}
+			if (mddev->chunk_sectors != mddev->new_chunk_sectors)
+				DMERR("	 current stripe sectors %u vs new stripe sectors %u",
+				      mddev->chunk_sectors, mddev->new_chunk_sectors);
+			if (rs->delta_disks)
+				DMERR("	 current %u disks vs new %u disks",
+				      mddev->raid_disks, mddev->raid_disks + rs->delta_disks);
+			if (rs_is_raid10(rs)) {
+				DMERR("	 Old layout: %s w/ %u copies",
+				      raid10_md_layout_to_format(mddev->layout),
+				      raid10_md_layout_to_copies(mddev->layout));
+				DMERR("	 New layout: %s w/ %u copies",
+				      raid10_md_layout_to_format(mddev->new_layout),
+				      raid10_md_layout_to_copies(mddev->new_layout));
+			}
 			return -EINVAL;
 		}
 
 		DMINFO("Discovered old metadata format; upgrading to extended metadata format");
-
-		/* Table line is checked vs. authoritative superblock */
-		rs_set_new(rs);
 	}
 
 	if (!test_bit(__CTR_FLAG_NOSYNC, &rs->ctr_flags))
@@ -2211,7 +2216,7 @@ static int super_init_validation(struct raid_set *rs, struct md_rdev *rdev)
 				continue;
 
 			if (role != r->raid_disk) {
-				if (__is_raid10_near(mddev->layout)) {
+				if (rs_is_raid10(rs) && __is_raid10_near(mddev->layout)) {
 					if (mddev->raid_disks % __raid10_near_copies(mddev->layout) ||
 					    rs->raid_disks % rs->raid10_copies) {
 						rs->ti->error =
@@ -2994,6 +2999,9 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		}
 	}
 
+	/* Disable/enable discard support on raid set. */
+	configure_discard_support(rs);
+
 	mddev_unlock(&rs->md);
 	return 0;
 
@@ -3497,7 +3505,7 @@ static void rs_update_sbs(struct raid_set *rs)
 	struct mddev *mddev = &rs->md;
 	int ro = mddev->ro;
 
-	set_bit(MD_CHANGE_DEVS, &mddev->flags);
+	set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
 	mddev->ro = 0;
 	md_update_sb(mddev, 1);
 	mddev->ro = ro;
@@ -3579,12 +3587,6 @@ static int raid_preresume(struct dm_target *ti)
 	 */
 	if (test_bit(RT_FLAG_UPDATE_SBS, &rs->runtime_flags))
 		rs_update_sbs(rs);
-
-	/*
-	 * Disable/enable discard support on raid set after any
-	 * conversion, because devices can have been added
-	 */
-	configure_discard_support(rs);
 
 	/* Load the bitmap from disk unless raid0 */
 	r = __load_dirty_region_bitmap(rs);

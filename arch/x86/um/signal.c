@@ -9,7 +9,7 @@
 #include <linux/ptrace.h>
 #include <linux/kernel.h>
 #include <asm/unistd.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ucontext.h>
 #include <frame_kern.h>
 #include <skas.h>

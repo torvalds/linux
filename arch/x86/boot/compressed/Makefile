@@ -25,7 +25,7 @@ KCOV_INSTRUMENT		:= n
 targets := vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 vmlinux.bin.lzma \
 	vmlinux.bin.xz vmlinux.bin.lzo vmlinux.bin.lz4
 
-KBUILD_CFLAGS := -m$(BITS) -D__KERNEL__ $(LINUX_INCLUDE) -O2
+KBUILD_CFLAGS := -m$(BITS) -D__KERNEL__ -O2
 KBUILD_CFLAGS += -fno-strict-aliasing $(call cc-option, -fPIE, -fPIC)
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 cflags-$(CONFIG_X86_32) := -march=i386
@@ -40,8 +40,8 @@ GCOV_PROFILE := n
 UBSAN_SANITIZE :=n
 
 LDFLAGS := -m elf_$(UTS_MACHINE)
-ifeq ($(CONFIG_RELOCATABLE),y)
-# If kernel is relocatable, build compressed kernel as PIE.
+# Compressed kernel should be built as PIE since it may be loaded at any
+# address by the bootloader.
 ifeq ($(CONFIG_X86_32),y)
 LDFLAGS += $(call ld-option, -pie) $(call ld-option, --no-dynamic-linker)
 else
@@ -50,7 +50,6 @@ else
 # command-line option, -z noreloc-overflow.
 LDFLAGS += $(shell $(LD) --help 2>&1 | grep -q "\-z noreloc-overflow" \
 	&& echo "-z noreloc-overflow -pie --no-dynamic-linker")
-endif
 endif
 LDFLAGS_vmlinux := -T
 

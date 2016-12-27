@@ -1195,6 +1195,7 @@ static void hist_entry__check_and_remove_filter(struct hist_entry *he,
 	case HIST_FILTER__GUEST:
 	case HIST_FILTER__HOST:
 	case HIST_FILTER__SOCKET:
+	case HIST_FILTER__C2C:
 	default:
 		return;
 	}
@@ -1600,18 +1601,18 @@ static void hists__hierarchy_output_resort(struct hists *hists,
 		if (prog)
 			ui_progress__update(prog, 1);
 
+		hists->nr_entries++;
+		if (!he->filtered) {
+			hists->nr_non_filtered_entries++;
+			hists__calc_col_len(hists, he);
+		}
+
 		if (!he->leaf) {
 			hists__hierarchy_output_resort(hists, prog,
 						       &he->hroot_in,
 						       &he->hroot_out,
 						       min_callchain_hits,
 						       use_callchain);
-			hists->nr_entries++;
-			if (!he->filtered) {
-				hists->nr_non_filtered_entries++;
-				hists__calc_col_len(hists, he);
-			}
-
 			continue;
 		}
 

@@ -435,13 +435,12 @@ static struct zx_dma_desc_sw *zx_alloc_desc_resource(int num,
 	if (!ds)
 		return NULL;
 
-	ds->desc_hw = dma_pool_alloc(d->pool, GFP_NOWAIT, &ds->desc_hw_lli);
+	ds->desc_hw = dma_pool_zalloc(d->pool, GFP_NOWAIT, &ds->desc_hw_lli);
 	if (!ds->desc_hw) {
 		dev_dbg(chan->device->dev, "vch %p: dma alloc fail\n", &c->vc);
 		kfree(ds);
 		return NULL;
 	}
-	memset(ds->desc_hw, 0, sizeof(struct zx_desc_hw) * num);
 	ds->desc_num = num;
 	return ds;
 }

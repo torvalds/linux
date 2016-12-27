@@ -304,7 +304,7 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 		queue->rx_skbs[id] = skb;
 
 		ref = gnttab_claim_grant_reference(&queue->gref_rx_head);
-		BUG_ON((signed short)ref < 0);
+		WARN_ON_ONCE(IS_ERR_VALUE((unsigned long)(int)ref));
 		queue->grant_rx_ref[id] = ref;
 
 		page = skb_frag_page(&skb_shinfo(skb)->frags[0]);
@@ -428,7 +428,7 @@ static void xennet_tx_setup_grant(unsigned long gfn, unsigned int offset,
 	id = get_id_from_freelist(&queue->tx_skb_freelist, queue->tx_skbs);
 	tx = RING_GET_REQUEST(&queue->tx, queue->tx.req_prod_pvt++);
 	ref = gnttab_claim_grant_reference(&queue->gref_tx_head);
-	BUG_ON((signed short)ref < 0);
+	WARN_ON_ONCE(IS_ERR_VALUE((unsigned long)(int)ref));
 
 	gnttab_grant_foreign_access_ref(ref, queue->info->xbdev->otherend_id,
 					gfn, GNTMAP_readonly);
@@ -1169,43 +1169,23 @@ static netdev_features_t xennet_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	struct netfront_info *np = netdev_priv(dev);
-	int val;
 
-	if (features & NETIF_F_SG) {
-		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend, "feature-sg",
-				 "%d", &val) < 0)
-			val = 0;
+	if (features & NETIF_F_SG &&
+	    !xenbus_read_unsigned(np->xbdev->otherend, "feature-sg", 0))
+		features &= ~NETIF_F_SG;
 
-		if (!val)
-			features &= ~NETIF_F_SG;
-	}
+	if (features & NETIF_F_IPV6_CSUM &&
+	    !xenbus_read_unsigned(np->xbdev->otherend,
+				  "feature-ipv6-csum-offload", 0))
+		features &= ~NETIF_F_IPV6_CSUM;
 
-	if (features & NETIF_F_IPV6_CSUM) {
-		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend,
-				 "feature-ipv6-csum-offload", "%d", &val) < 0)
-			val = 0;
+	if (features & NETIF_F_TSO &&
+	    !xenbus_read_unsigned(np->xbdev->otherend, "feature-gso-tcpv4", 0))
+		features &= ~NETIF_F_TSO;
 
-		if (!val)
-			features &= ~NETIF_F_IPV6_CSUM;
-	}
-
-	if (features & NETIF_F_TSO) {
-		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend,
-				 "feature-gso-tcpv4", "%d", &val) < 0)
-			val = 0;
-
-		if (!val)
-			features &= ~NETIF_F_TSO;
-	}
-
-	if (features & NETIF_F_TSO6) {
-		if (xenbus_scanf(XBT_NIL, np->xbdev->otherend,
-				 "feature-gso-tcpv6", "%d", &val) < 0)
-			val = 0;
-
-		if (!val)
-			features &= ~NETIF_F_TSO6;
-	}
+	if (features & NETIF_F_TSO6 &&
+	    !xenbus_read_unsigned(np->xbdev->otherend, "feature-gso-tcpv6", 0))
+		features &= ~NETIF_F_TSO6;
 
 	return features;
 }
@@ -1329,6 +1309,8 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 	netdev->features |= netdev->hw_features;
 
 	netdev->ethtool_ops = &xennet_ethtool_ops;
+	netdev->min_mtu = 0;
+	netdev->max_mtu = XEN_NETIF_MAX_TX_SIZE;
 	SET_NETDEV_DEV(netdev, &dev->dev);
 
 	np->netdev = netdev;
@@ -1821,18 +1803,13 @@ static int talk_to_netback(struct xenbus_device *dev,
 	info->netdev->irq = 0;
 
 	/* Check if backend supports multiple queues */
-	err = xenbus_scanf(XBT_NIL, info->xbdev->otherend,
-			   "multi-queue-max-queues", "%u", &max_queues);
-	if (err < 0)
-		max_queues = 1;
+	max_queues = xenbus_read_unsigned(info->xbdev->otherend,
+					  "multi-queue-max-queues", 1);
 	num_queues = min(max_queues, xennet_max_queues);
 
 	/* Check feature-split-event-channels */
-	err = xenbus_scanf(XBT_NIL, info->xbdev->otherend,
-			   "feature-split-event-channels", "%u",
-			   &feature_split_evtchn);
-	if (err < 0)
-		feature_split_evtchn = 0;
+	feature_split_evtchn = xenbus_read_unsigned(info->xbdev->otherend,
+					"feature-split-event-channels", 0);
 
 	/* Read mac addr. */
 	err = xen_net_read_mac(dev, info->netdev->dev_addr);
@@ -1966,16 +1943,10 @@ static int xennet_connect(struct net_device *dev)
 	struct netfront_info *np = netdev_priv(dev);
 	unsigned int num_queues = 0;
 	int err;
-	unsigned int feature_rx_copy;
 	unsigned int j = 0;
 	struct netfront_queue *queue = NULL;
 
-	err = xenbus_scanf(XBT_NIL, np->xbdev->otherend,
-			   "feature-rx-copy", "%u", &feature_rx_copy);
-	if (err != 1)
-		feature_rx_copy = 0;
-
-	if (!feature_rx_copy) {
+	if (!xenbus_read_unsigned(np->xbdev->otherend, "feature-rx-copy", 0)) {
 		dev_info(&dev->dev,
 			 "backend does not support copying receive path\n");
 		return -ENODEV;

@@ -45,7 +45,7 @@
 #include <asm/smp.h>
 #include <asm/sections.h>
 #include <asm/cpudata.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq_regs.h>
 
 #include "entry.h"
@@ -770,7 +770,7 @@ void udelay(unsigned long usecs)
 }
 EXPORT_SYMBOL(udelay);
 
-static cycle_t clocksource_tick_read(struct clocksource *cs)
+static u64 clocksource_tick_read(struct clocksource *cs)
 {
 	return tick_ops->get_tick();
 }

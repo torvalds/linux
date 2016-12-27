@@ -18,31 +18,37 @@ API Functions:
 To program the FPGA from a file or from a buffer:
 -------------------------------------------------
 
-	int fpga_mgr_buf_load(struct fpga_manager *mgr, u32 flags,
+	int fpga_mgr_buf_load(struct fpga_manager *mgr,
+			      struct fpga_image_info *info,
 		              const char *buf, size_t count);
 
 Load the FPGA from an image which exists as a buffer in memory.
 
-	int fpga_mgr_firmware_load(struct fpga_manager *mgr, u32 flags,
+	int fpga_mgr_firmware_load(struct fpga_manager *mgr,
+				   struct fpga_image_info *info,
 		                   const char *image_name);
 
 Load the FPGA from an image which exists as a file.  The image file must be on
-the firmware search path (see the firmware class documentation).
+the firmware search path (see the firmware class documentation).  If successful,
+the FPGA ends up in operating mode.  Return 0 on success or a negative error
+code.
 
-For both these functions, flags == 0 for normal full reconfiguration or
-FPGA_MGR_PARTIAL_RECONFIG for partial reconfiguration.  If successful, the FPGA
-ends up in operating mode.  Return 0 on success or a negative error code.
-
+A FPGA design contained in a FPGA image file will likely have particulars that
+affect how the image is programmed to the FPGA.  These are contained in struct
+fpga_image_info.  Currently the only such particular is a single flag bit
+indicating whether the image is for full or partial reconfiguration.
 
 To get/put a reference to a FPGA manager:
 -----------------------------------------
 
 	struct fpga_manager *of_fpga_mgr_get(struct device_node *node);
+	struct fpga_manager *fpga_mgr_get(struct device *dev);
+
+Given a DT node or device, get an exclusive reference to a FPGA manager.
 
 	void fpga_mgr_put(struct fpga_manager *mgr);
 
-Given a DT node, get an exclusive reference to a FPGA manager or release
-the reference.
+Release the reference.
 
 
 To register or unregister the low level FPGA-specific driver:
@@ -70,8 +76,11 @@ struct device_node *mgr_node = ...
 char *buf = ...
 int count = ...
 
+/* struct with information about the FPGA image to program. */
+struct fpga_image_info info;
+
 /* flags indicates whether to do full or partial reconfiguration */
-int flags = 0;
+info.flags = 0;
 
 int ret;
 
@@ -79,7 +88,7 @@ int ret;
 struct fpga_manager *mgr = of_fpga_mgr_get(mgr_node);
 
 /* Load the buffer to the FPGA */
-ret = fpga_mgr_buf_load(mgr, flags, buf, count);
+ret = fpga_mgr_buf_load(mgr, &info, buf, count);
 
 /* Release the FPGA manager */
 fpga_mgr_put(mgr);
@@ -96,8 +105,11 @@ struct device_node *mgr_node = ...
 /* FPGA image is in this file which is in the firmware search path */
 const char *path = "fpga-image-9.rbf"
 
+/* struct with information about the FPGA image to program. */
+struct fpga_image_info info;
+
 /* flags indicates whether to do full or partial reconfiguration */
-int flags = 0;
+info.flags = 0;
 
 int ret;
 
@@ -105,7 +117,7 @@ int ret;
 struct fpga_manager *mgr = of_fpga_mgr_get(mgr_node);
 
 /* Get the firmware image (path) and load it to the FPGA */
-ret = fpga_mgr_firmware_load(mgr, flags, path);
+ret = fpga_mgr_firmware_load(mgr, &info, path);
 
 /* Release the FPGA manager */
 fpga_mgr_put(mgr);
@@ -157,7 +169,10 @@ The programming sequence is:
  2. .write (may be called once or multiple times)
  3. .write_complete
 
-The .write_init function will prepare the FPGA to receive the image data.
+The .write_init function will prepare the FPGA to receive the image data.  The
+buffer passed into .write_init will be atmost .initial_header_size bytes long,
+if the whole bitstream is not immediately available then the core code will
+buffer up at least this much before starting.
 
 The .write function writes a buffer to the FPGA. The buffer may be contain the
 whole FPGA image or may be a smaller chunk of an FPGA image.  In the latter

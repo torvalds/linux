@@ -1,6 +1,6 @@
 config VIDEO_STI_HDMI_CEC
        tristate "STMicroelectronics STiH4xx HDMI CEC driver"
-       depends on VIDEO_DEV && MEDIA_CEC && (ARCH_STI || COMPILE_TEST)
+       depends on VIDEO_DEV && MEDIA_CEC_SUPPORT && (ARCH_STI || COMPILE_TEST)
        ---help---
          This is a driver for STIH4xx HDMI CEC interface. It uses the
          generic CEC framework interface.

@@ -153,15 +153,6 @@
 #define MCE_COMMAND_IRDATA	0x80
 #define MCE_PACKET_LENGTH_MASK	0x1f /* Packet length mask */
 
-/* general constants */
-#define SEND_FLAG_IN_PROGRESS	1
-#define SEND_FLAG_COMPLETE	2
-#define RECV_FLAG_IN_PROGRESS	3
-#define RECV_FLAG_COMPLETE	4
-
-#define MCEUSB_RX		1
-#define MCEUSB_TX		2
-
 #define VENDOR_PHILIPS		0x0471
 #define VENDOR_SMK		0x0609
 #define VENDOR_TATUNG		0x1460
@@ -422,7 +413,6 @@ struct mceusb_dev {
 	struct rc_dev *rc;
 
 	/* optional features we can enable */
-	bool carrier_report_enabled;
 	bool learning_enabled;
 
 	/* core device bits */
@@ -455,7 +445,6 @@ struct mceusb_dev {
 	} flags;
 
 	/* transmit support */
-	int send_flags;
 	u32 carrier;
 	unsigned char tx_mask;
 
@@ -604,9 +593,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		case MCE_RSP_EQWAKEVERSION:
 			if (!out)
-				dev_dbg(dev, "Wake version, proto: 0x%02x, "
-					 "payload: 0x%02x, address: 0x%02x, "
-					 "version: 0x%02x",
+				dev_dbg(dev, "Wake version, proto: 0x%02x, payload: 0x%02x, address: 0x%02x, version: 0x%02x",
 					 data1, data2, data3, data4);
 			break;
 		case MCE_RSP_GETPORTSTATUS:
@@ -740,52 +727,40 @@ static void mce_async_callback(struct urb *urb)
 
 /* request incoming or send outgoing usb packet - used to initialize remote */
 static void mce_request_packet(struct mceusb_dev *ir, unsigned char *data,
-			       int size, int urb_type)
+								int size)
 {
 	int res, pipe;
 	struct urb *async_urb;
 	struct device *dev = ir->dev;
 	unsigned char *async_buf;
 
-	if (urb_type == MCEUSB_TX) {
-		async_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (unlikely(!async_urb)) {
-			dev_err(dev, "Error, couldn't allocate urb!\n");
-			return;
-		}
-
-		async_buf = kzalloc(size, GFP_KERNEL);
-		if (!async_buf) {
-			dev_err(dev, "Error, couldn't allocate buf!\n");
-			usb_free_urb(async_urb);
-			return;
-		}
-
-		/* outbound data */
-		if (usb_endpoint_xfer_int(ir->usb_ep_out)) {
-			pipe = usb_sndintpipe(ir->usbdev,
-					 ir->usb_ep_out->bEndpointAddress);
-			usb_fill_int_urb(async_urb, ir->usbdev, pipe, async_buf,
-					 size, mce_async_callback, ir,
-					 ir->usb_ep_out->bInterval);
-		} else {
-			pipe = usb_sndbulkpipe(ir->usbdev,
-					 ir->usb_ep_out->bEndpointAddress);
-			usb_fill_bulk_urb(async_urb, ir->usbdev, pipe,
-					 async_buf, size, mce_async_callback,
-					 ir);
-		}
-		memcpy(async_buf, data, size);
-
-	} else if (urb_type == MCEUSB_RX) {
-		/* standard request */
-		async_urb = ir->urb_in;
-		ir->send_flags = RECV_FLAG_IN_PROGRESS;
-
-	} else {
-		dev_err(dev, "Error! Unknown urb type %d\n", urb_type);
+	async_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (unlikely(!async_urb)) {
+		dev_err(dev, "Error, couldn't allocate urb!\n");
 		return;
 	}
+
+	async_buf = kmalloc(size, GFP_KERNEL);
+	if (!async_buf) {
+		usb_free_urb(async_urb);
+		return;
+	}
+
+	/* outbound data */
+	if (usb_endpoint_xfer_int(ir->usb_ep_out)) {
+		pipe = usb_sndintpipe(ir->usbdev,
+				 ir->usb_ep_out->bEndpointAddress);
+		usb_fill_int_urb(async_urb, ir->usbdev, pipe, async_buf,
+				 size, mce_async_callback, ir,
+				 ir->usb_ep_out->bInterval);
+	} else {
+		pipe = usb_sndbulkpipe(ir->usbdev,
+				 ir->usb_ep_out->bEndpointAddress);
+		usb_fill_bulk_urb(async_urb, ir->usbdev, pipe,
+				 async_buf, size, mce_async_callback,
+				 ir);
+	}
+	memcpy(async_buf, data, size);
 
 	dev_dbg(dev, "receive request called (size=%#x)", size);
 
@@ -806,17 +781,12 @@ static void mce_async_out(struct mceusb_dev *ir, unsigned char *data, int size)
 
 	if (ir->need_reset) {
 		ir->need_reset = false;
-		mce_request_packet(ir, DEVICE_RESUME, rsize, MCEUSB_TX);
+		mce_request_packet(ir, DEVICE_RESUME, rsize);
 		msleep(10);
 	}
 
-	mce_request_packet(ir, data, size, MCEUSB_TX);
+	mce_request_packet(ir, data, size);
 	msleep(10);
-}
-
-static void mce_flush_rx_buffer(struct mceusb_dev *ir, int size)
-{
-	mce_request_packet(ir, NULL, size, MCEUSB_RX);
 }
 
 /* Send data out the IR blaster port(s) */
@@ -1062,7 +1032,6 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 static void mceusb_dev_recv(struct urb *urb)
 {
 	struct mceusb_dev *ir;
-	int buf_len;
 
 	if (!urb)
 		return;
@@ -1073,18 +1042,10 @@ static void mceusb_dev_recv(struct urb *urb)
 		return;
 	}
 
-	buf_len = urb->actual_length;
-
-	if (ir->send_flags == RECV_FLAG_IN_PROGRESS) {
-		ir->send_flags = SEND_FLAG_COMPLETE;
-		dev_dbg(ir->dev, "setup answer received %d bytes\n",
-			buf_len);
-	}
-
 	switch (urb->status) {
 	/* success */
 	case 0:
-		mceusb_process_ir_data(ir, buf_len);
+		mceusb_process_ir_data(ir, urb->actual_length);
 		break;
 
 	case -ECONNRESET:
@@ -1285,7 +1246,7 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *ep_in = NULL;
 	struct usb_endpoint_descriptor *ep_out = NULL;
 	struct mceusb_dev *ir = NULL;
-	int pipe, maxp, i;
+	int pipe, maxp, i, res;
 	char buf[63], name[128] = "";
 	enum mceusb_model_type model = id->driver_info;
 	bool is_gen3;
@@ -1388,7 +1349,9 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 
 	/* flush buffers on the device */
 	dev_dbg(&intf->dev, "Flushing receive buffers\n");
-	mce_flush_rx_buffer(ir, maxp);
+	res = usb_submit_urb(ir->urb_in, GFP_KERNEL);
+	if (res)
+		dev_err(&intf->dev, "failed to flush buffers: %d\n", res);
 
 	/* figure out which firmware/emulator version this hardware has */
 	mceusb_get_emulator_version(ir);
@@ -1423,6 +1386,7 @@ static int mceusb_dev_probe(struct usb_interface *intf,
 	/* Error-handling path */
 rc_dev_fail:
 	usb_put_dev(ir->usbdev);
+	usb_kill_urb(ir->urb_in);
 	usb_free_urb(ir->urb_in);
 urb_in_alloc_fail:
 	usb_free_coherent(dev, maxp, ir->buf_in, ir->dma_in);

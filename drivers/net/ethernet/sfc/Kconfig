@@ -1,20 +1,36 @@
+#
+# Solarflare device configuration
+#
+
+config NET_VENDOR_SOLARFLARE
+	bool "Solarflare devices"
+	default y
+	---help---
+	  If you have a network (Ethernet) card belonging to this class, say Y.
+
+	  Note that the answer to this question doesn't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about Solarflare devices. If you say Y, you will be asked
+	  for your specific card in the following questions.
+
+if NET_VENDOR_SOLARFLARE
+
 config SFC
-	tristate "Solarflare SFC4000/SFC9000/SFC9100-family support"
+	tristate "Solarflare SFC9000/SFC9100-family support"
 	depends on PCI
 	select MDIO
 	select CRC32
 	select I2C
 	select I2C_ALGOBIT
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports 10/40-gigabit Ethernet cards based on
-	  the Solarflare SFC4000, SFC9000-family and SFC9100-family
-	  controllers.
+	  the Solarflare SFC9000-family and SFC9100-family controllers.
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called sfc.
 config SFC_MTD
-	bool "Solarflare SFC4000/SFC9000/SFC9100-family MTD support"
+	bool "Solarflare SFC9000/SFC9100-family MTD support"
 	depends on SFC && MTD && !(SFC=y && MTD=m)
 	default y
 	---help---
@@ -45,3 +61,7 @@ config SFC_MCDI_LOGGING
 	  Driver-Interface) commands and responses, allowing debugging of
 	  driver/firmware interaction.  The tracing is actually enabled by
 	  a sysfs file 'mcdi_logging' under the PCI device.
+
+source "drivers/net/ethernet/sfc/falcon/Kconfig"
+
+endif # NET_VENDOR_SOLARFLARE

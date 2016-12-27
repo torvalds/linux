@@ -36,9 +36,6 @@
 #define DM365_MMCSD0_BASE	     0x01D11000
 #define DM365_MMCSD1_BASE	     0x01D00000
 
-#define DAVINCI_DMA_MMCRXEVT	26
-#define DAVINCI_DMA_MMCTXEVT	27
-
 void __iomem  *davinci_sysmod_base;
 
 void davinci_map_sysmod(void)

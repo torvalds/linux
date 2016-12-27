@@ -20,7 +20,7 @@
 #include <linux/uts.h>
 #include <linux/wait.h>
 #include <linux/compiler.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
@@ -667,7 +667,7 @@ ep_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		return -ENOMEM;
 	}
 
-	if (unlikely(copy_from_iter(buf, len, from) != len)) {
+	if (unlikely(!copy_from_iter_full(buf, len, from))) {
 		value = -EFAULT;
 		goto out;
 	}

@@ -37,23 +37,12 @@
 #include <linux/suspend.h>
 #include <linux/acpi.h>
 #include <acpi/video.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PREFIX "ACPI: "
 
 #define ACPI_VIDEO_BUS_NAME		"Video Bus"
 #define ACPI_VIDEO_DEVICE_NAME		"Video Device"
-#define ACPI_VIDEO_NOTIFY_SWITCH	0x80
-#define ACPI_VIDEO_NOTIFY_PROBE		0x81
-#define ACPI_VIDEO_NOTIFY_CYCLE		0x82
-#define ACPI_VIDEO_NOTIFY_NEXT_OUTPUT	0x83
-#define ACPI_VIDEO_NOTIFY_PREV_OUTPUT	0x84
-
-#define ACPI_VIDEO_NOTIFY_CYCLE_BRIGHTNESS	0x85
-#define	ACPI_VIDEO_NOTIFY_INC_BRIGHTNESS	0x86
-#define ACPI_VIDEO_NOTIFY_DEC_BRIGHTNESS	0x87
-#define ACPI_VIDEO_NOTIFY_ZERO_BRIGHTNESS	0x88
-#define ACPI_VIDEO_NOTIFY_DISPLAY_OFF		0x89
 
 #define MAX_NAME_LEN	20
 

@@ -37,6 +37,8 @@
  *      - implemented limited ABI16/NVIF interop
  */
 
+#include <linux/notifier.h>
+
 #include <nvif/client.h>
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
@@ -161,10 +163,18 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
+	struct list_head bl_connectors;
+	struct work_struct hpd_work;
+#ifdef CONFIG_ACPI
+	struct notifier_block acpi_nb;
+#endif
 
 	/* power management */
 	struct nouveau_hwmon *hwmon;
 	struct nouveau_debugfs *debugfs;
+
+	/* led management */
+	struct nouveau_led *led;
 
 	/* display power reference */
 	bool have_disp_power_ref;
@@ -199,6 +209,10 @@ void nouveau_drm_device_remove(struct drm_device *dev);
 #define NV_INFO(drm,f,a...) NV_PRINTK(info, &(drm)->client, f, ##a)
 #define NV_DEBUG(drm,f,a...) do {                                              \
 	if (unlikely(drm_debug & DRM_UT_DRIVER))                               \
+		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
+} while(0)
+#define NV_ATOMIC(drm,f,a...) do {                                             \
+	if (unlikely(drm_debug & DRM_UT_ATOMIC))                               \
 		NV_PRINTK(info, &(drm)->client, f, ##a);                       \
 } while(0)
 

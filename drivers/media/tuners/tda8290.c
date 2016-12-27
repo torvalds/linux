@@ -617,8 +617,8 @@ static int tda829x_find_tuner(struct dvb_frontend *fe)
 
 	if (tuner_addrs == 0) {
 		tuner_addrs = 0x60;
-		tuner_info("could not clearly identify tuner address, "
-			   "defaulting to %x\n", tuner_addrs);
+		tuner_info("could not clearly identify tuner address, defaulting to %x\n",
+			   tuner_addrs);
 	} else {
 		tuner_addrs = tuner_addrs & 0xff;
 		tuner_info("setting tuner address to %x\n", tuner_addrs);
@@ -721,7 +721,7 @@ static int tda8295_probe(struct tuner_i2c_props *i2c_props)
 	return -ENODEV;
 }
 
-static struct analog_demod_ops tda8290_ops = {
+static const struct analog_demod_ops tda8290_ops = {
 	.set_params     = tda8290_set_params,
 	.has_signal     = tda8290_has_signal,
 	.standby        = tda8290_standby,
@@ -729,7 +729,7 @@ static struct analog_demod_ops tda8290_ops = {
 	.i2c_gate_ctrl  = tda8290_i2c_bridge,
 };
 
-static struct analog_demod_ops tda8295_ops = {
+static const struct analog_demod_ops tda8295_ops = {
 	.set_params     = tda8295_set_params,
 	.has_signal     = tda8295_has_signal,
 	.standby        = tda8295_standby,

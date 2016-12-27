@@ -17,7 +17,7 @@
 #define AD5592R_GPIO_READBACK_EN	BIT(10)
 #define AD5592R_LDAC_READBACK_EN	BIT(6)
 
-static int ad5592r_spi_wnop_r16(struct ad5592r_state *st, u16 *buf)
+static int ad5592r_spi_wnop_r16(struct ad5592r_state *st, __be16 *buf)
 {
 	struct spi_device *spi = container_of(st->dev, struct spi_device, dev);
 	struct spi_transfer t = {

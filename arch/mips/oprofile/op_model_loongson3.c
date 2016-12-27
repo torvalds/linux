@@ -11,7 +11,7 @@
 #include <linux/oprofile.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <irq.h>
 #include <loongson.h>
 #include "op_impl.h"
@@ -186,7 +186,7 @@ static int __init loongson3_init(void)
 {
 	on_each_cpu(reset_counters, NULL, 1);
 	cpuhp_setup_state_nocalls(CPUHP_AP_MIPS_OP_LOONGSON3_STARTING,
-				  "AP_MIPS_OP_LOONGSON3_STARTING",
+				  "mips/oprofile/loongson3:starting",
 				  loongson3_starting_cpu, loongson3_dying_cpu);
 	save_perf_irq = perf_irq;
 	perf_irq = loongson3_perfcount_handler;

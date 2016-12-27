@@ -4,15 +4,13 @@ Software cursor for VGA
 by Pavel Machek <pavel@atrey.karlin.mff.cuni.cz>
 and Martin Mares <mj@atrey.karlin.mff.cuni.cz>
 
-Linux now has some ability to manipulate cursor appearance. Normally, you
-can set the size of hardware cursor (and also work around some ugly bugs in
-those miserable Trident cards [#f1]_. You can now play a few new tricks:
-you can make your cursor look
-
-like a non-blinking red block, make it inverse background of the character it's
-over or to highlight that character and still choose whether the original
-hardware cursor should remain visible or not.  There may be other things I have
-never thought of.
+Linux now has some ability to manipulate cursor appearance.  Normally,
+you can set the size of hardware cursor.  You can now play a few new
+tricks: you can make your cursor look like a non-blinking red block,
+make it inverse background of the character it's over or to highlight
+that character and still choose whether the original hardware cursor
+should remain visible or not.  There may be other things I have never
+thought of.
 
 The cursor appearance is controlled by a ``<ESC>[?1;2;3c`` escape sequence
 where 1, 2 and 3 are parameters described below. If you omit any of them,
@@ -47,8 +45,6 @@ third parameter
 
 	Bit setting takes place before bit toggling, so you can simply clear a
 	bit by including it in both the set mask and the toggle mask.
-
-.. [#f1] see ``#define TRIDENT_GLITCH`` in ``drivers/video/vgacon.c``.
 
 Examples
 --------

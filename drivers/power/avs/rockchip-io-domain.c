@@ -143,7 +143,7 @@ static int rockchip_iodomain_notify(struct notifier_block *nb,
 	if (ret && event == REGULATOR_EVENT_PRE_VOLTAGE_CHANGE)
 		return NOTIFY_BAD;
 
-	dev_info(supply->iod->dev, "Setting to %d done\n", uV);
+	dev_dbg(supply->iod->dev, "Setting to %d done\n", uV);
 	return NOTIFY_OK;
 }
 

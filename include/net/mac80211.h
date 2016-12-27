@@ -1442,7 +1442,7 @@ enum ieee80211_vif_flags {
 struct ieee80211_vif {
 	enum nl80211_iftype type;
 	struct ieee80211_bss_conf bss_conf;
-	u8 addr[ETH_ALEN];
+	u8 addr[ETH_ALEN] __aligned(2);
 	bool p2p;
 	bool csa_active;
 	bool mu_mimo_owner;
@@ -1749,7 +1749,8 @@ struct ieee80211_sta_rates {
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void \*), size is determined in hw information.
  * @uapsd_queues: bitmap of queues configured for uapsd. Only valid
- *	if wme is supported.
+ *	if wme is supported. The bits order is like in
+ *	IEEE80211_WMM_IE_STA_QOSINFO_AC_*.
  * @max_sp: max Service Period. Only valid if wme is supported.
  * @bandwidth: current bandwidth the station can receive with
  * @rx_nss: in HT/VHT, the maximum number of spatial streams the
@@ -2029,6 +2030,10 @@ struct ieee80211_txq {
  *	drivers, mac80211 packet loss mechanism will not be triggered and driver
  *	is completely depending on firmware event for station kickout.
  *
+ * @IEEE80211_HW_SUPPORTS_TX_FRAG: Hardware does fragmentation by itself.
+ *	The stack will not do fragmentation.
+ *	The callback for @set_frag_threshold should be set as well.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2070,6 +2075,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_TX_AMSDU,
 	IEEE80211_HW_TX_FRAG_LIST,
 	IEEE80211_HW_REPORTS_LOW_ACK,
+	IEEE80211_HW_SUPPORTS_TX_FRAG,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
@@ -3098,8 +3104,9 @@ enum ieee80211_reconfig_type {
  *	The callback must be atomic.
  *
  * @set_frag_threshold: Configuration of fragmentation threshold. Assign this
- *	if the device does fragmentation by itself; if this callback is
- *	implemented then the stack will not do fragmentation.
+ *	if the device does fragmentation by itself. Note that to prevent the
+ *	stack from doing fragmentation IEEE80211_HW_SUPPORTS_TX_FRAG
+ *	should be set as well.
  *	The callback can sleep.
  *
  * @set_rts_threshold: Configuration of RTS threshold (if device needs it)
@@ -4092,6 +4099,10 @@ void ieee80211_sta_pspoll(struct ieee80211_sta *sta);
  * This must be used in conjunction with ieee80211_sta_ps_transition()
  * and possibly ieee80211_sta_pspoll(); calls to all three must be
  * serialized.
+ * %IEEE80211_NUM_TIDS can be passed as the tid if the tid is unknown.
+ * In this case, mac80211 will not check that this tid maps to an AC
+ * that is trigger enabled and assume that the caller did the proper
+ * checks.
  */
 void ieee80211_sta_uapsd_trigger(struct ieee80211_sta *sta, u8 tid);
 

@@ -135,8 +135,7 @@ int crypto4xx_alloc_sa(struct crypto4xx_ctx *ctx, u32 size)
 	ctx->sa_out = dma_alloc_coherent(ctx->dev->core_dev->device, size * 4,
 					 &ctx->sa_out_dma_addr, GFP_ATOMIC);
 	if (ctx->sa_out == NULL) {
-		dma_free_coherent(ctx->dev->core_dev->device,
-				  ctx->sa_len * 4,
+		dma_free_coherent(ctx->dev->core_dev->device, size * 4,
 				  ctx->sa_in, ctx->sa_in_dma_addr);
 		return -ENOMEM;
 	}

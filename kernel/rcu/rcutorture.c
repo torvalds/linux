@@ -289,15 +289,24 @@ static int rcu_torture_read_lock(void) __acquires(RCU)
 
 static void rcu_read_delay(struct torture_random_state *rrsp)
 {
+	unsigned long started;
+	unsigned long completed;
 	const unsigned long shortdelay_us = 200;
 	const unsigned long longdelay_ms = 50;
+	unsigned long long ts;
 
 	/* We want a short delay sometimes to make a reader delay the grace
 	 * period, and we want a long delay occasionally to trigger
 	 * force_quiescent_state. */
 
-	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms)))
+	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
+		started = cur_ops->completed();
+		ts = rcu_trace_clock_local();
 		mdelay(longdelay_ms);
+		completed = cur_ops->completed();
+		do_trace_rcu_torture_read(cur_ops->name, NULL, ts,
+					  started, completed);
+	}
 	if (!(torture_random(rrsp) % (nrealreaders * 2 * shortdelay_us)))
 		udelay(shortdelay_us);
 #ifdef CONFIG_PREEMPT

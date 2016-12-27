@@ -1,6 +1,12 @@
 #ifndef ISCSI_TARGET_ERL0_H
 #define ISCSI_TARGET_ERL0_H
 
+#include <linux/types.h>
+
+struct iscsi_cmd;
+struct iscsi_conn;
+struct iscsi_session;
+
 extern void iscsit_set_dataout_sequence_values(struct iscsi_cmd *);
 extern int iscsit_check_pre_dataout(struct iscsi_cmd *, unsigned char *);
 extern int iscsit_check_post_dataout(struct iscsi_cmd *, unsigned char *, u8);

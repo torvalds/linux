@@ -160,11 +160,6 @@ static void fsl_dcu_drm_plane_atomic_update(struct drm_plane *plane,
 			     DCU_LAYER_POST_SKIP(0) |
 			     DCU_LAYER_PRE_SKIP(0));
 	}
-	regmap_update_bits(fsl_dev->regmap, DCU_DCU_MODE,
-			   DCU_MODE_DCU_MODE_MASK,
-			   DCU_MODE_DCU_MODE(DCU_MODE_NORMAL));
-	regmap_write(fsl_dev->regmap,
-		     DCU_UPDATE_MODE, DCU_UPDATE_MODE_READREG);
 
 	return;
 }

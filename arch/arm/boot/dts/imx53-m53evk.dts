@@ -13,8 +13,8 @@
 #include "imx53-m53.dtsi"
 
 / {
-	model = "DENX M53EVK";
-	compatible = "denx,imx53-m53evk", "fsl,imx53";
+	model = "Aries/DENX M53EVK";
+	compatible = "aries,imx53-m53evk", "denx,imx53-m53evk", "fsl,imx53";
 
 	display1: display@di1 {
 		compatible = "fsl,imx-parallel-display";

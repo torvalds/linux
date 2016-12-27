@@ -1,14 +1,10 @@
 #ifndef TARGET_CORE_BASE_H
 #define TARGET_CORE_BASE_H
 
-#include <linux/in.h>
-#include <linux/configfs.h>
-#include <linux/dma-mapping.h>
-#include <linux/blkdev.h>
-#include <linux/percpu_ida.h>
-#include <linux/t10-pi.h>
-#include <net/sock.h>
-#include <net/tcp.h>
+#include <linux/configfs.h>      /* struct config_group */
+#include <linux/dma-direction.h> /* enum dma_data_direction */
+#include <linux/percpu_ida.h>    /* struct percpu_ida */
+#include <linux/semaphore.h>     /* struct semaphore */
 
 #define TARGET_CORE_VERSION		"v5.0"
 
@@ -149,7 +145,7 @@ enum se_cmd_flags_table {
  * Used by transport_send_check_condition_and_sense()
  * to signal which ASC/ASCQ sense payload should be built.
  */
-typedef unsigned __bitwise__ sense_reason_t;
+typedef unsigned __bitwise sense_reason_t;
 
 enum tcm_sense_reason_table {
 #define R(x)	(__force sense_reason_t )(x)

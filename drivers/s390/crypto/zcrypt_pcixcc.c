@@ -31,7 +31,8 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/mod_devicetable.h>
 
 #include "ap_bus.h"
 #include "zcrypt_api.h"
@@ -45,11 +46,6 @@
 #define PCIXCC_MAX_MOD_SIZE	256	/* 2048 bits	*/
 #define CEX3C_MIN_MOD_SIZE	PCIXCC_MIN_MOD_SIZE
 #define CEX3C_MAX_MOD_SIZE	512	/* 4096 bits	*/
-
-#define PCIXCC_MCL2_SPEED_RATING	7870
-#define PCIXCC_MCL3_SPEED_RATING	7870
-#define CEX2C_SPEED_RATING		7000
-#define CEX3C_SPEED_RATING		6500
 
 #define PCIXCC_MAX_ICA_MESSAGE_SIZE 0x77c  /* max size type6 v2 crt message */
 #define PCIXCC_MAX_ICA_RESPONSE_SIZE 0x77c /* max size type86 v2 reply	    */
@@ -67,142 +63,34 @@ struct response_type {
 #define PCIXCC_RESPONSE_TYPE_ICA  0
 #define PCIXCC_RESPONSE_TYPE_XCRB 1
 
-static struct ap_device_id zcrypt_pcixcc_ids[] = {
-	{ AP_DEVICE(AP_DEVICE_TYPE_PCIXCC) },
-	{ AP_DEVICE(AP_DEVICE_TYPE_CEX2C) },
-	{ AP_DEVICE(AP_DEVICE_TYPE_CEX3C) },
-	{ /* end of list */ },
-};
-
-MODULE_DEVICE_TABLE(ap, zcrypt_pcixcc_ids);
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("PCIXCC Cryptographic Coprocessor device driver, " \
 		   "Copyright IBM Corp. 2001, 2012");
 MODULE_LICENSE("GPL");
 
-static int zcrypt_pcixcc_probe(struct ap_device *ap_dev);
-static void zcrypt_pcixcc_remove(struct ap_device *ap_dev);
-
-static struct ap_driver zcrypt_pcixcc_driver = {
-	.probe = zcrypt_pcixcc_probe,
-	.remove = zcrypt_pcixcc_remove,
-	.ids = zcrypt_pcixcc_ids,
-	.request_timeout = PCIXCC_CLEANUP_TIME,
+static struct ap_device_id zcrypt_pcixcc_card_ids[] = {
+	{ .dev_type = AP_DEVICE_TYPE_PCIXCC,
+	  .match_flags = AP_DEVICE_ID_MATCH_CARD_TYPE },
+	{ .dev_type = AP_DEVICE_TYPE_CEX2C,
+	  .match_flags = AP_DEVICE_ID_MATCH_CARD_TYPE },
+	{ .dev_type = AP_DEVICE_TYPE_CEX3C,
+	  .match_flags = AP_DEVICE_ID_MATCH_CARD_TYPE },
+	{ /* end of list */ },
 };
 
-/**
- * Micro-code detection function. Its sends a message to a pcixcc card
- * to find out the microcode level.
- * @ap_dev: pointer to the AP device.
- */
-static int zcrypt_pcixcc_mcl(struct ap_device *ap_dev)
-{
-	static unsigned char msg[] = {
-		0x00,0x06,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x58,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x43,0x41,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x50,0x4B,0x00,0x00,
-		0x00,0x00,0x01,0xC4,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x07,0x24,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0xDC,0x02,0x00,0x00,0x00,0x54,0x32,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xE8,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x07,0x24,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x04,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-		0x00,0x00,0x00,0x00,0x50,0x4B,0x00,0x0A,
-		0x4D,0x52,0x50,0x20,0x20,0x20,0x20,0x20,
-		0x00,0x42,0x00,0x01,0x02,0x03,0x04,0x05,
-		0x06,0x07,0x08,0x09,0x0A,0x0B,0x0C,0x0D,
-		0x0E,0x0F,0x00,0x11,0x22,0x33,0x44,0x55,
-		0x66,0x77,0x88,0x99,0xAA,0xBB,0xCC,0xDD,
-		0xEE,0xFF,0xFF,0xEE,0xDD,0xCC,0xBB,0xAA,
-		0x99,0x88,0x77,0x66,0x55,0x44,0x33,0x22,
-		0x11,0x00,0x01,0x23,0x45,0x67,0x89,0xAB,
-		0xCD,0xEF,0xFE,0xDC,0xBA,0x98,0x76,0x54,
-		0x32,0x10,0x00,0x9A,0x00,0x98,0x00,0x00,
-		0x1E,0x00,0x00,0x94,0x00,0x00,0x00,0x00,
-		0x04,0x00,0x00,0x8C,0x00,0x00,0x00,0x40,
-		0x02,0x00,0x00,0x40,0xBA,0xE8,0x23,0x3C,
-		0x75,0xF3,0x91,0x61,0xD6,0x73,0x39,0xCF,
-		0x7B,0x6D,0x8E,0x61,0x97,0x63,0x9E,0xD9,
-		0x60,0x55,0xD6,0xC7,0xEF,0xF8,0x1E,0x63,
-		0x95,0x17,0xCC,0x28,0x45,0x60,0x11,0xC5,
-		0xC4,0x4E,0x66,0xC6,0xE6,0xC3,0xDE,0x8A,
-		0x19,0x30,0xCF,0x0E,0xD7,0xAA,0xDB,0x01,
-		0xD8,0x00,0xBB,0x8F,0x39,0x9F,0x64,0x28,
-		0xF5,0x7A,0x77,0x49,0xCC,0x6B,0xA3,0x91,
-		0x97,0x70,0xE7,0x60,0x1E,0x39,0xE1,0xE5,
-		0x33,0xE1,0x15,0x63,0x69,0x08,0x80,0x4C,
-		0x67,0xC4,0x41,0x8F,0x48,0xDF,0x26,0x98,
-		0xF1,0xD5,0x8D,0x88,0xD9,0x6A,0xA4,0x96,
-		0xC5,0x84,0xD9,0x30,0x49,0x67,0x7D,0x19,
-		0xB1,0xB3,0x45,0x4D,0xB2,0x53,0x9A,0x47,
-		0x3C,0x7C,0x55,0xBF,0xCC,0x85,0x00,0x36,
-		0xF1,0x3D,0x93,0x53
-	};
-	unsigned long long psmid;
-	struct CPRBX *cprbx;
-	char *reply;
-	int rc, i;
+MODULE_DEVICE_TABLE(ap, zcrypt_pcixcc_card_ids);
 
-	reply = (void *) get_zeroed_page(GFP_KERNEL);
-	if (!reply)
-		return -ENOMEM;
+static struct ap_device_id zcrypt_pcixcc_queue_ids[] = {
+	{ .dev_type = AP_DEVICE_TYPE_PCIXCC,
+	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
+	{ .dev_type = AP_DEVICE_TYPE_CEX2C,
+	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
+	{ .dev_type = AP_DEVICE_TYPE_CEX3C,
+	  .match_flags = AP_DEVICE_ID_MATCH_QUEUE_TYPE },
+	{ /* end of list */ },
+};
 
-	rc = ap_send(ap_dev->qid, 0x0102030405060708ULL, msg, sizeof(msg));
-	if (rc)
-		goto out_free;
-
-	/* Wait for the test message to complete. */
-	for (i = 0; i < 6; i++) {
-		msleep(300);
-		rc = ap_recv(ap_dev->qid, &psmid, reply, 4096);
-		if (rc == 0 && psmid == 0x0102030405060708ULL)
-			break;
-	}
-
-	if (i >= 6) {
-		/* Got no answer. */
-		rc = -ENODEV;
-		goto out_free;
-	}
-
-	cprbx = (struct CPRBX *) (reply + 48);
-	if (cprbx->ccp_rtcode == 8 && cprbx->ccp_rscode == 33)
-		rc = ZCRYPT_PCIXCC_MCL2;
-	else
-		rc = ZCRYPT_PCIXCC_MCL3;
-out_free:
-	free_page((unsigned long) reply);
-	return rc;
-}
+MODULE_DEVICE_TABLE(ap, zcrypt_pcixcc_queue_ids);
 
 /**
  * Large random number detection function. Its sends a message to a pcixcc
@@ -211,15 +99,25 @@ out_free:
  *
  * Returns 1 if large random numbers are supported, 0 if not and < 0 on error.
  */
-static int zcrypt_pcixcc_rng_supported(struct ap_device *ap_dev)
+static int zcrypt_pcixcc_rng_supported(struct ap_queue *aq)
 {
 	struct ap_message ap_msg;
 	unsigned long long psmid;
+	unsigned int domain;
 	struct {
 		struct type86_hdr hdr;
 		struct type86_fmt2_ext fmt2;
 		struct CPRBX cprbx;
 	} __attribute__((packed)) *reply;
+	struct {
+		struct type6_hdr hdr;
+		struct CPRBX cprbx;
+		char function_code[2];
+		short int rule_length;
+		char rule[8];
+		short int verb_length;
+		short int key_length;
+	} __packed * msg;
 	int rc, i;
 
 	ap_init_message(&ap_msg);
@@ -227,8 +125,12 @@ static int zcrypt_pcixcc_rng_supported(struct ap_device *ap_dev)
 	if (!ap_msg.message)
 		return -ENOMEM;
 
-	rng_type6CPRB_msgX(ap_dev, &ap_msg, 4);
-	rc = ap_send(ap_dev->qid, 0x0102030405060708ULL, ap_msg.message,
+	rng_type6CPRB_msgX(&ap_msg, 4, &domain);
+
+	msg = ap_msg.message;
+	msg->cprbx.domain = AP_QID_QUEUE(aq->qid);
+
+	rc = ap_send(aq->qid, 0x0102030405060708ULL, ap_msg.message,
 		     ap_msg.length);
 	if (rc)
 		goto out_free;
@@ -236,7 +138,7 @@ static int zcrypt_pcixcc_rng_supported(struct ap_device *ap_dev)
 	/* Wait for the test message to complete. */
 	for (i = 0; i < 2 * HZ; i++) {
 		msleep(1000 / HZ);
-		rc = ap_recv(ap_dev->qid, &psmid, ap_msg.message, 4096);
+		rc = ap_recv(aq->qid, &psmid, ap_msg.message, 4096);
 		if (rc == 0 && psmid == 0x0102030405060708ULL)
 			break;
 	}
@@ -258,110 +160,168 @@ out_free:
 }
 
 /**
- * Probe function for PCIXCC/CEX2C cards. It always accepts the AP device
- * since the bus_match already checked the hardware type. The PCIXCC
- * cards come in two flavours: micro code level 2 and micro code level 3.
- * This is checked by sending a test message to the device.
- * @ap_dev: pointer to the AP device.
+ * Probe function for PCIXCC/CEX2C card devices. It always accepts the
+ * AP device since the bus_match already checked the hardware type. The
+ * PCIXCC cards come in two flavours: micro code level 2 and micro code
+ * level 3. This is checked by sending a test message to the device.
+ * @ap_dev: pointer to the AP card device.
  */
-static int zcrypt_pcixcc_probe(struct ap_device *ap_dev)
+static int zcrypt_pcixcc_card_probe(struct ap_device *ap_dev)
 {
-	struct zcrypt_device *zdev;
+	/*
+	 * Normalized speed ratings per crypto adapter
+	 * MEX_1k, MEX_2k, MEX_4k, CRT_1k, CRT_2k, CRT_4k, RNG, SECKEY
+	 */
+	static const int CEX2C_SPEED_IDX[] = {
+		1000, 1400, 2400, 1100, 1500, 2600, 100, 12};
+	static const int CEX3C_SPEED_IDX[] = {
+		500,  700, 1400,  550,	800, 1500,  80, 10};
+
+	struct ap_card *ac = to_ap_card(&ap_dev->device);
+	struct zcrypt_card *zc;
 	int rc = 0;
 
-	zdev = zcrypt_device_alloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE);
-	if (!zdev)
+	zc = zcrypt_card_alloc();
+	if (!zc)
 		return -ENOMEM;
-	zdev->ap_dev = ap_dev;
-	zdev->online = 1;
-	switch (ap_dev->device_type) {
-	case AP_DEVICE_TYPE_PCIXCC:
-		rc = zcrypt_pcixcc_mcl(ap_dev);
-		if (rc < 0) {
-			zcrypt_device_free(zdev);
-			return rc;
-		}
-		zdev->user_space_type = rc;
-		if (rc == ZCRYPT_PCIXCC_MCL2) {
-			zdev->type_string = "PCIXCC_MCL2";
-			zdev->speed_rating = PCIXCC_MCL2_SPEED_RATING;
-			zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE_OLD;
-			zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
-			zdev->max_exp_bit_length = PCIXCC_MAX_MOD_SIZE;
-		} else {
-			zdev->type_string = "PCIXCC_MCL3";
-			zdev->speed_rating = PCIXCC_MCL3_SPEED_RATING;
-			zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE;
-			zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
-			zdev->max_exp_bit_length = PCIXCC_MAX_MOD_SIZE;
-		}
-		break;
+	zc->card = ac;
+	ac->private = zc;
+	switch (ac->ap_dev.device_type) {
 	case AP_DEVICE_TYPE_CEX2C:
-		zdev->user_space_type = ZCRYPT_CEX2C;
-		zdev->type_string = "CEX2C";
-		zdev->speed_rating = CEX2C_SPEED_RATING;
-		zdev->min_mod_size = PCIXCC_MIN_MOD_SIZE;
-		zdev->max_mod_size = PCIXCC_MAX_MOD_SIZE;
-		zdev->max_exp_bit_length = PCIXCC_MAX_MOD_SIZE;
+		zc->user_space_type = ZCRYPT_CEX2C;
+		zc->type_string = "CEX2C";
+		memcpy(zc->speed_rating, CEX2C_SPEED_IDX,
+		       sizeof(CEX2C_SPEED_IDX));
+		zc->min_mod_size = PCIXCC_MIN_MOD_SIZE;
+		zc->max_mod_size = PCIXCC_MAX_MOD_SIZE;
+		zc->max_exp_bit_length = PCIXCC_MAX_MOD_SIZE;
 		break;
 	case AP_DEVICE_TYPE_CEX3C:
-		zdev->user_space_type = ZCRYPT_CEX3C;
-		zdev->type_string = "CEX3C";
-		zdev->speed_rating = CEX3C_SPEED_RATING;
-		zdev->min_mod_size = CEX3C_MIN_MOD_SIZE;
-		zdev->max_mod_size = CEX3C_MAX_MOD_SIZE;
-		zdev->max_exp_bit_length = CEX3C_MAX_MOD_SIZE;
+		zc->user_space_type = ZCRYPT_CEX3C;
+		zc->type_string = "CEX3C";
+		memcpy(zc->speed_rating, CEX3C_SPEED_IDX,
+		       sizeof(CEX3C_SPEED_IDX));
+		zc->min_mod_size = CEX3C_MIN_MOD_SIZE;
+		zc->max_mod_size = CEX3C_MAX_MOD_SIZE;
+		zc->max_exp_bit_length = CEX3C_MAX_MOD_SIZE;
 		break;
 	default:
-		goto out_free;
+		zcrypt_card_free(zc);
+		return -ENODEV;
+	}
+	zc->online = 1;
+
+	rc = zcrypt_card_register(zc);
+	if (rc) {
+		ac->private = NULL;
+		zcrypt_card_free(zc);
 	}
 
-	rc = zcrypt_pcixcc_rng_supported(ap_dev);
-	if (rc < 0) {
-		zcrypt_device_free(zdev);
-		return rc;
-	}
-	if (rc)
-		zdev->ops = zcrypt_msgtype_request(MSGTYPE06_NAME,
-						   MSGTYPE06_VARIANT_DEFAULT);
-	else
-		zdev->ops = zcrypt_msgtype_request(MSGTYPE06_NAME,
-						   MSGTYPE06_VARIANT_NORNG);
-	ap_device_init_reply(ap_dev, &zdev->reply);
-	ap_dev->private = zdev;
-	rc = zcrypt_device_register(zdev);
-	if (rc)
-		goto out_free;
-	return 0;
-
- out_free:
-	ap_dev->private = NULL;
-	zcrypt_msgtype_release(zdev->ops);
-	zcrypt_device_free(zdev);
 	return rc;
 }
 
 /**
- * This is called to remove the extended PCIXCC/CEX2C driver information
- * if an AP device is removed.
+ * This is called to remove the PCIXCC/CEX2C card driver information
+ * if an AP card device is removed.
  */
-static void zcrypt_pcixcc_remove(struct ap_device *ap_dev)
+static void zcrypt_pcixcc_card_remove(struct ap_device *ap_dev)
 {
-	struct zcrypt_device *zdev = ap_dev->private;
-	struct zcrypt_ops *zops = zdev->ops;
+	struct zcrypt_card *zc = to_ap_card(&ap_dev->device)->private;
 
-	zcrypt_device_unregister(zdev);
-	zcrypt_msgtype_release(zops);
+	if (zc)
+		zcrypt_card_unregister(zc);
 }
+
+static struct ap_driver zcrypt_pcixcc_card_driver = {
+	.probe = zcrypt_pcixcc_card_probe,
+	.remove = zcrypt_pcixcc_card_remove,
+	.ids = zcrypt_pcixcc_card_ids,
+};
+
+/**
+ * Probe function for PCIXCC/CEX2C queue devices. It always accepts the
+ * AP device since the bus_match already checked the hardware type. The
+ * PCIXCC cards come in two flavours: micro code level 2 and micro code
+ * level 3. This is checked by sending a test message to the device.
+ * @ap_dev: pointer to the AP card device.
+ */
+static int zcrypt_pcixcc_queue_probe(struct ap_device *ap_dev)
+{
+	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
+	struct zcrypt_queue *zq;
+	int rc;
+
+	zq = zcrypt_queue_alloc(PCIXCC_MAX_XCRB_MESSAGE_SIZE);
+	if (!zq)
+		return -ENOMEM;
+	zq->queue = aq;
+	zq->online = 1;
+	atomic_set(&zq->load, 0);
+	rc = zcrypt_pcixcc_rng_supported(aq);
+	if (rc < 0) {
+		zcrypt_queue_free(zq);
+		return rc;
+	}
+	if (rc)
+		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,
+					 MSGTYPE06_VARIANT_DEFAULT);
+	else
+		zq->ops = zcrypt_msgtype(MSGTYPE06_NAME,
+					 MSGTYPE06_VARIANT_NORNG);
+	ap_queue_init_reply(aq, &zq->reply);
+	aq->request_timeout = PCIXCC_CLEANUP_TIME,
+	aq->private = zq;
+	rc = zcrypt_queue_register(zq);
+	if (rc) {
+		aq->private = NULL;
+		zcrypt_queue_free(zq);
+	}
+	return rc;
+}
+
+/**
+ * This is called to remove the PCIXCC/CEX2C queue driver information
+ * if an AP queue device is removed.
+ */
+static void zcrypt_pcixcc_queue_remove(struct ap_device *ap_dev)
+{
+	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
+	struct zcrypt_queue *zq = aq->private;
+
+	ap_queue_remove(aq);
+	if (zq)
+		zcrypt_queue_unregister(zq);
+}
+
+static struct ap_driver zcrypt_pcixcc_queue_driver = {
+	.probe = zcrypt_pcixcc_queue_probe,
+	.remove = zcrypt_pcixcc_queue_remove,
+	.suspend = ap_queue_suspend,
+	.resume = ap_queue_resume,
+	.ids = zcrypt_pcixcc_queue_ids,
+};
 
 int __init zcrypt_pcixcc_init(void)
 {
-	return ap_driver_register(&zcrypt_pcixcc_driver, THIS_MODULE, "pcixcc");
+	int rc;
+
+	rc = ap_driver_register(&zcrypt_pcixcc_card_driver,
+				THIS_MODULE, "pcixcccard");
+	if (rc)
+		return rc;
+
+	rc = ap_driver_register(&zcrypt_pcixcc_queue_driver,
+				THIS_MODULE, "pcixccqueue");
+	if (rc)
+		ap_driver_unregister(&zcrypt_pcixcc_card_driver);
+
+	return rc;
 }
 
 void zcrypt_pcixcc_exit(void)
 {
-	ap_driver_unregister(&zcrypt_pcixcc_driver);
+	ap_driver_unregister(&zcrypt_pcixcc_queue_driver);
+	ap_driver_unregister(&zcrypt_pcixcc_card_driver);
 }
 
 module_init(zcrypt_pcixcc_init);

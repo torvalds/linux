@@ -263,7 +263,7 @@ static int ppc750_machine_check_exception(struct pt_regs *regs)
 	if ((entry = search_exception_tables(regs->nip)) != NULL) {
 		tsi108_clear_pci_cfg_error();
 		regs->msr |= MSR_RI;
-		regs->nip = entry->fixup;
+		regs->nip = extable_fixup(entry);
 		return 1;
 	}
 	return 0;

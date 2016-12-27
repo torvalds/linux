@@ -55,8 +55,9 @@ XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
 		xgifb_reg_or(pVBInfo->P3d4, 0x4A, 0x80); /* Enable GPIOH read */
 		/* GPIOF 0:DVI 1:DVO */
 		data = xgifb_reg_get(pVBInfo->P3d4, 0x48);
-		/* HOTPLUG_SUPPORT */
-		/* for current XG20 & XG21, GPIOH is floating, driver will
+		/*
+		 * HOTPLUG_SUPPORT
+		 * for current XG20 & XG21, GPIOH is floating, driver will
 		 * fix DDR temporarily
 		 */
 		/* DVI read GPIOH */
@@ -199,7 +200,8 @@ static void XGINew_DDRII_Bootup_XG27(
 }
 
 static void XGINew_DDR2_MRS_XG20(struct xgi_hw_device_info *HwDeviceExtension,
-		unsigned long P3c4, struct vb_device_info *pVBInfo)
+				 unsigned long P3c4,
+				 struct vb_device_info *pVBInfo)
 {
 	unsigned long P3d4 = P3c4 + 0x10;
 
@@ -353,8 +355,8 @@ static void XGINew_DDR2_DefaultRegister(
 		unsigned long Port, struct vb_device_info *pVBInfo)
 {
 	unsigned long P3d4 = Port, P3c4 = Port - 0x10;
-
-	/* keep following setting sequence, each setting in
+	/*
+	 * keep following setting sequence, each setting in
 	 * the same reg insert idle
 	 */
 	xgifb_reg_set(P3d4, 0x82, 0x77);
@@ -387,7 +389,7 @@ static void XGINew_DDR2_DefaultRegister(
 }
 
 static void XGI_SetDRAM_Helper(unsigned long P3d4, u8 seed, u8 temp2, u8 reg,
-	u8 shift_factor, u8 mask1, u8 mask2)
+			       u8 shift_factor, u8 mask1, u8 mask2)
 {
 	u8 j;
 
@@ -460,15 +462,15 @@ static void XGINew_SetDRAMDefaultRegister340(
 
 	for (j = 0; j <= 6; j++) /* CR90 - CR96 */
 		xgifb_reg_set(P3d4, (0x90 + j),
-				pVBInfo->CR40[14 + j][pVBInfo->ram_type]);
+			      pVBInfo->CR40[14 + j][pVBInfo->ram_type]);
 
 	for (j = 0; j <= 2; j++) /* CRC3 - CRC5 */
 		xgifb_reg_set(P3d4, (0xC3 + j),
-				pVBInfo->CR40[21 + j][pVBInfo->ram_type]);
+			      pVBInfo->CR40[21 + j][pVBInfo->ram_type]);
 
 	for (j = 0; j < 2; j++) /* CR8A - CR8B */
 		xgifb_reg_set(P3d4, (0x8A + j),
-				pVBInfo->CR40[1 + j][pVBInfo->ram_type]);
+			      pVBInfo->CR40[1 + j][pVBInfo->ram_type]);
 
 	if (HwDeviceExtension->jChipType == XG42)
 		xgifb_reg_set(P3d4, 0x8C, 0x87);
@@ -539,7 +541,8 @@ static unsigned short XGINew_SetDRAMSize20Reg(
 }
 
 static int XGINew_ReadWriteRest(unsigned short StopAddr,
-		unsigned short StartAddr, struct vb_device_info *pVBInfo)
+				unsigned short StartAddr,
+				struct vb_device_info *pVBInfo)
 {
 	int i;
 	unsigned long Position = 0;
@@ -583,7 +586,7 @@ static unsigned char XGINew_CheckFrequence(struct vb_device_info *pVBInfo)
 }
 
 static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+				struct vb_device_info *pVBInfo)
 {
 	unsigned char data;
 
@@ -647,7 +650,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 				pVBInfo->ram_bus = 16; /* 16 bits */
 				/* (0x31:12x8x2) 22bit + 2 rank */
 				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xB1);
-				/* 0x41:16Mx16 bit*/
+				/* 0x41:16Mx16 bit */
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x41);
 				usleep_range(15, 1015);
 
@@ -660,7 +663,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 					xgifb_reg_set(pVBInfo->P3c4,
 						      0x13,
 						      0x31);
-					/* 0x31:8Mx16 bit*/
+					/* 0x31:8Mx16 bit */
 					xgifb_reg_set(pVBInfo->P3c4,
 						      0x14,
 						      0x31);
@@ -678,7 +681,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 				pVBInfo->ram_bus = 8; /* 8 bits */
 				/* (0x31:12x8x2) 22bit + 2 rank */
 				xgifb_reg_set(pVBInfo->P3c4, 0x13, 0xB1);
-				/* 0x30:8Mx8 bit*/
+				/* 0x30:8Mx8 bit */
 				xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x30);
 				usleep_range(15, 1015);
 
@@ -697,7 +700,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 	case XG27:
 		pVBInfo->ram_bus = 16; /* 16 bits */
 		pVBInfo->ram_channel = 1; /* Single channel */
-		xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x51); /* 32Mx16 bit*/
+		xgifb_reg_set(pVBInfo->P3c4, 0x14, 0x51); /* 32Mx16 bit */
 		break;
 	case XG42:
 		/*
@@ -785,7 +788,7 @@ static void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension,
 }
 
 static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+			       struct vb_device_info *pVBInfo)
 {
 	u8 i, size;
 	unsigned short memsize, start_addr;
@@ -827,8 +830,8 @@ static int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension,
 }
 
 static void XGINew_SetDRAMSize_340(struct xgifb_video_info *xgifb_info,
-		struct xgi_hw_device_info *HwDeviceExtension,
-		struct vb_device_info *pVBInfo)
+				   struct xgi_hw_device_info *HwDeviceExtension,
+				   struct vb_device_info *pVBInfo)
 {
 	unsigned short data;
 
@@ -905,9 +908,9 @@ static bool xgifb_read_vbios(struct pci_dev *pdev)
 		goto error;
 	if (j == 0xff)
 		j = 1;
-	/*
-	 * Read the LVDS table index scratch register set by the BIOS.
-	 */
+
+	/* Read the LVDS table index scratch register set by the BIOS. */
+
 	entry = xgifb_reg_get(xgifb_info->dev_info.P3d4, 0x36);
 	if (entry >= j)
 		entry = 0;
@@ -1039,8 +1042,9 @@ static void XGINew_SetModeScratch(struct vb_device_info *pVBInfo)
 	}
 
 	tempcl |= SetSimuScanMode;
-	if ((!(temp & ActiveCRT1)) && ((temp & ActiveLCD) || (temp & ActiveTV)
-			|| (temp & ActiveCRT2)))
+	if ((!(temp & ActiveCRT1)) && ((temp & ActiveLCD) ||
+				       (temp & ActiveTV) ||
+				       (temp & ActiveCRT2)))
 		tempcl ^= (SetSimuScanMode | SwitchCRT2);
 	if ((temp & ActiveLCD) && (temp & ActiveTV))
 		tempcl ^= (SetSimuScanMode | SwitchCRT2);
@@ -1085,7 +1089,7 @@ static unsigned short XGINew_SenseLCD(struct xgi_hw_device_info
 }
 
 static void XGINew_GetXG21Sense(struct pci_dev *pdev,
-		struct vb_device_info *pVBInfo)
+				struct vb_device_info *pVBInfo)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	unsigned char Temp;
@@ -1095,7 +1099,7 @@ static void XGINew_GetXG21Sense(struct pci_dev *pdev,
 		/* LVDS on chip */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);
 	} else {
-		/* Enable GPIOA/B read  */
+		/* Enable GPIOA/B read */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x03, 0x03);
 		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0xC0;
 		if (Temp == 0xC0) { /* DVI & DVO GPIOA/B pull high */
@@ -1119,7 +1123,7 @@ static void XGINew_GetXG27Sense(struct vb_device_info *pVBInfo)
 	unsigned char Temp, bCR4A;
 
 	bCR4A = xgifb_reg_get(pVBInfo->P3d4, 0x4A);
-	/* Enable GPIOA/B/C read  */
+	/* Enable GPIOA/B/C read */
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x07, 0x07);
 	Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0x07;
 	xgifb_reg_set(pVBInfo->P3d4, 0x4A, bCR4A);

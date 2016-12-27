@@ -572,8 +572,14 @@
 
 			interrupt-controller;
 			interrupt-parent = <&gic>;
-			interrupts = <0 16 0>, <0 17 0>, <0 18 0>, <0 19 0>,
-				     <0 20 0>, <0 21 0>, <0 22 0>, <0 23 0>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 			#interrupt-cells = <2>;
 		};
 
@@ -583,8 +589,14 @@
 
 			interrupt-controller;
 			interrupt-parent = <&gic>;
-			interrupts = <0 24 0>, <0 25 0>, <0 26 0>, <0 27 0>,
-				     <0 28 0>, <0 29 0>, <0 30 0>, <0 31 0>;
+			interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
 			#interrupt-cells = <2>;
 		};
 

@@ -125,6 +125,7 @@ int node_affinity_init(void)
 				cpumask_weight(topology_sibling_cpumask(
 					cpumask_first(&node_affinity.proc.mask)
 					));
+	node_affinity.num_possible_nodes = num_possible_nodes();
 	node_affinity.num_online_nodes = num_online_nodes();
 	node_affinity.num_online_cpus = num_online_cpus();
 
@@ -135,7 +136,7 @@ int node_affinity_init(void)
 	 */
 	init_real_cpu_mask();
 
-	hfi1_per_node_cntr = kcalloc(num_possible_nodes(),
+	hfi1_per_node_cntr = kcalloc(node_affinity.num_possible_nodes,
 				     sizeof(*hfi1_per_node_cntr), GFP_KERNEL);
 	if (!hfi1_per_node_cntr)
 		return -ENOMEM;
@@ -774,76 +775,4 @@ void hfi1_put_proc_affinity(int cpu)
 		cpumask_copy(&set->used, &set->mask);
 	}
 	mutex_unlock(&affinity->lock);
-}
-
-int hfi1_set_sdma_affinity(struct hfi1_devdata *dd, const char *buf,
-			   size_t count)
-{
-	struct hfi1_affinity_node *entry;
-	cpumask_var_t mask;
-	int ret, i;
-
-	mutex_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
-
-	if (!entry) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	ret = zalloc_cpumask_var(&mask, GFP_KERNEL);
-	if (!ret) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
-
-	ret = cpulist_parse(buf, mask);
-	if (ret)
-		goto out;
-
-	if (!cpumask_subset(mask, cpu_online_mask) || cpumask_empty(mask)) {
-		dd_dev_warn(dd, "Invalid CPU mask\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* reset the SDMA interrupt affinity details */
-	init_cpu_mask_set(&entry->def_intr);
-	cpumask_copy(&entry->def_intr.mask, mask);
-
-	/* Reassign the affinity for each SDMA interrupt. */
-	for (i = 0; i < dd->num_msix_entries; i++) {
-		struct hfi1_msix_entry *msix;
-
-		msix = &dd->msix_entries[i];
-		if (msix->type != IRQ_SDMA)
-			continue;
-
-		ret = get_irq_affinity(dd, msix);
-
-		if (ret)
-			break;
-	}
-out:
-	free_cpumask_var(mask);
-unlock:
-	mutex_unlock(&node_affinity.lock);
-	return ret ? ret : strnlen(buf, PAGE_SIZE);
-}
-
-int hfi1_get_sdma_affinity(struct hfi1_devdata *dd, char *buf)
-{
-	struct hfi1_affinity_node *entry;
-
-	mutex_lock(&node_affinity.lock);
-	entry = node_affinity_lookup(dd->node);
-
-	if (!entry) {
-		mutex_unlock(&node_affinity.lock);
-		return -EINVAL;
-	}
-
-	cpumap_print_to_pagebuf(true, buf, &entry->def_intr.mask);
-	mutex_unlock(&node_affinity.lock);
-	return strnlen(buf, PAGE_SIZE);
 }

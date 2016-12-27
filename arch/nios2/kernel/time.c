@@ -81,7 +81,7 @@ static inline unsigned long read_timersnapshot(struct nios2_timer *timer)
 	return count;
 }
 
-static cycle_t nios2_timer_read(struct clocksource *cs)
+static u64 nios2_timer_read(struct clocksource *cs)
 {
 	struct nios2_clocksource *nios2_cs = to_nios2_clksource(cs);
 	unsigned long flags;
@@ -324,6 +324,7 @@ static int __init nios2_time_init(struct device_node *timer)
 		ret = nios2_clocksource_init(timer);
 		break;
 	default:
+		ret = 0;
 		break;
 	}
 

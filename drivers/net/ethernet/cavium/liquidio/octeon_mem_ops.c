@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 #include <linux/netdevice.h>
 #include "liquidio_common.h"
@@ -39,7 +36,7 @@ octeon_toggle_bar1_swapmode(struct octeon_device *oct, u32 idx)
 	oct->fn_list.bar1_idx_write(oct, idx, mask);
 }
 #else
-#define octeon_toggle_bar1_swapmode(oct, idx) (oct = oct)
+#define octeon_toggle_bar1_swapmode(oct, idx)
 #endif
 
 static void

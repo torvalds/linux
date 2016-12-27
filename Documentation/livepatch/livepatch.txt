@@ -87,7 +87,7 @@ The theory about how to apply functions a safe way is rather complex.
 The aim is to define a so-called consistency model. It attempts to define
 conditions when the new implementation could be used so that the system
 stays consistent. The theory is not yet finished. See the discussion at
-http://thread.gmane.org/gmane.linux.kernel/1823033/focus=1828189
+https://lkml.kernel.org/r/20141107140458.GA21774@suse.cz
 
 The current consistency model is very simple. It guarantees that either
 the old or the new function is called. But various functions get redirected

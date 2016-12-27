@@ -18,32 +18,23 @@
 #include "msm_drv.h"
 #include "msm_gem.h"
 
-static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
-{
-	if (!mutex_is_locked(mutex))
-		return false;
-
-#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_MUTEXES)
-	return mutex->owner == task;
-#else
-	/* Since UP may be pre-empted, we cannot assume that we own the lock */
-	return false;
-#endif
-}
-
 static bool msm_gem_shrinker_lock(struct drm_device *dev, bool *unlock)
 {
-	if (!mutex_trylock(&dev->struct_mutex)) {
-		if (!mutex_is_locked_by(&dev->struct_mutex, current))
-			return false;
-		*unlock = false;
-	} else {
+	switch (mutex_trylock_recursive(&dev->struct_mutex)) {
+	case MUTEX_TRYLOCK_FAILED:
+		return false;
+
+	case MUTEX_TRYLOCK_SUCCESS:
 		*unlock = true;
+		return true;
+
+	case MUTEX_TRYLOCK_RECURSIVE:
+		*unlock = false;
+		return true;
 	}
 
-	return true;
+	BUG();
 }
-
 
 static unsigned long
 msm_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc)
@@ -163,6 +154,9 @@ void msm_gem_shrinker_init(struct drm_device *dev)
 void msm_gem_shrinker_cleanup(struct drm_device *dev)
 {
 	struct msm_drm_private *priv = dev->dev_private;
-	WARN_ON(unregister_vmap_purge_notifier(&priv->vmap_notifier));
-	unregister_shrinker(&priv->shrinker);
+
+	if (priv->shrinker.nr_deferred) {
+		WARN_ON(unregister_vmap_purge_notifier(&priv->vmap_notifier));
+		unregister_shrinker(&priv->shrinker);
+	}
 }

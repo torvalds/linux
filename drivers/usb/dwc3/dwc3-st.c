@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/usb/of.h>
 
 #include "core.h"
@@ -218,7 +219,6 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	dma_set_coherent_mask(dev, dev->coherent_dma_mask);
 	dwc3_data->dev = dev;
 	dwc3_data->regmap = regmap;
 

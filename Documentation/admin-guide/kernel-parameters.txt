@@ -863,6 +863,11 @@
 
 	dscc4.setup=	[NET]
 
+	dump_apple_properties	[X86]
+			Dump name and content of EFI device properties on
+			x86 Macs.  Useful for driver authors to determine
+			what data is available or for reverse-engineering.
+
 	dyndbg[="val"]		[KNL,DYNAMIC_DEBUG]
 	module.dyndbg[="val"]
 			Enable debug messages at boot time.  See
@@ -874,12 +879,6 @@
 
 	nopku		[X86] Disable Memory Protection Keys CPU feature found
 			in some Intel CPUs.
-
-	eagerfpu=	[X86]
-			on	enable eager fpu restore
-			off	disable eager fpu restore
-			auto	selects the default scheme, which automatically
-				enables eagerfpu restore for xsaveopt.
 
 	module.async_probe [KNL]
 			Enable asynchronous probe on this module.
@@ -1442,6 +1441,10 @@
 			The builtin appraise policy appraises all files
 			owned by uid=0.
 
+	ima_canonical_fmt [IMA]
+			Use the canonical format for the binary runtime
+			measurements, instead of host native format.
+
 	ima_hash=	[IMA]
 			Format: { md5 | sha1 | rmd160 | sha256 | sha384
 				   | sha512 | ... }
@@ -1561,6 +1564,12 @@
 		       disable
 		         Do not enable intel_pstate as the default
 		         scaling driver for the supported processors
+		       passive
+			 Use intel_pstate as a scaling driver, but configure it
+			 to work with generic cpufreq governors (instead of
+			 enabling its internal governor).  This mode cannot be
+			 used along with the hardware-managed P-states (HWP)
+			 feature.
 		       force
 			 Enable intel_pstate on systems that prohibit it by default
 			 in favor of acpi-cpufreq. Forcing the intel_pstate driver
@@ -1581,6 +1590,9 @@
 			Description Table, specifies preferred power management
 			profile as "Enterprise Server" or "Performance Server",
 			then this feature is turned on by default.
+		per_cpu_perf_limits
+			Allow per-logical-CPU P-State performance control limits using
+			cpufreq sysfs interface
 
 	intremap=	[X86-64, Intel-IOMMU]
 			on	enable Interrupt Remapping (default)
@@ -1758,9 +1770,6 @@
 			kmemcheck=1 (enabled)
 			kmemcheck=2 (one-shot mode)
 			Default: 2 (one-shot mode)
-
-	kstack=N	[X86] Print N words from the kernel stack
-			in oops dumps.
 
 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
 			Default is 0 (don't ignore, but inject #GP)
@@ -2126,6 +2135,12 @@
 			memory contents and reserves bad memory
 			regions that are detected.
 
+	mem_sleep_default=	[SUSPEND] Default system suspend mode:
+			s2idle  - Suspend-To-Idle
+			shallow - Power-On Suspend or equivalent (if supported)
+			deep    - Suspend-To-RAM or equivalent (if supported)
+			See Documentation/power/states.txt.
+
 	meye.*=		[HW] Set MotionEye Camera parameters
 			See Documentation/video4linux/meye.txt.
 
@@ -2202,7 +2217,7 @@
 			that the amount of memory usable for all allocations
 			is not too small.
 
-	movable_node	[KNL,X86] Boot-time switch to enable the effects
+	movable_node	[KNL] Boot-time switch to enable the effects
 			of CONFIG_MOVABLE_NODE=y. See mm/Kconfig for details.
 
 	MTD_Partition=	[MTD]
@@ -2554,6 +2569,10 @@
 
 	no-kvmapf	[X86,KVM] Disable paravirtualized asynchronous page
 			fault handling.
+
+	no-vmw-sched-clock
+			[X86,PV_OPS] Disable paravirtualized VMware scheduler
+			clock and use the default one.
 
 	no-steal-acc    [X86,KVM] Disable paravirtualized steal time accounting.
 			steal time is computed, but won't influence scheduler
@@ -3475,13 +3494,6 @@
 			[KNL, SMP] Set scheduler's default relax_domain_level.
 			See Documentation/cgroup-v1/cpusets.txt.
 
-	relative_sleep_states=
-			[SUSPEND] Use sleep state labeling where the deepest
-			state available other than hibernation is always "mem".
-			Format: { "0" | "1" }
-			0 -- Traditional sleep state labels.
-			1 -- Relative sleep state labels.
-
 	reserve=	[KNL,BUGS] Force the kernel to ignore some iomem area
 
 	reservetop=	[X86-32]
@@ -3630,12 +3642,6 @@
 
 	shapers=	[NET]
 			Maximal number of shapers.
-
-	show_msr=	[x86] show boot-time MSR settings
-			Format: { <integer> }
-			Show boot-time (BIOS-initialized) MSR settings.
-			The parameter means the number of CPUs to show,
-			for example 1 means boot CPU only.
 
 	simeth=		[IA-64]
 	simscsi=

@@ -43,7 +43,7 @@
 #include <linux/mutex.h>
 #include <linux/bitmap.h>
 #include <linux/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/blkdev.h>
