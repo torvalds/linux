@@ -207,7 +207,7 @@ static int bma150_set_mode(struct bma150_data *bma150, u8 mode)
 		return error;
 
 	if (mode == BMA150_MODE_NORMAL)
-		msleep(2);
+		usleep_range(2000, 2100);
 
 	bma150->mode = mode;
 	return 0;
@@ -222,7 +222,7 @@ static int bma150_soft_reset(struct bma150_data *bma150)
 	if (error)
 		return error;
 
-	msleep(2);
+	usleep_range(2000, 2100);
 	return 0;
 }
 
