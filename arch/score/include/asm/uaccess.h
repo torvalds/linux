@@ -347,7 +347,7 @@ static inline unsigned long
 copy_in_user(void *to, const void *from, unsigned long len)
 {
 	if (access_ok(VERIFY_READ, from, len) &&
-		      access_ok(VERFITY_WRITE, to, len))
+		      access_ok(VERIFY_WRITE, to, len))
 		return __copy_tofrom_user(to, from, len);
 }
 
