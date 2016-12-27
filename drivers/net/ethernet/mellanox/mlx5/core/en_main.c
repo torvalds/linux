@@ -1972,8 +1972,8 @@ static void mlx5e_build_channel_param(struct mlx5e_priv *priv,
 	mlx5e_build_ico_cq_param(priv, icosq_log_wq_sz, &cparam->icosq_cq);
 }
 
-static int mlx5e_open_channels(struct mlx5e_priv *priv,
-			       struct mlx5e_channels *chs)
+int mlx5e_open_channels(struct mlx5e_priv *priv,
+			struct mlx5e_channels *chs)
 {
 	struct mlx5e_channel_param *cparam;
 	int err = -ENOMEM;
@@ -2037,7 +2037,7 @@ static void mlx5e_deactivate_channels(struct mlx5e_channels *chs)
 		mlx5e_deactivate_channel(chs->c[i]);
 }
 
-static void mlx5e_close_channels(struct mlx5e_channels *chs)
+void mlx5e_close_channels(struct mlx5e_channels *chs)
 {
 	int i;
 
@@ -2531,6 +2531,30 @@ static void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 	netif_tx_stop_all_queues(priv->netdev);
 	netif_tx_disable(priv->netdev);
 	mlx5e_deactivate_channels(&priv->channels);
+}
+
+void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
+				struct mlx5e_channels *new_chs)
+{
+	struct net_device *netdev = priv->netdev;
+	int new_num_txqs;
+
+	new_num_txqs = new_chs->num * new_chs->params.num_tc;
+
+	netif_carrier_off(netdev);
+
+	if (new_num_txqs < netdev->real_num_tx_queues)
+		netif_set_real_num_tx_queues(netdev, new_num_txqs);
+
+	mlx5e_deactivate_priv_channels(priv);
+	mlx5e_close_channels(&priv->channels);
+
+	priv->channels = *new_chs;
+
+	mlx5e_refresh_tirs(priv, false);
+	mlx5e_activate_priv_channels(priv);
+
+	mlx5e_update_carrier(priv);
 }
 
 int mlx5e_open_locked(struct net_device *netdev)

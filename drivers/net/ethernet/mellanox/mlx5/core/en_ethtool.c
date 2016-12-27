@@ -556,8 +556,8 @@ static int mlx5e_set_channels(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	unsigned int count = ch->combined_count;
+	struct mlx5e_channels new_channels = {};
 	bool arfs_enabled;
-	bool was_opened;
 	int err = 0;
 
 	if (!count) {
@@ -571,22 +571,27 @@ static int mlx5e_set_channels(struct net_device *dev,
 
 	mutex_lock(&priv->state_lock);
 
-	was_opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
-	if (was_opened)
-		mlx5e_close_locked(dev);
+	new_channels.params = priv->channels.params;
+	new_channels.params.num_channels = count;
+	mlx5e_build_default_indir_rqt(priv->mdev, new_channels.params.indirection_rqt,
+				      MLX5E_INDIR_RQT_SIZE, count);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		priv->channels.params = new_channels.params;
+		goto out;
+	}
+
+	/* Create fresh channels with new parameters */
+	err = mlx5e_open_channels(priv, &new_channels);
+	if (err)
+		goto out;
 
 	arfs_enabled = dev->features & NETIF_F_NTUPLE;
 	if (arfs_enabled)
 		mlx5e_arfs_disable(priv);
 
-	priv->channels.params.num_channels = count;
-	mlx5e_build_default_indir_rqt(priv->mdev, priv->channels.params.indirection_rqt,
-				      MLX5E_INDIR_RQT_SIZE, count);
-
-	if (was_opened)
-		err = mlx5e_open_locked(dev);
-	if (err)
-		goto out;
+	/* Switch to new channels, set new parameters and close old ones */
+	mlx5e_switch_priv_channels(priv, &new_channels);
 
 	if (arfs_enabled) {
 		err = mlx5e_arfs_enable(priv);
