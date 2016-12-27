@@ -647,12 +647,12 @@ struct cgrp_cset_link {
  */
 struct css_set init_css_set = {
 	.refcount		= ATOMIC_INIT(1),
-	.cgrp_links		= LIST_HEAD_INIT(init_css_set.cgrp_links),
 	.tasks			= LIST_HEAD_INIT(init_css_set.tasks),
 	.mg_tasks		= LIST_HEAD_INIT(init_css_set.mg_tasks),
+	.task_iters		= LIST_HEAD_INIT(init_css_set.task_iters),
+	.cgrp_links		= LIST_HEAD_INIT(init_css_set.cgrp_links),
 	.mg_preload_node	= LIST_HEAD_INIT(init_css_set.mg_preload_node),
 	.mg_node		= LIST_HEAD_INIT(init_css_set.mg_node),
-	.task_iters		= LIST_HEAD_INIT(init_css_set.task_iters),
 };
 
 static int css_set_count	= 1;	/* 1 for init_css_set */
@@ -1095,13 +1095,13 @@ static struct css_set *find_css_set(struct css_set *old_cset,
 	}
 
 	atomic_set(&cset->refcount, 1);
-	INIT_LIST_HEAD(&cset->cgrp_links);
 	INIT_LIST_HEAD(&cset->tasks);
 	INIT_LIST_HEAD(&cset->mg_tasks);
-	INIT_LIST_HEAD(&cset->mg_preload_node);
-	INIT_LIST_HEAD(&cset->mg_node);
 	INIT_LIST_HEAD(&cset->task_iters);
 	INIT_HLIST_NODE(&cset->hlist);
+	INIT_LIST_HEAD(&cset->cgrp_links);
+	INIT_LIST_HEAD(&cset->mg_preload_node);
+	INIT_LIST_HEAD(&cset->mg_node);
 
 	/* Copy the set of subsystem state objects generated in
 	 * find_existing_css_set() */
@@ -4383,6 +4383,9 @@ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from)
 	struct css_task_iter it;
 	struct task_struct *task;
 	int ret;
+
+	if (cgroup_on_dfl(to))
+		return -EINVAL;
 
 	if (!cgroup_may_migrate_to(to))
 		return -EBUSY;
