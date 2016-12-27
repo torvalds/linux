@@ -1989,47 +1989,54 @@ out:
 	return ret;
 }
 
-static struct dentry *cgroup_mount(struct file_system_type *fs_type,
-			 int flags, const char *unused_dev_name,
-			 void *data)
+static struct dentry *cgroup_do_mount(struct file_system_type *fs_type,
+				      int flags, struct cgroup_root *root,
+				      unsigned long magic,
+				      struct cgroup_namespace *ns)
 {
-	bool is_v2 = fs_type == &cgroup2_fs_type;
-	struct super_block *pinned_sb = NULL;
-	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
-	struct cgroup_subsys *ss;
-	struct cgroup_root *root;
-	struct cgroup_sb_opts opts;
 	struct dentry *dentry;
-	int ret;
-	int i;
 	bool new_sb;
 
-	get_cgroup_ns(ns);
-
-	/* Check if the caller has permission to mount. */
-	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN)) {
-		put_cgroup_ns(ns);
-		return ERR_PTR(-EPERM);
-	}
+	dentry = kernfs_mount(fs_type, flags, root->kf_root, magic, &new_sb);
 
 	/*
-	 * The first time anyone tries to mount a cgroup, enable the list
-	 * linking each css_set to its tasks and fix up all existing tasks.
+	 * In non-init cgroup namespace, instead of root cgroup's dentry,
+	 * we return the dentry corresponding to the cgroupns->root_cgrp.
 	 */
-	if (!use_task_css_set_links)
-		cgroup_enable_task_cg_lists();
+	if (!IS_ERR(dentry) && ns != &init_cgroup_ns) {
+		struct dentry *nsdentry;
+		struct cgroup *cgrp;
 
-	if (is_v2) {
-		if (data) {
-			pr_err("cgroup2: unknown option \"%s\"\n", (char *)data);
-			put_cgroup_ns(ns);
-			return ERR_PTR(-EINVAL);
-		}
-		cgrp_dfl_visible = true;
-		root = &cgrp_dfl_root;
-		cgroup_get(&root->cgrp);
-		goto out_mount;
+		mutex_lock(&cgroup_mutex);
+		spin_lock_irq(&css_set_lock);
+
+		cgrp = cset_cgroup_from_root(ns->root_cset, root);
+
+		spin_unlock_irq(&css_set_lock);
+		mutex_unlock(&cgroup_mutex);
+
+		nsdentry = kernfs_node_dentry(cgrp->kn, dentry->d_sb);
+		dput(dentry);
+		dentry = nsdentry;
 	}
+
+	if (IS_ERR(dentry) || !new_sb)
+		cgroup_put(&root->cgrp);
+
+	return dentry;
+}
+
+static struct dentry *cgroup1_mount(struct file_system_type *fs_type,
+				    int flags, void *data,
+				    unsigned long magic,
+				    struct cgroup_namespace *ns)
+{
+	struct super_block *pinned_sb = NULL;
+	struct cgroup_sb_opts opts;
+	struct cgroup_root *root;
+	struct cgroup_subsys *ss;
+	struct dentry *dentry;
+	int i, ret;
 
 	cgroup_lock_and_drain_offline(&cgrp_dfl_root.cgrp);
 
@@ -2152,47 +2159,58 @@ out_free:
 	kfree(opts.release_agent);
 	kfree(opts.name);
 
-	if (ret) {
-		put_cgroup_ns(ns);
+	if (ret)
 		return ERR_PTR(ret);
-	}
-out_mount:
-	dentry = kernfs_mount(fs_type, flags, root->kf_root,
-			      is_v2 ? CGROUP2_SUPER_MAGIC : CGROUP_SUPER_MAGIC,
-			      &new_sb);
 
-	/*
-	 * In non-init cgroup namespace, instead of root cgroup's
-	 * dentry, we return the dentry corresponding to the
-	 * cgroupns->root_cgrp.
-	 */
-	if (!IS_ERR(dentry) && ns != &init_cgroup_ns) {
-		struct dentry *nsdentry;
-		struct cgroup *cgrp;
-
-		mutex_lock(&cgroup_mutex);
-		spin_lock_irq(&css_set_lock);
-
-		cgrp = cset_cgroup_from_root(ns->root_cset, root);
-
-		spin_unlock_irq(&css_set_lock);
-		mutex_unlock(&cgroup_mutex);
-
-		nsdentry = kernfs_node_dentry(cgrp->kn, dentry->d_sb);
-		dput(dentry);
-		dentry = nsdentry;
-	}
-
-	if (IS_ERR(dentry) || !new_sb)
-		cgroup_put(&root->cgrp);
+	dentry = cgroup_do_mount(&cgroup_fs_type, flags, root,
+				 CGROUP_SUPER_MAGIC, ns);
 
 	/*
 	 * If @pinned_sb, we're reusing an existing root and holding an
 	 * extra ref on its sb.  Mount is complete.  Put the extra ref.
 	 */
-	if (pinned_sb) {
-		WARN_ON(new_sb);
+	if (pinned_sb)
 		deactivate_super(pinned_sb);
+
+	return dentry;
+}
+
+static struct dentry *cgroup_mount(struct file_system_type *fs_type,
+			 int flags, const char *unused_dev_name,
+			 void *data)
+{
+	struct cgroup_namespace *ns = current->nsproxy->cgroup_ns;
+	struct dentry *dentry;
+
+	get_cgroup_ns(ns);
+
+	/* Check if the caller has permission to mount. */
+	if (!ns_capable(ns->user_ns, CAP_SYS_ADMIN)) {
+		put_cgroup_ns(ns);
+		return ERR_PTR(-EPERM);
+	}
+
+	/*
+	 * The first time anyone tries to mount a cgroup, enable the list
+	 * linking each css_set to its tasks and fix up all existing tasks.
+	 */
+	if (!use_task_css_set_links)
+		cgroup_enable_task_cg_lists();
+
+	if (fs_type == &cgroup2_fs_type) {
+		if (data) {
+			pr_err("cgroup2: unknown option \"%s\"\n", (char *)data);
+			put_cgroup_ns(ns);
+			return ERR_PTR(-EINVAL);
+		}
+		cgrp_dfl_visible = true;
+		cgroup_get(&cgrp_dfl_root.cgrp);
+
+		dentry = cgroup_do_mount(&cgroup2_fs_type, flags, &cgrp_dfl_root,
+					 CGROUP2_SUPER_MAGIC, ns);
+	} else {
+		dentry = cgroup1_mount(&cgroup_fs_type, flags, data,
+				       CGROUP_SUPER_MAGIC, ns);
 	}
 
 	put_cgroup_ns(ns);
