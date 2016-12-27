@@ -104,7 +104,7 @@ struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
  */
 extern const struct file_operations kernfs_file_fops;
 
-void kernfs_unmap_bin_file(struct kernfs_node *kn);
+void kernfs_drain_open_files(struct kernfs_node *kn);
 
 /*
  * symlink.c
