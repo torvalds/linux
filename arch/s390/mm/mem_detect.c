@@ -41,7 +41,8 @@ void __init detect_memory_memblock(void)
 	memblock_set_bottom_up(true);
 	do {
 		size = 0;
-		type = tprot(addr);
+		/* assume lowcore is writable */
+		type = addr ? tprot(addr) : CHUNK_READ_WRITE;
 		do {
 			size += rzm;
 			if (max_physmem_end && addr + size >= max_physmem_end)
