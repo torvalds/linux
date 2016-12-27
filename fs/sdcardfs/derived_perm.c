@@ -141,32 +141,26 @@ void fixup_perms_recursive(struct dentry *dentry, const char* name, size_t len) 
 	info = SDCARDFS_I(d_inode(dentry));
 
 	if (needs_fixup(info->perm)) {
-		/* We need permission to fix up these values.
-		 * Since permissions are based of of the mount, and
-		 * we are accessing without the mount point, we create
-		 * a fake mount with the permissions we will be using.
-		 */
-		struct vfsmount fakemnt;
-		struct sdcardfs_vfsmount_options opts;
-		fakemnt.data = &opts;
-		opts.gid = AID_SDCARD_RW;
-		opts.mask = 0;
-		mutex_lock(&d_inode(dentry)->i_mutex);
-		child = lookup_one_len2(name, &fakemnt, dentry, len);
-		mutex_unlock(&d_inode(dentry)->i_mutex);
-		if (!IS_ERR(child)) {
-			if (d_inode(child)) {
-				get_derived_permission(dentry, child);
-				fixup_tmp_permissions(d_inode(child));
-			}
-			dput(child);
+		spin_lock(&dentry->d_lock);
+		list_for_each_entry(child, &dentry->d_subdirs, d_child) {
+				dget(child);
+				if (!strncasecmp(child->d_name.name, name, len)) {
+					if (d_inode(child)) {
+						get_derived_permission(dentry, child);
+						fixup_tmp_permissions(d_inode(child));
+						dput(child);
+						break;
+					}
+				}
+				dput(child);
 		}
+		spin_unlock(&dentry->d_lock);
 	} else 	if (descendant_may_need_fixup(info->perm)) {
-		mutex_lock(&d_inode(dentry)->i_mutex);
+		spin_lock(&dentry->d_lock);
 		list_for_each_entry(child, &dentry->d_subdirs, d_child) {
 				fixup_perms_recursive(child, name, len);
 		}
-		mutex_unlock(&d_inode(dentry)->i_mutex);
+		spin_unlock(&dentry->d_lock);
 	}
 	dput(dentry);
 }
