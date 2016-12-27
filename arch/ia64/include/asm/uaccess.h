@@ -76,8 +76,8 @@
  * (a) re-use the arguments for side effects (sizeof/typeof is ok)
  * (b) require any knowledge of processes at this stage
  */
-#define put_user(x, ptr)	__put_user_check((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)), get_fs())
-#define get_user(x, ptr)	__get_user_check((x), (ptr), sizeof(*(ptr)), get_fs())
+#define put_user(x, ptr)	__put_user_check((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)))
+#define get_user(x, ptr)	__get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * The "__xxx" versions do not do address space checking, useful when
@@ -199,7 +199,7 @@ extern void __get_user_unknown (void);
 })
 
 #define __get_user_nocheck(x, ptr, size)	__do_get_user(0, x, ptr, size, KERNEL_DS)
-#define __get_user_check(x, ptr, size, segment)	__do_get_user(1, x, ptr, size, segment)
+#define __get_user_check(x, ptr, size)	__do_get_user(1, x, ptr, size, get_fs())
 
 extern void __put_user_unknown (void);
 
@@ -226,7 +226,7 @@ extern void __put_user_unknown (void);
 })
 
 #define __put_user_nocheck(x, ptr, size)	__do_put_user(0, x, ptr, size, KERNEL_DS)
-#define __put_user_check(x, ptr, size, segment)	__do_put_user(1, x, ptr, size, segment)
+#define __put_user_check(x, ptr, size)	__do_put_user(1, x, ptr, size, get_fs())
 
 /*
  * Complex access routines
