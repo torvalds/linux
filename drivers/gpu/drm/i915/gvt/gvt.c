@@ -68,8 +68,6 @@ static const struct intel_gvt_ops intel_gvt_ops = {
  */
 int intel_gvt_init_host(void)
 {
-	int ret;
-
 	if (intel_gvt_host.initialized)
 		return 0;
 
@@ -102,11 +100,6 @@ int intel_gvt_init_host(void)
 	/* Fail to load MPT modules - bail out */
 	if (!intel_gvt_host.mpt)
 		return -EINVAL;
-
-	/* Try to detect if we're running in host instead of VM. */
-	ret = intel_gvt_hypervisor_detect_host();
-	if (ret)
-		return -ENODEV;
 
 	gvt_dbg_core("Running with hypervisor %s in host mode\n",
 			supported_hypervisors[intel_gvt_host.hypervisor_type]);
