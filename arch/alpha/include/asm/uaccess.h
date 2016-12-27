@@ -54,9 +54,9 @@
  * (b) require any knowledge of processes at this stage
  */
 #define put_user(x, ptr) \
-  __put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)), get_fs())
+  __put_user_check((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 #define get_user(x, ptr) \
-  __get_user_check((x), (ptr), sizeof(*(ptr)), get_fs())
+  __get_user_check((x), (ptr), sizeof(*(ptr)))
 
 /*
  * The "__xxx" versions do not do address space checking, useful when
@@ -93,12 +93,12 @@ extern void __get_user_unknown(void);
 	__gu_err;						\
 })
 
-#define __get_user_check(x, ptr, size, segment)				\
+#define __get_user_check(x, ptr, size)					\
 ({									\
 	long __gu_err = -EFAULT;					\
 	unsigned long __gu_val = 0;					\
 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
-	if (__access_ok((unsigned long)__gu_addr, size, segment)) {	\
+	if (__access_ok((unsigned long)__gu_addr, size, get_fs())) {	\
 		__gu_err = 0;						\
 		switch (size) {						\
 		  case 1: __get_user_8(__gu_addr); break;		\
@@ -208,11 +208,11 @@ extern void __put_user_unknown(void);
 	__pu_err;						\
 })
 
-#define __put_user_check(x, ptr, size, segment)				\
+#define __put_user_check(x, ptr, size)					\
 ({									\
 	long __pu_err = -EFAULT;					\
 	__typeof__(*(ptr)) __user *__pu_addr = (ptr);			\
-	if (__access_ok((unsigned long)__pu_addr, size, segment)) {	\
+	if (__access_ok((unsigned long)__pu_addr, size, get_fs())) {	\
 		__pu_err = 0;						\
 		switch (size) {						\
 		  case 1: __put_user_8(x, __pu_addr); break;		\
