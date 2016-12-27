@@ -1677,7 +1677,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 	unsigned long flags;
 	int this_cpu;
 	int printed_len = 0;
-	int nmi_message_lost;
 	bool in_sched = false;
 	/* cpu currently holding logbuf_lock in this function */
 	static unsigned int logbuf_cpu = UINT_MAX;
@@ -1726,15 +1725,6 @@ asmlinkage int vprintk_emit(int facility, int level,
 		printed_len += log_store(0, 2, LOG_PREFIX|LOG_NEWLINE, 0,
 					 NULL, 0, recursion_msg,
 					 strlen(recursion_msg));
-	}
-
-	nmi_message_lost = get_nmi_message_lost();
-	if (unlikely(nmi_message_lost)) {
-		text_len = scnprintf(textbuf, sizeof(textbuf),
-				     "BAD LUCK: lost %d message(s) from NMI context!",
-				     nmi_message_lost);
-		printed_len += log_store(0, 2, LOG_PREFIX|LOG_NEWLINE, 0,
-					 NULL, 0, textbuf, text_len);
 	}
 
 	/*

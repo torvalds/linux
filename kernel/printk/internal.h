@@ -16,23 +16,6 @@
  */
 #include <linux/percpu.h>
 
-#ifdef CONFIG_PRINTK_NMI
-
-extern atomic_t nmi_message_lost;
-static inline int get_nmi_message_lost(void)
-{
-	return atomic_xchg(&nmi_message_lost, 0);
-}
-
-#else /* CONFIG_PRINTK_NMI */
-
-static inline int get_nmi_message_lost(void)
-{
-	return 0;
-}
-
-#endif /* CONFIG_PRINTK_NMI */
-
 #ifdef CONFIG_PRINTK
 
 #define PRINTK_SAFE_CONTEXT_MASK	0x7fffffff

@@ -40,13 +40,15 @@
  * were handled or when IRQs are blocked.
  */
 static int printk_safe_irq_ready;
-atomic_t nmi_message_lost;
 
 #define SAFE_LOG_BUF_LEN ((1 << CONFIG_PRINTK_SAFE_LOG_BUF_SHIFT) -	\
-			 sizeof(atomic_t) - sizeof(struct irq_work))
+				sizeof(atomic_t) -			\
+				sizeof(atomic_t) -			\
+				sizeof(struct irq_work))
 
 struct printk_safe_seq_buf {
 	atomic_t		len;	/* length of written data */
+	atomic_t		message_lost;
 	struct irq_work		work;	/* IRQ work that flushes the buffer */
 	unsigned char		buffer[SAFE_LOG_BUF_LEN];
 };
@@ -57,6 +59,16 @@ static DEFINE_PER_CPU(int, printk_context);
 #ifdef CONFIG_PRINTK_NMI
 static DEFINE_PER_CPU(struct printk_safe_seq_buf, nmi_print_seq);
 #endif
+
+/* Get flushed in a more safe context. */
+static void queue_flush_work(struct printk_safe_seq_buf *s)
+{
+	if (printk_safe_irq_ready) {
+		/* Make sure that IRQ work is really initialized. */
+		smp_rmb();
+		irq_work_queue(&s->work);
+	}
+}
 
 /*
  * Add a message to per-CPU context-dependent buffer. NMI and printk-safe
@@ -79,7 +91,8 @@ again:
 
 	/* The trailing '\0' is not counted into len. */
 	if (len >= sizeof(s->buffer) - 1) {
-		atomic_inc(&nmi_message_lost);
+		atomic_inc(&s->message_lost);
+		queue_flush_work(s);
 		return 0;
 	}
 
@@ -91,6 +104,8 @@ again:
 		smp_rmb();
 
 	add = vscnprintf(s->buffer + len, sizeof(s->buffer) - len, fmt, args);
+	if (!add)
+		return 0;
 
 	/*
 	 * Do it once again if the buffer has been flushed in the meantime.
@@ -100,13 +115,7 @@ again:
 	if (atomic_cmpxchg(&s->len, len, len + add) != len)
 		goto again;
 
-	/* Get flushed in a more safe context. */
-	if (add && printk_safe_irq_ready) {
-		/* Make sure that IRQ work is really initialized. */
-		smp_rmb();
-		irq_work_queue(&s->work);
-	}
-
+	queue_flush_work(s);
 	return add;
 }
 
@@ -168,6 +177,14 @@ static int printk_safe_flush_buffer(const char *start, size_t len)
 	return len;
 }
 
+static void report_message_lost(struct printk_safe_seq_buf *s)
+{
+	int lost = atomic_xchg(&s->message_lost, 0);
+
+	if (lost)
+		printk_deferred("Lost %d message(s)!\n", lost);
+}
+
 /*
  * Flush data from the associated per-CPU buffer. The function
  * can be called either via IRQ work or independently.
@@ -225,6 +242,7 @@ more:
 		goto more;
 
 out:
+	report_message_lost(s);
 	raw_spin_unlock_irqrestore(&read_lock, flags);
 }
 
