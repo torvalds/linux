@@ -1367,7 +1367,6 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
-	int rc = 0;
 	unsigned int id = 0;
 
 	write_vreg(vgpu, offset, p_data, bytes);
@@ -1390,12 +1389,11 @@ static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 		id = VECS;
 		break;
 	default:
-		rc = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 	set_bit(id, (void *)vgpu->tlb_handle_pending);
 
-	return rc;
+	return 0;
 }
 
 static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
