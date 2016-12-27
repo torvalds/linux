@@ -794,6 +794,18 @@
 	status = "disabled";
 };
 
+&pcie_phy {
+	status = "disabled";
+};
+
+&pcie0 {
+	ep-gpios = <&gpio3 7 GPIO_ACTIVE_HIGH>;
+	num-lanes = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_clkreqn>;
+	status = "disabled";
+};
+
 &pmu_io_domains {
 	status = "okay";
 	pmu1830-supply = <&vcc_1v8>;
