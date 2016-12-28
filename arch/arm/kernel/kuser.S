@@ -1,9 +1,17 @@
 #include <linux/init.h>
 
-#include <asm/assembler.h>
-
 #if defined(CONFIG_SMP) && !defined(CONFIG_CPU_32v6K)
 #error "incoherent kernel configuration"
+#endif
+
+#ifdef GENERATE_FIXUPS
+/*
+ * The .text section in this file is used for fixups of the various
+ * helpers.  Do not place anything else in the .text section within
+ * this file.
+ */
+	.globl kuser_cmpxchg64_fixup
+kuser_cmpxchg64_fixup:
 #endif
 
 	__INIT
@@ -20,14 +28,6 @@
  */
  THUMB(	.arm	)
 
-	.macro	usr_ret, reg
-#ifdef CONFIG_ARM_THUMB
-	bx	\reg
-#else
-	ret	\reg
-#endif
-	.endm
-
 	.macro	kuser_pad, sym, size
 	.if	(. - \sym) & 3
 	.rept	4 - (. - \sym) & 3
@@ -40,8 +40,8 @@
 	.endm
 
 	.align	5
-	.globl	__kuser_helper_start
-__kuser_helper_start:
+	.globl	SYM(__kuser_helper_start)
+SYM(__kuser_helper_start):
 
 /*
  * Due to the length of some sequences, __kuser_cmpxchg64 spans 2 regular
@@ -85,10 +85,9 @@ __kuser_cmpxchg64:				@ 0xffff0f60
 	rsbs	r0, r3, #0			@ set return val and C flag
 	ldmfd	sp!, {r4, r5, r6, pc}
 
+#ifdef GENERATE_FIXUPS
 	.text
-	.globl kuser_cmpxchg64_fixup
-kuser_cmpxchg64_fixup:
-	@ Called from kuser_cmpxchg_check macro.
+	@ kuser_cmpxchg64 fixup, called from kuser_cmpxchg_check macro.
 	@ r4 = address of interrupted insn (must be preserved).
 	@ sp = saved regs. r7 and r8 are clobbered.
 	@ 1b = first critical insn, 2b = last critical insn.
@@ -98,11 +97,9 @@ kuser_cmpxchg64_fixup:
 	subs	r8, r4, r7
 	rsbcss	r8, r8, #(2b - 1b)
 	strcs	r7, [sp, #S_PC]
-#if __LINUX_ARM_ARCH__ < 6
-	bcc	kuser_cmpxchg32_fixup
-#endif
-	ret	lr
+	retcs	lr
 	.previous
+#endif
 
 #else
 #warning "NPTL on non MMU needs fixing"
@@ -151,9 +148,10 @@ __kuser_cmpxchg:				@ 0xffff0fc0
 	rsbs	r0, r3, #0			@ set return val and C flag
 	usr_ret	lr
 
+#ifdef GENERATE_FIXUPS
 	.text
-kuser_cmpxchg32_fixup:
-	@ Called from kuser_cmpxchg64_fixup above via kuser_cmpxchg_check macro.
+	@ kuser_cmpxchg fixup, dropped through from the kuser_cmpxchg64
+	@ fixup above, which is called via the kuser_cmpxchg_check macro.
 	@ r4 = address of interrupted insn (must be preserved).
 	@ sp = saved regs. r7 and r8 are clobbered.
 	@ 1b = first critical insn, 2b = last critical insn.
@@ -163,8 +161,9 @@ kuser_cmpxchg32_fixup:
 	subs	r8, r4, r7
 	rsbcss	r8, r8, #(2b - 1b)
 	strcs	r7, [sp, #S_PC]
-	ret	lr
+	retcs	lr
 	.previous
+#endif
 
 #else
 #warning "NPTL on non MMU needs fixing"
@@ -185,7 +184,13 @@ __kuser_get_tls:				@ 0xffff0fe0
 	.endr				@ pad up to __kuser_helper_version
 
 __kuser_helper_version:				@ 0xffff0ffc
-	.word	((__kuser_helper_end - __kuser_helper_start) >> 5)
+	.word	((SYM(__kuser_helper_end) - SYM(__kuser_helper_start)) >> 5)
 
-	.globl	__kuser_helper_end
-__kuser_helper_end:
+	.globl	SYM(__kuser_helper_end)
+SYM(__kuser_helper_end):
+
+#ifdef GENERATE_FIXUPS
+	.text
+	/* Kuser fixups finishing instruction */
+	ret	lr
+#endif
