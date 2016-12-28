@@ -990,85 +990,87 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 				    sizeof(cmd), &cmd);
 }
 
-#define ACPI_WRDS_METHOD	"WRDS"
-#define ACPI_WRDS_WIFI		(0x07)
-#define ACPI_WRDS_TABLE_SIZE	10
-
-struct iwl_mvm_sar_table {
-	bool enabled;
-	u8 values[ACPI_WRDS_TABLE_SIZE];
-};
-
 #ifdef CONFIG_ACPI
-static int iwl_mvm_sar_get_wrds(struct iwl_mvm *mvm, union acpi_object *wrds,
-				struct iwl_mvm_sar_table *sar_table)
+#define ACPI_WRDS_METHOD		"WRDS"
+#define ACPI_WRDS_WIFI			(0x07)
+#define ACPI_WRDS_WIFI_DATA_SIZE	(IWL_MVM_SAR_TABLE_SIZE + 2)
+
+static int iwl_mvm_sar_set_profile(struct iwl_mvm *mvm,
+				   union acpi_object *table,
+				   struct iwl_mvm_sar_profile *profile,
+				   bool enabled)
 {
-	union acpi_object *data_pkg;
-	u32 i;
+	int i;
 
-	/* We need at least two packages, one for the revision and one
-	 * for the data itself.  Also check that the revision is valid
-	 * (i.e. it is an integer set to 0).
-	*/
-	if (wrds->type != ACPI_TYPE_PACKAGE ||
-	    wrds->package.count < 2 ||
-	    wrds->package.elements[0].type != ACPI_TYPE_INTEGER ||
-	    wrds->package.elements[0].integer.value != 0) {
-		IWL_DEBUG_RADIO(mvm, "Unsupported wrds structure\n");
-		return -EINVAL;
-	}
+	profile->enabled = enabled;
 
-	/* loop through all the packages to find the one for WiFi */
-	for (i = 1; i < wrds->package.count; i++) {
-		union acpi_object *domain;
-
-		data_pkg = &wrds->package.elements[i];
-
-		/* Skip anything that is not a package with the right
-		 * amount of elements (i.e. domain_type,
-		 * enabled/disabled plus the sar table size.
-		 */
-		if (data_pkg->type != ACPI_TYPE_PACKAGE ||
-		    data_pkg->package.count != ACPI_WRDS_TABLE_SIZE + 2)
-			continue;
-
-		domain = &data_pkg->package.elements[0];
-		if (domain->type == ACPI_TYPE_INTEGER &&
-		    domain->integer.value == ACPI_WRDS_WIFI)
-			break;
-
-		data_pkg = NULL;
-	}
-
-	if (!data_pkg)
-		return -ENOENT;
-
-	if (data_pkg->package.elements[1].type != ACPI_TYPE_INTEGER)
-		return -EINVAL;
-
-	sar_table->enabled = !!(data_pkg->package.elements[1].integer.value);
-
-	for (i = 0; i < ACPI_WRDS_TABLE_SIZE; i++) {
-		union acpi_object *entry;
-
-		entry = &data_pkg->package.elements[i + 2];
-		if ((entry->type != ACPI_TYPE_INTEGER) ||
-		    (entry->integer.value > U8_MAX))
+	for (i = 0; i < IWL_MVM_SAR_TABLE_SIZE; i++) {
+		if ((table[i].type != ACPI_TYPE_INTEGER) ||
+		    (table[i].integer.value > U8_MAX))
 			return -EINVAL;
 
-		sar_table->values[i] = entry->integer.value;
+		profile->table[i] = table[i].integer.value;
 	}
 
 	return 0;
 }
 
-static int iwl_mvm_sar_get_table(struct iwl_mvm *mvm,
-				 struct iwl_mvm_sar_table *sar_table)
+static union acpi_object *iwl_mvm_sar_find_wifi_pkg(struct iwl_mvm *mvm,
+						    union acpi_object *data,
+						    int data_size)
 {
+	int i;
+	union acpi_object *wifi_pkg;
+
+	/*
+	 * We need at least two packages, one for the revision and one
+	 * for the data itself.  Also check that the revision is valid
+	 * (i.e. it is an integer set to 0).
+	 */
+	if (data->type != ACPI_TYPE_PACKAGE ||
+	    data->package.count < 2 ||
+	    data->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    data->package.elements[0].integer.value != 0) {
+		IWL_DEBUG_RADIO(mvm, "Unsupported packages structure\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* loop through all the packages to find the one for WiFi */
+	for (i = 1; i < data->package.count; i++) {
+		union acpi_object *domain;
+
+		wifi_pkg = &data->package.elements[i];
+
+		/* Skip anything that is not a package with the right
+		 * amount of elements (i.e. domain_type,
+		 * enabled/disabled plus the actual data size.
+		 */
+		if (wifi_pkg->type != ACPI_TYPE_PACKAGE ||
+		    wifi_pkg->package.count != data_size)
+			continue;
+
+		domain = &wifi_pkg->package.elements[0];
+		if (domain->type == ACPI_TYPE_INTEGER &&
+		    domain->integer.value == ACPI_WRDS_WIFI)
+			break;
+
+		wifi_pkg = NULL;
+	}
+
+	if (!wifi_pkg)
+		return ERR_PTR(-ENOENT);
+
+	return wifi_pkg;
+}
+
+static int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
+{
+	union acpi_object *wifi_pkg, *table;
 	acpi_handle root_handle;
 	acpi_handle handle;
 	struct acpi_buffer wrds = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
+	bool enabled;
 	int ret;
 
 	root_handle = ACPI_HANDLE(mvm->dev);
@@ -1093,22 +1095,36 @@ static int iwl_mvm_sar_get_table(struct iwl_mvm *mvm,
 		return -ENOENT;
 	}
 
-	ret = iwl_mvm_sar_get_wrds(mvm, wrds.pointer, sar_table);
-	kfree(wrds.pointer);
+	wifi_pkg = iwl_mvm_sar_find_wifi_pkg(mvm, wrds.pointer,
+					     ACPI_WRDS_WIFI_DATA_SIZE);
+	if (IS_ERR(wifi_pkg)) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
 
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	enabled = !!(wifi_pkg->package.elements[1].integer.value);
+
+	/* position of the actual table */
+	table = &wifi_pkg->package.elements[2];
+
+	/* The profile from WRDS is officially profile 1, but goes
+	 * into sar_profiles[0] (because we don't have a profile 0).
+	 */
+	ret = iwl_mvm_sar_set_profile(mvm, table, &mvm->sar_profiles[0],
+				      enabled);
+
+out_free:
+	kfree(wrds.pointer);
 	return ret;
 }
-#else /* CONFIG_ACPI */
-static int iwl_mvm_sar_get_table(struct iwl_mvm *mvm,
-				 struct iwl_mvm_sar_table *sar_table)
-{
-	return -ENOENT;
-}
-#endif /* CONFIG_ACPI */
 
 static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm_sar_table sar_table;
 	struct iwl_dev_tx_power_cmd cmd = {
 		.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
 	};
@@ -1118,7 +1134,7 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TX_POWER_ACK))
 		len = sizeof(cmd.v3);
 
-	ret = iwl_mvm_sar_get_table(mvm, &sar_table);
+	ret = iwl_mvm_sar_get_wrds_table(mvm);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"SAR BIOS table invalid or unavailable. (%d)\n",
@@ -1127,22 +1143,23 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 		return 0;
 	}
 
-	if (!sar_table.enabled)
+	/* if profile 0 is disabled, there's nothing else to do here */
+	if (!mvm->sar_profiles[0].enabled)
 		return 0;
 
 	IWL_DEBUG_RADIO(mvm, "Sending REDUCE_TX_POWER_CMD per chain\n");
 
 	BUILD_BUG_ON(IWL_NUM_CHAIN_LIMITS * IWL_NUM_SUB_BANDS !=
-		     ACPI_WRDS_TABLE_SIZE);
+		     IWL_MVM_SAR_TABLE_SIZE);
 
 	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
 		IWL_DEBUG_RADIO(mvm, "  Chain[%d]:\n", i);
 		for (j = 0; j < IWL_NUM_SUB_BANDS; j++) {
 			idx = (i * IWL_NUM_SUB_BANDS) + j;
 			cmd.v3.per_chain_restriction[i][j] =
-				cpu_to_le16(sar_table.values[idx]);
+				cpu_to_le16(mvm->sar_profiles[0].table[idx]);
 			IWL_DEBUG_RADIO(mvm, "    Band[%d] = %d * .125dBm\n",
-					j, sar_table.values[idx]);
+					j, mvm->sar_profiles[0].table[idx]);
 		}
 	}
 
@@ -1152,6 +1169,18 @@ static int iwl_mvm_sar_init(struct iwl_mvm *mvm)
 
 	return ret;
 }
+
+#else /* CONFIG_ACPI */
+static inline int iwl_mvm_sar_get_wrds_table(struct iwl_mvm *mvm)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_mvm_sar_init(struct iwl_mvm *mvm)
+{
+	return 0;
+}
+#endif /* CONFIG_ACPI */
 
 static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 {
