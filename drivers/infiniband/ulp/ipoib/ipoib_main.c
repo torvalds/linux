@@ -229,6 +229,10 @@ static int ipoib_change_mtu(struct net_device *dev, int new_mtu)
 
 	priv->admin_mtu = new_mtu;
 
+	if (priv->mcast_mtu < priv->admin_mtu)
+		ipoib_dbg(priv, "MTU must be smaller than the underlying "
+				"link layer MTU - 4 (%u)\n", priv->mcast_mtu);
+
 	dev->mtu = min(priv->mcast_mtu, priv->admin_mtu);
 
 	return 0;
