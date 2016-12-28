@@ -432,6 +432,13 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,
 		 to_fw_pkey_sz(128));
 
+	/* Check log_max_qp from HCA caps to set in current profile */
+	if (MLX5_CAP_GEN_MAX(dev, log_max_qp) < profile[prof_sel].log_max_qp) {
+		mlx5_core_warn(dev, "log_max_qp value in current profile is %d, changing it to HCA capability limit (%d)\n",
+			       profile[prof_sel].log_max_qp,
+			       MLX5_CAP_GEN_MAX(dev, log_max_qp));
+		profile[prof_sel].log_max_qp = MLX5_CAP_GEN_MAX(dev, log_max_qp);
+	}
 	if (prof->mask & MLX5_PROF_MASK_QP_SIZE)
 		MLX5_SET(cmd_hca_cap, set_hca_cap, log_max_qp,
 			 prof->log_max_qp);
