@@ -1,0 +1,650 @@
+exec make kpkg_version=13.018 -f /usr/share/kernel-package/ruleset/minimal.mk debian DEBIAN_REVISION=1.0  KPKG_ARCH=arm   CROSS_COMPILE=arm-linux-gnueabihf-  ROOT_CMD=fakeroot 
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+====== making target debian/stamp/conf/minimal_debian [new prereqs: ]======
+This is kernel package version 13.018.
+test -d debian             || mkdir debian
+test ! -e stamp-building || rm -f stamp-building
+install -p -m 755 /usr/share/kernel-package/rules debian/rules
+for file in ChangeLog  Control  Control.bin86 config templates.in rules; do                                      \
+            cp -f  /usr/share/kernel-package/$file ./debian/;                               \
+        done
+cp: Aufruf von stat für '/usr/share/kernel-package/ChangeLog' nicht möglich: Datei oder Verzeichnis nicht gefunden
+for dir  in Config docs examples ruleset scripts pkg po;  do                                      \
+          cp -af /usr/share/kernel-package/$dir  ./debian/;                                 \
+        done
+test -f debian/control || sed         -e 's/=V/4.9.0/g'  \
+                -e 's/=D/1.0/g'         -e 's/=A/armhf/g'  \
+	-e 's/=SA//g'  \
+	-e 's/=I//g'				    \
+	-e 's/=CV/4.9/g'			    \
+	-e 's/=M/Unknown Kernel Package Maintainer <unknown@unconfigured.in.etc.kernel-pkg.conf>/g'			    \
+	-e 's/=ST/linux/g'      -e 's/=B/arm/g'    \
+                -e 's/=R//g'    /usr/share/kernel-package/Control > debian/control
+test -f debian/changelog ||  sed -e 's/=V/4.9.0/g'       \
+            -e 's/=D/1.0/g'        -e 's/=A/armhf/g'       \
+            -e 's/=ST/linux/g'     -e 's/=B/arm/g'         \
+            -e 's/=M/Unknown Kernel Package Maintainer <unknown@unconfigured.in.etc.kernel-pkg.conf>/g'                            \
+             /usr/share/kernel-package/changelog > debian/changelog
+chmod 0644 debian/control debian/changelog
+test -d ./debian/stamp || mkdir debian/stamp
+make -f debian/rules debian/stamp/conf/kernel-conf
+make[1]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+====== making target debian/stamp/conf/kernel-conf [new prereqs: ]======
+make   CROSS_COMPILE=arm-linux-gnueabihf- ARCH=arm \
+                    oldconfig;
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+scripts/kconfig/conf  --oldconfig Kconfig
+#
+# configuration written to .config
+#
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+make   CROSS_COMPILE=arm-linux-gnueabihf- ARCH=arm prepare
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+scripts/kconfig/conf  --silentoldconfig Kconfig
+  CHK     include/config/kernel.release
+  CHK     include/generated/uapi/linux/version.h
+  CHK     include/generated/utsrelease.h
+  CHK     include/generated/bounds.h
+  CHK     include/generated/timeconst.h
+  CHK     include/generated/asm-offsets.h
+  CALL    scripts/checksyscalls.sh
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+echo done > debian/stamp/conf/kernel-conf
+make[1]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+make -f debian/rules debian/stamp/conf/full-changelog
+make[1]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+====== making target debian/stamp/conf/full-changelog [new prereqs: ]======
+for file in ChangeLog  Control  Control.bin86 config templates.in rules; do				\
+     cp -f  /usr/share/kernel-package/$file ./debian/;			\
+done
+cp: Aufruf von stat für '/usr/share/kernel-package/ChangeLog' nicht möglich: Datei oder Verzeichnis nicht gefunden
+for dir  in Config docs examples ruleset scripts pkg po;	do				\
+   cp -af /usr/share/kernel-package/$dir  ./debian/;				\
+done
+install -p -m 755 /usr/share/kernel-package/rules debian/rules
+sed         -e 's/=V/4.9.0-BPI-Series+/g'  \
+                -e 's/=D/1.0/g'         -e 's/=A/armhf/g'  \
+	-e 's/=SA//g'  \
+	-e 's/=I//g'				    \
+	-e 's/=CV/4.9/g'			    \
+	-e 's/=M/Unknown Kernel Package Maintainer <unknown@unconfigured.in.etc.kernel-pkg.conf>/g'			    \
+	-e 's/=ST/linux/g'      -e 's/=B/arm/g'    \
+                -e 's/=R//g'  /usr/share/kernel-package/Control > debian/control
+sed -e 's/=V/4.9.0-BPI-Series+/g' -e 's/=D/1.0/g'	      \
+    -e 's/=A/armhf/g' -e 's/=M/Unknown Kernel Package Maintainer <unknown@unconfigured.in.etc.kernel-pkg.conf>/g' \
+    -e 's/=ST/linux/g'	 -e 's/=B/arm/g'	      \
+	/usr/share/kernel-package/changelog > debian/changelog
+chmod 0644 debian/control debian/changelog
+make -f debian/rules debian/stamp/conf/kernel-conf
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+make[2]: „debian/stamp/conf/kernel-conf“ ist bereits aktuell.
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+make[1]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+echo done > debian/stamp/conf/minimal_debian
+exec debian/rules  DEBIAN_REVISION=1.0  KPKG_ARCH=arm  CROSS_COMPILE=arm-linux-gnueabihf-  ROOT_CMD=fakeroot  kernel_image 
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+====== making target debian/stamp/conf/vars [new prereqs: ]======
+
+====== making target debian/stamp/build/kernel [new prereqs: vars]======
+This is kernel package version 13.018.
+restore_upstream_debianization
+test ! -f scripts/package/builddeb.kpkg-dist ||	mv -f scripts/package/builddeb.kpkg-dist scripts/package/builddeb
+test ! -f scripts/package/Makefile.kpkg-dist ||	mv -f scripts/package/Makefile.kpkg-dist scripts/package/Makefile
+/usr/bin/make -j5   ARCH=arm \
+		    CROSS_COMPILE=arm-linux-gnueabihf- zImage
+make[1]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+  CHK     include/config/kernel.release
+  CHK     include/generated/uapi/linux/version.h
+  HOSTCC  scripts/dtc/dtc.o
+  HOSTCC  scripts/genksyms/genksyms.o
+  CC      scripts/mod/empty.o
+  HOSTCC  scripts/selinux/genheaders/genheaders
+  HOSTCC  scripts/mod/mk_elfconfig
+  CC      scripts/mod/devicetable-offsets.s
+  MKELF   scripts/mod/elfconfig.h
+  HOSTCC  scripts/mod/modpost.o
+  HOSTCC  scripts/mod/sumversion.o
+  HOSTCC  scripts/dtc/flattree.o
+  HOSTCC  scripts/selinux/mdp/mdp
+  HOSTCC  scripts/kallsyms
+  SHIPPED scripts/genksyms/parse.tab.c
+  SHIPPED scripts/genksyms/lex.lex.c
+  SHIPPED scripts/genksyms/keywords.hash.c
+  SHIPPED scripts/genksyms/parse.tab.h
+  HOSTCC  scripts/genksyms/parse.tab.o
+  GEN     scripts/mod/devicetable-offsets.h
+  HOSTCC  scripts/pnmtologo
+  HOSTCC  scripts/dtc/fstree.o
+  HOSTCC  scripts/genksyms/lex.lex.o
+  HOSTCC  scripts/dtc/data.o
+  HOSTCC  scripts/conmakehash
+  HOSTCC  scripts/sortextable
+  HOSTCC  scripts/dtc/livetree.o
+  HOSTCC  scripts/dtc/treesource.o
+  HOSTCC  scripts/mod/file2alias.o
+  CHK     include/generated/utsrelease.h
+  HOSTCC  scripts/dtc/srcpos.o
+  CHK     include/generated/timeconst.h
+  CHK     include/generated/bounds.h
+  CHK     include/generated/asm-offsets.h
+  CALL    scripts/checksyscalls.sh
+  HOSTCC  scripts/dtc/checks.o
+  HOSTCC  scripts/dtc/util.o
+  HOSTLD  scripts/genksyms/genksyms
+  SHIPPED scripts/dtc/dtc-lexer.lex.c
+  SHIPPED scripts/dtc/dtc-parser.tab.h
+  SHIPPED scripts/dtc/dtc-parser.tab.c
+  HOSTCC  scripts/dtc/dtc-lexer.lex.o
+  HOSTCC  scripts/dtc/dtc-parser.tab.o
+  HOSTLD  scripts/mod/modpost
+  HOSTLD  scripts/dtc/dtc
+  CC      init/main.o
+  CHK     include/generated/compile.h
+  CC      init/do_mounts_rd.o
+  CC      init/do_mounts.o
+  HOSTCC  usr/gen_init_cpio
+  UPD     include/generated/compile.h
+  CC      init/do_mounts_initrd.o
+  GEN     usr/initramfs_data.cpio.gz
+  AS      usr/initramfs_data.o
+  LD      usr/built-in.o
+  CC      arch/arm/vfp/vfpmodule.o
+  CC      init/initramfs.o
+  CC      init/calibrate.o
+  CC      init/init_task.o
+  AS      arch/arm/vfp/entry.o
+  AS      arch/arm/vfp/vfphw.o
+  CC      arch/arm/vfp/vfpsingle.o
+  CC      init/version.o
+  CC      arch/arm/xen/enlighten.o
+  LD      init/mounts.o
+  CC      arch/arm/vfp/vfpdouble.o
+  AS      arch/arm/xen/hypercall.o
+  LD      init/built-in.o
+  CC      arch/arm/xen/grant-table.o
+  CC      arch/arm/kernel/elf.o
+  LDS     arch/arm/vdso/vdso.lds
+  CC      arch/arm/vdso/vgettimeofday.o
+  CC      arch/arm/xen/p2m.o
+  AS      arch/arm/vdso/datapage.o
+  AS      arch/arm/kernel/entry-common.o
+  HOSTCC  arch/arm/vdso/vdsomunge
+  CC      arch/arm/kernel/irq.o
+  VDSO    arch/arm/vdso/vdso.so.raw
+  MUNGE   arch/arm/vdso/vdso.so.dbg
+  OBJCOPY arch/arm/vdso/vdso.so
+  AS      arch/arm/vdso/vdso.o
+  LD      arch/arm/vdso/built-in.o
+  CC      arch/arm/mm/dma-mapping.o
+  CC      arch/arm/xen/mm.o
+  LD      arch/arm/vfp/vfp.o
+  LD      arch/arm/vfp/built-in.o
+  CC      arch/arm/common/firmware.o
+  CC      arch/arm/kernel/opcodes.o
+  CC      arch/arm/kernel/process.o
+  CC      arch/arm/kernel/ptrace.o
+  CC      arch/arm/common/icst.o
+  LD      arch/arm/xen/built-in.o
+  LD      arch/arm/probes/built-in.o
+  LD      arch/arm/net/built-in.o
+  LD      arch/arm/crypto/built-in.o
+  CC      arch/arm/firmware/trusted_foundations.o
+  AS      arch/arm/common/mcpm_head.o
+  CC      arch/arm/common/mcpm_entry.o
+  LD      arch/arm/firmware/built-in.o
+  CC      arch/arm/mach-bcm/bcm_cygnus.o
+  CC      arch/arm/mm/extable.o
+  CC      arch/arm/kernel/reboot.o
+  CC      arch/arm/kernel/return_address.o
+  CC      arch/arm/mach-bcm/board_bcm281xx.o
+  CC      arch/arm/mm/fault.o
+  CC      arch/arm/common/mcpm_platsmp.o
+  CC      arch/arm/mach-bcm/board_bcm21664.o
+  CC      arch/arm/mach-bcm/platsmp.o
+  CC      arch/arm/kernel/setup.o
+  AS      arch/arm/common/vlock.o
+  CC      arch/arm/kernel/signal.o
+  LD      arch/arm/common/built-in.o
+  CC      arch/arm/mach-berlin/berlin.o
+  CC      arch/arm/mm/init.o
+  CC      arch/arm/mach-bcm/kona_l2_cache.o
+  AS      arch/arm/mach-berlin/headsmp.o
+  CC      arch/arm/mach-berlin/platsmp.o
+  CC      arch/arm/mach-bcm/bcm_kona_smc.o
+  CC      arch/arm/mach-bcm/bcm_5301x.o
+  AS      arch/arm/kernel/sigreturn_codes.o
+  CC      arch/arm/kernel/stacktrace.o
+  LD      arch/arm/mach-berlin/built-in.o
+  CC      arch/arm/mach-exynos/exynos.o
+  CC      arch/arm/kernel/sys_arm.o
+  CC      arch/arm/mach-bcm/brcmstb.o
+  CC      arch/arm/mm/iomap.o
+  CC      arch/arm/kernel/time.o
+  AS      arch/arm/mach-exynos/exynos-smc.o
+  CC      arch/arm/mach-exynos/firmware.o
+  CC      arch/arm/kernel/traps.o
+  CC      arch/arm/mach-bcm/platsmp-brcmstb.o
+  CC      arch/arm/kernel/atags_parse.o
+  CC      arch/arm/mm/fault-armv.o
+  CC      arch/arm/mach-exynos/pm.o
+  LD      arch/arm/mach-bcm/built-in.o
+  CC      arch/arm/mach-highbank/highbank.o
+  CC      arch/arm/kernel/atags_proc.o
+  CC      arch/arm/mm/flush.o
+  AS      arch/arm/mach-exynos/sleep.o
+  AS      arch/arm/kernel/entry-armv.o
+  CC      arch/arm/mach-exynos/suspend.o
+  CC      arch/arm/kernel/cpuidle.o
+  CC      arch/arm/kernel/fiq.o
+  CC      arch/arm/mach-highbank/system.o
+  AS      arch/arm/kernel/fiqasm.o
+  CC      arch/arm/kernel/armksyms.o
+  CC      arch/arm/mm/idmap.o
+  AS      arch/arm/mach-highbank/smc.o
+  CC      arch/arm/mach-highbank/pm.o
+  CC      arch/arm/kernel/module.o
+  CC      arch/arm/mach-exynos/platsmp.o
+  CC      arch/arm/mm/ioremap.o
+  LD      arch/arm/mach-highbank/built-in.o
+  CC      arch/arm/kernel/bios32.o
+  CC      arch/arm/mach-hisi/hisilicon.o
+exec make kpkg_version=13.018 -f /usr/share/kernel-package/ruleset/minimal.mk debian DEBIAN_REVISION=1.0  KPKG_ARCH=arm   CROSS_COMPILE=/usr/bin/arm-linux-gnueabihf-  KPKG_OVERLAY_DIR="/root/overlay-dir"  ROOT_CMD=fakeroot 
+  CC      arch/arm/kernel/isa.o
+  AS      arch/arm/mach-exynos/headsmp.o
+  LD      arch/arm/mach-exynos/built-in.o
+  CC      arch/arm/mach-keystone/keystone.o
+  AS      arch/arm/kernel/sleep.o
+  CC      arch/arm/kernel/suspend.o
+  CC      arch/arm/mach-hisi/platmcpm.o
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+  CC      arch/arm/mm/mmap.o
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+  AS      arch/arm/mach-keystone/smc.o
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+  CC      arch/arm/mach-keystone/platsmp.o
+  CC      arch/arm/kernel/smp.o
+  CC      arch/arm/kernel/smp_tlb.o
+  CC      arch/arm/mach-hisi/platsmp.o
+  CC      arch/arm/mm/pgd.o
+  CC      arch/arm/mach-keystone/pm_domain.o
+  CC      arch/arm/mach-hisi/hotplug.o
+  CC      arch/arm/kernel/smp_scu.o
+  LD      arch/arm/mach-keystone/built-in.o
+  CC      arch/arm/mach-meson/meson.o
+  CC      arch/arm/mm/mmu.o
+  CC      arch/arm/kernel/smp_twd.o
+  LD      arch/arm/mach-meson/built-in.o
+  CC      arch/arm/mach-mvebu/system-controller.o
+  CC      arch/arm/kernel/arch_timer.o
+  LD      arch/arm/mach-hisi/built-in.o
+  CC      arch/arm/kernel/machine_kexec.o
+  CC      arch/arm/mach-imx/cpu.o
+  CC      arch/arm/mach-mvebu/mvebu-soc-id.o
+  AS      arch/arm/kernel/relocate_kernel.o
+  CC      arch/arm/kernel/thumbee.o
+  CC      arch/arm/mach-imx/system.o
+  CC      arch/arm/kernel/unwind.o
+  CC      arch/arm/kernel/devtree.o
+  CC      arch/arm/mach-mvebu/cpu-reset.o
+  CC      arch/arm/mach-imx/irq-common.o
+  CC      arch/arm/mach-mvebu/board-v7.o
+  CC      arch/arm/mm/pageattr.o
+  CC      arch/arm/mach-imx/cpu-imx5.o
+  CC      arch/arm/kernel/crash_dump.o
+  CC      arch/arm/kernel/swp_emulate.o
+  CC      arch/arm/mm/proc-syms.o
+  CC      arch/arm/mach-mvebu/coherency.o
+  CC      arch/arm/mach-imx/pm-imx5.o
+  CC      arch/arm/kernel/hw_breakpoint.o
+  CC      arch/arm/kernel/pj4-cp0.o
+  CC      arch/arm/mm/alignment.o
+  AS      arch/arm/kernel/iwmmxt.o
+  AS      arch/arm/mach-mvebu/coherency_ll.o
+  CC      arch/arm/mach-imx/tzic.o
+  CC      arch/arm/kernel/perf_regs.o
+  CC      arch/arm/mach-mvebu/pmsu.o
+  CC      arch/arm/mm/highmem.o
+  CC      arch/arm/kernel/perf_callchain.o
+  CC      arch/arm/kernel/perf_event_xscale.o
+  CC      arch/arm/mach-imx/cpuidle-imx5.o
+  CC      arch/arm/kernel/perf_event_v6.o
+  CC      arch/arm/kernel/perf_event_v7.o
+  AS      arch/arm/mach-mvebu/pmsu_ll.o
+  CC      arch/arm/mach-mvebu/pm.o
+  CC      arch/arm/mach-imx/cpuidle-imx6q.o
+  CC      arch/arm/kernel/topology.o
+  CC      arch/arm/mach-imx/cpuidle-imx6sl.o
+  AS      arch/arm/mm/abort-ev7.o
+  AS      arch/arm/mm/pabort-v7.o
+  AS      arch/arm/mm/cache-v7.o
+  CC      arch/arm/mm/copypage-v6.o
+  CC      arch/arm/mach-mvebu/pm-board.o
+  CC      arch/arm/mach-imx/cpuidle-imx6sx.o
+  CC      arch/arm/kernel/vdso.o
+  CC      arch/arm/kernel/io.o
+  CC      arch/arm/mm/context.o
+  CC      arch/arm/mach-mvebu/platsmp.o
+  AS      arch/arm/mach-imx/ssi-fiq.o
+====== making target debian/stamp/conf/minimal_debian [new prereqs: ]======
+This is kernel package version 13.018.
+test -d debian             || mkdir debian
+test ! -e stamp-building || rm -f stamp-building
+install -p -m 755 /usr/share/kernel-package/rules debian/rules
+for file in ChangeLog  Control  Control.bin86 config templates.in rules; do                                      \
+            cp -f  /usr/share/kernel-package/$file ./debian/;                               \
+        done
+cp: Aufruf von stat für '/usr/share/kernel-package/ChangeLog' nicht möglich: Datei oder Verzeichnis nicht gefunden
+  CC      arch/arm/mach-imx/ssi-fiq-ksym.o
+for dir  in Config docs examples ruleset scripts pkg po;  do                                      \
+          cp -af /usr/share/kernel-package/$dir  ./debian/;                                 \
+        done
+test -f debian/control || sed         -e 's/=V/4.9.0/g'  \
+                -e 's/=D/1.0/g'         -e 's/=A/armhf/g'  \
+	-e 's/=SA//g'  \
+	-e 's/=I//g'				    \
+	-e 's/=CV/4.9/g'			    \
+	-e 's/=M/Unknown Kernel Package Maintainer <unknown@unconfigured.in.etc.kernel-pkg.conf>/g'			    \
+	-e 's/=ST/linux/g'      -e 's/=B/arm/g'    \
+                -e 's/=R//g'    /usr/share/kernel-package/Control > debian/control
+test -f debian/changelog ||  sed -e 's/=V/4.9.0/g'       \
+            -e 's/=D/1.0/g'        -e 's/=A/armhf/g'       \
+            -e 's/=ST/linux/g'     -e 's/=B/arm/g'         \
+            -e 's/=M/Unknown Kernel Package Maintainer <unknown@unconfigured.in.etc.kernel-pkg.conf>/g'                            \
+             /usr/share/kernel-package/changelog > debian/changelog
+test ! -d /root/overlay-dir  ||                          \
+          (cd /root/overlay-dir; tar cf - . | (cd /home/stefan/linux/linux/debian; umask 000; tar xsf -))
+test ! -f /root/overlay-dir/Control ||                   \
+                sed         -e 's/=V/4.9.0/g'  \
+                -e 's/=D/1.0/g'         -e 's/=A/armhf/g'  \
+	-e 's/=SA//g'  \
+	-e 's/=I//g'				    \
+	-e 's/=CV/4.9/g'			    \
+	-e 's/=M/Unknown Kernel Package Maintainer <unknown@unconfigured.in.etc.kernel-pkg.conf>/g'			    \
+	-e 's/=ST/linux/g'      -e 's/=B/arm/g'    \
+                -e 's/=R//g'                                   \
+                  /root/overlay-dir/Control > debian/control
+test ! -f /root/overlay-dir/changelog ||                 \
+            sed -e 's/=V/4.9.0/g'       \
+            -e 's/=D/1.0/g'        -e 's/=A/armhf/g'       \
+            -e 's/=ST/linux/g'     -e 's/=B/arm/g'         \
+            -e 's/=M/Unknown Kernel Package Maintainer <unknown@unconfigured.in.etc.kernel-pkg.conf>/g'                            \
+             /root/overlay-dir/changelog > debian/changelog
+test ! -x /root/overlay-dir/post-install ||              \
+            (cd debian; /root/overlay-dir/post-install)
+chmod 0644 debian/control debian/changelog
+test -d ./debian/stamp || mkdir debian/stamp
+make -f debian/rules debian/stamp/conf/kernel-conf
+make[1]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+  CC      arch/arm/kernel/paravirt.o
+  AS      arch/arm/kernel/hyp-stub.o
+  CC      arch/arm/kernel/psci_smp.o
+  AS      arch/arm/kernel/smccc-call.o
+  AS      arch/arm/kernel/head.o
+  CC      arch/arm/mach-imx/anatop.o
+  LDS     arch/arm/kernel/vmlinux.lds
+  AS      arch/arm/mach-mvebu/headsmp.o
+  CC      arch/arm/mach-mvebu/platsmp-a9.o
+  AS      arch/arm/mm/tlb-v7.o
+  AS      arch/arm/mach-mvebu/headsmp-a9.o
+  AS      arch/arm/mm/proc-v7.o
+  CC      arch/arm/mach-mvebu/dove.o
+  CC      arch/arm/mm/l2c-common.o
+  CC      arch/arm/mach-imx/gpc.o
+  LD      arch/arm/kernel/built-in.o
+  CC      arch/arm/mm/cache-feroceon-l2.o
+  CC      arch/arm/mach-mediatek/platsmp.o
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+  CC      arch/arm/mach-omap2/id.o
+  LD      arch/arm/mach-mvebu/built-in.o
+  CC      arch/arm/mach-qcom/platsmp.o
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+dpkg-architecture: Warnung: angegebener GNU-Systemtyp arm-linux-gnu passt nicht zu CC-Systemtyp x86_64-linux-gnu, versuchen Sie, eine korrekte CC-Umgebungsvariable zu setzen
+  CC      arch/arm/mach-mediatek/mediatek.o
+  CC      arch/arm/mm/cache-l2x0.o
+  CC      arch/arm/mach-imx/mmdc.o
+  LD      arch/arm/mach-qcom/built-in.o
+  CC      arch/arm/mach-rockchip/rockchip.o
+  LD      arch/arm/mach-mediatek/built-in.o
+  CC      arch/arm/mach-prima2/rstc.o
+  CC      arch/arm/mach-imx/src.o
+  CC      arch/arm/mach-omap2/io.o
+  CC      arch/arm/mach-rockchip/pm.o
+  CC      arch/arm/mach-prima2/common.o
+  AS      arch/arm/mach-imx/headsmp.o
+  CC      arch/arm/mach-imx/platsmp.o
+  CC      arch/arm/mach-prima2/rtciobrg.o
+  AS      arch/arm/mach-rockchip/sleep.o
+  AS      arch/arm/mach-rockchip/headsmp.o
+  AS      arch/arm/mm/l2c-l2x0-resume.o
+  CC      arch/arm/mach-rockchip/platsmp.o
+  CC      arch/arm/mm/cache-tauros2.o
+  CC      arch/arm/mach-omap2/control.o
+  CC      arch/arm/mach-imx/hotplug.o
+  CC      arch/arm/mach-imx/mach-imx6q.o
+  LD      arch/arm/mm/built-in.o
+  CC      arch/arm/mach-prima2/pm.o
+  CC      arch/arm/mach-socfpga/socfpga.o
+  LD      arch/arm/mach-rockchip/built-in.o
+  CC      arch/arm/mach-sti/platsmp.o
+  CC      arch/arm/mach-omap2/mux.o
+  AS      arch/arm/mach-prima2/sleep.o
+  AS      arch/arm/mach-socfpga/headsmp.o
+  CC      arch/arm/mach-prima2/platsmp.o
+  CC      arch/arm/mach-socfpga/platsmp.o
+  CC      arch/arm/mach-imx/mach-imx6sl.o
+  AS      arch/arm/mach-sti/headsmp.o
+  CC      arch/arm/mach-sti/board-dt.o
+  LD      arch/arm/mach-sti/built-in.o
+  AS      arch/arm/mach-prima2/headsmp.o
+  CC      arch/arm/mach-imx/mach-imx6sx.o
+  CC      arch/arm/mach-prima2/hotplug.o
+  CC      arch/arm/mach-sunxi/sunxi.o
+  LD      arch/arm/mach-socfpga/built-in.o
+  CC      arch/arm/mach-tegra/io.o
+  CC      arch/arm/mach-omap2/devices.o
+  LD      arch/arm/mach-prima2/built-in.o
+  CC      arch/arm/mach-ux500/pm.o
+  CC      arch/arm/mach-sunxi/platsmp.o
+  CC      arch/arm/mach-tegra/irq.o
+  AS      arch/arm/mach-imx/suspend-imx6.o
+  AS      arch/arm/mach-imx/suspend-imx53.o
+  CC      arch/arm/mach-imx/pm-imx6.o
+  CC      arch/arm/mach-omap2/fb.o
+  CC      arch/arm/mach-tegra/flowctrl.o
+  LD      arch/arm/mach-sunxi/built-in.o
+  CC      arch/arm/mach-vexpress/v2m.o
+  CC      arch/arm/mach-ux500/cpu-db8500.o
+  CC      arch/arm/mach-vexpress/platsmp.o
+  CC      arch/arm/mach-tegra/pm.o
+  CC      arch/arm/mach-omap2/serial.o
+  CC      arch/arm/mach-imx/mach-imx50.o
+  CC      arch/arm/mach-vexpress/hotplug.o
+  CC      arch/arm/mach-ux500/board-mop500-audio.o
+  CC      arch/arm/mach-imx/mach-imx51.o
+  CC      arch/arm/mach-omap2/timer.o
+  CC      arch/arm/mach-tegra/reset.o
+  LD      arch/arm/mach-vexpress/built-in.o
+  CC      arch/arm/mach-vt8500/vt8500.o
+  CC      arch/arm/mach-ux500/platsmp.o
+  CC      arch/arm/mach-imx/mach-imx53.o
+  LD      arch/arm/mach-vt8500/built-in.o
+  AS      arch/arm/mach-tegra/reset-handler.o
+  CC      arch/arm/mach-zynq/common.o
+  AS      arch/arm/mach-tegra/sleep.o
+  CC      arch/arm/mach-tegra/tegra.o
+  CC      arch/arm/mach-imx/mach-vf610.o
+  CC      arch/arm/mach-ux500/hotplug.o
+  CC      arch/arm/mach-omap2/pm.o
+  CC      arch/arm/mach-zynq/slcr.o
+  CC      arch/arm/mach-tegra/cpuidle.o
+  CC      arch/arm/mach-ux500/pm_domains.o
+  CC      arch/arm/mach-imx/devices/devices.o
+  CC      arch/arm/mach-zynq/pm.o
+  AS      arch/arm/mach-tegra/sleep-tegra20.o
+  CC      arch/arm/mach-tegra/pm-tegra20.o
+  CC      arch/arm/mach-tegra/cpuidle-tegra20.o
+  CC      arch/arm/mach-omap2/common.o
+  LD      arch/arm/mach-ux500/built-in.o
+  CC      arch/arm/mach-spear/restart.o
+====== making target debian/stamp/conf/kernel-conf [new prereqs: ]======
+make   CROSS_COMPILE=/usr/bin/arm-linux-gnueabihf- ARCH=arm \
+                    oldconfig;
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+  AS      arch/arm/mach-zynq/headsmp.o
+  CC      arch/arm/mach-zynq/platsmp.o
+  CC      arch/arm/mach-imx/devices/platform-gpio-mxc.o
+  CC      arch/arm/mach-omap2/gpio.o
+  AS      arch/arm/mach-tegra/sleep-tegra30.o
+  CC      arch/arm/mach-tegra/pm-tegra30.o
+scripts/kconfig/conf  --oldconfig Kconfig
+  CC      arch/arm/mach-spear/time.o
+  CC      arch/arm/mach-tegra/cpuidle-tegra30.o
+#
+# configuration written to .config
+#
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+make   CROSS_COMPILE=/usr/bin/arm-linux-gnueabihf- ARCH=arm prepare
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird betreten
+  LD      arch/arm/mach-zynq/built-in.o
+  CC      arch/arm/mach-imx/devices/platform-imx-dma.o
+  CC      arch/arm/plat-omap/sram.o
+  CC      arch/arm/mach-omap2/dma.o
+  CC      arch/arm/mach-tegra/platsmp.o
+  CC      arch/arm/mach-spear/spear13xx.o
+  CC      arch/arm/plat-omap/dma.o
+  CC      arch/arm/mach-omap2/wd_timer.o
+  LD      arch/arm/mach-imx/devices/built-in.o
+  LD      arch/arm/mach-imx/built-in.o
+  LD      arch/arm/plat-orion/built-in.o
+  CC      arch/arm/plat-samsung/init.o
+  CC      arch/arm/mach-tegra/hotplug.o
+  AS      arch/arm/mach-spear/headsmp.o
+  CC      arch/arm/mach-spear/platsmp.o
+  CC      arch/arm/mach-omap2/display.o
+  CC      arch/arm/plat-samsung/cpu.o
+  CC      arch/arm/mach-tegra/cpuidle-tegra114.o
+scripts/kconfig/conf  --silentoldconfig Kconfig
+  CC      arch/arm/mach-spear/hotplug.o
+  CC      arch/arm/plat-samsung/pm-common.o
+  CC      arch/arm/mach-tegra/board-paz00.o
+  CC      arch/arm/mach-spear/spear1310.o
+  CC      arch/arm/plat-omap/counter_32k.o
+  CC      arch/arm/mach-omap2/i2c.o
+  LD      arch/arm/plat-samsung/built-in.o
+  AS      arch/arm/plat-versatile/headsmp.o
+  CC      arch/arm/plat-versatile/platsmp.o
+  LD      arch/arm/mach-tegra/built-in.o
+  CC      arch/arm/plat-omap/dmtimer.o
+  CC      kernel/fork.o
+  CC      arch/arm/mach-spear/spear1340.o
+  CC      arch/arm/mach-omap2/hdq1w.o
+  CHK     include/config/kernel.release
+  LD      arch/arm/plat-versatile/built-in.o
+  LD      certs/built-in.o
+  CC      mm/filemap.o
+  CHK     include/generated/uapi/linux/version.h
+  CHK     include/generated/utsrelease.h
+  LD      arch/arm/mach-spear/built-in.o
+  CC      kernel/bounds.s
+  CC      arch/arm/mach-omap2/omap_hwmod.o
+  CC      fs/open.o
+  CHK     include/generated/bounds.h
+  CHK     include/generated/timeconst.h
+  CC      arch/arm/kernel/asm-offsets.s
+  CC      arch/arm/plat-omap/i2c.o
+  CHK     include/generated/asm-offsets.h
+  CALL    scripts/checksyscalls.sh
+  LD      arch/arm/plat-omap/built-in.o
+  CC      ipc/util.o
+make[2]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+echo done > debian/stamp/conf/kernel-conf
+/bin/sh: 1: cannot create debian/stamp/conf/kernel-conf: Directory nonexistent
+debian/ruleset/targets/common.mk:194: die Regel für Ziel „debian/stamp/conf/kernel-conf“ scheiterte
+make[1]: *** [debian/stamp/conf/kernel-conf] Fehler 2
+make[1]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+/usr/share/kernel-package/ruleset/minimal.mk:93: die Regel für Ziel „debian/stamp/conf/minimal_debian“ scheiterte
+make: *** [debian/stamp/conf/minimal_debian] Fehler 2
+Failed to create a ./debian directory:  at /usr/bin/make-kpkg line 970.
+arm-linux-gnueabihf-ld: cannot find kernel/.tmp_fork.o: Datei oder Verzeichnis nicht gefunden
+scripts/Makefile.build:293: die Regel für Ziel „kernel/fork.o“ scheiterte
+make[2]: *** [kernel/fork.o] Fehler 1
+Makefile:988: die Regel für Ziel „kernel“ scheiterte
+make[1]: *** [kernel] Fehler 2
+make[1]: *** Auf noch nicht beendete Prozesse wird gewartet …
+  CC      ipc/msgutil.o
+In file included from ./include/asm-generic/int-ll64.h:10:0,
+                 from ./arch/arm/include/asm/types.h:4,
+                 from ./include/uapi/linux/types.h:4,
+                 from ./include/linux/compiler.h:224,
+                 from ./include/linux/linkage.h:4,
+                 from ./include/linux/preempt.h:9,
+                 from ./include/linux/spinlock.h:50,
+                 from ipc/msgutil.c:11:
+./include/uapi/asm-generic/int-ll64.h:11:29: fatal error: asm/bitsperlong.h: Datei oder Verzeichnis nicht gefunden
+compilation terminated.
+scripts/Makefile.build:293: die Regel für Ziel „ipc/msgutil.o“ scheiterte
+make[2]: *** [ipc/msgutil.o] Fehler 1
+make[2]: *** Auf noch nicht beendete Prozesse wird gewartet …
+  CC      fs/read_write.o
+In file included from <command-line>:0:0:
+././include/linux/kconfig.h:4:32: fatal error: generated/autoconf.h: Datei oder Verzeichnis nicht gefunden
+compilation terminated.
+scripts/Makefile.build:293: die Regel für Ziel „fs/read_write.o“ scheiterte
+make[2]: *** [fs/read_write.o] Fehler 1
+make[2]: *** Auf noch nicht beendete Prozesse wird gewartet …
+  CC      mm/mempool.o
+In file included from <command-line>:0:0:
+././include/linux/kconfig.h:4:32: fatal error: generated/autoconf.h: Datei oder Verzeichnis nicht gefunden
+compilation terminated.
+scripts/Makefile.build:293: die Regel für Ziel „mm/mempool.o“ scheiterte
+make[2]: *** [mm/mempool.o] Fehler 1
+make[2]: *** Auf noch nicht beendete Prozesse wird gewartet …
+  CC      arch/arm/mach-omap2/omap_device.o
+In file included from fs/open.c:26:0:
+./include/linux/syscalls.h:77:25: fatal error: ./arch/arm/include/generated/asm/siginfo.h: Datei oder Verzeichnis nicht gefunden
+compilation terminated.
+Makefile:988: die Regel für Ziel „fs“ scheiterte
+make[1]: *** [fs] Fehler 2
+  AS      arch/arm/mach-omap2/omap-headsmp.o
+In file included from <command-line>:0:0:
+././include/linux/kconfig.h:4:32: fatal error: generated/autoconf.h: Datei oder Verzeichnis nicht gefunden
+compilation terminated.
+scripts/Makefile.build:393: die Regel für Ziel „arch/arm/mach-omap2/omap-headsmp.o“ scheiterte
+make[2]: *** [arch/arm/mach-omap2/omap-headsmp.o] Fehler 1
+make[2]: *** Auf noch nicht beendete Prozesse wird gewartet …
+In file included from <command-line>:0:0:
+././include/linux/kconfig.h:4:32: fatal error: generated/autoconf.h: Datei oder Verzeichnis nicht gefunden
+compilation terminated.
+scripts/Makefile.build:293: die Regel für Ziel „arch/arm/mach-omap2/omap_device.o“ scheiterte
+make[2]: *** [arch/arm/mach-omap2/omap_device.o] Fehler 1
+/bin/sh: 1: scripts/basic/fixdep: not found
+scripts/Makefile.build:293: die Regel für Ziel „ipc/util.o“ scheiterte
+make[2]: *** [ipc/util.o] Fehler 127
+Makefile:988: die Regel für Ziel „ipc“ scheiterte
+make[1]: *** [ipc] Fehler 2
+/bin/sh: 1: scripts/basic/fixdep: not found
+scripts/Makefile.build:293: die Regel für Ziel „arch/arm/mach-omap2/omap_hwmod.o“ scheiterte
+make[2]: *** [arch/arm/mach-omap2/omap_hwmod.o] Fehler 127
+Makefile:988: die Regel für Ziel „arch/arm/mach-omap2“ scheiterte
+make[1]: *** [arch/arm/mach-omap2] Fehler 2
+/bin/sh: 1: scripts/basic/fixdep: not found
+scripts/Makefile.build:293: die Regel für Ziel „mm/filemap.o“ scheiterte
+make[2]: *** [mm/filemap.o] Fehler 127
+Makefile:988: die Regel für Ziel „mm“ scheiterte
+make[1]: *** [mm] Fehler 2
+make[1]: Verzeichnis „/home/stefan/linux/linux“ wird verlassen
+debian/ruleset/targets/common.mk:295: die Regel für Ziel „debian/stamp/build/kernel“ scheiterte
+make: *** [debian/stamp/build/kernel] Fehler 2
