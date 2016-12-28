@@ -8,14 +8,12 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/usb/msm_hsusb_hw.h>
-#include <linux/usb/ulpi.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/chipidea.h>
 
 #include "ci.h"
 
-#define MSM_USB_BASE	(ci->hw_bank.abs)
+#define HS_PHY_AHB_MODE			0x0098
 
 static void ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 {
@@ -25,7 +23,7 @@ static void ci_hdrc_msm_notify_event(struct ci_hdrc *ci, unsigned event)
 	case CI_HDRC_CONTROLLER_RESET_EVENT:
 		dev_dbg(dev, "CI_HDRC_CONTROLLER_RESET_EVENT received\n");
 		/* use AHB transactor, allow posted data writes */
-		writel(0x8, USB_AHBMODE);
+		hw_write_id_reg(ci, HS_PHY_AHB_MODE, 0xffffffff, 0x8);
 		usb_phy_init(ci->usb_phy);
 		break;
 	case CI_HDRC_CONTROLLER_STOPPED_EVENT:
