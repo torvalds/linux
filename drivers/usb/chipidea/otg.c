@@ -44,12 +44,15 @@ u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
 		else
 			val &= ~OTGSC_BSVIS;
 
-		cable->changed = false;
-
 		if (cable->state)
 			val |= OTGSC_BSV;
 		else
 			val &= ~OTGSC_BSV;
+
+		if (cable->enabled)
+			val |= OTGSC_BSVIE;
+		else
+			val &= ~OTGSC_BSVIE;
 	}
 
 	cable = &ci->platdata->id_extcon;
@@ -59,15 +62,18 @@ u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
 		else
 			val &= ~OTGSC_IDIS;
 
-		cable->changed = false;
-
 		if (cable->state)
 			val |= OTGSC_ID;
 		else
 			val &= ~OTGSC_ID;
+
+		if (cable->enabled)
+			val |= OTGSC_IDIE;
+		else
+			val &= ~OTGSC_IDIE;
 	}
 
-	return val;
+	return val & mask;
 }
 
 /**
@@ -77,6 +83,36 @@ u32 hw_read_otgsc(struct ci_hdrc *ci, u32 mask)
  */
 void hw_write_otgsc(struct ci_hdrc *ci, u32 mask, u32 data)
 {
+	struct ci_hdrc_cable *cable;
+
+	cable = &ci->platdata->vbus_extcon;
+	if (!IS_ERR(cable->edev)) {
+		if (data & mask & OTGSC_BSVIS)
+			cable->changed = false;
+
+		/* Don't enable vbus interrupt if using external notifier */
+		if (data & mask & OTGSC_BSVIE) {
+			cable->enabled = true;
+			data &= ~OTGSC_BSVIE;
+		} else if (mask & OTGSC_BSVIE) {
+			cable->enabled = false;
+		}
+	}
+
+	cable = &ci->platdata->id_extcon;
+	if (!IS_ERR(cable->edev)) {
+		if (data & mask & OTGSC_IDIS)
+			cable->changed = false;
+
+		/* Don't enable id interrupt if using external notifier */
+		if (data & mask & OTGSC_IDIE) {
+			cable->enabled = true;
+			data &= ~OTGSC_IDIE;
+		} else if (mask & OTGSC_IDIE) {
+			cable->enabled = false;
+		}
+	}
+
 	hw_write(ci, OP_OTGSC, mask | OTGSC_INT_STATUS_BITS, data);
 }
 
