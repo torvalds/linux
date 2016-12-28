@@ -22,6 +22,7 @@
 #define GMAC_HASH_TAB_32_63		0x00000014
 #define GMAC_RX_FLOW_CTRL		0x00000090
 #define GMAC_QX_TX_FLOW_CTRL(x)		(0x70 + x * 4)
+#define GMAC_RXQ_CTRL0			0x000000a0
 #define GMAC_INT_STATUS			0x000000b0
 #define GMAC_INT_EN			0x000000b4
 #define GMAC_PCS_BASE			0x000000e0
@@ -43,6 +44,11 @@
 #define GMAC_PACKET_FILTER_PM		BIT(4)
 
 #define GMAC_MAX_PERFECT_ADDRESSES	128
+
+/* MAC RX Queue Enable */
+#define GMAC_RX_QUEUE_CLEAR(queue)	~(GENMASK(1, 0) << ((queue) * 2))
+#define GMAC_RX_AV_QUEUE_ENABLE(queue)	BIT((queue) * 2)
+#define GMAC_RX_DCB_QUEUE_ENABLE(queue)	BIT(((queue) * 2) + 1)
 
 /* MAC Flow Control RX */
 #define GMAC_RX_FLOW_CTRL_RFE		BIT(0)
@@ -133,6 +139,8 @@ enum power_event {
 /* MAC HW features2 bitmap */
 #define GMAC_HW_FEAT_TXCHCNT		GENMASK(21, 18)
 #define GMAC_HW_FEAT_RXCHCNT		GENMASK(15, 12)
+#define GMAC_HW_FEAT_TXQCNT		GENMASK(9, 6)
+#define GMAC_HW_FEAT_RXQCNT		GENMASK(3, 0)
 
 /* MAC HW ADDR regs */
 #define GMAC_HI_DCS			GENMASK(18, 16)

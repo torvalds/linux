@@ -1271,6 +1271,28 @@ static void free_dma_desc_resources(struct stmmac_priv *priv)
 }
 
 /**
+ *  stmmac_mac_enable_rx_queues - Enable MAC rx queues
+ *  @priv: driver private structure
+ *  Description: It is used for enabling the rx queues in the MAC
+ */
+static void stmmac_mac_enable_rx_queues(struct stmmac_priv *priv)
+{
+	int rx_count = priv->dma_cap.number_rx_queues;
+	int queue = 0;
+
+	/* If GMAC does not have multiple queues, then this is not necessary*/
+	if (rx_count == 1)
+		return;
+
+	/**
+	 *  If the core is synthesized with multiple rx queues / multiple
+	 *  dma channels, then rx queues will be disabled by default.
+	 *  For now only rx queue 0 is enabled.
+	 */
+	priv->hw->mac->rx_queue_enable(priv->hw, queue);
+}
+
+/**
  *  stmmac_dma_operation_mode - HW DMA operation mode
  *  @priv: driver private structure
  *  Description: it is used for configuring the DMA operation mode register in
@@ -1690,6 +1712,10 @@ static int stmmac_hw_setup(struct net_device *dev, bool init_ptp)
 
 	/* Initialize the MAC Core */
 	priv->hw->mac->core_init(priv->hw, dev->mtu);
+
+	/* Initialize MAC RX Queues */
+	if (priv->hw->mac->rx_queue_enable)
+		stmmac_mac_enable_rx_queues(priv);
 
 	ret = priv->hw->mac->rx_ipc(priv->hw);
 	if (!ret) {

@@ -303,6 +303,11 @@ static void dwmac4_get_hw_feature(void __iomem *ioaddr,
 		((hw_cap & GMAC_HW_FEAT_RXCHCNT) >> 12) + 1;
 	dma_cap->number_tx_channel =
 		((hw_cap & GMAC_HW_FEAT_TXCHCNT) >> 18) + 1;
+	/* TX and RX number of queues */
+	dma_cap->number_rx_queues =
+		((hw_cap & GMAC_HW_FEAT_RXQCNT) >> 0) + 1;
+	dma_cap->number_tx_queues =
+		((hw_cap & GMAC_HW_FEAT_TXQCNT) >> 6) + 1;
 
 	/* IEEE 1588-2002 */
 	dma_cap->time_stamp = 0;

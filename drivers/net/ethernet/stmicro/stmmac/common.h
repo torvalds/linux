@@ -323,6 +323,9 @@ struct dma_features {
 	/* TX and RX number of channels */
 	unsigned int number_rx_channel;
 	unsigned int number_tx_channel;
+	/* TX and RX number of queues */
+	unsigned int number_rx_queues;
+	unsigned int number_tx_queues;
 	/* Alternate (enhanced) DESC mode */
 	unsigned int enh_desc;
 };
@@ -454,6 +457,8 @@ struct stmmac_ops {
 	void (*core_init)(struct mac_device_info *hw, int mtu);
 	/* Enable and verify that the IPC module is supported */
 	int (*rx_ipc)(struct mac_device_info *hw);
+	/* Enable RX Queues */
+	void (*rx_queue_enable)(struct mac_device_info *hw, u32 queue);
 	/* Dump MAC registers */
 	void (*dump_regs)(struct mac_device_info *hw);
 	/* Handle extra events on specific interrupts hw dependent */
