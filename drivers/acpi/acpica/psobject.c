@@ -348,7 +348,15 @@ acpi_ps_create_op(struct acpi_walk_state *walk_state,
 			    argument_count) {
 				op->common.flags |= ACPI_PARSEOP_TARGET;
 			}
-		} else if (parent_scope->common.aml_opcode == AML_INCREMENT_OP) {
+		}
+
+		/*
+		 * Special case for both Increment() and Decrement(), where
+		 * the lone argument is both a source and a target.
+		 */
+		else if ((parent_scope->common.aml_opcode == AML_INCREMENT_OP)
+			 || (parent_scope->common.aml_opcode ==
+			     AML_DECREMENT_OP)) {
 			op->common.flags |= ACPI_PARSEOP_TARGET;
 		}
 	}
