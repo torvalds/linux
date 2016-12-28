@@ -543,6 +543,10 @@ static int pn533_usb_probe(struct usb_interface *interface,
 
 	phy->priv = priv;
 
+	rc = pn533_finalize_setup(priv);
+	if (rc)
+		goto error;
+
 	usb_set_intfdata(interface, phy);
 
 	return 0;

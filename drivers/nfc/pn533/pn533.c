@@ -2570,6 +2570,31 @@ static int pn533_setup(struct pn533 *dev)
 	return 0;
 }
 
+int pn533_finalize_setup(struct pn533 *dev)
+{
+
+	struct pn533_fw_version fw_ver;
+	int rc;
+
+	memset(&fw_ver, 0, sizeof(fw_ver));
+
+	rc = pn533_get_firmware_version(dev, &fw_ver);
+	if (rc) {
+		nfc_err(dev->dev, "Unable to get FW version\n");
+		return rc;
+	}
+
+	nfc_info(dev->dev, "NXP PN5%02X firmware ver %d.%d now attached\n",
+		fw_ver.ic, fw_ver.ver, fw_ver.rev);
+
+	rc = pn533_setup(dev);
+	if (rc)
+		return rc;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(pn533_finalize_setup);
+
 struct pn533 *pn533_register_device(u32 device_type,
 				u32 protocols,
 				enum pn533_protocol_type protocol_type,
@@ -2579,7 +2604,6 @@ struct pn533 *pn533_register_device(u32 device_type,
 				struct device *dev,
 				struct device *parent)
 {
-	struct pn533_fw_version fw_ver;
 	struct pn533 *priv;
 	int rc = -ENOMEM;
 
@@ -2622,15 +2646,6 @@ struct pn533 *pn533_register_device(u32 device_type,
 
 	INIT_LIST_HEAD(&priv->cmd_queue);
 
-	memset(&fw_ver, 0, sizeof(fw_ver));
-	rc = pn533_get_firmware_version(priv, &fw_ver);
-	if (rc < 0)
-		goto destroy_wq;
-
-	nfc_info(dev, "NXP PN5%02X firmware ver %d.%d now attached\n",
-		 fw_ver.ic, fw_ver.ver, fw_ver.rev);
-
-
 	priv->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols,
 					   priv->ops->tx_header_len +
 					   PN533_CMD_DATAEXCH_HEAD_LEN,
@@ -2647,14 +2662,7 @@ struct pn533 *pn533_register_device(u32 device_type,
 	if (rc)
 		goto free_nfc_dev;
 
-	rc = pn533_setup(priv);
-	if (rc)
-		goto unregister_nfc_dev;
-
 	return priv;
-
-unregister_nfc_dev:
-	nfc_unregister_device(priv->nfc_dev);
 
 free_nfc_dev:
 	nfc_free_device(priv->nfc_dev);

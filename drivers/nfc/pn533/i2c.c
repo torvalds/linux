@@ -206,14 +206,6 @@ static int pn533_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	r = request_threaded_irq(client->irq, NULL, pn533_i2c_irq_thread_fn,
-				 IRQF_TRIGGER_FALLING |
-				 IRQF_SHARED | IRQF_ONESHOT,
-				 PN533_I2C_DRIVER_NAME, phy);
-
-	if (r < 0)
-		nfc_err(&client->dev, "Unable to register IRQ handler\n");
-
 	priv = pn533_register_device(PN533_DEVICE_PN532,
 				     PN533_NO_TYPE_B_PROTOCOLS,
 				     PN533_PROTO_REQ_ACK_RESP,
@@ -223,15 +215,31 @@ static int pn533_i2c_probe(struct i2c_client *client,
 
 	if (IS_ERR(priv)) {
 		r = PTR_ERR(priv);
-		goto err_register;
+		return r;
 	}
 
 	phy->priv = priv;
 
+	r = request_threaded_irq(client->irq, NULL, pn533_i2c_irq_thread_fn,
+				IRQF_TRIGGER_FALLING |
+				IRQF_SHARED | IRQF_ONESHOT,
+				PN533_I2C_DRIVER_NAME, phy);
+	if (r < 0) {
+		nfc_err(&client->dev, "Unable to register IRQ handler\n");
+		goto irq_rqst_err;
+	}
+
+	r = pn533_finalize_setup(priv);
+	if (r)
+		goto fn_setup_err;
+
 	return 0;
 
-err_register:
+fn_setup_err:
 	free_irq(client->irq, phy);
+
+irq_rqst_err:
+	pn533_unregister_device(phy->priv);
 
 	return r;
 }
