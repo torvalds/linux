@@ -38,6 +38,7 @@
 static int vcn_v1_0_start(struct amdgpu_device *adev);
 static int vcn_v1_0_stop(struct amdgpu_device *adev);
 static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev);
+static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev);
 
 /**
  * vcn_v1_0_early_init - set function pointers
@@ -51,6 +52,7 @@ static int vcn_v1_0_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	vcn_v1_0_set_dec_ring_funcs(adev);
+	vcn_v1_0_set_irq_funcs(adev);
 
 	return 0;
 }
@@ -674,6 +676,25 @@ static void vcn_v1_0_dec_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	vcn_v1_0_dec_vm_reg_wait(ring, data0, data1, mask);
 }
 
+static int vcn_v1_0_set_interrupt_state(struct amdgpu_device *adev,
+					struct amdgpu_irq_src *source,
+					unsigned type,
+					enum amdgpu_interrupt_state state)
+{
+	return 0;
+}
+
+static int vcn_v1_0_process_interrupt(struct amdgpu_device *adev,
+				      struct amdgpu_irq_src *source,
+				      struct amdgpu_iv_entry *entry)
+{
+	DRM_DEBUG("IH: VCN TRAP\n");
+
+	amdgpu_fence_process(&adev->vcn.ring_dec);
+
+	return 0;
+}
+
 static const struct amd_ip_funcs vcn_v1_0_ip_funcs = {
 	.name = "vcn_v1_0",
 	.early_init = vcn_v1_0_early_init,
@@ -723,4 +744,15 @@ static void vcn_v1_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
 	adev->vcn.ring_dec.funcs = &vcn_v1_0_dec_ring_vm_funcs;
 	DRM_INFO("VCN decode is enabled in VM mode\n");
+}
+
+static const struct amdgpu_irq_src_funcs vcn_v1_0_irq_funcs = {
+	.set = vcn_v1_0_set_interrupt_state,
+	.process = vcn_v1_0_process_interrupt,
+};
+
+static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev)
+{
+	adev->vcn.irq.num_types = 1;
+	adev->vcn.irq.funcs = &vcn_v1_0_irq_funcs;
 }
