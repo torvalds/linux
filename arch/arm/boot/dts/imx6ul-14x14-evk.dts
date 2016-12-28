@@ -36,6 +36,13 @@
 		};
 	};
 
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+			};
+	};
+
 	backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 5000000>;

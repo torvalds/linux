@@ -864,6 +864,7 @@
 				clocks = <&clks IMX6UL_CLK_CAAM_IPG>, <&clks IMX6UL_CLK_CAAM_ACLK>,
 				       	 <&clks IMX6UL_CLK_CAAM_MEM>;
 				clock-names = "caam_ipg", "caam_aclk", "caam_mem";
+				status = "disabled";
 
 				sec_jr0: jr0@1000 {
 					compatible = "fsl,sec-v4.0-job-ring";
