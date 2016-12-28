@@ -160,23 +160,22 @@ static sctp_disposition_t __sctp_sf_do_9_1_abort(struct net *net,
 /* Small helper function that checks if the chunk length
  * is of the appropriate length.  The 'required_length' argument
  * is set to be the size of a specific chunk we are testing.
- * Return Values:  1 = Valid length
- * 		   0 = Invalid length
+ * Return Values:  true  = Valid length
+ * 		   false = Invalid length
  *
  */
-static inline int
-sctp_chunk_length_valid(struct sctp_chunk *chunk,
-			   __u16 required_length)
+static inline bool
+sctp_chunk_length_valid(struct sctp_chunk *chunk, __u16 required_length)
 {
 	__u16 chunk_length = ntohs(chunk->chunk_hdr->length);
 
 	/* Previously already marked? */
 	if (unlikely(chunk->pdiscard))
-		return 0;
+		return false;
 	if (unlikely(chunk_length < required_length))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /**********************************************************
