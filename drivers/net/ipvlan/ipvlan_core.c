@@ -19,9 +19,6 @@ void ipvlan_init_secret(void)
 static void ipvlan_count_rx(const struct ipvl_dev *ipvlan,
 			    unsigned int len, bool success, bool mcast)
 {
-	if (!ipvlan)
-		return;
-
 	if (likely(success)) {
 		struct ipvl_pcpu_stats *pcptr;
 
