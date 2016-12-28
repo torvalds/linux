@@ -1297,7 +1297,7 @@ static void __ipoib_reap_neigh(struct ipoib_dev_priv *priv)
 						   rcu_dereference_protected(neigh->hnext,
 									     lockdep_is_held(&priv->lock)));
 				/* remove from path/mc list */
-				list_del(&neigh->list);
+				list_del_init(&neigh->list);
 				call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 			} else {
 				np = &neigh->hnext;
@@ -1461,7 +1461,7 @@ void ipoib_neigh_free(struct ipoib_neigh *neigh)
 					   rcu_dereference_protected(neigh->hnext,
 								     lockdep_is_held(&priv->lock)));
 			/* remove from parent list */
-			list_del(&neigh->list);
+			list_del_init(&neigh->list);
 			call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 			return;
 		} else {
@@ -1546,7 +1546,7 @@ void ipoib_del_neighs_by_gid(struct net_device *dev, u8 *gid)
 						   rcu_dereference_protected(neigh->hnext,
 									     lockdep_is_held(&priv->lock)));
 				/* remove from parent list */
-				list_del(&neigh->list);
+				list_del_init(&neigh->list);
 				call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 			} else {
 				np = &neigh->hnext;
@@ -1588,7 +1588,7 @@ static void ipoib_flush_neighs(struct ipoib_dev_priv *priv)
 					   rcu_dereference_protected(neigh->hnext,
 								     lockdep_is_held(&priv->lock)));
 			/* remove from path/mc list */
-			list_del(&neigh->list);
+			list_del_init(&neigh->list);
 			call_rcu(&neigh->rcu, ipoib_neigh_reclaim);
 		}
 	}
