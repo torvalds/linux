@@ -262,8 +262,9 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 	plat_ci = ci_hdrc_add_device(&pdev->dev, pdev->resource,
 				     pdev->num_resources, &ci->pdata);
 	if (IS_ERR(plat_ci)) {
-		dev_err(&pdev->dev, "ci_hdrc_add_device failed!\n");
 		ret = PTR_ERR(plat_ci);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "ci_hdrc_add_device failed!\n");
 		goto err_mux;
 	}
 
