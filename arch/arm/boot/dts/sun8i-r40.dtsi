@@ -353,7 +353,7 @@
 						 "PF4", "PF5";
 				allwinner,function = "mmc0";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			mmc0_cd_pin: mmc0_cd_pin@0 {
@@ -378,7 +378,7 @@
 						 "PC15", "PC16";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
 			};
 
 			uart0_pins_a: uart0@0 {
