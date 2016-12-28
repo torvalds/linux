@@ -674,23 +674,22 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	return NOTIFY_DONE;
 }
 
-static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
+static int ipvlan_add_addr(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
 {
 	struct ipvl_addr *addr;
 
-	if (ipvlan_addr_busy(ipvlan->port, ip6_addr, true)) {
-		netif_err(ipvlan, ifup, ipvlan->dev,
-			  "Failed to add IPv6=%pI6c addr for %s intf\n",
-			  ip6_addr, ipvlan->dev->name);
-		return -EINVAL;
-	}
 	addr = kzalloc(sizeof(struct ipvl_addr), GFP_ATOMIC);
 	if (!addr)
 		return -ENOMEM;
 
 	addr->master = ipvlan;
-	memcpy(&addr->ip6addr, ip6_addr, sizeof(struct in6_addr));
-	addr->atype = IPVL_IPV6;
+	if (is_v6) {
+		memcpy(&addr->ip6addr, iaddr, sizeof(struct in6_addr));
+		addr->atype = IPVL_IPV6;
+	} else {
+		memcpy(&addr->ip4addr, iaddr, sizeof(struct in_addr));
+		addr->atype = IPVL_IPV4;
+	}
 	list_add_tail(&addr->anode, &ipvlan->addrs);
 
 	/* If the interface is not up, the address will be added to the hash
@@ -702,11 +701,11 @@ static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	return 0;
 }
 
-static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
+static void ipvlan_del_addr(struct ipvl_dev *ipvlan, void *iaddr, bool is_v6)
 {
 	struct ipvl_addr *addr;
 
-	addr = ipvlan_find_addr(ipvlan, ip6_addr, true);
+	addr = ipvlan_find_addr(ipvlan, iaddr, is_v6);
 	if (!addr)
 		return;
 
@@ -715,6 +714,23 @@ static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
 	kfree_rcu(addr, rcu);
 
 	return;
+}
+
+static int ipvlan_add_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
+{
+	if (ipvlan_addr_busy(ipvlan->port, ip6_addr, true)) {
+		netif_err(ipvlan, ifup, ipvlan->dev,
+			  "Failed to add IPv6=%pI6c addr for %s intf\n",
+			  ip6_addr, ipvlan->dev->name);
+		return -EINVAL;
+	}
+
+	return ipvlan_add_addr(ipvlan, ip6_addr, true);
+}
+
+static void ipvlan_del_addr6(struct ipvl_dev *ipvlan, struct in6_addr *ip6_addr)
+{
+	return ipvlan_del_addr(ipvlan, ip6_addr, true);
 }
 
 static int ipvlan_addr6_event(struct notifier_block *unused,
@@ -750,45 +766,19 @@ static int ipvlan_addr6_event(struct notifier_block *unused,
 
 static int ipvlan_add_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
-	struct ipvl_addr *addr;
-
 	if (ipvlan_addr_busy(ipvlan->port, ip4_addr, false)) {
 		netif_err(ipvlan, ifup, ipvlan->dev,
 			  "Failed to add IPv4=%pI4 on %s intf.\n",
 			  ip4_addr, ipvlan->dev->name);
 		return -EINVAL;
 	}
-	addr = kzalloc(sizeof(struct ipvl_addr), GFP_KERNEL);
-	if (!addr)
-		return -ENOMEM;
 
-	addr->master = ipvlan;
-	memcpy(&addr->ip4addr, ip4_addr, sizeof(struct in_addr));
-	addr->atype = IPVL_IPV4;
-	list_add_tail(&addr->anode, &ipvlan->addrs);
-
-	/* If the interface is not up, the address will be added to the hash
-	 * list by ipvlan_open.
-	 */
-	if (netif_running(ipvlan->dev))
-		ipvlan_ht_addr_add(ipvlan, addr);
-
-	return 0;
+	return ipvlan_add_addr(ipvlan, ip4_addr, false);
 }
 
 static void ipvlan_del_addr4(struct ipvl_dev *ipvlan, struct in_addr *ip4_addr)
 {
-	struct ipvl_addr *addr;
-
-	addr = ipvlan_find_addr(ipvlan, ip4_addr, false);
-	if (!addr)
-		return;
-
-	ipvlan_ht_addr_del(addr);
-	list_del(&addr->anode);
-	kfree_rcu(addr, rcu);
-
-	return;
+	return ipvlan_del_addr(ipvlan, ip4_addr, false);
 }
 
 static int ipvlan_addr4_event(struct notifier_block *unused,
