@@ -2,6 +2,10 @@
 
 #include <asm/assembler.h>
 
+#if defined(CONFIG_SMP) && !defined(CONFIG_CPU_32v6K)
+#error "incoherent kernel configuration"
+#endif
+
 	__INIT
 
 /*
@@ -63,9 +67,7 @@ __kuser_cmpxchg64:				@ 0xffff0f60
 	ldmfd	sp!, {r4, r5, r6, r7}
 	usr_ret	lr
 
-#elif !defined(CONFIG_SMP)
-
-#ifdef CONFIG_MMU
+#elif defined(CONFIG_MMU)
 
 	/*
 	 * The only thing that can break atomicity in this cmpxchg64
@@ -109,10 +111,6 @@ kuser_cmpxchg64_fixup:
 	usr_ret	lr
 #endif
 
-#else
-#error "incoherent kernel configuration"
-#endif
-
 	kuser_pad __kuser_cmpxchg64, 64
 
 __kuser_memory_barrier:				@ 0xffff0fa0
@@ -123,9 +121,20 @@ __kuser_memory_barrier:				@ 0xffff0fa0
 
 __kuser_cmpxchg:				@ 0xffff0fc0
 
-#if __LINUX_ARM_ARCH__ < 6
+#if __LINUX_ARM_ARCH__ >= 6
 
-#ifdef CONFIG_MMU
+	smp_dmb	arm
+1:	ldrex	r3, [r2]
+	subs	r3, r3, r0
+	strexeq	r3, r1, [r2]
+	teqeq	r3, #1
+	beq	1b
+	rsbs	r0, r3, #0
+	/* beware -- each __kuser slot must be 8 instructions max */
+	ALT_SMP(b	__kuser_memory_barrier)
+	ALT_UP(usr_ret	lr)
+
+#elif defined(CONFIG_MMU)
 
 	/*
 	 * The only thing that can break atomicity in this cmpxchg
@@ -162,21 +171,6 @@ kuser_cmpxchg32_fixup:
 	mov	r0, #-1
 	adds	r0, r0, #0
 	usr_ret	lr
-#endif
-
-#else
-
-	smp_dmb	arm
-1:	ldrex	r3, [r2]
-	subs	r3, r3, r0
-	strexeq	r3, r1, [r2]
-	teqeq	r3, #1
-	beq	1b
-	rsbs	r0, r3, #0
-	/* beware -- each __kuser slot must be 8 instructions max */
-	ALT_SMP(b	__kuser_memory_barrier)
-	ALT_UP(usr_ret	lr)
-
 #endif
 
 	kuser_pad __kuser_cmpxchg, 32
