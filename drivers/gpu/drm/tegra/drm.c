@@ -995,10 +995,6 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	if (err < 0)
 		goto unref;
 
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n", driver->name,
-		 driver->major, driver->minor, driver->patchlevel,
-		 driver->date, drm->primary->index);
-
 	return 0;
 
 unref:

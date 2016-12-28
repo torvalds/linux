@@ -728,6 +728,7 @@ static void remove_compat_control_link(struct drm_device *dev)
  */
 int drm_dev_register(struct drm_device *dev, unsigned long flags)
 {
+	struct drm_driver *driver = dev->driver;
 	int ret;
 
 	mutex_lock(&drm_global_mutex);
@@ -758,6 +759,12 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 		drm_modeset_register_all(dev);
 
 	ret = 0;
+
+	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
+		 driver->name, driver->major, driver->minor,
+		 driver->patchlevel, driver->date, dev_name(dev->dev),
+		 dev->primary->index);
+
 	goto out_unlock;
 
 err_minors:
