@@ -57,7 +57,7 @@ static void arc_irq_mask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb &= ~(1 << data->irq);
+	ienb &= ~(1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
@@ -66,7 +66,7 @@ static void arc_irq_unmask(struct irq_data *data)
 	unsigned int ienb;
 
 	ienb = read_aux_reg(AUX_IENABLE);
-	ienb |= (1 << data->irq);
+	ienb |= (1 << data->hwirq);
 	write_aux_reg(AUX_IENABLE, ienb);
 }
 
