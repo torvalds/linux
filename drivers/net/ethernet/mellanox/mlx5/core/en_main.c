@@ -321,11 +321,11 @@ static void mlx5e_update_pcie_counters(struct mlx5e_priv *priv)
 
 void mlx5e_update_stats(struct mlx5e_priv *priv)
 {
-	mlx5e_update_q_counter(priv);
-	mlx5e_update_vport_counters(priv);
-	mlx5e_update_pport_counters(priv);
-	mlx5e_update_sw_counters(priv);
 	mlx5e_update_pcie_counters(priv);
+	mlx5e_update_pport_counters(priv);
+	mlx5e_update_vport_counters(priv);
+	mlx5e_update_q_counter(priv);
+	mlx5e_update_sw_counters(priv);
 }
 
 void mlx5e_update_stats_work(struct work_struct *work)
