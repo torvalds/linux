@@ -252,20 +252,6 @@ acpi_status acpi_hw_read(u32 *value, struct acpi_generic_address *reg)
 							   &value32,
 							   access_width);
 			}
-
-			/*
-			 * Use offset style bit masks because:
-			 * bit_offset < access_width/bit_width < access_width, and
-			 * access_width is ensured to be less than 32-bits by
-			 * acpi_hw_validate_register().
-			 */
-			if (bit_offset) {
-				value32 &= ACPI_MASK_BITS_BELOW(bit_offset);
-				bit_offset = 0;
-			}
-			if (bit_width < access_width) {
-				value32 &= ACPI_MASK_BITS_ABOVE(bit_width);
-			}
 		}
 
 		/*
