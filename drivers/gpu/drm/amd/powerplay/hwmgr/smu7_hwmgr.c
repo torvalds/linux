@@ -2269,6 +2269,21 @@ static int smu7_set_private_data_based_on_pptable_v0(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+static int smu7_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
+{
+	if (NULL != hwmgr->dyn_state.vddc_dep_on_dal_pwrl) {
+		kfree(hwmgr->dyn_state.vddc_dep_on_dal_pwrl);
+		hwmgr->dyn_state.vddc_dep_on_dal_pwrl = NULL;
+	}
+	pp_smu7_thermal_fini(hwmgr);
+	if (NULL != hwmgr->backend) {
+		kfree(hwmgr->backend);
+		hwmgr->backend = NULL;
+	}
+
+	return 0;
+}
+
 static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data;
@@ -2279,6 +2294,7 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		return -ENOMEM;
 
 	hwmgr->backend = data;
+	pp_smu7_thermal_initialize(hwmgr);
 
 	smu7_patch_voltage_workaround(hwmgr);
 	smu7_init_dpm_defaults(hwmgr);
@@ -2336,7 +2352,7 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		smu7_thermal_parameter_init(hwmgr);
 	} else {
 		/* Ignore return value in here, we are cleaning up a mess. */
-		phm_hwmgr_backend_fini(hwmgr);
+		smu7_hwmgr_backend_fini(hwmgr);
 	}
 
 	return 0;
@@ -4355,7 +4371,7 @@ static int smu7_release_firmware(struct pp_hwmgr *hwmgr)
 
 static const struct pp_hwmgr_func smu7_hwmgr_funcs = {
 	.backend_init = &smu7_hwmgr_backend_init,
-	.backend_fini = &phm_hwmgr_backend_fini,
+	.backend_fini = &smu7_hwmgr_backend_fini,
 	.asic_setup = &smu7_setup_asic_task,
 	.dynamic_state_management_enable = &smu7_enable_dpm_tasks,
 	.apply_state_adjust_rules = smu7_apply_state_adjust_rules,
@@ -4431,7 +4447,6 @@ int smu7_hwmgr_init(struct pp_hwmgr *hwmgr)
 	else if (hwmgr->pp_table_version == PP_TABLE_V1)
 		hwmgr->pptable_func = &pptable_v1_0_funcs;
 
-	pp_smu7_thermal_initialize(hwmgr);
 	return ret;
 }
 
