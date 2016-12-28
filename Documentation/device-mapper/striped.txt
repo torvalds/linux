@@ -37,9 +37,9 @@ if (!$num_devs) {
         die("Specify at least one device\n");
 }
 
-$min_dev_size = `blockdev --getsize $devs[0]`;
+$min_dev_size = `blockdev --getsz $devs[0]`;
 for ($i = 1; $i < $num_devs; $i++) {
-        my $this_size = `blockdev --getsize $devs[$i]`;
+        my $this_size = `blockdev --getsz $devs[$i]`;
         $min_dev_size = ($min_dev_size < $this_size) ?
                         $min_dev_size : $this_size;
 }

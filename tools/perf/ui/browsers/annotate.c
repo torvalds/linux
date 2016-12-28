@@ -213,17 +213,17 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		ui_browser__write_nstring(browser, bf, printed);
 		if (change_color)
 			ui_browser__set_color(browser, color);
-		if (dl->ins && dl->ins->ops->scnprintf) {
-			if (ins__is_jump(dl->ins)) {
-				bool fwd = dl->ops.target.offset > (u64)dl->offset;
+		if (dl->ins.ops && dl->ins.ops->scnprintf) {
+			if (ins__is_jump(&dl->ins)) {
+				bool fwd = dl->ops.target.offset > dl->offset;
 
 				ui_browser__write_graph(browser, fwd ? SLSMG_DARROW_CHAR :
 								    SLSMG_UARROW_CHAR);
 				SLsmg_write_char(' ');
-			} else if (ins__is_call(dl->ins)) {
+			} else if (ins__is_call(&dl->ins)) {
 				ui_browser__write_graph(browser, SLSMG_RARROW_CHAR);
 				SLsmg_write_char(' ');
-			} else if (ins__is_ret(dl->ins)) {
+			} else if (ins__is_ret(&dl->ins)) {
 				ui_browser__write_graph(browser, SLSMG_LARROW_CHAR);
 				SLsmg_write_char(' ');
 			} else {
@@ -243,9 +243,10 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 
 static bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sym)
 {
-	if (!dl || !dl->ins || !ins__is_jump(dl->ins)
+	if (!dl || !dl->ins.ops || !ins__is_jump(&dl->ins)
 	    || !disasm_line__has_offset(dl)
-	    || dl->ops.target.offset >= symbol__size(sym))
+	    || dl->ops.target.offset < 0
+	    || dl->ops.target.offset >= (s64)symbol__size(sym))
 		return false;
 
 	return true;
@@ -492,7 +493,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	};
 	char title[SYM_TITLE_MAX_SIZE];
 
-	if (!ins__is_call(dl->ins))
+	if (!ins__is_call(&dl->ins))
 		return false;
 
 	if (map_groups__find_ams(&target) ||
@@ -543,14 +544,16 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 static bool annotate_browser__jump(struct annotate_browser *browser)
 {
 	struct disasm_line *dl = browser->selection;
+	u64 offset;
 	s64 idx;
 
-	if (!ins__is_jump(dl->ins))
+	if (!ins__is_jump(&dl->ins))
 		return false;
 
-	dl = annotate_browser__find_offset(browser, dl->ops.target.offset, &idx);
+	offset = dl->ops.target.offset;
+	dl = annotate_browser__find_offset(browser, offset, &idx);
 	if (dl == NULL) {
-		ui_helpline__puts("Invalid jump offset");
+		ui_helpline__printf("Invalid jump offset: %" PRIx64, offset);
 		return true;
 	}
 
@@ -841,9 +844,9 @@ show_help:
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
 			else if (browser->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-			else if (!browser->selection->ins)
+			else if (!browser->selection->ins.ops)
 				goto show_sup_ins;
-			else if (ins__is_ret(browser->selection->ins))
+			else if (ins__is_ret(&browser->selection->ins))
 				goto out;
 			else if (!(annotate_browser__jump(browser) ||
 				     annotate_browser__callq(browser, evsel, hbt))) {
@@ -1050,7 +1053,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		  (nr_pcnt - 1);
 	}
 
-	err = symbol__disassemble(sym, map, sizeof_bdl);
+	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel), sizeof_bdl);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));

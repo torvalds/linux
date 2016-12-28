@@ -1334,36 +1334,50 @@ static struct hash_testvec rmd320_tv_template[] = {
 	}
 };
 
-#define CRCT10DIF_TEST_VECTORS	3
+#define CRCT10DIF_TEST_VECTORS	ARRAY_SIZE(crct10dif_tv_template)
 static struct hash_testvec crct10dif_tv_template[] = {
 	{
-		.plaintext = "abc",
-		.psize  = 3,
-#ifdef __LITTLE_ENDIAN
-		.digest = "\x3b\x44",
-#else
-		.digest = "\x44\x3b",
-#endif
+		.plaintext	= "abc",
+		.psize		= 3,
+		.digest		= (u8 *)(u16 []){ 0x443b },
 	}, {
-		.plaintext = "1234567890123456789012345678901234567890"
-			     "123456789012345678901234567890123456789",
-		.psize	= 79,
-#ifdef __LITTLE_ENDIAN
-		.digest	= "\x70\x4b",
-#else
-		.digest	= "\x4b\x70",
-#endif
+		.plaintext 	= "1234567890123456789012345678901234567890"
+				  "123456789012345678901234567890123456789",
+		.psize		= 79,
+		.digest 	= (u8 *)(u16 []){ 0x4b70 },
+		.np		= 2,
+		.tap		= { 63, 16 },
 	}, {
-		.plaintext =
-		"abcddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-		.psize  = 56,
-#ifdef __LITTLE_ENDIAN
-		.digest = "\xe3\x9c",
-#else
-		.digest = "\x9c\xe3",
-#endif
-		.np     = 2,
-		.tap    = { 28, 28 }
+		.plaintext	= "abcdddddddddddddddddddddddddddddddddddddddd"
+				  "ddddddddddddd",
+		.psize		= 56,
+		.digest		= (u8 *)(u16 []){ 0x9ce3 },
+		.np		= 8,
+		.tap		= { 1, 2, 28, 7, 6, 5, 4, 3 },
+	}, {
+		.plaintext 	= "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "123456789012345678901234567890123456789",
+		.psize		= 319,
+		.digest		= (u8 *)(u16 []){ 0x44c6 },
+	}, {
+		.plaintext 	= "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "1234567890123456789012345678901234567890"
+				  "123456789012345678901234567890123456789",
+		.psize		= 319,
+		.digest		= (u8 *)(u16 []){ 0x44c6 },
+		.np		= 4,
+		.tap		= { 1, 255, 57, 6 },
 	}
 };
 

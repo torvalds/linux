@@ -23,7 +23,7 @@ static int dwmac4_wrback_get_tx_status(void *data, struct stmmac_extra_stats *x,
 	unsigned int tdes3;
 	int ret = tx_done;
 
-	tdes3 = p->des3;
+	tdes3 = le32_to_cpu(p->des3);
 
 	/* Get tx owner first */
 	if (unlikely(tdes3 & TDES3_OWN))
@@ -77,9 +77,9 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 				       struct dma_desc *p)
 {
 	struct net_device_stats *stats = (struct net_device_stats *)data;
-	unsigned int rdes1 = p->des1;
-	unsigned int rdes2 = p->des2;
-	unsigned int rdes3 = p->des3;
+	unsigned int rdes1 = le32_to_cpu(p->des1);
+	unsigned int rdes2 = le32_to_cpu(p->des2);
+	unsigned int rdes3 = le32_to_cpu(p->des3);
 	int message_type;
 	int ret = good_frame;
 
@@ -176,47 +176,48 @@ static int dwmac4_wrback_get_rx_status(void *data, struct stmmac_extra_stats *x,
 
 static int dwmac4_rd_get_tx_len(struct dma_desc *p)
 {
-	return (p->des2 & TDES2_BUFFER1_SIZE_MASK);
+	return (le32_to_cpu(p->des2) & TDES2_BUFFER1_SIZE_MASK);
 }
 
 static int dwmac4_get_tx_owner(struct dma_desc *p)
 {
-	return (p->des3 & TDES3_OWN) >> TDES3_OWN_SHIFT;
+	return (le32_to_cpu(p->des3) & TDES3_OWN) >> TDES3_OWN_SHIFT;
 }
 
 static void dwmac4_set_tx_owner(struct dma_desc *p)
 {
-	p->des3 |= TDES3_OWN;
+	p->des3 |= cpu_to_le32(TDES3_OWN);
 }
 
 static void dwmac4_set_rx_owner(struct dma_desc *p)
 {
-	p->des3 |= RDES3_OWN;
+	p->des3 |= cpu_to_le32(RDES3_OWN);
 }
 
 static int dwmac4_get_tx_ls(struct dma_desc *p)
 {
-	return (p->des3 & TDES3_LAST_DESCRIPTOR) >> TDES3_LAST_DESCRIPTOR_SHIFT;
+	return (le32_to_cpu(p->des3) & TDES3_LAST_DESCRIPTOR)
+		>> TDES3_LAST_DESCRIPTOR_SHIFT;
 }
 
 static int dwmac4_wrback_get_rx_frame_len(struct dma_desc *p, int rx_coe)
 {
-	return (p->des3 & RDES3_PACKET_SIZE_MASK);
+	return (le32_to_cpu(p->des3) & RDES3_PACKET_SIZE_MASK);
 }
 
 static void dwmac4_rd_enable_tx_timestamp(struct dma_desc *p)
 {
-	p->des2 |= TDES2_TIMESTAMP_ENABLE;
+	p->des2 |= cpu_to_le32(TDES2_TIMESTAMP_ENABLE);
 }
 
 static int dwmac4_wrback_get_tx_timestamp_status(struct dma_desc *p)
 {
 	/* Context type from W/B descriptor must be zero */
-	if (p->des3 & TDES3_CONTEXT_TYPE)
+	if (le32_to_cpu(p->des3) & TDES3_CONTEXT_TYPE)
 		return -EINVAL;
 
 	/* Tx Timestamp Status is 1 so des0 and des1'll have valid values */
-	if (p->des3 & TDES3_TIMESTAMP_STATUS)
+	if (le32_to_cpu(p->des3) & TDES3_TIMESTAMP_STATUS)
 		return 0;
 
 	return 1;
@@ -227,9 +228,9 @@ static inline u64 dwmac4_get_timestamp(void *desc, u32 ats)
 	struct dma_desc *p = (struct dma_desc *)desc;
 	u64 ns;
 
-	ns = p->des0;
+	ns = le32_to_cpu(p->des0);
 	/* convert high/sec time stamp value to nanosecond */
-	ns += p->des1 * 1000000000ULL;
+	ns += le32_to_cpu(p->des1) * 1000000000ULL;
 
 	return ns;
 }
@@ -264,7 +265,7 @@ static int dwmac4_wrback_get_rx_timestamp_status(void *desc, u32 ats)
 
 	/* Get the status from normal w/b descriptor */
 	if (likely(p->des3 & TDES3_RS1V)) {
-		if (likely(p->des1 & RDES1_TIMESTAMP_AVAILABLE)) {
+		if (likely(le32_to_cpu(p->des1) & RDES1_TIMESTAMP_AVAILABLE)) {
 			int i = 0;
 
 			/* Check if timestamp is OK from context descriptor */
@@ -287,10 +288,10 @@ exit:
 static void dwmac4_rd_init_rx_desc(struct dma_desc *p, int disable_rx_ic,
 				   int mode, int end)
 {
-	p->des3 = RDES3_OWN | RDES3_BUFFER1_VALID_ADDR;
+	p->des3 = cpu_to_le32(RDES3_OWN | RDES3_BUFFER1_VALID_ADDR);
 
 	if (!disable_rx_ic)
-		p->des3 |= RDES3_INT_ON_COMPLETION_EN;
+		p->des3 |= cpu_to_le32(RDES3_INT_ON_COMPLETION_EN);
 }
 
 static void dwmac4_rd_init_tx_desc(struct dma_desc *p, int mode, int end)
@@ -305,9 +306,9 @@ static void dwmac4_rd_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				      bool csum_flag, int mode, bool tx_own,
 				      bool ls)
 {
-	unsigned int tdes3 = p->des3;
+	unsigned int tdes3 = le32_to_cpu(p->des3);
 
-	p->des2 |= (len & TDES2_BUFFER1_SIZE_MASK);
+	p->des2 |= cpu_to_le32(len & TDES2_BUFFER1_SIZE_MASK);
 
 	if (is_fs)
 		tdes3 |= TDES3_FIRST_DESCRIPTOR;
@@ -333,9 +334,9 @@ static void dwmac4_rd_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 		 * descriptors for the same frame has to be set before, to
 		 * avoid race condition.
 		 */
-		wmb();
+		dma_wmb();
 
-	p->des3 = tdes3;
+	p->des3 = cpu_to_le32(tdes3);
 }
 
 static void dwmac4_rd_prepare_tso_tx_desc(struct dma_desc *p, int is_fs,
@@ -343,14 +344,14 @@ static void dwmac4_rd_prepare_tso_tx_desc(struct dma_desc *p, int is_fs,
 					  bool ls, unsigned int tcphdrlen,
 					  unsigned int tcppayloadlen)
 {
-	unsigned int tdes3 = p->des3;
+	unsigned int tdes3 = le32_to_cpu(p->des3);
 
 	if (len1)
-		p->des2 |= (len1 & TDES2_BUFFER1_SIZE_MASK);
+		p->des2 |= cpu_to_le32((len1 & TDES2_BUFFER1_SIZE_MASK));
 
 	if (len2)
-		p->des2 |= (len2 << TDES2_BUFFER2_SIZE_MASK_SHIFT)
-			    & TDES2_BUFFER2_SIZE_MASK;
+		p->des2 |= cpu_to_le32((len2 << TDES2_BUFFER2_SIZE_MASK_SHIFT)
+			    & TDES2_BUFFER2_SIZE_MASK);
 
 	if (is_fs) {
 		tdes3 |= TDES3_FIRST_DESCRIPTOR |
@@ -376,9 +377,9 @@ static void dwmac4_rd_prepare_tso_tx_desc(struct dma_desc *p, int is_fs,
 		 * descriptors for the same frame has to be set before, to
 		 * avoid race condition.
 		 */
-		wmb();
+		dma_wmb();
 
-	p->des3 = tdes3;
+	p->des3 = cpu_to_le32(tdes3);
 }
 
 static void dwmac4_release_tx_desc(struct dma_desc *p, int mode)
@@ -389,7 +390,7 @@ static void dwmac4_release_tx_desc(struct dma_desc *p, int mode)
 
 static void dwmac4_rd_set_tx_ic(struct dma_desc *p)
 {
-	p->des2 |= TDES2_INTERRUPT_ON_COMPLETION;
+	p->des2 |= cpu_to_le32(TDES2_INTERRUPT_ON_COMPLETION);
 }
 
 static void dwmac4_display_ring(void *head, unsigned int size, bool rx)
@@ -402,7 +403,8 @@ static void dwmac4_display_ring(void *head, unsigned int size, bool rx)
 	for (i = 0; i < size; i++) {
 		pr_info("%d [0x%x]: 0x%x 0x%x 0x%x 0x%x\n",
 			i, (unsigned int)virt_to_phys(p),
-			p->des0, p->des1, p->des2, p->des3);
+			le32_to_cpu(p->des0), le32_to_cpu(p->des1),
+			le32_to_cpu(p->des2), le32_to_cpu(p->des3));
 		p++;
 	}
 }
@@ -411,8 +413,8 @@ static void dwmac4_set_mss_ctxt(struct dma_desc *p, unsigned int mss)
 {
 	p->des0 = 0;
 	p->des1 = 0;
-	p->des2 = mss;
-	p->des3 = TDES3_CONTEXT_TYPE | TDES3_CTXT_TCMSSV;
+	p->des2 = cpu_to_le32(mss);
+	p->des3 = cpu_to_le32(TDES3_CONTEXT_TYPE | TDES3_CTXT_TCMSSV);
 }
 
 const struct stmmac_desc_ops dwmac4_desc_ops = {

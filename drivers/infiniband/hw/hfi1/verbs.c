@@ -297,22 +297,6 @@ static inline int wss_exceeds_threshold(void)
 }
 
 /*
- * Translate ib_wr_opcode into ib_wc_opcode.
- */
-const enum ib_wc_opcode ib_hfi1_wc_opcode[] = {
-	[IB_WR_RDMA_WRITE] = IB_WC_RDMA_WRITE,
-	[IB_WR_RDMA_WRITE_WITH_IMM] = IB_WC_RDMA_WRITE,
-	[IB_WR_SEND] = IB_WC_SEND,
-	[IB_WR_SEND_WITH_IMM] = IB_WC_SEND,
-	[IB_WR_RDMA_READ] = IB_WC_RDMA_READ,
-	[IB_WR_ATOMIC_CMP_AND_SWP] = IB_WC_COMP_SWAP,
-	[IB_WR_ATOMIC_FETCH_AND_ADD] = IB_WC_FETCH_ADD,
-	[IB_WR_SEND_WITH_INV] = IB_WC_SEND,
-	[IB_WR_LOCAL_INV] = IB_WC_LOCAL_INV,
-	[IB_WR_REG_MR] = IB_WC_REG_MR
-};
-
-/*
  * Length of header by opcode, 0 --> not supported
  */
 const u8 hdr_len_by_opcode[256] = {
@@ -694,6 +678,7 @@ static void mem_timer(unsigned long data)
 		qp = iowait_to_qp(wait);
 		priv = qp->priv;
 		list_del_init(&priv->s_iowait.list);
+		priv->s_iowait.lock = NULL;
 		/* refcount held until actual wake up */
 		if (!list_empty(list))
 			mod_timer(&dev->mem_timer, jiffies + 1);
@@ -769,6 +754,7 @@ static int wait_kmem(struct hfi1_ibdev *dev,
 				mod_timer(&dev->mem_timer, jiffies + 1);
 			qp->s_flags |= RVT_S_WAIT_KMEM;
 			list_add_tail(&priv->s_iowait.list, &dev->memwait);
+			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_KMEM);
 			rvt_get_qp(qp);
 		}
@@ -788,10 +774,10 @@ static int wait_kmem(struct hfi1_ibdev *dev,
  */
 static noinline int build_verbs_ulp_payload(
 	struct sdma_engine *sde,
-	struct rvt_sge_state *ss,
 	u32 length,
 	struct verbs_txreq *tx)
 {
+	struct rvt_sge_state *ss = tx->ss;
 	struct rvt_sge *sg_list = ss->sg_list;
 	struct rvt_sge sge = ss->sge;
 	u8 num_sge = ss->num_sge;
@@ -835,7 +821,6 @@ bail_txadd:
 /* New API */
 static int build_verbs_tx_desc(
 	struct sdma_engine *sde,
-	struct rvt_sge_state *ss,
 	u32 length,
 	struct verbs_txreq *tx,
 	struct hfi1_ahg_info *ahg_info,
@@ -879,9 +864,9 @@ static int build_verbs_tx_desc(
 			goto bail_txadd;
 	}
 
-	/* add the ulp payload - if any.  ss can be NULL for acks */
-	if (ss)
-		ret = build_verbs_ulp_payload(sde, ss, length, tx);
+	/* add the ulp payload - if any. tx->ss can be NULL for acks */
+	if (tx->ss)
+		ret = build_verbs_ulp_payload(sde, length, tx);
 bail_txadd:
 	return ret;
 }
@@ -892,8 +877,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_ahg_info *ahg_info = priv->s_ahg;
 	u32 hdrwords = qp->s_hdrwords;
-	struct rvt_sge_state *ss = qp->s_cur_sge;
-	u32 len = qp->s_cur_size;
+	u32 len = ps->s_txreq->s_cur_size;
 	u32 plen = hdrwords + ((len + 3) >> 2) + 2; /* includes pbc */
 	struct hfi1_ibdev *dev = ps->dev;
 	struct hfi1_pportdata *ppd = ps->ppd;
@@ -918,7 +902,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 					 plen);
 		}
 		tx->wqe = qp->s_wqe;
-		ret = build_verbs_tx_desc(tx->sde, ss, len, tx, ahg_info, pbc);
+		ret = build_verbs_tx_desc(tx->sde, len, tx, ahg_info, pbc);
 		if (unlikely(ret))
 			goto bail_build;
 	}
@@ -980,6 +964,7 @@ static int pio_wait(struct rvt_qp *qp,
 			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
 			list_add_tail(&priv->s_iowait.list, &sc->piowait);
+			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_PIO);
 			rvt_get_qp(qp);
 			/* counting: only call wantpiobuf_intr if first user */
@@ -1008,8 +993,8 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	u32 hdrwords = qp->s_hdrwords;
-	struct rvt_sge_state *ss = qp->s_cur_sge;
-	u32 len = qp->s_cur_size;
+	struct rvt_sge_state *ss = ps->s_txreq->ss;
+	u32 len = ps->s_txreq->s_cur_size;
 	u32 dwords = (len + 3) >> 2;
 	u32 plen = hdrwords + dwords + 2; /* includes pbc */
 	struct hfi1_pportdata *ppd = ps->ppd;
@@ -1237,7 +1222,7 @@ static inline send_routine get_send_routine(struct rvt_qp *qp,
 		u8 op = get_opcode(h);
 
 		if (piothreshold &&
-		    qp->s_cur_size <= min(piothreshold, qp->pmtu) &&
+		    tx->s_cur_size <= min(piothreshold, qp->pmtu) &&
 		    (BIT(op & OPMASK) & pio_opmask[op >> 5]) &&
 		    iowait_sdma_pending(&priv->s_iowait) == 0 &&
 		    !sdma_txreq_built(&tx->txreq))
@@ -1483,15 +1468,11 @@ static int hfi1_get_guid_be(struct rvt_dev_info *rdi, struct rvt_ibport *rvp,
 			    int guid_index, __be64 *guid)
 {
 	struct hfi1_ibport *ibp = container_of(rvp, struct hfi1_ibport, rvp);
-	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 
-	if (guid_index == 0)
-		*guid = cpu_to_be64(ppd->guid);
-	else if (guid_index < HFI1_GUIDS_PER_PORT)
-		*guid = ibp->guids[guid_index - 1];
-	else
+	if (guid_index >= HFI1_GUIDS_PER_PORT)
 		return -EINVAL;
 
+	*guid = get_sguid(ibp, guid_index);
 	return 0;
 }
 
@@ -1610,6 +1591,154 @@ static void hfi1_get_dev_fw_str(struct ib_device *ibdev, char *str,
 		 dc8051_ver_min(ver));
 }
 
+static const char * const driver_cntr_names[] = {
+	/* must be element 0*/
+	"DRIVER_KernIntr",
+	"DRIVER_ErrorIntr",
+	"DRIVER_Tx_Errs",
+	"DRIVER_Rcv_Errs",
+	"DRIVER_HW_Errs",
+	"DRIVER_NoPIOBufs",
+	"DRIVER_CtxtsOpen",
+	"DRIVER_RcvLen_Errs",
+	"DRIVER_EgrBufFull",
+	"DRIVER_EgrHdrFull"
+};
+
+static const char **dev_cntr_names;
+static const char **port_cntr_names;
+static int num_driver_cntrs = ARRAY_SIZE(driver_cntr_names);
+static int num_dev_cntrs;
+static int num_port_cntrs;
+static int cntr_names_initialized;
+
+/*
+ * Convert a list of names separated by '\n' into an array of NULL terminated
+ * strings. Optionally some entries can be reserved in the array to hold extra
+ * external strings.
+ */
+static int init_cntr_names(const char *names_in,
+			   const int names_len,
+			   int num_extra_names,
+			   int *num_cntrs,
+			   const char ***cntr_names)
+{
+	char *names_out, *p, **q;
+	int i, n;
+
+	n = 0;
+	for (i = 0; i < names_len; i++)
+		if (names_in[i] == '\n')
+			n++;
+
+	names_out = kmalloc((n + num_extra_names) * sizeof(char *) + names_len,
+			    GFP_KERNEL);
+	if (!names_out) {
+		*num_cntrs = 0;
+		*cntr_names = NULL;
+		return -ENOMEM;
+	}
+
+	p = names_out + (n + num_extra_names) * sizeof(char *);
+	memcpy(p, names_in, names_len);
+
+	q = (char **)names_out;
+	for (i = 0; i < n; i++) {
+		q[i] = p;
+		p = strchr(p, '\n');
+		*p++ = '\0';
+	}
+
+	*num_cntrs = n;
+	*cntr_names = (const char **)names_out;
+	return 0;
+}
+
+static struct rdma_hw_stats *alloc_hw_stats(struct ib_device *ibdev,
+					    u8 port_num)
+{
+	int i, err;
+
+	if (!cntr_names_initialized) {
+		struct hfi1_devdata *dd = dd_from_ibdev(ibdev);
+
+		err = init_cntr_names(dd->cntrnames,
+				      dd->cntrnameslen,
+				      num_driver_cntrs,
+				      &num_dev_cntrs,
+				      &dev_cntr_names);
+		if (err)
+			return NULL;
+
+		for (i = 0; i < num_driver_cntrs; i++)
+			dev_cntr_names[num_dev_cntrs + i] =
+				driver_cntr_names[i];
+
+		err = init_cntr_names(dd->portcntrnames,
+				      dd->portcntrnameslen,
+				      0,
+				      &num_port_cntrs,
+				      &port_cntr_names);
+		if (err) {
+			kfree(dev_cntr_names);
+			dev_cntr_names = NULL;
+			return NULL;
+		}
+		cntr_names_initialized = 1;
+	}
+
+	if (!port_num)
+		return rdma_alloc_hw_stats_struct(
+				dev_cntr_names,
+				num_dev_cntrs + num_driver_cntrs,
+				RDMA_HW_STATS_DEFAULT_LIFESPAN);
+	else
+		return rdma_alloc_hw_stats_struct(
+				port_cntr_names,
+				num_port_cntrs,
+				RDMA_HW_STATS_DEFAULT_LIFESPAN);
+}
+
+static u64 hfi1_sps_ints(void)
+{
+	unsigned long flags;
+	struct hfi1_devdata *dd;
+	u64 sps_ints = 0;
+
+	spin_lock_irqsave(&hfi1_devs_lock, flags);
+	list_for_each_entry(dd, &hfi1_dev_list, list) {
+		sps_ints += get_all_cpu_total(dd->int_counter);
+	}
+	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	return sps_ints;
+}
+
+static int get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
+			u8 port, int index)
+{
+	u64 *values;
+	int count;
+
+	if (!port) {
+		u64 *stats = (u64 *)&hfi1_stats;
+		int i;
+
+		hfi1_read_cntrs(dd_from_ibdev(ibdev), NULL, &values);
+		values[num_dev_cntrs] = hfi1_sps_ints();
+		for (i = 1; i < num_driver_cntrs; i++)
+			values[num_dev_cntrs + i] = stats[i];
+		count = num_dev_cntrs + num_driver_cntrs;
+	} else {
+		struct hfi1_ibport *ibp = to_iport(ibdev, port);
+
+		hfi1_read_portcntrs(ppd_from_ibp(ibp), NULL, &values);
+		count = num_port_cntrs;
+	}
+
+	memcpy(stats->value, values, count * sizeof(u64));
+	return count;
+}
+
 /**
  * hfi1_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
@@ -1620,6 +1749,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	struct ib_device *ibdev = &dev->rdi.ibdev;
 	struct hfi1_pportdata *ppd = dd->pport;
+	struct hfi1_ibport *ibp = &ppd->ibport_data;
 	unsigned i;
 	int ret;
 	size_t lcpysz = IB_DEVICE_NAME_MAX;
@@ -1632,6 +1762,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	setup_timer(&dev->mem_timer, mem_timer, (unsigned long)dev);
 
 	seqlock_init(&dev->iowait_lock);
+	seqlock_init(&dev->txwait_lock);
 	INIT_LIST_HEAD(&dev->txwait);
 	INIT_LIST_HEAD(&dev->memwait);
 
@@ -1639,20 +1770,24 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	if (ret)
 		goto err_verbs_txreq;
 
+	/* Use first-port GUID as node guid */
+	ibdev->node_guid = get_sguid(ibp, HFI1_PORT_GUID_INDEX);
+
 	/*
 	 * The system image GUID is supposed to be the same for all
 	 * HFIs in a single system but since there can be other
 	 * device types in the system, we can't be sure this is unique.
 	 */
 	if (!ib_hfi1_sys_image_guid)
-		ib_hfi1_sys_image_guid = cpu_to_be64(ppd->guid);
+		ib_hfi1_sys_image_guid = ibdev->node_guid;
 	lcpysz = strlcpy(ibdev->name, class_name(), lcpysz);
 	strlcpy(ibdev->name + lcpysz, "_%d", IB_DEVICE_NAME_MAX - lcpysz);
 	ibdev->owner = THIS_MODULE;
-	ibdev->node_guid = cpu_to_be64(ppd->guid);
 	ibdev->phys_port_cnt = dd->num_pports;
 	ibdev->dma_device = &dd->pcidev->dev;
 	ibdev->modify_device = modify_device;
+	ibdev->alloc_hw_stats = alloc_hw_stats;
+	ibdev->get_hw_stats = get_hw_stats;
 
 	/* keep process mad in the driver */
 	ibdev->process_mad = hfi1_process_mad;
@@ -1767,6 +1902,10 @@ void hfi1_unregister_ib_device(struct hfi1_devdata *dd)
 
 	del_timer_sync(&dev->mem_timer);
 	verbs_txreq_exit(dev);
+
+	kfree(dev_cntr_names);
+	kfree(port_cntr_names);
+	cntr_names_initialized = 0;
 }
 
 void hfi1_cnp_rcv(struct hfi1_packet *packet)

@@ -85,7 +85,8 @@
 #define E1000_TXD_CMD_DEXT	0x20000000 /* Desc extension (0 = legacy) */
 #define E1000_TXD_STAT_DD	0x00000001 /* Desc Done */
 
-#define MAX_JUMBO_FRAME_SIZE	0x3F00
+#define MAX_JUMBO_FRAME_SIZE		0x3F00
+#define MAX_STD_JUMBO_FRAME_SIZE	9216
 
 /* 802.1q VLAN Packet Size */
 #define VLAN_TAG_SIZE		4    /* 802.3ac tag (not DMA'd) */

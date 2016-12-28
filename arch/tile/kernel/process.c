@@ -35,7 +35,7 @@
 #include <asm/syscalls.h>
 #include <asm/traps.h>
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif

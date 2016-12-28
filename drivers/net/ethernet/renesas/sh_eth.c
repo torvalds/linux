@@ -2914,7 +2914,6 @@ static const struct net_device_ops sh_eth_netdev_ops = {
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static const struct net_device_ops sh_eth_netdev_ops_tsu = {
@@ -2929,7 +2928,6 @@ static const struct net_device_ops sh_eth_netdev_ops_tsu = {
 	.ndo_do_ioctl		= sh_eth_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 #ifdef CONFIG_OF

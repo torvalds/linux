@@ -87,6 +87,7 @@ libperf-y += help-unknown-cmd.o
 libperf-y += mem-events.o
 libperf-y += vsprintf.o
 libperf-y += drv_configs.o
+libperf-y += time-utils.o
 
 libperf-$(CONFIG_LIBBPF) += bpf-loader.o
 libperf-$(CONFIG_BPF_PROLOGUE) += bpf-prologue.o
@@ -120,8 +121,12 @@ libperf-y += demangle-rust.o
 ifdef CONFIG_JITDUMP
 libperf-$(CONFIG_LIBELF) += jitdump.o
 libperf-$(CONFIG_LIBELF) += genelf.o
-libperf-$(CONFIG_LIBELF) += genelf_debug.o
+libperf-$(CONFIG_DWARF) += genelf_debug.o
 endif
+
+libperf-y += perf-hooks.o
+
+libperf-$(CONFIG_CXX) += c++/
 
 CFLAGS_config.o   += -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 # avoid compiler warnings in 32-bit mode

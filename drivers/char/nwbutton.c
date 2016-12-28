@@ -16,7 +16,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 

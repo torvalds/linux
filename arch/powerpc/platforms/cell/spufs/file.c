@@ -35,7 +35,7 @@
 #include <asm/time.h>
 #include <asm/spu.h>
 #include <asm/spu_info.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "spufs.h"
 #include "sputrace.h"
@@ -236,7 +236,6 @@ static int
 spufs_mem_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct spu_context *ctx	= vma->vm_file->private_data;
-	unsigned long address = (unsigned long)vmf->virtual_address;
 	unsigned long pfn, offset;
 
 	offset = vmf->pgoff << PAGE_SHIFT;
@@ -244,7 +243,7 @@ spufs_mem_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 
 	pr_debug("spufs_mem_mmap_fault address=0x%lx, offset=0x%lx\n",
-			address, offset);
+			vmf->address, offset);
 
 	if (spu_acquire(ctx))
 		return VM_FAULT_NOPAGE;
@@ -256,7 +255,7 @@ spufs_mem_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		vma->vm_page_prot = pgprot_noncached_wc(vma->vm_page_prot);
 		pfn = (ctx->spu->local_store_phys + offset) >> PAGE_SHIFT;
 	}
-	vm_insert_pfn(vma, address, pfn);
+	vm_insert_pfn(vma, vmf->address, pfn);
 
 	spu_release(ctx);
 
@@ -355,8 +354,7 @@ static int spufs_ps_fault(struct vm_area_struct *vma,
 		down_read(&current->mm->mmap_sem);
 	} else {
 		area = ctx->spu->problem_phys + ps_offs;
-		vm_insert_pfn(vma, (unsigned long)vmf->virtual_address,
-					(area + offset) >> PAGE_SHIFT);
+		vm_insert_pfn(vma, vmf->address, (area + offset) >> PAGE_SHIFT);
 		spu_context_trace(spufs_ps_fault__insert, ctx, ctx->spu);
 	}
 

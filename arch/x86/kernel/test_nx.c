@@ -13,7 +13,7 @@
 #include <linux/sort.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/asm.h>
 
 extern int rodata_test_data;

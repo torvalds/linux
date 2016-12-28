@@ -50,6 +50,7 @@ pci_config_attr(vendor, "0x%04x\n");
 pci_config_attr(device, "0x%04x\n");
 pci_config_attr(subsystem_vendor, "0x%04x\n");
 pci_config_attr(subsystem_device, "0x%04x\n");
+pci_config_attr(revision, "0x%02x\n");
 pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
 
@@ -568,6 +569,7 @@ static struct attribute *pci_dev_attrs[] = {
 	&dev_attr_device.attr,
 	&dev_attr_subsystem_vendor.attr,
 	&dev_attr_subsystem_device.attr,
+	&dev_attr_revision.attr,
 	&dev_attr_class.attr,
 	&dev_attr_irq.attr,
 	&dev_attr_local_cpus.attr,

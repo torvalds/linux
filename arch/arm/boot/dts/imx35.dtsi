@@ -8,10 +8,12 @@
  * Free Software Foundation.
  */
 
-#include "skeleton.dtsi"
 #include "imx35-pinfunc.h"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	aliases {
 		ethernet0 = &fec;
 		gpio0 = &gpio1;

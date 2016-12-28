@@ -207,10 +207,8 @@ static int gb_audio_add_data_connection(struct gbaudio_module_info *gbmodule,
 	struct gbaudio_data_connection *dai;
 
 	dai = devm_kzalloc(gbmodule->dev, sizeof(*dai), GFP_KERNEL);
-	if (!dai) {
-		dev_err(gbmodule->dev, "DAI Malloc failure\n");
+	if (!dai)
 		return -ENOMEM;
-	}
 
 	connection = gb_connection_create_offloaded(bundle,
 					le16_to_cpu(cport_desc->id),
@@ -345,10 +343,9 @@ static int gb_audio_probe(struct gb_bundle *bundle,
 	dev_dbg(dev, "Inform set_event:%d to above layer\n", 1);
 	/* prepare for the audio manager */
 	strlcpy(desc.name, gbmodule->name, GB_AUDIO_MANAGER_MODULE_NAME_LEN);
-	desc.slot = 1; /* todo */
 	desc.vid = 2; /* todo */
 	desc.pid = 3; /* todo */
-	desc.cport = gbmodule->dev_id;
+	desc.intf_id = gbmodule->dev_id;
 	desc.op_devices = gbmodule->op_devices;
 	desc.ip_devices = gbmodule->ip_devices;
 	gbmodule->manager_id = gb_audio_manager_add(&desc);

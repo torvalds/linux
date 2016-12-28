@@ -19,7 +19,7 @@
 #include <linux/crc32.h>
 #include <linux/fiemap.h>
 #include <linux/security.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -2067,7 +2067,6 @@ const struct inode_operations gfs2_dir_iops = {
 };
 
 const struct inode_operations gfs2_symlink_iops = {
-	.readlink = generic_readlink,
 	.get_link = gfs2_get_link,
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,

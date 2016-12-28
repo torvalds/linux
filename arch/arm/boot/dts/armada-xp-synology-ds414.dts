@@ -70,7 +70,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x00000000 0 0x40000000>; /* 1GB */
 	};
@@ -80,28 +80,6 @@
 			  MBUS_ID(0x01, 0x1d) 0 0 0xfff00000 0x100000
 			  MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			  MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
-
-		pcie-controller {
-			status = "okay";
-
-			/*
-			 * Connected to Marvell 88SX7042 SATA-II controller
-			 * handling the four disks.
-			 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/*
-			 * Connected to EtronTech EJ168A XHCI controller
-			 * providing the two rear USB 3.0 ports.
-			 */
-			pcie@5,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
 
 		internal-regs {
 
@@ -150,16 +128,6 @@
 				status = "okay";
 			};
 
-			mdio {
-				phy0: ethernet-phy@0 { /* Marvell 88E1512 */
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 { /* Marvell 88E1512 */
-					reg = <1>;
-				};
-			};
-
 			ethernet@70000 {
 				status = "okay";
 				pinctrl-0 = <&ge0_rgmii_pins>;
@@ -186,7 +154,7 @@
 			     &sata3_pwr_pin &sata4_pwr_pin>;
 		pinctrl-names = "default";
 
-		sata1_regulator: sata1-regulator {
+		sata1_regulator: sata1-regulator@1 {
 			compatible = "regulator-fixed";
 			reg = <1>;
 			regulator-name = "SATA1 Power";
@@ -199,7 +167,7 @@
 			gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata2_regulator: sata2-regulator {
+		sata2_regulator: sata2-regulator@2 {
 			compatible = "regulator-fixed";
 			reg = <2>;
 			regulator-name = "SATA2 Power";
@@ -212,7 +180,7 @@
 			gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata3_regulator: sata3-regulator {
+		sata3_regulator: sata3-regulator@3 {
 			compatible = "regulator-fixed";
 			reg = <3>;
 			regulator-name = "SATA3 Power";
@@ -225,7 +193,7 @@
 			gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		};
 
-		sata4_regulator: sata4-regulator {
+		sata4_regulator: sata4-regulator@4 {
 			compatible = "regulator-fixed";
 			reg = <4>;
 			regulator-name = "SATA4 Power";
@@ -237,6 +205,39 @@
 			regulator-boot-on;
 			gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		};
+	};
+};
+
+&pciec {
+	status = "okay";
+
+	/*
+	 * Connected to Marvell 88SX7042 SATA-II controller
+	 * handling the four disks.
+	 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/*
+	 * Connected to EtronTech EJ168A XHCI controller
+	 * providing the two rear USB 3.0 ports.
+	 */
+	pcie@5,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
+
+&mdio {
+	phy0: ethernet-phy@0 { /* Marvell 88E1512 */
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 { /* Marvell 88E1512 */
+		reg = <1>;
 	};
 };
 

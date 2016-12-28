@@ -129,8 +129,8 @@
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 
 		red {
-		        gpios = <&gpio1 2 0>;
-		        default-state = "on";
+			gpios = <&gpio1 2 0>;
+			default-state = "on";
 		};
 	};
 

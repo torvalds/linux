@@ -28,7 +28,7 @@
 #include <linux/pagemap.h>
 #include <linux/pstore.h>
 #include <linux/zlib.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/nvram.h>
 #include <asm/rtas.h>
 #include <asm/prom.h>

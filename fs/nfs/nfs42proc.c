@@ -397,10 +397,13 @@ static void
 nfs42_layoutstat_release(void *calldata)
 {
 	struct nfs42_layoutstat_data *data = calldata;
-	struct nfs_server *nfss = NFS_SERVER(data->args.inode);
+	struct nfs42_layoutstat_devinfo *devinfo = data->args.devinfo;
+	int i;
 
-	if (nfss->pnfs_curr_ld->cleanup_layoutstats)
-		nfss->pnfs_curr_ld->cleanup_layoutstats(data);
+	for (i = 0; i < data->args.num_dev; i++) {
+		if (devinfo[i].ld_private.ops && devinfo[i].ld_private.ops->free)
+			devinfo[i].ld_private.ops->free(&devinfo[i].ld_private);
+	}
 
 	pnfs_put_layout_hdr(NFS_I(data->args.inode)->layout);
 	smp_mb__before_atomic();

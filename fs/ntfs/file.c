@@ -30,7 +30,7 @@
 #include <linux/writeback.h>
 
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "attrib.h"
 #include "bitmap.h"
@@ -740,8 +740,7 @@ map_buffer_cached:
 					set_buffer_uptodate(bh);
 				if (unlikely(was_hole)) {
 					/* We allocated the buffer. */
-					unmap_underlying_metadata(bh->b_bdev,
-							bh->b_blocknr);
+					clean_bdev_bh_alias(bh);
 					if (bh_end <= pos || bh_pos >= end)
 						mark_buffer_dirty(bh);
 					else
@@ -784,7 +783,7 @@ map_buffer_cached:
 				continue;
 			}
 			/* We allocated the buffer. */
-			unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+			clean_bdev_bh_alias(bh);
 			/*
 			 * If the buffer is fully outside the write, zero it,
 			 * set it uptodate, and mark it dirty so it gets

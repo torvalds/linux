@@ -702,8 +702,8 @@ int solo_v4l2_init(struct solo_dev *solo_dev, unsigned nr)
 	snprintf(solo_dev->vfd->name, sizeof(solo_dev->vfd->name), "%s (%i)",
 		 SOLO6X10_NAME, solo_dev->vfd->num);
 
-	dev_info(&solo_dev->pdev->dev, "Display as /dev/video%d with "
-		 "%d inputs (%d extended)\n", solo_dev->vfd->num,
+	dev_info(&solo_dev->pdev->dev, "Display as /dev/video%d with %d inputs (%d extended)\n",
+		 solo_dev->vfd->num,
 		 solo_dev->nr_chans, solo_dev->nr_ext);
 
 	return 0;

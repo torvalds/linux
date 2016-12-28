@@ -12,7 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * */
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -21,6 +21,8 @@
 #include <linux/spi/spi.h>
 #include <linux/rtc.h>
 #include <linux/of.h>
+#include <linux/bcd.h>
+#include <linux/delay.h>
 
 /* MCP795 Instructions, see datasheet table 3-1 */
 #define MCP795_EEREAD	0x03
@@ -29,7 +31,7 @@
 #define MCP795_EEWREN	0x06
 #define MCP795_SRREAD	0x05
 #define MCP795_SRWRITE	0x01
-#define MCP795_READ		0x13
+#define MCP795_READ	0x13
 #define MCP795_WRITE	0x12
 #define MCP795_UNLOCK	0x14
 #define MCP795_IDWRITE	0x32
@@ -37,8 +39,17 @@
 #define MCP795_CLRWDT	0x44
 #define MCP795_CLRRAM	0x54
 
-#define MCP795_ST_BIT	0x80
-#define MCP795_24_BIT	0x40
+/* MCP795 RTCC registers, see datasheet table 4-1 */
+#define MCP795_REG_SECONDS	0x01
+#define MCP795_REG_DAY		0x04
+#define MCP795_REG_MONTH	0x06
+#define MCP795_REG_CONTROL	0x08
+
+#define MCP795_ST_BIT		BIT(7)
+#define MCP795_24_BIT		BIT(6)
+#define MCP795_LP_BIT		BIT(5)
+#define MCP795_EXTOSC_BIT	BIT(3)
+#define MCP795_OSCON_BIT	BIT(5)
 
 static int mcp795_rtcc_read(struct device *dev, u8 addr, u8 *buf, u8 count)
 {
@@ -93,30 +104,97 @@ static int mcp795_rtcc_set_bits(struct device *dev, u8 addr, u8 mask, u8 state)
 	return ret;
 }
 
+static int mcp795_stop_oscillator(struct device *dev, bool *extosc)
+{
+	int retries = 5;
+	int ret;
+	u8 data;
+
+	ret = mcp795_rtcc_set_bits(dev, MCP795_REG_SECONDS, MCP795_ST_BIT, 0);
+	if (ret)
+		return ret;
+	ret = mcp795_rtcc_read(dev, MCP795_REG_CONTROL, &data, 1);
+	if (ret)
+		return ret;
+	*extosc = !!(data & MCP795_EXTOSC_BIT);
+	ret = mcp795_rtcc_set_bits(
+				dev, MCP795_REG_CONTROL, MCP795_EXTOSC_BIT, 0);
+	if (ret)
+		return ret;
+	/* wait for the OSCON bit to clear */
+	do {
+		usleep_range(700, 800);
+		ret = mcp795_rtcc_read(dev, MCP795_REG_DAY, &data, 1);
+		if (ret)
+			break;
+		if (!(data & MCP795_OSCON_BIT))
+			break;
+
+	} while (--retries);
+
+	return !retries ? -EIO : ret;
+}
+
+static int mcp795_start_oscillator(struct device *dev, bool *extosc)
+{
+	if (extosc) {
+		u8 data = *extosc ? MCP795_EXTOSC_BIT : 0;
+		int ret;
+
+		ret = mcp795_rtcc_set_bits(
+			dev, MCP795_REG_CONTROL, MCP795_EXTOSC_BIT, data);
+		if (ret)
+			return ret;
+	}
+	return mcp795_rtcc_set_bits(
+			dev, MCP795_REG_SECONDS, MCP795_ST_BIT, MCP795_ST_BIT);
+}
+
 static int mcp795_set_time(struct device *dev, struct rtc_time *tim)
 {
 	int ret;
 	u8 data[7];
+	bool extosc;
+
+	/* Stop RTC and store current value of EXTOSC bit */
+	ret = mcp795_stop_oscillator(dev, &extosc);
+	if (ret)
+		return ret;
 
 	/* Read first, so we can leave config bits untouched */
-	ret = mcp795_rtcc_read(dev, 0x01, data, sizeof(data));
+	ret = mcp795_rtcc_read(dev, MCP795_REG_SECONDS, data, sizeof(data));
 
 	if (ret)
 		return ret;
 
-	data[0] = (data[0] & 0x80) | ((tim->tm_sec / 10) << 4) | (tim->tm_sec % 10);
-	data[1] = (data[1] & 0x80) | ((tim->tm_min / 10) << 4) | (tim->tm_min % 10);
-	data[2] = ((tim->tm_hour / 10) << 4) | (tim->tm_hour % 10);
-	data[4] = ((tim->tm_mday / 10) << 4) | ((tim->tm_mday) % 10);
-	data[5] = (data[5] & 0x10) | (tim->tm_mon / 10) | (tim->tm_mon % 10);
+	data[0] = (data[0] & 0x80) | bin2bcd(tim->tm_sec);
+	data[1] = (data[1] & 0x80) | bin2bcd(tim->tm_min);
+	data[2] = bin2bcd(tim->tm_hour);
+	data[4] = bin2bcd(tim->tm_mday);
+	data[5] = (data[5] & MCP795_LP_BIT) | bin2bcd(tim->tm_mon + 1);
 
 	if (tim->tm_year > 100)
 		tim->tm_year -= 100;
 
-	data[6] = ((tim->tm_year / 10) << 4) | (tim->tm_year % 10);
+	data[6] = bin2bcd(tim->tm_year);
 
-	ret = mcp795_rtcc_write(dev, 0x01, data, sizeof(data));
+	/* Always write the date and month using a separate Write command.
+	 * This is a workaround for a know silicon issue that some combinations
+	 * of date and month values may result in the date being reset to 1.
+	 */
+	ret = mcp795_rtcc_write(dev, MCP795_REG_SECONDS, data, 5);
+	if (ret)
+		return ret;
 
+	ret = mcp795_rtcc_write(dev, MCP795_REG_MONTH, &data[5], 2);
+	if (ret)
+		return ret;
+
+	/* Start back RTC and restore previous value of EXTOSC bit.
+	 * There is no need to clear EXTOSC bit when the previous value was 0
+	 * because it was already cleared when stopping the RTC oscillator.
+	 */
+	ret = mcp795_start_oscillator(dev, extosc ? &extosc : NULL);
 	if (ret)
 		return ret;
 
@@ -132,17 +210,17 @@ static int mcp795_read_time(struct device *dev, struct rtc_time *tim)
 	int ret;
 	u8 data[7];
 
-	ret = mcp795_rtcc_read(dev, 0x01, data, sizeof(data));
+	ret = mcp795_rtcc_read(dev, MCP795_REG_SECONDS, data, sizeof(data));
 
 	if (ret)
 		return ret;
 
-	tim->tm_sec		= ((data[0] & 0x70) >> 4) * 10 + (data[0] & 0x0f);
-	tim->tm_min		= ((data[1] & 0x70) >> 4) * 10 + (data[1] & 0x0f);
-	tim->tm_hour	= ((data[2] & 0x30) >> 4) * 10 + (data[2] & 0x0f);
-	tim->tm_mday	= ((data[4] & 0x30) >> 4) * 10 + (data[4] & 0x0f);
-	tim->tm_mon		= ((data[5] & 0x10) >> 4) * 10 + (data[5] & 0x0f);
-	tim->tm_year	= ((data[6] & 0xf0) >> 4) * 10 + (data[6] & 0x0f) + 100; /* Assume we are in 20xx */
+	tim->tm_sec	= bcd2bin(data[0] & 0x7F);
+	tim->tm_min	= bcd2bin(data[1] & 0x7F);
+	tim->tm_hour	= bcd2bin(data[2] & 0x3F);
+	tim->tm_mday	= bcd2bin(data[4] & 0x3F);
+	tim->tm_mon	= bcd2bin(data[5] & 0x1F) - 1;
+	tim->tm_year	= bcd2bin(data[6]) + 100; /* Assume we are in 20xx */
 
 	dev_dbg(dev, "Read from mcp795: %04d-%02d-%02d %02d:%02d:%02d\n",
 				tim->tm_year + 1900, tim->tm_mon, tim->tm_mday,
@@ -169,13 +247,13 @@ static int mcp795_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	/* Start the oscillator */
-	mcp795_rtcc_set_bits(&spi->dev, 0x01, MCP795_ST_BIT, MCP795_ST_BIT);
+	/* Start the oscillator but don't set the value of EXTOSC bit */
+	mcp795_start_oscillator(&spi->dev, NULL);
 	/* Clear the 12 hour mode flag*/
 	mcp795_rtcc_set_bits(&spi->dev, 0x03, MCP795_24_BIT, 0);
 
 	rtc = devm_rtc_device_register(&spi->dev, "rtc-mcp795",
-								&mcp795_rtc_ops, THIS_MODULE);
+					&mcp795_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 

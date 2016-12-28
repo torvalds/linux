@@ -1,6 +1,18 @@
 #ifndef ISCSI_TARGET_H
 #define ISCSI_TARGET_H
 
+#include <linux/types.h>
+#include <linux/spinlock.h>
+
+struct iscsi_cmd;
+struct iscsi_conn;
+struct iscsi_np;
+struct iscsi_portal_group;
+struct iscsi_session;
+struct iscsi_tpg_np;
+struct kref;
+struct sockaddr_storage;
+
 extern struct iscsi_tiqn *iscsit_get_tiqn_for_login(unsigned char *);
 extern struct iscsi_tiqn *iscsit_get_tiqn(unsigned char *, int);
 extern void iscsit_put_tiqn_for_login(struct iscsi_tiqn *);

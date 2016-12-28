@@ -135,7 +135,6 @@
 			reg = <0x54006800 0x40>;
 			interrupts = <0 33 4>;
 			clocks = <&sys_clk 0>;
-			fifo-size = <64>;
 		};
 
 		serial1: serial@54006900 {
@@ -144,7 +143,6 @@
 			reg = <0x54006900 0x40>;
 			interrupts = <0 35 4>;
 			clocks = <&sys_clk 0>;
-			fifo-size = <64>;
 		};
 
 		serial2: serial@54006a00 {
@@ -153,7 +151,6 @@
 			reg = <0x54006a00 0x40>;
 			interrupts = <0 37 4>;
 			clocks = <&sys_clk 0>;
-			fifo-size = <64>;
 		};
 
 		i2c0: i2c@58400000 {
@@ -225,7 +222,7 @@
 		};
 
 		mioctrl@59810000 {
-			compatible = "socionext,uniphier-mioctrl",
+			compatible = "socionext,uniphier-sld3-mioctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59810000 0x800>;
 
@@ -245,6 +242,9 @@
 			status = "disabled";
 			reg = <0x5a800100 0x100>;
 			interrupts = <0 80 4>;
+			clocks = <&mio_clk 7>, <&mio_clk 8>, <&mio_clk 12>;
+			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 8>,
+				 <&mio_rst 12>;
 		};
 
 		usb1: usb@5a810100 {
@@ -252,6 +252,9 @@
 			status = "disabled";
 			reg = <0x5a810100 0x100>;
 			interrupts = <0 81 4>;
+			clocks = <&mio_clk 7>, <&mio_clk 9>, <&mio_clk 13>;
+			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 9>,
+				 <&mio_rst 13>;
 		};
 
 		usb2: usb@5a820100 {
@@ -259,6 +262,9 @@
 			status = "disabled";
 			reg = <0x5a820100 0x100>;
 			interrupts = <0 82 4>;
+			clocks = <&mio_clk 7>, <&mio_clk 10>, <&mio_clk 14>;
+			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 10>,
+				 <&mio_rst 14>;
 		};
 
 		usb3: usb@5a830100 {
@@ -266,12 +272,15 @@
 			status = "disabled";
 			reg = <0x5a830100 0x100>;
 			interrupts = <0 83 4>;
+			clocks = <&mio_clk 7>, <&mio_clk 11>, <&mio_clk 15>;
+			resets = <&sys_rst 8>, <&mio_rst 7>, <&mio_rst 11>,
+				 <&mio_rst 15>;
 		};
 
 		sysctrl@f1840000 {
-			compatible = "socionext,uniphier-sysctrl",
+			compatible = "socionext,uniphier-sld3-sysctrl",
 				     "simple-mfd", "syscon";
-			reg = <0xf1840000 0x4000>;
+			reg = <0xf1840000 0x10000>;
 
 			sys_clk: clock {
 				compatible = "socionext,uniphier-sld3-clock";

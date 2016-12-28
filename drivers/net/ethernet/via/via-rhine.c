@@ -114,7 +114,7 @@ static const int multicast_filter_limit = 32;
 #include <asm/processor.h>	/* Processor type for cache alignment. */
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/dmi.h>
 
 /* These identify the driver base version and may not be removed. */
@@ -890,7 +890,6 @@ static const struct net_device_ops rhine_netdev_ops = {
 	.ndo_start_xmit		 = rhine_start_tx,
 	.ndo_get_stats64	 = rhine_get_stats64,
 	.ndo_set_rx_mode	 = rhine_set_rx_mode,
-	.ndo_change_mtu		 = eth_change_mtu,
 	.ndo_validate_addr	 = eth_validate_addr,
 	.ndo_set_mac_address 	 = eth_mac_addr,
 	.ndo_do_ioctl		 = netdev_ioctl,

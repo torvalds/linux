@@ -218,6 +218,7 @@ static const struct of_device_id meson_ir_match[] = {
 	{ .compatible = "amlogic,meson-gxbb-ir" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, meson_ir_match);
 
 static struct platform_driver meson_ir_driver = {
 	.probe		= meson_ir_probe,

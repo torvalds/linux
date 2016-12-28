@@ -408,7 +408,7 @@ void profile_tick(int type)
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static int prof_cpu_mask_proc_show(struct seq_file *m, void *v)
 {

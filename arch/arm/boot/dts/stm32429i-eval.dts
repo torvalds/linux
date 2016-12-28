@@ -47,6 +47,7 @@
 
 /dts-v1/;
 #include "stm32f429.dtsi"
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "STMicroelectronics STM32429i-EVAL board";
@@ -63,6 +64,10 @@
 
 	aliases {
 		serial0 = &usart1;
+	};
+
+	soc {
+		dma-ranges = <0xc0000000 0x0 0x10000000>;
 	};
 
 	leds {
@@ -82,6 +87,23 @@
 		};
 	};
 
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+		button@0 {
+			label = "Wake up";
+			linux,code = <KEY_WAKEUP>;
+			gpios = <&gpioa 0 0>;
+		};
+		button@1 {
+			label = "Tamper";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpioc 13 0>;
+		};
+	};
+
 	usbotg_hs_phy: usbphy {
 		#phy-cells = <0>;
 		compatible = "usb-nop-xceiv";
@@ -94,11 +116,12 @@
 	clock-frequency = <25000000>;
 };
 
-&ethernet0 {
+&mac {
 	status = "okay";
-	pinctrl-0	= <&ethernet0_mii>;
+	pinctrl-0	= <&ethernet_mii>;
 	pinctrl-names	= "default";
-	phy-mode	= "mii-id";
+	phy-mode	= "mii";
+	phy-handle	= <&phy1>;
 	mdio0 {
 		#address-cells = <1>;
 		#size-cells = <0>;

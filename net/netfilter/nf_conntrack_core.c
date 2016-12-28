@@ -783,7 +783,7 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	/* set conntrack timestamp, if enabled. */
 	tstamp = nf_conn_tstamp_find(ct);
 	if (tstamp) {
-		if (skb->tstamp.tv64 == 0)
+		if (skb->tstamp == 0)
 			__net_timestamp(skb);
 
 		tstamp->start = ktime_to_ns(skb->tstamp);
@@ -1338,7 +1338,7 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		if (skb->nfct)
 			goto out;
 	}
-
+repeat:
 	ct = resolve_normal_ct(net, tmpl, skb, dataoff, pf, protonum,
 			       l3proto, l4proto, &set_reply, &ctinfo);
 	if (!ct) {
@@ -1370,6 +1370,12 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 		NF_CT_STAT_INC_ATOMIC(net, invalid);
 		if (ret == -NF_DROP)
 			NF_CT_STAT_INC_ATOMIC(net, drop);
+		/* Special case: TCP tracker reports an attempt to reopen a
+		 * closed/aborted connection. We have to go back and create a
+		 * fresh conntrack.
+		 */
+		if (ret == -NF_REPEAT)
+			goto repeat;
 		ret = -ret;
 		goto out;
 	}
@@ -1377,15 +1383,8 @@ nf_conntrack_in(struct net *net, u_int8_t pf, unsigned int hooknum,
 	if (set_reply && !test_and_set_bit(IPS_SEEN_REPLY_BIT, &ct->status))
 		nf_conntrack_event_cache(IPCT_REPLY, ct);
 out:
-	if (tmpl) {
-		/* Special case: we have to repeat this hook, assign the
-		 * template again to this packet. We assume that this packet
-		 * has no conntrack assigned. This is used by nf_ct_tcp. */
-		if (ret == NF_REPEAT)
-			skb->nfct = (struct nf_conntrack *)tmpl;
-		else
-			nf_ct_put(tmpl);
-	}
+	if (tmpl)
+		nf_ct_put(tmpl);
 
 	return ret;
 }

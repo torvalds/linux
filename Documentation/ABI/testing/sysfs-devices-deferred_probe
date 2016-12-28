@@ -1,0 +1,12 @@
+What:		/sys/devices/.../deferred_probe
+Date:		August 2016
+Contact:	Ben Hutchings <ben.hutchings@codethink.co.uk>
+Description:
+		The /sys/devices/.../deferred_probe attribute is
+		present for all devices.  If a driver detects during
+		probing a device that a related device is not yet
+		ready, it may defer probing of the first device.  The
+		kernel will retry probing the first device after any
+		other device is successfully probed.  This attribute
+		reads as 1 if probing of this device is currently
+		deferred, or 0 otherwise.

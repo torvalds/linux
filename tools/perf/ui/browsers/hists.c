@@ -30,7 +30,7 @@ static struct rb_node *hists__filter_entries(struct rb_node *nd,
 
 static bool hist_browser__has_filter(struct hist_browser *hb)
 {
-	return hists__has_filter(hb->hists) || hb->min_pcnt || symbol_conf.has_filter;
+	return hists__has_filter(hb->hists) || hb->min_pcnt || symbol_conf.has_filter || hb->c2c_filter;
 }
 
 static int hist_browser__get_folding(struct hist_browser *browser)
@@ -738,6 +738,7 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 					     struct callchain_print_arg *arg)
 {
 	char bf[1024], *alloc_str;
+	char buf[64], *alloc_str2;
 	const char *str;
 
 	if (arg->row_offset != 0) {
@@ -746,12 +747,26 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 	}
 
 	alloc_str = NULL;
+	alloc_str2 = NULL;
+
 	str = callchain_list__sym_name(chain, bf, sizeof(bf),
 				       browser->show_dso);
 
-	if (need_percent) {
-		char buf[64];
+	if (symbol_conf.show_branchflag_count) {
+		if (need_percent)
+			callchain_list_counts__printf_value(node, chain, NULL,
+							    buf, sizeof(buf));
+		else
+			callchain_list_counts__printf_value(NULL, chain, NULL,
+							    buf, sizeof(buf));
 
+		if (asprintf(&alloc_str2, "%s%s", str, buf) < 0)
+			str = "Not enough memory!";
+		else
+			str = alloc_str2;
+	}
+
+	if (need_percent) {
 		callchain_node__scnprintf_value(node, buf, sizeof(buf),
 						total);
 
@@ -764,6 +779,7 @@ static int hist_browser__show_callchain_list(struct hist_browser *browser,
 	print(browser, chain, str, offset, row, arg);
 
 	free(alloc_str);
+	free(alloc_str2);
 	return 1;
 }
 
@@ -2833,7 +2849,10 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			do_zoom_dso(browser, actions);
 			continue;
 		case 'V':
-			browser->show_dso = !browser->show_dso;
+			verbose = (verbose + 1) % 4;
+			browser->show_dso = verbose > 0;
+			ui_helpline__fpush("Verbosity level set to %d\n",
+					   verbose);
 			continue;
 		case 't':
 			actions->thread = thread;

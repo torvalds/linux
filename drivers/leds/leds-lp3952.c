@@ -274,6 +274,7 @@ static const struct i2c_device_id lp3952_id[] = {
 	{LP3952_NAME, 0},
 	{}
 };
+MODULE_DEVICE_TABLE(i2c, lp3952_id);
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id lp3952_acpi_match[] = {

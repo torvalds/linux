@@ -57,8 +57,7 @@ int flexcop_dma_config(struct flexcop_device *fc,
 		fc->write_ibi_reg(fc,dma2_014,v0x4);
 		fc->write_ibi_reg(fc,dma2_01c,v0xc);
 	} else {
-		err("either DMA1 or DMA2 can be configured within one "
-			"flexcop_dma_config call.");
+		err("either DMA1 or DMA2 can be configured within one flexcop_dma_config call.");
 		return -EINVAL;
 	}
 
@@ -82,8 +81,7 @@ int flexcop_dma_xfer_control(struct flexcop_device *fc,
 		r0x0 = dma2_010;
 		r0xc = dma2_01c;
 	} else {
-		err("either transfer DMA1 or DMA2 can be started within one "
-			"flexcop_dma_xfer_control call.");
+		err("either transfer DMA1 or DMA2 can be started within one flexcop_dma_xfer_control call.");
 		return -EINVAL;
 	}
 

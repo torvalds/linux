@@ -214,6 +214,7 @@ struct llog_handle {
 	spinlock_t		 lgh_hdr_lock; /* protect lgh_hdr data */
 	struct llog_logid	 lgh_id; /* id of this log */
 	struct llog_log_hdr	*lgh_hdr;
+	size_t			 lgh_hdr_size;
 	int			 lgh_last_idx;
 	int			 lgh_cur_idx; /* used during llog_process */
 	__u64			 lgh_cur_offset; /* used during llog_process */
@@ -244,6 +245,11 @@ struct llog_ctxt {
 	struct mutex		 loc_mutex; /* protect loc_imp */
 	atomic_t	     loc_refcount;
 	long		     loc_flags; /* flags, see above defines */
+	/*
+	 * llog chunk size, and llog record size can not be bigger than
+	 * loc_chunk_size
+	 */
+	__u32			loc_chunk_size;
 };
 
 #define LLOG_PROC_BREAK 0x0001

@@ -30,7 +30,7 @@
 
 #define RTC_NAME		"sgi_rtc"
 
-static cycle_t uv_read_rtc(struct clocksource *cs);
+static u64 uv_read_rtc(struct clocksource *cs);
 static int uv_rtc_next_event(unsigned long, struct clock_event_device *);
 static int uv_rtc_shutdown(struct clock_event_device *evt);
 
@@ -38,7 +38,7 @@ static struct clocksource clocksource_uv = {
 	.name		= RTC_NAME,
 	.rating		= 299,
 	.read		= uv_read_rtc,
-	.mask		= (cycle_t)UVH_RTC_REAL_TIME_CLOCK_MASK,
+	.mask		= (u64)UVH_RTC_REAL_TIME_CLOCK_MASK,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
@@ -296,7 +296,7 @@ static int uv_rtc_unset_timer(int cpu, int force)
  * cachelines of it's own page.  This allows faster simultaneous reads
  * from a given socket.
  */
-static cycle_t uv_read_rtc(struct clocksource *cs)
+static u64 uv_read_rtc(struct clocksource *cs)
 {
 	unsigned long offset;
 
@@ -305,7 +305,7 @@ static cycle_t uv_read_rtc(struct clocksource *cs)
 	else
 		offset = (uv_blade_processor_id() * L1_CACHE_BYTES) % PAGE_SIZE;
 
-	return (cycle_t)uv_read_local_mmr(UVH_RTC | offset);
+	return (u64)uv_read_local_mmr(UVH_RTC | offset);
 }
 
 /*

@@ -175,7 +175,7 @@ void disable_cpufreq(void);
 
 u64 get_cpu_idle_time(unsigned int cpu, u64 *wall, int io_busy);
 int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu);
-int cpufreq_update_policy(unsigned int cpu);
+void cpufreq_update_policy(unsigned int cpu);
 bool have_governor_per_policy(void);
 struct kobject *get_governor_parent_kobj(struct cpufreq_policy *policy);
 void cpufreq_enable_fast_switch(struct cpufreq_policy *policy);
@@ -233,6 +233,10 @@ __ATTR(_name, _perm, show_##_name, NULL)
 #define cpufreq_freq_attr_rw(_name)		\
 static struct freq_attr _name =			\
 __ATTR(_name, 0644, show_##_name, store_##_name)
+
+#define cpufreq_freq_attr_wo(_name)		\
+static struct freq_attr _name =			\
+__ATTR(_name, 0200, NULL, store_##_name)
 
 struct global_attr {
 	struct attribute attr;

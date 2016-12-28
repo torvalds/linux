@@ -152,7 +152,7 @@ static irqreturn_t sun5i_timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static cycle_t sun5i_clksrc_read(struct clocksource *clksrc)
+static u64 sun5i_clksrc_read(struct clocksource *clksrc)
 {
 	struct sun5i_timer_clksrc *cs = to_sun5i_timer_clksrc(clksrc);
 

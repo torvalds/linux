@@ -97,15 +97,6 @@
 		};
 	};
 
-	bt_rfkill {
-		compatible = "rfkill-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_bt_rfkill>;
-		gpios = <&gpio6 8 GPIO_ACTIVE_HIGH>;
-		name = "bt_rfkill";
-		type = <2>;
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -160,7 +151,7 @@
 		};
 	};
 
-	backlight_lcd {
+	backlight-lcd {
 		compatible = "pwm-backlight";
 		pwms = <&pwm1 0 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
@@ -169,7 +160,7 @@
 		status = "okay";
 	};
 
-	backlight_lvds0: backlight_lvds0 {
+	backlight_lvds0: backlight-lvds0 {
 		compatible = "pwm-backlight";
 		pwms = <&pwm4 0 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
@@ -178,7 +169,7 @@
 		status = "okay";
 	};
 
-	panel_lvds0 {
+	panel-lvds0 {
 		compatible = "hannstar,hsd100pxn1";
 		backlight = <&backlight_lvds0>;
 
@@ -328,19 +319,6 @@
 			>;
 		};
 
-		pinctrl_bt_rfkill: bt_rfkillgrp {
-			fsl,pins = <
-				/* BT wake */
-				MX6QDL_PAD_NANDF_D2__GPIO2_IO02		0x1b0b0
-				/* BT reset */
-				MX6QDL_PAD_NANDF_ALE__GPIO6_IO08	0x0b0b0
-				/* BT reg en */
-				MX6QDL_PAD_NANDF_CS2__GPIO6_IO15	0x1b0b0
-				/* BT host wake irq */
-				MX6QDL_PAD_NANDF_CS3__GPIO6_IO16	0x100b0
-			>;
-		};
-
 		pinctrl_ecspi1: ecspi1grp {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D17__ECSPI1_MISO		0x100b1
@@ -374,7 +352,7 @@
 			>;
 		};
 
-		pinctrl_gpio_keys: gpio_keysgrp {
+		pinctrl_gpio_keys: gpio-keysgrp {
 			fsl,pins = <
 				/* Home Button: J14 pin 5 */
 				MX6QDL_PAD_GPIO_18__GPIO7_IO13		0x1b0b0
@@ -457,7 +435,7 @@
 			>;
 		};
 
-		pinctrl_wlan_vmmc: wlan_vmmcgrp {
+		pinctrl_wlan_vmmc: wlan-vmmcgrp {
 			fsl,pins = <
 				MX6QDL_PAD_NANDF_CLE__GPIO6_IO07	0x030b0
 			>;

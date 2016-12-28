@@ -96,6 +96,7 @@ _GLOBAL(__setup_cpu_power9)
 	mtlr	r11
 	beqlr
 	li	r0,0
+	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
 	mfspr	r3,SPRN_LPCR
 	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE)
@@ -116,6 +117,7 @@ _GLOBAL(__restore_cpu_power9)
 	mtlr	r11
 	beqlr
 	li	r0,0
+	mtspr	SPRN_PSSCR,r0
 	mtspr	SPRN_LPID,r0
 	mfspr   r3,SPRN_LPCR
 	LOAD_REG_IMMEDIATE(r4, LPCR_PECEDH | LPCR_PECE_HVEE | LPCR_HVICE)
@@ -174,7 +176,7 @@ __init_FSCR:
 __init_HFSCR:
 	mfspr	r3,SPRN_HFSCR
 	ori	r3,r3,HFSCR_TAR|HFSCR_TM|HFSCR_BHRB|HFSCR_PM|\
-		      HFSCR_DSCR|HFSCR_VECVSX|HFSCR_FP|HFSCR_EBB
+		      HFSCR_DSCR|HFSCR_VECVSX|HFSCR_FP|HFSCR_EBB|HFSCR_MSGP
 	mtspr	SPRN_HFSCR,r3
 	blr
 

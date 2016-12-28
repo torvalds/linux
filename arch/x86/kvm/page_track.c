@@ -106,6 +106,7 @@ void kvm_slot_page_track_add_page(struct kvm *kvm,
 		if (kvm_mmu_slot_gfn_write_protect(kvm, slot, gfn))
 			kvm_flush_remote_tlbs(kvm);
 }
+EXPORT_SYMBOL_GPL(kvm_slot_page_track_add_page);
 
 /*
  * remove the guest page from the tracking pool which stops the interception
@@ -135,6 +136,7 @@ void kvm_slot_page_track_remove_page(struct kvm *kvm,
 	 */
 	kvm_mmu_gfn_allow_lpage(slot, gfn);
 }
+EXPORT_SYMBOL_GPL(kvm_slot_page_track_remove_page);
 
 /*
  * check if the corresponding access on the specified guest page is tracked.
@@ -181,6 +183,7 @@ kvm_page_track_register_notifier(struct kvm *kvm,
 	hlist_add_head_rcu(&n->node, &head->track_notifier_list);
 	spin_unlock(&kvm->mmu_lock);
 }
+EXPORT_SYMBOL_GPL(kvm_page_track_register_notifier);
 
 /*
  * stop receiving the event interception. It is the opposed operation of
@@ -199,6 +202,7 @@ kvm_page_track_unregister_notifier(struct kvm *kvm,
 	spin_unlock(&kvm->mmu_lock);
 	synchronize_srcu(&head->track_srcu);
 }
+EXPORT_SYMBOL_GPL(kvm_page_track_unregister_notifier);
 
 /*
  * Notify the node that write access is intercepted and write emulation is
@@ -222,6 +226,31 @@ void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
 	idx = srcu_read_lock(&head->track_srcu);
 	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
 		if (n->track_write)
-			n->track_write(vcpu, gpa, new, bytes);
+			n->track_write(vcpu, gpa, new, bytes, n);
+	srcu_read_unlock(&head->track_srcu, idx);
+}
+
+/*
+ * Notify the node that memory slot is being removed or moved so that it can
+ * drop write-protection for the pages in the memory slot.
+ *
+ * The node should figure out it has any write-protected pages in this slot
+ * by itself.
+ */
+void kvm_page_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot)
+{
+	struct kvm_page_track_notifier_head *head;
+	struct kvm_page_track_notifier_node *n;
+	int idx;
+
+	head = &kvm->arch.track_notifier_head;
+
+	if (hlist_empty(&head->track_notifier_list))
+		return;
+
+	idx = srcu_read_lock(&head->track_srcu);
+	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
+		if (n->track_flush_slot)
+			n->track_flush_slot(kvm, slot, n);
 	srcu_read_unlock(&head->track_srcu, idx);
 }

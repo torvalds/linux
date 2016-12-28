@@ -282,6 +282,26 @@ config CLKSRC_MPS2
 	select CLKSRC_MMIO
 	select CLKSRC_OF
 
+config ARC_TIMERS
+	bool "Support for 32-bit TIMERn counters in ARC Cores" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	select CLKSRC_OF
+	help
+	  These are legacy 32-bit TIMER0 and TIMER1 counters found on all ARC cores
+	  (ARC700 as well as ARC HS38).
+	  TIMER0 serves as clockevent while TIMER1 provides clocksource
+
+config ARC_TIMERS_64BIT
+	bool "Support for 64-bit counters in ARC HS38 cores" if COMPILE_TEST
+	depends on GENERIC_CLOCKEVENTS
+	depends on ARC_TIMERS
+	select CLKSRC_OF
+	help
+	  This enables 2 different 64-bit timers: RTC (for UP) and GFRC (for SMP)
+	  RTC is implemented inside the core, while GFRC sits outside the core in
+	  ARConnect IP block. Driver automatically picks one of them for clocksource
+	  as appropriate.
+
 config ARM_ARCH_TIMER
 	bool
 	select CLKSRC_OF if OF

@@ -20,11 +20,14 @@
 
 #include <linux/atomic.h>
 #include <linux/byteorder/generic.h>
+#include <linux/cache.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/fs.h>
 #include <linux/genetlink.h>
 #include <linux/if_ether.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/netlink.h>
 #include <linux/printk.h>
@@ -48,14 +51,7 @@
 #include "tp_meter.h"
 #include "translation-table.h"
 
-struct genl_family batadv_netlink_family = {
-	.id = GENL_ID_GENERATE,
-	.hdrsize = 0,
-	.name = BATADV_NL_NAME,
-	.version = 1,
-	.maxattr = BATADV_ATTR_MAX,
-	.netnsok = true,
-};
+struct genl_family batadv_netlink_family;
 
 /* multicast groups */
 enum batadv_netlink_multicast_groups {
@@ -534,7 +530,7 @@ batadv_netlink_dump_hardifs(struct sk_buff *msg, struct netlink_callback *cb)
 	return msg->len;
 }
 
-static struct genl_ops batadv_netlink_ops[] = {
+static const struct genl_ops batadv_netlink_ops[] = {
 	{
 		.cmd = BATADV_CMD_GET_MESH_INFO,
 		.flags = GENL_ADMIN_PERM,
@@ -610,6 +606,19 @@ static struct genl_ops batadv_netlink_ops[] = {
 
 };
 
+struct genl_family batadv_netlink_family __ro_after_init = {
+	.hdrsize = 0,
+	.name = BATADV_NL_NAME,
+	.version = 1,
+	.maxattr = BATADV_ATTR_MAX,
+	.netnsok = true,
+	.module = THIS_MODULE,
+	.ops = batadv_netlink_ops,
+	.n_ops = ARRAY_SIZE(batadv_netlink_ops),
+	.mcgrps = batadv_netlink_mcgrps,
+	.n_mcgrps = ARRAY_SIZE(batadv_netlink_mcgrps),
+};
+
 /**
  * batadv_netlink_register - register batadv genl netlink family
  */
@@ -617,9 +626,7 @@ void __init batadv_netlink_register(void)
 {
 	int ret;
 
-	ret = genl_register_family_with_ops_groups(&batadv_netlink_family,
-						   batadv_netlink_ops,
-						   batadv_netlink_mcgrps);
+	ret = genl_register_family(&batadv_netlink_family);
 	if (ret)
 		pr_warn("unable to register netlink family");
 }

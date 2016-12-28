@@ -80,6 +80,8 @@
 #define SMB2_SET_INFO		cpu_to_le16(SMB2_SET_INFO_HE)
 #define SMB2_OPLOCK_BREAK	cpu_to_le16(SMB2_OPLOCK_BREAK_HE)
 
+#define SMB2_INTERNAL_CMD	cpu_to_le16(0xFFFF)
+
 #define NUMBER_OF_SMB2_COMMANDS	0x0013
 
 /* BB FIXME - analyze following length BB */

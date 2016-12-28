@@ -126,9 +126,7 @@ static const struct file_operations cirrus_driver_fops = {
 	.unlocked_ioctl = drm_ioctl,
 	.mmap = cirrus_mmap,
 	.poll = drm_poll,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 };
 static struct drm_driver driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM,

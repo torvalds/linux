@@ -96,45 +96,6 @@ int of_get_dma_window(struct device_node *dn, const char *prefix, int index,
 }
 EXPORT_SYMBOL_GPL(of_get_dma_window);
 
-struct of_iommu_node {
-	struct list_head list;
-	struct device_node *np;
-	const struct iommu_ops *ops;
-};
-static LIST_HEAD(of_iommu_list);
-static DEFINE_SPINLOCK(of_iommu_lock);
-
-void of_iommu_set_ops(struct device_node *np, const struct iommu_ops *ops)
-{
-	struct of_iommu_node *iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
-
-	if (WARN_ON(!iommu))
-		return;
-
-	of_node_get(np);
-	INIT_LIST_HEAD(&iommu->list);
-	iommu->np = np;
-	iommu->ops = ops;
-	spin_lock(&of_iommu_lock);
-	list_add_tail(&iommu->list, &of_iommu_list);
-	spin_unlock(&of_iommu_lock);
-}
-
-const struct iommu_ops *of_iommu_get_ops(struct device_node *np)
-{
-	struct of_iommu_node *node;
-	const struct iommu_ops *ops = NULL;
-
-	spin_lock(&of_iommu_lock);
-	list_for_each_entry(node, &of_iommu_list, list)
-		if (node->np == np) {
-			ops = node->ops;
-			break;
-		}
-	spin_unlock(&of_iommu_lock);
-	return ops;
-}
-
 static int __get_pci_rid(struct pci_dev *pdev, u16 alias, void *data)
 {
 	struct of_phandle_args *iommu_spec = data;

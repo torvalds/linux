@@ -9,28 +9,50 @@ config 64BIT
 config X86_32
 	def_bool y
 	depends on !64BIT
+	# Options that are inherently 32-bit kernel only:
+	select ARCH_WANT_IPC_PARSE_VERSION
+	select CLKSRC_I8253
+	select CLONE_BACKWARDS
+	select HAVE_AOUT
+	select HAVE_GENERIC_DMA_COHERENT
+	select MODULES_USE_ELF_REL
+	select OLD_SIGACTION
 
 config X86_64
 	def_bool y
 	depends on 64BIT
+	# Options that are inherently 64-bit kernel only:
+	select ARCH_HAS_GIGANTIC_PAGE
+	select ARCH_SUPPORTS_INT128
+	select ARCH_USE_CMPXCHG_LOCKREF
+	select HAVE_ARCH_SOFT_DIRTY
+	select MODULES_USE_ELF_RELA
+	select X86_DEV_DMA_OPS
 
-### Arch settings
+#
+# Arch settings
+#
+# ( Note that options that are marked 'if X86_64' could in principle be
+#   ported to 32-bit as well. )
+#
 config X86
 	def_bool y
+	#
+	# Note: keep this list sorted alphabetically
+	#
 	select ACPI_LEGACY_TABLES_LOOKUP	if ACPI
 	select ACPI_SYSTEM_POWER_STATES_SUPPORT	if ACPI
 	select ANON_INODES
 	select ARCH_CLOCKSOURCE_DATA
 	select ARCH_DISCARD_MEMBLOCK
-	select ARCH_HAS_ACPI_TABLE_UPGRADE if ACPI
+	select ARCH_HAS_ACPI_TABLE_UPGRADE	if ACPI
 	select ARCH_HAS_DEVMEM_IS_ALLOWED
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
 	select ARCH_HAS_GCOV_PROFILE_ALL
-	select ARCH_HAS_GIGANTIC_PAGE		if X86_64
 	select ARCH_HAS_KCOV			if X86_64
-	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_MMIO_FLUSH
+	select ARCH_HAS_PMEM_API		if X86_64
 	select ARCH_HAS_SG_CHAIN
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -39,23 +61,17 @@ config X86
 	select ARCH_MIGHT_HAVE_PC_SERIO
 	select ARCH_SUPPORTS_ATOMIC_RMW
 	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
-	select ARCH_SUPPORTS_INT128		if X86_64
 	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
 	select ARCH_USE_BUILTIN_BSWAP
-	select ARCH_USE_CMPXCHG_LOCKREF		if X86_64
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_WANT_BATCHED_UNMAP_TLB_FLUSH if SMP
-	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select ARCH_WANT_FRAME_POINTERS
-	select ARCH_WANT_IPC_PARSE_VERSION	if X86_32
+	select ARCH_WANTS_DYNAMIC_TASK_STRUCT
 	select BUILDTIME_EXTABLE_SORT
 	select CLKEVT_I8253
-	select CLKSRC_I8253			if X86_32
 	select CLOCKSOURCE_VALIDATE_LAST_CYCLE
 	select CLOCKSOURCE_WATCHDOG
-	select CLONE_BACKWARDS			if X86_32
-	select COMPAT_OLD_SIGACTION		if IA32_EMULATION
 	select DCACHE_WORD_ACCESS
 	select EDAC_ATOMIC_SCRUB
 	select EDAC_SUPPORT
@@ -77,7 +93,6 @@ config X86
 	select HAVE_ACPI_APEI			if ACPI
 	select HAVE_ACPI_APEI_NMI		if ACPI
 	select HAVE_ALIGNED_STRUCT_PAGE		if SLUB
-	select HAVE_AOUT			if X86_32
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_HARDENED_USERCOPY
 	select HAVE_ARCH_HUGE_VMAP		if X86_64 || X86_PAE
@@ -88,12 +103,10 @@ config X86
 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
-	select HAVE_ARCH_SOFT_DIRTY		if X86_64
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
-	select HAVE_ARCH_WITHIN_STACK_FRAMES
-	select HAVE_EBPF_JIT			if X86_64
 	select HAVE_ARCH_VMAP_STACK		if X86_64
+	select HAVE_ARCH_WITHIN_STACK_FRAMES
 	select HAVE_CC_STACKPROTECTOR
 	select HAVE_CMPXCHG_DOUBLE
 	select HAVE_CMPXCHG_LOCAL
@@ -106,6 +119,7 @@ config X86
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_EBPF_JIT			if X86_64
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	select HAVE_EXIT_THREAD
 	select HAVE_FENTRY			if X86_64
@@ -113,7 +127,6 @@ config X86
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
 	select HAVE_GCC_PLUGINS
-	select HAVE_GENERIC_DMA_COHERENT	if X86_32
 	select HAVE_HW_BREAKPOINT
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
@@ -142,15 +155,11 @@ config X86
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
 	select HAVE_REGS_AND_STACK_ACCESS_API
+	select HAVE_STACK_VALIDATION		if X86_64
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_UID16			if X86_32 || IA32_EMULATION
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
 	select IRQ_FORCED_THREADING
-	select MODULES_USE_ELF_RELA		if X86_64
-	select MODULES_USE_ELF_REL		if X86_32
-	select OLD_SIGACTION			if X86_32
-	select OLD_SIGSUSPEND3			if X86_32 || IA32_EMULATION
 	select PERF_EVENTS
 	select RTC_LIB
 	select RTC_MC146818_LIB
@@ -160,11 +169,7 @@ config X86
 	select THREAD_INFO_IN_TASK
 	select USER_STACKTRACE_SUPPORT
 	select VIRT_TO_BUS
-	select X86_DEV_DMA_OPS			if X86_64
 	select X86_FEATURE_NAMES		if PROC_FS
-	select HAVE_STACK_VALIDATION		if X86_64
-	select ARCH_USES_HIGH_VMA_FLAGS		if X86_INTEL_MEMORY_PROTECTION_KEYS
-	select ARCH_HAS_PKEYS			if X86_INTEL_MEMORY_PROTECTION_KEYS
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -407,6 +412,19 @@ config GOLDFISH
        def_bool y
        depends on X86_GOLDFISH
 
+config INTEL_RDT_A
+	bool "Intel Resource Director Technology Allocation support"
+	default n
+	depends on X86 && CPU_SUP_INTEL
+	select KERNFS
+	help
+	  Select to enable resource allocation which is a sub-feature of
+	  Intel Resource Director Technology(RDT). More information about
+	  RDT can be found in the Intel x86 Architecture Software
+	  Developer Manual.
+
+	  Say N if unsure.
+
 if X86_32
 config X86_EXTENDED_PLATFORM
 	bool "Support for extended (non-PC) x86 platforms"
@@ -549,18 +567,6 @@ config X86_INTEL_QUARK
 	  Select to include support for Quark X1000 SoC.
 	  Say Y here if you have a Quark based system such as the Arduino
 	  compatible Intel Galileo.
-
-config MLX_PLATFORM
-	tristate "Mellanox Technologies platform support"
-	depends on X86_64
-	depends on X86_EXTENDED_PLATFORM
-	---help---
-	  This option enables system support for the Mellanox Technologies
-	  platform.
-
-	  Say Y here if you are building a kernel for Mellanox system.
-
-	  Otherwise, say N.
 
 config X86_INTEL_LPSS
 	bool "Intel Low Power Subsystem Support"
@@ -939,6 +945,27 @@ config SCHED_MC
 	  making when dealing with multi-core CPU chips at a cost of slightly
 	  increased overhead in some places. If unsure say N here.
 
+config SCHED_MC_PRIO
+	bool "CPU core priorities scheduler support"
+	depends on SCHED_MC && CPU_SUP_INTEL
+	select X86_INTEL_PSTATE
+	select CPU_FREQ
+	default y
+	---help---
+	  Intel Turbo Boost Max Technology 3.0 enabled CPUs have a
+	  core ordering determined at manufacturing time, which allows
+	  certain cores to reach higher turbo frequencies (when running
+	  single threaded workloads) than others.
+
+	  Enabling this kernel feature teaches the scheduler about
+	  the TBM3 (aka ITMT) priority order of the CPU cores and adjusts the
+	  scheduler's CPU selection logic accordingly, so that higher
+	  overall system performance can be achieved.
+
+	  This feature will have no effect on CPUs without this feature.
+
+	  If unsure say Y here.
+
 source "kernel/Kconfig.preempt"
 
 config UP_LATE_INIT
@@ -1025,7 +1052,7 @@ config X86_MCE_INTEL
 config X86_MCE_AMD
 	def_bool y
 	prompt "AMD MCE features"
-	depends on X86_MCE && X86_LOCAL_APIC
+	depends on X86_MCE && X86_LOCAL_APIC && AMD_NB
 	---help---
 	   Additional support for AMD specific MCE features such as
 	   the DRAM Error Threshold.
@@ -1525,7 +1552,7 @@ config X86_CHECK_BIOS_CORRUPTION
 	  line.  By default it scans the low 64k of memory every 60
 	  seconds; see the memory_corruption_check_size and
 	  memory_corruption_check_period parameters in
-	  Documentation/kernel-parameters.txt to adjust this.
+	  Documentation/admin-guide/kernel-parameters.rst to adjust this.
 
 	  When enabled with the default parameters, this option has
 	  almost no overhead, as it reserves a relatively small amount
@@ -1737,6 +1764,8 @@ config X86_INTEL_MEMORY_PROTECTION_KEYS
 	def_bool y
 	# Note: only available in 64-bit mode
 	depends on CPU_SUP_INTEL && X86_64
+	select ARCH_USES_HIGH_VMA_FLAGS
+	select ARCH_HAS_PKEYS
 	---help---
 	  Memory Protection Keys provides a mechanism for enforcing
 	  page-based protections, but without requiring modification of the
@@ -2092,7 +2121,7 @@ config DEBUG_HOTPLUG_CPU0
 config COMPAT_VDSO
 	def_bool n
 	prompt "Disable the 32-bit vDSO (needed for glibc 2.3.3)"
-	depends on X86_32 || IA32_EMULATION
+	depends on COMPAT_32
 	---help---
 	  Certain buggy versions of glibc will crash if they are
 	  presented with a 32-bit vDSO that is not mapped at the address
@@ -2694,9 +2723,10 @@ source "fs/Kconfig.binfmt"
 config IA32_EMULATION
 	bool "IA32 Emulation"
 	depends on X86_64
+	select ARCH_WANT_OLD_COMPAT_IPC
 	select BINFMT_ELF
 	select COMPAT_BINFMT_ELF
-	select ARCH_WANT_OLD_COMPAT_IPC
+	select COMPAT_OLD_SIGACTION
 	---help---
 	  Include code to run legacy 32-bit programs under a
 	  64-bit kernel. You should likely turn this on, unless you're
@@ -2720,6 +2750,12 @@ config X86_X32
 	  You will need a recent binutils (2.22 or later) with
 	  elf32_x86_64 support enabled to compile a kernel with this
 	  option set.
+
+config COMPAT_32
+	def_bool y
+	depends on IA32_EMULATION || X86_32
+	select HAVE_UID16
+	select OLD_SIGSUSPEND3
 
 config COMPAT
 	def_bool y

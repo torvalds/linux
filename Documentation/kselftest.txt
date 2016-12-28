@@ -70,6 +70,17 @@ To install selftests in an user specified location:
    $ cd tools/testing/selftests
    $ ./kselftest_install.sh install_dir
 
+Running installed selftests
+===========================
+
+Kselftest install as well as the Kselftest tarball provide a script
+named "run_kselftest.sh" to run the tests.
+
+You can simply do the following to run the installed Kselftests. Please
+note some tests will require root privileges.
+
+cd kselftest
+./run_kselftest.sh
 
 Contributing new tests
 ======================

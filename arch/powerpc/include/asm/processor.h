@@ -312,8 +312,6 @@ struct thread_struct {
 	unsigned long	mmcr2;
 	unsigned 	mmcr0;
 	unsigned 	used_ebb;
-	unsigned long	lmrr;
-	unsigned long	lmser;
 #endif
 };
 
@@ -403,8 +401,6 @@ static inline unsigned long __pack_fe01(unsigned int fpmode)
 #else
 #define cpu_relax()	barrier()
 #endif
-
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Check that a certain kernel stack pointer is valid in task_struct p */
 int validate_sp(unsigned long sp, struct task_struct *p,

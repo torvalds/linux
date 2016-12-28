@@ -813,8 +813,7 @@ static int snd_card_saa7134_capture_open(struct snd_pcm_substream * substream)
 	int amux, err;
 
 	if (!saa7134) {
-		pr_err("BUG: saa7134 can't find device struct."
-				" Can't proceed with open\n");
+		pr_err("BUG: saa7134 can't find device struct. Can't proceed with open\n");
 		return -ENODEV;
 	}
 	dev = saa7134->dev;

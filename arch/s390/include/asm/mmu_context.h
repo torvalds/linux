@@ -8,7 +8,7 @@
 #define __S390_MMU_CONTEXT_H
 
 #include <asm/pgalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/tlbflush.h>
 #include <asm/ctl_reg.h>
 

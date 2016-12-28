@@ -390,7 +390,7 @@ static void sahara_decode_status(struct sahara_dev *dev, unsigned int status)
 	if (status & SAHARA_STATUS_MODE_BATCH)
 		dev_dbg(dev->device, "	- Batch Mode.\n");
 	else if (status & SAHARA_STATUS_MODE_DEDICATED)
-		dev_dbg(dev->device, "	- Decidated Mode.\n");
+		dev_dbg(dev->device, "	- Dedicated Mode.\n");
 	else if (status & SAHARA_STATUS_MODE_DEBUG)
 		dev_dbg(dev->device, "	- Debug Mode.\n");
 

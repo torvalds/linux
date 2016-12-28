@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
+#include <linux/vmalloc.h>
 #include "qed.h"
 #include <linux/qed/qed_chain.h>
 #include "qed_cxt.h"
@@ -40,6 +41,124 @@
 
 #define QED_MAX_SGES_NUM 16
 #define CRC32_POLY 0x1edc6f41
+
+void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,
+			       struct qed_queue_cid *p_cid)
+{
+	/* VFs' CIDs are 0-based in PF-view, and uninitialized on VF */
+	if (!p_cid->is_vf && IS_PF(p_hwfn->cdev))
+		qed_cxt_release_cid(p_hwfn, p_cid->cid);
+	vfree(p_cid);
+}
+
+/* The internal is only meant to be directly called by PFs initializeing CIDs
+ * for their VFs.
+ */
+struct qed_queue_cid *
+_qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
+		      u16 opaque_fid,
+		      u32 cid,
+		      u8 vf_qid,
+		      struct qed_queue_start_common_params *p_params)
+{
+	bool b_is_same = (p_hwfn->hw_info.opaque_fid == opaque_fid);
+	struct qed_queue_cid *p_cid;
+	int rc;
+
+	p_cid = vmalloc(sizeof(*p_cid));
+	if (!p_cid)
+		return NULL;
+	memset(p_cid, 0, sizeof(*p_cid));
+
+	p_cid->opaque_fid = opaque_fid;
+	p_cid->cid = cid;
+	p_cid->vf_qid = vf_qid;
+	p_cid->rel = *p_params;
+
+	/* Don't try calculating the absolute indices for VFs */
+	if (IS_VF(p_hwfn->cdev)) {
+		p_cid->abs = p_cid->rel;
+		goto out;
+	}
+
+	/* Calculate the engine-absolute indices of the resources.
+	 * This would guarantee they're valid later on.
+	 * In some cases [SBs] we already have the right values.
+	 */
+	rc = qed_fw_vport(p_hwfn, p_cid->rel.vport_id, &p_cid->abs.vport_id);
+	if (rc)
+		goto fail;
+
+	rc = qed_fw_l2_queue(p_hwfn, p_cid->rel.queue_id, &p_cid->abs.queue_id);
+	if (rc)
+		goto fail;
+
+	/* In case of a PF configuring its VF's queues, the stats-id is already
+	 * absolute [since there's a single index that's suitable per-VF].
+	 */
+	if (b_is_same) {
+		rc = qed_fw_vport(p_hwfn, p_cid->rel.stats_id,
+				  &p_cid->abs.stats_id);
+		if (rc)
+			goto fail;
+	} else {
+		p_cid->abs.stats_id = p_cid->rel.stats_id;
+	}
+
+	/* SBs relevant information was already provided as absolute */
+	p_cid->abs.sb = p_cid->rel.sb;
+	p_cid->abs.sb_idx = p_cid->rel.sb_idx;
+
+	/* This is tricky - we're actually interested in whehter this is a PF
+	 * entry meant for the VF.
+	 */
+	if (!b_is_same)
+		p_cid->is_vf = true;
+out:
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_SP,
+		   "opaque_fid: %04x CID %08x vport %02x [%02x] qzone %04x [%04x] stats %02x [%02x] SB %04x PI %02x\n",
+		   p_cid->opaque_fid,
+		   p_cid->cid,
+		   p_cid->rel.vport_id,
+		   p_cid->abs.vport_id,
+		   p_cid->rel.queue_id,
+		   p_cid->abs.queue_id,
+		   p_cid->rel.stats_id,
+		   p_cid->abs.stats_id, p_cid->abs.sb, p_cid->abs.sb_idx);
+
+	return p_cid;
+
+fail:
+	vfree(p_cid);
+	return NULL;
+}
+
+static struct qed_queue_cid *qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
+						  u16 opaque_fid, struct
+						  qed_queue_start_common_params
+						  *p_params)
+{
+	struct qed_queue_cid *p_cid;
+	u32 cid = 0;
+
+	/* Get a unique firmware CID for this queue, in case it's a PF.
+	 * VF's don't need a CID as the queue configuration will be done
+	 * by PF.
+	 */
+	if (IS_PF(p_hwfn->cdev)) {
+		if (qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH, &cid)) {
+			DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
+			return NULL;
+		}
+	}
+
+	p_cid = _qed_eth_queue_to_cid(p_hwfn, opaque_fid, cid, 0, p_params);
+	if (!p_cid && IS_PF(p_hwfn->cdev))
+		qed_cxt_release_cid(p_hwfn, cid);
+
+	return p_cid;
+}
 
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 			   struct qed_sp_vport_start_params *p_params)
@@ -496,61 +615,26 @@ static int qed_filter_accept_cmd(struct qed_dev *cdev,
 	return 0;
 }
 
-static int qed_sp_release_queue_cid(
-	struct qed_hwfn *p_hwfn,
-	struct qed_hw_cid_data *p_cid_data)
-{
-	if (!p_cid_data->b_cid_allocated)
-		return 0;
-
-	qed_cxt_release_cid(p_hwfn, p_cid_data->cid);
-
-	p_cid_data->b_cid_allocated = false;
-
-	return 0;
-}
-
-int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
-				u16 opaque_fid,
-				u32 cid,
-				struct qed_queue_start_common_params *p_params,
-				u8 stats_id,
-				u16 bd_max_bytes,
-				dma_addr_t bd_chain_phys_addr,
-				dma_addr_t cqe_pbl_addr,
-				u16 cqe_pbl_size, bool b_use_zone_a_prod)
+int qed_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
+			     struct qed_queue_cid *p_cid,
+			     u16 bd_max_bytes,
+			     dma_addr_t bd_chain_phys_addr,
+			     dma_addr_t cqe_pbl_addr, u16 cqe_pbl_size)
 {
 	struct rx_queue_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	struct qed_hw_cid_data *p_rx_cid;
-	u16 abs_rx_q_id = 0;
-	u8 abs_vport_id = 0;
 	int rc = -EINVAL;
 
-	/* Store information for the stop */
-	p_rx_cid = &p_hwfn->p_rx_cids[p_params->queue_id];
-	p_rx_cid->cid = cid;
-	p_rx_cid->opaque_fid = opaque_fid;
-	p_rx_cid->vport_id = p_params->vport_id;
-
-	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
-	if (rc)
-		return rc;
-
-	rc = qed_fw_l2_queue(p_hwfn, p_params->queue_id, &abs_rx_q_id);
-	if (rc)
-		return rc;
-
 	DP_VERBOSE(p_hwfn, QED_MSG_SP,
-		   "opaque_fid=0x%x, cid=0x%x, rx_qid=0x%x, vport_id=0x%x, sb_id=0x%x\n",
-		   opaque_fid,
-		   cid, p_params->queue_id, p_params->vport_id, p_params->sb);
+		   "opaque_fid=0x%x, cid=0x%x, rx_qzone=0x%x, vport_id=0x%x, sb_id=0x%x\n",
+		   p_cid->opaque_fid, p_cid->cid,
+		   p_cid->abs.queue_id, p_cid->abs.vport_id, p_cid->abs.sb);
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
-	init_data.cid = cid;
-	init_data.opaque_fid = opaque_fid;
+	init_data.cid = p_cid->cid;
+	init_data.opaque_fid = p_cid->opaque_fid;
 	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
@@ -561,11 +645,11 @@ int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 
 	p_ramrod = &p_ent->ramrod.rx_queue_start;
 
-	p_ramrod->sb_id = cpu_to_le16(p_params->sb);
-	p_ramrod->sb_index = p_params->sb_idx;
-	p_ramrod->vport_id = abs_vport_id;
-	p_ramrod->stats_counter_id = stats_id;
-	p_ramrod->rx_queue_id = cpu_to_le16(abs_rx_q_id);
+	p_ramrod->sb_id = cpu_to_le16(p_cid->abs.sb);
+	p_ramrod->sb_index = p_cid->abs.sb_idx;
+	p_ramrod->vport_id = p_cid->abs.vport_id;
+	p_ramrod->stats_counter_id = p_cid->abs.stats_id;
+	p_ramrod->rx_queue_id = cpu_to_le16(p_cid->abs.queue_id);
 	p_ramrod->complete_cqe_flg = 0;
 	p_ramrod->complete_event_flg = 1;
 
@@ -575,85 +659,85 @@ int qed_sp_eth_rxq_start_ramrod(struct qed_hwfn *p_hwfn,
 	p_ramrod->num_of_pbl_pages = cpu_to_le16(cqe_pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->cqe_pbl_addr, cqe_pbl_addr);
 
-	if (p_params->vf_qid || b_use_zone_a_prod) {
-		p_ramrod->vf_rx_prod_index = p_params->vf_qid;
+	if (p_cid->is_vf) {
+		p_ramrod->vf_rx_prod_index = p_cid->vf_qid;
 		DP_VERBOSE(p_hwfn, QED_MSG_SP,
 			   "Queue%s is meant for VF rxq[%02x]\n",
-			   b_use_zone_a_prod ? " [legacy]" : "",
-			   p_params->vf_qid);
-		p_ramrod->vf_rx_prod_use_zone_a = b_use_zone_a_prod;
+			   !!p_cid->b_legacy_vf ? " [legacy]" : "",
+			   p_cid->vf_qid);
+		p_ramrod->vf_rx_prod_use_zone_a = !!p_cid->b_legacy_vf;
 	}
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
 static int
-qed_sp_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
-			  u16 opaque_fid,
-			  struct qed_queue_start_common_params *p_params,
+qed_eth_pf_rx_queue_start(struct qed_hwfn *p_hwfn,
+			  struct qed_queue_cid *p_cid,
 			  u16 bd_max_bytes,
 			  dma_addr_t bd_chain_phys_addr,
 			  dma_addr_t cqe_pbl_addr,
 			  u16 cqe_pbl_size, void __iomem **pp_prod)
 {
-	struct qed_hw_cid_data *p_rx_cid;
 	u32 init_prod_val = 0;
-	u16 abs_l2_queue = 0;
-	u8 abs_stats_id = 0;
-	int rc;
 
-	if (IS_VF(p_hwfn->cdev)) {
-		return qed_vf_pf_rxq_start(p_hwfn,
-					   p_params->queue_id,
-					   p_params->sb,
-					   (u8)p_params->sb_idx,
-					   bd_max_bytes,
-					   bd_chain_phys_addr,
-					   cqe_pbl_addr, cqe_pbl_size, pp_prod);
-	}
-
-	rc = qed_fw_l2_queue(p_hwfn, p_params->queue_id, &abs_l2_queue);
-	if (rc)
-		return rc;
-
-	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_stats_id);
-	if (rc)
-		return rc;
-
-	*pp_prod = (u8 __iomem *)p_hwfn->regview +
-				 GTT_BAR0_MAP_REG_MSDM_RAM +
-				 MSTORM_ETH_PF_PRODS_OFFSET(abs_l2_queue);
+	*pp_prod = p_hwfn->regview +
+		   GTT_BAR0_MAP_REG_MSDM_RAM +
+		    MSTORM_ETH_PF_PRODS_OFFSET(p_cid->abs.queue_id);
 
 	/* Init the rcq, rx bd and rx sge (if valid) producers to 0 */
 	__internal_ram_wr(p_hwfn, *pp_prod, sizeof(u32),
 			  (u32 *)(&init_prod_val));
 
-	/* Allocate a CID for the queue */
-	p_rx_cid = &p_hwfn->p_rx_cids[p_params->queue_id];
-	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH, &p_rx_cid->cid);
-	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
-		return rc;
-	}
-	p_rx_cid->b_cid_allocated = true;
+	return qed_eth_rxq_start_ramrod(p_hwfn, p_cid,
+					bd_max_bytes,
+					bd_chain_phys_addr,
+					cqe_pbl_addr, cqe_pbl_size);
+}
 
-	rc = qed_sp_eth_rxq_start_ramrod(p_hwfn,
-					 opaque_fid,
-					 p_rx_cid->cid,
-					 p_params,
-					 abs_stats_id,
+static int
+qed_eth_rx_queue_start(struct qed_hwfn *p_hwfn,
+		       u16 opaque_fid,
+		       struct qed_queue_start_common_params *p_params,
+		       u16 bd_max_bytes,
+		       dma_addr_t bd_chain_phys_addr,
+		       dma_addr_t cqe_pbl_addr,
+		       u16 cqe_pbl_size,
+		       struct qed_rxq_start_ret_params *p_ret_params)
+{
+	struct qed_queue_cid *p_cid;
+	int rc;
+
+	/* Allocate a CID for the queue */
+	p_cid = qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params);
+	if (!p_cid)
+		return -ENOMEM;
+
+	if (IS_PF(p_hwfn->cdev)) {
+		rc = qed_eth_pf_rx_queue_start(p_hwfn, p_cid,
+					       bd_max_bytes,
+					       bd_chain_phys_addr,
+					       cqe_pbl_addr, cqe_pbl_size,
+					       &p_ret_params->p_prod);
+	} else {
+		rc = qed_vf_pf_rxq_start(p_hwfn, p_cid,
 					 bd_max_bytes,
 					 bd_chain_phys_addr,
-					 cqe_pbl_addr, cqe_pbl_size, false);
+					 cqe_pbl_addr,
+					 cqe_pbl_size, &p_ret_params->p_prod);
+	}
 
+	/* Provide the caller with a reference to as handler */
 	if (rc)
-		qed_sp_release_queue_cid(p_hwfn, p_rx_cid);
+		qed_eth_queue_cid_release(p_hwfn, p_cid);
+	else
+		p_ret_params->p_handle = (void *)p_cid;
 
 	return rc;
 }
 
 int qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
-				u16 rx_queue_id,
+				void **pp_rxq_handles,
 				u8 num_rxqs,
 				u8 complete_cqe_flg,
 				u8 complete_event_flg,
@@ -663,8 +747,7 @@ int qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
 	struct rx_queue_update_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	struct qed_hw_cid_data *p_rx_cid;
-	u16 qid, abs_rx_q_id = 0;
+	struct qed_queue_cid *p_cid;
 	int rc = -EINVAL;
 	u8 i;
 
@@ -673,12 +756,11 @@ int qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
 	init_data.p_comp_data = p_comp_data;
 
 	for (i = 0; i < num_rxqs; i++) {
-		qid = rx_queue_id + i;
-		p_rx_cid = &p_hwfn->p_rx_cids[qid];
+		p_cid = ((struct qed_queue_cid **)pp_rxq_handles)[i];
 
 		/* Get SPQ entry */
-		init_data.cid = p_rx_cid->cid;
-		init_data.opaque_fid = p_rx_cid->opaque_fid;
+		init_data.cid = p_cid->cid;
+		init_data.opaque_fid = p_cid->opaque_fid;
 
 		rc = qed_sp_init_request(p_hwfn, &p_ent,
 					 ETH_RAMROD_RX_QUEUE_UPDATE,
@@ -687,10 +769,9 @@ int qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
 			return rc;
 
 		p_ramrod = &p_ent->ramrod.rx_queue_update;
+		p_ramrod->vport_id = p_cid->abs.vport_id;
 
-		qed_fw_vport(p_hwfn, p_rx_cid->vport_id, &p_ramrod->vport_id);
-		qed_fw_l2_queue(p_hwfn, qid, &abs_rx_q_id);
-		p_ramrod->rx_queue_id = cpu_to_le16(abs_rx_q_id);
+		p_ramrod->rx_queue_id = cpu_to_le16(p_cid->abs.queue_id);
 		p_ramrod->complete_cqe_flg = complete_cqe_flg;
 		p_ramrod->complete_event_flg = complete_event_flg;
 
@@ -702,24 +783,19 @@ int qed_sp_eth_rx_queues_update(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
-int qed_sp_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
-			     u16 rx_queue_id,
-			     bool eq_completion_only, bool cqe_completion)
+static int
+qed_eth_pf_rx_queue_stop(struct qed_hwfn *p_hwfn,
+			 struct qed_queue_cid *p_cid,
+			 bool b_eq_completion_only, bool b_cqe_completion)
 {
-	struct qed_hw_cid_data *p_rx_cid = &p_hwfn->p_rx_cids[rx_queue_id];
 	struct rx_queue_stop_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	u16 abs_rx_q_id = 0;
-	int rc = -EINVAL;
+	int rc;
 
-	if (IS_VF(p_hwfn->cdev))
-		return qed_vf_pf_rxq_stop(p_hwfn, rx_queue_id, cqe_completion);
-
-	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
-	init_data.cid = p_rx_cid->cid;
-	init_data.opaque_fid = p_rx_cid->opaque_fid;
+	init_data.cid = p_cid->cid;
+	init_data.opaque_fid = p_cid->opaque_fid;
 	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
@@ -729,62 +805,53 @@ int qed_sp_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	p_ramrod = &p_ent->ramrod.rx_queue_stop;
-
-	qed_fw_vport(p_hwfn, p_rx_cid->vport_id, &p_ramrod->vport_id);
-	qed_fw_l2_queue(p_hwfn, rx_queue_id, &abs_rx_q_id);
-	p_ramrod->rx_queue_id = cpu_to_le16(abs_rx_q_id);
+	p_ramrod->vport_id = p_cid->abs.vport_id;
+	p_ramrod->rx_queue_id = cpu_to_le16(p_cid->abs.queue_id);
 
 	/* Cleaning the queue requires the completion to arrive there.
 	 * In addition, VFs require the answer to come as eqe to PF.
 	 */
-	p_ramrod->complete_cqe_flg =
-		(!!(p_rx_cid->opaque_fid == p_hwfn->hw_info.opaque_fid) &&
-		 !eq_completion_only) || cqe_completion;
-	p_ramrod->complete_event_flg =
-		!(p_rx_cid->opaque_fid == p_hwfn->hw_info.opaque_fid) ||
-		eq_completion_only;
+	p_ramrod->complete_cqe_flg = (!p_cid->is_vf &&
+				      !b_eq_completion_only) ||
+				     b_cqe_completion;
+	p_ramrod->complete_event_flg = p_cid->is_vf || b_eq_completion_only;
 
-	rc = qed_spq_post(p_hwfn, p_ent, NULL);
-	if (rc)
-		return rc;
-
-	return qed_sp_release_queue_cid(p_hwfn, p_rx_cid);
+	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
-int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
-				u16  opaque_fid,
-				u32  cid,
-				struct qed_queue_start_common_params *p_params,
-				u8  stats_id,
-				dma_addr_t pbl_addr,
-				u16 pbl_size,
-				union qed_qm_pq_params *p_pq_params)
+int qed_eth_rx_queue_stop(struct qed_hwfn *p_hwfn,
+			  void *p_rxq,
+			  bool eq_completion_only, bool cqe_completion)
+{
+	struct qed_queue_cid *p_cid = (struct qed_queue_cid *)p_rxq;
+	int rc = -EINVAL;
+
+	if (IS_PF(p_hwfn->cdev))
+		rc = qed_eth_pf_rx_queue_stop(p_hwfn, p_cid,
+					      eq_completion_only,
+					      cqe_completion);
+	else
+		rc = qed_vf_pf_rxq_stop(p_hwfn, p_cid, cqe_completion);
+
+	if (!rc)
+		qed_eth_queue_cid_release(p_hwfn, p_cid);
+	return rc;
+}
+
+int
+qed_eth_txq_start_ramrod(struct qed_hwfn *p_hwfn,
+			 struct qed_queue_cid *p_cid,
+			 dma_addr_t pbl_addr, u16 pbl_size, u16 pq_id)
 {
 	struct tx_queue_start_ramrod_data *p_ramrod = NULL;
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	struct qed_hw_cid_data *p_tx_cid;
-	u16 pq_id, abs_tx_q_id = 0;
 	int rc = -EINVAL;
-	u8 abs_vport_id;
-
-	/* Store information for the stop */
-	p_tx_cid = &p_hwfn->p_tx_cids[p_params->queue_id];
-	p_tx_cid->cid		= cid;
-	p_tx_cid->opaque_fid	= opaque_fid;
-
-	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
-	if (rc)
-		return rc;
-
-	rc = qed_fw_l2_queue(p_hwfn, p_params->queue_id, &abs_tx_q_id);
-	if (rc)
-		return rc;
 
 	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
-	init_data.cid = cid;
-	init_data.opaque_fid = opaque_fid;
+	init_data.cid = p_cid->cid;
+	init_data.opaque_fid = p_cid->opaque_fid;
 	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
@@ -794,96 +861,92 @@ int qed_sp_eth_txq_start_ramrod(struct qed_hwfn  *p_hwfn,
 		return rc;
 
 	p_ramrod = &p_ent->ramrod.tx_queue_start;
-	p_ramrod->vport_id = abs_vport_id;
+	p_ramrod->vport_id = p_cid->abs.vport_id;
 
-	p_ramrod->sb_id = cpu_to_le16(p_params->sb);
-	p_ramrod->sb_index = p_params->sb_idx;
-	p_ramrod->stats_counter_id = stats_id;
+	p_ramrod->sb_id = cpu_to_le16(p_cid->abs.sb);
+	p_ramrod->sb_index = p_cid->abs.sb_idx;
+	p_ramrod->stats_counter_id = p_cid->abs.stats_id;
 
-	p_ramrod->queue_zone_id = cpu_to_le16(abs_tx_q_id);
+	p_ramrod->queue_zone_id = cpu_to_le16(p_cid->abs.queue_id);
+	p_ramrod->same_as_last_id = cpu_to_le16(p_cid->abs.queue_id);
 
 	p_ramrod->pbl_size = cpu_to_le16(pbl_size);
 	DMA_REGPAIR_LE(p_ramrod->pbl_base_addr, pbl_addr);
 
-	pq_id = qed_get_qm_pq(p_hwfn, PROTOCOLID_ETH, p_pq_params);
 	p_ramrod->qm_pq_id = cpu_to_le16(pq_id);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
 }
 
 static int
-qed_sp_eth_tx_queue_start(struct qed_hwfn *p_hwfn,
-			  u16 opaque_fid,
-			  struct qed_queue_start_common_params *p_params,
+qed_eth_pf_tx_queue_start(struct qed_hwfn *p_hwfn,
+			  struct qed_queue_cid *p_cid,
+			  u8 tc,
 			  dma_addr_t pbl_addr,
 			  u16 pbl_size, void __iomem **pp_doorbell)
 {
-	struct qed_hw_cid_data *p_tx_cid;
 	union qed_qm_pq_params pq_params;
-	u8 abs_stats_id = 0;
 	int rc;
 
-	if (IS_VF(p_hwfn->cdev)) {
-		return qed_vf_pf_txq_start(p_hwfn,
-					   p_params->queue_id,
-					   p_params->sb,
-					   p_params->sb_idx,
-					   pbl_addr, pbl_size, pp_doorbell);
-	}
-
-	rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_stats_id);
-	if (rc)
-		return rc;
-
-	p_tx_cid = &p_hwfn->p_tx_cids[p_params->queue_id];
-	memset(p_tx_cid, 0, sizeof(*p_tx_cid));
 	memset(&pq_params, 0, sizeof(pq_params));
 
-	/* Allocate a CID for the queue */
-	rc = qed_cxt_acquire_cid(p_hwfn, PROTOCOLID_ETH, &p_tx_cid->cid);
-	if (rc) {
-		DP_NOTICE(p_hwfn, "Failed to acquire cid\n");
+	rc = qed_eth_txq_start_ramrod(p_hwfn, p_cid,
+				      pbl_addr, pbl_size,
+				      qed_get_qm_pq(p_hwfn, PROTOCOLID_ETH,
+						    &pq_params));
+	if (rc)
 		return rc;
-	}
-	p_tx_cid->b_cid_allocated = true;
 
-	DP_VERBOSE(p_hwfn, QED_MSG_SP,
-		   "opaque_fid=0x%x, cid=0x%x, tx_qid=0x%x, vport_id=0x%x, sb_id=0x%x\n",
-		   opaque_fid, p_tx_cid->cid,
-		   p_params->queue_id, p_params->vport_id, p_params->sb);
+	/* Provide the caller with the necessary return values */
+	*pp_doorbell = p_hwfn->doorbells +
+		       qed_db_addr(p_cid->cid, DQ_DEMS_LEGACY);
 
-	rc = qed_sp_eth_txq_start_ramrod(p_hwfn,
-					 opaque_fid,
-					 p_tx_cid->cid,
-					 p_params,
-					 abs_stats_id,
-					 pbl_addr,
-					 pbl_size,
-					 &pq_params);
+	return 0;
+}
 
-	*pp_doorbell = (u8 __iomem *)p_hwfn->doorbells +
-				     qed_db_addr(p_tx_cid->cid, DQ_DEMS_LEGACY);
+static int
+qed_eth_tx_queue_start(struct qed_hwfn *p_hwfn,
+		       u16 opaque_fid,
+		       struct qed_queue_start_common_params *p_params,
+		       u8 tc,
+		       dma_addr_t pbl_addr,
+		       u16 pbl_size,
+		       struct qed_txq_start_ret_params *p_ret_params)
+{
+	struct qed_queue_cid *p_cid;
+	int rc;
+
+	p_cid = qed_eth_queue_to_cid(p_hwfn, opaque_fid, p_params);
+	if (!p_cid)
+		return -EINVAL;
+
+	if (IS_PF(p_hwfn->cdev))
+		rc = qed_eth_pf_tx_queue_start(p_hwfn, p_cid, tc,
+					       pbl_addr, pbl_size,
+					       &p_ret_params->p_doorbell);
+	else
+		rc = qed_vf_pf_txq_start(p_hwfn, p_cid,
+					 pbl_addr, pbl_size,
+					 &p_ret_params->p_doorbell);
 
 	if (rc)
-		qed_sp_release_queue_cid(p_hwfn, p_tx_cid);
+		qed_eth_queue_cid_release(p_hwfn, p_cid);
+	else
+		p_ret_params->p_handle = (void *)p_cid;
 
 	return rc;
 }
 
-int qed_sp_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, u16 tx_queue_id)
+static int
+qed_eth_pf_tx_queue_stop(struct qed_hwfn *p_hwfn, struct qed_queue_cid *p_cid)
 {
-	struct qed_hw_cid_data *p_tx_cid = &p_hwfn->p_tx_cids[tx_queue_id];
 	struct qed_spq_entry *p_ent = NULL;
 	struct qed_sp_init_data init_data;
-	int rc = -EINVAL;
+	int rc;
 
-	if (IS_VF(p_hwfn->cdev))
-		return qed_vf_pf_txq_stop(p_hwfn, tx_queue_id);
-
-	/* Get SPQ entry */
 	memset(&init_data, 0, sizeof(init_data));
-	init_data.cid = p_tx_cid->cid;
-	init_data.opaque_fid = p_tx_cid->opaque_fid;
+	init_data.cid = p_cid->cid;
+	init_data.opaque_fid = p_cid->opaque_fid;
 	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 
 	rc = qed_sp_init_request(p_hwfn, &p_ent,
@@ -892,11 +955,22 @@ int qed_sp_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, u16 tx_queue_id)
 	if (rc)
 		return rc;
 
-	rc = qed_spq_post(p_hwfn, p_ent, NULL);
-	if (rc)
-		return rc;
+	return qed_spq_post(p_hwfn, p_ent, NULL);
+}
 
-	return qed_sp_release_queue_cid(p_hwfn, p_tx_cid);
+int qed_eth_tx_queue_stop(struct qed_hwfn *p_hwfn, void *p_handle)
+{
+	struct qed_queue_cid *p_cid = (struct qed_queue_cid *)p_handle;
+	int rc;
+
+	if (IS_PF(p_hwfn->cdev))
+		rc = qed_eth_pf_tx_queue_stop(p_hwfn, p_cid);
+	else
+		rc = qed_vf_pf_txq_stop(p_hwfn, p_cid);
+
+	if (!rc)
+		qed_eth_queue_cid_release(p_hwfn, p_cid);
+	return rc;
 }
 
 static enum eth_filter_action qed_filter_action(enum qed_filter_opcode opcode)
@@ -1652,6 +1726,7 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 
 	if (IS_PF(cdev)) {
 		int max_vf_vlan_filters = 0;
+		int max_vf_mac_filters = 0;
 
 		if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
 			for_each_hwfn(cdev, i)
@@ -1665,11 +1740,18 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 			info->num_queues = cdev->num_hwfns;
 		}
 
-		if (IS_QED_SRIOV(cdev))
+		if (IS_QED_SRIOV(cdev)) {
 			max_vf_vlan_filters = cdev->p_iov_info->total_vfs *
 					      QED_ETH_VF_NUM_VLAN_FILTERS;
-		info->num_vlan_filters = RESC_NUM(&cdev->hwfns[0], QED_VLAN) -
+			max_vf_mac_filters = cdev->p_iov_info->total_vfs *
+					     QED_ETH_VF_NUM_MAC_FILTERS;
+		}
+		info->num_vlan_filters = RESC_NUM(QED_LEADING_HWFN(cdev),
+						  QED_VLAN) -
 					 max_vf_vlan_filters;
+		info->num_mac_filters = RESC_NUM(QED_LEADING_HWFN(cdev),
+						 QED_MAC) -
+					max_vf_mac_filters;
 
 		ether_addr_copy(info->port_mac,
 				cdev->hwfns[0].hw_info.hw_mac_addr);
@@ -1683,7 +1765,9 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 		}
 
 		qed_vf_get_num_vlan_filters(&cdev->hwfns[0],
-					    &info->num_vlan_filters);
+					    (u8 *)&info->num_vlan_filters);
+		qed_vf_get_num_mac_filters(&cdev->hwfns[0],
+					   (u8 *)&info->num_mac_filters);
 		qed_vf_get_port_mac(&cdev->hwfns[0], info->port_mac);
 
 		info->is_legacy = !!cdev->hwfns[0].vf_iov_info->b_pre_fp_hsi;
@@ -1870,58 +1954,53 @@ static int qed_update_vport(struct qed_dev *cdev,
 }
 
 static int qed_start_rxq(struct qed_dev *cdev,
-			 struct qed_queue_start_common_params *params,
+			 u8 rss_num,
+			 struct qed_queue_start_common_params *p_params,
 			 u16 bd_max_bytes,
 			 dma_addr_t bd_chain_phys_addr,
 			 dma_addr_t cqe_pbl_addr,
 			 u16 cqe_pbl_size,
-			 void __iomem **pp_prod)
+			 struct qed_rxq_start_ret_params *ret_params)
 {
 	struct qed_hwfn *p_hwfn;
 	int rc, hwfn_index;
 
-	hwfn_index = params->rss_id % cdev->num_hwfns;
+	hwfn_index = rss_num % cdev->num_hwfns;
 	p_hwfn = &cdev->hwfns[hwfn_index];
 
-	/* Fix queue ID in 100g mode */
-	params->queue_id /= cdev->num_hwfns;
+	p_params->queue_id = p_params->queue_id / cdev->num_hwfns;
+	p_params->stats_id = p_params->vport_id;
 
-	rc = qed_sp_eth_rx_queue_start(p_hwfn,
-				       p_hwfn->hw_info.opaque_fid,
-				       params,
-				       bd_max_bytes,
-				       bd_chain_phys_addr,
-				       cqe_pbl_addr,
-				       cqe_pbl_size,
-				       pp_prod);
-
+	rc = qed_eth_rx_queue_start(p_hwfn,
+				    p_hwfn->hw_info.opaque_fid,
+				    p_params,
+				    bd_max_bytes,
+				    bd_chain_phys_addr,
+				    cqe_pbl_addr, cqe_pbl_size, ret_params);
 	if (rc) {
-		DP_ERR(cdev, "Failed to start RXQ#%d\n", params->queue_id);
+		DP_ERR(cdev, "Failed to start RXQ#%d\n", p_params->queue_id);
 		return rc;
 	}
 
 	DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
-		   "Started RX-Q %d [rss %d] on V-PORT %d and SB %d\n",
-		   params->queue_id, params->rss_id, params->vport_id,
-		   params->sb);
+		   "Started RX-Q %d [rss_num %d] on V-PORT %d and SB %d\n",
+		   p_params->queue_id, rss_num, p_params->vport_id,
+		   p_params->sb);
 
 	return 0;
 }
 
-static int qed_stop_rxq(struct qed_dev *cdev,
-			struct qed_stop_rxq_params *params)
+static int qed_stop_rxq(struct qed_dev *cdev, u8 rss_id, void *handle)
 {
 	int rc, hwfn_index;
 	struct qed_hwfn *p_hwfn;
 
-	hwfn_index	= params->rss_id % cdev->num_hwfns;
-	p_hwfn		= &cdev->hwfns[hwfn_index];
+	hwfn_index = rss_id % cdev->num_hwfns;
+	p_hwfn = &cdev->hwfns[hwfn_index];
 
-	rc = qed_sp_eth_rx_queue_stop(p_hwfn,
-				      params->rx_queue_id / cdev->num_hwfns,
-				      params->eq_completion_only, false);
+	rc = qed_eth_rx_queue_stop(p_hwfn, handle, false, false);
 	if (rc) {
-		DP_ERR(cdev, "Failed to stop RXQ#%d\n", params->rx_queue_id);
+		DP_ERR(cdev, "Failed to stop RXQ#%02x\n", rss_id);
 		return rc;
 	}
 
@@ -1929,26 +2008,24 @@ static int qed_stop_rxq(struct qed_dev *cdev,
 }
 
 static int qed_start_txq(struct qed_dev *cdev,
+			 u8 rss_num,
 			 struct qed_queue_start_common_params *p_params,
 			 dma_addr_t pbl_addr,
 			 u16 pbl_size,
-			 void __iomem **pp_doorbell)
+			 struct qed_txq_start_ret_params *ret_params)
 {
 	struct qed_hwfn *p_hwfn;
 	int rc, hwfn_index;
 
-	hwfn_index	= p_params->rss_id % cdev->num_hwfns;
-	p_hwfn		= &cdev->hwfns[hwfn_index];
+	hwfn_index = rss_num % cdev->num_hwfns;
+	p_hwfn = &cdev->hwfns[hwfn_index];
+	p_params->queue_id = p_params->queue_id / cdev->num_hwfns;
+	p_params->stats_id = p_params->vport_id;
 
-	/* Fix queue ID in 100g mode */
-	p_params->queue_id /= cdev->num_hwfns;
-
-	rc = qed_sp_eth_tx_queue_start(p_hwfn,
-				       p_hwfn->hw_info.opaque_fid,
-				       p_params,
-				       pbl_addr,
-				       pbl_size,
-				       pp_doorbell);
+	rc = qed_eth_tx_queue_start(p_hwfn,
+				    p_hwfn->hw_info.opaque_fid,
+				    p_params, 0,
+				    pbl_addr, pbl_size, ret_params);
 
 	if (rc) {
 		DP_ERR(cdev, "Failed to start TXQ#%d\n", p_params->queue_id);
@@ -1956,8 +2033,8 @@ static int qed_start_txq(struct qed_dev *cdev,
 	}
 
 	DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
-		   "Started TX-Q %d [rss %d] on V-PORT %d and SB %d\n",
-		   p_params->queue_id, p_params->rss_id, p_params->vport_id,
+		   "Started TX-Q %d [rss_num %d] on V-PORT %d and SB %d\n",
+		   p_params->queue_id, rss_num, p_params->vport_id,
 		   p_params->sb);
 
 	return 0;
@@ -1971,19 +2048,17 @@ static int qed_fastpath_stop(struct qed_dev *cdev)
 	return 0;
 }
 
-static int qed_stop_txq(struct qed_dev *cdev,
-			struct qed_stop_txq_params *params)
+static int qed_stop_txq(struct qed_dev *cdev, u8 rss_id, void *handle)
 {
 	struct qed_hwfn *p_hwfn;
 	int rc, hwfn_index;
 
-	hwfn_index	= params->rss_id % cdev->num_hwfns;
-	p_hwfn		= &cdev->hwfns[hwfn_index];
+	hwfn_index = rss_id % cdev->num_hwfns;
+	p_hwfn = &cdev->hwfns[hwfn_index];
 
-	rc = qed_sp_eth_tx_queue_stop(p_hwfn,
-				      params->tx_queue_id / cdev->num_hwfns);
+	rc = qed_eth_tx_queue_stop(p_hwfn, handle);
 	if (rc) {
-		DP_ERR(cdev, "Failed to stop TXQ#%d\n", params->tx_queue_id);
+		DP_ERR(cdev, "Failed to stop TXQ#%02x\n", rss_id);
 		return rc;
 	}
 

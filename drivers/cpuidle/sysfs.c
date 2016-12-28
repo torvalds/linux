@@ -403,8 +403,10 @@ static int cpuidle_add_state_sysfs(struct cpuidle_device *device)
 	/* state statistics */
 	for (i = 0; i < drv->state_count; i++) {
 		kobj = kzalloc(sizeof(struct cpuidle_state_kobj), GFP_KERNEL);
-		if (!kobj)
+		if (!kobj) {
+			ret = -ENOMEM;
 			goto error_state;
+		}
 		kobj->state = &drv->states[i];
 		kobj->state_usage = &device->states_usage[i];
 		init_completion(&kobj->kobj_unregister);

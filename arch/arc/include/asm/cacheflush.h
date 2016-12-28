@@ -85,6 +85,10 @@ void flush_anon_page(struct vm_area_struct *vma,
  */
 #define PG_dc_clean	PG_arch_1
 
+#define CACHE_COLORS_NUM	4
+#define CACHE_COLORS_MSK	(CACHE_COLORS_NUM - 1)
+#define CACHE_COLOR(addr)	(((unsigned long)(addr) >> (PAGE_SHIFT)) & CACHE_COLORS_MSK)
+
 /*
  * Simple wrapper over config option
  * Bootup code ensures that hardware matches kernel configuration
@@ -93,8 +97,6 @@ static inline int cache_is_vipt_aliasing(void)
 {
 	return IS_ENABLED(CONFIG_ARC_CACHE_VIPT_ALIASING);
 }
-
-#define CACHE_COLOR(addr)	(((unsigned long)(addr) >> (PAGE_SHIFT)) & 1)
 
 /*
  * checks if two addresses (after page aligning) index into same cache set

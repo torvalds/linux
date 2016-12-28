@@ -309,7 +309,7 @@ static int task_is_descendant(struct task_struct *parent,
  * @tracer: the task_struct of the process attempting ptrace
  * @tracee: the task_struct of the process to be ptraced
  *
- * Returns 1 if tracer has is ptracer exception ancestor for tracee.
+ * Returns 1 if tracer has a ptracer exception ancestor for tracee.
  */
 static int ptracer_exception_found(struct task_struct *tracer,
 				   struct task_struct *tracee)
@@ -320,6 +320,18 @@ static int ptracer_exception_found(struct task_struct *tracer,
 	bool found = false;
 
 	rcu_read_lock();
+
+	/*
+	 * If there's already an active tracing relationship, then make an
+	 * exception for the sake of other accesses, like process_vm_rw().
+	 */
+	parent = ptrace_parent(tracee);
+	if (parent != NULL && same_thread_group(parent, tracer)) {
+		rc = 1;
+		goto unlock;
+	}
+
+	/* Look for a PR_SET_PTRACER relationship. */
 	if (!thread_group_leader(tracee))
 		tracee = rcu_dereference(tracee->group_leader);
 	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
@@ -334,6 +346,8 @@ static int ptracer_exception_found(struct task_struct *tracer,
 
 	if (found && (parent == NULL || task_is_descendant(parent, tracer)))
 		rc = 1;
+
+unlock:
 	rcu_read_unlock();
 
 	return rc;

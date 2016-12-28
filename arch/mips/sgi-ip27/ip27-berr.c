@@ -19,7 +19,7 @@
 #include <asm/sn/sn0/hub.h>
 #include <asm/tlbdebug.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static void dump_hub_information(unsigned long errst0, unsigned long errst1)
 {

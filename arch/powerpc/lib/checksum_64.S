@@ -182,34 +182,22 @@ EXPORT_SYMBOL(__csum_partial)
 
 	.macro srcnr
 100:
-	.section __ex_table,"a"
-	.align 3
-	.llong 100b,.Lsrc_error_nr
-	.previous
+	EX_TABLE(100b,.Lsrc_error_nr)
 	.endm
 
 	.macro source
 150:
-	.section __ex_table,"a"
-	.align 3
-	.llong 150b,.Lsrc_error
-	.previous
+	EX_TABLE(150b,.Lsrc_error)
 	.endm
 
 	.macro dstnr
 200:
-	.section __ex_table,"a"
-	.align 3
-	.llong 200b,.Ldest_error_nr
-	.previous
+	EX_TABLE(200b,.Ldest_error_nr)
 	.endm
 
 	.macro dest
 250:
-	.section __ex_table,"a"
-	.align 3
-	.llong 250b,.Ldest_error
-	.previous
+	EX_TABLE(250b,.Ldest_error)
 	.endm
 
 /*

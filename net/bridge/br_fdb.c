@@ -535,9 +535,8 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		 */
 		if (fdb->is_local)
 			return 0;
-		br_warn(br, "adding interface %s with same address "
-		       "as a received packet\n",
-		       source ? source->dev->name : br->dev->name);
+		br_warn(br, "adding interface %s with same address as a received packet (addr:%pM, vlan:%u)\n",
+		       source ? source->dev->name : br->dev->name, addr, vid);
 		fdb_delete(br, fdb);
 	}
 
@@ -583,9 +582,8 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 		/* attempt to update an entry for a local interface */
 		if (unlikely(fdb->is_local)) {
 			if (net_ratelimit())
-				br_warn(br, "received packet on %s with "
-					"own address as source address\n",
-					source->dev->name);
+				br_warn(br, "received packet on %s with own address as source address (addr:%pM, vlan:%u)\n",
+					source->dev->name, addr, vid);
 		} else {
 			/* fastpath: update of existing entry */
 			if (unlikely(source != fdb->dst)) {

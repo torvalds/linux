@@ -5,7 +5,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int fixup_exception(struct pt_regs *regs)
 {

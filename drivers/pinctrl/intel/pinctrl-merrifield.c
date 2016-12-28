@@ -814,10 +814,51 @@ static int mrfld_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	return 0;
 }
 
+static int mrfld_config_group_get(struct pinctrl_dev *pctldev,
+				  unsigned int group, unsigned long *config)
+{
+	const unsigned int *pins;
+	unsigned int npins;
+	int ret;
+
+	ret = mrfld_get_group_pins(pctldev, group, &pins, &npins);
+	if (ret)
+		return ret;
+
+	ret = mrfld_config_get(pctldev, pins[0], config);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int mrfld_config_group_set(struct pinctrl_dev *pctldev,
+				  unsigned int group, unsigned long *configs,
+				  unsigned int num_configs)
+{
+	const unsigned int *pins;
+	unsigned int npins;
+	int i, ret;
+
+	ret = mrfld_get_group_pins(pctldev, group, &pins, &npins);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < npins; i++) {
+		ret = mrfld_config_set(pctldev, pins[i], configs, num_configs);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static const struct pinconf_ops mrfld_pinconf_ops = {
 	.is_generic = true,
 	.pin_config_get = mrfld_config_get,
 	.pin_config_set = mrfld_config_set,
+	.pin_config_group_get = mrfld_config_group_get,
+	.pin_config_group_set = mrfld_config_group_set,
 };
 
 static const struct pinctrl_desc mrfld_pinctrl_desc = {

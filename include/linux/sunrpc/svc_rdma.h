@@ -79,7 +79,6 @@ struct svc_rdma_op_ctxt {
 	struct ib_cqe reg_cqe;
 	struct ib_cqe inv_cqe;
 	struct list_head dto_q;
-	enum ib_wc_status wc_status;
 	u32 byte_len;
 	u32 position;
 	struct svcxprt_rdma *xprt;
@@ -139,7 +138,7 @@ struct svcxprt_rdma {
 	int                  sc_max_sge_rd;	/* max sge for read target */
 	bool		     sc_snd_w_inv;	/* OK to use Send With Invalidate */
 
-	atomic_t             sc_sq_count;	/* Number of SQ WR on queue */
+	atomic_t             sc_sq_avail;	/* SQEs ready to be consumed */
 	unsigned int	     sc_sq_depth;	/* Depth of SQ */
 	unsigned int	     sc_rq_depth;	/* Depth of RQ */
 	u32		     sc_max_requests;	/* Forward credits */
@@ -148,7 +147,6 @@ struct svcxprt_rdma {
 
 	struct ib_pd         *sc_pd;
 
-	atomic_t	     sc_dma_used;
 	spinlock_t	     sc_ctxt_lock;
 	struct list_head     sc_ctxts;
 	int		     sc_ctxt_used;
@@ -200,7 +198,6 @@ static inline void svc_rdma_count_mappings(struct svcxprt_rdma *rdma,
 					   struct svc_rdma_op_ctxt *ctxt)
 {
 	ctxt->mapped_sges++;
-	atomic_inc(&rdma->sc_dma_used);
 }
 
 /* svc_rdma_backchannel.c */
@@ -236,8 +233,6 @@ extern int rdma_read_chunk_frmr(struct svcxprt_rdma *, struct svc_rqst *,
 extern int svc_rdma_map_xdr(struct svcxprt_rdma *, struct xdr_buf *,
 			    struct svc_rdma_req_map *, bool);
 extern int svc_rdma_sendto(struct svc_rqst *);
-extern struct rpcrdma_read_chunk *
-	svc_rdma_get_read_chunk(struct rpcrdma_msg *);
 extern void svc_rdma_send_error(struct svcxprt_rdma *, struct rpcrdma_msg *,
 				int);
 

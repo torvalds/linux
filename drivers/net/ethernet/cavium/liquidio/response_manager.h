@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 
 /*! \file response_manager.h
@@ -85,7 +82,6 @@ enum {
 /**  A value of 0x00000000 indicates no error i.e. success */
 #define DRIVER_ERROR_NONE                 0x00000000
 
-/**  (Major number: 0x0000; Minor Number: 0x0001) */
 #define DRIVER_ERROR_REQ_PENDING          0x00000001
 #define DRIVER_ERROR_REQ_TIMEOUT          0x00000003
 #define DRIVER_ERROR_REQ_EINTR            0x00000004

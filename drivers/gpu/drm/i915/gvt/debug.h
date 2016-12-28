@@ -24,11 +24,34 @@
 #ifndef __GVT_DEBUG_H__
 #define __GVT_DEBUG_H__
 
+#define gvt_err(fmt, args...) \
+	DRM_ERROR("gvt: "fmt, ##args)
+
 #define gvt_dbg_core(fmt, args...) \
 	DRM_DEBUG_DRIVER("gvt: core: "fmt, ##args)
 
-/*
- * Other GVT debug stuff will be introduced in the GVT device model patches.
- */
+#define gvt_dbg_irq(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: irq: "fmt, ##args)
+
+#define gvt_dbg_mm(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: mm: "fmt, ##args)
+
+#define gvt_dbg_mmio(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: mmio: "fmt, ##args)
+
+#define gvt_dbg_dpy(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: dpy: "fmt, ##args)
+
+#define gvt_dbg_el(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: el: "fmt, ##args)
+
+#define gvt_dbg_sched(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: sched: "fmt, ##args)
+
+#define gvt_dbg_render(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: render: "fmt, ##args)
+
+#define gvt_dbg_cmd(fmt, args...) \
+	DRM_DEBUG_DRIVER("gvt: cmd: "fmt, ##args)
 
 #endif

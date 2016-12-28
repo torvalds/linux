@@ -864,6 +864,10 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 	int ret;
 	struct device *dev = &bsp_priv->pdev->dev;
 
+	ret = gmac_clk_enable(bsp_priv, true);
+	if (ret)
+		return ret;
+
 	/*rmii or rgmii*/
 	if (bsp_priv->phy_iface == PHY_INTERFACE_MODE_RGMII) {
 		dev_info(dev, "init for RGMII\n");
@@ -877,10 +881,6 @@ static int rk_gmac_powerup(struct rk_priv_data *bsp_priv)
 	}
 
 	ret = phy_power_on(bsp_priv, true);
-	if (ret)
-		return ret;
-
-	ret = gmac_clk_enable(bsp_priv, true);
 	if (ret)
 		return ret;
 
@@ -899,44 +899,6 @@ static void rk_gmac_powerdown(struct rk_priv_data *gmac)
 
 	phy_power_on(gmac, false);
 	gmac_clk_enable(gmac, false);
-}
-
-static int rk_gmac_init(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-
-	return rk_gmac_powerup(bsp_priv);
-}
-
-static void rk_gmac_exit(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-
-	rk_gmac_powerdown(bsp_priv);
-}
-
-static void rk_gmac_suspend(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-
-	/* Keep the PHY up if we use Wake-on-Lan. */
-	if (device_may_wakeup(&pdev->dev))
-		return;
-
-	rk_gmac_powerdown(bsp_priv);
-	bsp_priv->suspended = true;
-}
-
-static void rk_gmac_resume(struct platform_device *pdev, void *priv)
-{
-	struct rk_priv_data *bsp_priv = priv;
-
-	/* The PHY was up for Wake-on-Lan. */
-	if (!bsp_priv->suspended)
-		return;
-
-	rk_gmac_powerup(bsp_priv);
-	bsp_priv->suspended = false;
 }
 
 static void rk_fix_speed(void *priv, unsigned int speed)
@@ -974,11 +936,7 @@ static int rk_gmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	plat_dat->has_gmac = true;
-	plat_dat->init = rk_gmac_init;
-	plat_dat->exit = rk_gmac_exit;
 	plat_dat->fix_mac_speed = rk_fix_speed;
-	plat_dat->suspend = rk_gmac_suspend;
-	plat_dat->resume = rk_gmac_resume;
 
 	plat_dat->bsp_priv = rk_gmac_setup(pdev, data);
 	if (IS_ERR(plat_dat->bsp_priv)) {
@@ -986,23 +944,64 @@ static int rk_gmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
-	ret = rk_gmac_init(pdev, plat_dat->bsp_priv);
+	ret = rk_gmac_powerup(plat_dat->bsp_priv);
 	if (ret)
 		goto err_remove_config_dt;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
-		goto err_gmac_exit;
+		goto err_gmac_powerdown;
 
 	return 0;
 
-err_gmac_exit:
-	rk_gmac_exit(pdev, plat_dat->bsp_priv);
+err_gmac_powerdown:
+	rk_gmac_powerdown(plat_dat->bsp_priv);
 err_remove_config_dt:
 	stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
 }
+
+static int rk_gmac_remove(struct platform_device *pdev)
+{
+	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(&pdev->dev);
+	int ret = stmmac_dvr_remove(&pdev->dev);
+
+	rk_gmac_powerdown(bsp_priv);
+
+	return ret;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int rk_gmac_suspend(struct device *dev)
+{
+	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(dev);
+	int ret = stmmac_suspend(dev);
+
+	/* Keep the PHY up if we use Wake-on-Lan. */
+	if (!device_may_wakeup(dev)) {
+		rk_gmac_powerdown(bsp_priv);
+		bsp_priv->suspended = true;
+	}
+
+	return ret;
+}
+
+static int rk_gmac_resume(struct device *dev)
+{
+	struct rk_priv_data *bsp_priv = get_stmmac_bsp_priv(dev);
+
+	/* The PHY was up for Wake-on-Lan. */
+	if (bsp_priv->suspended) {
+		rk_gmac_powerup(bsp_priv);
+		bsp_priv->suspended = false;
+	}
+
+	return stmmac_resume(dev);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+static SIMPLE_DEV_PM_OPS(rk_gmac_pm_ops, rk_gmac_suspend, rk_gmac_resume);
 
 static const struct of_device_id rk_gmac_dwmac_match[] = {
 	{ .compatible = "rockchip,rk3228-gmac", .data = &rk3228_ops },
@@ -1016,10 +1015,10 @@ MODULE_DEVICE_TABLE(of, rk_gmac_dwmac_match);
 
 static struct platform_driver rk_gmac_dwmac_driver = {
 	.probe  = rk_gmac_probe,
-	.remove = stmmac_pltfr_remove,
+	.remove = rk_gmac_remove,
 	.driver = {
 		.name           = "rk_gmac-dwmac",
-		.pm		= &stmmac_pltfr_pm_ops,
+		.pm		= &rk_gmac_pm_ops,
 		.of_match_table = rk_gmac_dwmac_match,
 	},
 };

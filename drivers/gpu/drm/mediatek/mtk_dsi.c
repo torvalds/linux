@@ -594,12 +594,6 @@ static void mtk_dsi_encoder_enable(struct drm_encoder *encoder)
 	mtk_output_dsi_enable(dsi);
 }
 
-static enum drm_connector_status mtk_dsi_connector_detect(
-	struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static int mtk_dsi_connector_get_modes(struct drm_connector *connector)
 {
 	struct mtk_dsi *dsi = connector_to_dsi(connector);
@@ -616,7 +610,6 @@ static const struct drm_encoder_helper_funcs mtk_dsi_encoder_helper_funcs = {
 
 static const struct drm_connector_funcs mtk_dsi_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
-	.detect = mtk_dsi_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,

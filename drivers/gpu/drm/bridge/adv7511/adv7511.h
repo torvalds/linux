@@ -309,6 +309,8 @@ struct adv7511 {
 	struct drm_display_mode curr_mode;
 
 	unsigned int f_tmds;
+	unsigned int f_audio;
+	unsigned int audio_source;
 
 	unsigned int current_edid_segment;
 	uint8_t edid_buf[256];
@@ -334,6 +336,7 @@ struct adv7511 {
 	bool use_timing_gen;
 
 	enum adv7511_type type;
+	struct platform_device *audio_pdev;
 };
 
 #ifdef CONFIG_DRM_I2C_ADV7533
@@ -388,5 +391,18 @@ static inline int adv7533_parse_dt(struct device_node *np, struct adv7511 *adv)
 	return -ENODEV;
 }
 #endif
+
+#ifdef CONFIG_DRM_I2C_ADV7511_AUDIO
+int adv7511_audio_init(struct device *dev, struct adv7511 *adv7511);
+void adv7511_audio_exit(struct adv7511 *adv7511);
+#else /*CONFIG_DRM_I2C_ADV7511_AUDIO */
+static inline int adv7511_audio_init(struct device *dev, struct adv7511 *adv7511)
+{
+	return 0;
+}
+static inline void adv7511_audio_exit(struct adv7511 *adv7511)
+{
+}
+#endif /* CONFIG_DRM_I2C_ADV7511_AUDIO */
 
 #endif /* __DRM_I2C_ADV7511_H__ */

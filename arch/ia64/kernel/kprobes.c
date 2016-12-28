@@ -33,7 +33,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/sections.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 extern void jprobe_inst_return(void);
 

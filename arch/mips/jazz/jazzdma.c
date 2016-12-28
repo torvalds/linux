@@ -18,7 +18,7 @@
 #include <asm/mipsregs.h>
 #include <asm/jazz.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/dma.h>
 #include <asm/jazzdma.h>
 #include <asm/pgtable.h>

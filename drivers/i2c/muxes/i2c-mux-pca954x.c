@@ -35,6 +35,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/acpi.h>
 #include <linux/device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -120,6 +121,21 @@ static const struct i2c_device_id pca954x_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, pca954x_id);
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id pca954x_acpi_ids[] = {
+	{ .id = "PCA9540", .driver_data = pca_9540 },
+	{ .id = "PCA9542", .driver_data = pca_9540 },
+	{ .id = "PCA9543", .driver_data = pca_9543 },
+	{ .id = "PCA9544", .driver_data = pca_9544 },
+	{ .id = "PCA9545", .driver_data = pca_9545 },
+	{ .id = "PCA9546", .driver_data = pca_9545 },
+	{ .id = "PCA9547", .driver_data = pca_9547 },
+	{ .id = "PCA9548", .driver_data = pca_9548 },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, pca954x_acpi_ids);
+#endif
+
 #ifdef CONFIG_OF
 static const struct of_device_id pca954x_of_match[] = {
 	{ .compatible = "nxp,pca9540", .data = &chips[pca_9540] },
@@ -151,6 +167,9 @@ static int pca954x_reg_write(struct i2c_adapter *adap,
 		buf[0] = val;
 		msg.buf = buf;
 		ret = __i2c_transfer(adap, &msg, 1);
+
+		if (ret >= 0 && ret != 1)
+			ret = -EREMOTEIO;
 	} else {
 		union i2c_smbus_data data;
 		ret = adap->algo->smbus_xfer(adap, client->addr,
@@ -179,7 +198,7 @@ static int pca954x_select_chan(struct i2c_mux_core *muxc, u32 chan)
 	/* Only select the channel if its different from the last channel */
 	if (data->last_chan != regval) {
 		ret = pca954x_reg_write(muxc->parent, client, regval);
-		data->last_chan = ret ? 0 : regval;
+		data->last_chan = ret < 0 ? 0 : regval;
 	}
 
 	return ret;
@@ -245,8 +264,17 @@ static int pca954x_probe(struct i2c_client *client,
 	match = of_match_device(of_match_ptr(pca954x_of_match), &client->dev);
 	if (match)
 		data->chip = of_device_get_match_data(&client->dev);
-	else
+	else if (id)
 		data->chip = &chips[id->driver_data];
+	else {
+		const struct acpi_device_id *acpi_id;
+
+		acpi_id = acpi_match_device(ACPI_PTR(pca954x_acpi_ids),
+						&client->dev);
+		if (!acpi_id)
+			return -ENODEV;
+		data->chip = &chips[acpi_id->driver_data];
+	}
 
 	data->last_chan = 0;		   /* force the first selection */
 
@@ -321,6 +349,7 @@ static struct i2c_driver pca954x_driver = {
 		.name	= "pca954x",
 		.pm	= &pca954x_pm,
 		.of_match_table = of_match_ptr(pca954x_of_match),
+		.acpi_match_table = ACPI_PTR(pca954x_acpi_ids),
 	},
 	.probe		= pca954x_probe,
 	.remove		= pca954x_remove,

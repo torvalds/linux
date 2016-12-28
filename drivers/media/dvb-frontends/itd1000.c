@@ -348,11 +348,10 @@ static int itd1000_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int itd1000_release(struct dvb_frontend *fe)
+static void itd1000_release(struct dvb_frontend *fe)
 {
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static const struct dvb_tuner_ops itd1000_tuner_ops = {

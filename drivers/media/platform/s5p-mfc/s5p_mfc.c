@@ -641,8 +641,11 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	case S5P_MFC_R2H_CMD_ERR_RET:
 		/* An error has occurred */
 		if (ctx->state == MFCINST_RUNNING &&
-			s5p_mfc_hw_call(dev->mfc_ops, err_dec, err) >=
-				dev->warn_start)
+			(s5p_mfc_hw_call(dev->mfc_ops, err_dec, err) >=
+				dev->warn_start ||
+				err == S5P_FIMV_ERR_NO_VALID_SEQ_HDR ||
+				err == S5P_FIMV_ERR_INCOMPLETE_FRAME ||
+				err == S5P_FIMV_ERR_TIMEOUT))
 			s5p_mfc_handle_frame(ctx, reason, err);
 		else
 			s5p_mfc_handle_error(dev, ctx, reason, err);
@@ -848,6 +851,11 @@ static int s5p_mfc_open(struct file *file)
 		ret = -ENOENT;
 		goto err_queue_init;
 	}
+	/*
+	 * We'll do mostly sequential access, so sacrifice TLB efficiency for
+	 * faster allocation.
+	 */
+	q->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	ret = vb2_queue_init(q);
@@ -878,6 +886,12 @@ static int s5p_mfc_open(struct file *file)
 	 * will keep the value of bytesused intact.
 	 */
 	q->allow_zero_bytesused = 1;
+
+	/*
+	 * We'll do mostly sequential access, so sacrifice TLB efficiency for
+	 * faster allocation.
+	 */
+	q->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	ret = vb2_queue_init(q);
@@ -926,10 +940,11 @@ static int s5p_mfc_release(struct file *file)
 	mfc_debug_enter();
 	if (dev)
 		mutex_lock(&dev->mfc_mutex);
-	s5p_mfc_clock_on();
 	vb2_queue_release(&ctx->vq_src);
 	vb2_queue_release(&ctx->vq_dst);
 	if (dev) {
+		s5p_mfc_clock_on();
+
 		/* Mark context as idle */
 		clear_work_bit_irqsave(ctx);
 		/*
@@ -948,12 +963,14 @@ static int s5p_mfc_release(struct file *file)
 			mfc_debug(2, "Last instance\n");
 			s5p_mfc_deinit_hw(dev);
 			del_timer_sync(&dev->watchdog_timer);
+			s5p_mfc_clock_off();
 			if (s5p_mfc_power_off() < 0)
 				mfc_err("Power off failed\n");
+		} else {
+			mfc_debug(2, "Shutting down clock\n");
+			s5p_mfc_clock_off();
 		}
 	}
-	mfc_debug(2, "Shutting down clock\n");
-	s5p_mfc_clock_off();
 	if (dev)
 		dev->ctx[ctx->num] = NULL;
 	s5p_mfc_dec_ctrls_delete(ctx);
@@ -1082,6 +1099,7 @@ static struct device *s5p_mfc_alloc_memdev(struct device *dev,
 							 idx);
 		if (ret == 0)
 			return child;
+		device_del(child);
 	}
 
 	put_device(child);
@@ -1387,31 +1405,9 @@ static int s5p_mfc_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
-static int s5p_mfc_runtime_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s5p_mfc_dev *m_dev = platform_get_drvdata(pdev);
-
-	atomic_set(&m_dev->pm.power, 0);
-	return 0;
-}
-
-static int s5p_mfc_runtime_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s5p_mfc_dev *m_dev = platform_get_drvdata(pdev);
-
-	atomic_set(&m_dev->pm.power, 1);
-	return 0;
-}
-#endif
-
 /* Power management */
 static const struct dev_pm_ops s5p_mfc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(s5p_mfc_suspend, s5p_mfc_resume)
-	SET_RUNTIME_PM_OPS(s5p_mfc_runtime_suspend, s5p_mfc_runtime_resume,
-			   NULL)
 };
 
 static struct s5p_mfc_buf_size_v5 mfc_buf_size_v5 = {
@@ -1438,6 +1434,9 @@ static struct s5p_mfc_variant mfc_drvdata_v5 = {
 	.buf_size	= &buf_size_v5,
 	.buf_align	= &mfc_buf_align_v5,
 	.fw_name[0]	= "s5p-mfc.fw",
+	.clk_names	= {"mfc", "sclk_mfc"},
+	.num_clocks	= 2,
+	.use_clock_gating = true,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v6 = {
@@ -1470,6 +1469,8 @@ static struct s5p_mfc_variant mfc_drvdata_v6 = {
 	 * for init buffer command
 	 */
 	.fw_name[1]     = "s5p-mfc-v6-v2.fw",
+	.clk_names	= {"mfc"},
+	.num_clocks	= 1,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v7 = {
@@ -1497,6 +1498,8 @@ static struct s5p_mfc_variant mfc_drvdata_v7 = {
 	.buf_size	= &buf_size_v7,
 	.buf_align	= &mfc_buf_align_v7,
 	.fw_name[0]     = "s5p-mfc-v7.fw",
+	.clk_names	= {"mfc", "sclk_mfc"},
+	.num_clocks	= 2,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v8 = {
@@ -1524,6 +1527,19 @@ static struct s5p_mfc_variant mfc_drvdata_v8 = {
 	.buf_size	= &buf_size_v8,
 	.buf_align	= &mfc_buf_align_v8,
 	.fw_name[0]     = "s5p-mfc-v8.fw",
+	.clk_names	= {"mfc"},
+	.num_clocks	= 1,
+};
+
+static struct s5p_mfc_variant mfc_drvdata_v8_5433 = {
+	.version	= MFC_VERSION_V8,
+	.version_bit	= MFC_V8_BIT,
+	.port_num	= MFC_NUM_PORTS_V8,
+	.buf_size	= &buf_size_v8,
+	.buf_align	= &mfc_buf_align_v8,
+	.fw_name[0]     = "s5p-mfc-v8.fw",
+	.clk_names	= {"pclk", "aclk", "aclk_xiu"},
+	.num_clocks	= 3,
 };
 
 static const struct of_device_id exynos_mfc_match[] = {
@@ -1539,6 +1555,9 @@ static const struct of_device_id exynos_mfc_match[] = {
 	}, {
 		.compatible = "samsung,mfc-v8",
 		.data = &mfc_drvdata_v8,
+	}, {
+		.compatible = "samsung,exynos5433-mfc",
+		.data = &mfc_drvdata_v8_5433,
 	},
 	{},
 };

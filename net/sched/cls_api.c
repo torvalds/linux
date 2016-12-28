@@ -148,13 +148,15 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n)
 	unsigned long cl;
 	unsigned long fh;
 	int err;
-	int tp_created = 0;
+	int tp_created;
 
 	if ((n->nlmsg_type != RTM_GETTFILTER) &&
 	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 replay:
+	tp_created = 0;
+
 	err = nlmsg_parse(n, sizeof(*t), tca, TCA_MAX, NULL);
 	if (err < 0)
 		return err;
@@ -681,6 +683,30 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts)
 	return 0;
 }
 EXPORT_SYMBOL(tcf_exts_dump_stats);
+
+int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
+		     struct net_device **hw_dev)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	const struct tc_action *a;
+	LIST_HEAD(actions);
+
+	if (tc_no_actions(exts))
+		return -EINVAL;
+
+	tcf_exts_to_list(exts, &actions);
+	list_for_each_entry(a, &actions, list) {
+		if (a->ops->get_dev) {
+			a->ops->get_dev(a, dev_net(dev), hw_dev);
+			break;
+		}
+	}
+	if (*hw_dev)
+		return 0;
+#endif
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(tcf_exts_get_dev);
 
 static int __init tc_filter_init(void)
 {

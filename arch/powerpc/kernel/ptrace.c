@@ -34,7 +34,7 @@
 #include <linux/perf_event.h>
 #include <linux/context_tracking.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/switch_to.h>

@@ -40,7 +40,7 @@
 #include <linux/fcntl.h>
 #include <linux/in.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 #include <linux/inet.h>

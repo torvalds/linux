@@ -59,14 +59,14 @@ unsigned int get_c0_compare_int(void)
 	return IRQ_TIMER;
 }
 
-static cycle_t nlm_get_pic_timer(struct clocksource *cs)
+static u64 nlm_get_pic_timer(struct clocksource *cs)
 {
 	uint64_t picbase = nlm_get_node(0)->picbase;
 
 	return ~nlm_pic_read_timer(picbase, PIC_CLOCK_TIMER);
 }
 
-static cycle_t nlm_get_pic_timer32(struct clocksource *cs)
+static u64 nlm_get_pic_timer32(struct clocksource *cs)
 {
 	uint64_t picbase = nlm_get_node(0)->picbase;
 

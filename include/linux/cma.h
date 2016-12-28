@@ -1,6 +1,9 @@
 #ifndef __CMA_H__
 #define __CMA_H__
 
+#include <linux/init.h>
+#include <linux/types.h>
+
 /*
  * There is always at least global CMA area and a few optional
  * areas configured in kernel .config.

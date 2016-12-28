@@ -901,17 +901,6 @@ static int ibmvnic_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
-static int ibmvnic_change_mtu(struct net_device *netdev, int new_mtu)
-{
-	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-
-	if (new_mtu > adapter->req_mtu || new_mtu < adapter->min_mtu)
-		return -EINVAL;
-
-	netdev->mtu = new_mtu;
-	return 0;
-}
-
 static void ibmvnic_tx_timeout(struct net_device *dev)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(dev);
@@ -1028,7 +1017,6 @@ static const struct net_device_ops ibmvnic_netdev_ops = {
 	.ndo_set_rx_mode	= ibmvnic_set_multi,
 	.ndo_set_mac_address	= ibmvnic_set_mac,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_change_mtu		= ibmvnic_change_mtu,
 	.ndo_tx_timeout		= ibmvnic_tx_timeout,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= ibmvnic_netpoll_controller,
@@ -2638,10 +2626,12 @@ static void handle_query_cap_rsp(union ibmvnic_crq *crq,
 		break;
 	case MIN_MTU:
 		adapter->min_mtu = be64_to_cpu(crq->query_capability.number);
+		netdev->min_mtu = adapter->min_mtu;
 		netdev_dbg(netdev, "min_mtu = %lld\n", adapter->min_mtu);
 		break;
 	case MAX_MTU:
 		adapter->max_mtu = be64_to_cpu(crq->query_capability.number);
+		netdev->max_mtu = adapter->max_mtu;
 		netdev_dbg(netdev, "max_mtu = %lld\n", adapter->max_mtu);
 		break;
 	case MAX_MULTICAST_FILTERS:
@@ -3667,6 +3657,8 @@ static void handle_crq_init_rsp(struct work_struct *work)
 
 	netdev->real_num_tx_queues = adapter->req_tx_queues;
 	netdev->mtu = adapter->req_mtu;
+	netdev->min_mtu = adapter->min_mtu;
+	netdev->max_mtu = adapter->max_mtu;
 
 	if (adapter->failover) {
 		adapter->failover = false;

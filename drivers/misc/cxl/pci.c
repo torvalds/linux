@@ -1921,7 +1921,7 @@ static pci_ers_result_t cxl_pci_slot_reset(struct pci_dev *pdev)
 				goto err;
 
 			ctx = cxl_dev_context_init(afu_dev);
-			if (!ctx)
+			if (IS_ERR(ctx))
 				goto err;
 
 			afu_dev->dev.archdata.cxl_ctx = ctx;

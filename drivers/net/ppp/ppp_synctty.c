@@ -47,7 +47,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PPP_VERSION	"2.4.2"
 

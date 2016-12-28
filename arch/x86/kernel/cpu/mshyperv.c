@@ -25,12 +25,12 @@
 #include <asm/hyperv.h>
 #include <asm/mshyperv.h>
 #include <asm/desc.h>
-#include <asm/idle.h>
 #include <asm/irq_regs.h>
 #include <asm/i8259.h>
 #include <asm/apic.h>
 #include <asm/timer.h>
 #include <asm/reboot.h>
+#include <asm/nmi.h>
 
 struct ms_hyperv_info ms_hyperv;
 EXPORT_SYMBOL_GPL(ms_hyperv);
@@ -133,9 +133,9 @@ static uint32_t  __init ms_hyperv_platform(void)
 	return 0;
 }
 
-static cycle_t read_hv_clock(struct clocksource *arg)
+static u64 read_hv_clock(struct clocksource *arg)
 {
-	cycle_t current_tick;
+	u64 current_tick;
 	/*
 	 * Read the partition counter to get the current tick count. This count
 	 * is set to 0 when the partition is created and is incremented in
@@ -157,6 +157,26 @@ static unsigned char hv_get_nmi_reason(void)
 {
 	return 0;
 }
+
+#ifdef CONFIG_X86_LOCAL_APIC
+/*
+ * Prior to WS2016 Debug-VM sends NMIs to all CPUs which makes
+ * it dificult to process CHANNELMSG_UNLOAD in case of crash. Handle
+ * unknown NMI on the first CPU which gets it.
+ */
+static int hv_nmi_unknown(unsigned int val, struct pt_regs *regs)
+{
+	static atomic_t nmi_cpu = ATOMIC_INIT(-1);
+
+	if (!unknown_nmi_panic)
+		return NMI_DONE;
+
+	if (atomic_cmpxchg(&nmi_cpu, -1, raw_smp_processor_id()) != -1)
+		return NMI_HANDLED;
+
+	return NMI_DONE;
+}
+#endif
 
 static void __init ms_hyperv_init_platform(void)
 {
@@ -183,6 +203,9 @@ static void __init ms_hyperv_init_platform(void)
 		pr_info("HyperV: LAPIC Timer Frequency: %#x\n",
 			lapic_timer_frequency);
 	}
+
+	register_nmi_handler(NMI_UNKNOWN, hv_nmi_unknown, NMI_FLAG_FIRST,
+			     "hv_nmi_unknown");
 #endif
 
 	if (ms_hyperv.features & HV_X64_MSR_TIME_REF_COUNT_AVAILABLE)

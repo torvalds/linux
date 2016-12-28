@@ -21,7 +21,6 @@
 #include <linux/platform_device.h>
 #include <linux/of_platform.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 
 #define SR_CLR_SB_ECC_INTR	0x0

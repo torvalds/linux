@@ -20,7 +20,7 @@
 #include <linux/proc_fs.h>
 
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_proc:"
