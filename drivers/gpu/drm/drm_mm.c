@@ -619,6 +619,7 @@ EXPORT_SYMBOL(drm_mm_scan_init_with_range);
 
 /**
  * drm_mm_scan_add_block - add a node to the scan list
+ * @scan: the active drm_mm scanner
  * @node: drm_mm_node to add
  *
  * Add a node to the scan list that might be freed to make space for the desired
@@ -701,6 +702,7 @@ EXPORT_SYMBOL(drm_mm_scan_add_block);
 
 /**
  * drm_mm_scan_remove_block - remove a node from the scan list
+ * @scan: the active drm_mm scanner
  * @node: drm_mm_node to remove
  *
  * Nodes _must_ be removed in exactly the reverse order from the scan list as
