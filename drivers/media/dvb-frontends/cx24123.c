@@ -649,7 +649,7 @@ static int cx24123_pll_tune(struct dvb_frontend *fe)
 	dprintk("frequency=%i\n", p->frequency);
 
 	if (cx24123_pll_calculate(fe) != 0) {
-		err("%s: cx24123_pll_calcutate failed\n", __func__);
+		err("%s: cx24123_pll_calculate failed\n", __func__);
 		return -EINVAL;
 	}
 
