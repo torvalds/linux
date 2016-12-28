@@ -1217,9 +1217,16 @@ static int cz_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 
 static int cz_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr != NULL && hwmgr->backend != NULL)
+	if (hwmgr != NULL) {
+		phm_destroy_table(hwmgr, &(hwmgr->enable_clock_power_gatings));
+		phm_destroy_table(hwmgr, &(hwmgr->set_power_state));
+		phm_destroy_table(hwmgr, &(hwmgr->enable_dynamic_state_management));
+		phm_destroy_table(hwmgr, &(hwmgr->disable_dynamic_state_management));
+		phm_destroy_table(hwmgr, &(hwmgr->power_down_asic));
+		phm_destroy_table(hwmgr, &(hwmgr->setup_asic));
 		kfree(hwmgr->backend);
-
+		hwmgr->backend = NULL;
+	}
 	return 0;
 }
 
