@@ -672,6 +672,12 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
 		if (err)
 			goto err_reps;
 	}
+
+	/* disable PF RoCE so missed packets don't go through RoCE steering */
+	mlx5_dev_list_lock();
+	mlx5_remove_dev_by_protocol(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
+	mlx5_dev_list_unlock();
+
 	return 0;
 
 err_reps:
@@ -694,6 +700,11 @@ create_ft_err:
 static int esw_offloads_stop(struct mlx5_eswitch *esw)
 {
 	int err, err1, num_vfs = esw->dev->priv.sriov.num_vfs;
+
+	/* enable back PF RoCE */
+	mlx5_dev_list_lock();
+	mlx5_add_dev_by_protocol(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
+	mlx5_dev_list_unlock();
 
 	mlx5_eswitch_disable_sriov(esw);
 	err = mlx5_eswitch_enable_sriov(esw, num_vfs, SRIOV_LEGACY);
