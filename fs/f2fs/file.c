@@ -1542,6 +1542,8 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 	if (ret)
 		clear_inode_flag(inode, FI_ATOMIC_FILE);
 out:
+	stat_inc_atomic_write(inode);
+	stat_update_max_atomic_write(inode);
 	inode_unlock(inode);
 	mnt_drop_write_file(filp);
 	return ret;
@@ -1571,9 +1573,11 @@ static int f2fs_ioc_commit_atomic_write(struct file *filp)
 			set_inode_flag(inode, FI_ATOMIC_FILE);
 			goto err_out;
 		}
+		ret = f2fs_do_sync_file(filp, 0, LLONG_MAX, 0, true);
+		stat_dec_atomic_write(inode);
+	} else {
+		ret = f2fs_do_sync_file(filp, 0, LLONG_MAX, 0, true);
 	}
-
-	ret = f2fs_do_sync_file(filp, 0, LLONG_MAX, 0, true);
 err_out:
 	inode_unlock(inode);
 	mnt_drop_write_file(filp);
