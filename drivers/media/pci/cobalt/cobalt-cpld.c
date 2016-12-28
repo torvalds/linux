@@ -71,9 +71,9 @@ static void cpld_info_ver3(struct cobalt *cobalt)
 	cobalt_info("\t\tMAXII program revision:  0x%04x\n",
 		    cpld_read(cobalt, 0x30));
 	cobalt_info("CPLD temp and voltage ADT7411 registers (read only)\n");
-	cobalt_info("\t\tBoard temperature:  %u Celcius\n",
+	cobalt_info("\t\tBoard temperature:  %u Celsius\n",
 		    cpld_read(cobalt, 0x34) / 4);
-	cobalt_info("\t\tFPGA temperature:   %u Celcius\n",
+	cobalt_info("\t\tFPGA temperature:   %u Celsius\n",
 		    cpld_read(cobalt, 0x38) / 4);
 	rd = cpld_read(cobalt, 0x3c);
 	tmp = (rd * 33 * 1000) / (483 * 10);
