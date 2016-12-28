@@ -269,6 +269,20 @@ acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 	 */
 	if (ACPI_SUCCESS(status) &&
 	    possible_method_call && (node->type == ACPI_TYPE_METHOD)) {
+		if ((GET_CURRENT_ARG_TYPE(walk_state->arg_types) ==
+		     ARGP_SUPERNAME)
+		    || (GET_CURRENT_ARG_TYPE(walk_state->arg_types) ==
+			ARGP_TARGET)) {
+			/*
+			 * acpi_ps_get_next_namestring has increased the AML pointer past
+			 * the method invocation namestring, so we need to restore the
+			 * saved AML pointer back to the original method invocation
+			 * namestring.
+			 */
+			walk_state->parser_state.aml = start;
+			walk_state->arg_count = 1;
+			acpi_ps_init_op(arg, AML_INT_METHODCALL_OP);
+		}
 
 		/* This name is actually a control method invocation */
 
@@ -833,7 +847,10 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 				  arg_type));
 
 		subop = acpi_ps_peek_opcode(parser_state);
-		if (subop == 0) {
+		if (subop == 0 ||
+		    acpi_ps_is_leading_char(subop) ||
+		    ACPI_IS_ROOT_PREFIX(subop) ||
+		    ACPI_IS_PARENT_PREFIX(subop)) {
 
 			/* NULL target (zero). Convert to a NULL namepath */
 
@@ -848,6 +865,12 @@ acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
 			    acpi_ps_get_next_namepath(walk_state, parser_state,
 						      arg,
 						      ACPI_POSSIBLE_METHOD_CALL);
+
+			if (arg->common.aml_opcode == AML_INT_METHODCALL_OP) {
+				acpi_ps_free_op(arg);
+				arg = NULL;
+				walk_state->arg_count = 1;
+			}
 		} else {
 			/* Single complex argument, nothing returned */
 
