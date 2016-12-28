@@ -66,6 +66,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 	hwmgr->device = handle->device;
 	hwmgr->chip_family = handle->chip_family;
 	hwmgr->chip_id = handle->chip_id;
+	hwmgr->feature_mask = handle->feature_mask;
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	hwmgr->power_source = PP_PowerSource_AC;
 	hwmgr->pp_table_version = PP_TABLE_V1;
@@ -738,14 +739,14 @@ void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr)
 
 int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr)
 {
-	if (amdgpu_pp_feature_mask & PP_SCLK_DEEP_SLEEP_MASK)
+	if (hwmgr->feature_mask & PP_SCLK_DEEP_SLEEP_MASK)
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 	else
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep);
 
-	if (amdgpu_pp_feature_mask & PP_POWER_CONTAINMENT_MASK) {
+	if (hwmgr->feature_mask & PP_POWER_CONTAINMENT_MASK) {
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			    PHM_PlatformCaps_PowerContainment);
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
@@ -756,7 +757,6 @@ int hwmgr_set_user_specify_caps(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_CAC);
 	}
-	hwmgr->feature_mask = amdgpu_pp_feature_mask;
 
 	return 0;
 }
