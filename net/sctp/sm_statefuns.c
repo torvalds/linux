@@ -6032,8 +6032,9 @@ static struct sctp_packet *sctp_ootb_pkt_new(struct net *net,
 	sctp_transport_route(transport, (union sctp_addr *)&chunk->dest,
 			     sctp_sk(net->sctp.ctl_sock));
 
-	packet = sctp_packet_init(&transport->packet, transport, sport, dport);
-	packet = sctp_packet_config(packet, vtag, 0);
+	packet = &transport->packet;
+	sctp_packet_init(packet, transport, sport, dport);
+	sctp_packet_config(packet, vtag, 0);
 
 	return packet;
 
