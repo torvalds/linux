@@ -160,23 +160,22 @@ static sctp_disposition_t __sctp_sf_do_9_1_abort(struct net *net,
 /* Small helper function that checks if the chunk length
  * is of the appropriate length.  The 'required_length' argument
  * is set to be the size of a specific chunk we are testing.
- * Return Values:  1 = Valid length
- * 		   0 = Invalid length
+ * Return Values:  true  = Valid length
+ * 		   false = Invalid length
  *
  */
-static inline int
-sctp_chunk_length_valid(struct sctp_chunk *chunk,
-			   __u16 required_length)
+static inline bool
+sctp_chunk_length_valid(struct sctp_chunk *chunk, __u16 required_length)
 {
 	__u16 chunk_length = ntohs(chunk->chunk_hdr->length);
 
 	/* Previously already marked? */
 	if (unlikely(chunk->pdiscard))
-		return 0;
+		return false;
 	if (unlikely(chunk_length < required_length))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 /**********************************************************
@@ -3237,36 +3236,34 @@ static sctp_disposition_t sctp_sf_tabort_8_4_8(struct net *net,
 	struct sctp_chunk *abort;
 
 	packet = sctp_ootb_pkt_new(net, asoc, chunk);
+	if (!packet)
+		return SCTP_DISPOSITION_NOMEM;
 
-	if (packet) {
-		/* Make an ABORT. The T bit will be set if the asoc
-		 * is NULL.
-		 */
-		abort = sctp_make_abort(asoc, chunk, 0);
-		if (!abort) {
-			sctp_ootb_pkt_free(packet);
-			return SCTP_DISPOSITION_NOMEM;
-		}
-
-		/* Reflect vtag if T-Bit is set */
-		if (sctp_test_T_bit(abort))
-			packet->vtag = ntohl(chunk->sctp_hdr->vtag);
-
-		/* Set the skb to the belonging sock for accounting.  */
-		abort->skb->sk = ep->base.sk;
-
-		sctp_packet_append_chunk(packet, abort);
-
-		sctp_add_cmd_sf(commands, SCTP_CMD_SEND_PKT,
-				SCTP_PACKET(packet));
-
-		SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
-
-		sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
-		return SCTP_DISPOSITION_CONSUME;
+	/* Make an ABORT. The T bit will be set if the asoc
+	 * is NULL.
+	 */
+	abort = sctp_make_abort(asoc, chunk, 0);
+	if (!abort) {
+		sctp_ootb_pkt_free(packet);
+		return SCTP_DISPOSITION_NOMEM;
 	}
 
-	return SCTP_DISPOSITION_NOMEM;
+	/* Reflect vtag if T-Bit is set */
+	if (sctp_test_T_bit(abort))
+		packet->vtag = ntohl(chunk->sctp_hdr->vtag);
+
+	/* Set the skb to the belonging sock for accounting.  */
+	abort->skb->sk = ep->base.sk;
+
+	sctp_packet_append_chunk(packet, abort);
+
+	sctp_add_cmd_sf(commands, SCTP_CMD_SEND_PKT,
+			SCTP_PACKET(packet));
+
+	SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
+
+	sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
+	return SCTP_DISPOSITION_CONSUME;
 }
 
 /*
@@ -3503,45 +3500,43 @@ static sctp_disposition_t sctp_sf_shut_8_4_5(struct net *net,
 	struct sctp_chunk *shut;
 
 	packet = sctp_ootb_pkt_new(net, asoc, chunk);
+	if (!packet)
+		return SCTP_DISPOSITION_NOMEM;
 
-	if (packet) {
-		/* Make an SHUTDOWN_COMPLETE.
-		 * The T bit will be set if the asoc is NULL.
-		 */
-		shut = sctp_make_shutdown_complete(asoc, chunk);
-		if (!shut) {
-			sctp_ootb_pkt_free(packet);
-			return SCTP_DISPOSITION_NOMEM;
-		}
-
-		/* Reflect vtag if T-Bit is set */
-		if (sctp_test_T_bit(shut))
-			packet->vtag = ntohl(chunk->sctp_hdr->vtag);
-
-		/* Set the skb to the belonging sock for accounting.  */
-		shut->skb->sk = ep->base.sk;
-
-		sctp_packet_append_chunk(packet, shut);
-
-		sctp_add_cmd_sf(commands, SCTP_CMD_SEND_PKT,
-				SCTP_PACKET(packet));
-
-		SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
-
-		/* If the chunk length is invalid, we don't want to process
-		 * the reset of the packet.
-		 */
-		if (!sctp_chunk_length_valid(chunk, sizeof(sctp_chunkhdr_t)))
-			return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
-
-		/* We need to discard the rest of the packet to prevent
-		 * potential bomming attacks from additional bundled chunks.
-		 * This is documented in SCTP Threats ID.
-		 */
-		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
+	/* Make an SHUTDOWN_COMPLETE.
+	 * The T bit will be set if the asoc is NULL.
+	 */
+	shut = sctp_make_shutdown_complete(asoc, chunk);
+	if (!shut) {
+		sctp_ootb_pkt_free(packet);
+		return SCTP_DISPOSITION_NOMEM;
 	}
 
-	return SCTP_DISPOSITION_NOMEM;
+	/* Reflect vtag if T-Bit is set */
+	if (sctp_test_T_bit(shut))
+		packet->vtag = ntohl(chunk->sctp_hdr->vtag);
+
+	/* Set the skb to the belonging sock for accounting.  */
+	shut->skb->sk = ep->base.sk;
+
+	sctp_packet_append_chunk(packet, shut);
+
+	sctp_add_cmd_sf(commands, SCTP_CMD_SEND_PKT,
+			SCTP_PACKET(packet));
+
+	SCTP_INC_STATS(net, SCTP_MIB_OUTCTRLCHUNKS);
+
+	/* If the chunk length is invalid, we don't want to process
+	 * the reset of the packet.
+	 */
+	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_chunkhdr_t)))
+		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
+
+	/* We need to discard the rest of the packet to prevent
+	 * potential bomming attacks from additional bundled chunks.
+	 * This is documented in SCTP Threats ID.
+	 */
+	return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 }
 
 /*
@@ -6036,8 +6031,9 @@ static struct sctp_packet *sctp_ootb_pkt_new(struct net *net,
 	sctp_transport_route(transport, (union sctp_addr *)&chunk->dest,
 			     sctp_sk(net->sctp.ctl_sock));
 
-	packet = sctp_packet_init(&transport->packet, transport, sport, dport);
-	packet = sctp_packet_config(packet, vtag, 0);
+	packet = &transport->packet;
+	sctp_packet_init(packet, transport, sport, dport);
+	sctp_packet_config(packet, vtag, 0);
 
 	return packet;
 

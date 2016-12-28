@@ -81,8 +81,8 @@ static void sctp_packet_reset(struct sctp_packet *packet)
 /* Config a packet.
  * This appears to be a followup set of initializations.
  */
-struct sctp_packet *sctp_packet_config(struct sctp_packet *packet,
-				       __u32 vtag, int ecn_capable)
+void sctp_packet_config(struct sctp_packet *packet, __u32 vtag,
+			int ecn_capable)
 {
 	struct sctp_transport *tp = packet->transport;
 	struct sctp_association *asoc = tp->asoc;
@@ -123,14 +123,12 @@ struct sctp_packet *sctp_packet_config(struct sctp_packet *packet,
 		if (chunk)
 			sctp_packet_append_chunk(packet, chunk);
 	}
-
-	return packet;
 }
 
 /* Initialize the packet structure. */
-struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
-				     struct sctp_transport *transport,
-				     __u16 sport, __u16 dport)
+void sctp_packet_init(struct sctp_packet *packet,
+		      struct sctp_transport *transport,
+		      __u16 sport, __u16 dport)
 {
 	struct sctp_association *asoc = transport->asoc;
 	size_t overhead;
@@ -151,8 +149,6 @@ struct sctp_packet *sctp_packet_init(struct sctp_packet *packet,
 	packet->overhead = overhead;
 	sctp_packet_reset(packet);
 	packet->vtag = 0;
-
-	return packet;
 }
 
 /* Free a packet.  */

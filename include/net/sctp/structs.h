@@ -722,10 +722,9 @@ struct sctp_packet {
 	    ipfragok:1;		/* So let ip fragment this packet */
 };
 
-struct sctp_packet *sctp_packet_init(struct sctp_packet *,
-				     struct sctp_transport *,
-				     __u16 sport, __u16 dport);
-struct sctp_packet *sctp_packet_config(struct sctp_packet *, __u32 vtag, int);
+void sctp_packet_init(struct sctp_packet *, struct sctp_transport *,
+		      __u16 sport, __u16 dport);
+void sctp_packet_config(struct sctp_packet *, __u32 vtag, int);
 sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *,
 				       struct sctp_chunk *, int, gfp_t);
 sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *,
