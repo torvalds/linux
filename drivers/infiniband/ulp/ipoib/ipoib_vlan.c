@@ -160,10 +160,10 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 out:
 	up_write(&ppriv->vlan_rwsem);
 
+	rtnl_unlock();
+
 	if (result)
 		free_netdev(priv->dev);
-
-	rtnl_unlock();
 
 	return result;
 }
