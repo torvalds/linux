@@ -95,7 +95,8 @@ amdgpu-y += \
 
 # add VCN block
 amdgpu-y += \
-	amdgpu_vcn.o
+	amdgpu_vcn.o \
+	vcn_v1_0.o
 
 # add amdkfd interfaces
 amdgpu-y += \
