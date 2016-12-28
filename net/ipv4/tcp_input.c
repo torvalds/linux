@@ -6377,8 +6377,8 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		}
 		/* Kill the following clause, if you dislike this way. */
 		else if (!net->ipv4.sysctl_tcp_syncookies &&
-			 (sysctl_max_syn_backlog - inet_csk_reqsk_queue_len(sk) <
-			  (sysctl_max_syn_backlog >> 2)) &&
+			 (net->ipv4.sysctl_max_syn_backlog - inet_csk_reqsk_queue_len(sk) <
+			  (net->ipv4.sysctl_max_syn_backlog >> 2)) &&
 			 !tcp_peer_is_proven(req, dst, false,
 					     tmp_opt.saw_tstamp)) {
 			/* Without syncookies last quarter of

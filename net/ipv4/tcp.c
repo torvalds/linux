@@ -3378,9 +3378,7 @@ void __init tcp_init(void)
 
 
 	cnt = tcp_hashinfo.ehash_mask + 1;
-
 	sysctl_tcp_max_orphans = cnt / 2;
-	sysctl_max_syn_backlog = max(128, cnt / 256);
 
 	tcp_init_mem();
 	/* Set per-socket limits to no more than 1/128 the pressure threshold */
