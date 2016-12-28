@@ -478,15 +478,17 @@ static int drm_version(struct drm_device *dev, void *data,
 	return err;
 }
 
-/*
+/**
  * drm_ioctl_permit - Check ioctl permissions against caller
  *
  * @flags: ioctl permission flags.
  * @file_priv: Pointer to struct drm_file identifying the caller.
  *
  * Checks whether the caller is allowed to run an ioctl with the
- * indicated permissions. If so, returns zero. Otherwise returns an
- * error code suitable for ioctl return.
+ * indicated permissions.
+ *
+ * Returns:
+ * Zero if allowed, -EACCES otherwise.
  */
 int drm_ioctl_permit(u32 flags, struct drm_file *file_priv)
 {
