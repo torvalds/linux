@@ -47,11 +47,6 @@ static inline int __access_ok(unsigned long addr, unsigned long size)
 #define access_ok(type, addr, size) __access_ok((unsigned long)(addr),	\
 						(unsigned long)(size))
 
-static inline int verify_area(int type, const void *addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
 #include <asm/extable.h>
 
 /*
