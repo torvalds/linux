@@ -41,7 +41,11 @@
  */
 
 /dts-v1/;
+<<<<<<< HEAD
 #include "sun8i-r40.dtsi"
+=======
+#include "sun8i-h3.dtsi"
+>>>>>>> 22cbe72fb6509c2a6d691f437adfedeb99b8bbf3
 #include "sunxi-common-regulators.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
@@ -50,7 +54,11 @@
 
 / {
 	model = "Banana Pi BPI-M2-Ultra";
+<<<<<<< HEAD
 	compatible = "sinovoip,bpi-m2-ultra", "allwinner,sun8i-r40";
+=======
+	compatible = "sinovoip,bpi-m2-ultra", "allwinner,sun8i-h3";
+>>>>>>> 22cbe72fb6509c2a6d691f437adfedeb99b8bbf3
 
 	aliases {
 		serial0 = &uart0;
@@ -131,7 +139,11 @@
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 		interrupt-parent = <&pio>;
+<<<<<<< HEAD
 		interrupts = <6 6 IRQ_TYPE_LEVEL_LOW>; /* PG6 / EINT10 */
+=======
+		interrupts = <6 10 IRQ_TYPE_LEVEL_LOW>; /* PG10 / EINT10 */
+>>>>>>> 22cbe72fb6509c2a6d691f437adfedeb99b8bbf3
 		interrupt-names = "host-wake";
 	};
 };
