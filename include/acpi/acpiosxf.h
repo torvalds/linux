@@ -333,6 +333,10 @@ u64 acpi_os_get_timer(void);
 acpi_status acpi_os_signal(u32 function, void *info);
 #endif
 
+#ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_enter_sleep
+acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value);
+#endif
+
 /*
  * Debug print routines
  */
