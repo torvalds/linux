@@ -223,11 +223,13 @@
 		led@1 {
 			gpios = <&gpio1 GPIO_C6 GPIO_ACTIVE_HIGH>;
 			label = "battery_led_amber";
+			retain-state-suspended;
 		};
 
 		led@2 {
 			gpios = <&gpio1 GPIO_D0 GPIO_ACTIVE_HIGH>;
 			label = "battery_led_white";
+			retain-state-suspended;
 		};
 
 		led@3 {
