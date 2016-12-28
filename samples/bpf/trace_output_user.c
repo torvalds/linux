@@ -9,7 +9,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <poll.h>
-#include <sys/ioctl.h>
 #include <linux/perf_event.h>
 #include <linux/bpf.h>
 #include <errno.h>
