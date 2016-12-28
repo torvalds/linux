@@ -59,6 +59,7 @@ static int vcn_v1_0_early_init(void *handle)
  */
 static int vcn_v1_0_sw_init(void *handle)
 {
+	struct amdgpu_ring *ring;
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
@@ -74,6 +75,10 @@ static int vcn_v1_0_sw_init(void *handle)
 	r = amdgpu_vcn_resume(adev);
 	if (r)
 		return r;
+
+	ring = &adev->vcn.ring_dec;
+	sprintf(ring->name, "vcn_dec");
+	r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.irq, 0);
 
 	return r;
 }
@@ -246,6 +251,8 @@ static void vcn_v1_0_mc_resume(struct amdgpu_device *adev)
  */
 static int vcn_v1_0_start(struct amdgpu_device *adev)
 {
+	struct amdgpu_ring *ring = &adev->vcn.ring_dec;
+	uint32_t rb_bufsz, tmp;
 	uint32_t lmi_swap_cntl;
 	int i, j, r;
 
@@ -356,6 +363,39 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_STATUS), 0,
 			~(2 << UVD_STATUS__VCPU_REPORT__SHIFT));
 
+	/* force RBC into idle state */
+	rb_bufsz = order_base_2(ring->ring_size);
+	tmp = REG_SET_FIELD(0, UVD_RBC_RB_CNTL, RB_BUFSZ, rb_bufsz);
+	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_BLKSZ, 1);
+	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_FETCH, 1);
+	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_WPTR_POLL_EN, 0);
+	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_NO_UPDATE, 1);
+	tmp = REG_SET_FIELD(tmp, UVD_RBC_RB_CNTL, RB_RPTR_WR_EN, 1);
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_CNTL), tmp);
+
+	/* set the write pointer delay */
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_WPTR_CNTL), 0);
+
+	/* set the wb address */
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_RPTR_ADDR),
+			(upper_32_bits(ring->gpu_addr) >> 2));
+
+	/* programm the RB_BASE for ring buffer */
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_RB_64BIT_BAR_LOW),
+			lower_32_bits(ring->gpu_addr));
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_RBC_RB_64BIT_BAR_HIGH),
+			upper_32_bits(ring->gpu_addr));
+
+	/* Initialize the ring buffer's read and write pointers */
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_RPTR), 0);
+
+	ring->wptr = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_RPTR));
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_WPTR),
+			lower_32_bits(ring->wptr));
+
+	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_CNTL), 0,
+			~UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK);
+
 	return 0;
 }
 
@@ -368,6 +408,9 @@ static int vcn_v1_0_start(struct amdgpu_device *adev)
  */
 static int vcn_v1_0_stop(struct amdgpu_device *adev)
 {
+	/* force RBC into idle state */
+	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_CNTL), 0x11010101);
+
 	/* Stall UMC and register bus before resetting VCPU */
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_LMI_CTRL2),
 			UVD_LMI_CTRL2__STALL_ARB_UMC_MASK,
