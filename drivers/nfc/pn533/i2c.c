@@ -242,9 +242,9 @@ static int pn533_i2c_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
-	pn533_unregister_device(phy->priv);
-
 	free_irq(client->irq, phy);
+
+	pn533_unregister_device(phy->priv);
 
 	return 0;
 }
