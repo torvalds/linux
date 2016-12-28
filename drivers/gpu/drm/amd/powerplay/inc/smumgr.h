@@ -133,11 +133,7 @@ struct pp_smumgr {
 	const struct pp_smumgr_func *smumgr_funcs;
 };
 
-
-extern int smum_init(struct amd_pp_init *pp_init,
-		     struct pp_instance *handle);
-
-extern int smum_fini(struct pp_smumgr *smumgr);
+extern int smum_early_init(struct pp_instance *handle);
 
 extern int smum_get_argument(struct pp_smumgr *smumgr);
 

@@ -653,18 +653,11 @@ struct pp_hwmgr {
 	uint32_t feature_mask;
 };
 
-
-extern int hwmgr_init(struct amd_pp_init *pp_init,
-		      struct pp_instance *handle);
-
-extern int hwmgr_fini(struct pp_hwmgr *hwmgr);
-
-extern int hw_init_power_state_table(struct pp_hwmgr *hwmgr);
-
+extern int hwmgr_early_init(struct pp_instance *handle);
+extern int hwmgr_hw_init(struct pp_instance *handle);
+extern int hwmgr_hw_fini(struct pp_instance *handle);
 extern int phm_wait_on_register(struct pp_hwmgr *hwmgr, uint32_t index,
 				uint32_t value, uint32_t mask);
-
-
 
 extern void phm_wait_on_indirect_register(struct pp_hwmgr *hwmgr,
 				uint32_t indirect_port,

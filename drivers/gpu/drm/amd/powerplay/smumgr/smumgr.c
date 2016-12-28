@@ -41,20 +41,20 @@ MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
 
-int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
+int smum_early_init(struct pp_instance *handle)
 {
 	struct pp_smumgr *smumgr;
 
-	if ((handle == NULL) || (pp_init == NULL))
+	if (handle == NULL)
 		return -EINVAL;
 
 	smumgr = kzalloc(sizeof(struct pp_smumgr), GFP_KERNEL);
 	if (smumgr == NULL)
 		return -ENOMEM;
 
-	smumgr->device = pp_init->device;
-	smumgr->chip_family = pp_init->chip_family;
-	smumgr->chip_id = pp_init->chip_id;
+	smumgr->device = handle->device;
+	smumgr->chip_family = handle->chip_family;
+	smumgr->chip_id = handle->chip_id;
 	smumgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
 	smumgr->reload_fw = 1;
 	handle->smu_mgr = smumgr;
@@ -88,13 +88,6 @@ int smum_init(struct amd_pp_init *pp_init, struct pp_instance *handle)
 		return -EINVAL;
 	}
 
-	return 0;
-}
-
-int smum_fini(struct pp_smumgr *smumgr)
-{
-	kfree(smumgr->device);
-	kfree(smumgr);
 	return 0;
 }
 

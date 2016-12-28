@@ -29,7 +29,10 @@
 #include "amd_shared.h"
 #include "cgs_common.h"
 
-extern int amdgpu_dpm;
+extern const struct amd_ip_funcs pp_ip_funcs;
+extern const struct amd_powerplay_funcs pp_dpm_funcs;
+
+#define PP_DPM_DISABLED 0xCCCC
 
 enum amd_pp_sensors {
 	AMDGPU_PP_SENSOR_GFX_SCLK = 0,
@@ -139,6 +142,8 @@ struct amd_pp_init {
 	struct cgs_device *device;
 	uint32_t chip_family;
 	uint32_t chip_id;
+	bool pm_en;
+	uint32_t feature_mask;
 };
 
 enum amd_pp_display_config_type{
@@ -364,10 +369,10 @@ struct amd_powerplay {
 	const struct amd_powerplay_funcs *pp_funcs;
 };
 
-int amd_powerplay_init(struct amd_pp_init *pp_init,
-		       struct amd_powerplay *amd_pp);
+int amd_powerplay_create(struct amd_pp_init *pp_init,
+				void **handle);
 
-int amd_powerplay_fini(void *handle);
+int amd_powerplay_destroy(void *handle);
 
 int amd_powerplay_reset(void *handle);
 
