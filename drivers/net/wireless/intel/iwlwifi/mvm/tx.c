@@ -506,15 +506,17 @@ static int iwl_mvm_get_ctrl_vif_queue(struct iwl_mvm *mvm,
 	switch (info->control.vif->type) {
 	case NL80211_IFTYPE_AP:
 		/*
-		 * handle legacy hostapd as well, where station may be added
-		 * only after assoc.
+		 * Handle legacy hostapd as well, where station may be added
+		 * only after assoc. Take care of the case where we send a
+		 * deauth to a station that we don't have.
 		 */
-		if (ieee80211_is_probe_resp(fc) || ieee80211_is_auth(fc))
+		if (ieee80211_is_probe_resp(fc) || ieee80211_is_auth(fc) ||
+		    ieee80211_is_deauth(fc))
 			return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
 		if (info->hw_queue == info->control.vif->cab_queue)
 			return info->hw_queue;
 
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "fc=0x%02x", le16_to_cpu(fc));
 		return IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (ieee80211_is_mgmt(fc))
