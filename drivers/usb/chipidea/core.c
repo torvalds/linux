@@ -361,6 +361,9 @@ static int _ci_usb_phy_init(struct ci_hdrc *ci)
  */
 static void ci_usb_phy_exit(struct ci_hdrc *ci)
 {
+	if (ci->platdata->flags & CI_HDRC_OVERRIDE_PHY_CONTROL)
+		return;
+
 	if (ci->phy) {
 		phy_power_off(ci->phy);
 		phy_exit(ci->phy);
@@ -378,6 +381,9 @@ static void ci_usb_phy_exit(struct ci_hdrc *ci)
 static int ci_usb_phy_init(struct ci_hdrc *ci)
 {
 	int ret;
+
+	if (ci->platdata->flags & CI_HDRC_OVERRIDE_PHY_CONTROL)
+		return 0;
 
 	switch (ci->platdata->phy_mode) {
 	case USBPHY_INTERFACE_MODE_UTMI:
