@@ -462,7 +462,7 @@ static irqreturn_t i2c_hid_irq(int irq, void *dev_id)
 
 	i2c_hid_get_input(ihid);
 
-	if (ihid->is_suspend == 1)
+	if (device_may_wakeup(&ihid->client->dev) && ihid->is_suspend == 1)
 		rk_send_wakeup_key();
 
 	return IRQ_HANDLED;
@@ -1176,9 +1176,11 @@ static int i2c_hid_resume(struct device *dev)
 	int wake_status;
 
 	enable_irq(ihid->irq);
-	ret = i2c_hid_hwreset(client);
-	if (ret)
-		return ret;
+	if (!device_may_wakeup(&client->dev)) {
+		ret = i2c_hid_hwreset(client);
+		if (ret)
+			return ret;
+	}
 
 	if (device_may_wakeup(&client->dev) && ihid->irq_wake_enabled) {
 		wake_status = disable_irq_wake(ihid->irq);
