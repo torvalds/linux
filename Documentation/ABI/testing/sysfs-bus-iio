@@ -805,7 +805,7 @@ Description:
 		attribute. E.g. if in_voltage0_raw_thresh_rising_value is set to 1200
 		and in_voltage0_raw_thresh_rising_hysteresis is set to 50. The event
 		will get activated once in_voltage0_raw goes above 1200 and will become
-		deactived again once the value falls below 1150.
+		deactivated again once the value falls below 1150.
 
 What:		/sys/.../events/in_accel_x_raw_roc_rising_value
 What:		/sys/.../events/in_accel_x_raw_roc_falling_value
