@@ -85,6 +85,10 @@ set -e
 function _modprobe()
 {
         modprobe "$@"
+
+	if [[ "$REMOTE_HOST" != "" ]]; then
+		ssh "$REMOTE_HOST" modprobe "$@"
+	fi
 }
 
 function split_remote()
