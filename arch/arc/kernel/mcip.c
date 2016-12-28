@@ -10,6 +10,7 @@
 
 #include <linux/smp.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/spinlock.h>
 #include <asm/irqflags-arcv2.h>
 #include <asm/mcip.h>
@@ -221,10 +222,13 @@ static irq_hw_number_t idu_first_hwirq;
 static void idu_cascade_isr(struct irq_desc *desc)
 {
 	struct irq_domain *idu_domain = irq_desc_get_handler_data(desc);
+	struct irq_chip *core_chip = irq_desc_get_chip(desc);
 	irq_hw_number_t core_hwirq = irqd_to_hwirq(irq_desc_get_irq_data(desc));
 	irq_hw_number_t idu_hwirq = core_hwirq - idu_first_hwirq;
 
+	chained_irq_enter(core_chip, desc);
 	generic_handle_irq(irq_find_mapping(idu_domain, idu_hwirq));
+	chained_irq_exit(core_chip, desc);
 }
 
 static int idu_irq_map(struct irq_domain *d, unsigned int virq, irq_hw_number_t hwirq)
