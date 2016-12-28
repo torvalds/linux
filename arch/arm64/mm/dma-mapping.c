@@ -334,7 +334,7 @@ static int __swiotlb_get_sgtable(struct device *dev, struct sg_table *sgt,
 	return ret;
 }
 
-struct dma_map_ops swiotlb_dma_ops = {
+static struct dma_map_ops swiotlb_dma_ops = {
 	.alloc = __dma_alloc,
 	.free = __dma_free,
 	.mmap = __swiotlb_mmap,
@@ -350,7 +350,6 @@ struct dma_map_ops swiotlb_dma_ops = {
 	.dma_supported = swiotlb_dma_supported,
 	.mapping_error = swiotlb_dma_mapping_error,
 };
-EXPORT_SYMBOL(swiotlb_dma_ops);
 
 static int __init atomic_pool_init(void)
 {
