@@ -80,6 +80,7 @@ static int ci_hdrc_msm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, plat_ci);
 
+	pm_runtime_set_active(&pdev->dev);
 	pm_runtime_no_callbacks(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
 
