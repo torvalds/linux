@@ -1326,6 +1326,16 @@ config NI903X_WDT
 	  To compile this driver as a module, choose M here: the module will be
 	  called ni903x_wdt.
 
+config NIC7018_WDT
+	tristate "NIC7018 Watchdog"
+	depends on X86 && ACPI
+	select WATCHDOG_CORE
+	---help---
+	  Support for National Instruments NIC7018 Watchdog.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called nic7018_wdt.
+
 # M32R Architecture
 
 # M68K Architecture
