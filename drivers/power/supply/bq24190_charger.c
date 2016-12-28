@@ -199,7 +199,7 @@ static const int bq24190_cvc_vreg_values[] = {
 	4400000
 };
 
-/* REG06[1:0] (TREG) in tenths of degrees Celcius */
+/* REG06[1:0] (TREG) in tenths of degrees Celsius */
 static const int bq24190_ictrc_treg_values[] = {
 	600, 800, 1000, 1200
 };
