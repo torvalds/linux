@@ -303,7 +303,7 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 			enum vou_chn_type chn_type)
 {
 	struct device *dev = vou->dev;
-	struct zx_layer_data data;
+	struct zx_plane *zplane;
 	struct zx_crtc *zcrtc;
 	int ret;
 
@@ -314,19 +314,25 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 	zcrtc->vou = vou;
 	zcrtc->chn_type = chn_type;
 
+	zplane = devm_kzalloc(dev, sizeof(*zplane), GFP_KERNEL);
+	if (!zplane)
+		return -ENOMEM;
+
+	zplane->dev = dev;
+
 	if (chn_type == VOU_CHN_MAIN) {
-		data.layer = vou->osd + MAIN_GL_OFFSET;
-		data.csc = vou->osd + MAIN_CSC_OFFSET;
-		data.hbsc = vou->osd + MAIN_HBSC_OFFSET;
-		data.rsz = vou->otfppu + MAIN_RSZ_OFFSET;
+		zplane->layer = vou->osd + MAIN_GL_OFFSET;
+		zplane->csc = vou->osd + MAIN_CSC_OFFSET;
+		zplane->hbsc = vou->osd + MAIN_HBSC_OFFSET;
+		zplane->rsz = vou->otfppu + MAIN_RSZ_OFFSET;
 		zcrtc->chnreg = vou->osd + OSD_MAIN_CHN;
 		zcrtc->regs = &main_crtc_regs;
 		zcrtc->bits = &main_crtc_bits;
 	} else {
-		data.layer = vou->osd + AUX_GL_OFFSET;
-		data.csc = vou->osd + AUX_CSC_OFFSET;
-		data.hbsc = vou->osd + AUX_HBSC_OFFSET;
-		data.rsz = vou->otfppu + AUX_RSZ_OFFSET;
+		zplane->layer = vou->osd + AUX_GL_OFFSET;
+		zplane->csc = vou->osd + AUX_CSC_OFFSET;
+		zplane->hbsc = vou->osd + AUX_HBSC_OFFSET;
+		zplane->rsz = vou->otfppu + AUX_RSZ_OFFSET;
 		zcrtc->chnreg = vou->osd + OSD_AUX_CHN;
 		zcrtc->regs = &aux_crtc_regs;
 		zcrtc->bits = &aux_crtc_bits;
@@ -340,12 +346,13 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 		return ret;
 	}
 
-	zcrtc->primary = zx_plane_init(drm, dev, &data, DRM_PLANE_TYPE_PRIMARY);
-	if (IS_ERR(zcrtc->primary)) {
-		ret = PTR_ERR(zcrtc->primary);
+	ret = zx_plane_init(drm, zplane, DRM_PLANE_TYPE_PRIMARY);
+	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to init primary plane: %d\n", ret);
 		return ret;
 	}
+
+	zcrtc->primary = &zplane->plane;
 
 	ret = drm_crtc_init_with_planes(drm, &zcrtc->crtc, zcrtc->primary, NULL,
 					&zx_crtc_funcs, NULL);

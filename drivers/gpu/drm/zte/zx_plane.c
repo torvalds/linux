@@ -21,16 +21,6 @@
 #include "zx_plane_regs.h"
 #include "zx_vou.h"
 
-struct zx_plane {
-	struct drm_plane plane;
-	void __iomem *layer;
-	void __iomem *csc;
-	void __iomem *hbsc;
-	void __iomem *rsz;
-};
-
-#define to_zx_plane(plane)	container_of(plane, struct zx_plane, plane)
-
 static const uint32_t gl_formats[] = {
 	DRM_FORMAT_ARGB8888,
 	DRM_FORMAT_XRGB8888,
@@ -248,27 +238,15 @@ static void zx_plane_hbsc_init(struct zx_plane *zplane)
 	zx_writel(hbsc + HBSC_THRESHOLD_COL3, (0x3c0 << 16) | 0x40);
 }
 
-struct drm_plane *zx_plane_init(struct drm_device *drm, struct device *dev,
-				struct zx_layer_data *data,
-				enum drm_plane_type type)
+int zx_plane_init(struct drm_device *drm, struct zx_plane *zplane,
+		  enum drm_plane_type type)
 {
 	const struct drm_plane_helper_funcs *helper;
-	struct zx_plane *zplane;
-	struct drm_plane *plane;
+	struct drm_plane *plane = &zplane->plane;
+	struct device *dev = zplane->dev;
 	const uint32_t *formats;
 	unsigned int format_count;
 	int ret;
-
-	zplane = devm_kzalloc(dev, sizeof(*zplane), GFP_KERNEL);
-	if (!zplane)
-		return ERR_PTR(-ENOMEM);
-
-	plane = &zplane->plane;
-
-	zplane->layer = data->layer;
-	zplane->hbsc = data->hbsc;
-	zplane->csc = data->csc;
-	zplane->rsz = data->rsz;
 
 	zx_plane_hbsc_init(zplane);
 
@@ -282,7 +260,7 @@ struct drm_plane *zx_plane_init(struct drm_device *drm, struct device *dev,
 		/* TODO: add video layer (vl) support */
 		break;
 	default:
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 	}
 
 	ret = drm_universal_plane_init(drm, plane, VOU_CRTC_MASK,
@@ -290,10 +268,10 @@ struct drm_plane *zx_plane_init(struct drm_device *drm, struct device *dev,
 				       type, NULL);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "failed to init universal plane: %d\n", ret);
-		return ERR_PTR(ret);
+		return ret;
 	}
 
 	drm_plane_helper_add(plane, helper);
 
-	return plane;
+	return 0;
 }
