@@ -23,6 +23,7 @@ config LKL
        select 64BIT if OUTPUT_FORMAT = "elf64-x86-64-freebsd"
        select IP_PNP
        select IP_PNP_DHCP
+       select TCP_CONG_BBR
 
 config OUTPUTFORMAT
        string
