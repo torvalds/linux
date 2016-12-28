@@ -38,4 +38,11 @@ config USB_CHIPIDEA_HOST
 	  Say Y here to enable host controller functionality of the
 	  ChipIdea driver.
 
+config USB_CHIPIDEA_ULPI
+	bool "ChipIdea ULPI PHY support"
+	depends on USB_ULPI_BUS=y || USB_ULPI_BUS=USB_CHIPIDEA
+	help
+	  Say Y here if you have a ULPI PHY attached to your ChipIdea
+	  controller.
+
 endif

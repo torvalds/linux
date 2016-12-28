@@ -86,6 +86,7 @@ static const u8 ci_regs_nolpm[] = {
 	[OP_ENDPTLISTADDR]	= 0x18U,
 	[OP_TTCTRL]		= 0x1CU,
 	[OP_BURSTSIZE]		= 0x20U,
+	[OP_ULPI_VIEWPORT]	= 0x30U,
 	[OP_PORTSC]		= 0x44U,
 	[OP_DEVLC]		= 0x84U,
 	[OP_OTGSC]		= 0x64U,
@@ -110,6 +111,7 @@ static const u8 ci_regs_lpm[] = {
 	[OP_ENDPTLISTADDR]	= 0x18U,
 	[OP_TTCTRL]		= 0x1CU,
 	[OP_BURSTSIZE]		= 0x20U,
+	[OP_ULPI_VIEWPORT]	= 0x30U,
 	[OP_PORTSC]		= 0x44U,
 	[OP_DEVLC]		= 0x84U,
 	[OP_OTGSC]		= 0xC4U,
@@ -285,7 +287,7 @@ static int hw_device_init(struct ci_hdrc *ci, void __iomem *base)
 	return 0;
 }
 
-static void hw_phymode_configure(struct ci_hdrc *ci)
+void hw_phymode_configure(struct ci_hdrc *ci)
 {
 	u32 portsc, lpm, sts = 0;
 
@@ -879,12 +881,17 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		CI_HDRC_IMX28_WRITE_FIX);
 	ci->supports_runtime_pm = !!(ci->platdata->flags &
 		CI_HDRC_SUPPORTS_RUNTIME_PM);
+	platform_set_drvdata(pdev, ci);
 
 	ret = hw_device_init(ci, base);
 	if (ret < 0) {
 		dev_err(dev, "can't initialize hardware\n");
 		return -ENODEV;
 	}
+
+	ret = ci_ulpi_init(ci);
+	if (ret)
+		return ret;
 
 	if (ci->platdata->phy) {
 		ci->phy = ci->platdata->phy;
@@ -896,11 +903,15 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 
 		/* if both generic PHY and USB PHY layers aren't enabled */
 		if (PTR_ERR(ci->phy) == -ENOSYS &&
-				PTR_ERR(ci->usb_phy) == -ENXIO)
-			return -ENXIO;
+				PTR_ERR(ci->usb_phy) == -ENXIO) {
+			ret = -ENXIO;
+			goto ulpi_exit;
+		}
 
-		if (IS_ERR(ci->phy) && IS_ERR(ci->usb_phy))
-			return -EPROBE_DEFER;
+		if (IS_ERR(ci->phy) && IS_ERR(ci->usb_phy)) {
+			ret = -EPROBE_DEFER;
+			goto ulpi_exit;
+		}
 
 		if (IS_ERR(ci->phy))
 			ci->phy = NULL;
@@ -985,7 +996,6 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		}
 	}
 
-	platform_set_drvdata(pdev, ci);
 	ret = devm_request_irq(dev, ci->irq, ci_irq, IRQF_SHARED,
 			ci->platdata->name, ci);
 	if (ret)
@@ -1016,6 +1026,8 @@ stop:
 	ci_role_destroy(ci);
 deinit_phy:
 	ci_usb_phy_exit(ci);
+ulpi_exit:
+	ci_ulpi_exit(ci);
 
 	return ret;
 }
@@ -1034,6 +1046,7 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 	ci_role_destroy(ci);
 	ci_hdrc_enter_lpm(ci, true);
 	ci_usb_phy_exit(ci);
+	ci_ulpi_exit(ci);
 
 	return 0;
 }
@@ -1081,6 +1094,7 @@ static void ci_controller_suspend(struct ci_hdrc *ci)
 static int ci_controller_resume(struct device *dev)
 {
 	struct ci_hdrc *ci = dev_get_drvdata(dev);
+	int ret;
 
 	dev_dbg(dev, "at %s\n", __func__);
 
@@ -1090,6 +1104,11 @@ static int ci_controller_resume(struct device *dev)
 	}
 
 	ci_hdrc_enter_lpm(ci, false);
+
+	ret = ci_ulpi_resume(ci);
+	if (ret)
+		return ret;
+
 	if (ci->usb_phy) {
 		usb_phy_set_suspend(ci->usb_phy, 0);
 		usb_phy_set_wakeup(ci->usb_phy, false);
