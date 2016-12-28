@@ -156,8 +156,8 @@
  */
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_readable
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_writable
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_command_signals
-#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_command_signals
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_initialize_debugger
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_terminate_debugger
 
 /*
  * OSL interfaces used by utilities
