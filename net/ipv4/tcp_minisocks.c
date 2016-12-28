@@ -29,12 +29,6 @@
 
 int sysctl_tcp_abort_on_overflow __read_mostly;
 
-struct inet_timewait_death_row tcp_death_row = {
-	.sysctl_max_tw_buckets = NR_FILE * 2,
-	.hashinfo	= &tcp_hashinfo,
-};
-EXPORT_SYMBOL_GPL(tcp_death_row);
-
 static bool tcp_in_window(u32 seq, u32 end_seq, u32 s_win, u32 e_win)
 {
 	if (seq == s_win)
@@ -100,6 +94,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 	struct tcp_options_received tmp_opt;
 	struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);
 	bool paws_reject = false;
+	struct inet_timewait_death_row *tcp_death_row = &sock_net((struct sock*)tw)->ipv4.tcp_death_row;
 
 	tmp_opt.saw_tstamp = 0;
 	if (th->doff > (sizeof(*th) >> 2) && tcptw->tw_ts_recent_stamp) {
@@ -153,7 +148,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
 		}
 
-		if (tcp_death_row.sysctl_tw_recycle &&
+		if (tcp_death_row->sysctl_tw_recycle &&
 		    tcptw->tw_ts_recent_stamp &&
 		    tcp_tw_remember_stamp(tw))
 			inet_twsk_reschedule(tw, tw->tw_timeout);
@@ -264,11 +259,12 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_timewait_sock *tw;
 	bool recycle_ok = false;
+	struct inet_timewait_death_row *tcp_death_row = &sock_net(sk)->ipv4.tcp_death_row;
 
-	if (tcp_death_row.sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp)
+	if (tcp_death_row->sysctl_tw_recycle && tp->rx_opt.ts_recent_stamp)
 		recycle_ok = tcp_remember_stamp(sk);
 
-	tw = inet_twsk_alloc(sk, &tcp_death_row, state);
+	tw = inet_twsk_alloc(sk, tcp_death_row, state);
 
 	if (tw) {
 		struct tcp_timewait_sock *tcptw = tcp_twsk((struct sock *)tw);

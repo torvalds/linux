@@ -6363,7 +6363,7 @@ int tcp_conn_request(struct request_sock_ops *rsk_ops,
 		 * timewait bucket, so that all the necessary checks
 		 * are made in the function processing timewait state.
 		 */
-		if (tcp_death_row.sysctl_tw_recycle) {
+		if (net->ipv4.tcp_death_row.sysctl_tw_recycle) {
 			bool strict;
 
 			dst = af_ops->route_req(sk, &fl, req, &strict);

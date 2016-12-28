@@ -231,7 +231,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo);
  */
 #define	TFO_SERVER_WO_SOCKOPT1	0x400
 
-extern struct inet_timewait_death_row tcp_death_row;
 
 /* sysctl variables for tcp */
 extern int sysctl_tcp_timestamps;

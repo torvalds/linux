@@ -3334,6 +3334,7 @@ void __init tcp_init(void)
 
 	percpu_counter_init(&tcp_sockets_allocated, 0, GFP_KERNEL);
 	percpu_counter_init(&tcp_orphan_count, 0, GFP_KERNEL);
+	inet_hashinfo_init(&tcp_hashinfo);
 	tcp_hashinfo.bind_bucket_cachep =
 		kmem_cache_create("tcp_bind_bucket",
 				  sizeof(struct inet_bind_bucket), 0,
@@ -3378,7 +3379,6 @@ void __init tcp_init(void)
 
 	cnt = tcp_hashinfo.ehash_mask + 1;
 
-	tcp_death_row.sysctl_max_tw_buckets = cnt / 2;
 	sysctl_tcp_max_orphans = cnt / 2;
 	sysctl_max_syn_backlog = max(128, cnt / 256);
 
@@ -3399,6 +3399,7 @@ void __init tcp_init(void)
 	pr_info("Hash tables configured (established %u bind %u)\n",
 		tcp_hashinfo.ehash_mask + 1, tcp_hashinfo.bhash_size);
 
+	tcp_v4_init();
 	tcp_metrics_init();
 	BUG_ON(tcp_register_congestion_control(&tcp_reno) != 0);
 	tcp_tasklet_init();

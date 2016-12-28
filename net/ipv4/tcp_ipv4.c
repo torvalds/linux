@@ -146,6 +146,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	struct rtable *rt;
 	int err;
 	struct ip_options_rcu *inet_opt;
+	struct inet_timewait_death_row *tcp_death_row = &sock_net(sk)->ipv4.tcp_death_row;
 
 	if (addr_len < sizeof(struct sockaddr_in))
 		return -EINVAL;
@@ -196,7 +197,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 			tp->write_seq	   = 0;
 	}
 
-	if (tcp_death_row.sysctl_tw_recycle &&
+	if (tcp_death_row->sysctl_tw_recycle &&
 	    !tp->rx_opt.ts_recent_stamp && fl4->daddr == daddr)
 		tcp_fetch_timewait_stamp(sk, &rt->dst);
 
@@ -215,7 +216,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	 * complete initialization after this.
 	 */
 	tcp_set_state(sk, TCP_SYN_SENT);
-	err = inet_hash_connect(&tcp_death_row, sk);
+	err = inet_hash_connect(tcp_death_row, sk);
 	if (err)
 		goto failure;
 
@@ -2457,6 +2458,10 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.sysctl_tcp_notsent_lowat = UINT_MAX;
 	net->ipv4.sysctl_tcp_tw_reuse = 0;
 
+	net->ipv4.tcp_death_row.sysctl_tw_recycle = 0;
+	net->ipv4.tcp_death_row.sysctl_max_tw_buckets = (tcp_hashinfo.ehash_mask + 1) / 2;
+	net->ipv4.tcp_death_row.hashinfo = &tcp_hashinfo;
+
 	return 0;
 fail:
 	tcp_sk_exit(net);
@@ -2466,7 +2471,7 @@ fail:
 
 static void __net_exit tcp_sk_exit_batch(struct list_head *net_exit_list)
 {
-	inet_twsk_purge(&tcp_hashinfo, &tcp_death_row, AF_INET);
+	inet_twsk_purge(&tcp_hashinfo, AF_INET);
 }
 
 static struct pernet_operations __net_initdata tcp_sk_ops = {
@@ -2477,7 +2482,6 @@ static struct pernet_operations __net_initdata tcp_sk_ops = {
 
 void __init tcp_v4_init(void)
 {
-	inet_hashinfo_init(&tcp_hashinfo);
 	if (register_pernet_subsys(&tcp_sk_ops))
 		panic("Failed to create the TCP control socket.\n");
 }
