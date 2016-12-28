@@ -95,9 +95,6 @@
  * broken.
  */
 
-static int drm_version(struct drm_device *dev, void *data,
-		       struct drm_file *file_priv);
-
 /*
  * Get the bus id.
  *
