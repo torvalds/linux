@@ -255,6 +255,7 @@ static int rk_ion_probe(struct platform_device *pdev)
 		return PTR_ERR(idev);
 	}
 
+	ion_device_set_platform(idev, &pdev->dev);
 	rockchip_ion_dev = idev;
 
 	/* create the heaps as specified in the board file */

@@ -44,6 +44,7 @@
 /**
  * struct ion_device - the metadata of the ion device node
  * @dev:		the actual misc device
+ * @pdev:		the device from platform
  * @buffers:		an rb tree of all the existing buffers
  * @buffer_lock:	lock protecting the tree of buffers
  * @lock:		rwsem protecting the tree of heaps and clients
@@ -52,6 +53,7 @@
  */
 struct ion_device {
 	struct miscdevice dev;
+	struct device *pdev;
 	struct rb_root buffers;
 	struct mutex buffer_lock;
 	struct rw_semaphore lock;
@@ -1499,6 +1501,8 @@ static int ion_sync_for_device(struct ion_client *client, int fd)
 {
 	struct dma_buf *dmabuf;
 	struct ion_buffer *buffer;
+	struct ion_device *idev = client->dev;
+	struct device *dev = ion_device_get_platform(idev);
 
 	dmabuf = dma_buf_get(fd);
 	if (IS_ERR(dmabuf))
@@ -1513,7 +1517,7 @@ static int ion_sync_for_device(struct ion_client *client, int fd)
 	}
 	buffer = dmabuf->priv;
 
-	dma_sync_sg_for_device(NULL, buffer->sg_table->sgl,
+	dma_sync_sg_for_device(dev, buffer->sg_table->sgl,
 			       buffer->sg_table->nents, DMA_BIDIRECTIONAL);
 	dma_buf_put(dmabuf);
 	return 0;
@@ -1858,6 +1862,20 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 	up_write(&dev->lock);
 }
 EXPORT_SYMBOL(ion_device_add_heap);
+
+struct device *ion_device_get_platform(struct ion_device *idev)
+{
+	if (!idev)
+		return NULL;
+
+	return idev->pdev;
+}
+
+void ion_device_set_platform(struct ion_device *idev, struct device *dev)
+{
+	if (dev && !idev->pdev)
+		idev->pdev = dev;
+}
 
 struct ion_device *ion_device_create(long (*custom_ioctl)
 				     (struct ion_client *client,

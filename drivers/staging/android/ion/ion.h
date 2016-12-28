@@ -72,6 +72,11 @@ struct ion_platform_data {
 	struct ion_platform_heap *heaps;
 };
 
+struct device *ion_device_get_platform(struct ion_device *idev);
+
+void ion_device_set_platform(struct ion_device *idev,
+			     struct device *dev);
+
 /**
  * ion_reserve() - reserve memory for ion heaps if applicable
  * @data:	platform data specifying starting physical address and
