@@ -3947,16 +3947,16 @@ void mlx5e_detach_netdev(struct mlx5_core_dev *mdev, struct net_device *netdev)
 	const struct mlx5e_profile *profile = priv->profile;
 
 	set_bit(MLX5E_STATE_DESTROYING, &priv->state);
-	if (profile->disable)
-		profile->disable(priv);
-
-	flush_workqueue(priv->wq);
 
 	rtnl_lock();
 	if (netif_running(netdev))
 		mlx5e_close(netdev);
 	netif_device_detach(netdev);
 	rtnl_unlock();
+
+	if (profile->disable)
+		profile->disable(priv);
+	flush_workqueue(priv->wq);
 
 	mlx5e_destroy_q_counter(priv);
 	profile->cleanup_rx(priv);
