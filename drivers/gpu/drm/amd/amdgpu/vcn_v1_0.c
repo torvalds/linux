@@ -756,3 +756,12 @@ static void vcn_v1_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->vcn.irq.num_types = 1;
 	adev->vcn.irq.funcs = &vcn_v1_0_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version vcn_v1_0_ip_block =
+{
+		.type = AMD_IP_BLOCK_TYPE_VCN,
+		.major = 1,
+		.minor = 0,
+		.rev = 0,
+		.funcs = &vcn_v1_0_ip_funcs,
+};

@@ -77,7 +77,8 @@ enum amd_ip_block_type {
 	AMD_IP_BLOCK_TYPE_VCE,
 	AMD_IP_BLOCK_TYPE_ACP,
 	AMD_IP_BLOCK_TYPE_GFXHUB,
-	AMD_IP_BLOCK_TYPE_MMHUB
+	AMD_IP_BLOCK_TYPE_MMHUB,
+	AMD_IP_BLOCK_TYPE_VCN
 };
 
 enum amd_clockgating_state {
