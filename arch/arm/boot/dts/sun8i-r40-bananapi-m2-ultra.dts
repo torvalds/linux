@@ -126,7 +126,7 @@
 	mmc-pwrseq = <&wifi_pwrseq>;
 	bus-width = <4>;
 	non-removable;
-	status = "okay";
+	status = "disabled";
 
 	brcmf: bcrmf@1 {
 		reg = <1>;
@@ -142,7 +142,7 @@
 	pinctrl-0 = <&mmc2_8bit_pins>;
 	vmmc-supply = <&reg_vcc3v3>;
 	vqmmc-supply = <&reg_vcc3v3>;
-	bus-width = <8>;
+	bus-width = <4>;
 	non-removable;
 	status = "okay";
 };

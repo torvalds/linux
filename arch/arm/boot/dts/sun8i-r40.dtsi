@@ -58,24 +58,28 @@
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <0>;
+			clock-frequency = <1008000000>;
 		};
 
 		cpu@1 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <1>;
+			clock-frequency = <100800000>;
 		};
 
 		cpu@2 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <2>;
+			clock-frequency = <100800000>;
 		};
 
 		cpu@3 {
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <3>;
+			clock-frequency = <10080000>;
 		};
 	};
 
@@ -238,10 +242,10 @@
 			#phy-cells = <1>;
 		};
 
-		ehci1: usb@01c1b000 {
+		ehci1: usb@01c14000 {
 			compatible = "allwinner,sun8i-h3-ehci", "generic-ehci";
-			reg = <0x01c1b000 0x100>;
-			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x01c14000 0x100>;
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_EHCI1>, <&ccu CLK_BUS_OHCI1>;
 			resets = <&ccu RST_BUS_EHCI1>, <&ccu RST_BUS_OHCI1>;
 			phys = <&usbphy 1>;
@@ -249,10 +253,10 @@
 			status = "disabled";
 		};
 
-		ohci1: usb@01c1b400 {
+		ohci1: usb@01c14400 {
 			compatible = "allwinner,sun8i-h3-ohci", "generic-ohci";
-			reg = <0x01c1b400 0x100>;
-			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x01c14400 0x100>;
+			interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_EHCI1>, <&ccu CLK_BUS_OHCI1>,
 				 <&ccu CLK_USB_OHCI1>;
 			resets = <&ccu RST_BUS_EHCI1>, <&ccu RST_BUS_OHCI1>;
@@ -261,10 +265,10 @@
 			status = "disabled";
 		};
 
-		ehci2: usb@01c1c000 {
+		ehci2: usb@01c19000 {
 			compatible = "allwinner,sun8i-h3-ehci", "generic-ehci";
-			reg = <0x01c1c000 0x100>;
-			interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x01c19000 0x100>;
+			interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_EHCI2>, <&ccu CLK_BUS_OHCI2>;
 			resets = <&ccu RST_BUS_EHCI2>, <&ccu RST_BUS_OHCI2>;
 			phys = <&usbphy 2>;
@@ -272,10 +276,10 @@
 			status = "disabled";
 		};
 
-		ohci2: usb@01c1c400 {
+		ohci2: usb@01c19400 {
 			compatible = "allwinner,sun8i-h3-ohci", "generic-ohci";
-			reg = <0x01c1c400 0x100>;
-			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+			reg = <0x01c19400 0x100>;
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_EHCI2>, <&ccu CLK_BUS_OHCI2>,
 				 <&ccu CLK_USB_OHCI2>;
 			resets = <&ccu RST_BUS_EHCI2>, <&ccu RST_BUS_OHCI2>;
@@ -378,7 +382,7 @@
 						 "PC15", "PC16";
 				allwinner,function = "mmc2";
 				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 			};
 
 			uart0_pins_a: uart0@0 {
