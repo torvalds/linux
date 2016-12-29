@@ -828,7 +828,7 @@ struct bnxt_link_info {
 #define BNXT_LINK_SPEED_40GB	PORT_PHY_QCFG_RESP_LINK_SPEED_40GB
 #define BNXT_LINK_SPEED_50GB	PORT_PHY_QCFG_RESP_LINK_SPEED_50GB
 	u16			support_speeds;
-	u16			auto_link_speeds;
+	u16			auto_link_speeds;	/* fw adv setting */
 #define BNXT_LINK_SPEED_MSK_100MB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_100MB
 #define BNXT_LINK_SPEED_MSK_1GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_1GB
 #define BNXT_LINK_SPEED_MSK_2GB PORT_PHY_QCFG_RESP_SUPPORT_SPEEDS_2GB
@@ -851,7 +851,7 @@ struct bnxt_link_info {
 	u8			req_duplex;
 	u8			req_flow_ctrl;
 	u16			req_link_speed;
-	u32			advertising;
+	u16			advertising;	/* user adv setting */
 	bool			force_link_chng;
 
 	/* a copy of phy_qcfg output used to report link

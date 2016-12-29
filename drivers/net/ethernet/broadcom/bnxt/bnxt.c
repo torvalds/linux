@@ -5363,7 +5363,7 @@ static void bnxt_hwrm_set_link_common(struct bnxt *bp,
 {
 	u8 autoneg = bp->link_info.autoneg;
 	u16 fw_link_speed = bp->link_info.req_link_speed;
-	u32 advertising = bp->link_info.advertising;
+	u16 advertising = bp->link_info.advertising;
 
 	if (autoneg & BNXT_AUTONEG_SPEED) {
 		req->auto_mode |=
