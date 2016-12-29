@@ -4835,6 +4835,24 @@ static int bnxt_setup_int_mode(struct bnxt *bp)
 	return rc;
 }
 
+static unsigned int bnxt_get_max_func_rss_ctxs(struct bnxt *bp)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		return bp->vf.max_rsscos_ctxs;
+#endif
+	return bp->pf.max_rsscos_ctxs;
+}
+
+static unsigned int bnxt_get_max_func_vnics(struct bnxt *bp)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		return bp->vf.max_vnics;
+#endif
+	return bp->pf.max_vnics;
+}
+
 unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp)
 {
 #if defined(CONFIG_BNXT_SRIOV)
@@ -5962,20 +5980,30 @@ skip_uc:
 	return rc;
 }
 
+/* If the chip and firmware supports RFS */
+static bool bnxt_rfs_supported(struct bnxt *bp)
+{
+	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp))
+		return true;
+	return false;
+}
+
+/* If runtime conditions support RFS */
 static bool bnxt_rfs_capable(struct bnxt *bp)
 {
 #ifdef CONFIG_RFS_ACCEL
-	struct bnxt_pf_info *pf = &bp->pf;
-	int vnics;
+	int vnics, max_vnics, max_rss_ctxs;
 
 	if (BNXT_VF(bp) || !(bp->flags & BNXT_FLAG_MSIX_CAP))
 		return false;
 
 	vnics = 1 + bp->rx_nr_rings;
-	if (vnics > pf->max_rsscos_ctxs || vnics > pf->max_vnics) {
+	max_vnics = bnxt_get_max_func_vnics(bp);
+	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
+	if (vnics > max_vnics || vnics > max_rss_ctxs) {
 		netdev_warn(bp->dev,
 			    "Not enough resources to support NTUPLE filters, enough resources for up to %d rx rings\n",
-			    min(pf->max_rsscos_ctxs - 1, pf->max_vnics - 1));
+			    min(max_rss_ctxs - 1, max_vnics - 1));
 		return false;
 	}
 
@@ -7092,7 +7120,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	bnxt_hwrm_vnic_qcaps(bp);
-	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp)) {
+	if (bnxt_rfs_supported(bp)) {
 		dev->hw_features |= NETIF_F_NTUPLE;
 		if (bnxt_rfs_capable(bp)) {
 			bp->flags |= BNXT_FLAG_RFS;
