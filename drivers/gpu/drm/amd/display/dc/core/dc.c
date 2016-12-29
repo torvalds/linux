@@ -366,9 +366,7 @@ static void set_preferred_link_settings(struct dc *dc,
 				link_setting->lane_count;
 	core_link->public.verified_link_cap.link_rate =
 				link_setting->link_rate;
-	dp_retrain_link_physi(core_link,
-			link_setting,
-			false);
+	dp_retrain_link_dp_test(core_link, link_setting, false);
 }
 
 static void enable_hpd(const struct dc_link *link)

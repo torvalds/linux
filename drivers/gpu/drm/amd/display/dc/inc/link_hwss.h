@@ -68,9 +68,7 @@ void dp_set_hw_test_pattern(
 
 enum dp_panel_mode dp_get_panel_mode(struct core_link *link);
 
-void dp_retrain_link(struct core_link *link);
-
-void dp_retrain_link_physi(struct core_link *link,
+void dp_retrain_link_dp_test(struct core_link *link,
 		struct dc_link_settings *link_setting,
 		bool skip_video_pattern);
 

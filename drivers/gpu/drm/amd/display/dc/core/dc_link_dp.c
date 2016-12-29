@@ -1532,7 +1532,7 @@ static bool handle_hpd_irq_psr_sink(const struct core_link *link)
 
 static void dp_test_send_link_training(struct core_link *link)
 {
-	struct dc_link_settings link_settings;
+	struct dc_link_settings link_settings = {0};
 
 	core_link_read_dpcd(
 			link,
@@ -1549,7 +1549,7 @@ static void dp_test_send_link_training(struct core_link *link)
 	link->public.verified_link_cap.lane_count = link_settings.lane_count;
 	link->public.verified_link_cap.link_rate = link_settings.link_rate;
 
-	dp_retrain_link(link);
+	dp_retrain_link_dp_test(link, &link_settings, false);
 }
 
 static void dp_test_send_phy_test_pattern(struct core_link *link)
