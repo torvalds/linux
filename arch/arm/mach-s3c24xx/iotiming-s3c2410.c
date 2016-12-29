@@ -249,7 +249,7 @@ static int s3c2410_calc_bank(struct s3c_cpufreq_config *cfg,
 	return 0;
 }
 
-static unsigned int tacc_tab[] = {
+static const unsigned int tacc_tab[] = {
 	[0]	= 1,
 	[1]	= 2,
 	[2]	= 3,
