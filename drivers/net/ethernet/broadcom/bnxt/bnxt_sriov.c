@@ -429,6 +429,8 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 		vf_rx_rings = (pf->max_rx_rings - bp->rx_nr_rings) / num_vfs;
 	vf_ring_grps = (bp->pf.max_hw_ring_grps - bp->rx_nr_rings) / num_vfs;
 	vf_tx_rings = (pf->max_tx_rings - bp->tx_nr_rings) / num_vfs;
+	vf_vnics = (pf->max_vnics - bp->nr_vnics) / num_vfs;
+	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 
 	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_MTU |
 				  FUNC_CFG_REQ_ENABLES_MRU |
@@ -451,7 +453,6 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 	req.num_rx_rings = cpu_to_le16(vf_rx_rings);
 	req.num_hw_ring_grps = cpu_to_le16(vf_ring_grps);
 	req.num_l2_ctxs = cpu_to_le16(4);
-	vf_vnics = 1;
 
 	req.num_vnics = cpu_to_le16(vf_vnics);
 	/* FIXME spec currently uses 1 bit for stats ctx */
@@ -506,6 +507,8 @@ static int bnxt_sriov_enable(struct bnxt *bp, int *num_vfs)
 			    min_rx_rings)
 				rx_ok = 1;
 		}
+		if (bp->pf.max_vnics - bp->nr_vnics < min_rx_rings)
+			rx_ok = 0;
 
 		if (bp->pf.max_tx_rings - bp->tx_nr_rings >= min_tx_rings)
 			tx_ok = 1;
