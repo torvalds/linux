@@ -983,24 +983,12 @@ i2s_delay(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 #ifdef CONFIG_PM
 static int i2s_suspend(struct snd_soc_dai *dai)
 {
-	struct i2s_dai *i2s = to_info(dai);
-
-	i2s->suspend_i2smod = readl(i2s->addr + I2SMOD);
-	i2s->suspend_i2scon = readl(i2s->addr + I2SCON);
-	i2s->suspend_i2spsr = readl(i2s->addr + I2SPSR);
-
-	return 0;
+	return pm_runtime_force_suspend(dai->dev);
 }
 
 static int i2s_resume(struct snd_soc_dai *dai)
 {
-	struct i2s_dai *i2s = to_info(dai);
-
-	writel(i2s->suspend_i2scon, i2s->addr + I2SCON);
-	writel(i2s->suspend_i2smod, i2s->addr + I2SMOD);
-	writel(i2s->suspend_i2spsr, i2s->addr + I2SPSR);
-
-	return 0;
+	return pm_runtime_force_resume(dai->dev);
 }
 #else
 #define i2s_suspend NULL
@@ -1129,6 +1117,10 @@ static int i2s_runtime_suspend(struct device *dev)
 {
 	struct i2s_dai *i2s = dev_get_drvdata(dev);
 
+	i2s->suspend_i2smod = readl(i2s->addr + I2SMOD);
+	i2s->suspend_i2scon = readl(i2s->addr + I2SCON);
+	i2s->suspend_i2spsr = readl(i2s->addr + I2SPSR);
+
 	clk_disable_unprepare(i2s->clk);
 
 	return 0;
@@ -1139,6 +1131,10 @@ static int i2s_runtime_resume(struct device *dev)
 	struct i2s_dai *i2s = dev_get_drvdata(dev);
 
 	clk_prepare_enable(i2s->clk);
+
+	writel(i2s->suspend_i2scon, i2s->addr + I2SCON);
+	writel(i2s->suspend_i2smod, i2s->addr + I2SMOD);
+	writel(i2s->suspend_i2spsr, i2s->addr + I2SPSR);
 
 	return 0;
 }
@@ -1510,6 +1506,8 @@ MODULE_DEVICE_TABLE(of, exynos_i2s_match);
 static const struct dev_pm_ops samsung_i2s_pm = {
 	SET_RUNTIME_PM_OPS(i2s_runtime_suspend,
 				i2s_runtime_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				     pm_runtime_force_resume)
 };
 
 static struct platform_driver samsung_i2s_driver = {
