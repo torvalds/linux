@@ -4045,6 +4045,50 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 	}
 }
 
+/* Caller must hold bp->hwrm_cmd_lock */
+int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings)
+{
+	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_qcfg_input req = {0};
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10601)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
+	req.fid = cpu_to_le16(fid);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc)
+		*tx_rings = le16_to_cpu(resp->alloc_tx_rings);
+
+	return rc;
+}
+
+int bnxt_hwrm_reserve_tx_rings(struct bnxt *bp, int *tx_rings)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10601)
+		return 0;
+
+	if (BNXT_VF(bp))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
+	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS);
+	req.num_tx_rings = cpu_to_le16(*tx_rings);
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		return rc;
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = __bnxt_hwrm_get_tx_rings(bp, 0xffff, tx_rings);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
 static void bnxt_hwrm_set_coal_params(struct bnxt *bp, u32 max_bufs,
 	u32 buf_tmrs, u16 flags,
 	struct hwrm_ring_cmpl_ring_cfg_aggint_params_input *req)
@@ -6509,10 +6553,16 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 		sh = true;
 
 	if (tc) {
-		int max_rx_rings, max_tx_rings, rc;
+		int max_rx_rings, max_tx_rings, req_tx_rings, rsv_tx_rings, rc;
 
+		req_tx_rings = bp->tx_nr_rings_per_tc * tc;
 		rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
-		if (rc || bp->tx_nr_rings_per_tc * tc > max_tx_rings)
+		if (rc || req_tx_rings > max_tx_rings)
+			return -ENOMEM;
+
+		rsv_tx_rings = req_tx_rings;
+		if (bnxt_hwrm_reserve_tx_rings(bp, &rsv_tx_rings) ||
+		    rsv_tx_rings < req_tx_rings)
 			return -ENOMEM;
 	}
 
@@ -7000,6 +7050,11 @@ static int bnxt_set_dflt_rings(struct bnxt *bp)
 		return rc;
 	bp->rx_nr_rings = min_t(int, dflt_rings, max_rx_rings);
 	bp->tx_nr_rings_per_tc = min_t(int, dflt_rings, max_tx_rings);
+
+	rc = bnxt_hwrm_reserve_tx_rings(bp, &bp->tx_nr_rings_per_tc);
+	if (rc)
+		netdev_warn(bp->dev, "Unable to reserve tx rings\n");
+
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;

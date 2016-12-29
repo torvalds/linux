@@ -388,6 +388,7 @@ static int bnxt_set_channels(struct net_device *dev,
 {
 	struct bnxt *bp = netdev_priv(dev);
 	int max_rx_rings, max_tx_rings, tcs;
+	int req_tx_rings, rsv_tx_rings;
 	u32 rc = 0;
 	bool sh = false;
 
@@ -422,6 +423,20 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (!sh && (channel->rx_count > max_rx_rings ||
 		    channel->tx_count > max_tx_rings))
 		return -ENOMEM;
+
+	req_tx_rings = sh ? channel->combined_count : channel->tx_count;
+	req_tx_rings = min_t(int, req_tx_rings, max_tx_rings);
+	if (tcs > 1)
+		req_tx_rings *= tcs;
+
+	rsv_tx_rings = req_tx_rings;
+	if (bnxt_hwrm_reserve_tx_rings(bp, &rsv_tx_rings))
+		return -ENOMEM;
+
+	if (rsv_tx_rings < req_tx_rings) {
+		netdev_warn(dev, "Unable to allocate the requested tx rings\n");
+		return -ENOMEM;
+	}
 
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
