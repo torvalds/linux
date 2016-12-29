@@ -3665,6 +3665,27 @@ static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, u16 vnic_id,
 	return rc;
 }
 
+static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
+{
+	struct hwrm_vnic_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_vnic_qcaps_input req = {0};
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10600)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_QCAPS, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		if (resp->flags &
+		    cpu_to_le32(VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP))
+			bp->flags |= BNXT_FLAG_NEW_RSS_CAP;
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
 static int bnxt_hwrm_ring_grp_alloc(struct bnxt *bp)
 {
 	u16 i;
@@ -7070,6 +7091,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 	}
 
+	bnxt_hwrm_vnic_qcaps(bp);
 	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp)) {
 		dev->hw_features |= NETIF_F_NTUPLE;
 		if (bnxt_rfs_capable(bp)) {
