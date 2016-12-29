@@ -364,6 +364,18 @@ static inline void save_vector_registers(void)
 #endif
 }
 
+static int __init topology_setup(char *str)
+{
+	bool enabled;
+	int rc;
+
+	rc = kstrtobool(str, &enabled);
+	if (!rc && !enabled)
+		S390_lowcore.machine_flags &= ~MACHINE_HAS_TOPOLOGY;
+	return rc;
+}
+early_param("topology", topology_setup);
+
 static int __init disable_vector_extension(char *str)
 {
 	S390_lowcore.machine_flags &= ~MACHINE_FLAG_VX;
