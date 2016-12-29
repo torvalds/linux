@@ -22,45 +22,6 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_hyp.h>
 
-static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu,
-					    void __iomem *base)
-{
-	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
-	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
-	u32 eisr0, eisr1;
-	int i;
-	bool expect_mi;
-
-	expect_mi = !!(cpu_if->vgic_hcr & GICH_HCR_UIE);
-
-	for (i = 0; i < used_lrs && !expect_mi; i++)
-		expect_mi |= (!(cpu_if->vgic_lr[i] & GICH_LR_HW) &&
-			      (cpu_if->vgic_lr[i] & GICH_LR_EOI));
-
-	if (expect_mi) {
-		cpu_if->vgic_misr = readl_relaxed(base + GICH_MISR);
-
-		if (cpu_if->vgic_misr & GICH_MISR_EOI) {
-			eisr0  = readl_relaxed(base + GICH_EISR0);
-			if (unlikely(used_lrs > 32))
-				eisr1  = readl_relaxed(base + GICH_EISR1);
-			else
-				eisr1 = 0;
-		} else {
-			eisr0 = eisr1 = 0;
-		}
-	} else {
-		cpu_if->vgic_misr = 0;
-		eisr0 = eisr1 = 0;
-	}
-
-#ifdef CONFIG_CPU_BIG_ENDIAN
-	cpu_if->vgic_eisr = ((u64)eisr0 << 32) | eisr1;
-#else
-	cpu_if->vgic_eisr = ((u64)eisr1 << 32) | eisr0;
-#endif
-}
-
 static void __hyp_text save_elrsr(struct kvm_vcpu *vcpu, void __iomem *base)
 {
 	struct vgic_v2_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v2;
@@ -111,7 +72,6 @@ void __hyp_text __vgic_v2_save_state(struct kvm_vcpu *vcpu)
 	if (used_lrs) {
 		cpu_if->vgic_apr = readl_relaxed(base + GICH_APR);
 
-		save_maint_int_state(vcpu, base);
 		save_elrsr(vcpu, base);
 		save_lrs(vcpu, base);
 

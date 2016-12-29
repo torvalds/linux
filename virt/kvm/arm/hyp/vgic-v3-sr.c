@@ -118,33 +118,6 @@ static void __hyp_text __gic_v3_set_lr(u64 val, int lr)
 	}
 }
 
-static void __hyp_text save_maint_int_state(struct kvm_vcpu *vcpu)
-{
-	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
-	int i;
-	bool expect_mi;
-	u64 used_lrs = vcpu->arch.vgic_cpu.used_lrs;
-
-	expect_mi = !!(cpu_if->vgic_hcr & ICH_HCR_UIE);
-
-	for (i = 0; i < used_lrs; i++) {
-		expect_mi |= (!(cpu_if->vgic_lr[i] & ICH_LR_HW) &&
-			      (cpu_if->vgic_lr[i] & ICH_LR_EOI));
-	}
-
-	if (expect_mi) {
-		cpu_if->vgic_misr  = read_gicreg(ICH_MISR_EL2);
-
-		if (cpu_if->vgic_misr & ICH_MISR_EOI)
-			cpu_if->vgic_eisr = read_gicreg(ICH_EISR_EL2);
-		else
-			cpu_if->vgic_eisr = 0;
-	} else {
-		cpu_if->vgic_misr = 0;
-		cpu_if->vgic_eisr = 0;
-	}
-}
-
 void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
@@ -167,8 +140,6 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 		write_gicreg(0, ICH_HCR_EL2);
 		val = read_gicreg(ICH_VTR_EL2);
 		nr_pri_bits = vtr_to_nr_pri_bits(val);
-
-		save_maint_int_state(vcpu);
 
 		for (i = 0; i <= used_lrs; i++) {
 			if (cpu_if->vgic_elrsr & (1 << i))
