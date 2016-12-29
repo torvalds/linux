@@ -1656,7 +1656,7 @@ static irqreturn_t sh_eth_interrupt(int irq, void *netdev)
 	else
 		goto out;
 
-	if (!likely(mdp->irq_enabled)) {
+	if (unlikely(!mdp->irq_enabled)) {
 		sh_eth_write(ndev, 0, EESIPR);
 		goto out;
 	}
