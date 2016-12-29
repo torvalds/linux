@@ -1814,8 +1814,6 @@ void intel_crtc_destroy_state(struct drm_crtc *crtc,
 			       struct drm_crtc_state *state);
 struct drm_atomic_state *intel_atomic_state_alloc(struct drm_device *dev);
 void intel_atomic_state_clear(struct drm_atomic_state *);
-struct intel_shared_dpll_state *
-intel_atomic_get_shared_dpll_state(struct drm_atomic_state *s);
 
 static inline struct intel_crtc_state *
 intel_atomic_get_crtc_state(struct drm_atomic_state *state,
