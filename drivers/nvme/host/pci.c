@@ -1639,12 +1639,7 @@ static int nvme_disable_ctrl(struct nvme_dev *dev, u64 cap)
 	dev->ctrl_config &= ~NVME_CC_ENABLE;
 	writel(dev->ctrl_config, &dev->bar->cc);
 
-	/* Checking for dev->tagset is a trick to avoid sleeping on module
-	 * load, since we only need the quirk on reset_controller. Notice
-	 * that the HGST device needs this delay only in firmware activation
-	 * procedure; unfortunately we have no (easy) way to verify this.
-	 */
-	if (pdev->vendor == 0x1c58 && pdev->device == 0x0003 && dev->tagset)
+	if (pdev->vendor == 0x1c58 && pdev->device == 0x0003)
 		msleep(NVME_QUIRK_DELAY_AMOUNT);
 
 	return nvme_wait_ready(dev, cap, false);
