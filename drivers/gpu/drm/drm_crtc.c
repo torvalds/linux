@@ -47,6 +47,26 @@
 #include "drm_internal.h"
 
 /**
+ * drm_crtc_from_index - find the registered CRTC at an index
+ * @dev: DRM device
+ * @idx: index of registered CRTC to find for
+ *
+ * Given a CRTC index, return the registered CRTC from DRM device's
+ * list of CRTCs with matching index.
+ */
+struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx)
+{
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, dev)
+		if (idx == crtc->index)
+			return crtc;
+
+	return NULL;
+}
+EXPORT_SYMBOL(drm_crtc_from_index);
+
+/**
  * drm_crtc_force_disable - Forcibly turn off a CRTC
  * @crtc: CRTC to turn off
  *
