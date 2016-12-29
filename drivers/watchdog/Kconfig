@@ -1401,6 +1401,7 @@ config WDT_MTX1
 config PNX833X_WDT
 	tristate "PNX833x Hardware Watchdog"
 	depends on SOC_PNX8335
+	depends on BROKEN
 	help
 	  Hardware driver for the PNX833x's watchdog. This is a
 	  watchdog timer that will reboot the machine after a programmable
