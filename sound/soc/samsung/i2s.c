@@ -546,6 +546,7 @@ static int i2s_set_sysclk(struct snd_soc_dai *dai,
 
 			if (WARN_ON(IS_ERR(i2s->op_clk))) {
 				ret = PTR_ERR(i2s->op_clk);
+				i2s->op_clk = NULL;
 				goto err;
 			}
 
@@ -1121,6 +1122,8 @@ static int i2s_runtime_suspend(struct device *dev)
 	i2s->suspend_i2scon = readl(i2s->addr + I2SCON);
 	i2s->suspend_i2spsr = readl(i2s->addr + I2SPSR);
 
+	if (i2s->op_clk)
+		clk_disable_unprepare(i2s->op_clk);
 	clk_disable_unprepare(i2s->clk);
 
 	return 0;
@@ -1131,6 +1134,8 @@ static int i2s_runtime_resume(struct device *dev)
 	struct i2s_dai *i2s = dev_get_drvdata(dev);
 
 	clk_prepare_enable(i2s->clk);
+	if (i2s->op_clk)
+		clk_prepare_enable(i2s->op_clk);
 
 	writel(i2s->suspend_i2scon, i2s->addr + I2SCON);
 	writel(i2s->suspend_i2smod, i2s->addr + I2SMOD);
