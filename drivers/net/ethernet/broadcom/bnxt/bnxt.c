@@ -1127,7 +1127,6 @@ static struct sk_buff *bnxt_gro_func_5730x(struct bnxt_tpa_info *tpa_info,
 		dev_kfree_skb_any(skb);
 		return NULL;
 	}
-	tcp_gro_complete(skb);
 
 	if (nw_off) { /* tunnel */
 		struct udphdr *uh = NULL;
@@ -1177,6 +1176,8 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt *bp,
 		       RX_TPA_END_CMP_PAYLOAD_OFFSET) >>
 		      RX_TPA_END_CMP_PAYLOAD_OFFSET_SHIFT;
 	skb = bp->gro_func(tpa_info, payload_off, TPA_END_GRO_TS(tpa_end), skb);
+	if (likely(skb))
+		tcp_gro_complete(skb);
 #endif
 	return skb;
 }
