@@ -2630,6 +2630,10 @@ static int bnxt_alloc_vnic_attributes(struct bnxt *bp)
 			goto out;
 		}
 
+		if ((bp->flags & BNXT_FLAG_NEW_RSS_CAP) &&
+		    !(vnic->flags & BNXT_VNIC_RSS_FLAG))
+			continue;
+
 		/* Allocate rss table and hash key */
 		vnic->rss_table = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
 						     &vnic->rss_table_dma_addr,
@@ -3562,6 +3566,12 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 		req.rss_rule = cpu_to_le16(vnic->fw_rss_cos_lb_ctx[0]);
 		req.enables |= cpu_to_le32(VNIC_CFG_REQ_ENABLES_RSS_RULE |
 					   VNIC_CFG_REQ_ENABLES_MRU);
+	} else if (vnic->flags & BNXT_VNIC_RFS_NEW_RSS_FLAG) {
+		req.rss_rule =
+			cpu_to_le16(bp->vnic_info[0].fw_rss_cos_lb_ctx[0]);
+		req.enables |= cpu_to_le32(VNIC_CFG_REQ_ENABLES_RSS_RULE |
+					   VNIC_CFG_REQ_ENABLES_MRU);
+		req.flags |= cpu_to_le32(VNIC_CFG_REQ_FLAGS_RSS_DFLT_CR_MODE);
 	} else {
 		req.rss_rule = cpu_to_le16(0xffff);
 	}
@@ -4490,7 +4500,11 @@ static void bnxt_hwrm_resource_free(struct bnxt *bp, bool close_path,
 
 static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
 {
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	int rc;
+
+	if (vnic->flags & BNXT_VNIC_RFS_NEW_RSS_FLAG)
+		goto skip_rss_ctx;
 
 	/* allocate context for vnic */
 	rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic_id, 0);
@@ -4511,6 +4525,7 @@ static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
 		bp->rsscos_nr_ctxs++;
 	}
 
+skip_rss_ctx:
 	/* configure default vnic, ring grp */
 	rc = bnxt_hwrm_vnic_cfg(bp, vnic_id);
 	if (rc) {
@@ -4545,13 +4560,17 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 	int i, rc = 0;
 
 	for (i = 0; i < bp->rx_nr_rings; i++) {
+		struct bnxt_vnic_info *vnic;
 		u16 vnic_id = i + 1;
 		u16 ring_id = i;
 
 		if (vnic_id >= bp->nr_vnics)
 			break;
 
-		bp->vnic_info[vnic_id].flags |= BNXT_VNIC_RFS_FLAG;
+		vnic = &bp->vnic_info[vnic_id];
+		vnic->flags |= BNXT_VNIC_RFS_FLAG;
+		if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+			vnic->flags |= BNXT_VNIC_RFS_NEW_RSS_FLAG;
 		rc = bnxt_hwrm_vnic_alloc(bp, vnic_id, ring_id, 1);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic %d alloc failure rc: %x\n",
@@ -5985,6 +6004,8 @@ static bool bnxt_rfs_supported(struct bnxt *bp)
 {
 	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp))
 		return true;
+	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+		return true;
 	return false;
 }
 
@@ -6000,6 +6021,10 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	vnics = 1 + bp->rx_nr_rings;
 	max_vnics = bnxt_get_max_func_vnics(bp);
 	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
+
+	/* RSS contexts not a limiting factor */
+	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+		max_rss_ctxs = max_vnics;
 	if (vnics > max_vnics || vnics > max_rss_ctxs) {
 		netdev_warn(bp->dev,
 			    "Not enough resources to support NTUPLE filters, enough resources for up to %d rx rings\n",

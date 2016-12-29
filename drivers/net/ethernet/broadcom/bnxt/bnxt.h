@@ -708,6 +708,7 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_RFS_FLAG	2
 #define BNXT_VNIC_MCAST_FLAG	4
 #define BNXT_VNIC_UCAST_FLAG	8
+#define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
 };
 
 #if defined(CONFIG_BNXT_SRIOV)
