@@ -877,6 +877,26 @@ int i915_switch_context(struct drm_i915_gem_request *req)
 	return do_rcs_switch(req);
 }
 
+static bool engine_has_kernel_context(struct intel_engine_cs *engine)
+{
+	struct i915_gem_timeline *timeline;
+
+	list_for_each_entry(timeline, &engine->i915->gt.timelines, link) {
+		struct intel_timeline *tl;
+
+		if (timeline == &engine->i915->gt.global_timeline)
+			continue;
+
+		tl = &timeline->engine[engine->id];
+		if (i915_gem_active_peek(&tl->last_request,
+					 &engine->i915->drm.struct_mutex))
+			return false;
+	}
+
+	return (!engine->last_retired_context ||
+		i915_gem_context_is_kernel(engine->last_retired_context));
+}
+
 int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
@@ -885,9 +905,14 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
+	i915_gem_retire_requests(dev_priv);
+
 	for_each_engine(engine, dev_priv, id) {
 		struct drm_i915_gem_request *req;
 		int ret;
+
+		if (engine_has_kernel_context(engine))
+			continue;
 
 		req = i915_gem_request_alloc(engine, dev_priv->kernel_context);
 		if (IS_ERR(req))

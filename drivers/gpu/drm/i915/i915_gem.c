@@ -4140,7 +4140,8 @@ static void assert_kernel_context_is_current(struct drm_i915_private *dev_priv)
 	enum intel_engine_id id;
 
 	for_each_engine(engine, dev_priv, id)
-		GEM_BUG_ON(!i915_gem_context_is_kernel(engine->last_retired_context));
+		GEM_BUG_ON(engine->last_retired_context &&
+			   !i915_gem_context_is_kernel(engine->last_retired_context));
 }
 
 int i915_gem_suspend(struct drm_i915_private *dev_priv)
