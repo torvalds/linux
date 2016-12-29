@@ -315,7 +315,7 @@ struct drm_crtc_funcs {
 	 *
 	 * This is the main legacy entry point to change the modeset state on a
 	 * CRTC. All the details of the desired configuration are passed in a
-	 * struct &drm_mode_set - see there for details.
+	 * &struct drm_mode_set - see there for details.
 	 *
 	 * Drivers implementing atomic modeset should use
 	 * drm_atomic_helper_set_config() to implement this hook.
@@ -346,7 +346,7 @@ struct drm_crtc_funcs {
 	 * shared dma-buf.
 	 *
 	 * An application can request to be notified when the page flip has
-	 * completed. The drm core will supply a struct &drm_event in the event
+	 * completed. The drm core will supply a &struct drm_event in the event
 	 * parameter in this case. This can be handled by the
 	 * drm_crtc_send_vblank_event() function, which the driver should call on
 	 * the provided event upon completion of the flip. Note that if
@@ -431,7 +431,7 @@ struct drm_crtc_funcs {
 	 * &drm_mode_config_funcs) will be cleaned up by calling the
 	 * @atomic_destroy_state hook in this structure.
 	 *
-	 * Atomic drivers which don't subclass struct &drm_crtc should use
+	 * Atomic drivers which don't subclass &struct drm_crtc should use
 	 * drm_atomic_helper_crtc_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
 	 * __drm_atomic_helper_crtc_duplicate_state() to make sure shared state is
@@ -583,7 +583,7 @@ struct drm_crtc_funcs {
 	/**
 	 * @atomic_print_state:
 	 *
-	 * If driver subclasses struct &drm_crtc_state, it should implement
+	 * If driver subclasses &struct drm_crtc_state, it should implement
 	 * this optional hook for printing additional driver specific state.
 	 *
 	 * Do not call this directly, use drm_atomic_crtc_print_state()

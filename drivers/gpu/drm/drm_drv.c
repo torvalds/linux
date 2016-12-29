@@ -298,7 +298,7 @@ void drm_minor_release(struct drm_minor *minor)
 /**
  * DOC: driver instance overview
  *
- * A device instance for a drm driver is represented by struct &drm_device. This
+ * A device instance for a drm driver is represented by &struct drm_device. This
  * is allocated with drm_dev_alloc(), usually from bus-specific ->probe()
  * callbacks implemented by the driver. The driver then needs to initialize all
  * the various subsystems for the drm device like memory management, vblank
@@ -323,7 +323,7 @@ void drm_minor_release(struct drm_minor *minor)
  * historical baggage. Hence use the reference counting provided by
  * drm_dev_ref() and drm_dev_unref() only carefully.
  *
- * It is recommended that drivers embed struct &drm_device into their own device
+ * It is recommended that drivers embed &struct drm_device into their own device
  * structure, which is supported through drm_dev_init().
  */
 
@@ -461,8 +461,8 @@ static void drm_fs_inode_free(struct inode *inode)
  * Note that for purely virtual devices @parent can be NULL.
  *
  * Drivers that do not want to allocate their own device struct
- * embedding struct &drm_device can call drm_dev_alloc() instead. For drivers
- * that do embed struct &drm_device it must be placed first in the overall
+ * embedding &struct drm_device can call drm_dev_alloc() instead. For drivers
+ * that do embed &struct drm_device it must be placed first in the overall
  * structure, and the overall structure must be allocated using kmalloc(): The
  * drm core's release function unconditionally calls kfree() on the @dev pointer
  * when the final reference is released.
@@ -568,7 +568,7 @@ EXPORT_SYMBOL(drm_dev_init);
  *
  * Note that for purely virtual devices @parent can be NULL.
  *
- * Drivers that wish to subclass or embed struct &drm_device into their
+ * Drivers that wish to subclass or embed &struct drm_device into their
  * own struct should look at using drm_dev_init() instead.
  *
  * RETURNS:

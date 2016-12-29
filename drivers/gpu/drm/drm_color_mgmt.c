@@ -36,7 +36,7 @@
  * "DEGAMMA_LUT”:
  *	Blob property to set the degamma lookup table (LUT) mapping pixel data
  *	from the framebuffer before it is given to the transformation matrix.
- *	The data is interpreted as an array of struct &drm_color_lut elements.
+ *	The data is interpreted as an array of &struct drm_color_lut elements.
  *	Hardware might choose not to use the full precision of the LUT elements
  *	nor use all the elements of the LUT (for example the hardware might
  *	choose to interpolate between LUT[0] and LUT[4]).
@@ -65,7 +65,7 @@
  * “GAMMA_LUT”:
  *	Blob property to set the gamma lookup table (LUT) mapping pixel data
  *	after the transformation matrix to data sent to the connector. The
- *	data is interpreted as an array of struct &drm_color_lut elements.
+ *	data is interpreted as an array of &struct drm_color_lut elements.
  *	Hardware might choose not to use the full precision of the LUT elements
  *	nor use all the elements of the LUT (for example the hardware might
  *	choose to interpolate between LUT[0] and LUT[4]).

@@ -33,7 +33,7 @@
 /**
  * DOC: overview
  *
- * struct &drm_bridge represents a device that hangs on to an encoder. These are
+ * &struct drm_bridge represents a device that hangs on to an encoder. These are
  * handy when a regular &drm_encoder entity isn't enough to represent the entire
  * encoder chain.
  *
@@ -55,7 +55,7 @@
  * just provide additional hooks to get the desired output at the end of the
  * encoder chain.
  *
- * Bridges can also be chained up using the next pointer in struct &drm_bridge.
+ * Bridges can also be chained up using the next pointer in &struct drm_bridge.
  *
  * Both legacy CRTC helpers and the new atomic modeset helpers support bridges.
  */

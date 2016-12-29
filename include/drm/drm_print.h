@@ -80,7 +80,7 @@ void drm_printf(struct drm_printer *p, const char *f, ...);
 
 /**
  * drm_seq_file_printer - construct a &drm_printer that outputs to &seq_file
- * @f:  the struct &seq_file to output to
+ * @f:  the &struct seq_file to output to
  *
  * RETURNS:
  * The &drm_printer object
@@ -96,7 +96,7 @@ static inline struct drm_printer drm_seq_file_printer(struct seq_file *f)
 
 /**
  * drm_info_printer - construct a &drm_printer that outputs to dev_printk()
- * @dev: the struct &device pointer
+ * @dev: the &struct device pointer
  *
  * RETURNS:
  * The &drm_printer object

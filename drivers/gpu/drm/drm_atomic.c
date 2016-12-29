@@ -1882,7 +1882,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
  * for any pending rendering to complete. For shared buffers represented with
- * a struct &dma_buf this is tracked in &reservation_object structures.
+ * a &struct dma_buf this is tracked in &reservation_object structures.
  * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
  * whereas explicit fencing is what Android wants.
  *
@@ -1898,7 +1898,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	it will only check if the Sync File is a valid one.
  *
  *	On the driver side the fence is stored on the @fence parameter of
- *	struct &drm_plane_state. Drivers which also support implicit fencing
+ *	&struct drm_plane_state. Drivers which also support implicit fencing
  *	should set the implicit fence using drm_atomic_set_fence_for_plane(),
  *	to make sure there's consistent behaviour between drivers in precedence
  *	of implicit vs. explicit fencing.
@@ -1917,7 +1917,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	DRM_MODE_ATOMIC_TEST_ONLY flag the out fence will also be set to -1.
  *
  *	Note that out-fences don't have a special interface to drivers and are
- *	internally represented by a struct &drm_pending_vblank_event in struct
+ *	internally represented by a &struct drm_pending_vblank_event in struct
  *	&drm_crtc_state, which is also used by the nonblocking atomic commit
  *	helpers and for the DRM event handling for existing userspace.
  */

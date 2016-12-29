@@ -273,7 +273,7 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
  * @plane: Which plane
  * @state: Plane state attach fence to
  *
- * This should be put into prepare_fb hook of struct &drm_plane_helper_funcs .
+ * This should be put into prepare_fb hook of &struct drm_plane_helper_funcs .
  *
  * This function checks if the plane FB has an dma-buf attached, extracts
  * the exclusive fence and attaches it to plane state for the atomic helper

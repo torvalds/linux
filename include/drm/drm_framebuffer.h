@@ -51,7 +51,7 @@ struct drm_framebuffer_funcs {
 	 * @create_handle:
 	 *
 	 * Create a buffer handle in the driver-specific buffer manager (either
-	 * GEM or TTM) valid for the passed-in struct &drm_file. This is used by
+	 * GEM or TTM) valid for the passed-in &struct drm_file. This is used by
 	 * the core to implement the GETFB IOCTL, which returns (for
 	 * sufficiently priviledged user) also a native buffer handle. This can
 	 * be used for seamless transitions between modesetting clients by
@@ -149,7 +149,7 @@ struct drm_framebuffer {
 	 *
 	 * This should not be used to specifiy x/y pixel offsets into the buffer
 	 * data (even for linear buffers). Specifying an x/y pixel offset is
-	 * instead done through the source rectangle in struct &drm_plane_state.
+	 * instead done through the source rectangle in &struct drm_plane_state.
 	 */
 	unsigned int offsets[4];
 	/**
@@ -187,7 +187,7 @@ struct drm_framebuffer {
 	 */
 	int hot_y;
 	/**
-	 * @filp_head: Placed on struct &drm_file fbs list_head, protected by
+	 * @filp_head: Placed on &struct drm_file fbs list_head, protected by
 	 * fbs_lock in the same structure.
 	 */
 	struct list_head filp_head;

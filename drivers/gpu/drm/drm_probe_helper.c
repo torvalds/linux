@@ -55,7 +55,7 @@
  * handling code to avoid probing unrelated outputs.
  *
  * The probe helpers share the function table structures with other display
- * helper libraries. See struct &drm_connector_helper_funcs for the details.
+ * helper libraries. See &struct drm_connector_helper_funcs for the details.
  */
 
 static bool drm_kms_helper_poll = true;

@@ -982,7 +982,7 @@ static void send_vblank_event(struct drm_device *dev,
  * period. This helper function implements exactly the required vblank arming
  * behaviour.
  *
- * NOTE: Drivers using this to send out the event in struct &drm_crtc_state
+ * NOTE: Drivers using this to send out the event in &struct drm_crtc_state
  * as part of an atomic commit must ensure that the next vblank happens at
  * exactly the same time as the atomic commit is committed to the hardware. This
  * function itself does **not** protect again the next vblank interrupt racing

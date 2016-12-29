@@ -98,7 +98,7 @@ struct drm_bridge_funcs {
 	 * preceding element is a bridge this means it's called before that
 	 * bridge's ->disable() function. If the preceding element is a
 	 * &drm_encoder it's called right before the encoder's ->disable(),
-	 * ->prepare() or ->dpms() hook from struct &drm_encoder_helper_funcs.
+	 * ->prepare() or ->dpms() hook from &struct drm_encoder_helper_funcs.
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
@@ -115,7 +115,7 @@ struct drm_bridge_funcs {
 	 * preceding element is a bridge this means it's called after that
 	 * bridge's ->post_disable() function. If the preceding element is a
 	 * &drm_encoder it's called right after the encoder's ->disable(),
-	 * ->prepare() or ->dpms() hook from struct &drm_encoder_helper_funcs.
+	 * ->prepare() or ->dpms() hook from &struct drm_encoder_helper_funcs.
 	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
 	 * singals) feeding it is no longer running when this callback is
@@ -144,7 +144,7 @@ struct drm_bridge_funcs {
 	 * preceding element is a bridge this means it's called before that
 	 * bridge's ->pre_enable() function. If the preceding element is a
 	 * &drm_encoder it's called right before the encoder's ->enable(),
-	 * ->commit() or ->dpms() hook from struct &drm_encoder_helper_funcs.
+	 * ->commit() or ->dpms() hook from &struct drm_encoder_helper_funcs.
 	 *
 	 * The display pipe (i.e. clocks and timing signals) feeding this bridge
 	 * will not yet be running when this callback is called. The bridge must
@@ -163,7 +163,7 @@ struct drm_bridge_funcs {
 	 * preceding element is a bridge this means it's called after that
 	 * bridge's ->enable() function. If the preceding element is a
 	 * &drm_encoder it's called right after the encoder's ->enable(),
-	 * ->commit() or ->dpms() hook from struct &drm_encoder_helper_funcs.
+	 * ->commit() or ->dpms() hook from &struct drm_encoder_helper_funcs.
 	 *
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is running when this callback is called. This

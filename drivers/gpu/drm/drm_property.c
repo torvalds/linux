@@ -34,7 +34,7 @@
  * even the only way to transport metadata about the desired new modeset
  * configuration from userspace to the kernel. Properties have a well-defined
  * value range, which is enforced by the drm core. See the documentation of the
- * flags member of struct &drm_property for an overview of the different
+ * flags member of &struct drm_property for an overview of the different
  * property types and ranges.
  *
  * Properties don't store the current value directly, but need to be

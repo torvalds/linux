@@ -398,7 +398,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  * drm_atomic_crtc_needs_modeset - compute combined modeset need
  * @state: &drm_crtc_state for the CRTC
  *
- * To give drivers flexibility struct &drm_crtc_state has 3 booleans to track
+ * To give drivers flexibility &struct drm_crtc_state has 3 booleans to track
  * whether the state CRTC changed enough to need a full modeset cycle:
  * connectors_changed, mode_changed and active_changed. This helper simply
  * combines these three to compute the overall need for a modeset for @state.
