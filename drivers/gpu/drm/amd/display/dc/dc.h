@@ -32,8 +32,8 @@
 #include "gpio_types.h"
 #include "link_service_types.h"
 
-#define MAX_TARGETS 6
 #define MAX_SURFACES 3
+#define MAX_STREAMS 6
 #define MAX_SINKS_PER_LINK 4
 
 /*******************************************************************************
@@ -41,7 +41,7 @@
  ******************************************************************************/
 
 struct dc_caps {
-	uint32_t max_targets;
+	uint32_t max_streams;
 	uint32_t max_links;
 	uint32_t max_audios;
 	uint32_t max_slave_planes;
@@ -139,7 +139,6 @@ struct dc_config {
 struct dc_debug {
 	bool surface_visual_confirm;
 	bool max_disp_clk;
-	bool target_trace;
 	bool surface_trace;
 	bool timing_trace;
 	bool validation_trace;
@@ -351,134 +350,33 @@ void dc_flip_surface_addrs(struct dc *dc,
 		uint32_t count);
 
 /*
- * Set up surface attributes and associate to a target
- * The surfaces parameter is an absolute set of all surface active for the target.
- * If no surfaces are provided, the target will be blanked; no memory read.
+ * Set up surface attributes and associate to a stream
+ * The surfaces parameter is an absolute set of all surface active for the stream.
+ * If no surfaces are provided, the stream will be blanked; no memory read.
  * Any flip related attribute changes must be done through this interface.
  *
  * After this call:
- *   Surfaces attributes are programmed and configured to be composed into target.
+ *   Surfaces attributes are programmed and configured to be composed into stream.
  *   This does not trigger a flip.  No surface address is programmed.
  */
 
-bool dc_commit_surfaces_to_target(
+bool dc_commit_surfaces_to_stream(
 		struct dc *dc,
 		const struct dc_surface **dc_surfaces,
 		uint8_t surface_count,
-		struct dc_target *dc_target);
+		const struct dc_stream *stream);
 
-bool dc_pre_update_surfaces_to_target(
+bool dc_pre_update_surfaces_to_stream(
 		struct dc *dc,
 		const struct dc_surface *const *new_surfaces,
 		uint8_t new_surface_count,
-		struct dc_target *dc_target);
+		const struct dc_stream *stream);
 
-bool dc_post_update_surfaces_to_target(
+bool dc_post_update_surfaces_to_stream(
 		struct dc *dc);
 
-void dc_update_surfaces_for_target(struct dc *dc, struct dc_surface_update *updates,
-		int surface_count, struct dc_target *dc_target);
-
-/*******************************************************************************
- * Target Interfaces
- ******************************************************************************/
-#define MAX_STREAM_NUM 1
-
-struct dc_target {
-	uint8_t stream_count;
-	const struct dc_stream *streams[MAX_STREAM_NUM];
-};
-
-/*
- * Target status is returned from dc_target_get_status in order to get the
- * the IRQ source, current frame counter and currently attached surfaces.
- */
-struct dc_target_status {
-	int primary_otg_inst;
-	int cur_frame_count;
-	int surface_count;
-	const struct dc_surface *surfaces[MAX_SURFACE_NUM];
-};
-
-struct dc_target *dc_create_target_for_streams(
-		struct dc_stream *dc_streams[],
-		uint8_t stream_count);
-
-/*
- * Get the current target status.
- */
-const struct dc_target_status *dc_target_get_status(
-					const struct dc_target* dc_target);
-
-void dc_target_retain(const struct dc_target *dc_target);
-void dc_target_release(const struct dc_target *dc_target);
-void dc_target_log(
-	const struct dc_target *dc_target,
-	struct dal_logger *dc_logger,
-	enum dc_log_type log_type);
-
-uint8_t dc_get_current_target_count(const struct dc *dc);
-struct dc_target *dc_get_target_at_index(const struct dc *dc, uint8_t i);
-
-bool dc_target_is_connected_to_sink(
-		const struct dc_target *dc_target,
-		const struct dc_sink *dc_sink);
-
-uint32_t dc_target_get_vblank_counter(const struct dc_target *dc_target);
-
-/* TODO: Return parsed values rather than direct register read
- * This has a dependency on the caller (amdgpu_get_crtc_scanoutpos)
- * being refactored properly to be dce-specific
- */
-uint32_t dc_target_get_scanoutpos(
-		const struct dc_target *dc_target,
-		uint32_t *vbl,
-		uint32_t *position);
-
-/*
- * Structure to store surface/target associations for validation
- */
-struct dc_validation_set {
-	const struct dc_target *target;
-	const struct dc_surface *surfaces[MAX_SURFACES];
-	uint8_t surface_count;
-};
-
-/*
- * This function takes a set of resources and checks that they are cofunctional.
- *
- * After this call:
- *   No hardware is programmed for call.  Only validation is done.
- */
-bool dc_validate_resources(
-		const struct dc *dc,
-		const struct dc_validation_set set[],
-		uint8_t set_count);
-
-/*
- * This function takes a target and checks if it is guaranteed to be supported.
- * Guaranteed means that MAX_COFUNC*target is supported.
- *
- * After this call:
- *   No hardware is programmed for call.  Only validation is done.
- */
-
-bool dc_validate_guaranteed(
-		const struct dc *dc,
-		const struct dc_target *dc_target);
-
-/*
- * Set up streams and links associated to targets to drive sinks
- * The targets parameter is an absolute set of all active targets.
- *
- * After this call:
- *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New targets are enabled with blank stream; no memory read.
- */
-bool dc_commit_targets(
-		struct dc *dc,
-		struct dc_target *targets[],
-		uint8_t target_count);
+void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *updates,
+		int surface_count, const struct dc_stream *stream);
 
 /*******************************************************************************
  * Stream Interfaces
@@ -489,7 +387,7 @@ struct dc_stream {
 
 	enum dc_color_space output_color_space;
 
-	struct rect src; /* viewport in target space*/
+	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
 
 	struct audio_info audio_info;
@@ -509,6 +407,74 @@ struct dc_stream {
 	/* TODO: CEA VIC */
 };
 
+/*
+ * Log the current stream state.
+ */
+void dc_stream_log(
+	const struct dc_stream *stream,
+	struct dal_logger *dc_logger,
+	enum dc_log_type log_type);
+
+uint8_t dc_get_current_stream_count(const struct dc *dc);
+struct dc_stream *dc_get_stream_at_index(const struct dc *dc, uint8_t i);
+
+/*
+ * Return the current frame counter.
+ */
+uint32_t dc_stream_get_vblank_counter(const struct dc_stream *stream);
+
+/* TODO: Return parsed values rather than direct register read
+ * This has a dependency on the caller (amdgpu_get_crtc_scanoutpos)
+ * being refactored properly to be dce-specific
+ */
+uint32_t dc_stream_get_scanoutpos(
+		const struct dc_stream *stream, uint32_t *vbl, uint32_t *position);
+
+/*
+ * Structure to store surface/stream associations for validation
+ */
+struct dc_validation_set {
+	const struct dc_stream *stream;
+	const struct dc_surface *surfaces[MAX_SURFACES];
+	uint8_t surface_count;
+};
+
+/*
+ * This function takes a set of resources and checks that they are cofunctional.
+ *
+ * After this call:
+ *   No hardware is programmed for call.  Only validation is done.
+ */
+bool dc_validate_resources(
+		const struct dc *dc,
+		const struct dc_validation_set set[],
+		uint8_t set_count);
+
+/*
+ * This function takes a stream and checks if it is guaranteed to be supported.
+ * Guaranteed means that MAX_COFUNC similar streams are supported.
+ *
+ * After this call:
+ *   No hardware is programmed for call.  Only validation is done.
+ */
+
+bool dc_validate_guaranteed(
+		const struct dc *dc,
+		const struct dc_stream *stream);
+
+/*
+ * Set up streams and links associated to drive sinks
+ * The streams parameter is an absolute set of all active streams.
+ *
+ * After this call:
+ *   Phy, Encoder, Timing Generator are programmed and enabled.
+ *   New streams are enabled with blank stream; no memory read.
+ */
+bool dc_commit_streams(
+		struct dc *dc,
+		const struct dc_stream *streams[],
+		uint8_t stream_count);
+
 /**
  * Create a new default stream for the requested sink
  */
@@ -518,6 +484,10 @@ void dc_stream_retain(const struct dc_stream *dc_stream);
 void dc_stream_release(const struct dc_stream *dc_stream);
 
 struct dc_stream_status {
+	int primary_otg_inst;
+	int surface_count;
+	const struct dc_surface *surfaces[MAX_SURFACE_NUM];
+
 	/*
 	 * link this stream passes through
 	 */
@@ -691,15 +661,15 @@ struct dc_sink_init_data {
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params);
 
 /*******************************************************************************
- * Cursor interfaces - To manages the cursor within a target
+ * Cursor interfaces - To manages the cursor within a stream
  ******************************************************************************/
 /* TODO: Deprecated once we switch to dc_set_cursor_position */
-bool dc_target_set_cursor_attributes(
-	struct dc_target *dc_target,
+bool dc_stream_set_cursor_attributes(
+	const struct dc_stream *stream,
 	const struct dc_cursor_attributes *attributes);
 
-bool dc_target_set_cursor_position(
-	struct dc_target *dc_target,
+bool dc_stream_set_cursor_position(
+	const struct dc_stream *stream,
 	const struct dc_cursor_position *position);
 
 /* Newer interfaces  */
@@ -707,36 +677,6 @@ struct dc_cursor {
 	struct dc_plane_address address;
 	struct dc_cursor_attributes attributes;
 };
-
-/*
- * Create a new cursor with default values for a given target.
- */
-struct dc_cursor *dc_create_cursor_for_target(
-		const struct dc *dc,
-		struct dc_target *dc_target);
-
-/**
- * Commit cursor attribute changes such as pixel format and dimensions and
- * surface address.
- *
- * After this call:
- *   Cursor address and format is programmed to the new values.
- *   Cursor position is unmodified.
- */
-bool dc_commit_cursor(
-		const struct dc *dc,
-		struct dc_cursor *cursor);
-
-/*
- * Optimized cursor position update
- *
- * After this call:
- *   Cursor position will be programmed as well as enable/disable bit.
- */
-bool dc_set_cursor_position(
-		const struct dc *dc,
-		struct dc_cursor *cursor,
-		struct dc_cursor_position *pos);
 
 /*******************************************************************************
  * Interrupt interfaces

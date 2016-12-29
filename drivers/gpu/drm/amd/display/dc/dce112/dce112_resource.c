@@ -779,54 +779,49 @@ static enum dc_status validate_mapped_resource(
 		struct validate_context *context)
 {
 	enum dc_status status = DC_OK;
-	uint8_t i, j, k;
+	uint8_t i, j;
 
-	for (i = 0; i < context->target_count; i++) {
-		struct core_target *target = context->targets[i];
+	for (i = 0; i < context->stream_count; i++) {
+		struct core_stream *stream = context->streams[i];
+		struct core_link *link = stream->sink->link;
 
-		for (j = 0; j < target->public.stream_count; j++) {
-			struct core_stream *stream =
-				DC_STREAM_TO_CORE(target->public.streams[j]);
-			struct core_link *link = stream->sink->link;
+		if (resource_is_stream_unchanged(dc->current_context, stream))
+			continue;
 
-			if (resource_is_stream_unchanged(dc->current_context, stream))
+		for (j = 0; j < MAX_PIPES; j++) {
+			struct pipe_ctx *pipe_ctx =
+				&context->res_ctx.pipe_ctx[j];
+
+			if (context->res_ctx.pipe_ctx[j].stream != stream)
 				continue;
 
-			for (k = 0; k < MAX_PIPES; k++) {
-				struct pipe_ctx *pipe_ctx =
-					&context->res_ctx.pipe_ctx[k];
+			if (!pipe_ctx->tg->funcs->validate_timing(
+				pipe_ctx->tg, &stream->public.timing))
+				return DC_FAIL_CONTROLLER_VALIDATE;
 
-				if (context->res_ctx.pipe_ctx[k].stream != stream)
-					continue;
+			status = dce110_resource_build_pipe_hw_param(pipe_ctx);
 
-				if (!pipe_ctx->tg->funcs->validate_timing(
-						pipe_ctx->tg, &stream->public.timing))
-					return DC_FAIL_CONTROLLER_VALIDATE;
+			if (status != DC_OK)
+				return status;
 
-				status = dce110_resource_build_pipe_hw_param(pipe_ctx);
+			if (!link->link_enc->funcs->validate_output_with_stream(
+				link->link_enc,
+				pipe_ctx))
+				return DC_FAIL_ENC_VALIDATE;
 
-				if (status != DC_OK)
-					return status;
+			/* TODO: validate audio ASIC caps, encoder */
 
-				if (!link->link_enc->funcs->validate_output_with_stream(
-						link->link_enc,
-						pipe_ctx))
-					return DC_FAIL_ENC_VALIDATE;
+			status = dc_link_validate_mode_timing(stream,
+							      link,
+							      &stream->public.timing);
 
-				/* TODO: validate audio ASIC caps, encoder */
+			if (status != DC_OK)
+				return status;
 
-				status = dc_link_validate_mode_timing(stream,
-						link,
-						&stream->public.timing);
+			resource_build_info_frame(pipe_ctx);
 
-				if (status != DC_OK)
-					return status;
-
-				resource_build_info_frame(pipe_ctx);
-
-				/* do not need to validate non root pipes */
-				break;
-			}
+			/* do not need to validate non root pipes */
+			break;
 		}
 	}
 
@@ -917,45 +912,40 @@ enum dc_status resource_map_phy_clock_resources(
 		const struct core_dc *dc,
 		struct validate_context *context)
 {
-	uint8_t i, j, k;
+	uint8_t i, j;
 
 	/* acquire new resources */
-	for (i = 0; i < context->target_count; i++) {
-		struct core_target *target = context->targets[i];
+	for (i = 0; i < context->stream_count; i++) {
+		struct core_stream *stream = context->streams[i];
 
-		for (j = 0; j < target->public.stream_count; j++) {
-			struct core_stream *stream =
-				DC_STREAM_TO_CORE(target->public.streams[j]);
+		if (resource_is_stream_unchanged(dc->current_context, stream))
+			continue;
 
-			if (resource_is_stream_unchanged(dc->current_context, stream))
+		for (j = 0; j < MAX_PIPES; j++) {
+			struct pipe_ctx *pipe_ctx =
+				&context->res_ctx.pipe_ctx[j];
+
+			if (context->res_ctx.pipe_ctx[j].stream != stream)
 				continue;
 
-			for (k = 0; k < MAX_PIPES; k++) {
-				struct pipe_ctx *pipe_ctx =
-					&context->res_ctx.pipe_ctx[k];
+			if (dc_is_dp_signal(pipe_ctx->stream->signal)
+				|| pipe_ctx->stream->signal == SIGNAL_TYPE_VIRTUAL)
+				pipe_ctx->clock_source =
+					context->res_ctx.pool->dp_clock_source;
+			else
+				pipe_ctx->clock_source =
+					find_matching_pll(&context->res_ctx,
+							  stream);
 
-				if (context->res_ctx.pipe_ctx[k].stream != stream)
-					continue;
+			if (pipe_ctx->clock_source == NULL)
+				return DC_NO_CLOCK_SOURCE_RESOURCE;
 
-				if (dc_is_dp_signal(pipe_ctx->stream->signal)
-					|| pipe_ctx->stream->signal == SIGNAL_TYPE_VIRTUAL)
-					pipe_ctx->clock_source =
-						context->res_ctx.pool->dp_clock_source;
-				else
-					pipe_ctx->clock_source =
-							find_matching_pll(&context->res_ctx,
-									stream);
+			resource_reference_clock_source(
+				&context->res_ctx,
+				pipe_ctx->clock_source);
 
-				if (pipe_ctx->clock_source == NULL)
-					return DC_NO_CLOCK_SOURCE_RESOURCE;
-
-				resource_reference_clock_source(
-						&context->res_ctx,
-						pipe_ctx->clock_source);
-
-				/* only one cs per stream regardless of mpo */
-				break;
-			}
+			/* only one cs per stream regardless of mpo */
+			break;
 		}
 	}
 
@@ -976,9 +966,9 @@ static bool dce112_validate_surface_sets(
 			return false;
 
 		if (set[i].surfaces[0]->clip_rect.width
-				!= set[i].target->streams[0]->src.width
+				!= set[i].stream->src.width
 				|| set[i].surfaces[0]->clip_rect.height
-				!= set[i].target->streams[0]->src.height)
+				!= set[i].stream->src.height)
 			return false;
 		if (set[i].surfaces[0]->format
 				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
@@ -1004,9 +994,9 @@ enum dc_status dce112_validate_with_context(
 	context->res_ctx.pool = dc->res_pool;
 
 	for (i = 0; i < set_count; i++) {
-		context->targets[i] = DC_TARGET_TO_CORE(set[i].target);
-		dc_target_retain(&context->targets[i]->public);
-		context->target_count++;
+		context->streams[i] = DC_STREAM_TO_CORE(set[i].stream);
+		dc_stream_retain(&context->streams[i]->public);
+		context->stream_count++;
 	}
 
 	result = resource_map_pool_resources(dc, context);
@@ -1016,7 +1006,7 @@ enum dc_status dce112_validate_with_context(
 
 	if (!resource_validate_attach_surfaces(
 			set, set_count, dc->current_context, context)) {
-		DC_ERROR("Failed to attach surface to target!\n");
+		DC_ERROR("Failed to attach surface to stream!\n");
 		return DC_FAIL_ATTACH_SURFACES;
 	}
 
@@ -1034,16 +1024,16 @@ enum dc_status dce112_validate_with_context(
 
 enum dc_status dce112_validate_guaranteed(
 		const struct core_dc *dc,
-		const struct dc_target *dc_target,
+		const struct dc_stream *dc_stream,
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 
 	context->res_ctx.pool = dc->res_pool;
 
-	context->targets[0] = DC_TARGET_TO_CORE(dc_target);
-	dc_target_retain(&context->targets[0]->public);
-	context->target_count++;
+	context->streams[0] = DC_STREAM_TO_CORE(dc_stream);
+	dc_stream_retain(&context->streams[0]->public);
+	context->stream_count++;
 
 	result = resource_map_pool_resources(dc, context);
 
@@ -1054,8 +1044,8 @@ enum dc_status dce112_validate_guaranteed(
 		result = validate_mapped_resource(dc, context);
 
 	if (result == DC_OK) {
-		validate_guaranteed_copy_target(
-				context, dc->public.caps.max_targets);
+		validate_guaranteed_copy_streams(
+				context, dc->public.caps.max_streams);
 		result = resource_build_scaling_params_for_context(dc, context);
 	}
 

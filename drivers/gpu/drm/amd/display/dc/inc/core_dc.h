@@ -21,7 +21,6 @@ struct core_dc {
 	uint8_t link_count;
 	struct core_link *links[MAX_PIPES * 2];
 
-	/* TODO: determine max number of targets*/
 	struct validate_context *current_context;
 	struct validate_context *temp_flip_context;
 	struct validate_context *scratch_val_ctx;

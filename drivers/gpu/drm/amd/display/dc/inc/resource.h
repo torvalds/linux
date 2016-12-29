@@ -118,25 +118,26 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 bool resource_attach_surfaces_to_context(
 		const struct dc_surface *const *surfaces,
 		int surface_count,
-		const struct dc_target *dc_target,
+		const struct dc_stream *dc_stream,
 		struct validate_context *context);
 
 struct pipe_ctx *find_idle_secondary_pipe(struct resource_context *res_ctx);
 
 bool resource_is_stream_unchanged(
-	const struct validate_context *old_context, struct core_stream *stream);
+	const struct validate_context *old_context, const struct core_stream *stream);
 
-bool is_target_unchanged(
-	const struct core_target *old_target, const struct core_target *target);
+bool is_stream_unchanged(
+	const struct core_stream *old_stream, const struct core_stream *stream);
+
 bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],
 		int set_count,
 		const struct validate_context *old_context,
 		struct validate_context *context);
 
-void validate_guaranteed_copy_target(
+void validate_guaranteed_copy_streams(
 		struct validate_context *context,
-		int max_targets);
+		int max_streams);
 
 void resource_validate_ctx_update_pointer_after_copy(
 		const struct validate_context *src_ctx,

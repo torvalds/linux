@@ -34,7 +34,6 @@
 
 /* forward declarations */
 struct dc_surface;
-struct dc_target;
 struct dc_stream;
 struct dc_link;
 struct dc_sink;

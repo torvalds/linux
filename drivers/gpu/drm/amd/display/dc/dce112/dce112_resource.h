@@ -43,7 +43,7 @@ enum dc_status dce112_validate_with_context(
 
 enum dc_status dce112_validate_guaranteed(
 		const struct core_dc *dc,
-		const struct dc_target *dc_target,
+		const struct dc_stream *dc_stream,
 		struct validate_context *context);
 
 enum dc_status dce112_validate_bandwidth(

@@ -120,14 +120,14 @@ static void dm_set_cursor(
 	position.x_hotspot = xorigin;
 	position.y_hotspot = yorigin;
 
-	if (!dc_target_set_cursor_attributes(
-				amdgpu_crtc->target,
+	if (!dc_stream_set_cursor_attributes(
+				amdgpu_crtc->stream,
 				&attributes)) {
 		DRM_ERROR("DC failed to set cursor attributes\n");
 	}
 
-	if (!dc_target_set_cursor_position(
-				amdgpu_crtc->target,
+	if (!dc_stream_set_cursor_position(
+				amdgpu_crtc->stream,
 				&position)) {
 		DRM_ERROR("DC failed to set cursor position\n");
 	}
@@ -260,10 +260,10 @@ static int dm_crtc_cursor_set(
 		position.y = 0;
 		position.hot_spot_enable = false;
 
-		if (amdgpu_crtc->target) {
+		if (amdgpu_crtc->stream) {
 			/*set cursor visible false*/
-			dc_target_set_cursor_position(
-				amdgpu_crtc->target,
+			dc_stream_set_cursor_position(
+				amdgpu_crtc->stream,
 				&position);
 		}
 		/*unpin old cursor buffer and update cache*/
@@ -346,9 +346,9 @@ static int dm_crtc_cursor_move(struct drm_crtc *crtc,
 	position.x_hotspot = xorigin;
 	position.y_hotspot = yorigin;
 
-	if (amdgpu_crtc->target) {
-		if (!dc_target_set_cursor_position(
-					amdgpu_crtc->target,
+	if (amdgpu_crtc->stream) {
+		if (!dc_stream_set_cursor_position(
+					amdgpu_crtc->stream,
 					&position)) {
 			DRM_ERROR("DC failed to set cursor position\n");
 			return -EINVAL;
@@ -367,7 +367,7 @@ static void dm_crtc_cursor_reset(struct drm_crtc *crtc)
 		__func__,
 		amdgpu_crtc->cursor_bo);
 
-	if (amdgpu_crtc->cursor_bo && amdgpu_crtc->target) {
+	if (amdgpu_crtc->cursor_bo && amdgpu_crtc->stream) {
 		dm_set_cursor(
 		amdgpu_crtc,
 		amdgpu_crtc->cursor_addr,
@@ -635,7 +635,7 @@ static void update_stream_scaling_settings(
 	struct amdgpu_device *adev = dm_state->base.crtc->dev->dev_private;
 	enum amdgpu_rmx_type rmx_type;
 
-	struct rect src = { 0 }; /* viewport in target space*/
+	struct rect src = { 0 }; /* viewport in composition space*/
 	struct rect dst = { 0 }; /* stream addressable area */
 
 	/* Full screen scaling by default */
@@ -684,11 +684,11 @@ static void dm_dc_surface_commit(
 	struct dc_surface *dc_surface;
 	const struct dc_surface *dc_surfaces[1];
 	const struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
-	struct dc_target *dc_target = acrtc->target;
+	const struct dc_stream *dc_stream = acrtc->stream;
 
-	if (!dc_target) {
+	if (!dc_stream) {
 		dm_error(
-			"%s: Failed to obtain target on crtc (%d)!\n",
+			"%s: Failed to obtain stream on crtc (%d)!\n",
 			__func__,
 			acrtc->crtc_id);
 		goto fail;
@@ -712,11 +712,11 @@ static void dm_dc_surface_commit(
 
 	dc_surfaces[0] = dc_surface;
 
-	if (false == dc_commit_surfaces_to_target(
+	if (false == dc_commit_surfaces_to_stream(
 			dc,
 			dc_surfaces,
 			1,
-			dc_target)) {
+			dc_stream)) {
 		dm_error(
 			"%s: Failed to attach surface!\n",
 			__func__);
@@ -957,15 +957,14 @@ static void decide_crtc_timing_for_drm_display_mode(
 	}
 }
 
-static struct dc_target *create_target_for_sink(
+static struct dc_stream *create_stream_for_sink(
 		const struct amdgpu_connector *aconnector,
 		const struct drm_display_mode *drm_mode,
 		const struct dm_connector_state *dm_state)
 {
 	struct drm_display_mode *preferred_mode = NULL;
 	const struct drm_connector *drm_connector;
-	struct dc_target *target = NULL;
-	struct dc_stream *stream;
+	struct dc_stream *stream = NULL;
 	struct drm_display_mode mode = *drm_mode;
 	bool native_mode_found = false;
 
@@ -1022,19 +1021,10 @@ static struct dc_target *create_target_for_sink(
 		drm_connector,
 		aconnector->dc_sink);
 
-	target = dc_create_target_for_streams(&stream, 1);
-	dc_stream_release(stream);
-
-	if (NULL == target) {
-		DRM_ERROR("Failed to create target with streams!\n");
-		goto target_create_fail;
-	}
-
+stream_create_fail:
 dm_state_null:
 drm_connector_null:
-target_create_fail:
-stream_create_fail:
-	return target;
+	return stream;
 }
 
 void amdgpu_dm_crtc_destroy(struct drm_crtc *crtc)
@@ -1316,8 +1306,7 @@ int amdgpu_dm_connector_mode_valid(
 	struct amdgpu_device *adev = connector->dev->dev_private;
 	struct dc_validation_set val_set = { 0 };
 	/* TODO: Unhardcode stream count */
-	struct dc_stream *streams[1];
-	struct dc_target *target;
+	struct dc_stream *stream;
 	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
@@ -1335,39 +1324,31 @@ int amdgpu_dm_connector_mode_valid(
 
 	if (NULL == dc_sink) {
 		DRM_ERROR("dc_sink is NULL!\n");
-		goto stream_create_fail;
+		goto null_sink;
 	}
 
-	streams[0] = dc_create_stream_for_sink(dc_sink);
-
-	if (NULL == streams[0]) {
+	stream = dc_create_stream_for_sink(dc_sink);
+	if (NULL == stream) {
 		DRM_ERROR("Failed to create stream for sink!\n");
 		goto stream_create_fail;
 	}
 
 	drm_mode_set_crtcinfo(mode, 0);
-	fill_stream_properties_from_drm_display_mode(streams[0], mode, connector);
+	fill_stream_properties_from_drm_display_mode(stream, mode, connector);
 
-	target = dc_create_target_for_streams(streams, 1);
-	val_set.target = target;
-
-	if (NULL == val_set.target) {
-		DRM_ERROR("Failed to create target with stream!\n");
-		goto target_create_fail;
-	}
-
+	val_set.stream = stream;
 	val_set.surface_count = 0;
-	streams[0]->src.width = mode->hdisplay;
-	streams[0]->src.height = mode->vdisplay;
-	streams[0]->dst = streams[0]->src;
+	stream->src.width = mode->hdisplay;
+	stream->src.height = mode->vdisplay;
+	stream->dst = stream->src;
 
 	if (dc_validate_resources(adev->dm.dc, &val_set, 1))
 		result = MODE_OK;
 
-	dc_target_release(target);
-target_create_fail:
-	dc_stream_release(streams[0]);
+	dc_stream_release(stream);
+
 stream_create_fail:
+null_sink:
 	/* TODO: error handling*/
 	return result;
 }
@@ -1562,15 +1543,14 @@ static void dm_plane_helper_cleanup_fb(
 	}
 }
 
-int dm_create_validation_set_for_target(struct drm_connector *connector,
+int dm_create_validation_set_for_connector(struct drm_connector *connector,
 		struct drm_display_mode *mode, struct dc_validation_set *val_set)
 {
 	int result = MODE_ERROR;
 	const struct dc_sink *dc_sink =
 			to_amdgpu_connector(connector)->dc_sink;
 	/* TODO: Unhardcode stream count */
-	struct dc_stream *streams[1];
-	struct dc_target *target;
+	struct dc_stream *stream;
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 			(mode->flags & DRM_MODE_FLAG_DBLSCAN))
@@ -1581,35 +1561,24 @@ int dm_create_validation_set_for_target(struct drm_connector *connector,
 		return result;
 	}
 
-	streams[0] = dc_create_stream_for_sink(dc_sink);
+	stream = dc_create_stream_for_sink(dc_sink);
 
-	if (NULL == streams[0]) {
+	if (NULL == stream) {
 		DRM_ERROR("Failed to create stream for sink!\n");
 		return result;
 	}
 
 	drm_mode_set_crtcinfo(mode, 0);
 
-	fill_stream_properties_from_drm_display_mode(streams[0], mode, connector);
+	fill_stream_properties_from_drm_display_mode(stream, mode, connector);
 
-	target = dc_create_target_for_streams(streams, 1);
-	val_set->target = target;
+	val_set->stream = stream;
 
-	if (NULL == val_set->target) {
-		DRM_ERROR("Failed to create target with stream!\n");
-		goto fail;
-	}
-
-	streams[0]->src.width = mode->hdisplay;
-	streams[0]->src.height = mode->vdisplay;
-	streams[0]->dst = streams[0]->src;
+	stream->src.width = mode->hdisplay;
+	stream->src.height = mode->vdisplay;
+	stream->dst = stream->src;
 
 	return MODE_OK;
-
-fail:
-	dc_stream_release(streams[0]);
-	return result;
-
 }
 
 static const struct drm_plane_helper_funcs dm_plane_helper_funcs = {
@@ -2262,23 +2231,21 @@ static bool is_scaling_state_different(
 	return false;
 }
 
-static void remove_target(struct amdgpu_device *adev, struct amdgpu_crtc *acrtc)
+static void remove_stream(struct amdgpu_device *adev, struct amdgpu_crtc *acrtc)
 {
-	int i;
-
 	/*
 	 * we evade vblanks and pflips on crtc that
 	 * should be changed
 	 */
 	manage_dm_interrupts(adev, acrtc, false);
+
 	/* this is the update mode case */
 	if (adev->dm.freesync_module)
-		for (i = 0; i < acrtc->target->stream_count; i++)
-			mod_freesync_remove_stream(
-					adev->dm.freesync_module,
-					acrtc->target->streams[i]);
-	dc_target_release(acrtc->target);
-	acrtc->target = NULL;
+		mod_freesync_remove_stream(adev->dm.freesync_module,
+					   acrtc->stream);
+
+	dc_stream_release(acrtc->stream);
+	acrtc->stream = NULL;
 	acrtc->otg_inst = -1;
 	acrtc->enabled = false;
 }
@@ -2293,20 +2260,20 @@ int amdgpu_dm_atomic_commit(
 	struct drm_plane *plane;
 	struct drm_plane_state *new_plane_state;
 	struct drm_plane_state *old_plane_state;
-	uint32_t i, j;
+	uint32_t i;
 	int32_t ret = 0;
-	uint32_t commit_targets_count = 0;
+	uint32_t commit_streams_count = 0;
 	uint32_t new_crtcs_count = 0;
 	uint32_t flip_crtcs_count = 0;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 
-	struct dc_target *commit_targets[MAX_TARGETS];
-	struct amdgpu_crtc *new_crtcs[MAX_TARGETS];
-	struct dc_target *new_target;
-	struct drm_crtc *flip_crtcs[MAX_TARGETS];
-	struct amdgpu_flip_work *work[MAX_TARGETS] = {0};
-	struct amdgpu_bo *new_abo[MAX_TARGETS] = {0};
+	const struct dc_stream *commit_streams[MAX_STREAMS];
+	struct amdgpu_crtc *new_crtcs[MAX_STREAMS];
+	const struct dc_stream *new_stream;
+	struct drm_crtc *flip_crtcs[MAX_STREAMS];
+	struct amdgpu_flip_work *work[MAX_STREAMS] = {0};
+	struct amdgpu_bo *new_abo[MAX_STREAMS] = {0};
 
 	/* In this step all new fb would be pinned */
 
@@ -2422,19 +2389,19 @@ int amdgpu_dm_atomic_commit(
 		case DM_COMMIT_ACTION_DPMS_ON:
 		case DM_COMMIT_ACTION_SET: {
 			struct dm_connector_state *dm_state = NULL;
-			new_target = NULL;
+			new_stream = NULL;
 
 			if (aconnector)
 				dm_state = to_dm_connector_state(aconnector->base.state);
 
-			new_target = create_target_for_sink(
+			new_stream = create_stream_for_sink(
 					aconnector,
 					&crtc->state->mode,
 					dm_state);
 
 			DRM_INFO("Atomic commit: SET crtc id %d: [%p]\n", acrtc->crtc_id, acrtc);
 
-			if (!new_target) {
+			if (!new_stream) {
 				/*
 				 * this could happen because of issues with
 				 * userspace notifications delivery.
@@ -2450,23 +2417,23 @@ int amdgpu_dm_atomic_commit(
 				 * have a sink to keep the pipe running so that
 				 * hw state is consistent with the sw state
 				 */
-				DRM_DEBUG_KMS("%s: Failed to create new target for crtc %d\n",
+				DRM_DEBUG_KMS("%s: Failed to create new stream for crtc %d\n",
 						__func__, acrtc->base.base.id);
 				break;
 			}
 
-			if (acrtc->target)
-				remove_target(adev, acrtc);
+			if (acrtc->stream)
+				remove_stream(adev, acrtc);
 
 			/*
 			 * this loop saves set mode crtcs
 			 * we needed to enable vblanks once all
-			 * resources acquired in dc after dc_commit_targets
+			 * resources acquired in dc after dc_commit_streams
 			 */
 			new_crtcs[new_crtcs_count] = acrtc;
 			new_crtcs_count++;
 
-			acrtc->target = new_target;
+			acrtc->stream = new_stream;
 			acrtc->enabled = true;
 			acrtc->hw_mode = crtc->state->mode;
 			crtc->hwmode = crtc->state->mode;
@@ -2483,10 +2450,8 @@ int amdgpu_dm_atomic_commit(
 			dm_state = to_dm_connector_state(aconnector->base.state);
 
 			/* Scaling update */
-			update_stream_scaling_settings(
-					&crtc->state->mode,
-					dm_state,
-					acrtc->target->streams[0]);
+			update_stream_scaling_settings(&crtc->state->mode,
+					dm_state, acrtc->stream);
 
 			break;
 		}
@@ -2494,8 +2459,8 @@ int amdgpu_dm_atomic_commit(
 		case DM_COMMIT_ACTION_RESET:
 			DRM_INFO("Atomic commit: RESET. crtc id %d:[%p]\n", acrtc->crtc_id, acrtc);
 			/* i.e. reset mode */
-			if (acrtc->target)
-				remove_target(adev, acrtc);
+			if (acrtc->stream)
+				remove_stream(adev, acrtc);
 			break;
 		} /* switch() */
 	} /* for_each_crtc_in_state() */
@@ -2504,20 +2469,20 @@ int amdgpu_dm_atomic_commit(
 
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-		if (acrtc->target) {
-			commit_targets[commit_targets_count] = acrtc->target;
-			++commit_targets_count;
+		if (acrtc->stream) {
+			commit_streams[commit_streams_count] = acrtc->stream;
+			++commit_streams_count;
 		}
 	}
 
 	/*
-	 * Add streams after required streams from new and replaced targets
+	 * Add streams after required streams from new and replaced streams
 	 * are removed from freesync module
 	 */
 	if (adev->dm.freesync_module) {
 		for (i = 0; i < new_crtcs_count; i++) {
 			struct amdgpu_connector *aconnector = NULL;
-			new_target = new_crtcs[i]->target;
+			new_stream = new_crtcs[i]->stream;
 			aconnector =
 				amdgpu_dm_find_first_crct_matching_connector(
 					state,
@@ -2531,22 +2496,20 @@ int amdgpu_dm_atomic_commit(
 				continue;
 			}
 
-			for (j = 0; j < new_target->stream_count; j++)
-				mod_freesync_add_stream(
-						adev->dm.freesync_module,
-						new_target->streams[j], &aconnector->caps);
+			mod_freesync_add_stream(adev->dm.freesync_module,
+						new_stream, &aconnector->caps);
 		}
 	}
 
-	/* DC is optimized not to do anything if 'targets' didn't change. */
-	dc_commit_targets(dm->dc, commit_targets, commit_targets_count);
+	/* DC is optimized not to do anything if 'streams' didn't change. */
+	dc_commit_streams(dm->dc, commit_streams, commit_streams_count);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-		if (acrtc->target != NULL)
+		if (acrtc->stream != NULL)
 			acrtc->otg_inst =
-				dc_target_get_status(acrtc->target)->primary_otg_inst;
+				dc_stream_get_status(acrtc->stream)->primary_otg_inst;
 	}
 
 	/* update planes when needed */
@@ -2566,7 +2529,7 @@ int amdgpu_dm_atomic_commit(
 
 		/* Surfaces are created under two scenarios:
 		 * 1. This commit is not a page flip.
-		 * 2. This commit is a page flip, and targets are created.
+		 * 2. This commit is a page flip, and streams are created.
 		 */
 		if (!page_flip_needed(
 				plane_state,
@@ -2618,13 +2581,9 @@ int amdgpu_dm_atomic_commit(
 		 */
 		struct amdgpu_crtc *acrtc = new_crtcs[i];
 
-		if (adev->dm.freesync_module) {
-			for (j = 0; j < acrtc->target->stream_count; j++)
-				mod_freesync_notify_mode_change(
-						adev->dm.freesync_module,
-						acrtc->target->streams,
-						acrtc->target->stream_count);
-		}
+		if (adev->dm.freesync_module)
+			mod_freesync_notify_mode_change(
+				adev->dm.freesync_module, &acrtc->stream, 1);
 
 		manage_dm_interrupts(adev, acrtc, true);
 		dm_crtc_cursor_reset(&acrtc->base);
@@ -2682,20 +2641,19 @@ void dm_restore_drm_connector_state(struct drm_device *dev, struct drm_connector
 	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
 	struct amdgpu_crtc *disconnected_acrtc;
 	const struct dc_sink *sink;
-	struct dc_target *commit_targets[6];
-	struct dc_target *current_target;
-	uint32_t commit_targets_count = 0;
-	int i;
+	const struct dc_stream *commit_streams[MAX_STREAMS];
+	const struct dc_stream *current_stream;
+	uint32_t commit_streams_count = 0;
 
 	if (!aconnector->dc_sink || !connector->state || !connector->encoder)
 		return;
 
 	disconnected_acrtc = to_amdgpu_crtc(connector->encoder->crtc);
 
-	if (!disconnected_acrtc || !disconnected_acrtc->target)
+	if (!disconnected_acrtc || !disconnected_acrtc->stream)
 		return;
 
-	sink = disconnected_acrtc->target->streams[0]->sink;
+	sink = disconnected_acrtc->stream->sink;
 
 	/*
 	 * If the previous sink is not released and different from the current,
@@ -2706,8 +2664,8 @@ void dm_restore_drm_connector_state(struct drm_device *dev, struct drm_connector
 		struct dm_connector_state *dm_state =
 				to_dm_connector_state(aconnector->base.state);
 
-		struct dc_target *new_target =
-			create_target_for_sink(
+		struct dc_stream *new_stream =
+			create_stream_for_sink(
 				aconnector,
 				&disconnected_acrtc->base.state->mode,
 				dm_state);
@@ -2720,56 +2678,51 @@ void dm_restore_drm_connector_state(struct drm_device *dev, struct drm_connector
 		manage_dm_interrupts(adev, disconnected_acrtc, false);
 		/* this is the update mode case */
 
-		current_target = disconnected_acrtc->target;
+		current_stream = disconnected_acrtc->stream;
 
-		disconnected_acrtc->target = new_target;
+		disconnected_acrtc->stream = new_stream;
 		disconnected_acrtc->enabled = true;
 		disconnected_acrtc->hw_mode = disconnected_acrtc->base.state->mode;
 
-		commit_targets_count = 0;
+		commit_streams_count = 0;
 
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-			if (acrtc->target) {
-				commit_targets[commit_targets_count] = acrtc->target;
-				++commit_targets_count;
+			if (acrtc->stream) {
+				commit_streams[commit_streams_count] = acrtc->stream;
+				++commit_streams_count;
 			}
 		}
 
-		/* DC is optimized not to do anything if 'targets' didn't change. */
-		if (!dc_commit_targets(dc, commit_targets,
-				commit_targets_count)) {
+		/* DC is optimized not to do anything if 'streams' didn't change. */
+		if (!dc_commit_streams(dc, commit_streams,
+				commit_streams_count)) {
 			DRM_INFO("Failed to restore connector state!\n");
-			dc_target_release(disconnected_acrtc->target);
-			disconnected_acrtc->target = current_target;
+			dc_stream_release(disconnected_acrtc->stream);
+			disconnected_acrtc->stream = current_stream;
 			manage_dm_interrupts(adev, disconnected_acrtc, true);
 			return;
 		}
 
 		if (adev->dm.freesync_module) {
+			mod_freesync_remove_stream(adev->dm.freesync_module,
+				current_stream);
 
-			for (i = 0; i < current_target->stream_count; i++)
-				mod_freesync_remove_stream(
-						adev->dm.freesync_module,
-						current_target->streams[i]);
-
-			for (i = 0; i < new_target->stream_count; i++)
-				mod_freesync_add_stream(
-						adev->dm.freesync_module,
-						new_target->streams[i],
-						&aconnector->caps);
+			mod_freesync_add_stream(adev->dm.freesync_module,
+						new_stream, &aconnector->caps);
 		}
+
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-			if (acrtc->target != NULL) {
+			if (acrtc->stream != NULL) {
 				acrtc->otg_inst =
-					dc_target_get_status(acrtc->target)->primary_otg_inst;
+					dc_stream_get_status(acrtc->stream)->primary_otg_inst;
 			}
 		}
 
-		dc_target_release(current_target);
+		dc_stream_release(current_stream);
 
 		dm_dc_surface_commit(dc, &disconnected_acrtc->base);
 
@@ -2782,13 +2735,13 @@ void dm_restore_drm_connector_state(struct drm_device *dev, struct drm_connector
 static uint32_t add_val_sets_surface(
 	struct dc_validation_set *val_sets,
 	uint32_t set_count,
-	const struct dc_target *target,
+	const struct dc_stream *stream,
 	const struct dc_surface *surface)
 {
 	uint32_t i = 0;
 
 	while (i < set_count) {
-		if (val_sets[i].target == target)
+		if (val_sets[i].stream == stream)
 			break;
 		++i;
 	}
@@ -2799,23 +2752,23 @@ static uint32_t add_val_sets_surface(
 	return val_sets[i].surface_count;
 }
 
-static uint32_t update_in_val_sets_target(
+static uint32_t update_in_val_sets_stream(
 	struct dc_validation_set *val_sets,
 	struct drm_crtc **crtcs,
 	uint32_t set_count,
-	const struct dc_target *old_target,
-	const struct dc_target *new_target,
+	const struct dc_stream *old_stream,
+	const struct dc_stream *new_stream,
 	struct drm_crtc *crtc)
 {
 	uint32_t i = 0;
 
 	while (i < set_count) {
-		if (val_sets[i].target == old_target)
+		if (val_sets[i].stream == old_stream)
 			break;
 		++i;
 	}
 
-	val_sets[i].target = new_target;
+	val_sets[i].stream = new_stream;
 	crtcs[i] = crtc;
 
 	if (i == set_count) {
@@ -2829,12 +2782,12 @@ static uint32_t update_in_val_sets_target(
 static uint32_t remove_from_val_sets(
 	struct dc_validation_set *val_sets,
 	uint32_t set_count,
-	const struct dc_target *target)
+	const struct dc_stream *stream)
 {
 	int i;
 
 	for (i = 0; i < set_count; i++)
-		if (val_sets[i].target == target)
+		if (val_sets[i].stream == stream)
 			break;
 
 	if (i == set_count) {
@@ -2861,10 +2814,10 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	int i, j;
 	int ret;
 	int set_count;
-	int new_target_count;
-	struct dc_validation_set set[MAX_TARGETS] = {{ 0 }};
-	struct dc_target *new_targets[MAX_TARGETS] = { 0 };
-	struct drm_crtc *crtc_set[MAX_TARGETS] = { 0 };
+	int new_stream_count;
+	struct dc_validation_set set[MAX_STREAMS] = {{ 0 }};
+	struct dc_stream *new_streams[MAX_STREAMS] = { 0 };
+	struct drm_crtc *crtc_set[MAX_STREAMS] = { 0 };
 	struct amdgpu_device *adev = dev->dev_private;
 	struct dc *dc = adev->dm.dc;
 	bool need_to_validate = false;
@@ -2880,14 +2833,14 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	ret = -EINVAL;
 
 	/* copy existing configuration */
-	new_target_count = 0;
+	new_stream_count = 0;
 	set_count = 0;
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 
-		if (acrtc->target) {
-			set[set_count].target = acrtc->target;
+		if (acrtc->stream) {
+			set[set_count].stream = acrtc->stream;
 			crtc_set[set_count] = crtc;
 			++set_count;
 		}
@@ -2908,7 +2861,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		switch (action) {
 		case DM_COMMIT_ACTION_DPMS_ON:
 		case DM_COMMIT_ACTION_SET: {
-			struct dc_target *new_target = NULL;
+			struct dc_stream *new_stream = NULL;
 			struct drm_connector_state *conn_state = NULL;
 			struct dm_connector_state *dm_state = NULL;
 
@@ -2919,30 +2872,30 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 				dm_state = to_dm_connector_state(conn_state);
 			}
 
-			new_target = create_target_for_sink(aconnector, &crtc_state->mode, dm_state);
+			new_stream = create_stream_for_sink(aconnector, &crtc_state->mode, dm_state);
 
 			/*
-			 * we can have no target on ACTION_SET if a display
+			 * we can have no stream on ACTION_SET if a display
 			 * was disconnected during S3, in this case it not and
 			 * error, the OS will be updated after detection, and
 			 * do the right thing on next atomic commit
 			 */
-			if (!new_target) {
-				DRM_DEBUG_KMS("%s: Failed to create new target for crtc %d\n",
+			if (!new_stream) {
+				DRM_DEBUG_KMS("%s: Failed to create new stream for crtc %d\n",
 						__func__, acrtc->base.base.id);
 				break;
 			}
 
-			new_targets[new_target_count] = new_target;
-			set_count = update_in_val_sets_target(
+			new_streams[new_stream_count] = new_stream;
+			set_count = update_in_val_sets_stream(
 					set,
 					crtc_set,
 					set_count,
-					acrtc->target,
-					new_target,
+					acrtc->stream,
+					new_stream,
 					crtc);
 
-			new_target_count++;
+			new_stream_count++;
 			need_to_validate = true;
 			break;
 		}
@@ -2952,7 +2905,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			struct drm_connector_state *conn_state = NULL;
 			struct dm_connector_state *dm_state = NULL;
 			struct dm_connector_state *old_dm_state = NULL;
-			struct dc_target *new_target;
+			struct dc_stream *new_stream;
 
 			if (!aconnector)
 				break;
@@ -2970,24 +2923,24 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			if (!is_scaling_state_different(dm_state, old_dm_state))
 				break;
 
-			new_target = create_target_for_sink(aconnector, &crtc_state->mode, dm_state);
+			new_stream = create_stream_for_sink(aconnector, &crtc_state->mode, dm_state);
 
-			if (!new_target) {
-				DRM_ERROR("%s: Failed to create new target for crtc %d\n",
+			if (!new_stream) {
+				DRM_ERROR("%s: Failed to create new stream for crtc %d\n",
 						__func__, acrtc->base.base.id);
 				break;
 			}
 
-			new_targets[new_target_count] = new_target;
-			set_count = update_in_val_sets_target(
+			new_streams[new_stream_count] = new_stream;
+			set_count = update_in_val_sets_stream(
 					set,
 					crtc_set,
 					set_count,
-					acrtc->target,
-					new_target,
+					acrtc->stream,
+					new_stream,
 					crtc);
 
-			new_target_count++;
+			new_stream_count++;
 			need_to_validate = true;
 
 			break;
@@ -2995,11 +2948,11 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		case DM_COMMIT_ACTION_DPMS_OFF:
 		case DM_COMMIT_ACTION_RESET:
 			/* i.e. reset mode */
-			if (acrtc->target) {
+			if (acrtc->stream) {
 				set_count = remove_from_val_sets(
 						set,
 						set_count,
-						acrtc->target);
+						acrtc->stream);
 			}
 			break;
 		}
@@ -3035,7 +2988,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 			/* Surfaces are created under two scenarios:
 			 * 1. This commit is not a page flip.
-			 * 2. This commit is a page flip, and targets are created.
+			 * 2. This commit is a page flip, and streams are created.
 			 */
 			crtc_state = drm_atomic_get_crtc_state(state, crtc);
 			if (!page_flip_needed(plane_state, old_plane_state,
@@ -3080,7 +3033,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 				add_val_sets_surface(
 							set,
 							set_count,
-							set[i].target,
+							set[i].stream,
 							surface);
 
 				need_to_validate = true;
@@ -3097,8 +3050,8 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			dc_surface_release(set[i].surfaces[j]);
 		}
 	}
-	for (i = 0; i < new_target_count; i++)
-		dc_target_release(new_targets[i]);
+	for (i = 0; i < new_stream_count; i++)
+		dc_stream_release(new_streams[i]);
 
 	if (ret != 0)
 		DRM_ERROR("Atomic check failed.\n");

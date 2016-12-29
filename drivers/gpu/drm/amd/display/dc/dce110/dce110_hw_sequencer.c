@@ -753,7 +753,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 					stream->public.timing.h_total,
 					stream->public.timing.v_total,
 					stream->public.timing.pix_clk_khz,
-					context->target_count);
+					context->stream_count);
 
 	return DC_OK;
 }
@@ -1055,7 +1055,7 @@ static void reset_single_pipe_hw_ctx(
 	}
 	pipe_ctx->tg->funcs->disable_crtc(pipe_ctx->tg);
 	pipe_ctx->mi->funcs->free_mem_input(
-				pipe_ctx->mi, context->target_count);
+				pipe_ctx->mi, context->stream_count);
 	resource_unreference_clock_source(
 			&context->res_ctx, &pipe_ctx->clock_source);
 
@@ -1254,7 +1254,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 	dc->hwss.reset_hw_ctx_wrap(dc, context);
 
 	/* Skip applying if no targets */
-	if (context->target_count <= 0)
+	if (context->stream_count <= 0)
 		return DC_OK;
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
@@ -1761,7 +1761,7 @@ static void dce110_power_on_pipe_if_needed(
 				pipe_ctx->stream->public.timing.h_total,
 				pipe_ctx->stream->public.timing.v_total,
 				pipe_ctx->stream->public.timing.pix_clk_khz,
-				context->target_count);
+				context->stream_count);
 
 		/* TODO unhardcode*/
 		color_space_to_black_color(dc,

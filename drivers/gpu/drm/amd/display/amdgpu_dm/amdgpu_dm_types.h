@@ -59,7 +59,7 @@ int amdgpu_dm_atomic_commit(
 int amdgpu_dm_atomic_check(struct drm_device *dev,
 				struct drm_atomic_state *state);
 
-int dm_create_validation_set_for_target(
+int dm_create_validation_set_for_stream(
 	struct drm_connector *connector,
 	struct drm_display_mode *mode,
 	struct dc_validation_set *val_set);

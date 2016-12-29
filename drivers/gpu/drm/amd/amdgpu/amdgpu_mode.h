@@ -428,8 +428,8 @@ struct amdgpu_crtc {
 
 	int otg_inst;
 	uint32_t flip_flags;
-	/* After Set Mode target will be non-NULL */
-	struct dc_target *target;
+	/* After Set Mode stream will be non-NULL */
+	const struct dc_stream *stream;
 };
 
 struct amdgpu_encoder_atom_dig {
@@ -550,7 +550,7 @@ struct amdgpu_connector {
 	const struct dc_sink *dc_sink;
 	const struct dc_link *dc_link;
 	const struct dc_sink *dc_em_sink;
-	const struct dc_target *target;
+	const struct dc_stream *stream;
 	void *con_priv;
 	bool dac_load_detect;
 	bool detected_by_load; /* if the connection status was determined by load */
