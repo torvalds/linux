@@ -875,11 +875,7 @@ void drm_mode_put_tile_group(struct drm_device *dev,
  * deprecated. Use drm_for_each_connector_iter() instead.
  */
 #define drm_for_each_connector(connector, dev) \
-	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
-	     connector = list_first_entry(&(dev)->mode_config.connector_list,	\
-					  struct drm_connector, head);		\
-	     &connector->head != (&(dev)->mode_config.connector_list);		\
-	     connector = list_next_entry(connector, head))
+	list_for_each_entry(connector, &(dev)->mode_config.connector_list, head)
 
 /**
  * struct drm_connector_list_iter - connector_list iterator
