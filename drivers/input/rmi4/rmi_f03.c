@@ -175,9 +175,6 @@ static int rmi_f03_attention(struct rmi_function *fn, unsigned long *irq_bits)
 	int i;
 	int error;
 
-	if (!rmi_dev)
-		return -ENODEV;
-
 	if (drvdata->attn_data.data) {
 		/* First grab the data passed by the transport device */
 		if (drvdata->attn_data.size < ob_len) {
