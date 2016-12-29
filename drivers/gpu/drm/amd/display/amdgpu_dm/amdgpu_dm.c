@@ -367,27 +367,39 @@ static int dm_sw_fini(void *handle)
 	return 0;
 }
 
-static void detect_link_for_all_connectors(struct drm_device *dev)
+static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 {
 	struct amdgpu_connector *aconnector;
 	struct drm_connector *connector;
+	int ret = 0;
 
 	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		   aconnector = to_amdgpu_connector(connector);
-		   if (aconnector->dc_link->type == dc_connection_mst_branch) {
-			   DRM_INFO("DM_MST: starting TM on aconnector: %p [id: %d]\n",
-						aconnector, aconnector->base.base.id);
+		if (aconnector->dc_link->type == dc_connection_mst_branch) {
+			DRM_INFO("DM_MST: starting TM on aconnector: %p [id: %d]\n",
+					aconnector, aconnector->base.base.id);
 
-				if (drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true) < 0) {
-					DRM_ERROR("DM_MST: Failed to start MST\n");
-					((struct dc_link *)aconnector->dc_link)->type = dc_connection_single;
+			ret = drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true);
+			if (ret < 0) {
+				DRM_ERROR("DM_MST: Failed to start MST\n");
+				((struct dc_link *)aconnector->dc_link)->type = dc_connection_single;
+				return ret;
 				}
-		   }
+			}
 	}
 
 	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	return ret;
+}
+
+static int dm_late_init(void *handle)
+{
+	struct drm_device *dev = ((struct amdgpu_device *)handle)->ddev;
+	int r = detect_mst_link_for_all_connectors(dev);
+
+	return r;
 }
 
 static void s3_handle_mst(struct drm_device *dev, bool suspend)
@@ -417,10 +429,7 @@ static int dm_hw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	/* Create DAL display manager */
 	amdgpu_dm_init(adev);
-
 	amdgpu_dm_hpd_init(adev);
-
-	detect_link_for_all_connectors(adev->ddev);
 
 	return 0;
 }
@@ -680,7 +689,7 @@ int amdgpu_dm_display_resume(struct amdgpu_device *adev )
 static const struct amd_ip_funcs amdgpu_dm_funcs = {
 	.name = "dm",
 	.early_init = dm_early_init,
-	.late_init = NULL,
+	.late_init = dm_late_init,
 	.sw_init = dm_sw_init,
 	.sw_fini = dm_sw_fini,
 	.hw_init = dm_hw_init,
