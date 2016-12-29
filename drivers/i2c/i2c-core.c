@@ -3632,7 +3632,7 @@ int i2c_slave_register(struct i2c_client *client, i2c_slave_cb_t slave_cb)
 	int ret;
 
 	if (!client || !slave_cb) {
-		WARN(1, "insufficent data\n");
+		WARN(1, "insufficient data\n");
 		return -EINVAL;
 	}
 
