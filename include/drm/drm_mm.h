@@ -67,16 +67,29 @@ enum drm_mm_allocator_flags {
 #define DRM_MM_BOTTOMUP DRM_MM_SEARCH_DEFAULT, DRM_MM_CREATE_DEFAULT
 #define DRM_MM_TOPDOWN DRM_MM_SEARCH_BELOW, DRM_MM_CREATE_TOP
 
+/**
+ * struct drm_mm_node - allocated block in the DRM allocator
+ *
+ * This represents an allocated block in a &drm_mm allocator. Except for
+ * pre-reserved nodes inserted using drm_mm_reserve_node() the structure is
+ * entirely opaque and should only be accessed through the provided funcions.
+ * Since allocation of these nodes is entirely handled by the driver they can be
+ * embedded.
+ */
 struct drm_mm_node {
+	/** @color: Opaque driver-private tag. */
+	unsigned long color;
+	/** @start: Start address of the allocated block. */
+	u64 start;
+	/** @size: Size of the allocated block. */
+	u64 size;
+	/* private: */
 	struct list_head node_list;
 	struct list_head hole_stack;
 	struct rb_node rb;
 	unsigned hole_follows : 1;
 	unsigned allocated : 1;
 	bool scanned_block : 1;
-	unsigned long color;
-	u64 start;
-	u64 size;
 	u64 __subtree_last;
 	struct drm_mm *mm;
 #ifdef CONFIG_DRM_DEBUG_MM
@@ -84,7 +97,29 @@ struct drm_mm_node {
 #endif
 };
 
+/**
+ * struct drm_mm - DRM allocator
+ *
+ * DRM range allocator with a few special functions and features geared towards
+ * managing GPU memory. Except for the @color_adjust callback the structure is
+ * entirely opaque and should only be accessed through the provided functions
+ * and macros. This structure can be embedded into larger driver structures.
+ */
 struct drm_mm {
+	/**
+	 * @color_adjust:
+	 *
+	 * Optional driver callback to further apply restrictions on a hole. The
+	 * node argument points at the node containing the hole from which the
+	 * block would be allocated (see drm_mm_hole_follows() and friends). The
+	 * other arguments are the size of the block to be allocated. The driver
+	 * can adjust the start and end as needed to e.g. insert guard pages.
+	 */
+	void (*color_adjust)(const struct drm_mm_node *node,
+			     unsigned long color,
+			     u64 *start, u64 *end);
+
+	/* private: */
 	/* List of all memory nodes that immediately precede a free hole. */
 	struct list_head hole_stack;
 	/* head_node.node_list is the list of all memory nodes, ordered
@@ -93,14 +128,20 @@ struct drm_mm {
 	/* Keep an interval_tree for fast lookup of drm_mm_nodes by address. */
 	struct rb_root interval_tree;
 
-	void (*color_adjust)(const struct drm_mm_node *node,
-			     unsigned long color,
-			     u64 *start, u64 *end);
-
 	unsigned long scan_active;
 };
 
+/**
+ * struct drm_mm_scan - DRM allocator eviction roaster data
+ *
+ * This structure tracks data needed for the eviction roaster set up using
+ * drm_mm_scan_init(), and used with drm_mm_scan_add_block() and
+ * drm_mm_scan_remove_block(). The structure is entirely opaque and should only
+ * be accessed through the provided functions and macros. It is meant to be
+ * allocated temporarily by the driver on the stack.
+ */
 struct drm_mm_scan {
+	/* private: */
 	struct drm_mm *mm;
 
 	u64 size;
@@ -159,7 +200,8 @@ static inline bool drm_mm_initialized(const struct drm_mm *mm)
  *
  * Holes are embedded into the drm_mm using the tail of a drm_mm_node.
  * If you wish to know whether a hole follows this particular node,
- * query this function.
+ * query this function. See also drm_mm_hole_node_start() and
+ * drm_mm_hole_node_end().
  *
  * Returns:
  * True if a hole follows the @node.
@@ -228,23 +270,23 @@ static inline u64 drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
 
 /**
  * drm_mm_for_each_node - iterator to walk over all allocated nodes
- * @entry: drm_mm_node structure to assign to in each iteration step
- * @mm: drm_mm allocator to walk
+ * @entry: &struct drm_mm_node to assign to in each iteration step
+ * @mm: &drm_mm allocator to walk
  *
  * This iterator walks over all nodes in the range allocator. It is implemented
- * with list_for_each, so not save against removal of elements.
+ * with list_for_each(), so not save against removal of elements.
  */
 #define drm_mm_for_each_node(entry, mm) \
 	list_for_each_entry(entry, drm_mm_nodes(mm), node_list)
 
 /**
  * drm_mm_for_each_node_safe - iterator to walk over all allocated nodes
- * @entry: drm_mm_node structure to assign to in each iteration step
- * @next: drm_mm_node structure to store the next step
- * @mm: drm_mm allocator to walk
+ * @entry: &struct drm_mm_node to assign to in each iteration step
+ * @next: &struct drm_mm_node to store the next step
+ * @mm: &drm_mm allocator to walk
  *
  * This iterator walks over all nodes in the range allocator. It is implemented
- * with list_for_each_safe, so save against removal of elements.
+ * with list_for_each_safe(), so save against removal of elements.
  */
 #define drm_mm_for_each_node_safe(entry, next, mm) \
 	list_for_each_entry_safe(entry, next, drm_mm_nodes(mm), node_list)
@@ -259,13 +301,13 @@ static inline u64 drm_mm_hole_node_end(const struct drm_mm_node *hole_node)
 
 /**
  * drm_mm_for_each_hole - iterator to walk over all holes
- * @entry: drm_mm_node used internally to track progress
- * @mm: drm_mm allocator to walk
+ * @entry: &drm_mm_node used internally to track progress
+ * @mm: &drm_mm allocator to walk
  * @hole_start: ulong variable to assign the hole start to on each iteration
  * @hole_end: ulong variable to assign the hole end to on each iteration
  *
  * This iterator walks over all holes in the range allocator. It is implemented
- * with list_for_each, so not save against removal of elements. @entry is used
+ * with list_for_each(), so not save against removal of elements. @entry is used
  * internally and will not reflect a real drm_mm_node for the very first hole.
  * Hence users of this iterator may not access it.
  *
@@ -333,6 +375,9 @@ static inline int drm_mm_insert_node_in_range(struct drm_mm *mm,
  * @color: opaque tag value to use for this node
  * @sflags: flags to fine-tune the allocation search
  * @aflags: flags to fine-tune the allocation behavior
+ *
+ * This is a simplified version of drm_mm_insert_node_in_range_generic() with no
+ * range restrictions applied.
  *
  * The preallocated node must be cleared to 0.
  *
@@ -433,6 +478,9 @@ void drm_mm_scan_init_with_range(struct drm_mm_scan *scan,
  * @alignment: alignment of the allocation
  * @color: opaque tag value to use for the allocation
  * @flags: flags to specify how the allocation will be performed afterwards
+ *
+ * This is a simplified version of drm_mm_scan_init_with_range() with no range
+ * restrictions applied.
  *
  * This simply sets up the scanning routines with the parameters for the desired
  * hole.

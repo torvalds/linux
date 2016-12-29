@@ -449,7 +449,7 @@ LRU Scan/Eviction Support
 -------------------------
 
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
-   :doc: lru scan roaster
+   :doc: lru scan roster
 
 DRM MM Range Allocator Function References
 ------------------------------------------

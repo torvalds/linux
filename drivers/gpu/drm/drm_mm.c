@@ -59,8 +59,8 @@
  *
  * The main data struct is &drm_mm, allocations are tracked in &drm_mm_node.
  * Drivers are free to embed either of them into their own suitable
- * datastructures. drm_mm itself will not do any allocations of its own, so if
- * drivers choose not to embed nodes they need to still allocate them
+ * datastructures. drm_mm itself will not do any memory allocations of its own,
+ * so if drivers choose not to embed nodes they need to still allocate them
  * themselves.
  *
  * The range allocator also supports reservation of preallocated blocks. This is
@@ -78,7 +78,7 @@
  * steep cliff not a real concern. Removing a node again is O(1).
  *
  * drm_mm supports a few features: Alignment and range restrictions can be
- * supplied. Further more every &drm_mm_node has a color value (which is just an
+ * supplied. Furthermore every &drm_mm_node has a color value (which is just an
  * opaque unsigned long) which in conjunction with a driver callback can be used
  * to implement sophisticated placement restrictions. The i915 DRM driver uses
  * this to implement guard pages between incompatible caching domains in the
@@ -296,11 +296,11 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
  * @mm: drm_mm allocator to insert @node into
  * @node: drm_mm_node to insert
  *
- * This functions inserts an already set-up drm_mm_node into the allocator,
- * meaning that start, size and color must be set by the caller. This is useful
- * to initialize the allocator with preallocated objects which must be set-up
- * before the range allocator can be set-up, e.g. when taking over a firmware
- * framebuffer.
+ * This functions inserts an already set-up &drm_mm_node into the allocator,
+ * meaning that start, size and color must be set by the caller. All other
+ * fields must be cleared to 0. This is useful to initialize the allocator with
+ * preallocated objects which must be set-up before the range allocator can be
+ * set-up, e.g. when taking over a firmware framebuffer.
  *
  * Returns:
  * 0 on success, -ENOSPC if there's no hole where @node is.
@@ -375,7 +375,7 @@ EXPORT_SYMBOL(drm_mm_reserve_node);
  * @sflags: flags to fine-tune the allocation search
  * @aflags: flags to fine-tune the allocation behavior
  *
- * The preallocated node must be cleared to 0.
+ * The preallocated @node must be cleared to 0.
  *
  * Returns:
  * 0 on success, -ENOSPC if there's no suitable hole.
@@ -537,7 +537,7 @@ void drm_mm_replace_node(struct drm_mm_node *old, struct drm_mm_node *new)
 EXPORT_SYMBOL(drm_mm_replace_node);
 
 /**
- * DOC: lru scan roaster
+ * DOC: lru scan roster
  *
  * Very often GPUs need to have continuous allocations for a given object. When
  * evicting objects to make space for a new one it is therefore not most
@@ -549,9 +549,11 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  * The DRM range allocator supports this use-case through the scanning
  * interfaces. First a scan operation needs to be initialized with
  * drm_mm_scan_init() or drm_mm_scan_init_with_range(). The driver adds
- * objects to the roster (probably by walking an LRU list, but this can be
- * freely implemented) (using drm_mm_scan_add_block()) until a suitable hole
- * is found or there are no further evictable objects.
+ * objects to the roster, probably by walking an LRU list, but this can be
+ * freely implemented. Eviction candiates are added using
+ * drm_mm_scan_add_block() until a suitable hole is found or there are no
+ * further evictable objects. Eviction roster metadata is tracked in struct
+ * &drm_mm_scan.
  *
  * The driver must walk through all objects again in exactly the reverse
  * order to restore the allocator state. Note that while the allocator is used
@@ -559,7 +561,7 @@ EXPORT_SYMBOL(drm_mm_replace_node);
  *
  * Finally the driver evicts all objects selected (drm_mm_scan_remove_block()
  * reported true) in the scan, and any overlapping nodes after color adjustment
- * (drm_mm_scan_evict_color()). Adding and removing an object is O(1), and
+ * (drm_mm_scan_color_evict()). Adding and removing an object is O(1), and
  * since freeing a node is also O(1) the overall complexity is
  * O(scanned_objects). So like the free stack which needs to be walked before a
  * scan operation even begins this is linear in the number of objects. It
@@ -705,14 +707,15 @@ EXPORT_SYMBOL(drm_mm_scan_add_block);
  * @scan: the active drm_mm scanner
  * @node: drm_mm_node to remove
  *
- * Nodes _must_ be removed in exactly the reverse order from the scan list as
- * they have been added (e.g. using list_add as they are added and then
- * list_for_each over that eviction list to remove), otherwise the internal
+ * Nodes **must** be removed in exactly the reverse order from the scan list as
+ * they have been added (e.g. using list_add() as they are added and then
+ * list_for_each() over that eviction list to remove), otherwise the internal
  * state of the memory manager will be corrupted.
  *
  * When the scan list is empty, the selected memory nodes can be freed. An
- * immediately following drm_mm_search_free with !DRM_MM_SEARCH_BEST will then
- * return the just freed block (because its at the top of the free_stack list).
+ * immediately following drm_mm_insert_node_in_range_generic() or one of the
+ * simpler versions of that function with !DRM_MM_SEARCH_BEST will then return
+ * the just freed block (because its at the top of the free_stack list).
  *
  * Returns:
  * True if this block should be evicted, false otherwise. Will always
