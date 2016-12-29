@@ -625,20 +625,23 @@ static void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 }
 
 static struct bio_entry *__add_bio_entry(struct f2fs_sb_info *sbi,
-							struct bio *bio)
+			struct bio *bio, block_t lstart, block_t len)
 {
 	struct list_head *wait_list = &(SM_I(sbi)->wait_list);
 	struct bio_entry *be = f2fs_kmem_cache_alloc(bio_entry_slab, GFP_NOFS);
 
 	INIT_LIST_HEAD(&be->list);
 	be->bio = bio;
+	be->lstart = lstart;
+	be->len = len;
 	init_completion(&be->event);
 	list_add_tail(&be->list, wait_list);
 
 	return be;
 }
 
-void f2fs_wait_all_discard_bio(struct f2fs_sb_info *sbi)
+/* This should be covered by global mutex, &sit_i->sentry_lock */
+void f2fs_wait_discard_bio(struct f2fs_sb_info *sbi, block_t blkaddr)
 {
 	struct list_head *wait_list = &(SM_I(sbi)->wait_list);
 	struct bio_entry *be, *tmp;
@@ -647,7 +650,15 @@ void f2fs_wait_all_discard_bio(struct f2fs_sb_info *sbi)
 		struct bio *bio = be->bio;
 		int err;
 
-		wait_for_completion_io(&be->event);
+		if (!completion_done(&be->event)) {
+			if ((be->lstart <= blkaddr &&
+					blkaddr < be->lstart + be->len) ||
+					blkaddr == NULL_ADDR)
+				wait_for_completion_io(&be->event);
+			else
+				continue;
+		}
+
 		err = be->error;
 		if (err == -EOPNOTSUPP)
 			err = 0;
@@ -756,6 +767,7 @@ static int __f2fs_issue_discard_async(struct f2fs_sb_info *sbi,
 		struct block_device *bdev, block_t blkstart, block_t blklen)
 {
 	struct bio *bio = NULL;
+	block_t lblkstart = blkstart;
 	int err;
 
 	trace_f2fs_issue_discard(sbi->sb, blkstart, blklen);
@@ -770,13 +782,13 @@ static int __f2fs_issue_discard_async(struct f2fs_sb_info *sbi,
 				SECTOR_FROM_BLOCK(blklen),
 				GFP_NOFS, 0, &bio);
 	if (!err && bio) {
-		struct bio_entry *be = __add_bio_entry(sbi, bio);
+		struct bio_entry *be = __add_bio_entry(sbi, bio,
+						lblkstart, blklen);
 
 		bio->bi_private = be;
 		bio->bi_end_io = f2fs_submit_bio_wait_endio;
 		submit_bio(REQ_SYNC, bio);
 	}
-
 	return err;
 }
 
@@ -1654,6 +1666,8 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	mutex_lock(&sit_i->sentry_lock);
 
 	*new_blkaddr = NEXT_FREE_BLKADDR(sbi, curseg);
+
+	f2fs_wait_discard_bio(sbi, *new_blkaddr);
 
 	/*
 	 * __add_sum_entry should be resided under the curseg_mutex
