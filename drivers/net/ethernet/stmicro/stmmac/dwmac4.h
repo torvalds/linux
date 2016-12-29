@@ -90,6 +90,18 @@ enum power_event {
 	power_down = 0x00000001,
 };
 
+/* Energy Efficient Ethernet (EEE) for GMAC4
+ *
+ * LPI status, timer and control register offset
+ */
+#define GMAC4_LPI_CTRL_STATUS	0xd0
+#define GMAC4_LPI_TIMER_CTRL	0xd4
+
+/* LPI control and status defines */
+#define GMAC4_LPI_CTRL_STATUS_LPITXA	BIT(19)	/* Enable LPI TX Automate */
+#define GMAC4_LPI_CTRL_STATUS_PLS	BIT(17) /* PHY Link Status */
+#define GMAC4_LPI_CTRL_STATUS_LPIEN	BIT(16)	/* LPI Enable */
+
 /* MAC Debug bitmap */
 #define GMAC_DEBUG_TFCSTS_MASK		GENMASK(18, 17)
 #define GMAC_DEBUG_TFCSTS_SHIFT		17
