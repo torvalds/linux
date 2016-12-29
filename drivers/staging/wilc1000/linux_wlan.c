@@ -992,7 +992,7 @@ int wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tx_data->skb  = skb;
 
 	eth_h = (struct ethhdr *)(skb->data);
-	if (eth_h->h_proto == 0x8e88)
+	if (eth_h->h_proto == cpu_to_be16(0x8e88))
 		netdev_dbg(ndev, "EAPOL transmitted\n");
 
 	ih = (struct iphdr *)(skb->data + sizeof(struct ethhdr));
