@@ -170,8 +170,6 @@ void __hyp_text __vgic_v3_save_state(struct kvm_vcpu *vcpu)
 			cpu_if->vgic_ap1r[0] = read_gicreg(ICH_AP1R0_EL2);
 		}
 	} else {
-		cpu_if->vgic_misr  = 0;
-		cpu_if->vgic_eisr  = 0;
 		cpu_if->vgic_elrsr = 0xffff;
 		cpu_if->vgic_ap0r[0] = 0;
 		cpu_if->vgic_ap0r[1] = 0;

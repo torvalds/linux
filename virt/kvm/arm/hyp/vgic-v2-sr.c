@@ -77,9 +77,7 @@ void __hyp_text __vgic_v2_save_state(struct kvm_vcpu *vcpu)
 
 		writel_relaxed(0, base + GICH_HCR);
 	} else {
-		cpu_if->vgic_eisr = 0;
 		cpu_if->vgic_elrsr = ~0UL;
-		cpu_if->vgic_misr = 0;
 		cpu_if->vgic_apr = 0;
 	}
 }
