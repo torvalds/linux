@@ -278,7 +278,7 @@ struct dma_buf_ops {
  * Shared dma buffers are reference counted using dma_buf_put() and
  * get_dma_buf().
  *
- * Device DMA access is handled by the separate struct &dma_buf_attachment.
+ * Device DMA access is handled by the separate &struct dma_buf_attachment.
  */
 struct dma_buf {
 	size_t size;
@@ -355,7 +355,7 @@ struct dma_buf_export_info {
  * DEFINE_DMA_BUF_EXPORT_INFO - helper macro for exporters
  * @name: export-info name
  *
- * DEFINE_DMA_BUF_EXPORT_INFO macro defines the struct &dma_buf_export_info,
+ * DEFINE_DMA_BUF_EXPORT_INFO macro defines the &struct dma_buf_export_info,
  * zeroes it out and pre-populates exp_name in it.
  */
 #define DEFINE_DMA_BUF_EXPORT_INFO(name)	\

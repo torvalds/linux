@@ -128,7 +128,7 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
  * DOC: fence polling
  *
  * To support cross-device and cross-driver synchronization of buffer access
- * implicit fences (represented internally in the kernel with struct &fence) can
+ * implicit fences (represented internally in the kernel with &struct fence) can
  * be attached to a &dma_buf. The glue for that and a few related things are
  * provided in the &reservation_object structure.
  *
@@ -373,7 +373,7 @@ static inline int is_dma_buf_file(struct file *file)
  * Additionally, provide a name string for exporter; useful in debugging.
  *
  * @exp_info:	[in]	holds all the export related information provided
- *			by the exporter. see struct &dma_buf_export_info
+ *			by the exporter. see &struct dma_buf_export_info
  *			for further details.
  *
  * Returns, on success, a newly created dma_buf object, which wraps the
@@ -517,7 +517,7 @@ EXPORT_SYMBOL_GPL(dma_buf_get);
  *
  * If, as a result of this call, the refcount becomes 0, the 'release' file
  * operation related to this fd is called. It calls the release operation of
- * struct &dma_buf_ops in turn, and frees the memory allocated for dmabuf when
+ * &struct dma_buf_ops in turn, and frees the memory allocated for dmabuf when
  * exported.
  */
 void dma_buf_put(struct dma_buf *dmabuf)
