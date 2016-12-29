@@ -2797,6 +2797,40 @@ struct hwrm_vnic_cfg_output {
 	u8 valid;
 };
 
+/* hwrm_vnic_qcaps */
+/* Input (24 bytes) */
+struct hwrm_vnic_qcaps_input {
+	__le16 req_type;
+	__le16 cmpl_ring;
+	__le16 seq_id;
+	__le16 target_id;
+	__le64 resp_addr;
+	__le32 enables;
+	__le32 unused_0;
+};
+
+/* Output (24 bytes) */
+struct hwrm_vnic_qcaps_output {
+	__le16 error_code;
+	__le16 req_type;
+	__le16 seq_id;
+	__le16 resp_len;
+	__le16 mru;
+	u8 unused_0;
+	u8 unused_1;
+	__le32 flags;
+	#define VNIC_QCAPS_RESP_FLAGS_VLAN_STRIP_CAP		    0x2UL
+	#define VNIC_QCAPS_RESP_FLAGS_BD_STALL_CAP		    0x4UL
+	#define VNIC_QCAPS_RESP_FLAGS_ROCE_DUAL_VNIC_CAP	    0x8UL
+	#define VNIC_QCAPS_RESP_FLAGS_ROCE_ONLY_VNIC_CAP	    0x10UL
+	#define VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP		    0x20UL
+	__le32 unused_2;
+	u8 unused_3;
+	u8 unused_4;
+	u8 unused_5;
+	u8 valid;
+};
+
 /* hwrm_vnic_tpa_cfg */
 /* Input (40 bytes) */
 struct hwrm_vnic_tpa_cfg_input {

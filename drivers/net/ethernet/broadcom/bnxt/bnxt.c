@@ -39,9 +39,6 @@
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <net/udp_tunnel.h>
-#ifdef CONFIG_NET_RX_BUSY_POLL
-#include <net/busy_poll.h>
-#endif
 #include <linux/workqueue.h>
 #include <linux/prefetch.h>
 #include <linux/cache.h>
@@ -1130,7 +1127,6 @@ static struct sk_buff *bnxt_gro_func_5730x(struct bnxt_tpa_info *tpa_info,
 		dev_kfree_skb_any(skb);
 		return NULL;
 	}
-	tcp_gro_complete(skb);
 
 	if (nw_off) { /* tunnel */
 		struct udphdr *uh = NULL;
@@ -1180,6 +1176,8 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt *bp,
 		       RX_TPA_END_CMP_PAYLOAD_OFFSET) >>
 		      RX_TPA_END_CMP_PAYLOAD_OFFSET_SHIFT;
 	skb = bp->gro_func(tpa_info, payload_off, TPA_END_GRO_TS(tpa_end), skb);
+	if (likely(skb))
+		tcp_gro_complete(skb);
 #endif
 	return skb;
 }
@@ -1356,11 +1354,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 		rc = -ENOMEM;
 		if (likely(skb)) {
 			skb_record_rx_queue(skb, bnapi->index);
-			skb_mark_napi_id(skb, &bnapi->napi);
-			if (bnxt_busy_polling(bnapi))
-				netif_receive_skb(skb);
-			else
-				napi_gro_receive(&bnapi->napi, skb);
+			napi_gro_receive(&bnapi->napi, skb);
 			rc = 1;
 		}
 		goto next_rx_no_prod;
@@ -1460,11 +1454,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	}
 
 	skb_record_rx_queue(skb, bnapi->index);
-	skb_mark_napi_id(skb, &bnapi->napi);
-	if (bnxt_busy_polling(bnapi))
-		netif_receive_skb(skb);
-	else
-		napi_gro_receive(&bnapi->napi, skb);
+	napi_gro_receive(&bnapi->napi, skb);
 	rc = 1;
 
 next_rx:
@@ -1782,9 +1772,6 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 	int work_done = 0;
 
-	if (!bnxt_lock_napi(bnapi))
-		return budget;
-
 	while (1) {
 		work_done += bnxt_poll_work(bp, bnapi, budget - work_done);
 
@@ -1792,41 +1779,15 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 			break;
 
 		if (!bnxt_has_work(bp, cpr)) {
-			napi_complete(napi);
-			BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
+			if (napi_complete_done(napi, work_done))
+				BNXT_CP_DB_REARM(cpr->cp_doorbell,
+						 cpr->cp_raw_cons);
 			break;
 		}
 	}
 	mmiowb();
-	bnxt_unlock_napi(bnapi);
 	return work_done;
 }
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static int bnxt_busy_poll(struct napi_struct *napi)
-{
-	struct bnxt_napi *bnapi = container_of(napi, struct bnxt_napi, napi);
-	struct bnxt *bp = bnapi->bp;
-	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-	int rx_work, budget = 4;
-
-	if (atomic_read(&bp->intr_sem) != 0)
-		return LL_FLUSH_FAILED;
-
-	if (!bp->link_info.link_up)
-		return LL_FLUSH_FAILED;
-
-	if (!bnxt_lock_poll(bnapi))
-		return LL_FLUSH_BUSY;
-
-	rx_work = bnxt_poll_work(bp, bnapi, budget);
-
-	BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
-
-	bnxt_unlock_poll(bnapi);
-	return rx_work;
-}
-#endif
 
 static void bnxt_free_tx_skbs(struct bnxt *bp)
 {
@@ -2535,7 +2496,7 @@ void bnxt_set_ring_params(struct bnxt *bp)
 		agg_factor = min_t(u32, 4, 65536 / BNXT_RX_PAGE_SIZE);
 
 	bp->flags &= ~BNXT_FLAG_JUMBO;
-	if (rx_space > PAGE_SIZE) {
+	if (rx_space > PAGE_SIZE && !(bp->flags & BNXT_FLAG_NO_AGG_RINGS)) {
 		u32 jumbo_factor;
 
 		bp->flags |= BNXT_FLAG_JUMBO;
@@ -2668,6 +2629,10 @@ static int bnxt_alloc_vnic_attributes(struct bnxt *bp)
 			rc = -ENOMEM;
 			goto out;
 		}
+
+		if ((bp->flags & BNXT_FLAG_NEW_RSS_CAP) &&
+		    !(vnic->flags & BNXT_VNIC_RSS_FLAG))
+			continue;
 
 		/* Allocate rss table and hash key */
 		vnic->rss_table = dma_alloc_coherent(&pdev->dev, PAGE_SIZE,
@@ -2993,6 +2958,45 @@ alloc_mem_err:
 	return rc;
 }
 
+static void bnxt_disable_int(struct bnxt *bp)
+{
+	int i;
+
+	if (!bp->bnapi)
+		return;
+
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		struct bnxt_napi *bnapi = bp->bnapi[i];
+		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+
+		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
+	}
+}
+
+static void bnxt_disable_int_sync(struct bnxt *bp)
+{
+	int i;
+
+	atomic_inc(&bp->intr_sem);
+
+	bnxt_disable_int(bp);
+	for (i = 0; i < bp->cp_nr_rings; i++)
+		synchronize_irq(bp->irq_tbl[i].vector);
+}
+
+static void bnxt_enable_int(struct bnxt *bp)
+{
+	int i;
+
+	atomic_set(&bp->intr_sem, 0);
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		struct bnxt_napi *bnapi = bp->bnapi[i];
+		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
+
+		BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
+	}
+}
+
 void bnxt_hwrm_cmd_hdr_init(struct bnxt *bp, void *request, u16 req_type,
 			    u16 cmpl_ring, u16 target_id)
 {
@@ -3312,10 +3316,26 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.ip_addr_type = CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV4;
 	req.ip_protocol = keys->basic.ip_proto;
 
-	req.src_ipaddr[0] = keys->addrs.v4addrs.src;
-	req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
-	req.dst_ipaddr[0] = keys->addrs.v4addrs.dst;
-	req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+	if (keys->basic.n_proto == htons(ETH_P_IPV6)) {
+		int i;
+
+		req.ethertype = htons(ETH_P_IPV6);
+		req.ip_addr_type =
+			CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV6;
+		*(struct in6_addr *)&req.src_ipaddr[0] =
+			keys->addrs.v6addrs.src;
+		*(struct in6_addr *)&req.dst_ipaddr[0] =
+			keys->addrs.v6addrs.dst;
+		for (i = 0; i < 4; i++) {
+			req.src_ipaddr_mask[i] = cpu_to_be32(0xffffffff);
+			req.dst_ipaddr_mask[i] = cpu_to_be32(0xffffffff);
+		}
+	} else {
+		req.src_ipaddr[0] = keys->addrs.v4addrs.src;
+		req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+		req.dst_ipaddr[0] = keys->addrs.v4addrs.dst;
+		req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+	}
 
 	req.src_port = keys->ports.src;
 	req.src_port_mask = cpu_to_be16(0xffff);
@@ -3562,6 +3582,12 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 		req.rss_rule = cpu_to_le16(vnic->fw_rss_cos_lb_ctx[0]);
 		req.enables |= cpu_to_le32(VNIC_CFG_REQ_ENABLES_RSS_RULE |
 					   VNIC_CFG_REQ_ENABLES_MRU);
+	} else if (vnic->flags & BNXT_VNIC_RFS_NEW_RSS_FLAG) {
+		req.rss_rule =
+			cpu_to_le16(bp->vnic_info[0].fw_rss_cos_lb_ctx[0]);
+		req.enables |= cpu_to_le32(VNIC_CFG_REQ_ENABLES_RSS_RULE |
+					   VNIC_CFG_REQ_ENABLES_MRU);
+		req.flags |= cpu_to_le32(VNIC_CFG_REQ_FLAGS_RSS_DFLT_CR_MODE);
 	} else {
 		req.rss_rule = cpu_to_le16(0xffff);
 	}
@@ -3661,6 +3687,27 @@ static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, u16 vnic_id,
 	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (!rc)
 		bp->vnic_info[vnic_id].fw_vnic_id = le32_to_cpu(resp->vnic_id);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
+{
+	struct hwrm_vnic_qcaps_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_vnic_qcaps_input req = {0};
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10600)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_VNIC_QCAPS, -1, -1);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		if (resp->flags &
+		    cpu_to_le32(VNIC_QCAPS_RESP_FLAGS_RSS_DFLT_CR_CAP))
+			bp->flags |= BNXT_FLAG_NEW_RSS_CAP;
+	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;
 }
@@ -3811,6 +3858,30 @@ static int hwrm_ring_alloc_send_msg(struct bnxt *bp,
 	return rc;
 }
 
+static int bnxt_hwrm_set_async_event_cr(struct bnxt *bp, int idx)
+{
+	int rc;
+
+	if (BNXT_PF(bp)) {
+		struct hwrm_func_cfg_input req = {0};
+
+		bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
+		req.fid = cpu_to_le16(0xffff);
+		req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_ASYNC_EVENT_CR);
+		req.async_event_cr = cpu_to_le16(idx);
+		rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	} else {
+		struct hwrm_func_vf_cfg_input req = {0};
+
+		bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_CFG, -1, -1);
+		req.enables =
+			cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_ASYNC_EVENT_CR);
+		req.async_event_cr = cpu_to_le16(idx);
+		rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	}
+	return rc;
+}
+
 static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 {
 	int i, rc = 0;
@@ -3827,6 +3898,12 @@ static int bnxt_hwrm_ring_alloc(struct bnxt *bp)
 			goto err_out;
 		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
 		bp->grp_info[i].cp_fw_ring_id = ring->fw_ring_id;
+
+		if (!i) {
+			rc = bnxt_hwrm_set_async_event_cr(bp, ring->fw_ring_id);
+			if (rc)
+				netdev_warn(bp->dev, "Failed to set async event completion ring.\n");
+		}
 	}
 
 	for (i = 0; i < bp->tx_nr_rings; i++) {
@@ -3977,6 +4054,12 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 		}
 	}
 
+	/* The completion rings are about to be freed.  After that the
+	 * IRQ doorbell will not work anymore.  So we need to disable
+	 * IRQ here.
+	 */
+	bnxt_disable_int_sync(bp);
+
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		struct bnxt_napi *bnapi = bp->bnapi[i];
 		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
@@ -3990,6 +4073,50 @@ static void bnxt_hwrm_ring_free(struct bnxt *bp, bool close_path)
 			bp->grp_info[i].cp_fw_ring_id = INVALID_HW_RING_ID;
 		}
 	}
+}
+
+/* Caller must hold bp->hwrm_cmd_lock */
+int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings)
+{
+	struct hwrm_func_qcfg_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_func_qcfg_input req = {0};
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10601)
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_QCFG, -1, -1);
+	req.fid = cpu_to_le16(fid);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc)
+		*tx_rings = le16_to_cpu(resp->alloc_tx_rings);
+
+	return rc;
+}
+
+int bnxt_hwrm_reserve_tx_rings(struct bnxt *bp, int *tx_rings)
+{
+	struct hwrm_func_cfg_input req = {0};
+	int rc;
+
+	if (bp->hwrm_spec_code < 0x10601)
+		return 0;
+
+	if (BNXT_VF(bp))
+		return 0;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_CFG, -1, -1);
+	req.fid = cpu_to_le16(0xffff);
+	req.enables = cpu_to_le32(FUNC_CFG_REQ_ENABLES_NUM_TX_RINGS);
+	req.num_tx_rings = cpu_to_le16(*tx_rings);
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		return rc;
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = __bnxt_hwrm_get_tx_rings(bp, 0xffff, tx_rings);
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
 }
 
 static void bnxt_hwrm_set_coal_params(struct bnxt *bp, u32 max_bufs,
@@ -4463,7 +4590,11 @@ static void bnxt_hwrm_resource_free(struct bnxt *bp, bool close_path,
 
 static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
 {
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	int rc;
+
+	if (vnic->flags & BNXT_VNIC_RFS_NEW_RSS_FLAG)
+		goto skip_rss_ctx;
 
 	/* allocate context for vnic */
 	rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic_id, 0);
@@ -4484,6 +4615,7 @@ static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
 		bp->rsscos_nr_ctxs++;
 	}
 
+skip_rss_ctx:
 	/* configure default vnic, ring grp */
 	rc = bnxt_hwrm_vnic_cfg(bp, vnic_id);
 	if (rc) {
@@ -4518,13 +4650,17 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 	int i, rc = 0;
 
 	for (i = 0; i < bp->rx_nr_rings; i++) {
+		struct bnxt_vnic_info *vnic;
 		u16 vnic_id = i + 1;
 		u16 ring_id = i;
 
 		if (vnic_id >= bp->nr_vnics)
 			break;
 
-		bp->vnic_info[vnic_id].flags |= BNXT_VNIC_RFS_FLAG;
+		vnic = &bp->vnic_info[vnic_id];
+		vnic->flags |= BNXT_VNIC_RFS_FLAG;
+		if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+			vnic->flags |= BNXT_VNIC_RFS_NEW_RSS_FLAG;
 		rc = bnxt_hwrm_vnic_alloc(bp, vnic_id, ring_id, 1);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic %d alloc failure rc: %x\n",
@@ -4698,34 +4834,6 @@ static int bnxt_init_nic(struct bnxt *bp, bool irq_re_init)
 	return bnxt_init_chip(bp, irq_re_init);
 }
 
-static void bnxt_disable_int(struct bnxt *bp)
-{
-	int i;
-
-	if (!bp->bnapi)
-		return;
-
-	for (i = 0; i < bp->cp_nr_rings; i++) {
-		struct bnxt_napi *bnapi = bp->bnapi[i];
-		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-
-		BNXT_CP_DB(cpr->cp_doorbell, cpr->cp_raw_cons);
-	}
-}
-
-static void bnxt_enable_int(struct bnxt *bp)
-{
-	int i;
-
-	atomic_set(&bp->intr_sem, 0);
-	for (i = 0; i < bp->cp_nr_rings; i++) {
-		struct bnxt_napi *bnapi = bp->bnapi[i];
-		struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-
-		BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
-	}
-}
-
 static int bnxt_set_real_num_queues(struct bnxt *bp)
 {
 	int rc;
@@ -4834,6 +4942,24 @@ static int bnxt_setup_int_mode(struct bnxt *bp)
 
 	rc = bnxt_set_real_num_queues(bp);
 	return rc;
+}
+
+static unsigned int bnxt_get_max_func_rss_ctxs(struct bnxt *bp)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		return bp->vf.max_rsscos_ctxs;
+#endif
+	return bp->pf.max_rsscos_ctxs;
+}
+
+static unsigned int bnxt_get_max_func_vnics(struct bnxt *bp)
+{
+#if defined(CONFIG_BNXT_SRIOV)
+	if (BNXT_VF(bp))
+		return bp->vf.max_vnics;
+#endif
+	return bp->pf.max_vnics;
 }
 
 unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp)
@@ -5094,10 +5220,8 @@ static void bnxt_disable_napi(struct bnxt *bp)
 	if (!bp->bnapi)
 		return;
 
-	for (i = 0; i < bp->cp_nr_rings; i++) {
+	for (i = 0; i < bp->cp_nr_rings; i++)
 		napi_disable(&bp->bnapi[i]->napi);
-		bnxt_disable_poll(bp->bnapi[i]);
-	}
 }
 
 static void bnxt_enable_napi(struct bnxt *bp)
@@ -5106,7 +5230,6 @@ static void bnxt_enable_napi(struct bnxt *bp)
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		bp->bnapi[i]->in_reset = false;
-		bnxt_enable_poll(bp->bnapi[i]);
 		napi_enable(&bp->bnapi[i]->napi);
 	}
 }
@@ -5389,7 +5512,7 @@ static void bnxt_hwrm_set_link_common(struct bnxt *bp,
 {
 	u8 autoneg = bp->link_info.autoneg;
 	u16 fw_link_speed = bp->link_info.req_link_speed;
-	u32 advertising = bp->link_info.advertising;
+	u16 advertising = bp->link_info.advertising;
 
 	if (autoneg & BNXT_AUTONEG_SPEED) {
 		req->auto_mode |=
@@ -5683,19 +5806,6 @@ static int bnxt_open(struct net_device *dev)
 	return __bnxt_open_nic(bp, true, true);
 }
 
-static void bnxt_disable_int_sync(struct bnxt *bp)
-{
-	int i;
-
-	atomic_inc(&bp->intr_sem);
-	if (!netif_running(bp->dev))
-		return;
-
-	bnxt_disable_int(bp);
-	for (i = 0; i < bp->cp_nr_rings; i++)
-		synchronize_irq(bp->irq_tbl[i].vector);
-}
-
 int bnxt_close_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -5717,13 +5827,12 @@ int bnxt_close_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	while (test_bit(BNXT_STATE_IN_SP_TASK, &bp->state))
 		msleep(20);
 
-	/* Flush rings before disabling interrupts */
+	/* Flush rings and and disable interrupts */
 	bnxt_shutdown_nic(bp, irq_re_init);
 
 	/* TODO CHIMP_FW: Link/PHY related cleanup if (link_re_init) */
 
 	bnxt_disable_napi(bp);
-	bnxt_disable_int_sync(bp);
 	del_timer_sync(&bp->timer);
 	bnxt_free_skbs(bp);
 
@@ -5980,20 +6089,36 @@ skip_uc:
 	return rc;
 }
 
+/* If the chip and firmware supports RFS */
+static bool bnxt_rfs_supported(struct bnxt *bp)
+{
+	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp))
+		return true;
+	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+		return true;
+	return false;
+}
+
+/* If runtime conditions support RFS */
 static bool bnxt_rfs_capable(struct bnxt *bp)
 {
 #ifdef CONFIG_RFS_ACCEL
-	struct bnxt_pf_info *pf = &bp->pf;
-	int vnics;
+	int vnics, max_vnics, max_rss_ctxs;
 
 	if (BNXT_VF(bp) || !(bp->flags & BNXT_FLAG_MSIX_CAP))
 		return false;
 
 	vnics = 1 + bp->rx_nr_rings;
-	if (vnics > pf->max_rsscos_ctxs || vnics > pf->max_vnics) {
+	max_vnics = bnxt_get_max_func_vnics(bp);
+	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
+
+	/* RSS contexts not a limiting factor */
+	if (bp->flags & BNXT_FLAG_NEW_RSS_CAP)
+		max_rss_ctxs = max_vnics;
+	if (vnics > max_vnics || vnics > max_rss_ctxs) {
 		netdev_warn(bp->dev,
 			    "Not enough resources to support NTUPLE filters, enough resources for up to %d rx rings\n",
-			    min(pf->max_rsscos_ctxs - 1, pf->max_vnics - 1));
+			    min(max_rss_ctxs - 1, max_vnics - 1));
 		return false;
 	}
 
@@ -6048,6 +6173,9 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 		flags |= BNXT_FLAG_GRO;
 	if (features & NETIF_F_LRO)
 		flags |= BNXT_FLAG_LRO;
+
+	if (bp->flags & BNXT_FLAG_NO_AGG_RINGS)
+		flags &= ~BNXT_FLAG_TPA;
 
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
 		flags |= BNXT_FLAG_STRIP_VLAN;
@@ -6458,10 +6586,16 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 		sh = true;
 
 	if (tc) {
-		int max_rx_rings, max_tx_rings, rc;
+		int max_rx_rings, max_tx_rings, req_tx_rings, rsv_tx_rings, rc;
 
+		req_tx_rings = bp->tx_nr_rings_per_tc * tc;
 		rc = bnxt_get_max_rings(bp, &max_rx_rings, &max_tx_rings, sh);
-		if (rc || bp->tx_nr_rings_per_tc * tc > max_tx_rings)
+		if (rc || req_tx_rings > max_tx_rings)
+			return -ENOMEM;
+
+		rsv_tx_rings = req_tx_rings;
+		if (bnxt_hwrm_reserve_tx_rings(bp, &rsv_tx_rings) ||
+		    rsv_tx_rings < req_tx_rings)
 			return -ENOMEM;
 	}
 
@@ -6553,9 +6687,15 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		goto err_free;
 	}
 
-	if ((fkeys->basic.n_proto != htons(ETH_P_IP)) ||
+	if ((fkeys->basic.n_proto != htons(ETH_P_IP) &&
+	     fkeys->basic.n_proto != htons(ETH_P_IPV6)) ||
 	    ((fkeys->basic.ip_proto != IPPROTO_TCP) &&
 	     (fkeys->basic.ip_proto != IPPROTO_UDP))) {
+		rc = -EPROTONOSUPPORT;
+		goto err_free;
+	}
+	if (fkeys->basic.n_proto == htons(ETH_P_IPV6) &&
+	    bp->hwrm_spec_code < 0x10601) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
@@ -6765,9 +6905,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 #endif
 	.ndo_udp_tunnel_add	= bnxt_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= bnxt_udp_tunnel_del,
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= bnxt_busy_poll,
-#endif
 };
 
 static void bnxt_remove_one(struct pci_dev *pdev)
@@ -6906,8 +7043,17 @@ static int bnxt_get_dflt_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	int rc;
 
 	rc = bnxt_get_max_rings(bp, max_rx, max_tx, shared);
-	if (rc)
-		return rc;
+	if (rc && (bp->flags & BNXT_FLAG_AGG_RINGS)) {
+		/* Not enough rings, try disabling agg rings. */
+		bp->flags &= ~BNXT_FLAG_AGG_RINGS;
+		rc = bnxt_get_max_rings(bp, max_rx, max_tx, shared);
+		if (rc)
+			return rc;
+		bp->flags |= BNXT_FLAG_NO_AGG_RINGS;
+		bp->dev->hw_features &= ~NETIF_F_LRO;
+		bp->dev->features &= ~NETIF_F_LRO;
+		bnxt_set_ring_params(bp);
+	}
 
 	if (bp->flags & BNXT_FLAG_ROCE_CAP) {
 		int max_cp, max_stat, max_irq;
@@ -6946,6 +7092,11 @@ static int bnxt_set_dflt_rings(struct bnxt *bp)
 		return rc;
 	bp->rx_nr_rings = min_t(int, dflt_rings, max_rx_rings);
 	bp->tx_nr_rings_per_tc = min_t(int, dflt_rings, max_tx_rings);
+
+	rc = bnxt_hwrm_reserve_tx_rings(bp, &bp->tx_nr_rings_per_tc);
+	if (rc)
+		netdev_warn(bp->dev, "Unable to reserve tx rings\n");
+
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;
@@ -7097,7 +7248,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 	bnxt_set_max_func_irqs(bp, max_irqs);
-	bnxt_set_dflt_rings(bp);
+	rc = bnxt_set_dflt_rings(bp);
+	if (rc) {
+		netdev_err(bp->dev, "Not enough rings available.\n");
+		rc = -ENOMEM;
+		goto init_err;
+	}
 
 	/* Default RSS hash cfg. */
 	bp->rss_hash_cfg = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
@@ -7112,7 +7268,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 	}
 
-	if (BNXT_PF(bp) && !BNXT_CHIP_TYPE_NITRO_A0(bp)) {
+	bnxt_hwrm_vnic_qcaps(bp);
+	if (bnxt_rfs_supported(bp)) {
 		dev->hw_features |= NETIF_F_NTUPLE;
 		if (bnxt_rfs_capable(bp)) {
 			bp->flags |= BNXT_FLAG_RFS;

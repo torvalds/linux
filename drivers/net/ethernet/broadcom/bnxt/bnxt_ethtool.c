@@ -388,6 +388,7 @@ static int bnxt_set_channels(struct net_device *dev,
 {
 	struct bnxt *bp = netdev_priv(dev);
 	int max_rx_rings, max_tx_rings, tcs;
+	int req_tx_rings, rsv_tx_rings;
 	u32 rc = 0;
 	bool sh = false;
 
@@ -422,6 +423,20 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (!sh && (channel->rx_count > max_rx_rings ||
 		    channel->tx_count > max_tx_rings))
 		return -ENOMEM;
+
+	req_tx_rings = sh ? channel->combined_count : channel->tx_count;
+	req_tx_rings = min_t(int, req_tx_rings, max_tx_rings);
+	if (tcs > 1)
+		req_tx_rings *= tcs;
+
+	rsv_tx_rings = req_tx_rings;
+	if (bnxt_hwrm_reserve_tx_rings(bp, &rsv_tx_rings))
+		return -ENOMEM;
+
+	if (rsv_tx_rings < req_tx_rings) {
+		netdev_warn(dev, "Unable to allocate the requested tx rings\n");
+		return -ENOMEM;
+	}
 
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
@@ -524,24 +539,49 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 
 fltr_found:
 	fkeys = &fltr->fkeys;
-	if (fkeys->basic.ip_proto == IPPROTO_TCP)
-		fs->flow_type = TCP_V4_FLOW;
-	else if (fkeys->basic.ip_proto == IPPROTO_UDP)
-		fs->flow_type = UDP_V4_FLOW;
-	else
-		goto fltr_err;
+	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
+		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+			fs->flow_type = TCP_V4_FLOW;
+		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+			fs->flow_type = UDP_V4_FLOW;
+		else
+			goto fltr_err;
 
-	fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
-	fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
+		fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
+		fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
-	fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
+		fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
+		fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
-	fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
+		fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
 
-	fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
-	fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+		fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+	} else {
+		int i;
+
+		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+			fs->flow_type = TCP_V6_FLOW;
+		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+			fs->flow_type = UDP_V6_FLOW;
+		else
+			goto fltr_err;
+
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
+			fkeys->addrs.v6addrs.src;
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6dst[0] =
+			fkeys->addrs.v6addrs.dst;
+		for (i = 0; i < 4; i++) {
+			fs->m_u.tcp_ip6_spec.ip6src[i] = cpu_to_be32(~0);
+			fs->m_u.tcp_ip6_spec.ip6dst[i] = cpu_to_be32(~0);
+		}
+		fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(~0);
+
+		fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(~0);
+	}
 
 	fs->ring_cookie = fltr->rxq;
 	rc = 0;
@@ -893,7 +933,7 @@ u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
 static void bnxt_fw_to_ethtool_advertised_spds(struct bnxt_link_info *link_info,
 				struct ethtool_link_ksettings *lk_ksettings)
 {
-	u16 fw_speeds = link_info->auto_link_speeds;
+	u16 fw_speeds = link_info->advertising;
 	u8 fw_pause = 0;
 
 	if (link_info->autoneg & BNXT_AUTONEG_FLOW_CTRL)
@@ -1090,8 +1130,9 @@ static int bnxt_set_link_ksettings(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	struct bnxt_link_info *link_info = &bp->link_info;
 	const struct ethtool_link_settings *base = &lk_ksettings->base;
-	u32 speed, fw_advertising = 0;
 	bool set_pause = false;
+	u16 fw_advertising = 0;
+	u32 speed;
 	int rc = 0;
 
 	if (!BNXT_SINGLE_PF(bp))
