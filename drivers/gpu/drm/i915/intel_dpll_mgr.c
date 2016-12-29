@@ -112,7 +112,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 		WARN_ON(pll->on);
 		assert_shared_dpll_disabled(dev_priv, pll);
 
-		pll->funcs.mode_set(dev_priv, pll);
+		pll->funcs.prepare(dev_priv, pll);
 	}
 	mutex_unlock(&dev_priv->dpll_lock);
 }
@@ -306,8 +306,8 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 	return val & DPLL_VCO_ENABLE;
 }
 
-static void ibx_pch_dpll_mode_set(struct drm_i915_private *dev_priv,
-				  struct intel_shared_dpll *pll)
+static void ibx_pch_dpll_prepare(struct drm_i915_private *dev_priv,
+				 struct intel_shared_dpll *pll)
 {
 	I915_WRITE(PCH_FP0(pll->id), pll->state.hw_state.fp0);
 	I915_WRITE(PCH_FP1(pll->id), pll->state.hw_state.fp1);
@@ -396,7 +396,7 @@ ibx_get_dpll(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state,
 }
 
 static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
-	.mode_set = ibx_pch_dpll_mode_set,
+	.prepare = ibx_pch_dpll_prepare,
 	.enable = ibx_pch_dpll_enable,
 	.disable = ibx_pch_dpll_disable,
 	.get_hw_state = ibx_pch_dpll_get_hw_state,
