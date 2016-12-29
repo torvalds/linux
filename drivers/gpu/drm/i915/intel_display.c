@@ -14658,7 +14658,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 
 	drm_atomic_helper_swap_state(state, true);
 	dev_priv->wm.distrust_bios_wm = false;
-	intel_shared_dpll_commit(state);
+	intel_shared_dpll_swap_state(state);
 	intel_atomic_track_fbs(state);
 
 	if (intel_state->modeset) {

@@ -265,7 +265,7 @@ intel_reference_shared_dpll(struct intel_shared_dpll *pll,
 	shared_dpll[pll->id].crtc_mask |= 1 << crtc->pipe;
 }
 
-void intel_shared_dpll_commit(struct drm_atomic_state *state)
+void intel_shared_dpll_swap_state(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
 	struct intel_shared_dpll_config *shared_dpll;
@@ -277,8 +277,13 @@ void intel_shared_dpll_commit(struct drm_atomic_state *state)
 
 	shared_dpll = to_intel_atomic_state(state)->shared_dpll;
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
+		struct intel_shared_dpll_config tmp;
+
 		pll = &dev_priv->shared_dplls[i];
+
+		tmp = pll->config;
 		pll->config = shared_dpll[i];
+		shared_dpll[i] = tmp;
 	}
 }
 

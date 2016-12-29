@@ -152,7 +152,7 @@ void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
 void intel_prepare_shared_dpll(struct intel_crtc *crtc);
 void intel_enable_shared_dpll(struct intel_crtc *crtc);
 void intel_disable_shared_dpll(struct intel_crtc *crtc);
-void intel_shared_dpll_commit(struct drm_atomic_state *state);
+void intel_shared_dpll_swap_state(struct drm_atomic_state *state);
 void intel_shared_dpll_init(struct drm_device *dev);
 
 /* BXT dpll related functions */
