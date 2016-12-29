@@ -13741,9 +13741,9 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 	}
 
 	if (!crtc) {
-		I915_STATE_WARN(pll->active_mask & ~pll->config.crtc_mask,
+		I915_STATE_WARN(pll->active_mask & ~pll->state.crtc_mask,
 				"more active pll users than references: %x vs %x\n",
-				pll->active_mask, pll->config.crtc_mask);
+				pll->active_mask, pll->state.crtc_mask);
 
 		return;
 	}
@@ -13759,11 +13759,11 @@ verify_single_dpll_state(struct drm_i915_private *dev_priv,
 				"pll active mismatch (didn't expect pipe %c in active mask 0x%02x)\n",
 				pipe_name(drm_crtc_index(crtc)), pll->active_mask);
 
-	I915_STATE_WARN(!(pll->config.crtc_mask & crtc_mask),
+	I915_STATE_WARN(!(pll->state.crtc_mask & crtc_mask),
 			"pll enabled crtcs mismatch (expected 0x%x in 0x%02x)\n",
-			crtc_mask, pll->config.crtc_mask);
+			crtc_mask, pll->state.crtc_mask);
 
-	I915_STATE_WARN(pll->on && memcmp(&pll->config.hw_state,
+	I915_STATE_WARN(pll->on && memcmp(&pll->state.hw_state,
 					  &dpll_hw_state,
 					  sizeof(dpll_hw_state)),
 			"pll hw state mismatch\n");
@@ -13789,7 +13789,7 @@ verify_shared_dpll_state(struct drm_device *dev, struct drm_crtc *crtc,
 		I915_STATE_WARN(pll->active_mask & crtc_mask,
 				"pll active mismatch (didn't expect pipe %c in active mask)\n",
 				pipe_name(drm_crtc_index(crtc)));
-		I915_STATE_WARN(pll->config.crtc_mask & crtc_mask,
+		I915_STATE_WARN(pll->state.crtc_mask & crtc_mask,
 				"pll enabled crtcs mismatch (found %x in enabled mask)\n",
 				pipe_name(drm_crtc_index(crtc)));
 	}
@@ -16922,16 +16922,16 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
 
 		pll->on = pll->funcs.get_hw_state(dev_priv, pll,
-						  &pll->config.hw_state);
-		pll->config.crtc_mask = 0;
+						  &pll->state.hw_state);
+		pll->state.crtc_mask = 0;
 		for_each_intel_crtc(dev, crtc) {
 			if (crtc->active && crtc->config->shared_dpll == pll)
-				pll->config.crtc_mask |= 1 << crtc->pipe;
+				pll->state.crtc_mask |= 1 << crtc->pipe;
 		}
-		pll->active_mask = pll->config.crtc_mask;
+		pll->active_mask = pll->state.crtc_mask;
 
 		DRM_DEBUG_KMS("%s hw state readout: crtc_mask 0x%08x, on %i\n",
-			      pll->name, pll->config.crtc_mask, pll->on);
+			      pll->name, pll->state.crtc_mask, pll->on);
 	}
 
 	for_each_intel_encoder(dev, encoder) {

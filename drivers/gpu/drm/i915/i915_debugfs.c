@@ -3351,14 +3351,14 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 
 		seq_printf(m, "DPLL%i: %s, id: %i\n", i, pll->name, pll->id);
 		seq_printf(m, " crtc_mask: 0x%08x, active: 0x%x, on: %s\n",
-			   pll->config.crtc_mask, pll->active_mask, yesno(pll->on));
+			   pll->state.crtc_mask, pll->active_mask, yesno(pll->on));
 		seq_printf(m, " tracked hardware state:\n");
-		seq_printf(m, " dpll:    0x%08x\n", pll->config.hw_state.dpll);
+		seq_printf(m, " dpll:    0x%08x\n", pll->state.hw_state.dpll);
 		seq_printf(m, " dpll_md: 0x%08x\n",
-			   pll->config.hw_state.dpll_md);
-		seq_printf(m, " fp0:     0x%08x\n", pll->config.hw_state.fp0);
-		seq_printf(m, " fp1:     0x%08x\n", pll->config.hw_state.fp1);
-		seq_printf(m, " wrpll:   0x%08x\n", pll->config.hw_state.wrpll);
+			   pll->state.hw_state.dpll_md);
+		seq_printf(m, " fp0:     0x%08x\n", pll->state.hw_state.fp0);
+		seq_printf(m, " fp1:     0x%08x\n", pll->state.hw_state.fp1);
+		seq_printf(m, " wrpll:   0x%08x\n", pll->state.hw_state.wrpll);
 	}
 	drm_modeset_unlock_all(dev);
 

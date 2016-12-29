@@ -1057,7 +1057,7 @@ static int bxt_calc_pll_link(struct drm_i915_private *dev_priv,
 		return 0;
 
 	pll = &dev_priv->shared_dplls[dpll];
-	state = &pll->config.hw_state;
+	state = &pll->state.hw_state;
 
 	clock.m1 = 2;
 	clock.m2 = (state->pll0 & PORT_PLL_M2_MASK) << 22;
@@ -2134,7 +2134,7 @@ intel_ddi_get_link_dpll(struct intel_dp *intel_dp, int clock)
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_shared_dpll *pll = NULL;
-	struct intel_shared_dpll_config tmp_pll_config;
+	struct intel_shared_dpll_state tmp_pll_state;
 	enum intel_dpll_id dpll_id;
 
 	if (IS_GEN9_LP(dev_priv)) {
@@ -2150,11 +2150,11 @@ intel_ddi_get_link_dpll(struct intel_dp *intel_dp, int clock)
 				  pll->active_mask);
 			return NULL;
 		}
-		tmp_pll_config = pll->config;
+		tmp_pll_state = pll->state;
 		if (!bxt_ddi_dp_set_dpll_hw_state(clock,
-						  &pll->config.hw_state)) {
+						  &pll->state.hw_state)) {
 			DRM_ERROR("Could not setup DPLL\n");
-			pll->config = tmp_pll_config;
+			pll->state = tmp_pll_state;
 			return NULL;
 		}
 	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {

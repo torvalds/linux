@@ -38,11 +38,11 @@ skl_find_link_pll(struct drm_i915_private *dev_priv, int clock)
 		pll = &dev_priv->shared_dplls[i];
 
 		/* Only want to check enabled timings first */
-		if (pll->config.crtc_mask == 0)
+		if (pll->state.crtc_mask == 0)
 			continue;
 
-		if (memcmp(&dpll_hw_state, &pll->config.hw_state,
-			   sizeof(pll->config.hw_state)) == 0) {
+		if (memcmp(&dpll_hw_state, &pll->state.hw_state,
+			   sizeof(pll->state.hw_state)) == 0) {
 			found = true;
 			break;
 		}
@@ -52,8 +52,8 @@ skl_find_link_pll(struct drm_i915_private *dev_priv, int clock)
 	for (i = DPLL_ID_SKL_DPLL1;
 	     ((found == false) && (i <= DPLL_ID_SKL_DPLL3)); i++) {
 		pll = &dev_priv->shared_dplls[i];
-		if (pll->config.crtc_mask == 0) {
-			pll->config.hw_state = dpll_hw_state;
+		if (pll->state.crtc_mask == 0) {
+			pll->state.hw_state = dpll_hw_state;
 			break;
 		}
 	}
@@ -106,7 +106,7 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 		return;
 
 	mutex_lock(&dev_priv->dpll_lock);
-	WARN_ON(!pll->config.crtc_mask);
+	WARN_ON(!pll->state.crtc_mask);
 	if (!pll->active_mask) {
 		DRM_DEBUG_DRIVER("setting up %s\n", pll->name);
 		WARN_ON(pll->on);
@@ -139,7 +139,7 @@ void intel_enable_shared_dpll(struct intel_crtc *crtc)
 	mutex_lock(&dev_priv->dpll_lock);
 	old_mask = pll->active_mask;
 
-	if (WARN_ON(!(pll->config.crtc_mask & crtc_mask)) ||
+	if (WARN_ON(!(pll->state.crtc_mask & crtc_mask)) ||
 	    WARN_ON(pll->active_mask & crtc_mask))
 		goto out;
 
@@ -208,7 +208,7 @@ intel_find_shared_dpll(struct intel_crtc *crtc,
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll;
-	struct intel_shared_dpll_config *shared_dpll;
+	struct intel_shared_dpll_state *shared_dpll;
 	enum intel_dpll_id i;
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(crtc_state->base.state);
@@ -248,7 +248,7 @@ static void
 intel_reference_shared_dpll(struct intel_shared_dpll *pll,
 			    struct intel_crtc_state *crtc_state)
 {
-	struct intel_shared_dpll_config *shared_dpll;
+	struct intel_shared_dpll_state *shared_dpll;
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	enum intel_dpll_id i = pll->id;
 
@@ -268,7 +268,7 @@ intel_reference_shared_dpll(struct intel_shared_dpll *pll,
 void intel_shared_dpll_swap_state(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_shared_dpll_config *shared_dpll;
+	struct intel_shared_dpll_state *shared_dpll;
 	struct intel_shared_dpll *pll;
 	enum intel_dpll_id i;
 
@@ -277,12 +277,12 @@ void intel_shared_dpll_swap_state(struct drm_atomic_state *state)
 
 	shared_dpll = to_intel_atomic_state(state)->shared_dpll;
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll_config tmp;
+		struct intel_shared_dpll_state tmp;
 
 		pll = &dev_priv->shared_dplls[i];
 
-		tmp = pll->config;
-		pll->config = shared_dpll[i];
+		tmp = pll->state;
+		pll->state = shared_dpll[i];
 		shared_dpll[i] = tmp;
 	}
 }
@@ -309,8 +309,8 @@ static bool ibx_pch_dpll_get_hw_state(struct drm_i915_private *dev_priv,
 static void ibx_pch_dpll_mode_set(struct drm_i915_private *dev_priv,
 				  struct intel_shared_dpll *pll)
 {
-	I915_WRITE(PCH_FP0(pll->id), pll->config.hw_state.fp0);
-	I915_WRITE(PCH_FP1(pll->id), pll->config.hw_state.fp1);
+	I915_WRITE(PCH_FP0(pll->id), pll->state.hw_state.fp0);
+	I915_WRITE(PCH_FP1(pll->id), pll->state.hw_state.fp1);
 }
 
 static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
@@ -332,7 +332,7 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 	/* PCH refclock must be enabled first */
 	ibx_assert_pch_refclk_enabled(dev_priv);
 
-	I915_WRITE(PCH_DPLL(pll->id), pll->config.hw_state.dpll);
+	I915_WRITE(PCH_DPLL(pll->id), pll->state.hw_state.dpll);
 
 	/* Wait for the clocks to stabilize. */
 	POSTING_READ(PCH_DPLL(pll->id));
@@ -343,7 +343,7 @@ static void ibx_pch_dpll_enable(struct drm_i915_private *dev_priv,
 	 *
 	 * So write it again.
 	 */
-	I915_WRITE(PCH_DPLL(pll->id), pll->config.hw_state.dpll);
+	I915_WRITE(PCH_DPLL(pll->id), pll->state.hw_state.dpll);
 	POSTING_READ(PCH_DPLL(pll->id));
 	udelay(200);
 }
@@ -405,7 +405,7 @@ static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
 static void hsw_ddi_wrpll_enable(struct drm_i915_private *dev_priv,
 			       struct intel_shared_dpll *pll)
 {
-	I915_WRITE(WRPLL_CTL(pll->id), pll->config.hw_state.wrpll);
+	I915_WRITE(WRPLL_CTL(pll->id), pll->state.hw_state.wrpll);
 	POSTING_READ(WRPLL_CTL(pll->id));
 	udelay(20);
 }
@@ -413,7 +413,7 @@ static void hsw_ddi_wrpll_enable(struct drm_i915_private *dev_priv,
 static void hsw_ddi_spll_enable(struct drm_i915_private *dev_priv,
 				struct intel_shared_dpll *pll)
 {
-	I915_WRITE(SPLL_CTL, pll->config.hw_state.spll);
+	I915_WRITE(SPLL_CTL, pll->state.hw_state.spll);
 	POSTING_READ(SPLL_CTL);
 	udelay(20);
 }
@@ -856,7 +856,7 @@ static void skl_ddi_pll_write_ctrl1(struct drm_i915_private *dev_priv,
 
 	val &= ~(DPLL_CTRL1_HDMI_MODE(pll->id) | DPLL_CTRL1_SSC(pll->id) |
 		 DPLL_CTRL1_LINK_RATE_MASK(pll->id));
-	val |= pll->config.hw_state.ctrl1 << (pll->id * 6);
+	val |= pll->state.hw_state.ctrl1 << (pll->id * 6);
 
 	I915_WRITE(DPLL_CTRL1, val);
 	POSTING_READ(DPLL_CTRL1);
@@ -869,8 +869,8 @@ static void skl_ddi_pll_enable(struct drm_i915_private *dev_priv,
 
 	skl_ddi_pll_write_ctrl1(dev_priv, pll);
 
-	I915_WRITE(regs[pll->id].cfgcr1, pll->config.hw_state.cfgcr1);
-	I915_WRITE(regs[pll->id].cfgcr2, pll->config.hw_state.cfgcr2);
+	I915_WRITE(regs[pll->id].cfgcr1, pll->state.hw_state.cfgcr1);
+	I915_WRITE(regs[pll->id].cfgcr2, pll->state.hw_state.cfgcr2);
 	POSTING_READ(regs[pll->id].cfgcr1);
 	POSTING_READ(regs[pll->id].cfgcr2);
 
@@ -1381,31 +1381,31 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	/* Write P1 & P2 */
 	temp = I915_READ(BXT_PORT_PLL_EBB_0(phy, ch));
 	temp &= ~(PORT_PLL_P1_MASK | PORT_PLL_P2_MASK);
-	temp |= pll->config.hw_state.ebb0;
+	temp |= pll->state.hw_state.ebb0;
 	I915_WRITE(BXT_PORT_PLL_EBB_0(phy, ch), temp);
 
 	/* Write M2 integer */
 	temp = I915_READ(BXT_PORT_PLL(phy, ch, 0));
 	temp &= ~PORT_PLL_M2_MASK;
-	temp |= pll->config.hw_state.pll0;
+	temp |= pll->state.hw_state.pll0;
 	I915_WRITE(BXT_PORT_PLL(phy, ch, 0), temp);
 
 	/* Write N */
 	temp = I915_READ(BXT_PORT_PLL(phy, ch, 1));
 	temp &= ~PORT_PLL_N_MASK;
-	temp |= pll->config.hw_state.pll1;
+	temp |= pll->state.hw_state.pll1;
 	I915_WRITE(BXT_PORT_PLL(phy, ch, 1), temp);
 
 	/* Write M2 fraction */
 	temp = I915_READ(BXT_PORT_PLL(phy, ch, 2));
 	temp &= ~PORT_PLL_M2_FRAC_MASK;
-	temp |= pll->config.hw_state.pll2;
+	temp |= pll->state.hw_state.pll2;
 	I915_WRITE(BXT_PORT_PLL(phy, ch, 2), temp);
 
 	/* Write M2 fraction enable */
 	temp = I915_READ(BXT_PORT_PLL(phy, ch, 3));
 	temp &= ~PORT_PLL_M2_FRAC_ENABLE;
-	temp |= pll->config.hw_state.pll3;
+	temp |= pll->state.hw_state.pll3;
 	I915_WRITE(BXT_PORT_PLL(phy, ch, 3), temp);
 
 	/* Write coeff */
@@ -1413,24 +1413,24 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	temp &= ~PORT_PLL_PROP_COEFF_MASK;
 	temp &= ~PORT_PLL_INT_COEFF_MASK;
 	temp &= ~PORT_PLL_GAIN_CTL_MASK;
-	temp |= pll->config.hw_state.pll6;
+	temp |= pll->state.hw_state.pll6;
 	I915_WRITE(BXT_PORT_PLL(phy, ch, 6), temp);
 
 	/* Write calibration val */
 	temp = I915_READ(BXT_PORT_PLL(phy, ch, 8));
 	temp &= ~PORT_PLL_TARGET_CNT_MASK;
-	temp |= pll->config.hw_state.pll8;
+	temp |= pll->state.hw_state.pll8;
 	I915_WRITE(BXT_PORT_PLL(phy, ch, 8), temp);
 
 	temp = I915_READ(BXT_PORT_PLL(phy, ch, 9));
 	temp &= ~PORT_PLL_LOCK_THRESHOLD_MASK;
-	temp |= pll->config.hw_state.pll9;
+	temp |= pll->state.hw_state.pll9;
 	I915_WRITE(BXT_PORT_PLL(phy, ch, 9), temp);
 
 	temp = I915_READ(BXT_PORT_PLL(phy, ch, 10));
 	temp &= ~PORT_PLL_DCO_AMP_OVR_EN_H;
 	temp &= ~PORT_PLL_DCO_AMP_MASK;
-	temp |= pll->config.hw_state.pll10;
+	temp |= pll->state.hw_state.pll10;
 	I915_WRITE(BXT_PORT_PLL(phy, ch, 10), temp);
 
 	/* Recalibrate with new settings */
@@ -1438,7 +1438,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	temp |= PORT_PLL_RECALIBRATE;
 	I915_WRITE(BXT_PORT_PLL_EBB_4(phy, ch), temp);
 	temp &= ~PORT_PLL_10BIT_CLK_ENABLE;
-	temp |= pll->config.hw_state.ebb4;
+	temp |= pll->state.hw_state.ebb4;
 	I915_WRITE(BXT_PORT_PLL_EBB_4(phy, ch), temp);
 
 	/* Enable PLL */
@@ -1464,7 +1464,7 @@ static void bxt_ddi_pll_enable(struct drm_i915_private *dev_priv,
 	temp = I915_READ(BXT_PORT_PCS_DW12_LN01(phy, ch));
 	temp &= ~LANE_STAGGER_MASK;
 	temp &= ~LANESTAGGER_STRAP_OVRD;
-	temp |= pll->config.hw_state.pcsdw12;
+	temp |= pll->state.hw_state.pcsdw12;
 	I915_WRITE(BXT_PORT_PCS_DW12_GRP(phy, ch), temp);
 }
 
@@ -1928,8 +1928,8 @@ void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
 			       struct intel_crtc *crtc,
 			       struct drm_atomic_state *state)
 {
-	struct intel_shared_dpll_config *shared_dpll_config;
+	struct intel_shared_dpll_state *shared_dpll_state;
 
-	shared_dpll_config = intel_atomic_get_shared_dpll_state(state);
-	shared_dpll_config[dpll->id].crtc_mask &= ~(1 << crtc->pipe);
+	shared_dpll_state = intel_atomic_get_shared_dpll_state(state);
+	shared_dpll_state[dpll->id].crtc_mask &= ~(1 << crtc->pipe);
 }

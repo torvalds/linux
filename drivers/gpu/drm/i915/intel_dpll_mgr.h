@@ -93,7 +93,7 @@ struct intel_dpll_hw_state {
 		 pcsdw12;
 };
 
-struct intel_shared_dpll_config {
+struct intel_shared_dpll_state {
 	unsigned crtc_mask; /* mask of CRTCs sharing this PLL */
 	struct intel_dpll_hw_state hw_state;
 };
@@ -113,7 +113,7 @@ struct intel_shared_dpll_funcs {
 };
 
 struct intel_shared_dpll {
-	struct intel_shared_dpll_config config;
+	struct intel_shared_dpll_state state;
 
 	unsigned active_mask; /* mask of active CRTCs (i.e. DPMS on) */
 	bool on; /* is the PLL actually active? Disabled during modeset */
