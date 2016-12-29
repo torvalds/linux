@@ -65,7 +65,6 @@ struct zx_crtc_bits {
 	u32 polarity_shift;
 	u32 int_frame_mask;
 	u32 tc_enable;
-	u32 gl_enable;
 };
 
 static const struct zx_crtc_bits main_crtc_bits = {
@@ -73,7 +72,6 @@ static const struct zx_crtc_bits main_crtc_bits = {
 	.polarity_shift = MAIN_POL_SHIFT,
 	.int_frame_mask = TIMING_INT_MAIN_FRAME,
 	.tc_enable = MAIN_TC_EN,
-	.gl_enable = OSD_CTRL0_GL0_EN,
 };
 
 static const struct zx_crtc_bits aux_crtc_bits = {
@@ -81,7 +79,6 @@ static const struct zx_crtc_bits aux_crtc_bits = {
 	.polarity_shift = AUX_POL_SHIFT,
 	.int_frame_mask = TIMING_INT_AUX_FRAME,
 	.tc_enable = AUX_TC_EN,
-	.gl_enable = OSD_CTRL0_GL1_EN,
 };
 
 struct zx_crtc {
@@ -96,6 +93,24 @@ struct zx_crtc {
 };
 
 #define to_zx_crtc(x) container_of(x, struct zx_crtc, crtc)
+
+struct vou_layer_bits {
+	u32 enable;
+	u32 chnsel;
+	u32 clksel;
+};
+
+static const struct vou_layer_bits zx_gl_bits[GL_NUM] = {
+	{
+		.enable = OSD_CTRL0_GL0_EN,
+		.chnsel = OSD_CTRL0_GL0_SEL,
+		.clksel = VOU_CLK_GL0_SEL,
+	}, {
+		.enable = OSD_CTRL0_GL1_EN,
+		.chnsel = OSD_CTRL0_GL1_SEL,
+		.clksel = VOU_CLK_GL1_SEL,
+	},
+};
 
 struct zx_vou_hw {
 	struct device *dev;
@@ -229,10 +244,6 @@ static void zx_crtc_enable(struct drm_crtc *crtc)
 	/* Enable channel */
 	zx_writel_mask(zcrtc->chnreg + CHN_CTRL0, CHN_ENABLE, CHN_ENABLE);
 
-	/* Enable Graphic Layer */
-	zx_writel_mask(vou->osd + OSD_CTRL0, bits->gl_enable,
-		       bits->gl_enable);
-
 	drm_crtc_vblank_on(crtc);
 
 	ret = clk_set_rate(zcrtc->pixclk, mode->clock * 1000);
@@ -255,9 +266,6 @@ static void zx_crtc_disable(struct drm_crtc *crtc)
 	clk_disable_unprepare(zcrtc->pixclk);
 
 	drm_crtc_vblank_off(crtc);
-
-	/* Disable Graphic Layer */
-	zx_writel_mask(vou->osd + OSD_CTRL0, bits->gl_enable, 0);
 
 	/* Disable channel */
 	zx_writel_mask(zcrtc->chnreg + CHN_CTRL0, CHN_ENABLE, 0);
@@ -325,6 +333,7 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 		zplane->csc = vou->osd + MAIN_CSC_OFFSET;
 		zplane->hbsc = vou->osd + MAIN_HBSC_OFFSET;
 		zplane->rsz = vou->otfppu + MAIN_RSZ_OFFSET;
+		zplane->bits = &zx_gl_bits[0];
 		zcrtc->chnreg = vou->osd + OSD_MAIN_CHN;
 		zcrtc->regs = &main_crtc_regs;
 		zcrtc->bits = &main_crtc_bits;
@@ -333,6 +342,7 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 		zplane->csc = vou->osd + AUX_CSC_OFFSET;
 		zplane->hbsc = vou->osd + AUX_HBSC_OFFSET;
 		zplane->rsz = vou->otfppu + AUX_RSZ_OFFSET;
+		zplane->bits = &zx_gl_bits[1];
 		zcrtc->chnreg = vou->osd + OSD_AUX_CHN;
 		zcrtc->regs = &aux_crtc_regs;
 		zcrtc->bits = &aux_crtc_bits;
@@ -420,6 +430,36 @@ void zx_vou_disable_vblank(struct drm_device *drm, unsigned int pipe)
 		       zcrtc->bits->int_frame_mask, 0);
 }
 
+void zx_vou_layer_enable(struct drm_plane *plane)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(plane->state->crtc);
+	struct zx_vou_hw *vou = zcrtc->vou;
+	struct zx_plane *zplane = to_zx_plane(plane);
+	const struct vou_layer_bits *bits = zplane->bits;
+
+	if (zcrtc->chn_type == VOU_CHN_MAIN) {
+		zx_writel_mask(vou->osd + OSD_CTRL0, bits->chnsel, 0);
+		zx_writel_mask(vou->vouctl + VOU_CLK_SEL, bits->clksel, 0);
+	} else {
+		zx_writel_mask(vou->osd + OSD_CTRL0, bits->chnsel,
+			       bits->chnsel);
+		zx_writel_mask(vou->vouctl + VOU_CLK_SEL, bits->clksel,
+			       bits->clksel);
+	}
+
+	zx_writel_mask(vou->osd + OSD_CTRL0, bits->enable, bits->enable);
+}
+
+void zx_vou_layer_disable(struct drm_plane *plane)
+{
+	struct zx_crtc *zcrtc = to_zx_crtc(plane->crtc);
+	struct zx_vou_hw *vou = zcrtc->vou;
+	struct zx_plane *zplane = to_zx_plane(plane);
+	const struct vou_layer_bits *bits = zplane->bits;
+
+	zx_writel_mask(vou->osd + OSD_CTRL0, bits->enable, 0);
+}
+
 static irqreturn_t vou_irq_handler(int irq, void *dev_id)
 {
 	struct zx_vou_hw *vou = dev_id;
@@ -478,18 +518,8 @@ static void vou_dtrc_init(struct zx_vou_hw *vou)
 
 static void vou_hw_init(struct zx_vou_hw *vou)
 {
-	/* Set GL0 to main channel and GL1 to aux channel */
-	zx_writel_mask(vou->osd + OSD_CTRL0, OSD_CTRL0_GL0_SEL, 0);
-	zx_writel_mask(vou->osd + OSD_CTRL0, OSD_CTRL0_GL1_SEL,
-		       OSD_CTRL0_GL1_SEL);
-
 	/* Release reset for all VOU modules */
 	zx_writel(vou->vouctl + VOU_SOFT_RST, ~0);
-
-	/* Select main clock for GL0 and aux clock for GL1 module */
-	zx_writel_mask(vou->vouctl + VOU_CLK_SEL, VOU_CLK_GL0_SEL, 0);
-	zx_writel_mask(vou->vouctl + VOU_CLK_SEL, VOU_CLK_GL1_SEL,
-		       VOU_CLK_GL1_SEL);
 
 	/* Enable clock auto-gating for all VOU modules */
 	zx_writel(vou->vouctl + VOU_CLK_REQEN, ~0);

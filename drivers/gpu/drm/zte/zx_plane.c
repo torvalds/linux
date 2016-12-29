@@ -197,12 +197,27 @@ static void zx_gl_plane_atomic_update(struct drm_plane *plane,
 	/* Enable HBSC block */
 	zx_writel_mask(hbsc + HBSC_CTRL0, HBSC_CTRL_EN, HBSC_CTRL_EN);
 
+	zx_vou_layer_enable(plane);
+
 	zx_gl_set_update(zplane);
+}
+
+static void zx_plane_atomic_disable(struct drm_plane *plane,
+				    struct drm_plane_state *old_state)
+{
+	struct zx_plane *zplane = to_zx_plane(plane);
+	void __iomem *hbsc = zplane->hbsc;
+
+	zx_vou_layer_disable(plane);
+
+	/* Disable HBSC block */
+	zx_writel_mask(hbsc + HBSC_CTRL0, HBSC_CTRL_EN, 0);
 }
 
 static const struct drm_plane_helper_funcs zx_gl_plane_helper_funcs = {
 	.atomic_check = zx_gl_plane_atomic_check,
 	.atomic_update = zx_gl_plane_atomic_update,
+	.atomic_disable = zx_plane_atomic_disable,
 };
 
 static void zx_plane_destroy(struct drm_plane *plane)

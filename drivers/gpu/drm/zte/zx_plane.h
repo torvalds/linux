@@ -18,6 +18,7 @@ struct zx_plane {
 	void __iomem *csc;
 	void __iomem *hbsc;
 	void __iomem *rsz;
+	const struct vou_layer_bits *bits;
 };
 
 #define to_zx_plane(plane) container_of(plane, struct zx_plane, plane)

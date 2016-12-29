@@ -53,4 +53,7 @@ void vou_inf_disable(const struct vou_inf *inf, struct drm_crtc *crtc);
 int zx_vou_enable_vblank(struct drm_device *drm, unsigned int pipe);
 void zx_vou_disable_vblank(struct drm_device *drm, unsigned int pipe);
 
+void zx_vou_layer_enable(struct drm_plane *plane);
+void zx_vou_layer_disable(struct drm_plane *plane);
+
 #endif /* __ZX_VOU_H__ */
