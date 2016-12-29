@@ -21,45 +21,6 @@
 
 #include "vgic.h"
 
-void vgic_v3_process_maintenance(struct kvm_vcpu *vcpu)
-{
-	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
-	u32 model = vcpu->kvm->arch.vgic.vgic_model;
-
-	if (cpuif->vgic_misr & ICH_MISR_EOI) {
-		unsigned long eisr_bmap = cpuif->vgic_eisr;
-		int lr;
-
-		for_each_set_bit(lr, &eisr_bmap, kvm_vgic_global_state.nr_lr) {
-			u32 intid;
-			u64 val = cpuif->vgic_lr[lr];
-
-			if (model == KVM_DEV_TYPE_ARM_VGIC_V3)
-				intid = val & ICH_LR_VIRTUAL_ID_MASK;
-			else
-				intid = val & GICH_LR_VIRTUALID;
-
-			WARN_ON(cpuif->vgic_lr[lr] & ICH_LR_STATE);
-
-			/* Only SPIs require notification */
-			if (vgic_valid_spi(vcpu->kvm, intid))
-				kvm_notify_acked_irq(vcpu->kvm, 0,
-						     intid - VGIC_NR_PRIVATE_IRQS);
-		}
-
-		/*
-		 * In the next iterations of the vcpu loop, if we sync
-		 * the vgic state after flushing it, but before
-		 * entering the guest (this happens for pending
-		 * signals and vmid rollovers), then make sure we
-		 * don't pick up any old maintenance interrupts here.
-		 */
-		cpuif->vgic_eisr = 0;
-	}
-
-	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
-}
-
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
@@ -67,11 +28,19 @@ void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
 	cpuif->vgic_hcr |= ICH_HCR_UIE;
 }
 
+static bool lr_signals_eoi_mi(u64 lr_val)
+{
+	return !(lr_val & ICH_LR_STATE) && (lr_val & ICH_LR_EOI) &&
+	       !(lr_val & ICH_LR_HW);
+}
+
 void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 {
 	struct vgic_v3_cpu_if *cpuif = &vcpu->arch.vgic_cpu.vgic_v3;
 	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	int lr;
+
+	cpuif->vgic_hcr &= ~ICH_HCR_UIE;
 
 	for (lr = 0; lr < vcpu->arch.vgic_cpu.used_lrs; lr++) {
 		u64 val = cpuif->vgic_lr[lr];
@@ -82,6 +51,12 @@ void vgic_v3_fold_lr_state(struct kvm_vcpu *vcpu)
 			intid = val & ICH_LR_VIRTUAL_ID_MASK;
 		else
 			intid = val & GICH_LR_VIRTUALID;
+
+		/* Notify fds when the guest EOI'ed a level-triggered IRQ */
+		if (lr_signals_eoi_mi(val) && vgic_valid_spi(vcpu->kvm, intid))
+			kvm_notify_acked_irq(vcpu->kvm, 0,
+					     intid - VGIC_NR_PRIVATE_IRQS);
+
 		irq = vgic_get_irq(vcpu->kvm, vcpu, intid);
 		if (!irq)	/* An LPI could have been unmapped. */
 			continue;
