@@ -49,3 +49,5 @@ section name should be all upper-case or not, and whether it should end
 in a colon or not. Go with the file-local style. Other common section
 names are "Notes" with information for dangerous or tricky corner cases,
 and "FIXME" where the interface could be cleaned up.
+
+Also read the :ref:`guidelines for the kernel documentation at large <doc_guide>`.
