@@ -2496,7 +2496,7 @@ void bnxt_set_ring_params(struct bnxt *bp)
 		agg_factor = min_t(u32, 4, 65536 / BNXT_RX_PAGE_SIZE);
 
 	bp->flags &= ~BNXT_FLAG_JUMBO;
-	if (rx_space > PAGE_SIZE) {
+	if (rx_space > PAGE_SIZE && !(bp->flags & BNXT_FLAG_NO_AGG_RINGS)) {
 		u32 jumbo_factor;
 
 		bp->flags |= BNXT_FLAG_JUMBO;
@@ -6174,6 +6174,9 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	if (features & NETIF_F_LRO)
 		flags |= BNXT_FLAG_LRO;
 
+	if (bp->flags & BNXT_FLAG_NO_AGG_RINGS)
+		flags &= ~BNXT_FLAG_TPA;
+
 	if (features & NETIF_F_HW_VLAN_CTAG_RX)
 		flags |= BNXT_FLAG_STRIP_VLAN;
 
@@ -7040,8 +7043,17 @@ static int bnxt_get_dflt_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	int rc;
 
 	rc = bnxt_get_max_rings(bp, max_rx, max_tx, shared);
-	if (rc)
-		return rc;
+	if (rc && (bp->flags & BNXT_FLAG_AGG_RINGS)) {
+		/* Not enough rings, try disabling agg rings. */
+		bp->flags &= ~BNXT_FLAG_AGG_RINGS;
+		rc = bnxt_get_max_rings(bp, max_rx, max_tx, shared);
+		if (rc)
+			return rc;
+		bp->flags |= BNXT_FLAG_NO_AGG_RINGS;
+		bp->dev->hw_features &= ~NETIF_F_LRO;
+		bp->dev->features &= ~NETIF_F_LRO;
+		bnxt_set_ring_params(bp);
+	}
 
 	if (bp->flags & BNXT_FLAG_ROCE_CAP) {
 		int max_cp, max_stat, max_irq;
@@ -7236,7 +7248,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
 	bnxt_set_max_func_irqs(bp, max_irqs);
-	bnxt_set_dflt_rings(bp);
+	rc = bnxt_set_dflt_rings(bp);
+	if (rc) {
+		netdev_err(bp->dev, "Not enough rings available.\n");
+		rc = -ENOMEM;
+		goto init_err;
+	}
 
 	/* Default RSS hash cfg. */
 	bp->rss_hash_cfg = VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4 |
