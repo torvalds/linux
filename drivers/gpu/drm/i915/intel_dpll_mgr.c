@@ -79,28 +79,6 @@ intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
 	return (enum intel_dpll_id) (pll - dev_priv->shared_dplls);
 }
 
-void
-intel_shared_dpll_config_get(struct intel_shared_dpll_config *config,
-			     struct intel_shared_dpll *pll,
-			     struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum intel_dpll_id id = intel_get_shared_dpll_id(dev_priv, pll);
-
-	config[id].crtc_mask |= 1 << crtc->pipe;
-}
-
-void
-intel_shared_dpll_config_put(struct intel_shared_dpll_config *config,
-			     struct intel_shared_dpll *pll,
-			     struct intel_crtc *crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum intel_dpll_id id = intel_get_shared_dpll_id(dev_priv, pll);
-
-	config[id].crtc_mask &= ~(1 << crtc->pipe);
-}
-
 /* For ILK+ */
 void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			struct intel_shared_dpll *pll,
@@ -284,7 +262,7 @@ intel_reference_shared_dpll(struct intel_shared_dpll *pll,
 	DRM_DEBUG_DRIVER("using %s for pipe %c\n", pll->name,
 			 pipe_name(crtc->pipe));
 
-	intel_shared_dpll_config_get(shared_dpll, pll, crtc);
+	shared_dpll[pll->id].crtc_mask |= 1 << crtc->pipe;
 }
 
 void intel_shared_dpll_commit(struct drm_atomic_state *state)
@@ -1932,4 +1910,21 @@ intel_get_shared_dpll(struct intel_crtc *crtc,
 		return NULL;
 
 	return dpll_mgr->get_dpll(crtc, crtc_state, encoder);
+}
+
+/**
+ * intel_release_shared_dpll - end use of DPLL by CRTC in atomic state
+ * @dpll: dpll in use by @crtc
+ * @crtc: crtc
+ * @state: atomic state
+ *
+ */
+void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
+			       struct intel_crtc *crtc,
+			       struct drm_atomic_state *state)
+{
+	struct intel_shared_dpll_config *shared_dpll_config;
+
+	shared_dpll_config = intel_atomic_get_shared_dpll_state(state);
+	shared_dpll_config[dpll->id].crtc_mask &= ~(1 << crtc->pipe);
 }

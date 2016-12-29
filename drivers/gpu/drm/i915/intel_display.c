@@ -13872,7 +13872,6 @@ static void intel_modeset_clear_plls(struct drm_atomic_state *state)
 {
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_shared_dpll_config *shared_dpll = NULL;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int i;
@@ -13893,10 +13892,7 @@ static void intel_modeset_clear_plls(struct drm_atomic_state *state)
 		if (!old_dpll)
 			continue;
 
-		if (!shared_dpll)
-			shared_dpll = intel_atomic_get_shared_dpll_state(state);
-
-		intel_shared_dpll_config_put(shared_dpll, old_dpll, intel_crtc);
+		intel_release_shared_dpll(old_dpll, intel_crtc, state);
 	}
 }
 
