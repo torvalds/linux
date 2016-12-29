@@ -364,8 +364,14 @@ static bool polaris10_is_hw_avfs_present(struct pp_smumgr *smumgr)
 
 static int polaris10_smu_init(struct pp_smumgr *smumgr)
 {
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(smumgr->backend);
+	struct polaris10_smumgr *smu_data;
 	int i;
+
+	smu_data = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
+	if (smu_data == NULL)
+		return -ENOMEM;
+
+	smumgr->backend = smu_data;
 
 	if (smu7_init(smumgr))
 		return -EINVAL;
@@ -381,7 +387,7 @@ static int polaris10_smu_init(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-static const struct pp_smumgr_func polaris10_smu_funcs = {
+const struct pp_smumgr_func polaris10_smu_funcs = {
 	.smu_init = polaris10_smu_init,
 	.smu_fini = smu7_smu_fini,
 	.start_smu = polaris10_start_smu,
@@ -404,18 +410,3 @@ static const struct pp_smumgr_func polaris10_smu_funcs = {
 	.get_mac_definition = polaris10_get_mac_definition,
 	.is_dpm_running = polaris10_is_dpm_running,
 };
-
-int polaris10_smum_init(struct pp_smumgr *smumgr)
-{
-	struct polaris10_smumgr *polaris10_smu = NULL;
-
-	polaris10_smu = kzalloc(sizeof(struct polaris10_smumgr), GFP_KERNEL);
-
-	if (polaris10_smu == NULL)
-		return -EINVAL;
-
-	smumgr->backend = polaris10_smu;
-	smumgr->smumgr_funcs = &polaris10_smu_funcs;
-
-	return 0;
-}

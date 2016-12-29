@@ -41,6 +41,7 @@ MODULE_FIRMWARE("amdgpu/polaris11_smc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_smc_sk.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_smc.bin");
 
+
 int smum_early_init(struct pp_instance *handle)
 {
 	struct pp_smumgr *smumgr;
@@ -61,23 +62,23 @@ int smum_early_init(struct pp_instance *handle)
 
 	switch (smumgr->chip_family) {
 	case AMDGPU_FAMILY_CZ:
-		cz_smum_init(smumgr);
+		smumgr->smumgr_funcs = &cz_smu_funcs;
 		break;
 	case AMDGPU_FAMILY_VI:
 		switch (smumgr->chip_id) {
 		case CHIP_TOPAZ:
-			iceland_smum_init(smumgr);
+			smumgr->smumgr_funcs = &iceland_smu_funcs;
 			break;
 		case CHIP_TONGA:
-			tonga_smum_init(smumgr);
+			smumgr->smumgr_funcs = &tonga_smu_funcs;
 			break;
 		case CHIP_FIJI:
-			fiji_smum_init(smumgr);
+			smumgr->smumgr_funcs = &fiji_smu_funcs;
 			break;
 		case CHIP_POLARIS11:
 		case CHIP_POLARIS10:
 		case CHIP_POLARIS12:
-			polaris10_smum_init(smumgr);
+			smumgr->smumgr_funcs = &polaris10_smu_funcs;
 			break;
 		default:
 			return -EINVAL;

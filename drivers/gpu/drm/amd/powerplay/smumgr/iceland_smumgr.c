@@ -201,17 +201,25 @@ static int iceland_start_smu(struct pp_smumgr *smumgr)
 static int iceland_smu_init(struct pp_smumgr *smumgr)
 {
 	int i;
-	struct iceland_smumgr *smu_data = (struct iceland_smumgr *)(smumgr->backend);
+	struct iceland_smumgr *iceland_priv = NULL;
+
+	iceland_priv = kzalloc(sizeof(struct iceland_smumgr), GFP_KERNEL);
+
+	if (iceland_priv == NULL)
+		return -ENOMEM;
+
+	smumgr->backend = iceland_priv;
+
 	if (smu7_init(smumgr))
 		return -EINVAL;
 
 	for (i = 0; i < SMU71_MAX_LEVELS_GRAPHICS; i++)
-		smu_data->activity_target[i] = 30;
+		iceland_priv->activity_target[i] = 30;
 
 	return 0;
 }
 
-static const struct pp_smumgr_func iceland_smu_funcs = {
+const struct pp_smumgr_func iceland_smu_funcs = {
 	.smu_init = &iceland_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &iceland_start_smu,
@@ -234,17 +242,3 @@ static const struct pp_smumgr_func iceland_smu_funcs = {
 	.is_dpm_running = iceland_is_dpm_running,
 };
 
-int iceland_smum_init(struct pp_smumgr *smumgr)
-{
-	struct iceland_smumgr *iceland_smu = NULL;
-
-	iceland_smu = kzalloc(sizeof(struct iceland_smumgr), GFP_KERNEL);
-
-	if (iceland_smu == NULL)
-		return -ENOMEM;
-
-	smumgr->backend = iceland_smu;
-	smumgr->smumgr_funcs = &iceland_smu_funcs;
-
-	return 0;
-}

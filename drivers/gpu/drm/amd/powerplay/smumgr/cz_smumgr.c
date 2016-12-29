@@ -737,9 +737,15 @@ static int cz_start_smu(struct pp_smumgr *smumgr)
 
 static int cz_smu_init(struct pp_smumgr *smumgr)
 {
-	struct cz_smumgr *cz_smu = (struct cz_smumgr *)smumgr->backend;
 	uint64_t mc_addr = 0;
 	int ret = 0;
+	struct cz_smumgr *cz_smu;
+
+	cz_smu = kzalloc(sizeof(struct cz_smumgr), GFP_KERNEL);
+	if (cz_smu == NULL)
+		return -ENOMEM;
+
+	smumgr->backend = cz_smu;
 
 	cz_smu->toc_buffer.data_size = 4096;
 	cz_smu->smu_buffer.data_size =
@@ -836,7 +842,7 @@ static int cz_smu_fini(struct pp_smumgr *smumgr)
 	return 0;
 }
 
-static const struct pp_smumgr_func cz_smu_funcs = {
+const struct pp_smumgr_func cz_smu_funcs = {
 	.smu_init = cz_smu_init,
 	.smu_fini = cz_smu_fini,
 	.start_smu = cz_start_smu,
@@ -850,15 +856,3 @@ static const struct pp_smumgr_func cz_smu_funcs = {
 	.upload_pptable_settings = cz_upload_pptable_settings,
 };
 
-int cz_smum_init(struct pp_smumgr *smumgr)
-{
-	struct cz_smumgr *cz_smu;
-
-	cz_smu = kzalloc(sizeof(struct cz_smumgr), GFP_KERNEL);
-	if (cz_smu == NULL)
-		return -ENOMEM;
-
-	smumgr->backend = cz_smu;
-	smumgr->smumgr_funcs = &cz_smu_funcs;
-	return 0;
-}

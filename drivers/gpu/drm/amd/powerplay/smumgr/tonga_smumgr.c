@@ -169,20 +169,25 @@ static int tonga_start_smu(struct pp_smumgr *smumgr)
  */
 static int tonga_smu_init(struct pp_smumgr *smumgr)
 {
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(smumgr->backend);
+	struct tonga_smumgr *tonga_priv = NULL;
+	int  i;
 
-	int i;
+	tonga_priv = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
+	if (tonga_priv == NULL)
+		return -ENOMEM;
+
+	smumgr->backend = tonga_priv;
 
 	if (smu7_init(smumgr))
 		return -EINVAL;
 
 	for (i = 0; i < SMU72_MAX_LEVELS_GRAPHICS; i++)
-		smu_data->activity_target[i] = 30;
+		tonga_priv->activity_target[i] = 30;
 
 	return 0;
 }
 
-static const struct pp_smumgr_func tonga_smu_funcs = {
+const struct pp_smumgr_func tonga_smu_funcs = {
 	.smu_init = &tonga_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &tonga_start_smu,
@@ -205,18 +210,3 @@ static const struct pp_smumgr_func tonga_smu_funcs = {
 	.initialize_mc_reg_table = tonga_initialize_mc_reg_table,
 	.is_dpm_running = tonga_is_dpm_running,
 };
-
-int tonga_smum_init(struct pp_smumgr *smumgr)
-{
-	struct tonga_smumgr *tonga_smu = NULL;
-
-	tonga_smu = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
-
-	if (tonga_smu == NULL)
-		return -ENOMEM;
-
-	smumgr->backend = tonga_smu;
-	smumgr->smumgr_funcs = &tonga_smu_funcs;
-
-	return 0;
-}
