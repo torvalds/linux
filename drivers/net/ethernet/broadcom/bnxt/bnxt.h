@@ -654,20 +654,8 @@ struct bnxt_napi {
 	struct bnxt_rx_ring_info	*rx_ring;
 	struct bnxt_tx_ring_info	*tx_ring;
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	atomic_t		poll_state;
-#endif
 	bool			in_reset;
 };
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-enum bnxt_poll_state_t {
-	BNXT_STATE_IDLE = 0,
-	BNXT_STATE_NAPI,
-	BNXT_STATE_POLL,
-	BNXT_STATE_DISABLE,
-};
-#endif
 
 struct bnxt_irq {
 	irq_handler_t	handler;
@@ -1140,93 +1128,6 @@ struct bnxt {
 #define BNXT_TX_STATS_OFFSET(counter)			\
 	((offsetof(struct tx_port_stats, counter) +	\
 	  sizeof(struct rx_port_stats) + 512) / 8)
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static inline void bnxt_enable_poll(struct bnxt_napi *bnapi)
-{
-	atomic_set(&bnapi->poll_state, BNXT_STATE_IDLE);
-}
-
-/* called from the NAPI poll routine to get ownership of a bnapi */
-static inline bool bnxt_lock_napi(struct bnxt_napi *bnapi)
-{
-	int rc = atomic_cmpxchg(&bnapi->poll_state, BNXT_STATE_IDLE,
-				BNXT_STATE_NAPI);
-
-	return rc == BNXT_STATE_IDLE;
-}
-
-static inline void bnxt_unlock_napi(struct bnxt_napi *bnapi)
-{
-	atomic_set(&bnapi->poll_state, BNXT_STATE_IDLE);
-}
-
-/* called from the busy poll routine to get ownership of a bnapi */
-static inline bool bnxt_lock_poll(struct bnxt_napi *bnapi)
-{
-	int rc = atomic_cmpxchg(&bnapi->poll_state, BNXT_STATE_IDLE,
-				BNXT_STATE_POLL);
-
-	return rc == BNXT_STATE_IDLE;
-}
-
-static inline void bnxt_unlock_poll(struct bnxt_napi *bnapi)
-{
-	atomic_set(&bnapi->poll_state, BNXT_STATE_IDLE);
-}
-
-static inline bool bnxt_busy_polling(struct bnxt_napi *bnapi)
-{
-	return atomic_read(&bnapi->poll_state) == BNXT_STATE_POLL;
-}
-
-static inline void bnxt_disable_poll(struct bnxt_napi *bnapi)
-{
-	int old;
-
-	while (1) {
-		old = atomic_cmpxchg(&bnapi->poll_state, BNXT_STATE_IDLE,
-				     BNXT_STATE_DISABLE);
-		if (old == BNXT_STATE_IDLE)
-			break;
-		usleep_range(500, 5000);
-	}
-}
-
-#else
-
-static inline void bnxt_enable_poll(struct bnxt_napi *bnapi)
-{
-}
-
-static inline bool bnxt_lock_napi(struct bnxt_napi *bnapi)
-{
-	return true;
-}
-
-static inline void bnxt_unlock_napi(struct bnxt_napi *bnapi)
-{
-}
-
-static inline bool bnxt_lock_poll(struct bnxt_napi *bnapi)
-{
-	return false;
-}
-
-static inline void bnxt_unlock_poll(struct bnxt_napi *bnapi)
-{
-}
-
-static inline bool bnxt_busy_polling(struct bnxt_napi *bnapi)
-{
-	return false;
-}
-
-static inline void bnxt_disable_poll(struct bnxt_napi *bnapi)
-{
-}
-
-#endif
 
 #define I2C_DEV_ADDR_A0				0xa0
 #define I2C_DEV_ADDR_A2				0xa2

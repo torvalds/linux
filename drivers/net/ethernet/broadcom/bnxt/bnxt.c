@@ -39,9 +39,6 @@
 #include <net/checksum.h>
 #include <net/ip6_checksum.h>
 #include <net/udp_tunnel.h>
-#ifdef CONFIG_NET_RX_BUSY_POLL
-#include <net/busy_poll.h>
-#endif
 #include <linux/workqueue.h>
 #include <linux/prefetch.h>
 #include <linux/cache.h>
@@ -1356,11 +1353,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 		rc = -ENOMEM;
 		if (likely(skb)) {
 			skb_record_rx_queue(skb, bnapi->index);
-			skb_mark_napi_id(skb, &bnapi->napi);
-			if (bnxt_busy_polling(bnapi))
-				netif_receive_skb(skb);
-			else
-				napi_gro_receive(&bnapi->napi, skb);
+			napi_gro_receive(&bnapi->napi, skb);
 			rc = 1;
 		}
 		goto next_rx_no_prod;
@@ -1460,11 +1453,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	}
 
 	skb_record_rx_queue(skb, bnapi->index);
-	skb_mark_napi_id(skb, &bnapi->napi);
-	if (bnxt_busy_polling(bnapi))
-		netif_receive_skb(skb);
-	else
-		napi_gro_receive(&bnapi->napi, skb);
+	napi_gro_receive(&bnapi->napi, skb);
 	rc = 1;
 
 next_rx:
@@ -1782,9 +1771,6 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
 	int work_done = 0;
 
-	if (!bnxt_lock_napi(bnapi))
-		return budget;
-
 	while (1) {
 		work_done += bnxt_poll_work(bp, bnapi, budget - work_done);
 
@@ -1798,35 +1784,8 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 		}
 	}
 	mmiowb();
-	bnxt_unlock_napi(bnapi);
 	return work_done;
 }
-
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static int bnxt_busy_poll(struct napi_struct *napi)
-{
-	struct bnxt_napi *bnapi = container_of(napi, struct bnxt_napi, napi);
-	struct bnxt *bp = bnapi->bp;
-	struct bnxt_cp_ring_info *cpr = &bnapi->cp_ring;
-	int rx_work, budget = 4;
-
-	if (atomic_read(&bp->intr_sem) != 0)
-		return LL_FLUSH_FAILED;
-
-	if (!bp->link_info.link_up)
-		return LL_FLUSH_FAILED;
-
-	if (!bnxt_lock_poll(bnapi))
-		return LL_FLUSH_BUSY;
-
-	rx_work = bnxt_poll_work(bp, bnapi, budget);
-
-	BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
-
-	bnxt_unlock_poll(bnapi);
-	return rx_work;
-}
-#endif
 
 static void bnxt_free_tx_skbs(struct bnxt *bp)
 {
@@ -5094,10 +5053,8 @@ static void bnxt_disable_napi(struct bnxt *bp)
 	if (!bp->bnapi)
 		return;
 
-	for (i = 0; i < bp->cp_nr_rings; i++) {
+	for (i = 0; i < bp->cp_nr_rings; i++)
 		napi_disable(&bp->bnapi[i]->napi);
-		bnxt_disable_poll(bp->bnapi[i]);
-	}
 }
 
 static void bnxt_enable_napi(struct bnxt *bp)
@@ -5106,7 +5063,6 @@ static void bnxt_enable_napi(struct bnxt *bp)
 
 	for (i = 0; i < bp->cp_nr_rings; i++) {
 		bp->bnapi[i]->in_reset = false;
-		bnxt_enable_poll(bp->bnapi[i]);
 		napi_enable(&bp->bnapi[i]->napi);
 	}
 }
@@ -6765,9 +6721,6 @@ static const struct net_device_ops bnxt_netdev_ops = {
 #endif
 	.ndo_udp_tunnel_add	= bnxt_udp_tunnel_add,
 	.ndo_udp_tunnel_del	= bnxt_udp_tunnel_del,
-#ifdef CONFIG_NET_RX_BUSY_POLL
-	.ndo_busy_poll		= bnxt_busy_poll,
-#endif
 };
 
 static void bnxt_remove_one(struct pci_dev *pdev)
