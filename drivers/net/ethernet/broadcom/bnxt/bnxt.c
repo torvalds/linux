@@ -3316,10 +3316,26 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req.ip_addr_type = CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV4;
 	req.ip_protocol = keys->basic.ip_proto;
 
-	req.src_ipaddr[0] = keys->addrs.v4addrs.src;
-	req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
-	req.dst_ipaddr[0] = keys->addrs.v4addrs.dst;
-	req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+	if (keys->basic.n_proto == htons(ETH_P_IPV6)) {
+		int i;
+
+		req.ethertype = htons(ETH_P_IPV6);
+		req.ip_addr_type =
+			CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV6;
+		*(struct in6_addr *)&req.src_ipaddr[0] =
+			keys->addrs.v6addrs.src;
+		*(struct in6_addr *)&req.dst_ipaddr[0] =
+			keys->addrs.v6addrs.dst;
+		for (i = 0; i < 4; i++) {
+			req.src_ipaddr_mask[i] = cpu_to_be32(0xffffffff);
+			req.dst_ipaddr_mask[i] = cpu_to_be32(0xffffffff);
+		}
+	} else {
+		req.src_ipaddr[0] = keys->addrs.v4addrs.src;
+		req.src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+		req.dst_ipaddr[0] = keys->addrs.v4addrs.dst;
+		req.dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+	}
 
 	req.src_port = keys->ports.src;
 	req.src_port_mask = cpu_to_be16(0xffff);
@@ -6588,9 +6604,15 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		goto err_free;
 	}
 
-	if ((fkeys->basic.n_proto != htons(ETH_P_IP)) ||
+	if ((fkeys->basic.n_proto != htons(ETH_P_IP) &&
+	     fkeys->basic.n_proto != htons(ETH_P_IPV6)) ||
 	    ((fkeys->basic.ip_proto != IPPROTO_TCP) &&
 	     (fkeys->basic.ip_proto != IPPROTO_UDP))) {
+		rc = -EPROTONOSUPPORT;
+		goto err_free;
+	}
+	if (fkeys->basic.n_proto == htons(ETH_P_IPV6) &&
+	    bp->hwrm_spec_code < 0x10601) {
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}

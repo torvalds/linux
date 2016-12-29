@@ -524,24 +524,49 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 
 fltr_found:
 	fkeys = &fltr->fkeys;
-	if (fkeys->basic.ip_proto == IPPROTO_TCP)
-		fs->flow_type = TCP_V4_FLOW;
-	else if (fkeys->basic.ip_proto == IPPROTO_UDP)
-		fs->flow_type = UDP_V4_FLOW;
-	else
-		goto fltr_err;
+	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
+		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+			fs->flow_type = TCP_V4_FLOW;
+		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+			fs->flow_type = UDP_V4_FLOW;
+		else
+			goto fltr_err;
 
-	fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
-	fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
+		fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
+		fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
-	fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
+		fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
+		fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
 
-	fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
-	fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
+		fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
 
-	fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
-	fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+		fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
+	} else {
+		int i;
+
+		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+			fs->flow_type = TCP_V6_FLOW;
+		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+			fs->flow_type = UDP_V6_FLOW;
+		else
+			goto fltr_err;
+
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
+			fkeys->addrs.v6addrs.src;
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6dst[0] =
+			fkeys->addrs.v6addrs.dst;
+		for (i = 0; i < 4; i++) {
+			fs->m_u.tcp_ip6_spec.ip6src[i] = cpu_to_be32(~0);
+			fs->m_u.tcp_ip6_spec.ip6dst[i] = cpu_to_be32(~0);
+		}
+		fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(~0);
+
+		fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(~0);
+	}
 
 	fs->ring_cookie = fltr->rxq;
 	rc = 0;
