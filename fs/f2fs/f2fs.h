@@ -250,6 +250,8 @@ struct discard_entry {
 
 struct bio_entry {
 	struct list_head list;
+	block_t lstart;
+	block_t len;
 	struct bio *bio;
 	struct completion event;
 	int error;
@@ -2178,7 +2180,7 @@ void destroy_flush_cmd_control(struct f2fs_sb_info *, bool);
 void invalidate_blocks(struct f2fs_sb_info *, block_t);
 bool is_checkpointed_data(struct f2fs_sb_info *, block_t);
 void refresh_sit_entry(struct f2fs_sb_info *, block_t, block_t);
-void f2fs_wait_all_discard_bio(struct f2fs_sb_info *);
+void f2fs_wait_discard_bio(struct f2fs_sb_info *, block_t);
 void clear_prefree_segments(struct f2fs_sb_info *, struct cp_control *);
 void release_discard_addrs(struct f2fs_sb_info *);
 int npages_for_summary_flush(struct f2fs_sb_info *, bool);

@@ -1255,7 +1255,6 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 		f2fs_bug_on(sbi, prefree_segments(sbi));
 		flush_sit_entries(sbi, cpc);
 		clear_prefree_segments(sbi, cpc);
-		f2fs_wait_all_discard_bio(sbi);
 		unblock_operations(sbi);
 		goto out;
 	}
@@ -1274,12 +1273,10 @@ int write_checkpoint(struct f2fs_sb_info *sbi, struct cp_control *cpc)
 
 	/* unlock all the fs_lock[] in do_checkpoint() */
 	err = do_checkpoint(sbi, cpc);
-	if (err) {
+	if (err)
 		release_discard_addrs(sbi);
-	} else {
+	else
 		clear_prefree_segments(sbi, cpc);
-		f2fs_wait_all_discard_bio(sbi);
-	}
 
 	unblock_operations(sbi);
 	stat_inc_cp_count(sbi->stat_info);
