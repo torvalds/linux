@@ -316,7 +316,6 @@ struct cz_hwmgr {
 
 struct pp_hwmgr;
 
-int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
 int cz_dpm_powerdown_uvd(struct pp_hwmgr *hwmgr);
 int cz_dpm_powerup_uvd(struct pp_hwmgr *hwmgr);
 int cz_dpm_powerdown_vce(struct pp_hwmgr *hwmgr);

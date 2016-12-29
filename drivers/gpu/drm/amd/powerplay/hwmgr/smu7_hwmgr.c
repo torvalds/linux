@@ -4437,7 +4437,7 @@ uint8_t smu7_get_sleep_divider_id_from_clock(uint32_t clock,
 	return i;
 }
 
-int smu7_hwmgr_init(struct pp_hwmgr *hwmgr)
+int smu7_init_function_pointers(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 

@@ -688,7 +688,7 @@ extern int phm_initializa_dynamic_state_adjustment_rule_settings(struct pp_hwmgr
 extern uint32_t phm_get_lowest_enabled_level(struct pp_hwmgr *hwmgr, uint32_t mask);
 extern void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr);
 
-extern int smu7_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int phm_get_voltage_evv_on_sclk(struct pp_hwmgr *hwmgr, uint8_t voltage_type,
 				uint32_t sclk, uint16_t id, uint16_t *voltage);
 

@@ -1945,7 +1945,7 @@ static const struct pp_hwmgr_func cz_hwmgr_funcs = {
 	.read_sensor = cz_read_sensor,
 };
 
-int cz_hwmgr_init(struct pp_hwmgr *hwmgr)
+int cz_init_function_pointers(struct pp_hwmgr *hwmgr)
 {
 	hwmgr->hwmgr_func = &cz_hwmgr_funcs;
 	hwmgr->pptable_func = &pptable_funcs;

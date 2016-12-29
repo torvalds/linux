@@ -36,7 +36,7 @@
 #include "pp_acpi.h"
 #include "amd_acpi.h"
 
-extern int cz_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int cz_init_function_pointers(struct pp_hwmgr *hwmgr);
 
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
 static void hwmgr_init_default_caps(struct pp_hwmgr *hwmgr);
@@ -76,7 +76,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 
 	switch (hwmgr->chip_family) {
 	case AMDGPU_FAMILY_CZ:
-		cz_hwmgr_init(hwmgr);
+		cz_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_VI:
 		switch (hwmgr->chip_id) {
@@ -104,7 +104,7 @@ int hwmgr_early_init(struct pp_instance *handle)
 		default:
 			return -EINVAL;
 		}
-		smu7_hwmgr_init(hwmgr);
+		smu7_init_function_pointers(hwmgr);
 		break;
 	default:
 		return -EINVAL;
