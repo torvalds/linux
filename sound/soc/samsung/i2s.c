@@ -1191,13 +1191,13 @@ static int i2s_register_clock_provider(struct platform_device *pdev)
 		u32 val = readl(i2s->addr + I2SPSR);
 		writel(val | PSR_PSREN, i2s->addr + I2SPSR);
 
-		i2s->clk_table[CLK_I2S_RCLK_SRC] = clk_register_mux(NULL,
+		i2s->clk_table[CLK_I2S_RCLK_SRC] = clk_register_mux(dev,
 				"i2s_rclksrc", p_names, ARRAY_SIZE(p_names),
 				CLK_SET_RATE_NO_REPARENT | CLK_SET_RATE_PARENT,
 				i2s->addr + I2SMOD, reg_info->rclksrc_off,
 				1, 0, i2s->lock);
 
-		i2s->clk_table[CLK_I2S_RCLK_PSR] = clk_register_divider(NULL,
+		i2s->clk_table[CLK_I2S_RCLK_PSR] = clk_register_divider(dev,
 				"i2s_presc", "i2s_rclksrc",
 				CLK_SET_RATE_PARENT,
 				i2s->addr + I2SPSR, 8, 6, 0, i2s->lock);
@@ -1208,7 +1208,7 @@ static int i2s_register_clock_provider(struct platform_device *pdev)
 	of_property_read_string_index(dev->of_node,
 				"clock-output-names", 0, &clk_name[0]);
 
-	i2s->clk_table[CLK_I2S_CDCLK] = clk_register_gate(NULL, clk_name[0],
+	i2s->clk_table[CLK_I2S_CDCLK] = clk_register_gate(dev, clk_name[0],
 				p_names[0], CLK_SET_RATE_PARENT,
 				i2s->addr + I2SMOD, reg_info->cdclkcon_off,
 				CLK_GATE_SET_TO_DISABLE, i2s->lock);
