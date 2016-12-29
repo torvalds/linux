@@ -924,7 +924,7 @@ static int __init drm_core_init(void)
 	if (ret < 0)
 		goto error;
 
-	DRM_INFO("Initialized\n");
+	DRM_DEBUG("Initialized\n");
 	return 0;
 
 error:
