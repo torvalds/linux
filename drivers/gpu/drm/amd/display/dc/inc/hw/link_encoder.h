@@ -33,34 +33,16 @@ struct encoder_init_data {
 struct encoder_feature_support {
 	union {
 		struct {
-			/* 1 - external encoder; 0 - internal encoder */
-			uint32_t EXTERNAL_ENCODER:1;
-			uint32_t ANALOG_ENCODER:1;
-			uint32_t STEREO_SYNC:1;
-			/* check the DDC data pin
-			 * when performing DP Sink detection */
-			uint32_t DP_SINK_DETECT_POLL_DATA_PIN:1;
-			/* CPLIB authentication
-			 * for external DP chip supported */
-			uint32_t CPLIB_DP_AUTHENTICATION:1;
 			uint32_t IS_HBR2_CAPABLE:1;
 			uint32_t IS_HBR3_CAPABLE:1;
-			uint32_t IS_HBR2_VALIDATED:1;
 			uint32_t IS_TPS3_CAPABLE:1;
 			uint32_t IS_TPS4_CAPABLE:1;
-			uint32_t IS_AUDIO_CAPABLE:1;
-			uint32_t IS_VCE_SUPPORTED:1;
-			uint32_t IS_CONVERTER:1;
-			uint32_t IS_Y_ONLY_CAPABLE:1;
 			uint32_t IS_YCBCR_CAPABLE:1;
 		} bits;
 		uint32_t raw;
 	} flags;
-	/* maximum supported deep color depth */
-	enum dc_color_depth max_deep_color;
+
 	enum dc_color_depth max_hdmi_deep_color;
-	/* maximum supported clock */
-	unsigned int max_pixel_clock;
 	unsigned int max_hdmi_pixel_clock;
 	bool ycbcr420_supported;
 };

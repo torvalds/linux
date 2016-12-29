@@ -67,11 +67,6 @@
 #define HPD_REG(reg)\
 	(enc110->hpd_regs->reg)
 
-/* For current ASICs pixel clock - 600MHz */
-#define MAX_ENCODER_CLK 600000
-
-#define DCE11_UNIPHY_MAX_PIXEL_CLK_IN_KHZ 594000
-
 #define DEFAULT_AUX_MAX_DATA_SIZE 16
 #define AUX_MAX_DEFER_WRITE_RETRY 20
 /*
@@ -845,18 +840,15 @@ bool dce110_link_encoder_validate_dvi_output(
 {
 	uint32_t max_pixel_clock = TMDS_MAX_PIXEL_CLOCK;
 
-	if (enc110->base.features.max_pixel_clock < TMDS_MAX_PIXEL_CLOCK)
-		max_pixel_clock = enc110->base.features.max_pixel_clock;
-
 	if (signal == SIGNAL_TYPE_DVI_DUAL_LINK)
-		max_pixel_clock <<= 1;
+		max_pixel_clock *= 2;
 
 	/* This handles the case of HDMI downgrade to DVI we don't want to
 	 * we don't want to cap the pixel clock if the DDI is not DVI.
 	 */
 	if (connector_signal != SIGNAL_TYPE_DVI_DUAL_LINK &&
 			connector_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
-		max_pixel_clock = enc110->base.features.max_pixel_clock;
+		max_pixel_clock = enc110->base.features.max_hdmi_pixel_clock;
 
 	/* DVI only support RGB pixel encoding */
 	if (crtc_timing->pixel_encoding != PIXEL_ENCODING_RGB)
@@ -893,9 +885,6 @@ static bool dce110_link_encoder_validate_hdmi_output(
 	enum dc_color_depth max_deep_color =
 			enc110->base.features.max_hdmi_deep_color;
 
-	if (max_deep_color > enc110->base.features.max_deep_color)
-		max_deep_color = enc110->base.features.max_deep_color;
-
 	if (max_deep_color < crtc_timing->display_color_depth)
 		return false;
 
@@ -903,26 +892,12 @@ static bool dce110_link_encoder_validate_hdmi_output(
 		return false;
 
 	if ((adjusted_pix_clk_khz == 0) ||
-		(adjusted_pix_clk_khz > enc110->base.features.max_hdmi_pixel_clock) ||
-		(adjusted_pix_clk_khz > enc110->base.features.max_pixel_clock))
+		(adjusted_pix_clk_khz > enc110->base.features.max_hdmi_pixel_clock))
 		return false;
 
 	/* DCE11 HW does not support 420 */
 	if (!enc110->base.features.ycbcr420_supported &&
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		return false;
-
-	return true;
-}
-
-bool dce110_link_encoder_validate_rgb_output(
-	const struct dce110_link_encoder *enc110,
-	const struct dc_crtc_timing *crtc_timing)
-{
-	if (crtc_timing->pix_clk_khz > enc110->base.features.max_pixel_clock)
-		return false;
-
-	if (crtc_timing->pixel_encoding != PIXEL_ENCODING_RGB)
 		return false;
 
 	return true;
@@ -949,21 +924,6 @@ bool dce110_link_encoder_validate_dp_output(
 	return false;
 }
 
-bool dce110_link_encoder_validate_wireless_output(
-	const struct dce110_link_encoder *enc110,
-	const struct dc_crtc_timing *crtc_timing)
-{
-	if (crtc_timing->pix_clk_khz > enc110->base.features.max_pixel_clock)
-		return false;
-
-	/* Wireless only supports YCbCr444 */
-	if (crtc_timing->pixel_encoding ==
-			PIXEL_ENCODING_YCBCR444)
-		return true;
-
-	return false;
-}
-
 bool dce110_link_encoder_construct(
 	struct dce110_link_encoder *enc110,
 	const struct encoder_init_data *init_data,
@@ -985,12 +945,6 @@ bool dce110_link_encoder_construct(
 
 	enc110->base.transmitter = init_data->transmitter;
 
-	enc110->base.features.flags.bits.IS_AUDIO_CAPABLE = true;
-
-	enc110->base.features.max_pixel_clock =
-			MAX_ENCODER_CLK;
-
-	enc110->base.features.max_deep_color = COLOR_DEPTH_121212;
 	enc110->base.features.max_hdmi_deep_color = COLOR_DEPTH_121212;
 
 	if (enc110->base.ctx->dc->debug.disable_hdmi_deep_color)
@@ -1070,7 +1024,6 @@ bool dce110_link_encoder_construct(
 				bp_cap_info.DP_HBR2_CAP;
 		enc110->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
-
 	}
 
 	/* TODO: check PPLIB maxPhyClockInKHz <= 540000, if yes,
@@ -1082,7 +1035,6 @@ bool dce110_link_encoder_construct(
 	/* test pattern 4 support */
 	enc110->base.features.flags.bits.IS_TPS4_CAPABLE = true;
 
-	enc110->base.features.flags.bits.IS_Y_ONLY_CAPABLE = false;
 	/*
 		dal_adapter_service_is_feature_supported(as,
 			FEATURE_SUPPORT_DP_Y_ONLY);
@@ -1118,22 +1070,14 @@ bool dce110_link_encoder_validate_output_with_stream(
 				&stream->public.timing,
 				stream->phy_pix_clk);
 	break;
-	case SIGNAL_TYPE_RGB:
-		is_valid = dce110_link_encoder_validate_rgb_output(
-			enc110, &stream->public.timing);
-	break;
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 	case SIGNAL_TYPE_EDP:
 		is_valid = dce110_link_encoder_validate_dp_output(
 			enc110, &stream->public.timing);
 	break;
-	case SIGNAL_TYPE_WIRELESS:
-		is_valid = dce110_link_encoder_validate_wireless_output(
-			enc110, &stream->public.timing);
-	break;
 	default:
-		is_valid = true;
+		is_valid = false;
 	break;
 	}
 

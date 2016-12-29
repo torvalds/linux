@@ -28,8 +28,6 @@
 
 #include "virtual_link_encoder.h"
 
-#define VIRTUAL_MAX_PIXEL_CLK_IN_KHZ 600000
-
 static bool virtual_link_encoder_validate_output_with_stream(
 	struct link_encoder *enc,
 	struct pipe_ctx *pipe_ctx) { return true; }
@@ -137,8 +135,6 @@ bool virtual_link_encoder_construct(
 	enc->connector = init_data->connector;
 
 	enc->transmitter = init_data->transmitter;
-
-	enc->features.max_pixel_clock = VIRTUAL_MAX_PIXEL_CLK_IN_KHZ;
 
 	enc->output_signals = SIGNAL_TYPE_VIRTUAL;
 

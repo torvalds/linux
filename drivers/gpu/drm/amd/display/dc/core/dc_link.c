@@ -317,7 +317,6 @@ static bool is_dp_sink_present(struct core_link *link)
 {
 	enum gpio_result gpio_result;
 	uint32_t clock_pin = 0;
-	uint32_t data_pin = 0;
 
 	struct ddc *ddc;
 
@@ -353,12 +352,7 @@ static bool is_dp_sink_present(struct core_link *link)
 	gpio_result = dal_gpio_get_value(ddc->pin_clock, &clock_pin);
 	ASSERT(gpio_result == GPIO_RESULT_OK);
 
-	if (gpio_result == GPIO_RESULT_OK)
-		if (link->link_enc->features.flags.bits.
-						DP_SINK_DETECT_POLL_DATA_PIN)
-			gpio_result = dal_gpio_get_value(ddc->pin_data, &data_pin);
-
-	present = (gpio_result == GPIO_RESULT_OK) && !(clock_pin || data_pin);
+	present = (gpio_result == GPIO_RESULT_OK) && !clock_pin;
 
 	dal_ddc_close(ddc);
 
