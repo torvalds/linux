@@ -48,14 +48,14 @@ struct drm_fbdev_cma {
  * Provides helper functions for creating a cma (contiguous memory allocator)
  * backed framebuffer.
  *
- * drm_fb_cma_create() is used in the &drm_mode_config_funcs ->fb_create
+ * drm_fb_cma_create() is used in the &drm_mode_config_funcs.fb_create
  * callback function to create a cma backed framebuffer.
  *
  * An fbdev framebuffer backed by cma is also available by calling
  * drm_fbdev_cma_init(). drm_fbdev_cma_fini() tears it down.
- * If the &drm_framebuffer_funcs ->dirty callback is set, fb_deferred_io
- * will be set up automatically. dirty() is called by
- * drm_fb_helper_deferred_io() in process context (struct delayed_work).
+ * If the &drm_framebuffer_funcs.dirty callback is set, fb_deferred_io will be
+ * set up automatically. &drm_framebuffer_funcs.dirty is called by
+ * drm_fb_helper_deferred_io() in process context (&struct delayed_work).
  *
  * Example fbdev deferred io code::
  *
@@ -155,16 +155,16 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 
 /**
  * drm_fb_cma_create_with_funcs() - helper function for the
- *                                  &drm_mode_config_funcs ->fb_create
- *                                  callback function
+ *                                  &drm_mode_config_funcs.fb_create
+ *                                  callback
  * @dev: DRM device
  * @file_priv: drm file for the ioctl call
  * @mode_cmd: metadata from the userspace fb creation request
  * @funcs: vtable to be used for the new framebuffer object
  *
  * This can be used to set &drm_framebuffer_funcs for drivers that need the
- * dirty() callback. Use drm_fb_cma_create() if you don't need to change
- * &drm_framebuffer_funcs.
+ * &drm_framebuffer_funcs.dirty callback. Use drm_fb_cma_create() if you don't
+ * need to change &drm_framebuffer_funcs.
  */
 struct drm_framebuffer *drm_fb_cma_create_with_funcs(struct drm_device *dev,
 	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd,
@@ -221,14 +221,14 @@ err_gem_object_unreference:
 EXPORT_SYMBOL_GPL(drm_fb_cma_create_with_funcs);
 
 /**
- * drm_fb_cma_create() - &drm_mode_config_funcs ->fb_create callback function
+ * drm_fb_cma_create() - &drm_mode_config_funcs.fb_create callback function
  * @dev: DRM device
  * @file_priv: drm file for the ioctl call
  * @mode_cmd: metadata from the userspace fb creation request
  *
  * If your hardware has special alignment or pitch requirements these should be
  * checked before calling this function. Use drm_fb_cma_create_with_funcs() if
- * you need to set &drm_framebuffer_funcs ->dirty.
+ * you need to set &drm_framebuffer_funcs.dirty.
  */
 struct drm_framebuffer *drm_fb_cma_create(struct drm_device *dev,
 	struct drm_file *file_priv, const struct drm_mode_fb_cmd2 *mode_cmd)
@@ -264,7 +264,7 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_get_gem_obj);
  * @plane: Which plane
  * @state: Plane state attach fence to
  *
- * This should be put into prepare_fb hook of &struct drm_plane_helper_funcs .
+ * This should be set as the &struct drm_plane_helper_funcs.prepare_fb hook.
  *
  * This function checks if the plane FB has an dma-buf attached, extracts
  * the exclusive fence and attaches it to plane state for the atomic helper
@@ -588,7 +588,7 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_fini);
  * drm_fbdev_cma_restore_mode() - Restores initial framebuffer mode
  * @fbdev_cma: The drm_fbdev_cma struct, may be NULL
  *
- * This function is usually called from the DRM drivers lastclose callback.
+ * This function is usually called from the &drm_driver.lastclose callback.
  */
 void drm_fbdev_cma_restore_mode(struct drm_fbdev_cma *fbdev_cma)
 {
@@ -601,7 +601,7 @@ EXPORT_SYMBOL_GPL(drm_fbdev_cma_restore_mode);
  * drm_fbdev_cma_hotplug_event() - Poll for hotpulug events
  * @fbdev_cma: The drm_fbdev_cma struct, may be NULL
  *
- * This function is usually called from the DRM drivers output_poll_changed
+ * This function is usually called from the &drm_mode_config.output_poll_changed
  * callback.
  */
 void drm_fbdev_cma_hotplug_event(struct drm_fbdev_cma *fbdev_cma)

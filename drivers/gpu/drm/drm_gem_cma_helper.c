@@ -176,8 +176,8 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
  *
  * This function frees the backing memory of the CMA GEM object, cleans up the
  * GEM object state and frees the memory used to store the object itself.
- * Drivers using the CMA helpers should set this as their DRM driver's
- * ->gem_free_object() callback.
+ * Drivers using the CMA helpers should set this as their
+ * &drm_driver.gem_free_object callback.
  */
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
@@ -207,7 +207,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_free_object);
  * This aligns the pitch and size arguments to the minimum required. This is
  * an internal helper that can be wrapped by a driver to account for hardware
  * with more specific alignment requirements. It should not be used directly
- * as the ->dumb_create() callback in a DRM driver.
+ * as their &drm_driver.dumb_create callback.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -240,7 +240,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_create_internal);
  * This function computes the pitch of the dumb buffer and rounds it up to an
  * integer number of bytes per pixel. Drivers for hardware that doesn't have
  * any additional restrictions on the pitch can directly use this function as
- * their ->dumb_create() callback.
+ * their &drm_driver.dumb_create callback.
  *
  * For hardware with additional restrictions, drivers can adjust the fields
  * set up by userspace and pass the IOCTL data along to the
@@ -274,7 +274,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_create);
  *
  * This function look up an object by its handle and returns the fake mmap
  * offset associated with it. Drivers using the CMA helpers should set this
- * as their DRM driver's ->dumb_map_offset() callback.
+ * as their &drm_driver.dumb_map_offset callback.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -391,7 +391,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_describe);
  *
  * This function exports a scatter/gather table suitable for PRIME usage by
  * calling the standard DMA mapping API. Drivers using the CMA helpers should
- * set this as their DRM driver's ->gem_prime_get_sg_table() callback.
+ * set this as their &drm_driver.gem_prime_get_sg_table callback.
  *
  * Returns:
  * A pointer to the scatter/gather table of pinned pages or NULL on failure.
@@ -429,8 +429,8 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_get_sg_table);
  * This function imports a scatter/gather table exported via DMA-BUF by
  * another driver. Imported buffers must be physically contiguous in memory
  * (i.e. the scatter/gather table must contain a single entry). Drivers that
- * use the CMA helpers should set this as their DRM driver's
- * ->gem_prime_import_sg_table() callback.
+ * use the CMA helpers should set this as their
+ * &drm_driver.gem_prime_import_sg_table callback.
  *
  * Returns:
  * A pointer to a newly created GEM object or an ERR_PTR-encoded negative
@@ -467,7 +467,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_import_sg_table);
  *
  * This function maps a buffer imported via DRM PRIME into a userspace
  * process's address space. Drivers that use the CMA helpers should set this
- * as their DRM driver's ->gem_prime_mmap() callback.
+ * as their &drm_driver.gem_prime_mmap callback.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -496,7 +496,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_mmap);
  * virtual address space. Since the CMA buffers are already mapped into the
  * kernel virtual address space this simply returns the cached virtual
  * address. Drivers using the CMA helpers should set this as their DRM
- * driver's ->gem_prime_vmap() callback.
+ * driver's &drm_driver.gem_prime_vmap callback.
  *
  * Returns:
  * The kernel virtual address of the CMA GEM object's backing store.
@@ -518,7 +518,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vmap);
  * This function removes a buffer exported via DRM PRIME from the kernel's
  * virtual address space. This is a no-op because CMA buffers cannot be
  * unmapped from kernel space. Drivers using the CMA helpers should set this
- * as their DRM driver's ->gem_prime_vunmap() callback.
+ * as their &drm_driver.gem_prime_vunmap callback.
  */
 void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {
