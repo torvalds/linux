@@ -371,10 +371,10 @@ EXPORT_SYMBOL(drm_rect_rotate);
  * to the vertical axis of the original untransformed
  * coordinate space, so that you never have to flip
  * them when doing a rotatation and its inverse.
- * That is, if you do:
+ * That is, if you do ::
  *
- * drm_rotate(&r, width, height, rotation);
- * drm_rotate_inv(&r, width, height, rotation);
+ *     drm_rotate(&r, width, height, rotation);
+ *     drm_rotate_inv(&r, width, height, rotation);
  *
  * you will always get back the original rectangle.
  */
