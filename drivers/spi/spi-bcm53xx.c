@@ -275,10 +275,6 @@ static int bcm53xxspi_flash_read(struct spi_device *spi,
  * BCMA
  **************************************************/
 
-static struct spi_board_info bcm53xx_info = {
-	.modalias	= "bcm53xxspiflash",
-};
-
 static const struct bcma_device_id bcm53xxspi_bcma_tbl[] = {
 	BCMA_CORE(BCMA_MANUF_BCM, BCMA_CORE_NS_QSPI, BCMA_ANY_REV, BCMA_ANY_CLASS),
 	{},
@@ -311,6 +307,7 @@ static int bcm53xxspi_bcma_probe(struct bcma_device *core)
 	b53spi->bspi = true;
 	bcm53xxspi_disable_bspi(b53spi);
 
+	master->dev.of_node = dev->of_node;
 	master->transfer_one = bcm53xxspi_transfer_one;
 	if (b53spi->mmio_base)
 		master->spi_flash_read = bcm53xxspi_flash_read;
@@ -323,9 +320,6 @@ static int bcm53xxspi_bcma_probe(struct bcma_device *core)
 		bcma_set_drvdata(core, NULL);
 		return err;
 	}
-
-	/* Broadcom SoCs (at least with the CC rev 42) use SPI for flash only */
-	spi_new_device(master, &bcm53xx_info);
 
 	return 0;
 }
