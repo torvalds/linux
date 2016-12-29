@@ -930,7 +930,7 @@ static inline bool clear_bit_unlock_is_negative_byte(long nr, volatile void *mem
 {
 	clear_bit_unlock(nr, mem);
 	/* smp_mb__after_atomic(); */
-	return test_bit(PG_waiters);
+	return test_bit(PG_waiters, mem);
 }
 
 #endif
