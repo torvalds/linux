@@ -279,6 +279,9 @@ void intel_disable_shared_dpll(struct intel_crtc *crtc);
 void intel_shared_dpll_swap_state(struct drm_atomic_state *state);
 void intel_shared_dpll_init(struct drm_device *dev);
 
+void intel_dpll_dump_hw_state(struct drm_i915_private *dev_priv,
+			      struct intel_dpll_hw_state *hw_state);
+
 /* BXT dpll related functions */
 bool bxt_ddi_dp_set_dpll_hw_state(int clock,
 			  struct intel_dpll_hw_state *dpll_hw_state);

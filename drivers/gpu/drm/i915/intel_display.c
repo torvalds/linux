@@ -12824,39 +12824,7 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 	DRM_DEBUG_KMS("ips: %i, double wide: %i\n",
 		      pipe_config->ips_enabled, pipe_config->double_wide);
 
-	if (IS_GEN9_LP(dev_priv)) {
-		DRM_DEBUG_KMS("dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
-			      "pll0: 0x%x, pll1: 0x%x, pll2: 0x%x, pll3: 0x%x, "
-			      "pll6: 0x%x, pll8: 0x%x, pll9: 0x%x, pll10: 0x%x, pcsdw12: 0x%x\n",
-			      pipe_config->dpll_hw_state.ebb0,
-			      pipe_config->dpll_hw_state.ebb4,
-			      pipe_config->dpll_hw_state.pll0,
-			      pipe_config->dpll_hw_state.pll1,
-			      pipe_config->dpll_hw_state.pll2,
-			      pipe_config->dpll_hw_state.pll3,
-			      pipe_config->dpll_hw_state.pll6,
-			      pipe_config->dpll_hw_state.pll8,
-			      pipe_config->dpll_hw_state.pll9,
-			      pipe_config->dpll_hw_state.pll10,
-			      pipe_config->dpll_hw_state.pcsdw12);
-	} else if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
-		DRM_DEBUG_KMS("dpll_hw_state: "
-			      "ctrl1: 0x%x, cfgcr1: 0x%x, cfgcr2: 0x%x\n",
-			      pipe_config->dpll_hw_state.ctrl1,
-			      pipe_config->dpll_hw_state.cfgcr1,
-			      pipe_config->dpll_hw_state.cfgcr2);
-	} else if (HAS_DDI(dev_priv)) {
-		DRM_DEBUG_KMS("dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
-			      pipe_config->dpll_hw_state.wrpll,
-			      pipe_config->dpll_hw_state.spll);
-	} else {
-		DRM_DEBUG_KMS("dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
-			      "fp0: 0x%x, fp1: 0x%x\n",
-			      pipe_config->dpll_hw_state.dpll,
-			      pipe_config->dpll_hw_state.dpll_md,
-			      pipe_config->dpll_hw_state.fp0,
-			      pipe_config->dpll_hw_state.fp1);
-	}
+	intel_dpll_dump_hw_state(dev_priv, &pipe_config->dpll_hw_state);
 
 	DRM_DEBUG_KMS("planes on this crtc\n");
 	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
