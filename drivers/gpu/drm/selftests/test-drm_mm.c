@@ -194,6 +194,10 @@ static bool assert_node(struct drm_mm_node *node, struct drm_mm *mm,
 	return ok;
 }
 
+#define show_mm(mm) do { \
+	struct drm_printer __p = drm_debug_printer(__func__); \
+	drm_mm_print((mm), &__p); } while (0)
+
 static int igt_init(void *ignored)
 {
 	const unsigned int size = 4096;
@@ -250,7 +254,7 @@ static int igt_init(void *ignored)
 
 out:
 	if (ret)
-		drm_mm_debug_table(&mm, __func__);
+		show_mm(&mm);
 	drm_mm_takedown(&mm);
 	return ret;
 }
@@ -286,7 +290,7 @@ static int igt_debug(void *ignored)
 		return ret;
 	}
 
-	drm_mm_debug_table(&mm, __func__);
+	show_mm(&mm);
 	return 0;
 }
 
@@ -2031,7 +2035,7 @@ static int igt_color_evict(void *ignored)
 	ret = 0;
 out:
 	if (ret)
-		drm_mm_debug_table(&mm, __func__);
+		show_mm(&mm);
 	drm_mm_for_each_node_safe(node, next, &mm)
 		drm_mm_remove_node(node);
 	drm_mm_takedown(&mm);
@@ -2130,7 +2134,7 @@ static int igt_color_evict_range(void *ignored)
 	ret = 0;
 out:
 	if (ret)
-		drm_mm_debug_table(&mm, __func__);
+		show_mm(&mm);
 	drm_mm_for_each_node_safe(node, next, &mm)
 		drm_mm_remove_node(node);
 	drm_mm_takedown(&mm);

@@ -147,21 +147,23 @@ static int etnaviv_gem_show(struct drm_device *dev, struct seq_file *m)
 
 static int etnaviv_mm_show(struct drm_device *dev, struct seq_file *m)
 {
-	int ret;
+	struct drm_printer p = drm_seq_file_printer(m);
 
 	read_lock(&dev->vma_offset_manager->vm_lock);
-	ret = drm_mm_dump_table(m, &dev->vma_offset_manager->vm_addr_space_mm);
+	drm_mm_print(&dev->vma_offset_manager->vm_addr_space_mm, &p);
 	read_unlock(&dev->vma_offset_manager->vm_lock);
 
-	return ret;
+	return 0;
 }
 
 static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 {
+	struct drm_printer p = drm_seq_file_printer(m);
+
 	seq_printf(m, "Active Objects (%s):\n", dev_name(gpu->dev));
 
 	mutex_lock(&gpu->mmu->lock);
-	drm_mm_dump_table(m, &gpu->mmu->mm);
+	drm_mm_print(&gpu->mmu->mm, &p);
 	mutex_unlock(&gpu->mmu->lock);
 
 	return 0;

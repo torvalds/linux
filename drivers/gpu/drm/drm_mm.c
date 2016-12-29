@@ -832,8 +832,7 @@ void drm_mm_takedown(struct drm_mm *mm)
 }
 EXPORT_SYMBOL(drm_mm_takedown);
 
-static u64 drm_mm_debug_hole(const struct drm_mm_node *entry,
-			     const char *prefix)
+static u64 drm_mm_dump_hole(struct drm_printer *p, const struct drm_mm_node *entry)
 {
 	u64 hole_start, hole_end, hole_size;
 
@@ -841,49 +840,7 @@ static u64 drm_mm_debug_hole(const struct drm_mm_node *entry,
 		hole_start = drm_mm_hole_node_start(entry);
 		hole_end = drm_mm_hole_node_end(entry);
 		hole_size = hole_end - hole_start;
-		pr_debug("%s %#llx-%#llx: %llu: free\n", prefix, hole_start,
-			 hole_end, hole_size);
-		return hole_size;
-	}
-
-	return 0;
-}
-
-/**
- * drm_mm_debug_table - dump allocator state to dmesg
- * @mm: drm_mm allocator to dump
- * @prefix: prefix to use for dumping to dmesg
- */
-void drm_mm_debug_table(const struct drm_mm *mm, const char *prefix)
-{
-	const struct drm_mm_node *entry;
-	u64 total_used = 0, total_free = 0, total = 0;
-
-	total_free += drm_mm_debug_hole(&mm->head_node, prefix);
-
-	drm_mm_for_each_node(entry, mm) {
-		pr_debug("%s %#llx-%#llx: %llu: used\n", prefix, entry->start,
-			 entry->start + entry->size, entry->size);
-		total_used += entry->size;
-		total_free += drm_mm_debug_hole(entry, prefix);
-	}
-	total = total_free + total_used;
-
-	pr_debug("%s total: %llu, used %llu free %llu\n", prefix, total,
-		 total_used, total_free);
-}
-EXPORT_SYMBOL(drm_mm_debug_table);
-
-#if defined(CONFIG_DEBUG_FS)
-static u64 drm_mm_dump_hole(struct seq_file *m, const struct drm_mm_node *entry)
-{
-	u64 hole_start, hole_end, hole_size;
-
-	if (entry->hole_follows) {
-		hole_start = drm_mm_hole_node_start(entry);
-		hole_end = drm_mm_hole_node_end(entry);
-		hole_size = hole_end - hole_start;
-		seq_printf(m, "%#018llx-%#018llx: %llu: free\n", hole_start,
+		drm_printf(p, "%#018llx-%#018llx: %llu: free\n", hole_start,
 			   hole_end, hole_size);
 		return hole_size;
 	}
@@ -892,28 +849,26 @@ static u64 drm_mm_dump_hole(struct seq_file *m, const struct drm_mm_node *entry)
 }
 
 /**
- * drm_mm_dump_table - dump allocator state to a seq_file
- * @m: seq_file to dump to
- * @mm: drm_mm allocator to dump
+ * drm_mm_print - print allocator state
+ * @mm: drm_mm allocator to print
+ * @p: DRM printer to use
  */
-int drm_mm_dump_table(struct seq_file *m, const struct drm_mm *mm)
+void drm_mm_print(const struct drm_mm *mm, struct drm_printer *p)
 {
 	const struct drm_mm_node *entry;
 	u64 total_used = 0, total_free = 0, total = 0;
 
-	total_free += drm_mm_dump_hole(m, &mm->head_node);
+	total_free += drm_mm_dump_hole(p, &mm->head_node);
 
 	drm_mm_for_each_node(entry, mm) {
-		seq_printf(m, "%#018llx-%#018llx: %llu: used\n", entry->start,
+		drm_printf(p, "%#018llx-%#018llx: %llu: used\n", entry->start,
 			   entry->start + entry->size, entry->size);
 		total_used += entry->size;
-		total_free += drm_mm_dump_hole(m, entry);
+		total_free += drm_mm_dump_hole(p, entry);
 	}
 	total = total_free + total_used;
 
-	seq_printf(m, "total: %llu, used %llu free %llu\n", total,
+	drm_printf(p, "total: %llu, used %llu free %llu\n", total,
 		   total_used, total_free);
-	return 0;
 }
-EXPORT_SYMBOL(drm_mm_dump_table);
-#endif
+EXPORT_SYMBOL(drm_mm_print);

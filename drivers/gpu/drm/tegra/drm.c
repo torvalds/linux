@@ -891,8 +891,11 @@ static int tegra_debugfs_iova(struct seq_file *s, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)s->private;
 	struct drm_device *drm = node->minor->dev;
 	struct tegra_drm *tegra = drm->dev_private;
+	struct drm_printer p = drm_seq_file_printer(s);
 
-	return drm_mm_dump_table(s, &tegra->mm);
+	drm_mm_print(&tegra->mm, &p);
+
+	return 0;
 }
 
 static struct drm_info_list tegra_debugfs_list[] = {
