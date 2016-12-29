@@ -66,8 +66,8 @@ struct dma_buf_ops {
 	 * is not the case, and the allocation cannot be moved, it should also
 	 * fail the attach operation.
 	 *
-	 * Any exporter-private housekeeping data can be stored in the priv
-	 * pointer of &dma_buf_attachment structure.
+	 * Any exporter-private housekeeping data can be stored in the
+	 * &dma_buf_attachment.priv pointer.
 	 *
 	 * This callback is optional.
 	 *
@@ -106,7 +106,7 @@ struct dma_buf_ops {
 	 *
 	 * Note that any specific buffer attributes required for this function
 	 * should get added to device_dma_parameters accessible via
-	 * device->dma_params from the &dma_buf_attachment. The @attach callback
+	 * &device.dma_params from the &dma_buf_attachment. The @attach callback
 	 * should also check these constraints.
 	 *
 	 * If this is being called for the first time, the exporter can now

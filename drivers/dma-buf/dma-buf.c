@@ -516,9 +516,8 @@ EXPORT_SYMBOL_GPL(dma_buf_get);
  * Uses file's refcounting done implicitly by fput().
  *
  * If, as a result of this call, the refcount becomes 0, the 'release' file
- * operation related to this fd is called. It calls the release operation of
- * &struct dma_buf_ops in turn, and frees the memory allocated for dmabuf when
- * exported.
+ * operation related to this fd is called. It calls &dma_buf_ops.release vfunc
+ * in turn, and frees the memory allocated for dmabuf when exported.
  */
 void dma_buf_put(struct dma_buf *dmabuf)
 {
