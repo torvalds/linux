@@ -355,17 +355,6 @@ static int zx_crtc_init(struct drm_device *drm, struct zx_vou_hw *vou,
 	return 0;
 }
 
-static inline struct drm_crtc *zx_find_crtc(struct drm_device *drm, int pipe)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head)
-		if (crtc->index == pipe)
-			return crtc;
-
-	return NULL;
-}
-
 int zx_vou_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
 	struct drm_crtc *crtc;
@@ -373,7 +362,7 @@ int zx_vou_enable_vblank(struct drm_device *drm, unsigned int pipe)
 	struct zx_vou_hw *vou;
 	u32 int_frame_mask;
 
-	crtc = zx_find_crtc(drm, pipe);
+	crtc = drm_crtc_from_index(drm, pipe);
 	if (!crtc)
 		return 0;
 
@@ -393,7 +382,7 @@ void zx_vou_disable_vblank(struct drm_device *drm, unsigned int pipe)
 	struct zx_crtc *zcrtc;
 	struct zx_vou_hw *vou;
 
-	crtc = zx_find_crtc(drm, pipe);
+	crtc = drm_crtc_from_index(drm, pipe);
 	if (!crtc)
 		return;
 
