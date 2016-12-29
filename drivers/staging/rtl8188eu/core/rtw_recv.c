@@ -2071,45 +2071,48 @@ static void rtw_signal_stat_timer_hdl(unsigned long data)
 	u8 avg_signal_qual = 0;
 	u8 _alpha = 3; /*  this value is based on converging_constant = 5000 and sampling_interval = 1000 */
 
-	if (adapter->recvpriv.is_signal_dbg) {
-		/* update the user specific value, signal_strength_dbg, to signal_strength, rssi */
-		adapter->recvpriv.signal_strength = adapter->recvpriv.signal_strength_dbg;
-		adapter->recvpriv.rssi = (s8)translate_percentage_to_dbm((u8)adapter->recvpriv.signal_strength_dbg);
-	} else {
-		if (recvpriv->signal_strength_data.update_req == 0) {/*  update_req is clear, means we got rx */
-			avg_signal_strength = recvpriv->signal_strength_data.avg_val;
-			/*  after avg_vals are acquired, we can re-stat the signal values */
-			recvpriv->signal_strength_data.update_req = 1;
-		}
-
-		if (recvpriv->signal_qual_data.update_req == 0) {/*  update_req is clear, means we got rx */
-			avg_signal_qual = recvpriv->signal_qual_data.avg_val;
-			/*  after avg_vals are acquired, we can re-stat the signal values */
-			recvpriv->signal_qual_data.update_req = 1;
-		}
-
-		/* update value of signal_strength, rssi, signal_qual */
-		if (check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == false) {
-			tmp_s = avg_signal_strength+(_alpha-1)*recvpriv->signal_strength;
-			if (tmp_s % _alpha)
-				tmp_s = tmp_s/_alpha + 1;
-			else
-				tmp_s = tmp_s/_alpha;
-			if (tmp_s > 100)
-				tmp_s = 100;
-
-			tmp_q = avg_signal_qual+(_alpha-1)*recvpriv->signal_qual;
-			if (tmp_q % _alpha)
-				tmp_q = tmp_q/_alpha + 1;
-			else
-				tmp_q = tmp_q/_alpha;
-			if (tmp_q > 100)
-				tmp_q = 100;
-
-			recvpriv->signal_strength = tmp_s;
-			recvpriv->rssi = (s8)translate_percentage_to_dbm(tmp_s);
-			recvpriv->signal_qual = tmp_q;
-		}
+	if (recvpriv->signal_strength_data.update_req == 0) {
+		/* update_req is clear, means we got rx */
+		avg_signal_strength = recvpriv->signal_strength_data.avg_val;
+		/* after avg_vals are acquired, we can re-stat the signal
+		 * values
+		 */
+		recvpriv->signal_strength_data.update_req = 1;
 	}
+
+	if (recvpriv->signal_qual_data.update_req == 0) {
+		/* update_req is clear, means we got rx */
+		avg_signal_qual = recvpriv->signal_qual_data.avg_val;
+		/* after avg_vals are acquired, we can re-stat the signal
+		 * values
+		 */
+		recvpriv->signal_qual_data.update_req = 1;
+	}
+
+	/* update value of signal_strength, rssi, signal_qual */
+	if (check_fwstate(&adapter->mlmepriv, _FW_UNDER_SURVEY) == false) {
+		tmp_s = avg_signal_strength +
+			(_alpha - 1) * recvpriv->signal_strength;
+		if (tmp_s % _alpha)
+			tmp_s = tmp_s / _alpha + 1;
+		else
+			tmp_s = tmp_s / _alpha;
+		if (tmp_s > 100)
+			tmp_s = 100;
+
+		tmp_q = avg_signal_qual +
+			(_alpha - 1) * recvpriv->signal_qual;
+		if (tmp_q % _alpha)
+			tmp_q = tmp_q / _alpha + 1;
+		else
+			tmp_q = tmp_q / _alpha;
+		if (tmp_q > 100)
+			tmp_q = 100;
+
+		recvpriv->signal_strength = tmp_s;
+		recvpriv->rssi = (s8)translate_percentage_to_dbm(tmp_s);
+		recvpriv->signal_qual = tmp_q;
+	}
+
 	rtw_set_signal_stat_timer(recvpriv);
 }
