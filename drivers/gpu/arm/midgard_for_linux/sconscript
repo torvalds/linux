@@ -1,0 +1,134 @@
+#
+# (C) COPYRIGHT 2010-2015 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+
+import os
+import re
+import sys
+Import('env')
+
+if Glob('tests/sconscript'):
+	SConscript( 'tests/sconscript' )
+
+mock_test = 0
+
+if env['v'] != '1':
+	env['MAKECOMSTR'] = '[MAKE] ${SOURCE.dir}'
+
+# Fake platform is a transient solution for GPL drivers running in kernel that does not provide configuration via platform data.
+# For such kernels fake_platform_device should be set to 1. For kernels providing platform data fake_platform_device should be set to 0.
+if env['platform_config']=='devicetree':
+	fake_platform_device = 0
+else:
+	fake_platform_device = 1
+
+# Source files required for kbase.
+kbase_src = [Glob('#kernel/drivers/gpu/arm/midgard/*.c'),
+             Glob('#kernel/drivers/gpu/arm/midgard/*.c'),
+             Glob('#kernel/drivers/gpu/arm/midgard/backend/*/*.c'),
+             Glob('#kernel/drivers/gpu/arm/midgard/backend/*/*.h'),
+             Glob('#kernel/drivers/gpu/arm/midgard/platform/%s/*.c' % (env['platform_config'])),
+             Glob('#kernel/drivers/gpu/arm/midgard/*.h'),
+             Glob('#kernel/drivers/gpu/arm/midgard/*.h'),
+             Glob('#kernel/drivers/gpu/arm/midgard/Makefile',
+             Glob('#kernel/drivers/gpu/arm/midgard/K*'))
+             ]
+
+kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*.c'),
+              Glob('#kernel/drivers/gpu/arm/midgard/internal/*/*/*.c')]
+
+if Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock') and env['unit'] == '1':
+	kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock/*.c')]
+	mock_test = 1
+
+# we need platform config for GPL version using fake platform
+if fake_platform_device==1:
+	# Check if we are compiling for PBX
+	linux_config_file = os.path.normpath(os.environ['KDIR']) + '/.config'
+	search_term = '^[\ ]*CONFIG_MACH_REALVIEW_PBX[\ ]*=[\ ]*y'
+	REALVIEW_PBX = 0
+	for line in open(linux_config_file, 'r'):
+		if re.search(search_term, line):
+			REALVIEW_PBX = 1
+			break
+	if REALVIEW_PBX == 1 and (env['platform_config'] == 'vexpress' or env['platform_config'] == 'vexpress_6xvirtex7_10mhz'):
+		sys.stderr.write("WARNING: Building for a PBX kernel but with platform_config=vexpress*\n")
+	# if the file platform config file is in the tpip directory then use that, otherwise use the default config directory
+	if Glob('#kernel/drivers/gpu/arm/midgard/config/tpip/*%s.c' % (env['platform_config'])):
+		kbase_src += Glob('#kernel/drivers/gpu/arm/midgard/config/tpip/*%s.c' % (env['platform_config']))
+	else:
+		kbase_src += Glob('#kernel/drivers/gpu/arm/midgard/config/*%s.c' % (env['platform_config']))
+	
+# Note: cleaning via the Linux kernel build system does not yet work
+if env.GetOption('clean') :
+	env.Execute(Action("make clean", '[clean] kbase'))
+	cmd = env.Command(['$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/mali_platform_fake.ko'], kbase_src, [])
+else:
+	if env['os'] == 'android':
+		env['android'] = 1
+	else:
+		env['android'] = 0
+
+	if env['unit'] == '1':
+		env['kernel_test'] = 1
+	else:
+		env['kernel_test'] = 0
+
+	#Extract environment options, note the trailing spaces are important
+	env_options = \
+	"PLATFORM=${platform} " +\
+	"MALI_ERROR_INJECT_ON=${error_inject} " +\
+	"MALI_ANDROID=${android} " +\
+	"MALI_KERNEL_TEST_API=${kernel_test} " +\
+	"MALI_UNIT_TEST=${unit} " +\
+	"MALI_RELEASE_NAME=\"${mali_release_name}\" "+\
+	"MALI_MOCK_TEST=%s " % mock_test +\
+	"MALI_CUSTOMER_RELEASE=${release} " +\
+	"MALI_INSTRUMENTATION_LEVEL=${instr} " +\
+	"MALI_COVERAGE=${coverage} " +\
+	"MALI_BUS_LOG=${buslog} "
+
+	make_action_start = "cd ${SOURCE.dir} && make -j%d " % GetOption('num_jobs')
+	make_action_end = "%s && cp mali_kbase.ko $STATIC_LIB_PATH/mali_kbase.ko" % env.kernel_get_config_defines(fake_platform_device)
+	make_action = make_action_start + env_options + make_action_end
+
+	makeAction=Action(make_action, '$MAKECOMSTR')
+	cmd = env.Command('$STATIC_LIB_PATH/mali_kbase.ko', kbase_src, [makeAction])
+
+# Add a dependency on kds.ko.
+# Only necessary when KDS is not built into the kernel.
+#
+if env['os'] != 'android':
+	linux_config_file = os.path.normpath(os.environ['KDIR']) + '/.config'
+	search_term = '^[\ ]*CONFIG_KDS[\ ]*=[\ ]*y'
+	kds_in_kernel = 0
+	for line in open(linux_config_file, 'r'):
+		if re.search(search_term, line):
+	        # KDS in kernel.
+			kds_in_kernel = 1
+	if not kds_in_kernel:
+		env.Depends('$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/kds.ko')
+
+# need Module.symvers from ump.ko build
+if int(env['ump']) == 1:
+	env.Depends('$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/ump.ko')
+
+if Glob('internal/sconsfrag'):
+	execfile('internal/sconsfrag')
+	get_internal(env)
+
+env.ProgTarget('kbase', cmd)
+
+env.AppendUnique(BASE=['cutils_linked_list'])

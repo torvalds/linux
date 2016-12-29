@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -13,11 +13,10 @@
 #
 
 
-
-obj-$(CONFIG_MALI_MIDGARD_FOR_LINUX) += midgard_for_linux/
-
-ifneq ($(CONFIG_MALI_MIDGARD_FOR_LINUX),y)
-obj-y += midgard/
+ifeq ($(CONFIG_MALI_MIDGARD),y)
+obj-y += mali_kbase_runtime_pm.c
+obj-y += mali_kbase_config_devicetree.c
+else ifeq ($(CONFIG_MALI_MIDGARD),m)
+SRC += platform/devicetree/mali_kbase_runtime_pm.c
+SRC += platform/devicetree/mali_kbase_config_devicetree.c
 endif
-
-obj-$(CONFIG_MALI400)      += mali400/

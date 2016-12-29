@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2013-2014 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -13,11 +13,7 @@
 #
 
 
+obj-y += mali_kbase_config_juno_soc.o
 
-obj-$(CONFIG_MALI_MIDGARD_FOR_LINUX) += midgard_for_linux/
 
-ifneq ($(CONFIG_MALI_MIDGARD_FOR_LINUX),y)
-obj-y += midgard/
-endif
-
-obj-$(CONFIG_MALI400)      += mali400/
+obj-m += juno_mali_opp.o

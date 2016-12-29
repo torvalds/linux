@@ -12,12 +12,11 @@
 #
 #
 
+# add default config for RK Linux device for absence of Kconfig.
+include drivers/gpu/arm/midgard_for_linux/default_config.mk
 
-
-obj-$(CONFIG_MALI_MIDGARD_FOR_LINUX) += midgard_for_linux/
-
-ifneq ($(CONFIG_MALI_MIDGARD_FOR_LINUX),y)
-obj-y += midgard/
+ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
+# remove begin and end quotes from the Kconfig string type
+	platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
+	obj-y += $(platform_name)/
 endif
-
-obj-$(CONFIG_MALI400)      += mali400/
