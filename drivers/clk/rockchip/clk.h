@@ -91,6 +91,24 @@ struct clk;
 #define RK3288_EMMC_CON0		0x218
 #define RK3288_EMMC_CON1		0x21c
 
+#define RK3328_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3328_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3328_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
+#define RK3328_GRFCLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3328_GLB_SRST_FST		0x9c
+#define RK3328_GLB_SRST_SND		0x98
+#define RK3328_SOFTRST_CON(x)		((x) * 0x4 + 0x300)
+#define RK3328_MODE_CON			0x80
+#define RK3328_MISC_CON			0x84
+#define RK3328_SDMMC_CON0		0x380
+#define RK3328_SDMMC_CON1		0x384
+#define RK3328_SDIO_CON0		0x388
+#define RK3328_SDIO_CON1		0x38c
+#define RK3328_EMMC_CON0		0x390
+#define RK3328_EMMC_CON1		0x394
+#define RK3328_SDMMC_EXT_CON0		0x398
+#define RK3328_SDMMC_EXT_CON1		0x39C
+
 #define RK3368_PLL_CON(x)		RK2928_PLL_CON(x)
 #define RK3368_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
 #define RK3368_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
