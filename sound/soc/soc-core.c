@@ -1748,6 +1748,7 @@ static int soc_bind_aux_dev(struct snd_soc_card *card, int num)
 
 	component->init = aux_dev->init;
 	component->auxiliary = 1;
+	list_add(&component->card_aux_list, &card->aux_comp_list);
 
 	return 0;
 
@@ -1758,16 +1759,14 @@ err_defer:
 
 static int soc_probe_aux_devices(struct snd_soc_card *card)
 {
-	struct snd_soc_component *comp;
+	struct snd_soc_component *comp, *tmp;
 	int order;
 	int ret;
 
 	for (order = SND_SOC_COMP_ORDER_FIRST; order <= SND_SOC_COMP_ORDER_LAST;
 		order++) {
-		list_for_each_entry(comp, &card->component_dev_list, card_list) {
-			if (!comp->auxiliary)
-				continue;
-
+		list_for_each_entry_safe(comp, tmp, &card->aux_comp_list,
+					 card_aux_list) {
 			if (comp->driver->probe_order == order) {
 				ret = soc_probe_component(card,	comp);
 				if (ret < 0) {
@@ -1776,6 +1775,7 @@ static int soc_probe_aux_devices(struct snd_soc_card *card)
 						comp->name, ret);
 					return ret;
 				}
+				list_del(&comp->card_aux_list);
 			}
 		}
 	}
