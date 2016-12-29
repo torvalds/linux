@@ -1778,8 +1778,9 @@ static int bnxt_poll(struct napi_struct *napi, int budget)
 			break;
 
 		if (!bnxt_has_work(bp, cpr)) {
-			napi_complete(napi);
-			BNXT_CP_DB_REARM(cpr->cp_doorbell, cpr->cp_raw_cons);
+			if (napi_complete_done(napi, work_done))
+				BNXT_CP_DB_REARM(cpr->cp_doorbell,
+						 cpr->cp_raw_cons);
 			break;
 		}
 	}
