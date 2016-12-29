@@ -23,6 +23,25 @@
 
 #include "intel_drv.h"
 
+/**
+ * DOC: Display PLLs
+ *
+ * Display PLLs used for driving outputs vary by platform. While some have
+ * per-pipe or per-encoder dedicated PLLs, others allow the use of any PLL
+ * from a pool. In the latter scenario, it is possible that multiple pipes
+ * share a PLL if their configurations match.
+ *
+ * This file provides an abstraction over display PLLs. The function
+ * intel_shared_dpll_init() initializes the PLLs for the given platform.  The
+ * users of a PLL are tracked and that tracking is integrated with the atomic
+ * modest interface. During an atomic operation, a PLL can be requested for a
+ * given CRTC and encoder configuration by calling intel_get_shared_dpll() and
+ * a previously used PLL can be released with intel_release_shared_dpll().
+ * Changes to the users are first staged in the atomic state, and then made
+ * effective by calling intel_shared_dpll_swap_state() during the atomic
+ * commit phase.
+ */
+
 struct intel_shared_dpll *
 skl_find_link_pll(struct drm_i915_private *dev_priv, int clock)
 {
@@ -61,6 +80,14 @@ skl_find_link_pll(struct drm_i915_private *dev_priv, int clock)
 	return pll;
 }
 
+/**
+ * intel_get_shared_dpll_by_id - get a DPLL given its id
+ * @dev_priv: i915 device instance
+ * @id: pll id
+ *
+ * Returns:
+ * A pointer to the DPLL with @id
+ */
 struct intel_shared_dpll *
 intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
 			    enum intel_dpll_id id)
@@ -68,6 +95,14 @@ intel_get_shared_dpll_by_id(struct drm_i915_private *dev_priv,
 	return &dev_priv->shared_dplls[id];
 }
 
+/**
+ * intel_get_shared_dpll_id - get the id of a DPLL
+ * @dev_priv: i915 device instance
+ * @pll: the DPLL
+ *
+ * Returns:
+ * The id of @pll
+ */
 enum intel_dpll_id
 intel_get_shared_dpll_id(struct drm_i915_private *dev_priv,
 			 struct intel_shared_dpll *pll)
@@ -96,6 +131,13 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			pll->name, onoff(state), onoff(cur_state));
 }
 
+/**
+ * intel_prepare_shared_dpll - call a dpll's prepare hook
+ * @crtc: CRTC which has a shared dpll
+ *
+ * This calls the PLL's prepare hook if it has one and if the PLL is not
+ * already enabled. The prepare hook is platform specific.
+ */
 void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -118,12 +160,10 @@ void intel_prepare_shared_dpll(struct intel_crtc *crtc)
 }
 
 /**
- * intel_enable_shared_dpll - enable PCH PLL
- * @dev_priv: i915 private structure
- * @pipe: pipe PLL to enable
+ * intel_enable_shared_dpll - enable a CRTC's shared DPLL
+ * @crtc: CRTC which has a shared DPLL
  *
- * The PCH PLL needs to be enabled before the PCH transcoder, since it
- * drives the transcoder clock.
+ * Enable the shared DPLL used by @crtc.
  */
 void intel_enable_shared_dpll(struct intel_crtc *crtc)
 {
@@ -164,6 +204,12 @@ out:
 	mutex_unlock(&dev_priv->dpll_lock);
 }
 
+/**
+ * intel_disable_shared_dpll - disable a CRTC's shared DPLL
+ * @crtc: CRTC which has a shared DPLL
+ *
+ * Disable the shared DPLL used by @crtc.
+ */
 void intel_disable_shared_dpll(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -265,6 +311,17 @@ intel_reference_shared_dpll(struct intel_shared_dpll *pll,
 	shared_dpll[pll->id].crtc_mask |= 1 << crtc->pipe;
 }
 
+/**
+ * intel_shared_dpll_swap_state - make atomic DPLL configuration effective
+ * @state: atomic state
+ *
+ * This is the dpll version of drm_atomic_helper_swap_state() since the
+ * helper does not handle driver-specific global state.
+ *
+ * For consistency with atomic helpers this function does a complete swap,
+ * i.e. it also puts the current state into @state, even though there is no
+ * need for that at this moment.
+ */
 void intel_shared_dpll_swap_state(struct drm_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->dev);
@@ -1860,6 +1917,12 @@ static const struct intel_dpll_mgr bxt_pll_mgr = {
 	.get_dpll = bxt_get_dpll,
 };
 
+/**
+ * intel_shared_dpll_init - Initialize shared DPLLs
+ * @dev: drm device
+ *
+ * Initialize shared DPLLs for @dev.
+ */
 void intel_shared_dpll_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -1903,6 +1966,21 @@ void intel_shared_dpll_init(struct drm_device *dev)
 		intel_ddi_pll_init(dev);
 }
 
+/**
+ * intel_get_shared_dpll - get a shared DPLL for CRTC and encoder combination
+ * @crtc: CRTC
+ * @crtc_state: atomic state for @crtc
+ * @encoder: encoder
+ *
+ * Find an appropriate DPLL for the given CRTC and encoder combination. A
+ * reference from the @crtc to the returned pll is registered in the atomic
+ * state. That configuration is made effective by calling
+ * intel_shared_dpll_swap_state(). The reference should be released by calling
+ * intel_release_shared_dpll().
+ *
+ * Returns:
+ * A shared DPLL to be used by @crtc and @encoder with the given @crtc_state.
+ */
 struct intel_shared_dpll *
 intel_get_shared_dpll(struct intel_crtc *crtc,
 		      struct intel_crtc_state *crtc_state,
@@ -1923,6 +2001,9 @@ intel_get_shared_dpll(struct intel_crtc *crtc,
  * @crtc: crtc
  * @state: atomic state
  *
+ * This function releases the reference from @crtc to @dpll from the
+ * atomic @state. The new configuration is made effective by calling
+ * intel_shared_dpll_swap_state().
  */
 void intel_release_shared_dpll(struct intel_shared_dpll *dpll,
 			       struct intel_crtc *crtc,

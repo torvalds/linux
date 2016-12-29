@@ -213,6 +213,18 @@ Video BIOS Table (VBT)
 .. kernel-doc:: drivers/gpu/drm/i915/intel_vbt_defs.h
    :internal:
 
+Display PLLs
+------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+   :doc: Display PLLs
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.h
+   :internal:
+
 Memory Management and Command Submission
 ========================================
 
