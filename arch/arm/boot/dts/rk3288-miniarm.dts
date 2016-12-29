@@ -182,7 +182,10 @@
 		interrupt-parent = <&gpio0>;
 		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&pmic_int &global_pwroff>;
+		pinctrl-0 = <&pmic_int &global_pwroff &dvs_1 &dvs_2>;
+		dvs-gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>,
+				<&gpio0 12 GPIO_ACTIVE_HIGH>;
+
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -208,6 +211,7 @@
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-name = "vdd_arm";
+				regulator-ramp-delay = <6000>;
 				regulator-state-mem {
 					regulator-off-in-suspend;
 				};
@@ -512,6 +516,14 @@
 	pmic {
 		pmic_int: pmic-int {
 			rockchip,pins = <RK_GPIO0 4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		dvs_1: dvs-1 {
+			rockchip,pins = <RK_GPIO0 11 RK_FUNC_GPIO &pcfg_pull_down>;
+		};
+
+		dvs_2: dvs-2 {
+			rockchip,pins = <RK_GPIO0 12 RK_FUNC_GPIO &pcfg_pull_down>;
 		};
 	};
 
