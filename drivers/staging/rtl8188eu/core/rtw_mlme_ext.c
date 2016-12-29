@@ -4715,9 +4715,6 @@ void linked_status_chk(struct adapter *padapter)
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct sta_priv		*pstapriv = &padapter->stapriv;
 
-	if (padapter->bRxRSSIDisplay)
-		_linked_rx_signal_strehgth_display(padapter);
-
 	if (is_client_associated_to_ap(padapter)) {
 		/* linked infrastructure client mode */
 
