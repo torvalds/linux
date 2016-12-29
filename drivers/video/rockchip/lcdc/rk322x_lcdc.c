@@ -1826,7 +1826,7 @@ static void vop_bcsh_path_sel(struct rk_lcdc_driver *dev_drv)
 
 	vop_msk_reg(vop_dev, SYS_CTRL, V_OVERLAY_MODE(dev_drv->overlay_mode));
 	if (dev_drv->overlay_mode == VOP_YUV_DOMAIN) {
-		if (dev_drv->output_color == COLOR_YCBCR)	/* bypass */
+		if (IS_YUV_COLOR(dev_drv->output_color))	/* bypass */
 			vop_msk_reg(vop_dev, BCSH_CTRL,
 				    V_BCSH_Y2R_EN(0) | V_BCSH_R2Y_EN(0));
 		else		/* YUV2RGB */
