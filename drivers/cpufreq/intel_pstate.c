@@ -803,13 +803,13 @@ static struct freq_attr *hwp_cpufreq_attrs[] = {
 	NULL,
 };
 
-static void intel_pstate_hwp_set(const struct cpumask *cpumask)
+static void intel_pstate_hwp_set(struct cpufreq_policy *policy)
 {
 	int min, hw_min, max, hw_max, cpu, range, adj_range;
 	struct perf_limits *perf_limits = limits;
 	u64 value, cap;
 
-	for_each_cpu(cpu, cpumask) {
+	for_each_cpu(cpu, policy->cpus) {
 		int max_perf_pct, min_perf_pct;
 		struct cpudata *cpu_data = all_cpu_data[cpu];
 		s16 epp;
@@ -895,7 +895,7 @@ skip_epp:
 static int intel_pstate_hwp_set_policy(struct cpufreq_policy *policy)
 {
 	if (hwp_active)
-		intel_pstate_hwp_set(policy->cpus);
+		intel_pstate_hwp_set(policy);
 
 	return 0;
 }
@@ -930,11 +930,12 @@ static int intel_pstate_resume(struct cpufreq_policy *policy)
 	return ret;
 }
 
-static void intel_pstate_hwp_set_online_cpus(void)
+static void intel_pstate_update_policies(void)
 {
-	get_online_cpus();
-	intel_pstate_hwp_set(cpu_online_mask);
-	put_online_cpus();
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		cpufreq_update_policy(cpu);
 }
 
 /************************** debugfs begin ************************/
@@ -1055,10 +1056,9 @@ static ssize_t store_no_turbo(struct kobject *a, struct attribute *b,
 
 	limits->no_turbo = clamp_t(int, input, 0, 1);
 
-	if (hwp_active)
-		intel_pstate_hwp_set_online_cpus();
-
 	mutex_unlock(&intel_pstate_limits_lock);
+
+	intel_pstate_update_policies();
 
 	return count;
 }
@@ -1084,10 +1084,9 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->max_perf_pct);
 	limits->max_perf = div_ext_fp(limits->max_perf_pct, 100);
 
-	if (hwp_active)
-		intel_pstate_hwp_set_online_cpus();
-
 	mutex_unlock(&intel_pstate_limits_lock);
+
+	intel_pstate_update_policies();
 
 	return count;
 }
@@ -1113,10 +1112,9 @@ static ssize_t store_min_perf_pct(struct kobject *a, struct attribute *b,
 				   limits->min_perf_pct);
 	limits->min_perf = div_ext_fp(limits->min_perf_pct, 100);
 
-	if (hwp_active)
-		intel_pstate_hwp_set_online_cpus();
-
 	mutex_unlock(&intel_pstate_limits_lock);
+
+	intel_pstate_update_policies();
 
 	return count;
 }
