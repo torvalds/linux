@@ -401,6 +401,15 @@ int st_sensors_init_sensor(struct iio_dev *indio_dev,
 			return err;
 	}
 
+	/* set DAS */
+	if (sdata->sensor_settings->das.addr) {
+		err = st_sensors_write_data_with_mask(indio_dev,
+					sdata->sensor_settings->das.addr,
+					sdata->sensor_settings->das.mask, 1);
+		if (err < 0)
+			return err;
+	}
+
 	if (sdata->int_pin_open_drain) {
 		dev_info(&indio_dev->dev,
 			 "set interrupt line to open drain mode\n");
