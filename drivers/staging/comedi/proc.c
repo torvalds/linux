@@ -89,7 +89,8 @@ static const struct file_operations comedi_proc_fops = {
 
 void __init comedi_proc_init(void)
 {
-	proc_create("comedi", 0444, NULL, &comedi_proc_fops);
+	if (!proc_create("comedi", 0444, NULL, &comedi_proc_fops))
+		pr_warn("comedi: unable to create proc entry\n");
 }
 
 void comedi_proc_cleanup(void)
