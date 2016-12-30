@@ -36,6 +36,36 @@ struct device *mdev_parent_dev(struct mdev_device *mdev)
 }
 EXPORT_SYMBOL(mdev_parent_dev);
 
+void *mdev_get_drvdata(struct mdev_device *mdev)
+{
+	return mdev->driver_data;
+}
+EXPORT_SYMBOL(mdev_get_drvdata);
+
+void mdev_set_drvdata(struct mdev_device *mdev, void *data)
+{
+	mdev->driver_data = data;
+}
+EXPORT_SYMBOL(mdev_set_drvdata);
+
+struct device *mdev_dev(struct mdev_device *mdev)
+{
+	return &mdev->dev;
+}
+EXPORT_SYMBOL(mdev_dev);
+
+struct mdev_device *mdev_from_dev(struct device *dev)
+{
+	return dev_is_mdev(dev) ? to_mdev_device(dev) : NULL;
+}
+EXPORT_SYMBOL(mdev_from_dev);
+
+uuid_le mdev_uuid(struct mdev_device *mdev)
+{
+	return mdev->uuid;
+}
+EXPORT_SYMBOL(mdev_uuid);
+
 static int _find_mdev_device(struct device *dev, void *data)
 {
 	struct mdev_device *mdev;

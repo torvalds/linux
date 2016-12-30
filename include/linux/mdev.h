@@ -13,18 +13,7 @@
 #ifndef MDEV_H
 #define MDEV_H
 
-/* Mediated device */
-struct mdev_device {
-	struct device		dev;
-	struct mdev_parent	*parent;
-	uuid_le			uuid;
-	void			*driver_data;
-
-	/* internal */
-	struct kref		ref;
-	struct list_head	next;
-	struct kobject		*type_kobj;
-};
+struct mdev_device;
 
 /**
  * struct mdev_parent_ops - Structure to be registered for each parent device to
@@ -75,7 +64,6 @@ struct mdev_device {
  * Parent device that support mediated device should be registered with mdev
  * module with mdev_parent_ops structure.
  **/
-
 struct mdev_parent_ops {
 	struct module   *owner;
 	const struct attribute_group **dev_attr_groups;
@@ -129,21 +117,12 @@ struct mdev_driver {
 };
 
 #define to_mdev_driver(drv)	container_of(drv, struct mdev_driver, driver)
-#define to_mdev_device(dev)	container_of(dev, struct mdev_device, dev)
 
-static inline void *mdev_get_drvdata(struct mdev_device *mdev)
-{
-	return mdev->driver_data;
-}
-
-static inline void mdev_set_drvdata(struct mdev_device *mdev, void *data)
-{
-	mdev->driver_data = data;
-}
+extern void *mdev_get_drvdata(struct mdev_device *mdev);
+extern void mdev_set_drvdata(struct mdev_device *mdev, void *data);
+extern uuid_le mdev_uuid(struct mdev_device *mdev);
 
 extern struct bus_type mdev_bus_type;
-
-#define dev_is_mdev(d) ((d)->bus == &mdev_bus_type)
 
 extern int  mdev_register_device(struct device *dev,
 				 const struct mdev_parent_ops *ops);
@@ -153,5 +132,7 @@ extern int  mdev_register_driver(struct mdev_driver *drv, struct module *owner);
 extern void mdev_unregister_driver(struct mdev_driver *drv);
 
 extern struct device *mdev_parent_dev(struct mdev_device *mdev);
+extern struct device *mdev_dev(struct mdev_device *mdev);
+extern struct mdev_device *mdev_from_dev(struct device *dev);
 
 #endif /* MDEV_H */

@@ -164,7 +164,7 @@ static struct mdev_state *find_mdev_state_by_uuid(uuid_le uuid)
 	struct mdev_state *mds;
 
 	list_for_each_entry(mds, &mdev_devices_list, next) {
-		if (uuid_le_cmp(mds->mdev->uuid, uuid) == 0)
+		if (uuid_le_cmp(mdev_uuid(mds->mdev), uuid) == 0)
 			return mds;
 	}
 
@@ -341,7 +341,8 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 				pr_err("Serial port %d: Fifo level trigger\n",
 					index);
 #endif
-				mtty_trigger_interrupt(mdev_state->mdev->uuid);
+				mtty_trigger_interrupt(
+						mdev_uuid(mdev_state->mdev));
 			}
 		} else {
 #if defined(DEBUG_INTR)
@@ -355,7 +356,8 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 			 */
 			if (mdev_state->s[index].uart_reg[UART_IER] &
 								UART_IER_RLSI)
-				mtty_trigger_interrupt(mdev_state->mdev->uuid);
+				mtty_trigger_interrupt(
+						mdev_uuid(mdev_state->mdev));
 		}
 		mutex_unlock(&mdev_state->rxtx_lock);
 		break;
@@ -374,7 +376,8 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 				pr_err("Serial port %d: IER_THRI write\n",
 					index);
 #endif
-				mtty_trigger_interrupt(mdev_state->mdev->uuid);
+				mtty_trigger_interrupt(
+						mdev_uuid(mdev_state->mdev));
 			}
 
 			mutex_unlock(&mdev_state->rxtx_lock);
@@ -445,7 +448,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 #if defined(DEBUG_INTR)
 			pr_err("Serial port %d: MCR_OUT2 write\n", index);
 #endif
-			mtty_trigger_interrupt(mdev_state->mdev->uuid);
+			mtty_trigger_interrupt(mdev_uuid(mdev_state->mdev));
 		}
 
 		if ((mdev_state->s[index].uart_reg[UART_IER] & UART_IER_MSI) &&
@@ -453,7 +456,7 @@ static void handle_bar_write(unsigned int index, struct mdev_state *mdev_state,
 #if defined(DEBUG_INTR)
 			pr_err("Serial port %d: MCR RTS/DTR write\n", index);
 #endif
-			mtty_trigger_interrupt(mdev_state->mdev->uuid);
+			mtty_trigger_interrupt(mdev_uuid(mdev_state->mdev));
 		}
 		break;
 
@@ -504,7 +507,8 @@ static void handle_bar_read(unsigned int index, struct mdev_state *mdev_state,
 #endif
 			if (mdev_state->s[index].uart_reg[UART_IER] &
 							 UART_IER_THRI)
-				mtty_trigger_interrupt(mdev_state->mdev->uuid);
+				mtty_trigger_interrupt(
+					mdev_uuid(mdev_state->mdev));
 		}
 		mutex_unlock(&mdev_state->rxtx_lock);
 
@@ -1298,10 +1302,8 @@ static ssize_t
 sample_mdev_dev_show(struct device *dev, struct device_attribute *attr,
 		     char *buf)
 {
-	struct mdev_device *mdev = to_mdev_device(dev);
-
-	if (mdev)
-		return sprintf(buf, "This is MDEV %s\n", dev_name(&mdev->dev));
+	if (mdev_from_dev(dev))
+		return sprintf(buf, "This is MDEV %s\n", dev_name(dev));
 
 	return sprintf(buf, "\n");
 }
