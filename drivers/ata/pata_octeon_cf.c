@@ -293,17 +293,17 @@ static void octeon_cf_set_dmamode(struct ata_port *ap, struct ata_device *dev)
 /**
  * Handle an 8 bit I/O request.
  *
- * @dev:        Device to access
+ * @qc:         Queued command
  * @buffer:     Data buffer
  * @buflen:     Length of the buffer.
  * @rw:         True to write.
  */
-static unsigned int octeon_cf_data_xfer8(struct ata_device *dev,
+static unsigned int octeon_cf_data_xfer8(struct ata_queued_cmd *qc,
 					 unsigned char *buffer,
 					 unsigned int buflen,
 					 int rw)
 {
-	struct ata_port *ap		= dev->link->ap;
+	struct ata_port *ap		= qc->dev->link->ap;
 	void __iomem *data_addr		= ap->ioaddr.data_addr;
 	unsigned long words;
 	int count;
@@ -332,17 +332,17 @@ static unsigned int octeon_cf_data_xfer8(struct ata_device *dev,
 /**
  * Handle a 16 bit I/O request.
  *
- * @dev:        Device to access
+ * @qc:         Queued command
  * @buffer:     Data buffer
  * @buflen:     Length of the buffer.
  * @rw:         True to write.
  */
-static unsigned int octeon_cf_data_xfer16(struct ata_device *dev,
+static unsigned int octeon_cf_data_xfer16(struct ata_queued_cmd *qc,
 					  unsigned char *buffer,
 					  unsigned int buflen,
 					  int rw)
 {
-	struct ata_port *ap		= dev->link->ap;
+	struct ata_port *ap		= qc->dev->link->ap;
 	void __iomem *data_addr		= ap->ioaddr.data_addr;
 	unsigned long words;
 	int count;
