@@ -762,7 +762,8 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor,
-		 driver->patchlevel, driver->date, dev_name(dev->dev),
+		 driver->patchlevel, driver->date,
+		 dev->dev ? dev_name(dev->dev) : "virtual device",
 		 dev->primary->index);
 
 	goto out_unlock;
