@@ -1079,26 +1079,10 @@ static void sh_mmcif_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	host->state = STATE_IDLE;
 }
 
-static int sh_mmcif_get_cd(struct mmc_host *mmc)
-{
-	struct sh_mmcif_host *host = mmc_priv(mmc);
-	struct device *dev = sh_mmcif_host_to_dev(host);
-	struct sh_mmcif_plat_data *p = dev->platform_data;
-	int ret = mmc_gpio_get_cd(mmc);
-
-	if (ret >= 0)
-		return ret;
-
-	if (!p || !p->get_cd)
-		return -ENOSYS;
-	else
-		return p->get_cd(host->pd);
-}
-
 static struct mmc_host_ops sh_mmcif_ops = {
 	.request	= sh_mmcif_request,
 	.set_ios	= sh_mmcif_set_ios,
-	.get_cd		= sh_mmcif_get_cd,
+	.get_cd		= mmc_gpio_get_cd,
 };
 
 static bool sh_mmcif_end_cmd(struct sh_mmcif_host *host)
