@@ -658,13 +658,15 @@ static int vadc_scale_die_temp(struct vadc_priv *vadc,
 {
 	const struct vadc_prescale_ratio *prescale;
 	s64 voltage = 0;
+	u64 temp; /* Temporary variable for do_div */
 
 	vadc_scale_calib(vadc, adc_code, prop, &voltage);
 
 	if (voltage > 0) {
 		prescale = &vadc_prescale_ratios[prop->prescale];
-		voltage = voltage * prescale->den;
-		voltage /= (prescale->num * 2);
+		temp = voltage * prescale->den;
+		do_div(temp, prescale->num * 2);
+		voltage = temp;
 	} else {
 		voltage = 0;
 	}
