@@ -19,7 +19,7 @@ void mdev_bus_unregister(void);
 struct mdev_type {
 	struct kobject kobj;
 	struct kobject *devices_kobj;
-	struct parent_device *parent;
+	struct mdev_parent *parent;
 	struct list_head next;
 	struct attribute_group *group;
 };
@@ -29,8 +29,8 @@ struct mdev_type {
 #define to_mdev_type(_kobj)		\
 	container_of(_kobj, struct mdev_type, kobj)
 
-int  parent_create_sysfs_files(struct parent_device *parent);
-void parent_remove_sysfs_files(struct parent_device *parent);
+int  parent_create_sysfs_files(struct mdev_parent *parent);
+void parent_remove_sysfs_files(struct mdev_parent *parent);
 
 int  mdev_create_sysfs_files(struct device *dev, struct mdev_type *type);
 void mdev_remove_sysfs_files(struct device *dev, struct mdev_type *type);

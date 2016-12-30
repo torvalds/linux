@@ -1089,7 +1089,7 @@ static long intel_vgpu_ioctl(struct mdev_device *mdev, unsigned int cmd,
 	return 0;
 }
 
-static const struct parent_ops intel_vgpu_ops = {
+static const struct mdev_parent_ops intel_vgpu_ops = {
 	.supported_type_groups	= intel_vgpu_type_groups,
 	.create			= intel_vgpu_create,
 	.remove			= intel_vgpu_remove,

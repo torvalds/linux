@@ -1402,7 +1402,7 @@ struct attribute_group *mdev_type_groups[] = {
 	NULL,
 };
 
-struct parent_ops mdev_fops = {
+struct mdev_parent_ops mdev_fops = {
 	.owner                  = THIS_MODULE,
 	.dev_attr_groups        = mtty_dev_groups,
 	.mdev_attr_groups       = mdev_dev_groups,

@@ -92,7 +92,7 @@ static struct kobj_type mdev_type_ktype = {
 	.release = mdev_type_release,
 };
 
-struct mdev_type *add_mdev_supported_type(struct parent_device *parent,
+struct mdev_type *add_mdev_supported_type(struct mdev_parent *parent,
 					  struct attribute_group *group)
 {
 	struct mdev_type *type;
@@ -158,7 +158,7 @@ static void remove_mdev_supported_type(struct mdev_type *type)
 	kobject_put(&type->kobj);
 }
 
-static int add_mdev_supported_type_groups(struct parent_device *parent)
+static int add_mdev_supported_type_groups(struct mdev_parent *parent)
 {
 	int i;
 
@@ -183,7 +183,7 @@ static int add_mdev_supported_type_groups(struct parent_device *parent)
 }
 
 /* mdev sysfs functions */
-void parent_remove_sysfs_files(struct parent_device *parent)
+void parent_remove_sysfs_files(struct mdev_parent *parent)
 {
 	struct mdev_type *type, *tmp;
 
@@ -196,7 +196,7 @@ void parent_remove_sysfs_files(struct parent_device *parent)
 	kset_unregister(parent->mdev_types_kset);
 }
 
-int parent_create_sysfs_files(struct parent_device *parent)
+int parent_create_sysfs_files(struct mdev_parent *parent)
 {
 	int ret;
 
