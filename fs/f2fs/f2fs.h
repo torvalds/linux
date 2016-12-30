@@ -2119,6 +2119,7 @@ void release_discard_addrs(struct f2fs_sb_info *);
 int npages_for_summary_flush(struct f2fs_sb_info *, bool);
 void allocate_new_segments(struct f2fs_sb_info *);
 int f2fs_trim_fs(struct f2fs_sb_info *, struct fstrim_range *);
+bool exist_trim_candidates(struct f2fs_sb_info *, struct cp_control *);
 struct page *get_sum_page(struct f2fs_sb_info *, unsigned int);
 void update_meta_page(struct f2fs_sb_info *, void *, block_t);
 void write_meta_page(struct f2fs_sb_info *, struct page *);
