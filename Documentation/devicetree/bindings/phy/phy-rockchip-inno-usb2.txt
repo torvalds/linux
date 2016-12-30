@@ -2,6 +2,7 @@ ROCKCHIP USB2.0 PHY WITH INNO IP BLOCK
 
 Required properties (phy (parent) node):
  - compatible : should be one of the listed compatibles:
+	* "rockchip,rk3328-usb2phy"
 	* "rockchip,rk3366-usb2phy"
 	* "rockchip,rk3399-usb2phy"
  - reg : the address offset of grf for usb-phy configuration.
@@ -11,6 +12,11 @@ Required properties (phy (parent) node):
 Optional properties:
  - clocks : phandle + phy specifier pair, for the input clock of phy.
  - clock-names : input clock name of phy, must be "phyclk".
+ - assigned-clocks : phandle of usb 480m clock.
+ - assigned-clock-parents : parent of usb 480m clock, select between
+		 usb-phy output 480m and xin24m.
+		 Refer to clk/clock-bindings.txt for generic clock
+		 consumer properties.
  - rockchip,u2phy-tuning; when set, tuning u2phy to improve usb2 SI.
 
 Required nodes : a sub-node is required for each port the phy provides.
@@ -68,3 +74,44 @@ grf: syscon@ff770000 {
 		};
 	};
 };
+
+Required properties (usb2phy grf node):
+ - compatible : should be one of the listed compatibles:
+		"rockchip,rk3328-usb2phy-grf", "syscon", "simple-mfd";
+ - reg : the address offset of grf for usb-phy configuration.
+ - #address-cells : should be 1.
+ - #size-cells : should be 1.
+
+Required nodes : a sub-node is required for the phy provides.
+		 The sub-node name is used to identify each phy,
+		 and shall be the following entries:
+
+Example:
+
+usb2phy_grf: syscon@ff450000 {
+	compatible = "rockchip,rk3328-usb2phy-grf", "syscon",
+		     "simple-mfd";
+	reg = <0x0 0xff450000 0x0 0x10000>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	u2phy: usb2-phy@100 {
+		compatible = "rockchip,rk3328-usb2phy";
+		reg = <0x100 0x10>;
+		clocks = <&xin24m>;
+		clock-names = "phyclk";
+		#clock-cells = <0>;
+		assigned-clocks = <&cru USB480M>;
+		assigned-clock-parents = <&u2phy>;
+		clock-output-names = "usb480m_phy";
+		status = "disabled";
+
+		u2phy_host: host-port {
+			#phy-cells = <0>;
+			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "linestate";
+			status = "disabled";
+		};
+	};
+};
+
