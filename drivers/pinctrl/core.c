@@ -1913,9 +1913,6 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
 	    !ops->get_group_name)
 		return -EINVAL;
 
-	if (ops->dt_node_to_map && !ops->dt_free_map)
-		return -EINVAL;
-
 	return 0;
 }
 
