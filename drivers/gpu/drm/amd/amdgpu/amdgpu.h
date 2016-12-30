@@ -706,15 +706,24 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	AMDGPU_DOORBELL64_IH_RING1                = 0xF5,  /* For page migration request log */
 	AMDGPU_DOORBELL64_IH_RING2                = 0xF6,  /* For page migration translation/invalidation log */
 
-	/* VCN engine */
-	AMDGPU_DOORBELL64_VCN0                    = 0xF8,
-	AMDGPU_DOORBELL64_VCN1                    = 0xF9,
-	AMDGPU_DOORBELL64_VCN2                    = 0xFA,
-	AMDGPU_DOORBELL64_VCN3                    = 0xFB,
-	AMDGPU_DOORBELL64_VCN4                    = 0xFC,
-	AMDGPU_DOORBELL64_VCN5                    = 0xFD,
-	AMDGPU_DOORBELL64_VCN6                    = 0xFE,
-	AMDGPU_DOORBELL64_VCN7                    = 0xFF,
+	/* VCN engine use 32 bits doorbell  */
+	AMDGPU_DOORBELL64_VCN0_1                  = 0xF8, /* lower 32 bits for VNC0 and upper 32 bits for VNC1 */
+	AMDGPU_DOORBELL64_VCN2_3                  = 0xF9,
+	AMDGPU_DOORBELL64_VCN4_5                  = 0xFA,
+	AMDGPU_DOORBELL64_VCN6_7                  = 0xFB,
+
+	/* overlap the doorbell assignment with VCN as they are  mutually exclusive
+	 * VCE engine's doorbell is 32 bit and two VCE ring share one QWORD
+	 */
+	AMDGPU_DOORBELL64_RING0_1                 = 0xF8,
+	AMDGPU_DOORBELL64_RING2_3                 = 0xF9,
+	AMDGPU_DOORBELL64_RING4_5                 = 0xFA,
+	AMDGPU_DOORBELL64_RING6_7                 = 0xFB,
+
+	AMDGPU_DOORBELL64_UVD_RING0_1             = 0xFC,
+	AMDGPU_DOORBELL64_UVD_RING2_3             = 0xFD,
+	AMDGPU_DOORBELL64_UVD_RING4_5             = 0xFE,
+	AMDGPU_DOORBELL64_UVD_RING6_7             = 0xFF,
 
 	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
 	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF
