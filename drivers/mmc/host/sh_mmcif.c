@@ -1427,7 +1427,7 @@ static int sh_mmcif_probe(struct platform_device *pdev)
 	host->mmc	= mmc;
 	host->addr	= reg;
 	host->timeout	= msecs_to_jiffies(10000);
-	host->ccs_enable = !pd || !pd->ccs_unsupported;
+	host->ccs_enable = true;
 	host->clk_ctrl2_enable = pd && pd->clk_ctrl2_present;
 
 	host->pd = pdev;
