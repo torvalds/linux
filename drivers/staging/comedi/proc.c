@@ -86,7 +86,7 @@ static const struct file_operations comedi_proc_fops = {
 	.release	= single_release,
 };
 
-void comedi_proc_init(void)
+void __init comedi_proc_init(void)
 {
 	proc_create("comedi", 0444, NULL, &comedi_proc_fops);
 }
