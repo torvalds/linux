@@ -1987,6 +1987,7 @@ static DEVICE_ATTR(protocol, S_IRUGO, lpfc_sli4_protocol_show, NULL);
 static DEVICE_ATTR(lpfc_xlane_supported, S_IRUGO, lpfc_oas_supported_show,
 		   NULL);
 
+static char *lpfc_soft_wwn_key = "C99G71SL8032A";
 #define WWN_SZ 8
 /**
  * lpfc_wwn_set - Convert string to the 8 byte WWN value.
@@ -2030,6 +2031,223 @@ lpfc_wwn_set(const char *buf, size_t cnt, char wwn[])
 	}
 	return 0;
 }
+/**
+ * lpfc_soft_wwn_enable_store - Allows setting of the wwn if the key is valid
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: containing the string lpfc_soft_wwn_key.
+ * @count: must be size of lpfc_soft_wwn_key.
+ *
+ * Returns:
+ * -EINVAL if the buffer does not contain lpfc_soft_wwn_key
+ * length of buf indicates success
+ **/
+static ssize_t
+lpfc_soft_wwn_enable_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	unsigned int cnt = count;
+
+	/*
+	 * We're doing a simple sanity check for soft_wwpn setting.
+	 * We require that the user write a specific key to enable
+	 * the soft_wwpn attribute to be settable. Once the attribute
+	 * is written, the enable key resets. If further updates are
+	 * desired, the key must be written again to re-enable the
+	 * attribute.
+	 *
+	 * The "key" is not secret - it is a hardcoded string shown
+	 * here. The intent is to protect against the random user or
+	 * application that is just writing attributes.
+	 */
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	if ((cnt != strlen(lpfc_soft_wwn_key)) ||
+	    (strncmp(buf, lpfc_soft_wwn_key, strlen(lpfc_soft_wwn_key)) != 0))
+		return -EINVAL;
+
+	phba->soft_wwn_enable = 1;
+
+	dev_printk(KERN_WARNING, &phba->pcidev->dev,
+		   "lpfc%d: soft_wwpn assignment has been enabled.\n",
+		   phba->brd_no);
+	dev_printk(KERN_WARNING, &phba->pcidev->dev,
+		   "  The soft_wwpn feature is not supported by Broadcom.");
+
+	return count;
+}
+static DEVICE_ATTR(lpfc_soft_wwn_enable, S_IWUSR, NULL,
+		   lpfc_soft_wwn_enable_store);
+
+/**
+ * lpfc_soft_wwpn_show - Return the cfg soft ww port name of the adapter
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the wwpn in hexadecimal.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_soft_wwpn_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
+			(unsigned long long)phba->cfg_soft_wwpn);
+}
+
+/**
+ * lpfc_soft_wwpn_store - Set the ww port name of the adapter
+ * @dev class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: contains the wwpn in hexadecimal.
+ * @count: number of wwpn bytes in buf
+ *
+ * Returns:
+ * -EACCES hba reset not enabled, adapter over temp
+ * -EINVAL soft wwn not enabled, count is invalid, invalid wwpn byte invalid
+ * -EIO error taking adapter offline or online
+ * value of count on success
+ **/
+static ssize_t
+lpfc_soft_wwpn_store(struct device *dev, struct device_attribute *attr,
+		     const char *buf, size_t count)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+	struct completion online_compl;
+	int stat1 = 0, stat2 = 0;
+	unsigned int cnt = count;
+	u8 wwpn[WWN_SZ];
+	int rc;
+
+	if (!phba->cfg_enable_hba_reset)
+		return -EACCES;
+	spin_lock_irq(&phba->hbalock);
+	if (phba->over_temp_state == HBA_OVER_TEMP) {
+		spin_unlock_irq(&phba->hbalock);
+		return -EACCES;
+	}
+	spin_unlock_irq(&phba->hbalock);
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	if (!phba->soft_wwn_enable)
+		return -EINVAL;
+
+	/* lock setting wwpn, wwnn down */
+	phba->soft_wwn_enable = 0;
+
+	rc = lpfc_wwn_set(buf, cnt, wwpn);
+	if (!rc) {
+		/* not able to set wwpn, unlock it */
+		phba->soft_wwn_enable = 1;
+		return rc;
+	}
+
+	phba->cfg_soft_wwpn = wwn_to_u64(wwpn);
+	fc_host_port_name(shost) = phba->cfg_soft_wwpn;
+	if (phba->cfg_soft_wwnn)
+		fc_host_node_name(shost) = phba->cfg_soft_wwnn;
+
+	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
+		   "lpfc%d: Reinitializing to use soft_wwpn\n", phba->brd_no);
+
+	stat1 = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
+	if (stat1)
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0463 lpfc_soft_wwpn attribute set failed to "
+				"reinit adapter - %d\n", stat1);
+	init_completion(&online_compl);
+	rc = lpfc_workq_post_event(phba, &stat2, &online_compl,
+				   LPFC_EVT_ONLINE);
+	if (rc == 0)
+		return -ENOMEM;
+
+	wait_for_completion(&online_compl);
+	if (stat2)
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0464 lpfc_soft_wwpn attribute set failed to "
+				"reinit adapter - %d\n", stat2);
+	return (stat1 || stat2) ? -EIO : count;
+}
+static DEVICE_ATTR(lpfc_soft_wwpn, S_IRUGO | S_IWUSR,
+		   lpfc_soft_wwpn_show, lpfc_soft_wwpn_store);
+
+/**
+ * lpfc_soft_wwnn_show - Return the cfg soft ww node name for the adapter
+ * @dev: class device that is converted into a Scsi_host.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the wwnn in hexadecimal.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_soft_wwnn_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
+			(unsigned long long)phba->cfg_soft_wwnn);
+}
+
+/**
+ * lpfc_soft_wwnn_store - sets the ww node name of the adapter
+ * @cdev: class device that is converted into a Scsi_host.
+ * @buf: contains the ww node name in hexadecimal.
+ * @count: number of wwnn bytes in buf.
+ *
+ * Returns:
+ * -EINVAL soft wwn not enabled, count is invalid, invalid wwnn byte invalid
+ * value of count on success
+ **/
+static ssize_t
+lpfc_soft_wwnn_store(struct device *dev, struct device_attribute *attr,
+		     const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
+	unsigned int cnt = count;
+	u8 wwnn[WWN_SZ];
+	int rc;
+
+	/* count may include a LF at end of string */
+	if (buf[cnt-1] == '\n')
+		cnt--;
+
+	if (!phba->soft_wwn_enable)
+		return -EINVAL;
+
+	rc = lpfc_wwn_set(buf, cnt, wwnn);
+	if (!rc) {
+		/* Allow wwnn to be set many times, as long as the enable
+		 * is set. However, once the wwpn is set, everything locks.
+		 */
+		return rc;
+	}
+
+	phba->cfg_soft_wwnn = wwn_to_u64(wwnn);
+
+	dev_printk(KERN_NOTICE, &phba->pcidev->dev,
+		   "lpfc%d: soft_wwnn set. Value will take effect upon "
+		   "setting of the soft_wwpn\n", phba->brd_no);
+
+	return count;
+}
+static DEVICE_ATTR(lpfc_soft_wwnn, S_IRUGO | S_IWUSR,
+		   lpfc_soft_wwnn_show, lpfc_soft_wwnn_store);
 
 /**
  * lpfc_oas_tgt_show - Return wwpn of target whose luns maybe enabled for
@@ -4538,6 +4756,9 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_fcp_cpu_map,
 	&dev_attr_lpfc_fcp_io_channel,
 	&dev_attr_lpfc_enable_bg,
+	&dev_attr_lpfc_soft_wwnn,
+	&dev_attr_lpfc_soft_wwpn,
+	&dev_attr_lpfc_soft_wwn_enable,
 	&dev_attr_lpfc_enable_hba_reset,
 	&dev_attr_lpfc_enable_hba_heartbeat,
 	&dev_attr_lpfc_EnableXLane,
@@ -5566,6 +5787,8 @@ lpfc_get_cfgparam(struct lpfc_hba *phba)
 	else
 		phba->cfg_poll = lpfc_poll;
 
+	phba->cfg_soft_wwnn = 0L;
+	phba->cfg_soft_wwpn = 0L;
 	lpfc_sg_seg_cnt_init(phba, lpfc_sg_seg_cnt);
 	lpfc_hba_queue_depth_init(phba, lpfc_hba_queue_depth);
 	lpfc_hba_log_verbose_init(phba, lpfc_log_verbose);

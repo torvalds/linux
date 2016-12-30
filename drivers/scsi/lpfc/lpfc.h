@@ -728,6 +728,8 @@ struct lpfc_hba {
 	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
+	uint64_t cfg_soft_wwnn;
+	uint64_t cfg_soft_wwpn;
 	uint32_t cfg_hba_queue_depth;
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
@@ -831,6 +833,8 @@ struct lpfc_hba {
 #define VPD_PROGRAM_TYPE    0x4         /* valid vpd program type */
 #define VPD_PORT            0x8         /* valid vpd port data */
 #define VPD_MASK            0xf         /* mask for any vpd data */
+
+	uint8_t soft_wwn_enable;
 
 	struct timer_list fcp_poll_timer;
 	struct timer_list eratt_poll;
