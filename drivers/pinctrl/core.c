@@ -1753,6 +1753,12 @@ static void pinctrl_late_init(struct work_struct *work)
 
 	pctldev = container_of(work, struct pinctrl_dev, late_init.work);
 
+	/*
+	 * If the pin controller does NOT have hogs, this will report an
+	 * error and we skip over this entire branch. This is why we can
+	 * call this function directly when we do not have hogs on the
+	 * device.
+	 */
 	pctldev->p = create_pinctrl(pctldev->dev, pctldev);
 	if (!IS_ERR(pctldev->p)) {
 		kref_get(&pctldev->p->users);
@@ -1847,6 +1853,12 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		goto out_err;
 	}
 
+	/*
+	 * If the device has hogs we want the probe() function of the driver
+	 * to complete before we go in and hog them and add the pin controller
+	 * to the list of controllers. If it has no hogs, we can just complete
+	 * the registration immediately.
+	 */
 	if (pinctrl_dt_has_hogs(pctldev))
 		schedule_delayed_work(&pctldev->late_init, 0);
 	else
