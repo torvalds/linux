@@ -35,6 +35,7 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/regulator/consumer.h>
+#include <linux/interrupt.h>
 
 #define DRIVER_NAME "meson-gx-mmc"
 

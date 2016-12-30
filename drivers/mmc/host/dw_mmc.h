@@ -18,6 +18,7 @@
 #include <linux/mmc/core.h>
 #include <linux/dmaengine.h>
 #include <linux/reset.h>
+#include <linux/interrupt.h>
 
 #define MAX_MCI_SLOTS	2
 
