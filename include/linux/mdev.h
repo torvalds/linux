@@ -13,19 +13,6 @@
 #ifndef MDEV_H
 #define MDEV_H
 
-/* Parent device */
-struct mdev_parent {
-	struct device			*dev;
-	const struct mdev_parent_ops	*ops;
-
-	/* internal */
-	struct kref		ref;
-	struct mutex		lock;
-	struct list_head	next;
-	struct kset		*mdev_types_kset;
-	struct list_head	type_list;
-};
-
 /* Mediated device */
 struct mdev_device {
 	struct device		dev;
@@ -164,5 +151,7 @@ extern void mdev_unregister_device(struct device *dev);
 
 extern int  mdev_register_driver(struct mdev_driver *drv, struct module *owner);
 extern void mdev_unregister_driver(struct mdev_driver *drv);
+
+extern struct device *mdev_parent_dev(struct mdev_device *mdev);
 
 #endif /* MDEV_H */

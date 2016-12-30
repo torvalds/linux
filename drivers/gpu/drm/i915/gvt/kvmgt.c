@@ -396,7 +396,7 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 	struct device *pdev;
 	void *gvt;
 
-	pdev = mdev->parent->dev;
+	pdev = mdev_parent_dev(mdev);
 	gvt = kdev_to_i915(pdev)->gvt;
 
 	type = intel_gvt_find_vgpu_type(gvt, kobject_name(kobj));

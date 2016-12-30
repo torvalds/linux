@@ -734,7 +734,7 @@ int mtty_create(struct kobject *kobj, struct mdev_device *mdev)
 
 	for (i = 0; i < 2; i++) {
 		snprintf(name, MTTY_STRING_LEN, "%s-%d",
-			dev_driver_string(mdev->parent->dev), i + 1);
+			dev_driver_string(mdev_parent_dev(mdev)), i + 1);
 		if (!strcmp(kobj->name, name)) {
 			nr_ports = i + 1;
 			break;

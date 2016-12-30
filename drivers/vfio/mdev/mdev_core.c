@@ -30,6 +30,12 @@ static struct class_compat *mdev_bus_compat_class;
 static LIST_HEAD(mdev_list);
 static DEFINE_MUTEX(mdev_list_lock);
 
+struct device *mdev_parent_dev(struct mdev_device *mdev)
+{
+	return mdev->parent->dev;
+}
+EXPORT_SYMBOL(mdev_parent_dev);
+
 static int _find_mdev_device(struct device *dev, void *data)
 {
 	struct mdev_device *mdev;

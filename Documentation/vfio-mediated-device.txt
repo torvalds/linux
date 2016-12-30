@@ -223,6 +223,9 @@ Directories and files under the sysfs for Each Physical Device
 
 	sprintf(buf, "%s-%s", dev_driver_string(parent->dev), group->name);
 
+  (or using mdev_parent_dev(mdev) to arrive at the parent device outside
+   of the core mdev code)
+
 * device_api
 
   This attribute should show which device API is being created, for example,
