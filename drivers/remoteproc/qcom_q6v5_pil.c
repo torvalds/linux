@@ -23,6 +23,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -36,7 +37,6 @@
 
 #include <linux/qcom_scm.h>
 
-#define MBA_FIRMWARE_NAME		"mba.b00"
 #define MPSS_FIRMWARE_NAME		"modem.mdt"
 
 #define MPSS_CRASH_REASON_SMEM		421
@@ -92,6 +92,10 @@
 #define Q6SS_CLAMP_IO			BIT(20)
 #define QDSS_BHS_ON			BIT(21)
 #define QDSS_LDO_BYP			BIT(22)
+
+struct rproc_hexagon_res {
+	const char *hexagon_mba_image;
+};
 
 struct q6v5 {
 	struct device *dev;
@@ -805,12 +809,17 @@ static int q6v5_alloc_memory_region(struct q6v5 *qproc)
 
 static int q6v5_probe(struct platform_device *pdev)
 {
+	const struct rproc_hexagon_res *desc;
 	struct q6v5 *qproc;
 	struct rproc *rproc;
 	int ret;
 
+	desc = of_device_get_match_data(&pdev->dev);
+	if (!desc)
+		return -EINVAL;
+
 	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_ops,
-			    MBA_FIRMWARE_NAME, sizeof(*qproc));
+			    desc->hexagon_mba_image, sizeof(*qproc));
 	if (!rproc) {
 		dev_err(&pdev->dev, "failed to allocate rproc\n");
 		return -ENOMEM;
@@ -890,8 +899,18 @@ static int q6v5_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct rproc_hexagon_res msm8916_mss = {
+	.hexagon_mba_image = "mba.mbn",
+};
+
+static const struct rproc_hexagon_res msm8974_mss = {
+	.hexagon_mba_image = "mba.b00",
+};
+
 static const struct of_device_id q6v5_of_match[] = {
-	{ .compatible = "qcom,q6v5-pil", },
+	{ .compatible = "qcom,q6v5-pil", .data = &msm8916_mss},
+	{ .compatible = "qcom,msm8916-mss-pil", .data = &msm8916_mss},
+	{ .compatible = "qcom,msm8974-mss-pil", .data = &msm8974_mss},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, q6v5_of_match);
