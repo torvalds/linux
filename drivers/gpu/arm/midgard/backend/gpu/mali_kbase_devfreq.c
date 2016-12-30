@@ -54,7 +54,7 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	struct dev_pm_opp *opp;
 	unsigned long freq = 0;
 	unsigned long voltage;
-	int err = 0;
+	int err;
 
 	freq = *target_freq;
 
@@ -86,11 +86,7 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	}
 #endif
 
-	mutex_lock(&kbdev->mutex_for_clk);
-	if (!kbdev->is_power_off)
-		err = clk_set_rate(kbdev->clock, freq);
-	kbdev->freq = freq;
-	mutex_unlock(&kbdev->mutex_for_clk);
+	err = clk_set_rate(kbdev->clock, freq);
 	if (err) {
 		dev_err(dev, "Failed to set clock %lu (target %lu)\n",
 				freq, *target_freq);

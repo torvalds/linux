@@ -20,9 +20,6 @@
  * GPU backend implementation of base kernel power management APIs
  */
 
-/* #define ENABLE_DEBUG_LOG */
-#include "../../platform/rk/custom_log.h"
-
 #include <mali_kbase.h>
 #include <mali_midg_regmap.h>
 #include <mali_kbase_config_defaults.h>
@@ -34,36 +31,6 @@
 #include <backend/gpu/mali_kbase_jm_internal.h>
 #include <backend/gpu/mali_kbase_js_internal.h>
 #include <backend/gpu/mali_kbase_pm_internal.h>
-
-static int rk_slowdown_clk_gpu_before_poweroff_cores(struct kbase_device *kbdev)
-{
-	int ret = 0;
-	const unsigned long freq = 200 * 1000 * 1000;
-
-	mutex_lock(&kbdev->mutex_for_clk);
-	ret = clk_set_rate(kbdev->clock, freq);
-	if (ret)
-		E("Failed to set clock to %lu.", freq);
-	kbdev->is_power_off = true;
-	mutex_unlock(&kbdev->mutex_for_clk);
-
-	return ret;
-}
-
-static int rk_restore_clk_gpu(struct kbase_device *kbdev)
-{
-	int ret = 0;
-
-	mutex_lock(&kbdev->mutex_for_clk);
-	if (kbdev->freq != 0)
-		ret = clk_set_rate(kbdev->clock, kbdev->freq);
-	if (ret)
-		E("Failed to set clock to %lu.", kbdev->freq);
-	kbdev->is_power_off = false;
-	mutex_unlock(&kbdev->mutex_for_clk);
-
-	return ret;
-}
 
 void kbase_pm_register_access_enable(struct kbase_device *kbdev)
 {
@@ -188,9 +155,6 @@ void kbase_pm_do_poweron(struct kbase_device *kbdev, bool is_resume)
 
 	/* NOTE: We don't wait to reach the desired state, since running atoms
 	 * will wait for that state to be reached anyway */
-
-	D("to restore clk_gpu.");
-	rk_restore_clk_gpu(kbdev);
 }
 
 bool kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend)
@@ -199,9 +163,6 @@ bool kbase_pm_do_poweroff(struct kbase_device *kbdev, bool is_suspend)
 	bool cores_are_available;
 
 	lockdep_assert_held(&kbdev->pm.lock);
-
-	D("to slowdown clk_gpu before poweroff pm_cores.");
-	rk_slowdown_clk_gpu_before_poweroff_cores(kbdev);
 
 	spin_lock_irqsave(&kbdev->pm.power_change_lock, flags);
 
