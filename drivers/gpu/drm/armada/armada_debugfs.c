@@ -22,7 +22,7 @@ static int armada_debugfs_gem_linear_show(struct seq_file *m, void *data)
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	mutex_lock(&priv->linear_lock);
-	drm_mm_dump_table(&p, &priv->linear);
+	drm_mm_print(&priv->linear, &p);
 	mutex_unlock(&priv->linear_lock);
 
 	return 0;
