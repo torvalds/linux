@@ -2624,6 +2624,12 @@ static int domain_prepare_identity_map(struct device *dev,
         return 0;
     }
 
+    if (strcomp("0000:04:00.1", dev_name(dev)) == 0) {
+        pr_warn("Ignoring identity map for device %s due to broken HP BIOS\n",
+            dev_name(dev));
+        return 0;
+    }
+
     pr_info("Setting identity map for device %s [0x%Lx - 0x%Lx]\n",
         dev_name(dev), start, end);
 
