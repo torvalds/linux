@@ -771,6 +771,54 @@ static void rockchip_iommu_cleanup(struct drm_device *drm_dev)
 	iommu_domain_free(private->domain);
 }
 
+#ifdef CONFIG_DEBUG_FS
+static int rockchip_drm_summary_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct drm_minor *minor = node->minor;
+	struct drm_device *drm_dev = minor->dev;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	struct drm_crtc *crtc;
+
+	drm_for_each_crtc(crtc, drm_dev) {
+		int pipe = drm_crtc_index(crtc);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->debugfs_dump)
+			priv->crtc_funcs[pipe]->debugfs_dump(crtc, s);
+	}
+
+	return 0;
+}
+
+static struct drm_info_list rockchip_debugfs_files[] = {
+	{ "summary", rockchip_drm_summary_show, 0, NULL },
+};
+
+static int rockchip_drm_debugfs_init(struct drm_minor *minor)
+{
+	struct drm_device *dev = minor->dev;
+	int ret;
+
+	ret = drm_debugfs_create_files(rockchip_debugfs_files,
+				       ARRAY_SIZE(rockchip_debugfs_files),
+				       minor->debugfs_root,
+				       minor);
+	if (ret) {
+		dev_err(dev->dev, "could not install rockchip_debugfs_list\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static void rockchip_drm_debugfs_cleanup(struct drm_minor *minor)
+{
+	drm_debugfs_remove_files(rockchip_debugfs_files,
+				 ARRAY_SIZE(rockchip_debugfs_files), minor);
+}
+#endif
+
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
@@ -1060,6 +1108,10 @@ static struct drm_driver rockchip_drm_driver = {
 	.gem_prime_vmap		= rockchip_gem_prime_vmap,
 	.gem_prime_vunmap	= rockchip_gem_prime_vunmap,
 	.gem_prime_mmap		= rockchip_gem_mmap_buf,
+#ifdef CONFIG_DEBUG_FS
+	.debugfs_init		= rockchip_drm_debugfs_init,
+	.debugfs_cleanup	= rockchip_drm_debugfs_cleanup,
+#endif
 	.ioctls			= rockchip_ioctls,
 	.num_ioctls		= ARRAY_SIZE(rockchip_ioctls),
 	.fops			= &rockchip_drm_driver_fops,

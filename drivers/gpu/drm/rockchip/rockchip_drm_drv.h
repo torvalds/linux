@@ -44,6 +44,7 @@ struct rockchip_crtc_funcs {
 	void (*disable_vblank)(struct drm_crtc *crtc);
 	void (*wait_for_update)(struct drm_crtc *crtc);
 	void (*cancel_pending_vblank)(struct drm_crtc *crtc, struct drm_file *file_priv);
+	int (*debugfs_dump)(struct drm_crtc *crtc, struct seq_file *s);
 };
 
 struct drm_rockchip_subdrv {

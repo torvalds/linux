@@ -1323,12 +1323,76 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 	return 0;
 }
 
+static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
+{
+	struct vop_win *win = to_vop_win(plane);
+	struct drm_plane_state *state = plane->state;
+	struct vop_plane_state *pstate = to_vop_plane_state(state);
+	struct drm_rect *src, *dest;
+	struct drm_framebuffer *fb = state->fb;
+	int i;
+
+	seq_printf(s, "win%d-%d: status=%s\n", win->win_id, win->area_id,
+		   pstate->enable ? "active" : "disabled");
+	if (!fb)
+		return 0;
+
+	src = &pstate->src;
+	dest = &pstate->dest;
+
+	seq_printf(s, "\tformat: %s\n", drm_get_format_name(fb->pixel_format));
+	seq_printf(s, "\tzpos: %d\n", pstate->zpos);
+	seq_printf(s, "\tsrc: pos[%dx%d] rect[%dx%d]\n", src->x1 >> 16,
+		   src->y1 >> 16, drm_rect_width(src) >> 16,
+		   drm_rect_height(src) >> 16);
+	seq_printf(s, "\tdst: pos[%dx%d] rect[%dx%d]\n", dest->x1, dest->y1,
+		   drm_rect_width(dest), drm_rect_height(dest));
+
+	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++)
+		seq_printf(s, "\tbuf[%d]: addr: 0x%llx pitch: %d offset: %d\n",
+			   i, rockchip_fb_get_dma_addr(fb, i),
+			   fb->pitches[i], fb->offsets[i]);
+
+	return 0;
+}
+
+static int vop_crtc_debugfs_dump(struct drm_crtc *crtc, struct seq_file *s)
+{
+	struct vop *vop = to_vop(crtc);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
+	struct drm_plane *plane;
+	int i;
+
+	seq_printf(s, "vop name: %s status=%s\n", dev_name(vop->dev),
+		   crtc_state->active ? "active" : "disabled");
+
+	if (!crtc_state->active)
+		return 0;
+
+	seq_printf(s, "Display mode: %s fps[%d] clk[%d] type[%d] flag[%x]\n",
+		   mode->name, drm_mode_vrefresh(mode), mode->clock,
+		   mode->type, mode->flags);
+	seq_printf(s, "\tH: %d %d %d %d\n", mode->hdisplay, mode->hsync_start,
+		   mode->hsync_end, mode->htotal);
+	seq_printf(s, "\tV: %d %d %d %d\n", mode->vdisplay, mode->vsync_start,
+		   mode->vsync_end, mode->vtotal);
+
+	for (i = 0; i < vop->num_wins; i++) {
+		plane = &vop->win[i].base;
+		vop_plane_info_dump(s, plane);
+	}
+
+	return 0;
+}
+
 static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.loader_protect = vop_crtc_loader_protect,
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
 	.wait_for_update = vop_crtc_wait_for_update,
 	.cancel_pending_vblank = vop_crtc_cancel_pending_vblank,
+	.debugfs_dump = vop_crtc_debugfs_dump,
 };
 
 static bool vop_crtc_mode_fixup(struct drm_crtc *crtc,
