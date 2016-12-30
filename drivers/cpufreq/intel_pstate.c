@@ -914,12 +914,20 @@ static int intel_pstate_hwp_save_state(struct cpufreq_policy *policy)
 
 static int intel_pstate_resume(struct cpufreq_policy *policy)
 {
+	int ret;
+
 	if (!hwp_active)
 		return 0;
 
+	mutex_lock(&intel_pstate_limits_lock);
+
 	all_cpu_data[policy->cpu]->epp_policy = 0;
 
-	return intel_pstate_hwp_set_policy(policy);
+	ret = intel_pstate_hwp_set_policy(policy);
+
+	mutex_unlock(&intel_pstate_limits_lock);
+
+	return ret;
 }
 
 static void intel_pstate_hwp_set_online_cpus(void)
