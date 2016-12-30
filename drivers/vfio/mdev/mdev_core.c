@@ -27,6 +27,9 @@ static LIST_HEAD(parent_list);
 static DEFINE_MUTEX(parent_list_lock);
 static struct class_compat *mdev_bus_compat_class;
 
+static LIST_HEAD(mdev_list);
+static DEFINE_MUTEX(mdev_list_lock);
+
 static int _find_mdev_device(struct device *dev, void *data)
 {
 	struct mdev_device *mdev;
@@ -316,6 +319,11 @@ int mdev_device_create(struct kobject *kobj, struct device *dev, uuid_le uuid)
 	dev_dbg(&mdev->dev, "MDEV: created\n");
 
 	mutex_unlock(&parent->lock);
+
+	mutex_lock(&mdev_list_lock);
+	list_add(&mdev->next, &mdev_list);
+	mutex_unlock(&mdev_list_lock);
+
 	return ret;
 
 create_failed:
@@ -329,12 +337,30 @@ create_err:
 
 int mdev_device_remove(struct device *dev, bool force_remove)
 {
-	struct mdev_device *mdev;
+	struct mdev_device *mdev, *tmp;
 	struct parent_device *parent;
 	struct mdev_type *type;
 	int ret;
+	bool found = false;
 
 	mdev = to_mdev_device(dev);
+
+	mutex_lock(&mdev_list_lock);
+	list_for_each_entry(tmp, &mdev_list, next) {
+		if (tmp == mdev) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found)
+		list_del(&mdev->next);
+
+	mutex_unlock(&mdev_list_lock);
+
+	if (!found)
+		return -ENODEV;
+
 	type = to_mdev_type(mdev->type_kobj);
 	parent = mdev->parent;
 	mutex_lock(&parent->lock);
@@ -342,6 +368,11 @@ int mdev_device_remove(struct device *dev, bool force_remove)
 	ret = mdev_device_remove_ops(mdev, force_remove);
 	if (ret) {
 		mutex_unlock(&parent->lock);
+
+		mutex_lock(&mdev_list_lock);
+		list_add(&mdev->next, &mdev_list);
+		mutex_unlock(&mdev_list_lock);
+
 		return ret;
 	}
 
@@ -349,7 +380,8 @@ int mdev_device_remove(struct device *dev, bool force_remove)
 	device_unregister(dev);
 	mutex_unlock(&parent->lock);
 	mdev_put_parent(parent);
-	return ret;
+
+	return 0;
 }
 
 static int __init mdev_init(void)
