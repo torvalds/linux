@@ -34,7 +34,6 @@
 struct sh_mmcif_plat_data {
 	unsigned int		slave_id_tx;	/* embedded slave_id_[tr]x */
 	unsigned int		slave_id_rx;
-	bool			clk_ctrl2_present : 1;
 	u8			sup_pclk;	/* 1 :SH7757, 0: SH7724/SH7372 */
 	unsigned long		caps;
 	u32			ocr;
