@@ -121,7 +121,6 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
 	axi->axi_lpi_en = of_property_read_bool(np, "snps,lpi_en");
 	axi->axi_xit_frm = of_property_read_bool(np, "snps,xit_frm");
 	axi->axi_kbbe = of_property_read_bool(np, "snps,axi_kbbe");
-	axi->axi_axi_all = of_property_read_bool(np, "snps,axi_all");
 	axi->axi_fb = of_property_read_bool(np, "snps,axi_fb");
 	axi->axi_mb = of_property_read_bool(np, "snps,axi_mb");
 	axi->axi_rb =  of_property_read_bool(np, "snps,axi_rb");

@@ -65,7 +65,6 @@ Optional properties:
 	- snps,wr_osr_lmt: max write outstanding req. limit
 	- snps,rd_osr_lmt: max read outstanding req. limit
 	- snps,kbbe: do not cross 1KiB boundary.
-	- snps,axi_all: align address
 	- snps,blen: this is a vector of supported burst length.
 	- snps,fb: fixed-burst
 	- snps,mb: mixed-burst
