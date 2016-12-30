@@ -17,6 +17,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
 
 #include "sdhci-pltfm.h"
 
