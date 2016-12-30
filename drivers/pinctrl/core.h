@@ -43,8 +43,10 @@ struct pinctrl_dev {
 	struct list_head node;
 	struct pinctrl_desc *desc;
 	struct radix_tree_root pin_desc_tree;
+#ifdef CONFIG_GENERIC_PINCTRL_GROUPS
 	struct radix_tree_root pin_group_tree;
 	unsigned int num_groups;
+#endif
 	struct list_head gpio_ranges;
 	struct device *dev;
 	struct module *owner;
@@ -166,6 +168,20 @@ struct pin_desc {
 };
 
 /**
+ * struct pinctrl_maps - a list item containing part of the mapping table
+ * @node: mapping table list node
+ * @maps: array of mapping table entries
+ * @num_maps: the number of entries in @maps
+ */
+struct pinctrl_maps {
+	struct list_head node;
+	struct pinctrl_map const *maps;
+	unsigned num_maps;
+};
+
+#ifdef CONFIG_GENERIC_PINCTRL_GROUPS
+
+/**
  * struct group_desc - generic pin group descriptor
  * @name: name of the pin group
  * @pins: array of pins that belong to the group
@@ -178,20 +194,6 @@ struct group_desc {
 	int num_pins;
 	void *data;
 };
-
-/**
- * struct pinctrl_maps - a list item containing part of the mapping table
- * @node: mapping table list node
- * @maps: array of mapping table entries
- * @num_maps: the number of entries in @maps
- */
-struct pinctrl_maps {
-	struct list_head node;
-	struct pinctrl_map const *maps;
-	unsigned num_maps;
-};
-
-#ifdef CONFIG_GENERIC_PINCTRL
 
 int pinctrl_generic_get_group_count(struct pinctrl_dev *pctldev);
 
@@ -218,7 +220,7 @@ pinctrl_generic_remove_last_group(struct pinctrl_dev *pctldev)
 	return pinctrl_generic_remove_group(pctldev, pctldev->num_groups - 1);
 }
 
-#endif	/* CONFIG_GENERIC_PINCTRL */
+#endif	/* CONFIG_GENERIC_PINCTRL_GROUPS */
 
 struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *dev_name);
 struct pinctrl_dev *get_pinctrl_dev_from_of_node(struct device_node *np);

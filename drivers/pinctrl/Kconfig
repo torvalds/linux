@@ -8,7 +8,7 @@ config PINCTRL
 menu "Pin controllers"
 	depends on PINCTRL
 
-config GENERIC_PINCTRL
+config GENERIC_PINCTRL_GROUPS
 	bool
 
 config PINMUX

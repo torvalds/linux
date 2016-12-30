@@ -540,7 +540,7 @@ void pinctrl_remove_gpio_range(struct pinctrl_dev *pctldev,
 }
 EXPORT_SYMBOL_GPL(pinctrl_remove_gpio_range);
 
-#ifdef CONFIG_GENERIC_PINCTRL
+#ifdef CONFIG_GENERIC_PINCTRL_GROUPS
 
 /**
  * pinctrl_generic_get_group_count() - returns the number of pin groups
@@ -714,7 +714,7 @@ static void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
 static inline void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
 {
 }
-#endif /* CONFIG_GENERIC_PINCTRL */
+#endif /* CONFIG_GENERIC_PINCTRL_GROUPS */
 
 /**
  * pinctrl_get_group_selector() - returns the group selector for a group
@@ -1993,7 +1993,9 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	pctldev->desc = pctldesc;
 	pctldev->driver_data = driver_data;
 	INIT_RADIX_TREE(&pctldev->pin_desc_tree, GFP_KERNEL);
+#ifdef CONFIG_GENERIC_PINCTRL_GROUPS
 	INIT_RADIX_TREE(&pctldev->pin_group_tree, GFP_KERNEL);
+#endif
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
 	INIT_DELAYED_WORK(&pctldev->late_init, pinctrl_late_init);
 	pctldev->dev = dev;
