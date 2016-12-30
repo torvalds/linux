@@ -119,3 +119,34 @@
 		status = "okay";
 	};
 };
+
+&hdmi {
+	ports {
+		hdmi_in: port {
+			/delete-node/ endpoint@1;
+		};
+	};
+};
+
+&cdn_dp {
+	status = "okay";
+	extcon = <&fusb0>;
+
+	ports {
+		dp_in: port {
+			/delete-node/ endpoint@0;
+		};
+	};
+};
+
+&vopb {
+	vopb_out: port {
+		/delete-node/ endpoint@3;
+	};
+};
+
+&vopl {
+	vopl_out: port {
+		/delete-node/ endpoint@2;
+	};
+};
