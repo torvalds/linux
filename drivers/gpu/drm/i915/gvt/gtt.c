@@ -240,15 +240,8 @@ static inline int get_pse_type(int type)
 static u64 read_pte64(struct drm_i915_private *dev_priv, unsigned long index)
 {
 	void __iomem *addr = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm + index;
-	u64 pte;
 
-#ifdef readq
-	pte = readq(addr);
-#else
-	pte = ioread32(addr);
-	pte |= (u64)ioread32(addr + 4) << 32;
-#endif
-	return pte;
+	return readq(addr);
 }
 
 static void write_pte64(struct drm_i915_private *dev_priv,
@@ -256,12 +249,8 @@ static void write_pte64(struct drm_i915_private *dev_priv,
 {
 	void __iomem *addr = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm + index;
 
-#ifdef writeq
 	writeq(pte, addr);
-#else
-	iowrite32((u32)pte, addr);
-	iowrite32(pte >> 32, addr + 4);
-#endif
+
 	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
 	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
