@@ -902,6 +902,15 @@ config PATA_CMD640_PCI
 
 	  If unsure, say N.
 
+config PATA_FALCON
+	tristate "Atari Falcon PATA support"
+	depends on M68K && ATARI
+	help
+	  This option enables support for the on-board IDE
+	  interface on the Atari Falcon.
+
+	  If unsure, say N.
+
 config PATA_ISAPNP
 	tristate "ISA Plug and Play PATA support"
 	depends on ISAPNP
