@@ -2398,8 +2398,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	*(__be16 *)&dev->dev_addr[0] = htons(le16_to_cpu(xp_resp[0].parm1));
 	*(__be32 *)&dev->dev_addr[2] = htonl(le32_to_cpu(xp_resp[0].parm2));
 
-	if(!is_valid_ether_addr(dev->dev_addr)) {
+	if (!is_valid_ether_addr(dev->dev_addr)) {
 		err_msg = "Could not obtain valid ethernet address, aborting";
+		err = -EIO;
 		goto error_out_reset;
 	}
 
@@ -2407,7 +2408,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * later when we print out the version reported.
 	 */
 	INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_VERSIONS);
-	if(typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
+	err = typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp);
+	if (err < 0) {
 		err_msg = "Could not get Sleep Image version";
 		goto error_out_reset;
 	}
@@ -2449,7 +2451,8 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features = dev->hw_features |
 		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
 
-	if(register_netdev(dev) < 0) {
+	err = register_netdev(dev);
+	if (err < 0) {
 		err_msg = "unable to register netdev";
 		goto error_out_reset;
 	}
