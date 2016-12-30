@@ -2103,7 +2103,11 @@ static int intel_cpufreq_verify_policy(struct cpufreq_policy *policy)
 	if (per_cpu_limits)
 		perf_limits = cpu->perf_limits;
 
+	mutex_lock(&intel_pstate_limits_lock);
+
 	intel_pstate_update_perf_limits(policy, perf_limits);
+
+	mutex_unlock(&intel_pstate_limits_lock);
 
 	return 0;
 }
