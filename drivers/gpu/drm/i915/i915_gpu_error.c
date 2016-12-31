@@ -1331,7 +1331,7 @@ static void i915_gem_record_rings(struct drm_i915_private *dev_priv,
 			}
 
 			error->simulated |=
-				request->ctx->flags & CONTEXT_NO_ERROR_CAPTURE;
+				i915_gem_context_no_error_capture(request->ctx);
 
 			ee->rq_head = request->head;
 			ee->rq_post = request->postfix;

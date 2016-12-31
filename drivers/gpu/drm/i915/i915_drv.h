@@ -60,6 +60,7 @@
 #include "intel_ringbuffer.h"
 
 #include "i915_gem.h"
+#include "i915_gem_context.h"
 #include "i915_gem_fence_reg.h"
 #include "i915_gem_object.h"
 #include "i915_gem_gtt.h"
@@ -1047,76 +1048,6 @@ enum i915_cache_level {
 };
 
 #define I915_COLOR_UNEVICTABLE (-1) /* a non-vma sharing the address space */
-
-#define DEFAULT_CONTEXT_HANDLE 0
-
-/**
- * struct i915_gem_context - as the name implies, represents a context.
- * @ref: reference count.
- * @user_handle: userspace tracking identity for this context.
- * @remap_slice: l3 row remapping information.
- * @flags: context specific flags:
- *         CONTEXT_NO_ZEROMAP: do not allow mapping things to page 0.
- * @file_priv: filp associated with this context (NULL for global default
- *	       context).
- * @hang_stats: information about the role of this context in possible GPU
- *		hangs.
- * @ppgtt: virtual memory space used by this context.
- * @legacy_hw_ctx: render context backing object and whether it is correctly
- *                initialized (legacy ring submission mechanism only).
- * @link: link in the global list of contexts.
- *
- * Contexts are memory images used by the hardware to store copies of their
- * internal state.
- */
-struct i915_gem_context {
-	struct kref ref;
-	struct drm_i915_private *i915;
-	struct drm_i915_file_private *file_priv;
-	struct i915_hw_ppgtt *ppgtt;
-	struct pid *pid;
-	const char *name;
-
-	unsigned long flags;
-#define CONTEXT_NO_ZEROMAP		BIT(0)
-#define CONTEXT_NO_ERROR_CAPTURE	BIT(1)
-
-	/* Unique identifier for this context, used by the hw for tracking */
-	unsigned int hw_id;
-	u32 user_handle;
-	int priority; /* greater priorities are serviced first */
-
-	u32 ggtt_alignment;
-	u32 ggtt_offset_bias;
-
-	struct intel_context {
-		struct i915_vma *state;
-		struct intel_ring *ring;
-		uint32_t *lrc_reg_state;
-		u64 lrc_desc;
-		int pin_count;
-		bool initialised;
-	} engine[I915_NUM_ENGINES];
-	u32 ring_size;
-	u32 desc_template;
-	struct atomic_notifier_head status_notifier;
-	bool execlists_force_single_submission;
-
-	struct list_head link;
-
-	u8 remap_slice;
-	bool closed:1;
-	bool bannable:1;
-	bool banned:1;
-
-	unsigned int guilty_count; /* guilty of a hang */
-	unsigned int active_count; /* active during hang */
-
-#define CONTEXT_SCORE_GUILTY		10
-#define CONTEXT_SCORE_BAN_THRESHOLD	40
-	/* Accumulated score of hangs caused by this context */
-	int ban_score;
-};
 
 enum fb_op_origin {
 	ORIGIN_GTT,
@@ -3494,18 +3425,6 @@ void i915_gem_object_do_bit_17_swizzle(struct drm_i915_gem_object *obj,
 void i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 					 struct sg_table *pages);
 
-/* i915_gem_context.c */
-int __must_check i915_gem_context_init(struct drm_i915_private *dev_priv);
-void i915_gem_context_lost(struct drm_i915_private *dev_priv);
-void i915_gem_context_fini(struct drm_i915_private *dev_priv);
-int i915_gem_context_open(struct drm_device *dev, struct drm_file *file);
-void i915_gem_context_close(struct drm_device *dev, struct drm_file *file);
-int i915_switch_context(struct drm_i915_gem_request *req);
-int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv);
-void i915_gem_context_free(struct kref *ctx_ref);
-struct i915_gem_context *
-i915_gem_context_create_gvt(struct drm_device *dev);
-
 static inline struct i915_gem_context *
 i915_gem_context_lookup(struct drm_i915_file_private *file_priv, u32 id)
 {
@@ -3550,22 +3469,6 @@ i915_gem_context_lookup_timeline(struct i915_gem_context *ctx,
 	vm = ctx->ppgtt ? &ctx->ppgtt->base : &ctx->i915->ggtt.base;
 	return &vm->timeline.engine[engine->id];
 }
-
-static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)
-{
-	return c->user_handle == DEFAULT_CONTEXT_HANDLE;
-}
-
-int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
-				  struct drm_file *file);
-int i915_gem_context_destroy_ioctl(struct drm_device *dev, void *data,
-				   struct drm_file *file);
-int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
-				       struct drm_file *file);
 
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file);

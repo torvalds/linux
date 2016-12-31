@@ -413,7 +413,7 @@ static void execlists_submit_ports(struct intel_engine_cs *engine)
 static bool ctx_single_port_submission(const struct i915_gem_context *ctx)
 {
 	return (IS_ENABLED(CONFIG_DRM_I915_GVT) &&
-		ctx->execlists_force_single_submission);
+		i915_gem_context_force_single_submission(ctx));
 }
 
 static bool can_merge_ctx(const struct i915_gem_context *prev,
