@@ -3315,8 +3315,8 @@ enum i915_map_type {
 
 /**
  * i915_gem_object_pin_map - return a contiguous mapping of the entire object
- * @obj - the object to map into kernel address space
- * @type - the type of mapping, used to select pgprot_t
+ * @obj: the object to map into kernel address space
+ * @type: the type of mapping, used to select pgprot_t
  *
  * Calls i915_gem_object_pin_pages() to prevent reaping of the object's
  * pages and then returns a contiguous mapping of the backing storage into
@@ -3334,7 +3334,7 @@ void *__must_check i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 
 /**
  * i915_gem_object_unpin_map - releases an earlier mapping
- * @obj - the object to unmap
+ * @obj: the object to unmap
  *
  * After pinning the object and mapping its pages, once you are finished
  * with your access, call i915_gem_object_unpin_map() to release the pin
