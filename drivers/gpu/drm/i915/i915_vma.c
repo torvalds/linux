@@ -640,6 +640,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	 * reaped by the shrinker.
 	 */
 	i915_gem_object_unpin_pages(obj);
+	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
 
 destroy:
 	if (unlikely(i915_vma_is_closed(vma)))

@@ -3291,7 +3291,6 @@ __i915_gem_object_unpin_pages(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(!obj->mm.pages);
 
 	atomic_dec(&obj->mm.pages_pin_count);
-	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
 }
 
 static inline void
