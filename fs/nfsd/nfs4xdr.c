@@ -1250,7 +1250,7 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 	READ_BUF(16);
 	p = xdr_decode_hyper(p, &write->wr_offset);
 	write->wr_stable_how = be32_to_cpup(p++);
-	if (write->wr_stable_how > 2)
+	if (write->wr_stable_how > NFS_FILE_SYNC)
 		goto xdr_error;
 	write->wr_buflen = be32_to_cpup(p++);
 

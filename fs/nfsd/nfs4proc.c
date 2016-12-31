@@ -983,7 +983,7 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	status = nfsd_vfs_write(rqstp, &cstate->current_fh, filp,
 				write->wr_offset, rqstp->rq_vec, nvecs, &cnt,
-				&write->wr_how_written);
+				write->wr_how_written);
 	fput(filp);
 
 	write->wr_bytes_written = cnt;

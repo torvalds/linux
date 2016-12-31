@@ -204,7 +204,6 @@ nfsd_proc_write(struct svc_rqst *rqstp, struct nfsd_writeargs *argp,
 					struct nfsd_attrstat  *resp)
 {
 	__be32	nfserr;
-	int	stable = 1;
 	unsigned long cnt = argp->len;
 
 	dprintk("nfsd: WRITE    %s %d bytes at %d\n",
@@ -215,7 +214,7 @@ nfsd_proc_write(struct svc_rqst *rqstp, struct nfsd_writeargs *argp,
 				   argp->offset,
 				   rqstp->rq_vec, argp->vlen,
 			           &cnt,
-				   &stable);
+				   NFS_DATA_SYNC);
 	return nfsd_return_attrs(nfserr, resp);
 }
 
