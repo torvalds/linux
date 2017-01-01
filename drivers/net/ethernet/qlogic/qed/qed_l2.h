@@ -39,6 +39,20 @@
 #include "qed.h"
 #include "qed_hw.h"
 #include "qed_sp.h"
+struct qed_rss_params {
+	u8 update_rss_config;
+	u8 rss_enable;
+	u8 rss_eng_id;
+	u8 update_rss_capabilities;
+	u8 update_rss_ind_table;
+	u8 update_rss_key;
+	u8 rss_caps;
+	u8 rss_table_size_log;
+
+	/* Indirection table consist of rx queue handles */
+	void *rss_ind_table[QED_RSS_IND_TABLE_SIZE];
+	u32 rss_key[QED_RSS_KEY_SIZE];
+};
 
 struct qed_sge_tpa_params {
 	u8 max_buffers_per_cqe;
@@ -156,18 +170,6 @@ struct qed_sp_vport_start_params {
 int qed_sp_eth_vport_start(struct qed_hwfn *p_hwfn,
 			   struct qed_sp_vport_start_params *p_params);
 
-struct qed_rss_params {
-	u8	update_rss_config;
-	u8	rss_enable;
-	u8	rss_eng_id;
-	u8	update_rss_capabilities;
-	u8	update_rss_ind_table;
-	u8	update_rss_key;
-	u8	rss_caps;
-	u8	rss_table_size_log;
-	u16	rss_ind_table[QED_RSS_IND_TABLE_SIZE];
-	u32	rss_key[QED_RSS_KEY_SIZE];
-};
 
 struct qed_filter_accept_flags {
 	u8	update_rx_mode_config;
@@ -287,6 +289,8 @@ struct qed_queue_cid {
 
 	/* Legacy VFs might have Rx producer located elsewhere */
 	bool b_legacy_vf;
+
+	struct qed_hwfn *p_owner;
 };
 
 void qed_eth_queue_cid_release(struct qed_hwfn *p_hwfn,

@@ -164,6 +164,7 @@ struct qede_dev {
 	u16				num_queues;
 #define QEDE_QUEUE_CNT(edev)	((edev)->num_queues)
 #define QEDE_RSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_tx)
+#define QEDE_RX_QUEUE_IDX(edev, i)	(i)
 #define QEDE_TSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_rx)
 
 	struct qed_int_info		int_info;
@@ -194,7 +195,10 @@ struct qede_dev {
 #define QEDE_RSS_KEY_INITED	BIT(1)
 #define QEDE_RSS_CAPS_INITED	BIT(2)
 	u32 rss_params_inited; /* bit-field to track initialized rss params */
-	struct qed_update_vport_rss_params	rss_params;
+	u16 rss_ind_table[128];
+	u32 rss_key[10];
+	u8 rss_caps;
+
 	u16			q_num_rx_buffers; /* Must be a power of two */
 	u16			q_num_tx_buffers; /* Must be a power of two */
 

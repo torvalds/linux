@@ -33,6 +33,7 @@
 #include <linux/etherdevice.h>
 #include <net/udp_tunnel.h>
 #include <linux/bitops.h>
+#include <linux/vmalloc.h>
 
 #include <linux/qed/qed_if.h>
 #include "qede.h"
@@ -47,6 +48,60 @@ void qede_force_mac(void *dev, u8 *mac, bool forced)
 
 	ether_addr_copy(edev->ndev->dev_addr, mac);
 	ether_addr_copy(edev->primary_mac, mac);
+}
+
+void qede_fill_rss_params(struct qede_dev *edev,
+			  struct qed_update_vport_rss_params *rss, u8 *update)
+{
+	bool need_reset = false;
+	int i;
+
+	if (QEDE_RSS_COUNT(edev) <= 1) {
+		memset(rss, 0, sizeof(*rss));
+		*update = 0;
+		return;
+	}
+
+	/* Need to validate current RSS config uses valid entries */
+	for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
+		if (edev->rss_ind_table[i] >= QEDE_RSS_COUNT(edev)) {
+			need_reset = true;
+			break;
+		}
+	}
+
+	if (!(edev->rss_params_inited & QEDE_RSS_INDIR_INITED) || need_reset) {
+		for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
+			u16 indir_val, val;
+
+			val = QEDE_RSS_COUNT(edev);
+			indir_val = ethtool_rxfh_indir_default(i, val);
+			edev->rss_ind_table[i] = indir_val;
+		}
+		edev->rss_params_inited |= QEDE_RSS_INDIR_INITED;
+	}
+
+	/* Now that we have the queue-indirection, prepare the handles */
+	for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
+		u16 idx = QEDE_RX_QUEUE_IDX(edev, edev->rss_ind_table[i]);
+
+		rss->rss_ind_table[i] = edev->fp_array[idx].rxq->handle;
+	}
+
+	if (!(edev->rss_params_inited & QEDE_RSS_KEY_INITED)) {
+		netdev_rss_key_fill(edev->rss_key, sizeof(edev->rss_key));
+		edev->rss_params_inited |= QEDE_RSS_KEY_INITED;
+	}
+	memcpy(rss->rss_key, edev->rss_key, sizeof(rss->rss_key));
+
+	if (!(edev->rss_params_inited & QEDE_RSS_CAPS_INITED)) {
+		edev->rss_caps = QED_RSS_IPV4 | QED_RSS_IPV6 |
+		    QED_RSS_IPV4_TCP | QED_RSS_IPV6_TCP;
+		edev->rss_params_inited |= QEDE_RSS_CAPS_INITED;
+	}
+	rss->rss_caps = edev->rss_caps;
+
+	*update = 1;
 }
 
 static int qede_set_ucast_rx_mac(struct qede_dev *edev,
@@ -79,22 +134,24 @@ static int qede_set_ucast_rx_vlan(struct qede_dev *edev,
 	return edev->ops->filter_config(edev->cdev, &filter_cmd);
 }
 
-static void qede_config_accept_any_vlan(struct qede_dev *edev, bool action)
+static int qede_config_accept_any_vlan(struct qede_dev *edev, bool action)
 {
-	struct qed_update_vport_params params;
+	struct qed_update_vport_params *params;
 	int rc;
 
 	/* Proceed only if action actually needs to be performed */
 	if (edev->accept_any_vlan == action)
-		return;
+		return 0;
 
-	memset(&params, 0, sizeof(params));
+	params = vzalloc(sizeof(*params));
+	if (!params)
+		return -ENOMEM;
 
-	params.vport_id = 0;
-	params.accept_any_vlan = action;
-	params.update_accept_any_vlan_flg = 1;
+	params->vport_id = 0;
+	params->accept_any_vlan = action;
+	params->update_accept_any_vlan_flg = 1;
 
-	rc = edev->ops->vport_update(edev->cdev, &params);
+	rc = edev->ops->vport_update(edev->cdev, params);
 	if (rc) {
 		DP_ERR(edev, "Failed to %s accept-any-vlan\n",
 		       action ? "enable" : "disable");
@@ -103,6 +160,9 @@ static void qede_config_accept_any_vlan(struct qede_dev *edev, bool action)
 			action ? "enabled" : "disabled");
 		edev->accept_any_vlan = action;
 	}
+
+	vfree(params);
+	return 0;
 }
 
 int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
@@ -166,8 +226,13 @@ int qede_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 			edev->configured_vlans++;
 	} else {
 		/* Out of quota; Activate accept-any-VLAN mode */
-		if (!edev->non_configured_vlans)
-			qede_config_accept_any_vlan(edev, true);
+		if (!edev->non_configured_vlans) {
+			rc = qede_config_accept_any_vlan(edev, true);
+			if (rc) {
+				kfree(vlan);
+				goto out;
+			}
+		}
 
 		edev->non_configured_vlans++;
 	}
@@ -242,9 +307,12 @@ int qede_configure_vlan_filters(struct qede_dev *edev)
 	 */
 
 	if (accept_any_vlan)
-		qede_config_accept_any_vlan(edev, true);
+		rc = qede_config_accept_any_vlan(edev, true);
 	else if (!edev->non_configured_vlans)
-		qede_config_accept_any_vlan(edev, false);
+		rc = qede_config_accept_any_vlan(edev, false);
+
+	if (rc && !real_rc)
+		real_rc = rc;
 
 	return real_rc;
 }

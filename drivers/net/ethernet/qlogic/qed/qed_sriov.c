@@ -32,6 +32,7 @@
 
 #include <linux/etherdevice.h>
 #include <linux/crc32.h>
+#include <linux/vmalloc.h>
 #include <linux/qed/qed_iov_if.h>
 #include "qed_cxt.h"
 #include "qed_hsi.h"
@@ -2318,12 +2319,14 @@ qed_iov_vp_update_rss_param(struct qed_hwfn *p_hwfn,
 			    struct qed_vf_info *vf,
 			    struct qed_sp_vport_update_params *p_data,
 			    struct qed_rss_params *p_rss,
-			    struct qed_iov_vf_mbx *p_mbx, u16 *tlvs_mask)
+			    struct qed_iov_vf_mbx *p_mbx,
+			    u16 *tlvs_mask, u16 *tlvs_accepted)
 {
 	struct vfpf_vport_update_rss_tlv *p_rss_tlv;
 	u16 tlv = CHANNEL_TLV_VPORT_UPDATE_RSS;
-	u16 i, q_idx, max_q_idx;
+	bool b_reject = false;
 	u16 table_size;
+	u16 i, q_idx;
 
 	p_rss_tlv = (struct vfpf_vport_update_rss_tlv *)
 		    qed_iov_search_list_tlvs(p_hwfn, p_mbx->req_virt, tlv);
@@ -2347,34 +2350,39 @@ qed_iov_vp_update_rss_param(struct qed_hwfn *p_hwfn,
 	p_rss->rss_eng_id = vf->relative_vf_id + 1;
 	p_rss->rss_caps = p_rss_tlv->rss_caps;
 	p_rss->rss_table_size_log = p_rss_tlv->rss_table_size_log;
-	memcpy(p_rss->rss_ind_table, p_rss_tlv->rss_ind_table,
-	       sizeof(p_rss->rss_ind_table));
 	memcpy(p_rss->rss_key, p_rss_tlv->rss_key, sizeof(p_rss->rss_key));
 
 	table_size = min_t(u16, ARRAY_SIZE(p_rss->rss_ind_table),
 			   (1 << p_rss_tlv->rss_table_size_log));
 
-	max_q_idx = ARRAY_SIZE(vf->vf_queues);
-
 	for (i = 0; i < table_size; i++) {
-		u16 index = vf->vf_queues[0].fw_rx_qid;
+		q_idx = p_rss_tlv->rss_ind_table[i];
+		if (!qed_iov_validate_rxq(p_hwfn, vf, q_idx)) {
+			DP_VERBOSE(p_hwfn,
+				   QED_MSG_IOV,
+				   "VF[%d]: Omitting RSS due to wrong queue %04x\n",
+				   vf->relative_vf_id, q_idx);
+			b_reject = true;
+			goto out;
+		}
 
-		q_idx = p_rss->rss_ind_table[i];
-		if (q_idx >= max_q_idx)
-			DP_NOTICE(p_hwfn,
-				  "rss_ind_table[%d] = %d, rxq is out of range\n",
-				  i, q_idx);
-		else if (!vf->vf_queues[q_idx].p_rx_cid)
-			DP_NOTICE(p_hwfn,
-				  "rss_ind_table[%d] = %d, rxq is not active\n",
-				  i, q_idx);
-		else
-			index = vf->vf_queues[q_idx].fw_rx_qid;
-		p_rss->rss_ind_table[i] = index;
+		if (!vf->vf_queues[q_idx].p_rx_cid) {
+			DP_VERBOSE(p_hwfn,
+				   QED_MSG_IOV,
+				   "VF[%d]: Omitting RSS due to inactive queue %08x\n",
+				   vf->relative_vf_id, q_idx);
+			b_reject = true;
+			goto out;
+		}
+
+		p_rss->rss_ind_table[i] = vf->vf_queues[q_idx].p_rx_cid;
 	}
 
 	p_data->rss_params = p_rss;
+out:
 	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_RSS;
+	if (!b_reject)
+		*tlvs_accepted |= 1 << QED_IOV_VP_UPDATE_RSS;
 }
 
 static void
@@ -2429,12 +2437,12 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 					struct qed_ptt *p_ptt,
 					struct qed_vf_info *vf)
 {
+	struct qed_rss_params *p_rss_params = NULL;
 	struct qed_sp_vport_update_params params;
 	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
 	struct qed_sge_tpa_params sge_tpa_params;
-	struct qed_rss_params rss_params;
+	u16 tlvs_mask = 0, tlvs_accepted = 0;
 	u8 status = PFVF_STATUS_SUCCESS;
-	u16 tlvs_mask = 0;
 	u16 length;
 	int rc;
 
@@ -2444,6 +2452,11 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 			   QED_MSG_IOV,
 			   "No VPORT instance available for VF[%d], failing vport update\n",
 			   vf->abs_vf_id);
+		status = PFVF_STATUS_FAILURE;
+		goto out;
+	}
+	p_rss_params = vzalloc(sizeof(*p_rss_params));
+	if (p_rss_params == NULL) {
 		status = PFVF_STATUS_FAILURE;
 		goto out;
 	}
@@ -2461,20 +2474,26 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 	qed_iov_vp_update_tx_switch(p_hwfn, &params, mbx, &tlvs_mask);
 	qed_iov_vp_update_mcast_bin_param(p_hwfn, &params, mbx, &tlvs_mask);
 	qed_iov_vp_update_accept_flag(p_hwfn, &params, mbx, &tlvs_mask);
-	qed_iov_vp_update_rss_param(p_hwfn, vf, &params, &rss_params,
-				    mbx, &tlvs_mask);
 	qed_iov_vp_update_accept_any_vlan(p_hwfn, &params, mbx, &tlvs_mask);
 	qed_iov_vp_update_sge_tpa_param(p_hwfn, vf, &params,
 					&sge_tpa_params, mbx, &tlvs_mask);
 
-	/* Just log a message if there is no single extended tlv in buffer.
-	 * When all features of vport update ramrod would be requested by VF
-	 * as extended TLVs in buffer then an error can be returned in response
-	 * if there is no extended TLV present in buffer.
+	tlvs_accepted = tlvs_mask;
+
+	/* Some of the extended TLVs need to be validated first; In that case,
+	 * they can update the mask without updating the accepted [so that
+	 * PF could communicate to VF it has rejected request].
 	 */
-	if (!tlvs_mask) {
-		DP_NOTICE(p_hwfn,
-			  "No feature tlvs found for vport update\n");
+	qed_iov_vp_update_rss_param(p_hwfn, vf, &params, p_rss_params,
+				    mbx, &tlvs_mask, &tlvs_accepted);
+
+	if (!tlvs_accepted) {
+		if (tlvs_mask)
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "Upper-layer prevents VF vport configuration\n");
+		else
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "No feature tlvs found for vport update\n");
 		status = PFVF_STATUS_NOT_SUPPORTED;
 		goto out;
 	}
@@ -2485,8 +2504,9 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 		status = PFVF_STATUS_FAILURE;
 
 out:
+	vfree(p_rss_params);
 	length = qed_iov_prep_vp_update_resp_tlvs(p_hwfn, vf, mbx, status,
-						  tlvs_mask, tlvs_mask);
+						  tlvs_mask, tlvs_accepted);
 	qed_iov_send_response(p_hwfn, p_ptt, vf, length, status);
 }
 

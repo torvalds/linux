@@ -77,7 +77,7 @@ struct qed_dev_eth_info {
 };
 
 struct qed_update_vport_rss_params {
-	u16	rss_ind_table[128];
+	void	*rss_ind_table[128];
 	u32	rss_key[10];
 	u8	rss_caps;
 };

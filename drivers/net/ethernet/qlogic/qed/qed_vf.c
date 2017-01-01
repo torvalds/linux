@@ -838,6 +838,7 @@ int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
 	if (p_params->rss_params) {
 		struct qed_rss_params *rss_params = p_params->rss_params;
 		struct vfpf_vport_update_rss_tlv *p_rss_tlv;
+		int i, table_size;
 
 		size = sizeof(struct vfpf_vport_update_rss_tlv);
 		p_rss_tlv = qed_add_tlv(p_hwfn,
@@ -860,8 +861,15 @@ int qed_vf_pf_vport_update(struct qed_hwfn *p_hwfn,
 		p_rss_tlv->rss_enable = rss_params->rss_enable;
 		p_rss_tlv->rss_caps = rss_params->rss_caps;
 		p_rss_tlv->rss_table_size_log = rss_params->rss_table_size_log;
-		memcpy(p_rss_tlv->rss_ind_table, rss_params->rss_ind_table,
-		       sizeof(rss_params->rss_ind_table));
+
+		table_size = min_t(int, T_ETH_INDIRECTION_TABLE_SIZE,
+				   1 << p_rss_tlv->rss_table_size_log);
+		for (i = 0; i < table_size; i++) {
+			struct qed_queue_cid *p_queue;
+
+			p_queue = rss_params->rss_ind_table[i];
+			p_rss_tlv->rss_ind_table[i] = p_queue->rel.queue_id;
+		}
 		memcpy(p_rss_tlv->rss_key, rss_params->rss_key,
 		       sizeof(rss_params->rss_key));
 	}

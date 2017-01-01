@@ -98,6 +98,7 @@ _qed_eth_queue_to_cid(struct qed_hwfn *p_hwfn,
 	p_cid->cid = cid;
 	p_cid->vf_qid = vf_qid;
 	p_cid->rel = *p_params;
+	p_cid->p_owner = p_hwfn;
 
 	/* Don't try calculating the absolute indices for VFs */
 	if (IS_VF(p_hwfn->cdev)) {
@@ -272,76 +273,103 @@ static int qed_sp_vport_start(struct qed_hwfn *p_hwfn,
 static int
 qed_sp_vport_update_rss(struct qed_hwfn *p_hwfn,
 			struct vport_update_ramrod_data *p_ramrod,
-			struct qed_rss_params *p_params)
+			struct qed_rss_params *p_rss)
 {
-	struct eth_vport_rss_config *rss = &p_ramrod->rss_config;
-	u16 abs_l2_queue = 0, capabilities = 0;
-	int rc = 0, i;
+	struct eth_vport_rss_config *p_config;
+	u16 capabilities = 0;
+	int i, table_size;
+	int rc = 0;
 
-	if (!p_params) {
+	if (!p_rss) {
 		p_ramrod->common.update_rss_flg = 0;
 		return rc;
 	}
+	p_config = &p_ramrod->rss_config;
 
-	BUILD_BUG_ON(QED_RSS_IND_TABLE_SIZE !=
-		     ETH_RSS_IND_TABLE_ENTRIES_NUM);
+	BUILD_BUG_ON(QED_RSS_IND_TABLE_SIZE != ETH_RSS_IND_TABLE_ENTRIES_NUM);
 
-	rc = qed_fw_rss_eng(p_hwfn, p_params->rss_eng_id, &rss->rss_id);
+	rc = qed_fw_rss_eng(p_hwfn, p_rss->rss_eng_id, &p_config->rss_id);
 	if (rc)
 		return rc;
 
-	p_ramrod->common.update_rss_flg = p_params->update_rss_config;
-	rss->update_rss_capabilities = p_params->update_rss_capabilities;
-	rss->update_rss_ind_table = p_params->update_rss_ind_table;
-	rss->update_rss_key = p_params->update_rss_key;
+	p_ramrod->common.update_rss_flg = p_rss->update_rss_config;
+	p_config->update_rss_capabilities = p_rss->update_rss_capabilities;
+	p_config->update_rss_ind_table = p_rss->update_rss_ind_table;
+	p_config->update_rss_key = p_rss->update_rss_key;
 
-	rss->rss_mode = p_params->rss_enable ?
-			ETH_VPORT_RSS_MODE_REGULAR :
-			ETH_VPORT_RSS_MODE_DISABLED;
+	p_config->rss_mode = p_rss->rss_enable ?
+			     ETH_VPORT_RSS_MODE_REGULAR :
+			     ETH_VPORT_RSS_MODE_DISABLED;
 
 	SET_FIELD(capabilities,
 		  ETH_VPORT_RSS_CONFIG_IPV4_CAPABILITY,
-		  !!(p_params->rss_caps & QED_RSS_IPV4));
+		  !!(p_rss->rss_caps & QED_RSS_IPV4));
 	SET_FIELD(capabilities,
 		  ETH_VPORT_RSS_CONFIG_IPV6_CAPABILITY,
-		  !!(p_params->rss_caps & QED_RSS_IPV6));
+		  !!(p_rss->rss_caps & QED_RSS_IPV6));
 	SET_FIELD(capabilities,
 		  ETH_VPORT_RSS_CONFIG_IPV4_TCP_CAPABILITY,
-		  !!(p_params->rss_caps & QED_RSS_IPV4_TCP));
+		  !!(p_rss->rss_caps & QED_RSS_IPV4_TCP));
 	SET_FIELD(capabilities,
 		  ETH_VPORT_RSS_CONFIG_IPV6_TCP_CAPABILITY,
-		  !!(p_params->rss_caps & QED_RSS_IPV6_TCP));
+		  !!(p_rss->rss_caps & QED_RSS_IPV6_TCP));
 	SET_FIELD(capabilities,
 		  ETH_VPORT_RSS_CONFIG_IPV4_UDP_CAPABILITY,
-		  !!(p_params->rss_caps & QED_RSS_IPV4_UDP));
+		  !!(p_rss->rss_caps & QED_RSS_IPV4_UDP));
 	SET_FIELD(capabilities,
 		  ETH_VPORT_RSS_CONFIG_IPV6_UDP_CAPABILITY,
-		  !!(p_params->rss_caps & QED_RSS_IPV6_UDP));
-	rss->tbl_size = p_params->rss_table_size_log;
+		  !!(p_rss->rss_caps & QED_RSS_IPV6_UDP));
+	p_config->tbl_size = p_rss->rss_table_size_log;
 
-	rss->capabilities = cpu_to_le16(capabilities);
+	p_config->capabilities = cpu_to_le16(capabilities);
 
 	DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
 		   "update rss flag %d, rss_mode = %d, update_caps = %d, capabilities = %d, update_ind = %d, update_rss_key = %d\n",
 		   p_ramrod->common.update_rss_flg,
-		   rss->rss_mode, rss->update_rss_capabilities,
-		   capabilities, rss->update_rss_ind_table,
-		   rss->update_rss_key);
+		   p_config->rss_mode,
+		   p_config->update_rss_capabilities,
+		   p_config->capabilities,
+		   p_config->update_rss_ind_table, p_config->update_rss_key);
 
-	for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
-		rc = qed_fw_l2_queue(p_hwfn,
-				     (u8)p_params->rss_ind_table[i],
-				     &abs_l2_queue);
-		if (rc)
-			return rc;
+	table_size = min_t(int, QED_RSS_IND_TABLE_SIZE,
+			   1 << p_config->tbl_size);
+	for (i = 0; i < table_size; i++) {
+		struct qed_queue_cid *p_queue = p_rss->rss_ind_table[i];
 
-		rss->indirection_table[i] = cpu_to_le16(abs_l2_queue);
-		DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP, "i= %d, queue = %d\n",
-			   i, rss->indirection_table[i]);
+		if (!p_queue)
+			return -EINVAL;
+
+		p_config->indirection_table[i] =
+		    cpu_to_le16(p_queue->abs.queue_id);
+	}
+
+	DP_VERBOSE(p_hwfn, NETIF_MSG_IFUP,
+		   "Configured RSS indirection table [%d entries]:\n",
+		   table_size);
+	for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i += 0x10) {
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_IFUP,
+			   "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x\n",
+			   le16_to_cpu(p_config->indirection_table[i]),
+			   le16_to_cpu(p_config->indirection_table[i + 1]),
+			   le16_to_cpu(p_config->indirection_table[i + 2]),
+			   le16_to_cpu(p_config->indirection_table[i + 3]),
+			   le16_to_cpu(p_config->indirection_table[i + 4]),
+			   le16_to_cpu(p_config->indirection_table[i + 5]),
+			   le16_to_cpu(p_config->indirection_table[i + 6]),
+			   le16_to_cpu(p_config->indirection_table[i + 7]),
+			   le16_to_cpu(p_config->indirection_table[i + 8]),
+			   le16_to_cpu(p_config->indirection_table[i + 9]),
+			   le16_to_cpu(p_config->indirection_table[i + 10]),
+			   le16_to_cpu(p_config->indirection_table[i + 11]),
+			   le16_to_cpu(p_config->indirection_table[i + 12]),
+			   le16_to_cpu(p_config->indirection_table[i + 13]),
+			   le16_to_cpu(p_config->indirection_table[i + 14]),
+			   le16_to_cpu(p_config->indirection_table[i + 15]));
 	}
 
 	for (i = 0; i < 10; i++)
-		rss->rss_key[i] = cpu_to_le32(p_params->rss_key[i]);
+		p_config->rss_key[i] = cpu_to_le32(p_rss->rss_key[i]);
 
 	return rc;
 }
@@ -1899,18 +1927,84 @@ static int qed_stop_vport(struct qed_dev *cdev, u8 vport_id)
 	return 0;
 }
 
+static int qed_update_vport_rss(struct qed_dev *cdev,
+				struct qed_update_vport_rss_params *input,
+				struct qed_rss_params *rss)
+{
+	int i, fn;
+
+	/* Update configuration with what's correct regardless of CMT */
+	rss->update_rss_config = 1;
+	rss->rss_enable = 1;
+	rss->update_rss_capabilities = 1;
+	rss->update_rss_ind_table = 1;
+	rss->update_rss_key = 1;
+	rss->rss_caps = input->rss_caps;
+	memcpy(rss->rss_key, input->rss_key, QED_RSS_KEY_SIZE * sizeof(u32));
+
+	/* In regular scenario, we'd simply need to take input handlers.
+	 * But in CMT, we'd have to split the handlers according to the
+	 * engine they were configured on. We'd then have to understand
+	 * whether RSS is really required, since 2-queues on CMT doesn't
+	 * require RSS.
+	 */
+	if (cdev->num_hwfns == 1) {
+		memcpy(rss->rss_ind_table,
+		       input->rss_ind_table,
+		       QED_RSS_IND_TABLE_SIZE * sizeof(void *));
+		rss->rss_table_size_log = 7;
+		return 0;
+	}
+
+	/* Start by copying the non-spcific information to the 2nd copy */
+	memcpy(&rss[1], &rss[0], sizeof(struct qed_rss_params));
+
+	/* CMT should be round-robin */
+	for (i = 0; i < QED_RSS_IND_TABLE_SIZE; i++) {
+		struct qed_queue_cid *cid = input->rss_ind_table[i];
+		struct qed_rss_params *t_rss;
+
+		if (cid->p_owner == QED_LEADING_HWFN(cdev))
+			t_rss = &rss[0];
+		else
+			t_rss = &rss[1];
+
+		t_rss->rss_ind_table[i / cdev->num_hwfns] = cid;
+	}
+
+	/* Make sure RSS is actually required */
+	for_each_hwfn(cdev, fn) {
+		for (i = 1; i < QED_RSS_IND_TABLE_SIZE / cdev->num_hwfns; i++) {
+			if (rss[fn].rss_ind_table[i] !=
+			    rss[fn].rss_ind_table[0])
+				break;
+		}
+		if (i == QED_RSS_IND_TABLE_SIZE / cdev->num_hwfns) {
+			DP_VERBOSE(cdev, NETIF_MSG_IFUP,
+				   "CMT - 1 queue per-hwfn; Disabling RSS\n");
+			return -EINVAL;
+		}
+		rss[fn].rss_table_size_log = 6;
+	}
+
+	return 0;
+}
+
 static int qed_update_vport(struct qed_dev *cdev,
 			    struct qed_update_vport_params *params)
 {
 	struct qed_sp_vport_update_params sp_params;
-	struct qed_rss_params sp_rss_params;
-	int rc, i;
+	struct qed_rss_params *rss;
+	int rc = 0, i;
 
 	if (!cdev)
 		return -ENODEV;
 
+	rss = vzalloc(sizeof(*rss) * cdev->num_hwfns);
+	if (!rss)
+		return -ENOMEM;
+
 	memset(&sp_params, 0, sizeof(sp_params));
-	memset(&sp_rss_params, 0, sizeof(sp_rss_params));
 
 	/* Translate protocol params into sp params */
 	sp_params.vport_id = params->vport_id;
@@ -1924,58 +2018,16 @@ static int qed_update_vport(struct qed_dev *cdev,
 	sp_params.update_accept_any_vlan_flg =
 		params->update_accept_any_vlan_flg;
 
-	/* RSS - is a bit tricky, since upper-layer isn't familiar with hwfns.
-	 * We need to re-fix the rss values per engine for CMT.
-	 */
-	if (cdev->num_hwfns > 1 && params->update_rss_flg) {
-		struct qed_update_vport_rss_params *rss = &params->rss_params;
-		int k, max = 0;
-
-		/* Find largest entry, since it's possible RSS needs to
-		 * be disabled [in case only 1 queue per-hwfn]
-		 */
-		for (k = 0; k < QED_RSS_IND_TABLE_SIZE; k++)
-			max = (max > rss->rss_ind_table[k]) ?
-				max : rss->rss_ind_table[k];
-
-		/* Either fix RSS values or disable RSS */
-		if (cdev->num_hwfns < max + 1) {
-			int divisor = (max + cdev->num_hwfns - 1) /
-				cdev->num_hwfns;
-
-			DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
-				   "CMT - fixing RSS values (modulo %02x)\n",
-				   divisor);
-
-			for (k = 0; k < QED_RSS_IND_TABLE_SIZE; k++)
-				rss->rss_ind_table[k] =
-					rss->rss_ind_table[k] % divisor;
-		} else {
-			DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
-				   "CMT - 1 queue per-hwfn; Disabling RSS\n");
+	/* Prepare the RSS configuration */
+	if (params->update_rss_flg)
+		if (qed_update_vport_rss(cdev, &params->rss_params, rss))
 			params->update_rss_flg = 0;
-		}
-	}
-
-	/* Now, update the RSS configuration for actual configuration */
-	if (params->update_rss_flg) {
-		sp_rss_params.update_rss_config = 1;
-		sp_rss_params.rss_enable = 1;
-		sp_rss_params.update_rss_capabilities = 1;
-		sp_rss_params.update_rss_ind_table = 1;
-		sp_rss_params.update_rss_key = 1;
-		sp_rss_params.rss_caps = params->rss_params.rss_caps;
-		sp_rss_params.rss_table_size_log = 7; /* 2^7 = 128 */
-		memcpy(sp_rss_params.rss_ind_table,
-		       params->rss_params.rss_ind_table,
-		       QED_RSS_IND_TABLE_SIZE * sizeof(u16));
-		memcpy(sp_rss_params.rss_key, params->rss_params.rss_key,
-		       QED_RSS_KEY_SIZE * sizeof(u32));
-		sp_params.rss_params = &sp_rss_params;
-	}
 
 	for_each_hwfn(cdev, i) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
+
+		if (params->update_rss_flg)
+			sp_params.rss_params = &rss[i];
 
 		sp_params.opaque_fid = p_hwfn->hw_info.opaque_fid;
 		rc = qed_sp_vport_update(p_hwfn, &sp_params,
@@ -1983,7 +2035,7 @@ static int qed_update_vport(struct qed_dev *cdev,
 					 NULL);
 		if (rc) {
 			DP_ERR(cdev, "Failed to update VPORT\n");
-			return rc;
+			goto out;
 		}
 
 		DP_VERBOSE(cdev, (QED_MSG_SPQ | NETIF_MSG_IFUP),
@@ -1992,7 +2044,9 @@ static int qed_update_vport(struct qed_dev *cdev,
 			   params->update_vport_active_flg);
 	}
 
-	return 0;
+out:
+	vfree(rss);
+	return rc;
 }
 
 static int qed_start_rxq(struct qed_dev *cdev,
