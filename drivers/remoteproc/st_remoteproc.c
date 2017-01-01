@@ -107,7 +107,7 @@ static int st_rproc_stop(struct rproc *rproc)
 	return sw_err ?: pwr_err;
 }
 
-static struct rproc_ops st_rproc_ops = {
+static const struct rproc_ops st_rproc_ops = {
 	.start		= st_rproc_start,
 	.stop		= st_rproc_stop,
 };
