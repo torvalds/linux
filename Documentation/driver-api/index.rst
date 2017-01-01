@@ -21,6 +21,7 @@ available subsections can be seen below.
    message-based
    sound
    frame-buffer
+   iio/index
    input
    usb
    spi
