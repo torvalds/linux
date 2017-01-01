@@ -470,6 +470,8 @@ cuda_poll(void)
 }
 EXPORT_SYMBOL(cuda_poll);
 
+#define ARRAY_FULL(a, p)	((p) - (a) == ARRAY_SIZE(a))
+
 static irqreturn_t
 cuda_interrupt(int irq, void *arg)
 {
@@ -558,7 +560,11 @@ cuda_interrupt(int irq, void *arg)
 	break;
 
     case reading:
-	*reply_ptr++ = in_8(&via[SR]);
+	if (reading_reply ? ARRAY_FULL(current_req->reply, reply_ptr)
+	                  : ARRAY_FULL(cuda_rbuf, reply_ptr))
+	    (void)in_8(&via[SR]);
+	else
+	    *reply_ptr++ = in_8(&via[SR]);
 	if (!TREQ_asserted(status)) {
 	    /* that's all folks */
 	    negate_TIP_and_TACK();
