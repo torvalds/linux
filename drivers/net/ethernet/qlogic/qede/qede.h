@@ -280,7 +280,7 @@ struct qede_rx_queue {
 	u16 sw_rx_cons;
 	u16 sw_rx_prod;
 
-	u16 num_rx_buffers; /* Slowpath */
+	u16 filled_buffers;
 	u8 data_direction;
 	u8 rxq_id;
 
@@ -292,6 +292,9 @@ struct qede_rx_queue {
 	struct sw_rx_data *sw_rx_ring;
 	struct qed_chain rx_bd_ring;
 	struct qed_chain rx_comp_ring ____cacheline_aligned;
+
+	/* Used once per each NAPI run */
+	u16 num_rx_buffers;
 
 	/* GRO */
 	struct qede_agg_info tpa_info[ETH_TPA_MAX_AGGS_NUM];
@@ -414,7 +417,7 @@ netdev_features_t qede_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features);
 void qede_tx_log_print(struct qede_dev *edev, struct qede_fastpath *fp);
-int qede_alloc_rx_buffer(struct qede_rx_queue *rxq);
+int qede_alloc_rx_buffer(struct qede_rx_queue *rxq, bool allow_lazy);
 int qede_free_tx_pkt(struct qede_dev *edev,
 		     struct qede_tx_queue *txq, int *len);
 int qede_poll(struct napi_struct *napi, int budget);

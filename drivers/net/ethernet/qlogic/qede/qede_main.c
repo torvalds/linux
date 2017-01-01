@@ -1154,8 +1154,9 @@ static int qede_alloc_mem_rxq(struct qede_dev *edev, struct qede_rx_queue *rxq)
 		goto err;
 
 	/* Allocate buffers for the Rx ring */
+	rxq->filled_buffers = 0;
 	for (i = 0; i < rxq->num_rx_buffers; i++) {
-		rc = qede_alloc_rx_buffer(rxq);
+		rc = qede_alloc_rx_buffer(rxq, false);
 		if (rc) {
 			DP_ERR(edev,
 			       "Rx buffers allocation failed at index %d\n", i);

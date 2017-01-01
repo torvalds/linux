@@ -46,12 +46,21 @@
  * Content also used by slowpath *
  *********************************/
 
-int qede_alloc_rx_buffer(struct qede_rx_queue *rxq)
+int qede_alloc_rx_buffer(struct qede_rx_queue *rxq, bool allow_lazy)
 {
 	struct sw_rx_data *sw_rx_data;
 	struct eth_rx_bd *rx_bd;
 	dma_addr_t mapping;
 	struct page *data;
+
+	/* In case lazy-allocation is allowed, postpone allocation until the
+	 * end of the NAPI run. We'd still need to make sure the Rx ring has
+	 * sufficient buffers to guarantee an additional Rx interrupt.
+	 */
+	if (allow_lazy && likely(rxq->filled_buffers > 12)) {
+		rxq->filled_buffers--;
+		return 0;
+	}
 
 	data = alloc_pages(GFP_ATOMIC, 0);
 	if (unlikely(!data))
@@ -79,6 +88,7 @@ int qede_alloc_rx_buffer(struct qede_rx_queue *rxq)
 	rx_bd->addr.lo = cpu_to_le32(lower_32_bits(mapping));
 
 	rxq->sw_rx_prod++;
+	rxq->filled_buffers++;
 
 	return 0;
 }
@@ -523,7 +533,7 @@ static inline int qede_realloc_rx_buffer(struct qede_rx_queue *rxq,
 	curr_cons->page_offset += rxq->rx_buf_seg_size;
 
 	if (curr_cons->page_offset == PAGE_SIZE) {
-		if (unlikely(qede_alloc_rx_buffer(rxq))) {
+		if (unlikely(qede_alloc_rx_buffer(rxq, true))) {
 			/* Since we failed to allocate new buffer
 			 * current buffer can be used again.
 			 */
@@ -1002,7 +1012,7 @@ static bool qede_rx_xdp(struct qede_dev *edev,
 	switch (act) {
 	case XDP_TX:
 		/* We need the replacement buffer before transmit. */
-		if (qede_alloc_rx_buffer(rxq)) {
+		if (qede_alloc_rx_buffer(rxq, true)) {
 			qede_recycle_rx_bd_ring(rxq, 1);
 			return false;
 		}
@@ -1116,7 +1126,7 @@ static int qede_rx_build_jumbo(struct qede_dev *edev,
 		}
 
 		/* We need a replacement buffer for each BD */
-		if (unlikely(qede_alloc_rx_buffer(rxq)))
+		if (unlikely(qede_alloc_rx_buffer(rxq, true)))
 			goto out;
 
 		/* Now that we've allocated the replacement buffer,
@@ -1292,6 +1302,11 @@ static int qede_rx_int(struct qede_fastpath *fp, int budget)
 		sw_comp_cons = qed_chain_get_cons_idx(&rxq->rx_comp_ring);
 		work_done++;
 	}
+
+	/* Allocate replacement buffers */
+	while (rxq->num_rx_buffers - rxq->filled_buffers)
+		if (qede_alloc_rx_buffer(rxq, false))
+			break;
 
 	/* Update producers */
 	qede_update_rx_prod(edev, rxq);
