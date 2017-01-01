@@ -622,7 +622,7 @@ static inline void qede_skb_receive(struct qede_dev *edev,
 		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 
 	napi_gro_receive(&fp->napi, skb);
-	fp->rxq->rcv_pkts++;
+	rxq->rcv_pkts++;
 }
 
 static void qede_set_gro_params(struct qede_dev *edev,
