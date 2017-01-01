@@ -1122,7 +1122,9 @@ qed_mcp_get_shmem_proto(struct qed_hwfn *p_hwfn,
 
 	switch (p_info->config & FUNC_MF_CFG_PROTOCOL_MASK) {
 	case FUNC_MF_CFG_PROTOCOL_ETHERNET:
-		if (qed_mcp_get_shmem_proto_mfw(p_hwfn, p_ptt, p_proto))
+		if (!IS_ENABLED(CONFIG_QED_RDMA))
+			*p_proto = QED_PCI_ETH;
+		else if (qed_mcp_get_shmem_proto_mfw(p_hwfn, p_ptt, p_proto))
 			qed_mcp_get_shmem_proto_legacy(p_hwfn, p_proto);
 		break;
 	case FUNC_MF_CFG_PROTOCOL_ISCSI:
