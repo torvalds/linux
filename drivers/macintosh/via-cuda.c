@@ -446,12 +446,13 @@ cuda_start(void)
     /* assert cuda_state == idle */
     if (current_req == NULL)
 	return;
+    data_index = 0;
     if (TREQ_asserted(in_8(&via[B])))
 	return;			/* a byte is coming in from the CUDA */
 
     /* set the shift register to shift out and send a byte */
     out_8(&via[ACR], in_8(&via[ACR]) | SR_OUT);
-    out_8(&via[SR], current_req->data[0]);
+    out_8(&via[SR], current_req->data[data_index++]);
     assert_TIP();
     cuda_state = sent_first_byte;
 }
@@ -524,9 +525,8 @@ cuda_interrupt(int irq, void *arg)
 	    negate_TIP_and_TACK();
 	    cuda_state = idle;
 	} else {
-	    out_8(&via[SR], current_req->data[1]);
+	    out_8(&via[SR], current_req->data[data_index++]);
 	    toggle_TACK();
-	    data_index = 2;
 	    cuda_state = sending;
 	}
 	break;
