@@ -475,6 +475,16 @@ static int qede_set_vf_link_state(struct net_device *dev, int vfidx,
 
 	return edev->ops->iov->set_link_state(edev->cdev, vfidx, link_state);
 }
+
+static int qede_set_vf_trust(struct net_device *dev, int vfidx, bool setting)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+
+	if (!edev->ops)
+		return -EINVAL;
+
+	return edev->ops->iov->set_trust(edev->cdev, vfidx, setting);
+}
 #endif
 
 static const struct net_device_ops qede_netdev_ops = {
@@ -488,6 +498,7 @@ static const struct net_device_ops qede_netdev_ops = {
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_mac = qede_set_vf_mac,
 	.ndo_set_vf_vlan = qede_set_vf_vlan,
+	.ndo_set_vf_trust = qede_set_vf_trust,
 #endif
 	.ndo_vlan_rx_add_vid = qede_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = qede_vlan_rx_kill_vid,

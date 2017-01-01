@@ -714,11 +714,13 @@ void qede_config_rx_mode(struct net_device *ndev)
 		goto out;
 
 	/* Check for promiscuous */
-	if ((ndev->flags & IFF_PROMISC) ||
-	    (uc_count > edev->dev_info.num_mac_filters - 1)) {
+	if (ndev->flags & IFF_PROMISC)
 		accept_flags = QED_FILTER_RX_MODE_TYPE_PROMISC;
-	} else {
-		/* Add MAC filters according to the unicast secondary macs */
+	else
+		accept_flags = QED_FILTER_RX_MODE_TYPE_REGULAR;
+
+	/* Configure all filters regardless, in case promisc is rejected */
+	if (uc_count < edev->dev_info.num_mac_filters) {
 		int i;
 
 		temp = uc_macs;
@@ -731,11 +733,13 @@ void qede_config_rx_mode(struct net_device *ndev)
 
 			temp += ETH_ALEN;
 		}
-
-		rc = qede_configure_mcast_filtering(ndev, &accept_flags);
-		if (rc)
-			goto out;
+	} else {
+		accept_flags = QED_FILTER_RX_MODE_TYPE_PROMISC;
 	}
+
+	rc = qede_configure_mcast_filtering(ndev, &accept_flags);
+	if (rc)
+		goto out;
 
 	/* take care of VLAN mode */
 	if (ndev->flags & IFF_PROMISC) {

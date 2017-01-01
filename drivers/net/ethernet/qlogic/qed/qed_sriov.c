@@ -1225,6 +1225,9 @@ static void qed_iov_clean_vf(struct qed_hwfn *p_hwfn, u8 vfid)
 
 	/* Clear the VF mac */
 	memset(vf_info->mac, 0, ETH_ALEN);
+
+	vf_info->rx_accept_mode = 0;
+	vf_info->tx_accept_mode = 0;
 }
 
 static void qed_iov_vf_cleanup(struct qed_hwfn *p_hwfn,
@@ -2433,6 +2436,39 @@ qed_iov_vp_update_sge_tpa_param(struct qed_hwfn *p_hwfn,
 	*tlvs_mask |= 1 << QED_IOV_VP_UPDATE_SGE_TPA;
 }
 
+static int qed_iov_pre_update_vport(struct qed_hwfn *hwfn,
+				    u8 vfid,
+				    struct qed_sp_vport_update_params *params,
+				    u16 *tlvs)
+{
+	u8 mask = QED_ACCEPT_UCAST_UNMATCHED | QED_ACCEPT_MCAST_UNMATCHED;
+	struct qed_filter_accept_flags *flags = &params->accept_flags;
+	struct qed_public_vf_info *vf_info;
+
+	/* Untrusted VFs can't even be trusted to know that fact.
+	 * Simply indicate everything is configured fine, and trace
+	 * configuration 'behind their back'.
+	 */
+	if (!(*tlvs & BIT(QED_IOV_VP_UPDATE_ACCEPT_PARAM)))
+		return 0;
+
+	vf_info = qed_iov_get_public_vf_info(hwfn, vfid, true);
+
+	if (flags->update_rx_mode_config) {
+		vf_info->rx_accept_mode = flags->rx_accept_filter;
+		if (!vf_info->is_trusted_configured)
+			flags->rx_accept_filter &= ~mask;
+	}
+
+	if (flags->update_tx_mode_config) {
+		vf_info->tx_accept_mode = flags->tx_accept_filter;
+		if (!vf_info->is_trusted_configured)
+			flags->tx_accept_filter &= ~mask;
+	}
+
+	return 0;
+}
+
 static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 					struct qed_ptt *p_ptt,
 					struct qed_vf_info *vf)
@@ -2486,6 +2522,13 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 	 */
 	qed_iov_vp_update_rss_param(p_hwfn, vf, &params, p_rss_params,
 				    mbx, &tlvs_mask, &tlvs_accepted);
+
+	if (qed_iov_pre_update_vport(p_hwfn, vf->relative_vf_id,
+				     &params, &tlvs_accepted)) {
+		tlvs_accepted = 0;
+		status = PFVF_STATUS_NOT_SUPPORTED;
+		goto out;
+	}
 
 	if (!tlvs_accepted) {
 		if (tlvs_mask)
@@ -3936,6 +3979,32 @@ static int qed_set_vf_rate(struct qed_dev *cdev,
 	return 0;
 }
 
+static int qed_set_vf_trust(struct qed_dev *cdev, int vfid, bool trust)
+{
+	int i;
+
+	for_each_hwfn(cdev, i) {
+		struct qed_hwfn *hwfn = &cdev->hwfns[i];
+		struct qed_public_vf_info *vf;
+
+		if (!qed_iov_pf_sanity_check(hwfn, vfid)) {
+			DP_NOTICE(hwfn,
+				  "SR-IOV sanity check failed, can't set trust\n");
+			return -EINVAL;
+		}
+
+		vf = qed_iov_get_public_vf_info(hwfn, vfid, true);
+
+		if (vf->is_trusted_request == trust)
+			return 0;
+		vf->is_trusted_request = trust;
+
+		qed_schedule_iov(hwfn, QED_IOV_WQ_TRUST_FLAG);
+	}
+
+	return 0;
+}
+
 static void qed_handle_vf_msg(struct qed_hwfn *hwfn)
 {
 	u64 events[QED_VF_ARRAY_LENGTH];
@@ -4040,6 +4109,61 @@ static void qed_handle_bulletin_post(struct qed_hwfn *hwfn)
 	qed_ptt_release(hwfn, ptt);
 }
 
+static void qed_iov_handle_trust_change(struct qed_hwfn *hwfn)
+{
+	struct qed_sp_vport_update_params params;
+	struct qed_filter_accept_flags *flags;
+	struct qed_public_vf_info *vf_info;
+	struct qed_vf_info *vf;
+	u8 mask;
+	int i;
+
+	mask = QED_ACCEPT_UCAST_UNMATCHED | QED_ACCEPT_MCAST_UNMATCHED;
+	flags = &params.accept_flags;
+
+	qed_for_each_vf(hwfn, i) {
+		/* Need to make sure current requested configuration didn't
+		 * flip so that we'll end up configuring something that's not
+		 * needed.
+		 */
+		vf_info = qed_iov_get_public_vf_info(hwfn, i, true);
+		if (vf_info->is_trusted_configured ==
+		    vf_info->is_trusted_request)
+			continue;
+		vf_info->is_trusted_configured = vf_info->is_trusted_request;
+
+		/* Validate that the VF has a configured vport */
+		vf = qed_iov_get_vf_info(hwfn, i, true);
+		if (!vf->vport_instance)
+			continue;
+
+		memset(&params, 0, sizeof(params));
+		params.opaque_fid = vf->opaque_fid;
+		params.vport_id = vf->vport_id;
+
+		if (vf_info->rx_accept_mode & mask) {
+			flags->update_rx_mode_config = 1;
+			flags->rx_accept_filter = vf_info->rx_accept_mode;
+		}
+
+		if (vf_info->tx_accept_mode & mask) {
+			flags->update_tx_mode_config = 1;
+			flags->tx_accept_filter = vf_info->tx_accept_mode;
+		}
+
+		/* Remove if needed; Otherwise this would set the mask */
+		if (!vf_info->is_trusted_configured) {
+			flags->rx_accept_filter &= ~mask;
+			flags->tx_accept_filter &= ~mask;
+		}
+
+		if (flags->update_rx_mode_config ||
+		    flags->update_tx_mode_config)
+			qed_sp_vport_update(hwfn, &params,
+					    QED_SPQ_MODE_EBLOCK, NULL);
+	}
+}
+
 static void qed_iov_pf_task(struct work_struct *work)
 
 {
@@ -4075,6 +4199,9 @@ static void qed_iov_pf_task(struct work_struct *work)
 	if (test_and_clear_bit(QED_IOV_WQ_BULLETIN_UPDATE_FLAG,
 			       &hwfn->iov_task_flags))
 		qed_handle_bulletin_post(hwfn);
+
+	if (test_and_clear_bit(QED_IOV_WQ_TRUST_FLAG, &hwfn->iov_task_flags))
+		qed_iov_handle_trust_change(hwfn);
 }
 
 void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)
@@ -4137,4 +4264,5 @@ const struct qed_iov_hv_ops qed_iov_ops_pass = {
 	.set_link_state = &qed_set_vf_link_state,
 	.set_spoof = &qed_spoof_configure,
 	.set_rate = &qed_set_vf_rate,
+	.set_trust = &qed_set_vf_trust,
 };

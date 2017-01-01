@@ -80,6 +80,14 @@ struct qed_public_vf_info {
 
 	/* Currently configured Tx rate in MB/sec. 0 if unconfigured */
 	int tx_rate;
+
+	/* Trusted VFs can configure promiscuous mode.
+	 * Also store shadow promisc configuration if needed.
+	 */
+	bool is_trusted_configured;
+	bool is_trusted_request;
+	u8 rx_accept_mode;
+	u8 tx_accept_mode;
 };
 
 struct qed_iov_vf_init_params {
@@ -245,6 +253,7 @@ enum qed_iov_wq_flag {
 	QED_IOV_WQ_BULLETIN_UPDATE_FLAG,
 	QED_IOV_WQ_STOP_WQ_FLAG,
 	QED_IOV_WQ_FLR_FLAG,
+	QED_IOV_WQ_TRUST_FLAG,
 };
 
 #ifdef CONFIG_QED_SRIOV
