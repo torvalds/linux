@@ -21,6 +21,7 @@
 #include <linux/utsname.h>
 #include <linux/crc32.h>
 #include <linux/firmware.h>
+#include <linux/devcoredump.h>
 
 #include "core.h"
 #include "debug.h"
@@ -721,7 +722,8 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 }
 EXPORT_SYMBOL(ath10k_debug_get_new_fw_crash_data);
 
-static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar)
+static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar,
+							    bool mark_read)
 {
 	struct ath10k_fw_crash_data *crash_data = ar->debug.fw_crash_data;
 	struct ath10k_dump_file_data *dump_data;
@@ -790,11 +792,44 @@ static struct ath10k_dump_file_data *ath10k_build_dump_file(struct ath10k *ar)
 	       sizeof(crash_data->registers));
 	sofar += sizeof(*dump_tlv) + sizeof(crash_data->registers);
 
-	ar->debug.fw_crash_data->crashed_since_read = false;
+	ar->debug.fw_crash_data->crashed_since_read = !mark_read;
 
 	spin_unlock_bh(&ar->data_lock);
 
 	return dump_data;
+}
+
+int ath10k_debug_fw_devcoredump(struct ath10k *ar)
+{
+	struct ath10k_dump_file_data *dump;
+	void *dump_ptr;
+	u32 dump_len;
+
+	/* To keep the dump file available also for debugfs don't mark the
+	 * file read, only debugfs should do that.
+	 */
+	dump = ath10k_build_dump_file(ar, false);
+	if (!dump) {
+		ath10k_warn(ar, "no crash dump data found for devcoredump");
+		return -ENODATA;
+	}
+
+	/* Make a copy of the dump file for dev_coredumpv() as during the
+	 * transition period we need to own the original file. Once
+	 * fw_crash_dump debugfs file is removed no need to have a copy
+	 * anymore.
+	 */
+	dump_len = le32_to_cpu(dump->len);
+	dump_ptr = vzalloc(dump_len);
+
+	if (!dump_ptr)
+		return -ENOMEM;
+
+	memcpy(dump_ptr, dump, dump_len);
+
+	dev_coredumpv(ar->dev, dump_ptr, dump_len, GFP_KERNEL);
+
+	return 0;
 }
 
 static int ath10k_fw_crash_dump_open(struct inode *inode, struct file *file)
@@ -802,7 +837,9 @@ static int ath10k_fw_crash_dump_open(struct inode *inode, struct file *file)
 	struct ath10k *ar = inode->i_private;
 	struct ath10k_dump_file_data *dump;
 
-	dump = ath10k_build_dump_file(ar);
+	ath10k_warn(ar, "fw_crash_dump debugfs file is deprecated, please use /sys/class/devcoredump instead.");
+
+	dump = ath10k_build_dump_file(ar, true);
 	if (!dump)
 		return -ENODATA;
 

@@ -1227,6 +1227,36 @@ static int ath10k_monitor_recalc(struct ath10k *ar)
 		return ath10k_monitor_stop(ar);
 }
 
+static bool ath10k_mac_can_set_cts_prot(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (!arvif->is_started) {
+		ath10k_dbg(ar, ATH10K_DBG_MAC, "defer cts setup, vdev is not ready yet\n");
+		return false;
+	}
+
+	return true;
+}
+
+static int ath10k_mac_set_cts_prot(struct ath10k_vif *arvif)
+{
+	struct ath10k *ar = arvif->ar;
+	u32 vdev_param;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	vdev_param = ar->wmi.vdev_param->protection_mode;
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev %d cts_protection %d\n",
+		   arvif->vdev_id, arvif->use_cts_prot);
+
+	return ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
+					 arvif->use_cts_prot ? 1 : 0);
+}
+
 static int ath10k_recalc_rtscts_prot(struct ath10k_vif *arvif)
 {
 	struct ath10k *ar = arvif->ar;
@@ -1244,6 +1274,9 @@ static int ath10k_recalc_rtscts_prot(struct ath10k_vif *arvif)
 	else
 		rts_cts |= SM(WMI_RTSCTS_FOR_SECOND_RATESERIES,
 			      WMI_RTSCTS_PROFILE);
+
+	ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev %d recalc rts/cts prot %d\n",
+		   arvif->vdev_id, rts_cts);
 
 	return ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
 					 rts_cts);
@@ -3495,7 +3528,6 @@ static int ath10k_mac_tx_submit(struct ath10k *ar,
  */
 static int ath10k_mac_tx(struct ath10k *ar,
 			 struct ieee80211_vif *vif,
-			 struct ieee80211_sta *sta,
 			 enum ath10k_hw_txrx_mode txmode,
 			 enum ath10k_mac_tx_path txpath,
 			 struct sk_buff *skb)
@@ -3637,7 +3669,7 @@ void ath10k_offchan_tx_work(struct work_struct *work)
 		txmode = ath10k_mac_tx_h_get_txmode(ar, vif, sta, skb);
 		txpath = ath10k_mac_tx_h_get_txpath(ar, skb, txmode);
 
-		ret = ath10k_mac_tx(ar, vif, sta, txmode, txpath, skb);
+		ret = ath10k_mac_tx(ar, vif, txmode, txpath, skb);
 		if (ret) {
 			ath10k_warn(ar, "failed to transmit offchannel frame: %d\n",
 				    ret);
@@ -3824,7 +3856,7 @@ int ath10k_mac_tx_push_txq(struct ieee80211_hw *hw,
 		spin_unlock_bh(&ar->htt.tx_lock);
 	}
 
-	ret = ath10k_mac_tx(ar, vif, sta, txmode, txpath, skb);
+	ret = ath10k_mac_tx(ar, vif, txmode, txpath, skb);
 	if (unlikely(ret)) {
 		ath10k_warn(ar, "failed to push frame: %d\n", ret);
 
@@ -4105,7 +4137,7 @@ static void ath10k_mac_op_tx(struct ieee80211_hw *hw,
 		spin_unlock_bh(&ar->htt.tx_lock);
 	}
 
-	ret = ath10k_mac_tx(ar, vif, sta, txmode, txpath, skb);
+	ret = ath10k_mac_tx(ar, vif, txmode, txpath, skb);
 	if (ret) {
 		ath10k_warn(ar, "failed to transmit frame: %d\n", ret);
 		if (is_htt) {
@@ -4669,7 +4701,8 @@ static int ath10k_mac_txpower_recalc(struct ath10k *ar)
 	lockdep_assert_held(&ar->conf_mutex);
 
 	list_for_each_entry(arvif, &ar->arvifs, list) {
-		WARN_ON(arvif->txpower < 0);
+		if (arvif->txpower <= 0)
+			continue;
 
 		if (txpower == -1)
 			txpower = arvif->txpower;
@@ -4677,8 +4710,8 @@ static int ath10k_mac_txpower_recalc(struct ath10k *ar)
 			txpower = min(txpower, arvif->txpower);
 	}
 
-	if (WARN_ON(txpower == -1))
-		return -EINVAL;
+	if (txpower == -1)
+		return 0;
 
 	ret = ath10k_mac_txpower_setup(ar, txpower);
 	if (ret) {
@@ -5194,6 +5227,10 @@ static void ath10k_remove_interface(struct ieee80211_hw *hw,
 			ath10k_warn(ar, "failed to recalc monitor: %d\n", ret);
 	}
 
+	ret = ath10k_mac_txpower_recalc(ar);
+	if (ret)
+		ath10k_warn(ar, "failed to recalc tx power: %d\n", ret);
+
 	spin_lock_bh(&ar->htt.tx_lock);
 	ath10k_mac_vif_tx_unlock_all(arvif);
 	spin_unlock_bh(&ar->htt.tx_lock);
@@ -5328,20 +5365,18 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
 		arvif->use_cts_prot = info->use_cts_prot;
-		ath10k_dbg(ar, ATH10K_DBG_MAC, "mac vdev %d cts_prot %d\n",
-			   arvif->vdev_id, info->use_cts_prot);
 
 		ret = ath10k_recalc_rtscts_prot(arvif);
 		if (ret)
 			ath10k_warn(ar, "failed to recalculate rts/cts prot for vdev %d: %d\n",
 				    arvif->vdev_id, ret);
 
-		vdev_param = ar->wmi.vdev_param->protection_mode;
-		ret = ath10k_wmi_vdev_set_param(ar, arvif->vdev_id, vdev_param,
-						info->use_cts_prot ? 1 : 0);
-		if (ret)
-			ath10k_warn(ar, "failed to set protection mode %d on vdev %i: %d\n",
-				    info->use_cts_prot, arvif->vdev_id, ret);
+		if (ath10k_mac_can_set_cts_prot(arvif)) {
+			ret = ath10k_mac_set_cts_prot(arvif);
+			if (ret)
+				ath10k_warn(ar, "failed to set cts protection for vdev %d: %d\n",
+					    arvif->vdev_id, ret);
+		}
 	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
@@ -7364,6 +7399,13 @@ ath10k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 		arvif->is_up = true;
 	}
 
+	if (ath10k_mac_can_set_cts_prot(arvif)) {
+		ret = ath10k_mac_set_cts_prot(arvif);
+		if (ret)
+			ath10k_warn(ar, "failed to set cts protection for vdev %d: %d\n",
+				    arvif->vdev_id, ret);
+	}
+
 	mutex_unlock(&ar->conf_mutex);
 	return 0;
 
@@ -7548,6 +7590,7 @@ static const struct ieee80211_channel ath10k_5ghz_channels[] = {
 	CHAN5G(157, 5785, 0),
 	CHAN5G(161, 5805, 0),
 	CHAN5G(165, 5825, 0),
+	CHAN5G(169, 5845, 0),
 };
 
 struct ath10k *ath10k_mac_create(size_t priv_size)
