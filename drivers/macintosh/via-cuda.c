@@ -65,6 +65,36 @@ static DEFINE_SPINLOCK(cuda_lock);
 #define IER_CLR		0		/* clear bits in IER */
 #define SR_INT		0x04		/* Shift register full/empty */
 
+static inline bool TREQ_asserted(u8 portb)
+{
+	return !(portb & TREQ);
+}
+
+static inline void assert_TIP(void)
+{
+	out_8(&via[B], in_8(&via[B]) & ~TIP);
+}
+
+static inline void assert_TACK(void)
+{
+	out_8(&via[B], in_8(&via[B]) & ~TACK);
+}
+
+static inline void toggle_TACK(void)
+{
+	out_8(&via[B], in_8(&via[B]) ^ TACK);
+}
+
+static inline void negate_TACK(void)
+{
+	out_8(&via[B], in_8(&via[B]) | TACK);
+}
+
+static inline void negate_TIP_and_TACK(void)
+{
+	out_8(&via[B], in_8(&via[B]) | TIP | TACK);
+}
+
 static enum cuda_state {
     idle,
     sent_first_byte,
@@ -262,7 +292,7 @@ static int
 __init cuda_init_via(void)
 {
     out_8(&via[DIRB], (in_8(&via[DIRB]) | TACK | TIP) & ~TREQ);	/* TACK & TIP out */
-    out_8(&via[B], in_8(&via[B]) | TACK | TIP);			/* negate them */
+    negate_TIP_and_TACK();
     out_8(&via[ACR] ,(in_8(&via[ACR]) & ~SR_CTRL) | SR_EXT);	/* SR data in */
     (void)in_8(&via[SR]);						/* clear any left-over data */
 #ifdef CONFIG_PPC
@@ -278,10 +308,10 @@ __init cuda_init_via(void)
     out_8(&via[IFR], SR_INT);
 
     /* sync with the CUDA - assert TACK without TIP */
-    out_8(&via[B], in_8(&via[B]) & ~TACK);
+    assert_TACK();
 
     /* wait for the CUDA to assert TREQ in response */
-    WAIT_FOR((in_8(&via[B]) & TREQ) == 0, "CUDA response to sync");
+    WAIT_FOR(TREQ_asserted(in_8(&via[B])), "CUDA response to sync");
 
     /* wait for the interrupt and then clear it */
     WAIT_FOR(in_8(&via[IFR]) & SR_INT, "CUDA response to sync (2)");
@@ -289,14 +319,13 @@ __init cuda_init_via(void)
     out_8(&via[IFR], SR_INT);
 
     /* finish the sync by negating TACK */
-    out_8(&via[B], in_8(&via[B]) | TACK);
+    negate_TACK();
 
     /* wait for the CUDA to negate TREQ and the corresponding interrupt */
-    WAIT_FOR(in_8(&via[B]) & TREQ, "CUDA response to sync (3)");
+    WAIT_FOR(!TREQ_asserted(in_8(&via[B])), "CUDA response to sync (3)");
     WAIT_FOR(in_8(&via[IFR]) & SR_INT, "CUDA response to sync (4)");
     (void)in_8(&via[SR]);
     out_8(&via[IFR], SR_INT);
-    out_8(&via[B], in_8(&via[B]) | TIP);	/* should be unnecessary */
 
     return 0;
 }
@@ -417,13 +446,13 @@ cuda_start(void)
     /* assert cuda_state == idle */
     if (current_req == NULL)
 	return;
-    if ((in_8(&via[B]) & TREQ) == 0)
+    if (TREQ_asserted(in_8(&via[B])))
 	return;			/* a byte is coming in from the CUDA */
 
     /* set the shift register to shift out and send a byte */
     out_8(&via[ACR], in_8(&via[ACR]) | SR_OUT);
     out_8(&via[SR], current_req->data[0]);
-    out_8(&via[B], in_8(&via[B]) & ~TIP);
+    assert_TIP();
     cuda_state = sent_first_byte;
 }
 
@@ -444,7 +473,7 @@ EXPORT_SYMBOL(cuda_poll);
 static irqreturn_t
 cuda_interrupt(int irq, void *arg)
 {
-    int status;
+    u8 status;
     struct adb_request *req = NULL;
     unsigned char ibuf[16];
     int ibuf_len = 0;
@@ -469,13 +498,14 @@ cuda_interrupt(int irq, void *arg)
             out_8(&via[IFR], SR_INT);
         }
     }
-    
-    status = (~in_8(&via[B]) & (TIP|TREQ)) | (in_8(&via[ACR]) & SR_OUT);
+
+    status = in_8(&via[B]) & (TIP | TACK | TREQ);
+
     switch (cuda_state) {
     case idle:
 	/* CUDA has sent us the first byte of data - unsolicited */
 	(void)in_8(&via[SR]);
-	out_8(&via[B], in_8(&via[B]) & ~TIP);
+	assert_TIP();
 	cuda_state = reading;
 	reply_ptr = cuda_rbuf;
 	reading_reply = 0;
@@ -484,22 +514,22 @@ cuda_interrupt(int irq, void *arg)
     case awaiting_reply:
 	/* CUDA has sent us the first byte of data of a reply */
 	(void)in_8(&via[SR]);
-	out_8(&via[B], in_8(&via[B]) & ~TIP);
+	assert_TIP();
 	cuda_state = reading;
 	reply_ptr = current_req->reply;
 	reading_reply = 1;
 	break;
 
     case sent_first_byte:
-	if (status == TREQ + TIP + SR_OUT) {
+	if (TREQ_asserted(status)) {
 	    /* collision */
 	    out_8(&via[ACR], in_8(&via[ACR]) & ~SR_OUT);
 	    (void)in_8(&via[SR]);
-	    out_8(&via[B], in_8(&via[B]) | TIP | TACK);
+	    negate_TIP_and_TACK();
 	    cuda_state = idle;
 	} else {
 	    out_8(&via[SR], current_req->data[1]);
-	    out_8(&via[B], in_8(&via[B]) ^ TACK);
+	    toggle_TACK();
 	    data_index = 2;
 	    cuda_state = sending;
 	}
@@ -510,7 +540,7 @@ cuda_interrupt(int irq, void *arg)
 	if (data_index >= req->nbytes) {
 	    out_8(&via[ACR], in_8(&via[ACR]) & ~SR_OUT);
 	    (void)in_8(&via[SR]);
-	    out_8(&via[B], in_8(&via[B]) | TACK | TIP);
+	    negate_TIP_and_TACK();
 	    req->sent = 1;
 	    if (req->reply_expected) {
 		cuda_state = awaiting_reply;
@@ -523,18 +553,18 @@ cuda_interrupt(int irq, void *arg)
 	    }
 	} else {
 	    out_8(&via[SR], req->data[data_index++]);
-	    out_8(&via[B], in_8(&via[B]) ^ TACK);
+	    toggle_TACK();
 	}
 	break;
 
     case reading:
 	*reply_ptr++ = in_8(&via[SR]);
-	if (status == TIP) {
+	if (!TREQ_asserted(status)) {
 	    /* that's all folks */
-	    out_8(&via[B], in_8(&via[B]) | TACK | TIP);
+	    negate_TIP_and_TACK();
 	    cuda_state = read_done;
 	} else {
-	    out_8(&via[B], in_8(&via[B]) ^ TACK);
+	    toggle_TACK();
 	}
 	break;
 
@@ -567,8 +597,8 @@ cuda_interrupt(int irq, void *arg)
 	    ibuf_len = reply_ptr - cuda_rbuf;
 	    memcpy(ibuf, cuda_rbuf, ibuf_len);
 	}
-	if (status == TREQ) {
-	    out_8(&via[B], in_8(&via[B]) & ~TIP);
+	if (TREQ_asserted(status)) {
+	    assert_TIP();
 	    cuda_state = reading;
 	    reply_ptr = cuda_rbuf;
 	    reading_reply = 0;
