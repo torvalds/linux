@@ -684,8 +684,8 @@ static inline bool ef4_link_state_equal(const struct ef4_link_state *left,
  * @reconfigure: Reconfigure PHY (e.g. for new link parameters)
  * @poll: Update @link_state and report whether it changed.
  *	Serialised by the mac_lock.
- * @get_settings: Get ethtool settings. Serialised by the mac_lock.
- * @set_settings: Set ethtool settings. Serialised by the mac_lock.
+ * @get_link_ksettings: Get ethtool settings. Serialised by the mac_lock.
+ * @set_link_ksettings: Set ethtool settings. Serialised by the mac_lock.
  * @set_npage_adv: Set abilities advertised in (Extended) Next Page
  *	(only needed where AN bit is set in mmds)
  * @test_alive: Test that PHY is 'alive' (online)
@@ -700,10 +700,10 @@ struct ef4_phy_operations {
 	void (*remove) (struct ef4_nic *efx);
 	int (*reconfigure) (struct ef4_nic *efx);
 	bool (*poll) (struct ef4_nic *efx);
-	void (*get_settings) (struct ef4_nic *efx,
-			      struct ethtool_cmd *ecmd);
-	int (*set_settings) (struct ef4_nic *efx,
-			     struct ethtool_cmd *ecmd);
+	void (*get_link_ksettings)(struct ef4_nic *efx,
+				   struct ethtool_link_ksettings *cmd);
+	int (*set_link_ksettings)(struct ef4_nic *efx,
+				  const struct ethtool_link_ksettings *cmd);
 	void (*set_npage_adv) (struct ef4_nic *efx, u32);
 	int (*test_alive) (struct ef4_nic *efx);
 	const char *(*test_name) (struct ef4_nic *efx, unsigned int index);
