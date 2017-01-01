@@ -205,12 +205,13 @@ int __init find_via_cuda(void)
     struct adb_request req;
     int err;
 
-    if (macintosh_config->adb_type != MAC_ADB_CUDA)
+    if (macintosh_config->adb_type != MAC_ADB_CUDA &&
+        macintosh_config->adb_type != MAC_ADB_EGRET)
 	return 0;
 
     via = via1;
     cuda_state = idle;
-    mcu_is_egret = false;
+    mcu_is_egret = macintosh_config->adb_type == MAC_ADB_EGRET;
 
     err = cuda_init_via();
     if (err) {
@@ -323,7 +324,8 @@ cuda_probe(void)
     if (sys_ctrler != SYS_CTRLER_CUDA)
 	return -ENODEV;
 #else
-    if (macintosh_config->adb_type != MAC_ADB_CUDA)
+    if (macintosh_config->adb_type != MAC_ADB_CUDA &&
+        macintosh_config->adb_type != MAC_ADB_EGRET)
 	return -ENODEV;
 #endif
     if (via == NULL)
