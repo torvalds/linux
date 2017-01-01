@@ -877,6 +877,17 @@ static void qed_update_pf_params(struct qed_dev *cdev,
 		params->rdma_pf_params.gl_pi = QED_ROCE_PROTOCOL_INDEX;
 	}
 
+	/* In case we might support RDMA, don't allow qede to be greedy
+	 * with the L2 contexts. Allow for 64 queues [rx, tx, xdp] per hwfn.
+	 */
+	if (QED_LEADING_HWFN(cdev)->hw_info.personality ==
+	    QED_PCI_ETH_ROCE) {
+		u16 *num_cons;
+
+		num_cons = &params->eth_pf_params.num_cons;
+		*num_cons = min_t(u16, *num_cons, 192);
+	}
+
 	for (i = 0; i < cdev->num_hwfns; i++) {
 		struct qed_hwfn *p_hwfn = &cdev->hwfns[i];
 

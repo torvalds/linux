@@ -1753,13 +1753,31 @@ static int qed_fill_eth_dev_info(struct qed_dev *cdev,
 		int max_vf_mac_filters = 0;
 
 		if (cdev->int_params.out.int_mode == QED_INT_MODE_MSIX) {
-			for_each_hwfn(cdev, i)
-			    info->num_queues +=
-			    FEAT_NUM(&cdev->hwfns[i], QED_PF_L2_QUE);
-			if (cdev->int_params.fp_msix_cnt)
-				info->num_queues =
-				    min_t(u8, info->num_queues,
-					  cdev->int_params.fp_msix_cnt);
+			u16 num_queues = 0;
+
+			/* Since the feature controls only queue-zones,
+			 * make sure we have the contexts [rx, tx, xdp] to
+			 * match.
+			 */
+			for_each_hwfn(cdev, i) {
+				struct qed_hwfn *hwfn = &cdev->hwfns[i];
+				u16 l2_queues = (u16)FEAT_NUM(hwfn,
+							      QED_PF_L2_QUE);
+				u16 cids;
+
+				cids = hwfn->pf_params.eth_pf_params.num_cons;
+				num_queues += min_t(u16, l2_queues, cids / 3);
+			}
+
+			/* queues might theoretically be >256, but interrupts'
+			 * upper-limit guarantes that it would fit in a u8.
+			 */
+			if (cdev->int_params.fp_msix_cnt) {
+				u8 irqs = cdev->int_params.fp_msix_cnt;
+
+				info->num_queues = (u8)min_t(u16,
+							     num_queues, irqs);
+			}
 		} else {
 			info->num_queues = cdev->num_hwfns;
 		}

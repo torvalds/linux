@@ -753,7 +753,7 @@ static void qede_update_pf_params(struct qed_dev *cdev)
 
 	/* 64 rx + 64 tx + 64 XDP */
 	memset(&pf_params, 0, sizeof(struct qed_pf_params));
-	pf_params.eth_pf_params.num_cons = 192;
+	pf_params.eth_pf_params.num_cons = (MAX_SB_PER_PF_MIMD - 1) * 3;
 	qed_ops->common->update_pf_params(cdev, &pf_params);
 }
 
