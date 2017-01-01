@@ -816,6 +816,9 @@ static void nvmet_ctrl_free(struct kref *ref)
 	list_del(&ctrl->subsys_entry);
 	mutex_unlock(&subsys->lock);
 
+	flush_work(&ctrl->async_event_work);
+	cancel_work_sync(&ctrl->fatal_err_work);
+
 	ida_simple_remove(&subsys->cntlid_ida, ctrl->cntlid);
 	nvmet_subsys_put(subsys);
 
