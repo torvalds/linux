@@ -605,12 +605,11 @@ cuda_interrupt(int irq, void *arg)
 	    memcpy(ibuf, cuda_rbuf, ibuf_len);
 	}
 	reply_ptr = cuda_rbuf;
-	if (TREQ_asserted(status)) {
+	cuda_state = idle;
+	cuda_start();
+	if (cuda_state == idle && TREQ_asserted(in_8(&via[B]))) {
 	    assert_TIP();
 	    cuda_state = reading;
-	} else {
-	    cuda_state = idle;
-	    cuda_start();
 	}
 	break;
 
