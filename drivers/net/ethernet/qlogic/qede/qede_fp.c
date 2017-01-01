@@ -607,8 +607,10 @@ static void qede_set_skb_csum(struct sk_buff *skb, u8 csum_flag)
 	if (csum_flag & QEDE_CSUM_UNNECESSARY)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	if (csum_flag & QEDE_TUNN_CSUM_UNNECESSARY)
+	if (csum_flag & QEDE_TUNN_CSUM_UNNECESSARY) {
 		skb->csum_level = 1;
+		skb->encapsulation = 1;
+	}
 }
 
 static inline void qede_skb_receive(struct qede_dev *edev,
