@@ -414,19 +414,15 @@ cuda_write(struct adb_request *req)
 static void
 cuda_start(void)
 {
-    struct adb_request *req;
-
     /* assert cuda_state == idle */
-    /* get the packet to send */
-    req = current_req;
-    if (req == 0)
+    if (current_req == NULL)
 	return;
     if ((in_8(&via[B]) & TREQ) == 0)
 	return;			/* a byte is coming in from the CUDA */
 
     /* set the shift register to shift out and send a byte */
     out_8(&via[ACR], in_8(&via[ACR]) | SR_OUT);
-    out_8(&via[SR], req->data[0]);
+    out_8(&via[SR], current_req->data[0]);
     out_8(&via[B], in_8(&via[B]) & ~TIP);
     cuda_state = sent_first_byte;
 }
