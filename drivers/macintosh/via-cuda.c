@@ -592,6 +592,7 @@ cuda_interrupt(int irq, void *arg)
 	    }
 	    current_req = req->next;
 	    complete = 1;
+	    reading_reply = 0;
 	} else {
 	    /* This is tricky. We must break the spinlock to call
 	     * cuda_input. However, doing so means we might get
@@ -603,11 +604,10 @@ cuda_interrupt(int irq, void *arg)
 	    ibuf_len = reply_ptr - cuda_rbuf;
 	    memcpy(ibuf, cuda_rbuf, ibuf_len);
 	}
+	reply_ptr = cuda_rbuf;
 	if (TREQ_asserted(status)) {
 	    assert_TIP();
 	    cuda_state = reading;
-	    reply_ptr = cuda_rbuf;
-	    reading_reply = 0;
 	} else {
 	    cuda_state = idle;
 	    cuda_start();
