@@ -408,6 +408,17 @@ struct qede_reload_args {
 	} u;
 };
 
+/* Datapath functions definition */
+netdev_tx_t qede_start_xmit(struct sk_buff *skb, struct net_device *ndev);
+netdev_features_t qede_features_check(struct sk_buff *skb,
+				      struct net_device *dev,
+				      netdev_features_t features);
+void qede_tx_log_print(struct qede_dev *edev, struct qede_fastpath *fp);
+int qede_alloc_rx_buffer(struct qede_rx_queue *rxq);
+int qede_free_tx_pkt(struct qede_dev *edev,
+		     struct qede_tx_queue *txq, int *len);
+int qede_poll(struct napi_struct *napi, int budget);
+irqreturn_t qede_msix_fp_int(int irq, void *fp_cookie);
 #ifdef CONFIG_DCB
 void qede_set_dcbnl_ops(struct net_device *ndev);
 #endif
