@@ -2210,11 +2210,14 @@ static int qed_configure_filter_rx_mode(struct qed_dev *cdev,
 					QED_ACCEPT_MCAST_MATCHED |
 					QED_ACCEPT_BCAST;
 
-	if (type == QED_FILTER_RX_MODE_TYPE_PROMISC)
+	if (type == QED_FILTER_RX_MODE_TYPE_PROMISC) {
 		accept_flags.rx_accept_filter |= QED_ACCEPT_UCAST_UNMATCHED |
 						 QED_ACCEPT_MCAST_UNMATCHED;
-	else if (type == QED_FILTER_RX_MODE_TYPE_MULTI_PROMISC)
+		accept_flags.tx_accept_filter |= QED_ACCEPT_MCAST_UNMATCHED;
+	} else if (type == QED_FILTER_RX_MODE_TYPE_MULTI_PROMISC) {
 		accept_flags.rx_accept_filter |= QED_ACCEPT_MCAST_UNMATCHED;
+		accept_flags.tx_accept_filter |= QED_ACCEPT_MCAST_UNMATCHED;
+	}
 
 	return qed_filter_accept_cmd(cdev, 0, accept_flags, false, false,
 				     QED_SPQ_MODE_CB, NULL);
