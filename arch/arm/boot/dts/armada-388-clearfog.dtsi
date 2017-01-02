@@ -227,10 +227,6 @@
 					marvell,pins = "mpp20";
 					marvell,function = "gpio";
 				};
-				clearfog_spi1_cs_pins: spi1-cs-pins {
-					marvell,pins = "mpp55";
-					marvell,function = "spi1";
-				};
 				mikro_pins: mikro-pins {
 					/* int: mpp22 rst: mpp29 */
 					marvell,pins = "mpp22", "mpp29";
@@ -323,12 +319,10 @@
 	/*
 	 * Add SPI CS pins for clearfog:
 	 * CS0: W25Q32 (not populated on uSOM)
-	 * CS1:
+	 * CS1: PIC microcontroller (Pro models)
 	 * CS2: mikrobus
 	 */
-	pinctrl-0 = <&spi1_pins
-		     &clearfog_spi1_cs_pins
-		     &mikro_spi_pins>;
+	pinctrl-0 = <&spi1_pins &mikro_spi_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };

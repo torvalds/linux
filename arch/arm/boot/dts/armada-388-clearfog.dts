@@ -179,4 +179,18 @@
 		marvell,pins = "mpp23", "mpp41";
 		marvell,function = "gpio";
 	};
+	clearfog_spi1_cs_pins: spi1-cs-pins {
+		marvell,pins = "mpp55";
+		marvell,function = "spi1";
+	};
+};
+
+&spi1 {
+	/*
+	 * Add SPI CS pins for clearfog:
+	 * CS0: W25Q32 (not populated on uSOM)
+	 * CS1:
+	 * CS2: mikrobus
+	 */
+	pinctrl-0 = <&spi1_pins &clearfog_spi1_cs_pins &mikro_spi_pins>;
 };
