@@ -58,7 +58,7 @@
 
 #ifdef	CONFIG_ARCH_OMAP_OTG
 
-void __init
+static void __init
 omap_otg_init(struct omap_usb_config *config)
 {
 	u32		syscon;
@@ -166,7 +166,7 @@ omap_otg_init(struct omap_usb_config *config)
 }
 
 #else
-void omap_otg_init(struct omap_usb_config *config) {}
+static void omap_otg_init(struct omap_usb_config *config) {}
 #endif
 
 #if IS_ENABLED(CONFIG_USB_OMAP)
