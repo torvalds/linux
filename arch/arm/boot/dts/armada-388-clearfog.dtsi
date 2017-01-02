@@ -103,12 +103,12 @@
 				 * PCA9655 GPIO expander, up to 1MHz clock.
 				 *  0-CON3 CLKREQ#
 				 *  1-CON3 PERST#
-				 *  2-CON2 PERST#
+				 *  2-
 				 *  3-CON3 W_DISABLE
-				 *  4-CON2 CLKREQ#
+				 *  4-
 				 *  5-USB3 overcurrent
 				 *  6-USB3 power
-				 *  7-CON2 W_DISABLE
+				 *  7-
 				 *  8-JP4 P1
 				 *  9-JP4 P4
 				 * 10-JP4 P5
@@ -142,18 +142,6 @@
 						gpios = <3 GPIO_ACTIVE_LOW>;
 						output-low;
 						line-name = "pcie1.0-w-disable";
-					};
-					pcie2_0_clkreq {
-						gpio-hog;
-						gpios = <4 GPIO_ACTIVE_LOW>;
-						input;
-						line-name = "pcie2.0-clkreq";
-					};
-					pcie2_0_w_disable {
-						gpio-hog;
-						gpios = <7 GPIO_ACTIVE_LOW>;
-						output-low;
-						line-name = "pcie2.0-w-disable";
 					};
 					usb3_ilimit {
 						gpio-hog;
@@ -296,11 +284,6 @@
 				status = "okay";
 			};
 
-			usb3@f0000 {
-				/* CON2, nearest CPU, USB2 only. */
-				status = "okay";
-			};
-
 			usb3@f8000 {
 				/* CON7 */
 				status = "okay";
@@ -316,11 +299,6 @@
 			pcie@2,0 {
 				/* Port 1, Lane 0. CON3, nearest power. */
 				reset-gpios = <&expander0 1 GPIO_ACTIVE_LOW>;
-				status = "okay";
-			};
-			pcie@3,0 {
-				/* Port 2, Lane 0. CON2, nearest CPU. */
-				reset-gpios = <&expander0 2 GPIO_ACTIVE_LOW>;
 				status = "okay";
 			};
 		};
