@@ -1544,10 +1544,11 @@ iscsi_bsg_host_add(struct Scsi_Host *shost, struct iscsi_cls_host *ihost)
 
 	snprintf(bsg_name, sizeof(bsg_name), "iscsi_host%d", shost->host_no);
 
-	q = __scsi_alloc_queue(shost, bsg_request_fn);
+	q = blk_init_queue(bsg_request_fn, NULL);
 	if (!q)
 		return -ENOMEM;
 
+	__scsi_init_queue(shost, q);
 	ret = bsg_setup_queue(dev, q, bsg_name, iscsi_bsg_host_dispatch, 0);
 	if (ret) {
 		shost_printk(KERN_ERR, shost, "bsg interface failed to "

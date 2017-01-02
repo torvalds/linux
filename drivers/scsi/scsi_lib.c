@@ -2082,7 +2082,7 @@ static u64 scsi_calculate_bounce_limit(struct Scsi_Host *shost)
 	return bounce_limit;
 }
 
-static void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
+void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 {
 	struct device *dev = shost->dma_dev;
 
@@ -2117,28 +2117,17 @@ static void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 	 */
 	blk_queue_dma_alignment(q, 0x03);
 }
-
-struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
-					 request_fn_proc *request_fn)
-{
-	struct request_queue *q;
-
-	q = blk_init_queue(request_fn, NULL);
-	if (!q)
-		return NULL;
-	__scsi_init_queue(shost, q);
-	return q;
-}
-EXPORT_SYMBOL(__scsi_alloc_queue);
+EXPORT_SYMBOL_GPL(__scsi_init_queue);
 
 struct request_queue *scsi_alloc_queue(struct scsi_device *sdev)
 {
 	struct request_queue *q;
 
-	q = __scsi_alloc_queue(sdev->host, scsi_request_fn);
+	q = blk_init_queue(scsi_request_fn, NULL);
 	if (!q)
 		return NULL;
 
+	__scsi_init_queue(sdev->host, q);
 	blk_queue_prep_rq(q, scsi_prep_fn);
 	blk_queue_unprep_rq(q, scsi_unprep_fn);
 	blk_queue_softirq_done(q, scsi_softirq_done);

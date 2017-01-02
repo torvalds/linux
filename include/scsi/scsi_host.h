@@ -826,8 +826,6 @@ extern void scsi_block_requests(struct Scsi_Host *);
 
 struct class_container;
 
-extern struct request_queue *__scsi_alloc_queue(struct Scsi_Host *shost,
-						void (*) (struct request_queue *));
 /*
  * These two functions are used to allocate and free a pseudo device
  * which will connect to the host adapter itself rather than any

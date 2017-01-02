@@ -3776,7 +3776,7 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 	snprintf(bsg_name, sizeof(bsg_name),
 		 "fc_host%d", shost->host_no);
 
-	q = __scsi_alloc_queue(shost, bsg_request_fn);
+	q = blk_init_queue(bsg_request_fn, NULL);
 	if (!q) {
 		dev_err(dev,
 			"fc_host%d: bsg interface failed to initialize - no request queue\n",
@@ -3784,6 +3784,7 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 		return -ENOMEM;
 	}
 
+	__scsi_init_queue(shost, q);
 	err = bsg_setup_queue(dev, q, bsg_name, fc_bsg_dispatch,
 				 i->f->dd_bsg_size);
 	if (err) {
@@ -3831,12 +3832,13 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 	if (!i->f->bsg_request)
 		return -ENOTSUPP;
 
-	q = __scsi_alloc_queue(shost, bsg_request_fn);
+	q = blk_init_queue(bsg_request_fn, NULL);
 	if (!q) {
 		dev_err(dev, "bsg interface failed to initialize - no request queue\n");
 		return -ENOMEM;
 	}
 
+	__scsi_init_queue(shost, q);
 	err = bsg_setup_queue(dev, q, NULL, fc_bsg_dispatch, i->f->dd_bsg_size);
 	if (err) {
 		dev_err(dev, "failed to setup bsg queue\n");
