@@ -1,5 +1,6 @@
 #include <target/target_core_base.h>
 
+#define XCOPY_HDR_LEN			16
 #define XCOPY_TARGET_DESC_LEN		32
 #define XCOPY_SEGMENT_DESC_LEN		28
 #define XCOPY_NAA_IEEE_REGEX_LEN	16

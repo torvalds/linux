@@ -888,6 +888,12 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
+	if (se_cmd->data_length < XCOPY_HDR_LEN) {
+		pr_err("XCOPY parameter truncation: length %u < hdr_len %u\n",
+				se_cmd->data_length, XCOPY_HDR_LEN);
+		return TCM_PARAMETER_LIST_LENGTH_ERROR;
+	}
+
 	xop = kzalloc(sizeof(struct xcopy_op), GFP_KERNEL);
 	if (!xop) {
 		pr_err("Unable to allocate xcopy_op\n");
@@ -920,6 +926,14 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 	inline_dl = get_unaligned_be32(&p[12]);
 	if (inline_dl != 0) {
 		pr_err("XCOPY with non zero inline data length\n");
+		goto out;
+	}
+
+	if (se_cmd->data_length < (XCOPY_HDR_LEN + tdll + sdll + inline_dl)) {
+		pr_err("XCOPY parameter truncation: data length %u too small "
+			"for tdll: %hu sdll: %u inline_dl: %u\n",
+			se_cmd->data_length, tdll, sdll, inline_dl);
+		ret = TCM_PARAMETER_LIST_LENGTH_ERROR;
 		goto out;
 	}
 
