@@ -1265,18 +1265,7 @@ EXPORT_SYMBOL(devfreq_recommended_opp);
  */
 int devfreq_register_opp_notifier(struct device *dev, struct devfreq *devfreq)
 {
-	struct srcu_notifier_head *nh;
-	int ret = 0;
-
-	rcu_read_lock();
-	nh = dev_pm_opp_get_notifier(dev);
-	if (IS_ERR(nh))
-		ret = PTR_ERR(nh);
-	rcu_read_unlock();
-	if (!ret)
-		ret = srcu_notifier_chain_register(nh, &devfreq->nb);
-
-	return ret;
+	return dev_pm_opp_register_notifier(dev, &devfreq->nb);
 }
 EXPORT_SYMBOL(devfreq_register_opp_notifier);
 
@@ -1292,18 +1281,7 @@ EXPORT_SYMBOL(devfreq_register_opp_notifier);
  */
 int devfreq_unregister_opp_notifier(struct device *dev, struct devfreq *devfreq)
 {
-	struct srcu_notifier_head *nh;
-	int ret = 0;
-
-	rcu_read_lock();
-	nh = dev_pm_opp_get_notifier(dev);
-	if (IS_ERR(nh))
-		ret = PTR_ERR(nh);
-	rcu_read_unlock();
-	if (!ret)
-		ret = srcu_notifier_chain_unregister(nh, &devfreq->nb);
-
-	return ret;
+	return dev_pm_opp_unregister_notifier(dev, &devfreq->nb);
 }
 EXPORT_SYMBOL(devfreq_unregister_opp_notifier);
 
