@@ -205,7 +205,7 @@ the data in regdb.c as an alternative to using CRDA.
 The file net/wireless/db.txt should be kept up-to-date with the db.txt
 file available in the git repository here:
 
-    git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-regdb.git
+    git://git.kernel.org/pub/scm/linux/kernel/git/sforshee/wireless-regdb.git
 
 Again, most users in most situations should be using the CRDA package
 provided with their distribution, and in most other situations users
