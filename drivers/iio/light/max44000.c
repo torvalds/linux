@@ -113,7 +113,7 @@ static const char max44000_int_time_avail_str[] =
 	"0.100 "
 	"0.025 "
 	"0.00625 "
-	"0.001625";
+	"0.0015625";
 
 /* Available scales (internal to ulux) with pretty manual alignment: */
 static const int max44000_scale_avail_ulux_array[] = {

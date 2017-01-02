@@ -561,7 +561,7 @@ config TI_ADS8688
 
 config TI_AM335X_ADC
 	tristate "TI's AM335X ADC driver"
-	depends on MFD_TI_AM335X_TSCADC
+	depends on MFD_TI_AM335X_TSCADC && HAS_DMA
 	select IIO_BUFFER
 	select IIO_KFIFO_BUF
 	help
