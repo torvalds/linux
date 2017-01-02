@@ -899,7 +899,7 @@ static int vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		if (rc || scb_s->icptcode || signal_pending(current) ||
 		    kvm_s390_vcpu_has_irq(vcpu, 0))
 			break;
-	};
+	}
 
 	if (rc == -EFAULT) {
 		/*

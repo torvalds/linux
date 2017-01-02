@@ -177,7 +177,7 @@ static inline int __put_user_fn(void *x, void __user *ptr, unsigned long size)
 					(unsigned long *)x,
 					size, spec);
 		break;
-	};
+	}
 	return rc;
 }
 
@@ -207,7 +207,7 @@ static inline int __get_user_fn(void *x, const void __user *ptr, unsigned long s
 					(unsigned long __user *)ptr,
 					size, spec);
 		break;
-	};
+	}
 	return rc;
 }
 
