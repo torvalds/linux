@@ -206,12 +206,16 @@ retry:
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
 	if (res < 0) {
-		if (!fscrypt_dummy_context_enabled(inode))
+		if (!fscrypt_dummy_context_enabled(inode) ||
+		    inode->i_sb->s_cop->is_encrypted(inode))
 			return res;
+		/* Fake up a context for an unencrypted directory */
+		memset(&ctx, 0, sizeof(ctx));
 		ctx.format = FS_ENCRYPTION_CONTEXT_FORMAT_V1;
 		ctx.contents_encryption_mode = FS_ENCRYPTION_MODE_AES_256_XTS;
 		ctx.filenames_encryption_mode = FS_ENCRYPTION_MODE_AES_256_CTS;
-		ctx.flags = 0;
+		memset(ctx.master_key_descriptor, 0x42, FS_KEY_DESCRIPTOR_SIZE);
+		res = sizeof(ctx);
 	} else if (res != sizeof(ctx)) {
 		return -EINVAL;
 	}
@@ -247,12 +251,6 @@ retry:
 	if (!raw_key)
 		goto out;
 
-	if (fscrypt_dummy_context_enabled(inode)) {
-		memset(raw_key, 0x42, keysize/2);
-		memset(raw_key+keysize/2, 0x24, keysize - (keysize/2));
-		goto got_key;
-	}
-
 	res = validate_user_key(crypt_info, &ctx, raw_key,
 			FS_KEY_DESC_PREFIX, FS_KEY_DESC_PREFIX_SIZE);
 	if (res && inode->i_sb->s_cop->key_prefix) {
@@ -270,7 +268,6 @@ retry:
 	} else if (res) {
 		goto out;
 	}
-got_key:
 	ctfm = crypto_alloc_skcipher(cipher_str, 0, 0);
 	if (!ctfm || IS_ERR(ctfm)) {
 		res = ctfm ? PTR_ERR(ctfm) : -ENOMEM;
