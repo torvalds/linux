@@ -1105,6 +1105,8 @@ static void ib_cache_update(struct ib_device *device,
 	}
 
 	device->cache.lmc_cache[port - rdma_start_port(device)] = tprops->lmc;
+	device->cache.port_state_cache[port - rdma_start_port(device)] =
+		tprops->state;
 
 	write_unlock_irq(&device->cache.lock);
 
@@ -1164,7 +1166,11 @@ int ib_cache_setup_one(struct ib_device *device)
 					  (rdma_end_port(device) -
 					   rdma_start_port(device) + 1),
 					  GFP_KERNEL);
-	if (!device->cache.pkey_cache ||
+	device->cache.port_state_cache = kmalloc(sizeof *device->cache.port_state_cache *
+					  (rdma_end_port(device) -
+					   rdma_start_port(device) + 1),
+					  GFP_KERNEL);
+	if (!device->cache.pkey_cache || !device->cache.port_state_cache ||
 	    !device->cache.lmc_cache) {
 		err = -ENOMEM;
 		goto free;
@@ -1190,6 +1196,7 @@ err:
 free:
 	kfree(device->cache.pkey_cache);
 	kfree(device->cache.lmc_cache);
+	kfree(device->cache.port_state_cache);
 	return err;
 }
 
@@ -1211,6 +1218,7 @@ void ib_cache_release_one(struct ib_device *device)
 	gid_table_release_one(device);
 	kfree(device->cache.pkey_cache);
 	kfree(device->cache.lmc_cache);
+	kfree(device->cache.port_state_cache);
 }
 
 void ib_cache_cleanup_one(struct ib_device *device)
