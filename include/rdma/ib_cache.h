@@ -165,4 +165,17 @@ int ib_get_cached_lmc(struct ib_device *device,
 		      u8                port_num,
 		      u8                *lmc);
 
+/**
+ * ib_get_cached_port_state - Returns a cached port state table entry
+ * @device: The device to query.
+ * @port_num: The port number of the device to query.
+ * @port_state: port_state for the specified port for that device.
+ *
+ * ib_get_cached_port_state() fetches the specified port_state table entry stored in
+ * the local software cache.
+ */
+int ib_get_cached_port_state(struct ib_device *device,
+			      u8                port_num,
+			      enum ib_port_state *port_active);
+
 #endif /* _IB_CACHE_H */

@@ -1021,6 +1021,24 @@ int ib_get_cached_lmc(struct ib_device *device,
 }
 EXPORT_SYMBOL(ib_get_cached_lmc);
 
+int ib_get_cached_port_state(struct ib_device   *device,
+			     u8                  port_num,
+			     enum ib_port_state *port_state)
+{
+	unsigned long flags;
+	int ret = 0;
+
+	if (port_num < rdma_start_port(device) || port_num > rdma_end_port(device))
+		return -EINVAL;
+
+	read_lock_irqsave(&device->cache.lock, flags);
+	*port_state = device->cache.port_state_cache[port_num - rdma_start_port(device)];
+	read_unlock_irqrestore(&device->cache.lock, flags);
+
+	return ret;
+}
+EXPORT_SYMBOL(ib_get_cached_port_state);
+
 static void ib_cache_update(struct ib_device *device,
 			    u8                port)
 {
