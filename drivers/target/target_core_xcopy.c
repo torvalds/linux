@@ -98,7 +98,7 @@ static int target_xcopy_locate_se_dev_e4(const unsigned char *dev_wwn,
 }
 
 static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op *xop,
-				unsigned char *p, bool src)
+				unsigned char *p, unsigned short cscd_index)
 {
 	unsigned char *desc = p;
 	unsigned short ript;
@@ -143,7 +143,13 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 		return -EINVAL;
 	}
 
-	if (src) {
+	if (cscd_index != xop->stdi && cscd_index != xop->dtdi) {
+		pr_debug("XCOPY 0xe4: ignoring CSCD entry %d - neither src nor "
+			 "dest\n", cscd_index);
+		return 0;
+	}
+
+	if (cscd_index == xop->stdi) {
 		memcpy(&xop->src_tid_wwn[0], &desc[8], XCOPY_NAA_IEEE_REGEX_LEN);
 		/*
 		 * Determine if the source designator matches the local device
@@ -155,10 +161,15 @@ static int target_xcopy_parse_tiddesc_e4(struct se_cmd *se_cmd, struct xcopy_op 
 			pr_debug("XCOPY 0xe4: Set xop->src_dev %p from source"
 					" received xop\n", xop->src_dev);
 		}
-	} else {
+	}
+
+	if (cscd_index == xop->dtdi) {
 		memcpy(&xop->dst_tid_wwn[0], &desc[8], XCOPY_NAA_IEEE_REGEX_LEN);
 		/*
-		 * Determine if the destination designator matches the local device
+		 * Determine if the destination designator matches the local
+		 * device. If @cscd_index corresponds to both source (stdi) and
+		 * destination (dtdi), or dtdi comes after stdi, then
+		 * XCOL_DEST_RECV_OP wins.
 		 */
 		if (!memcmp(&xop->local_dev_wwn[0], &xop->dst_tid_wwn[0],
 				XCOPY_NAA_IEEE_REGEX_LEN)) {
@@ -178,9 +189,9 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 {
 	struct se_device *local_dev = se_cmd->se_dev;
 	unsigned char *desc = p;
-	int offset = tdll % XCOPY_TARGET_DESC_LEN, rc, ret = 0;
+	int offset = tdll % XCOPY_TARGET_DESC_LEN, rc;
+	unsigned short cscd_index = 0;
 	unsigned short start = 0;
-	bool src = true;
 
 	*sense_ret = TCM_INVALID_PARAMETER_LIST;
 
@@ -206,25 +217,19 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 
 	while (start < tdll) {
 		/*
-		 * Check target descriptor identification with 0xE4 type with
-		 * use VPD 0x83 WWPN matching ..
+		 * Check target descriptor identification with 0xE4 type, and
+		 * compare the current index with the CSCD descriptor IDs in
+		 * the segment descriptor. Use VPD 0x83 WWPN matching ..
 		 */
 		switch (desc[0]) {
 		case 0xe4:
 			rc = target_xcopy_parse_tiddesc_e4(se_cmd, xop,
-							&desc[0], src);
+							&desc[0], cscd_index);
 			if (rc != 0)
 				goto out;
-			/*
-			 * Assume target descriptors are in source -> destination order..
-			 */
-			if (src)
-				src = false;
-			else
-				src = true;
 			start += XCOPY_TARGET_DESC_LEN;
 			desc += XCOPY_TARGET_DESC_LEN;
-			ret++;
+			cscd_index++;
 			break;
 		default:
 			pr_err("XCOPY unsupported descriptor type code:"
@@ -234,12 +239,21 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 		}
 	}
 
-	if (xop->op_origin == XCOL_SOURCE_RECV_OP)
+	switch (xop->op_origin) {
+	case XCOL_SOURCE_RECV_OP:
 		rc = target_xcopy_locate_se_dev_e4(xop->dst_tid_wwn,
 						&xop->dst_dev);
-	else
+		break;
+	case XCOL_DEST_RECV_OP:
 		rc = target_xcopy_locate_se_dev_e4(xop->src_tid_wwn,
 						&xop->src_dev);
+		break;
+	default:
+		pr_err("XCOPY CSCD descriptor IDs not found in CSCD list - "
+			"stdi: %hu dtdi: %hu\n", xop->stdi, xop->dtdi);
+		rc = -EINVAL;
+		break;
+	}
 	/*
 	 * If a matching IEEE NAA 0x83 descriptor for the requested device
 	 * is not located on this node, return COPY_ABORTED with ASQ/ASQC
@@ -256,7 +270,7 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 	pr_debug("XCOPY TGT desc: Dest dev: %p NAA IEEE WWN: 0x%16phN\n",
 		 xop->dst_dev, &xop->dst_tid_wwn[0]);
 
-	return ret;
+	return cscd_index;
 
 out:
 	return -EINVAL;
@@ -913,6 +927,20 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		" tdll: %hu sdll: %u inline_dl: %u\n", list_id, list_id_usage,
 		tdll, sdll, inline_dl);
 
+	/*
+	 * skip over the target descriptors until segment descriptors
+	 * have been passed - CSCD ids are needed to determine src and dest.
+	 */
+	seg_desc = &p[16] + tdll;
+
+	rc = target_xcopy_parse_segment_descriptors(se_cmd, xop, seg_desc,
+						    sdll, &ret);
+	if (rc <= 0)
+		goto out;
+
+	pr_debug("XCOPY: Processed %d segment descriptors, length: %u\n", rc,
+				rc * XCOPY_SEGMENT_DESC_LEN);
+
 	rc = target_xcopy_parse_target_descriptors(se_cmd, xop, &p[16], tdll, &ret);
 	if (rc <= 0)
 		goto out;
@@ -930,19 +958,8 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 
 	pr_debug("XCOPY: Processed %d target descriptors, length: %u\n", rc,
 				rc * XCOPY_TARGET_DESC_LEN);
-	seg_desc = &p[16];
-	seg_desc += (rc * XCOPY_TARGET_DESC_LEN);
-
-	rc = target_xcopy_parse_segment_descriptors(se_cmd, xop, seg_desc,
-						    sdll, &ret);
-	if (rc <= 0) {
-		xcopy_pt_undepend_remotedev(xop);
-		goto out;
-	}
 	transport_kunmap_data_sg(se_cmd);
 
-	pr_debug("XCOPY: Processed %d segment descriptors, length: %u\n", rc,
-				rc * XCOPY_SEGMENT_DESC_LEN);
 	INIT_WORK(&xop->xop_work, target_xcopy_do_work);
 	queue_work(xcopy_wq, &xop->xop_work);
 	return TCM_NO_SENSE;
