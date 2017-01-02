@@ -199,6 +199,7 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 	if (offset != 0) {
 		pr_err("XCOPY target descriptor list length is not"
 			" multiple of %d\n", XCOPY_TARGET_DESC_LEN);
+		*sense_ret = TCM_UNSUPPORTED_TARGET_DESC_TYPE_CODE;
 		return -EINVAL;
 	}
 	if (tdll > RCR_OP_MAX_TARGET_DESC_COUNT * XCOPY_TARGET_DESC_LEN) {
@@ -240,6 +241,7 @@ static int target_xcopy_parse_target_descriptors(struct se_cmd *se_cmd,
 		default:
 			pr_err("XCOPY unsupported descriptor type code:"
 					" 0x%02x\n", desc[0]);
+			*sense_ret = TCM_UNSUPPORTED_TARGET_DESC_TYPE_CODE;
 			goto out;
 		}
 	}
@@ -319,6 +321,7 @@ static int target_xcopy_parse_segment_descriptors(struct se_cmd *se_cmd,
 	if (offset != 0) {
 		pr_err("XCOPY segment descriptor list length is not"
 			" multiple of %d\n", XCOPY_SEGMENT_DESC_LEN);
+		*sense_ret = TCM_UNSUPPORTED_SEGMENT_DESC_TYPE_CODE;
 		return -EINVAL;
 	}
 	if (sdll > RCR_OP_MAX_SG_DESC_COUNT * XCOPY_SEGMENT_DESC_LEN) {
@@ -346,6 +349,7 @@ static int target_xcopy_parse_segment_descriptors(struct se_cmd *se_cmd,
 		default:
 			pr_err("XCOPY unsupported segment descriptor"
 				"type: 0x%02x\n", desc[0]);
+			*sense_ret = TCM_UNSUPPORTED_SEGMENT_DESC_TYPE_CODE;
 			goto out;
 		}
 	}
