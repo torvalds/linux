@@ -214,15 +214,19 @@ my $type_constant = '\%([-_\w]+)';
 my $type_func = '(\w+)\(\)';
 my $type_param = '\@(\w+(\.\.\.)?)';
 my $type_fp_param = '\@(\w+)\(\)';  # Special RST handling for func ptr params
-my $type_struct = '\&((struct\s*)*[_\w]+)';
-my $type_struct_xml = '\\&amp;((struct\s*)*[_\w]+)';
 my $type_env = '(\$\w+)';
-my $type_enum_full = '\&(enum)\s*([_\w]+)';
-my $type_struct_full = '\&(struct)\s*([_\w]+)';
-my $type_typedef_full = '\&(typedef)\s*([_\w]+)';
-my $type_union_full = '\&(union)\s*([_\w]+)';
+my $type_enum = '\&(enum\s*([_\w]+))';
+my $type_struct = '\&(struct\s*([_\w]+))';
+my $type_typedef = '\&(typedef\s*([_\w]+))';
+my $type_union = '\&(union\s*([_\w]+))';
 my $type_member = '\&([_\w]+)(\.|->)([_\w]+)';
+my $type_fallback = '\&([_\w]+)';
+my $type_enum_xml = '\&amp;(enum\s*([_\w]+))';
+my $type_struct_xml = '\&amp;(struct\s*([_\w]+))';
+my $type_typedef_xml = '\&amp;(typedef\s*([_\w]+))';
+my $type_union_xml = '\&amp;(union\s*([_\w]+))';
 my $type_member_xml = '\&amp;([_\w]+)(\.|-\&gt;)([_\w]+)';
+my $type_fallback_xml = '\&amp([_\w]+)';
 my $type_member_func = $type_member . '\(\)';
 
 # Output conversion substitutions.
@@ -232,10 +236,14 @@ my $type_member_func = $type_member . '\(\)';
 my @highlights_html = (
                        [$type_constant, "<i>\$1</i>"],
                        [$type_func, "<b>\$1</b>"],
+                       [$type_enum_xml, "<i>\$1</i>"],
                        [$type_struct_xml, "<i>\$1</i>"],
+                       [$type_typedef_xml, "<i>\$1</i>"],
+                       [$type_union_xml, "<i>\$1</i>"],
                        [$type_env, "<b><i>\$1</i></b>"],
                        [$type_param, "<tt><b>\$1</b></tt>"],
-                       [$type_member_xml, "<tt><i>\$1</i>\$2\$3</tt>"]
+                       [$type_member_xml, "<tt><i>\$1</i>\$2\$3</tt>"],
+                       [$type_fallback_xml, "<i>\$1</i>"]
                       );
 my $local_lt = "\\\\\\\\lt:";
 my $local_gt = "\\\\\\\\gt:";
@@ -245,10 +253,14 @@ my $blankline_html = $local_lt . "p" . $local_gt;	# was "<p>"
 my @highlights_html5 = (
                         [$type_constant, "<span class=\"const\">\$1</span>"],
                         [$type_func, "<span class=\"func\">\$1</span>"],
+                        [$type_enum_xml, "<span class=\"enum\">\$1</span>"],
                         [$type_struct_xml, "<span class=\"struct\">\$1</span>"],
+                        [$type_typedef_xml, "<span class=\"typedef\">\$1</span>"],
+                        [$type_union_xml, "<span class=\"union\">\$1</span>"],
                         [$type_env, "<span class=\"env\">\$1</span>"],
                         [$type_param, "<span class=\"param\">\$1</span>]"],
-                        [$type_member_xml, "<span class=\"literal\"><span class=\"struct\">\$1</span>\$2<span class=\"member\">\$3</span></span>"]
+                        [$type_member_xml, "<span class=\"literal\"><span class=\"struct\">\$1</span>\$2<span class=\"member\">\$3</span></span>"],
+                        [$type_fallback_xml, "<span class=\"struct\">\$1</span>"]
 		       );
 my $blankline_html5 = $local_lt . "br /" . $local_gt;
 
@@ -256,11 +268,15 @@ my $blankline_html5 = $local_lt . "br /" . $local_gt;
 my @highlights_xml = (
                       ["([^=])\\\"([^\\\"<]+)\\\"", "\$1<quote>\$2</quote>"],
                       [$type_constant, "<constant>\$1</constant>"],
+                      [$type_enum_xml, "<type>\$1</type>"],
                       [$type_struct_xml, "<structname>\$1</structname>"],
+                      [$type_typedef_xml, "<type>\$1</type>"],
+                      [$type_union_xml, "<structname>\$1</structname>"],
                       [$type_param, "<parameter>\$1</parameter>"],
                       [$type_func, "<function>\$1</function>"],
                       [$type_env, "<envar>\$1</envar>"],
-                      [$type_member_xml, "<literal><structname>\$1</structname>\$2<structfield>\$3</structfield></literal>"]
+                      [$type_member_xml, "<literal><structname>\$1</structname>\$2<structfield>\$3</structfield></literal>"],
+                      [$type_fallback_xml, "<structname>\$1</structname>"]
 		     );
 my $blankline_xml = $local_lt . "/para" . $local_gt . $local_lt . "para" . $local_gt . "\n";
 
@@ -268,10 +284,14 @@ my $blankline_xml = $local_lt . "/para" . $local_gt . $local_lt . "para" . $loca
 my @highlights_gnome = (
                         [$type_constant, "<replaceable class=\"option\">\$1</replaceable>"],
                         [$type_func, "<function>\$1</function>"],
+                        [$type_enum, "<type>\$1</type>"],
                         [$type_struct, "<structname>\$1</structname>"],
+                        [$type_typedef, "<type>\$1</type>"],
+                        [$type_union, "<structname>\$1</structname>"],
                         [$type_env, "<envar>\$1</envar>"],
                         [$type_param, "<parameter>\$1</parameter>" ],
-                        [$type_member, "<literal><structname>\$1</structname>\$2<structfield>\$3</structfield></literal>"]
+                        [$type_member, "<literal><structname>\$1</structname>\$2<structfield>\$3</structfield></literal>"],
+                        [$type_fallback, "<structname>\$1</structname>"]
 		       );
 my $blankline_gnome = "</para><para>\n";
 
@@ -279,9 +299,13 @@ my $blankline_gnome = "</para><para>\n";
 my @highlights_man = (
                       [$type_constant, "\$1"],
                       [$type_func, "\\\\fB\$1\\\\fP"],
+                      [$type_enum, "\\\\fI\$1\\\\fP"],
                       [$type_struct, "\\\\fI\$1\\\\fP"],
+                      [$type_typedef, "\\\\fI\$1\\\\fP"],
+                      [$type_union, "\\\\fI\$1\\\\fP"],
                       [$type_param, "\\\\fI\$1\\\\fP"],
-                      [$type_member, "\\\\fI\$1\$2\$3\\\\fP"]
+                      [$type_member, "\\\\fI\$1\$2\$3\\\\fP"],
+                      [$type_fallback, "\\\\fI\$1\\\\fP"]
 		     );
 my $blankline_man = "";
 
@@ -289,9 +313,13 @@ my $blankline_man = "";
 my @highlights_text = (
                        [$type_constant, "\$1"],
                        [$type_func, "\$1"],
+                       [$type_enum, "\$1"],
                        [$type_struct, "\$1"],
+                       [$type_typedef, "\$1"],
+                       [$type_union, "\$1"],
                        [$type_param, "\$1"],
-                       [$type_member, "\$1\$2\$3"]
+                       [$type_member, "\$1\$2\$3"],
+                       [$type_fallback, "\$1"]
 		      );
 my $blankline_text = "";
 
@@ -303,12 +331,12 @@ my @highlights_rst = (
                        [$type_member, "\\:c\\:type\\:`\$1\$2\$3 <\$1>`"],
 		       [$type_fp_param, "**\$1\\\\(\\\\)**"],
                        [$type_func, "\\:c\\:func\\:`\$1()`"],
-                       [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
-                       [$type_enum_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
-                       [$type_typedef_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
-                       [$type_union_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
+                       [$type_enum, "\\:c\\:type\\:`\$1 <\$2>`"],
+                       [$type_struct, "\\:c\\:type\\:`\$1 <\$2>`"],
+                       [$type_typedef, "\\:c\\:type\\:`\$1 <\$2>`"],
+                       [$type_union, "\\:c\\:type\\:`\$1 <\$2>`"],
                        # in rst this can refer to any type
-                       [$type_struct, "\\:c\\:type\\:`\$1`"],
+                       [$type_fallback, "\\:c\\:type\\:`\$1`"],
                        [$type_param, "**\$1**"]
 		      );
 my $blankline_rst = "\n";
@@ -317,9 +345,13 @@ my $blankline_rst = "\n";
 my @highlights_list = (
                        [$type_constant, "\$1"],
                        [$type_func, "\$1"],
+                       [$type_enum, "\$1"],
                        [$type_struct, "\$1"],
+                       [$type_typedef, "\$1"],
+                       [$type_union, "\$1"],
                        [$type_param, "\$1"],
-                       [$type_member, "\$1"]
+                       [$type_member, "\$1"],
+                       [$type_fallback, "\$1"]
 		      );
 my $blankline_list = "";
 
