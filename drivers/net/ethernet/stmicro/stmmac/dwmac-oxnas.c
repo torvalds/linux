@@ -60,8 +60,9 @@ struct oxnas_dwmac {
 	struct regmap	*regmap;
 };
 
-static int oxnas_dwmac_init(struct oxnas_dwmac *dwmac)
+static int oxnas_dwmac_init(struct platform_device *pdev, void *priv)
 {
+	struct oxnas_dwmac *dwmac = priv;
 	unsigned int value;
 	int ret;
 
@@ -135,6 +136,7 @@ static int oxnas_dwmac_probe(struct platform_device *pdev)
 
 	dwmac->dev = &pdev->dev;
 	plat_dat->bsp_priv = dwmac;
+	plat_dat->init = oxnas_dwmac_init;
 	plat_dat->exit = oxnas_dwmac_exit;
 
 	dwmac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
@@ -151,7 +153,7 @@ static int oxnas_dwmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
-	ret = oxnas_dwmac_init(dwmac);
+	ret = oxnas_dwmac_init(pdev, plat_dat->bsp_priv);
 	if (ret)
 		goto err_remove_config_dt;
 
@@ -170,36 +172,6 @@ err_remove_config_dt:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int oxnas_dwmac_suspend(struct device *dev)
-{
-	struct oxnas_dwmac *dwmac = get_stmmac_bsp_priv(dev);
-	int ret;
-
-	ret = stmmac_suspend(dev);
-	clk_disable_unprepare(dwmac->clk);
-
-	return ret;
-}
-
-static int oxnas_dwmac_resume(struct device *dev)
-{
-	struct oxnas_dwmac *dwmac = get_stmmac_bsp_priv(dev);
-	int ret;
-
-	ret = oxnas_dwmac_init(dwmac);
-	if (ret)
-		return ret;
-
-	ret = stmmac_resume(dev);
-
-	return ret;
-}
-#endif /* CONFIG_PM_SLEEP */
-
-static SIMPLE_DEV_PM_OPS(oxnas_dwmac_pm_ops,
-	oxnas_dwmac_suspend, oxnas_dwmac_resume);
-
 static const struct of_device_id oxnas_dwmac_match[] = {
 	{ .compatible = "oxsemi,ox820-dwmac" },
 	{ }
@@ -211,7 +183,7 @@ static struct platform_driver oxnas_dwmac_driver = {
 	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "oxnas-dwmac",
-		.pm		= &oxnas_dwmac_pm_ops,
+		.pm		= &stmmac_pltfr_pm_ops,
 		.of_match_table = oxnas_dwmac_match,
 	},
 };
