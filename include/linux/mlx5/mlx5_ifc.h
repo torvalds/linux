@@ -4775,12 +4775,11 @@ struct mlx5_ifc_page_fault_resume_in_bits {
 
 	u8         error[0x1];
 	u8         reserved_at_41[0x4];
-	u8         rdma[0x1];
-	u8         read_write[0x1];
-	u8         req_res[0x1];
-	u8         qpn[0x18];
+	u8         page_fault_type[0x3];
+	u8         wq_number[0x18];
 
-	u8         reserved_at_60[0x20];
+	u8         reserved_at_60[0x8];
+	u8         token[0x18];
 };
 
 struct mlx5_ifc_nop_out_bits {

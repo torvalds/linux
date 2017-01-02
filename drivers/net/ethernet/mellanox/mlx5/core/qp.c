@@ -515,14 +515,8 @@ int mlx5_core_page_fault_resume(struct mlx5_core_dev *dev, u32 qpn,
 
 	MLX5_SET(page_fault_resume_in, in, opcode,
 		 MLX5_CMD_OP_PAGE_FAULT_RESUME);
-	MLX5_SET(page_fault_resume_in, in, qpn, qpn);
-
-	if (flags & MLX5_PAGE_FAULT_RESUME_REQUESTOR)
-		MLX5_SET(page_fault_resume_in, in, req_res, 1);
-	if (flags & MLX5_PAGE_FAULT_RESUME_WRITE)
-		MLX5_SET(page_fault_resume_in, in, read_write, 1);
-	if (flags & MLX5_PAGE_FAULT_RESUME_RDMA)
-		MLX5_SET(page_fault_resume_in, in, rdma, 1);
+	MLX5_SET(page_fault_resume_in, in, wq_number, qpn);
+	MLX5_SET(page_fault_resume_in, in, page_fault_type, flags);
 	if (error)
 		MLX5_SET(page_fault_resume_in, in, error, 1);
 
