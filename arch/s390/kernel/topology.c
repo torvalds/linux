@@ -461,7 +461,6 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
 void __init topology_init_early(void)
 {
 	struct sysinfo_15_1_x *info;
-	int i;
 
 	set_sched_topology(s390_topology);
 	if (!MACHINE_HAS_TOPOLOGY)
@@ -469,10 +468,9 @@ void __init topology_init_early(void)
 	tl_info = memblock_virt_alloc(sizeof(*tl_info), PAGE_SIZE);
 	info = tl_info;
 	store_topology(info);
-	pr_info("The CPU configuration topology of the machine is:");
-	for (i = 0; i < TOPOLOGY_NR_MAG; i++)
-		printk(KERN_CONT " %d", info->mag[i]);
-	printk(KERN_CONT " / %d\n", info->mnest);
+	pr_info("The CPU configuration topology of the machine is: %d %d %d %d %d %d / %d\n",
+		info->mag[0], info->mag[1], info->mag[2], info->mag[3],
+		info->mag[4], info->mag[5], info->mnest);
 	alloc_masks(info, &socket_info, 1);
 	alloc_masks(info, &book_info, 2);
 	alloc_masks(info, &drawer_info, 3);
