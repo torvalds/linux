@@ -59,6 +59,7 @@
 #include "amd_powerplay.h"
 #include "amdgpu_dpm.h"
 #include "amdgpu_acp.h"
+#include "amdgpu_uvd.h"
 
 #include "gpu_scheduler.h"
 #include "amdgpu_virt.h"
@@ -1032,35 +1033,6 @@ int amdgpu_wb_get_64bit(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_wb_free_64bit(struct amdgpu_device *adev, u32 wb);
 
 void amdgpu_get_pcie_info(struct amdgpu_device *adev);
-
-/*
- * UVD
- */
-#define AMDGPU_DEFAULT_UVD_HANDLES	10
-#define AMDGPU_MAX_UVD_HANDLES		40
-#define AMDGPU_UVD_STACK_SIZE		(200*1024)
-#define AMDGPU_UVD_HEAP_SIZE		(256*1024)
-#define AMDGPU_UVD_SESSION_SIZE		(50*1024)
-#define AMDGPU_UVD_FIRMWARE_OFFSET	256
-
-struct amdgpu_uvd {
-	struct amdgpu_bo	*vcpu_bo;
-	void			*cpu_addr;
-	uint64_t		gpu_addr;
-	unsigned		fw_version;
-	void			*saved_bo;
-	unsigned		max_handles;
-	atomic_t		handles[AMDGPU_MAX_UVD_HANDLES];
-	struct drm_file		*filp[AMDGPU_MAX_UVD_HANDLES];
-	struct delayed_work	idle_work;
-	const struct firmware	*fw;	/* UVD firmware */
-	struct amdgpu_ring	ring;
-	struct amdgpu_irq_src	irq;
-	bool			address_64_bit;
-	bool			use_ctx_buf;
-	struct amd_sched_entity entity;
-	uint32_t                srbm_soft_reset;
-};
 
 /*
  * VCE
