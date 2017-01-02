@@ -1888,10 +1888,28 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
  * Free OPPs either created using static entries present in DT or even the
  * dynamically added entries based on remove_all param.
  */
-void _dev_pm_opp_remove_table(struct device *dev, bool remove_all)
+static void _dev_pm_opp_remove_table(struct opp_table *opp_table,
+				     struct device *dev, bool remove_all)
+{
+	struct dev_pm_opp *opp, *tmp;
+
+	opp_rcu_lockdep_assert();
+
+	/* Find if opp_table manages a single device */
+	if (list_is_singular(&opp_table->dev_list)) {
+		/* Free static OPPs */
+		list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
+			if (remove_all || !opp->dynamic)
+				_opp_remove(opp_table, opp);
+		}
+	} else {
+		_remove_opp_dev(_find_opp_dev(dev, opp_table), opp_table);
+	}
+}
+
+void _dev_pm_opp_find_and_remove_table(struct device *dev, bool remove_all)
 {
 	struct opp_table *opp_table;
-	struct dev_pm_opp *opp, *tmp;
 
 	/* Hold our table modification lock here */
 	mutex_lock(&opp_table_lock);
@@ -1909,16 +1927,7 @@ void _dev_pm_opp_remove_table(struct device *dev, bool remove_all)
 		goto unlock;
 	}
 
-	/* Find if opp_table manages a single device */
-	if (list_is_singular(&opp_table->dev_list)) {
-		/* Free static OPPs */
-		list_for_each_entry_safe(opp, tmp, &opp_table->opp_list, node) {
-			if (remove_all || !opp->dynamic)
-				_opp_remove(opp_table, opp);
-		}
-	} else {
-		_remove_opp_dev(_find_opp_dev(dev, opp_table), opp_table);
-	}
+	_dev_pm_opp_remove_table(opp_table, dev, remove_all);
 
 unlock:
 	mutex_unlock(&opp_table_lock);
@@ -1939,6 +1948,6 @@ unlock:
  */
 void dev_pm_opp_remove_table(struct device *dev)
 {
-	_dev_pm_opp_remove_table(dev, true);
+	_dev_pm_opp_find_and_remove_table(dev, true);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove_table);
