@@ -125,8 +125,6 @@
 #include <asm/hwtest.h>
 #include <asm/irq_regs.h>
 
-#define SHUTUP_SONIC
-
 extern void show_registers(struct pt_regs *);
 
 irqreturn_t mac_nmi_handler(int, void *);
@@ -151,16 +149,6 @@ void __init mac_init_IRQ(void)
 #endif
 	m68k_setup_irq_controller(&mac_irq_chip, handle_simple_irq, IRQ_USER,
 				  NUM_MAC_SOURCES - IRQ_USER);
-	/* Make sure the SONIC interrupt is cleared or things get ugly */
-#ifdef SHUTUP_SONIC
-	printk("Killing onboard sonic... ");
-	/* This address should hopefully be mapped already */
-	if (hwreg_present((void*)(0x50f0a000))) {
-		*(long *)(0x50f0a014) = 0x7fffL;
-		*(long *)(0x50f0a010) = 0L;
-	}
-	printk("Done.\n");
-#endif /* SHUTUP_SONIC */
 
 	/*
 	 * Now register the handlers for the master IRQ handlers
