@@ -126,3 +126,17 @@
 
 	};
 };
+
+&spi1 {
+	/* The microsom has an optional W25Q32 on board, connected to CS0 */
+	pinctrl-0 = <&spi1_pins>;
+
+	w25q32: spi-flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "w25q32", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <3000000>;
+		status = "disabled";
+	};
+};
