@@ -888,6 +888,10 @@ sense_reason_t target_do_xcopy(struct se_cmd *se_cmd)
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
+	if (se_cmd->data_length == 0) {
+		target_complete_cmd(se_cmd, SAM_STAT_GOOD);
+		return TCM_NO_SENSE;
+	}
 	if (se_cmd->data_length < XCOPY_HDR_LEN) {
 		pr_err("XCOPY parameter truncation: length %u < hdr_len %u\n",
 				se_cmd->data_length, XCOPY_HDR_LEN);
