@@ -35,18 +35,6 @@ struct imx_pin {
 };
 
 /**
- * struct imx_pmx_func - describes IMX pinmux functions
- * @name: the name of this specific function
- * @groups: corresponding pin groups
- * @num_groups: the number of groups
- */
-struct imx_pmx_func {
-	const char *name;
-	const char **groups;
-	unsigned num_groups;
-};
-
-/**
  * struct imx_pin_reg - describe a pin reg map
  * @mux_reg: mux register offset
  * @conf_reg: config register offset
@@ -62,10 +50,8 @@ struct imx_pinctrl_soc_info {
 	unsigned int npins;
 	struct imx_pin_reg *pin_regs;
 	unsigned int group_index;
-	unsigned int nfunctions;
 	unsigned int flags;
 	const char *gpr_compatible;
-	struct radix_tree_root ftree;
 	struct mutex mutex;
 };
 
