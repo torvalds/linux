@@ -99,6 +99,11 @@ struct __extcon_info {
 		.id = EXTCON_CHG_WPT,
 		.name = "WPT",
 	},
+	[EXTCON_CHG_USB_PD] = {
+		.type = EXTCON_TYPE_CHG | EXTCON_TYPE_USB,
+		.id = EXTCON_CHG_USB_PD,
+		.name = "PD",
+	},
 
 	/* Jack external connector */
 	[EXTCON_JACK_MICROPHONE] = {

@@ -65,6 +65,7 @@
 #define EXTCON_CHG_USB_FAST	9
 #define EXTCON_CHG_USB_SLOW	10
 #define EXTCON_CHG_WPT		11	/* Wireless Power Transfer */
+#define EXTCON_CHG_USB_PD	12	/* USB Power Delivery */
 
 /* Jack external connector */
 #define EXTCON_JACK_MICROPHONE	20
