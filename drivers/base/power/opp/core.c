@@ -1014,7 +1014,7 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 
-struct dev_pm_opp *_allocate_opp(struct device *dev,
+struct dev_pm_opp *_opp_allocate(struct device *dev,
 				 struct opp_table **opp_table)
 {
 	struct dev_pm_opp *opp;
@@ -1167,7 +1167,7 @@ int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
 	/* Hold our table modification lock here */
 	mutex_lock(&opp_table_lock);
 
-	new_opp = _allocate_opp(dev, &opp_table);
+	new_opp = _opp_allocate(dev, &opp_table);
 	if (!new_opp) {
 		ret = -ENOMEM;
 		goto unlock;

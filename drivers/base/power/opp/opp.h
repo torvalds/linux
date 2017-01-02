@@ -193,7 +193,7 @@ struct opp_table {
 struct opp_table *_find_opp_table(struct device *dev);
 struct opp_device *_add_opp_dev(const struct device *dev, struct opp_table *opp_table);
 void _dev_pm_opp_remove_table(struct device *dev, bool remove_all);
-struct dev_pm_opp *_allocate_opp(struct device *dev, struct opp_table **opp_table);
+struct dev_pm_opp *_opp_allocate(struct device *dev, struct opp_table **opp_table);
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table);
 void _opp_remove(struct opp_table *opp_table, struct dev_pm_opp *opp, bool notify);
 int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt, bool dynamic);

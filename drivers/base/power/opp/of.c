@@ -287,7 +287,7 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	/* Hold our table modification lock here */
 	mutex_lock(&opp_table_lock);
 
-	new_opp = _allocate_opp(dev, &opp_table);
+	new_opp = _opp_allocate(dev, &opp_table);
 	if (!new_opp) {
 		ret = -ENOMEM;
 		goto unlock;
