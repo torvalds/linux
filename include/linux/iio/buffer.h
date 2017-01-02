@@ -163,7 +163,7 @@ void iio_buffer_init(struct iio_buffer *buffer);
 
 int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data);
 
-/*
+/**
  * iio_push_to_buffers_with_timestamp() - push data and timestamp to buffers
  * @indio_dev:		iio_dev structure for device.
  * @data:		sample data
