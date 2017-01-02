@@ -95,9 +95,8 @@ static const struct dev_pm_ops dw_pci_dev_pm_ops = {
 };
 
 static const struct pci_device_id dw_pci_id_table[] = {
-	/* Medfield */
+	/* Medfield (GPDMA) */
 	{ PCI_VDEVICE(INTEL, 0x0827) },
-	{ PCI_VDEVICE(INTEL, 0x0830) },
 
 	/* BayTrail */
 	{ PCI_VDEVICE(INTEL, 0x0f06) },
