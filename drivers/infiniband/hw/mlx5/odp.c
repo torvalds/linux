@@ -121,6 +121,11 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 
 	caps->general_caps = IB_ODP_SUPPORT;
 
+	if (MLX5_CAP_GEN(dev->mdev, umr_extended_translation_offset))
+		dev->odp_max_size = U64_MAX;
+	else
+		dev->odp_max_size = BIT_ULL(MLX5_MAX_UMR_SHIFT + PAGE_SHIFT);
+
 	if (MLX5_CAP_ODP(dev->mdev, ud_odp_caps.send))
 		caps->per_transport_caps.ud_odp_caps |= IB_ODP_SUPPORT_SEND;
 
