@@ -5,6 +5,12 @@
 #define XCOPY_NAA_IEEE_REGEX_LEN	16
 #define XCOPY_MAX_SECTORS		1024
 
+/*
+ * SPC4r37 6.4.6.1
+ * Table 150 — CSCD descriptor ID values
+ */
+#define XCOPY_CSCD_DESC_ID_LIST_OFF_MAX	0x07FF
+
 enum xcopy_origin_list {
 	XCOL_SOURCE_RECV_OP = 0x01,
 	XCOL_DEST_RECV_OP = 0x02,
