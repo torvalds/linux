@@ -77,11 +77,6 @@
 				bm,pool-long = <2>;
 				bm,pool-short = <1>;
 				status = "okay";
-
-				fixed-link {
-					speed = <1000>;
-					full-duplex;
-				};
 			};
 
 			ethernet@34000 {
@@ -235,14 +230,6 @@
 			};
 
 			pinctrl@18000 {
-				clearfog_dsa0_clk_pins: clearfog-dsa0-clk-pins {
-					marvell,pins = "mpp46";
-					marvell,function = "ref";
-				};
-				clearfog_dsa0_pins: clearfog-dsa0-pins {
-					marvell,pins = "mpp23", "mpp41";
-					marvell,function = "gpio";
-				};
 				clearfog_i2c1_pins: i2c1-pins {
 					/* SFP, PCIe, mSATA, mikrobus */
 					marvell,pins = "mpp26", "mpp27";
@@ -335,62 +322,6 @@
 				/* Port 2, Lane 0. CON2, nearest CPU. */
 				reset-gpios = <&expander0 2 GPIO_ACTIVE_LOW>;
 				status = "okay";
-			};
-		};
-	};
-
-	dsa@0 {
-		compatible = "marvell,dsa";
-		dsa,ethernet = <&eth1>;
-		dsa,mii-bus = <&mdio>;
-		pinctrl-0 = <&clearfog_dsa0_clk_pins &clearfog_dsa0_pins>;
-		pinctrl-names = "default";
-		#address-cells = <2>;
-		#size-cells = <0>;
-
-		switch@0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <4 0>;
-
-			port@0 {
-				reg = <0>;
-				label = "lan5";
-			};
-
-			port@1 {
-				reg = <1>;
-				label = "lan4";
-			};
-
-			port@2 {
-				reg = <2>;
-				label = "lan3";
-			};
-
-			port@3 {
-				reg = <3>;
-				label = "lan2";
-			};
-
-			port@4 {
-				reg = <4>;
-				label = "lan1";
-			};
-
-			port@5 {
-				reg = <5>;
-				label = "cpu";
-			};
-
-			port@6 {
-				/* 88E1512 external phy */
-				reg = <6>;
-				label = "lan6";
-				fixed-link {
-					speed = <1000>;
-					full-duplex;
-				};
 			};
 		};
 	};
