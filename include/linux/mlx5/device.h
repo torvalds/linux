@@ -534,7 +534,9 @@ struct mlx5_eqe_page_fault {
 			__be16  wqe_index;
 			u16	reserved2;
 			__be16  packet_length;
-			u8	reserved3[12];
+			__be32  token;
+			u8	reserved4[8];
+			__be32  pftype_wq;
 		} __packed wqe;
 		struct {
 			__be32  r_key;
@@ -542,9 +544,9 @@ struct mlx5_eqe_page_fault {
 			__be16  packet_length;
 			__be32  rdma_op_len;
 			__be64  rdma_va;
+			__be32  pftype_token;
 		} __packed rdma;
 	} __packed;
-	__be32 flags_qpn;
 } __packed;
 
 struct mlx5_eqe_vport_change {
