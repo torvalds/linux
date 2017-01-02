@@ -45,7 +45,7 @@
 #include "imx6qdl-icore-rqs.dtsi"
 
 / {
-	model = "Engicam i.CoreM6 Quad SOM";
+	model = "Engicam i.CoreM6 Quad/Dual RQS Starter Kit";
 	compatible = "engicam,imx6-icore-rqs", "fsl,imx6q";
 
 	sound {
