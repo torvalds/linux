@@ -310,6 +310,12 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
 	enum pipe pipe;
 
+	if (INTEL_GEN(dev_priv) >= 9) {
+		info->num_scalers[PIPE_A] = 2;
+		info->num_scalers[PIPE_B] = 2;
+		info->num_scalers[PIPE_C] = 1;
+	}
+
 	/*
 	 * Skylake and Broxton currently don't expose the topmost plane as its
 	 * use is exclusive with the legacy cursor and we only want to expose
@@ -325,9 +331,6 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;
-		info->num_scalers[PIPE_A] = 2;
-		info->num_scalers[PIPE_B] = 2;
-		info->num_scalers[PIPE_C] = 1;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
