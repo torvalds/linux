@@ -334,6 +334,19 @@ struct skl_pipeline {
 	struct list_head node;
 };
 
+#define SKL_LIB_NAME_LENGTH 128
+#define SKL_MAX_LIB 16
+
+struct skl_lib_info {
+	char name[SKL_LIB_NAME_LENGTH];
+	const struct firmware *fw;
+};
+
+struct skl_manifest {
+	u32 lib_count;
+	struct skl_lib_info lib[SKL_MAX_LIB];
+};
+
 static inline struct skl *get_skl_ctx(struct device *dev)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);

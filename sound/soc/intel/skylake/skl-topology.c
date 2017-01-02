@@ -2300,20 +2300,21 @@ static int skl_tplg_control_load(struct snd_soc_component *cmpnt,
 
 static int skl_tplg_fill_str_mfest_tkn(struct device *dev,
 		struct snd_soc_tplg_vendor_string_elem *str_elem,
-		struct skl_dfw_manifest *minfo)
+		struct skl *skl)
 {
 	int tkn_count = 0;
 	static int ref_count;
 
 	switch (str_elem->token) {
 	case SKL_TKN_STR_LIB_NAME:
-		if (ref_count > minfo->lib_count - 1) {
+		if (ref_count > skl->skl_sst->lib_count - 1) {
 			ref_count = 0;
 			return -EINVAL;
 		}
 
-		strncpy(minfo->lib[ref_count].name, str_elem->string,
-				ARRAY_SIZE(minfo->lib[ref_count].name));
+		strncpy(skl->skl_sst->lib_info[ref_count].name,
+			str_elem->string,
+			ARRAY_SIZE(skl->skl_sst->lib_info[ref_count].name));
 		ref_count++;
 		tkn_count++;
 		break;
@@ -2328,14 +2329,14 @@ static int skl_tplg_fill_str_mfest_tkn(struct device *dev,
 
 static int skl_tplg_get_str_tkn(struct device *dev,
 		struct snd_soc_tplg_vendor_array *array,
-		struct skl_dfw_manifest *minfo)
+		struct skl *skl)
 {
 	int tkn_count = 0, ret;
 	struct snd_soc_tplg_vendor_string_elem *str_elem;
 
 	str_elem = (struct snd_soc_tplg_vendor_string_elem *)array->value;
 	while (tkn_count < array->num_elems) {
-		ret = skl_tplg_fill_str_mfest_tkn(dev, str_elem, minfo);
+		ret = skl_tplg_fill_str_mfest_tkn(dev, str_elem, skl);
 		str_elem++;
 
 		if (ret < 0)
@@ -2349,13 +2350,13 @@ static int skl_tplg_get_str_tkn(struct device *dev,
 
 static int skl_tplg_get_int_tkn(struct device *dev,
 		struct snd_soc_tplg_vendor_value_elem *tkn_elem,
-		struct skl_dfw_manifest *minfo)
+		struct skl *skl)
 {
 	int tkn_count = 0;
 
 	switch (tkn_elem->token) {
 	case SKL_TKN_U32_LIB_COUNT:
-		minfo->lib_count = tkn_elem->value;
+		skl->skl_sst->lib_count = tkn_elem->value;
 		tkn_count++;
 		break;
 
@@ -2372,7 +2373,7 @@ static int skl_tplg_get_int_tkn(struct device *dev,
  * type.
  */
 static int skl_tplg_get_manifest_tkn(struct device *dev,
-		char *pvt_data, struct skl_dfw_manifest *minfo,
+		char *pvt_data, struct skl *skl,
 		int block_size)
 {
 	int tkn_count = 0, ret;
@@ -2388,7 +2389,7 @@ static int skl_tplg_get_manifest_tkn(struct device *dev,
 		off += array->size;
 		switch (array->type) {
 		case SND_SOC_TPLG_TUPLE_TYPE_STRING:
-			ret = skl_tplg_get_str_tkn(dev, array, minfo);
+			ret = skl_tplg_get_str_tkn(dev, array, skl);
 
 			if (ret < 0)
 				return ret;
@@ -2410,7 +2411,7 @@ static int skl_tplg_get_manifest_tkn(struct device *dev,
 
 		while (tkn_count <= array->num_elems - 1) {
 			ret = skl_tplg_get_int_tkn(dev,
-					tkn_elem, minfo);
+					tkn_elem, skl);
 			if (ret < 0)
 				return ret;
 
@@ -2431,7 +2432,7 @@ static int skl_tplg_get_manifest_tkn(struct device *dev,
  * preceded by descriptors for type and size of data block.
  */
 static int skl_tplg_get_manifest_data(struct snd_soc_tplg_manifest *manifest,
-			struct device *dev, struct skl_dfw_manifest *minfo)
+			struct device *dev, struct skl *skl)
 {
 	struct snd_soc_tplg_vendor_array *array;
 	int num_blocks, block_size = 0, block_type, off = 0;
@@ -2474,7 +2475,7 @@ static int skl_tplg_get_manifest_data(struct snd_soc_tplg_manifest *manifest,
 		data = (manifest->priv.data + off);
 
 		if (block_type == SKL_TYPE_TUPLE) {
-			ret = skl_tplg_get_manifest_tkn(dev, data, minfo,
+			ret = skl_tplg_get_manifest_tkn(dev, data, skl,
 					block_size);
 
 			if (ret < 0)
@@ -2492,27 +2493,23 @@ static int skl_tplg_get_manifest_data(struct snd_soc_tplg_manifest *manifest,
 static int skl_manifest_load(struct snd_soc_component *cmpnt,
 				struct snd_soc_tplg_manifest *manifest)
 {
-	struct skl_dfw_manifest *minfo;
 	struct hdac_ext_bus *ebus = snd_soc_component_get_drvdata(cmpnt);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl *skl = ebus_to_skl(ebus);
-	int ret = 0;
 
 	/* proceed only if we have private data defined */
 	if (manifest->priv.size == 0)
 		return 0;
 
-	minfo = &skl->skl_sst->manifest;
+	skl_tplg_get_manifest_data(manifest, bus->dev, skl);
 
-	skl_tplg_get_manifest_data(manifest, bus->dev, minfo);
-
-	if (minfo->lib_count > HDA_MAX_LIB) {
+	if (skl->skl_sst->lib_count > SKL_MAX_LIB) {
 		dev_err(bus->dev, "Exceeding max Library count. Got:%d\n",
-					minfo->lib_count);
-		ret = -EINVAL;
+					skl->skl_sst->lib_count);
+		return  -EINVAL;
 	}
 
-	return ret;
+	return 0;
 }
 
 static struct snd_soc_tplg_ops skl_tplg_ops  = {
