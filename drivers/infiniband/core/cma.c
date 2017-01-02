@@ -2656,8 +2656,8 @@ static void cma_set_loopback(struct sockaddr *addr)
 static int cma_bind_loopback(struct rdma_id_private *id_priv)
 {
 	struct cma_device *cma_dev, *cur_dev;
-	struct ib_port_attr port_attr;
 	union ib_gid gid;
+	enum ib_port_state port_state;
 	u16 pkey;
 	int ret;
 	u8 p;
@@ -2673,8 +2673,8 @@ static int cma_bind_loopback(struct rdma_id_private *id_priv)
 			cma_dev = cur_dev;
 
 		for (p = 1; p <= cur_dev->device->phys_port_cnt; ++p) {
-			if (!ib_query_port(cur_dev->device, p, &port_attr) &&
-			    port_attr.state == IB_PORT_ACTIVE) {
+			if (!ib_get_cached_port_state(cur_dev->device, p, &port_state) &&
+			    port_state == IB_PORT_ACTIVE) {
 				cma_dev = cur_dev;
 				goto port_found;
 			}
