@@ -167,6 +167,7 @@ struct xt_match {
 
 	const char *table;
 	unsigned int matchsize;
+	unsigned int usersize;
 #ifdef CONFIG_COMPAT
 	unsigned int compatsize;
 #endif
@@ -207,6 +208,7 @@ struct xt_target {
 
 	const char *table;
 	unsigned int targetsize;
+	unsigned int usersize;
 #ifdef CONFIG_COMPAT
 	unsigned int compatsize;
 #endif
@@ -286,6 +288,13 @@ int xt_check_match(struct xt_mtchk_param *, unsigned int size, u_int8_t proto,
 		   bool inv_proto);
 int xt_check_target(struct xt_tgchk_param *, unsigned int size, u_int8_t proto,
 		    bool inv_proto);
+
+int xt_match_to_user(const struct xt_entry_match *m,
+		     struct xt_entry_match __user *u);
+int xt_target_to_user(const struct xt_entry_target *t,
+		      struct xt_entry_target __user *u);
+int xt_data_to_user(void __user *dst, const void *src,
+		    int usersize, int size);
 
 void *xt_copy_counters_from_user(const void __user *user, unsigned int len,
 				 struct xt_counters_info *info, bool compat);
