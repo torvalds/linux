@@ -199,11 +199,11 @@ EOF
 # 'funcname()' - function
 # '$ENVVAR' - environmental variable
 # '&struct_name' - name of a structure (up to two words including 'struct')
+# '&struct_name.member' - name of a structure member
 # '@parameter' - name of a parameter
 # '%CONST' - name of a constant.
 
 ## init lots of data
-
 
 my $errors = 0;
 my $warnings = 0;
@@ -221,7 +221,8 @@ my $type_enum_full = '\&(enum)\s*([_\w]+)';
 my $type_struct_full = '\&(struct)\s*([_\w]+)';
 my $type_typedef_full = '\&(typedef)\s*([_\w]+)';
 my $type_union_full = '\&(union)\s*([_\w]+)';
-my $type_member = '\&([_\w]+)((\.|->)[_\w]+)';
+my $type_member = '\&([_\w]+)(\.|->)([_\w]+)';
+my $type_member_xml = '\&amp;([_\w]+)(\.|-\&gt;)([_\w]+)';
 my $type_member_func = $type_member . '\(\)';
 
 # Output conversion substitutions.
@@ -233,7 +234,8 @@ my @highlights_html = (
                        [$type_func, "<b>\$1</b>"],
                        [$type_struct_xml, "<i>\$1</i>"],
                        [$type_env, "<b><i>\$1</i></b>"],
-                       [$type_param, "<tt><b>\$1</b></tt>"]
+                       [$type_param, "<tt><b>\$1</b></tt>"],
+                       [$type_member_xml, "<tt><i>\$1</i>\$2\$3</tt>"]
                       );
 my $local_lt = "\\\\\\\\lt:";
 my $local_gt = "\\\\\\\\gt:";
@@ -245,7 +247,8 @@ my @highlights_html5 = (
                         [$type_func, "<span class=\"func\">\$1</span>"],
                         [$type_struct_xml, "<span class=\"struct\">\$1</span>"],
                         [$type_env, "<span class=\"env\">\$1</span>"],
-                        [$type_param, "<span class=\"param\">\$1</span>]"]
+                        [$type_param, "<span class=\"param\">\$1</span>]"],
+                        [$type_member_xml, "<span class=\"literal\"><span class=\"struct\">\$1</span>\$2<span class=\"member\">\$3</span></span>"]
 		       );
 my $blankline_html5 = $local_lt . "br /" . $local_gt;
 
@@ -256,7 +259,8 @@ my @highlights_xml = (
                       [$type_struct_xml, "<structname>\$1</structname>"],
                       [$type_param, "<parameter>\$1</parameter>"],
                       [$type_func, "<function>\$1</function>"],
-                      [$type_env, "<envar>\$1</envar>"]
+                      [$type_env, "<envar>\$1</envar>"],
+                      [$type_member_xml, "<literal><structname>\$1</structname>\$2<structfield>\$3</structfield></literal>"]
 		     );
 my $blankline_xml = $local_lt . "/para" . $local_gt . $local_lt . "para" . $local_gt . "\n";
 
@@ -266,7 +270,8 @@ my @highlights_gnome = (
                         [$type_func, "<function>\$1</function>"],
                         [$type_struct, "<structname>\$1</structname>"],
                         [$type_env, "<envar>\$1</envar>"],
-                        [$type_param, "<parameter>\$1</parameter>" ]
+                        [$type_param, "<parameter>\$1</parameter>" ],
+                        [$type_member, "<literal><structname>\$1</structname>\$2<structfield>\$3</structfield></literal>"]
 		       );
 my $blankline_gnome = "</para><para>\n";
 
@@ -275,7 +280,8 @@ my @highlights_man = (
                       [$type_constant, "\$1"],
                       [$type_func, "\\\\fB\$1\\\\fP"],
                       [$type_struct, "\\\\fI\$1\\\\fP"],
-                      [$type_param, "\\\\fI\$1\\\\fP"]
+                      [$type_param, "\\\\fI\$1\\\\fP"],
+                      [$type_member, "\\\\fI\$1\$2\$3\\\\fP"]
 		     );
 my $blankline_man = "";
 
@@ -284,7 +290,8 @@ my @highlights_text = (
                        [$type_constant, "\$1"],
                        [$type_func, "\$1"],
                        [$type_struct, "\$1"],
-                       [$type_param, "\$1"]
+                       [$type_param, "\$1"],
+                       [$type_member, "\$1\$2\$3"]
 		      );
 my $blankline_text = "";
 
@@ -292,8 +299,8 @@ my $blankline_text = "";
 my @highlights_rst = (
                        [$type_constant, "``\$1``"],
                        # Note: need to escape () to avoid func matching later
-                       [$type_member_func, "\\:c\\:type\\:`\$1\$2\\\\(\\\\) <\$1>`"],
-                       [$type_member, "\\:c\\:type\\:`\$1\$2 <\$1>`"],
+                       [$type_member_func, "\\:c\\:type\\:`\$1\$2\$3\\\\(\\\\) <\$1>`"],
+                       [$type_member, "\\:c\\:type\\:`\$1\$2\$3 <\$1>`"],
 		       [$type_fp_param, "**\$1\\\\(\\\\)**"],
                        [$type_func, "\\:c\\:func\\:`\$1()`"],
                        [$type_struct_full, "\\:c\\:type\\:`\$1 \$2 <\$2>`"],
@@ -311,7 +318,8 @@ my @highlights_list = (
                        [$type_constant, "\$1"],
                        [$type_func, "\$1"],
                        [$type_struct, "\$1"],
-                       [$type_param, "\$1"]
+                       [$type_param, "\$1"],
+                       [$type_member, "\$1"]
 		      );
 my $blankline_list = "";
 
