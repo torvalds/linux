@@ -1339,6 +1339,7 @@ static int omap_dma_probe(struct platform_device *pdev)
 	struct omap_dmadev *od;
 	struct resource *res;
 	int rc, i, irq;
+	u32 lch_count;
 
 	od = devm_kzalloc(&pdev->dev, sizeof(*od), GFP_KERNEL);
 	if (!od)
@@ -1381,20 +1382,31 @@ static int omap_dma_probe(struct platform_device *pdev)
 	spin_lock_init(&od->lock);
 	spin_lock_init(&od->irq_lock);
 
-	if (!pdev->dev.of_node) {
-		od->dma_requests = od->plat->dma_attr->lch_count;
-		if (unlikely(!od->dma_requests))
-			od->dma_requests = OMAP_SDMA_REQUESTS;
-	} else if (of_property_read_u32(pdev->dev.of_node, "dma-requests",
-					&od->dma_requests)) {
+	/* Number of DMA requests */
+	od->dma_requests = OMAP_SDMA_REQUESTS;
+	if (pdev->dev.of_node && of_property_read_u32(pdev->dev.of_node,
+						      "dma-requests",
+						      &od->dma_requests)) {
 		dev_info(&pdev->dev,
 			 "Missing dma-requests property, using %u.\n",
 			 OMAP_SDMA_REQUESTS);
-		od->dma_requests = OMAP_SDMA_REQUESTS;
 	}
 
-	od->lch_map = devm_kcalloc(&pdev->dev, od->dma_requests,
-				   sizeof(*od->lch_map), GFP_KERNEL);
+	/* Number of available logical channels */
+	if (!pdev->dev.of_node) {
+		lch_count = od->plat->dma_attr->lch_count;
+		if (unlikely(!lch_count))
+			lch_count = OMAP_SDMA_CHANNELS;
+	} else if (of_property_read_u32(pdev->dev.of_node, "dma-channels",
+					&lch_count)) {
+		dev_info(&pdev->dev,
+			 "Missing dma-channels property, using %u.\n",
+			 OMAP_SDMA_CHANNELS);
+		lch_count = OMAP_SDMA_CHANNELS;
+	}
+
+	od->lch_map = devm_kcalloc(&pdev->dev, lch_count, sizeof(*od->lch_map),
+				   GFP_KERNEL);
 	if (!od->lch_map)
 		return -ENOMEM;
 
