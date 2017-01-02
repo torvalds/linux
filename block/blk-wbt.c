@@ -595,7 +595,7 @@ static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
  * in an irq held spinlock, if it holds one when calling this function.
  * If we do sleep, we'll release and re-grab it.
  */
-unsigned int wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
+enum wbt_flags wbt_wait(struct rq_wb *rwb, struct bio *bio, spinlock_t *lock)
 {
 	unsigned int ret = 0;
 
