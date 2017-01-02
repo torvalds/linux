@@ -161,11 +161,6 @@ int iio_update_buffers(struct iio_dev *indio_dev,
  **/
 void iio_buffer_init(struct iio_buffer *buffer);
 
-/**
- * iio_push_to_buffers() - push to a registered buffer.
- * @indio_dev:		iio_dev structure for device.
- * @data:		Full scan.
- */
 int iio_push_to_buffers(struct iio_dev *indio_dev, const void *data);
 
 /*
