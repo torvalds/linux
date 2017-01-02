@@ -234,7 +234,7 @@ show_signal_msg(struct pt_regs *regs, unsigned long code,
 	    tsk->comm, code, address);
 	print_vma_addr(KERN_CONT " in ", regs->iaoq[0]);
 
-	pr_cont(" trap #%lu: %s%c", code, trap_name(code),
+	pr_cont("\ntrap #%lu: %s%c", code, trap_name(code),
 		vma ? ',':'\n');
 
 	if (vma)
