@@ -125,6 +125,10 @@ struct mlx5_ib_ucontext {
 	/* Transport Domain number */
 	u32			tdn;
 	struct list_head	vma_private_list;
+
+	unsigned long		upd_xlt_page;
+	/* protect ODP/KSM */
+	struct mutex		upd_xlt_page_mutex;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -174,13 +178,12 @@ struct mlx5_ib_flow_db {
  * enum ib_send_flags and enum ib_qp_type for low-level driver
  */
 
-#define MLX5_IB_SEND_UMR_UNREG	IB_SEND_RESERVED_START
-#define MLX5_IB_SEND_UMR_FAIL_IF_FREE (IB_SEND_RESERVED_START << 1)
-#define MLX5_IB_SEND_UMR_UPDATE_MTT (IB_SEND_RESERVED_START << 2)
-
-#define MLX5_IB_SEND_UMR_UPDATE_TRANSLATION	(IB_SEND_RESERVED_START << 3)
-#define MLX5_IB_SEND_UMR_UPDATE_PD		(IB_SEND_RESERVED_START << 4)
-#define MLX5_IB_SEND_UMR_UPDATE_ACCESS		IB_SEND_RESERVED_END
+#define MLX5_IB_SEND_UMR_ENABLE_MR	       (IB_SEND_RESERVED_START << 0)
+#define MLX5_IB_SEND_UMR_DISABLE_MR	       (IB_SEND_RESERVED_START << 1)
+#define MLX5_IB_SEND_UMR_FAIL_IF_FREE	       (IB_SEND_RESERVED_START << 2)
+#define MLX5_IB_SEND_UMR_UPDATE_XLT	       (IB_SEND_RESERVED_START << 3)
+#define MLX5_IB_SEND_UMR_UPDATE_TRANSLATION    (IB_SEND_RESERVED_START << 4)
+#define MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS       IB_SEND_RESERVED_END
 
 #define MLX5_IB_QPT_REG_UMR	IB_QPT_RESERVED1
 /*
@@ -189,6 +192,16 @@ struct mlx5_ib_flow_db {
  */
 #define MLX5_IB_QPT_HW_GSI	IB_QPT_RESERVED2
 #define MLX5_IB_WR_UMR		IB_WR_RESERVED1
+
+#define MLX5_IB_UMR_OCTOWORD	       16
+#define MLX5_IB_UMR_XLT_ALIGNMENT      64
+
+#define MLX5_IB_UPD_XLT_ZAP	      BIT(0)
+#define MLX5_IB_UPD_XLT_ENABLE	      BIT(1)
+#define MLX5_IB_UPD_XLT_ATOMIC	      BIT(2)
+#define MLX5_IB_UPD_XLT_ADDR	      BIT(3)
+#define MLX5_IB_UPD_XLT_PD	      BIT(4)
+#define MLX5_IB_UPD_XLT_ACCESS	      BIT(5)
 
 /* Private QP creation flags to be passed in ib_qp_init_attr.create_flags.
  *
@@ -262,29 +275,6 @@ enum {
 struct mlx5_ib_rwq_ind_table {
 	struct ib_rwq_ind_table ib_rwq_ind_tbl;
 	u32			rqtn;
-};
-
-/*
- * Connect-IB can trigger up to four concurrent pagefaults
- * per-QP.
- */
-enum mlx5_ib_pagefault_context {
-	MLX5_IB_PAGEFAULT_RESPONDER_READ,
-	MLX5_IB_PAGEFAULT_REQUESTOR_READ,
-	MLX5_IB_PAGEFAULT_RESPONDER_WRITE,
-	MLX5_IB_PAGEFAULT_REQUESTOR_WRITE,
-	MLX5_IB_PAGEFAULT_CONTEXTS
-};
-
-static inline enum mlx5_ib_pagefault_context
-	mlx5_ib_get_pagefault_context(struct mlx5_pagefault *pagefault)
-{
-	return pagefault->flags & (MLX5_PFAULT_REQUESTOR | MLX5_PFAULT_WRITE);
-}
-
-struct mlx5_ib_pfault {
-	struct work_struct	work;
-	struct mlx5_pagefault	mpfault;
 };
 
 struct mlx5_ib_ubuffer {
@@ -372,20 +362,6 @@ struct mlx5_ib_qp {
 	/* Store signature errors */
 	bool			signature_en;
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	/*
-	 * A flag that is true for QP's that are in a state that doesn't
-	 * allow page faults, and shouldn't schedule any more faults.
-	 */
-	int                     disable_page_faults;
-	/*
-	 * The disable_page_faults_lock protects a QP's disable_page_faults
-	 * field, allowing for a thread to atomically check whether the QP
-	 * allows page faults, and if so schedule a page fault.
-	 */
-	spinlock_t              disable_page_faults_lock;
-	struct mlx5_ib_pfault	pagefaults[MLX5_IB_PAGEFAULT_CONTEXTS];
-#endif
 	struct list_head	qps_list;
 	struct list_head	cq_recv_list;
 	struct list_head	cq_send_list;
@@ -414,13 +390,11 @@ enum mlx5_ib_qp_flags {
 
 struct mlx5_umr_wr {
 	struct ib_send_wr		wr;
-	union {
-		u64			virt_addr;
-		u64			offset;
-	} target;
+	u64				virt_addr;
+	u64				offset;
 	struct ib_pd		       *pd;
 	unsigned int			page_shift;
-	unsigned int			npages;
+	unsigned int			xlt_size;
 	u64				length;
 	int				access_flags;
 	u32				mkey;
@@ -634,6 +608,7 @@ struct mlx5_ib_dev {
 	int				fill_delay;
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	struct ib_odp_caps	odp_caps;
+	u64			odp_max_size;
 	/*
 	 * Sleepable RCU that prevents destruction of MRs while they are still
 	 * being used by a page fault handler.
@@ -787,8 +762,8 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 			       struct ib_udata *udata);
 int mlx5_ib_dealloc_mw(struct ib_mw *mw);
-int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index,
-		       int npages, int zap);
+int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
+		       int page_shift, int flags);
 int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			  u64 length, u64 virt_addr, int access_flags,
 			  struct ib_pd *pd, struct ib_udata *udata);
@@ -857,18 +832,13 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 int mlx5_ib_destroy_rwq_ind_table(struct ib_rwq_ind_table *wq_ind_table);
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-extern struct workqueue_struct *mlx5_ib_page_fault_wq;
-
 void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev);
-void mlx5_ib_mr_pfault_handler(struct mlx5_ib_qp *qp,
-			       struct mlx5_ib_pfault *pfault);
-void mlx5_ib_odp_create_qp(struct mlx5_ib_qp *qp);
+void mlx5_ib_pfault(struct mlx5_core_dev *mdev, void *context,
+		    struct mlx5_pagefault *pfault);
 int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev);
 void mlx5_ib_odp_remove_one(struct mlx5_ib_dev *ibdev);
 int __init mlx5_ib_odp_init(void);
 void mlx5_ib_odp_cleanup(void);
-void mlx5_ib_qp_disable_pagefaults(struct mlx5_ib_qp *qp);
-void mlx5_ib_qp_enable_pagefaults(struct mlx5_ib_qp *qp);
 void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 			      unsigned long end);
 #else /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
@@ -877,13 +847,10 @@ static inline void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	return;
 }
 
-static inline void mlx5_ib_odp_create_qp(struct mlx5_ib_qp *qp)		{}
 static inline int mlx5_ib_odp_init_one(struct mlx5_ib_dev *ibdev) { return 0; }
 static inline void mlx5_ib_odp_remove_one(struct mlx5_ib_dev *ibdev)	{}
 static inline int mlx5_ib_odp_init(void) { return 0; }
 static inline void mlx5_ib_odp_cleanup(void)				{}
-static inline void mlx5_ib_qp_disable_pagefaults(struct mlx5_ib_qp *qp) {}
-static inline void mlx5_ib_qp_enable_pagefaults(struct mlx5_ib_qp *qp)  {}
 
 #endif /* CONFIG_INFINIBAND_ON_DEMAND_PAGING */
 

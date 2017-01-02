@@ -1526,9 +1526,6 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	       &qp->raw_packet_qp.rq.base :
 	       &qp->trans_qp.base;
 
-	if (init_attr->qp_type != IB_QPT_RAW_PACKET)
-		mlx5_ib_odp_create_qp(qp);
-
 	mutex_init(&qp->mutex);
 	spin_lock_init(&qp->sq.lock);
 	spin_lock_init(&qp->rq.lock);
@@ -1923,7 +1920,6 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 
 	if (qp->state != IB_QPS_RESET) {
 		if (qp->ibqp.qp_type != IB_QPT_RAW_PACKET) {
-			mlx5_ib_qp_disable_pagefaults(qp);
 			err = mlx5_core_qp_modify(dev->mdev,
 						  MLX5_CMD_OP_2RST_QP, 0,
 						  NULL, &base->mqp);
@@ -2823,16 +2819,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 	if (mlx5_st < 0)
 		goto out;
 
-	/* If moving to a reset or error state, we must disable page faults on
-	 * this QP and flush all current page faults. Otherwise a stale page
-	 * fault may attempt to work on this QP after it is reset and moved
-	 * again to RTS, and may cause the driver and the device to get out of
-	 * sync. */
-	if (cur_state != IB_QPS_RESET && cur_state != IB_QPS_ERR &&
-	    (new_state == IB_QPS_RESET || new_state == IB_QPS_ERR) &&
-	    (qp->ibqp.qp_type != IB_QPT_RAW_PACKET))
-		mlx5_ib_qp_disable_pagefaults(qp);
-
 	if (mlx5_cur >= MLX5_QP_NUM_STATE || mlx5_new >= MLX5_QP_NUM_STATE ||
 	    !optab[mlx5_cur][mlx5_new])
 		goto out;
@@ -2863,10 +2849,6 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 	if (err)
 		goto out;
-
-	if (cur_state == IB_QPS_RESET && new_state == IB_QPS_INIT &&
-	    (qp->ibqp.qp_type != IB_QPT_RAW_PACKET))
-		mlx5_ib_qp_enable_pagefaults(qp);
 
 	qp->state = new_state;
 
@@ -3080,9 +3062,10 @@ static void set_data_ptr_seg(struct mlx5_wqe_data_seg *dseg, struct ib_sge *sg)
 	dseg->addr       = cpu_to_be64(sg->addr);
 }
 
-static __be16 get_klm_octo(int npages)
+static u64 get_xlt_octo(u64 bytes)
 {
-	return cpu_to_be16(ALIGN(npages, 8) / 2);
+	return ALIGN(bytes, MLX5_IB_UMR_XLT_ALIGNMENT) /
+	       MLX5_IB_UMR_OCTOWORD;
 }
 
 static __be64 frwr_mkey_mask(void)
@@ -3127,18 +3110,14 @@ static __be64 sig_mkey_mask(void)
 }
 
 static void set_reg_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr,
-				struct mlx5_ib_mr *mr)
+			    struct mlx5_ib_mr *mr)
 {
-	int ndescs = mr->ndescs;
+	int size = mr->ndescs * mr->desc_size;
 
 	memset(umr, 0, sizeof(*umr));
 
-	if (mr->access_mode == MLX5_MKC_ACCESS_MODE_KLMS)
-		/* KLMs take twice the size of MTTs */
-		ndescs *= 2;
-
 	umr->flags = MLX5_UMR_CHECK_NOT_FREE;
-	umr->klm_octowords = get_klm_octo(ndescs);
+	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(size));
 	umr->mkey_mask = frwr_mkey_mask();
 }
 
@@ -3149,37 +3128,17 @@ static void set_linv_umr_seg(struct mlx5_wqe_umr_ctrl_seg *umr)
 	umr->flags = MLX5_UMR_INLINE;
 }
 
-static __be64 get_umr_reg_mr_mask(int atomic)
+static __be64 get_umr_enable_mr_mask(void)
 {
 	u64 result;
 
-	result = MLX5_MKEY_MASK_LEN		|
-		 MLX5_MKEY_MASK_PAGE_SIZE	|
-		 MLX5_MKEY_MASK_START_ADDR	|
-		 MLX5_MKEY_MASK_PD		|
-		 MLX5_MKEY_MASK_LR		|
-		 MLX5_MKEY_MASK_LW		|
-		 MLX5_MKEY_MASK_KEY		|
-		 MLX5_MKEY_MASK_RR		|
-		 MLX5_MKEY_MASK_RW		|
+	result = MLX5_MKEY_MASK_KEY |
 		 MLX5_MKEY_MASK_FREE;
 
-	if (atomic)
-		result |= MLX5_MKEY_MASK_A;
-
 	return cpu_to_be64(result);
 }
 
-static __be64 get_umr_unreg_mr_mask(void)
-{
-	u64 result;
-
-	result = MLX5_MKEY_MASK_FREE;
-
-	return cpu_to_be64(result);
-}
-
-static __be64 get_umr_update_mtt_mask(void)
+static __be64 get_umr_disable_mr_mask(void)
 {
 	u64 result;
 
@@ -3194,23 +3153,22 @@ static __be64 get_umr_update_translation_mask(void)
 
 	result = MLX5_MKEY_MASK_LEN |
 		 MLX5_MKEY_MASK_PAGE_SIZE |
-		 MLX5_MKEY_MASK_START_ADDR |
-		 MLX5_MKEY_MASK_KEY |
-		 MLX5_MKEY_MASK_FREE;
+		 MLX5_MKEY_MASK_START_ADDR;
 
 	return cpu_to_be64(result);
 }
 
-static __be64 get_umr_update_access_mask(void)
+static __be64 get_umr_update_access_mask(int atomic)
 {
 	u64 result;
 
-	result = MLX5_MKEY_MASK_LW |
+	result = MLX5_MKEY_MASK_LR |
+		 MLX5_MKEY_MASK_LW |
 		 MLX5_MKEY_MASK_RR |
-		 MLX5_MKEY_MASK_RW |
-		 MLX5_MKEY_MASK_A |
-		 MLX5_MKEY_MASK_KEY |
-		 MLX5_MKEY_MASK_FREE;
+		 MLX5_MKEY_MASK_RW;
+
+	if (atomic)
+		result |= MLX5_MKEY_MASK_A;
 
 	return cpu_to_be64(result);
 }
@@ -3219,9 +3177,7 @@ static __be64 get_umr_update_pd_mask(void)
 {
 	u64 result;
 
-	result = MLX5_MKEY_MASK_PD |
-		 MLX5_MKEY_MASK_KEY |
-		 MLX5_MKEY_MASK_FREE;
+	result = MLX5_MKEY_MASK_PD;
 
 	return cpu_to_be64(result);
 }
@@ -3238,24 +3194,24 @@ static void set_reg_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
 	else
 		umr->flags = MLX5_UMR_CHECK_NOT_FREE; /* fail if not free */
 
-	if (!(wr->send_flags & MLX5_IB_SEND_UMR_UNREG)) {
-		umr->klm_octowords = get_klm_octo(umrwr->npages);
-		if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_MTT) {
-			umr->mkey_mask = get_umr_update_mtt_mask();
-			umr->bsf_octowords = get_klm_octo(umrwr->target.offset);
-			umr->flags |= MLX5_UMR_TRANSLATION_OFFSET_EN;
-		}
-		if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_TRANSLATION)
-			umr->mkey_mask |= get_umr_update_translation_mask();
-		if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_ACCESS)
-			umr->mkey_mask |= get_umr_update_access_mask();
-		if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_PD)
-			umr->mkey_mask |= get_umr_update_pd_mask();
-		if (!umr->mkey_mask)
-			umr->mkey_mask = get_umr_reg_mr_mask(atomic);
-	} else {
-		umr->mkey_mask = get_umr_unreg_mr_mask();
+	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(umrwr->xlt_size));
+	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_XLT) {
+		u64 offset = get_xlt_octo(umrwr->offset);
+
+		umr->xlt_offset = cpu_to_be16(offset & 0xffff);
+		umr->xlt_offset_47_16 = cpu_to_be32(offset >> 16);
+		umr->flags |= MLX5_UMR_TRANSLATION_OFFSET_EN;
 	}
+	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_TRANSLATION)
+		umr->mkey_mask |= get_umr_update_translation_mask();
+	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS) {
+		umr->mkey_mask |= get_umr_update_access_mask(atomic);
+		umr->mkey_mask |= get_umr_update_pd_mask();
+	}
+	if (wr->send_flags & MLX5_IB_SEND_UMR_ENABLE_MR)
+		umr->mkey_mask |= get_umr_enable_mr_mask();
+	if (wr->send_flags & MLX5_IB_SEND_UMR_DISABLE_MR)
+		umr->mkey_mask |= get_umr_disable_mr_mask();
 
 	if (!wr->num_sge)
 		umr->flags |= MLX5_UMR_INLINE;
@@ -3303,17 +3259,17 @@ static void set_reg_mkey_segment(struct mlx5_mkey_seg *seg, struct ib_send_wr *w
 	struct mlx5_umr_wr *umrwr = umr_wr(wr);
 
 	memset(seg, 0, sizeof(*seg));
-	if (wr->send_flags & MLX5_IB_SEND_UMR_UNREG) {
+	if (wr->send_flags & MLX5_IB_SEND_UMR_DISABLE_MR)
 		seg->status = MLX5_MKEY_STATUS_FREE;
-		return;
-	}
 
 	seg->flags = convert_access(umrwr->access_flags);
-	if (!(wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_MTT)) {
-		if (umrwr->pd)
-			seg->flags_pd = cpu_to_be32(to_mpd(umrwr->pd)->pdn);
-		seg->start_addr = cpu_to_be64(umrwr->target.virt_addr);
-	}
+	if (umrwr->pd)
+		seg->flags_pd = cpu_to_be32(to_mpd(umrwr->pd)->pdn);
+	if (wr->send_flags & MLX5_IB_SEND_UMR_UPDATE_TRANSLATION &&
+	    !umrwr->length)
+		seg->flags_pd |= cpu_to_be32(MLX5_MKEY_LEN64);
+
+	seg->start_addr = cpu_to_be64(umrwr->virt_addr);
 	seg->len = cpu_to_be64(umrwr->length);
 	seg->log2_page_size = umrwr->page_shift;
 	seg->qpn_mkey7_0 = cpu_to_be32(0xffffff00 |
@@ -3611,7 +3567,7 @@ static int set_sig_data_segment(struct ib_sig_handover_wr *wr,
 }
 
 static void set_sig_mkey_segment(struct mlx5_mkey_seg *seg,
-				 struct ib_sig_handover_wr *wr, u32 nelements,
+				 struct ib_sig_handover_wr *wr, u32 size,
 				 u32 length, u32 pdn)
 {
 	struct ib_mr *sig_mr = wr->sig_mr;
@@ -3626,17 +3582,17 @@ static void set_sig_mkey_segment(struct mlx5_mkey_seg *seg,
 	seg->flags_pd = cpu_to_be32(MLX5_MKEY_REMOTE_INVAL | sigerr << 26 |
 				    MLX5_MKEY_BSF_EN | pdn);
 	seg->len = cpu_to_be64(length);
-	seg->xlt_oct_size = cpu_to_be32(be16_to_cpu(get_klm_octo(nelements)));
+	seg->xlt_oct_size = cpu_to_be32(get_xlt_octo(size));
 	seg->bsfs_octo_size = cpu_to_be32(MLX5_MKEY_BSF_OCTO_SIZE);
 }
 
 static void set_sig_umr_segment(struct mlx5_wqe_umr_ctrl_seg *umr,
-				u32 nelements)
+				u32 size)
 {
 	memset(umr, 0, sizeof(*umr));
 
 	umr->flags = MLX5_FLAGS_INLINE | MLX5_FLAGS_CHECK_FREE;
-	umr->klm_octowords = get_klm_octo(nelements);
+	umr->xlt_octowords = cpu_to_be16(get_xlt_octo(size));
 	umr->bsf_octowords = cpu_to_be16(MLX5_MKEY_BSF_OCTO_SIZE);
 	umr->mkey_mask = sig_mkey_mask();
 }
@@ -3648,7 +3604,7 @@ static int set_sig_umr_wr(struct ib_send_wr *send_wr, struct mlx5_ib_qp *qp,
 	struct ib_sig_handover_wr *wr = sig_handover_wr(send_wr);
 	struct mlx5_ib_mr *sig_mr = to_mmr(wr->sig_mr);
 	u32 pdn = get_pd(qp)->pdn;
-	u32 klm_oct_size;
+	u32 xlt_size;
 	int region_len, ret;
 
 	if (unlikely(wr->wr.num_sge != 1) ||
@@ -3670,15 +3626,15 @@ static int set_sig_umr_wr(struct ib_send_wr *send_wr, struct mlx5_ib_qp *qp,
 	 * then we use strided block format (3 octowords),
 	 * else we use single KLM (1 octoword)
 	 **/
-	klm_oct_size = wr->prot ? 3 : 1;
+	xlt_size = wr->prot ? 0x30 : sizeof(struct mlx5_klm);
 
-	set_sig_umr_segment(*seg, klm_oct_size);
+	set_sig_umr_segment(*seg, xlt_size);
 	*seg += sizeof(struct mlx5_wqe_umr_ctrl_seg);
 	*size += sizeof(struct mlx5_wqe_umr_ctrl_seg) / 16;
 	if (unlikely((*seg == qp->sq.qend)))
 		*seg = mlx5_get_send_wqe(qp, 0);
 
-	set_sig_mkey_segment(*seg, wr, klm_oct_size, region_len, pdn);
+	set_sig_mkey_segment(*seg, wr, xlt_size, region_len, pdn);
 	*seg += sizeof(struct mlx5_mkey_seg);
 	*size += sizeof(struct mlx5_mkey_seg) / 16;
 	if (unlikely((*seg == qp->sq.qend)))
@@ -4558,14 +4514,6 @@ int mlx5_ib_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr,
 	if (unlikely(ibqp->qp_type == IB_QPT_GSI))
 		return mlx5_ib_gsi_query_qp(ibqp, qp_attr, qp_attr_mask,
 					    qp_init_attr);
-
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	/*
-	 * Wait for any outstanding page faults, in case the user frees memory
-	 * based upon this query's result.
-	 */
-	flush_workqueue(mlx5_ib_page_fault_wq);
-#endif
 
 	mutex_lock(&qp->mutex);
 
