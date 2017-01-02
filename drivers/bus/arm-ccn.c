@@ -1547,6 +1547,7 @@ static const struct of_device_id arm_ccn_match[] = {
 	{ .compatible = "arm,ccn-504", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, arm_ccn_match);
 
 static struct platform_driver arm_ccn_driver = {
 	.driver = {
