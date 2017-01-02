@@ -201,7 +201,7 @@ static inline bool zcrypt_card_compare(struct zcrypt_card *zc,
 				       unsigned weight, unsigned pref_weight)
 {
 	if (!pref_zc)
-		return 0;
+		return false;
 	weight += atomic_read(&zc->load);
 	pref_weight += atomic_read(&pref_zc->load);
 	if (weight == pref_weight)
@@ -215,7 +215,7 @@ static inline bool zcrypt_queue_compare(struct zcrypt_queue *zq,
 					unsigned weight, unsigned pref_weight)
 {
 	if (!pref_zq)
-		return 0;
+		return false;
 	weight += atomic_read(&zq->load);
 	pref_weight += atomic_read(&pref_zq->load);
 	if (weight == pref_weight)
