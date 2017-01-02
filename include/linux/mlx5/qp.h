@@ -292,10 +292,14 @@ struct mlx5_wqe_data_seg {
 struct mlx5_wqe_umr_ctrl_seg {
 	u8		flags;
 	u8		rsvd0[3];
-	__be16		klm_octowords;
-	__be16		bsf_octowords;
+	__be16		xlt_octowords;
+	union {
+		__be16	xlt_offset;
+		__be16	bsf_octowords;
+	};
 	__be64		mkey_mask;
-	u8		rsvd1[32];
+	__be32		xlt_offset_47_16;
+	u8		rsvd1[28];
 };
 
 struct mlx5_seg_set_psv {
@@ -387,6 +391,10 @@ struct mlx5_bsf {
 	} ext;
 	struct mlx5_bsf_inl	w_inl;
 	struct mlx5_bsf_inl	m_inl;
+};
+
+struct mlx5_mtt {
+	__be64		ptag;
 };
 
 struct mlx5_klm {

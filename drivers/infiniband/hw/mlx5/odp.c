@@ -47,7 +47,8 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 			      unsigned long end)
 {
 	struct mlx5_ib_mr *mr;
-	const u64 umr_block_mask = (MLX5_UMR_MTT_ALIGNMENT / sizeof(u64)) - 1;
+	const u64 umr_block_mask = (MLX5_UMR_MTT_ALIGNMENT /
+				    sizeof(struct mlx5_mtt)) - 1;
 	u64 idx = 0, blk_start_idx = 0;
 	int in_block = 0;
 	u64 addr;

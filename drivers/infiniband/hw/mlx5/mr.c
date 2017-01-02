@@ -774,7 +774,7 @@ static int dma_map_mr_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	 * To avoid copying garbage after the pas array, we allocate
 	 * a little more.
 	 */
-	*size = ALIGN(sizeof(u64) * npages, MLX5_UMR_MTT_ALIGNMENT);
+	*size = ALIGN(sizeof(struct mlx5_mtt) * npages, MLX5_UMR_MTT_ALIGNMENT);
 	*mr_pas = kmalloc(*size + MLX5_UMR_ALIGN - 1, GFP_KERNEL);
 	if (!(*mr_pas))
 		return -ENOMEM;
@@ -782,7 +782,7 @@ static int dma_map_mr_pas(struct mlx5_ib_dev *dev, struct ib_umem *umem,
 	pas = PTR_ALIGN(*mr_pas, MLX5_UMR_ALIGN);
 	mlx5_ib_populate_pas(dev, umem, page_shift, pas, MLX5_IB_MTT_PRESENT);
 	/* Clear padding after the actual pages. */
-	memset(pas + npages, 0, *size - npages * sizeof(u64));
+	memset(pas + npages, 0, *size - npages * sizeof(struct mlx5_mtt));
 
 	*dma = dma_map_single(ddev, pas, *size, DMA_TO_DEVICE);
 	if (dma_mapping_error(ddev, *dma)) {
@@ -801,7 +801,8 @@ static void prep_umr_wqe_common(struct ib_pd *pd, struct ib_send_wr *wr,
 	struct mlx5_umr_wr *umrwr = umr_wr(wr);
 
 	sg->addr = dma;
-	sg->length = ALIGN(sizeof(u64) * n, 64);
+	sg->length = ALIGN(sizeof(struct mlx5_mtt) * n,
+			   MLX5_IB_UMR_XLT_ALIGNMENT);
 	sg->lkey = dev->umrc.pd->local_dma_lkey;
 
 	wr->next = NULL;
@@ -813,7 +814,7 @@ static void prep_umr_wqe_common(struct ib_pd *pd, struct ib_send_wr *wr,
 
 	wr->opcode = MLX5_IB_WR_UMR;
 
-	umrwr->npages = n;
+	umrwr->xlt_size = sg->length;
 	umrwr->page_shift = page_shift;
 	umrwr->mkey = key;
 }
@@ -827,9 +828,11 @@ static void prep_umr_reg_wqe(struct ib_pd *pd, struct ib_send_wr *wr,
 
 	prep_umr_wqe_common(pd, wr, sg, dma, n, key, page_shift);
 
-	wr->send_flags = 0;
+	wr->send_flags = MLX5_IB_SEND_UMR_ENABLE_MR |
+			 MLX5_IB_SEND_UMR_UPDATE_TRANSLATION |
+			 MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS;
 
-	umrwr->target.virt_addr = virt_addr;
+	umrwr->virt_addr = virt_addr;
 	umrwr->length = len;
 	umrwr->access_flags = access_flags;
 	umrwr->pd = pd;
@@ -840,7 +843,8 @@ static void prep_umr_unreg_wqe(struct mlx5_ib_dev *dev,
 {
 	struct mlx5_umr_wr *umrwr = umr_wr(wr);
 
-	wr->send_flags = MLX5_IB_SEND_UMR_UNREG | MLX5_IB_SEND_UMR_FAIL_IF_FREE;
+	wr->send_flags = MLX5_IB_SEND_UMR_DISABLE_MR |
+			 MLX5_IB_SEND_UMR_FAIL_IF_FREE;
 	wr->opcode = MLX5_IB_WR_UMR;
 	umrwr->mkey = key;
 }
@@ -993,7 +997,8 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 	struct mlx5_umr_wr wr;
 	struct ib_sge sg;
 	int err = 0;
-	const int page_index_alignment = MLX5_UMR_MTT_ALIGNMENT / sizeof(u64);
+	const int page_index_alignment = MLX5_UMR_MTT_ALIGNMENT /
+					 sizeof(struct mlx5_mtt);
 	const int page_index_mask = page_index_alignment - 1;
 	size_t pages_mapped = 0;
 	size_t pages_to_map = 0;
@@ -1012,7 +1017,7 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 	if (start_page_index + pages_to_map > MLX5_MAX_UMR_PAGES)
 		return -EINVAL;
 
-	size = sizeof(u64) * pages_to_map;
+	size = sizeof(struct mlx5_mtt) * pages_to_map;
 	size = min_t(int, PAGE_SIZE, size);
 	/* We allocate with GFP_ATOMIC to avoid recursion into page-reclaim
 	 * code, when we are called from an invalidation. The pas buffer must
@@ -1026,7 +1031,7 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 		mutex_lock(&mlx5_ib_update_mtt_emergency_buffer_mutex);
 		memset(pas, 0, size);
 	}
-	pages_iter = size / sizeof(u64);
+	pages_iter = size / sizeof(struct mlx5_mtt);
 	dma = dma_map_single(ddev, pas, size, DMA_TO_DEVICE);
 	if (dma_mapping_error(ddev, dma)) {
 		mlx5_ib_err(dev, "unable to map DMA during MTT update.\n");
@@ -1049,7 +1054,8 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 					       MLX5_IB_MTT_PRESENT);
 			/* Clear padding after the pages brought from the
 			 * umem. */
-			memset(pas + npages, 0, size - npages * sizeof(u64));
+			memset(pas + npages, 0, size - npages *
+			       sizeof(struct mlx5_mtt));
 		}
 
 		dma_sync_single_for_device(ddev, dma, size, DMA_TO_DEVICE);
@@ -1057,19 +1063,19 @@ int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index, int npages,
 		memset(&wr, 0, sizeof(wr));
 
 		sg.addr = dma;
-		sg.length = ALIGN(npages * sizeof(u64),
+		sg.length = ALIGN(npages * sizeof(struct mlx5_mtt),
 				MLX5_UMR_MTT_ALIGNMENT);
 		sg.lkey = dev->umrc.pd->local_dma_lkey;
 
 		wr.wr.send_flags = MLX5_IB_SEND_UMR_FAIL_IF_FREE |
-				MLX5_IB_SEND_UMR_UPDATE_MTT;
+				   MLX5_IB_SEND_UMR_UPDATE_XLT;
 		wr.wr.sg_list = &sg;
 		wr.wr.num_sge = 1;
 		wr.wr.opcode = MLX5_IB_WR_UMR;
-		wr.npages = sg.length / sizeof(u64);
+		wr.xlt_size = sg.length;
 		wr.page_shift = PAGE_SHIFT;
 		wr.mkey = mr->mmkey.key;
-		wr.target.offset = start_page_index;
+		wr.offset = start_page_index * sizeof(struct mlx5_mtt);
 
 		err = mlx5_ib_post_send_wait(dev, &wr);
 	}
@@ -1272,7 +1278,7 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr, u64 virt_addr,
 		if (err)
 			return err;
 
-		umrwr.target.virt_addr = virt_addr;
+		umrwr.virt_addr = virt_addr;
 		umrwr.length = length;
 		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_TRANSLATION;
 	}
@@ -1280,14 +1286,10 @@ static int rereg_umr(struct ib_pd *pd, struct mlx5_ib_mr *mr, u64 virt_addr,
 	prep_umr_wqe_common(pd, &umrwr.wr, &sg, dma, npages, mr->mmkey.key,
 			    page_shift);
 
-	if (flags & IB_MR_REREG_PD) {
+	if (flags & IB_MR_REREG_PD || flags & IB_MR_REREG_ACCESS) {
 		umrwr.pd = pd;
-		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_PD;
-	}
-
-	if (flags & IB_MR_REREG_ACCESS) {
 		umrwr.access_flags = access_flags;
-		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_ACCESS;
+		umrwr.wr.send_flags |= MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS;
 	}
 
 	/* post send request to UMR QP */
@@ -1552,11 +1554,11 @@ struct ib_mr *mlx5_ib_alloc_mr(struct ib_pd *pd,
 		mr->access_mode = MLX5_MKC_ACCESS_MODE_MTT;
 		MLX5_SET(mkc, mkc, log_page_size, PAGE_SHIFT);
 		err = mlx5_alloc_priv_descs(pd->device, mr,
-					    ndescs, sizeof(u64));
+					    ndescs, sizeof(struct mlx5_mtt));
 		if (err)
 			goto err_free_in;
 
-		mr->desc_size = sizeof(u64);
+		mr->desc_size = sizeof(struct mlx5_mtt);
 		mr->max_descs = ndescs;
 	} else if (mr_type == IB_MR_TYPE_SG_GAPS) {
 		mr->access_mode = MLX5_MKC_ACCESS_MODE_KLMS;

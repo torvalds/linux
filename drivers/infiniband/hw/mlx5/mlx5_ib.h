@@ -174,13 +174,12 @@ struct mlx5_ib_flow_db {
  * enum ib_send_flags and enum ib_qp_type for low-level driver
  */
 
-#define MLX5_IB_SEND_UMR_UNREG	IB_SEND_RESERVED_START
-#define MLX5_IB_SEND_UMR_FAIL_IF_FREE (IB_SEND_RESERVED_START << 1)
-#define MLX5_IB_SEND_UMR_UPDATE_MTT (IB_SEND_RESERVED_START << 2)
-
-#define MLX5_IB_SEND_UMR_UPDATE_TRANSLATION	(IB_SEND_RESERVED_START << 3)
-#define MLX5_IB_SEND_UMR_UPDATE_PD		(IB_SEND_RESERVED_START << 4)
-#define MLX5_IB_SEND_UMR_UPDATE_ACCESS		IB_SEND_RESERVED_END
+#define MLX5_IB_SEND_UMR_ENABLE_MR	       (IB_SEND_RESERVED_START << 0)
+#define MLX5_IB_SEND_UMR_DISABLE_MR	       (IB_SEND_RESERVED_START << 1)
+#define MLX5_IB_SEND_UMR_FAIL_IF_FREE	       (IB_SEND_RESERVED_START << 2)
+#define MLX5_IB_SEND_UMR_UPDATE_XLT	       (IB_SEND_RESERVED_START << 3)
+#define MLX5_IB_SEND_UMR_UPDATE_TRANSLATION    (IB_SEND_RESERVED_START << 4)
+#define MLX5_IB_SEND_UMR_UPDATE_PD_ACCESS       IB_SEND_RESERVED_END
 
 #define MLX5_IB_QPT_REG_UMR	IB_QPT_RESERVED1
 /*
@@ -189,6 +188,9 @@ struct mlx5_ib_flow_db {
  */
 #define MLX5_IB_QPT_HW_GSI	IB_QPT_RESERVED2
 #define MLX5_IB_WR_UMR		IB_WR_RESERVED1
+
+#define MLX5_IB_UMR_OCTOWORD	       16
+#define MLX5_IB_UMR_XLT_ALIGNMENT      64
 
 /* Private QP creation flags to be passed in ib_qp_init_attr.create_flags.
  *
@@ -414,13 +416,11 @@ enum mlx5_ib_qp_flags {
 
 struct mlx5_umr_wr {
 	struct ib_send_wr		wr;
-	union {
-		u64			virt_addr;
-		u64			offset;
-	} target;
+	u64				virt_addr;
+	u64				offset;
 	struct ib_pd		       *pd;
 	unsigned int			page_shift;
-	unsigned int			npages;
+	unsigned int			xlt_size;
 	u64				length;
 	int				access_flags;
 	u32				mkey;
