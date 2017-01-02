@@ -257,12 +257,6 @@
 					marvell,pins = "mpp20";
 					marvell,function = "gpio";
 				};
-				clearfog_sdhci_pins: clearfog-sdhci-pins {
-					marvell,pins = "mpp21", "mpp28",
-						       "mpp37", "mpp38",
-						       "mpp39", "mpp40";
-					marvell,function = "sd0";
-				};
 				clearfog_spi1_cs_pins: spi1-cs-pins {
 					marvell,pins = "mpp55";
 					marvell,function = "spi1";
@@ -300,7 +294,7 @@
 				bus-width = <4>;
 				cd-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 				no-1-8-v;
-				pinctrl-0 = <&clearfog_sdhci_pins
+				pinctrl-0 = <&microsom_sdhci_pins
 					     &clearfog_sdhci_cd_pins>;
 				pinctrl-names = "default";
 				status = "okay";
