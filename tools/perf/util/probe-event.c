@@ -268,21 +268,6 @@ static bool kprobe_warn_out_range(const char *symbol, unsigned long address)
 }
 
 /*
- * NOTE:
- * '.gnu.linkonce.this_module' section of kernel module elf directly
- * maps to 'struct module' from linux/module.h. This section contains
- * actual module name which will be used by kernel after loading it.
- * But, we cannot use 'struct module' here since linux/module.h is not
- * exposed to user-space. Offset of 'name' has remained same from long
- * time, so hardcoding it here.
- */
-#ifdef __LP64__
-#define MOD_NAME_OFFSET 24
-#else
-#define MOD_NAME_OFFSET 12
-#endif
-
-/*
  * @module can be module name of module file path. In case of path,
  * inspect elf and find out what is actual module name.
  * Caller has to free mod_name after using it.
@@ -296,6 +281,7 @@ static char *find_module_name(const char *module)
 	Elf_Data *data;
 	Elf_Scn *sec;
 	char *mod_name = NULL;
+	int name_offset;
 
 	fd = open(module, O_RDONLY);
 	if (fd < 0)
@@ -317,7 +303,21 @@ static char *find_module_name(const char *module)
 	if (!data || !data->d_buf)
 		goto ret_err;
 
-	mod_name = strdup((char *)data->d_buf + MOD_NAME_OFFSET);
+	/*
+	 * NOTE:
+	 * '.gnu.linkonce.this_module' section of kernel module elf directly
+	 * maps to 'struct module' from linux/module.h. This section contains
+	 * actual module name which will be used by kernel after loading it.
+	 * But, we cannot use 'struct module' here since linux/module.h is not
+	 * exposed to user-space. Offset of 'name' has remained same from long
+	 * time, so hardcoding it here.
+	 */
+	if (ehdr.e_ident[EI_CLASS] == ELFCLASS32)
+		name_offset = 12;
+	else	/* expect ELFCLASS64 by default */
+		name_offset = 24;
+
+	mod_name = strdup((char *)data->d_buf + name_offset);
 
 ret_err:
 	elf_end(elf);
