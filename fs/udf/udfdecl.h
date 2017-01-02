@@ -15,7 +15,6 @@
 #include "udfend.h"
 #include "udf_i.h"
 
-#define UDF_PREALLOCATE
 #define UDF_DEFAULT_PREALLOC_BLOCKS	8
 
 extern __printf(3, 4) void _udf_err(struct super_block *sb,
