@@ -709,6 +709,7 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 	union ib_gid gid, sgid, *dgid;
 	u16 pkey, index;
 	u8 p;
+	enum ib_port_state port_state;
 	int i;
 
 	cma_dev = NULL;
@@ -724,6 +725,8 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 			if (ib_find_cached_pkey(cur_dev->device, p, pkey, &index))
 				continue;
 
+			if (ib_get_cached_port_state(cur_dev->device, p, &port_state))
+				continue;
 			for (i = 0; !ib_get_cached_gid(cur_dev->device, p, i,
 						       &gid, NULL);
 			     i++) {
@@ -735,7 +738,8 @@ static int cma_resolve_ib_dev(struct rdma_id_private *id_priv)
 				}
 
 				if (!cma_dev && (gid.global.subnet_prefix ==
-						 dgid->global.subnet_prefix)) {
+				    dgid->global.subnet_prefix) &&
+				    port_state == IB_PORT_ACTIVE) {
 					cma_dev = cur_dev;
 					sgid = gid;
 					id_priv->id.port_num = p;
