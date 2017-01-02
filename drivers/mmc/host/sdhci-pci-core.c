@@ -424,7 +424,6 @@ static int byt_sdio_probe_slot(struct sdhci_pci_slot *slot)
 static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
-	slot->cd_con_id = NULL;
 	slot->cd_idx = 0;
 	slot->cd_override_level = true;
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BXT_SD ||
@@ -1817,7 +1816,7 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
 
 	if (slot->cd_idx >= 0) {
-		ret = mmc_gpiod_request_cd(host->mmc, slot->cd_con_id, slot->cd_idx,
+		ret = mmc_gpiod_request_cd(host->mmc, NULL, slot->cd_idx,
 					   slot->cd_override_level, 0, NULL);
 		if (ret == -EPROBE_DEFER)
 			goto remove;
