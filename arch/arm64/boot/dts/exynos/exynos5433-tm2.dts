@@ -163,6 +163,58 @@
 	};
 };
 
+&bus_g2d_400 {
+	devfreq-events = <&ppmu_event0_d0_general>, <&ppmu_event0_d1_general>;
+	vdd-supply = <&buck4_reg>;
+	exynos,saturation-ratio = <10>;
+	status = "okay";
+};
+
+&bus_g2d_266 {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
+&bus_gscl {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
+&bus_hevc {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
+&bus_jpeg {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
+&bus_mfc {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
+&bus_mscl {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
+&bus_noc0 {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
+&bus_noc1 {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
+&bus_noc2 {
+	devfreq = <&bus_g2d_400>;
+	status = "okay";
+};
+
 &cmu_aud {
 	assigned-clocks = <&cmu_aud CLK_MOUT_AUD_PLL_USER>;
 	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>;
@@ -735,6 +787,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus1 &sd2_bus4>;
 	bus-width = <4>;
+};
+
+&ppmu_d0_general {
+	status = "okay";
+	events {
+		ppmu_event0_d0_general: ppmu-event0-d0-general {
+			event-name = "ppmu-event0-d0-general";
+		};
+	};
+};
+
+&ppmu_d1_general {
+	status = "okay";
+	events {
+		ppmu_event0_d1_general: ppmu-event0-d1-general {
+		       event-name = "ppmu-event0-d1-general";
+	       };
+       };
 };
 
 &pinctrl_alive {
