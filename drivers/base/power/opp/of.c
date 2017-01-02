@@ -433,7 +433,7 @@ static int _of_add_opp_table_v1(struct device *dev)
 {
 	const struct property *prop;
 	const __be32 *val;
-	int nr;
+	int nr, ret;
 
 	prop = of_find_property(dev->of_node, "operating-points", NULL);
 	if (!prop)
@@ -456,9 +456,13 @@ static int _of_add_opp_table_v1(struct device *dev)
 		unsigned long freq = be32_to_cpup(val++) * 1000;
 		unsigned long volt = be32_to_cpup(val++);
 
-		if (_opp_add_v1(dev, freq, volt, false))
-			dev_warn(dev, "%s: Failed to add OPP %ld\n",
-				 __func__, freq);
+		ret = _opp_add_v1(dev, freq, volt, false);
+		if (ret) {
+			dev_err(dev, "%s: Failed to add OPP %ld (%d)\n",
+				__func__, freq, ret);
+			dev_pm_opp_of_remove_table(dev);
+			return ret;
+		}
 		nr -= 2;
 	}
 
