@@ -246,8 +246,6 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 static struct device_node *_of_get_opp_desc_node(struct device *dev)
 {
 	/*
-	 * TODO: Support for multiple OPP tables.
-	 *
 	 * There should be only ONE phandle present in "operating-points-v2"
 	 * property.
 	 */
