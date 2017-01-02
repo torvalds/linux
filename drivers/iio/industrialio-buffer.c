@@ -358,6 +358,19 @@ static int iio_scan_mask_clear(struct iio_buffer *buffer, int bit)
 	return 0;
 }
 
+static int iio_scan_mask_query(struct iio_dev *indio_dev,
+			       struct iio_buffer *buffer, int bit)
+{
+	if (bit > indio_dev->masklength)
+		return -EINVAL;
+
+	if (!buffer->scan_mask)
+		return 0;
+
+	/* Ensure return value is 0 or 1. */
+	return !!test_bit(bit, buffer->scan_mask);
+};
+
 static ssize_t iio_scan_el_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf,
@@ -1339,20 +1352,6 @@ bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 	return bitmap_weight(mask, indio_dev->masklength) == 1;
 }
 EXPORT_SYMBOL_GPL(iio_validate_scan_mask_onehot);
-
-int iio_scan_mask_query(struct iio_dev *indio_dev,
-			struct iio_buffer *buffer, int bit)
-{
-	if (bit > indio_dev->masklength)
-		return -EINVAL;
-
-	if (!buffer->scan_mask)
-		return 0;
-
-	/* Ensure return value is 0 or 1. */
-	return !!test_bit(bit, buffer->scan_mask);
-};
-EXPORT_SYMBOL_GPL(iio_scan_mask_query);
 
 static const void *iio_demux(struct iio_buffer *buffer,
 				 const void *datain)

@@ -161,9 +161,6 @@ int iio_update_buffers(struct iio_dev *indio_dev,
  **/
 void iio_buffer_init(struct iio_buffer *buffer);
 
-int iio_scan_mask_query(struct iio_dev *indio_dev,
-			struct iio_buffer *buffer, int bit);
-
 /**
  * iio_push_to_buffers() - push to a registered buffer.
  * @indio_dev:		iio_dev structure for device.
