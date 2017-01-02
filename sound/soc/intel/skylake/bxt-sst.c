@@ -151,23 +151,13 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 	}
 
 	/* Step 4: Wait for DONE Bit */
-	for (i = BXT_INIT_TIMEOUT; i > 0; --i) {
-		reg = sst_dsp_shim_read(ctx, SKL_ADSP_REG_HIPCIE);
-
-		if (reg & SKL_ADSP_REG_HIPCIE_DONE) {
-			sst_dsp_shim_update_bits_forced(ctx,
-					SKL_ADSP_REG_HIPCIE,
+	ret = sst_dsp_register_poll(ctx, SKL_ADSP_REG_HIPCIE,
 					SKL_ADSP_REG_HIPCIE_DONE,
-					SKL_ADSP_REG_HIPCIE_DONE);
-			break;
-		}
-		mdelay(1);
-	}
-	if (!i) {
-		dev_info(ctx->dev, "Waiting for HIPCIE done, reg: 0x%x\n", reg);
-		sst_dsp_shim_update_bits(ctx, SKL_ADSP_REG_HIPCIE,
-				SKL_ADSP_REG_HIPCIE_DONE,
-				SKL_ADSP_REG_HIPCIE_DONE);
+					SKL_ADSP_REG_HIPCIE_DONE,
+					BXT_INIT_TIMEOUT, "HIPCIE Done");
+	if (ret < 0) {
+		dev_err(ctx->dev, "Timout for Purge Request%d\n", ret);
+		goto base_fw_load_failed;
 	}
 
 	/* Step 5: power down core1 */
@@ -182,19 +172,10 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx,
 	skl_ipc_op_int_enable(ctx);
 
 	/* Step 7: Wait for ROM init */
-	for (i = BXT_INIT_TIMEOUT; i > 0; --i) {
-		if (SKL_FW_INIT ==
-				(sst_dsp_shim_read(ctx, BXT_ADSP_FW_STATUS) &
-				SKL_FW_STS_MASK)) {
-
-			dev_info(ctx->dev, "ROM loaded, continue FW loading\n");
-			break;
-		}
-		mdelay(1);
-	}
-	if (!i) {
-		dev_err(ctx->dev, "Timeout for ROM init, HIPCIE: 0x%x\n", reg);
-		ret = -EIO;
+	ret = sst_dsp_register_poll(ctx, BXT_ADSP_FW_STATUS, SKL_FW_STS_MASK,
+			SKL_FW_INIT, BXT_INIT_TIMEOUT, "ROM Load");
+	if (ret < 0) {
+		dev_err(ctx->dev, "Timeout for ROM init, ret:%d\n", ret);
 		goto base_fw_load_failed;
 	}
 
