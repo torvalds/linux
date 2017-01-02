@@ -328,32 +328,31 @@ unsigned long dev_pm_opp_get_max_transition_latency(struct device *dev)
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_max_transition_latency);
 
 /**
- * dev_pm_opp_get_suspend_opp() - Get suspend opp
+ * dev_pm_opp_get_suspend_opp_freq() - Get frequency of suspend opp in Hz
  * @dev:	device for which we do this operation
  *
- * Return: This function returns pointer to the suspend opp if it is
- * defined and available, otherwise it returns NULL.
- *
- * Locking: This function must be called under rcu_read_lock(). opp is a rcu
- * protected pointer. The reason for the same is that the opp pointer which is
- * returned will remain valid for use with opp_get_{voltage, freq} only while
- * under the locked area. The pointer returned must be used prior to unlocking
- * with rcu_read_unlock() to maintain the integrity of the pointer.
+ * Return: This function returns the frequency of the OPP marked as suspend_opp
+ * if one is available, else returns 0;
  */
-struct dev_pm_opp *dev_pm_opp_get_suspend_opp(struct device *dev)
+unsigned long dev_pm_opp_get_suspend_opp_freq(struct device *dev)
 {
 	struct opp_table *opp_table;
+	unsigned long freq = 0;
 
-	opp_rcu_lockdep_assert();
+	rcu_read_lock();
 
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table) || !opp_table->suspend_opp ||
 	    !opp_table->suspend_opp->available)
-		return NULL;
+		goto unlock;
 
-	return opp_table->suspend_opp;
+	freq = dev_pm_opp_get_freq(opp_table->suspend_opp);
+
+unlock:
+	rcu_read_unlock();
+	return freq;
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_get_suspend_opp);
+EXPORT_SYMBOL_GPL(dev_pm_opp_get_suspend_opp_freq);
 
 /**
  * dev_pm_opp_get_opp_count() - Get number of opps available in the opp table
