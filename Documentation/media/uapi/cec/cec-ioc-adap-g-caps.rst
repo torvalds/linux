@@ -29,11 +29,6 @@ Arguments
 Description
 ===========
 
-.. note::
-
-   This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
-
 All cec devices must support :ref:`ioctl CEC_ADAP_G_CAPS <CEC_ADAP_G_CAPS>`. To query
 device information, applications call the ioctl with a pointer to a
 struct :c:type:`cec_caps`. The driver fills the structure and

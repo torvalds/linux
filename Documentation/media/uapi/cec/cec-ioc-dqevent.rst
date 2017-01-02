@@ -30,11 +30,6 @@ Arguments
 Description
 ===========
 
-.. note::
-
-   This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
-
 CEC devices can send asynchronous events. These can be retrieved by
 calling :c:func:`CEC_DQEVENT`. If the file descriptor is in
 non-blocking mode and no event is pending, then it will return -1 and
