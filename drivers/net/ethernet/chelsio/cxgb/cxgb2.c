@@ -825,8 +825,6 @@ static int t1_change_mtu(struct net_device *dev, int new_mtu)
 
 	if (!mac->ops->set_mtu)
 		return -EOPNOTSUPP;
-	if (new_mtu < 68)
-		return -EINVAL;
 	if ((ret = mac->ops->set_mtu(mac, new_mtu)))
 		return ret;
 	dev->mtu = new_mtu;
@@ -1101,6 +1099,22 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netif_napi_add(netdev, &adapter->napi, t1_poll, 64);
 
 		netdev->ethtool_ops = &t1_ethtool_ops;
+
+		switch (bi->board) {
+		case CHBT_BOARD_CHT110:
+		case CHBT_BOARD_N110:
+		case CHBT_BOARD_N210:
+		case CHBT_BOARD_CHT210:
+			netdev->max_mtu = PM3393_MAX_FRAME_SIZE -
+					  (ETH_HLEN + ETH_FCS_LEN);
+			break;
+		case CHBT_BOARD_CHN204:
+			netdev->max_mtu = VSC7326_MAX_MTU;
+			break;
+		default:
+			netdev->max_mtu = ETH_DATA_LEN;
+			break;
+		}
 	}
 
 	if (t1_init_sw_modules(adapter, bi) < 0) {

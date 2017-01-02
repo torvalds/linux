@@ -48,7 +48,6 @@
 #include <asm/io_apic.h>
 #include <asm/desc.h>
 #include <asm/hpet.h>
-#include <asm/idle.h>
 #include <asm/mtrr.h>
 #include <asm/time.h>
 #include <asm/smp.h>
@@ -894,11 +893,13 @@ void __init setup_boot_APIC_clock(void)
 
 	/* Setup the lapic or request the broadcast */
 	setup_APIC_timer();
+	amd_e400_c1e_apic_setup();
 }
 
 void setup_secondary_APIC_clock(void)
 {
 	setup_APIC_timer();
+	amd_e400_c1e_apic_setup();
 }
 
 /*
@@ -2263,6 +2264,7 @@ void __init apic_set_eoi_write(void (*eoi_write)(u32 reg, u32 v))
 	for (drv = __apicdrivers; drv < __apicdrivers_end; drv++) {
 		/* Should happen once for each apic */
 		WARN_ON((*drv)->eoi_write == eoi_write);
+		(*drv)->native_eoi_write = (*drv)->eoi_write;
 		(*drv)->eoi_write = eoi_write;
 	}
 }

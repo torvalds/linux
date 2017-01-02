@@ -2150,13 +2150,7 @@ static struct rtnl_link_ops team_link_ops __read_mostly = {
  * Generic netlink custom interface
  ***********************************/
 
-static struct genl_family team_nl_family = {
-	.id		= GENL_ID_GENERATE,
-	.name		= TEAM_GENL_NAME,
-	.version	= TEAM_GENL_VERSION,
-	.maxattr	= TEAM_ATTR_MAX,
-	.netnsok	= true,
-};
+static struct genl_family team_nl_family;
 
 static const struct nla_policy team_nl_policy[TEAM_ATTR_MAX + 1] = {
 	[TEAM_ATTR_UNSPEC]			= { .type = NLA_UNSPEC, },
@@ -2746,6 +2740,18 @@ static const struct genl_multicast_group team_nl_mcgrps[] = {
 	{ .name = TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME, },
 };
 
+static struct genl_family team_nl_family __ro_after_init = {
+	.name		= TEAM_GENL_NAME,
+	.version	= TEAM_GENL_VERSION,
+	.maxattr	= TEAM_ATTR_MAX,
+	.netnsok	= true,
+	.module		= THIS_MODULE,
+	.ops		= team_nl_ops,
+	.n_ops		= ARRAY_SIZE(team_nl_ops),
+	.mcgrps		= team_nl_mcgrps,
+	.n_mcgrps	= ARRAY_SIZE(team_nl_mcgrps),
+};
+
 static int team_nl_send_multicast(struct sk_buff *skb,
 				  struct team *team, u32 portid)
 {
@@ -2767,10 +2773,9 @@ static int team_nl_send_event_port_get(struct team *team,
 					  port);
 }
 
-static int team_nl_init(void)
+static int __init team_nl_init(void)
 {
-	return genl_register_family_with_ops_groups(&team_nl_family, team_nl_ops,
-						    team_nl_mcgrps);
+	return genl_register_family(&team_nl_family);
 }
 
 static void team_nl_fini(void)

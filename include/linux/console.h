@@ -28,9 +28,17 @@ struct tty_struct;
 #define VT100ID "\033[?1;2c"
 #define VT102ID "\033[?6c"
 
+enum con_scroll {
+	SM_UP,
+	SM_DOWN,
+};
+
 /**
  * struct consw - callbacks for consoles
  *
+ * @con_scroll: move lines from @top to @bottom in direction @dir by @lines.
+ *		Return true if no generic handling should be done.
+ *		Invoked by csi_M and printing to the console.
  * @con_set_palette: sets the palette of the console to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
  *		     Invoked by user. (optional)
@@ -44,7 +52,9 @@ struct consw {
 	void	(*con_putc)(struct vc_data *, int, int, int);
 	void	(*con_putcs)(struct vc_data *, const unsigned short *, int, int, int);
 	void	(*con_cursor)(struct vc_data *, int);
-	int	(*con_scroll)(struct vc_data *, int, int, int, int);
+	bool	(*con_scroll)(struct vc_data *, unsigned int top,
+			unsigned int bottom, enum con_scroll dir,
+			unsigned int lines);
 	int	(*con_switch)(struct vc_data *);
 	int	(*con_blank)(struct vc_data *, int, int);
 	int	(*con_font_set)(struct vc_data *, struct console_font *, unsigned);
@@ -98,10 +108,6 @@ static inline int con_debug_leave(void)
 	return 0;
 }
 #endif
-
-/* scroll */
-#define SM_UP       (1)
-#define SM_DOWN     (2)
 
 /* cursor */
 #define CM_DRAW     (1)

@@ -177,10 +177,10 @@ setsockopt on the PPPoX socket to set a debug mask.
 
 The following debug mask bits are available:
 
-PPPOL2TP_MSG_DEBUG    verbose debug (if compiled in)
-PPPOL2TP_MSG_CONTROL  userspace - kernel interface
-PPPOL2TP_MSG_SEQ      sequence numbers handling
-PPPOL2TP_MSG_DATA     data packets
+L2TP_MSG_DEBUG    verbose debug (if compiled in)
+L2TP_MSG_CONTROL  userspace - kernel interface
+L2TP_MSG_SEQ      sequence numbers handling
+L2TP_MSG_DATA     data packets
 
 If enabled, files under a l2tp debugfs directory can be used to dump
 kernel state about L2TP tunnels and sessions. To access it, the

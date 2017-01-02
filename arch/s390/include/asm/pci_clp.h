@@ -46,6 +46,8 @@ struct clp_fh_list_entry {
 #define CLP_UTIL_STR_LEN	64
 #define CLP_PFIP_NR_SEGMENTS	4
 
+extern bool zpci_unique_uid;
+
 /* List PCI functions request */
 struct clp_req_list_pci {
 	struct clp_req_hdr hdr;
@@ -59,7 +61,8 @@ struct clp_rsp_list_pci {
 	u64 resume_token;
 	u32 reserved2;
 	u16 max_fn;
-	u8 reserved3;
+	u8			: 7;
+	u8 uid_checking		: 1;
 	u8 entry_size;
 	struct clp_fh_list_entry fh_list[CLP_FH_LIST_NR_ENTRIES];
 } __packed;

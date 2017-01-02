@@ -29,6 +29,7 @@
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/bit_spinlock.h>
+#include <linux/bio.h>
 
 #include "aops.h"
 #include "attrib.h"

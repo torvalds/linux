@@ -64,6 +64,7 @@ config XILINX_VIRTEX_GENERIC_BOARD
 	default n
 	select XILINX_VIRTEX_II_PRO
 	select XILINX_VIRTEX_4_FX
+	select XILINX_INTC
 	help
 	  This option enables generic support for Xilinx Virtex based boards.
 

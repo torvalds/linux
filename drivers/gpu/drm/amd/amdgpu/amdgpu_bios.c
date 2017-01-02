@@ -70,10 +70,11 @@ static bool igp_read_bios_from_vram(struct amdgpu_device *adev)
 		return false;
 	}
 	adev->bios = kmalloc(size, GFP_KERNEL);
-	if (adev->bios == NULL) {
+	if (!adev->bios) {
 		iounmap(bios);
 		return false;
 	}
+	adev->bios_size = size;
 	memcpy_fromio(adev->bios, bios, size);
 	iounmap(bios);
 	return true;
@@ -103,6 +104,7 @@ bool amdgpu_read_bios(struct amdgpu_device *adev)
 		pci_unmap_rom(adev->pdev, bios);
 		return false;
 	}
+	adev->bios_size = size;
 	memcpy_fromio(adev->bios, bios, size);
 	pci_unmap_rom(adev->pdev, bios);
 	return true;
@@ -135,6 +137,7 @@ static bool amdgpu_read_bios_from_rom(struct amdgpu_device *adev)
 		DRM_ERROR("no memory to allocate for BIOS\n");
 		return false;
 	}
+	adev->bios_size = len;
 
 	/* read complete BIOS */
 	return amdgpu_asic_read_bios_from_rom(adev, adev->bios, len);
@@ -159,6 +162,7 @@ static bool amdgpu_read_platform_bios(struct amdgpu_device *adev)
 	if (adev->bios == NULL) {
 		return false;
 	}
+	adev->bios_size = size;
 
 	return true;
 }
@@ -273,6 +277,7 @@ static bool amdgpu_atrm_get_bios(struct amdgpu_device *adev)
 		kfree(adev->bios);
 		return false;
 	}
+	adev->bios_size = size;
 	return true;
 }
 #else
@@ -334,6 +339,7 @@ static bool amdgpu_acpi_vfct_bios(struct amdgpu_device *adev)
 	}
 
 	adev->bios = kmemdup(&vbios->VbiosContent, vhdr->ImageLength, GFP_KERNEL);
+	adev->bios_size = vhdr->ImageLength;
 	ret = !!adev->bios;
 
 out_unmap:

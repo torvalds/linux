@@ -30,7 +30,6 @@
 #include <asm/cacheflush.h>
 #include <asm/debug-monitors.h>
 #include <asm/fixmap.h>
-#include <asm/opcodes.h>
 #include <asm/insn.h>
 
 #define AARCH64_INSN_SF_BIT	BIT(31)

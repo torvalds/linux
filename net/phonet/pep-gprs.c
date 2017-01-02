@@ -217,20 +217,10 @@ static netdev_tx_t gprs_xmit(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int gprs_set_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 576) || (new_mtu > (PHONET_MAX_MTU - 11)))
-		return -EINVAL;
-
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static const struct net_device_ops gprs_netdev_ops = {
 	.ndo_open	= gprs_open,
 	.ndo_stop	= gprs_close,
 	.ndo_start_xmit	= gprs_xmit,
-	.ndo_change_mtu	= gprs_set_mtu,
 };
 
 static void gprs_setup(struct net_device *dev)
@@ -239,6 +229,8 @@ static void gprs_setup(struct net_device *dev)
 	dev->type		= ARPHRD_PHONET_PIPE;
 	dev->flags		= IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu		= GPRS_DEFAULT_MTU;
+	dev->min_mtu		= 576;
+	dev->max_mtu		= (PHONET_MAX_MTU - 11);
 	dev->hard_header_len	= 0;
 	dev->addr_len		= 0;
 	dev->tx_queue_len	= 10;

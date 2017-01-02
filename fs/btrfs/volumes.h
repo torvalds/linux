@@ -62,7 +62,7 @@ struct btrfs_device {
 	int running_pending;
 	/* regular prio bios */
 	struct btrfs_pending_bios pending_bios;
-	/* WRITE_SYNC bios */
+	/* sync bios */
 	struct btrfs_pending_bios pending_sync_bios;
 
 	struct block_device *bdev;

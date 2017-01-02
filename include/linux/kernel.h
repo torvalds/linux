@@ -45,10 +45,15 @@
 
 #define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
 
+/* @a is a power of 2 value */
 #define ALIGN(x, a)		__ALIGN_KERNEL((x), (a))
 #define __ALIGN_MASK(x, mask)	__ALIGN_KERNEL_MASK((x), (mask))
 #define PTR_ALIGN(p, a)		((typeof(p))ALIGN((unsigned long)(p), (a)))
 #define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a) - 1)) == 0)
+
+/* generic data direction definitions */
+#define READ			0
+#define WRITE			1
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]) + __must_be_array(arr))
 

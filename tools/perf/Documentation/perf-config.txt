@@ -8,6 +8,8 @@ perf-config - Get and set variables in a configuration file.
 SYNOPSIS
 --------
 [verse]
+'perf config' [<file-option>] [section.name[=value] ...]
+or
 'perf config' [<file-option>] -l | --list
 
 DESCRIPTION
@@ -117,6 +119,39 @@ Given a $HOME/.perfconfig like this:
 		queue-size = 0
 		children = true
 		group = true
+
+You can hide source code of annotate feature setting the config to false with
+
+	% perf config annotate.hide_src_code=true
+
+If you want to add or modify several config items, you can do like
+
+	% perf config ui.show-headers=false kmem.default=slab
+
+To modify the sort order of report functionality in user config file(i.e. `~/.perfconfig`), do
+
+	% perf config --user report sort-order=srcline
+
+To change colors of selected line to other foreground and background colors
+in system config file (i.e. `$(sysconf)/perfconfig`), do
+
+	% perf config --system colors.selected=yellow,green
+
+To query the record mode of call graph, do
+
+	% perf config call-graph.record-mode
+
+If you want to know multiple config key/value pairs, you can do like
+
+	% perf config report.queue-size call-graph.order report.children
+
+To query the config value of sort order of call graph in user config file (i.e. `~/.perfconfig`), do
+
+	% perf config --user call-graph.sort-order
+
+To query the config value of buildid directory in system config file (i.e. `$(sysconf)/perfconfig`), do
+
+	% perf config --system buildid.dir
 
 Variables
 ~~~~~~~~~

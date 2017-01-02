@@ -224,13 +224,7 @@ static int read_frontend_details(struct xenbus_device *xendev)
 
 int xenbus_dev_is_online(struct xenbus_device *dev)
 {
-	int rc, val;
-
-	rc = xenbus_scanf(XBT_NIL, dev->nodename, "online", "%d", &val);
-	if (rc != 1)
-		val = 0; /* no online node present */
-
-	return val;
+	return !!xenbus_read_unsigned(dev->nodename, "online", 0);
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_is_online);
 

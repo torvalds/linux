@@ -28,7 +28,6 @@
 #include <linux/uidgid.h>
 #include <linux/lockdep.h>
 #include <linux/percpu-rwsem.h>
-#include <linux/blk_types.h>
 #include <linux/workqueue.h>
 #include <linux/percpu-rwsem.h>
 #include <linux/delayed_call.h>
@@ -38,6 +37,7 @@
 
 struct backing_dev_info;
 struct bdi_writeback;
+struct bio;
 struct export_operations;
 struct hd_geometry;
 struct iovec;
@@ -150,58 +150,6 @@ typedef int (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
  * points too.
  */
 #define CHECK_IOVEC_ONLY -1
-
-/*
- * The below are the various read and write flags that we support. Some of
- * them include behavioral modifiers that send information down to the
- * block layer and IO scheduler. They should be used along with a req_op.
- * Terminology:
- *
- *	The block layer uses device plugging to defer IO a little bit, in
- *	the hope that we will see more IO very shortly. This increases
- *	coalescing of adjacent IO and thus reduces the number of IOs we
- *	have to send to the device. It also allows for better queuing,
- *	if the IO isn't mergeable. If the caller is going to be waiting
- *	for the IO, then he must ensure that the device is unplugged so
- *	that the IO is dispatched to the driver.
- *
- *	All IO is handled async in Linux. This is fine for background
- *	writes, but for reads or writes that someone waits for completion
- *	on, we want to notify the block layer and IO scheduler so that they
- *	know about it. That allows them to make better scheduling
- *	decisions. So when the below references 'sync' and 'async', it
- *	is referencing this priority hint.
- *
- * With that in mind, the available types are:
- *
- * READ			A normal read operation. Device will be plugged.
- * READ_SYNC		A synchronous read. Device is not plugged, caller can
- *			immediately wait on this read without caring about
- *			unplugging.
- * WRITE		A normal async write. Device will be plugged.
- * WRITE_SYNC		Synchronous write. Identical to WRITE, but passes down
- *			the hint that someone will be waiting on this IO
- *			shortly. The write equivalent of READ_SYNC.
- * WRITE_ODIRECT	Special case write for O_DIRECT only.
- * WRITE_FLUSH		Like WRITE_SYNC but with preceding cache flush.
- * WRITE_FUA		Like WRITE_SYNC but data is guaranteed to be on
- *			non-volatile media on completion.
- * WRITE_FLUSH_FUA	Combination of WRITE_FLUSH and FUA. The IO is preceded
- *			by a cache flush and data is guaranteed to be on
- *			non-volatile media on completion.
- *
- */
-#define RW_MASK			REQ_OP_WRITE
-
-#define READ			REQ_OP_READ
-#define WRITE			REQ_OP_WRITE
-
-#define READ_SYNC		REQ_SYNC
-#define WRITE_SYNC		(REQ_SYNC | REQ_NOIDLE)
-#define WRITE_ODIRECT		REQ_SYNC
-#define WRITE_FLUSH		(REQ_SYNC | REQ_NOIDLE | REQ_PREFLUSH)
-#define WRITE_FUA		(REQ_SYNC | REQ_NOIDLE | REQ_FUA)
-#define WRITE_FLUSH_FUA		(REQ_SYNC | REQ_NOIDLE | REQ_PREFLUSH | REQ_FUA)
 
 /*
  * Attribute flags.  These should be or-ed together to figure out what
@@ -2499,19 +2447,6 @@ extern void make_bad_inode(struct inode *);
 extern bool is_bad_inode(struct inode *);
 
 #ifdef CONFIG_BLOCK
-static inline bool op_is_write(unsigned int op)
-{
-	return op == REQ_OP_READ ? false : true;
-}
-
-/*
- * return data direction, READ or WRITE
- */
-static inline int bio_data_dir(struct bio *bio)
-{
-	return op_is_write(bio_op(bio)) ? WRITE : READ;
-}
-
 extern void check_disk_size_change(struct gendisk *disk,
 				   struct block_device *bdev);
 extern int revalidate_disk(struct gendisk *);
@@ -2782,7 +2717,6 @@ static inline void remove_inode_hash(struct inode *inode)
 extern void inode_sb_list_add(struct inode *inode);
 
 #ifdef CONFIG_BLOCK
-extern blk_qc_t submit_bio(struct bio *);
 extern int bdev_read_only(struct block_device *);
 #endif
 extern int set_blocksize(struct block_device *, int);

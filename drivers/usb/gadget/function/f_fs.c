@@ -266,7 +266,7 @@ static void ffs_ep0_complete(struct usb_ep *ep, struct usb_request *req)
 {
 	struct ffs_data *ffs = req->context;
 
-	complete_all(&ffs->ep0req_completion);
+	complete(&ffs->ep0req_completion);
 }
 
 static int __ffs_ep0_queue_wait(struct ffs_data *ffs, char *data, size_t len)
@@ -3225,11 +3225,11 @@ static bool ffs_func_req_match(struct usb_function *f,
 
 	switch (creq->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_INTERFACE:
-		return ffs_func_revmap_intf(func,
-					    le16_to_cpu(creq->wIndex) >= 0);
+		return (ffs_func_revmap_intf(func,
+					     le16_to_cpu(creq->wIndex)) >= 0);
 	case USB_RECIP_ENDPOINT:
-		return ffs_func_revmap_ep(func,
-					  le16_to_cpu(creq->wIndex) >= 0);
+		return (ffs_func_revmap_ep(func,
+					   le16_to_cpu(creq->wIndex)) >= 0);
 	default:
 		return (bool) (func->ffs->user_flags &
 			       FUNCTIONFS_ALL_CTRL_RECIP);

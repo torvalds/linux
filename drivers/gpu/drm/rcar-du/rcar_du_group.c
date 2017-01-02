@@ -105,16 +105,20 @@ static void rcar_du_group_setup(struct rcar_du_group *rgrp)
 	if (rcar_du_has(rgrp->dev, RCAR_DU_FEATURE_EXT_CTRL_REGS)) {
 		rcar_du_group_setup_defr8(rgrp);
 
-		/* Configure input dot clock routing. We currently hardcode the
-		 * configuration to routing DOTCLKINn to DUn.
+		/*
+		 * Configure input dot clock routing. We currently hardcode the
+		 * configuration to routing DOTCLKINn to DUn. Register fields
+		 * depend on the DU generation, but the resulting value is 0 in
+		 * all cases.
+		 *
+		 * On Gen2 a single register in the first group controls dot
+		 * clock selection for all channels, while on Gen3 dot clocks
+		 * are setup through per-group registers, only available when
+		 * the group has two channels.
 		 */
-		rcar_du_group_write(rgrp, DIDSR, DIDSR_CODE |
-				    DIDSR_LCDS_DCLKIN(2) |
-				    DIDSR_LCDS_DCLKIN(1) |
-				    DIDSR_LCDS_DCLKIN(0) |
-				    DIDSR_PDCS_CLK(2, 0) |
-				    DIDSR_PDCS_CLK(1, 0) |
-				    DIDSR_PDCS_CLK(0, 0));
+		if ((rcdu->info->gen < 3 && rgrp->index == 0) ||
+		    (rcdu->info->gen == 3 &&  rgrp->num_crtcs > 1))
+			rcar_du_group_write(rgrp, DIDSR, DIDSR_CODE);
 	}
 
 	if (rcdu->info->gen >= 3)

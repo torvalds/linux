@@ -164,8 +164,6 @@ u64 __cputime_sec_factor;
 EXPORT_SYMBOL(__cputime_sec_factor);
 u64 __cputime_clockt_factor;
 EXPORT_SYMBOL(__cputime_clockt_factor);
-DEFINE_PER_CPU(unsigned long, cputime_last_delta);
-DEFINE_PER_CPU(unsigned long, cputime_scaled_last_delta);
 
 cputime_t cputime_one_jiffy;
 
@@ -360,7 +358,8 @@ void vtime_account_system(struct task_struct *tsk)
 	unsigned long delta, sys_scaled, stolen;
 
 	delta = vtime_delta(tsk, &sys_scaled, &stolen);
-	account_system_time(tsk, 0, delta, sys_scaled);
+	account_system_time(tsk, 0, delta);
+	tsk->stimescaled += sys_scaled;
 	if (stolen)
 		account_steal_time(stolen);
 }
@@ -393,7 +392,8 @@ void vtime_account_user(struct task_struct *tsk)
 	acct->user_time = 0;
 	acct->user_time_scaled = 0;
 	acct->utime_sspurr = 0;
-	account_user_time(tsk, utime, utimescaled);
+	account_user_time(tsk, utime);
+	tsk->utimescaled += utimescaled;
 }
 
 #ifdef CONFIG_PPC32

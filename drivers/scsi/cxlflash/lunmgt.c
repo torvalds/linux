@@ -254,8 +254,14 @@ int cxlflash_manage_lun(struct scsi_device *sdev,
 		if (lli->parent->mode != MODE_NONE)
 			rc = -EBUSY;
 		else {
+			/*
+			 * Clean up local LUN for this port and reset table
+			 * tracking when no more references exist.
+			 */
 			sdev->hostdata = NULL;
 			lli->port_sel &= ~CHAN2PORT(chan);
+			if (lli->port_sel == 0U)
+				lli->in_table = false;
 		}
 	}
 

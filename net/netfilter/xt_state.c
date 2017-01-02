@@ -43,7 +43,7 @@ static int state_mt_check(const struct xt_mtchk_param *par)
 {
 	int ret;
 
-	ret = nf_ct_l3proto_try_module_get(par->family);
+	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
@@ -52,7 +52,7 @@ static int state_mt_check(const struct xt_mtchk_param *par)
 
 static void state_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_put(par->net, par->family);
 }
 
 static struct xt_match state_mt_reg __read_mostly = {

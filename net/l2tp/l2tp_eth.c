@@ -97,7 +97,7 @@ static int l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	unsigned int len = skb->len;
 	int ret = l2tp_xmit_skb(session, skb, session->hdr_len);
 
-	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
+	if (likely(ret == NET_XMIT_SUCCESS)) {
 		atomic_long_add(len, &priv->tx_bytes);
 		atomic_long_inc(&priv->tx_packets);
 	} else {
@@ -259,6 +259,8 @@ static int l2tp_eth_create(struct net *net, u32 tunnel_id, u32 session_id, u32 p
 		session->mtu = dev->mtu - session->hdr_len;
 	dev->mtu = session->mtu;
 	dev->needed_headroom += session->hdr_len;
+	dev->min_mtu = 0;
+	dev->max_mtu = ETH_MAX_MTU;
 
 	priv = netdev_priv(dev);
 	priv->dev = dev;

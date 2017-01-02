@@ -129,8 +129,8 @@ Selection targets and flags are documented in
 
 .. _sel-const-adjust:
 
-.. figure::  vidioc-g-selection_files/constraints.*
-    :alt:    constraints.png
+.. figure::  constraints.*
+    :alt:    constraints.pdf / constraints.svg
     :align:  center
 
     Size adjustments with constraint flags.

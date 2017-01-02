@@ -185,6 +185,11 @@ struct obd_import {
 	struct list_head	       *imp_replay_cursor;
 	/** @} */
 
+	/** List of not replied requests */
+	struct list_head	imp_unreplied_list;
+	/** Known maximal replied XID */
+	__u64			imp_known_replied_xid;
+
 	/** obd device for this import */
 	struct obd_device	*imp_obd;
 
@@ -294,7 +299,9 @@ struct obd_import {
 				   */
 				  imp_force_reconnect:1,
 				  /* import has tried to connect with server */
-				  imp_connect_tried:1;
+				  imp_connect_tried:1,
+				 /* connected but not FULL yet */
+				 imp_connected:1;
 	__u32		     imp_connect_op;
 	struct obd_connect_data   imp_connect_data;
 	__u64		     imp_connect_flags_orig;

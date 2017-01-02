@@ -54,6 +54,7 @@ static void ip6_datagram_flow_key_init(struct flowi6 *fl6, struct sock *sk)
 	fl6->fl6_dport = inet->inet_dport;
 	fl6->fl6_sport = inet->inet_sport;
 	fl6->flowlabel = np->flow_label;
+	fl6->flowi6_uid = sk->sk_uid;
 
 	if (!fl6->flowi6_oif)
 		fl6->flowi6_oif = np->sticky_pktinfo.ipi6_ifindex;
@@ -139,7 +140,8 @@ void ip6_datagram_release_cb(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(ip6_datagram_release_cb);
 
-static int __ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
+int __ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr,
+			   int addr_len)
 {
 	struct sockaddr_in6	*usin = (struct sockaddr_in6 *) uaddr;
 	struct inet_sock	*inet = inet_sk(sk);
@@ -252,6 +254,7 @@ ipv4_connected:
 out:
 	return err;
 }
+EXPORT_SYMBOL_GPL(__ip6_datagram_connect);
 
 int ip6_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
@@ -714,6 +717,11 @@ void ip6_datagram_recv_specific_ctl(struct sock *sk, struct msghdr *msg,
 
 			put_cmsg(msg, SOL_IPV6, IPV6_ORIGDSTADDR, sizeof(sin6), &sin6);
 		}
+	}
+	if (np->rxopt.bits.recvfragsize && opt->frag_max_size) {
+		int val = opt->frag_max_size;
+
+		put_cmsg(msg, SOL_IPV6, IPV6_RECVFRAGSIZE, sizeof(val), &val);
 	}
 }
 

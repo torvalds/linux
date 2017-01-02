@@ -1361,7 +1361,7 @@ static void smq_clear_dirty(struct dm_cache_policy *p, dm_oblock_t oblock)
 
 static unsigned random_level(dm_cblock_t cblock)
 {
-	return hash_32_generic(from_cblock(cblock), 9) & (NR_CACHE_LEVELS - 1);
+	return hash_32(from_cblock(cblock), 9) & (NR_CACHE_LEVELS - 1);
 }
 
 static int smq_load_mapping(struct dm_cache_policy *p,

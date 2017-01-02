@@ -10,8 +10,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/skbuff.h>
 #include <linux/dccp.h>
 
@@ -73,7 +71,7 @@ dccp_manip_pkt(struct sk_buff *skb,
 	return true;
 }
 
-static const struct nf_nat_l4proto nf_nat_l4proto_dccp = {
+const struct nf_nat_l4proto nf_nat_l4proto_dccp = {
 	.l4proto		= IPPROTO_DCCP,
 	.manip_pkt		= dccp_manip_pkt,
 	.in_range		= nf_nat_l4proto_in_range,
@@ -82,35 +80,3 @@ static const struct nf_nat_l4proto nf_nat_l4proto_dccp = {
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
 };
-
-static int __init nf_nat_proto_dccp_init(void)
-{
-	int err;
-
-	err = nf_nat_l4proto_register(NFPROTO_IPV4, &nf_nat_l4proto_dccp);
-	if (err < 0)
-		goto err1;
-	err = nf_nat_l4proto_register(NFPROTO_IPV6, &nf_nat_l4proto_dccp);
-	if (err < 0)
-		goto err2;
-	return 0;
-
-err2:
-	nf_nat_l4proto_unregister(NFPROTO_IPV4, &nf_nat_l4proto_dccp);
-err1:
-	return err;
-}
-
-static void __exit nf_nat_proto_dccp_fini(void)
-{
-	nf_nat_l4proto_unregister(NFPROTO_IPV6, &nf_nat_l4proto_dccp);
-	nf_nat_l4proto_unregister(NFPROTO_IPV4, &nf_nat_l4proto_dccp);
-
-}
-
-module_init(nf_nat_proto_dccp_init);
-module_exit(nf_nat_proto_dccp_fini);
-
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_DESCRIPTION("DCCP NAT protocol helper");
-MODULE_LICENSE("GPL");

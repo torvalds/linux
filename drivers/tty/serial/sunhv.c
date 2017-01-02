@@ -598,7 +598,8 @@ static int hv_remove(struct platform_device *dev)
 	uart_remove_one_port(&sunhv_reg, port);
 
 	sunserial_unregister_minors(&sunhv_reg, 1);
-
+	kfree(con_read_page);
+	kfree(con_write_page);
 	kfree(port);
 	sunhv_port = NULL;
 

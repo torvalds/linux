@@ -2,7 +2,7 @@
 obj- := dummy.o
 
 # List of programs to build
-hostprogs-y := test_verifier test_maps
+hostprogs-y := test_lru_dist
 hostprogs-y += sock_example
 hostprogs-y += fds_example
 hostprogs-y += sockex1
@@ -22,15 +22,20 @@ hostprogs-y += spintest
 hostprogs-y += map_perf_test
 hostprogs-y += test_overhead
 hostprogs-y += test_cgrp2_array_pin
+hostprogs-y += test_cgrp2_attach
+hostprogs-y += test_cgrp2_attach2
+hostprogs-y += test_cgrp2_sock
+hostprogs-y += test_cgrp2_sock2
 hostprogs-y += xdp1
 hostprogs-y += xdp2
 hostprogs-y += test_current_task_under_cgroup
 hostprogs-y += trace_event
 hostprogs-y += sampleip
 hostprogs-y += tc_l2_redirect
+hostprogs-y += lwt_len_hist
+hostprogs-y += xdp_tx_iptunnel
 
-test_verifier-objs := test_verifier.o libbpf.o
-test_maps-objs := test_maps.o libbpf.o
+test_lru_dist-objs := test_lru_dist.o libbpf.o
 sock_example-objs := sock_example.o libbpf.o
 fds_example-objs := bpf_load.o libbpf.o fds_example.o
 sockex1-objs := bpf_load.o libbpf.o sockex1_user.o
@@ -50,14 +55,20 @@ spintest-objs := bpf_load.o libbpf.o spintest_user.o
 map_perf_test-objs := bpf_load.o libbpf.o map_perf_test_user.o
 test_overhead-objs := bpf_load.o libbpf.o test_overhead_user.o
 test_cgrp2_array_pin-objs := libbpf.o test_cgrp2_array_pin.o
+test_cgrp2_attach-objs := libbpf.o test_cgrp2_attach.o
+test_cgrp2_attach2-objs := libbpf.o test_cgrp2_attach2.o cgroup_helpers.o
+test_cgrp2_sock-objs := libbpf.o test_cgrp2_sock.o
+test_cgrp2_sock2-objs := bpf_load.o libbpf.o test_cgrp2_sock2.o
 xdp1-objs := bpf_load.o libbpf.o xdp1_user.o
 # reuse xdp1 source intentionally
 xdp2-objs := bpf_load.o libbpf.o xdp1_user.o
-test_current_task_under_cgroup-objs := bpf_load.o libbpf.o \
+test_current_task_under_cgroup-objs := bpf_load.o libbpf.o cgroup_helpers.o \
 				       test_current_task_under_cgroup_user.o
 trace_event-objs := bpf_load.o libbpf.o trace_event_user.o
 sampleip-objs := bpf_load.o libbpf.o sampleip_user.o
 tc_l2_redirect-objs := bpf_load.o libbpf.o tc_l2_redirect_user.o
+lwt_len_hist-objs := bpf_load.o libbpf.o lwt_len_hist_user.o
+xdp_tx_iptunnel-objs := bpf_load.o libbpf.o xdp_tx_iptunnel_user.o
 
 # Tell kbuild to always build the programs
 always := $(hostprogs-y)
@@ -70,6 +81,7 @@ always += tracex3_kern.o
 always += tracex4_kern.o
 always += tracex5_kern.o
 always += tracex6_kern.o
+always += sock_flags_kern.o
 always += test_probe_write_user_kern.o
 always += trace_output_kern.o
 always += tcbpf1_kern.o
@@ -88,8 +100,11 @@ always += xdp2_kern.o
 always += test_current_task_under_cgroup_kern.o
 always += trace_event_kern.o
 always += sampleip_kern.o
+always += lwt_len_hist_kern.o
+always += xdp_tx_iptunnel_kern.o
 
 HOSTCFLAGS += -I$(objtree)/usr/include
+HOSTCFLAGS += -I$(srctree)/tools/testing/selftests/bpf/
 
 HOSTCFLAGS_bpf_load.o += -I$(objtree)/usr/include -Wno-unused-variable
 HOSTLOADLIBES_fds_example += -lelf
@@ -102,6 +117,7 @@ HOSTLOADLIBES_tracex3 += -lelf
 HOSTLOADLIBES_tracex4 += -lelf -lrt
 HOSTLOADLIBES_tracex5 += -lelf
 HOSTLOADLIBES_tracex6 += -lelf
+HOSTLOADLIBES_test_cgrp2_sock2 += -lelf
 HOSTLOADLIBES_test_probe_write_user += -lelf
 HOSTLOADLIBES_trace_output += -lelf -lrt
 HOSTLOADLIBES_lathist += -lelf
@@ -115,6 +131,8 @@ HOSTLOADLIBES_test_current_task_under_cgroup += -lelf
 HOSTLOADLIBES_trace_event += -lelf
 HOSTLOADLIBES_sampleip += -lelf
 HOSTLOADLIBES_tc_l2_redirect += -l elf
+HOSTLOADLIBES_lwt_len_hist += -l elf
+HOSTLOADLIBES_xdp_tx_iptunnel += -lelf
 
 # Allows pointing LLC/CLANG to a LLVM backend with bpf support, redefine on cmdline:
 #  make samples/bpf/ LLC=~/git/llvm/build/bin/llc CLANG=~/git/llvm/build/bin/clang
@@ -156,4 +174,6 @@ $(obj)/%.o: $(src)/%.c
 	$(CLANG) $(NOSTDINC_FLAGS) $(LINUXINCLUDE) $(EXTRA_CFLAGS) \
 		-D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
 		-Wno-compare-distinct-pointer-types \
+		-Wno-gnu-variable-sized-type-not-at-end \
+		-Wno-address-of-packed-member -Wno-tautological-compare \
 		-O2 -emit-llvm -c $< -o -| $(LLC) -march=bpf -filetype=obj -o $@

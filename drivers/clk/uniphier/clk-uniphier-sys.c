@@ -125,16 +125,35 @@ const struct uniphier_clk_data uniphier_pxs2_sys_clk_data[] = {
 };
 
 const struct uniphier_clk_data uniphier_ld11_sys_clk_data[] = {
+	UNIPHIER_CLK_FACTOR("cpll", -1, "ref", 392, 5),		/* 1960 MHz */
+	UNIPHIER_CLK_FACTOR("mpll", -1, "ref", 64, 1),		/* 1600 MHz */
 	UNIPHIER_CLK_FACTOR("spll", -1, "ref", 80, 1),		/* 2000 MHz */
+	UNIPHIER_CLK_FACTOR("vspll", -1, "ref", 80, 1),		/* 2000 MHz */
 	UNIPHIER_CLK_FACTOR("uart", 0, "spll", 1, 34),
 	UNIPHIER_CLK_FACTOR("i2c", 1, "spll", 1, 40),
 	UNIPHIER_LD11_SYS_CLK_STDMAC(8),			/* HSC, MIO */
 	UNIPHIER_CLK_FACTOR("usb2", -1, "ref", 24, 25),
+	/* CPU gears */
+	UNIPHIER_CLK_DIV4("cpll", 2, 3, 4, 8),
+	UNIPHIER_CLK_DIV4("mpll", 2, 3, 4, 8),
+	UNIPHIER_CLK_DIV3("spll", 3, 4, 8),
+	/* Note: both gear1 and gear4 are spll/4.  This is not a bug. */
+	UNIPHIER_CLK_CPUGEAR("cpu-ca53", 33, 0x8080, 0xf, 8,
+			     "cpll/2", "spll/4", "cpll/3", "spll/3",
+			     "spll/4", "spll/8", "cpll/4", "cpll/8"),
+	UNIPHIER_CLK_CPUGEAR("cpu-ipp", 34, 0x8100, 0xf, 8,
+			     "mpll/2", "spll/4", "mpll/3", "spll/3",
+			     "spll/4", "spll/8", "mpll/4", "mpll/8"),
 	{ /* sentinel */ }
 };
 
 const struct uniphier_clk_data uniphier_ld20_sys_clk_data[] = {
+	UNIPHIER_CLK_FACTOR("cpll", -1, "ref", 88, 1),		/* ARM: 2200 MHz */
+	UNIPHIER_CLK_FACTOR("gppll", -1, "ref", 52, 1),		/* Mali: 1300 MHz */
+	UNIPHIER_CLK_FACTOR("mpll", -1, "ref", 64, 1),		/* Codec: 1600 MHz */
 	UNIPHIER_CLK_FACTOR("spll", -1, "ref", 80, 1),		/* 2000 MHz */
+	UNIPHIER_CLK_FACTOR("s2pll", -1, "ref", 88, 1),		/* IPP: 2200 MHz */
+	UNIPHIER_CLK_FACTOR("vppll", -1, "ref", 504, 5),	/* 2520 MHz */
 	UNIPHIER_CLK_FACTOR("uart", 0, "spll", 1, 34),
 	UNIPHIER_CLK_FACTOR("i2c", 1, "spll", 1, 40),
 	UNIPHIER_LD20_SYS_CLK_SD,
@@ -147,5 +166,18 @@ const struct uniphier_clk_data uniphier_ld20_sys_clk_data[] = {
 	UNIPHIER_CLK_GATE("usb30", 14, NULL, 0x210c, 14),
 	UNIPHIER_CLK_GATE("usb30-phy0", 16, NULL, 0x210c, 12),
 	UNIPHIER_CLK_GATE("usb30-phy1", 17, NULL, 0x210c, 13),
+	/* CPU gears */
+	UNIPHIER_CLK_DIV4("cpll", 2, 3, 4, 8),
+	UNIPHIER_CLK_DIV4("spll", 2, 3, 4, 8),
+	UNIPHIER_CLK_DIV4("s2pll", 2, 3, 4, 8),
+	UNIPHIER_CLK_CPUGEAR("cpu-ca72", 32, 0x8000, 0xf, 8,
+			     "cpll/2", "spll/2", "cpll/3", "spll/3",
+			     "spll/4", "spll/8", "cpll/4", "cpll/8"),
+	UNIPHIER_CLK_CPUGEAR("cpu-ca53", 33, 0x8080, 0xf, 8,
+			     "cpll/2", "spll/2", "cpll/3", "spll/3",
+			     "spll/4", "spll/8", "cpll/4", "cpll/8"),
+	UNIPHIER_CLK_CPUGEAR("cpu-ipp", 34, 0x8100, 0xf, 8,
+			     "s2pll/2", "spll/2", "s2pll/3", "spll/3",
+			     "spll/4", "spll/8", "s2pll/4", "s2pll/8"),
 	{ /* sentinel */ }
 };

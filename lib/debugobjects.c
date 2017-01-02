@@ -199,7 +199,7 @@ static void free_object(struct debug_obj *obj)
 	 * initialized:
 	 */
 	if (obj_pool_free > ODEBUG_POOL_SIZE && obj_cache)
-		sched = keventd_up();
+		sched = 1;
 	hlist_add_head(&obj->node, &obj_pool);
 	obj_pool_free++;
 	obj_pool_used--;
@@ -362,6 +362,7 @@ void debug_object_init(void *addr, struct debug_obj_descr *descr)
 
 	__debug_object_init(addr, descr, 0);
 }
+EXPORT_SYMBOL_GPL(debug_object_init);
 
 /**
  * debug_object_init_on_stack - debug checks when an object on stack is
@@ -376,6 +377,7 @@ void debug_object_init_on_stack(void *addr, struct debug_obj_descr *descr)
 
 	__debug_object_init(addr, descr, 1);
 }
+EXPORT_SYMBOL_GPL(debug_object_init_on_stack);
 
 /**
  * debug_object_activate - debug checks when an object is activated
@@ -449,6 +451,7 @@ int debug_object_activate(void *addr, struct debug_obj_descr *descr)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_GPL(debug_object_activate);
 
 /**
  * debug_object_deactivate - debug checks when an object is deactivated
@@ -496,6 +499,7 @@ void debug_object_deactivate(void *addr, struct debug_obj_descr *descr)
 
 	raw_spin_unlock_irqrestore(&db->lock, flags);
 }
+EXPORT_SYMBOL_GPL(debug_object_deactivate);
 
 /**
  * debug_object_destroy - debug checks when an object is destroyed
@@ -542,6 +546,7 @@ void debug_object_destroy(void *addr, struct debug_obj_descr *descr)
 out_unlock:
 	raw_spin_unlock_irqrestore(&db->lock, flags);
 }
+EXPORT_SYMBOL_GPL(debug_object_destroy);
 
 /**
  * debug_object_free - debug checks when an object is freed
@@ -582,6 +587,7 @@ void debug_object_free(void *addr, struct debug_obj_descr *descr)
 out_unlock:
 	raw_spin_unlock_irqrestore(&db->lock, flags);
 }
+EXPORT_SYMBOL_GPL(debug_object_free);
 
 /**
  * debug_object_assert_init - debug checks when object should be init-ed
@@ -626,6 +632,7 @@ void debug_object_assert_init(void *addr, struct debug_obj_descr *descr)
 
 	raw_spin_unlock_irqrestore(&db->lock, flags);
 }
+EXPORT_SYMBOL_GPL(debug_object_assert_init);
 
 /**
  * debug_object_active_state - debug checks object usage state machine
@@ -673,6 +680,7 @@ debug_object_active_state(void *addr, struct debug_obj_descr *descr,
 
 	raw_spin_unlock_irqrestore(&db->lock, flags);
 }
+EXPORT_SYMBOL_GPL(debug_object_active_state);
 
 #ifdef CONFIG_DEBUG_OBJECTS_FREE
 static void __debug_check_no_obj_freed(const void *address, unsigned long size)

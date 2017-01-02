@@ -16,6 +16,7 @@
 #include <linux/bitmap.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/bpf.h>
 #include <linux/io.h>
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/eth_common.h>
@@ -127,10 +128,9 @@ struct qede_dev {
 
 	const struct qed_eth_ops	*ops;
 
-	struct qed_dev_eth_info	dev_info;
+	struct qed_dev_eth_info dev_info;
 #define QEDE_MAX_RSS_CNT(edev)	((edev)->dev_info.num_queues)
-#define QEDE_MAX_TSS_CNT(edev)	((edev)->dev_info.num_queues * \
-				 (edev)->dev_info.num_tc)
+#define QEDE_MAX_TSS_CNT(edev)	((edev)->dev_info.num_queues)
 
 	struct qede_fastpath		*fp_array;
 	u8				req_num_tx;
@@ -139,17 +139,9 @@ struct qede_dev {
 	u8				fp_num_rx;
 	u16				req_queues;
 	u16				num_queues;
-	u8				num_tc;
 #define QEDE_QUEUE_CNT(edev)	((edev)->num_queues)
 #define QEDE_RSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_tx)
-#define QEDE_TSS_COUNT(edev)	(((edev)->num_queues - (edev)->fp_num_rx) * \
-				 (edev)->num_tc)
-#define QEDE_TX_IDX(edev, txqidx)	((edev)->fp_num_rx + (txqidx) % \
-					 QEDE_TSS_COUNT(edev))
-#define QEDE_TC_IDX(edev, txqidx)	((txqidx) / QEDE_TSS_COUNT(edev))
-#define QEDE_TX_QUEUE(edev, txqidx)	\
-	(&(edev)->fp_array[QEDE_TX_IDX((edev), (txqidx))].txqs[QEDE_TC_IDX(\
-							(edev), (txqidx))])
+#define QEDE_TSS_COUNT(edev)	((edev)->num_queues - (edev)->fp_num_rx)
 
 	struct qed_int_info		int_info;
 	unsigned char			primary_mac[ETH_ALEN];
@@ -193,7 +185,11 @@ struct qede_dev {
 	u16				vxlan_dst_port;
 	u16				geneve_dst_port;
 
+	bool wol_enabled;
+
 	struct qede_rdma_dev		rdma_info;
+
+	struct bpf_prog *xdp_prog;
 };
 
 enum QEDE_STATE {
@@ -223,39 +219,67 @@ enum qede_agg_state {
 };
 
 struct qede_agg_info {
-	struct sw_rx_data replace_buf;
-	dma_addr_t replace_buf_mapping;
-	struct sw_rx_data start_buf;
-	dma_addr_t start_buf_mapping;
-	struct eth_fast_path_rx_tpa_start_cqe start_cqe;
-	enum qede_agg_state agg_state;
+	/* rx_buf is a data buffer that can be placed / consumed from rx bd
+	 * chain. It has two purposes: We will preallocate the data buffer
+	 * for each aggregation when we open the interface and will place this
+	 * buffer on the rx-bd-ring when we receive TPA_START. We don't want
+	 * to be in a state where allocation fails, as we can't reuse the
+	 * consumer buffer in the rx-chain since FW may still be writing to it
+	 * (since header needs to be modified for TPA).
+	 * The second purpose is to keep a pointer to the bd buffer during
+	 * aggregation.
+	 */
+	struct sw_rx_data buffer;
+	dma_addr_t buffer_mapping;
+
 	struct sk_buff *skb;
-	int frag_id;
+
+	/* We need some structs from the start cookie until termination */
 	u16 vlan_tag;
+	u16 start_cqe_bd_len;
+	u8 start_cqe_placement_offset;
+
+	u8 state;
+	u8 frag_id;
+
+	u8 tunnel_type;
 };
 
 struct qede_rx_queue {
-	__le16			*hw_cons_ptr;
-	struct sw_rx_data	*sw_rx_ring;
-	u16			sw_rx_cons;
-	u16			sw_rx_prod;
-	struct qed_chain	rx_bd_ring;
-	struct qed_chain	rx_comp_ring;
-	void __iomem		*hw_rxq_prod_addr;
+	__le16 *hw_cons_ptr;
+	void __iomem *hw_rxq_prod_addr;
+
+	/* Required for the allocation of replacement buffers */
+	struct device *dev;
+
+	struct bpf_prog *xdp_prog;
+
+	u16 sw_rx_cons;
+	u16 sw_rx_prod;
+
+	u16 num_rx_buffers; /* Slowpath */
+	u8 data_direction;
+	u8 rxq_id;
+
+	u32 rx_buf_size;
+	u32 rx_buf_seg_size;
+
+	u64 rcv_pkts;
+
+	struct sw_rx_data *sw_rx_ring;
+	struct qed_chain rx_bd_ring;
+	struct qed_chain rx_comp_ring ____cacheline_aligned;
 
 	/* GRO */
-	struct qede_agg_info	tpa_info[ETH_TPA_MAX_AGGS_NUM];
+	struct qede_agg_info tpa_info[ETH_TPA_MAX_AGGS_NUM];
 
-	int			rx_buf_size;
-	unsigned int		rx_buf_seg_size;
+	u64 rx_hw_errors;
+	u64 rx_alloc_errors;
+	u64 rx_ip_frags;
 
-	u16			num_rx_buffers;
-	u16			rxq_id;
+	u64 xdp_no_pass;
 
-	u64			rcv_pkts;
-	u64			rx_hw_errors;
-	u64			rx_alloc_errors;
-	u64			rx_ip_frags;
+	void *handle;
 };
 
 union db_prod {
@@ -271,20 +295,39 @@ struct sw_tx_bd {
 };
 
 struct qede_tx_queue {
-	int			index; /* Queue index */
-	__le16			*hw_cons_ptr;
-	struct sw_tx_bd		*sw_tx_ring;
-	u16			sw_tx_cons;
-	u16			sw_tx_prod;
-	struct qed_chain	tx_pbl;
-	void __iomem		*doorbell_addr;
-	union db_prod		tx_db;
+	u8 is_xdp;
+	bool is_legacy;
+	u16 sw_tx_cons;
+	u16 sw_tx_prod;
+	u16 num_tx_buffers; /* Slowpath only */
 
-	u16			num_tx_buffers;
-	u64			xmit_pkts;
-	u64			stopped_cnt;
+	u64 xmit_pkts;
+	u64 stopped_cnt;
 
-	bool			is_legacy;
+	__le16 *hw_cons_ptr;
+
+	/* Needed for the mapping of packets */
+	struct device *dev;
+
+	void __iomem *doorbell_addr;
+	union db_prod tx_db;
+	int index; /* Slowpath only */
+#define QEDE_TXQ_XDP_TO_IDX(edev, txq)	((txq)->index - \
+					 QEDE_MAX_TSS_CNT(edev))
+#define QEDE_TXQ_IDX_TO_XDP(edev, idx)	((idx) + QEDE_MAX_TSS_CNT(edev))
+
+	/* Regular Tx requires skb + metadata for release purpose,
+	 * while XDP requires only the pages themselves.
+	 */
+	union {
+		struct sw_tx_bd *skbs;
+		struct page **pages;
+	} sw_tx_ring;
+
+	struct qed_chain tx_pbl;
+
+	/* Slowpath; Should be kept in end [unless missing padding] */
+	void *handle;
 };
 
 #define BD_UNMAP_ADDR(bd)		HILO_U64(le32_to_cpu((bd)->addr.hi), \
@@ -301,13 +344,16 @@ struct qede_fastpath {
 	struct qede_dev	*edev;
 #define QEDE_FASTPATH_TX	BIT(0)
 #define QEDE_FASTPATH_RX	BIT(1)
+#define QEDE_FASTPATH_XDP	BIT(2)
 #define QEDE_FASTPATH_COMBINED	(QEDE_FASTPATH_TX | QEDE_FASTPATH_RX)
 	u8			type;
 	u8			id;
+	u8			xdp_xmit;
 	struct napi_struct	napi;
 	struct qed_sb_info	*sb_info;
 	struct qede_rx_queue	*rxq;
-	struct qede_tx_queue	*txqs;
+	struct qede_tx_queue	*txq;
+	struct qede_tx_queue	*xdp_tx;
 
 #define VEC_NAME_SIZE	(sizeof(((struct net_device *)0)->name) + 8)
 	char	name[VEC_NAME_SIZE];
@@ -320,6 +366,7 @@ struct qede_fastpath {
 #define XMIT_L4_CSUM		BIT(0)
 #define XMIT_LSO		BIT(1)
 #define XMIT_ENC		BIT(2)
+#define XMIT_ENC_GSO_L4_CSUM	BIT(3)
 
 #define QEDE_CSUM_ERROR			BIT(0)
 #define QEDE_CSUM_UNNECESSARY		BIT(1)
@@ -329,8 +376,13 @@ struct qede_fastpath {
 #define QEDE_SP_VXLAN_PORT_CONFIG	2
 #define QEDE_SP_GENEVE_PORT_CONFIG	3
 
-union qede_reload_args {
-	u16 mtu;
+struct qede_reload_args {
+	void (*func)(struct qede_dev *edev, struct qede_reload_args *args);
+	union {
+		netdev_features_t features;
+		struct bpf_prog *new_prog;
+		u16 mtu;
+	} u;
 };
 
 #ifdef CONFIG_DCB
@@ -339,15 +391,14 @@ void qede_set_dcbnl_ops(struct net_device *ndev);
 void qede_config_debug(uint debug, u32 *p_dp_module, u8 *p_dp_level);
 void qede_set_ethtool_ops(struct net_device *netdev);
 void qede_reload(struct qede_dev *edev,
-		 void (*func)(struct qede_dev *edev,
-			      union qede_reload_args *args),
-		 union qede_reload_args *args);
+		 struct qede_reload_args *args, bool is_locked);
 int qede_change_mtu(struct net_device *dev, int new_mtu);
 void qede_fill_by_demand_stats(struct qede_dev *edev);
+void __qede_lock(struct qede_dev *edev);
+void __qede_unlock(struct qede_dev *edev);
 bool qede_has_rx_work(struct qede_rx_queue *rxq);
 int qede_txq_has_work(struct qede_tx_queue *txq);
-void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, struct qede_dev *edev,
-			     u8 count);
+void qede_recycle_rx_bd_ring(struct qede_rx_queue *rxq, u8 count);
 void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
 
 #define RX_RING_SIZE_POW	13
@@ -362,8 +413,9 @@ void qede_update_rx_prod(struct qede_dev *edev, struct qede_rx_queue *rxq);
 #define NUM_TX_BDS_MIN		128
 #define NUM_TX_BDS_DEF		NUM_TX_BDS_MAX
 
-#define QEDE_MIN_PKT_LEN	64
-#define QEDE_RX_HDR_SIZE	256
+#define QEDE_MIN_PKT_LEN		64
+#define QEDE_RX_HDR_SIZE		256
+#define QEDE_MAX_JUMBO_PACKET_SIZE	9600
 #define	for_each_queue(i) for (i = 0; i < edev->num_queues; i++)
 
 #endif /* _QEDE_H_ */

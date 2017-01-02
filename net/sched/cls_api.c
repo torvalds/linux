@@ -112,7 +112,7 @@ static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 
 	for (it_chain = chain; (tp = rtnl_dereference(*it_chain)) != NULL;
 	     it_chain = &tp->next)
-		tfilter_notify(net, oskb, n, tp, n->nlmsg_flags, event, false);
+		tfilter_notify(net, oskb, n, tp, 0, event, false);
 }
 
 /* Select new prio value from the range, managed by kernel. */
@@ -681,6 +681,30 @@ int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts)
 	return 0;
 }
 EXPORT_SYMBOL(tcf_exts_dump_stats);
+
+int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
+		     struct net_device **hw_dev)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	const struct tc_action *a;
+	LIST_HEAD(actions);
+
+	if (tc_no_actions(exts))
+		return -EINVAL;
+
+	tcf_exts_to_list(exts, &actions);
+	list_for_each_entry(a, &actions, list) {
+		if (a->ops->get_dev) {
+			a->ops->get_dev(a, dev_net(dev), hw_dev);
+			break;
+		}
+	}
+	if (*hw_dev)
+		return 0;
+#endif
+	return -EOPNOTSUPP;
+}
+EXPORT_SYMBOL(tcf_exts_get_dev);
 
 static int __init tc_filter_init(void)
 {

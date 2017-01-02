@@ -2542,7 +2542,7 @@ static int bcm2048_vidioc_s_hw_freq_seek(struct file *file, void *priv,
 	return err;
 }
 
-static struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
+static const struct v4l2_ioctl_ops bcm2048_ioctl_ops = {
 	.vidioc_querycap	= bcm2048_vidioc_querycap,
 	.vidioc_g_input		= bcm2048_vidioc_g_input,
 	.vidioc_s_input		= bcm2048_vidioc_s_input,

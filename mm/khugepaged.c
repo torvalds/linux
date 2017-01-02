@@ -103,6 +103,7 @@ static struct khugepaged_scan khugepaged_scan = {
 	.mm_head = LIST_HEAD_INIT(khugepaged_scan.mm_head),
 };
 
+#ifdef CONFIG_SYSFS
 static ssize_t scan_sleep_millisecs_show(struct kobject *kobj,
 					 struct kobj_attribute *attr,
 					 char *buf)
@@ -295,6 +296,7 @@ struct attribute_group khugepaged_attr_group = {
 	.attrs = khugepaged_attr,
 	.name = "khugepaged",
 };
+#endif /* CONFIG_SYSFS */
 
 #define VM_NO_KHUGEPAGED (VM_SPECIAL | VM_HUGETLB)
 
@@ -1240,6 +1242,7 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
 	struct vm_area_struct *vma;
 	unsigned long addr;
 	pmd_t *pmd, _pmd;
+	bool deposited = false;
 
 	i_mmap_lock_write(mapping);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
@@ -1264,10 +1267,26 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
 			spinlock_t *ptl = pmd_lock(vma->vm_mm, pmd);
 			/* assume page table is clear */
 			_pmd = pmdp_collapse_flush(vma, addr, pmd);
+			/*
+			 * now deposit the pgtable for arch that need it
+			 * otherwise free it.
+			 */
+			if (arch_needs_pgtable_deposit()) {
+				/*
+				 * The deposit should be visibile only after
+				 * collapse is seen by others.
+				 */
+				smp_wmb();
+				pgtable_trans_huge_deposit(vma->vm_mm, pmd,
+							   pmd_pgtable(_pmd));
+				deposited = true;
+			}
 			spin_unlock(ptl);
 			up_write(&vma->vm_mm->mmap_sem);
-			atomic_long_dec(&vma->vm_mm->nr_ptes);
-			pte_free(vma->vm_mm, pmd_pgtable(_pmd));
+			if (!deposited) {
+				atomic_long_dec(&vma->vm_mm->nr_ptes);
+				pte_free(vma->vm_mm, pmd_pgtable(_pmd));
+			}
 		}
 	}
 	i_mmap_unlock_write(mapping);
@@ -1401,6 +1420,9 @@ static void collapse_shmem(struct mm_struct *mm,
 
 		spin_lock_irq(&mapping->tree_lock);
 
+		slot = radix_tree_lookup_slot(&mapping->page_tree, index);
+		VM_BUG_ON_PAGE(page != radix_tree_deref_slot_protected(slot,
+					&mapping->tree_lock), page);
 		VM_BUG_ON_PAGE(page_mapped(page), page);
 
 		/*
@@ -1421,9 +1443,10 @@ static void collapse_shmem(struct mm_struct *mm,
 		list_add_tail(&page->lru, &pagelist);
 
 		/* Finally, replace with the new page. */
-		radix_tree_replace_slot(slot,
+		radix_tree_replace_slot(&mapping->page_tree, slot,
 				new_page + (index % HPAGE_PMD_NR));
 
+		slot = radix_tree_iter_next(&iter);
 		index++;
 		continue;
 out_lru:
@@ -1519,9 +1542,11 @@ tree_unlocked:
 			if (!page || iter.index < page->index) {
 				if (!nr_none)
 					break;
-				/* Put holes back where they were */
-				radix_tree_replace_slot(slot, NULL);
 				nr_none--;
+				/* Put holes back where they were */
+				radix_tree_delete(&mapping->page_tree,
+						  iter.index);
+				slot = radix_tree_iter_next(&iter);
 				continue;
 			}
 
@@ -1530,11 +1555,13 @@ tree_unlocked:
 			/* Unfreeze the page. */
 			list_del(&page->lru);
 			page_ref_unfreeze(page, 2);
-			radix_tree_replace_slot(slot, page);
+			radix_tree_replace_slot(&mapping->page_tree,
+						slot, page);
 			spin_unlock_irq(&mapping->tree_lock);
 			putback_lru_page(page);
 			unlock_page(page);
 			spin_lock_irq(&mapping->tree_lock);
+			slot = radix_tree_iter_next(&iter);
 		}
 		VM_BUG_ON(nr_none);
 		spin_unlock_irq(&mapping->tree_lock);

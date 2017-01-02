@@ -259,17 +259,6 @@ static int cvm_oct_common_change_mtu(struct net_device *dev, int new_mtu)
 #endif
 	int mtu_overhead = ETH_HLEN + ETH_FCS_LEN + vlan_bytes;
 
-	/*
-	 * Limit the MTU to make sure the ethernet packets are between
-	 * 64 bytes and 65535 bytes.
-	 */
-	if ((new_mtu + mtu_overhead < VLAN_ETH_ZLEN) ||
-	    (new_mtu + mtu_overhead > OCTEON_MAX_MTU)) {
-		pr_err("MTU must be between %d and %d.\n",
-		       VLAN_ETH_ZLEN - mtu_overhead,
-		       OCTEON_MAX_MTU - mtu_overhead);
-		return -EINVAL;
-	}
 	dev->mtu = new_mtu;
 
 	if ((interface < 2) &&
@@ -457,7 +446,7 @@ int cvm_oct_common_init(struct net_device *dev)
 	dev->ethtool_ops = &cvm_oct_ethtool_ops;
 
 	cvm_oct_set_mac_filter(dev);
-	dev->netdev_ops->ndo_change_mtu(dev, dev->mtu);
+	dev_set_mtu(dev, dev->mtu);
 
 	/*
 	 * Zero out stats for port so we won't mistakenly show
@@ -685,6 +674,11 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	int fau = FAU_NUM_PACKET_BUFFERS_TO_FREE;
 	int qos;
 	struct device_node *pip;
+	int mtu_overhead = ETH_HLEN + ETH_FCS_LEN;
+
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
+	mtu_overhead += VLAN_HLEN;
+#endif
 
 	octeon_mdiobus_force_mod_depencency();
 
@@ -783,6 +777,8 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			strcpy(dev->name, "pow%d");
 			for (qos = 0; qos < 16; qos++)
 				skb_queue_head_init(&priv->tx_free_list[qos]);
+			dev->min_mtu = VLAN_ETH_ZLEN - mtu_overhead;
+			dev->max_mtu = OCTEON_MAX_MTU - mtu_overhead;
 
 			if (register_netdev(dev) < 0) {
 				pr_err("Failed to register ethernet device for POW\n");
@@ -836,6 +832,8 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			for (qos = 0; qos < cvmx_pko_get_num_queues(port);
 			     qos++)
 				cvmx_fau_atomic_write32(priv->fau + qos * 4, 0);
+			dev->min_mtu = VLAN_ETH_ZLEN - mtu_overhead;
+			dev->max_mtu = OCTEON_MAX_MTU - mtu_overhead;
 
 			switch (priv->imode) {
 			/* These types don't support ports to IPD/PKO */

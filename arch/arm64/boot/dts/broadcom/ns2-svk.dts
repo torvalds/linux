@@ -56,6 +56,10 @@
 	};
 };
 
+&enet {
+	status = "ok";
+};
+
 &pci_phy0 {
 	status = "ok";
 };
@@ -174,6 +178,7 @@
 &mdio_mux_iproc {
 	mdio@10 {
 		gphy0: eth-phy@10 {
+			enet-phy-lane-swap;
 			reg = <0x10>;
 		};
 	};
