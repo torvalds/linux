@@ -132,9 +132,6 @@ int iio_simple_dummy_configure_buffer(struct iio_dev *indio_dev)
 
 	iio_device_attach_buffer(indio_dev, buffer);
 
-	/* Enable timestamps by default */
-	buffer->scan_timestamp = true;
-
 	/*
 	 * Tell the core what device type specific functions should
 	 * be run on either side of buffer capture enable / disable.
