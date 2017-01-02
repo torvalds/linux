@@ -5004,8 +5004,18 @@ static void vlv_set_rps_idle(struct drm_i915_private *dev_priv)
 	if (dev_priv->rps.cur_freq <= val)
 		return;
 
-	/* Wake up the media well, as that takes a lot less
-	 * power than the Render well. */
+	/* The punit delays the write of the frequency and voltage until it
+	 * determines the GPU is awake. During normal usage we don't want to
+	 * waste power changing the frequency if the GPU is sleeping (rc6).
+	 * However, the GPU and driver is now idle and we do not want to delay
+	 * switching to minimum voltage (reducing power whilst idle) as we do
+	 * not expect to be woken in the near future and so must flush the
+	 * change by waking the device.
+	 *
+	 * We choose to take the media powerwell (either would do to trick the
+	 * punit into committing the voltage change) as that takes a lot less
+	 * power than the render powerwell.
+	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_MEDIA);
 	valleyview_set_rps(dev_priv, val);
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_MEDIA);
