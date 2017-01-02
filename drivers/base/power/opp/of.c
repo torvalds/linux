@@ -362,7 +362,7 @@ static int _opp_add_static_v2(struct device *dev, struct device_node *np)
 	return 0;
 
 free_opp:
-	_opp_remove(opp_table, new_opp, false);
+	_opp_free(new_opp, opp_table);
 unlock:
 	mutex_unlock(&opp_table_lock);
 	return ret;
