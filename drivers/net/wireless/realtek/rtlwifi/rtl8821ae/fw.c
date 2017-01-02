@@ -124,10 +124,8 @@ static void _rtl8821ae_write_fw(struct ieee80211_hw *hw,
 	pagenums = size / FW_8821AE_PAGE_SIZE;
 	remainsize = size % FW_8821AE_PAGE_SIZE;
 
-	if (pagenums > 8) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Page numbers should not greater then 8\n");
-	}
+	if (pagenums > 8)
+		pr_err("Page numbers should not greater then 8\n");
 
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8821AE_PAGE_SIZE;
@@ -161,10 +159,6 @@ static int _rtl8821ae_fw_free_to_go(struct ieee80211_hw *hw)
 			  value32);
 		goto exit;
 	}
-
-	RT_TRACE(rtlpriv, COMP_FW, DBG_EMERG,
-		 "Checksum report OK ! REG_MCUFWDL:0x%08x .\n", value32);
-
 	value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
@@ -175,20 +169,14 @@ static int _rtl8821ae_fw_free_to_go(struct ieee80211_hw *hw)
 	counter = 0;
 	do {
 		value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY) {
-			RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD,
-				 "Polling FW ready success!! REG_MCUFWDL:0x%08x .\n",
-				  value32);
-			err = 0;
-			goto exit;
-		}
+		if (value32 & WINTINI_RDY)
+			return 0;
 
 		udelay(FW_8821AE_POLLING_DELAY);
 	} while (counter++ < FW_8821AE_POLLING_TIMEOUT_COUNT);
 
-	RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-		 "Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n",
-		 value32);
+	pr_err("Polling FW ready fail!! REG_MCUFWDL:0x%08x .\n",
+	       value32);
 
 exit:
 	return err;
@@ -510,8 +498,8 @@ void rtl8821ae_fill_h2c_cmd(struct ieee80211_hw *hw,
 	u32 tmp_cmdbuf[2];
 
 	if (!rtlhal->fw_ready) {
-		RT_ASSERT(false,
-			  "return H2C cmd because of Fw download fail!!!\n");
+		WARN_ONCE(true,
+			  "rtl8821ae: error H2C cmd because of Fw download fail!!!\n");
 		return;
 	}
 

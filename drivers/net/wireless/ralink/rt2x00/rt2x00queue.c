@@ -306,13 +306,12 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_tx_rate *txrate = &tx_info->control.rates[0];
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct rt2x00_sta *sta_priv = NULL;
+	u8 density = 0;
 
 	if (sta) {
-		txdesc->u.ht.mpdu_density =
-		    sta->ht_cap.ampdu_density;
-
 		sta_priv = sta_to_rt2x00_sta(sta);
 		txdesc->u.ht.wcid = sta_priv->wcid;
+		density = sta->ht_cap.ampdu_density;
 	}
 
 	/*
@@ -345,8 +344,6 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		return;
 	}
 
-	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
-
 	/*
 	 * Only one STBC stream is supported for now.
 	 */
@@ -358,8 +355,11 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	 * frames that are intended to probe a specific tx rate.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU &&
-	    !(tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE))
+	    !(tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)) {
 		__set_bit(ENTRY_TXD_HT_AMPDU, &txdesc->flags);
+		txdesc->u.ht.mpdu_density = density;
+		txdesc->u.ht.ba_size = 7; /* FIXME: What value is needed? */
+	}
 
 	/*
 	 * Set 40Mhz mode if necessary (for legacy rates this will

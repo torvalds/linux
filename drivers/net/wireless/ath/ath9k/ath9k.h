@@ -112,6 +112,8 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_TXFIFO_DEPTH           8
 #define ATH_TX_ERROR               0x01
 
+#define ATH_AIRTIME_QUANTUM        300 /* usec */
+
 /* Stop tx traffic 1ms before the GO goes away */
 #define ATH_P2P_PS_STOP_TIME       1000
 
@@ -247,6 +249,9 @@ struct ath_atx_tid {
 	bool has_queued;
 };
 
+void __ath_tx_queue_tid(struct ath_softc *sc, struct ath_atx_tid *tid);
+void ath_tx_queue_tid(struct ath_softc *sc, struct ath_atx_tid *tid);
+
 struct ath_node {
 	struct ath_softc *sc;
 	struct ieee80211_sta *sta; /* station struct we're part of */
@@ -258,9 +263,12 @@ struct ath_node {
 
 	bool sleeping;
 	bool no_ps_filter;
+	s64 airtime_deficit[IEEE80211_NUM_ACS];
+	u32 airtime_rx_start;
 
 #ifdef CONFIG_ATH9K_STATION_STATISTICS
 	struct ath_rx_rate_stats rx_rate_stats;
+	struct ath_airtime_stats airtime_stats;
 #endif
 	u8 key_idx[4];
 
@@ -317,10 +325,16 @@ struct ath_rx {
 /* Channel Context */
 /*******************/
 
+struct ath_acq {
+	struct list_head acq_new;
+	struct list_head acq_old;
+	spinlock_t lock;
+};
+
 struct ath_chanctx {
 	struct cfg80211_chan_def chandef;
 	struct list_head vifs;
-	struct list_head acq[IEEE80211_NUM_ACS];
+	struct ath_acq acq[IEEE80211_NUM_ACS];
 	int hw_queue_base;
 
 	/* do not dereference, use for comparison only */
@@ -555,6 +569,15 @@ static inline void ath_chanctx_check_active(struct ath_softc *sc,
 
 #endif /* CONFIG_ATH9K_CHANNEL_CONTEXT */
 
+static inline void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq)
+{
+	spin_lock_bh(&txq->axq_lock);
+}
+static inline void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq)
+{
+	spin_unlock_bh(&txq->axq_lock);
+}
+
 void ath_startrecv(struct ath_softc *sc);
 bool ath_stoprecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
@@ -562,8 +585,6 @@ int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
 int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp);
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype);
-void ath_txq_lock(struct ath_softc *sc, struct ath_txq *txq);
-void ath_txq_unlock(struct ath_softc *sc, struct ath_txq *txq);
 void ath_txq_unlock_complete(struct ath_softc *sc, struct ath_txq *txq);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
 bool ath_drain_all_txq(struct ath_softc *sc);
@@ -575,6 +596,8 @@ void ath_txq_schedule_all(struct ath_softc *sc);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
+u32 ath_pkt_duration(struct ath_softc *sc, u8 rix, int pktlen,
+		     int width, int half_gi, bool shortPreamble);
 void ath_update_max_aggr_framelen(struct ath_softc *sc, int queue, int txop);
 void ath_assign_seq(struct ath_common *common, struct sk_buff *skb);
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
@@ -963,6 +986,11 @@ void ath_ant_comb_scan(struct ath_softc *sc, struct ath_rx_status *rs);
 
 #define ATH9K_NUM_CHANCTX  2 /* supports 2 operating channels */
 
+#define AIRTIME_USE_TX		BIT(0)
+#define AIRTIME_USE_RX		BIT(1)
+#define AIRTIME_USE_NEW_QUEUES	BIT(2)
+#define AIRTIME_ACTIVE(flags) (!!(flags & (AIRTIME_USE_TX|AIRTIME_USE_RX)))
+
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
@@ -1004,6 +1032,8 @@ struct ath_softc {
 	bool ps_idle;
 	short nbcnvifs;
 	unsigned long ps_usecount;
+
+	u16 airtime_flags; /* AIRTIME_* */
 
 	struct ath_rx rx;
 	struct ath_tx tx;

@@ -122,10 +122,8 @@ static void _rtl92ee_write_fw(struct ieee80211_hw *hw,
 	pagenums = size / FW_8192C_PAGE_SIZE;
 	remainsize = size % FW_8192C_PAGE_SIZE;
 
-	if (pagenums > 8) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Page numbers should not greater then 8\n");
-	}
+	if (pagenums > 8)
+		pr_err("Page numbers should not greater then 8\n");
 
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8192C_PAGE_SIZE;
@@ -155,15 +153,10 @@ static int _rtl92ee_fw_free_to_go(struct ieee80211_hw *hw)
 		 (!(value32 & FWDL_CHKSUM_RPT)));
 
 	if (counter >= FW_8192C_POLLING_TIMEOUT_COUNT) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "chksum report faill ! REG_MCUFWDL:0x%08x .\n",
-			  value32);
+		pr_err("chksum report fail! REG_MCUFWDL:0x%08x\n",
+		       value32);
 		goto exit;
 	}
-
-	RT_TRACE(rtlpriv, COMP_FW, DBG_TRACE,
-		 "Checksum report OK ! REG_MCUFWDL:0x%08x .\n", value32);
-
 	value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
@@ -174,21 +167,15 @@ static int _rtl92ee_fw_free_to_go(struct ieee80211_hw *hw)
 
 	do {
 		value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY) {
-			RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD ,
-				 "Polling FW ready success!! REG_MCUFWDL:0x%08x. count = %d\n",
-				 value32, counter);
-			err = 0;
-			goto exit;
-		}
+		if (value32 & WINTINI_RDY)
+			return 0;
 
 		udelay(FW_8192C_POLLING_DELAY*10);
 
 	} while (counter++ < FW_8192C_POLLING_TIMEOUT_COUNT);
 
-	RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-		 "Polling FW ready fail!! REG_MCUFWDL:0x%08x. count = %d\n",
-		 value32, counter);
+	pr_err("Polling FW ready fail!! REG_MCUFWDL:0x%08x. count = %d\n",
+	       value32, counter);
 
 exit:
 	return err;
@@ -240,13 +227,6 @@ int rtl92ee_download_fw(struct ieee80211_hw *hw, bool buse_wake_on_wlan_fw)
 	_rtl92ee_enable_fw_download(hw, false);
 
 	err = _rtl92ee_fw_free_to_go(hw);
-	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Firmware is not ready to run!\n");
-	} else {
-		RT_TRACE(rtlpriv, COMP_FW, DBG_LOUD ,
-			 "Firmware is ready to run!\n");
-	}
 
 	return 0;
 }
@@ -462,8 +442,8 @@ void rtl92ee_fill_h2c_cmd(struct ieee80211_hw *hw,
 	u32 tmp_cmdbuf[2];
 
 	if (!rtlhal->fw_ready) {
-		RT_ASSERT(false,
-			  "return H2C cmd because of Fw download fail!!!\n");
+		WARN_ONCE(true,
+			  "rtl8192ee: error H2C cmd because of Fw download fail!!!\n");
 		return;
 	}
 

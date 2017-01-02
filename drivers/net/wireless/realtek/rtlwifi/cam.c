@@ -285,8 +285,7 @@ u8 rtl_cam_get_free_entry(struct ieee80211_hw *hw, u8 *sta_addr)
 	u8 i, *addr;
 
 	if (NULL == sta_addr) {
-		RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
-			 "sta_addr is NULL.\n");
+		pr_err("sta_addr is NULL.\n");
 		return TOTAL_CAM_ENTRY;
 	}
 	/* Does STA already exist? */
@@ -298,9 +297,8 @@ u8 rtl_cam_get_free_entry(struct ieee80211_hw *hw, u8 *sta_addr)
 	/* Get a free CAM entry. */
 	for (entry_idx = 4; entry_idx < TOTAL_CAM_ENTRY; entry_idx++) {
 		if ((bitmap & BIT(0)) == 0) {
-			RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
-				 "-----hwsec_cam_bitmap: 0x%x entry_idx=%d\n",
-				 rtlpriv->sec.hwsec_cam_bitmap, entry_idx);
+			pr_err("-----hwsec_cam_bitmap: 0x%x entry_idx=%d\n",
+			       rtlpriv->sec.hwsec_cam_bitmap, entry_idx);
 			rtlpriv->sec.hwsec_cam_bitmap |= BIT(0) << entry_idx;
 			memcpy(rtlpriv->sec.hwsec_cam_sta_addr[entry_idx],
 			       sta_addr, ETH_ALEN);
@@ -319,14 +317,12 @@ void rtl_cam_del_entry(struct ieee80211_hw *hw, u8 *sta_addr)
 	u8 i, *addr;
 
 	if (NULL == sta_addr) {
-		RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
-			 "sta_addr is NULL.\n");
+		pr_err("sta_addr is NULL.\n");
 		return;
 	}
 
 	if (is_zero_ether_addr(sta_addr)) {
-		RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
-			 "sta_addr is %pM\n", sta_addr);
+		pr_err("sta_addr is %pM\n", sta_addr);
 		return;
 	}
 	/* Does STA already exist? */

@@ -92,7 +92,8 @@ int mwifiex_init_priv(struct mwifiex_private *priv)
 	for (i = 0; i < ARRAY_SIZE(priv->wep_key); i++)
 		memset(&priv->wep_key[i], 0, sizeof(struct mwifiex_wep_key));
 	priv->wep_key_curr_index = 0;
-	priv->curr_pkt_filter = HostCmd_ACT_MAC_RX_ON | HostCmd_ACT_MAC_TX_ON |
+	priv->curr_pkt_filter = HostCmd_ACT_MAC_DYNAMIC_BW_ENABLE |
+				HostCmd_ACT_MAC_RX_ON | HostCmd_ACT_MAC_TX_ON |
 				HostCmd_ACT_MAC_ETHERNETII_ENABLE;
 
 	priv->beacon_period = 100; /* beacon interval */

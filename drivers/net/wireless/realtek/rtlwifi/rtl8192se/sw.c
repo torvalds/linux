@@ -96,8 +96,7 @@ static void rtl92se_fw_cb(const struct firmware *firmware, void *context)
 		return;
 	}
 	if (firmware->size > rtlpriv->max_fw_size) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Firmware is too big!\n");
+		pr_err("Firmware is too big!\n");
 		rtlpriv->max_fw_size = 0;
 		release_firmware(firmware);
 		return;
@@ -218,8 +217,7 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl92se_fw_cb);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Failed to request firmware!\n");
+		pr_err("Failed to request firmware!\n");
 		return 1;
 	}
 
@@ -299,7 +297,7 @@ static struct rtl_mod_params rtl92se_mod_params = {
 	.inactiveps = true,
 	.swctrl_lps = true,
 	.fwctrl_lps = false,
-	.debug = DBG_EMERG,
+	.debug = 0,
 };
 
 /* Because memory R/W bursting will cause system hang/crash

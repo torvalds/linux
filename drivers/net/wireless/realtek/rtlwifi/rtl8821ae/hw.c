@@ -822,9 +822,8 @@ static bool _rtl8821ae_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 			break;
 
 		if (count > POLLING_LLT_THRESHOLD) {
-			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 "Failed to polling write LLT done at address %d!\n",
-				 address);
+			pr_err("Failed to polling write LLT done at address %d!\n",
+			       address);
 			status = false;
 			break;
 		}
@@ -1128,7 +1127,7 @@ static u8 _rtl8821ae_dbi_read(struct rtl_priv *rtlpriv, u16 addr)
 	}
 	if (0 == tmp) {
 		read_addr = REG_DBI_RDATA + addr % 4;
-		ret = rtl_read_word(rtlpriv, read_addr);
+		ret = rtl_read_byte(rtlpriv, read_addr);
 	}
 	return ret;
 }
@@ -1927,7 +1926,7 @@ int rtl8821ae_hw_init(struct ieee80211_hw *hw)
 
 	rtstatus = _rtl8821ae_init_mac(hw);
 	if (rtstatus != true) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Init MAC failed\n");
+		pr_err("Init MAC failed\n");
 		err = 1;
 		return err;
 	}
@@ -2174,8 +2173,7 @@ static int _rtl8821ae_set_media_status(struct ieee80211_hw *hw,
 			 "Set Network type to AP!\n");
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Network type %d not support!\n", type);
+		pr_err("Network type %d not support!\n", type);
 		return 1;
 	}
 
@@ -2249,7 +2247,7 @@ void rtl8821ae_set_qos(struct ieee80211_hw *hw, int aci)
 		rtl_write_dword(rtlpriv, REG_EDCA_VO_PARAM, 0x2f3222);
 		break;
 	default:
-		RT_ASSERT(false, "invalid aci: %d !\n", aci);
+		WARN_ONCE(true, "rtl8821ae: invalid aci: %d !\n", aci);
 		break;
 	}
 }
@@ -2601,11 +2599,10 @@ static u8 _rtl8821ae_get_chnl_group(u8 chnl)
 			group = 12;
 	else if (173 <= chnl && chnl <= 177)
 			group = 13;
-		else
-			/*RT_TRACE(rtlpriv, COMP_EFUSE,DBG_LOUD,
-				"5G, Channel %d in Group not found\n",chnl);*/
-			RT_ASSERT(!COMP_EFUSE,
-				"5G, Channel %d in Group not found\n", chnl);
+	else
+		WARN_ONCE(true,
+			  "rtl8821ae: 5G, Channel %d in Group not found\n",
+			  chnl);
 	}
 	return group;
 }
@@ -3276,7 +3273,7 @@ void rtl8821ae_read_eeprom_info(struct ieee80211_hw *hw)
 		rtlefuse->autoload_failflag = false;
 		_rtl8821ae_read_adapter_info(hw, false);
 	} else {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "Autoload ERR!!\n");
+		pr_err("Autoload ERR!!\n");
 	}
 	/*hal_ReadRFType_8812A()*/
 	/* _rtl8821ae_hal_customized_behavior(hw); */
@@ -3951,8 +3948,7 @@ void rtl8821ae_set_key(struct ieee80211_hw *hw, u32 key_index,
 				if (mac->opmode == NL80211_IFTYPE_AP) {
 					entry_id = rtl_cam_get_free_entry(hw, p_macaddr);
 					if (entry_id >=  TOTAL_CAM_ENTRY) {
-						RT_TRACE(rtlpriv, COMP_SEC, DBG_EMERG,
-							 "Can not find free hwsecurity cam entry\n");
+						pr_err("an not find free hwsecurity cam entry\n");
 						return;
 					}
 				} else {
@@ -4135,8 +4131,9 @@ void rtl8821ae_add_wowlan_pattern(struct ieee80211_hw *hw,
 			count++;
 		} while (tmp && count < 100);
 
-		RT_ASSERT((count < 100),
-			  "Write wake up frame mask FAIL %d value!\n", tmp);
+		WARN_ONCE((count >= 100),
+			  "rtl8821ae: Write wake up frame mask FAIL %d value!\n",
+			  tmp);
 	}
 	/* Disable Rx packet buffer access. */
 	rtl_write_byte(rtlpriv, REG_PKT_BUFF_ACCESS_CTRL,

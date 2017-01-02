@@ -241,7 +241,7 @@ u16 rtl8192cu_mq_to_hwq(__le16 fc, u16 mac80211_queue_index)
 		break;
 	default:
 		hw_queue_index = RTL_TXQ_BE;
-		RT_ASSERT(false, "QSLT_BE queue, skb_queue:%d\n",
+		WARN_ONCE(true, "rtl8192cu: QSLT_BE queue, skb_queue:%d\n",
 			  mac80211_queue_index);
 		break;
 	}

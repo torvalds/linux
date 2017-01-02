@@ -165,8 +165,7 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 	/* for firmware buf */
 	rtlpriv->rtlhal.pfirmware = vzalloc(0x8000);
 	if (!rtlpriv->rtlhal.pfirmware) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't alloc buffer for fw.\n");
+		pr_info("Can't alloc buffer for fw.\n");
 		return 1;
 	}
 
@@ -177,8 +176,7 @@ int rtl88e_init_sw_vars(struct ieee80211_hw *hw)
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Failed to request firmware!\n");
+		pr_info("Failed to request firmware!\n");
 		return 1;
 	}
 
@@ -278,7 +276,7 @@ static struct rtl_mod_params rtl88ee_mod_params = {
 	.swctrl_lps = false,
 	.fwctrl_lps = false,
 	.msi_support = true,
-	.debug = DBG_EMERG,
+	.debug = 0,
 };
 
 static const struct rtl_hal_cfg rtl88ee_hal_cfg = {

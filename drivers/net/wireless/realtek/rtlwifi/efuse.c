@@ -1259,8 +1259,7 @@ int rtl_get_hwinfo(struct ieee80211_hw *hw, struct rtl_priv *rtlpriv,
 		break;
 
 	case EEPROM_93C46:
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "RTL8XXX did not boot from eeprom, check it !!\n");
+		pr_err("RTL8XXX did not boot from eeprom, check it !!\n");
 		return 1;
 
 	default:

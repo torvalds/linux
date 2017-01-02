@@ -2086,7 +2086,7 @@ static int lbs_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
  * Initialization
  */
 
-static struct cfg80211_ops lbs_cfg80211_ops = {
+static const struct cfg80211_ops lbs_cfg80211_ops = {
 	.set_monitor_channel = lbs_cfg_set_monitor_channel,
 	.libertas_set_mesh_channel = lbs_cfg_set_mesh_channel,
 	.scan = lbs_cfg_scan,

@@ -2237,6 +2237,12 @@ static void mwifiex_recreate_adapter(struct sdio_mmc_card *card)
 	mmc_hw_reset(func->card->host);
 	sdio_release_host(func);
 
+	/* Previous save_adapter won't be valid after this. We will cancel
+	 * pending work requests.
+	 */
+	clear_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP, &iface_work_flags);
+	clear_bit(MWIFIEX_IFACE_WORK_CARD_RESET, &iface_work_flags);
+
 	mwifiex_sdio_probe(func, device_id);
 }
 

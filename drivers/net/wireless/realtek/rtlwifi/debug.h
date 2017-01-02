@@ -36,7 +36,7 @@
  *unexpected HW behavior, HW BUG
  *and so on.
  */
-#define DBG_EMERG			0
+/*#define DBG_EMERG			0 */
 
 /*
  *Abnormal, rare, or unexpeted cases.
@@ -166,15 +166,6 @@ enum dbgp_flag_e {
 
 #ifdef CONFIG_RTLWIFI_DEBUG
 
-#define RT_ASSERT(_exp, fmt, ...)					\
-do {									\
-	if (!(_exp)) {							\
-		printk(KERN_DEBUG KBUILD_MODNAME ":%s(): " fmt,		\
-		       __func__, ##__VA_ARGS__);			\
-	}								\
-} while (0)
-
-
 struct rtl_priv;
 
 __printf(5, 6)
@@ -209,11 +200,6 @@ do {									\
 #else
 
 struct rtl_priv;
-
-__printf(2, 3)
-static inline void RT_ASSERT(int exp, const char *fmt, ...)
-{
-}
 
 __printf(4, 5)
 static inline void RT_TRACE(struct rtl_priv *rtlpriv,

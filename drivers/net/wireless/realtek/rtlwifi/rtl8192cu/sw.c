@@ -68,8 +68,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	/* for firmware buf */
 	rtlpriv->rtlhal.pfirmware = vzalloc(0x4000);
 	if (!rtlpriv->rtlhal.pfirmware) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't alloc buffer for fw\n");
+		pr_err("Can't alloc buffer for fw\n");
 		return 1;
 	}
 	if (IS_VENDOR_UMC_A_CUT(rtlpriv->rtlhal.version) &&
@@ -158,7 +157,7 @@ static struct rtl_hal_ops rtl8192cu_hal_ops = {
 
 static struct rtl_mod_params rtl92cu_mod_params = {
 	.sw_crypto = 0,
-	.debug = DBG_EMERG,
+	.debug = 0,
 };
 
 module_param_named(swenc, rtl92cu_mod_params.sw_crypto, bool, 0444);
