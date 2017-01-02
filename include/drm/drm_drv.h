@@ -64,12 +64,47 @@ struct drm_mode_create_dumb;
  * structure for GEM drivers.
  */
 struct drm_driver {
+
+	/**
+	 * @load:
+	 *
+	 * Backward-compatible driver callback to complete
+	 * initialization steps after the driver is registered.  For
+	 * this reason, may suffer from race conditions and its use is
+	 * deprecated for new drivers.  It is therefore only supported
+	 * for existing drivers not yet converted to the new scheme.
+	 * See drm_dev_init() and drm_dev_register() for proper and
+	 * race-free way to set up a &struct drm_device.
+	 *
+	 * Returns:
+	 *
+	 * Zero on success, non-zero value on failure.
+	 */
 	int (*load) (struct drm_device *, unsigned long flags);
 	int (*firstopen) (struct drm_device *);
 	int (*open) (struct drm_device *, struct drm_file *);
 	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
 	void (*postclose) (struct drm_device *, struct drm_file *);
 	void (*lastclose) (struct drm_device *);
+
+	/**
+	 * @unload:
+	 *
+	 * Reverse the effects of the driver load callback.  Ideally,
+	 * the clean up performed by the driver should happen in the
+	 * reverse order of the initialization.  Similarly to the load
+	 * hook, this handler is deprecated and its usage should be
+	 * dropped in favor of an open-coded teardown function at the
+	 * driver layer.  See drm_dev_unregister() and drm_dev_unref()
+	 * for the proper way to remove a &struct drm_device.
+	 *
+	 * The unload() hook is called right after unregistering
+	 * the device.
+	 *
+	 * Returns:
+	 *
+	 * The return value is ignored.
+	 */
 	int (*unload) (struct drm_device *);
 	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
 	int (*dma_quiescent) (struct drm_device *);
