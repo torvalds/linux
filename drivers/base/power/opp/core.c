@@ -829,7 +829,7 @@ struct opp_device *_add_opp_dev(const struct device *dev,
  *
  * Return: valid opp_table pointer if success, else NULL.
  */
-static struct opp_table *_add_opp_table(struct device *dev)
+struct opp_table *_add_opp_table(struct device *dev)
 {
 	struct opp_table *opp_table;
 	struct opp_device *opp_dev;
@@ -929,10 +929,9 @@ static void _remove_opp_table(struct opp_table *opp_table)
 		  _kfree_device_rcu);
 }
 
-void _opp_free(struct dev_pm_opp *opp, struct opp_table *opp_table)
+void _opp_free(struct dev_pm_opp *opp)
 {
 	kfree(opp);
-	_remove_opp_table(opp_table);
 }
 
 /**
@@ -1016,16 +1015,10 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove);
 
-struct dev_pm_opp *_opp_allocate(struct device *dev,
-				 struct opp_table **opp_table)
+struct dev_pm_opp *_opp_allocate(struct opp_table *table)
 {
 	struct dev_pm_opp *opp;
 	int count, supply_size;
-	struct opp_table *table;
-
-	table = _add_opp_table(dev);
-	if (!table)
-		return NULL;
 
 	/* Allocate space for at least one supply */
 	count = table->regulator_count ? table->regulator_count : 1;
@@ -1033,16 +1026,12 @@ struct dev_pm_opp *_opp_allocate(struct device *dev,
 
 	/* allocate new OPP node and supplies structures */
 	opp = kzalloc(sizeof(*opp) + supply_size, GFP_KERNEL);
-	if (!opp) {
-		kfree(table);
+	if (!opp)
 		return NULL;
-	}
 
 	/* Put the supplies at the end of the OPP structure as an empty array */
 	opp->supplies = (struct dev_pm_opp_supply *)(opp + 1);
 	INIT_LIST_HEAD(&opp->node);
-
-	*opp_table = table;
 
 	return opp;
 }
@@ -1133,6 +1122,7 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
 
 /**
  * _opp_add_v1() - Allocate a OPP based on v1 bindings.
+ * @opp_table:	OPP table
  * @dev:	device for which we do this operation
  * @freq:	Frequency in Hz for this OPP
  * @u_volt:	Voltage in uVolts for this OPP
@@ -1158,22 +1148,18 @@ int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
  *		Duplicate OPPs (both freq and volt are same) and !opp->available
  * -ENOMEM	Memory allocation failure
  */
-int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
-		bool dynamic)
+int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
+		unsigned long freq, long u_volt, bool dynamic)
 {
-	struct opp_table *opp_table;
 	struct dev_pm_opp *new_opp;
 	unsigned long tol;
 	int ret;
 
-	/* Hold our table modification lock here */
-	mutex_lock(&opp_table_lock);
+	opp_rcu_lockdep_assert();
 
-	new_opp = _opp_allocate(dev, &opp_table);
-	if (!new_opp) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
+	new_opp = _opp_allocate(opp_table);
+	if (!new_opp)
+		return -ENOMEM;
 
 	/* populate the opp table */
 	new_opp->rate = freq;
@@ -1192,8 +1178,6 @@ int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
 		goto free_opp;
 	}
 
-	mutex_unlock(&opp_table_lock);
-
 	/*
 	 * Notify the changes in the availability of the operable
 	 * frequency/voltage list.
@@ -1202,9 +1186,8 @@ int _opp_add_v1(struct device *dev, unsigned long freq, long u_volt,
 	return 0;
 
 free_opp:
-	_opp_free(new_opp, opp_table);
-unlock:
-	mutex_unlock(&opp_table_lock);
+	_opp_free(new_opp);
+
 	return ret;
 }
 
@@ -1722,7 +1705,25 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_register_put_opp_helper);
  */
 int dev_pm_opp_add(struct device *dev, unsigned long freq, unsigned long u_volt)
 {
-	return _opp_add_v1(dev, freq, u_volt, true);
+	struct opp_table *opp_table;
+	int ret;
+
+	/* Hold our table modification lock here */
+	mutex_lock(&opp_table_lock);
+
+	opp_table = _add_opp_table(dev);
+	if (!opp_table) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	ret = _opp_add_v1(opp_table, dev, freq, u_volt, true);
+	if (ret)
+		_remove_opp_table(opp_table);
+
+unlock:
+	mutex_unlock(&opp_table_lock);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_add);
 
@@ -1888,8 +1889,8 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_notifier);
  * Free OPPs either created using static entries present in DT or even the
  * dynamically added entries based on remove_all param.
  */
-static void _dev_pm_opp_remove_table(struct opp_table *opp_table,
-				     struct device *dev, bool remove_all)
+void _dev_pm_opp_remove_table(struct opp_table *opp_table, struct device *dev,
+			      bool remove_all)
 {
 	struct dev_pm_opp *opp, *tmp;
 
