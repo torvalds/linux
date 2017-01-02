@@ -109,15 +109,8 @@ static int oxnas_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
-	struct device_node *sysctrl;
 	struct oxnas_dwmac *dwmac;
 	int ret;
-
-	sysctrl = of_parse_phandle(pdev->dev.of_node, "oxsemi,sys-ctrl", 0);
-	if (!sysctrl) {
-		dev_err(&pdev->dev, "failed to get sys-ctrl node\n");
-		return -EINVAL;
-	}
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
 	if (ret)
@@ -134,7 +127,8 @@ static int oxnas_dwmac_probe(struct platform_device *pdev)
 	dwmac->dev = &pdev->dev;
 	plat_dat->bsp_priv = dwmac;
 
-	dwmac->regmap = syscon_node_to_regmap(sysctrl);
+	dwmac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
+							"oxsemi,sys-ctrl");
 	if (IS_ERR(dwmac->regmap)) {
 		dev_err(&pdev->dev, "failed to have sysctrl regmap\n");
 		return PTR_ERR(dwmac->regmap);
