@@ -551,9 +551,6 @@ struct Scsi_Host {
 	struct list_head	__devices;
 	struct list_head	__targets;
 	
-	struct scsi_host_cmd_pool *cmd_pool;
-	spinlock_t		free_list_lock;
-	struct list_head	free_list; /* backup store of cmd structs */
 	struct list_head	starved_list;
 
 	spinlock_t		default_lock;

@@ -2331,7 +2331,7 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 {
 	struct scsi_cmnd *scmd;
 	struct Scsi_Host *shost = dev->host;
-	struct request req;
+	struct request *rq;
 	unsigned long flags;
 	int error = 0, rtn, val;
 
@@ -2346,14 +2346,16 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 		return -EIO;
 
 	error = -EIO;
-	scmd = scsi_get_command(dev, GFP_KERNEL);
-	if (!scmd)
+	rq = kzalloc(sizeof(struct request) + sizeof(struct scsi_cmnd) +
+			shost->hostt->cmd_size, GFP_KERNEL);
+	if (!rq)
 		goto out_put_autopm_host;
+	blk_rq_init(NULL, rq);
 
-	blk_rq_init(NULL, &req);
-	scmd->request = &req;
-
-	scmd->cmnd = req.cmd;
+	scmd = (struct scsi_cmnd *)(rq + 1);
+	scsi_init_command(dev, scmd);
+	scmd->request = rq;
+	scmd->cmnd = rq->cmd;
 
 	scmd->scsi_done		= scsi_reset_provider_done_command;
 	memset(&scmd->sdb, 0, sizeof(scmd->sdb));
@@ -2413,6 +2415,7 @@ scsi_ioctl_reset(struct scsi_device *dev, int __user *arg)
 	scsi_run_host_queues(shost);
 
 	scsi_put_command(scmd);
+	kfree(rq);
 
 out_put_autopm_host:
 	scsi_autopm_put_host(shost);
