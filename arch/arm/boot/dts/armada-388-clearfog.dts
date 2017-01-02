@@ -126,6 +126,20 @@
 			};
 		};
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&rear_button_pins>;
+		pinctrl-names = "default";
+
+		button_0 {
+			/* The rear SW3 button */
+			label = "Rear Button";
+			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_0>;
+		};
+	};
 };
 
 &eth1 {
@@ -182,6 +196,10 @@
 	clearfog_spi1_cs_pins: spi1-cs-pins {
 		marvell,pins = "mpp55";
 		marvell,function = "spi1";
+	};
+	rear_button_pins: rear-button-pins {
+		marvell,pins = "mpp34";
+		marvell,function = "gpio";
 	};
 };
 

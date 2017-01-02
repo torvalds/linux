@@ -240,10 +240,6 @@
 					marvell,pins = "mpp24", "mpp25";
 					marvell,function = "ua1";
 				};
-				rear_button_pins: rear-button-pins {
-					marvell,pins = "mpp34";
-					marvell,function = "gpio";
-				};
 			};
 
 			sata@a8000 {
@@ -297,20 +293,6 @@
 				reset-gpios = <&expander0 1 GPIO_ACTIVE_LOW>;
 				status = "okay";
 			};
-		};
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-		pinctrl-0 = <&rear_button_pins>;
-		pinctrl-names = "default";
-
-		button_0 {
-			/* The rear SW3 button */
-			label = "Rear Button";
-			gpios = <&gpio1 2 GPIO_ACTIVE_LOW>;
-			linux,can-disable;
-			linux,code = <BTN_0>;
 		};
 	};
 };
