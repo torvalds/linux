@@ -562,13 +562,6 @@ static int
 atusb_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
 {
 	struct atusb *atusb = hw->priv;
-	struct device *dev = &atusb->usb_dev->dev;
-
-	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 3) {
-		dev_info(dev, "Automatic frame retransmission is only available from "
-			"firmware version 0.3. Please update if you want this feature.");
-		return -EINVAL;
-	}
 
 	return atusb_write_subreg(atusb, SR_MAX_FRAME_RETRIES, retries);
 }
@@ -802,8 +795,7 @@ static int atusb_probe(struct usb_interface *interface,
 
 	hw->parent = &usb_dev->dev;
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
-		    IEEE802154_HW_PROMISCUOUS | IEEE802154_HW_CSMA_PARAMS |
-		    IEEE802154_HW_FRAME_RETRIES;
+		    IEEE802154_HW_PROMISCUOUS | IEEE802154_HW_CSMA_PARAMS;
 
 	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER | WPAN_PHY_FLAG_CCA_ED_LEVEL |
 			 WPAN_PHY_FLAG_CCA_MODE;
@@ -831,6 +823,9 @@ static int atusb_probe(struct usb_interface *interface,
 	atusb_get_and_show_revision(atusb);
 	atusb_get_and_show_build(atusb);
 	atusb_set_extended_addr(atusb);
+
+	if (atusb->fw_ver_maj >= 0 && atusb->fw_ver_min >= 3)
+		hw->flags |= IEEE802154_HW_FRAME_RETRIES;
 
 	ret = atusb_get_and_clear_error(atusb);
 	if (ret) {
