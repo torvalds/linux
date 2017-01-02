@@ -155,9 +155,14 @@ static struct mlx5_ib_mr *mlx5_ib_odp_find_mr_lkey(struct mlx5_ib_dev *dev,
 {
 	u32 base_key = mlx5_base_mkey(key);
 	struct mlx5_core_mkey *mmkey = __mlx5_mr_lookup(dev->mdev, base_key);
-	struct mlx5_ib_mr *mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
+	struct mlx5_ib_mr *mr;
 
-	if (!mmkey || mmkey->key != key || !mr->live)
+	if (!mmkey || mmkey->key != key || mmkey->type != MLX5_MKEY_MR)
+		return NULL;
+
+	mr = container_of(mmkey, struct mlx5_ib_mr, mmkey);
+
+	if (!mr->live)
 		return NULL;
 
 	return container_of(mmkey, struct mlx5_ib_mr, mmkey);

@@ -394,11 +394,17 @@ struct mlx5_core_sig_ctx {
 	u32			sigerr_count;
 };
 
+enum {
+	MLX5_MKEY_MR = 1,
+	MLX5_MKEY_MW,
+};
+
 struct mlx5_core_mkey {
 	u64			iova;
 	u64			size;
 	u32			key;
 	u32			pd;
+	u32			type;
 };
 
 #define MLX5_24BIT_MASK		((1 << 24) - 1)
