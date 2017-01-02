@@ -582,7 +582,7 @@ static int hidg_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		}
 		status = usb_ep_enable(hidg->out_ep);
 		if (status < 0) {
-			ERROR(cdev, "Enable IN endpoint FAILED!\n");
+			ERROR(cdev, "Enable OUT endpoint FAILED!\n");
 			goto fail;
 		}
 		hidg->out_ep->driver_data = hidg;
