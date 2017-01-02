@@ -94,20 +94,6 @@
 				};
 			};
 
-			pinctrl@18000 {
-				microsom_phy_clk_pins: microsom-phy-clk-pins {
-					marvell,pins = "mpp45";
-					marvell,function = "ref";
-				};
-				/* Optional eMMC */
-				microsom_sdhci_pins: microsom-sdhci-pins {
-					marvell,pins = "mpp21", "mpp28",
-						       "mpp37", "mpp38",
-						       "mpp39", "mpp40";
-					marvell,function = "sd0";
-				};
-			};
-
 			rtc@a3800 {
 				/*
 				 * If the rtc doesn't work, run "date reset"
@@ -131,6 +117,19 @@
 			status = "okay";
 		};
 
+	};
+};
+
+&pinctrl {
+	microsom_phy_clk_pins: microsom-phy-clk-pins {
+		marvell,pins = "mpp45";
+		marvell,function = "ref";
+	};
+	/* Optional eMMC */
+	microsom_sdhci_pins: microsom-sdhci-pins {
+		marvell,pins = "mpp21", "mpp28", "mpp37",
+			       "mpp38", "mpp39", "mpp40";
+		marvell,function = "sd0";
 	};
 };
 

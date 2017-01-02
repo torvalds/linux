@@ -217,31 +217,6 @@
 				status = "okay";
 			};
 
-			pinctrl@18000 {
-				clearfog_i2c1_pins: i2c1-pins {
-					/* SFP, PCIe, mSATA, mikrobus */
-					marvell,pins = "mpp26", "mpp27";
-					marvell,function = "i2c1";
-				};
-				clearfog_sdhci_cd_pins: clearfog-sdhci-cd-pins {
-					marvell,pins = "mpp20";
-					marvell,function = "gpio";
-				};
-				mikro_pins: mikro-pins {
-					/* int: mpp22 rst: mpp29 */
-					marvell,pins = "mpp22", "mpp29";
-					marvell,function = "gpio";
-				};
-				mikro_spi_pins: mikro-spi-pins {
-					marvell,pins = "mpp43";
-					marvell,function = "spi1";
-				};
-				mikro_uart_pins: mikro-uart-pins {
-					marvell,pins = "mpp24", "mpp25";
-					marvell,function = "ua1";
-				};
-			};
-
 			sata@a8000 {
 				/* pinctrl? */
 				status = "okay";
@@ -294,6 +269,31 @@
 				status = "okay";
 			};
 		};
+	};
+};
+
+&pinctrl {
+	clearfog_i2c1_pins: i2c1-pins {
+		/* SFP, PCIe, mSATA, mikrobus */
+		marvell,pins = "mpp26", "mpp27";
+		marvell,function = "i2c1";
+	};
+	clearfog_sdhci_cd_pins: clearfog-sdhci-cd-pins {
+		marvell,pins = "mpp20";
+		marvell,function = "gpio";
+	};
+	mikro_pins: mikro-pins {
+		/* int: mpp22 rst: mpp29 */
+		marvell,pins = "mpp22", "mpp29";
+		marvell,function = "gpio";
+	};
+	mikro_spi_pins: mikro-spi-pins {
+		marvell,pins = "mpp43";
+		marvell,function = "spi1";
+	};
+	mikro_uart_pins: mikro-uart-pins {
+		marvell,pins = "mpp24", "mpp25";
+		marvell,function = "ua1";
 	};
 };
 
