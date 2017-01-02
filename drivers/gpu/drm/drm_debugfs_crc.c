@@ -325,16 +325,19 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 	struct drm_crtc_crc_entry *entry;
 	int head, tail;
 
-	assert_spin_locked(&crc->lock);
+	spin_lock(&crc->lock);
 
 	/* Caller may not have noticed yet that userspace has stopped reading */
-	if (!crc->opened)
+	if (!crc->opened) {
+		spin_unlock(&crc->lock);
 		return -EINVAL;
+	}
 
 	head = crc->head;
 	tail = crc->tail;
 
 	if (CIRC_SPACE(head, tail, DRM_CRC_ENTRIES_NR) < 1) {
+		spin_unlock(&crc->lock);
 		DRM_ERROR("Overflow of CRC buffer, userspace reads too slow.\n");
 		return -ENOBUFS;
 	}
@@ -346,6 +349,8 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 
 	head = (head + 1) & (DRM_CRC_ENTRIES_NR - 1);
 	crc->head = head;
+
+	spin_unlock(&crc->lock);
 
 	return 0;
 }
