@@ -122,13 +122,26 @@ static void vlv_psr_setup_vsc(struct intel_dp *intel_dp)
 static void skl_psr_setup_su_vsc(struct intel_dp *intel_dp)
 {
 	struct edp_vsc_psr psr_vsc;
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Prepare VSC Header for SU as per EDP 1.4 spec, Table 6.11 */
 	memset(&psr_vsc, 0, sizeof(psr_vsc));
 	psr_vsc.sdp_header.HB0 = 0;
 	psr_vsc.sdp_header.HB1 = 0x7;
-	psr_vsc.sdp_header.HB2 = 0x3;
-	psr_vsc.sdp_header.HB3 = 0xb;
+	if (dev_priv->psr.colorimetry_support &&
+		dev_priv->psr.y_cord_support) {
+		psr_vsc.sdp_header.HB2 = 0x5;
+		psr_vsc.sdp_header.HB3 = 0x13;
+	} else if (dev_priv->psr.y_cord_support) {
+		psr_vsc.sdp_header.HB2 = 0x4;
+		psr_vsc.sdp_header.HB3 = 0xe;
+	} else {
+		psr_vsc.sdp_header.HB2 = 0x3;
+		psr_vsc.sdp_header.HB3 = 0xc;
+	}
+
 	intel_psr_write_vsc(intel_dp, &psr_vsc);
 }
 
