@@ -24,7 +24,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <linux/miscdevice.h>
 #define CREATE_TRACE_POINTS
 #include <trace/events/intel_ish.h>
 #include "ishtp-dev.h"
