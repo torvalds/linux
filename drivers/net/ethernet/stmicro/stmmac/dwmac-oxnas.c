@@ -105,6 +105,13 @@ static int oxnas_dwmac_init(struct oxnas_dwmac *dwmac)
 	return 0;
 }
 
+static void oxnas_dwmac_exit(struct platform_device *pdev, void *priv)
+{
+	struct oxnas_dwmac *dwmac = priv;
+
+	clk_disable_unprepare(dwmac->clk);
+}
+
 static int oxnas_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
@@ -121,40 +128,44 @@ static int oxnas_dwmac_probe(struct platform_device *pdev)
 		return PTR_ERR(plat_dat);
 
 	dwmac = devm_kzalloc(&pdev->dev, sizeof(*dwmac), GFP_KERNEL);
-	if (!dwmac)
-		return -ENOMEM;
+	if (!dwmac) {
+		ret = -ENOMEM;
+		goto err_remove_config_dt;
+	}
 
 	dwmac->dev = &pdev->dev;
 	plat_dat->bsp_priv = dwmac;
+	plat_dat->exit = oxnas_dwmac_exit;
 
 	dwmac->regmap = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
 							"oxsemi,sys-ctrl");
 	if (IS_ERR(dwmac->regmap)) {
 		dev_err(&pdev->dev, "failed to have sysctrl regmap\n");
-		return PTR_ERR(dwmac->regmap);
+		ret = PTR_ERR(dwmac->regmap);
+		goto err_remove_config_dt;
 	}
 
 	dwmac->clk = devm_clk_get(&pdev->dev, "gmac");
-	if (IS_ERR(dwmac->clk))
-		return PTR_ERR(dwmac->clk);
+	if (IS_ERR(dwmac->clk)) {
+		ret = PTR_ERR(dwmac->clk);
+		goto err_remove_config_dt;
+	}
 
 	ret = oxnas_dwmac_init(dwmac);
 	if (ret)
-		return ret;
+		goto err_remove_config_dt;
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
-		clk_disable_unprepare(dwmac->clk);
+		goto err_dwmac_exit;
 
-	return ret;
-}
 
-static int oxnas_dwmac_remove(struct platform_device *pdev)
-{
-	struct oxnas_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
-	int ret = stmmac_dvr_remove(&pdev->dev);
+	return 0;
 
-	clk_disable_unprepare(dwmac->clk);
+err_dwmac_exit:
+	oxnas_dwmac_exit(pdev, plat_dat->bsp_priv);
+err_remove_config_dt:
+	stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
 }
@@ -197,7 +208,7 @@ MODULE_DEVICE_TABLE(of, oxnas_dwmac_match);
 
 static struct platform_driver oxnas_dwmac_driver = {
 	.probe  = oxnas_dwmac_probe,
-	.remove = oxnas_dwmac_remove,
+	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "oxnas-dwmac",
 		.pm		= &oxnas_dwmac_pm_ops,
