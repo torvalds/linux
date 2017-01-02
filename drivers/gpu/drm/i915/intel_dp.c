@@ -3060,6 +3060,14 @@ static bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp)
 	return dprx & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED;
 }
 
+bool intel_dp_get_alpm_status(struct intel_dp *intel_dp)
+{
+	uint8_t alpm_caps = 0;
+
+	drm_dp_dpcd_readb(&intel_dp->aux, DP_RECEIVER_ALPM_CAP, &alpm_caps);
+	return alpm_caps & DP_ALPM_CAP;
+}
+
 /* These are source-specific values. */
 uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
@@ -3644,6 +3652,8 @@ intel_edp_init_dpcd(struct intel_dp *intel_dp)
 				intel_dp_get_y_cord_status(intel_dp);
 			dev_priv->psr.colorimetry_support =
 				intel_dp_get_colorimetry_status(intel_dp);
+			dev_priv->psr.alpm =
+				intel_dp_get_alpm_status(intel_dp);
 		}
 
 	}

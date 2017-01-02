@@ -209,7 +209,11 @@ static void hsw_psr_enable_sink(struct intel_dp *intel_dp)
 		drm_dp_dpcd_writeb(&intel_dp->aux,
 				DP_SINK_DEVICE_AUX_FRAME_SYNC_CONF,
 				DP_AUX_FRAME_SYNC_ENABLE);
-
+	/* Enable ALPM at sink for psr2 */
+	if (dev_priv->psr.psr2_support && dev_priv->psr.alpm)
+		drm_dp_dpcd_writeb(&intel_dp->aux,
+				DP_RECEIVER_ALPM_CONFIG,
+				DP_ALPM_ENABLE);
 	if (dev_priv->psr.link_standby)
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG,
 				   DP_PSR_ENABLE | DP_PSR_MAIN_LINK_ACTIVE);
