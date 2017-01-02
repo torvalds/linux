@@ -831,7 +831,6 @@ static int cz_smu_fini(struct pp_smumgr *smumgr)
 		cgs_free_gpu_mem(smumgr->device,
 				cz_smu->smu_buffer.handle);
 		kfree(cz_smu);
-		kfree(smumgr);
 	}
 
 	return 0;
