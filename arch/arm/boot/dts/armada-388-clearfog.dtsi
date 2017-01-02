@@ -93,13 +93,6 @@
 				wp-inverted;
 			};
 
-			serial@12100 {
-				/* mikrobus uart */
-				pinctrl-0 = <&mikro_uart_pins>;
-				pinctrl-names = "default";
-				status = "okay";
-			};
-
 			usb@58000 {
 				/* CON3, nearest  power. */
 				status = "okay";
@@ -302,6 +295,13 @@
 	 * CS2: mikrobus
 	 */
 	pinctrl-0 = <&spi1_pins &mikro_spi_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&uart1 {
+	/* mikrobus uart */
+	pinctrl-0 = <&mikro_uart_pins>;
 	pinctrl-names = "default";
 	status = "okay";
 };

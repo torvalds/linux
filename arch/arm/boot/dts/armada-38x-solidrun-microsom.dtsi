@@ -69,12 +69,6 @@
 				 */
 				status = "okay";
 			};
-
-			serial@12000 {
-				pinctrl-0 = <&uart0_pins>;
-				pinctrl-names = "default";
-				status = "okay";
-			};
 		};
 	};
 };
@@ -143,4 +137,10 @@
 		spi-max-frequency = <3000000>;
 		status = "disabled";
 	};
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
 };
