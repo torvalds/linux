@@ -130,7 +130,7 @@ static long media_device_enum_entities(struct media_device *mdev,
 	 * old range.
 	 */
 	if (ent->function < MEDIA_ENT_F_OLD_BASE ||
-	    ent->function > MEDIA_ENT_T_DEVNODE_UNKNOWN) {
+	    ent->function > MEDIA_ENT_F_TUNER) {
 		if (is_media_entity_v4l2_subdev(ent))
 			entd->type = MEDIA_ENT_F_V4L2_SUBDEV_UNKNOWN;
 		else if (ent->function != MEDIA_ENT_F_IO_V4L)
