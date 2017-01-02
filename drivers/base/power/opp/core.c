@@ -819,25 +819,11 @@ struct opp_device *_add_opp_dev(const struct device *dev,
 	return opp_dev;
 }
 
-/**
- * _add_opp_table() - Find OPP table or allocate a new one
- * @dev:	device for which we do this operation
- *
- * It tries to find an existing table first, if it couldn't find one, it
- * allocates a new OPP table and returns that.
- *
- * Return: valid opp_table pointer if success, else NULL.
- */
-struct opp_table *_add_opp_table(struct device *dev)
+static struct opp_table *_allocate_opp_table(struct device *dev)
 {
 	struct opp_table *opp_table;
 	struct opp_device *opp_dev;
 	int ret;
-
-	/* Check for existing table for 'dev' first */
-	opp_table = _find_opp_table(dev);
-	if (!IS_ERR(opp_table))
-		return opp_table;
 
 	/*
 	 * Allocate a new OPP table. In the infrequent case where a new
@@ -875,6 +861,27 @@ struct opp_table *_add_opp_table(struct device *dev)
 }
 
 /**
+ * _add_opp_table() - Find OPP table or allocate a new one
+ * @dev:	device for which we do this operation
+ *
+ * It tries to find an existing table first, if it couldn't find one, it
+ * allocates a new OPP table and returns that.
+ *
+ * Return: valid opp_table pointer if success, else NULL.
+ */
+struct opp_table *_add_opp_table(struct device *dev)
+{
+	struct opp_table *opp_table;
+
+	/* Check for existing table for 'dev' first */
+	opp_table = _find_opp_table(dev);
+	if (!IS_ERR(opp_table))
+		return opp_table;
+
+	return _allocate_opp_table(dev);
+}
+
+/**
  * _kfree_device_rcu() - Free opp_table RCU handler
  * @head:	RCU head
  */
@@ -886,30 +893,9 @@ static void _kfree_device_rcu(struct rcu_head *head)
 	kfree_rcu(opp_table, rcu_head);
 }
 
-/**
- * _remove_opp_table() - Removes a OPP table
- * @opp_table: OPP table to be removed.
- *
- * Removes/frees OPP table if it doesn't contain any OPPs.
- */
-static void _remove_opp_table(struct opp_table *opp_table)
+static void _free_opp_table(struct opp_table *opp_table)
 {
 	struct opp_device *opp_dev;
-
-	if (!list_empty(&opp_table->opp_list))
-		return;
-
-	if (opp_table->supported_hw)
-		return;
-
-	if (opp_table->prop_name)
-		return;
-
-	if (opp_table->regulators)
-		return;
-
-	if (opp_table->set_opp)
-		return;
 
 	/* Release clk */
 	if (!IS_ERR(opp_table->clk))
@@ -926,6 +912,32 @@ static void _remove_opp_table(struct opp_table *opp_table)
 	list_del_rcu(&opp_table->node);
 	call_srcu(&opp_table->srcu_head.srcu, &opp_table->rcu_head,
 		  _kfree_device_rcu);
+}
+
+/**
+ * _remove_opp_table() - Removes a OPP table
+ * @opp_table: OPP table to be removed.
+ *
+ * Removes/frees OPP table if it doesn't contain any OPPs.
+ */
+static void _remove_opp_table(struct opp_table *opp_table)
+{
+	if (!list_empty(&opp_table->opp_list))
+		return;
+
+	if (opp_table->supported_hw)
+		return;
+
+	if (opp_table->prop_name)
+		return;
+
+	if (opp_table->regulators)
+		return;
+
+	if (opp_table->set_opp)
+		return;
+
+	_free_opp_table(opp_table);
 }
 
 void _opp_free(struct dev_pm_opp *opp)
