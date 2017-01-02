@@ -2409,6 +2409,7 @@ sub push_parameter($$$) {
 	# "[blah" in a parameter string;
 	###$param =~ s/\s*//g;
 	push @parameterlist, $param;
+	$type =~ s/\s\s+/ /g;
 	$parametertypes{$param} = $type;
 }
 
