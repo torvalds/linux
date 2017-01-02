@@ -18,7 +18,7 @@
 struct platform_device;
 
 /**
- * struct imx_pin_group - describes a single i.MX pin
+ * struct imx_pin - describes a single i.MX pin
  * @pin: the pin_id of this pin
  * @mux_mode: the mux mode for this pin.
  * @input_reg: the select input register offset for this pin if any
@@ -32,21 +32,6 @@ struct imx_pin {
 	u16 input_reg;
 	unsigned int input_val;
 	unsigned long config;
-};
-
-/**
- * struct imx_pin_group - describes an IMX pin group
- * @name: the name of this specific pin group
- * @npins: the number of pins in this group array, i.e. the number of
- *	elements in .pins so we can iterate over that array
- * @pin_ids: array of pin_ids. pinctrl forces us to maintain such an array
- * @pins: array of pins
- */
-struct imx_pin_group {
-	const char *name;
-	unsigned npins;
-	unsigned int *pin_ids;
-	struct imx_pin *pins;
 };
 
 /**
@@ -76,13 +61,11 @@ struct imx_pinctrl_soc_info {
 	const struct pinctrl_pin_desc *pins;
 	unsigned int npins;
 	struct imx_pin_reg *pin_regs;
-	unsigned int ngroups;
 	unsigned int group_index;
 	unsigned int nfunctions;
 	unsigned int flags;
 	const char *gpr_compatible;
 	struct radix_tree_root ftree;
-	struct radix_tree_root pgtree;
 	struct mutex mutex;
 };
 
