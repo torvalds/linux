@@ -26,3 +26,15 @@ control just the CEC pin.
 Drivers that support CEC will create a CEC device node (/dev/cecX) to
 give userspace access to the CEC adapter. The
 :ref:`CEC_ADAP_G_CAPS` ioctl will tell userspace what it is allowed to do.
+
+In order to check the support and test it, it is suggested to download
+the `v4l-utils <https://git.linuxtv.org/v4l-utils.git/>`_ package. It
+provides three tools to handle CEC:
+
+- cec-ctl: the Swiss army knife of CEC. Allows you to configure, transmit
+  and monitor CEC messages.
+
+- cec-compliance: does a CEC compliance test of a remote CEC device to
+  determine how compliant the CEC implementation is.
+
+- cec-follower: emulates a CEC follower.
