@@ -129,8 +129,6 @@ extern void show_registers(struct pt_regs *);
 
 irqreturn_t mac_nmi_handler(int, void *);
 
-/* #define DEBUG_MACINTS */
-
 static unsigned int mac_irq_startup(struct irq_data *);
 static void mac_irq_shutdown(struct irq_data *);
 
@@ -144,9 +142,6 @@ static struct irq_chip mac_irq_chip = {
 
 void __init mac_init_IRQ(void)
 {
-#ifdef DEBUG_MACINTS
-	printk("mac_init_IRQ(): Setting things up...\n");
-#endif
 	m68k_setup_irq_controller(&mac_irq_chip, handle_simple_irq, IRQ_USER,
 				  NUM_MAC_SOURCES - IRQ_USER);
 
@@ -167,9 +162,6 @@ void __init mac_init_IRQ(void)
 	if (request_irq(IRQ_AUTO_7, mac_nmi_handler, 0, "NMI",
 			mac_nmi_handler))
 		pr_err("Couldn't register NMI\n");
-#ifdef DEBUG_MACINTS
-	printk("mac_init_IRQ(): Done!\n");
-#endif
 }
 
 /*
