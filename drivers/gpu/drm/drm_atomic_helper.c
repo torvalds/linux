@@ -1170,7 +1170,7 @@ EXPORT_SYMBOL(drm_atomic_helper_commit_tail);
 static void commit_tail(struct drm_atomic_state *old_state)
 {
 	struct drm_device *dev = old_state->dev;
-	struct drm_mode_config_helper_funcs *funcs;
+	const struct drm_mode_config_helper_funcs *funcs;
 
 	funcs = dev->mode_config.helper_private;
 

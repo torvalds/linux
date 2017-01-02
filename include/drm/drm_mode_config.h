@@ -661,7 +661,7 @@ struct drm_mode_config {
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;
 
-	struct drm_mode_config_helper_funcs *helper_private;
+	const struct drm_mode_config_helper_funcs *helper_private;
 };
 
 void drm_mode_config_init(struct drm_device *dev);

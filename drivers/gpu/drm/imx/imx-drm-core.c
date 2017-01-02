@@ -138,7 +138,7 @@ static void imx_drm_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_cleanup_planes(dev, state);
 }
 
-static struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
+static const struct drm_mode_config_helper_funcs imx_drm_mode_config_helpers = {
 	.atomic_commit_tail = imx_drm_atomic_commit_tail,
 };
 

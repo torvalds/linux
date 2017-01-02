@@ -100,7 +100,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 	drm_atomic_helper_cleanup_planes(drm, state);
 }
 
-static struct drm_mode_config_helper_funcs malidp_mode_config_helpers = {
+static const struct drm_mode_config_helper_funcs malidp_mode_config_helpers = {
 	.atomic_commit_tail = malidp_atomic_commit_tail,
 };
 
