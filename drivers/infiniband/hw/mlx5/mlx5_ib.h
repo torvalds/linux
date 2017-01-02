@@ -125,6 +125,10 @@ struct mlx5_ib_ucontext {
 	/* Transport Domain number */
 	u32			tdn;
 	struct list_head	vma_private_list;
+
+	unsigned long		upd_xlt_page;
+	/* protect ODP/KSM */
+	struct mutex		upd_xlt_page_mutex;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -191,6 +195,13 @@ struct mlx5_ib_flow_db {
 
 #define MLX5_IB_UMR_OCTOWORD	       16
 #define MLX5_IB_UMR_XLT_ALIGNMENT      64
+
+#define MLX5_IB_UPD_XLT_ZAP	      BIT(0)
+#define MLX5_IB_UPD_XLT_ENABLE	      BIT(1)
+#define MLX5_IB_UPD_XLT_ATOMIC	      BIT(2)
+#define MLX5_IB_UPD_XLT_ADDR	      BIT(3)
+#define MLX5_IB_UPD_XLT_PD	      BIT(4)
+#define MLX5_IB_UPD_XLT_ACCESS	      BIT(5)
 
 /* Private QP creation flags to be passed in ib_qp_init_attr.create_flags.
  *
@@ -788,8 +799,8 @@ struct ib_mr *mlx5_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 struct ib_mw *mlx5_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
 			       struct ib_udata *udata);
 int mlx5_ib_dealloc_mw(struct ib_mw *mw);
-int mlx5_ib_update_mtt(struct mlx5_ib_mr *mr, u64 start_page_index,
-		       int npages, int zap);
+int mlx5_ib_update_xlt(struct mlx5_ib_mr *mr, u64 idx, int npages,
+		       int page_shift, int flags);
 int mlx5_ib_rereg_user_mr(struct ib_mr *ib_mr, int flags, u64 start,
 			  u64 length, u64 virt_addr, int access_flags,
 			  struct ib_pd *pd, struct ib_udata *udata);

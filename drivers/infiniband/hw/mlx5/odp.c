@@ -91,16 +91,21 @@ void mlx5_ib_invalidate_range(struct ib_umem *umem, unsigned long start,
 			u64 umr_offset = idx & umr_block_mask;
 
 			if (in_block && umr_offset == 0) {
-				mlx5_ib_update_mtt(mr, blk_start_idx,
-						   idx - blk_start_idx, 1);
+				mlx5_ib_update_xlt(mr, blk_start_idx,
+						   idx - blk_start_idx,
+						   PAGE_SHIFT,
+						   MLX5_IB_UPD_XLT_ZAP |
+						   MLX5_IB_UPD_XLT_ATOMIC);
 				in_block = 0;
 			}
 		}
 	}
 	if (in_block)
-		mlx5_ib_update_mtt(mr, blk_start_idx, idx - blk_start_idx + 1,
-				   1);
-
+		mlx5_ib_update_xlt(mr, blk_start_idx,
+				   idx - blk_start_idx + 1,
+				   PAGE_SHIFT,
+				   MLX5_IB_UPD_XLT_ZAP |
+				   MLX5_IB_UPD_XLT_ATOMIC);
 	/*
 	 * We are now sure that the device will not access the
 	 * memory. We can safely unmap it, and mark it as dirty if
@@ -257,7 +262,9 @@ static int pagefault_single_data_segment(struct mlx5_ib_qp *qp,
 			 * this MR, since ib_umem_odp_map_dma_pages already
 			 * checks this.
 			 */
-			ret = mlx5_ib_update_mtt(mr, start_idx, npages, 0);
+			ret = mlx5_ib_update_xlt(mr, start_idx, npages,
+						 PAGE_SHIFT,
+						 MLX5_IB_UPD_XLT_ATOMIC);
 		} else {
 			ret = -EAGAIN;
 		}

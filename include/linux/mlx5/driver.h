@@ -959,7 +959,7 @@ enum {
 };
 
 enum {
-	MAX_MR_CACHE_ENTRIES    = 16,
+	MAX_MR_CACHE_ENTRIES    = 21,
 };
 
 enum {
