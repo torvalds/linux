@@ -102,17 +102,10 @@ struct scsi_host_cmd_pool {
 	struct kmem_cache	*cmd_slab;
 	unsigned int		users;
 	char			*cmd_name;
-	unsigned int		slab_flags;
 };
 
 static struct scsi_host_cmd_pool scsi_cmd_pool = {
 	.cmd_name	= "scsi_cmd_cache",
-	.slab_flags	= SLAB_HWCACHE_ALIGN,
-};
-
-static struct scsi_host_cmd_pool scsi_cmd_dma_pool = {
-	.cmd_name	= "scsi_cmd_cache(DMA)",
-	.slab_flags	= SLAB_HWCACHE_ALIGN|SLAB_CACHE_DMA,
 };
 
 static DEFINE_MUTEX(host_cmd_pool_mutex);
@@ -290,8 +283,6 @@ scsi_find_host_cmd_pool(struct Scsi_Host *shost)
 {
 	if (shost->hostt->cmd_size)
 		return shost->hostt->cmd_pool;
-	if (shost->unchecked_isa_dma)
-		return &scsi_cmd_dma_pool;
 	return &scsi_cmd_pool;
 }
 
@@ -317,10 +308,6 @@ scsi_alloc_host_cmd_pool(struct Scsi_Host *shost)
 		scsi_free_host_cmd_pool(pool);
 		return NULL;
 	}
-
-	pool->slab_flags = SLAB_HWCACHE_ALIGN;
-	if (shost->unchecked_isa_dma)
-		pool->slab_flags |= SLAB_CACHE_DMA;
 
 	if (hostt->cmd_size)
 		hostt->cmd_pool = pool;
@@ -349,7 +336,7 @@ scsi_get_host_cmd_pool(struct Scsi_Host *shost)
 
 	if (!pool->users) {
 		pool->cmd_slab = kmem_cache_create(pool->cmd_name, cmd_size, 0,
-						   pool->slab_flags, NULL);
+						   SLAB_HWCACHE_ALIGN, NULL);
 		if (!pool->cmd_slab)
 			goto out_free_pool;
 	}
