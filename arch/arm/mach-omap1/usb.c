@@ -1,5 +1,5 @@
 /*
- * Platform level USB initialization for FS USB OTG controller on omap1 and 24xx
+ * Platform level USB initialization for FS USB OTG controller on omap1
  *
  * Copyright (C) 2004 Texas Instruments, Inc.
  *
@@ -63,6 +63,7 @@ omap_otg_init(struct omap_usb_config *config)
 {
 	u32		syscon;
 	int		alt_pingroup = 0;
+	u16		w;
 
 	/* NOTE:  no bus or clock setup (yet?) */
 
@@ -87,9 +88,8 @@ omap_otg_init(struct omap_usb_config *config)
 	if (config->otg)
 		syscon |= OTG_EN;
 #endif
-	if (cpu_class_is_omap1())
-		pr_debug("USB_TRANSCEIVER_CTRL = %03x\n",
-			 omap_readl(USB_TRANSCEIVER_CTRL));
+	pr_debug("USB_TRANSCEIVER_CTRL = %03x\n",
+		 omap_readl(USB_TRANSCEIVER_CTRL));
 	pr_debug("OTG_SYSCON_2 = %08x\n", omap_readl(OTG_SYSCON_2));
 	omap_writel(syscon, OTG_SYSCON_2);
 
@@ -107,19 +107,16 @@ omap_otg_init(struct omap_usb_config *config)
 		pr_cont(", Mini-AB on usb%d", config->otg - 1);
 	pr_cont("\n");
 
-	if (cpu_class_is_omap1()) {
-		u16 w;
+	/* leave USB clocks/controllers off until needed */
+	w = omap_readw(ULPD_SOFT_REQ);
+	w &= ~SOFT_USB_CLK_REQ;
+	omap_writew(w, ULPD_SOFT_REQ);
 
-		/* leave USB clocks/controllers off until needed */
-		w = omap_readw(ULPD_SOFT_REQ);
-		w &= ~SOFT_USB_CLK_REQ;
-		omap_writew(w, ULPD_SOFT_REQ);
+	w = omap_readw(ULPD_CLOCK_CTRL);
+	w &= ~USB_MCLK_EN;
+	w |= DIS_USB_PVCI_CLK;
+	omap_writew(w, ULPD_CLOCK_CTRL);
 
-		w = omap_readw(ULPD_CLOCK_CTRL);
-		w &= ~USB_MCLK_EN;
-		w |= DIS_USB_PVCI_CLK;
-		omap_writew(w, ULPD_CLOCK_CTRL);
-	}
 	syscon = omap_readl(OTG_SYSCON_1);
 	syscon |= HST_IDLE_EN|DEV_IDLE_EN|OTG_IDLE_EN;
 
