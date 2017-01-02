@@ -194,20 +194,8 @@ bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 struct iio_buffer *iio_buffer_get(struct iio_buffer *buffer);
 void iio_buffer_put(struct iio_buffer *buffer);
 
-/**
- * iio_device_attach_buffer - Attach a buffer to a IIO device
- * @indio_dev: The device the buffer should be attached to
- * @buffer: The buffer to attach to the device
- *
- * This function attaches a buffer to a IIO device. The buffer stays attached to
- * the device until the device is freed. The function should only be called at
- * most once per device.
- */
-static inline void iio_device_attach_buffer(struct iio_dev *indio_dev,
-	struct iio_buffer *buffer)
-{
-	indio_dev->buffer = iio_buffer_get(buffer);
-}
+void iio_device_attach_buffer(struct iio_dev *indio_dev,
+			      struct iio_buffer *buffer);
 
 #else /* CONFIG_IIO_BUFFER */
 
