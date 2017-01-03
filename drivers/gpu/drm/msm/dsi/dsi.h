@@ -35,6 +35,7 @@ enum msm_dsi_phy_type {
 	MSM_DSI_PHY_28NM_LP,
 	MSM_DSI_PHY_20NM,
 	MSM_DSI_PHY_28NM_8960,
+	MSM_DSI_PHY_14NM,
 	MSM_DSI_PHY_MAX
 };
 
@@ -117,6 +118,8 @@ int msm_dsi_pll_get_clk_provider(struct msm_dsi_pll *pll,
 	struct clk **byte_clk_provider, struct clk **pixel_clk_provider);
 void msm_dsi_pll_save_state(struct msm_dsi_pll *pll);
 int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll);
+int msm_dsi_pll_set_usecase(struct msm_dsi_pll *pll,
+			    enum msm_dsi_phy_usecase uc);
 #else
 static inline struct msm_dsi_pll *msm_dsi_pll_init(struct platform_device *pdev,
 			 enum msm_dsi_phy_type type, int id) {
@@ -136,6 +139,11 @@ static inline void msm_dsi_pll_save_state(struct msm_dsi_pll *pll)
 static inline int msm_dsi_pll_restore_state(struct msm_dsi_pll *pll)
 {
 	return 0;
+}
+static inline int msm_dsi_pll_set_usecase(struct msm_dsi_pll *pll,
+					  enum msm_dsi_phy_usecase uc)
+{
+	return -ENODEV;
 }
 #endif
 
