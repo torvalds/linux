@@ -927,10 +927,14 @@ bool dce110_link_encoder_validate_dp_output(
 bool dce110_link_encoder_construct(
 	struct dce110_link_encoder *enc110,
 	const struct encoder_init_data *init_data,
+	const struct encoder_feature_support *enc_features,
 	const struct dce110_link_enc_registers *link_regs,
 	const struct dce110_link_enc_aux_registers *aux_regs,
 	const struct dce110_link_enc_hpd_registers *hpd_regs)
 {
+	struct bp_encoder_cap_info bp_cap_info = {0};
+	const struct dc_vbios_funcs *bp_funcs = init_data->ctx->dc_bios->funcs;
+
 	enc110->base.funcs = &dce110_lnk_enc_funcs;
 	enc110->base.ctx = init_data->ctx;
 	enc110->base.id = init_data->encoder;
@@ -941,11 +945,9 @@ bool dce110_link_encoder_construct(
 
 	enc110->base.preferred_engine = ENGINE_ID_UNKNOWN;
 
-	enc110->base.features.flags.raw = 0;
+	enc110->base.features = *enc_features;
 
 	enc110->base.transmitter = init_data->transmitter;
-
-	enc110->base.features.max_hdmi_deep_color = COLOR_DEPTH_121212;
 
 	if (enc110->base.ctx->dc->debug.disable_hdmi_deep_color)
 		enc110->base.features.max_hdmi_deep_color = COLOR_DEPTH_888;
@@ -1013,10 +1015,6 @@ bool dce110_link_encoder_construct(
 			init_data->channel);
 
 	/* Override features with DCE-specific values */
-	{
-	struct bp_encoder_cap_info bp_cap_info = {0};
-	const struct dc_vbios_funcs *bp_funcs = enc110->base.ctx->dc_bios->funcs;
-
 	if (BP_RESULT_OK == bp_funcs->get_encoder_cap_info(
 			enc110->base.ctx->dc_bios, enc110->base.id,
 			&bp_cap_info))
@@ -1024,26 +1022,7 @@ bool dce110_link_encoder_construct(
 				bp_cap_info.DP_HBR2_CAP;
 		enc110->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
-	}
 
-	/* TODO: check PPLIB maxPhyClockInKHz <= 540000, if yes,
-	 * IS_HBR3_CAPABLE = 0.
-	 */
-
-	/* test pattern 3 support */
-	enc110->base.features.flags.bits.IS_TPS3_CAPABLE = true;
-	/* test pattern 4 support */
-	enc110->base.features.flags.bits.IS_TPS4_CAPABLE = true;
-
-	/*
-		dal_adapter_service_is_feature_supported(as,
-			FEATURE_SUPPORT_DP_Y_ONLY);
-*/
-	enc110->base.features.flags.bits.IS_YCBCR_CAPABLE = true;
-	/*
-		dal_adapter_service_is_feature_supported(as,
-			FEATURE_SUPPORT_DP_YUV);
-			*/
 	return true;
 }
 

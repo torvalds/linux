@@ -236,6 +236,7 @@ struct dce110_abm_backlight_registers {
 bool dce110_link_encoder_construct(
 	struct dce110_link_encoder *enc110,
 	const struct encoder_init_data *init_data,
+	const struct encoder_feature_support *enc_features,
 	const struct dce110_link_enc_registers *link_regs,
 	const struct dce110_link_enc_aux_registers *aux_regs,
 	const struct dce110_link_enc_hpd_registers *hpd_regs);

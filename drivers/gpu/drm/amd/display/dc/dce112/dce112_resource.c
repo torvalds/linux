@@ -564,6 +564,18 @@ static struct transform *dce112_transform_create(
 	dm_free(transform);
 	return NULL;
 }
+
+static const struct encoder_feature_support link_enc_feature = {
+		.max_hdmi_deep_color = COLOR_DEPTH_121212,
+		.max_hdmi_pixel_clock = 600000,
+		.ycbcr420_supported = true,
+		.flags.bits.IS_HBR2_CAPABLE = true,
+		.flags.bits.IS_HBR3_CAPABLE = true,
+		.flags.bits.IS_TPS3_CAPABLE = true,
+		.flags.bits.IS_TPS4_CAPABLE = true,
+		.flags.bits.IS_YCBCR_CAPABLE = true
+};
+
 struct link_encoder *dce112_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
@@ -576,12 +588,11 @@ struct link_encoder *dce112_link_encoder_create(
 	if (dce110_link_encoder_construct(
 			enc110,
 			enc_init_data,
+			&link_enc_feature,
 			&link_enc_regs[enc_init_data->transmitter],
 			&link_enc_aux_regs[enc_init_data->channel - 1],
 			&link_enc_hpd_regs[enc_init_data->hpd_source])) {
 
-		enc110->base.features.ycbcr420_supported = false;
-		enc110->base.features.max_hdmi_pixel_clock = 600000;
 		return &enc110->base;
 	}
 
