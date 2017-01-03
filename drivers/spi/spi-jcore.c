@@ -214,6 +214,7 @@ static const struct of_device_id jcore_spi_of_match[] = {
 	{ .compatible = "jcore,spi2" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, jcore_spi_of_match);
 
 static struct platform_driver jcore_spi_driver = {
 	.probe = jcore_spi_probe,

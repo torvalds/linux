@@ -26,7 +26,9 @@
 
 #include <linux/string.h>
 #include <linux/parser.h>
+#include <linux/highmem.h>
 #include <linux/timer.h>
+#include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <scsi/scsi_proto.h>

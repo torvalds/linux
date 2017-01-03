@@ -1030,7 +1030,7 @@ int ocfs2_extend_no_holes(struct inode *inode, struct buffer_head *di_bh,
 	 * Only quota files call this without a bh, and they can't be
 	 * refcounted.
 	 */
-	BUG_ON(!di_bh && (oi->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL));
+	BUG_ON(!di_bh && ocfs2_is_refcount_inode(inode));
 	BUG_ON(!di_bh && !(oi->ip_flags & OCFS2_INODE_SYSTEM_FILE));
 
 	clusters_to_add = ocfs2_clusters_for_bytes(inode->i_sb, new_i_size);
@@ -1667,9 +1667,9 @@ static void ocfs2_calc_trunc_pos(struct inode *inode,
 	*done = ret;
 }
 
-static int ocfs2_remove_inode_range(struct inode *inode,
-				    struct buffer_head *di_bh, u64 byte_start,
-				    u64 byte_len)
+int ocfs2_remove_inode_range(struct inode *inode,
+			     struct buffer_head *di_bh, u64 byte_start,
+			     u64 byte_len)
 {
 	int ret = 0, flags = 0, done = 0, i;
 	u32 trunc_start, trunc_len, trunc_end, trunc_cpos, phys_cpos;
@@ -1719,8 +1719,7 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 	 * within one cluster(means is not exactly aligned to clustersize).
 	 */
 
-	if (OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL) {
-
+	if (ocfs2_is_refcount_inode(inode)) {
 		ret = ocfs2_cow_file_pos(inode, di_bh, byte_start);
 		if (ret) {
 			mlog_errno(ret);
@@ -2036,7 +2035,7 @@ int ocfs2_check_range_for_refcount(struct inode *inode, loff_t pos,
 	struct super_block *sb = inode->i_sb;
 
 	if (!ocfs2_refcount_tree(OCFS2_SB(inode->i_sb)) ||
-	    !(OCFS2_I(inode)->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL) ||
+	    !ocfs2_is_refcount_inode(inode) ||
 	    OCFS2_I(inode)->ip_dyn_features & OCFS2_INLINE_DATA_FL)
 		return 0;
 
@@ -2440,6 +2439,31 @@ out:
 	return offset;
 }
 
+static int ocfs2_file_clone_range(struct file *file_in,
+				  loff_t pos_in,
+				  struct file *file_out,
+				  loff_t pos_out,
+				  u64 len)
+{
+	return ocfs2_reflink_remap_range(file_in, pos_in, file_out, pos_out,
+					 len, false);
+}
+
+static ssize_t ocfs2_file_dedupe_range(struct file *src_file,
+				       u64 loff,
+				       u64 len,
+				       struct file *dst_file,
+				       u64 dst_loff)
+{
+	int error;
+
+	error = ocfs2_reflink_remap_range(src_file, loff, dst_file, dst_loff,
+					  len, true);
+	if (error)
+		return error;
+	return len;
+}
+
 const struct inode_operations ocfs2_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
@@ -2479,6 +2503,8 @@ const struct file_operations ocfs2_fops = {
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= ocfs2_fallocate,
+	.clone_file_range = ocfs2_file_clone_range,
+	.dedupe_file_range = ocfs2_file_dedupe_range,
 };
 
 const struct file_operations ocfs2_dops = {
@@ -2524,6 +2550,8 @@ const struct file_operations ocfs2_fops_no_plocks = {
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= ocfs2_fallocate,
+	.clone_file_range = ocfs2_file_clone_range,
+	.dedupe_file_range = ocfs2_file_dedupe_range,
 };
 
 const struct file_operations ocfs2_dops_no_plocks = {

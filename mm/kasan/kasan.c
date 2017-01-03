@@ -34,6 +34,7 @@
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/vmalloc.h>
+#include <linux/bug.h>
 
 #include "kasan.h"
 #include "../slab.h"
@@ -62,7 +63,7 @@ void kasan_unpoison_shadow(const void *address, size_t size)
 	}
 }
 
-static void __kasan_unpoison_stack(struct task_struct *task, void *sp)
+static void __kasan_unpoison_stack(struct task_struct *task, const void *sp)
 {
 	void *base = task_stack_page(task);
 	size_t size = sp - base;
@@ -77,9 +78,31 @@ void kasan_unpoison_task_stack(struct task_struct *task)
 }
 
 /* Unpoison the stack for the current task beyond a watermark sp value. */
-asmlinkage void kasan_unpoison_remaining_stack(void *sp)
+asmlinkage void kasan_unpoison_task_stack_below(const void *watermark)
 {
-	__kasan_unpoison_stack(current, sp);
+	/*
+	 * Calculate the task stack base address.  Avoid using 'current'
+	 * because this function is called by early resume code which hasn't
+	 * yet set up the percpu register (%gs).
+	 */
+	void *base = (void *)((unsigned long)watermark & ~(THREAD_SIZE - 1));
+
+	kasan_unpoison_shadow(base, watermark - base);
+}
+
+/*
+ * Clear all poison for the region between the current SP and a provided
+ * watermark value, as is sometimes required prior to hand-crafted asm function
+ * returns in the middle of functions.
+ */
+void kasan_unpoison_stack_above_sp_to(const void *watermark)
+{
+	const void *sp = __builtin_frame_address(0);
+	size_t size = watermark - sp;
+
+	if (WARN_ON(sp > watermark))
+		return;
+	kasan_unpoison_shadow(sp, size);
 }
 
 /*
@@ -747,6 +770,25 @@ EXPORT_SYMBOL(__asan_storeN_noabort);
 /* to shut up compiler complaints */
 void __asan_handle_no_return(void) {}
 EXPORT_SYMBOL(__asan_handle_no_return);
+
+/* Emitted by compiler to poison large objects when they go out of scope. */
+void __asan_poison_stack_memory(const void *addr, size_t size)
+{
+	/*
+	 * Addr is KASAN_SHADOW_SCALE_SIZE-aligned and the object is surrounded
+	 * by redzones, so we simply round up size to simplify logic.
+	 */
+	kasan_poison_shadow(addr, round_up(size, KASAN_SHADOW_SCALE_SIZE),
+			    KASAN_USE_AFTER_SCOPE);
+}
+EXPORT_SYMBOL(__asan_poison_stack_memory);
+
+/* Emitted by compiler to unpoison large objects when they go into scope. */
+void __asan_unpoison_stack_memory(const void *addr, size_t size)
+{
+	kasan_unpoison_shadow(addr, size);
+}
+EXPORT_SYMBOL(__asan_unpoison_stack_memory);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 static int kasan_mem_notifier(struct notifier_block *nb,

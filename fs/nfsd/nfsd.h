@@ -359,44 +359,46 @@ void		nfsd_lockd_shutdown(void);
 
 #define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
 	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | \
+	FATTR4_WORD2_MODE_UMASK | \
 	NFSD4_2_SECURITY_ATTRS)
 
-static inline u32 nfsd_suppattrs0(u32 minorversion)
+extern u32 nfsd_suppattrs[3][3];
+
+static inline bool bmval_is_subset(u32 *bm1, u32 *bm2)
 {
-	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD0
-			    : NFSD4_SUPPORTED_ATTRS_WORD0;
+	return !((bm1[0] & ~bm2[0]) ||
+	         (bm1[1] & ~bm2[1]) ||
+		 (bm1[2] & ~bm2[2]));
 }
 
-static inline u32 nfsd_suppattrs1(u32 minorversion)
+static inline bool nfsd_attrs_supported(u32 minorversion, u32 *bmval)
 {
-	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD1
-			    : NFSD4_SUPPORTED_ATTRS_WORD1;
-}
-
-static inline u32 nfsd_suppattrs2(u32 minorversion)
-{
-	switch (minorversion) {
-	default: return NFSD4_2_SUPPORTED_ATTRS_WORD2;
-	case 1:  return NFSD4_1_SUPPORTED_ATTRS_WORD2;
-	case 0:  return NFSD4_SUPPORTED_ATTRS_WORD2;
-	}
+	return bmval_is_subset(bmval, nfsd_suppattrs[minorversion]);
 }
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */
 #define NFSD_WRITEONLY_ATTRS_WORD1 \
 	(FATTR4_WORD1_TIME_ACCESS_SET   | FATTR4_WORD1_TIME_MODIFY_SET)
 
-/* These are the only attrs allowed in CREATE/OPEN/SETATTR. */
+/*
+ * These are the only attrs allowed in CREATE/OPEN/SETATTR. Don't add
+ * a writeable attribute here without also adding code to parse it to
+ * nfsd4_decode_fattr().
+ */
 #define NFSD_WRITEABLE_ATTRS_WORD0 \
 	(FATTR4_WORD0_SIZE | FATTR4_WORD0_ACL)
 #define NFSD_WRITEABLE_ATTRS_WORD1 \
 	(FATTR4_WORD1_MODE | FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP \
 	| FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET)
 #ifdef CONFIG_NFSD_V4_SECURITY_LABEL
-#define NFSD_WRITEABLE_ATTRS_WORD2 FATTR4_WORD2_SECURITY_LABEL
+#define MAYBE_FATTR4_WORD2_SECURITY_LABEL \
+	FATTR4_WORD2_SECURITY_LABEL
 #else
-#define NFSD_WRITEABLE_ATTRS_WORD2 0
+#define MAYBE_FATTR4_WORD2_SECURITY_LABEL 0
 #endif
+#define NFSD_WRITEABLE_ATTRS_WORD2 \
+	(FATTR4_WORD2_MODE_UMASK \
+	| MAYBE_FATTR4_WORD2_SECURITY_LABEL)
 
 #define NFSD_SUPPATTR_EXCLCREAT_WORD0 \
 	NFSD_WRITEABLE_ATTRS_WORD0

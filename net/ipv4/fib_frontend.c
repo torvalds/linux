@@ -14,7 +14,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/capability.h>
 #include <linux/types.h>
@@ -151,7 +151,7 @@ static void fib_replace_table(struct net *net, struct fib_table *old,
 
 int fib_unmerge(struct net *net)
 {
-	struct fib_table *old, *new;
+	struct fib_table *old, *new, *main_table;
 
 	/* attempt to fetch local table if it has been allocated */
 	old = fib_get_table(net, RT_TABLE_LOCAL);
@@ -162,11 +162,21 @@ int fib_unmerge(struct net *net)
 	if (!new)
 		return -ENOMEM;
 
+	/* table is already unmerged */
+	if (new == old)
+		return 0;
+
 	/* replace merged table with clean table */
-	if (new != old) {
-		fib_replace_table(net, old, new);
-		fib_free_table(old);
-	}
+	fib_replace_table(net, old, new);
+	fib_free_table(old);
+
+	/* attempt to fetch main table if it has been allocated */
+	main_table = fib_get_table(net, RT_TABLE_MAIN);
+	if (!main_table)
+		return 0;
+
+	/* flush local entries from main table */
+	fib_table_flush_external(main_table);
 
 	return 0;
 }
@@ -610,6 +620,7 @@ const struct nla_policy rtm_ipv4_policy[RTA_MAX + 1] = {
 	[RTA_FLOW]		= { .type = NLA_U32 },
 	[RTA_ENCAP_TYPE]	= { .type = NLA_U16 },
 	[RTA_ENCAP]		= { .type = NLA_NESTED },
+	[RTA_UID]		= { .type = NLA_U32 },
 };
 
 static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,
@@ -1207,6 +1218,8 @@ static int __net_init ip_fib_net_init(struct net *net)
 {
 	int err;
 	size_t size = sizeof(struct hlist_head) * FIB_TABLE_HASHSZ;
+
+	net->ipv4.fib_seq = 0;
 
 	/* Avoid false sharing : Use at least a full cache line */
 	size = max_t(size_t, size, L1_CACHE_BYTES);

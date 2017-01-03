@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  * The full GNU General Public License is included in this distribution in the
  * file called LICENSE.
  *
@@ -59,6 +55,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int err;
+	char *fw_name;
 
 	rtlpriv->dm.dm_initialgain_enable = true;
 	rtlpriv->dm.dm_flag = 0;
@@ -77,18 +74,18 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	}
 	if (IS_VENDOR_UMC_A_CUT(rtlpriv->rtlhal.version) &&
 	    !IS_92C_SERIAL(rtlpriv->rtlhal.version)) {
-		rtlpriv->cfg->fw_name = "rtlwifi/rtl8192cufw_A.bin";
+		fw_name = "rtlwifi/rtl8192cufw_A.bin";
 	} else if (IS_81XXC_VENDOR_UMC_B_CUT(rtlpriv->rtlhal.version)) {
-		rtlpriv->cfg->fw_name = "rtlwifi/rtl8192cufw_B.bin";
+		fw_name = "rtlwifi/rtl8192cufw_B.bin";
 	} else {
-		rtlpriv->cfg->fw_name = "rtlwifi/rtl8192cufw_TMSC.bin";
+		fw_name = "rtlwifi/rtl8192cufw_TMSC.bin";
 	}
 	/* provide name of alternative file */
 	rtlpriv->cfg->alt_fw_name = "rtlwifi/rtl8192cufw.bin";
-	pr_info("Loading firmware %s\n", rtlpriv->cfg->fw_name);
+	pr_info("Loading firmware %s\n", fw_name);
 	rtlpriv->max_fw_size = 0x4000;
 	err = request_firmware_nowait(THIS_MODULE, 1,
-				      rtlpriv->cfg->fw_name, rtlpriv->io.dev,
+				      fw_name, rtlpriv->io.dev,
 				      GFP_KERNEL, hw, rtl_fw_cb);
 	return err;
 }
@@ -187,7 +184,6 @@ static struct rtl_hal_usbint_cfg rtl92cu_interface_cfg = {
 
 static struct rtl_hal_cfg rtl92cu_hal_cfg = {
 	.name = "rtl92c_usb",
-	.fw_name = "rtlwifi/rtl8192cufw.bin",
 	.ops = &rtl8192cu_hal_ops,
 	.mod_params = &rtl92cu_mod_params,
 	.usb_interface_cfg = &rtl92cu_interface_cfg,

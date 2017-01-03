@@ -191,6 +191,7 @@ read the file /proc/PID/status:
   CapPrm: 0000000000000000
   CapEff: 0000000000000000
   CapBnd: ffffffffffffffff
+  NoNewPrivs:     0
   Seccomp:        0
   voluntary_ctxt_switches:        0
   nonvoluntary_ctxt_switches:     1
@@ -262,6 +263,7 @@ Table 1-2: Contents of the status files (as of 4.1)
  CapPrm                      bitmap of permitted capabilities
  CapEff                      bitmap of effective capabilities
  CapBnd                      bitmap of capabilities bounding set
+ NoNewPrivs                  no_new_privs, like prctl(PR_GET_NO_NEW_PRIV, ...)
  Seccomp                     seccomp mode, like prctl(PR_GET_SECCOMP, ...)
  Cpus_allowed                mask of CPUs on which this process may run
  Cpus_allowed_list           Same as previous, but in "list format"
@@ -394,32 +396,6 @@ is not associated with a file:
                             the kernel system call handler
 
  or if empty, the mapping is anonymous.
-
-The /proc/PID/task/TID/maps is a view of the virtual memory from the viewpoint
-of the individual tasks of a process. In this file you will see a mapping marked
-as [stack] if that task sees it as a stack. Hence, for the example above, the
-task-level map, i.e. /proc/PID/task/TID/maps for thread 1001 will look like this:
-
-08048000-08049000 r-xp 00000000 03:00 8312       /opt/test
-08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
-0804a000-0806b000 rw-p 00000000 00:00 0          [heap]
-a7cb1000-a7cb2000 ---p 00000000 00:00 0
-a7cb2000-a7eb2000 rw-p 00000000 00:00 0
-a7eb2000-a7eb3000 ---p 00000000 00:00 0
-a7eb3000-a7ed5000 rw-p 00000000 00:00 0          [stack]
-a7ed5000-a8008000 r-xp 00000000 03:00 4222       /lib/libc.so.6
-a8008000-a800a000 r--p 00133000 03:00 4222       /lib/libc.so.6
-a800a000-a800b000 rw-p 00135000 03:00 4222       /lib/libc.so.6
-a800b000-a800e000 rw-p 00000000 00:00 0
-a800e000-a8022000 r-xp 00000000 03:00 14462      /lib/libpthread.so.0
-a8022000-a8023000 r--p 00013000 03:00 14462      /lib/libpthread.so.0
-a8023000-a8024000 rw-p 00014000 03:00 14462      /lib/libpthread.so.0
-a8024000-a8027000 rw-p 00000000 00:00 0
-a8027000-a8043000 r-xp 00000000 03:00 8317       /lib/ld-linux.so.2
-a8043000-a8044000 r--p 0001b000 03:00 8317       /lib/ld-linux.so.2
-a8044000-a8045000 rw-p 0001c000 03:00 8317       /lib/ld-linux.so.2
-aff35000-aff4a000 rw-p 00000000 00:00 0
-ffffe000-fffff000 r-xp 00000000 00:00 0          [vdso]
 
 The /proc/PID/smaps is an extension based on maps, showing the memory
 consumption for each of the process's mappings. For each of mappings there
@@ -1331,7 +1307,16 @@ second).  The meanings of the columns are as follows, from left to right:
 - nice: niced processes executing in user mode
 - system: processes executing in kernel mode
 - idle: twiddling thumbs
-- iowait: waiting for I/O to complete
+- iowait: In a word, iowait stands for waiting for I/O to complete. But there
+  are several problems:
+  1. Cpu will not wait for I/O to complete, iowait is the time that a task is
+     waiting for I/O to complete. When cpu goes into idle state for
+     outstanding task io, another task will be scheduled on this CPU.
+  2. In a multi-core CPU, the task waiting for I/O to complete is not running
+     on any CPU, so the iowait of each CPU is difficult to calculate.
+  3. The value of iowait field in /proc/stat will decrease in certain
+     conditions.
+  So, the iowait is not reliable by reading from /proc/stat.
 - irq: servicing interrupts
 - softirq: servicing softirqs
 - steal: involuntary wait

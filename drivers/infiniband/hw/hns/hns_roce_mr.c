@@ -42,7 +42,7 @@ static u32 hw_index_to_key(unsigned long ind)
 	return (u32)(ind >> 24) | (ind << 8);
 }
 
-static unsigned long key_to_hw_index(u32 key)
+unsigned long key_to_hw_index(u32 key)
 {
 	return (key << 24) | (key >> 8);
 }
@@ -53,16 +53,16 @@ static int hns_roce_sw2hw_mpt(struct hns_roce_dev *hr_dev,
 {
 	return hns_roce_cmd_mbox(hr_dev, mailbox->dma, 0, mpt_index, 0,
 				 HNS_ROCE_CMD_SW2HW_MPT,
-				 HNS_ROCE_CMD_TIME_CLASS_B);
+				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
-static int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
+int hns_roce_hw2sw_mpt(struct hns_roce_dev *hr_dev,
 			      struct hns_roce_cmd_mailbox *mailbox,
 			      unsigned long mpt_index)
 {
 	return hns_roce_cmd_mbox(hr_dev, 0, mailbox ? mailbox->dma : 0,
 				 mpt_index, !mailbox, HNS_ROCE_CMD_HW2SW_MPT,
-				 HNS_ROCE_CMD_TIME_CLASS_B);
+				 HNS_ROCE_CMD_TIMEOUT_MSECS);
 }
 
 static int hns_roce_buddy_alloc(struct hns_roce_buddy *buddy, int order,
@@ -137,11 +137,13 @@ static int hns_roce_buddy_init(struct hns_roce_buddy *buddy, int max_order)
 
 	for (i = 0; i <= buddy->max_order; ++i) {
 		s = BITS_TO_LONGS(1 << (buddy->max_order - i));
-		buddy->bits[i] = kmalloc_array(s, sizeof(long), GFP_KERNEL);
-		if (!buddy->bits[i])
-			goto err_out_free;
-
-		bitmap_zero(buddy->bits[i], 1 << (buddy->max_order - i));
+		buddy->bits[i] = kcalloc(s, sizeof(long), GFP_KERNEL |
+					 __GFP_NOWARN);
+		if (!buddy->bits[i]) {
+			buddy->bits[i] = vzalloc(s * sizeof(long));
+			if (!buddy->bits[i])
+				goto err_out_free;
+		}
 	}
 
 	set_bit(0, buddy->bits[buddy->max_order]);
@@ -151,7 +153,7 @@ static int hns_roce_buddy_init(struct hns_roce_buddy *buddy, int max_order)
 
 err_out_free:
 	for (i = 0; i <= buddy->max_order; ++i)
-		kfree(buddy->bits[i]);
+		kvfree(buddy->bits[i]);
 
 err_out:
 	kfree(buddy->bits);
@@ -164,7 +166,7 @@ static void hns_roce_buddy_cleanup(struct hns_roce_buddy *buddy)
 	int i;
 
 	for (i = 0; i <= buddy->max_order; ++i)
-		kfree(buddy->bits[i]);
+		kvfree(buddy->bits[i]);
 
 	kfree(buddy->bits);
 	kfree(buddy->num_free);
@@ -287,7 +289,7 @@ static void hns_roce_mr_free(struct hns_roce_dev *hr_dev,
 	}
 
 	hns_roce_bitmap_free(&hr_dev->mr_table.mtpt_bitmap,
-			     key_to_hw_index(mr->key));
+			     key_to_hw_index(mr->key), BITMAP_NO_RR);
 }
 
 static int hns_roce_mr_enable(struct hns_roce_dev *hr_dev,
@@ -605,13 +607,20 @@ err_free:
 
 int hns_roce_dereg_mr(struct ib_mr *ibmr)
 {
+	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
+	int ret = 0;
 
-	hns_roce_mr_free(to_hr_dev(ibmr->device), mr);
-	if (mr->umem)
-		ib_umem_release(mr->umem);
+	if (hr_dev->hw->dereg_mr) {
+		ret = hr_dev->hw->dereg_mr(hr_dev, mr);
+	} else {
+		hns_roce_mr_free(hr_dev, mr);
 
-	kfree(mr);
+		if (mr->umem)
+			ib_umem_release(mr->umem);
 
-	return 0;
+		kfree(mr);
+	}
+
+	return ret;
 }

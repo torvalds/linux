@@ -225,9 +225,9 @@ struct vxlan_config {
 struct vxlan_dev {
 	struct hlist_node hlist;	/* vni hash table */
 	struct list_head  next;		/* vxlan's per namespace list */
-	struct vxlan_sock *vn4_sock;	/* listening socket for IPv4 */
+	struct vxlan_sock __rcu *vn4_sock;	/* listening socket for IPv4 */
 #if IS_ENABLED(CONFIG_IPV6)
-	struct vxlan_sock *vn6_sock;	/* listening socket for IPv6 */
+	struct vxlan_sock __rcu *vn6_sock;	/* listening socket for IPv6 */
 #endif
 	struct net_device *dev;
 	struct net	  *net;		/* netns for packet i/o */
@@ -280,16 +280,6 @@ struct vxlan_dev {
 
 struct net_device *vxlan_dev_create(struct net *net, const char *name,
 				    u8 name_assign_type, struct vxlan_config *conf);
-
-static inline __be16 vxlan_dev_dst_port(struct vxlan_dev *vxlan,
-					unsigned short family)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	if (family == AF_INET6)
-		return inet_sk(vxlan->vn6_sock->sock->sk)->inet_sport;
-#endif
-	return inet_sk(vxlan->vn4_sock->sock->sk)->inet_sport;
-}
 
 static inline netdev_features_t vxlan_features_check(struct sk_buff *skb,
 						     netdev_features_t features)

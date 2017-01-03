@@ -601,13 +601,13 @@
 
 #define PANEL_PLANE_TL                                0x08001C
 #define PANEL_PLANE_TL_TOP_SHIFT                      16
-#define PANEL_PLANE_TL_TOP_MASK                       (0xeff << 16)
-#define PANEL_PLANE_TL_LEFT_MASK                      0xeff
+#define PANEL_PLANE_TL_TOP_MASK                       (0x7ff << 16)
+#define PANEL_PLANE_TL_LEFT_MASK                      0x7ff
 
 #define PANEL_PLANE_BR                                0x080020
 #define PANEL_PLANE_BR_BOTTOM_SHIFT                   16
-#define PANEL_PLANE_BR_BOTTOM_MASK                    (0xeff << 16)
-#define PANEL_PLANE_BR_RIGHT_MASK                     0xeff
+#define PANEL_PLANE_BR_BOTTOM_MASK                    (0x7ff << 16)
+#define PANEL_PLANE_BR_RIGHT_MASK                     0x7ff
 
 #define PANEL_HORIZONTAL_TOTAL                        0x080024
 #define PANEL_HORIZONTAL_TOTAL_TOTAL_SHIFT            16

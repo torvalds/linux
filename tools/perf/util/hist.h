@@ -22,6 +22,7 @@ enum hist_filter {
 	HIST_FILTER__GUEST,
 	HIST_FILTER__HOST,
 	HIST_FILTER__SOCKET,
+	HIST_FILTER__C2C,
 };
 
 enum hist_column {

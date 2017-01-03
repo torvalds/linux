@@ -88,6 +88,9 @@ struct malidp_hw_regmap {
 	/* list of supported input formats for each layer */
 	const struct malidp_input_format *input_formats;
 	const u8 n_input_formats;
+
+	/* pitch alignment requirement in bytes */
+	const u8 bus_align_bytes;
 };
 
 struct malidp_hw_device {
@@ -228,6 +231,12 @@ void malidp_se_irq_fini(struct drm_device *drm);
 
 u8 malidp_hw_get_format_id(const struct malidp_hw_regmap *map,
 			   u8 layer_id, u32 format);
+
+static inline bool malidp_hw_pitch_valid(struct malidp_hw_device *hwdev,
+					 unsigned int pitch)
+{
+	return !(pitch & (hwdev->map.bus_align_bytes - 1));
+}
 
 /*
  * background color components are defined as 12bits values,

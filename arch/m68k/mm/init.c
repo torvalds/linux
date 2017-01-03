@@ -20,7 +20,7 @@
 #include <linux/gfp.h>
 
 #include <asm/setup.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/traps.h>

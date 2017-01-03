@@ -900,9 +900,9 @@ static void korina_restart_task(struct work_struct *work)
 				DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR,
 				&lp->rx_dma_regs->dmasm);
 
-	korina_free_ring(dev);
-
 	napi_disable(&lp->napi);
+
+	korina_free_ring(dev);
 
 	if (korina_init(dev) < 0) {
 		printk(KERN_ERR "%s: cannot restart device\n", dev->name);
@@ -1064,11 +1064,11 @@ static int korina_close(struct net_device *dev)
 	tmp = tmp | DMA_STAT_DONE | DMA_STAT_HALT | DMA_STAT_ERR;
 	writel(tmp, &lp->rx_dma_regs->dmasm);
 
-	korina_free_ring(dev);
-
 	napi_disable(&lp->napi);
 
 	cancel_work_sync(&lp->restart_task);
+
+	korina_free_ring(dev);
 
 	free_irq(lp->rx_irq, dev);
 	free_irq(lp->tx_irq, dev);
@@ -1085,7 +1085,6 @@ static const struct net_device_ops korina_netdev_ops = {
 	.ndo_set_rx_mode	= korina_multicast_list,
 	.ndo_tx_timeout		= korina_tx_timeout,
 	.ndo_do_ioctl		= korina_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER

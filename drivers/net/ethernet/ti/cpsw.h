@@ -31,8 +31,6 @@ struct cpsw_platform_data {
 	u32	channels;	/* number of cpdma channels (symmetric) */
 	u32	slaves;		/* number of slave cpgmac ports */
 	u32	active_slave; /* time stamping, ethtool and SIOCGMIIPHY slave */
-	u32	cpts_clock_mult;  /* convert input clock ticks to nanoseconds */
-	u32	cpts_clock_shift; /* convert input clock ticks to nanoseconds */
 	u32	ale_entries;	/* ale table size */
 	u32	bd_ram_size;  /*buffer descriptor ram size */
 	u32	mac_control;	/* Mac control register */

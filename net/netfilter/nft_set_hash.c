@@ -98,7 +98,7 @@ static bool nft_hash_update(struct nft_set *set, const u32 *key,
 			    const struct nft_set_ext **ext)
 {
 	struct nft_hash *priv = nft_set_priv(set);
-	struct nft_hash_elem *he;
+	struct nft_hash_elem *he, *prev;
 	struct nft_hash_cmp_arg arg = {
 		.genmask = NFT_GENMASK_ANY,
 		.set	 = set,
@@ -112,15 +112,24 @@ static bool nft_hash_update(struct nft_set *set, const u32 *key,
 	he = new(set, expr, regs);
 	if (he == NULL)
 		goto err1;
-	if (rhashtable_lookup_insert_key(&priv->ht, &arg, &he->node,
-					 nft_hash_params))
+
+	prev = rhashtable_lookup_get_insert_key(&priv->ht, &arg, &he->node,
+						nft_hash_params);
+	if (IS_ERR(prev))
 		goto err2;
+
+	/* Another cpu may race to insert the element with the same key */
+	if (prev) {
+		nft_set_elem_destroy(set, he, true);
+		he = prev;
+	}
+
 out:
 	*ext = &he->ext;
 	return true;
 
 err2:
-	nft_set_elem_destroy(set, he);
+	nft_set_elem_destroy(set, he, true);
 err1:
 	return false;
 }
@@ -158,6 +167,19 @@ static void nft_hash_activate(const struct net *net, const struct nft_set *set,
 	nft_set_elem_clear_busy(&he->ext);
 }
 
+static bool nft_hash_deactivate_one(const struct net *net,
+				    const struct nft_set *set, void *priv)
+{
+	struct nft_hash_elem *he = priv;
+
+	if (!nft_set_elem_mark_busy(&he->ext) ||
+	    !nft_is_active(net, &he->ext)) {
+		nft_set_elem_change_active(net, set, &he->ext);
+		return true;
+	}
+	return false;
+}
+
 static void *nft_hash_deactivate(const struct net *net,
 				 const struct nft_set *set,
 				 const struct nft_set_elem *elem)
@@ -172,13 +194,10 @@ static void *nft_hash_deactivate(const struct net *net,
 
 	rcu_read_lock();
 	he = rhashtable_lookup_fast(&priv->ht, &arg, nft_hash_params);
-	if (he != NULL) {
-		if (!nft_set_elem_mark_busy(&he->ext) ||
-		    !nft_is_active(net, &he->ext))
-			nft_set_elem_change_active(net, set, &he->ext);
-		else
-			he = NULL;
-	}
+	if (he != NULL &&
+	    !nft_hash_deactivate_one(net, set, he))
+		he = NULL;
+
 	rcu_read_unlock();
 
 	return he;
@@ -332,7 +351,7 @@ static int nft_hash_init(const struct nft_set *set,
 
 static void nft_hash_elem_destroy(void *ptr, void *arg)
 {
-	nft_set_elem_destroy((const struct nft_set *)arg, ptr);
+	nft_set_elem_destroy((const struct nft_set *)arg, ptr, true);
 }
 
 static void nft_hash_destroy(const struct nft_set *set)
@@ -378,6 +397,7 @@ static struct nft_set_ops nft_hash_ops __read_mostly = {
 	.insert		= nft_hash_insert,
 	.activate	= nft_hash_activate,
 	.deactivate	= nft_hash_deactivate,
+	.deactivate_one	= nft_hash_deactivate_one,
 	.remove		= nft_hash_remove,
 	.lookup		= nft_hash_lookup,
 	.update		= nft_hash_update,

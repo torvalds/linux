@@ -1290,15 +1290,6 @@ static int greth_mdio_probe(struct net_device *dev)
 	return 0;
 }
 
-static inline int phy_aneg_done(struct phy_device *phydev)
-{
-	int retval;
-
-	retval = phy_read(phydev, MII_BMSR);
-
-	return (retval < 0) ? retval : (retval & BMSR_ANEGCOMPLETE);
-}
-
 static int greth_mdio_init(struct greth_private *greth)
 {
 	int ret;

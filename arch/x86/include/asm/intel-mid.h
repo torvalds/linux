@@ -17,6 +17,7 @@
 
 extern int intel_mid_pci_init(void);
 extern int intel_mid_pci_set_power_state(struct pci_dev *pdev, pci_power_t state);
+extern pci_power_t intel_mid_pci_get_power_state(struct pci_dev *pdev);
 
 extern void intel_mid_pwr_power_off(void);
 

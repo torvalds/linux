@@ -46,7 +46,7 @@
 #include <linux/anon_inodes.h>
 #include <linux/slab.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <rdma/ib.h>
 
@@ -137,6 +137,7 @@ static int (*uverbs_ex_cmd_table[])(struct ib_uverbs_file *file,
 	[IB_USER_VERBS_EX_CMD_DESTROY_WQ]       = ib_uverbs_ex_destroy_wq,
 	[IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL] = ib_uverbs_ex_create_rwq_ind_table,
 	[IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL] = ib_uverbs_ex_destroy_rwq_ind_table,
+	[IB_USER_VERBS_EX_CMD_MODIFY_QP]        = ib_uverbs_ex_modify_qp,
 };
 
 static void ib_uverbs_add_one(struct ib_device *device);
@@ -262,12 +263,9 @@ static int ib_uverbs_cleanup_ucontext(struct ib_uverbs_file *file,
 			container_of(uobj, struct ib_uqp_object, uevent.uobject);
 
 		idr_remove_uobj(&ib_uverbs_qp_idr, uobj);
-		if (qp != qp->real_qp) {
-			ib_close_qp(qp);
-		} else {
+		if (qp == qp->real_qp)
 			ib_uverbs_detach_umcast(qp, uqp);
-			ib_destroy_qp(qp);
-		}
+		ib_destroy_qp(qp);
 		ib_uverbs_release_uevent(file, &uqp->uevent);
 		kfree(uqp);
 	}
@@ -749,8 +747,11 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	int srcu_key;
 	ssize_t ret;
 
-	if (WARN_ON_ONCE(!ib_safe_file_access(filp)))
+	if (!ib_safe_file_access(filp)) {
+		pr_err_once("uverbs_write: process %d (%s) changed security contexts after opening file descriptor, this is not allowed.\n",
+			    task_tgid_vnr(current), current->comm);
 		return -EACCES;
+	}
 
 	if (count < sizeof hdr)
 		return -EINVAL;

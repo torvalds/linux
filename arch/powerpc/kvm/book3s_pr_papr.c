@@ -17,7 +17,7 @@
 
 #include <linux/anon_inodes.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 

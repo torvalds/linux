@@ -6,6 +6,12 @@
 #include <linux/atomic.h>
 #include <linux/workqueue.h>
 #include <linux/netfilter/nf_conntrack_tcp.h>
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+#include <linux/netfilter/nf_conntrack_dccp.h>
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+#include <linux/netfilter/nf_conntrack_sctp.h>
+#endif
 #include <linux/seqlock.h>
 
 struct ctl_table_header;
@@ -48,12 +54,49 @@ struct nf_icmp_net {
 	unsigned int timeout;
 };
 
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+struct nf_dccp_net {
+	struct nf_proto_net pn;
+	int dccp_loose;
+	unsigned int dccp_timeout[CT_DCCP_MAX + 1];
+};
+#endif
+
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+struct nf_sctp_net {
+	struct nf_proto_net pn;
+	unsigned int timeouts[SCTP_CONNTRACK_MAX];
+};
+#endif
+
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+enum udplite_conntrack {
+	UDPLITE_CT_UNREPLIED,
+	UDPLITE_CT_REPLIED,
+	UDPLITE_CT_MAX
+};
+
+struct nf_udplite_net {
+	struct nf_proto_net pn;
+	unsigned int timeouts[UDPLITE_CT_MAX];
+};
+#endif
+
 struct nf_ip_net {
 	struct nf_generic_net   generic;
 	struct nf_tcp_net	tcp;
 	struct nf_udp_net	udp;
 	struct nf_icmp_net	icmp;
 	struct nf_icmp_net	icmpv6;
+#ifdef CONFIG_NF_CT_PROTO_DCCP
+	struct nf_dccp_net	dccp;
+#endif
+#ifdef CONFIG_NF_CT_PROTO_SCTP
+	struct nf_sctp_net	sctp;
+#endif
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+	struct nf_udplite_net	udplite;
+#endif
 };
 
 struct ct_pcpu {
@@ -91,7 +134,6 @@ struct netns_ct {
 	struct nf_ip_net	nf_ct_proto;
 #if defined(CONFIG_NF_CONNTRACK_LABELS)
 	unsigned int		labels_used;
-	u8			label_words;
 #endif
 };
 #endif

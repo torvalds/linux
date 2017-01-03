@@ -13,5 +13,5 @@ obj-$(CONFIG_RDS_TCP) += rds_tcp.o
 rds_tcp-y :=		tcp.o tcp_connect.o tcp_listen.o tcp_recv.o \
 			tcp_send.o tcp_stats.o
 
-ccflags-$(CONFIG_RDS_DEBUG)	:=	-DDEBUG
+ccflags-$(CONFIG_RDS_DEBUG)	:=	-DRDS_DEBUG
 

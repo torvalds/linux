@@ -18,8 +18,10 @@
 
 #ifdef CC_USING_FENTRY
 # define function_hook	__fentry__
+EXPORT_SYMBOL(__fentry__)
 #else
 # define function_hook	mcount
+EXPORT_SYMBOL(mcount)
 #endif
 
 /* All cases save the original rbp (8 bytes) */
@@ -295,7 +297,6 @@ trace:
 	jmp fgraph_trace
 END(function_hook)
 #endif /* CONFIG_DYNAMIC_FTRACE */
-EXPORT_SYMBOL(function_hook)
 #endif /* CONFIG_FUNCTION_TRACER */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER

@@ -87,6 +87,12 @@ int voltdm_scale(struct voltagedomain *voltdm,
 		return -ENODATA;
 	}
 
+	if (!voltdm->volt_data) {
+		pr_err("%s: No voltage data defined for vdd_%s\n",
+			__func__, voltdm->name);
+		return -ENODATA;
+	}
+
 	/* Adjust voltage to the exact voltage from the OPP table */
 	for (i = 0; voltdm->volt_data[i].volt_nominal != 0; i++) {
 		if (voltdm->volt_data[i].volt_nominal >= target_volt) {

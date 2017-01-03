@@ -21,35 +21,35 @@
 #include <linux/export.h>
 #include <linux/seqno-fence.h>
 
-static const char *seqno_fence_get_driver_name(struct fence *fence)
+static const char *seqno_fence_get_driver_name(struct dma_fence *fence)
 {
 	struct seqno_fence *seqno_fence = to_seqno_fence(fence);
 
 	return seqno_fence->ops->get_driver_name(fence);
 }
 
-static const char *seqno_fence_get_timeline_name(struct fence *fence)
+static const char *seqno_fence_get_timeline_name(struct dma_fence *fence)
 {
 	struct seqno_fence *seqno_fence = to_seqno_fence(fence);
 
 	return seqno_fence->ops->get_timeline_name(fence);
 }
 
-static bool seqno_enable_signaling(struct fence *fence)
+static bool seqno_enable_signaling(struct dma_fence *fence)
 {
 	struct seqno_fence *seqno_fence = to_seqno_fence(fence);
 
 	return seqno_fence->ops->enable_signaling(fence);
 }
 
-static bool seqno_signaled(struct fence *fence)
+static bool seqno_signaled(struct dma_fence *fence)
 {
 	struct seqno_fence *seqno_fence = to_seqno_fence(fence);
 
 	return seqno_fence->ops->signaled && seqno_fence->ops->signaled(fence);
 }
 
-static void seqno_release(struct fence *fence)
+static void seqno_release(struct dma_fence *fence)
 {
 	struct seqno_fence *f = to_seqno_fence(fence);
 
@@ -57,18 +57,18 @@ static void seqno_release(struct fence *fence)
 	if (f->ops->release)
 		f->ops->release(fence);
 	else
-		fence_free(&f->base);
+		dma_fence_free(&f->base);
 }
 
-static signed long seqno_wait(struct fence *fence, bool intr,
-				signed long timeout)
+static signed long seqno_wait(struct dma_fence *fence, bool intr,
+			      signed long timeout)
 {
 	struct seqno_fence *f = to_seqno_fence(fence);
 
 	return f->ops->wait(fence, intr, timeout);
 }
 
-const struct fence_ops seqno_fence_ops = {
+const struct dma_fence_ops seqno_fence_ops = {
 	.get_driver_name = seqno_fence_get_driver_name,
 	.get_timeline_name = seqno_fence_get_timeline_name,
 	.enable_signaling = seqno_enable_signaling,

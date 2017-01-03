@@ -437,7 +437,7 @@ static void radeon_flip_work_func(struct work_struct *__work)
 				down_read(&rdev->exclusive_lock);
 			}
 		} else
-			r = fence_wait(work->fence, false);
+			r = dma_fence_wait(work->fence, false);
 
 		if (r)
 			DRM_ERROR("failed to wait on page flip fence (%d)!\n", r);
@@ -447,7 +447,7 @@ static void radeon_flip_work_func(struct work_struct *__work)
 		 * confused about which BO the CRTC is scanning out
 		 */
 
-		fence_put(work->fence);
+		dma_fence_put(work->fence);
 		work->fence = NULL;
 	}
 
@@ -542,7 +542,7 @@ static int radeon_crtc_page_flip_target(struct drm_crtc *crtc,
 		DRM_ERROR("failed to pin new rbo buffer before flip\n");
 		goto cleanup;
 	}
-	work->fence = fence_get(reservation_object_get_excl(new_rbo->tbo.resv));
+	work->fence = dma_fence_get(reservation_object_get_excl(new_rbo->tbo.resv));
 	radeon_bo_get_tiling_flags(new_rbo, &tiling_flags, NULL);
 	radeon_bo_unreserve(new_rbo);
 
@@ -617,7 +617,7 @@ pflip_cleanup:
 
 cleanup:
 	drm_gem_object_unreference_unlocked(&work->old_rbo->gem_base);
-	fence_put(work->fence);
+	dma_fence_put(work->fence);
 	kfree(work);
 	return r;
 }
@@ -1675,20 +1675,20 @@ int radeon_modeset_init(struct radeon_device *rdev)
 
 void radeon_modeset_fini(struct radeon_device *rdev)
 {
-	radeon_fbdev_fini(rdev);
+	if (rdev->mode_info.mode_config_initialized) {
+		drm_kms_helper_poll_fini(rdev->ddev);
+		radeon_hpd_fini(rdev);
+		drm_crtc_force_disable_all(rdev->ddev);
+		radeon_fbdev_fini(rdev);
+		radeon_afmt_fini(rdev);
+		drm_mode_config_cleanup(rdev->ddev);
+		rdev->mode_info.mode_config_initialized = false;
+	}
+
 	kfree(rdev->mode_info.bios_hardcoded_edid);
 
 	/* free i2c buses */
 	radeon_i2c_fini(rdev);
-
-	if (rdev->mode_info.mode_config_initialized) {
-		radeon_afmt_fini(rdev);
-		drm_kms_helper_poll_fini(rdev->ddev);
-		radeon_hpd_fini(rdev);
-		drm_crtc_force_disable_all(rdev->ddev);
-		drm_mode_config_cleanup(rdev->ddev);
-		rdev->mode_info.mode_config_initialized = false;
-	}
 }
 
 static bool is_hdtv_mode(const struct drm_display_mode *mode)

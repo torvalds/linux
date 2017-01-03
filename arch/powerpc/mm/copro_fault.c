@@ -106,6 +106,8 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 	switch (REGION_ID(ea)) {
 	case USER_REGION_ID:
 		pr_devel("%s: 0x%llx -- USER_REGION_ID\n", __func__, ea);
+		if (mm == NULL)
+			return 1;
 		psize = get_slice_psize(mm, ea);
 		ssize = user_segment_size(ea);
 		vsid = get_vsid(mm->context.id, ea, ssize);
@@ -132,6 +134,9 @@ int copro_calculate_slb(struct mm_struct *mm, u64 ea, struct copro_slb *slb)
 		pr_debug("%s: invalid region access at %016llx\n", __func__, ea);
 		return 1;
 	}
+	/* Bad address */
+	if (!vsid)
+		return 1;
 
 	vsid = (vsid << slb_vsid_shift(ssize)) | vsidkey;
 

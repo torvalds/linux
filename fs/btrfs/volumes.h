@@ -51,8 +51,7 @@ struct btrfs_device {
 	struct list_head dev_list;
 	struct list_head dev_alloc_list;
 	struct btrfs_fs_devices *fs_devices;
-
-	struct btrfs_root *dev_root;
+	struct btrfs_fs_info *fs_info;
 
 	struct rcu_string *name;
 
@@ -62,7 +61,7 @@ struct btrfs_device {
 	int running_pending;
 	/* regular prio bios */
 	struct btrfs_pending_bios pending_bios;
-	/* WRITE_SYNC bios */
+	/* sync bios */
 	struct btrfs_pending_bios pending_sync_bios;
 
 	struct block_device *bdev;
@@ -371,27 +370,48 @@ struct btrfs_balance_control {
 	struct btrfs_balance_progress stat;
 };
 
+enum btrfs_map_op {
+	BTRFS_MAP_READ,
+	BTRFS_MAP_WRITE,
+	BTRFS_MAP_DISCARD,
+	BTRFS_MAP_GET_READ_MIRRORS,
+};
+
+static inline enum btrfs_map_op btrfs_op(struct bio *bio)
+{
+	switch (bio_op(bio)) {
+	case REQ_OP_DISCARD:
+		return BTRFS_MAP_DISCARD;
+	case REQ_OP_WRITE:
+		return BTRFS_MAP_WRITE;
+	default:
+		WARN_ON_ONCE(1);
+	case REQ_OP_READ:
+		return BTRFS_MAP_READ;
+	}
+}
+
 int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 				   u64 end, u64 *length);
 void btrfs_get_bbio(struct btrfs_bio *bbio);
 void btrfs_put_bbio(struct btrfs_bio *bbio);
-int btrfs_map_block(struct btrfs_fs_info *fs_info, int op,
+int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		    u64 logical, u64 *length,
 		    struct btrfs_bio **bbio_ret, int mirror_num);
-int btrfs_map_sblock(struct btrfs_fs_info *fs_info, int op,
+int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_bio **bbio_ret, int mirror_num,
 		     int need_raid_map);
 int btrfs_rmap_block(struct btrfs_fs_info *fs_info,
 		     u64 chunk_start, u64 physical, u64 devid,
 		     u64 **logical, int *naddrs, int *stripe_len);
-int btrfs_read_sys_array(struct btrfs_root *root);
-int btrfs_read_chunk_tree(struct btrfs_root *root);
+int btrfs_read_sys_array(struct btrfs_fs_info *fs_info);
+int btrfs_read_chunk_tree(struct btrfs_fs_info *fs_info);
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
-		      struct btrfs_root *extent_root, u64 type);
+		      struct btrfs_fs_info *fs_info, u64 type);
 void btrfs_mapping_init(struct btrfs_mapping_tree *tree);
 void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree);
-int btrfs_map_bio(struct btrfs_root *root, struct bio *bio,
+int btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 		  int mirror_num, int async_submit);
 int btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		       fmode_t flags, void *holder);
@@ -401,16 +421,17 @@ int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
 void btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices, int step);
 void btrfs_assign_next_active_device(struct btrfs_fs_info *fs_info,
 		struct btrfs_device *device, struct btrfs_device *this_dev);
-int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
+int btrfs_find_device_missing_or_by_path(struct btrfs_fs_info *fs_info,
 					 char *device_path,
 					 struct btrfs_device **device);
-int btrfs_find_device_by_devspec(struct btrfs_root *root, u64 devid,
+int btrfs_find_device_by_devspec(struct btrfs_fs_info *fs_info, u64 devid,
 					 char *devpath,
 					 struct btrfs_device **device);
 struct btrfs_device *btrfs_alloc_device(struct btrfs_fs_info *fs_info,
 					const u64 *devid,
 					const u8 *uuid);
-int btrfs_rm_device(struct btrfs_root *root, char *device_path, u64 devid);
+int btrfs_rm_device(struct btrfs_fs_info *fs_info,
+		    char *device_path, u64 devid);
 void btrfs_cleanup_fs_uuids(void);
 int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len);
 int btrfs_grow_device(struct btrfs_trans_handle *trans,
@@ -418,8 +439,9 @@ int btrfs_grow_device(struct btrfs_trans_handle *trans,
 struct btrfs_device *btrfs_find_device(struct btrfs_fs_info *fs_info, u64 devid,
 				       u8 *uuid, u8 *fsid);
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
-int btrfs_init_new_device(struct btrfs_root *root, char *path);
-int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
+int btrfs_init_new_device(struct btrfs_fs_info *fs_info, char *path);
+int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
+				  char *device_path,
 				  struct btrfs_device *srcdev,
 				  struct btrfs_device **device_out);
 int btrfs_balance(struct btrfs_balance_control *bctl,
@@ -430,7 +452,7 @@ int btrfs_pause_balance(struct btrfs_fs_info *fs_info);
 int btrfs_cancel_balance(struct btrfs_fs_info *fs_info);
 int btrfs_create_uuid_tree(struct btrfs_fs_info *fs_info);
 int btrfs_check_uuid_tree(struct btrfs_fs_info *fs_info);
-int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset);
+int btrfs_chunk_readonly(struct btrfs_fs_info *fs_info, u64 chunk_offset);
 int find_free_dev_extent_start(struct btrfs_transaction *transaction,
 			 struct btrfs_device *device, u64 num_bytes,
 			 u64 search_start, u64 *start, u64 *max_avail);
@@ -438,7 +460,7 @@ int find_free_dev_extent(struct btrfs_trans_handle *trans,
 			 struct btrfs_device *device, u64 num_bytes,
 			 u64 *start, u64 *max_avail);
 void btrfs_dev_stat_inc_and_print(struct btrfs_device *dev, int index);
-int btrfs_get_dev_stats(struct btrfs_root *root,
+int btrfs_get_dev_stats(struct btrfs_fs_info *fs_info,
 			struct btrfs_ioctl_get_dev_stats *stats);
 void btrfs_init_devices_late(struct btrfs_fs_info *fs_info);
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
@@ -455,14 +477,14 @@ void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
 void btrfs_scratch_superblocks(struct block_device *bdev, char *device_path);
 int btrfs_is_parity_mirror(struct btrfs_mapping_tree *map_tree,
 			   u64 logical, u64 len, int mirror_num);
-unsigned long btrfs_full_stripe_len(struct btrfs_root *root,
+unsigned long btrfs_full_stripe_len(struct btrfs_fs_info *fs_info,
 				    struct btrfs_mapping_tree *map_tree,
 				    u64 logical);
 int btrfs_finish_chunk_alloc(struct btrfs_trans_handle *trans,
-				struct btrfs_root *extent_root,
+				struct btrfs_fs_info *fs_info,
 				u64 chunk_offset, u64 chunk_size);
 int btrfs_remove_chunk(struct btrfs_trans_handle *trans,
-		       struct btrfs_root *root, u64 chunk_offset);
+		       struct btrfs_fs_info *fs_info, u64 chunk_offset);
 
 static inline int btrfs_dev_stats_dirty(struct btrfs_device *dev)
 {
@@ -509,18 +531,8 @@ static inline void btrfs_dev_stat_reset(struct btrfs_device *dev,
 }
 
 void btrfs_update_commit_device_size(struct btrfs_fs_info *fs_info);
-void btrfs_update_commit_device_bytes_used(struct btrfs_root *root,
+void btrfs_update_commit_device_bytes_used(struct btrfs_fs_info *fs_info,
 					struct btrfs_transaction *transaction);
-
-static inline void lock_chunks(struct btrfs_root *root)
-{
-	mutex_lock(&root->fs_info->chunk_mutex);
-}
-
-static inline void unlock_chunks(struct btrfs_root *root)
-{
-	mutex_unlock(&root->fs_info->chunk_mutex);
-}
 
 struct list_head *btrfs_get_fs_uuids(void);
 void btrfs_set_fs_info_ptr(struct btrfs_fs_info *fs_info);

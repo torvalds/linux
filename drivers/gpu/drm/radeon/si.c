@@ -1714,6 +1714,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		    (rdev->pdev->revision == 0x80) ||
 		    (rdev->pdev->revision == 0x81) ||
 		    (rdev->pdev->revision == 0x83) ||
+		    (rdev->pdev->revision == 0x87) ||
 		    (rdev->pdev->device == 0x6604) ||
 		    (rdev->pdev->device == 0x6605))
 			new_smc = true;
@@ -4431,6 +4432,7 @@ static bool si_vm_reg_valid(u32 reg)
 	case SPI_CONFIG_CNTL:
 	case SPI_CONFIG_CNTL_1:
 	case TA_CNTL_AUX:
+	case TA_CS_BC_BASE_ADDR:
 		return true;
 	default:
 		DRM_ERROR("Invalid register 0x%x in CS\n", reg);
@@ -7857,7 +7859,7 @@ static void si_program_aspm(struct radeon_device *rdev)
 	}
 }
 
-int si_vce_send_vcepll_ctlreq(struct radeon_device *rdev)
+static int si_vce_send_vcepll_ctlreq(struct radeon_device *rdev)
 {
 	unsigned i;
 

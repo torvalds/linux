@@ -5,25 +5,7 @@
 klibcdirs:;
 PHONY += klibcdirs
 
-
-# Bzip2
-suffix_$(CONFIG_RD_BZIP2)  = .bz2
-
-# Lzma
-suffix_$(CONFIG_RD_LZMA)   = .lzma
-
-# XZ
-suffix_$(CONFIG_RD_XZ)     = .xz
-
-# Lzo
-suffix_$(CONFIG_RD_LZO)    = .lzo
-
-# Lz4
-suffix_$(CONFIG_RD_LZ4)    = .lz4
-
-# Gzip
-suffix_$(CONFIG_RD_GZIP)   = .gz
-
+suffix_y = $(CONFIG_INITRAMFS_COMPRESSION)
 AFLAGS_initramfs_data.o += -DINITRAMFS_IMAGE="usr/initramfs_data.cpio$(suffix_y)"
 
 # Generate builtin.o based on initramfs_data.o

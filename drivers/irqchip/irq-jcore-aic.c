@@ -25,12 +25,30 @@
 
 static struct irq_chip jcore_aic;
 
+/*
+ * The J-Core AIC1 and AIC2 are cpu-local interrupt controllers and do
+ * not distinguish or use distinct irq number ranges for per-cpu event
+ * interrupts (timer, IPI). Since information to determine whether a
+ * particular irq number should be treated as per-cpu is not available
+ * at mapping time, we use a wrapper handler function which chooses
+ * the right handler at runtime based on whether IRQF_PERCPU was used
+ * when requesting the irq.
+ */
+
+static void handle_jcore_irq(struct irq_desc *desc)
+{
+	if (irqd_is_per_cpu(irq_desc_get_irq_data(desc)))
+		handle_percpu_irq(desc);
+	else
+		handle_simple_irq(desc);
+}
+
 static int jcore_aic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 				   irq_hw_number_t hwirq)
 {
 	struct irq_chip *aic = d->host_data;
 
-	irq_set_chip_and_handler(irq, aic, handle_simple_irq);
+	irq_set_chip_and_handler(irq, aic, handle_jcore_irq);
 
 	return 0;
 }

@@ -1529,8 +1529,8 @@ static ssize_t iwl_dbgfs_mem_read(struct file *file, char __user *user_buf,
 		.data = { &cmd, },
 		.len = { sizeof(cmd) },
 	};
-	size_t delta, len;
-	ssize_t ret;
+	size_t delta;
+	ssize_t ret, len;
 
 	hcmd.id = iwl_cmd_id(*ppos >> 24 ? UMAC_RD_WR : LMAC_RD_WR,
 			     DEBUG_GROUP, 0);

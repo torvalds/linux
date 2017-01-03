@@ -8,13 +8,14 @@ http://github.com/freedreno/envytools/
 git clone https://github.com/freedreno/envytools.git
 
 The rules-ng-ng source files this header was generated from are:
-- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    398 bytes, from 2015-09-24 17:25:31)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno.xml               (    431 bytes, from 2016-04-26 17:56:44)
 - /home/robclark/src/freedreno/envytools/rnndb/freedreno_copyright.xml  (   1572 bytes, from 2016-02-10 17:07:21)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32901 bytes, from 2015-05-20 20:03:14)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  11518 bytes, from 2016-02-10 21:03:25)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  16166 bytes, from 2016-02-11 21:20:31)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83967 bytes, from 2016-02-10 17:07:21)
-- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 109916 bytes, from 2016-02-20 18:44:48)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a2xx.xml          (  32907 bytes, from 2016-11-26 23:01:08)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_common.xml (  12025 bytes, from 2016-11-26 23:01:08)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/adreno_pm4.xml    (  22544 bytes, from 2016-11-26 23:01:08)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a3xx.xml          (  83840 bytes, from 2016-11-26 23:01:08)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a4xx.xml          ( 110765 bytes, from 2016-11-26 23:01:48)
+- /home/robclark/src/freedreno/envytools/rnndb/adreno/a5xx.xml          (  90321 bytes, from 2016-11-28 16:50:05)
 - /home/robclark/src/freedreno/envytools/rnndb/adreno/ocmem.xml         (   1773 bytes, from 2015-09-24 17:30:00)
 
 Copyright (C) 2013-2016 by the following authors:
@@ -129,10 +130,14 @@ enum a3xx_tex_fmt {
 	TFMT_Z16_UNORM = 9,
 	TFMT_X8Z24_UNORM = 10,
 	TFMT_Z32_FLOAT = 11,
-	TFMT_NV12_UV_TILED = 17,
-	TFMT_NV12_Y_TILED = 19,
-	TFMT_NV12_UV = 21,
-	TFMT_NV12_Y = 23,
+	TFMT_UV_64X32 = 16,
+	TFMT_VU_64X32 = 17,
+	TFMT_Y_64X32 = 18,
+	TFMT_NV12_64X32 = 19,
+	TFMT_UV_LINEAR = 20,
+	TFMT_VU_LINEAR = 21,
+	TFMT_Y_LINEAR = 22,
+	TFMT_NV12_LINEAR = 23,
 	TFMT_I420_Y = 24,
 	TFMT_I420_U = 26,
 	TFMT_I420_V = 27,
@@ -523,14 +528,6 @@ enum a3xx_uche_perfcounter_select {
 	UCHE_UCHEPERF_VBIF_LATENCY_CYCLES = 18,
 	UCHE_UCHEPERF_VBIF_LATENCY_SAMPLES = 19,
 	UCHE_UCHEPERF_ACTIVE_CYCLES = 20,
-};
-
-enum a3xx_rb_blend_opcode {
-	BLEND_DST_PLUS_SRC = 0,
-	BLEND_SRC_MINUS_DST = 1,
-	BLEND_DST_MINUS_SRC = 2,
-	BLEND_MIN_DST_SRC = 3,
-	BLEND_MAX_DST_SRC = 4,
 };
 
 enum a3xx_intp_mode {
@@ -1393,13 +1390,14 @@ static inline uint32_t A3XX_RB_COPY_CONTROL_MODE(enum adreno_rb_copy_control_mod
 {
 	return ((val) << A3XX_RB_COPY_CONTROL_MODE__SHIFT) & A3XX_RB_COPY_CONTROL_MODE__MASK;
 }
+#define A3XX_RB_COPY_CONTROL_MSAA_SRGB_DOWNSAMPLE		0x00000080
 #define A3XX_RB_COPY_CONTROL_FASTCLEAR__MASK			0x00000f00
 #define A3XX_RB_COPY_CONTROL_FASTCLEAR__SHIFT			8
 static inline uint32_t A3XX_RB_COPY_CONTROL_FASTCLEAR(uint32_t val)
 {
 	return ((val) << A3XX_RB_COPY_CONTROL_FASTCLEAR__SHIFT) & A3XX_RB_COPY_CONTROL_FASTCLEAR__MASK;
 }
-#define A3XX_RB_COPY_CONTROL_UNK12				0x00001000
+#define A3XX_RB_COPY_CONTROL_DEPTH32_RESOLVE			0x00001000
 #define A3XX_RB_COPY_CONTROL_GMEM_BASE__MASK			0xffffc000
 #define A3XX_RB_COPY_CONTROL_GMEM_BASE__SHIFT			14
 static inline uint32_t A3XX_RB_COPY_CONTROL_GMEM_BASE(uint32_t val)
@@ -1472,7 +1470,7 @@ static inline uint32_t A3XX_RB_DEPTH_CONTROL_ZFUNC(enum adreno_compare_func val)
 {
 	return ((val) << A3XX_RB_DEPTH_CONTROL_ZFUNC__SHIFT) & A3XX_RB_DEPTH_CONTROL_ZFUNC__MASK;
 }
-#define A3XX_RB_DEPTH_CONTROL_BF_ENABLE				0x00000080
+#define A3XX_RB_DEPTH_CONTROL_Z_CLAMP_ENABLE			0x00000080
 #define A3XX_RB_DEPTH_CONTROL_Z_TEST_ENABLE			0x80000000
 
 #define REG_A3XX_RB_DEPTH_CLEAR					0x00002101

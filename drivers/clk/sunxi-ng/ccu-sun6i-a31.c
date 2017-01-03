@@ -143,7 +143,7 @@ static SUNXI_CCU_NKM_WITH_MUX_GATE_LOCK(pll_mipi_clk, "pll-mipi",
 					4, 2,	/* K */
 					0, 4,	/* M */
 					21, 0,	/* mux */
-					BIT(31),	/* gate */
+					BIT(31) | BIT(23) | BIT(22), /* gate */
 					BIT(28),	/* lock */
 					CLK_SET_RATE_UNGATE);
 
@@ -190,6 +190,8 @@ static struct clk_div_table axi_div_table[] = {
 
 static SUNXI_CCU_DIV_TABLE(axi_clk, "axi", "cpu",
 			   0x050, 0, 3, axi_div_table, 0);
+
+#define SUN6I_A31_AHB1_REG  0x054
 
 static const char * const ahb1_parents[] = { "osc32k", "osc24M",
 					     "axi", "pll-periph" };
@@ -1229,6 +1231,16 @@ static void __init sun6i_a31_ccu_setup(struct device_node *node)
 	val = readl(reg + SUN6I_A31_PLL_MIPI_REG);
 	val &= BIT(16);
 	writel(val, reg + SUN6I_A31_PLL_MIPI_REG);
+
+	/* Force AHB1 to PLL6 / 3 */
+	val = readl(reg + SUN6I_A31_AHB1_REG);
+	/* set PLL6 pre-div = 3 */
+	val &= ~GENMASK(7, 6);
+	val |= 0x2 << 6;
+	/* select PLL6 / pre-div */
+	val &= ~GENMASK(13, 12);
+	val |= 0x3 << 12;
+	writel(val, reg + SUN6I_A31_AHB1_REG);
 
 	sunxi_ccu_probe(node, reg, &sun6i_a31_ccu_desc);
 

@@ -220,17 +220,16 @@ CLOCKSOURCE_OF_DECLARE(pxa_timer, "marvell,pxa-timer", pxa_timer_dt_init);
 /*
  * Legacy timer init for non device-tree boards.
  */
-void __init pxa_timer_nodt_init(int irq, void __iomem *base,
-	unsigned long clock_tick_rate)
+void __init pxa_timer_nodt_init(int irq, void __iomem *base)
 {
 	struct clk *clk;
 
 	timer_base = base;
 	clk = clk_get(NULL, "OSTIMER0");
-	if (clk && !IS_ERR(clk))
+	if (clk && !IS_ERR(clk)) {
 		clk_prepare_enable(clk);
-	else
+		pxa_timer_common_init(irq, clk_get_rate(clk));
+	} else {
 		pr_crit("%s: unable to get clk\n", __func__);
-
-	pxa_timer_common_init(irq, clock_tick_rate);
+	}
 }

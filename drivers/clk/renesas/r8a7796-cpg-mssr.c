@@ -16,6 +16,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/soc/renesas/rcar-rst.h>
 
 #include <dt-bindings/clock/r8a7796-cpg-mssr.h>
 
@@ -102,6 +103,8 @@ static const struct cpg_core_clk r8a7796_core_clks[] __initconst = {
 	DEF_FIXED("cl",         R8A7796_CLK_CL,    CLK_PLL1_DIV2, 48, 1),
 	DEF_FIXED("cp",         R8A7796_CLK_CP,    CLK_EXTAL,      2, 1),
 
+	DEF_DIV6P1("csi0",      R8A7796_CLK_CSI0,  CLK_PLL1_DIV4, 0x00c),
+
 	DEF_DIV6_RO("osc",      R8A7796_CLK_OSC,   CLK_EXTAL, CPG_RCKCR,  8),
 	DEF_DIV6_RO("r_int",    CLK_RINT,          CLK_EXTAL, CPG_RCKCR, 32),
 
@@ -109,6 +112,14 @@ static const struct cpg_core_clk r8a7796_core_clks[] __initconst = {
 };
 
 static const struct mssr_mod_clk r8a7796_mod_clks[] __initconst = {
+	DEF_MOD("scif5",		 202,	R8A7796_CLK_S3D4),
+	DEF_MOD("scif4",		 203,	R8A7796_CLK_S3D4),
+	DEF_MOD("scif3",		 204,	R8A7796_CLK_S3D4),
+	DEF_MOD("scif1",		 206,	R8A7796_CLK_S3D4),
+	DEF_MOD("scif0",		 207,	R8A7796_CLK_S3D4),
+	DEF_MOD("sys-dmac2",		 217,	R8A7796_CLK_S0D3),
+	DEF_MOD("sys-dmac1",		 218,	R8A7796_CLK_S0D3),
+	DEF_MOD("sys-dmac0",		 219,	R8A7796_CLK_S0D3),
 	DEF_MOD("cmt3",			 300,	R8A7796_CLK_R),
 	DEF_MOD("cmt2",			 301,	R8A7796_CLK_R),
 	DEF_MOD("cmt1",			 302,	R8A7796_CLK_R),
@@ -120,7 +131,47 @@ static const struct mssr_mod_clk r8a7796_mod_clks[] __initconst = {
 	DEF_MOD("sdif0",		 314,	R8A7796_CLK_SD0),
 	DEF_MOD("rwdt0",		 402,	R8A7796_CLK_R),
 	DEF_MOD("intc-ap",		 408,	R8A7796_CLK_S3D1),
+	DEF_MOD("drif7",		 508,	R8A7796_CLK_S3D2),
+	DEF_MOD("drif6",		 509,	R8A7796_CLK_S3D2),
+	DEF_MOD("drif5",		 510,	R8A7796_CLK_S3D2),
+	DEF_MOD("drif4",		 511,	R8A7796_CLK_S3D2),
+	DEF_MOD("drif3",		 512,	R8A7796_CLK_S3D2),
+	DEF_MOD("drif2",		 513,	R8A7796_CLK_S3D2),
+	DEF_MOD("drif1",		 514,	R8A7796_CLK_S3D2),
+	DEF_MOD("drif0",		 515,	R8A7796_CLK_S3D2),
+	DEF_MOD("hscif4",		 516,	R8A7796_CLK_S3D1),
+	DEF_MOD("hscif3",		 517,	R8A7796_CLK_S3D1),
+	DEF_MOD("hscif2",		 518,	R8A7796_CLK_S3D1),
+	DEF_MOD("hscif1",		 519,	R8A7796_CLK_S3D1),
+	DEF_MOD("hscif0",		 520,	R8A7796_CLK_S3D1),
 	DEF_MOD("thermal",		 522,	R8A7796_CLK_CP),
+	DEF_MOD("fcpvd2",		 601,	R8A7796_CLK_S0D2),
+	DEF_MOD("fcpvd1",		 602,	R8A7796_CLK_S0D2),
+	DEF_MOD("fcpvd0",		 603,	R8A7796_CLK_S0D2),
+	DEF_MOD("fcpvb0",		 607,	R8A7796_CLK_S0D1),
+	DEF_MOD("fcpvi0",		 611,	R8A7796_CLK_S0D1),
+	DEF_MOD("fcpf0",		 615,	R8A7796_CLK_S0D1),
+	DEF_MOD("fcpci0",		 617,	R8A7796_CLK_S0D2),
+	DEF_MOD("fcpcs",		 619,	R8A7796_CLK_S0D2),
+	DEF_MOD("vspd2",		 621,	R8A7796_CLK_S0D2),
+	DEF_MOD("vspd1",		 622,	R8A7796_CLK_S0D2),
+	DEF_MOD("vspd0",		 623,	R8A7796_CLK_S0D2),
+	DEF_MOD("vspb",			 626,	R8A7796_CLK_S0D1),
+	DEF_MOD("vspi0",		 631,	R8A7796_CLK_S0D1),
+	DEF_MOD("csi20",		 714,	R8A7796_CLK_CSI0),
+	DEF_MOD("csi40",		 716,	R8A7796_CLK_CSI0),
+	DEF_MOD("du2",			 722,	R8A7796_CLK_S2D1),
+	DEF_MOD("du1",			 723,	R8A7796_CLK_S2D1),
+	DEF_MOD("du0",			 724,	R8A7796_CLK_S2D1),
+	DEF_MOD("lvds",			 727,	R8A7796_CLK_S2D1),
+	DEF_MOD("vin7",			 804,	R8A7796_CLK_S0D2),
+	DEF_MOD("vin6",			 805,	R8A7796_CLK_S0D2),
+	DEF_MOD("vin5",			 806,	R8A7796_CLK_S0D2),
+	DEF_MOD("vin4",			 807,	R8A7796_CLK_S0D2),
+	DEF_MOD("vin3",			 808,	R8A7796_CLK_S0D2),
+	DEF_MOD("vin2",			 809,	R8A7796_CLK_S0D2),
+	DEF_MOD("vin1",			 810,	R8A7796_CLK_S0D2),
+	DEF_MOD("vin0",			 811,	R8A7796_CLK_S0D2),
 	DEF_MOD("etheravb",		 812,	R8A7796_CLK_S0D6),
 	DEF_MOD("gpio7",		 905,	R8A7796_CLK_S3D4),
 	DEF_MOD("gpio6",		 906,	R8A7796_CLK_S3D4),
@@ -130,6 +181,13 @@ static const struct mssr_mod_clk r8a7796_mod_clks[] __initconst = {
 	DEF_MOD("gpio2",		 910,	R8A7796_CLK_S3D4),
 	DEF_MOD("gpio1",		 911,	R8A7796_CLK_S3D4),
 	DEF_MOD("gpio0",		 912,	R8A7796_CLK_S3D4),
+	DEF_MOD("i2c6",			 918,	R8A7796_CLK_S0D6),
+	DEF_MOD("i2c5",			 919,	R8A7796_CLK_S0D6),
+	DEF_MOD("i2c4",			 927,	R8A7796_CLK_S0D6),
+	DEF_MOD("i2c3",			 928,	R8A7796_CLK_S0D6),
+	DEF_MOD("i2c2",			 929,	R8A7796_CLK_S3D2),
+	DEF_MOD("i2c1",			 930,	R8A7796_CLK_S3D2),
+	DEF_MOD("i2c0",			 931,	R8A7796_CLK_S3D2),
 };
 
 static const unsigned int r8a7796_crit_mod_clks[] __initconst = {
@@ -190,7 +248,12 @@ static const struct rcar_gen3_cpg_pll_config cpg_pll_configs[16] __initconst = {
 static int __init r8a7796_cpg_mssr_init(struct device *dev)
 {
 	const struct rcar_gen3_cpg_pll_config *cpg_pll_config;
-	u32 cpg_mode = rcar_gen3_read_mode_pins();
+	u32 cpg_mode;
+	int error;
+
+	error = rcar_rst_read_mode_pins(&cpg_mode);
+	if (error)
+		return error;
 
 	cpg_pll_config = &cpg_pll_configs[CPG_PLL_CONFIG_INDEX(cpg_mode)];
 	if (!cpg_pll_config->extal_div) {

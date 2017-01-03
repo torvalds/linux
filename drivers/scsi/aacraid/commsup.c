@@ -2043,30 +2043,22 @@ int aac_acquire_irq(struct aac_dev *dev)
 	int i;
 	int j;
 	int ret = 0;
-	int cpu;
 
-	cpu = cpumask_first(cpu_online_mask);
 	if (!dev->sync_mode && dev->msi_enabled && dev->max_msix > 1) {
 		for (i = 0; i < dev->max_msix; i++) {
 			dev->aac_msix[i].vector_no = i;
 			dev->aac_msix[i].dev = dev;
-			if (request_irq(dev->msixentry[i].vector,
+			if (request_irq(pci_irq_vector(dev->pdev, i),
 					dev->a_ops.adapter_intr,
 					0, "aacraid", &(dev->aac_msix[i]))) {
 				printk(KERN_ERR "%s%d: Failed to register IRQ for vector %d.\n",
 						dev->name, dev->id, i);
 				for (j = 0 ; j < i ; j++)
-					free_irq(dev->msixentry[j].vector,
+					free_irq(pci_irq_vector(dev->pdev, j),
 						 &(dev->aac_msix[j]));
 				pci_disable_msix(dev->pdev);
 				ret = -1;
 			}
-			if (irq_set_affinity_hint(dev->msixentry[i].vector,
-							get_cpu_mask(cpu))) {
-				printk(KERN_ERR "%s%d: Failed to set IRQ affinity for cpu %d\n",
-					    dev->name, dev->id, cpu);
-			}
-			cpu = cpumask_next(cpu, cpu_online_mask);
 		}
 	} else {
 		dev->aac_msix[0].vector_no = 0;
@@ -2096,16 +2088,9 @@ void aac_free_irq(struct aac_dev *dev)
 	    dev->pdev->device == PMC_DEVICE_S8 ||
 	    dev->pdev->device == PMC_DEVICE_S9) {
 		if (dev->max_msix > 1) {
-			for (i = 0; i < dev->max_msix; i++) {
-				if (irq_set_affinity_hint(
-					dev->msixentry[i].vector, NULL)) {
-					printk(KERN_ERR "%s%d: Failed to reset IRQ affinity for cpu %d\n",
-					    dev->name, dev->id, cpu);
-				}
-				cpu = cpumask_next(cpu, cpu_online_mask);
-				free_irq(dev->msixentry[i].vector,
-						&(dev->aac_msix[i]));
-			}
+			for (i = 0; i < dev->max_msix; i++)
+				free_irq(pci_irq_vector(dev->pdev, i),
+					 &(dev->aac_msix[i]));
 		} else {
 			free_irq(dev->pdev->irq, &(dev->aac_msix[0]));
 		}

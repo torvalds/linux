@@ -56,7 +56,7 @@ echo "Test histogram with syscall modifier"
 
 echo 'hist:keys=id.syscall' > events/raw_syscalls/sys_exit/trigger
 for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
-grep "id: sys_" events/raw_syscalls/sys_exit/hist > /dev/null || \
+grep "id: \(unknown_\|sys_\)" events/raw_syscalls/sys_exit/hist > /dev/null || \
     fail "syscall modifier on raw_syscalls/sys_exit did not work"
 
 

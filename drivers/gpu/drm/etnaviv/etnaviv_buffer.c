@@ -329,20 +329,34 @@ void etnaviv_buffer_queue(struct etnaviv_gpu *gpu, unsigned int event,
 	/*
 	 * Append a LINK to the submitted command buffer to return to
 	 * the ring buffer.  return_target is the ring target address.
-	 * We need three dwords: event, wait, link.
+	 * We need at most 7 dwords in the return target: 2 cache flush +
+	 * 2 semaphore stall + 1 event + 1 wait + 1 link.
 	 */
-	return_dwords = 3;
+	return_dwords = 7;
 	return_target = etnaviv_buffer_reserve(gpu, buffer, return_dwords);
 	CMD_LINK(cmdbuf, return_dwords, return_target);
 
 	/*
-	 * Append event, wait and link pointing back to the wait
-	 * command to the ring buffer.
+	 * Append a cache flush, stall, event, wait and link pointing back to
+	 * the wait command to the ring buffer.
 	 */
+	if (gpu->exec_state == ETNA_PIPE_2D) {
+		CMD_LOAD_STATE(buffer, VIVS_GL_FLUSH_CACHE,
+				       VIVS_GL_FLUSH_CACHE_PE2D);
+	} else {
+		CMD_LOAD_STATE(buffer, VIVS_GL_FLUSH_CACHE,
+				       VIVS_GL_FLUSH_CACHE_DEPTH |
+				       VIVS_GL_FLUSH_CACHE_COLOR);
+		CMD_LOAD_STATE(buffer, VIVS_TS_FLUSH_CACHE,
+				       VIVS_TS_FLUSH_CACHE_FLUSH);
+	}
+	CMD_SEM(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
+	CMD_STALL(buffer, SYNC_RECIPIENT_FE, SYNC_RECIPIENT_PE);
 	CMD_LOAD_STATE(buffer, VIVS_GL_EVENT, VIVS_GL_EVENT_EVENT_ID(event) |
 		       VIVS_GL_EVENT_FROM_PE);
 	CMD_WAIT(buffer);
-	CMD_LINK(buffer, 2, return_target + 8);
+	CMD_LINK(buffer, 2, etnaviv_iommu_get_cmdbuf_va(gpu, buffer) +
+			    buffer->user_size - 4);
 
 	if (drm_debug & DRM_UT_DRIVER)
 		pr_info("stream link to 0x%08x @ 0x%08x %p\n",

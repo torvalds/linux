@@ -155,9 +155,6 @@ static int amdgpu_pp_sw_init(void *handle)
 		ret = adev->powerplay.ip_funcs->sw_init(
 					adev->powerplay.pp_handle);
 
-	if (adev->pp_enabled)
-		adev->pm.dpm_enabled = true;
-
 	return ret;
 }
 
@@ -186,6 +183,9 @@ static int amdgpu_pp_hw_init(void *handle)
 	if (adev->powerplay.ip_funcs->hw_init)
 		ret = adev->powerplay.ip_funcs->hw_init(
 					adev->powerplay.pp_handle);
+
+	if ((amdgpu_dpm != 0) && !amdgpu_sriov_vf(adev))
+		adev->pm.dpm_enabled = true;
 
 	return ret;
 }
@@ -299,7 +299,7 @@ static int amdgpu_pp_soft_reset(void *handle)
 	return ret;
 }
 
-const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
+static const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
 	.name = "amdgpu_powerplay",
 	.early_init = amdgpu_pp_early_init,
 	.late_init = amdgpu_pp_late_init,
@@ -315,4 +315,13 @@ const struct amd_ip_funcs amdgpu_pp_ip_funcs = {
 	.soft_reset = amdgpu_pp_soft_reset,
 	.set_clockgating_state = amdgpu_pp_set_clockgating_state,
 	.set_powergating_state = amdgpu_pp_set_powergating_state,
+};
+
+const struct amdgpu_ip_block_version amdgpu_pp_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 1,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &amdgpu_pp_ip_funcs,
 };

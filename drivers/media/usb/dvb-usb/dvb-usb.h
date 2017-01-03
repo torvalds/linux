@@ -404,8 +404,12 @@ struct dvb_usb_adapter {
  *  Powered is in/decremented for each call to modify the state.
  * @udev: pointer to the device's struct usb_device.
  *
- * @usb_mutex: semaphore of USB control messages (reading needs two messages)
- * @i2c_mutex: semaphore for i2c-transfers
+ * @data_mutex: mutex to protect the data structure used to store URB data
+ * @usb_mutex: mutex of USB control messages (reading needs two messages).
+ *	Please notice that this mutex is used internally at the generic
+ *	URB control functions. So, drivers using dvb_usb_generic_rw() and
+ *	derivated functions should not lock it internally.
+ * @i2c_mutex: mutex for i2c-transfers
  *
  * @i2c_adap: device's i2c_adapter if it uses I2CoverUSB
  *
@@ -433,6 +437,7 @@ struct dvb_usb_device {
 	int powered;
 
 	/* locking */
+	struct mutex data_mutex;
 	struct mutex usb_mutex;
 
 	/* i2c */
@@ -462,8 +467,10 @@ extern int dvb_usb_device_init(struct usb_interface *,
 extern void dvb_usb_device_exit(struct usb_interface *);
 
 /* the generic read/write method for device control */
-extern int dvb_usb_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16,int);
-extern int dvb_usb_generic_write(struct dvb_usb_device *, u8 *, u16);
+extern int __must_check
+dvb_usb_generic_rw(struct dvb_usb_device *, u8 *, u16, u8 *, u16, int);
+extern int __must_check
+dvb_usb_generic_write(struct dvb_usb_device *, u8 *, u16);
 
 /* commonly used remote control parsing */
 extern int dvb_usb_nec_rc_key_to_event(struct dvb_usb_device *, u8[], u32 *, int *);

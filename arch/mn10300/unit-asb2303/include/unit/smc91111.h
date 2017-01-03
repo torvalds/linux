@@ -30,7 +30,7 @@
 
 #if SMC_CAN_USE_16BIT
 #define SMC_inw(a, r)		inw((unsigned long) ((a) + (r)))
-#define SMC_outw(v, a, r)	outw(v, (unsigned long) ((a) + (r)))
+#define SMC_outw(lp, v, a, r)	outw(v, (unsigned long) ((a) + (r)))
 #define SMC_insw(a, r, p, l)	insw((unsigned long) ((a) + (r)), (p), (l))
 #define SMC_outsw(a, r, p, l)	outsw((unsigned long) ((a) + (r)), (p), (l))
 #endif

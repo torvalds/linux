@@ -223,12 +223,19 @@ static int slic_ds26522_probe(struct spi_device *spi)
 	return ret;
 }
 
+static const struct spi_device_id slic_ds26522_id[] = {
+	{ .name = "ds26522" },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(spi, slic_ds26522_id);
+
 static const struct of_device_id slic_ds26522_match[] = {
 	{
 	 .compatible = "maxim,ds26522",
 	 },
 	{},
 };
+MODULE_DEVICE_TABLE(of, slic_ds26522_match);
 
 static struct spi_driver slic_ds26522_driver = {
 	.driver = {
@@ -239,6 +246,7 @@ static struct spi_driver slic_ds26522_driver = {
 		   },
 	.probe = slic_ds26522_probe,
 	.remove = slic_ds26522_remove,
+	.id_table = slic_ds26522_id,
 };
 
 static int __init slic_ds26522_init(void)

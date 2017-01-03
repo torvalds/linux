@@ -791,9 +791,9 @@ __iscsi_conn_send_pdu(struct iscsi_conn *conn, struct iscsi_hdr *hdr,
 
 free_task:
 	/* regular RX path uses back_lock */
-	spin_lock_bh(&session->back_lock);
+	spin_lock(&session->back_lock);
 	__iscsi_put_task(task);
-	spin_unlock_bh(&session->back_lock);
+	spin_unlock(&session->back_lock);
 	return NULL;
 }
 

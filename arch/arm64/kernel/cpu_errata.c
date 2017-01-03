@@ -39,10 +39,11 @@ has_mismatched_cache_line_size(const struct arm64_cpu_capabilities *entry,
 		(arm64_ftr_reg_ctrel0.sys_val & arm64_ftr_reg_ctrel0.strict_mask);
 }
 
-static void cpu_enable_trap_ctr_access(void *__unused)
+static int cpu_enable_trap_ctr_access(void *__unused)
 {
 	/* Clear SCTLR_EL1.UCT */
 	config_sctlr_el1(SCTLR_EL1_UCT, 0);
+	return 0;
 }
 
 #define MIDR_RANGE(model, min, max) \

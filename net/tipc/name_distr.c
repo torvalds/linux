@@ -156,6 +156,7 @@ static void named_distribute(struct net *net, struct sk_buff_head *list,
 				pr_warn("Bulk publication failure\n");
 				return;
 			}
+			msg_set_bc_ack_invalid(buf_msg(skb), true);
 			item = (struct distr_item *)msg_data(buf_msg(skb));
 		}
 

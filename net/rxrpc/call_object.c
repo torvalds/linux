@@ -276,7 +276,7 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 		goto error;
 
 	trace_rxrpc_call(call, rxrpc_call_connected, atomic_read(&call->usage),
-			 here, ERR_PTR(ret));
+			 here, NULL);
 
 	spin_lock_bh(&call->conn->params.peer->lock);
 	hlist_add_head(&call->error_link,

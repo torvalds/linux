@@ -9,7 +9,7 @@
 
 /dts-v1/;
 
-#include "bcm4708.dtsi"
+#include "bcm4709.dtsi"
 #include "bcm5301x-nand-cs0-bch8.dtsi"
 
 / {

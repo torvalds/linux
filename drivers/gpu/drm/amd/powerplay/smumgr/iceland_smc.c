@@ -2006,6 +2006,12 @@ int iceland_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl))
 		return 0;
 
+	if (hwmgr->thermal_controller.fanInfo.bNoFan) {
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MicrocodeFanControl);
+		return 0;
+	}
+
 	if (0 == smu7_data->fan_table_start) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_MicrocodeFanControl);
 		return 0;
@@ -2140,7 +2146,7 @@ uint32_t iceland_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU71_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk("cant't get the offset of type %x member %x \n", type, member);
+	printk(KERN_WARNING "can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2163,7 +2169,7 @@ uint32_t iceland_get_mac_definition(uint32_t value)
 		return SMU71_MAX_LEVELS_MVDD;
 	}
 
-	printk("cant't get the mac of %x \n", value);
+	printk(KERN_WARNING "can't get the mac of %x\n", value);
 	return 0;
 }
 
@@ -2458,7 +2464,7 @@ static int iceland_set_mc_special_registers(struct pp_hwmgr *hwmgr,
 			PP_ASSERT_WITH_CODE((j <= SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE),
 				"Invalid VramInfo table.", return -EINVAL);
 
-			if (!data->is_memory_gddr5) {
+			if (!data->is_memory_gddr5 && j < SMU71_DISCRETE_MC_REGISTER_ARRAY_SIZE) {
 				table->mc_reg_address[j].s1 = mmMC_PMG_AUTO_CMD;
 				table->mc_reg_address[j].s0 = mmMC_PMG_AUTO_CMD;
 				for (k = 0; k < table->num_entries; k++) {

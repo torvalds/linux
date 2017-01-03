@@ -79,6 +79,14 @@
 
 &lcdc {
 	status = "okay";
+
+	/* If you want to get 24 bit RGB and 16 BGR mode instead of
+	 * current 16 bit RGB and 24 BGR modes, set the propety
+	 * below to "crossed" and uncomment the video-ports -property
+	 * in tda19988 node.
+	 */
+	blue-and-red-wiring = "straight";
+
 	port {
 		lcdc_0: endpoint@0 {
 			remote-endpoint = <&hdmi_0>;
@@ -94,6 +102,9 @@
 		pinctrl-names = "default", "off";
 		pinctrl-0 = <&nxp_hdmi_bonelt_pins>;
 		pinctrl-1 = <&nxp_hdmi_bonelt_off_pins>;
+
+		/* Convert 24bit BGR to RGB, e.g. cross red and blue wiring */
+		/* video-ports = <0x234501>; */
 
 		#sound-dai-cells = <0>;
 		audio-ports = <	TDA998x_I2S	0x03>;

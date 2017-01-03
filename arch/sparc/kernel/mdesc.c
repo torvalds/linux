@@ -17,7 +17,7 @@
 #include <asm/hypervisor.h>
 #include <asm/mdesc.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/oplib.h>
 #include <asm/smp.h>
 
@@ -645,13 +645,20 @@ static void __mark_core_id(struct mdesc_handle *hp, u64 node,
 		cpu_data(*id).core_id = core_id;
 }
 
-static void __mark_sock_id(struct mdesc_handle *hp, u64 node,
-			   int sock_id)
+static void __mark_max_cache_id(struct mdesc_handle *hp, u64 node,
+				int max_cache_id)
 {
 	const u64 *id = mdesc_get_property(hp, node, "id", NULL);
 
-	if (*id < num_possible_cpus())
-		cpu_data(*id).sock_id = sock_id;
+	if (*id < num_possible_cpus()) {
+		cpu_data(*id).max_cache_id = max_cache_id;
+
+		/**
+		 * On systems without explicit socket descriptions socket
+		 * is max_cache_id
+		 */
+		cpu_data(*id).sock_id = max_cache_id;
+	}
 }
 
 static void mark_core_ids(struct mdesc_handle *hp, u64 mp,
@@ -660,10 +667,11 @@ static void mark_core_ids(struct mdesc_handle *hp, u64 mp,
 	find_back_node_value(hp, mp, "cpu", __mark_core_id, core_id, 10);
 }
 
-static void mark_sock_ids(struct mdesc_handle *hp, u64 mp,
-			  int sock_id)
+static void mark_max_cache_ids(struct mdesc_handle *hp, u64 mp,
+			       int max_cache_id)
 {
-	find_back_node_value(hp, mp, "cpu", __mark_sock_id, sock_id, 10);
+	find_back_node_value(hp, mp, "cpu", __mark_max_cache_id,
+			     max_cache_id, 10);
 }
 
 static void set_core_ids(struct mdesc_handle *hp)
@@ -694,14 +702,15 @@ static void set_core_ids(struct mdesc_handle *hp)
 	}
 }
 
-static int set_sock_ids_by_cache(struct mdesc_handle *hp, int level)
+static int set_max_cache_ids_by_cache(struct mdesc_handle *hp, int level)
 {
 	u64 mp;
 	int idx = 1;
 	int fnd = 0;
 
-	/* Identify unique sockets by looking for cpus backpointed to by
-	 * shared level n caches.
+	/**
+	 * Identify unique highest level of shared cache by looking for cpus
+	 * backpointed to by shared level N caches.
 	 */
 	mdesc_for_each_node_by_name(hp, mp, "cache") {
 		const u64 *cur_lvl;
@@ -709,8 +718,7 @@ static int set_sock_ids_by_cache(struct mdesc_handle *hp, int level)
 		cur_lvl = mdesc_get_property(hp, mp, "level", NULL);
 		if (*cur_lvl != level)
 			continue;
-
-		mark_sock_ids(hp, mp, idx);
+		mark_max_cache_ids(hp, mp, idx);
 		idx++;
 		fnd = 1;
 	}
@@ -745,15 +753,17 @@ static void set_sock_ids(struct mdesc_handle *hp)
 {
 	u64 mp;
 
-	/* If machine description exposes sockets data use it.
-	 * Otherwise fallback to use shared L3 or L2 caches.
+	/**
+	 * Find the highest level of shared cache which pre-T7 is also
+	 * the socket.
 	 */
+	if (!set_max_cache_ids_by_cache(hp, 3))
+		set_max_cache_ids_by_cache(hp, 2);
+
+	/* If machine description exposes sockets data use it.*/
 	mp = mdesc_node_by_name(hp, MDESC_NODE_NULL, "sockets");
 	if (mp != MDESC_NODE_NULL)
-		return set_sock_ids_by_socket(hp, mp);
-
-	if (!set_sock_ids_by_cache(hp, 3))
-		set_sock_ids_by_cache(hp, 2);
+		set_sock_ids_by_socket(hp, mp);
 }
 
 static void mark_proc_ids(struct mdesc_handle *hp, u64 mp, int proc_id)

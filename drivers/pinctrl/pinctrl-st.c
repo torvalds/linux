@@ -1006,7 +1006,7 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 
 	function = st_pctl_get_pin_function(pc, offset);
 	if (function)
-		snprintf(f, 10, "Alt Fn %d", function);
+		snprintf(f, 10, "Alt Fn %u", function);
 	else
 		snprintf(f, 5, "GPIO");
 
@@ -1181,7 +1181,7 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 		if (!strcmp(pp->name, "name"))
 			continue;
 
-		if (pp  && (pp->length/sizeof(__be32)) >= OF_GPIO_ARGS_MIN) {
+		if (pp->length / sizeof(__be32) >= OF_GPIO_ARGS_MIN) {
 			npins++;
 		} else {
 			pr_warn("Invalid st,pins in %s node\n", np->name);
@@ -1512,7 +1512,7 @@ static int st_gpiolib_register_bank(struct st_pinctrl *info,
 	if (info->irqmux_base || gpio_irq > 0) {
 		err = gpiochip_irqchip_add(&bank->gpio_chip, &st_gpio_irqchip,
 					   0, handle_simple_irq,
-					   IRQ_TYPE_LEVEL_LOW);
+					   IRQ_TYPE_NONE);
 		if (err) {
 			gpiochip_remove(&bank->gpio_chip);
 			dev_info(dev, "could not add irqchip\n");

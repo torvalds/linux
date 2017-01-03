@@ -63,15 +63,6 @@ static inline u32 end_of_queue_search(struct list_head *head,
 	return (head == plist);
 }
 
-static inline void sleep_schedulable(int ms)
-{
-	u32 delta;
-
-	delta = msecs_to_jiffies(ms);/*(ms)*/
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(delta);
-}
-
 static inline void flush_signals_thread(void)
 {
 	if (signal_pending(current))

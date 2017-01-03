@@ -214,6 +214,18 @@ struct tcp_info {
 	__u32	tcpi_data_segs_out;	/* RFC4898 tcpEStatsDataSegsOut */
 
 	__u64   tcpi_delivery_rate;
+
+	__u64	tcpi_busy_time;      /* Time (usec) busy sending data */
+	__u64	tcpi_rwnd_limited;   /* Time (usec) limited by receive window */
+	__u64	tcpi_sndbuf_limited; /* Time (usec) limited by send buffer */
+};
+
+/* netlink attributes types for SCM_TIMESTAMPING_OPT_STATS */
+enum {
+	TCP_NLA_PAD,
+	TCP_NLA_BUSY,		/* Time (usec) busy sending data */
+	TCP_NLA_RWND_LIMITED,	/* Time (usec) limited by receive window */
+	TCP_NLA_SNDBUF_LIMITED,	/* Time (usec) limited by send buffer */
 };
 
 /* for TCP_MD5SIG socket option */

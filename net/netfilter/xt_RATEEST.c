@@ -63,7 +63,7 @@ void xt_rateest_put(struct xt_rateest *est)
 	mutex_lock(&xt_rateest_mutex);
 	if (--est->refcnt == 0) {
 		hlist_del(&est->list);
-		gen_kill_estimator(&est->bstats, &est->rstats);
+		gen_kill_estimator(&est->rate_est);
 		/*
 		 * gen_estimator est_timer() might access est->lock or bstats,
 		 * wait a RCU grace period before freeing 'est'
@@ -132,7 +132,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 	cfg.est.interval	= info->interval;
 	cfg.est.ewma_log	= info->ewma_log;
 
-	ret = gen_new_estimator(&est->bstats, NULL, &est->rstats,
+	ret = gen_new_estimator(&est->bstats, NULL, &est->rate_est,
 				&est->lock, NULL, &cfg.opt);
 	if (ret < 0)
 		goto err2;

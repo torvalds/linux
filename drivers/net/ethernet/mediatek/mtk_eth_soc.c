@@ -318,6 +318,8 @@ static int mtk_phy_connect(struct net_device *dev)
 	return 0;
 
 err_phy:
+	if (of_phy_is_fixed_link(mac->of_node))
+		of_phy_deregister_fixed_link(mac->of_node);
 	of_node_put(np);
 	dev_err(eth->dev, "%s: invalid phy\n", __func__);
 	return -EINVAL;
@@ -843,7 +845,7 @@ static int mtk_start_xmit(struct sk_buff *skb, struct net_device *dev)
 drop:
 	spin_unlock(&eth->page_lock);
 	stats->tx_dropped++;
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -1923,6 +1925,8 @@ static void mtk_uninit(struct net_device *dev)
 	struct mtk_eth *eth = mac->hw;
 
 	phy_disconnect(dev->phydev);
+	if (of_phy_is_fixed_link(mac->of_node))
+		of_phy_deregister_fixed_link(mac->of_node);
 	mtk_irq_disable(eth, MTK_QDMA_INT_MASK, ~0);
 	mtk_irq_disable(eth, MTK_PDMA_INT_MASK, ~0);
 }
@@ -2243,7 +2247,6 @@ static const struct net_device_ops mtk_netdev_ops = {
 	.ndo_set_mac_address	= mtk_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= mtk_do_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_tx_timeout		= mtk_tx_timeout,
 	.ndo_get_stats64        = mtk_get_stats64,
 	.ndo_fix_features	= mtk_fix_features,

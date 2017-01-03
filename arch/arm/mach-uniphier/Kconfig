@@ -1,6 +1,7 @@
 config ARCH_UNIPHIER
 	bool "Socionext UniPhier SoCs"
 	depends on ARCH_MULTI_V7
+	select ARCH_HAS_RESET_CONTROLLER
 	select ARM_AMBA
 	select ARM_GLOBAL_TIMER
 	select ARM_GIC

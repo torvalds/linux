@@ -203,7 +203,7 @@ at91_clk_register_programmable(struct regmap *regmap,
 	ret = clk_hw_register(NULL, &prog->hw);
 	if (ret) {
 		kfree(prog);
-		hw = &prog->hw;
+		hw = ERR_PTR(ret);
 	}
 
 	return hw;

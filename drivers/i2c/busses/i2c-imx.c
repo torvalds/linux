@@ -1009,10 +1009,13 @@ static int i2c_imx_init_recovery_info(struct imx_i2c_struct *i2c_imx,
 	rinfo->sda_gpio = of_get_named_gpio(pdev->dev.of_node, "sda-gpios", 0);
 	rinfo->scl_gpio = of_get_named_gpio(pdev->dev.of_node, "scl-gpios", 0);
 
-	if (!gpio_is_valid(rinfo->sda_gpio) ||
-	    !gpio_is_valid(rinfo->scl_gpio) ||
-	    IS_ERR(i2c_imx->pinctrl_pins_default) ||
-	    IS_ERR(i2c_imx->pinctrl_pins_gpio)) {
+	if (rinfo->sda_gpio == -EPROBE_DEFER ||
+	    rinfo->scl_gpio == -EPROBE_DEFER) {
+		return -EPROBE_DEFER;
+	} else if (!gpio_is_valid(rinfo->sda_gpio) ||
+		   !gpio_is_valid(rinfo->scl_gpio) ||
+		   IS_ERR(i2c_imx->pinctrl_pins_default) ||
+		   IS_ERR(i2c_imx->pinctrl_pins_gpio)) {
 		dev_dbg(&pdev->dev, "recovery information incomplete\n");
 		return 0;
 	}

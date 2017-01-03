@@ -168,7 +168,7 @@ void do_softirq_own_stack(void)
 	old = current_stack_pointer();
 	/* Check against async. stack address range. */
 	new = S390_lowcore.async_stack;
-	if (((new - old) >> (PAGE_SHIFT + THREAD_ORDER)) != 0) {
+	if (((new - old) >> (PAGE_SHIFT + THREAD_SIZE_ORDER)) != 0) {
 		/* Need to switch to the async. stack. */
 		new -= STACK_FRAME_OVERHEAD;
 		((struct stack_frame *) new)->back_chain = old;

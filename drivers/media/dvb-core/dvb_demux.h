@@ -80,8 +80,6 @@ struct dvb_demux_feed {
 	int type;
 	int state;
 	u16 pid;
-	u8 *buffer;
-	int buffer_size;
 
 	ktime_t timeout;
 	struct dvb_demux_filter *filter;

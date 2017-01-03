@@ -509,7 +509,7 @@ void nd_mapping_free_labels(struct nd_mapping *nd_mapping)
 {
 	struct nd_label_ent *label_ent, *e;
 
-	WARN_ON(!mutex_is_locked(&nd_mapping->lock));
+	lockdep_assert_held(&nd_mapping->lock);
 	list_for_each_entry_safe(label_ent, e, &nd_mapping->labels, list) {
 		list_del(&label_ent->list);
 		kfree(label_ent);

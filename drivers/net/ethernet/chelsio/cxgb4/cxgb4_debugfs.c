@@ -2512,18 +2512,6 @@ do { \
 		RL("FLLow:", fl.low);
 		RL("FLStarving:", fl.starving);
 
-	} else if (ofld_idx < ofld_entries) {
-		const struct sge_ofld_txq *tx =
-			&adap->sge.ofldtxq[ofld_idx * 4];
-		int n = min(4, adap->sge.ofldqsets - 4 * ofld_idx);
-
-		S("QType:", "OFLD-Txq");
-		T("TxQ ID:", q.cntxt_id);
-		T("TxQ size:", q.size);
-		T("TxQ inuse:", q.in_use);
-		T("TxQ CIDX:", q.cidx);
-		T("TxQ PIDX:", q.pidx);
-
 	} else if (ctrl_idx < ctrl_entries) {
 		const struct sge_ctrl_txq *tx = &adap->sge.ctrlq[ctrl_idx * 4];
 		int n = min(4, adap->params.nports - 4 * ctrl_idx);

@@ -178,6 +178,7 @@ nodes to be present and contain the properties described below.
 			    "marvell,pj4b"
 			    "marvell,sheeva-v5"
 			    "nvidia,tegra132-denver"
+			    "nvidia,tegra186-denver"
 			    "qcom,krait"
 			    "qcom,kryo"
 			    "qcom,scorpion"
@@ -240,6 +241,14 @@ nodes to be present and contain the properties described below.
 		Definition:
 			# List of phandles to idle state nodes supported
 			  by this cpu [3].
+
+	- capacity-dmips-mhz
+		Usage: Optional
+		Value type: <u32>
+		Definition:
+			# u32 value representing CPU capacity [3] in
+			  DMIPS/MHz, relative to highest capacity-dmips-mhz
+			  in the system.
 
 	- rockchip,pmu
 		Usage: optional for systems that have an "enable-method"
@@ -464,3 +473,5 @@ cpus {
 [2] arm/msm/qcom,kpss-acc.txt
 [3] ARM Linux kernel documentation - idle states bindings
     Documentation/devicetree/bindings/arm/idle-states.txt
+[3] ARM Linux kernel documentation - cpu capacity bindings
+    Documentation/devicetree/bindings/arm/cpu-capacity.txt

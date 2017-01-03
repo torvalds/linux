@@ -986,11 +986,11 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(dev, "ETM arch init failed\n");
 
 	if (!etm4_count++) {
-		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT4_STARTING,
-					  "AP_ARM_CORESIGHT4_STARTING",
+		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING,
+					  "arm/coresight4:starting",
 					  etm4_starting_cpu, etm4_dying_cpu);
 		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-						"AP_ARM_CORESIGHT4_ONLINE",
+						"arm/coresight4:online",
 						etm4_online_cpu, NULL);
 		if (ret < 0)
 			goto err_arch_supported;
@@ -1037,7 +1037,7 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 
 err_arch_supported:
 	if (--etm4_count == 0) {
-		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT4_STARTING);
+		cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 		if (hp_online)
 			cpuhp_remove_state_nocalls(hp_online);
 	}

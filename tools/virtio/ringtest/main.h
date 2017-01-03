@@ -56,15 +56,15 @@ void alloc_ring(void);
 int add_inbuf(unsigned, void *, void *);
 void *get_buf(unsigned *, void **);
 void disable_call();
+bool used_empty();
 bool enable_call();
 void kick_available();
-void poll_used();
 /* host side */
 void disable_kick();
+bool avail_empty();
 bool enable_kick();
 bool use_buf(unsigned *, void **);
 void call_used();
-void poll_avail();
 
 /* implemented by main */
 extern bool do_sleep;

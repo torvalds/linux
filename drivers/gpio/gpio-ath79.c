@@ -219,6 +219,7 @@ static const struct of_device_id ath79_gpio_of_match[] = {
 	{ .compatible = "qca,ar9340-gpio" },
 	{},
 };
+MODULE_DEVICE_TABLE(of, ath79_gpio_of_match);
 
 static int ath79_gpio_probe(struct platform_device *pdev)
 {

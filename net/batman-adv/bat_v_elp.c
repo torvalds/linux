@@ -75,6 +75,7 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 {
 	struct batadv_hard_iface *hard_iface = neigh->if_incoming;
 	struct ethtool_link_ksettings link_settings;
+	struct net_device *real_netdev;
 	struct station_info sinfo;
 	u32 throughput;
 	int ret;
@@ -89,23 +90,27 @@ static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 	/* if this is a wireless device, then ask its throughput through
 	 * cfg80211 API
 	 */
-	if (batadv_is_wifi_netdev(hard_iface->net_dev)) {
-		if (hard_iface->net_dev->ieee80211_ptr) {
-			ret = cfg80211_get_station(hard_iface->net_dev,
-						   neigh->addr, &sinfo);
-			if (ret == -ENOENT) {
-				/* Node is not associated anymore! It would be
-				 * possible to delete this neighbor. For now set
-				 * the throughput metric to 0.
-				 */
-				return 0;
-			}
-			if (!ret)
-				return sinfo.expected_throughput / 100;
-		}
+	if (batadv_is_wifi_hardif(hard_iface)) {
+		if (!batadv_is_cfg80211_hardif(hard_iface))
+			/* unsupported WiFi driver version */
+			goto default_throughput;
 
-		/* unsupported WiFi driver version */
-		goto default_throughput;
+		real_netdev = batadv_get_real_netdev(hard_iface->net_dev);
+		if (!real_netdev)
+			goto default_throughput;
+
+		ret = cfg80211_get_station(real_netdev, neigh->addr, &sinfo);
+
+		dev_put(real_netdev);
+		if (ret == -ENOENT) {
+			/* Node is not associated anymore! It would be
+			 * possible to delete this neighbor. For now set
+			 * the throughput metric to 0.
+			 */
+			return 0;
+		}
+		if (!ret)
+			return sinfo.expected_throughput / 100;
 	}
 
 	/* if not a wifi interface, check if this device provides data via
@@ -187,7 +192,7 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
 	int elp_skb_len;
 
 	/* this probing routine is for Wifi neighbours only */
-	if (!batadv_is_wifi_netdev(hard_iface->net_dev))
+	if (!batadv_is_wifi_hardif(hard_iface))
 		return true;
 
 	/* probe the neighbor only if no unicast packets have been sent
@@ -352,7 +357,7 @@ int batadv_v_elp_iface_enable(struct batadv_hard_iface *hard_iface)
 	/* warn the user (again) if there is no throughput data is available */
 	hard_iface->bat_v.flags &= ~BATADV_WARNING_DEFAULT;
 
-	if (batadv_is_wifi_netdev(hard_iface->net_dev))
+	if (batadv_is_wifi_hardif(hard_iface))
 		hard_iface->bat_v.flags &= ~BATADV_FULL_DUPLEX;
 
 	INIT_DELAYED_WORK(&hard_iface->bat_v.elp_wq,
@@ -492,20 +497,21 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 	struct batadv_elp_packet *elp_packet;
 	struct batadv_hard_iface *primary_if;
 	struct ethhdr *ethhdr = (struct ethhdr *)skb_mac_header(skb);
-	bool ret;
+	bool res;
+	int ret = NET_RX_DROP;
 
-	ret = batadv_check_management_packet(skb, if_incoming, BATADV_ELP_HLEN);
-	if (!ret)
-		return NET_RX_DROP;
+	res = batadv_check_management_packet(skb, if_incoming, BATADV_ELP_HLEN);
+	if (!res)
+		goto free_skb;
 
 	if (batadv_is_my_mac(bat_priv, ethhdr->h_source))
-		return NET_RX_DROP;
+		goto free_skb;
 
 	/* did we receive a B.A.T.M.A.N. V ELP packet on an interface
 	 * that does not have B.A.T.M.A.N. V ELP enabled ?
 	 */
 	if (strcmp(bat_priv->algo_ops->name, "BATMAN_V") != 0)
-		return NET_RX_DROP;
+		goto free_skb;
 
 	elp_packet = (struct batadv_elp_packet *)skb->data;
 
@@ -516,14 +522,19 @@ int batadv_v_elp_packet_recv(struct sk_buff *skb,
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
-		goto out;
+		goto free_skb;
 
 	batadv_v_elp_neigh_update(bat_priv, ethhdr->h_source, if_incoming,
 				  elp_packet);
 
-out:
-	if (primary_if)
-		batadv_hardif_put(primary_if);
-	consume_skb(skb);
-	return NET_RX_SUCCESS;
+	ret = NET_RX_SUCCESS;
+	batadv_hardif_put(primary_if);
+
+free_skb:
+	if (ret == NET_RX_SUCCESS)
+		consume_skb(skb);
+	else
+		kfree_skb(skb);
+
+	return ret;
 }

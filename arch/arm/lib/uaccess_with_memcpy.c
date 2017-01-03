@@ -19,7 +19,6 @@
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
-#include <linux/export.h>
 #include <asm/current.h>
 #include <asm/page.h>
 
@@ -157,7 +156,6 @@ arm_copy_to_user(void __user *to, const void *from, unsigned long n)
 	}
 	return n;
 }
-EXPORT_SYMBOL(arm_copy_to_user);
 	
 static unsigned long noinline
 __clear_user_memset(void __user *addr, unsigned long n)
@@ -215,7 +213,6 @@ unsigned long arm_clear_user(void __user *addr, unsigned long n)
 	}
 	return n;
 }
-EXPORT_SYMBOL(arm_clear_user);
 
 #if 0
 

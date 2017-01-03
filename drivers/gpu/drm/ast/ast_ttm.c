@@ -230,6 +230,7 @@ struct ttm_bo_driver ast_bo_driver = {
 	.ttm_tt_populate = ast_ttm_tt_populate,
 	.ttm_tt_unpopulate = ast_ttm_tt_unpopulate,
 	.init_mem_type = ast_bo_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = ast_bo_evict_flags,
 	.move = NULL,
 	.verify_access = ast_bo_verify_access,
@@ -267,6 +268,8 @@ int ast_mm_init(struct ast_private *ast)
 		return ret;
 	}
 
+	arch_io_reserve_memtype_wc(pci_resource_start(dev->pdev, 0),
+				   pci_resource_len(dev->pdev, 0));
 	ast->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
 					pci_resource_len(dev->pdev, 0));
 
@@ -275,11 +278,15 @@ int ast_mm_init(struct ast_private *ast)
 
 void ast_mm_fini(struct ast_private *ast)
 {
+	struct drm_device *dev = ast->dev;
+
 	ttm_bo_device_release(&ast->ttm.bdev);
 
 	ast_ttm_global_release(ast);
 
 	arch_phys_wc_del(ast->fb_mtrr);
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
 }
 
 void ast_ttm_placement(struct ast_bo *bo, int domain)

@@ -1487,6 +1487,8 @@ static int cxl_configure_adapter(struct cxl *adapter, struct pci_dev *dev)
 	if ((rc = cxl_native_register_psl_err_irq(adapter)))
 		goto err;
 
+	/* Release the context lock as adapter is configured */
+	cxl_adapter_context_unlock(adapter);
 	return 0;
 
 err:
@@ -1919,7 +1921,7 @@ static pci_ers_result_t cxl_pci_slot_reset(struct pci_dev *pdev)
 				goto err;
 
 			ctx = cxl_dev_context_init(afu_dev);
-			if (!ctx)
+			if (IS_ERR(ctx))
 				goto err;
 
 			afu_dev->dev.archdata.cxl_ctx = ctx;

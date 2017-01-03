@@ -119,8 +119,7 @@ ENTRY(startup_32)
  */
 
 	/* Load new GDT with the 64bit segments using 32bit descriptor */
-	leal	gdt(%ebp), %eax
-	movl	%eax, gdt+2(%ebp)
+	addl	%ebp, gdt+2(%ebp)
 	lgdt	gdt(%ebp)
 
 	/* Enable PAE mode */

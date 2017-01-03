@@ -346,7 +346,8 @@ static void esdhc_writel_le(struct sdhci_host *host, u32 val, int reg)
 	struct pltfm_imx_data *imx_data = sdhci_pltfm_priv(pltfm_host);
 	u32 data;
 
-	if (unlikely(reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE)) {
+	if (unlikely(reg == SDHCI_INT_ENABLE || reg == SDHCI_SIGNAL_ENABLE ||
+			reg == SDHCI_INT_STATUS)) {
 		if ((val & SDHCI_INT_CARD_INT) && !esdhc_is_usdhc(imx_data)) {
 			/*
 			 * Clear and then set D3CD bit to avoid missing the
@@ -553,6 +554,25 @@ static void esdhc_writew_le(struct sdhci_host *host, u16 val, int reg)
 		break;
 	}
 	esdhc_clrset_le(host, 0xffff, val, reg);
+}
+
+static u8 esdhc_readb_le(struct sdhci_host *host, int reg)
+{
+	u8 ret;
+	u32 val;
+
+	switch (reg) {
+	case SDHCI_HOST_CONTROL:
+		val = readl(host->ioaddr + reg);
+
+		ret = val & SDHCI_CTRL_LED;
+		ret |= (val >> 5) & SDHCI_CTRL_DMA_MASK;
+		ret |= (val & ESDHC_CTRL_4BITBUS);
+		ret |= (val & ESDHC_CTRL_8BITBUS) << 3;
+		return ret;
+	}
+
+	return readb(host->ioaddr + reg);
 }
 
 static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
@@ -947,6 +967,7 @@ static void esdhc_set_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 static struct sdhci_ops sdhci_esdhc_ops = {
 	.read_l = esdhc_readl_le,
 	.read_w = esdhc_readw_le,
+	.read_b = esdhc_readb_le,
 	.write_l = esdhc_writel_le,
 	.write_w = esdhc_writew_le,
 	.write_b = esdhc_writeb_le,

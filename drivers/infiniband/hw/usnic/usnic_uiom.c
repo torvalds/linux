@@ -111,6 +111,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 	int i;
 	int flags;
 	dma_addr_t pa;
+	unsigned int gup_flags;
 
 	if (!can_do_mlock())
 		return -EPERM;
@@ -135,6 +136,8 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 
 	flags = IOMMU_READ | IOMMU_CACHE;
 	flags |= (writable) ? IOMMU_WRITE : 0;
+	gup_flags = FOLL_WRITE;
+	gup_flags |= (writable) ? 0 : FOLL_FORCE;
 	cur_base = addr & PAGE_MASK;
 	ret = 0;
 
@@ -142,7 +145,7 @@ static int usnic_uiom_get_pages(unsigned long addr, size_t size, int writable,
 		ret = get_user_pages(cur_base,
 					min_t(unsigned long, npages,
 					PAGE_SIZE / sizeof(struct page *)),
-					1, !writable, page_list, NULL);
+					gup_flags, page_list, NULL);
 
 		if (ret < 0)
 			goto out;

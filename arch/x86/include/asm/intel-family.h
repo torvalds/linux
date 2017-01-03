@@ -64,5 +64,6 @@
 /* Xeon Phi */
 
 #define INTEL_FAM6_XEON_PHI_KNL		0x57 /* Knights Landing */
+#define INTEL_FAM6_XEON_PHI_KNM		0x85 /* Knights Mill */
 
 #endif /* _ASM_X86_INTEL_FAMILY_H */

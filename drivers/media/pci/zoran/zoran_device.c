@@ -173,12 +173,8 @@ dump_guests (struct zoran *zr)
 			guest[i] = post_office_read(zr, i, 0);
 		}
 
-		printk(KERN_INFO "%s: Guests:", ZR_DEVNAME(zr));
-
-		for (i = 1; i < 8; i++) {
-			printk(" 0x%02x", guest[i]);
-		}
-		printk("\n");
+		printk(KERN_INFO "%s: Guests: %*ph\n",
+		       ZR_DEVNAME(zr), 8, guest);
 	}
 }
 
@@ -216,12 +212,9 @@ detect_guest_activity (struct zoran *zr)
 		if (j >= 8)
 			break;
 	}
-	printk(KERN_INFO "%s: Guests:", ZR_DEVNAME(zr));
 
-	for (i = 1; i < 8; i++) {
-		printk(" 0x%02x", guest0[i]);
-	}
-	printk("\n");
+	printk(KERN_INFO "%s: Guests: %*ph\n", ZR_DEVNAME(zr), 8, guest0);
+
 	if (j == 0) {
 		printk(KERN_INFO "%s: No activity detected.\n", ZR_DEVNAME(zr));
 		return;
@@ -822,39 +815,39 @@ print_interrupts (struct zoran *zr)
 
 	printk(KERN_INFO "%s: interrupts received:", ZR_DEVNAME(zr));
 	if ((res = zr->field_counter) < -1 || res > 1) {
-		printk(" FD:%d", res);
+		printk(KERN_CONT " FD:%d", res);
 	}
 	if ((res = zr->intr_counter_GIRQ1) != 0) {
-		printk(" GIRQ1:%d", res);
+		printk(KERN_CONT " GIRQ1:%d", res);
 		noerr++;
 	}
 	if ((res = zr->intr_counter_GIRQ0) != 0) {
-		printk(" GIRQ0:%d", res);
+		printk(KERN_CONT " GIRQ0:%d", res);
 		noerr++;
 	}
 	if ((res = zr->intr_counter_CodRepIRQ) != 0) {
-		printk(" CodRepIRQ:%d", res);
+		printk(KERN_CONT " CodRepIRQ:%d", res);
 		noerr++;
 	}
 	if ((res = zr->intr_counter_JPEGRepIRQ) != 0) {
-		printk(" JPEGRepIRQ:%d", res);
+		printk(KERN_CONT " JPEGRepIRQ:%d", res);
 		noerr++;
 	}
 	if (zr->JPEG_max_missed) {
-		printk(" JPEG delays: max=%d min=%d", zr->JPEG_max_missed,
+		printk(KERN_CONT " JPEG delays: max=%d min=%d", zr->JPEG_max_missed,
 		       zr->JPEG_min_missed);
 	}
 	if (zr->END_event_missed) {
-		printk(" ENDs missed: %d", zr->END_event_missed);
+		printk(KERN_CONT " ENDs missed: %d", zr->END_event_missed);
 	}
 	//if (zr->jpg_queued_num) {
-	printk(" queue_state=%ld/%ld/%ld/%ld", zr->jpg_que_tail,
+	printk(KERN_CONT " queue_state=%ld/%ld/%ld/%ld", zr->jpg_que_tail,
 	       zr->jpg_dma_tail, zr->jpg_dma_head, zr->jpg_que_head);
 	//}
 	if (!noerr) {
-		printk(": no interrupts detected.");
+		printk(KERN_CONT ": no interrupts detected.");
 	}
-	printk("\n");
+	printk(KERN_CONT "\n");
 }
 
 void

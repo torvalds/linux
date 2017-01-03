@@ -2100,17 +2100,26 @@ static int __do_request(struct ceph_mds_client *mdsc,
 		err = -EIO;
 		goto finish;
 	}
+	if (ACCESS_ONCE(mdsc->fsc->mount_state) == CEPH_MOUNT_MOUNTING) {
+		if (mdsc->mdsmap_err) {
+			err = mdsc->mdsmap_err;
+			dout("do_request mdsmap err %d\n", err);
+			goto finish;
+		}
+		if (!(mdsc->fsc->mount_options->flags &
+		      CEPH_MOUNT_OPT_MOUNTWAIT) &&
+		    !ceph_mdsmap_is_cluster_available(mdsc->mdsmap)) {
+			err = -ENOENT;
+			pr_info("probably no mds server is up\n");
+			goto finish;
+		}
+	}
 
 	put_request_session(req);
 
 	mds = __choose_mds(mdsc, req);
 	if (mds < 0 ||
 	    ceph_mdsmap_get_state(mdsc->mdsmap, mds) < CEPH_MDS_STATE_ACTIVE) {
-		if (mdsc->mdsmap_err) {
-			err = mdsc->mdsmap_err;
-			dout("do_request mdsmap err %d\n", err);
-			goto finish;
-		}
 		dout("do_request no mds or not active, waiting for map\n");
 		list_add(&req->r_wait, &mdsc->waiting_for_map);
 		goto out;
@@ -3943,13 +3952,13 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 }
 
 
-static int verify_authorizer_reply(struct ceph_connection *con, int len)
+static int verify_authorizer_reply(struct ceph_connection *con)
 {
 	struct ceph_mds_session *s = con->private;
 	struct ceph_mds_client *mdsc = s->s_mdsc;
 	struct ceph_auth_client *ac = mdsc->fsc->client->monc.auth;
 
-	return ceph_auth_verify_authorizer_reply(ac, s->s_auth.authorizer, len);
+	return ceph_auth_verify_authorizer_reply(ac, s->s_auth.authorizer);
 }
 
 static int invalidate_authorizer(struct ceph_connection *con)

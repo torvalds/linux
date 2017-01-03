@@ -110,12 +110,6 @@ static struct drm_connector_helper_funcs sun4i_rgb_con_helper_funcs = {
 	.mode_valid	= sun4i_rgb_mode_valid,
 };
 
-static enum drm_connector_status
-sun4i_rgb_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void
 sun4i_rgb_connector_destroy(struct drm_connector *connector)
 {
@@ -129,7 +123,6 @@ sun4i_rgb_connector_destroy(struct drm_connector *connector)
 
 static struct drm_connector_funcs sun4i_rgb_con_funcs = {
 	.dpms			= drm_atomic_helper_connector_dpms,
-	.detect			= sun4i_rgb_connector_detect,
 	.fill_modes		= drm_helper_probe_single_connector_modes,
 	.destroy		= sun4i_rgb_connector_destroy,
 	.reset			= drm_atomic_helper_connector_reset,
@@ -152,15 +145,13 @@ static void sun4i_rgb_encoder_enable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("Enabling RGB output\n");
 
-	if (!IS_ERR(tcon->panel)) {
+	if (!IS_ERR(tcon->panel))
 		drm_panel_prepare(tcon->panel);
-		drm_panel_enable(tcon->panel);
-	}
-
-	/* encoder->bridge can be NULL; drm_bridge_enable checks for it */
-	drm_bridge_enable(encoder->bridge);
 
 	sun4i_tcon_channel_enable(tcon, 0);
+
+	if (!IS_ERR(tcon->panel))
+		drm_panel_enable(tcon->panel);
 }
 
 static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
@@ -171,15 +162,13 @@ static void sun4i_rgb_encoder_disable(struct drm_encoder *encoder)
 
 	DRM_DEBUG_DRIVER("Disabling RGB output\n");
 
+	if (!IS_ERR(tcon->panel))
+		drm_panel_disable(tcon->panel);
+
 	sun4i_tcon_channel_disable(tcon, 0);
 
-	/* encoder->bridge can be NULL; drm_bridge_disable checks for it */
-	drm_bridge_disable(encoder->bridge);
-
-	if (!IS_ERR(tcon->panel)) {
-		drm_panel_disable(tcon->panel);
+	if (!IS_ERR(tcon->panel))
 		drm_panel_unprepare(tcon->panel);
-	}
 }
 
 static void sun4i_rgb_encoder_mode_set(struct drm_encoder *encoder,

@@ -210,8 +210,10 @@ static int t4_sched_queue_bind(struct port_info *pi, struct ch_sched_queue *p)
 
 	/* Unbind queue from any existing class */
 	err = t4_sched_queue_unbind(pi, p);
-	if (err)
+	if (err) {
+		t4_free_mem(qe);
 		goto out;
+	}
 
 	/* Bind queue to specified class */
 	memset(qe, 0, sizeof(*qe));

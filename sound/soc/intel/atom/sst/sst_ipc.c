@@ -236,6 +236,17 @@ static void process_fw_init(struct intel_sst_drv *sst_drv_ctx,
 		retval = init->result;
 		goto ret;
 	}
+	dev_info(sst_drv_ctx->dev, "FW Version %02x.%02x.%02x.%02x\n",
+			init->fw_version.type, init->fw_version.major,
+			init->fw_version.minor, init->fw_version.build);
+	dev_dbg(sst_drv_ctx->dev, "Build date %s Time %s\n",
+			init->build_info.date, init->build_info.time);
+
+	/* Save FW version */
+	sst_drv_ctx->fw_version.type = init->fw_version.type;
+	sst_drv_ctx->fw_version.major = init->fw_version.major;
+	sst_drv_ctx->fw_version.minor = init->fw_version.minor;
+	sst_drv_ctx->fw_version.build = init->fw_version.build;
 
 ret:
 	sst_wake_up_block(sst_drv_ctx, retval, FW_DWNL_ID, 0 , NULL, 0);

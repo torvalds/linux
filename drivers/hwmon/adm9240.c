@@ -98,13 +98,15 @@ static inline unsigned int IN_FROM_REG(u8 reg, int n)
 
 static inline u8 IN_TO_REG(unsigned long val, int n)
 {
-	return clamp_val(SCALE(val, 192, nom_mv[n]), 0, 255);
+	val = clamp_val(val, 0, nom_mv[n] * 255 / 192);
+	return SCALE(val, 192, nom_mv[n]);
 }
 
 /* temperature range: -40..125, 127 disables temperature alarm */
 static inline s8 TEMP_TO_REG(long val)
 {
-	return clamp_val(SCALE(val, 1, 1000), -40, 127);
+	val = clamp_val(val, -40000, 127000);
+	return SCALE(val, 1, 1000);
 }
 
 /* two fans, each with low fan speed limit */
@@ -122,7 +124,8 @@ static inline unsigned int FAN_FROM_REG(u8 reg, u8 div)
 /* analog out 0..1250mV */
 static inline u8 AOUT_TO_REG(unsigned long val)
 {
-	return clamp_val(SCALE(val, 255, 1250), 0, 255);
+	val = clamp_val(val, 0, 1250);
+	return SCALE(val, 255, 1250);
 }
 
 static inline unsigned int AOUT_FROM_REG(u8 reg)
@@ -194,10 +197,10 @@ static struct adm9240_data *adm9240_update_device(struct device *dev)
 		 * 0.5'C per two measurement cycles thus ignore possible
 		 * but unlikely aliasing error on lsb reading. --Grant
 		 */
-		data->temp = ((i2c_smbus_read_byte_data(client,
+		data->temp = (i2c_smbus_read_byte_data(client,
 					ADM9240_REG_TEMP) << 8) |
 					i2c_smbus_read_byte_data(client,
-					ADM9240_REG_TEMP_CONF)) / 128;
+					ADM9240_REG_TEMP_CONF);
 
 		for (i = 0; i < 2; i++) { /* read fans */
 			data->fan[i] = i2c_smbus_read_byte_data(client,
@@ -263,7 +266,7 @@ static ssize_t show_temp(struct device *dev, struct device_attribute *dummy,
 		char *buf)
 {
 	struct adm9240_data *data = adm9240_update_device(dev);
-	return sprintf(buf, "%d\n", data->temp * 500); /* 9-bit value */
+	return sprintf(buf, "%d\n", data->temp / 128 * 500); /* 9-bit value */
 }
 
 static ssize_t show_max(struct device *dev, struct device_attribute *devattr,

@@ -91,7 +91,11 @@
  */
 #define LOAD_HANDLER(reg, label)					\
 	ld	reg,PACAKBASE(r13);	/* get high part of &label */	\
-	ori	reg,reg,(FIXED_SYMBOL_ABS_ADDR(label))@l;
+	ori	reg,reg,FIXED_SYMBOL_ABS_ADDR(label);
+
+#define __LOAD_HANDLER(reg, label)					\
+	ld	reg,PACAKBASE(r13);					\
+	ori	reg,reg,(ABS_ADDR(label))@l;
 
 /* Exception register prefixes */
 #define EXC_HV	H
@@ -154,13 +158,16 @@ BEGIN_FTR_SECTION_NESTED(943)						\
 	std	ra,offset(r13);						\
 END_FTR_SECTION_NESTED(ftr,ftr,943)
 
-#define EXCEPTION_PROLOG_0(area)					\
-	GET_PACA(r13);							\
+#define EXCEPTION_PROLOG_0_PACA(area)					\
 	std	r9,area+EX_R9(r13);	/* save r9 */			\
 	OPT_GET_SPR(r9, SPRN_PPR, CPU_FTR_HAS_PPR);			\
 	HMT_MEDIUM;							\
 	std	r10,area+EX_R10(r13);	/* save r10 - r12 */		\
 	OPT_GET_SPR(r10, SPRN_CFAR, CPU_FTR_CFAR)
+
+#define EXCEPTION_PROLOG_0(area)					\
+	GET_PACA(r13);							\
+	EXCEPTION_PROLOG_0_PACA(area)
 
 #define __EXCEPTION_PROLOG_1(area, extra, vec)				\
 	OPT_SAVE_REG_TO_PACA(area+EX_PPR, r9, CPU_FTR_HAS_PPR);		\
@@ -192,6 +199,12 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 	EXCEPTION_PROLOG_1(area, extra, vec);				\
 	EXCEPTION_PROLOG_PSERIES_1(label, h);
 
+/* Have the PACA in r13 already */
+#define EXCEPTION_PROLOG_PSERIES_PACA(area, label, h, extra, vec)	\
+	EXCEPTION_PROLOG_0_PACA(area);					\
+	EXCEPTION_PROLOG_1(area, extra, vec);				\
+	EXCEPTION_PROLOG_PSERIES_1(label, h);
+
 #define __KVMTEST(h, n)							\
 	lbz	r10,HSTATE_IN_GUEST(r13);				\
 	cmpwi	r10,0;							\
@@ -206,6 +219,18 @@ END_FTR_SECTION_NESTED(ftr,ftr,943)
 #define kvmppc_interrupt kvmppc_interrupt_hv
 #else
 #define kvmppc_interrupt kvmppc_interrupt_pr
+#endif
+
+#ifdef CONFIG_RELOCATABLE
+#define BRANCH_TO_COMMON(reg, label)					\
+	__LOAD_HANDLER(reg, label);					\
+	mtctr	reg;							\
+	bctr
+
+#else
+#define BRANCH_TO_COMMON(reg, label)					\
+	b	label
+
 #endif
 
 #define __KVM_HANDLER_PROLOG(area, n)					\

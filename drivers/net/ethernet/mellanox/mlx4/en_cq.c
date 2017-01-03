@@ -65,7 +65,7 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	cq->buf_size = cq->size * mdev->dev->caps.cqe_size;
 
 	cq->ring = ring;
-	cq->is_tx = mode;
+	cq->type = mode;
 	cq->vector = mdev->dev->caps.num_comp_vectors;
 
 	/* Allocate HW buffers on provided NUMA node.
@@ -104,7 +104,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	*cq->mcq.arm_db    = 0;
 	memset(cq->buf, 0, cq->buf_size);
 
-	if (cq->is_tx == RX) {
+	if (cq->type == RX) {
 		if (!mlx4_is_eq_vector_valid(mdev->dev, priv->port,
 					     cq->vector)) {
 			cq->vector = cpumask_first(priv->rx_ring[cq->ring]->affinity_mask);
@@ -133,11 +133,11 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 		cq->vector = rx_cq->vector;
 	}
 
-	if (!cq->is_tx)
+	if (cq->type == RX)
 		cq->size = priv->rx_ring[cq->ring]->actual_size;
 
-	if ((cq->is_tx && priv->hwtstamp_config.tx_type) ||
-	    (!cq->is_tx && priv->hwtstamp_config.rx_filter))
+	if ((cq->type != RX && priv->hwtstamp_config.tx_type) ||
+	    (cq->type == RX && priv->hwtstamp_config.rx_filter))
 		timestamp_en = 1;
 
 	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt,
@@ -146,10 +146,10 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	if (err)
 		goto free_eq;
 
-	cq->mcq.comp  = cq->is_tx ? mlx4_en_tx_irq : mlx4_en_rx_irq;
+	cq->mcq.comp  = cq->type != RX ? mlx4_en_tx_irq : mlx4_en_rx_irq;
 	cq->mcq.event = mlx4_en_cq_event;
 
-	if (cq->is_tx)
+	if (cq->type != RX)
 		netif_tx_napi_add(cq->dev, &cq->napi, mlx4_en_poll_tx_cq,
 				  NAPI_POLL_WEIGHT);
 	else
@@ -173,7 +173,7 @@ void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq)
 
 	mlx4_free_hwq_res(mdev->dev, &cq->wqres, cq->buf_size);
 	if (mlx4_is_eq_vector_valid(mdev->dev, priv->port, cq->vector) &&
-	    cq->is_tx == RX)
+	    cq->type == RX)
 		mlx4_release_eq(priv->mdev->dev, cq->vector);
 	cq->vector = 0;
 	cq->buf_size = 0;
@@ -185,10 +185,6 @@ void mlx4_en_destroy_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq **pcq)
 void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq)
 {
 	napi_disable(&cq->napi);
-	if (!cq->is_tx) {
-		napi_hash_del(&cq->napi);
-		synchronize_rcu();
-	}
 	netif_napi_del(&cq->napi);
 
 	mlx4_cq_free(priv->mdev->dev, &cq->mcq);

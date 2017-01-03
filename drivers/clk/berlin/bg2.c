@@ -685,7 +685,7 @@ static void __init berlin2_clock_setup(struct device_node *np)
 	}
 
 	/* register clk-provider */
-	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, &clk_data);
+	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
 
 	return;
 

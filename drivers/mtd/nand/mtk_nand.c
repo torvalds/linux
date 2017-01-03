@@ -1297,7 +1297,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 
 	ret = nand_scan_ident(mtd, nsels, NULL);
 	if (ret)
-		return -ENODEV;
+		return ret;
 
 	/* store bbt magic in page, cause OOB is not protected */
 	if (nand->bbt_options & NAND_BBT_USE_FLASH)
@@ -1323,7 +1323,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 
 	ret = nand_scan_tail(mtd);
 	if (ret)
-		return -ENODEV;
+		return ret;
 
 	ret = mtd_device_parse_register(mtd, NULL, NULL, NULL, 0);
 	if (ret) {

@@ -143,13 +143,13 @@ static ssize_t target_core_item_dbroot_store(struct config_item *item,
 		pr_err("db_root: cannot open: %s\n", db_root_stage);
 		return -EINVAL;
 	}
-	if (!S_ISDIR(fp->f_inode->i_mode)) {
-		filp_close(fp, 0);
+	if (!S_ISDIR(file_inode(fp)->i_mode)) {
+		filp_close(fp, NULL);
 		mutex_unlock(&g_tf_lock);
 		pr_err("db_root: not a directory: %s\n", db_root_stage);
 		return -EINVAL;
 	}
-	filp_close(fp, 0);
+	filp_close(fp, NULL);
 
 	strncpy(db_root, db_root_stage, read_bytes);
 

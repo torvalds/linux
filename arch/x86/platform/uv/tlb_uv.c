@@ -19,7 +19,6 @@
 #include <asm/uv/uv_hub.h>
 #include <asm/uv/uv_bau.h>
 #include <asm/apic.h>
-#include <asm/idle.h>
 #include <asm/tsc.h>
 #include <asm/irq_vectors.h>
 #include <asm/timer.h>

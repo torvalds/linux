@@ -575,8 +575,11 @@ void ipoib_mcast_join_task(struct work_struct *work)
 	if (!test_bit(IPOIB_FLAG_OPER_UP, &priv->flags))
 		return;
 
-	if (ib_query_port(priv->ca, priv->port, &port_attr) ||
-	    port_attr.state != IB_PORT_ACTIVE) {
+	if (ib_query_port(priv->ca, priv->port, &port_attr)) {
+		ipoib_dbg(priv, "ib_query_port() failed\n");
+		return;
+	}
+	if (port_attr.state != IB_PORT_ACTIVE) {
 		ipoib_dbg(priv, "port state is not ACTIVE (state = %d) suspending join task\n",
 			  port_attr.state);
 		return;
@@ -796,9 +799,11 @@ void ipoib_mcast_send(struct net_device *dev, u8 *daddr, struct sk_buff *skb)
 			__ipoib_mcast_add(dev, mcast);
 			list_add_tail(&mcast->list, &priv->multicast_list);
 		}
-		if (skb_queue_len(&mcast->pkt_queue) < IPOIB_MAX_MCAST_QUEUE)
+		if (skb_queue_len(&mcast->pkt_queue) < IPOIB_MAX_MCAST_QUEUE) {
+			/* put pseudoheader back on for next time */
+			skb_push(skb, sizeof(struct ipoib_pseudo_header));
 			skb_queue_tail(&mcast->pkt_queue, skb);
-		else {
+		} else {
 			++dev->stats.tx_dropped;
 			dev_kfree_skb_any(skb);
 		}

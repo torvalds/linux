@@ -476,7 +476,6 @@ enum {
 enum {
 	MLX4_INTERFACE_STATE_UP		= 1 << 0,
 	MLX4_INTERFACE_STATE_DELETION	= 1 << 1,
-	MLX4_INTERFACE_STATE_SHUTDOWN	= 1 << 2,
 };
 
 #define MSTR_SM_CHANGE_MASK (MLX4_EQ_PORT_INFO_MSTR_SM_SL_CHANGE_MASK | \
@@ -1399,7 +1398,8 @@ void mlx4_fmr_unmap(struct mlx4_dev *dev, struct mlx4_fmr *fmr,
 		    u32 *lkey, u32 *rkey);
 int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr);
 int mlx4_SYNC_TPT(struct mlx4_dev *dev);
-int mlx4_test_interrupts(struct mlx4_dev *dev);
+int mlx4_test_interrupt(struct mlx4_dev *dev, int vector);
+int mlx4_test_async(struct mlx4_dev *dev);
 int mlx4_query_diag_counters(struct mlx4_dev *dev, u8 op_modifier,
 			     const u32 offset[], u32 value[],
 			     size_t array_len, u8 port);
@@ -1460,7 +1460,7 @@ int mlx4_get_roce_gid_from_slave(struct mlx4_dev *dev, int port, int slave_id,
 int mlx4_FLOW_STEERING_IB_UC_QP_RANGE(struct mlx4_dev *dev, u32 min_range_qpn,
 				      u32 max_range_qpn);
 
-cycle_t mlx4_read_clock(struct mlx4_dev *dev);
+u64 mlx4_read_clock(struct mlx4_dev *dev);
 
 struct mlx4_active_ports {
 	DECLARE_BITMAP(ports, MLX4_MAX_PORTS);

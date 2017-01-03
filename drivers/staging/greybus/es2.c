@@ -175,10 +175,9 @@ static int output_sync(struct es2_ap_dev *es2, void *req, u16 size, u8 cmd)
 	u8 *data;
 	int retval;
 
-	data = kmalloc(size, GFP_KERNEL);
+	data = kmemdup(req, size, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
-	memcpy(data, req, size);
 
 	retval = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 cmd,
@@ -1034,7 +1033,7 @@ static struct arpc *arpc_alloc(void *payload, u16 size, u8 type)
 		goto err_free_req;
 
 	rpc->req->type = type;
-	rpc->req->size = cpu_to_le16(sizeof(rpc->req) + size);
+	rpc->req->size = cpu_to_le16(sizeof(*rpc->req) + size);
 	memcpy(rpc->req->data, payload, size);
 
 	init_completion(&rpc->response_received);
@@ -1250,7 +1249,7 @@ static int apb_log_poll(void *data)
 static ssize_t apb_log_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 	ssize_t ret;
 	size_t copied;
 	char *tmp_buf;
@@ -1304,7 +1303,7 @@ static void usb_log_disable(struct es2_ap_dev *es2)
 static ssize_t apb_log_enable_read(struct file *f, char __user *buf,
 				size_t count, loff_t *ppos)
 {
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 	int enable = !IS_ERR_OR_NULL(es2->apb_log_task);
 	char tmp_buf[3];
 
@@ -1317,7 +1316,7 @@ static ssize_t apb_log_enable_write(struct file *f, const char __user *buf,
 {
 	int enable;
 	ssize_t retval;
-	struct es2_ap_dev *es2 = f->f_inode->i_private;
+	struct es2_ap_dev *es2 = file_inode(f)->i_private;
 
 	retval = kstrtoint_from_user(buf, count, 10, &enable);
 	if (retval)
@@ -1548,7 +1547,8 @@ static int ap_probe(struct usb_interface *interface,
 	INIT_LIST_HEAD(&es2->arpcs);
 	spin_lock_init(&es2->arpc_lock);
 
-	if (es2_arpc_in_enable(es2))
+	retval = es2_arpc_in_enable(es2);
+	if (retval)
 		goto error;
 
 	retval = gb_hd_add(hd);

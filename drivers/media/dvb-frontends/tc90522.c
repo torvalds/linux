@@ -656,7 +656,7 @@ tc90522_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	for (i = 0; i < num; i++)
 		if (msgs[i].flags & I2C_M_RD)
 			rd_num++;
-	new_msgs = kmalloc(sizeof(*new_msgs) * (num + rd_num), GFP_KERNEL);
+	new_msgs = kmalloc_array(num + rd_num, sizeof(*new_msgs), GFP_KERNEL);
 	if (!new_msgs)
 		return -ENOMEM;
 
@@ -794,14 +794,13 @@ static int tc90522_probe(struct i2c_client *client,
 	i2c_set_adapdata(adap, state);
 	ret = i2c_add_adapter(adap);
 	if (ret < 0)
-		goto err;
+		goto free_state;
 	cfg->tuner_i2c = state->cfg.tuner_i2c = adap;
 
 	i2c_set_clientdata(client, &state->cfg);
 	dev_info(&client->dev, "Toshiba TC90522 attached.\n");
 	return 0;
-
-err:
+free_state:
 	kfree(state);
 	return ret;
 }

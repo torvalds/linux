@@ -68,6 +68,36 @@ static void mv_desc_init(struct mv_xor_desc_slot *desc,
 	hw_desc->byte_count = byte_count;
 }
 
+/* Populate the descriptor */
+static void mv_xor_config_sg_ll_desc(struct mv_xor_desc_slot *desc,
+				     dma_addr_t dma_src, dma_addr_t dma_dst,
+				     u32 len, struct mv_xor_desc_slot *prev)
+{
+	struct mv_xor_desc *hw_desc = desc->hw_desc;
+
+	hw_desc->status = XOR_DESC_DMA_OWNED;
+	hw_desc->phy_next_desc = 0;
+	/* Configure for XOR with only one src address -> MEMCPY */
+	hw_desc->desc_command = XOR_DESC_OPERATION_XOR | (0x1 << 0);
+	hw_desc->phy_dest_addr = dma_dst;
+	hw_desc->phy_src_addr[0] = dma_src;
+	hw_desc->byte_count = len;
+
+	if (prev) {
+		struct mv_xor_desc *hw_prev = prev->hw_desc;
+
+		hw_prev->phy_next_desc = desc->async_tx.phys;
+	}
+}
+
+static void mv_xor_desc_config_eod(struct mv_xor_desc_slot *desc)
+{
+	struct mv_xor_desc *hw_desc = desc->hw_desc;
+
+	/* Enable end-of-descriptor interrupt */
+	hw_desc->desc_command |= XOR_DESC_EOD_INT_EN;
+}
+
 static void mv_desc_set_mode(struct mv_xor_desc_slot *desc)
 {
 	struct mv_xor_desc *hw_desc = desc->hw_desc;
@@ -228,8 +258,13 @@ mv_chan_clean_completed_slots(struct mv_xor_chan *mv_chan)
 	list_for_each_entry_safe(iter, _iter, &mv_chan->completed_slots,
 				 node) {
 
-		if (async_tx_test_ack(&iter->async_tx))
+		if (async_tx_test_ack(&iter->async_tx)) {
 			list_move_tail(&iter->node, &mv_chan->free_slots);
+			if (!list_empty(&iter->sg_tx_list)) {
+				list_splice_tail_init(&iter->sg_tx_list,
+							&mv_chan->free_slots);
+			}
+		}
 	}
 	return 0;
 }
@@ -244,11 +279,20 @@ mv_desc_clean_slot(struct mv_xor_desc_slot *desc,
 	/* the client is allowed to attach dependent operations
 	 * until 'ack' is set
 	 */
-	if (!async_tx_test_ack(&desc->async_tx))
+	if (!async_tx_test_ack(&desc->async_tx)) {
 		/* move this slot to the completed_slots */
 		list_move_tail(&desc->node, &mv_chan->completed_slots);
-	else
+		if (!list_empty(&desc->sg_tx_list)) {
+			list_splice_tail_init(&desc->sg_tx_list,
+					      &mv_chan->completed_slots);
+		}
+	} else {
 		list_move_tail(&desc->node, &mv_chan->free_slots);
+		if (!list_empty(&desc->sg_tx_list)) {
+			list_splice_tail_init(&desc->sg_tx_list,
+					      &mv_chan->free_slots);
+		}
+	}
 
 	return 0;
 }
@@ -450,6 +494,7 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 		dma_async_tx_descriptor_init(&slot->async_tx, chan);
 		slot->async_tx.tx_submit = mv_xor_tx_submit;
 		INIT_LIST_HEAD(&slot->node);
+		INIT_LIST_HEAD(&slot->sg_tx_list);
 		dma_desc = mv_chan->dma_desc_pool;
 		slot->async_tx.phys = dma_desc + idx * MV_XOR_SLOT_SIZE;
 		slot->idx = idx++;
@@ -615,6 +660,132 @@ mv_xor_prep_dma_interrupt(struct dma_chan *chan, unsigned long flags)
 	 * XOR operation with a single dummy source address.
 	 */
 	return mv_xor_prep_dma_xor(chan, dest, &src, 1, len, flags);
+}
+
+/**
+ * mv_xor_prep_dma_sg - prepare descriptors for a memory sg transaction
+ * @chan: DMA channel
+ * @dst_sg: Destination scatter list
+ * @dst_sg_len: Number of entries in destination scatter list
+ * @src_sg: Source scatter list
+ * @src_sg_len: Number of entries in source scatter list
+ * @flags: transfer ack flags
+ *
+ * Return: Async transaction descriptor on success and NULL on failure
+ */
+static struct dma_async_tx_descriptor *
+mv_xor_prep_dma_sg(struct dma_chan *chan, struct scatterlist *dst_sg,
+		   unsigned int dst_sg_len, struct scatterlist *src_sg,
+		   unsigned int src_sg_len, unsigned long flags)
+{
+	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
+	struct mv_xor_desc_slot *new;
+	struct mv_xor_desc_slot *first = NULL;
+	struct mv_xor_desc_slot *prev = NULL;
+	size_t len, dst_avail, src_avail;
+	dma_addr_t dma_dst, dma_src;
+	int desc_cnt = 0;
+	int ret;
+
+	dev_dbg(mv_chan_to_devp(mv_chan),
+		"%s dst_sg_len: %d src_sg_len: %d flags: %ld\n",
+		__func__, dst_sg_len, src_sg_len, flags);
+
+	dst_avail = sg_dma_len(dst_sg);
+	src_avail = sg_dma_len(src_sg);
+
+	/* Run until we are out of scatterlist entries */
+	while (true) {
+		/* Allocate and populate the descriptor */
+		desc_cnt++;
+		new = mv_chan_alloc_slot(mv_chan);
+		if (!new) {
+			dev_err(mv_chan_to_devp(mv_chan),
+				"Out of descriptors (desc_cnt=%d)!\n",
+				desc_cnt);
+			goto err;
+		}
+
+		len = min_t(size_t, src_avail, dst_avail);
+		len = min_t(size_t, len, MV_XOR_MAX_BYTE_COUNT);
+		if (len == 0)
+			goto fetch;
+
+		if (len < MV_XOR_MIN_BYTE_COUNT) {
+			dev_err(mv_chan_to_devp(mv_chan),
+				"Transfer size of %zu too small!\n", len);
+			goto err;
+		}
+
+		dma_dst = sg_dma_address(dst_sg) + sg_dma_len(dst_sg) -
+			dst_avail;
+		dma_src = sg_dma_address(src_sg) + sg_dma_len(src_sg) -
+			src_avail;
+
+		/* Check if a new window needs to get added for 'dst' */
+		ret = mv_xor_add_io_win(mv_chan, dma_dst);
+		if (ret)
+			goto err;
+
+		/* Check if a new window needs to get added for 'src' */
+		ret = mv_xor_add_io_win(mv_chan, dma_src);
+		if (ret)
+			goto err;
+
+		/* Populate the descriptor */
+		mv_xor_config_sg_ll_desc(new, dma_src, dma_dst, len, prev);
+		prev = new;
+		dst_avail -= len;
+		src_avail -= len;
+
+		if (!first)
+			first = new;
+		else
+			list_move_tail(&new->node, &first->sg_tx_list);
+
+fetch:
+		/* Fetch the next dst scatterlist entry */
+		if (dst_avail == 0) {
+			if (dst_sg_len == 0)
+				break;
+
+			/* Fetch the next entry: if there are no more: done */
+			dst_sg = sg_next(dst_sg);
+			if (dst_sg == NULL)
+				break;
+
+			dst_sg_len--;
+			dst_avail = sg_dma_len(dst_sg);
+		}
+
+		/* Fetch the next src scatterlist entry */
+		if (src_avail == 0) {
+			if (src_sg_len == 0)
+				break;
+
+			/* Fetch the next entry: if there are no more: done */
+			src_sg = sg_next(src_sg);
+			if (src_sg == NULL)
+				break;
+
+			src_sg_len--;
+			src_avail = sg_dma_len(src_sg);
+		}
+	}
+
+	/* Set the EOD flag in the last descriptor */
+	mv_xor_desc_config_eod(new);
+	first->async_tx.flags = flags;
+
+	return &first->async_tx;
+
+err:
+	/* Cleanup: Move all descriptors back into the free list */
+	spin_lock_bh(&mv_chan->lock);
+	mv_desc_clean_slot(first, mv_chan);
+	spin_unlock_bh(&mv_chan->lock);
+
+	return NULL;
 }
 
 static void mv_xor_free_chan_resources(struct dma_chan *chan)
@@ -1083,6 +1254,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 		dma_dev->device_prep_dma_interrupt = mv_xor_prep_dma_interrupt;
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask))
 		dma_dev->device_prep_dma_memcpy = mv_xor_prep_dma_memcpy;
+	if (dma_has_cap(DMA_SG, dma_dev->cap_mask))
+		dma_dev->device_prep_dma_sg = mv_xor_prep_dma_sg;
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		dma_dev->max_xor = 8;
 		dma_dev->device_prep_dma_xor = mv_xor_prep_dma_xor;
@@ -1132,10 +1305,11 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 			goto err_free_irq;
 	}
 
-	dev_info(&pdev->dev, "Marvell XOR (%s): ( %s%s%s)\n",
+	dev_info(&pdev->dev, "Marvell XOR (%s): ( %s%s%s%s)\n",
 		 mv_chan->op_in_desc ? "Descriptor Mode" : "Registers Mode",
 		 dma_has_cap(DMA_XOR, dma_dev->cap_mask) ? "xor " : "",
 		 dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask) ? "cpy " : "",
+		 dma_has_cap(DMA_SG, dma_dev->cap_mask) ? "sg " : "",
 		 dma_has_cap(DMA_INTERRUPT, dma_dev->cap_mask) ? "intr " : "");
 
 	dma_async_device_register(dma_dev);
@@ -1378,6 +1552,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 
 			dma_cap_zero(cap_mask);
 			dma_cap_set(DMA_MEMCPY, cap_mask);
+			dma_cap_set(DMA_SG, cap_mask);
 			dma_cap_set(DMA_XOR, cap_mask);
 			dma_cap_set(DMA_INTERRUPT, cap_mask);
 
@@ -1455,12 +1630,7 @@ static struct platform_driver mv_xor_driver = {
 	},
 };
 
-
-static int __init mv_xor_init(void)
-{
-	return platform_driver_register(&mv_xor_driver);
-}
-device_initcall(mv_xor_init);
+builtin_platform_driver(mv_xor_driver);
 
 /*
 MODULE_AUTHOR("Saeed Bishara <saeed@marvell.com>");

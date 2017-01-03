@@ -91,9 +91,7 @@ void pvr2_saa7115_subdev_update(struct pvr2_hdw *hdw, struct v4l2_subdev *sd)
 		    (hdw->input_val < 0) ||
 		    (hdw->input_val >= sp->cnt)) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "*** WARNING *** subdev v4l2 set_input:"
-				   " Invalid routing scheme (%u)"
-				   " and/or input (%d)",
+				   "*** WARNING *** subdev v4l2 set_input: Invalid routing scheme (%u) and/or input (%d)",
 				   sid, hdw->input_val);
 			return;
 		}

@@ -121,9 +121,9 @@ void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
 	}
 	if (!name)
 		name = "No sensor name available";
-	EFX_BUG_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
+	EFX_WARN_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
 	state_txt = sensor_status_names[state];
-	EFX_BUG_ON_PARANOID(hwmon_type >= EFX_HWMON_TYPES_COUNT);
+	EFX_WARN_ON_PARANOID(hwmon_type >= EFX_HWMON_TYPES_COUNT);
 	unit = efx_hwmon_unit[hwmon_type];
 	if (!unit)
 		unit = "";

@@ -66,7 +66,7 @@ static const struct cz_power_state *cast_const_PhwCzPowerState(
 	return (struct cz_power_state *)hw_ps;
 }
 
-uint32_t cz_get_eclk_level(struct pp_hwmgr *hwmgr,
+static uint32_t cz_get_eclk_level(struct pp_hwmgr *hwmgr,
 					uint32_t clock, uint32_t msg)
 {
 	int i = 0;
@@ -1017,7 +1017,7 @@ static int cz_tf_program_bootup_state(struct pp_hwmgr *hwmgr, void *input,
 	return 0;
 }
 
-int cz_tf_reset_acp_boot_level(struct pp_hwmgr *hwmgr, void *input,
+static int cz_tf_reset_acp_boot_level(struct pp_hwmgr *hwmgr, void *input,
 				void *output, void *storage, int result)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
@@ -1225,7 +1225,7 @@ static int cz_hwmgr_backend_fini(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int cz_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
+static int cz_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -1239,7 +1239,7 @@ int cz_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
+static int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 	struct phm_clock_voltage_dependency_table *table =
@@ -1277,7 +1277,7 @@ int cz_phm_unforce_dpm_levels(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
+static int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
@@ -1533,7 +1533,7 @@ static int cz_dpm_get_pp_table_entry(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-int cz_get_power_state_size(struct pp_hwmgr *hwmgr)
+static int cz_get_power_state_size(struct pp_hwmgr *hwmgr)
 {
 	return sizeof(struct cz_power_state);
 }
@@ -1785,6 +1785,21 @@ static int cz_get_max_high_clocks(struct pp_hwmgr *hwmgr, struct amd_pp_simple_c
 	return 0;
 }
 
+static int cz_thermal_get_temperature(struct pp_hwmgr *hwmgr)
+{
+	int actual_temp = 0;
+	uint32_t val = cgs_read_ind_register(hwmgr->device,
+					     CGS_IND_REG__SMC, ixTHM_TCON_CUR_TMP);
+	uint32_t temp = PHM_GET_FIELD(val, THM_TCON_CUR_TMP, CUR_TEMP);
+
+	if (PHM_GET_FIELD(val, THM_TCON_CUR_TMP, CUR_TEMP_RANGE_SEL))
+		actual_temp = ((temp / 8) - 49) * PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	else
+		actual_temp = (temp / 8) * PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
+
+	return actual_temp;
+}
+
 static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
@@ -1880,6 +1895,9 @@ static int cz_read_sensor(struct pp_hwmgr *hwmgr, int idx, int32_t *value)
 		return 0;
 	case AMDGPU_PP_SENSOR_VCE_POWER:
 		*value = cz_hwmgr->vce_power_gated ? 0 : 1;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*value = cz_thermal_get_temperature(hwmgr);
 		return 0;
 	default:
 		return -EINVAL;

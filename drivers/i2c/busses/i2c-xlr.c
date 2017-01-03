@@ -358,6 +358,7 @@ static const struct of_device_id xlr_i2c_dt_ids[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, xlr_i2c_dt_ids);
 
 static int xlr_i2c_probe(struct platform_device *pdev)
 {

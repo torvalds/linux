@@ -93,7 +93,7 @@ const struct uniphier_clk_data uniphier_sld3_mio_clk_data[] = {
 	{ /* sentinel */ }
 };
 
-const struct uniphier_clk_data uniphier_pro5_mio_clk_data[] = {
+const struct uniphier_clk_data uniphier_pro5_sd_clk_data[] = {
 	UNIPHIER_MIO_CLK_SD_FIXED,
 	UNIPHIER_MIO_CLK_SD(0, 0),
 	UNIPHIER_MIO_CLK_SD(1, 1),

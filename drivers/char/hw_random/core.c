@@ -43,7 +43,7 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/err.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 
 #define RNG_MODULE_NAME		"hw_random"
@@ -84,14 +84,15 @@ static size_t rng_buffer_size(void)
 
 static void add_early_randomness(struct hwrng *rng)
 {
-	unsigned char bytes[16];
 	int bytes_read;
+	size_t size = min_t(size_t, 16, rng_buffer_size());
 
 	mutex_lock(&reading_mutex);
-	bytes_read = rng_get_data(rng, bytes, sizeof(bytes), 1);
+	bytes_read = rng_get_data(rng, rng_buffer, size, 1);
 	mutex_unlock(&reading_mutex);
 	if (bytes_read > 0)
-		add_device_randomness(bytes, bytes_read);
+		add_device_randomness(rng_buffer, bytes_read);
+	memset(rng_buffer, 0, size);
 }
 
 static inline void cleanup_rng(struct kref *kref)
@@ -287,6 +288,7 @@ static ssize_t rng_dev_read(struct file *filp, char __user *buf,
 		}
 	}
 out:
+	memset(rng_buffer, 0, rng_buffer_size());
 	return ret ? : err;
 
 out_unlock_reading:
@@ -425,6 +427,7 @@ static int hwrng_fillfn(void *unused)
 		/* Outside lock, sure, but y'know: randomness. */
 		add_hwgenerator_randomness((void *)rng_fillbuf, rc,
 					   rc * current_quality * 8 >> 10);
+		memset(rng_fillbuf, 0, rng_buffer_size());
 	}
 	hwrng_fill = NULL;
 	return 0;

@@ -86,8 +86,11 @@ static int __afu_open(struct inode *inode, struct file *file, bool master)
 		goto err_put_afu;
 	}
 
-	if ((rc = cxl_context_init(ctx, afu, master, inode->i_mapping)))
+	rc = cxl_context_init(ctx, afu, master);
+	if (rc)
 		goto err_put_afu;
+
+	cxl_context_set_mapping(ctx, inode->i_mapping);
 
 	pr_devel("afu_open pe: %i\n", ctx->pe);
 	file->private_data = ctx;
@@ -194,6 +197,16 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	ctx->mmio_err_ff = !!(work.flags & CXL_START_WORK_ERR_FF);
 
 	/*
+	 * Increment the mapped context count for adapter. This also checks
+	 * if adapter_context_lock is taken.
+	 */
+	rc = cxl_adapter_context_get(ctx->afu->adapter);
+	if (rc) {
+		afu_release_irqs(ctx, ctx);
+		goto out;
+	}
+
+	/*
 	 * We grab the PID here and not in the file open to allow for the case
 	 * where a process (master, some daemon, etc) has opened the chardev on
 	 * behalf of another process, so the AFU's mm gets bound to the process
@@ -205,11 +218,16 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 	ctx->pid = get_task_pid(current, PIDTYPE_PID);
 	ctx->glpid = get_task_pid(current->group_leader, PIDTYPE_PID);
 
+
 	trace_cxl_attach(ctx, work.work_element_descriptor, work.num_interrupts, amr);
 
 	if ((rc = cxl_ops->attach_process(ctx, false, work.work_element_descriptor,
 							amr))) {
 		afu_release_irqs(ctx, ctx);
+		cxl_adapter_context_put(ctx->afu->adapter);
+		put_pid(ctx->glpid);
+		put_pid(ctx->pid);
+		ctx->glpid = ctx->pid = NULL;
 		goto out;
 	}
 

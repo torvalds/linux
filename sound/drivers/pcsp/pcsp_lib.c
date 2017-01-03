@@ -166,7 +166,7 @@ static int pcsp_start_playing(struct snd_pcsp *chip)
 	atomic_set(&chip->timer_active, 1);
 	chip->thalf = 0;
 
-	hrtimer_start(&pcsp_chip.timer, ktime_set(0, 0), HRTIMER_MODE_REL);
+	hrtimer_start(&pcsp_chip.timer, 0, HRTIMER_MODE_REL);
 	return 0;
 }
 

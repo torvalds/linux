@@ -25,7 +25,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/dma-buf.h>
-#include <linux/fence.h>
+#include <linux/dma-fence.h>
 #include <linux/anon_inodes.h>
 #include <linux/export.h>
 #include <linux/debugfs.h>
@@ -124,7 +124,7 @@ static loff_t dma_buf_llseek(struct file *file, loff_t offset, int whence)
 	return base + offset;
 }
 
-static void dma_buf_poll_cb(struct fence *fence, struct fence_cb *cb)
+static void dma_buf_poll_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
 	struct dma_buf_poll_cb_t *dcb = (struct dma_buf_poll_cb_t *)cb;
 	unsigned long flags;
@@ -140,7 +140,7 @@ static unsigned int dma_buf_poll(struct file *file, poll_table *poll)
 	struct dma_buf *dmabuf;
 	struct reservation_object *resv;
 	struct reservation_object_list *fobj;
-	struct fence *fence_excl;
+	struct dma_fence *fence_excl;
 	unsigned long events;
 	unsigned shared_count, seq;
 
@@ -187,20 +187,20 @@ retry:
 		spin_unlock_irq(&dmabuf->poll.lock);
 
 		if (events & pevents) {
-			if (!fence_get_rcu(fence_excl)) {
+			if (!dma_fence_get_rcu(fence_excl)) {
 				/* force a recheck */
 				events &= ~pevents;
 				dma_buf_poll_cb(NULL, &dcb->cb);
-			} else if (!fence_add_callback(fence_excl, &dcb->cb,
-						       dma_buf_poll_cb)) {
+			} else if (!dma_fence_add_callback(fence_excl, &dcb->cb,
+							   dma_buf_poll_cb)) {
 				events &= ~pevents;
-				fence_put(fence_excl);
+				dma_fence_put(fence_excl);
 			} else {
 				/*
 				 * No callback queued, wake up any additional
 				 * waiters.
 				 */
-				fence_put(fence_excl);
+				dma_fence_put(fence_excl);
 				dma_buf_poll_cb(NULL, &dcb->cb);
 			}
 		}
@@ -222,9 +222,9 @@ retry:
 			goto out;
 
 		for (i = 0; i < shared_count; ++i) {
-			struct fence *fence = rcu_dereference(fobj->shared[i]);
+			struct dma_fence *fence = rcu_dereference(fobj->shared[i]);
 
-			if (!fence_get_rcu(fence)) {
+			if (!dma_fence_get_rcu(fence)) {
 				/*
 				 * fence refcount dropped to zero, this means
 				 * that fobj has been freed
@@ -235,13 +235,13 @@ retry:
 				dma_buf_poll_cb(NULL, &dcb->cb);
 				break;
 			}
-			if (!fence_add_callback(fence, &dcb->cb,
-						dma_buf_poll_cb)) {
-				fence_put(fence);
+			if (!dma_fence_add_callback(fence, &dcb->cb,
+						    dma_buf_poll_cb)) {
+				dma_fence_put(fence);
 				events &= ~POLLOUT;
 				break;
 			}
-			fence_put(fence);
+			dma_fence_put(fence);
 		}
 
 		/* No callback queued, wake up any additional waiters. */

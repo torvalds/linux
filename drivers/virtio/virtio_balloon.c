@@ -577,6 +577,8 @@ static int virtballoon_probe(struct virtio_device *vdev)
 
 	virtio_device_ready(vdev);
 
+	if (towards_target(vb))
+		virtballoon_changed(vdev);
 	return 0;
 
 out_del_vqs:

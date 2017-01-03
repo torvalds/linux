@@ -105,7 +105,7 @@ radeon_dp_aux_transfer_native(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg
 
 	tmp &= AUX_HPD_SEL(0x7);
 	tmp |= AUX_HPD_SEL(chan->rec.hpd);
-	tmp |= AUX_EN | AUX_LS_READ_EN | AUX_HPD_DISCON(0x1);
+	tmp |= AUX_EN | AUX_LS_READ_EN;
 
 	WREG32(AUX_CONTROL + aux_offset[instance], tmp);
 

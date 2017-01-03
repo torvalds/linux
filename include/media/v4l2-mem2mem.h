@@ -90,6 +90,9 @@ struct v4l2_m2m_queue_ctx {
  *		%TRANS_QUEUED, %TRANS_RUNNING and %TRANS_ABORT.
  * @finished: Wait queue used to signalize when a job queue finished.
  * @priv: Instance private data
+ *
+ * The memory to memory context is specific to a file handle, NOT to e.g.
+ * a device.
  */
 struct v4l2_m2m_ctx {
 	/* optional cap/out vb2 queues lock */

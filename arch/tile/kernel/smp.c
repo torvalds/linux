@@ -27,7 +27,7 @@
  * We write to width and height with a single store in head_NN.S,
  * so make the variable aligned to "long".
  */
-HV_Topology smp_topology __write_once __aligned(sizeof(long));
+HV_Topology smp_topology __ro_after_init __aligned(sizeof(long));
 EXPORT_SYMBOL(smp_topology);
 
 #if CHIP_HAS_IPI()

@@ -99,14 +99,11 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 			  "Method auto-serialization parse [%4.4s] %p\n",
 			  acpi_ut_get_node_name(node), node));
 
-	acpi_ex_enter_interpreter();
-
 	/* Create/Init a root op for the method parse tree */
 
 	op = acpi_ps_alloc_op(AML_METHOD_OP, obj_desc->method.aml_start);
 	if (!op) {
-		status = AE_NO_MEMORY;
-		goto unlock;
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	acpi_ps_set_name(op, node->name.integer);
@@ -118,8 +115,7 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	    acpi_ds_create_walk_state(node->owner_id, NULL, NULL, NULL);
 	if (!walk_state) {
 		acpi_ps_free_op(op);
-		status = AE_NO_MEMORY;
-		goto unlock;
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	status = acpi_ds_init_aml_walk(walk_state, op, node,
@@ -138,8 +134,6 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 	status = acpi_ps_parse_aml(walk_state);
 
 	acpi_ps_delete_parse_tree(op);
-unlock:
-	acpi_ex_exit_interpreter();
 	return_ACPI_STATUS(status);
 }
 
@@ -731,26 +725,6 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		acpi_ds_method_data_delete_all(walk_state);
 
 		/*
-		 * If method is serialized, release the mutex and restore the
-		 * current sync level for this thread
-		 */
-		if (method_desc->method.mutex) {
-
-			/* Acquisition Depth handles recursive calls */
-
-			method_desc->method.mutex->mutex.acquisition_depth--;
-			if (!method_desc->method.mutex->mutex.acquisition_depth) {
-				walk_state->thread->current_sync_level =
-				    method_desc->method.mutex->mutex.
-				    original_sync_level;
-
-				acpi_os_release_mutex(method_desc->method.
-						      mutex->mutex.os_mutex);
-				method_desc->method.mutex->mutex.thread_id = 0;
-			}
-		}
-
-		/*
 		 * Delete any namespace objects created anywhere within the
 		 * namespace by the execution of this method. Unless:
 		 * 1) This method is a module-level executable code method, in which
@@ -784,6 +758,26 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 				(void)acpi_ex_enter_interpreter();
 				method_desc->method.info_flags &=
 				    ~ACPI_METHOD_MODIFIED_NAMESPACE;
+			}
+		}
+
+		/*
+		 * If method is serialized, release the mutex and restore the
+		 * current sync level for this thread
+		 */
+		if (method_desc->method.mutex) {
+
+			/* Acquisition Depth handles recursive calls */
+
+			method_desc->method.mutex->mutex.acquisition_depth--;
+			if (!method_desc->method.mutex->mutex.acquisition_depth) {
+				walk_state->thread->current_sync_level =
+				    method_desc->method.mutex->mutex.
+				    original_sync_level;
+
+				acpi_os_release_mutex(method_desc->method.
+						      mutex->mutex.os_mutex);
+				method_desc->method.mutex->mutex.thread_id = 0;
 			}
 		}
 	}

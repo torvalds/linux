@@ -480,16 +480,6 @@ void wake_up_bit(void *word, int bit)
 }
 EXPORT_SYMBOL(wake_up_bit);
 
-wait_queue_head_t *bit_waitqueue(void *word, int bit)
-{
-	const int shift = BITS_PER_LONG == 32 ? 5 : 6;
-	const struct zone *zone = page_zone(virt_to_page(word));
-	unsigned long val = (unsigned long)word << shift | bit;
-
-	return &zone->wait_table[hash_long(val, zone->wait_table_bits)];
-}
-EXPORT_SYMBOL(bit_waitqueue);
-
 /*
  * Manipulate the atomic_t address to produce a better bit waitqueue table hash
  * index (we're keying off bit -1, but that would produce a horrible hash

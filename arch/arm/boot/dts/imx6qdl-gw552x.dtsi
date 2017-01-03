@@ -291,7 +291,7 @@
 				MX6QDL_PAD_KEY_COL1__UART5_TX_DATA	0x1b0b1
 				MX6QDL_PAD_KEY_ROW1__UART5_RX_DATA	0x1b0b1
 			>;
-                };
+		};
 
 		pinctrl_wdog: wdoggrp {
 			fsl,pins = <

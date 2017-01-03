@@ -30,6 +30,7 @@
 #define SW_OVERRIDE_MASK	BIT(2)
 #define HW_CONTROL_MASK		BIT(1)
 #define SW_COLLAPSE_MASK	BIT(0)
+#define GMEM_CLAMP_IO_MASK	BIT(0)
 
 /* Wait 2^n CXO cycles between all states. Here, n=2 (4 cycles). */
 #define EN_REST_WAIT_VAL	(0x2 << 20)
@@ -53,6 +54,13 @@ static int gdsc_is_enabled(struct gdsc *sc, unsigned int reg)
 		return ret;
 
 	return !!(val & PWR_ON_MASK);
+}
+
+static int gdsc_hwctrl(struct gdsc *sc, bool en)
+{
+	u32 val = en ? HW_CONTROL_MASK : 0;
+
+	return regmap_update_bits(sc->regmap, sc->gdscr, HW_CONTROL_MASK, val);
 }
 
 static int gdsc_toggle_logic(struct gdsc *sc, bool en)
@@ -140,6 +148,18 @@ static inline void gdsc_clear_mem_on(struct gdsc *sc)
 		regmap_update_bits(sc->regmap, sc->cxcs[i], mask, 0);
 }
 
+static inline void gdsc_deassert_clamp_io(struct gdsc *sc)
+{
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl,
+			   GMEM_CLAMP_IO_MASK, 0);
+}
+
+static inline void gdsc_assert_clamp_io(struct gdsc *sc)
+{
+	regmap_update_bits(sc->regmap, sc->clamp_io_ctrl,
+			   GMEM_CLAMP_IO_MASK, 1);
+}
+
 static int gdsc_enable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
@@ -147,6 +167,9 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_deassert_reset(sc);
+
+	if (sc->flags & CLAMP_IO)
+		gdsc_deassert_clamp_io(sc);
 
 	ret = gdsc_toggle_logic(sc, true);
 	if (ret)
@@ -164,20 +187,39 @@ static int gdsc_enable(struct generic_pm_domain *domain)
 	 */
 	udelay(1);
 
+	/* Turn on HW trigger mode if supported */
+	if (sc->flags & HW_CTRL)
+		return gdsc_hwctrl(sc, true);
+
 	return 0;
 }
 
 static int gdsc_disable(struct generic_pm_domain *domain)
 {
 	struct gdsc *sc = domain_to_gdsc(domain);
+	int ret;
 
 	if (sc->pwrsts == PWRSTS_ON)
 		return gdsc_assert_reset(sc);
 
+	/* Turn off HW trigger mode if supported */
+	if (sc->flags & HW_CTRL) {
+		ret = gdsc_hwctrl(sc, false);
+		if (ret < 0)
+			return ret;
+	}
+
 	if (sc->pwrsts & PWRSTS_OFF)
 		gdsc_clear_mem_on(sc);
 
-	return gdsc_toggle_logic(sc, false);
+	ret = gdsc_toggle_logic(sc, false);
+	if (ret)
+		return ret;
+
+	if (sc->flags & CLAMP_IO)
+		gdsc_assert_clamp_io(sc);
+
+	return 0;
 }
 
 static int gdsc_init(struct gdsc *sc)

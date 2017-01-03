@@ -31,7 +31,7 @@
 
 #include "fsyscall_gtod_data.h"
 
-static cycle_t itc_get_cycles(struct clocksource *cs);
+static u64 itc_get_cycles(struct clocksource *cs);
 
 struct fsyscall_gtod_data_t fsyscall_gtod_data;
 
@@ -68,7 +68,7 @@ void vtime_account_user(struct task_struct *tsk)
 
 	if (ti->ac_utime) {
 		delta_utime = cycle_to_cputime(ti->ac_utime);
-		account_user_time(tsk, delta_utime, delta_utime);
+		account_user_time(tsk, delta_utime);
 		ti->ac_utime = 0;
 	}
 }
@@ -112,7 +112,7 @@ void vtime_account_system(struct task_struct *tsk)
 {
 	cputime_t delta = vtime_delta(tsk);
 
-	account_system_time(tsk, 0, delta, delta);
+	account_system_time(tsk, 0, delta);
 }
 EXPORT_SYMBOL_GPL(vtime_account_system);
 
@@ -323,7 +323,7 @@ void ia64_init_itm(void)
 	}
 }
 
-static cycle_t itc_get_cycles(struct clocksource *cs)
+static u64 itc_get_cycles(struct clocksource *cs)
 {
 	unsigned long lcycle, now, ret;
 
@@ -397,7 +397,7 @@ void update_vsyscall_tz(void)
 }
 
 void update_vsyscall_old(struct timespec *wall, struct timespec *wtm,
-			 struct clocksource *c, u32 mult, cycle_t cycle_last)
+			 struct clocksource *c, u32 mult, u64 cycle_last)
 {
 	write_seqcount_begin(&fsyscall_gtod_data.seq);
 

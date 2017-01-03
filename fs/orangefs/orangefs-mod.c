@@ -124,7 +124,7 @@ static int __init orangefs_init(void)
 	 * unknown at boot time.
 	 *
 	 * orangefs_prepare_debugfs_help_string will be used again
-	 * later to rebuild the debug-help file after the client starts
+	 * later to rebuild the debug-help-string after the client starts
 	 * and passes along the needed info. The argument signifies
 	 * which time orangefs_prepare_debugfs_help_string is being
 	 * called.
@@ -152,7 +152,9 @@ static int __init orangefs_init(void)
 
 	ret = register_filesystem(&orangefs_fs_type);
 	if (ret == 0) {
-		pr_info("orangefs: module version %s loaded\n", ORANGEFS_VERSION);
+		pr_info("%s: module version %s loaded\n",
+			__func__,
+			ORANGEFS_VERSION);
 		ret = 0;
 		goto out;
 	}

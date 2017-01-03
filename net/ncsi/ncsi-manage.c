@@ -540,42 +540,86 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 		nd->state = ncsi_dev_state_suspend_select;
 		/* Fall through */
 	case ncsi_dev_state_suspend_select:
+		ndp->pending_req_num = 1;
+
+		nca.type = NCSI_PKT_CMD_SP;
+		nca.package = np->id;
+		nca.channel = NCSI_RESERVED_CHANNEL;
+		if (ndp->flags & NCSI_DEV_HWA)
+			nca.bytes[0] = 0;
+		else
+			nca.bytes[0] = 1;
+
+		/* To retrieve the last link states of channels in current
+		 * package when current active channel needs fail over to
+		 * another one. It means we will possibly select another
+		 * channel as next active one. The link states of channels
+		 * are most important factor of the selection. So we need
+		 * accurate link states. Unfortunately, the link states on
+		 * inactive channels can't be updated with LSC AEN in time.
+		 */
+		if (ndp->flags & NCSI_DEV_RESHUFFLE)
+			nd->state = ncsi_dev_state_suspend_gls;
+		else
+			nd->state = ncsi_dev_state_suspend_dcnt;
+		ret = ncsi_xmit_cmd(&nca);
+		if (ret)
+			goto error;
+
+		break;
+	case ncsi_dev_state_suspend_gls:
+		ndp->pending_req_num = np->channel_num;
+
+		nca.type = NCSI_PKT_CMD_GLS;
+		nca.package = np->id;
+
+		nd->state = ncsi_dev_state_suspend_dcnt;
+		NCSI_FOR_EACH_CHANNEL(np, nc) {
+			nca.channel = nc->id;
+			ret = ncsi_xmit_cmd(&nca);
+			if (ret)
+				goto error;
+		}
+
+		break;
 	case ncsi_dev_state_suspend_dcnt:
+		ndp->pending_req_num = 1;
+
+		nca.type = NCSI_PKT_CMD_DCNT;
+		nca.package = np->id;
+		nca.channel = nc->id;
+
+		nd->state = ncsi_dev_state_suspend_dc;
+		ret = ncsi_xmit_cmd(&nca);
+		if (ret)
+			goto error;
+
+		break;
 	case ncsi_dev_state_suspend_dc:
+		ndp->pending_req_num = 1;
+
+		nca.type = NCSI_PKT_CMD_DC;
+		nca.package = np->id;
+		nca.channel = nc->id;
+		nca.bytes[0] = 1;
+
+		nd->state = ncsi_dev_state_suspend_deselect;
+		ret = ncsi_xmit_cmd(&nca);
+		if (ret)
+			goto error;
+
+		break;
 	case ncsi_dev_state_suspend_deselect:
 		ndp->pending_req_num = 1;
 
-		np = ndp->active_package;
-		nc = ndp->active_channel;
+		nca.type = NCSI_PKT_CMD_DP;
 		nca.package = np->id;
-		if (nd->state == ncsi_dev_state_suspend_select) {
-			nca.type = NCSI_PKT_CMD_SP;
-			nca.channel = NCSI_RESERVED_CHANNEL;
-			if (ndp->flags & NCSI_DEV_HWA)
-				nca.bytes[0] = 0;
-			else
-				nca.bytes[0] = 1;
-			nd->state = ncsi_dev_state_suspend_dcnt;
-		} else if (nd->state == ncsi_dev_state_suspend_dcnt) {
-			nca.type = NCSI_PKT_CMD_DCNT;
-			nca.channel = nc->id;
-			nd->state = ncsi_dev_state_suspend_dc;
-		} else if (nd->state == ncsi_dev_state_suspend_dc) {
-			nca.type = NCSI_PKT_CMD_DC;
-			nca.channel = nc->id;
-			nca.bytes[0] = 1;
-			nd->state = ncsi_dev_state_suspend_deselect;
-		} else if (nd->state == ncsi_dev_state_suspend_deselect) {
-			nca.type = NCSI_PKT_CMD_DP;
-			nca.channel = NCSI_RESERVED_CHANNEL;
-			nd->state = ncsi_dev_state_suspend_done;
-		}
+		nca.channel = NCSI_RESERVED_CHANNEL;
 
+		nd->state = ncsi_dev_state_suspend_done;
 		ret = ncsi_xmit_cmd(&nca);
-		if (ret) {
-			nd->state = ncsi_dev_state_functional;
-			return;
-		}
+		if (ret)
+			goto error;
 
 		break;
 	case ncsi_dev_state_suspend_done:
@@ -589,6 +633,10 @@ static void ncsi_suspend_channel(struct ncsi_dev_priv *ndp)
 		netdev_warn(nd->dev, "Wrong NCSI state 0x%x in suspend\n",
 			    nd->state);
 	}
+
+	return;
+error:
+	nd->state = ncsi_dev_state_functional;
 }
 
 static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
@@ -597,6 +645,7 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 	struct net_device *dev = nd->dev;
 	struct ncsi_package *np = ndp->active_package;
 	struct ncsi_channel *nc = ndp->active_channel;
+	struct ncsi_channel *hot_nc = NULL;
 	struct ncsi_cmd_arg nca;
 	unsigned char index;
 	unsigned long flags;
@@ -702,11 +751,19 @@ static void ncsi_configure_channel(struct ncsi_dev_priv *ndp)
 		break;
 	case ncsi_dev_state_config_done:
 		spin_lock_irqsave(&nc->lock, flags);
-		if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1)
+		if (nc->modes[NCSI_MODE_LINK].data[2] & 0x1) {
+			hot_nc = nc;
 			nc->state = NCSI_CHANNEL_ACTIVE;
-		else
+		} else {
+			hot_nc = NULL;
 			nc->state = NCSI_CHANNEL_INACTIVE;
+		}
 		spin_unlock_irqrestore(&nc->lock, flags);
+
+		/* Update the hot channel */
+		spin_lock_irqsave(&ndp->lock, flags);
+		ndp->hot_channel = hot_nc;
+		spin_unlock_irqrestore(&ndp->lock, flags);
 
 		ncsi_start_channel_monitor(nc);
 		ncsi_process_next_channel(ndp);
@@ -725,9 +782,13 @@ error:
 static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 {
 	struct ncsi_package *np;
-	struct ncsi_channel *nc, *found;
+	struct ncsi_channel *nc, *found, *hot_nc;
 	struct ncsi_channel_mode *ncm;
 	unsigned long flags;
+
+	spin_lock_irqsave(&ndp->lock, flags);
+	hot_nc = ndp->hot_channel;
+	spin_unlock_irqrestore(&ndp->lock, flags);
 
 	/* The search is done once an inactive channel with up
 	 * link is found.
@@ -744,6 +805,9 @@ static int ncsi_choose_active_channel(struct ncsi_dev_priv *ndp)
 			}
 
 			if (!found)
+				found = nc;
+
+			if (nc == hot_nc)
 				found = nc;
 
 			ncm = &nc->modes[NCSI_MODE_LINK];

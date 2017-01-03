@@ -192,6 +192,7 @@ lnet_copy_iov2iter(struct iov_iter *to,
 	left = siov->iov_len - soffset;
 	do {
 		size_t n, copy = left;
+
 		LASSERT(nsiov > 0);
 
 		if (copy > nob)

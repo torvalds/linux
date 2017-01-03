@@ -197,7 +197,7 @@ static int isp1760_plat_probe(struct platform_device *pdev)
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq_res) {
-		pr_warning("isp1760: IRQ resource not available\n");
+		pr_warn("isp1760: IRQ resource not available\n");
 		return -ENODEV;
 	}
 	irqflags = irq_res->flags & IRQF_TRIGGER_MASK;

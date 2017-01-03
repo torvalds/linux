@@ -28,6 +28,8 @@
 
 #define pr_fmt(fmt) "arm-smmu: " fmt
 
+#include <linux/acpi.h>
+#include <linux/acpi_iort.h>
 #include <linux/atomic.h>
 #include <linux/delay.h>
 #include <linux/dma-iommu.h>
@@ -247,6 +249,7 @@ enum arm_smmu_s2cr_privcfg {
 #define ARM_MMU500_ACTLR_CPRE		(1 << 1)
 
 #define ARM_MMU500_ACR_CACHE_LOCK	(1 << 26)
+#define ARM_MMU500_ACR_SMTNMB_TLBEN	(1 << 8)
 
 #define CB_PAR_F			(1 << 0)
 
@@ -324,8 +327,10 @@ struct arm_smmu_master_cfg {
 #define INVALID_SMENDX			-1
 #define __fwspec_cfg(fw) ((struct arm_smmu_master_cfg *)fw->iommu_priv)
 #define fwspec_smmu(fw)  (__fwspec_cfg(fw)->smmu)
+#define fwspec_smendx(fw, i) \
+	(i >= fw->num_ids ? INVALID_SMENDX : __fwspec_cfg(fw)->smendx[i])
 #define for_each_cfg_sme(fw, i, idx) \
-	for (i = 0; idx = __fwspec_cfg(fw)->smendx[i], i < fw->num_ids; ++i)
+	for (i = 0; idx = fwspec_smendx(fw, i), i < fw->num_ids; ++i)
 
 struct arm_smmu_device {
 	struct device			*dev;
@@ -640,7 +645,7 @@ static void arm_smmu_tlb_inv_range_nosync(unsigned long iova, size_t size,
 	}
 }
 
-static struct iommu_gather_ops arm_smmu_gather_ops = {
+static const struct iommu_gather_ops arm_smmu_gather_ops = {
 	.tlb_flush_all	= arm_smmu_tlb_inv_context,
 	.tlb_add_flush	= arm_smmu_tlb_inv_range_nosync,
 	.tlb_sync	= arm_smmu_tlb_sync,
@@ -1228,6 +1233,16 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		return -ENXIO;
 	}
 
+	/*
+	 * FIXME: The arch/arm DMA API code tries to attach devices to its own
+	 * domains between of_xlate() and add_device() - we have no way to cope
+	 * with that, so until ARM gets converted to rely on groups and default
+	 * domains, just say no (but more politely than by dereferencing NULL).
+	 * This should be at least a WARN_ON once that's sorted.
+	 */
+	if (!fwspec->iommu_priv)
+		return -ENODEV;
+
 	smmu = fwspec_smmu(fwspec);
 	/* Ensure that the domain is finalised */
 	ret = arm_smmu_init_domain_context(domain, smmu);
@@ -1367,13 +1382,14 @@ static bool arm_smmu_capable(enum iommu_cap cap)
 
 static int arm_smmu_match_node(struct device *dev, void *data)
 {
-	return dev->of_node == data;
+	return dev->fwnode == data;
 }
 
-static struct arm_smmu_device *arm_smmu_get_by_node(struct device_node *np)
+static
+struct arm_smmu_device *arm_smmu_get_by_fwnode(struct fwnode_handle *fwnode)
 {
 	struct device *dev = driver_find_device(&arm_smmu_driver.driver, NULL,
-						np, arm_smmu_match_node);
+						fwnode, arm_smmu_match_node);
 	put_device(dev);
 	return dev ? dev_get_drvdata(dev) : NULL;
 }
@@ -1390,8 +1406,8 @@ static int arm_smmu_add_device(struct device *dev)
 		fwspec = dev->iommu_fwspec;
 		if (ret)
 			goto out_free;
-	} else if (fwspec) {
-		smmu = arm_smmu_get_by_node(to_of_node(fwspec->iommu_fwnode));
+	} else if (fwspec && fwspec->ops == &arm_smmu_ops) {
+		smmu = arm_smmu_get_by_fwnode(fwspec->iommu_fwnode);
 	} else {
 		return -ENODEV;
 	}
@@ -1466,7 +1482,7 @@ static struct iommu_group *arm_smmu_device_group(struct device *dev)
 	}
 
 	if (group)
-		return group;
+		return iommu_group_ref_get(group);
 
 	if (dev_is_pci(dev))
 		group = pci_device_group(dev);
@@ -1569,16 +1585,22 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 	for (i = 0; i < smmu->num_mapping_groups; ++i)
 		arm_smmu_write_sme(smmu, i);
 
-	/*
-	 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
-	 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
-	 * bit is only present in MMU-500r2 onwards.
-	 */
-	reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID7);
-	major = (reg >> ID7_MAJOR_SHIFT) & ID7_MAJOR_MASK;
-	if ((smmu->model == ARM_MMU500) && (major >= 2)) {
+	if (smmu->model == ARM_MMU500) {
+		/*
+		 * Before clearing ARM_MMU500_ACTLR_CPRE, need to
+		 * clear CACHE_LOCK bit of ACR first. And, CACHE_LOCK
+		 * bit is only present in MMU-500r2 onwards.
+		 */
+		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID7);
+		major = (reg >> ID7_MAJOR_SHIFT) & ID7_MAJOR_MASK;
 		reg = readl_relaxed(gr0_base + ARM_SMMU_GR0_sACR);
-		reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
+		if (major >= 2)
+			reg &= ~ARM_MMU500_ACR_CACHE_LOCK;
+		/*
+		 * Allow unmatched Stream IDs to allocate bypass
+		 * TLB entries for reduced latency.
+		 */
+		reg |= ARM_MMU500_ACR_SMTNMB_TLBEN;
 		writel_relaxed(reg, gr0_base + ARM_SMMU_GR0_sACR);
 	}
 
@@ -1655,7 +1677,7 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 	unsigned long size;
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
 	u32 id;
-	bool cttw_dt, cttw_reg;
+	bool cttw_reg, cttw_fw = smmu->features & ARM_SMMU_FEAT_COHERENT_WALK;
 	int i;
 
 	dev_notice(smmu->dev, "probing hardware configuration...\n");
@@ -1700,20 +1722,17 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 
 	/*
 	 * In order for DMA API calls to work properly, we must defer to what
-	 * the DT says about coherency, regardless of what the hardware claims.
+	 * the FW says about coherency, regardless of what the hardware claims.
 	 * Fortunately, this also opens up a workaround for systems where the
 	 * ID register value has ended up configured incorrectly.
 	 */
-	cttw_dt = of_dma_is_coherent(smmu->dev->of_node);
 	cttw_reg = !!(id & ID0_CTTW);
-	if (cttw_dt)
-		smmu->features |= ARM_SMMU_FEAT_COHERENT_WALK;
-	if (cttw_dt || cttw_reg)
+	if (cttw_fw || cttw_reg)
 		dev_notice(smmu->dev, "\t%scoherent table walk\n",
-			   cttw_dt ? "" : "non-");
-	if (cttw_dt != cttw_reg)
+			   cttw_fw ? "" : "non-");
+	if (cttw_fw != cttw_reg)
 		dev_notice(smmu->dev,
-			   "\t(IDR0.CTTW overridden by dma-coherent property)\n");
+			   "\t(IDR0.CTTW overridden by FW configuration)\n");
 
 	/* Max. number of entries we have for stream matching/indexing */
 	size = 1 << ((id >> ID0_NUMSIDB_SHIFT) & ID0_NUMSIDB_MASK);
@@ -1894,14 +1913,82 @@ static const struct of_device_id arm_smmu_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, arm_smmu_of_match);
 
-static int arm_smmu_device_dt_probe(struct platform_device *pdev)
+#ifdef CONFIG_ACPI
+static int acpi_smmu_get_data(u32 model, struct arm_smmu_device *smmu)
+{
+	int ret = 0;
+
+	switch (model) {
+	case ACPI_IORT_SMMU_V1:
+	case ACPI_IORT_SMMU_CORELINK_MMU400:
+		smmu->version = ARM_SMMU_V1;
+		smmu->model = GENERIC_SMMU;
+		break;
+	case ACPI_IORT_SMMU_V2:
+		smmu->version = ARM_SMMU_V2;
+		smmu->model = GENERIC_SMMU;
+		break;
+	case ACPI_IORT_SMMU_CORELINK_MMU500:
+		smmu->version = ARM_SMMU_V2;
+		smmu->model = ARM_MMU500;
+		break;
+	default:
+		ret = -ENODEV;
+	}
+
+	return ret;
+}
+
+static int arm_smmu_device_acpi_probe(struct platform_device *pdev,
+				      struct arm_smmu_device *smmu)
+{
+	struct device *dev = smmu->dev;
+	struct acpi_iort_node *node =
+		*(struct acpi_iort_node **)dev_get_platdata(dev);
+	struct acpi_iort_smmu *iort_smmu;
+	int ret;
+
+	/* Retrieve SMMU1/2 specific data */
+	iort_smmu = (struct acpi_iort_smmu *)node->node_data;
+
+	ret = acpi_smmu_get_data(iort_smmu->model, smmu);
+	if (ret < 0)
+		return ret;
+
+	/* Ignore the configuration access interrupt */
+	smmu->num_global_irqs = 1;
+
+	if (iort_smmu->flags & ACPI_IORT_SMMU_COHERENT_WALK)
+		smmu->features |= ARM_SMMU_FEAT_COHERENT_WALK;
+
+	return 0;
+}
+#else
+static inline int arm_smmu_device_acpi_probe(struct platform_device *pdev,
+					     struct arm_smmu_device *smmu)
+{
+	return -ENODEV;
+}
+#endif
+
+static int arm_smmu_device_dt_probe(struct platform_device *pdev,
+				    struct arm_smmu_device *smmu)
 {
 	const struct arm_smmu_match_data *data;
-	struct resource *res;
-	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
-	int num_irqs, i, err;
 	bool legacy_binding;
+
+	if (of_property_read_u32(dev->of_node, "#global-interrupts",
+				 &smmu->num_global_irqs)) {
+		dev_err(dev, "missing #global-interrupts property\n");
+		return -ENODEV;
+	}
+
+	data = of_device_get_match_data(dev);
+	smmu->version = data->version;
+	smmu->model = data->model;
+
+	parse_driver_options(smmu);
 
 	legacy_binding = of_find_property(dev->of_node, "mmu-masters", NULL);
 	if (legacy_binding && !using_generic_binding) {
@@ -1915,6 +2002,19 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (of_dma_is_coherent(dev->of_node))
+		smmu->features |= ARM_SMMU_FEAT_COHERENT_WALK;
+
+	return 0;
+}
+
+static int arm_smmu_device_probe(struct platform_device *pdev)
+{
+	struct resource *res;
+	struct arm_smmu_device *smmu;
+	struct device *dev = &pdev->dev;
+	int num_irqs, i, err;
+
 	smmu = devm_kzalloc(dev, sizeof(*smmu), GFP_KERNEL);
 	if (!smmu) {
 		dev_err(dev, "failed to allocate arm_smmu_device\n");
@@ -1922,21 +2022,19 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	}
 	smmu->dev = dev;
 
-	data = of_device_get_match_data(dev);
-	smmu->version = data->version;
-	smmu->model = data->model;
+	if (dev->of_node)
+		err = arm_smmu_device_dt_probe(pdev, smmu);
+	else
+		err = arm_smmu_device_acpi_probe(pdev, smmu);
+
+	if (err)
+		return err;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	smmu->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
 	smmu->size = resource_size(res);
-
-	if (of_property_read_u32(dev->of_node, "#global-interrupts",
-				 &smmu->num_global_irqs)) {
-		dev_err(dev, "missing #global-interrupts property\n");
-		return -ENODEV;
-	}
 
 	num_irqs = 0;
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, num_irqs))) {
@@ -1972,8 +2070,6 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	parse_driver_options(smmu);
-
 	if (smmu->version == ARM_SMMU_V2 &&
 	    smmu->num_context_banks != smmu->num_context_irqs) {
 		dev_err(dev,
@@ -1995,7 +2091,7 @@ static int arm_smmu_device_dt_probe(struct platform_device *pdev)
 		}
 	}
 
-	of_iommu_set_ops(dev->of_node, &arm_smmu_ops);
+	iommu_register_instance(dev->fwnode, &arm_smmu_ops);
 	platform_set_drvdata(pdev, smmu);
 	arm_smmu_device_reset(smmu);
 
@@ -2035,7 +2131,7 @@ static struct platform_driver arm_smmu_driver = {
 		.name		= "arm-smmu",
 		.of_match_table	= of_match_ptr(arm_smmu_of_match),
 	},
-	.probe	= arm_smmu_device_dt_probe,
+	.probe	= arm_smmu_device_probe,
 	.remove	= arm_smmu_device_remove,
 };
 
@@ -2077,6 +2173,17 @@ IOMMU_OF_DECLARE(arm_mmu400, "arm,mmu-400", arm_smmu_of_init);
 IOMMU_OF_DECLARE(arm_mmu401, "arm,mmu-401", arm_smmu_of_init);
 IOMMU_OF_DECLARE(arm_mmu500, "arm,mmu-500", arm_smmu_of_init);
 IOMMU_OF_DECLARE(cavium_smmuv2, "cavium,smmu-v2", arm_smmu_of_init);
+
+#ifdef CONFIG_ACPI
+static int __init arm_smmu_acpi_init(struct acpi_table_header *table)
+{
+	if (iort_node_match(ACPI_IORT_NODE_SMMU))
+		return arm_smmu_init();
+
+	return 0;
+}
+IORT_ACPI_DECLARE(arm_smmu, ACPI_SIG_IORT, arm_smmu_acpi_init);
+#endif
 
 MODULE_DESCRIPTION("IOMMU API for ARM architected SMMU implementations");
 MODULE_AUTHOR("Will Deacon <will.deacon@arm.com>");

@@ -16,7 +16,6 @@
 #define _LINUX_NVME_H
 
 #include <linux/types.h>
-#include <linux/uuid.h>
 
 /* NQN names in commands fields specified one size */
 #define NVMF_NQN_FIELD_LEN	256
@@ -182,7 +181,7 @@ struct nvme_id_ctrl {
 	char			fr[8];
 	__u8			rab;
 	__u8			ieee[3];
-	__u8			mic;
+	__u8			cmic;
 	__u8			mdts;
 	__le16			cntlid;
 	__le32			ver;
@@ -202,7 +201,13 @@ struct nvme_id_ctrl {
 	__u8			apsta;
 	__le16			wctemp;
 	__le16			cctemp;
-	__u8			rsvd270[50];
+	__le16			mtfa;
+	__le32			hmpre;
+	__le32			hmmin;
+	__u8			tnvmcap[16];
+	__u8			unvmcap[16];
+	__le32			rpmbs;
+	__u8			rsvd316[4];
 	__le16			kas;
 	__u8			rsvd322[190];
 	__u8			sqes;
@@ -237,6 +242,7 @@ enum {
 	NVME_CTRL_ONCS_COMPARE			= 1 << 0,
 	NVME_CTRL_ONCS_WRITE_UNCORRECTABLE	= 1 << 1,
 	NVME_CTRL_ONCS_DSM			= 1 << 2,
+	NVME_CTRL_ONCS_WRITE_ZEROES		= 1 << 3,
 	NVME_CTRL_VWC_PRESENT			= 1 << 0,
 };
 
@@ -267,13 +273,23 @@ struct nvme_id_ns {
 	__le16			nabo;
 	__le16			nabspf;
 	__u16			rsvd46;
-	__le64			nvmcap[2];
+	__u8			nvmcap[16];
 	__u8			rsvd64[40];
 	__u8			nguid[16];
 	__u8			eui64[8];
 	struct nvme_lbaf	lbaf[16];
 	__u8			rsvd192[192];
 	__u8			vs[3712];
+};
+
+enum {
+	NVME_ID_CNS_NS			= 0x00,
+	NVME_ID_CNS_CTRL		= 0x01,
+	NVME_ID_CNS_NS_ACTIVE_LIST	= 0x02,
+	NVME_ID_CNS_NS_PRESENT_LIST	= 0x10,
+	NVME_ID_CNS_NS_PRESENT		= 0x11,
+	NVME_ID_CNS_CTRL_NS_LIST	= 0x12,
+	NVME_ID_CNS_CTRL_LIST		= 0x13,
 };
 
 enum {
@@ -543,6 +559,23 @@ struct nvme_dsm_range {
 	__le64			slba;
 };
 
+struct nvme_write_zeroes_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd2;
+	__le64			metadata;
+	union nvme_data_ptr	dptr;
+	__le64			slba;
+	__le16			length;
+	__le16			control;
+	__le32			dsmgmt;
+	__le32			reftag;
+	__le16			apptag;
+	__le16			appmask;
+};
+
 /* Admin commands */
 
 enum nvme_admin_opcode {
@@ -556,8 +589,10 @@ enum nvme_admin_opcode {
 	nvme_admin_set_features		= 0x09,
 	nvme_admin_get_features		= 0x0a,
 	nvme_admin_async_event		= 0x0c,
+	nvme_admin_ns_mgmt		= 0x0d,
 	nvme_admin_activate_fw		= 0x10,
 	nvme_admin_download_fw		= 0x11,
+	nvme_admin_ns_attach		= 0x15,
 	nvme_admin_keep_alive		= 0x18,
 	nvme_admin_format_nvm		= 0x80,
 	nvme_admin_security_send	= 0x81,
@@ -583,6 +618,7 @@ enum {
 	NVME_FEAT_WRITE_ATOMIC	= 0x0a,
 	NVME_FEAT_ASYNC_EVENT	= 0x0b,
 	NVME_FEAT_AUTO_PST	= 0x0c,
+	NVME_FEAT_HOST_MEM_BUF	= 0x0d,
 	NVME_FEAT_KATO		= 0x0f,
 	NVME_FEAT_SW_PROGRESS	= 0x80,
 	NVME_FEAT_HOST_ID	= 0x81,
@@ -745,7 +781,7 @@ struct nvmf_common_command {
 struct nvmf_disc_rsp_page_entry {
 	__u8		trtype;
 	__u8		adrfam;
-	__u8		nqntype;
+	__u8		subtype;
 	__u8		treq;
 	__le16		portid;
 	__le16		cntlid;
@@ -794,7 +830,7 @@ struct nvmf_connect_command {
 };
 
 struct nvmf_connect_data {
-	uuid_be		hostid;
+	__u8		hostid[16];
 	__le16		cntlid;
 	char		resv4[238];
 	char		subsysnqn[NVMF_NQN_FIELD_LEN];
@@ -839,6 +875,7 @@ struct nvme_command {
 		struct nvme_download_firmware dlfw;
 		struct nvme_format_cmd format;
 		struct nvme_dsm_cmd dsm;
+		struct nvme_write_zeroes_cmd write_zeroes;
 		struct nvme_abort_cmd abort;
 		struct nvme_get_log_page_command get_log_page;
 		struct nvmf_common_command fabrics;
@@ -905,12 +942,23 @@ enum {
 	NVME_SC_INVALID_VECTOR		= 0x108,
 	NVME_SC_INVALID_LOG_PAGE	= 0x109,
 	NVME_SC_INVALID_FORMAT		= 0x10a,
-	NVME_SC_FIRMWARE_NEEDS_RESET	= 0x10b,
+	NVME_SC_FW_NEEDS_CONV_RESET	= 0x10b,
 	NVME_SC_INVALID_QUEUE		= 0x10c,
 	NVME_SC_FEATURE_NOT_SAVEABLE	= 0x10d,
 	NVME_SC_FEATURE_NOT_CHANGEABLE	= 0x10e,
 	NVME_SC_FEATURE_NOT_PER_NS	= 0x10f,
-	NVME_SC_FW_NEEDS_RESET_SUBSYS	= 0x110,
+	NVME_SC_FW_NEEDS_SUBSYS_RESET	= 0x110,
+	NVME_SC_FW_NEEDS_RESET		= 0x111,
+	NVME_SC_FW_NEEDS_MAX_TIME	= 0x112,
+	NVME_SC_FW_ACIVATE_PROHIBITED	= 0x113,
+	NVME_SC_OVERLAPPING_RANGE	= 0x114,
+	NVME_SC_NS_INSUFFICENT_CAP	= 0x115,
+	NVME_SC_NS_ID_UNAVAILABLE	= 0x116,
+	NVME_SC_NS_ALREADY_ATTACHED	= 0x118,
+	NVME_SC_NS_IS_PRIVATE		= 0x119,
+	NVME_SC_NS_NOT_ATTACHED		= 0x11a,
+	NVME_SC_THIN_PROV_NOT_SUPP	= 0x11b,
+	NVME_SC_CTRL_LIST_INVALID	= 0x11c,
 
 	/*
 	 * I/O Command Set Specific - NVM commands:
@@ -918,6 +966,7 @@ enum {
 	NVME_SC_BAD_ATTRIBUTES		= 0x180,
 	NVME_SC_INVALID_PI		= 0x181,
 	NVME_SC_READ_ONLY		= 0x182,
+	NVME_SC_ONCS_NOT_SUPPORTED	= 0x183,
 
 	/*
 	 * I/O Command Set Specific - Fabrics commands:
@@ -941,25 +990,40 @@ enum {
 	NVME_SC_REFTAG_CHECK		= 0x284,
 	NVME_SC_COMPARE_FAILED		= 0x285,
 	NVME_SC_ACCESS_DENIED		= 0x286,
+	NVME_SC_UNWRITTEN_BLOCK		= 0x287,
 
 	NVME_SC_DNR			= 0x4000,
+
+
+	/*
+	 * FC Transport-specific error status values for NVME commands
+	 *
+	 * Transport-specific status code values must be in the range 0xB0..0xBF
+	 */
+
+	/* Generic FC failure - catchall */
+	NVME_SC_FC_TRANSPORT_ERROR	= 0x00B0,
+
+	/* I/O failure due to FC ABTS'd */
+	NVME_SC_FC_TRANSPORT_ABORTED	= 0x00B1,
 };
 
 struct nvme_completion {
 	/*
 	 * Used by Admin and Fabrics commands to return data:
 	 */
-	union {
-		__le16	result16;
-		__le32	result;
-		__le64	result64;
-	};
+	union nvme_result {
+		__le16	u16;
+		__le32	u32;
+		__le64	u64;
+	} result;
 	__le16	sq_head;	/* how much of this queue may be reclaimed */
 	__le16	sq_id;		/* submission queue that generated this entry */
 	__u16	command_id;	/* of the command which completed */
 	__le16	status;		/* did the command fail, and if so, why? */
 };
 
-#define NVME_VS(major, minor) (((major) << 16) | ((minor) << 8))
+#define NVME_VS(major, minor, tertiary) \
+	(((major) << 16) | ((minor) << 8) | (tertiary))
 
 #endif /* _LINUX_NVME_H */

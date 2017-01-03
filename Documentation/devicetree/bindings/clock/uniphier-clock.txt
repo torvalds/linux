@@ -24,7 +24,7 @@ Example:
 		reg = <0x61840000 0x4000>;
 
 		clock {
-			compatible = "socionext,uniphier-ld20-clock";
+			compatible = "socionext,uniphier-ld11-clock";
 			#clock-cells = <1>;
 		};
 
@@ -43,8 +43,8 @@ Provided clocks:
 21: USB3 ch1 PHY1
 
 
-Media I/O (MIO) clock
----------------------
+Media I/O (MIO) clock, SD clock
+-------------------------------
 
 Required properties:
 - compatible: should be one of the following:
@@ -52,10 +52,10 @@ Required properties:
     "socionext,uniphier-ld4-mio-clock"  - for LD4 SoC.
     "socionext,uniphier-pro4-mio-clock" - for Pro4 SoC.
     "socionext,uniphier-sld8-mio-clock" - for sLD8 SoC.
-    "socionext,uniphier-pro5-mio-clock" - for Pro5 SoC.
-    "socionext,uniphier-pxs2-mio-clock" - for PXs2/LD6b SoC.
+    "socionext,uniphier-pro5-sd-clock"  - for Pro5 SoC.
+    "socionext,uniphier-pxs2-sd-clock"  - for PXs2/LD6b SoC.
     "socionext,uniphier-ld11-mio-clock" - for LD11 SoC.
-    "socionext,uniphier-ld20-mio-clock" - for LD20 SoC.
+    "socionext,uniphier-ld20-sd-clock"  - for LD20 SoC.
 - #clock-cells: should be 1.
 
 Example:
@@ -66,7 +66,7 @@ Example:
 		reg = <0x59810000 0x800>;
 
 		clock {
-			compatible = "socionext,uniphier-ld20-mio-clock";
+			compatible = "socionext,uniphier-ld11-mio-clock";
 			#clock-cells = <1>;
 		};
 
@@ -112,7 +112,7 @@ Example:
 		reg = <0x59820000 0x200>;
 
 		clock {
-			compatible = "socionext,uniphier-ld20-peri-clock";
+			compatible = "socionext,uniphier-ld11-peri-clock";
 			#clock-cells = <1>;
 		};
 

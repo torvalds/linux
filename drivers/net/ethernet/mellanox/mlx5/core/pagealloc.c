@@ -209,6 +209,7 @@ static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
 {
 	struct page *page;
+	u64 zero_addr = 1;
 	u64 addr;
 	int err;
 	int nid = dev_to_node(&dev->pdev->dev);
@@ -218,26 +219,35 @@ static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
 		mlx5_core_warn(dev, "failed to allocate page\n");
 		return -ENOMEM;
 	}
+map:
 	addr = dma_map_page(&dev->pdev->dev, page, 0,
 			    PAGE_SIZE, DMA_BIDIRECTIONAL);
 	if (dma_mapping_error(&dev->pdev->dev, addr)) {
 		mlx5_core_warn(dev, "failed dma mapping page\n");
 		err = -ENOMEM;
-		goto out_alloc;
+		goto err_mapping;
 	}
+
+	/* Firmware doesn't support page with physical address 0 */
+	if (addr == 0) {
+		zero_addr = addr;
+		goto map;
+	}
+
 	err = insert_page(dev, addr, page, func_id);
 	if (err) {
 		mlx5_core_err(dev, "failed to track allocated page\n");
-		goto out_mapping;
+		dma_unmap_page(&dev->pdev->dev, addr, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
 	}
 
-	return 0;
+err_mapping:
+	if (err)
+		__free_page(page);
 
-out_mapping:
-	dma_unmap_page(&dev->pdev->dev, addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
-
-out_alloc:
-	__free_page(page);
+	if (zero_addr == 0)
+		dma_unmap_page(&dev->pdev->dev, zero_addr, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
 
 	return err;
 }

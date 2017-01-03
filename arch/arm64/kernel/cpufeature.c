@@ -19,7 +19,9 @@
 #define pr_fmt(fmt) "CPU features: " fmt
 
 #include <linux/bsearch.h>
+#include <linux/cpumask.h>
 #include <linux/sort.h>
+#include <linux/stop_machine.h>
 #include <linux/types.h>
 #include <asm/cpu.h>
 #include <asm/cpufeature.h>
@@ -45,6 +47,7 @@ unsigned int compat_elf_hwcap2 __read_mostly;
 #endif
 
 DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
+EXPORT_SYMBOL(cpu_hwcaps);
 
 DEFINE_STATIC_KEY_ARRAY_FALSE(cpu_hwcap_keys, ARM64_NCAPS);
 EXPORT_SYMBOL(cpu_hwcap_keys);
@@ -744,6 +747,14 @@ static bool hyp_offset_low(const struct arm64_cpu_capabilities *entry,
 	return idmap_addr > GENMASK(VA_BITS - 2, 0) && !is_kernel_in_hyp_mode();
 }
 
+static bool has_no_fpsimd(const struct arm64_cpu_capabilities *entry, int __unused)
+{
+	u64 pfr0 = read_system_reg(SYS_ID_AA64PFR0_EL1);
+
+	return cpuid_feature_extract_signed_field(pfr0,
+					ID_AA64PFR0_FP_SHIFT) < 0;
+}
+
 static const struct arm64_cpu_capabilities arm64_features[] = {
 	{
 		.desc = "GIC system register CPU interface",
@@ -826,6 +837,13 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HYP_OFFSET_LOW,
 		.def_scope = SCOPE_SYSTEM,
 		.matches = hyp_offset_low,
+	},
+	{
+		/* FP/SIMD is not implemented */
+		.capability = ARM64_HAS_NO_FPSIMD,
+		.def_scope = SCOPE_SYSTEM,
+		.min_field_value = 0,
+		.matches = has_no_fpsimd,
 	},
 	{},
 };
@@ -941,7 +959,13 @@ void __init enable_cpu_capabilities(const struct arm64_cpu_capabilities *caps)
 {
 	for (; caps->matches; caps++)
 		if (caps->enable && cpus_have_cap(caps->capability))
-			on_each_cpu(caps->enable, NULL, true);
+			/*
+			 * Use stop_machine() as it schedules the work allowing
+			 * us to modify PSTATE, instead of on_each_cpu() which
+			 * uses an IPI, giving us a PSTATE that disappears when
+			 * we return.
+			 */
+			stop_machine(caps->enable, NULL, cpu_online_mask);
 }
 
 /*
@@ -1094,5 +1118,5 @@ void __init setup_cpu_features(void)
 static bool __maybe_unused
 cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused)
 {
-	return (cpus_have_cap(ARM64_HAS_PAN) && !cpus_have_cap(ARM64_HAS_UAO));
+	return (cpus_have_const_cap(ARM64_HAS_PAN) && !cpus_have_const_cap(ARM64_HAS_UAO));
 }

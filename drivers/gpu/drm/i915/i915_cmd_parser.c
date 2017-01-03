@@ -1290,7 +1290,7 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 	}
 
 	if (ret == 0 && needs_clflush_after)
-		drm_clflush_virt_range(shadow_batch_obj->mapping, batch_len);
+		drm_clflush_virt_range(shadow_batch_obj->mm.mapping, batch_len);
 	i915_gem_object_unpin_map(shadow_batch_obj);
 
 	return ret;
@@ -1308,10 +1308,11 @@ int intel_engine_cmd_parser(struct intel_engine_cs *engine,
 int i915_cmd_parser_get_version(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	bool active = false;
 
 	/* If the command parser is not enabled, report 0 - unsupported */
-	for_each_engine(engine, dev_priv) {
+	for_each_engine(engine, dev_priv, id) {
 		if (intel_engine_needs_cmd_parser(engine)) {
 			active = true;
 			break;

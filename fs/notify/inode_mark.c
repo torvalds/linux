@@ -150,12 +150,10 @@ int fsnotify_add_inode_mark(struct fsnotify_mark *mark,
  */
 void fsnotify_unmount_inodes(struct super_block *sb)
 {
-	struct inode *inode, *next_i, *need_iput = NULL;
+	struct inode *inode, *iput_inode = NULL;
 
 	spin_lock(&sb->s_inode_list_lock);
-	list_for_each_entry_safe(inode, next_i, &sb->s_inodes, i_sb_list) {
-		struct inode *need_iput_tmp;
-
+	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 		/*
 		 * We cannot __iget() an inode in state I_FREEING,
 		 * I_WILL_FREE, or I_NEW which is fine because by that point
@@ -178,49 +176,24 @@ void fsnotify_unmount_inodes(struct super_block *sb)
 			continue;
 		}
 
-		need_iput_tmp = need_iput;
-		need_iput = NULL;
-
-		/* In case fsnotify_inode_delete() drops a reference. */
-		if (inode != need_iput_tmp)
-			__iget(inode);
-		else
-			need_iput_tmp = NULL;
+		__iget(inode);
 		spin_unlock(&inode->i_lock);
-
-		/* In case the dropping of a reference would nuke next_i. */
-		while (&next_i->i_sb_list != &sb->s_inodes) {
-			spin_lock(&next_i->i_lock);
-			if (!(next_i->i_state & (I_FREEING | I_WILL_FREE)) &&
-						atomic_read(&next_i->i_count)) {
-				__iget(next_i);
-				need_iput = next_i;
-				spin_unlock(&next_i->i_lock);
-				break;
-			}
-			spin_unlock(&next_i->i_lock);
-			next_i = list_next_entry(next_i, i_sb_list);
-		}
-
-		/*
-		 * We can safely drop s_inode_list_lock here because either
-		 * we actually hold references on both inode and next_i or
-		 * end of list.  Also no new inodes will be added since the
-		 * umount has begun.
-		 */
 		spin_unlock(&sb->s_inode_list_lock);
 
-		if (need_iput_tmp)
-			iput(need_iput_tmp);
+		if (iput_inode)
+			iput(iput_inode);
 
 		/* for each watch, send FS_UNMOUNT and then remove it */
 		fsnotify(inode, FS_UNMOUNT, inode, FSNOTIFY_EVENT_INODE, NULL, 0);
 
 		fsnotify_inode_delete(inode);
 
-		iput(inode);
+		iput_inode = inode;
 
 		spin_lock(&sb->s_inode_list_lock);
 	}
 	spin_unlock(&sb->s_inode_list_lock);
+
+	if (iput_inode)
+		iput(iput_inode);
 }

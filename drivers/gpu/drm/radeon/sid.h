@@ -1145,6 +1145,7 @@
 #define	SPI_LB_CU_MASK					0x9354
 
 #define	TA_CNTL_AUX					0x9508
+#define	TA_CS_BC_BASE_ADDR				0x950C
 
 #define CC_RB_BACKEND_DISABLE				0x98F4
 #define		BACKEND_DISABLE(x)     			((x) << 16)

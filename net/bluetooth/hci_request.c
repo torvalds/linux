@@ -969,41 +969,38 @@ void __hci_req_enable_advertising(struct hci_request *req)
 	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
 }
 
-static u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
+u8 append_local_name(struct hci_dev *hdev, u8 *ptr, u8 ad_len)
 {
-	size_t complete_len;
 	size_t short_len;
-	int max_len;
+	size_t complete_len;
 
-	max_len = HCI_MAX_AD_LENGTH - ad_len - 2;
+	/* no space left for name (+ NULL + type + len) */
+	if ((HCI_MAX_AD_LENGTH - ad_len) < HCI_MAX_SHORT_NAME_LENGTH + 3)
+		return ad_len;
+
+	/* use complete name if present and fits */
 	complete_len = strlen(hdev->dev_name);
-	short_len = strlen(hdev->short_name);
-
-	/* no space left for name */
-	if (max_len < 1)
-		return ad_len;
-
-	/* no name set */
-	if (!complete_len)
-		return ad_len;
-
-	/* complete name fits and is eq to max short name len or smaller */
-	if (complete_len <= max_len &&
-	    complete_len <= HCI_MAX_SHORT_NAME_LENGTH) {
+	if (complete_len && complete_len <= HCI_MAX_SHORT_NAME_LENGTH)
 		return eir_append_data(ptr, ad_len, EIR_NAME_COMPLETE,
-				       hdev->dev_name, complete_len);
-	}
+				       hdev->dev_name, complete_len + 1);
 
-	/* short name set and fits */
-	if (short_len && short_len <= max_len) {
+	/* use short name if present */
+	short_len = strlen(hdev->short_name);
+	if (short_len)
 		return eir_append_data(ptr, ad_len, EIR_NAME_SHORT,
-				       hdev->short_name, short_len);
-	}
+				       hdev->short_name, short_len + 1);
 
-	/* no short name set so shorten complete name */
-	if (!short_len) {
-		return eir_append_data(ptr, ad_len, EIR_NAME_SHORT,
-				       hdev->dev_name, max_len);
+	/* use shortened full name if present, we already know that name
+	 * is longer then HCI_MAX_SHORT_NAME_LENGTH
+	 */
+	if (complete_len) {
+		u8 name[HCI_MAX_SHORT_NAME_LENGTH + 1];
+
+		memcpy(name, hdev->dev_name, HCI_MAX_SHORT_NAME_LENGTH);
+		name[HCI_MAX_SHORT_NAME_LENGTH] = '\0';
+
+		return eir_append_data(ptr, ad_len, EIR_NAME_SHORT, name,
+				       sizeof(name));
 	}
 
 	return ad_len;

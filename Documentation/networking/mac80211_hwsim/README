@@ -60,7 +60,7 @@ modprobe mac80211_hwsim
 hostapd hostapd.conf
 
 # Run wpa_supplicant (station) for wlan1
-wpa_supplicant -Dwext -iwlan1 -c wpa_supplicant.conf
+wpa_supplicant -Dnl80211 -iwlan1 -c wpa_supplicant.conf
 
 
 More test cases are available in hostap.git:

@@ -1981,14 +1981,6 @@ out:
 	ehea_update_bcmc_registrations();
 }
 
-static int ehea_change_mtu(struct net_device *dev, int new_mtu)
-{
-	if ((new_mtu < 68) || (new_mtu > EHEA_MAX_PACKET_SIZE))
-		return -EINVAL;
-	dev->mtu = new_mtu;
-	return 0;
-}
-
 static void xmit_common(struct sk_buff *skb, struct ehea_swqe *swqe)
 {
 	swqe->tx_control |= EHEA_SWQE_IMM_DATA_PRESENT | EHEA_SWQE_CRC;
@@ -2445,6 +2437,8 @@ static int ehea_open(struct net_device *dev)
 	mutex_lock(&port->port_lock);
 
 	netif_info(port, ifup, dev, "enabling port\n");
+
+	netif_carrier_off(dev);
 
 	ret = ehea_up(dev);
 	if (!ret) {
@@ -2968,7 +2962,6 @@ static const struct net_device_ops ehea_netdev_ops = {
 	.ndo_set_mac_address	= ehea_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= ehea_set_multicast_list,
-	.ndo_change_mtu		= ehea_change_mtu,
 	.ndo_vlan_rx_add_vid	= ehea_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ehea_vlan_rx_kill_vid,
 	.ndo_tx_timeout		= ehea_tx_watchdog,
@@ -3041,13 +3034,16 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 			NETIF_F_IP_CSUM;
 	dev->watchdog_timeo = EHEA_WATCH_DOG_TIMEOUT;
 
+	/* MTU range: 68 - 9022 */
+	dev->min_mtu = ETH_MIN_MTU;
+	dev->max_mtu = EHEA_MAX_PACKET_SIZE;
+
 	INIT_WORK(&port->reset_task, ehea_reset_port);
 	INIT_DELAYED_WORK(&port->stats_work, ehea_update_stats);
 
 	init_waitqueue_head(&port->swqe_avail_wq);
 	init_waitqueue_head(&port->restart_wq);
 
-	memset(&port->stats, 0, sizeof(struct net_device_stats));
 	ret = register_netdev(dev);
 	if (ret) {
 		pr_err("register_netdev failed. ret=%d\n", ret);

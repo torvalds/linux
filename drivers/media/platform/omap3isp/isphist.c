@@ -18,7 +18,6 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dmaengine.h>
-#include <linux/omap-dmaengine.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
@@ -486,27 +485,30 @@ int omap3isp_hist_init(struct isp_device *isp)
 	hist->isp = isp;
 
 	if (HIST_CONFIG_DMA) {
-		struct platform_device *pdev = to_platform_device(isp->dev);
-		struct resource *res;
-		unsigned int sig = 0;
 		dma_cap_mask_t mask;
 
+		/*
+		 * We need slave capable channel without DMA request line for
+		 * reading out the data.
+		 * For this we can use dma_request_chan_by_mask() as we are
+		 * happy with any channel as long as it is capable of slave
+		 * configuration.
+		 */
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
+		hist->dma_ch = dma_request_chan_by_mask(&mask);
+		if (IS_ERR(hist->dma_ch)) {
+			ret = PTR_ERR(hist->dma_ch);
+			if (ret == -EPROBE_DEFER)
+				return ret;
 
-		res = platform_get_resource_byname(pdev, IORESOURCE_DMA,
-						   "hist");
-		if (res)
-			sig = res->start;
-
-		hist->dma_ch = dma_request_slave_channel_compat(mask,
-				omap_dma_filter_fn, &sig, isp->dev, "hist");
-		if (!hist->dma_ch)
+			hist->dma_ch = NULL;
 			dev_warn(isp->dev,
 				 "hist: DMA channel request failed, using PIO\n");
-		else
+		} else {
 			dev_dbg(isp->dev, "hist: using DMA channel %s\n",
 				dma_chan_name(hist->dma_ch));
+		}
 	}
 
 	hist->ops = &hist_ops;

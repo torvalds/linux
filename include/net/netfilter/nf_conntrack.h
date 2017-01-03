@@ -100,6 +100,9 @@ struct nf_conn {
 
 	possible_net_t ct_net;
 
+#if IS_ENABLED(CONFIG_NF_NAT)
+	struct rhlist_head nat_bysource;
+#endif
 	/* all members below initialized via memset */
 	u8 __nfct_init_offset[0];
 
@@ -117,9 +120,6 @@ struct nf_conn {
 	/* Extensions */
 	struct nf_ct_ext *ext;
 
-#if IS_ENABLED(CONFIG_NF_NAT)
-	struct rhash_head	nat_bysource;
-#endif
 	/* Storage reserved for other modules, must be the last member */
 	union nf_conntrack_proto proto;
 };
@@ -180,6 +180,10 @@ static inline void nf_ct_put(struct nf_conn *ct)
 /* Protocol module loading */
 int nf_ct_l3proto_try_module_get(unsigned short l3proto);
 void nf_ct_l3proto_module_put(unsigned short l3proto);
+
+/* load module; enable/disable conntrack in this namespace */
+int nf_ct_netns_get(struct net *net, u8 nfproto);
+void nf_ct_netns_put(struct net *net, u8 nfproto);
 
 /*
  * Allocate a hashtable of hlist_head (if nulls == 0),

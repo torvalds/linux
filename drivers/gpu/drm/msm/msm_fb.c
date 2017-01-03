@@ -88,11 +88,11 @@ int msm_framebuffer_prepare(struct drm_framebuffer *fb, int id)
 {
 	struct msm_framebuffer *msm_fb = to_msm_framebuffer(fb);
 	int ret, i, n = drm_format_num_planes(fb->pixel_format);
-	uint32_t iova;
+	uint64_t iova;
 
 	for (i = 0; i < n; i++) {
 		ret = msm_gem_get_iova(msm_fb->planes[i], id, &iova);
-		DBG("FB[%u]: iova[%d]: %08x (%d)", fb->base.id, i, iova, ret);
+		DBG("FB[%u]: iova[%d]: %08llx (%d)", fb->base.id, i, iova, ret);
 		if (ret)
 			return ret;
 	}

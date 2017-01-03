@@ -8,25 +8,43 @@ for each state.
 
 The states are represented by strings that can be read or written to the
 /sys/power/state file.  Those strings may be "mem", "standby", "freeze" and
-"disk", where the last one always represents hibernation (Suspend-To-Disk) and
-the meaning of the remaining ones depends on the relative_sleep_states command
-line argument.
+"disk", where the last three always represent Power-On Suspend (if supported),
+Suspend-To-Idle and hibernation (Suspend-To-Disk), respectively.
 
-For relative_sleep_states=1, the strings "mem", "standby" and "freeze" label the
-available non-hibernation sleep states from the deepest to the shallowest,
-respectively.  In that case, "mem" is always present in /sys/power/state,
-because there is at least one non-hibernation sleep state in every system.  If
-the given system supports two non-hibernation sleep states, "standby" is present
-in /sys/power/state in addition to "mem".  If the system supports three
-non-hibernation sleep states, "freeze" will be present in /sys/power/state in
-addition to "mem" and "standby".
+The meaning of the "mem" string is controlled by the /sys/power/mem_sleep file.
+It contains strings representing the available modes of system suspend that may
+be triggered by writing "mem" to /sys/power/state.  These modes are "s2idle"
+(Suspend-To-Idle), "shallow" (Power-On Suspend) and "deep" (Suspend-To-RAM).
+The "s2idle" mode is always available, while the other ones are only available
+if supported by the platform (if not supported, the strings representing them
+are not present in /sys/power/mem_sleep).  The string representing the suspend
+mode to be used subsequently is enclosed in square brackets.  Writing one of
+the other strings present in /sys/power/mem_sleep to it causes the suspend mode
+to be used subsequently to change to the one represented by that string.
 
-For relative_sleep_states=0, which is the default, the following descriptions
-apply.
+Consequently, there are two ways to cause the system to go into the
+Suspend-To-Idle sleep state.  The first one is to write "freeze" directly to
+/sys/power/state.  The second one is to write "s2idle" to /sys/power/mem_sleep
+and then to wrtie "mem" to /sys/power/state.  Similarly, there are two ways
+to cause the system to go into the Power-On Suspend sleep state (the strings to
+write to the control files in that case are "standby" or "shallow" and "mem",
+respectively) if that state is supported by the platform.  In turn, there is
+only one way to cause the system to go into the Suspend-To-RAM state (write
+"deep" into /sys/power/mem_sleep and "mem" into /sys/power/state).
 
-state:		Suspend-To-Idle
+The default suspend mode (ie. the one to be used without writing anything into
+/sys/power/mem_sleep) is either "deep" (if Suspend-To-RAM is supported) or
+"s2idle", but it can be overridden by the value of the "mem_sleep_default"
+parameter in the kernel command line.  On some ACPI-based systems, depending on
+the information in the FADT, the default may be "s2idle" even if Suspend-To-RAM
+is supported.
+
+The properties of all of the sleep states are described below.
+
+
+State:		Suspend-To-Idle
 ACPI state:	S0
-Label:		"freeze"
+Label:		"s2idle" ("freeze")
 
 This state is a generic, pure software, light-weight, system sleep state.
 It allows more energy to be saved relative to runtime idle by freezing user
@@ -35,13 +53,13 @@ lower-power than available at run time), such that the processors can
 spend more time in their idle states.
 
 This state can be used for platforms without Power-On Suspend/Suspend-to-RAM
-support, or it can be used in addition to Suspend-to-RAM (memory sleep)
-to provide reduced resume latency.  It is always supported.
+support, or it can be used in addition to Suspend-to-RAM to provide reduced
+resume latency.  It is always supported.
 
 
 State:		Standby / Power-On Suspend
 ACPI State:	S1
-Label:		"standby"
+Label:		"shallow" ("standby")
 
 This state, if supported, offers moderate, though real, power savings, while
 providing a relatively low-latency transition back to a working system.  No
@@ -58,7 +76,7 @@ state.
 
 State:		Suspend-to-RAM
 ACPI State:	S3
-Label:		"mem"
+Label:		"deep"
 
 This state, if supported, offers significant power savings as everything in the
 system is put into a low-power state, except for memory, which should be placed

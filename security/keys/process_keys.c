@@ -18,7 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/security.h>
 #include <linux/user_namespace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 /* Session keyring create vs join semaphore */

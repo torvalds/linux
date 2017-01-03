@@ -30,6 +30,8 @@
 /* ms */
 #define ATH10K_DEBUG_HTT_STATS_INTERVAL 1000
 
+#define ATH10K_DEBUG_CAL_DATA_LEN 12064
+
 #define ATH10K_FW_CRASH_DUMP_VERSION 1
 
 /**
@@ -1451,56 +1453,51 @@ static const struct file_operations fops_fw_dbglog = {
 	.llseek = default_llseek,
 };
 
-static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
+static int ath10k_debug_cal_data_fetch(struct ath10k *ar)
 {
-	struct ath10k *ar = inode->i_private;
-	void *buf;
 	u32 hi_addr;
 	__le32 addr;
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_held(&ar->conf_mutex);
 
-	if (ar->state != ATH10K_STATE_ON &&
-	    ar->state != ATH10K_STATE_UTF) {
-		ret = -ENETDOWN;
-		goto err;
-	}
-
-	buf = vmalloc(ar->hw_params.cal_data_len);
-	if (!buf) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	if (WARN_ON(ar->hw_params.cal_data_len > ATH10K_DEBUG_CAL_DATA_LEN))
+		return -EINVAL;
 
 	hi_addr = host_interest_item_address(HI_ITEM(hi_board_data));
 
 	ret = ath10k_hif_diag_read(ar, hi_addr, &addr, sizeof(addr));
 	if (ret) {
-		ath10k_warn(ar, "failed to read hi_board_data address: %d\n", ret);
-		goto err_vfree;
+		ath10k_warn(ar, "failed to read hi_board_data address: %d\n",
+			    ret);
+		return ret;
 	}
 
-	ret = ath10k_hif_diag_read(ar, le32_to_cpu(addr), buf,
+	ret = ath10k_hif_diag_read(ar, le32_to_cpu(addr), ar->debug.cal_data,
 				   ar->hw_params.cal_data_len);
 	if (ret) {
 		ath10k_warn(ar, "failed to read calibration data: %d\n", ret);
-		goto err_vfree;
+		return ret;
 	}
 
-	file->private_data = buf;
+	return 0;
+}
 
+static int ath10k_debug_cal_data_open(struct inode *inode, struct file *file)
+{
+	struct ath10k *ar = inode->i_private;
+
+	mutex_lock(&ar->conf_mutex);
+
+	if (ar->state == ATH10K_STATE_ON ||
+	    ar->state == ATH10K_STATE_UTF) {
+		ath10k_debug_cal_data_fetch(ar);
+	}
+
+	file->private_data = ar;
 	mutex_unlock(&ar->conf_mutex);
 
 	return 0;
-
-err_vfree:
-	vfree(buf);
-
-err:
-	mutex_unlock(&ar->conf_mutex);
-
-	return ret;
 }
 
 static ssize_t ath10k_debug_cal_data_read(struct file *file,
@@ -1508,18 +1505,16 @@ static ssize_t ath10k_debug_cal_data_read(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct ath10k *ar = file->private_data;
-	void *buf = file->private_data;
 
-	return simple_read_from_buffer(user_buf, count, ppos,
-				       buf, ar->hw_params.cal_data_len);
-}
+	mutex_lock(&ar->conf_mutex);
 
-static int ath10k_debug_cal_data_release(struct inode *inode,
-					 struct file *file)
-{
-	vfree(file->private_data);
+	count = simple_read_from_buffer(user_buf, count, ppos,
+					ar->debug.cal_data,
+					ar->hw_params.cal_data_len);
 
-	return 0;
+	mutex_unlock(&ar->conf_mutex);
+
+	return count;
 }
 
 static ssize_t ath10k_write_ani_enable(struct file *file,
@@ -1580,7 +1575,6 @@ static const struct file_operations fops_ani_enable = {
 static const struct file_operations fops_cal_data = {
 	.open = ath10k_debug_cal_data_open,
 	.read = ath10k_debug_cal_data_read,
-	.release = ath10k_debug_cal_data_release,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1931,6 +1925,8 @@ int ath10k_debug_start(struct ath10k *ar)
 void ath10k_debug_stop(struct ath10k *ar)
 {
 	lockdep_assert_held(&ar->conf_mutex);
+
+	ath10k_debug_cal_data_fetch(ar);
 
 	/* Must not use _sync to avoid deadlock, we do that in
 	 * ath10k_debug_destroy(). The check for htt_stats_mask is to avoid
@@ -2344,6 +2340,10 @@ int ath10k_debug_create(struct ath10k *ar)
 	if (!ar->debug.fw_crash_data)
 		return -ENOMEM;
 
+	ar->debug.cal_data = vzalloc(ATH10K_DEBUG_CAL_DATA_LEN);
+	if (!ar->debug.cal_data)
+		return -ENOMEM;
+
 	INIT_LIST_HEAD(&ar->debug.fw_stats.pdevs);
 	INIT_LIST_HEAD(&ar->debug.fw_stats.vdevs);
 	INIT_LIST_HEAD(&ar->debug.fw_stats.peers);
@@ -2356,6 +2356,9 @@ void ath10k_debug_destroy(struct ath10k *ar)
 {
 	vfree(ar->debug.fw_crash_data);
 	ar->debug.fw_crash_data = NULL;
+
+	vfree(ar->debug.cal_data);
+	ar->debug.cal_data = NULL;
 
 	ath10k_debug_fw_stats_reset(ar);
 
