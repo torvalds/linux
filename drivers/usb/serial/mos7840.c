@@ -1036,9 +1036,7 @@ static int mos7840_open(struct tty_struct *tty, struct usb_serial_port *port)
 				serial,
 				serial->port[0]->interrupt_in_urb->interval);
 
-			/* start interrupt read for mos7840               *
-			 * will continue as long as mos7840 is connected  */
-
+			/* start interrupt read for mos7840 */
 			response =
 			    usb_submit_urb(serial->port[0]->interrupt_in_urb,
 					   GFP_KERNEL);
