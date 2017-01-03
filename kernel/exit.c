@@ -501,12 +501,12 @@ static void exit_mm(void)
 			complete(&core_state->startup);
 
 		for (;;) {
-			set_task_state(current, TASK_UNINTERRUPTIBLE);
+			set_current_state(TASK_UNINTERRUPTIBLE);
 			if (!self.task) /* see coredump_finish() */
 				break;
 			freezable_schedule();
 		}
-		__set_task_state(current, TASK_RUNNING);
+		__set_current_state(TASK_RUNNING);
 		down_read(&mm->mmap_sem);
 	}
 	atomic_inc(&mm->mm_count);

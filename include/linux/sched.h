@@ -227,7 +227,7 @@ extern void proc_sched_set_task(struct task_struct *p);
 extern char ___assert_task_state[1 - 2*!!(
 		sizeof(TASK_STATE_TO_CHAR_STR)-1 != ilog2(TASK_STATE_MAX)+1)];
 
-/* Convenience macros for the sake of set_task_state */
+/* Convenience macros for the sake of set_current_state */
 #define TASK_KILLABLE		(TASK_WAKEKILL | TASK_UNINTERRUPTIBLE)
 #define TASK_STOPPED		(TASK_WAKEKILL | __TASK_STOPPED)
 #define TASK_TRACED		(TASK_WAKEKILL | __TASK_TRACED)
@@ -254,17 +254,6 @@ extern char ___assert_task_state[1 - 2*!!(
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 
-#define __set_task_state(tsk, state_value)			\
-	do {							\
-		(tsk)->task_state_change = _THIS_IP_;		\
-		(tsk)->state = (state_value);			\
-	} while (0)
-#define set_task_state(tsk, state_value)			\
-	do {							\
-		(tsk)->task_state_change = _THIS_IP_;		\
-		smp_store_mb((tsk)->state, (state_value));	\
-	} while (0)
-
 #define __set_current_state(state_value)			\
 	do {							\
 		current->task_state_change = _THIS_IP_;		\
@@ -277,20 +266,6 @@ extern char ___assert_task_state[1 - 2*!!(
 	} while (0)
 
 #else
-
-/*
- * @tsk had better be current, or you get to keep the pieces.
- *
- * The only reason is that computing current can be more expensive than
- * using a pointer that's already available.
- *
- * Therefore, see set_current_state().
- */
-#define __set_task_state(tsk, state_value)		\
-	do { (tsk)->state = (state_value); } while (0)
-#define set_task_state(tsk, state_value)		\
-	smp_store_mb((tsk)->state, (state_value))
-
 /*
  * set_current_state() includes a barrier so that the write of current->state
  * is correctly serialised wrt the caller's subsequent test of whether to

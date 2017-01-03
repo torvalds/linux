@@ -666,7 +666,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 
 	lock_contended(&lock->dep_map, ip);
 
-	set_task_state(current, state);
+	set_current_state(state);
 	for (;;) {
 		/*
 		 * Once we hold wait_lock, we're serialized against
@@ -701,7 +701,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 			__mutex_set_flag(lock, MUTEX_FLAG_HANDOFF);
 		}
 
-		set_task_state(current, state);
+		set_current_state(state);
 		/*
 		 * Here we order against unlock; we must either see it change
 		 * state back to RUNNING and fall through the next schedule(),
@@ -715,7 +715,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	}
 	spin_lock_mutex(&lock->wait_lock, flags);
 acquired:
-	__set_task_state(current, TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 
 	mutex_remove_waiter(lock, &waiter, current);
 	if (likely(list_empty(&lock->wait_list)))
@@ -735,7 +735,7 @@ skip_wait:
 	return 0;
 
 err:
-	__set_task_state(current, TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	mutex_remove_waiter(lock, &waiter, current);
 	spin_unlock_mutex(&lock->wait_lock, flags);
 	debug_mutex_free_waiter(&waiter);

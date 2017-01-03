@@ -139,7 +139,7 @@ void __sched __down_read(struct rw_semaphore *sem)
 		goto out;
 	}
 
-	set_task_state(current, TASK_UNINTERRUPTIBLE);
+	set_current_state(TASK_UNINTERRUPTIBLE);
 
 	/* set up my own style of waitqueue */
 	waiter.task = current;
@@ -156,10 +156,10 @@ void __sched __down_read(struct rw_semaphore *sem)
 		if (!waiter.task)
 			break;
 		schedule();
-		set_task_state(current, TASK_UNINTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 	}
 
-	__set_task_state(current, TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
  out:
 	;
 }
@@ -216,7 +216,7 @@ int __sched __down_write_common(struct rw_semaphore *sem, int state)
 			ret = -EINTR;
 			goto out;
 		}
-		set_task_state(current, state);
+		set_current_state(state);
 		raw_spin_unlock_irqrestore(&sem->wait_lock, flags);
 		schedule();
 		raw_spin_lock_irqsave(&sem->wait_lock, flags);

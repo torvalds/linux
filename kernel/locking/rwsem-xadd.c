@@ -253,13 +253,13 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 
 	/* wait to be given the lock */
 	while (true) {
-		set_task_state(current, TASK_UNINTERRUPTIBLE);
+		set_current_state(TASK_UNINTERRUPTIBLE);
 		if (!waiter.task)
 			break;
 		schedule();
 	}
 
-	__set_task_state(current, TASK_RUNNING);
+	__set_current_state(TASK_RUNNING);
 	return sem;
 }
 EXPORT_SYMBOL(rwsem_down_read_failed);
