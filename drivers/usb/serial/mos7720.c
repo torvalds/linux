@@ -2011,11 +2011,6 @@ static int mos7720_port_probe(struct usb_serial_port *port)
 	if (!mos7720_port)
 		return -ENOMEM;
 
-	/* Initialize all port interrupt end point to port 0 int endpoint.
-	 * Our device has only one interrupt endpoint common to all ports.
-	 */
-	port->interrupt_in_endpointAddress =
-		port->serial->port[0]->interrupt_in_endpointAddress;
 	mos7720_port->port = port;
 
 	usb_set_serial_port_data(port, mos7720_port);
