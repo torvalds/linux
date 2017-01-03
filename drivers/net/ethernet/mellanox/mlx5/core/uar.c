@@ -332,6 +332,38 @@ error1:
 	return ERR_PTR(err);
 }
 
+struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_uars_page *ret;
+
+	mutex_lock(&mdev->priv.bfregs.reg_head.lock);
+	if (list_empty(&mdev->priv.bfregs.reg_head.list)) {
+		ret = alloc_uars_page(mdev, false);
+		if (IS_ERR(ret)) {
+			ret = NULL;
+			goto out;
+		}
+		list_add(&ret->list, &mdev->priv.bfregs.reg_head.list);
+	} else {
+		ret = list_first_entry(&mdev->priv.bfregs.reg_head.list,
+				       struct mlx5_uars_page, list);
+		kref_get(&ret->ref_count);
+	}
+out:
+	mutex_unlock(&mdev->priv.bfregs.reg_head.lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(mlx5_get_uars_page);
+
+void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up)
+{
+	mutex_lock(&mdev->priv.bfregs.reg_head.lock);
+	kref_put(&up->ref_count, up_rel_func);
+	mutex_unlock(&mdev->priv.bfregs.reg_head.lock);
+}
+EXPORT_SYMBOL(mlx5_put_uars_page);
+
 static unsigned long map_offset(struct mlx5_core_dev *mdev, int dbi)
 {
 	/* return the offset in bytes from the start of the page to the

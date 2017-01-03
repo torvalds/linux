@@ -679,6 +679,7 @@ struct mlx5_priv {
 	struct srcu_struct      pfault_srcu;
 #endif
 	struct mlx5_bfreg_data		bfregs;
+	struct mlx5_uars_page	       *uar;
 };
 
 enum mlx5_device_state {
@@ -1007,7 +1008,7 @@ void mlx5_cmd_comp_handler(struct mlx5_core_dev *dev, u64 vec);
 void mlx5_cq_event(struct mlx5_core_dev *dev, u32 cqn, int event_type);
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name,
-		       struct mlx5_uar *uar, enum mlx5_eq_type type);
+		       enum mlx5_eq_type type);
 int mlx5_destroy_unmap_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq);
 int mlx5_start_eqs(struct mlx5_core_dev *dev);
 int mlx5_stop_eqs(struct mlx5_core_dev *dev);
@@ -1118,6 +1119,8 @@ int mlx5_cmd_create_vport_lag(struct mlx5_core_dev *dev);
 int mlx5_cmd_destroy_vport_lag(struct mlx5_core_dev *dev);
 bool mlx5_lag_is_active(struct mlx5_core_dev *dev);
 struct net_device *mlx5_lag_get_roce_netdev(struct mlx5_core_dev *dev);
+struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
+void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
 
 struct mlx5_profile {
 	u64	mask;
