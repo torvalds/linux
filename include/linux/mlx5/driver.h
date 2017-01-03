@@ -452,6 +452,39 @@ struct mlx5_eq_table {
 	spinlock_t		lock;
 };
 
+struct mlx5_uars_page {
+	void __iomem	       *map;
+	bool			wc;
+	u32			index;
+	struct list_head	list;
+	unsigned int		bfregs;
+	unsigned long	       *reg_bitmap; /* for non fast path bf regs */
+	unsigned long	       *fp_bitmap;
+	unsigned int		reg_avail;
+	unsigned int		fp_avail;
+	struct kref		ref_count;
+	struct mlx5_core_dev   *mdev;
+};
+
+struct mlx5_bfreg_head {
+	/* protect blue flame registers allocations */
+	struct mutex		lock;
+	struct list_head	list;
+};
+
+struct mlx5_bfreg_data {
+	struct mlx5_bfreg_head	reg_head;
+	struct mlx5_bfreg_head	wc_head;
+};
+
+struct mlx5_sq_bfreg {
+	void __iomem	       *map;
+	struct mlx5_uars_page  *up;
+	bool			wc;
+	u32			index;
+	unsigned int		offset;
+};
+
 struct mlx5_uar {
 	u32			index;
 	struct list_head	bf_list;
@@ -645,6 +678,7 @@ struct mlx5_priv {
 	void		       *pfault_ctx;
 	struct srcu_struct      pfault_srcu;
 #endif
+	struct mlx5_bfreg_data		bfregs;
 };
 
 enum mlx5_device_state {
@@ -1022,6 +1056,9 @@ void mlx5_cleanup_rl_table(struct mlx5_core_dev *dev);
 int mlx5_rl_add_rate(struct mlx5_core_dev *dev, u32 rate, u16 *index);
 void mlx5_rl_remove_rate(struct mlx5_core_dev *dev, u32 rate);
 bool mlx5_rl_is_in_range(struct mlx5_core_dev *dev, u32 rate);
+int mlx5_alloc_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg,
+		     bool map_wc, bool fast_path);
+void mlx5_free_bfreg(struct mlx5_core_dev *mdev, struct mlx5_sq_bfreg *bfreg);
 
 static inline int fw_initializing(struct mlx5_core_dev *dev)
 {
