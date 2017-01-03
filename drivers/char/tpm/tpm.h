@@ -182,7 +182,9 @@ struct tpm_chip_seqops {
 
 struct tpm_chip {
 	struct device dev;
+	struct device devs;
 	struct cdev cdev;
+	struct cdev cdevs;
 
 	/* A driver callback under ops cannot be run unless ops_sem is held
 	 * (sometimes implicitly, eg for the sysfs code). ops becomes null
@@ -510,8 +512,10 @@ static inline void tpm_buf_append_u32(struct tpm_buf *buf, const u32 value)
 }
 
 extern struct class *tpm_class;
+extern struct class *tpmrm_class;
 extern dev_t tpm_devt;
 extern const struct file_operations tpm_fops;
+extern const struct file_operations tpmrm_fops;
 extern struct idr dev_nums_idr;
 
 enum tpm_transmit_flags {
