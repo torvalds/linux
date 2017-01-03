@@ -1,6 +1,4 @@
 /*
- * drivers/staging/media/st-cec/stih-cec.c
- *
  * STIH4xx CEC driver
  * Copyright (C) STMicroelectronic SA 2016
  *
@@ -15,9 +13,11 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
 #include <media/cec.h>
+#include <media/cec-notifier.h>
 
 #define CEC_NAME	"stih-cec"
 
@@ -129,6 +129,7 @@ struct stih_cec {
 	void __iomem		*regs;
 	int			irq;
 	u32			irq_status;
+	struct cec_notifier	*notifier;
 };
 
 static int stih_cec_adap_enable(struct cec_adapter *adap, bool enable)
@@ -303,10 +304,27 @@ static int stih_cec_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct stih_cec *cec;
+	struct device_node *np;
+	struct platform_device *hdmi_dev;
 	int ret;
 
 	cec = devm_kzalloc(dev, sizeof(*cec), GFP_KERNEL);
 	if (!cec)
+		return -ENOMEM;
+
+	np = of_parse_phandle(pdev->dev.of_node, "hdmi-phandle", 0);
+
+	if (!np) {
+		dev_err(&pdev->dev, "Failed to find hdmi node in device tree\n");
+		return -ENODEV;
+	}
+
+	hdmi_dev = of_find_device_by_node(np);
+	if (!hdmi_dev)
+		return -EPROBE_DEFER;
+
+	cec->notifier = cec_notifier_get(&hdmi_dev->dev);
+	if (!cec->notifier)
 		return -ENOMEM;
 
 	cec->dev = dev;
@@ -335,7 +353,7 @@ static int stih_cec_probe(struct platform_device *pdev)
 	cec->adap = cec_allocate_adapter(&sti_cec_adap_ops, cec,
 			CEC_NAME,
 			CEC_CAP_LOG_ADDRS | CEC_CAP_PASSTHROUGH |
-			CEC_CAP_PHYS_ADDR | CEC_CAP_TRANSMIT, 1);
+			CEC_CAP_TRANSMIT, 1);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;
@@ -346,12 +364,19 @@ static int stih_cec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	cec_register_cec_notifier(cec->adap, cec->notifier);
+
 	platform_set_drvdata(pdev, cec);
 	return 0;
 }
 
 static int stih_cec_remove(struct platform_device *pdev)
 {
+	struct stih_cec *cec = platform_get_drvdata(pdev);
+
+	cec_unregister_adapter(cec->adap);
+	cec_notifier_put(cec->notifier);
+
 	return 0;
 }
 
