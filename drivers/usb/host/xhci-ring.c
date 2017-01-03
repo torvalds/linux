@@ -1270,7 +1270,11 @@ void xhci_handle_command_timeout(unsigned long data)
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
-	if (!xhci->current_cmd) {
+	/*
+	 * If timeout work is pending, or current_cmd is NULL, it means we
+	 * raced with command completion. Command is handled so just return.
+	 */
+	if (!xhci->current_cmd || timer_pending(&xhci->cmd_timer)) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
