@@ -1268,13 +1268,17 @@ void xhci_handle_command_timeout(unsigned long data)
 	bool second_timeout = false;
 	xhci = (struct xhci_hcd *) data;
 
-	/* mark this command to be cancelled */
 	spin_lock_irqsave(&xhci->lock, flags);
-	if (xhci->current_cmd) {
-		if (xhci->current_cmd->status == COMP_CMD_ABORT)
-			second_timeout = true;
-		xhci->current_cmd->status = COMP_CMD_ABORT;
+
+	if (!xhci->current_cmd) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return;
 	}
+
+	/* mark this command to be cancelled */
+	if (xhci->current_cmd->status == COMP_CMD_ABORT)
+		second_timeout = true;
+	xhci->current_cmd->status = COMP_CMD_ABORT;
 
 	/* Make sure command ring is running before aborting it */
 	hw_ring_state = xhci_read_64(xhci, &xhci->op_regs->cmd_ring);
@@ -1424,6 +1428,8 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 		xhci->current_cmd = list_entry(cmd->cmd_list.next,
 					       struct xhci_command, cmd_list);
 		mod_timer(&xhci->cmd_timer, jiffies + XHCI_CMD_DEFAULT_TIMEOUT);
+	} else if (xhci->current_cmd == cmd) {
+		xhci->current_cmd = NULL;
 	}
 
 event_handled:
