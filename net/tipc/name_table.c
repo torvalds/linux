@@ -608,7 +608,7 @@ not_found:
  * Returns non-zero if any off-node ports overlap
  */
 int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
-			      u32 limit, struct tipc_plist *dports)
+			      u32 limit, struct list_head *dports)
 {
 	struct name_seq *seq;
 	struct sub_seq *sseq;
@@ -633,7 +633,7 @@ int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
 		info = sseq->info;
 		list_for_each_entry(publ, &info->node_list, node_list) {
 			if (publ->scope <= limit)
-				tipc_plist_push(dports, publ->ref);
+				u32_push(dports, publ->ref);
 		}
 
 		if (info->cluster_list_size != info->node_list_size)
@@ -1022,40 +1022,84 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
-void tipc_plist_push(struct tipc_plist *pl, u32 port)
-{
-	struct tipc_plist *nl;
+struct u32_item {
+	struct list_head list;
+	u32 value;
+};
 
-	if (likely(!pl->port)) {
-		pl->port = port;
-		return;
+bool u32_find(struct list_head *l, u32 value)
+{
+	struct u32_item *item;
+
+	list_for_each_entry(item, l, list) {
+		if (item->value == value)
+			return true;
 	}
-	if (pl->port == port)
-		return;
-	list_for_each_entry(nl, &pl->list, list) {
-		if (nl->port == port)
-			return;
+	return false;
+}
+
+bool u32_push(struct list_head *l, u32 value)
+{
+	struct u32_item *item;
+
+	list_for_each_entry(item, l, list) {
+		if (item->value == value)
+			return false;
 	}
-	nl = kmalloc(sizeof(*nl), GFP_ATOMIC);
-	if (nl) {
-		nl->port = port;
-		list_add(&nl->list, &pl->list);
+	item = kmalloc(sizeof(*item), GFP_ATOMIC);
+	if (unlikely(!item))
+		return false;
+
+	item->value = value;
+	list_add(&item->list, l);
+	return true;
+}
+
+u32 u32_pop(struct list_head *l)
+{
+	struct u32_item *item;
+	u32 value = 0;
+
+	if (list_empty(l))
+		return 0;
+	item = list_first_entry(l, typeof(*item), list);
+	value = item->value;
+	list_del(&item->list);
+	kfree(item);
+	return value;
+}
+
+bool u32_del(struct list_head *l, u32 value)
+{
+	struct u32_item *item, *tmp;
+
+	list_for_each_entry_safe(item, tmp, l, list) {
+		if (item->value != value)
+			continue;
+		list_del(&item->list);
+		kfree(item);
+		return true;
+	}
+	return false;
+}
+
+void u32_list_purge(struct list_head *l)
+{
+	struct u32_item *item, *tmp;
+
+	list_for_each_entry_safe(item, tmp, l, list) {
+		list_del(&item->list);
+		kfree(item);
 	}
 }
 
-u32 tipc_plist_pop(struct tipc_plist *pl)
+int u32_list_len(struct list_head *l)
 {
-	struct tipc_plist *nl;
-	u32 port = 0;
+	struct u32_item *item;
+	int i = 0;
 
-	if (likely(list_empty(&pl->list))) {
-		port = pl->port;
-		pl->port = 0;
-		return port;
+	list_for_each_entry(item, l, list) {
+		i++;
 	}
-	nl = list_first_entry(&pl->list, typeof(*nl), list);
-	port = nl->port;
-	list_del(&nl->list);
-	kfree(nl);
-	return port;
+	return i;
 }
