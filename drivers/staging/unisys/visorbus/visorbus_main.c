@@ -49,7 +49,7 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 
 	vdev = to_visor_device(dev);
 	guid = visorchannel_get_uuid(vdev->visorchannel);
-	return snprintf(buf, PAGE_SIZE, "visorbus:%pUl\n", &guid);
+	return sprintf(buf, "visorbus:%pUl\n", &guid);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -187,8 +187,8 @@ static ssize_t physaddr_show(struct device *dev, struct device_attribute *attr,
 
 	if (!vdev->visorchannel)
 		return 0;
-	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
-			visorchannel_get_physaddr(vdev->visorchannel));
+	return sprintf(buf, "0x%llx\n",
+		       visorchannel_get_physaddr(vdev->visorchannel));
 }
 static DEVICE_ATTR_RO(physaddr);
 
@@ -199,7 +199,7 @@ static ssize_t nbytes_show(struct device *dev, struct device_attribute *attr,
 
 	if (!vdev->visorchannel)
 		return 0;
-	return snprintf(buf, PAGE_SIZE, "0x%lx\n",
+	return sprintf(buf, "0x%lx\n",
 			visorchannel_get_nbytes(vdev->visorchannel));
 }
 static DEVICE_ATTR_RO(nbytes);
@@ -211,8 +211,8 @@ static ssize_t clientpartition_show(struct device *dev,
 
 	if (!vdev->visorchannel)
 		return 0;
-	return snprintf(buf, PAGE_SIZE, "0x%llx\n",
-			visorchannel_get_clientpartition(vdev->visorchannel));
+	return sprintf(buf, "0x%llx\n",
+		       visorchannel_get_clientpartition(vdev->visorchannel));
 }
 static DEVICE_ATTR_RO(clientpartition);
 
@@ -224,8 +224,8 @@ static ssize_t typeguid_show(struct device *dev, struct device_attribute *attr,
 
 	if (!vdev->visorchannel)
 		return 0;
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			visorchannel_id(vdev->visorchannel, typeid));
+	return sprintf(buf, "%s\n",
+		       visorchannel_id(vdev->visorchannel, typeid));
 }
 static DEVICE_ATTR_RO(typeguid);
 
@@ -237,8 +237,8 @@ static ssize_t zoneguid_show(struct device *dev, struct device_attribute *attr,
 
 	if (!vdev->visorchannel)
 		return 0;
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			visorchannel_zoneid(vdev->visorchannel, zoneid));
+	return sprintf(buf, "%s\n",
+		       visorchannel_zoneid(vdev->visorchannel, zoneid));
 }
 static DEVICE_ATTR_RO(zoneguid);
 
@@ -257,7 +257,7 @@ static ssize_t typename_show(struct device *dev, struct device_attribute *attr,
 	if (!i)
 		return 0;
 	drv = to_visor_driver(xdrv);
-	return snprintf(buf, PAGE_SIZE, "%s\n", drv->channel_types[i - 1].name);
+	return sprintf(buf, "%s\n", drv->channel_types[i - 1].name);
 }
 static DEVICE_ATTR_RO(typename);
 
@@ -296,7 +296,7 @@ static ssize_t partition_handle_show(struct device *dev,
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 handle = visorchannel_get_clientpartition(vdev->visorchannel);
 
-	return snprintf(buf, PAGE_SIZE, "0x%llx\n", handle);
+	return sprintf(buf, "0x%llx\n", handle);
 }
 static DEVICE_ATTR_RO(partition_handle);
 
@@ -305,7 +305,7 @@ static ssize_t partition_guid_show(struct device *dev,
 				   char *buf) {
 	struct visor_device *vdev = to_visor_device(dev);
 
-	return snprintf(buf, PAGE_SIZE, "{%pUb}\n", &vdev->partition_uuid);
+	return sprintf(buf, "{%pUb}\n", &vdev->partition_uuid);
 }
 static DEVICE_ATTR_RO(partition_guid);
 
@@ -314,7 +314,7 @@ static ssize_t partition_name_show(struct device *dev,
 				   char *buf) {
 	struct visor_device *vdev = to_visor_device(dev);
 
-	return snprintf(buf, PAGE_SIZE, "%s\n", vdev->name);
+	return sprintf(buf, "%s\n", vdev->name);
 }
 static DEVICE_ATTR_RO(partition_name);
 
@@ -324,7 +324,7 @@ static ssize_t channel_addr_show(struct device *dev,
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 addr = visorchannel_get_physaddr(vdev->visorchannel);
 
-	return snprintf(buf, PAGE_SIZE, "0x%llx\n", addr);
+	return sprintf(buf, "0x%llx\n", addr);
 }
 static DEVICE_ATTR_RO(channel_addr);
 
@@ -334,7 +334,7 @@ static ssize_t channel_bytes_show(struct device *dev,
 	struct visor_device *vdev = to_visor_device(dev);
 	u64 nbytes = visorchannel_get_nbytes(vdev->visorchannel);
 
-	return snprintf(buf, PAGE_SIZE, "0x%llx\n", nbytes);
+	return sprintf(buf, "0x%llx\n", nbytes);
 }
 static DEVICE_ATTR_RO(channel_bytes);
 
