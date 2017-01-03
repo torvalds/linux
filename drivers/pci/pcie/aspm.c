@@ -403,6 +403,14 @@ static void pcie_aspm_check_latency(struct pci_dev *endpoint)
 		 * Check L1 latency.
 		 * Every switch on the path to root complex need 1
 		 * more microsecond for L1. Spec doesn't mention L0s.
+		 *
+		 * The exit latencies for L1 substates are not advertised
+		 * by a device.  Since the spec also doesn't mention a way
+		 * to determine max latencies introduced by enabling L1
+		 * substates on the components, it is not clear how to do
+		 * a L1 substate exit latency check.  We assume that the
+		 * L1 exit latencies advertised by a device include L1
+		 * substate latencies (and hence do not do any check).
 		 */
 		latency = max_t(u32, link->latency_up.l1, link->latency_dw.l1);
 		if ((link->aspm_capable & ASPM_STATE_L1) &&
