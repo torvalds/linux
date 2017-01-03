@@ -37,11 +37,6 @@
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 
-enum {
-	NUM_DRIVER_UARS		= 4,
-	NUM_LOW_LAT_BFREGS	= 4,
-};
-
 int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn)
 {
 	u32 out[MLX5_ST_SZ_DW(alloc_uar_out)] = {0};
@@ -66,57 +61,6 @@ int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn)
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 EXPORT_SYMBOL(mlx5_cmd_free_uar);
-
-int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar,
-		       bool map_wc)
-{
-	phys_addr_t pfn;
-	phys_addr_t uar_bar_start;
-	int err;
-
-	err = mlx5_cmd_alloc_uar(mdev, &uar->index);
-	if (err) {
-		mlx5_core_warn(mdev, "mlx5_cmd_alloc_uar() failed, %d\n", err);
-		return err;
-	}
-
-	uar_bar_start = pci_resource_start(mdev->pdev, 0);
-	pfn           = (uar_bar_start >> PAGE_SHIFT) + uar->index;
-
-	if (map_wc) {
-		uar->bf_map = ioremap_wc(pfn << PAGE_SHIFT, PAGE_SIZE);
-		if (!uar->bf_map) {
-			mlx5_core_warn(mdev, "ioremap_wc() failed\n");
-			uar->map = ioremap(pfn << PAGE_SHIFT, PAGE_SIZE);
-			if (!uar->map)
-				goto err_free_uar;
-		}
-	} else {
-		uar->map = ioremap(pfn << PAGE_SHIFT, PAGE_SIZE);
-		if (!uar->map)
-			goto err_free_uar;
-	}
-
-	return 0;
-
-err_free_uar:
-	mlx5_core_warn(mdev, "ioremap() failed\n");
-	err = -ENOMEM;
-	mlx5_cmd_free_uar(mdev, uar->index);
-
-	return err;
-}
-EXPORT_SYMBOL(mlx5_alloc_map_uar);
-
-void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar)
-{
-	if (uar->map)
-		iounmap(uar->map);
-	else
-		iounmap(uar->bf_map);
-	mlx5_cmd_free_uar(mdev, uar->index);
-}
-EXPORT_SYMBOL(mlx5_unmap_free_uar);
 
 static int uars_per_sys_page(struct mlx5_core_dev *mdev)
 {

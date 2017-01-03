@@ -42,13 +42,13 @@ struct mlx5_core_cq {
 	int			cqe_sz;
 	__be32		       *set_ci_db;
 	__be32		       *arm_db;
+	struct mlx5_uars_page  *uar;
 	atomic_t		refcount;
 	struct completion	free;
 	unsigned		vector;
 	unsigned int		irqn;
 	void (*comp)		(struct mlx5_core_cq *);
 	void (*event)		(struct mlx5_core_cq *, enum mlx5_event);
-	struct mlx5_uar	       *uar;
 	u32			cons_index;
 	unsigned		arm_sn;
 	struct mlx5_rsc_debug	*dbg;
