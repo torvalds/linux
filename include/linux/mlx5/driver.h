@@ -203,23 +203,6 @@ struct mlx5_bfreg_info {
 	u32			ver;
 };
 
-struct mlx5_bf {
-	void __iomem	       *reg;
-	void __iomem	       *regreg;
-	int			buf_size;
-	struct mlx5_uar	       *uar;
-	unsigned long		offset;
-	int			need_lock;
-	/* protect blue flame buffer selection when needed
-	 */
-	spinlock_t		lock;
-
-	/* serialize 64 bit writes when done as two 32 bit accesses
-	 */
-	spinlock_t		lock32;
-	int			bfregn;
-};
-
 struct mlx5_cmd_first {
 	__be32		data[4];
 };
@@ -612,8 +595,6 @@ struct mlx5_priv {
 	struct mlx5_eq_table	eq_table;
 	struct msix_entry	*msix_arr;
 	struct mlx5_irq_info	*irq_info;
-	struct mlx5_bfreg_info	bfregi;
-	MLX5_DECLARE_DOORBELL_LOCK(cq_uar_lock);
 
 	/* pages stuff */
 	struct workqueue_struct *pg_wq;

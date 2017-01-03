@@ -909,14 +909,10 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 			    u32 **in, int *inlen,
 			    struct mlx5_ib_qp_base *base)
 {
-	enum mlx5_ib_latency_class lc = MLX5_IB_LATENCY_CLASS_LOW;
-	struct mlx5_bfreg_info *bfregi;
 	int uar_index;
 	void *qpc;
-	int bfregn;
 	int err;
 
-	bfregi = &dev->mdev->priv.bfregi;
 	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN |
 					IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
 					IB_QP_CREATE_IPOIB_UD_LSO |
@@ -924,21 +920,17 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 		return -EINVAL;
 
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
-		lc = MLX5_IB_LATENCY_CLASS_FAST_PATH;
+		qp->bf.bfreg = &dev->fp_bfreg;
+	else
+		qp->bf.bfreg = &dev->bfreg;
 
-	bfregn = alloc_bfreg(bfregi, lc);
-	if (bfregn < 0) {
-		mlx5_ib_dbg(dev, "\n");
-		return -ENOMEM;
-	}
-
-	qp->bf = &bfregi->bfs[bfregn];
-	uar_index = qp->bf->uar->index;
+	qp->bf.buf_size = 1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size);
+	uar_index = qp->bf.bfreg->index;
 
 	err = calc_sq_size(dev, init_attr, qp);
 	if (err < 0) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
-		goto err_bfreg;
+		return err;
 	}
 
 	qp->rq.offset = 0;
@@ -948,7 +940,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	err = mlx5_buf_alloc(dev->mdev, base->ubuffer.buf_size, &qp->buf);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
-		goto err_bfreg;
+		return err;
 	}
 
 	qp->sq.qend = mlx5_get_send_wqe(qp, qp->sq.wqe_cnt);
@@ -1010,9 +1002,6 @@ err_free:
 
 err_buf:
 	mlx5_buf_free(dev->mdev, &qp->buf);
-
-err_bfreg:
-	free_bfreg(&dev->mdev->priv.bfregi, bfregn);
 	return err;
 }
 
@@ -1025,7 +1014,6 @@ static void destroy_qp_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 	kfree(qp->rq.wrid);
 	mlx5_db_free(dev->mdev, &qp->db);
 	mlx5_buf_free(dev->mdev, &qp->buf);
-	free_bfreg(&dev->mdev->priv.bfregi, qp->bf->bfregn);
 }
 
 static u32 get_rx_type(struct mlx5_ib_qp *qp, struct ib_qp_init_attr *attr)
@@ -3744,24 +3732,6 @@ static void dump_wqe(struct mlx5_ib_qp *qp, int idx, int size_16)
 	}
 }
 
-static void mlx5_bf_copy(u64 __iomem *dst, u64 *src,
-			 unsigned bytecnt, struct mlx5_ib_qp *qp)
-{
-	while (bytecnt > 0) {
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		__iowrite64_copy(dst++, src++, 8);
-		bytecnt -= 64;
-		if (unlikely(src == qp->sq.qend))
-			src = mlx5_get_send_wqe(qp, 0);
-	}
-}
-
 static u8 get_fence(u8 fence, struct ib_send_wr *wr)
 {
 	if (unlikely(wr->opcode == IB_WR_LOCAL_INV &&
@@ -3857,7 +3827,7 @@ int mlx5_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		return mlx5_ib_gsi_post_send(ibqp, wr, bad_wr);
 
 	qp = to_mqp(ibqp);
-	bf = qp->bf;
+	bf = &qp->bf;
 	qend = qp->sq.qend;
 
 	spin_lock_irqsave(&qp->sq.lock, flags);
@@ -4130,28 +4100,13 @@ out:
 		 * we hit doorbell */
 		wmb();
 
-		if (bf->need_lock)
-			spin_lock(&bf->lock);
-		else
-			__acquire(&bf->lock);
-
-		/* TBD enable WC */
-		if (0 && nreq == 1 && bf->bfregn && inl && size > 1 && size <= bf->buf_size / 16) {
-			mlx5_bf_copy(bf->reg + bf->offset, (u64 *)ctrl, ALIGN(size * 16, 64), qp);
-			/* wc_wmb(); */
-		} else {
-			mlx5_write64((__be32 *)ctrl, bf->regreg + bf->offset,
-				     MLX5_GET_DOORBELL_LOCK(&bf->lock32));
-			/* Make sure doorbells don't leak out of SQ spinlock
-			 * and reach the HCA out of order.
-			 */
-			mmiowb();
-		}
+		/* currently we support only regular doorbells */
+		mlx5_write64((__be32 *)ctrl, bf->bfreg->map + bf->offset, NULL);
+		/* Make sure doorbells don't leak out of SQ spinlock
+		 * and reach the HCA out of order.
+		 */
+		mmiowb();
 		bf->offset ^= bf->buf_size;
-		if (bf->need_lock)
-			spin_unlock(&bf->lock);
-		else
-			__release(&bf->lock);
 	}
 
 	spin_unlock_irqrestore(&qp->sq.lock, flags);

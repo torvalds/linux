@@ -913,8 +913,6 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 		goto out;
 	}
 
-	MLX5_INIT_DOORBELL_LOCK(&priv->cq_uar_lock);
-
 	err = mlx5_init_cq_table(dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize cq table\n");
@@ -1099,16 +1097,10 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_disable_msix;
 	}
 
-	err = mlx5_alloc_bfregs(dev, &priv->bfregi);
-	if (err) {
-		dev_err(&pdev->dev, "Failed allocating uuars, aborting\n");
-		goto err_uar_cleanup;
-	}
-
 	err = mlx5_start_eqs(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to start pages and async EQs\n");
-		goto err_free_uar;
+		goto err_put_uars;
 	}
 
 	err = alloc_comp_eqs(dev);
@@ -1174,10 +1166,7 @@ err_affinity_hints:
 err_stop_eqs:
 	mlx5_stop_eqs(dev);
 
-err_free_uar:
-	mlx5_free_bfregs(dev, &priv->bfregi);
-
-err_uar_cleanup:
+err_put_uars:
 	mlx5_put_uars_page(dev, priv->uar);
 
 err_disable_msix:
@@ -1238,7 +1227,6 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_irq_clear_affinity_hints(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
-	mlx5_free_bfregs(dev, &priv->bfregi);
 	mlx5_put_uars_page(dev, priv->uar);
 	mlx5_disable_msix(dev);
 	if (cleanup)

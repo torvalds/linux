@@ -144,7 +144,6 @@ enum {
 
 static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 			       void __iomem *uar_page,
-			       spinlock_t *doorbell_lock,
 			       u32 cons_index)
 {
 	__be32 doorbell[2];
@@ -164,7 +163,7 @@ static inline void mlx5_cq_arm(struct mlx5_core_cq *cq, u32 cmd,
 	doorbell[0] = cpu_to_be32(sn << 28 | cmd | ci);
 	doorbell[1] = cpu_to_be32(cq->cqn);
 
-	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL, doorbell_lock);
+	mlx5_write64(doorbell, uar_page + MLX5_CQ_DOORBELL, NULL);
 }
 
 int mlx5_init_cq_table(struct mlx5_core_dev *dev);
