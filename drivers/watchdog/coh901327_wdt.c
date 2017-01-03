@@ -360,12 +360,10 @@ static int __init coh901327_probe(struct platform_device *pdev)
 
 	coh901327_wdt.parent = &pdev->dev;
 	ret = watchdog_register_device(&coh901327_wdt);
-	if (ret == 0)
-		dev_info(&pdev->dev,
-			 "initialized. timer margin=%d sec\n", margin);
-	else
+	if (ret)
 		goto out_no_wdog;
 
+	dev_info(&pdev->dev, "initialized. timer margin=%d sec\n", margin);
 	return 0;
 
 out_no_wdog:
