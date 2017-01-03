@@ -1636,7 +1636,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		 * overhead. Still generate buildid if they are required
 		 * explicitly using
 		 *
-		 *  perf record --signal-trigger --no-no-buildid \
+		 *  perf record --switch-output --no-no-buildid \
 		 *              --no-no-buildid-cache
 		 *
 		 * Following code equals to:
