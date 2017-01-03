@@ -480,16 +480,6 @@ static int first_med_bfreg(void)
 	return 1;
 }
 
-static int next_bfreg(int n)
-{
-	n++;
-
-	while (((n % 4) & 2))
-		n++;
-
-	return n;
-}
-
 enum {
 	/* this is the first blue flame register in the array of bfregs assigned
 	 * to a processes. Since we do not use it for blue flame but rather
@@ -499,36 +489,38 @@ enum {
 	NUM_NON_BLUE_FLAME_BFREGS = 1,
 };
 
-static int num_med_bfreg(struct mlx5_bfreg_info *bfregi)
+static int max_bfregs(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi)
+{
+	return get_num_uars(dev, bfregi) * MLX5_NON_FP_BFREGS_PER_UAR;
+}
+
+static int num_med_bfreg(struct mlx5_ib_dev *dev,
+			 struct mlx5_bfreg_info *bfregi)
 {
 	int n;
 
-	n = bfregi->num_uars * MLX5_NON_FP_BFREGS_PER_UAR -
-		bfregi->num_low_latency_bfregs - NUM_NON_BLUE_FLAME_BFREGS;
+	n = max_bfregs(dev, bfregi) - bfregi->num_low_latency_bfregs -
+	    NUM_NON_BLUE_FLAME_BFREGS;
 
 	return n >= 0 ? n : 0;
 }
 
-static int max_bfregi(struct mlx5_bfreg_info *bfregi)
-{
-	return bfregi->num_uars * 4;
-}
-
-static int first_hi_bfreg(struct mlx5_bfreg_info *bfregi)
+static int first_hi_bfreg(struct mlx5_ib_dev *dev,
+			  struct mlx5_bfreg_info *bfregi)
 {
 	int med;
 
-	med = num_med_bfreg(bfregi);
-	return next_bfreg(med);
+	med = num_med_bfreg(dev, bfregi);
+	return ++med;
 }
 
-static int alloc_high_class_bfreg(struct mlx5_bfreg_info *bfregi)
+static int alloc_high_class_bfreg(struct mlx5_ib_dev *dev,
+				  struct mlx5_bfreg_info *bfregi)
 {
 	int i;
 
-	for (i = first_hi_bfreg(bfregi); i < max_bfregi(bfregi); i = next_bfreg(i)) {
-		if (!test_bit(i, bfregi->bitmap)) {
-			set_bit(i, bfregi->bitmap);
+	for (i = first_hi_bfreg(dev, bfregi); i < max_bfregs(dev, bfregi); i++) {
+		if (!bfregi->count[i]) {
 			bfregi->count[i]++;
 			return i;
 		}
@@ -537,12 +529,13 @@ static int alloc_high_class_bfreg(struct mlx5_bfreg_info *bfregi)
 	return -ENOMEM;
 }
 
-static int alloc_med_class_bfreg(struct mlx5_bfreg_info *bfregi)
+static int alloc_med_class_bfreg(struct mlx5_ib_dev *dev,
+				 struct mlx5_bfreg_info *bfregi)
 {
 	int minidx = first_med_bfreg();
 	int i;
 
-	for (i = first_med_bfreg(); i < first_hi_bfreg(bfregi); i = next_bfreg(i)) {
+	for (i = first_med_bfreg(); i < first_hi_bfreg(dev, bfregi); i++) {
 		if (bfregi->count[i] < bfregi->count[minidx])
 			minidx = i;
 		if (!bfregi->count[minidx])
@@ -553,7 +546,8 @@ static int alloc_med_class_bfreg(struct mlx5_bfreg_info *bfregi)
 	return minidx;
 }
 
-static int alloc_bfreg(struct mlx5_bfreg_info *bfregi,
+static int alloc_bfreg(struct mlx5_ib_dev *dev,
+		       struct mlx5_bfreg_info *bfregi,
 		       enum mlx5_ib_latency_class lat)
 {
 	int bfregn = -EINVAL;
@@ -570,18 +564,14 @@ static int alloc_bfreg(struct mlx5_bfreg_info *bfregi,
 		if (bfregi->ver < 2)
 			bfregn = -ENOMEM;
 		else
-			bfregn = alloc_med_class_bfreg(bfregi);
+			bfregn = alloc_med_class_bfreg(dev, bfregi);
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_HIGH:
 		if (bfregi->ver < 2)
 			bfregn = -ENOMEM;
 		else
-			bfregn = alloc_high_class_bfreg(bfregi);
-		break;
-
-	case MLX5_IB_LATENCY_CLASS_FAST_PATH:
-		bfregn = 2;
+			bfregn = alloc_high_class_bfreg(dev, bfregi);
 		break;
 	}
 	mutex_unlock(&bfregi->lock);
@@ -589,37 +579,10 @@ static int alloc_bfreg(struct mlx5_bfreg_info *bfregi,
 	return bfregn;
 }
 
-static void free_med_class_bfreg(struct mlx5_bfreg_info *bfregi, int bfregn)
+static void free_bfreg(struct mlx5_ib_dev *dev, struct mlx5_bfreg_info *bfregi, int bfregn)
 {
-	clear_bit(bfregn, bfregi->bitmap);
-	--bfregi->count[bfregn];
-}
-
-static void free_high_class_bfreg(struct mlx5_bfreg_info *bfregi, int bfregn)
-{
-	clear_bit(bfregn, bfregi->bitmap);
-	--bfregi->count[bfregn];
-}
-
-static void free_bfreg(struct mlx5_bfreg_info *bfregi, int bfregn)
-{
-	int nbfregs = bfregi->num_uars * MLX5_BFREGS_PER_UAR;
-	int high_bfreg = nbfregs - bfregi->num_low_latency_bfregs;
-
 	mutex_lock(&bfregi->lock);
-	if (bfregn == 0) {
-		--bfregi->count[bfregn];
-		goto out;
-	}
-
-	if (bfregn < high_bfreg) {
-		free_med_class_bfreg(bfregi, bfregn);
-		goto out;
-	}
-
-	free_high_class_bfreg(bfregi, bfregn);
-
-out:
+	bfregi->count[bfregn]--;
 	mutex_unlock(&bfregi->lock);
 }
 
@@ -661,9 +624,20 @@ static void mlx5_ib_lock_cqs(struct mlx5_ib_cq *send_cq,
 static void mlx5_ib_unlock_cqs(struct mlx5_ib_cq *send_cq,
 			       struct mlx5_ib_cq *recv_cq);
 
-static int bfregn_to_uar_index(struct mlx5_bfreg_info *bfregi, int bfregn)
+static int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
+			       struct mlx5_bfreg_info *bfregi, int bfregn)
 {
-	return bfregi->uars[bfregn / MLX5_BFREGS_PER_UAR].index;
+	int bfregs_per_sys_page;
+	int index_of_sys_page;
+	int offset;
+
+	bfregs_per_sys_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k) *
+				MLX5_NON_FP_BFREGS_PER_UAR;
+	index_of_sys_page = bfregn / bfregs_per_sys_page;
+
+	offset = bfregn % bfregs_per_sys_page / MLX5_NON_FP_BFREGS_PER_UAR;
+
+	return bfregi->sys_pages[index_of_sys_page] + offset;
 }
 
 static int mlx5_ib_umem_get(struct mlx5_ib_dev *dev,
@@ -766,6 +740,13 @@ err_umem:
 	return err;
 }
 
+static int adjust_bfregn(struct mlx5_ib_dev *dev,
+			 struct mlx5_bfreg_info *bfregi, int bfregn)
+{
+	return bfregn / MLX5_NON_FP_BFREGS_PER_UAR * MLX5_BFREGS_PER_UAR +
+				bfregn % MLX5_NON_FP_BFREGS_PER_UAR;
+}
+
 static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 			  struct mlx5_ib_qp *qp, struct ib_udata *udata,
 			  struct ib_qp_init_attr *attr,
@@ -800,15 +781,15 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		/* In CROSS_CHANNEL CQ and QP must use the same UAR */
 		bfregn = MLX5_CROSS_CHANNEL_BFREG;
 	else {
-		bfregn = alloc_bfreg(&context->bfregi, MLX5_IB_LATENCY_CLASS_HIGH);
+		bfregn = alloc_bfreg(dev, &context->bfregi, MLX5_IB_LATENCY_CLASS_HIGH);
 		if (bfregn < 0) {
 			mlx5_ib_dbg(dev, "failed to allocate low latency BFREG\n");
 			mlx5_ib_dbg(dev, "reverting to medium latency\n");
-			bfregn = alloc_bfreg(&context->bfregi, MLX5_IB_LATENCY_CLASS_MEDIUM);
+			bfregn = alloc_bfreg(dev, &context->bfregi, MLX5_IB_LATENCY_CLASS_MEDIUM);
 			if (bfregn < 0) {
 				mlx5_ib_dbg(dev, "failed to allocate medium latency BFREG\n");
 				mlx5_ib_dbg(dev, "reverting to high latency\n");
-				bfregn = alloc_bfreg(&context->bfregi, MLX5_IB_LATENCY_CLASS_LOW);
+				bfregn = alloc_bfreg(dev, &context->bfregi, MLX5_IB_LATENCY_CLASS_LOW);
 				if (bfregn < 0) {
 					mlx5_ib_warn(dev, "bfreg allocation failed\n");
 					return bfregn;
@@ -817,7 +798,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		}
 	}
 
-	uar_index = bfregn_to_uar_index(&context->bfregi, bfregn);
+	uar_index = bfregn_to_uar_index(dev, &context->bfregi, bfregn);
 	mlx5_ib_dbg(dev, "bfregn 0x%x, uar_index 0x%x\n", bfregn, uar_index);
 
 	qp->rq.offset = 0;
@@ -858,7 +839,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	MLX5_SET(qpc, qpc, page_offset, offset);
 
 	MLX5_SET(qpc, qpc, uar_page, uar_index);
-	resp->bfreg_index = bfregn;
+	resp->bfreg_index = adjust_bfregn(dev, &context->bfregi, bfregn);
 	qp->bfregn = bfregn;
 
 	err = mlx5_ib_db_map_user(context, ucmd.db_addr, &qp->db);
@@ -887,12 +868,12 @@ err_umem:
 		ib_umem_release(ubuffer->umem);
 
 err_bfreg:
-	free_bfreg(&context->bfregi, bfregn);
+	free_bfreg(dev, &context->bfregi, bfregn);
 	return err;
 }
 
-static void destroy_qp_user(struct ib_pd *pd, struct mlx5_ib_qp *qp,
-			    struct mlx5_ib_qp_base *base)
+static void destroy_qp_user(struct mlx5_ib_dev *dev, struct ib_pd *pd,
+			    struct mlx5_ib_qp *qp, struct mlx5_ib_qp_base *base)
 {
 	struct mlx5_ib_ucontext *context;
 
@@ -900,7 +881,7 @@ static void destroy_qp_user(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 	mlx5_ib_db_unmap_user(context, &qp->db);
 	if (base->ubuffer.umem)
 		ib_umem_release(base->ubuffer.umem);
-	free_bfreg(&context->bfregi, qp->bfregn);
+	free_bfreg(dev, &context->bfregi, qp->bfregn);
 }
 
 static int create_kernel_qp(struct mlx5_ib_dev *dev,
@@ -1784,7 +1765,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 err_create:
 	if (qp->create_type == MLX5_QP_USER)
-		destroy_qp_user(pd, qp, base);
+		destroy_qp_user(dev, pd, qp, base);
 	else if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 
@@ -1962,7 +1943,7 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 	if (qp->create_type == MLX5_QP_KERNEL)
 		destroy_qp_kernel(dev, qp);
 	else if (qp->create_type == MLX5_QP_USER)
-		destroy_qp_user(&get_pd(qp)->ibpd, qp, base);
+		destroy_qp_user(dev, &get_pd(qp)->ibpd, qp, base);
 }
 
 static const char *ib_qp_type_str(enum ib_qp_type type)

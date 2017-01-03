@@ -90,7 +90,6 @@ enum mlx5_ib_latency_class {
 	MLX5_IB_LATENCY_CLASS_LOW,
 	MLX5_IB_LATENCY_CLASS_MEDIUM,
 	MLX5_IB_LATENCY_CLASS_HIGH,
-	MLX5_IB_LATENCY_CLASS_FAST_PATH
 };
 
 enum mlx5_ib_mad_ifc_flags {
@@ -129,6 +128,7 @@ struct mlx5_ib_ucontext {
 	unsigned long		upd_xlt_page;
 	/* protect ODP/KSM */
 	struct mutex		upd_xlt_page_mutex;
+	u64			lib_caps;
 };
 
 static inline struct mlx5_ib_ucontext *to_mucontext(struct ib_ucontext *ibucontext)
@@ -975,4 +975,17 @@ static inline int get_srq_user_index(struct mlx5_ib_ucontext *ucontext,
 
 	return verify_assign_uidx(cqe_version, ucmd->uidx, user_index);
 }
+
+static inline int get_uars_per_sys_page(struct mlx5_ib_dev *dev, bool lib_support)
+{
+	return lib_support && MLX5_CAP_GEN(dev->mdev, uar_4k) ?
+				MLX5_UARS_IN_PAGE : 1;
+}
+
+static inline int get_num_uars(struct mlx5_ib_dev *dev,
+			       struct mlx5_bfreg_info *bfregi)
+{
+	return get_uars_per_sys_page(dev, bfregi->lib_uar_4k) * bfregi->num_sys_pages;
+}
+
 #endif /* MLX5_IB_H */

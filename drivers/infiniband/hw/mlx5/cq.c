@@ -788,7 +788,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	MLX5_SET(cqc, cqc, log_page_size,
 		 page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 
-	*index = to_mucontext(context)->bfregi.uars[0].index;
+	*index = to_mucontext(context)->bfregi.sys_pages[0];
 
 	if (ucmd.cqe_comp_en == 1) {
 		if (unlikely((*cqe_size != 64) ||

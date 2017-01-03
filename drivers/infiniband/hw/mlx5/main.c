@@ -992,6 +992,80 @@ out:
 	return err;
 }
 
+static int calc_total_bfregs(struct mlx5_ib_dev *dev, bool lib_uar_4k,
+			     struct mlx5_ib_alloc_ucontext_req_v2 *req,
+			     u32 *num_sys_pages)
+{
+	int uars_per_sys_page;
+	int bfregs_per_sys_page;
+	int ref_bfregs = req->total_num_bfregs;
+
+	if (req->total_num_bfregs == 0)
+		return -EINVAL;
+
+	BUILD_BUG_ON(MLX5_MAX_BFREGS % MLX5_NON_FP_BFREGS_IN_PAGE);
+	BUILD_BUG_ON(MLX5_MAX_BFREGS < MLX5_NON_FP_BFREGS_IN_PAGE);
+
+	if (req->total_num_bfregs > MLX5_MAX_BFREGS)
+		return -ENOMEM;
+
+	uars_per_sys_page = get_uars_per_sys_page(dev, lib_uar_4k);
+	bfregs_per_sys_page = uars_per_sys_page * MLX5_NON_FP_BFREGS_PER_UAR;
+	req->total_num_bfregs = ALIGN(req->total_num_bfregs, bfregs_per_sys_page);
+	*num_sys_pages = req->total_num_bfregs / bfregs_per_sys_page;
+
+	if (req->num_low_latency_bfregs > req->total_num_bfregs - 1)
+		return -EINVAL;
+
+	mlx5_ib_dbg(dev, "uar_4k: fw support %s, lib support %s, user requested %d bfregs, alloated %d, using %d sys pages\n",
+		    MLX5_CAP_GEN(dev->mdev, uar_4k) ? "yes" : "no",
+		    lib_uar_4k ? "yes" : "no", ref_bfregs,
+		    req->total_num_bfregs, *num_sys_pages);
+
+	return 0;
+}
+
+static int allocate_uars(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *context)
+{
+	struct mlx5_bfreg_info *bfregi;
+	int err;
+	int i;
+
+	bfregi = &context->bfregi;
+	for (i = 0; i < bfregi->num_sys_pages; i++) {
+		err = mlx5_cmd_alloc_uar(dev->mdev, &bfregi->sys_pages[i]);
+		if (err)
+			goto error;
+
+		mlx5_ib_dbg(dev, "allocated uar %d\n", bfregi->sys_pages[i]);
+	}
+	return 0;
+
+error:
+	for (--i; i >= 0; i--)
+		if (mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]))
+			mlx5_ib_warn(dev, "failed to free uar %d\n", i);
+
+	return err;
+}
+
+static int deallocate_uars(struct mlx5_ib_dev *dev, struct mlx5_ib_ucontext *context)
+{
+	struct mlx5_bfreg_info *bfregi;
+	int err;
+	int i;
+
+	bfregi = &context->bfregi;
+	for (i = 0; i < bfregi->num_sys_pages; i++) {
+		err = mlx5_cmd_free_uar(dev->mdev, bfregi->sys_pages[i]);
+		if (err) {
+			mlx5_ib_warn(dev, "failed to free uar %d\n", i);
+			return err;
+		}
+	}
+	return 0;
+}
+
 static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 						  struct ib_udata *udata)
 {
@@ -1000,16 +1074,12 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	struct mlx5_ib_alloc_ucontext_resp resp = {};
 	struct mlx5_ib_ucontext *context;
 	struct mlx5_bfreg_info *bfregi;
-	struct mlx5_uar *uars;
-	int gross_bfregs;
-	int num_uars;
 	int ver;
-	int bfregn;
 	int err;
-	int i;
 	size_t reqlen;
 	size_t min_req_v2 = offsetof(struct mlx5_ib_alloc_ucontext_req_v2,
 				     max_cqe_version);
+	bool lib_uar_4k;
 
 	if (!dev->ib_active)
 		return ERR_PTR(-EAGAIN);
@@ -1032,18 +1102,7 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (req.flags)
 		return ERR_PTR(-EINVAL);
 
-	if (req.total_num_bfregs > MLX5_MAX_BFREGS)
-		return ERR_PTR(-ENOMEM);
-
-	if (req.total_num_bfregs == 0)
-		return ERR_PTR(-EINVAL);
-
 	if (req.comp_mask || req.reserved0 || req.reserved1 || req.reserved2)
-		return ERR_PTR(-EOPNOTSUPP);
-
-	if (reqlen > sizeof(req) &&
-	    !ib_is_udata_cleared(udata, sizeof(req),
-				 reqlen - sizeof(req)))
 		return ERR_PTR(-EOPNOTSUPP);
 
 	req.total_num_bfregs = ALIGN(req.total_num_bfregs,
@@ -1051,8 +1110,6 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (req.num_low_latency_bfregs > req.total_num_bfregs - 1)
 		return ERR_PTR(-EINVAL);
 
-	num_uars = req.total_num_bfregs / MLX5_NON_FP_BFREGS_PER_UAR;
-	gross_bfregs = num_uars * MLX5_BFREGS_PER_UAR;
 	resp.qp_tab_size = 1 << MLX5_CAP_GEN(dev->mdev, log_max_qp);
 	if (mlx5_core_is_pf(dev->mdev) && MLX5_CAP_GEN(dev->mdev, bf))
 		resp.bf_reg_size = 1 << MLX5_CAP_GEN(dev->mdev, log_bf_reg_size);
@@ -1072,42 +1129,34 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 	if (!context)
 		return ERR_PTR(-ENOMEM);
 
+	lib_uar_4k = false;
 	bfregi = &context->bfregi;
+
+	/* updates req->total_num_bfregs */
+	err = calc_total_bfregs(dev, lib_uar_4k, &req, &bfregi->num_sys_pages);
+	if (err)
+		goto out_ctx;
+
 	mutex_init(&bfregi->lock);
-	uars = kcalloc(num_uars, sizeof(*uars), GFP_KERNEL);
-	if (!uars) {
+	bfregi->lib_uar_4k = lib_uar_4k;
+	bfregi->count = kcalloc(req.total_num_bfregs, sizeof(*bfregi->count),
+				GFP_KERNEL);
+	if (!bfregi->count) {
 		err = -ENOMEM;
 		goto out_ctx;
 	}
 
-	bfregi->bitmap = kcalloc(BITS_TO_LONGS(gross_bfregs),
-				sizeof(*bfregi->bitmap),
-				GFP_KERNEL);
-	if (!bfregi->bitmap) {
+	bfregi->sys_pages = kcalloc(bfregi->num_sys_pages,
+				    sizeof(*bfregi->sys_pages),
+				    GFP_KERNEL);
+	if (!bfregi->sys_pages) {
 		err = -ENOMEM;
-		goto out_uar_ctx;
-	}
-	/*
-	 * clear all fast path bfregs
-	 */
-	for (i = 0; i < gross_bfregs; i++) {
-		bfregn = i & 3;
-		if (bfregn == 2 || bfregn == 3)
-			set_bit(i, bfregi->bitmap);
+		goto out_count;
 	}
 
-	bfregi->count = kcalloc(gross_bfregs,
-				sizeof(*bfregi->count), GFP_KERNEL);
-	if (!bfregi->count) {
-		err = -ENOMEM;
-		goto out_bitmap;
-	}
-
-	for (i = 0; i < num_uars; i++) {
-		err = mlx5_cmd_alloc_uar(dev->mdev, &uars[i].index);
-		if (err)
-			goto out_count;
-	}
+	err = allocate_uars(dev, context);
+	if (err)
+		goto out_sys_pages;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	context->ibucontext.invalidate_range = &mlx5_ib_invalidate_range;
@@ -1166,9 +1215,8 @@ static struct ib_ucontext *mlx5_ib_alloc_ucontext(struct ib_device *ibdev,
 
 	bfregi->ver = ver;
 	bfregi->num_low_latency_bfregs = req.num_low_latency_bfregs;
-	bfregi->uars = uars;
-	bfregi->num_uars = num_uars;
 	context->cqe_version = resp.cqe_version;
+	context->lib_caps = false;
 
 	return &context->ibucontext;
 
@@ -1180,19 +1228,17 @@ out_page:
 	free_page(context->upd_xlt_page);
 
 out_uars:
-	for (i--; i >= 0; i--)
-		mlx5_cmd_free_uar(dev->mdev, uars[i].index);
+	deallocate_uars(dev, context);
+
+out_sys_pages:
+	kfree(bfregi->sys_pages);
+
 out_count:
 	kfree(bfregi->count);
 
-out_bitmap:
-	kfree(bfregi->bitmap);
-
-out_uar_ctx:
-	kfree(uars);
-
 out_ctx:
 	kfree(context);
+
 	return ERR_PTR(err);
 }
 
@@ -1200,31 +1246,31 @@ static int mlx5_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct mlx5_ib_ucontext *context = to_mucontext(ibcontext);
 	struct mlx5_ib_dev *dev = to_mdev(ibcontext->device);
-	struct mlx5_bfreg_info *bfregi = &context->bfregi;
-	int i;
+	struct mlx5_bfreg_info *bfregi;
 
+	bfregi = &context->bfregi;
 	if (MLX5_CAP_GEN(dev->mdev, log_max_transport_domain))
 		mlx5_core_dealloc_transport_domain(dev->mdev, context->tdn);
 
 	free_page(context->upd_xlt_page);
-
-	for (i = 0; i < bfregi->num_uars; i++) {
-		if (mlx5_cmd_free_uar(dev->mdev, bfregi->uars[i].index))
-			mlx5_ib_warn(dev, "Failed to free UAR 0x%x\n",
-				     bfregi->uars[i].index);
-	}
-
+	deallocate_uars(dev, context);
+	kfree(bfregi->sys_pages);
 	kfree(bfregi->count);
-	kfree(bfregi->bitmap);
-	kfree(bfregi->uars);
 	kfree(context);
 
 	return 0;
 }
 
-static phys_addr_t uar_index2pfn(struct mlx5_ib_dev *dev, int index)
+static phys_addr_t uar_index2pfn(struct mlx5_ib_dev *dev,
+				 struct mlx5_bfreg_info *bfregi,
+				 int idx)
 {
-	return (pci_resource_start(dev->mdev->pdev, 0) >> PAGE_SHIFT) + index;
+	int fw_uars_per_page;
+
+	fw_uars_per_page = MLX5_CAP_GEN(dev->mdev, uar_4k) ? MLX5_UARS_IN_PAGE : 1;
+
+	return (pci_resource_start(dev->mdev->pdev, 0) >> PAGE_SHIFT) +
+			bfregi->sys_pages[idx] / fw_uars_per_page;
 }
 
 static int get_command(unsigned long offset)
@@ -1384,6 +1430,18 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 	unsigned long idx;
 	phys_addr_t pfn, pa;
 	pgprot_t prot;
+	int uars_per_page;
+
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+
+	uars_per_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k);
+	idx = get_index(vma->vm_pgoff);
+	if (idx % uars_per_page ||
+	    idx * uars_per_page >= bfregi->num_sys_pages) {
+		mlx5_ib_warn(dev, "invalid uar index %lu\n", idx);
+		return -EINVAL;
+	}
 
 	switch (cmd) {
 	case MLX5_IB_MMAP_WC_PAGE:
@@ -1406,14 +1464,7 @@ static int uar_mmap(struct mlx5_ib_dev *dev, enum mlx5_ib_mmap_cmd cmd,
 		return -EINVAL;
 	}
 
-	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
-		return -EINVAL;
-
-	idx = get_index(vma->vm_pgoff);
-	if (idx >= bfregi->num_uars)
-		return -EINVAL;
-
-	pfn = uar_index2pfn(dev, bfregi->uars[idx].index);
+	pfn = uar_index2pfn(dev, bfregi, idx);
 	mlx5_ib_dbg(dev, "uar idx 0x%lx, pfn %pa\n", idx, &pfn);
 
 	vma->vm_page_prot = prot;

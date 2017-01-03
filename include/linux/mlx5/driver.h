@@ -189,18 +189,17 @@ enum mlx5_eq_type {
 };
 
 struct mlx5_bfreg_info {
-	struct mlx5_uar	       *uars;
-	int			num_uars;
+	u32		       *sys_pages;
 	int			num_low_latency_bfregs;
-	unsigned long	       *bitmap;
 	unsigned int	       *count;
-	struct mlx5_bf	       *bfs;
 
 	/*
 	 * protect bfreg allocation data structs
 	 */
 	struct mutex		lock;
 	u32			ver;
+	bool			lib_uar_4k;
+	u32			num_sys_pages;
 };
 
 struct mlx5_cmd_first {
@@ -470,12 +469,9 @@ struct mlx5_sq_bfreg {
 
 struct mlx5_uar {
 	u32			index;
-	struct list_head	bf_list;
-	unsigned		free_bf_bmap;
-	void __iomem	       *bf_map;
 	void __iomem	       *map;
+	void __iomem	       *bf_map;
 };
-
 
 struct mlx5_core_health {
 	struct health_buffer __iomem   *health;
