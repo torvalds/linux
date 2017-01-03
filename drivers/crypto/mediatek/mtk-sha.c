@@ -878,7 +878,7 @@ static int mtk_sha_setkey(struct crypto_ahash *tfm,
 		bctx->opad[i] ^= 0x5c;
 	}
 
-	return err;
+	return 0;
 }
 
 static int mtk_sha_export(struct ahash_request *req, void *out)
