@@ -107,7 +107,6 @@ static struct sk_buff *reset_per_cpu_data(struct per_cpu_dm_data *data)
 	}
 	msg = nla_data(nla);
 	memset(msg, 0, al);
-	genlmsg_end(skb, msg_header);
 	goto out;
 
 err:
@@ -116,6 +115,13 @@ out:
 	spin_lock_irqsave(&data->lock, flags);
 	swap(data->skb, skb);
 	spin_unlock_irqrestore(&data->lock, flags);
+
+	if (skb) {
+		struct nlmsghdr *nlh = (struct nlmsghdr *)skb->data;
+		struct genlmsghdr *gnlh = (struct genlmsghdr *)nlmsg_data(nlh);
+
+		genlmsg_end(skb, genlmsg_data(gnlh));
+	}
 
 	return skb;
 }
