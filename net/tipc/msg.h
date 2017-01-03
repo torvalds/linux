@@ -98,8 +98,6 @@ struct tipc_skb_cb {
 	u32 bytes_read;
 	struct sk_buff *tail;
 	bool validated;
-	bool wakeup_pending;
-	u16 chain_sz;
 	u16 chain_imp;
 	u16 ackers;
 };

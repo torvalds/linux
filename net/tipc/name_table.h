@@ -99,7 +99,7 @@ int tipc_nl_name_table_dump(struct sk_buff *skb, struct netlink_callback *cb);
 
 u32 tipc_nametbl_translate(struct net *net, u32 type, u32 instance, u32 *node);
 int tipc_nametbl_mc_translate(struct net *net, u32 type, u32 lower, u32 upper,
-			      u32 limit, struct tipc_plist *dports);
+			      u32 limit, struct list_head *dports);
 struct publication *tipc_nametbl_publish(struct net *net, u32 type, u32 lower,
 					 u32 upper, u32 scope, u32 port_ref,
 					 u32 key);
@@ -116,18 +116,11 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s);
 int tipc_nametbl_init(struct net *net);
 void tipc_nametbl_stop(struct net *net);
 
-struct tipc_plist {
-	struct list_head list;
-	u32 port;
-};
-
-static inline void tipc_plist_init(struct tipc_plist *pl)
-{
-	INIT_LIST_HEAD(&pl->list);
-	pl->port = 0;
-}
-
-void tipc_plist_push(struct tipc_plist *pl, u32 port);
-u32 tipc_plist_pop(struct tipc_plist *pl);
+bool u32_push(struct list_head *l, u32 value);
+u32 u32_pop(struct list_head *l);
+bool u32_find(struct list_head *l, u32 value);
+bool u32_del(struct list_head *l, u32 value);
+void u32_list_purge(struct list_head *l);
+int u32_list_len(struct list_head *l);
 
 #endif
