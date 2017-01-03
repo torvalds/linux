@@ -2629,7 +2629,9 @@ static int liquidio_open(struct net_device *netdev)
 			oct->droq[0]->ops.poll_mode = 1;
 	}
 
-	oct_ptp_open(netdev);
+	if ((oct->chip_id == OCTEON_CN66XX || oct->chip_id == OCTEON_CN68XX) &&
+	    ptp_enable)
+		oct_ptp_open(netdev);
 
 	ifstate_set(lio, LIO_IFSTATE_RUNNING);
 
@@ -2973,9 +2975,13 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr)
  */
 static int liquidio_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
+	struct lio *lio = GET_LIO(netdev);
+
 	switch (cmd) {
 	case SIOCSHWTSTAMP:
-		return hwtstamp_ioctl(netdev, ifr);
+		if ((lio->oct_dev->chip_id == OCTEON_CN66XX ||
+		     lio->oct_dev->chip_id == OCTEON_CN68XX) && ptp_enable)
+			return hwtstamp_ioctl(netdev, ifr);
 	default:
 		return -EOPNOTSUPP;
 	}
