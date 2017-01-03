@@ -224,10 +224,9 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 {
 	long count, adjustment = -RWSEM_ACTIVE_READ_BIAS;
 	struct rwsem_waiter waiter;
-	struct task_struct *tsk = current;
 	DEFINE_WAKE_Q(wake_q);
 
-	waiter.task = tsk;
+	waiter.task = current;
 	waiter.type = RWSEM_WAITING_FOR_READ;
 
 	raw_spin_lock_irq(&sem->wait_lock);
@@ -254,13 +253,13 @@ struct rw_semaphore __sched *rwsem_down_read_failed(struct rw_semaphore *sem)
 
 	/* wait to be given the lock */
 	while (true) {
-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+		set_task_state(current, TASK_UNINTERRUPTIBLE);
 		if (!waiter.task)
 			break;
 		schedule();
 	}
 
-	__set_task_state(tsk, TASK_RUNNING);
+	__set_task_state(current, TASK_RUNNING);
 	return sem;
 }
 EXPORT_SYMBOL(rwsem_down_read_failed);
