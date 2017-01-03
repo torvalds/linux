@@ -279,6 +279,11 @@ void xhci_ring_cmd_db(struct xhci_hcd *xhci)
 	readl(&xhci->dba->doorbell[0]);
 }
 
+static bool xhci_mod_cmd_timer(struct xhci_hcd *xhci, unsigned long delay)
+{
+	return mod_delayed_work(system_wq, &xhci->cmd_timer, delay);
+}
+
 static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 {
 	u64 temp_64;
@@ -295,7 +300,7 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 	 * but the completion event in never sent. Use the cmd timeout timer to
 	 * handle those cases. Use twice the time to cover the bit polling retry
 	 */
-	mod_timer(&xhci->cmd_timer, jiffies + (2 * XHCI_CMD_DEFAULT_TIMEOUT));
+	xhci_mod_cmd_timer(xhci, 2 * XHCI_CMD_DEFAULT_TIMEOUT);
 	xhci_write_64(xhci, temp_64 | CMD_RING_ABORT,
 			&xhci->op_regs->cmd_ring);
 
@@ -320,7 +325,7 @@ static int xhci_abort_cmd_ring(struct xhci_hcd *xhci)
 
 		xhci_err(xhci, "Stopped the command ring failed, "
 				"maybe the host is dead\n");
-		del_timer(&xhci->cmd_timer);
+		cancel_delayed_work(&xhci->cmd_timer);
 		xhci->xhc_state |= XHCI_STATE_DYING;
 		xhci_halt(xhci);
 		return -ESHUTDOWN;
@@ -1251,21 +1256,22 @@ static void xhci_handle_stopped_cmd_ring(struct xhci_hcd *xhci,
 	if ((xhci->cmd_ring->dequeue != xhci->cmd_ring->enqueue) &&
 	    !(xhci->xhc_state & XHCI_STATE_DYING)) {
 		xhci->current_cmd = cur_cmd;
-		mod_timer(&xhci->cmd_timer, jiffies + XHCI_CMD_DEFAULT_TIMEOUT);
+		xhci_mod_cmd_timer(xhci, XHCI_CMD_DEFAULT_TIMEOUT);
 		xhci_ring_cmd_db(xhci);
 	}
 	return;
 }
 
 
-void xhci_handle_command_timeout(unsigned long data)
+void xhci_handle_command_timeout(struct work_struct *work)
 {
 	struct xhci_hcd *xhci;
 	int ret;
 	unsigned long flags;
 	u64 hw_ring_state;
 	bool second_timeout = false;
-	xhci = (struct xhci_hcd *) data;
+
+	xhci = container_of(to_delayed_work(work), struct xhci_hcd, cmd_timer);
 
 	spin_lock_irqsave(&xhci->lock, flags);
 
@@ -1273,7 +1279,7 @@ void xhci_handle_command_timeout(unsigned long data)
 	 * If timeout work is pending, or current_cmd is NULL, it means we
 	 * raced with command completion. Command is handled so just return.
 	 */
-	if (!xhci->current_cmd || timer_pending(&xhci->cmd_timer)) {
+	if (!xhci->current_cmd || delayed_work_pending(&xhci->cmd_timer)) {
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		return;
 	}
@@ -1346,7 +1352,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 
 	cmd = list_entry(xhci->cmd_list.next, struct xhci_command, cmd_list);
 
-	del_timer(&xhci->cmd_timer);
+	cancel_delayed_work(&xhci->cmd_timer);
 
 	trace_xhci_cmd_completion(cmd_trb, (struct xhci_generic_trb *) event);
 
@@ -1437,7 +1443,7 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	if (cmd->cmd_list.next != &xhci->cmd_list) {
 		xhci->current_cmd = list_entry(cmd->cmd_list.next,
 					       struct xhci_command, cmd_list);
-		mod_timer(&xhci->cmd_timer, jiffies + XHCI_CMD_DEFAULT_TIMEOUT);
+		xhci_mod_cmd_timer(xhci, XHCI_CMD_DEFAULT_TIMEOUT);
 	} else if (xhci->current_cmd == cmd) {
 		xhci->current_cmd = NULL;
 	}
@@ -3808,9 +3814,9 @@ static int queue_command(struct xhci_hcd *xhci, struct xhci_command *cmd,
 
 	/* if there are no other commands queued we start the timeout timer */
 	if (xhci->cmd_list.next == &cmd->cmd_list &&
-	    !timer_pending(&xhci->cmd_timer)) {
+	    !delayed_work_pending(&xhci->cmd_timer)) {
 		xhci->current_cmd = cmd;
-		mod_timer(&xhci->cmd_timer, jiffies + XHCI_CMD_DEFAULT_TIMEOUT);
+		xhci_mod_cmd_timer(xhci, XHCI_CMD_DEFAULT_TIMEOUT);
 	}
 
 	queue_trb(xhci, xhci->cmd_ring, false, field1, field2, field3,
