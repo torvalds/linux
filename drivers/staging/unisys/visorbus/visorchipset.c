@@ -188,7 +188,7 @@ static ssize_t toolaction_show(struct device *dev,
 	visorchannel_read(controlvm_channel,
 			  offsetof(struct spar_controlvm_channel_protocol,
 				   tool_action), &tool_action, sizeof(u8));
-	return scnprintf(buf, PAGE_SIZE, "%u\n", tool_action);
+	return sprintf(buf, "%u\n", tool_action);
 }
 
 static ssize_t toolaction_store(struct device *dev,
@@ -223,8 +223,7 @@ static ssize_t boottotool_show(struct device *dev,
 			  offsetof(struct spar_controlvm_channel_protocol,
 				   efi_spar_ind), &efi_spar_indication,
 			  sizeof(struct efi_spar_indication));
-	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 efi_spar_indication.boot_to_tool);
+	return sprintf(buf, "%u\n", efi_spar_indication.boot_to_tool);
 }
 
 static ssize_t boottotool_store(struct device *dev,
@@ -259,7 +258,7 @@ static ssize_t error_show(struct device *dev, struct device_attribute *attr,
 			  offsetof(struct spar_controlvm_channel_protocol,
 				   installation_error),
 			  &error, sizeof(u32));
-	return scnprintf(buf, PAGE_SIZE, "%i\n", error);
+	return sprintf(buf, "%i\n", error);
 }
 
 static ssize_t error_store(struct device *dev, struct device_attribute *attr,
@@ -292,7 +291,7 @@ static ssize_t textid_show(struct device *dev, struct device_attribute *attr,
 		 offsetof(struct spar_controlvm_channel_protocol,
 			  installation_text_id),
 		 &text_id, sizeof(u32));
-	return scnprintf(buf, PAGE_SIZE, "%i\n", text_id);
+	return sprintf(buf, "%i\n", text_id);
 }
 
 static ssize_t textid_store(struct device *dev, struct device_attribute *attr,
@@ -324,7 +323,7 @@ static ssize_t remaining_steps_show(struct device *dev,
 			  offsetof(struct spar_controlvm_channel_protocol,
 				   installation_remaining_steps),
 			  &remaining_steps, sizeof(u16));
-	return scnprintf(buf, PAGE_SIZE, "%hu\n", remaining_steps);
+	return sprintf(buf, "%hu\n", remaining_steps);
 }
 
 static ssize_t remaining_steps_store(struct device *dev,
