@@ -30,8 +30,17 @@
 #define ASPM_STATE_L0S_UP	(1)	/* Upstream direction L0s state */
 #define ASPM_STATE_L0S_DW	(2)	/* Downstream direction L0s state */
 #define ASPM_STATE_L1		(4)	/* L1 state */
+#define ASPM_STATE_L1_1		(8)	/* ASPM L1.1 state */
+#define ASPM_STATE_L1_2		(0x10)	/* ASPM L1.2 state */
+#define ASPM_STATE_L1_1_PCIPM	(0x20)	/* PCI PM L1.1 state */
+#define ASPM_STATE_L1_2_PCIPM	(0x40)	/* PCI PM L1.2 state */
+#define ASPM_STATE_L1_SS_PCIPM	(ASPM_STATE_L1_1_PCIPM | ASPM_STATE_L1_2_PCIPM)
+#define ASPM_STATE_L1_2_MASK	(ASPM_STATE_L1_2 | ASPM_STATE_L1_2_PCIPM)
+#define ASPM_STATE_L1SS		(ASPM_STATE_L1_1 | ASPM_STATE_L1_1_PCIPM |\
+				 ASPM_STATE_L1_2_MASK)
 #define ASPM_STATE_L0S		(ASPM_STATE_L0S_UP | ASPM_STATE_L0S_DW)
-#define ASPM_STATE_ALL		(ASPM_STATE_L0S | ASPM_STATE_L1)
+#define ASPM_STATE_ALL		(ASPM_STATE_L0S | ASPM_STATE_L1 |	\
+				 ASPM_STATE_L1SS)
 
 struct aspm_latency {
 	u32 l0s;			/* L0s latency (nsec) */
@@ -47,11 +56,11 @@ struct pcie_link_state {
 	struct list_head link;		/* node in parent's children list */
 
 	/* ASPM state */
-	u32 aspm_support:3;		/* Supported ASPM state */
-	u32 aspm_enabled:3;		/* Enabled ASPM state */
-	u32 aspm_capable:3;		/* Capable ASPM state with latency */
-	u32 aspm_default:3;		/* Default ASPM state by BIOS */
-	u32 aspm_disable:3;		/* Disabled ASPM state */
+	u32 aspm_support:7;		/* Supported ASPM state */
+	u32 aspm_enabled:7;		/* Enabled ASPM state */
+	u32 aspm_capable:7;		/* Capable ASPM state with latency */
+	u32 aspm_default:7;		/* Default ASPM state by BIOS */
+	u32 aspm_disable:7;		/* Disabled ASPM state */
 
 	/* Clock PM state */
 	u32 clkpm_capable:1;		/* Clock PM capable? */
@@ -76,11 +85,14 @@ static LIST_HEAD(link_list);
 #define POLICY_DEFAULT 0	/* BIOS default setting */
 #define POLICY_PERFORMANCE 1	/* high performance */
 #define POLICY_POWERSAVE 2	/* high power saving */
+#define POLICY_POWER_SUPERSAVE 3 /* possibly even more power saving */
 
 #ifdef CONFIG_PCIEASPM_PERFORMANCE
 static int aspm_policy = POLICY_PERFORMANCE;
 #elif defined CONFIG_PCIEASPM_POWERSAVE
 static int aspm_policy = POLICY_POWERSAVE;
+#elif defined CONFIG_PCIEASPM_POWER_SUPERSAVE
+static int aspm_policy = POLICY_POWER_SUPERSAVE;
 #else
 static int aspm_policy;
 #endif
@@ -88,7 +100,8 @@ static int aspm_policy;
 static const char *policy_str[] = {
 	[POLICY_DEFAULT] = "default",
 	[POLICY_PERFORMANCE] = "performance",
-	[POLICY_POWERSAVE] = "powersave"
+	[POLICY_POWERSAVE] = "powersave",
+	[POLICY_POWER_SUPERSAVE] = "powersupersave"
 };
 
 #define LINK_RETRAIN_TIMEOUT HZ
@@ -101,6 +114,9 @@ static int policy_to_aspm_state(struct pcie_link_state *link)
 		return 0;
 	case POLICY_POWERSAVE:
 		/* Enable ASPM L0s/L1 */
+		return (ASPM_STATE_L0S | ASPM_STATE_L1);
+	case POLICY_POWER_SUPERSAVE:
+		/* Enable Everything */
 		return ASPM_STATE_ALL;
 	case POLICY_DEFAULT:
 		return link->aspm_default;
@@ -115,7 +131,8 @@ static int policy_to_clkpm_state(struct pcie_link_state *link)
 		/* Disable ASPM and Clock PM */
 		return 0;
 	case POLICY_POWERSAVE:
-		/* Disable Clock PM */
+	case POLICY_POWER_SUPERSAVE:
+		/* Enable Clock PM */
 		return 1;
 	case POLICY_DEFAULT:
 		return link->clkpm_default;
@@ -612,7 +629,8 @@ void pcie_aspm_init_link_state(struct pci_dev *pdev)
 	 * the BIOS's expectation, we'll do so once pci_enable_device() is
 	 * called.
 	 */
-	if (aspm_policy != POLICY_POWERSAVE) {
+	if (aspm_policy != POLICY_POWERSAVE &&
+	    aspm_policy != POLICY_POWER_SUPERSAVE) {
 		pcie_config_aspm_path(link);
 		pcie_set_clkpm(link, policy_to_clkpm_state(link));
 	}
@@ -712,7 +730,8 @@ void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
 	if (aspm_disabled || !link)
 		return;
 
-	if (aspm_policy != POLICY_POWERSAVE)
+	if (aspm_policy != POLICY_POWERSAVE &&
+	    aspm_policy != POLICY_POWER_SUPERSAVE)
 		return;
 
 	down_read(&pci_bus_sem);
