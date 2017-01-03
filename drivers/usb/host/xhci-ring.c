@@ -1971,8 +1971,9 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct xhci_ep_ctx *ep_ctx;
 	u32 trb_comp_code;
 	u32 remaining, requested;
-	bool on_data_stage;
+	u32 trb_type;
 
+	trb_type = TRB_FIELD_TO_TYPE(le32_to_cpu(ep_trb->generic.field[3]));
 	slot_id = TRB_TO_SLOT_ID(le32_to_cpu(event->flags));
 	xdev = xhci->devs[slot_id];
 	ep_index = TRB_TO_EP_ID(le32_to_cpu(event->flags)) - 1;
@@ -1982,14 +1983,11 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	requested = td->urb->transfer_buffer_length;
 	remaining = EVENT_TRB_LEN(le32_to_cpu(event->transfer_len));
 
-	/* not setup (dequeue), or status stage means we are at data stage */
-	on_data_stage = (ep_trb != ep_ring->dequeue && ep_trb != td->last_trb);
-
 	switch (trb_comp_code) {
 	case COMP_SUCCESS:
-		if (ep_trb != td->last_trb) {
+		if (trb_type != TRB_STATUS) {
 			xhci_warn(xhci, "WARN: Success on ctrl %s TRB without IOC set?\n",
-				  on_data_stage ? "data" : "setup");
+				  (trb_type == TRB_DATA) ? "data" : "setup");
 			*status = -ESHUTDOWN;
 			break;
 		}
@@ -1999,15 +1997,25 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		*status = 0;
 		break;
 	case COMP_STOP_SHORT:
-		if (on_data_stage)
+		if (trb_type == TRB_DATA || trb_type == TRB_NORMAL)
 			td->urb->actual_length = remaining;
 		else
 			xhci_warn(xhci, "WARN: Stopped Short Packet on ctrl setup or status TRB\n");
 		goto finish_td;
 	case COMP_STOP:
-		if (on_data_stage)
+		switch (trb_type) {
+		case TRB_SETUP:
+			td->urb->actual_length = 0;
+			goto finish_td;
+		case TRB_DATA:
+		case TRB_NORMAL:
 			td->urb->actual_length = requested - remaining;
-		goto finish_td;
+			goto finish_td;
+		default:
+			xhci_warn(xhci, "WARN: unexpected TRB Type %d\n",
+				  trb_type);
+			goto finish_td;
+		}
 	case COMP_STOP_INVAL:
 		goto finish_td;
 	default:
@@ -2019,7 +2027,7 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 		/* else fall through */
 	case COMP_STALL:
 		/* Did we transfer part of the data (middle) phase? */
-		if (on_data_stage)
+		if (trb_type == TRB_DATA || trb_type == TRB_NORMAL)
 			td->urb->actual_length = requested - remaining;
 		else if (!td->urb_length_set)
 			td->urb->actual_length = 0;
@@ -2027,14 +2035,15 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	}
 
 	/* stopped at setup stage, no data transferred */
-	if (ep_trb == ep_ring->dequeue)
+	if (trb_type == TRB_SETUP)
 		goto finish_td;
 
 	/*
 	 * if on data stage then update the actual_length of the URB and flag it
 	 * as set, so it won't be overwritten in the event for the last TRB.
 	 */
-	if (on_data_stage) {
+	if (trb_type == TRB_DATA ||
+		trb_type == TRB_NORMAL) {
 		td->urb_length_set = true;
 		td->urb->actual_length = requested - remaining;
 		xhci_dbg(xhci, "Waiting for status stage event\n");
