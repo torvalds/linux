@@ -1965,8 +1965,10 @@ static int mos7720_startup(struct usb_serial *serial)
 #ifdef CONFIG_USB_SERIAL_MOS7715_PARPORT
 	if (product == MOSCHIP_DEVICE_ID_7715) {
 		ret_val = mos7715_parport_init(serial);
-		if (ret_val < 0)
+		if (ret_val < 0) {
+			usb_kill_urb(serial->port[0]->interrupt_in_urb);
 			return ret_val;
+		}
 	}
 #endif
 	/* LSR For Port 1 */
@@ -1978,6 +1980,8 @@ static int mos7720_startup(struct usb_serial *serial)
 
 static void mos7720_release(struct usb_serial *serial)
 {
+	usb_kill_urb(serial->port[0]->interrupt_in_urb);
+
 #ifdef CONFIG_USB_SERIAL_MOS7715_PARPORT
 	/* close the parallel port */
 
