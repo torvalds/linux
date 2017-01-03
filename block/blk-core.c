@@ -823,15 +823,19 @@ EXPORT_SYMBOL(blk_init_queue);
 struct request_queue *
 blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 {
-	struct request_queue *uninit_q, *q;
+	struct request_queue *q;
 
-	uninit_q = blk_alloc_queue_node(GFP_KERNEL, node_id);
-	if (!uninit_q)
+	q = blk_alloc_queue_node(GFP_KERNEL, node_id);
+	if (!q)
 		return NULL;
 
-	q = blk_init_allocated_queue(uninit_q, rfn, lock);
-	if (!q)
-		blk_cleanup_queue(uninit_q);
+	q->request_fn = rfn;
+	if (lock)
+		q->queue_lock = lock;
+	if (blk_init_allocated_queue(q) < 0) {
+		blk_cleanup_queue(q);
+		return NULL;
+	}
 
 	return q;
 }
@@ -839,29 +843,18 @@ EXPORT_SYMBOL(blk_init_queue_node);
 
 static blk_qc_t blk_queue_bio(struct request_queue *q, struct bio *bio);
 
-struct request_queue *
-blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
-			 spinlock_t *lock)
-{
-	if (!q)
-		return NULL;
 
+int blk_init_allocated_queue(struct request_queue *q)
+{
 	q->fq = blk_alloc_flush_queue(q, NUMA_NO_NODE, 0);
 	if (!q->fq)
-		return NULL;
+		return -ENOMEM;
 
 	if (blk_init_rl(&q->root_rl, q, GFP_KERNEL))
 		goto fail;
 
 	INIT_WORK(&q->timeout_work, blk_timeout_work);
-	q->request_fn		= rfn;
-	q->prep_rq_fn		= NULL;
-	q->unprep_rq_fn		= NULL;
 	q->queue_flags		|= QUEUE_FLAG_DEFAULT;
-
-	/* Override internal queue lock with supplied lock pointer */
-	if (lock)
-		q->queue_lock		= lock;
 
 	/*
 	 * This also sets hw/phys segments, boundary and size
@@ -880,13 +873,12 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 	}
 
 	mutex_unlock(&q->sysfs_lock);
-
-	return q;
+	return 0;
 
 fail:
 	blk_free_flush_queue(q->fq);
 	wbt_exit(q);
-	return NULL;
+	return -ENOMEM;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue);
 
