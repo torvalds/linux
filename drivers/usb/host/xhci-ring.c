@@ -1365,8 +1365,11 @@ static void handle_cmd_completion(struct xhci_hcd *xhci,
 	 */
 	if (cmd_comp_code == COMP_CMD_ABORT) {
 		xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
-		if (cmd->status == COMP_CMD_ABORT)
+		if (cmd->status == COMP_CMD_ABORT) {
+			if (xhci->current_cmd == cmd)
+				xhci->current_cmd = NULL;
 			goto event_handled;
+		}
 	}
 
 	cmd_type = TRB_FIELD_TO_TYPE(le32_to_cpu(cmd_trb->generic.field[3]));
