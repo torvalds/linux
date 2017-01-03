@@ -18,6 +18,7 @@
 #include <linux/power/bq25700-charge.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -30,6 +31,7 @@
 #include <linux/power_supply.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/rk_keys.h>
 
 static int dbg_enable;
 module_param_named(dbg_level, dbg_enable, int, 0644);
@@ -1023,18 +1025,18 @@ static int bq25700_power_supply_init(struct bq25700_device *charger)
 static irqreturn_t bq25700_irq_handler_thread(int irq, void *private)
 {
 	struct bq25700_device *charger = private;
-	int ret;
-	struct bq25700_state state;
+	int irq_flag;
 
-	ret = bq25700_get_chip_state(charger, &state);
-	if (ret < 0)
-		goto handled;
+	if (bq25700_field_read(charger, AC_STAT)) {
+		irq_flag = IRQF_TRIGGER_LOW;
+	} else {
+		irq_flag = IRQF_TRIGGER_HIGH;
+		bq25700_field_write(charger, INPUT_CURRENT,
+				    charger->init_data.input_current_sdp);
+	}
+	irq_set_irq_type(irq, irq_flag | IRQF_ONESHOT);
+	rk_send_wakeup_key();
 
-	charger->state = state;
-
-	power_supply_changed(charger->supply_charger);
-
-handled:
 	return IRQ_HANDLED;
 }
 
@@ -1637,6 +1639,7 @@ static int bq25700_probe(struct i2c_client *client,
 	struct bq25700_device *charger;
 	int ret = 0;
 	u32 i = 0;
+	int irq_flag;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EIO;
@@ -1703,12 +1706,21 @@ static int bq25700_probe(struct i2c_client *client,
 		dev_err(dev, "No irq resource found.\n");
 		return client->irq;
 	}
+
+	if (bq25700_field_read(charger, AC_STAT))
+		irq_flag = IRQF_TRIGGER_LOW;
+	else
+		irq_flag = IRQF_TRIGGER_HIGH;
+
+	device_init_wakeup(dev, 1);
+
 	ret = devm_request_threaded_irq(dev, client->irq, NULL,
 					bq25700_irq_handler_thread,
-					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					irq_flag | IRQF_ONESHOT,
 					"bq25700_irq", charger);
 	if (ret)
 		goto irq_fail;
+	enable_irq_wake(client->irq);
 
 	bq25700_power_supply_init(charger);
 	bq25700_charger = charger;
