@@ -477,7 +477,6 @@ static struct platform_driver sti_platform_driver = {
 
 static struct platform_driver * const drivers[] = {
 	&sti_tvout_driver,
-	&sti_vtac_driver,
 	&sti_hqvdp_driver,
 	&sti_hdmi_driver,
 	&sti_hda_driver,
