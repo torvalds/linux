@@ -177,7 +177,7 @@ failjob_rls_job:
  *
  * Drivers/subsys should pass this to the queue init function.
  */
-void bsg_request_fn(struct request_queue *q)
+static void bsg_request_fn(struct request_queue *q)
 	__releases(q->queue_lock)
 	__acquires(q->queue_lock)
 {
@@ -214,23 +214,23 @@ void bsg_request_fn(struct request_queue *q)
 	put_device(dev);
 	spin_lock_irq(q->queue_lock);
 }
-EXPORT_SYMBOL_GPL(bsg_request_fn);
 
 /**
  * bsg_setup_queue - Create and add the bsg hooks so we can receive requests
  * @dev: device to attach bsg device to
- * @q: request queue setup by caller
  * @name: device to give bsg device
  * @job_fn: bsg job handler
  * @dd_job_size: size of LLD data needed for each job
- *
- * The caller should have setup the reuqest queue with bsg_request_fn
- * as the request_fn.
  */
-int bsg_setup_queue(struct device *dev, struct request_queue *q,
-		    char *name, bsg_job_fn *job_fn, int dd_job_size)
+struct request_queue *bsg_setup_queue(struct device *dev, char *name,
+		bsg_job_fn *job_fn, int dd_job_size)
 {
+	struct request_queue *q;
 	int ret;
+
+	q = blk_init_queue(bsg_request_fn, NULL);
+	if (!q)
+		return ERR_PTR(-ENOMEM);
 
 	q->queuedata = dev;
 	q->bsg_job_size = dd_job_size;
@@ -243,9 +243,10 @@ int bsg_setup_queue(struct device *dev, struct request_queue *q,
 	if (ret) {
 		printk(KERN_ERR "%s: bsg interface failed to "
 		       "initialize - register queue\n", dev->kobj.name);
-		return ret;
+		blk_cleanup_queue(q);
+		return ERR_PTR(ret);
 	}
 
-	return 0;
+	return q;
 }
 EXPORT_SYMBOL_GPL(bsg_setup_queue);
