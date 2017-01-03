@@ -80,6 +80,8 @@ config SATA_PMP
 	  This option adds support for SATA Port Multipliers
 	  (the SATA version of an ethernet hub, or SAS expander).
 
+if HAS_DMA
+
 comment "Controllers with non-SFF native interface"
 
 config SATA_AHCI
@@ -231,6 +233,8 @@ config SATA_SIL24
 	  This option enables support for Silicon Image 3124/3132 Serial ATA.
 
 	  If unsure, say N.
+
+endif # HAS_DMA
 
 config ATA_SFF
 	bool "ATA SFF support (for legacy IDE and PATA)"
