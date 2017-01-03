@@ -772,6 +772,23 @@ static void rockchip_iommu_cleanup(struct drm_device *drm_dev)
 }
 
 #ifdef CONFIG_DEBUG_FS
+static int rockchip_drm_mm_dump(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct drm_minor *minor = node->minor;
+	struct drm_device *drm_dev = minor->dev;
+	struct rockchip_drm_private *priv = drm_dev->dev_private;
+	int ret;
+
+	mutex_lock(&priv->mm_lock);
+
+	ret = drm_mm_dump_table(s, &priv->mm);
+
+	mutex_unlock(&priv->mm_lock);
+
+	return ret;
+}
+
 static int rockchip_drm_summary_show(struct seq_file *s, void *data)
 {
 	struct drm_info_node *node = s->private;
@@ -793,6 +810,7 @@ static int rockchip_drm_summary_show(struct seq_file *s, void *data)
 
 static struct drm_info_list rockchip_debugfs_files[] = {
 	{ "summary", rockchip_drm_summary_show, 0, NULL },
+	{ "mm_dump", rockchip_drm_mm_dump, 0, NULL },
 };
 
 static int rockchip_drm_debugfs_init(struct drm_minor *minor)
