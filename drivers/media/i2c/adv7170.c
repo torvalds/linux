@@ -298,7 +298,6 @@ static int adv7170_set_fmt(struct v4l2_subdev *sd,
 {
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	u8 val = adv7170_read(sd, 0x7);
-	int ret = 0;
 
 	if (format->pad)
 		return -EINVAL;
@@ -319,9 +318,9 @@ static int adv7170_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		ret = adv7170_write(sd, 0x7, val);
+		return adv7170_write(sd, 0x7, val);
 
-	return ret;
+	return 0;
 }
 
 /* ----------------------------------------------------------------------- */
