@@ -69,7 +69,7 @@ static void pcm_period_tasklet(unsigned long data);
  * @protocol_size: the size to allocate newly for protocol
  */
 int amdtp_stream_init(struct amdtp_stream *s, struct fw_unit *unit,
-		      enum amdtp_stream_direction dir, enum cip_flags flags,
+		      enum amdtp_stream_direction dir, int flags,
 		      unsigned int fmt,
 		      amdtp_stream_process_data_blocks_t process_data_blocks,
 		      unsigned int protocol_size)
