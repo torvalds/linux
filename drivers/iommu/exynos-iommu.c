@@ -628,7 +628,7 @@ static int __init exynos_sysmmu_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	of_iommu_set_ops(dev->of_node, &exynos_iommu_ops);
+	iommu_register_instance(dev->fwnode, &exynos_iommu_ops);
 
 	return 0;
 }

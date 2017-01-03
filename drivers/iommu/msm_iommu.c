@@ -737,7 +737,7 @@ static int msm_iommu_probe(struct platform_device *pdev)
 	}
 
 	list_add(&iommu->dev_node, &qcom_iommu_devices);
-	of_iommu_set_ops(pdev->dev.of_node, &msm_iommu_ops);
+	iommu_register_instance(pdev->dev.fwnode, &msm_iommu_ops);
 
 	pr_info("device mapped at %p, irq %d with %d ctx banks\n",
 		iommu->base, iommu->irq, iommu->ncb);
