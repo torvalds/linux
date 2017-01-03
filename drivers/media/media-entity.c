@@ -566,8 +566,13 @@ void __media_pipeline_stop(struct media_entity *entity)
 	struct media_graph *graph = &entity->pipe->graph;
 	struct media_pipeline *pipe = entity->pipe;
 
+	/*
+	 * If the following check fails, the driver has performed an
+	 * unbalanced call to media_pipeline_stop()
+	 */
+	if (WARN_ON(!pipe))
+		return;
 
-	WARN_ON(!pipe->streaming_count);
 	media_graph_walk_start(graph, entity);
 
 	while ((entity = media_graph_walk_next(graph))) {
