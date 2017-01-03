@@ -753,7 +753,7 @@ static int alloc_comp_eqs(struct mlx5_core_dev *dev)
 		snprintf(name, MLX5_MAX_IRQ_NAME, "mlx5_comp%d", i);
 		err = mlx5_create_map_eq(dev, eq,
 					 i + MLX5_EQ_VEC_COMP_BASE, nent, 0,
-					 name, &dev->priv.uuari.uars[0],
+					 name, &dev->priv.bfregi.uars[0],
 					 MLX5_EQ_TYPE_COMP);
 		if (err) {
 			kfree(eq);
@@ -1094,7 +1094,7 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_cleanup_once;
 	}
 
-	err = mlx5_alloc_uuars(dev, &priv->uuari);
+	err = mlx5_alloc_bfregs(dev, &priv->bfregi);
 	if (err) {
 		dev_err(&pdev->dev, "Failed allocating uar, aborting\n");
 		goto err_disable_msix;
@@ -1170,7 +1170,7 @@ err_stop_eqs:
 	mlx5_stop_eqs(dev);
 
 err_free_uar:
-	mlx5_free_uuars(dev, &priv->uuari);
+	mlx5_free_bfregs(dev, &priv->bfregi);
 
 err_disable_msix:
 	mlx5_disable_msix(dev);
@@ -1230,7 +1230,7 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	mlx5_irq_clear_affinity_hints(dev);
 	free_comp_eqs(dev);
 	mlx5_stop_eqs(dev);
-	mlx5_free_uuars(dev, &priv->uuari);
+	mlx5_free_bfregs(dev, &priv->bfregi);
 	mlx5_disable_msix(dev);
 	if (cleanup)
 		mlx5_cleanup_once(dev);

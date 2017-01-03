@@ -100,7 +100,7 @@ enum mlx5_ib_mad_ifc_flags {
 };
 
 enum {
-	MLX5_CROSS_CHANNEL_UUAR         = 0,
+	MLX5_CROSS_CHANNEL_BFREG         = 0,
 };
 
 enum {
@@ -120,7 +120,7 @@ struct mlx5_ib_ucontext {
 	/* protect doorbell record alloc/free
 	 */
 	struct mutex		db_page_mutex;
-	struct mlx5_uuar_info	uuari;
+	struct mlx5_bfreg_info	bfregi;
 	u8			cqe_version;
 	/* Transport Domain number */
 	u32			tdn;
@@ -355,7 +355,7 @@ struct mlx5_ib_qp {
 	/* only for user space QPs. For kernel
 	 * we have it from the bf object
 	 */
-	int			uuarn;
+	int			bfregn;
 
 	int			create_type;
 

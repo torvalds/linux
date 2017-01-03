@@ -689,7 +689,7 @@ int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 {
 	struct mlx5_core_dev *mdev = to_mdev(ibcq->device)->mdev;
 	struct mlx5_ib_cq *cq = to_mcq(ibcq);
-	void __iomem *uar_page = mdev->priv.uuari.uars[0].map;
+	void __iomem *uar_page = mdev->priv.bfregi.uars[0].map;
 	unsigned long irq_flags;
 	int ret = 0;
 
@@ -790,7 +790,7 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	MLX5_SET(cqc, cqc, log_page_size,
 		 page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 
-	*index = to_mucontext(context)->uuari.uars[0].index;
+	*index = to_mucontext(context)->bfregi.uars[0].index;
 
 	if (ucmd.cqe_comp_en == 1) {
 		if (unlikely((*cqe_size != 64) ||
@@ -886,7 +886,7 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	MLX5_SET(cqc, cqc, log_page_size,
 		 cq->buf.buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 
-	*index = dev->mdev->priv.uuari.uars[0].index;
+	*index = dev->mdev->priv.bfregi.uars[0].index;
 
 	return 0;
 

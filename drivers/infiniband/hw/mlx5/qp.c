@@ -475,12 +475,12 @@ static int qp_has_rq(struct ib_qp_init_attr *attr)
 	return 1;
 }
 
-static int first_med_uuar(void)
+static int first_med_bfreg(void)
 {
 	return 1;
 }
 
-static int next_uuar(int n)
+static int next_bfreg(int n)
 {
 	n++;
 
@@ -490,45 +490,45 @@ static int next_uuar(int n)
 	return n;
 }
 
-static int num_med_uuar(struct mlx5_uuar_info *uuari)
+static int num_med_bfreg(struct mlx5_bfreg_info *bfregi)
 {
 	int n;
 
-	n = uuari->num_uars * MLX5_NON_FP_BF_REGS_PER_PAGE -
-		uuari->num_low_latency_uuars - 1;
+	n = bfregi->num_uars * MLX5_NON_FP_BFREGS_PER_UAR -
+		bfregi->num_low_latency_bfregs - 1;
 
 	return n >= 0 ? n : 0;
 }
 
-static int max_uuari(struct mlx5_uuar_info *uuari)
+static int max_bfregi(struct mlx5_bfreg_info *bfregi)
 {
-	return uuari->num_uars * 4;
+	return bfregi->num_uars * 4;
 }
 
-static int first_hi_uuar(struct mlx5_uuar_info *uuari)
+static int first_hi_bfreg(struct mlx5_bfreg_info *bfregi)
 {
 	int med;
 	int i;
 	int t;
 
-	med = num_med_uuar(uuari);
-	for (t = 0, i = first_med_uuar();; i = next_uuar(i)) {
+	med = num_med_bfreg(bfregi);
+	for (t = 0, i = first_med_bfreg();; i = next_bfreg(i)) {
 		t++;
 		if (t == med)
-			return next_uuar(i);
+			return next_bfreg(i);
 	}
 
 	return 0;
 }
 
-static int alloc_high_class_uuar(struct mlx5_uuar_info *uuari)
+static int alloc_high_class_bfreg(struct mlx5_bfreg_info *bfregi)
 {
 	int i;
 
-	for (i = first_hi_uuar(uuari); i < max_uuari(uuari); i = next_uuar(i)) {
-		if (!test_bit(i, uuari->bitmap)) {
-			set_bit(i, uuari->bitmap);
-			uuari->count[i]++;
+	for (i = first_hi_bfreg(bfregi); i < max_bfregi(bfregi); i = next_bfreg(i)) {
+		if (!test_bit(i, bfregi->bitmap)) {
+			set_bit(i, bfregi->bitmap);
+			bfregi->count[i]++;
 			return i;
 		}
 	}
@@ -536,87 +536,87 @@ static int alloc_high_class_uuar(struct mlx5_uuar_info *uuari)
 	return -ENOMEM;
 }
 
-static int alloc_med_class_uuar(struct mlx5_uuar_info *uuari)
+static int alloc_med_class_bfreg(struct mlx5_bfreg_info *bfregi)
 {
-	int minidx = first_med_uuar();
+	int minidx = first_med_bfreg();
 	int i;
 
-	for (i = first_med_uuar(); i < first_hi_uuar(uuari); i = next_uuar(i)) {
-		if (uuari->count[i] < uuari->count[minidx])
+	for (i = first_med_bfreg(); i < first_hi_bfreg(bfregi); i = next_bfreg(i)) {
+		if (bfregi->count[i] < bfregi->count[minidx])
 			minidx = i;
 	}
 
-	uuari->count[minidx]++;
+	bfregi->count[minidx]++;
 	return minidx;
 }
 
-static int alloc_uuar(struct mlx5_uuar_info *uuari,
-		      enum mlx5_ib_latency_class lat)
+static int alloc_bfreg(struct mlx5_bfreg_info *bfregi,
+		       enum mlx5_ib_latency_class lat)
 {
-	int uuarn = -EINVAL;
+	int bfregn = -EINVAL;
 
-	mutex_lock(&uuari->lock);
+	mutex_lock(&bfregi->lock);
 	switch (lat) {
 	case MLX5_IB_LATENCY_CLASS_LOW:
-		uuarn = 0;
-		uuari->count[uuarn]++;
+		bfregn = 0;
+		bfregi->count[bfregn]++;
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_MEDIUM:
-		if (uuari->ver < 2)
-			uuarn = -ENOMEM;
+		if (bfregi->ver < 2)
+			bfregn = -ENOMEM;
 		else
-			uuarn = alloc_med_class_uuar(uuari);
+			bfregn = alloc_med_class_bfreg(bfregi);
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_HIGH:
-		if (uuari->ver < 2)
-			uuarn = -ENOMEM;
+		if (bfregi->ver < 2)
+			bfregn = -ENOMEM;
 		else
-			uuarn = alloc_high_class_uuar(uuari);
+			bfregn = alloc_high_class_bfreg(bfregi);
 		break;
 
 	case MLX5_IB_LATENCY_CLASS_FAST_PATH:
-		uuarn = 2;
+		bfregn = 2;
 		break;
 	}
-	mutex_unlock(&uuari->lock);
+	mutex_unlock(&bfregi->lock);
 
-	return uuarn;
+	return bfregn;
 }
 
-static void free_med_class_uuar(struct mlx5_uuar_info *uuari, int uuarn)
+static void free_med_class_bfreg(struct mlx5_bfreg_info *bfregi, int bfregn)
 {
-	clear_bit(uuarn, uuari->bitmap);
-	--uuari->count[uuarn];
+	clear_bit(bfregn, bfregi->bitmap);
+	--bfregi->count[bfregn];
 }
 
-static void free_high_class_uuar(struct mlx5_uuar_info *uuari, int uuarn)
+static void free_high_class_bfreg(struct mlx5_bfreg_info *bfregi, int bfregn)
 {
-	clear_bit(uuarn, uuari->bitmap);
-	--uuari->count[uuarn];
+	clear_bit(bfregn, bfregi->bitmap);
+	--bfregi->count[bfregn];
 }
 
-static void free_uuar(struct mlx5_uuar_info *uuari, int uuarn)
+static void free_bfreg(struct mlx5_bfreg_info *bfregi, int bfregn)
 {
-	int nuuars = uuari->num_uars * MLX5_BF_REGS_PER_PAGE;
-	int high_uuar = nuuars - uuari->num_low_latency_uuars;
+	int nbfregs = bfregi->num_uars * MLX5_BFREGS_PER_UAR;
+	int high_bfreg = nbfregs - bfregi->num_low_latency_bfregs;
 
-	mutex_lock(&uuari->lock);
-	if (uuarn == 0) {
-		--uuari->count[uuarn];
+	mutex_lock(&bfregi->lock);
+	if (bfregn == 0) {
+		--bfregi->count[bfregn];
 		goto out;
 	}
 
-	if (uuarn < high_uuar) {
-		free_med_class_uuar(uuari, uuarn);
+	if (bfregn < high_bfreg) {
+		free_med_class_bfreg(bfregi, bfregn);
 		goto out;
 	}
 
-	free_high_class_uuar(uuari, uuarn);
+	free_high_class_bfreg(bfregi, bfregn);
 
 out:
-	mutex_unlock(&uuari->lock);
+	mutex_unlock(&bfregi->lock);
 }
 
 static enum mlx5_qp_state to_mlx5_state(enum ib_qp_state state)
@@ -657,9 +657,9 @@ static void mlx5_ib_lock_cqs(struct mlx5_ib_cq *send_cq,
 static void mlx5_ib_unlock_cqs(struct mlx5_ib_cq *send_cq,
 			       struct mlx5_ib_cq *recv_cq);
 
-static int uuarn_to_uar_index(struct mlx5_uuar_info *uuari, int uuarn)
+static int bfregn_to_uar_index(struct mlx5_bfreg_info *bfregi, int bfregn)
 {
-	return uuari->uars[uuarn / MLX5_BF_REGS_PER_PAGE].index;
+	return bfregi->uars[bfregn / MLX5_BFREGS_PER_UAR].index;
 }
 
 static int mlx5_ib_umem_get(struct mlx5_ib_dev *dev,
@@ -776,7 +776,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	int uar_index;
 	int npages;
 	u32 offset = 0;
-	int uuarn;
+	int bfregn;
 	int ncont = 0;
 	__be64 *pas;
 	void *qpc;
@@ -794,27 +794,27 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	 */
 	if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL)
 		/* In CROSS_CHANNEL CQ and QP must use the same UAR */
-		uuarn = MLX5_CROSS_CHANNEL_UUAR;
+		bfregn = MLX5_CROSS_CHANNEL_BFREG;
 	else {
-		uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_HIGH);
-		if (uuarn < 0) {
-			mlx5_ib_dbg(dev, "failed to allocate low latency UUAR\n");
+		bfregn = alloc_bfreg(&context->bfregi, MLX5_IB_LATENCY_CLASS_HIGH);
+		if (bfregn < 0) {
+			mlx5_ib_dbg(dev, "failed to allocate low latency BFREG\n");
 			mlx5_ib_dbg(dev, "reverting to medium latency\n");
-			uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_MEDIUM);
-			if (uuarn < 0) {
-				mlx5_ib_dbg(dev, "failed to allocate medium latency UUAR\n");
+			bfregn = alloc_bfreg(&context->bfregi, MLX5_IB_LATENCY_CLASS_MEDIUM);
+			if (bfregn < 0) {
+				mlx5_ib_dbg(dev, "failed to allocate medium latency BFREG\n");
 				mlx5_ib_dbg(dev, "reverting to high latency\n");
-				uuarn = alloc_uuar(&context->uuari, MLX5_IB_LATENCY_CLASS_LOW);
-				if (uuarn < 0) {
-					mlx5_ib_warn(dev, "uuar allocation failed\n");
-					return uuarn;
+				bfregn = alloc_bfreg(&context->bfregi, MLX5_IB_LATENCY_CLASS_LOW);
+				if (bfregn < 0) {
+					mlx5_ib_warn(dev, "bfreg allocation failed\n");
+					return bfregn;
 				}
 			}
 		}
 	}
 
-	uar_index = uuarn_to_uar_index(&context->uuari, uuarn);
-	mlx5_ib_dbg(dev, "uuarn 0x%x, uar_index 0x%x\n", uuarn, uar_index);
+	uar_index = bfregn_to_uar_index(&context->bfregi, bfregn);
+	mlx5_ib_dbg(dev, "bfregn 0x%x, uar_index 0x%x\n", bfregn, uar_index);
 
 	qp->rq.offset = 0;
 	qp->sq.wqe_shift = ilog2(MLX5_SEND_WQE_BB);
@@ -822,7 +822,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	err = set_user_buf_size(dev, qp, &ucmd, base, attr);
 	if (err)
-		goto err_uuar;
+		goto err_bfreg;
 
 	if (ucmd.buf_addr && ubuffer->buf_size) {
 		ubuffer->buf_addr = ucmd.buf_addr;
@@ -831,7 +831,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				       &ubuffer->umem, &npages, &page_shift,
 				       &ncont, &offset);
 		if (err)
-			goto err_uuar;
+			goto err_bfreg;
 	} else {
 		ubuffer->umem = NULL;
 	}
@@ -854,8 +854,8 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	MLX5_SET(qpc, qpc, page_offset, offset);
 
 	MLX5_SET(qpc, qpc, uar_page, uar_index);
-	resp->uuar_index = uuarn;
-	qp->uuarn = uuarn;
+	resp->bfreg_index = bfregn;
+	qp->bfregn = bfregn;
 
 	err = mlx5_ib_db_map_user(context, ucmd.db_addr, &qp->db);
 	if (err) {
@@ -882,8 +882,8 @@ err_umem:
 	if (ubuffer->umem)
 		ib_umem_release(ubuffer->umem);
 
-err_uuar:
-	free_uuar(&context->uuari, uuarn);
+err_bfreg:
+	free_bfreg(&context->bfregi, bfregn);
 	return err;
 }
 
@@ -896,7 +896,7 @@ static void destroy_qp_user(struct ib_pd *pd, struct mlx5_ib_qp *qp,
 	mlx5_ib_db_unmap_user(context, &qp->db);
 	if (base->ubuffer.umem)
 		ib_umem_release(base->ubuffer.umem);
-	free_uuar(&context->uuari, qp->uuarn);
+	free_bfreg(&context->bfregi, qp->bfregn);
 }
 
 static int create_kernel_qp(struct mlx5_ib_dev *dev,
@@ -906,13 +906,13 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 			    struct mlx5_ib_qp_base *base)
 {
 	enum mlx5_ib_latency_class lc = MLX5_IB_LATENCY_CLASS_LOW;
-	struct mlx5_uuar_info *uuari;
+	struct mlx5_bfreg_info *bfregi;
 	int uar_index;
 	void *qpc;
-	int uuarn;
+	int bfregn;
 	int err;
 
-	uuari = &dev->mdev->priv.uuari;
+	bfregi = &dev->mdev->priv.bfregi;
 	if (init_attr->create_flags & ~(IB_QP_CREATE_SIGNATURE_EN |
 					IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
 					IB_QP_CREATE_IPOIB_UD_LSO |
@@ -922,19 +922,19 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	if (init_attr->qp_type == MLX5_IB_QPT_REG_UMR)
 		lc = MLX5_IB_LATENCY_CLASS_FAST_PATH;
 
-	uuarn = alloc_uuar(uuari, lc);
-	if (uuarn < 0) {
+	bfregn = alloc_bfreg(bfregi, lc);
+	if (bfregn < 0) {
 		mlx5_ib_dbg(dev, "\n");
 		return -ENOMEM;
 	}
 
-	qp->bf = &uuari->bfs[uuarn];
+	qp->bf = &bfregi->bfs[bfregn];
 	uar_index = qp->bf->uar->index;
 
 	err = calc_sq_size(dev, init_attr, qp);
 	if (err < 0) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
-		goto err_uuar;
+		goto err_bfreg;
 	}
 
 	qp->rq.offset = 0;
@@ -944,7 +944,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	err = mlx5_buf_alloc(dev->mdev, base->ubuffer.buf_size, &qp->buf);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
-		goto err_uuar;
+		goto err_bfreg;
 	}
 
 	qp->sq.qend = mlx5_get_send_wqe(qp, qp->sq.wqe_cnt);
@@ -1007,8 +1007,8 @@ err_free:
 err_buf:
 	mlx5_buf_free(dev->mdev, &qp->buf);
 
-err_uuar:
-	free_uuar(&dev->mdev->priv.uuari, uuarn);
+err_bfreg:
+	free_bfreg(&dev->mdev->priv.bfregi, bfregn);
 	return err;
 }
 
@@ -1021,7 +1021,7 @@ static void destroy_qp_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp)
 	kfree(qp->rq.wrid);
 	mlx5_db_free(dev->mdev, &qp->db);
 	mlx5_buf_free(dev->mdev, &qp->buf);
-	free_uuar(&dev->mdev->priv.uuari, qp->bf->uuarn);
+	free_bfreg(&dev->mdev->priv.bfregi, qp->bf->bfregn);
 }
 
 static u32 get_rx_type(struct mlx5_ib_qp *qp, struct ib_qp_init_attr *attr)
@@ -1353,7 +1353,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (init_attr->create_flags || init_attr->send_cq)
 		return -EINVAL;
 
-	min_resp_len = offsetof(typeof(resp), uuar_index) + sizeof(resp.uuar_index);
+	min_resp_len = offsetof(typeof(resp), bfreg_index) + sizeof(resp.bfreg_index);
 	if (udata->outlen < min_resp_len)
 		return -EINVAL;
 
@@ -4132,7 +4132,7 @@ out:
 			__acquire(&bf->lock);
 
 		/* TBD enable WC */
-		if (0 && nreq == 1 && bf->uuarn && inl && size > 1 && size <= bf->buf_size / 16) {
+		if (0 && nreq == 1 && bf->bfregn && inl && size > 1 && size <= bf->buf_size / 16) {
 			mlx5_bf_copy(bf->reg + bf->offset, (u64 *)ctrl, ALIGN(size * 16, 64), qp);
 			/* wc_wmb(); */
 		} else {

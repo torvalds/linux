@@ -61,13 +61,13 @@ enum {
  */
 
 struct mlx5_ib_alloc_ucontext_req {
-	__u32	total_num_uuars;
-	__u32	num_low_latency_uuars;
+	__u32	total_num_bfregs;
+	__u32	num_low_latency_bfregs;
 };
 
 struct mlx5_ib_alloc_ucontext_req_v2 {
-	__u32	total_num_uuars;
-	__u32	num_low_latency_uuars;
+	__u32	total_num_bfregs;
+	__u32	num_low_latency_bfregs;
 	__u32	flags;
 	__u32	comp_mask;
 	__u8	max_cqe_version;
@@ -88,7 +88,7 @@ enum mlx5_user_cmds_supp_uhw {
 struct mlx5_ib_alloc_ucontext_resp {
 	__u32	qp_tab_size;
 	__u32	bf_reg_size;
-	__u32	tot_uuars;
+	__u32	tot_bfregs;
 	__u32	cache_line_size;
 	__u16	max_sq_desc_sz;
 	__u16	max_rq_desc_sz;
@@ -241,7 +241,7 @@ struct mlx5_ib_create_qp_rss {
 };
 
 struct mlx5_ib_create_qp_resp {
-	__u32	uuar_index;
+	__u32	bfreg_index;
 };
 
 struct mlx5_ib_alloc_mw {

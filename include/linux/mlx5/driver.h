@@ -188,16 +188,16 @@ enum mlx5_eq_type {
 #endif
 };
 
-struct mlx5_uuar_info {
+struct mlx5_bfreg_info {
 	struct mlx5_uar	       *uars;
 	int			num_uars;
-	int			num_low_latency_uuars;
+	int			num_low_latency_bfregs;
 	unsigned long	       *bitmap;
 	unsigned int	       *count;
 	struct mlx5_bf	       *bfs;
 
 	/*
-	 * protect uuar allocation data structs
+	 * protect bfreg allocation data structs
 	 */
 	struct mutex		lock;
 	u32			ver;
@@ -217,7 +217,7 @@ struct mlx5_bf {
 	/* serialize 64 bit writes when done as two 32 bit accesses
 	 */
 	spinlock_t		lock32;
-	int			uuarn;
+	int			bfregn;
 };
 
 struct mlx5_cmd_first {
@@ -579,7 +579,7 @@ struct mlx5_priv {
 	struct mlx5_eq_table	eq_table;
 	struct msix_entry	*msix_arr;
 	struct mlx5_irq_info	*irq_info;
-	struct mlx5_uuar_info	uuari;
+	struct mlx5_bfreg_info	bfregi;
 	MLX5_DECLARE_DOORBELL_LOCK(cq_uar_lock);
 
 	/* pages stuff */
@@ -903,8 +903,8 @@ void mlx5_cmd_mbox_status(void *out, u8 *status, u32 *syndrome);
 int mlx5_core_get_caps(struct mlx5_core_dev *dev, enum mlx5_cap_type cap_type);
 int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn);
 int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn);
-int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
-int mlx5_free_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari);
+int mlx5_alloc_bfregs(struct mlx5_core_dev *dev, struct mlx5_bfreg_info *bfregi);
+int mlx5_free_bfregs(struct mlx5_core_dev *dev, struct mlx5_bfreg_info *bfregi);
 int mlx5_alloc_map_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar,
 		       bool map_wc);
 void mlx5_unmap_free_uar(struct mlx5_core_dev *mdev, struct mlx5_uar *uar);

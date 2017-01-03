@@ -39,7 +39,7 @@
 
 enum {
 	NUM_DRIVER_UARS		= 4,
-	NUM_LOW_LAT_UUARS	= 4,
+	NUM_LOW_LAT_BFREGS	= 4,
 };
 
 int mlx5_cmd_alloc_uar(struct mlx5_core_dev *dev, u32 *uarn)
@@ -67,116 +67,116 @@ int mlx5_cmd_free_uar(struct mlx5_core_dev *dev, u32 uarn)
 }
 EXPORT_SYMBOL(mlx5_cmd_free_uar);
 
-static int need_uuar_lock(int uuarn)
+static int need_bfreg_lock(int bfregn)
 {
-	int tot_uuars = NUM_DRIVER_UARS * MLX5_BF_REGS_PER_PAGE;
+	int tot_bfregs = NUM_DRIVER_UARS * MLX5_BFREGS_PER_UAR;
 
-	if (uuarn == 0 || tot_uuars - NUM_LOW_LAT_UUARS)
+	if (bfregn == 0 || tot_bfregs - NUM_LOW_LAT_BFREGS)
 		return 0;
 
 	return 1;
 }
 
-int mlx5_alloc_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari)
+int mlx5_alloc_bfregs(struct mlx5_core_dev *dev, struct mlx5_bfreg_info *bfregi)
 {
-	int tot_uuars = NUM_DRIVER_UARS * MLX5_BF_REGS_PER_PAGE;
+	int tot_bfregs = NUM_DRIVER_UARS * MLX5_BFREGS_PER_UAR;
 	struct mlx5_bf *bf;
 	phys_addr_t addr;
 	int err;
 	int i;
 
-	uuari->num_uars = NUM_DRIVER_UARS;
-	uuari->num_low_latency_uuars = NUM_LOW_LAT_UUARS;
+	bfregi->num_uars = NUM_DRIVER_UARS;
+	bfregi->num_low_latency_bfregs = NUM_LOW_LAT_BFREGS;
 
-	mutex_init(&uuari->lock);
-	uuari->uars = kcalloc(uuari->num_uars, sizeof(*uuari->uars), GFP_KERNEL);
-	if (!uuari->uars)
+	mutex_init(&bfregi->lock);
+	bfregi->uars = kcalloc(bfregi->num_uars, sizeof(*bfregi->uars), GFP_KERNEL);
+	if (!bfregi->uars)
 		return -ENOMEM;
 
-	uuari->bfs = kcalloc(tot_uuars, sizeof(*uuari->bfs), GFP_KERNEL);
-	if (!uuari->bfs) {
+	bfregi->bfs = kcalloc(tot_bfregs, sizeof(*bfregi->bfs), GFP_KERNEL);
+	if (!bfregi->bfs) {
 		err = -ENOMEM;
 		goto out_uars;
 	}
 
-	uuari->bitmap = kcalloc(BITS_TO_LONGS(tot_uuars), sizeof(*uuari->bitmap),
+	bfregi->bitmap = kcalloc(BITS_TO_LONGS(tot_bfregs), sizeof(*bfregi->bitmap),
 				GFP_KERNEL);
-	if (!uuari->bitmap) {
+	if (!bfregi->bitmap) {
 		err = -ENOMEM;
 		goto out_bfs;
 	}
 
-	uuari->count = kcalloc(tot_uuars, sizeof(*uuari->count), GFP_KERNEL);
-	if (!uuari->count) {
+	bfregi->count = kcalloc(tot_bfregs, sizeof(*bfregi->count), GFP_KERNEL);
+	if (!bfregi->count) {
 		err = -ENOMEM;
 		goto out_bitmap;
 	}
 
-	for (i = 0; i < uuari->num_uars; i++) {
-		err = mlx5_cmd_alloc_uar(dev, &uuari->uars[i].index);
+	for (i = 0; i < bfregi->num_uars; i++) {
+		err = mlx5_cmd_alloc_uar(dev, &bfregi->uars[i].index);
 		if (err)
 			goto out_count;
 
-		addr = dev->iseg_base + ((phys_addr_t)(uuari->uars[i].index) << PAGE_SHIFT);
-		uuari->uars[i].map = ioremap(addr, PAGE_SIZE);
-		if (!uuari->uars[i].map) {
-			mlx5_cmd_free_uar(dev, uuari->uars[i].index);
+		addr = dev->iseg_base + ((phys_addr_t)(bfregi->uars[i].index) << PAGE_SHIFT);
+		bfregi->uars[i].map = ioremap(addr, PAGE_SIZE);
+		if (!bfregi->uars[i].map) {
+			mlx5_cmd_free_uar(dev, bfregi->uars[i].index);
 			err = -ENOMEM;
 			goto out_count;
 		}
 		mlx5_core_dbg(dev, "allocated uar index 0x%x, mmaped at %p\n",
-			      uuari->uars[i].index, uuari->uars[i].map);
+			      bfregi->uars[i].index, bfregi->uars[i].map);
 	}
 
-	for (i = 0; i < tot_uuars; i++) {
-		bf = &uuari->bfs[i];
+	for (i = 0; i < tot_bfregs; i++) {
+		bf = &bfregi->bfs[i];
 
 		bf->buf_size = (1 << MLX5_CAP_GEN(dev, log_bf_reg_size)) / 2;
-		bf->uar = &uuari->uars[i / MLX5_BF_REGS_PER_PAGE];
-		bf->regreg = uuari->uars[i / MLX5_BF_REGS_PER_PAGE].map;
+		bf->uar = &bfregi->uars[i / MLX5_BFREGS_PER_UAR];
+		bf->regreg = bfregi->uars[i / MLX5_BFREGS_PER_UAR].map;
 		bf->reg = NULL; /* Add WC support */
-		bf->offset = (i % MLX5_BF_REGS_PER_PAGE) *
+		bf->offset = (i % MLX5_BFREGS_PER_UAR) *
 			     (1 << MLX5_CAP_GEN(dev, log_bf_reg_size)) +
 			     MLX5_BF_OFFSET;
-		bf->need_lock = need_uuar_lock(i);
+		bf->need_lock = need_bfreg_lock(i);
 		spin_lock_init(&bf->lock);
 		spin_lock_init(&bf->lock32);
-		bf->uuarn = i;
+		bf->bfregn = i;
 	}
 
 	return 0;
 
 out_count:
 	for (i--; i >= 0; i--) {
-		iounmap(uuari->uars[i].map);
-		mlx5_cmd_free_uar(dev, uuari->uars[i].index);
+		iounmap(bfregi->uars[i].map);
+		mlx5_cmd_free_uar(dev, bfregi->uars[i].index);
 	}
-	kfree(uuari->count);
+	kfree(bfregi->count);
 
 out_bitmap:
-	kfree(uuari->bitmap);
+	kfree(bfregi->bitmap);
 
 out_bfs:
-	kfree(uuari->bfs);
+	kfree(bfregi->bfs);
 
 out_uars:
-	kfree(uuari->uars);
+	kfree(bfregi->uars);
 	return err;
 }
 
-int mlx5_free_uuars(struct mlx5_core_dev *dev, struct mlx5_uuar_info *uuari)
+int mlx5_free_bfregs(struct mlx5_core_dev *dev, struct mlx5_bfreg_info *bfregi)
 {
-	int i = uuari->num_uars;
+	int i = bfregi->num_uars;
 
 	for (i--; i >= 0; i--) {
-		iounmap(uuari->uars[i].map);
-		mlx5_cmd_free_uar(dev, uuari->uars[i].index);
+		iounmap(bfregi->uars[i].map);
+		mlx5_cmd_free_uar(dev, bfregi->uars[i].index);
 	}
 
-	kfree(uuari->count);
-	kfree(uuari->bitmap);
-	kfree(uuari->bfs);
-	kfree(uuari->uars);
+	kfree(bfregi->count);
+	kfree(bfregi->bitmap);
+	kfree(bfregi->bfs);
+	kfree(bfregi->uars);
 
 	return 0;
 }
