@@ -27,7 +27,7 @@
 #include <linux/fb.h>
 #include <linux/platform_device.h>
 #include "rockchip_dp_core.h"
-#include "cdn-dp-reg.h"
+#include "cdn-dp-fb-reg.h"
 
 static struct cdn_dp_data rk3399_cdn_dp = {
 	.max_phy = 2,
@@ -73,8 +73,8 @@ static int cdn_dp_set_fw_rate(struct cdn_dp_device *dp)
 			dev_err(dp->dev, "get clk rate failed: %d\n", rate);
 			return rate;
 		}
-		cdn_dp_set_fw_clk(dp, rate);
-		cdn_dp_clock_reset(dp);
+		cdn_dp_fb_set_fw_clk(dp, rate);
+		cdn_dp_fb_clock_reset(dp);
 		dp->fw_clk_enabled = true;
 	}
 
@@ -141,7 +141,7 @@ int cdn_dp_get_edid(void *dp, u8 *buf, int block)
 	struct cdn_dp_device *dp_dev = dp;
 
 	mutex_lock(&dp_dev->lock);
-	ret = cdn_dp_get_edid_block(dp_dev, buf, block, EDID_BLOCK_SIZE);
+	ret = cdn_dp_fb_get_edid_block(dp_dev, buf, block, EDID_BLOCK_SIZE);
 	mutex_unlock(&dp_dev->lock);
 
 	return ret;
@@ -187,14 +187,14 @@ int cdn_dp_encoder_disable(void *dp)
 static void cdn_dp_commit(struct cdn_dp_device *dp)
 {
 	char guid[16];
-	int ret = cdn_dp_training_start(dp);
+	int ret = cdn_dp_fb_training_start(dp);
 
 	if (ret) {
 		dev_err(dp->dev, "link training failed: %d\n", ret);
 		return;
 	}
 
-	ret = cdn_dp_get_training_status(dp);
+	ret = cdn_dp_fb_get_training_status(dp);
 	if (ret) {
 		dev_err(dp->dev, "get link training status failed: %d\n", ret);
 		return;
@@ -211,23 +211,23 @@ static void cdn_dp_commit(struct cdn_dp_device *dp)
 	* The sync register is 0x0035, firstly we write 0xaa to sync register,
 	* nanoc will read this register and then start the part2 code of DP.
 	*/
-	ret = cdn_dp_dpcd_read(dp, 0x0030, guid, 8);
+	ret = cdn_dp_fb_dpcd_read(dp, 0x0030, guid, 8);
 	if (ret == 0 && guid[0] == 'n' && guid[1] == 'a' && guid[2] == 'n' &&
 			guid[3] == 'o' && guid[4] == 'c') {
 		u8 sync_number = 0xaa;
 
-		cdn_dp_dpcd_write(dp, 0x0035, sync_number);
+		cdn_dp_fb_dpcd_write(dp, 0x0035, sync_number);
 	}
 
-	if (cdn_dp_set_video_status(dp, CONTROL_VIDEO_IDLE))
+	if (cdn_dp_fb_set_video_status(dp, CONTROL_VIDEO_IDLE))
 		return;
 
-	if (cdn_dp_config_video(dp)) {
+	if (cdn_dp_fb_config_video(dp)) {
 		dev_err(dp->dev, "unable to config video\n");
 		return;
 	}
 
-	if (cdn_dp_set_video_status(dp, CONTROL_VIDEO_VALID))
+	if (cdn_dp_fb_set_video_status(dp, CONTROL_VIDEO_VALID))
 		return;
 
 	dp->dpms_mode = DRM_MODE_DPMS_ON;
@@ -333,19 +333,19 @@ static int cdn_dp_firmware_init(struct cdn_dp_device *dp)
 	iram_data = (const u32 *)(fw->data + hdr->header_size);
 	dram_data = (const u32 *)(fw->data + hdr->header_size + hdr->iram_size);
 
-	ret = cdn_dp_load_firmware(dp, iram_data, hdr->iram_size,
+	ret = cdn_dp_fb_load_firmware(dp, iram_data, hdr->iram_size,
 				   dram_data, hdr->dram_size);
 	if (ret)
 		return ret;
 
-	ret = cdn_dp_set_firmware_active(dp, true);
+	ret = cdn_dp_fb_set_firmware_active(dp, true);
 	if (ret) {
 		dev_err(dp->dev, "active ucpu failed: %d\n", ret);
 		return ret;
 	}
 
 	dp->fw_loaded = 1;
-	return cdn_dp_event_config(dp);
+	return cdn_dp_fb_event_config(dp);
 }
 
 static int cdn_dp_init(struct cdn_dp_device *dp)
@@ -455,7 +455,7 @@ static int cdn_dp_audio_hw_params(struct device *dev,  void *data,
 		return -EINVAL;
 	}
 
-	ret = cdn_dp_audio_config(dp, &audio);
+	ret = cdn_dp_fb_audio_config(dp, &audio);
 	if (!ret)
 		dp->audio_info = audio;
 
@@ -469,7 +469,7 @@ static void cdn_dp_audio_shutdown(struct device *dev, void *data)
 	int ret;
 
 	if (cdn_dp_connector_detect(dp)) {
-		ret = cdn_dp_audio_stop(dp, &dp->audio_info);
+		ret = cdn_dp_fb_audio_stop(dp, &dp->audio_info);
 		if (!ret)
 			dp->audio_info.format = AFMT_UNUSED;
 	}
@@ -483,7 +483,7 @@ static int cdn_dp_audio_digital_mute(struct device *dev, void *data,
 
 	if (!cdn_dp_connector_detect(dp))
 		return 0;
-	return cdn_dp_audio_mute(dp, enable);
+	return cdn_dp_fb_audio_mute(dp, enable);
 }
 
 static const struct hdmi_codec_ops audio_codec_ops = {
@@ -547,7 +547,7 @@ static int cdn_dp_get_dpcd(struct cdn_dp_device *dp, struct cdn_dp_port *port)
 	 * 100ms, if can not get a good dpcd in 10 seconds, give up.
 	 */
 	for (i = 0; i < 100; i++) {
-		ret = cdn_dp_dpcd_read(dp, DP_SINK_COUNT,
+		ret = cdn_dp_fb_dpcd_read(dp, DP_SINK_COUNT,
 				       &sink_count, 1);
 		if (!ret) {
 			dev_dbg(dp->dev, "get dpcd success!\n");
@@ -562,7 +562,7 @@ static int cdn_dp_get_dpcd(struct cdn_dp_device *dp, struct cdn_dp_port *port)
 				continue;
 			}
 
-			ret = cdn_dp_dpcd_read(dp, 0x000, dp->dpcd,
+			ret = cdn_dp_fb_dpcd_read(dp, 0x000, dp->dpcd,
 					       DP_RECEIVER_CAP_SIZE);
 			if (ret)
 				continue;
@@ -601,7 +601,7 @@ static void cdn_dp_enter_standy(struct cdn_dp_device *dp,
 
 	memset(dp->dpcd, 0, DP_RECEIVER_CAP_SIZE);
 	if (dp->fw_actived)
-		cdn_dp_set_firmware_active(dp, false);
+		cdn_dp_fb_set_firmware_active(dp, false);
 	if (dp->fw_clk_enabled) {
 		cdn_dp_clk_disable(dp);
 		dp->fw_clk_enabled = false;
@@ -665,7 +665,7 @@ static int cdn_dp_start_work(struct cdn_dp_device *dp,
 	if (ret)
 		goto err_grf;
 
-	ret = cdn_dp_get_hpd_status(dp);
+	ret = cdn_dp_fb_get_hpd_status(dp);
 	if (ret <= 0) {
 		if (!ret)
 			dev_err(dp->dev, "hpd does not exist\n");
@@ -679,7 +679,7 @@ static int cdn_dp_start_work(struct cdn_dp_device *dp,
 		goto err_hpd;
 	}
 
-	ret = cdn_dp_set_host_cap(dp, cap_lanes, property.intval);
+	ret = cdn_dp_fb_set_host_cap(dp, cap_lanes, property.intval);
 	if (ret) {
 		dev_err(dp->dev, "set host capabilities failed: %d\n", ret);
 		goto err_hpd;
@@ -697,7 +697,7 @@ err_hpd:
 
 err_grf:
 	if (dp->fw_actived)
-		cdn_dp_set_firmware_active(dp, false);
+		cdn_dp_fb_set_firmware_active(dp, false);
 
 err_firmware:
 	if (phy_power_off(port->phy))
@@ -750,7 +750,7 @@ static void cdn_dp_pd_event_wq(struct work_struct *work)
 		 * means something is wrong, we don't do anything here, just
 		 * output error log.
 		 */
-		cdn_dp_dpcd_read(dp, DP_SINK_COUNT, &sink_count, 1);
+		cdn_dp_fb_dpcd_read(dp, DP_SINK_COUNT, &sink_count, 1);
 		if (sink_count) {
 			if (dp->hpd_status == connector_status_connected)
 				dev_info(dp->dev,
@@ -835,7 +835,7 @@ static int cdn_dp_bind(struct cdn_dp_device *dp)
 	return 0;
 }
 
-int cdn_dp_suspend(void *dp_dev)
+int cdn_dp_fb_suspend(void *dp_dev)
 {
 	struct cdn_dp_device *dp = dp_dev;
 	struct cdn_dp_port *port;
@@ -844,7 +844,7 @@ int cdn_dp_suspend(void *dp_dev)
 	for (i = 0; i < dp->ports; i++) {
 		port = dp->port[i];
 		if (port->phy_status) {
-			cdn_dp_dpcd_write(dp, DP_SET_POWER, DP_SET_POWER_D3);
+			cdn_dp_fb_dpcd_write(dp, DP_SET_POWER, DP_SET_POWER_D3);
 			cdn_dp_enter_standy(dp, port);
 		}
 	}
@@ -859,7 +859,7 @@ int cdn_dp_suspend(void *dp_dev)
 	return 0;
 }
 
-int cdn_dp_resume(void *dp_dev)
+int cdn_dp_fb_resume(void *dp_dev)
 {
 	struct cdn_dp_device *dp = dp_dev;
 	struct cdn_dp_port *port;

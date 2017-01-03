@@ -19,7 +19,7 @@
 #include <linux/iopoll.h>
 #include <linux/reset.h>
 
-#include "cdn-dp-reg.h"
+#include "cdn-dp-fb-reg.h"
 
 #define CDN_DP_SPDIF_CLK		200000000
 #define FW_ALIVE_TIMEOUT_US		1000000
@@ -28,12 +28,12 @@
 #define LINK_TRAINING_RETRY_MS		20
 #define LINK_TRAINING_TIMEOUT_MS	500
 
-void cdn_dp_set_fw_clk(struct cdn_dp_device *dp, u32 clk)
+void cdn_dp_fb_set_fw_clk(struct cdn_dp_device *dp, u32 clk)
 {
 	writel(clk / 1000000, dp->regs + SW_CLK_H);
 }
 
-void cdn_dp_clock_reset(struct cdn_dp_device *dp)
+void cdn_dp_fb_clock_reset(struct cdn_dp_device *dp)
 {
 	u32 val;
 
@@ -82,7 +82,7 @@ void cdn_dp_clock_reset(struct cdn_dp_device *dp)
 	writel(val, dp->regs + APB_INT_MASK);
 }
 
-static int cdn_dp_mailbox_read(struct cdn_dp_device *dp, bool force)
+static int cdn_dp_fb_mailbox_read(struct cdn_dp_device *dp, bool force)
 {
 	int val, ret;
 
@@ -98,7 +98,7 @@ static int cdn_dp_mailbox_read(struct cdn_dp_device *dp, bool force)
 	return readl(dp->regs + MAILBOX0_RD_DATA) & 0xff;
 }
 
-static int cdp_dp_mailbox_write(struct cdn_dp_device *dp, u8 val, bool force)
+static int cdn_dp_fb_mailbox_write(struct cdn_dp_device *dp, u8 val, bool force)
 {
 	int ret, full;
 
@@ -116,7 +116,7 @@ static int cdp_dp_mailbox_write(struct cdn_dp_device *dp, u8 val, bool force)
 	return 0;
 }
 
-static int cdn_dp_mailbox_validate_receive(struct cdn_dp_device *dp,
+static int cdn_dp_fb_mailbox_validate_receive(struct cdn_dp_device *dp,
 					   u8 module_id, u8 opcode,
 					   u8 req_size)
 {
@@ -126,7 +126,7 @@ static int cdn_dp_mailbox_validate_receive(struct cdn_dp_device *dp,
 
 	/* read the header of the message */
 	for (i = 0; i < 4; i++) {
-		ret = cdn_dp_mailbox_read(dp, 0);
+		ret = cdn_dp_fb_mailbox_read(dp, 0);
 		if (ret < 0)
 			return ret;
 
@@ -142,7 +142,7 @@ static int cdn_dp_mailbox_validate_receive(struct cdn_dp_device *dp,
 		 * clear the mailbox by reading its contents.
 		 */
 		for (i = 0; i < mbox_size; i++)
-			if (cdn_dp_mailbox_read(dp, 0) < 0)
+			if (cdn_dp_fb_mailbox_read(dp, 0) < 0)
 				break;
 
 		return -EINVAL;
@@ -151,14 +151,14 @@ static int cdn_dp_mailbox_validate_receive(struct cdn_dp_device *dp,
 	return 0;
 }
 
-static int cdn_dp_mailbox_read_receive(struct cdn_dp_device *dp,
+static int cdn_dp_fb_mailbox_read_receive(struct cdn_dp_device *dp,
 				       u8 *buff, u8 buff_size)
 {
 	u32 i;
 	int ret;
 
 	for (i = 0; i < buff_size; i++) {
-		ret = cdn_dp_mailbox_read(dp, 0);
+		ret = cdn_dp_fb_mailbox_read(dp, 0);
 		if (ret < 0)
 			return ret;
 
@@ -168,7 +168,7 @@ static int cdn_dp_mailbox_read_receive(struct cdn_dp_device *dp,
 	return 0;
 }
 
-static int cdn_dp_mailbox_send(struct cdn_dp_device *dp, u8 module_id,
+static int cdn_dp_fb_mailbox_send(struct cdn_dp_device *dp, u8 module_id,
 			       u8 opcode, u16 size, u8 *message)
 {
 	u8 header[4];
@@ -180,13 +180,13 @@ static int cdn_dp_mailbox_send(struct cdn_dp_device *dp, u8 module_id,
 	header[3] = size & 0xff;
 
 	for (i = 0; i < 4; i++) {
-		ret = cdp_dp_mailbox_write(dp, header[i], 0);
+		ret = cdn_dp_fb_mailbox_write(dp, header[i], 0);
 		if (ret)
 			return ret;
 	}
 
 	for (i = 0; i < size; i++) {
-		ret = cdp_dp_mailbox_write(dp, message[i], 0);
+		ret = cdn_dp_fb_mailbox_write(dp, message[i], 0);
 		if (ret)
 			return ret;
 	}
@@ -194,7 +194,7 @@ static int cdn_dp_mailbox_send(struct cdn_dp_device *dp, u8 module_id,
 	return 0;
 }
 
-static int cdn_dp_reg_write(struct cdn_dp_device *dp, u16 addr, u32 val)
+static int cdn_dp_fb_reg_write(struct cdn_dp_device *dp, u16 addr, u32 val)
 {
 	u8 msg[6];
 
@@ -204,11 +204,11 @@ static int cdn_dp_reg_write(struct cdn_dp_device *dp, u16 addr, u32 val)
 	msg[3] = (val >> 16) & 0xff;
 	msg[4] = (val >> 8) & 0xff;
 	msg[5] = val & 0xff;
-	return cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_WRITE_REGISTER,
+	return cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_WRITE_REGISTER,
 				   sizeof(msg), msg);
 }
 
-static int cdn_dp_reg_write_bit(struct cdn_dp_device *dp, u16 addr,
+static int cdn_dp_fb_reg_write_bit(struct cdn_dp_device *dp, u16 addr,
 				u8 start_bit, u8 bits_no, u32 val)
 {
 	u8 field[8];
@@ -222,11 +222,11 @@ static int cdn_dp_reg_write_bit(struct cdn_dp_device *dp, u16 addr,
 	field[6] = (val >> 8) & 0xff;
 	field[7] = val & 0xff;
 
-	return cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_WRITE_FIELD,
+	return cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_WRITE_FIELD,
 				   sizeof(field), field);
 }
 
-int cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len)
+int cdn_dp_fb_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len)
 {
 	u8 msg[5], reg[5];
 	int ret;
@@ -236,28 +236,28 @@ int cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len)
 	msg[2] = (addr >> 16) & 0xff;
 	msg[3] = (addr >> 8) & 0xff;
 	msg[4] = addr & 0xff;
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_READ_DPCD,
+	ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_READ_DPCD,
 				  sizeof(msg), msg);
 	if (ret)
 		goto err_dpcd_read;
 
-	ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
+	ret = cdn_dp_fb_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
 					      DPTX_READ_DPCD,
 					      sizeof(reg) + len);
 	if (ret)
 		goto err_dpcd_read;
 
-	ret = cdn_dp_mailbox_read_receive(dp, reg, sizeof(reg));
+	ret = cdn_dp_fb_mailbox_read_receive(dp, reg, sizeof(reg));
 	if (ret)
 		goto err_dpcd_read;
 
-	ret = cdn_dp_mailbox_read_receive(dp, data, len);
+	ret = cdn_dp_fb_mailbox_read_receive(dp, data, len);
 
 err_dpcd_read:
 	return ret;
 }
 
-int cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 value)
+int cdn_dp_fb_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 value)
 {
 	u8 msg[6], reg[5];
 	int ret;
@@ -268,17 +268,17 @@ int cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 value)
 	msg[3] = (addr >> 8) & 0xff;
 	msg[4] = addr & 0xff;
 	msg[5] = value;
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_WRITE_DPCD,
+	ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_WRITE_DPCD,
 				  sizeof(msg), msg);
 	if (ret)
 		goto err_dpcd_write;
 
-	ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
+	ret = cdn_dp_fb_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
 					      DPTX_WRITE_DPCD, sizeof(reg));
 	if (ret)
 		goto err_dpcd_write;
 
-	ret = cdn_dp_mailbox_read_receive(dp, reg, sizeof(reg));
+	ret = cdn_dp_fb_mailbox_read_receive(dp, reg, sizeof(reg));
 	if (ret)
 		goto err_dpcd_write;
 
@@ -291,7 +291,7 @@ err_dpcd_write:
 	return ret;
 }
 
-int cdn_dp_load_firmware(struct cdn_dp_device *dp, const u32 *i_mem,
+int cdn_dp_fb_load_firmware(struct cdn_dp_device *dp, const u32 *i_mem,
 			 u32 i_size, const u32 *d_mem, u32 d_size)
 {
 	u32 reg;
@@ -332,7 +332,7 @@ int cdn_dp_load_firmware(struct cdn_dp_device *dp, const u32 *i_mem,
 	return 0;
 }
 
-int cdn_dp_set_firmware_active(struct cdn_dp_device *dp, bool enable)
+int cdn_dp_fb_set_firmware_active(struct cdn_dp_device *dp, bool enable)
 {
 	u8 msg[5];
 	int ret, i;
@@ -344,14 +344,14 @@ int cdn_dp_set_firmware_active(struct cdn_dp_device *dp, bool enable)
 	msg[4] = enable ? FW_ACTIVE : FW_STANDBY;
 
 	for (i = 0; i < sizeof(msg); i++) {
-		ret = cdp_dp_mailbox_write(dp, msg[i], 1);
+		ret = cdn_dp_fb_mailbox_write(dp, msg[i], 1);
 		if (ret)
 			goto err_set_firmware_active;
 	}
 
 	/* read the firmware state */
 	for (i = 0; i < sizeof(msg); i++)  {
-		ret = cdn_dp_mailbox_read(dp, 1);
+		ret = cdn_dp_fb_mailbox_read(dp, 1);
 		if (ret < 0)
 			goto err_set_firmware_active;
 
@@ -367,7 +367,7 @@ err_set_firmware_active:
 	return ret;
 }
 
-int cdn_dp_set_host_cap(struct cdn_dp_device *dp, u8 lanes, bool flip)
+int cdn_dp_fb_set_host_cap(struct cdn_dp_device *dp, u8 lanes, bool flip)
 {
 	u8 msg[8];
 	int ret;
@@ -381,13 +381,13 @@ int cdn_dp_set_host_cap(struct cdn_dp_device *dp, u8 lanes, bool flip)
 	msg[6] = flip ? LANE_MAPPING_FLIPPED : LANE_MAPPING_NORMAL;
 	msg[7] = ENHANCED;
 
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX,
+	ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX,
 				  DPTX_SET_HOST_CAPABILITIES,
 				  sizeof(msg), msg);
 	if (ret)
 		goto err_set_host_cap;
 
-	ret = cdn_dp_reg_write(dp, DP_AUX_SWAP_INVERSION_CONTROL,
+	ret = cdn_dp_fb_reg_write(dp, DP_AUX_SWAP_INVERSION_CONTROL,
 			       AUX_HOST_INVERT);
 
 err_set_host_cap:
@@ -396,7 +396,7 @@ err_set_host_cap:
 	return ret;
 }
 
-int cdn_dp_event_config(struct cdn_dp_device *dp)
+int cdn_dp_fb_event_config(struct cdn_dp_device *dp)
 {
 	u8 msg[5];
 	int ret;
@@ -405,7 +405,7 @@ int cdn_dp_event_config(struct cdn_dp_device *dp)
 
 	msg[0] = DPTX_EVENT_ENABLE_HPD | DPTX_EVENT_ENABLE_TRAINING;
 
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_ENABLE_EVENT,
+	ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_ENABLE_EVENT,
 				  sizeof(msg), msg);
 	if (ret)
 		dev_err(dp->dev, "set event config failed: %d\n", ret);
@@ -413,27 +413,27 @@ int cdn_dp_event_config(struct cdn_dp_device *dp)
 	return ret;
 }
 
-u32 cdn_dp_get_event(struct cdn_dp_device *dp)
+u32 cdn_dp_fb_get_event(struct cdn_dp_device *dp)
 {
 	return readl(dp->regs + SW_EVENTS0);
 }
 
-int cdn_dp_get_hpd_status(struct cdn_dp_device *dp)
+int cdn_dp_fb_get_hpd_status(struct cdn_dp_device *dp)
 {
 	u8 status;
 	int ret;
 
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_HPD_STATE,
+	ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_HPD_STATE,
 				  0, NULL);
 	if (ret)
 		goto err_get_hpd;
 
-	ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
+	ret = cdn_dp_fb_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
 					      DPTX_HPD_STATE, sizeof(status));
 	if (ret)
 		goto err_get_hpd;
 
-	ret = cdn_dp_mailbox_read_receive(dp, &status, sizeof(status));
+	ret = cdn_dp_fb_mailbox_read_receive(dp, &status, sizeof(status));
 	if (ret)
 		goto err_get_hpd;
 
@@ -444,7 +444,7 @@ err_get_hpd:
 	return ret;
 }
 
-int cdn_dp_get_edid_block(void *data, u8 *edid,
+int cdn_dp_fb_get_edid_block(void *data, u8 *edid,
 			  unsigned int block, size_t length)
 {
 	struct cdn_dp_device *dp = data;
@@ -455,22 +455,22 @@ int cdn_dp_get_edid_block(void *data, u8 *edid,
 		msg[0] = block / 2;
 		msg[1] = block % 2;
 
-		ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_GET_EDID,
+		ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_GET_EDID,
 					  sizeof(msg), msg);
 		if (ret)
 			continue;
 
-		ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
+		ret = cdn_dp_fb_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
 						      DPTX_GET_EDID,
 						      sizeof(reg) + length);
 		if (ret)
 			continue;
 
-		ret = cdn_dp_mailbox_read_receive(dp, reg, sizeof(reg));
+		ret = cdn_dp_fb_mailbox_read_receive(dp, reg, sizeof(reg));
 		if (ret)
 			continue;
 
-		ret = cdn_dp_mailbox_read_receive(dp, edid, length);
+		ret = cdn_dp_fb_mailbox_read_receive(dp, edid, length);
 		if (ret)
 			continue;
 
@@ -484,7 +484,7 @@ int cdn_dp_get_edid_block(void *data, u8 *edid,
 	return ret;
 }
 
-int cdn_dp_training_start(struct cdn_dp_device *dp)
+int cdn_dp_fb_training_start(struct cdn_dp_device *dp)
 {
 	unsigned long timeout;
 	u8 msg, event[2];
@@ -493,7 +493,7 @@ int cdn_dp_training_start(struct cdn_dp_device *dp)
 	msg = LINK_TRAINING_RUN;
 
 	/* start training */
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_TRAINING_CONTROL,
+	ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_TRAINING_CONTROL,
 				  sizeof(msg), &msg);
 	if (ret)
 		goto err_training_start;
@@ -501,18 +501,18 @@ int cdn_dp_training_start(struct cdn_dp_device *dp)
 	timeout = jiffies + msecs_to_jiffies(LINK_TRAINING_TIMEOUT_MS);
 	while (time_before(jiffies, timeout)) {
 		msleep(LINK_TRAINING_RETRY_MS);
-		ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX,
+		ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX,
 					  DPTX_READ_EVENT, 0, NULL);
 		if (ret)
 			goto err_training_start;
 
-		ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
+		ret = cdn_dp_fb_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
 						      DPTX_READ_EVENT,
 						      sizeof(event));
 		if (ret)
 			goto err_training_start;
 
-		ret = cdn_dp_mailbox_read_receive(dp, event, sizeof(event));
+		ret = cdn_dp_fb_mailbox_read_receive(dp, event, sizeof(event));
 		if (ret)
 			goto err_training_start;
 
@@ -527,23 +527,23 @@ err_training_start:
 	return ret;
 }
 
-int cdn_dp_get_training_status(struct cdn_dp_device *dp)
+int cdn_dp_fb_get_training_status(struct cdn_dp_device *dp)
 {
 	u8 status[10];
 	int ret;
 
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_READ_LINK_STAT,
+	ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_READ_LINK_STAT,
 				  0, NULL);
 	if (ret)
 		goto err_get_training_status;
 
-	ret = cdn_dp_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
+	ret = cdn_dp_fb_mailbox_validate_receive(dp, MB_MODULE_ID_DP_TX,
 					      DPTX_READ_LINK_STAT,
 					      sizeof(status));
 	if (ret)
 		goto err_get_training_status;
 
-	ret = cdn_dp_mailbox_read_receive(dp, status, sizeof(status));
+	ret = cdn_dp_fb_mailbox_read_receive(dp, status, sizeof(status));
 	if (ret)
 		goto err_get_training_status;
 
@@ -556,14 +556,14 @@ err_get_training_status:
 	return ret;
 }
 
-int cdn_dp_set_video_status(struct cdn_dp_device *dp, int active)
+int cdn_dp_fb_set_video_status(struct cdn_dp_device *dp, int active)
 {
 	u8 msg;
 	int ret;
 
 	msg = !!active;
 
-	ret = cdn_dp_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_SET_VIDEO,
+	ret = cdn_dp_fb_mailbox_send(dp, MB_MODULE_ID_DP_TX, DPTX_SET_VIDEO,
 				  sizeof(msg), &msg);
 	if (ret)
 		dev_err(dp->dev, "set video status failed: %d\n", ret);
@@ -571,7 +571,7 @@ int cdn_dp_set_video_status(struct cdn_dp_device *dp, int active)
 	return ret;
 }
 
-static int cdn_dp_get_msa_misc(struct video_info *video,
+static int cdn_dp_fb_get_msa_misc(struct video_info *video,
 			       struct drm_display_mode *mode)
 {
 	u32 msa_misc;
@@ -618,7 +618,7 @@ static int cdn_dp_get_msa_misc(struct video_info *video,
 	return msa_misc;
 }
 
-int cdn_dp_config_video(struct cdn_dp_device *dp)
+int cdn_dp_fb_config_video(struct cdn_dp_device *dp)
 {
 	struct video_info *video = &dp->video_info;
 	struct drm_display_mode *mode = &dp->mode;
@@ -633,11 +633,11 @@ int cdn_dp_config_video(struct cdn_dp_device *dp)
 	link_rate = drm_dp_bw_code_to_link_rate(dp->link.rate) / 1000;
 
 	val = VIF_BYPASS_INTERLACE;
-	ret = cdn_dp_reg_write(dp, BND_HSYNC2VSYNC, val);
+	ret = cdn_dp_fb_reg_write(dp, BND_HSYNC2VSYNC, val);
 	if (ret)
 		goto err_config_video;
 
-	ret = cdn_dp_reg_write(dp, HSYNC2VSYNC_POL_CTRL, 0);
+	ret = cdn_dp_fb_reg_write(dp, HSYNC2VSYNC_POL_CTRL, 0);
 	if (ret)
 		goto err_config_video;
 
@@ -657,7 +657,7 @@ int cdn_dp_config_video(struct cdn_dp_device *dp)
 		 (tmp % 1000 > 850) || (tmp % 1000 < 100));
 
 	val = symbol + (tu_size_reg << 8);
-	ret = cdn_dp_reg_write(dp, DP_FRAMER_TU, val);
+	ret = cdn_dp_fb_reg_write(dp, DP_FRAMER_TU, val);
 	if (ret)
 		goto err_config_video;
 
@@ -666,7 +666,7 @@ int cdn_dp_config_video(struct cdn_dp_device *dp)
 	val /= (dp->link.num_lanes * link_rate);
 	val = 8 * (symbol + 1) / bit_per_pix - val;
 	val += 2;
-	ret = cdn_dp_reg_write(dp, DP_VC_TABLE(15), val);
+	ret = cdn_dp_fb_reg_write(dp, DP_VC_TABLE(15), val);
 
 	switch (video->color_depth) {
 	case 6:
@@ -687,79 +687,79 @@ int cdn_dp_config_video(struct cdn_dp_device *dp)
 	};
 
 	val += video->color_fmt << 8;
-	ret = cdn_dp_reg_write(dp, DP_FRAMER_PXL_REPR, val);
+	ret = cdn_dp_fb_reg_write(dp, DP_FRAMER_PXL_REPR, val);
 	if (ret)
 		goto err_config_video;
 
 	val = video->h_sync_polarity ? DP_FRAMER_SP_HSP : 0;
 	val |= video->v_sync_polarity ? DP_FRAMER_SP_VSP : 0;
-	ret = cdn_dp_reg_write(dp, DP_FRAMER_SP, val);
+	ret = cdn_dp_fb_reg_write(dp, DP_FRAMER_SP, val);
 	if (ret)
 		goto err_config_video;
 
 	val = (mode->hsync_start - mode->hdisplay) << 16;
 	val |= mode->htotal - mode->hsync_end;
-	ret = cdn_dp_reg_write(dp, DP_FRONT_BACK_PORCH, val);
+	ret = cdn_dp_fb_reg_write(dp, DP_FRONT_BACK_PORCH, val);
 	if (ret)
 		goto err_config_video;
 
 	val = mode->hdisplay * bit_per_pix / 8;
-	ret = cdn_dp_reg_write(dp, DP_BYTE_COUNT, val);
+	ret = cdn_dp_fb_reg_write(dp, DP_BYTE_COUNT, val);
 	if (ret)
 		goto err_config_video;
 
 	val = mode->htotal | ((mode->htotal - mode->hsync_start) << 16);
-	ret = cdn_dp_reg_write(dp, MSA_HORIZONTAL_0, val);
+	ret = cdn_dp_fb_reg_write(dp, MSA_HORIZONTAL_0, val);
 	if (ret)
 		goto err_config_video;
 
 	val = mode->hsync_end - mode->hsync_start;
 	val |= (mode->hdisplay << 16) | (video->h_sync_polarity << 15);
-	ret = cdn_dp_reg_write(dp, MSA_HORIZONTAL_1, val);
+	ret = cdn_dp_fb_reg_write(dp, MSA_HORIZONTAL_1, val);
 	if (ret)
 		goto err_config_video;
 
 	val = mode->vtotal;
 	val |= ((mode->vtotal - mode->vsync_start) << 16);
-	ret = cdn_dp_reg_write(dp, MSA_VERTICAL_0, val);
+	ret = cdn_dp_fb_reg_write(dp, MSA_VERTICAL_0, val);
 	if (ret)
 		goto err_config_video;
 
 	val = mode->vsync_end - mode->vsync_start;
 	val |= mode->vdisplay << 16 | (video->v_sync_polarity << 15);
-	ret = cdn_dp_reg_write(dp, MSA_VERTICAL_1, val);
+	ret = cdn_dp_fb_reg_write(dp, MSA_VERTICAL_1, val);
 	if (ret)
 		goto err_config_video;
 
-	val = cdn_dp_get_msa_misc(video, mode);
-	ret = cdn_dp_reg_write(dp, MSA_MISC, val);
+	val = cdn_dp_fb_get_msa_misc(video, mode);
+	ret = cdn_dp_fb_reg_write(dp, MSA_MISC, val);
 	if (ret)
 		goto err_config_video;
 
-	ret = cdn_dp_reg_write(dp, STREAM_CONFIG, 1);
+	ret = cdn_dp_fb_reg_write(dp, STREAM_CONFIG, 1);
 	if (ret)
 		goto err_config_video;
 
 	val = mode->hsync_end - mode->hsync_start;
 	val |= (mode->hdisplay << 16);
-	ret = cdn_dp_reg_write(dp, DP_HORIZONTAL, val);
+	ret = cdn_dp_fb_reg_write(dp, DP_HORIZONTAL, val);
 	if (ret)
 		goto err_config_video;
 
 	val = mode->vtotal;
 	val -= (mode->vtotal - mode->vdisplay);
 	val |= (mode->vtotal - mode->vsync_start) << 16;
-	ret = cdn_dp_reg_write(dp, DP_VERTICAL_0, val);
+	ret = cdn_dp_fb_reg_write(dp, DP_VERTICAL_0, val);
 	if (ret)
 		goto err_config_video;
 
 	val = mode->vtotal;
-	ret = cdn_dp_reg_write(dp, DP_VERTICAL_1, val);
+	ret = cdn_dp_fb_reg_write(dp, DP_VERTICAL_1, val);
 	if (ret)
 		goto err_config_video;
 
 	val =  0;
-	ret = cdn_dp_reg_write_bit(dp, DP_VB_ID, 2, 1, val);
+	ret = cdn_dp_fb_reg_write_bit(dp, DP_VB_ID, 2, 1, val);
 
 err_config_video:
 	if (ret)
@@ -767,12 +767,12 @@ err_config_video:
 	return ret;
 }
 
-int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio)
+int cdn_dp_fb_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio)
 {
 	u32 val;
 	int ret;
 
-	ret = cdn_dp_reg_write(dp, AUDIO_PACK_CONTROL, 0);
+	ret = cdn_dp_fb_reg_write(dp, AUDIO_PACK_CONTROL, 0);
 	if (ret) {
 		dev_err(dp->dev, "audio stop failed: %d\n", ret);
 		return ret;
@@ -805,18 +805,18 @@ int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio)
 	return 0;
 }
 
-int cdn_dp_audio_mute(struct cdn_dp_device *dp, bool enable)
+int cdn_dp_fb_audio_mute(struct cdn_dp_device *dp, bool enable)
 {
 	int ret;
 
-	ret = cdn_dp_reg_write_bit(dp, DP_VB_ID, 4, 1, enable);
+	ret = cdn_dp_fb_reg_write_bit(dp, DP_VB_ID, 4, 1, enable);
 	if (ret)
 		dev_err(dp->dev, "audio mute failed: %d\n", ret);
 
 	return ret;
 }
 
-static void cdn_dp_audio_config_i2s(struct cdn_dp_device *dp,
+static void cdn_dp_fb_audio_config_i2s(struct cdn_dp_device *dp,
 				    struct audio_info *audio)
 {
 	int sub_pckt_num = 1, i2s_port_en_val = 0xf, i;
@@ -902,7 +902,7 @@ static void cdn_dp_audio_config_i2s(struct cdn_dp_device *dp,
 	writel(I2S_DEC_START, dp->regs + AUDIO_SRC_CNTL);
 }
 
-static void cdn_dp_audio_config_spdif(struct cdn_dp_device *dp)
+static void cdn_dp_fb_audio_config_spdif(struct cdn_dp_device *dp)
 {
 	u32 val;
 
@@ -928,7 +928,7 @@ static void cdn_dp_audio_config_spdif(struct cdn_dp_device *dp)
 	clk_set_rate(dp->spdif_clk, CDN_DP_SPDIF_CLK);
 }
 
-int cdn_dp_audio_config(struct cdn_dp_device *dp, struct audio_info *audio)
+int cdn_dp_fb_audio_config(struct cdn_dp_device *dp, struct audio_info *audio)
 {
 	int ret;
 
@@ -938,20 +938,20 @@ int cdn_dp_audio_config(struct cdn_dp_device *dp, struct audio_info *audio)
 		reset_control_deassert(dp->spdif_rst);
 	}
 
-	ret = cdn_dp_reg_write(dp, CM_LANE_CTRL, LANE_REF_CYC);
+	ret = cdn_dp_fb_reg_write(dp, CM_LANE_CTRL, LANE_REF_CYC);
 	if (ret)
 		goto err_audio_config;
 
-	ret = cdn_dp_reg_write(dp, CM_CTRL, 0);
+	ret = cdn_dp_fb_reg_write(dp, CM_CTRL, 0);
 	if (ret)
 		goto err_audio_config;
 
 	if (audio->format == AFMT_I2S)
-		cdn_dp_audio_config_i2s(dp, audio);
+		cdn_dp_fb_audio_config_i2s(dp, audio);
 	else
-		cdn_dp_audio_config_spdif(dp);
+		cdn_dp_fb_audio_config_spdif(dp);
 
-	ret = cdn_dp_reg_write(dp, AUDIO_PACK_CONTROL, AUDIO_PACK_EN);
+	ret = cdn_dp_fb_reg_write(dp, AUDIO_PACK_CONTROL, AUDIO_PACK_EN);
 
 err_audio_config:
 	if (ret)

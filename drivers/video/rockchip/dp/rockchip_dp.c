@@ -158,12 +158,12 @@ void hpd_change(struct device *dev, int lanes)
 static void rockchip_dp_early_suspend(struct dp_dev *dp_dev)
 {
 	hdmi_submit_work(dp_dev->hdmi, HDMI_SUSPEND_CTL, 0, 1);
-	cdn_dp_suspend(dp_dev->dp);
+	cdn_dp_fb_suspend(dp_dev->dp);
 }
 
 static void rockchip_dp_early_resume(struct dp_dev *dp_dev)
 {
-	cdn_dp_resume(dp_dev->dp);
+	cdn_dp_fb_resume(dp_dev->dp);
 	hdmi_submit_work(dp_dev->hdmi, HDMI_RESUME_CTL, 0, 0);
 }
 

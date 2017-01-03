@@ -11,7 +11,7 @@ int cdn_dp_connector_detect(void *dp);
 int cdn_dp_encoder_disable(void *dp);
 int cdn_dp_audio_hw_params(void *dp);
 int cdn_dp_audio_digital_mute(void *dp, bool enable);
-int cdn_dp_resume(void *dp_dev);
-int cdn_dp_suspend(void *dp_dev);
+int cdn_dp_fb_resume(void *dp_dev);
+int cdn_dp_fb_suspend(void *dp_dev);
 
 #endif

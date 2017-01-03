@@ -553,25 +553,25 @@ struct cdn_dp_device {
 	struct wake_lock	wake_lock;
 };
 
-void cdn_dp_clock_reset(struct cdn_dp_device *dp);
+void cdn_dp_fb_clock_reset(struct cdn_dp_device *dp);
 
-void cdn_dp_set_fw_clk(struct cdn_dp_device *dp, u32 clk);
-int cdn_dp_load_firmware(struct cdn_dp_device *dp, const u32 *i_mem,
+void cdn_dp_fb_set_fw_clk(struct cdn_dp_device *dp, u32 clk);
+int cdn_dp_fb_load_firmware(struct cdn_dp_device *dp, const u32 *i_mem,
 			 u32 i_size, const u32 *d_mem, u32 d_size);
-int cdn_dp_set_firmware_active(struct cdn_dp_device *dp, bool enable);
-int cdn_dp_set_host_cap(struct cdn_dp_device *dp, u8 lanes, bool flip);
-int cdn_dp_event_config(struct cdn_dp_device *dp);
-u32 cdn_dp_get_event(struct cdn_dp_device *dp);
-int cdn_dp_get_hpd_status(struct cdn_dp_device *dp);
-int cdn_dp_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 value);
-int cdn_dp_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len);
-int cdn_dp_get_edid_block(void *dp, u8 *edid,
+int cdn_dp_fb_set_firmware_active(struct cdn_dp_device *dp, bool enable);
+int cdn_dp_fb_set_host_cap(struct cdn_dp_device *dp, u8 lanes, bool flip);
+int cdn_dp_fb_event_config(struct cdn_dp_device *dp);
+u32 cdn_dp_fb_get_event(struct cdn_dp_device *dp);
+int cdn_dp_fb_get_hpd_status(struct cdn_dp_device *dp);
+int cdn_dp_fb_dpcd_write(struct cdn_dp_device *dp, u32 addr, u8 value);
+int cdn_dp_fb_dpcd_read(struct cdn_dp_device *dp, u32 addr, u8 *data, u16 len);
+int cdn_dp_fb_get_edid_block(void *dp, u8 *edid,
 			  unsigned int block, size_t length);
-int cdn_dp_training_start(struct cdn_dp_device *dp);
-int cdn_dp_get_training_status(struct cdn_dp_device *dp);
-int cdn_dp_set_video_status(struct cdn_dp_device *dp, int active);
-int cdn_dp_config_video(struct cdn_dp_device *dp);
-int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio);
-int cdn_dp_audio_mute(struct cdn_dp_device *dp, bool enable);
-int cdn_dp_audio_config(struct cdn_dp_device *dp, struct audio_info *audio);
+int cdn_dp_fb_training_start(struct cdn_dp_device *dp);
+int cdn_dp_fb_get_training_status(struct cdn_dp_device *dp);
+int cdn_dp_fb_set_video_status(struct cdn_dp_device *dp, int active);
+int cdn_dp_fb_config_video(struct cdn_dp_device *dp);
+int cdn_dp_fb_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio);
+int cdn_dp_fb_audio_mute(struct cdn_dp_device *dp, bool enable);
+int cdn_dp_fb_audio_config(struct cdn_dp_device *dp, struct audio_info *audio);
 #endif /* _CDN_DP_REG_H */
