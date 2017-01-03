@@ -1508,7 +1508,7 @@ stayinbootmode:
 	dev_dbg(dev, "%s - STAYING IN BOOT MODE\n", __func__);
 	serial->product_info.TiMode = TI_MODE_BOOT;
 
-	return 0;
+	return 1;
 }
 
 static int ti_do_config(struct edgeport_port *port, int feature, int on)
@@ -2563,13 +2563,17 @@ static int edge_startup(struct usb_serial *serial)
 
 	mutex_init(&edge_serial->es_lock);
 	edge_serial->serial = serial;
+	INIT_DELAYED_WORK(&edge_serial->heartbeat_work, edge_heartbeat_work);
 	usb_set_serial_data(serial, edge_serial);
 
 	status = download_fw(edge_serial);
-	if (status) {
+	if (status < 0) {
 		kfree(edge_serial);
 		return status;
 	}
+
+	if (status > 0)
+		return 1;	/* bind but do not register any ports */
 
 	product_id = le16_to_cpu(
 			edge_serial->serial->dev->descriptor.idProduct);
@@ -2582,7 +2586,6 @@ static int edge_startup(struct usb_serial *serial)
 		}
 	}
 
-	INIT_DELAYED_WORK(&edge_serial->heartbeat_work, edge_heartbeat_work);
 	edge_heartbeat_schedule(edge_serial);
 
 	return 0;
