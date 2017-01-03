@@ -2243,8 +2243,10 @@ static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	int ct;
 
 	/* If cache is unresolved, don't try to parse IIF and OIF */
-	if (c->mf6c_parent >= MAXMIFS)
+	if (c->mf6c_parent >= MAXMIFS) {
+		rtm->rtm_flags |= RTNH_F_UNRESOLVED;
 		return -ENOENT;
+	}
 
 	if (MIF_EXISTS(mrt, c->mf6c_parent) &&
 	    nla_put_u32(skb, RTA_IIF, mrt->vif6_table[c->mf6c_parent].dev->ifindex) < 0)

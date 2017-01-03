@@ -2091,8 +2091,10 @@ static int __ipmr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	int ct;
 
 	/* If cache is unresolved, don't try to parse IIF and OIF */
-	if (c->mfc_parent >= MAXVIFS)
+	if (c->mfc_parent >= MAXVIFS) {
+		rtm->rtm_flags |= RTNH_F_UNRESOLVED;
 		return -ENOENT;
+	}
 
 	if (VIF_EXISTS(mrt, c->mfc_parent) &&
 	    nla_put_u32(skb, RTA_IIF, mrt->vif_table[c->mfc_parent].dev->ifindex) < 0)
