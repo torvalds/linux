@@ -64,6 +64,13 @@ struct msm_dsi_dphy_timing {
 	u32 ta_get;
 
 	struct msm_dsi_phy_shared_timings shared_timings;
+
+	/* For PHY v2 only */
+	u32 hs_rqst_ckln;
+	u32 hs_prep_dly;
+	u32 hs_prep_dly_ckln;
+	u8 hs_halfbyte_en;
+	u8 hs_halfbyte_en_ckln;
 };
 
 struct msm_dsi_phy {
@@ -88,7 +95,9 @@ struct msm_dsi_phy {
  * PHY internal functions
  */
 int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
-	struct msm_dsi_phy_clk_request *clk_req);
+			     struct msm_dsi_phy_clk_request *clk_req);
+int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
+				struct msm_dsi_phy_clk_request *clk_req);
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask);
 int msm_dsi_phy_init_common(struct msm_dsi_phy *phy);
