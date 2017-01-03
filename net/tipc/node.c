@@ -1167,7 +1167,7 @@ msg_full:
  * @list: chain of buffers containing message
  * @dnode: address of destination node
  * @selector: a number used for deterministic link selection
- * Consumes the buffer chain, except when returning -ELINKCONG
+ * Consumes the buffer chain.
  * Returns 0 if success, otherwise: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE,-ENOBUF
  */
 int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
@@ -1206,10 +1206,10 @@ int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
 	spin_unlock_bh(&le->lock);
 	tipc_node_read_unlock(n);
 
-	if (likely(rc == 0))
-		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr);
-	else if (rc == -ENOBUFS)
+	if (unlikely(rc == -ENOBUFS))
 		tipc_node_link_down(n, bearer_id, false);
+	else
+		tipc_bearer_xmit(net, bearer_id, &xmitq, &le->maddr);
 
 	tipc_node_put(n);
 
@@ -1221,20 +1221,15 @@ int tipc_node_xmit(struct net *net, struct sk_buff_head *list,
  * messages, which will not be rejected
  * The only exception is datagram messages rerouted after secondary
  * lookup, which are rare and safe to dispose of anyway.
- * TODO: Return real return value, and let callers use
- * tipc_wait_for_sendpkt() where applicable
  */
 int tipc_node_xmit_skb(struct net *net, struct sk_buff *skb, u32 dnode,
 		       u32 selector)
 {
 	struct sk_buff_head head;
-	int rc;
 
 	skb_queue_head_init(&head);
 	__skb_queue_tail(&head, skb);
-	rc = tipc_node_xmit(net, &head, dnode, selector);
-	if (rc == -ELINKCONG)
-		kfree_skb(skb);
+	tipc_node_xmit(net, &head, dnode, selector);
 	return 0;
 }
 

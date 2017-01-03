@@ -174,7 +174,7 @@ static void tipc_bcbase_xmit(struct net *net, struct sk_buff_head *xmitq)
  *                    and to identified node local sockets
  * @net: the applicable net namespace
  * @list: chain of buffers containing message
- * Consumes the buffer chain, except when returning -ELINKCONG
+ * Consumes the buffer chain.
  * Returns 0 if success, otherwise errno: -ELINKCONG,-EHOSTUNREACH,-EMSGSIZE
  */
 int tipc_bcast_xmit(struct net *net, struct sk_buff_head *list)
@@ -197,7 +197,7 @@ int tipc_bcast_xmit(struct net *net, struct sk_buff_head *list)
 	tipc_bcast_unlock(net);
 
 	/* Don't send to local node if adding to link failed */
-	if (unlikely(rc)) {
+	if (unlikely(rc && (rc != -ELINKCONG))) {
 		__skb_queue_purge(&rcvq);
 		return rc;
 	}
@@ -206,7 +206,7 @@ int tipc_bcast_xmit(struct net *net, struct sk_buff_head *list)
 	tipc_bcbase_xmit(net, &xmitq);
 	tipc_sk_mcast_rcv(net, &rcvq, &inputq);
 	__skb_queue_purge(list);
-	return 0;
+	return rc;
 }
 
 /* tipc_bcast_rcv - receive a broadcast packet, and deliver to rcv link
