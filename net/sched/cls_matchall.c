@@ -141,10 +141,12 @@ static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 	struct tcf_exts e;
 	int err;
 
-	tcf_exts_init(&e, TCA_MATCHALL_ACT, 0);
+	err = tcf_exts_init(&e, TCA_MATCHALL_ACT, 0);
+	if (err)
+		return err;
 	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
 	if (err < 0)
-		return err;
+		goto errout;
 
 	if (tb[TCA_MATCHALL_CLASSID]) {
 		f->res.classid = nla_get_u32(tb[TCA_MATCHALL_CLASSID]);
@@ -154,6 +156,9 @@ static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 	tcf_exts_change(tp, &f->exts, &e);
 
 	return 0;
+errout:
+	tcf_exts_destroy(&e);
+	return err;
 }
 
 static int mall_change(struct net *net, struct sk_buff *in_skb,
@@ -193,7 +198,9 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (!f)
 		return -ENOBUFS;
 
-	tcf_exts_init(&f->exts, TCA_MATCHALL_ACT, 0);
+	err = tcf_exts_init(&f->exts, TCA_MATCHALL_ACT, 0);
+	if (err)
+		goto err_exts_init;
 
 	if (!handle)
 		handle = 1;
@@ -202,13 +209,13 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 
 	err = mall_set_parms(net, tp, f, base, tb, tca[TCA_RATE], ovr);
 	if (err)
-		goto errout;
+		goto err_set_parms;
 
 	if (tc_should_offload(dev, tp, flags)) {
 		err = mall_replace_hw_filter(tp, f, (unsigned long) f);
 		if (err) {
 			if (tc_skip_sw(flags))
-				goto errout;
+				goto err_replace_hw_filter;
 			else
 				err = 0;
 		}
@@ -219,7 +226,10 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 
 	return 0;
 
-errout:
+err_replace_hw_filter:
+err_set_parms:
+	tcf_exts_destroy(&f->exts);
+err_exts_init:
 	kfree(f);
 	return err;
 }
