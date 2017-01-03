@@ -2493,6 +2493,7 @@ static void cq_tasklet_v2_hw(unsigned long val)
 
 	complete_queue = hisi_hba->complete_hdr[queue];
 
+	spin_lock(&hisi_hba->lock);
 	wr_point = hisi_sas_read32(hisi_hba, COMPL_Q_0_WR_PTR +
 				   (0x14 * queue));
 
@@ -2542,6 +2543,7 @@ static void cq_tasklet_v2_hw(unsigned long val)
 	/* update rd_point */
 	cq->rd_point = rd_point;
 	hisi_sas_write32(hisi_hba, COMPL_Q_0_RD_PTR + (0x14 * queue), rd_point);
+	spin_unlock(&hisi_hba->lock);
 }
 
 static irqreturn_t cq_interrupt_v2_hw(int irq_no, void *p)
