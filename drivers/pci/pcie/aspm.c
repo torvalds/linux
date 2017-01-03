@@ -42,6 +42,18 @@
 #define ASPM_STATE_ALL		(ASPM_STATE_L0S | ASPM_STATE_L1 |	\
 				 ASPM_STATE_L1SS)
 
+/*
+ * When L1 substates are enabled, the LTR L1.2 threshold is a timing parameter
+ * that decides whether L1.1 or L1.2 is entered (Refer PCIe spec for details).
+ * Not sure is there is a way to "calculate" this on the fly, but maybe we
+ * could turn it into a parameter in future.  This value has been taken from
+ * the following files from Intel's coreboot (which is the only code I found
+ * to have used this):
+ * https://www.coreboot.org/pipermail/coreboot-gerrit/2015-March/021134.html
+ * https://review.coreboot.org/#/c/8832/
+ */
+#define LTR_L1_2_THRESHOLD_BITS	((1 << 21) | (1 << 23) | (1 << 30))
+
 struct aspm_latency {
 	u32 l0s;			/* L0s latency (nsec) */
 	u32 l1;				/* L1 latency (nsec) */
@@ -76,6 +88,14 @@ struct pcie_link_state {
 	 * has one slot under it, so at most there are 8 functions.
 	 */
 	struct aspm_latency acceptable[8];
+
+	/* L1 PM Substate info */
+	struct {
+		u32 up_cap_ptr;		/* L1SS cap ptr in upstream dev */
+		u32 dw_cap_ptr;		/* L1SS cap ptr in downstream dev */
+		u32 ctl1;		/* value to be programmed in ctl1 */
+		u32 ctl2;		/* value to be programmed in ctl2 */
+	} l1ss;
 };
 
 static int aspm_disabled, aspm_force;
@@ -296,6 +316,22 @@ static u32 calc_l1_acceptable(u32 encoding)
 	return (1000 << encoding);
 }
 
+/* Convert L1SS T_pwr encoding to usec */
+static u32 calc_l1ss_pwron(struct pci_dev *pdev, u32 scale, u32 val)
+{
+	switch (scale) {
+	case 0:
+		return val * 2;
+	case 1:
+		return val * 10;
+	case 2:
+		return val * 100;
+	}
+	dev_err(&pdev->dev, "%s: Invalid T_PwrOn scale: %u\n",
+		__func__, scale);
+	return 0;
+}
+
 struct aspm_register_info {
 	u32 support:2;
 	u32 enabled:2;
@@ -392,6 +428,46 @@ static struct pci_dev *pci_function_0(struct pci_bus *linkbus)
 	return NULL;
 }
 
+/* Calculate L1.2 PM substate timing parameters */
+static void aspm_calc_l1ss_info(struct pcie_link_state *link,
+				struct aspm_register_info *upreg,
+				struct aspm_register_info *dwreg)
+{
+	u32 val1, val2, scale1, scale2;
+
+	link->l1ss.up_cap_ptr = upreg->l1ss_cap_ptr;
+	link->l1ss.dw_cap_ptr = dwreg->l1ss_cap_ptr;
+	link->l1ss.ctl1 = link->l1ss.ctl2 = 0;
+
+	if (!(link->aspm_support & ASPM_STATE_L1_2_MASK))
+		return;
+
+	/* Choose the greater of the two T_cmn_mode_rstr_time */
+	val1 = (upreg->l1ss_cap >> 8) & 0xFF;
+	val2 = (upreg->l1ss_cap >> 8) & 0xFF;
+	if (val1 > val2)
+		link->l1ss.ctl1 |= val1 << 8;
+	else
+		link->l1ss.ctl1 |= val2 << 8;
+	/*
+	 * We currently use LTR L1.2 threshold to be fixed constant picked from
+	 * Intel's coreboot.
+	 */
+	link->l1ss.ctl1 |= LTR_L1_2_THRESHOLD_BITS;
+
+	/* Choose the greater of the two T_pwr_on */
+	val1 = (upreg->l1ss_cap >> 19) & 0x1F;
+	scale1 = (upreg->l1ss_cap >> 16) & 0x03;
+	val2 = (dwreg->l1ss_cap >> 19) & 0x1F;
+	scale2 = (dwreg->l1ss_cap >> 16) & 0x03;
+
+	if (calc_l1ss_pwron(link->pdev, scale1, val1) >
+	    calc_l1ss_pwron(link->downstream, scale2, val2))
+		link->l1ss.ctl2 |= scale1 | (val1 << 3);
+	else
+		link->l1ss.ctl2 |= scale2 | (val2 << 3);
+}
+
 static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 {
 	struct pci_dev *child, *parent = link->pdev;
@@ -470,6 +546,9 @@ static void pcie_aspm_cap_init(struct pcie_link_state *link, int blacklist)
 		link->aspm_enabled |= ASPM_STATE_L1_1_PCIPM;
 	if (upreg.l1ss_ctl1 & dwreg.l1ss_ctl1 & PCI_L1SS_CTL1_PCIPM_L1_2)
 		link->aspm_enabled |= ASPM_STATE_L1_2_PCIPM;
+
+	if (link->aspm_support & ASPM_STATE_L1SS)
+		aspm_calc_l1ss_info(link, &upreg, &dwreg);
 
 	/* Save default state */
 	link->aspm_default = link->aspm_enabled;
