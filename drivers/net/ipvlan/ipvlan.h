@@ -97,6 +97,7 @@ struct ipvl_port {
 	struct work_struct	wq;
 	struct sk_buff_head	backlog;
 	int			count;
+	struct ida		ida;
 };
 
 struct ipvl_skb_cb {

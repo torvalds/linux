@@ -119,6 +119,7 @@ static int ipvlan_port_create(struct net_device *dev)
 
 	skb_queue_head_init(&port->backlog);
 	INIT_WORK(&port->wq, ipvlan_process_multicast);
+	ida_init(&port->ida);
 
 	err = netdev_rx_handler_register(dev, ipvlan_handle_frame, port);
 	if (err)
@@ -150,6 +151,7 @@ static void ipvlan_port_destroy(struct net_device *dev)
 			dev_put(skb->dev);
 		kfree_skb(skb);
 	}
+	ida_destroy(&port->ida);
 	kfree(port);
 }
 
@@ -533,6 +535,16 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	ipvlan_adjust_mtu(ipvlan, phy_dev);
 	INIT_LIST_HEAD(&ipvlan->addrs);
 
+	/* Since L2 address is shared among all IPvlan slaves including
+	 * master, use unique 16 bit dev-ids to diffentiate among them.
+	 * Assign IDs between 0x1 and 0xFFFE (used by the master) to each
+	 * slave link [see addrconf_ifid_eui48()].
+	 */
+	err = ida_simple_get(&port->ida, 1, 0xFFFE, GFP_KERNEL);
+	if (err < 0)
+		goto destroy_ipvlan_port;
+	dev->dev_id = err;
+
 	/* TODO Probably put random address here to be presented to the
 	 * world but keep using the physical-dev address for the outgoing
 	 * packets.
@@ -543,7 +555,7 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		goto destroy_ipvlan_port;
+		goto remove_ida;
 
 	err = netdev_upper_dev_link(phy_dev, dev);
 	if (err) {
@@ -562,6 +574,8 @@ unlink_netdev:
 	netdev_upper_dev_unlink(phy_dev, dev);
 unregister_netdev:
 	unregister_netdevice(dev);
+remove_ida:
+	ida_simple_remove(&port->ida, dev->dev_id);
 destroy_ipvlan_port:
 	if (create)
 		ipvlan_port_destroy(phy_dev);
@@ -579,6 +593,7 @@ static void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 		kfree_rcu(addr, rcu);
 	}
 
+	ida_simple_remove(&ipvlan->port->ida, dev->dev_id);
 	list_del_rcu(&ipvlan->pnode);
 	unregister_netdevice_queue(dev, head);
 	netdev_upper_dev_unlink(ipvlan->phy_dev, dev);
