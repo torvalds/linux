@@ -30,6 +30,11 @@ extern void scsi_exit_hosts(void);
 
 /* scsi.c */
 extern bool scsi_use_blk_mq;
+void scsi_free_sense_buffer(struct Scsi_Host *shost,
+		unsigned char *sense_buffer);
+unsigned char *scsi_alloc_sense_buffer(struct Scsi_Host *shost, gfp_t gfp_mask,
+		int numa_node);
+int scsi_init_sense_cache(struct Scsi_Host *shost);
 extern int scsi_setup_command_freelist(struct Scsi_Host *shost);
 extern void scsi_destroy_command_freelist(struct Scsi_Host *shost);
 #ifdef CONFIG_SCSI_LOGGING

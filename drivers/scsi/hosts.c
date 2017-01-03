@@ -213,6 +213,10 @@ int scsi_add_host_with_dma(struct Scsi_Host *shost, struct device *dev,
 		goto fail;
 	}
 
+	error = scsi_init_sense_cache(shost);
+	if (error)
+		goto fail;
+
 	if (shost_use_blk_mq(shost)) {
 		error = scsi_mq_setup_tags(shost);
 		if (error)
