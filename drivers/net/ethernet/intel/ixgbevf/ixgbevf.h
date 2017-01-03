@@ -464,6 +464,7 @@ enum ixgbevf_xcast_modes {
 	IXGBEVF_XCAST_MODE_NONE = 0,
 	IXGBEVF_XCAST_MODE_MULTI,
 	IXGBEVF_XCAST_MODE_ALLMULTI,
+	IXGBEVF_XCAST_MODE_PROMISC,
 };
 
 extern const struct ixgbevf_info ixgbevf_82599_vf_info;
