@@ -1,3 +1,4 @@
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -2570,18 +2571,11 @@ static void gpio_chip_set_multiple(struct gpio_chip *chip,
 	if (chip->set_multiple) {
 		chip->set_multiple(chip, mask, bits);
 	} else {
-		int i;
-		for (i = 0; i < chip->ngpio; i++) {
-			if (mask[BIT_WORD(i)] == 0) {
-				/* no more set bits in this mask word;
-				 * skip ahead to the next word */
-				i = (BIT_WORD(i) + 1) * BITS_PER_LONG - 1;
-				continue;
-			}
-			/* set outputs if the corresponding mask bit is set */
-			if (__test_and_clear_bit(i, mask))
-				chip->set(chip, i, test_bit(i, bits));
-		}
+		unsigned int i;
+
+		/* set outputs if the corresponding mask bit is set */
+		for_each_set_bit(i, mask, chip->ngpio)
+			chip->set(chip, i, test_bit(i, bits));
 	}
 }
 
