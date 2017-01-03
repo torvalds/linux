@@ -1393,9 +1393,6 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 		return;
 	}
 
-	iwl_pcie_dump_csr(trans);
-	iwl_dump_fh(trans, NULL);
-
 	local_bh_disable();
 	/* The STATUS_FW_ERROR bit is set in this function. This must happen
 	 * before we wake up the command caller, to ensure a proper cleanup. */

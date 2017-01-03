@@ -164,9 +164,6 @@ static void iwl_pcie_txq_stuck_timer(unsigned long data)
 	}
 	spin_unlock(&txq->lock);
 
-	IWL_ERR(trans, "Queue %d stuck for %u ms.\n", txq->id,
-		jiffies_to_msecs(txq->wd_timeout));
-
 	iwl_trans_pcie_log_scd_error(trans, txq);
 
 	iwl_force_nmi(trans);

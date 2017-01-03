@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2007 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2005 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2075,48 +2075,32 @@ static void iwl_trans_pcie_block_txq_ptrs(struct iwl_trans *trans, bool block)
 
 void iwl_trans_pcie_log_scd_error(struct iwl_trans *trans, struct iwl_txq *txq)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u32 scd_sram_addr;
-	u8 buf[16];
-	int cnt;
+	u32 txq_id = txq->id;
+	u32 status;
+	bool active;
+	u8 fifo;
 
-	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
-		txq->read_ptr, txq->write_ptr);
-
-	if (trans->cfg->use_tfh)
+	if (trans->cfg->use_tfh) {
+		IWL_ERR(trans, "Queue %d is stuck %d %d\n", txq_id,
+			txq->read_ptr, txq->write_ptr);
 		/* TODO: access new SCD registers and dump them */
 		return;
-
-	scd_sram_addr = trans_pcie->scd_base_addr +
-			SCD_TX_STTS_QUEUE_OFFSET(txq->id);
-	iwl_trans_read_mem_bytes(trans, scd_sram_addr, buf, sizeof(buf));
-
-	iwl_print_hex_error(trans, buf, sizeof(buf));
-
-	for (cnt = 0; cnt < FH_TCSR_CHNL_NUM; cnt++)
-		IWL_ERR(trans, "FH TRBs(%d) = 0x%08x\n", cnt,
-			iwl_read_direct32(trans, FH_TX_TRB_REG(cnt)));
-
-	for (cnt = 0; cnt < trans->cfg->base_params->num_of_queues; cnt++) {
-		u32 status = iwl_read_prph(trans, SCD_QUEUE_STATUS_BITS(cnt));
-		u8 fifo = (status >> SCD_QUEUE_STTS_REG_POS_TXF) & 0x7;
-		bool active = !!(status & BIT(SCD_QUEUE_STTS_REG_POS_ACTIVE));
-		u32 tbl_dw =
-			iwl_trans_read_mem32(trans, trans_pcie->scd_base_addr +
-					     SCD_TRANS_TBL_OFFSET_QUEUE(cnt));
-
-		if (cnt & 0x1)
-			tbl_dw = (tbl_dw & 0xFFFF0000) >> 16;
-		else
-			tbl_dw = tbl_dw & 0x0000FFFF;
-
-		IWL_ERR(trans,
-			"Q %d is %sactive and mapped to fifo %d ra_tid 0x%04x [%d,%d]\n",
-			cnt, active ? "" : "in", fifo, tbl_dw,
-			iwl_read_prph(trans, SCD_QUEUE_RDPTR(cnt)) &
-				(TFD_QUEUE_SIZE_MAX - 1),
-			iwl_read_prph(trans, SCD_QUEUE_WRPTR(cnt)));
 	}
+
+	status = iwl_read_prph(trans, SCD_QUEUE_STATUS_BITS(txq_id));
+	fifo = (status >> SCD_QUEUE_STTS_REG_POS_TXF) & 0x7;
+	active = !!(status & BIT(SCD_QUEUE_STTS_REG_POS_ACTIVE));
+
+	IWL_ERR(trans,
+		"Queue %d is %sactive on fifo %d and stuck for %u ms. SW [%d, %d] HW [%d, %d] FH TRB=0x0%x\n",
+		txq_id, active ? "" : "in", fifo,
+		jiffies_to_msecs(txq->wd_timeout),
+		txq->read_ptr, txq->write_ptr,
+		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq_id)) &
+			(TFD_QUEUE_SIZE_MAX - 1),
+		iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq_id)) &
+			(TFD_QUEUE_SIZE_MAX - 1),
+		iwl_read_direct32(trans, FH_TX_TRB_REG(fifo)));
 }
 
 static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans, u32 txq_bm)
