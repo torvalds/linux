@@ -612,15 +612,9 @@ static struct platform_driver iTCO_wdt_driver = {
 
 static int __init iTCO_wdt_init_module(void)
 {
-	int err;
-
 	pr_info("Intel TCO WatchDog Timer Driver v%s\n", DRV_VERSION);
 
-	err = platform_driver_register(&iTCO_wdt_driver);
-	if (err)
-		return err;
-
-	return 0;
+	return platform_driver_register(&iTCO_wdt_driver);
 }
 
 static void __exit iTCO_wdt_cleanup_module(void)
