@@ -62,7 +62,7 @@
 #include <linux/etherdevice.h>
 #include <linux/dvb/net.h>
 #include <linux/uio.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/crc32.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>

@@ -37,7 +37,7 @@
 #include <linux/suspend.h>
 #include <linux/acpi.h>
 #include <acpi/video.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PREFIX "ACPI: "
 

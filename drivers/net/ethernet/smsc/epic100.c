@@ -86,7 +86,7 @@ static int rx_copybreak;
 #include <linux/crc32.h>
 #include <linux/bitops.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 
 /* These identify the driver base version and may not be removed. */

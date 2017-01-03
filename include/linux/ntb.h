@@ -968,6 +968,9 @@ static inline int ntb_peer_spad_addr(struct ntb_dev *ntb, int idx,
  */
 static inline u32 ntb_peer_spad_read(struct ntb_dev *ntb, int idx)
 {
+	if (!ntb->ops->peer_spad_read)
+		return 0;
+
 	return ntb->ops->peer_spad_read(ntb, idx);
 }
 

@@ -257,7 +257,7 @@ static enum hrtimer_restart null_cmd_timer_expired(struct hrtimer *timer)
 
 static void null_cmd_end_timer(struct nullb_cmd *cmd)
 {
-	ktime_t kt = ktime_set(0, completion_nsec);
+	ktime_t kt = completion_nsec;
 
 	hrtimer_start(&cmd->timer, kt, HRTIMER_MODE_REL);
 }

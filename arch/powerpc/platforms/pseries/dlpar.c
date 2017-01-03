@@ -24,7 +24,7 @@
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/rtas.h>
 
 static struct workqueue_struct *pseries_hp_wq;

@@ -699,11 +699,15 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 
 	if (ses->server->negflavor == CIFS_NEGFLAVOR_EXTENDED) {
 		if (!ses->domainName) {
-			rc = find_domain_name(ses, nls_cp);
-			if (rc) {
-				cifs_dbg(VFS, "error %d finding domain name\n",
-					 rc);
-				goto setup_ntlmv2_rsp_ret;
+			if (ses->domainAuto) {
+				rc = find_domain_name(ses, nls_cp);
+				if (rc) {
+					cifs_dbg(VFS, "error %d finding domain name\n",
+						 rc);
+					goto setup_ntlmv2_rsp_ret;
+				}
+			} else {
+				ses->domainName = kstrdup("", GFP_KERNEL);
 			}
 		}
 	} else {

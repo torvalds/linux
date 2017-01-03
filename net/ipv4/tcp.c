@@ -277,7 +277,7 @@
 #include <net/ip.h>
 #include <net/sock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/ioctls.h>
 #include <net/busy_poll.h>
 

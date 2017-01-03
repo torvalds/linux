@@ -90,7 +90,7 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 
 #include <net/compat.h>
@@ -668,7 +668,7 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 
 	/* Race occurred between timestamp enabling and packet
 	   receiving.  Fill in the current time for now. */
-	if (need_software_tstamp && skb->tstamp.tv64 == 0)
+	if (need_software_tstamp && skb->tstamp == 0)
 		__net_timestamp(skb);
 
 	if (need_software_tstamp) {

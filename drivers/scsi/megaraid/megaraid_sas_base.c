@@ -42,7 +42,7 @@
 #include <linux/delay.h>
 #include <linux/uio.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/fs.h>
 #include <linux/compat.h>
 #include <linux/blkdev.h>

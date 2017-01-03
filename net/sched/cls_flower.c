@@ -442,32 +442,32 @@ static void fl_set_key_flag(u32 flower_key, u32 flower_mask,
 	}
 }
 
-static void fl_set_key_flags(struct nlattr **tb,
-			     u32 *flags_key, u32 *flags_mask)
+static int fl_set_key_flags(struct nlattr **tb,
+			    u32 *flags_key, u32 *flags_mask)
 {
 	u32 key, mask;
 
-	if (!tb[TCA_FLOWER_KEY_FLAGS])
-		return;
+	/* mask is mandatory for flags */
+	if (!tb[TCA_FLOWER_KEY_FLAGS_MASK])
+		return -EINVAL;
 
 	key = be32_to_cpu(nla_get_u32(tb[TCA_FLOWER_KEY_FLAGS]));
-
-	if (!tb[TCA_FLOWER_KEY_FLAGS_MASK])
-		mask = ~0;
-	else
-		mask = be32_to_cpu(nla_get_u32(tb[TCA_FLOWER_KEY_FLAGS_MASK]));
+	mask = be32_to_cpu(nla_get_u32(tb[TCA_FLOWER_KEY_FLAGS_MASK]));
 
 	*flags_key  = 0;
 	*flags_mask = 0;
 
 	fl_set_key_flag(key, mask, flags_key, flags_mask,
 			TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT, FLOW_DIS_IS_FRAGMENT);
+
+	return 0;
 }
 
 static int fl_set_key(struct net *net, struct nlattr **tb,
 		      struct fl_flow_key *key, struct fl_flow_key *mask)
 {
 	__be16 ethertype;
+	int ret = 0;
 #ifdef CONFIG_NET_CLS_IND
 	if (tb[TCA_FLOWER_INDEV]) {
 		int err = tcf_change_indev(net, tb[TCA_FLOWER_INDEV]);
@@ -614,9 +614,10 @@ static int fl_set_key(struct net *net, struct nlattr **tb,
 		       &mask->enc_tp.dst, TCA_FLOWER_KEY_ENC_UDP_DST_PORT_MASK,
 		       sizeof(key->enc_tp.dst));
 
-	fl_set_key_flags(tb, &key->control.flags, &mask->control.flags);
+	if (tb[TCA_FLOWER_KEY_FLAGS])
+		ret = fl_set_key_flags(tb, &key->control.flags, &mask->control.flags);
 
-	return 0;
+	return ret;
 }
 
 static bool fl_mask_eq(struct fl_flow_mask *mask1,

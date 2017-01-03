@@ -44,7 +44,7 @@
 #include <linux/mii.h>
 #include <linux/sockios.h>
 #include <linux/dma-mapping.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "cpl5_cmd.h"
 #include "regs.h"

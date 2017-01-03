@@ -44,7 +44,7 @@
 #include <net/ip_fib.h>
 
 #include <linux/errqueue.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  *	SOL_IP control messages.
@@ -148,7 +148,7 @@ static void ip_cmsg_recv_dstaddr(struct msghdr *msg, struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 	__be16 *ports = (__be16 *)skb_transport_header(skb);
 
-	if (skb_transport_offset(skb) + 4 > skb->len)
+	if (skb_transport_offset(skb) + 4 > (int)skb->len)
 		return;
 
 	/* All current transport protocols have the port numbers in the

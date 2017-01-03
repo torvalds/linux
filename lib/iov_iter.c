@@ -73,19 +73,21 @@
 }
 
 #define iterate_all_kinds(i, n, v, I, B, K) {			\
-	size_t skip = i->iov_offset;				\
-	if (unlikely(i->type & ITER_BVEC)) {			\
-		struct bio_vec v;				\
-		struct bvec_iter __bi;				\
-		iterate_bvec(i, n, v, __bi, skip, (B))		\
-	} else if (unlikely(i->type & ITER_KVEC)) {		\
-		const struct kvec *kvec;			\
-		struct kvec v;					\
-		iterate_kvec(i, n, v, kvec, skip, (K))		\
-	} else {						\
-		const struct iovec *iov;			\
-		struct iovec v;					\
-		iterate_iovec(i, n, v, iov, skip, (I))		\
+	if (likely(n)) {					\
+		size_t skip = i->iov_offset;			\
+		if (unlikely(i->type & ITER_BVEC)) {		\
+			struct bio_vec v;			\
+			struct bvec_iter __bi;			\
+			iterate_bvec(i, n, v, __bi, skip, (B))	\
+		} else if (unlikely(i->type & ITER_KVEC)) {	\
+			const struct kvec *kvec;		\
+			struct kvec v;				\
+			iterate_kvec(i, n, v, kvec, skip, (K))	\
+		} else {					\
+			const struct iovec *iov;		\
+			struct iovec v;				\
+			iterate_iovec(i, n, v, iov, skip, (I))	\
+		}						\
 	}							\
 }
 
@@ -576,7 +578,7 @@ bool copy_from_iter_full(void *addr, size_t bytes, struct iov_iter *i)
 		WARN_ON(1);
 		return false;
 	}
-	if (unlikely(i->count < bytes))				\
+	if (unlikely(i->count < bytes))
 		return false;
 
 	iterate_all_kinds(i, bytes, v, ({
@@ -620,7 +622,7 @@ bool copy_from_iter_full_nocache(void *addr, size_t bytes, struct iov_iter *i)
 		WARN_ON(1);
 		return false;
 	}
-	if (unlikely(i->count < bytes))				\
+	if (unlikely(i->count < bytes))
 		return false;
 	iterate_all_kinds(i, bytes, v, ({
 		if (__copy_from_user_nocache((to += v.iov_len) - v.iov_len,
@@ -837,11 +839,8 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
 	unsigned long res = 0;
 	size_t size = i->count;
 
-	if (!size)
-		return 0;
-
 	if (unlikely(i->type & ITER_PIPE)) {
-		if (i->iov_offset && allocated(&i->pipe->bufs[i->idx]))
+		if (size && i->iov_offset && allocated(&i->pipe->bufs[i->idx]))
 			return size | i->iov_offset;
 		return size;
 	}
@@ -856,10 +855,8 @@ EXPORT_SYMBOL(iov_iter_alignment);
 
 unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
 {
-        unsigned long res = 0;
+	unsigned long res = 0;
 	size_t size = i->count;
-	if (!size)
-		return 0;
 
 	if (unlikely(i->type & ITER_PIPE)) {
 		WARN_ON(1);
@@ -874,7 +871,7 @@ unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
 		(res |= (!res ? 0 : (unsigned long)v.iov_base) |
 			(size != v.iov_len ? size : 0))
 		);
-		return res;
+	return res;
 }
 EXPORT_SYMBOL(iov_iter_gap_alignment);
 
@@ -908,6 +905,9 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 	size_t capacity;
 	int idx;
 
+	if (!maxsize)
+		return 0;
+
 	if (!sanity(i))
 		return -EFAULT;
 
@@ -925,9 +925,6 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 {
 	if (maxsize > i->count)
 		maxsize = i->count;
-
-	if (!maxsize)
-		return 0;
 
 	if (unlikely(i->type & ITER_PIPE))
 		return pipe_get_pages(i, pages, maxsize, maxpages, start);
@@ -975,6 +972,9 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 	int idx;
 	int npages;
 
+	if (!maxsize)
+		return 0;
+
 	if (!sanity(i))
 		return -EFAULT;
 
@@ -1005,9 +1005,6 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 
 	if (maxsize > i->count)
 		maxsize = i->count;
-
-	if (!maxsize)
-		return 0;
 
 	if (unlikely(i->type & ITER_PIPE))
 		return pipe_get_pages_alloc(i, pages, maxsize, start);

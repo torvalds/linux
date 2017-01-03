@@ -28,7 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/ftrace.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/page.h>
@@ -137,7 +137,7 @@ EXPORT_SYMBOL(profile_pc);
 
 /* clock source code */
 
-static cycle_t notrace read_cr16(struct clocksource *cs)
+static u64 notrace read_cr16(struct clocksource *cs)
 {
 	return get_cycles();
 }

@@ -967,48 +967,38 @@ cfs_cpt_table_create_pattern(char *pattern)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int
-cfs_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
+static enum cpuhp_state lustre_cpu_online;
+
+static void cfs_cpu_incr_cpt_version(void)
 {
-	unsigned int cpu = (unsigned long)hcpu;
-	bool warn;
-
-	switch (action) {
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		spin_lock(&cpt_data.cpt_lock);
-		cpt_data.cpt_version++;
-		spin_unlock(&cpt_data.cpt_lock);
-		/* Fall through */
-	default:
-		if (action != CPU_DEAD && action != CPU_DEAD_FROZEN) {
-			CDEBUG(D_INFO, "CPU changed [cpu %u action %lx]\n",
-			       cpu, action);
-			break;
-		}
-
-		mutex_lock(&cpt_data.cpt_mutex);
-		/* if all HTs in a core are offline, it may break affinity */
-		cpumask_copy(cpt_data.cpt_cpumask,
-			     topology_sibling_cpumask(cpu));
-		warn = cpumask_any_and(cpt_data.cpt_cpumask,
-				       cpu_online_mask) >= nr_cpu_ids;
-		mutex_unlock(&cpt_data.cpt_mutex);
-		CDEBUG(warn ? D_WARNING : D_INFO,
-		       "Lustre: can't support CPU plug-out well now, performance and stability could be impacted [CPU %u action: %lx]\n",
-		       cpu, action);
-	}
-
-	return NOTIFY_OK;
+	spin_lock(&cpt_data.cpt_lock);
+	cpt_data.cpt_version++;
+	spin_unlock(&cpt_data.cpt_lock);
 }
 
-static struct notifier_block cfs_cpu_notifier = {
-	.notifier_call	= cfs_cpu_notify,
-	.priority	= 0
-};
+static int cfs_cpu_online(unsigned int cpu)
+{
+	cfs_cpu_incr_cpt_version();
+	return 0;
+}
 
+static int cfs_cpu_dead(unsigned int cpu)
+{
+	bool warn;
+
+	cfs_cpu_incr_cpt_version();
+
+	mutex_lock(&cpt_data.cpt_mutex);
+	/* if all HTs in a core are offline, it may break affinity */
+	cpumask_copy(cpt_data.cpt_cpumask, topology_sibling_cpumask(cpu));
+	warn = cpumask_any_and(cpt_data.cpt_cpumask,
+			       cpu_online_mask) >= nr_cpu_ids;
+	mutex_unlock(&cpt_data.cpt_mutex);
+	CDEBUG(warn ? D_WARNING : D_INFO,
+	       "Lustre: can't support CPU plug-out well now, performance and stability could be impacted [CPU %u]\n",
+	       cpu);
+	return 0;
+}
 #endif
 
 void
@@ -1018,7 +1008,9 @@ cfs_cpu_fini(void)
 		cfs_cpt_table_free(cfs_cpt_table);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	unregister_hotcpu_notifier(&cfs_cpu_notifier);
+	if (lustre_cpu_online > 0)
+		cpuhp_remove_state_nocalls(lustre_cpu_online);
+	cpuhp_remove_state_nocalls(CPUHP_LUSTRE_CFS_DEAD);
 #endif
 	if (cpt_data.cpt_cpumask)
 		LIBCFS_FREE(cpt_data.cpt_cpumask, cpumask_size());
@@ -1027,6 +1019,8 @@ cfs_cpu_fini(void)
 int
 cfs_cpu_init(void)
 {
+	int ret = 0;
+
 	LASSERT(!cfs_cpt_table);
 
 	memset(&cpt_data, 0, sizeof(cpt_data));
@@ -1041,8 +1035,19 @@ cfs_cpu_init(void)
 	mutex_init(&cpt_data.cpt_mutex);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	register_hotcpu_notifier(&cfs_cpu_notifier);
+	ret = cpuhp_setup_state_nocalls(CPUHP_LUSTRE_CFS_DEAD,
+					"staging/lustre/cfe:dead", NULL,
+					cfs_cpu_dead);
+	if (ret < 0)
+		goto failed;
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"staging/lustre/cfe:online",
+					cfs_cpu_online, NULL);
+	if (ret < 0)
+		goto failed;
+	lustre_cpu_online = ret;
 #endif
+	ret = -EINVAL;
 
 	if (*cpu_pattern) {
 		cfs_cpt_table = cfs_cpt_table_create_pattern(cpu_pattern);
@@ -1075,7 +1080,7 @@ cfs_cpu_init(void)
 
  failed:
 	cfs_cpu_fini();
-	return -1;
+	return ret;
 }
 
 #endif

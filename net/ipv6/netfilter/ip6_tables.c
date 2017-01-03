@@ -24,7 +24,7 @@
 #include <linux/icmpv6.h>
 #include <net/ipv6.h>
 #include <net/compat.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/mutex.h>
 #include <linux/proc_fs.h>
 #include <linux/err.h>

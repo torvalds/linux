@@ -92,7 +92,7 @@ static irqreturn_t at91rm9200_timer_interrupt(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static cycle_t read_clk32k(struct clocksource *cs)
+static u64 read_clk32k(struct clocksource *cs)
 {
 	return read_CRTR();
 }

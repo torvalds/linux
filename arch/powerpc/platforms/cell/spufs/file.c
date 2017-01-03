@@ -35,7 +35,7 @@
 #include <asm/time.h>
 #include <asm/spu.h>
 #include <asm/spu_info.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "spufs.h"
 #include "sputrace.h"

@@ -17,7 +17,7 @@
 #include <linux/syscalls.h>
 #include <linux/pid_namespace.h>
 #include <linux/user_namespace.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Leveraged for setting/resetting capabilities

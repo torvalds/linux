@@ -1823,10 +1823,10 @@ static void unmap_bf_area(struct mlx4_dev *dev)
 		io_mapping_free(mlx4_priv(dev)->bf_mapping);
 }
 
-cycle_t mlx4_read_clock(struct mlx4_dev *dev)
+u64 mlx4_read_clock(struct mlx4_dev *dev)
 {
 	u32 clockhi, clocklo, clockhi1;
-	cycle_t cycles;
+	u64 cycles;
 	int i;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 

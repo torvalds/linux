@@ -197,7 +197,7 @@ struct mac_device_info *dwmac100_setup(void __iomem *ioaddr, int *synopsys_id)
 	mac->mii.reg_shift = 6;
 	mac->mii.reg_mask = 0x000007C0;
 	mac->mii.clk_csr_shift = 2;
-	mac->mii.clk_csr_mask = 0xF;
+	mac->mii.clk_csr_mask = GENMASK(5, 2);
 
 	/* Synopsys Id is not available on old chips */
 	*synopsys_id = 0;

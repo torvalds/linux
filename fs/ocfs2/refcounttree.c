@@ -4834,7 +4834,7 @@ int ocfs2_reflink_remap_range(struct file *file_in,
 
 	ret = vfs_clone_file_prep_inodes(inode_in, pos_in, inode_out, pos_out,
 			&len, is_dedupe);
-	if (ret || len == 0)
+	if (ret <= 0)
 		goto out_unlock;
 
 	/* Lock out changes to the allocation maps and remap. */

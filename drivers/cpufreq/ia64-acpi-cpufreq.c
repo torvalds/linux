@@ -18,7 +18,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pal.h>
 
 #include <linux/acpi.h>
