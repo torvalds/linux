@@ -1422,7 +1422,7 @@ static inline bool nvme_rdma_queue_is_ready(struct nvme_rdma_queue *queue,
 		struct request *rq)
 {
 	if (unlikely(!test_bit(NVME_RDMA_Q_LIVE, &queue->flags))) {
-		struct nvme_command *cmd = (struct nvme_command *)rq->cmd;
+		struct nvme_command *cmd = nvme_req(rq)->cmd;
 
 		if (rq->cmd_type != REQ_TYPE_DRV_PRIV ||
 		    cmd->common.opcode != nvme_fabrics_command ||
