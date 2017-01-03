@@ -110,7 +110,6 @@ static void tipc_write_space(struct sock *sk);
 static void tipc_sock_destruct(struct sock *sk);
 static int tipc_release(struct socket *sock);
 static int tipc_accept(struct socket *sock, struct socket *new_sock, int flags);
-static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p);
 static void tipc_sk_timeout(unsigned long data);
 static int tipc_sk_publish(struct tipc_sock *tsk, uint scope,
 			   struct tipc_name_seq const *seq);
@@ -333,6 +332,49 @@ static int tipc_set_sk_state(struct sock *sk, int state)
 
 	return res;
 }
+
+static int tipc_sk_sock_err(struct socket *sock, long *timeout)
+{
+	struct sock *sk = sock->sk;
+	int err = sock_error(sk);
+	int typ = sock->type;
+
+	if (err)
+		return err;
+	if (typ == SOCK_STREAM || typ == SOCK_SEQPACKET) {
+		if (sk->sk_state == TIPC_DISCONNECTING)
+			return -EPIPE;
+		else if (!tipc_sk_connected(sk))
+			return -ENOTCONN;
+	}
+	if (!*timeout)
+		return -EAGAIN;
+	if (signal_pending(current))
+		return sock_intr_errno(*timeout);
+
+	return 0;
+}
+
+#define tipc_wait_for_cond(sock_, timeout_, condition_)			\
+({								        \
+	int rc_ = 0;							\
+	int done_ = 0;							\
+									\
+	while (!(condition_) && !done_) {				\
+		struct sock *sk_ = sock->sk;				\
+		DEFINE_WAIT_FUNC(wait_, woken_wake_function);		\
+									\
+		rc_ = tipc_sk_sock_err(sock_, timeout_);		\
+		if (rc_)						\
+			break;						\
+		prepare_to_wait(sk_sleep(sk_), &wait_,			\
+				TASK_INTERRUPTIBLE);			\
+		done_ = sk_wait_event(sk_, timeout_,			\
+				      (condition_), &wait_);		\
+		remove_wait_queue(sk_sleep(sk_), &wait_);		\
+	}								\
+	rc_;								\
+})
 
 /**
  * tipc_sk_create - create a TIPC socket
@@ -721,7 +763,7 @@ new_mtu:
 
 		if (rc == -ELINKCONG) {
 			tsk->link_cong = 1;
-			rc = tipc_wait_for_sndmsg(sock, &timeo);
+			rc = tipc_wait_for_cond(sock, &timeo, !tsk->link_cong);
 			if (!rc)
 				continue;
 		}
@@ -828,31 +870,6 @@ static void tipc_sk_proto_rcv(struct tipc_sock *tsk, struct sk_buff *skb,
 	}
 exit:
 	kfree_skb(skb);
-}
-
-static int tipc_wait_for_sndmsg(struct socket *sock, long *timeo_p)
-{
-	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	struct sock *sk = sock->sk;
-	struct tipc_sock *tsk = tipc_sk(sk);
-	int done;
-
-	do {
-		int err = sock_error(sk);
-		if (err)
-			return err;
-		if (sk->sk_shutdown & SEND_SHUTDOWN)
-			return -EPIPE;
-		if (!*timeo_p)
-			return -EAGAIN;
-		if (signal_pending(current))
-			return sock_intr_errno(*timeo_p);
-
-		add_wait_queue(sk_sleep(sk), &wait);
-		done = sk_wait_event(sk, timeo_p, !tsk->link_cong, &wait);
-		remove_wait_queue(sk_sleep(sk), &wait);
-	} while (!done);
-	return 0;
 }
 
 /**
@@ -970,7 +987,7 @@ new_mtu:
 		}
 		if (rc == -ELINKCONG) {
 			tsk->link_cong = 1;
-			rc = tipc_wait_for_sndmsg(sock, &timeo);
+			rc = tipc_wait_for_cond(sock, &timeo, !tsk->link_cong);
 			if (!rc)
 				continue;
 		}
@@ -983,36 +1000,6 @@ new_mtu:
 	} while (1);
 
 	return rc;
-}
-
-static int tipc_wait_for_sndpkt(struct socket *sock, long *timeo_p)
-{
-	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	struct sock *sk = sock->sk;
-	struct tipc_sock *tsk = tipc_sk(sk);
-	int done;
-
-	do {
-		int err = sock_error(sk);
-		if (err)
-			return err;
-		if (sk->sk_state == TIPC_DISCONNECTING)
-			return -EPIPE;
-		else if (!tipc_sk_connected(sk))
-			return -ENOTCONN;
-		if (!*timeo_p)
-			return -EAGAIN;
-		if (signal_pending(current))
-			return sock_intr_errno(*timeo_p);
-
-		add_wait_queue(sk_sleep(sk), &wait);
-		done = sk_wait_event(sk, timeo_p,
-				     (!tsk->link_cong &&
-				      !tsk_conn_cong(tsk)) ||
-				      !tipc_sk_connected(sk), &wait);
-		remove_wait_queue(sk_sleep(sk), &wait);
-	} while (!done);
-	return 0;
 }
 
 /**
@@ -1109,7 +1096,10 @@ next:
 
 			tsk->link_cong = 1;
 		}
-		rc = tipc_wait_for_sndpkt(sock, &timeo);
+		rc = tipc_wait_for_cond(sock, &timeo,
+					(!tsk->link_cong &&
+					 !tsk_conn_cong(tsk) &&
+					 tipc_sk_connected(sk)));
 	} while (!rc);
 
 	__skb_queue_purge(&pktchain);
