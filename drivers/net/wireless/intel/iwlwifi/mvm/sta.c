@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -34,7 +34,7 @@
  *
  * Copyright(c) 2012 - 2015 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1652,8 +1652,7 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 	return 0;
 }
 
-static void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm,
-				    struct iwl_mvm_int_sta *sta)
+void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta)
 {
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta->sta_id], NULL);
 	memset(sta, 0, sizeof(struct iwl_mvm_int_sta));
@@ -1826,33 +1825,8 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	ret = iwl_mvm_add_int_sta_common(mvm, bsta, baddr,
 					 mvmvif->id, mvmvif->color);
-	if (ret)
-		return ret;
 
-	/*
-	 * In AP vif type, we also need to enable the cab_queue. However, we
-	 * have to enable it after the ADD_STA command is sent, otherwise the
-	 * FW will throw an assert once we send the ADD_STA command (it'll
-	 * detect a mismatch in the tfd_queue_msk, as we can't add the
-	 * enabled-cab_queue to the mask)
-	 */
-	if (iwl_mvm_is_dqa_supported(mvm) &&
-	    vif->type == NL80211_IFTYPE_AP) {
-		struct iwl_trans_txq_scd_cfg cfg = {
-			.fifo = IWL_MVM_TX_FIFO_MCAST,
-			.sta_id = mvmvif->bcast_sta.sta_id,
-			.tid = IWL_MAX_TID_COUNT,
-			.aggregate = false,
-			.frame_limit = IWL_FRAME_LIMIT,
-		};
-		unsigned int wdg_timeout =
-			iwl_mvm_get_wd_timeout(mvm, vif, false, false);
-
-		iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue,
-				   0, &cfg, wdg_timeout);
-	}
-
-	return 0;
+	return ret;
 }
 
 static void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
@@ -1861,10 +1835,6 @@ static void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	lockdep_assert_held(&mvm->mutex);
-
-	if (vif->type == NL80211_IFTYPE_AP)
-		iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
-				    IWL_MAX_TID_COUNT, 0);
 
 	if (mvmvif->bcast_sta.tfd_queue_msk &
 	    BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE)) {
@@ -1975,6 +1945,80 @@ int iwl_mvm_rm_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	ret = iwl_mvm_send_rm_bcast_sta(mvm, vif);
 
 	iwl_mvm_dealloc_bcast_sta(mvm, vif);
+
+	return ret;
+}
+
+/*
+ * Allocate a new station entry for the multicast station to the given vif,
+ * and send it to the FW.
+ * Note that each AP/GO mac should have its own multicast station.
+ *
+ * @mvm: the mvm component
+ * @vif: the interface to which the multicast station is added
+ */
+int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_int_sta *msta = &mvmvif->mcast_sta;
+	static const u8 _maddr[] = {0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+	const u8 *maddr = _maddr;
+	struct iwl_trans_txq_scd_cfg cfg = {
+		.fifo = IWL_MVM_TX_FIFO_MCAST,
+		.sta_id = msta->sta_id,
+		.tid = IWL_MAX_TID_COUNT,
+		.aggregate = false,
+		.frame_limit = IWL_FRAME_LIMIT,
+	};
+	unsigned int timeout = iwl_mvm_get_wd_timeout(mvm, vif, false, false);
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!iwl_mvm_is_dqa_supported(mvm))
+		return 0;
+
+	if (WARN_ON(vif->type != NL80211_IFTYPE_AP))
+		return -ENOTSUPP;
+
+	ret = iwl_mvm_add_int_sta_common(mvm, msta, maddr,
+					 mvmvif->id, mvmvif->color);
+	if (ret) {
+		iwl_mvm_dealloc_int_sta(mvm, msta);
+		return ret;
+	}
+
+	/*
+	 * Enable cab queue after the ADD_STA command is sent.
+	 * This is needed for a000 firmware which won't accept SCD_QUEUE_CFG
+	 * command with unknown station id.
+	 */
+	iwl_mvm_enable_txq(mvm, vif->cab_queue, vif->cab_queue, 0, &cfg,
+			   timeout);
+
+	return 0;
+}
+
+/*
+ * Send the FW a request to remove the station from it's internal data
+ * structures, and in addition remove it from the local data structure.
+ */
+int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!iwl_mvm_is_dqa_supported(mvm))
+		return 0;
+
+	iwl_mvm_disable_txq(mvm, vif->cab_queue, vif->cab_queue,
+			    IWL_MAX_TID_COUNT, 0);
+
+	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->mcast_sta.sta_id);
+	if (ret)
+		IWL_WARN(mvm, "Failed sending remove station\n");
 
 	return ret;
 }

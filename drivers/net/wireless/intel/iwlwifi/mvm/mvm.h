@@ -407,6 +407,7 @@ struct iwl_mvm_vif {
 	struct iwl_mvm_time_event_data hs_time_event_data;
 
 	struct iwl_mvm_int_sta bcast_sta;
+	struct iwl_mvm_int_sta mcast_sta;
 
 	/*
 	 * Assigned while mac80211 has the interface in a channel context,
