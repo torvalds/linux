@@ -15,6 +15,7 @@
  *
  */
 
+#include <linux/power/bq25700-charge.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
@@ -375,7 +376,7 @@ static const union {
 } bq25700_tables[] = {
 	/* range tables */
 	[TBL_ICHG] =	{ .rt = {0,	  8128000, 64000} },
-	/* uA */
+	/* uV */
 	[TBL_CHGMAX] = { .rt = {0, 19200000, 16000} },
 	/* uV  max charge voltage*/
 	[TBL_INPUTVOL] = { .rt = {3200000, 19520000, 64000} },
@@ -424,6 +425,8 @@ static const struct regmap_config bq25700_regmap_config = {
 	.volatile_table = &bq25700_volatile_regs,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };
+
+static struct bq25700_device *bq25700_charger;
 
 static int bq25700_field_read(struct bq25700_device *charger,
 			      enum bq25700_fields field_id)
@@ -621,6 +624,31 @@ static u32 bq25700_find_idx(u32 value, enum bq25700_table_ids id)
 		;
 
 	return idx - 1;
+}
+
+void bq25700_charger_set_current(unsigned long event,
+				 int current_value)
+{
+	int idx;
+
+	if (!bq25700_charger) {
+		pr_err("[%s,%d] bq25700_charger is null\n", __func__, __LINE__);
+		return;
+	}
+	switch (event) {
+	case CHARGER_CURRENT_EVENT:
+		idx = bq25700_find_idx(current_value, TBL_ICHG);
+		bq25700_field_write(bq25700_charger, CHARGE_CURRENT, idx);
+		break;
+
+	case INPUT_CURRENT_EVENT:
+		idx = bq25700_find_idx(current_value, TBL_INPUTCUR);
+		bq25700_field_write(bq25700_charger, INPUT_CURRENT, idx);
+		break;
+
+	default:
+		return;
+	}
 }
 
 static int bq25700_fw_read_u32_props(struct bq25700_device *charger)
@@ -1683,6 +1711,7 @@ static int bq25700_probe(struct i2c_client *client,
 		goto irq_fail;
 
 	bq25700_power_supply_init(charger);
+	bq25700_charger = charger;
 
 irq_fail:
 	return ret;
