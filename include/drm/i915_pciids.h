@@ -240,8 +240,6 @@
 	INTEL_BDW_GT12_IDS(info), \
 	INTEL_BDW_GT3_IDS(info), \
 	INTEL_BDW_RSVDM_IDS(info), \
-	INTEL_BDW_GT12_IDS(info), \
-	INTEL_BDW_GT3_IDS(info), \
 	INTEL_BDW_RSVDD_IDS(info)
 
 #define INTEL_CHV_IDS(info) \
