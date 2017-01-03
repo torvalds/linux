@@ -272,7 +272,7 @@ int ip_cmsg_send(struct sock *sk, struct msghdr *msg, struct ipcm_cookie *ipc,
 			continue;
 		switch (cmsg->cmsg_type) {
 		case IP_RETOPTS:
-			err = cmsg->cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr));
+			err = cmsg->cmsg_len - sizeof(struct cmsghdr);
 
 			/* Our caller is responsible for freeing ipc->opt */
 			err = ip_options_get(net, &ipc->opt, CMSG_DATA(cmsg),
