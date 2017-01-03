@@ -490,12 +490,21 @@ static int next_bfreg(int n)
 	return n;
 }
 
+enum {
+	/* this is the first blue flame register in the array of bfregs assigned
+	 * to a processes. Since we do not use it for blue flame but rather
+	 * regular 64 bit doorbells, we do not need a lock for maintaiing
+	 * "odd/even" order
+	 */
+	NUM_NON_BLUE_FLAME_BFREGS = 1,
+};
+
 static int num_med_bfreg(struct mlx5_bfreg_info *bfregi)
 {
 	int n;
 
 	n = bfregi->num_uars * MLX5_NON_FP_BFREGS_PER_UAR -
-		bfregi->num_low_latency_bfregs - 1;
+		bfregi->num_low_latency_bfregs - NUM_NON_BLUE_FLAME_BFREGS;
 
 	return n >= 0 ? n : 0;
 }
@@ -508,17 +517,9 @@ static int max_bfregi(struct mlx5_bfreg_info *bfregi)
 static int first_hi_bfreg(struct mlx5_bfreg_info *bfregi)
 {
 	int med;
-	int i;
-	int t;
 
 	med = num_med_bfreg(bfregi);
-	for (t = 0, i = first_med_bfreg();; i = next_bfreg(i)) {
-		t++;
-		if (t == med)
-			return next_bfreg(i);
-	}
-
-	return 0;
+	return next_bfreg(med);
 }
 
 static int alloc_high_class_bfreg(struct mlx5_bfreg_info *bfregi)
@@ -544,6 +545,8 @@ static int alloc_med_class_bfreg(struct mlx5_bfreg_info *bfregi)
 	for (i = first_med_bfreg(); i < first_hi_bfreg(bfregi); i = next_bfreg(i)) {
 		if (bfregi->count[i] < bfregi->count[minidx])
 			minidx = i;
+		if (!bfregi->count[minidx])
+			break;
 	}
 
 	bfregi->count[minidx]++;
@@ -558,6 +561,7 @@ static int alloc_bfreg(struct mlx5_bfreg_info *bfregi,
 	mutex_lock(&bfregi->lock);
 	switch (lat) {
 	case MLX5_IB_LATENCY_CLASS_LOW:
+		BUILD_BUG_ON(NUM_NON_BLUE_FLAME_BFREGS != 1);
 		bfregn = 0;
 		bfregi->count[bfregn]++;
 		break;
