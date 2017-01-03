@@ -53,6 +53,10 @@
  * the USB connector, which means EXTCON_CHG_USB_SDP should always
  * appear together with EXTCON_USB. The same as ACA charger connector,
  * EXTCON_CHG_USB_ACA would normally appear with EXTCON_USB_HOST.
+ *
+ * The EXTCON_CHG_USB_SLOW connector can provide at least 500mA of
+ * current at 5V. The EXTCON_CHG_USB_FAST connector can provide at
+ * least 1A of current at 5V.
  */
 #define EXTCON_CHG_USB_SDP	5	/* Standard Downstream Port */
 #define EXTCON_CHG_USB_DCP	6	/* Dedicated Charging Port */
