@@ -416,9 +416,8 @@ static int acpi_populate_gpio_lookup(struct acpi_resource *ares, void *data)
 			agpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT;
 
 		/*
-		 * ActiveLow is only specified for GpioInt resource. If
-		 * GpioIo is used then the only way to set the flag is
-		 * to use _DSD "gpios" property.
+		 * Polarity and triggering are only specified for GpioInt
+		 * resource.
 		 * Note: we expect here:
 		 * - ACPI_ACTIVE_LOW == GPIO_ACTIVE_LOW
 		 * - ACPI_ACTIVE_HIGH == GPIO_ACTIVE_HIGH
