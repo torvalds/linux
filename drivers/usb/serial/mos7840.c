@@ -214,7 +214,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 struct moschip_port {
 	int port_num;		/*Actual port number in the device(1,2,etc) */
-	struct urb *write_urb;	/* write URB for this port */
 	struct urb *read_urb;	/* read URB for this port */
 	__u8 shadowLCR;		/* last LCR value received */
 	__u8 shadowMCR;		/* last MCR value received */
@@ -1186,7 +1185,6 @@ static void mos7840_close(struct usb_serial_port *port)
 		}
 	}
 
-	usb_kill_urb(mos7840_port->write_urb);
 	usb_kill_urb(mos7840_port->read_urb);
 	mos7840_port->read_urb_busy = false;
 
@@ -1197,12 +1195,6 @@ static void mos7840_close(struct usb_serial_port *port)
 			dev_dbg(&port->dev, "Shutdown interrupt_in_urb\n");
 			usb_kill_urb(serial->port[0]->interrupt_in_urb);
 		}
-	}
-
-	if (mos7840_port->write_urb) {
-		/* if this urb had a transfer buffer already (old tx) free it */
-		kfree(mos7840_port->write_urb->transfer_buffer);
-		usb_free_urb(mos7840_port->write_urb);
 	}
 
 	Data = 0x0;
