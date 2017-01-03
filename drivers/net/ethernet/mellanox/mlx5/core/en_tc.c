@@ -684,7 +684,6 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 				   struct net_device **out_dev,
 				   struct flowi4 *fl4,
 				   struct neighbour **out_n,
-				   __be32 *saddr,
 				   int *out_ttl)
 {
 	struct rtable *rt;
@@ -714,7 +713,6 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 		return -ENOMEM;
 
 	*out_n = n;
-	*saddr = fl4->saddr;
 	*out_dev = rt->dst.dev;
 
 	return 0;
@@ -763,13 +761,10 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
+	int encap_size, ttl, err;
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
 	char *encap_header;
-	int encap_size;
-	__be32 saddr;
-	int ttl;
-	int err;
 
 	encap_header = kzalloc(max_encap_size, GFP_KERNEL);
 	if (!encap_header)
@@ -784,10 +779,12 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 		err = -EOPNOTSUPP;
 		goto out;
 	}
+	fl4.flowi4_tos = tun_key->tos;
 	fl4.daddr = tun_key->u.ipv4.dst;
+	fl4.saddr = tun_key->u.ipv4.src;
 
 	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, out_dev,
-				      &fl4, &n, &saddr, &ttl);
+				      &fl4, &n, &ttl);
 	if (err)
 		goto out;
 
@@ -806,8 +803,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	case MLX5_HEADER_TYPE_VXLAN:
 		encap_size = gen_vxlan_header_ipv4(*out_dev, encap_header,
 						   e->h_dest, ttl,
-						   tun_key->u.ipv4.dst,
-						   saddr, tun_key->tp_dst,
+						   fl4.daddr,
+						   fl4.saddr, tun_key->tp_dst,
 						   tunnel_id_to_key32(tun_key->tun_id));
 		break;
 	default:
