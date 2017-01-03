@@ -810,12 +810,8 @@ static int __init hugetlbpage_init(void)
 		 * if we have pdshift and shift value same, we don't
 		 * use pgt cache for hugepd.
 		 */
-		if (pdshift > shift) {
+		if (pdshift > shift)
 			pgtable_cache_add(pdshift - shift, NULL);
-			if (!PGT_CACHE(pdshift - shift))
-				panic("hugetlbpage_init(): could not create "
-				      "pgtable cache for %d bit pagesize\n", shift);
-		}
 #if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_8xx)
 		else if (!hugepte_cache) {
 			/*
