@@ -3334,7 +3334,8 @@ static inline u32 i915_reset_count(struct i915_gpu_error *error)
 	return READ_ONCE(error->reset_count);
 }
 
-void i915_gem_reset(struct drm_i915_private *dev_priv);
+void i915_gem_reset_prepare(struct drm_i915_private *dev_priv);
+void i915_gem_reset_finish(struct drm_i915_private *dev_priv);
 void i915_gem_set_wedged(struct drm_i915_private *dev_priv);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj, bool force);
 int __must_check i915_gem_init(struct drm_i915_private *dev_priv);
@@ -3418,6 +3419,7 @@ i915_gem_object_ggtt_offset(struct drm_i915_gem_object *o,
 int __must_check i915_vma_get_fence(struct i915_vma *vma);
 int __must_check i915_vma_put_fence(struct i915_vma *vma);
 
+void i915_gem_revoke_fences(struct drm_i915_private *dev_priv);
 void i915_gem_restore_fences(struct drm_i915_private *dev_priv);
 
 void i915_gem_detect_bit_6_swizzle(struct drm_i915_private *dev_priv);

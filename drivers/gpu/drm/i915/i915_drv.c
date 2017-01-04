@@ -1776,6 +1776,7 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	error->reset_count++;
 
 	pr_notice("drm/i915: Resetting chip after gpu hang\n");
+	i915_gem_reset_prepare(dev_priv);
 
 	disable_engines_irq(dev_priv);
 	ret = intel_gpu_reset(dev_priv, ALL_ENGINES);
@@ -1789,7 +1790,7 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
-	i915_gem_reset(dev_priv);
+	i915_gem_reset_finish(dev_priv);
 	intel_overlay_reset(dev_priv);
 
 	/* Ok, now get things going again... */
