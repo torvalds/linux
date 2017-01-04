@@ -93,6 +93,22 @@ submit_from_crypt_cpus
     thread because it benefits CFQ to have writes submitted using the
     same context.
 
+integrity:<bytes>:<type>
+    Calculates and verifies integrity for the encrypted device (uses
+    authenticated encryption). This mode requires metadata stored in per-bio
+    integrity structure of <bytes> in size.
+
+    This option requires that the underlying device is created by dm-integrity
+    target and provides exactly <bytes> of per-sector metadata.
+
+    There can by two options for <type>. The first one is used when encryption
+    mode is Authenticated mode (AEAD mode), then type must be just "aead".
+    The second option is integrity calculated by keyed hash (HMAC), then
+    <type> is for example "hmac(sha256)".
+
+    If random IV is used (persistently stored IV in metadata per-sector),
+    then <bytes> includes both space for random IV and authentication tag.
+
 Example scripts
 ===============
 LUKS (Linux Unified Key Setup) is now the preferred way to set up disk
