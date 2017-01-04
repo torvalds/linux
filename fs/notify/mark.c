@@ -67,7 +67,7 @@
  * - The fs the inode is on is unmounted.  (fsnotify_inode_delete/fsnotify_unmount_inodes)
  * - Something explicitly requests that it be removed.  (fsnotify_destroy_mark)
  * - The fsnotify_group associated with the mark is going away and all such marks
- *   need to be cleaned up. (fsnotify_clear_marks_by_group)
+ *   need to be cleaned up. (fsnotify_detach_group_marks)
  *
  * This has the very interesting property of being able to run concurrently with
  * any (or all) other directions.
@@ -645,11 +645,9 @@ struct fsnotify_mark *fsnotify_find_mark(
 	return NULL;
 }
 
-/*
- * clear any marks in a group in which mark->flags & flags is true
- */
-void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
-					 unsigned int flags)
+/* Clear any marks in a group with given type */
+void fsnotify_clear_marks_by_group(struct fsnotify_group *group,
+				   unsigned int type)
 {
 	struct fsnotify_mark *lmark, *mark;
 	LIST_HEAD(to_free);
@@ -665,7 +663,7 @@ void fsnotify_clear_marks_by_group_flags(struct fsnotify_group *group,
 	 */
 	mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
 	list_for_each_entry_safe(mark, lmark, &group->marks_list, g_list) {
-		if (mark->connector->flags & flags)
+		if (mark->connector->flags & type)
 			list_move(&mark->g_list, &to_free);
 	}
 	mutex_unlock(&group->mark_mutex);
