@@ -19,8 +19,8 @@ config XTENSA
 	select GENERIC_PCI_IOMAP
 	select GENERIC_SCHED_CLOCK
 	select GENERIC_STRNCPY_FROM_USER if KASAN
-	select HAVE_ARCH_JUMP_LABEL
-	select HAVE_ARCH_KASAN if MMU
+	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
+	select HAVE_ARCH_KASAN if MMU && !XIP_KERNEL
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
@@ -299,6 +299,9 @@ config XTENSA_CALIBRATE_CCOUNT
 config SERIAL_CONSOLE
 	def_bool n
 
+config PLATFORM_HAVE_XIP
+	def_bool n
+
 menu "Platform options"
 
 choice
@@ -325,6 +328,7 @@ config XTENSA_PLATFORM_XTFPGA
 	select PLATFORM_WANT_DEFAULT_MEM if !MMU
 	select SERIAL_CONSOLE
 	select XTENSA_CALIBRATE_CCOUNT
+	select PLATFORM_HAVE_XIP
 	help
 	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
 	  This hardware is capable of running a full Linux distribution.
@@ -478,6 +482,27 @@ config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
 
 	  If in doubt, say Y.
 
+config XIP_KERNEL
+	bool "Kernel Execute-In-Place from ROM"
+	depends on PLATFORM_HAVE_XIP
+	help
+	  Execute-In-Place allows the kernel to run from non-volatile storage
+	  directly addressable by the CPU, such as NOR flash. This saves RAM
+	  space since the text section of the kernel is not loaded from flash
+	  to RAM. Read-write sections, such as the data section and stack,
+	  are still copied to RAM. The XIP kernel is not compressed since
+	  it has to run directly from flash, so it will take more space to
+	  store it. The flash address used to link the kernel object files,
+	  and for storing it, is configuration dependent. Therefore, if you
+	  say Y here, you must know the proper physical address where to
+	  store the kernel image depending on your own flash memory usage.
+
+	  Also note that the make target becomes "make xipImage" rather than
+	  "make Image" or "make uImage". The final kernel binary to put in
+	  ROM memory will be arch/xtensa/boot/xipImage.
+
+	  If unsure, say N.
+
 config MEMMAP_CACHEATTR
 	hex "Cache attributes for the memory address space"
 	depends on !MMU
@@ -522,6 +547,16 @@ config KSEG_PADDR
 
 	  If unsure, leave the default value here.
 
+config KERNEL_VIRTUAL_ADDRESS
+	hex "Kernel virtual address"
+	depends on MMU && XIP_KERNEL
+	default 0xd0003000
+	help
+	  This is the virtual address where the XIP kernel is mapped.
+	  XIP kernel may be mapped into KSEG or KIO region, virtual address
+	  provided here must match kernel load address provided in
+	  KERNEL_LOAD_ADDRESS.
+
 config KERNEL_LOAD_ADDRESS
 	hex "Kernel load address"
 	default 0x60003000 if !MMU
@@ -537,11 +572,20 @@ config KERNEL_LOAD_ADDRESS
 config VECTORS_OFFSET
 	hex "Kernel vectors offset"
 	default 0x00003000
+	depends on !XIP_KERNEL
 	help
 	  This is the offset of the kernel image from the relocatable vectors
 	  base.
 
 	  If unsure, leave the default value here.
+
+config XIP_DATA_ADDR
+	hex "XIP kernel data virtual address"
+	depends on XIP_KERNEL
+	default 0x00000000
+	help
+	  This is the virtual address where XIP kernel data is copied.
+	  It must be within KSEG if MMU is used.
 
 config PLATFORM_WANT_DEFAULT_MEM
 	def_bool n
