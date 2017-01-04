@@ -2870,14 +2870,14 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 	dev_set_drvdata(&card->dev, md);
 
-	#if defined(CONFIG_MMC_DW_ROCKCHIP)
+#if defined(CONFIG_MMC_DW_ROCKCHIP) || defined(CONFIG_MMC_SDHCI_OF_ARASAN)
 	if (card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC) {
 		this_card = card;
 		md->disk->emmc_disk = 1;
 	} else {
 		md->disk->emmc_disk = 0;
 	}
-	#endif
+#endif
 
 	if (mmc_add_disk(md))
 		goto out;
@@ -2911,10 +2911,10 @@ static void mmc_blk_remove(struct mmc_card *card)
 {
 	struct mmc_blk_data *md = dev_get_drvdata(&card->dev);
 
-	#if defined(CONFIG_MMC_DW_ROCKCHIP)
+#if defined(CONFIG_MMC_DW_ROCKCHIP) || defined(CONFIG_MMC_SDHCI_OF_ARASAN)
 	if (card->host->restrict_caps & RESTRICT_CARD_TYPE_EMMC)
 		this_card = NULL;
-	#endif
+#endif
 
 	mmc_blk_remove_parts(card, md);
 	pm_runtime_get_sync(&card->dev);
