@@ -1061,13 +1061,12 @@ static netdev_tx_t bcm_sysport_xmit(struct sk_buff *skb,
 	 * (including FCS and tag) because the length verification is done after
 	 * the Broadcom tag is stripped off the ingress packet.
 	 */
-	if (skb_padto(skb, ETH_ZLEN + ENET_BRCM_TAG_LEN)) {
+	if (skb_put_padto(skb, ETH_ZLEN + ENET_BRCM_TAG_LEN)) {
 		ret = NETDEV_TX_OK;
 		goto out;
 	}
 
-	skb_len = skb->len < ETH_ZLEN + ENET_BRCM_TAG_LEN ?
-			ETH_ZLEN + ENET_BRCM_TAG_LEN : skb->len;
+	skb_len = skb->len;
 
 	mapping = dma_map_single(kdev, skb->data, skb_len, DMA_TO_DEVICE);
 	if (dma_mapping_error(kdev, mapping)) {
