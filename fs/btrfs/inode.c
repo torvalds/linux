@@ -1605,7 +1605,7 @@ static void btrfs_split_extent_hook(struct inode *inode,
 
 	size = orig->end - orig->start + 1;
 	if (size > BTRFS_MAX_EXTENT_SIZE) {
-		u64 num_extents;
+		u32 num_extents;
 		u64 new_size;
 
 		/*
@@ -1613,13 +1613,10 @@ static void btrfs_split_extent_hook(struct inode *inode,
 		 * applies here, just in reverse.
 		 */
 		new_size = orig->end - split + 1;
-		num_extents = div64_u64(new_size + BTRFS_MAX_EXTENT_SIZE - 1,
-					BTRFS_MAX_EXTENT_SIZE);
+		num_extents = count_max_extents(new_size);
 		new_size = split - orig->start;
-		num_extents += div64_u64(new_size + BTRFS_MAX_EXTENT_SIZE - 1,
-					BTRFS_MAX_EXTENT_SIZE);
-		if (div64_u64(size + BTRFS_MAX_EXTENT_SIZE - 1,
-			      BTRFS_MAX_EXTENT_SIZE) >= num_extents)
+		num_extents += count_max_extents(new_size);
+		if (count_max_extents(size) >= num_extents)
 			return;
 	}
 
@@ -1639,7 +1636,7 @@ static void btrfs_merge_extent_hook(struct inode *inode,
 				    struct extent_state *other)
 {
 	u64 new_size, old_size;
-	u64 num_extents;
+	u32 num_extents;
 
 	/* not delalloc, ignore it */
 	if (!(other->state & EXTENT_DELALLOC))
@@ -1677,14 +1674,10 @@ static void btrfs_merge_extent_hook(struct inode *inode,
 	 * this case.
 	 */
 	old_size = other->end - other->start + 1;
-	num_extents = div64_u64(old_size + BTRFS_MAX_EXTENT_SIZE - 1,
-				BTRFS_MAX_EXTENT_SIZE);
+	num_extents = count_max_extents(old_size);
 	old_size = new->end - new->start + 1;
-	num_extents += div64_u64(old_size + BTRFS_MAX_EXTENT_SIZE - 1,
-				 BTRFS_MAX_EXTENT_SIZE);
-
-	if (div64_u64(new_size + BTRFS_MAX_EXTENT_SIZE - 1,
-		      BTRFS_MAX_EXTENT_SIZE) >= num_extents)
+	num_extents += count_max_extents(old_size);
+	if (count_max_extents(new_size) >= num_extents)
 		return;
 
 	spin_lock(&BTRFS_I(inode)->lock);
@@ -1793,8 +1786,7 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u64 len = state->end + 1 - state->start;
-	u64 num_extents = div64_u64(len + BTRFS_MAX_EXTENT_SIZE -1,
-				    BTRFS_MAX_EXTENT_SIZE);
+	u32 num_extents = count_max_extents(len);
 
 	spin_lock(&BTRFS_I(inode)->lock);
 	if ((state->state & EXTENT_DEFRAG) && (*bits & EXTENT_DEFRAG))
@@ -7617,10 +7609,8 @@ static void adjust_dio_outstanding_extents(struct inode *inode,
 					   struct btrfs_dio_data *dio_data,
 					   const u64 len)
 {
-	unsigned num_extents;
+	unsigned num_extents = count_max_extents(len);
 
-	num_extents = (unsigned) div64_u64(len + BTRFS_MAX_EXTENT_SIZE - 1,
-					   BTRFS_MAX_EXTENT_SIZE);
 	/*
 	 * If we have an outstanding_extents count still set then we're
 	 * within our reservation, otherwise we need to adjust our inode
@@ -8681,9 +8671,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 		ret = btrfs_delalloc_reserve_space(inode, offset, count);
 		if (ret)
 			goto out;
-		dio_data.outstanding_extents = div64_u64(count +
-						BTRFS_MAX_EXTENT_SIZE - 1,
-						BTRFS_MAX_EXTENT_SIZE);
+		dio_data.outstanding_extents = count_max_extents(count);
 
 		/*
 		 * We need to know how many extents we reserved so that we can
