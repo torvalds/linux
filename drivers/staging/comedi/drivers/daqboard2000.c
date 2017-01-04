@@ -470,11 +470,11 @@ static void daqboard2000_pulse_prog_pin(struct comedi_device *dev)
 	mdelay(10);	/* Not in the original code, but I like symmetry... */
 }
 
-static int daqboard2000_poll_cpld(struct comedi_device *dev, int mask)
+static int daqboard2000_poll_cpld(struct comedi_device *dev, u16 mask)
 {
 	int result = 0;
 	int i;
-	int cpld;
+	u16 cpld;
 
 	/* timeout after 50 tries -> 5ms */
 	for (i = 0; i < 50; i++) {
@@ -489,7 +489,7 @@ static int daqboard2000_poll_cpld(struct comedi_device *dev, int mask)
 	return result;
 }
 
-static int daqboard2000_write_cpld(struct comedi_device *dev, int data)
+static int daqboard2000_write_cpld(struct comedi_device *dev, u16 data)
 {
 	int result = 0;
 
@@ -527,7 +527,7 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 					break;
 			}
 			for (; i < len; i += 2) {
-				int data =
+				u16 data =
 				    (cpld_array[i] << 8) + cpld_array[i + 1];
 				if (!daqboard2000_write_cpld(dev, data))
 					break;
