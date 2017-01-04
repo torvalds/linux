@@ -120,7 +120,7 @@ static void ib_cq_completion_workqueue(struct ib_cq *cq, void *private)
  *
  * This is the proper interface to allocate a CQ for in-kernel users. A
  * CQ allocated with this interface will automatically be polled from the
- * specified context.  The ULP needs must use wr->wr_cqe instead of wr->wr_id
+ * specified context. The ULP must use wr->wr_cqe instead of wr->wr_id
  * to use this CQ abstraction.
  */
 struct ib_cq *ib_alloc_cq(struct ib_device *dev, void *private,
