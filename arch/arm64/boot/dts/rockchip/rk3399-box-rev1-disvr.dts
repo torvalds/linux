@@ -125,6 +125,26 @@
 	};
 };
 
+/*
+ * if your hardware board have two typec port, you should define
+ * fusb1 and tcphy1, such as:
+ *&tcphy1 {
+ *	status = "okay";
+ *	extcon = <&fusb1>;
+ *};
+ *&cdn_dp_fb {
+ *	status = "okay";
+ *	extcon = <&fusb0>, <&fusb1>;
+ *	dp_vop_sel = <DISPLAY_SOURCE_LCDC0>;
+ *	dp_defaultmode = <0>;
+ *};
+ */
+
+&tcphy0 {
+	status = "okay";
+	extcon = <&fusb0>;
+};
+
 &cdn_dp_fb {
 	status = "okay";
 	extcon = <&fusb0>;
@@ -133,7 +153,7 @@
 };
 
 &cdn_dp_sound {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi_rk_fb {
@@ -141,18 +161,50 @@
 	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC1>;
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &vopb_rk_fb {
+	status = "okay";
+};
+
+&vopl_rk_fb {
 	status = "okay";
 };
 
 &disp_timings {
 	/* for rayken dp */
+	native-mode = <&timing1>;
 	timing1 {
 		screen-width = <68>;
 		screen-hight = <120>;
 	};
 };
 
-&vopl_rk_fb {
-	status = "okay";
+/*
+ * if the screen of vr helmet has a high screen resolution or
+ * high refresh rate,please increase the lowest gpu(gpu_opp_table)
+ * and cpu(cluster1_opp) frequence.
+ */
+&gpu_opp_table {
+	opp@200000000 {
+		status = "disabled";
+	};
+	opp@297000000 {
+		status = "disabled";
+	};
 };
+
+&cluster1_opp {
+	opp@408000000 {
+		status = "disabled";
+	};
+	opp@600000000 {
+		status = "disabled";
+	};
+	opp@816000000 {
+		status = "disabled";
+	};
+};
+
