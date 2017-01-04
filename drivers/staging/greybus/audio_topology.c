@@ -1312,7 +1312,7 @@ static int gbaudio_tplg_process_routes(struct gbaudio_module_info *module,
 			goto error;
 		}
 		dev_dbg(module->dev, "Route {%s, %s, %s}\n", dapm_routes->sink,
-			(dapm_routes->control) ? dapm_routes->control:"NULL",
+			(dapm_routes->control) ? dapm_routes->control : "NULL",
 			dapm_routes->source);
 		dapm_routes++;
 		curr++;
