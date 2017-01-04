@@ -119,7 +119,6 @@ static void regamma_config_regions_and_segments(
 	const struct pwl_params *params)
 {
 	const struct gamma_curve *curve;
-	uint32_t value = 0;
 
 	{
 		REG_SET_2(REGAMMA_CNTLA_START_CNTL, 0,
@@ -565,8 +564,6 @@ void dce110_opp_set_clamping(
 	struct dce110_opp *opp110,
 	const struct clamping_and_pixel_encoding_params *params)
 {
-	uint32_t clamp_cntl_value = 0;
-
 	REG_SET_2(FMT_CLAMP_CNTL, 0,
 		FMT_CLAMP_DATA_EN, 0,
 		FMT_CLAMP_COLOR_FORMAT, 0);
@@ -731,7 +728,6 @@ void dce110_opp_set_dyn_expansion(
 static void program_formatter_reset_dig_resync_fifo(struct output_pixel_processor *opp)
 {
 	struct dce110_opp *opp110 = TO_DCE110_OPP(opp);
-	uint8_t counter = 10;
 
 	/* clear previous phase lock status*/
 	REG_UPDATE(FMT_CONTROL,
@@ -810,8 +806,6 @@ static bool configure_graphics_mode(
 	enum graphics_csc_adjust_type csc_adjust_type,
 	enum dc_color_space color_space)
 {
-	struct dc_context *ctx = opp110->base.ctx;
-
 	REG_SET(OUTPUT_CSC_CONTROL, 0,
 		OUTPUT_CSC_GRPH_MODE, 0);
 

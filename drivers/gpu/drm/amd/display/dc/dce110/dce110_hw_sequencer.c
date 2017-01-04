@@ -293,7 +293,6 @@ static bool dce110_set_output_transfer_func(
 {
 	struct output_pixel_processor *opp = pipe_ctx->opp;
 	const struct core_gamma *ramp = NULL;
-	struct ipp_prescale_params prescale_params = { 0 };
 	struct pwl_params *regamma_params;
 	bool result = false;
 

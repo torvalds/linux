@@ -72,8 +72,6 @@ bool dce110_ipp_set_degamma(
 {
 	struct dce110_ipp *ipp110 = TO_DCE110_IPP(ipp);
 
-	uint32_t value = 0;
-
 	uint32_t degamma_type = (mode == IPP_DEGAMMA_MODE_HW_sRGB) ? 1 : 0;
 
 	ASSERT(mode == IPP_DEGAMMA_MODE_BYPASS ||
