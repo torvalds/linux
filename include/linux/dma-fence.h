@@ -47,7 +47,7 @@ struct dma_fence_cb;
  * can be compared to decide which fence would be signaled later.
  * @flags: A mask of DMA_FENCE_FLAG_* defined below
  * @timestamp: Timestamp when the fence was signaled.
- * @status: Optional, only valid if < 0, must be set before calling
+ * @error: Optional, only valid if < 0, must be set before calling
  * dma_fence_signal, indicates that the fence has completed with an error.
  *
  * the flags member must be manipulated and read using the appropriate
@@ -79,7 +79,7 @@ struct dma_fence {
 	unsigned seqno;
 	unsigned long flags;
 	ktime_t timestamp;
-	int status;
+	int error;
 };
 
 enum dma_fence_flag_bits {
@@ -133,7 +133,7 @@ struct dma_fence_cb {
  * or some failure occurred that made it impossible to enable
  * signaling. True indicates successful enabling.
  *
- * fence->status may be set in enable_signaling, but only when false is
+ * fence->error may be set in enable_signaling, but only when false is
  * returned.
  *
  * Calling dma_fence_signal before enable_signaling is called allows
@@ -145,7 +145,7 @@ struct dma_fence_cb {
  * the second time will be a noop since it was already signaled.
  *
  * Notes on signaled:
- * May set fence->status if returning true.
+ * May set fence->error if returning true.
  *
  * Notes on wait:
  * Must not be NULL, set to dma_fence_default_wait for default implementation.
@@ -395,12 +395,32 @@ static inline struct dma_fence *dma_fence_later(struct dma_fence *f1,
 static inline int dma_fence_get_status_locked(struct dma_fence *fence)
 {
 	if (dma_fence_is_signaled_locked(fence))
-		return fence->status < 0 ? fence->status : 1;
+		return fence->error ?: 1;
 	else
 		return 0;
 }
 
 int dma_fence_get_status(struct dma_fence *fence);
+
+/**
+ * dma_fence_set_error - flag an error condition on the fence
+ * @fence: [in]	the dma_fence
+ * @error: [in]	the error to store
+ *
+ * Drivers can supply an optional error status condition before they signal
+ * the fence, to indicate that the fence was completed due to an error
+ * rather than success. This must be set before signaling (so that the value
+ * is visible before any waiters on the signal callback are woken). This
+ * helper exists to help catching erroneous setting of #dma_fence.error.
+ */
+static inline void dma_fence_set_error(struct dma_fence *fence,
+				       int error)
+{
+	BUG_ON(test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags));
+	BUG_ON(error >= 0 || error < -MAX_ERRNO);
+
+	fence->error = error;
+}
 
 signed long dma_fence_wait_timeout(struct dma_fence *,
 				   bool intr, signed long timeout);

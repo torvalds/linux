@@ -566,7 +566,7 @@ dma_fence_init(struct dma_fence *fence, const struct dma_fence_ops *ops,
 	fence->context = context;
 	fence->seqno = seqno;
 	fence->flags = 0UL;
-	fence->status = 0;
+	fence->error = 0;
 
 	trace_dma_fence_init(fence);
 }
