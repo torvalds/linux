@@ -1542,13 +1542,11 @@ static void sh_eth_error(struct net_device *ndev, u32 intr_status)
 			ndev->stats.tx_carrier_errors++;
 		if (felic_stat & ECSR_LCHNG) {
 			/* Link Changed */
-			if (mdp->cd->no_psr || mdp->no_ether_link) {
+			if (mdp->cd->no_psr || mdp->no_ether_link)
 				goto ignore_link;
-			} else {
-				link_stat = (sh_eth_read(ndev, PSR));
-				if (mdp->ether_link_active_low)
-					link_stat = ~link_stat;
-			}
+			link_stat = sh_eth_read(ndev, PSR);
+			if (mdp->ether_link_active_low)
+				link_stat = ~link_stat;
 			if (!(link_stat & PHY_ST_LINK)) {
 				sh_eth_rcv_snd_disable(ndev);
 			} else {
