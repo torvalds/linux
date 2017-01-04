@@ -6,7 +6,7 @@
 #
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
-	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU && HAS_DMA
+	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && HAS_DMA
 	select HDMI
 	select FB_CMDLINE
 	select I2C
@@ -113,7 +113,7 @@ config DRM_LOAD_EDID_FIRMWARE
 
 config DRM_TTM
 	tristate
-	depends on DRM
+	depends on DRM && MMU
 	help
 	  GPU memory management subsystem for devices with multiple
 	  GPU memory types. Will be enabled automatically if a device driver

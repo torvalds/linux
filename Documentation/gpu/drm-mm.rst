@@ -310,6 +310,17 @@ created.
 Drivers that want to map the GEM object upfront instead of handling page
 faults can implement their own mmap file operation handler.
 
+For platforms without MMU the GEM core provides a helper method
+:c:func:`drm_gem_cma_get_unmapped_area`. The mmap() routines will call
+this to get a proposed address for the mapping.
+
+To use :c:func:`drm_gem_cma_get_unmapped_area`, drivers must fill the
+struct :c:type:`struct file_operations <file_operations>` get_unmapped_area
+field with a pointer on :c:func:`drm_gem_cma_get_unmapped_area`.
+
+More detailed information about get_unmapped_area can be found in
+Documentation/nommu-mmap.txt
+
 Memory Coherency
 ----------------
 
