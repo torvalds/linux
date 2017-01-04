@@ -1847,6 +1847,21 @@ void cfg80211_free_nan_func(struct cfg80211_nan_func *f)
 }
 EXPORT_SYMBOL(cfg80211_free_nan_func);
 
+bool cfg80211_does_bw_fit_range(const struct ieee80211_freq_range *freq_range,
+				u32 center_freq_khz, u32 bw_khz)
+{
+	u32 start_freq_khz, end_freq_khz;
+
+	start_freq_khz = center_freq_khz - (bw_khz / 2);
+	end_freq_khz = center_freq_khz + (bw_khz / 2);
+
+	if (start_freq_khz >= freq_range->start_freq_khz &&
+	    end_freq_khz <= freq_range->end_freq_khz)
+		return true;
+
+	return false;
+}
+
 /* See IEEE 802.1H for LLC/SNAP encapsulation/decapsulation */
 /* Ethernet-II snap header (RFC1042 for most EtherTypes) */
 const unsigned char rfc1042_header[] __aligned(2) =
