@@ -451,8 +451,6 @@ struct pwm_device *devm_pwm_get(struct device *dev, const char *con_id);
 struct pwm_device *devm_of_pwm_get(struct device *dev, struct device_node *np,
 				   const char *con_id);
 void devm_pwm_put(struct device *dev, struct pwm_device *pwm);
-
-bool pwm_can_sleep(struct pwm_device *pwm);
 #else
 static inline struct pwm_device *pwm_request(int pwm_id, const char *label)
 {
@@ -565,11 +563,6 @@ static inline struct pwm_device *devm_of_pwm_get(struct device *dev,
 
 static inline void devm_pwm_put(struct device *dev, struct pwm_device *pwm)
 {
-}
-
-static inline bool pwm_can_sleep(struct pwm_device *pwm)
-{
-	return false;
 }
 #endif
 
