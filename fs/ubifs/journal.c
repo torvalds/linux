@@ -744,6 +744,7 @@ int ubifs_jnl_write_data(struct ubifs_info *c, const struct inode *inode,
 
 	} else {
 		data->compr_size = 0;
+		out_len = compr_len;
 	}
 
 	dlen = UBIFS_DATA_NODE_SZ + out_len;
