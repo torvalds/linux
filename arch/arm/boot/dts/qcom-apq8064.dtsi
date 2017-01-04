@@ -1355,6 +1355,8 @@
 
 		hdmi: hdmi-tx@4a00000 {
 			compatible = "qcom,hdmi-tx-8960";
+			pinctrl-names = "default";
+			pinctrl-0 = <&hdmi_pinctrl>;
 			reg = <0x04a00000 0x2f0>;
 			reg-names = "core_physical";
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;

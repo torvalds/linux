@@ -302,4 +302,23 @@
 		drive-strength = <6>;
 		bias-pull-down;
 	};
+
+	hdmi_pinctrl: hdmi-pinctrl {
+		mux {
+			pins = "gpio70", "gpio71", "gpio72";
+			function = "hdmi";
+		};
+
+		pinconf_ddc {
+			pins = "gpio70", "gpio71";
+			bias-pull-up;
+			drive-strength = <2>;
+		};
+
+		pinconf_hpd {
+			pins = "gpio72";
+			bias-pull-down;
+			drive-strength = <16>;
+		};
+	};
 };
