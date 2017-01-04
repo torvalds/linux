@@ -3683,6 +3683,12 @@ static int __init srp_init_module(void)
 		indirect_sg_entries = cmd_sg_entries;
 	}
 
+	if (indirect_sg_entries > SG_MAX_SEGMENTS) {
+		pr_warn("Clamping indirect_sg_entries to %u\n",
+			SG_MAX_SEGMENTS);
+		indirect_sg_entries = SG_MAX_SEGMENTS;
+	}
+
 	srp_remove_wq = create_workqueue("srp_remove");
 	if (!srp_remove_wq) {
 		ret = -ENOMEM;
