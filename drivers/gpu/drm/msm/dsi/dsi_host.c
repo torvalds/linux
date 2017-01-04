@@ -1559,8 +1559,9 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 
 	prop = of_find_property(ep, "data-lanes", &len);
 	if (!prop) {
-		dev_dbg(dev, "failed to find data lane mapping\n");
-		return -EINVAL;
+		dev_dbg(dev,
+			"failed to find data lane mapping, using default\n");
+		return 0;
 	}
 
 	num_lanes = len / sizeof(u32);
@@ -1617,7 +1618,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	struct device *dev = &msm_host->pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *endpoint, *device_node;
-	int ret;
+	int ret = 0;
 
 	/*
 	 * Get the endpoint of the output port of the DSI host. In our case,
@@ -1641,8 +1642,7 @@ static int dsi_host_parse_dt(struct msm_dsi_host *msm_host)
 	/* Get panel node from the output port's endpoint data */
 	device_node = of_graph_get_remote_port_parent(endpoint);
 	if (!device_node) {
-		dev_err(dev, "%s: no valid device\n", __func__);
-		ret = -ENODEV;
+		dev_dbg(dev, "%s: no valid device\n", __func__);
 		goto err;
 	}
 
