@@ -1363,7 +1363,7 @@ void dce110_link_encoder_dp_set_lane_settings(
 	cntl.pixel_clock = link_settings->link_settings.link_rate *
 						LINK_RATE_REF_FREQ_IN_KHZ;
 
-	for (lane = 0; lane < link_settings->link_settings.lane_count; ++lane) {
+	for (lane = 0; lane < link_settings->link_settings.lane_count; lane++) {
 		/* translate lane settings */
 
 		training_lane_set.bits.VOLTAGE_SWING_SET =

@@ -229,10 +229,9 @@ void dp_retrain_link_dp_test(struct core_link *link,
 					link->link_enc,
 					SIGNAL_TYPE_DISPLAY_PORT);
 
-			/* Clear current link setting.
-			 * memset(&link->public.cur_link_settings, 0,
-			 * 	sizeof(link->public.cur_link_settings));
-			 */
+			/* Clear current link setting. */
+			memset(&link->public.cur_link_settings, 0,
+				sizeof(link->public.cur_link_settings));
 
 			link->link_enc->funcs->enable_dp_output(
 						link->link_enc,
@@ -245,6 +244,8 @@ void dp_retrain_link_dp_test(struct core_link *link,
 					&link->public,
 					link_setting,
 					skip_video_pattern);
+
+			link->public.cur_link_settings = *link_setting;
 
 			link->dc->hwss.unblank_stream(&pipes[i],
 					link_setting);

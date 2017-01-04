@@ -112,7 +112,8 @@ struct link_training_settings;
 
 struct dc_link_funcs {
 	void (*set_drive_settings)(struct dc *dc,
-			struct link_training_settings *lt_settings);
+			struct link_training_settings *lt_settings,
+			const struct dc_link *link);
 	void (*perform_link_training)(struct dc *dc,
 			struct dc_link_settings *link_setting,
 			bool skip_video_pattern);
