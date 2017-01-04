@@ -120,20 +120,22 @@ int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
 	struct drm_connector *connector;
-	int i, ret;
+	struct drm_connector_list_iter conn_iter;
+	int i, ret = 0;
 
 	if (!drm_fbdev_emulation)
 		return 0;
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_for_each_connector(connector, dev) {
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		ret = drm_fb_helper_add_one_connector(fb_helper, connector);
 
 		if (ret)
 			goto fail;
 	}
-	mutex_unlock(&dev->mode_config.mutex);
-	return 0;
+	goto out;
+
 fail:
 	drm_fb_helper_for_each_connector(fb_helper, i) {
 		struct drm_fb_helper_connector *fb_helper_connector =
@@ -145,6 +147,8 @@ fail:
 		fb_helper->connector_info[i] = NULL;
 	}
 	fb_helper->connector_count = 0;
+out:
+	drm_connector_list_iter_put(&conn_iter);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return ret;
@@ -401,7 +405,7 @@ static int restore_fbdev_mode(struct drm_fb_helper *fb_helper)
 
 	drm_warn_on_modeset_not_all_locked(dev);
 
-	if (dev->mode_config.funcs->atomic_commit)
+	if (drm_drv_uses_atomic_modeset(dev))
 		return restore_fbdev_mode_atomic(fb_helper);
 
 	drm_for_each_plane(plane, dev) {
@@ -1169,7 +1173,7 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		    !fb_helper->funcs->gamma_get))
 		return -EINVAL;
 
-	WARN_ON(fb->bits_per_pixel != 8);
+	WARN_ON(fb->format->cpp[0] != 1);
 
 	fb_helper->funcs->gamma_set(crtc, red, green, blue, regno);
 
@@ -1252,14 +1256,14 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 	 * Changes struct fb_var_screeninfo are currently not pushed back
 	 * to KMS, hence fail if different settings are requested.
 	 */
-	if (var->bits_per_pixel != fb->bits_per_pixel ||
+	if (var->bits_per_pixel != fb->format->cpp[0] * 8 ||
 	    var->xres != fb->width || var->yres != fb->height ||
 	    var->xres_virtual != fb->width || var->yres_virtual != fb->height) {
 		DRM_DEBUG("fb userspace requested width/height/bpp different than current fb "
 			  "request %dx%d-%d (virtual %dx%d) > %dx%d-%d\n",
 			  var->xres, var->yres, var->bits_per_pixel,
 			  var->xres_virtual, var->yres_virtual,
-			  fb->width, fb->height, fb->bits_per_pixel);
+			  fb->width, fb->height, fb->format->cpp[0] * 8);
 		return -EINVAL;
 	}
 
@@ -1440,7 +1444,7 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 		return -EBUSY;
 	}
 
-	if (dev->mode_config.funcs->atomic_commit) {
+	if (drm_drv_uses_atomic_modeset(dev)) {
 		ret = pan_display_atomic(var, info);
 		goto unlock;
 	}
@@ -1645,7 +1649,7 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 	info->pseudo_palette = fb_helper->pseudo_palette;
 	info->var.xres_virtual = fb->width;
 	info->var.yres_virtual = fb->height;
-	info->var.bits_per_pixel = fb->bits_per_pixel;
+	info->var.bits_per_pixel = fb->format->cpp[0] * 8;
 	info->var.accel_flags = FB_ACCELF_TEXT;
 	info->var.xoffset = 0;
 	info->var.yoffset = 0;
@@ -1653,7 +1657,7 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 	info->var.height = -1;
 	info->var.width = -1;
 
-	switch (fb->depth) {
+	switch (fb->format->depth) {
 	case 8:
 		info->var.red.offset = 0;
 		info->var.green.offset = 0;
@@ -2056,7 +2060,7 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	 * NULL we fallback to the default drm_atomic_helper_best_encoder()
 	 * helper.
 	 */
-	if (fb_helper->dev->mode_config.funcs->atomic_commit &&
+	if (drm_drv_uses_atomic_modeset(fb_helper->dev) &&
 	    !connector_funcs->best_encoder)
 		encoder = drm_atomic_helper_best_encoder(connector);
 	else

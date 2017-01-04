@@ -29,6 +29,7 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_atomic_helper.h>
 
 #define SUBPIXEL_MASK 0xffff
@@ -74,6 +75,7 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	int count = 0;
 
 	/*
@@ -83,7 +85,8 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 	 */
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
 
-	drm_for_each_connector(connector, dev) {
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->encoder && connector->encoder->crtc == crtc) {
 			if (connector_list != NULL && count < num_connectors)
 				*(connector_list++) = connector;
@@ -91,6 +94,7 @@ static int get_connectors_for_crtc(struct drm_crtc *crtc,
 			count++;
 		}
 	}
+	drm_connector_list_iter_put(&conn_iter);
 
 	return count;
 }

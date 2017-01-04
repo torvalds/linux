@@ -902,11 +902,11 @@ static int drm_atomic_plane_check(struct drm_plane *plane,
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, state->fb->pixel_format);
+	ret = drm_plane_check_pixel_format(plane, state->fb->format->format);
 	if (ret) {
 		struct drm_format_name_buf format_name;
 		DRM_DEBUG_ATOMIC("Invalid pixel format %s\n",
-		                 drm_get_format_name(state->fb->pixel_format,
+		                 drm_get_format_name(state->fb->format->format,
 		                                     &format_name));
 		return ret;
 	}
@@ -960,11 +960,11 @@ static void drm_atomic_plane_print_state(struct drm_printer *p,
 	drm_printf(p, "\tfb=%u\n", state->fb ? state->fb->base.id : 0);
 	if (state->fb) {
 		struct drm_framebuffer *fb = state->fb;
-		int i, n = drm_format_num_planes(fb->pixel_format);
+		int i, n = fb->format->num_planes;
 		struct drm_format_name_buf format_name;
 
 		drm_printf(p, "\t\tformat=%s\n",
-		              drm_get_format_name(fb->pixel_format, &format_name));
+		              drm_get_format_name(fb->format->format, &format_name));
 		drm_printf(p, "\t\t\tmodifier=0x%llx\n", fb->modifier);
 		drm_printf(p, "\t\tsize=%dx%d\n", fb->width, fb->height);
 		drm_printf(p, "\t\tlayers:\n");
@@ -1417,6 +1417,7 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	struct drm_mode_config *config = &state->dev->mode_config;
 	struct drm_connector *connector;
 	struct drm_connector_state *conn_state;
+	struct drm_connector_list_iter conn_iter;
 	int ret;
 
 	ret = drm_modeset_lock(&config->connection_mutex, state->acquire_ctx);
@@ -1430,14 +1431,18 @@ drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 	 * Changed connectors are already in @state, so only need to look at the
 	 * current configuration.
 	 */
-	drm_for_each_connector(connector, state->dev) {
+	drm_connector_list_iter_get(state->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->state->crtc != crtc)
 			continue;
 
 		conn_state = drm_atomic_get_connector_state(state, connector);
-		if (IS_ERR(conn_state))
+		if (IS_ERR(conn_state)) {
+			drm_connector_list_iter_put(&conn_iter);
 			return PTR_ERR(conn_state);
+		}
 	}
+	drm_connector_list_iter_put(&conn_iter);
 
 	return 0;
 }
@@ -1692,6 +1697,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 
 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
 		return;
@@ -1702,8 +1708,10 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p)
 	list_for_each_entry(crtc, &config->crtc_list, head)
 		drm_atomic_crtc_print_state(p, crtc->state);
 
-	list_for_each_entry(connector, &config->connector_list, head)
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter)
 		drm_atomic_connector_print_state(p, connector->state);
+	drm_connector_list_iter_put(&conn_iter);
 }
 EXPORT_SYMBOL(drm_state_dump);
 
@@ -2195,10 +2203,6 @@ retry:
 		goto out;
 
 	if (arg->flags & DRM_MODE_ATOMIC_TEST_ONLY) {
-		/*
-		 * Unlike commit, check_only does not clean up state.
-		 * Below we call drm_atomic_state_put for it.
-		 */
 		ret = drm_atomic_check_only(state);
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_nonblocking_commit(state);

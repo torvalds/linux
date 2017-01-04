@@ -145,6 +145,7 @@ struct __drm_crtcs_state {
 	struct drm_crtc_state *state;
 	struct drm_crtc_commit *commit;
 	s64 __user *out_fence_ptr;
+	unsigned last_vblank_count;
 };
 
 struct __drm_connnectors_state {
@@ -369,12 +370,6 @@ int __must_check drm_atomic_nonblocking_commit(struct drm_atomic_state *state);
 
 void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 
-#ifdef CONFIG_DEBUG_FS
-struct drm_minor;
-int drm_atomic_debugfs_init(struct drm_minor *minor);
-int drm_atomic_debugfs_cleanup(struct drm_minor *minor);
-#endif
-
 #define for_each_connector_in_state(__state, connector, connector_state, __i) \
 	for ((__i) = 0;							\
 	     (__i) < (__state)->num_connector &&				\
@@ -423,6 +418,5 @@ drm_atomic_crtc_needs_modeset(const struct drm_crtc_state *state)
 	return state->mode_changed || state->active_changed ||
 	       state->connectors_changed;
 }
-
 
 #endif /* DRM_ATOMIC_H_ */

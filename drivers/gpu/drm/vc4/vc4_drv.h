@@ -9,6 +9,8 @@
 #include "drmP.h"
 #include "drm_gem_cma_helper.h"
 
+#include <drm/drm_encoder.h>
+
 struct vc4_dev {
 	struct drm_device *dev;
 

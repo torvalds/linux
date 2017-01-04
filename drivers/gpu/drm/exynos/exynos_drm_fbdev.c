@@ -76,7 +76,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 {
 	struct fb_info *fbi;
 	struct drm_framebuffer *fb = helper->fb;
-	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
+	unsigned int size = fb->width * fb->height * fb->format->cpp[0];
 	unsigned int nr_pages;
 	unsigned long offset;
 
@@ -90,7 +90,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &exynos_drm_fb_ops;
 
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	nr_pages = exynos_gem->size >> PAGE_SHIFT;
@@ -103,7 +103,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 		return -EIO;
 	}
 
-	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
+	offset = fbi->var.xoffset * fb->format->cpp[0];
 	offset += fbi->var.yoffset * fb->pitches[0];
 
 	fbi->screen_base = exynos_gem->kvaddr + offset;

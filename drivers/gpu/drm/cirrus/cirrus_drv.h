@@ -13,6 +13,7 @@
 
 #include <video/vga.h>
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 
 #include <drm/ttm/ttm_bo_api.h>

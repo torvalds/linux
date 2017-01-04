@@ -147,7 +147,7 @@ static struct drm_fb_cma *drm_fb_cma_alloc(struct drm_device *dev,
 	if (!fb_cma)
 		return ERR_PTR(-ENOMEM);
 
-	drm_helper_mode_fill_fb_struct(&fb_cma->fb, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &fb_cma->fb, mode_cmd);
 
 	for (i = 0; i < num_planes; i++)
 		fb_cma->obj[i] = obj[i];
@@ -304,15 +304,12 @@ EXPORT_SYMBOL_GPL(drm_fb_cma_prepare_fb);
 static void drm_fb_cma_describe(struct drm_framebuffer *fb, struct seq_file *m)
 {
 	struct drm_fb_cma *fb_cma = to_fb_cma(fb);
-	const struct drm_format_info *info;
 	int i;
 
 	seq_printf(m, "fb: %dx%d@%4.4s\n", fb->width, fb->height,
-			(char *)&fb->pixel_format);
+			(char *)&fb->format->format);
 
-	info = drm_format_info(fb->pixel_format);
-
-	for (i = 0; i < info->num_planes; i++) {
+	for (i = 0; i < fb->format->num_planes; i++) {
 		seq_printf(m, "   %d: offset=%d pitch=%d, obj: ",
 				i, fb->offsets[i], fb->pitches[i]);
 		drm_gem_cma_describe(fb_cma->obj[i], m);
@@ -467,7 +464,7 @@ int drm_fbdev_cma_create_with_funcs(struct drm_fb_helper *helper,
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &drm_fbdev_cma_ops;
 
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	offset = fbi->var.xoffset * bytes_per_pixel;

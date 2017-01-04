@@ -32,7 +32,7 @@ struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 {
 	struct tegra_fb *fb = to_tegra_fb(framebuffer);
 
-	if (index >= drm_format_num_planes(framebuffer->pixel_format))
+	if (index >= framebuffer->format->num_planes)
 		return NULL;
 
 	return fb->planes[index];
@@ -114,7 +114,7 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 
 	fb->num_planes = num_planes;
 
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(drm, &fb->base, mode_cmd);
 
 	for (i = 0; i < fb->num_planes; i++)
 		fb->planes[i] = planes[i];
@@ -246,7 +246,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	info->flags = FBINFO_FLAG_DEFAULT;
 	info->fbops = &tegra_fb_ops;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, helper, fb->width, fb->height);
 
 	offset = info->var.xoffset * bytes_per_pixel +

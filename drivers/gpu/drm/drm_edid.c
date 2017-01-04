@@ -35,6 +35,7 @@
 #include <linux/vga_switcheroo.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_displayid.h>
 
 #define version_greater(edid, maj, min) \

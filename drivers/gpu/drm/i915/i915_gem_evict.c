@@ -51,7 +51,10 @@ static bool ggtt_is_idle(struct drm_i915_private *dev_priv)
 }
 
 static bool
-mark_free(struct i915_vma *vma, unsigned int flags, struct list_head *unwind)
+mark_free(struct drm_mm_scan *scan,
+	  struct i915_vma *vma,
+	  unsigned int flags,
+	  struct list_head *unwind)
 {
 	if (i915_vma_is_pinned(vma))
 		return false;
@@ -63,7 +66,7 @@ mark_free(struct i915_vma *vma, unsigned int flags, struct list_head *unwind)
 		return false;
 
 	list_add(&vma->exec_list, unwind);
-	return drm_mm_scan_add_block(&vma->node);
+	return drm_mm_scan_add_block(scan, &vma->node);
 }
 
 /**
@@ -97,6 +100,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 			 unsigned flags)
 {
 	struct drm_i915_private *dev_priv = vm->i915;
+	struct drm_mm_scan scan;
 	struct list_head eviction_list;
 	struct list_head *phases[] = {
 		&vm->inactive_list,
@@ -104,6 +108,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 		NULL,
 	}, **phase;
 	struct i915_vma *vma, *next;
+	struct drm_mm_node *node;
 	int ret;
 
 	lockdep_assert_held(&vm->i915->drm.struct_mutex);
@@ -122,12 +127,10 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	 * On each list, the oldest objects lie at the HEAD with the freshest
 	 * object on the TAIL.
 	 */
-	if (start != 0 || end != vm->total) {
-		drm_mm_init_scan_with_range(&vm->mm, min_size,
-					    alignment, cache_level,
-					    start, end);
-	} else
-		drm_mm_init_scan(&vm->mm, min_size, alignment, cache_level);
+	drm_mm_scan_init_with_range(&scan, &vm->mm,
+				    min_size, alignment, cache_level,
+				    start, end,
+				    flags & PIN_HIGH ? DRM_MM_CREATE_TOP : 0);
 
 	/* Retire before we search the active list. Although we have
 	 * reasonable accuracy in our retirement lists, we may have
@@ -144,13 +147,13 @@ search_again:
 	phase = phases;
 	do {
 		list_for_each_entry(vma, *phase, vm_link)
-			if (mark_free(vma, flags, &eviction_list))
+			if (mark_free(&scan, vma, flags, &eviction_list))
 				goto found;
 	} while (*++phase);
 
 	/* Nothing found, clean up and bail out! */
 	list_for_each_entry_safe(vma, next, &eviction_list, exec_list) {
-		ret = drm_mm_scan_remove_block(&vma->node);
+		ret = drm_mm_scan_remove_block(&scan, &vma->node);
 		BUG_ON(ret);
 
 		INIT_LIST_HEAD(&vma->exec_list);
@@ -199,7 +202,7 @@ found:
 	 * of any of our objects, thus corrupting the list).
 	 */
 	list_for_each_entry_safe(vma, next, &eviction_list, exec_list) {
-		if (drm_mm_scan_remove_block(&vma->node))
+		if (drm_mm_scan_remove_block(&scan, &vma->node))
 			__i915_vma_pin(vma);
 		else
 			list_del_init(&vma->exec_list);
@@ -216,6 +219,12 @@ found:
 		if (ret == 0)
 			ret = i915_vma_unbind(vma);
 	}
+
+	while (ret == 0 && (node = drm_mm_scan_color_evict(&scan))) {
+		vma = container_of(node, struct i915_vma, node);
+		ret = i915_vma_unbind(vma);
+	}
+
 	return ret;
 }
 

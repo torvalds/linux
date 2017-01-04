@@ -675,7 +675,7 @@ static void pineview_update_wm(struct intel_crtc *unused_crtc)
 			&crtc->config->base.adjusted_mode;
 		const struct drm_framebuffer *fb =
 			crtc->base.primary->state->fb;
-		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+		int cpp = fb->format->cpp[0];
 		int clock = adjusted_mode->crtc_clock;
 
 		/* Display SR */
@@ -750,7 +750,7 @@ static bool g4x_compute_wm0(struct drm_i915_private *dev_priv,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = crtc->config->pipe_src_w;
-	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+	cpp = fb->format->cpp[0];
 
 	/* Use the small buffer method to calculate plane watermark */
 	entries = ((clock * cpp / 1000) * display_latency_ns) / 1000;
@@ -839,7 +839,7 @@ static bool g4x_compute_srwm(struct drm_i915_private *dev_priv,
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	hdisplay = crtc->config->pipe_src_w;
-	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+	cpp = fb->format->cpp[0];
 
 	line_time_us = max(htotal * 1000 / clock, 1);
 	line_count = (latency_ns / line_time_us + 1000) / 1000;
@@ -994,7 +994,7 @@ static uint16_t vlv_compute_wm_level(const struct intel_crtc_state *crtc_state,
 	if (!plane_state->base.visible)
 		return 0;
 
-	cpp = drm_format_plane_cpp(plane_state->base.fb->pixel_format, 0);
+	cpp = plane_state->base.fb->format->cpp[0];
 	clock = adjusted_mode->crtc_clock;
 	htotal = adjusted_mode->crtc_htotal;
 	width = crtc_state->pipe_src_w;
@@ -1035,7 +1035,7 @@ static void vlv_compute_fifo(struct intel_crtc *crtc)
 
 		if (state->base.visible) {
 			wm_state->num_active_planes++;
-			total_rate += drm_format_plane_cpp(state->base.fb->pixel_format, 0);
+			total_rate += state->base.fb->format->cpp[0];
 		}
 	}
 
@@ -1054,7 +1054,7 @@ static void vlv_compute_fifo(struct intel_crtc *crtc)
 			continue;
 		}
 
-		rate = drm_format_plane_cpp(state->base.fb->pixel_format, 0);
+		rate = state->base.fb->format->cpp[0];
 		plane->wm.fifo_size = fifo_size * rate / total_rate;
 		fifo_left -= plane->wm.fifo_size;
 	}
@@ -1473,7 +1473,7 @@ static void i965_update_wm(struct intel_crtc *unused_crtc)
 		int clock = adjusted_mode->crtc_clock;
 		int htotal = adjusted_mode->crtc_htotal;
 		int hdisplay = crtc->config->pipe_src_w;
-		int cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+		int cpp = fb->format->cpp[0];
 		unsigned long line_time_us;
 		int entries;
 
@@ -1559,7 +1559,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		if (IS_GEN2(dev_priv))
 			cpp = 4;
 		else
-			cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+			cpp = fb->format->cpp[0];
 
 		planea_wm = intel_calculate_wm(adjusted_mode->crtc_clock,
 					       wm_info, fifo_size, cpp,
@@ -1586,7 +1586,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		if (IS_GEN2(dev_priv))
 			cpp = 4;
 		else
-			cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+			cpp = fb->format->cpp[0];
 
 		planeb_wm = intel_calculate_wm(adjusted_mode->crtc_clock,
 					       wm_info, fifo_size, cpp,
@@ -1639,7 +1639,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 		if (IS_I915GM(dev_priv) || IS_I945GM(dev_priv))
 			cpp = 4;
 		else
-			cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+			cpp = fb->format->cpp[0];
 
 		line_time_us = max(htotal * 1000 / clock, 1);
 
@@ -1799,12 +1799,13 @@ static uint32_t ilk_compute_pri_wm(const struct intel_crtc_state *cstate,
 				   uint32_t mem_value,
 				   bool is_lp)
 {
-	int cpp = pstate->base.fb ?
-		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 	uint32_t method1, method2;
+	int cpp;
 
 	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
+
+	cpp = pstate->base.fb->format->cpp[0];
 
 	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
 
@@ -1827,12 +1828,13 @@ static uint32_t ilk_compute_spr_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t mem_value)
 {
-	int cpp = pstate->base.fb ?
-		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
 	uint32_t method1, method2;
+	int cpp;
 
 	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
+
+	cpp = pstate->base.fb->format->cpp[0];
 
 	method1 = ilk_wm_method1(ilk_pipe_pixel_rate(cstate), cpp, mem_value);
 	method2 = ilk_wm_method2(ilk_pipe_pixel_rate(cstate),
@@ -1871,11 +1873,12 @@ static uint32_t ilk_compute_fbc_wm(const struct intel_crtc_state *cstate,
 				   const struct intel_plane_state *pstate,
 				   uint32_t pri_val)
 {
-	int cpp = pstate->base.fb ?
-		drm_format_plane_cpp(pstate->base.fb->pixel_format, 0) : 0;
+	int cpp;
 
 	if (!cstate->base.active || !pstate->base.visible)
 		return 0;
+
+	cpp = pstate->base.fb->format->cpp[0];
 
 	return ilk_wm_fbc(pri_val, drm_rect_width(&pstate->base.dst), cpp);
 }
@@ -3210,13 +3213,17 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 			     int y)
 {
 	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
-	struct drm_framebuffer *fb = pstate->fb;
 	uint32_t down_scale_amount, data_rate;
 	uint32_t width = 0, height = 0;
-	unsigned format = fb ? fb->pixel_format : DRM_FORMAT_XRGB8888;
+	struct drm_framebuffer *fb;
+	u32 format;
 
 	if (!intel_pstate->base.visible)
 		return 0;
+
+	fb = pstate->fb;
+	format = fb->format->format;
+
 	if (pstate->plane->type == DRM_PLANE_TYPE_CURSOR)
 		return 0;
 	if (y && format != DRM_FORMAT_NV12)
@@ -3232,13 +3239,13 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 	if (format == DRM_FORMAT_NV12) {
 		if (y)  /* y-plane data rate */
 			data_rate = width * height *
-				drm_format_plane_cpp(format, 0);
+				fb->format->cpp[0];
 		else    /* uv-plane data rate */
 			data_rate = (width / 2) * (height / 2) *
-				drm_format_plane_cpp(format, 1);
+				fb->format->cpp[1];
 	} else {
 		/* for packed formats */
-		data_rate = width * height * drm_format_plane_cpp(format, 0);
+		data_rate = width * height * fb->format->cpp[0];
 	}
 
 	down_scale_amount = skl_plane_downscale_amount(intel_pstate);
@@ -3302,7 +3309,7 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 		return 0;
 
 	/* For packed formats, no y-plane, return 0 */
-	if (y && fb->pixel_format != DRM_FORMAT_NV12)
+	if (y && fb->format->format != DRM_FORMAT_NV12)
 		return 0;
 
 	/* For Non Y-tile return 8-blocks */
@@ -3317,15 +3324,15 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 		swap(src_w, src_h);
 
 	/* Halve UV plane width and height for NV12 */
-	if (fb->pixel_format == DRM_FORMAT_NV12 && !y) {
+	if (fb->format->format == DRM_FORMAT_NV12 && !y) {
 		src_w /= 2;
 		src_h /= 2;
 	}
 
-	if (fb->pixel_format == DRM_FORMAT_NV12 && !y)
-		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 1);
+	if (fb->format->format == DRM_FORMAT_NV12 && !y)
+		plane_bpp = fb->format->cpp[1];
 	else
-		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 0);
+		plane_bpp = fb->format->cpp[0];
 
 	if (drm_rotation_90_or_270(pstate->rotation)) {
 		switch (plane_bpp) {
@@ -3599,13 +3606,13 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	if (drm_rotation_90_or_270(pstate->rotation))
 		swap(width, height);
 
-	cpp = drm_format_plane_cpp(fb->pixel_format, 0);
+	cpp = fb->format->cpp[0];
 	plane_pixel_rate = skl_adjusted_plane_pixel_rate(cstate, intel_pstate);
 
 	if (drm_rotation_90_or_270(pstate->rotation)) {
-		int cpp = (fb->pixel_format == DRM_FORMAT_NV12) ?
-			drm_format_plane_cpp(fb->pixel_format, 1) :
-			drm_format_plane_cpp(fb->pixel_format, 0);
+		int cpp = (fb->format->format == DRM_FORMAT_NV12) ?
+			fb->format->cpp[1] :
+			fb->format->cpp[0];
 
 		switch (cpp) {
 		case 1:

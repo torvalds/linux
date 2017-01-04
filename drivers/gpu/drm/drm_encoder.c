@@ -159,6 +159,17 @@ void drm_encoder_cleanup(struct drm_encoder *encoder)
 	 * the indices on the drm_encoder after us in the encoder_list.
 	 */
 
+	if (encoder->bridge) {
+		struct drm_bridge *bridge = encoder->bridge;
+		struct drm_bridge *next;
+
+		while (bridge) {
+			next = bridge->next;
+			drm_bridge_detach(bridge);
+			bridge = next;
+		}
+	}
+
 	drm_mode_object_unregister(dev, &encoder->base);
 	kfree(encoder->name);
 	list_del(&encoder->head);
@@ -173,10 +184,12 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 	struct drm_connector *connector;
 	struct drm_device *dev = encoder->dev;
 	bool uses_atomic = false;
+	struct drm_connector_list_iter conn_iter;
 
 	/* For atomic drivers only state objects are synchronously updated and
 	 * protected by modeset locks, so check those first. */
-	drm_for_each_connector(connector, dev) {
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (!connector->state)
 			continue;
 
@@ -185,8 +198,10 @@ static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 		if (connector->state->best_encoder != encoder)
 			continue;
 
+		drm_connector_list_iter_put(&conn_iter);
 		return connector->state->crtc;
 	}
+	drm_connector_list_iter_put(&conn_iter);
 
 	/* Don't return stale data (e.g. pending async disable). */
 	if (uses_atomic)

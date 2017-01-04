@@ -122,6 +122,10 @@ struct drm_framebuffer {
 	 */
 	struct drm_mode_object base;
 	/**
+	 * @format: framebuffer format information
+	 */
+	const struct drm_format_info *format;
+	/**
 	 * @funcs: framebuffer vfunc table
 	 */
 	const struct drm_framebuffer_funcs *funcs;
@@ -166,27 +170,10 @@ struct drm_framebuffer {
 	 */
 	unsigned int height;
 	/**
-	 * @depth: Depth in bits per pixel for RGB formats. 0 for everything
-	 * else. Legacy information derived from @pixel_format, it's suggested to use
-	 * the DRM FOURCC codes and helper functions directly instead.
-	 */
-	unsigned int depth;
-	/**
-	 * @bits_per_pixel: Storage used bits per pixel for RGB formats. 0 for
-	 * everything else. Legacy information derived from @pixel_format, it's
-	 * suggested to use the DRM FOURCC codes and helper functions directly
-	 * instead.
-	 */
-	int bits_per_pixel;
-	/**
 	 * @flags: Framebuffer flags like DRM_MODE_FB_INTERLACED or
 	 * DRM_MODE_FB_MODIFIERS.
 	 */
 	int flags;
-	/**
-	 * @pixel_format: DRM FOURCC code describing the pixel format.
-	 */
-	uint32_t pixel_format; /* fourcc format */
 	/**
 	 * @hot_x: X coordinate of the cursor hotspot. Used by the legacy cursor
 	 * IOCTL when the driver supports cursor through a DRM_PLANE_TYPE_CURSOR
@@ -282,4 +269,10 @@ static inline void drm_framebuffer_assign(struct drm_framebuffer **p,
 					  struct drm_framebuffer, head);	\
 	     &fb->head != (&(dev)->mode_config.fb_list);			\
 	     fb = list_next_entry(fb, head))
+
+int drm_framebuffer_plane_width(int width,
+				const struct drm_framebuffer *fb, int plane);
+int drm_framebuffer_plane_height(int height,
+				 const struct drm_framebuffer *fb, int plane);
+
 #endif

@@ -117,7 +117,7 @@ struct drm_display_info {
 
 	/**
 	 * @pixel_clock: Maximum pixel clock supported by the sink, in units of
-	 * 100Hz. This mismatches the clok in &drm_display_mode (which is in
+	 * 100Hz. This mismatches the clock in &drm_display_mode (which is in
 	 * kHZ), because that's what the EDID uses as base unit.
 	 */
 	unsigned int pixel_clock;
@@ -381,6 +381,8 @@ struct drm_connector_funcs {
 	 * core drm connector interfaces. Everything added from this callback
 	 * should be unregistered in the early_unregister callback.
 	 *
+	 * This is called while holding drm_connector->mutex.
+	 *
 	 * Returns:
 	 *
 	 * 0 on success, or a negative error code on failure.
@@ -395,6 +397,8 @@ struct drm_connector_funcs {
 	 * late_register(). It is called from drm_connector_unregister(),
 	 * early in the driver unload sequence to disable userspace access
 	 * before data structures are torndown.
+	 *
+	 * This is called while holding drm_connector->mutex.
 	 */
 	void (*early_unregister)(struct drm_connector *connector);
 
@@ -559,10 +563,6 @@ struct drm_cmdline_mode {
  * @interlace_allowed: can this connector handle interlaced modes?
  * @doublescan_allowed: can this connector handle doublescan?
  * @stereo_allowed: can this connector handle stereo modes?
- * @registered: is this connector exposed (registered) with userspace?
- * @modes: modes available on this connector (from fill_modes() + user)
- * @status: one of the drm_connector_status enums (connected, not, or unknown)
- * @probed_modes: list of modes derived directly from the display
  * @funcs: connector control functions
  * @edid_blob_ptr: DRM property containing EDID if present
  * @properties: property tracking for this connector
@@ -608,6 +608,13 @@ struct drm_connector {
 	char *name;
 
 	/**
+	 * @mutex: Lock for general connector state, but currently only protects
+	 * @registered. Most of the connector state is still protected by the
+	 * mutex in &drm_mode_config.
+	 */
+	struct mutex mutex;
+
+	/**
 	 * @index: Compacted connector index, which matches the position inside
 	 * the mode_config.list for drivers not supporting hot-add/removing. Can
 	 * be used as an array index. It is invariant over the lifetime of the
@@ -620,12 +627,32 @@ struct drm_connector {
 	bool interlace_allowed;
 	bool doublescan_allowed;
 	bool stereo_allowed;
+	/**
+	 * @registered: Is this connector exposed (registered) with userspace?
+	 * Protected by @mutex.
+	 */
 	bool registered;
+
+	/**
+	 * @modes:
+	 * Modes available on this connector (from fill_modes() + user).
+	 * Protected by dev->mode_config.mutex.
+	 */
 	struct list_head modes; /* list of modes on this connector */
 
+	/**
+	 * @status:
+	 * One of the drm_connector_status enums (connected, not, or unknown).
+	 * Protected by dev->mode_config.mutex.
+	 */
 	enum drm_connector_status status;
 
-	/* these are modes added by probing with DDC or the BIOS */
+	/**
+	 * @probed_modes:
+	 * These are modes added by probing with DDC or the BIOS, before
+	 * filtering is applied. Used by the probe helpers.Protected by
+	 * dev->mode_config.mutex.
+	 */
 	struct list_head probed_modes;
 
 	/**
@@ -634,6 +661,8 @@ struct drm_connector {
 	 * flat panels in embedded systems, the driver should initialize the
 	 * display_info.width_mm and display_info.height_mm fields with the
 	 * physical size of the display.
+	 *
+	 * Protected by dev->mode_config.mutex.
 	 */
 	struct drm_display_info display_info;
 	const struct drm_connector_funcs *funcs;
@@ -839,6 +868,11 @@ void drm_mode_put_tile_group(struct drm_device *dev,
  * @dev: the DRM device
  *
  * Iterate over all connectors of @dev.
+ *
+ * WARNING:
+ *
+ * This iterator is not safe against hotadd/removal of connectors and is
+ * deprecated. Use drm_for_each_connector_iter() instead.
  */
 #define drm_for_each_connector(connector, dev) \
 	for (assert_drm_connector_list_read_locked(&(dev)->mode_config),	\
@@ -846,5 +880,38 @@ void drm_mode_put_tile_group(struct drm_device *dev,
 					  struct drm_connector, head);		\
 	     &connector->head != (&(dev)->mode_config.connector_list);		\
 	     connector = list_next_entry(connector, head))
+
+/**
+ * struct drm_connector_list_iter - connector_list iterator
+ *
+ * This iterator tracks state needed to be able to walk the connector_list
+ * within struct drm_mode_config. Only use together with
+ * drm_connector_list_iter_get(), drm_connector_list_iter_put() and
+ * drm_connector_list_iter_next() respectively the convenience macro
+ * drm_for_each_connector_iter().
+ */
+struct drm_connector_list_iter {
+/* private: */
+	struct drm_device *dev;
+	struct drm_connector *conn;
+};
+
+void drm_connector_list_iter_get(struct drm_device *dev,
+				 struct drm_connector_list_iter *iter);
+struct drm_connector *
+drm_connector_list_iter_next(struct drm_connector_list_iter *iter);
+void drm_connector_list_iter_put(struct drm_connector_list_iter *iter);
+
+/**
+ * drm_for_each_connector_iter - connector_list iterator macro
+ * @connector: struct &drm_connector pointer used as cursor
+ * @iter: struct &drm_connector_list_iter
+ *
+ * Note that @connector is only valid within the list body, if you want to use
+ * @connector after calling drm_connector_list_iter_put() then you need to grab
+ * your own reference first using drm_connector_reference().
+ */
+#define drm_for_each_connector_iter(connector, iter) \
+	while ((connector = drm_connector_list_iter_next(iter)))
 
 #endif

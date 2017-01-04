@@ -583,7 +583,7 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	drm_helper_mode_fill_fb_struct(&vfbs->base.base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &vfbs->base.base, mode_cmd);
 	vfbs->surface = vmw_surface_reference(surface);
 	vfbs->base.user_handle = mode_cmd->handles[0];
 	vfbs->is_dmabuf_proxy = is_dmabuf_proxy;
@@ -864,7 +864,7 @@ static int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 		goto out_err1;
 	}
 
-	drm_helper_mode_fill_fb_struct(&vfbd->base.base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &vfbd->base.base, mode_cmd);
 	vfbd->base.dmabuf = true;
 	vfbd->buffer = vmw_dmabuf_reference(dmabuf);
 	vfbd->base.user_handle = mode_cmd->handles[0];
