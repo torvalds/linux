@@ -1268,7 +1268,7 @@ static bool iwl_mvm_disallow_offloading(struct iwl_mvm *mvm,
 	u8 tid;
 
 	if (WARN_ON(vif->type != NL80211_IFTYPE_STATION ||
-		    mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT))
+		    mvmvif->ap_sta_id == IWL_MVM_INVALID_STA))
 		return false;
 
 	mvmsta = iwl_mvm_sta_from_staid_rcu(mvm, mvmvif->ap_sta_id);
@@ -1356,7 +1356,7 @@ static void iwl_mvm_set_wowlan_data(struct iwl_mvm *mvm,
 	struct ieee80211_sta *ap_sta;
 	struct iwl_mvm_sta *mvm_ap_sta;
 
-	if (iter_data->ap_sta_id == IWL_MVM_STATION_COUNT)
+	if (iter_data->ap_sta_id == IWL_MVM_INVALID_STA)
 		return;
 
 	rcu_read_lock();
@@ -1426,7 +1426,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 		mvm->d0i3_offloading = !d0i3_iter_data.disable_offloading;
 	} else {
 		WARN_ON_ONCE(d0i3_iter_data.vif_count > 1);
-		mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+		mvm->d0i3_ap_sta_id = IWL_MVM_INVALID_STA;
 		mvm->d0i3_offloading = false;
 	}
 
@@ -1439,7 +1439,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 		return ret;
 
 	/* configure wowlan configuration only if needed */
-	if (mvm->d0i3_ap_sta_id != IWL_MVM_STATION_COUNT) {
+	if (mvm->d0i3_ap_sta_id != IWL_MVM_INVALID_STA) {
 		/* wake on beacons only if beacon storing isn't supported */
 		if (!fw_has_capa(&mvm->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_BEACON_STORING))
@@ -1516,7 +1516,7 @@ void iwl_mvm_d0i3_enable_tx(struct iwl_mvm *mvm, __le16 *qos_seq)
 
 	spin_lock_bh(&mvm->d0i3_tx_lock);
 
-	if (mvm->d0i3_ap_sta_id == IWL_MVM_STATION_COUNT)
+	if (mvm->d0i3_ap_sta_id == IWL_MVM_INVALID_STA)
 		goto out;
 
 	IWL_DEBUG_RPM(mvm, "re-enqueue packets\n");
@@ -1554,7 +1554,7 @@ out:
 	}
 	clear_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
 	wake_up(&mvm->d0i3_exit_waitq);
-	mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+	mvm->d0i3_ap_sta_id = IWL_MVM_INVALID_STA;
 	if (wake_queues)
 		ieee80211_wake_queues(mvm->hw);
 

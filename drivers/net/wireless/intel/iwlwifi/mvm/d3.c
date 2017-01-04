@@ -1208,7 +1208,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT) {
+	if (mvmvif->ap_sta_id == IWL_MVM_INVALID_STA) {
 		/* if we're not associated, this must be netdetect */
 		if (!wowlan->nd_config) {
 			ret = 1;

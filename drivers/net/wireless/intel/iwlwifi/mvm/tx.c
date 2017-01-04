@@ -598,7 +598,7 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 			   is_multicast_ether_addr(hdr->addr1)) {
 			u8 ap_sta_id = ACCESS_ONCE(mvmvif->ap_sta_id);
 
-			if (ap_sta_id != IWL_MVM_STATION_COUNT)
+			if (ap_sta_id != IWL_MVM_INVALID_STA)
 				sta_id = ap_sta_id;
 		} else if (iwl_mvm_is_dqa_supported(mvm) &&
 			   info.control.vif->type == NL80211_IFTYPE_STATION &&
@@ -896,7 +896,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
+	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_INVALID_STA))
 		return -1;
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, info, hdrlen,
@@ -1036,7 +1036,7 @@ int iwl_mvm_tx_skb(struct iwl_mvm *mvm, struct sk_buff *skb,
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
 
-	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_STATION_COUNT))
+	if (WARN_ON_ONCE(mvmsta->sta_id == IWL_MVM_INVALID_STA))
 		return -1;
 
 	memcpy(&info, skb->cb, sizeof(info));

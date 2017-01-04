@@ -841,7 +841,7 @@ void iwl_mvm_rx_mpdu_mq(struct iwl_mvm *mvm, struct napi_struct *napi,
 	if (le16_to_cpu(desc->status) & IWL_RX_MPDU_STATUS_SRC_STA_FOUND) {
 		u8 id = desc->sta_id_flags & IWL_RX_MPDU_SIF_STA_ID_MASK;
 
-		if (!WARN_ON_ONCE(id >= IWL_MVM_STATION_COUNT)) {
+		if (!WARN_ON_ONCE(id >= ARRAY_SIZE(mvm->fw_id_to_mac_id))) {
 			sta = rcu_dereference(mvm->fw_id_to_mac_id[id]);
 			if (IS_ERR(sta))
 				sta = NULL;

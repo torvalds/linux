@@ -824,7 +824,7 @@ int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool init)
 		.data = { lq, },
 	};
 
-	if (WARN_ON(lq->sta_id == IWL_MVM_STATION_COUNT))
+	if (WARN_ON(lq->sta_id == IWL_MVM_INVALID_STA))
 		return -EINVAL;
 
 	return iwl_mvm_send_cmd(mvm, &cmd);

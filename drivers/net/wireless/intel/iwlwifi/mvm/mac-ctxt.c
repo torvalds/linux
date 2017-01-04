@@ -472,9 +472,9 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
 	}
 
-	mvmvif->bcast_sta.sta_id = IWL_MVM_STATION_COUNT;
-	mvmvif->mcast_sta.sta_id = IWL_MVM_STATION_COUNT;
-	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+	mvmvif->bcast_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvmvif->mcast_sta.sta_id = IWL_MVM_INVALID_STA;
+	mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
 
 	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++)
 		mvmvif->smps_requests[i] = IEEE80211_SMPS_AUTOMATIC;

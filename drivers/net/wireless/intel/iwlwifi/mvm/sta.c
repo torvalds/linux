@@ -98,7 +98,7 @@ static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
 		reserved_ids = BIT(0);
 
 	/* Don't take rcu_read_lock() since we are protected by mvm->mutex */
-	for (sta_id = 0; sta_id < IWL_MVM_STATION_COUNT; sta_id++) {
+	for (sta_id = 0; sta_id < ARRAY_SIZE(mvm->fw_id_to_mac_id); sta_id++) {
 		if (BIT(sta_id) & reserved_ids)
 			continue;
 
@@ -106,7 +106,7 @@ static int iwl_mvm_find_free_sta_id(struct iwl_mvm *mvm,
 					       lockdep_is_held(&mvm->mutex)))
 			return sta_id;
 	}
-	return IWL_MVM_STATION_COUNT;
+	return IWL_MVM_INVALID_STA;
 }
 
 /* send station add/update command to firmware */
@@ -1235,7 +1235,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	else
 		sta_id = mvm_sta->sta_id;
 
-	if (sta_id == IWL_MVM_STATION_COUNT)
+	if (sta_id == IWL_MVM_INVALID_STA)
 		return -ENOSPC;
 
 	spin_lock_init(&mvm_sta->lock);
@@ -1317,10 +1317,10 @@ update_fw:
 
 	if (vif->type == NL80211_IFTYPE_STATION) {
 		if (!sta->tdls) {
-			WARN_ON(mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT);
+			WARN_ON(mvmvif->ap_sta_id != IWL_MVM_INVALID_STA);
 			mvmvif->ap_sta_id = sta_id;
 		} else {
-			WARN_ON(mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT);
+			WARN_ON(mvmvif->ap_sta_id == IWL_MVM_INVALID_STA);
 		}
 	}
 
@@ -1571,11 +1571,11 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 				return ret;
 
 			/* unassoc - go ahead - remove the AP STA now */
-			mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+			mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
 
 			/* clear d0i3_ap_sta_id if no longer relevant */
 			if (mvm->d0i3_ap_sta_id == sta_id)
-				mvm->d0i3_ap_sta_id = IWL_MVM_STATION_COUNT;
+				mvm->d0i3_ap_sta_id = IWL_MVM_INVALID_STA;
 		}
 	}
 
@@ -1584,7 +1584,7 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 	 * before the STA is removed.
 	 */
 	if (WARN_ON_ONCE(mvm->tdls_cs.peer.sta_id == sta_id)) {
-		mvm->tdls_cs.peer.sta_id = IWL_MVM_STATION_COUNT;
+		mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
 		cancel_delayed_work(&mvm->tdls_cs.dwork);
 	}
 
@@ -1641,7 +1641,7 @@ int iwl_mvm_allocate_int_sta(struct iwl_mvm *mvm,
 {
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		sta->sta_id = iwl_mvm_find_free_sta_id(mvm, iftype);
-		if (WARN_ON_ONCE(sta->sta_id == IWL_MVM_STATION_COUNT))
+		if (WARN_ON_ONCE(sta->sta_id == IWL_MVM_INVALID_STA))
 			return -ENOSPC;
 	}
 
@@ -1656,7 +1656,7 @@ void iwl_mvm_dealloc_int_sta(struct iwl_mvm *mvm, struct iwl_mvm_int_sta *sta)
 {
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta->sta_id], NULL);
 	memset(sta, 0, sizeof(struct iwl_mvm_int_sta));
-	sta->sta_id = IWL_MVM_STATION_COUNT;
+	sta->sta_id = IWL_MVM_INVALID_STA;
 }
 
 static int iwl_mvm_add_int_sta_common(struct iwl_mvm *mvm,
@@ -1837,7 +1837,7 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (vif->type == NL80211_IFTYPE_ADHOC)
 		baddr = vif->bss_conf.bssid;
 
-	if (WARN_ON_ONCE(bsta->sta_id == IWL_MVM_STATION_COUNT))
+	if (WARN_ON_ONCE(bsta->sta_id == IWL_MVM_INVALID_STA))
 		return -ENOSPC;
 
 	ret = iwl_mvm_add_int_sta_common(mvm, bsta, baddr,
@@ -2742,7 +2742,7 @@ static struct iwl_mvm_sta *iwl_mvm_get_key_sta(struct iwl_mvm *mvm,
 	 * station ID, then use AP's station ID.
 	 */
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
+	    mvmvif->ap_sta_id != IWL_MVM_INVALID_STA) {
 		u8 sta_id = mvmvif->ap_sta_id;
 
 		sta = rcu_dereference_check(mvm->fw_id_to_mac_id[sta_id],
@@ -2954,7 +2954,7 @@ static inline u8 *iwl_mvm_get_mac_addr(struct iwl_mvm *mvm,
 		return sta->addr;
 
 	if (vif->type == NL80211_IFTYPE_STATION &&
-	    mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
+	    mvmvif->ap_sta_id != IWL_MVM_INVALID_STA) {
 		u8 sta_id = mvmvif->ap_sta_id;
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[sta_id],
 						lockdep_is_held(&mvm->mutex));
@@ -3151,7 +3151,7 @@ int iwl_mvm_remove_sta_key(struct iwl_mvm *mvm,
 {
 	bool mcast = !(keyconf->flags & IEEE80211_KEY_FLAG_PAIRWISE);
 	struct iwl_mvm_sta *mvm_sta;
-	u8 sta_id = IWL_MVM_STATION_COUNT;
+	u8 sta_id = IWL_MVM_INVALID_STA;
 	int ret, i;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -3408,7 +3408,7 @@ void iwl_mvm_modify_all_sta_disable_tx(struct iwl_mvm *mvm,
 	lockdep_assert_held(&mvm->mutex);
 
 	/* Block/unblock all the stations of the given mvmvif */
-	for (i = 0; i < IWL_MVM_STATION_COUNT; i++) {
+	for (i = 0; i < ARRAY_SIZE(mvm->fw_id_to_mac_id); i++) {
 		sta = rcu_dereference_protected(mvm->fw_id_to_mac_id[i],
 						lockdep_is_held(&mvm->mutex));
 		if (IS_ERR_OR_NULL(sta))
