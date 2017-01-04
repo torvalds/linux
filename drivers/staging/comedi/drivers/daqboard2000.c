@@ -256,9 +256,6 @@ static const struct daq200_boardtype boardtypes[] = {
 };
 
 struct daqboard2000_private {
-	enum {
-		card_daqboard_2000
-	} card;
 	void __iomem *plx;
 };
 
