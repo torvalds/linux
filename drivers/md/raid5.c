@@ -863,6 +863,43 @@ static int use_new_offset(struct r5conf *conf, struct stripe_head *sh)
 	return 1;
 }
 
+static void flush_deferred_bios(struct r5conf *conf)
+{
+	struct bio_list tmp;
+	struct bio *bio;
+
+	if (!conf->batch_bio_dispatch || !conf->group_cnt)
+		return;
+
+	bio_list_init(&tmp);
+	spin_lock(&conf->pending_bios_lock);
+	bio_list_merge(&tmp, &conf->pending_bios);
+	bio_list_init(&conf->pending_bios);
+	spin_unlock(&conf->pending_bios_lock);
+
+	while ((bio = bio_list_pop(&tmp)))
+		generic_make_request(bio);
+}
+
+static void defer_bio_issue(struct r5conf *conf, struct bio *bio)
+{
+	/*
+	 * change group_cnt will drain all bios, so this is safe
+	 *
+	 * A read generally means a read-modify-write, which usually means a
+	 * randwrite, so we don't delay it
+	 */
+	if (!conf->batch_bio_dispatch || !conf->group_cnt ||
+	    bio_op(bio) == REQ_OP_READ) {
+		generic_make_request(bio);
+		return;
+	}
+	spin_lock(&conf->pending_bios_lock);
+	bio_list_add(&conf->pending_bios, bio);
+	spin_unlock(&conf->pending_bios_lock);
+	md_wakeup_thread(conf->mddev->thread);
+}
+
 static void
 raid5_end_read_request(struct bio *bi);
 static void
@@ -1043,7 +1080,7 @@ again:
 				trace_block_bio_remap(bdev_get_queue(bi->bi_bdev),
 						      bi, disk_devt(conf->mddev->gendisk),
 						      sh->dev[i].sector);
-			generic_make_request(bi);
+			defer_bio_issue(conf, bi);
 		}
 		if (rrdev) {
 			if (s->syncing || s->expanding || s->expanded
@@ -1088,7 +1125,7 @@ again:
 				trace_block_bio_remap(bdev_get_queue(rbi->bi_bdev),
 						      rbi, disk_devt(conf->mddev->gendisk),
 						      sh->dev[i].sector);
-			generic_make_request(rbi);
+			defer_bio_issue(conf, rbi);
 		}
 		if (!rdev && !rrdev) {
 			if (op_is_write(op))
@@ -6126,6 +6163,8 @@ static void raid5d(struct md_thread *thread)
 		mutex_unlock(&conf->cache_size_mutex);
 	}
 
+	flush_deferred_bios(conf);
+
 	r5l_flush_stripe_to_raid(conf->log);
 
 	async_tx_issue_pending_all();
@@ -6711,6 +6750,18 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 	atomic_set(&conf->active_stripes, 0);
 	atomic_set(&conf->preread_active_stripes, 0);
 	atomic_set(&conf->active_aligned_reads, 0);
+	bio_list_init(&conf->pending_bios);
+	spin_lock_init(&conf->pending_bios_lock);
+	conf->batch_bio_dispatch = true;
+	rdev_for_each(rdev, mddev) {
+		if (test_bit(Journal, &rdev->flags))
+			continue;
+		if (blk_queue_nonrot(bdev_get_queue(rdev->bdev))) {
+			conf->batch_bio_dispatch = false;
+			break;
+		}
+	}
+
 	conf->bypass_threshold = BYPASS_THRESHOLD;
 	conf->recovery_disabled = mddev->recovery_disabled - 1;
 
