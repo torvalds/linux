@@ -4888,6 +4888,13 @@ static void inet6_ifa_notify(int event, struct inet6_ifaddr *ifa)
 	struct net *net = dev_net(ifa->idev->dev);
 	int err = -ENOBUFS;
 
+	/* Don't send DELADDR notification for TENTATIVE address,
+	 * since NEWADDR notification is sent only after removing
+	 * TENTATIVE flag.
+	 */
+	if (ifa->flags & IFA_F_TENTATIVE && event == RTM_DELADDR)
+		return;
+
 	skb = nlmsg_new(inet6_ifaddr_msgsize(), GFP_ATOMIC);
 	if (!skb)
 		goto errout;
