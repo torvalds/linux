@@ -39,6 +39,17 @@
 
 	};
 
+	hdmi-out {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con: endpoint {
+				remote-endpoint = <&hdmi_out>;
+			};
+		};
+	};
+
 	soc {
 		rpm@108000 {
 			regulators {
@@ -361,6 +372,39 @@
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&riva_wlan_pin_a>, <&riva_bt_pin_a>, <&riva_fm_pin_a>;
+		};
+
+		hdmi-tx@4a00000 {
+			status = "okay";
+			core-vdda-supply = <&pm8921_hdmi_switch>;
+			hdmi-mux-supply = <&vcc3v3>;
+
+			hpd-gpio = <&tlmm_pinmux 72 GPIO_ACTIVE_HIGH>;
+
+			ports {
+				port@1 {
+					endpoint {
+						remote-endpoint = <&hdmi_con>;
+					};
+				};
+			};
+		};
+
+		hdmi-phy@4a00400 {
+			status = "okay";
+			core-vdda-supply = <&pm8921_hdmi_switch>;
+		};
+
+		mdp@5100000 {
+			status = "okay";
+
+			ports {
+				port@3 {
+					endpoint {
+						remote-endpoint = <&hdmi_in>;
+					};
+				};
+			};
 		};
 	};
 };
