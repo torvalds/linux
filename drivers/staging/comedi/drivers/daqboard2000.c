@@ -240,7 +240,10 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 
 /* CPLD status bits */
 #define DB2K_CPLD_STATUS_INIT				0x0002
-#define DB2K_CPLD_STATUS_TXDONE				0x0004
+#define DB2K_CPLD_STATUS_TXREADY			0x0004
+#define DB2K_CPLD_VERSION_MASK				0xf000
+/* "New CPLD" signature. */
+#define DB2K_CPLD_VERSION_NEW				0x5000
 
 struct daq200_boardtype {
 	const char *name;
@@ -489,14 +492,35 @@ static int daqboard2000_wait_cpld_init(struct comedi_device *dev)
 	return result;
 }
 
-static int daqboard2000_write_cpld(struct comedi_device *dev, u16 data)
+static int daqboard2000_wait_cpld_txready(struct comedi_device *dev)
 {
-	int result = -EIO;
+	int i;
 
-	usleep_range(10, 20);
+	for (i = 0; i < 100; i++) {
+		if (readw(dev->mmio + DB2K_REG_CPLD_STATUS) &
+		    DB2K_CPLD_STATUS_TXREADY) {
+			return 0;
+		}
+		udelay(1);
+	}
+	return -ETIMEDOUT;
+}
+
+static int daqboard2000_write_cpld(struct comedi_device *dev, u16 data,
+				   bool new_cpld)
+{
+	int result = 0;
+
+	if (new_cpld) {
+		result = daqboard2000_wait_cpld_txready(dev);
+		if (result)
+			return result;
+	} else {
+		usleep_range(10, 20);
+	}
 	writew(data, dev->mmio + DB2K_REG_CPLD_WDATA);
-	if (readw(dev->mmio + DB2K_REG_CPLD_STATUS) & DB2K_CPLD_STATUS_INIT)
-		result = 0;
+	if (!(readw(dev->mmio + DB2K_REG_CPLD_STATUS) & DB2K_CPLD_STATUS_INIT))
+		result = -EIO;
 
 	return result;
 }
@@ -527,6 +551,7 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 	u32 cntrl;
 	int retry;
 	size_t i;
+	bool new_cpld;
 
 	/* Look for FPGA start sequence in firmware. */
 	for (i = 0; i + 1 < len; i++) {
@@ -561,10 +586,12 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 		if (result)
 			continue;
 
+		new_cpld = (readw(dev->mmio + DB2K_REG_CPLD_STATUS) &
+			    DB2K_CPLD_VERSION_MASK) == DB2K_CPLD_VERSION_NEW;
 		for (; i < len; i += 2) {
 			u16 data = (cpld_array[i] << 8) + cpld_array[i + 1];
 
-			result = daqboard2000_write_cpld(dev, data);
+			result = daqboard2000_write_cpld(dev, data, new_cpld);
 			if (result)
 				break;
 		}
