@@ -3342,6 +3342,8 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 
 	switch (cap->cap) {
 	case KVM_CAP_HYPERV_SYNIC:
+		if (!irqchip_in_kernel(vcpu->kvm))
+			return -EINVAL;
 		return kvm_hv_activate_synic(vcpu);
 	default:
 		return -EINVAL;
