@@ -455,6 +455,7 @@ void __init setup_arch(char **cmdline_p)
 
 	mem_reserve(__pa(&_stext), __pa(&_end));
 
+#ifdef CONFIG_VECTORS_OFFSET
 	mem_reserve(__pa(&_WindowVectors_text_start),
 		    __pa(&_WindowVectors_text_end));
 
@@ -490,6 +491,8 @@ void __init setup_arch(char **cmdline_p)
 	mem_reserve(__pa(&_Level6InterruptVector_text_start),
 		    __pa(&_Level6InterruptVector_text_end));
 #endif
+
+#endif /* CONFIG_VECTORS_OFFSET */
 
 #ifdef CONFIG_SMP
 	mem_reserve(__pa(&_SecondaryResetVector_text_start),
