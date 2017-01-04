@@ -885,7 +885,7 @@ static int amdgpu_atombios_init(struct amdgpu_device *adev)
 		atom_card_info->ioreg_read = cail_ioreg_read;
 		atom_card_info->ioreg_write = cail_ioreg_write;
 	} else {
-		DRM_ERROR("Unable to find PCI I/O BAR; using MMIO for ATOM IIO\n");
+		DRM_INFO("PCI I/O BAR is not found. Using MMIO to access ATOM BIOS\n");
 		atom_card_info->ioreg_read = cail_reg_read;
 		atom_card_info->ioreg_write = cail_reg_write;
 	}
@@ -1694,7 +1694,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 		}
 	}
 	if (adev->rio_mem == NULL)
-		DRM_ERROR("Unable to find PCI I/O BAR\n");
+		DRM_INFO("PCI I/O BAR is not found.\n");
 
 	/* early init functions */
 	r = amdgpu_early_init(adev);
