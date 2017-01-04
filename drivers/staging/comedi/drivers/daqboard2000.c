@@ -253,12 +253,12 @@ struct db2k_boardtype {
 
 static const struct db2k_boardtype db2k_boardtypes[] = {
 	{
-		.name		= "ids2",
+		.name		= "daqboard2000",
 		.id		= DB2K_SUBSYSTEM_IDS2,
 		.has_2_ao	= true,
 	},
 	{
-		.name		= "ids4",
+		.name		= "daqboard2001",
 		.id		= DB2K_SUBSYSTEM_IDS4,
 	},
 };
