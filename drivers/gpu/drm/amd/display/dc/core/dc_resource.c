@@ -1490,9 +1490,10 @@ static void set_avi_info_frame(
 	info_packet->hb2 =
 		info_frame.avi_info_packet.info_packet_hdmi.packet_raw_data.hb2;
 
-	for (byte_index = 0; byte_index < sizeof(info_packet->sb); byte_index++)
+	for (byte_index = 0; byte_index < sizeof(info_frame.avi_info_packet.
+				info_packet_hdmi.packet_raw_data.sb); byte_index++)
 		info_packet->sb[byte_index] = info_frame.avi_info_packet.
-		info_packet_hdmi.packet_raw_data.sb[byte_index];
+				info_packet_hdmi.packet_raw_data.sb[byte_index];
 
 	info_packet->valid = true;
 }
