@@ -1276,6 +1276,10 @@
 #define DBGLARPTR_M    0x7fU
 #define DBGLARPTR_V(x) ((x) << DBGLARPTR_S)
 
+#define CRXPKTENC_S    3
+#define CRXPKTENC_V(x) ((x) << CRXPKTENC_S)
+#define CRXPKTENC_F    CRXPKTENC_V(1U)
+
 #define TP_DBG_LA_DATAL_A	0x7ed8
 #define TP_DBG_LA_CONFIG_A	0x7ed4
 #define TP_OUT_CONFIG_A		0x7d04
