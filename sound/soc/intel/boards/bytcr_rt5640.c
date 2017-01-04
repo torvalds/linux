@@ -142,7 +142,7 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		 * for Jack detection and button press
 		 */
 		ret = snd_soc_dai_set_sysclk(codec_dai, RT5640_SCLK_S_RCCLK,
-					     0,
+					     48000 * 512,
 					     SND_SOC_CLOCK_IN);
 		if (!ret) {
 			if ((byt_rt5640_quirk & BYT_RT5640_MCLK_EN) && priv->mclk)
