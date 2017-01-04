@@ -5,7 +5,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ls_exp_gpio_f>;
 
-	ls_exp_gpio_f: pm8916_mpp4 {
+	ls_exp_gpio_f: pm8994_gpio5 {
 		pinconf {
 			pins = "gpio5";
 			output-low;
