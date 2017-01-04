@@ -185,45 +185,6 @@ static bool setup_custom_float(
 	return true;
 }
 
-static bool convert_to_custom_float_format_ex(
-	struct fixed31_32 value,
-	const struct custom_float_format *format,
-	struct custom_float_value *result)
-{
-	return build_custom_float(
-		value, format,
-		&result->negative, &result->mantissa, &result->exponenta) &&
-	setup_custom_float(
-		format, result->negative, result->mantissa, result->exponenta,
-		&result->value);
-}
-
-static bool round_custom_float_6_12(
-	struct hw_x_point *x)
-{
-	struct custom_float_format fmt;
-
-	struct custom_float_value value;
-
-	fmt.exponenta_bits = 6;
-	fmt.mantissa_bits = 12;
-	fmt.sign = true;
-
-	if (!convert_to_custom_float_format_ex(
-		x->x, &fmt, &value))
-		return false;
-
-	x->adjusted_x = x->x;
-
-	if (value.mantissa) {
-		BREAK_TO_DEBUGGER();
-
-		return false;
-	}
-
-	return true;
-}
-
 static bool build_hw_curve_configuration(
 	const struct curve_config *curve_config,
 	struct gamma_curve *gamma_curve,
