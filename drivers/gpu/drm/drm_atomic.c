@@ -1599,10 +1599,8 @@ EXPORT_SYMBOL(drm_atomic_check_only);
  * more locks but encountered a deadlock. The caller must then do the usual w/w
  * backoff dance and restart. All other errors are fatal.
  *
- * Also note that on successful execution ownership of @state is transferred
- * from the caller of this function to the function itself. The caller must not
- * free or in any other way access @state. If the function fails then the caller
- * must clean up @state itself.
+ * This function will take its own reference on @state.
+ * Callers should always release their reference with drm_atomic_state_put().
  *
  * Returns:
  * 0 on success, negative error code on failure.
@@ -1630,10 +1628,8 @@ EXPORT_SYMBOL(drm_atomic_commit);
  * more locks but encountered a deadlock. The caller must then do the usual w/w
  * backoff dance and restart. All other errors are fatal.
  *
- * Also note that on successful execution ownership of @state is transferred
- * from the caller of this function to the function itself. The caller must not
- * free or in any other way access @state. If the function fails then the caller
- * must clean up @state itself.
+ * This function will take its own reference on @state.
+ * Callers should always release their reference with drm_atomic_state_put().
  *
  * Returns:
  * 0 on success, negative error code on failure.
