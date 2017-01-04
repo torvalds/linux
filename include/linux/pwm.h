@@ -287,8 +287,6 @@ struct pwm_ops {
  * @pwms: array of PWM devices allocated by the framework
  * @of_xlate: request a PWM device given a device tree PWM specifier
  * @of_pwm_n_cells: number of cells expected in the device tree PWM specifier
- * @can_sleep: must be true if the .config(), .enable() or .disable()
- *             operations may sleep
  */
 struct pwm_chip {
 	struct device *dev;
@@ -302,7 +300,6 @@ struct pwm_chip {
 	struct pwm_device * (*of_xlate)(struct pwm_chip *pc,
 					const struct of_phandle_args *args);
 	unsigned int of_pwm_n_cells;
-	bool can_sleep;
 };
 
 /**
