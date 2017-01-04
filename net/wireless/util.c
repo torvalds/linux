@@ -136,12 +136,11 @@ struct ieee80211_channel *ieee80211_get_channel(struct wiphy *wiphy, int freq)
 }
 EXPORT_SYMBOL(ieee80211_get_channel);
 
-static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
-				     enum nl80211_band band)
+static void set_mandatory_flags_band(struct ieee80211_supported_band *sband)
 {
 	int i, want;
 
-	switch (band) {
+	switch (sband->band) {
 	case NL80211_BAND_5GHZ:
 		want = 3;
 		for (i = 0; i < sband->n_bitrates; i++) {
@@ -191,6 +190,7 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 		WARN_ON((sband->ht_cap.mcs.rx_mask[0] & 0x1e) != 0x1e);
 		break;
 	case NUM_NL80211_BANDS:
+	default:
 		WARN_ON(1);
 		break;
 	}
@@ -202,7 +202,7 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy)
 
 	for (band = 0; band < NUM_NL80211_BANDS; band++)
 		if (wiphy->bands[band])
-			set_mandatory_flags_band(wiphy->bands[band], band);
+			set_mandatory_flags_band(wiphy->bands[band]);
 }
 
 bool cfg80211_supported_cipher_suite(struct wiphy *wiphy, u32 cipher)
