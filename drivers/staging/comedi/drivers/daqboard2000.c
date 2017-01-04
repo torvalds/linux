@@ -511,6 +511,26 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 	int retry;
 	size_t i;
 
+	/* Look for FPGA start sequence in firmware. */
+	for (i = 0; i + 1 < len; i++) {
+		if (cpld_array[i] == 0xff && cpld_array[i + 1] == 0x20)
+			break;
+	}
+	if (i + 1 >= len) {
+		dev_err(dev->class_dev, "bad firmware - no start sequence\n");
+		return -EINVAL;
+	}
+	/* Check length is even. */
+	if ((len - i) & 1) {
+		dev_err(dev->class_dev,
+			"bad firmware - odd length (%zu = %zu - %zu)\n",
+			len - i, len, i);
+		return -EINVAL;
+	}
+	/* Strip firmware header. */
+	cpld_array += i;
+	len -= i;
+
 	/* Check to make sure the serial eeprom is present on the board */
 	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
 	if (!(cntrl & PLX_CNTRL_EEPRESENT))
@@ -521,11 +541,6 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 		daqboard2000_reload_plx(dev);
 		daqboard2000_pulse_prog_pin(dev);
 		if (daqboard2000_poll_cpld(dev, DB2K_CPLD_STATUS_INIT)) {
-			for (i = 0; i < len; i++) {
-				if (cpld_array[i] == 0xff &&
-				    cpld_array[i + 1] == 0x20)
-					break;
-			}
 			for (; i < len; i += 2) {
 				u16 data =
 				    (cpld_array[i] << 8) + cpld_array[i + 1];
