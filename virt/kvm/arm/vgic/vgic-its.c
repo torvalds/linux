@@ -1213,6 +1213,33 @@ static unsigned long vgic_mmio_read_its_creadr(struct kvm *kvm,
 	return extract_bytes(its->creadr, addr & 0x7, len);
 }
 
+static int vgic_mmio_uaccess_write_its_creadr(struct kvm *kvm,
+					      struct vgic_its *its,
+					      gpa_t addr, unsigned int len,
+					      unsigned long val)
+{
+	u32 cmd_offset;
+	int ret = 0;
+
+	mutex_lock(&its->cmd_lock);
+
+	if (its->enabled) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	cmd_offset = ITS_CMD_OFFSET(val);
+	if (cmd_offset >= ITS_CMD_BUFFER_SIZE(its->cbaser)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	its->creadr = cmd_offset;
+out:
+	mutex_unlock(&its->cmd_lock);
+	return ret;
+}
+
 #define BASER_INDEX(addr) (((addr) / sizeof(u64)) & 0x7)
 static unsigned long vgic_mmio_read_its_baser(struct kvm *kvm,
 					      struct vgic_its *its,
@@ -1317,6 +1344,16 @@ static void vgic_mmio_write_its_ctlr(struct kvm *kvm, struct vgic_its *its,
 	.its_write = wr,					\
 }
 
+#define REGISTER_ITS_DESC_UACCESS(off, rd, wr, uwr, length, acc)\
+{								\
+	.reg_offset = off,					\
+	.len = length,						\
+	.access_flags = acc,					\
+	.its_read = rd,						\
+	.its_write = wr,					\
+	.uaccess_its_write = uwr,				\
+}
+
 static void its_mmio_write_wi(struct kvm *kvm, struct vgic_its *its,
 			      gpa_t addr, unsigned int len, unsigned long val)
 {
@@ -1339,8 +1376,9 @@ static struct vgic_register_region its_registers[] = {
 	REGISTER_ITS_DESC(GITS_CWRITER,
 		vgic_mmio_read_its_cwriter, vgic_mmio_write_its_cwriter, 8,
 		VGIC_ACCESS_64bit | VGIC_ACCESS_32bit),
-	REGISTER_ITS_DESC(GITS_CREADR,
-		vgic_mmio_read_its_creadr, its_mmio_write_wi, 8,
+	REGISTER_ITS_DESC_UACCESS(GITS_CREADR,
+		vgic_mmio_read_its_creadr, its_mmio_write_wi,
+		vgic_mmio_uaccess_write_its_creadr, 8,
 		VGIC_ACCESS_64bit | VGIC_ACCESS_32bit),
 	REGISTER_ITS_DESC(GITS_BASER,
 		vgic_mmio_read_its_baser, vgic_mmio_write_its_baser, 0x40,
