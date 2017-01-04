@@ -113,9 +113,6 @@
 
 #define DB2K_FIRMWARE		"daqboard2000_firmware.bin"
 
-#define DB2K_SUBSYSTEM_IDS2	0x0002	/* Daqboard/2000 - 2 Dacs */
-#define DB2K_SUBSYSTEM_IDS4	0x0004	/* Daqboard/2001 - 4 Dacs */
-
 static const struct comedi_lrange db2k_ai_range = {
 	13, {
 		BIP_RANGE(10),
@@ -245,21 +242,23 @@ static const struct comedi_lrange db2k_ai_range = {
 /* "New CPLD" signature. */
 #define DB2K_CPLD_VERSION_NEW				0x5000
 
+enum db2k_boardid {
+	BOARD_DAQBOARD2000,
+	BOARD_DAQBOARD2001
+};
+
 struct db2k_boardtype {
 	const char *name;
-	int id;
 	bool has_2_ao:1;	/* false: 4 AO chans; true: 2 AO chans */
 };
 
 static const struct db2k_boardtype db2k_boardtypes[] = {
-	{
+	[BOARD_DAQBOARD2000] = {
 		.name		= "daqboard2000",
-		.id		= DB2K_SUBSYSTEM_IDS2,
 		.has_2_ao	= true,
 	},
-	{
+	[BOARD_DAQBOARD2001] = {
 		.name		= "daqboard2001",
-		.id		= DB2K_SUBSYSTEM_IDS4,
 	},
 };
 
@@ -690,25 +689,7 @@ static int db2k_8255_cb(struct comedi_device *dev, int dir, int port, int data,
 	return readw(dev->mmio + iobase + port * 2);
 }
 
-static const void *db2k_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
-{
-	const struct db2k_boardtype *board;
-	int i;
-
-	if (pcidev->subsystem_vendor != PCI_VENDOR_ID_IOTECH)
-		return NULL;
-
-	for (i = 0; i < ARRAY_SIZE(db2k_boardtypes); i++) {
-		board = &db2k_boardtypes[i];
-		if (pcidev->subsystem_device == board->id)
-			return board;
-	}
-	return NULL;
-}
-
-static int db2k_auto_attach(struct comedi_device *dev,
-			    unsigned long context_unused)
+static int db2k_auto_attach(struct comedi_device *dev, unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct db2k_boardtype *board;
@@ -716,8 +697,10 @@ static int db2k_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int result;
 
-	board = db2k_find_boardinfo(dev, pcidev);
-	if (!board)
+	if (context >= ARRAY_SIZE(db2k_boardtypes))
+		return -ENODEV;
+	board = &db2k_boardtypes[context];
+	if (!board->name)
 		return -ENODEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
@@ -796,7 +779,10 @@ static int db2k_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static const struct pci_device_id db2k_pci_table[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_IOTECH, 0x0409) },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_IOTECH, 0x0409, PCI_VENDOR_ID_IOTECH,
+			 0x0002), .driver_data = BOARD_DAQBOARD2000, },
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_IOTECH, 0x0409, PCI_VENDOR_ID_IOTECH,
+			 0x0004), .driver_data = BOARD_DAQBOARD2001, },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, db2k_pci_table);
