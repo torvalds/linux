@@ -610,6 +610,51 @@ error:
 	return ret ? : -ENOENT;
 }
 
+/*
+ * Rename DWARF symbols to ELF symbols -- gcc sometimes optimizes functions
+ * and generate new symbols with suffixes such as .constprop.N or .isra.N
+ * etc. Since those symbols are not recorded in DWARF, we have to find
+ * correct generated symbols from offline ELF binary.
+ * For online kernel or uprobes we don't need this because those are
+ * rebased on _text, or already a section relative address.
+ */
+static int
+post_process_offline_probe_trace_events(struct probe_trace_event *tevs,
+					int ntevs, const char *pathname)
+{
+	struct symbol *sym;
+	struct map *map;
+	unsigned long stext = 0;
+	u64 addr;
+	int i;
+
+	/* Prepare a map for offline binary */
+	map = dso__new_map(pathname);
+	if (!map || get_text_start_address(pathname, &stext) < 0) {
+		pr_warning("Failed to get ELF symbols for %s\n", pathname);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ntevs; i++) {
+		addr = tevs[i].point.address + tevs[i].point.offset - stext;
+		sym = map__find_symbol(map, addr);
+		if (!sym)
+			continue;
+		if (!strcmp(sym->name, tevs[i].point.symbol))
+			continue;
+		/* If we have no realname, use symbol for it */
+		if (!tevs[i].point.realname)
+			tevs[i].point.realname = tevs[i].point.symbol;
+		else
+			free(tevs[i].point.symbol);
+		tevs[i].point.symbol = strdup(sym->name);
+		tevs[i].point.offset = addr - sym->start;
+	}
+	map__put(map);
+
+	return 0;
+}
+
 static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
 					  int ntevs, const char *exec)
 {
@@ -671,7 +716,8 @@ post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
 
 	/* Skip post process if the target is an offline kernel */
 	if (symbol_conf.ignore_vmlinux_buildid)
-		return 0;
+		return post_process_offline_probe_trace_events(tevs, ntevs,
+						symbol_conf.vmlinux_name);
 
 	reloc_sym = kernel_get_ref_reloc_sym();
 	if (!reloc_sym) {
