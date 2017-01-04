@@ -1304,15 +1304,7 @@
 		interrupt-names = "JOB", "MMU", "GPU";
 		clocks = <&cru ACLK_GPU>;
 		clock-names = "clk_mali";
-		operating-points = <
-			/* KHz uV */
-			600000 1250000
-			/* 500000 1200000 - See crosbug.com/p/33857 */
-			400000 1100000
-			300000 1000000
-			200000 950000
-			100000 950000
-		>;
+		operating-points-v2 = <&gpu_opp_table>;
 		#cooling-cells = <2>; /* min followed by max */
 		power-domains = <&power RK3288_PD_GPU>;
 		status = "disabled";
@@ -1325,6 +1317,31 @@
 			dynamic-power = <396>;
 			ts = <32000 4700 (-80) 2>;
 			thermal-zone = "gpu_thermal";
+		};
+	};
+
+	gpu_opp_table: opp-table1 {
+		compatible = "operating-points-v2";
+
+		opp@100000000 {
+			opp-hz = /bits/ 64 <100000000>;
+			opp-microvolt = <950000>;
+		};
+		opp@200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <950000>;
+		};
+		opp@300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp@400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <1100000>;
+		};
+		opp@600000000 {
+			opp-hz = /bits/ 64 <600000000>;
+			opp-microvolt = <1250000>;
 		};
 	};
 
