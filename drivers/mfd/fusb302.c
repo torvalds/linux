@@ -300,6 +300,9 @@ static void fusb_timer_start(struct hrtimer *timer, int ms)
 static void platform_set_vbus_lvl_enable(struct fusb30x_chip *chip, int vbus_5v,
 					 int vbus_other)
 {
+	bool gpio_vbus_value = 0;
+
+	gpio_vbus_value = gpiod_get_value(chip->gpio_vbus_5v);
 	if (chip->gpio_vbus_5v) {
 		gpiod_set_raw_value(chip->gpio_vbus_5v, vbus_5v);
 		/* Only set state here, don't sync notifier to PMIC */
@@ -312,6 +315,12 @@ static void platform_set_vbus_lvl_enable(struct fusb30x_chip *chip, int vbus_5v,
 
 	if (chip->gpio_vbus_other)
 		gpiod_set_raw_value(chip->gpio_vbus_5v, vbus_other);
+
+	if (chip->gpio_discharge && !vbus_5v && gpio_vbus_value) {
+		gpiod_set_value(chip->gpio_discharge, 1);
+		msleep(20);
+		gpiod_set_value(chip->gpio_discharge, 0);
+	}
 }
 
 static void set_state(struct fusb30x_chip *chip, enum connection_state state)
@@ -786,7 +795,11 @@ static void set_state_unattached(struct fusb30x_chip *chip)
 	memset(&chip->notify, 0, sizeof(struct notify_info));
 	platform_fusb_notify(chip);
 
+	if (chip->gpio_discharge)
+		gpiod_set_value(chip->gpio_discharge, 1);
 	msleep(100);
+	if (chip->gpio_discharge)
+		gpiod_set_value(chip->gpio_discharge, 0);
 }
 
 static int tcpm_check_vbus(struct fusb30x_chip *chip)
@@ -2278,6 +2291,14 @@ static int fusb_initialize_gpio(struct fusb30x_chip *chip)
 	else
 		gpiod_set_raw_value(chip->gpio_vbus_other, 0);
 
+	chip->gpio_discharge = devm_gpiod_get_optional(chip->dev, "discharge",
+						       GPIOD_OUT_LOW);
+	if (IS_ERR(chip->gpio_discharge)) {
+		dev_warn(chip->dev,
+			 "Could not get named GPIO for discharge!\n");
+		chip->gpio_discharge = NULL;
+	}
+
 	return 0;
 }
 
@@ -2503,6 +2524,19 @@ static int fusb30x_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void fusb30x_shutdown(struct i2c_client *client)
+{
+	struct fusb30x_chip *chip = i2c_get_clientdata(client);
+
+	if (chip->gpio_vbus_5v)
+		gpiod_set_value(chip->gpio_vbus_5v, 0);
+	if (chip->gpio_discharge) {
+		gpiod_set_value(chip->gpio_discharge, 1);
+		msleep(100);
+		gpiod_set_value(chip->gpio_discharge, 0);
+	}
+}
+
 static const struct of_device_id fusb30x_dt_match[] = {
 	{ .compatible = FUSB30X_I2C_DEVICETREE_NAME },
 	{},
@@ -2522,6 +2556,7 @@ static struct i2c_driver fusb30x_driver = {
 	},
 	.probe = fusb30x_probe,
 	.remove = fusb30x_remove,
+	.shutdown = fusb30x_shutdown,
 	.id_table = fusb30x_i2c_device_id,
 };
 
