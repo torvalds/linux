@@ -69,8 +69,6 @@ static inline int rtw_netif_queue_stopped(struct net_device *pnetdev)
 		netif_tx_queue_stopped(netdev_get_tx_queue(pnetdev, 3));
 }
 
-int RTW_STATUS_CODE(int error_code);
-
 #define rtw_update_mem_stat(flag, sz) do {} while (0)
 u8 *_rtw_malloc(u32 sz);
 #define rtw_malloc(sz)			_rtw_malloc((sz))
