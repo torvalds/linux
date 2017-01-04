@@ -222,7 +222,8 @@ static int etm4_parse_event_config(struct etmv4_drvdata *drvdata,
 		config->ccctlr = ETM_CYC_THRESHOLD_DEFAULT;
 	}
 	if (attr->config & BIT(ETM_OPT_TS))
-		config->cfg |= ETMv4_MODE_TIMESTAMP;
+		/* bit[11], Global timestamp tracing bit */
+		config->cfg |= BIT(11);
 
 out:
 	return ret;
