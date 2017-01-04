@@ -871,6 +871,11 @@ static irqreturn_t analogix_dp_irq_thread(int irq, void *arg)
 	struct analogix_dp_device *dp = arg;
 	enum dp_irq_type irq_type;
 
+	if (dp->dpms_mode != DRM_MODE_DPMS_ON)
+		return IRQ_HANDLED;
+
+	pm_runtime_get_sync(dp->dev);
+
 	irq_type = analogix_dp_get_irq_type(dp);
 	if (irq_type & DP_IRQ_TYPE_HP_CABLE_IN ||
 	    irq_type & DP_IRQ_TYPE_HP_CABLE_OUT) {
@@ -883,6 +888,8 @@ static irqreturn_t analogix_dp_irq_thread(int irq, void *arg)
 		analogix_dp_clear_hotplug_interrupts(dp);
 		analogix_dp_unmute_hpd_interrupt(dp);
 	}
+
+	pm_runtime_put(dp->dev);
 
 	return IRQ_HANDLED;
 }
@@ -1099,7 +1106,7 @@ static void analogix_dp_bridge_disable(struct drm_bridge *bridge)
 		}
 	}
 
-	disable_irq(dp->irq);
+	disable_irq_nosync(dp->irq);
 	phy_power_off(dp->phy);
 
 	if (dp->plat_data->power_off)
