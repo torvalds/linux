@@ -532,35 +532,6 @@ struct axp20x_dev {
 	const struct regmap_irq_chip	*regmap_irq_chip;
 };
 
-#define BATTID_LEN				64
-#define OCV_CURVE_SIZE			32
-#define MAX_THERM_CURVE_SIZE	25
-#define PD_DEF_MIN_TEMP			0
-#define PD_DEF_MAX_TEMP			55
-
-struct axp20x_fg_pdata {
-	char battid[BATTID_LEN + 1];
-	int design_cap;
-	int min_volt;
-	int max_volt;
-	int max_temp;
-	int min_temp;
-	int cap1;
-	int cap0;
-	int rdc1;
-	int rdc0;
-	int ocv_curve[OCV_CURVE_SIZE];
-	int tcsz;
-	int thermistor_curve[MAX_THERM_CURVE_SIZE][2];
-};
-
-struct axp20x_chrg_pdata {
-	int max_cc;
-	int max_cv;
-	int def_cc;
-	int def_cv;
-};
-
 struct axp288_extcon_pdata {
 	/* GPIO pin control to switch D+/D- lines b/w PMIC and SOC */
 	struct gpio_desc *gpio_mux_cntl;
