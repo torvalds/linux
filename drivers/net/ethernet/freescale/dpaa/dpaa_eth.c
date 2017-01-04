@@ -2291,7 +2291,8 @@ static int dpaa_open(struct net_device *net_dev)
 	net_dev->phydev = mac_dev->init_phy(net_dev, priv->mac_dev);
 	if (!net_dev->phydev) {
 		netif_err(priv, ifup, net_dev, "init_phy() failed\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto phy_init_failed;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++) {
@@ -2314,6 +2315,7 @@ mac_start_failed:
 	for (i = 0; i < ARRAY_SIZE(mac_dev->port); i++)
 		fman_port_disable(mac_dev->port[i]);
 
+phy_init_failed:
 	dpaa_eth_napi_disable(priv);
 
 	return err;
