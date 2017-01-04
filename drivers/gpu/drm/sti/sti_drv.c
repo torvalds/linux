@@ -252,19 +252,7 @@ static void sti_output_poll_changed(struct drm_device *ddev)
 {
 	struct sti_private *private = ddev->dev_private;
 
-	if (!ddev->mode_config.num_connector)
-		return;
-
-	if (private->fbdev) {
-		drm_fbdev_cma_hotplug_event(private->fbdev);
-		return;
-	}
-
-	private->fbdev = drm_fbdev_cma_init(ddev, 32,
-					    ddev->mode_config.num_crtc,
-					    ddev->mode_config.num_connector);
-	if (IS_ERR(private->fbdev))
-		private->fbdev = NULL;
+	drm_fbdev_cma_hotplug_event(private->fbdev);
 }
 
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
@@ -382,6 +370,8 @@ static void sti_cleanup(struct drm_device *ddev)
 static int sti_bind(struct device *dev)
 {
 	struct drm_device *ddev;
+	struct sti_private *private;
+	struct drm_fbdev_cma *fbdev;
 	int ret;
 
 	ddev = drm_dev_alloc(&sti_driver, dev);
@@ -403,6 +393,17 @@ static int sti_bind(struct device *dev)
 		goto err_register;
 
 	drm_mode_config_reset(ddev);
+
+	private = ddev->dev_private;
+	if (ddev->mode_config.num_connector) {
+		fbdev = drm_fbdev_cma_init(ddev, 32, ddev->mode_config.num_crtc,
+					   ddev->mode_config.num_connector);
+		if (IS_ERR(fbdev)) {
+			DRM_DEBUG_DRIVER("Warning: fails to create fbdev\n");
+			fbdev = NULL;
+		}
+		private->fbdev = fbdev;
+	}
 
 	return 0;
 
