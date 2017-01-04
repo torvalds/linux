@@ -63,18 +63,6 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{NULL}
 };
 
-static int kvm_mips_reset_vcpu(struct kvm_vcpu *vcpu)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		vcpu->arch.guest_kernel_asid[i] = 0;
-		vcpu->arch.guest_user_asid[i] = 0;
-	}
-
-	return 0;
-}
-
 /*
  * XXXKYMA: We are simulatoring a processor that has the WII bit set in
  * Config7, so we are "runnable" if interrupts are pending
@@ -1144,10 +1132,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl,
 			return -E2BIG;
 		return kvm_mips_copy_reg_indices(vcpu, user_list->reg);
 	}
-	case KVM_NMI:
-		/* Treat the NMI as a CPU reset */
-		r = kvm_mips_reset_vcpu(vcpu);
-		break;
 	case KVM_INTERRUPT:
 		{
 			struct kvm_mips_interrupt irq;
