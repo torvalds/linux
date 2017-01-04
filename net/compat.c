@@ -130,6 +130,9 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 	__kernel_size_t kcmlen, tmp;
 	int err = -EFAULT;
 
+	BUILD_BUG_ON(sizeof(struct compat_cmsghdr) !=
+		     CMSG_COMPAT_ALIGN(sizeof(struct compat_cmsghdr)));
+
 	kcmlen = 0;
 	kcmsg_base = kcmsg = (struct cmsghdr *)stackbuf;
 	ucmsg = CMSG_COMPAT_FIRSTHDR(kmsg);
