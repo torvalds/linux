@@ -470,17 +470,17 @@ static void daqboard2000_pulse_prog_pin(struct comedi_device *dev)
 	mdelay(10);	/* Not in the original code, but I like symmetry... */
 }
 
-static int daqboard2000_poll_cpld(struct comedi_device *dev, u16 mask)
+static int daqboard2000_wait_cpld_init(struct comedi_device *dev)
 {
-	int result = 0;
+	int result = -ETIMEDOUT;
 	int i;
 	u16 cpld;
 
 	/* timeout after 50 tries -> 5ms */
 	for (i = 0; i < 50; i++) {
 		cpld = readw(dev->mmio + DB2K_REG_CPLD_STATUS);
-		if ((cpld & mask) == mask) {
-			result = 1;
+		if (cpld & DB2K_CPLD_STATUS_INIT) {
+			result = 0;
 			break;
 		}
 		usleep_range(100, 1000);
@@ -540,19 +540,22 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 		daqboard2000_reset_local_bus(dev);
 		daqboard2000_reload_plx(dev);
 		daqboard2000_pulse_prog_pin(dev);
-		if (daqboard2000_poll_cpld(dev, DB2K_CPLD_STATUS_INIT)) {
-			for (; i < len; i += 2) {
-				u16 data =
-				    (cpld_array[i] << 8) + cpld_array[i + 1];
-				if (!daqboard2000_write_cpld(dev, data))
-					break;
-			}
-			if (i >= len) {
-				daqboard2000_reset_local_bus(dev);
-				daqboard2000_reload_plx(dev);
-				result = 0;
+		result = daqboard2000_wait_cpld_init(dev);
+		if (result)
+			continue;
+
+		for (; i < len; i += 2) {
+			u16 data = (cpld_array[i] << 8) + cpld_array[i + 1];
+
+			if (!daqboard2000_write_cpld(dev, data)) {
+				result = -EIO;
 				break;
 			}
+		}
+		if (result == 0) {
+			daqboard2000_reset_local_bus(dev);
+			daqboard2000_reload_plx(dev);
+			break;
 		}
 	}
 	return result;
