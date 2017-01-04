@@ -1597,7 +1597,8 @@ xfs_inode_free_cowblocks(
 	 * If the mapping is dirty or under writeback we cannot touch the
 	 * CoW fork.  Leave it alone if we're in the midst of a directio.
 	 */
-	if (mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY) ||
+	if ((VFS_I(ip)->i_state & I_DIRTY_PAGES) ||
+	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY) ||
 	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_WRITEBACK) ||
 	    atomic_read(&VFS_I(ip)->i_dio_count))
 		return 0;
