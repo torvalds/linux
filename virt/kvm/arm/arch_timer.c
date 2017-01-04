@@ -271,6 +271,20 @@ static void phys_timer_emulate(struct kvm_vcpu *vcpu,
 	soft_timer_start(&timer->phys_timer, kvm_timer_compute_delta(timer_ctx));
 }
 
+static void timer_save_state(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+
+	if (timer->enabled) {
+		vtimer->cnt_ctl = read_sysreg_el0(cntv_ctl);
+		vtimer->cnt_cval = read_sysreg_el0(cntv_cval);
+	}
+
+	/* Disable the virtual timer */
+	write_sysreg_el0(0, cntv_ctl);
+}
+
 /*
  * Schedule the background timer before calling kvm_vcpu_block, so that this
  * thread is removed from its waitqueue and made runnable when there's a timer
@@ -304,11 +318,38 @@ void kvm_timer_schedule(struct kvm_vcpu *vcpu)
 	soft_timer_start(&timer->bg_timer, kvm_timer_earliest_exp(vcpu));
 }
 
+static void timer_restore_state(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+
+	if (timer->enabled) {
+		write_sysreg_el0(vtimer->cnt_cval, cntv_cval);
+		isb();
+		write_sysreg_el0(vtimer->cnt_ctl, cntv_ctl);
+	}
+}
+
 void kvm_timer_unschedule(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 
 	soft_timer_cancel(&timer->bg_timer, &timer->expired);
+}
+
+static void set_cntvoff(u64 cntvoff)
+{
+	u32 low = lower_32_bits(cntvoff);
+	u32 high = upper_32_bits(cntvoff);
+
+	/*
+	 * Since kvm_call_hyp doesn't fully support the ARM PCS especially on
+	 * 32-bit systems, but rather passes register by register shifted one
+	 * place (we put the function address in r0/x0), we cannot simply pass
+	 * a 64-bit value as an argument, but have to split the value in two
+	 * 32-bit halves.
+	 */
+	kvm_call_hyp(__kvm_timer_set_cntvoff, low, high);
 }
 
 static void kvm_timer_flush_hwstate_vgic(struct kvm_vcpu *vcpu)
@@ -414,6 +455,7 @@ static void kvm_timer_flush_hwstate_user(struct kvm_vcpu *vcpu)
 void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 
 	if (unlikely(!timer->enabled))
 		return;
@@ -427,6 +469,9 @@ void kvm_timer_flush_hwstate(struct kvm_vcpu *vcpu)
 		kvm_timer_flush_hwstate_user(vcpu);
 	else
 		kvm_timer_flush_hwstate_vgic(vcpu);
+
+	set_cntvoff(vtimer->cntvoff);
+	timer_restore_state(vcpu);
 }
 
 /**
@@ -445,6 +490,9 @@ void kvm_timer_sync_hwstate(struct kvm_vcpu *vcpu)
 	 * emulation if it is set.
 	 */
 	soft_timer_cancel(&timer->phys_timer, NULL);
+
+	timer_save_state(vcpu);
+	set_cntvoff(0);
 
 	/*
 	 * The guest could have modified the timer registers or the timer

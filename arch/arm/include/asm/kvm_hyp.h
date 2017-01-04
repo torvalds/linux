@@ -98,8 +98,8 @@
 #define cntvoff_el2			CNTVOFF
 #define cnthctl_el2			CNTHCTL
 
-void __timer_save_state(struct kvm_vcpu *vcpu);
-void __timer_restore_state(struct kvm_vcpu *vcpu);
+void __timer_enable_traps(struct kvm_vcpu *vcpu);
+void __timer_disable_traps(struct kvm_vcpu *vcpu);
 
 void __vgic_v2_save_state(struct kvm_vcpu *vcpu);
 void __vgic_v2_restore_state(struct kvm_vcpu *vcpu);
