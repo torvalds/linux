@@ -266,9 +266,6 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		if (!regs)
 			return -ENXIO;
 		chips[i].regs = regs;
-		chips[i].set_data = &regs->set_data;
-		chips[i].clr_data = &regs->clr_data;
-		chips[i].in_data = &regs->in_data;
 
 		gpiochip_add_data(&chips[i].chip, &chips[i]);
 	}
