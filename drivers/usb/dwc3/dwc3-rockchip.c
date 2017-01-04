@@ -742,6 +742,8 @@ static int dwc3_rockchip_remove(struct platform_device *pdev)
 
 	dwc3_rockchip_extcon_unregister(rockchip);
 
+	debugfs_remove_recursive(rockchip->root);
+
 	/* Restore hcd state before unregistering xhci */
 	if (rockchip->edev && !rockchip->connected) {
 		struct usb_hcd *hcd =
