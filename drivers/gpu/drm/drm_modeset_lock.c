@@ -52,12 +52,12 @@
  *     drm_modeset_drop_locks(&ctx);
  *     drm_modeset_acquire_fini(&ctx);
  *
- *  On top of of these per-object locks using &ww_mutex there's also an overall
- *  dev->mode_config.lock, for protecting everything else. Mostly this means
- *  probe state of connectors, and preventing hotplug add/removal of connectors.
+ * On top of of these per-object locks using &ww_mutex there's also an overall
+ * dev->mode_config.lock, for protecting everything else. Mostly this means
+ * probe state of connectors, and preventing hotplug add/removal of connectors.
  *
- *  Finally there's a bunch of dedicated locks to protect drm core internal
- *  lists and lookup data structures.
+ * Finally there's a bunch of dedicated locks to protect drm core internal
+ * lists and lookup data structures.
  */
 
 static DEFINE_WW_CLASS(crtc_ww_class);

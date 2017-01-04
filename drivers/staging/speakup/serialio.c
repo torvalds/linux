@@ -99,7 +99,7 @@ static irqreturn_t synth_readbuf_handler(int irq, void *dev_id)
 	while (inb_p(speakup_info.port_tts + UART_LSR) & UART_LSR_DR) {
 
 		c = inb_p(speakup_info.port_tts+UART_RX);
-		synth->read_buff_add((u_char) c);
+		synth->read_buff_add((u_char)c);
 	}
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	return IRQ_HANDLED;
@@ -113,7 +113,7 @@ static void start_serial_interrupt(int irq)
 		return;
 
 	rv = request_irq(irq, synth_readbuf_handler, IRQF_SHARED,
-			 "serial", (void *) synth_readbuf_handler);
+			 "serial", (void *)synth_readbuf_handler);
 
 	if (rv)
 		pr_err("Unable to request Speakup serial I R Q\n");
@@ -141,7 +141,7 @@ void spk_stop_serial_interrupt(void)
 	/* Turn off interrupts */
 	outb(0, speakup_info.port_tts+UART_IER);
 	/* Free IRQ */
-	free_irq(serstate->irq, (void *) synth_readbuf_handler);
+	free_irq(serstate->irq, (void *)synth_readbuf_handler);
 }
 
 int spk_wait_for_xmitr(void)

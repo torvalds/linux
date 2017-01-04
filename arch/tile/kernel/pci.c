@@ -57,7 +57,7 @@ static int pci_probe = 1;
  * This flag tells if the platform is TILEmpower that needs
  * special configuration for the PLX switch chip.
  */
-int __write_once tile_plx_gen1;
+int __ro_after_init tile_plx_gen1;
 
 static struct pci_controller controllers[TILE_NUM_PCIE];
 static int num_controllers;

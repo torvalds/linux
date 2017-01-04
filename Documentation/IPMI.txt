@@ -111,6 +111,8 @@ ipmi_ssif - A driver for accessing BMCs on the SMBus. It uses the
 I2C kernel driver's SMBus interfaces to send and receive IPMI messages
 over the SMBus.
 
+ipmi_powernv - A driver for access BMCs on POWERNV systems.
+
 ipmi_watchdog - IPMI requires systems to have a very capable watchdog
 timer.  This driver implements the standard Linux watchdog timer
 interface on top of the IPMI message handler.
@@ -118,16 +120,14 @@ interface on top of the IPMI message handler.
 ipmi_poweroff - Some systems support the ability to be turned off via
 IPMI commands.
 
-These are all individually selectable via configuration options.
+bt-bmc - This is not part of the main driver, but instead a driver for
+accessing a BMC-side interface of a BT interface.  It is used on BMCs
+running Linux to provide an interface to the host.
 
-Note that the KCS-only interface has been removed.  The af_ipmi driver
-is no longer supported and has been removed because it was impossible
-to do 32 bit emulation on 64-bit kernels with it.
+These are all individually selectable via configuration options.
 
 Much documentation for the interface is in the include files.  The
 IPMI include files are:
-
-net/af_ipmi.h - Contains the socket interface.
 
 linux/ipmi.h - Contains the user interface and IOCTL interface for IPMI.
 
@@ -245,6 +245,16 @@ addressed (because some boards actually have multiple BMCs on them)
 and the user should not have to care what type of SMI is below them.
 
 
+Watching For Interfaces
+
+When your code comes up, the IPMI driver may or may not have detected
+if IPMI devices exist.  So you might have to defer your setup until
+the device is detected, or you might be able to do it immediately.
+To handle this, and to allow for discovery, you register an SMI
+watcher with ipmi_smi_watcher_register() to iterate over interfaces
+and tell you when they come and go.
+
+
 Creating the User
 
 To user the message handler, you must first create a user using
@@ -263,7 +273,7 @@ closing the device automatically destroys the user.
 
 Messaging
 
-To send a message from kernel-land, the ipmi_request() call does
+To send a message from kernel-land, the ipmi_request_settime() call does
 pretty much all message handling.  Most of the parameter are
 self-explanatory.  However, it takes a "msgid" parameter.  This is NOT
 the sequence number of messages.  It is simply a long value that is
@@ -352,11 +362,12 @@ that for more details.
 The SI Driver
 -------------
 
-The SI driver allows up to 4 KCS or SMIC interfaces to be configured
-in the system.  By default, scan the ACPI tables for interfaces, and
-if it doesn't find any the driver will attempt to register one KCS
-interface at the spec-specified I/O port 0xca2 without interrupts.
-You can change this at module load time (for a module) with:
+The SI driver allows KCS, BT, and SMIC interfaces to be configured
+in the system.  It discovers interfaces through a host of different
+methods, depending on the system.
+
+You can specify up to four interfaces on the module load line and
+control some module parameters:
 
   modprobe ipmi_si.o type=<type1>,<type2>....
        ports=<port1>,<port2>... addrs=<addr1>,<addr2>...
@@ -367,7 +378,7 @@ You can change this at module load time (for a module) with:
        force_kipmid=<enable1>,<enable2>,...
        kipmid_max_busy_us=<ustime1>,<ustime2>,...
        unload_when_empty=[0|1]
-       trydefaults=[0|1] trydmi=[0|1] tryacpi=[0|1]
+       trydmi=[0|1] tryacpi=[0|1]
        tryplatform=[0|1] trypci=[0|1]
 
 Each of these except try... items is a list, the first item for the
@@ -385,10 +396,6 @@ use the I/O port given as the device address.
 
 If you specify irqs as non-zero for an interface, the driver will
 attempt to use the given interrupt for the device.
-
-trydefaults sets whether the standard IPMI interface at 0xca2 and
-any interfaces specified by ACPE are tried.  By default, the driver
-tries it, set this value to zero to turn this off.
 
 The other try... items disable discovery by their corresponding
 names.  These are all enabled by default, set them to zero to disable
@@ -434,7 +441,7 @@ kernel command line as:
 
   ipmi_si.type=<type1>,<type2>...
        ipmi_si.ports=<port1>,<port2>... ipmi_si.addrs=<addr1>,<addr2>...
-       ipmi_si.irqs=<irq1>,<irq2>... ipmi_si.trydefaults=[0|1]
+       ipmi_si.irqs=<irq1>,<irq2>...
        ipmi_si.regspacings=<sp1>,<sp2>,...
        ipmi_si.regsizes=<size1>,<size2>,...
        ipmi_si.regshifts=<shift1>,<shift2>,...
@@ -443,11 +450,6 @@ kernel command line as:
        ipmi_si.kipmid_max_busy_us=<ustime1>,<ustime2>,...
 
 It works the same as the module parameters of the same names.
-
-By default, the driver will attempt to detect any device specified by
-ACPI, and if none of those then a KCS device at the spec-specified
-0xca2.  If you want to turn this off, set the "trydefaults" option to
-false.
 
 If your IPMI interface does not support interrupts and is a KCS or
 SMIC interface, the IPMI driver will start a kernel thread for the
@@ -500,7 +502,8 @@ at module load time (for a module) with:
 	addr=<i2caddr1>[,<i2caddr2>[,...]]
 	adapter=<adapter1>[,<adapter2>[...]]
 	dbg=<flags1>,<flags2>...
-        slave_addrs=<addr1>,<addr2>,...
+	slave_addrs=<addr1>,<addr2>,...
+	tryacpi=[0|1] trydmi=[0|1]
 	[dbg_probe=1]
 
 The addresses are normal I2C addresses.  The adapter is the string
@@ -512,6 +515,9 @@ spaces in kernel parameters.
 
 The debug flags are bit flags for each BMC found, they are:
 IPMI messages: 1, driver state: 2, timing: 4, I2C probe: 8
+
+The tryxxx parameters can be used to disable detecting interfaces
+from various sources.
 
 Setting dbg_probe to 1 will enable debugging of the probing and
 detection process for BMCs on the SMBusses.
@@ -535,7 +541,8 @@ kernel command line as:
 	ipmi_ssif.adapter=<adapter1>[,<adapter2>[...]]
 	ipmi_ssif.dbg=<flags1>[,<flags2>[...]]
 	ipmi_ssif.dbg_probe=1
-        ipmi_ssif.slave_addrs=<addr1>[,<addr2>[...]]
+	ipmi_ssif.slave_addrs=<addr1>[,<addr2>[...]]
+	ipmi_ssif.tryacpi=[0|1] ipmi_ssif.trydmi=[0|1]
 
 These are the same options as on the module command line.
 

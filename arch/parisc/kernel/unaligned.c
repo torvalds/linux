@@ -26,7 +26,7 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/ratelimit.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/hardirq.h>
 #include <asm/traps.h>
 

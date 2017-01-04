@@ -2241,6 +2241,35 @@ nv134_chipset = {
 	.fifo = gp100_fifo_new,
 };
 
+static const struct nvkm_device_chip
+nv136_chipset = {
+	.name = "GP106",
+	.bar = gf100_bar_new,
+	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
+	.devinit = gm200_devinit_new,
+	.fb = gp102_fb_new,
+	.fuse = gm107_fuse_new,
+	.gpio = gk104_gpio_new,
+	.i2c = gm200_i2c_new,
+	.ibus = gm200_ibus_new,
+	.imem = nv50_instmem_new,
+	.ltc = gp100_ltc_new,
+	.mc = gp100_mc_new,
+	.mmu = gf100_mmu_new,
+	.pci = gp100_pci_new,
+	.pmu = gp102_pmu_new,
+	.timer = gk20a_timer_new,
+	.top = gk104_top_new,
+	.ce[0] = gp102_ce_new,
+	.ce[1] = gp102_ce_new,
+	.ce[2] = gp102_ce_new,
+	.ce[3] = gp102_ce_new,
+	.disp = gp102_disp_new,
+	.dma = gf119_dma_new,
+	.fifo = gp100_fifo_new,
+};
+
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
 		       struct nvkm_notify *notify)
@@ -2677,6 +2706,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x130: device->chip = &nv130_chipset; break;
 		case 0x132: device->chip = &nv132_chipset; break;
 		case 0x134: device->chip = &nv134_chipset; break;
+		case 0x136: device->chip = &nv136_chipset; break;
 		default:
 			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
 			goto done;

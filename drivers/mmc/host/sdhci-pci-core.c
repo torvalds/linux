@@ -27,6 +27,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/mmc/slot-gpio.h>
 #include <linux/mmc/sdhci-pci-data.h>
+#include <linux/acpi.h>
 
 #include "sdhci.h"
 #include "sdhci-pci.h"
@@ -375,6 +376,44 @@ static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static int ni_set_max_freq(struct sdhci_pci_slot *slot)
+{
+	acpi_status status;
+	unsigned long long max_freq;
+
+	status = acpi_evaluate_integer(ACPI_HANDLE(&slot->chip->pdev->dev),
+				       "MXFQ", NULL, &max_freq);
+	if (ACPI_FAILURE(status)) {
+		dev_err(&slot->chip->pdev->dev,
+			"MXFQ not found in acpi table\n");
+		return -EINVAL;
+	}
+
+	slot->host->mmc->f_max = max_freq * 1000000;
+
+	return 0;
+}
+#else
+static inline int ni_set_max_freq(struct sdhci_pci_slot *slot)
+{
+	return 0;
+}
+#endif
+
+static int ni_byt_sdio_probe_slot(struct sdhci_pci_slot *slot)
+{
+	int err;
+
+	err = ni_set_max_freq(slot);
+	if (err)
+		return err;
+
+	slot->host->mmc->caps |= MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE |
+				 MMC_CAP_WAIT_WHILE_BUSY;
+	return 0;
+}
+
 static int byt_sdio_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_POWER_OFF_CARD | MMC_CAP_NONREMOVABLE |
@@ -390,7 +429,8 @@ static int byt_sd_probe_slot(struct sdhci_pci_slot *slot)
 	slot->cd_override_level = true;
 	if (slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BXT_SD ||
 	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_BXTM_SD ||
-	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_APL_SD) {
+	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_APL_SD ||
+	    slot->chip->pdev->device == PCI_DEVICE_ID_INTEL_GLK_SD) {
 		slot->host->mmc_host_ops.get_cd = bxt_get_cd;
 		slot->host->mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
 	}
@@ -444,6 +484,15 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_emmc = {
 	.quirks2	= SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 			  SDHCI_QUIRK2_CAPS_BIT63_FOR_HS400 |
 			  SDHCI_QUIRK2_STOP_WITH_TC,
+	.ops		= &sdhci_intel_byt_ops,
+};
+
+static const struct sdhci_pci_fixes sdhci_ni_byt_sdio = {
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks2	= SDHCI_QUIRK2_HOST_OFF_CARD_ON |
+			  SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+	.allow_runtime_pm = true,
+	.probe_slot	= ni_byt_sdio_probe_slot,
 	.ops		= &sdhci_intel_byt_ops,
 };
 
@@ -1079,6 +1128,14 @@ static const struct pci_device_id pci_ids[] = {
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
 		.device		= PCI_DEVICE_ID_INTEL_BYT_SDIO,
+		.subvendor	= PCI_VENDOR_ID_NI,
+		.subdevice	= 0x7884,
+		.driver_data	= (kernel_ulong_t)&sdhci_ni_byt_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_BYT_SDIO,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
@@ -1271,6 +1328,30 @@ static const struct pci_device_id pci_ids[] = {
 	{
 		.vendor		= PCI_VENDOR_ID_INTEL,
 		.device		= PCI_DEVICE_ID_INTEL_APL_SD,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_GLK_EMMC,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_emmc,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_GLK_SDIO,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_GLK_SD,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_intel_byt_sd,
@@ -1735,11 +1816,16 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	host->mmc->slotno = slotno;
 	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
 
-	if (slot->cd_idx >= 0 &&
-	    mmc_gpiod_request_cd(host->mmc, slot->cd_con_id, slot->cd_idx,
-				 slot->cd_override_level, 0, NULL)) {
-		dev_warn(&pdev->dev, "failed to setup card detect gpio\n");
-		slot->cd_idx = -1;
+	if (slot->cd_idx >= 0) {
+		ret = mmc_gpiod_request_cd(host->mmc, slot->cd_con_id, slot->cd_idx,
+					   slot->cd_override_level, 0, NULL);
+		if (ret == -EPROBE_DEFER)
+			goto remove;
+
+		if (ret) {
+			dev_warn(&pdev->dev, "failed to setup card detect gpio\n");
+			slot->cd_idx = -1;
+		}
 	}
 
 	ret = sdhci_add_host(host);

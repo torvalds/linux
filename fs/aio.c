@@ -42,7 +42,7 @@
 #include <linux/mount.h>
 
 #include <asm/kmap_types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "internal.h"
 
@@ -277,10 +277,10 @@ static void put_aio_ring_file(struct kioctx *ctx)
 	struct address_space *i_mapping;
 
 	if (aio_ring_file) {
-		truncate_setsize(aio_ring_file->f_inode, 0);
+		truncate_setsize(file_inode(aio_ring_file), 0);
 
 		/* Prevent further access to the kioctx from migratepages */
-		i_mapping = aio_ring_file->f_inode->i_mapping;
+		i_mapping = aio_ring_file->f_mapping;
 		spin_lock(&i_mapping->private_lock);
 		i_mapping->private_data = NULL;
 		ctx->aio_ring_file = NULL;
@@ -483,7 +483,7 @@ static int aio_setup_ring(struct kioctx *ctx)
 
 	for (i = 0; i < nr_pages; i++) {
 		struct page *page;
-		page = find_or_create_page(file->f_inode->i_mapping,
+		page = find_or_create_page(file->f_mapping,
 					   i, GFP_HIGHUSER | __GFP_ZERO);
 		if (!page)
 			break;
@@ -1285,7 +1285,7 @@ static long read_events(struct kioctx *ctx, long min_nr, long nr,
 			struct io_event __user *event,
 			struct timespec __user *timeout)
 {
-	ktime_t until = { .tv64 = KTIME_MAX };
+	ktime_t until = KTIME_MAX;
 	long ret = 0;
 
 	if (timeout) {
@@ -1311,7 +1311,7 @@ static long read_events(struct kioctx *ctx, long min_nr, long nr,
 	 * the ringbuffer empty. So in practice we should be ok, but it's
 	 * something to be aware of when touching this code.
 	 */
-	if (until.tv64 == 0)
+	if (until == 0)
 		aio_read_events(ctx, min_nr, nr, event, &ret);
 	else
 		wait_event_interruptible_hrtimeout(ctx->wait,
@@ -1366,6 +1366,39 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 out:
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE2(io_setup, unsigned, nr_events, u32 __user *, ctx32p)
+{
+	struct kioctx *ioctx = NULL;
+	unsigned long ctx;
+	long ret;
+
+	ret = get_user(ctx, ctx32p);
+	if (unlikely(ret))
+		goto out;
+
+	ret = -EINVAL;
+	if (unlikely(ctx || nr_events == 0)) {
+		pr_debug("EINVAL: ctx %lu nr_events %u\n",
+		         ctx, nr_events);
+		goto out;
+	}
+
+	ioctx = ioctx_alloc(nr_events);
+	ret = PTR_ERR(ioctx);
+	if (!IS_ERR(ioctx)) {
+		/* truncating is ok because it's a user address */
+		ret = put_user((u32)ioctx->user_id, ctx32p);
+		if (ret)
+			kill_ioctx(current->mm, ioctx, NULL);
+		percpu_ref_put(&ioctx->users);
+	}
+
+out:
+	return ret;
+}
+#endif
 
 /* sys_io_destroy:
  *	Destroy the aio_context specified.  May cancel any outstanding 
@@ -1591,8 +1624,8 @@ out_put_req:
 	return ret;
 }
 
-long do_io_submit(aio_context_t ctx_id, long nr,
-		  struct iocb __user *__user *iocbpp, bool compat)
+static long do_io_submit(aio_context_t ctx_id, long nr,
+			  struct iocb __user *__user *iocbpp, bool compat)
 {
 	struct kioctx *ctx;
 	long ret = 0;
@@ -1661,6 +1694,44 @@ SYSCALL_DEFINE3(io_submit, aio_context_t, ctx_id, long, nr,
 {
 	return do_io_submit(ctx_id, nr, iocbpp, 0);
 }
+
+#ifdef CONFIG_COMPAT
+static inline long
+copy_iocb(long nr, u32 __user *ptr32, struct iocb __user * __user *ptr64)
+{
+	compat_uptr_t uptr;
+	int i;
+
+	for (i = 0; i < nr; ++i) {
+		if (get_user(uptr, ptr32 + i))
+			return -EFAULT;
+		if (put_user(compat_ptr(uptr), ptr64 + i))
+			return -EFAULT;
+	}
+	return 0;
+}
+
+#define MAX_AIO_SUBMITS 	(PAGE_SIZE/sizeof(struct iocb *))
+
+COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
+		       int, nr, u32 __user *, iocb)
+{
+	struct iocb __user * __user *iocb64;
+	long ret;
+
+	if (unlikely(nr < 0))
+		return -EINVAL;
+
+	if (nr > MAX_AIO_SUBMITS)
+		nr = MAX_AIO_SUBMITS;
+
+	iocb64 = compat_alloc_user_space(nr * sizeof(*iocb64));
+	ret = copy_iocb(nr, iocb, iocb64);
+	if (!ret)
+		ret = do_io_submit(ctx_id, nr, iocb64, 1);
+	return ret;
+}
+#endif
 
 /* lookup_kiocb
  *	Finds a given iocb for cancellation.
@@ -1761,3 +1832,25 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 	}
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE5(io_getevents, compat_aio_context_t, ctx_id,
+		       compat_long_t, min_nr,
+		       compat_long_t, nr,
+		       struct io_event __user *, events,
+		       struct compat_timespec __user *, timeout)
+{
+	struct timespec t;
+	struct timespec __user *ut = NULL;
+
+	if (timeout) {
+		if (compat_get_timespec(&t, timeout))
+			return -EFAULT;
+
+		ut = compat_alloc_user_space(sizeof(*ut));
+		if (copy_to_user(ut, &t, sizeof(t)))
+			return -EFAULT;
+	}
+	return sys_io_getevents(ctx_id, min_nr, nr, events, ut);
+}
+#endif

@@ -15,7 +15,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/slab.h>
@@ -295,31 +295,17 @@ static int of_dra7_atl_clk_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int of_dra7_atl_clk_remove(struct platform_device *pdev)
-{
-	pm_runtime_disable(&pdev->dev);
-
-	return 0;
-}
-
 static const struct of_device_id of_dra7_atl_clk_match_tbl[] = {
 	{ .compatible = "ti,dra7-atl", },
 	{},
 };
-MODULE_DEVICE_TABLE(of, of_dra7_atl_clk_match_tbl);
 
 static struct platform_driver dra7_atl_clk_driver = {
 	.driver = {
 		.name = "dra7-atl",
+		.suppress_bind_attrs = true,
 		.of_match_table = of_dra7_atl_clk_match_tbl,
 	},
 	.probe = of_dra7_atl_clk_probe,
-	.remove = of_dra7_atl_clk_remove,
 };
-
-module_platform_driver(dra7_atl_clk_driver);
-
-MODULE_DESCRIPTION("Clock driver for DRA7 Audio Tracking Logic");
-MODULE_ALIAS("platform:dra7-atl-clock");
-MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
-MODULE_LICENSE("GPL v2");
+builtin_platform_driver(dra7_atl_clk_driver);

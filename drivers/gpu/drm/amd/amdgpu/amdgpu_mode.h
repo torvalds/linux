@@ -271,8 +271,6 @@ struct amdgpu_display_funcs {
 	u32 (*vblank_get_counter)(struct amdgpu_device *adev, int crtc);
 	/* wait for vblank */
 	void (*vblank_wait)(struct amdgpu_device *adev, int crtc);
-	/* is dce hung */
-	bool (*is_display_hung)(struct amdgpu_device *adev);
 	/* set backlight level */
 	void (*backlight_set_level)(struct amdgpu_encoder *amdgpu_encoder,
 				    u8 level);

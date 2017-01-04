@@ -40,7 +40,7 @@
 #include <linux/fs.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/openpromio.h>
 #ifdef CONFIG_PCI
 #include <linux/pci.h>

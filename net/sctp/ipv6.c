@@ -71,7 +71,7 @@
 #include <net/inet_ecn.h>
 #include <net/sctp/sctp.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static inline int sctp_v6_addr_match_len(union sctp_addr *s1,
 					 union sctp_addr *s2);

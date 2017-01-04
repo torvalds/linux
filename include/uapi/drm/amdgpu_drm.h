@@ -522,6 +522,12 @@ struct drm_amdgpu_cs_chunk_data {
 #define AMDGPU_INFO_MEMORY			0x19
 /* Query vce clock table */
 #define AMDGPU_INFO_VCE_CLOCK_TABLE		0x1A
+/* Query vbios related information */
+#define AMDGPU_INFO_VBIOS			0x1B
+	/* Subquery id: Query vbios size */
+	#define AMDGPU_INFO_VBIOS_SIZE		0x1
+	/* Subquery id: Query vbios image */
+	#define AMDGPU_INFO_VBIOS_IMAGE		0x2
 
 #define AMDGPU_INFO_MMR_SE_INDEX_SHIFT	0
 #define AMDGPU_INFO_MMR_SE_INDEX_MASK	0xff
@@ -580,6 +586,11 @@ struct drm_amdgpu_info {
 		} read_mmr_reg;
 
 		struct drm_amdgpu_query_fw query_fw;
+
+		struct {
+			__u32 type;
+			__u32 offset;
+		} vbios_info;
 	};
 };
 

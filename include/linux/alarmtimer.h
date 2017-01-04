@@ -10,7 +10,12 @@ enum alarmtimer_type {
 	ALARM_REALTIME,
 	ALARM_BOOTTIME,
 
+	/* Supported types end here */
 	ALARM_NUMTYPE,
+
+	/* Used for tracing information. No usable types. */
+	ALARM_REALTIME_FREEZER,
+	ALARM_BOOTTIME_FREEZER,
 };
 
 enum alarmtimer_restart {

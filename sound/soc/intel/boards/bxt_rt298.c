@@ -181,7 +181,7 @@ static int broxton_rt298_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops broxton_rt298_ops = {
+static const struct snd_soc_ops broxton_rt298_ops = {
 	.hw_params = broxton_rt298_hw_params,
 };
 
@@ -230,7 +230,7 @@ static int broxton_dmic_startup(struct snd_pcm_substream *substream)
 				SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
 }
 
-static struct snd_soc_ops broxton_dmic_ops = {
+static const struct snd_soc_ops broxton_dmic_ops = {
 	.startup = broxton_dmic_startup,
 };
 

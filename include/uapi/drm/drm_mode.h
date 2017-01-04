@@ -236,14 +236,16 @@ struct drm_mode_get_encoder {
 
 /* This is for connectors with multiple signal types. */
 /* Try to match DRM_MODE_CONNECTOR_X as closely as possible. */
-#define DRM_MODE_SUBCONNECTOR_Automatic	0
-#define DRM_MODE_SUBCONNECTOR_Unknown	0
-#define DRM_MODE_SUBCONNECTOR_DVID	3
-#define DRM_MODE_SUBCONNECTOR_DVIA	4
-#define DRM_MODE_SUBCONNECTOR_Composite	5
-#define DRM_MODE_SUBCONNECTOR_SVIDEO	6
-#define DRM_MODE_SUBCONNECTOR_Component	8
-#define DRM_MODE_SUBCONNECTOR_SCART	9
+enum drm_mode_subconnector {
+	DRM_MODE_SUBCONNECTOR_Automatic = 0,
+	DRM_MODE_SUBCONNECTOR_Unknown = 0,
+	DRM_MODE_SUBCONNECTOR_DVID = 3,
+	DRM_MODE_SUBCONNECTOR_DVIA = 4,
+	DRM_MODE_SUBCONNECTOR_Composite = 5,
+	DRM_MODE_SUBCONNECTOR_SVIDEO = 6,
+	DRM_MODE_SUBCONNECTOR_Component = 8,
+	DRM_MODE_SUBCONNECTOR_SCART = 9,
+};
 
 #define DRM_MODE_CONNECTOR_Unknown	0
 #define DRM_MODE_CONNECTOR_VGA		1

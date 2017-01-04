@@ -196,10 +196,8 @@ static void bch_data_insert_start(struct closure *cl)
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 	struct bio *bio = op->bio, *n;
 
-	if (atomic_sub_return(bio_sectors(bio), &op->c->sectors_to_gc) < 0) {
-		set_gc_sectors(op->c);
+	if (atomic_sub_return(bio_sectors(bio), &op->c->sectors_to_gc) < 0)
 		wake_up_gc(op->c);
-	}
 
 	if (op->bypass)
 		return bch_data_invalidate(cl);
@@ -404,8 +402,8 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 
 	if (!congested &&
 	    mode == CACHE_MODE_WRITEBACK &&
-	    op_is_write(bio_op(bio)) &&
-	    (bio->bi_opf & REQ_SYNC))
+	    op_is_write(bio->bi_opf) &&
+	    op_is_sync(bio->bi_opf))
 		goto rescale;
 
 	spin_lock(&dc->io_lock);
@@ -623,7 +621,7 @@ static void do_bio_hook(struct search *s, struct bio *orig_bio)
 {
 	struct bio *bio = &s->bio.bio;
 
-	bio_init(bio);
+	bio_init(bio, NULL, 0);
 	__bio_clone_fast(bio, orig_bio);
 	bio->bi_end_io		= request_endio;
 	bio->bi_private		= &s->cl;
@@ -923,7 +921,7 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 			flush->bi_bdev	= bio->bi_bdev;
 			flush->bi_end_io = request_endio;
 			flush->bi_private = cl;
-			bio_set_op_attrs(flush, REQ_OP_WRITE, WRITE_FLUSH);
+			flush->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
 			closure_bio_submit(flush, cl);
 		}

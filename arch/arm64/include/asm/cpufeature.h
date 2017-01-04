@@ -9,8 +9,6 @@
 #ifndef __ASM_CPUFEATURE_H
 #define __ASM_CPUFEATURE_H
 
-#include <linux/jump_label.h>
-
 #include <asm/cpucaps.h>
 #include <asm/hwcap.h>
 #include <asm/sysreg.h>
@@ -27,6 +25,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/bug.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 
 /* CPU feature register tracking */
@@ -104,14 +104,19 @@ static inline bool cpu_have_feature(unsigned int num)
 	return elf_hwcap & (1UL << num);
 }
 
+/* System capability check for constant caps */
+static inline bool cpus_have_const_cap(int num)
+{
+	if (num >= ARM64_NCAPS)
+		return false;
+	return static_branch_unlikely(&cpu_hwcap_keys[num]);
+}
+
 static inline bool cpus_have_cap(unsigned int num)
 {
 	if (num >= ARM64_NCAPS)
 		return false;
-	if (__builtin_constant_p(num))
-		return static_branch_unlikely(&cpu_hwcap_keys[num]);
-	else
-		return test_bit(num, cpu_hwcaps);
+	return test_bit(num, cpu_hwcaps);
 }
 
 static inline void cpus_set_cap(unsigned int num)
@@ -200,12 +205,23 @@ static inline bool cpu_supports_mixed_endian_el0(void)
 
 static inline bool system_supports_32bit_el0(void)
 {
-	return cpus_have_cap(ARM64_HAS_32BIT_EL0);
+	return cpus_have_const_cap(ARM64_HAS_32BIT_EL0);
 }
 
 static inline bool system_supports_mixed_endian_el0(void)
 {
 	return id_aa64mmfr0_mixed_endian_el0(read_system_reg(SYS_ID_AA64MMFR0_EL1));
+}
+
+static inline bool system_supports_fpsimd(void)
+{
+	return !cpus_have_const_cap(ARM64_HAS_NO_FPSIMD);
+}
+
+static inline bool system_uses_ttbr0_pan(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_SW_TTBR0_PAN) &&
+		!cpus_have_cap(ARM64_HAS_PAN);
 }
 
 #endif /* __ASSEMBLY__ */

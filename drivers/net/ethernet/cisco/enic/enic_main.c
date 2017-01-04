@@ -1166,12 +1166,18 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		skb->protocol = eth_type_trans(skb, netdev);
 		skb_record_rx_queue(skb, q_number);
 		if (netdev->features & NETIF_F_RXHASH) {
-			skb_set_hash(skb, rss_hash,
-				     (rss_type &
-				      (NIC_CFG_RSS_HASH_TYPE_TCP_IPV6_EX |
-				       NIC_CFG_RSS_HASH_TYPE_TCP_IPV6 |
-				       NIC_CFG_RSS_HASH_TYPE_TCP_IPV4)) ?
-				     PKT_HASH_TYPE_L4 : PKT_HASH_TYPE_L3);
+			switch (rss_type) {
+			case CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv4:
+			case CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv6:
+			case CQ_ENET_RQ_DESC_RSS_TYPE_TCP_IPv6_EX:
+				skb_set_hash(skb, rss_hash, PKT_HASH_TYPE_L4);
+				break;
+			case CQ_ENET_RQ_DESC_RSS_TYPE_IPv4:
+			case CQ_ENET_RQ_DESC_RSS_TYPE_IPv6:
+			case CQ_ENET_RQ_DESC_RSS_TYPE_IPv6_EX:
+				skb_set_hash(skb, rss_hash, PKT_HASH_TYPE_L3);
+				break;
+			}
 		}
 
 		/* Hardware does not provide whole packet checksum. It only
@@ -1842,9 +1848,6 @@ static int enic_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct enic *enic = netdev_priv(netdev);
 	int running = netif_running(netdev);
-
-	if (new_mtu < ENIC_MIN_MTU || new_mtu > ENIC_MAX_MTU)
-		return -EINVAL;
 
 	if (enic_is_dynamic(enic) || enic_is_sriov_vf(enic))
 		return -EOPNOTSUPP;
@@ -2750,6 +2753,10 @@ static int enic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netdev->features |= NETIF_F_HIGHDMA;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
+
+	/* MTU range: 68 - 9000 */
+	netdev->min_mtu = ENIC_MIN_MTU;
+	netdev->max_mtu = ENIC_MAX_MTU;
 
 	err = register_netdev(netdev);
 	if (err) {

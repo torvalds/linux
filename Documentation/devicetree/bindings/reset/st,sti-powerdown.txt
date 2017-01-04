@@ -16,15 +16,14 @@ Please refer to reset.txt in this directory for common reset
 controller binding usage.
 
 Required properties:
-- compatible: Should be "st,<chip>-powerdown"
-	ex: "st,stih415-powerdown", "st,stih416-powerdown"
+- compatible: Should be "st,stih407-powerdown"
 - #reset-cells: 1, see below
 
 example:
 
 	powerdown: powerdown-controller {
+		compatible = "st,stih407-powerdown";
 		#reset-cells = <1>;
-		compatible = "st,stih415-powerdown";
 	};
 
 
@@ -37,11 +36,10 @@ index specifying which channel to use, as described in reset.txt
 
 example:
 
-	usb1: usb@fe200000 {
-		resets	= <&powerdown STIH41X_USB1_POWERDOWN>;
+	st_dwc3: dwc3@8f94000 {
+		resets          = <&powerdown STIH407_USB3_POWERDOWN>,
 	};
 
 Macro definitions for the supported reset channels can be found in:
 
-include/dt-bindings/reset/stih415-resets.h
-include/dt-bindings/reset/stih416-resets.h
+include/dt-bindings/reset/stih407-resets.h

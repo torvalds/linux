@@ -29,7 +29,7 @@
 #include <asm/bootx.h>
 #include <asm/btext.h>
 #include <asm/machdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pmac_feature.h>
 #include <asm/sections.h>
 #include <asm/nvram.h>

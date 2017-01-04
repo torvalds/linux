@@ -48,7 +48,6 @@
 #include <linux/bootmem.h>
 
 #include <asm/irqdomain.h>
-#include <asm/idle.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/cpu.h>

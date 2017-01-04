@@ -527,7 +527,7 @@ static void cobalt_video_input_status_show(struct cobalt_stream *s)
 	cvi_ctrl = ioread32(&cvi->control);
 	cvi_stat = ioread32(&cvi->status);
 	vmr_ctrl = ioread32(&vmr->control);
-	vmr_stat = ioread32(&vmr->control);
+	vmr_stat = ioread32(&vmr->status);
 	cobalt_info("rx%d: cvi resolution: %dx%d\n", rx,
 		    ioread32(&cvi->frame_width), ioread32(&cvi->frame_height));
 	cobalt_info("rx%d: cvi control: %s%s%s\n", rx,
@@ -1084,12 +1084,33 @@ static int cobalt_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 	return 0;
 }
 
+static int cobalt_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cc)
+{
+	struct cobalt_stream *s = video_drvdata(file);
+	struct v4l2_dv_timings timings;
+	int err = 0;
+
+	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+	if (s->input == 1)
+		timings = cea1080p60;
+	else
+		err = v4l2_subdev_call(s->sd, video, g_dv_timings, &timings);
+	if (!err) {
+		cc->bounds.width = cc->defrect.width = timings.bt.width;
+		cc->bounds.height = cc->defrect.height = timings.bt.height;
+		cc->pixelaspect = v4l2_dv_timings_aspect_ratio(&timings);
+	}
+	return err;
+}
+
 static const struct v4l2_ioctl_ops cobalt_ioctl_ops = {
 	.vidioc_querycap		= cobalt_querycap,
 	.vidioc_g_parm			= cobalt_g_parm,
 	.vidioc_log_status		= cobalt_log_status,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
+	.vidioc_cropcap			= cobalt_cropcap,
 	.vidioc_enum_input		= cobalt_enum_input,
 	.vidioc_g_input			= cobalt_g_input,
 	.vidioc_s_input			= cobalt_s_input,

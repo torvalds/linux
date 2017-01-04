@@ -18,6 +18,7 @@ util/thread_map.c
 util/util.c
 util/xyarray.c
 util/cgroup.c
+util/parse-branch-options.c
 util/rblist.c
 util/counts.c
 util/strlist.c

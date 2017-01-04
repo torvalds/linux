@@ -143,6 +143,7 @@ static bool etnaviv_validate_load_state(struct etna_validation_state *state,
 static uint8_t cmd_length[32] = {
 	[FE_OPCODE_DRAW_PRIMITIVES] = 4,
 	[FE_OPCODE_DRAW_INDEXED_PRIMITIVES] = 6,
+	[FE_OPCODE_DRAW_INSTANCED] = 4,
 	[FE_OPCODE_NOP] = 2,
 	[FE_OPCODE_STALL] = 2,
 };

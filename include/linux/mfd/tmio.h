@@ -100,6 +100,11 @@
 #define TMIO_MMC_SDIO_STATUS_QUIRK	(1 << 8)
 
 /*
+ * Some controllers have a 32-bit wide data port register
+ */
+#define TMIO_MMC_32BIT_DATA_PORT	(1 << 9)
+
+/*
  * Some controllers allows to set SDx actual clock
  */
 #define TMIO_MMC_CLK_ACTUAL		(1 << 10)

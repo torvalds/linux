@@ -87,6 +87,13 @@ enum tpg_move_mode {
 	TPG_MOVE_POS_FAST,
 };
 
+enum tgp_color_enc {
+	TGP_COLOR_ENC_RGB,
+	TGP_COLOR_ENC_YCBCR,
+	TGP_COLOR_ENC_HSV,
+	TGP_COLOR_ENC_LUMA,
+};
+
 extern const char * const tpg_aspect_strings[];
 
 #define TPG_MAX_PLANES 3
@@ -119,10 +126,11 @@ struct tpg_data {
 	u8				saturation;
 	s16				hue;
 	u32				fourcc;
-	bool				is_yuv;
+	enum tgp_color_enc		color_enc;
 	u32				colorspace;
 	u32				xfer_func;
 	u32				ycbcr_enc;
+	u32				hsv_enc;
 	/*
 	 * Stores the actual transfer function, i.e. will never be
 	 * V4L2_XFER_FUNC_DEFAULT.
@@ -132,6 +140,7 @@ struct tpg_data {
 	 * Stores the actual Y'CbCr encoding, i.e. will never be
 	 * V4L2_YCBCR_ENC_DEFAULT.
 	 */
+	u32				real_hsv_enc;
 	u32				real_ycbcr_enc;
 	u32				quantization;
 	/*
@@ -332,6 +341,19 @@ static inline void tpg_s_ycbcr_enc(struct tpg_data *tpg, u32 ycbcr_enc)
 static inline u32 tpg_g_ycbcr_enc(const struct tpg_data *tpg)
 {
 	return tpg->ycbcr_enc;
+}
+
+static inline void tpg_s_hsv_enc(struct tpg_data *tpg, u32 hsv_enc)
+{
+	if (tpg->hsv_enc == hsv_enc)
+		return;
+	tpg->hsv_enc = hsv_enc;
+	tpg->recalc_colors = true;
+}
+
+static inline u32 tpg_g_hsv_enc(const struct tpg_data *tpg)
+{
+	return tpg->hsv_enc;
 }
 
 static inline void tpg_s_xfer_func(struct tpg_data *tpg, u32 xfer_func)

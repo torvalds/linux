@@ -1714,6 +1714,7 @@ static int si_init_microcode(struct radeon_device *rdev)
 		    (rdev->pdev->revision == 0x80) ||
 		    (rdev->pdev->revision == 0x81) ||
 		    (rdev->pdev->revision == 0x83) ||
+		    (rdev->pdev->revision == 0x87) ||
 		    (rdev->pdev->device == 0x6604) ||
 		    (rdev->pdev->device == 0x6605))
 			new_smc = true;

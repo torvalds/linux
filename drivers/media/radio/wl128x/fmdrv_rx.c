@@ -120,8 +120,8 @@ int fm_rx_set_freq(struct fmdev *fmdev, u32 freq)
 	curr_frq_in_khz = (fmdev->rx.region.bot_freq + ((u32)curr_frq * FM_FREQ_MUL));
 
 	if (curr_frq_in_khz != freq) {
-		pr_info("Frequency is set to (%d) but "
-			   "requested freq is (%d)\n", curr_frq_in_khz, freq);
+		pr_info("Frequency is set to (%d) but requested freq is (%d)\n",
+			curr_frq_in_khz, freq);
 	}
 
 	/* Update local cache  */
@@ -390,8 +390,8 @@ int fm_rx_set_region(struct fmdev *fmdev, u8 region_to_set)
 		new_frq = fmdev->rx.region.top_freq;
 
 	if (new_frq) {
-		fmdbg("Current freq is not within band limit boundary,"
-				"switching to %d KHz\n", new_frq);
+		fmdbg("Current freq is not within band limit boundary,switching to %d KHz\n",
+		      new_frq);
 		 /* Current RX frequency is not in range. So, update it */
 		ret = fm_rx_set_freq(fmdev, new_frq);
 	}

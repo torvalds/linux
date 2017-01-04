@@ -530,70 +530,6 @@ static void amdgpu_vm_do_copy_ptes(struct amdgpu_pte_update_params *params,
 }
 
 /**
- * amdgpu_vm_clear_bo - initially clear the page dir/table
- *
- * @adev: amdgpu_device pointer
- * @bo: bo to clear
- *
- * need to reserve bo first before calling it.
- */
-static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
-			      struct amdgpu_vm *vm,
-			      struct amdgpu_bo *bo)
-{
-	struct amdgpu_ring *ring;
-	struct dma_fence *fence = NULL;
-	struct amdgpu_job *job;
-	struct amdgpu_pte_update_params params;
-	unsigned entries;
-	uint64_t addr;
-	int r;
-
-	ring = container_of(vm->entity.sched, struct amdgpu_ring, sched);
-
-	r = reservation_object_reserve_shared(bo->tbo.resv);
-	if (r)
-		return r;
-
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, true, false);
-	if (r)
-		goto error;
-
-	r = amdgpu_ttm_bind(&bo->tbo, &bo->tbo.mem);
-	if (r)
-		goto error;
-
-	addr = amdgpu_bo_gpu_offset(bo);
-	entries = amdgpu_bo_size(bo) / 8;
-
-	r = amdgpu_job_alloc_with_ib(adev, 64, &job);
-	if (r)
-		goto error;
-
-	memset(&params, 0, sizeof(params));
-	params.adev = adev;
-	params.ib = &job->ibs[0];
-	amdgpu_vm_do_set_ptes(&params, addr, 0, entries, 0, 0);
-	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
-
-	WARN_ON(job->ibs[0].length_dw > 64);
-	r = amdgpu_job_submit(job, ring, &vm->entity,
-			      AMDGPU_FENCE_OWNER_VM, &fence);
-	if (r)
-		goto error_free;
-
-	amdgpu_bo_fence(bo, fence, true);
-	dma_fence_put(fence);
-	return 0;
-
-error_free:
-	amdgpu_job_free(job);
-
-error:
-	return r;
-}
-
-/**
  * amdgpu_vm_map_gart - Resolve gart mapping of addr
  *
  * @pages_addr: optional DMA address to use for lookup
@@ -1435,7 +1371,8 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 				     AMDGPU_GEM_DOMAIN_VRAM,
 				     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 				     AMDGPU_GEM_CREATE_SHADOW |
-				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
+				     AMDGPU_GEM_CREATE_VRAM_CLEARED,
 				     NULL, resv, &pt);
 		if (r)
 			goto error_free;
@@ -1444,22 +1381,6 @@ int amdgpu_vm_bo_map(struct amdgpu_device *adev,
 		 * them up in the wrong order.
 		 */
 		pt->parent = amdgpu_bo_ref(vm->page_directory);
-
-		r = amdgpu_vm_clear_bo(adev, vm, pt);
-		if (r) {
-			amdgpu_bo_unref(&pt->shadow);
-			amdgpu_bo_unref(&pt);
-			goto error_free;
-		}
-
-		if (pt->shadow) {
-			r = amdgpu_vm_clear_bo(adev, vm, pt->shadow);
-			if (r) {
-				amdgpu_bo_unref(&pt->shadow);
-				amdgpu_bo_unref(&pt);
-				goto error_free;
-			}
-		}
 
 		vm->page_tables[pt_idx].bo = pt;
 		vm->page_tables[pt_idx].addr = 0;
@@ -1642,7 +1563,8 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 			     AMDGPU_GEM_DOMAIN_VRAM,
 			     AMDGPU_GEM_CREATE_NO_CPU_ACCESS |
 			     AMDGPU_GEM_CREATE_SHADOW |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS |
+			     AMDGPU_GEM_CREATE_VRAM_CLEARED,
 			     NULL, NULL, &vm->page_directory);
 	if (r)
 		goto error_free_sched_entity;
@@ -1651,23 +1573,10 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 	if (r)
 		goto error_free_page_directory;
 
-	r = amdgpu_vm_clear_bo(adev, vm, vm->page_directory);
-	if (r)
-		goto error_unreserve;
-
-	if (vm->page_directory->shadow) {
-		r = amdgpu_vm_clear_bo(adev, vm, vm->page_directory->shadow);
-		if (r)
-			goto error_unreserve;
-	}
-
 	vm->last_eviction_counter = atomic64_read(&adev->num_evictions);
 	amdgpu_bo_unreserve(vm->page_directory);
 
 	return 0;
-
-error_unreserve:
-	amdgpu_bo_unreserve(vm->page_directory);
 
 error_free_page_directory:
 	amdgpu_bo_unref(&vm->page_directory->shadow);

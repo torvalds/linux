@@ -2105,6 +2105,18 @@ static void gfx_v7_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, 0x20); /* poll interval */
 }
 
+static void gfx_v7_0_ring_emit_vgt_flush(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE, 0));
+	amdgpu_ring_write(ring, EVENT_TYPE(VS_PARTIAL_FLUSH) |
+		EVENT_INDEX(4));
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE, 0));
+	amdgpu_ring_write(ring, EVENT_TYPE(VGT_FLUSH) |
+		EVENT_INDEX(0));
+}
+
+
 /**
  * gfx_v7_0_ring_emit_hdp_invalidate - emit an hdp invalidate on the cp
  *
@@ -2260,6 +2272,7 @@ static void gfx_v7_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 
 	dw2 |= 0x80000000; /* set load_enable otherwise this package is just NOPs */
 	if (flags & AMDGPU_HAVE_CTX_SWITCH) {
+		gfx_v7_0_ring_emit_vgt_flush(ring);
 		/* set load_global_config & load_global_uconfig */
 		dw2 |= 0x8001;
 		/* set load_cs_sh_regs */
@@ -4359,8 +4372,27 @@ static void gfx_v7_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 
 static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t address)
 {
-	WREG32(mmSQ_IND_INDEX, (wave & 0xF) | ((simd & 0x3) << 4) | (address << 16) | (1 << 13));
+	WREG32(mmSQ_IND_INDEX,
+		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
+		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
+		(address << SQ_IND_INDEX__INDEX__SHIFT) |
+		(SQ_IND_INDEX__FORCE_READ_MASK));
 	return RREG32(mmSQ_IND_DATA);
+}
+
+static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
+			   uint32_t wave, uint32_t thread,
+			   uint32_t regno, uint32_t num, uint32_t *out)
+{
+	WREG32(mmSQ_IND_INDEX,
+		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
+		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
+		(regno << SQ_IND_INDEX__INDEX__SHIFT) |
+		(thread << SQ_IND_INDEX__THREAD_ID__SHIFT) |
+		(SQ_IND_INDEX__FORCE_READ_MASK) |
+		(SQ_IND_INDEX__AUTO_INCR_MASK));
+	while (num--)
+		*(out++) = RREG32(mmSQ_IND_DATA);
 }
 
 static void gfx_v7_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t *dst, int *no_fields)
@@ -4387,10 +4419,20 @@ static void gfx_v7_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, u
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
 }
 
+static void gfx_v7_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
+				     uint32_t wave, uint32_t start,
+				     uint32_t size, uint32_t *dst)
+{
+	wave_read_regs(
+		adev, simd, wave, 0,
+		start + SQIND_WAVE_SGPRS_OFFSET, size, dst);
+}
+
 static const struct amdgpu_gfx_funcs gfx_v7_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v7_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v7_0_select_se_sh,
 	.read_wave_data = &gfx_v7_0_read_wave_data,
+	.read_wave_sgprs = &gfx_v7_0_read_wave_sgprs,
 };
 
 static const struct amdgpu_rlc_funcs gfx_v7_0_rlc_funcs = {
@@ -5149,7 +5191,7 @@ static const struct amdgpu_ring_funcs gfx_v7_0_ring_funcs_gfx = {
 		12 + 12 + 12 + /* gfx_v7_0_ring_emit_fence_gfx x3 for user fence, vm fence */
 		7 + 4 + /* gfx_v7_0_ring_emit_pipeline_sync */
 		17 + 6 + /* gfx_v7_0_ring_emit_vm_flush */
-		3, /* gfx_v7_ring_emit_cntxcntl */
+		3 + 4, /* gfx_v7_ring_emit_cntxcntl including vgt flush*/
 	.emit_ib_size = 4, /* gfx_v7_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v7_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v7_0_ring_emit_fence_gfx,

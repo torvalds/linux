@@ -36,7 +36,7 @@
 #include <linux/coredump.h>
 #include <linux/sched.h>
 #include <linux/dax.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/param.h>
 #include <asm/page.h>
 
@@ -2204,7 +2204,9 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
 
-	vma_filesz = kmalloc_array(segs - 1, sizeof(*vma_filesz), GFP_KERNEL);
+	if (segs - 1 > ULONG_MAX / sizeof(*vma_filesz))
+		goto end_coredump;
+	vma_filesz = vmalloc((segs - 1) * sizeof(*vma_filesz));
 	if (!vma_filesz)
 		goto end_coredump;
 
@@ -2311,7 +2313,7 @@ end_coredump:
 cleanup:
 	free_note_info(&info);
 	kfree(shdr4extnum);
-	kfree(vma_filesz);
+	vfree(vma_filesz);
 	kfree(phdr4note);
 	kfree(elf);
 out:

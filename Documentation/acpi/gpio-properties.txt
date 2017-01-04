@@ -51,6 +51,68 @@ it to 1 marks the GPIO as active low.
 In our Bluetooth example the "reset-gpios" refers to the second GpioIo()
 resource, second pin in that resource with the GPIO number of 31.
 
+It is possible to leave holes in the array of GPIOs. This is useful in
+cases like with SPI host controllers where some chip selects may be
+implemented as GPIOs and some as native signals. For example a SPI host
+controller can have chip selects 0 and 2 implemented as GPIOs and 1 as
+native:
+
+  Package () {
+      "cs-gpios",
+      Package () {
+          ^GPIO, 19, 0, 0, // chip select 0: GPIO
+          0,               // chip select 1: native signal
+          ^GPIO, 20, 0, 0, // chip select 2: GPIO
+      }
+  }
+
+Other supported properties
+--------------------------
+
+Following Device Tree compatible device properties are also supported by
+_DSD device properties for GPIO controllers:
+
+- gpio-hog
+- output-high
+- output-low
+- input
+- line-name
+
+Example:
+
+  Name (_DSD, Package () {
+      // _DSD Hierarchical Properties Extension UUID
+      ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+      Package () {
+          Package () {"hog-gpio8", "G8PU"}
+      }
+  })
+
+  Name (G8PU, Package () {
+      ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+          Package () {"gpio-hog", 1},
+          Package () {"gpios", Package () {8, 0}},
+          Package () {"output-high", 1},
+          Package () {"line-name", "gpio8-pullup"},
+      }
+  })
+
+- gpio-line-names
+
+Example:
+
+  Package () {
+      "gpio-line-names",
+      Package () {
+          "SPI0_CS_N", "EXP2_INT", "MUX6_IO", "UART0_RXD", "MUX7_IO",
+          "LVL_C_A1", "MUX0_IO", "SPI1_MISO"
+      }
+  }
+
+See Documentation/devicetree/bindings/gpio/gpio.txt for more information
+about these properties.
+
 ACPI GPIO Mappings Provided by Drivers
 --------------------------------------
 

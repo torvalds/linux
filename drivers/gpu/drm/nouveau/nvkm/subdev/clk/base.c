@@ -44,13 +44,13 @@ nvkm_clk_adjust(struct nvkm_clk *clk, bool adjust,
 	struct nvkm_bios *bios = clk->subdev.device->bios;
 	struct nvbios_boostE boostE;
 	u8  ver, hdr, cnt, len;
-	u16 data;
+	u32 data;
 
 	data = nvbios_boostEm(bios, pstate, &ver, &hdr, &cnt, &len, &boostE);
 	if (data) {
 		struct nvbios_boostS boostS;
 		u8  idx = 0, sver, shdr;
-		u16 subd;
+		u32 subd;
 
 		input = max(boostE.min, input);
 		input = min(boostE.max, input);
@@ -229,7 +229,7 @@ nvkm_cstate_new(struct nvkm_clk *clk, int idx, struct nvkm_pstate *pstate)
 	struct nvkm_cstate *cstate = NULL;
 	struct nvbios_cstepX cstepX;
 	u8  ver, hdr;
-	u16 data;
+	u32 data;
 
 	data = nvbios_cstepXp(bios, idx, &ver, &hdr, &cstepX);
 	if (!data)
@@ -408,7 +408,7 @@ nvkm_pstate_new(struct nvkm_clk *clk, int idx)
 	struct nvbios_cstepE cstepE;
 	struct nvbios_perfE perfE;
 	u8  ver, hdr, cnt, len;
-	u16 data;
+	u32 data;
 
 	data = nvbios_perfEp(bios, idx, &ver, &hdr, &cnt, &len, &perfE);
 	if (!data)

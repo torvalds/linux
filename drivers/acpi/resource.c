@@ -664,3 +664,60 @@ int acpi_dev_filter_resource_type(struct acpi_resource *ares,
 	return (type & types) ? 0 : 1;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_filter_resource_type);
+
+static int acpi_dev_consumes_res(struct acpi_device *adev, struct resource *res)
+{
+	struct list_head resource_list;
+	struct resource_entry *rentry;
+	int ret, found = 0;
+
+	INIT_LIST_HEAD(&resource_list);
+	ret = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+	if (ret < 0)
+		return 0;
+
+	list_for_each_entry(rentry, &resource_list, node) {
+		if (resource_contains(rentry->res, res)) {
+			found = 1;
+			break;
+		}
+
+	}
+
+	acpi_dev_free_resource_list(&resource_list);
+	return found;
+}
+
+static acpi_status acpi_res_consumer_cb(acpi_handle handle, u32 depth,
+					 void *context, void **ret)
+{
+	struct resource *res = context;
+	struct acpi_device **consumer = (struct acpi_device **) ret;
+	struct acpi_device *adev;
+
+	if (acpi_bus_get_device(handle, &adev))
+		return AE_OK;
+
+	if (acpi_dev_consumes_res(adev, res)) {
+		*consumer = adev;
+		return AE_CTRL_TERMINATE;
+	}
+
+	return AE_OK;
+}
+
+/**
+ * acpi_resource_consumer - Find the ACPI device that consumes @res.
+ * @res: Resource to search for.
+ *
+ * Search the current resource settings (_CRS) of every ACPI device node
+ * for @res.  If we find an ACPI device whose _CRS includes @res, return
+ * it.  Otherwise, return NULL.
+ */
+struct acpi_device *acpi_resource_consumer(struct resource *res)
+{
+	struct acpi_device *consumer = NULL;
+
+	acpi_get_devices(NULL, acpi_res_consumer_cb, res, (void **) &consumer);
+	return consumer;
+}

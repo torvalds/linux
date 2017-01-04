@@ -184,6 +184,13 @@ int nvdimm_set_config_data(struct nvdimm_drvdata *ndd, size_t offset,
 	return rc;
 }
 
+void nvdimm_set_aliasing(struct device *dev)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+
+	nvdimm->flags |= NDD_ALIASING;
+}
+
 static void nvdimm_release(struct device *dev)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);

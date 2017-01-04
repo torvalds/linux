@@ -53,8 +53,7 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
  * V4L2 ioctls
  */
 
-struct uvc_format
-{
+struct uvc_format {
 	u8 bpp;
 	u32 fcc;
 };

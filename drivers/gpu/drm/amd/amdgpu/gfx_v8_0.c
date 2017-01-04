@@ -25,6 +25,7 @@
 #include "amdgpu.h"
 #include "amdgpu_gfx.h"
 #include "vi.h"
+#include "vi_structs.h"
 #include "vid.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_atombios.h"
@@ -167,6 +168,7 @@ static const u32 golden_settings_tonga_a11[] =
 	mmPA_SC_ENHANCE, 0xffffffff, 0x20000001,
 	mmPA_SC_FIFO_DEPTH_CNTL, 0x000003ff, 0x000000fc,
 	mmPA_SC_LINE_STIPPLE_STATE, 0x0000ff0f, 0x00000000,
+	mmRLC_CGCG_CGLS_CTRL, 0x00000003, 0x0000003c,
 	mmSQ_RANDOM_WAVE_PRI, 0x001fffff, 0x000006fd,
 	mmTA_CNTL_AUX, 0x000f000f, 0x000b0000,
 	mmTCC_CTRL, 0x00100000, 0xf31fff7f,
@@ -1371,7 +1373,7 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 
 	if (adev->gfx.mec.hpd_eop_obj == NULL) {
 		r = amdgpu_bo_create(adev,
-				     adev->gfx.mec.num_mec *adev->gfx.mec.num_pipe * MEC_HPD_SIZE * 2,
+				     adev->gfx.mec.num_queue * MEC_HPD_SIZE,
 				     PAGE_SIZE, true,
 				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
 				     &adev->gfx.mec.hpd_eop_obj);
@@ -1400,7 +1402,7 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	memset(hpd, 0, adev->gfx.mec.num_mec *adev->gfx.mec.num_pipe * MEC_HPD_SIZE * 2);
+	memset(hpd, 0, adev->gfx.mec.num_queue * MEC_HPD_SIZE);
 
 	amdgpu_bo_kunmap(adev->gfx.mec.hpd_eop_obj);
 	amdgpu_bo_unreserve(adev->gfx.mec.hpd_eop_obj);
@@ -3904,7 +3906,7 @@ static int gfx_v8_0_init_save_restore_list(struct amdgpu_device *adev)
 	int list_size;
 	unsigned int *register_list_format =
 		kmalloc(adev->gfx.rlc.reg_list_format_size_bytes, GFP_KERNEL);
-	if (register_list_format == NULL)
+	if (!register_list_format)
 		return -ENOMEM;
 	memcpy(register_list_format, adev->gfx.rlc.register_list_format,
 			adev->gfx.rlc.reg_list_format_size_bytes);
@@ -3947,8 +3949,12 @@ static int gfx_v8_0_init_save_restore_list(struct amdgpu_device *adev)
 	temp = mmRLC_SRM_INDEX_CNTL_ADDR_0;
 	data = mmRLC_SRM_INDEX_CNTL_DATA_0;
 	for (i = 0; i < sizeof(unique_indices) / sizeof(int); i++) {
-		amdgpu_mm_wreg(adev, temp + i, unique_indices[i] & 0x3FFFF, false);
-		amdgpu_mm_wreg(adev, data + i, unique_indices[i] >> 20, false);
+		if (unique_indices[i] != 0) {
+			amdgpu_mm_wreg(adev, temp + i,
+					unique_indices[i] & 0x3FFFF, false);
+			amdgpu_mm_wreg(adev, data + i,
+					unique_indices[i] >> 20, false);
+		}
 	}
 	kfree(register_list_format);
 
@@ -3964,20 +3970,17 @@ static void gfx_v8_0_init_power_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
 
-	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
-			      AMD_PG_SUPPORT_GFX_SMG |
-			      AMD_PG_SUPPORT_GFX_DMG)) {
-		WREG32_FIELD(CP_RB_WPTR_POLL_CNTL, IDLE_POLL_COUNT, 0x60);
+	WREG32_FIELD(CP_RB_WPTR_POLL_CNTL, IDLE_POLL_COUNT, 0x60);
 
-		data = REG_SET_FIELD(0, RLC_PG_DELAY, POWER_UP_DELAY, 0x10);
-		data = REG_SET_FIELD(data, RLC_PG_DELAY, POWER_DOWN_DELAY, 0x10);
-		data = REG_SET_FIELD(data, RLC_PG_DELAY, CMD_PROPAGATE_DELAY, 0x10);
-		data = REG_SET_FIELD(data, RLC_PG_DELAY, MEM_SLEEP_DELAY, 0x10);
-		WREG32(mmRLC_PG_DELAY, data);
+	data = REG_SET_FIELD(0, RLC_PG_DELAY, POWER_UP_DELAY, 0x10);
+	data = REG_SET_FIELD(data, RLC_PG_DELAY, POWER_DOWN_DELAY, 0x10);
+	data = REG_SET_FIELD(data, RLC_PG_DELAY, CMD_PROPAGATE_DELAY, 0x10);
+	data = REG_SET_FIELD(data, RLC_PG_DELAY, MEM_SLEEP_DELAY, 0x10);
+	WREG32(mmRLC_PG_DELAY, data);
 
-		WREG32_FIELD(RLC_PG_DELAY_2, SERDES_CMD_DELAY, 0x3);
-		WREG32_FIELD(RLC_AUTO_PG_CTRL, GRBM_REG_SAVE_GFX_IDLE_THRESHOLD, 0x55f0);
-	}
+	WREG32_FIELD(RLC_PG_DELAY_2, SERDES_CMD_DELAY, 0x3);
+	WREG32_FIELD(RLC_AUTO_PG_CTRL, GRBM_REG_SAVE_GFX_IDLE_THRESHOLD, 0x55f0);
+
 }
 
 static void cz_enable_sck_slow_down_on_power_up(struct amdgpu_device *adev,
@@ -3994,41 +3997,37 @@ static void cz_enable_sck_slow_down_on_power_down(struct amdgpu_device *adev,
 
 static void cz_enable_cp_power_gating(struct amdgpu_device *adev, bool enable)
 {
-	WREG32_FIELD(RLC_PG_CNTL, CP_PG_DISABLE, enable ? 1 : 0);
+	WREG32_FIELD(RLC_PG_CNTL, CP_PG_DISABLE, enable ? 0 : 1);
 }
 
 static void gfx_v8_0_init_pg(struct amdgpu_device *adev)
 {
-	if (adev->pg_flags & (AMD_PG_SUPPORT_GFX_PG |
-			      AMD_PG_SUPPORT_GFX_SMG |
-			      AMD_PG_SUPPORT_GFX_DMG |
-			      AMD_PG_SUPPORT_CP |
-			      AMD_PG_SUPPORT_GDS |
-			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
+	if ((adev->asic_type == CHIP_CARRIZO) ||
+	    (adev->asic_type == CHIP_STONEY)) {
 		gfx_v8_0_init_csb(adev);
 		gfx_v8_0_init_save_restore_list(adev);
 		gfx_v8_0_enable_save_restore_machine(adev);
-
-		if ((adev->asic_type == CHIP_CARRIZO) ||
-		    (adev->asic_type == CHIP_STONEY)) {
-			WREG32(mmRLC_JUMP_TABLE_RESTORE, adev->gfx.rlc.cp_table_gpu_addr >> 8);
-			gfx_v8_0_init_power_gating(adev);
-			WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
-			if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
-				cz_enable_sck_slow_down_on_power_up(adev, true);
-				cz_enable_sck_slow_down_on_power_down(adev, true);
-			} else {
-				cz_enable_sck_slow_down_on_power_up(adev, false);
-				cz_enable_sck_slow_down_on_power_down(adev, false);
-			}
-			if (adev->pg_flags & AMD_PG_SUPPORT_CP)
-				cz_enable_cp_power_gating(adev, true);
-			else
-				cz_enable_cp_power_gating(adev, false);
-		} else if (adev->asic_type == CHIP_POLARIS11) {
-			gfx_v8_0_init_power_gating(adev);
+		WREG32(mmRLC_JUMP_TABLE_RESTORE, adev->gfx.rlc.cp_table_gpu_addr >> 8);
+		gfx_v8_0_init_power_gating(adev);
+		WREG32(mmRLC_PG_ALWAYS_ON_CU_MASK, adev->gfx.cu_info.ao_cu_mask);
+		if (adev->pg_flags & AMD_PG_SUPPORT_RLC_SMU_HS) {
+			cz_enable_sck_slow_down_on_power_up(adev, true);
+			cz_enable_sck_slow_down_on_power_down(adev, true);
+		} else {
+			cz_enable_sck_slow_down_on_power_up(adev, false);
+			cz_enable_sck_slow_down_on_power_down(adev, false);
 		}
+		if (adev->pg_flags & AMD_PG_SUPPORT_CP)
+			cz_enable_cp_power_gating(adev, true);
+		else
+			cz_enable_cp_power_gating(adev, false);
+	} else if (adev->asic_type == CHIP_POLARIS11) {
+		gfx_v8_0_init_csb(adev);
+		gfx_v8_0_init_save_restore_list(adev);
+		gfx_v8_0_enable_save_restore_machine(adev);
+		gfx_v8_0_init_power_gating(adev);
 	}
+
 }
 
 static void gfx_v8_0_rlc_stop(struct amdgpu_device *adev)
@@ -4469,267 +4468,6 @@ static int gfx_v8_0_cp_compute_load_microcode(struct amdgpu_device *adev)
 	return 0;
 }
 
-struct vi_mqd {
-	uint32_t header;  /* ordinal0 */
-	uint32_t compute_dispatch_initiator;  /* ordinal1 */
-	uint32_t compute_dim_x;  /* ordinal2 */
-	uint32_t compute_dim_y;  /* ordinal3 */
-	uint32_t compute_dim_z;  /* ordinal4 */
-	uint32_t compute_start_x;  /* ordinal5 */
-	uint32_t compute_start_y;  /* ordinal6 */
-	uint32_t compute_start_z;  /* ordinal7 */
-	uint32_t compute_num_thread_x;  /* ordinal8 */
-	uint32_t compute_num_thread_y;  /* ordinal9 */
-	uint32_t compute_num_thread_z;  /* ordinal10 */
-	uint32_t compute_pipelinestat_enable;  /* ordinal11 */
-	uint32_t compute_perfcount_enable;  /* ordinal12 */
-	uint32_t compute_pgm_lo;  /* ordinal13 */
-	uint32_t compute_pgm_hi;  /* ordinal14 */
-	uint32_t compute_tba_lo;  /* ordinal15 */
-	uint32_t compute_tba_hi;  /* ordinal16 */
-	uint32_t compute_tma_lo;  /* ordinal17 */
-	uint32_t compute_tma_hi;  /* ordinal18 */
-	uint32_t compute_pgm_rsrc1;  /* ordinal19 */
-	uint32_t compute_pgm_rsrc2;  /* ordinal20 */
-	uint32_t compute_vmid;  /* ordinal21 */
-	uint32_t compute_resource_limits;  /* ordinal22 */
-	uint32_t compute_static_thread_mgmt_se0;  /* ordinal23 */
-	uint32_t compute_static_thread_mgmt_se1;  /* ordinal24 */
-	uint32_t compute_tmpring_size;  /* ordinal25 */
-	uint32_t compute_static_thread_mgmt_se2;  /* ordinal26 */
-	uint32_t compute_static_thread_mgmt_se3;  /* ordinal27 */
-	uint32_t compute_restart_x;  /* ordinal28 */
-	uint32_t compute_restart_y;  /* ordinal29 */
-	uint32_t compute_restart_z;  /* ordinal30 */
-	uint32_t compute_thread_trace_enable;  /* ordinal31 */
-	uint32_t compute_misc_reserved;  /* ordinal32 */
-	uint32_t compute_dispatch_id;  /* ordinal33 */
-	uint32_t compute_threadgroup_id;  /* ordinal34 */
-	uint32_t compute_relaunch;  /* ordinal35 */
-	uint32_t compute_wave_restore_addr_lo;  /* ordinal36 */
-	uint32_t compute_wave_restore_addr_hi;  /* ordinal37 */
-	uint32_t compute_wave_restore_control;  /* ordinal38 */
-	uint32_t reserved9;  /* ordinal39 */
-	uint32_t reserved10;  /* ordinal40 */
-	uint32_t reserved11;  /* ordinal41 */
-	uint32_t reserved12;  /* ordinal42 */
-	uint32_t reserved13;  /* ordinal43 */
-	uint32_t reserved14;  /* ordinal44 */
-	uint32_t reserved15;  /* ordinal45 */
-	uint32_t reserved16;  /* ordinal46 */
-	uint32_t reserved17;  /* ordinal47 */
-	uint32_t reserved18;  /* ordinal48 */
-	uint32_t reserved19;  /* ordinal49 */
-	uint32_t reserved20;  /* ordinal50 */
-	uint32_t reserved21;  /* ordinal51 */
-	uint32_t reserved22;  /* ordinal52 */
-	uint32_t reserved23;  /* ordinal53 */
-	uint32_t reserved24;  /* ordinal54 */
-	uint32_t reserved25;  /* ordinal55 */
-	uint32_t reserved26;  /* ordinal56 */
-	uint32_t reserved27;  /* ordinal57 */
-	uint32_t reserved28;  /* ordinal58 */
-	uint32_t reserved29;  /* ordinal59 */
-	uint32_t reserved30;  /* ordinal60 */
-	uint32_t reserved31;  /* ordinal61 */
-	uint32_t reserved32;  /* ordinal62 */
-	uint32_t reserved33;  /* ordinal63 */
-	uint32_t reserved34;  /* ordinal64 */
-	uint32_t compute_user_data_0;  /* ordinal65 */
-	uint32_t compute_user_data_1;  /* ordinal66 */
-	uint32_t compute_user_data_2;  /* ordinal67 */
-	uint32_t compute_user_data_3;  /* ordinal68 */
-	uint32_t compute_user_data_4;  /* ordinal69 */
-	uint32_t compute_user_data_5;  /* ordinal70 */
-	uint32_t compute_user_data_6;  /* ordinal71 */
-	uint32_t compute_user_data_7;  /* ordinal72 */
-	uint32_t compute_user_data_8;  /* ordinal73 */
-	uint32_t compute_user_data_9;  /* ordinal74 */
-	uint32_t compute_user_data_10;  /* ordinal75 */
-	uint32_t compute_user_data_11;  /* ordinal76 */
-	uint32_t compute_user_data_12;  /* ordinal77 */
-	uint32_t compute_user_data_13;  /* ordinal78 */
-	uint32_t compute_user_data_14;  /* ordinal79 */
-	uint32_t compute_user_data_15;  /* ordinal80 */
-	uint32_t cp_compute_csinvoc_count_lo;  /* ordinal81 */
-	uint32_t cp_compute_csinvoc_count_hi;  /* ordinal82 */
-	uint32_t reserved35;  /* ordinal83 */
-	uint32_t reserved36;  /* ordinal84 */
-	uint32_t reserved37;  /* ordinal85 */
-	uint32_t cp_mqd_query_time_lo;  /* ordinal86 */
-	uint32_t cp_mqd_query_time_hi;  /* ordinal87 */
-	uint32_t cp_mqd_connect_start_time_lo;  /* ordinal88 */
-	uint32_t cp_mqd_connect_start_time_hi;  /* ordinal89 */
-	uint32_t cp_mqd_connect_end_time_lo;  /* ordinal90 */
-	uint32_t cp_mqd_connect_end_time_hi;  /* ordinal91 */
-	uint32_t cp_mqd_connect_end_wf_count;  /* ordinal92 */
-	uint32_t cp_mqd_connect_end_pq_rptr;  /* ordinal93 */
-	uint32_t cp_mqd_connect_end_pq_wptr;  /* ordinal94 */
-	uint32_t cp_mqd_connect_end_ib_rptr;  /* ordinal95 */
-	uint32_t reserved38;  /* ordinal96 */
-	uint32_t reserved39;  /* ordinal97 */
-	uint32_t cp_mqd_save_start_time_lo;  /* ordinal98 */
-	uint32_t cp_mqd_save_start_time_hi;  /* ordinal99 */
-	uint32_t cp_mqd_save_end_time_lo;  /* ordinal100 */
-	uint32_t cp_mqd_save_end_time_hi;  /* ordinal101 */
-	uint32_t cp_mqd_restore_start_time_lo;  /* ordinal102 */
-	uint32_t cp_mqd_restore_start_time_hi;  /* ordinal103 */
-	uint32_t cp_mqd_restore_end_time_lo;  /* ordinal104 */
-	uint32_t cp_mqd_restore_end_time_hi;  /* ordinal105 */
-	uint32_t reserved40;  /* ordinal106 */
-	uint32_t reserved41;  /* ordinal107 */
-	uint32_t gds_cs_ctxsw_cnt0;  /* ordinal108 */
-	uint32_t gds_cs_ctxsw_cnt1;  /* ordinal109 */
-	uint32_t gds_cs_ctxsw_cnt2;  /* ordinal110 */
-	uint32_t gds_cs_ctxsw_cnt3;  /* ordinal111 */
-	uint32_t reserved42;  /* ordinal112 */
-	uint32_t reserved43;  /* ordinal113 */
-	uint32_t cp_pq_exe_status_lo;  /* ordinal114 */
-	uint32_t cp_pq_exe_status_hi;  /* ordinal115 */
-	uint32_t cp_packet_id_lo;  /* ordinal116 */
-	uint32_t cp_packet_id_hi;  /* ordinal117 */
-	uint32_t cp_packet_exe_status_lo;  /* ordinal118 */
-	uint32_t cp_packet_exe_status_hi;  /* ordinal119 */
-	uint32_t gds_save_base_addr_lo;  /* ordinal120 */
-	uint32_t gds_save_base_addr_hi;  /* ordinal121 */
-	uint32_t gds_save_mask_lo;  /* ordinal122 */
-	uint32_t gds_save_mask_hi;  /* ordinal123 */
-	uint32_t ctx_save_base_addr_lo;  /* ordinal124 */
-	uint32_t ctx_save_base_addr_hi;  /* ordinal125 */
-	uint32_t reserved44;  /* ordinal126 */
-	uint32_t reserved45;  /* ordinal127 */
-	uint32_t cp_mqd_base_addr_lo;  /* ordinal128 */
-	uint32_t cp_mqd_base_addr_hi;  /* ordinal129 */
-	uint32_t cp_hqd_active;  /* ordinal130 */
-	uint32_t cp_hqd_vmid;  /* ordinal131 */
-	uint32_t cp_hqd_persistent_state;  /* ordinal132 */
-	uint32_t cp_hqd_pipe_priority;  /* ordinal133 */
-	uint32_t cp_hqd_queue_priority;  /* ordinal134 */
-	uint32_t cp_hqd_quantum;  /* ordinal135 */
-	uint32_t cp_hqd_pq_base_lo;  /* ordinal136 */
-	uint32_t cp_hqd_pq_base_hi;  /* ordinal137 */
-	uint32_t cp_hqd_pq_rptr;  /* ordinal138 */
-	uint32_t cp_hqd_pq_rptr_report_addr_lo;  /* ordinal139 */
-	uint32_t cp_hqd_pq_rptr_report_addr_hi;  /* ordinal140 */
-	uint32_t cp_hqd_pq_wptr_poll_addr;  /* ordinal141 */
-	uint32_t cp_hqd_pq_wptr_poll_addr_hi;  /* ordinal142 */
-	uint32_t cp_hqd_pq_doorbell_control;  /* ordinal143 */
-	uint32_t cp_hqd_pq_wptr;  /* ordinal144 */
-	uint32_t cp_hqd_pq_control;  /* ordinal145 */
-	uint32_t cp_hqd_ib_base_addr_lo;  /* ordinal146 */
-	uint32_t cp_hqd_ib_base_addr_hi;  /* ordinal147 */
-	uint32_t cp_hqd_ib_rptr;  /* ordinal148 */
-	uint32_t cp_hqd_ib_control;  /* ordinal149 */
-	uint32_t cp_hqd_iq_timer;  /* ordinal150 */
-	uint32_t cp_hqd_iq_rptr;  /* ordinal151 */
-	uint32_t cp_hqd_dequeue_request;  /* ordinal152 */
-	uint32_t cp_hqd_dma_offload;  /* ordinal153 */
-	uint32_t cp_hqd_sema_cmd;  /* ordinal154 */
-	uint32_t cp_hqd_msg_type;  /* ordinal155 */
-	uint32_t cp_hqd_atomic0_preop_lo;  /* ordinal156 */
-	uint32_t cp_hqd_atomic0_preop_hi;  /* ordinal157 */
-	uint32_t cp_hqd_atomic1_preop_lo;  /* ordinal158 */
-	uint32_t cp_hqd_atomic1_preop_hi;  /* ordinal159 */
-	uint32_t cp_hqd_hq_status0;  /* ordinal160 */
-	uint32_t cp_hqd_hq_control0;  /* ordinal161 */
-	uint32_t cp_mqd_control;  /* ordinal162 */
-	uint32_t cp_hqd_hq_status1;  /* ordinal163 */
-	uint32_t cp_hqd_hq_control1;  /* ordinal164 */
-	uint32_t cp_hqd_eop_base_addr_lo;  /* ordinal165 */
-	uint32_t cp_hqd_eop_base_addr_hi;  /* ordinal166 */
-	uint32_t cp_hqd_eop_control;  /* ordinal167 */
-	uint32_t cp_hqd_eop_rptr;  /* ordinal168 */
-	uint32_t cp_hqd_eop_wptr;  /* ordinal169 */
-	uint32_t cp_hqd_eop_done_events;  /* ordinal170 */
-	uint32_t cp_hqd_ctx_save_base_addr_lo;  /* ordinal171 */
-	uint32_t cp_hqd_ctx_save_base_addr_hi;  /* ordinal172 */
-	uint32_t cp_hqd_ctx_save_control;  /* ordinal173 */
-	uint32_t cp_hqd_cntl_stack_offset;  /* ordinal174 */
-	uint32_t cp_hqd_cntl_stack_size;  /* ordinal175 */
-	uint32_t cp_hqd_wg_state_offset;  /* ordinal176 */
-	uint32_t cp_hqd_ctx_save_size;  /* ordinal177 */
-	uint32_t cp_hqd_gds_resource_state;  /* ordinal178 */
-	uint32_t cp_hqd_error;  /* ordinal179 */
-	uint32_t cp_hqd_eop_wptr_mem;  /* ordinal180 */
-	uint32_t cp_hqd_eop_dones;  /* ordinal181 */
-	uint32_t reserved46;  /* ordinal182 */
-	uint32_t reserved47;  /* ordinal183 */
-	uint32_t reserved48;  /* ordinal184 */
-	uint32_t reserved49;  /* ordinal185 */
-	uint32_t reserved50;  /* ordinal186 */
-	uint32_t reserved51;  /* ordinal187 */
-	uint32_t reserved52;  /* ordinal188 */
-	uint32_t reserved53;  /* ordinal189 */
-	uint32_t reserved54;  /* ordinal190 */
-	uint32_t reserved55;  /* ordinal191 */
-	uint32_t iqtimer_pkt_header;  /* ordinal192 */
-	uint32_t iqtimer_pkt_dw0;  /* ordinal193 */
-	uint32_t iqtimer_pkt_dw1;  /* ordinal194 */
-	uint32_t iqtimer_pkt_dw2;  /* ordinal195 */
-	uint32_t iqtimer_pkt_dw3;  /* ordinal196 */
-	uint32_t iqtimer_pkt_dw4;  /* ordinal197 */
-	uint32_t iqtimer_pkt_dw5;  /* ordinal198 */
-	uint32_t iqtimer_pkt_dw6;  /* ordinal199 */
-	uint32_t iqtimer_pkt_dw7;  /* ordinal200 */
-	uint32_t iqtimer_pkt_dw8;  /* ordinal201 */
-	uint32_t iqtimer_pkt_dw9;  /* ordinal202 */
-	uint32_t iqtimer_pkt_dw10;  /* ordinal203 */
-	uint32_t iqtimer_pkt_dw11;  /* ordinal204 */
-	uint32_t iqtimer_pkt_dw12;  /* ordinal205 */
-	uint32_t iqtimer_pkt_dw13;  /* ordinal206 */
-	uint32_t iqtimer_pkt_dw14;  /* ordinal207 */
-	uint32_t iqtimer_pkt_dw15;  /* ordinal208 */
-	uint32_t iqtimer_pkt_dw16;  /* ordinal209 */
-	uint32_t iqtimer_pkt_dw17;  /* ordinal210 */
-	uint32_t iqtimer_pkt_dw18;  /* ordinal211 */
-	uint32_t iqtimer_pkt_dw19;  /* ordinal212 */
-	uint32_t iqtimer_pkt_dw20;  /* ordinal213 */
-	uint32_t iqtimer_pkt_dw21;  /* ordinal214 */
-	uint32_t iqtimer_pkt_dw22;  /* ordinal215 */
-	uint32_t iqtimer_pkt_dw23;  /* ordinal216 */
-	uint32_t iqtimer_pkt_dw24;  /* ordinal217 */
-	uint32_t iqtimer_pkt_dw25;  /* ordinal218 */
-	uint32_t iqtimer_pkt_dw26;  /* ordinal219 */
-	uint32_t iqtimer_pkt_dw27;  /* ordinal220 */
-	uint32_t iqtimer_pkt_dw28;  /* ordinal221 */
-	uint32_t iqtimer_pkt_dw29;  /* ordinal222 */
-	uint32_t iqtimer_pkt_dw30;  /* ordinal223 */
-	uint32_t iqtimer_pkt_dw31;  /* ordinal224 */
-	uint32_t reserved56;  /* ordinal225 */
-	uint32_t reserved57;  /* ordinal226 */
-	uint32_t reserved58;  /* ordinal227 */
-	uint32_t set_resources_header;  /* ordinal228 */
-	uint32_t set_resources_dw1;  /* ordinal229 */
-	uint32_t set_resources_dw2;  /* ordinal230 */
-	uint32_t set_resources_dw3;  /* ordinal231 */
-	uint32_t set_resources_dw4;  /* ordinal232 */
-	uint32_t set_resources_dw5;  /* ordinal233 */
-	uint32_t set_resources_dw6;  /* ordinal234 */
-	uint32_t set_resources_dw7;  /* ordinal235 */
-	uint32_t reserved59;  /* ordinal236 */
-	uint32_t reserved60;  /* ordinal237 */
-	uint32_t reserved61;  /* ordinal238 */
-	uint32_t reserved62;  /* ordinal239 */
-	uint32_t reserved63;  /* ordinal240 */
-	uint32_t reserved64;  /* ordinal241 */
-	uint32_t reserved65;  /* ordinal242 */
-	uint32_t reserved66;  /* ordinal243 */
-	uint32_t reserved67;  /* ordinal244 */
-	uint32_t reserved68;  /* ordinal245 */
-	uint32_t reserved69;  /* ordinal246 */
-	uint32_t reserved70;  /* ordinal247 */
-	uint32_t reserved71;  /* ordinal248 */
-	uint32_t reserved72;  /* ordinal249 */
-	uint32_t reserved73;  /* ordinal250 */
-	uint32_t reserved74;  /* ordinal251 */
-	uint32_t reserved75;  /* ordinal252 */
-	uint32_t reserved76;  /* ordinal253 */
-	uint32_t reserved77;  /* ordinal254 */
-	uint32_t reserved78;  /* ordinal255 */
-
-	uint32_t reserved_t[256]; /* Reserve 256 dword buffer used by ucode */
-};
-
 static void gfx_v8_0_cp_compute_fini(struct amdgpu_device *adev)
 {
 	int i, r;
@@ -4763,34 +4501,7 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 	u32 *buf;
 	struct vi_mqd *mqd;
 
-	/* init the pipes */
-	mutex_lock(&adev->srbm_mutex);
-	for (i = 0; i < (adev->gfx.mec.num_pipe * adev->gfx.mec.num_mec); i++) {
-		int me = (i < 4) ? 1 : 2;
-		int pipe = (i < 4) ? i : (i - 4);
-
-		eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE);
-		eop_gpu_addr >>= 8;
-
-		vi_srbm_select(adev, me, pipe, 0, 0);
-
-		/* write the EOP addr */
-		WREG32(mmCP_HQD_EOP_BASE_ADDR, eop_gpu_addr);
-		WREG32(mmCP_HQD_EOP_BASE_ADDR_HI, upper_32_bits(eop_gpu_addr));
-
-		/* set the VMID assigned */
-		WREG32(mmCP_HQD_VMID, 0);
-
-		/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
-		tmp = RREG32(mmCP_HQD_EOP_CONTROL);
-		tmp = REG_SET_FIELD(tmp, CP_HQD_EOP_CONTROL, EOP_SIZE,
-				    (order_base_2(MEC_HPD_SIZE / 4) - 1));
-		WREG32(mmCP_HQD_EOP_CONTROL, tmp);
-	}
-	vi_srbm_select(adev, 0, 0, 0, 0);
-	mutex_unlock(&adev->srbm_mutex);
-
-	/* init the queues.  Just two for now. */
+	/* init the queues.  */
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
 
@@ -4841,6 +4552,22 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 		vi_srbm_select(adev, ring->me,
 			       ring->pipe,
 			       ring->queue, 0);
+
+		eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr + (i * MEC_HPD_SIZE);
+		eop_gpu_addr >>= 8;
+
+		/* write the EOP addr */
+		WREG32(mmCP_HQD_EOP_BASE_ADDR, eop_gpu_addr);
+		WREG32(mmCP_HQD_EOP_BASE_ADDR_HI, upper_32_bits(eop_gpu_addr));
+
+		/* set the VMID assigned */
+		WREG32(mmCP_HQD_VMID, 0);
+
+		/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
+		tmp = RREG32(mmCP_HQD_EOP_CONTROL);
+		tmp = REG_SET_FIELD(tmp, CP_HQD_EOP_CONTROL, EOP_SIZE,
+				    (order_base_2(MEC_HPD_SIZE / 4) - 1));
+		WREG32(mmCP_HQD_EOP_CONTROL, tmp);
 
 		/* disable wptr polling */
 		tmp = RREG32(mmCP_PQ_WPTR_POLL_CNTL);
@@ -4925,9 +4652,9 @@ static int gfx_v8_0_cp_compute_resume(struct amdgpu_device *adev)
 
 		/* only used if CP_PQ_WPTR_POLL_CNTL.CP_PQ_WPTR_POLL_CNTL__EN_MASK=1 */
 		wb_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
-		mqd->cp_hqd_pq_wptr_poll_addr = wb_gpu_addr & 0xfffffffc;
+		mqd->cp_hqd_pq_wptr_poll_addr_lo = wb_gpu_addr & 0xfffffffc;
 		mqd->cp_hqd_pq_wptr_poll_addr_hi = upper_32_bits(wb_gpu_addr) & 0xffff;
-		WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, mqd->cp_hqd_pq_wptr_poll_addr);
+		WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR, mqd->cp_hqd_pq_wptr_poll_addr_lo);
 		WREG32(mmCP_HQD_PQ_WPTR_POLL_ADDR_HI,
 		       mqd->cp_hqd_pq_wptr_poll_addr_hi);
 
@@ -5098,6 +4825,10 @@ static int gfx_v8_0_hw_fini(void *handle)
 
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
+	if (amdgpu_sriov_vf(adev)) {
+		pr_debug("For SRIOV client, shouldn't do anything.\n");
+		return 0;
+	}
 	gfx_v8_0_cp_enable(adev, false);
 	gfx_v8_0_rlc_stop(adev);
 	gfx_v8_0_cp_compute_fini(adev);
@@ -5442,8 +5173,27 @@ static void gfx_v8_0_ring_emit_gds_switch(struct amdgpu_ring *ring,
 
 static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t address)
 {
-	WREG32(mmSQ_IND_INDEX, (wave & 0xF) | ((simd & 0x3) << 4) | (address << 16) | (1 << 13));
+	WREG32(mmSQ_IND_INDEX,
+		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
+		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
+		(address << SQ_IND_INDEX__INDEX__SHIFT) |
+		(SQ_IND_INDEX__FORCE_READ_MASK));
 	return RREG32(mmSQ_IND_DATA);
+}
+
+static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
+			   uint32_t wave, uint32_t thread,
+			   uint32_t regno, uint32_t num, uint32_t *out)
+{
+	WREG32(mmSQ_IND_INDEX,
+		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
+		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
+		(regno << SQ_IND_INDEX__INDEX__SHIFT) |
+		(thread << SQ_IND_INDEX__THREAD_ID__SHIFT) |
+		(SQ_IND_INDEX__FORCE_READ_MASK) |
+		(SQ_IND_INDEX__AUTO_INCR_MASK));
+	while (num--)
+		*(out++) = RREG32(mmSQ_IND_DATA);
 }
 
 static void gfx_v8_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t *dst, int *no_fields)
@@ -5470,11 +5220,21 @@ static void gfx_v8_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, u
 	dst[(*no_fields)++] = wave_read_ind(adev, simd, wave, ixSQ_WAVE_M0);
 }
 
+static void gfx_v8_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
+				     uint32_t wave, uint32_t start,
+				     uint32_t size, uint32_t *dst)
+{
+	wave_read_regs(
+		adev, simd, wave, 0,
+		start + SQIND_WAVE_SGPRS_OFFSET, size, dst);
+}
+
 
 static const struct amdgpu_gfx_funcs gfx_v8_0_gfx_funcs = {
 	.get_gpu_clock_counter = &gfx_v8_0_get_gpu_clock_counter,
 	.select_se_sh = &gfx_v8_0_select_se_sh,
 	.read_wave_data = &gfx_v8_0_read_wave_data,
+	.read_wave_sgprs = &gfx_v8_0_read_wave_sgprs,
 };
 
 static int gfx_v8_0_early_init(void *handle)
@@ -5576,14 +5336,11 @@ static int gfx_v8_0_set_powergating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	bool enable = (state == AMD_PG_STATE_GATE) ? true : false;
 
-	if (!(adev->pg_flags & AMD_PG_SUPPORT_GFX_PG))
-		return 0;
-
 	switch (adev->asic_type) {
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
-		if (adev->pg_flags & AMD_PG_SUPPORT_GFX_PG)
-			cz_update_gfx_cg_power_gating(adev, enable);
+
+		cz_update_gfx_cg_power_gating(adev, enable);
 
 		if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_SMG) && enable)
 			gfx_v8_0_enable_gfx_static_mg_power_gating(adev, true);
@@ -5926,29 +5683,24 @@ static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 	adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)) {
-		/* 1 enable cntx_empty_int_enable/cntx_busy_int_enable/
-		 * Cmp_busy/GFX_Idle interrupts
-		 */
-		gfx_v8_0_enable_gui_idle_interrupt(adev, true);
-
 		temp1 = data1 =	RREG32(mmRLC_CGTT_MGCG_OVERRIDE);
 		data1 &= ~RLC_CGTT_MGCG_OVERRIDE__CGCG_MASK;
 		if (temp1 != data1)
 			WREG32(mmRLC_CGTT_MGCG_OVERRIDE, data1);
 
-		/* 2 wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
+		/* : wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
-		/* 3 - clear cgcg override */
+		/* 2 - clear cgcg override */
 		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_CGCG_OVERRIDE, CLE_BPM_SERDES_CMD);
 
 		/* wait for RLC_SERDES_CU_MASTER & RLC_SERDES_NONCU_MASTER idle */
 		gfx_v8_0_wait_for_rlc_serdes(adev);
 
-		/* 4 - write cmd to set CGLS */
+		/* 3 - write cmd to set CGLS */
 		gfx_v8_0_send_serdes_cmd(adev, BPM_REG_CGLS_EN, SET_BPM_SERDES_CMD);
 
-		/* 5 - enable cgcg */
+		/* 4 - enable cgcg */
 		data |= RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK;
 
 		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
@@ -5966,6 +5718,11 @@ static void gfx_v8_0_update_coarse_grain_clock_gating(struct amdgpu_device *adev
 
 		if (temp != data)
 			WREG32(mmRLC_CGCG_CGLS_CTRL, data);
+
+		/* 5 enable cntx_empty_int_enable/cntx_busy_int_enable/
+		 * Cmp_busy/GFX_Idle interrupts
+		 */
+		gfx_v8_0_enable_gui_idle_interrupt(adev, true);
 	} else {
 		/* disable cntx_empty_int_enable & GFX Idle interrupt */
 		gfx_v8_0_enable_gui_idle_interrupt(adev, false);
@@ -6028,25 +5785,49 @@ static int gfx_v8_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
 					  enum amd_clockgating_state state)
 {
-	uint32_t msg_id, pp_state;
+	uint32_t msg_id, pp_state = 0;
+	uint32_t pp_support_state = 0;
 	void *pp_handle = adev->powerplay.pp_handle;
 
-	if (state == AMD_CG_STATE_UNGATE)
-		pp_state = 0;
-	else
-		pp_state = PP_STATE_CG | PP_STATE_LS;
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_CGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_CG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_CG,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_MG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_MGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
+
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
+
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_MG,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
 	return 0;
 }
@@ -6054,43 +5835,98 @@ static int gfx_v8_0_tonga_update_gfx_clock_gating(struct amdgpu_device *adev,
 static int gfx_v8_0_polaris_update_gfx_clock_gating(struct amdgpu_device *adev,
 					  enum amd_clockgating_state state)
 {
-	uint32_t msg_id, pp_state;
+
+	uint32_t msg_id, pp_state = 0;
+	uint32_t pp_support_state = 0;
 	void *pp_handle = adev->powerplay.pp_handle;
 
-	if (state == AMD_CG_STATE_UNGATE)
-		pp_state = 0;
-	else
-		pp_state = PP_STATE_CG | PP_STATE_LS;
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_CGCG | AMD_CG_SUPPORT_GFX_CGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_CG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_CG,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_3D,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_3D_CGCG | AMD_CG_SUPPORT_GFX_3D_CGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_3D_CGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_MG,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_3D,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
-			PP_BLOCK_GFX_RLC,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
-			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+	if (adev->cg_flags & (AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_MGLS)) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGLS) {
+			pp_support_state = PP_STATE_SUPPORT_LS;
+			pp_state = PP_STATE_LS;
+		}
 
-	msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG) {
+			pp_support_state |= PP_STATE_SUPPORT_CG;
+			pp_state |= PP_STATE_CG;
+		}
+
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
+
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_MG,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
+
+	if (adev->cg_flags & AMD_CG_SUPPORT_GFX_RLC_LS) {
+		pp_support_state = PP_STATE_SUPPORT_LS;
+
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
+		else
+			pp_state = PP_STATE_LS;
+
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
+				PP_BLOCK_GFX_RLC,
+				pp_support_state,
+				pp_state);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
+
+	if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CP_LS) {
+		pp_support_state = PP_STATE_SUPPORT_LS;
+
+		if (state == AMD_CG_STATE_UNGATE)
+			pp_state = 0;
+		else
+			pp_state = PP_STATE_LS;
+		msg_id = PP_CG_MSG_ID(PP_GROUP_GFX,
 			PP_BLOCK_GFX_CP,
-			PP_STATE_SUPPORT_CG | PP_STATE_SUPPORT_LS,
+			pp_support_state,
 			pp_state);
-	amd_set_clockgating_by_smu(pp_handle, msg_id);
+		amd_set_clockgating_by_smu(pp_handle, msg_id);
+	}
 
 	return 0;
 }
@@ -6181,6 +6017,18 @@ static void gfx_v8_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, ref_and_mask);
 	amdgpu_ring_write(ring, 0x20); /* poll interval */
 }
+
+static void gfx_v8_0_ring_emit_vgt_flush(struct amdgpu_ring *ring)
+{
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE, 0));
+	amdgpu_ring_write(ring, EVENT_TYPE(VS_PARTIAL_FLUSH) |
+		EVENT_INDEX(4));
+
+	amdgpu_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE, 0));
+	amdgpu_ring_write(ring, EVENT_TYPE(VGT_FLUSH) |
+		EVENT_INDEX(0));
+}
+
 
 static void gfx_v8_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
 {
@@ -6367,6 +6215,7 @@ static void gfx_v8_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 
 	dw2 |= 0x80000000; /* set load_enable otherwise this package is just NOPs */
 	if (flags & AMDGPU_HAVE_CTX_SWITCH) {
+		gfx_v8_0_ring_emit_vgt_flush(ring);
 		/* set load_global_config & load_global_uconfig */
 		dw2 |= 0x8001;
 		/* set load_cs_sh_regs */
@@ -6570,7 +6419,7 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 		7 + /* gfx_v8_0_ring_emit_pipeline_sync */
 		128 + 19 + /* gfx_v8_0_ring_emit_vm_flush */
 		2 + /* gfx_v8_ring_emit_sb */
-		3, /* gfx_v8_ring_emit_cntxcntl */
+		3 + 4, /* gfx_v8_ring_emit_cntxcntl including vgt flush */
 	.emit_ib_size =	4, /* gfx_v8_0_ring_emit_ib_gfx */
 	.emit_ib = gfx_v8_0_ring_emit_ib_gfx,
 	.emit_fence = gfx_v8_0_ring_emit_fence_gfx,

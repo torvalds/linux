@@ -319,7 +319,8 @@ static void rockchip_rk3036_pll_init(struct clk_hw *hw)
 
 	if (rate->fbdiv != cur.fbdiv || rate->postdiv1 != cur.postdiv1 ||
 		rate->refdiv != cur.refdiv || rate->postdiv2 != cur.postdiv2 ||
-		rate->dsmpd != cur.dsmpd || rate->frac != cur.frac) {
+		rate->dsmpd != cur.dsmpd ||
+		(!cur.dsmpd && (rate->frac != cur.frac))) {
 		struct clk *parent = clk_get_parent(hw->clk);
 
 		if (!parent) {
@@ -795,7 +796,8 @@ static void rockchip_rk3399_pll_init(struct clk_hw *hw)
 
 	if (rate->fbdiv != cur.fbdiv || rate->postdiv1 != cur.postdiv1 ||
 		rate->refdiv != cur.refdiv || rate->postdiv2 != cur.postdiv2 ||
-		rate->dsmpd != cur.dsmpd || rate->frac != cur.frac) {
+		rate->dsmpd != cur.dsmpd ||
+		(!cur.dsmpd && (rate->frac != cur.frac))) {
 		struct clk *parent = clk_get_parent(hw->clk);
 
 		if (!parent) {

@@ -68,7 +68,7 @@ static int mlx4_en_test_loopback_xmit(struct mlx4_en_priv *priv)
 	memcpy(ethh->h_dest, priv->dev->dev_addr, ETH_ALEN);
 	eth_zero_addr(ethh->h_source);
 	ethh->h_proto = htons(ETH_P_ARP);
-	skb_set_mac_header(skb, 0);
+	skb_reset_mac_header(skb);
 	for (i = 0; i < packet_size; ++i)	/* fill our packet */
 		packet[i] = (unsigned char)(i & 0xff);
 

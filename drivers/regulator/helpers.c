@@ -454,13 +454,17 @@ EXPORT_SYMBOL_GPL(regulator_set_bypass_regmap);
 int regulator_get_bypass_regmap(struct regulator_dev *rdev, bool *enable)
 {
 	unsigned int val;
+	unsigned int val_on = rdev->desc->bypass_val_on;
 	int ret;
 
 	ret = regmap_read(rdev->regmap, rdev->desc->bypass_reg, &val);
 	if (ret != 0)
 		return ret;
 
-	*enable = (val & rdev->desc->bypass_mask) == rdev->desc->bypass_val_on;
+	if (!val_on)
+		val_on = rdev->desc->bypass_mask;
+
+	*enable = (val & rdev->desc->bypass_mask) == val_on;
 
 	return 0;
 }

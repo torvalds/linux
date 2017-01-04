@@ -2143,6 +2143,7 @@ static int lanai_dev_open(struct atm_dev *atmdev)
 	lanai->base = (bus_addr_t) ioremap(raw_base, LANAI_MAPPING_SIZE);
 	if (lanai->base == NULL) {
 		printk(KERN_ERR DEV_LABEL ": couldn't remap I/O space\n");
+		result = -ENOMEM;
 		goto error_pci;
 	}
 	/* 3.3: Reset lanai and PHY */

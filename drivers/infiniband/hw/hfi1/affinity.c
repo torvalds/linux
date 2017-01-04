@@ -125,6 +125,7 @@ int node_affinity_init(void)
 				cpumask_weight(topology_sibling_cpumask(
 					cpumask_first(&node_affinity.proc.mask)
 					));
+	node_affinity.num_possible_nodes = num_possible_nodes();
 	node_affinity.num_online_nodes = num_online_nodes();
 	node_affinity.num_online_cpus = num_online_cpus();
 
@@ -135,7 +136,7 @@ int node_affinity_init(void)
 	 */
 	init_real_cpu_mask();
 
-	hfi1_per_node_cntr = kcalloc(num_possible_nodes(),
+	hfi1_per_node_cntr = kcalloc(node_affinity.num_possible_nodes,
 				     sizeof(*hfi1_per_node_cntr), GFP_KERNEL);
 	if (!hfi1_per_node_cntr)
 		return -ENOMEM;

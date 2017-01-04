@@ -185,8 +185,8 @@ static u32 bttv_rc5_decode(unsigned int code)
 			return 0;
 		}
 	}
-	dprintk("code=%x, rc5=%x, start=%x, toggle=%x, address=%x, "
-		"instr=%x\n", rc5, org_code, RC5_START(rc5),
+	dprintk("code=%x, rc5=%x, start=%x, toggle=%x, address=%x, instr=%x\n",
+		rc5, org_code, RC5_START(rc5),
 		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
 	return rc5;
 }

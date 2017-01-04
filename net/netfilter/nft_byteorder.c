@@ -169,7 +169,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_byteorder_type;
 static const struct nft_expr_ops nft_byteorder_ops = {
 	.type		= &nft_byteorder_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_byteorder)),
@@ -178,20 +177,10 @@ static const struct nft_expr_ops nft_byteorder_ops = {
 	.dump		= nft_byteorder_dump,
 };
 
-static struct nft_expr_type nft_byteorder_type __read_mostly = {
+struct nft_expr_type nft_byteorder_type __read_mostly = {
 	.name		= "byteorder",
 	.ops		= &nft_byteorder_ops,
 	.policy		= nft_byteorder_policy,
 	.maxattr	= NFTA_BYTEORDER_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_byteorder_module_init(void)
-{
-	return nft_register_expr(&nft_byteorder_type);
-}
-
-void nft_byteorder_module_exit(void)
-{
-	nft_unregister_expr(&nft_byteorder_type);
-}

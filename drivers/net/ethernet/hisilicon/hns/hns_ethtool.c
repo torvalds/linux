@@ -1178,7 +1178,8 @@ static int hns_nic_nway_reset(struct net_device *netdev)
 	struct phy_device *phy = netdev->phydev;
 
 	if (netif_running(netdev)) {
-		if (phy)
+		/* if autoneg is disabled, don't restart auto-negotiation */
+		if (phy && phy->autoneg == AUTONEG_ENABLE)
 			ret = genphy_restart_aneg(phy);
 	}
 

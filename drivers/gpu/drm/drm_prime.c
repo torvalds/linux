@@ -290,7 +290,8 @@ static void drm_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
  *
  * This wraps dma_buf_export() for use by generic GEM drivers that are using
  * drm_gem_dmabuf_release(). In addition to calling dma_buf_export(), we take
- * a reference to the drm_device which is released by drm_gem_dmabuf_release().
+ * a reference to the &drm_device and the exported &drm_gem_object (stored in
+ * exp_info->priv) which is released by drm_gem_dmabuf_release().
  *
  * Returns the new dmabuf.
  */
@@ -300,8 +301,11 @@ struct dma_buf *drm_gem_dmabuf_export(struct drm_device *dev,
 	struct dma_buf *dma_buf;
 
 	dma_buf = dma_buf_export(exp_info);
-	if (!IS_ERR(dma_buf))
-		drm_dev_ref(dev);
+	if (IS_ERR(dma_buf))
+		return dma_buf;
+
+	drm_dev_ref(dev);
+	drm_gem_object_reference(exp_info->priv);
 
 	return dma_buf;
 }
@@ -472,8 +476,6 @@ static struct dma_buf *export_and_register_object(struct drm_device *dev,
 	 */
 	obj->dma_buf = dmabuf;
 	get_dma_buf(obj->dma_buf);
-	/* Grab a new ref since the callers is now used by the dma-buf */
-	drm_gem_object_reference(obj);
 
 	return dmabuf;
 }

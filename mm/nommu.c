@@ -35,7 +35,7 @@
 #include <linux/audit.h>
 #include <linux/printk.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
@@ -176,9 +176,10 @@ long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
 }
 EXPORT_SYMBOL(get_user_pages_locked);
 
-long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
-			       unsigned long start, unsigned long nr_pages,
-			       struct page **pages, unsigned int gup_flags)
+static long __get_user_pages_unlocked(struct task_struct *tsk,
+			struct mm_struct *mm, unsigned long start,
+			unsigned long nr_pages, struct page **pages,
+			unsigned int gup_flags)
 {
 	long ret;
 	down_read(&mm->mmap_sem);
@@ -187,7 +188,6 @@ long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
 	up_read(&mm->mmap_sem);
 	return ret;
 }
-EXPORT_SYMBOL(__get_user_pages_unlocked);
 
 long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 			     struct page **pages, unsigned int gup_flags)
@@ -1801,14 +1801,14 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 }
 EXPORT_SYMBOL(filemap_fault);
 
-void filemap_map_pages(struct fault_env *fe,
+void filemap_map_pages(struct vm_fault *vmf,
 		pgoff_t start_pgoff, pgoff_t end_pgoff)
 {
 	BUG();
 }
 EXPORT_SYMBOL(filemap_map_pages);
 
-static int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
+int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
 		unsigned long addr, void *buf, int len, unsigned int gup_flags)
 {
 	struct vm_area_struct *vma;
@@ -1878,6 +1878,7 @@ int access_process_vm(struct task_struct *tsk, unsigned long addr, void *buf, in
 	mmput(mm);
 	return len;
 }
+EXPORT_SYMBOL_GPL(access_process_vm);
 
 /**
  * nommu_shrink_inode_mappings - Shrink the shared mappings on an inode

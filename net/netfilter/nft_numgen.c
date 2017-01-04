@@ -65,7 +65,7 @@ static int nft_ng_inc_init(const struct nft_ctx *ctx,
 		return -EOVERFLOW;
 
 	priv->dreg = nft_parse_register(tb[NFTA_NG_DREG]);
-	atomic_set(&priv->counter, 0);
+	atomic_set(&priv->counter, priv->modulus - 1);
 
 	return nft_validate_register_store(ctx, priv->dreg, NULL,
 					   NFT_DATA_VALUE, sizeof(u32));

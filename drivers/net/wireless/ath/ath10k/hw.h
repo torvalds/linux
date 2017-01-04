@@ -230,6 +230,7 @@ struct ath10k_hw_regs {
 	u32 rtc_soc_base_address;
 	u32 rtc_wmac_base_address;
 	u32 soc_core_base_address;
+	u32 wlan_mac_base_address;
 	u32 ce_wrapper_base_address;
 	u32 ce0_base_address;
 	u32 ce1_base_address;
@@ -418,6 +419,7 @@ struct htt_rx_desc;
 /* Defines needed for Rx descriptor abstraction */
 struct ath10k_hw_ops {
 	int (*rx_desc_get_l3_pad_bytes)(struct htt_rx_desc *rxd);
+	void (*set_coverage_class)(struct ath10k *ar, s16 value);
 };
 
 extern const struct ath10k_hw_ops qca988x_ops;
@@ -614,7 +616,7 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define WLAN_SI_BASE_ADDRESS			0x00010000
 #define WLAN_GPIO_BASE_ADDRESS			0x00014000
 #define WLAN_ANALOG_INTF_BASE_ADDRESS		0x0001c000
-#define WLAN_MAC_BASE_ADDRESS			0x00020000
+#define WLAN_MAC_BASE_ADDRESS			ar->regs->wlan_mac_base_address
 #define EFUSE_BASE_ADDRESS			0x00030000
 #define FPGA_REG_BASE_ADDRESS			0x00039000
 #define WLAN_UART2_BASE_ADDRESS			0x00054c00
@@ -813,5 +815,29 @@ ath10k_rx_desc_get_l3_pad_bytes(struct ath10k_hw_params *hw,
 #define QCA9887_EEPROM_ADDR_LO_LSB		16
 
 #define RTC_STATE_V_GET(x) (((x) & RTC_STATE_V_MASK) >> RTC_STATE_V_LSB)
+
+/* Register definitions for first generation ath10k cards. These cards include
+ * a mac thich has a register allocation similar to ath9k and at least some
+ * registers including the ones relevant for modifying the coverage class are
+ * identical to the ath9k definitions.
+ * These registers are usually managed by the ath10k firmware. However by
+ * overriding them it is possible to support coverage class modifications.
+ */
+#define WAVE1_PCU_ACK_CTS_TIMEOUT		0x8014
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_MAX		0x00003FFF
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_ACK_MASK	0x00003FFF
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_ACK_LSB	0
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_CTS_MASK	0x3FFF0000
+#define WAVE1_PCU_ACK_CTS_TIMEOUT_CTS_LSB	16
+
+#define WAVE1_PCU_GBL_IFS_SLOT			0x1070
+#define WAVE1_PCU_GBL_IFS_SLOT_MASK		0x0000FFFF
+#define WAVE1_PCU_GBL_IFS_SLOT_MAX		0x0000FFFF
+#define WAVE1_PCU_GBL_IFS_SLOT_LSB		0
+#define WAVE1_PCU_GBL_IFS_SLOT_RESV0		0xFFFF0000
+
+#define WAVE1_PHYCLK				0x801C
+#define WAVE1_PHYCLK_USEC_MASK			0x0000007F
+#define WAVE1_PHYCLK_USEC_LSB			0
 
 #endif /* _HW_H_ */

@@ -13,7 +13,9 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_data/gpio-davinci.h>
+#include <linux/regulator/machine.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -24,8 +26,6 @@
 #include <mach/mux.h>
 
 #define HAWKBOARD_PHY_ID		"davinci_mdio-0:07"
-#define DA850_HAWK_MMCSD_CD_PIN		GPIO_TO_PIN(3, 12)
-#define DA850_HAWK_MMCSD_WP_PIN		GPIO_TO_PIN(3, 13)
 
 #define DA850_USB1_VBUS_PIN		GPIO_TO_PIN(2, 4)
 #define DA850_USB1_OC_PIN		GPIO_TO_PIN(6, 13)
@@ -122,19 +122,16 @@ static const short hawk_mmcsd0_pins[] = {
 	-1
 };
 
-static int da850_hawk_mmc_get_ro(int index)
-{
-	return gpio_get_value(DA850_HAWK_MMCSD_WP_PIN);
-}
-
-static int da850_hawk_mmc_get_cd(int index)
-{
-	return !gpio_get_value(DA850_HAWK_MMCSD_CD_PIN);
-}
+static struct gpiod_lookup_table mmc_gpios_table = {
+	.dev_id = "da830-mmc.0",
+	.table = {
+		/* CD: gpio3_12: gpio60: chip 1 contains gpio range 32-63*/
+		GPIO_LOOKUP("davinci_gpio.1", 28, "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("davinci_gpio.1", 29, "wp", GPIO_ACTIVE_LOW),
+	},
+};
 
 static struct davinci_mmc_config da850_mmc_config = {
-	.get_ro		= da850_hawk_mmc_get_ro,
-	.get_cd		= da850_hawk_mmc_get_cd,
 	.wires		= 4,
 	.max_freq	= 50000000,
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
@@ -150,21 +147,7 @@ static __init void omapl138_hawk_mmc_init(void)
 		return;
 	}
 
-	ret = gpio_request_one(DA850_HAWK_MMCSD_CD_PIN,
-			GPIOF_DIR_IN, "MMC CD");
-	if (ret < 0) {
-		pr_warn("%s: can not open GPIO %d\n",
-			__func__, DA850_HAWK_MMCSD_CD_PIN);
-		return;
-	}
-
-	ret = gpio_request_one(DA850_HAWK_MMCSD_WP_PIN,
-			GPIOF_DIR_IN, "MMC WP");
-	if (ret < 0) {
-		pr_warn("%s: can not open GPIO %d\n",
-			__func__, DA850_HAWK_MMCSD_WP_PIN);
-		goto mmc_setup_wp_fail;
-	}
+	gpiod_add_lookup_table(&mmc_gpios_table);
 
 	ret = da8xx_register_mmcsd0(&da850_mmc_config);
 	if (ret) {
@@ -175,9 +158,7 @@ static __init void omapl138_hawk_mmc_init(void)
 	return;
 
 mmc_setup_mmcsd_fail:
-	gpio_free(DA850_HAWK_MMCSD_WP_PIN);
-mmc_setup_wp_fail:
-	gpio_free(DA850_HAWK_MMCSD_CD_PIN);
+	gpiod_remove_lookup_table(&mmc_gpios_table);
 }
 
 static irqreturn_t omapl138_hawk_usb_ocic_irq(int irq, void *dev_id);
@@ -243,7 +224,6 @@ static irqreturn_t omapl138_hawk_usb_ocic_irq(int irq, void *dev_id)
 static __init void omapl138_hawk_usb_init(void)
 {
 	int ret;
-	u32 cfgchip2;
 
 	ret = davinci_cfg_reg_list(da850_hawk_usb11_pins);
 	if (ret) {
@@ -251,12 +231,20 @@ static __init void omapl138_hawk_usb_init(void)
 		return;
 	}
 
-	/* Setup the Ref. clock frequency for the HAWK at 24 MHz. */
+	ret = da8xx_register_usb20_phy_clk(false);
+	if (ret)
+		pr_warn("%s: USB 2.0 PHY CLK registration failed: %d\n",
+			__func__, ret);
 
-	cfgchip2 = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
-	cfgchip2 &= ~CFGCHIP2_REFFREQ;
-	cfgchip2 |=  CFGCHIP2_REFFREQ_24MHZ;
-	__raw_writel(cfgchip2, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
+	ret = da8xx_register_usb11_phy_clk(false);
+	if (ret)
+		pr_warn("%s: USB 1.1 PHY CLK registration failed: %d\n",
+			__func__, ret);
+
+	ret = da8xx_register_usb_phy();
+	if (ret)
+		pr_warn("%s: USB PHY registration failed: %d\n",
+			__func__, ret);
 
 	ret = gpio_request_one(DA850_USB1_VBUS_PIN,
 			GPIOF_DIR_OUT, "USB1 VBUS");
@@ -292,6 +280,10 @@ static __init void omapl138_hawk_init(void)
 {
 	int ret;
 
+	ret = da8xx_register_cfgchip();
+	if (ret)
+		pr_warn("%s: CFGCHIP registration failed: %d\n", __func__, ret);
+
 	ret = da850_register_gpio();
 	if (ret)
 		pr_warn("%s: GPIO init failed: %d\n", __func__, ret);
@@ -317,6 +309,8 @@ static __init void omapl138_hawk_init(void)
 	if (ret)
 		pr_warn("%s: dsp/rproc registration failed: %d\n",
 			__func__, ret);
+
+	regulator_has_full_constraints();
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE

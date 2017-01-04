@@ -5,12 +5,14 @@
  *
  * Author(s): Arnd Bergmann (arndb@de.ibm.com)
  *	      Cornelia Huck (cornelia.huck@de.ibm.com)
+ *
+ * License: GPL
  */
 
 #define KMSG_COMPONENT "cio"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/slab.h>
@@ -1285,5 +1287,3 @@ void css_driver_unregister(struct css_driver *cdrv)
 	driver_unregister(&cdrv->drv);
 }
 EXPORT_SYMBOL_GPL(css_driver_unregister);
-
-MODULE_LICENSE("GPL");

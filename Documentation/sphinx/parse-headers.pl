@@ -1,22 +1,22 @@
 #!/usr/bin/perl
 use strict;
 use Text::Tabs;
+use Getopt::Long;
+use Pod::Usage;
 
-my $debug = 0;
+my $debug;
+my $help;
+my $man;
 
-while ($ARGV[0] =~ m/^-(.*)/) {
-	my $cmd = shift @ARGV;
-	if ($cmd eq "--debug") {
-		require Data::Dumper;
-		$debug = 1;
-		next;
-	}
-	die "argument $cmd unknown";
-}
+GetOptions(
+	"debug" => \$debug,
+	'usage|?' => \$help,
+	'help' => \$man
+) or pod2usage(2);
 
-if (scalar @ARGV < 2 || scalar @ARGV > 3) {
-	die "Usage:\n\t$0 <file in> <file out> [<exceptions file>]\n";
-}
+pod2usage(1) if $help;
+pod2usage(-exitstatus => 0, -verbose => 2) if $man;
+pod2usage(2) if (scalar @ARGV < 2 || scalar @ARGV > 3);
 
 my ($file_in, $file_out, $file_exceptions) = @ARGV;
 
@@ -27,6 +27,8 @@ my %typedefs;
 my %enums;
 my %enum_symbols;
 my %structs;
+
+require Data::Dumper if ($debug);
 
 #
 # read the file and get identifiers
@@ -330,3 +332,70 @@ print OUT "=" x length($title);
 print OUT "\n\n.. parsed-literal::\n\n";
 print OUT $data;
 close OUT;
+
+__END__
+
+=head1 NAME
+
+parse_headers.pl - parse a C file, in order to identify functions, structs,
+enums and defines and create cross-references to a Sphinx book.
+
+=head1 SYNOPSIS
+
+B<parse_headers.pl> [<options>] <C_FILE> <OUT_FILE> [<EXCEPTIONS_FILE>]
+
+Where <options> can be: --debug, --help or --man.
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--debug>
+
+Put the script in verbose mode, useful for debugging.
+
+=item B<--usage>
+
+Prints a brief help message and exits.
+
+=item B<--help>
+
+Prints a more detailed help message and exits.
+
+=back
+
+=head1 DESCRIPTION
+
+Convert a C header or source file (C_FILE), into a ReStructured Text
+included via ..parsed-literal block with cross-references for the
+documentation files that describe the API. It accepts an optional
+EXCEPTIONS_FILE with describes what elements will be either ignored or
+be pointed to a non-default reference.
+
+The output is written at the (OUT_FILE).
+
+It is capable of identifying defines, functions, structs, typedefs,
+enums and enum symbols and create cross-references for all of them.
+It is also capable of distinguish #define used for specifying a Linux
+ioctl.
+
+The EXCEPTIONS_FILE contain two rules to allow ignoring a symbol or
+to replace the default references by a custom one.
+
+Please read Documentation/doc-guide/parse-headers.rst at the Kernel's
+tree for more details.
+
+=head1 BUGS
+
+Report bugs to Mauro Carvalho Chehab <mchehab@s-opensource.com>
+
+=head1 COPYRIGHT
+
+Copyright (c) 2016 by Mauro Carvalho Chehab <mchehab@s-opensource.com>.
+
+License GPLv2: GNU GPL version 2 <http://gnu.org/licenses/gpl.html>.
+
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+
+=cut

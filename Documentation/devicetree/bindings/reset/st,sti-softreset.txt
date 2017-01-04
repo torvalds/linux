@@ -15,15 +15,14 @@ Please refer to reset.txt in this directory for common reset
 controller binding usage.
 
 Required properties:
-- compatible: Should be "st,<chip>-softreset" example:
-	"st,stih415-softreset" or "st,stih416-softreset";
+- compatible: Should be st,stih407-softreset";
 - #reset-cells: 1, see below
 
 example:
 
 	softreset: softreset-controller {
 		#reset-cells = <1>;
-		compatible = "st,stih415-softreset";
+		compatible = "st,stih407-softreset";
 	};
 
 
@@ -42,5 +41,4 @@ example:
 
 Macro definitions for the supported reset channels can be found in:
 
-include/dt-bindings/reset/stih415-resets.h
-include/dt-bindings/reset/stih416-resets.h
+include/dt-bindings/reset/stih407-resets.h

@@ -150,7 +150,7 @@ static int (*drives[4])[6] = {&drive0, &drive1, &drive2, &drive3};
 #include <linux/sched.h>	/* current, TASK_*, schedule_timeout() */
 #include <linux/mutex.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 module_param(verbose, int, 0);
 module_param(major, int, 0);

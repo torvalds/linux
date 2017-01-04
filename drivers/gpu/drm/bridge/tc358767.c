@@ -908,7 +908,7 @@ static int tc_main_link_setup(struct tc_data *tc)
 			goto err_dpcd_read;
 
 		if (tmp[0] != tc->assr) {
-			dev_warn(dev, "Failed to switch display ASSR to %d, falling back to unscrambled mode\n",
+			dev_dbg(dev, "Failed to switch display ASSR to %d, falling back to unscrambled mode\n",
 				 tc->assr);
 			/* trying with disabled scrambler */
 			tc->link.scrambler_dis = 1;
@@ -1038,12 +1038,6 @@ err:
 	return ret;
 }
 
-static enum drm_connector_status
-tc_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static void tc_bridge_pre_enable(struct drm_bridge *bridge)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
@@ -1168,7 +1162,6 @@ static const struct drm_connector_helper_funcs tc_connector_helper_funcs = {
 static const struct drm_connector_funcs tc_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = tc_connector_detect,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,

@@ -87,6 +87,7 @@ int blk_mq_map_queues(struct blk_mq_tag_set *set)
 	free_cpumask_var(cpus);
 	return 0;
 }
+EXPORT_SYMBOL_GPL(blk_mq_map_queues);
 
 /*
  * We have no quick way of doing reverse lookups. This is only used at

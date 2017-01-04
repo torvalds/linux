@@ -127,3 +127,14 @@ config HV_PERF_CTRS
 	  systems. 24x7 is available on Power 8 systems.
 
           If unsure, select Y.
+
+config IBMVIO
+	depends on PPC_PSERIES
+	bool
+	default y
+
+config IBMEBUS
+	depends on PPC_PSERIES && !CPU_LITTLE_ENDIAN
+	bool "Support for GX bus based adapters"
+	help
+	  Bus device driver for GX bus based adapters.

@@ -54,8 +54,9 @@
 #include <linux/writeback.h>
 #include <linux/shm.h>
 #include <linux/kcov.h>
+#include <linux/random.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
@@ -91,11 +92,10 @@ static void __exit_signal(struct task_struct *tsk)
 					lockdep_tasklist_lock_is_held());
 	spin_lock(&sighand->siglock);
 
+#ifdef CONFIG_POSIX_TIMERS
 	posix_cpu_timers_exit(tsk);
 	if (group_dead) {
 		posix_cpu_timers_exit_group(tsk);
-		tty = sig->tty;
-		sig->tty = NULL;
 	} else {
 		/*
 		 * This can only happen if the caller is de_thread().
@@ -104,7 +104,13 @@ static void __exit_signal(struct task_struct *tsk)
 		 */
 		if (unlikely(has_group_leader_pid(tsk)))
 			posix_cpu_timers_exit_group(tsk);
+	}
+#endif
 
+	if (group_dead) {
+		tty = sig->tty;
+		sig->tty = NULL;
+	} else {
 		/*
 		 * If there is any task waiting for the group exit
 		 * then notify it:
@@ -115,6 +121,9 @@ static void __exit_signal(struct task_struct *tsk)
 		if (tsk == sig->curr_target)
 			sig->curr_target = next_thread(tsk);
 	}
+
+	add_device_randomness((const void*) &tsk->se.sum_exec_runtime,
+			      sizeof(unsigned long long));
 
 	/*
 	 * Accumulate here the counters for all threads as they die. We could
@@ -799,8 +808,10 @@ void __noreturn do_exit(long code)
 	acct_update_integrals(tsk);
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
+#ifdef CONFIG_POSIX_TIMERS
 		hrtimer_cancel(&tsk->signal->real_timer);
 		exit_itimers(tsk->signal);
+#endif
 		if (tsk->mm)
 			setmax_mm_hiwater_rss(&tsk->signal->maxrss, tsk->mm);
 	}

@@ -22,6 +22,7 @@
 #include "cpumap.h"
 #include "probe-file.h"
 #include "asm/bug.h"
+#include "util/parse-branch-options.h"
 
 #define MAX_NAME_LEN 100
 
@@ -973,10 +974,13 @@ do {									   \
 		CHECK_TYPE_VAL(NUM);
 		break;
 	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
-		/*
-		 * TODO uncomment when the field is available
-		 * attr->branch_sample_type = term->val.num;
-		 */
+		CHECK_TYPE_VAL(STR);
+		if (strcmp(term->val.str, "no") &&
+		    parse_branch_str(term->val.str, &attr->branch_sample_type)) {
+			err->str = strdup("invalid branch sample type");
+			err->idx = term->err_val;
+			return -EINVAL;
+		}
 		break;
 	case PARSE_EVENTS__TERM_TYPE_TIME:
 		CHECK_TYPE_VAL(NUM);
@@ -1118,6 +1122,9 @@ do {								\
 			break;
 		case PARSE_EVENTS__TERM_TYPE_CALLGRAPH:
 			ADD_CONFIG_TERM(CALLGRAPH, callgraph, term->val.str);
+			break;
+		case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
+			ADD_CONFIG_TERM(BRANCH, branch, term->val.str);
 			break;
 		case PARSE_EVENTS__TERM_TYPE_STACKSIZE:
 			ADD_CONFIG_TERM(STACK_USER, stack_user, term->val.num);

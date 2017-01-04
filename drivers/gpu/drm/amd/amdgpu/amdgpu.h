@@ -92,13 +92,13 @@ extern int amdgpu_vm_debug;
 extern int amdgpu_sched_jobs;
 extern int amdgpu_sched_hw_submission;
 extern int amdgpu_powerplay;
-extern int amdgpu_powercontainment;
+extern int amdgpu_no_evict;
+extern int amdgpu_direct_gma_size;
 extern unsigned amdgpu_pcie_gen_cap;
 extern unsigned amdgpu_pcie_lane_cap;
 extern unsigned amdgpu_cg_mask;
 extern unsigned amdgpu_pg_mask;
 extern char *amdgpu_disable_cu;
-extern int amdgpu_sclk_deep_sleep_en;
 extern char *amdgpu_virtual_display;
 extern unsigned amdgpu_pp_feature_mask;
 extern int amdgpu_vram_page_split;
@@ -842,6 +842,8 @@ struct amdgpu_gfx_funcs {
 	uint64_t (*get_gpu_clock_counter)(struct amdgpu_device *adev);
 	void (*select_se_sh)(struct amdgpu_device *adev, u32 se_num, u32 sh_num, u32 instance);
 	void (*read_wave_data)(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t *dst, int *no_fields);
+	void (*read_wave_vgprs)(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t thread, uint32_t start, uint32_t size, uint32_t *dst);
+	void (*read_wave_sgprs)(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t start, uint32_t size, uint32_t *dst);
 };
 
 struct amdgpu_gfx {
@@ -1330,6 +1332,7 @@ struct amdgpu_device {
 
 	/* BIOS */
 	uint8_t				*bios;
+	uint32_t			bios_size;
 	bool				is_atom_bios;
 	struct amdgpu_bo		*stollen_vga_memory;
 	uint32_t			bios_scratch[AMDGPU_BIOS_NUM_SCRATCH];
@@ -1633,7 +1636,6 @@ amdgpu_get_sdma_instance(struct amdgpu_ring *ring)
 #define amdgpu_display_set_vga_render_state(adev, r) (adev)->mode_info.funcs->set_vga_render_state((adev), (r))
 #define amdgpu_display_vblank_get_counter(adev, crtc) (adev)->mode_info.funcs->vblank_get_counter((adev), (crtc))
 #define amdgpu_display_vblank_wait(adev, crtc) (adev)->mode_info.funcs->vblank_wait((adev), (crtc))
-#define amdgpu_display_is_display_hung(adev) (adev)->mode_info.funcs->is_display_hung((adev))
 #define amdgpu_display_backlight_set_level(adev, e, l) (adev)->mode_info.funcs->backlight_set_level((e), (l))
 #define amdgpu_display_backlight_get_level(adev, e) (adev)->mode_info.funcs->backlight_get_level((e))
 #define amdgpu_display_hpd_sense(adev, h) (adev)->mode_info.funcs->hpd_sense((adev), (h))
@@ -1680,8 +1682,6 @@ uint32_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 void amdgpu_vram_location(struct amdgpu_device *adev, struct amdgpu_mc *mc, u64 base);
 void amdgpu_gtt_location(struct amdgpu_device *adev, struct amdgpu_mc *mc);
 void amdgpu_ttm_set_active_vram_size(struct amdgpu_device *adev, u64 size);
-u64 amdgpu_ttm_get_gtt_mem_size(struct amdgpu_device *adev);
-int amdgpu_ttm_global_init(struct amdgpu_device *adev);
 int amdgpu_ttm_init(struct amdgpu_device *adev);
 void amdgpu_ttm_fini(struct amdgpu_device *adev);
 void amdgpu_program_register_sequence(struct amdgpu_device *adev,
@@ -1718,6 +1718,7 @@ void amdgpu_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv);
 void amdgpu_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv);
+int amdgpu_suspend(struct amdgpu_device *adev);
 int amdgpu_device_suspend(struct drm_device *dev, bool suspend, bool fbcon);
 int amdgpu_device_resume(struct drm_device *dev, bool resume, bool fbcon);
 u32 amdgpu_get_vblank_counter_kms(struct drm_device *dev, unsigned int pipe);

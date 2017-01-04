@@ -33,6 +33,7 @@ extern struct pci_dev *isa_bridge_pcidev;
 #include <asm/synch.h>
 #include <asm/delay.h>
 #include <asm/mmu.h>
+#include <asm/ppc_asm.h>
 
 #include <asm-generic/iomap.h>
 
@@ -458,13 +459,10 @@ static inline unsigned int name(unsigned int port)	\
 		"5:	li	%0,-1\n"		\
 		"	b	4b\n"			\
 		".previous\n"				\
-		".section __ex_table,\"a\"\n"		\
-		"	.align	2\n"			\
-		"	.long	0b,5b\n"		\
-		"	.long	1b,5b\n"		\
-		"	.long	2b,5b\n"		\
-		"	.long	3b,5b\n"		\
-		".previous"				\
+		EX_TABLE(0b, 5b)			\
+		EX_TABLE(1b, 5b)			\
+		EX_TABLE(2b, 5b)			\
+		EX_TABLE(3b, 5b)			\
 		: "=&r" (x)				\
 		: "r" (port + _IO_BASE)			\
 		: "memory");  				\
@@ -479,11 +477,8 @@ static inline void name(unsigned int val, unsigned int port) \
 		"0:" op " %0,0,%1\n"			\
 		"1:	sync\n"				\
 		"2:\n"					\
-		".section __ex_table,\"a\"\n"		\
-		"	.align	2\n"			\
-		"	.long	0b,2b\n"		\
-		"	.long	1b,2b\n"		\
-		".previous"				\
+		EX_TABLE(0b, 2b)			\
+		EX_TABLE(1b, 2b)			\
 		: : "r" (val), "r" (port + _IO_BASE)	\
 		: "memory");   	   	   		\
 }

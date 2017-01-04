@@ -1525,9 +1525,9 @@ static struct mapped_device *alloc_dev(int minor)
 	if (!md->bdev)
 		goto bad;
 
-	bio_init(&md->flush_bio);
+	bio_init(&md->flush_bio, NULL, 0);
 	md->flush_bio.bi_bdev = md->bdev;
-	bio_set_op_attrs(&md->flush_bio, REQ_OP_WRITE, WRITE_FLUSH);
+	md->flush_bio.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 
 	dm_stats_init(&md->stats);
 
@@ -1886,9 +1886,7 @@ static void __dm_destroy(struct mapped_device *md, bool wait)
 	set_bit(DMF_FREEING, &md->flags);
 	spin_unlock(&_minor_lock);
 
-	spin_lock_irq(q->queue_lock);
-	queue_flag_set(QUEUE_FLAG_DYING, q);
-	spin_unlock_irq(q->queue_lock);
+	blk_set_queue_dying(q);
 
 	if (dm_request_based(md) && md->kworker_task)
 		kthread_flush_worker(&md->kworker);

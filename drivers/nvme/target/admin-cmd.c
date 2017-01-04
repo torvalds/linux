@@ -237,7 +237,8 @@ static void nvmet_execute_identify_ctrl(struct nvmet_req *req)
 	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD);
 
 	id->nn = cpu_to_le32(ctrl->subsys->max_nsid);
-	id->oncs = cpu_to_le16(NVME_CTRL_ONCS_DSM);
+	id->oncs = cpu_to_le16(NVME_CTRL_ONCS_DSM |
+			NVME_CTRL_ONCS_WRITE_ZEROES);
 
 	/* XXX: don't report vwc if the underlying device is write through */
 	id->vwc = NVME_CTRL_VWC_PRESENT;

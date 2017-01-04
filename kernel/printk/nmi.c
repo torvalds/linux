@@ -67,7 +67,8 @@ static int vprintk_nmi(const char *fmt, va_list args)
 again:
 	len = atomic_read(&s->len);
 
-	if (len >= sizeof(s->buffer)) {
+	/* The trailing '\0' is not counted into len. */
+	if (len >= sizeof(s->buffer) - 1) {
 		atomic_inc(&nmi_message_lost);
 		return 0;
 	}
@@ -79,7 +80,7 @@ again:
 	if (!len)
 		smp_rmb();
 
-	add = vsnprintf(s->buffer + len, sizeof(s->buffer) - len, fmt, args);
+	add = vscnprintf(s->buffer + len, sizeof(s->buffer) - len, fmt, args);
 
 	/*
 	 * Do it once again if the buffer has been flushed in the meantime.
@@ -113,16 +114,51 @@ static void printk_nmi_flush_line(const char *text, int len)
 
 }
 
-/*
- * printk one line from the temporary buffer from @start index until
- * and including the @end index.
- */
-static void printk_nmi_flush_seq_line(struct nmi_seq_buf *s,
-					int start, int end)
+/* printk part of the temporary buffer line by line */
+static int printk_nmi_flush_buffer(const char *start, size_t len)
 {
-	const char *buf = s->buffer + start;
+	const char *c, *end;
+	bool header;
 
-	printk_nmi_flush_line(buf, (end - start) + 1);
+	c = start;
+	end = start + len;
+	header = true;
+
+	/* Print line by line. */
+	while (c < end) {
+		if (*c == '\n') {
+			printk_nmi_flush_line(start, c - start + 1);
+			start = ++c;
+			header = true;
+			continue;
+		}
+
+		/* Handle continuous lines or missing new line. */
+		if ((c + 1 < end) && printk_get_level(c)) {
+			if (header) {
+				c = printk_skip_level(c);
+				continue;
+			}
+
+			printk_nmi_flush_line(start, c - start);
+			start = c++;
+			header = true;
+			continue;
+		}
+
+		header = false;
+		c++;
+	}
+
+	/* Check if there was a partial line. Ignore pure header. */
+	if (start < end && !header) {
+		static const char newline[] = KERN_CONT "\n";
+
+		printk_nmi_flush_line(start, end - start);
+		printk_nmi_flush_line(newline, strlen(newline));
+	}
+
+	return len;
 }
 
 /*
@@ -135,8 +171,8 @@ static void __printk_nmi_flush(struct irq_work *work)
 		__RAW_SPIN_LOCK_INITIALIZER(read_lock);
 	struct nmi_seq_buf *s = container_of(work, struct nmi_seq_buf, work);
 	unsigned long flags;
-	size_t len, size;
-	int i, last_i;
+	size_t len;
+	int i;
 
 	/*
 	 * The lock has two functions. First, one reader has to flush all
@@ -154,12 +190,14 @@ more:
 	/*
 	 * This is just a paranoid check that nobody has manipulated
 	 * the buffer an unexpected way. If we printed something then
-	 * @len must only increase.
+	 * @len must only increase. Also it should never overflow the
+	 * buffer size.
 	 */
-	if (i && i >= len) {
+	if ((i && i >= len) || len > sizeof(s->buffer)) {
 		const char *msg = "printk_nmi_flush: internal error\n";
 
 		printk_nmi_flush_line(msg, strlen(msg));
+		len = 0;
 	}
 
 	if (!len)
@@ -167,22 +205,7 @@ more:
 
 	/* Make sure that data has been written up to the @len */
 	smp_rmb();
-
-	size = min(len, sizeof(s->buffer));
-	last_i = i;
-
-	/* Print line by line. */
-	for (; i < size; i++) {
-		if (s->buffer[i] == '\n') {
-			printk_nmi_flush_seq_line(s, last_i, i);
-			last_i = i + 1;
-		}
-	}
-	/* Check if there was a partial line. */
-	if (last_i < size) {
-		printk_nmi_flush_seq_line(s, last_i, size - 1);
-		printk_nmi_flush_line("\n", strlen("\n"));
-	}
+	i += printk_nmi_flush_buffer(s->buffer + i, len - i);
 
 	/*
 	 * Check that nothing has got added in the meantime and truncate

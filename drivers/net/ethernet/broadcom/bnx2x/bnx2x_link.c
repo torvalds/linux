@@ -34,12 +34,6 @@ typedef int (*read_sfp_module_eeprom_func_p)(struct bnx2x_phy *phy,
 					     u8 dev_addr, u16 addr, u8 byte_cnt,
 					     u8 *o_buf, u8);
 /********************************************************/
-#define ETH_HLEN			14
-/* L2 header size + 2*VLANs (8 bytes) + LLC SNAP (8 bytes) */
-#define ETH_OVREHEAD			(ETH_HLEN + 8 + 8)
-#define ETH_MIN_PACKET_SIZE		60
-#define ETH_MAX_PACKET_SIZE		1500
-#define ETH_MAX_JUMBO_PACKET_SIZE	9600
 #define MDIO_ACCESS_TIMEOUT		1000
 #define WC_LANE_MAX			4
 #define I2C_SWITCH_WIDTH		2
@@ -1917,7 +1911,7 @@ static int bnx2x_emac_enable(struct link_params *params,
 	/* Enable emac for jumbo packets */
 	EMAC_WR(bp, EMAC_REG_EMAC_RX_MTU_SIZE,
 		(EMAC_RX_MTU_SIZE_JUMBO_ENA |
-		 (ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD)));
+		 (ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD)));
 
 	/* Strip CRC */
 	REG_WR(bp, NIG_REG_NIG_INGRESS_EMAC0_NO_CRC + port*4, 0x1);
@@ -2314,19 +2308,19 @@ static int bnx2x_bmac1_enable(struct link_params *params,
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_BMAC_CONTROL, wb_data, 2);
 
 	/* Set rx mtu */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_RX_MAX_SIZE, wb_data, 2);
 
 	bnx2x_update_pfc_bmac1(params, vars);
 
 	/* Set tx mtu */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_TX_MAX_SIZE, wb_data, 2);
 
 	/* Set cnt max size */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC_REGISTER_CNT_MAX_SIZE, wb_data, 2);
 
@@ -2384,18 +2378,18 @@ static int bnx2x_bmac2_enable(struct link_params *params,
 	udelay(30);
 
 	/* Set RX MTU */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_RX_MAX_SIZE, wb_data, 2);
 	udelay(30);
 
 	/* Set TX MTU */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_TX_MAX_SIZE, wb_data, 2);
 	udelay(30);
 	/* Set cnt max size */
-	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD - 2;
+	wb_data[0] = ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVERHEAD - 2;
 	wb_data[1] = 0;
 	REG_WR_DMAE(bp, bmac_addr + BIGMAC2_REGISTER_CNT_MAX_SIZE, wb_data, 2);
 	udelay(30);
@@ -2516,7 +2510,7 @@ static int bnx2x_pbf_update(struct link_params *params, u32 flow_ctrl,
 
 	} else {
 		u32 thresh = (ETH_MAX_JUMBO_PACKET_SIZE +
-			      ETH_OVREHEAD)/16;
+			      ETH_OVERHEAD)/16;
 		REG_WR(bp, PBF_REG_P0_PAUSE_ENABLE + port*4, 0);
 		/* Update threshold */
 		REG_WR(bp, PBF_REG_P0_ARB_THRSH + port*4, thresh);

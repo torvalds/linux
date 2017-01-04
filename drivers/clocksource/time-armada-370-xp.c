@@ -320,7 +320,7 @@ static int __init armada_370_xp_timer_common_init(struct device_node *np)
 	}
 
 	res = cpuhp_setup_state(CPUHP_AP_ARMADA_TIMER_STARTING,
-				"AP_ARMADA_TIMER_STARTING",
+				"clockevents/armada:starting",
 				armada_370_xp_timer_starting_cpu,
 				armada_370_xp_timer_dying_cpu);
 	if (res) {

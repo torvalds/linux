@@ -301,6 +301,7 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 			 struct inode *parent)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 	int i;
 
@@ -320,14 +321,14 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 		if (!value)
 			continue;
 
-		num_bytes = btrfs_calc_trans_metadata_size(root, 1);
+		num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 		ret = btrfs_block_rsv_add(root, trans->block_rsv,
 					  num_bytes, BTRFS_RESERVE_NO_FLUSH);
 		if (ret)
 			goto out;
 		ret = __btrfs_set_prop(trans, inode, h->xattr_name,
 				       value, strlen(value), 0);
-		btrfs_block_rsv_release(root, trans->block_rsv, num_bytes);
+		btrfs_block_rsv_release(fs_info, trans->block_rsv, num_bytes);
 		if (ret)
 			goto out;
 	}

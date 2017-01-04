@@ -51,7 +51,6 @@ static const struct net_device_ops irlan_eth_netdev_ops = {
 	.ndo_stop		= irlan_eth_close,
 	.ndo_start_xmit		= irlan_eth_xmit,
 	.ndo_set_rx_mode	= irlan_eth_set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
@@ -67,7 +66,8 @@ static void irlan_eth_setup(struct net_device *dev)
 
 	dev->netdev_ops		= &irlan_eth_netdev_ops;
 	dev->destructor		= free_netdev;
-
+	dev->min_mtu		= 0;
+	dev->max_mtu		= ETH_MAX_MTU;
 
 	/*
 	 * Lets do all queueing in IrTTP instead of this device driver.

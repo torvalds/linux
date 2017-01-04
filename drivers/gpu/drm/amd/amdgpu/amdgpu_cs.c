@@ -451,7 +451,7 @@ static int amdgpu_cs_validate(void *param, struct amdgpu_bo *bo)
 		return r;
 
 	if (bo->shadow)
-		r = amdgpu_cs_bo_validate(p, bo);
+		r = amdgpu_cs_bo_validate(p, bo->shadow);
 
 	return r;
 }
@@ -841,16 +841,6 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 	return amdgpu_cs_sync_rings(p);
 }
 
-static int amdgpu_cs_handle_lockup(struct amdgpu_device *adev, int r)
-{
-	if (r == -EDEADLK) {
-		r = amdgpu_gpu_reset(adev);
-		if (!r)
-			r = -EAGAIN;
-	}
-	return r;
-}
-
 static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 			     struct amdgpu_cs_parser *parser)
 {
@@ -1054,28 +1044,28 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	r = amdgpu_cs_parser_init(&parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
-		amdgpu_cs_parser_fini(&parser, r, false);
-		r = amdgpu_cs_handle_lockup(adev, r);
-		return r;
+		goto out;
 	}
+
 	r = amdgpu_cs_parser_bos(&parser, data);
-	if (r == -ENOMEM)
-		DRM_ERROR("Not enough memory for command submission!\n");
-	else if (r && r != -ERESTARTSYS)
-		DRM_ERROR("Failed to process the buffer list %d!\n", r);
-	else if (!r) {
-		reserved_buffers = true;
-		r = amdgpu_cs_ib_fill(adev, &parser);
+	if (r) {
+		if (r == -ENOMEM)
+			DRM_ERROR("Not enough memory for command submission!\n");
+		else if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to process the buffer list %d!\n", r);
+		goto out;
 	}
 
-	if (!r) {
-		r = amdgpu_cs_dependencies(adev, &parser);
-		if (r)
-			DRM_ERROR("Failed in the dependencies handling %d!\n", r);
-	}
-
+	reserved_buffers = true;
+	r = amdgpu_cs_ib_fill(adev, &parser);
 	if (r)
 		goto out;
+
+	r = amdgpu_cs_dependencies(adev, &parser);
+	if (r) {
+		DRM_ERROR("Failed in the dependencies handling %d!\n", r);
+		goto out;
+	}
 
 	for (i = 0; i < parser.job->num_ibs; i++)
 		trace_amdgpu_cs(&parser, i);
@@ -1088,7 +1078,6 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 
 out:
 	amdgpu_cs_parser_fini(&parser, r, reserved_buffers);
-	r = amdgpu_cs_handle_lockup(adev, r);
 	return r;
 }
 

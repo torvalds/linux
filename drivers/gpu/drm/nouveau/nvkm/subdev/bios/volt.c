@@ -25,18 +25,18 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/volt.h>
 
-u16
+u32
 nvbios_volt_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_P;
-	u16 volt = 0x0000;
+	u32 volt = 0;
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 2)
-			volt = nvbios_rd16(bios, bit_P.offset + 0x0c);
+			volt = nvbios_rd32(bios, bit_P.offset + 0x0c);
 		else
 		if (bit_P.version == 1)
-			volt = nvbios_rd16(bios, bit_P.offset + 0x10);
+			volt = nvbios_rd32(bios, bit_P.offset + 0x10);
 
 		if (volt) {
 			*ver = nvbios_rd08(bios, volt + 0);
@@ -62,14 +62,14 @@ nvbios_volt_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 		}
 	}
 
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_volt_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		  struct nvbios_volt *info)
 {
-	u16 volt = nvbios_volt_table(bios, ver, hdr, cnt, len);
+	u32 volt = nvbios_volt_table(bios, ver, hdr, cnt, len);
 	memset(info, 0x00, sizeof(*info));
 	switch (!!volt * *ver) {
 	case 0x12:
@@ -119,23 +119,23 @@ nvbios_volt_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	return volt;
 }
 
-u16
+u32
 nvbios_volt_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt;
-	u16 volt = nvbios_volt_table(bios, ver, &hdr, &cnt, len);
+	u32 volt = nvbios_volt_table(bios, ver, &hdr, &cnt, len);
 	if (volt && idx < cnt) {
 		volt = volt + hdr + (idx * *len);
 		return volt;
 	}
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_volt_entry_parse(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len,
 			struct nvbios_volt_entry *info)
 {
-	u16 volt = nvbios_volt_entry(bios, idx, ver, len);
+	u32 volt = nvbios_volt_entry(bios, idx, ver, len);
 	memset(info, 0x00, sizeof(*info));
 	switch (!!volt * *ver) {
 	case 0x12:

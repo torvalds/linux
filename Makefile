@@ -1,8 +1,8 @@
 VERSION = 4
-PATCHLEVEL = 9
+PATCHLEVEL = 10
 SUBLEVEL = 0
-EXTRAVERSION = -rc8
-NAME = Psychotic Stoned Sheep
+EXTRAVERSION = -rc2
+NAME = Roaring Lionus
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

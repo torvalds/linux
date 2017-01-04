@@ -84,7 +84,7 @@ nvkm_volt_map_min(struct nvkm_volt *volt, u8 id)
 	struct nvkm_bios *bios = volt->subdev.device->bios;
 	struct nvbios_vmap_entry info;
 	u8  ver, len;
-	u16 vmap;
+	u32 vmap;
 
 	vmap = nvbios_vmap_entry_parse(bios, id, &ver, &len, &info);
 	if (vmap) {
@@ -106,7 +106,7 @@ nvkm_volt_map(struct nvkm_volt *volt, u8 id, u8 temp)
 	struct nvkm_bios *bios = volt->subdev.device->bios;
 	struct nvbios_vmap_entry info;
 	u8  ver, len;
-	u16 vmap;
+	u32 vmap;
 
 	vmap = nvbios_vmap_entry_parse(bios, id, &ver, &len, &info);
 	if (vmap) {
@@ -189,7 +189,7 @@ nvkm_volt_parse_bios(struct nvkm_bios *bios, struct nvkm_volt *volt)
 	struct nvbios_volt_entry ivid;
 	struct nvbios_volt info;
 	u8  ver, hdr, cnt, len;
-	u16 data;
+	u32 data;
 	int i;
 
 	data = nvbios_volt_parse(bios, &ver, &hdr, &cnt, &len, &info);

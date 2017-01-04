@@ -144,7 +144,7 @@ int mdio_driver_register(struct mdio_driver *drv)
 	struct mdio_driver_common *mdiodrv = &drv->mdiodrv;
 	int retval;
 
-	pr_info("mdio_driver_register: %s\n", mdiodrv->driver.name);
+	pr_debug("mdio_driver_register: %s\n", mdiodrv->driver.name);
 
 	mdiodrv->driver.bus = &mdio_bus_type;
 	mdiodrv->driver.probe = mdio_probe;

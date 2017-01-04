@@ -101,7 +101,8 @@ struct zpci_report_error_header {
 	u8 data[0];	/* Subsequent Data passed verbatim to SCLP ET 24 */
 } __packed;
 
-int sclp_get_core_info(struct sclp_core_info *info);
+int _sclp_get_core_info_early(struct sclp_core_info *info);
+int _sclp_get_core_info(struct sclp_core_info *info);
 int sclp_core_configure(u8 core);
 int sclp_core_deconfigure(u8 core);
 int sclp_sdias_blk_count(void);
@@ -118,5 +119,12 @@ int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
 void sclp_early_detect(void);
 void _sclp_print_early(const char *);
 void sclp_ocf_cpc_name_copy(char *dst);
+
+static inline int sclp_get_core_info(struct sclp_core_info *info, int early)
+{
+	if (early)
+		return _sclp_get_core_info_early(info);
+	return _sclp_get_core_info(info);
+}
 
 #endif /* _ASM_S390_SCLP_H */

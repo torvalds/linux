@@ -289,11 +289,12 @@ void zfcp_dbf_rec_trig(char *tag, struct zfcp_adapter *adapter,
 
 
 /**
- * zfcp_dbf_rec_run - trace event related to running recovery
+ * zfcp_dbf_rec_run_lvl - trace event related to running recovery
+ * @level: trace level to be used for event
  * @tag: identifier for event
  * @erp: erp_action running
  */
-void zfcp_dbf_rec_run(char *tag, struct zfcp_erp_action *erp)
+void zfcp_dbf_rec_run_lvl(int level, char *tag, struct zfcp_erp_action *erp)
 {
 	struct zfcp_dbf *dbf = erp->adapter->dbf;
 	struct zfcp_dbf_rec *rec = &dbf->rec_buf;
@@ -319,8 +320,18 @@ void zfcp_dbf_rec_run(char *tag, struct zfcp_erp_action *erp)
 	else
 		rec->u.run.rec_count = atomic_read(&erp->adapter->erp_counter);
 
-	debug_event(dbf->rec, 1, rec, sizeof(*rec));
+	debug_event(dbf->rec, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
+}
+
+/**
+ * zfcp_dbf_rec_run - trace event related to running recovery
+ * @tag: identifier for event
+ * @erp: erp_action running
+ */
+void zfcp_dbf_rec_run(char *tag, struct zfcp_erp_action *erp)
+{
+	zfcp_dbf_rec_run_lvl(1, tag, erp);
 }
 
 /**

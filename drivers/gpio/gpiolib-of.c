@@ -226,51 +226,6 @@ static struct gpio_desc *of_parse_own_gpio(struct device_node *np,
 }
 
 /**
- * of_gpiochip_set_names() - set up the names of the lines
- * @chip: GPIO chip whose lines should be named, if possible
- */
-static void of_gpiochip_set_names(struct gpio_chip *gc)
-{
-	struct gpio_device *gdev = gc->gpiodev;
-	struct device_node *np = gc->of_node;
-	int i;
-	int nstrings;
-
-	nstrings = of_property_count_strings(np, "gpio-line-names");
-	if (nstrings <= 0)
-		/* Lines names not present */
-		return;
-
-	/* This is normally not what you want */
-	if (gdev->ngpio != nstrings)
-		dev_info(&gdev->dev, "gpio-line-names specifies %d line "
-			 "names but there are %d lines on the chip\n",
-			 nstrings, gdev->ngpio);
-
-	/*
-	 * Make sure to not index beyond the end of the number of descriptors
-	 * of the GPIO device.
-	 */
-	for (i = 0; i < gdev->ngpio; i++) {
-		const char *name;
-		int ret;
-
-		ret = of_property_read_string_index(np,
-						    "gpio-line-names",
-						    i,
-						    &name);
-		if (ret) {
-			if (ret != -ENODATA)
-                                dev_err(&gdev->dev,
-                                        "unable to name line %d: %d\n",
-                                        i, ret);
-			break;
-		}
-		gdev->descs[i].name = name;
-	}
-}
-
-/**
  * of_gpiochip_scan_gpios - Scan gpio-controller for gpio definitions
  * @chip:	gpio chip to act on
  *
@@ -296,8 +251,10 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 			continue;
 
 		ret = gpiod_hog(desc, name, lflags, dflags);
-		if (ret < 0)
+		if (ret < 0) {
+			of_node_put(np);
 			return ret;
+		}
 	}
 
 	return 0;
@@ -526,7 +483,7 @@ int of_gpiochip_add(struct gpio_chip *chip)
 
 	/* If the chip defines names itself, these take precedence */
 	if (!chip->names)
-		of_gpiochip_set_names(chip);
+		devprop_gpiochip_set_names(chip);
 
 	of_node_get(chip->of_node);
 

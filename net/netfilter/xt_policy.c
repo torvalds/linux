@@ -116,9 +116,9 @@ policy_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	int ret;
 
 	if (info->flags & XT_POLICY_MATCH_IN)
-		ret = match_policy_in(skb, info, par->family);
+		ret = match_policy_in(skb, info, xt_family(par));
 	else
-		ret = match_policy_out(skb, info, par->family);
+		ret = match_policy_out(skb, info, xt_family(par));
 
 	if (ret < 0)
 		ret = info->flags & XT_POLICY_MATCH_NONE ? true : false;

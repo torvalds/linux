@@ -2718,7 +2718,7 @@ int snd_cs46xx_midi(struct snd_cs46xx *chip, int device)
  * gameport interface
  */
 
-#if defined(CONFIG_GAMEPORT) || (defined(MODULE) && defined(CONFIG_GAMEPORT_MODULE))
+#if IS_REACHABLE(CONFIG_GAMEPORT)
 
 static void snd_cs46xx_gameport_trigger(struct gameport *gameport)
 {

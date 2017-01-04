@@ -81,6 +81,7 @@ static void cpsw_gmii_sel_am3352(struct cpsw_phy_sel_priv *priv,
 	};
 
 	mask = GMII_SEL_MODE_MASK << (slave * 2) | BIT(slave + 6);
+	mask |= BIT(slave + 4);
 	mode <<= slave * 2;
 
 	if (priv->rmii_clock_external) {

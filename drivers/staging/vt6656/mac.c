@@ -121,7 +121,7 @@ void vnt_mac_set_keyentry(struct vnt_private *priv, u16 key_ctl, u32 entry_idx,
 	u16 offset;
 
 	offset = MISCFIFO_KEYETRY0;
-	offset += (entry_idx * MISCFIFO_KEYENTRYSIZE);
+	offset += entry_idx * MISCFIFO_KEYENTRYSIZE;
 
 	set_key.u.write.key_ctl = cpu_to_le16(key_ctl);
 	ether_addr_copy(set_key.u.write.addr, addr);

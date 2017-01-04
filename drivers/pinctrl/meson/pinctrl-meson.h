@@ -169,3 +169,5 @@ extern struct meson_pinctrl_data meson8b_cbus_pinctrl_data;
 extern struct meson_pinctrl_data meson8b_aobus_pinctrl_data;
 extern struct meson_pinctrl_data meson_gxbb_periphs_pinctrl_data;
 extern struct meson_pinctrl_data meson_gxbb_aobus_pinctrl_data;
+extern struct meson_pinctrl_data meson_gxl_periphs_pinctrl_data;
+extern struct meson_pinctrl_data meson_gxl_aobus_pinctrl_data;

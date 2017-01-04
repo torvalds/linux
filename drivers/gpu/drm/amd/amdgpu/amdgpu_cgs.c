@@ -723,7 +723,7 @@ static uint16_t amdgpu_get_firmware_version(struct cgs_device *cgs_device,
 					enum cgs_ucode_id type)
 {
 	CGS_FUNC_ADEV;
-	uint16_t fw_version;
+	uint16_t fw_version = 0;
 
 	switch (type) {
 		case CGS_UCODE_ID_SDMA0:
@@ -753,9 +753,11 @@ static uint16_t amdgpu_get_firmware_version(struct cgs_device *cgs_device,
 		case CGS_UCODE_ID_RLC_G:
 			fw_version = adev->gfx.rlc_fw_version;
 			break;
+		case CGS_UCODE_ID_STORAGE:
+			break;
 		default:
 			DRM_ERROR("firmware type %d do not have version\n", type);
-			fw_version = 0;
+			break;
 	}
 	return fw_version;
 }

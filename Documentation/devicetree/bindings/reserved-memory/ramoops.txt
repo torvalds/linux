@@ -46,3 +46,6 @@ Optional properties:
   (defaults to buffered mappings)
 
 - no-dump-oops: if present, only dump panics (defaults to panics and oops)
+
+- flags: if present, pass ramoops behavioral flags (defaults to 0,
+  see include/linux/pstore_ram.h RAMOOPS_FLAG_* for flag values).

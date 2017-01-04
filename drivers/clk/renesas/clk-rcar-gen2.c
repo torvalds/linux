@@ -19,6 +19,7 @@
 #include <linux/of_address.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/soc/renesas/rcar-rst.h>
 
 struct rcar_gen2_cpg {
 	struct clk_onecell_data data;
@@ -364,6 +365,23 @@ rcar_gen2_cpg_register_clock(struct device_node *np, struct rcar_gen2_cpg *cpg,
 						 4, 0, table, &cpg->lock);
 }
 
+/*
+ * Reset register definitions.
+ */
+#define MODEMR	0xe6160060
+
+static u32 __init rcar_gen2_read_mode_pins(void)
+{
+	void __iomem *modemr = ioremap_nocache(MODEMR, 4);
+	u32 mode;
+
+	BUG_ON(!modemr);
+	mode = ioread32(modemr);
+	iounmap(modemr);
+
+	return mode;
+}
+
 static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 {
 	const struct cpg_pll_config *config;
@@ -371,6 +389,13 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 	struct clk **clks;
 	unsigned int i;
 	int num_clks;
+
+	if (rcar_rst_read_mode_pins(&cpg_mode)) {
+		/* Backward-compatibility with old DT */
+		pr_warn("%s: failed to obtain mode pins from RST\n",
+			np->full_name);
+		cpg_mode = rcar_gen2_read_mode_pins();
+	}
 
 	num_clks = of_property_count_strings(np, "clock-output-names");
 	if (num_clks < 0) {
@@ -420,10 +445,3 @@ static void __init rcar_gen2_cpg_clocks_init(struct device_node *np)
 }
 CLK_OF_DECLARE(rcar_gen2_cpg_clks, "renesas,rcar-gen2-cpg-clocks",
 	       rcar_gen2_cpg_clocks_init);
-
-void __init rcar_gen2_clocks_init(u32 mode)
-{
-	cpg_mode = mode;
-
-	of_clk_init(NULL);
-}

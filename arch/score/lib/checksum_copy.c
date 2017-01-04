@@ -25,7 +25,7 @@
 
 #include <net/checksum.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 unsigned int csum_partial_copy(const char *src, char *dst,
 				int len, unsigned int sum)

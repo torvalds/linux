@@ -356,9 +356,9 @@ static const uint32_t error_irqs[] = {
 
 /* initialize plane */
 struct drm_plane *omap_plane_init(struct drm_device *dev,
-		int id, enum drm_plane_type type)
+		int id, enum drm_plane_type type,
+		u32 possible_crtcs)
 {
-	struct omap_drm_private *priv = dev->dev_private;
 	struct drm_plane *plane;
 	struct omap_plane *omap_plane;
 	int ret;
@@ -381,7 +381,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	omap_plane->error_irq.irq = omap_plane_error_irq;
 	omap_irq_register(dev, &omap_plane->error_irq);
 
-	ret = drm_universal_plane_init(dev, plane, (1 << priv->num_crtcs) - 1,
+	ret = drm_universal_plane_init(dev, plane, possible_crtcs,
 				       &omap_plane_funcs, omap_plane->formats,
 				       omap_plane->nformats, type, NULL);
 	if (ret < 0)

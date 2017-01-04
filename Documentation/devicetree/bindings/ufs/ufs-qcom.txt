@@ -7,8 +7,11 @@ To bind UFS PHY with UFS host controller, the controller node should
 contain a phandle reference to UFS PHY node.
 
 Required properties:
-- compatible        : compatible list, contains "qcom,ufs-phy-qmp-20nm"
-		      or "qcom,ufs-phy-qmp-14nm" according to the relevant phy in use.
+- compatible        : compatible list, contains one of the following -
+			"qcom,ufs-phy-qmp-20nm" for 20nm ufs phy,
+			"qcom,ufs-phy-qmp-14nm" for legacy 14nm ufs phy,
+			"qcom,msm8996-ufs-phy-qmp-14nm" for 14nm ufs phy
+			 present on MSM8996 chipset.
 - reg               : should contain PHY register address space (mandatory),
 - reg-names         : indicates various resources passed to driver (via reg proptery) by name.
                       Required "reg-names" is "phy_mem".

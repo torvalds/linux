@@ -25,15 +25,15 @@
 #include <subdev/bios/bit.h>
 #include <subdev/bios/vmap.h>
 
-u16
+u32
 nvbios_vmap_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 {
 	struct bit_entry bit_P;
-	u16 vmap = 0x0000;
+	u32 vmap = 0;
 
 	if (!bit_entry(bios, 'P', &bit_P)) {
 		if (bit_P.version == 2) {
-			vmap = nvbios_rd16(bios, bit_P.offset + 0x20);
+			vmap = nvbios_rd32(bios, bit_P.offset + 0x20);
 			if (vmap) {
 				*ver = nvbios_rd08(bios, vmap + 0);
 				switch (*ver) {
@@ -50,14 +50,14 @@ nvbios_vmap_table(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 		}
 	}
 
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_vmap_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 		  struct nvbios_vmap *info)
 {
-	u16 vmap = nvbios_vmap_table(bios, ver, hdr, cnt, len);
+	u32 vmap = nvbios_vmap_table(bios, ver, hdr, cnt, len);
 	memset(info, 0x00, sizeof(*info));
 	switch (!!vmap * *ver) {
 	case 0x10:
@@ -77,23 +77,23 @@ nvbios_vmap_parse(struct nvkm_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
 	return vmap;
 }
 
-u16
+u32
 nvbios_vmap_entry(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8  hdr, cnt;
-	u16 vmap = nvbios_vmap_table(bios, ver, &hdr, &cnt, len);
+	u32 vmap = nvbios_vmap_table(bios, ver, &hdr, &cnt, len);
 	if (vmap && idx < cnt) {
 		vmap = vmap + hdr + (idx * *len);
 		return vmap;
 	}
-	return 0x0000;
+	return 0;
 }
 
-u16
+u32
 nvbios_vmap_entry_parse(struct nvkm_bios *bios, int idx, u8 *ver, u8 *len,
 			struct nvbios_vmap_entry *info)
 {
-	u16 vmap = nvbios_vmap_entry(bios, idx, ver, len);
+	u32 vmap = nvbios_vmap_entry(bios, idx, ver, len);
 	memset(info, 0x00, sizeof(*info));
 	switch (!!vmap * *ver) {
 	case 0x10:

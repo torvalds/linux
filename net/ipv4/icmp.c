@@ -91,7 +91,7 @@
 #include <linux/errno.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <net/checksum.h>
 #include <net/xfrm.h>
 #include <net/inet_common.h>
@@ -425,6 +425,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	fl4.daddr = daddr;
 	fl4.saddr = saddr;
 	fl4.flowi4_mark = mark;
+	fl4.flowi4_uid = sock_net_uid(net, NULL);
 	fl4.flowi4_tos = RT_TOS(ip_hdr(skb)->tos);
 	fl4.flowi4_proto = IPPROTO_ICMP;
 	fl4.flowi4_oif = l3mdev_master_ifindex(skb->dev);
@@ -473,6 +474,7 @@ static struct rtable *icmp_route_lookup(struct net *net,
 		      param->replyopts.opt.opt.faddr : iph->saddr);
 	fl4->saddr = saddr;
 	fl4->flowi4_mark = mark;
+	fl4->flowi4_uid = sock_net_uid(net, NULL);
 	fl4->flowi4_tos = RT_TOS(tos);
 	fl4->flowi4_proto = IPPROTO_ICMP;
 	fl4->fl4_icmp_type = type;
@@ -1045,12 +1047,12 @@ int icmp_rcv(struct sk_buff *skb)
 
 	if (success)  {
 		consume_skb(skb);
-		return 0;
+		return NET_RX_SUCCESS;
 	}
 
 drop:
 	kfree_skb(skb);
-	return 0;
+	return NET_RX_DROP;
 csum_error:
 	__ICMP_INC_STATS(net, ICMP_MIB_CSUMERRORS);
 error:

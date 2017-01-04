@@ -47,6 +47,10 @@
 				 NETIF_F_TSO | \
 				 NETIF_F_TSO6 | \
 				 NETIF_F_HW_CSUM)
+
+/* Restrict GSO size to account for NVGRE */
+#define NETVSC_GSO_MAX_SIZE	62768
+
 static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
 MODULE_PARM_DESC(ring_size, "Ring buffer size (# of pages)");
@@ -871,18 +875,11 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	struct netvsc_device *nvdev = ndevctx->nvdev;
 	struct hv_device *hdev = ndevctx->device_ctx;
 	struct netvsc_device_info device_info;
-	int limit = ETH_DATA_LEN;
 	u32 num_chn;
 	int ret = 0;
 
 	if (ndevctx->start_remove || !nvdev || nvdev->destroy)
 		return -ENODEV;
-
-	if (nvdev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
-		limit = NETVSC_MTU - ETH_HLEN;
-
-	if (mtu < NETVSC_MTU_MIN || mtu > limit)
-		return -EINVAL;
 
 	ret = netvsc_close(ndev);
 	if (ret)
@@ -1400,6 +1397,14 @@ static int netvsc_probe(struct hv_device *dev,
 	nvdev = net_device_ctx->nvdev;
 	netif_set_real_num_tx_queues(net, nvdev->num_chn);
 	netif_set_real_num_rx_queues(net, nvdev->num_chn);
+	netif_set_gso_max_size(net, NETVSC_GSO_MAX_SIZE);
+
+	/* MTU range: 68 - 1500 or 65521 */
+	net->min_mtu = NETVSC_MTU_MIN;
+	if (nvdev->nvsp_version >= NVSP_PROTOCOL_VERSION_2)
+		net->max_mtu = NETVSC_MTU - ETH_HLEN;
+	else
+		net->max_mtu = ETH_DATA_LEN;
 
 	ret = register_netdev(net);
 	if (ret != 0) {

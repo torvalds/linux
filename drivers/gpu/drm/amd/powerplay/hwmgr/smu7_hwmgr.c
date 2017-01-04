@@ -993,13 +993,6 @@ static int smu7_start_dpm(struct pp_hwmgr *hwmgr)
 	PHM_WRITE_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__PCIE,
 			SWRST_COMMAND_1, RESETLC, 0x0);
 
-	PP_ASSERT_WITH_CODE(
-			(0 == smum_send_msg_to_smc(hwmgr->smumgr,
-					PPSMC_MSG_Voltage_Cntl_Enable)),
-			"Failed to enable voltage DPM during DPM Start Function!",
-			return -EINVAL);
-
-
 	if (smu7_enable_sclk_mclk_dpm(hwmgr)) {
 		printk(KERN_ERR "Failed to enable Sclk DPM and Mclk DPM!");
 		return -EINVAL;
@@ -1428,7 +1421,7 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ControlVDDCI);
 
-	if ((hwmgr->pp_table_version != PP_TABLE_V0)
+	if ((hwmgr->pp_table_version != PP_TABLE_V0) && (hwmgr->feature_mask & PP_CLOCK_STRETCH_MASK)
 		&& (table_info->cac_dtp_table->usClockStretchAmount != 0))
 		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 					PHM_PlatformCaps_ClockStretcher);
@@ -2008,8 +2001,9 @@ static int smu7_thermal_parameter_init(struct pp_hwmgr *hwmgr)
 
 		hwmgr->dyn_state.cac_dtp_table->usTargetOperatingTemp =
 			       table_info->cac_dtp_table->usTargetOperatingTemp;
-		phm_cap_set(hwmgr->platform_descriptor.platformCaps,
-						PHM_PlatformCaps_ODFuzzyFanControlSupport);
+		if (hwmgr->feature_mask & PP_OD_FUZZY_FAN_CONTROL_MASK)
+			phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+					PHM_PlatformCaps_ODFuzzyFanControlSupport);
 	}
 
 	return 0;

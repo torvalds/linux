@@ -82,7 +82,7 @@ enum rxe_device_param {
 	RXE_MAX_SGE			= 32,
 	RXE_MAX_SGE_RD			= 32,
 	RXE_MAX_CQ			= 16384,
-	RXE_MAX_LOG_CQE			= 13,
+	RXE_MAX_LOG_CQE			= 15,
 	RXE_MAX_MR			= 2 * 1024,
 	RXE_MAX_PD			= 0x7ffc,
 	RXE_MAX_QP_RD_ATOM		= 128,

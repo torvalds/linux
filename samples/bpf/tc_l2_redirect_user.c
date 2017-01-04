@@ -60,9 +60,9 @@ int main(int argc, char **argv)
 	}
 
 	/* bpf_tunnel_key.remote_ipv4 expects host byte orders */
-	ret = bpf_update_elem(array_fd, &array_key, &ifindex, 0);
+	ret = bpf_map_update_elem(array_fd, &array_key, &ifindex, 0);
 	if (ret) {
-		perror("bpf_update_elem");
+		perror("bpf_map_update_elem");
 		goto out;
 	}
 

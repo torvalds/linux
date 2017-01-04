@@ -4202,11 +4202,6 @@ static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
 
 	if (!gate) {
 		/* turn the clocks on when decoding */
-		ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-						    AMD_CG_STATE_UNGATE);
-		if (ret)
-			return ret;
-
 		if (pi->caps_uvd_dpm ||
 		    (adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.count <= 0))
 			pi->smc_state_table.UvdBootLevel = 0;
@@ -4223,9 +4218,6 @@ static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
 		ret = ci_enable_uvd_dpm(adev, false);
 		if (ret)
 			return ret;
-
-		ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-						    AMD_CG_STATE_GATE);
 	}
 
 	return ret;
@@ -5896,7 +5888,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	pi->pcie_dpm_key_disabled = 0;
 	pi->thermal_sclk_dpm_enabled = 0;
 
-	if (amdgpu_sclk_deep_sleep_en)
+	if (amdgpu_pp_feature_mask & SCLK_DEEP_SLEEP_MASK)
 		pi->caps_sclk_ds = true;
 	else
 		pi->caps_sclk_ds = false;
@@ -5999,7 +5991,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 			tmp |= CNB_PWRMGT_CNTL__DPM_ENABLED_MASK;
 			break;
 		default:
-			DRM_ERROR("Invalid PCC GPIO: %u!\n", gpio.shift);
+			DRM_INFO("Invalid PCC GPIO: %u!\n", gpio.shift);
 			break;
 		}
 		WREG32_SMC(ixCNB_PWRMGT_CNTL, tmp);
@@ -6091,7 +6083,7 @@ ci_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
 		activity_percent = activity_percent > 100 ? 100 : activity_percent;
 	}
 
-	seq_printf(m, "uvd %sabled\n", pi->uvd_enabled ? "en" : "dis");
+	seq_printf(m, "uvd %sabled\n", pi->uvd_power_gated ? "dis" : "en");
 	seq_printf(m, "vce %sabled\n", rps->vce_active ? "en" : "dis");
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);

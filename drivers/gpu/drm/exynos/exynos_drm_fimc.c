@@ -1433,7 +1433,7 @@ static int fimc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 		&img_pos[EXYNOS_DRM_OPS_SRC],
 		&img_pos[EXYNOS_DRM_OPS_DST]);
 	if (ret) {
-		dev_err(dev, "failed to set precalser.\n");
+		dev_err(dev, "failed to set prescaler.\n");
 		return ret;
 	}
 

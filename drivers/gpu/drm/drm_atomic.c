@@ -1087,12 +1087,38 @@ int drm_atomic_connector_set_property(struct drm_connector *connector,
 		 * now?) atomic writes to DPMS property:
 		 */
 		return -EINVAL;
+	} else if (property == config->tv_select_subconnector_property) {
+		state->tv.subconnector = val;
+	} else if (property == config->tv_left_margin_property) {
+		state->tv.margins.left = val;
+	} else if (property == config->tv_right_margin_property) {
+		state->tv.margins.right = val;
+	} else if (property == config->tv_top_margin_property) {
+		state->tv.margins.top = val;
+	} else if (property == config->tv_bottom_margin_property) {
+		state->tv.margins.bottom = val;
+	} else if (property == config->tv_mode_property) {
+		state->tv.mode = val;
+	} else if (property == config->tv_brightness_property) {
+		state->tv.brightness = val;
+	} else if (property == config->tv_contrast_property) {
+		state->tv.contrast = val;
+	} else if (property == config->tv_flicker_reduction_property) {
+		state->tv.flicker_reduction = val;
+	} else if (property == config->tv_overscan_property) {
+		state->tv.overscan = val;
+	} else if (property == config->tv_saturation_property) {
+		state->tv.saturation = val;
+	} else if (property == config->tv_hue_property) {
+		state->tv.hue = val;
 	} else if (connector->funcs->atomic_set_property) {
 		return connector->funcs->atomic_set_property(connector,
 				state, property, val);
 	} else {
 		return -EINVAL;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL(drm_atomic_connector_set_property);
 
@@ -1135,6 +1161,30 @@ drm_atomic_connector_get_property(struct drm_connector *connector,
 		*val = (state->crtc) ? state->crtc->base.id : 0;
 	} else if (property == config->dpms_property) {
 		*val = connector->dpms;
+	} else if (property == config->tv_select_subconnector_property) {
+		*val = state->tv.subconnector;
+	} else if (property == config->tv_left_margin_property) {
+		*val = state->tv.margins.left;
+	} else if (property == config->tv_right_margin_property) {
+		*val = state->tv.margins.right;
+	} else if (property == config->tv_top_margin_property) {
+		*val = state->tv.margins.top;
+	} else if (property == config->tv_bottom_margin_property) {
+		*val = state->tv.margins.bottom;
+	} else if (property == config->tv_mode_property) {
+		*val = state->tv.mode;
+	} else if (property == config->tv_brightness_property) {
+		*val = state->tv.brightness;
+	} else if (property == config->tv_contrast_property) {
+		*val = state->tv.contrast;
+	} else if (property == config->tv_flicker_reduction_property) {
+		*val = state->tv.flicker_reduction;
+	} else if (property == config->tv_overscan_property) {
+		*val = state->tv.overscan;
+	} else if (property == config->tv_saturation_property) {
+		*val = state->tv.saturation;
+	} else if (property == config->tv_hue_property) {
+		*val = state->tv.hue;
 	} else if (connector->funcs->atomic_get_property) {
 		return connector->funcs->atomic_get_property(connector,
 				state, property, val);
@@ -1864,20 +1914,6 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	helpers and for the DRM event handling for existing userspace.
  */
 
-static struct dma_fence *get_crtc_fence(struct drm_crtc *crtc)
-{
-	struct dma_fence *fence;
-
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-	if (!fence)
-		return NULL;
-
-	dma_fence_init(fence, &drm_crtc_fence_ops, &crtc->fence_lock,
-		       crtc->fence_context, ++crtc->fence_seqno);
-
-	return fence;
-}
-
 struct drm_out_fence_state {
 	s64 __user *out_fence_ptr;
 	struct sync_file *sync_file;
@@ -1959,7 +1995,7 @@ static int prepare_crtc_signaling(struct drm_device *dev,
 			f[*num_fences].out_fence_ptr = fence_ptr;
 			*fence_state = f;
 
-			fence = get_crtc_fence(crtc);
+			fence = drm_crtc_create_fence(crtc);
 			if (!fence)
 				return -ENOMEM;
 

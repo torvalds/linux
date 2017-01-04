@@ -129,6 +129,7 @@ static inline befs_inode_addr
 blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
 {
 	befs_inode_addr iaddr;
+
 	iaddr.allocation_group = blockno >> BEFS_SB(sb)->ag_shift;
 	iaddr.start =
 	    blockno - (iaddr.allocation_group << BEFS_SB(sb)->ag_shift);
@@ -140,7 +141,7 @@ blockno2iaddr(struct super_block *sb, befs_blocknr_t blockno)
 static inline unsigned int
 befs_iaddrs_per_block(struct super_block *sb)
 {
-	return BEFS_SB(sb)->block_size / sizeof (befs_disk_inode_addr);
+	return BEFS_SB(sb)->block_size / sizeof(befs_disk_inode_addr);
 }
 
 #include "endian.h"

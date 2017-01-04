@@ -245,8 +245,10 @@ static int st_rproc_probe(struct platform_device *pdev)
 		goto free_rproc;
 
 	enabled = st_rproc_state(pdev);
-	if (enabled < 0)
+	if (enabled < 0) {
+		ret = enabled;
 		goto free_rproc;
+	}
 
 	if (enabled) {
 		atomic_inc(&rproc->power);

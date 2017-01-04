@@ -336,6 +336,12 @@ enum dma_slave_buswidth {
  * may or may not be applicable on memory sources.
  * @dst_maxburst: same as src_maxburst but for destination target
  * mutatis mutandis.
+ * @src_port_window_size: The length of the register area in words the data need
+ * to be accessed on the device side. It is only used for devices which is using
+ * an area instead of a single register to receive the data. Typically the DMA
+ * loops in this area in order to transfer the data.
+ * @dst_port_window_size: same as src_port_window_size but for the destination
+ * port.
  * @device_fc: Flow Controller Settings. Only valid for slave channels. Fill
  * with 'true' if peripheral should be flow controller. Direction will be
  * selected at Runtime.
@@ -363,6 +369,8 @@ struct dma_slave_config {
 	enum dma_slave_buswidth dst_addr_width;
 	u32 src_maxburst;
 	u32 dst_maxburst;
+	u32 src_port_window_size;
+	u32 dst_port_window_size;
 	bool device_fc;
 	unsigned int slave_id;
 };

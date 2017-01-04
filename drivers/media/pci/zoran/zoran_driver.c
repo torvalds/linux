@@ -66,7 +66,7 @@
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 
 #include <linux/mutex.h>
@@ -1488,7 +1488,7 @@ zoran_set_input (struct zoran *zr,
 	if (input < 0 || input >= zr->card.inputs) {
 		dprintk(1,
 			KERN_ERR
-			"%s: %s - unnsupported input %d\n",
+			"%s: %s - unsupported input %d\n",
 			ZR_DEVNAME(zr), __func__, input);
 		return -EINVAL;
 	}

@@ -326,6 +326,17 @@ brcmf_proto_bcdc_hdrpull(struct brcmf_pub *drvr, bool do_fws,
 	return 0;
 }
 
+static int brcmf_proto_bcdc_tx_queue_data(struct brcmf_pub *drvr, int ifidx,
+					  struct sk_buff *skb)
+{
+	struct brcmf_if *ifp = brcmf_get_ifp(drvr, ifidx);
+
+	if (!brcmf_fws_queue_skbs(drvr->fws))
+		return brcmf_proto_txdata(drvr, ifidx, 0, skb);
+
+	return brcmf_fws_process_skb(ifp, skb);
+}
+
 static int
 brcmf_proto_bcdc_txdata(struct brcmf_pub *drvr, int ifidx, u8 offset,
 			struct sk_buff *pktbuf)
@@ -375,6 +386,7 @@ int brcmf_proto_bcdc_attach(struct brcmf_pub *drvr)
 	drvr->proto->hdrpull = brcmf_proto_bcdc_hdrpull;
 	drvr->proto->query_dcmd = brcmf_proto_bcdc_query_dcmd;
 	drvr->proto->set_dcmd = brcmf_proto_bcdc_set_dcmd;
+	drvr->proto->tx_queue_data = brcmf_proto_bcdc_tx_queue_data;
 	drvr->proto->txdata = brcmf_proto_bcdc_txdata;
 	drvr->proto->configure_addr_mode = brcmf_proto_bcdc_configure_addr_mode;
 	drvr->proto->delete_peer = brcmf_proto_bcdc_delete_peer;

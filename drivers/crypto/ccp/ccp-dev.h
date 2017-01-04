@@ -278,7 +278,7 @@ struct ccp_cmd_queue {
 	/* Private LSB that is assigned to this queue, or -1 if none.
 	 * Bitmap for my private LSB, unused otherwise
 	 */
-	unsigned int lsb;
+	int lsb;
 	DECLARE_BITMAP(lsbmap, PLSB_MAP_SIZE);
 
 	/* Queue processing thread */
@@ -515,7 +515,6 @@ struct ccp_op {
 		struct ccp_passthru_op passthru;
 		struct ccp_ecc_op ecc;
 	} u;
-	struct ccp_mem key;
 };
 
 static inline u32 ccp_addr_lo(struct ccp_dma_info *info)
@@ -541,23 +540,23 @@ static inline u32 ccp_addr_hi(struct ccp_dma_info *info)
  * word 7: upper 16 bits of key pointer; key memory type
  */
 struct dword0 {
-	__le32 soc:1;
-	__le32 ioc:1;
-	__le32 rsvd1:1;
-	__le32 init:1;
-	__le32 eom:1;		/* AES/SHA only */
-	__le32 function:15;
-	__le32 engine:4;
-	__le32 prot:1;
-	__le32 rsvd2:7;
+	unsigned int soc:1;
+	unsigned int ioc:1;
+	unsigned int rsvd1:1;
+	unsigned int init:1;
+	unsigned int eom:1;		/* AES/SHA only */
+	unsigned int function:15;
+	unsigned int engine:4;
+	unsigned int prot:1;
+	unsigned int rsvd2:7;
 };
 
 struct dword3 {
-	__le32 src_hi:16;
-	__le32 src_mem:2;
-	__le32 lsb_cxt_id:8;
-	__le32 rsvd1:5;
-	__le32 fixed:1;
+	unsigned int  src_hi:16;
+	unsigned int  src_mem:2;
+	unsigned int  lsb_cxt_id:8;
+	unsigned int  rsvd1:5;
+	unsigned int  fixed:1;
 };
 
 union dword4 {
@@ -567,18 +566,18 @@ union dword4 {
 
 union dword5 {
 	struct {
-		__le32 dst_hi:16;
-		__le32 dst_mem:2;
-		__le32 rsvd1:13;
-		__le32 fixed:1;
+		unsigned int  dst_hi:16;
+		unsigned int  dst_mem:2;
+		unsigned int  rsvd1:13;
+		unsigned int  fixed:1;
 	} fields;
 	__le32 sha_len_hi;
 };
 
 struct dword7 {
-	__le32 key_hi:16;
-	__le32 key_mem:2;
-	__le32 rsvd1:14;
+	unsigned int  key_hi:16;
+	unsigned int  key_mem:2;
+	unsigned int  rsvd1:14;
 };
 
 struct ccp5_desc {

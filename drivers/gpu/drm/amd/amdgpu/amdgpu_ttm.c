@@ -34,7 +34,6 @@
 #include <ttm/ttm_placement.h>
 #include <ttm/ttm_module.h>
 #include <ttm/ttm_page_alloc.h>
-#include <ttm/ttm_memory.h>
 #include <drm/drmP.h>
 #include <drm/amdgpu_drm.h>
 #include <linux/seq_file.h>
@@ -65,7 +64,7 @@ static void amdgpu_ttm_mem_global_release(struct drm_global_reference *ref)
 	ttm_mem_global_release(ref->object);
 }
 
-int amdgpu_ttm_global_init(struct amdgpu_device *adev)
+static int amdgpu_ttm_global_init(struct amdgpu_device *adev)
 {
 	struct drm_global_reference *global_ref;
 	struct amdgpu_ring *ring;
@@ -1151,6 +1150,10 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	unsigned i, j;
 	int r;
 
+	r = amdgpu_ttm_global_init(adev);
+	if (r) {
+		return r;
+	}
 	/* No others user of address space so set it to 0 */
 	r = ttm_bo_device_init(&adev->mman.bdev,
 			       adev->mman.bo_global_ref.ref.object,
@@ -1382,28 +1385,40 @@ error_free:
 }
 
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-		uint32_t src_data,
-		struct reservation_object *resv,
-		struct dma_fence **fence)
+		       uint32_t src_data,
+		       struct reservation_object *resv,
+		       struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	struct amdgpu_job *job;
+	uint32_t max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 
-	uint32_t max_bytes, byte_count;
-	uint64_t dst_offset;
+	struct drm_mm_node *mm_node;
+	unsigned long num_pages;
 	unsigned int num_loops, num_dw;
-	unsigned int i;
+
+	struct amdgpu_job *job;
 	int r;
 
-	byte_count = bo->tbo.num_pages << PAGE_SHIFT;
-	max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
-	num_loops = DIV_ROUND_UP(byte_count, max_bytes);
+	if (!ring->ready) {
+		DRM_ERROR("Trying to clear memory with ring turned off.\n");
+		return -EINVAL;
+	}
+
+	num_pages = bo->tbo.num_pages;
+	mm_node = bo->tbo.mem.mm_node;
+	num_loops = 0;
+	while (num_pages) {
+		uint32_t byte_count = mm_node->size << PAGE_SHIFT;
+
+		num_loops += DIV_ROUND_UP(byte_count, max_bytes);
+		num_pages -= mm_node->size;
+		++mm_node;
+	}
 	num_dw = num_loops * adev->mman.buffer_funcs->fill_num_dw;
 
 	/* for IB padding */
-	while (num_dw & 0x7)
-		num_dw++;
+	num_dw += 64;
 
 	r = amdgpu_job_alloc_with_ib(adev, num_dw * 4, &job);
 	if (r)
@@ -1411,28 +1426,43 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 
 	if (resv) {
 		r = amdgpu_sync_resv(adev, &job->sync, resv,
-				AMDGPU_FENCE_OWNER_UNDEFINED);
+				     AMDGPU_FENCE_OWNER_UNDEFINED);
 		if (r) {
 			DRM_ERROR("sync failed (%d).\n", r);
 			goto error_free;
 		}
 	}
 
-	dst_offset = bo->tbo.mem.start << PAGE_SHIFT;
-	for (i = 0; i < num_loops; i++) {
-		uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
+	num_pages = bo->tbo.num_pages;
+	mm_node = bo->tbo.mem.mm_node;
 
-		amdgpu_emit_fill_buffer(adev, &job->ibs[0], src_data,
-				dst_offset, cur_size_in_bytes);
+	while (num_pages) {
+		uint32_t byte_count = mm_node->size << PAGE_SHIFT;
+		uint64_t dst_addr;
 
-		dst_offset += cur_size_in_bytes;
-		byte_count -= cur_size_in_bytes;
+		r = amdgpu_mm_node_addr(&bo->tbo, mm_node,
+					&bo->tbo.mem, &dst_addr);
+		if (r)
+			return r;
+
+		while (byte_count) {
+			uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
+
+			amdgpu_emit_fill_buffer(adev, &job->ibs[0], src_data,
+						dst_addr, cur_size_in_bytes);
+
+			dst_addr += cur_size_in_bytes;
+			byte_count -= cur_size_in_bytes;
+		}
+
+		num_pages -= mm_node->size;
+		++mm_node;
 	}
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
 	r = amdgpu_job_submit(job, ring, &adev->mman.entity,
-			AMDGPU_FENCE_OWNER_UNDEFINED, fence);
+			      AMDGPU_FENCE_OWNER_UNDEFINED, fence);
 	if (r)
 		goto error_free;
 
@@ -1481,7 +1511,7 @@ static const struct drm_info_list amdgpu_ttm_debugfs_list[] = {
 static ssize_t amdgpu_ttm_vram_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1525,7 +1555,7 @@ static const struct file_operations amdgpu_ttm_vram_fops = {
 static ssize_t amdgpu_ttm_gtt_read(struct file *f, char __user *buf,
 				   size_t size, loff_t *pos)
 {
-	struct amdgpu_device *adev = f->f_inode->i_private;
+	struct amdgpu_device *adev = file_inode(f)->i_private;
 	ssize_t result = 0;
 	int r;
 
@@ -1622,9 +1652,4 @@ static void amdgpu_ttm_debugfs_fini(struct amdgpu_device *adev)
 #endif
 
 #endif
-}
-
-u64 amdgpu_ttm_get_gtt_mem_size(struct amdgpu_device *adev)
-{
-	return ttm_get_kernel_zone_memory_size(adev->mman.mem_global_ref.object);
 }

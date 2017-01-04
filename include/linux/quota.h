@@ -431,7 +431,7 @@ struct qc_info {
 
 /* Operations handling requests from userspace */
 struct quotactl_ops {
-	int (*quota_on)(struct super_block *, int, int, struct path *);
+	int (*quota_on)(struct super_block *, int, int, const struct path *);
 	int (*quota_off)(struct super_block *, int);
 	int (*quota_enable)(struct super_block *, unsigned int);
 	int (*quota_disable)(struct super_block *, unsigned int);
@@ -520,7 +520,6 @@ static inline void quota_send_warning(struct kqid qid, dev_t dev,
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
 	struct mutex dqio_mutex;		/* lock device while I/O in progress */
-	struct mutex dqonoff_mutex;		/* Serialize quotaon & quotaoff */
 	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
 	const struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */

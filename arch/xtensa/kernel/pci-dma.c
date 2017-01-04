@@ -15,6 +15,7 @@
  * Joe Taylor <joe@tensilica.com, joetylr@yahoo.com>
  */
 
+#include <linux/dma-contiguous.h>
 #include <linux/gfp.h>
 #include <linux/highmem.h>
 #include <linux/mm.h>
@@ -146,6 +147,8 @@ static void *xtensa_dma_alloc(struct device *dev, size_t size,
 {
 	unsigned long ret;
 	unsigned long uncached = 0;
+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
+	struct page *page = NULL;
 
 	/* ignore region speicifiers */
 
@@ -153,10 +156,17 @@ static void *xtensa_dma_alloc(struct device *dev, size_t size,
 
 	if (dev == NULL || (dev->coherent_dma_mask < 0xffffffff))
 		flag |= GFP_DMA;
-	ret = (unsigned long)__get_free_pages(flag, get_order(size));
 
-	if (ret == 0)
+	if (gfpflags_allow_blocking(flag))
+		page = dma_alloc_from_contiguous(dev, count, get_order(size));
+
+	if (!page)
+		page = alloc_pages(flag, get_order(size));
+
+	if (!page)
 		return NULL;
+
+	ret = (unsigned long)page_address(page);
 
 	/* We currently don't support coherent memory outside KSEG */
 
@@ -170,16 +180,19 @@ static void *xtensa_dma_alloc(struct device *dev, size_t size,
 	return (void *)uncached;
 }
 
-static void xtensa_dma_free(struct device *hwdev, size_t size, void *vaddr,
+static void xtensa_dma_free(struct device *dev, size_t size, void *vaddr,
 			    dma_addr_t dma_handle, unsigned long attrs)
 {
 	unsigned long addr = (unsigned long)vaddr +
 		XCHAL_KSEG_CACHED_VADDR - XCHAL_KSEG_BYPASS_VADDR;
+	struct page *page = virt_to_page(addr);
+	unsigned long count = PAGE_ALIGN(size) >> PAGE_SHIFT;
 
 	BUG_ON(addr < XCHAL_KSEG_CACHED_VADDR ||
 	       addr > XCHAL_KSEG_CACHED_VADDR + XCHAL_KSEG_SIZE - 1);
 
-	free_pages(addr, get_order(size));
+	if (!dma_release_from_contiguous(dev, page, count))
+		__free_pages(page, get_order(size));
 }
 
 static dma_addr_t xtensa_map_page(struct device *dev, struct page *page,
@@ -189,7 +202,9 @@ static dma_addr_t xtensa_map_page(struct device *dev, struct page *page,
 {
 	dma_addr_t dma_handle = page_to_phys(page) + offset;
 
-	xtensa_sync_single_for_device(dev, dma_handle, size, dir);
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		xtensa_sync_single_for_device(dev, dma_handle, size, dir);
+
 	return dma_handle;
 }
 
@@ -197,7 +212,8 @@ static void xtensa_unmap_page(struct device *dev, dma_addr_t dma_handle,
 			      size_t size, enum dma_data_direction dir,
 			      unsigned long attrs)
 {
-	xtensa_sync_single_for_cpu(dev, dma_handle, size, dir);
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		xtensa_sync_single_for_cpu(dev, dma_handle, size, dir);
 }
 
 static int xtensa_map_sg(struct device *dev, struct scatterlist *sg,

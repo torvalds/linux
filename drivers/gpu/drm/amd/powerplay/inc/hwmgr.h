@@ -38,8 +38,6 @@ struct pp_hwmgr;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
-extern int amdgpu_powercontainment;
-extern int amdgpu_sclk_deep_sleep_en;
 extern unsigned amdgpu_pp_feature_mask;
 
 #define VOLTAGE_SCALE 4
@@ -85,7 +83,9 @@ enum PP_FEATURE_MASK {
 	PP_SMC_VOLTAGE_CONTROL_MASK = 0x40,
 	PP_VBI_TIME_SUPPORT_MASK = 0x80,
 	PP_ULV_MASK = 0x100,
-	PP_ENABLE_GFX_CG_THRU_SMU = 0x200
+	PP_ENABLE_GFX_CG_THRU_SMU = 0x200,
+	PP_CLOCK_STRETCH_MASK = 0x400,
+	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800
 };
 
 enum PHM_BackEnd_Magic {

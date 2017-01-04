@@ -91,6 +91,8 @@ int nouveau_crtc_set_config(struct drm_mode_set *set);
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
 extern int nouveau_backlight_init(struct drm_device *);
 extern void nouveau_backlight_exit(struct drm_device *);
+extern void nouveau_backlight_ctor(void);
+extern void nouveau_backlight_dtor(void);
 #else
 static inline int
 nouveau_backlight_init(struct drm_device *dev)
@@ -100,6 +102,14 @@ nouveau_backlight_init(struct drm_device *dev)
 
 static inline void
 nouveau_backlight_exit(struct drm_device *dev) {
+}
+
+static inline void
+nouveau_backlight_ctor(void) {
+}
+
+static inline void
+nouveau_backlight_dtor(void) {
 }
 #endif
 

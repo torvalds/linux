@@ -21,15 +21,11 @@ if STAGING_MEDIA && MEDIA_SUPPORT
 # Please keep them in alphabetic order
 source "drivers/staging/media/bcm2048/Kconfig"
 
-source "drivers/staging/media/cec/Kconfig"
-
 source "drivers/staging/media/cxd2099/Kconfig"
 
 source "drivers/staging/media/davinci_vpfe/Kconfig"
 
 source "drivers/staging/media/omap4iss/Kconfig"
-
-source "drivers/staging/media/pulse8-cec/Kconfig"
 
 source "drivers/staging/media/s5p-cec/Kconfig"
 

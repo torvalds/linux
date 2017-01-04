@@ -34,14 +34,14 @@
  * ref_head. Must clean this mess up later.
  */
 struct btrfs_delayed_ref_node {
-	/*
-	 * ref_head use rb tree, stored in ref_root->href.
-	 * indexed by bytenr
-	 */
-	struct rb_node rb_node;
-
 	/*data/tree ref use list, stored in ref_head->ref_list. */
 	struct list_head list;
+	/*
+	 * If action is BTRFS_ADD_DELAYED_REF, also link this node to
+	 * ref_head->ref_add_list, then we do not need to iterate the
+	 * whole ref_head->ref_list to find BTRFS_ADD_DELAYED_REF nodes.
+	 */
+	struct list_head add_list;
 
 	/* the starting bytenr of the extent */
 	u64 bytenr;
@@ -99,6 +99,8 @@ struct btrfs_delayed_ref_head {
 
 	spinlock_t lock;
 	struct list_head ref_list;
+	/* accumulate add BTRFS_ADD_DELAYED_REF nodes to this ref_add_list. */
+	struct list_head ref_add_list;
 
 	struct rb_node href_node;
 

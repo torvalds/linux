@@ -1351,7 +1351,7 @@ static void af9013_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops af9013_ops;
+static const struct dvb_frontend_ops af9013_ops;
 
 static int af9013_download_firmware(struct af9013_state *state)
 {
@@ -1516,7 +1516,7 @@ err:
 }
 EXPORT_SYMBOL(af9013_attach);
 
-static struct dvb_frontend_ops af9013_ops = {
+static const struct dvb_frontend_ops af9013_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Afatech AF9013",

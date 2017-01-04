@@ -221,6 +221,10 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		dev_info->fw_eng = FW_ENGINEERING_VERSION;
 		dev_info->mf_mode = cdev->mf_mode;
 		dev_info->tx_switching = true;
+
+		if (QED_LEADING_HWFN(cdev)->hw_info.b_wol_support ==
+		    QED_WOL_SUPPORT_PME)
+			dev_info->wol_support = true;
 	} else {
 		qed_vf_get_fw_version(&cdev->hwfns[0], &dev_info->fw_major,
 				      &dev_info->fw_minor, &dev_info->fw_rev,
@@ -242,6 +246,8 @@ int qed_fill_dev_info(struct qed_dev *cdev,
 		qed_mcp_get_mfw_ver(QED_LEADING_HWFN(cdev), NULL,
 				    &dev_info->mfw_rev, NULL);
 	}
+
+	dev_info->mtu = QED_LEADING_HWFN(cdev)->hw_info.mtu;
 
 	return 0;
 }
@@ -1430,11 +1436,106 @@ static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)
 	return status;
 }
 
+static int qed_update_wol(struct qed_dev *cdev, bool enabled)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int rc = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	rc = qed_mcp_ov_update_wol(hwfn, ptt, enabled ? QED_OV_WOL_ENABLED
+				   : QED_OV_WOL_DISABLED);
+	if (rc)
+		goto out;
+	rc = qed_mcp_ov_update_current_config(hwfn, ptt, QED_OV_CLIENT_DRV);
+
+out:
+	qed_ptt_release(hwfn, ptt);
+	return rc;
+}
+
+static int qed_update_drv_state(struct qed_dev *cdev, bool active)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_ov_update_driver_state(hwfn, ptt, active ?
+						QED_OV_DRIVER_STATE_ACTIVE :
+						QED_OV_DRIVER_STATE_DISABLED);
+
+	qed_ptt_release(hwfn, ptt);
+
+	return status;
+}
+
+static int qed_update_mac(struct qed_dev *cdev, u8 *mac)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_ov_update_mac(hwfn, ptt, mac);
+	if (status)
+		goto out;
+
+	status = qed_mcp_ov_update_current_config(hwfn, ptt, QED_OV_CLIENT_DRV);
+
+out:
+	qed_ptt_release(hwfn, ptt);
+	return status;
+}
+
+static int qed_update_mtu(struct qed_dev *cdev, u16 mtu)
+{
+	struct qed_hwfn *hwfn = QED_LEADING_HWFN(cdev);
+	struct qed_ptt *ptt;
+	int status = 0;
+
+	if (IS_VF(cdev))
+		return 0;
+
+	ptt = qed_ptt_acquire(hwfn);
+	if (!ptt)
+		return -EAGAIN;
+
+	status = qed_mcp_ov_update_mtu(hwfn, ptt, mtu);
+	if (status)
+		goto out;
+
+	status = qed_mcp_ov_update_current_config(hwfn, ptt, QED_OV_CLIENT_DRV);
+
+out:
+	qed_ptt_release(hwfn, ptt);
+	return status;
+}
+
 static struct qed_selftest_ops qed_selftest_ops_pass = {
 	.selftest_memory = &qed_selftest_memory,
 	.selftest_interrupt = &qed_selftest_interrupt,
 	.selftest_register = &qed_selftest_register,
 	.selftest_clock = &qed_selftest_clock,
+	.selftest_nvram = &qed_selftest_nvram,
 };
 
 const struct qed_common_ops qed_common_ops_pass = {
@@ -1464,6 +1565,10 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.get_coalesce = &qed_get_coalesce,
 	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,
+	.update_drv_state = &qed_update_drv_state,
+	.update_mac = &qed_update_mac,
+	.update_mtu = &qed_update_mtu,
+	.update_wol = &qed_update_wol,
 };
 
 void qed_get_protocol_stats(struct qed_dev *cdev,

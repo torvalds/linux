@@ -26,14 +26,17 @@ static LIST_HEAD(iomap_head);
 
 static struct iomap_ops {
 	nfit_test_lookup_fn nfit_test_lookup;
+	nfit_test_evaluate_dsm_fn evaluate_dsm;
 	struct list_head list;
 } iomap_ops = {
 	.list = LIST_HEAD_INIT(iomap_ops.list),
 };
 
-void nfit_test_setup(nfit_test_lookup_fn lookup)
+void nfit_test_setup(nfit_test_lookup_fn lookup,
+		nfit_test_evaluate_dsm_fn evaluate)
 {
 	iomap_ops.nfit_test_lookup = lookup;
+	iomap_ops.evaluate_dsm = evaluate;
 	list_add_rcu(&iomap_ops.list, &iomap_head);
 }
 EXPORT_SYMBOL(nfit_test_setup);
@@ -366,5 +369,23 @@ acpi_status __wrap_acpi_evaluate_object(acpi_handle handle, acpi_string path,
 	return AE_OK;
 }
 EXPORT_SYMBOL(__wrap_acpi_evaluate_object);
+
+union acpi_object * __wrap_acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid,
+		u64 rev, u64 func, union acpi_object *argv4)
+{
+	union acpi_object *obj = ERR_PTR(-ENXIO);
+	struct iomap_ops *ops;
+
+	rcu_read_lock();
+	ops = list_first_or_null_rcu(&iomap_head, typeof(*ops), list);
+	if (ops)
+		obj = ops->evaluate_dsm(handle, uuid, rev, func, argv4);
+	rcu_read_unlock();
+
+	if (IS_ERR(obj))
+		return acpi_evaluate_dsm(handle, uuid, rev, func, argv4);
+	return obj;
+}
+EXPORT_SYMBOL(__wrap_acpi_evaluate_dsm);
 
 MODULE_LICENSE("GPL v2");

@@ -76,6 +76,7 @@ enum {
 	CPL_PASS_ESTABLISH    = 0x41,
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
+	CPL_RX_ISCSI_CMP      = 0x45,
 	CPL_TRACE_PKT_T5      = 0x48,
 	CPL_RX_ISCSI_DDP      = 0x49,
 
@@ -932,6 +933,18 @@ struct cpl_iscsi_data {
 	__be16 urg;
 	__u8 rsvd1;
 	__u8 status;
+};
+
+struct cpl_rx_iscsi_cmp {
+	union opcode_tid ot;
+	__be16 pdu_len_ddp;
+	__be16 len;
+	__be32 seq;
+	__be16 urg;
+	__u8 rsvd;
+	__u8 status;
+	__be32 ulp_crc;
+	__be32 ddpvld;
 };
 
 struct cpl_tx_data_iso {

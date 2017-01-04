@@ -16,6 +16,7 @@
 #include <asm/machdep.h>
 #include <asm/cputhreads.h>
 #include <asm/hmi.h>
+#include <asm/kvm_ppc.h>
 
 /* SRR1 bits for machine check on POWER7 */
 #define SRR1_MC_LDSTERR		(1ul << (63-42))

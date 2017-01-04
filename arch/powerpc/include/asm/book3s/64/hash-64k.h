@@ -6,9 +6,6 @@
 #define H_PUD_INDEX_SIZE  5
 #define H_PGD_INDEX_SIZE  12
 
-/* With 4k base page size, hugepage PTEs go at the PMD level */
-#define MIN_HUGEPTE_SHIFT	PAGE_SHIFT
-
 #define H_PAGE_COMBO	0x00001000 /* this is a combo 4k page */
 #define H_PAGE_4K_PFN	0x00002000 /* PFN is for a single 4k page */
 /*

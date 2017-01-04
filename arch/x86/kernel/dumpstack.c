@@ -22,7 +22,6 @@
 int panic_on_unrecovered_nmi;
 int panic_on_io_nmi;
 unsigned int code_bytes = 64;
-int kstack_depth_to_print = 3 * STACKSLOTS_PER_LINE;
 static int die_counter;
 
 bool in_task_stack(unsigned long *stack, struct task_struct *task,
@@ -46,14 +45,7 @@ static void printk_stack_address(unsigned long address, int reliable,
 				 char *log_lvl)
 {
 	touch_nmi_watchdog();
-	printk("%s [<%p>] %s%pB\n",
-		log_lvl, (void *)address, reliable ? "" : "? ",
-		(void *)address);
-}
-
-void printk_address(unsigned long address)
-{
-	pr_cont(" [<%p>] %pS\n", (void *)address, (void *)address);
+	printk("%s %s%pB\n", log_lvl, reliable ? "" : "? ", (void *)address);
 }
 
 void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
@@ -67,6 +59,7 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	printk("%sCall Trace:\n", log_lvl);
 
 	unwind_start(&state, task, regs, stack);
+	stack = stack ? : get_stack_pointer(task, regs);
 
 	/*
 	 * Iterate through the stacks, starting with the current stack pointer.
@@ -82,8 +75,8 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	 * - softirq stack
 	 * - hardirq stack
 	 */
-	for (; stack; stack = stack_info.next_sp) {
-		const char *str_begin, *str_end;
+	for (regs = NULL; stack; stack = stack_info.next_sp) {
+		const char *stack_name;
 
 		/*
 		 * If we overflowed the task stack into a guard page, jump back
@@ -95,9 +88,9 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		if (get_stack_info(stack, task, &stack_info, &visit_mask))
 			break;
 
-		stack_type_str(stack_info.type, &str_begin, &str_end);
-		if (str_begin)
-			printk("%s <%s> ", log_lvl, str_begin);
+		stack_name = stack_type_name(stack_info.type);
+		if (stack_name)
+			printk("%s <%s>\n", log_lvl, stack_name);
 
 		/*
 		 * Scan the stack, printing any text addresses we find.  At the
@@ -118,6 +111,15 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 
 			if (!__kernel_text_address(addr))
 				continue;
+
+			/*
+			 * Don't print regs->ip again if it was already printed
+			 * by __show_regs() below.
+			 */
+			if (regs && stack == &regs->ip) {
+				unwind_next_frame(&state);
+				continue;
+			}
 
 			if (stack == ret_addr_p)
 				reliable = 1;
@@ -146,10 +148,15 @@ void show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 			 * of the addresses will just be printed as unreliable.
 			 */
 			unwind_next_frame(&state);
+
+			/* if the frame has entry regs, print them */
+			regs = unwind_get_entry_regs(&state);
+			if (regs)
+				__show_regs(regs, 0);
 		}
 
-		if (str_end)
-			printk("%s <%s> ", log_lvl, str_end);
+		if (stack_name)
+			printk("%s </%s>\n", log_lvl, stack_name);
 	}
 }
 
@@ -164,12 +171,12 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	if (!sp && task == current)
 		sp = get_stack_pointer(current, NULL);
 
-	show_stack_log_lvl(task, NULL, sp, "");
+	show_trace_log_lvl(task, NULL, sp, KERN_DEFAULT);
 }
 
 void show_stack_regs(struct pt_regs *regs)
 {
-	show_stack_log_lvl(current, regs, NULL, "");
+	show_trace_log_lvl(current, regs, NULL, KERN_DEFAULT);
 }
 
 static arch_spinlock_t die_lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -261,14 +268,11 @@ int __die(const char *str, struct pt_regs *regs, long err)
 		sp = kernel_stack_pointer(regs);
 		savesegment(ss, ss);
 	}
-	printk(KERN_EMERG "EIP: [<%08lx>] ", regs->ip);
-	print_symbol("%s", regs->ip);
-	printk(" SS:ESP %04x:%08lx\n", ss, sp);
+	printk(KERN_EMERG "EIP: %pS SS:ESP: %04x:%08lx\n",
+	       (void *)regs->ip, ss, sp);
 #else
 	/* Executive summary in case the oops scrolled away */
-	printk(KERN_ALERT "RIP ");
-	printk_address(regs->ip);
-	printk(" RSP <%016lx>\n", regs->sp);
+	printk(KERN_ALERT "RIP: %pS RSP: %016lx\n", (void *)regs->ip, regs->sp);
 #endif
 	return 0;
 }
@@ -290,22 +294,6 @@ void die(const char *str, struct pt_regs *regs, long err)
 		sig = 0;
 	oops_end(flags, regs, sig);
 }
-
-static int __init kstack_setup(char *s)
-{
-	ssize_t ret;
-	unsigned long val;
-
-	if (!s)
-		return -EINVAL;
-
-	ret = kstrtoul(s, 0, &val);
-	if (ret)
-		return ret;
-	kstack_depth_to_print = val;
-	return 0;
-}
-early_param("kstack", kstack_setup);
 
 static int __init code_bytes_setup(char *s)
 {

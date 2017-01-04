@@ -43,6 +43,7 @@
 #include <linux/bitops.h>
 #include <linux/mpage.h>
 #include <linux/bit_spinlock.h>
+#include <linux/pagevec.h>
 #include <trace/events/block.h>
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
@@ -753,7 +754,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 				 * still in flight on potentially older
 				 * contents.
 				 */
-				write_dirty_buffer(bh, WRITE_SYNC);
+				write_dirty_buffer(bh, REQ_SYNC);
 
 				/*
 				 * Kick off IO for the previous mapping. Note
@@ -1604,37 +1605,80 @@ void create_empty_buffers(struct page *page,
 }
 EXPORT_SYMBOL(create_empty_buffers);
 
-/*
- * We are taking a block for data and we don't want any output from any
- * buffer-cache aliases starting from return from that function and
- * until the moment when something will explicitly mark the buffer
- * dirty (hopefully that will not happen until we will free that block ;-)
- * We don't even need to mark it not-uptodate - nobody can expect
- * anything from a newly allocated buffer anyway. We used to used
- * unmap_buffer() for such invalidation, but that was wrong. We definitely
- * don't want to mark the alias unmapped, for example - it would confuse
- * anyone who might pick it with bread() afterwards...
+/**
+ * clean_bdev_aliases: clean a range of buffers in block device
+ * @bdev: Block device to clean buffers in
+ * @block: Start of a range of blocks to clean
+ * @len: Number of blocks to clean
  *
- * Also..  Note that bforget() doesn't lock the buffer.  So there can
- * be writeout I/O going on against recently-freed buffers.  We don't
- * wait on that I/O in bforget() - it's more efficient to wait on the I/O
- * only if we really need to.  That happens here.
+ * We are taking a range of blocks for data and we don't want writeback of any
+ * buffer-cache aliases starting from return from this function and until the
+ * moment when something will explicitly mark the buffer dirty (hopefully that
+ * will not happen until we will free that block ;-) We don't even need to mark
+ * it not-uptodate - nobody can expect anything from a newly allocated buffer
+ * anyway. We used to use unmap_buffer() for such invalidation, but that was
+ * wrong. We definitely don't want to mark the alias unmapped, for example - it
+ * would confuse anyone who might pick it with bread() afterwards...
+ *
+ * Also..  Note that bforget() doesn't lock the buffer.  So there can be
+ * writeout I/O going on against recently-freed buffers.  We don't wait on that
+ * I/O in bforget() - it's more efficient to wait on the I/O only if we really
+ * need to.  That happens here.
  */
-void unmap_underlying_metadata(struct block_device *bdev, sector_t block)
+void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 {
-	struct buffer_head *old_bh;
+	struct inode *bd_inode = bdev->bd_inode;
+	struct address_space *bd_mapping = bd_inode->i_mapping;
+	struct pagevec pvec;
+	pgoff_t index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	pgoff_t end;
+	int i;
+	struct buffer_head *bh;
+	struct buffer_head *head;
 
-	might_sleep();
+	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
+	pagevec_init(&pvec, 0);
+	while (index <= end && pagevec_lookup(&pvec, bd_mapping, index,
+			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
 
-	old_bh = __find_get_block_slow(bdev, block);
-	if (old_bh) {
-		clear_buffer_dirty(old_bh);
-		wait_on_buffer(old_bh);
-		clear_buffer_req(old_bh);
-		__brelse(old_bh);
+			index = page->index;
+			if (index > end)
+				break;
+			if (!page_has_buffers(page))
+				continue;
+			/*
+			 * We use page lock instead of bd_mapping->private_lock
+			 * to pin buffers here since we can afford to sleep and
+			 * it scales better than a global spinlock lock.
+			 */
+			lock_page(page);
+			/* Recheck when the page is locked which pins bhs */
+			if (!page_has_buffers(page))
+				goto unlock_page;
+			head = page_buffers(page);
+			bh = head;
+			do {
+				if (!buffer_mapped(bh))
+					goto next;
+				if (bh->b_blocknr >= block + len)
+					break;
+				clear_buffer_dirty(bh);
+				wait_on_buffer(bh);
+				clear_buffer_req(bh);
+next:
+				bh = bh->b_this_page;
+			} while (bh != head);
+unlock_page:
+			unlock_page(page);
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+		index++;
 	}
 }
-EXPORT_SYMBOL(unmap_underlying_metadata);
+EXPORT_SYMBOL(clean_bdev_aliases);
 
 /*
  * Size is a power-of-two in the range 512..PAGE_SIZE,
@@ -1684,7 +1728,7 @@ static struct buffer_head *create_page_buffers(struct page *page, struct inode *
  * prevents this contention from occurring.
  *
  * If block_write_full_page() is called with wbc->sync_mode ==
- * WB_SYNC_ALL, the writes are posted using WRITE_SYNC; this
+ * WB_SYNC_ALL, the writes are posted using REQ_SYNC; this
  * causes the writes to be flagged as synchronous writes.
  */
 int __block_write_full_page(struct inode *inode, struct page *page,
@@ -1697,7 +1741,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 	struct buffer_head *bh, *head;
 	unsigned int blocksize, bbits;
 	int nr_underway = 0;
-	int write_flags = (wbc->sync_mode == WB_SYNC_ALL ? WRITE_SYNC : 0);
+	int write_flags = wbc_to_write_flags(wbc);
 
 	head = create_page_buffers(page, inode,
 					(1 << BH_Dirty)|(1 << BH_Uptodate));
@@ -1745,8 +1789,7 @@ int __block_write_full_page(struct inode *inode, struct page *page,
 			if (buffer_new(bh)) {
 				/* blockdev mappings never come here */
 				clear_buffer_new(bh);
-				unmap_underlying_metadata(bh->b_bdev,
-							bh->b_blocknr);
+				clean_bdev_bh_alias(bh);
 			}
 		}
 		bh = bh->b_this_page;
@@ -1992,8 +2035,7 @@ int __block_write_begin_int(struct page *page, loff_t pos, unsigned len,
 			}
 
 			if (buffer_new(bh)) {
-				unmap_underlying_metadata(bh->b_bdev,
-							bh->b_blocknr);
+				clean_bdev_bh_alias(bh);
 				if (PageUptodate(page)) {
 					clear_buffer_new(bh);
 					set_buffer_uptodate(bh);
@@ -2633,7 +2675,7 @@ int nobh_write_begin(struct address_space *mapping,
 		if (!buffer_mapped(bh))
 			is_mapped_to_disk = 0;
 		if (buffer_new(bh))
-			unmap_underlying_metadata(bh->b_bdev, bh->b_blocknr);
+			clean_bdev_bh_alias(bh);
 		if (PageUptodate(page)) {
 			set_buffer_uptodate(bh);
 			continue;
@@ -3118,7 +3160,7 @@ EXPORT_SYMBOL(submit_bh);
 /**
  * ll_rw_block: low-level access to block devices (DEPRECATED)
  * @op: whether to %READ or %WRITE
- * @op_flags: rq_flag_bits
+ * @op_flags: req_flag_bits
  * @nr: number of &struct buffer_heads in the array
  * @bhs: array of pointers to &struct buffer_head
  *
@@ -3210,7 +3252,7 @@ EXPORT_SYMBOL(__sync_dirty_buffer);
 
 int sync_dirty_buffer(struct buffer_head *bh)
 {
-	return __sync_dirty_buffer(bh, WRITE_SYNC);
+	return __sync_dirty_buffer(bh, REQ_SYNC);
 }
 EXPORT_SYMBOL(sync_dirty_buffer);
 
@@ -3403,7 +3445,7 @@ void free_buffer_head(struct buffer_head *bh)
 }
 EXPORT_SYMBOL(free_buffer_head);
 
-static void buffer_exit_cpu(int cpu)
+static int buffer_exit_cpu_dead(unsigned int cpu)
 {
 	int i;
 	struct bh_lru *b = &per_cpu(bh_lrus, cpu);
@@ -3414,14 +3456,7 @@ static void buffer_exit_cpu(int cpu)
 	}
 	this_cpu_add(bh_accounting.nr, per_cpu(bh_accounting, cpu).nr);
 	per_cpu(bh_accounting, cpu).nr = 0;
-}
-
-static int buffer_cpu_notify(struct notifier_block *self,
-			      unsigned long action, void *hcpu)
-{
-	if (action == CPU_DEAD || action == CPU_DEAD_FROZEN)
-		buffer_exit_cpu((unsigned long)hcpu);
-	return NOTIFY_OK;
+	return 0;
 }
 
 /**
@@ -3471,6 +3506,7 @@ EXPORT_SYMBOL(bh_submit_read);
 void __init buffer_init(void)
 {
 	unsigned long nrpages;
+	int ret;
 
 	bh_cachep = kmem_cache_create("buffer_head",
 			sizeof(struct buffer_head), 0,
@@ -3483,5 +3519,7 @@ void __init buffer_init(void)
 	 */
 	nrpages = (nr_free_buffer_pages() * 10) / 100;
 	max_buffer_heads = nrpages * (PAGE_SIZE / sizeof(struct buffer_head));
-	hotcpu_notifier(buffer_cpu_notify, 0);
+	ret = cpuhp_setup_state_nocalls(CPUHP_FS_BUFF_DEAD, "fs/buffer:dead",
+					NULL, buffer_exit_cpu_dead);
+	WARN_ON(ret < 0);
 }

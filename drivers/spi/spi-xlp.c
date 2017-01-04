@@ -451,6 +451,7 @@ static const struct of_device_id xlp_spi_dt_id[] = {
 	{ .compatible = "netlogic,xlp832-spi" },
 	{ },
 };
+MODULE_DEVICE_TABLE(of, xlp_spi_dt_id);
 
 static struct platform_driver xlp_spi_driver = {
 	.probe	= xlp_spi_probe,

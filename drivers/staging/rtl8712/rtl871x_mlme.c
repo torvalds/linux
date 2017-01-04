@@ -137,11 +137,10 @@ static void free_network_nolock(struct mlme_priv *pmlmepriv,
 }
 
 
-/*
-	return the wlan_network with the matching addr
-	Shall be called under atomic context...
-	to avoid possible racing condition...
-*/
+/* return the wlan_network with the matching addr
+ * Shall be called under atomic context...
+ * to avoid possible racing condition...
+ */
 static struct wlan_network *_r8712_find_network(struct  __queue *scanned_queue,
 					 u8 *addr)
 {
@@ -239,11 +238,10 @@ void r8712_free_network_queue(struct _adapter *dev)
 }
 
 /*
-	return the wlan_network with the matching addr
-
-	Shall be called under atomic context...
-	to avoid possible racing condition...
-*/
+ * return the wlan_network with the matching addr
+ * Shall be called under atomic context...
+ * to avoid possible racing condition...
+ */
 static struct wlan_network *r8712_find_network(struct  __queue *scanned_queue,
 					       u8 *addr)
 {
@@ -369,9 +367,7 @@ static void update_current_network(struct _adapter *adapter,
 	}
 }
 
-/*
-Caller must hold pmlmepriv->lock first.
-*/
+/* Caller must hold pmlmepriv->lock first */
 static void update_scanned_network(struct _adapter *adapter,
 			    struct wlan_bssid_ex *target)
 {
@@ -651,8 +647,8 @@ void r8712_free_assoc_resources(struct _adapter *adapter)
 }
 
 /*
-*r8712_indicate_connect: the caller has to lock pmlmepriv->lock
-*/
+ * r8712_indicate_connect: the caller has to lock pmlmepriv->lock
+ */
 void r8712_indicate_connect(struct _adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -668,8 +664,8 @@ void r8712_indicate_connect(struct _adapter *padapter)
 
 
 /*
-*r8712_ind_disconnect: the caller has to lock pmlmepriv->lock
-*/
+ * r8712_ind_disconnect: the caller has to lock pmlmepriv->lock
+ */
 void r8712_ind_disconnect(struct _adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
@@ -1347,8 +1343,8 @@ static int SecIsInPMKIDList(struct _adapter *Adapter, u8 *bssid)
 		   (!memcmp(psecuritypriv->PMKIDList[i].Bssid,
 			    bssid, ETH_ALEN)))
 			break;
-		else
-			i++;
+		i++;
+
 	} while (i < NUM_PMKID_CACHE);
 
 	if (i == NUM_PMKID_CACHE) {

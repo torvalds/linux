@@ -378,6 +378,7 @@ struct intel_vgpu *intel_gvt_create_vgpu(struct intel_gvt *gvt,
 	struct intel_vgpu *vgpu;
 
 	param.handle = 0;
+	param.primary = 1;
 	param.low_gm_sz = type->low_gm_size;
 	param.high_gm_sz = type->high_gm_size;
 	param.fence_sz = type->fence;
