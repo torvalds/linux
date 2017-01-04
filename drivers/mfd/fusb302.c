@@ -715,6 +715,7 @@ static void tcpc_alert(struct fusb30x_chip *chip, int *evt)
 {
 	int interrupt, interrupta, interruptb;
 	u32 val;
+	static int retry;
 
 	regmap_read(chip->regmap, FUSB_REG_INTERRUPT, &interrupt);
 	regmap_read(chip->regmap, FUSB_REG_INTERRUPTA, &interrupta);
@@ -774,9 +775,21 @@ static void tcpc_alert(struct fusb30x_chip *chip, int *evt)
 	}
 
 	if (interrupta & INTERRUPTA_HARDSENT) {
-		chip->tx_state = tx_success;
-		chip->timer_state = T_DISABLED;
-		*evt |= EVENT_TX;
+		/*
+		 * The fusb PD should be reset once to sync adapter PD
+		 * signal after fusb sent hard reset cmd.This is not PD
+		 * device if reset failed.
+		 */
+		if (!retry) {
+			retry = 1;
+			fusb302_pd_reset(chip);
+			pd_execute_hard_reset(chip);
+		} else {
+			retry = 0;
+			chip->tx_state = tx_success;
+			chip->timer_state = T_DISABLED;
+			*evt |= EVENT_TX;
+		}
 	}
 }
 
