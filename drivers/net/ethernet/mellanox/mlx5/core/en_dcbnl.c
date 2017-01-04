@@ -723,6 +723,9 @@ static void mlx5e_ets_init(struct mlx5e_priv *priv)
 	int i;
 	struct ieee_ets ets;
 
+	if (!MLX5_CAP_GEN(priv->mdev, ets))
+		return;
+
 	memset(&ets, 0, sizeof(ets));
 	ets.ets_cap = mlx5_max_tc(priv->mdev) + 1;
 	for (i = 0; i < ets.ets_cap; i++) {

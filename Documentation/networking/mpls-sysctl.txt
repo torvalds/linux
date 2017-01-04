@@ -5,8 +5,8 @@ platform_labels - INTEGER
 	possible to configure forwarding for label values equal to or
 	greater than the number of platform labels.
 
-	A dense utliziation of the entries in the platform label table
-	is possible and expected aas the platform labels are locally
+	A dense utilization of the entries in the platform label table
+	is possible and expected as the platform labels are locally
 	allocated.
 
 	If the number of platform label table entries is set to 0 no
