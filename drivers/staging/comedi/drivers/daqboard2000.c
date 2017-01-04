@@ -116,10 +116,6 @@
 #define DAQBOARD2000_SUBSYSTEM_IDS2	0x0002	/* Daqboard/2000 - 2 Dacs */
 #define DAQBOARD2000_SUBSYSTEM_IDS4	0x0004	/* Daqboard/2000 - 4 Dacs */
 
-/* CPLD status bits */
-#define DAQBOARD2000_CPLD_INIT		0x0002
-#define DAQBOARD2000_CPLD_DONE		0x0004
-
 static const struct comedi_lrange range_daqboard2000_ai = {
 	13, {
 		BIP_RANGE(10),
@@ -172,6 +168,10 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_REG_ACQ_DIGITAL_MARK		0xba		/* u16 */
 #define DB2K_REG_TRIG_DACS			0xbc		/* u16 */
 #define DB2K_REG_DIO_P2_EXP_IO_16_BIT(x)	(0xc0 + (x) * 2) /* s16 */
+
+/* CPLD registers */
+#define DB2K_REG_CPLD_STATUS			0x1000		/* u16 (r) */
+#define DB2K_REG_CPLD_WDATA			0x1000		/* u16 (w) */
 
 /* Scan Sequencer programming */
 #define DB2K_ACQ_CONTROL_SEQ_START_SCAN_LIST		0x0011
@@ -237,6 +237,10 @@ static const struct comedi_lrange range_daqboard2000_ai = {
 #define DB2K_REF_DACS_SET				0x0080
 #define DB2K_REF_DACS_SELECT_POS_REF			0x0100
 #define DB2K_REF_DACS_SELECT_NEG_REF			0x0000
+
+/* CPLD status bits */
+#define DB2K_CPLD_STATUS_INIT				0x0002
+#define DB2K_CPLD_STATUS_TXDONE				0x0004
 
 struct daq200_boardtype {
 	const char *name;
@@ -474,7 +478,7 @@ static int daqboard2000_poll_cpld(struct comedi_device *dev, int mask)
 
 	/* timeout after 50 tries -> 5ms */
 	for (i = 0; i < 50; i++) {
-		cpld = readw(dev->mmio + 0x1000);
+		cpld = readw(dev->mmio + DB2K_REG_CPLD_STATUS);
 		if ((cpld & mask) == mask) {
 			result = 1;
 			break;
@@ -490,11 +494,10 @@ static int daqboard2000_write_cpld(struct comedi_device *dev, int data)
 	int result = 0;
 
 	usleep_range(10, 20);
-	writew(data, dev->mmio + 0x1000);
-	if ((readw(dev->mmio + 0x1000) & DAQBOARD2000_CPLD_INIT) ==
-	    DAQBOARD2000_CPLD_INIT) {
+	writew(data, dev->mmio + DB2K_REG_CPLD_WDATA);
+	if (readw(dev->mmio + DB2K_REG_CPLD_STATUS) & DB2K_CPLD_STATUS_INIT)
 		result = 1;
-	}
+
 	return result;
 }
 
@@ -517,7 +520,7 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 		daqboard2000_reset_local_bus(dev);
 		daqboard2000_reload_plx(dev);
 		daqboard2000_pulse_prog_pin(dev);
-		if (daqboard2000_poll_cpld(dev, DAQBOARD2000_CPLD_INIT)) {
+		if (daqboard2000_poll_cpld(dev, DB2K_CPLD_STATUS_INIT)) {
 			for (i = 0; i < len; i++) {
 				if (cpld_array[i] == 0xff &&
 				    cpld_array[i + 1] == 0x20)
