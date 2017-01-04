@@ -47,6 +47,7 @@ struct dm_table {
 	bool integrity_supported:1;
 	bool singleton:1;
 	bool all_blk_mq:1;
+	unsigned integrity_added:1;
 
 	/*
 	 * Indicates the rw permissions for the new logical
@@ -725,6 +726,9 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		t->immutable_target_type = tgt->type;
 	}
 
+	if (dm_target_has_integrity(tgt->type))
+		t->integrity_added = 1;
+
 	tgt->table = t;
 	tgt->begin = start;
 	tgt->len = len;
@@ -1168,6 +1172,10 @@ static int dm_table_register_integrity(struct dm_table *t)
 	struct mapped_device *md = t->md;
 	struct gendisk *template_disk = NULL;
 
+	/* If target handles integrity itself do not register it here. */
+	if (t->integrity_added)
+		return 0;
+
 	template_disk = dm_table_get_integrity_disk(t);
 	if (!template_disk)
 		return 0;
@@ -1393,6 +1401,9 @@ combine_limits:
 static void dm_table_verify_integrity(struct dm_table *t)
 {
 	struct gendisk *template_disk = NULL;
+
+	if (t->integrity_added)
+		return;
 
 	if (t->integrity_supported) {
 		/*
