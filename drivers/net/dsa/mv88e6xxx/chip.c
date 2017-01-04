@@ -2023,7 +2023,8 @@ static int mv88e6xxx_atu_get(struct mv88e6xxx_chip *chip, int fid,
 	struct mv88e6xxx_atu_entry next;
 	int err;
 
-	eth_broadcast_addr(next.mac);
+	memcpy(next.mac, addr, ETH_ALEN);
+	eth_addr_dec(next.mac);
 
 	err = _mv88e6xxx_atu_mac_write(chip, next.mac);
 	if (err)
@@ -2041,7 +2042,7 @@ static int mv88e6xxx_atu_get(struct mv88e6xxx_chip *chip, int fid,
 			*entry = next;
 			return 0;
 		}
-	} while (!is_broadcast_ether_addr(next.mac));
+	} while (ether_addr_greater(addr, next.mac));
 
 	memset(entry, 0, sizeof(*entry));
 	entry->fid = fid;
