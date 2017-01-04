@@ -741,8 +741,6 @@
 		pd-charge-only = <1>;
 		typec0-enable-gpios = <&gpio1 GPIO_A3 GPIO_ACTIVE_HIGH>;
 		typec1-enable-gpios = <&gpio1 GPIO_A4 GPIO_ACTIVE_HIGH>;
-		typec0-discharge-gpios = <&gpio0 GPIO_B4 GPIO_ACTIVE_HIGH>;
-		typec1-discharge-gpios = <&gpio0 GPIO_B5 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -759,6 +757,7 @@
 		pinctrl-0 = <&fusb1_int>;
 		vbus-5v-gpios = <&gpio4 GPIO_D6 GPIO_ACTIVE_LOW>;
 		int-n-gpios = <&gpio1 GPIO_B5 GPIO_ACTIVE_HIGH>;
+		discharge-gpios = <&gpio0 GPIO_B5 GPIO_ACTIVE_HIGH>;
 		charge-dev = <&bq25700>;
 		status = "okay";
 	};
@@ -777,6 +776,7 @@
 		pinctrl-0 = <&fusb0_int>;
 		vbus-5v-gpios = <&gpio4 GPIO_D5 GPIO_ACTIVE_LOW>;
 		int-n-gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_HIGH>;
+		discharge-gpios = <&gpio0 GPIO_B4 GPIO_ACTIVE_HIGH>;
 		charge-dev = <&bq25700>;
 		status = "okay";
 	};
@@ -1071,11 +1071,13 @@
 	fusb30x {
 		fusb0_int: fusb0-int {
 			rockchip,pins =
-				<1 GPIO_A2 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 GPIO_A2 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 GPIO_B4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 		fusb1_int: fusb1-int {
 			rockchip,pins =
-				<1 GPIO_B5 RK_FUNC_GPIO &pcfg_pull_up>;
+				<1 GPIO_B5 RK_FUNC_GPIO &pcfg_pull_up>,
+				<0 GPIO_B5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 };
