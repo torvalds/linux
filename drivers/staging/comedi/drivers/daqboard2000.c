@@ -114,7 +114,7 @@
 #define DB2K_FIRMWARE		"daqboard2000_firmware.bin"
 
 #define DB2K_SUBSYSTEM_IDS2	0x0002	/* Daqboard/2000 - 2 Dacs */
-#define DB2K_SUBSYSTEM_IDS4	0x0004	/* Daqboard/2000 - 4 Dacs */
+#define DB2K_SUBSYSTEM_IDS4	0x0004	/* Daqboard/2001 - 4 Dacs */
 
 static const struct comedi_lrange db2k_ai_range = {
 	13, {
@@ -248,12 +248,14 @@ static const struct comedi_lrange db2k_ai_range = {
 struct db2k_boardtype {
 	const char *name;
 	int id;
+	bool has_2_ao:1;	/* false: 4 AO chans; true: 2 AO chans */
 };
 
 static const struct db2k_boardtype db2k_boardtypes[] = {
 	{
 		.name		= "ids2",
 		.id		= DB2K_SUBSYSTEM_IDS2,
+		.has_2_ao	= true,
 	},
 	{
 		.name		= "ids4",
@@ -758,7 +760,7 @@ static int db2k_auto_attach(struct comedi_device *dev,
 	/* ao subdevice */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 2;
+	s->n_chan = board->has_2_ao ? 2 : 4;
 	s->maxdata = 0xffff;
 	s->insn_write = db2k_ao_insn_write;
 	s->range_table = &range_bipolar10;
