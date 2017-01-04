@@ -378,6 +378,30 @@ static inline struct dma_fence *dma_fence_later(struct dma_fence *f1,
 		return dma_fence_is_signaled(f2) ? NULL : f2;
 }
 
+/**
+ * dma_fence_get_status_locked - returns the status upon completion
+ * @fence: [in]	the dma_fence to query
+ *
+ * Drivers can supply an optional error status condition before they signal
+ * the fence (to indicate whether the fence was completed due to an error
+ * rather than success). The value of the status condition is only valid
+ * if the fence has been signaled, dma_fence_get_status_locked() first checks
+ * the signal state before reporting the error status.
+ *
+ * Returns 0 if the fence has not yet been signaled, 1 if the fence has
+ * been signaled without an error condition, or a negative error code
+ * if the fence has been completed in err.
+ */
+static inline int dma_fence_get_status_locked(struct dma_fence *fence)
+{
+	if (dma_fence_is_signaled_locked(fence))
+		return fence->status < 0 ? fence->status : 1;
+	else
+		return 0;
+}
+
+int dma_fence_get_status(struct dma_fence *fence);
+
 signed long dma_fence_wait_timeout(struct dma_fence *,
 				   bool intr, signed long timeout);
 signed long dma_fence_wait_any_timeout(struct dma_fence **fences,

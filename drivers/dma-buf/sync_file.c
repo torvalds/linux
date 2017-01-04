@@ -373,10 +373,8 @@ static void sync_fill_fence_info(struct dma_fence *fence,
 		sizeof(info->obj_name));
 	strlcpy(info->driver_name, fence->ops->get_driver_name(fence),
 		sizeof(info->driver_name));
-	if (dma_fence_is_signaled(fence))
-		info->status = fence->status >= 0 ? 1 : fence->status;
-	else
-		info->status = 0;
+
+	info->status = dma_fence_get_status(fence);
 	info->timestamp_ns = ktime_to_ns(fence->timestamp);
 }
 
