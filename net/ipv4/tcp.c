@@ -429,7 +429,7 @@ EXPORT_SYMBOL(tcp_init_sock);
 
 static void tcp_tx_timestamp(struct sock *sk, u16 tsflags, struct sk_buff *skb)
 {
-	if (tsflags) {
+	if (tsflags && skb) {
 		struct skb_shared_info *shinfo = skb_shinfo(skb);
 		struct tcp_skb_cb *tcb = TCP_SKB_CB(skb);
 
@@ -958,10 +958,8 @@ new_segment:
 		copied += copy;
 		offset += copy;
 		size -= copy;
-		if (!size) {
-			tcp_tx_timestamp(sk, sk->sk_tsflags, skb);
+		if (!size)
 			goto out;
-		}
 
 		if (skb->len < size_goal || (flags & MSG_OOB))
 			continue;
@@ -987,8 +985,11 @@ wait_for_memory:
 	}
 
 out:
-	if (copied && !(flags & MSG_SENDPAGE_NOTLAST))
-		tcp_push(sk, flags, mss_now, tp->nonagle, size_goal);
+	if (copied) {
+		tcp_tx_timestamp(sk, sk->sk_tsflags, tcp_write_queue_tail(sk));
+		if (!(flags & MSG_SENDPAGE_NOTLAST))
+			tcp_push(sk, flags, mss_now, tp->nonagle, size_goal);
+	}
 	return copied;
 
 do_error:
@@ -1281,7 +1282,6 @@ new_segment:
 
 		copied += copy;
 		if (!msg_data_left(msg)) {
-			tcp_tx_timestamp(sk, sockc.tsflags, skb);
 			if (unlikely(flags & MSG_EOR))
 				TCP_SKB_CB(skb)->eor = 1;
 			goto out;
@@ -1312,8 +1312,10 @@ wait_for_memory:
 	}
 
 out:
-	if (copied)
+	if (copied) {
+		tcp_tx_timestamp(sk, sockc.tsflags, tcp_write_queue_tail(sk));
 		tcp_push(sk, flags, mss_now, tp->nonagle, size_goal);
+	}
 out_nopush:
 	release_sock(sk);
 	return copied + copied_syn;
