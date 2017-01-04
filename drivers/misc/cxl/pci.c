@@ -1610,6 +1610,9 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 	cxl_sysfs_adapter_remove(adapter);
 	cxl_debugfs_adapter_remove(adapter);
 
+	/* Flush adapter datacache as its about to be removed */
+	cxl_data_cache_flush(adapter);
+
 	cxl_deconfigure_adapter(adapter);
 
 	device_unregister(&adapter->dev);
