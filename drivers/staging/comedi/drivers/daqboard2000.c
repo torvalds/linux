@@ -501,6 +501,23 @@ static int daqboard2000_write_cpld(struct comedi_device *dev, u16 data)
 	return result;
 }
 
+static int daqboard2000_wait_fpga_programmed(struct comedi_device *dev)
+{
+	struct daqboard2000_private *devpriv = dev->private;
+	int i;
+
+	/* Time out after 200 tries -> 20ms */
+	for (i = 0; i < 200; i++) {
+		u32 cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+		/* General Purpose Input (USERI) set on FPGA "DONE". */
+		if (cntrl & PLX_CNTRL_USERI)
+			return 0;
+
+		usleep_range(100, 1000);
+	}
+	return -ETIMEDOUT;
+}
+
 static int daqboard2000_load_firmware(struct comedi_device *dev,
 				      const u8 *cpld_array, size_t len,
 				      unsigned long context)
@@ -551,6 +568,8 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 			if (result)
 				break;
 		}
+		if (result == 0)
+			result = daqboard2000_wait_fpga_programmed(dev);
 		if (result == 0) {
 			daqboard2000_reset_local_bus(dev);
 			daqboard2000_reload_plx(dev);
