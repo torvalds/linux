@@ -80,7 +80,7 @@ void regression2_test(void)
 	unsigned long int start, end;
 	struct page *pages[1];
 
-	printf("running regression test 2 (should take milliseconds)\n");
+	printv(1, "running regression test 2 (should take milliseconds)\n");
 	/* 0. */
 	for (i = 0; i <= max_slots - 1; i++) {
 		p = page_alloc();
@@ -116,5 +116,5 @@ void regression2_test(void)
 	/* We remove all the remained nodes */
 	radix_tree_delete(&mt_tree, max_slots);
 
-	printf("regression test 2, done\n");
+	printv(1, "regression test 2, done\n");
 }

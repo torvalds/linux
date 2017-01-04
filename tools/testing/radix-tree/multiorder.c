@@ -30,7 +30,7 @@ static void __multiorder_tag_test(int index, int order)
 	/* our canonical entry */
 	base = index & ~((1 << order) - 1);
 
-	printf("Multiorder tag test with index %d, canonical entry %d\n",
+	printv(2, "Multiorder tag test with index %d, canonical entry %d\n",
 			index, base);
 
 	err = item_insert_order(&tree, index, order);
@@ -150,7 +150,7 @@ static void multiorder_check(unsigned long index, int order)
 	struct item *item2 = item_create(min, order);
 	RADIX_TREE(tree, GFP_KERNEL);
 
-	printf("Multiorder index %ld, order %d\n", index, order);
+	printv(2, "Multiorder index %ld, order %d\n", index, order);
 
 	assert(item_insert_order(&tree, index, order) == 0);
 
@@ -188,7 +188,7 @@ static void multiorder_shrink(unsigned long index, int order)
 	RADIX_TREE(tree, GFP_KERNEL);
 	struct radix_tree_node *node;
 
-	printf("Multiorder shrink index %ld, order %d\n", index, order);
+	printv(2, "Multiorder shrink index %ld, order %d\n", index, order);
 
 	assert(item_insert_order(&tree, 0, order) == 0);
 
@@ -209,7 +209,8 @@ static void multiorder_shrink(unsigned long index, int order)
 		item_check_absent(&tree, i);
 
 	if (!item_delete(&tree, 0)) {
-		printf("failed to delete index %ld (order %d)\n", index, order);		abort();
+		printv(2, "failed to delete index %ld (order %d)\n", index, order);
+		abort();
 	}
 
 	for (i = 0; i < 2*max; i++)
@@ -234,7 +235,7 @@ void multiorder_iteration(void)
 	void **slot;
 	int i, j, err;
 
-	printf("Multiorder iteration test\n");
+	printv(1, "Multiorder iteration test\n");
 
 #define NUM_ENTRIES 11
 	int index[NUM_ENTRIES] = {0, 2, 4, 8, 16, 32, 34, 36, 64, 72, 128};
@@ -275,7 +276,7 @@ void multiorder_tagged_iteration(void)
 	void **slot;
 	int i, j;
 
-	printf("Multiorder tagged iteration test\n");
+	printv(1, "Multiorder tagged iteration test\n");
 
 #define MT_NUM_ENTRIES 9
 	int index[MT_NUM_ENTRIES] = {0, 2, 4, 16, 32, 40, 64, 72, 128};
@@ -453,7 +454,7 @@ static void check_mem(unsigned old_order, unsigned new_order, unsigned alloc)
 {
 	struct radix_tree_preload *rtp = &radix_tree_preloads;
 	if (rtp->nr != 0)
-		printf("split(%u %u) remaining %u\n", old_order, new_order,
+		printv(2, "split(%u %u) remaining %u\n", old_order, new_order,
 							rtp->nr);
 	/*
 	 * Can't check for equality here as some nodes may have been
@@ -461,7 +462,7 @@ static void check_mem(unsigned old_order, unsigned new_order, unsigned alloc)
 	 * nodes allocated since they should have all been preloaded.
 	 */
 	if (nr_allocated > alloc)
-		printf("split(%u %u) allocated %u %u\n", old_order, new_order,
+		printv(2, "split(%u %u) allocated %u %u\n", old_order, new_order,
 							alloc, nr_allocated);
 }
 
