@@ -251,8 +251,14 @@ struct db2k_boardtype {
 };
 
 static const struct db2k_boardtype db2k_boardtypes[] = {
-	{"ids2", DB2K_SUBSYSTEM_IDS2},
-	{"ids4", DB2K_SUBSYSTEM_IDS4},
+	{
+		.name		= "ids2",
+		.id		= DB2K_SUBSYSTEM_IDS2,
+	},
+	{
+		.name		= "ids4",
+		.id		= DB2K_SUBSYSTEM_IDS4,
+	},
 };
 
 struct db2k_private {
