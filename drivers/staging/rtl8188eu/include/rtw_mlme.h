@@ -47,14 +47,6 @@
 #define	WIFI_STA_ALIVE_CHK_STATE	0x00000400
 #define	WIFI_SITE_MONITOR		0x00000800	/* to indicate the station is under site surveying */
 
-#define	WIFI_MP_STATE			0x00010000
-#define	WIFI_MP_CTX_BACKGROUND		0x00020000	/*  in continuous tx background */
-#define	WIFI_MP_CTX_ST			0x00040000	/*  in continuous tx with single-tone */
-#define	WIFI_MP_CTX_BACKGROUND_PENDING	0x00080000	/*  pending in continuous tx background due to out of skb */
-#define	WIFI_MP_CTX_CCK_HW		0x00100000	/*  in continuous tx */
-#define	WIFI_MP_CTX_CCK_CS		0x00200000	/*  in continuous tx with carrier suppression */
-#define WIFI_MP_LPBK_STATE		0x00400000
-
 #define _FW_UNDER_LINKING	WIFI_UNDER_LINKING
 #define _FW_LINKED			WIFI_ASOC_STATE
 #define _FW_UNDER_SURVEY	WIFI_SITE_MONITOR
