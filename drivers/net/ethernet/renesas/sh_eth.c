@@ -1535,7 +1535,8 @@ static void sh_eth_error(struct net_device *ndev, u32 intr_status)
 	u32 mask;
 
 	if (intr_status & EESR_ECI) {
-		felic_stat = sh_eth_read(ndev, ECSR);
+		felic_stat = sh_eth_read(ndev, ECSR) &
+			     sh_eth_read(ndev, ECSIPR);
 		sh_eth_write(ndev, felic_stat, ECSR);	/* clear int */
 		if (felic_stat & ECSR_ICD)
 			ndev->stats.tx_carrier_errors++;
