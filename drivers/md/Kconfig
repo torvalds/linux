@@ -500,4 +500,14 @@ config DM_LOG_WRITES
 
 	  If unsure, say N.
 
+config DM_INTEGRITY
+	tristate "Integrity target"
+	depends on BLK_DEV_DM
+	select BLK_DEV_INTEGRITY
+	select DM_BUFIO
+	select CRYPTO
+	select ASYNC_XOR
+	---help---
+	   This is the integrity target.
+
 endif # MD
