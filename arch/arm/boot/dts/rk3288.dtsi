@@ -510,7 +510,7 @@
 		};
 
 		cpu_thermal: cpu_thermal {
-			polling-delay-passive = <100>; /* milliseconds */
+			polling-delay-passive = <250>; /* milliseconds */
 			polling-delay = <5000>; /* milliseconds */
 
 			thermal-sensors = <&tsadc 1>;
@@ -522,7 +522,7 @@
 					type = "passive";
 				};
 				cpu_alert1: cpu_alert1 {
-					temperature = <75000>; /* millicelsius */
+					temperature = <80000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
@@ -548,14 +548,14 @@
 		};
 
 		gpu_thermal: gpu_thermal {
-			polling-delay-passive = <100>; /* milliseconds */
+			polling-delay-passive = <250>; /* milliseconds */
 			polling-delay = <5000>; /* milliseconds */
 
 			thermal-sensors = <&tsadc 2>;
 
 			trips {
 				gpu_alert0: gpu_alert0 {
-					temperature = <70000>; /* millicelsius */
+					temperature = <80000>; /* millicelsius */
 					hysteresis = <2000>; /* millicelsius */
 					type = "passive";
 				};
