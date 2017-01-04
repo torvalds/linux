@@ -382,7 +382,6 @@ static void nvmet_execute_set_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
-	u64 val;
 	u32 val32;
 	u16 status = 0;
 
@@ -392,8 +391,7 @@ static void nvmet_execute_set_features(struct nvmet_req *req)
 			(subsys->max_qid - 1) | ((subsys->max_qid - 1) << 16));
 		break;
 	case NVME_FEAT_KATO:
-		val = le64_to_cpu(req->cmd->prop_set.value);
-		val32 = val & 0xffff;
+		val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
 		req->sq->ctrl->kato = DIV_ROUND_UP(val32, 1000);
 		nvmet_set_result(req, req->sq->ctrl->kato);
 		break;

@@ -1491,19 +1491,20 @@ static int
 nvme_fc_create_hw_io_queues(struct nvme_fc_ctrl *ctrl, u16 qsize)
 {
 	struct nvme_fc_queue *queue = &ctrl->queues[1];
-	int i, j, ret;
+	int i, ret;
 
 	for (i = 1; i < ctrl->queue_count; i++, queue++) {
 		ret = __nvme_fc_create_hw_queue(ctrl, queue, i, qsize);
-		if (ret) {
-			for (j = i-1; j >= 0; j--)
-				__nvme_fc_delete_hw_queue(ctrl,
-						&ctrl->queues[j], j);
-			return ret;
-		}
+		if (ret)
+			goto delete_queues;
 	}
 
 	return 0;
+
+delete_queues:
+	for (; i >= 0; i--)
+		__nvme_fc_delete_hw_queue(ctrl, &ctrl->queues[i], i);
+	return ret;
 }
 
 static int
@@ -2401,8 +2402,8 @@ __nvme_fc_create_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	WARN_ON_ONCE(!changed);
 
 	dev_info(ctrl->ctrl.device,
-		"NVME-FC{%d}: new ctrl: NQN \"%s\" (%p)\n",
-		ctrl->cnum, ctrl->ctrl.opts->subsysnqn, &ctrl);
+		"NVME-FC{%d}: new ctrl: NQN \"%s\"\n",
+		ctrl->cnum, ctrl->ctrl.opts->subsysnqn);
 
 	kref_get(&ctrl->ctrl.kref);
 
