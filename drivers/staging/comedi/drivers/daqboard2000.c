@@ -109,22 +109,12 @@
 #include "../comedi_pci.h"
 
 #include "8255.h"
+#include "plx9080.h"
 
 #define DAQBOARD2000_FIRMWARE		"daqboard2000_firmware.bin"
 
 #define DAQBOARD2000_SUBSYSTEM_IDS2	0x0002	/* Daqboard/2000 - 2 Dacs */
 #define DAQBOARD2000_SUBSYSTEM_IDS4	0x0004	/* Daqboard/2000 - 4 Dacs */
-
-/* Initialization bits for the Serial EEPROM Control Register */
-#define DB2K_SECR_PROG_PIN_HI		0x8001767e
-#define DB2K_SECR_PROG_PIN_LO		0x8000767e
-#define DB2K_SECR_LOCAL_BUS_HI		0xc000767e
-#define DB2K_SECR_LOCAL_BUS_LO		0x8000767e
-#define DB2K_SECR_RELOAD_HI		0xa000767e
-#define DB2K_SECR_RELOAD_LO		0x8000767e
-
-/* SECR status bits */
-#define DAQBOARD2000_EEPROM_PRESENT     0x10000000
 
 /* CPLD status bits */
 #define DAQBOARD2000_CPLD_INIT		0x0002
@@ -434,32 +424,45 @@ static int daqboard2000_ao_insn_write(struct comedi_device *dev,
 static void daqboard2000_reset_local_bus(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
+	u32 cntrl;
 
-	writel(DB2K_SECR_LOCAL_BUS_HI, devpriv->plx + 0x6c);
+	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+	cntrl |= PLX_CNTRL_RESET;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
-	writel(DB2K_SECR_LOCAL_BUS_LO, devpriv->plx + 0x6c);
+	cntrl &= ~PLX_CNTRL_RESET;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
 }
 
 static void daqboard2000_reload_plx(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
+	u32 cntrl;
 
-	writel(DB2K_SECR_RELOAD_LO, devpriv->plx + 0x6c);
+	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+	cntrl &= ~PLX_CNTRL_EERELOAD;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
-	writel(DB2K_SECR_RELOAD_HI, devpriv->plx + 0x6c);
+	cntrl |= PLX_CNTRL_EERELOAD;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
-	writel(DB2K_SECR_RELOAD_LO, devpriv->plx + 0x6c);
+	cntrl &= ~PLX_CNTRL_EERELOAD;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
 }
 
 static void daqboard2000_pulse_prog_pin(struct comedi_device *dev)
 {
 	struct daqboard2000_private *devpriv = dev->private;
+	u32 cntrl;
 
-	writel(DB2K_SECR_PROG_PIN_HI, devpriv->plx + 0x6c);
+	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+	cntrl |= PLX_CNTRL_USERO;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);
-	writel(DB2K_SECR_PROG_PIN_LO, devpriv->plx + 0x6c);
+	cntrl &= ~PLX_CNTRL_USERO;
+	writel(cntrl, devpriv->plx + PLX_REG_CNTRL);
 	mdelay(10);	/* Not in the original code, but I like symmetry... */
 }
 
@@ -501,14 +504,13 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 {
 	struct daqboard2000_private *devpriv = dev->private;
 	int result = -EIO;
-	/* Read the serial EEPROM control register */
-	int secr;
+	u32 cntrl;
 	int retry;
 	size_t i;
 
 	/* Check to make sure the serial eeprom is present on the board */
-	secr = readl(devpriv->plx + 0x6c);
-	if (!(secr & DAQBOARD2000_EEPROM_PRESENT))
+	cntrl = readl(devpriv->plx + PLX_REG_CNTRL);
+	if (!(cntrl & PLX_CNTRL_EEPRESENT))
 		return -EIO;
 
 	for (retry = 0; retry < 3; retry++) {
@@ -676,8 +678,6 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 	result = comedi_alloc_subdevices(dev, 3);
 	if (result)
 		return result;
-
-	readl(devpriv->plx + 0x6c);
 
 	result = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 				      DAQBOARD2000_FIRMWARE,
