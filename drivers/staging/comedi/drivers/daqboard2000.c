@@ -491,12 +491,12 @@ static int daqboard2000_wait_cpld_init(struct comedi_device *dev)
 
 static int daqboard2000_write_cpld(struct comedi_device *dev, u16 data)
 {
-	int result = 0;
+	int result = -EIO;
 
 	usleep_range(10, 20);
 	writew(data, dev->mmio + DB2K_REG_CPLD_WDATA);
 	if (readw(dev->mmio + DB2K_REG_CPLD_STATUS) & DB2K_CPLD_STATUS_INIT)
-		result = 1;
+		result = 0;
 
 	return result;
 }
@@ -547,10 +547,9 @@ static int daqboard2000_load_firmware(struct comedi_device *dev,
 		for (; i < len; i += 2) {
 			u16 data = (cpld_array[i] << 8) + cpld_array[i + 1];
 
-			if (!daqboard2000_write_cpld(dev, data)) {
-				result = -EIO;
+			result = daqboard2000_write_cpld(dev, data);
+			if (result)
 				break;
-			}
 		}
 		if (result == 0) {
 			daqboard2000_reset_local_bus(dev);
