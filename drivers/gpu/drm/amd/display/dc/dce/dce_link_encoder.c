@@ -1017,11 +1017,12 @@ bool dce110_link_encoder_construct(
 	/* Override features with DCE-specific values */
 	if (BP_RESULT_OK == bp_funcs->get_encoder_cap_info(
 			enc110->base.ctx->dc_bios, enc110->base.id,
-			&bp_cap_info))
+			&bp_cap_info)) {
 		enc110->base.features.flags.bits.IS_HBR2_CAPABLE =
 				bp_cap_info.DP_HBR2_CAP;
 		enc110->base.features.flags.bits.IS_HBR3_CAPABLE =
 				bp_cap_info.DP_HBR3_EN;
+	}
 
 	return true;
 }
