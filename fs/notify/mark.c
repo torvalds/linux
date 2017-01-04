@@ -67,7 +67,7 @@
  * - The fs the inode is on is unmounted.  (fsnotify_inode_delete/fsnotify_unmount_inodes)
  * - Something explicitly requests that it be removed.  (fsnotify_destroy_mark)
  * - The fsnotify_group associated with the mark is going away and all such marks
- *   need to be cleaned up. (fsnotify_detach_group_marks)
+ *   need to be cleaned up. (fsnotify_clear_marks_by_group)
  *
  * This has the very interesting property of being able to run concurrently with
  * any (or all) other directions.
@@ -651,7 +651,13 @@ void fsnotify_clear_marks_by_group(struct fsnotify_group *group,
 {
 	struct fsnotify_mark *lmark, *mark;
 	LIST_HEAD(to_free);
+	struct list_head *head = &to_free;
 
+	/* Skip selection step if we want to clear all marks. */
+	if (type == FSNOTIFY_OBJ_ALL_TYPES) {
+		head = &group->marks_list;
+		goto clear;
+	}
 	/*
 	 * We have to be really careful here. Anytime we drop mark_mutex, e.g.
 	 * fsnotify_clear_marks_by_inode() can come and free marks. Even in our
@@ -668,51 +674,20 @@ void fsnotify_clear_marks_by_group(struct fsnotify_group *group,
 	}
 	mutex_unlock(&group->mark_mutex);
 
+clear:
 	while (1) {
 		mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
-		if (list_empty(&to_free)) {
+		if (list_empty(head)) {
 			mutex_unlock(&group->mark_mutex);
 			break;
 		}
-		mark = list_first_entry(&to_free, struct fsnotify_mark, g_list);
+		mark = list_first_entry(head, struct fsnotify_mark, g_list);
 		fsnotify_get_mark(mark);
 		fsnotify_detach_mark(mark);
 		mutex_unlock(&group->mark_mutex);
 		fsnotify_free_mark(mark);
 		fsnotify_put_mark(mark);
 	}
-}
-
-/*
- * Given a group, prepare for freeing all the marks associated with that group.
- * The marks are attached to the list of marks prepared for destruction, the
- * caller is responsible for freeing marks in that list after SRCU period has
- * ended.
- */
-void fsnotify_detach_group_marks(struct fsnotify_group *group)
-{
-	struct fsnotify_mark *mark;
-
-	while (1) {
-		mutex_lock_nested(&group->mark_mutex, SINGLE_DEPTH_NESTING);
-		if (list_empty(&group->marks_list)) {
-			mutex_unlock(&group->mark_mutex);
-			break;
-		}
-		mark = list_first_entry(&group->marks_list,
-					struct fsnotify_mark, g_list);
-		fsnotify_get_mark(mark);
-		fsnotify_detach_mark(mark);
-		mutex_unlock(&group->mark_mutex);
-		fsnotify_free_mark(mark);
-		fsnotify_put_mark(mark);
-	}
-	/*
-	 * Some marks can still be pinned when waiting for response from
-	 * userspace. Wait for those now. fsnotify_prepare_user_wait() will
-	 * not succeed now so this wait is race-free.
-	 */
-	wait_event(group->notification_waitq, !atomic_read(&group->user_waits));
 }
 
 /* Destroy all marks attached to inode / vfsmount */

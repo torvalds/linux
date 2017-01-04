@@ -40,8 +40,6 @@ static inline void fsnotify_clear_marks_by_mount(struct vfsmount *mnt)
 {
 	fsnotify_destroy_marks(&real_mount(mnt)->mnt_fsnotify_marks);
 }
-/* prepare for freeing all marks associated with given group */
-extern void fsnotify_detach_group_marks(struct fsnotify_group *group);
 /* Wait until all marks queued for destruction are destroyed */
 extern void fsnotify_wait_marks_destroyed(void);
 
