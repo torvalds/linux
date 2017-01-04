@@ -85,10 +85,6 @@ struct net_device *rtw_alloc_etherdev_with_old_priv(void *old_priv);
 	(((struct rtw_netdev_priv_indicator *)netdev_priv(netdev))->priv)
 void rtw_free_netdev(struct net_device *netdev);
 
-#define NDEV_FMT "%s"
-#define NDEV_ARG(ndev) ndev->name
-#define ADPT_FMT "%s"
-#define ADPT_ARG(adapter) adapter->pnetdev->name
 #define FUNC_NDEV_FMT "%s(%s)"
 #define FUNC_NDEV_ARG(ndev) __func__, ndev->name
 #define FUNC_ADPT_FMT "%s(%s)"
