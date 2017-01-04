@@ -140,6 +140,16 @@
 					bias-pull-down;
 				};
 
+				/**
+				 * 1.8v required on LS expansion
+				 * for mezzanine boards
+				 */
+				l15 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
+
 				l23 {
 					regulator-min-microvolt = <1700000>;
 					regulator-max-microvolt = <1900000>;
