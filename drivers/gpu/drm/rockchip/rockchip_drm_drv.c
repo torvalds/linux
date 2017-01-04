@@ -847,6 +847,10 @@ static int rockchip_drm_bind(struct device *dev)
 	if (!drm_dev)
 		return -ENOMEM;
 
+	ret = drm_dev_set_unique(drm_dev, "%s", dev_name(dev));
+	if (ret)
+		goto err_free;
+
 	dev_set_drvdata(dev, drm_dev);
 
 	private = devm_kzalloc(drm_dev->dev, sizeof(*private), GFP_KERNEL);
