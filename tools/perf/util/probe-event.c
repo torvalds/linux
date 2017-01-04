@@ -163,7 +163,7 @@ static struct map *kernel_get_module_map(const char *module)
 
 	/* A file path -- this is an offline module */
 	if (module && strchr(module, '/'))
-		return machine__findnew_module_map(host_machine, 0, module);
+		return dso__new_map(module);
 
 	if (!module)
 		module = "kernel";
@@ -173,6 +173,7 @@ static struct map *kernel_get_module_map(const char *module)
 		if (strncmp(pos->dso->short_name + 1, module,
 			    pos->dso->short_name_len - 2) == 0 &&
 		    module[pos->dso->short_name_len - 2] == '\0') {
+			map__get(pos);
 			return pos;
 		}
 	}
@@ -187,15 +188,6 @@ struct map *get_target_map(const char *target, bool user)
 	else
 		return kernel_get_module_map(target);
 }
-
-static void put_target_map(struct map *map, bool user)
-{
-	if (map && user) {
-		/* Only the user map needs to be released */
-		map__put(map);
-	}
-}
-
 
 static int convert_exec_to_group(const char *exec, char **result)
 {
@@ -412,7 +404,7 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 	}
 
 out:
-	put_target_map(map, uprobes);
+	map__put(map);
 	return ret;
 
 }
@@ -2869,7 +2861,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	}
 
 out:
-	put_target_map(map, pev->uprobes);
+	map__put(map);
 	free(syms);
 	return ret;
 
@@ -3362,10 +3354,7 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 		return ret;
 
 	/* Get a symbol map */
-	if (user)
-		map = dso__new_map(target);
-	else
-		map = kernel_get_module_map(target);
+	map = get_target_map(target, user);
 	if (!map) {
 		pr_err("Failed to get a map for %s\n", (target) ? : "kernel");
 		return -EINVAL;
@@ -3397,9 +3386,7 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
         }
 
 end:
-	if (user) {
-		map__put(map);
-	}
+	map__put(map);
 	exit_probe_symbol_maps();
 
 	return ret;
