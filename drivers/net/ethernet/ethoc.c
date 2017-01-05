@@ -180,8 +180,6 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
  * struct ethoc - driver-private device structure
  * @iobase:	pointer to I/O memory region
  * @membase:	pointer to buffer memory region
- * @dma_alloc:	dma allocated buffer size
- * @io_region_size:	I/O memory region size
  * @num_bd:	number of buffer descriptors
  * @num_tx:	number of send buffers
  * @cur_tx:	last send buffer written
@@ -199,8 +197,6 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
 struct ethoc {
 	void __iomem *iobase;
 	void __iomem *membase;
-	int dma_alloc;
-	resource_size_t io_region_size;
 	bool big_endian;
 
 	unsigned int num_bd;
@@ -1096,8 +1092,6 @@ static int ethoc_probe(struct platform_device *pdev)
 	/* setup driver-private data */
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
-	priv->dma_alloc = 0;
-	priv->io_region_size = resource_size(mmio);
 
 	priv->iobase = devm_ioremap_nocache(&pdev->dev, netdev->base_addr,
 			resource_size(mmio));
@@ -1127,7 +1121,6 @@ static int ethoc_probe(struct platform_device *pdev)
 			goto free;
 		}
 		netdev->mem_end = netdev->mem_start + buffer_size;
-		priv->dma_alloc = buffer_size;
 	}
 
 	priv->big_endian = pdata ? pdata->big_endian :
