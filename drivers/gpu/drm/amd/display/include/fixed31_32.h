@@ -192,6 +192,14 @@ struct fixed31_32 dal_fixed31_32_add(
 
 /*
  * @brief
+ * result = arg1 + arg2
+ */
+struct fixed31_32 dal_fixed31_32_add_int(
+	struct fixed31_32 arg1,
+	int32_t arg2);
+
+/*
+ * @brief
  * result = arg1 - arg2
  */
 struct fixed31_32 dal_fixed31_32_sub_int(

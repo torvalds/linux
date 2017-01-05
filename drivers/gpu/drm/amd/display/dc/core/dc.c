@@ -1519,22 +1519,22 @@ void dc_update_surfaces_for_stream(struct dc *dc, struct dc_surface_update *upda
 			if (dc->debug.disable_color_module)
 				continue;  /* skip below color updates */
 
-			if (updates[i].hdr_static_metadata) {
-				resource_build_info_frame(pipe_ctx);
-				core_dc->hwss.update_info_frame(pipe_ctx);
-			}
 			if (is_new_pipe_surface[j] ||
 					updates[i].in_transfer_func)
 				core_dc->hwss.set_input_transfer_func(
 						pipe_ctx, pipe_ctx->surface);
 
 			if (is_new_pipe_surface[j] ||
-					updates[i].gamma ||
 					updates[i].out_transfer_func)
 				core_dc->hwss.set_output_transfer_func(
 						pipe_ctx,
 						pipe_ctx->surface,
 						pipe_ctx->stream);
+
+			if (updates[i].hdr_static_metadata) {
+				resource_build_info_frame(pipe_ctx);
+				core_dc->hwss.update_info_frame(pipe_ctx);
+			}
 
 		}
 		if (apply_ctx) {

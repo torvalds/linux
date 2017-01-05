@@ -3,7 +3,7 @@
 # It calculates Bandwidth and Watermarks values for HW programming
 #
 
-BW_CALCS = bandwidth_calcs.o bw_fixed.o gamma_calcs.o
+BW_CALCS = bandwidth_calcs.o bw_fixed.o
 
 AMD_DAL_BW_CALCS = $(addprefix $(AMDDALPATH)/dc/calcs/,$(BW_CALCS))
 

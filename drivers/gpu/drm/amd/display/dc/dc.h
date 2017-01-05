@@ -213,11 +213,14 @@ enum dc_transfer_func_type {
 };
 
 struct dc_transfer_func_distributed_points {
-	uint16_t red[TRANSFER_FUNC_POINTS];
-	uint16_t green[TRANSFER_FUNC_POINTS];
-	uint16_t blue[TRANSFER_FUNC_POINTS];
+	struct fixed31_32 red[TRANSFER_FUNC_POINTS];
+	struct fixed31_32 green[TRANSFER_FUNC_POINTS];
+	struct fixed31_32 blue[TRANSFER_FUNC_POINTS];
+
 	uint16_t end_exponent;
-	uint16_t x_point_at_y1;
+	uint16_t x_point_at_y1_red;
+	uint16_t x_point_at_y1_green;
+	uint16_t x_point_at_y1_blue;
 };
 
 enum dc_transfer_func_predefined {

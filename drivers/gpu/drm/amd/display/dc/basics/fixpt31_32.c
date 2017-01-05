@@ -246,6 +246,15 @@ struct fixed31_32 dal_fixed31_32_add(
 	return res;
 }
 
+struct fixed31_32 dal_fixed31_32_add_int(
+	struct fixed31_32 arg1,
+	int32_t arg2)
+{
+	return dal_fixed31_32_add(
+		arg1,
+		dal_fixed31_32_from_int(arg2));
+}
+
 struct fixed31_32 dal_fixed31_32_sub_int(
 	struct fixed31_32 arg1,
 	int32_t arg2)
