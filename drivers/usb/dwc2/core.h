@@ -121,6 +121,9 @@ static inline void dwc2_writel(u32 value, void __iomem *addr)
 /* Maximum number of Endpoints/HostChannels */
 #define MAX_EPS_CHANNELS	16
 
+/* Maximum number of dwc2 clocks */
+#define DWC2_MAX_CLKS 3
+
 /* dwc2-hsotg declarations */
 static const char * const dwc2_hsotg_supply_names[] = {
 	"vusb_d",               /* digital USB supply, 1.2V */
@@ -868,7 +871,7 @@ struct dwc2_hsotg {
 	spinlock_t lock;
 	void *priv;
 	int     irq;
-	struct clk *clk;
+	struct clk *clks[DWC2_MAX_CLKS];
 
 	unsigned int queuing_high_bandwidth:1;
 	unsigned int srp_success:1;

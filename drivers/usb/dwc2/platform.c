@@ -249,17 +249,20 @@ static int dwc2_get_dr_mode(struct dwc2_hsotg *hsotg)
 static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
-	int ret;
+	int clk, ret;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
 				    hsotg->supplies);
 	if (ret)
 		return ret;
 
-	if (hsotg->clk) {
-		ret = clk_prepare_enable(hsotg->clk);
-		if (ret)
+	for (clk = 0; clk < DWC2_MAX_CLKS && hsotg->clks[clk]; clk++) {
+		ret = clk_prepare_enable(hsotg->clks[clk]);
+		if (ret) {
+			while (--clk >= 0)
+				clk_disable_unprepare(hsotg->clks[clk]);
 			return ret;
+		}
 	}
 
 	if (hsotg->uphy)
@@ -294,7 +297,7 @@ int dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 {
 	struct platform_device *pdev = to_platform_device(hsotg->dev);
-	int ret = 0;
+	int clk, ret = 0;
 
 	if (hsotg->uphy)
 		usb_phy_shutdown(hsotg->uphy);
@@ -308,8 +311,9 @@ static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 	if (ret)
 		return ret;
 
-	if (hsotg->clk)
-		clk_disable_unprepare(hsotg->clk);
+	for (clk = DWC2_MAX_CLKS - 1; clk >= 0; clk--)
+		if (hsotg->clks[clk])
+			clk_disable_unprepare(hsotg->clks[clk]);
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies),
 				     hsotg->supplies);
@@ -343,7 +347,7 @@ static void dwc2_reset_phy_work(struct work_struct *data)
 
 static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 {
-	int i, ret;
+	int i, clk, ret;
 
 	/* Set default UTMI width */
 	hsotg->phyif = GUSBCFG_PHYIF16;
@@ -399,11 +403,19 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 			hsotg->phyif = GUSBCFG_PHYIF8;
 	}
 
-	/* Clock */
-	hsotg->clk = devm_clk_get(hsotg->dev, "otg");
-	if (IS_ERR(hsotg->clk)) {
-		hsotg->clk = NULL;
-		dev_dbg(hsotg->dev, "cannot get otg clock\n");
+	for (clk = 0; clk < DWC2_MAX_CLKS; clk++) {
+		hsotg->clks[clk] = of_clk_get(hsotg->dev->of_node, clk);
+		if (IS_ERR(hsotg->clks[clk])) {
+			ret = PTR_ERR(hsotg->clks[clk]);
+			if (ret == -EPROBE_DEFER) {
+				while (--clk >= 0)
+					clk_put(hsotg->clks[clk]);
+				return ret;
+			}
+
+			hsotg->clks[clk] = NULL;
+			break;
+		}
 	}
 
 	/* Regulators */
