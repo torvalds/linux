@@ -839,13 +839,14 @@ static u32 dwc3_calc_trbs_left(struct dwc3_ep *dep);
  * @req: dwc3_request pointer
  */
 static void dwc3_prepare_one_trb(struct dwc3_ep *dep,
-		struct dwc3_request *req, dma_addr_t dma,
-		unsigned length, unsigned chain, unsigned node)
+		struct dwc3_request *req, unsigned chain, unsigned node)
 {
 	struct dwc3_trb		*trb;
 	struct dwc3		*dwc = dep->dwc;
 	struct usb_gadget	*gadget = &dwc->gadget;
 	enum usb_device_speed	speed = gadget->speed;
+	unsigned		length = req->request.length;
+	dma_addr_t		dma = req->request.dma;
 
 	trb = &dep->trb_pool[dep->trb_enqueue];
 
@@ -974,21 +975,15 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 {
 	struct scatterlist *sg = req->sg;
 	struct scatterlist *s;
-	unsigned int	length;
-	dma_addr_t	dma;
 	int		i;
 
 	for_each_sg(sg, s, req->num_pending_sgs, i) {
 		unsigned chain = true;
 
-		length = sg_dma_len(s);
-		dma = sg_dma_address(s);
-
 		if (sg_is_last(s))
 			chain = false;
 
-		dwc3_prepare_one_trb(dep, req, dma, length,
-				chain, i);
+		dwc3_prepare_one_trb(dep, req, chain, i);
 
 		if (!dwc3_calc_trbs_left(dep))
 			break;
@@ -998,14 +993,7 @@ static void dwc3_prepare_one_trb_sg(struct dwc3_ep *dep,
 static void dwc3_prepare_one_trb_linear(struct dwc3_ep *dep,
 		struct dwc3_request *req)
 {
-	unsigned int	length;
-	dma_addr_t	dma;
-
-	dma = req->request.dma;
-	length = req->request.length;
-
-	dwc3_prepare_one_trb(dep, req, dma, length,
-			false, 0);
+	dwc3_prepare_one_trb(dep, req, false, 0);
 }
 
 /*
