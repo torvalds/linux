@@ -151,7 +151,7 @@ void account_user_time(struct task_struct *p, cputime_t cputime)
  * @p: the process that the cpu time gets accounted to
  * @cputime: the cpu time spent in virtual machine since the last update
  */
-static void account_guest_time(struct task_struct *p, cputime_t cputime)
+void account_guest_time(struct task_struct *p, cputime_t cputime)
 {
 	u64 *cpustat = kcpustat_this_cpu->cpustat;
 
