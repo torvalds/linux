@@ -595,6 +595,7 @@ TRACE_EVENT(rxrpc_transmit,
 		    __field(enum rxrpc_transmit_trace,	why		)
 		    __field(rxrpc_seq_t,		tx_hard_ack	)
 		    __field(rxrpc_seq_t,		tx_top		)
+		    __field(int,			tx_winsize	)
 			     ),
 
 	    TP_fast_assign(
@@ -602,38 +603,81 @@ TRACE_EVENT(rxrpc_transmit,
 		    __entry->why = why;
 		    __entry->tx_hard_ack = call->tx_hard_ack;
 		    __entry->tx_top = call->tx_top;
+		    __entry->tx_winsize = call->tx_winsize;
 			   ),
 
-	    TP_printk("c=%p %s f=%08x n=%u",
+	    TP_printk("c=%p %s f=%08x n=%u/%u",
 		      __entry->call,
 		      __print_symbolic(__entry->why, rxrpc_transmit_traces),
 		      __entry->tx_hard_ack + 1,
-		      __entry->tx_top - __entry->tx_hard_ack)
+		      __entry->tx_top - __entry->tx_hard_ack,
+		      __entry->tx_winsize)
 	    );
 
-TRACE_EVENT(rxrpc_rx_ack,
-	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t first, u8 reason, u8 n_acks),
+TRACE_EVENT(rxrpc_rx_data,
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
+		     rxrpc_serial_t serial, u8 flags, u8 anno),
 
-	    TP_ARGS(call, first, reason, n_acks),
+	    TP_ARGS(call, seq, serial, flags, anno),
 
 	    TP_STRUCT__entry(
 		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_seq_t,		seq		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(u8,				flags		)
+		    __field(u8,				anno		)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->seq = seq;
+		    __entry->serial = serial;
+		    __entry->flags = flags;
+		    __entry->anno = anno;
+			   ),
+
+	    TP_printk("c=%p DATA %08x q=%08x fl=%02x a=%02x",
+		      __entry->call,
+		      __entry->serial,
+		      __entry->seq,
+		      __entry->flags,
+		      __entry->anno)
+	    );
+
+TRACE_EVENT(rxrpc_rx_ack,
+	    TP_PROTO(struct rxrpc_call *call,
+		     rxrpc_serial_t serial, rxrpc_serial_t ack_serial,
+		     rxrpc_seq_t first, rxrpc_seq_t prev, u8 reason, u8 n_acks),
+
+	    TP_ARGS(call, serial, ack_serial, first, prev, reason, n_acks),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(rxrpc_serial_t,		serial		)
+		    __field(rxrpc_serial_t,		ack_serial	)
 		    __field(rxrpc_seq_t,		first		)
+		    __field(rxrpc_seq_t,		prev		)
 		    __field(u8,				reason		)
 		    __field(u8,				n_acks		)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call;
+		    __entry->serial = serial;
+		    __entry->ack_serial = ack_serial;
 		    __entry->first = first;
+		    __entry->prev = prev;
 		    __entry->reason = reason;
 		    __entry->n_acks = n_acks;
 			   ),
 
-	    TP_printk("c=%p %s f=%08x n=%u",
+	    TP_printk("c=%p %08x %s r=%08x f=%08x p=%08x n=%u",
 		      __entry->call,
+		      __entry->serial,
 		      __print_symbolic(__entry->reason, rxrpc_ack_names),
+		      __entry->ack_serial,
 		      __entry->first,
+		      __entry->prev,
 		      __entry->n_acks)
 	    );
 
@@ -999,6 +1043,46 @@ TRACE_EVENT(rxrpc_congest,
 		      __entry->lowest_nak, __entry->sum.new_low_nack ? "!" : "",
 		      __print_symbolic(__entry->change, rxrpc_congest_changes),
 		      __entry->sum.retrans_timeo ? " rTxTo" : "")
+	    );
+
+TRACE_EVENT(rxrpc_disconnect_call,
+	    TP_PROTO(struct rxrpc_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(u32,			abort_code	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->abort_code = call->abort_code;
+			   ),
+
+	    TP_printk("c=%p ab=%08x",
+		      __entry->call,
+		      __entry->abort_code)
+	    );
+
+TRACE_EVENT(rxrpc_improper_term,
+	    TP_PROTO(struct rxrpc_call *call),
+
+	    TP_ARGS(call),
+
+	    TP_STRUCT__entry(
+		    __field(struct rxrpc_call *,	call		)
+		    __field(u32,			abort_code	)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->call = call;
+		    __entry->abort_code = call->abort_code;
+			   ),
+
+	    TP_printk("c=%p ab=%08x",
+		      __entry->call,
+		      __entry->abort_code)
 	    );
 
 #endif /* _TRACE_RXRPC_H */
