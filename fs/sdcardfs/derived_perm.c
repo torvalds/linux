@@ -49,8 +49,8 @@ void setup_derived_state(struct inode *inode, perm_t perm, userid_t userid,
 /* While renaming, there is a point where we want the path from dentry, but the name from newdentry */
 void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, struct dentry *newdentry)
 {
-	struct sdcardfs_inode_info *info = SDCARDFS_I(dentry->d_inode);
-	struct sdcardfs_inode_info *parent_info= SDCARDFS_I(parent->d_inode);
+	struct sdcardfs_inode_info *info = SDCARDFS_I(d_inode(dentry));
+	struct sdcardfs_inode_info *parent_info= SDCARDFS_I(d_inode(parent));
 	appid_t appid;
 
 	/* By default, each inode inherits from its parent.
@@ -61,7 +61,7 @@ void get_derived_permission_new(struct dentry *parent, struct dentry *dentry, st
 	 * stage of each system call by fix_derived_permission(inode).
 	 */
 
-	inherit_derived_state(parent->d_inode, dentry->d_inode);
+	inherit_derived_state(d_inode(parent), d_inode(dentry));
 
 	/* Derive custom permissions based on parent and current node */
 	switch (parent_info->perm) {
@@ -134,7 +134,7 @@ void fixup_perms_recursive(struct dentry *dentry, const char* name, size_t len) 
 	struct sdcardfs_inode_info *info;
 	if (!dget(dentry))
 		return;
-	if (!dentry->d_inode) {
+	if (!d_inode(dentry)) {
 		dput(dentry);
 		return;
 	}
@@ -189,7 +189,7 @@ inline void update_derived_permission_lock(struct dentry *dentry)
 {
 	struct dentry *parent;
 
-	if(!dentry || !dentry->d_inode) {
+	if(!dentry || !d_inode(dentry)) {
 		printk(KERN_ERR "sdcardfs: %s: invalid dentry\n", __func__);
 		return;
 	}
@@ -198,7 +198,7 @@ inline void update_derived_permission_lock(struct dentry *dentry)
 	 * 2. remove the root dentry update
 	 */
 	if(IS_ROOT(dentry)) {
-		//setup_default_pre_root_state(dentry->d_inode);
+		//setup_default_pre_root_state(d_inode(dentry));
 	} else {
 		parent = dget_parent(dentry);
 		if(parent) {
@@ -213,7 +213,7 @@ int need_graft_path(struct dentry *dentry)
 {
 	int ret = 0;
 	struct dentry *parent = dget_parent(dentry);
-	struct sdcardfs_inode_info *parent_info= SDCARDFS_I(parent->d_inode);
+	struct sdcardfs_inode_info *parent_info= SDCARDFS_I(d_inode(parent));
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 
 	if(parent_info->perm == PERM_ANDROID &&
@@ -272,7 +272,7 @@ int is_base_obbpath(struct dentry *dentry)
 {
 	int ret = 0;
 	struct dentry *parent = dget_parent(dentry);
-	struct sdcardfs_inode_info *parent_info= SDCARDFS_I(parent->d_inode);
+	struct sdcardfs_inode_info *parent_info= SDCARDFS_I(d_inode(parent));
 	struct sdcardfs_sb_info *sbi = SDCARDFS_SB(dentry->d_sb);
 
 	spin_lock(&SDCARDFS_D(dentry)->lock);

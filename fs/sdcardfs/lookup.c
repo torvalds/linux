@@ -179,7 +179,7 @@ int sdcardfs_interpose(struct dentry *dentry, struct super_block *sb,
 	struct inode *lower_inode;
 	struct super_block *lower_sb;
 
-	lower_inode = lower_path->dentry->d_inode;
+	lower_inode = d_inode(lower_path->dentry);
 	lower_sb = sdcardfs_lower_super(sb);
 
 	/* check that the lower file system didn't cross a mount point */
@@ -359,7 +359,7 @@ struct dentry *sdcardfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	parent = dget_parent(dentry);
 
-	if(!check_caller_access_to_name(parent->d_inode, dentry->d_name.name)) {
+	if(!check_caller_access_to_name(d_inode(parent), dentry->d_name.name)) {
 		ret = ERR_PTR(-EACCES);
 		printk(KERN_INFO "%s: need to check the caller's gid in packages.list\n"
                          "	dentry: %s, task:%s\n",
@@ -386,16 +386,16 @@ struct dentry *sdcardfs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 	if (ret)
 		dentry = ret;
-	if (dentry->d_inode) {
-		fsstack_copy_attr_times(dentry->d_inode,
-					sdcardfs_lower_inode(dentry->d_inode));
+	if (d_inode(dentry)) {
+		fsstack_copy_attr_times(d_inode(dentry),
+					sdcardfs_lower_inode(d_inode(dentry)));
 		/* get derived permission */
 		get_derived_permission(parent, dentry);
 		fixup_tmp_permissions(d_inode(dentry));
 	}
 	/* update parent directory's atime */
-	fsstack_copy_attr_atime(parent->d_inode,
-				sdcardfs_lower_inode(parent->d_inode));
+	fsstack_copy_attr_atime(d_inode(parent),
+				sdcardfs_lower_inode(d_inode(parent)));
 
 out:
 	sdcardfs_put_lower_path(parent, &lower_parent_path);

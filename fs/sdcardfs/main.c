@@ -297,7 +297,7 @@ static int sdcardfs_read_super(struct vfsmount *mnt, struct super_block *sb,
 	sb->s_op = &sdcardfs_sops;
 
 	/* get a new inode and allocate our root dentry */
-	inode = sdcardfs_iget(sb, lower_path.dentry->d_inode, 0);
+	inode = sdcardfs_iget(sb, d_inode(lower_path.dentry), 0);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto out_sput;
