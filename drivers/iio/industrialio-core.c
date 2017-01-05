@@ -83,6 +83,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_ELECTRICALCONDUCTIVITY] = "electricalconductivity",
 	[IIO_COUNT] = "count",
 	[IIO_INDEX] = "index",
+	[IIO_GRAVITY]  = "gravity",
 };
 
 static const char * const iio_modifier_names[] = {
