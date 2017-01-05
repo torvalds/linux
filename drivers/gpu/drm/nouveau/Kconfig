@@ -1,7 +1,6 @@
 config DRM_NOUVEAU
 	tristate "Nouveau (NVIDIA) cards"
 	depends on DRM && PCI
-	depends on LEDS_CLASS || LEDS_CLASS=n
         select FW_LOADER
 	select DRM_KMS_HELPER
 	select DRM_TTM
