@@ -31,8 +31,8 @@ static struct arm_smccc_res __invoke_sip_fn_smc(unsigned long function_id,
 	return res;
 }
 
-struct arm_smccc_res sip_smc_ddr_cfg(uint32_t arg0, uint32_t arg1,
-				     uint32_t arg2)
+struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1,
+				     u32 arg2)
 {
 	return __invoke_sip_fn_smc(SIP_DDR_CFG32, arg0, arg1, arg2);
 }
@@ -47,11 +47,14 @@ struct arm_smccc_res sip_smc_get_sip_version(void)
 	return __invoke_sip_fn_smc(SIP_SIP_VERSION32, 0, 0, 0);
 }
 
-int sip_smc_set_suspend_mode(uint32_t mode)
+int sip_smc_set_suspend_mode(u32 ctrl,
+			     u32 config1,
+			     u32 config2)
 {
 	struct arm_smccc_res res;
 
-	res = __invoke_sip_fn_smc(SIP_SUSPEND_MODE32, mode, 0, 0);
+	res = __invoke_sip_fn_smc(SIP_SUSPEND_MODE32, ctrl,
+				  config1, config2);
 
 	return res.a0;
 }
@@ -128,7 +131,7 @@ int psci_fiq_debugger_set_print_port(u32 port, u32 baudrate)
 	struct arm_smccc_res res;
 
 	res = __invoke_sip_fn_smc(PSCI_SIP_UARTDBG_CFG64, port, baudrate,
-			   UARTDBG_CFG_PRINT_PORT);
+				  UARTDBG_CFG_PRINT_PORT);
 	return res.a0;
 }
 

@@ -64,15 +64,24 @@ typedef enum {
 #define UARTDBG_CFG_OSHDL_DEBUG_DISABLE	0xf5
 #define UARTDBG_CFG_PRINT_PORT		0xf7
 
+#define SUSPEND_MODE_CONFIG		0x01
+#define WKUP_SOURCE_CONFIG		0x02
+#define PWM_REGULATOR_CONFIG		0x03
+#define GPIO_POWER_CONFIG		0x04
+#define SUSPEND_DEBUG_ENABLE		0x05
+#define APIOS_SUSPEND_CONFIG		0x06
+
 /* struct arm_smccc_res: a0: error code; a1~a3: data */
 /* SMC32 Calls */
-int sip_smc_set_suspend_mode(uint32_t mode);
+int sip_smc_set_suspend_mode(u32 ctrl,
+			     u32 config1,
+			     u32 config2);
 struct arm_smccc_res sip_smc_get_call_count(void);
 struct arm_smccc_res sip_smc_get_atf_version(void);
 struct arm_smccc_res sip_smc_get_sip_version(void);
-struct arm_smccc_res sip_smc_ddr_cfg(uint32_t arg0, uint32_t arg1,
-				     uint32_t arg2);
-struct arm_smccc_res sip_smc_get_share_mem_page(uint32_t page_num,
+struct arm_smccc_res sip_smc_ddr_cfg(u32 arg0, u32 arg1,
+				     u32 arg2);
+struct arm_smccc_res sip_smc_get_share_mem_page(u32 page_num,
 						share_page_type_t page_type);
 
 void psci_enable_fiq(void);

@@ -30,4 +30,10 @@ config ROCKCHIP_PVTM
 	  the chip performance variance caused by chip process, voltage and
 	  temperature.
 
+config ROCKCHIP_SUSPEND_MODE
+	bool "Rockchip suspend mode config"
+	depends on ROCKCHIP_SIP
+	help
+	  Say Y here if you want to set the suspend mode to the ATF.
+
 endif
