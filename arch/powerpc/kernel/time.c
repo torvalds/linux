@@ -280,17 +280,10 @@ void accumulate_stolen_time(void)
 
 static inline u64 calculate_stolen_time(u64 stop_tb)
 {
-	u64 stolen = 0;
-	struct cpu_accounting_data *acct = &local_paca->accounting;
+	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx))
+		return scan_dispatch_log(stop_tb);
 
-	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx)) {
-		stolen = scan_dispatch_log(stop_tb);
-		acct->stime -= stolen;
-	}
-
-	stolen += acct->steal_time;
-	acct->steal_time = 0;
-	return stolen;
+	return 0;
 }
 
 #else /* CONFIG_PPC_SPLPAR */
@@ -306,27 +299,26 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
  * or soft irq state.
  */
 static unsigned long vtime_delta(struct task_struct *tsk,
-				 unsigned long *sys_scaled,
-				 unsigned long *stolen)
+				 unsigned long *stime_scaled,
+				 unsigned long *steal_time)
 {
 	unsigned long now, nowscaled, deltascaled;
-	unsigned long udelta, delta, user_scaled;
+	unsigned long stime;
+	unsigned long utime, utime_scaled;
 	struct cpu_accounting_data *acct = get_accounting(tsk);
 
 	WARN_ON_ONCE(!irqs_disabled());
 
 	now = mftb();
 	nowscaled = read_spurr(now);
-	acct->stime += now - acct->starttime;
+	stime = now - acct->starttime;
 	acct->starttime = now;
 	deltascaled = nowscaled - acct->startspurr;
 	acct->startspurr = nowscaled;
 
-	*stolen = calculate_stolen_time(now);
+	*steal_time = calculate_stolen_time(now);
 
-	delta = acct->stime;
-	acct->stime = 0;
-	udelta = acct->utime - acct->utime_sspurr;
+	utime = acct->utime - acct->utime_sspurr;
 	acct->utime_sspurr = acct->utime;
 
 	/*
@@ -339,39 +331,54 @@ static unsigned long vtime_delta(struct task_struct *tsk,
 	 * the user ticks get saved up in paca->user_time_scaled to be
 	 * used by account_process_tick.
 	 */
-	*sys_scaled = delta;
-	user_scaled = udelta;
-	if (deltascaled != delta + udelta) {
-		if (udelta) {
-			*sys_scaled = deltascaled * delta / (delta + udelta);
-			user_scaled = deltascaled - *sys_scaled;
+	*stime_scaled = stime;
+	utime_scaled = utime;
+	if (deltascaled != stime + utime) {
+		if (utime) {
+			*stime_scaled = deltascaled * stime / (stime + utime);
+			utime_scaled = deltascaled - *stime_scaled;
 		} else {
-			*sys_scaled = deltascaled;
+			*stime_scaled = deltascaled;
 		}
 	}
-	acct->utime_scaled += user_scaled;
+	acct->utime_scaled += utime_scaled;
 
-	return delta;
+	return stime;
 }
 
 void vtime_account_system(struct task_struct *tsk)
 {
-	unsigned long delta, sys_scaled, stolen;
+	unsigned long stime, stime_scaled, steal_time;
+	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	delta = vtime_delta(tsk, &sys_scaled, &stolen);
-	account_system_time(tsk, 0, delta);
-	tsk->stimescaled += sys_scaled;
-	if (stolen)
-		account_steal_time(stolen);
+	stime = vtime_delta(tsk, &stime_scaled, &steal_time);
+
+	stime -= min(stime, steal_time);
+	acct->steal_time += steal_time;
+
+	if ((tsk->flags & PF_VCPU) && !irq_count()) {
+		acct->gtime += stime;
+		acct->utime_scaled += stime_scaled;
+	} else {
+		if (hardirq_count())
+			acct->hardirq_time += stime;
+		else if (in_serving_softirq())
+			acct->softirq_time += stime;
+		else
+			acct->stime += stime;
+
+		acct->stime_scaled += stime_scaled;
+	}
 }
 EXPORT_SYMBOL_GPL(vtime_account_system);
 
 void vtime_account_idle(struct task_struct *tsk)
 {
-	unsigned long delta, sys_scaled, stolen;
+	unsigned long stime, stime_scaled, steal_time;
+	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	delta = vtime_delta(tsk, &sys_scaled, &stolen);
-	account_idle_time(delta + stolen);
+	stime = vtime_delta(tsk, &stime_scaled, &steal_time);
+	acct->idle_time += stime + steal_time;
 }
 
 /*
@@ -385,16 +392,45 @@ void vtime_account_idle(struct task_struct *tsk)
  */
 void vtime_account_user(struct task_struct *tsk)
 {
-	cputime_t utime, utimescaled;
 	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	utime = acct->utime;
-	utimescaled = acct->utime_scaled;
+	if (acct->utime)
+		account_user_time(tsk, acct->utime);
+
+	if (acct->utime_scaled)
+		tsk->utimescaled += acct->utime_scaled;
+
+	if (acct->gtime)
+		account_guest_time(tsk, acct->gtime);
+
+	if (acct->steal_time)
+		account_steal_time(acct->steal_time);
+
+	if (acct->idle_time)
+		account_idle_time(acct->idle_time);
+
+	if (acct->stime)
+		account_system_index_time(tsk, acct->stime, CPUTIME_SYSTEM);
+
+	if (acct->stime_scaled)
+		tsk->stimescaled += acct->stime_scaled;
+
+	if (acct->hardirq_time)
+		account_system_index_time(tsk, acct->hardirq_time, CPUTIME_IRQ);
+
+	if (acct->softirq_time)
+		account_system_index_time(tsk, acct->softirq_time, CPUTIME_SOFTIRQ);
+
 	acct->utime = 0;
 	acct->utime_scaled = 0;
 	acct->utime_sspurr = 0;
-	account_user_time(tsk, utime);
-	tsk->utimescaled += utimescaled;
+	acct->gtime = 0;
+	acct->steal_time = 0;
+	acct->idle_time = 0;
+	acct->stime = 0;
+	acct->stime_scaled = 0;
+	acct->hardirq_time = 0;
+	acct->softirq_time = 0;
 }
 
 #ifdef CONFIG_PPC32
@@ -409,8 +445,6 @@ void arch_vtime_task_switch(struct task_struct *prev)
 
 	acct->starttime = get_accounting(prev)->starttime;
 	acct->startspurr = get_accounting(prev)->startspurr;
-	acct->stime = 0;
-	acct->utime = 0;
 }
 #endif /* CONFIG_PPC32 */
 
