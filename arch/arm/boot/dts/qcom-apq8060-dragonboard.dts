@@ -369,8 +369,8 @@
 				ak8975@0c {
 					compatible = "asahi-kasei,ak8975";
 					reg = <0x0c>;
-					/* GPIO33 has interrupt 224 on the PM8058 */
-					interrupt-parent = <&pm8058_gpio>;
+					/* FIXME: GPIO33 has interrupt 224 on the PM8058 */
+					interrupt-parent = <&pm8058>;
 					interrupts = <224 IRQ_TYPE_EDGE_RISING>;
 					pinctrl-names = "default";
 					pinctrl-0 = <&dragon_ak8975_gpios>;
@@ -380,8 +380,8 @@
 				bmp085@77 {
 					compatible = "bosch,bmp085";
 					reg = <0x77>;
-					/* GPIO16 has interrupt 207 on the PM8058 */
-					interrupt-parent = <&pm8058_gpio>;
+					/* FIXME: GPIO16 has interrupt 207 on the PM8058 */
+					interrupt-parent = <&pm8058>;
 					interrupts = <207 IRQ_TYPE_EDGE_RISING>;
 					reset-gpios = <&tlmm 86 GPIO_ACTIVE_LOW>;
 					pinctrl-names = "default";
