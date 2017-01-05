@@ -33,7 +33,6 @@
 #include "bundle.h"
 #include "connection.h"
 #include "operation.h"
-#include "timesync.h"
 
 /* Matches up with the Greybus Protocol specification document */
 #define GREYBUS_VERSION_MAJOR	0x00

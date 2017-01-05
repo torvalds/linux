@@ -518,85 +518,6 @@ void gb_svc_connection_destroy(struct gb_svc *svc, u8 intf1_id, u16 cport1_id,
 	}
 }
 
-int gb_svc_timesync_enable(struct gb_svc *svc, u8 count, u64 frame_time,
-			   u32 strobe_delay, u32 refclk)
-{
-	struct gb_connection *connection = svc->connection;
-	struct gb_svc_timesync_enable_request request;
-
-	request.count = count;
-	request.frame_time = cpu_to_le64(frame_time);
-	request.strobe_delay = cpu_to_le32(strobe_delay);
-	request.refclk = cpu_to_le32(refclk);
-	return gb_operation_sync(connection,
-				 GB_SVC_TYPE_TIMESYNC_ENABLE,
-				 &request, sizeof(request), NULL, 0);
-}
-
-int gb_svc_timesync_disable(struct gb_svc *svc)
-{
-	struct gb_connection *connection = svc->connection;
-
-	return gb_operation_sync(connection,
-				 GB_SVC_TYPE_TIMESYNC_DISABLE,
-				 NULL, 0, NULL, 0);
-}
-
-int gb_svc_timesync_authoritative(struct gb_svc *svc, u64 *frame_time)
-{
-	struct gb_connection *connection = svc->connection;
-	struct gb_svc_timesync_authoritative_response response;
-	int ret, i;
-
-	ret = gb_operation_sync(connection,
-				GB_SVC_TYPE_TIMESYNC_AUTHORITATIVE, NULL, 0,
-				&response, sizeof(response));
-	if (ret < 0)
-		return ret;
-
-	for (i = 0; i < GB_TIMESYNC_MAX_STROBES; i++)
-		frame_time[i] = le64_to_cpu(response.frame_time[i]);
-	return 0;
-}
-
-int gb_svc_timesync_ping(struct gb_svc *svc, u64 *frame_time)
-{
-	struct gb_connection *connection = svc->connection;
-	struct gb_svc_timesync_ping_response response;
-	int ret;
-
-	ret = gb_operation_sync(connection,
-				GB_SVC_TYPE_TIMESYNC_PING,
-				NULL, 0,
-				&response, sizeof(response));
-	if (ret < 0)
-		return ret;
-
-	*frame_time = le64_to_cpu(response.frame_time);
-	return 0;
-}
-
-int gb_svc_timesync_wake_pins_acquire(struct gb_svc *svc, u32 strobe_mask)
-{
-	struct gb_connection *connection = svc->connection;
-	struct gb_svc_timesync_wake_pins_acquire_request request;
-
-	request.strobe_mask = cpu_to_le32(strobe_mask);
-	return gb_operation_sync(connection,
-				 GB_SVC_TYPE_TIMESYNC_WAKE_PINS_ACQUIRE,
-				 &request, sizeof(request),
-				 NULL, 0);
-}
-
-int gb_svc_timesync_wake_pins_release(struct gb_svc *svc)
-{
-	struct gb_connection *connection = svc->connection;
-
-	return gb_operation_sync(connection,
-				 GB_SVC_TYPE_TIMESYNC_WAKE_PINS_RELEASE,
-				 NULL, 0, NULL, 0);
-}
-
 /* Creates bi-directional routes between the devices */
 int gb_svc_route_create(struct gb_svc *svc, u8 intf1_id, u8 dev1_id,
 			       u8 intf2_id, u8 dev2_id)
@@ -944,13 +865,6 @@ static int gb_svc_hello(struct gb_operation *op)
 	}
 
 	gb_svc_debugfs_init(svc);
-
-	ret = gb_timesync_svc_add(svc);
-	if (ret) {
-		dev_err(&svc->dev, "failed to add SVC to timesync: %d\n", ret);
-		gb_svc_debugfs_exit(svc);
-		goto err_unregister_device;
-	}
 
 	return gb_svc_queue_deferred_request(op);
 
@@ -1467,7 +1381,6 @@ void gb_svc_del(struct gb_svc *svc)
 	 * The SVC device may have been registered from the request handler.
 	 */
 	if (device_is_registered(&svc->dev)) {
-		gb_timesync_svc_remove(svc);
 		gb_svc_debugfs_exit(svc);
 		gb_svc_watchdog_destroy(svc);
 		device_del(&svc->dev);
