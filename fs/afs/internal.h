@@ -66,7 +66,7 @@ enum afs_call_state {
 struct afs_call {
 	const struct afs_call_type *type;	/* type of call */
 	wait_queue_head_t	waitq;		/* processes awaiting completion */
-	struct work_struct	async_work;	/* asynchronous work processor */
+	struct work_struct	async_work;	/* async I/O processor */
 	struct work_struct	work;		/* actual work processor */
 	struct rxrpc_call	*rxcall;	/* RxRPC call handle */
 	struct key		*key;		/* security for this call */
@@ -82,6 +82,7 @@ struct afs_call {
 	pgoff_t			first;		/* first page in mapping to deal with */
 	pgoff_t			last;		/* last page in mapping to deal with */
 	size_t			offset;		/* offset into received data store */
+	atomic_t		usage;
 	enum afs_call_state	state;
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
@@ -115,6 +116,9 @@ struct afs_call_type {
 
 	/* clean up a call */
 	void (*destructor)(struct afs_call *call);
+
+	/* Work function */
+	void (*work)(struct work_struct *work);
 };
 
 /*
@@ -591,9 +595,12 @@ extern void afs_proc_cell_remove(struct afs_cell *);
  * rxrpc.c
  */
 extern struct socket *afs_socket;
+extern atomic_t afs_outstanding_calls;
 
 extern int afs_open_socket(void);
 extern void afs_close_socket(void);
+extern void afs_put_call(struct afs_call *);
+extern int afs_queue_call_work(struct afs_call *);
 extern int afs_make_call(struct in_addr *, struct afs_call *, gfp_t, bool);
 extern struct afs_call *afs_alloc_flat_call(const struct afs_call_type *,
 					    size_t, size_t);
