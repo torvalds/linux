@@ -5,7 +5,7 @@
 klibcdirs:;
 PHONY += klibcdirs
 
-suffix_y = $(CONFIG_INITRAMFS_COMPRESSION)
+suffix_y = $(subst $\",,$(CONFIG_INITRAMFS_COMPRESSION))
 AFLAGS_initramfs_data.o += -DINITRAMFS_IMAGE="usr/initramfs_data.cpio$(suffix_y)"
 
 # Generate builtin.o based on initramfs_data.o
