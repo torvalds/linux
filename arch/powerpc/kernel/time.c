@@ -273,7 +273,7 @@ void accumulate_stolen_time(void)
 	ust = scan_dispatch_log(acct->starttime);
 	acct->stime -= sst;
 	acct->utime -= ust;
-	local_paca->stolen_time += ust + sst;
+	acct->steal_time += ust + sst;
 
 	local_paca->soft_enabled = save_soft_enabled;
 }
@@ -288,8 +288,8 @@ static inline u64 calculate_stolen_time(u64 stop_tb)
 		acct->stime -= stolen;
 	}
 
-	stolen += get_paca()->stolen_time;
-	get_paca()->stolen_time = 0;
+	stolen += acct->steal_time;
+	acct->steal_time = 0;
 	return stolen;
 }
 

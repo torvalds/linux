@@ -2294,7 +2294,7 @@ static void dump_one_paca(int cpu)
 	DUMP(p, accounting.starttime_user, "llx");
 	DUMP(p, accounting.startspurr, "llx");
 	DUMP(p, accounting.utime_sspurr, "llx");
-	DUMP(p, stolen_time, "llx");
+	DUMP(p, accounting.steal_time, "llx");
 #undef DUMP
 
 	catch_memory_errors = 0;
