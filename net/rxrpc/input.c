@@ -767,15 +767,6 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb,
 
 	trace_rxrpc_rx_ack(call, first_soft_ack, summary.ack_reason, nr_acks);
 
-	_proto("Rx ACK %%%u { m=%hu f=#%u p=#%u s=%%%u r=%s n=%u }",
-	       sp->hdr.serial,
-	       ntohs(buf.ack.maxSkew),
-	       first_soft_ack,
-	       ntohl(buf.ack.previousPacket),
-	       acked_serial,
-	       rxrpc_ack_names[summary.ack_reason],
-	       buf.ack.nAcks);
-
 	if (buf.ack.reason == RXRPC_ACK_PING_RESPONSE)
 		rxrpc_input_ping_response(call, skb->tstamp, acked_serial,
 					  sp->hdr.serial);
@@ -931,7 +922,6 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 		break;
 
 	default:
-		_proto("Rx %s %%%u", rxrpc_pkts[sp->hdr.type], sp->hdr.serial);
 		break;
 	}
 
