@@ -794,6 +794,7 @@ struct gfs2_sbd {
 	atomic_t sd_log_thresh1;
 	atomic_t sd_log_thresh2;
 	atomic_t sd_log_blks_free;
+	atomic_t sd_log_blks_needed;
 	wait_queue_head_t sd_log_waitq;
 	wait_queue_head_t sd_logd_waitq;
 

@@ -349,6 +349,7 @@ int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks)
 	if (gfs2_assert_warn(sdp, blks) ||
 	    gfs2_assert_warn(sdp, blks <= sdp->sd_jdesc->jd_blocks))
 		return -EINVAL;
+	atomic_add(blks, &sdp->sd_log_blks_needed);
 retry:
 	free_blocks = atomic_read(&sdp->sd_log_blks_free);
 	if (unlikely(free_blocks <= wanted)) {
@@ -370,6 +371,7 @@ retry:
 			wake_up(&sdp->sd_reserving_log_wait);
 		goto retry;
 	}
+	atomic_sub(blks, &sdp->sd_log_blks_needed);
 	trace_gfs2_log_blocks(sdp, -blks);
 
 	/*
@@ -891,13 +893,16 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 
 static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
 {
-	return (atomic_read(&sdp->sd_log_pinned) >= atomic_read(&sdp->sd_log_thresh1));
+	return (atomic_read(&sdp->sd_log_pinned) +
+		atomic_read(&sdp->sd_log_blks_needed) >=
+		atomic_read(&sdp->sd_log_thresh1));
 }
 
 static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
 {
 	unsigned int used_blocks = sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free);
-	return used_blocks >= atomic_read(&sdp->sd_log_thresh2);
+	return used_blocks + atomic_read(&sdp->sd_log_blks_needed) >=
+		atomic_read(&sdp->sd_log_thresh2);
 }
 
 /**
