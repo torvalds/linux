@@ -2734,7 +2734,7 @@ void i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
 static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
-	struct i915_gem_context *incomplete_ctx;
+	struct i915_gem_context *hung_ctx;
 	struct intel_timeline *timeline;
 	unsigned long flags;
 	bool ring_hung;
@@ -2746,6 +2746,8 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	if (!request)
 		return;
 
+	hung_ctx = request->ctx;
+
 	ring_hung = engine->hangcheck.stalled;
 	if (engine->hangcheck.seqno != intel_engine_get_seqno(engine)) {
 		DRM_DEBUG_DRIVER("%s pardoned, was guilty? %s\n",
@@ -2755,9 +2757,9 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	}
 
 	if (ring_hung)
-		i915_gem_context_mark_guilty(request->ctx);
+		i915_gem_context_mark_guilty(hung_ctx);
 	else
-		i915_gem_context_mark_innocent(request->ctx);
+		i915_gem_context_mark_innocent(hung_ctx);
 
 	if (!ring_hung)
 		return;
@@ -2768,6 +2770,10 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	/* Setup the CS to resume from the breadcrumb of the hung request */
 	engine->reset_hw(engine, request);
 
+	/* If this context is now banned, skip all of its pending requests. */
+	if (!i915_gem_context_is_banned(hung_ctx))
+		return;
+
 	/* Users of the default context do not rely on logical state
 	 * preserved between batches. They have to emit full state on
 	 * every batch and so it is safe to execute queued requests following
@@ -2776,17 +2782,16 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	 * Other contexts preserve state, now corrupt. We want to skip all
 	 * queued requests that reference the corrupt context.
 	 */
-	incomplete_ctx = request->ctx;
-	if (i915_gem_context_is_default(incomplete_ctx))
+	if (i915_gem_context_is_default(hung_ctx))
 		return;
 
-	timeline = i915_gem_context_lookup_timeline(incomplete_ctx, engine);
+	timeline = i915_gem_context_lookup_timeline(hung_ctx, engine);
 
 	spin_lock_irqsave(&engine->timeline->lock, flags);
 	spin_lock(&timeline->lock);
 
 	list_for_each_entry_continue(request, &engine->timeline->requests, link)
-		if (request->ctx == incomplete_ctx)
+		if (request->ctx == hung_ctx)
 			reset_request(request);
 
 	list_for_each_entry(request, &timeline->requests, link)
