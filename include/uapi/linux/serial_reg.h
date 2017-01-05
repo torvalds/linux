@@ -327,6 +327,14 @@
 #define SERIAL_RSA_BAUD_BASE (921600)
 #define SERIAL_RSA_BAUD_BASE_LO (SERIAL_RSA_BAUD_BASE / 8)
 
+/* Extra registers for TI DA8xx/66AK2x */
+#define UART_DA830_PWREMU_MGMT	12
+
+/* PWREMU_MGMT register bits */
+#define UART_DA830_PWREMU_MGMT_FREE	(1 << 0)  /* Free-running mode */
+#define UART_DA830_PWREMU_MGMT_URRST	(1 << 13) /* Receiver reset/enable */
+#define UART_DA830_PWREMU_MGMT_UTRST	(1 << 14) /* Transmitter reset/enable */
+
 /*
  * Extra serial register definitions for the internal UARTs
  * in TI OMAP processors.

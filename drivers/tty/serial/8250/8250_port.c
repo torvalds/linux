@@ -273,6 +273,15 @@ static const struct serial8250_config uart_config[] = {
 		.rxtrig_bytes	= {1, 4, 8, 14},
 		.flags		= UART_CAP_FIFO,
 	},
+	[PORT_DA830] = {
+		.name		= "TI DA8xx/66AK2x",
+		.fifo_size	= 16,
+		.tx_loadsz	= 16,
+		.fcr		= UART_FCR_DMA_SELECT | UART_FCR_ENABLE_FIFO |
+				  UART_FCR_R_TRIG_10,
+		.rxtrig_bytes	= {1, 4, 8, 14},
+		.flags		= UART_CAP_FIFO | UART_CAP_AFE,
+	},
 };
 
 /* Uart divisor latch read */
@@ -2112,6 +2121,19 @@ int serial8250_do_startup(struct uart_port *port)
 		serial_port_out(port, UART_LCR, UART_LCR_CONF_MODE_B);
 		serial_port_out(port, UART_EFR, UART_EFR_ECB);
 		serial_port_out(port, UART_LCR, 0);
+	}
+
+	if (port->type == PORT_DA830) {
+		/* Reset the port */
+		serial_port_out(port, UART_IER, 0);
+		serial_port_out(port, UART_DA830_PWREMU_MGMT, 0);
+		mdelay(10);
+
+		/* Enable Tx, Rx and free run mode */
+		serial_port_out(port, UART_DA830_PWREMU_MGMT,
+				UART_DA830_PWREMU_MGMT_UTRST |
+				UART_DA830_PWREMU_MGMT_URRST |
+				UART_DA830_PWREMU_MGMT_FREE);
 	}
 
 #ifdef CONFIG_SERIAL_8250_RSA
