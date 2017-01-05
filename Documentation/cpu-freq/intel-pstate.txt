@@ -85,6 +85,21 @@ Sysfs will show :
 Refer to "Intel® 64 and IA-32 Architectures Software Developer’s Manual
 Volume 3: System Programming Guide" to understand ratios.
 
+There is one more sysfs attribute in /sys/devices/system/cpu/intel_pstate/
+that can be used for controlling the operation mode of the driver:
+
+      status: Three settings are possible:
+      "off"     - The driver is not in use at this time.
+      "active"  - The driver works as a P-state governor (default).
+      "passive" - The driver works as a regular cpufreq one and collaborates
+                  with the generic cpufreq governors (it sets P-states as
+                  requested by those governors).
+      The current setting is returned by reads from this attribute.  Writing one
+      of the above strings to it changes the operation mode as indicated by that
+      string, if possible.  If HW-managed P-states (HWP) are enabled, it is not
+      possible to change the driver's operation mode and attempts to write to
+      this attribute will fail.
+
 cpufreq sysfs for Intel P-State
 
 Since this driver registers with cpufreq, cpufreq sysfs is also presented.
