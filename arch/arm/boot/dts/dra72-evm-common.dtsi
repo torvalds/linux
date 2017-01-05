@@ -280,7 +280,12 @@
 };
 
 &gpmc {
-	status = "okay";
+	/*
+	 * For the existing IOdelay configuration via U-Boot we don't
+	 * support NAND on dra72-evm. Keep it disabled. Enabling it
+	 * requires a different configuration by U-Boot.
+	 */
+	status = "disabled";
 	ranges = <0 0 0x08000000 0x01000000>;	/* minimum GPMC partition = 16MB */
 	nand@0,0 {
 		/* To use NAND, DIP switch SW5 must be set like so:
