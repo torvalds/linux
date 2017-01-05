@@ -74,3 +74,8 @@
 	pinctrl-0 = <&emmc_clk &emmc_cmd &emmc_bus8>;
 	status = "okay";
 };
+
+&usb20_otg {
+	dr_mode = "peripheral";
+	status = "okay";
+};
