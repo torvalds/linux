@@ -1644,6 +1644,12 @@
 		nobypass	[PPC/POWERNV]
 			Disable IOMMU bypass, using IOMMU for PCI devices.
 
+	iommu.passthrough=
+			[ARM64] Configure DMA to bypass the IOMMU by default.
+			Format: { "0" | "1" }
+			0 - Use IOMMU translation for DMA.
+			1 - Bypass the IOMMU for DMA.
+			unset - Use IOMMU translation for DMA.
 
 	io7=		[HW] IO7 for Marvel based alpha systems
 			See comment before marvel_specify_io7 in
