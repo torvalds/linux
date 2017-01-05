@@ -335,8 +335,20 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *pentry,
 
 	pr_debug("IPC bus, name = %16.16s, irq = 0x%2x\n",
 		pentry->name, pentry->irq);
+
+	/*
+	 * We need to call platform init of IPC devices to fill misc_pdata
+	 * structure. It will be used in msic_init for initialization.
+	 */
 	pdata = intel_mid_sfi_get_pdata(dev, pentry);
 	if (IS_ERR(pdata))
+		return;
+
+	/*
+	 * On Medfield the platform device creation is handled by the MSIC
+	 * MFD driver so we don't need to do it here.
+	 */
+	if (dev->msic && intel_mid_has_msic())
 		return;
 
 	pdev = platform_device_alloc(pentry->name, 0);
@@ -348,7 +360,10 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *pentry,
 	install_irq_resource(pdev, pentry->irq);
 
 	pdev->dev.platform_data = pdata;
-	platform_device_add(pdev);
+	if (dev->delay)
+		intel_scu_device_register(pdev);
+	else
+		platform_device_add(pdev);
 }
 
 static void __init sfi_handle_spi_dev(struct sfi_device_table_entry *pentry,
@@ -503,27 +518,23 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 		if (!dev)
 			continue;
 
-		if (dev->device_handler) {
-			dev->device_handler(pentry, dev);
-		} else {
-			switch (pentry->type) {
-			case SFI_DEV_TYPE_IPC:
-				sfi_handle_ipc_dev(pentry, dev);
-				break;
-			case SFI_DEV_TYPE_SPI:
-				sfi_handle_spi_dev(pentry, dev);
-				break;
-			case SFI_DEV_TYPE_I2C:
-				sfi_handle_i2c_dev(pentry, dev);
-				break;
-			case SFI_DEV_TYPE_SD:
-				sfi_handle_sd_dev(pentry, dev);
-				break;
-			case SFI_DEV_TYPE_UART:
-			case SFI_DEV_TYPE_HSI:
-			default:
-				break;
-			}
+		switch (pentry->type) {
+		case SFI_DEV_TYPE_IPC:
+			sfi_handle_ipc_dev(pentry, dev);
+			break;
+		case SFI_DEV_TYPE_SPI:
+			sfi_handle_spi_dev(pentry, dev);
+			break;
+		case SFI_DEV_TYPE_I2C:
+			sfi_handle_i2c_dev(pentry, dev);
+			break;
+		case SFI_DEV_TYPE_SD:
+			sfi_handle_sd_dev(pentry, dev);
+			break;
+		case SFI_DEV_TYPE_UART:
+		case SFI_DEV_TYPE_HSI:
+		default:
+			break;
 		}
 	}
 	return 0;

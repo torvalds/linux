@@ -42,10 +42,8 @@ struct devs_id {
 	char name[SFI_NAME_LEN + 1];
 	u8 type;
 	u8 delay;
+	u8 msic;
 	void *(*get_platform_data)(void *info);
-	/* Custom handler for devices */
-	void (*device_handler)(struct sfi_device_table_entry *pentry,
-			       struct devs_id *dev);
 };
 
 #define sfi_device(i)								\
