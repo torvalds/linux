@@ -83,7 +83,7 @@ void arch_vtime_task_switch(struct task_struct *prev)
 	struct thread_info *pi = task_thread_info(prev);
 	struct thread_info *ni = task_thread_info(current);
 
-	pi->ac_stamp = ni->ac_stamp;
+	ni->ac_stamp = pi->ac_stamp;
 	ni->ac_stime = ni->ac_utime = 0;
 }
 
