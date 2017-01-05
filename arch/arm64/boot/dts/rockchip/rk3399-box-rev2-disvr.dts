@@ -1,0 +1,221 @@
+/*
+ * Copyright (c) 2016 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "rk3399-box.dtsi"
+
+/ {
+	model = "Rockchip RK3399 Board rev2 (BOX)";
+	compatible = "rockchip-box-rev2","rockchip,rk3399-box";
+
+	mpu6500_hid {
+		status = "okay";
+		compatible = "inv-hid,mpu6500";
+	};
+};
+
+&pinctrl {
+	sdio0 {
+		sdio0_bus1: sdio0-bus1 {
+			rockchip,pins =
+				<2 20 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
+
+		sdio0_bus4: sdio0-bus4 {
+			rockchip,pins =
+				<2 20 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 21 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 22 RK_FUNC_1 &pcfg_pull_up_20ma>,
+				<2 23 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
+
+		sdio0_cmd: sdio0-cmd {
+			rockchip,pins =
+				<2 24 RK_FUNC_1 &pcfg_pull_up_20ma>;
+		};
+
+		sdio0_clk: sdio0-clk {
+			rockchip,pins =
+				<2 25 RK_FUNC_1 &pcfg_pull_none_20ma>;
+		};
+	};
+
+	sdmmc {
+		sdmmc_bus1: sdmmc-bus1 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
+
+		sdmmc_bus4: sdmmc-bus4 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 9 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 10 RK_FUNC_1 &pcfg_pull_up_8ma>,
+				<4 11 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
+
+		sdmmc_clk: sdmmc-clk {
+			rockchip,pins =
+				<4 12 RK_FUNC_1 &pcfg_pull_none_18ma>;
+		};
+
+		sdmmc_cmd: sdmmc-cmd {
+			rockchip,pins =
+				<4 13 RK_FUNC_1 &pcfg_pull_up_8ma>;
+		};
+	};
+
+	fusb30x {
+		fusb0_int: fusb0-int {
+			rockchip,pins =
+				<1 2 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+
+	pmic {
+		vsel1_gpio: vsel1-gpio {
+			rockchip,pins =
+				<1 18 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&i2c4 {
+	status = "okay";
+	fusb0: fusb30x@22 {
+		compatible = "fairchild,fusb302";
+		reg = <0x22>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&fusb0_int>;
+		vbus-5v-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
+};
+
+/*
+ * if your hardware board have two typec port, you should define
+ * fusb1 and tcphy1, such as:
+ *&tcphy1 {
+ *	status = "okay";
+ *	extcon = <&fusb1>;
+ *};
+ *&cdn_dp_fb {
+ *	status = "okay";
+ *	extcon = <&fusb0>, <&fusb1>;
+ *	dp_vop_sel = <DISPLAY_SOURCE_LCDC0>;
+ *	dp_defaultmode = <0>;
+ *};
+ */
+
+&tcphy0 {
+	status = "okay";
+	extcon = <&fusb0>;
+};
+
+&cdn_dp_fb {
+	status = "okay";
+	extcon = <&fusb0>;
+	dp_vop_sel = <DISPLAY_SOURCE_LCDC0>;
+	dp_defaultmode = <0>;
+};
+
+&cdn_dp_sound {
+	status = "disabled";
+};
+
+&hdmi_rk_fb {
+	status = "okay";
+	rockchip,hdmi_video_source = <DISPLAY_SOURCE_LCDC1>;
+};
+
+&hdmi_sound {
+	status = "okay";
+};
+
+&vopb_rk_fb {
+	status = "okay";
+};
+
+&vopl_rk_fb {
+	status = "okay";
+};
+
+&disp_timings {
+	/* for rayken dp */
+	native-mode = <&timing1>;
+	timing1 {
+		screen-width = <68>;
+		screen-hight = <120>;
+	};
+};
+
+/*
+ * if the screen of vr helmet has a high screen resolution or
+ * high refresh rate,please increase the lowest gpu(gpu_opp_table)
+ * and cpu(cluster1_opp) frequence.
+ */
+&gpu_opp_table {
+	opp@200000000 {
+		status = "disabled";
+	};
+	opp@297000000 {
+		status = "disabled";
+	};
+};
+
+&cluster1_opp {
+	opp@408000000 {
+		status = "disabled";
+	};
+	opp@600000000 {
+		status = "disabled";
+	};
+	opp@816000000 {
+		status = "disabled";
+	};
+};
+
+&vdd_cpu_b {
+	vsel-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
+	fcs,suspend-voltage-selector = <0>;
+};
