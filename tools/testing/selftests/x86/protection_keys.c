@@ -1114,11 +1114,6 @@ void test_pkey_syscalls_on_non_allocated_pkey(int *ptr, u16 pkey)
 		err = sys_pkey_free(i);
 		pkey_assert(err);
 
-		/* not enforced when pkey_get() is not a syscall
-		err = pkey_get(i, 0);
-		pkey_assert(err < 0);
-		*/
-
 		err = sys_pkey_free(i);
 		pkey_assert(err);
 
@@ -1132,11 +1127,6 @@ void test_pkey_syscalls_bad_args(int *ptr, u16 pkey)
 {
 	int err;
 	int bad_pkey = NR_PKEYS+99;
-
-	/* not enforced when pkey_get() is not a syscall
-	err = pkey_get(bad_pkey, bad_flag);
-	pkey_assert(err < 0);
-	*/
 
 	/* pass a known-invalid pkey in: */
 	err = sys_mprotect_pkey(ptr, PAGE_SIZE, PROT_READ, bad_pkey);
