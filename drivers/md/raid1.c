@@ -42,6 +42,10 @@
 #include "raid1.h"
 #include "bitmap.h"
 
+#define UNSUPPORTED_MDDEV_FLAGS		\
+	((1L << MD_HAS_JOURNAL) |	\
+	 (1L << MD_JOURNAL_CLEAN))
+
 /*
  * Number of guaranteed r1bios in case of extreme VM load:
  */
@@ -3257,8 +3261,8 @@ static void *raid1_takeover(struct mddev *mddev)
 		if (!IS_ERR(conf)) {
 			/* Array must appear to be quiesced */
 			conf->array_frozen = 1;
-			clear_bit(MD_HAS_JOURNAL, &mddev->flags);
-			clear_bit(MD_JOURNAL_CLEAN, &mddev->flags);
+			mddev_clear_unsupported_flags(mddev,
+				UNSUPPORTED_MDDEV_FLAGS);
 		}
 		return conf;
 	}
