@@ -673,7 +673,6 @@ static void dsa_slave_get_drvinfo(struct net_device *dev,
 				  struct ethtool_drvinfo *drvinfo)
 {
 	strlcpy(drvinfo->driver, "dsa", sizeof(drvinfo->driver));
-	strlcpy(drvinfo->version, dsa_driver_version, sizeof(drvinfo->version));
 	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
 	strlcpy(drvinfo->bus_info, "platform", sizeof(drvinfo->bus_info));
 }

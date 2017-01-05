@@ -27,8 +27,6 @@
 #include <linux/gpio/consumer.h>
 #include "dsa_priv.h"
 
-char dsa_driver_version[] = "0.1";
-
 static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
 {
@@ -925,9 +923,6 @@ static int dsa_probe(struct platform_device *pdev)
 	struct net_device *dev;
 	struct dsa_switch_tree *dst;
 	int ret;
-
-	pr_notice_once("Distributed Switch Architecture driver version %s\n",
-		       dsa_driver_version);
 
 	if (pdev->dev.of_node) {
 		ret = dsa_of_probe(&pdev->dev);
