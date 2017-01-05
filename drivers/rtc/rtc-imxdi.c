@@ -666,7 +666,7 @@ static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	return 0;
 }
 
-static struct rtc_class_ops dryice_rtc_ops = {
+static const struct rtc_class_ops dryice_rtc_ops = {
 	.read_time		= dryice_rtc_read_time,
 	.set_mmss		= dryice_rtc_set_mmss,
 	.alarm_irq_enable	= dryice_rtc_alarm_irq_enable,
