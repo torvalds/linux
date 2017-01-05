@@ -1335,15 +1335,6 @@ out:
 	return ret;
 }
 
-static void lrc_init_hws(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-
-	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
-		   engine->status_page.ggtt_offset);
-	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
-}
-
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
@@ -1353,19 +1344,18 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	lrc_init_hws(engine);
-
 	intel_engine_reset_breadcrumbs(engine);
+	intel_engine_init_hangcheck(engine);
 
 	I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
-
 	I915_WRITE(RING_MODE_GEN7(engine),
 		   _MASKED_BIT_DISABLE(GFX_REPLAY_MODE) |
 		   _MASKED_BIT_ENABLE(GFX_RUN_LIST_ENABLE));
+	I915_WRITE(RING_HWS_PGA(engine->mmio_base),
+		   engine->status_page.ggtt_offset);
+	POSTING_READ(RING_HWS_PGA(engine->mmio_base));
 
 	DRM_DEBUG_DRIVER("Execlists enabled for %s\n", engine->name);
-
-	intel_engine_init_hangcheck(engine);
 
 	/* After a GPU reset, we may have requests to replay */
 	if (!execlists_elsp_idle(engine)) {
