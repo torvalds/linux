@@ -298,13 +298,6 @@ config BATTERY_JZ4740
 	  This driver can be build as a module. If so, the module will be
 	  called jz4740-battery.
 
-config BATTERY_INTEL_MID
-	tristate "Battery driver for Intel MID platforms"
-	depends on INTEL_SCU_IPC && SPI
-	help
-	  Say Y here to enable the battery driver on Intel MID
-	  platforms.
-
 config BATTERY_RX51
 	tristate "Nokia RX-51 (N900) battery driver"
 	depends on TWL4030_MADC
