@@ -269,28 +269,9 @@ static int parse_dt(struct exynos_mic *mic)
 		}
 		nodes[j++] = remote_node;
 
-		switch (i) {
-		case ENDPOINT_DECON_NODE:
-			/* decon node */
-			if (of_get_child_by_name(remote_node,
-						"i80-if-timings"))
-				mic->i80_mode = 1;
-
-			break;
-		case ENDPOINT_DSI_NODE:
-			/* panel node */
-			remote_node = get_remote_node(remote_node, 1);
-			if (!remote_node) {
-				ret = -EPIPE;
-				goto exit;
-			}
-			nodes[j++] = remote_node;
-
-			break;
-		default:
-			DRM_ERROR("mic: Unknown endpoint from MIC");
-			break;
-		}
+		if (i == ENDPOINT_DECON_NODE &&
+			of_get_child_by_name(remote_node, "i80-if-timings"))
+			mic->i80_mode = 1;
 	}
 
 exit:
