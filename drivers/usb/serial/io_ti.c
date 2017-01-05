@@ -1499,8 +1499,7 @@ static int do_boot_mode(struct edgeport_serial *serial,
 
 		dev_dbg(dev, "%s - Download successful -- Device rebooting...\n", __func__);
 
-		/* return an error on purpose */
-		return -ENODEV;
+		return 1;
 	}
 
 stayinbootmode:
@@ -1508,7 +1507,7 @@ stayinbootmode:
 	dev_dbg(dev, "%s - STAYING IN BOOT MODE\n", __func__);
 	serial->product_info.TiMode = TI_MODE_BOOT;
 
-	return 0;
+	return 1;
 }
 
 static int ti_do_config(struct edgeport_port *port, int feature, int on)
@@ -2546,6 +2545,13 @@ static int edge_startup(struct usb_serial *serial)
 	int status;
 	u16 product_id;
 
+	/* Make sure we have the required endpoints when in download mode. */
+	if (serial->interface->cur_altsetting->desc.bNumEndpoints > 1) {
+		if (serial->num_bulk_in < serial->num_ports ||
+				serial->num_bulk_out < serial->num_ports)
+			return -ENODEV;
+	}
+
 	/* create our private serial structure */
 	edge_serial = kzalloc(sizeof(struct edgeport_serial), GFP_KERNEL);
 	if (!edge_serial)
@@ -2553,13 +2559,17 @@ static int edge_startup(struct usb_serial *serial)
 
 	mutex_init(&edge_serial->es_lock);
 	edge_serial->serial = serial;
+	INIT_DELAYED_WORK(&edge_serial->heartbeat_work, edge_heartbeat_work);
 	usb_set_serial_data(serial, edge_serial);
 
 	status = download_fw(edge_serial);
-	if (status) {
+	if (status < 0) {
 		kfree(edge_serial);
 		return status;
 	}
+
+	if (status > 0)
+		return 1;	/* bind but do not register any ports */
 
 	product_id = le16_to_cpu(
 			edge_serial->serial->dev->descriptor.idProduct);
@@ -2572,7 +2582,6 @@ static int edge_startup(struct usb_serial *serial)
 		}
 	}
 
-	INIT_DELAYED_WORK(&edge_serial->heartbeat_work, edge_heartbeat_work);
 	edge_heartbeat_schedule(edge_serial);
 
 	return 0;
@@ -2580,6 +2589,9 @@ static int edge_startup(struct usb_serial *serial)
 
 static void edge_disconnect(struct usb_serial *serial)
 {
+	struct edgeport_serial *edge_serial = usb_get_serial_data(serial);
+
+	cancel_delayed_work_sync(&edge_serial->heartbeat_work);
 }
 
 static void edge_release(struct usb_serial *serial)
