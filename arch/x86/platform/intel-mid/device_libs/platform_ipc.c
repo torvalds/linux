@@ -57,12 +57,3 @@ void __init ipc_device_handler(struct sfi_device_table_entry *pentry,
 	pdev->dev.platform_data = pdata;
 	intel_scu_device_register(pdev);
 }
-
-static const struct devs_id pmic_audio_dev_id __initconst = {
-	.name = "pmic_audio",
-	.type = SFI_DEV_TYPE_IPC,
-	.delay = 1,
-	.device_handler = &ipc_device_handler,
-};
-
-sfi_device(pmic_audio_dev_id);
