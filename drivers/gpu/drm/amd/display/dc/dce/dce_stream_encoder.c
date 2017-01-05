@@ -555,18 +555,23 @@ static void dce110_stream_encoder_update_dp_info_packets(
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
 	uint32_t value = REG_READ(DP_SEC_CNTL);
 
-	dce110_update_generic_info_packet(
+	if (info_frame->vsc.valid)
+		dce110_update_generic_info_packet(
+					enc110,
+					0,  /* packetIndex */
+					&info_frame->vsc);
+
+	if (info_frame->spd.valid)
+		dce110_update_generic_info_packet(
 				enc110,
-				0,  /* packetIndex */
-				&info_frame->vsc);
-	dce110_update_generic_info_packet(
-			enc110,
-			2,  /* packetIndex */
-			&info_frame->spd);
-	dce110_update_generic_info_packet(
-			enc110,
-			3,  /* packetIndex */
-			&info_frame->hdrsmd);
+				2,  /* packetIndex */
+				&info_frame->spd);
+
+	if (info_frame->hdrsmd.valid)
+		dce110_update_generic_info_packet(
+				enc110,
+				3,  /* packetIndex */
+				&info_frame->hdrsmd);
 
 	/* enable/disable transmission of packet(s).
 	*  If enabled, packet transmission begins on the next frame
