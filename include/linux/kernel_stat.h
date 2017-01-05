@@ -80,6 +80,8 @@ static inline unsigned int kstat_cpu_irqs_sum(unsigned int cpu)
 
 extern void account_user_time(struct task_struct *, cputime_t);
 extern void account_system_time(struct task_struct *, int, cputime_t);
+extern void account_system_index_time(struct task_struct *, cputime_t,
+				      enum cpu_usage_stat);
 extern void account_steal_time(cputime_t);
 extern void account_idle_time(cputime_t);
 
