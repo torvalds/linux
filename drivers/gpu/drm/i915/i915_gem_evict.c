@@ -194,6 +194,7 @@ found:
 	}
 
 	/* Unbinding will emit any required flushes */
+	ret = 0;
 	while (!list_empty(&eviction_list)) {
 		vma = list_first_entry(&eviction_list,
 				       struct i915_vma,
