@@ -194,6 +194,7 @@ static const struct of_device_id da850_pupd_of_match[] = {
 	{ .compatible = "ti,da850-pupd" },
 	{ }
 };
+MODULE_DEVICE_TABLE(of, da850_pupd_of_match);
 
 static struct platform_driver da850_pupd_driver = {
 	.driver	= {
