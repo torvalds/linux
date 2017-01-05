@@ -29,6 +29,7 @@
 #define MII_DP83867_MICR	0x12
 #define MII_DP83867_ISR		0x13
 #define DP83867_CTRL		0x1f
+#define DP83867_CFG3		0x1e
 
 /* Extended Registers */
 #define DP83867_RGMIICTL	0x0032
@@ -90,6 +91,8 @@ static int dp83867_config_intr(struct phy_device *phydev)
 		micr_status |=
 			(MII_DP83867_MICR_AN_ERR_INT_EN |
 			MII_DP83867_MICR_SPEED_CHNG_INT_EN |
+			MII_DP83867_MICR_AUTONEG_COMP_INT_EN |
+			MII_DP83867_MICR_LINK_STS_CHNG_INT_EN |
 			MII_DP83867_MICR_DUP_MODE_CHNG_INT_EN |
 			MII_DP83867_MICR_SLEEP_MODE_CHNG_INT_EN);
 
@@ -188,6 +191,13 @@ static int dp83867_config_init(struct phy_device *phydev)
 
 		phy_write_mmd_indirect(phydev, DP83867_RGMIIDCTL,
 				       DP83867_DEVADDR, delay);
+	}
+
+	/* Enable Interrupt output INT_OE in CFG3 register */
+	if (phy_interrupt_is_valid(phydev)) {
+		val = phy_read(phydev, DP83867_CFG3);
+		val |= BIT(7);
+		phy_write(phydev, DP83867_CFG3, val);
 	}
 
 	return 0;
