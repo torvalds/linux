@@ -237,10 +237,8 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	}
 
 	pindesc = kzalloc(sizeof(*pindesc), GFP_KERNEL);
-	if (pindesc == NULL) {
-		dev_err(pctldev->dev, "failed to alloc struct pin_desc\n");
+	if (!pindesc)
 		return -ENOMEM;
-	}
 
 	/* Set owner */
 	pindesc->pctldev = pctldev;
@@ -882,11 +880,8 @@ static struct pinctrl_state *create_state(struct pinctrl *p,
 	struct pinctrl_state *state;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state == NULL) {
-		dev_err(p->dev,
-			"failed to alloc struct pinctrl_state\n");
+	if (!state)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	state->name = name;
 	INIT_LIST_HEAD(&state->settings);
@@ -913,11 +908,8 @@ static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
 		return 0;
 
 	setting = kzalloc(sizeof(*setting), GFP_KERNEL);
-	if (setting == NULL) {
-		dev_err(p->dev,
-			"failed to alloc struct pinctrl_setting\n");
+	if (!setting)
 		return -ENOMEM;
-	}
 
 	setting->type = map->type;
 
@@ -997,10 +989,8 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	 * a pin control handle with pinctrl_get()
 	 */
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (p == NULL) {
-		dev_err(dev, "failed to alloc struct pinctrl\n");
+	if (!p)
 		return ERR_PTR(-ENOMEM);
-	}
 	p->dev = dev;
 	INIT_LIST_HEAD(&p->states);
 	INIT_LIST_HEAD(&p->dt_maps);
@@ -1357,10 +1347,8 @@ int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
 	}
 
 	maps_node = kzalloc(sizeof(*maps_node), GFP_KERNEL);
-	if (!maps_node) {
-		pr_err("failed to alloc struct pinctrl_maps\n");
+	if (!maps_node)
 		return -ENOMEM;
-	}
 
 	maps_node->num_maps = num_maps;
 	if (dup) {
@@ -1980,10 +1968,8 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		return ERR_PTR(-EINVAL);
 
 	pctldev = kzalloc(sizeof(*pctldev), GFP_KERNEL);
-	if (pctldev == NULL) {
-		dev_err(dev, "failed to alloc struct pinctrl_dev\n");
+	if (!pctldev)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	/* Initialize pin control device struct */
 	pctldev->owner = pctldesc->owner;
