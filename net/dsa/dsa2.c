@@ -647,8 +647,14 @@ static int _dsa_register_switch(struct dsa_switch *ds, struct device_node *np)
 	}
 
 	err = dsa_dst_parse(dst);
-	if (err)
+	if (err) {
+		if (err == -EPROBE_DEFER) {
+			dsa_dst_del_ds(dst, ds, ds->index);
+			return err;
+		}
+
 		goto out_del_dst;
+	}
 
 	err = dsa_dst_apply(dst);
 	if (err) {
