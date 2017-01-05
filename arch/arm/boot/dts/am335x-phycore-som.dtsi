@@ -120,6 +120,12 @@
 		reg = <0x2d>;
 	};
 
+	i2c_tmp102: temp@4b {
+		compatible = "ti,tmp102";
+		reg = <0x4b>;
+		status = "disabled";
+	};
+
 	i2c_eeprom: eeprom@52 {
 		compatible = "atmel,24c32";
 		pagesize = <32>;
