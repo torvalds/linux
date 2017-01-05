@@ -1439,6 +1439,21 @@ static int gmc_v8_0_set_powergating_state(void *handle,
 	return 0;
 }
 
+static void gmc_v8_0_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	/* AMD_CG_SUPPORT_MC_MGCG */
+	data = RREG32(mmMC_HUB_MISC_HUB_CG);
+	if (data & MC_HUB_MISC_HUB_CG__ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_MC_MGCG;
+
+	/* AMD_CG_SUPPORT_MC_LS */
+	if (data & MC_HUB_MISC_HUB_CG__MEM_LS_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_MC_LS;
+}
+
 static const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.name = "gmc_v8_0",
 	.early_init = gmc_v8_0_early_init,
@@ -1457,6 +1472,7 @@ static const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.post_soft_reset = gmc_v8_0_post_soft_reset,
 	.set_clockgating_state = gmc_v8_0_set_clockgating_state,
 	.set_powergating_state = gmc_v8_0_set_powergating_state,
+	.get_clockgating_state = gmc_v8_0_get_clockgating_state,
 };
 
 static const struct amdgpu_gart_funcs gmc_v8_0_gart_funcs = {
