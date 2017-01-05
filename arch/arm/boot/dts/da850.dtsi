@@ -277,22 +277,25 @@
 			interrupt-names = "edm3_tcerrint";
 		};
 		serial0: serial@42000 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x42000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <25>;
 			status = "disabled";
 		};
 		serial1: serial@10c000 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x10c000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <53>;
 			status = "disabled";
 		};
 		serial2: serial@10d000 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x10d000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <61>;
 			status = "disabled";
