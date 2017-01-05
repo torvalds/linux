@@ -203,6 +203,7 @@ static inline u32 guc_ggtt_offset(struct i915_vma *vma)
 {
 	u32 offset = i915_ggtt_offset(vma);
 	GEM_BUG_ON(offset < GUC_WOPCM_TOP);
+	GEM_BUG_ON(range_overflows_t(u64, offset, vma->size, GUC_GGTT_TOP));
 	return offset;
 }
 

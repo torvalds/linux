@@ -3176,6 +3176,16 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 	if (ret)
 		return ret;
 
+	/* Trim the GGTT to fit the GuC mappable upper range (when enabled).
+	 * This is easier than doing range restriction on the fly, as we
+	 * currently don't have any bits spare to pass in this upper
+	 * restriction!
+	 */
+	if (HAS_GUC(dev_priv) && i915.enable_guc_loading) {
+		ggtt->base.total = min_t(u64, ggtt->base.total, GUC_GGTT_TOP);
+		ggtt->mappable_end = min(ggtt->mappable_end, ggtt->base.total);
+	}
+
 	if ((ggtt->base.total - 1) >> 32) {
 		DRM_ERROR("We never expected a Global GTT with more than 32bits"
 			  " of address space! Found %lldM!\n",
