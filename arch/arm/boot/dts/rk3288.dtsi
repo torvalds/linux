@@ -1068,9 +1068,8 @@
 		interrupt-names = "rga";
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
 		clock-names = "aclk", "hclk", "sclk";
-
+		power-domains = <&power RK3288_PD_VIO>;
 		resets = <&cru SRST_RGA_CORE>, <&cru SRST_RGA_AXI>, <&cru SRST_RGA_AHB>;
-
 		reset-names = "core", "axi", "ahb";
 		status = "disabled";
 	};
@@ -1206,6 +1205,7 @@
 		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_EDP>, <&cru PCLK_EDP_CTRL>;
 		clock-names = "dp", "pclk";
+		power-domains = <&power RK3288_PD_VIO>;
 		phys = <&edp_phy>;
 		phy-names = "dp";
 		resets = <&cru SRST_EDP>;
