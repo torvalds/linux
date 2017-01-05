@@ -85,8 +85,8 @@ struct fscrypt_name {
  */
 struct fscrypt_operations {
 	unsigned int flags;
+	const char *key_prefix;
 	int (*get_context)(struct inode *, void *, size_t);
-	int (*key_prefix)(struct inode *, u8 **);
 	int (*prepare_context)(struct inode *);
 	int (*set_context)(struct inode *, const void *, size_t, void *);
 	int (*dummy_context)(struct inode *);
