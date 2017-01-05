@@ -668,15 +668,15 @@ static int parse_tc_nic_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	return 0;
 }
 
-static inline int cmp_encap_info(struct mlx5_encap_info *a,
-				 struct mlx5_encap_info *b)
+static inline int cmp_encap_info(struct ip_tunnel_key *a,
+				 struct ip_tunnel_key *b)
 {
 	return memcmp(a, b, sizeof(*a));
 }
 
-static inline int hash_encap_info(struct mlx5_encap_info *info)
+static inline int hash_encap_info(struct ip_tunnel_key *key)
 {
-	return jhash(info, sizeof(*info), 0);
+	return jhash(key, sizeof(*key), 0);
 }
 
 static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
@@ -762,6 +762,7 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 					  struct net_device **out_dev)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
+	struct ip_tunnel_key *tun_key = &e->tun_info.key;
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
 	char *encap_header;
@@ -777,13 +778,13 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	switch (e->tunnel_type) {
 	case MLX5_HEADER_TYPE_VXLAN:
 		fl4.flowi4_proto = IPPROTO_UDP;
-		fl4.fl4_dport = e->tun_info.tp_dst;
+		fl4.fl4_dport = tun_key->tp_dst;
 		break;
 	default:
 		err = -EOPNOTSUPP;
 		goto out;
 	}
-	fl4.daddr = e->tun_info.daddr;
+	fl4.daddr = tun_key->u.ipv4.dst;
 
 	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, out_dev,
 				      &fl4, &n, &saddr, &ttl);
@@ -805,9 +806,9 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	case MLX5_HEADER_TYPE_VXLAN:
 		encap_size = gen_vxlan_header_ipv4(*out_dev, encap_header,
 						   e->h_dest, ttl,
-						   e->tun_info.daddr,
-						   saddr, e->tun_info.tp_dst,
-						   e->tun_info.tun_id);
+						   tun_key->u.ipv4.dst,
+						   saddr, tun_key->tp_dst,
+						   tunnel_id_to_key32(tun_key->tun_id));
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -831,13 +832,11 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	unsigned short family = ip_tunnel_info_af(tun_info);
 	struct ip_tunnel_key *key = &tun_info->key;
-	struct mlx5_encap_info info;
 	struct mlx5_encap_entry *e;
 	struct net_device *out_dev;
+	int tunnel_type, err;
 	uintptr_t hash_key;
 	bool found = false;
-	int tunnel_type;
-	int err;
 
 	/* udp dst port must be set */
 	if (!memchr_inv(&key->tp_dst, 0, sizeof(key->tp_dst)))
@@ -853,8 +852,6 @@ vxlan_encap_offload_err:
 
 	if (mlx5e_vxlan_lookup_port(priv, be16_to_cpu(key->tp_dst)) &&
 	    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap)) {
-		info.tp_dst = key->tp_dst;
-		info.tun_id = tunnel_id_to_key32(key->tun_id);
 		tunnel_type = MLX5_HEADER_TYPE_VXLAN;
 	} else {
 		netdev_warn(priv->netdev,
@@ -862,22 +859,17 @@ vxlan_encap_offload_err:
 		return -EOPNOTSUPP;
 	}
 
-	switch (family) {
-	case AF_INET:
-		info.daddr = key->u.ipv4.dst;
-		break;
-	case AF_INET6:
+	if (family == AF_INET6) {
 		netdev_warn(priv->netdev,
 			    "IPv6 tunnel encap offload isn't supported\n");
-	default:
 		return -EOPNOTSUPP;
 	}
 
-	hash_key = hash_encap_info(&info);
+	hash_key = hash_encap_info(key);
 
 	hash_for_each_possible_rcu(esw->offloads.encap_tbl, e,
 				   encap_hlist, hash_key) {
-		if (!cmp_encap_info(&e->tun_info, &info)) {
+		if (!cmp_encap_info(&e->tun_info.key, key)) {
 			found = true;
 			break;
 		}
@@ -892,7 +884,7 @@ vxlan_encap_offload_err:
 	if (!e)
 		return -ENOMEM;
 
-	e->tun_info = info;
+	e->tun_info = *tun_info;
 	e->tunnel_type = tunnel_type;
 	INIT_LIST_HEAD(&e->flows);
 
