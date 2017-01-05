@@ -37,13 +37,6 @@
 #include "i915_drv.h"
 #include "gvt.h"
 
-#define MB_TO_BYTES(mb) ((mb) << 20ULL)
-#define BYTES_TO_MB(b) ((b) >> 20ULL)
-
-#define HOST_LOW_GM_SIZE MB_TO_BYTES(128)
-#define HOST_HIGH_GM_SIZE MB_TO_BYTES(384)
-#define HOST_FENCE 4
-
 static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)
 {
 	struct intel_gvt *gvt = vgpu->gvt;
