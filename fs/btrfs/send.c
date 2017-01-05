@@ -1937,6 +1937,19 @@ static int did_overwrite_ref(struct send_ctx *sctx,
 	if (ret <= 0)
 		goto out;
 
+	if (dir != BTRFS_FIRST_FREE_OBJECTID) {
+		ret = get_inode_info(sctx->send_root, dir, NULL, &gen, NULL,
+				     NULL, NULL, NULL);
+		if (ret < 0 && ret != -ENOENT)
+			goto out;
+		if (ret) {
+			ret = 0;
+			goto out;
+		}
+		if (gen != dir_gen)
+			goto out;
+	}
+
 	/* check if the ref was overwritten by another ref */
 	ret = lookup_dir_item_inode(sctx->send_root, dir, name, name_len,
 			&ow_inode, &other_type);
