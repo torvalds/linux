@@ -1365,6 +1365,10 @@ static int amdgpu_debugfs_pm_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct drm_device *ddev = adev->ddev;
+	u32 flags = 0;
+
+	amdgpu_get_clockgating_state(adev, &flags);
+	seq_printf(m, "Clock Gating Flags Mask: 0x%x\n", flags);
 
 	if (!adev->pm.dpm_enabled) {
 		seq_printf(m, "dpm not enabled\n");

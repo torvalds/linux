@@ -214,6 +214,8 @@ struct amd_ip_funcs {
 	/* enable/disable pg for the IP block */
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
+	/* get current clockgating status */
+	void (*get_clockgating_state)(void *handle, u32 *flags);
 };
 
 #endif /* __AMD_SHARED_H__ */

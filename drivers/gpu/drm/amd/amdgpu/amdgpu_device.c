@@ -1131,6 +1131,18 @@ int amdgpu_set_powergating_state(struct amdgpu_device *adev,
 	return r;
 }
 
+void amdgpu_get_clockgating_state(struct amdgpu_device *adev, u32 *flags)
+{
+	int i;
+
+	for (i = 0; i < adev->num_ip_blocks; i++) {
+		if (!adev->ip_blocks[i].status.valid)
+			continue;
+		if (adev->ip_blocks[i].version->funcs->get_clockgating_state)
+			adev->ip_blocks[i].version->funcs->get_clockgating_state((void *)adev, flags);
+	}
+}
+
 int amdgpu_wait_for_idle(struct amdgpu_device *adev,
 			 enum amd_ip_block_type block_type)
 {
