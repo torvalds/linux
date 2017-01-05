@@ -137,8 +137,8 @@ static void dce110_update_generic_info_packet(
 		REG_WRITE(AFMT_GENERIC_3, *content++);
 		REG_WRITE(AFMT_GENERIC_4, *content++);
 		REG_WRITE(AFMT_GENERIC_5, *content++);
-		REG_WRITE(AFMT_GENERIC_6, *content);
-		REG_WRITE(AFMT_GENERIC_7, 0);
+		REG_WRITE(AFMT_GENERIC_6, *content++);
+		REG_WRITE(AFMT_GENERIC_7, *content);
 	}
 
 	if (!REG(AFMT_VBI_PACKET_CONTROL1)) {

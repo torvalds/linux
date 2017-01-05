@@ -19,7 +19,7 @@ struct encoder_info_packet {
 	uint8_t hb1;
 	uint8_t hb2;
 	uint8_t hb3;
-	uint8_t sb[28];
+	uint8_t sb[32];
 };
 
 struct encoder_info_frame {
