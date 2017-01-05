@@ -1029,20 +1029,6 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 }
 
 /**
- * xemaclite_remove_ndev - Free the network device
- * @ndev:	Pointer to the network device to be freed
- *
- * This function un maps the IO region of the Emaclite device and frees the net
- * device.
- */
-static void xemaclite_remove_ndev(struct net_device *ndev)
-{
-	if (ndev) {
-		free_netdev(ndev);
-	}
-}
-
-/**
  * get_bool - Get a parameter from the OF device
  * @ofdev:	Pointer to OF device structure
  * @s:		Property to be retrieved
@@ -1172,7 +1158,7 @@ static int xemaclite_of_probe(struct platform_device *ofdev)
 	return 0;
 
 error:
-	xemaclite_remove_ndev(ndev);
+	free_netdev(ndev);
 	return rc;
 }
 
@@ -1204,7 +1190,7 @@ static int xemaclite_of_remove(struct platform_device *of_dev)
 	of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
 
-	xemaclite_remove_ndev(ndev);
+	free_netdev(ndev);
 
 	return 0;
 }
