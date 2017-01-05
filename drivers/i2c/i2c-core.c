@@ -931,7 +931,10 @@ static int i2c_device_probe(struct device *dev)
 	if (!client->irq) {
 		int irq = -ENOENT;
 
-		if (dev->of_node) {
+		if (client->flags & I2C_CLIENT_HOST_NOTIFY) {
+			dev_dbg(dev, "Using Host Notify IRQ\n");
+			irq = i2c_smbus_host_notify_to_irq(client);
+		} else if (dev->of_node) {
 			irq = of_irq_get_byname(dev->of_node, "irq");
 			if (irq == -EINVAL || irq == -ENODATA)
 				irq = of_irq_get(dev->of_node, 0);
@@ -940,14 +943,7 @@ static int i2c_device_probe(struct device *dev)
 		}
 		if (irq == -EPROBE_DEFER)
 			return irq;
-		/*
-		 * ACPI and OF did not find any useful IRQ, try to see
-		 * if Host Notify can be used.
-		 */
-		if (irq < 0) {
-			dev_dbg(dev, "Using Host Notify IRQ\n");
-			irq = i2c_smbus_host_notify_to_irq(client);
-		}
+
 		if (irq < 0)
 			irq = 0;
 
@@ -1715,6 +1711,9 @@ static struct i2c_client *of_i2c_register_device(struct i2c_adapter *adap,
 	info.addr = addr;
 	info.of_node = of_node_get(node);
 	info.archdata = &dev_ad;
+
+	if (of_property_read_bool(node, "host-notify"))
+		info.flags |= I2C_CLIENT_HOST_NOTIFY;
 
 	if (of_get_property(node, "wakeup-source", NULL))
 		info.flags |= I2C_CLIENT_WAKE;
