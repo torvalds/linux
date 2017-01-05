@@ -43,7 +43,7 @@ EXPORT_SYMBOL_GPL(timecounter_init);
  */
 static u64 timecounter_read_delta(struct timecounter *tc)
 {
-	cycle_t cycle_now, cycle_delta;
+	u64 cycle_now, cycle_delta;
 	u64 ns_offset;
 
 	/* read cycle counter: */
@@ -80,7 +80,7 @@ EXPORT_SYMBOL_GPL(timecounter_read);
  * time previous to the time stored in the cycle counter.
  */
 static u64 cc_cyc2ns_backwards(const struct cyclecounter *cc,
-			       cycle_t cycles, u64 mask, u64 frac)
+			       u64 cycles, u64 mask, u64 frac)
 {
 	u64 ns = (u64) cycles;
 
@@ -90,7 +90,7 @@ static u64 cc_cyc2ns_backwards(const struct cyclecounter *cc,
 }
 
 u64 timecounter_cyc2time(struct timecounter *tc,
-			 cycle_t cycle_tstamp)
+			 u64 cycle_tstamp)
 {
 	u64 delta = (cycle_tstamp - tc->cycle_last) & tc->cc->mask;
 	u64 nsec = tc->nsec, frac = tc->frac;

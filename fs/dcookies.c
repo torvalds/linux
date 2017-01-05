@@ -26,7 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/path.h>
 #include <linux/compat.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* The dcookies are allocated from a kmem_cache and
  * hashed onto a small number of lists. None of the

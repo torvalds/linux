@@ -234,7 +234,7 @@
 #include <linux/i8253.h>
 #include <linux/cpuidle.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/desc.h>
 #include <asm/olpc.h>
 #include <asm/paravirt.h>

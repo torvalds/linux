@@ -402,6 +402,9 @@ struct MPT3SAS_DEVICE {
 	u8	block;
 	u8	tlr_snoop_check;
 	u8	ignore_delay_remove;
+	/* Iopriority Command Handling */
+	u8	ncq_prio_enable;
+
 };
 
 #define MPT3_CMD_NOT_USED	0x8000	/* free */
@@ -1457,5 +1460,8 @@ void
 mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	struct _raid_device *raid_device, Mpi2SCSIIORequest_t *mpi_request,
 	u16 smid);
+
+/* NCQ Prio Handling Check */
+bool scsih_ncq_prio_supp(struct scsi_device *sdev);
 
 #endif /* MPT3SAS_BASE_H_INCLUDED */

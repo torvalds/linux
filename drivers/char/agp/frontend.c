@@ -38,7 +38,7 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include "agp.h"
 

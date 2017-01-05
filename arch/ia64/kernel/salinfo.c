@@ -48,7 +48,7 @@
 #include <linux/semaphore.h>
 
 #include <asm/sal.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 MODULE_AUTHOR("Jesse Barnes <jbarnes@sgi.com>");
 MODULE_DESCRIPTION("/proc interface to IA-64 SAL features");

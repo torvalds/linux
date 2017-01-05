@@ -1161,7 +1161,7 @@ xfs_reflink_remap_range(
 
 	ret = vfs_clone_file_prep_inodes(inode_in, pos_in, inode_out, pos_out,
 			&len, is_dedupe);
-	if (ret || len == 0)
+	if (ret <= 0)
 		goto out_unlock;
 
 	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);

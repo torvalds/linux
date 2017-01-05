@@ -51,7 +51,7 @@ static void poll_stats(unsigned int kill_after_s)
 		for (proto = 0; proto < nr_protos; proto++) {
 			__u64 sum = 0;
 
-			assert(bpf_lookup_elem(map_fd[0], &proto, values) == 0);
+			assert(bpf_map_lookup_elem(map_fd[0], &proto, values) == 0);
 			for (i = 0; i < nr_cpus; i++)
 				sum += (values[i] - prev[proto][i]);
 
@@ -237,8 +237,8 @@ int main(int argc, char **argv)
 
 	while (min_port <= max_port) {
 		vip.dport = htons(min_port++);
-		if (bpf_update_elem(map_fd[1], &vip, &tnl, BPF_NOEXIST)) {
-			perror("bpf_update_elem(&vip2tnl)");
+		if (bpf_map_update_elem(map_fd[1], &vip, &tnl, BPF_NOEXIST)) {
+			perror("bpf_map_update_elem(&vip2tnl)");
 			return 1;
 		}
 	}

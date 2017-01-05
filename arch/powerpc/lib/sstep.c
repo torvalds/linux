@@ -14,7 +14,7 @@
 #include <linux/prefetch.h>
 #include <asm/sstep.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cpu_has_feature.h>
 #include <asm/cputable.h>
 

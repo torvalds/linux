@@ -83,7 +83,7 @@ static irqreturn_t um_timer(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static cycle_t timer_read(struct clocksource *cs)
+static u64 timer_read(struct clocksource *cs)
 {
 	return os_nsecs() / TIMER_MULTIPLIER;
 }

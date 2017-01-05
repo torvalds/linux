@@ -23,7 +23,7 @@
 #include <asm/cpu.h>
 #include <asm/apic.h>
 #include <asm/syscalls.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mwait.h>
 #include <asm/fpu/internal.h>
 #include <asm/debugreg.h>

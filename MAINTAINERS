@@ -143,7 +143,7 @@ S:	Maintained
 F:	drivers/net/ethernet/3com/typhoon*
 
 3WARE SAS/SATA-RAID SCSI DRIVERS (3W-XXXX, 3W-9XXX, 3W-SAS)
-M:	Adam Radford <linuxraid@lsi.com>
+M:	Adam Radford <aradford@gmail.com>
 L:	linux-scsi@vger.kernel.org
 W:	http://www.lsi.com
 S:	Supported
@@ -5080,9 +5080,11 @@ F:	drivers/net/wan/dlci.c
 F:	drivers/net/wan/sdla.c
 
 FRAMEBUFFER LAYER
+M:	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
 L:	linux-fbdev@vger.kernel.org
+T:	git git://github.com/bzolnier/linux.git
 Q:	http://patchwork.kernel.org/project/linux-fbdev/list/
-S:	Orphan
+S:	Maintained
 F:	Documentation/fb/
 F:	drivers/video/
 F:	include/video/
@@ -5735,7 +5737,7 @@ S:	Maintained
 F:	drivers/media/dvb-frontends/hd29l2*
 
 HEWLETT PACKARD ENTERPRISE ILO NMI WATCHDOG DRIVER
-M:	Brian Boylston <brian.boylston@hpe.com>
+M:	Jimmy Vance <jimmy.vance@hpe.com>
 S:	Supported
 F:	Documentation/watchdog/hpwdt.txt
 F:	drivers/watchdog/hpwdt.c
@@ -8828,7 +8830,7 @@ T:	git git://github.com/jonmason/ntb.git
 F:	drivers/ntb/hw/intel/
 
 NTB AMD DRIVER
-M:	Xiangliang Yu <Xiangliang.Yu@amd.com>
+M:	Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
 L:	linux-ntb@googlegroups.com
 S:	Supported
 F:	drivers/ntb/hw/amd/
@@ -8852,17 +8854,22 @@ F:	drivers/video/fbdev/nvidia/
 NVM EXPRESS DRIVER
 M:	Keith Busch <keith.busch@intel.com>
 M:	Jens Axboe <axboe@fb.com>
+M:	Christoph Hellwig <hch@lst.de>
+M:	Sagi Grimberg <sagi@grimberg.me>
 L:	linux-nvme@lists.infradead.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/axboe/linux-block.git
-W:	https://kernel.googlesource.com/pub/scm/linux/kernel/git/axboe/linux-block/
+T:	git://git.infradead.org/nvme.git
+W:	http://git.infradead.org/nvme.git
 S:	Supported
 F:	drivers/nvme/host/
 F:	include/linux/nvme.h
+F:	include/uapi/linux/nvme_ioctl.h
 
 NVM EXPRESS TARGET DRIVER
 M:	Christoph Hellwig <hch@lst.de>
 M:	Sagi Grimberg <sagi@grimberg.me>
 L:	linux-nvme@lists.infradead.org
+T:	git://git.infradead.org/nvme.git
+W:	http://git.infradead.org/nvme.git
 S:	Supported
 F:	drivers/nvme/target/
 
@@ -9842,7 +9849,7 @@ M:	Mark Rutland <mark.rutland@arm.com>
 M:	Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
-F:	drivers/firmware/psci.c
+F:	drivers/firmware/psci*.c
 F:	include/linux/psci.h
 F:	include/uapi/linux/psci.h
 
@@ -10135,6 +10142,12 @@ S:	Supported
 F:	drivers/net/ethernet/qlogic/qed/
 F:	include/linux/qed/
 F:	drivers/net/ethernet/qlogic/qede/
+
+QLOGIC QL41xxx ISCSI DRIVER
+M:	QLogic-Storage-Upstream@cavium.com
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	drivers/scsi/qedi/
 
 QNX4 FILESYSTEM
 M:	Anders Larsen <al@alarsen.net>
@@ -13521,11 +13534,11 @@ F:	arch/x86/xen/*swiotlb*
 F:	drivers/xen/*swiotlb*
 
 XFS FILESYSTEM
-M:	Dave Chinner <david@fromorbit.com>
+M:	Darrick J. Wong <darrick.wong@oracle.com>
 M:	linux-xfs@vger.kernel.org
 L:	linux-xfs@vger.kernel.org
 W:	http://xfs.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dgc/linux-xfs.git
+T:	git git://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git
 S:	Supported
 F:	Documentation/filesystems/xfs.txt
 F:	fs/xfs/

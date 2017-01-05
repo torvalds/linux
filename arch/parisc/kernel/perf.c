@@ -48,7 +48,7 @@
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/perf.h>
 #include <asm/parisc-device.h>
 #include <asm/processor.h>

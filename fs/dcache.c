@@ -26,7 +26,7 @@
 #include <linux/export.h>
 #include <linux/mount.h>
 #include <linux/file.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/security.h>
 #include <linux/seqlock.h>
 #include <linux/swap.h>

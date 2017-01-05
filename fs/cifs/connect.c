@@ -34,7 +34,7 @@
 #include <linux/pagevec.h>
 #include <linux/freezer.h>
 #include <linux/namei.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/inet.h>
 #include <linux/module.h>
@@ -53,6 +53,9 @@
 #include "nterr.h"
 #include "rfc1002pdu.h"
 #include "fscache.h"
+#ifdef CONFIG_CIFS_SMB2
+#include "smb2proto.h"
+#endif
 
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
@@ -89,6 +92,7 @@ enum {
 	Opt_multiuser, Opt_sloppy, Opt_nosharesock,
 	Opt_persistent, Opt_nopersistent,
 	Opt_resilient, Opt_noresilient,
+	Opt_domainauto,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid, Opt_backupgid, Opt_uid,
@@ -96,6 +100,7 @@ enum {
 	Opt_dirmode, Opt_port,
 	Opt_rsize, Opt_wsize, Opt_actimeo,
 	Opt_echo_interval, Opt_max_credits,
+	Opt_snapshot,
 
 	/* Mount options which take string value */
 	Opt_user, Opt_pass, Opt_ip,
@@ -177,6 +182,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_nopersistent, "nopersistenthandles"},
 	{ Opt_resilient, "resilienthandles"},
 	{ Opt_noresilient, "noresilienthandles"},
+	{ Opt_domainauto, "domainauto"},
 
 	{ Opt_backupuid, "backupuid=%s" },
 	{ Opt_backupgid, "backupgid=%s" },
@@ -192,6 +198,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_actimeo, "actimeo=%s" },
 	{ Opt_echo_interval, "echo_interval=%s" },
 	{ Opt_max_credits, "max_credits=%s" },
+	{ Opt_snapshot, "snapshot=%s" },
 
 	{ Opt_blank_user, "user=" },
 	{ Opt_blank_user, "username=" },
@@ -1500,6 +1507,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_noresilient:
 			vol->resilient = false; /* already the default */
 			break;
+		case Opt_domainauto:
+			vol->domainauto = true;
+			break;
 
 		/* Numeric Values */
 		case Opt_backupuid:
@@ -1601,6 +1611,14 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			}
 			vol->echo_interval = option;
+			break;
+		case Opt_snapshot:
+			if (get_option_ul(args, &option)) {
+				cifs_dbg(VFS, "%s: Invalid snapshot time\n",
+					 __func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->snapshot_time = option;
 			break;
 		case Opt_max_credits:
 			if (get_option_ul(args, &option) || (option < 20) ||
@@ -2101,8 +2119,8 @@ cifs_find_tcp_session(struct smb_vol *vol)
 	return NULL;
 }
 
-static void
-cifs_put_tcp_session(struct TCP_Server_Info *server)
+void
+cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 {
 	struct task_struct *task;
 
@@ -2118,6 +2136,19 @@ cifs_put_tcp_session(struct TCP_Server_Info *server)
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	cancel_delayed_work_sync(&server->echo);
+
+#ifdef CONFIG_CIFS_SMB2
+	if (from_reconnect)
+		/*
+		 * Avoid deadlock here: reconnect work calls
+		 * cifs_put_tcp_session() at its end. Need to be sure
+		 * that reconnect work does nothing with server pointer after
+		 * that step.
+		 */
+		cancel_delayed_work(&server->reconnect);
+	else
+		cancel_delayed_work_sync(&server->reconnect);
+#endif
 
 	spin_lock(&GlobalMid_Lock);
 	server->tcpStatus = CifsExiting;
@@ -2183,6 +2214,10 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	INIT_LIST_HEAD(&tcp_ses->tcp_ses_list);
 	INIT_LIST_HEAD(&tcp_ses->smb_ses_list);
 	INIT_DELAYED_WORK(&tcp_ses->echo, cifs_echo_request);
+#ifdef CONFIG_CIFS_SMB2
+	INIT_DELAYED_WORK(&tcp_ses->reconnect, smb2_reconnect_server);
+	mutex_init(&tcp_ses->reconnect_mutex);
+#endif
 	memcpy(&tcp_ses->srcaddr, &volume_info->srcaddr,
 	       sizeof(tcp_ses->srcaddr));
 	memcpy(&tcp_ses->dstaddr, &volume_info->dstaddr,
@@ -2341,7 +2376,7 @@ cifs_put_smb_ses(struct cifs_ses *ses)
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	sesInfoFree(ses);
-	cifs_put_tcp_session(server);
+	cifs_put_tcp_session(server, 0);
 }
 
 #ifdef CONFIG_KEYS
@@ -2515,7 +2550,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		mutex_unlock(&ses->session_mutex);
 
 		/* existing SMB ses has a server reference already */
-		cifs_put_tcp_session(server);
+		cifs_put_tcp_session(server, 0);
 		free_xid(xid);
 		return ses;
 	}
@@ -2549,6 +2584,8 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		if (!ses->domainName)
 			goto get_ses_fail;
 	}
+	if (volume_info->domainauto)
+		ses->domainAuto = volume_info->domainauto;
 	ses->cred_uid = volume_info->cred_uid;
 	ses->linux_uid = volume_info->linux_uid;
 
@@ -2587,7 +2624,7 @@ static int match_tcon(struct cifs_tcon *tcon, const char *unc)
 }
 
 static struct cifs_tcon *
-cifs_find_tcon(struct cifs_ses *ses, const char *unc)
+cifs_find_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 {
 	struct list_head *tmp;
 	struct cifs_tcon *tcon;
@@ -2595,8 +2632,14 @@ cifs_find_tcon(struct cifs_ses *ses, const char *unc)
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each(tmp, &ses->tcon_list) {
 		tcon = list_entry(tmp, struct cifs_tcon, tcon_list);
-		if (!match_tcon(tcon, unc))
+		if (!match_tcon(tcon, volume_info->UNC))
 			continue;
+
+#ifdef CONFIG_CIFS_SMB2
+		if (tcon->snapshot_time != volume_info->snapshot_time)
+			continue;
+#endif /* CONFIG_CIFS_SMB2 */
+
 		++tcon->tc_count;
 		spin_unlock(&cifs_tcp_ses_lock);
 		return tcon;
@@ -2605,7 +2648,7 @@ cifs_find_tcon(struct cifs_ses *ses, const char *unc)
 	return NULL;
 }
 
-static void
+void
 cifs_put_tcon(struct cifs_tcon *tcon)
 {
 	unsigned int xid;
@@ -2637,7 +2680,7 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	int rc, xid;
 	struct cifs_tcon *tcon;
 
-	tcon = cifs_find_tcon(ses, volume_info->UNC);
+	tcon = cifs_find_tcon(ses, volume_info);
 	if (tcon) {
 		cifs_dbg(FYI, "Found match on UNC path\n");
 		/* existing tcon already has a reference */
@@ -2656,6 +2699,22 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	if (tcon == NULL) {
 		rc = -ENOMEM;
 		goto out_fail;
+	}
+
+	if (volume_info->snapshot_time) {
+#ifdef CONFIG_CIFS_SMB2
+		if (ses->server->vals->protocol_id == 0) {
+			cifs_dbg(VFS,
+			     "Use SMB2 or later for snapshot mount option\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		} else
+			tcon->snapshot_time = volume_info->snapshot_time;
+#else
+		cifs_dbg(VFS, "Snapshot mount option requires SMB2 support\n");
+		rc = -EOPNOTSUPP;
+		goto out_fail;
+#endif /* CONFIG_CIFS_SMB2 */
 	}
 
 	tcon->ses = ses;
@@ -3707,7 +3766,8 @@ remote_path_check:
 		/*
 		 * cifs_build_path_to_root works only when we have a valid tcon
 		 */
-		full_path = cifs_build_path_to_root(volume_info, cifs_sb, tcon);
+		full_path = cifs_build_path_to_root(volume_info, cifs_sb, tcon,
+					tcon->Flags & SMB_SHARE_IS_IN_DFS);
 		if (full_path == NULL) {
 			rc = -ENOMEM;
 			goto mount_fail_check;
@@ -3793,7 +3853,7 @@ mount_fail_check:
 		else if (ses)
 			cifs_put_smb_ses(ses);
 		else
-			cifs_put_tcp_session(server);
+			cifs_put_tcp_session(server, 0);
 		bdi_destroy(&cifs_sb->bdi);
 	}
 
@@ -4104,7 +4164,7 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, kuid_t fsuid)
 	ses = cifs_get_smb_ses(master_tcon->ses->server, vol_info);
 	if (IS_ERR(ses)) {
 		tcon = (struct cifs_tcon *)ses;
-		cifs_put_tcp_session(master_tcon->ses->server);
+		cifs_put_tcp_session(master_tcon->ses->server, 0);
 		goto out;
 	}
 

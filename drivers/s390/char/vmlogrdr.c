@@ -21,7 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
 #include <asm/ebcdic.h>

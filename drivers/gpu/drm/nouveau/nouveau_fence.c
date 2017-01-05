@@ -330,7 +330,7 @@ nouveau_fence_wait_legacy(struct dma_fence *f, bool intr, long wait)
 		__set_current_state(intr ? TASK_INTERRUPTIBLE :
 					   TASK_UNINTERRUPTIBLE);
 
-		kt = ktime_set(0, sleep_time);
+		kt = sleep_time;
 		schedule_hrtimeout(&kt, HRTIMER_MODE_REL);
 		sleep_time *= 2;
 		if (sleep_time > NSEC_PER_MSEC)

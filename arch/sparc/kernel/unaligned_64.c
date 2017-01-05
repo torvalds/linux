@@ -16,7 +16,7 @@
 #include <asm/ptrace.h>
 #include <asm/pstate.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/perf_event.h>

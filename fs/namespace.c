@@ -96,10 +96,6 @@ static inline struct hlist_head *mp_hash(struct dentry *dentry)
 	return &mountpoint_hashtable[tmp & mp_hash_mask];
 }
 
-/*
- * allocation is serialized by namespace_sem, but we need the spinlock to
- * serialize with freeing.
- */
 static int mnt_alloc_id(struct mount *mnt)
 {
 	int res;
@@ -1034,6 +1030,8 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 		if (IS_MNT_SLAVE(old))
 			list_add(&mnt->mnt_slave, &old->mnt_slave);
 		mnt->mnt_master = old->mnt_master;
+	} else {
+		CLEAR_MNT_SHARED(mnt);
 	}
 	if (flag & CL_MAKE_SHARED)
 		set_mnt_shared(mnt);
@@ -1828,9 +1826,7 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	if (IS_MNT_UNBINDABLE(old_mnt))
 		return ERR_PTR(-EINVAL);
 
-	down_read(&namespace_sem);
 	new_mnt = clone_mnt(old_mnt, path->dentry, CL_PRIVATE);
-	up_read(&namespace_sem);
 	if (IS_ERR(new_mnt))
 		return ERR_CAST(new_mnt);
 

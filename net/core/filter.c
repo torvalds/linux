@@ -40,7 +40,7 @@
 #include <net/flow_dissector.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 #include <linux/filter.h>
 #include <linux/ratelimit.h>
@@ -2971,12 +2971,6 @@ void bpf_warn_invalid_xdp_action(u32 act)
 	WARN_ONCE(1, "Illegal XDP return value %u, expect packet loss\n", act);
 }
 EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_action);
-
-void bpf_warn_invalid_xdp_buffer(void)
-{
-	WARN_ONCE(1, "Illegal XDP buffer encountered, expect throughput degradation\n");
-}
-EXPORT_SYMBOL_GPL(bpf_warn_invalid_xdp_buffer);
 
 static u32 sk_filter_convert_ctx_access(enum bpf_access_type type, int dst_reg,
 					int src_reg, int ctx_off,

@@ -369,8 +369,7 @@ static void evtchn_fifo_resume(void)
 		}
 
 		ret = init_control_block(cpu, control_block);
-		if (ret < 0)
-			BUG();
+		BUG_ON(ret < 0);
 	}
 
 	/*
@@ -445,7 +444,7 @@ int __init xen_evtchn_fifo_init(void)
 	evtchn_ops = &evtchn_ops_fifo;
 
 	cpuhp_setup_state_nocalls(CPUHP_XEN_EVTCHN_PREPARE,
-				  "CPUHP_XEN_EVTCHN_PREPARE",
+				  "xen/evtchn:prepare",
 				  xen_evtchn_cpu_prepare, xen_evtchn_cpu_dead);
 out:
 	put_cpu();
