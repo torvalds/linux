@@ -464,7 +464,7 @@ static int rk_tsadcv2_code_to_temp(const struct chip_tsadc_table *table,
 	switch (table->mode) {
 	case ADC_DECREMENT:
 		code &= table->data_mask;
-		if (code < table->id[high].code)
+		if (code <= table->id[high].code)
 			return -EAGAIN;		/* Incorrect reading */
 
 		while (low <= high) {
