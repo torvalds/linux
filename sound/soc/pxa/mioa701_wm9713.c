@@ -53,7 +53,6 @@
 #include <sound/initval.h>
 #include <sound/ac97_codec.h>
 
-#include "pxa2xx-ac97.h"
 #include "../codecs/wm9713.h"
 
 #define AC97_GPIO_PULL		0x58
