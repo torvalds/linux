@@ -110,7 +110,7 @@ static unsigned int total_packets, total_bytes;
 
 static int pfsocket(int ver)
 {
-	int ret, sock = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+	int ret, sock = socket(PF_PACKET, SOCK_RAW, 0);
 	if (sock == -1) {
 		perror("socket");
 		exit(1);
@@ -239,7 +239,6 @@ static void walk_v1_v2_rx(int sock, struct ring *ring)
 	bug_on(ring->type != PACKET_RX_RING);
 
 	pair_udp_open(udp_sock, PORT_BASE);
-	pair_udp_setfilter(sock);
 
 	memset(&pfd, 0, sizeof(pfd));
 	pfd.fd = sock;
@@ -601,7 +600,6 @@ static void walk_v3_rx(int sock, struct ring *ring)
 	bug_on(ring->type != PACKET_RX_RING);
 
 	pair_udp_open(udp_sock, PORT_BASE);
-	pair_udp_setfilter(sock);
 
 	memset(&pfd, 0, sizeof(pfd));
 	pfd.fd = sock;
@@ -740,6 +738,8 @@ static void mmap_ring(int sock, struct ring *ring)
 static void bind_ring(int sock, struct ring *ring)
 {
 	int ret;
+
+	pair_udp_setfilter(sock);
 
 	ring->ll.sll_family = PF_PACKET;
 	ring->ll.sll_protocol = htons(ETH_P_ALL);
