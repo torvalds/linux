@@ -412,7 +412,7 @@
 				 * The second interrupt is the PME interrupt
 				 * for network wakeup, connected to the TLMM.
 				 */
-				interrupts-extended = <&pmicintc 198 IRQ_TYPE_EDGE_FALLING>,
+				interrupts-extended = <&pm8058 198 IRQ_TYPE_EDGE_FALLING>,
 						    <&tlmm 29 IRQ_TYPE_EDGE_RISING>;
 				reset-gpios = <&tlmm 30 GPIO_ACTIVE_LOW>;
 				vdd33a-supply = <&dragon_veth>;
