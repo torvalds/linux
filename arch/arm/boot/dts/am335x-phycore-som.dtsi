@@ -341,7 +341,7 @@
 	status = "okay";
 
 	serial_flash: m25p80@0 {
-		compatible = "m25p80";
+		compatible = "jedec,spi-nor";
 		spi-max-frequency = <48000000>;
 		reg = <0x0>;
 		m25p,fast-read;
