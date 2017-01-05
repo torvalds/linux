@@ -60,6 +60,7 @@ enum {
 	RXRPC_CLIENT_BOUND,		/* client local address bound */
 	RXRPC_SERVER_BOUND,		/* server local address bound */
 	RXRPC_SERVER_LISTENING,		/* server listening for connections */
+	RXRPC_SERVER_LISTEN_DISABLED,	/* server listening disabled */
 	RXRPC_CLOSE,			/* socket is being closed */
 };
 
