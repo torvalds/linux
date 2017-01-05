@@ -3495,7 +3495,6 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		    (adev->pdev->device == 0x6665) ||
 		    (adev->pdev->device == 0x6667)) {
 			max_sclk = 75000;
-			max_mclk = 80000;
 		}
 	}
 	/* Apply dpm quirks */
