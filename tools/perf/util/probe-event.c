@@ -163,7 +163,7 @@ static struct map *kernel_get_module_map(const char *module)
 
 	/* A file path -- this is an offline module */
 	if (module && strchr(module, '/'))
-		return machine__findnew_module_map(host_machine, 0, module);
+		return dso__new_map(module);
 
 	if (!module)
 		module = "kernel";
@@ -173,6 +173,7 @@ static struct map *kernel_get_module_map(const char *module)
 		if (strncmp(pos->dso->short_name + 1, module,
 			    pos->dso->short_name_len - 2) == 0 &&
 		    module[pos->dso->short_name_len - 2] == '\0') {
+			map__get(pos);
 			return pos;
 		}
 	}
@@ -187,15 +188,6 @@ struct map *get_target_map(const char *target, bool user)
 	else
 		return kernel_get_module_map(target);
 }
-
-static void put_target_map(struct map *map, bool user)
-{
-	if (map && user) {
-		/* Only the user map needs to be released */
-		map__put(map);
-	}
-}
-
 
 static int convert_exec_to_group(const char *exec, char **result)
 {
@@ -268,21 +260,6 @@ static bool kprobe_warn_out_range(const char *symbol, unsigned long address)
 }
 
 /*
- * NOTE:
- * '.gnu.linkonce.this_module' section of kernel module elf directly
- * maps to 'struct module' from linux/module.h. This section contains
- * actual module name which will be used by kernel after loading it.
- * But, we cannot use 'struct module' here since linux/module.h is not
- * exposed to user-space. Offset of 'name' has remained same from long
- * time, so hardcoding it here.
- */
-#ifdef __LP64__
-#define MOD_NAME_OFFSET 24
-#else
-#define MOD_NAME_OFFSET 12
-#endif
-
-/*
  * @module can be module name of module file path. In case of path,
  * inspect elf and find out what is actual module name.
  * Caller has to free mod_name after using it.
@@ -296,6 +273,7 @@ static char *find_module_name(const char *module)
 	Elf_Data *data;
 	Elf_Scn *sec;
 	char *mod_name = NULL;
+	int name_offset;
 
 	fd = open(module, O_RDONLY);
 	if (fd < 0)
@@ -317,7 +295,21 @@ static char *find_module_name(const char *module)
 	if (!data || !data->d_buf)
 		goto ret_err;
 
-	mod_name = strdup((char *)data->d_buf + MOD_NAME_OFFSET);
+	/*
+	 * NOTE:
+	 * '.gnu.linkonce.this_module' section of kernel module elf directly
+	 * maps to 'struct module' from linux/module.h. This section contains
+	 * actual module name which will be used by kernel after loading it.
+	 * But, we cannot use 'struct module' here since linux/module.h is not
+	 * exposed to user-space. Offset of 'name' has remained same from long
+	 * time, so hardcoding it here.
+	 */
+	if (ehdr.e_ident[EI_CLASS] == ELFCLASS32)
+		name_offset = 12;
+	else	/* expect ELFCLASS64 by default */
+		name_offset = 24;
+
+	mod_name = strdup((char *)data->d_buf + name_offset);
 
 ret_err:
 	elf_end(elf);
@@ -412,7 +404,7 @@ static int find_alternative_probe_point(struct debuginfo *dinfo,
 	}
 
 out:
-	put_target_map(map, uprobes);
+	map__put(map);
 	return ret;
 
 }
@@ -618,6 +610,51 @@ error:
 	return ret ? : -ENOENT;
 }
 
+/*
+ * Rename DWARF symbols to ELF symbols -- gcc sometimes optimizes functions
+ * and generate new symbols with suffixes such as .constprop.N or .isra.N
+ * etc. Since those symbols are not recorded in DWARF, we have to find
+ * correct generated symbols from offline ELF binary.
+ * For online kernel or uprobes we don't need this because those are
+ * rebased on _text, or already a section relative address.
+ */
+static int
+post_process_offline_probe_trace_events(struct probe_trace_event *tevs,
+					int ntevs, const char *pathname)
+{
+	struct symbol *sym;
+	struct map *map;
+	unsigned long stext = 0;
+	u64 addr;
+	int i;
+
+	/* Prepare a map for offline binary */
+	map = dso__new_map(pathname);
+	if (!map || get_text_start_address(pathname, &stext) < 0) {
+		pr_warning("Failed to get ELF symbols for %s\n", pathname);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < ntevs; i++) {
+		addr = tevs[i].point.address + tevs[i].point.offset - stext;
+		sym = map__find_symbol(map, addr);
+		if (!sym)
+			continue;
+		if (!strcmp(sym->name, tevs[i].point.symbol))
+			continue;
+		/* If we have no realname, use symbol for it */
+		if (!tevs[i].point.realname)
+			tevs[i].point.realname = tevs[i].point.symbol;
+		else
+			free(tevs[i].point.symbol);
+		tevs[i].point.symbol = strdup(sym->name);
+		tevs[i].point.offset = addr - sym->start;
+	}
+	map__put(map);
+
+	return 0;
+}
+
 static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
 					  int ntevs, const char *exec)
 {
@@ -679,7 +716,8 @@ post_process_kernel_probe_trace_events(struct probe_trace_event *tevs,
 
 	/* Skip post process if the target is an offline kernel */
 	if (symbol_conf.ignore_vmlinux_buildid)
-		return 0;
+		return post_process_offline_probe_trace_events(tevs, ntevs,
+						symbol_conf.vmlinux_name);
 
 	reloc_sym = kernel_get_ref_reloc_sym();
 	if (!reloc_sym) {
@@ -2869,7 +2907,7 @@ static int find_probe_trace_events_from_map(struct perf_probe_event *pev,
 	}
 
 out:
-	put_target_map(map, pev->uprobes);
+	map__put(map);
 	free(syms);
 	return ret;
 
@@ -3362,10 +3400,7 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
 		return ret;
 
 	/* Get a symbol map */
-	if (user)
-		map = dso__new_map(target);
-	else
-		map = kernel_get_module_map(target);
+	map = get_target_map(target, user);
 	if (!map) {
 		pr_err("Failed to get a map for %s\n", (target) ? : "kernel");
 		return -EINVAL;
@@ -3397,9 +3432,7 @@ int show_available_funcs(const char *target, struct strfilter *_filter,
         }
 
 end:
-	if (user) {
-		map__put(map);
-	}
+	map__put(map);
 	exit_probe_symbol_maps();
 
 	return ret;
