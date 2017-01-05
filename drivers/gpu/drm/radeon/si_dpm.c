@@ -3016,7 +3016,6 @@ static void si_apply_state_adjust_rules(struct radeon_device *rdev,
 		    (rdev->pdev->device == 0x6665) ||
 		    (rdev->pdev->device == 0x6667)) {
 			max_sclk = 75000;
-			max_mclk = 80000;
 		}
 	}
 	/* Apply dpm quirks */
