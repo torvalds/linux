@@ -120,12 +120,12 @@ static void set_midi_substream_names(struct snd_efw *efw,
 
 int snd_efw_create_midi_devices(struct snd_efw *efw)
 {
-	static struct snd_rawmidi_ops capture_ops = {
+	static const struct snd_rawmidi_ops capture_ops = {
 		.open		= midi_capture_open,
 		.close		= midi_capture_close,
 		.trigger	= midi_capture_trigger,
 	};
-	static struct snd_rawmidi_ops playback_ops = {
+	static const struct snd_rawmidi_ops playback_ops = {
 		.open		= midi_playback_open,
 		.close		= midi_playback_close,
 		.trigger	= midi_playback_trigger,

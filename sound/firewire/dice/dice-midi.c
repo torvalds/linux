@@ -91,12 +91,12 @@ static void set_midi_substream_names(struct snd_dice *dice,
 
 int snd_dice_create_midi(struct snd_dice *dice)
 {
-	static struct snd_rawmidi_ops capture_ops = {
+	static const struct snd_rawmidi_ops capture_ops = {
 		.open		= midi_open,
 		.close		= midi_close,
 		.trigger	= midi_capture_trigger,
 	};
-	static struct snd_rawmidi_ops playback_ops = {
+	static const struct snd_rawmidi_ops playback_ops = {
 		.open		= midi_open,
 		.close		= midi_close,
 		.trigger	= midi_playback_trigger,
