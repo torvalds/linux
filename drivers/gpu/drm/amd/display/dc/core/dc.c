@@ -1246,10 +1246,6 @@ bool dc_pre_update_surfaces_to_target(
 					core_dc,
 					&context->res_ctx.pipe_ctx[j],
 					context);
-
-			if (!new_surfaces[i]->visible)
-				context->res_ctx.pipe_ctx[j].tg->funcs->set_blank(
-						context->res_ctx.pipe_ctx[j].tg, true);
 		}
 
 unexpected_fail:

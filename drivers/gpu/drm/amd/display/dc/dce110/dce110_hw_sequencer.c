@@ -1409,20 +1409,52 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
 					pipe_ctx->opp, &default_adjust);
 }
 
-static void program_blender(const struct core_dc *dc,
+
+/*******************************************************************************
+ * In order to turn on/off specific surface we will program
+ * Blender + CRTC
+ *
+ * In case that we have two surfaces and they have a different visibility
+ * we can't turn off the CRTC since it will turn off the entire display
+ *
+ * |----------------------------------------------- |
+ * |bottom pipe|curr pipe  |              |         |
+ * |Surface    |Surface    | Blender      |  CRCT   |
+ * |visibility |visibility | Configuration|         |
+ * |------------------------------------------------|
+ * |   off     |    off    | CURRENT_PIPE | blank   |
+ * |   off     |    on     | CURRENT_PIPE | unblank |
+ * |   on      |    off    | OTHER_PIPE   | unblank |
+ * |   on      |    on     | BLENDING     | unblank |
+ * -------------------------------------------------|
+ *
+ ******************************************************************************/
+static void program_surface_visibility(const struct core_dc *dc,
 		struct pipe_ctx *pipe_ctx)
 {
 	enum blnd_mode blender_mode = BLND_MODE_CURRENT_PIPE;
+	bool blank_target = false;
 
 	if (pipe_ctx->bottom_pipe) {
+
+		/* For now we are supporting only two pipes */
+		ASSERT(pipe_ctx->bottom_pipe->bottom_pipe == NULL);
+
 		if (pipe_ctx->bottom_pipe->surface->public.visible) {
 			if (pipe_ctx->surface->public.visible)
 				blender_mode = BLND_MODE_BLENDING;
 			else
 				blender_mode = BLND_MODE_OTHER_PIPE;
-		}
-	}
+
+		} else if (!pipe_ctx->surface->public.visible)
+			blank_target = true;
+
+	} else if (!pipe_ctx->surface->public.visible)
+		blank_target = true;
+
 	dce_set_blender_mode(dc->hwseq, pipe_ctx->pipe_idx, blender_mode);
+	pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, blank_target);
+
 }
 
 /**
@@ -1495,7 +1527,7 @@ static void set_plane_config(
 	pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 	program_scaler(dc, pipe_ctx);
 
-	program_blender(dc, pipe_ctx);
+	program_surface_visibility(dc, pipe_ctx);
 
 	mi->funcs->mem_input_program_surface_config(
 			mi,
@@ -1920,7 +1952,7 @@ static void dce110_apply_ctx_for_surface(
 			continue;
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
-		program_blender(dc, pipe_ctx);
+		program_surface_visibility(dc, pipe_ctx);
 
 	}
 }
