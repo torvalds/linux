@@ -14,6 +14,33 @@
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 
+/*
+ * KVM_MMU_CACHE_MIN_PAGES is the number of GPA page table translation levels
+ * for which pages need to be cached.
+ */
+#if defined(__PAGETABLE_PMD_FOLDED)
+#define KVM_MMU_CACHE_MIN_PAGES 1
+#else
+#define KVM_MMU_CACHE_MIN_PAGES 2
+#endif
+
+static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
+				  int min, int max)
+{
+	void *page;
+
+	BUG_ON(max > KVM_NR_MEM_OBJS);
+	if (cache->nobjs >= min)
+		return 0;
+	while (cache->nobjs < max) {
+		page = (void *)__get_free_page(GFP_KERNEL);
+		if (!page)
+			return -ENOMEM;
+		cache->objects[cache->nobjs++] = page;
+	}
+	return 0;
+}
+
 static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
 {
 	while (mc->nobjs)
@@ -149,6 +176,27 @@ unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
 		return KVM_INVALID_ADDR;
 
 	return (kvm->arch.guest_pmap[gfn] << PAGE_SHIFT) + offset;
+}
+
+static pte_t *kvm_trap_emul_pte_for_gva(struct kvm_vcpu *vcpu,
+					unsigned long addr)
+{
+	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
+	pgd_t *pgdp;
+	int ret;
+
+	/* We need a minimum of cached pages ready for page table creation */
+	ret = mmu_topup_memory_cache(memcache, KVM_MMU_CACHE_MIN_PAGES,
+				     KVM_NR_MEM_OBJS);
+	if (ret)
+		return NULL;
+
+	if (KVM_GUEST_KERNEL_MODE(vcpu))
+		pgdp = vcpu->arch.guest_kernel_mm.pgd;
+	else
+		pgdp = vcpu->arch.guest_user_mm.pgd;
+
+	return kvm_mips_walk_pgd(pgdp, memcache, addr);
 }
 
 void kvm_trap_emul_invalidate_gva(struct kvm_vcpu *vcpu, unsigned long addr,
@@ -316,16 +364,16 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	gfn_t gfn;
 	kvm_pfn_t pfn0, pfn1;
 	unsigned long vaddr = 0;
-	unsigned long entryhi = 0, entrylo0 = 0, entrylo1 = 0;
 	struct kvm *kvm = vcpu->kvm;
-	const int flush_dcache_mask = 0;
-	int ret;
+	pte_t *ptep_gva;
 
 	if (KVM_GUEST_KSEGX(badvaddr) != KVM_GUEST_KSEG0) {
 		kvm_err("%s: Invalid BadVaddr: %#lx\n", __func__, badvaddr);
 		kvm_mips_dump_host_tlbs();
 		return -1;
 	}
+
+	/* Find host PFNs */
 
 	gfn = (KVM_GUEST_CPHYSADDR(badvaddr) >> PAGE_SHIFT);
 	if ((gfn | 1) >= kvm->arch.guest_pmap_npages) {
@@ -345,20 +393,21 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	pfn0 = kvm->arch.guest_pmap[gfn & ~0x1];
 	pfn1 = kvm->arch.guest_pmap[gfn | 0x1];
 
-	entrylo0 = mips3_paddr_to_tlbpfn(pfn0 << PAGE_SHIFT) |
-		((_page_cachable_default >> _CACHE_SHIFT) << ENTRYLO_C_SHIFT) |
-		ENTRYLO_D | ENTRYLO_V;
-	entrylo1 = mips3_paddr_to_tlbpfn(pfn1 << PAGE_SHIFT) |
-		((_page_cachable_default >> _CACHE_SHIFT) << ENTRYLO_C_SHIFT) |
-		ENTRYLO_D | ENTRYLO_V;
+	/* Find GVA page table entry */
 
-	preempt_disable();
-	entryhi = (vaddr | kvm_mips_get_kernel_asid(vcpu));
-	ret = kvm_mips_host_tlb_write(vcpu, entryhi, entrylo0, entrylo1,
-				      flush_dcache_mask);
-	preempt_enable();
+	ptep_gva = kvm_trap_emul_pte_for_gva(vcpu, vaddr);
+	if (!ptep_gva) {
+		kvm_err("No ptep for gva %lx\n", vaddr);
+		return -1;
+	}
 
-	return ret;
+	/* Write host PFNs into GVA page table */
+	ptep_gva[0] = pte_mkyoung(pte_mkdirty(pfn_pte(pfn0, PAGE_SHARED)));
+	ptep_gva[1] = pte_mkyoung(pte_mkdirty(pfn_pte(pfn1, PAGE_SHARED)));
+
+	/* Invalidate this entry in the TLB, guest kernel ASID only */
+	kvm_mips_host_tlb_inv(vcpu, vaddr, false, true);
+	return 0;
 }
 
 int kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
