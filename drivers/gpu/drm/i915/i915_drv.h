@@ -4026,24 +4026,4 @@ int remap_io_mapping(struct vm_area_struct *vma,
 		     unsigned long addr, unsigned long pfn, unsigned long size,
 		     struct io_mapping *iomap);
 
-#define ptr_mask_bits(ptr) ({						\
-	unsigned long __v = (unsigned long)(ptr);			\
-	(typeof(ptr))(__v & PAGE_MASK);					\
-})
-
-#define ptr_unpack_bits(ptr, bits) ({					\
-	unsigned long __v = (unsigned long)(ptr);			\
-	(bits) = __v & ~PAGE_MASK;					\
-	(typeof(ptr))(__v & PAGE_MASK);					\
-})
-
-#define ptr_pack_bits(ptr, bits)					\
-	((typeof(ptr))((unsigned long)(ptr) | (bits)))
-
-#define fetch_and_zero(ptr) ({						\
-	typeof(*ptr) __T = *(ptr);					\
-	*(ptr) = (typeof(*ptr))0;					\
-	__T;								\
-})
-
 #endif
