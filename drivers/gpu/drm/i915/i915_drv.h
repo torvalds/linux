@@ -52,6 +52,7 @@
 
 #include "i915_params.h"
 #include "i915_reg.h"
+#include "i915_utils.h"
 
 #include "intel_bios.h"
 #include "intel_dpll_mgr.h"
@@ -218,18 +219,6 @@ static inline const char *enableddisabled(bool v)
 {
 	return v ? "enabled" : "disabled";
 }
-
-#define range_overflows(start, size, max) ({ \
-	typeof(start) start__ = (start); \
-	typeof(size) size__ = (size); \
-	typeof(max) max__ = (max); \
-	(void)(&start__ == &size__); \
-	(void)(&start__ == &max__); \
-	start__ > max__ || size__ > max__ - start__; \
-})
-
-#define range_overflows_t(type, start, size, max) \
-	range_overflows((type)(start), (type)(size), (type)(max))
 
 enum pipe {
 	INVALID_PIPE = -1,
