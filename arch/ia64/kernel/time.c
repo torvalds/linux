@@ -61,7 +61,7 @@ static struct clocksource *itc_clocksource;
 
 extern cputime_t cycle_to_cputime(u64 cyc);
 
-void vtime_account_user(struct task_struct *tsk)
+void vtime_flush(struct task_struct *tsk)
 {
 	struct thread_info *ti = task_thread_info(tsk);
 	cputime_t delta;

@@ -437,9 +437,7 @@ void vtime_common_task_switch(struct task_struct *prev)
 	else
 		vtime_account_system(prev);
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
-	vtime_account_user(prev);
-#endif
+	vtime_flush(prev);
 	arch_vtime_task_switch(prev);
 }
 #endif

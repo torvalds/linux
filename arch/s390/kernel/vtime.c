@@ -214,7 +214,7 @@ void vtime_task_switch(struct task_struct *prev)
  * accounting system time in order to correctly compute
  * the stolen time accounting.
  */
-void vtime_account_user(struct task_struct *tsk)
+void vtime_flush(struct task_struct *tsk)
 {
 	if (do_account_vtime(tsk))
 		virt_timer_expire();
