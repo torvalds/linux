@@ -1369,6 +1369,32 @@ static int vi_common_set_powergating_state(void *handle,
 	return 0;
 }
 
+static void vi_common_get_clockgating_state(void *handle, u32 *flags)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	/* AMD_CG_SUPPORT_BIF_LS */
+	data = RREG32_PCIE(ixPCIE_CNTL2);
+	if (data & PCIE_CNTL2__SLV_MEM_LS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_BIF_LS;
+
+	/* AMD_CG_SUPPORT_HDP_LS */
+	data = RREG32(mmHDP_MEM_POWER_LS);
+	if (data & HDP_MEM_POWER_LS__LS_ENABLE_MASK)
+		*flags |= AMD_CG_SUPPORT_HDP_LS;
+
+	/* AMD_CG_SUPPORT_HDP_MGCG */
+	data = RREG32(mmHDP_HOST_PATH_CNTL);
+	if (!(data & HDP_HOST_PATH_CNTL__CLOCK_GATING_DIS_MASK))
+		*flags |= AMD_CG_SUPPORT_HDP_MGCG;
+
+	/* AMD_CG_SUPPORT_ROM_MGCG */
+	data = RREG32_SMC(ixCGTT_ROM_CLK_CTRL0);
+	if (!(data & CGTT_ROM_CLK_CTRL0__SOFT_OVERRIDE0_MASK))
+		*flags |= AMD_CG_SUPPORT_ROM_MGCG;
+}
+
 static const struct amd_ip_funcs vi_common_ip_funcs = {
 	.name = "vi_common",
 	.early_init = vi_common_early_init,
@@ -1384,6 +1410,7 @@ static const struct amd_ip_funcs vi_common_ip_funcs = {
 	.soft_reset = vi_common_soft_reset,
 	.set_clockgating_state = vi_common_set_clockgating_state,
 	.set_powergating_state = vi_common_set_powergating_state,
+	.get_clockgating_state = vi_common_get_clockgating_state,
 };
 
 static const struct amdgpu_ip_block_version vi_common_ip_block =
