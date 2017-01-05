@@ -286,13 +286,6 @@ static int parse_dt(struct exynos_mic *mic)
 			}
 			nodes[j++] = remote_node;
 
-			ret = of_get_videomode(remote_node,
-							&mic->vm, 0);
-			if (ret) {
-				DRM_ERROR("mic: failed to get videomode");
-				goto exit;
-			}
-
 			break;
 		default:
 			DRM_ERROR("mic: Unknown endpoint from MIC");
@@ -326,6 +319,17 @@ static void mic_post_disable(struct drm_bridge *bridge)
 	mic->enabled = 0;
 
 already_disabled:
+	mutex_unlock(&mic_mutex);
+}
+
+static void mic_mode_set(struct drm_bridge *bridge,
+			struct drm_display_mode *mode,
+			struct drm_display_mode *adjusted_mode)
+{
+	struct exynos_mic *mic = bridge->driver_private;
+
+	mutex_lock(&mic_mutex);
+	drm_display_mode_to_videomode(mode, &mic->vm);
 	mutex_unlock(&mic_mutex);
 }
 
@@ -377,6 +381,7 @@ static void mic_enable(struct drm_bridge *bridge) { }
 static const struct drm_bridge_funcs mic_bridge_funcs = {
 	.disable = mic_disable,
 	.post_disable = mic_post_disable,
+	.mode_set = mic_mode_set,
 	.pre_enable = mic_pre_enable,
 	.enable = mic_enable,
 };
