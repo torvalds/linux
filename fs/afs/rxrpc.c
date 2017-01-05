@@ -416,6 +416,8 @@ static void afs_deliver_to_call(struct afs_call *call)
 			ret = rxrpc_kernel_recv_data(afs_socket, call->rxcall,
 						     NULL, 0, &offset, false,
 						     &call->abort_code);
+			trace_afs_recv_data(call, 0, offset, false, ret);
+
 			if (ret == -EINPROGRESS || ret == -EAGAIN)
 				return;
 			if (ret == 1 || ret < 0) {
@@ -541,6 +543,7 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 {
 	struct afs_call *call = (struct afs_call *)call_user_ID;
 
+	trace_afs_notify_call(rxcall, call);
 	call->need_attention = true;
 	queue_work(afs_async_calls, &call->async_work);
 }
@@ -689,6 +692,8 @@ static int afs_deliver_cm_op_id(struct afs_call *call)
 	if (!afs_cm_incoming_call(call))
 		return -ENOTSUPP;
 
+	trace_afs_cb_call(call);
+
 	/* pass responsibility for the remainer of this message off to the
 	 * cache manager op */
 	return call->type->deliver(call);
@@ -780,6 +785,7 @@ int afs_extract_data(struct afs_call *call, void *buf, size_t count,
 	ret = rxrpc_kernel_recv_data(afs_socket, call->rxcall,
 				     buf, count, &call->offset,
 				     want_more, &call->abort_code);
+	trace_afs_recv_data(call, count, call->offset, want_more, ret);
 	if (ret == 0 || ret == -EAGAIN)
 		return ret;
 

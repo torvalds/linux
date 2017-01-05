@@ -25,11 +25,16 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *);
 static int afs_deliver_cb_tell_me_about_yourself(struct afs_call *);
 static void afs_cm_destructor(struct afs_call *);
 
+#define CM_NAME(name) \
+	const char afs_SRXCB##name##_name[] __tracepoint_string =	\
+		"CB." #name
+
 /*
  * CB.CallBack operation type
  */
+static CM_NAME(CallBack);
 static const struct afs_call_type afs_SRXCBCallBack = {
-	.name		= "CB.CallBack",
+	.name		= afs_SRXCBCallBack_name,
 	.deliver	= afs_deliver_cb_callback,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
@@ -38,8 +43,9 @@ static const struct afs_call_type afs_SRXCBCallBack = {
 /*
  * CB.InitCallBackState operation type
  */
+static CM_NAME(InitCallBackState);
 static const struct afs_call_type afs_SRXCBInitCallBackState = {
-	.name		= "CB.InitCallBackState",
+	.name		= afs_SRXCBInitCallBackState_name,
 	.deliver	= afs_deliver_cb_init_call_back_state,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
@@ -48,8 +54,9 @@ static const struct afs_call_type afs_SRXCBInitCallBackState = {
 /*
  * CB.InitCallBackState3 operation type
  */
+static CM_NAME(InitCallBackState3);
 static const struct afs_call_type afs_SRXCBInitCallBackState3 = {
-	.name		= "CB.InitCallBackState3",
+	.name		= afs_SRXCBInitCallBackState3_name,
 	.deliver	= afs_deliver_cb_init_call_back_state3,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
@@ -58,8 +65,9 @@ static const struct afs_call_type afs_SRXCBInitCallBackState3 = {
 /*
  * CB.Probe operation type
  */
+static CM_NAME(Probe);
 static const struct afs_call_type afs_SRXCBProbe = {
-	.name		= "CB.Probe",
+	.name		= afs_SRXCBProbe_name,
 	.deliver	= afs_deliver_cb_probe,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
@@ -68,8 +76,9 @@ static const struct afs_call_type afs_SRXCBProbe = {
 /*
  * CB.ProbeUuid operation type
  */
+static CM_NAME(ProbeUuid);
 static const struct afs_call_type afs_SRXCBProbeUuid = {
-	.name		= "CB.ProbeUuid",
+	.name		= afs_SRXCBProbeUuid_name,
 	.deliver	= afs_deliver_cb_probe_uuid,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,
@@ -78,8 +87,9 @@ static const struct afs_call_type afs_SRXCBProbeUuid = {
 /*
  * CB.TellMeAboutYourself operation type
  */
+static CM_NAME(TellMeAboutYourself);
 static const struct afs_call_type afs_SRXCBTellMeAboutYourself = {
-	.name		= "CB.TellMeAboutYourself",
+	.name		= afs_SRXCBTellMeAboutYourself_name,
 	.deliver	= afs_deliver_cb_tell_me_about_yourself,
 	.abort_to_error	= afs_abort_to_error,
 	.destructor	= afs_cm_destructor,

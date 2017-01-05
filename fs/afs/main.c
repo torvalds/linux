@@ -15,6 +15,7 @@
 #include <linux/completion.h>
 #include <linux/sched.h>
 #include <linux/random.h>
+#define CREATE_TRACE_POINTS
 #include "internal.h"
 
 MODULE_DESCRIPTION("AFS Client File System");

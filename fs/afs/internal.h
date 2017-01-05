@@ -68,6 +68,15 @@ struct afs_wait_mode {
 extern const struct afs_wait_mode afs_sync_call;
 extern const struct afs_wait_mode afs_async_call;
 
+enum afs_call_state {
+	AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
+	AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
+	AFS_CALL_AWAIT_OP_ID,	/* awaiting op ID on incoming call */
+	AFS_CALL_AWAIT_REQUEST,	/* awaiting request data on incoming call */
+	AFS_CALL_REPLYING,	/* replying to incoming call */
+	AFS_CALL_AWAIT_ACK,	/* awaiting final ACK of incoming call */
+	AFS_CALL_COMPLETE,	/* Completed or failed */
+};
 /*
  * a record of an in-progress RxRPC call
  */
@@ -91,15 +100,7 @@ struct afs_call {
 	pgoff_t			first;		/* first page in mapping to deal with */
 	pgoff_t			last;		/* last page in mapping to deal with */
 	size_t			offset;		/* offset into received data store */
-	enum {					/* call state */
-		AFS_CALL_REQUESTING,	/* request is being sent for outgoing call */
-		AFS_CALL_AWAIT_REPLY,	/* awaiting reply to outgoing call */
-		AFS_CALL_AWAIT_OP_ID,	/* awaiting op ID on incoming call */
-		AFS_CALL_AWAIT_REQUEST,	/* awaiting request data on incoming call */
-		AFS_CALL_REPLYING,	/* replying to incoming call */
-		AFS_CALL_AWAIT_ACK,	/* awaiting final ACK of incoming call */
-		AFS_CALL_COMPLETE,	/* Completed or failed */
-	}			state;
+	enum afs_call_state	state;
 	int			error;		/* error code */
 	u32			abort_code;	/* Remote abort ID or 0 */
 	unsigned		request_size;	/* size of request data */
@@ -773,6 +774,8 @@ extern int afs_fsync(struct file *, loff_t, loff_t, int);
 /*
  * debug tracing
  */
+#include <trace/events/afs.h>
+
 extern unsigned afs_debug;
 
 #define dbgprintk(FMT,...) \
