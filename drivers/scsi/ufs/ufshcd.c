@@ -2545,11 +2545,10 @@ static inline int ufshcd_read_power_desc(struct ufs_hba *hba,
 	return err;
 }
 
-int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size)
+static int ufshcd_read_device_desc(struct ufs_hba *hba, u8 *buf, u32 size)
 {
 	return ufshcd_read_desc(hba, QUERY_DESC_IDN_DEVICE, 0, buf, size);
 }
-EXPORT_SYMBOL(ufshcd_read_device_desc);
 
 /**
  * ufshcd_read_string_desc - read string descriptor
@@ -2561,8 +2560,9 @@ EXPORT_SYMBOL(ufshcd_read_device_desc);
  *
  * Return 0 in case of success, non-zero otherwise
  */
-int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
-				u32 size, bool ascii)
+#define ASCII_STD true
+static int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index,
+				   u8 *buf, u32 size, bool ascii)
 {
 	int err = 0;
 
@@ -2618,7 +2618,6 @@ int ufshcd_read_string_desc(struct ufs_hba *hba, int desc_index, u8 *buf,
 out:
 	return err;
 }
-EXPORT_SYMBOL(ufshcd_read_string_desc);
 
 /**
  * ufshcd_read_unit_desc_param - read the specified unit descriptor parameter
