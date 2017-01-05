@@ -1075,7 +1075,8 @@ struct dwc2_hsotg {
 	spinlock_t lock;
 	void *priv;
 	int     irq;
-	struct clk *clk;
+	struct clk_bulk_data *clks;
+	int num_clks;
 	struct reset_control *reset;
 	struct reset_control *reset_ecc;
 

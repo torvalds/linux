@@ -143,11 +143,9 @@ static int __dwc2_lowlevel_hw_enable(struct dwc2_hsotg *hsotg)
 	if (ret)
 		return ret;
 
-	if (hsotg->clk) {
-		ret = clk_prepare_enable(hsotg->clk);
-		if (ret)
-			return ret;
-	}
+	ret = clk_bulk_prepare_enable(hsotg->num_clks, hsotg->clks);
+	if (ret)
+		return ret;
 
 	if (hsotg->uphy) {
 		ret = usb_phy_init(hsotg->uphy);
@@ -195,8 +193,7 @@ static int __dwc2_lowlevel_hw_disable(struct dwc2_hsotg *hsotg)
 	if (ret)
 		return ret;
 
-	if (hsotg->clk)
-		clk_disable_unprepare(hsotg->clk);
+	clk_bulk_disable_unprepare(hsotg->num_clks, hsotg->clks);
 
 	return 0;
 }
@@ -281,10 +278,18 @@ static int dwc2_lowlevel_hw_init(struct dwc2_hsotg *hsotg)
 	hsotg->plat = dev_get_platdata(hsotg->dev);
 
 	/* Clock */
-	hsotg->clk = devm_clk_get_optional(hsotg->dev, "otg");
-	if (IS_ERR(hsotg->clk)) {
-		dev_err(hsotg->dev, "cannot get otg clock\n");
-		return PTR_ERR(hsotg->clk);
+	if (hsotg->dev->of_node) {
+		ret = devm_clk_bulk_get_all(hsotg->dev, &hsotg->clks);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+		/*
+		 * Clocks are optional, but new DT platforms should support all
+		 * clocks as required by the DT-binding.
+		 */
+		if (ret < 0)
+			hsotg->num_clks = 0;
+		else
+			hsotg->num_clks = ret;
 	}
 
 	/* Regulators */
