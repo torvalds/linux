@@ -1137,7 +1137,7 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	int ret;
 
 	/* Convert the array into a 64-bit MAC */
-	mac = b53_mac_to_u64(addr);
+	mac = ether_addr_to_u64(addr);
 
 	/* Perform a read for the given MAC and VID */
 	b53_write48(dev, B53_ARLIO_PAGE, B53_MAC_ADDR_IDX, mac);
