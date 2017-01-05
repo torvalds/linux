@@ -134,6 +134,22 @@ struct afs_call_type {
 };
 
 /*
+ * Record of an outstanding read operation on a vnode.
+ */
+struct afs_read {
+	loff_t			pos;		/* Where to start reading */
+	loff_t			len;		/* How much to read */
+	loff_t			actual_len;	/* How much we're actually getting */
+	atomic_t		usage;
+	unsigned int		remain;		/* Amount remaining */
+	unsigned int		index;		/* Which page we're reading into */
+	unsigned int		pg_offset;	/* Offset in page we're at */
+	unsigned int		nr_pages;
+	void (*page_done)(struct afs_call *, struct afs_read *);
+	struct page		*pages[];
+};
+
+/*
  * record of an outstanding writeback on a vnode
  */
 struct afs_writeback {
@@ -494,6 +510,7 @@ extern const struct file_operations afs_file_operations;
 extern int afs_open(struct inode *, struct file *);
 extern int afs_release(struct inode *, struct file *);
 extern int afs_page_filler(void *, struct page *);
+extern void afs_put_read(struct afs_read *);
 
 /*
  * flock.c
@@ -513,7 +530,7 @@ extern int afs_fs_fetch_file_status(struct afs_server *, struct key *,
 extern int afs_fs_give_up_callbacks(struct afs_server *,
 				    const struct afs_wait_mode *);
 extern int afs_fs_fetch_data(struct afs_server *, struct key *,
-			     struct afs_vnode *, off_t, size_t, struct page *,
+			     struct afs_vnode *, struct afs_read *,
 			     const struct afs_wait_mode *);
 extern int afs_fs_create(struct afs_server *, struct key *,
 			 struct afs_vnode *, const char *, umode_t,
@@ -699,7 +716,7 @@ extern void afs_vnode_finalise_status_update(struct afs_vnode *,
 extern int afs_vnode_fetch_status(struct afs_vnode *, struct afs_vnode *,
 				  struct key *);
 extern int afs_vnode_fetch_data(struct afs_vnode *, struct key *,
-				off_t, size_t, struct page *);
+				struct afs_read *);
 extern int afs_vnode_create(struct afs_vnode *, struct key *, const char *,
 			    umode_t, struct afs_fid *, struct afs_file_status *,
 			    struct afs_callback *, struct afs_server **);

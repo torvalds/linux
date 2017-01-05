@@ -101,6 +101,21 @@ int afs_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+/*
+ * Dispose of a ref to a read record.
+ */
+void afs_put_read(struct afs_read *req)
+{
+	int i;
+
+	if (atomic_dec_and_test(&req->usage)) {
+		for (i = 0; i < req->nr_pages; i++)
+			if (req->pages[i])
+				put_page(req->pages[i]);
+		kfree(req);
+	}
+}
+
 #ifdef CONFIG_AFS_FSCACHE
 /*
  * deal with notification that a page was read from the cache
@@ -126,9 +141,8 @@ int afs_page_filler(void *data, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct afs_vnode *vnode = AFS_FS_I(inode);
+	struct afs_read *req;
 	struct key *key = data;
-	size_t len;
-	off_t offset;
 	int ret;
 
 	_enter("{%x},{%lu},{%lu}", key_serial(key), inode->i_ino, page->index);
@@ -164,12 +178,23 @@ int afs_page_filler(void *data, struct page *page)
 		_debug("cache said ENOBUFS");
 	default:
 	go_on:
-		offset = page->index << PAGE_SHIFT;
-		len = min_t(size_t, i_size_read(inode) - offset, PAGE_SIZE);
+		req = kzalloc(sizeof(struct afs_read) + sizeof(struct page *),
+			      GFP_KERNEL);
+		if (!req)
+			goto enomem;
+
+		atomic_set(&req->usage, 1);
+		req->pos = (loff_t)page->index << PAGE_SHIFT;
+		req->len = min_t(size_t, i_size_read(inode) - req->pos,
+				 PAGE_SIZE);
+		req->nr_pages = 1;
+		req->pages[0] = page;
+		get_page(page);
 
 		/* read the contents of the file from the server into the
 		 * page */
-		ret = afs_vnode_fetch_data(vnode, key, offset, len, page);
+		ret = afs_vnode_fetch_data(vnode, key, req);
+		afs_put_read(req);
 		if (ret < 0) {
 			if (ret == -ENOENT) {
 				_debug("got NOENT from server"
@@ -201,6 +226,8 @@ int afs_page_filler(void *data, struct page *page)
 	_leave(" = 0");
 	return 0;
 
+enomem:
+	ret = -ENOMEM;
 error:
 	SetPageError(page);
 	unlock_page(page);

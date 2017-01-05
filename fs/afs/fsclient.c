@@ -309,15 +309,19 @@ int afs_fs_fetch_file_status(struct afs_server *server,
 static int afs_deliver_fs_fetch_data(struct afs_call *call)
 {
 	struct afs_vnode *vnode = call->reply;
+	struct afs_read *req = call->reply3;
 	const __be32 *bp;
-	struct page *page;
+	unsigned int size;
 	void *buffer;
 	int ret;
 
-	_enter("{%u}", call->unmarshall);
+	_enter("{%u,%zu/%u;%u/%llu}",
+	       call->unmarshall, call->offset, call->count,
+	       req->remain, req->actual_len);
 
 	switch (call->unmarshall) {
 	case 0:
+		req->actual_len = 0;
 		call->offset = 0;
 		call->unmarshall++;
 		if (call->operation_ID != FSFETCHDATA64) {
@@ -334,10 +338,8 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-		call->count = ntohl(call->tmp);
-		_debug("DATA length MSW: %u", call->count);
-		if (call->count > 0)
-			return -EBADMSG;
+		req->actual_len = ntohl(call->tmp);
+		req->actual_len <<= 32;
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -349,26 +351,52 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 		if (ret < 0)
 			return ret;
 
-		call->count = ntohl(call->tmp);
-		_debug("DATA length: %u", call->count);
-		if (call->count > PAGE_SIZE)
+		req->actual_len |= ntohl(call->tmp);
+		_debug("DATA length: %llu", req->actual_len);
+		/* Check that the server didn't want to send us extra.  We
+		 * might want to just discard instead, but that requires
+		 * cooperation from AF_RXRPC.
+		 */
+		if (req->actual_len > req->len)
 			return -EBADMSG;
-		call->offset = 0;
+
+		req->remain = req->actual_len;
+		call->offset = req->pos & (PAGE_SIZE - 1);
+		req->index = 0;
+		if (req->actual_len == 0)
+			goto no_more_data;
 		call->unmarshall++;
+
+	begin_page:
+		if (req->remain > PAGE_SIZE - call->offset)
+			size = PAGE_SIZE - call->offset;
+		else
+			size = req->remain;
+		call->count = call->offset + size;
+		ASSERTCMP(call->count, <=, PAGE_SIZE);
+		req->remain -= size;
 
 		/* extract the returned data */
 	case 3:
-		_debug("extract data");
-		if (call->count > 0) {
-			page = call->reply3;
-			buffer = kmap(page);
-			ret = afs_extract_data(call, buffer,
-					       call->count, true);
-			kunmap(page);
-			if (ret < 0)
-				return ret;
+		_debug("extract data %u/%llu %zu/%u",
+		       req->remain, req->actual_len, call->offset, call->count);
+
+		buffer = kmap(req->pages[req->index]);
+		ret = afs_extract_data(call, buffer, call->count, true);
+		kunmap(req->pages[req->index]);
+		if (ret < 0)
+			return ret;
+		if (call->offset == PAGE_SIZE) {
+			if (req->page_done)
+				req->page_done(call, req);
+			if (req->remain > 0) {
+				req->index++;
+				call->offset = 0;
+				goto begin_page;
+			}
 		}
 
+	no_more_data:
 		call->offset = 0;
 		call->unmarshall++;
 
@@ -393,15 +421,23 @@ static int afs_deliver_fs_fetch_data(struct afs_call *call)
 	}
 
 	if (call->count < PAGE_SIZE) {
-		_debug("clear");
-		page = call->reply3;
-		buffer = kmap(page);
+		buffer = kmap(req->pages[req->index]);
 		memset(buffer + call->count, 0, PAGE_SIZE - call->count);
-		kunmap(page);
+		kunmap(req->pages[req->index]);
+		if (req->page_done)
+			req->page_done(call, req);
 	}
 
 	_leave(" = 0 [done]");
 	return 0;
+}
+
+static void afs_fetch_data_destructor(struct afs_call *call)
+{
+	struct afs_read *req = call->reply3;
+
+	afs_put_read(req);
+	afs_flat_call_destructor(call);
 }
 
 /*
@@ -411,14 +447,14 @@ static const struct afs_call_type afs_RXFSFetchData = {
 	.name		= "FS.FetchData",
 	.deliver	= afs_deliver_fs_fetch_data,
 	.abort_to_error	= afs_abort_to_error,
-	.destructor	= afs_flat_call_destructor,
+	.destructor	= afs_fetch_data_destructor,
 };
 
 static const struct afs_call_type afs_RXFSFetchData64 = {
 	.name		= "FS.FetchData64",
 	.deliver	= afs_deliver_fs_fetch_data,
 	.abort_to_error	= afs_abort_to_error,
-	.destructor	= afs_flat_call_destructor,
+	.destructor	= afs_fetch_data_destructor,
 };
 
 /*
@@ -427,16 +463,13 @@ static const struct afs_call_type afs_RXFSFetchData64 = {
 static int afs_fs_fetch_data64(struct afs_server *server,
 			       struct key *key,
 			       struct afs_vnode *vnode,
-			       off_t offset, size_t length,
-			       struct page *buffer,
+			       struct afs_read *req,
 			       const struct afs_wait_mode *wait_mode)
 {
 	struct afs_call *call;
 	__be32 *bp;
 
 	_enter("");
-
-	ASSERTCMP(length, <, ULONG_MAX);
 
 	call = afs_alloc_flat_call(&afs_RXFSFetchData64, 32, (21 + 3 + 6) * 4);
 	if (!call)
@@ -445,7 +478,7 @@ static int afs_fs_fetch_data64(struct afs_server *server,
 	call->key = key;
 	call->reply = vnode;
 	call->reply2 = NULL; /* volsync */
-	call->reply3 = buffer;
+	call->reply3 = req;
 	call->service_id = FS_SERVICE;
 	call->port = htons(AFS_FS_PORT);
 	call->operation_ID = FSFETCHDATA64;
@@ -456,11 +489,12 @@ static int afs_fs_fetch_data64(struct afs_server *server,
 	bp[1] = htonl(vnode->fid.vid);
 	bp[2] = htonl(vnode->fid.vnode);
 	bp[3] = htonl(vnode->fid.unique);
-	bp[4] = htonl(upper_32_bits(offset));
-	bp[5] = htonl((u32) offset);
+	bp[4] = htonl(upper_32_bits(req->pos));
+	bp[5] = htonl(lower_32_bits(req->pos));
 	bp[6] = 0;
-	bp[7] = htonl((u32) length);
+	bp[7] = htonl(lower_32_bits(req->len));
 
+	atomic_inc(&req->usage);
 	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
 }
 
@@ -470,16 +504,16 @@ static int afs_fs_fetch_data64(struct afs_server *server,
 int afs_fs_fetch_data(struct afs_server *server,
 		      struct key *key,
 		      struct afs_vnode *vnode,
-		      off_t offset, size_t length,
-		      struct page *buffer,
+		      struct afs_read *req,
 		      const struct afs_wait_mode *wait_mode)
 {
 	struct afs_call *call;
 	__be32 *bp;
 
-	if (upper_32_bits(offset) || upper_32_bits(offset + length))
-		return afs_fs_fetch_data64(server, key, vnode, offset, length,
-					   buffer, wait_mode);
+	if (upper_32_bits(req->pos) ||
+	    upper_32_bits(req->len) ||
+	    upper_32_bits(req->pos + req->len))
+		return afs_fs_fetch_data64(server, key, vnode, req, wait_mode);
 
 	_enter("");
 
@@ -490,7 +524,7 @@ int afs_fs_fetch_data(struct afs_server *server,
 	call->key = key;
 	call->reply = vnode;
 	call->reply2 = NULL; /* volsync */
-	call->reply3 = buffer;
+	call->reply3 = req;
 	call->service_id = FS_SERVICE;
 	call->port = htons(AFS_FS_PORT);
 	call->operation_ID = FSFETCHDATA;
@@ -501,9 +535,10 @@ int afs_fs_fetch_data(struct afs_server *server,
 	bp[1] = htonl(vnode->fid.vid);
 	bp[2] = htonl(vnode->fid.vnode);
 	bp[3] = htonl(vnode->fid.unique);
-	bp[4] = htonl(offset);
-	bp[5] = htonl(length);
+	bp[4] = htonl(lower_32_bits(req->pos));
+	bp[5] = htonl(lower_32_bits(req->len));
 
+	atomic_inc(&req->usage);
 	return afs_make_call(&server->addr, call, GFP_NOFS, wait_mode);
 }
 
