@@ -407,6 +407,7 @@ void arch_vtime_task_switch(struct task_struct *prev)
 	struct cpu_accounting_data *acct = get_accounting(current);
 
 	acct->starttime = get_accounting(prev)->starttime;
+	acct->startspurr = get_accounting(prev)->startspurr;
 	acct->system_time = 0;
 	acct->user_time = 0;
 }
