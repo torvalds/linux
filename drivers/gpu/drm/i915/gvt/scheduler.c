@@ -459,10 +459,10 @@ complete:
 		gvt_dbg_sched("will complete workload %p\n, status: %d\n",
 				workload, workload->status);
 
-		complete_current_workload(gvt, ring_id);
-
 		if (workload->req)
 			i915_gem_request_put(fetch_and_zero(&workload->req));
+
+		complete_current_workload(gvt, ring_id);
 
 		if (need_force_wake)
 			intel_uncore_forcewake_put(gvt->dev_priv,
