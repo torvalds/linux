@@ -3487,17 +3487,6 @@ static void si_apply_state_adjust_rules(struct amdgpu_device *adev,
 		    (adev->pdev->device == 0x6817) ||
 		    (adev->pdev->device == 0x6806))
 			max_mclk = 120000;
-	} else if (adev->asic_type == CHIP_OLAND) {
-		if ((adev->pdev->revision == 0xC7) ||
-		    (adev->pdev->revision == 0x80) ||
-		    (adev->pdev->revision == 0x81) ||
-		    (adev->pdev->revision == 0x83) ||
-		    (adev->pdev->revision == 0x87) ||
-		    (adev->pdev->device == 0x6604) ||
-		    (adev->pdev->device == 0x6605)) {
-			max_sclk = 75000;
-			max_mclk = 80000;
-		}
 	} else if (adev->asic_type == CHIP_HAINAN) {
 		if ((adev->pdev->revision == 0x81) ||
 		    (adev->pdev->revision == 0x83) ||
