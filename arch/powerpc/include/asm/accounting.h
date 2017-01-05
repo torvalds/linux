@@ -12,9 +12,17 @@
 
 /* Stuff for accurate time accounting */
 struct cpu_accounting_data {
-	unsigned long user_time;	/* accumulated usermode TB ticks */
-	unsigned long system_time;	/* accumulated system TB ticks */
-	unsigned long user_time_scaled;	/* accumulated usermode SPURR ticks */
+	/* Accumulated cputime values to flush on ticks*/
+	unsigned long utime;
+	unsigned long stime;
+	unsigned long utime_scaled;
+	unsigned long stime_scaled;
+	unsigned long gtime;
+	unsigned long hardirq_time;
+	unsigned long softirq_time;
+	unsigned long steal_time;
+	unsigned long idle_time;
+	/* Internal counters */
 	unsigned long starttime;	/* TB value snapshot */
 	unsigned long starttime_user;	/* TB value on exit to usermode */
 	unsigned long startspurr;	/* SPURR value snapshot */

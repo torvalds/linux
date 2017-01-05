@@ -271,8 +271,8 @@ void accumulate_stolen_time(void)
 
 	sst = scan_dispatch_log(acct->starttime_user);
 	ust = scan_dispatch_log(acct->starttime);
-	acct->system_time -= sst;
-	acct->user_time -= ust;
+	acct->stime -= sst;
+	acct->utime -= ust;
 	local_paca->stolen_time += ust + sst;
 
 	local_paca->soft_enabled = save_soft_enabled;
@@ -281,10 +281,11 @@ void accumulate_stolen_time(void)
 static inline u64 calculate_stolen_time(u64 stop_tb)
 {
 	u64 stolen = 0;
+	struct cpu_accounting_data *acct = &local_paca->accounting;
 
 	if (get_paca()->dtl_ridx != be64_to_cpu(get_lppaca()->dtl_idx)) {
 		stolen = scan_dispatch_log(stop_tb);
-		get_paca()->accounting.system_time -= stolen;
+		acct->stime -= stolen;
 	}
 
 	stolen += get_paca()->stolen_time;
@@ -316,17 +317,17 @@ static unsigned long vtime_delta(struct task_struct *tsk,
 
 	now = mftb();
 	nowscaled = read_spurr(now);
-	acct->system_time += now - acct->starttime;
+	acct->stime += now - acct->starttime;
 	acct->starttime = now;
 	deltascaled = nowscaled - acct->startspurr;
 	acct->startspurr = nowscaled;
 
 	*stolen = calculate_stolen_time(now);
 
-	delta = acct->system_time;
-	acct->system_time = 0;
-	udelta = acct->user_time - acct->utime_sspurr;
-	acct->utime_sspurr = acct->user_time;
+	delta = acct->stime;
+	acct->stime = 0;
+	udelta = acct->utime - acct->utime_sspurr;
+	acct->utime_sspurr = acct->utime;
 
 	/*
 	 * Because we don't read the SPURR on every kernel entry/exit,
@@ -348,7 +349,7 @@ static unsigned long vtime_delta(struct task_struct *tsk,
 			*sys_scaled = deltascaled;
 		}
 	}
-	acct->user_time_scaled += user_scaled;
+	acct->utime_scaled += user_scaled;
 
 	return delta;
 }
@@ -387,10 +388,10 @@ void vtime_account_user(struct task_struct *tsk)
 	cputime_t utime, utimescaled;
 	struct cpu_accounting_data *acct = get_accounting(tsk);
 
-	utime = acct->user_time;
-	utimescaled = acct->user_time_scaled;
-	acct->user_time = 0;
-	acct->user_time_scaled = 0;
+	utime = acct->utime;
+	utimescaled = acct->utime_scaled;
+	acct->utime = 0;
+	acct->utime_scaled = 0;
 	acct->utime_sspurr = 0;
 	account_user_time(tsk, utime);
 	tsk->utimescaled += utimescaled;
@@ -408,8 +409,8 @@ void arch_vtime_task_switch(struct task_struct *prev)
 
 	acct->starttime = get_accounting(prev)->starttime;
 	acct->startspurr = get_accounting(prev)->startspurr;
-	acct->system_time = 0;
-	acct->user_time = 0;
+	acct->stime = 0;
+	acct->utime = 0;
 }
 #endif /* CONFIG_PPC32 */
 

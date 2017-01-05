@@ -2287,9 +2287,9 @@ static void dump_one_paca(int cpu)
 	DUMP(p, subcore_sibling_mask, "x");
 #endif
 
-	DUMP(p, accounting.user_time, "llx");
-	DUMP(p, accounting.system_time, "llx");
-	DUMP(p, accounting.user_time_scaled, "llx");
+	DUMP(p, accounting.utime, "llx");
+	DUMP(p, accounting.stime, "llx");
+	DUMP(p, accounting.utime_scaled, "llx");
 	DUMP(p, accounting.starttime, "llx");
 	DUMP(p, accounting.starttime_user, "llx");
 	DUMP(p, accounting.startspurr, "llx");
