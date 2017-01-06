@@ -1729,6 +1729,17 @@ irq_fail:
 	return ret;
 }
 
+void bq25700_shutdown(struct i2c_client *client)
+{
+	int vol_idx;
+	struct bq25700_device *charger = i2c_get_clientdata(client);
+
+	vol_idx = bq25700_find_idx(DEFAULT_INPUTVOL, TBL_INPUTVOL);
+	bq25700_field_write(charger, INPUT_VOLTAGE, vol_idx);
+	bq25700_field_write(charger, INPUT_CURRENT,
+			    charger->init_data.input_current_sdp);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int bq25700_pm_suspend(struct device *dev)
 {
@@ -1763,6 +1774,7 @@ static const struct of_device_id bq25700_of_match[] = {
 
 static struct i2c_driver bq25700_driver = {
 	.probe		= bq25700_probe,
+	.shutdown	= bq25700_shutdown,
 	.id_table	= bq25700_i2c_ids,
 	.driver = {
 		.name		= "bq25700-charger",
