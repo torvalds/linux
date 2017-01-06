@@ -56,9 +56,6 @@ static struct sock *__l2tp_ip_bind_lookup(const struct net *net, __be32 laddr,
 		const struct l2tp_ip_sock *l2tp = l2tp_ip_sk(sk);
 		const struct inet_sock *inet = inet_sk(sk);
 
-		if (l2tp == NULL)
-			continue;
-
 		if ((l2tp->conn_id == tunnel_id) &&
 		    net_eq(sock_net(sk), net) &&
 		    !(inet->inet_rcv_saddr && inet->inet_rcv_saddr != laddr) &&
