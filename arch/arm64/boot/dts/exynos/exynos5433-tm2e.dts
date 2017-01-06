@@ -25,7 +25,6 @@
 
 &ldo25_reg {
 	regulator-name = "UNUSED_LDO25";
-	regulator-always-off;
 };
 
 &ldo31_reg {
