@@ -491,7 +491,7 @@ static int adc128_probe(struct i2c_client *client,
 		data->vref = 2560;	/* 2.56V, in mV */
 	}
 
-	/* Operation mode is optional and defaults to mode 0 */
+	/* Operation mode is optional. If unspecified, keep current mode */
 	if (of_property_read_u8(dev->of_node, "ti,mode", &data->mode) == 0) {
 		if (data->mode > 3) {
 			dev_err(dev, "invalid operation mode %d\n",
@@ -500,7 +500,10 @@ static int adc128_probe(struct i2c_client *client,
 			goto error;
 		}
 	} else {
-		data->mode = 0;
+		err = i2c_smbus_read_byte_data(client, ADC128_REG_CONFIG_ADV);
+		if (err < 0)
+			goto error;
+		data->mode = (err >> 1) & ADC128_REG_MASK;
 	}
 
 	data->client = client;
