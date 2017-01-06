@@ -464,8 +464,10 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 		 * Note that the cred_unused list must be time-ordered.
 		 */
 		if (time_in_range(cred->cr_expire, expired, jiffies) &&
-		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0)
+		    test_bit(RPCAUTH_CRED_HASHED, &cred->cr_flags) != 0) {
+			freed = SHRINK_STOP;
 			break;
+		}
 
 		list_del_init(&cred->cr_lru);
 		number_cred_unused--;
@@ -520,7 +522,7 @@ static unsigned long
 rpcauth_cache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 
 {
-	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
+	return number_cred_unused * sysctl_vfs_cache_pressure / 100;
 }
 
 static void
