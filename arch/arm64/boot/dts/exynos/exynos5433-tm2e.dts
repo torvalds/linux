@@ -11,7 +11,7 @@
  * published by the Free Software Foundation.
  */
 
-#include "exynos5433-tm2.dts"
+#include "exynos5433-tm2-common.dtsi"
 
 / {
 	model = "Samsung TM2E board";
