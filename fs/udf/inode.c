@@ -43,10 +43,6 @@
 #include "udf_i.h"
 #include "udf_sb.h"
 
-MODULE_AUTHOR("Ben Fennema");
-MODULE_DESCRIPTION("Universal Disk Format Filesystem");
-MODULE_LICENSE("GPL");
-
 #define EXTENT_MERGE_SIZE 5
 
 static umode_t udf_convert_permissions(struct fileEntry *);

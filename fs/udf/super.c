@@ -264,9 +264,6 @@ static void __exit exit_udf_fs(void)
 	destroy_inodecache();
 }
 
-module_init(init_udf_fs)
-module_exit(exit_udf_fs)
-
 static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
 {
 	struct udf_sb_info *sbi = UDF_SB(sb);
@@ -2500,3 +2497,9 @@ static unsigned int udf_count_free(struct super_block *sb)
 
 	return accum;
 }
+
+MODULE_AUTHOR("Ben Fennema");
+MODULE_DESCRIPTION("Universal Disk Format Filesystem");
+MODULE_LICENSE("GPL");
+module_init(init_udf_fs)
+module_exit(exit_udf_fs)
