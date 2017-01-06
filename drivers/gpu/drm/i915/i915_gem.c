@@ -2090,23 +2090,21 @@ static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 	int err;
 
 	err = drm_gem_create_mmap_offset(&obj->base);
-	if (!err)
+	if (likely(!err))
 		return 0;
 
-	/* We can idle the GPU locklessly to flush stale objects, but in order
-	 * to claim that space for ourselves, we need to take the big
-	 * struct_mutex to free the requests+objects and allocate our slot.
-	 */
-	err = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
-	if (err)
-		return err;
+	/* Attempt to reap some mmap space from dead objects */
+	do {
+		err = i915_gem_wait_for_idle(dev_priv, I915_WAIT_INTERRUPTIBLE);
+		if (err)
+			break;
 
-	err = i915_mutex_lock_interruptible(&dev_priv->drm);
-	if (!err) {
-		i915_gem_retire_requests(dev_priv);
+		i915_gem_drain_freed_objects(dev_priv);
 		err = drm_gem_create_mmap_offset(&obj->base);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
-	}
+		if (!err)
+			break;
+
+	} while (flush_delayed_work(&dev_priv->gt.retire_work));
 
 	return err;
 }
