@@ -49,6 +49,7 @@ static const struct kvm_irq_level default_vtimer_irq = {
 static bool kvm_timer_irq_can_fire(struct arch_timer_context *timer_ctx);
 static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				 struct arch_timer_context *timer_ctx);
+static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx);
 
 u64 kvm_phys_timer_read(void)
 {
@@ -226,7 +227,7 @@ static enum hrtimer_restart kvm_phys_timer_expire(struct hrtimer *hrt)
 	return HRTIMER_NORESTART;
 }
 
-bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
+static bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 {
 	u64 cval, now;
 
@@ -237,6 +238,25 @@ bool kvm_timer_should_fire(struct arch_timer_context *timer_ctx)
 	now = kvm_phys_timer_read() - timer_ctx->cntvoff;
 
 	return cval <= now;
+}
+
+bool kvm_timer_is_pending(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
+	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
+
+	if (vtimer->irq.level || ptimer->irq.level)
+		return true;
+
+	/*
+	 * When this is called from withing the wait loop of kvm_vcpu_block(),
+	 * the software view of the timer state is up to date (timer->loaded
+	 * is false), and so we can simply check if the timer should fire now.
+	 */
+	if (!vtimer->loaded && kvm_timer_should_fire(vtimer))
+		return true;
+
+	return kvm_timer_should_fire(ptimer);
 }
 
 /*
