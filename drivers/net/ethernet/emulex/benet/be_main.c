@@ -275,8 +275,7 @@ static int be_dev_mac_add(struct be_adapter *adapter, u8 *mac)
 
 	/* Check if mac has already been added as part of uc-list */
 	for (i = 0; i < adapter->uc_macs; i++) {
-		if (ether_addr_equal((u8 *)&adapter->uc_list[i * ETH_ALEN],
-				     mac)) {
+		if (ether_addr_equal(adapter->uc_list[i].mac, mac)) {
 			/* mac already added, skip addition */
 			adapter->pmac_id[0] = adapter->pmac_id[i + 1];
 			return 0;
@@ -1655,14 +1654,12 @@ static void be_clear_mc_list(struct be_adapter *adapter)
 
 static int be_uc_mac_add(struct be_adapter *adapter, int uc_idx)
 {
-	if (ether_addr_equal((u8 *)&adapter->uc_list[uc_idx * ETH_ALEN],
-			     adapter->dev_mac)) {
+	if (ether_addr_equal(adapter->uc_list[uc_idx].mac, adapter->dev_mac)) {
 		adapter->pmac_id[uc_idx + 1] = adapter->pmac_id[0];
 		return 0;
 	}
 
-	return be_cmd_pmac_add(adapter,
-			       (u8 *)&adapter->uc_list[uc_idx * ETH_ALEN],
+	return be_cmd_pmac_add(adapter, adapter->uc_list[uc_idx].mac,
 			       adapter->if_handle,
 			       &adapter->pmac_id[uc_idx + 1], 0);
 }
