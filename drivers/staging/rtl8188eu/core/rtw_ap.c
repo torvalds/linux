@@ -94,10 +94,9 @@ static void update_BCNTIM(struct adapter *padapter)
 		offset += pnetwork_mlmeext->Ssid.SsidLength + 2;
 
 		/*  get supported rates len */
-		p = rtw_get_ie(pie + _BEACON_IE_OFFSET_,
-				_SUPPORTEDRATES_IE_, &tmp_len,
-				(pnetwork_mlmeext->IELength -
-					_BEACON_IE_OFFSET_));
+		p = rtw_get_ie(pie + _BEACON_IE_OFFSET_, _SUPPORTEDRATES_IE_,
+			       &tmp_len, (pnetwork_mlmeext->IELength -
+					  _BEACON_IE_OFFSET_));
 		if (p)
 			offset += tmp_len+2;
 
@@ -116,13 +115,12 @@ static void update_BCNTIM(struct adapter *padapter)
 	if (remainder_ielen > 0) {
 		pbackup_remainder_ie = rtw_malloc(remainder_ielen);
 		if (pbackup_remainder_ie && premainder_ie)
-			memcpy(pbackup_remainder_ie,
-					premainder_ie, remainder_ielen);
+			memcpy(pbackup_remainder_ie, premainder_ie,
+			       remainder_ielen);
 	}
 	*dst_ie++ = _TIM_IE_;
 
-	if ((pstapriv->tim_bitmap&0xff00) &&
-			(pstapriv->tim_bitmap&0x00fc))
+	if ((pstapriv->tim_bitmap&0xff00) && (pstapriv->tim_bitmap&0x00fc))
 		tim_ielen = 5;
 	else
 		tim_ielen = 4;
@@ -157,7 +155,7 @@ static void update_BCNTIM(struct adapter *padapter)
 }
 
 void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
-			u8 index, u8 *data, u8 len)
+		    u8 index, u8 *data, u8 len)
 {
 	struct ndis_802_11_var_ie *pIE;
 	u8 bmatch = false;
@@ -201,8 +199,8 @@ void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
 	if (remainder_ielen > 0) {
 		pbackup_remainder_ie = rtw_malloc(remainder_ielen);
 		if (pbackup_remainder_ie && premainder_ie)
-			memcpy(pbackup_remainder_ie,
-					premainder_ie, remainder_ielen);
+			memcpy(pbackup_remainder_ie, premainder_ie,
+			       remainder_ielen);
 	}
 
 	*dst_ie++ = index;
@@ -223,7 +221,7 @@ void rtw_add_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
 }
 
 void rtw_remove_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
-				u8 index)
+		       u8 index)
 {
 	u8 *p, *dst_ie = NULL, *premainder_ie = NULL;
 	u8 *pbackup_remainder_ie = NULL;
@@ -247,8 +245,8 @@ void rtw_remove_bcn_ie(struct adapter *padapter, struct wlan_bssid_ex *pnetwork,
 	if (remainder_ielen > 0) {
 		pbackup_remainder_ie = rtw_malloc(remainder_ielen);
 		if (pbackup_remainder_ie && premainder_ie)
-			memcpy(pbackup_remainder_ie,
-					premainder_ie, remainder_ielen);
+			memcpy(pbackup_remainder_ie, premainder_ie,
+			       remainder_ielen);
 	}
 
 	/* copy remainder IE */
@@ -361,8 +359,8 @@ void	expire_timeout_chk(struct adapter *padapter)
 					 * for this station
 					 */
 					pstapriv->tim_bitmap |= BIT(psta->aid);
-					update_beacon(padapter, _TIM_IE_,
-							NULL, false);
+					update_beacon(padapter, _TIM_IE_, NULL,
+						      false);
 
 					if (!pmlmeext->active_keep_alive_check)
 						continue;
@@ -1573,8 +1571,8 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 				pmlmepriv->num_sta_ht_no_gf++;
 			}
 			DBG_88E("%s STA %pM - no greenfield, num of non-gf stations %d\n",
-				   __func__, (psta->hwaddr),
-				   pmlmepriv->num_sta_ht_no_gf);
+				__func__, (psta->hwaddr),
+				pmlmepriv->num_sta_ht_no_gf);
 		}
 
 		if ((ht_capab & IEEE80211_HT_CAP_SUP_WIDTH) == 0) {
@@ -1583,8 +1581,8 @@ void bss_cap_update_on_sta_join(struct adapter *padapter, struct sta_info *psta)
 				pmlmepriv->num_sta_ht_20mhz++;
 			}
 			DBG_88E("%s STA %pM - 20 MHz HT, num of 20MHz HT STAs %d\n",
-				   __func__, (psta->hwaddr),
-				   pmlmepriv->num_sta_ht_20mhz);
+				__func__, (psta->hwaddr),
+				pmlmepriv->num_sta_ht_20mhz);
 		}
 	} else {
 		if (!psta->no_ht_set) {
