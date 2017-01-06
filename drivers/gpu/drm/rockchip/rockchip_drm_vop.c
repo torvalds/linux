@@ -1348,10 +1348,11 @@ static int vop_plane_info_dump(struct seq_file *s, struct drm_plane *plane)
 	seq_printf(s, "\tdst: pos[%dx%d] rect[%dx%d]\n", dest->x1, dest->y1,
 		   drm_rect_width(dest), drm_rect_height(dest));
 
-	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++)
-		seq_printf(s, "\tbuf[%d]: addr: 0x%llx pitch: %d offset: %d\n",
-			   i, rockchip_fb_get_dma_addr(fb, i),
-			   fb->pitches[i], fb->offsets[i]);
+	for (i = 0; i < drm_format_num_planes(fb->pixel_format); i++) {
+		dma_addr_t fb_addr = rockchip_fb_get_dma_addr(fb, i);
+		seq_printf(s, "\tbuf[%d]: addr: %pad pitch: %d offset: %d\n",
+			   i, &fb_addr, fb->pitches[i], fb->offsets[i]);
+	}
 
 	return 0;
 }
