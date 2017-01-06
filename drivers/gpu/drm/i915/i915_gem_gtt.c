@@ -2361,10 +2361,24 @@ void i915_gem_suspend_gtt_mappings(struct drm_i915_private *dev_priv)
 int i915_gem_gtt_prepare_pages(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
-	if (dma_map_sg(&obj->base.dev->pdev->dev,
-		       pages->sgl, pages->nents,
-		       PCI_DMA_BIDIRECTIONAL))
-		return 0;
+	do {
+		if (dma_map_sg(&obj->base.dev->pdev->dev,
+			       pages->sgl, pages->nents,
+			       PCI_DMA_BIDIRECTIONAL))
+			return 0;
+
+		/* If the DMA remap fails, one cause can be that we have
+		 * too many objects pinned in a small remapping table,
+		 * such as swiotlb. Incrementally purge all other objects and
+		 * try again - if there are no more pages to remove from
+		 * the DMA remapper, i915_gem_shrink will return 0.
+		 */
+		GEM_BUG_ON(obj->mm.pages == pages);
+	} while (i915_gem_shrink(to_i915(obj->base.dev),
+				 obj->base.size >> PAGE_SHIFT,
+				 I915_SHRINK_BOUND |
+				 I915_SHRINK_UNBOUND |
+				 I915_SHRINK_ACTIVE));
 
 	return -ENOSPC;
 }
