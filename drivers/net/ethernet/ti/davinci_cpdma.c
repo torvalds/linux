@@ -195,8 +195,6 @@ static void cpdma_desc_pool_destroy(struct cpdma_ctlr *ctlr)
 	if (pool->cpumap)
 		dma_free_coherent(ctlr->dev, pool->mem_size, pool->cpumap,
 				  pool->phys);
-	else
-		iounmap(pool->iomap);
 }
 
 /*
@@ -231,7 +229,8 @@ int cpdma_desc_pool_create(struct cpdma_ctlr *ctlr)
 
 	if (cpdma_params->desc_mem_phys) {
 		pool->phys  = cpdma_params->desc_mem_phys;
-		pool->iomap = ioremap(pool->phys, pool->mem_size);
+		pool->iomap = devm_ioremap(ctlr->dev, pool->phys,
+					   pool->mem_size);
 		pool->hw_addr = cpdma_params->desc_hw_addr;
 	} else {
 		pool->cpumap = dma_alloc_coherent(ctlr->dev,  pool->mem_size,
