@@ -755,7 +755,7 @@
 		reg = <0x22>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb1_int>;
-		vbus-5v-gpios = <&gpio4 GPIO_D6 GPIO_ACTIVE_LOW>;
+		vbus-5v-gpios = <&gpio4 GPIO_D6 GPIO_ACTIVE_HIGH>;
 		int-n-gpios = <&gpio1 GPIO_B5 GPIO_ACTIVE_HIGH>;
 		discharge-gpios = <&gpio0 GPIO_B5 GPIO_ACTIVE_HIGH>;
 		charge-dev = <&bq25700>;
@@ -774,7 +774,7 @@
 		reg = <0x22>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int>;
-		vbus-5v-gpios = <&gpio4 GPIO_D5 GPIO_ACTIVE_LOW>;
+		vbus-5v-gpios = <&gpio4 GPIO_D5 GPIO_ACTIVE_HIGH>;
 		int-n-gpios = <&gpio1 GPIO_A2 GPIO_ACTIVE_HIGH>;
 		discharge-gpios = <&gpio0 GPIO_B4 GPIO_ACTIVE_HIGH>;
 		charge-dev = <&bq25700>;
