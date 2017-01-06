@@ -1416,13 +1416,16 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 		return false;
 	}
 
-	if (vbt->bdb_offset + sizeof(struct bdb_header) > size) {
+	if (range_overflows_t(size_t,
+			      vbt->bdb_offset,
+			      sizeof(struct bdb_header),
+			      size)) {
 		DRM_DEBUG_DRIVER("BDB header incomplete\n");
 		return false;
 	}
 
 	bdb = get_bdb_header(vbt);
-	if (vbt->bdb_offset + bdb->bdb_size > size) {
+	if (range_overflows_t(size_t, vbt->bdb_offset, bdb->bdb_size, size)) {
 		DRM_DEBUG_DRIVER("BDB incomplete\n");
 		return false;
 	}

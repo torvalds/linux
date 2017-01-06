@@ -403,7 +403,8 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 
 	if (flags & PIN_OFFSET_FIXED) {
 		u64 offset = flags & PIN_OFFSET_MASK;
-		if (offset & (alignment - 1) || offset > end - size) {
+		if (offset & (alignment - 1) ||
+		    range_overflows(offset, size, end)) {
 			ret = -EINVAL;
 			goto err_unpin;
 		}

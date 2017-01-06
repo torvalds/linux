@@ -505,7 +505,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	struct sg_table *st;
 	struct scatterlist *sg;
 
-	GEM_BUG_ON(offset > dev_priv->ggtt.stolen_size - size);
+	GEM_BUG_ON(range_overflows(offset, size, dev_priv->ggtt.stolen_size));
 
 	/* We hide that we have no struct page backing our stolen object
 	 * by wrapping the contiguous physical allocation with a fake
