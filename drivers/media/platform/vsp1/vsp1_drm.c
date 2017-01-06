@@ -219,9 +219,6 @@ void vsp1_du_atomic_begin(struct device *dev)
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
 
 	vsp1->drm->num_inputs = pipe->num_inputs;
-
-	/* Prepare the display list. */
-	pipe->dl = vsp1_dl_list_get(pipe->output->dlm);
 }
 EXPORT_SYMBOL_GPL(vsp1_du_atomic_begin);
 
@@ -425,9 +422,13 @@ void vsp1_du_atomic_flush(struct device *dev)
 	struct vsp1_pipeline *pipe = &vsp1->drm->pipe;
 	struct vsp1_rwpf *inputs[VSP1_MAX_RPF] = { NULL, };
 	struct vsp1_entity *entity;
+	struct vsp1_dl_list *dl;
 	unsigned long flags;
 	unsigned int i;
 	int ret;
+
+	/* Prepare the display list. */
+	dl = vsp1_dl_list_get(pipe->output->dlm);
 
 	/* Count the number of enabled inputs and sort them by Z-order. */
 	pipe->num_inputs = 0;
@@ -483,26 +484,25 @@ void vsp1_du_atomic_flush(struct device *dev)
 			struct vsp1_rwpf *rpf = to_rwpf(&entity->subdev);
 
 			if (!pipe->inputs[rpf->entity.index]) {
-				vsp1_dl_list_write(pipe->dl, entity->route->reg,
+				vsp1_dl_list_write(dl, entity->route->reg,
 						   VI6_DPR_NODE_UNUSED);
 				continue;
 			}
 		}
 
-		vsp1_entity_route_setup(entity, pipe->dl);
+		vsp1_entity_route_setup(entity, dl);
 
 		if (entity->ops->configure) {
-			entity->ops->configure(entity, pipe, pipe->dl,
+			entity->ops->configure(entity, pipe, dl,
 					       VSP1_ENTITY_PARAMS_INIT);
-			entity->ops->configure(entity, pipe, pipe->dl,
+			entity->ops->configure(entity, pipe, dl,
 					       VSP1_ENTITY_PARAMS_RUNTIME);
-			entity->ops->configure(entity, pipe, pipe->dl,
+			entity->ops->configure(entity, pipe, dl,
 					       VSP1_ENTITY_PARAMS_PARTITION);
 		}
 	}
 
-	vsp1_dl_list_commit(pipe->dl);
-	pipe->dl = NULL;
+	vsp1_dl_list_commit(dl);
 
 	/* Start or stop the pipeline if needed. */
 	if (!vsp1->drm->num_inputs && pipe->num_inputs) {
