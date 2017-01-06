@@ -314,7 +314,7 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	r = ch341_configure(serial->dev, priv);
 	if (r)
-		goto out;
+		return r;
 
 	if (tty)
 		ch341_set_termios(tty, port, NULL);
@@ -324,12 +324,19 @@ static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (r) {
 		dev_err(&port->dev, "%s - failed to submit interrupt urb: %d\n",
 			__func__, r);
-		goto out;
+		return r;
 	}
 
 	r = usb_serial_generic_open(tty, port);
+	if (r)
+		goto err_kill_interrupt_urb;
 
-out:	return r;
+	return 0;
+
+err_kill_interrupt_urb:
+	usb_kill_urb(port->interrupt_in_urb);
+
+	return r;
 }
 
 /* Old_termios contains the original termios settings and
