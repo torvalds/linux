@@ -98,7 +98,7 @@
 		/include/ "keystone-clocks.dtsi"
 
 		uart0: serial@02530c00 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
@@ -108,7 +108,7 @@
 		};
 
 		uart1:	serial@02531000 {
-			compatible = "ns16550a";
+			compatible = "ti,da830-uart", "ns16550a";
 			current-speed = <115200>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
