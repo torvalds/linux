@@ -563,6 +563,44 @@ static int dlpar_memory_remove_by_index(u32 drc_index, struct property *prop)
 	return rc;
 }
 
+static int dlpar_memory_readd_by_index(u32 drc_index, struct property *prop)
+{
+	struct of_drconf_cell *lmbs;
+	u32 num_lmbs, *p;
+	int lmb_found;
+	int i, rc;
+
+	pr_info("Attempting to update LMB, drc index %x\n", drc_index);
+
+	p = prop->value;
+	num_lmbs = *p++;
+	lmbs = (struct of_drconf_cell *)p;
+
+	lmb_found = 0;
+	for (i = 0; i < num_lmbs; i++) {
+		if (lmbs[i].drc_index == drc_index) {
+			lmb_found = 1;
+			rc = dlpar_remove_lmb(&lmbs[i]);
+			if (!rc) {
+				rc = dlpar_add_lmb(&lmbs[i]);
+				if (rc)
+					dlpar_release_drc(lmbs[i].drc_index);
+			}
+			break;
+		}
+	}
+
+	if (!lmb_found)
+		rc = -EINVAL;
+
+	if (rc)
+		pr_info("Failed to update memory at %llx\n",
+			lmbs[i].base_addr);
+	else
+		pr_info("Memory at %llx was updated\n", lmbs[i].base_addr);
+
+	return rc;
+}
 #else
 static inline int pseries_remove_memblock(unsigned long base,
 					  unsigned int memblock_size)
@@ -778,6 +816,9 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 			rc = dlpar_memory_remove_by_index(drc_index, prop);
 		else
 			rc = -EINVAL;
+		break;
+	case PSERIES_HP_ELOG_ACTION_READD:
+		rc = dlpar_memory_readd_by_index(drc_index, prop);
 		break;
 	default:
 		pr_err("Invalid action (%d) specified\n", hp_elog->action);
