@@ -16,7 +16,7 @@ Required Properties:
   each child-node representing a supported slot. There should be atleast one
   child node representing a card slot. The name of the child node representing
   the slot is recommended to be slot@n where n is the unique number of the slot
-  connnected to the controller. The following are optional properties which
+  connected to the controller. The following are optional properties which
   can be included in the slot child node.
 
 	* reg: specifies the physical slot number. The valid values of this
