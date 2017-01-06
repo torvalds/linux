@@ -1277,6 +1277,12 @@ static int udf_read_inode(struct inode *inode, bool hidden_inode)
 	int ret = -EIO;
 
 reread:
+	if (iloc->partitionReferenceNum >= sbi->s_partitions) {
+		udf_debug("partition reference: %d > logical volume partitions: %d\n",
+			  iloc->partitionReferenceNum, sbi->s_partitions);
+		return -EIO;
+	}
+
 	if (iloc->logicalBlockNum >=
 	    sbi->s_partmaps[iloc->partitionReferenceNum].s_partition_len) {
 		udf_debug("block=%d, partition=%d out of range\n",
