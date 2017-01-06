@@ -281,7 +281,7 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 }
 
 static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    phys_addr_t *base, unsigned long *size)
+				    phys_addr_t *base, u32 *size)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t reg_val = I915_READ(IS_GM45(dev_priv) ?
@@ -304,7 +304,7 @@ static void g4x_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				     phys_addr_t *base, unsigned long *size)
+				     phys_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -330,7 +330,7 @@ static void gen6_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				     phys_addr_t *base, unsigned long *size)
+				     phys_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -350,7 +350,7 @@ static void gen7_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    phys_addr_t *base, unsigned long *size)
+				    phys_addr_t *base, u32 *size)
 {
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
 
@@ -376,7 +376,7 @@ static void chv_get_stolen_reserved(struct drm_i915_private *dev_priv,
 }
 
 static void bdw_get_stolen_reserved(struct drm_i915_private *dev_priv,
-				    phys_addr_t *base, unsigned long *size)
+				    phys_addr_t *base, u32 *size)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	uint32_t reg_val = I915_READ(GEN6_STOLEN_RESERVED);
@@ -400,8 +400,8 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 {
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	phys_addr_t reserved_base, stolen_top;
-	unsigned long reserved_total, reserved_size;
-	unsigned long stolen_usable_start;
+	u32 reserved_total, reserved_size;
+	u32 stolen_usable_start;
 
 	mutex_init(&dev_priv->mm.stolen_lock);
 
@@ -478,7 +478,7 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	 * memory, so just consider the start. */
 	reserved_total = stolen_top - reserved_base;
 
-	DRM_DEBUG_KMS("Memory reserved for graphics device: %zuK, usable: %luK\n",
+	DRM_DEBUG_KMS("Memory reserved for graphics device: %uK, usable: %uK\n",
 		      ggtt->stolen_size >> 10,
 		      (ggtt->stolen_size - reserved_total) >> 10);
 
@@ -487,8 +487,8 @@ int i915_gem_init_stolen(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 8)
 		stolen_usable_start = 4096;
 
-	ggtt->stolen_usable_size = ggtt->stolen_size - reserved_total -
-				   stolen_usable_start;
+	ggtt->stolen_usable_size =
+		ggtt->stolen_size - reserved_total - stolen_usable_start;
 
 	/* Basic memrange allocator for stolen space. */
 	drm_mm_init(&dev_priv->mm.stolen, stolen_usable_start,
