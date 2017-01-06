@@ -715,6 +715,17 @@ config EZX_PCAP
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
 
+config MFD_CPCAP
+	tristate "Support for Motorola CPCAP"
+	depends on SPI
+	depends on OF || COMPILE_TEST
+	select REGMAP_SPI
+	select REGMAP_IRQ
+	help
+	  Say yes here if you want to include driver for CPCAP.
+	  It is used on many Motorola phones and tablets as a PMIC.
+	  At least Motorola Droid 4 is known to use CPCAP.
+
 config MFD_VIPERBOARD
         tristate "Nano River Technologies Viperboard"
 	select MFD_CORE
