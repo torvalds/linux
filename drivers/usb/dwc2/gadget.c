@@ -3749,8 +3749,8 @@ static int dwc2_hsotg_ep_enable(struct usb_ep *ep,
 		__func__, epctrl, epctrl_reg);
 
 	/* Allocate DMA descriptor chain for non-ctrl endpoints */
-	if (using_desc_dma(hsotg)) {
-		hs_ep->desc_list = dma_alloc_coherent(hsotg->dev,
+	if (using_desc_dma(hsotg) && !hs_ep->desc_list) {
+		hs_ep->desc_list = dmam_alloc_coherent(hsotg->dev,
 			MAX_DMA_DESC_NUM_GENERIC *
 			sizeof(struct dwc2_dma_desc),
 			&hs_ep->desc_list_dma, GFP_ATOMIC);
@@ -3872,7 +3872,7 @@ error1:
 
 error2:
 	if (ret && using_desc_dma(hsotg) && hs_ep->desc_list) {
-		dma_free_coherent(hsotg->dev, MAX_DMA_DESC_NUM_GENERIC *
+		dmam_free_coherent(hsotg->dev, MAX_DMA_DESC_NUM_GENERIC *
 			sizeof(struct dwc2_dma_desc),
 			hs_ep->desc_list, hs_ep->desc_list_dma);
 		hs_ep->desc_list = NULL;
@@ -3900,14 +3900,6 @@ static int dwc2_hsotg_ep_disable(struct usb_ep *ep)
 	if (ep == &hsotg->eps_out[0]->ep) {
 		dev_err(hsotg->dev, "%s: called for ep0\n", __func__);
 		return -EINVAL;
-	}
-
-	/* Remove DMA memory allocated for non-control Endpoints */
-	if (using_desc_dma(hsotg)) {
-		dma_free_coherent(hsotg->dev, MAX_DMA_DESC_NUM_GENERIC *
-				  sizeof(struct dwc2_dma_desc),
-				  hs_ep->desc_list, hs_ep->desc_list_dma);
-		hs_ep->desc_list = NULL;
 	}
 
 	epctrl_reg = dir_in ? DIEPCTL(index) : DOEPCTL(index);
