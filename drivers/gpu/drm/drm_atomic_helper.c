@@ -2706,6 +2706,44 @@ backoff:
 }
 EXPORT_SYMBOL(drm_atomic_helper_connector_set_property);
 
+static int page_flip_common(
+				struct drm_atomic_state *state,
+				struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				struct drm_pending_vblank_event *event)
+{
+	struct drm_plane *plane = crtc->primary;
+	struct drm_plane_state *plane_state;
+	struct drm_crtc_state *crtc_state;
+	int ret = 0;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state))
+		return PTR_ERR(crtc_state);
+
+	crtc_state->event = event;
+
+	plane_state = drm_atomic_get_plane_state(state, plane);
+	if (IS_ERR(plane_state))
+		return PTR_ERR(plane_state);
+
+
+	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+	if (ret != 0)
+		return ret;
+	drm_atomic_set_fb_for_plane(plane_state, fb);
+
+	/* Make sure we don't accidentally do a full modeset. */
+	state->allow_modeset = false;
+	if (!crtc_state->active) {
+		DRM_DEBUG_ATOMIC("[CRTC:%d] disabled, rejecting legacy flip\n",
+				 crtc->base.id);
+		return -EINVAL;
+	}
+
+	return ret;
+}
+
 /**
  * drm_atomic_helper_page_flip - execute a legacy page flip
  * @crtc: DRM crtc
@@ -2713,7 +2751,8 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_set_property);
  * @event: optional DRM event to signal upon completion
  * @flags: flip flags for non-vblank sync'ed updates
  *
- * Provides a default page flip implementation using the atomic driver interface.
+ * Provides a default &drm_crtc_funcs.page_flip implementation
+ * using the atomic driver interface.
  *
  * Note that for now so called async page flips (i.e. updates which are not
  * synchronized to vblank) are not supported, since the atomic interfaces have
@@ -2721,6 +2760,9 @@ EXPORT_SYMBOL(drm_atomic_helper_connector_set_property);
  *
  * Returns:
  * Returns 0 on success, negative errno numbers on failure.
+ *
+ * See also:
+ * drm_atomic_helper_page_flip_target()
  */
 int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
@@ -2729,8 +2771,6 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 {
 	struct drm_plane *plane = crtc->primary;
 	struct drm_atomic_state *state;
-	struct drm_plane_state *plane_state;
-	struct drm_crtc_state *crtc_state;
 	int ret = 0;
 
 	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
@@ -2741,35 +2781,14 @@ int drm_atomic_helper_page_flip(struct drm_crtc *crtc,
 		return -ENOMEM;
 
 	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+
 retry:
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state)) {
-		ret = PTR_ERR(crtc_state);
-		goto fail;
-	}
-	crtc_state->event = event;
-
-	plane_state = drm_atomic_get_plane_state(state, plane);
-	if (IS_ERR(plane_state)) {
-		ret = PTR_ERR(plane_state);
-		goto fail;
-	}
-
-	ret = drm_atomic_set_crtc_for_plane(plane_state, crtc);
+	ret = page_flip_common(state, crtc, fb, event);
 	if (ret != 0)
 		goto fail;
-	drm_atomic_set_fb_for_plane(plane_state, fb);
-
-	/* Make sure we don't accidentally do a full modeset. */
-	state->allow_modeset = false;
-	if (!crtc_state->active) {
-		DRM_DEBUG_ATOMIC("[CRTC:%d] disabled, rejecting legacy flip\n",
-				 crtc->base.id);
-		ret = -EINVAL;
-		goto fail;
-	}
 
 	ret = drm_atomic_nonblocking_commit(state);
+
 fail:
 	if (ret == -EDEADLK)
 		goto backoff;
@@ -2791,6 +2810,78 @@ backoff:
 	goto retry;
 }
 EXPORT_SYMBOL(drm_atomic_helper_page_flip);
+
+/**
+ * drm_atomic_helper_page_flip_target - do page flip on target vblank period.
+ * @crtc: DRM crtc
+ * @fb: DRM framebuffer
+ * @event: optional DRM event to signal upon completion
+ * @flags: flip flags for non-vblank sync'ed updates
+ * @target: specifying the target vblank period when the flip to take effect
+ *
+ * Provides a default &drm_crtc_funcs.page_flip_target implementation.
+ * Similar to drm_atomic_helper_page_flip() with extra parameter to specify
+ * target vblank period to flip.
+ *
+ * Returns:
+ * Returns 0 on success, negative errno numbers on failure.
+ */
+int drm_atomic_helper_page_flip_target(
+				struct drm_crtc *crtc,
+				struct drm_framebuffer *fb,
+				struct drm_pending_vblank_event *event,
+				uint32_t flags,
+				uint32_t target)
+{
+	struct drm_plane *plane = crtc->primary;
+	struct drm_atomic_state *state;
+	struct drm_crtc_state *crtc_state;
+	int ret = 0;
+
+	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
+		return -EINVAL;
+
+	state = drm_atomic_state_alloc(plane->dev);
+	if (!state)
+		return -ENOMEM;
+
+	state->acquire_ctx = drm_modeset_legacy_acquire_ctx(crtc);
+
+retry:
+	ret = page_flip_common(state, crtc, fb, event);
+	if (ret != 0)
+		goto fail;
+
+	crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
+	if (WARN_ON(!crtc_state)) {
+		ret = -EINVAL;
+		goto fail;
+	}
+	crtc_state->target_vblank = target;
+
+	ret = drm_atomic_nonblocking_commit(state);
+
+fail:
+	if (ret == -EDEADLK)
+		goto backoff;
+
+	drm_atomic_state_put(state);
+	return ret;
+
+backoff:
+	drm_atomic_state_clear(state);
+	drm_atomic_legacy_backoff(state);
+
+	/*
+	 * Someone might have exchanged the framebuffer while we dropped locks
+	 * in the backoff code. We need to fix up the fb refcount tracking the
+	 * core does for us.
+	 */
+	plane->old_fb = plane->fb;
+
+	goto retry;
+}
+EXPORT_SYMBOL(drm_atomic_helper_page_flip_target);
 
 /**
  * drm_atomic_helper_connector_dpms() - connector dpms helper implementation
