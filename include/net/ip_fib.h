@@ -344,7 +344,6 @@ __be32 fib_compute_spec_dst(struct sk_buff *skb);
 int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 			u8 tos, int oif, struct net_device *dev,
 			struct in_device *idev, u32 *itag);
-void fib_select_default(const struct flowi4 *flp, struct fib_result *res);
 #ifdef CONFIG_IP_ROUTE_CLASSID
 static inline int fib_num_tclassid_users(struct net *net)
 {

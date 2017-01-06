@@ -1434,7 +1434,7 @@ int fib_sync_down_dev(struct net_device *dev, unsigned long event, bool force)
 }
 
 /* Must be invoked inside of an RCU protected region.  */
-void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
+static void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
 {
 	struct fib_info *fi = NULL, *last_resort = NULL;
 	struct hlist_head *fa_head = res->fa_head;
