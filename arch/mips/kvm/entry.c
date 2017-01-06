@@ -521,6 +521,9 @@ void *kvm_mips_build_exit(void *addr)
 	uasm_i_and(&p, V0, V0, AT);
 	uasm_i_lui(&p, AT, ST0_CU0 >> 16);
 	uasm_i_or(&p, V0, V0, AT);
+#ifdef CONFIG_64BIT
+	uasm_i_ori(&p, V0, V0, ST0_SX | ST0_UX);
+#endif
 	uasm_i_mtc0(&p, V0, C0_STATUS);
 	uasm_i_ehb(&p);
 
@@ -643,7 +646,7 @@ static void *kvm_mips_build_ret_to_guest(void *addr)
 
 	/* Setup status register for running guest in UM */
 	uasm_i_ori(&p, V1, V1, ST0_EXL | KSU_USER | ST0_IE);
-	UASM_i_LA(&p, AT, ~(ST0_CU0 | ST0_MX));
+	UASM_i_LA(&p, AT, ~(ST0_CU0 | ST0_MX | ST0_SX | ST0_UX));
 	uasm_i_and(&p, V1, V1, AT);
 	uasm_i_mtc0(&p, V1, C0_STATUS);
 	uasm_i_ehb(&p);
