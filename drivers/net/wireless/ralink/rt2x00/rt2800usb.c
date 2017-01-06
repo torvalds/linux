@@ -123,7 +123,7 @@ static inline bool rt2800usb_entry_txstatus_timeout(struct queue_entry *entry)
 	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 		return false;
 
-	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
+	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(500));
 	if (unlikely(tout))
 		rt2x00_dbg(entry->queue->rt2x00dev,
 			   "TX status timeout for entry %d in queue %d\n",
