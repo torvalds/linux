@@ -93,7 +93,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 struct ch341_private {
 	spinlock_t lock; /* access lock */
 	unsigned baud_rate; /* set baud rate */
-	u8 line_control; /* set line control value RTS/DTR */
+	u8 mcr;
 	u8 line_status; /* active status of modem control inputs */
 	u8 lcr;
 };
@@ -251,7 +251,7 @@ static int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
 	if (r < 0)
 		goto out;
 
-	r = ch341_set_handshake(dev, priv->line_control);
+	r = ch341_set_handshake(dev, priv->mcr);
 
 out:	kfree(buffer);
 	return r;
@@ -306,11 +306,11 @@ static void ch341_dtr_rts(struct usb_serial_port *port, int on)
 	/* drop DTR and RTS */
 	spin_lock_irqsave(&priv->lock, flags);
 	if (on)
-		priv->line_control |= CH341_BIT_RTS | CH341_BIT_DTR;
+		priv->mcr |= CH341_BIT_RTS | CH341_BIT_DTR;
 	else
-		priv->line_control &= ~(CH341_BIT_RTS | CH341_BIT_DTR);
+		priv->mcr &= ~(CH341_BIT_RTS | CH341_BIT_DTR);
 	spin_unlock_irqrestore(&priv->lock, flags);
-	ch341_set_handshake(port->serial->dev, priv->line_control);
+	ch341_set_handshake(port->serial->dev, priv->mcr);
 }
 
 static void ch341_close(struct usb_serial_port *port)
@@ -415,12 +415,12 @@ static void ch341_set_termios(struct tty_struct *tty,
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (C_BAUD(tty) == B0)
-		priv->line_control &= ~(CH341_BIT_DTR | CH341_BIT_RTS);
+		priv->mcr &= ~(CH341_BIT_DTR | CH341_BIT_RTS);
 	else if (old_termios && (old_termios->c_cflag & CBAUD) == B0)
-		priv->line_control |= (CH341_BIT_DTR | CH341_BIT_RTS);
+		priv->mcr |= (CH341_BIT_DTR | CH341_BIT_RTS);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	ch341_set_handshake(port->serial->dev, priv->line_control);
+	ch341_set_handshake(port->serial->dev, priv->mcr);
 }
 
 static void ch341_break_ctl(struct tty_struct *tty, int break_state)
@@ -476,14 +476,14 @@ static int ch341_tiocmset(struct tty_struct *tty,
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (set & TIOCM_RTS)
-		priv->line_control |= CH341_BIT_RTS;
+		priv->mcr |= CH341_BIT_RTS;
 	if (set & TIOCM_DTR)
-		priv->line_control |= CH341_BIT_DTR;
+		priv->mcr |= CH341_BIT_DTR;
 	if (clear & TIOCM_RTS)
-		priv->line_control &= ~CH341_BIT_RTS;
+		priv->mcr &= ~CH341_BIT_RTS;
 	if (clear & TIOCM_DTR)
-		priv->line_control &= ~CH341_BIT_DTR;
-	control = priv->line_control;
+		priv->mcr &= ~CH341_BIT_DTR;
+	control = priv->mcr;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	return ch341_set_handshake(port->serial->dev, control);
@@ -577,7 +577,7 @@ static int ch341_tiocmget(struct tty_struct *tty)
 	unsigned int result;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	mcr = priv->line_control;
+	mcr = priv->mcr;
 	status = priv->line_status;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
