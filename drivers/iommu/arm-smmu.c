@@ -1214,7 +1214,7 @@ static int arm_smmu_domain_add_master(struct arm_smmu_domain *smmu_domain,
 			continue;
 
 		s2cr[idx].type = type;
-		s2cr[idx].privcfg = S2CR_PRIVCFG_UNPRIV;
+		s2cr[idx].privcfg = S2CR_PRIVCFG_DEFAULT;
 		s2cr[idx].cbndx = cbndx;
 		arm_smmu_write_s2cr(smmu, idx);
 	}
