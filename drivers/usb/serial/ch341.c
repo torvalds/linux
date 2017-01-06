@@ -364,7 +364,7 @@ static void ch341_set_termios(struct tty_struct *tty,
 	struct ch341_private *priv = usb_get_serial_port_data(port);
 	unsigned baud_rate;
 	unsigned long flags;
-	unsigned char ctrl;
+	u8 lcr;
 	int r;
 
 	/* redundant changes may cause the chip to lose bytes */
@@ -373,43 +373,43 @@ static void ch341_set_termios(struct tty_struct *tty,
 
 	baud_rate = tty_get_baud_rate(tty);
 
-	ctrl = CH341_LCR_ENABLE_RX | CH341_LCR_ENABLE_TX;
+	lcr = CH341_LCR_ENABLE_RX | CH341_LCR_ENABLE_TX;
 
 	switch (C_CSIZE(tty)) {
 	case CS5:
-		ctrl |= CH341_LCR_CS5;
+		lcr |= CH341_LCR_CS5;
 		break;
 	case CS6:
-		ctrl |= CH341_LCR_CS6;
+		lcr |= CH341_LCR_CS6;
 		break;
 	case CS7:
-		ctrl |= CH341_LCR_CS7;
+		lcr |= CH341_LCR_CS7;
 		break;
 	case CS8:
-		ctrl |= CH341_LCR_CS8;
+		lcr |= CH341_LCR_CS8;
 		break;
 	}
 
 	if (C_PARENB(tty)) {
-		ctrl |= CH341_LCR_ENABLE_PAR;
+		lcr |= CH341_LCR_ENABLE_PAR;
 		if (C_PARODD(tty) == 0)
-			ctrl |= CH341_LCR_PAR_EVEN;
+			lcr |= CH341_LCR_PAR_EVEN;
 		if (C_CMSPAR(tty))
-			ctrl |= CH341_LCR_MARK_SPACE;
+			lcr |= CH341_LCR_MARK_SPACE;
 	}
 
 	if (C_CSTOPB(tty))
-		ctrl |= CH341_LCR_STOP_BITS_2;
+		lcr |= CH341_LCR_STOP_BITS_2;
 
 	if (baud_rate) {
 		priv->baud_rate = baud_rate;
 
-		r = ch341_set_baudrate_lcr(port->serial->dev, priv, ctrl);
+		r = ch341_set_baudrate_lcr(port->serial->dev, priv, lcr);
 		if (r < 0 && old_termios) {
 			priv->baud_rate = tty_termios_baud_rate(old_termios);
 			tty_termios_copy_hw(&tty->termios, old_termios);
 		} else if (r == 0) {
-			priv->lcr = ctrl;
+			priv->lcr = lcr;
 		}
 	}
 
