@@ -197,7 +197,7 @@ static bool compress_init(struct compress *c)
 	}
 
 	c->tmp = NULL;
-	if (i915_memcpy_from_wc(NULL, 0, 0))
+	if (i915_has_memcpy_from_wc())
 		c->tmp = (void *)__get_free_page(GFP_ATOMIC | __GFP_NOWARN);
 
 	return true;

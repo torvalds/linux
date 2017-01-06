@@ -1197,7 +1197,7 @@ static void guc_log_create(struct intel_guc *guc)
 		 * it should be present on the chipsets supporting GuC based
 		 * submisssions.
 		 */
-		if (WARN_ON(!i915_memcpy_from_wc(NULL, NULL, 0))) {
+		if (WARN_ON(!i915_has_memcpy_from_wc())) {
 			/* logging will not be enabled */
 			i915.guc_log_level = -1;
 			return;
