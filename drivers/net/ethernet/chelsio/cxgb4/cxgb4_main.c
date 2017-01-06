@@ -188,17 +188,23 @@ static void link_report(struct net_device *dev)
 		const struct port_info *p = netdev_priv(dev);
 
 		switch (p->link_cfg.speed) {
-		case 10000:
-			s = "10Gbps";
-			break;
-		case 1000:
-			s = "1000Mbps";
-			break;
 		case 100:
 			s = "100Mbps";
 			break;
+		case 1000:
+			s = "1Gbps";
+			break;
+		case 10000:
+			s = "10Gbps";
+			break;
+		case 25000:
+			s = "25Gbps";
+			break;
 		case 40000:
 			s = "40Gbps";
+			break;
+		case 100000:
+			s = "100Gbps";
 			break;
 		default:
 			pr_info("%s: unsupported speed: %d\n",
@@ -4397,9 +4403,9 @@ static void print_port_info(const struct net_device *dev)
 		spd = " 8 GT/s";
 
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_100M)
-		bufp += sprintf(bufp, "100/");
+		bufp += sprintf(bufp, "100M/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_1G)
-		bufp += sprintf(bufp, "1000/");
+		bufp += sprintf(bufp, "1G/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G)
 		bufp += sprintf(bufp, "10G/");
 	if (pi->link_cfg.supported & FW_PORT_CAP_SPEED_25G)
