@@ -39,6 +39,7 @@ struct update_props_workarea {
 #define ADD_DT_NODE	0x03000000
 
 #define MIGRATION_SCOPE	(1)
+#define PRRN_SCOPE -2
 
 static int mobility_rtas_call(int token, char *buf, s32 scope)
 {
@@ -236,6 +237,35 @@ static int add_dt_node(__be32 parent_phandle, __be32 drc_index)
 	return rc;
 }
 
+static void prrn_update_node(__be32 phandle)
+{
+	struct pseries_hp_errorlog *hp_elog;
+	struct device_node *dn;
+
+	/*
+	 * If a node is found from a the given phandle, the phandle does not
+	 * represent the drc index of an LMB and we can ignore.
+	 */
+	dn = of_find_node_by_phandle(be32_to_cpu(phandle));
+	if (dn) {
+		of_node_put(dn);
+		return;
+	}
+
+	hp_elog = kzalloc(sizeof(*hp_elog), GFP_KERNEL);
+	if(!hp_elog)
+		return;
+
+	hp_elog->resource = PSERIES_HP_ELOG_RESOURCE_MEM;
+	hp_elog->action = PSERIES_HP_ELOG_ACTION_READD;
+	hp_elog->id_type = PSERIES_HP_ELOG_ID_DRC_INDEX;
+	hp_elog->_drc_u.drc_index = phandle;
+
+	queue_hotplug_event(hp_elog, NULL, NULL);
+
+	kfree(hp_elog);
+}
+
 int pseries_devicetree_update(s32 scope)
 {
 	char *rtas_buf;
@@ -274,6 +304,10 @@ int pseries_devicetree_update(s32 scope)
 					break;
 				case UPDATE_DT_NODE:
 					update_dt_node(phandle, scope);
+
+					if (scope == PRRN_SCOPE)
+						prrn_update_node(phandle);
+
 					break;
 				case ADD_DT_NODE:
 					drc_index = *data++;
