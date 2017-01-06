@@ -56,13 +56,23 @@ static struct sock *__l2tp_ip_bind_lookup(const struct net *net, __be32 laddr,
 		const struct l2tp_ip_sock *l2tp = l2tp_ip_sk(sk);
 		const struct inet_sock *inet = inet_sk(sk);
 
-		if ((l2tp->conn_id == tunnel_id) &&
-		    net_eq(sock_net(sk), net) &&
-		    !(inet->inet_rcv_saddr && inet->inet_rcv_saddr != laddr) &&
-		    (!inet->inet_daddr || !raddr || inet->inet_daddr == raddr) &&
-		    (!sk->sk_bound_dev_if || !dif ||
-		     sk->sk_bound_dev_if == dif))
-			goto found;
+		if (!net_eq(sock_net(sk), net))
+			continue;
+
+		if (sk->sk_bound_dev_if && dif && sk->sk_bound_dev_if != dif)
+			continue;
+
+		if (inet->inet_rcv_saddr && laddr &&
+		    inet->inet_rcv_saddr != laddr)
+			continue;
+
+		if (inet->inet_daddr && raddr && inet->inet_daddr != raddr)
+			continue;
+
+		if (l2tp->conn_id != tunnel_id)
+			continue;
+
+		goto found;
 	}
 
 	sk = NULL;
