@@ -363,6 +363,8 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 
 	spin_unlock(&crc->lock);
 
+	wake_up_interruptible(&crc->wq);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_crtc_add_crc_entry);
