@@ -612,6 +612,7 @@ struct pp_hwmgr {
 	uint32_t num_vce_state_tables;
 
 	enum amd_dpm_forced_level dpm_level;
+	enum amd_dpm_forced_level saved_dpm_level;
 	bool block_hw_access;
 	struct phm_gfx_arbiter gfx_arbiter;
 	struct phm_acp_arbiter acp_arbiter;

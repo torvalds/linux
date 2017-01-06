@@ -142,12 +142,15 @@ static ssize_t amdgpu_get_dpm_forced_performance_level(struct device *dev,
 
 	level = amdgpu_dpm_get_performance_level(adev);
 	return snprintf(buf, PAGE_SIZE, "%s\n",
-			(level & (AMD_DPM_FORCED_LEVEL_AUTO) ? "auto" :
-			(level & AMD_DPM_FORCED_LEVEL_LOW) ? "low" :
-			(level & AMD_DPM_FORCED_LEVEL_HIGH) ? "high" :
-			(level & AMD_DPM_FORCED_LEVEL_MANUAL) ? "manual" :
-			(level & AMD_DPM_FORCED_LEVEL_PROFILING) ? "profiling" :
-			"unknown"));
+			(level == AMD_DPM_FORCED_LEVEL_AUTO) ? "auto" :
+			(level == AMD_DPM_FORCED_LEVEL_LOW) ? "low" :
+			(level == AMD_DPM_FORCED_LEVEL_HIGH) ? "high" :
+			(level == AMD_DPM_FORCED_LEVEL_MANUAL) ? "manual" :
+			(level == AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD) ? "profile_standard" :
+			(level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK) ? "profile_min_sclk" :
+			(level == AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK) ? "profile_min_mclk" :
+			(level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) ? "profile_peak" :
+			"unknown");
 }
 
 static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
@@ -176,23 +179,23 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 		level = AMD_DPM_FORCED_LEVEL_AUTO;
 	} else if (strncmp("manual", buf, strlen("manual")) == 0) {
 		level = AMD_DPM_FORCED_LEVEL_MANUAL;
-	} else if (strncmp("profile", buf, strlen("profile")) == 0) {
-		level = AMD_DPM_FORCED_LEVEL_PROFILING;
-	} else {
+	} else if (strncmp("profile_exit", buf, strlen("profile_exit")) == 0) {
+		level = AMD_DPM_FORCED_LEVEL_PROFILE_EXIT;
+	} else if (strncmp("profile_standard", buf, strlen("profile_standard")) == 0) {
+		level = AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD;
+	} else if (strncmp("profile_min_sclk", buf, strlen("profile_min_sclk")) == 0) {
+		level = AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK;
+	} else if (strncmp("profile_min_mclk", buf, strlen("profile_min_mclk")) == 0) {
+		level = AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK;
+	} else if (strncmp("profile_peak", buf, strlen("profile_peak")) == 0) {
+		level = AMD_DPM_FORCED_LEVEL_PROFILE_PEAK;
+	}  else {
 		count = -EINVAL;
 		goto fail;
 	}
 
 	if (current_level == level)
 		return count;
-
-	if (level == AMD_DPM_FORCED_LEVEL_PROFILING)
-		amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_GFX,
-						AMD_CG_STATE_UNGATE);
-	else if (level != AMD_DPM_FORCED_LEVEL_PROFILING &&
-			current_level == AMD_DPM_FORCED_LEVEL_PROFILING)
-		amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_GFX,
-						AMD_CG_STATE_GATE);
 
 	if (adev->pp_enabled)
 		amdgpu_dpm_force_performance_level(adev, level);
@@ -210,6 +213,7 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 			adev->pm.dpm.forced_level = level;
 		mutex_unlock(&adev->pm.mutex);
 	}
+
 fail:
 	return count;
 }
