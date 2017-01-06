@@ -108,6 +108,8 @@ struct cpdma_ctlr {
 	spinlock_t		lock;
 	struct cpdma_chan	*channels[2 * CPDMA_MAX_CHANNELS];
 	int chan_num;
+	int			num_rx_desc; /* RX descriptors number */
+	int			num_tx_desc; /* TX descriptors number */
 };
 
 struct cpdma_chan {
@@ -518,6 +520,9 @@ struct cpdma_ctlr *cpdma_ctlr_create(struct cpdma_params *params)
 
 	if (cpdma_desc_pool_create(ctlr))
 		return NULL;
+	/* split pool equally between RX/TX by default */
+	ctlr->num_tx_desc = ctlr->pool->num_desc / 2;
+	ctlr->num_rx_desc = ctlr->pool->num_desc - ctlr->num_tx_desc;
 
 	if (WARN_ON(ctlr->num_chan > CPDMA_MAX_CHANNELS))
 		ctlr->num_chan = CPDMA_MAX_CHANNELS;
@@ -717,22 +722,22 @@ static void cpdma_chan_set_descs(struct cpdma_ctlr *ctlr,
 		}
 	}
 	/* use remains */
-	most_chan->desc_num += desc_cnt;
+	if (most_chan)
+		most_chan->desc_num += desc_cnt;
 }
 
 /**
  * cpdma_chan_split_pool - Splits ctrl pool between all channels.
  * Has to be called under ctlr lock
  */
-static int cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
+int cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
 {
 	int tx_per_ch_desc = 0, rx_per_ch_desc = 0;
-	struct cpdma_desc_pool *pool = ctlr->pool;
 	int free_rx_num = 0, free_tx_num = 0;
 	int rx_weight = 0, tx_weight = 0;
 	int tx_desc_num, rx_desc_num;
 	struct cpdma_chan *chan;
-	int i, tx_num = 0;
+	int i;
 
 	if (!ctlr->chan_num)
 		return 0;
@@ -750,15 +755,14 @@ static int cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
 			if (!chan->weight)
 				free_tx_num++;
 			tx_weight += chan->weight;
-			tx_num++;
 		}
 	}
 
 	if (rx_weight > 100 || tx_weight > 100)
 		return -EINVAL;
 
-	tx_desc_num = (tx_num * pool->num_desc) / ctlr->chan_num;
-	rx_desc_num = pool->num_desc - tx_desc_num;
+	tx_desc_num = ctlr->num_tx_desc;
+	rx_desc_num = ctlr->num_rx_desc;
 
 	if (free_tx_num) {
 		tx_per_ch_desc = tx_desc_num - (tx_weight * tx_desc_num) / 100;
@@ -774,6 +778,8 @@ static int cpdma_chan_split_pool(struct cpdma_ctlr *ctlr)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cpdma_chan_split_pool);
+
 
 /* cpdma_chan_set_weight - set weight of a channel in percentage.
  * Tx and Rx channels have separate weights. That is 100% for RX
@@ -907,7 +913,6 @@ struct cpdma_chan *cpdma_chan_create(struct cpdma_ctlr *ctlr, int chan_num,
 	chan->chan_num	= chan_num;
 	chan->handler	= handler;
 	chan->rate	= 0;
-	chan->desc_num = ctlr->pool->num_desc / 2;
 	chan->weight	= 0;
 
 	if (is_rx_chan(chan)) {
@@ -1328,5 +1333,24 @@ int cpdma_control_set(struct cpdma_ctlr *ctlr, int control, int value)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpdma_control_set);
+
+int cpdma_get_num_rx_descs(struct cpdma_ctlr *ctlr)
+{
+	return ctlr->num_rx_desc;
+}
+EXPORT_SYMBOL_GPL(cpdma_get_num_rx_descs);
+
+int cpdma_get_num_tx_descs(struct cpdma_ctlr *ctlr)
+{
+	return ctlr->num_tx_desc;
+}
+EXPORT_SYMBOL_GPL(cpdma_get_num_tx_descs);
+
+void cpdma_set_num_rx_descs(struct cpdma_ctlr *ctlr, int num_rx_desc)
+{
+	ctlr->num_rx_desc = num_rx_desc;
+	ctlr->num_tx_desc = ctlr->pool->num_desc - ctlr->num_rx_desc;
+}
+EXPORT_SYMBOL_GPL(cpdma_set_num_rx_descs);
 
 MODULE_LICENSE("GPL");
