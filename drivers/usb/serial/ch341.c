@@ -107,8 +107,8 @@ static int ch341_control_out(struct usb_device *dev, u8 request,
 {
 	int r;
 
-	dev_dbg(&dev->dev, "ch341_control_out(%02x,%02x,%04x,%04x)\n",
-		USB_DIR_OUT|0x40, (int)request, (int)value, (int)index);
+	dev_dbg(&dev->dev, "%s - (%02x,%04x,%04x)\n", __func__,
+		request, value, index);
 
 	r = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), request,
 			    USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
@@ -125,9 +125,8 @@ static int ch341_control_in(struct usb_device *dev,
 {
 	int r;
 
-	dev_dbg(&dev->dev, "ch341_control_in(%02x,%02x,%04x,%04x,%p,%u)\n",
-		USB_DIR_IN|0x40, (int)request, (int)value, (int)index, buf,
-		(int)bufsize);
+	dev_dbg(&dev->dev, "%s - (%02x,%04x,%04x,%u)\n", __func__,
+		request, value, index, bufsize);
 
 	r = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), request,
 			    USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
