@@ -1453,7 +1453,7 @@ struct i915_gem_mm {
 	struct work_struct free_work;
 
 	/** Usable portion of the GTT for GEM */
-	unsigned long stolen_base; /* limited to low memory (32-bit) */
+	phys_addr_t stolen_base; /* limited to low memory (32-bit) */
 
 	/** PPGTT used for aliasing the PPGTT with the GTT */
 	struct i915_hw_ppgtt *aliasing_ppgtt;
