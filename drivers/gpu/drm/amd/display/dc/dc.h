@@ -145,7 +145,8 @@ struct dc_debug {
 	bool disable_stutter;
 	bool disable_dcc;
 	bool disable_dfs_bypass;
-	bool disable_power_gate;
+	bool disable_dpp_power_gate;
+	bool disable_hubp_power_gate;
 	bool disable_clock_gate;
 	bool disable_dmcu;
 	bool disable_color_module;
