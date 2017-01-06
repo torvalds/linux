@@ -344,7 +344,6 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	ctx->clk_data.clks = clk_table;
 	ctx->clk_data.clk_num = nr_clks;
 	ctx->cru_node = np;
-	ctx->grf = ERR_PTR(-EPROBE_DEFER);
 	spin_lock_init(&ctx->lock);
 
 	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
