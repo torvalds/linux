@@ -310,6 +310,9 @@ static int rds_recv_track_latency(struct rds_sock *rs, char __user *optval,
 	if (copy_from_user(&trace, optval, sizeof(trace)))
 		return -EFAULT;
 
+	if (trace.rx_traces > RDS_MSG_RX_DGRAM_TRACE_MAX)
+		return -EFAULT;
+
 	rs->rs_rx_traces = trace.rx_traces;
 	for (i = 0; i < rs->rs_rx_traces; i++) {
 		if (trace.rx_trace_pos[i] > RDS_MSG_RX_DGRAM_TRACE_MAX) {
