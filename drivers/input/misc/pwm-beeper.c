@@ -95,7 +95,6 @@ static void pwm_beeper_close(struct input_dev *input)
 
 static int pwm_beeper_probe(struct platform_device *pdev)
 {
-	unsigned long pwm_id = (unsigned long)dev_get_platdata(&pdev->dev);
 	struct pwm_beeper *beeper;
 	int error;
 
@@ -104,11 +103,6 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	beeper->pwm = pwm_get(&pdev->dev, NULL);
-	if (IS_ERR(beeper->pwm)) {
-		dev_dbg(&pdev->dev, "unable to request PWM, trying legacy API\n");
-		beeper->pwm = pwm_request(pwm_id, "pwm beeper");
-	}
-
 	if (IS_ERR(beeper->pwm)) {
 		error = PTR_ERR(beeper->pwm);
 		dev_err(&pdev->dev, "Failed to request pwm device: %d\n", error);
