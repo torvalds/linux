@@ -29,6 +29,7 @@
 
 #define ALE_VERSION_MAJOR(rev, mask) (((rev) >> 8) & (mask))
 #define ALE_VERSION_MINOR(rev)	(rev & 0xff)
+#define ALE_VERSION_1R3		0x0103
 #define ALE_VERSION_1R4		0x0104
 
 /* ALE Registers */
@@ -46,6 +47,7 @@
 #define ALE_UNKNOWNVLAN_UNREG_MCAST_FLOOD	0x94
 #define ALE_UNKNOWNVLAN_REG_MCAST_FLOOD		0x98
 #define ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS	0x9C
+#define ALE_VLAN_MASK_MUX(reg)			(0xc0 + (0x4 * (reg)))
 
 #define ALE_TABLE_WRITE		BIT(31)
 
@@ -96,20 +98,34 @@ static inline void cpsw_ale_set_##name(u32 *ale_entry, u32 value)	\
 	cpsw_ale_set_field(ale_entry, start, bits, value);		\
 }
 
+#define DEFINE_ALE_FIELD1(name, start)					\
+static inline int cpsw_ale_get_##name(u32 *ale_entry, u32 bits)		\
+{									\
+	return cpsw_ale_get_field(ale_entry, start, bits);		\
+}									\
+static inline void cpsw_ale_set_##name(u32 *ale_entry, u32 value,	\
+		u32 bits)						\
+{									\
+	cpsw_ale_set_field(ale_entry, start, bits, value);		\
+}
+
 DEFINE_ALE_FIELD(entry_type,		60,	2)
 DEFINE_ALE_FIELD(vlan_id,		48,	12)
 DEFINE_ALE_FIELD(mcast_state,		62,	2)
-DEFINE_ALE_FIELD(port_mask,		66,     3)
+DEFINE_ALE_FIELD1(port_mask,		66)
 DEFINE_ALE_FIELD(super,			65,	1)
 DEFINE_ALE_FIELD(ucast_type,		62,     2)
-DEFINE_ALE_FIELD(port_num,		66,     2)
+DEFINE_ALE_FIELD1(port_num,		66)
 DEFINE_ALE_FIELD(blocked,		65,     1)
 DEFINE_ALE_FIELD(secure,		64,     1)
-DEFINE_ALE_FIELD(vlan_untag_force,	24,	3)
-DEFINE_ALE_FIELD(vlan_reg_mcast,	16,	3)
-DEFINE_ALE_FIELD(vlan_unreg_mcast,	8,	3)
-DEFINE_ALE_FIELD(vlan_member_list,	0,	3)
+DEFINE_ALE_FIELD1(vlan_untag_force,	24)
+DEFINE_ALE_FIELD1(vlan_reg_mcast,	16)
+DEFINE_ALE_FIELD1(vlan_unreg_mcast,	8)
+DEFINE_ALE_FIELD1(vlan_member_list,	0)
 DEFINE_ALE_FIELD(mcast,			40,	1)
+/* ALE NetCP nu switch specific */
+DEFINE_ALE_FIELD(vlan_unreg_mcast_idx,	20,	3)
+DEFINE_ALE_FIELD(vlan_reg_mcast_idx,	44,	3)
 
 /* The MAC address field in the ALE entry cannot be macroized as above */
 static inline void cpsw_ale_get_addr(u32 *ale_entry, u8 *addr)
@@ -235,14 +251,16 @@ static void cpsw_ale_flush_mcast(struct cpsw_ale *ale, u32 *ale_entry,
 {
 	int mask;
 
-	mask = cpsw_ale_get_port_mask(ale_entry);
+	mask = cpsw_ale_get_port_mask(ale_entry,
+				      ale->port_mask_bits);
 	if ((mask & port_mask) == 0)
 		return; /* ports dont intersect, not interested */
 	mask &= ~port_mask;
 
 	/* free if only remaining port is host port */
 	if (mask)
-		cpsw_ale_set_port_mask(ale_entry, mask);
+		cpsw_ale_set_port_mask(ale_entry, mask,
+				       ale->port_mask_bits);
 	else
 		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
 }
@@ -303,7 +321,7 @@ int cpsw_ale_add_ucast(struct cpsw_ale *ale, u8 *addr, int port,
 	cpsw_ale_set_ucast_type(ale_entry, ALE_UCAST_PERSISTANT);
 	cpsw_ale_set_secure(ale_entry, (flags & ALE_SECURE) ? 1 : 0);
 	cpsw_ale_set_blocked(ale_entry, (flags & ALE_BLOCKED) ? 1 : 0);
-	cpsw_ale_set_port_num(ale_entry, port);
+	cpsw_ale_set_port_num(ale_entry, port, ale->port_num_bits);
 
 	idx = cpsw_ale_match_addr(ale, addr, (flags & ALE_VLAN) ? vid : 0);
 	if (idx < 0)
@@ -350,9 +368,11 @@ int cpsw_ale_add_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
 	cpsw_ale_set_super(ale_entry, (flags & ALE_BLOCKED) ? 1 : 0);
 	cpsw_ale_set_mcast_state(ale_entry, mcast_state);
 
-	mask = cpsw_ale_get_port_mask(ale_entry);
+	mask = cpsw_ale_get_port_mask(ale_entry,
+				      ale->port_mask_bits);
 	port_mask |= mask;
-	cpsw_ale_set_port_mask(ale_entry, port_mask);
+	cpsw_ale_set_port_mask(ale_entry, port_mask,
+			       ale->port_mask_bits);
 
 	if (idx < 0)
 		idx = cpsw_ale_match_free(ale);
@@ -379,7 +399,8 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
 	cpsw_ale_read(ale, idx, ale_entry);
 
 	if (port_mask)
-		cpsw_ale_set_port_mask(ale_entry, port_mask);
+		cpsw_ale_set_port_mask(ale_entry, port_mask,
+				       ale->port_mask_bits);
 	else
 		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
 
@@ -387,6 +408,21 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cpsw_ale_del_mcast);
+
+/* ALE NetCP NU switch specific vlan functions */
+static void cpsw_ale_set_vlan_mcast(struct cpsw_ale *ale, u32 *ale_entry,
+				    int reg_mcast, int unreg_mcast)
+{
+	int idx;
+
+	/* Set VLAN registered multicast flood mask */
+	idx = cpsw_ale_get_vlan_reg_mcast_idx(ale_entry);
+	writel(reg_mcast, ale->params.ale_regs + ALE_VLAN_MASK_MUX(idx));
+
+	/* Set VLAN unregistered multicast flood mask */
+	idx = cpsw_ale_get_vlan_unreg_mcast_idx(ale_entry);
+	writel(unreg_mcast, ale->params.ale_regs + ALE_VLAN_MASK_MUX(idx));
+}
 
 int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
 		      int reg_mcast, int unreg_mcast)
@@ -401,10 +437,16 @@ int cpsw_ale_add_vlan(struct cpsw_ale *ale, u16 vid, int port, int untag,
 	cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_VLAN);
 	cpsw_ale_set_vlan_id(ale_entry, vid);
 
-	cpsw_ale_set_vlan_untag_force(ale_entry, untag);
-	cpsw_ale_set_vlan_reg_mcast(ale_entry, reg_mcast);
-	cpsw_ale_set_vlan_unreg_mcast(ale_entry, unreg_mcast);
-	cpsw_ale_set_vlan_member_list(ale_entry, port);
+	cpsw_ale_set_vlan_untag_force(ale_entry, untag, ale->vlan_field_bits);
+	if (!ale->params.nu_switch_ale) {
+		cpsw_ale_set_vlan_reg_mcast(ale_entry, reg_mcast,
+					    ale->vlan_field_bits);
+		cpsw_ale_set_vlan_unreg_mcast(ale_entry, unreg_mcast,
+					      ale->vlan_field_bits);
+	} else {
+		cpsw_ale_set_vlan_mcast(ale, ale_entry, reg_mcast, unreg_mcast);
+	}
+	cpsw_ale_set_vlan_member_list(ale_entry, port, ale->vlan_field_bits);
 
 	if (idx < 0)
 		idx = cpsw_ale_match_free(ale);
@@ -430,7 +472,8 @@ int cpsw_ale_del_vlan(struct cpsw_ale *ale, u16 vid, int port_mask)
 	cpsw_ale_read(ale, idx, ale_entry);
 
 	if (port_mask)
-		cpsw_ale_set_vlan_member_list(ale_entry, port_mask);
+		cpsw_ale_set_vlan_member_list(ale_entry, port_mask,
+					      ale->vlan_field_bits);
 	else
 		cpsw_ale_set_entry_type(ale_entry, ALE_TYPE_FREE);
 
@@ -458,12 +501,15 @@ void cpsw_ale_set_allmulti(struct cpsw_ale *ale, int allmulti)
 		if (type != ALE_TYPE_VLAN)
 			continue;
 
-		unreg_mcast = cpsw_ale_get_vlan_unreg_mcast(ale_entry);
+		unreg_mcast =
+			cpsw_ale_get_vlan_unreg_mcast(ale_entry,
+						      ale->vlan_field_bits);
 		if (allmulti)
 			unreg_mcast |= 1;
 		else
 			unreg_mcast &= ~1;
-		cpsw_ale_set_vlan_unreg_mcast(ale_entry, unreg_mcast);
+		cpsw_ale_set_vlan_unreg_mcast(ale_entry, unreg_mcast,
+					      ale->vlan_field_bits);
 		cpsw_ale_write(ale, idx, ale_entry);
 	}
 }
@@ -769,6 +815,14 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 	dev_info(ale->params.dev,
 		 "ALE Table size %ld\n", ale->params.ale_entries);
 
+	/* set default bits for existing h/w */
+	ale->port_mask_bits = 3;
+	ale->port_num_bits = 2;
+	ale->vlan_field_bits = 3;
+
+	/* Set defaults override for ALE on NetCP NU switch and for version
+	 * 1R3
+	 */
 	if (ale->params.nu_switch_ale) {
 		/* Separate registers for unknown vlan configuration.
 		 * Also there are N bits, where N is number of ale
@@ -793,6 +847,13 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 		ale_controls[ALE_PORT_UNTAGGED_EGRESS].shift = 0;
 		ale_controls[ALE_PORT_UNTAGGED_EGRESS].offset =
 					ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS;
+		ale->port_mask_bits = ale->params.ale_ports;
+		ale->port_num_bits = ale->params.ale_ports - 1;
+		ale->vlan_field_bits = ale->params.ale_ports;
+	} else if (ale->version == ALE_VERSION_1R3) {
+		ale->port_mask_bits = ale->params.ale_ports;
+		ale->port_num_bits = 3;
+		ale->vlan_field_bits = ale->params.ale_ports;
 	}
 
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 1);

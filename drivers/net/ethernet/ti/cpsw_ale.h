@@ -39,6 +39,10 @@ struct cpsw_ale {
 	unsigned long		ageout;
 	int			allmulti;
 	u32			version;
+	/* These bits are different on NetCP NU Switch ALE */
+	u32			port_mask_bits;
+	u32			port_num_bits;
+	u32			vlan_field_bits;
 };
 
 enum cpsw_ale_control {
