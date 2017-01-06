@@ -2633,6 +2633,30 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 
 		seq_printf(m, "Performance_Counter: %u\n", psrperf);
 	}
+	if (dev_priv->psr.psr2_support) {
+		static const char * const live_status[] = {
+							"IDLE",
+							"CAPTURE",
+							"CAPTURE_FS",
+							"SLEEP",
+							"BUFON_FW",
+							"ML_UP",
+							"SU_STANDBY",
+							"FAST_SLEEP",
+							"DEEP_SLEEP",
+							"BUF_ON",
+							"TG_ON" };
+		u8 pos = (I915_READ(EDP_PSR2_STATUS_CTL) &
+			EDP_PSR2_STATUS_STATE_MASK) >>
+			EDP_PSR2_STATUS_STATE_SHIFT;
+
+		seq_printf(m, "PSR2_STATUS_EDP: %x\n",
+			I915_READ(EDP_PSR2_STATUS_CTL));
+
+		if (pos < ARRAY_SIZE(live_status))
+		seq_printf(m, "PSR2 live state %s\n",
+			live_status[pos]);
+	}
 	mutex_unlock(&dev_priv->psr.lock);
 
 	intel_runtime_pm_put(dev_priv);

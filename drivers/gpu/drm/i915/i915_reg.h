@@ -3621,6 +3621,7 @@ enum {
 
 #define EDP_PSR2_STATUS_CTL            _MMIO(0x6f940)
 #define EDP_PSR2_STATUS_STATE_MASK     (0xf<<28)
+#define EDP_PSR2_STATUS_STATE_SHIFT    28
 
 /* VGA port control */
 #define ADPA			_MMIO(0x61100)
