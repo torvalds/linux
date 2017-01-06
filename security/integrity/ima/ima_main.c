@@ -309,7 +309,7 @@ int ima_bprm_check(struct linux_binprm *bprm)
 /**
  * ima_path_check - based on policy, collect/store measurement.
  * @file: pointer to the file to be measured
- * @mask: contains MAY_READ, MAY_WRITE or MAY_EXECUTE
+ * @mask: contains MAY_READ, MAY_WRITE, MAY_EXEC or MAY_APPEND
  *
  * Measure files based on the ima_must_measure() policy decision.
  *
@@ -319,8 +319,8 @@ int ima_bprm_check(struct linux_binprm *bprm)
 int ima_file_check(struct file *file, int mask, int opened)
 {
 	return process_measurement(file, NULL, 0,
-				   mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
-				   FILE_CHECK, opened);
+				   mask & (MAY_READ | MAY_WRITE | MAY_EXEC |
+					   MAY_APPEND), FILE_CHECK, opened);
 }
 EXPORT_SYMBOL_GPL(ima_file_check);
 
