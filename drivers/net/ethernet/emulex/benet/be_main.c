@@ -1695,9 +1695,8 @@ static void be_set_uc_list(struct be_adapter *adapter)
 	}
 
 	if (adapter->update_uc_list) {
-		i = 1; /* First slot is claimed by the Primary MAC */
-
 		/* cache the uc-list in adapter array */
+		i = 0;
 		netdev_for_each_uc_addr(ha, netdev) {
 			ether_addr_copy(adapter->uc_list[i].mac, ha->addr);
 			i++;
