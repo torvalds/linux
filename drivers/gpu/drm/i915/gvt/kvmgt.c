@@ -398,6 +398,7 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 	struct intel_vgpu_type *type;
 	struct device *pdev;
 	void *gvt;
+	int ret;
 
 	pdev = mdev_parent_dev(mdev);
 	gvt = kdev_to_i915(pdev)->gvt;
@@ -406,13 +407,15 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 	if (!type) {
 		gvt_err("failed to find type %s to create\n",
 						kobject_name(kobj));
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	vgpu = intel_gvt_ops->vgpu_create(gvt, type);
 	if (IS_ERR_OR_NULL(vgpu)) {
-		gvt_err("create intel vgpu failed\n");
-		return -EINVAL;
+		ret = vgpu == NULL ? -EFAULT : PTR_ERR(vgpu);
+		gvt_err("failed to create intel vgpu: %d\n", ret);
+		goto out;
 	}
 
 	INIT_WORK(&vgpu->vdev.release_work, intel_vgpu_release_work);
@@ -422,7 +425,10 @@ static int intel_vgpu_create(struct kobject *kobj, struct mdev_device *mdev)
 
 	gvt_dbg_core("intel_vgpu_create succeeded for mdev: %s\n",
 		     dev_name(mdev_dev(mdev)));
-	return 0;
+	ret = 0;
+
+out:
+	return ret;
 }
 
 static int intel_vgpu_remove(struct mdev_device *mdev)
