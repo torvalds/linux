@@ -108,7 +108,9 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	beeper->pwm = devm_pwm_get(dev, NULL);
 	if (IS_ERR(beeper->pwm)) {
 		error = PTR_ERR(beeper->pwm);
-		dev_err(dev, "Failed to request PWM device: %d\n", error);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "Failed to request PWM device: %d\n",
+				error);
 		return error;
 	}
 
