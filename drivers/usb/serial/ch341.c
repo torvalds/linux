@@ -99,6 +99,8 @@ static int ch341_control_out(struct usb_device *dev, u8 request,
 	r = usb_control_msg(dev, usb_sndctrlpipe(dev, 0), request,
 			    USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 			    value, index, NULL, 0, DEFAULT_TIMEOUT);
+	if (r < 0)
+		dev_err(&dev->dev, "failed to send control message: %d\n", r);
 
 	return r;
 }
@@ -116,7 +118,20 @@ static int ch341_control_in(struct usb_device *dev,
 	r = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), request,
 			    USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			    value, index, buf, bufsize, DEFAULT_TIMEOUT);
-	return r;
+	if (r < bufsize) {
+		if (r >= 0) {
+			dev_err(&dev->dev,
+				"short control message received (%d < %u)\n",
+				r, bufsize);
+			r = -EIO;
+		}
+
+		dev_err(&dev->dev, "failed to receive control message: %d\n",
+			r);
+		return r;
+	}
+
+	return 0;
 }
 
 static int ch341_set_baudrate(struct usb_device *dev,
@@ -158,9 +173,9 @@ static int ch341_set_handshake(struct usb_device *dev, u8 control)
 
 static int ch341_get_status(struct usb_device *dev, struct ch341_private *priv)
 {
+	const unsigned int size = 2;
 	char *buffer;
 	int r;
-	const unsigned size = 8;
 	unsigned long flags;
 
 	buffer = kmalloc(size, GFP_KERNEL);
@@ -171,14 +186,9 @@ static int ch341_get_status(struct usb_device *dev, struct ch341_private *priv)
 	if (r < 0)
 		goto out;
 
-	/* setup the private status if available */
-	if (r == 2) {
-		r = 0;
-		spin_lock_irqsave(&priv->lock, flags);
-		priv->line_status = (~(*buffer)) & CH341_BITS_MODEM_STAT;
-		spin_unlock_irqrestore(&priv->lock, flags);
-	} else
-		r = -EPROTO;
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->line_status = (~(*buffer)) & CH341_BITS_MODEM_STAT;
+	spin_unlock_irqrestore(&priv->lock, flags);
 
 out:	kfree(buffer);
 	return r;
@@ -188,9 +198,9 @@ out:	kfree(buffer);
 
 static int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
 {
+	const unsigned int size = 2;
 	char *buffer;
 	int r;
-	const unsigned size = 8;
 
 	buffer = kmalloc(size, GFP_KERNEL);
 	if (!buffer)
