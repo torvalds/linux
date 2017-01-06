@@ -537,7 +537,6 @@ static struct sh_eth_cpu_data r7s72100_data = {
 	.no_ade		= 1,
 	.hw_crc		= 1,
 	.tsu		= 1,
-	.shift_rd0	= 1,
 };
 
 static void sh_eth_chip_reset_r8a7740(struct net_device *ndev)
@@ -577,7 +576,6 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.hw_crc		= 1,
 	.tsu		= 1,
 	.select_mii	= 1,
-	.shift_rd0	= 1,
 };
 
 /* There is CPU dependent code */
@@ -816,7 +814,6 @@ static struct sh_eth_cpu_data sh7734_data = {
 	.tsu		= 1,
 	.hw_crc		= 1,
 	.select_mii	= 1,
-	.shift_rd0	= 1,
 };
 
 /* SH7763 */
@@ -1416,7 +1413,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		 * the RFS bits are from bit 25 to bit 16. So, the
 		 * driver needs right shifting by 16.
 		 */
-		if (mdp->cd->shift_rd0)
+		if (mdp->cd->hw_crc)
 			desc_status >>= 16;
 
 		skb = mdp->rx_skbuff[entry];
