@@ -341,6 +341,15 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 			of_desc->bus_format = val;
 		else
 			of_desc->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		if (!of_property_read_u32(dev->of_node, "delay,prepare", &val))
+			of_desc->delay.prepare = val;
+		if (!of_property_read_u32(dev->of_node, "delay,enable", &val))
+			of_desc->delay.enable = val;
+		if (!of_property_read_u32(dev->of_node, "delay,disable", &val))
+			of_desc->delay.disable = val;
+		if (!of_property_read_u32(dev->of_node,
+					  "delay,unprepare", &val))
+			of_desc->delay.unprepare = val;
 	}
 
 	panel->enabled = false;
