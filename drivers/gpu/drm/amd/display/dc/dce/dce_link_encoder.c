@@ -1053,6 +1053,9 @@ bool dce110_link_encoder_validate_output_with_stream(
 		is_valid = dce110_link_encoder_validate_dp_output(
 			enc110, &stream->public.timing);
 	break;
+	case SIGNAL_TYPE_VIRTUAL:
+		is_valid = true;
+		break;
 	default:
 		is_valid = false;
 	break;
