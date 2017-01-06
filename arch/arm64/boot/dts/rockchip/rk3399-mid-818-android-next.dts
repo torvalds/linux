@@ -53,6 +53,7 @@
 
 	edp_panel: edp-panel {
 		compatible = "lg,lp079qx1-sp0v", "panel-simple";
+		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
 		backlight = <&backlight>;
 		power-supply = <&vcc3v3_s0>;
 		enable-gpios = <&gpio3 8 GPIO_ACTIVE_HIGH>;
