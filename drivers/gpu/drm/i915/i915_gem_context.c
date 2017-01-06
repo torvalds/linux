@@ -413,14 +413,17 @@ i915_gem_context_create_gvt(struct drm_device *dev)
 	if (ret)
 		return ERR_PTR(ret);
 
-	ctx = i915_gem_create_context(to_i915(dev), NULL);
+	ctx = __create_hw_context(to_i915(dev), NULL);
 	if (IS_ERR(ctx))
 		goto out;
 
+	ctx->file_priv = ERR_PTR(-EBADF);
 	i915_gem_context_set_closed(ctx); /* not user accessible */
 	i915_gem_context_clear_bannable(ctx);
 	i915_gem_context_set_force_single_submission(ctx);
 	ctx->ring_size = 512 * PAGE_SIZE; /* Max ring buffer size */
+
+	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 out:
 	mutex_unlock(&dev->struct_mutex);
 	return ctx;
@@ -471,6 +474,8 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 	i915_gem_context_clear_bannable(ctx);
 	ctx->priority = I915_PRIORITY_MIN; /* lowest priority; idle task */
 	dev_priv->kernel_context = ctx;
+
+	GEM_BUG_ON(!i915_gem_context_is_kernel(ctx));
 
 	DRM_DEBUG_DRIVER("%s context support initialized\n",
 			i915.enable_execlists ? "LR" :
@@ -524,6 +529,8 @@ void i915_gem_context_fini(struct drm_i915_private *dev_priv)
 
 	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
+	GEM_BUG_ON(!i915_gem_context_is_kernel(dctx));
+
 	context_close(dctx);
 	dev_priv->kernel_context = NULL;
 
@@ -548,6 +555,8 @@ int i915_gem_context_open(struct drm_device *dev, struct drm_file *file)
 	mutex_lock(&dev->struct_mutex);
 	ctx = i915_gem_create_context(to_i915(dev), file_priv);
 	mutex_unlock(&dev->struct_mutex);
+
+	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 
 	if (IS_ERR(ctx)) {
 		idr_destroy(&file_priv->context_idr);
@@ -967,6 +976,8 @@ int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
 	mutex_unlock(&dev->struct_mutex);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
+
+	GEM_BUG_ON(i915_gem_context_is_kernel(ctx));
 
 	args->ctx_id = ctx->user_handle;
 	DRM_DEBUG("HW context %d created\n", args->ctx_id);

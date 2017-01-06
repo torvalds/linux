@@ -786,7 +786,7 @@ static int execlists_context_pin(struct intel_engine_cs *engine,
 	flags = PIN_GLOBAL;
 	if (ctx->ggtt_offset_bias)
 		flags |= PIN_OFFSET_BIAS | ctx->ggtt_offset_bias;
-	if (ctx == ctx->i915->kernel_context)
+	if (i915_gem_context_is_kernel(ctx))
 		flags |= PIN_HIGH;
 
 	ret = i915_vma_pin(ce->state, 0, GEN8_LR_CONTEXT_ALIGN, flags);

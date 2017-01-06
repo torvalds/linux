@@ -246,6 +246,11 @@ static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)
 	return c->user_handle == DEFAULT_CONTEXT_HANDLE;
 }
 
+static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
+{
+	return !ctx->file_priv;
+}
+
 /* i915_gem_context.c */
 int __must_check i915_gem_context_init(struct drm_i915_private *dev_priv);
 void i915_gem_context_lost(struct drm_i915_private *dev_priv);

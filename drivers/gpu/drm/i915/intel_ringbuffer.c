@@ -1974,7 +1974,7 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 		unsigned int flags;
 
 		flags = 0;
-		if (ctx == ctx->i915->kernel_context)
+		if (i915_gem_context_is_kernel(ctx))
 			flags = PIN_HIGH;
 
 		ret = context_pin(ctx, flags);
@@ -1989,7 +1989,7 @@ static int intel_ring_context_pin(struct intel_engine_cs *engine,
 	 * as during eviction we cannot allocate and pin the renderstate in
 	 * order to initialise the context.
 	 */
-	if (ctx == ctx->i915->kernel_context)
+	if (i915_gem_context_is_kernel(ctx))
 		ce->initialised = true;
 
 	i915_gem_context_get(ctx);
