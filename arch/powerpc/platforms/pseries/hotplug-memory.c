@@ -446,9 +446,7 @@ static int dlpar_remove_lmb(struct of_drconf_cell *lmb)
 	/* Update memory regions for memory remove */
 	memblock_remove(lmb->base_addr, block_sz);
 
-	dlpar_release_drc(lmb->drc_index);
 	dlpar_remove_device_tree_lmb(lmb);
-
 	return 0;
 }
 
@@ -516,6 +514,7 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove,
 			if (!lmbs[i].reserved)
 				continue;
 
+			dlpar_release_drc(lmbs[i].drc_index);
 			pr_info("Memory at %llx was hot-removed\n",
 				lmbs[i].base_addr);
 
@@ -545,6 +544,9 @@ static int dlpar_memory_remove_by_index(u32 drc_index, struct property *prop)
 		if (lmbs[i].drc_index == drc_index) {
 			lmb_found = 1;
 			rc = dlpar_remove_lmb(&lmbs[i]);
+			if (!rc)
+				dlpar_release_drc(lmbs[i].drc_index);
+
 			break;
 		}
 	}
@@ -599,10 +601,6 @@ static int dlpar_add_lmb(struct of_drconf_cell *lmb)
 	if (lmb->flags & DRCONF_MEM_ASSIGNED)
 		return -EINVAL;
 
-	rc = dlpar_acquire_drc(lmb->drc_index);
-	if (rc)
-		return rc;
-
 	rc = dlpar_add_device_tree_lmb(lmb);
 	if (rc) {
 		pr_err("Couldn't update device tree for drc index %x\n",
@@ -618,12 +616,10 @@ static int dlpar_add_lmb(struct of_drconf_cell *lmb)
 
 	/* Add the memory */
 	rc = add_memory(nid, lmb->base_addr, block_sz);
-	if (rc) {
+	if (rc)
 		dlpar_remove_device_tree_lmb(lmb);
-		dlpar_release_drc(lmb->drc_index);
-	} else {
+	else
 		lmb->flags |= DRCONF_MEM_ASSIGNED;
-	}
 
 	return rc;
 }
@@ -655,9 +651,15 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add, struct property *prop)
 		return -EINVAL;
 
 	for (i = 0; i < num_lmbs && lmbs_to_add != lmbs_added; i++) {
-		rc = dlpar_add_lmb(&lmbs[i]);
+		rc = dlpar_acquire_drc(lmbs[i].drc_index);
 		if (rc)
 			continue;
+
+		rc = dlpar_add_lmb(&lmbs[i]);
+		if (rc) {
+			dlpar_release_drc(lmbs[i].drc_index);
+			continue;
+		}
 
 		lmbs_added++;
 
@@ -678,6 +680,8 @@ static int dlpar_memory_add_by_count(u32 lmbs_to_add, struct property *prop)
 			if (rc)
 				pr_err("Failed to remove LMB, drc index %x\n",
 				       be32_to_cpu(lmbs[i].drc_index));
+			else
+				dlpar_release_drc(lmbs[i].drc_index);
 		}
 		rc = -EINVAL;
 	} else {
@@ -711,7 +715,13 @@ static int dlpar_memory_add_by_index(u32 drc_index, struct property *prop)
 	for (i = 0; i < num_lmbs; i++) {
 		if (lmbs[i].drc_index == drc_index) {
 			lmb_found = 1;
-			rc = dlpar_add_lmb(&lmbs[i]);
+			rc = dlpar_acquire_drc(lmbs[i].drc_index);
+			if (!rc) {
+				rc = dlpar_add_lmb(&lmbs[i]);
+				if (rc)
+					dlpar_release_drc(lmbs[i].drc_index);
+			}
+
 			break;
 		}
 	}
