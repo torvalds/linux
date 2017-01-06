@@ -238,15 +238,6 @@ static int ch341_configure(struct usb_device *dev, struct ch341_private *priv)
 	if (r < 0)
 		goto out;
 
-	/* expect two bytes 0x56 0x00 */
-	r = ch341_control_in(dev, CH341_REQ_READ_REG, 0x2518, 0, buffer, size);
-	if (r < 0)
-		goto out;
-
-	r = ch341_control_out(dev, CH341_REQ_WRITE_REG, 0x2518, 0x0050);
-	if (r < 0)
-		goto out;
-
 	r = ch341_set_baudrate_lcr(dev, priv, priv->lcr);
 	if (r < 0)
 		goto out;
@@ -268,6 +259,11 @@ static int ch341_port_probe(struct usb_serial_port *port)
 
 	spin_lock_init(&priv->lock);
 	priv->baud_rate = DEFAULT_BAUD_RATE;
+	/*
+	 * Some CH340 devices appear unable to change the initial LCR
+	 * settings, so set a sane 8N1 default.
+	 */
+	priv->lcr = CH341_LCR_ENABLE_RX | CH341_LCR_ENABLE_TX | CH341_LCR_CS8;
 
 	r = ch341_configure(port->serial->dev, priv);
 	if (r < 0)
