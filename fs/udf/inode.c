@@ -57,14 +57,12 @@ static sector_t inode_getblk(struct inode *, sector_t, int *, int *);
 static int8_t udf_insert_aext(struct inode *, struct extent_position,
 			      struct kernel_lb_addr, uint32_t);
 static void udf_split_extents(struct inode *, int *, int, int,
-			      struct kernel_long_ad[EXTENT_MERGE_SIZE], int *);
+			      struct kernel_long_ad *, int *);
 static void udf_prealloc_extents(struct inode *, int, int,
-				 struct kernel_long_ad[EXTENT_MERGE_SIZE], int *);
-static void udf_merge_extents(struct inode *,
-			      struct kernel_long_ad[EXTENT_MERGE_SIZE], int *);
-static void udf_update_extents(struct inode *,
-			       struct kernel_long_ad[EXTENT_MERGE_SIZE], int, int,
-			       struct extent_position *);
+				 struct kernel_long_ad *, int *);
+static void udf_merge_extents(struct inode *, struct kernel_long_ad *, int *);
+static void udf_update_extents(struct inode *, struct kernel_long_ad *, int,
+			       int, struct extent_position *);
 static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 static void __udf_clear_extent_cache(struct inode *inode)
@@ -896,8 +894,7 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 }
 
 static void udf_split_extents(struct inode *inode, int *c, int offset,
-			      int newblocknum,
-			      struct kernel_long_ad laarr[EXTENT_MERGE_SIZE],
+			      int newblocknum, struct kernel_long_ad *laarr,
 			      int *endnum)
 {
 	unsigned long blocksize = inode->i_sb->s_blocksize;
@@ -961,7 +958,7 @@ static void udf_split_extents(struct inode *inode, int *c, int offset,
 }
 
 static void udf_prealloc_extents(struct inode *inode, int c, int lastblock,
-				 struct kernel_long_ad laarr[EXTENT_MERGE_SIZE],
+				 struct kernel_long_ad *laarr,
 				 int *endnum)
 {
 	int start, length = 0, currlength = 0, i;
@@ -1056,8 +1053,7 @@ static void udf_prealloc_extents(struct inode *inode, int c, int lastblock,
 	}
 }
 
-static void udf_merge_extents(struct inode *inode,
-			      struct kernel_long_ad laarr[EXTENT_MERGE_SIZE],
+static void udf_merge_extents(struct inode *inode, struct kernel_long_ad *laarr,
 			      int *endnum)
 {
 	int i;
@@ -1156,8 +1152,7 @@ static void udf_merge_extents(struct inode *inode,
 	}
 }
 
-static void udf_update_extents(struct inode *inode,
-			       struct kernel_long_ad laarr[EXTENT_MERGE_SIZE],
+static void udf_update_extents(struct inode *inode, struct kernel_long_ad *laarr,
 			       int startnum, int endnum,
 			       struct extent_position *epos)
 {
