@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -45,33 +45,22 @@ void kbase_backend_run_atom(struct kbase_device *kbdev,
 void kbase_backend_slot_update(struct kbase_device *kbdev);
 
 /**
- * kbase_backend_find_free_address_space() - Find a free address space.
+ * kbase_backend_find_and_release_free_address_space() - Release a free AS
  * @kbdev:	Device pointer
  * @kctx:	Context pointer
  *
- * If no address spaces are currently free, then this function can evict an
- * idle context from the runpool, freeing up the address space it was using.
+ * This function can evict an idle context from the runpool, freeing up the
+ * address space it was using.
  *
  * The address space is marked as in use. The caller must either assign a
  * context using kbase_gpu_use_ctx(), or release it using
- * kbase_gpu_release_free_address_space()
+ * kbase_ctx_sched_release()
  *
  * Return: Number of free address space, or KBASEP_AS_NR_INVALID if none
  *	   available
  */
-int kbase_backend_find_free_address_space(struct kbase_device *kbdev,
-						struct kbase_context *kctx);
-
-/**
- * kbase_backend_release_free_address_space() - Release an address space.
- * @kbdev:	Device pointer
- * @as_nr:	Address space to release
- *
- * The address space must have been returned by
- * kbase_gpu_find_free_address_space().
- */
-void kbase_backend_release_free_address_space(struct kbase_device *kbdev,
-						int as_nr);
+int kbase_backend_find_and_release_free_address_space(
+		struct kbase_device *kbdev, struct kbase_context *kctx);
 
 /**
  * kbase_backend_use_ctx() - Activate a currently unscheduled context, using the
@@ -131,6 +120,19 @@ void kbase_backend_release_ctx_irq(struct kbase_device *kbdev,
  */
 void kbase_backend_release_ctx_noirq(struct kbase_device *kbdev,
 						struct kbase_context *kctx);
+
+/**
+ * kbase_backend_cacheclean - Perform a cache clean if the given atom requires
+ *                            one
+ * @kbdev:	Device pointer
+ * @katom:	Pointer to the failed atom
+ *
+ * On some GPUs, the GPU cache must be cleaned following a failed atom. This
+ * function performs a clean if it is required by @katom.
+ */
+void kbase_backend_cacheclean(struct kbase_device *kbdev,
+		struct kbase_jd_atom *katom);
+
 
 /**
  * kbase_backend_complete_wq() - Perform backend-specific actions required on
@@ -373,5 +375,7 @@ bool kbase_reset_gpu_active(struct kbase_device *kbdev);
  */
 void kbase_job_slot_hardstop(struct kbase_context *kctx, int js,
 				struct kbase_jd_atom *target_katom);
+
+extern struct protected_mode_ops kbase_native_protected_ops;
 
 #endif /* _KBASE_HWACCESS_JM_H_ */

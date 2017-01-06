@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2014 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2014,2017 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -46,7 +46,9 @@ BACKEND += \
 endif
 
 ifeq ($(CONFIG_MALI_DEVFREQ),y)
-BACKEND += backend/gpu/mali_kbase_devfreq.c
+BACKEND += \
+	backend/gpu/mali_kbase_devfreq.c \
+	backend/gpu/mali_kbase_pm_ca_devfreq.c
 endif
 
 ifeq ($(CONFIG_MALI_NO_MALI),y)
@@ -55,8 +57,4 @@ ifeq ($(CONFIG_MALI_NO_MALI),y)
 	BACKEND += backend/gpu/mali_kbase_model_linux.c
 	# HW error simulation
 	BACKEND += backend/gpu/mali_kbase_model_error_generator.c
-endif
-
-ifeq ($(CONFIG_DEVFREQ_THERMAL),y)
-	BACKEND += backend/gpu/mali_kbase_power_model_simple.c
 endif

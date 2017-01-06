@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -23,18 +23,6 @@
 #include <linux/shrinker.h>
 #include <linux/atomic.h>
 #include <linux/version.h>
-
-/* This function is only provided for backwards compatibility with kernels
- * which use the old carveout allocator.
- *
- * The forward declaration is to keep sparse happy.
- */
-int __init kbase_carveout_mem_reserve(
-		phys_addr_t size);
-int __init kbase_carveout_mem_reserve(phys_addr_t size)
-{
-	return 0;
-}
 
 #define pool_dbg(pool, format, ...) \
 	dev_dbg(pool->kbdev->dev, "%s-pool [%zu/%zu]: " format,	\

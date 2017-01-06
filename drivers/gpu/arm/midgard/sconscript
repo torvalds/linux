@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -16,14 +16,13 @@
 import sys
 Import('env')
 
-if Glob('tests/sconscript'):
-	SConscript( 'tests/sconscript' )
+SConscript( 'tests/sconscript' )
 
 mock_test = 0
 
 # Fake platform is a transient solution for GPL drivers running in kernel that does not provide configuration via platform data.
 # For such kernels fake_platform_device should be set to 1. For kernels providing platform data fake_platform_device should be set to 0.
-if env['platform_config']=='devicetree':
+if env['platform_config']=='devicetree' or env['platform_config']=='juno_soc':
 	fake_platform_device = 0
 else:
 	fake_platform_device = 1
@@ -33,8 +32,13 @@ kbase_src = [
 	Glob('*.c'),
 	Glob('backend/*/*.c'),
 	Glob('internal/*/*.c'),
-	Glob('platform/%s/*.c' % env['platform_config']),
+	Glob('ipa/*.c')
 ]
+
+if env['platform_config']=='juno_soc':
+	kbase_src += [Glob('platform/devicetree/*.c')]
+else:
+	kbase_src += [Glob('platform/%s/*.c' % env['platform_config'])]
 
 if Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock') and env['unit'] == '1':
 	kbase_src += [Glob('#kernel/drivers/gpu/arm/midgard/tests/internal/src/mock/*.c')]
@@ -56,14 +60,14 @@ make_args = env.kernel_get_config_defines(ret_list = True,
                                           fake = fake_platform_device) + [
 	'PLATFORM=%s' % env['platform'],
 	'MALI_ERROR_INJECT_ON=%s' % env['error_inject'],
-	'MALI_KERNEL_TEST_API=%s' % env['unit'],
+	'MALI_KERNEL_TEST_API=%s' % env['debug'],
 	'MALI_UNIT_TEST=%s' % env['unit'],
 	'MALI_RELEASE_NAME=%s' % env['mali_release_name'],
 	'MALI_MOCK_TEST=%s' % mock_test,
 	'MALI_CUSTOMER_RELEASE=%s' % env['release'],
 	'MALI_INSTRUMENTATION_LEVEL=%s' % env['instr'],
 	'MALI_COVERAGE=%s' % env['coverage'],
-	'MALI_BUS_LOG=%s' % env['buslog'],
+	'MALI_BUS_LOG=%s' % env['buslog']
 ]
 
 kbase = env.BuildKernelModule('$STATIC_LIB_PATH/mali_kbase.ko', kbase_src,
@@ -79,6 +83,9 @@ if env['os'] != 'android':
 # need Module.symvers from ump.ko build
 if int(env['ump']) == 1:
 	env.Depends(kbase, '$STATIC_LIB_PATH/ump.ko')
+
+if 'smc_protected_mode_switcher' in env:
+	env.Depends('$STATIC_LIB_PATH/mali_kbase.ko', '$STATIC_LIB_PATH/smc_protected_mode_switcher.ko')
 
 env.KernelObjTarget('kbase', kbase)
 

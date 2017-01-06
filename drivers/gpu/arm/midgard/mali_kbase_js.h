@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -26,7 +26,6 @@
 #define _KBASE_JS_H_
 
 #include "mali_kbase_js_defs.h"
-#include "mali_kbase_js_policy.h"
 #include "mali_kbase_context.h"
 #include "mali_kbase_defs.h"
 #include "mali_kbase_debug.h"
@@ -47,8 +46,7 @@
  * @addtogroup kbase_js Job Scheduler Internal APIs
  * @{
  *
- * These APIs are Internal to KBase and are available for use by the
- * @ref kbase_js_policy "Job Scheduler Policy APIs"
+ * These APIs are Internal to KBase.
  */
 
 /**
@@ -182,9 +180,7 @@ bool kbasep_js_add_job(struct kbase_context *kctx, struct kbase_jd_atom *atom);
  * It is a programming error to call this when:
  * - \a atom is not a job belonging to kctx.
  * - \a atom has already been removed from the Job Scheduler.
- * - \a atom is still in the runpool:
- *  - it has not been removed with kbasep_js_policy_dequeue_job()
- *  - or, it has not been removed with kbasep_js_policy_dequeue_job_irq()
+ * - \a atom is still in the runpool
  *
  * Do not use this for removing jobs being killed by kbase_jd_cancel() - use
  * kbasep_js_remove_cancelled_job() instead.
@@ -208,8 +204,6 @@ void kbasep_js_remove_job(struct kbase_device *kbdev, struct kbase_context *kctx
  * - \a atom has already been removed from the Job Scheduler.
  * - \a atom is still in the runpool:
  *  - it is not being killed with kbasep_jd_cancel()
- *  - or, it has not been removed with kbasep_js_policy_dequeue_job()
- *  - or, it has not been removed with kbasep_js_policy_dequeue_job_irq()
  *
  * The following locking conditions are made on the caller:
  * - it must hold kbasep_js_kctx_info::ctx::jsctx_mutex.
@@ -233,7 +227,8 @@ bool kbasep_js_remove_cancelled_job(struct kbase_device *kbdev,
  * @note This function can safely be called from IRQ context.
  *
  * The following locking conditions are made on the caller:
- * - it must \em not hold the hwaccess_lock, because it will be used internally.
+ * - it must \em not hold mmu_hw_mutex and hwaccess_lock, because they will be
+ *   used internally.
  *
  * @return value != false if the retain succeeded, and the context will not be scheduled out.
  * @return false if the retain failed (because the context is being/has been scheduled out).
@@ -247,7 +242,7 @@ bool kbasep_js_runpool_retain_ctx(struct kbase_device *kbdev, struct kbase_conte
  * @note This function can safely be called from IRQ context.
  *
  * The following locks must be held by the caller:
- * - hwaccess_lock
+ * - mmu_hw_mutex, hwaccess_lock
  *
  * @return value != false if the retain succeeded, and the context will not be scheduled out.
  * @return false if the retain failed (because the context is being/has been scheduled out).
@@ -273,28 +268,6 @@ bool kbasep_js_runpool_retain_ctx_nolock(struct kbase_device *kbdev, struct kbas
  * @return NULL on failure, indicating that no context was found in \a as_nr
  */
 struct kbase_context *kbasep_js_runpool_lookup_ctx(struct kbase_device *kbdev, int as_nr);
-
-/**
- * kbasep_js_runpool_lookup_ctx_nolock - Lookup a context in the Run Pool based
- *         upon its current address space and ensure that is stays scheduled in.
- * @kbdev: Device pointer
- * @as_nr: Address space to lookup
- *
- * The context is refcounted as being busy to prevent it from scheduling
- * out. It must be released with kbasep_js_runpool_release_ctx() when it is no
- * longer required to stay scheduled in.
- *
- * Note: This function can safely be called from IRQ context.
- *
- * The following locking conditions are made on the caller:
- * - it must the hold the hwaccess_lock
- *
- * Return: a valid struct kbase_context on success, which has been refcounted as
- *         being busy.
- *         NULL on failure, indicating that no context was found in \a as_nr
- */
-struct kbase_context *kbasep_js_runpool_lookup_ctx_nolock(
-		struct kbase_device *kbdev, int as_nr);
 
 /**
  * @brief Handling the requeuing/killing of a context that was evicted from the
@@ -464,9 +437,8 @@ void kbase_js_try_run_jobs(struct kbase_device *kbdev);
  *
  * The emptying mechanism may take some time to complete, since it can wait for
  * jobs to complete naturally instead of forcing them to end quickly. However,
- * this is bounded by the Job Scheduling Policy's Job Timeouts. Hence, this
- * function is guaranteed to complete in a finite time whenever the Job
- * Scheduling Policy implements Job Timeouts (such as those done by CFS).
+ * this is bounded by the Job Scheduler's Job Timeouts. Hence, this
+ * function is guaranteed to complete in a finite time.
  */
 void kbasep_js_suspend(struct kbase_device *kbdev);
 
@@ -789,41 +761,9 @@ static inline bool kbasep_js_get_atom_retry_submit_slot(const struct kbasep_js_a
 	return (bool) (js >= 0);
 }
 
-#if KBASE_DEBUG_DISABLE_ASSERTS == 0
-/**
- * Debug Check the refcount of a context. Only use within ASSERTs
- *
- * Obtains hwaccess_lock
- *
- * @return negative value if the context is not scheduled in
- * @return current refcount of the context if it is scheduled in. The refcount
- * is not guarenteed to be kept constant.
- */
-static inline int kbasep_js_debug_check_ctx_refcount(struct kbase_device *kbdev, struct kbase_context *kctx)
-{
-	unsigned long flags;
-	struct kbasep_js_device_data *js_devdata;
-	int result = -1;
-	int as_nr;
-
-	KBASE_DEBUG_ASSERT(kbdev != NULL);
-	KBASE_DEBUG_ASSERT(kctx != NULL);
-	js_devdata = &kbdev->js_data;
-
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	as_nr = kctx->as_nr;
-	if (as_nr != KBASEP_AS_NR_INVALID)
-		result = js_devdata->runpool_irq.per_as_data[as_nr].as_busy_refcount;
-
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-
-	return result;
-}
-#endif				/* KBASE_DEBUG_DISABLE_ASSERTS == 0 */
-
 /**
  * @brief Variant of kbasep_js_runpool_lookup_ctx() that can be used when the
- * context is guarenteed to be already previously retained.
+ * context is guaranteed to be already previously retained.
  *
  * It is a programming error to supply the \a as_nr of a context that has not
  * been previously retained/has a busy refcount of zero. The only exception is
@@ -832,95 +772,22 @@ static inline int kbasep_js_debug_check_ctx_refcount(struct kbase_device *kbdev,
  * The following locking conditions are made on the caller:
  * - it must \em not hold the hwaccess_lock, because it will be used internally.
  *
- * @return a valid struct kbase_context on success, with a refcount that is guarenteed
+ * @return a valid struct kbase_context on success, with a refcount that is guaranteed
  * to be non-zero and unmodified by this function.
  * @return NULL on failure, indicating that no context was found in \a as_nr
  */
 static inline struct kbase_context *kbasep_js_runpool_lookup_ctx_noretain(struct kbase_device *kbdev, int as_nr)
 {
-	unsigned long flags;
-	struct kbasep_js_device_data *js_devdata;
 	struct kbase_context *found_kctx;
-	struct kbasep_js_per_as_data *js_per_as_data;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 	KBASE_DEBUG_ASSERT(0 <= as_nr && as_nr < BASE_MAX_NR_AS);
-	js_devdata = &kbdev->js_data;
-	js_per_as_data = &js_devdata->runpool_irq.per_as_data[as_nr];
 
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-
-	found_kctx = js_per_as_data->kctx;
-	KBASE_DEBUG_ASSERT(found_kctx == NULL || js_per_as_data->as_busy_refcount > 0);
-
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	found_kctx = kbdev->as_to_kctx[as_nr];
+	KBASE_DEBUG_ASSERT(found_kctx == NULL ||
+			atomic_read(&found_kctx->refcount) > 0);
 
 	return found_kctx;
-}
-
-/**
- * This will provide a conversion from time (us) to ticks of the gpu clock
- * based on the minimum available gpu frequency.
- * This is usually good to compute best/worst case (where the use of current
- * frequency is not valid due to DVFS).
- * e.g.: when you need the number of cycles to guarantee you won't wait for
- * longer than 'us' time (you might have a shorter wait).
- */
-static inline u32 kbasep_js_convert_us_to_gpu_ticks_min_freq(struct kbase_device *kbdev, u32 us)
-{
-	u32 gpu_freq = kbdev->gpu_props.props.core_props.gpu_freq_khz_min;
-
-	KBASE_DEBUG_ASSERT(0 != gpu_freq);
-	return us * (gpu_freq / 1000);
-}
-
-/**
- * This will provide a conversion from time (us) to ticks of the gpu clock
- * based on the maximum available gpu frequency.
- * This is usually good to compute best/worst case (where the use of current
- * frequency is not valid due to DVFS).
- * e.g.: When you need the number of cycles to guarantee you'll wait at least
- * 'us' amount of time (but you might wait longer).
- */
-static inline u32 kbasep_js_convert_us_to_gpu_ticks_max_freq(struct kbase_device *kbdev, u32 us)
-{
-	u32 gpu_freq = kbdev->gpu_props.props.core_props.gpu_freq_khz_max;
-
-	KBASE_DEBUG_ASSERT(0 != gpu_freq);
-	return us * (u32) (gpu_freq / 1000);
-}
-
-/**
- * This will provide a conversion from ticks of the gpu clock to time (us)
- * based on the minimum available gpu frequency.
- * This is usually good to compute best/worst case (where the use of current
- * frequency is not valid due to DVFS).
- * e.g.: When you need to know the worst-case wait that 'ticks' cycles will
- * take (you guarantee that you won't wait any longer than this, but it may
- * be shorter).
- */
-static inline u32 kbasep_js_convert_gpu_ticks_to_us_min_freq(struct kbase_device *kbdev, u32 ticks)
-{
-	u32 gpu_freq = kbdev->gpu_props.props.core_props.gpu_freq_khz_min;
-
-	KBASE_DEBUG_ASSERT(0 != gpu_freq);
-	return ticks / gpu_freq * 1000;
-}
-
-/**
- * This will provide a conversion from ticks of the gpu clock to time (us)
- * based on the maximum available gpu frequency.
- * This is usually good to compute best/worst case (where the use of current
- * frequency is not valid due to DVFS).
- * e.g.: When you need to know the best-case wait for 'tick' cycles (you
- * guarantee to be waiting for at least this long, but it may be longer).
- */
-static inline u32 kbasep_js_convert_gpu_ticks_to_us_max_freq(struct kbase_device *kbdev, u32 ticks)
-{
-	u32 gpu_freq = kbdev->gpu_props.props.core_props.gpu_freq_khz_max;
-
-	KBASE_DEBUG_ASSERT(0 != gpu_freq);
-	return ticks / gpu_freq * 1000;
 }
 
 /*

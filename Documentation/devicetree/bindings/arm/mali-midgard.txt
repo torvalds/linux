@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2013-2015 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2013-2017 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -33,8 +33,6 @@ Optional:
 Documentation/devicetree/bindings/regulator/regulator.txt for details.
 - operating-points : Refer to Documentation/devicetree/bindings/power/opp.txt
 for details.
-- snoop_enable_smc : SMC function ID to enable CCI snooping on the GPU port(s).
-- snoop_disable_smc : SMC function ID to disable CCI snooping on the GPU port(s).
 - jm_config : For T860/T880. Sets job manager configuration. An array containing:
 	- 1 to override the TIMESTAMP value, 0 otherwise.
 	- 1 to override clock gate, forcing them to be always on, 0 otherwise.
@@ -45,12 +43,14 @@ for details.
 - power_model : Sets power model parameters. Note that this model was designed for the Juno
 	        platform, and may not be suitable for other platforms. A structure containing :
 	- compatible: Should be arm,mali-simple-power-model
-	- voltage: Voltage at reference point. Specified in mV.
-	- frequency: Frequency at reference point. Specified in MHz.
-	- dynamic-power: Dynamic power at reference frequency and voltage. Specified in mW.
-	- static-power: Static power at reference frequency. Specified in mW.
-	- ts: An array containing coefficients for the temperature scaling factor.
-	  Used as : tsf = ts[3]*T^3 + ts[2]*T^2 + ts[1]*T + ts[0], where T = temperature
+	- dynamic-coefficient: Coefficient, in pW/(Hz V^2), which is multiplied
+	  by v^2*f to calculate the dynamic power consumption.
+	- static-coefficient: Coefficient, in uW/V^3, which is multiplied by
+	  v^3 to calculate the static power consumption.
+	- ts: An array containing coefficients for the temperature scaling
+	  factor. This is used to scale the static power by a factor of
+	  tsf/1000000, where tsf = ts[3]*T^3 + ts[2]*T^2 + ts[1]*T + ts[0],
+	  and T = temperature in degrees.
 	- thermal-zone: A string identifying the thermal zone used for the GPU
 - system-coherency : Sets the coherency protocol to be used for coherent
 		     accesses made from the GPU.
@@ -58,6 +58,12 @@ for details.
 	- 0  : ACE-Lite
 	- 1  : ACE
 	- 31 : No coherency
+- ipa-model : Sets the IPA model to be used for power management. GPU probe will fail if the
+	      model is not found in the registered models list. If no model is specified here,
+	      a gpu-id based model is picked if available, otherwise the default model is used.
+	- mali-simple-power-model: Default model used on mali
+- protected-mode-switcher : Phandle to device implemented protected mode switching functionality.
+Refer to Documentation/devicetree/bindings/arm/smc-protected-mode-switcher.txt for one implementation.
 
 Example for a Mali-T602:
 
@@ -82,10 +88,8 @@ gpu@0xfc010000 {
 	>;
 	power_model {
 		compatible = "arm,mali-simple-power-model";
-		voltage = <800>;
-		frequency = <500>;
-		static-power = <500>;
-		dynamic-power = <1500>;
+		static-coefficient = <2427750>;
+		dynamic-coefficient = <4687>;
 		ts = <20000 2000 (-20) 2>;
 		thermal-zone = "gpu";
 	};

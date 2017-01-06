@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012,2014 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2016, 2017 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -14,7 +14,7 @@
 
 
 # Driver version string which is returned to userspace via an ioctl
-MALI_RELEASE_NAME ?= "r14p0-01rel0"
+MALI_RELEASE_NAME ?= "r18p0-01rel0"
 
 # Paths required for build
 KBASE_PATH = $(src)
@@ -76,7 +76,7 @@ SRC := \
 	mali_kbase_cache_policy.c \
 	mali_kbase_mem.c \
 	mali_kbase_mmu.c \
-	mali_kbase_ipa.c \
+	mali_kbase_ctx_sched.c \
 	mali_kbase_jd.c \
 	mali_kbase_jd_debugfs.c \
 	mali_kbase_jm.c \
@@ -97,8 +97,6 @@ SRC := \
 	mali_kbase_gpu_memory_debugfs.c \
 	mali_kbase_mem_linux.c \
 	mali_kbase_core_linux.c \
-	mali_kbase_sync.c \
-	mali_kbase_sync_user.c \
 	mali_kbase_replay.c \
 	mali_kbase_mem_profile_debugfs.c \
 	mali_kbase_mmu_mode_lpae.c \
@@ -115,6 +113,9 @@ SRC := \
 	mali_kbase_as_fault_debugfs.c \
 	mali_kbase_regs_history_debugfs.c
 
+
+
+
 ifeq ($(MALI_UNIT_TEST),1)
 	SRC += mali_kbase_tlstream_test.c
 endif
@@ -123,9 +124,6 @@ ifeq ($(MALI_CUSTOMER_RELEASE),0)
 	SRC += mali_kbase_regs_dump_debugfs.c
 endif
 
-
-# Job Scheduler Policy: Completely Fair Scheduler
-SRC += mali_kbase_js_policy_cfs.c
 
 ccflags-y += -I$(KBASE_PATH)
 
@@ -143,16 +141,6 @@ ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
 		ccflags-y += -I$(src)/platform/rtsm_ve
 	endif
 
-	ifeq ($(CONFIG_MALI_PLATFORM_JUNO),y)
-		SRC += platform/juno/mali_kbase_config_vexpress.c
-		ccflags-y += -I$(src)/platform/juno
-	endif
-
-	ifeq ($(CONFIG_MALI_PLATFORM_JUNO_SOC),y)
-		SRC += platform/juno_soc/mali_kbase_config_juno_soc.c
-		ccflags-y += -I$(src)/platform/juno_soc
-	endif
-
 	ifeq ($(CONFIG_MALI_PLATFORM_VEXPRESS_1XV7_A57),y)
 		SRC += platform/vexpress_1xv7_a57/mali_kbase_config_vexpress.c
 		ccflags-y += -I$(src)/platform/vexpress_1xv7_a57
@@ -163,34 +151,7 @@ ifeq ($(CONFIG_MALI_PLATFORM_FAKE),y)
 		platform/vexpress_6xvirtex7_10mhz/mali_kbase_cpu_vexpress.c
 		ccflags-y += -I$(src)/platform/vexpress_6xvirtex7_10mhz
 	endif
-
-	ifeq ($(CONFIG_MALI_PLATFORM_A7_KIPLING),y)
-		SRC += platform/a7_kipling/mali_kbase_config_a7_kipling.c \
-		platform/a7_kipling/mali_kbase_cpu_a7_kipling.c
-		ccflags-y += -I$(src)/platform/a7_kipling
-	endif
-
-	ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
-	# remove begin and end quotes from the Kconfig string type
-	platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
-	MALI_PLATFORM_THIRDPARTY_DIR := platform/$(platform_name)
-	ccflags-y += -I$(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)
-	ifeq ($(CONFIG_MALI_MIDGARD),m)
-	include  $(src)/platform/$(platform_name)/Kbuild
-	else ifeq ($(CONFIG_MALI_MIDGARD),y)
-	obj-$(CONFIG_MALI_MIDGARD) += platform/
-	endif
-	endif
 endif # CONFIG_MALI_PLATFORM_FAKE=y
-
-ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
-# remove begin and end quotes from the Kconfig string type
-platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
-MALI_PLATFORM_THIRDPARTY_DIR := platform/$(platform_name)
-ccflags-y += -I$(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)
-MALI_PLATFORM_DIR := platform/$(platform_name)
-include  $(src)/platform/$(platform_name)/Kbuild
-endif
 
 # Tell the Linux build system from which .o file to create the kernel module
 obj-$(CONFIG_MALI_MIDGARD) += midgard_kbase.o
@@ -198,7 +159,30 @@ obj-$(CONFIG_MALI_MIDGARD) += midgard_kbase.o
 # Tell the Linux build system to enable building of our .c files
 midgard_kbase-y := $(SRC:.c=.o)
 
-midgard_kbase-$(CONFIG_MALI_DMA_FENCE) += mali_kbase_dma_fence.o
+ifeq ($(CONFIG_MALI_PLATFORM_THIRDPARTY),y)
+  # Kconfig passes in the name with quotes for in-tree builds - remove them.
+  platform_name := $(shell echo $(CONFIG_MALI_PLATFORM_THIRDPARTY_NAME))
+  MALI_PLATFORM_THIRDPARTY_DIR := platform/$(platform_name)
+  ccflags-y += -I$(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)
+  include $(src)/$(MALI_PLATFORM_THIRDPARTY_DIR)/Kbuild
+endif
+
+ifeq ($(CONFIG_MALI_DEVFREQ),y)
+  ifeq ($(CONFIG_DEVFREQ_THERMAL),y)
+    include $(src)/ipa/Kbuild
+  endif
+endif
+
+midgard_kbase-$(CONFIG_MALI_DMA_FENCE) += \
+	mali_kbase_dma_fence.o \
+	mali_kbase_fence.o
+midgard_kbase-$(CONFIG_SYNC) += \
+	mali_kbase_sync_android.o \
+	mali_kbase_sync_common.o
+midgard_kbase-$(CONFIG_SYNC_FILE) += \
+	mali_kbase_sync_file.o \
+	mali_kbase_sync_common.o \
+	mali_kbase_fence.o
 
 MALI_BACKEND_PATH ?= backend
 CONFIG_MALI_BACKEND ?= gpu
@@ -214,6 +198,7 @@ endif
 include  $(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)/Kbuild
 midgard_kbase-y += $(BACKEND:.c=.o)
 
+
 ccflags-y += -I$(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)
 subdir-ccflags-y += -I$(src)/$(MALI_BACKEND_PATH)/$(CONFIG_MALI_BACKEND_REAL)
 
@@ -227,3 +212,6 @@ midgard_kbase-$(CONFIG_MALI_PLATFORM_DEVICETREE) += \
 	platform/devicetree/mali_kbase_runtime_pm.o \
 	platform/devicetree/mali_kbase_config_devicetree.o
 ccflags-$(CONFIG_MALI_PLATFORM_DEVICETREE) += -I$(src)/platform/devicetree
+
+# For kutf and mali_kutf_irq_latency_test
+obj-$(CONFIG_MALI_KUTF) += tests/

@@ -1,0 +1,23 @@
+#
+# (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+config MALI_IRQ_LATENCY
+ tristate "Mali GPU IRQ latency measurement"
+ depends on MALI_MIDGARD && MALI_DEBUG && MALI_KUTF
+ default n
+ help
+   This option will build a test module mali_kutf_irq_test that
+   can determine the latency of the Mali GPU IRQ on your system.
+   Choosing M here will generate a single module called mali_kutf_irq_test.

@@ -79,6 +79,19 @@ menuconfig MALI_EXPERT
 	  Enabling this option and modifying the default settings may produce a driver with performance or
 	  other limitations.
 
+config MALI_CORESTACK
+	bool "Support controlling power to the GPU core stack"
+	depends on MALI_MIDGARD && MALI_EXPERT
+	default n
+	help
+	  Enabling this feature on supported GPUs will let the driver powering
+	  on/off the GPU core stack independently without involving the Power
+	  Domain Controller. This should only be enabled on platforms which
+	  integration of the PDC to the Mali GPU is known to be problematic.
+	  This feature is currently only supported on t-Six and t-HEx GPUs.
+
+	  If unsure, say N.
+
 config MALI_PRFCNT_SET_SECONDARY
 	bool "Use secondary set of performance counters"
 	depends on MALI_MIDGARD && MALI_EXPERT
@@ -156,7 +169,7 @@ config MALI_DEBUG
 
 config MALI_FENCE_DEBUG
 	bool "Debug sync fence usage"
-	depends on MALI_MIDGARD && MALI_EXPERT && SYNC
+	depends on MALI_MIDGARD && MALI_EXPERT && (SYNC || SYNC_FILE)
 	default y if MALI_DEBUG
 	help
 	  Select this option to enable additional checking and reporting on the
@@ -222,4 +235,13 @@ config MALI_GPU_MMU_AARCH64
 
 	  If in doubt, say N.
 
+config MALI_PWRSOFT_765
+	bool "PWRSOFT-765 ticket"
+	default n
+	help
+	  PWRSOFT-765 fixes devfreq cooling devices issues. However, they are
+	  not merged in mainline kernel yet. So this define helps to guard those
+	  parts of the code.
+
 source "drivers/gpu/arm/midgard/platform/Kconfig"
+source "drivers/gpu/arm/midgard/tests/Kconfig"

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -22,7 +22,6 @@
 #include "mali_kbase_dma_fence.h"
 
 #include <linux/atomic.h>
-#include <linux/fence.h>
 #include <linux/list.h>
 #include <linux/lockdep.h>
 #include <linux/mutex.h>
@@ -33,10 +32,6 @@
 #include <linux/ww_mutex.h>
 
 #include <mali_kbase.h>
-
-
-/* Spin lock protecting all Mali fences as fence->lock. */
-static DEFINE_SPINLOCK(kbase_dma_fence_lock);
 
 static void
 kbase_dma_fence_work(struct work_struct *pwork);
@@ -49,65 +44,10 @@ kbase_dma_fence_waiters_add(struct kbase_jd_atom *katom)
 	list_add_tail(&katom->queue, &kctx->dma_fence.waiting_resource);
 }
 
-void
+static void
 kbase_dma_fence_waiters_remove(struct kbase_jd_atom *katom)
 {
 	list_del(&katom->queue);
-}
-
-static const char *
-kbase_dma_fence_get_driver_name(struct fence *fence)
-{
-	return kbase_drv_name;
-}
-
-static const char *
-kbase_dma_fence_get_timeline_name(struct fence *fence)
-{
-	return kbase_timeline_name;
-}
-
-static bool
-kbase_dma_fence_enable_signaling(struct fence *fence)
-{
-	/* If in the future we need to add code here remember to
-	 * to get a reference to the fence and release it when signaling
-	 * as stated in fence.h
-	 */
-	return true;
-}
-
-static void
-kbase_dma_fence_fence_value_str(struct fence *fence, char *str, int size)
-{
-	snprintf(str, size, "%u", fence->seqno);
-}
-
-static const struct fence_ops kbase_dma_fence_ops = {
-	.get_driver_name = kbase_dma_fence_get_driver_name,
-	.get_timeline_name = kbase_dma_fence_get_timeline_name,
-	.enable_signaling = kbase_dma_fence_enable_signaling,
-	/* Use the default wait */
-	.wait = fence_default_wait,
-	.fence_value_str = kbase_dma_fence_fence_value_str,
-};
-
-static struct fence *
-kbase_dma_fence_new(unsigned int context, unsigned int seqno)
-{
-	struct fence *fence;
-
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-	if (!fence)
-		return NULL;
-
-	fence_init(fence,
-		   &kbase_dma_fence_ops,
-		   &kbase_dma_fence_lock,
-		   context,
-		   seqno);
-
-	return fence;
 }
 
 static int
@@ -189,59 +129,6 @@ kbase_dma_fence_queue_work(struct kbase_jd_atom *katom)
 }
 
 /**
- * kbase_dma_fence_free_callbacks - Free dma-fence callbacks on a katom
- * @katom: Pointer to katom
- * @queue_worker: Boolean indicating if fence worker is to be queued when
- *                dep_count reaches 0.
- *
- * This function will free all fence callbacks on the katom's list of
- * callbacks. Callbacks that have not yet been called, because their fence
- * hasn't yet signaled, will first be removed from the fence.
- *
- * Locking: katom->dma_fence.callbacks list assumes jctx.lock is held.
- */
-static void
-kbase_dma_fence_free_callbacks(struct kbase_jd_atom *katom, bool queue_worker)
-{
-	struct kbase_dma_fence_cb *cb, *tmp;
-
-	lockdep_assert_held(&katom->kctx->jctx.lock);
-
-	/* Clean up and free callbacks. */
-	list_for_each_entry_safe(cb, tmp, &katom->dma_fence.callbacks, node) {
-		bool ret;
-
-		/* Cancel callbacks that hasn't been called yet. */
-		ret = fence_remove_callback(cb->fence, &cb->fence_cb);
-		if (ret) {
-			int ret;
-
-			/* Fence had not signaled, clean up after
-			 * canceling.
-			 */
-			ret = atomic_dec_return(&katom->dma_fence.dep_count);
-
-			if (unlikely(queue_worker && ret == 0)) {
-				/*
-				 * dep_count went to zero and queue_worker is
-				 * true. Queue the worker to handle the
-				 * completion of the katom.
-				 */
-				kbase_dma_fence_queue_work(katom);
-			}
-		}
-
-		/*
-		 * Release the reference taken in
-		 * kbase_dma_fence_add_callback().
-		 */
-		fence_put(cb->fence);
-		list_del(&cb->node);
-		kfree(cb);
-	}
-}
-
-/**
  * kbase_dma_fence_cancel_atom() - Cancels waiting on an atom
  * @katom:	Katom to cancel
  *
@@ -253,14 +140,12 @@ kbase_dma_fence_cancel_atom(struct kbase_jd_atom *katom)
 	lockdep_assert_held(&katom->kctx->jctx.lock);
 
 	/* Cancel callbacks and clean up. */
-	kbase_dma_fence_free_callbacks(katom, false);
-
-	KBASE_DEBUG_ASSERT(atomic_read(&katom->dma_fence.dep_count) == 0);
+	kbase_fence_free_callbacks(katom);
 
 	/* Mark the atom as handled in case all fences signaled just before
 	 * canceling the callbacks and the worker was queued.
 	 */
-	atomic_set(&katom->dma_fence.dep_count, -1);
+	kbase_fence_dep_count_set(katom, -1);
 
 	/* Prevent job_done_nolock from being called twice on an atom when
 	 * there is a race between job completion and cancellation.
@@ -290,15 +175,15 @@ kbase_dma_fence_work(struct work_struct *pwork)
 	ctx = &katom->kctx->jctx;
 
 	mutex_lock(&ctx->lock);
-	if (atomic_read(&katom->dma_fence.dep_count) != 0)
+	if (kbase_fence_dep_count_read(katom) != 0)
 		goto out;
 
-	atomic_set(&katom->dma_fence.dep_count, -1);
+	kbase_fence_dep_count_set(katom, -1);
 
 	/* Remove atom from list of dma-fence waiting atoms. */
 	kbase_dma_fence_waiters_remove(katom);
 	/* Cleanup callbacks. */
-	kbase_dma_fence_free_callbacks(katom, false);
+	kbase_fence_free_callbacks(katom);
 	/*
 	 * Queue atom on GPU, unless it has already completed due to a failing
 	 * dependency. Run jd_done_nolock() on the katom if it is completed.
@@ -312,64 +197,15 @@ out:
 	mutex_unlock(&ctx->lock);
 }
 
-/**
- * kbase_dma_fence_add_callback() - Add callback on @fence to block @katom
- * @katom: Pointer to katom that will be blocked by @fence
- * @fence: Pointer to fence on which to set up the callback
- * @callback: Pointer to function to be called when fence is signaled
- *
- * Caller needs to hold a reference to @fence when calling this function, and
- * the caller is responsible for releasing that reference.  An additional
- * reference to @fence will be taken when the callback was successfully set up
- * and @fence needs to be kept valid until the callback has been called and
- * cleanup have been done.
- *
- * Return: 0 on success: fence was either already signalled, or callback was
- * set up. Negative error code is returned on error.
- */
-static int
-kbase_dma_fence_add_callback(struct kbase_jd_atom *katom,
-			     struct fence *fence,
-			     fence_func_t callback)
-{
-	int err = 0;
-	struct kbase_dma_fence_cb *kbase_fence_cb;
-
-	kbase_fence_cb = kmalloc(sizeof(*kbase_fence_cb), GFP_KERNEL);
-	if (!kbase_fence_cb)
-		return -ENOMEM;
-
-	kbase_fence_cb->fence = fence;
-	kbase_fence_cb->katom = katom;
-	INIT_LIST_HEAD(&kbase_fence_cb->node);
-
-	err = fence_add_callback(fence, &kbase_fence_cb->fence_cb, callback);
-	if (err == -ENOENT) {
-		/* Fence signaled, clear the error and return */
-		err = 0;
-		kbase_fence_cb->fence = NULL;
-		kfree(kbase_fence_cb);
-	} else if (err) {
-		kfree(kbase_fence_cb);
-	} else {
-		/*
-		 * Get reference to fence that will be kept until callback gets
-		 * cleaned up in kbase_dma_fence_free_callbacks().
-		 */
-		fence_get(fence);
-		atomic_inc(&katom->dma_fence.dep_count);
-		/* Add callback to katom's list of callbacks */
-		list_add(&kbase_fence_cb->node, &katom->dma_fence.callbacks);
-	}
-
-	return err;
-}
-
 static void
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
 kbase_dma_fence_cb(struct fence *fence, struct fence_cb *cb)
+#else
+kbase_dma_fence_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
+#endif
 {
-	struct kbase_dma_fence_cb *kcb = container_of(cb,
-				struct kbase_dma_fence_cb,
+	struct kbase_fence_cb *kcb = container_of(cb,
+				struct kbase_fence_cb,
 				fence_cb);
 	struct kbase_jd_atom *katom = kcb->katom;
 
@@ -377,7 +213,8 @@ kbase_dma_fence_cb(struct fence *fence, struct fence_cb *cb)
 	 * preventing this callback from ever scheduling work. Which in turn
 	 * would reschedule the atom.
 	 */
-	if (atomic_dec_and_test(&katom->dma_fence.dep_count))
+
+	if (kbase_fence_dep_count_dec_and_test(katom))
 		kbase_dma_fence_queue_work(katom);
 }
 
@@ -386,8 +223,13 @@ kbase_dma_fence_add_reservation_callback(struct kbase_jd_atom *katom,
 					 struct reservation_object *resv,
 					 bool exclusive)
 {
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
 	struct fence *excl_fence = NULL;
 	struct fence **shared_fences = NULL;
+#else
+	struct dma_fence *excl_fence = NULL;
+	struct dma_fence **shared_fences = NULL;
+#endif
 	unsigned int shared_count = 0;
 	int err, i;
 
@@ -399,16 +241,16 @@ kbase_dma_fence_add_reservation_callback(struct kbase_jd_atom *katom,
 		return err;
 
 	if (excl_fence) {
-		err = kbase_dma_fence_add_callback(katom,
-						   excl_fence,
-						   kbase_dma_fence_cb);
+		err = kbase_fence_add_callback(katom,
+						excl_fence,
+						kbase_dma_fence_cb);
 
 		/* Release our reference, taken by reservation_object_get_fences_rcu(),
 		 * to the fence. We have set up our callback (if that was possible),
 		 * and it's the fence's owner is responsible for singling the fence
 		 * before allowing it to disappear.
 		 */
-		fence_put(excl_fence);
+		dma_fence_put(excl_fence);
 
 		if (err)
 			goto out;
@@ -416,9 +258,9 @@ kbase_dma_fence_add_reservation_callback(struct kbase_jd_atom *katom,
 
 	if (exclusive) {
 		for (i = 0; i < shared_count; i++) {
-			err = kbase_dma_fence_add_callback(katom,
-							   shared_fences[i],
-							   kbase_dma_fence_cb);
+			err = kbase_fence_add_callback(katom,
+							shared_fences[i],
+							kbase_dma_fence_cb);
 			if (err)
 				goto out;
 		}
@@ -431,7 +273,7 @@ kbase_dma_fence_add_reservation_callback(struct kbase_jd_atom *katom,
 	 */
 out:
 	for (i = 0; i < shared_count; i++)
-		fence_put(shared_fences[i]);
+		dma_fence_put(shared_fences[i]);
 	kfree(shared_fences);
 
 	if (err) {
@@ -439,7 +281,7 @@ out:
 		 * On error, cancel and clean up all callbacks that was set up
 		 * before the error.
 		 */
-		kbase_dma_fence_free_callbacks(katom, false);
+		kbase_fence_free_callbacks(katom);
 	}
 
 	return err;
@@ -468,13 +310,16 @@ int kbase_dma_fence_wait(struct kbase_jd_atom *katom,
 			 struct kbase_dma_fence_resv_info *info)
 {
 	int err, i;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0))
 	struct fence *fence;
+#else
+	struct dma_fence *fence;
+#endif
 	struct ww_acquire_ctx ww_ctx;
 
 	lockdep_assert_held(&katom->kctx->jctx.lock);
 
-	fence = kbase_dma_fence_new(katom->dma_fence.context,
-				    atomic_inc_return(&katom->dma_fence.seqno));
+	fence = kbase_fence_out_new(katom);
 	if (!fence) {
 		err = -ENOMEM;
 		dev_err(katom->kctx->kbdev->dev,
@@ -482,15 +327,14 @@ int kbase_dma_fence_wait(struct kbase_jd_atom *katom,
 		return err;
 	}
 
-	katom->dma_fence.fence = fence;
-	atomic_set(&katom->dma_fence.dep_count, 1);
+	kbase_fence_dep_count_set(katom, 1);
 
 	err = kbase_dma_fence_lock_reservations(info, &ww_ctx);
 	if (err) {
 		dev_err(katom->kctx->kbdev->dev,
 			"Error %d locking reservations.\n", err);
-		atomic_set(&katom->dma_fence.dep_count, -1);
-		fence_put(fence);
+		kbase_fence_dep_count_set(katom, -1);
+		kbase_fence_out_remove(katom);
 		return err;
 	}
 
@@ -512,7 +356,7 @@ int kbase_dma_fence_wait(struct kbase_jd_atom *katom,
 				goto end;
 			}
 
-			reservation_object_add_shared_fence(obj, katom->dma_fence.fence);
+			reservation_object_add_shared_fence(obj, fence);
 		} else {
 			err = kbase_dma_fence_add_reservation_callback(katom, obj, true);
 			if (err) {
@@ -521,7 +365,7 @@ int kbase_dma_fence_wait(struct kbase_jd_atom *katom,
 				goto end;
 			}
 
-			reservation_object_add_excl_fence(obj, katom->dma_fence.fence);
+			reservation_object_add_excl_fence(obj, fence);
 		}
 	}
 
@@ -530,9 +374,9 @@ end:
 
 	if (likely(!err)) {
 		/* Test if the callbacks are already triggered */
-		if (atomic_dec_and_test(&katom->dma_fence.dep_count)) {
-			atomic_set(&katom->dma_fence.dep_count, -1);
-			kbase_dma_fence_free_callbacks(katom, false);
+		if (kbase_fence_dep_count_dec_and_test(katom)) {
+			kbase_fence_dep_count_set(katom, -1);
+			kbase_fence_free_callbacks(katom);
 		} else {
 			/* Add katom to the list of dma-buf fence waiting atoms
 			 * only if it is still waiting.
@@ -545,8 +389,8 @@ end:
 		 * kill it for us), signal the fence, free callbacks and the
 		 * fence.
 		 */
-		kbase_dma_fence_free_callbacks(katom, false);
-		atomic_set(&katom->dma_fence.dep_count, -1);
+		kbase_fence_free_callbacks(katom);
+		kbase_fence_dep_count_set(katom, -1);
 		kbase_dma_fence_signal(katom);
 	}
 
@@ -569,7 +413,8 @@ void kbase_dma_fence_cancel_all_atoms(struct kbase_context *kctx)
 void kbase_dma_fence_cancel_callbacks(struct kbase_jd_atom *katom)
 {
 	/* Cancel callbacks and clean up. */
-	kbase_dma_fence_free_callbacks(katom, true);
+	if (kbase_fence_free_callbacks(katom))
+		kbase_dma_fence_queue_work(katom);
 }
 
 void kbase_dma_fence_signal(struct kbase_jd_atom *katom)
@@ -577,14 +422,12 @@ void kbase_dma_fence_signal(struct kbase_jd_atom *katom)
 	if (!katom->dma_fence.fence)
 		return;
 
-	KBASE_DEBUG_ASSERT(atomic_read(&katom->dma_fence.dep_count) == -1);
-
 	/* Signal the atom's fence. */
-	fence_signal(katom->dma_fence.fence);
-	fence_put(katom->dma_fence.fence);
-	katom->dma_fence.fence = NULL;
+	dma_fence_signal(katom->dma_fence.fence);
 
-	kbase_dma_fence_free_callbacks(katom, false);
+	kbase_fence_out_remove(katom);
+
+	kbase_fence_free_callbacks(katom);
 }
 
 void kbase_dma_fence_term(struct kbase_context *kctx)

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2014-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -200,15 +200,15 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat)
 				KBASE_MMU_FAULT_TYPE_BUS :
 				KBASE_MMU_FAULT_TYPE_PAGE;
 
-#ifdef CONFIG_MALI_GPU_MMU_AARCH64
-		as->fault_extra_addr = kbase_reg_read(kbdev,
-				MMU_AS_REG(as_no, AS_FAULTEXTRA_HI),
-				kctx);
-		as->fault_extra_addr <<= 32;
-		as->fault_extra_addr |= kbase_reg_read(kbdev,
-				MMU_AS_REG(as_no, AS_FAULTEXTRA_LO),
-				kctx);
-#endif /* CONFIG_MALI_GPU_MMU_AARCH64 */
+		if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_AARCH64_MMU)) {
+			as->fault_extra_addr = kbase_reg_read(kbdev,
+					MMU_AS_REG(as_no, AS_FAULTEXTRA_HI),
+					kctx);
+			as->fault_extra_addr <<= 32;
+			as->fault_extra_addr |= kbase_reg_read(kbdev,
+					MMU_AS_REG(as_no, AS_FAULTEXTRA_LO),
+					kctx);
+		}
 
 		if (kbase_as_has_bus_fault(as)) {
 			/* Mark bus fault as handled.
@@ -248,34 +248,32 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as,
 	struct kbase_mmu_setup *current_setup = &as->current_setup;
 	u32 transcfg = 0;
 
-#ifdef CONFIG_MALI_GPU_MMU_AARCH64
-	transcfg = current_setup->transcfg & 0xFFFFFFFFUL;
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_AARCH64_MMU)) {
+		transcfg = current_setup->transcfg & 0xFFFFFFFFUL;
 
-	/* Set flag AS_TRANSCFG_PTW_MEMATTR_WRITE_BACK */
-	/* Clear PTW_MEMATTR bits */
-	transcfg &= ~AS_TRANSCFG_PTW_MEMATTR_MASK;
-	/* Enable correct PTW_MEMATTR bits */
-	transcfg |= AS_TRANSCFG_PTW_MEMATTR_WRITE_BACK;
+		/* Set flag AS_TRANSCFG_PTW_MEMATTR_WRITE_BACK */
+		/* Clear PTW_MEMATTR bits */
+		transcfg &= ~AS_TRANSCFG_PTW_MEMATTR_MASK;
+		/* Enable correct PTW_MEMATTR bits */
+		transcfg |= AS_TRANSCFG_PTW_MEMATTR_WRITE_BACK;
 
-	if (kbdev->system_coherency == COHERENCY_ACE) {
-		/* Set flag AS_TRANSCFG_PTW_SH_OS (outer shareable) */
-		/* Clear PTW_SH bits */
-		transcfg = (transcfg & ~AS_TRANSCFG_PTW_SH_MASK);
-		/* Enable correct PTW_SH bits */
-		transcfg = (transcfg | AS_TRANSCFG_PTW_SH_OS);
+		if (kbdev->system_coherency == COHERENCY_ACE) {
+			/* Set flag AS_TRANSCFG_PTW_SH_OS (outer shareable) */
+			/* Clear PTW_SH bits */
+			transcfg = (transcfg & ~AS_TRANSCFG_PTW_SH_MASK);
+			/* Enable correct PTW_SH bits */
+			transcfg = (transcfg | AS_TRANSCFG_PTW_SH_OS);
+		}
+
+		kbase_reg_write(kbdev, MMU_AS_REG(as->number, AS_TRANSCFG_LO),
+				transcfg, kctx);
+		kbase_reg_write(kbdev, MMU_AS_REG(as->number, AS_TRANSCFG_HI),
+				(current_setup->transcfg >> 32) & 0xFFFFFFFFUL,
+				kctx);
+	} else {
+		if (kbdev->system_coherency == COHERENCY_ACE)
+			current_setup->transtab |= AS_TRANSTAB_LPAE_SHARE_OUTER;
 	}
-
-	kbase_reg_write(kbdev, MMU_AS_REG(as->number, AS_TRANSCFG_LO),
-			transcfg, kctx);
-	kbase_reg_write(kbdev, MMU_AS_REG(as->number, AS_TRANSCFG_HI),
-			(current_setup->transcfg >> 32) & 0xFFFFFFFFUL, kctx);
-
-#else /* CONFIG_MALI_GPU_MMU_AARCH64 */
-
-	if (kbdev->system_coherency == COHERENCY_ACE)
-		current_setup->transtab |= AS_TRANSTAB_LPAE_SHARE_OUTER;
-
-#endif /* CONFIG_MALI_GPU_MMU_AARCH64 */
 
 	kbase_reg_write(kbdev, MMU_AS_REG(as->number, AS_TRANSTAB_LO),
 			current_setup->transtab & 0xFFFFFFFFUL, kctx);
@@ -287,7 +285,7 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as,
 	kbase_reg_write(kbdev, MMU_AS_REG(as->number, AS_MEMATTR_HI),
 			(current_setup->memattr >> 32) & 0xFFFFFFFFUL, kctx);
 
-	kbase_tlstream_tl_attrib_as_config(as,
+	KBASE_TLSTREAM_TL_ATTRIB_AS_CONFIG(as,
 			current_setup->transtab,
 			current_setup->memattr,
 			transcfg);

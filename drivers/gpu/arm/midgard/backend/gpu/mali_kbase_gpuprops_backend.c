@@ -81,6 +81,11 @@ void kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 				GPU_CONTROL_REG(L2_PRESENT_LO), NULL);
 	regdump->l2_present_hi = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(L2_PRESENT_HI), NULL);
+
+	regdump->stack_present_lo = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(STACK_PRESENT_LO), NULL);
+	regdump->stack_present_hi = kbase_reg_read(kbdev,
+				GPU_CONTROL_REG(STACK_PRESENT_HI), NULL);
 }
 
 void kbase_backend_gpuprops_get_features(struct kbase_device *kbdev,

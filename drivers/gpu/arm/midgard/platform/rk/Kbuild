@@ -12,6 +12,6 @@
 #
 #
 
-SRC += \
-	$(MALI_PLATFORM_DIR)/mali_kbase_config_rk.o \
+midgard_kbase-y += \
+	$(MALI_PLATFORM_THIRDPARTY_DIR)/mali_kbase_config_rk.o
 

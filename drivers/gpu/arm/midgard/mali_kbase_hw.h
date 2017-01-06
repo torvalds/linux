@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2012-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,7 +40,20 @@
 	test_bit(feature, &(kbdev)->hw_features_mask[0])
 
 /**
- * @brief Set the HW issues mask depending on the GPU ID
+ * kbase_hw_set_issues_mask - Set the hardware issues mask based on the GPU ID
+ * @kbdev: Device pointer
+ *
+ * Return: 0 if the GPU ID was recognized, otherwise -EINVAL.
+ *
+ * The GPU ID is read from the @kbdev.
+ *
+ * In debugging versions of the driver, unknown versions of a known GPU with a
+ * new-format ID will be treated as the most recent known version not later
+ * than the actual version. In such circumstances, the GPU ID in @kbdev will
+ * also be replaced with the most recent known version.
+ *
+ * Note: The GPU configuration must have been read by
+ * kbase_gpuprops_get_props() before calling this function.
  */
 int kbase_hw_set_issues_mask(struct kbase_device *kbdev);
 

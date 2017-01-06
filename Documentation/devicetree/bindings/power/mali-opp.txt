@@ -1,0 +1,163 @@
+#
+# (C) COPYRIGHT 2017 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+* ARM Mali Midgard OPP
+
+* OPP Table Node
+
+This describes the OPPs belonging to a device. This node can have following
+properties:
+
+Required properties:
+- compatible: Allow OPPs to express their compatibility. It should be:
+  "operating-points-v2", "operating-points-v2-mali".
+
+- OPP nodes: One or more OPP nodes describing voltage-current-frequency
+  combinations. Their name isn't significant but their phandle can be used to
+  reference an OPP.
+
+* OPP Node
+
+This defines voltage-current-frequency combinations along with other related
+properties.
+
+Required properties:
+- opp-hz: Nominal frequency in Hz, expressed as a 64-bit big-endian integer.
+  This should be treated as a relative performance measurement, taking both GPU
+  frequency and core mask into account.
+
+Optional properties:
+- opp-hz-real: Real frequency in Hz, expressed as a 64-bit big-endian integer.
+  If this is not present then the nominal frequency will be used instead.
+
+- opp-core-mask: Shader core mask. If neither this or opp-core-count are present
+  then all shader cores will be used for this OPP.
+
+- opp-core-count: Number of cores to use for this OPP. If this is present then
+  the driver will build a core mask using the available core mask provided by
+  the GPU hardware.
+
+  If neither this nor opp-core-mask are present then all shader cores will be
+  used for this OPP.
+
+  If both this and opp-core-mask are present then opp-core-mask is ignored.
+
+- opp-microvolt: voltage in micro Volts.
+
+  A single regulator's voltage is specified with an array of size one or three.
+  Single entry is for target voltage and three entries are for <target min max>
+  voltages.
+
+  Entries for multiple regulators must be present in the same order as
+  regulators are specified in device's DT node.
+
+- opp-microvolt-<name>: Named opp-microvolt property. This is exactly similar to
+  the above opp-microvolt property, but allows multiple voltage ranges to be
+  provided for the same OPP. At runtime, the platform can pick a <name> and
+  matching opp-microvolt-<name> property will be enabled for all OPPs. If the
+  platform doesn't pick a specific <name> or the <name> doesn't match with any
+  opp-microvolt-<name> properties, then opp-microvolt property shall be used, if
+  present.
+
+- opp-microamp: The maximum current drawn by the device in microamperes
+  considering system specific parameters (such as transients, process, aging,
+  maximum operating temperature range etc.) as necessary. This may be used to
+  set the most efficient regulator operating mode.
+
+  Should only be set if opp-microvolt is set for the OPP.
+
+  Entries for multiple regulators must be present in the same order as
+  regulators are specified in device's DT node. If this property isn't required
+  for few regulators, then this should be marked as zero for them. If it isn't
+  required for any regulator, then this property need not be present.
+
+- opp-microamp-<name>: Named opp-microamp property. Similar to
+  opp-microvolt-<name> property, but for microamp instead.
+
+- clock-latency-ns: Specifies the maximum possible transition latency (in
+  nanoseconds) for switching to this OPP from any other OPP.
+
+- turbo-mode: Marks the OPP to be used only for turbo modes. Turbo mode is
+  available on some platforms, where the device can run over its operating
+  frequency for a short duration of time limited by the device's power, current
+  and thermal limits.
+
+- opp-suspend: Marks the OPP to be used during device suspend. Only one OPP in
+  the table should have this.
+
+- opp-supported-hw: This enables us to select only a subset of OPPs from the
+  larger OPP table, based on what version of the hardware we are running on. We
+  still can't have multiple nodes with the same opp-hz value in OPP table.
+
+  It's an user defined array containing a hierarchy of hardware version numbers,
+  supported by the OPP. For example: a platform with hierarchy of three levels
+  of versions (A, B and C), this field should be like <X Y Z>, where X
+  corresponds to Version hierarchy A, Y corresponds to version hierarchy B and Z
+  corresponds to version hierarchy C.
+
+  Each level of hierarchy is represented by a 32 bit value, and so there can be
+  only 32 different supported version per hierarchy. i.e. 1 bit per version. A
+  value of 0xFFFFFFFF will enable the OPP for all versions for that hierarchy
+  level. And a value of 0x00000000 will disable the OPP completely, and so we
+  never want that to happen.
+
+  If 32 values aren't sufficient for a version hierarchy, than that version
+  hierarchy can be contained in multiple 32 bit values. i.e. <X Y Z1 Z2> in the
+  above example, Z1 & Z2 refer to the version hierarchy Z.
+
+- status: Marks the node enabled/disabled.
+
+Example for a Juno with Mali T624:
+
+gpu_opp_table: opp_table0 {
+	compatible = "operating-points-v2", "operating-points-v2-mali";
+
+	opp@112500000 {
+		opp-hz = /bits/ 64 <112500000>;
+		opp-hz-real = /bits/ 64 <450000000>;
+		opp-microvolt = <820000>;
+		opp-core-mask = /bits/ 64 <0x1>;
+		opp-suspend;
+	};
+	opp@225000000 {
+		opp-hz = /bits/ 64 <225000000>;
+		opp-hz-real = /bits/ 64 <450000000>;
+		opp-microvolt = <820000>;
+		opp-core-count = <2>;
+	};
+	opp@450000000 {
+		opp-hz = /bits/ 64 <450000000>;
+		opp-hz-real = /bits/ 64 <450000000>;
+		opp-microvolt = <820000>;
+		opp-core-mask = /bits/ 64 <0xf>;
+	};
+	opp@487500000 {
+		opp-hz = /bits/ 64 <487500000>;
+		opp-microvolt = <825000>;
+	};
+	opp@525000000 {
+		opp-hz = /bits/ 64 <525000000>;
+		opp-microvolt = <850000>;
+	};
+	opp@562500000 {
+		opp-hz = /bits/ 64 <562500000>;
+		opp-microvolt = <875000>;
+	};
+	opp@600000000 {
+		opp-hz = /bits/ 64 <600000000>;
+		opp-microvolt = <900000>;
+	};
+};
+

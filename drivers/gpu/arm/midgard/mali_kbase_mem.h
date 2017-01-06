@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -69,10 +69,8 @@ struct kbase_cpu_mapping {
 	struct   kbase_mem_phy_alloc *alloc;
 	struct   kbase_context *kctx;
 	struct   kbase_va_region *region;
-	pgoff_t  page_off;
 	int      count;
-	unsigned long vm_start;
-	unsigned long vm_end;
+	int      free_on_close;
 };
 
 enum kbase_memory_type {
@@ -153,17 +151,30 @@ struct kbase_mem_phy_alloc {
 		} alias;
 		/* Used by type = (KBASE_MEM_TYPE_NATIVE, KBASE_MEM_TYPE_TB) */
 		struct kbase_context *kctx;
-		struct {
+		struct kbase_alloc_import_user_buf {
 			unsigned long address;
 			unsigned long size;
 			unsigned long nr_pages;
 			struct page **pages;
-			unsigned int current_mapping_usage_count;
+			/* top bit (1<<31) of current_mapping_usage_count
+			 * specifies that this import was pinned on import
+			 * See PINNED_ON_IMPORT
+			 */
+			u32 current_mapping_usage_count;
 			struct mm_struct *mm;
 			dma_addr_t *dma_addrs;
 		} user_buf;
 	} imported;
 };
+
+/* The top bit of kbase_alloc_import_user_buf::current_mapping_usage_count is
+ * used to signify that a buffer was pinned when it was imported. Since the
+ * reference count is limited by the number of atoms that can be submitted at
+ * once there should be no danger of overflowing into this bit.
+ * Stealing the top bit also has the benefit that
+ * current_mapping_usage_count != 0 if and only if the buffer is mapped.
+ */
+#define PINNED_ON_IMPORT	(1<<31)
 
 static inline void kbase_mem_phy_alloc_gpu_mapped(struct kbase_mem_phy_alloc *alloc)
 {
@@ -248,9 +259,6 @@ struct kbase_va_region {
 /* CPU read access */
 #define KBASE_REG_CPU_RD            (1ul<<14)
 
-/* Aligned for GPU EX in SAME_VA */
-#define KBASE_REG_ALIGNED           (1ul<<15)
-
 /* Index of chosen MEMATTR for this region (0..7) */
 #define KBASE_REG_MEMATTR_MASK      (7ul << 16)
 #define KBASE_REG_MEMATTR_INDEX(x)  (((x) & 7) << 16)
@@ -259,6 +267,9 @@ struct kbase_va_region {
 #define KBASE_REG_SECURE            (1ul << 19)
 
 #define KBASE_REG_DONT_NEED         (1ul << 20)
+
+/* Imported buffer is padded? */
+#define KBASE_REG_IMPORT_PAD        (1ul << 21)
 
 #define KBASE_REG_ZONE_SAME_VA      KBASE_REG_ZONE(0)
 
@@ -626,7 +637,20 @@ int kbase_add_va_region(struct kbase_context *kctx, struct kbase_va_region *reg,
 
 bool kbase_check_alloc_flags(unsigned long flags);
 bool kbase_check_import_flags(unsigned long flags);
-void kbase_update_region_flags(struct kbase_context *kctx,
+
+/**
+ * kbase_update_region_flags - Convert user space flags to kernel region flags
+ *
+ * @kctx:  kbase context
+ * @reg:   The region to update the flags on
+ * @flags: The flags passed from user space
+ *
+ * The user space flag BASE_MEM_COHERENT_SYSTEM_REQUIRED will be rejected and
+ * this function will fail if the system does not support system coherency.
+ *
+ * Return: 0 if successful, -EINVAL if the flags are not supported
+ */
+int kbase_update_region_flags(struct kbase_context *kctx,
 		struct kbase_va_region *reg, unsigned long flags);
 
 void kbase_gpu_vm_lock(struct kbase_context *kctx);
@@ -718,7 +742,16 @@ void kbase_mmu_interrupt(struct kbase_device *kbdev, u32 irq_stat);
  */
 void *kbase_mmu_dump(struct kbase_context *kctx, int nr_pages);
 
-int kbase_sync_now(struct kbase_context *kctx, struct base_syncset *syncset);
+/**
+ * kbase_sync_now - Perform cache maintenance on a memory region
+ *
+ * @kctx: The kbase context of the region
+ * @sset: A syncset structure describing the region and direction of the
+ *        synchronisation required
+ *
+ * Return: 0 on success or error code
+ */
+int kbase_sync_now(struct kbase_context *kctx, struct basep_syncset *sset);
 void kbase_sync_single(struct kbase_context *kctx, phys_addr_t cpu_pa,
 		phys_addr_t gpu_pa, off_t offset, size_t size,
 		enum kbase_sync_type sync_fn);
@@ -774,31 +807,24 @@ static inline void kbase_process_page_usage_dec(struct kbase_context *kctx, int 
 }
 
 /**
- * @brief Find the offset of the CPU mapping of a memory allocation containing
- *        a given address range
+ * kbasep_find_enclosing_cpu_mapping_offset() - Find the offset of the CPU
+ * mapping of a memory allocation containing a given address range
  *
- * Searches for a CPU mapping of any part of the region starting at @p gpu_addr
- * that fully encloses the CPU virtual address range specified by @p uaddr and
- * @p size. Returns a failure indication if only part of the address range lies
- * within a CPU mapping, or the address range lies within a CPU mapping of a
- * different region.
+ * Searches for a CPU mapping of any part of any region that fully encloses the
+ * CPU virtual address range specified by @uaddr and @size. Returns a failure
+ * indication if only part of the address range lies within a CPU mapping.
  *
- * @param[in,out] kctx      The kernel base context used for the allocation.
- * @param[in]     gpu_addr  GPU address of the start of the allocated region
- *                          within which to search.
- * @param[in]     uaddr     Start of the CPU virtual address range.
- * @param[in]     size      Size of the CPU virtual address range (in bytes).
- * @param[out]    offset    The offset from the start of the allocation to the
- *                          specified CPU virtual address.
+ * @kctx:      The kernel base context used for the allocation.
+ * @uaddr:     Start of the CPU virtual address range.
+ * @size:      Size of the CPU virtual address range (in bytes).
+ * @offset:    The offset from the start of the allocation to the specified CPU
+ *             virtual address.
  *
- * @return 0 if offset was obtained successfully. Error code
- *         otherwise.
+ * Return: 0 if offset was obtained successfully. Error code otherwise.
  */
-int kbasep_find_enclosing_cpu_mapping_offset(struct kbase_context *kctx,
-							u64 gpu_addr,
-							unsigned long uaddr,
-							size_t size,
-							u64 *offset);
+int kbasep_find_enclosing_cpu_mapping_offset(
+		struct kbase_context *kctx,
+		unsigned long uaddr, size_t size, u64 *offset);
 
 enum hrtimer_restart kbasep_as_poke_timer_callback(struct hrtimer *timer);
 void kbase_as_poking_timer_retain_atom(struct kbase_device *kbdev, struct kbase_context *kctx, struct kbase_jd_atom *katom);

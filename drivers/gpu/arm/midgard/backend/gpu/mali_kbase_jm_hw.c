@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -29,6 +29,7 @@
 #include <mali_kbase_vinstr.h>
 #include <mali_kbase_hw.h>
 #include <mali_kbase_hwaccess_jm.h>
+#include <mali_kbase_ctx_sched.h>
 #include <backend/gpu/mali_kbase_device_internal.h>
 #include <backend/gpu/mali_kbase_irq_internal.h>
 #include <backend/gpu/mali_kbase_js_affinity.h>
@@ -98,8 +99,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 		cfg |= JS_CONFIG_END_FLUSH_CLEAN_INVALIDATE;
 #endif /* CONFIG_MALI_COH_GPU */
 
-	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10649) ||
-		!kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_T76X_3982))
+	if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_10649))
 		cfg |= JS_CONFIG_START_MMU;
 
 	cfg |= JS_CONFIG_THREAD_PRI(8);
@@ -130,8 +130,7 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 
 	/* Write an approximate start timestamp.
 	 * It's approximate because there might be a job in the HEAD register.
-	 * In such cases, we'll try to make a better approximation in the IRQ
-	 * handler (up to the KBASE_JS_IRQ_THROTTLE_TIME_US). */
+	 */
 	katom->start_timestamp = ktime_get();
 
 	/* GO ! */
@@ -146,14 +145,14 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 				GATOR_MAKE_EVENT(GATOR_JOB_SLOT_START, js),
 				kctx, kbase_jd_atom_id(kctx, katom));
 #endif
-	kbase_tlstream_tl_attrib_atom_config(katom, jc_head,
+	KBASE_TLSTREAM_TL_ATTRIB_ATOM_CONFIG(katom, jc_head,
 			katom->affinity, cfg);
-	kbase_tlstream_tl_ret_ctx_lpu(
+	KBASE_TLSTREAM_TL_RET_CTX_LPU(
 		kctx,
 		&kbdev->gpu_props.props.raw_props.js_features[
 			katom->slot_nr]);
-	kbase_tlstream_tl_ret_atom_as(katom, &kbdev->as[kctx->as_nr]);
-	kbase_tlstream_tl_ret_atom_lpu(
+	KBASE_TLSTREAM_TL_RET_ATOM_AS(katom, &kbdev->as[kctx->as_nr]);
+	KBASE_TLSTREAM_TL_RET_ATOM_LPU(
 			katom,
 			&kbdev->gpu_props.props.raw_props.js_features[js],
 			"ctx_nr,atom_nr");
@@ -163,7 +162,8 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
 		char js_string[16];
 
 		trace_gpu_sched_switch(
-				kbasep_make_job_slot_string(js, js_string),
+				kbasep_make_job_slot_string(js, js_string,
+						sizeof(js_string)),
 				ktime_to_ns(katom->start_timestamp),
 				(u32)katom->kctx->id, 0, katom->work_id);
 		kbdev->hwaccess.backend.slot_rb[js].last_context = katom->kctx;
@@ -184,9 +184,9 @@ void kbase_job_hw_submit(struct kbase_device *kbdev,
  * Update the start_timestamp of the job currently in the HEAD, based on the
  * fact that we got an IRQ for the previous set of completed jobs.
  *
- * The estimate also takes into account the %KBASE_JS_IRQ_THROTTLE_TIME_US and
- * the time the job was submitted, to work out the best estimate (which might
- * still result in an over-estimate to the calculated time spent)
+ * The estimate also takes into account the time the job was submitted, to
+ * work out the best estimate (which might still result in an over-estimate to
+ * the calculated time spent)
  */
 static void kbasep_job_slot_update_head_start_timestamp(
 						struct kbase_device *kbdev,
@@ -195,49 +195,21 @@ static void kbasep_job_slot_update_head_start_timestamp(
 {
 	if (kbase_backend_nr_atoms_on_slot(kbdev, js) > 0) {
 		struct kbase_jd_atom *katom;
-		ktime_t new_timestamp;
 		ktime_t timestamp_diff;
 		/* The atom in the HEAD */
 		katom = kbase_gpu_inspect(kbdev, js, 0);
 
 		KBASE_DEBUG_ASSERT(katom != NULL);
 
-		/* Account for any IRQ Throttle time - makes an overestimate of
-		 * the time spent by the job */
-		new_timestamp = ktime_sub_ns(end_timestamp,
-					KBASE_JS_IRQ_THROTTLE_TIME_US * 1000);
-		timestamp_diff = ktime_sub(new_timestamp,
-							katom->start_timestamp);
+		timestamp_diff = ktime_sub(end_timestamp,
+				katom->start_timestamp);
 		if (ktime_to_ns(timestamp_diff) >= 0) {
 			/* Only update the timestamp if it's a better estimate
 			 * than what's currently stored. This is because our
 			 * estimate that accounts for the throttle time may be
 			 * too much of an overestimate */
-			katom->start_timestamp = new_timestamp;
+			katom->start_timestamp = end_timestamp;
 		}
-	}
-}
-
-/**
- * kbasep_trace_tl_nret_atom_lpu - Call nret_atom_lpu timeline tracepoint
- * @kbdev: kbase device
- * @js: job slot
- *
- * Get kbase atom by calling kbase_gpu_inspect for given job slot.
- * Then use obtained katom and name of slot associated with the given
- * job slot number in tracepoint call to the instrumentation module
- * informing that given atom is no longer executed on given lpu (job slot).
- */
-static void kbasep_trace_tl_nret_atom_lpu(struct kbase_device *kbdev, int js)
-{
-	int i;
-	for (i = 0;
-	     i < kbase_backend_nr_atoms_submitted(kbdev, js);
-	     i++) {
-		struct kbase_jd_atom *katom = kbase_gpu_inspect(kbdev, js, i);
-
-		kbase_tlstream_tl_nret_atom_lpu(katom,
-			&kbdev->gpu_props.props.raw_props.js_features[js]);
 	}
 }
 
@@ -253,7 +225,7 @@ static void kbasep_trace_tl_nret_atom_lpu(struct kbase_device *kbdev, int js)
 static void kbasep_trace_tl_event_lpu_softstop(struct kbase_device *kbdev,
 					int js)
 {
-	kbase_tlstream_tl_event_lpu_softstop(
+	KBASE_TLSTREAM_TL_EVENT_LPU_SOFTSTOP(
 		&kbdev->gpu_props.props.raw_props.js_features[js]);
 }
 
@@ -272,16 +244,6 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 
 	memset(&kbdev->slot_submit_count_irq[0], 0,
 					sizeof(kbdev->slot_submit_count_irq));
-
-	/* write irq throttle register, this will prevent irqs from occurring
-	 * until the given number of gpu clock cycles have passed */
-	{
-		int irq_throttle_cycles =
-				atomic_read(&kbdev->irq_throttle_cycles);
-
-		kbase_reg_write(kbdev, JOB_CONTROL_REG(JOB_IRQ_THROTTLE),
-						irq_throttle_cycles, NULL);
-	}
 
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
 
@@ -319,9 +281,6 @@ void kbase_job_done(struct kbase_device *kbdev, u32 done)
 #endif
 
 					kbasep_trace_tl_event_lpu_softstop(
-						kbdev, i);
-
-					kbasep_trace_tl_nret_atom_lpu(
 						kbdev, i);
 
 					/* Soft-stopped job - read the value of
@@ -561,7 +520,7 @@ void kbasep_job_slot_soft_or_hard_stop_do_action(struct kbase_device *kbdev,
 		target_katom->atom_flags |= KBASE_KATOM_FLAG_BEEN_SOFT_STOPPPED;
 
 		/* Mark the point where we issue the soft-stop command */
-		kbase_tlstream_tl_event_atom_softstop_issue(target_katom);
+		KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_ISSUE(target_katom);
 
 		if (kbase_hw_has_issue(kbdev, BASE_HW_ISSUE_8316)) {
 			int i;
@@ -790,7 +749,7 @@ void kbase_job_slot_ctx_priority_check_locked(struct kbase_context *kctx,
 
 		if (katom->sched_priority > priority) {
 			if (!stop_sent)
-				kbase_tlstream_tl_attrib_atom_priority_change(
+				KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY_CHANGE(
 						target_katom);
 
 			kbase_job_slot_softstop(kbdev, js, katom);
@@ -1165,10 +1124,9 @@ static void kbase_debug_dump_registers(struct kbase_device *kbdev)
 	dev_err(kbdev->dev, "  GPU_IRQ_RAWSTAT=0x%08x GPU_STATUS=0x%08x",
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_IRQ_RAWSTAT), NULL),
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(GPU_STATUS), NULL));
-	dev_err(kbdev->dev, "  JOB_IRQ_RAWSTAT=0x%08x JOB_IRQ_JS_STATE=0x%08x JOB_IRQ_THROTTLE=0x%08x",
+	dev_err(kbdev->dev, "  JOB_IRQ_RAWSTAT=0x%08x JOB_IRQ_JS_STATE=0x%08x",
 		kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_RAWSTAT), NULL),
-		kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_JS_STATE), NULL),
-		kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_THROTTLE), NULL));
+		kbase_reg_read(kbdev, JOB_CONTROL_REG(JOB_IRQ_JS_STATE), NULL));
 	for (i = 0; i < 3; i++) {
 		dev_err(kbdev->dev, "  JS%d_STATUS=0x%08x      JS%d_HEAD_LO=0x%08x",
 			i, kbase_reg_read(kbdev, JOB_SLOT_REG(i, JS_STATUS),
@@ -1189,13 +1147,15 @@ static void kbase_debug_dump_registers(struct kbase_device *kbdev)
 	dev_err(kbdev->dev, "  SHADER_CONFIG=0x%08x   L2_MMU_CONFIG=0x%08x",
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(SHADER_CONFIG), NULL),
 		kbase_reg_read(kbdev, GPU_CONTROL_REG(L2_MMU_CONFIG), NULL));
+	dev_err(kbdev->dev, "  TILER_CONFIG=0x%08x    JM_CONFIG=0x%08x",
+		kbase_reg_read(kbdev, GPU_CONTROL_REG(TILER_CONFIG), NULL),
+		kbase_reg_read(kbdev, GPU_CONTROL_REG(JM_CONFIG), NULL));
 }
 
 static void kbasep_reset_timeout_worker(struct work_struct *data)
 {
 	unsigned long flags;
 	struct kbase_device *kbdev;
-	int i;
 	ktime_t end_timestamp = ktime_get();
 	struct kbasep_js_device_data *js_devdata;
 	bool try_schedule = false;
@@ -1233,6 +1193,7 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 						KBASE_RESET_GPU_NOT_PENDING);
 		kbase_disjoint_state_down(kbdev);
 		wake_up(&kbdev->hwaccess.backend.reset_wait);
+		kbase_vinstr_resume(kbdev->vinstr_ctx);
 		return;
 	}
 
@@ -1290,32 +1251,24 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 	if (!silent)
 		kbase_debug_dump_registers(kbdev);
 
-	/* Reset the GPU */
-	kbase_pm_init_hw(kbdev, 0);
-
 	/* Complete any jobs that were still on the GPU */
 	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kbdev->protected_mode = false;
 	kbase_backend_reset(kbdev, &end_timestamp);
 	kbase_pm_metrics_update(kbdev, NULL);
 	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+	/* Reset the GPU */
+	kbase_pm_init_hw(kbdev, 0);
 
 	mutex_unlock(&kbdev->pm.lock);
 
 	mutex_lock(&js_devdata->runpool_mutex);
 
 	mutex_lock(&kbdev->mmu_hw_mutex);
-	/* Reprogram the GPU's MMU */
-	for (i = 0; i < kbdev->nr_hw_address_spaces; i++) {
-		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-
-		if (js_devdata->runpool_irq.per_as_data[i].kctx)
-			kbase_mmu_update(
-				js_devdata->runpool_irq.per_as_data[i].kctx);
-		else
-			kbase_mmu_disable_as(kbdev, i);
-
-		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
-	}
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kbase_ctx_sched_restore_all_as(kbdev);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 	mutex_unlock(&kbdev->mmu_hw_mutex);
 
 	kbase_pm_enable_interrupts(kbdev);
@@ -1351,6 +1304,11 @@ static void kbasep_reset_timeout_worker(struct work_struct *data)
 									0);
 		kbase_js_sched_all(kbdev);
 	}
+
+	/* Process any pending slot updates */
+	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+	kbase_backend_slot_update(kbdev);
+	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
 
 	kbase_pm_context_idle(kbdev);
 

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,28 +20,14 @@
 
 #ifdef CONFIG_MALI_DMA_FENCE
 
-#include <linux/fence.h>
 #include <linux/list.h>
 #include <linux/reservation.h>
+#include <mali_kbase_fence.h>
 
 
 /* Forward declaration from mali_kbase_defs.h */
 struct kbase_jd_atom;
 struct kbase_context;
-
-/**
- * struct kbase_dma_fence_cb - Mali dma-fence callback data struct
- * @fence_cb: Callback function
- * @katom:    Pointer to katom that is waiting on this callback
- * @fence:    Pointer to the fence object on which this callback is waiting
- * @node:     List head for linking this callback to the katom
- */
-struct kbase_dma_fence_cb {
-	struct fence_cb fence_cb;
-	struct kbase_jd_atom *katom;
-	struct fence *fence;
-	struct list_head node;
-};
 
 /**
  * struct kbase_dma_fence_resv_info - Structure with list of reservation objects
@@ -131,11 +117,6 @@ void kbase_dma_fence_term(struct kbase_context *kctx);
  */
 int kbase_dma_fence_init(struct kbase_context *kctx);
 
-/**
- * kbase_dma_fence_waiters_remove()- Remove katom from dma-fence wait list
- * @katom: Pointer to katom to remove from list
- */
-void kbase_dma_fence_waiters_remove(struct kbase_jd_atom *katom);
 
 #else /* CONFIG_MALI_DMA_FENCE */
 /* Dummy functions for when dma-buf fence isn't enabled. */

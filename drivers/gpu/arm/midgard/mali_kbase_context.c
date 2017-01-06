@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2010-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -24,6 +24,8 @@
 #include <mali_kbase.h>
 #include <mali_midg_regmap.h>
 #include <mali_kbase_mem_linux.h>
+#include <mali_kbase_dma_fence.h>
+#include <mali_kbase_ctx_sched.h>
 
 /**
  * kbase_create_context() - Create a kernel base context.
@@ -53,6 +55,7 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 
 	kctx->kbdev = kbdev;
 	kctx->as_nr = KBASEP_AS_NR_INVALID;
+	atomic_set(&kctx->refcount, 0);
 	if (is_compat)
 		kbase_ctx_flag_set(kctx, KCTX_COMPAT);
 #ifdef CONFIG_MALI_TRACE_TIMELINE
@@ -113,7 +116,10 @@ kbase_create_context(struct kbase_device *kbdev, bool is_compat)
 				MIDGARD_MMU_BOTTOMLEVEL);
 		if (err)
 			goto pgd_no_mem;
+
+		mutex_lock(&kctx->mmu_lock);
 		kctx->pgd = kbase_mmu_alloc_pgd(kctx);
+		mutex_unlock(&kctx->mmu_lock);
 	} while (!kctx->pgd);
 
 	kctx->aliasing_sink_page = kbase_mem_alloc_page(kctx->kbdev);
@@ -207,6 +213,7 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	struct kbase_device *kbdev;
 	int pages;
 	unsigned long pending_regions_to_clean;
+	unsigned long flags;
 
 	KBASE_DEBUG_ASSERT(NULL != kctx);
 
@@ -221,6 +228,14 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	kbase_pm_context_active(kbdev);
 
 	kbase_jd_zap_context(kctx);
+
+#ifdef CONFIG_DEBUG_FS
+	/* Removing the rest of the debugfs entries here as we want to keep the
+	 * atom debugfs interface alive until all atoms have completed. This
+	 * is useful for debugging hung contexts. */
+	debugfs_remove_recursive(kctx->kctx_dentry);
+#endif
+
 	kbase_event_cleanup(kctx);
 
 	/*
@@ -265,6 +280,12 @@ void kbase_destroy_context(struct kbase_context *kctx)
 	kbase_pm_context_idle(kbdev);
 
 	kbase_dma_fence_term(kctx);
+
+	mutex_lock(&kbdev->mmu_hw_mutex);
+	spin_lock_irqsave(&kctx->kbdev->hwaccess_lock, flags);
+	kbase_ctx_sched_remove_ctx(kctx);
+	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, flags);
+	mutex_unlock(&kbdev->mmu_hw_mutex);
 
 	kbase_mmu_term(kctx);
 

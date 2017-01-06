@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2013-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2013-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -25,6 +25,9 @@
 
 static const struct kbase_pm_ca_policy *const policy_list[] = {
 	&kbase_pm_ca_fixed_policy_ops,
+#ifdef CONFIG_MALI_DEVFREQ
+	&kbase_pm_ca_devfreq_policy_ops,
+#endif
 #if !MALI_CUSTOMER_RELEASE
 	&kbase_pm_ca_random_policy_ops
 #endif

@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -155,7 +155,7 @@ static void kbase_pm_get_dvfs_utilisation_calc(struct kbase_device *kbdev,
 	kbdev->pm.backend.metrics.time_period_start = now;
 }
 
-#if defined(CONFIG_PM_DEVFREQ) || defined(CONFIG_MALI_MIDGARD_DVFS)
+#if defined(CONFIG_MALI_DEVFREQ) || defined(CONFIG_MALI_MIDGARD_DVFS)
 /* Caller needs to hold kbdev->pm.backend.metrics.lock before calling this
  * function.
  */

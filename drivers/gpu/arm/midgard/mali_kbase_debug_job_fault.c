@@ -17,6 +17,7 @@
 
 #include <mali_kbase.h>
 #include <linux/spinlock.h>
+#include <mali_kbase_hwaccess_jm.h>
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -331,11 +332,7 @@ static void *debug_job_fault_start(struct seq_file *m, loff_t *pos)
 		 * job done but we delayed it. Now we should clean cache
 		 * earlier. Then the GPU memory dump should be correct.
 		 */
-		if (event->katom->need_cache_flush_cores_retained) {
-			kbase_gpu_cacheclean(kbdev, event->katom);
-			event->katom->need_cache_flush_cores_retained = 0;
-		}
-
+		kbase_backend_cacheclean(kbdev, event->katom);
 	} else
 		return NULL;
 

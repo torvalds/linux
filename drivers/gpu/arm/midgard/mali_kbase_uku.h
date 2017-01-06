@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2008-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2008-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -65,6 +65,8 @@
  */
 #define BASE_UK_VERSION_MAJOR 10
 #define BASE_UK_VERSION_MINOR 6
+
+#define LINUX_UK_BASE_MAGIC 0x80
 
 struct kbase_uk_mem_alloc {
 	union uk_header header;
@@ -335,8 +337,6 @@ struct kbase_uk_context_id {
 	int id;
 };
 
-#if (defined(MALI_MIPE_ENABLED) && MALI_MIPE_ENABLED) || \
-	!defined(MALI_MIPE_ENABLED)
 /**
  * struct kbase_uk_tlstream_acquire - User/Kernel space data exchange structure
  * @header: UK structure header
@@ -422,7 +422,6 @@ struct kbase_uk_tlstream_stats {
 	u32 bytes_generated;
 };
 #endif /* MALI_UNIT_TEST */
-#endif /* MALI_MIPE_ENABLED */
 
 /**
  * struct struct kbase_uk_prfcnt_value for the KBASE_FUNC_SET_PRFCNT_VALUES ioctl
@@ -520,15 +519,12 @@ enum kbase_uk_function_id {
 
 	KBASE_FUNC_GET_CONTEXT_ID = (UK_FUNC_ID + 31),
 
-#if (defined(MALI_MIPE_ENABLED) && MALI_MIPE_ENABLED) || \
-	!defined(MALI_MIPE_ENABLED)
 	KBASE_FUNC_TLSTREAM_ACQUIRE_V10_4 = (UK_FUNC_ID + 32),
 #if MALI_UNIT_TEST
 	KBASE_FUNC_TLSTREAM_TEST = (UK_FUNC_ID + 33),
 	KBASE_FUNC_TLSTREAM_STATS = (UK_FUNC_ID + 34),
 #endif /* MALI_UNIT_TEST */
 	KBASE_FUNC_TLSTREAM_FLUSH = (UK_FUNC_ID + 35),
-#endif /* MALI_MIPE_ENABLED */
 
 	KBASE_FUNC_HWCNT_READER_SETUP = (UK_FUNC_ID + 36),
 
@@ -540,10 +536,7 @@ enum kbase_uk_function_id {
 
 	KBASE_FUNC_MEM_JIT_INIT = (UK_FUNC_ID + 39),
 
-#if (defined(MALI_MIPE_ENABLED) && MALI_MIPE_ENABLED) || \
-	!defined(MALI_MIPE_ENABLED)
 	KBASE_FUNC_TLSTREAM_ACQUIRE = (UK_FUNC_ID + 40),
-#endif /* MALI_MIPE_ENABLED */
 
 	KBASE_FUNC_MAX
 };

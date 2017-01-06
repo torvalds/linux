@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2011-2015 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2015,2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -60,5 +60,25 @@ void kbase_gpuprops_set_features(struct kbase_device *kbdev);
  * @return 0 on success. Any other value indicates failure.
  */
 int kbase_gpuprops_uk_get_props(struct kbase_context *kctx, struct kbase_uk_gpuprops * const kbase_props);
+
+/**
+ * kbase_gpuprops_populate_user_buffer - Populate the GPU properties buffer
+ * @kbdev: The kbase device
+ *
+ * Fills kbdev->gpu_props->prop_buffer with the GPU properties for user
+ * space to read.
+ */
+int kbase_gpuprops_populate_user_buffer(struct kbase_device *kbdev);
+
+/**
+ * kbase_gpuprops_update_core_props_gpu_id - break down gpu id value
+ * @gpu_props: the &base_gpu_props structure
+ *
+ * Break down gpu_id value stored in base_gpu_props::raw_props.gpu_id into
+ * separate fields (version_status, minor_revision, major_revision, product_id)
+ * stored in base_gpu_props::core_props.
+ */
+void kbase_gpuprops_update_core_props_gpu_id(base_gpu_props * const gpu_props);
+
 
 #endif				/* _KBASE_GPUPROPS_H_ */

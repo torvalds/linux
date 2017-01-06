@@ -1,0 +1,37 @@
+#
+# (C) COPYRIGHT 2010-2011, 2013, 2017 ARM Limited. All rights reserved.
+#
+# This program is free software and is provided to you under the terms of the
+# GNU General Public License version 2 as published by the Free Software
+# Foundation, and any use by you of this program is subject to the terms
+# of such GNU licence.
+#
+# A copy of the licence is included with the program, and can also be obtained
+# from Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+# Boston, MA  02110-1301, USA.
+#
+#
+
+
+Import ('env')
+
+kutf_env = env.Clone()
+kutf_env.Append(CPPPATH = '#kernel/drivers/gpu/arm/midgard/tests/include')
+Export('kutf_env')
+
+if Glob('internal/sconscript'):
+	SConscript('internal/sconscript')
+
+if kutf_env['debug'] == '1':
+	SConscript('kutf/sconscript')
+	SConscript('mali_kutf_irq_test/sconscript')
+
+	if Glob('kutf_test/sconscript'):
+		SConscript('kutf_test/sconscript')
+
+	if Glob('kutf_test_runner/sconscript'):
+		SConscript('kutf_test_runner/sconscript')
+
+if env['unit'] == '1':
+	SConscript('mali_kutf_ipa_test/sconscript')
+	SConscript('mali_kutf_vinstr_test/sconscript')

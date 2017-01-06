@@ -57,9 +57,10 @@ void kbase_job_done_slot(struct kbase_device *kbdev, int s, u32 completion_code,
 					u64 job_tail, ktime_t *end_timestamp);
 
 #ifdef CONFIG_GPU_TRACEPOINTS
-static inline char *kbasep_make_job_slot_string(int js, char *js_string)
+static inline char *kbasep_make_job_slot_string(int js, char *js_string,
+						size_t js_size)
 {
-	sprintf(js_string, "job_slot_%i", js);
+	snprintf(js_string, js_size, "job_slot_%i", js);
 	return js_string;
 }
 #endif
@@ -151,5 +152,13 @@ void kbase_job_slot_halt(struct kbase_device *kbdev);
  * Called on driver termination
  */
 void kbase_job_slot_term(struct kbase_device *kbdev);
+
+/**
+ * kbase_gpu_cacheclean - Cause a GPU cache clean & flush
+ * @kbdev: Device pointer
+ *
+ * Caller must not be in IRQ context
+ */
+void kbase_gpu_cacheclean(struct kbase_device *kbdev);
 
 #endif /* _KBASE_JM_HWACCESS_H_ */

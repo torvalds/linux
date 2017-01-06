@@ -1,6 +1,6 @@
 /*
  *
- * (C) COPYRIGHT 2015-2016 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2015-2017 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,7 +38,6 @@ void kbase_tlstream_term(void);
 /**
  * kbase_tlstream_acquire - acquire timeline stream file descriptor
  * @kctx:  kernel common context
- * @fd:    timeline stream file descriptor
  * @flags: timeline stream flags
  *
  * This descriptor is meant to be used by userspace timeline to gain access to
@@ -46,12 +45,11 @@ void kbase_tlstream_term(void);
  * timeline client.
  * Only one entity can own the descriptor at any given time. Descriptor shall be
  * closed if unused. If descriptor cannot be obtained (i.e. when it is already
- * being used) argument fd will contain negative value.
+ * being used) return will be a negative value.
  *
- * Return: zero on success (this does not necessarily mean that stream
- *         descriptor could be returned), negative number on error
+ * Return: file descriptor on success, negative number on error
  */
-int kbase_tlstream_acquire(struct kbase_context *kctx, int *fd, u32 flags);
+int kbase_tlstream_acquire(struct kbase_context *kctx, u32 flags);
 
 /**
  * kbase_tlstream_flush_streams - flush timeline streams.
@@ -137,6 +135,8 @@ void __kbase_tlstream_tl_attrib_atom_config(
 void __kbase_tlstream_tl_attrib_atom_priority(void *atom, u32 prio);
 void __kbase_tlstream_tl_attrib_atom_state(void *atom, u32 state);
 void __kbase_tlstream_tl_attrib_atom_priority_change(void *atom);
+void __kbase_tlstream_tl_attrib_atom_jit(
+		void *atom, u64 edit_addr, u64 new_addr);
 void __kbase_tlstream_tl_attrib_as_config(
 		void *as, u64 transtab, u64 memattr, u64 transcfg);
 void __kbase_tlstream_tl_event_atom_softstop_ex(void *atom);
@@ -147,6 +147,10 @@ void __kbase_tlstream_aux_pm_state(u32 core_type, u64 state);
 void __kbase_tlstream_aux_pagefault(u32 ctx_nr, u64 page_count_change);
 void __kbase_tlstream_aux_pagesalloc(u32 ctx_nr, u64 page_count);
 void __kbase_tlstream_aux_devfreq_target(u64 target_freq);
+void __kbase_tlstream_aux_protected_enter_start(void *gpu);
+void __kbase_tlstream_aux_protected_enter_end(void *gpu);
+void __kbase_tlstream_aux_protected_leave_start(void *gpu);
+void __kbase_tlstream_aux_protected_leave_end(void *gpu);
 
 #define TLSTREAM_ENABLED (1 << 31)
 
@@ -166,10 +170,17 @@ extern atomic_t kbase_tlstream_enabled;
 			__kbase_tlstream_##trace_name(__VA_ARGS__);     \
 	} while (0)
 
+#define __TRACE_IF_ENABLED_JD(trace_name, ...)                      \
+	do {                                                        \
+		int enabled = atomic_read(&kbase_tlstream_enabled); \
+		if (enabled & BASE_TLSTREAM_JOB_DUMPING_ENABLED)    \
+			__kbase_tlstream_##trace_name(__VA_ARGS__); \
+	} while (0)
+
 /*****************************************************************************/
 
 /**
- * kbase_tlstream_tl_summary_new_ctx - create context object in timeline
+ * KBASE_TLSTREAM_TL_SUMMARY_NEW_CTX - create context object in timeline
  *                                     summary
  * @context: name of the context object
  * @nr:      context number
@@ -180,11 +191,11 @@ extern atomic_t kbase_tlstream_enabled;
  * kbase context with userspace context.
  * This message is directed to timeline summary stream.
  */
-#define kbase_tlstream_tl_summary_new_ctx(context, nr, tgid) \
+#define KBASE_TLSTREAM_TL_SUMMARY_NEW_CTX(context, nr, tgid) \
 	__TRACE_IF_ENABLED(tl_summary_new_ctx, context, nr, tgid)
 
 /**
- * kbase_tlstream_tl_summary_new_gpu - create GPU object in timeline summary
+ * KBASE_TLSTREAM_TL_SUMMARY_NEW_GPU - create GPU object in timeline summary
  * @gpu:        name of the GPU object
  * @id:         id value of this GPU
  * @core_count: number of cores this GPU hosts
@@ -193,11 +204,11 @@ extern atomic_t kbase_tlstream_enabled;
  * created with two attributes: id and core count.
  * This message is directed to timeline summary stream.
  */
-#define kbase_tlstream_tl_summary_new_gpu(gpu, id, core_count) \
+#define KBASE_TLSTREAM_TL_SUMMARY_NEW_GPU(gpu, id, core_count) \
 	__TRACE_IF_ENABLED(tl_summary_new_gpu, gpu, id, core_count)
 
 /**
- * kbase_tlstream_tl_summary_new_lpu - create LPU object in timeline summary
+ * KBASE_TLSTREAM_TL_SUMMARY_NEW_LPU - create LPU object in timeline summary
  * @lpu: name of the Logical Processing Unit object
  * @nr:  sequential number assigned to this LPU
  * @fn:  property describing this LPU's functional abilities
@@ -207,11 +218,11 @@ extern atomic_t kbase_tlstream_enabled;
  * and function bearing information about this LPU abilities.
  * This message is directed to timeline summary stream.
  */
-#define kbase_tlstream_tl_summary_new_lpu(lpu, nr, fn) \
+#define KBASE_TLSTREAM_TL_SUMMARY_NEW_LPU(lpu, nr, fn) \
 	__TRACE_IF_ENABLED(tl_summary_new_lpu, lpu, nr, fn)
 
 /**
- * kbase_tlstream_tl_summary_lifelink_lpu_gpu - lifelink LPU object to GPU
+ * KBASE_TLSTREAM_TL_SUMMARY_LIFELINK_LPU_GPU - lifelink LPU object to GPU
  * @lpu: name of the Logical Processing Unit object
  * @gpu: name of the GPU object
  *
@@ -219,11 +230,11 @@ extern atomic_t kbase_tlstream_enabled;
  * along with GPU object.
  * This message is directed to timeline summary stream.
  */
-#define kbase_tlstream_tl_summary_lifelink_lpu_gpu(lpu, gpu) \
+#define KBASE_TLSTREAM_TL_SUMMARY_LIFELINK_LPU_GPU(lpu, gpu) \
 	__TRACE_IF_ENABLED(tl_summary_lifelink_lpu_gpu, lpu, gpu)
 
 /**
- * kbase_tlstream_tl_summary_new_as - create address space object in timeline summary
+ * KBASE_TLSTREAM_TL_SUMMARY_NEW_AS - create address space object in timeline summary
  * @as: name of the address space object
  * @nr: sequential number assigned to this address space
  *
@@ -232,11 +243,11 @@ extern atomic_t kbase_tlstream_enabled;
  * address space.
  * This message is directed to timeline summary stream.
  */
-#define kbase_tlstream_tl_summary_new_as(as, nr) \
+#define KBASE_TLSTREAM_TL_SUMMARY_NEW_AS(as, nr) \
 	__TRACE_IF_ENABLED(tl_summary_new_as, as, nr)
 
 /**
- * kbase_tlstream_tl_summary_lifelink_as_gpu - lifelink address space object to GPU
+ * KBASE_TLSTREAM_TL_SUMMARY_LIFELINK_AS_GPU - lifelink address space object to GPU
  * @as:  name of the address space object
  * @gpu: name of the GPU object
  *
@@ -244,11 +255,11 @@ extern atomic_t kbase_tlstream_enabled;
  * shall be deleted along with GPU object.
  * This message is directed to timeline summary stream.
  */
-#define kbase_tlstream_tl_summary_lifelink_as_gpu(as, gpu) \
+#define KBASE_TLSTREAM_TL_SUMMARY_LIFELINK_AS_GPU(as, gpu) \
 	__TRACE_IF_ENABLED(tl_summary_lifelink_as_gpu, as, gpu)
 
 /**
- * kbase_tlstream_tl_new_ctx - create context object in timeline
+ * KBASE_TLSTREAM_TL_NEW_CTX - create context object in timeline
  * @context: name of the context object
  * @nr:      context number
  * @tgid:    thread Group Id
@@ -257,11 +268,11 @@ extern atomic_t kbase_tlstream_enabled;
  * is created with context number (its attribute), that can be used to link
  * kbase context with userspace context.
  */
-#define kbase_tlstream_tl_new_ctx(context, nr, tgid) \
+#define KBASE_TLSTREAM_TL_NEW_CTX(context, nr, tgid) \
 	__TRACE_IF_ENABLED(tl_new_ctx, context, nr, tgid)
 
 /**
- * kbase_tlstream_tl_new_atom - create atom object in timeline
+ * KBASE_TLSTREAM_TL_NEW_ATOM - create atom object in timeline
  * @atom: name of the atom object
  * @nr:   sequential number assigned to this atom
  *
@@ -269,53 +280,53 @@ extern atomic_t kbase_tlstream_enabled;
  * created with atom number (its attribute) that links it with actual work
  * bucket id understood by hardware.
  */
-#define kbase_tlstream_tl_new_atom(atom, nr) \
+#define KBASE_TLSTREAM_TL_NEW_ATOM(atom, nr) \
 	__TRACE_IF_ENABLED(tl_new_atom, atom, nr)
 
 /**
- * kbase_tlstream_tl_del_ctx - destroy context object in timeline
+ * KBASE_TLSTREAM_TL_DEL_CTX - destroy context object in timeline
  * @context: name of the context object
  *
  * Function emits a timeline message informing that context object ceased to
  * exist.
  */
-#define kbase_tlstream_tl_del_ctx(context) \
+#define KBASE_TLSTREAM_TL_DEL_CTX(context) \
 	__TRACE_IF_ENABLED(tl_del_ctx, context)
 
 /**
- * kbase_tlstream_tl_del_atom - destroy atom object in timeline
+ * KBASE_TLSTREAM_TL_DEL_ATOM - destroy atom object in timeline
  * @atom: name of the atom object
  *
  * Function emits a timeline message informing that atom object ceased to
  * exist.
  */
-#define kbase_tlstream_tl_del_atom(atom) \
+#define KBASE_TLSTREAM_TL_DEL_ATOM(atom) \
 	__TRACE_IF_ENABLED(tl_del_atom, atom)
 
 /**
- * kbase_tlstream_tl_ret_ctx_lpu - retain context by LPU
+ * KBASE_TLSTREAM_TL_RET_CTX_LPU - retain context by LPU
  * @context: name of the context object
  * @lpu:     name of the Logical Processing Unit object
  *
  * Function emits a timeline message informing that context is being held
  * by LPU and must not be deleted unless it is released.
  */
-#define kbase_tlstream_tl_ret_ctx_lpu(context, lpu) \
+#define KBASE_TLSTREAM_TL_RET_CTX_LPU(context, lpu) \
 	__TRACE_IF_ENABLED(tl_ret_ctx_lpu, context, lpu)
 
 /**
- * kbase_tlstream_tl_ret_atom_ctx - retain atom by context
+ * KBASE_TLSTREAM_TL_RET_ATOM_CTX - retain atom by context
  * @atom:    name of the atom object
  * @context: name of the context object
  *
  * Function emits a timeline message informing that atom object is being held
  * by context and must not be deleted unless it is released.
  */
-#define kbase_tlstream_tl_ret_atom_ctx(atom, context) \
+#define KBASE_TLSTREAM_TL_RET_ATOM_CTX(atom, context) \
 	__TRACE_IF_ENABLED(tl_ret_atom_ctx, atom, context)
 
 /**
- * kbase_tlstream_tl_ret_atom_lpu - retain atom by LPU
+ * KBASE_TLSTREAM_TL_RET_ATOM_LPU - retain atom by LPU
  * @atom:              name of the atom object
  * @lpu:               name of the Logical Processing Unit object
  * @attrib_match_list: list containing match operator attributes
@@ -323,121 +334,121 @@ extern atomic_t kbase_tlstream_enabled;
  * Function emits a timeline message informing that atom object is being held
  * by LPU and must not be deleted unless it is released.
  */
-#define kbase_tlstream_tl_ret_atom_lpu(atom, lpu, attrib_match_list) \
+#define KBASE_TLSTREAM_TL_RET_ATOM_LPU(atom, lpu, attrib_match_list) \
 	__TRACE_IF_ENABLED(tl_ret_atom_lpu, atom, lpu, attrib_match_list)
 
 /**
- * kbase_tlstream_tl_nret_ctx_lpu - release context by LPU
+ * KBASE_TLSTREAM_TL_NRET_CTX_LPU - release context by LPU
  * @context: name of the context object
  * @lpu:     name of the Logical Processing Unit object
  *
  * Function emits a timeline message informing that context is being released
  * by LPU object.
  */
-#define kbase_tlstream_tl_nret_ctx_lpu(context, lpu) \
+#define KBASE_TLSTREAM_TL_NRET_CTX_LPU(context, lpu) \
 	__TRACE_IF_ENABLED(tl_nret_ctx_lpu, context, lpu)
 
 /**
- * kbase_tlstream_tl_nret_atom_ctx - release atom by context
+ * KBASE_TLSTREAM_TL_NRET_ATOM_CTX - release atom by context
  * @atom:    name of the atom object
  * @context: name of the context object
  *
  * Function emits a timeline message informing that atom object is being
  * released by context.
  */
-#define kbase_tlstream_tl_nret_atom_ctx(atom, context) \
+#define KBASE_TLSTREAM_TL_NRET_ATOM_CTX(atom, context) \
 	__TRACE_IF_ENABLED(tl_nret_atom_ctx, atom, context)
 
 /**
- * kbase_tlstream_tl_nret_atom_lpu - release atom by LPU
+ * KBASE_TLSTREAM_TL_NRET_ATOM_LPU - release atom by LPU
  * @atom: name of the atom object
  * @lpu:  name of the Logical Processing Unit object
  *
  * Function emits a timeline message informing that atom object is being
  * released by LPU.
  */
-#define kbase_tlstream_tl_nret_atom_lpu(atom, lpu) \
+#define KBASE_TLSTREAM_TL_NRET_ATOM_LPU(atom, lpu) \
 	__TRACE_IF_ENABLED(tl_nret_atom_lpu, atom, lpu)
 
 /**
- * kbase_tlstream_tl_ret_as_ctx - lifelink address space object to context
+ * KBASE_TLSTREAM_TL_RET_AS_CTX - lifelink address space object to context
  * @as:  name of the address space object
  * @ctx: name of the context object
  *
  * Function emits a timeline message informing that address space object
  * is being held by the context object.
  */
-#define kbase_tlstream_tl_ret_as_ctx(as, ctx) \
+#define KBASE_TLSTREAM_TL_RET_AS_CTX(as, ctx) \
 	__TRACE_IF_ENABLED(tl_ret_as_ctx, as, ctx)
 
 /**
- * kbase_tlstream_tl_nret_as_ctx - release address space by context
+ * KBASE_TLSTREAM_TL_NRET_AS_CTX - release address space by context
  * @as:  name of the address space object
  * @ctx: name of the context object
  *
  * Function emits a timeline message informing that address space object
  * is being released by atom.
  */
-#define kbase_tlstream_tl_nret_as_ctx(as, ctx) \
+#define KBASE_TLSTREAM_TL_NRET_AS_CTX(as, ctx) \
 	__TRACE_IF_ENABLED(tl_nret_as_ctx, as, ctx)
 
 /**
- * kbase_tlstream_tl_ret_atom_as - retain atom by address space
+ * KBASE_TLSTREAM_TL_RET_ATOM_AS - retain atom by address space
  * @atom: name of the atom object
  * @as:   name of the address space object
  *
  * Function emits a timeline message informing that atom object is being held
  * by address space and must not be deleted unless it is released.
  */
-#define kbase_tlstream_tl_ret_atom_as(atom, as) \
+#define KBASE_TLSTREAM_TL_RET_ATOM_AS(atom, as) \
 	__TRACE_IF_ENABLED(tl_ret_atom_as, atom, as)
 
 /**
- * kbase_tlstream_tl_nret_atom_as - release atom by address space
+ * KBASE_TLSTREAM_TL_NRET_ATOM_AS - release atom by address space
  * @atom: name of the atom object
  * @as:   name of the address space object
  *
  * Function emits a timeline message informing that atom object is being
  * released by address space.
  */
-#define kbase_tlstream_tl_nret_atom_as(atom, as) \
+#define KBASE_TLSTREAM_TL_NRET_ATOM_AS(atom, as) \
 	__TRACE_IF_ENABLED(tl_nret_atom_as, atom, as)
 
 /**
- * kbase_tlstream_tl_dep_atom_atom - parent atom depends on child atom
+ * KBASE_TLSTREAM_TL_DEP_ATOM_ATOM - parent atom depends on child atom
  * @atom1: name of the child atom object
  * @atom2: name of the parent atom object that depends on child atom
  *
  * Function emits a timeline message informing that parent atom waits for
  * child atom object to be completed before start its execution.
  */
-#define kbase_tlstream_tl_dep_atom_atom(atom1, atom2) \
+#define KBASE_TLSTREAM_TL_DEP_ATOM_ATOM(atom1, atom2) \
 	__TRACE_IF_ENABLED(tl_dep_atom_atom, atom1, atom2)
 
 /**
- * kbase_tlstream_tl_ndep_atom_atom - dependency between atoms resolved
+ * KBASE_TLSTREAM_TL_NDEP_ATOM_ATOM - dependency between atoms resolved
  * @atom1: name of the child atom object
  * @atom2: name of the parent atom object that depended on child atom
  *
  * Function emits a timeline message informing that parent atom execution
  * dependency on child atom has been resolved.
  */
-#define kbase_tlstream_tl_ndep_atom_atom(atom1, atom2) \
+#define KBASE_TLSTREAM_TL_NDEP_ATOM_ATOM(atom1, atom2) \
 	__TRACE_IF_ENABLED(tl_ndep_atom_atom, atom1, atom2)
 
 /**
- * kbase_tlstream_tl_rdep_atom_atom - information about already resolved dependency between atoms
+ * KBASE_TLSTREAM_TL_RDEP_ATOM_ATOM - information about already resolved dependency between atoms
  * @atom1: name of the child atom object
  * @atom2: name of the parent atom object that depended on child atom
  *
  * Function emits a timeline message informing that parent atom execution
  * dependency on child atom has been resolved.
  */
-#define kbase_tlstream_tl_rdep_atom_atom(atom1, atom2) \
+#define KBASE_TLSTREAM_TL_RDEP_ATOM_ATOM(atom1, atom2) \
 	__TRACE_IF_ENABLED(tl_rdep_atom_atom, atom1, atom2)
 
 /**
- * kbase_tlstream_tl_attrib_atom_config - atom job slot attributes
+ * KBASE_TLSTREAM_TL_ATTRIB_ATOM_CONFIG - atom job slot attributes
  * @atom:     name of the atom object
  * @jd:       job descriptor address
  * @affinity: job affinity
@@ -445,40 +456,49 @@ extern atomic_t kbase_tlstream_enabled;
  *
  * Function emits a timeline message containing atom attributes.
  */
-#define kbase_tlstream_tl_attrib_atom_config(atom, jd, affinity, config) \
+#define KBASE_TLSTREAM_TL_ATTRIB_ATOM_CONFIG(atom, jd, affinity, config) \
 	__TRACE_IF_ENABLED(tl_attrib_atom_config, atom, jd, affinity, config)
 
 /**
- * kbase_tlstream_tl_attrib_atom_priority - atom priority
+ * KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY - atom priority
  * @atom: name of the atom object
  * @prio: atom priority
  *
  * Function emits a timeline message containing atom priority.
  */
-#define kbase_tlstream_tl_attrib_atom_priority(atom, prio) \
+#define KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY(atom, prio) \
 	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_priority, atom, prio)
 
 /**
- * kbase_tlstream_tl_attrib_atom_state - atom state
+ * KBASE_TLSTREAM_TL_ATTRIB_ATOM_STATE - atom state
  * @atom:  name of the atom object
  * @state: atom state
  *
  * Function emits a timeline message containing atom state.
  */
-#define kbase_tlstream_tl_attrib_atom_state(atom, state) \
+#define KBASE_TLSTREAM_TL_ATTRIB_ATOM_STATE(atom, state) \
 	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_state, atom, state)
 
 /**
- * kbase_tlstream_tl_attrib_atom_priority_change - atom caused priority change
+ * KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY_CHANGE - atom caused priority change
  * @atom:  name of the atom object
  *
  * Function emits a timeline message signalling priority change
  */
-#define kbase_tlstream_tl_attrib_atom_priority_change(atom) \
+#define KBASE_TLSTREAM_TL_ATTRIB_ATOM_PRIORITY_CHANGE(atom) \
 	__TRACE_IF_ENABLED_LATENCY(tl_attrib_atom_priority_change, atom)
 
 /**
- * kbase_tlstream_tl_attrib_as_config - address space attributes
+ * KBASE_TLSTREAM_TL_ATTRIB_ATOM_JIT - jit happened on atom
+ * @atom:       atom identifier
+ * @edit_addr:  address edited by jit
+ * @new_addr:   address placed into the edited location
+ */
+#define KBASE_TLSTREAM_TL_ATTRIB_ATOM_JIT(atom, edit_addr, new_addr) \
+	__TRACE_IF_ENABLED_JD(tl_attrib_atom_jit, atom, edit_addr, new_addr)
+
+/**
+ * KBASE_TLSTREAM_TL_ATTRIB_AS_CONFIG - address space attributes
  * @as:       assigned address space
  * @transtab: configuration of the TRANSTAB register
  * @memattr:  configuration of the MEMATTR register
@@ -486,73 +506,118 @@ extern atomic_t kbase_tlstream_enabled;
  *
  * Function emits a timeline message containing address space attributes.
  */
-#define kbase_tlstream_tl_attrib_as_config(as, transtab, memattr, transcfg) \
+#define KBASE_TLSTREAM_TL_ATTRIB_AS_CONFIG(as, transtab, memattr, transcfg) \
 	__TRACE_IF_ENABLED(tl_attrib_as_config, as, transtab, memattr, transcfg)
 
 /**
- * kbase_tlstream_tl_event_atom_softstop_ex
+ * KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_ex
  * @atom:       atom identifier
  */
-#define kbase_tlstream_tl_event_atom_softstop_ex(atom) \
+#define KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_EX(atom) \
 	__TRACE_IF_ENABLED(tl_event_atom_softstop_ex, atom)
 
 /**
- * kbase_tlstream_tl_event_lpu_softstop
+ * KBASE_TLSTREAM_TL_EVENT_LPU_softstop
  * @lpu:        name of the LPU object
  */
-#define kbase_tlstream_tl_event_lpu_softstop(lpu) \
+#define KBASE_TLSTREAM_TL_EVENT_LPU_SOFTSTOP(lpu) \
 	__TRACE_IF_ENABLED(tl_event_lpu_softstop, lpu)
 
 /**
- * kbase_tlstream_tl_event_atom_softstop_issue
+ * KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_issue
  * @atom:       atom identifier
  */
-#define kbase_tlstream_tl_event_atom_softstop_issue(atom) \
+#define KBASE_TLSTREAM_TL_EVENT_ATOM_SOFTSTOP_ISSUE(atom) \
 	__TRACE_IF_ENABLED(tl_event_atom_softstop_issue, atom)
 
 /**
- * kbase_tlstream_jd_gpu_soft_reset - The GPU is being soft reset
+ * KBASE_TLSTREAM_JD_GPU_SOFT_RESET - The GPU is being soft reset
  * @gpu:        name of the GPU object
  *
  * This imperative tracepoint is specific to job dumping.
  * Function emits a timeline message indicating GPU soft reset.
  */
-#define kbase_tlstream_jd_gpu_soft_reset(gpu) \
+#define KBASE_TLSTREAM_JD_GPU_SOFT_RESET(gpu) \
 	__TRACE_IF_ENABLED(jd_gpu_soft_reset, gpu)
 
+
 /**
- * kbase_tlstream_aux_pm_state - timeline message: power management state
+ * KBASE_TLSTREAM_AUX_PM_STATE - timeline message: power management state
  * @core_type: core type (shader, tiler, l2 cache, l3 cache)
  * @state:     64bits bitmask reporting power state of the cores (1-ON, 0-OFF)
  */
-#define kbase_tlstream_aux_pm_state(core_type, state) \
+#define KBASE_TLSTREAM_AUX_PM_STATE(core_type, state) \
 	__TRACE_IF_ENABLED(aux_pm_state, core_type, state)
 
 /**
- * kbase_tlstream_aux_pagefault - timeline message: MMU page fault event
+ * KBASE_TLSTREAM_AUX_PAGEFAULT - timeline message: MMU page fault event
  *                                resulting in new pages being mapped
  * @ctx_nr:            kernel context number
  * @page_count_change: number of pages to be added
  */
-#define kbase_tlstream_aux_pagefault(ctx_nr, page_count_change) \
+#define KBASE_TLSTREAM_AUX_PAGEFAULT(ctx_nr, page_count_change) \
 	__TRACE_IF_ENABLED(aux_pagefault, ctx_nr, page_count_change)
 
 /**
- * kbase_tlstream_aux_pagesalloc - timeline message: total number of allocated
+ * KBASE_TLSTREAM_AUX_PAGESALLOC - timeline message: total number of allocated
  *                                 pages is changed
  * @ctx_nr:     kernel context number
  * @page_count: number of pages used by the context
  */
-#define kbase_tlstream_aux_pagesalloc(ctx_nr, page_count) \
+#define KBASE_TLSTREAM_AUX_PAGESALLOC(ctx_nr, page_count) \
 	__TRACE_IF_ENABLED(aux_pagesalloc, ctx_nr, page_count)
 
 /**
- * kbase_tlstream_aux_devfreq_target - timeline message: new target DVFS
+ * KBASE_TLSTREAM_AUX_DEVFREQ_TARGET - timeline message: new target DVFS
  *                                     frequency
  * @target_freq: new target frequency
  */
-#define kbase_tlstream_aux_devfreq_target(target_freq) \
+#define KBASE_TLSTREAM_AUX_DEVFREQ_TARGET(target_freq) \
 	__TRACE_IF_ENABLED(aux_devfreq_target, target_freq)
+
+/**
+ * KBASE_TLSTREAM_AUX_PROTECTED_ENTER_START - The GPU has started transitioning
+ *                                            to protected mode
+ * @gpu: name of the GPU object
+ *
+ * Function emits a timeline message indicating the GPU is starting to
+ * transition to protected mode.
+ */
+#define KBASE_TLSTREAM_AUX_PROTECTED_ENTER_START(gpu) \
+	__TRACE_IF_ENABLED_LATENCY(aux_protected_enter_start, gpu)
+
+/**
+ * KBASE_TLSTREAM_AUX_PROTECTED_ENTER_END - The GPU has finished transitioning
+ *                                          to protected mode
+ * @gpu: name of the GPU object
+ *
+ * Function emits a timeline message indicating the GPU has finished
+ * transitioning to protected mode.
+ */
+#define KBASE_TLSTREAM_AUX_PROTECTED_ENTER_END(gpu) \
+	__TRACE_IF_ENABLED_LATENCY(aux_protected_enter_end, gpu)
+
+/**
+ * KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_START - The GPU has started transitioning
+ *                                            to non-protected mode
+ * @gpu: name of the GPU object
+ *
+ * Function emits a timeline message indicating the GPU is starting to
+ * transition to non-protected mode.
+ */
+#define KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_START(gpu) \
+	__TRACE_IF_ENABLED_LATENCY(aux_protected_leave_start, gpu)
+
+/**
+ * KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_END - The GPU has finished transitioning
+ *                                          to non-protected mode
+ * @gpu: name of the GPU object
+ *
+ * Function emits a timeline message indicating the GPU has finished
+ * transitioning to non-protected mode.
+ */
+#define KBASE_TLSTREAM_AUX_PROTECTED_LEAVE_END(gpu) \
+	__TRACE_IF_ENABLED_LATENCY(aux_protected_leave_end, gpu)
 
 #endif /* _KBASE_TLSTREAM_H */
 

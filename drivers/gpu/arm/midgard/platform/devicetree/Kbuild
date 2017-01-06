@@ -1,5 +1,5 @@
 #
-# (C) COPYRIGHT 2012-2013 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2012-2016 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -13,10 +13,6 @@
 #
 
 
-ifeq ($(CONFIG_MALI_MIDGARD),y)
-obj-y += mali_kbase_runtime_pm.c
-obj-y += mali_kbase_config_devicetree.c
-else ifeq ($(CONFIG_MALI_MIDGARD),m)
-SRC += platform/devicetree/mali_kbase_runtime_pm.c
-SRC += platform/devicetree/mali_kbase_config_devicetree.c
-endif
+mali_kbase-y += \
+	$(MALI_PLATFORM_THIRDPARTY_DIR)/mali_kbase_config_devicetree.o \
+	$(MALI_PLATFORM_THIRDPARTY_DIR)/mali_kbase_runtime_pm.o

@@ -195,12 +195,10 @@ static bool kbasep_js_ctx_attr_ctx_release_attr(struct kbase_device *kbdev, stru
 
 void kbasep_js_ctx_attr_set_initial_attrs(struct kbase_device *kbdev, struct kbase_context *kctx)
 {
-	struct kbasep_js_kctx_info *js_kctx_info;
 	bool runpool_state_changed = false;
 
 	KBASE_DEBUG_ASSERT(kbdev != NULL);
 	KBASE_DEBUG_ASSERT(kctx != NULL);
-	js_kctx_info = &kctx->jctx.sched_info;
 
 	if (kbase_ctx_flag(kctx, KCTX_SUBMIT_DISABLED)) {
 		/* This context never submits, so don't track any scheduling attributes */

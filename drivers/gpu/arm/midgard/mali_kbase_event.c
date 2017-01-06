@@ -35,8 +35,8 @@ static struct base_jd_udata kbase_event_process(struct kbase_context *kctx, stru
 
 	KBASE_TIMELINE_ATOMS_IN_FLIGHT(kctx, atomic_sub_return(1, &kctx->timeline.jd_atoms_in_flight));
 
-	kbase_tlstream_tl_nret_atom_ctx(katom, kctx);
-	kbase_tlstream_tl_del_atom(katom);
+	KBASE_TLSTREAM_TL_NRET_ATOM_CTX(katom, kctx);
+	KBASE_TLSTREAM_TL_DEL_ATOM(katom);
 
 	katom->status = KBASE_JD_ATOM_STATE_UNUSED;
 
@@ -180,7 +180,7 @@ void kbase_event_post(struct kbase_context *ctx, struct kbase_jd_atom *atom)
 		kbase_event_process_noreport(ctx, atom);
 		return;
 	}
-	kbase_tlstream_tl_attrib_atom_state(atom, TL_ATOM_STATE_POSTED);
+	KBASE_TLSTREAM_TL_ATTRIB_ATOM_STATE(atom, TL_ATOM_STATE_POSTED);
 	if (atom->core_req & BASE_JD_REQ_EVENT_COALESCE) {
 		/* Don't report the event until other event(s) have completed */
 		mutex_lock(&ctx->event_mutex);
