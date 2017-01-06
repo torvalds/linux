@@ -3464,10 +3464,11 @@ static int raid_message(struct dm_target *ti, unsigned int argc, char **argv)
 	else {
 		if (!strcasecmp(argv[0], "check"))
 			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
-		else if (!!strcasecmp(argv[0], "repair"))
+		else if (!strcasecmp(argv[0], "repair")) {
+			set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
+			set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+		} else
 			return -EINVAL;
-		set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
-		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 	}
 	if (mddev->ro == 2) {
 		/* A write to sync_action is enough to justify
