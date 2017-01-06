@@ -116,7 +116,7 @@ done:
 	return ret;
 }
 
-static int fsl_dcu_unload(struct drm_device *dev)
+static void fsl_dcu_unload(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 
@@ -131,8 +131,6 @@ static int fsl_dcu_unload(struct drm_device *dev)
 	drm_irq_uninstall(dev);
 
 	dev->dev_private = NULL;
-
-	return 0;
 }
 
 static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)

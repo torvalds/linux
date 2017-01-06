@@ -186,7 +186,7 @@ err_free_private:
 	return ret;
 }
 
-static int exynos_drm_unload(struct drm_device *dev)
+static void exynos_drm_unload(struct drm_device *dev)
 {
 	exynos_drm_device_subdrv_remove(dev);
 
@@ -200,8 +200,6 @@ static int exynos_drm_unload(struct drm_device *dev)
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
-
-	return 0;
 }
 
 static int commit_is_pending(struct exynos_drm_private *priv, u32 crtcs)

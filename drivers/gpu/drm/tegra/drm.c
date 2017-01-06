@@ -214,7 +214,7 @@ free:
 	return err;
 }
 
-static int tegra_drm_unload(struct drm_device *drm)
+static void tegra_drm_unload(struct drm_device *drm)
 {
 	struct host1x_device *device = to_host1x_device(drm->dev);
 	struct tegra_drm *tegra = drm->dev_private;
@@ -227,7 +227,7 @@ static int tegra_drm_unload(struct drm_device *drm)
 
 	err = host1x_device_exit(device);
 	if (err < 0)
-		return err;
+		return;
 
 	if (tegra->domain) {
 		iommu_domain_free(tegra->domain);
@@ -235,8 +235,6 @@ static int tegra_drm_unload(struct drm_device *drm)
 	}
 
 	kfree(tegra);
-
-	return 0;
 }
 
 static int tegra_drm_open(struct drm_device *drm, struct drm_file *filp)

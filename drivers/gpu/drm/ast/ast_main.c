@@ -476,7 +476,7 @@ out_free:
 	return ret;
 }
 
-int ast_driver_unload(struct drm_device *dev)
+void ast_driver_unload(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 
@@ -489,7 +489,6 @@ int ast_driver_unload(struct drm_device *dev)
 	pci_iounmap(dev->pdev, ast->ioregs);
 	pci_iounmap(dev->pdev, ast->regs);
 	kfree(ast);
-	return 0;
 }
 
 int ast_gem_create(struct drm_device *dev,

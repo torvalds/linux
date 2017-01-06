@@ -285,12 +285,12 @@ static void qxl_device_fini(struct qxl_device *qdev)
 	qxl_debugfs_remove_files(qdev);
 }
 
-int qxl_driver_unload(struct drm_device *dev)
+void qxl_driver_unload(struct drm_device *dev)
 {
 	struct qxl_device *qdev = dev->dev_private;
 
 	if (qdev == NULL)
-		return 0;
+		return;
 
 	drm_vblank_cleanup(dev);
 
@@ -299,7 +299,6 @@ int qxl_driver_unload(struct drm_device *dev)
 
 	kfree(qdev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 int qxl_driver_load(struct drm_device *dev, unsigned long flags)

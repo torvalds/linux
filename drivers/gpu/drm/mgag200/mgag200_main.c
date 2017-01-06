@@ -264,18 +264,17 @@ err_mm:
 	return r;
 }
 
-int mgag200_driver_unload(struct drm_device *dev)
+void mgag200_driver_unload(struct drm_device *dev)
 {
 	struct mga_device *mdev = dev->dev_private;
 
 	if (mdev == NULL)
-		return 0;
+		return;
 	mgag200_modeset_fini(mdev);
 	mgag200_fbdev_fini(mdev);
 	drm_mode_config_cleanup(dev);
 	mgag200_mm_fini(mdev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 int mgag200_gem_create(struct drm_device *dev,
