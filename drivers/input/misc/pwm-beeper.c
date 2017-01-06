@@ -131,8 +131,8 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 	beeper->input->id.product = 0x0001;
 	beeper->input->id.version = 0x0100;
 
-	beeper->input->evbit[0] = BIT(EV_SND);
-	beeper->input->sndbit[0] = BIT(SND_TONE) | BIT(SND_BELL);
+	input_set_capability(beeper->input, EV_SND, SND_TONE);
+	input_set_capability(beeper->input, EV_SND, SND_BELL);
 
 	beeper->input->event = pwm_beeper_event;
 	beeper->input->close = pwm_beeper_close;
