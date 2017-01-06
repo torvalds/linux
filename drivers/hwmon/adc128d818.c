@@ -28,6 +28,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/mutex.h>
 #include <linux/bitops.h>
+#include <linux/of.h>
 
 /* Addresses to scan
  * The chip also supports addresses 0x35..0x37. Don't scan those addresses
@@ -63,6 +64,7 @@ struct adc128_data {
 	struct regulator *regulator;
 	int vref;		/* Reference voltage in mV */
 	struct mutex update_lock;
+	u8 mode;		/* Operation mode */
 	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
@@ -387,6 +389,15 @@ static int adc128_init_client(struct adc128_data *data)
 	if (err)
 		return err;
 
+	/* Set operation mode, if non-default */
+	if (data->mode != 0) {
+		err = i2c_smbus_write_byte_data(client,
+						ADC128_REG_CONFIG_ADV,
+						data->mode << 1);
+		if (err)
+			return err;
+	}
+
 	/* Start monitoring */
 	err = i2c_smbus_write_byte_data(client, ADC128_REG_CONFIG, 0x01);
 	if (err)
@@ -431,6 +442,19 @@ static int adc128_probe(struct i2c_client *client,
 		data->vref = DIV_ROUND_CLOSEST(vref, 1000);
 	} else {
 		data->vref = 2560;	/* 2.56V, in mV */
+	}
+
+	/* Operation mode is optional and defaults to mode 0 */
+	if (of_property_read_u8(dev->of_node, "ti,mode", &data->mode) == 0) {
+		/* Currently only mode 0 supported */
+		if (data->mode != 0) {
+			dev_err(dev, "unsupported operation mode %d\n",
+				data->mode);
+			err = -EINVAL;
+			goto error;
+		}
+	} else {
+		data->mode = 0;
 	}
 
 	data->client = client;
