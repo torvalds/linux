@@ -60,7 +60,7 @@ struct __extcon_info {
 	[EXTCON_USB_HOST] = {
 		.type = EXTCON_TYPE_USB,
 		.id = EXTCON_USB_HOST,
-		.name = "USB_HOST",
+		.name = "USB-HOST",
 	},
 
 	/* Charging external connector */
