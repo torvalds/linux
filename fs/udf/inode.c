@@ -745,11 +745,8 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 				 ~(inode->i_sb->s_blocksize - 1));
 			udf_write_aext(inode, &cur_epos, &eloc, elen, 1);
 		}
-		brelse(prev_epos.bh);
-		brelse(cur_epos.bh);
-		brelse(next_epos.bh);
 		newblock = udf_get_lb_pblock(inode->i_sb, &eloc, offset);
-		return newblock;
+		goto out_free;
 	}
 
 	/* Are we beyond EOF? */
@@ -772,11 +769,9 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 		/* Create extents for the hole between EOF and offset */
 		ret = udf_do_extend_file(inode, &prev_epos, laarr, offset);
 		if (ret < 0) {
-			brelse(prev_epos.bh);
-			brelse(cur_epos.bh);
-			brelse(next_epos.bh);
 			*err = ret;
-			return 0;
+			newblock = 0;
+			goto out_free;
 		}
 		c = 0;
 		offset = 0;
@@ -839,11 +834,9 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 				iinfo->i_location.partitionReferenceNum,
 				goal, err);
 		if (!newblocknum) {
-			brelse(prev_epos.bh);
-			brelse(cur_epos.bh);
-			brelse(next_epos.bh);
 			*err = -ENOSPC;
-			return 0;
+			newblock = 0;
+			goto out_free;
 		}
 		if (isBeyondEOF)
 			iinfo->i_lenExtents += inode->i_sb->s_blocksize;
@@ -870,15 +863,11 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 	 * the new number of extents is less than the old number */
 	udf_update_extents(inode, laarr, startnum, endnum, &prev_epos);
 
-	brelse(prev_epos.bh);
-	brelse(cur_epos.bh);
-	brelse(next_epos.bh);
-
 	newblock = udf_get_pblock(inode->i_sb, newblocknum,
 				iinfo->i_location.partitionReferenceNum, 0);
 	if (!newblock) {
 		*err = -EIO;
-		return 0;
+		goto out_free;
 	}
 	*new = 1;
 	iinfo->i_next_alloc_block = block;
@@ -889,7 +878,10 @@ static sector_t inode_getblk(struct inode *inode, sector_t block,
 		udf_sync_inode(inode);
 	else
 		mark_inode_dirty(inode);
-
+out_free:
+	brelse(prev_epos.bh);
+	brelse(cur_epos.bh);
+	brelse(next_epos.bh);
 	return newblock;
 }
 
