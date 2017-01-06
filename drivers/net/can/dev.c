@@ -284,10 +284,6 @@ static int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt,
 {
 	int err;
 
-	/* Check if the CAN device has bit-timing parameters */
-	if (!btc)
-		return -EOPNOTSUPP;
-
 	/*
 	 * Depending on the given can_bittiming parameter structure the CAN
 	 * timing parameters are calculated based on the provided bitrate OR
@@ -872,10 +868,22 @@ static int can_changelink(struct net_device *dev,
 		/* Do not allow changing bittiming while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
+
+		/* Calculate bittiming parameters based on
+		 * bittiming_const if set, otherwise pass bitrate
+		 * directly via do_set_bitrate(). Bail out if neither
+		 * is given.
+		 */
+		if (!priv->bittiming_const && !priv->do_set_bittiming)
+			return -EOPNOTSUPP;
+
 		memcpy(&bt, nla_data(data[IFLA_CAN_BITTIMING]), sizeof(bt));
-		err = can_get_bittiming(dev, &bt, priv->bittiming_const);
-		if (err)
-			return err;
+		if (priv->bittiming_const) {
+			err = can_get_bittiming(dev, &bt,
+						priv->bittiming_const);
+			if (err)
+				return err;
+		}
 		memcpy(&priv->bittiming, &bt, sizeof(bt));
 
 		if (priv->do_set_bittiming) {
@@ -943,11 +951,23 @@ static int can_changelink(struct net_device *dev,
 		/* Do not allow changing bittiming while running */
 		if (dev->flags & IFF_UP)
 			return -EBUSY;
+
+		/* Calculate bittiming parameters based on
+		 * data_bittiming_const if set, otherwise pass bitrate
+		 * directly via do_set_bitrate(). Bail out if neither
+		 * is given.
+		 */
+		if (!priv->data_bittiming_const && !priv->do_set_data_bittiming)
+			return -EOPNOTSUPP;
+
 		memcpy(&dbt, nla_data(data[IFLA_CAN_DATA_BITTIMING]),
 		       sizeof(dbt));
-		err = can_get_bittiming(dev, &dbt, priv->data_bittiming_const);
-		if (err)
-			return err;
+		if (priv->data_bittiming_const) {
+			err = can_get_bittiming(dev, &dbt,
+						priv->data_bittiming_const);
+			if (err)
+				return err;
+		}
 		memcpy(&priv->data_bittiming, &dbt, sizeof(dbt));
 
 		if (priv->do_set_data_bittiming) {
