@@ -447,7 +447,7 @@ retry:
 			      connector->name);
 
 		/* go for command line mode first */
-		modes[i] = drm_pick_cmdline_mode(fb_conn, width, height);
+		modes[i] = drm_pick_cmdline_mode(fb_conn);
 
 		/* try for preferred next */
 		if (!modes[i]) {
