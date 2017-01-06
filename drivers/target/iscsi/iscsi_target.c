@@ -1920,6 +1920,28 @@ out:
 	return ret;
 }
 
+static enum tcm_tmreq_table iscsit_convert_tmf(u8 iscsi_tmf)
+{
+	switch (iscsi_tmf) {
+	case ISCSI_TM_FUNC_ABORT_TASK:
+		return TMR_ABORT_TASK;
+	case ISCSI_TM_FUNC_ABORT_TASK_SET:
+		return TMR_ABORT_TASK_SET;
+	case ISCSI_TM_FUNC_CLEAR_ACA:
+		return TMR_CLEAR_ACA;
+	case ISCSI_TM_FUNC_CLEAR_TASK_SET:
+		return TMR_CLEAR_TASK_SET;
+	case ISCSI_TM_FUNC_LOGICAL_UNIT_RESET:
+		return TMR_LUN_RESET;
+	case ISCSI_TM_FUNC_TARGET_WARM_RESET:
+		return TMR_TARGET_WARM_RESET;
+	case ISCSI_TM_FUNC_TARGET_COLD_RESET:
+		return TMR_TARGET_COLD_RESET;
+	default:
+		return TMR_UNKNOWN;
+	}
+}
+
 int
 iscsit_handle_task_mgt_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 			   unsigned char *buf)
@@ -1985,30 +2007,8 @@ iscsit_handle_task_mgt_cmd(struct iscsi_conn *conn, struct iscsi_cmd *cmd,
 
 		target_get_sess_cmd(&cmd->se_cmd, true);
 		sess_ref = true;
-
-		switch (function) {
-		case ISCSI_TM_FUNC_ABORT_TASK:
-			tcm_function = TMR_ABORT_TASK;
-			break;
-		case ISCSI_TM_FUNC_ABORT_TASK_SET:
-			tcm_function = TMR_ABORT_TASK_SET;
-			break;
-		case ISCSI_TM_FUNC_CLEAR_ACA:
-			tcm_function = TMR_CLEAR_ACA;
-			break;
-		case ISCSI_TM_FUNC_CLEAR_TASK_SET:
-			tcm_function = TMR_CLEAR_TASK_SET;
-			break;
-		case ISCSI_TM_FUNC_LOGICAL_UNIT_RESET:
-			tcm_function = TMR_LUN_RESET;
-			break;
-		case ISCSI_TM_FUNC_TARGET_WARM_RESET:
-			tcm_function = TMR_TARGET_WARM_RESET;
-			break;
-		case ISCSI_TM_FUNC_TARGET_COLD_RESET:
-			tcm_function = TMR_TARGET_COLD_RESET;
-			break;
-		default:
+		tcm_function = iscsit_convert_tmf(function);
+		if (tcm_function == TMR_UNKNOWN) {
 			pr_err("Unknown iSCSI TMR Function:"
 			       " 0x%02x\n", function);
 			return iscsit_add_reject_cmd(cmd,
