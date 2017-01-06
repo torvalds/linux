@@ -355,7 +355,6 @@ static void ch341_set_termios(struct tty_struct *tty,
 
 	baud_rate = tty_get_baud_rate(tty);
 
-	priv->baud_rate = baud_rate;
 	ctrl = CH341_LCR_ENABLE_RX | CH341_LCR_ENABLE_TX;
 
 	switch (C_CSIZE(tty)) {
@@ -388,6 +387,9 @@ static void ch341_set_termios(struct tty_struct *tty,
 		spin_lock_irqsave(&priv->lock, flags);
 		priv->line_control |= (CH341_BIT_DTR | CH341_BIT_RTS);
 		spin_unlock_irqrestore(&priv->lock, flags);
+
+		priv->baud_rate = baud_rate;
+
 		r = ch341_init_set_baudrate(port->serial->dev, priv, ctrl);
 		if (r < 0 && old_termios) {
 			priv->baud_rate = tty_termios_baud_rate(old_termios);
