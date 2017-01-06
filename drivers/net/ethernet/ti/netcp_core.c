@@ -1226,9 +1226,9 @@ static int netcp_tx_submit_skb(struct netcp_intf *netcp,
 		/* psdata points to both native-endian and device-endian data */
 		__le32 *psdata = (void __force *)p_info.psdata;
 
-		memmove(p_info.psdata, p_info.psdata + p_info.psdata_len,
-			p_info.psdata_len);
-		set_words(p_info.psdata, p_info.psdata_len, psdata);
+		set_words((u32 *)psdata +
+			  (KNAV_DMA_NUM_PS_WORDS - p_info.psdata_len),
+			  p_info.psdata_len, psdata);
 		tmp |= (p_info.psdata_len & KNAV_DMA_DESC_PSLEN_MASK) <<
 			KNAV_DMA_DESC_PSLEN_SHIFT;
 	}
