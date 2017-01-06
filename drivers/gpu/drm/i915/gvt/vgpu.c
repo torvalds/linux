@@ -304,7 +304,7 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	ret = setup_vgpu_mmio(vgpu);
 	if (ret)
-		goto out_free_vgpu;
+		goto out_clean_idr;
 
 	ret = intel_vgpu_alloc_resource(vgpu, param);
 	if (ret)
@@ -355,6 +355,8 @@ out_clean_vgpu_resource:
 	intel_vgpu_free_resource(vgpu);
 out_clean_vgpu_mmio:
 	clean_vgpu_mmio(vgpu);
+out_clean_idr:
+	idr_remove(&gvt->vgpu_idr, vgpu->id);
 out_free_vgpu:
 	vfree(vgpu);
 	mutex_unlock(&gvt->lock);
