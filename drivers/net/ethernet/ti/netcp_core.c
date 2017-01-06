@@ -122,6 +122,13 @@ static void get_pkt_info(dma_addr_t *buff, u32 *buff_len, dma_addr_t *ndesc,
 	*ndesc = le32_to_cpu(desc->next_desc);
 }
 
+static void get_desc_info(u32 *desc_info, u32 *pkt_info,
+			  struct knav_dma_desc *desc)
+{
+	*desc_info = le32_to_cpu(desc->desc_info);
+	*pkt_info = le32_to_cpu(desc->packet_info);
+}
+
 static u32 get_sw_data(int index, struct knav_dma_desc *desc)
 {
 	/* No Endian conversion needed as this data is untouched by hw */
@@ -653,6 +660,7 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 	struct netcp_packet p_info;
 	struct sk_buff *skb;
 	void *org_buf_ptr;
+	u32 tmp;
 
 	dma_desc = knav_queue_pop(netcp->rx_queue, &dma_sz);
 	if (!dma_desc)
@@ -724,9 +732,6 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 		knav_pool_desc_put(netcp->rx_pool, ndesc);
 	}
 
-	/* Free the primary descriptor */
-	knav_pool_desc_put(netcp->rx_pool, desc);
-
 	/* check for packet len and warn */
 	if (unlikely(pkt_sz != accum_sz))
 		dev_dbg(netcp->ndev_dev, "mismatch in packet size(%d) & sum of fragments(%d)\n",
@@ -739,6 +744,11 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 	p_info.skb = skb;
 	skb->dev = netcp->ndev;
 	p_info.rxtstamp_complete = false;
+	get_desc_info(&tmp, &p_info.eflags, desc);
+	p_info.epib = desc->epib;
+	p_info.psdata = (u32 __force *)desc->psdata;
+	p_info.eflags = ((p_info.eflags >> KNAV_DMA_DESC_EFLAGS_SHIFT) &
+			 KNAV_DMA_DESC_EFLAGS_MASK);
 	list_for_each_entry(rx_hook, &netcp->rxhook_list_head, list) {
 		int ret;
 
@@ -748,10 +758,14 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 			dev_err(netcp->ndev_dev, "RX hook %d failed: %d\n",
 				rx_hook->order, ret);
 			netcp->ndev->stats.rx_errors++;
+			/* Free the primary descriptor */
+			knav_pool_desc_put(netcp->rx_pool, desc);
 			dev_kfree_skb(skb);
 			return 0;
 		}
 	}
+	/* Free the primary descriptor */
+	knav_pool_desc_put(netcp->rx_pool, desc);
 
 	netcp->ndev->stats.rx_packets++;
 	netcp->ndev->stats.rx_bytes += skb->len;

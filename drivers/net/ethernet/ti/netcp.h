@@ -115,6 +115,7 @@ struct netcp_packet {
 	struct sk_buff		*skb;
 	__le32			*epib;
 	u32			*psdata;
+	u32			eflags;
 	unsigned int		psdata_len;
 	struct netcp_intf	*netcp;
 	struct netcp_tx_pipe	*tx_pipe;
