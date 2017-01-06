@@ -95,18 +95,19 @@ static void pwm_beeper_close(struct input_dev *input)
 
 static int pwm_beeper_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct pwm_beeper *beeper;
 	int error;
 
-	beeper = kzalloc(sizeof(*beeper), GFP_KERNEL);
+	beeper = devm_kzalloc(dev, sizeof(*beeper), GFP_KERNEL);
 	if (!beeper)
 		return -ENOMEM;
 
-	beeper->pwm = pwm_get(&pdev->dev, NULL);
+	beeper->pwm = devm_pwm_get(dev, NULL);
 	if (IS_ERR(beeper->pwm)) {
 		error = PTR_ERR(beeper->pwm);
-		dev_err(&pdev->dev, "Failed to request pwm device: %d\n", error);
-		goto err_free;
+		dev_err(dev, "Failed to request PWM device: %d\n", error);
+		return error;
 	}
 
 	/*
@@ -117,13 +118,11 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 
 	INIT_WORK(&beeper->work, pwm_beeper_work);
 
-	beeper->input = input_allocate_device();
+	beeper->input = devm_input_allocate_device(dev);
 	if (!beeper->input) {
-		dev_err(&pdev->dev, "Failed to allocate input device\n");
-		error = -ENOMEM;
-		goto err_pwm_free;
+		dev_err(dev, "Failed to allocate input device\n");
+		return -ENOMEM;
 	}
-	beeper->input->dev.parent = &pdev->dev;
 
 	beeper->input->name = "pwm-beeper";
 	beeper->input->phys = "pwm/input0";
@@ -142,33 +141,11 @@ static int pwm_beeper_probe(struct platform_device *pdev)
 
 	error = input_register_device(beeper->input);
 	if (error) {
-		dev_err(&pdev->dev, "Failed to register input device: %d\n", error);
-		goto err_input_free;
+		dev_err(dev, "Failed to register input device: %d\n", error);
+		return error;
 	}
 
 	platform_set_drvdata(pdev, beeper);
-
-	return 0;
-
-err_input_free:
-	input_free_device(beeper->input);
-err_pwm_free:
-	pwm_free(beeper->pwm);
-err_free:
-	kfree(beeper);
-
-	return error;
-}
-
-static int pwm_beeper_remove(struct platform_device *pdev)
-{
-	struct pwm_beeper *beeper = platform_get_drvdata(pdev);
-
-	input_unregister_device(beeper->input);
-
-	pwm_free(beeper->pwm);
-
-	kfree(beeper);
 
 	return 0;
 }
@@ -205,7 +182,6 @@ MODULE_DEVICE_TABLE(of, pwm_beeper_match);
 
 static struct platform_driver pwm_beeper_driver = {
 	.probe	= pwm_beeper_probe,
-	.remove = pwm_beeper_remove,
 	.driver = {
 		.name	= "pwm-beeper",
 		.pm	= &pwm_beeper_pm_ops,
