@@ -2271,8 +2271,7 @@ int8_t inode_bmap(struct inode *inode, sector_t block,
 		  uint32_t *elen, sector_t *offset)
 {
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
-	loff_t lbcount = 0, bcount =
-	    (loff_t) block << blocksize_bits;
+	loff_t lbcount = 0, bcount = (loff_t) block << blocksize_bits;
 	int8_t etype;
 	struct udf_inode_info *iinfo;
 
