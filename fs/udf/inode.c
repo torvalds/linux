@@ -1612,6 +1612,14 @@ static int udf_sync_inode(struct inode *inode)
 	return udf_update_inode(inode, 1);
 }
 
+static void udf_adjust_time(struct udf_inode_info *iinfo, struct timespec time)
+{
+	if (iinfo->i_crtime.tv_sec > time.tv_sec ||
+	    (iinfo->i_crtime.tv_sec == time.tv_sec &&
+	     iinfo->i_crtime.tv_nsec > time.tv_nsec))
+		iinfo->i_crtime = time;
+}
+
 static int udf_update_inode(struct inode *inode, int do_sync)
 {
 	struct buffer_head *bh = NULL;
@@ -1738,20 +1746,9 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		efe->objectSize = cpu_to_le64(inode->i_size);
 		efe->logicalBlocksRecorded = cpu_to_le64(lb_recorded);
 
-		if (iinfo->i_crtime.tv_sec > inode->i_atime.tv_sec ||
-		    (iinfo->i_crtime.tv_sec == inode->i_atime.tv_sec &&
-		     iinfo->i_crtime.tv_nsec > inode->i_atime.tv_nsec))
-			iinfo->i_crtime = inode->i_atime;
-
-		if (iinfo->i_crtime.tv_sec > inode->i_mtime.tv_sec ||
-		    (iinfo->i_crtime.tv_sec == inode->i_mtime.tv_sec &&
-		     iinfo->i_crtime.tv_nsec > inode->i_mtime.tv_nsec))
-			iinfo->i_crtime = inode->i_mtime;
-
-		if (iinfo->i_crtime.tv_sec > inode->i_ctime.tv_sec ||
-		    (iinfo->i_crtime.tv_sec == inode->i_ctime.tv_sec &&
-		     iinfo->i_crtime.tv_nsec > inode->i_ctime.tv_nsec))
-			iinfo->i_crtime = inode->i_ctime;
+		udf_adjust_time(iinfo, inode->i_atime);
+		udf_adjust_time(iinfo, inode->i_mtime);
+		udf_adjust_time(iinfo, inode->i_ctime);
 
 		udf_time_to_disk_stamp(&efe->accessTime, inode->i_atime);
 		udf_time_to_disk_stamp(&efe->modificationTime, inode->i_mtime);
