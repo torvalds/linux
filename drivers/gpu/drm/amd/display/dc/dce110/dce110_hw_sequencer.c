@@ -623,7 +623,7 @@ static void program_scaler(const struct core_dc *dc,
 		&pipe_ctx->scl_data);
 }
 
-static enum dc_status prog_pixclk_crtc_otg(
+static enum dc_status dce110_prog_pixclk_crtc_otg(
 		struct pipe_ctx *pipe_ctx,
 		struct validate_context *context,
 		struct core_dc *dc)
@@ -641,6 +641,7 @@ static enum dc_status prog_pixclk_crtc_otg(
 		pipe_ctx->tg->funcs->set_blank_color(
 				pipe_ctx->tg,
 				&black_color);
+
 		/*
 		 * Must blank CRTC after disabling power gating and before any
 		 * programming, otherwise CRTC will be hung in bad state
@@ -1047,7 +1048,8 @@ static void reset_single_pipe_hw_ctx(
 		struct validate_context *context)
 {
 	core_link_disable_stream(pipe_ctx);
-	if (!pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, true)) {
+	pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, true);
+	if (!hwss_wait_for_blank_complete(pipe_ctx->tg)) {
 		dm_error("DC: failed to blank crtc!\n");
 		BREAK_TO_DEBUGGER();
 	}
@@ -1560,9 +1562,6 @@ static void update_plane_addr(const struct core_dc *dc,
 			surface->public.flip_immediate);
 
 	surface->status.requested_address = surface->public.address;
-
-	if (surface->public.visible)
-		pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, false);
 }
 
 void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
@@ -1718,6 +1717,7 @@ static void init_hw(struct core_dc *dc)
 		/* Blank controller using driver code instead of
 		 * command table. */
 		tg->funcs->set_blank(tg, true);
+		hwss_wait_for_blank_complete(tg);
 	}
 
 	for (i = 0; i < dc->res_pool->audio_count; i++) {
@@ -2002,7 +2002,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_drr = set_drr,
 	.set_static_screen_control = set_static_screen_control,
 	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
-	.prog_pixclk_crtc_otg = prog_pixclk_crtc_otg,
+	.prog_pixclk_crtc_otg = dce110_prog_pixclk_crtc_otg,
 };
 
 bool dce110_hw_sequencer_construct(struct core_dc *dc)

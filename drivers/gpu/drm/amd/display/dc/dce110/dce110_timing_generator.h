@@ -257,7 +257,7 @@ void dce110_tg_program_timing(struct timing_generator *tg,
 
 bool dce110_tg_is_blanked(struct timing_generator *tg);
 
-bool dce110_tg_set_blank(struct timing_generator *tg,
+void dce110_tg_set_blank(struct timing_generator *tg,
 		bool enable_blanking);
 
 bool dce110_tg_validate_timing(struct timing_generator *tg,

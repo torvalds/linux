@@ -151,4 +151,7 @@ void color_space_to_black_color(
 	enum dc_color_space colorspace,
 	struct tg_color *black_color);
 
+bool hwss_wait_for_blank_complete(
+		struct timing_generator *tg);
+
 #endif /* __DC_HW_SEQUENCER_H__ */

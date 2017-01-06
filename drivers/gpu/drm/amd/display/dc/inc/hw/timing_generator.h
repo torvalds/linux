@@ -129,7 +129,7 @@ struct timing_generator_funcs {
 							   uint32_t early_cntl);
 	void (*wait_for_state)(struct timing_generator *tg,
 							enum crtc_state state);
-	bool (*set_blank)(struct timing_generator *tg,
+	void (*set_blank)(struct timing_generator *tg,
 					bool enable_blanking);
 	bool (*is_blanked)(struct timing_generator *tg);
 	void (*set_overscan_blank_color) (struct timing_generator *tg, const struct tg_color *color);

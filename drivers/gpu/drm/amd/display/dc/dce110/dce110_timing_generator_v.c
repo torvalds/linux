@@ -72,12 +72,11 @@ static bool dce110_timing_generator_v_disable_crtc(struct timing_generator *tg)
 	return true;
 }
 
-static bool dce110_timing_generator_v_blank_crtc(struct timing_generator *tg)
+static void dce110_timing_generator_v_blank_crtc(struct timing_generator *tg)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
 	uint32_t addr = mmCRTCV_BLANK_CONTROL;
 	uint32_t value = dm_read_reg(tg->ctx, addr);
-	uint8_t counter = 100;
 
 	set_reg_field_value(
 		value,
@@ -92,35 +91,9 @@ static bool dce110_timing_generator_v_blank_crtc(struct timing_generator *tg)
 		CRTC_BLANK_DE_MODE);
 
 	dm_write_reg(tg->ctx, addr, value);
-
-	while (counter > 0) {
-		value = dm_read_reg(tg->ctx, addr);
-
-		if (get_reg_field_value(
-			value,
-			CRTCV_BLANK_CONTROL,
-			CRTC_BLANK_DATA_EN) == 1 &&
-			get_reg_field_value(
-			value,
-			CRTCV_BLANK_CONTROL,
-			CRTC_CURRENT_BLANK_STATE) == 1)
-			break;
-
-		msleep(1);
-		counter--;
-	}
-
-	if (!counter) {
-		dm_logger_write(tg->ctx->logger, LOG_ERROR,
-				"timing generator %d blank timing out.\n",
-				tg110->controller_id);
-		return false;
-	}
-
-	return true;
 }
 
-static bool dce110_timing_generator_v_unblank_crtc(struct timing_generator *tg)
+static void dce110_timing_generator_v_unblank_crtc(struct timing_generator *tg)
 {
 	uint32_t addr = mmCRTCV_BLANK_CONTROL;
 	uint32_t value = dm_read_reg(tg->ctx, addr);
@@ -138,8 +111,6 @@ static bool dce110_timing_generator_v_unblank_crtc(struct timing_generator *tg)
 		CRTC_BLANK_DE_MODE);
 
 	dm_write_reg(tg->ctx, addr, value);
-
-	return true;
 }
 
 static bool dce110_timing_generator_v_is_in_vertical_blank(
@@ -429,13 +400,13 @@ static void dce110_timing_generator_v_enable_advanced_request(
 	dm_write_reg(tg->ctx, addr, value);
 }
 
-static bool dce110_timing_generator_v_set_blank(struct timing_generator *tg,
+static void dce110_timing_generator_v_set_blank(struct timing_generator *tg,
 		bool enable_blanking)
 {
 	if (enable_blanking)
-		return dce110_timing_generator_v_blank_crtc(tg);
+		dce110_timing_generator_v_blank_crtc(tg);
 	else
-		return dce110_timing_generator_v_unblank_crtc(tg);
+		dce110_timing_generator_v_unblank_crtc(tg);
 }
 
 static void dce110_timing_generator_v_program_timing(struct timing_generator *tg,

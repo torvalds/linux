@@ -91,3 +91,23 @@ void color_space_to_black_color(
 		break;
 	}
 }
+
+bool hwss_wait_for_blank_complete(
+		struct timing_generator *tg)
+{
+	int counter;
+
+	for (counter = 0; counter < 100; counter++) {
+		if (tg->funcs->is_blanked(tg))
+			break;
+
+		msleep(1);
+	}
+
+	if (counter == 100) {
+		dm_error("DC: failed to blank crtc!\n");
+		return false;
+	}
+
+	return true;
+}

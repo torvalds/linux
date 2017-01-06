@@ -1808,7 +1808,7 @@ bool dce110_tg_is_blanked(struct timing_generator *tg)
 	return false;
 }
 
-bool dce110_tg_set_blank(struct timing_generator *tg,
+void dce110_tg_set_blank(struct timing_generator *tg,
 		bool enable_blanking)
 {
 	struct dce110_timing_generator *tg110 = DCE110TG_FROM_TG(tg);
@@ -1824,8 +1824,6 @@ bool dce110_tg_set_blank(struct timing_generator *tg,
 	value = 0;
 
 	if (enable_blanking) {
-		int counter;
-
 		set_reg_field_value(
 			value,
 			1,
@@ -1834,32 +1832,8 @@ bool dce110_tg_set_blank(struct timing_generator *tg,
 
 		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_BLANK_CONTROL), value);
 
-		for (counter = 0; counter < 100; counter++) {
-			value = dm_read_reg(tg->ctx, CRTC_REG(mmCRTC_BLANK_CONTROL));
-
-			if (get_reg_field_value(
-				value,
-				CRTC_BLANK_CONTROL,
-				CRTC_BLANK_DATA_EN) == 1 &&
-				get_reg_field_value(
-				value,
-				CRTC_BLANK_CONTROL,
-				CRTC_CURRENT_BLANK_STATE) == 1)
-				break;
-
-			msleep(1);
-		}
-
-		if (counter == 100) {
-			dm_logger_write(tg->ctx->logger, LOG_ERROR,
-					"timing generator %d blank timing out.\n",
-					tg110->controller_id);
-			return false;
-		}
 	} else
 		dm_write_reg(tg->ctx, CRTC_REG(mmCRTC_BLANK_CONTROL), 0);
-
-	return true;
 }
 
 bool dce110_tg_validate_timing(struct timing_generator *tg,
