@@ -94,7 +94,7 @@ struct ch341_private {
 	spinlock_t lock; /* access lock */
 	unsigned baud_rate; /* set baud rate */
 	u8 mcr;
-	u8 line_status; /* active status of modem control inputs */
+	u8 msr;
 	u8 lcr;
 };
 
@@ -209,7 +209,7 @@ static int ch341_get_status(struct usb_device *dev, struct ch341_private *priv)
 		goto out;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->line_status = (~(*buffer)) & CH341_BITS_MODEM_STAT;
+	priv->msr = (~(*buffer)) & CH341_BITS_MODEM_STAT;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 out:	kfree(buffer);
@@ -293,7 +293,7 @@ static int ch341_port_remove(struct usb_serial_port *port)
 static int ch341_carrier_raised(struct usb_serial_port *port)
 {
 	struct ch341_private *priv = usb_get_serial_port_data(port);
-	if (priv->line_status & CH341_BIT_DCD)
+	if (priv->msr & CH341_BIT_DCD)
 		return 1;
 	return 0;
 }
@@ -489,7 +489,7 @@ static int ch341_tiocmset(struct tty_struct *tty,
 	return ch341_set_handshake(port->serial->dev, control);
 }
 
-static void ch341_update_line_status(struct usb_serial_port *port,
+static void ch341_update_status(struct usb_serial_port *port,
 					unsigned char *data, size_t len)
 {
 	struct ch341_private *priv = usb_get_serial_port_data(port);
@@ -504,8 +504,8 @@ static void ch341_update_line_status(struct usb_serial_port *port,
 	status = ~data[2] & CH341_BITS_MODEM_STAT;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	delta = status ^ priv->line_status;
-	priv->line_status = status;
+	delta = status ^ priv->msr;
+	priv->msr = status;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (data[1] & CH341_MULT_STAT)
@@ -558,7 +558,7 @@ static void ch341_read_int_callback(struct urb *urb)
 	}
 
 	usb_serial_debug_data(&port->dev, __func__, len, data);
-	ch341_update_line_status(port, data, len);
+	ch341_update_status(port, data, len);
 exit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
@@ -578,7 +578,7 @@ static int ch341_tiocmget(struct tty_struct *tty)
 
 	spin_lock_irqsave(&priv->lock, flags);
 	mcr = priv->mcr;
-	status = priv->line_status;
+	status = priv->msr;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	result = ((mcr & CH341_BIT_DTR)		? TIOCM_DTR : 0)
