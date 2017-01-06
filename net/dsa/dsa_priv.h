@@ -56,6 +56,15 @@ const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 int dsa_cpu_port_ethtool_setup(struct dsa_switch *ds);
 void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds);
 
+/* hwmon.c */
+#ifdef CONFIG_NET_DSA_HWMON
+void dsa_hwmon_register(struct dsa_switch *ds);
+void dsa_hwmon_unregister(struct dsa_switch *ds);
+#else
+static inline void dsa_hwmon_register(struct dsa_switch *ds) { }
+static inline void dsa_hwmon_unregister(struct dsa_switch *ds) { }
+#endif
+
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
