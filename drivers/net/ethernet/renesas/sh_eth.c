@@ -535,7 +535,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
-	.hw_crc		= 1,
+	.hw_checksum	= 1,
 	.tsu		= 1,
 };
 
@@ -573,7 +573,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.rpadir_value   = 2 << 16,
 	.no_trimd	= 1,
 	.no_ade		= 1,
-	.hw_crc		= 1,
+	.hw_checksum	= 1,
 	.tsu		= 1,
 	.select_mii	= 1,
 };
@@ -812,7 +812,7 @@ static struct sh_eth_cpu_data sh7734_data = {
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.tsu		= 1,
-	.hw_crc		= 1,
+	.hw_checksum	= 1,
 	.select_mii	= 1,
 };
 
@@ -928,7 +928,7 @@ static int sh_eth_reset(struct net_device *ndev)
 		sh_eth_write(ndev, 0x0, RDFFR);
 
 		/* Reset HW CRC register */
-		if (mdp->cd->hw_crc)
+		if (mdp->cd->hw_checksum)
 			sh_eth_write(ndev, 0x0, CSMR);
 
 		/* Select MII mode */
@@ -1413,7 +1413,7 @@ static int sh_eth_rx(struct net_device *ndev, u32 intr_status, int *quota)
 		 * the RFS bits are from bit 25 to bit 16. So, the
 		 * driver needs right shifting by 16.
 		 */
-		if (mdp->cd->hw_crc)
+		if (mdp->cd->hw_checksum)
 			desc_status >>= 16;
 
 		skb = mdp->rx_skbuff[entry];
@@ -1987,7 +1987,7 @@ static size_t __sh_eth_get_regs(struct net_device *ndev, u32 *buf)
 	add_reg(MAFCR);
 	if (cd->rtrate)
 		add_reg(RTRATE);
-	if (cd->hw_crc)
+	if (cd->hw_checksum)
 		add_reg(CSMR);
 	if (cd->select_mii)
 		add_reg(RMII_MII);
