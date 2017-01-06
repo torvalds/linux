@@ -1291,7 +1291,7 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 EXPORT_SYMBOL(ttm_bo_create);
 
 static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
-					unsigned mem_type, bool allow_errors)
+				   unsigned mem_type)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_bo_global *glob = bdev->glob;
@@ -1306,13 +1306,8 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	while (!list_empty(&man->lru)) {
 		spin_unlock(&glob->lru_lock);
 		ret = ttm_mem_evict_first(bdev, mem_type, NULL, false, false);
-		if (ret) {
-			if (allow_errors) {
-				return ret;
-			} else {
-				pr_err("Cleanup eviction failed\n");
-			}
-		}
+		if (ret)
+			return ret;
 		spin_lock(&glob->lru_lock);
 	}
 	spin_unlock(&glob->lru_lock);
@@ -1324,13 +1319,8 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	if (fence) {
 		ret = dma_fence_wait(fence, false);
 		dma_fence_put(fence);
-		if (ret) {
-			if (allow_errors) {
-				return ret;
-			} else {
-				pr_err("Cleanup eviction failed\n");
-			}
-		}
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -1359,7 +1349,11 @@ int ttm_bo_clean_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 
 	ret = 0;
 	if (mem_type > 0) {
-		ttm_bo_force_list_clean(bdev, mem_type, false);
+		ret = ttm_bo_force_list_clean(bdev, mem_type);
+		if (ret) {
+			pr_err("Cleanup eviction failed\n");
+			return ret;
+		}
 
 		ret = (*man->func->takedown)(man);
 	}
@@ -1382,7 +1376,7 @@ int ttm_bo_evict_mm(struct ttm_bo_device *bdev, unsigned mem_type)
 		return 0;
 	}
 
-	return ttm_bo_force_list_clean(bdev, mem_type, true);
+	return ttm_bo_force_list_clean(bdev, mem_type);
 }
 EXPORT_SYMBOL(ttm_bo_evict_mm);
 
