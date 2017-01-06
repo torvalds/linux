@@ -1213,7 +1213,8 @@ static int udf_load_vat(struct super_block *sb, int p_index, int type1_index)
 	struct udf_inode_info *vati;
 	uint32_t pos;
 	struct virtualAllocationTable20 *vat20;
-	sector_t blocks = sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits;
+	sector_t blocks = i_size_read(sb->s_bdev->bd_inode) >>
+			  sb->s_blocksize_bits;
 
 	udf_find_vat_block(sb, p_index, type1_index, sbi->s_last_block);
 	if (!sbi->s_vat_inode &&
@@ -1803,7 +1804,7 @@ static int udf_check_anchor_block(struct super_block *sb, sector_t block,
 
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_VARCONV) &&
 	    udf_fixed_to_variable(block) >=
-	    sb->s_bdev->bd_inode->i_size >> sb->s_blocksize_bits)
+	    i_size_read(sb->s_bdev->bd_inode) >> sb->s_blocksize_bits)
 		return -EAGAIN;
 
 	bh = udf_read_tagged(sb, block, block, &ident);
@@ -1865,7 +1866,7 @@ static int udf_scan_anchors(struct super_block *sb, sector_t *lastblock,
 		last[last_count++] = *lastblock - 152;
 
 	for (i = 0; i < last_count; i++) {
-		if (last[i] >= sb->s_bdev->bd_inode->i_size >>
+		if (last[i] >= i_size_read(sb->s_bdev->bd_inode) >>
 				sb->s_blocksize_bits)
 			continue;
 		ret = udf_check_anchor_block(sb, last[i], fileset);
