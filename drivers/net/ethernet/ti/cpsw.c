@@ -145,6 +145,7 @@ do {								\
 		cpsw->data.active_slave)
 #define IRQ_NUM			2
 #define CPSW_MAX_QUEUES		8
+#define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
 
 static int debug_level;
 module_param(debug_level, int, 0);
@@ -157,6 +158,10 @@ MODULE_PARM_DESC(ale_ageout, "cpsw ale ageout interval (seconds)");
 static int rx_packet_max = CPSW_MAX_PACKET_SIZE;
 module_param(rx_packet_max, int, 0);
 MODULE_PARM_DESC(rx_packet_max, "maximum receive packet size (bytes)");
+
+static int descs_pool_size = CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT;
+module_param(descs_pool_size, int, 0444);
+MODULE_PARM_DESC(descs_pool_size, "Number of CPDMA CPPI descriptors in pool");
 
 struct cpsw_wr_regs {
 	u32	id_ver;
@@ -2969,6 +2974,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	dma_params.has_ext_regs		= true;
 	dma_params.desc_hw_addr         = dma_params.desc_mem_phys;
 	dma_params.bus_freq_mhz		= cpsw->bus_freq_mhz;
+	dma_params.descs_pool_size	= descs_pool_size;
 
 	cpsw->dma = cpdma_ctlr_create(&dma_params);
 	if (!cpsw->dma) {
@@ -3072,9 +3078,9 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_ale_ret;
 	}
 
-	cpsw_notice(priv, probe, "initialized device (regs %pa, irq %d)\n",
-		    &ss_res->start, ndev->irq);
-
+	cpsw_notice(priv, probe,
+		    "initialized device (regs %pa, irq %d, pool size %d)\n",
+		    &ss_res->start, ndev->irq, dma_params.descs_pool_size);
 	if (cpsw->data.dual_emac) {
 		ret = cpsw_probe_dual_emac(priv);
 		if (ret) {

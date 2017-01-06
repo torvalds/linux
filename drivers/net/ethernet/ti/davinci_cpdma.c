@@ -219,6 +219,18 @@ int cpdma_desc_pool_create(struct cpdma_ctlr *ctlr)
 				cpdma_params->desc_align);
 	pool->num_desc	= pool->mem_size / pool->desc_size;
 
+	if (cpdma_params->descs_pool_size) {
+		/* recalculate memory size required cpdma descriptor pool
+		 * basing on number of descriptors specified by user and
+		 * if memory size > CPPI internal RAM size (desc_mem_size)
+		 * then switch to use DDR
+		 */
+		pool->num_desc = cpdma_params->descs_pool_size;
+		pool->mem_size = pool->desc_size * pool->num_desc;
+		if (pool->mem_size > cpdma_params->desc_mem_size)
+			cpdma_params->desc_mem_phys = 0;
+	}
+
 	pool->gen_pool = devm_gen_pool_create(ctlr->dev, ilog2(pool->desc_size),
 					      -1, "cpdma");
 	if (IS_ERR(pool->gen_pool)) {
