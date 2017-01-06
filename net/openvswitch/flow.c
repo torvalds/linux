@@ -312,7 +312,8 @@ static bool icmp6hdr_ok(struct sk_buff *skb)
  * Returns 0 if it encounters a non-vlan or incomplete packet.
  * Returns 1 after successfully parsing vlan tag.
  */
-static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh)
+static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh,
+			  bool untag_vlan)
 {
 	struct vlan_head *vh = (struct vlan_head *)skb->data;
 
@@ -330,7 +331,20 @@ static int parse_vlan_tag(struct sk_buff *skb, struct vlan_head *key_vh)
 	key_vh->tci = vh->tci | htons(VLAN_TAG_PRESENT);
 	key_vh->tpid = vh->tpid;
 
-	__skb_pull(skb, sizeof(struct vlan_head));
+	if (unlikely(untag_vlan)) {
+		int offset = skb->data - skb_mac_header(skb);
+		u16 tci;
+		int err;
+
+		__skb_push(skb, offset);
+		err = __skb_vlan_pop(skb, &tci);
+		__skb_pull(skb, offset);
+		if (err)
+			return err;
+		__vlan_hwaccel_put_tag(skb, key_vh->tpid, tci);
+	} else {
+		__skb_pull(skb, sizeof(struct vlan_head));
+	}
 	return 1;
 }
 
@@ -351,13 +365,13 @@ static int parse_vlan(struct sk_buff *skb, struct sw_flow_key *key)
 		key->eth.vlan.tpid = skb->vlan_proto;
 	} else {
 		/* Parse outer vlan tag in the non-accelerated case. */
-		res = parse_vlan_tag(skb, &key->eth.vlan);
+		res = parse_vlan_tag(skb, &key->eth.vlan, true);
 		if (res <= 0)
 			return res;
 	}
 
 	/* Parse inner vlan tag. */
-	res = parse_vlan_tag(skb, &key->eth.cvlan);
+	res = parse_vlan_tag(skb, &key->eth.cvlan, false);
 	if (res <= 0)
 		return res;
 
@@ -800,29 +814,15 @@ int ovs_flow_key_extract_userspace(struct net *net, const struct nlattr *attr,
 	if (err)
 		return err;
 
-	if (ovs_key_mac_proto(key) == MAC_PROTO_NONE) {
-		/* key_extract assumes that skb->protocol is set-up for
-		 * layer 3 packets which is the case for other callers,
-		 * in particular packets recieved from the network stack.
-		 * Here the correct value can be set from the metadata
-		 * extracted above.
-		 */
-		skb->protocol = key->eth.type;
-	} else {
-		struct ethhdr *eth;
+	/* key_extract assumes that skb->protocol is set-up for
+	 * layer 3 packets which is the case for other callers,
+	 * in particular packets received from the network stack.
+	 * Here the correct value can be set from the metadata
+	 * extracted above.
+	 * For L2 packet key eth type would be zero. skb protocol
+	 * would be set to correct value later during key-extact.
+	 */
 
-		skb_reset_mac_header(skb);
-		eth = eth_hdr(skb);
-
-		/* Normally, setting the skb 'protocol' field would be
-		 * handled by a call to eth_type_trans(), but it assumes
-		 * there's a sending device, which we may not have.
-		 */
-		if (eth_proto_is_802_3(eth->h_proto))
-			skb->protocol = eth->h_proto;
-		else
-			skb->protocol = htons(ETH_P_802_2);
-	}
-
+	skb->protocol = key->eth.type;
 	return key_extract(skb, key);
 }

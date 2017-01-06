@@ -280,13 +280,32 @@ static void mv_cesa_ahash_std_prepare(struct ahash_request *req)
 	sreq->offset = 0;
 }
 
+static void mv_cesa_ahash_dma_step(struct ahash_request *req)
+{
+	struct mv_cesa_ahash_req *creq = ahash_request_ctx(req);
+	struct mv_cesa_req *base = &creq->base;
+
+	/* We must explicitly set the digest state. */
+	if (base->chain.first->flags & CESA_TDMA_SET_STATE) {
+		struct mv_cesa_engine *engine = base->engine;
+		int i;
+
+		/* Set the hash state in the IVDIG regs. */
+		for (i = 0; i < ARRAY_SIZE(creq->state); i++)
+			writel_relaxed(creq->state[i], engine->regs +
+				       CESA_IVDIG(i));
+	}
+
+	mv_cesa_dma_step(base);
+}
+
 static void mv_cesa_ahash_step(struct crypto_async_request *req)
 {
 	struct ahash_request *ahashreq = ahash_request_cast(req);
 	struct mv_cesa_ahash_req *creq = ahash_request_ctx(ahashreq);
 
 	if (mv_cesa_req_get_type(&creq->base) == CESA_DMA_REQ)
-		mv_cesa_dma_step(&creq->base);
+		mv_cesa_ahash_dma_step(ahashreq);
 	else
 		mv_cesa_ahash_std_step(ahashreq);
 }
@@ -584,11 +603,15 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 	struct mv_cesa_ahash_dma_iter iter;
 	struct mv_cesa_op_ctx *op = NULL;
 	unsigned int frag_len;
+	bool set_state = false;
 	int ret;
 	u32 type;
 
 	basereq->chain.first = NULL;
 	basereq->chain.last = NULL;
+
+	if (!mv_cesa_mac_op_is_first_frag(&creq->op_tmpl))
+		set_state = true;
 
 	if (creq->src_nents) {
 		ret = dma_map_sg(cesa_dev->dev, req->src, creq->src_nents,
@@ -682,6 +705,15 @@ static int mv_cesa_ahash_dma_req_init(struct ahash_request *req)
 
 	if (type != CESA_TDMA_RESULT)
 		basereq->chain.last->flags |= CESA_TDMA_BREAK_CHAIN;
+
+	if (set_state) {
+		/*
+		 * Put the CESA_TDMA_SET_STATE flag on the first tdma desc to
+		 * let the step logic know that the IVDIG registers should be
+		 * explicitly set before launching a TDMA chain.
+		 */
+		basereq->chain.first->flags |= CESA_TDMA_SET_STATE;
+	}
 
 	return 0;
 
