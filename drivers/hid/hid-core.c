@@ -43,7 +43,6 @@
  */
 
 #define DRIVER_DESC "HID core driver"
-#define DRIVER_LICENSE "GPL"
 
 int hid_debug = 0;
 module_param_named(debug, hid_debug, int, 0600);
@@ -2865,5 +2864,5 @@ module_exit(hid_exit);
 MODULE_AUTHOR("Andreas Gal");
 MODULE_AUTHOR("Vojtech Pavlik");
 MODULE_AUTHOR("Jiri Kosina");
-MODULE_LICENSE(DRIVER_LICENSE);
+MODULE_LICENSE("GPL");
 
