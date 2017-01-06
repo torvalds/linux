@@ -109,7 +109,7 @@ static int udf_read_extent_cache(struct inode *inode, loff_t bcount,
 
 /* Add extent to extent cache */
 static void udf_update_extent_cache(struct inode *inode, loff_t estart,
-				    struct extent_position *pos, int next_epos)
+				    struct extent_position *pos)
 {
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
@@ -118,19 +118,16 @@ static void udf_update_extent_cache(struct inode *inode, loff_t estart,
 	__udf_clear_extent_cache(inode);
 	if (pos->bh)
 		get_bh(pos->bh);
-	memcpy(&iinfo->cached_extent.epos, pos,
-	       sizeof(struct extent_position));
+	memcpy(&iinfo->cached_extent.epos, pos, sizeof(struct extent_position));
 	iinfo->cached_extent.lstart = estart;
-	if (next_epos)
-		switch (iinfo->i_alloc_type) {
-		case ICBTAG_FLAG_AD_SHORT:
-			iinfo->cached_extent.epos.offset -=
-			sizeof(struct short_ad);
-			break;
-		case ICBTAG_FLAG_AD_LONG:
-			iinfo->cached_extent.epos.offset -=
-			sizeof(struct long_ad);
-		}
+	switch (iinfo->i_alloc_type) {
+	case ICBTAG_FLAG_AD_SHORT:
+		iinfo->cached_extent.epos.offset -= sizeof(struct short_ad);
+		break;
+	case ICBTAG_FLAG_AD_LONG:
+		iinfo->cached_extent.epos.offset -= sizeof(struct long_ad);
+		break;
+	}
 	spin_unlock(&iinfo->i_extent_cache_lock);
 }
 
@@ -2289,7 +2286,7 @@ int8_t inode_bmap(struct inode *inode, sector_t block,
 		lbcount += *elen;
 	} while (lbcount <= bcount);
 	/* update extent cache */
-	udf_update_extent_cache(inode, lbcount - *elen, pos, 1);
+	udf_update_extent_cache(inode, lbcount - *elen, pos);
 	*offset = (bcount + *elen - lbcount) >> blocksize_bits;
 
 	return etype;
