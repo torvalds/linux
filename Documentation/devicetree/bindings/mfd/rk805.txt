@@ -1,0 +1,196 @@
+RK805 Power Management Integrated Circuit
+
+Required properties:
+- compatible: "rockchip,rk805"
+- reg: I2C slave address
+- interrupt-parent: The parent interrupt controller.
+- interrupts: the interrupt outputs of the controller.
+
+Optional properties:
+- rockchip,system-power-controller: Telling whether or not this pmic is controlling
+  the system power.
+- gpio-controller: Specifies that the node is a gpio controller when you attemp to
+  use the OUT1 or OUT2 pin of RK805 by GPIO general interface.
+- #gpio-cells: Should be two. The first cell is the GPIO number and the second cell
+  is used to specify the GPIO polarity.
+- wakeup-source: Flag to indicate this device can wake system (suspend/resume)
+- vcc1-supply:  The input supply for RK805_DCDC_REG1
+- vcc2-supply:  The input supply for RK805_DCDC_REG2
+- vcc3-supply:  The input supply for RK805_DCDC_REG3
+- vcc4-supply:  The input supply for RK805_DCDC_REG4
+- vcc5-supply:  The input supply for RK805_LDO_REG1, RK805_LDO_REG2
+- vcc6-supply:  The input supply for RK805_LDO_REG3
+
+Regulators: All the regulators of RK805 to be instantiated shall be
+listed in a child node named 'regulators'. Each regulator is represented
+by a child node of the 'regulators' node.
+
+	regulator-name {
+		/* standard regulator bindings here */
+	};
+
+Following regulators of the RK805 PMIC block are supported. Note that
+the 'n' in regulator name, as in RK805_DCDC_REGn or RK805_LDOn, represents the DCDC
+or LDO number as described in RK805 datasheet.
+
+	- RK805_DCDC_REGn
+		- valid values for n are 1 to 4.
+	- RK805_LDO_REGn
+		- valid values for n are 1 to 3.
+
+Standard regulator bindings are used inside regulator subnodes. Check
+  Documentation/devicetree/bindings/regulator/regulator.txt
+for more details
+
+Gpio, Rtc, Pwrkey: the node are represented like below. When you attemp to enable
+  the module, setting the "status" to be "okay", otherwise "disabled".
+
+		rtc {
+			status = "okay";
+		};
+
+		pwrkey {
+			status = "okay";
+		};
+
+		gpio {
+			status = "okay";
+		};
+
+Example:
+	rk805: pmic@1c {
+		compatible = "rockchip,rk805";
+		status = "okay";
+		reg = <0x18>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <6 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_int_l>;
+		rockchip,system-power-controller;
+		wakeup-source;
+		gpio-controller;
+		#gpio-cells = <2>;
+
+		vcc1-supply = <&vcc_sys>;
+		vcc2-supply = <&vcc_sys>;
+		vcc3-supply = <&vcc_sys>;
+		vcc4-supply = <&vcc_sys>;
+		vcc5-supply = <&vcc_sys>;
+		vcc6-supply = <&vcc_sys>;
+
+		rtc {
+			status = "okay";
+		};
+
+		pwrkey {
+			status = "okay";
+		};
+
+		gpio {
+			status = "okay";
+		};
+
+		regulators {
+			compatible = "rk805-regulator";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vdd_logic: RK805_DCDC1@0 {
+				regulator-compatible = "RK805_DCDC1";
+				regulator-name = "vdd_logic";
+				regulator-min-microvolt = <712500>;
+				regulator-max-microvolt = <1450000>;
+				regulator-initial-mode = <0x1>;
+				regulator-ramp-delay = <12500>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1000000>;
+				};
+			};
+
+			vdd_arm: RK805_DCDC2@1 {
+				regulator-compatible = "RK805_DCDC2";
+				regulator-name = "vdd_arm";
+				regulator-min-microvolt = <712500>;
+				regulator-max-microvolt = <1450000>;
+				regulator-initial-mode = <0x1>;
+				regulator-ramp-delay = <12500>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <950000>;
+				};
+			};
+
+			vcc_ddr: RK805_DCDC3@2 {
+				regulator-compatible = "RK805_DCDC3";
+				regulator-name = "vcc_ddr";
+				regulator-initial-mode = <0x1>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+				};
+			};
+
+			vcc_io: RK805_DCDC4@3 {
+				regulator-compatible = "RK805_DCDC4";
+				regulator-name = "vcc_io";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
+				regulator-initial-mode = <0x1>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-mode = <0x2>;
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <3300000>;
+				};
+			};
+
+			vdd_18: RK805_LDO1@4 {
+				regulator-compatible = "RK805_LDO1";
+				regulator-name = "vdd_18";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			vcc_18emmc: RK805_LDO2@5 {
+				regulator-compatible = "RK805_LDO2";
+				regulator-name = "vcc_18emmc";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1800000>;
+				};
+			};
+
+			vdd_10: RK805_LDO3@6 {
+				regulator-compatible = "RK805_LDO3";
+				regulator-name = "vdd_10";
+				regulator-min-microvolt = <1000000>;
+				regulator-max-microvolt = <1000000>;
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-state-mem {
+					regulator-on-in-suspend;
+					regulator-suspend-microvolt = <1000000>;
+				};
+			};
+		};
+	};

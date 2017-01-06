@@ -376,7 +376,20 @@ static int rk808_rtc_probe(struct platform_device *pdev)
 	struct rk808 *rk808 = dev_get_drvdata(pdev->dev.parent);
 	struct rk808_rtc *rk808_rtc;
 	struct rtc_time tm;
+	struct device_node *np;
 	int ret;
+
+	switch (rk808->variant) {
+	case RK805_ID:
+		np = of_find_node_by_name(pdev->dev.parent->of_node, "rtc");
+		if (np && !of_device_is_available(np)) {
+			dev_info(&pdev->dev, "device is disabled\n");
+			return -EINVAL;
+		}
+		break;
+	default:
+		break;
+	}
 
 	rk808_rtc = devm_kzalloc(&pdev->dev, sizeof(*rk808_rtc), GFP_KERNEL);
 	if (rk808_rtc == NULL)

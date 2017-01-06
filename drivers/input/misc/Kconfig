@@ -449,6 +449,12 @@ config INPUT_RETU_PWRBUTTON
 	  To compile this driver as a module, choose M here. The module will
 	  be called retu-pwrbutton.
 
+config INPUT_RK8XX_PWRKEY
+	tristate "Rockchip RK8XX pwrkey driver"
+	depends on MFD_RK808
+	help
+	  Select this option to enable the pwrkey module of Rockchip RK8XX PMIC.
+
 config INPUT_TPS65218_PWRBUTTON
 	tristate "TPS65218 Power button driver"
 	depends on MFD_TPS65218
