@@ -33,6 +33,7 @@
 
 /* ALE Registers */
 #define ALE_IDVER		0x00
+#define ALE_STATUS		0x04
 #define ALE_CONTROL		0x08
 #define ALE_PRESCALE		0x10
 #define ALE_UNKNOWNVLAN		0x18
@@ -57,6 +58,10 @@
 #define ALE_UCAST_UNTOUCHED		1
 #define ALE_UCAST_OUI			2
 #define ALE_UCAST_TOUCHED		3
+
+#define ALE_TABLE_SIZE_MULTIPLIER	1024
+#define ALE_STATUS_SIZE_MASK		0x1f
+#define ALE_TABLE_SIZE_DEFAULT		64
 
 static inline int cpsw_ale_get_field(u32 *ale_entry, u32 start, u32 bits)
 {
@@ -728,7 +733,7 @@ static void cpsw_ale_timer(unsigned long arg)
 
 void cpsw_ale_start(struct cpsw_ale *ale)
 {
-	u32 rev;
+	u32 rev, ale_entries;
 
 	rev = __raw_readl(ale->params.ale_regs + ALE_IDVER);
 	if (!ale->params.major_ver_mask)
@@ -739,6 +744,30 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 	dev_info(ale->params.dev, "initialized cpsw ale version %d.%d\n",
 		 ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask),
 		 ALE_VERSION_MINOR(rev));
+
+	if (!ale->params.ale_entries) {
+		ale_entries =
+			__raw_readl(ale->params.ale_regs + ALE_STATUS) &
+				    ALE_STATUS_SIZE_MASK;
+		/* ALE available on newer NetCP switches has introduced
+		 * a register, ALE_STATUS, to indicate the size of ALE
+		 * table which shows the size as a multiple of 1024 entries.
+		 * For these, params.ale_entries will be set to zero. So
+		 * read the register and update the value of ale_entries.
+		 * ALE table on NetCP lite, is much smaller and is indicated
+		 * by a value of zero in ALE_STATUS. So use a default value
+		 * of ALE_TABLE_SIZE_DEFAULT for this. Caller is expected
+		 * to set the value of ale_entries for all other versions
+		 * of ALE.
+		 */
+		if (!ale_entries)
+			ale_entries = ALE_TABLE_SIZE_DEFAULT;
+		else
+			ale_entries *= ALE_TABLE_SIZE_MULTIPLIER;
+		ale->params.ale_entries = ale_entries;
+	}
+	dev_info(ale->params.dev,
+		 "ALE Table size %ld\n", ale->params.ale_entries);
 
 	if (ale->params.nu_switch_ale) {
 		/* Separate registers for unknown vlan configuration.
