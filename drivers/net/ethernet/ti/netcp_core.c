@@ -739,8 +739,12 @@ static int netcp_process_one_rx_packet(struct netcp_intf *netcp)
 		dev_dbg(netcp->ndev_dev, "mismatch in packet size(%d) & sum of fragments(%d)\n",
 			pkt_sz, accum_sz);
 
-	/* Remove ethernet FCS from the packet */
-	__pskb_trim(skb, skb->len - ETH_FCS_LEN);
+	/* Newer version of the Ethernet switch can trim the Ethernet FCS
+	 * from the packet and is indicated in hw_cap. So trim it only for
+	 * older h/w
+	 */
+	if (!(netcp->hw_cap & ETH_SW_CAN_REMOVE_ETH_FCS))
+		__pskb_trim(skb, skb->len - ETH_FCS_LEN);
 
 	/* Call each of the RX hooks */
 	p_info.skb = skb;

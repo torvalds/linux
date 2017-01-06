@@ -102,6 +102,8 @@ struct netcp_intf {
 	void			*rx_fdq[KNAV_DMA_FDQ_PER_CHAN];
 	struct napi_struct	rx_napi;
 	struct napi_struct	tx_napi;
+#define ETH_SW_CAN_REMOVE_ETH_FCS	BIT(0)
+	u32			hw_cap;
 
 	/* 64-bit netcp stats */
 	struct netcp_stats	stats;

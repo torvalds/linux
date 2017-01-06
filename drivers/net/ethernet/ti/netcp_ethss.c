@@ -122,6 +122,7 @@
 #define MACSL_FULLDUPLEX			BIT(0)
 
 #define GBE_CTL_P0_ENABLE			BIT(2)
+#define ETH_SW_CTL_P0_TX_CRC_REMOVE		BIT(13)
 #define GBE13_REG_VAL_STAT_ENABLE_ALL		0xff
 #define XGBE_REG_VAL_STAT_ENABLE_ALL		0xf
 #define GBE_STATS_CD_SEL			BIT(28)
@@ -2821,7 +2822,7 @@ static int gbe_open(void *intf_priv, struct net_device *ndev)
 	struct netcp_intf *netcp = netdev_priv(ndev);
 	struct gbe_slave *slave = gbe_intf->slave;
 	int port_num = slave->port_num;
-	u32 reg;
+	u32 reg, val;
 	int ret;
 
 	reg = readl(GBE_REG_ADDR(gbe_dev, switch_regs, id_ver));
@@ -2851,7 +2852,12 @@ static int gbe_open(void *intf_priv, struct net_device *ndev)
 	writel(0, GBE_REG_ADDR(gbe_dev, switch_regs, ptype));
 
 	/* Control register */
-	writel(GBE_CTL_P0_ENABLE, GBE_REG_ADDR(gbe_dev, switch_regs, control));
+	val = GBE_CTL_P0_ENABLE;
+	if (IS_SS_ID_MU(gbe_dev)) {
+		val |= ETH_SW_CTL_P0_TX_CRC_REMOVE;
+		netcp->hw_cap = ETH_SW_CAN_REMOVE_ETH_FCS;
+	}
+	writel(val, GBE_REG_ADDR(gbe_dev, switch_regs, control));
 
 	/* All statistics enabled and STAT AB visible by default */
 	writel(gbe_dev->stats_en_mask, GBE_REG_ADDR(gbe_dev, switch_regs,
