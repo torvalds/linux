@@ -1162,22 +1162,26 @@ DECLARE_EVENT_CLASS(btrfs__work,
 		   __entry->func, __entry->ordered_func, __entry->ordered_free)
 );
 
-/* For situiations that the work is freed */
+/*
+ * For situiations when the work is freed, we pass fs_info and a tag that that
+ * matches address of the work structure so it can be paired with the
+ * scheduling event.
+ */
 DECLARE_EVENT_CLASS(btrfs__work__done,
 
-	TP_PROTO(struct btrfs_work *work),
+	TP_PROTO(struct btrfs_fs_info *fs_info, void *wtag),
 
-	TP_ARGS(work),
+	TP_ARGS(fs_info, wtag),
 
 	TP_STRUCT__entry_btrfs(
-		__field(	void *,	work			)
+		__field(	void *,	wtag			)
 	),
 
-	TP_fast_assign_btrfs(btrfs_work_owner(work),
-		__entry->work		= work;
+	TP_fast_assign_btrfs(fs_info,
+		__entry->wtag		= wtag;
 	),
 
-	TP_printk_btrfs("work->%p", __entry->work)
+	TP_printk_btrfs("work->%p", __entry->wtag)
 );
 
 DEFINE_EVENT(btrfs__work, btrfs_work_queued,
@@ -1196,9 +1200,9 @@ DEFINE_EVENT(btrfs__work, btrfs_work_sched,
 
 DEFINE_EVENT(btrfs__work__done, btrfs_all_work_done,
 
-	TP_PROTO(struct btrfs_work *work),
+	TP_PROTO(struct btrfs_fs_info *fs_info, void *wtag),
 
-	TP_ARGS(work)
+	TP_ARGS(fs_info, wtag)
 );
 
 DEFINE_EVENT(btrfs__work, btrfs_ordered_sched,
