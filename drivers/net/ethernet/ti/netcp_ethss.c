@@ -3609,7 +3609,10 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 	ale_params.ale_ageout	= GBE_DEFAULT_ALE_AGEOUT;
 	ale_params.ale_entries	= gbe_dev->ale_entries;
 	ale_params.ale_ports	= gbe_dev->ale_ports;
-
+	if (IS_SS_ID_MU(gbe_dev)) {
+		ale_params.major_ver_mask = 0x7;
+		ale_params.nu_switch_ale = true;
+	}
 	gbe_dev->ale = cpsw_ale_create(&ale_params);
 	if (!gbe_dev->ale) {
 		dev_err(gbe_dev->dev, "error initializing ale engine\n");

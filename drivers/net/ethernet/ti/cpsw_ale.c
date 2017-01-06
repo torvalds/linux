@@ -1,5 +1,5 @@
 /*
- * Texas Instruments 3-Port Ethernet Switch Address Lookup Engine
+ * Texas Instruments N-Port Ethernet Switch Address Lookup Engine
  *
  * Copyright (C) 2012 Texas Instruments
  *
@@ -27,8 +27,9 @@
 
 #define BITMASK(bits)		(BIT(bits) - 1)
 
-#define ALE_VERSION_MAJOR(rev)	((rev >> 8) & 0xff)
+#define ALE_VERSION_MAJOR(rev, mask) (((rev) >> 8) & (mask))
 #define ALE_VERSION_MINOR(rev)	(rev & 0xff)
+#define ALE_VERSION_1R4		0x0104
 
 /* ALE Registers */
 #define ALE_IDVER		0x00
@@ -38,6 +39,12 @@
 #define ALE_TABLE_CONTROL	0x20
 #define ALE_TABLE		0x34
 #define ALE_PORTCTL		0x40
+
+/* ALE NetCP NU switch specific Registers */
+#define ALE_UNKNOWNVLAN_MEMBER			0x90
+#define ALE_UNKNOWNVLAN_UNREG_MCAST_FLOOD	0x94
+#define ALE_UNKNOWNVLAN_REG_MCAST_FLOOD		0x98
+#define ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS	0x9C
 
 #define ALE_TABLE_WRITE		BIT(31)
 
@@ -464,7 +471,7 @@ struct ale_control_info {
 	int		bits;
 };
 
-static const struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
+static struct ale_control_info ale_controls[ALE_NUM_CONTROLS] = {
 	[ALE_ENABLE]		= {
 		.name		= "enable",
 		.offset		= ALE_CONTROL,
@@ -724,8 +731,41 @@ void cpsw_ale_start(struct cpsw_ale *ale)
 	u32 rev;
 
 	rev = __raw_readl(ale->params.ale_regs + ALE_IDVER);
-	dev_dbg(ale->params.dev, "initialized cpsw ale revision %d.%d\n",
-		ALE_VERSION_MAJOR(rev), ALE_VERSION_MINOR(rev));
+	if (!ale->params.major_ver_mask)
+		ale->params.major_ver_mask = 0xff;
+	ale->version =
+		(ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask) << 8) |
+		 ALE_VERSION_MINOR(rev);
+	dev_info(ale->params.dev, "initialized cpsw ale version %d.%d\n",
+		 ALE_VERSION_MAJOR(rev, ale->params.major_ver_mask),
+		 ALE_VERSION_MINOR(rev));
+
+	if (ale->params.nu_switch_ale) {
+		/* Separate registers for unknown vlan configuration.
+		 * Also there are N bits, where N is number of ale
+		 * ports and shift value should be 0
+		 */
+		ale_controls[ALE_PORT_UNKNOWN_VLAN_MEMBER].bits =
+					ale->params.ale_ports;
+		ale_controls[ALE_PORT_UNKNOWN_VLAN_MEMBER].offset =
+					ALE_UNKNOWNVLAN_MEMBER;
+		ale_controls[ALE_PORT_UNKNOWN_MCAST_FLOOD].bits =
+					ale->params.ale_ports;
+		ale_controls[ALE_PORT_UNKNOWN_MCAST_FLOOD].shift = 0;
+		ale_controls[ALE_PORT_UNKNOWN_MCAST_FLOOD].offset =
+					ALE_UNKNOWNVLAN_UNREG_MCAST_FLOOD;
+		ale_controls[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD].bits =
+					ale->params.ale_ports;
+		ale_controls[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD].shift = 0;
+		ale_controls[ALE_PORT_UNKNOWN_REG_MCAST_FLOOD].offset =
+					ALE_UNKNOWNVLAN_REG_MCAST_FLOOD;
+		ale_controls[ALE_PORT_UNTAGGED_EGRESS].bits =
+					ale->params.ale_ports;
+		ale_controls[ALE_PORT_UNTAGGED_EGRESS].shift = 0;
+		ale_controls[ALE_PORT_UNTAGGED_EGRESS].offset =
+					ALE_UNKNOWNVLAN_FORCE_UNTAG_EGRESS;
+	}
+
 	cpsw_ale_control_set(ale, 0, ALE_ENABLE, 1);
 	cpsw_ale_control_set(ale, 0, ALE_CLEAR, 1);
 
