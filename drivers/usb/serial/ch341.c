@@ -361,12 +361,11 @@ static void ch341_set_termios(struct tty_struct *tty,
 
 	baud_rate = tty_get_baud_rate(tty);
 
-	priv->baud_rate = baud_rate;
-
 	if (baud_rate) {
 		spin_lock_irqsave(&priv->lock, flags);
 		priv->line_control |= (CH341_BIT_DTR | CH341_BIT_RTS);
 		spin_unlock_irqrestore(&priv->lock, flags);
+		priv->baud_rate = baud_rate;
 		ch341_set_baudrate(port->serial->dev, priv);
 	} else {
 		spin_lock_irqsave(&priv->lock, flags);
