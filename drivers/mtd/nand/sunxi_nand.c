@@ -321,6 +321,10 @@ static int sunxi_nfc_wait_events(struct sunxi_nfc *nfc, u32 events,
 
 		ret = wait_for_completion_timeout(&nfc->complete,
 						msecs_to_jiffies(timeout_ms));
+		if (!ret)
+			ret = -ETIMEDOUT;
+		else
+			ret = 0;
 
 		writel(0, nfc->regs + NFC_REG_INT);
 	} else {
