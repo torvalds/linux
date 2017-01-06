@@ -797,6 +797,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	struct vsp1_pipeline *pipe = video->rwpf->pipe;
+	bool start_pipeline = false;
 	unsigned long flags;
 	int ret;
 
@@ -807,10 +808,22 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 			mutex_unlock(&pipe->lock);
 			return ret;
 		}
+
+		start_pipeline = true;
 	}
 
 	pipe->stream_count++;
 	mutex_unlock(&pipe->lock);
+
+	/*
+	 * vsp1_pipeline_ready() is not sufficient to establish that all streams
+	 * are prepared and the pipeline is configured, as multiple streams
+	 * can race through streamon with buffers already queued; Therefore we
+	 * don't even attempt to start the pipeline until the last stream has
+	 * called through here.
+	 */
+	if (!start_pipeline)
+		return 0;
 
 	spin_lock_irqsave(&pipe->irqlock, flags);
 	if (vsp1_pipeline_ready(pipe))
