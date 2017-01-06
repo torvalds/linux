@@ -602,10 +602,9 @@ static void rt2800usb_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
 			    !test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
 				break;
 
-			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
+			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags) ||
+			    rt2800usb_entry_txstatus_timeout(entry))
 				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
-			else if (rt2800usb_entry_txstatus_timeout(entry))
-				rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
 			else
 				break;
 		}
