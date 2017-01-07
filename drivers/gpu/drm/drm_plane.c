@@ -254,7 +254,7 @@ EXPORT_SYMBOL(drm_plane_cleanup);
  * @idx: index of registered plane to find for
  *
  * Given a plane index, return the registered plane from DRM device's
- * list of planes with matching index.
+ * list of planes with matching index. This is the inverse of drm_plane_index().
  */
 struct drm_plane *
 drm_plane_from_index(struct drm_device *dev, int idx)
