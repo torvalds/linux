@@ -67,7 +67,7 @@ int mdio_device_register(struct mdio_device *mdiodev)
 {
 	int err;
 
-	dev_info(&mdiodev->dev, "mdio_device_register\n");
+	dev_dbg(&mdiodev->dev, "mdio_device_register\n");
 
 	err = mdiobus_register_device(mdiodev);
 	if (err)
