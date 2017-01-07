@@ -287,7 +287,7 @@ static void init_once(void *foo)
 	inode_init_once(&ei->vfs_inode);
 }
 
-static int init_inodecache(void)
+static void init_inodecache(void)
 {
 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
 					      sizeof(struct socket_alloc),
@@ -296,9 +296,7 @@ static int init_inodecache(void)
 					       SLAB_RECLAIM_ACCOUNT |
 					       SLAB_MEM_SPREAD | SLAB_ACCOUNT),
 					      init_once);
-	if (sock_inode_cachep == NULL)
-		return -ENOMEM;
-	return 0;
+	BUG_ON(sock_inode_cachep == NULL);
 }
 
 static const struct super_operations sockfs_ops = {
