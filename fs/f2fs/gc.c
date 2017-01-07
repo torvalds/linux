@@ -569,6 +569,9 @@ static void move_encrypted_block(struct inode *inode, block_t bidx,
 	if (!check_valid_map(F2FS_I_SB(inode), segno, off))
 		goto out;
 
+	if (f2fs_is_atomic_file(inode))
+		goto out;
+
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, bidx, LOOKUP_NODE);
 	if (err)
@@ -659,6 +662,9 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
 		return;
 
 	if (!check_valid_map(F2FS_I_SB(inode), segno, off))
+		goto out;
+
+	if (f2fs_is_atomic_file(inode))
 		goto out;
 
 	if (gc_type == BG_GC) {
