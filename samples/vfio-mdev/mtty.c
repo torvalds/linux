@@ -1180,7 +1180,10 @@ static long mtty_ioctl(struct mdev_device *mdev, unsigned int cmd,
 
 		memcpy(&mdev_state->dev_info, &info, sizeof(info));
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		if (copy_to_user((void __user *)arg, &info, minsz))
+			return -EFAULT;
+
+		return 0;
 	}
 	case VFIO_DEVICE_GET_REGION_INFO:
 	{
@@ -1201,7 +1204,10 @@ static long mtty_ioctl(struct mdev_device *mdev, unsigned int cmd,
 		if (ret)
 			return ret;
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		if (copy_to_user((void __user *)arg, &info, minsz))
+			return -EFAULT;
+
+		return 0;
 	}
 
 	case VFIO_DEVICE_GET_IRQ_INFO:
@@ -1224,7 +1230,10 @@ static long mtty_ioctl(struct mdev_device *mdev, unsigned int cmd,
 		if (info.count == -1)
 			return -EINVAL;
 
-		return copy_to_user((void __user *)arg, &info, minsz);
+		if (copy_to_user((void __user *)arg, &info, minsz))
+			return -EFAULT;
+
+		return 0;
 	}
 	case VFIO_DEVICE_SET_IRQS:
 	{
