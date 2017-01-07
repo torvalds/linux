@@ -1073,7 +1073,7 @@ int mtty_get_region_info(struct mdev_device *mdev,
 {
 	unsigned int size = 0;
 	struct mdev_state *mdev_state;
-	int bar_index;
+	u32 bar_index;
 
 	if (!mdev)
 		return -EINVAL;
@@ -1082,8 +1082,11 @@ int mtty_get_region_info(struct mdev_device *mdev,
 	if (!mdev_state)
 		return -EINVAL;
 
-	mutex_lock(&mdev_state->ops_lock);
 	bar_index = region_info->index;
+	if (bar_index >= VFIO_PCI_NUM_REGIONS)
+		return -EINVAL;
+
+	mutex_lock(&mdev_state->ops_lock);
 
 	switch (bar_index) {
 	case VFIO_PCI_CONFIG_REGION_INDEX:
