@@ -33,7 +33,6 @@
 #include <linux/fs.h>
 #include "comedidev.h"
 #include <linux/cdev.h>
-#include <linux/stat.h>
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
