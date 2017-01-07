@@ -174,7 +174,7 @@ static inline void next_free_nid(struct f2fs_sb_info *sbi, nid_t *nid)
 		spin_unlock(&nm_i->nid_list_lock);
 		return;
 	}
-	fnid = list_entry(nm_i->nid_list[FREE_NID_LIST].next,
+	fnid = list_first_entry(&nm_i->nid_list[FREE_NID_LIST],
 						struct free_nid, list);
 	*nid = fnid->nid;
 	spin_unlock(&nm_i->nid_list_lock);

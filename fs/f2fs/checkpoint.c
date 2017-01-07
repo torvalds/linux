@@ -891,7 +891,7 @@ retry:
 				F2FS_DIRTY_DENTS : F2FS_DIRTY_DATA));
 		return 0;
 	}
-	fi = list_entry(head->next, struct f2fs_inode_info, dirty_list);
+	fi = list_first_entry(head, struct f2fs_inode_info, dirty_list);
 	inode = igrab(&fi->vfs_inode);
 	spin_unlock(&sbi->inode_lock[type]);
 	if (inode) {
@@ -924,7 +924,7 @@ int f2fs_sync_inode_meta(struct f2fs_sb_info *sbi)
 			spin_unlock(&sbi->inode_lock[DIRTY_META]);
 			return 0;
 		}
-		fi = list_entry(head->next, struct f2fs_inode_info,
+		fi = list_first_entry(head, struct f2fs_inode_info,
 							gdirty_list);
 		inode = igrab(&fi->vfs_inode);
 		spin_unlock(&sbi->inode_lock[DIRTY_META]);
