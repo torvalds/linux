@@ -591,6 +591,8 @@ static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
  *	@ipvs_property: skbuff is owned by ipvs
  *	@tc_skip_classify: do not classify packet. set by IFB device
  *	@tc_at_ingress: used within tc_classify to distinguish in/egress
+ *	@tc_redirected: packet was redirected by a tc action
+ *	@tc_from_ingress: if tc_redirected, tc_at_ingress at time of redirect
  *	@peeked: this packet has been seen already, so stats have been
  *		done for it, don't do them again
  *	@nf_trace: netfilter packet trace flag
@@ -753,7 +755,8 @@ struct sk_buff {
 #ifdef CONFIG_NET_CLS_ACT
 	__u8			tc_skip_classify:1;
 	__u8			tc_at_ingress:1;
-	__u8			tc_from:2;
+	__u8			tc_redirected:1;
+	__u8			tc_from_ingress:1;
 #endif
 
 #ifdef CONFIG_NET_SCHED

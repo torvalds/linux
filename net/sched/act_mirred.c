@@ -211,8 +211,10 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	}
 
 	/* mirror is always swallowed */
-	if (tcf_mirred_is_act_redirect(m_eaction))
-		skb2->tc_from = skb_at_tc_ingress(skb) ? AT_INGRESS : AT_EGRESS;
+	if (tcf_mirred_is_act_redirect(m_eaction)) {
+		skb2->tc_redirected = 1;
+		skb2->tc_from_ingress = skb2->tc_at_ingress;
+	}
 
 	skb2->skb_iif = skb->dev->ifindex;
 	skb2->dev = dev;

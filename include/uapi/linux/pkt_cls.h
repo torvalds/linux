@@ -4,12 +4,6 @@
 #include <linux/types.h>
 #include <linux/pkt_sched.h>
 
-#ifdef __KERNEL__
-#define AT_STACK	0x0
-#define AT_INGRESS	0x1
-#define AT_EGRESS	0x2
-#endif
-
 /* Action attributes */
 enum {
 	TCA_ACT_UNSPEC,

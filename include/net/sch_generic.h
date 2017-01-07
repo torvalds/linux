@@ -412,7 +412,7 @@ int skb_do_redirect(struct sk_buff *);
 static inline void skb_reset_tc(struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	skb->tc_from = 0;
+	skb->tc_redirected = 0;
 #endif
 }
 
