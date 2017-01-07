@@ -1627,7 +1627,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 	iq = oct->instr_queue[iq_no];
 	if (iq) {
 		/* Process iq buffers with in the budget limits */
-		tx_done = octeon_flush_iq(oct, iq, 1, budget);
+		tx_done = octeon_flush_iq(oct, iq, budget);
 		/* Update iq read-index rather than waiting for next interrupt.
 		 * Return back if tx_done is false.
 		 */
