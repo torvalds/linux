@@ -393,7 +393,7 @@ no_server:
  * - TODO implement caching
  */
 int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
-			 off_t offset, size_t length, struct page *page)
+			 struct afs_read *desc)
 {
 	struct afs_server *server;
 	int ret;
@@ -420,8 +420,8 @@ int afs_vnode_fetch_data(struct afs_vnode *vnode, struct key *key,
 
 		_debug("USING SERVER: %08x\n", ntohl(server->addr.s_addr));
 
-		ret = afs_fs_fetch_data(server, key, vnode, offset, length,
-					page, &afs_sync_call);
+		ret = afs_fs_fetch_data(server, key, vnode, desc,
+					&afs_sync_call);
 
 	} while (!afs_volume_release_fileserver(vnode, server, ret));
 
