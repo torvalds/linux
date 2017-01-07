@@ -540,6 +540,9 @@ struct f2fs_nm_info {
 
 	/* for checkpoint */
 	char *nat_bitmap;		/* NAT bitmap pointer */
+#ifdef CONFIG_F2FS_CHECK_FS
+	char *nat_bitmap_mir;		/* NAT bitmap mirror */
+#endif
 	int bitmap_size;		/* bitmap size */
 };
 

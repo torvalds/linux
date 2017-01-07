@@ -2363,6 +2363,14 @@ static int init_node_manager(struct f2fs_sb_info *sbi)
 					GFP_KERNEL);
 	if (!nm_i->nat_bitmap)
 		return -ENOMEM;
+
+#ifdef CONFIG_F2FS_CHECK_FS
+	nm_i->nat_bitmap_mir = kmemdup(version_bitmap, nm_i->bitmap_size,
+					GFP_KERNEL);
+	if (!nm_i->nat_bitmap_mir)
+		return -ENOMEM;
+#endif
+
 	return 0;
 }
 
@@ -2437,6 +2445,9 @@ void destroy_node_manager(struct f2fs_sb_info *sbi)
 	up_write(&nm_i->nat_tree_lock);
 
 	kfree(nm_i->nat_bitmap);
+#ifdef CONFIG_F2FS_CHECK_FS
+	kfree(nm_i->nat_bitmap_mir);
+#endif
 	sbi->nm_info = NULL;
 	kfree(nm_i);
 }
