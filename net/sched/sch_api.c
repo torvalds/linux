@@ -1861,6 +1861,7 @@ int tc_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 {
 	__be16 protocol = tc_skb_protocol(skb);
 #ifdef CONFIG_NET_CLS_ACT
+	const int max_reclassify_loop = 4;
 	const struct tcf_proto *old_tp = tp;
 	int limit = 0;
 
@@ -1885,7 +1886,7 @@ reclassify:
 	return TC_ACT_UNSPEC; /* signal: continue lookup */
 #ifdef CONFIG_NET_CLS_ACT
 reset:
-	if (unlikely(limit++ >= MAX_REC_LOOP)) {
+	if (unlikely(limit++ >= max_reclassify_loop)) {
 		net_notice_ratelimited("%s: reclassify loop, rule prio %u, protocol %02x\n",
 				       tp->q->ops->id, tp->prio & 0xffff,
 				       ntohs(tp->protocol));

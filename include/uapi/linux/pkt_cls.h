@@ -17,9 +17,6 @@
 
 /* verdict bit breakdown 
  *
-bit 2,3,4,5: Reclassify counter - sort of reverse TTL - if exceeded
-assume loop
-
 bit 6,7: Where this packet was last seen 
 0: Above the transmit example at the socket level
 1: on the Ingress
@@ -48,8 +45,6 @@ bit 8: when set --> Request not to classify on ingress.
 #define G_TC_AT(x)       _TC_GETVALUE(x,S_TC_AT,M_TC_AT)
 #define V_TC_AT(x)       _TC_MAKEVALUE(x,S_TC_AT)
 #define SET_TC_AT(v,n)   ((V_TC_AT(n)) | (v & ~M_TC_AT))
-
-#define MAX_REC_LOOP 4
 #endif
 
 /* Action attributes */
