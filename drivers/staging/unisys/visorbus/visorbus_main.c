@@ -990,7 +990,7 @@ create_bus_instance(struct visor_device *dev)
 		goto err_hdr_info;
 	}
 	dev->debugfs_client_bus_info =
-		debugfs_create_file("client_bus_info", S_IRUSR | S_IRGRP,
+		debugfs_create_file("client_bus_info", 0440,
 				    dev->debugfs_dir, dev,
 				    &client_bus_info_debugfs_fops);
 	if (!dev->debugfs_client_bus_info) {
@@ -1343,10 +1343,10 @@ visorbus_exit(void)
 	debugfs_remove_recursive(visorbus_debugfs_dir);
 }
 
-module_param_named(forcematch, visorbus_forcematch, int, S_IRUGO);
+module_param_named(forcematch, visorbus_forcematch, int, 0444);
 MODULE_PARM_DESC(visorbus_forcematch,
 		 "1 to force a successful dev <--> drv match");
 
-module_param_named(forcenomatch, visorbus_forcenomatch, int, S_IRUGO);
+module_param_named(forcenomatch, visorbus_forcenomatch, int, 0444);
 MODULE_PARM_DESC(visorbus_forcenomatch,
 		 "1 to force an UNsuccessful dev <--> drv match");
