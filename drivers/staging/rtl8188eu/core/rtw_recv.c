@@ -1093,11 +1093,10 @@ static int validate_recv_data_frame(struct adapter *adapter,
 		break;
 	}
 
-	if (ret == _FAIL) {
+	if (ret == _FAIL)
 		goto exit;
-	} else if (ret == RTW_RX_HANDLED) {
+	else if (ret == RTW_RX_HANDLED)
 		goto exit;
-	}
 
 	if (psta == NULL) {
 		RT_TRACE(_module_rtl871x_recv_c_, _drv_err_, (" after to_fr_ds_chk; psta==NULL\n"));
@@ -1573,9 +1572,9 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 			if (padding_len == 4)
 				padding_len = 0;
 
-			if (a_len < padding_len) {
+			if (a_len < padding_len)
 				goto exit;
-			}
+
 			pdata += padding_len;
 			a_len -= padding_len;
 		}

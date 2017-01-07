@@ -563,9 +563,9 @@ static bool hal_EfusePgPacketWrite2ByteHeader(struct adapter *pAdapter, u8 efuse
 			}
 
 			if ((tmp_header & 0x0F) == 0x0F) {	/* word_en PG fail */
-				if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_) {
+				if (repeatcnt++ > EFUSE_REPEAT_THRESHOLD_)
 					return false;
-				}
+
 				efuse_addr++;
 				continue;
 			} else if (pg_header != tmp_header) {	/* offset PG fail */
