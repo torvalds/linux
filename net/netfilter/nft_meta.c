@@ -154,10 +154,7 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 				*dest = PACKET_BROADCAST;
 			break;
 		case NFPROTO_IPV6:
-			if (ipv6_hdr(skb)->daddr.s6_addr[0] == 0xFF)
-				*dest = PACKET_MULTICAST;
-			else
-				*dest = PACKET_BROADCAST;
+			*dest = PACKET_MULTICAST;
 			break;
 		default:
 			WARN_ON(1);
