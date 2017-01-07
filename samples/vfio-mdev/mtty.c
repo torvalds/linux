@@ -1230,9 +1230,6 @@ static long mtty_ioctl(struct mdev_device *mdev, unsigned int cmd,
 		if (ret)
 			return ret;
 
-		if (info.count == -1)
-			return -EINVAL;
-
 		if (copy_to_user((void __user *)arg, &info, minsz))
 			return -EFAULT;
 
