@@ -11,6 +11,7 @@ Required properties (phy (parent) node):
 Optional properties:
  - clocks : phandle + phy specifier pair, for the input clock of phy.
  - clock-names : input clock name of phy, must be "phyclk".
+ - rockchip,u2phy-tuning; when set, tuning u2phy to improve usb2 SI.
 
 Required nodes : a sub-node is required for each port the phy provides.
 		 The sub-node name is used to identify host or otg port,
