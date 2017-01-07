@@ -299,11 +299,9 @@ struct brcmf_mp_device *brcmf_get_module_param(struct device *dev,
 			}
 		}
 	}
-	if ((bus_type == BRCMF_BUSTYPE_SDIO) && (!found)) {
-		/* No platform data for this device. In case of SDIO try OF
-		 * (Open Firwmare) Device Tree.
-		 */
-		brcmf_of_probe(dev, &settings->bus.sdio);
+	if (!found) {
+		/* No platform data for this device, try OF (Open Firwmare) */
+		brcmf_of_probe(dev, bus_type, settings);
 	}
 	return settings;
 }
