@@ -17,10 +17,6 @@
 
 /* verdict bit breakdown 
  *
-bit 0: when set -> this packet has been munged already
-
-bit 1: when set -> It is ok to munge this packet
-
 bit 2,3,4,5: Reclassify counter - sort of reverse TTL - if exceeded
 assume loop
 
@@ -30,8 +26,6 @@ bit 6,7: Where this packet was last seen
 2: on the Egress
 
 bit 8: when set --> Request not to classify on ingress. 
-
-bits 9,10,11: redirect counter -  redirect TTL. Loop avoidance
 
  *
  * */
@@ -56,7 +50,6 @@ bits 9,10,11: redirect counter -  redirect TTL. Loop avoidance
 #define SET_TC_AT(v,n)   ((V_TC_AT(n)) | (v & ~M_TC_AT))
 
 #define MAX_REC_LOOP 4
-#define MAX_RED_LOOP 4
 #endif
 
 /* Action attributes */
