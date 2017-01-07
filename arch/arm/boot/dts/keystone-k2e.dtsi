@@ -88,6 +88,10 @@
 			ranges = <0x0 0x0c000000 0x200000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			sram-bm@1f0000 {
+				reg = <0x001f0000 0x8000>;
+			};
 		};
 
 		dspgpio0: keystone_dsp_gpio@02620240 {
