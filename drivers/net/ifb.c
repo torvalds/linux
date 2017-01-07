@@ -81,7 +81,7 @@ static void ifb_ri_tasklet(unsigned long _txp)
 		u32 from = G_TC_FROM(skb->tc_verd);
 
 		skb->tc_verd = 0;
-		skb->tc_verd = SET_TC_NCLS(skb->tc_verd);
+		skb->tc_skip_classify = 1;
 
 		u64_stats_update_begin(&txp->tsync);
 		txp->tx_packets++;

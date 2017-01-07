@@ -4093,12 +4093,8 @@ another_round:
 			goto out;
 	}
 
-#ifdef CONFIG_NET_CLS_ACT
-	if (skb->tc_verd & TC_NCLS) {
-		skb->tc_verd = CLR_TC_NCLS(skb->tc_verd);
-		goto ncls;
-	}
-#endif
+	if (skb_skip_tc_classify(skb))
+		goto skip_classify;
 
 	if (pfmemalloc)
 		goto skip_taps;
@@ -4128,8 +4124,8 @@ skip_taps:
 #endif
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_verd = 0;
-ncls:
 #endif
+skip_classify:
 	if (pfmemalloc && !skb_pfmemalloc_protocol(skb))
 		goto drop;
 
