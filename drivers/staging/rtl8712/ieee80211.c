@@ -202,10 +202,10 @@ int r8712_generate_ie(struct registry_priv *pregistrypriv)
 				  rateLen, pdev_network->rates, &sz);
 	/*DS parameter set*/
 	ie = r8712_set_ie(ie, _DSSET_IE_, 1,
-			  (u8 *)&(pdev_network->Configuration.DSConfig), &sz);
+			  (u8 *)&pdev_network->Configuration.DSConfig, &sz);
 	/*IBSS Parameter Set*/
 	ie = r8712_set_ie(ie, _IBSS_PARA_IE_, 2,
-			  (u8 *)&(pdev_network->Configuration.ATIMWindow), &sz);
+			  (u8 *)&pdev_network->Configuration.ATIMWindow, &sz);
 	return sz;
 }
 
