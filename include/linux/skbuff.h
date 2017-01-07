@@ -590,6 +590,7 @@ static inline bool skb_mstamp_after(const struct skb_mstamp *t1,
  *	@fclone: skbuff clone status
  *	@ipvs_property: skbuff is owned by ipvs
  *	@tc_skip_classify: do not classify packet. set by IFB device
+ *	@tc_at_ingress: used within tc_classify to distinguish in/egress
  *	@peeked: this packet has been seen already, so stats have been
  *		done for it, don't do them again
  *	@nf_trace: netfilter packet trace flag
@@ -751,7 +752,7 @@ struct sk_buff {
 #endif
 #ifdef CONFIG_NET_CLS_ACT
 	__u8			tc_skip_classify:1;
-	__u8			tc_at:2;
+	__u8			tc_at_ingress:1;
 	__u8			tc_from:2;
 #endif
 
