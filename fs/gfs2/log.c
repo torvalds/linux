@@ -918,12 +918,15 @@ int gfs2_logd(void *data)
 	struct gfs2_sbd *sdp = data;
 	unsigned long t = 1;
 	DEFINE_WAIT(wait);
+	bool did_flush;
 
 	while (!kthread_should_stop()) {
 
+		did_flush = false;
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
 			gfs2_ail1_empty(sdp);
 			gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
+			did_flush = true;
 		}
 
 		if (gfs2_ail_flush_reqd(sdp)) {
@@ -931,9 +934,10 @@ int gfs2_logd(void *data)
 			gfs2_ail1_wait(sdp);
 			gfs2_ail1_empty(sdp);
 			gfs2_log_flush(sdp, NULL, NORMAL_FLUSH);
+			did_flush = true;
 		}
 
-		if (!gfs2_ail_flush_reqd(sdp))
+		if (!gfs2_ail_flush_reqd(sdp) || did_flush)
 			wake_up(&sdp->sd_log_waitq);
 
 		t = gfs2_tune_get(sdp, gt_logd_secs) * HZ;
