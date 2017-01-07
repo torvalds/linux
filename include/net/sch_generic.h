@@ -409,10 +409,18 @@ bool tcf_destroy(struct tcf_proto *tp, bool force);
 void tcf_destroy_chain(struct tcf_proto __rcu **fl);
 int skb_do_redirect(struct sk_buff *);
 
+static inline void skb_reset_tc(struct sk_buff *skb)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	skb->tc_at = 0;
+	skb->tc_from = 0;
+#endif
+}
+
 static inline bool skb_at_tc_ingress(const struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	return G_TC_AT(skb->tc_verd) & AT_INGRESS;
+	return skb->tc_at & AT_INGRESS;
 #else
 	return false;
 #endif

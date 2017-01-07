@@ -626,7 +626,7 @@ deliver:
 			 * If it's at ingress let's pretend the delay is
 			 * from the network (tstamp will be updated).
 			 */
-			if (G_TC_FROM(skb->tc_verd) & AT_INGRESS)
+			if (skb->tc_from & AT_INGRESS)
 				skb->tstamp = 0;
 #endif
 

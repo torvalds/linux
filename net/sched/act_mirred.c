@@ -170,7 +170,6 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	int retval, err = 0;
 	int m_eaction;
 	int mac_len;
-	u32 at;
 
 	tcf_lastuse_update(&m->tcf_tm);
 	bstats_cpu_update(this_cpu_ptr(m->common.cpu_bstats), skb);
@@ -191,7 +190,6 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 		goto out;
 	}
 
-	at = G_TC_AT(skb->tc_verd);
 	skb2 = skb_clone(skb, GFP_ATOMIC);
 	if (!skb2)
 		goto out;
@@ -200,8 +198,9 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 	 * and devices expect a mac header on xmit, then mac push/pull is
 	 * needed.
 	 */
-	if (at != tcf_mirred_act_direction(m_eaction) && m_mac_header_xmit) {
-		if (at & AT_EGRESS) {
+	if (skb->tc_at != tcf_mirred_act_direction(m_eaction) &&
+	    m_mac_header_xmit) {
+		if (!skb_at_tc_ingress(skb)) {
 			/* caught at egress, act ingress: pull mac */
 			mac_len = skb_network_header(skb) - skb_mac_header(skb);
 			skb_pull_rcsum(skb2, mac_len);
@@ -213,7 +212,7 @@ static int tcf_mirred(struct sk_buff *skb, const struct tc_action *a,
 
 	/* mirror is always swallowed */
 	if (tcf_mirred_is_act_redirect(m_eaction))
-		skb2->tc_verd = SET_TC_FROM(skb2->tc_verd, at);
+		skb2->tc_from = skb2->tc_at;
 
 	skb2->skb_iif = skb->dev->ifindex;
 	skb2->dev = dev;

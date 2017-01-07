@@ -878,9 +878,6 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 #endif
 #ifdef CONFIG_NET_SCHED
 	CHECK_SKB_FIELD(tc_index);
-#ifdef CONFIG_NET_CLS_ACT
-	CHECK_SKB_FIELD(tc_verd);
-#endif
 #endif
 
 }

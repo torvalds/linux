@@ -78,9 +78,9 @@ static void ifb_ri_tasklet(unsigned long _txp)
 	}
 
 	while ((skb = __skb_dequeue(&txp->tq)) != NULL) {
-		u32 from = G_TC_FROM(skb->tc_verd);
+		u32 from = skb->tc_from;
 
-		skb->tc_verd = 0;
+		skb_reset_tc(skb);
 		skb->tc_skip_classify = 1;
 
 		u64_stats_update_begin(&txp->tsync);
@@ -239,7 +239,6 @@ static void ifb_setup(struct net_device *dev)
 static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ifb_dev_private *dp = netdev_priv(dev);
-	u32 from = G_TC_FROM(skb->tc_verd);
 	struct ifb_q_private *txp = dp->tx_private + skb_get_queue_mapping(skb);
 
 	u64_stats_update_begin(&txp->rsync);
@@ -247,7 +246,7 @@ static netdev_tx_t ifb_xmit(struct sk_buff *skb, struct net_device *dev)
 	txp->rx_bytes += skb->len;
 	u64_stats_update_end(&txp->rsync);
 
-	if (!(from & (AT_INGRESS|AT_EGRESS)) || !skb->skb_iif) {
+	if (skb->tc_from == AT_STACK || !skb->skb_iif) {
 		dev_kfree_skb(skb);
 		dev->stats.rx_dropped++;
 		return NETDEV_TX_OK;

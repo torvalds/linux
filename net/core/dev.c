@@ -3153,7 +3153,7 @@ sch_handle_egress(struct sk_buff *skb, int *ret, struct net_device *dev)
 	if (!cl)
 		return skb;
 
-	/* skb->tc_verd and qdisc_skb_cb(skb)->pkt_len were already set
+	/* skb->tc_at and qdisc_skb_cb(skb)->pkt_len were already set
 	 * earlier by the caller.
 	 */
 	qdisc_bstats_cpu_update(cl->q, skb);
@@ -3320,7 +3320,7 @@ static int __dev_queue_xmit(struct sk_buff *skb, void *accel_priv)
 
 	qdisc_pkt_len_init(skb);
 #ifdef CONFIG_NET_CLS_ACT
-	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_EGRESS);
+	skb->tc_at = AT_EGRESS;
 # ifdef CONFIG_NET_EGRESS
 	if (static_key_false(&egress_needed)) {
 		skb = sch_handle_egress(skb, &rc, dev);
@@ -3920,7 +3920,7 @@ sch_handle_ingress(struct sk_buff *skb, struct packet_type **pt_prev, int *ret,
 	}
 
 	qdisc_skb_cb(skb)->pkt_len = skb->len;
-	skb->tc_verd = SET_TC_AT(skb->tc_verd, AT_INGRESS);
+	skb->tc_at = AT_INGRESS;
 	qdisc_bstats_cpu_update(cl->q, skb);
 
 	switch (tc_classify(skb, cl, &cl_res, false)) {
@@ -4122,9 +4122,7 @@ skip_taps:
 			goto out;
 	}
 #endif
-#ifdef CONFIG_NET_CLS_ACT
-	skb->tc_verd = 0;
-#endif
+	skb_reset_tc(skb);
 skip_classify:
 	if (pfmemalloc && !skb_pfmemalloc_protocol(skb))
 		goto drop;

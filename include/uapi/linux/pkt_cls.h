@@ -5,40 +5,9 @@
 #include <linux/pkt_sched.h>
 
 #ifdef __KERNEL__
-/* I think i could have done better macros ; for now this is stolen from
- * some arch/mips code - jhs
-*/
-#define _TC_MAKE32(x) ((x))
-
-#define _TC_MAKEMASK1(n) (_TC_MAKE32(1) << _TC_MAKE32(n))
-#define _TC_MAKEMASK(v,n) (_TC_MAKE32((_TC_MAKE32(1)<<(v))-1) << _TC_MAKE32(n))
-#define _TC_MAKEVALUE(v,n) (_TC_MAKE32(v) << _TC_MAKE32(n))
-#define _TC_GETVALUE(v,n,m) ((_TC_MAKE32(v) & _TC_MAKE32(m)) >> _TC_MAKE32(n))
-
-/* verdict bit breakdown 
- *
-bit 6,7: Where this packet was last seen 
-0: Above the transmit example at the socket level
-1: on the Ingress
-2: on the Egress
-
- *
- * */
-
-#define S_TC_FROM          _TC_MAKE32(6)
-#define M_TC_FROM          _TC_MAKEMASK(2,S_TC_FROM)
-#define G_TC_FROM(x)       _TC_GETVALUE(x,S_TC_FROM,M_TC_FROM)
-#define V_TC_FROM(x)       _TC_MAKEVALUE(x,S_TC_FROM)
-#define SET_TC_FROM(v,n)   ((V_TC_FROM(n)) | (v & ~M_TC_FROM))
 #define AT_STACK	0x0
 #define AT_INGRESS	0x1
 #define AT_EGRESS	0x2
-
-#define S_TC_AT          _TC_MAKE32(12)
-#define M_TC_AT          _TC_MAKEMASK(2,S_TC_AT)
-#define G_TC_AT(x)       _TC_GETVALUE(x,S_TC_AT,M_TC_AT)
-#define V_TC_AT(x)       _TC_MAKEVALUE(x,S_TC_AT)
-#define SET_TC_AT(v,n)   ((V_TC_AT(n)) | (v & ~M_TC_AT))
 #endif
 
 /* Action attributes */
