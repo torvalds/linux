@@ -1639,6 +1639,7 @@ enum {
 	FI_UPDATE_WRITE,	/* inode has in-place-update data */
 	FI_NEED_IPU,		/* used for ipu per file */
 	FI_ATOMIC_FILE,		/* indicate atomic file */
+	FI_ATOMIC_COMMIT,	/* indicate the state of atomical committing */
 	FI_VOLATILE_FILE,	/* indicate volatile file */
 	FI_FIRST_BLOCK_WRITTEN,	/* indicate #0 data block was written */
 	FI_DROP_CACHE,		/* drop dirty page cache */
@@ -1826,6 +1827,11 @@ static inline int f2fs_has_inline_dots(struct inode *inode)
 static inline bool f2fs_is_atomic_file(struct inode *inode)
 {
 	return is_inode_flag_set(inode, FI_ATOMIC_FILE);
+}
+
+static inline bool f2fs_is_commit_atomic_write(struct inode *inode)
+{
+	return is_inode_flag_set(inode, FI_ATOMIC_COMMIT);
 }
 
 static inline bool f2fs_is_volatile_file(struct inode *inode)
