@@ -90,8 +90,8 @@ static irqreturn_t netxen_msix_intr(int irq, void *data);
 
 static void netxen_free_ip_list(struct netxen_adapter *, bool);
 static void netxen_restore_indev_addr(struct net_device *dev, unsigned long);
-static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *dev,
-						      struct rtnl_link_stats64 *stats);
+static void netxen_nic_get_stats(struct net_device *dev,
+				 struct rtnl_link_stats64 *stats);
 static int netxen_nic_set_mac(struct net_device *netdev, void *p);
 
 /*  PCI Device ID Table  */
@@ -2302,8 +2302,8 @@ request_reset:
 	clear_bit(__NX_RESETTING, &adapter->state);
 }
 
-static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *netdev,
-						      struct rtnl_link_stats64 *stats)
+static void netxen_nic_get_stats(struct net_device *netdev,
+				 struct rtnl_link_stats64 *stats)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 
@@ -2313,8 +2313,6 @@ static struct rtnl_link_stats64 *netxen_nic_get_stats(struct net_device *netdev,
 	stats->tx_bytes = adapter->stats.txbytes;
 	stats->rx_dropped = adapter->stats.rxdropped;
 	stats->tx_dropped = adapter->stats.txdropped;
-
-	return stats;
 }
 
 static irqreturn_t netxen_intr(int irq, void *data)

@@ -2165,19 +2165,19 @@ err:
 	ena_com_delete_debug_area(adapter->ena_dev);
 }
 
-static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
-						 struct rtnl_link_stats64 *stats)
+static void ena_get_stats64(struct net_device *netdev,
+			    struct rtnl_link_stats64 *stats)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	struct ena_admin_basic_stats ena_stats;
 	int rc;
 
 	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
-		return NULL;
+		return;
 
 	rc = ena_com_get_dev_basic_stats(adapter->ena_dev, &ena_stats);
 	if (rc)
-		return NULL;
+		return;
 
 	stats->tx_bytes = ((u64)ena_stats.tx_bytes_high << 32) |
 		ena_stats.tx_bytes_low;
@@ -2204,8 +2204,6 @@ static struct rtnl_link_stats64 *ena_get_stats64(struct net_device *netdev,
 
 	stats->rx_errors = 0;
 	stats->tx_errors = 0;
-
-	return stats;
 }
 
 static const struct net_device_ops ena_netdev_ops = {

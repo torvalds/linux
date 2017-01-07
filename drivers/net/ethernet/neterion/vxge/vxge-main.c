@@ -3111,7 +3111,7 @@ static int vxge_change_mtu(struct net_device *dev, int new_mtu)
  * @stats: pointer to struct rtnl_link_stats64
  *
  */
-static struct rtnl_link_stats64 *
+static void
 vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 {
 	struct vxgedev *vdev = netdev_priv(dev);
@@ -3150,8 +3150,6 @@ vxge_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		net_stats->tx_bytes += bytes;
 		net_stats->tx_errors += txstats->tx_errors;
 	}
-
-	return net_stats;
 }
 
 static enum vxge_hw_status vxge_timestamp_config(struct __vxge_hw_device *devh)

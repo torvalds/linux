@@ -2490,7 +2490,7 @@ static void dwceqos_read_mmc_counters(struct net_local *lp, u32 rx_mask,
 			dwceqos_read(lp, DWC_MMC_RXPACKETCOUNT_GB);
 }
 
-static struct rtnl_link_stats64*
+static void
 dwceqos_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *s)
 {
 	unsigned long flags;
@@ -2522,8 +2522,6 @@ dwceqos_get_stats64(struct net_device *ndev, struct rtnl_link_stats64 *s)
 	else
 		s->tx_errors = hwstats->txunderflowerror +
 			hwstats->txcarriererror;
-
-	return s;
 }
 
 static void

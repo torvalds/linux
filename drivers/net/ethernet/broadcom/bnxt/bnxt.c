@@ -5879,7 +5879,7 @@ static int bnxt_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return -EOPNOTSUPP;
 }
 
-static struct rtnl_link_stats64 *
+static void
 bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	u32 i;
@@ -5888,7 +5888,7 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	memset(stats, 0, sizeof(struct rtnl_link_stats64));
 
 	if (!bp->bnapi)
-		return stats;
+		return;
 
 	/* TODO check if we need to synchronize with bnxt_close path */
 	for (i = 0; i < bp->cp_nr_rings; i++) {
@@ -5935,8 +5935,6 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 		stats->tx_fifo_errors = le64_to_cpu(tx->tx_fifo_underruns);
 		stats->tx_errors = le64_to_cpu(tx->tx_err);
 	}
-
-	return stats;
 }
 
 static bool bnxt_mc_list_updated(struct bnxt *bp, u32 *rx_mask)

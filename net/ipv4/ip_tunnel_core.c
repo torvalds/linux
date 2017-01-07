@@ -188,8 +188,8 @@ int iptunnel_handle_offloads(struct sk_buff *skb,
 EXPORT_SYMBOL_GPL(iptunnel_handle_offloads);
 
 /* Often modified stats are per cpu, other are shared (netdev->stats) */
-struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
-						struct rtnl_link_stats64 *tot)
+void ip_tunnel_get_stats64(struct net_device *dev,
+			   struct rtnl_link_stats64 *tot)
 {
 	int i;
 
@@ -214,8 +214,6 @@ struct rtnl_link_stats64 *ip_tunnel_get_stats64(struct net_device *dev,
 		tot->rx_bytes   += rx_bytes;
 		tot->tx_bytes   += tx_bytes;
 	}
-
-	return tot;
 }
 EXPORT_SYMBOL_GPL(ip_tunnel_get_stats64);
 

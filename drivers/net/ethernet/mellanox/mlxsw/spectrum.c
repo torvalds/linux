@@ -947,15 +947,13 @@ out:
 /* Return the stats from a cache that is updated periodically,
  * as this function might get called in an atomic context.
  */
-static struct rtnl_link_stats64 *
+static void
 mlxsw_sp_port_get_stats64(struct net_device *dev,
 			  struct rtnl_link_stats64 *stats)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
 	memcpy(stats, mlxsw_sp_port->hw_stats.cache, sizeof(*stats));
-
-	return stats;
 }
 
 int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,

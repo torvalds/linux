@@ -1453,7 +1453,7 @@ err:
 	return ret;
 }
 
-static struct rtnl_link_stats64 *xgene_enet_get_stats64(
+static void xgene_enet_get_stats64(
 			struct net_device *ndev,
 			struct rtnl_link_stats64 *storage)
 {
@@ -1484,8 +1484,6 @@ static struct rtnl_link_stats64 *xgene_enet_get_stats64(
 		}
 	}
 	memcpy(storage, stats, sizeof(struct rtnl_link_stats64));
-
-	return storage;
 }
 
 static int xgene_enet_set_mac_address(struct net_device *ndev, void *addr)

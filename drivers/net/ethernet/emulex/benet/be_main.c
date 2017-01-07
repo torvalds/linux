@@ -639,8 +639,8 @@ void be_parse_stats(struct be_adapter *adapter)
 	}
 }
 
-static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
-						struct rtnl_link_stats64 *stats)
+static void be_get_stats64(struct net_device *netdev,
+			   struct rtnl_link_stats64 *stats)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	struct be_drv_stats *drvs = &adapter->drv_stats;
@@ -704,7 +704,6 @@ static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
 	stats->rx_fifo_errors = drvs->rxpp_fifo_overflow_drop +
 				drvs->rx_input_fifo_overflow_drop +
 				drvs->rx_drops_no_pbuf;
-	return stats;
 }
 
 void be_link_status_update(struct be_adapter *adapter, u8 link_status)

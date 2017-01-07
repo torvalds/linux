@@ -312,8 +312,8 @@ static int emac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 }
 
 /* Provide network statistics info for the interface */
-static struct rtnl_link_stats64 *emac_get_stats64(struct net_device *netdev,
-						  struct rtnl_link_stats64 *net_stats)
+static void emac_get_stats64(struct net_device *netdev,
+			     struct rtnl_link_stats64 *net_stats)
 {
 	struct emac_adapter *adpt = netdev_priv(netdev);
 	unsigned int addr = REG_MAC_RX_STATUS_BIN;
@@ -377,8 +377,6 @@ static struct rtnl_link_stats64 *emac_get_stats64(struct net_device *netdev,
 	net_stats->tx_window_errors = stats->tx_late_col;
 
 	spin_unlock(&stats->lock);
-
-	return net_stats;
 }
 
 static const struct net_device_ops emac_netdev_ops = {

@@ -153,8 +153,8 @@ static int br_dev_stop(struct net_device *dev)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
-						struct rtnl_link_stats64 *stats)
+static void br_get_stats64(struct net_device *dev,
+			   struct rtnl_link_stats64 *stats)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	struct pcpu_sw_netstats tmp, sum = { 0 };
@@ -178,8 +178,6 @@ static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
 	stats->tx_packets = sum.tx_packets;
 	stats->rx_bytes   = sum.rx_bytes;
 	stats->rx_packets = sum.rx_packets;
-
-	return stats;
 }
 
 static int br_change_mtu(struct net_device *dev, int new_mtu)
