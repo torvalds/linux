@@ -5756,13 +5756,12 @@ static int start_cpu(bool boosted)
 static inline int find_best_target(struct task_struct *p, bool boosted, bool prefer_idle)
 {
 	int target_cpu = -1;
-	int target_util = 0;
-	int backup_capacity = 0;
+	unsigned long target_util = prefer_idle ? ULONG_MAX : 0;
+	unsigned long backup_capacity = ULONG_MAX;
 	int best_idle_cpu = -1;
 	int best_idle_cstate = INT_MAX;
 	int backup_cpu = -1;
-	unsigned long min_util;
-	unsigned long new_util;
+	unsigned long min_util = boosted_task_util(p);
 	struct sched_domain *sd;
 	struct sched_group *sg;
 	int cpu = start_cpu(boosted);
@@ -5777,15 +5776,11 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 
 	sg = sd->groups;
 
-	min_util = boosted_task_util(p);
-
 	do {
 		int i;
 
 		for_each_cpu_and(i, tsk_cpus_allowed(p), sched_group_cpus(sg)) {
-			int cur_capacity;
-			struct rq *rq;
-			int idle_idx;
+			unsigned long cur_capacity, new_util;
 
 			if (!cpu_online(i))
 				continue;
@@ -5803,6 +5798,7 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 			 * than the one required to boost the task.
 			 */
 			new_util = max(min_util, new_util);
+
 			if (new_util > capacity_orig_of(i))
 				continue;
 
@@ -5815,38 +5811,25 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 			 * Unconditionally favoring tasks that prefer idle cpus to
 			 * improve latency.
 			 */
-			if (idle_cpu(i) && prefer_idle) {
-				if (best_idle_cpu < 0)
-					best_idle_cpu = i;
-				continue;
-			}
+			if (idle_cpu(i) && prefer_idle)
+				return i;
 
 			cur_capacity = capacity_curr_of(i);
-			rq = cpu_rq(i);
-			idle_idx = idle_get_state_idx(rq);
 
 			if (new_util < cur_capacity) {
 				if (cpu_rq(i)->nr_running) {
-					if (!prefer_idle) {
-						/* Find a target cpu with highest
-						 * utilization.
-						 */
-						if (target_util == 0 ||
-							target_util < new_util) {
-							target_cpu = i;
-							target_util = new_util;
-						}
-					} else {
-						/* Find a target cpu with lowest
-						 * utilization.
-						 */
-						if (target_util == 0 ||
-							target_util > new_util) {
-							target_cpu = i;
-							target_util = new_util;
-						}
+					/*
+					 * Find a target cpu with the lowest/highest
+					 * utilization if prefer_idle/!prefer_idle.
+					 */
+					if ((prefer_idle && target_util > new_util) ||
+					    (!prefer_idle && target_util < new_util)) {
+						target_util = new_util;
+						target_cpu = i;
 					}
 				} else if (!prefer_idle) {
+					int idle_idx = idle_get_state_idx(cpu_rq(i));
+
 					if (best_idle_cpu < 0 ||
 						(sysctl_sched_cstate_aware &&
 							best_idle_cstate > idle_idx)) {
@@ -5854,18 +5837,15 @@ static inline int find_best_target(struct task_struct *p, bool boosted, bool pre
 						best_idle_cpu = i;
 					}
 				}
-			} else if (backup_capacity == 0 ||
-					backup_capacity > cur_capacity) {
-				// Find a backup cpu with least capacity.
+			} else if (backup_capacity > cur_capacity) {
+				/* Find a backup cpu with least capacity. */
 				backup_capacity = cur_capacity;
 				backup_cpu = i;
 			}
 		}
 	} while (sg = sg->next, sg != sd->groups);
 
-	if (prefer_idle && best_idle_cpu >= 0)
-		target_cpu = best_idle_cpu;
-	else if (target_cpu < 0)
+	if (target_cpu < 0)
 		target_cpu = best_idle_cpu >= 0 ? best_idle_cpu : backup_cpu;
 
 	return target_cpu;
