@@ -7831,7 +7831,7 @@ static void *raid5_takeover_raid1(struct mddev *mddev)
 	mddev->new_chunk_sectors = chunksect;
 
 	ret = setup_conf(mddev);
-	if (!IS_ERR_VALUE(ret))
+	if (!IS_ERR(ret))
 		mddev_clear_unsupported_flags(mddev,
 			UNSUPPORTED_MDDEV_FLAGS);
 	return ret;
