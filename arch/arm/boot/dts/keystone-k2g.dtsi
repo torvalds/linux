@@ -83,6 +83,10 @@
 			ranges = <0x0 0x0c000000 0x100000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			sram-bm@f7000 {
+				reg = <0x000f7000 0x8000>;
+			};
 		};
 
 		k2g_pinctrl: pinmux@02621000 {
