@@ -219,14 +219,14 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			if (pin_reg & BIT(INTERRUPT_ENABLE_OFF)) {
 				interrupt_enable = "interrupt is enabled|";
 
-		if (!(pin_reg & BIT(ACTIVE_LEVEL_OFF))
-				&& !(pin_reg & BIT(ACTIVE_LEVEL_OFF+1)))
+				if (!(pin_reg & BIT(ACTIVE_LEVEL_OFF)) &&
+				    !(pin_reg & BIT(ACTIVE_LEVEL_OFF + 1)))
 					active_level = "Active low|";
-				else if (pin_reg & BIT(ACTIVE_LEVEL_OFF)
-				&& !(pin_reg & BIT(ACTIVE_LEVEL_OFF+1)))
+				else if (pin_reg & BIT(ACTIVE_LEVEL_OFF) &&
+					 !(pin_reg & BIT(ACTIVE_LEVEL_OFF + 1)))
 					active_level = "Active high|";
-				else if (!(pin_reg & BIT(ACTIVE_LEVEL_OFF))
-					&& pin_reg & BIT(ACTIVE_LEVEL_OFF+1))
+				else if (!(pin_reg & BIT(ACTIVE_LEVEL_OFF)) &&
+					 pin_reg & BIT(ACTIVE_LEVEL_OFF + 1))
 					active_level = "Active on both|";
 				else
 					active_level = "Unknow Active level|";
