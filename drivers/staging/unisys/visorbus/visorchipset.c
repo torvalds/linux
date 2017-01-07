@@ -2249,7 +2249,7 @@ static void exit_unisys(void)
 	acpi_bus_unregister_driver(&unisys_acpi_driver);
 }
 
-module_param_named(major, visorchipset_major, int, S_IRUGO);
+module_param_named(major, visorchipset_major, int, 0444);
 MODULE_PARM_DESC(visorchipset_major,
 		 "major device number to use for the device node");
 
