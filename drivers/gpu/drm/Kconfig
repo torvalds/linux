@@ -146,7 +146,7 @@ source "drivers/gpu/drm/arm/Kconfig"
 
 config DRM_RADEON
 	tristate "ATI Radeon"
-	depends on DRM && PCI
+	depends on DRM && PCI && MMU
 	select FW_LOADER
         select DRM_KMS_HELPER
         select DRM_TTM
@@ -166,7 +166,7 @@ source "drivers/gpu/drm/radeon/Kconfig"
 
 config DRM_AMDGPU
 	tristate "AMD GPU"
-	depends on DRM && PCI
+	depends on DRM && PCI && MMU
 	select FW_LOADER
         select DRM_KMS_HELPER
         select DRM_TTM

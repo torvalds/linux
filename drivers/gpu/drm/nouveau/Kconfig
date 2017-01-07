@@ -1,6 +1,6 @@
 config DRM_NOUVEAU
 	tristate "Nouveau (NVIDIA) cards"
-	depends on DRM && PCI
+	depends on DRM && PCI && MMU
         select FW_LOADER
 	select DRM_KMS_HELPER
 	select DRM_TTM
