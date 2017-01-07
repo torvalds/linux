@@ -59,6 +59,10 @@ properties:
       When set the driver will request its phandle as one companion-grf
       for some special SoCs (e.g rv1108).
 
+  rockchip,u2phy-tuning:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: when set, tuning u2phy to improve usb2 SI.
+
   host-port:
     type: object
     additionalProperties: false

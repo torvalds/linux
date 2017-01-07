@@ -1251,6 +1251,77 @@ static int rk3366_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	return ret;
 }
 
+static int rk3399_usb2phy_tuning(struct rockchip_usb2phy *rphy)
+{
+	struct device_node *node = rphy->dev->of_node;
+	int ret = 0;
+
+	if (rphy->phy_cfg->reg == 0xe450) {
+		/*
+		 * Disable the pre-emphasize in eop state
+		 * and chirp state to avoid mis-trigger the
+		 * disconnect detection and also avoid hs
+		 * handshake fail for PHY0.
+		 */
+		ret |= regmap_write(rphy->grf, 0x4480,
+				    GENMASK(17, 16) | 0x0);
+		ret |= regmap_write(rphy->grf, 0x44b4,
+				    GENMASK(17, 16) | 0x0);
+	} else {
+		/*
+		 * Disable the pre-emphasize in eop state
+		 * and chirp state to avoid mis-trigger the
+		 * disconnect detection and also avoid hs
+		 * handshake fail for PHY1.
+		 */
+		ret |= regmap_write(rphy->grf, 0x4500,
+				    GENMASK(17, 16) | 0x0);
+		ret |= regmap_write(rphy->grf, 0x4534,
+				    GENMASK(17, 16) | 0x0);
+	}
+
+	if (!of_property_read_bool(node, "rockchip,u2phy-tuning"))
+		return ret;
+
+	if (rphy->phy_cfg->reg == 0xe450) {
+		/*
+		 * Set max ODT compensation voltage and
+		 * current tuning reference for PHY0.
+		 */
+		ret |= regmap_write(rphy->grf, 0x448c,
+				    GENMASK(23, 16) | 0xe3);
+
+		/* Set max pre-emphasis level for PHY0 */
+		ret |= regmap_write(rphy->grf, 0x44b0,
+				    GENMASK(18, 16) | 0x07);
+
+		/*
+		 * Set PHY0 A port squelch trigger point to 125mv
+		 */
+		ret |= regmap_write(rphy->grf, 0x4480,
+				    GENMASK(30, 30) | 0x4000);
+	} else {
+		/*
+		 * Set max ODT compensation voltage and
+		 * current tuning reference for PHY1.
+		 */
+		ret |= regmap_write(rphy->grf, 0x450c,
+				    GENMASK(23, 16) | 0xe3);
+
+		/* Set max pre-emphasis level for PHY1 */
+		ret |= regmap_write(rphy->grf, 0x4530,
+				    GENMASK(18, 16) | 0x07);
+
+		/*
+		 * Set PHY1 A port squelch trigger point to 125mv
+		 */
+		ret |= regmap_write(rphy->grf, 0x4500,
+				    GENMASK(30, 30) | 0x4000);
+	}
+
+	return ret;
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int rockchip_usb2phy_pm_suspend(struct device *dev)
 {
@@ -1418,6 +1489,7 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 	{
 		.reg		= 0xe450,
 		.num_ports	= 2,
+		.phy_tuning	= rk3399_usb2phy_tuning,
 		.clkout_ctl	= { 0xe450, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
@@ -1457,6 +1529,7 @@ static const struct rockchip_usb2phy_cfg rk3399_phy_cfgs[] = {
 	{
 		.reg		= 0xe460,
 		.num_ports	= 2,
+		.phy_tuning	= rk3399_usb2phy_tuning,
 		.clkout_ctl	= { 0xe460, 4, 4, 1, 0 },
 		.port_cfgs	= {
 			[USB2PHY_PORT_OTG] = {
