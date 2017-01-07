@@ -5885,8 +5885,6 @@ bnxt_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	u32 i;
 	struct bnxt *bp = netdev_priv(dev);
 
-	memset(stats, 0, sizeof(struct rtnl_link_stats64));
-
 	if (!bp->bnapi)
 		return;
 

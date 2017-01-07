@@ -1462,7 +1462,6 @@ static void xgene_enet_get_stats64(
 	struct xgene_enet_desc_ring *ring;
 	int i;
 
-	memset(stats, 0, sizeof(struct rtnl_link_stats64));
 	for (i = 0; i < pdata->txq_cnt; i++) {
 		ring = pdata->tx_ring[i];
 		if (ring) {
