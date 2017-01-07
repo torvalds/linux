@@ -1021,14 +1021,32 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 
 	/* Update valid block bitmap */
 	if (del > 0) {
-		if (f2fs_test_and_set_bit(offset, se->cur_valid_map))
+		if (f2fs_test_and_set_bit(offset, se->cur_valid_map)) {
+#ifdef CONFIG_F2FS_CHECK_FS
+			if (f2fs_test_and_set_bit(offset,
+						se->cur_valid_map_mir))
+				f2fs_bug_on(sbi, 1);
+			else
+				WARN_ON(1);
+#else
 			f2fs_bug_on(sbi, 1);
+#endif
+		}
 		if (f2fs_discard_en(sbi) &&
 			!f2fs_test_and_set_bit(offset, se->discard_map))
 			sbi->discard_blks--;
 	} else {
-		if (!f2fs_test_and_clear_bit(offset, se->cur_valid_map))
+		if (!f2fs_test_and_clear_bit(offset, se->cur_valid_map)) {
+#ifdef CONFIG_F2FS_CHECK_FS
+			if (!f2fs_test_and_clear_bit(offset,
+						se->cur_valid_map_mir))
+				f2fs_bug_on(sbi, 1);
+			else
+				WARN_ON(1);
+#else
 			f2fs_bug_on(sbi, 1);
+#endif
+		}
 		if (f2fs_discard_en(sbi) &&
 			f2fs_test_and_clear_bit(offset, se->discard_map))
 			sbi->discard_blks++;
@@ -2357,6 +2375,13 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 				!sit_i->sentries[start].ckpt_valid_map)
 			return -ENOMEM;
 
+#ifdef CONFIG_F2FS_CHECK_FS
+		sit_i->sentries[start].cur_valid_map_mir
+			= kzalloc(SIT_VBLOCK_MAP_SIZE, GFP_KERNEL);
+		if (!sit_i->sentries[start].cur_valid_map_mir)
+			return -ENOMEM;
+#endif
+
 		if (f2fs_discard_en(sbi)) {
 			sit_i->sentries[start].discard_map
 				= kzalloc(SIT_VBLOCK_MAP_SIZE, GFP_KERNEL);
@@ -2786,6 +2811,9 @@ static void destroy_sit_info(struct f2fs_sb_info *sbi)
 	if (sit_i->sentries) {
 		for (start = 0; start < MAIN_SEGS(sbi); start++) {
 			kfree(sit_i->sentries[start].cur_valid_map);
+#ifdef CONFIG_F2FS_CHECK_FS
+			kfree(sit_i->sentries[start].cur_valid_map_mir);
+#endif
 			kfree(sit_i->sentries[start].ckpt_valid_map);
 			kfree(sit_i->sentries[start].discard_map);
 		}
