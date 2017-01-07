@@ -27,7 +27,6 @@ extern void intel_mid_pwr_power_off(void);
 extern int intel_mid_pwr_get_lss_id(struct pci_dev *pdev);
 
 extern int get_gpio_by_name(const char *name);
-extern void intel_scu_device_register(struct platform_device *pdev);
 extern int __init sfi_parse_mrtc(struct sfi_table_header *table);
 extern int __init sfi_parse_mtmr(struct sfi_table_header *table);
 extern int sfi_mrtc_num;

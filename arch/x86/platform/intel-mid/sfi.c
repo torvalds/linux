@@ -226,7 +226,7 @@ int get_gpio_by_name(const char *name)
 	return -EINVAL;
 }
 
-void __init intel_scu_device_register(struct platform_device *pdev)
+static void __init intel_scu_ipc_device_register(struct platform_device *pdev)
 {
 	if (ipc_next_dev == MAX_IPCDEVS)
 		pr_err("too many SCU IPC devices");
@@ -361,7 +361,7 @@ static void __init sfi_handle_ipc_dev(struct sfi_device_table_entry *pentry,
 
 	pdev->dev.platform_data = pdata;
 	if (dev->delay)
-		intel_scu_device_register(pdev);
+		intel_scu_ipc_device_register(pdev);
 	else
 		platform_device_add(pdev);
 }
