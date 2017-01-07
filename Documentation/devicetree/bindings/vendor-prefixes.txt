@@ -329,6 +329,7 @@ x-powers	X-Powers
 xes	Extreme Engineering Solutions (X-ES)
 xillybus	Xillybus Ltd.
 xlnx	Xilinx
+xunlong	Shenzhen Xunlong Software CO.,Limited
 zarlink	Zarlink Semiconductor
 zii	Zodiac Inflight Innovations
 zte	ZTE Corp.
