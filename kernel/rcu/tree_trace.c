@@ -194,9 +194,8 @@ static int show_rcuexp(struct seq_file *m, void *v)
 		s2 += atomic_long_read(&rdp->exp_workdone2);
 		s3 += atomic_long_read(&rdp->exp_workdone3);
 	}
-	seq_printf(m, "s=%lu wd0=%lu wd1=%lu wd2=%lu wd3=%lu n=%lu enq=%d sc=%lu\n",
+	seq_printf(m, "s=%lu wd0=%lu wd1=%lu wd2=%lu wd3=%lu enq=%d sc=%lu\n",
 		   rsp->expedited_sequence, s0, s1, s2, s3,
-		   atomic_long_read(&rsp->expedited_normal),
 		   atomic_read(&rsp->expedited_need_qs),
 		   rsp->expedited_sequence / 2);
 	return 0;
