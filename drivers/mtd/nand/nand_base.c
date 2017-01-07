@@ -4052,9 +4052,10 @@ static bool find_full_id_nand(struct nand_chip *chip,
  */
 static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 {
+	const struct nand_manufacturer *manufacturer;
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	int busw;
-	int i, maf_idx;
+	int i;
 	u8 *id_data = chip->id.data;
 	u8 maf_id, dev_id;
 
@@ -4159,10 +4160,7 @@ static int nand_detect(struct nand_chip *chip, struct nand_flash_dev *type)
 ident_done:
 
 	/* Try to identify manufacturer */
-	for (maf_idx = 0; nand_manuf_ids[maf_idx].id != 0x0; maf_idx++) {
-		if (nand_manuf_ids[maf_idx].id == maf_id)
-			break;
-	}
+	manufacturer = nand_get_manufacturer(maf_id);
 
 	if (chip->options & NAND_BUSWIDTH_AUTO) {
 		WARN_ON(busw & NAND_BUSWIDTH_16);
@@ -4174,7 +4172,8 @@ ident_done:
 		 */
 		pr_info("device found, Manufacturer ID: 0x%02x, Chip ID: 0x%02x\n",
 			maf_id, dev_id);
-		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name, mtd->name);
+		pr_info("%s %s\n", nand_manufacturer_name(manufacturer),
+			mtd->name);
 		pr_warn("bus width %d instead of %d bits\n", busw ? 16 : 8,
 			(chip->options & NAND_BUSWIDTH_16) ? 16 : 8);
 		return -EINVAL;
@@ -4207,14 +4206,14 @@ ident_done:
 		maf_id, dev_id);
 
 	if (chip->onfi_version)
-		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name,
-				chip->onfi_params.model);
+		pr_info("%s %s\n", nand_manufacturer_name(manufacturer),
+			chip->onfi_params.model);
 	else if (chip->jedec_version)
-		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name,
-				chip->jedec_params.model);
+		pr_info("%s %s\n", nand_manufacturer_name(manufacturer),
+			chip->jedec_params.model);
 	else
-		pr_info("%s %s\n", nand_manuf_ids[maf_idx].name,
-				type->name);
+		pr_info("%s %s\n", nand_manufacturer_name(manufacturer),
+			type->name);
 
 	pr_info("%d MiB, %s, erase size: %d KiB, page size: %d, OOB size: %d\n",
 		(int)(chip->chipsize >> 20), nand_is_slc(chip) ? "SLC" : "MLC",

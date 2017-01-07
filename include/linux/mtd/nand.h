@@ -1071,8 +1071,15 @@ struct nand_manufacturer {
 	char *name;
 };
 
+const struct nand_manufacturer *nand_get_manufacturer(u8 id);
+
+static inline const char *
+nand_manufacturer_name(const struct nand_manufacturer *manufacturer)
+{
+	return manufacturer ? manufacturer->name : "Unknown";
+}
+
 extern struct nand_flash_dev nand_flash_ids[];
-extern struct nand_manufacturer nand_manuf_ids[];
 
 int nand_default_bbt(struct mtd_info *mtd);
 int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs);
