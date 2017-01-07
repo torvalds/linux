@@ -54,8 +54,10 @@ static void dsi_dphy_timing_calc_clk_zero(struct msm_dsi_dphy_timing *timing,
 }
 
 int msm_dsi_dphy_timing_calc(struct msm_dsi_dphy_timing *timing,
-	const unsigned long bit_rate, const unsigned long esc_rate)
+			     struct msm_dsi_phy_clk_request *clk_req)
 {
+	const unsigned long bit_rate = clk_req->bitclk_rate;
+	const unsigned long esc_rate = clk_req->escclk_rate;
 	s32 ui, lpx;
 	s32 tmax, tmin;
 	s32 pcnt0 = 10;
@@ -429,7 +431,7 @@ void __exit msm_dsi_phy_driver_unregister(void)
 }
 
 int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
-	const unsigned long bit_rate, const unsigned long esc_rate)
+			struct msm_dsi_phy_clk_request *clk_req)
 {
 	struct device *dev = &phy->pdev->dev;
 	int ret;
@@ -437,18 +439,24 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	if (!phy || !phy->cfg->ops.enable)
 		return -EINVAL;
 
+	ret = dsi_phy_enable_resource(phy);
+	if (ret) {
+		dev_err(dev, "%s: resource enable failed, %d\n",
+			__func__, ret);
+		goto res_en_fail;
+	}
+
 	ret = dsi_phy_regulator_enable(phy);
 	if (ret) {
 		dev_err(dev, "%s: regulator enable failed, %d\n",
 			__func__, ret);
-		return ret;
+		goto reg_en_fail;
 	}
 
-	ret = phy->cfg->ops.enable(phy, src_pll_id, bit_rate, esc_rate);
+	ret = phy->cfg->ops.enable(phy, src_pll_id, clk_req);
 	if (ret) {
 		dev_err(dev, "%s: phy enable failed, %d\n", __func__, ret);
-		dsi_phy_regulator_disable(phy);
-		return ret;
+		goto phy_en_fail;
 	}
 
 	/*
@@ -460,14 +468,22 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	if (phy->usecase != MSM_DSI_PHY_SLAVE) {
 		ret = msm_dsi_pll_restore_state(phy->pll);
 		if (ret) {
-			pr_err("%s: failed to restore pll state\n", __func__);
-			if (phy->cfg->ops.disable)
-				phy->cfg->ops.disable(phy);
-			dsi_phy_regulator_disable(phy);
-			return ret;
+			dev_err(dev, "%s: failed to restore pll state, %d\n",
+				__func__, ret);
+			goto pll_restor_fail;
 		}
 	}
 
+	return 0;
+
+pll_restor_fail:
+	if (phy->cfg->ops.disable)
+		phy->cfg->ops.disable(phy);
+phy_en_fail:
+	dsi_phy_regulator_disable(phy);
+reg_en_fail:
+	dsi_phy_disable_resource(phy);
+res_en_fail:
 	return ret;
 }
 
@@ -483,6 +499,7 @@ void msm_dsi_phy_disable(struct msm_dsi_phy *phy)
 	phy->cfg->ops.disable(phy);
 
 	dsi_phy_regulator_disable(phy);
+	dsi_phy_disable_resource(phy);
 }
 
 void msm_dsi_phy_get_shared_timings(struct msm_dsi_phy *phy,

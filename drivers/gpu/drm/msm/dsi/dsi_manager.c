@@ -125,6 +125,84 @@ static int dsi_mgr_setup_components(int id)
 	return ret;
 }
 
+static int enable_phy(struct msm_dsi *msm_dsi, int src_pll_id,
+		      struct msm_dsi_phy_shared_timings *shared_timings)
+{
+	struct msm_dsi_phy_clk_request clk_req;
+	int ret;
+
+	msm_dsi_host_get_phy_clk_req(msm_dsi->host, &clk_req);
+
+	ret = msm_dsi_phy_enable(msm_dsi->phy, src_pll_id, &clk_req);
+	msm_dsi_phy_get_shared_timings(msm_dsi->phy, shared_timings);
+
+	return ret;
+}
+
+static int
+dsi_mgr_phy_enable(int id,
+		   struct msm_dsi_phy_shared_timings shared_timings[DSI_MAX])
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
+	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
+	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
+	int ret;
+
+	/* In case of dual DSI, some registers in PHY1 have been programmed
+	 * during PLL0 clock's set_rate. The PHY1 reset called by host1 here
+	 * will silently reset those PHY1 registers. Therefore we need to reset
+	 * and enable both PHYs before any PLL clock operation.
+	 */
+	if (IS_DUAL_DSI() && mdsi && sdsi) {
+		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
+			msm_dsi_host_reset_phy(mdsi->host);
+			msm_dsi_host_reset_phy(sdsi->host);
+
+			ret = enable_phy(mdsi, src_pll_id,
+					 &shared_timings[DSI_CLOCK_MASTER]);
+			if (ret)
+				return ret;
+			ret = enable_phy(sdsi, src_pll_id,
+					 &shared_timings[DSI_CLOCK_SLAVE]);
+			if (ret) {
+				msm_dsi_phy_disable(mdsi->phy);
+				return ret;
+			}
+		}
+	} else {
+		msm_dsi_host_reset_phy(mdsi->host);
+		ret = enable_phy(msm_dsi, src_pll_id, &shared_timings[id]);
+		if (ret)
+			return ret;
+	}
+
+	msm_dsi->phy_enabled = true;
+
+	return 0;
+}
+
+static void dsi_mgr_phy_disable(int id)
+{
+	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
+	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
+	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
+
+	/* disable DSI phy
+	 * In dual-dsi configuration, the phy should be disabled for the
+	 * first controller only when the second controller is disabled.
+	 */
+	msm_dsi->phy_enabled = false;
+	if (IS_DUAL_DSI() && mdsi && sdsi) {
+		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
+			msm_dsi_phy_disable(sdsi->phy);
+			msm_dsi_phy_disable(mdsi->phy);
+		}
+	} else {
+		msm_dsi_phy_disable(msm_dsi->phy);
+	}
+}
+
 struct dsi_connector {
 	struct drm_connector base;
 	int id;
@@ -360,22 +438,31 @@ static void dsi_mgr_bridge_pre_enable(struct drm_bridge *bridge)
 	struct msm_dsi *msm_dsi1 = dsi_mgr_get_dsi(DSI_1);
 	struct mipi_dsi_host *host = msm_dsi->host;
 	struct drm_panel *panel = msm_dsi->panel;
+	struct msm_dsi_phy_shared_timings phy_shared_timings[DSI_MAX];
 	bool is_dual_dsi = IS_DUAL_DSI();
 	int ret;
 
 	DBG("id=%d", id);
-	if (!msm_dsi_device_connected(msm_dsi) ||
-			(is_dual_dsi && (DSI_1 == id)))
+	if (!msm_dsi_device_connected(msm_dsi))
 		return;
 
-	ret = msm_dsi_host_power_on(host);
+	ret = dsi_mgr_phy_enable(id, phy_shared_timings);
+	if (ret)
+		goto phy_en_fail;
+
+	/* Do nothing with the host if it is DSI 1 in case of dual DSI */
+	if (is_dual_dsi && (DSI_1 == id))
+		return;
+
+	ret = msm_dsi_host_power_on(host, &phy_shared_timings[id]);
 	if (ret) {
 		pr_err("%s: power on host %d failed, %d\n", __func__, id, ret);
 		goto host_on_fail;
 	}
 
 	if (is_dual_dsi && msm_dsi1) {
-		ret = msm_dsi_host_power_on(msm_dsi1->host);
+		ret = msm_dsi_host_power_on(msm_dsi1->host,
+					    &phy_shared_timings[DSI_1]);
 		if (ret) {
 			pr_err("%s: power on host1 failed, %d\n",
 							__func__, ret);
@@ -434,6 +521,8 @@ panel_prep_fail:
 host1_on_fail:
 	msm_dsi_host_power_off(host);
 host_on_fail:
+	dsi_mgr_phy_disable(id);
+phy_en_fail:
 	return;
 }
 
@@ -459,9 +548,16 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 
 	DBG("id=%d", id);
 
-	if (!msm_dsi_device_connected(msm_dsi) ||
-			(is_dual_dsi && (DSI_1 == id)))
+	if (!msm_dsi_device_connected(msm_dsi))
 		return;
+
+	/*
+	 * Do nothing with the host if it is DSI 1 in case of dual DSI.
+	 * It is safe to call dsi_mgr_phy_disable() here because a single PHY
+	 * won't be diabled until both PHYs request disable.
+	 */
+	if (is_dual_dsi && (DSI_1 == id))
+		goto disable_phy;
 
 	if (panel) {
 		ret = drm_panel_disable(panel);
@@ -497,6 +593,9 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 			pr_err("%s: host1 power off failed, %d\n",
 								__func__, ret);
 	}
+
+disable_phy:
+	dsi_mgr_phy_disable(id);
 }
 
 static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
@@ -662,73 +761,6 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)
 {
-}
-
-int msm_dsi_manager_phy_enable(int id,
-		const unsigned long bit_rate, const unsigned long esc_rate,
-		struct msm_dsi_phy_shared_timings *shared_timings)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
-	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
-	struct msm_dsi_phy *phy = msm_dsi->phy;
-	int src_pll_id = IS_DUAL_DSI() ? DSI_CLOCK_MASTER : id;
-	int ret;
-
-	/* In case of dual DSI, some registers in PHY1 have been programmed
-	 * during PLL0 clock's set_rate. The PHY1 reset called by host1 here
-	 * will silently reset those PHY1 registers. Therefore we need to reset
-	 * and enable both PHYs before any PLL clock operation.
-	 */
-	if (IS_DUAL_DSI() && mdsi && sdsi) {
-		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
-			msm_dsi_host_reset_phy(mdsi->host);
-			msm_dsi_host_reset_phy(sdsi->host);
-			ret = msm_dsi_phy_enable(mdsi->phy, src_pll_id,
-						 bit_rate, esc_rate);
-			if (ret)
-				return ret;
-			ret = msm_dsi_phy_enable(sdsi->phy, src_pll_id,
-						 bit_rate, esc_rate);
-			if (ret) {
-				msm_dsi_phy_disable(mdsi->phy);
-				return ret;
-			}
-		}
-	} else {
-		msm_dsi_host_reset_phy(msm_dsi->host);
-		ret = msm_dsi_phy_enable(msm_dsi->phy, src_pll_id, bit_rate,
-								esc_rate);
-		if (ret)
-			return ret;
-	}
-
-	msm_dsi->phy_enabled = true;
-	msm_dsi_phy_get_shared_timings(phy, shared_timings);
-
-	return 0;
-}
-
-void msm_dsi_manager_phy_disable(int id)
-{
-	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-	struct msm_dsi *mdsi = dsi_mgr_get_dsi(DSI_CLOCK_MASTER);
-	struct msm_dsi *sdsi = dsi_mgr_get_dsi(DSI_CLOCK_SLAVE);
-	struct msm_dsi_phy *phy = msm_dsi->phy;
-
-	/* disable DSI phy
-	 * In dual-dsi configuration, the phy should be disabled for the
-	 * first controller only when the second controller is disabled.
-	 */
-	msm_dsi->phy_enabled = false;
-	if (IS_DUAL_DSI() && mdsi && sdsi) {
-		if (!mdsi->phy_enabled && !sdsi->phy_enabled) {
-			msm_dsi_phy_disable(sdsi->phy);
-			msm_dsi_phy_disable(mdsi->phy);
-		}
-	} else {
-		msm_dsi_phy_disable(phy);
-	}
 }
 
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg)

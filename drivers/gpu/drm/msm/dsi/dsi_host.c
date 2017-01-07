@@ -2128,6 +2128,15 @@ void msm_dsi_host_reset_phy(struct mipi_dsi_host *host)
 	udelay(100);
 }
 
+void msm_dsi_host_get_phy_clk_req(struct mipi_dsi_host *host,
+	struct msm_dsi_phy_clk_request *clk_req)
+{
+	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+
+	clk_req->bitclk_rate = msm_host->byte_clk_rate * 8;
+	clk_req->escclk_rate = msm_host->esc_clk_rate;
+}
+
 int msm_dsi_host_enable(struct mipi_dsi_host *host)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
@@ -2175,10 +2184,10 @@ static void msm_dsi_sfpb_config(struct msm_dsi_host *msm_host, bool enable)
 			SFPB_GPREG_MASTER_PORT_EN(en));
 }
 
-int msm_dsi_host_power_on(struct mipi_dsi_host *host)
+int msm_dsi_host_power_on(struct mipi_dsi_host *host,
+			struct msm_dsi_phy_shared_timings *phy_shared_timings)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
-	struct msm_dsi_phy_shared_timings phy_shared_timings;
 	int ret = 0;
 
 	mutex_lock(&msm_host->dev_mutex);
@@ -2189,33 +2198,11 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 
 	msm_dsi_sfpb_config(msm_host, true);
 
-	ret = dsi_calc_clk_rate(msm_host);
-	if (ret) {
-		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);
-		goto unlock_ret;
-	}
-
 	ret = dsi_host_regulator_enable(msm_host);
 	if (ret) {
 		pr_err("%s:Failed to enable vregs.ret=%d\n",
 			__func__, ret);
 		goto unlock_ret;
-	}
-
-	ret = dsi_bus_clk_enable(msm_host);
-	if (ret) {
-		pr_err("%s: failed to enable bus clocks, %d\n", __func__, ret);
-		goto fail_disable_reg;
-	}
-
-	ret = msm_dsi_manager_phy_enable(msm_host->id,
-					msm_host->byte_clk_rate * 8,
-					msm_host->esc_clk_rate,
-					&phy_shared_timings);
-	dsi_bus_clk_disable(msm_host);
-	if (ret) {
-		pr_err("%s: failed to enable phy, %d\n", __func__, ret);
-		goto fail_disable_reg;
 	}
 
 	ret = dsi_clk_ctrl(msm_host, 1);
@@ -2233,7 +2220,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host)
 
 	dsi_timing_setup(msm_host);
 	dsi_sw_reset(msm_host);
-	dsi_ctrl_config(msm_host, true, &phy_shared_timings);
+	dsi_ctrl_config(msm_host, true, phy_shared_timings);
 
 	if (msm_host->disp_en_gpio)
 		gpiod_set_value(msm_host->disp_en_gpio, 1);
@@ -2269,8 +2256,6 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 
 	pinctrl_pm_select_sleep_state(&msm_host->pdev->dev);
 
-	msm_dsi_manager_phy_disable(msm_host->id);
-
 	dsi_clk_ctrl(msm_host, 0);
 
 	dsi_host_regulator_disable(msm_host);
@@ -2290,6 +2275,7 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 					struct drm_display_mode *mode)
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
+	int ret;
 
 	if (msm_host->mode) {
 		drm_mode_destroy(msm_host->dev, msm_host->mode);
@@ -2300,6 +2286,12 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 	if (!msm_host->mode) {
 		pr_err("%s: cannot duplicate mode\n", __func__);
 		return -ENOMEM;
+	}
+
+	ret = dsi_calc_clk_rate(msm_host);
+	if (ret) {
+		pr_err("%s: unable to calc clk rate, %d\n", __func__, ret);
+		return ret;
 	}
 
 	return 0;
