@@ -209,6 +209,9 @@ struct sit_info {
 	block_t sit_blocks;		/* # of blocks used by SIT area */
 	block_t written_valid_blocks;	/* # of valid blocks in main area */
 	char *sit_bitmap;		/* SIT bitmap pointer */
+#ifdef CONFIG_F2FS_CHECK_FS
+	char *sit_bitmap_mir;		/* SIT bitmap mirror */
+#endif
 	unsigned int bitmap_size;	/* SIT bitmap size */
 
 	unsigned long *tmp_map;			/* bitmap for temporal use */
@@ -423,6 +426,12 @@ static inline void get_sit_bitmap(struct f2fs_sb_info *sbi,
 		void *dst_addr)
 {
 	struct sit_info *sit_i = SIT_I(sbi);
+
+#ifdef CONFIG_F2FS_CHECK_FS
+	if (memcmp(sit_i->sit_bitmap, sit_i->sit_bitmap_mir,
+						sit_i->bitmap_size))
+		f2fs_bug_on(sbi, 1);
+#endif
 	memcpy(dst_addr, sit_i->sit_bitmap, sit_i->bitmap_size);
 }
 
@@ -643,6 +652,12 @@ static inline pgoff_t current_sit_addr(struct f2fs_sb_info *sbi,
 
 	check_seg_range(sbi, start);
 
+#ifdef CONFIG_F2FS_CHECK_FS
+	if (f2fs_test_bit(offset, sit_i->sit_bitmap) !=
+			f2fs_test_bit(offset, sit_i->sit_bitmap_mir))
+		f2fs_bug_on(sbi, 1);
+#endif
+
 	/* calculate sit block address */
 	if (f2fs_test_bit(offset, sit_i->sit_bitmap))
 		blk_addr += sit_i->sit_blocks;
@@ -668,6 +683,9 @@ static inline void set_to_next_sit(struct sit_info *sit_i, unsigned int start)
 	unsigned int block_off = SIT_BLOCK_OFFSET(start);
 
 	f2fs_change_bit(block_off, sit_i->sit_bitmap);
+#ifdef CONFIG_F2FS_CHECK_FS
+	f2fs_change_bit(block_off, sit_i->sit_bitmap_mir);
+#endif
 }
 
 static inline unsigned long long get_mtime(struct f2fs_sb_info *sbi)
