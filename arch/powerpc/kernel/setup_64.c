@@ -472,22 +472,38 @@ static bool __init parse_cache_info(struct device_node *np,
 
 void __init initialize_cache_info(void)
 {
-	struct device_node *np;
+	struct device_node *cpu, *l2, *l3 = NULL;
 
 	DBG(" -> initialize_cache_info()\n");
 
-	np  = of_find_node_by_type(NULL, "cpu");
+	cpu = of_find_node_by_type(NULL, "cpu");
 
 	/*
 	 * We're assuming *all* of the CPUs have the same
 	 * d-cache and i-cache sizes... -Peter
 	 */
-	if (np) {
-		if (!parse_cache_info(np, false, &ppc64_caches.l1d))
+	if (cpu) {
+		if (!parse_cache_info(cpu, false, &ppc64_caches.l1d))
 			DBG("Argh, can't find dcache properties !\n");
 
-		if (!parse_cache_info(np, true, &ppc64_caches.l1i))
+		if (!parse_cache_info(cpu, true, &ppc64_caches.l1i))
 			DBG("Argh, can't find icache properties !\n");
+
+		/*
+		 * Try to find the L2 and L3 if any. Assume they are
+		 * unified and use the D-side properties.
+		 */
+		l2 = of_find_next_cache_node(cpu);
+		of_node_put(cpu);
+		if (l2) {
+			parse_cache_info(l2, false, &ppc64_caches.l2);
+			l3 = of_find_next_cache_node(l2);
+			of_node_put(l2);
+		}
+		if (l3) {
+			parse_cache_info(l3, false, &ppc64_caches.l3);
+			of_node_put(l3);
+		}
 	}
 
 	/* For use by binfmt_elf */

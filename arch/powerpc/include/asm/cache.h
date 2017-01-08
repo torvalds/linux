@@ -43,6 +43,8 @@ struct ppc_cache_info {
 struct ppc64_caches {
 	struct ppc_cache_info l1d;
 	struct ppc_cache_info l1i;
+	struct ppc_cache_info l2;
+	struct ppc_cache_info l3;
 };
 
 extern struct ppc64_caches ppc64_caches;
