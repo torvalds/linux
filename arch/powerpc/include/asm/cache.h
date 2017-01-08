@@ -36,11 +36,13 @@ struct ppc64_caches {
 	u32	dblock_size;		/* L1 d-cache block size */
 	u32	log_dblock_size;
 	u32	dblocks_per_page;
+	u32	dsets;
 	u32	isize;			/* L1 i-cache size */
 	u32	iline_size;		/* L1 d-cache line size	*/
 	u32	iblock_size;		/* L1 i-cache block size */
 	u32	log_iblock_size;
 	u32	iblocks_per_page;
+	u32	isets;
 };
 
 extern struct ppc64_caches ppc64_caches;

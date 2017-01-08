@@ -412,14 +412,18 @@ void __init initialize_cache_info(void)
 		 * d-cache and i-cache sizes... -Peter
 		 */
 		if (num_cpus == 1) {
-			const __be32 *sizep, *lsizep, *bsizep;
-			u32 size, lsize, bsize;
+			const __be32 *sizep, *lsizep, *bsizep, *setsp;
+			u32 size, lsize, bsize, sets;
 
 			size = 0;
+			sets = -1u;
 			lsize = bsize = cur_cpu_spec->dcache_bsize;
 			sizep = of_get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
 				size = be32_to_cpu(*sizep);
+			setsp = of_get_property(np, "d-cache-sets", NULL);
+			if (setsp != NULL)
+				sets = be32_to_cpu(*setsp);
 			bsizep = of_get_property(np, "d-cache-block-size",
 						 NULL);
 			lsizep = of_get_property(np, "d-cache-line-size",
@@ -435,17 +439,32 @@ void __init initialize_cache_info(void)
 				    "sizep: %p, bsizep: %p, lsizep: %p\n",
 				    sizep, bsizep, lsizep);
 
+			/*
+			 * OF is weird .. it represents fully associative caches
+			 * as "1 way" which doesn't make much sense and doesn't
+			 * leave room for direct mapped. We'll assume that 0
+			 * in OF means direct mapped for that reason.
+			 */
+			if (sets == 1)
+				sets = 0;
+			else if (sets == 0)
+				sets = 1;
 			ppc64_caches.dsize = size;
+			ppc64_caches.dsets = sets;
 			ppc64_caches.dline_size = lsize;
 			ppc64_caches.dblock_size = bsize;
 			ppc64_caches.log_dblock_size = __ilog2(bsize);
 			ppc64_caches.dblocks_per_page = PAGE_SIZE / bsize;
 
 			size = 0;
+			sets = -1u;
 			lsize = bsize = cur_cpu_spec->icache_bsize;
 			sizep = of_get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
 				size = be32_to_cpu(*sizep);
+			setsp = of_get_property(np, "i-cache-sets", NULL);
+			if (setsp != NULL)
+				sets = be32_to_cpu(*setsp);
 			bsizep = of_get_property(np, "i-cache-block-size",
 						 NULL);
 			lsizep = of_get_property(np, "i-cache-line-size",
@@ -461,7 +480,12 @@ void __init initialize_cache_info(void)
 				    "sizep: %p, bsizep: %p, lsizep: %p\n",
 				    sizep, bsizep, lsizep);
 
+			if (sets == 1)
+				sets = 0;
+			else if (sets == 0)
+				sets = 1;
 			ppc64_caches.isize = size;
+			ppc64_caches.isets = sets;
 			ppc64_caches.iline_size = lsize;
 			ppc64_caches.iblock_size = bsize;
 			ppc64_caches.log_iblock_size = __ilog2(bsize);
