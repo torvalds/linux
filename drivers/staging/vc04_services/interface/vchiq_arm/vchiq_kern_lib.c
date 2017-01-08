@@ -172,7 +172,7 @@ EXPORT_SYMBOL(vchiq_shutdown);
 *
 ***************************************************************************/
 
-int vchiq_is_connected(VCHIQ_INSTANCE_T instance)
+static int vchiq_is_connected(VCHIQ_INSTANCE_T instance)
 {
 	return instance->connected;
 }
