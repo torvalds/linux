@@ -90,7 +90,7 @@ static atomic_t pause_bulks_count = ATOMIC_INIT(0);
 
 static DEFINE_SPINLOCK(service_spinlock);
 DEFINE_SPINLOCK(bulk_waiter_spinlock);
-DEFINE_SPINLOCK(quota_spinlock);
+static DEFINE_SPINLOCK(quota_spinlock);
 
 VCHIQ_STATE_T *vchiq_states[VCHIQ_MAX_STATES];
 static unsigned int handle_seq;
