@@ -973,10 +973,12 @@ static void sm750fb_setup(struct sm750_dev *sm750_dev, char *src)
 		else {
 			if (!g_fbmode[0]) {
 				g_fbmode[0] = opt;
-				dev_info(&sm750_dev->pdev->dev, "find fbmode0 : %s\n", g_fbmode[0]);
+				dev_info(&sm750_dev->pdev->dev,
+					 "find fbmode0 : %s\n", g_fbmode[0]);
 			} else if (!g_fbmode[1]) {
 				g_fbmode[1] = opt;
-				dev_info(&sm750_dev->pdev->dev, "find fbmode1 : %s\n", g_fbmode[1]);
+				dev_info(&sm750_dev->pdev->dev,
+					 "find fbmode1 : %s\n", g_fbmode[1]);
 			} else {
 				dev_warn(&sm750_dev->pdev->dev, "How many view you wann set?\n");
 			}
