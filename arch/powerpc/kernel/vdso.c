@@ -740,12 +740,10 @@ static int __init vdso_init(void)
 	vdso_data->dcache_line_size = ppc64_caches.dline_size;
 	vdso_data->icache_size = ppc64_caches.isize;
 	vdso_data->icache_line_size = ppc64_caches.iline_size;
-
-	/* XXXOJN: Blocks should be added to ppc64_caches and used instead */
-	vdso_data->dcache_block_size = ppc64_caches.dline_size;
-	vdso_data->icache_block_size = ppc64_caches.iline_size;
-	vdso_data->dcache_log_block_size = ppc64_caches.log_dline_size;
-	vdso_data->icache_log_block_size = ppc64_caches.log_iline_size;
+	vdso_data->dcache_block_size = ppc64_caches.dblock_size;
+	vdso_data->icache_block_size = ppc64_caches.iblock_size;
+	vdso_data->dcache_log_block_size = ppc64_caches.log_dblock_size;
+	vdso_data->icache_log_block_size = ppc64_caches.log_iblock_size;
 
 	/*
 	 * Calculate the size of the 64 bits vDSO

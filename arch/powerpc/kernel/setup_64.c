@@ -78,10 +78,10 @@ int spinning_secondaries;
 u64 ppc64_pft_size;
 
 struct ppc64_caches ppc64_caches = {
-	.dline_size = 0x40,
-	.log_dline_size = 6,
-	.iline_size = 0x40,
-	.log_iline_size = 6
+	.dblock_size = 0x40,
+	.log_dblock_size = 6,
+	.iblock_size = 0x40,
+	.log_iblock_size = 6
 };
 EXPORT_SYMBOL_GPL(ppc64_caches);
 
@@ -412,59 +412,66 @@ void __init initialize_cache_info(void)
 		 * d-cache and i-cache sizes... -Peter
 		 */
 		if (num_cpus == 1) {
-			const __be32 *sizep, *lsizep;
-			u32 size, lsize;
+			const __be32 *sizep, *lsizep, *bsizep;
+			u32 size, lsize, bsize;
 
 			size = 0;
-			lsize = cur_cpu_spec->dcache_bsize;
+			lsize = bsize = cur_cpu_spec->dcache_bsize;
 			sizep = of_get_property(np, "d-cache-size", NULL);
 			if (sizep != NULL)
 				size = be32_to_cpu(*sizep);
-			lsizep = of_get_property(np, "d-cache-block-size",
+			bsizep = of_get_property(np, "d-cache-block-size",
 						 NULL);
-			/* fallback if block size missing */
-			if (lsizep == NULL)
-				lsizep = of_get_property(np,
-							 "d-cache-line-size",
-							 NULL);
+			lsizep = of_get_property(np, "d-cache-line-size",
+						 NULL);
+			if (bsizep == NULL)
+				bsizep = lsizep;
 			if (lsizep != NULL)
 				lsize = be32_to_cpu(*lsizep);
-			if (sizep == NULL || lsizep == NULL)
+			if (bsizep != NULL)
+				bsize = be32_to_cpu(*bsizep);
+			if (sizep == NULL || bsizep == NULL || lsizep == NULL)
 				DBG("Argh, can't find dcache properties ! "
-				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
+				    "sizep: %p, bsizep: %p, lsizep: %p\n",
+				    sizep, bsizep, lsizep);
 
 			ppc64_caches.dsize = size;
 			ppc64_caches.dline_size = lsize;
-			ppc64_caches.log_dline_size = __ilog2(lsize);
-			ppc64_caches.dlines_per_page = PAGE_SIZE / lsize;
+			ppc64_caches.dblock_size = bsize;
+			ppc64_caches.log_dblock_size = __ilog2(bsize);
+			ppc64_caches.dblocks_per_page = PAGE_SIZE / bsize;
 
 			size = 0;
-			lsize = cur_cpu_spec->icache_bsize;
+			lsize = bsize = cur_cpu_spec->icache_bsize;
 			sizep = of_get_property(np, "i-cache-size", NULL);
 			if (sizep != NULL)
 				size = be32_to_cpu(*sizep);
-			lsizep = of_get_property(np, "i-cache-block-size",
+			bsizep = of_get_property(np, "i-cache-block-size",
 						 NULL);
-			if (lsizep == NULL)
-				lsizep = of_get_property(np,
-							 "i-cache-line-size",
-							 NULL);
+			lsizep = of_get_property(np, "i-cache-line-size",
+						 NULL);
+			if (bsizep == NULL)
+				bsizep = lsizep;
 			if (lsizep != NULL)
 				lsize = be32_to_cpu(*lsizep);
-			if (sizep == NULL || lsizep == NULL)
+			if (bsizep != NULL)
+				bsize = be32_to_cpu(*bsizep);
+			if (sizep == NULL || bsizep == NULL || lsizep == NULL)
 				DBG("Argh, can't find icache properties ! "
-				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
+				    "sizep: %p, bsizep: %p, lsizep: %p\n",
+				    sizep, bsizep, lsizep);
 
 			ppc64_caches.isize = size;
 			ppc64_caches.iline_size = lsize;
-			ppc64_caches.log_iline_size = __ilog2(lsize);
-			ppc64_caches.ilines_per_page = PAGE_SIZE / lsize;
+			ppc64_caches.iblock_size = bsize;
+			ppc64_caches.log_iblock_size = __ilog2(bsize);
+			ppc64_caches.iblocks_per_page = PAGE_SIZE / bsize;
 		}
 	}
 
 	/* For use by binfmt_elf */
-	dcache_bsize = ppc64_caches.dline_size;
-	icache_bsize = ppc64_caches.iline_size;
+	dcache_bsize = ppc64_caches.dblock_size;
+	icache_bsize = ppc64_caches.iblock_size;
 
 	DBG(" <- initialize_cache_info()\n");
 }
