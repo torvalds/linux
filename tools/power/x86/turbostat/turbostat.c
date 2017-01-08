@@ -3263,6 +3263,27 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 }
 
 /*
+ * SLV client has supporet for unique MSRs:
+ *
+ * MSR_CC6_DEMOTION_POLICY_CONFIG
+ * MSR_MC6_DEMOTION_POLICY_CONFIG
+ */
+
+int has_slv_msrs(unsigned int family, unsigned int model)
+{
+	if (!genuine_intel)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_ATOM_SILVERMONT1:
+	case INTEL_FAM6_ATOM_MERRIFIELD:
+	case INTEL_FAM6_ATOM_MOOREFIELD:
+		return 1;
+	}
+	return 0;
+}
+
+/*
  * HSW adds support for additional MSRs:
  *
  * MSR_PKG_C8_RESIDENCY		0x00000630
@@ -3496,6 +3517,24 @@ void decode_misc_pwr_mgmt_msr(void)
 			msr & (1 << 1) ? "EN" : "DIS",
 			msr & (1 << 8) ? "EN" : "DIS");
 }
+/*
+ * Decode MSR_CC6_DEMOTION_POLICY_CONFIG, MSR_MC6_DEMOTION_POLICY_CONFIG
+ *
+ * This MSRs are present on Silvermont processors,
+ * Intel Atom processor E3000 series (Baytrail), and friends.
+ */
+void decode_c6_demotion_policy_msr(void)
+{
+	unsigned long long msr;
+
+	if (!get_msr(base_cpu, MSR_CC6_DEMOTION_POLICY_CONFIG, &msr))
+		fprintf(outf, "cpu%d: MSR_CC6_DEMOTION_POLICY_CONFIG: 0x%08llx (%sable-CC6-Demotion)\n",
+			base_cpu, msr, msr & (1 << 0) ? "EN" : "DIS");
+
+	if (!get_msr(base_cpu, MSR_MC6_DEMOTION_POLICY_CONFIG, &msr))
+		fprintf(outf, "cpu%d: MSR_MC6_DEMOTION_POLICY_CONFIG: 0x%08llx (%sable-MC6-Demotion)\n",
+			base_cpu, msr, msr & (1 << 0) ? "EN" : "DIS");
+}
 
 void process_cpuid()
 {
@@ -3699,6 +3738,9 @@ void process_cpuid()
 
 	if (debug)
 		decode_misc_pwr_mgmt_msr();
+
+	if (debug && has_slv_msrs(family, model))
+		decode_c6_demotion_policy_msr();
 
 	rapl_probe(family, model);
 	perf_limit_reasons_probe(family, model);
