@@ -911,7 +911,7 @@ qca8k_get_tag_protocol(struct dsa_switch *ds)
 	return DSA_TAG_PROTO_QCA;
 }
 
-static struct dsa_switch_ops qca8k_switch_ops = {
+static const struct dsa_switch_ops qca8k_switch_ops = {
 	.get_tag_protocol	= qca8k_get_tag_protocol,
 	.setup			= qca8k_setup,
 	.get_strings		= qca8k_get_strings,

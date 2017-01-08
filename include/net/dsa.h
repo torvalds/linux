@@ -169,7 +169,7 @@ struct dsa_switch {
 	/*
 	 * The switch operations.
 	 */
-	struct dsa_switch_ops	*ops;
+	const struct dsa_switch_ops	*ops;
 
 	/*
 	 * An array of which element [a] indicates which port on this
@@ -390,7 +390,7 @@ struct dsa_switch_ops {
 
 struct dsa_switch_driver {
 	struct list_head	list;
-	struct dsa_switch_ops	*ops;
+	const struct dsa_switch_ops *ops;
 };
 
 void register_switch_driver(struct dsa_switch_driver *type);

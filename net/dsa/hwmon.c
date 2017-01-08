@@ -86,7 +86,7 @@ static umode_t dsa_hwmon_attrs_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct dsa_switch *ds = dev_get_drvdata(dev);
-	struct dsa_switch_ops *ops = ds->ops;
+	const struct dsa_switch_ops *ops = ds->ops;
 	umode_t mode = attr->mode;
 
 	if (index == 1) {

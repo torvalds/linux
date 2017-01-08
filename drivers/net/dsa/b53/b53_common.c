@@ -1453,7 +1453,7 @@ static enum dsa_tag_protocol b53_get_tag_protocol(struct dsa_switch *ds)
 	return DSA_TAG_PROTO_NONE;
 }
 
-static struct dsa_switch_ops b53_switch_ops = {
+static const struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,
 	.get_strings		= b53_get_strings,

@@ -76,11 +76,11 @@ void unregister_switch_driver(struct dsa_switch_driver *drv)
 }
 EXPORT_SYMBOL_GPL(unregister_switch_driver);
 
-static struct dsa_switch_ops *
+static const struct dsa_switch_ops *
 dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
 		 const char **_name, void **priv)
 {
-	struct dsa_switch_ops *ret;
+	const struct dsa_switch_ops *ret;
 	struct list_head *list;
 	const char *name;
 
@@ -89,7 +89,7 @@ dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
 
 	mutex_lock(&dsa_switch_drivers_mutex);
 	list_for_each(list, &dsa_switch_drivers) {
-		struct dsa_switch_ops *ops;
+		const struct dsa_switch_ops *ops;
 		struct dsa_switch_driver *drv;
 
 		drv = list_entry(list, struct dsa_switch_driver, list);
@@ -207,7 +207,7 @@ void dsa_cpu_port_ethtool_restore(struct dsa_switch *ds)
 
 static int dsa_switch_setup_one(struct dsa_switch *ds, struct device *parent)
 {
-	struct dsa_switch_ops *ops = ds->ops;
+	const struct dsa_switch_ops *ops = ds->ops;
 	struct dsa_switch_tree *dst = ds->dst;
 	struct dsa_chip_data *cd = ds->cd;
 	bool valid_name_found = false;
@@ -326,7 +326,7 @@ dsa_switch_setup(struct dsa_switch_tree *dst, int index,
 		 struct device *parent, struct device *host_dev)
 {
 	struct dsa_chip_data *cd = dst->pd->chip + index;
-	struct dsa_switch_ops *ops;
+	const struct dsa_switch_ops *ops;
 	struct dsa_switch *ds;
 	int ret;
 	const char *name;
