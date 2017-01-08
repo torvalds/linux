@@ -77,9 +77,6 @@
 int spinning_secondaries;
 u64 ppc64_pft_size;
 
-/* Pick defaults since we might want to patch instructions
- * before we've read this from the device tree.
- */
 struct ppc64_caches ppc64_caches = {
 	.dline_size = 0x40,
 	.log_dline_size = 6,
