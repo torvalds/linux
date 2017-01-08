@@ -114,7 +114,7 @@ static int cygnus_pcie_phy_power_off(struct phy *p)
 	return cygnus_pcie_power_config(phy, false);
 }
 
-static struct phy_ops cygnus_pcie_phy_ops = {
+static const struct phy_ops cygnus_pcie_phy_ops = {
 	.power_on = cygnus_pcie_phy_power_on,
 	.power_off = cygnus_pcie_phy_power_off,
 	.owner = THIS_MODULE,

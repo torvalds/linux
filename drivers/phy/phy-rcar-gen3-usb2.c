@@ -350,7 +350,7 @@ static int rcar_gen3_phy_usb2_power_off(struct phy *p)
 	return ret;
 }
 
-static struct phy_ops rcar_gen3_phy_usb2_ops = {
+static const struct phy_ops rcar_gen3_phy_usb2_ops = {
 	.init		= rcar_gen3_phy_usb2_init,
 	.exit		= rcar_gen3_phy_usb2_exit,
 	.power_on	= rcar_gen3_phy_usb2_power_on,
