@@ -2824,10 +2824,10 @@ void vchiq_platform_conn_state_changed(VCHIQ_STATE_T *state,
 	if (state->conn_state == VCHIQ_CONNSTATE_CONNECTED) {
 		write_lock_bh(&arm_state->susp_res_lock);
 		if (!arm_state->first_connect) {
-			char threadname[10];
+			char threadname[16];
 			arm_state->first_connect = 1;
 			write_unlock_bh(&arm_state->susp_res_lock);
-			snprintf(threadname, sizeof(threadname), "VCHIQka-%d",
+			snprintf(threadname, sizeof(threadname), "vchiq-keep/%d",
 				state->id);
 			arm_state->ka_thread = kthread_create(
 				&vchiq_keepalive_thread_func,

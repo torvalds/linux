@@ -2315,7 +2315,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	VCHIQ_SHARED_STATE_T *local;
 	VCHIQ_SHARED_STATE_T *remote;
 	VCHIQ_STATUS_T status;
-	char threadname[10];
+	char threadname[16];
 	static int id;
 	int i;
 
@@ -2483,7 +2483,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	/*
 		bring up slot handler thread
 	 */
-	snprintf(threadname, sizeof(threadname), "VCHIQ-%d", state->id);
+	snprintf(threadname, sizeof(threadname), "vchiq-slot/%d", state->id);
 	state->slot_handler_thread = kthread_create(&slot_handler_func,
 		(void *)state,
 		threadname);
@@ -2497,7 +2497,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	set_user_nice(state->slot_handler_thread, -19);
 	wake_up_process(state->slot_handler_thread);
 
-	snprintf(threadname, sizeof(threadname), "VCHIQr-%d", state->id);
+	snprintf(threadname, sizeof(threadname), "vchiq-recy/%d", state->id);
 	state->recycle_thread = kthread_create(&recycle_func,
 		(void *)state,
 		threadname);
@@ -2510,7 +2510,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero,
 	set_user_nice(state->recycle_thread, -19);
 	wake_up_process(state->recycle_thread);
 
-	snprintf(threadname, sizeof(threadname), "VCHIQs-%d", state->id);
+	snprintf(threadname, sizeof(threadname), "vchiq-sync/%d", state->id);
 	state->sync_thread = kthread_create(&sync_func,
 		(void *)state,
 		threadname);
