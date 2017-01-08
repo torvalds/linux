@@ -360,8 +360,7 @@ static struct mmc_test_mem *mmc_test_alloc_mem(unsigned long min_sz,
 	if (!mem)
 		return NULL;
 
-	mem->arr = kzalloc(sizeof(struct mmc_test_pages) * max_segs,
-			   GFP_KERNEL);
+	mem->arr = kcalloc(max_segs, sizeof(*mem->arr), GFP_KERNEL);
 	if (!mem->arr)
 		goto out_free;
 
