@@ -517,7 +517,7 @@ get_connected_service(VCHIQ_STATE_T *state, unsigned int port)
 inline void
 request_poll(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service, int poll_type)
 {
-	uint32_t value;
+	u32 value;
 
 	if (service) {
 		do {
@@ -1286,14 +1286,14 @@ poll_services(VCHIQ_STATE_T *state)
 	int group, i;
 
 	for (group = 0; group < BITSET_SIZE(state->unused_service); group++) {
-		uint32_t flags;
+		u32 flags;
 		flags = atomic_xchg(&state->poll_services[group], 0);
 		for (i = 0; flags; i++) {
 			if (flags & (1 << i)) {
 				VCHIQ_SERVICE_T *service =
 					find_service_by_port(state,
 						(group<<5) + i);
-				uint32_t service_flags;
+				u32 service_flags;
 				flags &= ~(1 << i);
 				if (!service)
 					continue;
@@ -3879,10 +3879,10 @@ VCHIQ_STATUS_T vchiq_send_remote_use_active(VCHIQ_STATE_T *state)
 	return status;
 }
 
-void vchiq_log_dump_mem(const char *label, uint32_t addr, const void *void_mem,
+void vchiq_log_dump_mem(const char *label, u32 addr, const void *void_mem,
 	size_t num_bytes)
 {
-	const uint8_t  *mem = (const uint8_t *)void_mem;
+	const u8  *mem = (const u8 *)void_mem;
 	size_t          offset;
 	char            line_buf[100];
 	char           *s;
@@ -3899,7 +3899,7 @@ void vchiq_log_dump_mem(const char *label, uint32_t addr, const void *void_mem,
 
 		for (offset = 0; offset < 16; offset++) {
 			if (offset < num_bytes) {
-				uint8_t ch = mem[offset];
+				u8 ch = mem[offset];
 
 				if ((ch < ' ') || (ch > '~'))
 					ch = '.';

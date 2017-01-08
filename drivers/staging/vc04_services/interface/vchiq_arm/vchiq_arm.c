@@ -194,7 +194,7 @@ vchiq_static_assert(ARRAY_SIZE(ioctl_names) ==
 		    (VCHIQ_IOC_MAX + 1));
 
 static void
-dump_phys_mem(void *virt_addr, uint32_t num_bytes);
+dump_phys_mem(void *virt_addr, u32 num_bytes);
 
 /****************************************************************************
 *
@@ -1535,10 +1535,10 @@ vchiq_dump_platform_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 ***************************************************************************/
 
 static void
-dump_phys_mem(void *virt_addr, uint32_t num_bytes)
+dump_phys_mem(void *virt_addr, u32 num_bytes)
 {
 	int            rc;
-	uint8_t       *end_virt_addr = virt_addr + num_bytes;
+	u8            *end_virt_addr = virt_addr + num_bytes;
 	int            num_pages;
 	int            offset;
 	int            end_offset;
@@ -1546,7 +1546,7 @@ dump_phys_mem(void *virt_addr, uint32_t num_bytes)
 	int            prev_idx;
 	struct page   *page;
 	struct page  **pages;
-	uint8_t       *kmapped_virt_ptr;
+	u8            *kmapped_virt_ptr;
 
 	/* Align virtAddr and endVirtAddr to 16 byte boundaries. */
 
@@ -1602,7 +1602,7 @@ dump_phys_mem(void *virt_addr, uint32_t num_bytes)
 
 		if (vchiq_arm_log_level >= VCHIQ_LOG_TRACE)
 			vchiq_log_dump_mem("ph",
-				(uint32_t)(unsigned long)&kmapped_virt_ptr[
+				(u32)(unsigned long)&kmapped_virt_ptr[
 					page_offset],
 				&kmapped_virt_ptr[page_offset], 16);
 
