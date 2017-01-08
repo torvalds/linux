@@ -483,6 +483,7 @@ static const struct iwl_hcmd_names iwl_mvm_prot_offload_names[] = {
  */
 static const struct iwl_hcmd_names iwl_mvm_regulatory_and_nvm_names[] = {
 	HCMD_NAME(NVM_ACCESS_COMPLETE),
+	HCMD_NAME(NVM_GET_INFO),
 };
 
 static const struct iwl_hcmd_arr iwl_mvm_groups[] = {

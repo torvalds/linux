@@ -738,23 +738,11 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
-	/* Read the NVM only at driver load time, no need to do this twice */
-	if (read_nvm) {
-		/* Read nvm */
-		ret = iwl_nvm_init(mvm, true);
-		if (ret) {
-			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
-			goto error;
-		}
-	}
-
-	/* In case we read the NVM from external file, load it to the NIC */
-	if (mvm->nvm_file_name)
+	/* Load NVM to NIC if needed */
+	if (mvm->nvm_file_name) {
+		iwl_mvm_read_external_nvm(mvm);
 		iwl_mvm_load_nvm_to_nic(mvm);
-
-	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
-	if (WARN_ON(ret))
-		goto error;
+	}
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						NVM_ACCESS_COMPLETE), 0,
@@ -766,8 +754,21 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	}
 
 	/* We wait for the INIT complete notification */
-	return iwl_wait_notification(&mvm->notif_wait, &init_wait,
-				     MVM_UCODE_ALIVE_TIMEOUT);
+	ret = iwl_wait_notification(&mvm->notif_wait, &init_wait,
+				    MVM_UCODE_ALIVE_TIMEOUT);
+	if (ret)
+		return ret;
+
+	/* Read the NVM only at driver load time, no need to do this twice */
+	if (read_nvm) {
+		ret = iwl_mvm_nvm_get_from_fw(mvm);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to read NVM: %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
 
 error:
 	iwl_remove_notification(&mvm->notif_wait, &init_wait);

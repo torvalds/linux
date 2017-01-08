@@ -374,7 +374,7 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
  *
  * 4. save as "iNVM_xxx.bin" under /lib/firmware
  */
-static int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
+int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm)
 {
 	int ret, section_size;
 	u16 section_id;
@@ -548,6 +548,94 @@ int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm)
 			break;
 		}
 	}
+	return ret;
+}
+
+int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm)
+{
+	struct iwl_nvm_get_info cmd = {};
+	struct iwl_nvm_get_info_rsp *rsp;
+	struct iwl_trans *trans = mvm->trans;
+	struct iwl_host_cmd hcmd = {
+		.flags = CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
+		.data = { &cmd, },
+		.len = { sizeof(cmd) },
+		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP, NVM_GET_INFO)
+	};
+	int  ret;
+	bool lar_fw_supported = !iwlwifi_mod_params.lar_disable &&
+				fw_has_capa(&mvm->fw->ucode_capa,
+					    IWL_UCODE_TLV_CAPA_LAR_SUPPORT);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	ret = iwl_mvm_send_cmd(mvm, &hcmd);
+	if (ret)
+		return ret;
+
+	if (WARN(iwl_rx_packet_payload_len(hcmd.resp_pkt) != sizeof(*rsp),
+		 "Invalid payload len in NVM response from FW %d",
+		 iwl_rx_packet_payload_len(hcmd.resp_pkt))) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	rsp = (void *)hcmd.resp_pkt->data;
+	if (le32_to_cpu(rsp->general.flags)) {
+		IWL_ERR(mvm, "Invalid NVM data from FW\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	mvm->nvm_data = kzalloc(sizeof(*mvm->nvm_data) +
+				sizeof(struct ieee80211_channel) *
+				IWL_NUM_CHANNELS, GFP_KERNEL);
+	if (!mvm->nvm_data) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	iwl_set_hw_address_from_csr(trans, mvm->nvm_data);
+	/* TODO: if platform NVM has MAC address - override it here */
+
+	if (!is_valid_ether_addr(mvm->nvm_data->hw_addr)) {
+		IWL_ERR(trans, "no valid mac address was found\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Initialize general data */
+	mvm->nvm_data->nvm_version = le16_to_cpu(rsp->general.nvm_version);
+
+	/* Initialize MAC sku data */
+	mvm->nvm_data->sku_cap_11ac_enable =
+		le32_to_cpu(rsp->mac_sku.enable_11ac);
+	mvm->nvm_data->sku_cap_11n_enable =
+		le32_to_cpu(rsp->mac_sku.enable_11n);
+	mvm->nvm_data->sku_cap_band_24GHz_enable =
+		le32_to_cpu(rsp->mac_sku.enable_24g);
+	mvm->nvm_data->sku_cap_band_52GHz_enable =
+		le32_to_cpu(rsp->mac_sku.enable_5g);
+	mvm->nvm_data->sku_cap_mimo_disabled =
+		le32_to_cpu(rsp->mac_sku.mimo_disable);
+
+	/* Initialize PHY sku data */
+	mvm->nvm_data->valid_tx_ant = (u8)le32_to_cpu(rsp->phy_sku.tx_chains);
+	mvm->nvm_data->valid_rx_ant = (u8)le32_to_cpu(rsp->phy_sku.rx_chains);
+
+	/* Initialize regulatory data */
+	mvm->nvm_data->lar_enabled =
+		le32_to_cpu(rsp->regulatory.lar_enabled) && lar_fw_supported;
+
+	iwl_init_sbands(trans->dev, trans->cfg, mvm->nvm_data,
+			rsp->regulatory.channel_profile,
+			mvm->nvm_data->valid_tx_ant & mvm->fw->valid_tx_ant,
+			mvm->nvm_data->valid_rx_ant & mvm->fw->valid_rx_ant,
+			rsp->regulatory.lar_enabled && lar_fw_supported);
+
+	ret = 0;
+out:
+	iwl_free_resp(&hcmd);
 	return ret;
 }
 

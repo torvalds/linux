@@ -1383,7 +1383,9 @@ void iwl_mvm_accu_radio_stats(struct iwl_mvm *mvm);
 
 /* NVM */
 int iwl_nvm_init(struct iwl_mvm *mvm, bool read_nvm_from_nic);
+int iwl_mvm_nvm_get_from_fw(struct iwl_mvm *mvm);
 int iwl_mvm_load_nvm_to_nic(struct iwl_mvm *mvm);
+int iwl_mvm_read_external_nvm(struct iwl_mvm *mvm);
 
 static inline u8 iwl_mvm_get_valid_tx_ant(struct iwl_mvm *mvm)
 {

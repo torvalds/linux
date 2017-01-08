@@ -345,6 +345,7 @@ enum iwl_prot_offload_subcmd_ids {
 
 enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_ACCESS_COMPLETE = 0x0,
+	NVM_GET_INFO = 0x2,
 };
 
 enum iwl_debug_cmds {
@@ -2258,5 +2259,81 @@ enum iwl_extended_cfg_flags {
 struct iwl_init_extended_cfg_cmd {
 	__le32 init_flags;
 } __packed; /* INIT_EXTENDED_CFG_CMD_API_S_VER_1 */
+
+/*
+ * struct iwl_nvm_get_info - request to get NVM data
+ */
+struct iwl_nvm_get_info {
+	__le32 reserved;
+} __packed; /* GRP_REGULATORY_NVM_GET_INFO_CMD_S_VER_1 */
+
+/**
+ * struct iwl_nvm_get_info_general - general NVM data
+ * @flags: 1 - empty, 0 - valid
+ * @nvm_version: nvm version
+ * @board_type: board type
+ */
+struct iwl_nvm_get_info_general {
+	__le32 flags;
+	__le16 nvm_version;
+	u8 board_type;
+	u8 reserved;
+} __packed; /* GRP_REGULATORY_NVM_GET_INFO_GENERAL_S_VER_1 */
+
+/**
+ * struct iwl_nvm_get_info_sku - mac information
+ * @enable_24g: band 2.4G enabled
+ * @enable_5g: band 5G enabled
+ * @enable_11n: 11n enabled
+ * @enable_11ac: 11ac enabled
+ * @mimo_disable: MIMO enabled
+ * @ext_crypto: Extended crypto enabled
+ */
+struct iwl_nvm_get_info_sku {
+	__le32 enable_24g;
+	__le32 enable_5g;
+	__le32 enable_11n;
+	__le32 enable_11ac;
+	__le32 mimo_disable;
+	__le32 ext_crypto;
+} __packed; /* GRP_REGULATORY_NVM_GET_INFO_MAC_SKU_SECTION_S_VER_1 */
+
+/**
+ * struct iwl_nvm_get_info_phy - phy information
+ * @tx_chains: BIT 0 chain A, BIT 1 chain B
+ * @rx_chains: BIT 0 chain A, BIT 1 chain B
+ */
+struct iwl_nvm_get_info_phy {
+	__le32 tx_chains;
+	__le32 rx_chains;
+} __packed; /* GRP_REGULATORY_NVM_GET_INFO_PHY_SKU_SECTION_S_VER_1 */
+
+#define IWL_NUM_CHANNELS (51)
+
+/**
+ * struct iwl_nvm_get_info_regulatory - regulatory information
+ * @lar_enabled: is LAR enabled
+ * @channel_profile: regulatory data of this channel
+ * @regulatory: regulatory data, see &enum iwl_nvm_channel_flags for data
+ */
+struct iwl_nvm_get_info_regulatory {
+	__le32 lar_enabled;
+	__le16 channel_profile[IWL_NUM_CHANNELS];
+	__le16 reserved;
+} __packed; /* GRP_REGULATORY_NVM_GET_INFO_REGULATORY_S_VER_1 */
+
+/**
+ * struct iwl_nvm_get_info_rsp - response to get NVM data
+ * @general: general NVM data
+ * @mac_sku: data relating to MAC sku
+ * @phy_sku: data relating to PHY sku
+ * @regulatory: regulatory data
+ */
+struct iwl_nvm_get_info_rsp {
+	struct iwl_nvm_get_info_general general;
+	struct iwl_nvm_get_info_sku mac_sku;
+	struct iwl_nvm_get_info_phy phy_sku;
+	struct iwl_nvm_get_info_regulatory regulatory;
+} __packed; /* GRP_REGULATORY_NVM_GET_INFO_CMD_RSP_S_VER_1 */
 
 #endif /* __fw_api_h__ */
