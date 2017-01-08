@@ -336,7 +336,7 @@ static void dcon_source_switch(struct work_struct *work)
 		pdata->set_dconload(0);
 		dcon->load_time = ktime_get();
 
-		wait_event_timeout(dcon->waitq, dcon->switched, HZ/2);
+		wait_event_timeout(dcon->waitq, dcon->switched, HZ / 2);
 
 		if (!dcon->switched) {
 			pr_err("Timeout entering DCON mode; expect a screen glitch.\n");
