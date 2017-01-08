@@ -665,7 +665,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			USER_SERVICE_T *user_service =
 				(USER_SERVICE_T *)service->base.userdata;
 			/* close_pending is false on first entry, and when the
-                           wait in vchiq_close_service has been interrupted. */
+			   wait in vchiq_close_service has been interrupted. */
 			if (!user_service->close_pending) {
 				status = vchiq_close_service(service->handle);
 				if (status != VCHIQ_SUCCESS)
@@ -691,7 +691,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			USER_SERVICE_T *user_service =
 				(USER_SERVICE_T *)service->base.userdata;
 			/* close_pending is false on first entry, and when the
-                           wait in vchiq_close_service has been interrupted. */
+			   wait in vchiq_close_service has been interrupted. */
 			if (!user_service->close_pending) {
 				status = vchiq_remove_service(service->handle);
 				if (status != VCHIQ_SUCCESS)

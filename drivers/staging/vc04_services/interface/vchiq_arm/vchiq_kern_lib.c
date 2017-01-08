@@ -75,13 +75,13 @@ VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *instance_out)
 	VCHIQ_STATUS_T status = VCHIQ_ERROR;
 	VCHIQ_STATE_T *state;
 	VCHIQ_INSTANCE_T instance = NULL;
-        int i;
+	int i;
 
 	vchiq_log_trace(vchiq_core_log_level, "%s called", __func__);
 
-        /* VideoCore may not be ready due to boot up timing.
-           It may never be ready if kernel and firmware are mismatched, so don't block forever. */
-        for (i=0; i<VCHIQ_INIT_RETRIES; i++) {
+	/* VideoCore may not be ready due to boot up timing.
+	   It may never be ready if kernel and firmware are mismatched, so don't block forever. */
+	for (i=0; i<VCHIQ_INIT_RETRIES; i++) {
 		state = vchiq_get_state();
 		if (state)
 			break;

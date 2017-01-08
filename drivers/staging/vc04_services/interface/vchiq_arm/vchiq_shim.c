@@ -527,7 +527,7 @@ static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
 	SHIM_SERVICE_T *service =
 		(SHIM_SERVICE_T *)VCHIQ_GET_SERVICE_USERDATA(handle);
 
-        if (!service->callback)
+	if (!service->callback)
 		goto release;
 
 	switch (reason) {
@@ -577,7 +577,7 @@ static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
 	}
 
 release:
-        vchiq_release_message(service->handle, header);
+	vchiq_release_message(service->handle, header);
 done:
 	return VCHIQ_SUCCESS;
 }
@@ -741,14 +741,16 @@ EXPORT_SYMBOL(vchi_service_set_option);
 
 int32_t vchi_get_peer_version( const VCHI_SERVICE_HANDLE_T handle, short *peer_version )
 {
-   int32_t ret = -1;
-   SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
-   if(service)
-   {
-      VCHIQ_STATUS_T status = vchiq_get_peer_version(service->handle, peer_version);
-      ret = vchiq_status_to_vchi( status );
-   }
-   return ret;
+	int32_t ret = -1;
+	SHIM_SERVICE_T *service = (SHIM_SERVICE_T *)handle;
+	if(service)
+	{
+		VCHIQ_STATUS_T status;
+
+		status = vchiq_get_peer_version(service->handle, peer_version);
+		ret = vchiq_status_to_vchi( status );
+	}
+	return ret;
 }
 EXPORT_SYMBOL(vchi_get_peer_version);
 

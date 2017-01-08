@@ -61,8 +61,8 @@
 #define BELL2	0x08
 
 typedef struct vchiq_2835_state_struct {
-   int inited;
-   VCHIQ_ARM_STATE_T arm_state;
+	int inited;
+	VCHIQ_ARM_STATE_T arm_state;
 } VCHIQ_2835_ARM_STATE_T;
 
 struct vchiq_pagelist_info {
@@ -195,31 +195,31 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 
 	vchiq_call_connected_callbacks();
 
-   return 0;
+	return 0;
 }
 
 VCHIQ_STATUS_T
 vchiq_platform_init_state(VCHIQ_STATE_T *state)
 {
-   VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
-   state->platform_state = kzalloc(sizeof(VCHIQ_2835_ARM_STATE_T), GFP_KERNEL);
-   ((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited = 1;
-   status = vchiq_arm_init_state(state, &((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->arm_state);
-   if(status != VCHIQ_SUCCESS)
-   {
-      ((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited = 0;
-   }
-   return status;
+	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
+	state->platform_state = kzalloc(sizeof(VCHIQ_2835_ARM_STATE_T), GFP_KERNEL);
+	((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited = 1;
+	status = vchiq_arm_init_state(state, &((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->arm_state);
+	if(status != VCHIQ_SUCCESS)
+	{
+		((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited = 0;
+	}
+	return status;
 }
 
 VCHIQ_ARM_STATE_T*
 vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 {
-   if(!((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited)
-   {
-      BUG();
-   }
-   return &((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->arm_state;
+	if(!((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited)
+	{
+		BUG();
+	}
+	return &((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->arm_state;
 }
 
 void
@@ -295,13 +295,13 @@ vchiq_dump_platform_state(void *dump_context)
 VCHIQ_STATUS_T
 vchiq_platform_suspend(VCHIQ_STATE_T *state)
 {
-   return VCHIQ_ERROR;
+	return VCHIQ_ERROR;
 }
 
 VCHIQ_STATUS_T
 vchiq_platform_resume(VCHIQ_STATE_T *state)
 {
-   return VCHIQ_SUCCESS;
+	return VCHIQ_SUCCESS;
 }
 
 void
@@ -317,13 +317,13 @@ vchiq_platform_resumed(VCHIQ_STATE_T *state)
 int
 vchiq_platform_videocore_wanted(VCHIQ_STATE_T* state)
 {
-   return 1; // autosuspend not supported - videocore always wanted
+	return 1; // autosuspend not supported - videocore always wanted
 }
 
 int
 vchiq_platform_use_suspend_timer(void)
 {
-   return 0;
+	return 0;
 }
 void
 vchiq_dump_platform_use_state(VCHIQ_STATE_T *state)

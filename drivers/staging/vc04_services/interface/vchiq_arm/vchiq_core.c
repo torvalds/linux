@@ -3507,20 +3507,20 @@ release_message_sync(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header)
 VCHIQ_STATUS_T
 vchiq_get_peer_version(VCHIQ_SERVICE_HANDLE_T handle, short *peer_version)
 {
-   VCHIQ_STATUS_T status = VCHIQ_ERROR;
-   VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
+	VCHIQ_STATUS_T status = VCHIQ_ERROR;
+	VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
 
-   if (!service ||
-      (vchiq_check_service(service) != VCHIQ_SUCCESS) ||
-      !peer_version)
-      goto exit;
-   *peer_version = service->peer_version;
-   status = VCHIQ_SUCCESS;
+	if (!service ||
+	    (vchiq_check_service(service) != VCHIQ_SUCCESS) ||
+	    !peer_version)
+		goto exit;
+	*peer_version = service->peer_version;
+	status = VCHIQ_SUCCESS;
 
 exit:
-   if (service)
-      unlock_service(service);
-   return status;
+	if (service)
+		unlock_service(service);
+	return status;
 }
 
 VCHIQ_STATUS_T
@@ -3814,7 +3814,7 @@ vchiq_dump_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 				service->stats.bulk_stalls,
 				service->stats.bulk_aborted_count,
 				service->stats.error_count);
-		 }
+		}
 	}
 
 	vchiq_dump(dump_context, buf, len + 1);
