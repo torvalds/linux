@@ -145,6 +145,7 @@ do {								\
 		cpsw->data.active_slave)
 #define IRQ_NUM			2
 #define CPSW_MAX_QUEUES		8
+#define CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT 256
 
 static int debug_level;
 module_param(debug_level, int, 0);
@@ -157,6 +158,10 @@ MODULE_PARM_DESC(ale_ageout, "cpsw ale ageout interval (seconds)");
 static int rx_packet_max = CPSW_MAX_PACKET_SIZE;
 module_param(rx_packet_max, int, 0);
 MODULE_PARM_DESC(rx_packet_max, "maximum receive packet size (bytes)");
+
+static int descs_pool_size = CPSW_CPDMA_DESCS_POOL_SIZE_DEFAULT;
+module_param(descs_pool_size, int, 0444);
+MODULE_PARM_DESC(descs_pool_size, "Number of CPDMA CPPI descriptors in pool");
 
 struct cpsw_wr_regs {
 	u32	id_ver;
@@ -2479,6 +2484,90 @@ static int cpsw_nway_reset(struct net_device *ndev)
 		return -EOPNOTSUPP;
 }
 
+static void cpsw_get_ringparam(struct net_device *ndev,
+			       struct ethtool_ringparam *ering)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+
+	/* not supported */
+	ering->tx_max_pending = 0;
+	ering->tx_pending = cpdma_get_num_tx_descs(cpsw->dma);
+	/* Max 90% RX buffers */
+	ering->rx_max_pending = (descs_pool_size * 9) / 10;
+	ering->rx_pending = cpdma_get_num_rx_descs(cpsw->dma);
+}
+
+static int cpsw_set_ringparam(struct net_device *ndev,
+			      struct ethtool_ringparam *ering)
+{
+	struct cpsw_priv *priv = netdev_priv(ndev);
+	struct cpsw_common *cpsw = priv->cpsw;
+	struct cpsw_slave *slave;
+	int i, ret;
+
+	/* ignore ering->tx_pending - only rx_pending adjustment is supported */
+
+	if (ering->rx_mini_pending || ering->rx_jumbo_pending ||
+	    ering->rx_pending < (descs_pool_size / 10) ||
+	    ering->rx_pending > ((descs_pool_size * 9) / 10))
+		return -EINVAL;
+
+	if (ering->rx_pending == cpdma_get_num_rx_descs(cpsw->dma))
+		return 0;
+
+	/* Disable NAPI scheduling */
+	cpsw_intr_disable(cpsw);
+
+	/* Stop all transmit queues for every network device.
+	 * Disable re-using rx descriptors with dormant_on.
+	 */
+	for (i = cpsw->data.slaves, slave = cpsw->slaves; i; i--, slave++) {
+		if (!(slave->ndev && netif_running(slave->ndev)))
+			continue;
+
+		netif_tx_stop_all_queues(slave->ndev);
+		netif_dormant_on(slave->ndev);
+	}
+
+	/* Handle rest of tx packets and stop cpdma channels */
+	cpdma_ctlr_stop(cpsw->dma);
+
+	cpdma_set_num_rx_descs(cpsw->dma, ering->rx_pending);
+
+	for (i = cpsw->data.slaves, slave = cpsw->slaves; i; i--, slave++) {
+		if (!(slave->ndev && netif_running(slave->ndev)))
+			continue;
+
+		/* Enable rx packets handling */
+		netif_dormant_off(slave->ndev);
+	}
+
+	if (cpsw_common_res_usage_state(cpsw)) {
+		cpdma_chan_split_pool(cpsw->dma);
+
+		ret = cpsw_fill_rx_channels(priv);
+		if (ret)
+			goto err;
+
+		/* After this receive is started */
+		cpdma_ctlr_start(cpsw->dma);
+		cpsw_intr_enable(cpsw);
+	}
+
+	/* Resume transmit for every affected interface */
+	for (i = cpsw->data.slaves, slave = cpsw->slaves; i; i--, slave++) {
+		if (!(slave->ndev && netif_running(slave->ndev)))
+			continue;
+		netif_tx_start_all_queues(slave->ndev);
+	}
+	return 0;
+err:
+	dev_err(priv->dev, "cannot set ring params, closing device\n");
+	dev_close(ndev);
+	return ret;
+}
+
 static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_drvinfo	= cpsw_get_drvinfo,
 	.get_msglevel	= cpsw_get_msglevel,
@@ -2505,6 +2594,8 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_eee	= cpsw_get_eee,
 	.set_eee	= cpsw_set_eee,
 	.nway_reset	= cpsw_nway_reset,
+	.get_ringparam = cpsw_get_ringparam,
+	.set_ringparam = cpsw_set_ringparam,
 };
 
 static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_common *cpsw,
@@ -2969,6 +3060,7 @@ static int cpsw_probe(struct platform_device *pdev)
 	dma_params.has_ext_regs		= true;
 	dma_params.desc_hw_addr         = dma_params.desc_mem_phys;
 	dma_params.bus_freq_mhz		= cpsw->bus_freq_mhz;
+	dma_params.descs_pool_size	= descs_pool_size;
 
 	cpsw->dma = cpdma_ctlr_create(&dma_params);
 	if (!cpsw->dma) {
@@ -3072,9 +3164,9 @@ static int cpsw_probe(struct platform_device *pdev)
 		goto clean_ale_ret;
 	}
 
-	cpsw_notice(priv, probe, "initialized device (regs %pa, irq %d)\n",
-		    &ss_res->start, ndev->irq);
-
+	cpsw_notice(priv, probe,
+		    "initialized device (regs %pa, irq %d, pool size %d)\n",
+		    &ss_res->start, ndev->irq, dma_params.descs_pool_size);
 	if (cpsw->data.dual_emac) {
 		ret = cpsw_probe_dual_emac(priv);
 		if (ret) {
