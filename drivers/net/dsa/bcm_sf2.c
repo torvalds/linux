@@ -393,7 +393,7 @@ static int bcm_sf2_sw_mdio_read(struct mii_bus *bus, int addr, int regnum)
 	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
 		return bcm_sf2_sw_indir_rw(priv, 1, addr, regnum, 0);
 	else
-		return mdiobus_read(priv->master_mii_bus, addr, regnum);
+		return mdiobus_read_nested(priv->master_mii_bus, addr, regnum);
 }
 
 static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
@@ -407,7 +407,7 @@ static int bcm_sf2_sw_mdio_write(struct mii_bus *bus, int addr, int regnum,
 	if (addr == BRCM_PSEUDO_PHY_ADDR && priv->indir_phy_mask & BIT(addr))
 		bcm_sf2_sw_indir_rw(priv, 0, addr, regnum, val);
 	else
-		mdiobus_write(priv->master_mii_bus, addr, regnum, val);
+		mdiobus_write_nested(priv->master_mii_bus, addr, regnum, val);
 
 	return 0;
 }
