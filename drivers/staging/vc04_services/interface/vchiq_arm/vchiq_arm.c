@@ -2372,52 +2372,6 @@ out:
 	return resume;
 }
 
-void
-vchiq_platform_check_resume(VCHIQ_STATE_T *state)
-{
-	VCHIQ_ARM_STATE_T *arm_state = vchiq_platform_get_arm_state(state);
-	int res = 0;
-
-	if (!arm_state)
-		goto out;
-
-	vchiq_log_trace(vchiq_susp_log_level, "%s", __func__);
-
-	write_lock_bh(&arm_state->susp_res_lock);
-	if (arm_state->wake_address == 0) {
-		vchiq_log_info(vchiq_susp_log_level,
-					"%s: already awake", __func__);
-		goto unlock;
-	}
-	if (arm_state->vc_resume_state == VC_RESUME_IN_PROGRESS) {
-		vchiq_log_info(vchiq_susp_log_level,
-					"%s: already resuming", __func__);
-		goto unlock;
-	}
-
-	if (arm_state->vc_resume_state == VC_RESUME_REQUESTED) {
-		set_resume_state(arm_state, VC_RESUME_IN_PROGRESS);
-		res = 1;
-	} else
-		vchiq_log_trace(vchiq_susp_log_level,
-				"%s: not resuming (resume state %s)", __func__,
-				resume_state_names[arm_state->vc_resume_state +
-							VC_RESUME_NUM_OFFSET]);
-
-unlock:
-	write_unlock_bh(&arm_state->susp_res_lock);
-
-	if (res)
-		vchiq_platform_resume(state);
-
-out:
-	vchiq_log_trace(vchiq_susp_log_level, "%s exit", __func__);
-	return;
-
-}
-
-
-
 VCHIQ_STATUS_T
 vchiq_use_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 		enum USE_TYPE_E use_type)
