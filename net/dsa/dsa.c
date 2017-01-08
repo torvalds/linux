@@ -60,18 +60,18 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 static DEFINE_MUTEX(dsa_switch_drivers_mutex);
 static LIST_HEAD(dsa_switch_drivers);
 
-void register_switch_driver(struct dsa_switch_ops *ops)
+void register_switch_driver(struct dsa_switch_driver *drv)
 {
 	mutex_lock(&dsa_switch_drivers_mutex);
-	list_add_tail(&ops->list, &dsa_switch_drivers);
+	list_add_tail(&drv->list, &dsa_switch_drivers);
 	mutex_unlock(&dsa_switch_drivers_mutex);
 }
 EXPORT_SYMBOL_GPL(register_switch_driver);
 
-void unregister_switch_driver(struct dsa_switch_ops *ops)
+void unregister_switch_driver(struct dsa_switch_driver *drv)
 {
 	mutex_lock(&dsa_switch_drivers_mutex);
-	list_del_init(&ops->list);
+	list_del_init(&drv->list);
 	mutex_unlock(&dsa_switch_drivers_mutex);
 }
 EXPORT_SYMBOL_GPL(unregister_switch_driver);
@@ -90,8 +90,10 @@ dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
 	mutex_lock(&dsa_switch_drivers_mutex);
 	list_for_each(list, &dsa_switch_drivers) {
 		struct dsa_switch_ops *ops;
+		struct dsa_switch_driver *drv;
 
-		ops = list_entry(list, struct dsa_switch_ops, list);
+		drv = list_entry(list, struct dsa_switch_driver, list);
+		ops = drv->ops;
 
 		name = ops->probe(parent, host_dev, sw_addr, priv);
 		if (name != NULL) {

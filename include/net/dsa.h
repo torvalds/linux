@@ -240,8 +240,6 @@ struct switchdev_obj_port_mdb;
 struct switchdev_obj_port_vlan;
 
 struct dsa_switch_ops {
-	struct list_head	list;
-
 	/*
 	 * Probing and setup.
 	 */
@@ -390,8 +388,13 @@ struct dsa_switch_ops {
 				 int (*cb)(struct switchdev_obj *obj));
 };
 
-void register_switch_driver(struct dsa_switch_ops *type);
-void unregister_switch_driver(struct dsa_switch_ops *type);
+struct dsa_switch_driver {
+	struct list_head	list;
+	struct dsa_switch_ops	*ops;
+};
+
+void register_switch_driver(struct dsa_switch_driver *type);
+void unregister_switch_driver(struct dsa_switch_driver *type);
 struct mii_bus *dsa_host_dev_to_mii_bus(struct device *dev);
 
 static inline bool dsa_uses_tagged_protocol(struct dsa_switch_tree *dst)

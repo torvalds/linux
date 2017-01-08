@@ -261,16 +261,20 @@ static struct dsa_switch_ops mv88e6060_switch_ops = {
 	.phy_write	= mv88e6060_phy_write,
 };
 
+static struct dsa_switch_driver mv88e6060_switch_drv = {
+	.ops		= &mv88e6060_switch_ops,
+};
+
 static int __init mv88e6060_init(void)
 {
-	register_switch_driver(&mv88e6060_switch_ops);
+	register_switch_driver(&mv88e6060_switch_drv);
 	return 0;
 }
 module_init(mv88e6060_init);
 
 static void __exit mv88e6060_cleanup(void)
 {
-	unregister_switch_driver(&mv88e6060_switch_ops);
+	unregister_switch_driver(&mv88e6060_switch_drv);
 }
 module_exit(mv88e6060_cleanup);
 
