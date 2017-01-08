@@ -356,7 +356,7 @@ static struct mmc_test_mem *mmc_test_alloc_mem(unsigned long min_sz,
 	if (max_segs > max_page_cnt)
 		max_segs = max_page_cnt;
 
-	mem = kzalloc(sizeof(struct mmc_test_mem), GFP_KERNEL);
+	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
 		return NULL;
 
@@ -545,7 +545,7 @@ static void mmc_test_save_transfer_result(struct mmc_test_card *test,
 	if (!test->gr)
 		return;
 
-	tr = kmalloc(sizeof(struct mmc_test_transfer_result), GFP_KERNEL);
+	tr = kmalloc(sizeof(*tr), GFP_KERNEL);
 	if (!tr)
 		return;
 
@@ -2973,8 +2973,7 @@ static void mmc_test_run(struct mmc_test_card *test, int testcase)
 			}
 		}
 
-		gr = kzalloc(sizeof(struct mmc_test_general_result),
-			GFP_KERNEL);
+		gr = kzalloc(sizeof(*gr), GFP_KERNEL);
 		if (gr) {
 			INIT_LIST_HEAD(&gr->tr_lst);
 
@@ -3108,7 +3107,7 @@ static ssize_t mtf_test_write(struct file *file, const char __user *buf,
 	if (ret)
 		return ret;
 
-	test = kzalloc(sizeof(struct mmc_test_card), GFP_KERNEL);
+	test = kzalloc(sizeof(*test), GFP_KERNEL);
 	if (!test)
 		return -ENOMEM;
 
@@ -3213,7 +3212,7 @@ static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
 		return -ENODEV;
 	}
 
-	df = kmalloc(sizeof(struct mmc_test_dbgfs_file), GFP_KERNEL);
+	df = kmalloc(sizeof(*df), GFP_KERNEL);
 	if (!df) {
 		debugfs_remove(file);
 		dev_err(&card->dev,
