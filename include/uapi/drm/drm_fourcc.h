@@ -154,6 +154,7 @@ extern "C" {
 
 /* Vendor Ids: */
 #define DRM_FORMAT_MOD_NONE           0
+#define DRM_FORMAT_MOD_VENDOR_NONE    0
 #define DRM_FORMAT_MOD_VENDOR_INTEL   0x01
 #define DRM_FORMAT_MOD_VENDOR_AMD     0x02
 #define DRM_FORMAT_MOD_VENDOR_NV      0x03
@@ -171,6 +172,16 @@ extern "C" {
  * similar to the fourcc codes above. drm_fourcc.h is considered the
  * authoritative source for all of these.
  */
+
+/*
+ * Linear Layout
+ *
+ * Just plain linear layout. Note that this is different from no specifying any
+ * modifier (e.g. not setting DRM_MODE_FB_MODIFIERS in the DRM_ADDFB2 ioctl),
+ * which tells the driver to also take driver-internal information into account
+ * and so might actually result in a tiled framebuffer.
+ */
+#define DRM_FORMAT_MOD_LINEAR	fourcc_mod_code(NONE, 0)
 
 /* Intel framebuffer modifiers */
 

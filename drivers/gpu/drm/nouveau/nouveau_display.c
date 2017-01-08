@@ -162,7 +162,7 @@ nouveau_display_vblstamp(struct drm_device *dev, unsigned int pipe,
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (nouveau_crtc(crtc)->index == pipe) {
 			struct drm_display_mode *mode;
-			if (dev->mode_config.funcs->atomic_commit)
+			if (drm_drv_uses_atomic_modeset(dev))
 				mode = &crtc->state->adjusted_mode;
 			else
 				mode = &crtc->hwmode;
@@ -259,7 +259,7 @@ nouveau_framebuffer_new(struct drm_device *dev,
 	if (!(fb = *pfb = kzalloc(sizeof(*fb), GFP_KERNEL)))
 		return -ENOMEM;
 
-	drm_helper_mode_fill_fb_struct(&fb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
 	fb->nvbo = nvbo;
 
 	ret = drm_framebuffer_init(dev, &fb->base, &nouveau_framebuffer_funcs);
@@ -738,7 +738,7 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 	struct nouveau_display *disp = nouveau_display(dev);
 	struct drm_crtc *crtc;
 
-	if (dev->mode_config.funcs->atomic_commit) {
+	if (drm_drv_uses_atomic_modeset(dev)) {
 		if (!runtime) {
 			disp->suspend = nouveau_atomic_suspend(dev);
 			if (IS_ERR(disp->suspend)) {
@@ -784,7 +784,7 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 	struct drm_crtc *crtc;
 	int ret;
 
-	if (dev->mode_config.funcs->atomic_commit) {
+	if (drm_drv_uses_atomic_modeset(dev)) {
 		nouveau_display_init(dev);
 		if (disp->suspend) {
 			drm_atomic_helper_resume(dev, disp->suspend);
@@ -947,7 +947,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Initialize a page flip struct */
 	*s = (struct nouveau_page_flip_state)
-		{ { }, event, crtc, fb->bits_per_pixel, fb->pitches[0],
+		{ { }, event, crtc, fb->format->cpp[0] * 8, fb->pitches[0],
 		  new_bo->bo.offset };
 
 	/* Keep vblanks on during flip, for the target crtc of this flip */

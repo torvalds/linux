@@ -38,11 +38,11 @@ static void mga_crtc_load_lut(struct drm_crtc *crtc)
 
 	WREG8(DAC_INDEX + MGA1064_INDEX, 0);
 
-	if (fb && fb->bits_per_pixel == 16) {
-		int inc = (fb->depth == 15) ? 8 : 4;
+	if (fb && fb->format->cpp[0] * 8 == 16) {
+		int inc = (fb->format->depth == 15) ? 8 : 4;
 		u8 r, b;
 		for (i = 0; i < MGAG200_LUT_SIZE; i += inc) {
-			if (fb->depth == 16) {
+			if (fb->format->depth == 16) {
 				if (i > (MGAG200_LUT_SIZE >> 1)) {
 					r = b = 0;
 				} else {
@@ -880,6 +880,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = dev->dev_private;
+	const struct drm_framebuffer *fb = crtc->primary->fb;
 	int hdisplay, hsyncstart, hsyncend, htotal;
 	int vdisplay, vsyncstart, vsyncend, vtotal;
 	int pitch;
@@ -902,7 +903,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		/* 0x48: */        0,    0,    0,    0,    0,    0,    0,    0
 	};
 
-	bppshift = mdev->bpp_shifts[(crtc->primary->fb->bits_per_pixel >> 3) - 1];
+	bppshift = mdev->bpp_shifts[fb->format->cpp[0] - 1];
 
 	switch (mdev->type) {
 	case G200_SE_A:
@@ -941,12 +942,12 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		break;
 	}
 
-	switch (crtc->primary->fb->bits_per_pixel) {
+	switch (fb->format->cpp[0] * 8) {
 	case 8:
 		dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_8bits;
 		break;
 	case 16:
-		if (crtc->primary->fb->depth == 15)
+		if (fb->format->depth == 15)
 			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_15bits;
 		else
 			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_16bits;
@@ -997,8 +998,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_SEQ(3, 0);
 	WREG_SEQ(4, 0xe);
 
-	pitch = crtc->primary->fb->pitches[0] / (crtc->primary->fb->bits_per_pixel / 8);
-	if (crtc->primary->fb->bits_per_pixel == 24)
+	pitch = fb->pitches[0] / fb->format->cpp[0];
+	if (fb->format->cpp[0] * 8 == 24)
 		pitch = (pitch * 3) >> (4 - bppshift);
 	else
 		pitch = pitch >> (4 - bppshift);
@@ -1075,7 +1076,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		((vdisplay & 0xc00) >> 7) |
 		((vsyncstart & 0xc00) >> 5) |
 		((vdisplay & 0x400) >> 3);
-	if (crtc->primary->fb->bits_per_pixel == 24)
+	if (fb->format->cpp[0] * 8 == 24)
 		ext_vga[3] = (((1 << bppshift) * 3) - 1) | 0x80;
 	else
 		ext_vga[3] = ((1 << bppshift) - 1) | 0x80;
@@ -1138,9 +1139,9 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 			u32 bpp;
 			u32 mb;
 
-			if (crtc->primary->fb->bits_per_pixel > 16)
+			if (fb->format->cpp[0] * 8 > 16)
 				bpp = 32;
-			else if (crtc->primary->fb->bits_per_pixel > 8)
+			else if (fb->format->cpp[0] * 8 > 8)
 				bpp = 16;
 			else
 				bpp = 8;

@@ -261,7 +261,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	/* This driver doesn't need a VT switch to restore the mode on resume */
 	info->skip_vt_switch = true;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* If the object is shmemfs backed, it will have given us zeroed pages.
@@ -621,7 +621,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		 * rather than the current pipe's, since they differ.
 		 */
 		cur_size = intel_crtc->config->base.adjusted_mode.crtc_hdisplay;
-		cur_size = cur_size * fb->base.bits_per_pixel / 8;
+		cur_size = cur_size * fb->base.format->cpp[0];
 		if (fb->base.pitches[0] < cur_size) {
 			DRM_DEBUG_KMS("fb not wide enough for plane %c (%d vs %d)\n",
 				      pipe_name(intel_crtc->pipe),
@@ -632,14 +632,14 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 
 		cur_size = intel_crtc->config->base.adjusted_mode.crtc_vdisplay;
 		cur_size = intel_fb_align_height(dev, cur_size,
-						 fb->base.pixel_format,
+						 fb->base.format->format,
 						 fb->base.modifier);
 		cur_size *= fb->base.pitches[0];
 		DRM_DEBUG_KMS("pipe %c area: %dx%d, bpp: %d, size: %d\n",
 			      pipe_name(intel_crtc->pipe),
 			      intel_crtc->config->base.adjusted_mode.crtc_hdisplay,
 			      intel_crtc->config->base.adjusted_mode.crtc_vdisplay,
-			      fb->base.bits_per_pixel,
+			      fb->base.format->cpp[0] * 8,
 			      cur_size);
 
 		if (cur_size > max_size) {
@@ -660,7 +660,7 @@ static bool intel_fbdev_init_bios(struct drm_device *dev,
 		goto out;
 	}
 
-	ifbdev->preferred_bpp = fb->base.bits_per_pixel;
+	ifbdev->preferred_bpp = fb->base.format->cpp[0] * 8;
 	ifbdev->fb = fb;
 
 	drm_framebuffer_reference(&ifbdev->fb->base);

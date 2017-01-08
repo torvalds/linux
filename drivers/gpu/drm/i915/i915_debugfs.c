@@ -1873,8 +1873,8 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		seq_printf(m, "fbcon size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
 			   fbdev_fb->base.width,
 			   fbdev_fb->base.height,
-			   fbdev_fb->base.depth,
-			   fbdev_fb->base.bits_per_pixel,
+			   fbdev_fb->base.format->depth,
+			   fbdev_fb->base.format->cpp[0] * 8,
 			   fbdev_fb->base.modifier,
 			   drm_framebuffer_read_refcount(&fbdev_fb->base));
 		describe_obj(m, fbdev_fb->obj);
@@ -1891,8 +1891,8 @@ static int i915_gem_framebuffer_info(struct seq_file *m, void *data)
 		seq_printf(m, "user size: %d x %d, depth %d, %d bpp, modifier 0x%llx, refcount %d, obj ",
 			   fb->base.width,
 			   fb->base.height,
-			   fb->base.depth,
-			   fb->base.bits_per_pixel,
+			   fb->base.format->depth,
+			   fb->base.format->cpp[0] * 8,
 			   fb->base.modifier,
 			   drm_framebuffer_read_refcount(&fb->base));
 		describe_obj(m, fb->obj);
@@ -3021,7 +3021,8 @@ static void intel_plane_info(struct seq_file *m, struct intel_crtc *intel_crtc)
 		state = plane->state;
 
 		if (state->fb) {
-			drm_get_format_name(state->fb->pixel_format, &format_name);
+			drm_get_format_name(state->fb->format->format,
+					    &format_name);
 		} else {
 			sprintf(format_name.str, "N/A");
 		}

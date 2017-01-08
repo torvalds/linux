@@ -1153,7 +1153,7 @@ nv50_curs_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (asyw->state.fb->width != asyw->state.fb->height)
 		return -EINVAL;
 
-	switch (asyw->state.fb->pixel_format) {
+	switch (asyw->state.fb->format->format) {
 	case DRM_FORMAT_ARGB8888: asyh->curs.format = 1; break;
 	default:
 		WARN_ON(1);
@@ -1418,12 +1418,10 @@ static int
 nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		  struct nv50_head_atom *asyh)
 {
-	const u32 format = asyw->state.fb->pixel_format;
-	const struct drm_format_info *info;
+	const struct drm_framebuffer *fb = asyw->state.fb;
 	int ret;
 
-	info = drm_format_info(format);
-	if (!info || !info->depth)
+	if (!fb->format->depth)
 		return -EINVAL;
 
 	ret = drm_plane_helper_check_state(&asyw->state, &asyw->clip,
@@ -1433,14 +1431,14 @@ nv50_base_acquire(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	if (ret)
 		return ret;
 
-	asyh->base.depth = info->depth;
-	asyh->base.cpp = info->cpp[0];
+	asyh->base.depth = fb->format->depth;
+	asyh->base.cpp = fb->format->cpp[0];
 	asyh->base.x = asyw->state.src.x1 >> 16;
 	asyh->base.y = asyw->state.src.y1 >> 16;
 	asyh->base.w = asyw->state.fb->width;
 	asyh->base.h = asyw->state.fb->height;
 
-	switch (format) {
+	switch (fb->format->format) {
 	case DRM_FORMAT_C8         : asyw->image.format = 0x1e; break;
 	case DRM_FORMAT_RGB565     : asyw->image.format = 0xe8; break;
 	case DRM_FORMAT_XRGB1555   :

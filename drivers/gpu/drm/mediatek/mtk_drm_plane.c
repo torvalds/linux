@@ -133,9 +133,9 @@ static void mtk_plane_atomic_update(struct drm_plane *plane,
 	mtk_gem = to_mtk_gem_obj(gem);
 	addr = mtk_gem->dma_addr;
 	pitch = fb->pitches[0];
-	format = fb->pixel_format;
+	format = fb->format->format;
 
-	addr += (plane->state->src.x1 >> 16) * drm_format_plane_cpp(format, 0);
+	addr += (plane->state->src.x1 >> 16) * fb->format->cpp[0];
 	addr += (plane->state->src.y1 >> 16) * pitch;
 
 	state->pending.enable = true;

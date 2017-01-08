@@ -432,8 +432,8 @@ int drm_mode_getfb(struct drm_device *dev,
 
 	r->height = fb->height;
 	r->width = fb->width;
-	r->depth = fb->depth;
-	r->bpp = fb->bits_per_pixel;
+	r->depth = fb->format->depth;
+	r->bpp = fb->format->cpp[0] * 8;
 	r->pitch = fb->pitches[0];
 	if (fb->funcs->create_handle) {
 		if (drm_is_current_master(file_priv) || capable(CAP_SYS_ADMIN) ||
@@ -631,8 +631,11 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 {
 	int ret;
 
+	if (WARN_ON_ONCE(fb->dev != dev || !fb->format))
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&fb->filp_head);
-	fb->dev = dev;
+
 	fb->funcs = funcs;
 
 	ret = drm_mode_object_get_reg(dev, &fb->base, DRM_MODE_OBJECT_FB,
@@ -790,3 +793,47 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 	drm_framebuffer_unreference(fb);
 }
 EXPORT_SYMBOL(drm_framebuffer_remove);
+
+/**
+ * drm_framebuffer_plane_width - width of the plane given the first plane
+ * @width: width of the first plane
+ * @fb: the framebuffer
+ * @plane: plane index
+ *
+ * Returns:
+ * The width of @plane, given that the width of the first plane is @width.
+ */
+int drm_framebuffer_plane_width(int width,
+				const struct drm_framebuffer *fb, int plane)
+{
+	if (plane >= fb->format->num_planes)
+		return 0;
+
+	if (plane == 0)
+		return width;
+
+	return width / fb->format->hsub;
+}
+EXPORT_SYMBOL(drm_framebuffer_plane_width);
+
+/**
+ * drm_framebuffer_plane_height - height of the plane given the first plane
+ * @height: height of the first plane
+ * @fb: the framebuffer
+ * @plane: plane index
+ *
+ * Returns:
+ * The height of @plane, given that the height of the first plane is @height.
+ */
+int drm_framebuffer_plane_height(int height,
+				 const struct drm_framebuffer *fb, int plane)
+{
+	if (plane >= fb->format->num_planes)
+		return 0;
+
+	if (plane == 0)
+		return height;
+
+	return height / fb->format->vsub;
+}
+EXPORT_SYMBOL(drm_framebuffer_plane_height);

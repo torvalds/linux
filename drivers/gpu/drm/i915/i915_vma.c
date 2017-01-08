@@ -320,11 +320,11 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 		return true;
 
 	other = list_entry(gtt_space->node_list.prev, struct drm_mm_node, node_list);
-	if (other->allocated && !other->hole_follows && other->color != cache_level)
+	if (other->allocated && !drm_mm_hole_follows(other) && other->color != cache_level)
 		return false;
 
 	other = list_entry(gtt_space->node_list.next, struct drm_mm_node, node_list);
-	if (other->allocated && !gtt_space->hole_follows && other->color != cache_level)
+	if (other->allocated && !drm_mm_hole_follows(gtt_space) && other->color != cache_level)
 		return false;
 
 	return true;

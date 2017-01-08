@@ -1841,13 +1841,12 @@ static int dw_hdmi_register(struct drm_device *drm, struct dw_hdmi *hdmi)
 	hdmi->bridge = bridge;
 	bridge->driver_private = hdmi;
 	bridge->funcs = &dw_hdmi_bridge_funcs;
-	ret = drm_bridge_attach(drm, bridge);
+	ret = drm_bridge_attach(encoder, bridge, NULL);
 	if (ret) {
 		DRM_ERROR("Failed to initialize bridge with drm\n");
 		return -EINVAL;
 	}
 
-	encoder->bridge = bridge;
 	hdmi->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
 	drm_connector_helper_add(&hdmi->connector,

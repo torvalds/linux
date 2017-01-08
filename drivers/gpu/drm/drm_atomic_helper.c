@@ -94,9 +94,10 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 {
 	struct drm_connector_state *conn_state;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_encoder *encoder;
 	unsigned encoder_mask = 0;
-	int i, ret;
+	int i, ret = 0;
 
 	/*
 	 * First loop, find all newly assigned encoders from the connectors
@@ -144,7 +145,8 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 	 * and the crtc is disabled if no encoder is left. This preserves
 	 * compatibility with the legacy set_config behavior.
 	 */
-	drm_for_each_connector(connector, state->dev) {
+	drm_connector_list_iter_get(state->dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct drm_crtc_state *crtc_state;
 
 		if (drm_atomic_get_existing_connector_state(state, connector))
@@ -160,12 +162,15 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 					 connector->state->crtc->base.id,
 					 connector->state->crtc->name,
 					 connector->base.id, connector->name);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 
 		conn_state = drm_atomic_get_connector_state(state, connector);
-		if (IS_ERR(conn_state))
-			return PTR_ERR(conn_state);
+		if (IS_ERR(conn_state)) {
+			ret = PTR_ERR(conn_state);
+			goto out;
+		}
 
 		DRM_DEBUG_ATOMIC("[ENCODER:%d:%s] in use on [CRTC:%d:%s], disabling [CONNECTOR:%d:%s]\n",
 				 encoder->base.id, encoder->name,
@@ -176,19 +181,21 @@ static int handle_conflicting_encoders(struct drm_atomic_state *state,
 
 		ret = drm_atomic_set_crtc_for_connector(conn_state, NULL);
 		if (ret)
-			return ret;
+			goto out;
 
 		if (!crtc_state->connector_mask) {
 			ret = drm_atomic_set_mode_prop_for_crtc(crtc_state,
 								NULL);
 			if (ret < 0)
-				return ret;
+				goto out;
 
 			crtc_state->active = false;
 		}
 	}
+out:
+	drm_connector_list_iter_put(&conn_iter);
 
-	return 0;
+	return ret;
 }
 
 static void
@@ -1058,41 +1065,6 @@ int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
 EXPORT_SYMBOL(drm_atomic_helper_wait_for_fences);
 
 /**
- * drm_atomic_helper_framebuffer_changed - check if framebuffer has changed
- * @dev: DRM device
- * @old_state: atomic state object with old state structures
- * @crtc: DRM crtc
- *
- * Checks whether the framebuffer used for this CRTC changes as a result of
- * the atomic update.  This is useful for drivers which cannot use
- * drm_atomic_helper_wait_for_vblanks() and need to reimplement its
- * functionality.
- *
- * Returns:
- * true if the framebuffer changed.
- */
-bool drm_atomic_helper_framebuffer_changed(struct drm_device *dev,
-					   struct drm_atomic_state *old_state,
-					   struct drm_crtc *crtc)
-{
-	struct drm_plane *plane;
-	struct drm_plane_state *old_plane_state;
-	int i;
-
-	for_each_plane_in_state(old_state, plane, old_plane_state, i) {
-		if (plane->state->crtc != crtc &&
-		    old_plane_state->crtc != crtc)
-			continue;
-
-		if (plane->state->fb != old_plane_state->fb)
-			return true;
-	}
-
-	return false;
-}
-EXPORT_SYMBOL(drm_atomic_helper_framebuffer_changed);
-
-/**
  * drm_atomic_helper_wait_for_vblanks - wait for vblank on crtcs
  * @dev: DRM device
  * @old_state: atomic state object with old state structures
@@ -1110,39 +1082,35 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	int i, ret;
+	unsigned crtc_mask = 0;
+
+	 /*
+	  * Legacy cursor ioctls are completely unsynced, and userspace
+	  * relies on that (by doing tons of cursor updates).
+	  */
+	if (old_state->legacy_cursor_update)
+		return;
 
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		/* No one cares about the old state, so abuse it for tracking
-		 * and store whether we hold a vblank reference (and should do a
-		 * vblank wait) in the ->enable boolean. */
-		old_crtc_state->enable = false;
+		struct drm_crtc_state *new_crtc_state = crtc->state;
 
-		if (!crtc->state->enable)
-			continue;
-
-		/* Legacy cursor ioctls are completely unsynced, and userspace
-		 * relies on that (by doing tons of cursor updates). */
-		if (old_state->legacy_cursor_update)
-			continue;
-
-		if (!drm_atomic_helper_framebuffer_changed(dev,
-				old_state, crtc))
+		if (!new_crtc_state->active || !new_crtc_state->planes_changed)
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);
 		if (ret != 0)
 			continue;
 
-		old_crtc_state->enable = true;
-		old_crtc_state->last_vblank_count = drm_crtc_vblank_count(crtc);
+		crtc_mask |= drm_crtc_mask(crtc);
+		old_state->crtcs[i].last_vblank_count = drm_crtc_vblank_count(crtc);
 	}
 
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		if (!old_crtc_state->enable)
+		if (!(crtc_mask & drm_crtc_mask(crtc)))
 			continue;
 
 		ret = wait_event_timeout(dev->vblank[i].queue,
-				old_crtc_state->last_vblank_count !=
+				old_state->crtcs[i].last_vblank_count !=
 					drm_crtc_vblank_count(crtc),
 				msecs_to_jiffies(50));
 
@@ -1664,9 +1632,6 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 
 		funcs = plane->helper_private;
 
-		if (!drm_atomic_helper_framebuffer_changed(dev, state, plane_state->crtc))
-			continue;
-
 		if (funcs->prepare_fb) {
 			ret = funcs->prepare_fb(plane, plane_state);
 			if (ret)
@@ -1681,9 +1646,6 @@ fail:
 		const struct drm_plane_helper_funcs *funcs;
 
 		if (j >= i)
-			continue;
-
-		if (!drm_atomic_helper_framebuffer_changed(dev, state, plane_state->crtc))
 			continue;
 
 		funcs = plane->helper_private;
@@ -1951,9 +1913,6 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 
 	for_each_plane_in_state(old_state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
-
-		if (!drm_atomic_helper_framebuffer_changed(dev, old_state, plane_state->crtc))
-			continue;
 
 		funcs = plane->helper_private;
 
@@ -2442,6 +2401,7 @@ int drm_atomic_helper_disable_all(struct drm_device *dev,
 {
 	struct drm_atomic_state *state;
 	struct drm_connector *conn;
+	struct drm_connector_list_iter conn_iter;
 	int err;
 
 	state = drm_atomic_state_alloc(dev);
@@ -2450,7 +2410,8 @@ int drm_atomic_helper_disable_all(struct drm_device *dev,
 
 	state->acquire_ctx = ctx;
 
-	drm_for_each_connector(conn, dev) {
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(conn, &conn_iter) {
 		struct drm_crtc *crtc = conn->state->crtc;
 		struct drm_crtc_state *crtc_state;
 
@@ -2468,6 +2429,7 @@ int drm_atomic_helper_disable_all(struct drm_device *dev,
 
 	err = drm_atomic_commit(state);
 free:
+	drm_connector_list_iter_put(&conn_iter);
 	drm_atomic_state_put(state);
 	return err;
 }
@@ -2840,6 +2802,7 @@ int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
 	struct drm_crtc_state *crtc_state;
 	struct drm_crtc *crtc;
 	struct drm_connector *tmp_connector;
+	struct drm_connector_list_iter conn_iter;
 	int ret;
 	bool active = false;
 	int old_mode = connector->dpms;
@@ -2867,7 +2830,8 @@ retry:
 
 	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
 
-	drm_for_each_connector(tmp_connector, connector->dev) {
+	drm_connector_list_iter_get(connector->dev, &conn_iter);
+	drm_for_each_connector_iter(tmp_connector, &conn_iter) {
 		if (tmp_connector->state->crtc != crtc)
 			continue;
 
@@ -2876,6 +2840,7 @@ retry:
 			break;
 		}
 	}
+	drm_connector_list_iter_put(&conn_iter);
 	crtc_state->active = active;
 
 	ret = drm_atomic_commit(state);
@@ -3253,6 +3218,7 @@ drm_atomic_helper_duplicate_state(struct drm_device *dev,
 {
 	struct drm_atomic_state *state;
 	struct drm_connector *conn;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	int err = 0;
@@ -3283,15 +3249,18 @@ drm_atomic_helper_duplicate_state(struct drm_device *dev,
 		}
 	}
 
-	drm_for_each_connector(conn, dev) {
+	drm_connector_list_iter_get(dev, &conn_iter);
+	drm_for_each_connector_iter(conn, &conn_iter) {
 		struct drm_connector_state *conn_state;
 
 		conn_state = drm_atomic_get_connector_state(state, conn);
 		if (IS_ERR(conn_state)) {
 			err = PTR_ERR(conn_state);
+			drm_connector_list_iter_put(&conn_iter);
 			goto free;
 		}
 	}
+	drm_connector_list_iter_put(&conn_iter);
 
 	/* clear the acquire context so that it isn't accidentally reused */
 	state->acquire_ctx = NULL;

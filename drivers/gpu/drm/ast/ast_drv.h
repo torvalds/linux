@@ -28,6 +28,7 @@
 #ifndef __AST_DRV_H__
 #define __AST_DRV_H__
 
+#include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 
 #include <drm/ttm/ttm_bo_api.h>
