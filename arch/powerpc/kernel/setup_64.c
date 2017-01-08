@@ -472,11 +472,27 @@ static bool __init parse_cache_info(struct device_node *np,
 
 void __init initialize_cache_info(void)
 {
-	struct device_node *cpu, *l2, *l3 = NULL;
+	struct device_node *cpu = NULL, *l2, *l3 = NULL;
+	u32 pvr;
 
 	DBG(" -> initialize_cache_info()\n");
 
-	cpu = of_find_node_by_type(NULL, "cpu");
+	/*
+	 * All shipping POWER8 machines have a firmware bug that
+	 * puts incorrect information in the device-tree. This will
+	 * be (hopefully) fixed for future chips but for now hard
+	 * code the values if we are running on one of these
+	 */
+	pvr = PVR_VER(mfspr(SPRN_PVR));
+	if (pvr == PVR_POWER8 || pvr == PVR_POWER8E ||
+	    pvr == PVR_POWER8NVL) {
+						/* size    lsize   blk  sets */
+		init_cache_info(&ppc64_caches.l1i, 0x8000,   128,  128, 32);
+		init_cache_info(&ppc64_caches.l1d, 0x10000,  128,  128, 64);
+		init_cache_info(&ppc64_caches.l2,  0x80000,  128,  0,   512);
+		init_cache_info(&ppc64_caches.l3,  0x800000, 128,  0,   8192);
+	} else
+		cpu = of_find_node_by_type(NULL, "cpu");
 
 	/*
 	 * We're assuming *all* of the CPUs have the same
