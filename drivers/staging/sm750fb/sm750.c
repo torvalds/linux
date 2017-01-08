@@ -100,7 +100,6 @@ static const struct fb_videomode lynx750_ext[] = {
 	 FB_VMODE_NONINTERLACED},
 };
 
-
 /* no hardware cursor supported under version 2.6.10, kernel bug */
 static int lynxfb_ops_cursor(struct fb_info *info, struct fb_cursor *fbcursor)
 {
