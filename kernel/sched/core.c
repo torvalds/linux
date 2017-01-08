@@ -6155,6 +6155,9 @@ static int init_rootdomain(struct root_domain *rd)
 		goto free_rto_mask;
 
 	init_max_cpu_capacity(&rd->max_cpu_capacity);
+
+	rd->max_cap_orig_cpu = rd->min_cap_orig_cpu = -1;
+
 	return 0;
 
 free_rto_mask:
@@ -7385,7 +7388,19 @@ static int build_sched_domains(const struct cpumask *cpu_map,
 	/* Attach the domains */
 	rcu_read_lock();
 	for_each_cpu(i, cpu_map) {
+		int max_cpu = READ_ONCE(d.rd->max_cap_orig_cpu);
+		int min_cpu = READ_ONCE(d.rd->min_cap_orig_cpu);
+
+		if ((max_cpu < 0) || (cpu_rq(i)->cpu_capacity_orig >
+		    cpu_rq(max_cpu)->cpu_capacity_orig))
+			WRITE_ONCE(d.rd->max_cap_orig_cpu, i);
+
+		if ((min_cpu < 0) || (cpu_rq(i)->cpu_capacity_orig <
+		    cpu_rq(min_cpu)->cpu_capacity_orig))
+			WRITE_ONCE(d.rd->min_cap_orig_cpu, i);
+
 		sd = *per_cpu_ptr(d.sd, i);
+
 		cpu_attach_domain(sd, d.rd, i);
 	}
 	rcu_read_unlock();
