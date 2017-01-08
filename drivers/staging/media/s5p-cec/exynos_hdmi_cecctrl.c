@@ -87,7 +87,6 @@ void s5p_cec_mask_tx_interrupts(struct s5p_cec_dev *cec)
 	reg |= S5P_CEC_IRQ_TX_DONE;
 	reg |= S5P_CEC_IRQ_TX_ERROR;
 	writeb(reg, cec->reg + S5P_CEC_IRQ_MASK);
-
 }
 
 void s5p_cec_unmask_tx_interrupts(struct s5p_cec_dev *cec)
