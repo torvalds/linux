@@ -47,6 +47,7 @@ struct cluster_info {
 	unsigned int min_freq;
 	unsigned int min_volt;
 	struct leakage_volt_table *table;
+	unsigned int adjust_done;
 };
 
 struct rockchip_cpu_avs {
@@ -108,27 +109,19 @@ static int rockchip_cpu_avs_notifier(struct notifier_block *nb,
 	int i, id, cpu = policy->cpu;
 	int ret;
 
-	if (event == CPUFREQ_CREATE_POLICY) {
-		for (id = 0; id < MAX_CLUSTERS; id++) {
-			if (cpumask_test_cpu(policy->cpu,
-					     &avs->allowed_cpus[id]))
-				break;
-			if (cpumask_empty(&avs->allowed_cpus[id])) {
-				cpumask_copy(&avs->allowed_cpus[id],
-					     policy->related_cpus);
-				break;
-			}
-		}
-		goto out;
-	}
-
-	if (event != CPUFREQ_START)
+	if (event != CPUFREQ_CREATE_POLICY && event  != CPUFREQ_START)
 		goto out;
 
 	for (id = 0; id < MAX_CLUSTERS; id++) {
 		if (cpumask_test_cpu(cpu, &avs->allowed_cpus[id]))
 			break;
+		if (cpumask_empty(&avs->allowed_cpus[id])) {
+			cpumask_copy(&avs->allowed_cpus[id],
+				     policy->related_cpus);
+			break;
+		}
 	}
+
 	if (id == MAX_CLUSTERS) {
 		pr_err("cpu%d invalid cluster id\n", cpu);
 		goto out;
@@ -157,7 +150,23 @@ static int rockchip_cpu_avs_notifier(struct notifier_block *nb,
 		goto next;
 	}
 
-	rockchip_leakage_adjust_table(cpu_dev, policy->freq_table, cluster);
+	/*
+	 * First time, CPUFREQ_CREATE_POLICY, adjust talbe
+	 * Second time, CPUFREQ_START, no need to adjust again
+	 * Later, cpu down and up, CPUFREQ_START, adjust table
+	 */
+	if (event == CPUFREQ_CREATE_POLICY) {
+		rockchip_leakage_adjust_table(cpu_dev, policy->freq_table,
+					      cluster);
+		cluster->adjust_done = 1;
+	} else if (event == CPUFREQ_START) {
+		if (cluster->adjust_done == 1)
+			cluster->adjust_done = 0;
+		else
+			rockchip_leakage_adjust_table(cpu_dev,
+						      policy->freq_table,
+						      cluster);
+	}
 
 next:
 	if (avs->check_done[id] == 0) {
