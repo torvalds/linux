@@ -977,6 +977,38 @@ static struct b53_io_ops bcm_sf2_io_ops = {
 	.write64 = bcm_sf2_core_write64,
 };
 
+static struct dsa_switch_ops bcm_sf2_ops = {
+	.get_tag_protocol	= bcm_sf2_sw_get_tag_protocol,
+	.setup			= bcm_sf2_sw_setup,
+	.get_strings		= b53_get_strings,
+	.get_ethtool_stats	= b53_get_ethtool_stats,
+	.get_sset_count		= b53_get_sset_count,
+	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
+	.adjust_link		= bcm_sf2_sw_adjust_link,
+	.fixed_link_update	= bcm_sf2_sw_fixed_link_update,
+	.suspend		= bcm_sf2_sw_suspend,
+	.resume			= bcm_sf2_sw_resume,
+	.get_wol		= bcm_sf2_sw_get_wol,
+	.set_wol		= bcm_sf2_sw_set_wol,
+	.port_enable		= bcm_sf2_port_setup,
+	.port_disable		= bcm_sf2_port_disable,
+	.get_eee		= bcm_sf2_sw_get_eee,
+	.set_eee		= bcm_sf2_sw_set_eee,
+	.port_bridge_join	= b53_br_join,
+	.port_bridge_leave	= b53_br_leave,
+	.port_stp_state_set	= b53_br_set_stp_state,
+	.port_fast_age		= b53_br_fast_age,
+	.port_vlan_filtering	= b53_vlan_filtering,
+	.port_vlan_prepare	= b53_vlan_prepare,
+	.port_vlan_add		= b53_vlan_add,
+	.port_vlan_del		= b53_vlan_del,
+	.port_vlan_dump		= b53_vlan_dump,
+	.port_fdb_prepare	= b53_fdb_prepare,
+	.port_fdb_dump		= b53_fdb_dump,
+	.port_fdb_add		= b53_fdb_add,
+	.port_fdb_del		= b53_fdb_del,
+};
+
 static int bcm_sf2_sw_probe(struct platform_device *pdev)
 {
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
@@ -1017,28 +1049,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 	ds = dev->ds;
-
-	/* Override the parts that are non-standard wrt. normal b53 devices */
-	memcpy(ops, ds->ops, sizeof(*ops));
-	ds->ops = ops;
-	ds->ops->get_tag_protocol = bcm_sf2_sw_get_tag_protocol;
-	ds->ops->setup = bcm_sf2_sw_setup;
-	ds->ops->get_phy_flags = bcm_sf2_sw_get_phy_flags;
-	ds->ops->adjust_link = bcm_sf2_sw_adjust_link;
-	ds->ops->fixed_link_update = bcm_sf2_sw_fixed_link_update;
-	ds->ops->suspend = bcm_sf2_sw_suspend;
-	ds->ops->resume = bcm_sf2_sw_resume;
-	ds->ops->get_wol = bcm_sf2_sw_get_wol;
-	ds->ops->set_wol = bcm_sf2_sw_set_wol;
-	ds->ops->port_enable = bcm_sf2_port_setup;
-	ds->ops->port_disable = bcm_sf2_port_disable;
-	ds->ops->get_eee = bcm_sf2_sw_get_eee;
-	ds->ops->set_eee = bcm_sf2_sw_set_eee;
-
-	/* Avoid having DSA free our slave MDIO bus (checking for
-	 * ds->slave_mii_bus and ds->ops->phy_read being non-NULL)
-	 */
-	ds->ops->phy_read = NULL;
+	ds->ops = &bcm_sf2_ops;
 
 	dev_set_drvdata(&pdev->dev, priv);
 
