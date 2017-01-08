@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015-2016 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015-2016 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -73,11 +73,14 @@
 #define IWL9000_SMEM_LEN		0x68000
 
 #define  IWL9000_FW_PRE "iwlwifi-9000-pu-a0-jf-a0-"
-#define  IWL9260_FW_PRE "iwlwifi-9260-th-a0-jf-a0-"
+#define  IWL9260A_FW_PRE "iwlwifi-9260-th-a0-jf-a0-"
+#define  IWL9260B_FW_PRE "iwlwifi-9260-th-b0-jf-b0-"
 #define IWL9000_MODULE_FIRMWARE(api) \
 	IWL9000_FW_PRE "-" __stringify(api) ".ucode"
-#define IWL9260_MODULE_FIRMWARE(api) \
-	IWL9260_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL9260A_MODULE_FIRMWARE(api) \
+	IWL9260A_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL9260B_MODULE_FIRMWARE(api) \
+	IWL9260B_FW_PRE "-" __stringify(api) ".ucode"
 
 #define NVM_HW_SECTION_NUM_FAMILY_9000		10
 
@@ -145,7 +148,8 @@ static const struct iwl_tt_params iwl9000_tt_params = {
 
 const struct iwl_cfg iwl9160_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 9160",
-	.fw_name_pre = IWL9260_FW_PRE,
+	.fw_name_pre = IWL9260A_FW_PRE,
+	.fw_name_pre_next_step = IWL9260B_FW_PRE,
 	IWL_DEVICE_9000,
 	.ht_params = &iwl9000_ht_params,
 	.nvm_ver = IWL9000_NVM_VERSION,
@@ -155,7 +159,8 @@ const struct iwl_cfg iwl9160_2ac_cfg = {
 
 const struct iwl_cfg iwl9260_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 9260",
-	.fw_name_pre = IWL9260_FW_PRE,
+	.fw_name_pre = IWL9260A_FW_PRE,
+	.fw_name_pre_next_step = IWL9260B_FW_PRE,
 	IWL_DEVICE_9000,
 	.ht_params = &iwl9000_ht_params,
 	.nvm_ver = IWL9000_NVM_VERSION,
@@ -165,7 +170,8 @@ const struct iwl_cfg iwl9260_2ac_cfg = {
 
 const struct iwl_cfg iwl9270_2ac_cfg = {
 	.name = "Intel(R) Dual Band Wireless AC 9270",
-	.fw_name_pre = IWL9260_FW_PRE,
+	.fw_name_pre = IWL9260A_FW_PRE,
+	.fw_name_pre_next_step = IWL9260B_FW_PRE,
 	IWL_DEVICE_9000,
 	.ht_params = &iwl9000_ht_params,
 	.nvm_ver = IWL9000_NVM_VERSION,
@@ -196,4 +202,5 @@ const struct iwl_cfg iwl9560_2ac_cfg = {
 };
 
 MODULE_FIRMWARE(IWL9000_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL9260_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL9260A_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL9260B_MODULE_FIRMWARE(IWL9000_UCODE_API_MAX));
