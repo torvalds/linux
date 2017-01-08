@@ -2493,8 +2493,7 @@ static void cpsw_get_ringparam(struct net_device *ndev,
 	/* not supported */
 	ering->tx_max_pending = 0;
 	ering->tx_pending = cpdma_get_num_tx_descs(cpsw->dma);
-	/* Max 90% RX buffers */
-	ering->rx_max_pending = (descs_pool_size * 9) / 10;
+	ering->rx_max_pending = descs_pool_size - CPSW_MAX_QUEUES;
 	ering->rx_pending = cpdma_get_num_rx_descs(cpsw->dma);
 }
 
@@ -2509,8 +2508,8 @@ static int cpsw_set_ringparam(struct net_device *ndev,
 	/* ignore ering->tx_pending - only rx_pending adjustment is supported */
 
 	if (ering->rx_mini_pending || ering->rx_jumbo_pending ||
-	    ering->rx_pending < (descs_pool_size / 10) ||
-	    ering->rx_pending > ((descs_pool_size * 9) / 10))
+	    ering->rx_pending < CPSW_MAX_QUEUES ||
+	    ering->rx_pending > (descs_pool_size - CPSW_MAX_QUEUES))
 		return -EINVAL;
 
 	if (ering->rx_pending == cpdma_get_num_rx_descs(cpsw->dma))
