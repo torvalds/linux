@@ -982,6 +982,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	const char *reg_names[BCM_SF2_REGS_NUM] = BCM_SF2_REGS_NAME;
 	struct device_node *dn = pdev->dev.of_node;
 	struct b53_platform_data *pdata;
+	struct dsa_switch_ops *ops;
 	struct bcm_sf2_priv *priv;
 	struct b53_device *dev;
 	struct dsa_switch *ds;
@@ -993,6 +994,10 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
+		return -ENOMEM;
+
+	ops = devm_kzalloc(&pdev->dev, sizeof(*ops), GFP_KERNEL);
+	if (!ops)
 		return -ENOMEM;
 
 	dev = b53_switch_alloc(&pdev->dev, &bcm_sf2_io_ops, priv);
@@ -1014,6 +1019,8 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	ds = dev->ds;
 
 	/* Override the parts that are non-standard wrt. normal b53 devices */
+	memcpy(ops, ds->ops, sizeof(*ops));
+	ds->ops = ops;
 	ds->ops->get_tag_protocol = bcm_sf2_sw_get_tag_protocol;
 	ds->ops->setup = bcm_sf2_sw_setup;
 	ds->ops->get_phy_flags = bcm_sf2_sw_get_phy_flags;
