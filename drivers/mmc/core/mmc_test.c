@@ -1533,7 +1533,7 @@ static int mmc_test_area_cleanup(struct mmc_test_card *test)
 
 /*
  * Initialize an area for testing large transfers.  The test area is set to the
- * middle of the card because cards may have different charateristics at the
+ * middle of the card because cards may have different characteristics at the
  * front (for FAT file system optimization).  Optionally, the area is erased
  * (if the card supports it) which may improve write performance.  Optionally,
  * the area is filled with data for subsequent read tests.
