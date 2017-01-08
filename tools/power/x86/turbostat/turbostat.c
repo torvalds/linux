@@ -3388,7 +3388,8 @@ double slm_bclk(void)
 	}
 	freq = slm_freq_table[i];
 
-	fprintf(outf, "SLM BCLK: %.1f Mhz\n", freq);
+	if (debug)
+		fprintf(outf, "SLM BCLK: %.1f Mhz\n", freq);
 
 	return freq;
 }
