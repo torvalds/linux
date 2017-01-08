@@ -107,7 +107,6 @@ static void set_i2c_line(int sda, int scl)
 	outb(tmp, 0x3c5);
 }
 
-
 static void dcon_wiggle_xo_1_5(void)
 {
 	int x;
