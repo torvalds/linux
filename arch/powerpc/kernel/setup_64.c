@@ -78,10 +78,14 @@ int spinning_secondaries;
 u64 ppc64_pft_size;
 
 struct ppc64_caches ppc64_caches = {
-	.dblock_size = 0x40,
-	.log_dblock_size = 6,
-	.iblock_size = 0x40,
-	.log_iblock_size = 6
+	.l1d = {
+		.block_size = 0x40,
+		.log_block_size = 6,
+	},
+	.l1i = {
+		.block_size = 0x40,
+		.log_block_size = 6
+	},
 };
 EXPORT_SYMBOL_GPL(ppc64_caches);
 
@@ -397,105 +401,98 @@ void smp_release_cpus(void)
  * cache informations about the CPU that will be used by cache flush
  * routines and/or provided to userland
  */
+
+static void init_cache_info(struct ppc_cache_info *info, u32 size, u32 lsize,
+			    u32 bsize, u32 sets)
+{
+	info->size = size;
+	info->sets = sets;
+	info->line_size = lsize;
+	info->block_size = bsize;
+	info->log_block_size = __ilog2(bsize);
+	info->blocks_per_page = PAGE_SIZE / bsize;
+}
+
+static bool __init parse_cache_info(struct device_node *np,
+				    bool icache,
+				    struct ppc_cache_info *info)
+{
+	static const char *ipropnames[] __initdata = {
+		"i-cache-size",
+		"i-cache-sets",
+		"i-cache-block-size",
+		"i-cache-line-size",
+	};
+	static const char *dpropnames[] __initdata = {
+		"d-cache-size",
+		"d-cache-sets",
+		"d-cache-block-size",
+		"d-cache-line-size",
+	};
+	const char **propnames = icache ? ipropnames : dpropnames;
+	const __be32 *sizep, *lsizep, *bsizep, *setsp;
+	u32 size, lsize, bsize, sets;
+	bool success = true;
+
+	size = 0;
+	sets = -1u;
+	lsize = bsize = cur_cpu_spec->dcache_bsize;
+	sizep = of_get_property(np, propnames[0], NULL);
+	if (sizep != NULL)
+		size = be32_to_cpu(*sizep);
+	setsp = of_get_property(np, propnames[1], NULL);
+	if (setsp != NULL)
+		sets = be32_to_cpu(*setsp);
+	bsizep = of_get_property(np, propnames[2], NULL);
+	lsizep = of_get_property(np, propnames[3], NULL);
+	if (bsizep == NULL)
+		bsizep = lsizep;
+	if (lsizep != NULL)
+		lsize = be32_to_cpu(*lsizep);
+	if (bsizep != NULL)
+		bsize = be32_to_cpu(*bsizep);
+	if (sizep == NULL || bsizep == NULL || lsizep == NULL)
+		success = false;
+
+	/*
+	 * OF is weird .. it represents fully associative caches
+	 * as "1 way" which doesn't make much sense and doesn't
+	 * leave room for direct mapped. We'll assume that 0
+	 * in OF means direct mapped for that reason.
+	 */
+	if (sets == 1)
+		sets = 0;
+	else if (sets == 0)
+		sets = 1;
+
+	init_cache_info(info, size, lsize, bsize, sets);
+
+	return success;
+}
+
 void __init initialize_cache_info(void)
 {
 	struct device_node *np;
-	unsigned long num_cpus = 0;
 
 	DBG(" -> initialize_cache_info()\n");
 
-	for_each_node_by_type(np, "cpu") {
-		num_cpus += 1;
+	np  = of_find_node_by_type(NULL, "cpu");
 
-		/*
-		 * We're assuming *all* of the CPUs have the same
-		 * d-cache and i-cache sizes... -Peter
-		 */
-		if (num_cpus == 1) {
-			const __be32 *sizep, *lsizep, *bsizep, *setsp;
-			u32 size, lsize, bsize, sets;
+	/*
+	 * We're assuming *all* of the CPUs have the same
+	 * d-cache and i-cache sizes... -Peter
+	 */
+	if (np) {
+		if (!parse_cache_info(np, false, &ppc64_caches.l1d))
+			DBG("Argh, can't find dcache properties !\n");
 
-			size = 0;
-			sets = -1u;
-			lsize = bsize = cur_cpu_spec->dcache_bsize;
-			sizep = of_get_property(np, "d-cache-size", NULL);
-			if (sizep != NULL)
-				size = be32_to_cpu(*sizep);
-			setsp = of_get_property(np, "d-cache-sets", NULL);
-			if (setsp != NULL)
-				sets = be32_to_cpu(*setsp);
-			bsizep = of_get_property(np, "d-cache-block-size",
-						 NULL);
-			lsizep = of_get_property(np, "d-cache-line-size",
-						 NULL);
-			if (bsizep == NULL)
-				bsizep = lsizep;
-			if (lsizep != NULL)
-				lsize = be32_to_cpu(*lsizep);
-			if (bsizep != NULL)
-				bsize = be32_to_cpu(*bsizep);
-			if (sizep == NULL || bsizep == NULL || lsizep == NULL)
-				DBG("Argh, can't find dcache properties ! "
-				    "sizep: %p, bsizep: %p, lsizep: %p\n",
-				    sizep, bsizep, lsizep);
-
-			/*
-			 * OF is weird .. it represents fully associative caches
-			 * as "1 way" which doesn't make much sense and doesn't
-			 * leave room for direct mapped. We'll assume that 0
-			 * in OF means direct mapped for that reason.
-			 */
-			if (sets == 1)
-				sets = 0;
-			else if (sets == 0)
-				sets = 1;
-			ppc64_caches.dsize = size;
-			ppc64_caches.dsets = sets;
-			ppc64_caches.dline_size = lsize;
-			ppc64_caches.dblock_size = bsize;
-			ppc64_caches.log_dblock_size = __ilog2(bsize);
-			ppc64_caches.dblocks_per_page = PAGE_SIZE / bsize;
-
-			size = 0;
-			sets = -1u;
-			lsize = bsize = cur_cpu_spec->icache_bsize;
-			sizep = of_get_property(np, "i-cache-size", NULL);
-			if (sizep != NULL)
-				size = be32_to_cpu(*sizep);
-			setsp = of_get_property(np, "i-cache-sets", NULL);
-			if (setsp != NULL)
-				sets = be32_to_cpu(*setsp);
-			bsizep = of_get_property(np, "i-cache-block-size",
-						 NULL);
-			lsizep = of_get_property(np, "i-cache-line-size",
-						 NULL);
-			if (bsizep == NULL)
-				bsizep = lsizep;
-			if (lsizep != NULL)
-				lsize = be32_to_cpu(*lsizep);
-			if (bsizep != NULL)
-				bsize = be32_to_cpu(*bsizep);
-			if (sizep == NULL || bsizep == NULL || lsizep == NULL)
-				DBG("Argh, can't find icache properties ! "
-				    "sizep: %p, bsizep: %p, lsizep: %p\n",
-				    sizep, bsizep, lsizep);
-
-			if (sets == 1)
-				sets = 0;
-			else if (sets == 0)
-				sets = 1;
-			ppc64_caches.isize = size;
-			ppc64_caches.isets = sets;
-			ppc64_caches.iline_size = lsize;
-			ppc64_caches.iblock_size = bsize;
-			ppc64_caches.log_iblock_size = __ilog2(bsize);
-			ppc64_caches.iblocks_per_page = PAGE_SIZE / bsize;
-		}
+		if (!parse_cache_info(np, true, &ppc64_caches.l1i))
+			DBG("Argh, can't find icache properties !\n");
 	}
 
 	/* For use by binfmt_elf */
-	dcache_bsize = ppc64_caches.dblock_size;
-	icache_bsize = ppc64_caches.iblock_size;
+	dcache_bsize = ppc64_caches.l1d.block_size;
+	icache_bsize = ppc64_caches.l1i.block_size;
 
 	DBG(" <- initialize_cache_info()\n");
 }

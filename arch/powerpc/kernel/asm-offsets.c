@@ -163,12 +163,12 @@ int main(void)
 	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
 
 #ifdef CONFIG_PPC64
-	DEFINE(DCACHEL1BLOCKSIZE, offsetof(struct ppc64_caches, dblock_size));
-	DEFINE(DCACHEL1LOGBLOCKSIZE, offsetof(struct ppc64_caches, log_dblock_size));
-	DEFINE(DCACHEL1BLOCKSPERPAGE, offsetof(struct ppc64_caches, dblocks_per_page));
-	DEFINE(ICACHEL1BLOCKSIZE, offsetof(struct ppc64_caches, iblock_size));
-	DEFINE(ICACHEL1LOGBLOCKSIZE, offsetof(struct ppc64_caches, log_iblock_size));
-	DEFINE(ICACHEL1BLOCKSPERPAGE, offsetof(struct ppc64_caches, iblocks_per_page));
+	DEFINE(DCACHEL1BLOCKSIZE, offsetof(struct ppc64_caches, l1d.block_size));
+	DEFINE(DCACHEL1LOGBLOCKSIZE, offsetof(struct ppc64_caches, l1d.log_block_size));
+	DEFINE(DCACHEL1BLOCKSPERPAGE, offsetof(struct ppc64_caches, l1d.blocks_per_page));
+	DEFINE(ICACHEL1BLOCKSIZE, offsetof(struct ppc64_caches, l1i.block_size));
+	DEFINE(ICACHEL1LOGBLOCKSIZE, offsetof(struct ppc64_caches, l1i.log_block_size));
+	DEFINE(ICACHEL1BLOCKSPERPAGE, offsetof(struct ppc64_caches, l1i.blocks_per_page));
 	/* paca */
 	DEFINE(PACA_SIZE, sizeof(struct paca_struct));
 	DEFINE(PACAPACAINDEX, offsetof(struct paca_struct, paca_index));

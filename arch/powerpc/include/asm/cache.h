@@ -30,19 +30,19 @@
 #define IFETCH_ALIGN_BYTES	(1 << IFETCH_ALIGN_SHIFT)
 
 #if defined(__powerpc64__) && !defined(__ASSEMBLY__)
+
+struct ppc_cache_info {
+	u32 size;
+	u32 line_size;
+	u32 block_size;	/* L1 only */
+	u32 log_block_size;
+	u32 blocks_per_page;
+	u32 sets;
+};
+
 struct ppc64_caches {
-	u32	dsize;			/* L1 d-cache size */
-	u32	dline_size;		/* L1 d-cache line size	*/
-	u32	dblock_size;		/* L1 d-cache block size */
-	u32	log_dblock_size;
-	u32	dblocks_per_page;
-	u32	dsets;
-	u32	isize;			/* L1 i-cache size */
-	u32	iline_size;		/* L1 d-cache line size	*/
-	u32	iblock_size;		/* L1 i-cache block size */
-	u32	log_iblock_size;
-	u32	iblocks_per_page;
-	u32	isets;
+	struct ppc_cache_info l1d;
+	struct ppc_cache_info l1i;
 };
 
 extern struct ppc64_caches ppc64_caches;
