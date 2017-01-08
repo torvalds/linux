@@ -48,11 +48,14 @@
 #define TOTAL_SLOTS (VCHIQ_SLOT_ZERO_SLOTS + 2 * 32)
 
 #include "vchiq_arm.h"
-#include "vchiq_2835.h"
 #include "vchiq_connected.h"
 #include "vchiq_killable.h"
+#include "vchiq_pagelist.h"
 
 #define MAX_FRAGMENTS (VCHIQ_NUM_CURRENT_BULKS * 2)
+
+#define VCHIQ_PLATFORM_FRAGMENTS_OFFSET_IDX 0
+#define VCHIQ_PLATFORM_FRAGMENTS_COUNT_IDX  1
 
 #define BELL0	0x00
 #define BELL2	0x08
