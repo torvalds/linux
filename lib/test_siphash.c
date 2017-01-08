@@ -7,7 +7,9 @@
  * SipHash: a fast short-input PRF
  * https://131002.net/siphash/
  *
- * This implementation is specifically for SipHash2-4.
+ * This implementation is specifically for SipHash2-4 for a secure PRF
+ * and HalfSipHash1-3/SipHash1-3 for an insecure PRF only suitable for
+ * hashtables.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -18,8 +20,8 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 
-/* Test vectors taken from official reference source available at:
- *     https://131002.net/siphash/siphash24.c
+/* Test vectors taken from reference source available at:
+ *     https://github.com/veorq/SipHash
  */
 
 static const siphash_key_t test_key_siphash =
@@ -50,6 +52,64 @@ static const u64 test_vectors_siphash[64] = {
 	0x958a324ceb064572ULL
 };
 
+#if BITS_PER_LONG == 64
+static const hsiphash_key_t test_key_hsiphash =
+	{{ 0x0706050403020100ULL, 0x0f0e0d0c0b0a0908ULL }};
+
+static const u32 test_vectors_hsiphash[64] = {
+	0x050fc4dcU, 0x7d57ca93U, 0x4dc7d44dU,
+	0xe7ddf7fbU, 0x88d38328U, 0x49533b67U,
+	0xc59f22a7U, 0x9bb11140U, 0x8d299a8eU,
+	0x6c063de4U, 0x92ff097fU, 0xf94dc352U,
+	0x57b4d9a2U, 0x1229ffa7U, 0xc0f95d34U,
+	0x2a519956U, 0x7d908b66U, 0x63dbd80cU,
+	0xb473e63eU, 0x8d297d1cU, 0xa6cce040U,
+	0x2b45f844U, 0xa320872eU, 0xdae6c123U,
+	0x67349c8cU, 0x705b0979U, 0xca9913a5U,
+	0x4ade3b35U, 0xef6cd00dU, 0x4ab1e1f4U,
+	0x43c5e663U, 0x8c21d1bcU, 0x16a7b60dU,
+	0x7a8ff9bfU, 0x1f2a753eU, 0xbf186b91U,
+	0xada26206U, 0xa3c33057U, 0xae3a36a1U,
+	0x7b108392U, 0x99e41531U, 0x3f1ad944U,
+	0xc8138825U, 0xc28949a6U, 0xfaf8876bU,
+	0x9f042196U, 0x68b1d623U, 0x8b5114fdU,
+	0xdf074c46U, 0x12cc86b3U, 0x0a52098fU,
+	0x9d292f9aU, 0xa2f41f12U, 0x43a71ed0U,
+	0x73f0bce6U, 0x70a7e980U, 0x243c6d75U,
+	0xfdb71513U, 0xa67d8a08U, 0xb7e8f148U,
+	0xf7a644eeU, 0x0f1837f2U, 0x4b6694e0U,
+	0xb7bbb3a8U
+};
+#else
+static const hsiphash_key_t test_key_hsiphash =
+	{{ 0x03020100U, 0x07060504U }};
+
+static const u32 test_vectors_hsiphash[64] = {
+	0x5814c896U, 0xe7e864caU, 0xbc4b0e30U,
+	0x01539939U, 0x7e059ea6U, 0x88e3d89bU,
+	0xa0080b65U, 0x9d38d9d6U, 0x577999b1U,
+	0xc839caedU, 0xe4fa32cfU, 0x959246eeU,
+	0x6b28096cU, 0x66dd9cd6U, 0x16658a7cU,
+	0xd0257b04U, 0x8b31d501U, 0x2b1cd04bU,
+	0x06712339U, 0x522aca67U, 0x911bb605U,
+	0x90a65f0eU, 0xf826ef7bU, 0x62512debU,
+	0x57150ad7U, 0x5d473507U, 0x1ec47442U,
+	0xab64afd3U, 0x0a4100d0U, 0x6d2ce652U,
+	0x2331b6a3U, 0x08d8791aU, 0xbc6dda8dU,
+	0xe0f6c934U, 0xb0652033U, 0x9b9851ccU,
+	0x7c46fb7fU, 0x732ba8cbU, 0xf142997aU,
+	0xfcc9aa1bU, 0x05327eb2U, 0xe110131cU,
+	0xf9e5e7c0U, 0xa7d708a6U, 0x11795ab1U,
+	0x65671619U, 0x9f5fff91U, 0xd89c5267U,
+	0x007783ebU, 0x95766243U, 0xab639262U,
+	0x9c7e1390U, 0xc368dda6U, 0x38ddc455U,
+	0xfa13d379U, 0x979ea4e8U, 0x53ecd77eU,
+	0x2ee80657U, 0x33dbb66aU, 0xae3f0577U,
+	0x88b4c4ccU, 0x3e7f480bU, 0x74c1ebf8U,
+	0x87178304U
+};
+#endif
+
 static int __init siphash_test_init(void)
 {
 	u8 in[64] __aligned(SIPHASH_ALIGNMENT);
@@ -68,6 +128,16 @@ static int __init siphash_test_init(void)
 		if (siphash(in_unaligned + 1, i, &test_key_siphash) !=
 						test_vectors_siphash[i]) {
 			pr_info("siphash self-test unaligned %u: FAIL\n", i + 1);
+			ret = -EINVAL;
+		}
+		if (hsiphash(in, i, &test_key_hsiphash) !=
+						test_vectors_hsiphash[i]) {
+			pr_info("hsiphash self-test aligned %u: FAIL\n", i + 1);
+			ret = -EINVAL;
+		}
+		if (hsiphash(in_unaligned + 1, i, &test_key_hsiphash) !=
+						test_vectors_hsiphash[i]) {
+			pr_info("hsiphash self-test unaligned %u: FAIL\n", i + 1);
 			ret = -EINVAL;
 		}
 	}
@@ -113,6 +183,28 @@ static int __init siphash_test_init(void)
 			 0x0b0a0908U, 0x0f0e0d0cU, &test_key_siphash) !=
 						test_vectors_siphash[16]) {
 		pr_info("siphash self-test 4u32: FAIL\n");
+		ret = -EINVAL;
+	}
+	if (hsiphash_1u32(0x03020100U, &test_key_hsiphash) !=
+						test_vectors_hsiphash[4]) {
+		pr_info("hsiphash self-test 1u32: FAIL\n");
+		ret = -EINVAL;
+	}
+	if (hsiphash_2u32(0x03020100U, 0x07060504U, &test_key_hsiphash) !=
+						test_vectors_hsiphash[8]) {
+		pr_info("hsiphash self-test 2u32: FAIL\n");
+		ret = -EINVAL;
+	}
+	if (hsiphash_3u32(0x03020100U, 0x07060504U,
+			  0x0b0a0908U, &test_key_hsiphash) !=
+						test_vectors_hsiphash[12]) {
+		pr_info("hsiphash self-test 3u32: FAIL\n");
+		ret = -EINVAL;
+	}
+	if (hsiphash_4u32(0x03020100U, 0x07060504U,
+			  0x0b0a0908U, 0x0f0e0d0cU, &test_key_hsiphash) !=
+						test_vectors_hsiphash[16]) {
+		pr_info("hsiphash self-test 4u32: FAIL\n");
 		ret = -EINVAL;
 	}
 	if (!ret)
