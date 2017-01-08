@@ -9,6 +9,9 @@ config PINCTRL_SUN4I_A10
 	def_bool MACH_SUN4I
 	select PINCTRL_SUNXI
 
+config PINCTRL_SUN5I
+	select PINCTRL_SUNXI
+
 config PINCTRL_SUN5I_A10S
 	def_bool MACH_SUN5I
 	select PINCTRL_SUNXI

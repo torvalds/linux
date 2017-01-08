@@ -82,6 +82,10 @@
 #define SUN4I_FUNC_INPUT	0
 #define SUN4I_FUNC_IRQ		6
 
+#define PINCTRL_SUN5I_A10S	BIT(1)
+#define PINCTRL_SUN5I_A13	BIT(2)
+#define PINCTRL_SUN5I_GR8	BIT(3)
+
 struct sunxi_desc_function {
 	unsigned long	variant;
 	const char	*name;
