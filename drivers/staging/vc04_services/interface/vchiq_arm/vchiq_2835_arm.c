@@ -203,11 +203,11 @@ vchiq_platform_init_state(VCHIQ_STATE_T *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
 	state->platform_state = kzalloc(sizeof(VCHIQ_2835_ARM_STATE_T), GFP_KERNEL);
-	((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited = 1;
-	status = vchiq_arm_init_state(state, &((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->arm_state);
-	if(status != VCHIQ_SUCCESS)
+	((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->inited = 1;
+	status = vchiq_arm_init_state(state, &((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->arm_state);
+	if (status != VCHIQ_SUCCESS)
 	{
-		((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited = 0;
+		((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->inited = 0;
 	}
 	return status;
 }
@@ -215,11 +215,11 @@ vchiq_platform_init_state(VCHIQ_STATE_T *state)
 VCHIQ_ARM_STATE_T*
 vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 {
-	if(!((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->inited)
+	if (!((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->inited)
 	{
 		BUG();
 	}
-	return &((VCHIQ_2835_ARM_STATE_T*)state->platform_state)->arm_state;
+	return &((VCHIQ_2835_ARM_STATE_T *)state->platform_state)->arm_state;
 }
 
 void
@@ -315,7 +315,7 @@ vchiq_platform_resumed(VCHIQ_STATE_T *state)
 }
 
 int
-vchiq_platform_videocore_wanted(VCHIQ_STATE_T* state)
+vchiq_platform_videocore_wanted(VCHIQ_STATE_T *state)
 {
 	return 1; // autosuspend not supported - videocore always wanted
 }

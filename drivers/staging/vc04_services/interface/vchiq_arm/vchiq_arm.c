@@ -1996,7 +1996,7 @@ block_resume(VCHIQ_ARM_STATE_T *arm_state)
 				&arm_state->blocked_blocker, timeout_val)
 					<= 0) {
 			vchiq_log_error(vchiq_susp_log_level, "%s wait for "
-				"previously blocked clients failed" , __func__);
+				"previously blocked clients failed", __func__);
 			status = VCHIQ_ERROR;
 			write_lock_bh(&arm_state->susp_res_lock);
 			goto out;
@@ -2012,7 +2012,7 @@ block_resume(VCHIQ_ARM_STATE_T *arm_state)
 		if (resume_count > 1) {
 			status = VCHIQ_ERROR;
 			vchiq_log_error(vchiq_susp_log_level, "%s waited too "
-				"many times for resume" , __func__);
+				"many times for resume", __func__);
 			goto out;
 		}
 		write_unlock_bh(&arm_state->susp_res_lock);
