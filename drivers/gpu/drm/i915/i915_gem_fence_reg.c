@@ -79,11 +79,11 @@ static void i965_write_fence_reg(struct drm_i915_fence_reg *fence,
 	if (vma) {
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
 		u32 row_size = i915_gem_object_get_tile_row_size(vma->obj);
-		u32 size = rounddown((u32)vma->node.size, row_size);
+		u32 size = rounddown((u32)vma->fence_size, row_size);
 
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
 		GEM_BUG_ON(vma->node.start & 4095);
-		GEM_BUG_ON(vma->node.size & 4095);
+		GEM_BUG_ON(vma->fence_size & 4095);
 		GEM_BUG_ON(stride & 127);
 
 		val = (vma->node.start + size - 4096) << 32;
@@ -128,8 +128,8 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *fence,
 
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
 		GEM_BUG_ON(vma->node.start & ~I915_FENCE_START_MASK);
-		GEM_BUG_ON(!is_power_of_2(vma->node.size));
-		GEM_BUG_ON(vma->node.start & (vma->node.size - 1));
+		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
+		GEM_BUG_ON(vma->node.start & (vma->fence_size - 1));
 
 		if (is_y_tiled && HAS_128_BYTE_Y_TILING(fence->i915))
 			stride /= 128;
@@ -140,7 +140,7 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *fence,
 		val = vma->node.start;
 		if (is_y_tiled)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
-		val |= I915_FENCE_SIZE_BITS(vma->node.size);
+		val |= I915_FENCE_SIZE_BITS(vma->fence_size);
 		val |= ilog2(stride) << I830_FENCE_PITCH_SHIFT;
 
 		val |= I830_FENCE_REG_VALID;
@@ -162,20 +162,18 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *fence,
 
 	val = 0;
 	if (vma) {
-		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
-		bool is_y_tiled = tiling == I915_TILING_Y;
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
 
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
 		GEM_BUG_ON(vma->node.start & ~I830_FENCE_START_MASK);
-		GEM_BUG_ON(!is_power_of_2(vma->node.size));
+		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
 		GEM_BUG_ON(!is_power_of_2(stride / 128));
-		GEM_BUG_ON(vma->node.start & (vma->node.size - 1));
+		GEM_BUG_ON(vma->node.start & (vma->fence_size - 1));
 
 		val = vma->node.start;
-		if (is_y_tiled)
+		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
-		val |= I830_FENCE_SIZE_BITS(vma->node.size);
+		val |= I830_FENCE_SIZE_BITS(vma->fence_size);
 		val |= ilog2(stride / 128) << I830_FENCE_PITCH_SHIFT;
 		val |= I830_FENCE_REG_VALID;
 	}

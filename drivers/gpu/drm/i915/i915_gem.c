@@ -2026,10 +2026,10 @@ void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
  * Return the required global GTT size for an object, taking into account
  * potential fence register mapping.
  */
-u64 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv,
-			   u64 size, int tiling_mode, unsigned int stride)
+u32 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv,
+			   u32 size, int tiling_mode, unsigned int stride)
 {
-	u64 ggtt_size;
+	u32 ggtt_size;
 
 	GEM_BUG_ON(!size);
 
@@ -2062,14 +2062,12 @@ u64 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv,
  * @size: object size
  * @tiling_mode: tiling mode
  * @stride: tiling stride
- * @fenced: is fenced alignment required or not
  *
  * Return the required global GTT alignment for an object, taking into account
  * potential fence register mapping.
  */
-u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
-				int tiling_mode, unsigned int stride,
-				bool fenced)
+u32 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u32 size,
+				int tiling_mode, unsigned int stride)
 {
 	GEM_BUG_ON(!size);
 
@@ -2077,9 +2075,7 @@ u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
 	 * Minimum alignment is 4k (GTT page size), but might be greater
 	 * if a fence register is needed for the object.
 	 */
-	if (INTEL_GEN(dev_priv) >= 4 ||
-	    (!fenced && (IS_G33(dev_priv) || IS_PINEVIEW(dev_priv))) ||
-	    tiling_mode == I915_TILING_NONE)
+	if (INTEL_GEN(dev_priv) >= 4 || tiling_mode == I915_TILING_NONE)
 		return 4096;
 
 	/*
@@ -3558,7 +3554,7 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 		return;
 
 	if (--vma->obj->pin_display == 0)
-		vma->display_alignment = 0;
+		vma->display_alignment = 4096;
 
 	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
 	if (!i915_vma_is_active(vma))
@@ -3703,11 +3699,6 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			return ERR_PTR(-ENOSPC);
 
 		if (flags & PIN_MAPPABLE) {
-			u32 fence_size;
-
-			fence_size = i915_gem_get_ggtt_size(dev_priv, vma->size,
-							    i915_gem_object_get_tiling(obj),
-							    i915_gem_object_get_stride(obj));
 			/* If the required space is larger than the available
 			 * aperture, we will not able to find a slot for the
 			 * object and unbinding the object now will be in
@@ -3715,7 +3706,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 * the object in and out of the Global GTT and
 			 * waste a lot of cycles under the mutex.
 			 */
-			if (fence_size > dev_priv->ggtt.mappable_end)
+			if (vma->fence_size > dev_priv->ggtt.mappable_end)
 				return ERR_PTR(-E2BIG);
 
 			/* If NONBLOCK is set the caller is optimistically
@@ -3734,7 +3725,7 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			 * we could try to minimise harm to others.
 			 */
 			if (flags & PIN_NONBLOCK &&
-			    fence_size > dev_priv->ggtt.mappable_end / 2)
+			    vma->fence_size > dev_priv->ggtt.mappable_end / 2)
 				return ERR_PTR(-ENOSPC);
 		}
 

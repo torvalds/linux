@@ -120,25 +120,18 @@ i915_tiling_ok(struct drm_i915_private *dev_priv,
 static bool i915_vma_fence_prepare(struct i915_vma *vma,
 				   int tiling_mode, unsigned int stride)
 {
-	struct drm_i915_private *dev_priv = vma->vm->i915;
-	u32 size;
+	struct drm_i915_private *i915 = vma->vm->i915;
+	u32 size, alignment;
 
 	if (!i915_vma_is_map_and_fenceable(vma))
 		return true;
 
-	if (INTEL_GEN(dev_priv) == 3) {
-		if (vma->node.start & ~I915_FENCE_START_MASK)
-			return false;
-	} else {
-		if (vma->node.start & ~I830_FENCE_START_MASK)
-			return false;
-	}
-
-	size = i915_gem_get_ggtt_size(dev_priv, vma->size, tiling_mode, stride);
+	size = i915_gem_get_ggtt_size(i915, vma->size, tiling_mode, stride);
 	if (vma->node.size < size)
 		return false;
 
-	if (vma->node.start & (size - 1))
+	alignment = i915_gem_get_ggtt_alignment(i915, vma->size, tiling_mode, stride);
+	if (vma->node.start & (alignment - 1))
 		return false;
 
 	return true;
@@ -156,6 +149,9 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
 		return 0;
 
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (!i915_vma_is_ggtt(vma))
+			break;
+
 		if (i915_vma_fence_prepare(vma, tiling_mode, stride))
 			continue;
 
@@ -277,10 +273,18 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 			mutex_unlock(&obj->mm.lock);
 
 			list_for_each_entry(vma, &obj->vma_list, obj_link) {
-				if (!vma->fence)
-					continue;
+				if (!i915_vma_is_ggtt(vma))
+					break;
 
-				vma->fence->dirty = true;
+				vma->fence_size = i915_gem_get_ggtt_size(dev_priv, vma->size,
+									 args->tiling_mode,
+									 args->stride);
+				vma->fence_alignment = i915_gem_get_ggtt_alignment(dev_priv, vma->size,
+										   args->tiling_mode,
+										   args->stride);
+
+				if (vma->fence)
+					vma->fence->dirty = true;
 			}
 			obj->tiling_and_stride =
 				args->stride | args->tiling_mode;

@@ -55,6 +55,9 @@ struct i915_vma {
 	u64 size;
 	u64 display_alignment;
 
+	u32 fence_size;
+	u32 fence_alignment;
+
 	unsigned int flags;
 	/**
 	 * How many users have pinned this object in GTT space. The following
