@@ -182,6 +182,12 @@ void		xfs_iext_irec_compact_pages(struct xfs_ifork *);
 void		xfs_iext_irec_compact_full(struct xfs_ifork *);
 void		xfs_iext_irec_update_extoffs(struct xfs_ifork *, int, int);
 
+bool		xfs_iext_lookup_extent(struct xfs_inode *ip,
+			struct xfs_ifork *ifp, xfs_fileoff_t bno,
+			xfs_extnum_t *idxp, struct xfs_bmbt_irec *gotp);
+bool		xfs_iext_get_extent(struct xfs_ifork *ifp, xfs_extnum_t idx,
+			struct xfs_bmbt_irec *gotp);
+
 extern struct kmem_zone	*xfs_ifork_zone;
 
 extern void xfs_ifork_init_cow(struct xfs_inode *ip);
