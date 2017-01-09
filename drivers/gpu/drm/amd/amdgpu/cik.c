@@ -1634,7 +1634,6 @@ static const struct amdgpu_asic_funcs cik_asic_funcs =
 {
 	.read_disabled_bios = &cik_read_disabled_bios,
 	.read_bios_from_rom = &cik_read_bios_from_rom,
-	.detect_hw_virtualization = cik_detect_hw_virtualization,
 	.read_register = &cik_read_register,
 	.reset = &cik_asic_reset,
 	.set_vga_state = &cik_vga_set_state,
@@ -1890,6 +1889,8 @@ static const struct amdgpu_ip_block_version cik_common_ip_block =
 
 int cik_set_ip_blocks(struct amdgpu_device *adev)
 {
+	cik_detect_hw_virtualization(adev);
+
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 		amdgpu_ip_block_add(adev, &cik_common_ip_block);

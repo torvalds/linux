@@ -1144,7 +1144,6 @@ static void si_detect_hw_virtualization(struct amdgpu_device *adev)
 static const struct amdgpu_asic_funcs si_asic_funcs =
 {
 	.read_disabled_bios = &si_read_disabled_bios,
-	.detect_hw_virtualization = si_detect_hw_virtualization,
 	.read_register = &si_read_register,
 	.reset = &si_asic_reset,
 	.set_vga_state = &si_vga_set_state,
@@ -1861,6 +1860,8 @@ static const struct amdgpu_ip_block_version si_common_ip_block =
 
 int si_set_ip_blocks(struct amdgpu_device *adev)
 {
+	si_detect_hw_virtualization(adev);
+
 	switch (adev->asic_type) {
 	case CHIP_VERDE:
 	case CHIP_TAHITI:
