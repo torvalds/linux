@@ -63,6 +63,7 @@ static const char *const hwcap_str[] = {
 	"atomics",
 	"fphp",
 	"asimdhp",
+	"cpuid",
 	NULL
 };
 

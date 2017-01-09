@@ -29,6 +29,7 @@
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/sysreg.h>
+#include <asm/traps.h>
 #include <asm/virt.h>
 
 unsigned long elf_hwcap __read_mostly;
@@ -940,6 +941,8 @@ static bool cpus_have_elf_hwcap(const struct arm64_cpu_capabilities *cap)
 
 static void __init setup_elf_hwcaps(const struct arm64_cpu_capabilities *hwcaps)
 {
+	/* We support emulation of accesses to CPU ID feature registers */
+	elf_hwcap |= HWCAP_CPUID;
 	for (; hwcaps->matches; hwcaps++)
 		if (hwcaps->matches(hwcaps, hwcaps->def_scope))
 			cap_set_elf_hwcap(hwcaps);
@@ -1127,3 +1130,101 @@ cpufeature_pan_not_uao(const struct arm64_cpu_capabilities *entry, int __unused)
 {
 	return (cpus_have_const_cap(ARM64_HAS_PAN) && !cpus_have_const_cap(ARM64_HAS_UAO));
 }
+
+/*
+ * We emulate only the following system register space.
+ * Op0 = 0x3, CRn = 0x0, Op1 = 0x0, CRm = [0, 4 - 7]
+ * See Table C5-6 System instruction encodings for System register accesses,
+ * ARMv8 ARM(ARM DDI 0487A.f) for more details.
+ */
+static inline bool __attribute_const__ is_emulated(u32 id)
+{
+	return (sys_reg_Op0(id) == 0x3 &&
+		sys_reg_CRn(id) == 0x0 &&
+		sys_reg_Op1(id) == 0x0 &&
+		(sys_reg_CRm(id) == 0 ||
+		 ((sys_reg_CRm(id) >= 4) && (sys_reg_CRm(id) <= 7))));
+}
+
+/*
+ * With CRm == 0, reg should be one of :
+ * MIDR_EL1, MPIDR_EL1 or REVIDR_EL1.
+ */
+static inline int emulate_id_reg(u32 id, u64 *valp)
+{
+	switch (id) {
+	case SYS_MIDR_EL1:
+		*valp = read_cpuid_id();
+		break;
+	case SYS_MPIDR_EL1:
+		*valp = SYS_MPIDR_SAFE_VAL;
+		break;
+	case SYS_REVIDR_EL1:
+		/* IMPLEMENTATION DEFINED values are emulated with 0 */
+		*valp = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int emulate_sys_reg(u32 id, u64 *valp)
+{
+	struct arm64_ftr_reg *regp;
+
+	if (!is_emulated(id))
+		return -EINVAL;
+
+	if (sys_reg_CRm(id) == 0)
+		return emulate_id_reg(id, valp);
+
+	regp = get_arm64_ftr_reg(id);
+	if (regp)
+		*valp = arm64_ftr_reg_user_value(regp);
+	else
+		/*
+		 * The untracked registers are either IMPLEMENTATION DEFINED
+		 * (e.g, ID_AFR0_EL1) or reserved RAZ.
+		 */
+		*valp = 0;
+	return 0;
+}
+
+static int emulate_mrs(struct pt_regs *regs, u32 insn)
+{
+	int rc;
+	u32 sys_reg, dst;
+	u64 val;
+
+	/*
+	 * sys_reg values are defined as used in mrs/msr instruction.
+	 * shift the imm value to get the encoding.
+	 */
+	sys_reg = (u32)aarch64_insn_decode_immediate(AARCH64_INSN_IMM_16, insn) << 5;
+	rc = emulate_sys_reg(sys_reg, &val);
+	if (!rc) {
+		dst = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RT, insn);
+		regs->user_regs.regs[dst] = val;
+		regs->pc += 4;
+	}
+
+	return rc;
+}
+
+static struct undef_hook mrs_hook = {
+	.instr_mask = 0xfff00000,
+	.instr_val  = 0xd5300000,
+	.pstate_mask = COMPAT_PSR_MODE_MASK,
+	.pstate_val = PSR_MODE_EL0t,
+	.fn = emulate_mrs,
+};
+
+static int __init enable_mrs_emulation(void)
+{
+	register_undef_hook(&mrs_hook);
+	return 0;
+}
+
+late_initcall(enable_mrs_emulation);

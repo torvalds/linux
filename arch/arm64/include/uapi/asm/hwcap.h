@@ -30,5 +30,6 @@
 #define HWCAP_ATOMICS		(1 << 8)
 #define HWCAP_FPHP		(1 << 9)
 #define HWCAP_ASIMDHP		(1 << 10)
+#define HWCAP_CPUID		(1 << 11)
 
 #endif /* _UAPI__ASM_HWCAP_H */
