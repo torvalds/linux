@@ -339,9 +339,20 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	if (local_contact == SMC_FIRST_CONTACT)
 		smc_link_save_peer_info(link, &aclc);
-	/* tbd in follow-on patch: more steps to setup RDMA communcication,
-	 * create rmbs, map rmbs, rtoken_handling, modify_qp
-	 */
+
+	rc = smc_rmb_rtoken_handling(&smc->conn, &aclc);
+	if (rc) {
+		reason_code = SMC_CLC_DECL_INTERR;
+		goto decline_rdma_unlock;
+	}
+
+	if (local_contact == SMC_FIRST_CONTACT) {
+		rc = smc_ib_ready_link(link);
+		if (rc) {
+			reason_code = SMC_CLC_DECL_INTERR;
+			goto decline_rdma_unlock;
+		}
+	}
 
 	rc = smc_clc_send_confirm(smc);
 	if (rc)
@@ -638,9 +649,20 @@ static void smc_listen_work(struct work_struct *work)
 	if (local_contact == SMC_FIRST_CONTACT)
 		smc_link_save_peer_info(link, &cclc);
 
-	/* tbd in follow-on patch: more steps to setup RDMA communcication,
-	 * rtoken_handling, modify_qp
-	 */
+	rc = smc_rmb_rtoken_handling(&new_smc->conn, &cclc);
+	if (rc) {
+		reason_code = SMC_CLC_DECL_INTERR;
+		goto decline_rdma;
+	}
+
+	/* tbd in follow-on patch: modify_qp, llc_confirm */
+	if (local_contact == SMC_FIRST_CONTACT) {
+		rc = smc_ib_ready_link(link);
+		if (rc) {
+			reason_code = SMC_CLC_DECL_INTERR;
+			goto decline_rdma;
+		}
+	}
 
 out_connected:
 	sk_refcnt_debug_inc(newsmcsk);

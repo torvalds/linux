@@ -43,6 +43,7 @@ struct smc_connection {
 	atomic_t		peer_rmbe_space;/* remaining free bytes in peer
 						 * rmbe
 						 */
+	int			rtoken_idx;	/* idx to peer RMB rkey/addr */
 
 	struct smc_buf_desc	*sndbuf_desc;	/* send buffer descriptor */
 	int			sndbuf_size;	/* sndbuf size <== sock wmem */

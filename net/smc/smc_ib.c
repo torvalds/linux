@@ -12,6 +12,7 @@
  */
 
 #include <linux/random.h>
+#include <linux/workqueue.h>
 #include <rdma/ib_verbs.h>
 
 #include "smc_pnet.h"
@@ -19,6 +20,11 @@
 #include "smc_core.h"
 #include "smc_wr.h"
 #include "smc.h"
+
+#define SMC_QP_MIN_RNR_TIMER		5
+#define SMC_QP_TIMEOUT			15 /* 4096 * 2 ** timeout usec */
+#define SMC_QP_RETRY_CNT			7 /* 7: infinite */
+#define SMC_QP_RNR_RETRY			7 /* 7: infinite */
 
 struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
 	.lock = __SPIN_LOCK_UNLOCKED(smc_ib_devices.lock),
@@ -30,6 +36,172 @@ struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
 u8 local_systemid[SMC_SYSTEMID_LEN] = SMC_LOCAL_SYSTEMID_RESET;	/* unique system
 								 * identifier
 								 */
+
+int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
+			     struct ib_mr **mr)
+{
+	int rc;
+
+	if (*mr)
+		return 0; /* already done */
+
+	/* obtain unique key -
+	 * next invocation of get_dma_mr returns a different key!
+	 */
+	*mr = pd->device->get_dma_mr(pd, access_flags);
+	rc = PTR_ERR_OR_ZERO(*mr);
+	if (IS_ERR(*mr))
+		*mr = NULL;
+	return rc;
+}
+
+static int smc_ib_modify_qp_init(struct smc_link *lnk)
+{
+	struct ib_qp_attr qp_attr;
+
+	memset(&qp_attr, 0, sizeof(qp_attr));
+	qp_attr.qp_state = IB_QPS_INIT;
+	qp_attr.pkey_index = 0;
+	qp_attr.port_num = lnk->ibport;
+	qp_attr.qp_access_flags = IB_ACCESS_LOCAL_WRITE
+				| IB_ACCESS_REMOTE_WRITE;
+	return ib_modify_qp(lnk->roce_qp, &qp_attr,
+			    IB_QP_STATE | IB_QP_PKEY_INDEX |
+			    IB_QP_ACCESS_FLAGS | IB_QP_PORT);
+}
+
+static int smc_ib_modify_qp_rtr(struct smc_link *lnk)
+{
+	enum ib_qp_attr_mask qp_attr_mask =
+		IB_QP_STATE | IB_QP_AV | IB_QP_PATH_MTU | IB_QP_DEST_QPN |
+		IB_QP_RQ_PSN | IB_QP_MAX_DEST_RD_ATOMIC | IB_QP_MIN_RNR_TIMER;
+	struct ib_qp_attr qp_attr;
+
+	memset(&qp_attr, 0, sizeof(qp_attr));
+	qp_attr.qp_state = IB_QPS_RTR;
+	qp_attr.path_mtu = min(lnk->path_mtu, lnk->peer_mtu);
+	qp_attr.ah_attr.port_num = lnk->ibport;
+	qp_attr.ah_attr.ah_flags = IB_AH_GRH;
+	qp_attr.ah_attr.grh.hop_limit = 1;
+	memcpy(&qp_attr.ah_attr.grh.dgid, lnk->peer_gid,
+	       sizeof(lnk->peer_gid));
+	memcpy(&qp_attr.ah_attr.dmac, lnk->peer_mac,
+	       sizeof(lnk->peer_mac));
+	qp_attr.dest_qp_num = lnk->peer_qpn;
+	qp_attr.rq_psn = lnk->peer_psn; /* starting receive packet seq # */
+	qp_attr.max_dest_rd_atomic = 1; /* max # of resources for incoming
+					 * requests
+					 */
+	qp_attr.min_rnr_timer = SMC_QP_MIN_RNR_TIMER;
+
+	return ib_modify_qp(lnk->roce_qp, &qp_attr, qp_attr_mask);
+}
+
+int smc_ib_modify_qp_rts(struct smc_link *lnk)
+{
+	struct ib_qp_attr qp_attr;
+
+	memset(&qp_attr, 0, sizeof(qp_attr));
+	qp_attr.qp_state = IB_QPS_RTS;
+	qp_attr.timeout = SMC_QP_TIMEOUT;	/* local ack timeout */
+	qp_attr.retry_cnt = SMC_QP_RETRY_CNT;	/* retry count */
+	qp_attr.rnr_retry = SMC_QP_RNR_RETRY;	/* RNR retries, 7=infinite */
+	qp_attr.sq_psn = lnk->psn_initial;	/* starting send packet seq # */
+	qp_attr.max_rd_atomic = 1;	/* # of outstanding RDMA reads and
+					 * atomic ops allowed
+					 */
+	return ib_modify_qp(lnk->roce_qp, &qp_attr,
+			    IB_QP_STATE | IB_QP_TIMEOUT | IB_QP_RETRY_CNT |
+			    IB_QP_SQ_PSN | IB_QP_RNR_RETRY |
+			    IB_QP_MAX_QP_RD_ATOMIC);
+}
+
+int smc_ib_modify_qp_reset(struct smc_link *lnk)
+{
+	struct ib_qp_attr qp_attr;
+
+	memset(&qp_attr, 0, sizeof(qp_attr));
+	qp_attr.qp_state = IB_QPS_RESET;
+	return ib_modify_qp(lnk->roce_qp, &qp_attr, IB_QP_STATE);
+}
+
+int smc_ib_ready_link(struct smc_link *lnk)
+{
+	struct smc_link_group *lgr =
+		container_of(lnk, struct smc_link_group, lnk[0]);
+	int rc = 0;
+
+	rc = smc_ib_modify_qp_init(lnk);
+	if (rc)
+		goto out;
+
+	rc = smc_ib_modify_qp_rtr(lnk);
+	if (rc)
+		goto out;
+	smc_wr_remember_qp_attr(lnk);
+	rc = ib_req_notify_cq(lnk->smcibdev->roce_cq_recv,
+			      IB_CQ_SOLICITED_MASK);
+	if (rc)
+		goto out;
+	rc = smc_wr_rx_post_init(lnk);
+	if (rc)
+		goto out;
+	smc_wr_remember_qp_attr(lnk);
+
+	if (lgr->role == SMC_SERV) {
+		rc = smc_ib_modify_qp_rts(lnk);
+		if (rc)
+			goto out;
+		smc_wr_remember_qp_attr(lnk);
+	}
+out:
+	return rc;
+}
+
+/* process context wrapper for might_sleep smc_ib_remember_port_attr */
+static void smc_ib_port_event_work(struct work_struct *work)
+{
+	struct smc_ib_device *smcibdev = container_of(
+		work, struct smc_ib_device, port_event_work);
+	u8 port_idx;
+
+	for_each_set_bit(port_idx, &smcibdev->port_event_mask, SMC_MAX_PORTS) {
+		smc_ib_remember_port_attr(smcibdev, port_idx + 1);
+		clear_bit(port_idx, &smcibdev->port_event_mask);
+	}
+}
+
+/* can be called in IRQ context */
+static void smc_ib_global_event_handler(struct ib_event_handler *handler,
+					struct ib_event *ibevent)
+{
+	struct smc_ib_device *smcibdev;
+	u8 port_idx;
+
+	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
+	if (!smc_pnet_find_ib(smcibdev->ibdev->name))
+		return;
+
+	switch (ibevent->event) {
+	case IB_EVENT_PORT_ERR:
+		port_idx = ibevent->element.port_num - 1;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		schedule_work(&smcibdev->port_event_work);
+		/* fall through */
+	case IB_EVENT_DEVICE_FATAL:
+		/* tbd in follow-on patch:
+		 * abnormal close of corresponding connections
+		 */
+		break;
+	case IB_EVENT_PORT_ACTIVE:
+		port_idx = ibevent->element.port_num - 1;
+		set_bit(port_idx, &smcibdev->port_event_mask);
+		schedule_work(&smcibdev->port_event_work);
+		break;
+	default:
+		break;
+	}
+}
 
 void smc_ib_dealloc_protection_domain(struct smc_link *lnk)
 {
@@ -121,6 +293,17 @@ int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
 	return rc;
 }
 
+void smc_ib_buf_unmap(struct smc_ib_device *smcibdev, int buf_size,
+		      struct smc_buf_desc *buf_slot,
+		      enum dma_data_direction data_direction)
+{
+	if (!buf_slot->dma_addr[SMC_SINGLE_LINK])
+		return; /* already unmapped */
+	ib_dma_unmap_single(smcibdev->ibdev, *buf_slot->dma_addr, buf_size,
+			    data_direction);
+	buf_slot->dma_addr[SMC_SINGLE_LINK] = 0;
+}
+
 static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
 	struct net_device *ndev;
@@ -184,6 +367,50 @@ out:
 	return rc;
 }
 
+long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev)
+{
+	struct ib_cq_init_attr cqattr =	{
+		.cqe = SMC_WR_MAX_CQE, .comp_vector = 0 };
+	long rc;
+
+	smcibdev->roce_cq_send = ib_create_cq(smcibdev->ibdev,
+					      smc_wr_tx_cq_handler, NULL,
+					      smcibdev, &cqattr);
+	rc = PTR_ERR_OR_ZERO(smcibdev->roce_cq_send);
+	if (IS_ERR(smcibdev->roce_cq_send)) {
+		smcibdev->roce_cq_send = NULL;
+		return rc;
+	}
+	smcibdev->roce_cq_recv = ib_create_cq(smcibdev->ibdev,
+					      smc_wr_rx_cq_handler, NULL,
+					      smcibdev, &cqattr);
+	rc = PTR_ERR_OR_ZERO(smcibdev->roce_cq_recv);
+	if (IS_ERR(smcibdev->roce_cq_recv)) {
+		smcibdev->roce_cq_recv = NULL;
+		goto err;
+	}
+	INIT_IB_EVENT_HANDLER(&smcibdev->event_handler, smcibdev->ibdev,
+			      smc_ib_global_event_handler);
+	ib_register_event_handler(&smcibdev->event_handler);
+	smc_wr_add_dev(smcibdev);
+	smcibdev->initialized = 1;
+	return rc;
+
+err:
+	ib_destroy_cq(smcibdev->roce_cq_send);
+	return rc;
+}
+
+static void smc_ib_cleanup_per_ibdev(struct smc_ib_device *smcibdev)
+{
+	if (!smcibdev->initialized)
+		return;
+	smc_wr_remove_dev(smcibdev);
+	ib_unregister_event_handler(&smcibdev->event_handler);
+	ib_destroy_cq(smcibdev->roce_cq_recv);
+	ib_destroy_cq(smcibdev->roce_cq_send);
+}
+
 static struct ib_client smc_ib_client;
 
 /* callback function for ib_register_client() */
@@ -199,6 +426,7 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 		return;
 
 	smcibdev->ibdev = ibdev;
+	INIT_WORK(&smcibdev->port_event_work, smc_ib_port_event_work);
 
 	spin_lock(&smc_ib_devices.lock);
 	list_add_tail(&smcibdev->list, &smc_ib_devices.list);
@@ -217,6 +445,7 @@ static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 	list_del_init(&smcibdev->list); /* remove from smc_ib_devices */
 	spin_unlock(&smc_ib_devices.lock);
 	smc_pnet_remove_by_ibdev(smcibdev);
+	smc_ib_cleanup_per_ibdev(smcibdev);
 	kfree(smcibdev);
 }
 

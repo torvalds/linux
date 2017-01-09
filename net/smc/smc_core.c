@@ -160,12 +160,23 @@ static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
 	lnk->smcibdev = smcibdev;
 	lnk->ibport = ibport;
 	lnk->path_mtu = smcibdev->pattr[ibport - 1].active_mtu;
+	if (!smcibdev->initialized)
+		smc_ib_setup_per_ibdev(smcibdev);
 	get_random_bytes(rndvec, sizeof(rndvec));
 	lnk->psn_initial = rndvec[0] + (rndvec[1] << 8) + (rndvec[2] << 16);
 	rc = smc_wr_alloc_link_mem(lnk);
 	if (rc)
 		goto free_lgr;
 	init_waitqueue_head(&lnk->wr_tx_wait);
+	rc = smc_ib_create_protection_domain(lnk);
+	if (rc)
+		goto free_link_mem;
+	rc = smc_ib_create_queue_pair(lnk);
+	if (rc)
+		goto dealloc_pd;
+	rc = smc_wr_create_link(lnk);
+	if (rc)
+		goto destroy_qp;
 
 	smc->conn.lgr = lgr;
 	rwlock_init(&lgr->conns_lock);
@@ -174,6 +185,12 @@ static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
 	spin_unlock_bh(&smc_lgr_list.lock);
 	return 0;
 
+destroy_qp:
+	smc_ib_destroy_queue_pair(lnk);
+dealloc_pd:
+	smc_ib_dealloc_protection_domain(lnk);
+free_link_mem:
+	smc_wr_free_link_mem(lnk);
 free_lgr:
 	kfree(lgr);
 out:
@@ -211,7 +228,10 @@ void smc_conn_free(struct smc_connection *conn)
 static void smc_link_clear(struct smc_link *lnk)
 {
 	lnk->peer_qpn = 0;
+	smc_ib_modify_qp_reset(lnk);
 	smc_wr_free_link(lnk);
+	smc_ib_destroy_queue_pair(lnk);
+	smc_ib_dealloc_protection_domain(lnk);
 	smc_wr_free_link_mem(lnk);
 }
 
@@ -223,6 +243,10 @@ static void smc_lgr_free_sndbufs(struct smc_link_group *lgr)
 	for (i = 0; i < SMC_RMBE_SIZES; i++) {
 		list_for_each_entry_safe(sndbuf_desc, bf_desc, &lgr->sndbufs[i],
 					 list) {
+			list_del(&sndbuf_desc->list);
+			smc_ib_buf_unmap(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+					 smc_uncompress_bufsize(i),
+					 sndbuf_desc, DMA_TO_DEVICE);
 			kfree(sndbuf_desc->cpu_addr);
 			kfree(sndbuf_desc);
 		}
@@ -232,11 +256,16 @@ static void smc_lgr_free_sndbufs(struct smc_link_group *lgr)
 static void smc_lgr_free_rmbs(struct smc_link_group *lgr)
 {
 	struct smc_buf_desc *rmb_desc, *bf_desc;
+	struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
 	int i;
 
 	for (i = 0; i < SMC_RMBE_SIZES; i++) {
 		list_for_each_entry_safe(rmb_desc, bf_desc, &lgr->rmbs[i],
 					 list) {
+			list_del(&rmb_desc->list);
+			smc_ib_buf_unmap(lnk->smcibdev,
+					 smc_uncompress_bufsize(i),
+					 rmb_desc, DMA_FROM_DEVICE);
 			kfree(rmb_desc->cpu_addr);
 			kfree(rmb_desc);
 		}
@@ -550,6 +579,18 @@ int smc_rmb_create(struct smc_sock *smc)
 			kfree(rmb_desc);
 			continue; /* if mapping failed, try smaller one */
 		}
+		rc = smc_ib_get_memory_region(lgr->lnk[SMC_SINGLE_LINK].roce_pd,
+					      IB_ACCESS_REMOTE_WRITE |
+					      IB_ACCESS_LOCAL_WRITE,
+					     &rmb_desc->mr_rx[SMC_SINGLE_LINK]);
+		if (rc) {
+			smc_ib_buf_unmap(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+					 tmp_bufsize, rmb_desc,
+					 DMA_FROM_DEVICE);
+			kfree(rmb_desc->cpu_addr);
+			kfree(rmb_desc);
+			continue;
+		}
 		rmb_desc->used = 1;
 		write_lock_bh(&lgr->rmbs_lock);
 		list_add(&rmb_desc->list,
@@ -566,4 +607,39 @@ int smc_rmb_create(struct smc_sock *smc)
 	} else {
 		return -ENOMEM;
 	}
+}
+
+static inline int smc_rmb_reserve_rtoken_idx(struct smc_link_group *lgr)
+{
+	int i;
+
+	for_each_clear_bit(i, lgr->rtokens_used_mask, SMC_RMBS_PER_LGR_MAX) {
+		if (!test_and_set_bit(i, lgr->rtokens_used_mask))
+			return i;
+	}
+	return -ENOSPC;
+}
+
+/* save rkey and dma_addr received from peer during clc handshake */
+int smc_rmb_rtoken_handling(struct smc_connection *conn,
+			    struct smc_clc_msg_accept_confirm *clc)
+{
+	u64 dma_addr = be64_to_cpu(clc->rmb_dma_addr);
+	struct smc_link_group *lgr = conn->lgr;
+	u32 rkey = ntohl(clc->rmb_rkey);
+	int i;
+
+	for (i = 0; i < SMC_RMBS_PER_LGR_MAX; i++) {
+		if ((lgr->rtokens[i][SMC_SINGLE_LINK].rkey == rkey) &&
+		    test_bit(i, lgr->rtokens_used_mask)) {
+			conn->rtoken_idx = i;
+			return 0;
+		}
+	}
+	conn->rtoken_idx = smc_rmb_reserve_rtoken_idx(lgr);
+	if (conn->rtoken_idx < 0)
+		return conn->rtoken_idx;
+	lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].rkey = rkey;
+	lgr->rtokens[conn->rtoken_idx][SMC_SINGLE_LINK].dma_addr = dma_addr;
+	return 0;
 }
