@@ -762,6 +762,9 @@ static int sst_soc_prepare(struct device *dev)
 	struct sst_data *drv = dev_get_drvdata(dev);
 	int i;
 
+	if (!drv->soc_card)
+		return 0;
+
 	/* suspend all pcms first */
 	snd_soc_suspend(drv->soc_card->dev);
 	snd_soc_poweroff(drv->soc_card->dev);
@@ -783,6 +786,9 @@ static void sst_soc_complete(struct device *dev)
 {
 	struct sst_data *drv = dev_get_drvdata(dev);
 	int i;
+
+	if (!drv->soc_card)
+		return;
 
 	/* restart SSPs */
 	for (i = 0; i < drv->soc_card->num_rtd; i++) {
