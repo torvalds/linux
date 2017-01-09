@@ -192,7 +192,7 @@ int xfrm_register_type(const struct xfrm_type *type, unsigned short family)
 	else
 		err = -EEXIST;
 	spin_unlock_bh(&xfrm_type_lock);
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(xfrm_register_type);
@@ -213,7 +213,7 @@ int xfrm_unregister_type(const struct xfrm_type *type, unsigned short family)
 	else
 		typemap[type->proto] = NULL;
 	spin_unlock_bh(&xfrm_type_lock);
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(xfrm_unregister_type);
@@ -235,13 +235,13 @@ retry:
 	if (unlikely(type && !try_module_get(type->owner)))
 		type = NULL;
 	if (!type && !modload_attempted) {
-		xfrm_state_put_afinfo(afinfo);
+		rcu_read_unlock();
 		request_module("xfrm-type-%d-%d", family, proto);
 		modload_attempted = 1;
 		goto retry;
 	}
 
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return type;
 }
 
@@ -280,7 +280,7 @@ int xfrm_register_mode(struct xfrm_mode *mode, int family)
 
 out:
 	spin_unlock_bh(&xfrm_mode_lock);
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(xfrm_register_mode);
@@ -308,7 +308,7 @@ int xfrm_unregister_mode(struct xfrm_mode *mode, int family)
 	}
 
 	spin_unlock_bh(&xfrm_mode_lock);
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(xfrm_unregister_mode);
@@ -331,13 +331,13 @@ retry:
 	if (unlikely(mode && !try_module_get(mode->owner)))
 		mode = NULL;
 	if (!mode && !modload_attempted) {
-		xfrm_state_put_afinfo(afinfo);
+		rcu_read_unlock();
 		request_module("xfrm-mode-%d-%d", family, encap);
 		modload_attempted = 1;
 		goto retry;
 	}
 
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return mode;
 }
 
@@ -651,13 +651,13 @@ xfrm_init_tempstate(struct xfrm_state *x, const struct flowi *fl,
 	afinfo->init_tempsel(&x->sel, fl);
 
 	if (family != tmpl->encap_family) {
-		xfrm_state_put_afinfo(afinfo);
+		rcu_read_unlock();
 		afinfo = xfrm_state_get_afinfo(tmpl->encap_family);
 		if (!afinfo)
 			return -1;
 	}
 	afinfo->init_temprop(x, tmpl, daddr, saddr);
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -1474,7 +1474,7 @@ xfrm_tmpl_sort(struct xfrm_tmpl **dst, struct xfrm_tmpl **src, int n,
 	if (afinfo->tmpl_sort)
 		err = afinfo->tmpl_sort(dst, src, n);
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(xfrm_tmpl_sort);
@@ -1494,7 +1494,7 @@ xfrm_state_sort(struct xfrm_state **dst, struct xfrm_state **src, int n,
 	if (afinfo->state_sort)
 		err = afinfo->state_sort(dst, src, n);
 	spin_unlock_bh(&net->xfrm.xfrm_state_lock);
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_sort);
@@ -1978,11 +1978,6 @@ struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family)
 	return afinfo;
 }
 
-void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo)
-{
-	rcu_read_unlock();
-}
-
 /* Temporarily located here until net/xfrm/xfrm_tunnel.c is created */
 void xfrm_state_delete_tunnel(struct xfrm_state *x)
 {
@@ -2025,7 +2020,7 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay)
 	if (afinfo->init_flags)
 		err = afinfo->init_flags(x);
 
-	xfrm_state_put_afinfo(afinfo);
+	rcu_read_unlock();
 
 	if (err)
 		goto error;
