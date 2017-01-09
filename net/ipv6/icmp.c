@@ -110,11 +110,10 @@ static const struct inet6_protocol icmpv6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
+/* Called with BH disabled */
 static __inline__ struct sock *icmpv6_xmit_lock(struct net *net)
 {
 	struct sock *sk;
-
-	local_bh_disable();
 
 	sk = icmpv6_sk(net);
 	if (unlikely(!spin_trylock(&sk->sk_lock.slock))) {
@@ -122,7 +121,6 @@ static __inline__ struct sock *icmpv6_xmit_lock(struct net *net)
 		 * ip6ip6 tunnel) signals dst_link_failure() for an
 		 * outgoing ICMP6 packet.
 		 */
-		local_bh_enable();
 		return NULL;
 	}
 	return sk;
@@ -130,7 +128,7 @@ static __inline__ struct sock *icmpv6_xmit_lock(struct net *net)
 
 static __inline__ void icmpv6_xmit_unlock(struct sock *sk)
 {
-	spin_unlock_bh(&sk->sk_lock.slock);
+	spin_unlock(&sk->sk_lock.slock);
 }
 
 /*
@@ -489,6 +487,13 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 		return;
 	}
 
+	/* Needed by both icmp_global_allow and icmpv6_xmit_lock */
+	local_bh_disable();
+
+	/* Check global sysctl_icmp_msgs_per_sec ratelimit */
+	if (!icmpv6_global_allow(type))
+		goto out_bh_enable;
+
 	mip6_addr_swap(skb);
 
 	memset(&fl6, 0, sizeof(fl6));
@@ -507,10 +512,7 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 
 	sk = icmpv6_xmit_lock(net);
 	if (!sk)
-		return;
-
-	if (!icmpv6_global_allow(type))
-		goto out;
+		goto out_bh_enable;
 
 	sk->sk_mark = mark;
 	np = inet6_sk(sk);
@@ -571,6 +573,8 @@ out_dst_release:
 	dst_release(dst);
 out:
 	icmpv6_xmit_unlock(sk);
+out_bh_enable:
+	local_bh_enable();
 }
 
 /* Slightly more convenient version of icmp6_send.
@@ -684,9 +688,10 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	fl6.flowi6_uid = sock_net_uid(net, NULL);
 	security_skb_classify_flow(skb, flowi6_to_flowi(&fl6));
 
+	local_bh_disable();
 	sk = icmpv6_xmit_lock(net);
 	if (!sk)
-		return;
+		goto out_bh_enable;
 	sk->sk_mark = mark;
 	np = inet6_sk(sk);
 
@@ -728,6 +733,8 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 	dst_release(dst);
 out:
 	icmpv6_xmit_unlock(sk);
+out_bh_enable:
+	local_bh_enable();
 }
 
 void icmpv6_notify(struct sk_buff *skb, u8 type, u8 code, __be32 info)
