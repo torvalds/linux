@@ -483,7 +483,7 @@ struct bw_calcs_output {
 void bw_calcs_init(
 	struct bw_calcs_dceip *bw_dceip,
 	struct bw_calcs_vbios *bw_vbios,
-	enum bw_calcs_version version);
+	struct hw_asic_id asic_id);
 
 /**
  * Return:

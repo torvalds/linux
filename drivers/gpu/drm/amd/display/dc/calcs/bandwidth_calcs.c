@@ -27,10 +27,33 @@
 #include "bandwidth_calcs.h"
 #include "dc.h"
 #include "core_types.h"
+#include "dal_asic_id.h"
 
 /*******************************************************************************
  * Private Functions
  ******************************************************************************/
+
+static enum bw_calcs_version bw_calcs_version_from_asic_id(struct hw_asic_id asic_id)
+{
+	switch (asic_id.chip_family) {
+
+	case FAMILY_CZ:
+		if (ASIC_REV_IS_STONEY(asic_id.hw_internal_rev))
+			return BW_CALCS_VERSION_STONEY;
+		return BW_CALCS_VERSION_CARRIZO;
+
+	case FAMILY_VI:
+		if (ASIC_REV_IS_POLARIS10_P(asic_id.hw_internal_rev))
+			// || ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev)
+			return BW_CALCS_VERSION_POLARIS10;
+		if (ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev))
+			return BW_CALCS_VERSION_POLARIS11;
+		return BW_CALCS_VERSION_INVALID;
+
+	default:
+		return BW_CALCS_VERSION_INVALID;
+	}
+}
 
 static void calculate_bandwidth(
 	const struct bw_calcs_dceip *dceip,
@@ -1954,10 +1977,12 @@ static void calculate_bandwidth(
  ******************************************************************************/
 void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 	struct bw_calcs_vbios *bw_vbios,
-	enum bw_calcs_version version)
+	struct hw_asic_id asic_id)
 {
 	struct bw_calcs_dceip dceip = { 0 };
 	struct bw_calcs_vbios vbios = { 0 };
+
+	enum bw_calcs_version version = bw_calcs_version_from_asic_id(asic_id);
 
 	dceip.version = version;
 
@@ -1965,7 +1990,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 	case BW_CALCS_VERSION_CARRIZO:
 		vbios.memory_type = bw_def_gddr5;
 		vbios.dram_channel_width_in_bits = 64;
-		vbios.number_of_dram_channels = 2;
+		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
 		vbios.number_of_dram_banks = 8;
 		vbios.high_yclk = bw_int_to_fixed(1600);
 		vbios.mid_yclk = bw_int_to_fixed(1600);
@@ -2075,7 +2100,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 	case BW_CALCS_VERSION_POLARIS10:
 		vbios.memory_type = bw_def_gddr5;
 		vbios.dram_channel_width_in_bits = 32;
-		vbios.number_of_dram_channels = 8;
+		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
 		vbios.number_of_dram_banks = 8;
 		vbios.high_yclk = bw_int_to_fixed(6000);
 		vbios.mid_yclk = bw_int_to_fixed(3200);
@@ -2185,7 +2210,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 	case BW_CALCS_VERSION_POLARIS11:
 		vbios.memory_type = bw_def_gddr5;
 		vbios.dram_channel_width_in_bits = 32;
-		vbios.number_of_dram_channels = 4;
+		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
 		vbios.number_of_dram_banks = 8;
 		vbios.high_yclk = bw_int_to_fixed(6000);
 		vbios.mid_yclk = bw_int_to_fixed(3200);
@@ -2206,7 +2231,10 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 		vbios.high_voltage_max_phyclk = bw_int_to_fixed(810);
 		vbios.data_return_bus_width = bw_int_to_fixed(32);
 		vbios.trc = bw_int_to_fixed(48);
-		vbios.dmifmc_urgent_latency = bw_int_to_fixed(3);
+		if (vbios.number_of_dram_channels == 2) // 64-bit
+			vbios.dmifmc_urgent_latency = bw_int_to_fixed(4);
+		else
+			vbios.dmifmc_urgent_latency = bw_int_to_fixed(3);
 		vbios.stutter_self_refresh_exit_latency = bw_int_to_fixed(5);
 		vbios.stutter_self_refresh_entry_latency = bw_int_to_fixed(0);
 		vbios.nbp_state_change_latency = bw_int_to_fixed(45);
@@ -2295,7 +2323,7 @@ void bw_calcs_init(struct bw_calcs_dceip *bw_dceip,
 	case BW_CALCS_VERSION_STONEY:
 		vbios.memory_type = bw_def_gddr5;
 		vbios.dram_channel_width_in_bits = 64;
-		vbios.number_of_dram_channels = 1;
+		vbios.number_of_dram_channels = asic_id.vram_width / vbios.dram_channel_width_in_bits;
 		vbios.number_of_dram_banks = 8;
 		vbios.high_yclk = bw_int_to_fixed(1866);
 		vbios.mid_yclk = bw_int_to_fixed(1866);

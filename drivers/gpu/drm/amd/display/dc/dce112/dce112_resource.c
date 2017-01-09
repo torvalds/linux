@@ -1394,7 +1394,7 @@ static bool construct(
 	if (!dce112_hw_sequencer_construct(dc))
 		goto res_create_fail;
 
-	bw_calcs_init(&dc->bw_dceip, &dc->bw_vbios, BW_CALCS_VERSION_POLARIS11);
+	bw_calcs_init(&dc->bw_dceip, &dc->bw_vbios, dc->ctx->asic_id);
 
 	bw_calcs_data_update_from_pplib(dc);
 
