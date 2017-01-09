@@ -1627,7 +1627,7 @@ static uint32_t cik_get_rev_id(struct amdgpu_device *adev)
 static void cik_detect_hw_virtualization(struct amdgpu_device *adev)
 {
 	if (is_virtual_machine()) /* passthrough mode */
-		adev->virtualization.virtual_caps |= AMDGPU_PASSTHROUGH_MODE;
+		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 }
 
 static const struct amdgpu_asic_funcs cik_asic_funcs =

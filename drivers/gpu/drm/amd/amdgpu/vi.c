@@ -445,14 +445,14 @@ static void vi_detect_hw_virtualization(struct amdgpu_device *adev)
 	/* bit0: 0 means pf and 1 means vf */
 	/* bit31: 0 means disable IOV and 1 means enable */
 	if (reg & 1)
-		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_IS_VF;
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_IS_VF;
 
 	if (reg & 0x80000000)
-		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_ENABLE_IOV;
 
 	if (reg == 0) {
 		if (is_virtual_machine()) /* passthrough mode exclus sr-iov mode */
-			adev->virtualization.virtual_caps |= AMDGPU_PASSTHROUGH_MODE;
+			adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 	}
 }
 

@@ -1138,7 +1138,7 @@ static int si_set_uvd_clocks(struct amdgpu_device *adev, u32 vclk, u32 dclk)
 static void si_detect_hw_virtualization(struct amdgpu_device *adev)
 {
 	if (is_virtual_machine()) /* passthrough mode */
-		adev->virtualization.virtual_caps |= AMDGPU_PASSTHROUGH_MODE;
+		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
 }
 
 static const struct amdgpu_asic_funcs si_asic_funcs =

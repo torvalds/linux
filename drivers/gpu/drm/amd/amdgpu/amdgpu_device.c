@@ -1575,7 +1575,7 @@ static int amdgpu_resume(struct amdgpu_device *adev)
 static void amdgpu_device_detect_sriov_bios(struct amdgpu_device *adev)
 {
 	if (amdgpu_atombios_has_gpu_virtualization_table(adev))
-		adev->virtualization.virtual_caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
+		adev->virt.caps |= AMDGPU_SRIOV_CAPS_SRIOV_VBIOS;
 }
 
 /**
