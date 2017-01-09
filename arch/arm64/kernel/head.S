@@ -483,7 +483,7 @@ ENTRY(kimage_vaddr)
  * If we're fortunate enough to boot at EL2, ensure that the world is
  * sane before dropping to EL1.
  *
- * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in x20 if
+ * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in w0 if
  * booted in EL1 or EL2 respectively.
  */
 ENTRY(el2_setup)
@@ -628,7 +628,7 @@ ENDPROC(el2_setup)
 
 /*
  * Sets the __boot_cpu_mode flag depending on the CPU boot mode passed
- * in x20. See arch/arm64/include/asm/virt.h for more info.
+ * in w0. See arch/arm64/include/asm/virt.h for more info.
  */
 set_cpu_boot_mode_flag:
 	adr_l	x1, __boot_cpu_mode
