@@ -29,6 +29,15 @@ config STMMAC_PLATFORM
 
 if STMMAC_PLATFORM
 
+config DWMAC_DWC_QOS_ETH
+	tristate "Support for snps,dwc-qos-ethernet.txt DT binding."
+	select PHYLIB
+	select CRC32
+	select MII
+	depends on OF && HAS_DMA
+	help
+	  Support for chips using the snps,dwc-qos-ethernet.txt DT binding.
+
 config DWMAC_GENERIC
 	tristate "Generic driver for DWMAC"
 	default STMMAC_PLATFORM

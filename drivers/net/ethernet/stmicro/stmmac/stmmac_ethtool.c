@@ -712,7 +712,7 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 
 static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)
 {
-	unsigned long clk = clk_get_rate(priv->stmmac_clk);
+	unsigned long clk = clk_get_rate(priv->plat->stmmac_clk);
 
 	if (!clk)
 		return 0;
@@ -722,7 +722,7 @@ static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)
 
 static u32 stmmac_riwt2usec(u32 riwt, struct stmmac_priv *priv)
 {
-	unsigned long clk = clk_get_rate(priv->stmmac_clk);
+	unsigned long clk = clk_get_rate(priv->plat->stmmac_clk);
 
 	if (!clk)
 		return 0;

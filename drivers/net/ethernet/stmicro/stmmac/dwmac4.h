@@ -98,6 +98,7 @@ enum power_event {
 #define GMAC4_LPI_TIMER_CTRL	0xd4
 
 /* LPI control and status defines */
+#define GMAC4_LPI_CTRL_STATUS_LPITCSE	BIT(21)	/* LPI Tx Clock Stop Enable */
 #define GMAC4_LPI_CTRL_STATUS_LPITXA	BIT(19)	/* Enable LPI TX Automate */
 #define GMAC4_LPI_CTRL_STATUS_PLS	BIT(17) /* PHY Link Status */
 #define GMAC4_LPI_CTRL_STATUS_LPIEN	BIT(16)	/* LPI Enable */

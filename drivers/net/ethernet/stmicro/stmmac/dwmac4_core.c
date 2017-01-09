@@ -137,7 +137,8 @@ static void dwmac4_get_umac_addr(struct mac_device_info *hw,
 				   GMAC_ADDR_LOW(reg_n));
 }
 
-static void dwmac4_set_eee_mode(struct mac_device_info *hw)
+static void dwmac4_set_eee_mode(struct mac_device_info *hw,
+				bool en_tx_lpi_clockgating)
 {
 	void __iomem *ioaddr = hw->pcsr;
 	u32 value;
@@ -148,6 +149,9 @@ static void dwmac4_set_eee_mode(struct mac_device_info *hw)
 	 */
 	value = readl(ioaddr + GMAC4_LPI_CTRL_STATUS);
 	value |= GMAC4_LPI_CTRL_STATUS_LPIEN | GMAC4_LPI_CTRL_STATUS_LPITXA;
+
+	if (en_tx_lpi_clockgating)
+		value |= GMAC4_LPI_CTRL_STATUS_LPITCSE;
 
 	writel(value, ioaddr + GMAC4_LPI_CTRL_STATUS);
 }

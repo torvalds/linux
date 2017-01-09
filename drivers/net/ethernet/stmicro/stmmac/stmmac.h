@@ -106,9 +106,6 @@ struct stmmac_priv {
 	u32 msg_enable;
 	int wolopts;
 	int wol_irq;
-	struct clk *stmmac_clk;
-	struct clk *pclk;
-	struct reset_control *stmmac_rst;
 	int clk_csr;
 	struct timer_list eee_ctrl_timer;
 	int lpi_irq;
@@ -120,8 +117,6 @@ struct stmmac_priv {
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;
-	struct clk *clk_ptp_ref;
-	unsigned int clk_ptp_rate;
 	u32 adv_ts;
 	int use_riwt;
 	int irq_wake;
