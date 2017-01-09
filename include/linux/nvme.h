@@ -587,6 +587,11 @@ struct nvme_feat_auto_pst {
 	__le64 entries[32];
 };
 
+enum {
+	NVME_HOST_MEM_ENABLE	= (1 << 0),
+	NVME_HOST_MEM_RETURN	= (1 << 1),
+};
+
 /* Admin commands */
 
 enum nvme_admin_opcode {
@@ -669,6 +674,12 @@ struct nvme_features {
 	__le32			fid;
 	__le32			dword11;
 	__u32			rsvd12[4];
+};
+
+struct nvme_host_mem_buf_desc {
+	__le64			addr;
+	__le32			size;
+	__u32			rsvd;
 };
 
 struct nvme_create_cq {
