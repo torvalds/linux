@@ -338,7 +338,7 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 		return -EIO;
 	}
 
-	return err > 0 ? 0 : err;
+	return 0;
 }
 
 /* Routine executes I2C command. */
