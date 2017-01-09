@@ -823,7 +823,7 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 	u8 *ucode_ptr = data, *new_mc = NULL, *mc = NULL;
 	int new_rev = uci->cpu_sig.rev;
 	unsigned int leftover = size;
-	unsigned int curr_mc_size = 0;
+	unsigned int curr_mc_size = 0, new_mc_size = 0;
 	unsigned int csig, cpf;
 
 	while (leftover) {
@@ -864,6 +864,7 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 			vfree(new_mc);
 			new_rev = mc_header.rev;
 			new_mc  = mc;
+			new_mc_size = mc_size;
 			mc = NULL;	/* trigger new vmalloc */
 		}
 
@@ -889,7 +890,7 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 	 * permanent memory. So it will be loaded early when a CPU is hot added
 	 * or resumes.
 	 */
-	save_mc_for_early(new_mc, curr_mc_size);
+	save_mc_for_early(new_mc, new_mc_size);
 
 	pr_debug("CPU%d found a matching microcode update with version 0x%x (current=0x%x)\n",
 		 cpu, new_rev, uci->cpu_sig.rev);
