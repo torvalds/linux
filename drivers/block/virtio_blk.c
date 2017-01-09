@@ -56,6 +56,7 @@ struct virtblk_req {
 	struct virtio_blk_outhdr out_hdr;
 	struct virtio_scsi_inhdr in_hdr;
 	u8 status;
+	u8 sense[SCSI_SENSE_BUFFERSIZE];
 	struct scatterlist sg[];
 };
 
@@ -102,7 +103,8 @@ static int __virtblk_add_req(struct virtqueue *vq,
 	}
 
 	if (type == cpu_to_virtio32(vq->vdev, VIRTIO_BLK_T_SCSI_CMD)) {
-		sg_init_one(&sense, vbr->req->sense, SCSI_SENSE_BUFFERSIZE);
+		memcpy(vbr->sense, vbr->req->sense, SCSI_SENSE_BUFFERSIZE);
+		sg_init_one(&sense, vbr->sense, SCSI_SENSE_BUFFERSIZE);
 		sgs[num_out + num_in++] = &sense;
 		sg_init_one(&inhdr, &vbr->in_hdr, sizeof(vbr->in_hdr));
 		sgs[num_out + num_in++] = &inhdr;
