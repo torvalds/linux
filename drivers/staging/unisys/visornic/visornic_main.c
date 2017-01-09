@@ -464,7 +464,7 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 			spin_unlock_irqrestore(&devdata->priv_lock, flags);
 			dev_dbg(&netdev->dev, "%s server went away\n",
 				__func__);
-			return -EIO;
+			break;
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
@@ -608,7 +608,7 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 			spin_unlock_irqrestore(&devdata->priv_lock, flags);
 			dev_dbg(&netdev->dev, "%s server went away\n",
 				__func__);
-			return -EIO;
+			break;
 		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&devdata->priv_lock, flags);
