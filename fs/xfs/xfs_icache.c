@@ -1580,10 +1580,15 @@ xfs_inode_free_cowblocks(
 	struct xfs_eofblocks *eofb = args;
 	bool need_iolock = true;
 	int match;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
 
 	ASSERT(!eofb || (eofb && eofb->eof_scan_owner != 0));
 
-	if (!xfs_reflink_has_real_cow_blocks(ip)) {
+	/*
+	 * Just clear the tag if we have an empty cow fork or none at all. It's
+	 * possible the inode was fully unshared since it was originally tagged.
+	 */
+	if (!xfs_is_reflink_inode(ip) || !ifp->if_bytes) {
 		trace_xfs_inode_free_cowblocks_invalid(ip);
 		xfs_inode_clear_cowblocks_tag(ip);
 		return 0;

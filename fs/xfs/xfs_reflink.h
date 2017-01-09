@@ -50,6 +50,4 @@ extern int xfs_reflink_clear_inode_flag(struct xfs_inode *ip,
 extern int xfs_reflink_unshare(struct xfs_inode *ip, xfs_off_t offset,
 		xfs_off_t len);
 
-extern bool xfs_reflink_has_real_cow_blocks(struct xfs_inode *ip);
-
 #endif /* __XFS_REFLINK_H */
