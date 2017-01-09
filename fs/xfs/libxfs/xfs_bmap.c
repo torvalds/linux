@@ -1377,8 +1377,9 @@ xfs_bmap_read_extents(
 			return error;
 		block = XFS_BUF_TO_BLOCK(bp);
 	}
+	if (i != XFS_IFORK_NEXTENTS(ip, whichfork))
+		return -EFSCORRUPTED;
 	ASSERT(i == xfs_iext_count(ifp));
-	ASSERT(i == XFS_IFORK_NEXTENTS(ip, whichfork));
 	XFS_BMAP_TRACE_EXLIST(ip, i, whichfork);
 	return 0;
 error0:
