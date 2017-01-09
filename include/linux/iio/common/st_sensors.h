@@ -116,6 +116,16 @@ struct st_sensor_bdu {
 };
 
 /**
+ * struct st_sensor_das - ST sensor device data alignment selection
+ * @addr: address of the register.
+ * @mask: mask to write the das flag for left alignment.
+ */
+struct st_sensor_das {
+	u8 addr;
+	u8 mask;
+};
+
+/**
  * struct st_sensor_data_ready_irq - ST sensor device data-ready interrupt
  * @addr: address of the register.
  * @mask_int1: mask to enable/disable IRQ on INT1 pin.
@@ -185,6 +195,7 @@ struct st_sensor_transfer_function {
  * @enable_axis: Enable one or more axis of the sensor.
  * @fs: Full scale register and full scale list available.
  * @bdu: Block data update register.
+ * @das: Data Alignment Selection register.
  * @drdy_irq: Data ready register of the sensor.
  * @multi_read_bit: Use or not particular bit for [I2C/SPI] multi-read.
  * @bootime: samples to discard when sensor passing from power-down to power-up.
@@ -200,6 +211,7 @@ struct st_sensor_settings {
 	struct st_sensor_axis enable_axis;
 	struct st_sensor_fullscale fs;
 	struct st_sensor_bdu bdu;
+	struct st_sensor_das das;
 	struct st_sensor_data_ready_irq drdy_irq;
 	bool multi_read_bit;
 	unsigned int bootime;
