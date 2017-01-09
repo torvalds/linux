@@ -81,6 +81,16 @@
 #define KVM_ITS_CTE_VALID_MASK		BIT_ULL(63)
 #define KVM_ITS_CTE_RDBASE_SHIFT	16
 #define KVM_ITS_CTE_ICID_MASK		GENMASK_ULL(15, 0)
+#define KVM_ITS_DTE_VALID_SHIFT		63
+#define KVM_ITS_DTE_VALID_MASK		BIT_ULL(63)
+#define KVM_ITS_DTE_NEXT_SHIFT		49
+#define KVM_ITS_DTE_NEXT_MASK		GENMASK_ULL(62, 49)
+#define KVM_ITS_DTE_ITTADDR_SHIFT	5
+#define KVM_ITS_DTE_ITTADDR_MASK	GENMASK_ULL(48, 5)
+#define KVM_ITS_DTE_SIZE_MASK		GENMASK_ULL(4, 0)
+#define KVM_ITS_L1E_VALID_MASK		BIT_ULL(63)
+/* we only support 64 kB translation table page size */
+#define KVM_ITS_L1E_ADDR_MASK		GENMASK_ULL(51, 16)
 
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
