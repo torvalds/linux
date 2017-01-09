@@ -1016,6 +1016,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	if (err)
 		return err;
 
+	sq->uar_map = sq->bfreg.map;
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, &sq->wq,

@@ -475,6 +475,7 @@ struct mlx5e_sq {
 	/* read only */
 	struct mlx5_wq_cyc         wq;
 	u32                        dma_fifo_mask;
+	void __iomem              *uar_map;
 	struct netdev_queue       *txq;
 	u32                        sqn;
 	u16                        bf_buf_size;
@@ -831,9 +832,9 @@ static inline void mlx5e_tx_notify_hw(struct mlx5e_sq *sq,
 	 */
 	wmb();
 	if (bf_sz)
-		__iowrite64_copy(sq->bfreg.map + ofst, ctrl, bf_sz);
+		__iowrite64_copy(sq->uar_map + ofst, ctrl, bf_sz);
 	else
-		mlx5_write64((__be32 *)ctrl, sq->bfreg.map + ofst, NULL);
+		mlx5_write64((__be32 *)ctrl, sq->uar_map + ofst, NULL);
 	/* flush the write-combining mapped buffer */
 	wmb();
 
