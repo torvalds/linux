@@ -188,8 +188,6 @@ static void decon_commit(struct exynos_drm_crtc *crtc)
 
 	/* enable output and display signal */
 	decon_set_bits(ctx, DECON_VIDCON0, VIDCON0_ENVID | VIDCON0_ENVID_F, ~0);
-
-	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
 }
 
 static void decon_win_set_pixfmt(struct decon_context *ctx, unsigned int win,
@@ -340,8 +338,9 @@ static void decon_atomic_flush(struct exynos_drm_crtc *crtc)
 	for (i = ctx->first_win; i < WINDOWS_NR; i++)
 		decon_shadow_protect_win(ctx, i, false);
 
-	/* standalone update */
-	decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
+	/* update iff there are active windows */
+	if (crtc->base.state->plane_mask)
+		decon_set_bits(ctx, DECON_UPDATE, STANDALONE_UPDATE_F, ~0);
 
 	if (ctx->out_type & IFTYPE_I80)
 		set_bit(BIT_WIN_UPDATED, &ctx->flags);
