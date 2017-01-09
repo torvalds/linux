@@ -771,6 +771,20 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p,
 	if (r)
 		return r;
 
+	if (amdgpu_sriov_vf(adev)) {
+		struct dma_fence *f;
+		bo_va = vm->csa_bo_va;
+		BUG_ON(!bo_va);
+		r = amdgpu_vm_bo_update(adev, bo_va, false);
+		if (r)
+			return r;
+
+		f = bo_va->last_pt_update;
+		r = amdgpu_sync_fence(adev, &p->job->sync, f);
+		if (r)
+			return r;
+	}
+
 	if (p->bo_list) {
 		for (i = 0; i < p->bo_list->num_entries; i++) {
 			struct dma_fence *f;
