@@ -271,15 +271,20 @@ static int call_fext_func(int cmd, int arg0, int arg1, int arg2)
 static int logolamp_set(struct led_classdev *cdev,
 			       enum led_brightness brightness)
 {
-	if (brightness >= LED_FULL) {
-		call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, FUNC_LED_ON);
-		return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, FUNC_LED_ON);
-	} else if (brightness >= LED_HALF) {
-		call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, FUNC_LED_ON);
-		return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, FUNC_LED_OFF);
-	} else {
-		return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, FUNC_LED_OFF);
-	}
+	int poweron = FUNC_LED_ON, always = FUNC_LED_ON;
+	int ret;
+
+	if (brightness < LED_HALF)
+		poweron = FUNC_LED_OFF;
+
+	if (brightness < LED_FULL)
+		always = FUNC_LED_OFF;
+
+	ret = call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_POWERON, poweron);
+	if (ret < 0)
+		return ret;
+
+	return call_fext_func(FUNC_LEDS, 0x1, LOGOLAMP_ALWAYS, always);
 }
 
 static int kblamps_set(struct led_classdev *cdev,
