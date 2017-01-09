@@ -60,4 +60,8 @@ static inline bool is_virtual_machine(void)
 #endif
 }
 
+struct amdgpu_vm;
+int amdgpu_allocate_static_csa(struct amdgpu_device *adev);
+int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+
 #endif

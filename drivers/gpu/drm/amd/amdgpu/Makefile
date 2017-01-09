@@ -24,7 +24,7 @@ amdgpu-y += amdgpu_device.o amdgpu_kms.o \
 	atombios_encoders.o amdgpu_sa.o atombios_i2c.o \
 	amdgpu_prime.o amdgpu_vm.o amdgpu_ib.o amdgpu_pll.o \
 	amdgpu_ucode.o amdgpu_bo_list.o amdgpu_ctx.o amdgpu_sync.o \
-	amdgpu_gtt_mgr.o amdgpu_vram_mgr.o
+	amdgpu_gtt_mgr.o amdgpu_vram_mgr.o amdgpu_virt.o
 
 # add asic specific block
 amdgpu-$(CONFIG_DRM_AMDGPU_CIK)+= cik.o cik_ih.o kv_smc.o kv_dpm.o \
