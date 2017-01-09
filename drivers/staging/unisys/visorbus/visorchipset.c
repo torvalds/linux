@@ -352,45 +352,12 @@ parser_id_get(struct parser_context *ctx)
 {
 	struct spar_controlvm_parameters_header *phdr = NULL;
 
-	if (!ctx)
-		return NULL_UUID_LE;
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	return phdr->id;
 }
 
-/*
- * Describes the state from the perspective of which controlvm messages have
- * been received for a bus or device.
- */
-
-enum PARSER_WHICH_STRING {
-	PARSERSTRING_NAME
-};
-
-static void
-parser_param_start(struct parser_context *ctx,
-		   enum PARSER_WHICH_STRING which_string)
-{
-	struct spar_controlvm_parameters_header *phdr = NULL;
-
-	if (!ctx)
-		return;
-
-	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
-	switch (which_string) {
-	case PARSERSTRING_NAME:
-		ctx->curr = ctx->data + phdr->name_offset;
-		ctx->bytes_remaining = phdr->name_length;
-		break;
-	default:
-		break;
-	}
-}
-
 static void parser_done(struct parser_context *ctx)
 {
-	if (!ctx)
-		return;
 	controlvm_payload_bytes_buffered -= ctx->param_bytes;
 	kfree(ctx);
 }
@@ -404,8 +371,6 @@ parser_string_get(struct parser_context *ctx)
 	void *value = NULL;
 	int i;
 
-	if (!ctx)
-		return NULL;
 	pscan = ctx->curr;
 	nscan = ctx->bytes_remaining;
 	if (nscan == 0)
@@ -426,6 +391,17 @@ parser_string_get(struct parser_context *ctx)
 		memcpy(value, pscan, value_length);
 	((u8 *)(value))[value_length] = '\0';
 	return value;
+}
+
+static void *
+parser_name_get(struct parser_context *ctx)
+{
+	struct spar_controlvm_parameters_header *phdr = NULL;
+
+	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
+	ctx->curr = ctx->data + phdr->name_offset;
+	ctx->bytes_remaining = phdr->name_length;
+	return parser_string_get(ctx);
 }
 
 struct visor_busdev {
@@ -850,9 +826,10 @@ bus_configure(struct controlvm_message *inmsg,
 	if (err)
 		goto err_respond;
 
-	bus_info->partition_uuid = parser_id_get(parser_ctx);
-	parser_param_start(parser_ctx, PARSERSTRING_NAME);
-	bus_info->name = parser_string_get(parser_ctx);
+	if (parser_ctx) {
+		bus_info->partition_uuid = parser_id_get(parser_ctx);
+		bus_info->name = parser_name_get(parser_ctx);
+	}
 
 	POSTCODE_LINUX(BUS_CONFIGURE_EXIT_PC, 0, bus_no,
 		       DIAG_SEVERITY_PRINT);
