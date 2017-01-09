@@ -105,30 +105,7 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 			goto out;
 	}
 
-
 	wdev->wext.connect.channel = chan;
-
-	/*
-	 * SSID is not set, we just want to switch monitor channel,
-	 * this is really just backward compatibility, if the SSID
-	 * is set then we use the channel to select the BSS to use
-	 * to connect to instead. If we were connected on another
-	 * channel we disconnected above and reconnect below.
-	 */
-	if (chan && !wdev->wext.connect.ssid_len) {
-		struct cfg80211_chan_def chandef = {
-			.width = NL80211_CHAN_WIDTH_20_NOHT,
-			.center_freq1 = freq,
-		};
-
-		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
-		if (chandef.chan)
-			err = cfg80211_set_monitor_channel(rdev, &chandef);
-		else
-			err = -EINVAL;
-		goto out;
-	}
-
 	err = cfg80211_mgd_wext_connect(rdev, wdev);
  out:
 	wdev_unlock(wdev);
