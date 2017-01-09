@@ -806,7 +806,10 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.sys_reg = SYS_ID_AA64MMFR2_EL1,
 		.field_pos = ID_AA64MMFR2_UAO_SHIFT,
 		.min_field_value = 1,
-		.enable = cpu_enable_uao,
+		/*
+		 * We rely on stop_machine() calling uao_thread_switch() to set
+		 * UAO immediately after patching.
+		 */
 	},
 #endif /* CONFIG_ARM64_UAO */
 #ifdef CONFIG_ARM64_PAN
