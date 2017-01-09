@@ -580,6 +580,24 @@ static int vgic_v3_set_attr(struct kvm_device *dev,
 		reg = tmp32;
 		return vgic_v3_attr_regs_access(dev, attr, &reg, true);
 	}
+	case KVM_DEV_ARM_VGIC_GRP_CTRL: {
+		int ret;
+
+		switch (attr->attr) {
+		case KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES:
+			mutex_lock(&dev->kvm->lock);
+
+			if (!lock_all_vcpus(dev->kvm)) {
+				mutex_unlock(&dev->kvm->lock);
+				return -EBUSY;
+			}
+			ret = vgic_v3_save_pending_tables(dev->kvm);
+			unlock_all_vcpus(dev->kvm);
+			mutex_unlock(&dev->kvm->lock);
+			return ret;
+		}
+		break;
+	}
 	}
 	return -ENXIO;
 }
@@ -657,6 +675,8 @@ static int vgic_v3_has_attr(struct kvm_device *dev,
 	case KVM_DEV_ARM_VGIC_GRP_CTRL:
 		switch (attr->attr) {
 		case KVM_DEV_ARM_VGIC_CTRL_INIT:
+			return 0;
+		case KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES:
 			return 0;
 		}
 	}
