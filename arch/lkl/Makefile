@@ -35,6 +35,7 @@ lkl.o: vmlinux
 
 arch/lkl/include/generated/uapi/asm/syscall_defs.h: vmlinux
 	$(OBJCOPY) -j .syscall_defs -O binary --set-section-flags .syscall_defs=alloc $< $@
+	sed -i 's/\x0//g' $@
 
 install: lkl.o __headers arch/lkl/include/generated/uapi/asm/syscall_defs.h
 	@echo "  INSTALL	$(INSTALL_PATH)/lib/lkl.o"
