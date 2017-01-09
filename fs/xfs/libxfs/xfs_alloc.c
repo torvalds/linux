@@ -362,33 +362,9 @@ xfs_alloc_fix_len(
 		return;
 	ASSERT(rlen >= args->minlen && rlen <= args->maxlen);
 	ASSERT(rlen % args->prod == args->mod);
+	ASSERT(args->pag->pagf_freeblks + args->pag->pagf_flcount >=
+		rlen + args->minleft);
 	args->len = rlen;
-}
-
-/*
- * Fix up length if there is too little space left in the a.g.
- * Return 1 if ok, 0 if too little, should give up.
- */
-STATIC int
-xfs_alloc_fix_minleft(
-	xfs_alloc_arg_t	*args)		/* allocation argument structure */
-{
-	xfs_agf_t	*agf;		/* a.g. freelist header */
-	int		diff;		/* free space difference */
-
-	if (args->minleft == 0)
-		return 1;
-	agf = XFS_BUF_TO_AGF(args->agbp);
-	diff = be32_to_cpu(agf->agf_freeblks)
-		- args->len - args->minleft;
-	if (diff >= 0)
-		return 1;
-	args->len += diff;		/* shrink the allocated space */
-	/* casts to (int) catch length underflows */
-	if ((int)args->len >= (int)args->minlen)
-		return 1;
-	args->agbno = NULLAGBLOCK;
-	return 0;
 }
 
 /*
@@ -686,28 +662,12 @@ xfs_alloc_ag_vextent(
 	xfs_alloc_arg_t	*args)	/* argument structure for allocation */
 {
 	int		error=0;
-	xfs_extlen_t	reservation;
-	xfs_extlen_t	oldmax;
 
 	ASSERT(args->minlen > 0);
 	ASSERT(args->maxlen > 0);
 	ASSERT(args->minlen <= args->maxlen);
 	ASSERT(args->mod < args->prod);
 	ASSERT(args->alignment > 0);
-
-	/*
-	 * Clamp maxlen to the amount of free space minus any reservations
-	 * that have been made.
-	 */
-	oldmax = args->maxlen;
-	reservation = xfs_ag_resv_needed(args->pag, args->resv);
-	if (args->maxlen > args->pag->pagf_freeblks - reservation)
-		args->maxlen = args->pag->pagf_freeblks - reservation;
-	if (args->maxlen == 0) {
-		args->agbno = NULLAGBLOCK;
-		args->maxlen = oldmax;
-		return 0;
-	}
 
 	/*
 	 * Branch to correct routine based on the type.
@@ -727,8 +687,6 @@ xfs_alloc_ag_vextent(
 		ASSERT(0);
 		/* NOTREACHED */
 	}
-
-	args->maxlen = oldmax;
 
 	if (error || args->agbno == NULLAGBLOCK)
 		return error;
@@ -838,9 +796,6 @@ xfs_alloc_ag_vextent_exact(
 	args->len = XFS_AGBLOCK_MIN(tend, args->agbno + args->maxlen)
 						- args->agbno;
 	xfs_alloc_fix_len(args);
-	if (!xfs_alloc_fix_minleft(args))
-		goto not_found;
-
 	ASSERT(args->agbno + args->len <= tend);
 
 	/*
@@ -1146,12 +1101,7 @@ restart:
 		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, error0);
 		ASSERT(ltbno + ltlen <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
 		args->len = blen;
-		if (!xfs_alloc_fix_minleft(args)) {
-			xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
-			trace_xfs_alloc_near_nominleft(args);
-			return 0;
-		}
-		blen = args->len;
+
 		/*
 		 * We are allocating starting at bnew for blen blocks.
 		 */
@@ -1343,12 +1293,6 @@ restart:
 	 */
 	args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
 	xfs_alloc_fix_len(args);
-	if (!xfs_alloc_fix_minleft(args)) {
-		trace_xfs_alloc_near_nominleft(args);
-		xfs_btree_del_cursor(bno_cur_lt, XFS_BTREE_NOERROR);
-		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
-		return 0;
-	}
 	rlen = args->len;
 	(void)xfs_alloc_compute_diff(args->agbno, rlen, args->alignment,
 				     args->datatype, ltbnoa, ltlena, &ltnew);
@@ -1550,8 +1494,6 @@ restart:
 	}
 	xfs_alloc_fix_len(args);
 
-	if (!xfs_alloc_fix_minleft(args))
-		goto out_nominleft;
 	rlen = args->len;
 	XFS_WANT_CORRUPTED_GOTO(args->mp, rlen <= flen, error0);
 	/*
@@ -2070,9 +2012,19 @@ xfs_alloc_space_available(
 
 	/* do we have enough free space remaining for the allocation? */
 	available = (int)(pag->pagf_freeblks + pag->pagf_flcount -
-			  reservation - min_free - args->total);
-	if (available < (int)args->minleft || available <= 0)
+			  reservation - min_free - args->minleft);
+	if (available < (int)args->total)
 		return false;
+
+	/*
+	 * Clamp maxlen to the amount of free space available for the actual
+	 * extent allocation.
+	 */
+	if (available < (int)args->maxlen && !(flags & XFS_ALLOC_FLAG_CHECK)) {
+		args->maxlen = available;
+		ASSERT(args->maxlen > 0);
+		ASSERT(args->maxlen >= args->minlen);
+	}
 
 	return true;
 }
@@ -2119,7 +2071,8 @@ xfs_alloc_fix_freelist(
 	}
 
 	need = xfs_alloc_min_freelist(mp, pag);
-	if (!xfs_alloc_space_available(args, need, flags))
+	if (!xfs_alloc_space_available(args, need, flags |
+			XFS_ALLOC_FLAG_CHECK))
 		goto out_agbp_relse;
 
 	/*
