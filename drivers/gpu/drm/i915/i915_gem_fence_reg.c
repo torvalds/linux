@@ -81,8 +81,13 @@ static void i965_write_fence_reg(struct drm_i915_fence_reg *fence,
 		u32 row_size = i915_gem_object_get_tile_row_size(vma->obj);
 		u32 size = rounddown((u32)vma->node.size, row_size);
 
-		val = ((vma->node.start + size - 4096) & 0xfffff000) << 32;
-		val |= vma->node.start & 0xfffff000;
+		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+		GEM_BUG_ON(vma->node.start & 4095);
+		GEM_BUG_ON(vma->node.size & 4095);
+		GEM_BUG_ON(stride & 127);
+
+		val = (vma->node.start + size - 4096) << 32;
+		val |= vma->node.start;
 		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
 		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
 			val |= BIT(I965_FENCE_TILING_Y_SHIFT);
@@ -120,31 +125,24 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *fence,
 		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
 		bool is_y_tiled = tiling == I915_TILING_Y;
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-		int pitch_val;
-		int tile_width;
 
-		WARN((vma->node.start & ~I915_FENCE_START_MASK) ||
-		     !is_power_of_2(vma->node.size) ||
-		     (vma->node.start & (vma->node.size - 1)),
-		     "object 0x%08llx [fenceable? %d] not 1M or pot-size (0x%08llx) aligned\n",
-		     vma->node.start,
-		     i915_vma_is_map_and_fenceable(vma),
-		     vma->node.size);
+		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+		GEM_BUG_ON(vma->node.start & ~I915_FENCE_START_MASK);
+		GEM_BUG_ON(!is_power_of_2(vma->node.size));
+		GEM_BUG_ON(vma->node.start & (vma->node.size - 1));
 
 		if (is_y_tiled && HAS_128_BYTE_Y_TILING(fence->i915))
-			tile_width = 128;
+			stride /= 128;
 		else
-			tile_width = 512;
-
-		/* Note: pitch better be a power of two tile widths */
-		pitch_val = stride / tile_width;
-		pitch_val = ffs(pitch_val) - 1;
+			stride /= 512;
+		GEM_BUG_ON(!is_power_of_2(stride));
 
 		val = vma->node.start;
 		if (is_y_tiled)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
 		val |= I915_FENCE_SIZE_BITS(vma->node.size);
-		val |= pitch_val << I830_FENCE_PITCH_SHIFT;
+		val |= ilog2(stride) << I830_FENCE_PITCH_SHIFT;
+
 		val |= I830_FENCE_REG_VALID;
 	}
 
@@ -167,22 +165,18 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *fence,
 		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
 		bool is_y_tiled = tiling == I915_TILING_Y;
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-		u32 pitch_val;
 
-		WARN((vma->node.start & ~I830_FENCE_START_MASK) ||
-		     !is_power_of_2(vma->node.size) ||
-		     (vma->node.start & (vma->node.size - 1)),
-		     "object 0x%08llx not 512K or pot-size 0x%08llx aligned\n",
-		     vma->node.start, vma->node.size);
-
-		pitch_val = stride / 128;
-		pitch_val = ffs(pitch_val) - 1;
+		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
+		GEM_BUG_ON(vma->node.start & ~I830_FENCE_START_MASK);
+		GEM_BUG_ON(!is_power_of_2(vma->node.size));
+		GEM_BUG_ON(!is_power_of_2(stride / 128));
+		GEM_BUG_ON(vma->node.start & (vma->node.size - 1));
 
 		val = vma->node.start;
 		if (is_y_tiled)
 			val |= BIT(I830_FENCE_TILING_Y_SHIFT);
 		val |= I830_FENCE_SIZE_BITS(vma->node.size);
-		val |= pitch_val << I830_FENCE_PITCH_SHIFT;
+		val |= ilog2(stride / 128) << I830_FENCE_PITCH_SHIFT;
 		val |= I830_FENCE_REG_VALID;
 	}
 
