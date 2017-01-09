@@ -48,6 +48,8 @@
 
 struct switch_output {
 	bool		 signal;
+	const char	*str;
+	bool		 set;
 };
 
 struct record {
@@ -1356,6 +1358,22 @@ out_free:
 	return ret;
 }
 
+static int switch_output_setup(struct record *rec)
+{
+	struct switch_output *s = &rec->switch_output;
+
+	if (!s->set)
+		return 0;
+
+	if (!strcmp(s->str, "signal")) {
+		s->signal = true;
+		pr_debug("switch-output with SIGUSR2 signal\n");
+		return 0;
+	}
+
+	return -1;
+}
+
 static const char * const __record_usage[] = {
 	"perf record [<options>] [<command>]",
 	"perf record [<options>] -- <command> [<options>]",
@@ -1523,8 +1541,9 @@ static struct option __record_options[] = {
 		    "Record build-id of all DSOs regardless of hits"),
 	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
 		    "append timestamp to output filename"),
-	OPT_BOOLEAN(0, "switch-output", &record.switch_output.signal,
-		    "Switch output when receive SIGUSR2"),
+	OPT_STRING_OPTARG_SET(0, "switch-output", &record.switch_output.str,
+			  &record.switch_output.set, "signal",
+			  "Switch output when receive SIGUSR2", "signal"),
 	OPT_BOOLEAN(0, "dry-run", &dry_run,
 		    "Parse options then exit"),
 	OPT_END()
@@ -1579,6 +1598,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	    !perf_can_record_switch_events()) {
 		ui__error("kernel does not support recording context switch events\n");
 		parse_options_usage(record_usage, record_options, "switch-events", 0);
+		return -EINVAL;
+	}
+
+	if (switch_output_setup(rec)) {
+		parse_options_usage(record_usage, record_options, "switch-output", 0);
 		return -EINVAL;
 	}
 
