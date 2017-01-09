@@ -938,6 +938,23 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		d->ccr |= CCR_DST_AMODE_POSTINC;
 		if (port_window) {
 			d->ccr |= CCR_SRC_AMODE_DBLIDX;
+
+			if (port_window_bytes >= 64)
+				d->csdp |= CSDP_SRC_BURST_64;
+			else if (port_window_bytes >= 32)
+				d->csdp |= CSDP_SRC_BURST_32;
+			else if (port_window_bytes >= 16)
+				d->csdp |= CSDP_SRC_BURST_16;
+
+		} else {
+			d->ccr |= CCR_SRC_AMODE_CONSTANT;
+		}
+	} else {
+		d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
+
+		d->ccr |= CCR_SRC_AMODE_POSTINC;
+		if (port_window) {
+			d->ccr |= CCR_DST_AMODE_DBLIDX;
 			d->ei = 1;
 			/*
 			 * One frame covers the port_window and by  configure
@@ -948,27 +965,11 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 			d->fi = -(port_window_bytes - 1);
 
 			if (port_window_bytes >= 64)
-				d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
+				d->csdp |= CSDP_DST_BURST_64;
 			else if (port_window_bytes >= 32)
-				d->csdp = CSDP_SRC_BURST_32 | CSDP_SRC_PACKED;
+				d->csdp |= CSDP_DST_BURST_32;
 			else if (port_window_bytes >= 16)
-				d->csdp = CSDP_SRC_BURST_16 | CSDP_SRC_PACKED;
-		} else {
-			d->ccr |= CCR_SRC_AMODE_CONSTANT;
-		}
-	} else {
-		d->csdp = CSDP_SRC_BURST_64 | CSDP_SRC_PACKED;
-
-		d->ccr |= CCR_SRC_AMODE_POSTINC;
-		if (port_window) {
-			d->ccr |= CCR_DST_AMODE_DBLIDX;
-
-			if (port_window_bytes >= 64)
-				d->csdp = CSDP_DST_BURST_64 | CSDP_DST_PACKED;
-			else if (port_window_bytes >= 32)
-				d->csdp = CSDP_DST_BURST_32 | CSDP_DST_PACKED;
-			else if (port_window_bytes >= 16)
-				d->csdp = CSDP_DST_BURST_16 | CSDP_DST_PACKED;
+				d->csdp |= CSDP_DST_BURST_16;
 		} else {
 			d->ccr |= CCR_DST_AMODE_CONSTANT;
 		}
@@ -1017,7 +1018,7 @@ static struct dma_async_tx_descriptor *omap_dma_prep_slave_sg(
 		osg->addr = sg_dma_address(sgent);
 		osg->en = en;
 		osg->fn = sg_dma_len(sgent) / frame_bytes;
-		if (port_window && dir == DMA_MEM_TO_DEV) {
+		if (port_window && dir == DMA_DEV_TO_MEM) {
 			osg->ei = 1;
 			/*
 			 * One frame covers the port_window and by  configure
