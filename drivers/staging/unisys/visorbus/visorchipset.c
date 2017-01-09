@@ -364,10 +364,7 @@ parser_id_get(struct parser_context *ctx)
  */
 
 enum PARSER_WHICH_STRING {
-	PARSERSTRING_INITIATOR,
-	PARSERSTRING_TARGET,
-	PARSERSTRING_CONNECTION,
-	PARSERSTRING_NAME, /* TODO: only PARSERSTRING_NAME is used ? */
+	PARSERSTRING_NAME
 };
 
 static void
@@ -381,18 +378,6 @@ parser_param_start(struct parser_context *ctx,
 
 	phdr = (struct spar_controlvm_parameters_header *)(ctx->data);
 	switch (which_string) {
-	case PARSERSTRING_INITIATOR:
-		ctx->curr = ctx->data + phdr->initiator_offset;
-		ctx->bytes_remaining = phdr->initiator_length;
-		break;
-	case PARSERSTRING_TARGET:
-		ctx->curr = ctx->data + phdr->target_offset;
-		ctx->bytes_remaining = phdr->target_length;
-		break;
-	case PARSERSTRING_CONNECTION:
-		ctx->curr = ctx->data + phdr->connection_offset;
-		ctx->bytes_remaining = phdr->connection_length;
-		break;
 	case PARSERSTRING_NAME:
 		ctx->curr = ctx->data + phdr->name_offset;
 		ctx->bytes_remaining = phdr->name_length;
