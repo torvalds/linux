@@ -20,6 +20,7 @@
 #include "smc_clc.h"
 #include "smc_core.h"
 #include "smc_ib.h"
+#include "smc_wr.h"
 
 #define SMC_LGR_FREE_DELAY	(600 * HZ)
 
@@ -161,12 +162,20 @@ static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
 	lnk->path_mtu = smcibdev->pattr[ibport - 1].active_mtu;
 	get_random_bytes(rndvec, sizeof(rndvec));
 	lnk->psn_initial = rndvec[0] + (rndvec[1] << 8) + (rndvec[2] << 16);
+	rc = smc_wr_alloc_link_mem(lnk);
+	if (rc)
+		goto free_lgr;
+	init_waitqueue_head(&lnk->wr_tx_wait);
 
 	smc->conn.lgr = lgr;
 	rwlock_init(&lgr->conns_lock);
 	spin_lock_bh(&smc_lgr_list.lock);
 	list_add(&lgr->list, &smc_lgr_list.list);
 	spin_unlock_bh(&smc_lgr_list.lock);
+	return 0;
+
+free_lgr:
+	kfree(lgr);
 out:
 	return rc;
 }
@@ -202,6 +211,8 @@ void smc_conn_free(struct smc_connection *conn)
 static void smc_link_clear(struct smc_link *lnk)
 {
 	lnk->peer_qpn = 0;
+	smc_wr_free_link(lnk);
+	smc_wr_free_link_mem(lnk);
 }
 
 static void smc_lgr_free_sndbufs(struct smc_link_group *lgr)

@@ -17,6 +17,7 @@
 #include "smc_pnet.h"
 #include "smc_ib.h"
 #include "smc_core.h"
+#include "smc_wr.h"
 #include "smc.h"
 
 struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
@@ -29,6 +30,78 @@ struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
 u8 local_systemid[SMC_SYSTEMID_LEN] = SMC_LOCAL_SYSTEMID_RESET;	/* unique system
 								 * identifier
 								 */
+
+void smc_ib_dealloc_protection_domain(struct smc_link *lnk)
+{
+	ib_dealloc_pd(lnk->roce_pd);
+	lnk->roce_pd = NULL;
+}
+
+int smc_ib_create_protection_domain(struct smc_link *lnk)
+{
+	int rc;
+
+	lnk->roce_pd = ib_alloc_pd(lnk->smcibdev->ibdev, 0);
+	rc = PTR_ERR_OR_ZERO(lnk->roce_pd);
+	if (IS_ERR(lnk->roce_pd))
+		lnk->roce_pd = NULL;
+	return rc;
+}
+
+static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
+{
+	switch (ibevent->event) {
+	case IB_EVENT_DEVICE_FATAL:
+	case IB_EVENT_GID_CHANGE:
+	case IB_EVENT_PORT_ERR:
+	case IB_EVENT_QP_ACCESS_ERR:
+		/* tbd in follow-on patch:
+		 * abnormal close of corresponding connections
+		 */
+		break;
+	default:
+		break;
+	}
+}
+
+void smc_ib_destroy_queue_pair(struct smc_link *lnk)
+{
+	ib_destroy_qp(lnk->roce_qp);
+	lnk->roce_qp = NULL;
+}
+
+/* create a queue pair within the protection domain for a link */
+int smc_ib_create_queue_pair(struct smc_link *lnk)
+{
+	struct ib_qp_init_attr qp_attr = {
+		.event_handler = smc_ib_qp_event_handler,
+		.qp_context = lnk,
+		.send_cq = lnk->smcibdev->roce_cq_send,
+		.recv_cq = lnk->smcibdev->roce_cq_recv,
+		.srq = NULL,
+		.cap = {
+			.max_send_wr = SMC_WR_BUF_CNT,
+				/* include unsolicited rdma_writes as well,
+				 * there are max. 2 RDMA_WRITE per 1 WR_SEND
+				 */
+			.max_recv_wr = SMC_WR_BUF_CNT * 3,
+			.max_send_sge = SMC_IB_MAX_SEND_SGE,
+			.max_recv_sge = 1,
+			.max_inline_data = SMC_WR_TX_SIZE,
+		},
+		.sq_sig_type = IB_SIGNAL_REQ_WR,
+		.qp_type = IB_QPT_RC,
+	};
+	int rc;
+
+	lnk->roce_qp = ib_create_qp(lnk->roce_pd, &qp_attr);
+	rc = PTR_ERR_OR_ZERO(lnk->roce_qp);
+	if (IS_ERR(lnk->roce_qp))
+		lnk->roce_qp = NULL;
+	else
+		smc_wr_remember_qp_attr(lnk);
+	return rc;
+}
 
 /* map a new TX or RX buffer to DMA */
 int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,

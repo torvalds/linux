@@ -11,6 +11,7 @@
 #ifndef _SMC_CORE_H
 #define _SMC_CORE_H
 
+#include <linux/atomic.h>
 #include <rdma/ib_verbs.h>
 
 #include "smc.h"
@@ -30,11 +31,40 @@ enum smc_lgr_role {		/* possible roles of a link group */
 	SMC_SERV	/* server */
 };
 
+#define SMC_WR_BUF_SIZE		48	/* size of work request buffer */
+
+struct smc_wr_buf {
+	u8	raw[SMC_WR_BUF_SIZE];
+};
+
 struct smc_link {
 	struct smc_ib_device	*smcibdev;	/* ib-device */
 	u8			ibport;		/* port - values 1 | 2 */
+	struct ib_pd		*roce_pd;	/* IB protection domain,
+						 * unique for every RoCE QP
+						 */
 	struct ib_qp		*roce_qp;	/* IB queue pair */
 	struct ib_qp_attr	qp_attr;	/* IB queue pair attributes */
+
+	struct smc_wr_buf	*wr_tx_bufs;	/* WR send payload buffers */
+	struct ib_send_wr	*wr_tx_ibs;	/* WR send meta data */
+	struct ib_sge		*wr_tx_sges;	/* WR send gather meta data */
+	struct smc_wr_tx_pend	*wr_tx_pends;	/* WR send waiting for CQE */
+	/* above four vectors have wr_tx_cnt elements and use the same index */
+	dma_addr_t		wr_tx_dma_addr;	/* DMA address of wr_tx_bufs */
+	atomic_long_t		wr_tx_id;	/* seq # of last sent WR */
+	unsigned long		*wr_tx_mask;	/* bit mask of used indexes */
+	u32			wr_tx_cnt;	/* number of WR send buffers */
+	wait_queue_head_t	wr_tx_wait;	/* wait for free WR send buf */
+
+	struct smc_wr_buf	*wr_rx_bufs;	/* WR recv payload buffers */
+	struct ib_recv_wr	*wr_rx_ibs;	/* WR recv meta data */
+	struct ib_sge		*wr_rx_sges;	/* WR recv scatter meta data */
+	/* above three vectors have wr_rx_cnt elements and use the same index */
+	dma_addr_t		wr_rx_dma_addr;	/* DMA address of wr_rx_bufs */
+	u64			wr_rx_id;	/* seq # of last recv WR */
+	u32			wr_rx_cnt;	/* number of WR recv buffers */
+
 	union ib_gid		gid;		/* gid matching used vlan id */
 	u32			peer_qpn;	/* QP number of peer */
 	enum ib_mtu		path_mtu;	/* used mtu */
