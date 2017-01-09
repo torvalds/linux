@@ -1558,12 +1558,7 @@ static int lookup_fast(struct nameidata *nd,
 		*seqp = seq;
 		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
 			status = d_revalidate(dentry, nd->flags);
-		if (unlikely(status <= 0)) {
-			if (unlazy_walk(nd, dentry, seq))
-				return -ECHILD;
-			if (status == -ECHILD)
-				status = d_revalidate(dentry, nd->flags);
-		} else {
+		if (likely(status > 0)) {
 			/*
 			 * Note: do negative dentry check after revalidation in
 			 * case that drops it.
@@ -1574,9 +1569,12 @@ static int lookup_fast(struct nameidata *nd,
 			path->dentry = dentry;
 			if (likely(__follow_mount_rcu(nd, path, inode, seqp)))
 				return 1;
-			if (unlazy_walk(nd, dentry, seq))
-				return -ECHILD;
 		}
+		if (unlazy_walk(nd, dentry, seq))
+			return -ECHILD;
+		if (unlikely(status == -ECHILD))
+			/* we'd been told to redo it in non-rcu mode */
+			status = d_revalidate(dentry, nd->flags);
 	} else {
 		dentry = __d_lookup(parent, &nd->last);
 		if (unlikely(!dentry))
