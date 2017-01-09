@@ -461,7 +461,6 @@ visornic_disable_with_timeout(struct net_device *netdev, const int timeout)
 		if (devdata->enab_dis_acked)
 			break;
 		if (devdata->server_down || devdata->server_change_state) {
-			spin_unlock_irqrestore(&devdata->priv_lock, flags);
 			dev_dbg(&netdev->dev, "%s server went away\n",
 				__func__);
 			break;
@@ -605,7 +604,6 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 		if (devdata->enab_dis_acked)
 			break;
 		if (devdata->server_down || devdata->server_change_state) {
-			spin_unlock_irqrestore(&devdata->priv_lock, flags);
 			dev_dbg(&netdev->dev, "%s server went away\n",
 				__func__);
 			break;
