@@ -50,6 +50,7 @@ struct switch_output {
 	bool		 enabled;
 	bool		 signal;
 	unsigned long	 size;
+	unsigned long	 time;
 	const char	*str;
 	bool		 set;
 };
@@ -89,6 +90,12 @@ static bool switch_output_size(struct record *rec)
 	return rec->switch_output.size &&
 	       trigger_is_ready(&switch_output_trigger) &&
 	       (rec->bytes_written >= rec->switch_output.size);
+}
+
+static bool switch_output_time(struct record *rec)
+{
+	return rec->switch_output.time &&
+	       trigger_is_ready(&switch_output_trigger);
 }
 
 static int record__write(struct record *rec, void *bf, size_t size)
@@ -737,6 +744,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
 }
 
 static void snapshot_sig_handler(int sig);
+static void alarm_sig_handler(int sig);
 
 int __weak
 perf_event__synth_time_conv(const struct perf_event_mmap_page *pc __maybe_unused,
@@ -1068,6 +1076,10 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 				err = fd;
 				goto out_child;
 			}
+
+			/* re-arm the alarm */
+			if (rec->switch_output.time)
+				alarm(rec->switch_output.time);
 		}
 
 		if (hits == rec->samples) {
@@ -1404,6 +1416,13 @@ static int switch_output_setup(struct record *rec)
 		{ .tag  = 'G', .mult = 1 << 30 },
 		{ .tag  = 0 },
 	};
+	static struct parse_tag tags_time[] = {
+		{ .tag  = 's', .mult = 1        },
+		{ .tag  = 'm', .mult = 60       },
+		{ .tag  = 'h', .mult = 60*60    },
+		{ .tag  = 'd', .mult = 60*60*24 },
+		{ .tag  = 0 },
+	};
 	unsigned long val;
 
 	if (!s->set)
@@ -1419,6 +1438,14 @@ static int switch_output_setup(struct record *rec)
 	if (val != (unsigned long) -1) {
 		s->size = val;
 		pr_debug("switch-output with %s size threshold\n", s->str);
+		goto enabled;
+	}
+
+	val = parse_tag_value(s->str, tags_time);
+	if (val != (unsigned long) -1) {
+		s->time = val;
+		pr_debug("switch-output with %s time threshold (%lu seconds)\n",
+			 s->str, s->time);
 		goto enabled;
 	}
 
@@ -1602,8 +1629,8 @@ static struct option __record_options[] = {
 	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
 		    "append timestamp to output filename"),
 	OPT_STRING_OPTARG_SET(0, "switch-output", &record.switch_output.str,
-			  &record.switch_output.set, "signal,size",
-			  "Switch output when receive SIGUSR2 or cross size threshold",
+			  &record.switch_output.set, "signal,size,time",
+			  "Switch output when receive SIGUSR2 or cross size,time threshold",
 			  "signal"),
 	OPT_BOOLEAN(0, "dry-run", &dry_run,
 		    "Parse options then exit"),
@@ -1665,6 +1692,11 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (switch_output_setup(rec)) {
 		parse_options_usage(record_usage, record_options, "switch-output", 0);
 		return -EINVAL;
+	}
+
+	if (rec->switch_output.time) {
+		signal(SIGALRM, alarm_sig_handler);
+		alarm(rec->switch_output.time);
 	}
 
 	if (!rec->itr) {
@@ -1817,5 +1849,13 @@ static void snapshot_sig_handler(int sig __maybe_unused)
 	}
 
 	if (switch_output_signal(rec))
+		trigger_hit(&switch_output_trigger);
+}
+
+static void alarm_sig_handler(int sig __maybe_unused)
+{
+	struct record *rec = &record;
+
+	if (switch_output_time(rec))
 		trigger_hit(&switch_output_trigger);
 }
