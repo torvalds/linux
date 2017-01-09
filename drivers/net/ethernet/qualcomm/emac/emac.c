@@ -311,45 +311,56 @@ static int emac_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	return phy_mii_ioctl(netdev->phydev, ifr, cmd);
 }
 
-/* Provide network statistics info for the interface */
-static void emac_get_stats64(struct net_device *netdev,
-			     struct rtnl_link_stats64 *net_stats)
+/**
+ * emac_update_hw_stats - read the EMAC stat registers
+ *
+ * Reads the stats registers and write the values to adpt->stats.
+ *
+ * adpt->stats.lock must be held while calling this function,
+ * and while reading from adpt->stats.
+ */
+void emac_update_hw_stats(struct emac_adapter *adpt)
 {
-	struct emac_adapter *adpt = netdev_priv(netdev);
-	unsigned int addr = REG_MAC_RX_STATUS_BIN;
 	struct emac_stats *stats = &adpt->stats;
 	u64 *stats_itr = &adpt->stats.rx_ok;
-	u32 val;
+	void __iomem *base = adpt->base;
+	unsigned int addr;
 
-	spin_lock(&stats->lock);
-
+	addr = REG_MAC_RX_STATUS_BIN;
 	while (addr <= REG_MAC_RX_STATUS_END) {
-		val = readl_relaxed(adpt->base + addr);
-		*stats_itr += val;
+		*stats_itr += readl_relaxed(base + addr);
 		stats_itr++;
 		addr += sizeof(u32);
 	}
 
 	/* additional rx status */
-	val = readl_relaxed(adpt->base + EMAC_RXMAC_STATC_REG23);
-	adpt->stats.rx_crc_align += val;
-	val = readl_relaxed(adpt->base + EMAC_RXMAC_STATC_REG24);
-	adpt->stats.rx_jabbers += val;
+	stats->rx_crc_align += readl_relaxed(base + EMAC_RXMAC_STATC_REG23);
+	stats->rx_jabbers += readl_relaxed(base + EMAC_RXMAC_STATC_REG24);
 
 	/* update tx status */
 	addr = REG_MAC_TX_STATUS_BIN;
-	stats_itr = &adpt->stats.tx_ok;
+	stats_itr = &stats->tx_ok;
 
 	while (addr <= REG_MAC_TX_STATUS_END) {
-		val = readl_relaxed(adpt->base + addr);
-		*stats_itr += val;
-		++stats_itr;
+		*stats_itr += readl_relaxed(base + addr);
+		stats_itr++;
 		addr += sizeof(u32);
 	}
 
 	/* additional tx status */
-	val = readl_relaxed(adpt->base + EMAC_TXMAC_STATC_REG25);
-	adpt->stats.tx_col += val;
+	stats->tx_col += readl_relaxed(base + EMAC_TXMAC_STATC_REG25);
+}
+
+/* Provide network statistics info for the interface */
+static void emac_get_stats64(struct net_device *netdev,
+			     struct rtnl_link_stats64 *net_stats)
+{
+	struct emac_adapter *adpt = netdev_priv(netdev);
+	struct emac_stats *stats = &adpt->stats;
+
+	spin_lock(&stats->lock);
+
+	emac_update_hw_stats(adpt);
 
 	/* return parsed statistics */
 	net_stats->rx_packets = stats->rx_ok;
@@ -618,6 +629,7 @@ static int emac_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, netdev);
 	SET_NETDEV_DEV(netdev, &pdev->dev);
+	emac_set_ethtool_ops(netdev);
 
 	adpt = netdev_priv(netdev);
 	adpt->netdev = netdev;
