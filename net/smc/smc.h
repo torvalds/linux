@@ -21,6 +21,8 @@
 
 #define SMC_MAX_PORTS		2	/* Max # of ports */
 
+extern struct proto smc_proto;
+
 #ifdef ATOMIC64_INIT
 #define KERNEL_HAS_ATOMIC64
 #endif

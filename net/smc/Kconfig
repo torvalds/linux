@@ -9,3 +9,12 @@ config SMC
 	  a separate socket family SMC.
 
 	  Select this option if you want to run SMC socket applications
+
+config SMC_DIAG
+	tristate "SMC: socket monitoring interface"
+	depends on SMC
+	---help---
+	  Support for SMC socket monitoring interface used by tools such as
+	  smcss.
+
+	  if unsure, say Y.

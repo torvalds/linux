@@ -29,6 +29,7 @@
 #include <linux/in.h>
 #include <net/sock.h>
 #include <net/tcp.h>
+#include <net/smc.h>
 
 #include "smc.h"
 #include "smc_clc.h"
@@ -59,13 +60,48 @@ static void smc_set_keepalive(struct sock *sk, int val)
 	smc->clcsock->sk->sk_prot->keepalive(smc->clcsock->sk, val);
 }
 
-static struct proto smc_proto = {
+static struct smc_hashinfo smc_v4_hashinfo = {
+	.lock = __RW_LOCK_UNLOCKED(smc_v4_hashinfo.lock),
+};
+
+int smc_hash_sk(struct sock *sk)
+{
+	struct smc_hashinfo *h = sk->sk_prot->h.smc_hash;
+	struct hlist_head *head;
+
+	head = &h->ht;
+
+	write_lock_bh(&h->lock);
+	sk_add_node(sk, head);
+	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	write_unlock_bh(&h->lock);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(smc_hash_sk);
+
+void smc_unhash_sk(struct sock *sk)
+{
+	struct smc_hashinfo *h = sk->sk_prot->h.smc_hash;
+
+	write_lock_bh(&h->lock);
+	if (sk_del_node_init(sk))
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+	write_unlock_bh(&h->lock);
+}
+EXPORT_SYMBOL_GPL(smc_unhash_sk);
+
+struct proto smc_proto = {
 	.name		= "SMC",
 	.owner		= THIS_MODULE,
 	.keepalive	= smc_set_keepalive,
+	.hash		= smc_hash_sk,
+	.unhash		= smc_unhash_sk,
 	.obj_size	= sizeof(struct smc_sock),
+	.h.smc_hash	= &smc_v4_hashinfo,
 	.slab_flags	= SLAB_DESTROY_BY_RCU,
 };
+EXPORT_SYMBOL_GPL(smc_proto);
 
 static int smc_release(struct socket *sock)
 {
@@ -109,6 +145,7 @@ static int smc_release(struct socket *sock)
 		schedule_delayed_work(&smc->sock_put_work,
 				      SMC_CLOSE_SOCK_PUT_DELAY);
 	}
+	sk->sk_prot->unhash(sk);
 	release_sock(sk);
 
 	sock_put(sk);
@@ -144,6 +181,7 @@ static struct sock *smc_sock_alloc(struct net *net, struct socket *sock)
 	INIT_LIST_HEAD(&smc->accept_q);
 	spin_lock_init(&smc->accept_q_lock);
 	INIT_DELAYED_WORK(&smc->sock_put_work, smc_close_sock_put_work);
+	sk->sk_prot->hash(sk);
 	sk_refcnt_debug_inc(sk);
 
 	return sk;
@@ -536,6 +574,7 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 		lsmc->sk.sk_err = -rc;
 		new_sk->sk_state = SMC_CLOSED;
 		sock_set_flag(new_sk, SOCK_DEAD);
+		sk->sk_prot->unhash(new_sk);
 		sock_put(new_sk);
 		*new_smc = NULL;
 		goto out;
@@ -545,6 +584,7 @@ static int smc_clcsock_accept(struct smc_sock *lsmc, struct smc_sock **new_smc)
 			sock_release(new_clcsock);
 		new_sk->sk_state = SMC_CLOSED;
 		sock_set_flag(new_sk, SOCK_DEAD);
+		sk->sk_prot->unhash(new_sk);
 		sock_put(new_sk);
 		*new_smc = NULL;
 		goto out;
@@ -1320,6 +1360,7 @@ static int __init smc_init(void)
 		pr_err("%s: sock_register fails with %d\n", __func__, rc);
 		goto out_proto;
 	}
+	INIT_HLIST_HEAD(&smc_v4_hashinfo.ht);
 
 	rc = smc_ib_register_client();
 	if (rc) {

@@ -384,6 +384,7 @@ void smc_close_sock_put_work(struct work_struct *work)
 					    struct smc_sock,
 					    sock_put_work);
 
+	smc->sk.sk_prot->unhash(&smc->sk);
 	sock_put(&smc->sk);
 }
 
