@@ -208,7 +208,18 @@
 					0x4c 0x02000022 0x0f0000ff
 				>;
 			};
-
+			vpif_capture_pins: vpif_capture_pins {
+				pinctrl-single,bits = <
+					/* VP_DIN[2..7], VP_CLKIN1, VP_CLKIN0 */
+					0x38 0x11111111 0xffffffff
+					/* VP_DIN[10..15,0..1] */
+					0x3c 0x11111111 0xffffffff
+					/* VP_DIN[8..9] */
+					0x40 0x00000011 0x000000ff
+					/* VP_CLKIN3, VP_CLKIN2 */
+					0x4c 0x00010100 0x000f0f00
+				>;
+			};
 		};
 		prictrl: priority-controller@14110 {
 			compatible = "ti,da850-mstpri";
@@ -323,6 +334,18 @@
 			dmas = <&edma0 16 0>, <&edma0 17 0>;
 			dma-names = "rx", "tx";
 			status = "disabled";
+		};
+		vpif: video@217000 {
+			compatible = "ti,da850-vpif";
+			reg = <0x217000 0x1000>;
+			interrupts = <92>;
+			status = "disabled";
+
+			/* VPIF capture port */
+			port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
 		};
 		mmc1: mmc@21b000 {
 			compatible = "ti,da830-mmc";
