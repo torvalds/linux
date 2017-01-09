@@ -21,6 +21,10 @@
 
 #define SMC_MAX_PORTS		2	/* Max # of ports */
 
+#ifdef ATOMIC64_INIT
+#define KERNEL_HAS_ATOMIC64
+#endif
+
 enum smc_state {		/* possible states of an SMC socket */
 	SMC_ACTIVE	= 1,
 	SMC_INIT	= 2,
@@ -33,6 +37,67 @@ struct smc_link_group;
 struct smc_wr_rx_hdr {	/* common prefix part of LLC and CDC to demultiplex */
 	u8			type;
 } __aligned(1);
+
+struct smc_cdc_conn_state_flags {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8	peer_done_writing : 1;	/* Sending done indicator */
+	u8	peer_conn_closed : 1;	/* Peer connection closed indicator */
+	u8	peer_conn_abort : 1;	/* Abnormal close indicator */
+	u8	reserved : 5;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8	reserved : 5;
+	u8	peer_conn_abort : 1;
+	u8	peer_conn_closed : 1;
+	u8	peer_done_writing : 1;
+#endif
+};
+
+struct smc_cdc_producer_flags {
+#if defined(__BIG_ENDIAN_BITFIELD)
+	u8	write_blocked : 1;	/* Writing Blocked, no rx buf space */
+	u8	urg_data_pending : 1;	/* Urgent Data Pending */
+	u8	urg_data_present : 1;	/* Urgent Data Present */
+	u8	cons_curs_upd_req : 1;	/* cursor update requested */
+	u8	failover_validation : 1;/* message replay due to failover */
+	u8	reserved : 3;
+#elif defined(__LITTLE_ENDIAN_BITFIELD)
+	u8	reserved : 3;
+	u8	failover_validation : 1;
+	u8	cons_curs_upd_req : 1;
+	u8	urg_data_present : 1;
+	u8	urg_data_pending : 1;
+	u8	write_blocked : 1;
+#endif
+};
+
+/* in host byte order */
+union smc_host_cursor {	/* SMC cursor - an offset in an RMBE */
+	struct {
+		u16	reserved;
+		u16	wrap;		/* window wrap sequence number */
+		u32	count;		/* cursor (= offset) part */
+	};
+#ifdef KERNEL_HAS_ATOMIC64
+	atomic64_t		acurs;	/* for atomic processing */
+#else
+	u64			acurs;	/* for atomic processing */
+#endif
+} __aligned(8);
+
+/* in host byte order, except for flag bitfields in network byte order */
+struct smc_host_cdc_msg {		/* Connection Data Control message */
+	struct smc_wr_rx_hdr		common; /* .type = 0xFE */
+	u8				len;	/* length = 44 */
+	u16				seqno;	/* connection seq # */
+	u32				token;	/* alert_token */
+	union smc_host_cursor		prod;		/* producer cursor */
+	union smc_host_cursor		cons;		/* consumer cursor,
+							 * piggy backed "ack"
+							 */
+	struct smc_cdc_producer_flags	prod_flags;	/* conn. tx/rx status */
+	struct smc_cdc_conn_state_flags	conn_state_flags; /* peer conn. status*/
+	u8				reserved[18];
+} __aligned(8);
 
 struct smc_connection {
 	struct rb_node		alert_node;
@@ -50,6 +115,38 @@ struct smc_connection {
 	struct smc_buf_desc	*rmb_desc;	/* RMBE descriptor */
 	int			rmbe_size;	/* RMBE size <== sock rmem */
 	int			rmbe_size_short;/* compressed notation */
+
+	struct smc_host_cdc_msg	local_tx_ctrl;	/* host byte order staging
+						 * buffer for CDC msg send
+						 * .prod cf. TCP snd_nxt
+						 * .cons cf. TCP sends ack
+						 */
+	union smc_host_cursor	tx_curs_prep;	/* tx - prepared data
+						 * snd_max..wmem_alloc
+						 */
+	union smc_host_cursor	tx_curs_sent;	/* tx - sent data
+						 * snd_nxt ?
+						 */
+	union smc_host_cursor	tx_curs_fin;	/* tx - confirmed by peer
+						 * snd-wnd-begin ?
+						 */
+	atomic_t		sndbuf_space;	/* remaining space in sndbuf */
+	u16			tx_cdc_seq;	/* sequence # for CDC send */
+	spinlock_t		send_lock;	/* protect wr_sends */
+
+	struct smc_host_cdc_msg	local_rx_ctrl;	/* filled during event_handl.
+						 * .prod cf. TCP rcv_nxt
+						 * .cons cf. TCP snd_una
+						 */
+	union smc_host_cursor	rx_curs_confirmed; /* confirmed to peer
+						    * source of snd_una ?
+						    */
+	atomic_t		bytes_to_rcv;	/* arrived data,
+						 * not yet received
+						 */
+#ifndef KERNEL_HAS_ATOMIC64
+	spinlock_t		acurs_lock;	/* protect cursors */
+#endif
 };
 
 struct smc_sock {				/* smc sock container */

@@ -26,12 +26,14 @@
 #include <linux/socket.h>
 #include <linux/inetdevice.h>
 #include <linux/workqueue.h>
+#include <linux/in.h>
 #include <net/sock.h>
 #include <net/tcp.h>
 
 #include "smc.h"
 #include "smc_clc.h"
 #include "smc_llc.h"
+#include "smc_cdc.h"
 #include "smc_core.h"
 #include "smc_ib.h"
 #include "smc_pnet.h"
@@ -285,6 +287,7 @@ static void smc_conn_save_peer_info(struct smc_sock *smc,
 				    struct smc_clc_msg_accept_confirm *clc)
 {
 	smc->conn.peer_conn_idx = clc->conn_idx;
+	smc->conn.local_tx_ctrl.token = ntohl(clc->rmbe_alert_token);
 	smc->conn.peer_rmbe_size = smc_uncompress_bufsize(clc->rmbe_size);
 	atomic_set(&smc->conn.peer_rmbe_space, smc->conn.peer_rmbe_size);
 }
@@ -1198,6 +1201,12 @@ static int __init smc_init(void)
 	rc = smc_llc_init();
 	if (rc) {
 		pr_err("%s: smc_llc_init fails with %d\n", __func__, rc);
+		goto out_pnet;
+	}
+
+	rc = smc_cdc_init();
+	if (rc) {
+		pr_err("%s: smc_cdc_init fails with %d\n", __func__, rc);
 		goto out_pnet;
 	}
 

@@ -237,6 +237,25 @@ int smc_wr_tx_send(struct smc_link *link, struct smc_wr_tx_pend_priv *priv)
 	return rc;
 }
 
+void smc_wr_tx_dismiss_slots(struct smc_link *link, u8 wr_rx_hdr_type,
+			     smc_wr_tx_filter filter,
+			     smc_wr_tx_dismisser dismisser,
+			     unsigned long data)
+{
+	struct smc_wr_tx_pend_priv *tx_pend;
+	struct smc_wr_rx_hdr *wr_rx;
+	int i;
+
+	for_each_set_bit(i, link->wr_tx_mask, link->wr_tx_cnt) {
+		wr_rx = (struct smc_wr_rx_hdr *)&link->wr_rx_bufs[i];
+		if (wr_rx->type != wr_rx_hdr_type)
+			continue;
+		tx_pend = &link->wr_tx_pends[i].priv;
+		if (filter(tx_pend, data))
+			dismisser(tx_pend);
+	}
+}
+
 /****************************** receive queue ********************************/
 
 int smc_wr_rx_register_handler(struct smc_wr_rx_handler *handler)
