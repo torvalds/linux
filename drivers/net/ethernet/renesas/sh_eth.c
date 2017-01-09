@@ -845,6 +845,7 @@ static struct sh_eth_cpu_data sh7763_data = {
 	.no_ade		= 1,
 	.tsu		= 1,
 	.irq_flags	= IRQF_SHARED,
+	.magic		= 1,
 };
 
 static struct sh_eth_cpu_data sh7619_data = {
