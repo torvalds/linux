@@ -2017,8 +2017,6 @@ static int visornic_resume(struct visor_device *dev,
 	 */
 	mod_timer(&devdata->irq_poll_timer, msecs_to_jiffies(2));
 
-	init_rcv_bufs(netdev, devdata);
-
 	rtnl_lock();
 	dev_open(netdev);
 	rtnl_unlock();
