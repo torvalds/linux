@@ -180,10 +180,19 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 		mdio = false;
 	}
 
-	/* If snps,dwmac-mdio is passed from DT, always register the MDIO */
-	for_each_child_of_node(np, plat->mdio_node) {
-		if (of_device_is_compatible(plat->mdio_node, "snps,dwmac-mdio"))
+	/* exception for dwmac-dwc-qos-eth glue logic */
+	if (of_device_is_compatible(np, "snps,dwc-qos-ethernet-4.10")) {
+		plat->mdio_node = of_get_child_by_name(np, "mdio");
+	} else {
+		/**
+		 * If snps,dwmac-mdio is passed from DT, always register
+		 * the MDIO
+		 */
+		for_each_child_of_node(np, plat->mdio_node) {
+			if (of_device_is_compatible(plat->mdio_node,
+						    "snps,dwmac-mdio"))
 			break;
+		}
 	}
 
 	if (plat->mdio_node) {
