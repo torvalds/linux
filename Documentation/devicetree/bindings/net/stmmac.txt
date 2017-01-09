@@ -49,6 +49,8 @@ Optional properties:
 - snps,force_sf_dma_mode	Force DMA to use the Store and Forward
 				mode for both tx and rx. This flag is
 				ignored if force_thresh_dma_mode is set.
+- snps,en-tx-lpi-clockgating	Enable gating of the MAC TX clock during
+				TX low-power mode
 - snps,multicast-filter-bins:	Number of multicast filter hash bins
 				supported by this device instance
 - snps,perfect-filter-entries:	Number of perfect filter entries supported

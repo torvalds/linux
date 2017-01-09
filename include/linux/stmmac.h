@@ -142,5 +142,6 @@ struct plat_stmmacenet_data {
 	int has_gmac4;
 	bool tso_en;
 	int mac_port_sel_speed;
+	bool en_tx_lpi_clockgating;
 };
 #endif
