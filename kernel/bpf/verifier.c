@@ -627,7 +627,7 @@ static int check_map_access(struct bpf_verifier_env *env, u32 regno, int off,
 {
 	struct bpf_map *map = env->cur_state.regs[regno].map_ptr;
 
-	if (off < 0 || off + size > map->value_size) {
+	if (off < 0 || size <= 0 || off + size > map->value_size) {
 		verbose("invalid access to map value, value_size=%d off=%d size=%d\n",
 			map->value_size, off, size);
 		return -EACCES;
@@ -1025,7 +1025,8 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		 */
 		if (type == CONST_IMM && reg->imm == 0)
 			/* final test in check_stack_boundary() */;
-		else if (type != PTR_TO_PACKET && type != expected_type)
+		else if (type != PTR_TO_PACKET && type != PTR_TO_MAP_VALUE &&
+			 type != PTR_TO_MAP_VALUE_ADJ && type != expected_type)
 			goto err_type;
 		meta->raw_mode = arg_type == ARG_PTR_TO_RAW_STACK;
 	} else {
@@ -1088,6 +1089,10 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		}
 		if (regs[regno - 1].type == PTR_TO_PACKET)
 			err = check_packet_access(env, regno - 1, 0, reg->imm);
+		else if (regs[regno - 1].type == PTR_TO_MAP_VALUE)
+			err = check_map_access(env, regno - 1, 0, reg->imm);
+		else if (regs[regno - 1].type == PTR_TO_MAP_VALUE_ADJ)
+			err = check_map_access_adj(env, regno - 1, 0, reg->imm);
 		else
 			err = check_stack_boundary(env, regno - 1, reg->imm,
 						   zero_size_allowed, meta);
