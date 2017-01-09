@@ -29,7 +29,20 @@
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
 
-/* CPU feature register tracking */
+/*
+ * CPU feature register tracking
+ *
+ * The safe value of a CPUID feature field is dependent on the implications
+ * of the values assigned to it by the architecture. Based on the relationship
+ * between the values, the features are classified into 3 types - LOWER_SAFE,
+ * HIGHER_SAFE and EXACT.
+ *
+ * The lowest value of all the CPUs is chosen for LOWER_SAFE and highest
+ * for HIGHER_SAFE. It is expected that all CPUs have the same value for
+ * a field when EXACT is specified, failing which, the safe value specified
+ * in the table is chosen.
+ */
+
 enum ftr_type {
 	FTR_EXACT,	/* Use a predefined safe value */
 	FTR_LOWER_SAFE,	/* Smaller value is safe */
