@@ -1806,9 +1806,9 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 		int queue;
 
 		if (vif->type == NL80211_IFTYPE_AP)
-			queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+			queue = mvm->probe_queue;
 		else if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
-			queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
+			queue = mvm->p2p_dev_queue;
 		else if (WARN(1, "Missing required TXQ for adding bcast STA\n"))
 			return -EINVAL;
 
@@ -1836,24 +1836,18 @@ static void iwl_mvm_free_bcast_sta_queues(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (mvmvif->bcast_sta.tfd_queue_msk &
-	    BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE)) {
-		iwl_mvm_disable_txq(mvm,
-				    IWL_MVM_DQA_AP_PROBE_RESP_QUEUE,
+	if (mvmvif->bcast_sta.tfd_queue_msk & BIT(mvm->probe_queue)) {
+		iwl_mvm_disable_txq(mvm, mvm->probe_queue,
 				    vif->hw_queue[0], IWL_MAX_TID_COUNT,
 				    0);
-		mvmvif->bcast_sta.tfd_queue_msk &=
-			~BIT(IWL_MVM_DQA_AP_PROBE_RESP_QUEUE);
+		mvmvif->bcast_sta.tfd_queue_msk &= ~BIT(mvm->probe_queue);
 	}
 
-	if (mvmvif->bcast_sta.tfd_queue_msk &
-	    BIT(IWL_MVM_DQA_P2P_DEVICE_QUEUE)) {
-		iwl_mvm_disable_txq(mvm,
-				    IWL_MVM_DQA_P2P_DEVICE_QUEUE,
+	if (mvmvif->bcast_sta.tfd_queue_msk & BIT(mvm->p2p_dev_queue)) {
+		iwl_mvm_disable_txq(mvm, mvm->p2p_dev_queue,
 				    vif->hw_queue[0], IWL_MAX_TID_COUNT,
 				    0);
-		mvmvif->bcast_sta.tfd_queue_msk &=
-			~BIT(IWL_MVM_DQA_P2P_DEVICE_QUEUE);
+		mvmvif->bcast_sta.tfd_queue_msk &= ~BIT(mvm->p2p_dev_queue);
 	}
 }
 
