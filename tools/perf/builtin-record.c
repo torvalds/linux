@@ -46,6 +46,10 @@
 #include <asm/bug.h>
 #include <linux/time64.h>
 
+struct switch_output {
+	bool		 signal;
+};
+
 struct record {
 	struct perf_tool	tool;
 	struct record_opts	opts;
@@ -62,7 +66,7 @@ struct record {
 	bool			no_buildid_cache_set;
 	bool			buildid_all;
 	bool			timestamp_filename;
-	bool			switch_output;
+	struct switch_output	switch_output;
 	unsigned long long	samples;
 };
 
@@ -842,11 +846,11 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	signal(SIGTERM, sig_handler);
 	signal(SIGSEGV, sigsegv_handler);
 
-	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output) {
+	if (rec->opts.auxtrace_snapshot_mode || rec->switch_output.signal) {
 		signal(SIGUSR2, snapshot_sig_handler);
 		if (rec->opts.auxtrace_snapshot_mode)
 			trigger_on(&auxtrace_snapshot_trigger);
-		if (rec->switch_output)
+		if (rec->switch_output.signal)
 			trigger_on(&switch_output_trigger);
 	} else {
 		signal(SIGUSR2, SIG_IGN);
@@ -1519,7 +1523,7 @@ static struct option __record_options[] = {
 		    "Record build-id of all DSOs regardless of hits"),
 	OPT_BOOLEAN(0, "timestamp-filename", &record.timestamp_filename,
 		    "append timestamp to output filename"),
-	OPT_BOOLEAN(0, "switch-output", &record.switch_output,
+	OPT_BOOLEAN(0, "switch-output", &record.switch_output.signal,
 		    "Switch output when receive SIGUSR2"),
 	OPT_BOOLEAN(0, "dry-run", &dry_run,
 		    "Parse options then exit"),
@@ -1578,7 +1582,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 		return -EINVAL;
 	}
 
-	if (rec->switch_output)
+	if (rec->switch_output.signal)
 		rec->timestamp_filename = true;
 
 	if (!rec->itr) {
@@ -1629,7 +1633,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	if (rec->no_buildid_cache || rec->no_buildid) {
 		disable_buildid_cache();
-	} else if (rec->switch_output) {
+	} else if (rec->switch_output.signal) {
 		/*
 		 * In 'perf record --switch-output', disable buildid
 		 * generation by default to reduce data file switching
