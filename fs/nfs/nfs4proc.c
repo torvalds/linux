@@ -622,10 +622,10 @@ static void nfs4_set_sequence_privileged(struct nfs4_sequence_args *args)
 	args->sa_privileged = 1;
 }
 
-int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
-			 struct nfs4_sequence_args *args,
-			 struct nfs4_sequence_res *res,
-			 struct rpc_task *task)
+static int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
+				struct nfs4_sequence_args *args,
+				struct nfs4_sequence_res *res,
+				struct rpc_task *task)
 {
 	struct nfs4_slot *slot;
 
@@ -662,7 +662,6 @@ out_sleep:
 	spin_unlock(&tbl->slot_tbl_lock);
 	return -EAGAIN;
 }
-EXPORT_SYMBOL_GPL(nfs40_setup_sequence);
 
 static void nfs40_sequence_free_slot(struct nfs4_sequence_res *res)
 {
@@ -882,7 +881,7 @@ int nfs4_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
 }
 EXPORT_SYMBOL_GPL(nfs4_sequence_done);
 
-int nfs41_setup_sequence(struct nfs4_session *session,
+static int nfs41_setup_sequence(struct nfs4_session *session,
 				struct nfs4_sequence_args *args,
 				struct nfs4_sequence_res *res,
 				struct rpc_task *task)
@@ -945,12 +944,11 @@ out_sleep:
 	spin_unlock(&tbl->slot_tbl_lock);
 	return -EAGAIN;
 }
-EXPORT_SYMBOL_GPL(nfs41_setup_sequence);
 
-static int nfs4_setup_sequence(const struct nfs_client *client,
-			       struct nfs4_sequence_args *args,
-			       struct nfs4_sequence_res *res,
-			       struct rpc_task *task)
+int nfs4_setup_sequence(const struct nfs_client *client,
+			struct nfs4_sequence_args *args,
+			struct nfs4_sequence_res *res,
+			struct rpc_task *task)
 {
 	struct nfs4_session *session = nfs4_get_session(client);
 	int ret = 0;
@@ -968,6 +966,7 @@ static int nfs4_setup_sequence(const struct nfs_client *client,
 	dprintk("<-- %s status=%d\n", __func__, ret);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(nfs4_setup_sequence);
 
 static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 {
@@ -993,13 +992,14 @@ static const struct rpc_call_ops nfs41_call_sync_ops = {
 
 #else	/* !CONFIG_NFS_V4_1 */
 
-static int nfs4_setup_sequence(const struct nfs_client *client,
-			       struct nfs4_sequence_args *args,
-			       struct nfs4_sequence_res *res,
-			       struct rpc_task *task)
+int nfs4_setup_sequence(const struct nfs_client *client,
+			struct nfs4_sequence_args *args,
+			struct nfs4_sequence_res *res,
+			struct rpc_task *task)
 {
 	return nfs40_setup_sequence(client->cl_slot_tbl, args, res, task);
 }
+EXPORT_SYMBOL_GPL(nfs4_setup_sequence);
 
 static int nfs4_sequence_process(struct rpc_task *task, struct nfs4_sequence_res *res)
 {
