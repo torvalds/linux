@@ -4269,8 +4269,6 @@ static int try_release_extent_state(struct extent_map_tree *map,
 			   EXTENT_IOBITS, 0, NULL))
 		ret = 0;
 	else {
-		if ((mask & GFP_NOFS) == GFP_NOFS)
-			mask = GFP_NOFS;
 		/*
 		 * at this point we can safely clear everything except the
 		 * locked bit and the nodatasum bit
