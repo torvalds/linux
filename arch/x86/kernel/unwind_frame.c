@@ -207,6 +207,16 @@ bool unwind_next_frame(struct unwind_state *state)
 	return true;
 
 bad_address:
+	/*
+	 * When unwinding a non-current task, the task might actually be
+	 * running on another CPU, in which case it could be modifying its
+	 * stack while we're reading it.  This is generally not a problem and
+	 * can be ignored as long as the caller understands that unwinding
+	 * another task will not always succeed.
+	 */
+	if (state->task != current)
+		goto the_end;
+
 	if (state->regs) {
 		printk_deferred_once(KERN_WARNING
 			"WARNING: kernel stack regs at %p in %s:%d has bad 'bp' value %p\n",
