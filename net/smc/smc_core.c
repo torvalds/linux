@@ -21,8 +21,12 @@
 #include "smc_core.h"
 #include "smc_ib.h"
 #include "smc_wr.h"
+#include "smc_llc.h"
 
+#define SMC_LGR_NUM_INCR	256
 #define SMC_LGR_FREE_DELAY	(600 * HZ)
+
+static u32 smc_lgr_num;			/* unique link group number */
 
 /* Register connection's alert token in our lookup structure.
  * To use rbtrees we have to implement our own insert core.
@@ -152,6 +156,8 @@ static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
 		INIT_LIST_HEAD(&lgr->sndbufs[i]);
 		INIT_LIST_HEAD(&lgr->rmbs[i]);
 	}
+	smc_lgr_num += SMC_LGR_NUM_INCR;
+	memcpy(&lgr->id, (u8 *)&smc_lgr_num, SMC_LGR_ID_SIZE);
 	INIT_DELAYED_WORK(&lgr->free_work, smc_lgr_free_work);
 	lgr->conns_all = RB_ROOT;
 
@@ -177,6 +183,8 @@ static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
 	rc = smc_wr_create_link(lnk);
 	if (rc)
 		goto destroy_qp;
+	init_completion(&lnk->llc_confirm);
+	init_completion(&lnk->llc_confirm_resp);
 
 	smc->conn.lgr = lgr;
 	rwlock_init(&lgr->conns_lock);

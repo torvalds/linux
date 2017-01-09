@@ -33,6 +33,8 @@ static const char SMC_EYECATCHER[4] = {'\xe2', '\xd4', '\xc3', '\xd9'};
 #define SMC_CLC_DECL_SYNCERR	0x04000000  /* synchronization error          */
 #define SMC_CLC_DECL_REPLY	0x06000000  /* reply to a received decline    */
 #define SMC_CLC_DECL_INTERR	0x99990000  /* internal error                 */
+#define SMC_CLC_DECL_TCL	0x02040000  /* timeout w4 QP confirm          */
+#define SMC_CLC_DECL_SEND	0x07000000  /* sending problem                */
 
 struct smc_clc_msg_hdr {	/* header1 of clc messages */
 	u8 eyecatcher[4];	/* eye catcher */

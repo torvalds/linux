@@ -31,6 +31,7 @@
 
 #include "smc.h"
 #include "smc_clc.h"
+#include "smc_llc.h"
 #include "smc_core.h"
 #include "smc_ib.h"
 #include "smc_pnet.h"
@@ -245,6 +246,41 @@ out:
 	return rc;
 }
 
+static int smc_clnt_conf_first_link(struct smc_sock *smc, union ib_gid *gid)
+{
+	struct smc_link_group *lgr = smc->conn.lgr;
+	struct smc_link *link;
+	int rest;
+	int rc;
+
+	link = &lgr->lnk[SMC_SINGLE_LINK];
+	/* receive CONFIRM LINK request from server over RoCE fabric */
+	rest = wait_for_completion_interruptible_timeout(
+		&link->llc_confirm,
+		SMC_LLC_WAIT_FIRST_TIME);
+	if (rest <= 0) {
+		struct smc_clc_msg_decline dclc;
+
+		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
+				      SMC_CLC_DECLINE);
+		return rc;
+	}
+
+	rc = smc_ib_modify_qp_rts(link);
+	if (rc)
+		return SMC_CLC_DECL_INTERR;
+
+	smc_wr_remember_qp_attr(link);
+	/* send CONFIRM LINK response over RoCE fabric */
+	rc = smc_llc_send_confirm_link(link,
+				       link->smcibdev->mac[link->ibport - 1],
+				       gid, SMC_LLC_RESP);
+	if (rc < 0)
+		return SMC_CLC_DECL_TCL;
+
+	return rc;
+}
+
 static void smc_conn_save_peer_info(struct smc_sock *smc,
 				    struct smc_clc_msg_accept_confirm *clc)
 {
@@ -358,7 +394,17 @@ static int smc_connect_rdma(struct smc_sock *smc)
 	if (rc)
 		goto out_err_unlock;
 
-	/* tbd in follow-on patch: llc_confirm */
+	if (local_contact == SMC_FIRST_CONTACT) {
+		/* QP confirmation over RoCE fabric */
+		reason_code = smc_clnt_conf_first_link(
+			smc, &smcibdev->gid[ibport - 1]);
+		if (reason_code < 0) {
+			rc = reason_code;
+			goto out_err_unlock;
+		}
+		if (reason_code > 0)
+			goto decline_rdma_unlock;
+	}
 
 	mutex_unlock(&smc_create_lgr_pending);
 out_connected:
@@ -543,6 +589,36 @@ static void smc_close_non_accepted(struct sock *sk)
 	sock_put(sk);
 }
 
+static int smc_serv_conf_first_link(struct smc_sock *smc)
+{
+	struct smc_link_group *lgr = smc->conn.lgr;
+	struct smc_link *link;
+	int rest;
+	int rc;
+
+	link = &lgr->lnk[SMC_SINGLE_LINK];
+	/* send CONFIRM LINK request to client over the RoCE fabric */
+	rc = smc_llc_send_confirm_link(link,
+				       link->smcibdev->mac[link->ibport - 1],
+				       &link->smcibdev->gid[link->ibport - 1],
+				       SMC_LLC_REQ);
+	if (rc < 0)
+		return SMC_CLC_DECL_TCL;
+
+	/* receive CONFIRM LINK response from client over the RoCE fabric */
+	rest = wait_for_completion_interruptible_timeout(
+		&link->llc_confirm_resp,
+		SMC_LLC_WAIT_FIRST_TIME);
+	if (rest <= 0) {
+		struct smc_clc_msg_decline dclc;
+
+		rc = smc_clc_wait_msg(smc, &dclc, sizeof(dclc),
+				      SMC_CLC_DECLINE);
+	}
+
+	return rc;
+}
+
 /* setup for RDMA connection of server */
 static void smc_listen_work(struct work_struct *work)
 {
@@ -655,13 +731,21 @@ static void smc_listen_work(struct work_struct *work)
 		goto decline_rdma;
 	}
 
-	/* tbd in follow-on patch: modify_qp, llc_confirm */
 	if (local_contact == SMC_FIRST_CONTACT) {
 		rc = smc_ib_ready_link(link);
 		if (rc) {
 			reason_code = SMC_CLC_DECL_INTERR;
 			goto decline_rdma;
 		}
+		/* QP confirmation over RoCE fabric */
+		reason_code = smc_serv_conf_first_link(new_smc);
+		if (reason_code < 0) {
+			/* peer is not aware of a problem */
+			rc = reason_code;
+			goto out_err;
+		}
+		if (reason_code > 0)
+			goto decline_rdma;
 	}
 
 out_connected:
@@ -1110,6 +1194,12 @@ static int __init smc_init(void)
 	rc = smc_pnet_init();
 	if (rc)
 		return rc;
+
+	rc = smc_llc_init();
+	if (rc) {
+		pr_err("%s: smc_llc_init fails with %d\n", __func__, rc);
+		goto out_pnet;
+	}
 
 	rc = proto_register(&smc_proto, 1);
 	if (rc) {
