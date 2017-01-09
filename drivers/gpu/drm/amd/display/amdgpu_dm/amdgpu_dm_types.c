@@ -78,6 +78,11 @@ static void dm_set_cursor(
 	uint32_t height)
 {
 	struct dc_cursor_attributes attributes;
+	struct dc_cursor_position position;
+	struct drm_crtc *crtc = &amdgpu_crtc->base;
+	int x, y;
+	int xorigin = 0, yorigin = 0;
+
 	amdgpu_crtc->cursor_width = width;
 	amdgpu_crtc->cursor_height = height;
 
@@ -91,10 +96,40 @@ static void dm_set_cursor(
 	attributes.rotation_angle    = 0;
 	attributes.attribute_flags.value = 0;
 
+	x = amdgpu_crtc->cursor_x;
+	y = amdgpu_crtc->cursor_y;
+
+	/* avivo cursor are offset into the total surface */
+	x += crtc->primary->state->src_x >> 16;
+	y += crtc->primary->state->src_y >> 16;
+
+	if (x < 0) {
+		xorigin = min(-x, amdgpu_crtc->max_cursor_width - 1);
+		x = 0;
+	}
+	if (y < 0) {
+		yorigin = min(-y, amdgpu_crtc->max_cursor_height - 1);
+		y = 0;
+	}
+
+	position.enable = true;
+	position.x = x;
+	position.y = y;
+
+	position.hot_spot_enable = true;
+	position.x_hotspot = xorigin;
+	position.y_hotspot = yorigin;
+
 	if (!dc_target_set_cursor_attributes(
 				amdgpu_crtc->target,
 				&attributes)) {
 		DRM_ERROR("DC failed to set cursor attributes\n");
+	}
+
+	if (!dc_target_set_cursor_position(
+				amdgpu_crtc->target,
+				&position)) {
+		DRM_ERROR("DC failed to set cursor position\n");
 	}
 }
 
@@ -273,6 +308,9 @@ static int dm_crtc_cursor_move(struct drm_crtc *crtc,
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	int xorigin = 0, yorigin = 0;
 	struct dc_cursor_position position;
+
+	amdgpu_crtc->cursor_x = x;
+	amdgpu_crtc->cursor_y = y;
 
 	/* avivo cursor are offset into the total surface */
 	x += crtc->primary->state->src_x >> 16;
