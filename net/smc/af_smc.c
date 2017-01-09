@@ -31,8 +31,18 @@
 
 #include "smc.h"
 #include "smc_clc.h"
+#include "smc_core.h"
 #include "smc_ib.h"
 #include "smc_pnet.h"
+
+static DEFINE_MUTEX(smc_create_lgr_pending);	/* serialize link group
+						 * creation
+						 */
+
+struct smc_lgr_list smc_lgr_list = {		/* established link groups */
+	.lock = __SPIN_LOCK_UNLOCKED(smc_lgr_list.lock),
+	.list = LIST_HEAD_INIT(smc_lgr_list.list),
+};
 
 static void smc_tcp_listen_work(struct work_struct *);
 
@@ -235,11 +245,31 @@ out:
 	return rc;
 }
 
+static void smc_conn_save_peer_info(struct smc_sock *smc,
+				    struct smc_clc_msg_accept_confirm *clc)
+{
+	smc->conn.peer_conn_idx = clc->conn_idx;
+}
+
+static void smc_link_save_peer_info(struct smc_link *link,
+				    struct smc_clc_msg_accept_confirm *clc)
+{
+	link->peer_qpn = ntoh24(clc->qpn);
+	memcpy(link->peer_gid, clc->lcl.gid, SMC_GID_SIZE);
+	memcpy(link->peer_mac, clc->lcl.mac, sizeof(link->peer_mac));
+	link->peer_psn = ntoh24(clc->psn);
+	link->peer_mtu = clc->qp_mtu;
+}
+
 /* setup for RDMA connection of client */
 static int smc_connect_rdma(struct smc_sock *smc)
 {
+	struct sockaddr_in *inaddr = (struct sockaddr_in *)smc->addr;
 	struct smc_clc_msg_accept_confirm aclc;
+	int local_contact = SMC_FIRST_CONTACT;
 	struct smc_ib_device *smcibdev;
+	struct smc_link *link;
+	u8 srv_first_contact;
 	int reason_code = 0;
 	int rc = 0;
 	u8 ibport;
@@ -278,26 +308,43 @@ static int smc_connect_rdma(struct smc_sock *smc)
 	if (reason_code > 0)
 		goto decline_rdma;
 
-	/* tbd in follow-on patch: more steps to setup RDMA communcication,
-	 * create connection, link group, link
-	 */
+	srv_first_contact = aclc.hdr.flag;
+	mutex_lock(&smc_create_lgr_pending);
+	local_contact = smc_conn_create(smc, inaddr->sin_addr.s_addr, smcibdev,
+					ibport, &aclc.lcl, srv_first_contact);
+	if (local_contact < 0) {
+		rc = local_contact;
+		if (rc == -ENOMEM)
+			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
+		else if (rc == -ENOLINK)
+			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
+		goto decline_rdma_unlock;
+	}
+	link = &smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
+	smc_conn_save_peer_info(smc, &aclc);
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_link_save_peer_info(link, &aclc);
 	/* tbd in follow-on patch: more steps to setup RDMA communcication,
 	 * create rmbs, map rmbs, rtoken_handling, modify_qp
 	 */
 
 	rc = smc_clc_send_confirm(smc);
 	if (rc)
-		goto out_err;
+		goto out_err_unlock;
 
 	/* tbd in follow-on patch: llc_confirm */
 
+	mutex_unlock(&smc_create_lgr_pending);
 out_connected:
 	smc_copy_sock_settings_to_clc(smc);
 	smc->sk.sk_state = SMC_ACTIVE;
 
-	return rc;
+	return rc ? rc : local_contact;
 
+decline_rdma_unlock:
+	mutex_unlock(&smc_create_lgr_pending);
+	smc_conn_free(&smc->conn);
 decline_rdma:
 	/* RDMA setup failed, switch back to TCP */
 	smc->use_fallback = true;
@@ -308,6 +355,9 @@ decline_rdma:
 	}
 	goto out_connected;
 
+out_err_unlock:
+	mutex_unlock(&smc_create_lgr_pending);
+	smc_conn_free(&smc->conn);
 out_err:
 	return rc;
 }
@@ -476,10 +526,12 @@ static void smc_listen_work(struct work_struct *work)
 	struct socket *newclcsock = new_smc->clcsock;
 	struct smc_sock *lsmc = new_smc->listen_smc;
 	struct smc_clc_msg_accept_confirm cclc;
+	int local_contact = SMC_REUSE_CONTACT;
 	struct sock *newsmcsk = &new_smc->sk;
 	struct smc_clc_msg_proposal pclc;
 	struct smc_ib_device *smcibdev;
 	struct sockaddr_in peeraddr;
+	struct smc_link *link;
 	int reason_code = 0;
 	int rc = 0, len;
 	__be32 subnet;
@@ -527,15 +579,30 @@ static void smc_listen_work(struct work_struct *work)
 	/* get address of the peer connected to the internal TCP socket */
 	kernel_getpeername(newclcsock, (struct sockaddr *)&peeraddr, &len);
 
-	/* tbd in follow-on patch: more steps to setup RDMA communcication,
-	 * create connection, link_group, link
-	 */
+	/* allocate connection / link group */
+	mutex_lock(&smc_create_lgr_pending);
+	local_contact = smc_conn_create(new_smc, peeraddr.sin_addr.s_addr,
+					smcibdev, ibport, &pclc.lcl, 0);
+	if (local_contact == SMC_REUSE_CONTACT)
+		/* lock no longer needed, free it due to following
+		 * smc_clc_wait_msg() call
+		 */
+		mutex_unlock(&smc_create_lgr_pending);
+	if (local_contact < 0) {
+		rc = local_contact;
+		if (rc == -ENOMEM)
+			reason_code = SMC_CLC_DECL_MEM;/* insufficient memory*/
+		else if (rc == -ENOLINK)
+			reason_code = SMC_CLC_DECL_SYNCERR; /* synchr. error */
+		goto decline_rdma;
+	}
+	link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
 	/* tbd in follow-on patch: more steps to setup RDMA communcication,
 	 * create rmbs, map rmbs
 	 */
 
-	rc = smc_clc_send_accept(new_smc);
+	rc = smc_clc_send_accept(new_smc, local_contact);
 	if (rc)
 		goto out_err;
 
@@ -546,6 +613,9 @@ static void smc_listen_work(struct work_struct *work)
 		goto out_err;
 	if (reason_code > 0)
 		goto decline_rdma;
+	smc_conn_save_peer_info(new_smc, &cclc);
+	if (local_contact == SMC_FIRST_CONTACT)
+		smc_link_save_peer_info(link, &cclc);
 
 	/* tbd in follow-on patch: more steps to setup RDMA communcication,
 	 * rtoken_handling, modify_qp
@@ -555,6 +625,8 @@ out_connected:
 	sk_refcnt_debug_inc(newsmcsk);
 	newsmcsk->sk_state = SMC_ACTIVE;
 enqueue:
+	if (local_contact == SMC_FIRST_CONTACT)
+		mutex_unlock(&smc_create_lgr_pending);
 	lock_sock(&lsmc->sk);
 	if (lsmc->sk.sk_state == SMC_LISTEN) {
 		smc_accept_enqueue(&lsmc->sk, newsmcsk);
@@ -570,6 +642,7 @@ enqueue:
 
 decline_rdma:
 	/* RDMA setup failed, switch back to TCP */
+	smc_conn_free(&new_smc->conn);
 	new_smc->use_fallback = true;
 	if (reason_code && (reason_code != SMC_CLC_DECL_REPLY)) {
 		rc = smc_clc_send_decline(new_smc, reason_code, 0);
@@ -1024,6 +1097,17 @@ out_pnet:
 
 static void __exit smc_exit(void)
 {
+	struct smc_link_group *lgr, *lg;
+	LIST_HEAD(lgr_freeing_list);
+
+	spin_lock_bh(&smc_lgr_list.lock);
+	if (!list_empty(&smc_lgr_list.list))
+		list_splice_init(&smc_lgr_list.list, &lgr_freeing_list);
+	spin_unlock_bh(&smc_lgr_list.lock);
+	list_for_each_entry_safe(lgr, lg, &lgr_freeing_list, list) {
+		list_del_init(&lgr->list);
+		smc_lgr_free(lgr); /* free link group */
+	}
 	smc_ib_unregister_client();
 	sock_unregister(PF_SMC);
 	proto_unregister(&smc_proto);

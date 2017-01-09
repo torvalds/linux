@@ -109,6 +109,6 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info,
 int smc_clc_send_proposal(struct smc_sock *smc, struct smc_ib_device *smcibdev,
 			  u8 ibport);
 int smc_clc_send_confirm(struct smc_sock *smc);
-int smc_clc_send_accept(struct smc_sock *smc);
+int smc_clc_send_accept(struct smc_sock *smc, int srv_first_contact);
 
 #endif

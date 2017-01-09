@@ -14,6 +14,7 @@
 #include <net/tcp.h>
 
 #include "smc.h"
+#include "smc_core.h"
 #include "smc_clc.h"
 #include "smc_ib.h"
 
@@ -89,8 +90,13 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		reason_code = -EPROTO;
 		goto out;
 	}
-	if (clcm->type == SMC_CLC_DECLINE)
+	if (clcm->type == SMC_CLC_DECLINE) {
 		reason_code = SMC_CLC_DECL_REPLY;
+		if (ntohl(((struct smc_clc_msg_decline *)buf)->peer_diagnosis)
+			== SMC_CLC_DECL_SYNCERR)
+			smc->conn.lgr->sync_err = true;
+	}
+
 out:
 	return reason_code;
 }
@@ -175,12 +181,15 @@ int smc_clc_send_proposal(struct smc_sock *smc,
 /* send CLC CONFIRM message across internal TCP socket */
 int smc_clc_send_confirm(struct smc_sock *smc)
 {
+	struct smc_connection *conn = &smc->conn;
 	struct smc_clc_msg_accept_confirm cclc;
+	struct smc_link *link;
 	int reason_code = 0;
 	struct msghdr msg;
 	struct kvec vec;
 	int len;
 
+	link = &conn->lgr->lnk[SMC_SINGLE_LINK];
 	/* send SMC Confirm CLC msg */
 	memset(&cclc, 0, sizeof(cclc));
 	memcpy(cclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
@@ -188,12 +197,18 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 	cclc.hdr.length = htons(sizeof(cclc));
 	cclc.hdr.version = SMC_CLC_V1;		/* SMC version */
 	memcpy(cclc.lcl.id_for_peer, local_systemid, sizeof(local_systemid));
-
-	/* tbd in follow-on patch: fill in link-related values */
+	memcpy(&cclc.lcl.gid, &link->smcibdev->gid[link->ibport - 1],
+	       SMC_GID_SIZE);
+	memcpy(&cclc.lcl.mac, &link->smcibdev->mac[link->ibport - 1],
+	       sizeof(link->smcibdev->mac));
 
 	/* tbd in follow-on patch: fill in rmb-related values */
 
+	hton24(cclc.qpn, link->roce_qp->qp_num);
 	cclc.conn_idx = 1; /* for now: 1 RMB = 1 RMBE */
+	cclc.rmbe_alert_token = htonl(conn->alert_token_local);
+	cclc.qp_mtu = min(link->path_mtu, link->peer_mtu);
+	hton24(cclc.psn, link->psn_initial);
 
 	memcpy(cclc.trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 
@@ -214,26 +229,37 @@ int smc_clc_send_confirm(struct smc_sock *smc)
 }
 
 /* send CLC ACCEPT message across internal TCP socket */
-int smc_clc_send_accept(struct smc_sock *new_smc)
+int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 {
+	struct smc_connection *conn = &new_smc->conn;
 	struct smc_clc_msg_accept_confirm aclc;
+	struct smc_link *link;
 	struct msghdr msg;
 	struct kvec vec;
 	int rc = 0;
 	int len;
 
+	link = &conn->lgr->lnk[SMC_SINGLE_LINK];
 	memset(&aclc, 0, sizeof(aclc));
 	memcpy(aclc.hdr.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 	aclc.hdr.type = SMC_CLC_ACCEPT;
 	aclc.hdr.length = htons(sizeof(aclc));
 	aclc.hdr.version = SMC_CLC_V1;		/* SMC version */
+	if (srv_first_contact)
+		aclc.hdr.flag = 1;
 	memcpy(aclc.lcl.id_for_peer, local_systemid, sizeof(local_systemid));
-
-	/* tbd in follow-on patch: fill in link-related values */
+	memcpy(&aclc.lcl.gid, &link->smcibdev->gid[link->ibport - 1],
+	       SMC_GID_SIZE);
+	memcpy(&aclc.lcl.mac, link->smcibdev->mac[link->ibport - 1],
+	       sizeof(link->smcibdev->mac[link->ibport - 1]));
 
 	/* tbd in follow-on patch: fill in rmb-related values */
 
+	hton24(aclc.qpn, link->roce_qp->qp_num);
 	aclc.conn_idx = 1;			/* as long as 1 RMB = 1 RMBE */
+	aclc.rmbe_alert_token = htonl(conn->alert_token_local);
+	aclc.qp_mtu = link->path_mtu;
+	hton24(aclc.psn, link->psn_initial);
 	memcpy(aclc.trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 
 	memset(&msg, 0, sizeof(msg));
