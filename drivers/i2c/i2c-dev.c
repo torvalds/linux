@@ -329,7 +329,7 @@ static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 		unsigned long arg)
 {
 	struct i2c_smbus_ioctl_data data_arg;
-	union i2c_smbus_data temp;
+	union i2c_smbus_data temp = {};
 	int datasize, res;
 
 	if (copy_from_user(&data_arg,
