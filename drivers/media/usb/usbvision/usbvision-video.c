@@ -1336,7 +1336,6 @@ static struct usb_usbvision *usbvision_alloc(struct usb_device *dev,
 	usbvision->ctrl_urb = usb_alloc_urb(USBVISION_URB_FRAMES, GFP_KERNEL);
 	if (usbvision->ctrl_urb == NULL)
 		goto err_unreg;
-	init_waitqueue_head(&usbvision->ctrl_urb_wq);
 
 	return usbvision;
 

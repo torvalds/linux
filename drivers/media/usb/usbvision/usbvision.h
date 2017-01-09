@@ -366,7 +366,6 @@ struct usb_usbvision {
 	unsigned char ctrl_urb_buffer[8];
 	int ctrl_urb_busy;
 	struct usb_ctrlrequest ctrl_urb_setup;
-	wait_queue_head_t ctrl_urb_wq;					/* Processes waiting */
 
 	/* configuration part */
 	int have_tuner;

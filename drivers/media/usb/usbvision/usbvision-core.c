@@ -1413,8 +1413,6 @@ static void usbvision_ctrl_urb_complete(struct urb *urb)
 
 	PDEBUG(DBG_IRQ, "");
 	usbvision->ctrl_urb_busy = 0;
-	if (waitqueue_active(&usbvision->ctrl_urb_wq))
-		wake_up_interruptible(&usbvision->ctrl_urb_wq);
 }
 
 
