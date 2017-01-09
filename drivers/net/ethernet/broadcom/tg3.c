@@ -8720,11 +8720,14 @@ static void tg3_free_consistent(struct tg3 *tp)
 	tg3_mem_rx_release(tp);
 	tg3_mem_tx_release(tp);
 
+	/* Protect tg3_get_stats64() from reading freed tp->hw_stats. */
+	tg3_full_lock(tp, 0);
 	if (tp->hw_stats) {
 		dma_free_coherent(&tp->pdev->dev, sizeof(struct tg3_hw_stats),
 				  tp->hw_stats, tp->stats_mapping);
 		tp->hw_stats = NULL;
 	}
+	tg3_full_unlock(tp);
 }
 
 /*
