@@ -111,6 +111,8 @@ struct amdgpu_vm {
 
 	/* client id */
 	u64                     client_id;
+	/* each VM will map on CSA */
+	struct amdgpu_bo_va *csa_bo_va;
 };
 
 struct amdgpu_vm_id {
