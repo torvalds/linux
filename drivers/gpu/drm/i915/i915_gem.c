@@ -1696,12 +1696,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 
 static unsigned int tile_row_pages(struct drm_i915_gem_object *obj)
 {
-	u64 size;
-
-	size = i915_gem_object_get_stride(obj);
-	size *= i915_gem_object_get_tiling(obj) == I915_TILING_Y ? 32 : 8;
-
-	return size >> PAGE_SHIFT;
+	return i915_gem_object_get_tile_row_size(obj) >> PAGE_SHIFT;
 }
 
 /**

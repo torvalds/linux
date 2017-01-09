@@ -77,16 +77,14 @@ static void i965_write_fence_reg(struct drm_i915_fence_reg *fence,
 
 	val = 0;
 	if (vma) {
-		unsigned int tiling = i915_gem_object_get_tiling(vma->obj);
-		bool is_y_tiled = tiling == I915_TILING_Y;
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-		u32 row_size = stride * (is_y_tiled ? 32 : 8);
+		u32 row_size = i915_gem_object_get_tile_row_size(vma->obj);
 		u32 size = rounddown((u32)vma->node.size, row_size);
 
 		val = ((vma->node.start + size - 4096) & 0xfffff000) << 32;
 		val |= vma->node.start & 0xfffff000;
 		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
-		if (is_y_tiled)
+		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
 			val |= BIT(I965_FENCE_TILING_Y_SHIFT);
 		val |= I965_FENCE_REG_VALID;
 	}
