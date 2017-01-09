@@ -1295,7 +1295,8 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 		case SOCK_DGRAM:
 			if (default_protocol_dgram(protocol))
 				return SECCLASS_UDP_SOCKET;
-			else if (extsockclass && protocol == IPPROTO_ICMP)
+			else if (extsockclass && (protocol == IPPROTO_ICMP ||
+						  protocol == IPPROTO_ICMPV6))
 				return SECCLASS_ICMP_SOCKET;
 			else
 				return SECCLASS_RAWIP_SOCKET;
