@@ -381,13 +381,14 @@ static void show_fault_information(struct sysmmu_drvdata *data,
 {
 	sysmmu_pte_t *ent;
 
-	dev_err(data->sysmmu, "%s FAULT occurred at %#x (page table base: %pa)\n",
-		finfo->name, fault_addr, &data->pgtable);
+	dev_err(data->sysmmu, "%s: %s FAULT occurred at %#x\n",
+		dev_name(data->master), finfo->name, fault_addr);
+	dev_dbg(data->sysmmu, "Page table base: %pa\n", &data->pgtable);
 	ent = section_entry(phys_to_virt(data->pgtable), fault_addr);
-	dev_err(data->sysmmu, "\tLv1 entry: %#x\n", *ent);
+	dev_dbg(data->sysmmu, "\tLv1 entry: %#x\n", *ent);
 	if (lv1ent_page(ent)) {
 		ent = page_entry(ent, fault_addr);
-		dev_err(data->sysmmu, "\t Lv2 entry: %#x\n", *ent);
+		dev_dbg(data->sysmmu, "\t Lv2 entry: %#x\n", *ent);
 	}
 }
 
