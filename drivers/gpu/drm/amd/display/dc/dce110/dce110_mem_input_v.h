@@ -89,6 +89,7 @@ bool  dce110_mem_input_v_program_surface_config(
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
 	union plane_size *plane_size,
-	enum dc_rotation_angle rotation);
+	enum dc_rotation_angle rotation,
+	bool visible);
 
 #endif
