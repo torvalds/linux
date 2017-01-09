@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh -ex
 
 # Sometime we might want to skip certain checkpatch.pl errors
 # (e.g. when trying to preserve existing code style that checkpatch.pl
@@ -13,18 +13,32 @@ if [ -z "$origin_master" ]; then
     origin_master="origin/master"
 fi
 
-origin=$(dirname $origin_master)
-master=$(basename $origin_master)
+UPSTREAM=git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+LKL=github.com:lkl/linux.git
 
-# make sure we fetch to avoid caching effects
-git fetch --tags $origin +refs/heads/$master:refs/remotes/$origin/$master
+upstream=`git remote -v | grep $UPSTREAM | cut -f1 | head -n1`
+lkl=`git remote -v | grep $LKL | cut -f1 | head -n1`
+
+if [ -z "$upstream" ]; then
+    git fetch --tags --progress http://$UPSTREAM
+else
+    git fetch --tags $upstream
+fi
+
+if [ -z "$lkl" ]; then
+    echo "can't find lkl remote, quiting"
+    exit 1
+fi
+
+git fetch $lkl
+git fetch --tags $upstream
 
 # find the last upstream tag to avoid checking upstream commits during
 # upstream merges
 tag=`git tag --sort='-*authordate' | grep ^v | head -n1`
 tmp=`mktemp -d`
 
-commits=$(git log --no-merges --pretty=format:%h HEAD ^$origin/$master ^$tag)
+commits=$(git log --no-merges --pretty=format:%h HEAD ^$lkl/master ^$tag)
 for c in $commits; do
     git format-patch -1 -o $tmp $c
 done
