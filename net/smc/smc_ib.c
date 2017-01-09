@@ -14,6 +14,7 @@
 #include <linux/random.h>
 #include <rdma/ib_verbs.h>
 
+#include "smc_pnet.h"
 #include "smc_ib.h"
 #include "smc.h"
 
@@ -123,6 +124,7 @@ static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 	spin_lock(&smc_ib_devices.lock);
 	list_del_init(&smcibdev->list); /* remove from smc_ib_devices */
 	spin_unlock(&smc_ib_devices.lock);
+	smc_pnet_remove_by_ibdev(smcibdev);
 	kfree(smcibdev);
 }
 
