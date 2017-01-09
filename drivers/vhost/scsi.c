@@ -2087,7 +2087,7 @@ static struct configfs_attribute *vhost_scsi_wwn_attrs[] = {
 	NULL,
 };
 
-static struct target_core_fabric_ops vhost_scsi_ops = {
+static const struct target_core_fabric_ops vhost_scsi_ops = {
 	.module				= THIS_MODULE,
 	.name				= "vhost",
 	.get_fabric_name		= vhost_scsi_get_fabric_name,
