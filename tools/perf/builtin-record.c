@@ -1377,6 +1377,23 @@ out_free:
 	return ret;
 }
 
+static void switch_output_size_warn(struct record *rec)
+{
+	u64 wakeup_size = perf_evlist__mmap_size(rec->opts.mmap_pages);
+	struct switch_output *s = &rec->switch_output;
+
+	wakeup_size /= 2;
+
+	if (s->size < wakeup_size) {
+		char buf[100];
+
+		unit_number__scnprintf(buf, sizeof(buf), wakeup_size);
+		pr_warning("WARNING: switch-output data size lower than "
+			   "wakeup kernel buffer size (%s) "
+			   "expect bigger perf.data sizes\n", buf);
+	}
+}
+
 static int switch_output_setup(struct record *rec)
 {
 	struct switch_output *s = &rec->switch_output;
@@ -1410,6 +1427,10 @@ static int switch_output_setup(struct record *rec)
 enabled:
 	rec->timestamp_filename = true;
 	s->enabled              = true;
+
+	if (s->size && !rec->opts.no_buffering)
+		switch_output_size_warn(rec);
+
 	return 0;
 }
 

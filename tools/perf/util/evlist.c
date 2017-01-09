@@ -1184,7 +1184,7 @@ unsigned long perf_event_mlock_kb_in_pages(void)
 	return pages;
 }
 
-static size_t perf_evlist__mmap_size(unsigned long pages)
+size_t perf_evlist__mmap_size(unsigned long pages)
 {
 	if (pages == UINT_MAX)
 		pages = perf_event_mlock_kb_in_pages();
