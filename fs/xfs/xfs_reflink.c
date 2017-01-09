@@ -1345,8 +1345,14 @@ xfs_reflink_remap_range(
 		goto out_unlock;
 	}
 
-	if (len == 0)
+	/* Zero length dedupe exits immediately; reflink goes to EOF. */
+	if (len == 0) {
+		if (is_dedupe) {
+			ret = 0;
+			goto out_unlock;
+		}
 		len = isize - pos_in;
+	}
 
 	/* Ensure offsets don't wrap and the input is inside i_size */
 	if (pos_in + len < pos_in || pos_out + len < pos_out ||
