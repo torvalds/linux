@@ -472,7 +472,7 @@ int swsusp_arch_resume(void)
 	 */
 	tmp_pg_dir = (pgd_t *)get_safe_page(GFP_ATOMIC);
 	if (!tmp_pg_dir) {
-		pr_err("Failed to allocate memory for temporary page tables.");
+		pr_err("Failed to allocate memory for temporary page tables.\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -492,7 +492,7 @@ int swsusp_arch_resume(void)
 	 */
 	zero_page = (void *)get_safe_page(GFP_ATOMIC);
 	if (!zero_page) {
-		pr_err("Failed to allocate zero page.");
+		pr_err("Failed to allocate zero page.\n");
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -512,7 +512,7 @@ int swsusp_arch_resume(void)
 				   &phys_hibernate_exit,
 				   (void *)get_safe_page, GFP_ATOMIC);
 	if (rc) {
-		pr_err("Failed to create safe executable page for hibernate_exit code.");
+		pr_err("Failed to create safe executable page for hibernate_exit code.\n");
 		goto out;
 	}
 
