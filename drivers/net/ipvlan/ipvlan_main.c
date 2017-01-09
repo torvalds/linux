@@ -120,6 +120,7 @@ static int ipvlan_port_create(struct net_device *dev)
 	skb_queue_head_init(&port->backlog);
 	INIT_WORK(&port->wq, ipvlan_process_multicast);
 	ida_init(&port->ida);
+	port->dev_id_start = 1;
 
 	err = netdev_rx_handler_register(dev, ipvlan_handle_frame, port);
 	if (err)
@@ -534,15 +535,25 @@ static int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	ipvlan_adjust_mtu(ipvlan, phy_dev);
 	INIT_LIST_HEAD(&ipvlan->addrs);
 
+	/* If the port-id base is at the MAX value, then wrap it around and
+	 * begin from 0x1 again. This may be due to a busy system where lots
+	 * of slaves are getting created and deleted.
+	 */
+	if (port->dev_id_start == 0xFFFE)
+		port->dev_id_start = 0x1;
+
 	/* Since L2 address is shared among all IPvlan slaves including
 	 * master, use unique 16 bit dev-ids to diffentiate among them.
 	 * Assign IDs between 0x1 and 0xFFFE (used by the master) to each
 	 * slave link [see addrconf_ifid_eui48()].
 	 */
-	err = ida_simple_get(&port->ida, 1, 0xFFFE, GFP_KERNEL);
+	err = ida_simple_get(&port->ida, port->dev_id_start, 0xFFFE,
+			     GFP_KERNEL);
 	if (err < 0)
 		goto destroy_ipvlan_port;
 	dev->dev_id = err;
+	/* Increment id-base to the next slot for the future assignment */
+	port->dev_id_start = err + 1;
 
 	/* TODO Probably put random address here to be presented to the
 	 * world but keep using the physical-dev address for the outgoing

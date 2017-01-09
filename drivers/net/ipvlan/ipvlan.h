@@ -94,6 +94,7 @@ struct ipvl_port {
 	struct hlist_head	hlhead[IPVLAN_HASH_SIZE];
 	struct list_head	ipvlans;
 	u16			mode;
+	u16			dev_id_start;
 	struct work_struct	wq;
 	struct sk_buff_head	backlog;
 	int			count;
