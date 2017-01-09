@@ -1311,9 +1311,9 @@ static int sel_make_bools(void)
 		isec = (struct inode_security_struct *)inode->i_security;
 		ret = security_genfs_sid("selinuxfs", page, SECCLASS_FILE, &sid);
 		if (ret) {
-			pr_err("SELinux: failed to lookup sid for %s\n", page);
-			goto out;
-
+			pr_warn_ratelimited("SELinux: no sid found, defaulting to security isid for %s\n",
+					   page);
+			sid = SECINITSID_SECURITY;
 		}
 
 		isec->sid = sid;
