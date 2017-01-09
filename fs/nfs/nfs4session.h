@@ -103,6 +103,11 @@ static inline bool nfs4_test_locked_slot(const struct nfs4_slot_table *tbl,
 	return !!test_bit(slotid, tbl->used_slots);
 }
 
+static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
+{
+	return server->nfs_client->cl_session;
+}
+
 #if defined(CONFIG_NFS_V4_1)
 extern void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
 		u32 target_highest_slotid);

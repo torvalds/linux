@@ -12,6 +12,7 @@
 #include "nfs42.h"
 #include "iostat.h"
 #include "pnfs.h"
+#include "nfs4session.h"
 #include "internal.h"
 
 #define NFSDBG_FACILITY NFSDBG_PROC
