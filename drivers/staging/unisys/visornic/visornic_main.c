@@ -572,6 +572,8 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 	unsigned long flags;
 	int wait = 0;
 
+	napi_enable(&devdata->napi);
+
 	/* NOTE: the other end automatically unposts the rcv buffers when it
 	 * gets a disable.
 	 */
@@ -595,7 +597,6 @@ visornic_enable_with_timeout(struct net_device *netdev, const int timeout)
 	/* send enable and wait for ack -- don't hold lock when sending enable
 	 * because if the queue is full, insert might sleep.
 	 */
-	napi_enable(&devdata->napi);
 	send_enbdis(netdev, 1, devdata);
 
 	spin_lock_irqsave(&devdata->priv_lock, flags);
