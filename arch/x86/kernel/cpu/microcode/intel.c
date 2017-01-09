@@ -150,7 +150,7 @@ static struct ucode_patch *__alloc_microcode_buf(void *data, unsigned int size)
 {
 	struct ucode_patch *p;
 
-	p = kzalloc(size, GFP_KERNEL);
+	p = kzalloc(sizeof(struct ucode_patch), GFP_KERNEL);
 	if (!p)
 		return ERR_PTR(-ENOMEM);
 
