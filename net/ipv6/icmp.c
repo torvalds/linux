@@ -168,6 +168,30 @@ static bool is_ineligible(const struct sk_buff *skb)
 	return false;
 }
 
+static bool icmpv6_mask_allow(int type)
+{
+	/* Informational messages are not limited. */
+	if (type & ICMPV6_INFOMSG_MASK)
+		return true;
+
+	/* Do not limit pmtu discovery, it would break it. */
+	if (type == ICMPV6_PKT_TOOBIG)
+		return true;
+
+	return false;
+}
+
+static bool icmpv6_global_allow(int type)
+{
+	if (icmpv6_mask_allow(type))
+		return true;
+
+	if (icmp_global_allow())
+		return true;
+
+	return false;
+}
+
 /*
  * Check the ICMP output rate limit
  */
@@ -178,12 +202,7 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 	struct dst_entry *dst;
 	bool res = false;
 
-	/* Informational messages are not limited. */
-	if (type & ICMPV6_INFOMSG_MASK)
-		return true;
-
-	/* Do not limit pmtu discovery, it would break it. */
-	if (type == ICMPV6_PKT_TOOBIG)
+	if (icmpv6_mask_allow(type))
 		return true;
 
 	/*
@@ -200,20 +219,16 @@ static bool icmpv6_xrlim_allow(struct sock *sk, u8 type,
 	} else {
 		struct rt6_info *rt = (struct rt6_info *)dst;
 		int tmo = net->ipv6.sysctl.icmpv6_time;
+		struct inet_peer *peer;
 
 		/* Give more bandwidth to wider prefixes. */
 		if (rt->rt6i_dst.plen < 128)
 			tmo >>= ((128 - rt->rt6i_dst.plen)>>5);
 
-		if (icmp_global_allow()) {
-			struct inet_peer *peer;
-
-			peer = inet_getpeer_v6(net->ipv6.peers,
-					       &fl6->daddr, 1);
-			res = inet_peer_xrlim_allow(peer, tmo);
-			if (peer)
-				inet_putpeer(peer);
-		}
+		peer = inet_getpeer_v6(net->ipv6.peers, &fl6->daddr, 1);
+		res = inet_peer_xrlim_allow(peer, tmo);
+		if (peer)
+			inet_putpeer(peer);
 	}
 	dst_release(dst);
 	return res;
@@ -493,6 +508,10 @@ static void icmp6_send(struct sk_buff *skb, u8 type, u8 code, __u32 info,
 	sk = icmpv6_xmit_lock(net);
 	if (!sk)
 		return;
+
+	if (!icmpv6_global_allow(type))
+		goto out;
+
 	sk->sk_mark = mark;
 	np = inet6_sk(sk);
 
