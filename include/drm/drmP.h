@@ -731,11 +731,6 @@ int drm_noop(struct drm_device *dev, void *data,
 int drm_invalid_op(struct drm_device *dev, void *data,
 		   struct drm_file *file_priv);
 
-/* Cache management (drm_cache.c) */
-void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
-void drm_clflush_sg(struct sg_table *st);
-void drm_clflush_virt_range(void *addr, unsigned long length);
-
 /*
  * These are exported to drivers so that they can implement fencing using
  * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
