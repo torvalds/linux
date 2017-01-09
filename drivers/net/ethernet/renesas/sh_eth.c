@@ -576,6 +576,7 @@ static struct sh_eth_cpu_data r8a7740_data = {
 	.hw_checksum	= 1,
 	.tsu		= 1,
 	.select_mii	= 1,
+	.magic		= 1,
 };
 
 /* There is CPU dependent code */
