@@ -1967,6 +1967,7 @@ static int mb86a20s_read_status_and_stats(struct dvb_frontend *fe,
 	if (status_nr < 0) {
 		dev_err(&state->i2c->dev,
 			"%s: Can't read frontend lock status\n", __func__);
+		rc = status_nr;
 		goto error;
 	}
 
@@ -2059,7 +2060,7 @@ static int mb86a20s_get_frontend_algo(struct dvb_frontend *fe)
         return DVBFE_ALGO_HW;
 }
 
-static struct dvb_frontend_ops mb86a20s_ops;
+static const struct dvb_frontend_ops mb86a20s_ops;
 
 struct dvb_frontend *mb86a20s_attach(const struct mb86a20s_config *config,
 				    struct i2c_adapter *i2c)
@@ -2107,7 +2108,7 @@ error:
 }
 EXPORT_SYMBOL(mb86a20s_attach);
 
-static struct dvb_frontend_ops mb86a20s_ops = {
+static const struct dvb_frontend_ops mb86a20s_ops = {
 	.delsys = { SYS_ISDBT },
 	/* Use dib8000 values per default */
 	.info = {

@@ -118,7 +118,7 @@ again:
 	return ret;
 }
 
-static int open_related_ns(struct ns_common *ns,
+int open_related_ns(struct ns_common *ns,
 		   struct ns_common *(*get_ns)(struct ns_common *ns))
 {
 	struct path path = {};

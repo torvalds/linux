@@ -27,12 +27,11 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
-#include <linux/string.h>
 #include <linux/skbuff.h>
 
 #include <linux/isdnif.h>
-#include <asm/string.h>
-#include <asm/io.h>
+#include <linux/string.h>
+#include <linux/io.h>
 #include <linux/ioport.h>
 
 #include "pcbit.h"

@@ -31,7 +31,7 @@
 #include <linux/init.h>
 #include <linux/dio.h>
 #include <linux/slab.h>                         /* kmalloc() */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>                             /* readb() */
 
 struct dio_bus dio_bus = {

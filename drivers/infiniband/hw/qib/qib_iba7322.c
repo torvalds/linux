@@ -3627,9 +3627,7 @@ static unsigned qib_7322_boardname(struct qib_devdata *dd)
 
 	namelen = strlen(n) + 1;
 	dd->boardname = kmalloc(namelen, GFP_KERNEL);
-	if (!dd->boardname)
-		qib_dev_err(dd, "Failed allocation for board name: %s\n", n);
-	else
+	if (dd->boardname)
 		snprintf(dd->boardname, namelen, "%s", n);
 
 	snprintf(dd->boardversion, sizeof(dd->boardversion),
@@ -3656,7 +3654,7 @@ static unsigned qib_7322_boardname(struct qib_devdata *dd)
 static int qib_do_7322_reset(struct qib_devdata *dd)
 {
 	u64 val;
-	u64 *msix_vecsave;
+	u64 *msix_vecsave = NULL;
 	int i, msix_entries, ret = 1;
 	u16 cmdval;
 	u8 int_line, clinesz;
@@ -3677,10 +3675,7 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 		/* can be up to 512 bytes, too big for stack */
 		msix_vecsave = kmalloc(2 * dd->cspec->num_msix_entries *
 			sizeof(u64), GFP_KERNEL);
-		if (!msix_vecsave)
-			qib_dev_err(dd, "No mem to save MSIx data\n");
-	} else
-		msix_vecsave = NULL;
+	}
 
 	/*
 	 * Core PCI (as of 2.6.18) doesn't save or rewrite the full vector
@@ -5043,8 +5038,6 @@ static void init_7322_cntrnames(struct qib_devdata *dd)
 		dd->cspec->cntrnamelen = 1 + s - cntr7322names;
 	dd->cspec->cntrs = kmalloc(dd->cspec->ncntrs
 		* sizeof(u64), GFP_KERNEL);
-	if (!dd->cspec->cntrs)
-		qib_dev_err(dd, "Failed allocation for counters\n");
 
 	for (i = 0, s = (char *)portcntr7322names; s; i++)
 		s = strchr(s + 1, '\n');
@@ -5053,9 +5046,6 @@ static void init_7322_cntrnames(struct qib_devdata *dd)
 	for (i = 0; i < dd->num_pports; ++i) {
 		dd->pport[i].cpspec->portcntrs = kmalloc(dd->cspec->nportcntrs
 			* sizeof(u64), GFP_KERNEL);
-		if (!dd->pport[i].cpspec->portcntrs)
-			qib_dev_err(dd,
-				"Failed allocation for portcounters\n");
 	}
 }
 
@@ -6461,7 +6451,6 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		sizeof(*dd->cspec->sendibchk), GFP_KERNEL);
 	if (!dd->cspec->sendchkenable || !dd->cspec->sendgrhchk ||
 		!dd->cspec->sendibchk) {
-		qib_dev_err(dd, "Failed allocation for hdrchk bitmaps\n");
 		ret = -ENOMEM;
 		goto bail;
 	}
@@ -7338,10 +7327,9 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 	tabsize = actual_cnt;
 	dd->cspec->msix_entries = kzalloc(tabsize *
 			sizeof(struct qib_msix_entry), GFP_KERNEL);
-	if (!dd->cspec->msix_entries) {
-		qib_dev_err(dd, "No memory for MSIx table\n");
+	if (!dd->cspec->msix_entries)
 		tabsize = 0;
-	}
+
 	for (i = 0; i < tabsize; i++)
 		dd->cspec->msix_entries[i].msix.entry = i;
 

@@ -2034,6 +2034,8 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_WORT              | 64
   PPC	| KVM_REG_PPC_SPRG9             | 64
   PPC	| KVM_REG_PPC_DBSR              | 32
+  PPC   | KVM_REG_PPC_TIDR              | 64
+  PPC   | KVM_REG_PPC_PSSCR             | 64
   PPC   | KVM_REG_PPC_TM_GPR0           | 64
           ...
   PPC   | KVM_REG_PPC_TM_GPR31          | 64
@@ -2050,6 +2052,7 @@ registers, find a list below:
   PPC   | KVM_REG_PPC_TM_VSCR           | 32
   PPC   | KVM_REG_PPC_TM_DSCR           | 64
   PPC   | KVM_REG_PPC_TM_TAR            | 64
+  PPC   | KVM_REG_PPC_TM_XER            | 64
         |                               |
   MIPS  | KVM_REG_MIPS_R0               | 64
           ...
@@ -2209,7 +2212,7 @@ after pausing the vcpu, but before it is resumed.
 4.71 KVM_SIGNAL_MSI
 
 Capability: KVM_CAP_SIGNAL_MSI
-Architectures: x86 arm64
+Architectures: x86 arm arm64
 Type: vm ioctl
 Parameters: struct kvm_msi (in)
 Returns: >0 on delivery, 0 if guest blocked the MSI, and -1 on error

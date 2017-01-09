@@ -980,17 +980,6 @@ static void xen_io_delay(void)
 {
 }
 
-static void xen_clts(void)
-{
-	struct multicall_space mcs;
-
-	mcs = xen_mc_entry(0);
-
-	MULTI_fpu_taskswitch(mcs.mc, 0);
-
-	xen_mc_issue(PARAVIRT_LAZY_CPU);
-}
-
 static DEFINE_PER_CPU(unsigned long, xen_cr0_value);
 
 static unsigned long xen_read_cr0(void)
@@ -1232,8 +1221,6 @@ static const struct pv_cpu_ops xen_cpu_ops __initconst = {
 
 	.set_debugreg = xen_set_debugreg,
 	.get_debugreg = xen_get_debugreg,
-
-	.clts = xen_clts,
 
 	.read_cr0 = xen_read_cr0,
 	.write_cr0 = xen_write_cr0,
@@ -1542,11 +1529,11 @@ static int xen_cpuhp_setup(void)
 	int rc;
 
 	rc = cpuhp_setup_state_nocalls(CPUHP_XEN_PREPARE,
-				       "XEN_HVM_GUEST_PREPARE",
+				       "x86/xen/hvm_guest:prepare",
 				       xen_cpu_up_prepare, xen_cpu_dead);
 	if (rc >= 0) {
 		rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-					       "XEN_HVM_GUEST_ONLINE",
+					       "x86/xen/hvm_guest:online",
 					       xen_cpu_up_online, NULL);
 		if (rc < 0)
 			cpuhp_remove_state_nocalls(CPUHP_XEN_PREPARE);

@@ -61,6 +61,7 @@ extern unsigned int da850_max_speed;
 #define DA8XX_CFGCHIP1_REG	0x180
 #define DA8XX_CFGCHIP2_REG	0x184
 #define DA8XX_CFGCHIP3_REG	0x188
+#define DA8XX_CFGCHIP4_REG	0x18c
 
 #define DA8XX_SYSCFG1_BASE	(IO_PHYS + 0x22C000)
 #define DA8XX_SYSCFG1_VIRT(x)	(da8xx_syscfg1_base + (x))
@@ -88,8 +89,12 @@ int da850_register_edma(struct edma_rsv_info *rsv[2]);
 int da8xx_register_i2c(int instance, struct davinci_i2c_platform_data *pdata);
 int da8xx_register_spi_bus(int instance, unsigned num_chipselect);
 int da8xx_register_watchdog(void);
+int da8xx_register_usb_phy(void);
 int da8xx_register_usb20(unsigned mA, unsigned potpgt);
 int da8xx_register_usb11(struct da8xx_ohci_root_hub *pdata);
+int da8xx_register_usb_refclkin(int rate);
+int da8xx_register_usb20_phy_clk(bool use_usb_refclkin);
+int da8xx_register_usb11_phy_clk(bool use_usb_refclkin);
 int da8xx_register_emac(void);
 int da8xx_register_uio_pruss(void);
 int da8xx_register_lcdc(struct da8xx_lcdc_platform_data *pdata);
@@ -101,7 +106,6 @@ int da8xx_register_gpio(void *pdata);
 int da850_register_cpufreq(char *async_clk);
 int da8xx_register_cpuidle(void);
 void __iomem *da8xx_get_mem_ctlr(void);
-int da850_register_pm(struct platform_device *pdev);
 int da850_register_sata(unsigned long refclkpn);
 int da850_register_vpif(void);
 int da850_register_vpif_display
@@ -113,6 +117,7 @@ void da8xx_rproc_reserve_cma(void);
 int da8xx_register_rproc(void);
 int da850_register_gpio(void);
 int da830_register_gpio(void);
+int da8xx_register_cfgchip(void);
 
 extern struct platform_device da8xx_serial_device[];
 extern struct emac_platform_data da8xx_emac_pdata;

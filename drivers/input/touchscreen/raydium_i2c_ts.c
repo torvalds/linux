@@ -669,7 +669,7 @@ static int raydium_i2c_do_update_firmware(struct raydium_data *ts,
 
 		if (ts->boot_mode == RAYDIUM_TS_MAIN) {
 			dev_err(&client->dev,
-				"failied to jump to boot loader: %d\n",
+				"failed to jump to boot loader: %d\n",
 				error);
 			return -EIO;
 		}

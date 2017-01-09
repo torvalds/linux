@@ -927,6 +927,9 @@ EXPORT_SYMBOL(ida_pre_get);
  * and go back to the ida_pre_get() call.  If the ida is full, it will
  * return %-ENOSPC.
  *
+ * Note that callers must ensure that concurrent access to @ida is not possible.
+ * See ida_simple_get() for a varaint which takes care of locking.
+ *
  * @p_id returns a value in the range @starting_id ... %0x7fffffff.
  */
 int ida_get_new_above(struct ida *ida, int starting_id, int *p_id)
@@ -1073,6 +1076,9 @@ EXPORT_SYMBOL(ida_destroy);
  * Allocates an id in the range start <= id < end, or returns -ENOSPC.
  * On memory allocation failure, returns -ENOMEM.
  *
+ * Compared to ida_get_new_above() this function does its own locking, and
+ * should be used unless there are special requirements.
+ *
  * Use ida_simple_remove() to get rid of an id.
  */
 int ida_simple_get(struct ida *ida, unsigned int start, unsigned int end,
@@ -1119,6 +1125,11 @@ EXPORT_SYMBOL(ida_simple_get);
  * ida_simple_remove - remove an allocated id.
  * @ida: the (initialized) ida.
  * @id: the id returned by ida_simple_get.
+ *
+ * Use to release an id allocated with ida_simple_get().
+ *
+ * Compared to ida_remove() this function does its own locking, and should be
+ * used unless there are special requirements.
  */
 void ida_simple_remove(struct ida *ida, unsigned int id)
 {

@@ -230,6 +230,7 @@ struct ttm_bo_driver mgag200_bo_driver = {
 	.ttm_tt_populate = mgag200_ttm_tt_populate,
 	.ttm_tt_unpopulate = mgag200_ttm_tt_unpopulate,
 	.init_mem_type = mgag200_bo_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = mgag200_bo_evict_flags,
 	.move = NULL,
 	.verify_access = mgag200_bo_verify_access,

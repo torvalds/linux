@@ -54,7 +54,7 @@ typedef struct icn_cdef {
 
 /* some useful macros for debugging */
 #ifdef ICN_DEBUG_PORT
-#define OUTB_P(v, p) {printk(KERN_DEBUG "icn: outb_p(0x%02x,0x%03x)\n", v, p); outb_p(v, p);}
+#define OUTB_P(v, p) {pr_debug("icn: outb_p(0x%02x,0x%03x)\n", v, p); outb_p(v, p);}
 #else
 #define OUTB_P outb
 #endif
@@ -186,8 +186,7 @@ typedef icn_dev *icn_devptr;
 #ifdef __KERNEL__
 
 static icn_card *cards = (icn_card *) 0;
-static u_char chan2bank[] =
-{0, 4, 8, 12};                  /* for icn_map_channel() */
+static u_char chan2bank[] = {0, 4, 8, 12};                  /* for icn_map_channel() */
 
 static icn_dev dev;
 

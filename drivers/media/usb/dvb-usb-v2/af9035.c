@@ -2095,6 +2095,8 @@ static const struct usb_device_id af9035_id_table[] = {
 		&af9035_props, "TerraTec Cinergy T Stick (rev. 2)", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_AVERMEDIA, 0x0337,
 		&af9035_props, "AVerMedia HD Volar (A867)", NULL) },
+       { DVB_USB_DEVICE(USB_VID_GTEK, USB_PID_EVOLVEO_XTRATV_STICK,
+	       &af9035_props, "EVOLVEO XtraTV stick", NULL) },
 
 	/* IT9135 devices */
 	{ DVB_USB_DEVICE(USB_VID_ITETECH, USB_PID_ITETECH_IT9135,

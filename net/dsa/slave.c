@@ -641,7 +641,8 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 
 /* ethtool operations *******************************************************/
 static int
-dsa_slave_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+dsa_slave_get_link_ksettings(struct net_device *dev,
+			     struct ethtool_link_ksettings *cmd)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	int err;
@@ -650,19 +651,20 @@ dsa_slave_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	if (p->phy != NULL) {
 		err = phy_read_status(p->phy);
 		if (err == 0)
-			err = phy_ethtool_gset(p->phy, cmd);
+			err = phy_ethtool_ksettings_get(p->phy, cmd);
 	}
 
 	return err;
 }
 
 static int
-dsa_slave_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+dsa_slave_set_link_ksettings(struct net_device *dev,
+			     const struct ethtool_link_ksettings *cmd)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 
 	if (p->phy != NULL)
-		return phy_ethtool_sset(p->phy, cmd);
+		return phy_ethtool_ksettings_set(p->phy, cmd);
 
 	return -EOPNOTSUPP;
 }
@@ -990,8 +992,6 @@ void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops)
 }
 
 static const struct ethtool_ops dsa_slave_ethtool_ops = {
-	.get_settings		= dsa_slave_get_settings,
-	.set_settings		= dsa_slave_set_settings,
 	.get_drvinfo		= dsa_slave_get_drvinfo,
 	.get_regs_len		= dsa_slave_get_regs_len,
 	.get_regs		= dsa_slave_get_regs,
@@ -1007,6 +1007,8 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_wol		= dsa_slave_get_wol,
 	.set_eee		= dsa_slave_set_eee,
 	.get_eee		= dsa_slave_get_eee,
+	.get_link_ksettings	= dsa_slave_get_link_ksettings,
+	.set_link_ksettings	= dsa_slave_set_link_ksettings,
 };
 
 static const struct net_device_ops dsa_slave_netdev_ops = {
@@ -1250,6 +1252,8 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	slave_dev->priv_flags |= IFF_NO_QUEUE;
 	slave_dev->netdev_ops = &dsa_slave_netdev_ops;
 	slave_dev->switchdev_ops = &dsa_slave_switchdev_ops;
+	slave_dev->min_mtu = 0;
+	slave_dev->max_mtu = ETH_MAX_MTU;
 	SET_NETDEV_DEVTYPE(slave_dev, &dsa_type);
 
 	netdev_for_each_tx_queue(slave_dev, dsa_slave_set_lockdep_class_one,

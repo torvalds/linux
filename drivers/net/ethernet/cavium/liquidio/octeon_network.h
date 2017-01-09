@@ -4,7 +4,7 @@
  * Contact: support@cavium.com
  *          Please include "LiquidIO" in the subject.
  *
- * Copyright (c) 2003-2015 Cavium, Inc.
+ * Copyright (c) 2003-2016 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -15,9 +15,6 @@
  * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
  * NONINFRINGEMENT.  See the GNU General Public License for more
  * details.
- *
- * This file may also be available under a different license from Cavium.
- * Contact Cavium, Inc. for more information
  **********************************************************************/
 
 /*!  \file  octeon_network.h
@@ -29,7 +26,7 @@
 #include <linux/ptp_clock_kernel.h>
 
 #define LIO_MAX_MTU_SIZE (OCTNET_MAX_FRM_SIZE - OCTNET_FRM_HEADER_SIZE)
-#define LIO_MIN_MTU_SIZE 68
+#define LIO_MIN_MTU_SIZE ETH_MIN_MTU
 
 struct oct_nic_stats_resp {
 	u64     rh;
@@ -126,12 +123,13 @@ struct lio {
 	/* work queue for  link status */
 	struct cavium_wq	link_status_wq;
 
+	int netdev_uc_count;
 };
 
 #define LIO_SIZE         (sizeof(struct lio))
 #define GET_LIO(netdev)  ((struct lio *)netdev_priv(netdev))
 
-#define CIU3_WDOG(c)                 (0x1010000020000ULL + (c << 3))
+#define CIU3_WDOG(c)                 (0x1010000020000ULL + ((c) << 3))
 #define CIU3_WDOG_MASK               12ULL
 #define LIO_MONITOR_WDOG_EXPIRE      1
 #define LIO_MONITOR_CORE_STUCK_MSGD  2
@@ -342,9 +340,9 @@ static inline void tx_buffer_free(void *buffer)
 }
 
 #define lio_dma_alloc(oct, size, dma_addr) \
-	dma_alloc_coherent(&oct->pci_dev->dev, size, dma_addr, GFP_KERNEL)
+	dma_alloc_coherent(&(oct)->pci_dev->dev, size, dma_addr, GFP_KERNEL)
 #define lio_dma_free(oct, size, virt_addr, dma_addr) \
-	dma_free_coherent(&oct->pci_dev->dev, size, virt_addr, dma_addr)
+	dma_free_coherent(&(oct)->pci_dev->dev, size, virt_addr, dma_addr)
 
 static inline
 void *get_rbd(struct sk_buff *skb)

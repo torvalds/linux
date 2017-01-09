@@ -199,6 +199,7 @@ struct ttm_bo_driver bochs_bo_driver = {
 	.ttm_tt_populate = ttm_pool_populate,
 	.ttm_tt_unpopulate = ttm_pool_unpopulate,
 	.init_mem_type = bochs_bo_init_mem_type,
+	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = bochs_bo_evict_flags,
 	.move = NULL,
 	.verify_access = bochs_bo_verify_access,

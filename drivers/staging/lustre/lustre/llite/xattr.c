@@ -44,48 +44,39 @@
 
 #include "llite_internal.h"
 
-static
-int get_xattr_type(const char *name)
+const struct xattr_handler *get_xattr_type(const char *name)
 {
-	if (!strcmp(name, XATTR_NAME_POSIX_ACL_ACCESS))
-		return XATTR_ACL_ACCESS_T;
+	int i = 0;
 
-	if (!strcmp(name, XATTR_NAME_POSIX_ACL_DEFAULT))
-		return XATTR_ACL_DEFAULT_T;
+	while (ll_xattr_handlers[i]) {
+		size_t len = strlen(ll_xattr_handlers[i]->prefix);
 
-	if (!strncmp(name, XATTR_USER_PREFIX,
-		     sizeof(XATTR_USER_PREFIX) - 1))
-		return XATTR_USER_T;
-
-	if (!strncmp(name, XATTR_TRUSTED_PREFIX,
-		     sizeof(XATTR_TRUSTED_PREFIX) - 1))
-		return XATTR_TRUSTED_T;
-
-	if (!strncmp(name, XATTR_SECURITY_PREFIX,
-		     sizeof(XATTR_SECURITY_PREFIX) - 1))
-		return XATTR_SECURITY_T;
-
-	if (!strncmp(name, XATTR_LUSTRE_PREFIX,
-		     sizeof(XATTR_LUSTRE_PREFIX) - 1))
-		return XATTR_LUSTRE_T;
-
-	return XATTR_OTHER_T;
+		if (!strncmp(ll_xattr_handlers[i]->prefix, name, len))
+			return ll_xattr_handlers[i];
+		i++;
+	}
+	return NULL;
 }
 
-static
-int xattr_type_filter(struct ll_sb_info *sbi, int xattr_type)
+static int xattr_type_filter(struct ll_sb_info *sbi,
+			     const struct xattr_handler *handler)
 {
-	if ((xattr_type == XATTR_ACL_ACCESS_T ||
-	     xattr_type == XATTR_ACL_DEFAULT_T) &&
+	/* No handler means XATTR_OTHER_T */
+	if (!handler)
+		return -EOPNOTSUPP;
+
+	if ((handler->flags == XATTR_ACL_ACCESS_T ||
+	     handler->flags == XATTR_ACL_DEFAULT_T) &&
 	   !(sbi->ll_flags & LL_SBI_ACL))
 		return -EOPNOTSUPP;
 
-	if (xattr_type == XATTR_USER_T && !(sbi->ll_flags & LL_SBI_USER_XATTR))
+	if (handler->flags == XATTR_USER_T &&
+	    !(sbi->ll_flags & LL_SBI_USER_XATTR))
 		return -EOPNOTSUPP;
-	if (xattr_type == XATTR_TRUSTED_T && !capable(CFS_CAP_SYS_ADMIN))
+
+	if (handler->flags == XATTR_TRUSTED_T &&
+	    !capable(CFS_CAP_SYS_ADMIN))
 		return -EPERM;
-	if (xattr_type == XATTR_OTHER_T)
-		return -EOPNOTSUPP;
 
 	return 0;
 }
@@ -111,7 +102,7 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 		valid = OBD_MD_FLXATTR;
 	}
 
-	rc = xattr_type_filter(sbi, handler->flags);
+	rc = xattr_type_filter(sbi, handler);
 	if (rc)
 		return rc;
 
@@ -121,8 +112,9 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 		return -EPERM;
 
 	/* b10667: ignore lustre special xattr for now */
-	if ((handler->flags == XATTR_TRUSTED_T && !strcmp(name, "lov")) ||
-	    (handler->flags == XATTR_LUSTRE_T && !strcmp(name, "lov")))
+	if (!strcmp(name, "hsm") ||
+	    ((handler->flags == XATTR_TRUSTED_T && !strcmp(name, "lov")) ||
+	     (handler->flags == XATTR_LUSTRE_T && !strcmp(name, "lov"))))
 		return 0;
 
 	/* b15587: ignore security.capability xattr for now */
@@ -133,6 +125,11 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 	/* LU-549:  Disable security.selinux when selinux is disabled */
 	if (handler->flags == XATTR_SECURITY_T && !selinux_is_enabled() &&
 	    strcmp(name, "selinux") == 0)
+		return -EOPNOTSUPP;
+
+	/*FIXME: enable IMA when the conditions are ready */
+	if (handler->flags == XATTR_SECURITY_T &&
+	    (!strcmp(name, "ima") || !strcmp(name, "evm")))
 		return -EOPNOTSUPP;
 
 	sprintf(fullname, "%s%s\n", handler->prefix, name);
@@ -149,6 +146,37 @@ ll_xattr_set_common(const struct xattr_handler *handler,
 
 	ptlrpc_req_finished(req);
 	return 0;
+}
+
+static int get_hsm_state(struct inode *inode, u32 *hus_states)
+{
+	struct md_op_data *op_data;
+	struct hsm_user_state *hus;
+	int rc;
+
+	hus = kzalloc(sizeof(*hus), GFP_NOFS);
+	if (!hus)
+		return -ENOMEM;
+
+	op_data = ll_prep_md_op_data(NULL, inode, NULL, NULL, 0, 0,
+				     LUSTRE_OPC_ANY, hus);
+	if (!IS_ERR(op_data)) {
+		rc = obd_iocontrol(LL_IOC_HSM_STATE_GET, ll_i2mdexp(inode),
+				   sizeof(*op_data), op_data, NULL);
+		if (!rc)
+			*hus_states = hus->hus_states;
+		else
+			CDEBUG(D_VFSTRACE, "obd_iocontrol failed. rc = %d\n",
+			       rc);
+
+		ll_finish_md_op_data(op_data);
+	} else {
+		rc = PTR_ERR(op_data);
+		CDEBUG(D_VFSTRACE, "Could not prepare the opdata. rc = %d\n",
+		       rc);
+	}
+	kfree(hus);
+	return rc;
 }
 
 static int ll_xattr_set(const struct xattr_handler *handler,
@@ -186,6 +214,31 @@ static int ll_xattr_set(const struct xattr_handler *handler,
 		 */
 		if (lump && lump->lmm_stripe_offset == 0)
 			lump->lmm_stripe_offset = -1;
+
+		/* Avoid anyone directly setting the RELEASED flag. */
+		if (lump && (lump->lmm_pattern & LOV_PATTERN_F_RELEASED)) {
+			/* Only if we have a released flag check if the file
+			 * was indeed archived.
+			 */
+			u32 state = HS_NONE;
+
+			rc = get_hsm_state(inode, &state);
+			if (rc)
+				return rc;
+
+			if (!(state & HS_ARCHIVED)) {
+				CDEBUG(D_VFSTRACE,
+				       "hus_states state = %x, pattern = %x\n",
+				state, lump->lmm_pattern);
+				/*
+				 * Here the state is: real file is not
+				 * archived but user is requesting to set
+				 * the RELEASED flag so we mask off the
+				 * released flag from the request
+				 */
+				lump->lmm_pattern ^= LOV_PATTERN_F_RELEASED;
+			}
+		}
 
 		if (lump && S_ISREG(inode->i_mode)) {
 			__u64 it_flags = FMODE_WRITE;
@@ -225,7 +278,8 @@ ll_xattr_list(struct inode *inode, const char *name, int type, void *buffer,
 	void *xdata;
 	int rc;
 
-	if (sbi->ll_xattr_cache_enabled && type != XATTR_ACL_ACCESS_T) {
+	if (sbi->ll_xattr_cache_enabled && type != XATTR_ACL_ACCESS_T &&
+	    (type != XATTR_SECURITY_T || strcmp(name, "security.selinux"))) {
 		rc = ll_xattr_cache_get(inode, name, buffer, size, valid);
 		if (rc == -EAGAIN)
 			goto getxattr_nocache;
@@ -313,7 +367,7 @@ static int ll_xattr_get_common(const struct xattr_handler *handler,
 
 	ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_GETXATTR, 1);
 
-	rc = xattr_type_filter(sbi, handler->flags);
+	rc = xattr_type_filter(sbi, handler);
 	if (rc)
 		return rc;
 
@@ -353,6 +407,85 @@ static int ll_xattr_get_common(const struct xattr_handler *handler,
 			     OBD_MD_FLXATTR);
 }
 
+static ssize_t ll_getxattr_lov(struct inode *inode, void *buf, size_t buf_size)
+{
+	ssize_t rc;
+
+	if (S_ISREG(inode->i_mode)) {
+		struct cl_object *obj = ll_i2info(inode)->lli_clob;
+		struct cl_layout cl = {
+			.cl_buf.lb_buf = buf,
+			.cl_buf.lb_len = buf_size,
+		};
+		struct lu_env *env;
+		int refcheck;
+
+		if (!obj)
+			return -ENODATA;
+
+		env = cl_env_get(&refcheck);
+		if (IS_ERR(env))
+			return PTR_ERR(env);
+
+		rc = cl_object_layout_get(env, obj, &cl);
+		if (rc < 0)
+			goto out_env;
+
+		if (!cl.cl_size) {
+			rc = -ENODATA;
+			goto out_env;
+		}
+
+		rc = cl.cl_size;
+
+		if (!buf_size)
+			goto out_env;
+
+		LASSERT(buf && rc <= buf_size);
+
+		/*
+		 * Do not return layout gen for getxattr() since
+		 * otherwise it would confuse tar --xattr by
+		 * recognizing layout gen as stripe offset when the
+		 * file is restored. See LU-2809.
+		 */
+		((struct lov_mds_md *)buf)->lmm_layout_gen = 0;
+out_env:
+		cl_env_put(env, &refcheck);
+
+		return rc;
+	} else if (S_ISDIR(inode->i_mode)) {
+		struct ptlrpc_request *req = NULL;
+		struct lov_mds_md *lmm = NULL;
+		int lmm_size = 0;
+
+		rc = ll_dir_getstripe(inode, (void **)&lmm, &lmm_size,
+				      &req, 0);
+		if (rc < 0)
+			goto out_req;
+
+		if (!buf_size) {
+			rc = lmm_size;
+			goto out_req;
+		}
+
+		if (buf_size < lmm_size) {
+			rc = -ERANGE;
+			goto out_req;
+		}
+
+		memcpy(buf, lmm, lmm_size);
+		rc = lmm_size;
+out_req:
+		if (req)
+			ptlrpc_req_finished(req);
+
+		return rc;
+	} else {
+		return -ENODATA;
+	}
+}
+
 static int ll_xattr_get(const struct xattr_handler *handler,
 			struct dentry *dentry, struct inode *inode,
 			const char *name, void *buffer, size_t size)
@@ -360,73 +493,13 @@ static int ll_xattr_get(const struct xattr_handler *handler,
 	LASSERT(inode);
 	LASSERT(name);
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), xattr %s\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p), xattr %s\n",
 	       PFID(ll_inode2fid(inode)), inode, name);
 
 	if (!strcmp(name, "lov")) {
-		struct lov_stripe_md *lsm;
-		struct lov_user_md *lump;
-		struct lov_mds_md *lmm = NULL;
-		struct ptlrpc_request *request = NULL;
-		int rc = 0, lmmsize = 0;
-
 		ll_stats_ops_tally(ll_i2sbi(inode), LPROC_LL_GETXATTR, 1);
 
-		if (!S_ISREG(inode->i_mode) && !S_ISDIR(inode->i_mode))
-			return -ENODATA;
-
-		lsm = ccc_inode_lsm_get(inode);
-		if (!lsm) {
-			if (S_ISDIR(inode->i_mode)) {
-				rc = ll_dir_getstripe(inode, (void **)&lmm,
-						      &lmmsize, &request, 0);
-			} else {
-				rc = -ENODATA;
-			}
-		} else {
-			/* LSM is present already after lookup/getattr call.
-			 * we need to grab layout lock once it is implemented
-			 */
-			rc = obd_packmd(ll_i2dtexp(inode), &lmm, lsm);
-			lmmsize = rc;
-		}
-		ccc_inode_lsm_put(inode, lsm);
-
-		if (rc < 0)
-			goto out;
-
-		if (size == 0) {
-			/* used to call ll_get_max_mdsize() forward to get
-			 * the maximum buffer size, while some apps (such as
-			 * rsync 3.0.x) care much about the exact xattr value
-			 * size
-			 */
-			rc = lmmsize;
-			goto out;
-		}
-
-		if (size < lmmsize) {
-			CERROR("server bug: replied size %d > %d for %pd (%s)\n",
-			       lmmsize, (int)size, dentry, name);
-			rc = -ERANGE;
-			goto out;
-		}
-
-		lump = buffer;
-		memcpy(lump, lmm, lmmsize);
-		/* do not return layout gen for getxattr otherwise it would
-		 * confuse tar --xattr by recognizing layout gen as stripe
-		 * offset when the file is restored. See LU-2809.
-		 */
-		lump->lmm_layout_gen = 0;
-
-		rc = lmmsize;
-out:
-		if (request)
-			ptlrpc_req_finished(request);
-		else if (lmm)
-			obd_free_diskmd(ll_i2dtexp(inode), &lmm);
-		return rc;
+		return ll_getxattr_lov(inode, buffer, size);
 	}
 
 	return ll_xattr_get_common(handler, dentry, inode, name, buffer, size);
@@ -435,10 +508,10 @@ out:
 ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
 	struct inode *inode = d_inode(dentry);
-	int rc = 0, rc2 = 0;
-	struct lov_mds_md *lmm = NULL;
-	struct ptlrpc_request *request = NULL;
-	int lmmsize;
+	struct ll_sb_info *sbi = ll_i2sbi(inode);
+	char *xattr_name;
+	ssize_t rc, rc2;
+	size_t len, rem;
 
 	LASSERT(inode);
 
@@ -450,65 +523,48 @@ ssize_t ll_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	rc = ll_xattr_list(inode, NULL, XATTR_OTHER_T, buffer, size,
 			   OBD_MD_FLXATTRLS);
 	if (rc < 0)
-		goto out;
+		return rc;
+	/*
+	 * If we're being called to get the size of the xattr list
+	 * (buf_size == 0) then just assume that a lustre.lov xattr
+	 * exists.
+	 */
+	if (!size)
+		return rc + sizeof(XATTR_LUSTRE_LOV);
 
-	if (buffer) {
-		struct ll_sb_info *sbi = ll_i2sbi(inode);
-		char *xattr_name = buffer;
-		int xlen, rem = rc;
+	xattr_name = buffer;
+	rem = rc;
 
-		while (rem > 0) {
-			xlen = strnlen(xattr_name, rem - 1) + 1;
-			rem -= xlen;
-			if (xattr_type_filter(sbi,
-					get_xattr_type(xattr_name)) == 0) {
-				/* skip OK xattr type
-				 * leave it in buffer
-				 */
-				xattr_name += xlen;
-				continue;
-			}
-			/* move up remaining xattrs in buffer
-			 * removing the xattr that is not OK
-			 */
-			memmove(xattr_name, xattr_name + xlen, rem);
-			rc -= xlen;
-		}
-	}
-	if (S_ISREG(inode->i_mode)) {
-		if (!ll_i2info(inode)->lli_has_smd)
-			rc2 = -1;
-	} else if (S_ISDIR(inode->i_mode)) {
-		rc2 = ll_dir_getstripe(inode, (void **)&lmm, &lmmsize,
-				       &request, 0);
-	}
-
-	if (rc2 < 0) {
-		rc2 = 0;
-		goto out;
-	} else if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)) {
-		const int prefix_len = sizeof(XATTR_LUSTRE_PREFIX) - 1;
-		const size_t name_len   = sizeof("lov") - 1;
-		const size_t total_len  = prefix_len + name_len + 1;
-
-		if (((rc + total_len) > size) && buffer) {
-			ptlrpc_req_finished(request);
-			return -ERANGE;
+	while (rem > 0) {
+		len = strnlen(xattr_name, rem - 1) + 1;
+		rem -= len;
+		if (!xattr_type_filter(sbi, get_xattr_type(xattr_name))) {
+			/* Skip OK xattr type leave it in buffer */
+			xattr_name += len;
+			continue;
 		}
 
-		if (buffer) {
-			buffer += rc;
-			memcpy(buffer, XATTR_LUSTRE_PREFIX, prefix_len);
-			memcpy(buffer + prefix_len, "lov", name_len);
-			buffer[prefix_len + name_len] = '\0';
-		}
-		rc2 = total_len;
+		/*
+		 * Move up remaining xattrs in buffer
+		 * removing the xattr that is not OK
+		 */
+		memmove(xattr_name, xattr_name + len, rem);
+		rc -= len;
 	}
-out:
-	ptlrpc_req_finished(request);
-	rc = rc + rc2;
 
-	return rc;
+	rc2 = ll_getxattr_lov(inode, NULL, 0);
+	if (rc2 == -ENODATA)
+		return rc;
+
+	if (rc2 < 0)
+		return rc2;
+
+	if (size < rc + sizeof(XATTR_LUSTRE_LOV))
+		return -ERANGE;
+
+	memcpy(buffer + rc, XATTR_LUSTRE_LOV, sizeof(XATTR_LUSTRE_LOV));
+
+	return rc + sizeof(XATTR_LUSTRE_LOV);
 }
 
 static const struct xattr_handler ll_user_xattr_handler = {

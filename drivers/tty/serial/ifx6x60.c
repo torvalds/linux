@@ -1042,6 +1042,7 @@ static int ifx_spi_spi_probe(struct spi_device *spi)
 	ret = spi_setup(spi);
 	if (ret) {
 		dev_err(&spi->dev, "SPI setup wasn't successful %d", ret);
+		kfree(ifx_dev);
 		return -ENODEV;
 	}
 

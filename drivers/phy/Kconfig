@@ -129,16 +129,6 @@ config PHY_MIPHY28LP
 	  Enable this to support the miphy transceiver (for SATA/PCIE/USB3)
 	  that is part of STMicroelectronics STiH407 SoC.
 
-config PHY_MIPHY365X
-	tristate "STMicroelectronics MIPHY365X PHY driver for STiH41x series"
-	depends on ARCH_STI
-	depends on HAS_IOMEM
-	depends on OF
-	select GENERIC_PHY
-	help
-	  Enable this to support the miphy transceiver (for SATA/PCIE)
-	  that is part of STMicroelectronics STiH41x SoC series.
-
 config PHY_RCAR_GEN2
 	tristate "Renesas R-Car generation 2 USB PHY driver"
 	depends on ARCH_RENESAS
@@ -373,7 +363,9 @@ config PHY_ROCKCHIP_INNO_USB2
 	tristate "Rockchip INNO USB2PHY Driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	depends on COMMON_CLK
+	depends on USB_SUPPORT
 	select GENERIC_PHY
+	select USB_COMMON
 	help
 	  Support for Rockchip USB2.0 PHY with Innosilicon IP block.
 
@@ -438,14 +430,6 @@ config PHY_STIH407_USB
 	  Enable this support to enable the picoPHY device used by USB2
 	  and USB3 controllers on STMicroelectronics STiH407 SoC families.
 
-config PHY_STIH41X_USB
-	tristate "STMicroelectronics USB2 PHY driver for STiH41x series"
-	depends on ARCH_STI
-	select GENERIC_PHY
-	help
-	  Enable this to support the USB transceiver that is part of
-	  STMicroelectronics STiH41x SoC series.
-
 config PHY_QCOM_UFS
 	tristate "Qualcomm UFS PHY driver"
 	depends on OF && ARCH_QCOM
@@ -489,4 +473,17 @@ config PHY_NS2_PCIE
 	help
 	  Enable this to support the Broadcom Northstar2 PCIe PHY.
 	  If unsure, say N.
+
+config PHY_MESON8B_USB2
+	tristate "Meson8b and GXBB USB2 PHY driver"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on USB_SUPPORT
+	select USB_COMMON
+	select GENERIC_PHY
+	help
+	  Enable this to support the Meson USB2 PHYs found in Meson8b
+	  and GXBB SoCs.
+	  If unsure, say N.
+
 endmenu

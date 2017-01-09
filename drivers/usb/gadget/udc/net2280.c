@@ -224,14 +224,14 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	}
 
 	/* sanity check ep-e/ep-f since their fifos are small */
-	max = usb_endpoint_maxp(desc) & 0x1fff;
+	max = usb_endpoint_maxp(desc);
 	if (ep->num > 4 && max > 64 && (dev->quirks & PLX_LEGACY)) {
 		ret = -ERANGE;
 		goto print_err;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
-	_ep->maxpacket = max & 0x7ff;
+	_ep->maxpacket = max;
 	ep->desc = desc;
 
 	/* ep_reset() has already been called */
@@ -1839,7 +1839,7 @@ static ssize_t queues_show(struct device *_dev, struct device_attribute *attr,
 				ep->ep.name, t & USB_ENDPOINT_NUMBER_MASK,
 				(t & USB_DIR_IN) ? "in" : "out",
 				type_string(d->bmAttributes),
-				usb_endpoint_maxp(d) & 0x1fff,
+				usb_endpoint_maxp(d),
 				ep->dma ? "dma" : "pio", ep->fifo_size
 				);
 		} else /* ep0 should only have one transfer queued */

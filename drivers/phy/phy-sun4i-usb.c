@@ -436,25 +436,31 @@ static int sun4i_usb_phy_set_mode(struct phy *_phy, enum phy_mode mode)
 {
 	struct sun4i_usb_phy *phy = phy_get_drvdata(_phy);
 	struct sun4i_usb_phy_data *data = to_sun4i_usb_phy_data(phy);
+	int new_mode;
 
 	if (phy->index != 0)
 		return -EINVAL;
 
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
-		data->dr_mode = USB_DR_MODE_HOST;
+		new_mode = USB_DR_MODE_HOST;
 		break;
 	case PHY_MODE_USB_DEVICE:
-		data->dr_mode = USB_DR_MODE_PERIPHERAL;
+		new_mode = USB_DR_MODE_PERIPHERAL;
 		break;
 	case PHY_MODE_USB_OTG:
-		data->dr_mode = USB_DR_MODE_OTG;
+		new_mode = USB_DR_MODE_OTG;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	dev_info(&_phy->dev, "Changing dr_mode to %d\n", (int)data->dr_mode);
+	if (new_mode != data->dr_mode) {
+		dev_info(&_phy->dev, "Changing dr_mode to %d\n", new_mode);
+		data->dr_mode = new_mode;
+	}
+
+	data->id_det = -1; /* Force reprocessing of id */
 	data->force_session_end = true;
 	queue_delayed_work(system_wq, &data->detect, 0);
 

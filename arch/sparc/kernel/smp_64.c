@@ -43,7 +43,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/oplib.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/starfire.h>
 #include <asm/tlb.h>
 #include <asm/sections.h>

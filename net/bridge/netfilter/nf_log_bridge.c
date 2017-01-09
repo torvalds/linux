@@ -24,21 +24,8 @@ static void nf_log_bridge_packet(struct net *net, u_int8_t pf,
 				 const struct nf_loginfo *loginfo,
 				 const char *prefix)
 {
-	switch (eth_hdr(skb)->h_proto) {
-	case htons(ETH_P_IP):
-		nf_log_packet(net, NFPROTO_IPV4, hooknum, skb, in, out,
-			      loginfo, "%s", prefix);
-		break;
-	case htons(ETH_P_IPV6):
-		nf_log_packet(net, NFPROTO_IPV6, hooknum, skb, in, out,
-			      loginfo, "%s", prefix);
-		break;
-	case htons(ETH_P_ARP):
-	case htons(ETH_P_RARP):
-		nf_log_packet(net, NFPROTO_ARP, hooknum, skb, in, out,
-			      loginfo, "%s", prefix);
-		break;
-	}
+	nf_log_l2packet(net, pf, eth_hdr(skb)->h_proto, hooknum, skb,
+			in, out, loginfo, prefix);
 }
 
 static struct nf_logger nf_bridge_logger __read_mostly = {

@@ -223,7 +223,14 @@ int lmv_revalidate_slaves(struct obd_export *exp,
 			LASSERT(body);
 
 			if (unlikely(body->mbo_nlink < 2)) {
-				CERROR("%s: nlink %d < 2 corrupt stripe %d "DFID":" DFID"\n",
+				/*
+				 * If this is bad stripe, most likely due
+				 * to the race between close(unlink) and
+				 * getattr, let's return -EONENT, so llite
+				 * will revalidate the dentry see
+				 * ll_inode_revalidate_fini()
+				 */
+				CDEBUG(D_INODE, "%s: nlink %d < 2 corrupt stripe %d "DFID":" DFID"\n",
 				       obd->obd_name, body->mbo_nlink, i,
 				       PFID(&lsm->lsm_md_oinfo[i].lmo_fid),
 				       PFID(&lsm->lsm_md_oinfo[0].lmo_fid));
@@ -233,7 +240,7 @@ int lmv_revalidate_slaves(struct obd_export *exp,
 					it.it_lock_mode = 0;
 				}
 
-				rc = -EIO;
+				rc = -ENOENT;
 				goto cleanup;
 			}
 

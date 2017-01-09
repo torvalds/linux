@@ -365,7 +365,11 @@ int x86_add_exclusive(unsigned int what)
 {
 	int i;
 
-	if (x86_pmu.lbr_pt_coexist)
+	/*
+	 * When lbr_pt_coexist we allow PT to coexist with either LBR or BTS.
+	 * LBR and BTS are still mutually exclusive.
+	 */
+	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
 		return 0;
 
 	if (!atomic_inc_not_zero(&x86_pmu.lbr_exclusive[what])) {
@@ -388,7 +392,7 @@ fail_unlock:
 
 void x86_del_exclusive(unsigned int what)
 {
-	if (x86_pmu.lbr_pt_coexist)
+	if (x86_pmu.lbr_pt_coexist && what == x86_lbr_exclusive_pt)
 		return;
 
 	atomic_dec(&x86_pmu.lbr_exclusive[what]);
@@ -1816,18 +1820,18 @@ static int __init init_hw_perf_events(void)
 	 * Install callbacks. Core will call them for each online
 	 * cpu.
 	 */
-	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "PERF_X86_PREPARE",
+	err = cpuhp_setup_state(CPUHP_PERF_X86_PREPARE, "perf/x86:prepare",
 				x86_pmu_prepare_cpu, x86_pmu_dead_cpu);
 	if (err)
 		return err;
 
 	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_STARTING,
-				"AP_PERF_X86_STARTING", x86_pmu_starting_cpu,
+				"perf/x86:starting", x86_pmu_starting_cpu,
 				x86_pmu_dying_cpu);
 	if (err)
 		goto out;
 
-	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "AP_PERF_X86_ONLINE",
+	err = cpuhp_setup_state(CPUHP_AP_PERF_X86_ONLINE, "perf/x86:online",
 				x86_pmu_online_cpu, NULL);
 	if (err)
 		goto out1;
@@ -2299,7 +2303,7 @@ valid_user_frame(const void __user *fp, unsigned long size)
 static unsigned long get_segment_base(unsigned int segment)
 {
 	struct desc_struct *desc;
-	int idx = segment >> 3;
+	unsigned int idx = segment >> 3;
 
 	if ((segment & SEGMENT_TI_MASK) == SEGMENT_LDT) {
 #ifdef CONFIG_MODIFY_LDT_SYSCALL

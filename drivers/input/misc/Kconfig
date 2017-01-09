@@ -625,11 +625,12 @@ config INPUT_DA9055_ONKEY
 	  will be called da9055_onkey.
 
 config INPUT_DA9063_ONKEY
-	tristate "Dialog DA9062/63 OnKey"
+	tristate "Dialog DA9063/62/61 OnKey"
 	depends on MFD_DA9063 || MFD_DA9062
 	help
-	  Support the ONKEY of Dialog DA9063 and DA9062 Power Management ICs
-	  as an input device capable of reporting the power button status.
+	  Support the ONKEY of Dialog DA9063, DA9062 and DA9061 Power
+	  Management ICs as an input device capable of reporting the
+	  power button status.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called da9063_onkey.

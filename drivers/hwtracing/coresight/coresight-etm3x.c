@@ -804,10 +804,10 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	if (!etm_count++) {
 		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING,
-					  "AP_ARM_CORESIGHT_STARTING",
+					  "arm/coresight:starting",
 					  etm_starting_cpu, etm_dying_cpu);
 		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-						"AP_ARM_CORESIGHT_ONLINE",
+						"arm/coresight:online",
 						etm_online_cpu, NULL);
 		if (ret < 0)
 			goto err_arch_supported;

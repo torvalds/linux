@@ -1831,7 +1831,6 @@ static const struct inode_operations fuse_common_inode_operations = {
 static const struct inode_operations fuse_symlink_inode_operations = {
 	.setattr	= fuse_setattr,
 	.get_link	= fuse_get_link,
-	.readlink	= generic_readlink,
 	.getattr	= fuse_getattr,
 	.listxattr	= fuse_listxattr,
 };

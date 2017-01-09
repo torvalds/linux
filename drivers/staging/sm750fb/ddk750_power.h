@@ -14,37 +14,29 @@ DPMS_t;
 	       (PEEK32(MISC_CTRL) & ~MISC_CTRL_DAC_POWER_OFF) | (off)); \
 }
 
-void ddk750_setDPMS(DPMS_t);
-
-/*
- * This function sets the current power mode
- */
-void setPowerMode(unsigned int powerMode);
-
-/*
- * This function sets current gate
- */
-void setCurrentGate(unsigned int gate);
+void ddk750_set_dpms(DPMS_t);
+void sm750_set_power_mode(unsigned int powerMode);
+void sm750_set_current_gate(unsigned int gate);
 
 /*
  * This function enable/disable the 2D engine.
  */
-void enable2DEngine(unsigned int enable);
+void sm750_enable_2d_engine(unsigned int enable);
 
 /*
  * This function enable/disable the DMA Engine
  */
-void enableDMA(unsigned int enable);
+void sm750_enable_dma(unsigned int enable);
 
 /*
  * This function enable/disable the GPIO Engine
  */
-void enableGPIO(unsigned int enable);
+void sm750_enable_gpio(unsigned int enable);
 
 /*
  * This function enable/disable the I2C Engine
  */
-void enableI2C(unsigned int enable);
+void sm750_enable_i2c(unsigned int enable);
 
 
 #endif

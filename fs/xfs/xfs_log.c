@@ -1668,7 +1668,7 @@ xlog_cksum(
 	__uint32_t		crc;
 
 	/* first generate the crc for the record header ... */
-	crc = xfs_start_cksum((char *)rhead,
+	crc = xfs_start_cksum_update((char *)rhead,
 			      sizeof(struct xlog_rec_header),
 			      offsetof(struct xlog_rec_header, h_crc));
 
@@ -1862,26 +1862,21 @@ xlog_sync(
 
 	bp->b_io_length = BTOBB(count);
 	bp->b_fspriv = iclog;
-	bp->b_flags &= ~(XBF_FUA | XBF_FLUSH);
-	bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE);
+	bp->b_flags &= ~XBF_FLUSH;
+	bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE | XBF_FUA);
 
-	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER) {
-		bp->b_flags |= XBF_FUA;
-
-		/*
-		 * Flush the data device before flushing the log to make
-		 * sure all meta data written back from the AIL actually made
-		 * it to disk before stamping the new log tail LSN into the
-		 * log buffer.  For an external log we need to issue the
-		 * flush explicitly, and unfortunately synchronously here;
-		 * for an internal log we can simply use the block layer
-		 * state machine for preflushes.
-		 */
-		if (log->l_mp->m_logdev_targp != log->l_mp->m_ddev_targp)
-			xfs_blkdev_issue_flush(log->l_mp->m_ddev_targp);
-		else
-			bp->b_flags |= XBF_FLUSH;
-	}
+	/*
+	 * Flush the data device before flushing the log to make sure all meta
+	 * data written back from the AIL actually made it to disk before
+	 * stamping the new log tail LSN into the log buffer.  For an external
+	 * log we need to issue the flush explicitly, and unfortunately
+	 * synchronously here; for an internal log we can simply use the block
+	 * layer state machine for preflushes.
+	 */
+	if (log->l_mp->m_logdev_targp != log->l_mp->m_ddev_targp)
+		xfs_blkdev_issue_flush(log->l_mp->m_ddev_targp);
+	else
+		bp->b_flags |= XBF_FLUSH;
 
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 	ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);
@@ -1906,10 +1901,8 @@ xlog_sync(
 		xfs_buf_associate_memory(bp,
 				(char *)&iclog->ic_header + count, split);
 		bp->b_fspriv = iclog;
-		bp->b_flags &= ~(XBF_FUA | XBF_FLUSH);
-		bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE);
-		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
-			bp->b_flags |= XBF_FUA;
+		bp->b_flags &= ~XBF_FLUSH;
+		bp->b_flags |= (XBF_ASYNC | XBF_SYNCIO | XBF_WRITE | XBF_FUA);
 
 		ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 		ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);

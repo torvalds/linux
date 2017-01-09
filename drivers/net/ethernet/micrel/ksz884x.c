@@ -5807,24 +5807,19 @@ static int netdev_change_mtu(struct net_device *dev, int new_mtu)
 	if (hw->dev_count > 1)
 		if (dev != hw_priv->dev)
 			return 0;
-	if (new_mtu < 60)
-		return -EINVAL;
 
-	if (dev->mtu != new_mtu) {
-		hw_mtu = new_mtu + ETHERNET_HEADER_SIZE + 4;
-		if (hw_mtu > MAX_RX_BUF_SIZE)
-			return -EINVAL;
-		if (hw_mtu > REGULAR_RX_BUF_SIZE) {
-			hw->features |= RX_HUGE_FRAME;
-			hw_mtu = MAX_RX_BUF_SIZE;
-		} else {
-			hw->features &= ~RX_HUGE_FRAME;
-			hw_mtu = REGULAR_RX_BUF_SIZE;
-		}
-		hw_mtu = (hw_mtu + 3) & ~3;
-		hw_priv->mtu = hw_mtu;
-		dev->mtu = new_mtu;
+	hw_mtu = new_mtu + ETHERNET_HEADER_SIZE + 4;
+	if (hw_mtu > REGULAR_RX_BUF_SIZE) {
+		hw->features |= RX_HUGE_FRAME;
+		hw_mtu = MAX_RX_BUF_SIZE;
+	} else {
+		hw->features &= ~RX_HUGE_FRAME;
+		hw_mtu = REGULAR_RX_BUF_SIZE;
 	}
+	hw_mtu = (hw_mtu + 3) & ~3;
+	hw_priv->mtu = hw_mtu;
+	dev->mtu = new_mtu;
+
 	return 0;
 }
 
@@ -7099,6 +7094,12 @@ static int pcidev_init(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		dev->netdev_ops = &netdev_ops;
 		dev->ethtool_ops = &netdev_ethtool_ops;
+
+		/* MTU range: 60 - 1894 */
+		dev->min_mtu = ETH_ZLEN;
+		dev->max_mtu = MAX_RX_BUF_SIZE -
+			       (ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN);
+
 		if (register_netdev(dev))
 			goto pcidev_init_reg_err;
 		port_set_power_saving(port, true);

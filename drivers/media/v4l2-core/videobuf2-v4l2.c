@@ -60,14 +60,13 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 
 	/* Is memory for copying plane information present? */
 	if (b->m.planes == NULL) {
-		dprintk(1, "multi-planar buffer passed but "
-			   "planes array not provided\n");
+		dprintk(1, "multi-planar buffer passed but planes array not provided\n");
 		return -EINVAL;
 	}
 
 	if (b->length < vb->num_planes || b->length > VB2_MAX_PLANES) {
-		dprintk(1, "incorrect planes array length, "
-			   "expected %d, got %d\n", vb->num_planes, b->length);
+		dprintk(1, "incorrect planes array length, expected %d, got %d\n",
+			vb->num_planes, b->length);
 		return -EINVAL;
 	}
 
@@ -316,8 +315,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb,
 		 * that just says that it is either a top or a bottom field,
 		 * but not which of the two it is.
 		 */
-		dprintk(1, "the field is incorrectly set to ALTERNATE "
-					"for an output buffer\n");
+		dprintk(1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
 		return -EINVAL;
 	}
 	vb->timestamp = 0;

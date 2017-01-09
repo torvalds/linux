@@ -709,7 +709,7 @@ static void __sta_info_recalc_tim(struct sta_info *sta, bool ignore_pending)
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
-		if (ignore_for_tim & BIT(ac))
+		if (ignore_for_tim & ieee80211_ac_to_qos_mask[ac])
 			continue;
 
 		indicate_tim |= !skb_queue_empty(&sta->tx_filtered[ac]) ||
@@ -1389,7 +1389,7 @@ ieee80211_sta_ps_more_data(struct sta_info *sta, u8 ignored_acs,
 		return true;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		if (ignored_acs & BIT(ac))
+		if (ignored_acs & ieee80211_ac_to_qos_mask[ac])
 			continue;
 
 		if (!skb_queue_empty(&sta->tx_filtered[ac]) ||
@@ -1414,7 +1414,7 @@ ieee80211_sta_ps_get_frames(struct sta_info *sta, int n_frames, u8 ignored_acs,
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		unsigned long tids;
 
-		if (ignored_acs & BIT(ac))
+		if (ignored_acs & ieee80211_ac_to_qos_mask[ac])
 			continue;
 
 		tids = ieee80211_tids_for_ac(ac);
@@ -1482,7 +1482,7 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			BIT(find_highest_prio_tid(driver_release_tids));
 
 	if (skb_queue_empty(&frames) && !driver_release_tids) {
-		int tid;
+		int tid, ac;
 
 		/*
 		 * For PS-Poll, this can only happen due to a race condition
@@ -1500,7 +1500,10 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 		 */
 
 		/* This will evaluate to 1, 3, 5 or 7. */
-		tid = 7 - ((ffs(~ignored_acs) - 1) << 1);
+		for (ac = IEEE80211_AC_VO; ac < IEEE80211_NUM_ACS; ac++)
+			if (ignored_acs & BIT(ac))
+				continue;
+		tid = 7 - 2 * ac;
 
 		ieee80211_send_null_response(sta, tid, reason, true, false);
 	} else if (!driver_release_tids) {
@@ -1871,10 +1874,7 @@ int sta_info_move_state(struct sta_info *sta,
 			if (!sta->sta.support_p2p_ps)
 				ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
 		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
-			if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
-			    (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
-			     !sta->sdata->u.vlan.sta))
-				atomic_dec(&sta->sdata->bss->num_mcast_sta);
+			ieee80211_vif_dec_num_mcast(sta->sdata);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
 			ieee80211_clear_fast_xmit(sta);
 			ieee80211_clear_fast_rx(sta);
@@ -1882,10 +1882,7 @@ int sta_info_move_state(struct sta_info *sta,
 		break;
 	case IEEE80211_STA_AUTHORIZED:
 		if (sta->sta_state == IEEE80211_STA_ASSOC) {
-			if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
-			    (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
-			     !sta->sdata->u.vlan.sta))
-				atomic_inc(&sta->sdata->bss->num_mcast_sta);
+			ieee80211_vif_inc_num_mcast(sta->sdata);
 			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
 			ieee80211_check_fast_xmit(sta);
 			ieee80211_check_fast_rx(sta);
@@ -1975,6 +1972,7 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u16 rate,
 		u16 brate;
 		unsigned int shift;
 
+		rinfo->flags = 0;
 		sband = local->hw.wiphy->bands[(rate >> 4) & 0xf];
 		brate = sband->bitrates[rate & 0xf].bitrate;
 		if (rinfo->bw == RATE_INFO_BW_5)
@@ -1990,14 +1988,15 @@ static void sta_stats_decode_rate(struct ieee80211_local *local, u16 rate,
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
 }
 
-static void sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
+static int sta_set_rate_info_rx(struct sta_info *sta, struct rate_info *rinfo)
 {
 	u16 rate = ACCESS_ONCE(sta_get_last_rx_stats(sta)->last_rate);
 
 	if (rate == STA_STATS_RATE_INVALID)
-		rinfo->flags = 0;
-	else
-		sta_stats_decode_rate(sta->local, rate, rinfo);
+		return -EINVAL;
+
+	sta_stats_decode_rate(sta->local, rate, rinfo);
+	return 0;
 }
 
 static void sta_set_tidstats(struct sta_info *sta,
@@ -2202,8 +2201,8 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	}
 
 	if (!(sinfo->filled & BIT(NL80211_STA_INFO_RX_BITRATE))) {
-		sta_set_rate_info_rx(sta, &sinfo->rxrate);
-		sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
+		if (sta_set_rate_info_rx(sta, &sinfo->rxrate) == 0)
+			sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
 	}
 
 	sinfo->filled |= BIT(NL80211_STA_INFO_TID_STATS);

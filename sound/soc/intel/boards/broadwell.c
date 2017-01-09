@@ -126,7 +126,7 @@ static int broadwell_rt286_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
-static struct snd_soc_ops broadwell_rt286_ops = {
+static const struct snd_soc_ops broadwell_rt286_ops = {
 	.hw_params = broadwell_rt286_hw_params,
 };
 
@@ -220,10 +220,12 @@ static struct snd_soc_dai_link broadwell_rt286_dais[] = {
 };
 
 static int broadwell_suspend(struct snd_soc_card *card){
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strcmp(codec->component.name, "i2c-INT343A:00")) {
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (!strcmp(component->name, "i2c-INT343A:00")) {
+			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
 			dev_dbg(codec->dev, "disabling jack detect before going to suspend.\n");
 			rt286_mic_detect(codec, NULL);
 			break;
@@ -233,10 +235,12 @@ static int broadwell_suspend(struct snd_soc_card *card){
 }
 
 static int broadwell_resume(struct snd_soc_card *card){
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 
-	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strcmp(codec->component.name, "i2c-INT343A:00")) {
+	list_for_each_entry(component, &card->component_dev_list, card_list) {
+		if (!strcmp(component->name, "i2c-INT343A:00")) {
+			struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+
 			dev_dbg(codec->dev, "enabling jack detect for resume.\n");
 			rt286_mic_detect(codec, &broadwell_headset);
 			break;

@@ -1888,7 +1888,7 @@ lcs_stop_device(struct net_device *dev)
 	rc = lcs_stopcard(card);
 	if (rc)
 		dev_err(&card->dev->dev,
-			" Shutting down the LCS device failed\n ");
+			" Shutting down the LCS device failed\n");
 	return rc;
 }
 

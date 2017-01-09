@@ -460,7 +460,7 @@ static void request_init(struct ceph_osd_request *req)
 
 	kref_init(&req->r_kref);
 	init_completion(&req->r_completion);
-	init_completion(&req->r_safe_completion);
+	init_completion(&req->r_done_completion);
 	RB_CLEAR_NODE(&req->r_node);
 	RB_CLEAR_NODE(&req->r_mc_node);
 	INIT_LIST_HEAD(&req->r_unsafe_item);
@@ -1725,7 +1725,7 @@ static void submit_request(struct ceph_osd_request *req, bool wrlocked)
 	__submit_request(req, wrlocked);
 }
 
-static void __finish_request(struct ceph_osd_request *req)
+static void finish_request(struct ceph_osd_request *req)
 {
 	struct ceph_osd_client *osdc = req->r_osdc;
 	struct ceph_osd *osd = req->r_osd;
@@ -1747,12 +1747,6 @@ static void __finish_request(struct ceph_osd_request *req)
 	ceph_msg_revoke_incoming(req->r_reply);
 }
 
-static void finish_request(struct ceph_osd_request *req)
-{
-	__finish_request(req);
-	ceph_osdc_put_request(req);
-}
-
 static void __complete_request(struct ceph_osd_request *req)
 {
 	if (req->r_callback)
@@ -1770,9 +1764,9 @@ static void complete_request(struct ceph_osd_request *req, int err)
 	dout("%s req %p tid %llu err %d\n", __func__, req, req->r_tid, err);
 
 	req->r_result = err;
-	__finish_request(req);
+	finish_request(req);
 	__complete_request(req);
-	complete_all(&req->r_safe_completion);
+	complete_all(&req->r_done_completion);
 	ceph_osdc_put_request(req);
 }
 
@@ -1798,6 +1792,8 @@ static void cancel_request(struct ceph_osd_request *req)
 
 	cancel_map_check(req);
 	finish_request(req);
+	complete_all(&req->r_done_completion);
+	ceph_osdc_put_request(req);
 }
 
 static void check_pool_dne(struct ceph_osd_request *req)
@@ -2808,12 +2804,12 @@ static bool done_request(const struct ceph_osd_request *req,
  * ->r_unsafe_callback is set?	yes			no
  *
  * first reply is OK (needed	r_cb/r_completion,	r_cb/r_completion,
- * any or needed/got safe)	r_safe_completion	r_safe_completion
+ * any or needed/got safe)	r_done_completion	r_done_completion
  *
  * first reply is unsafe	r_unsafe_cb(true)	(nothing)
  *
  * when we get the safe reply	r_unsafe_cb(false),	r_cb/r_completion,
- *				r_safe_completion	r_safe_completion
+ *				r_done_completion	r_done_completion
  */
 static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 {
@@ -2915,7 +2911,7 @@ static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 	}
 
 	if (done_request(req, &m)) {
-		__finish_request(req);
+		finish_request(req);
 		if (req->r_linger) {
 			WARN_ON(req->r_unsafe_callback);
 			dout("req %p tid %llu cb (locked)\n", req, req->r_tid);
@@ -2934,8 +2930,7 @@ static void handle_reply(struct ceph_osd *osd, struct ceph_msg *msg)
 			dout("req %p tid %llu cb\n", req, req->r_tid);
 			__complete_request(req);
 		}
-		if (m.flags & CEPH_OSD_FLAG_ONDISK)
-			complete_all(&req->r_safe_completion);
+		complete_all(&req->r_done_completion);
 		ceph_osdc_put_request(req);
 	} else {
 		if (req->r_unsafe_callback) {
@@ -3471,9 +3466,8 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 EXPORT_SYMBOL(ceph_osdc_start_request);
 
 /*
- * Unregister a registered request.  The request is not completed (i.e.
- * no callbacks or wakeups) - higher layers are supposed to know what
- * they are canceling.
+ * Unregister a registered request.  The request is not completed:
+ * ->r_result isn't set and __complete_request() isn't called.
  */
 void ceph_osdc_cancel_request(struct ceph_osd_request *req)
 {
@@ -3500,9 +3494,6 @@ static int wait_request_timeout(struct ceph_osd_request *req,
 	if (left <= 0) {
 		left = left ?: -ETIMEDOUT;
 		ceph_osdc_cancel_request(req);
-
-		/* kludge - need to to wake ceph_osdc_sync() */
-		complete_all(&req->r_safe_completion);
 	} else {
 		left = req->r_result; /* completed */
 	}
@@ -3549,7 +3540,7 @@ again:
 			up_read(&osdc->lock);
 			dout("%s waiting on req %p tid %llu last_tid %llu\n",
 			     __func__, req, req->r_tid, last_tid);
-			wait_for_completion(&req->r_safe_completion);
+			wait_for_completion(&req->r_done_completion);
 			ceph_osdc_put_request(req);
 			goto again;
 		}
@@ -4478,13 +4469,13 @@ static struct ceph_auth_handshake *get_authorizer(struct ceph_connection *con,
 }
 
 
-static int verify_authorizer_reply(struct ceph_connection *con, int len)
+static int verify_authorizer_reply(struct ceph_connection *con)
 {
 	struct ceph_osd *o = con->private;
 	struct ceph_osd_client *osdc = o->o_osdc;
 	struct ceph_auth_client *ac = osdc->client->monc.auth;
 
-	return ceph_auth_verify_authorizer_reply(ac, o->o_auth.authorizer, len);
+	return ceph_auth_verify_authorizer_reply(ac, o->o_auth.authorizer);
 }
 
 static int invalidate_authorizer(struct ceph_connection *con)

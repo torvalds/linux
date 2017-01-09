@@ -63,7 +63,7 @@
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/init.h>
 #include <linux/stat.h>
 #include <linux/proc_fs.h>

@@ -210,10 +210,9 @@ out:
 	return ret;
 }
 
-static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
+static int zlib_decompress_bio(struct list_head *ws, struct page **pages_in,
 				  u64 disk_start,
-				  struct bio_vec *bvec,
-				  int vcnt,
+				  struct bio *orig_bio,
 				  size_t srclen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
@@ -222,10 +221,8 @@ static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
 	char *data_in;
 	size_t total_out = 0;
 	unsigned long page_in_index = 0;
-	unsigned long page_out_index = 0;
 	unsigned long total_pages_in = DIV_ROUND_UP(srclen, PAGE_SIZE);
 	unsigned long buf_start;
-	unsigned long pg_offset;
 
 	data_in = kmap(pages_in[page_in_index]);
 	workspace->strm.next_in = data_in;
@@ -235,7 +232,6 @@ static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
 	workspace->strm.total_out = 0;
 	workspace->strm.next_out = workspace->buf;
 	workspace->strm.avail_out = PAGE_SIZE;
-	pg_offset = 0;
 
 	/* If it's deflate, and it's got no preset dictionary, then
 	   we can tell zlib to skip the adler32 check. */
@@ -250,6 +246,7 @@ static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
 
 	if (Z_OK != zlib_inflateInit2(&workspace->strm, wbits)) {
 		pr_warn("BTRFS: inflateInit failed\n");
+		kunmap(pages_in[page_in_index]);
 		return -EIO;
 	}
 	while (workspace->strm.total_in < srclen) {
@@ -266,8 +263,7 @@ static int zlib_decompress_biovec(struct list_head *ws, struct page **pages_in,
 
 		ret2 = btrfs_decompress_buf2page(workspace->buf, buf_start,
 						 total_out, disk_start,
-						 bvec, vcnt,
-						 &page_out_index, &pg_offset);
+						 orig_bio);
 		if (ret2 == 0) {
 			ret = 0;
 			goto done;
@@ -300,7 +296,7 @@ done:
 	if (data_in)
 		kunmap(pages_in[page_in_index]);
 	if (!ret)
-		btrfs_clear_biovec_end(bvec, vcnt, page_out_index, pg_offset);
+		zero_fill_bio(orig_bio);
 	return ret;
 }
 
@@ -407,6 +403,6 @@ const struct btrfs_compress_op btrfs_zlib_compress = {
 	.alloc_workspace	= zlib_alloc_workspace,
 	.free_workspace		= zlib_free_workspace,
 	.compress_pages		= zlib_compress_pages,
-	.decompress_biovec	= zlib_decompress_biovec,
+	.decompress_bio		= zlib_decompress_bio,
 	.decompress		= zlib_decompress,
 };

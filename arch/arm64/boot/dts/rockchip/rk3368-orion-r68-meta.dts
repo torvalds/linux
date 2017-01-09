@@ -344,7 +344,7 @@
 &sdmmc {
 	bus-width = <4>;
 	clock-frequency = <50000000>;
-	clock-freq-min-max = <400000 50000000>;
+	max-frequency = <50000000>;
 	cap-sd-highspeed;
 	card-detect-delay = <200>;
 	num-slots = <1>;

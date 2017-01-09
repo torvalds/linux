@@ -53,6 +53,7 @@ struct armada_variant {
 extern const struct armada_variant armada510_ops;
 
 struct armada_private {
+	struct drm_device	drm;
 	struct work_struct	fb_unref_work;
 	DECLARE_KFIFO(fb_unref, struct drm_framebuffer *, 8);
 	struct drm_fb_helper	*fbdev;

@@ -34,6 +34,7 @@ config PPC_8xx
 	select FSL_SOC
 	select 8xx
 	select PPC_LIB_RHEAP
+	select SYS_SUPPORTS_HUGETLBFS
 
 config 40x
 	bool "AMCC 40x"

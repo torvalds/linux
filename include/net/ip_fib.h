@@ -221,7 +221,8 @@ enum fib_event_type {
 	FIB_EVENT_RULE_DEL,
 };
 
-int register_fib_notifier(struct notifier_block *nb);
+int register_fib_notifier(struct notifier_block *nb,
+			  void (*cb)(struct notifier_block *nb));
 int unregister_fib_notifier(struct notifier_block *nb);
 int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
@@ -396,6 +397,11 @@ static inline void fib_combine_itag(u32 *itag, const struct fib_result *res)
 }
 
 void free_fib_info(struct fib_info *fi);
+
+static inline void fib_info_hold(struct fib_info *fi)
+{
+	atomic_inc(&fi->fib_clntref);
+}
 
 static inline void fib_info_put(struct fib_info *fi)
 {

@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/prctl.h>
@@ -91,5 +92,48 @@ int test__thread_map_synthesize(int subtest __maybe_unused)
 	TEST_ASSERT_VAL("failed to synthesize map",
 		!perf_event__synthesize_thread_map2(NULL, threads, process_event, NULL));
 
+	return 0;
+}
+
+int test__thread_map_remove(int subtest __maybe_unused)
+{
+	struct thread_map *threads;
+	char *str;
+	int i;
+
+	TEST_ASSERT_VAL("failed to allocate map string",
+			asprintf(&str, "%d,%d", getpid(), getppid()) >= 0);
+
+	threads = thread_map__new_str(str, NULL, 0);
+
+	TEST_ASSERT_VAL("failed to allocate thread_map",
+			threads);
+
+	if (verbose)
+		thread_map__fprintf(threads, stderr);
+
+	TEST_ASSERT_VAL("failed to remove thread",
+			!thread_map__remove(threads, 0));
+
+	TEST_ASSERT_VAL("thread_map count != 1", threads->nr == 1);
+
+	if (verbose)
+		thread_map__fprintf(threads, stderr);
+
+	TEST_ASSERT_VAL("failed to remove thread",
+			!thread_map__remove(threads, 0));
+
+	TEST_ASSERT_VAL("thread_map count != 0", threads->nr == 0);
+
+	if (verbose)
+		thread_map__fprintf(threads, stderr);
+
+	TEST_ASSERT_VAL("failed to not remove thread",
+			thread_map__remove(threads, 0));
+
+	for (i = 0; i < threads->nr; i++)
+		free(threads->map[i].comm);
+
+	free(threads);
 	return 0;
 }

@@ -843,33 +843,31 @@ int btrfs_test_free_space_cache(u32 sectorsize, u32 nodesize)
 	int ret = -ENOMEM;
 
 	test_msg("Running btrfs free space cache tests\n");
+	fs_info = btrfs_alloc_dummy_fs_info(nodesize, sectorsize);
+	if (!fs_info)
+		return -ENOMEM;
+
 
 	/*
 	 * For ppc64 (with 64k page size), bytes per bitmap might be
 	 * larger than 1G.  To make bitmap test available in ppc64,
 	 * alloc dummy block group whose size cross bitmaps.
 	 */
-	cache = btrfs_alloc_dummy_block_group(BITS_PER_BITMAP * sectorsize
-					+ PAGE_SIZE, sectorsize);
+	cache = btrfs_alloc_dummy_block_group(fs_info,
+				      BITS_PER_BITMAP * sectorsize + PAGE_SIZE);
 	if (!cache) {
 		test_msg("Couldn't run the tests\n");
+		btrfs_free_dummy_fs_info(fs_info);
 		return 0;
 	}
 
-	fs_info = btrfs_alloc_dummy_fs_info();
-	if (!fs_info) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	root = btrfs_alloc_dummy_root(fs_info, sectorsize, nodesize);
+	root = btrfs_alloc_dummy_root(fs_info);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out;
 	}
 
 	root->fs_info->extent_root = root;
-	cache->fs_info = root->fs_info;
 
 	ret = test_extents(cache);
 	if (ret)

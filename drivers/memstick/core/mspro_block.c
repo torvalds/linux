@@ -834,7 +834,7 @@ static int mspro_block_prepare_req(struct request_queue *q, struct request *req)
 		return BLKPREP_KILL;
 	}
 
-	req->cmd_flags |= REQ_DONTPREP;
+	req->rq_flags |= RQF_DONTPREP;
 
 	return BLKPREP_OK;
 }

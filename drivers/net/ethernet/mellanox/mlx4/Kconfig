@@ -7,7 +7,7 @@ config MLX4_EN
 	depends on MAY_USE_DEVLINK
 	depends on PCI
 	select MLX4_CORE
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	---help---
 	  This driver supports Mellanox Technologies ConnectX Ethernet
 	  devices.

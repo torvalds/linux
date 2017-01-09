@@ -103,7 +103,7 @@
 #include <linux/bitops.h>
 
 #include <asm/termios.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /*
  * Buffers for individual HDLC frames

@@ -938,7 +938,7 @@ int nd_pmem_namespace_label_update(struct nd_region *nd_region,
 		}
 
 		for_each_dpa_resource(ndd, res)
-			if (strncmp(res->name, "pmem", 3) == 0)
+			if (strncmp(res->name, "pmem", 4) == 0)
 				count++;
 		WARN_ON_ONCE(!count);
 

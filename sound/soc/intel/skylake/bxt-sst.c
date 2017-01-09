@@ -43,6 +43,9 @@
 
 #define BXT_ADSP_FW_BIN_HDR_OFFSET 0x2000
 
+/* Delay before scheduling D0i3 entry */
+#define BXT_D0I3_DELAY 5000
+
 static unsigned int bxt_get_errorcode(struct sst_dsp *ctx)
 {
 	 return sst_dsp_shim_read(ctx, BXT_ADSP_ERROR_CODE);
@@ -288,6 +291,141 @@ sst_load_base_firmware_failed:
 	return ret;
 }
 
+/*
+ * Decide the D0i3 state that can be targeted based on the usecase
+ * ref counts and DSP state
+ *
+ * Decision Matrix:  (X= dont care; state = target state)
+ *
+ * DSP state != SKL_DSP_RUNNING ; state = no d0i3
+ *
+ * DSP state == SKL_DSP_RUNNING , the following matrix applies
+ * non_d0i3 >0; streaming =X; non_streaming =X; state = no d0i3
+ * non_d0i3 =X; streaming =0; non_streaming =0; state = no d0i3
+ * non_d0i3 =0; streaming >0; non_streaming =X; state = streaming d0i3
+ * non_d0i3 =0; streaming =0; non_streaming =X; state = non-streaming d0i3
+ */
+static int bxt_d0i3_target_state(struct sst_dsp *ctx)
+{
+	struct skl_sst *skl = ctx->thread_context;
+	struct skl_d0i3_data *d0i3 = &skl->d0i3;
+
+	if (skl->cores.state[SKL_DSP_CORE0_ID] != SKL_DSP_RUNNING)
+		return SKL_DSP_D0I3_NONE;
+
+	if (d0i3->non_d0i3)
+		return SKL_DSP_D0I3_NONE;
+	else if (d0i3->streaming)
+		return SKL_DSP_D0I3_STREAMING;
+	else if (d0i3->non_streaming)
+		return SKL_DSP_D0I3_NON_STREAMING;
+	else
+		return SKL_DSP_D0I3_NONE;
+}
+
+static void bxt_set_dsp_D0i3(struct work_struct *work)
+{
+	int ret;
+	struct skl_ipc_d0ix_msg msg;
+	struct skl_sst *skl = container_of(work,
+			struct skl_sst, d0i3.work.work);
+	struct sst_dsp *ctx = skl->dsp;
+	struct skl_d0i3_data *d0i3 = &skl->d0i3;
+	int target_state;
+
+	dev_dbg(ctx->dev, "In %s:\n", __func__);
+
+	/* D0i3 entry allowed only if core 0 alone is running */
+	if (skl_dsp_get_enabled_cores(ctx) !=  SKL_DSP_CORE0_MASK) {
+		dev_warn(ctx->dev,
+				"D0i3 allowed when only core0 running:Exit\n");
+		return;
+	}
+
+	target_state = bxt_d0i3_target_state(ctx);
+	if (target_state == SKL_DSP_D0I3_NONE)
+		return;
+
+	msg.instance_id = 0;
+	msg.module_id = 0;
+	msg.wake = 1;
+	msg.streaming = 0;
+	if (target_state == SKL_DSP_D0I3_STREAMING)
+		msg.streaming = 1;
+
+	ret =  skl_ipc_set_d0ix(&skl->ipc, &msg);
+
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to set DSP to D0i3 state\n");
+		return;
+	}
+
+	/* Set Vendor specific register D0I3C.I3 to enable D0i3*/
+	if (skl->update_d0i3c)
+		skl->update_d0i3c(skl->dev, true);
+
+	d0i3->state = target_state;
+	skl->cores.state[SKL_DSP_CORE0_ID] = SKL_DSP_RUNNING_D0I3;
+}
+
+static int bxt_schedule_dsp_D0i3(struct sst_dsp *ctx)
+{
+	struct skl_sst *skl = ctx->thread_context;
+	struct skl_d0i3_data *d0i3 = &skl->d0i3;
+
+	/* Schedule D0i3 only if the usecase ref counts are appropriate */
+	if (bxt_d0i3_target_state(ctx) != SKL_DSP_D0I3_NONE) {
+
+		dev_dbg(ctx->dev, "%s: Schedule D0i3\n", __func__);
+
+		schedule_delayed_work(&d0i3->work,
+				msecs_to_jiffies(BXT_D0I3_DELAY));
+	}
+
+	return 0;
+}
+
+static int bxt_set_dsp_D0i0(struct sst_dsp *ctx)
+{
+	int ret;
+	struct skl_ipc_d0ix_msg msg;
+	struct skl_sst *skl = ctx->thread_context;
+
+	dev_dbg(ctx->dev, "In %s:\n", __func__);
+
+	/* First Cancel any pending attempt to put DSP to D0i3 */
+	cancel_delayed_work_sync(&skl->d0i3.work);
+
+	/* If DSP is currently in D0i3, bring it to D0i0 */
+	if (skl->cores.state[SKL_DSP_CORE0_ID] != SKL_DSP_RUNNING_D0I3)
+		return 0;
+
+	dev_dbg(ctx->dev, "Set DSP to D0i0\n");
+
+	msg.instance_id = 0;
+	msg.module_id = 0;
+	msg.streaming = 0;
+	msg.wake = 0;
+
+	if (skl->d0i3.state == SKL_DSP_D0I3_STREAMING)
+		msg.streaming = 1;
+
+	/* Clear Vendor specific register D0I3C.I3 to disable D0i3*/
+	if (skl->update_d0i3c)
+		skl->update_d0i3c(skl->dev, false);
+
+	ret =  skl_ipc_set_d0ix(&skl->ipc, &msg);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to set DSP to D0i0\n");
+		return ret;
+	}
+
+	skl->cores.state[SKL_DSP_CORE0_ID] = SKL_DSP_RUNNING;
+	skl->d0i3.state = SKL_DSP_D0I3_NONE;
+
+	return 0;
+}
+
 static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
 	struct skl_sst *skl = ctx->thread_context;
@@ -414,6 +552,8 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 static struct skl_dsp_fw_ops bxt_fw_ops = {
 	.set_state_D0 = bxt_set_dsp_D0,
 	.set_state_D3 = bxt_set_dsp_D3,
+	.set_state_D0i3 = bxt_schedule_dsp_D0i3,
+	.set_state_D0i0 = bxt_set_dsp_D0i0,
 	.load_fw = bxt_load_base_firmware,
 	.get_fw_errcode = bxt_get_errorcode,
 	.load_library = bxt_load_library,
@@ -470,10 +610,15 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	if (ret)
 		return ret;
 
+	/* set the D0i3 check */
+	skl->ipc.ops.check_dsp_lp_on = skl_ipc_check_D0i0;
+
 	skl->cores.count = 2;
 	skl->boot_complete = false;
 	init_waitqueue_head(&skl->boot_wait);
 	skl->is_first_boot = true;
+	INIT_DELAYED_WORK(&skl->d0i3.work, bxt_set_dsp_D0i3);
+	skl->d0i3.state = SKL_DSP_D0I3_NONE;
 
 	if (dsp)
 		*dsp = skl;

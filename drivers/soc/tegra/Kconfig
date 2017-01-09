@@ -77,5 +77,19 @@ config ARCH_TEGRA_210_SOC
 	  controllers, such as GPIO, I2C, SPI, SDHCI, PCIe, SATA and XHCI, to
 	  name only a few.
 
+config ARCH_TEGRA_186_SOC
+	bool "NVIDIA Tegra186 SoC"
+	select MAILBOX
+	select TEGRA_BPMP
+	select TEGRA_HSP_MBOX
+	select TEGRA_IVC
+	help
+	  Enable support for the NVIDIA Tegar186 SoC. The Tegra186 features a
+	  combination of Denver and Cortex-A57 CPU cores and a GPU based on
+	  the Pascal architecture. It contains an ADSP with a Cortex-A9 CPU
+	  used for audio processing, hardware video encoders/decoders with
+	  multi-format support, ISP for image capture processing and BPMP for
+	  power management.
+
 endif
 endif

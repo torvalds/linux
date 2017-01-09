@@ -42,6 +42,7 @@ static chcr_handler_func work_handlers[NUM_CPL_CMDS] = {
 static struct cxgb4_uld_info chcr_uld_info = {
 	.name = DRV_MODULE_NAME,
 	.nrxq = MAX_ULD_QSETS,
+	.ntxq = MAX_ULD_QSETS,
 	.rxq_size = 1024,
 	.add = chcr_uld_add,
 	.state_change = chcr_uld_state_change,
@@ -109,14 +110,12 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 	if (ack_err_status) {
 		if (CHK_MAC_ERR_BIT(ack_err_status) ||
 		    CHK_PAD_ERR_BIT(ack_err_status))
-			error_status = -EINVAL;
+			error_status = -EBADMSG;
 	}
 	/* call completion callback with failure status */
 	if (req) {
-		if (!chcr_handle_resp(req, input, error_status))
-			req->complete(req, error_status);
-		else
-			return -EINVAL;
+		error_status = chcr_handle_resp(req, input, error_status);
+		req->complete(req, error_status);
 	} else {
 		pr_err("Incorrect request address from the firmware\n");
 		return -EFAULT;
@@ -126,7 +125,7 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 
 int chcr_send_wr(struct sk_buff *skb)
 {
-	return cxgb4_ofld_send(skb->dev, skb);
+	return cxgb4_crypto_send(skb->dev, skb);
 }
 
 static void *chcr_uld_add(const struct cxgb4_lld_info *lld)

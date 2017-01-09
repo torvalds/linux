@@ -14,7 +14,7 @@
 #include <linux/init_task.h>
 #include <linux/mqueue.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 
 static struct signal_struct init_signals = INIT_SIGNALS(init_signals);

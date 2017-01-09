@@ -285,7 +285,7 @@ free_rmn:
 int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
 {
 	unsigned long end = addr + amdgpu_bo_size(bo) - 1;
-	struct amdgpu_device *adev = bo->adev;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct amdgpu_mn *rmn;
 	struct amdgpu_mn_node *node = NULL;
 	struct list_head bos;
@@ -340,7 +340,7 @@ int amdgpu_mn_register(struct amdgpu_bo *bo, unsigned long addr)
  */
 void amdgpu_mn_unregister(struct amdgpu_bo *bo)
 {
-	struct amdgpu_device *adev = bo->adev;
+	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct amdgpu_mn *rmn;
 	struct list_head *head;
 

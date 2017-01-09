@@ -110,8 +110,8 @@ union qed_spq_req_comp {
 };
 
 struct qed_spq_comp_done {
-	u64	done;
-	u8	fw_return_code;
+	unsigned int	done;
+	u8		fw_return_code;
 };
 
 struct qed_spq_entry {

@@ -28,7 +28,7 @@ DEFINE_CLK(0, "fec.0", 12, MCF_CLK);
 DEFINE_CLK(0, "edma", 17, MCF_CLK);
 DEFINE_CLK(0, "intc.0", 18, MCF_CLK);
 DEFINE_CLK(0, "iack.0", 21, MCF_CLK);
-DEFINE_CLK(0, "mcfi2c.0", 22, MCF_CLK);
+DEFINE_CLK(0, "imx1-i2c.0", 22, MCF_CLK);
 DEFINE_CLK(0, "mcfqspi.0", 23, MCF_CLK);
 DEFINE_CLK(0, "mcfuart.0", 24, MCF_BUSCLK);
 DEFINE_CLK(0, "mcfuart.1", 25, MCF_BUSCLK);
@@ -53,7 +53,7 @@ struct clk *mcf_clks[] = {
 	&__clk_0_17, /* edma */
 	&__clk_0_18, /* intc.0 */
 	&__clk_0_21, /* iack.0 */
-	&__clk_0_22, /* mcfi2c.0 */
+	&__clk_0_22, /* imx1-i2c.0 */
 	&__clk_0_23, /* mcfqspi.0 */
 	&__clk_0_24, /* mcfuart.0 */
 	&__clk_0_25, /* mcfuart.1 */
@@ -71,7 +71,7 @@ struct clk *mcf_clks[] = {
 	&__clk_0_40, /* sys.0 */
 	&__clk_0_41, /* gpio.0 */
 	&__clk_0_42, /* sdram.0 */
-NULL,
+	NULL,
 };
 
 static struct clk * const enable_clks[] __initconst = {
@@ -94,7 +94,7 @@ static struct clk * const enable_clks[] __initconst = {
 static struct clk * const disable_clks[] __initconst = {
 	&__clk_0_12, /* fec.0 */
 	&__clk_0_17, /* edma */
-	&__clk_0_22, /* mcfi2c.0 */
+	&__clk_0_22, /* imx1-i2c.0 */
 	&__clk_0_23, /* mcfqspi.0 */
 	&__clk_0_28, /* mcftmr.0 */
 	&__clk_0_29, /* mcftmr.1 */
@@ -129,6 +129,21 @@ static void __init m520x_qspi_init(void)
 	par &= 0x00ff;
 	writew(par, MCF_GPIO_PAR_UART);
 #endif /* IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI) */
+}
+
+/***************************************************************************/
+
+static void __init m520x_i2c_init(void)
+{
+#if IS_ENABLED(CONFIG_I2C_IMX)
+	u8 par;
+
+	/* setup Port FECI2C Pin Assignment Register for I2C */
+	/*  set PAR_SCL to SCL and PAR_SDA to SDA */
+	par = readb(MCF_GPIO_PAR_FECI2C);
+	par |= 0x0f;
+	writeb(par, MCF_GPIO_PAR_FECI2C);
+#endif /* IS_ENABLED(CONFIG_I2C_IMX) */
 }
 
 /***************************************************************************/
@@ -175,6 +190,7 @@ void __init config_BSP(char *commandp, int size)
 	m520x_uarts_init();
 	m520x_fec_init();
 	m520x_qspi_init();
+	m520x_i2c_init();
 }
 
 /***************************************************************************/

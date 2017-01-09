@@ -2847,7 +2847,7 @@ static void ftrace_shutdown_sysctl(void)
 	}
 }
 
-static cycle_t		ftrace_update_time;
+static u64		ftrace_update_time;
 unsigned long		ftrace_update_tot_cnt;
 
 static inline int ops_traces_mod(struct ftrace_ops *ops)
@@ -2894,7 +2894,7 @@ static int ftrace_update_code(struct module *mod, struct ftrace_page *new_pgs)
 {
 	struct ftrace_page *pg;
 	struct dyn_ftrace *p;
-	cycle_t start, stop;
+	u64 start, stop;
 	unsigned long update_cnt = 0;
 	unsigned long rec_flags = 0;
 	int i;
@@ -3509,6 +3509,10 @@ static int ftrace_match(char *str, struct ftrace_glob *g)
 		slen = strlen(str);
 		if (slen >= g->len &&
 		    memcmp(str + slen - g->len, g->search, g->len) == 0)
+			matched = 1;
+		break;
+	case MATCH_GLOB:
+		if (glob_match(g->search, str))
 			matched = 1;
 		break;
 	}
@@ -4257,6 +4261,23 @@ int ftrace_set_filter_ip(struct ftrace_ops *ops, unsigned long ip,
 	return ftrace_set_addr(ops, ip, remove, reset, 1);
 }
 EXPORT_SYMBOL_GPL(ftrace_set_filter_ip);
+
+/**
+ * ftrace_ops_set_global_filter - setup ops to use global filters
+ * @ops - the ops which will use the global filters
+ *
+ * ftrace users who need global function trace filtering should call this.
+ * It can set the global filter only if ops were not initialized before.
+ */
+void ftrace_ops_set_global_filter(struct ftrace_ops *ops)
+{
+	if (ops->flags & FTRACE_OPS_FL_INITIALIZED)
+		return;
+
+	ftrace_ops_init(ops);
+	ops->func_hash = &global_ops.local_hash;
+}
+EXPORT_SYMBOL_GPL(ftrace_ops_set_global_filter);
 
 static int
 ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,

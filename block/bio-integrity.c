@@ -172,7 +172,7 @@ bool bio_integrity_enabled(struct bio *bio)
 {
 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
 
-	if (!bio_is_rw(bio))
+	if (bio_op(bio) != REQ_OP_READ && bio_op(bio) != REQ_OP_WRITE)
 		return false;
 
 	/* Already protected? */

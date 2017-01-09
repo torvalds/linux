@@ -83,21 +83,18 @@ errout:
 }
 
 const struct inode_operations ext4_encrypted_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= ext4_encrypted_get_link,
 	.setattr	= ext4_setattr,
 	.listxattr	= ext4_listxattr,
 };
 
 const struct inode_operations ext4_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= page_get_link,
 	.setattr	= ext4_setattr,
 	.listxattr	= ext4_listxattr,
 };
 
 const struct inode_operations ext4_fast_symlink_inode_operations = {
-	.readlink	= generic_readlink,
 	.get_link	= simple_get_link,
 	.setattr	= ext4_setattr,
 	.listxattr	= ext4_listxattr,

@@ -64,6 +64,15 @@ struct scsi_disk {
 	struct scsi_device *device;
 	struct device	dev;
 	struct gendisk	*disk;
+#ifdef CONFIG_BLK_DEV_ZONED
+	unsigned int	nr_zones;
+	unsigned int	zone_blocks;
+	unsigned int	zone_shift;
+	unsigned long	*zones_wlock;
+	unsigned int	zones_optimal_open;
+	unsigned int	zones_optimal_nonseq;
+	unsigned int	zones_max_open;
+#endif
 	atomic_t	openers;
 	sector_t	capacity;	/* size in logical blocks */
 	u32		max_xfer_blocks;
@@ -94,6 +103,9 @@ struct scsi_disk {
 	unsigned	lbpvpd : 1;
 	unsigned	ws10 : 1;
 	unsigned	ws16 : 1;
+	unsigned	rc_basis: 2;
+	unsigned	zoned: 2;
+	unsigned	urswrz : 1;
 };
 #define to_scsi_disk(obj) container_of(obj,struct scsi_disk,dev)
 
@@ -154,6 +166,11 @@ static inline sector_t logical_to_sectors(struct scsi_device *sdev, sector_t blo
 static inline unsigned int logical_to_bytes(struct scsi_device *sdev, sector_t blocks)
 {
 	return blocks * sdev->sector_size;
+}
+
+static inline sector_t sectors_to_logical(struct scsi_device *sdev, sector_t sector)
+{
+	return sector >> (ilog2(sdev->sector_size) - 9);
 }
 
 /*
@@ -238,5 +255,58 @@ static inline void sd_dif_complete(struct scsi_cmnd *cmd, unsigned int a)
 }
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
+
+static inline int sd_is_zoned(struct scsi_disk *sdkp)
+{
+	return sdkp->zoned == 1 || sdkp->device->type == TYPE_ZBC;
+}
+
+#ifdef CONFIG_BLK_DEV_ZONED
+
+extern int sd_zbc_read_zones(struct scsi_disk *sdkp, unsigned char *buffer);
+extern void sd_zbc_remove(struct scsi_disk *sdkp);
+extern void sd_zbc_print_zones(struct scsi_disk *sdkp);
+extern int sd_zbc_setup_write_cmnd(struct scsi_cmnd *cmd);
+extern void sd_zbc_cancel_write_cmnd(struct scsi_cmnd *cmd);
+extern int sd_zbc_setup_report_cmnd(struct scsi_cmnd *cmd);
+extern int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd);
+extern void sd_zbc_complete(struct scsi_cmnd *cmd, unsigned int good_bytes,
+			    struct scsi_sense_hdr *sshdr);
+
+#else /* CONFIG_BLK_DEV_ZONED */
+
+static inline int sd_zbc_read_zones(struct scsi_disk *sdkp,
+				    unsigned char *buf)
+{
+	return 0;
+}
+
+static inline void sd_zbc_remove(struct scsi_disk *sdkp) {}
+
+static inline void sd_zbc_print_zones(struct scsi_disk *sdkp) {}
+
+static inline int sd_zbc_setup_write_cmnd(struct scsi_cmnd *cmd)
+{
+	/* Let the drive fail requests */
+	return BLKPREP_OK;
+}
+
+static inline void sd_zbc_cancel_write_cmnd(struct scsi_cmnd *cmd) {}
+
+static inline int sd_zbc_setup_report_cmnd(struct scsi_cmnd *cmd)
+{
+	return BLKPREP_INVALID;
+}
+
+static inline int sd_zbc_setup_reset_cmnd(struct scsi_cmnd *cmd)
+{
+	return BLKPREP_INVALID;
+}
+
+static inline void sd_zbc_complete(struct scsi_cmnd *cmd,
+				   unsigned int good_bytes,
+				   struct scsi_sense_hdr *sshdr) {}
+
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 #endif /* _SCSI_DISK_H */

@@ -513,6 +513,11 @@ static inline int mlxsw_cmd_unmap_fa(struct mlxsw_core *mlxsw_core)
  * are no more sources in the table, will return resource id 0xFFF to indicate
  * it.
  */
+
+#define MLXSW_CMD_QUERY_RESOURCES_TABLE_END_ID 0xffff
+#define MLXSW_CMD_QUERY_RESOURCES_MAX_QUERIES 100
+#define MLXSW_CMD_QUERY_RESOURCES_PER_QUERY 32
+
 static inline int mlxsw_cmd_query_resources(struct mlxsw_core *mlxsw_core,
 					    char *out_mbox, int index)
 {

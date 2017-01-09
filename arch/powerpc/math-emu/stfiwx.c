@@ -1,6 +1,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 int
 stfiwx(u32 *frS, void *ea)

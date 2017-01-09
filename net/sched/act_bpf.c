@@ -28,12 +28,11 @@ struct tcf_bpf_cfg {
 	struct bpf_prog *filter;
 	struct sock_filter *bpf_ops;
 	const char *bpf_name;
-	u32 bpf_fd;
 	u16 bpf_num_ops;
 	bool is_ebpf;
 };
 
-static int bpf_net_id;
+static unsigned int bpf_net_id;
 static struct tc_action_ops act_bpf_ops;
 
 static int tcf_bpf(struct sk_buff *skb, const struct tc_action *act,
@@ -118,12 +117,18 @@ static int tcf_bpf_dump_bpf_info(const struct tcf_bpf *prog,
 static int tcf_bpf_dump_ebpf_info(const struct tcf_bpf *prog,
 				  struct sk_buff *skb)
 {
-	if (nla_put_u32(skb, TCA_ACT_BPF_FD, prog->bpf_fd))
-		return -EMSGSIZE;
+	struct nlattr *nla;
 
 	if (prog->bpf_name &&
 	    nla_put_string(skb, TCA_ACT_BPF_NAME, prog->bpf_name))
 		return -EMSGSIZE;
+
+	nla = nla_reserve(skb, TCA_ACT_BPF_DIGEST,
+			  sizeof(prog->filter->digest));
+	if (nla == NULL)
+		return -EMSGSIZE;
+
+	memcpy(nla_data(nla), prog->filter->digest, nla_len(nla));
 
 	return 0;
 }
@@ -226,16 +231,13 @@ static int tcf_bpf_init_from_efd(struct nlattr **tb, struct tcf_bpf_cfg *cfg)
 		return PTR_ERR(fp);
 
 	if (tb[TCA_ACT_BPF_NAME]) {
-		name = kmemdup(nla_data(tb[TCA_ACT_BPF_NAME]),
-			       nla_len(tb[TCA_ACT_BPF_NAME]),
-			       GFP_KERNEL);
+		name = nla_memdup(tb[TCA_ACT_BPF_NAME], GFP_KERNEL);
 		if (!name) {
 			bpf_prog_put(fp);
 			return -ENOMEM;
 		}
 	}
 
-	cfg->bpf_fd = bpf_fd;
 	cfg->bpf_name = name;
 	cfg->filter = fp;
 	cfg->is_ebpf = true;
@@ -334,8 +336,6 @@ static int tcf_bpf_init(struct net *net, struct nlattr *nla,
 
 	if (cfg.bpf_num_ops)
 		prog->bpf_num_ops = cfg.bpf_num_ops;
-	if (cfg.bpf_fd)
-		prog->bpf_fd = cfg.bpf_fd;
 
 	prog->tcf_action = parm->action;
 	rcu_assign_pointer(prog->filter, cfg.filter);

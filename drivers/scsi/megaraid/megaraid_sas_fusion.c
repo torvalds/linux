@@ -748,6 +748,11 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 		goto fail_fw_init;
 	}
 
+	instance->fw_sync_cache_support = (scratch_pad_2 &
+		MR_CAN_HANDLE_SYNC_CACHE_OFFSET) ? 1 : 0;
+	dev_info(&instance->pdev->dev, "FW supports sync cache\t: %s\n",
+		 instance->fw_sync_cache_support ? "Yes" : "No");
+
 	IOCInitMessage =
 	  dma_alloc_coherent(&instance->pdev->dev,
 			     sizeof(struct MPI2_IOC_INIT_REQUEST),
@@ -2000,6 +2005,8 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 		io_request->DevHandle = pd_sync->seq[pd_index].devHandle;
 		pRAID_Context->regLockFlags |=
 			(MR_RL_FLAGS_SEQ_NUM_ENABLE|MR_RL_FLAGS_GRANT_DESTINATION_CUDA);
+		pRAID_Context->Type = MPI2_TYPE_CUDA;
+		pRAID_Context->nseg = 0x1;
 	} else if (fusion->fast_path_io) {
 		pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
 		pRAID_Context->configSeqNum = 0;
@@ -2035,12 +2042,10 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 		pRAID_Context->timeoutValue =
 			cpu_to_le16((os_timeout_value > timeout_limit) ?
 			timeout_limit : os_timeout_value);
-		if (fusion->adapter_type == INVADER_SERIES) {
-			pRAID_Context->Type = MPI2_TYPE_CUDA;
-			pRAID_Context->nseg = 0x1;
+		if (fusion->adapter_type == INVADER_SERIES)
 			io_request->IoFlags |=
 				cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
-		}
+
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MPI2_REQ_DESCRIPT_FLAGS_FP_IO <<
 				MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
@@ -2463,12 +2468,15 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 			/* Start collecting crash, if DMA bit is done */
 			if ((fw_state == MFI_STATE_FAULT) && dma_state)
 				schedule_work(&instance->crash_init);
-			else if (fw_state == MFI_STATE_FAULT)
-				schedule_work(&instance->work_init);
+			else if (fw_state == MFI_STATE_FAULT) {
+				if (instance->unload == 0)
+					schedule_work(&instance->work_init);
+			}
 		} else if (fw_state == MFI_STATE_FAULT) {
 			dev_warn(&instance->pdev->dev, "Iop2SysDoorbellInt"
 			       "for scsi%d\n", instance->host->host_no);
-			schedule_work(&instance->work_init);
+			if (instance->unload == 0)
+				schedule_work(&instance->work_init);
 		}
 	}
 
@@ -2823,6 +2831,7 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 		dev_err(&instance->pdev->dev, "pending commands remain after waiting, "
 		       "will reset adapter scsi%d.\n",
 		       instance->host->host_no);
+		*convert = 1;
 		retval = 1;
 	}
 out:

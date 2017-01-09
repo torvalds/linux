@@ -39,7 +39,7 @@
 
 #include <asm/fpu.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/sysinfo.h>
 #include <asm/thread_info.h>
 #include <asm/hwrpb.h>
@@ -1029,10 +1029,15 @@ SYSCALL_DEFINE2(osf_settimeofday, struct timeval32 __user *, tv,
 	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
+asmlinkage long sys_ni_posix_timers(void);
+
 SYSCALL_DEFINE2(osf_getitimer, int, which, struct itimerval32 __user *, it)
 {
 	struct itimerval kit;
 	int error;
+
+	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
+		return sys_ni_posix_timers();
 
 	error = do_getitimer(which, &kit);
 	if (!error && put_it32(it, &kit))
@@ -1046,6 +1051,9 @@ SYSCALL_DEFINE3(osf_setitimer, int, which, struct itimerval32 __user *, in,
 {
 	struct itimerval kin, kout;
 	int error;
+
+	if (!IS_ENABLED(CONFIG_POSIX_TIMERS))
+		return sys_ni_posix_timers();
 
 	if (in) {
 		if (get_it32(&kin, in))

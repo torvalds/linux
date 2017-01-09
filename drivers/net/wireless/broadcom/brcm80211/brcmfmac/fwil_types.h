@@ -131,6 +131,7 @@
 #define BRCMF_TXBF_MU_BFR_CAP		BIT(1)
 
 #define	BRCMF_MAXPMKID			16	/* max # PMKID cache entries */
+#define BRCMF_NUMCHANNELS		64
 
 #define BRCMF_PFN_MACADDR_CFG_VER	1
 #define BRCMF_PFN_MAC_OUI_ONLY		BIT(0)
@@ -719,6 +720,21 @@ struct brcmf_pno_param_le {
 };
 
 /**
+ * struct brcmf_pno_config_le - PNO channel configuration.
+ *
+ * @reporttype: determines what is reported.
+ * @channel_num: number of channels specified in @channel_list.
+ * @channel_list: channels to use in PNO scan.
+ * @flags: reserved.
+ */
+struct brcmf_pno_config_le {
+	__le32  reporttype;
+	__le32  channel_num;
+	__le16  channel_list[BRCMF_NUMCHANNELS];
+	__le32  flags;
+};
+
+/**
  * struct brcmf_pno_net_param_le - scan parameters per preferred network.
  *
  * @ssid: ssid name and its length.
@@ -767,6 +783,13 @@ struct brcmf_pno_scanresults_le {
 	__le32 version;
 	__le32 status;
 	__le32 count;
+};
+
+struct brcmf_pno_scanresults_v2_le {
+	__le32 version;
+	__le32 status;
+	__le32 count;
+	__le32 scan_ch_bucket;
 };
 
 /**

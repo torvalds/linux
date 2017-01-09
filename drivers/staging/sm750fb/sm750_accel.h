@@ -184,16 +184,16 @@
 #define BOTTOM_TO_TOP 1
 #define RIGHT_TO_LEFT 1
 
-void hw_set2dformat(struct lynx_accel *accel, int fmt);
+void sm750_hw_set2dformat(struct lynx_accel *accel, int fmt);
 
-void hw_de_init(struct lynx_accel *accel);
+void sm750_hw_de_init(struct lynx_accel *accel);
 
-int hw_fillrect(struct lynx_accel *accel,
+int sm750_hw_fillrect(struct lynx_accel *accel,
 				u32 base, u32 pitch, u32 Bpp,
 				u32 x, u32 y, u32 width, u32 height,
 				u32 color, u32 rop);
 
-int hw_copyarea(
+int sm750_hw_copyarea(
 struct lynx_accel *accel,
 unsigned int sBase,  /* Address of source: offset in frame buffer */
 unsigned int sPitch, /* Pitch value of source surface in BYTE */
@@ -208,7 +208,7 @@ unsigned int width,
 unsigned int height, /* width and height of rectangle in pixel value */
 unsigned int rop2);
 
-int hw_imageblit(struct lynx_accel *accel,
+int sm750_hw_imageblit(struct lynx_accel *accel,
 		 const char *pSrcbuf, /* pointer to start of source buffer in system memory */
 		 u32 srcDelta,          /* Pitch value (in bytes) of the source buffer, +ive means top down and -ive mean button up */
 		 u32 startBit, /* Mono data can start at any bit in a byte, this value should be 0 to 7 */
