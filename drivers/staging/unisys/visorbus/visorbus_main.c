@@ -438,8 +438,7 @@ dev_periodic_work(unsigned long __opaque)
 	struct visor_device *dev = (struct visor_device *)__opaque;
 	struct visor_driver *drv = to_visor_driver(dev->device.driver);
 
-	if (drv->channel_interrupt)
-		drv->channel_interrupt(dev);
+	drv->channel_interrupt(dev);
 	mod_timer(&dev->timer, jiffies + POLLJIFFIES_NORMALCHANNEL);
 }
 
@@ -561,6 +560,13 @@ EXPORT_SYMBOL_GPL(visorbus_write_channel);
 void
 visorbus_enable_channel_interrupts(struct visor_device *dev)
 {
+	struct visor_driver *drv = to_visor_driver(dev->device.driver);
+
+	if (!drv->channel_interrupt) {
+		dev_err(&dev->device, "%s no interrupt function!\n", __func__);
+		return;
+	}
+
 	dev_start_periodic_work(dev);
 }
 EXPORT_SYMBOL_GPL(visorbus_enable_channel_interrupts);
