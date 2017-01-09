@@ -69,14 +69,14 @@ enum bpf_arg_type {
 	/* the following constraints used to prototype bpf_memcmp() and other
 	 * functions that access data on eBPF program stack
 	 */
-	ARG_PTR_TO_STACK,	/* any pointer to eBPF program stack */
-	ARG_PTR_TO_RAW_STACK,	/* any pointer to eBPF program stack, area does not
-				 * need to be initialized, helper function must fill
-				 * all bytes or clear them in error case.
+	ARG_PTR_TO_MEM,		/* pointer to valid memory (stack, packet, map value) */
+	ARG_PTR_TO_UNINIT_MEM,	/* pointer to memory does not need to be initialized,
+				 * helper function must fill all bytes or clear
+				 * them in error case.
 				 */
 
-	ARG_CONST_STACK_SIZE,	/* number of bytes accessed from stack */
-	ARG_CONST_STACK_SIZE_OR_ZERO, /* number of bytes accessed from stack or 0 */
+	ARG_CONST_SIZE,		/* number of bytes accessed from memory */
+	ARG_CONST_SIZE_OR_ZERO,	/* number of bytes accessed from memory or 0 */
 
 	ARG_PTR_TO_CTX,		/* pointer to context */
 	ARG_ANYTHING,		/* any (initialized) argument is ok */

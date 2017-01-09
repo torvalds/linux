@@ -1034,8 +1034,8 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		expected_type = PTR_TO_STACK;
 		if (type != PTR_TO_PACKET && type != expected_type)
 			goto err_type;
-	} else if (arg_type == ARG_CONST_STACK_SIZE ||
-		   arg_type == ARG_CONST_STACK_SIZE_OR_ZERO) {
+	} else if (arg_type == ARG_CONST_SIZE ||
+		   arg_type == ARG_CONST_SIZE_OR_ZERO) {
 		expected_type = CONST_IMM;
 		/* One exception. Allow UNKNOWN_VALUE registers when the
 		 * boundaries are known and don't cause unsafe memory accesses
@@ -1050,8 +1050,8 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		expected_type = PTR_TO_CTX;
 		if (type != expected_type)
 			goto err_type;
-	} else if (arg_type == ARG_PTR_TO_STACK ||
-		   arg_type == ARG_PTR_TO_RAW_STACK) {
+	} else if (arg_type == ARG_PTR_TO_MEM ||
+		   arg_type == ARG_PTR_TO_UNINIT_MEM) {
 		expected_type = PTR_TO_STACK;
 		/* One exception here. In case function allows for NULL to be
 		 * passed in as argument, it's a CONST_IMM type. Final test
@@ -1062,7 +1062,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		else if (type != PTR_TO_PACKET && type != PTR_TO_MAP_VALUE &&
 			 type != PTR_TO_MAP_VALUE_ADJ && type != expected_type)
 			goto err_type;
-		meta->raw_mode = arg_type == ARG_PTR_TO_RAW_STACK;
+		meta->raw_mode = arg_type == ARG_PTR_TO_UNINIT_MEM;
 	} else {
 		verbose("unsupported arg_type %d\n", arg_type);
 		return -EFAULT;
@@ -1108,9 +1108,9 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 			err = check_stack_boundary(env, regno,
 						   meta->map_ptr->value_size,
 						   false, NULL);
-	} else if (arg_type == ARG_CONST_STACK_SIZE ||
-		   arg_type == ARG_CONST_STACK_SIZE_OR_ZERO) {
-		bool zero_size_allowed = (arg_type == ARG_CONST_STACK_SIZE_OR_ZERO);
+	} else if (arg_type == ARG_CONST_SIZE ||
+		   arg_type == ARG_CONST_SIZE_OR_ZERO) {
+		bool zero_size_allowed = (arg_type == ARG_CONST_SIZE_OR_ZERO);
 
 		/* bpf_xxx(..., buf, len) call will access 'len' bytes
 		 * from stack pointer 'buf'. Check it
@@ -1118,7 +1118,7 @@ static int check_func_arg(struct bpf_verifier_env *env, u32 regno,
 		 */
 		if (regno == 0) {
 			/* kernel subsystem misconfigured verifier */
-			verbose("ARG_CONST_STACK_SIZE cannot be first argument\n");
+			verbose("ARG_CONST_SIZE cannot be first argument\n");
 			return -EACCES;
 		}
 
@@ -1235,15 +1235,15 @@ static int check_raw_mode(const struct bpf_func_proto *fn)
 {
 	int count = 0;
 
-	if (fn->arg1_type == ARG_PTR_TO_RAW_STACK)
+	if (fn->arg1_type == ARG_PTR_TO_UNINIT_MEM)
 		count++;
-	if (fn->arg2_type == ARG_PTR_TO_RAW_STACK)
+	if (fn->arg2_type == ARG_PTR_TO_UNINIT_MEM)
 		count++;
-	if (fn->arg3_type == ARG_PTR_TO_RAW_STACK)
+	if (fn->arg3_type == ARG_PTR_TO_UNINIT_MEM)
 		count++;
-	if (fn->arg4_type == ARG_PTR_TO_RAW_STACK)
+	if (fn->arg4_type == ARG_PTR_TO_UNINIT_MEM)
 		count++;
-	if (fn->arg5_type == ARG_PTR_TO_RAW_STACK)
+	if (fn->arg5_type == ARG_PTR_TO_UNINIT_MEM)
 		count++;
 
 	return count > 1 ? -EINVAL : 0;
