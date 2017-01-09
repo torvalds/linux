@@ -1242,9 +1242,21 @@ static int exynos_iommu_add_device(struct device *dev)
 
 static void exynos_iommu_remove_device(struct device *dev)
 {
+	struct exynos_iommu_owner *owner = dev->archdata.iommu;
+
 	if (!has_sysmmu(dev))
 		return;
 
+	if (owner->domain) {
+		struct iommu_group *group = iommu_group_get(dev);
+
+		if (group) {
+			WARN_ON(owner->domain !=
+				iommu_group_default_domain(group));
+			exynos_iommu_detach_device(owner->domain, dev);
+			iommu_group_put(group);
+		}
+	}
 	iommu_group_remove_device(dev);
 }
 
