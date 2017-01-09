@@ -4498,9 +4498,9 @@ void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *inf
 	i40iw_fill_qos_list(info->params->qs_handle_list);
 
 	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
-		vsi->qos[i].qs_handle =
-			info->params->qs_handle_list[i];
-			i40iw_debug(vsi->dev, I40IW_DEBUG_DCB, "qset[%d]: %d\n", i, vsi->qos[i].qs_handle);
+		vsi->qos[i].qs_handle = info->params->qs_handle_list[i];
+		i40iw_debug(vsi->dev, I40IW_DEBUG_DCB, "qset[%d]: %d\n", i,
+			    vsi->qos[i].qs_handle);
 		spin_lock_init(&vsi->qos[i].lock);
 		INIT_LIST_HEAD(&vsi->qos[i].qplist);
 	}
