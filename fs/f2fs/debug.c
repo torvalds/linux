@@ -194,7 +194,7 @@ get_cache:
 		si->cache_mem += sizeof(struct f2fs_gc_kthread);
 
 	/* build merge flush thread */
-	if (SM_I(sbi)->cmd_control_info)
+	if (SM_I(sbi)->fcc_info)
 		si->cache_mem += sizeof(struct flush_cmd_control);
 
 	/* free nids */
