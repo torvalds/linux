@@ -981,8 +981,8 @@ static int __nvmem_cell_read(struct nvmem_device *nvmem,
  * @cell: nvmem cell to be read.
  * @len: pointer to length of cell which will be populated on successful read.
  *
- * Return: ERR_PTR() on error or a valid pointer to a char * buffer on success.
- * The buffer should be freed by the consumer with a kfree().
+ * Return: ERR_PTR() on error or a valid pointer to a buffer on success. The
+ * buffer should be freed by the consumer with a kfree().
  */
 void *nvmem_cell_read(struct nvmem_cell *cell, size_t *len)
 {
