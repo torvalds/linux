@@ -284,11 +284,14 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 
 	fence_size = i915_gem_get_ggtt_size(dev_priv,
 					    vma->size,
-					    i915_gem_object_get_tiling(obj));
+					    i915_gem_object_get_tiling(obj),
+					    i915_gem_object_get_stride(obj));
 	fence_alignment = i915_gem_get_ggtt_alignment(dev_priv,
 						      vma->size,
 						      i915_gem_object_get_tiling(obj),
+						      i915_gem_object_get_stride(obj),
 						      true);
+	GEM_BUG_ON(!is_power_of_2(fence_alignment));
 
 	fenceable = (vma->node.size == fence_size &&
 		     (vma->node.start & (fence_alignment - 1)) == 0);
@@ -370,12 +373,15 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	size = max(size, vma->size);
 	if (flags & PIN_MAPPABLE)
 		size = i915_gem_get_ggtt_size(dev_priv, size,
-					      i915_gem_object_get_tiling(obj));
+					      i915_gem_object_get_tiling(obj),
+					      i915_gem_object_get_stride(obj));
 
 	alignment = max(max(alignment, vma->display_alignment),
 			i915_gem_get_ggtt_alignment(dev_priv, size,
 						    i915_gem_object_get_tiling(obj),
+						    i915_gem_object_get_stride(obj),
 						    flags & PIN_MAPPABLE));
+	GEM_BUG_ON(!is_power_of_2(alignment));
 
 	start = flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
 

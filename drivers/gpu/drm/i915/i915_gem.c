@@ -2021,20 +2021,28 @@ void i915_gem_runtime_suspend(struct drm_i915_private *dev_priv)
  * @dev_priv: i915 device
  * @size: object size
  * @tiling_mode: tiling mode
+ * @stride: tiling stride
  *
  * Return the required global GTT size for an object, taking into account
  * potential fence register mapping.
  */
 u64 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv,
-			   u64 size, int tiling_mode)
+			   u64 size, int tiling_mode, unsigned int stride)
 {
 	u64 ggtt_size;
 
-	GEM_BUG_ON(size == 0);
+	GEM_BUG_ON(!size);
 
-	if (INTEL_GEN(dev_priv) >= 4 ||
-	    tiling_mode == I915_TILING_NONE)
+	if (tiling_mode == I915_TILING_NONE)
 		return size;
+
+	GEM_BUG_ON(!stride);
+
+	if (INTEL_GEN(dev_priv) >= 4) {
+		stride *= i915_gem_tile_height(tiling_mode);
+		GEM_BUG_ON(stride & 4095);
+		return roundup(size, stride);
+	}
 
 	/* Previous chips need a power-of-two fence region when tiling */
 	if (IS_GEN3(dev_priv))
@@ -2053,15 +2061,17 @@ u64 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv,
  * @dev_priv: i915 device
  * @size: object size
  * @tiling_mode: tiling mode
+ * @stride: tiling stride
  * @fenced: is fenced alignment required or not
  *
  * Return the required global GTT alignment for an object, taking into account
  * potential fence register mapping.
  */
 u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
-				int tiling_mode, bool fenced)
+				int tiling_mode, unsigned int stride,
+				bool fenced)
 {
-	GEM_BUG_ON(size == 0);
+	GEM_BUG_ON(!size);
 
 	/*
 	 * Minimum alignment is 4k (GTT page size), but might be greater
@@ -2076,7 +2086,7 @@ u64 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u64 size,
 	 * Previous chips need to be aligned to the size of the smallest
 	 * fence register that can contain the object.
 	 */
-	return i915_gem_get_ggtt_size(dev_priv, size, tiling_mode);
+	return i915_gem_get_ggtt_size(dev_priv, size, tiling_mode, stride);
 }
 
 static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
@@ -3696,7 +3706,8 @@ i915_gem_object_ggtt_pin(struct drm_i915_gem_object *obj,
 			u32 fence_size;
 
 			fence_size = i915_gem_get_ggtt_size(dev_priv, vma->size,
-							    i915_gem_object_get_tiling(obj));
+							    i915_gem_object_get_tiling(obj),
+							    i915_gem_object_get_stride(obj));
 			/* If the required space is larger than the available
 			 * aperture, we will not able to find a slot for the
 			 * object and unbinding the object now will be in

@@ -117,7 +117,8 @@ i915_tiling_ok(struct drm_i915_private *dev_priv,
 	return true;
 }
 
-static bool i915_vma_fence_prepare(struct i915_vma *vma, int tiling_mode)
+static bool i915_vma_fence_prepare(struct i915_vma *vma,
+				   int tiling_mode, unsigned int stride)
 {
 	struct drm_i915_private *dev_priv = vma->vm->i915;
 	u32 size;
@@ -133,7 +134,7 @@ static bool i915_vma_fence_prepare(struct i915_vma *vma, int tiling_mode)
 			return false;
 	}
 
-	size = i915_gem_get_ggtt_size(dev_priv, vma->size, tiling_mode);
+	size = i915_gem_get_ggtt_size(dev_priv, vma->size, tiling_mode, stride);
 	if (vma->node.size < size)
 		return false;
 
@@ -145,20 +146,17 @@ static bool i915_vma_fence_prepare(struct i915_vma *vma, int tiling_mode)
 
 /* Make the current GTT allocation valid for the change in tiling. */
 static int
-i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj, int tiling_mode)
+i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
+			      int tiling_mode, unsigned int stride)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 	int ret;
 
 	if (tiling_mode == I915_TILING_NONE)
 		return 0;
 
-	if (INTEL_GEN(dev_priv) >= 4)
-		return 0;
-
 	list_for_each_entry(vma, &obj->vma_list, obj_link) {
-		if (i915_vma_fence_prepare(vma, tiling_mode))
+		if (i915_vma_fence_prepare(vma, tiling_mode, stride))
 			continue;
 
 		ret = i915_vma_unbind(vma);
@@ -255,7 +253,9 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * whilst executing a fenced command for an untiled object.
 		 */
 
-		err = i915_gem_object_fence_prepare(obj, args->tiling_mode);
+		err = i915_gem_object_fence_prepare(obj,
+						    args->tiling_mode,
+						    args->stride);
 		if (!err) {
 			struct i915_vma *vma;
 
