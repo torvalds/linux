@@ -541,6 +541,15 @@ out:
 	return err;
 }
 
+static void mmc_sdio_resend_if_cond(struct mmc_host *host,
+				    struct mmc_card *card)
+{
+	sdio_reset(host);
+	mmc_go_idle(host);
+	mmc_send_if_cond(host, host->ocr_avail);
+	mmc_remove_card(card);
+}
+
 /*
  * Handle the detection and initialisation of a card.
  *
@@ -630,10 +639,7 @@ try_again:
 		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180,
 					ocr_card);
 		if (err == -EAGAIN) {
-			sdio_reset(host);
-			mmc_go_idle(host);
-			mmc_send_if_cond(host, host->ocr_avail);
-			mmc_remove_card(card);
+			mmc_sdio_resend_if_cond(host, card);
 			retries--;
 			goto try_again;
 		} else if (err) {
