@@ -856,7 +856,6 @@ static const struct amdgpu_asic_funcs vi_asic_funcs =
 {
 	.read_disabled_bios = &vi_read_disabled_bios,
 	.read_bios_from_rom = &vi_read_bios_from_rom,
-	.detect_hw_virtualization = vi_detect_hw_virtualization,
 	.read_register = &vi_read_register,
 	.reset = &vi_asic_reset,
 	.set_vga_state = &vi_vga_set_state,
@@ -1047,10 +1046,6 @@ static int vi_common_early_init(void *handle)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
-
-	/* in early init stage, vbios code won't work */
-	if (adev->asic_funcs->detect_hw_virtualization)
-		amdgpu_asic_detect_hw_virtualization(adev);
 
 	if (amdgpu_smc_load_fw && smc_enabled)
 		adev->firmware.smu_load = true;
@@ -1402,6 +1397,9 @@ static const struct amdgpu_ip_block_version vi_common_ip_block =
 
 int vi_set_ip_blocks(struct amdgpu_device *adev)
 {
+	/* in early init stage, vbios code won't work */
+	vi_detect_hw_virtualization(adev);
+
 	switch (adev->asic_type) {
 	case CHIP_TOPAZ:
 		/* topaz has no DCE, UVD, VCE */
@@ -1419,28 +1417,32 @@ int vi_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_ip_block_add(adev, &gmc_v8_5_ip_block);
 		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);
 		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
-		if (adev->enable_virtual_display)
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_ip_block_add(adev, &dce_v10_1_ip_block);
 		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
 		amdgpu_ip_block_add(adev, &sdma_v3_0_ip_block);
-		amdgpu_ip_block_add(adev, &uvd_v6_0_ip_block);
-		amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		if (!amdgpu_sriov_vf(adev)) {
+			amdgpu_ip_block_add(adev, &uvd_v6_0_ip_block);
+			amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		}
 		break;
 	case CHIP_TONGA:
 		amdgpu_ip_block_add(adev, &vi_common_ip_block);
 		amdgpu_ip_block_add(adev, &gmc_v8_0_ip_block);
 		amdgpu_ip_block_add(adev, &tonga_ih_ip_block);
 		amdgpu_ip_block_add(adev, &amdgpu_pp_ip_block);
-		if (adev->enable_virtual_display)
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_ip_block_add(adev, &dce_v10_0_ip_block);
 		amdgpu_ip_block_add(adev, &gfx_v8_0_ip_block);
 		amdgpu_ip_block_add(adev, &sdma_v3_0_ip_block);
-		amdgpu_ip_block_add(adev, &uvd_v5_0_ip_block);
-		amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		if (!amdgpu_sriov_vf(adev)) {
+			amdgpu_ip_block_add(adev, &uvd_v5_0_ip_block);
+			amdgpu_ip_block_add(adev, &vce_v3_0_ip_block);
+		}
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS10:
