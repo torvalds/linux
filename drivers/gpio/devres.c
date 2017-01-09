@@ -127,13 +127,18 @@ EXPORT_SYMBOL(devm_gpiod_get_index);
  * @dev:	GPIO consumer
  * @con_id:	function within the GPIO consumer
  * @child:	firmware node (child of @dev)
+ * @flags:	GPIO initialization flags
  *
  * GPIO descriptors returned from this function are automatically disposed on
  * driver detach.
+ *
+ * On successfull request the GPIO pin is configured in accordance with
+ * provided @flags.
  */
 struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
 					    const char *con_id,
-					    struct fwnode_handle *child)
+					    struct fwnode_handle *child,
+					    enum gpiod_flags flags)
 {
 	static const char * const suffixes[] = { "gpios", "gpio" };
 	char prop_name[32]; /* 32 is max size of property name */
@@ -154,7 +159,7 @@ struct gpio_desc *devm_get_gpiod_from_child(struct device *dev,
 			snprintf(prop_name, sizeof(prop_name), "%s",
 							       suffixes[i]);
 
-		desc = fwnode_get_named_gpiod(child, prop_name);
+		desc = fwnode_get_named_gpiod(child, prop_name, flags);
 		if (!IS_ERR(desc) || (PTR_ERR(desc) != -ENOENT))
 			break;
 	}

@@ -481,7 +481,7 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 	spin_lock_init(&bdata->lock);
 
 	if (child) {
-		bdata->gpiod = devm_get_gpiod_from_child(dev, NULL, child);
+		bdata->gpiod = devm_get_gpiod_from_child(dev, NULL, child, GPIOD_IN);
 		if (IS_ERR(bdata->gpiod)) {
 			error = PTR_ERR(bdata->gpiod);
 			if (error == -ENOENT) {
@@ -494,13 +494,6 @@ static int gpio_keys_setup_key(struct platform_device *pdev,
 				if (error != -EPROBE_DEFER)
 					dev_err(dev, "failed to get gpio: %d\n",
 						error);
-				return error;
-			}
-		} else {
-			error = gpiod_direction_input(bdata->gpiod);
-			if (error) {
-				dev_err(dev, "Failed to configure GPIO %d as input: %d\n",
-					desc_to_gpio(bdata->gpiod), error);
 				return error;
 			}
 		}
