@@ -1193,7 +1193,7 @@ mlxsw_sp_port_add_cls_matchall_mirror(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!mlxsw_sp_port_dev_check(to_dev)) {
 		netdev_err(mlxsw_sp_port->dev, "Cannot mirror to a non-spectrum port");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 	to_port = netdev_priv(to_dev);
 
@@ -1229,7 +1229,7 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!tc_single_action(cls->exts)) {
 		netdev_err(mlxsw_sp_port->dev, "only singular actions are supported\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	mall_tc_entry = kzalloc(sizeof(*mall_tc_entry), GFP_KERNEL);
@@ -1309,7 +1309,7 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 		}
 	}
 
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static const struct net_device_ops mlxsw_sp_port_netdev_ops = {
@@ -1652,7 +1652,7 @@ mlxsw_sp_get_hw_stats_by_group(struct mlxsw_sp_port_hw_stats **p_hw_stats,
 		break;
 	default:
 		WARN_ON(1);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 	return 0;
 }
