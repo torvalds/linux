@@ -184,7 +184,7 @@ static ssize_t amdgpu_set_dpm_forced_performance_level(struct device *dev,
 	}
 
 	if (current_level == level)
-		return 0;
+		return count;
 
 	if (level == AMD_DPM_FORCED_LEVEL_PROFILING)
 		amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_GFX,
