@@ -415,23 +415,33 @@ static void __init sort_ftr_regs(void)
 /*
  * Initialise the CPU feature register from Boot CPU values.
  * Also initiliases the strict_mask for the register.
+ * Any bits that are not covered by an arm64_ftr_bits entry are considered
+ * RES0 for the system-wide value, and must strictly match.
  */
 static void __init init_cpu_ftr_reg(u32 sys_reg, u64 new)
 {
 	u64 val = 0;
 	u64 strict_mask = ~0x0ULL;
+	u64 valid_mask = 0;
+
 	const struct arm64_ftr_bits *ftrp;
 	struct arm64_ftr_reg *reg = get_arm64_ftr_reg(sys_reg);
 
 	BUG_ON(!reg);
 
 	for (ftrp  = reg->ftr_bits; ftrp->width; ftrp++) {
+		u64 ftr_mask = arm64_ftr_mask(ftrp);
 		s64 ftr_new = arm64_ftr_value(ftrp, new);
 
 		val = arm64_ftr_set_value(ftrp, val, ftr_new);
+
+		valid_mask |= ftr_mask;
 		if (!ftrp->strict)
-			strict_mask &= ~arm64_ftr_mask(ftrp);
+			strict_mask &= ~ftr_mask;
 	}
+
+	val &= valid_mask;
+
 	reg->sys_val = val;
 	reg->strict_mask = strict_mask;
 }
