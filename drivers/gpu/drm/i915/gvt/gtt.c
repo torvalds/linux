@@ -1369,8 +1369,7 @@ static int gen8_mm_alloc_page_table(struct intel_vgpu_mm *mm)
 			info->gtt_entry_size;
 		mem = kzalloc(mm->has_shadow_page_table ?
 			mm->page_table_entry_size * 2
-				: mm->page_table_entry_size,
-			GFP_ATOMIC);
+				: mm->page_table_entry_size, GFP_KERNEL);
 		if (!mem)
 			return -ENOMEM;
 		mm->virtual_page_table = mem;
@@ -1521,7 +1520,7 @@ struct intel_vgpu_mm *intel_vgpu_create_mm(struct intel_vgpu *vgpu,
 	struct intel_vgpu_mm *mm;
 	int ret;
 
-	mm = kzalloc(sizeof(*mm), GFP_ATOMIC);
+	mm = kzalloc(sizeof(*mm), GFP_KERNEL);
 	if (!mm) {
 		ret = -ENOMEM;
 		goto fail;
@@ -1875,30 +1874,27 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 	struct intel_gvt_gtt_pte_ops *ops = vgpu->gvt->gtt.pte_ops;
 	int page_entry_num = GTT_PAGE_SIZE >>
 				vgpu->gvt->device_info.gtt_entry_size_shift;
-	struct page *scratch_pt;
+	void *scratch_pt;
 	unsigned long mfn;
 	int i;
-	void *p;
 
 	if (WARN_ON(type < GTT_TYPE_PPGTT_PTE_PT || type >= GTT_TYPE_MAX))
 		return -EINVAL;
 
-	scratch_pt = alloc_page(GFP_KERNEL | GFP_ATOMIC | __GFP_ZERO);
+	scratch_pt = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!scratch_pt) {
 		gvt_err("fail to allocate scratch page\n");
 		return -ENOMEM;
 	}
 
-	p = kmap_atomic(scratch_pt);
-	mfn = intel_gvt_hypervisor_virt_to_mfn(p);
+	mfn = intel_gvt_hypervisor_virt_to_mfn(scratch_pt);
 	if (mfn == INTEL_GVT_INVALID_ADDR) {
-		gvt_err("fail to translate vaddr:0x%llx\n", (u64)p);
-		kunmap_atomic(p);
-		__free_page(scratch_pt);
+		gvt_err("fail to translate vaddr:0x%lx\n", (unsigned long)scratch_pt);
+		free_page((unsigned long)scratch_pt);
 		return -EFAULT;
 	}
 	gtt->scratch_pt[type].page_mfn = mfn;
-	gtt->scratch_pt[type].page = scratch_pt;
+	gtt->scratch_pt[type].page = virt_to_page(scratch_pt);
 	gvt_dbg_mm("vgpu%d create scratch_pt: type %d mfn=0x%lx\n",
 			vgpu->id, type, mfn);
 
@@ -1907,7 +1903,7 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 	 * scratch_pt[type] indicate the scratch pt/scratch page used by the
 	 * 'type' pt.
 	 * e.g. scratch_pt[GTT_TYPE_PPGTT_PDE_PT] is used by
-	 * GTT_TYPE_PPGTT_PDE_PT level pt, that means this scatch_pt it self
+	 * GTT_TYPE_PPGTT_PDE_PT level pt, that means this scratch_pt it self
 	 * is GTT_TYPE_PPGTT_PTE_PT, and full filled by scratch page mfn.
 	 */
 	if (type > GTT_TYPE_PPGTT_PTE_PT && type < GTT_TYPE_MAX) {
@@ -1925,10 +1921,8 @@ static int alloc_scratch_pages(struct intel_vgpu *vgpu,
 			se.val64 |= PPAT_CACHED_INDEX;
 
 		for (i = 0; i < page_entry_num; i++)
-			ops->set_entry(p, &se, i, false, 0, vgpu);
+			ops->set_entry(scratch_pt, &se, i, false, 0, vgpu);
 	}
-
-	kunmap_atomic(p);
 
 	return 0;
 }
@@ -2197,7 +2191,7 @@ int intel_vgpu_g2v_destroy_ppgtt_mm(struct intel_vgpu *vgpu,
 int intel_gvt_init_gtt(struct intel_gvt *gvt)
 {
 	int ret;
-	void *page_addr;
+	void *page;
 
 	gvt_dbg_core("init gtt\n");
 
@@ -2210,17 +2204,14 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 		return -ENODEV;
 	}
 
-	gvt->gtt.scratch_ggtt_page =
-		alloc_page(GFP_KERNEL | GFP_ATOMIC | __GFP_ZERO);
-	if (!gvt->gtt.scratch_ggtt_page) {
+	page = (void *)get_zeroed_page(GFP_KERNEL);
+	if (!page) {
 		gvt_err("fail to allocate scratch ggtt page\n");
 		return -ENOMEM;
 	}
+	gvt->gtt.scratch_ggtt_page = virt_to_page(page);
 
-	page_addr = page_address(gvt->gtt.scratch_ggtt_page);
-
-	gvt->gtt.scratch_ggtt_mfn =
-		intel_gvt_hypervisor_virt_to_mfn(page_addr);
+	gvt->gtt.scratch_ggtt_mfn = intel_gvt_hypervisor_virt_to_mfn(page);
 	if (gvt->gtt.scratch_ggtt_mfn == INTEL_GVT_INVALID_ADDR) {
 		gvt_err("fail to translate scratch ggtt page\n");
 		__free_page(gvt->gtt.scratch_ggtt_page);
