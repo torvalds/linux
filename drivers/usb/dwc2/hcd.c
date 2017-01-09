@@ -4367,6 +4367,9 @@ static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 	if (!HCD_HW_ACCESSIBLE(hcd))
 		goto unlock;
 
+	if (hsotg->op_state == OTG_STATE_B_PERIPHERAL)
+		goto unlock;
+
 	if (!hsotg->params.hibernation)
 		goto skip_power_saving;
 
