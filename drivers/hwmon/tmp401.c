@@ -82,16 +82,6 @@ static const u8 TMP401_TEMP_MSB_WRITE[7][2] = {
 	{ 0, 0x11 },	/* offset */
 };
 
-static const u8 TMP401_TEMP_LSB[7][2] = {
-	{ 0x15, 0x10 },	/* temp */
-	{ 0x17, 0x14 },	/* low limit */
-	{ 0x16, 0x13 },	/* high limit */
-	{ 0, 0 },	/* therm (crit) limit (unused) */
-	{ 0x31, 0x35 },	/* lowest */
-	{ 0x33, 0x37 },	/* highest */
-	{ 0, 0x12 },	/* offset */
-};
-
 static const u8 TMP432_TEMP_MSB_READ[4][3] = {
 	{ 0x00, 0x01, 0x23 },	/* temp */
 	{ 0x06, 0x08, 0x16 },	/* low limit */
@@ -104,12 +94,6 @@ static const u8 TMP432_TEMP_MSB_WRITE[4][3] = {
 	{ 0x0C, 0x0E, 0x16 },	/* low limit */
 	{ 0x0B, 0x0D, 0x15 },	/* high limit */
 	{ 0x20, 0x19, 0x1A },	/* therm (crit) limit */
-};
-
-static const u8 TMP432_TEMP_LSB[3][3] = {
-	{ 0x29, 0x10, 0x24 },	/* temp */
-	{ 0x3E, 0x14, 0x18 },	/* low limit */
-	{ 0x3D, 0x13, 0x17 },	/* high limit */
 };
 
 /* [0] = fault, [1] = low, [2] = high, [3] = therm/crit */
@@ -213,25 +197,20 @@ static int tmp401_update_device_reg16(struct i2c_client *client,
 	for (i = 0; i < num_sensors; i++) {		/* local / r1 / r2 */
 		for (j = 0; j < num_regs; j++) {	/* temp / low / ... */
 			u8 regaddr;
-			/*
-			 * High byte must be read first immediately followed
-			 * by the low byte
-			 */
+
 			regaddr = data->kind == tmp432 ?
 						TMP432_TEMP_MSB_READ[j][i] :
 						TMP401_TEMP_MSB_READ[j][i];
-			val = i2c_smbus_read_byte_data(client, regaddr);
+			if (j == 3) { /* crit is msb only */
+				val = i2c_smbus_read_byte_data(client, regaddr);
+			} else {
+				val = i2c_smbus_read_word_swapped(client,
+								  regaddr);
+			}
 			if (val < 0)
 				return val;
-			data->temp[j][i] = val << 8;
-			if (j == 3)		/* crit is msb only */
-				continue;
-			regaddr = data->kind == tmp432 ? TMP432_TEMP_LSB[j][i]
-						       : TMP401_TEMP_LSB[j][i];
-			val = i2c_smbus_read_byte_data(client, regaddr);
-			if (val < 0)
-				return val;
-			data->temp[j][i] |= val;
+
+			data->temp[j][i] = j == 3 ? val << 8 : val;
 		}
 	}
 	return 0;
@@ -373,11 +352,11 @@ static ssize_t store_temp(struct device *dev, struct device_attribute *devattr,
 
 	regaddr = data->kind == tmp432 ? TMP432_TEMP_MSB_WRITE[nr][index]
 				       : TMP401_TEMP_MSB_WRITE[nr][index];
-	i2c_smbus_write_byte_data(client, regaddr, reg >> 8);
-	if (nr != 3) {
-		regaddr = data->kind == tmp432 ? TMP432_TEMP_LSB[nr][index]
-					       : TMP401_TEMP_LSB[nr][index];
-		i2c_smbus_write_byte_data(client, regaddr, reg & 0xFF);
+	if (nr == 3) { /* crit is msb only */
+		i2c_smbus_write_byte_data(client, regaddr, reg >> 8);
+	} else {
+		/* Hardware expects big endian data --> use _swapped */
+		i2c_smbus_write_word_swapped(client, regaddr, reg);
 	}
 	data->temp[nr][index] = reg;
 
