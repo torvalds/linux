@@ -2766,6 +2766,9 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 		info->tcpi_sacked = sk->sk_max_ack_backlog;
 		return;
 	}
+
+	slow = lock_sock_fast(sk);
+
 	info->tcpi_ca_state = icsk->icsk_ca_state;
 	info->tcpi_retransmits = icsk->icsk_retransmits;
 	info->tcpi_probes = icsk->icsk_probes_out;
@@ -2816,14 +2819,10 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 
 	info->tcpi_total_retrans = tp->total_retrans;
 
-	slow = lock_sock_fast(sk);
-
 	info->tcpi_bytes_acked = tp->bytes_acked;
 	info->tcpi_bytes_received = tp->bytes_received;
 	info->tcpi_notsent_bytes = max_t(int, 0, tp->write_seq - tp->snd_nxt);
 	tcp_get_info_chrono_stats(tp, info);
-
-	unlock_sock_fast(sk, slow);
 
 	info->tcpi_segs_out = tp->segs_out;
 	info->tcpi_segs_in = tp->segs_in;
@@ -2840,6 +2839,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 		do_div(rate64, intv);
 		info->tcpi_delivery_rate = rate64;
 	}
+	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
