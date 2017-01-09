@@ -274,6 +274,7 @@ static void eb_destroy(struct eb_vmas *eb)
 				       exec_list);
 		list_del_init(&vma->exec_list);
 		i915_gem_execbuffer_unreserve_vma(vma);
+		vma->exec_entry = NULL;
 		i915_vma_put(vma);
 	}
 	kfree(eb);
@@ -437,7 +438,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 			memset(&cache->node, 0, sizeof(cache->node));
 			ret = drm_mm_insert_node_in_range_generic
 				(&ggtt->base.mm, &cache->node,
-				 4096, 0, 0,
+				 4096, 0, I915_COLOR_UNEVICTABLE,
 				 0, ggtt->mappable_end,
 				 DRM_MM_SEARCH_DEFAULT,
 				 DRM_MM_CREATE_DEFAULT);
@@ -1232,14 +1233,12 @@ i915_gem_validate_context(struct drm_device *dev, struct drm_file *file,
 			  struct intel_engine_cs *engine, const u32 ctx_id)
 {
 	struct i915_gem_context *ctx;
-	struct i915_ctx_hang_stats *hs;
 
 	ctx = i915_gem_context_lookup(file->driver_priv, ctx_id);
 	if (IS_ERR(ctx))
 		return ctx;
 
-	hs = &ctx->hang_stats;
-	if (hs->banned) {
+	if (i915_gem_context_is_banned(ctx)) {
 		DRM_DEBUG("Context %u tried to submit while banned\n", ctx_id);
 		return ERR_PTR(-EIO);
 	}
@@ -1260,6 +1259,7 @@ void i915_vma_move_to_active(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	const unsigned int idx = req->engine->id;
 
+	lockdep_assert_held(&req->i915->drm.struct_mutex);
 	GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 
 	/* Add a reference if we're newly entering the active list.
@@ -1715,7 +1715,7 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	}
 
 	params->args_batch_start_offset = args->batch_start_offset;
-	if (intel_engine_needs_cmd_parser(engine) && args->batch_len) {
+	if (engine->needs_cmd_parser && args->batch_len) {
 		struct i915_vma *vma;
 
 		vma = i915_gem_execbuffer_parse(engine, &shadow_exec_entry,

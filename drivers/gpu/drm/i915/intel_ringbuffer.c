@@ -1805,10 +1805,9 @@ static int init_phys_status_page(struct intel_engine_cs *engine)
 	return 0;
 }
 
-int intel_ring_pin(struct intel_ring *ring)
+int intel_ring_pin(struct intel_ring *ring, unsigned int offset_bias)
 {
-	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
-	unsigned int flags = PIN_GLOBAL | PIN_OFFSET_BIAS | 4096;
+	unsigned int flags;
 	enum i915_map_type map;
 	struct i915_vma *vma = ring->vma;
 	void *addr;
@@ -1818,6 +1817,9 @@ int intel_ring_pin(struct intel_ring *ring)
 
 	map = HAS_LLC(ring->engine->i915) ? I915_MAP_WB : I915_MAP_WC;
 
+	flags = PIN_GLOBAL;
+	if (offset_bias)
+		flags |= PIN_OFFSET_BIAS | offset_bias;
 	if (vma->obj->stolen)
 		flags |= PIN_MAPPABLE;
 
@@ -1869,9 +1871,9 @@ intel_ring_create_vma(struct drm_i915_private *dev_priv, int size)
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
 
-	obj = i915_gem_object_create_stolen(&dev_priv->drm, size);
+	obj = i915_gem_object_create_stolen(dev_priv, size);
 	if (!obj)
-		obj = i915_gem_object_create(&dev_priv->drm, size);
+		obj = i915_gem_object_create(dev_priv, size);
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
@@ -1912,7 +1914,7 @@ intel_engine_create_ring(struct intel_engine_cs *engine, int size)
 	 * of the buffer.
 	 */
 	ring->effective_size = size;
-	if (IS_I830(engine->i915) || IS_845G(engine->i915))
+	if (IS_I830(engine->i915) || IS_I845G(engine->i915))
 		ring->effective_size -= 2 * CACHELINE_BYTES;
 
 	ring->last_retired_head = -1;
@@ -1939,8 +1941,26 @@ intel_ring_free(struct intel_ring *ring)
 	kfree(ring);
 }
 
-static int intel_ring_context_pin(struct i915_gem_context *ctx,
-				  struct intel_engine_cs *engine)
+static int context_pin(struct i915_gem_context *ctx, unsigned int flags)
+{
+	struct i915_vma *vma = ctx->engine[RCS].state;
+	int ret;
+
+	/* Clear this page out of any CPU caches for coherent swap-in/out.
+	 * We only want to do this on the first bind so that we do not stall
+	 * on an active context (which by nature is already on the GPU).
+	 */
+	if (!(vma->flags & I915_VMA_GLOBAL_BIND)) {
+		ret = i915_gem_object_set_to_gtt_domain(vma->obj, false);
+		if (ret)
+			return ret;
+	}
+
+	return i915_vma_pin(vma, 0, ctx->ggtt_alignment, PIN_GLOBAL | flags);
+}
+
+static int intel_ring_context_pin(struct intel_engine_cs *engine,
+				  struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 	int ret;
@@ -1951,13 +1971,15 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 		return 0;
 
 	if (ce->state) {
-		struct i915_vma *vma;
+		unsigned int flags;
 
-		vma = i915_gem_context_pin_legacy(ctx, PIN_HIGH);
-		if (IS_ERR(vma)) {
-			ret = PTR_ERR(vma);
+		flags = 0;
+		if (i915_gem_context_is_kernel(ctx))
+			flags = PIN_HIGH;
+
+		ret = context_pin(ctx, flags);
+		if (ret)
 			goto error;
-		}
 	}
 
 	/* The kernel context is only used as a placeholder for flushing the
@@ -1967,7 +1989,7 @@ static int intel_ring_context_pin(struct i915_gem_context *ctx,
 	 * as during eviction we cannot allocate and pin the renderstate in
 	 * order to initialise the context.
 	 */
-	if (ctx == ctx->i915->kernel_context)
+	if (i915_gem_context_is_kernel(ctx))
 		ce->initialised = true;
 
 	i915_gem_context_get(ctx);
@@ -1978,12 +2000,13 @@ error:
 	return ret;
 }
 
-static void intel_ring_context_unpin(struct i915_gem_context *ctx,
-				     struct intel_engine_cs *engine)
+static void intel_ring_context_unpin(struct intel_engine_cs *engine,
+				     struct i915_gem_context *ctx)
 {
 	struct intel_context *ce = &ctx->engine[engine->id];
 
 	lockdep_assert_held(&ctx->i915->drm.struct_mutex);
+	GEM_BUG_ON(ce->pin_count == 0);
 
 	if (--ce->pin_count)
 		return;
@@ -2008,17 +2031,6 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	if (ret)
 		goto error;
 
-	/* We may need to do things with the shrinker which
-	 * require us to immediately switch back to the default
-	 * context. This can cause a problem as pinning the
-	 * default context also requires GTT space which may not
-	 * be available. To avoid this we always pin the default
-	 * context.
-	 */
-	ret = intel_ring_context_pin(dev_priv->kernel_context, engine);
-	if (ret)
-		goto error;
-
 	ring = intel_engine_create_ring(engine, 32 * PAGE_SIZE);
 	if (IS_ERR(ring)) {
 		ret = PTR_ERR(ring);
@@ -2036,7 +2048,8 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 			goto error;
 	}
 
-	ret = intel_ring_pin(ring);
+	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
+	ret = intel_ring_pin(ring, 4096);
 	if (ret) {
 		intel_ring_free(ring);
 		goto error;
@@ -2077,8 +2090,6 @@ void intel_engine_cleanup(struct intel_engine_cs *engine)
 
 	intel_engine_cleanup_common(engine);
 
-	intel_ring_context_unpin(dev_priv->kernel_context, engine);
-
 	engine->i915 = NULL;
 	dev_priv->engine[engine->id] = NULL;
 	kfree(engine);
@@ -2095,9 +2106,11 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
 	}
 }
 
-int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
+static int ring_request_alloc(struct drm_i915_gem_request *request)
 {
 	int ret;
+
+	GEM_BUG_ON(!request->ctx->engine[request->engine->id].pin_count);
 
 	/* Flush enough space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just
@@ -2105,6 +2118,7 @@ int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request)
 	 */
 	request->reserved_space += LEGACY_REQUEST_SIZE;
 
+	GEM_BUG_ON(!request->engine->buffer);
 	request->ring = request->engine->buffer;
 
 	ret = intel_ring_begin(request, 0);
@@ -2452,7 +2466,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore) {
 		struct i915_vma *vma;
 
-		obj = i915_gem_object_create(&dev_priv->drm, 4096);
+		obj = i915_gem_object_create(dev_priv, 4096);
 		if (IS_ERR(obj))
 			goto err;
 
@@ -2584,6 +2598,11 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 	engine->init_hw = init_ring_common;
 	engine->reset_hw = reset_ring_common;
 
+	engine->context_pin = intel_ring_context_pin;
+	engine->context_unpin = intel_ring_context_unpin;
+
+	engine->request_alloc = ring_request_alloc;
+
 	engine->emit_breadcrumb = i9xx_emit_breadcrumb;
 	engine->emit_breadcrumb_sz = i9xx_emit_breadcrumb_sz;
 	if (i915.semaphores) {
@@ -2608,7 +2627,7 @@ static void intel_ring_default_vfuncs(struct drm_i915_private *dev_priv,
 		engine->emit_bb_start = gen6_emit_bb_start;
 	else if (INTEL_GEN(dev_priv) >= 4)
 		engine->emit_bb_start = i965_emit_bb_start;
-	else if (IS_I830(dev_priv) || IS_845G(dev_priv))
+	else if (IS_I830(dev_priv) || IS_I845G(dev_priv))
 		engine->emit_bb_start = i830_emit_bb_start;
 	else
 		engine->emit_bb_start = i915_emit_bb_start;

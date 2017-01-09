@@ -99,7 +99,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 			 u64 start, u64 end,
 			 unsigned flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(vm->dev);
+	struct drm_i915_private *dev_priv = vm->i915;
 	struct drm_mm_scan scan;
 	struct list_head eviction_list;
 	struct list_head *phases[] = {
@@ -111,7 +111,7 @@ i915_gem_evict_something(struct i915_address_space *vm,
 	struct drm_mm_node *node;
 	int ret;
 
-	lockdep_assert_held(&vm->dev->struct_mutex);
+	lockdep_assert_held(&vm->i915->drm.struct_mutex);
 	trace_i915_gem_evict(vm, min_size, alignment, flags);
 
 	/*
@@ -132,7 +132,14 @@ i915_gem_evict_something(struct i915_address_space *vm,
 				    start, end,
 				    flags & PIN_HIGH ? DRM_MM_CREATE_TOP : 0);
 
-	if (flags & PIN_NONBLOCK)
+	/* Retire before we search the active list. Although we have
+	 * reasonable accuracy in our retirement lists, we may have
+	 * a stray pin (preventing eviction) that can only be resolved by
+	 * retiring.
+	 */
+	if (!(flags & PIN_NONBLOCK))
+		i915_gem_retire_requests(dev_priv);
+	else
 		phases[1] = NULL;
 
 search_again:
@@ -165,7 +172,7 @@ search_again:
 		 * back to userspace to give our workqueues time to
 		 * acquire our locks and unpin the old scanouts.
 		 */
-		return intel_has_pending_fb_unpin(vm->dev) ? -EAGAIN : -ENOSPC;
+		return intel_has_pending_fb_unpin(dev_priv) ? -EAGAIN : -ENOSPC;
 	}
 
 	/* Not everything in the GGTT is tracked via vma (otherwise we
@@ -202,6 +209,7 @@ found:
 	}
 
 	/* Unbinding will emit any required flushes */
+	ret = 0;
 	while (!list_empty(&eviction_list)) {
 		vma = list_first_entry(&eviction_list,
 				       struct i915_vma,
@@ -221,45 +229,107 @@ found:
 	return ret;
 }
 
-int
-i915_gem_evict_for_vma(struct i915_vma *target)
+/**
+ * i915_gem_evict_for_vma - Evict vmas to make room for binding a new one
+ * @target: address space and range to evict for
+ * @flags: additional flags to control the eviction algorithm
+ *
+ * This function will try to evict vmas that overlap the target node.
+ *
+ * To clarify: This is for freeing up virtual address space, not for freeing
+ * memory in e.g. the shrinker.
+ */
+int i915_gem_evict_for_vma(struct i915_vma *target, unsigned int flags)
 {
-	struct drm_mm_node *node, *next;
+	LIST_HEAD(eviction_list);
+	struct drm_mm_node *node;
+	u64 start = target->node.start;
+	u64 end = start + target->node.size;
+	struct i915_vma *vma, *next;
+	bool check_color;
+	int ret = 0;
 
-	lockdep_assert_held(&target->vm->dev->struct_mutex);
+	lockdep_assert_held(&target->vm->i915->drm.struct_mutex);
+	trace_i915_gem_evict_vma(target, flags);
 
-	list_for_each_entry_safe(node, next,
-			&target->vm->mm.head_node.node_list,
-			node_list) {
-		struct i915_vma *vma;
-		int ret;
+	/* Retire before we search the active list. Although we have
+	 * reasonable accuracy in our retirement lists, we may have
+	 * a stray pin (preventing eviction) that can only be resolved by
+	 * retiring.
+	 */
+	if (!(flags & PIN_NONBLOCK))
+		i915_gem_retire_requests(target->vm->i915);
 
-		if (node->start + node->size <= target->node.start)
-			continue;
-		if (node->start >= target->node.start + target->node.size)
+	check_color = target->vm->mm.color_adjust;
+	if (check_color) {
+		/* Expand search to cover neighbouring guard pages (or lack!) */
+		if (start > target->vm->start)
+			start -= 4096;
+		if (end < target->vm->start + target->vm->total)
+			end += 4096;
+	}
+
+	drm_mm_for_each_node_in_range(node, &target->vm->mm, start, end) {
+		/* If we find any non-objects (!vma), we cannot evict them */
+		if (node->color == I915_COLOR_UNEVICTABLE) {
+			ret = -ENOSPC;
 			break;
+		}
 
 		vma = container_of(node, typeof(*vma), node);
 
-		if (i915_vma_is_pinned(vma)) {
-			if (!vma->exec_entry || i915_vma_pin_count(vma) > 1)
-				/* Object is pinned for some other use */
-				return -EBUSY;
-
-			/* We need to evict a buffer in the same batch */
-			if (vma->exec_entry->flags & EXEC_OBJECT_PINNED)
-				/* Overlapping fixed objects in the same batch */
-				return -EINVAL;
-
-			return -ENOSPC;
+		/* If we are using coloring to insert guard pages between
+		 * different cache domains within the address space, we have
+		 * to check whether the objects on either side of our range
+		 * abutt and conflict. If they are in conflict, then we evict
+		 * those as well to make room for our guard pages.
+		 */
+		if (check_color) {
+			if (vma->node.start + vma->node.size == target->node.start) {
+				if (vma->node.color == target->node.color)
+					continue;
+			}
+			if (vma->node.start == target->node.start + target->node.size) {
+				if (vma->node.color == target->node.color)
+					continue;
+			}
 		}
 
-		ret = i915_vma_unbind(vma);
-		if (ret)
-			return ret;
+		if (flags & PIN_NONBLOCK &&
+		    (i915_vma_is_pinned(vma) || i915_vma_is_active(vma))) {
+			ret = -ENOSPC;
+			break;
+		}
+
+		/* Overlap of objects in the same batch? */
+		if (i915_vma_is_pinned(vma)) {
+			ret = -ENOSPC;
+			if (vma->exec_entry &&
+			    vma->exec_entry->flags & EXEC_OBJECT_PINNED)
+				ret = -EINVAL;
+			break;
+		}
+
+		/* Never show fear in the face of dragons!
+		 *
+		 * We cannot directly remove this node from within this
+		 * iterator and as with i915_gem_evict_something() we employ
+		 * the vma pin_count in order to prevent the action of
+		 * unbinding one vma from freeing (by dropping its active
+		 * reference) another in our eviction list.
+		 */
+		__i915_vma_pin(vma);
+		list_add(&vma->exec_list, &eviction_list);
 	}
 
-	return 0;
+	list_for_each_entry_safe(vma, next, &eviction_list, exec_list) {
+		list_del_init(&vma->exec_list);
+		__i915_vma_unpin(vma);
+		if (ret == 0)
+			ret = i915_vma_unbind(vma);
+	}
+
+	return ret;
 }
 
 /**
@@ -281,11 +351,11 @@ int i915_gem_evict_vm(struct i915_address_space *vm, bool do_idle)
 	struct i915_vma *vma, *next;
 	int ret;
 
-	lockdep_assert_held(&vm->dev->struct_mutex);
+	lockdep_assert_held(&vm->i915->drm.struct_mutex);
 	trace_i915_gem_evict_vm(vm);
 
 	if (do_idle) {
-		struct drm_i915_private *dev_priv = to_i915(vm->dev);
+		struct drm_i915_private *dev_priv = vm->i915;
 
 		if (i915_is_ggtt(vm)) {
 			ret = i915_gem_switch_to_kernel_context(dev_priv);

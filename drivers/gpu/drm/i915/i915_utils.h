@@ -22,17 +22,43 @@
  *
  */
 
-#ifndef __I915_GEM_H__
-#define __I915_GEM_H__
+#ifndef __I915_UTILS_H
+#define __I915_UTILS_H
 
-#ifdef CONFIG_DRM_I915_DEBUG_GEM
-#define GEM_BUG_ON(expr) BUG_ON(expr)
-#define GEM_WARN_ON(expr) WARN_ON(expr)
-#else
-#define GEM_BUG_ON(expr) BUILD_BUG_ON_INVALID(expr)
-#define GEM_WARN_ON(expr) (BUILD_BUG_ON_INVALID(expr), 0)
-#endif
+#define range_overflows(start, size, max) ({ \
+	typeof(start) start__ = (start); \
+	typeof(size) size__ = (size); \
+	typeof(max) max__ = (max); \
+	(void)(&start__ == &size__); \
+	(void)(&start__ == &max__); \
+	start__ > max__ || size__ > max__ - start__; \
+})
 
-#define I915_NUM_ENGINES 5
+#define range_overflows_t(type, start, size, max) \
+	range_overflows((type)(start), (type)(size), (type)(max))
 
-#endif /* __I915_GEM_H__ */
+/* Note we don't consider signbits :| */
+#define overflows_type(x, T) \
+	(sizeof(x) > sizeof(T) && (x) >> (sizeof(T) * BITS_PER_BYTE))
+
+#define ptr_mask_bits(ptr) ({						\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(typeof(ptr))(__v & PAGE_MASK);					\
+})
+
+#define ptr_unpack_bits(ptr, bits) ({					\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(bits) = __v & ~PAGE_MASK;					\
+	(typeof(ptr))(__v & PAGE_MASK);					\
+})
+
+#define ptr_pack_bits(ptr, bits)					\
+	((typeof(ptr))((unsigned long)(ptr) | (bits)))
+
+#define fetch_and_zero(ptr) ({						\
+	typeof(*ptr) __T = *(ptr);					\
+	*(ptr) = (typeof(*ptr))0;					\
+	__T;								\
+})
+
+#endif /* !__I915_UTILS_H */

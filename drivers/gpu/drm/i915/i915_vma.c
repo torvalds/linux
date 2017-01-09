@@ -95,8 +95,13 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 	if (view) {
 		vma->ggtt_view = *view;
 		if (view->type == I915_GGTT_VIEW_PARTIAL) {
+			GEM_BUG_ON(range_overflows_t(u64,
+						     view->params.partial.offset,
+						     view->params.partial.size,
+						     obj->base.size >> PAGE_SHIFT));
 			vma->size = view->params.partial.size;
 			vma->size <<= PAGE_SHIFT;
+			GEM_BUG_ON(vma->size >= obj->base.size);
 		} else if (view->type == I915_GGTT_VIEW_ROTATED) {
 			vma->size =
 				intel_rotation_info_size(&view->params.rotated);
@@ -176,6 +181,11 @@ int i915_vma_bind(struct i915_vma *vma, enum i915_cache_level cache_level,
 	if (bind_flags == 0)
 		return 0;
 
+	if (GEM_WARN_ON(range_overflows(vma->node.start,
+					vma->node.size,
+					vma->vm->total)))
+		return -ENODEV;
+
 	if (vma_flags == 0 && vma->vm->allocate_va_range) {
 		trace_i915_va_alloc(vma);
 		ret = vma->vm->allocate_va_range(vma->vm,
@@ -198,9 +208,9 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	void __iomem *ptr;
 
 	/* Access through the GTT requires the device to be awake. */
-	assert_rpm_wakelock_held(to_i915(vma->vm->dev));
+	assert_rpm_wakelock_held(vma->vm->i915);
 
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 	if (WARN_ON(!i915_vma_is_map_and_fenceable(vma)))
 		return IO_ERR_PTR(-ENODEV);
 
@@ -297,10 +307,14 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 		vma->flags &= ~I915_VMA_CAN_FENCE;
 }
 
-bool i915_gem_valid_gtt_space(struct i915_vma *vma,
-			      unsigned long cache_level)
+static bool color_differs(struct drm_mm_node *node, unsigned long color)
 {
-	struct drm_mm_node *gtt_space = &vma->node;
+	return node->allocated && node->color != color;
+}
+
+bool i915_gem_valid_gtt_space(struct i915_vma *vma, unsigned long cache_level)
+{
+	struct drm_mm_node *node = &vma->node;
 	struct drm_mm_node *other;
 
 	/*
@@ -313,18 +327,16 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 	if (vma->vm->mm.color_adjust == NULL)
 		return true;
 
-	if (!drm_mm_node_allocated(gtt_space))
-		return true;
+	/* Only valid to be called on an already inserted vma */
+	GEM_BUG_ON(!drm_mm_node_allocated(node));
+	GEM_BUG_ON(list_empty(&node->node_list));
 
-	if (list_empty(&gtt_space->node_list))
-		return true;
-
-	other = list_entry(gtt_space->node_list.prev, struct drm_mm_node, node_list);
-	if (other->allocated && !drm_mm_hole_follows(other) && other->color != cache_level)
+	other = list_prev_entry(node, node_list);
+	if (color_differs(other, cache_level) && !drm_mm_hole_follows(other))
 		return false;
 
-	other = list_entry(gtt_space->node_list.next, struct drm_mm_node, node_list);
-	if (other->allocated && !drm_mm_hole_follows(gtt_space) && other->color != cache_level)
+	other = list_next_entry(node, node_list);
+	if (color_differs(other, cache_level) && !drm_mm_hole_follows(node))
 		return false;
 
 	return true;
@@ -347,7 +359,7 @@ bool i915_gem_valid_gtt_space(struct i915_vma *vma,
 static int
 i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 {
-	struct drm_i915_private *dev_priv = to_i915(vma->vm->dev);
+	struct drm_i915_private *dev_priv = vma->vm->i915;
 	struct drm_i915_gem_object *obj = vma->obj;
 	u64 start, end;
 	int ret;
@@ -391,7 +403,8 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 
 	if (flags & PIN_OFFSET_FIXED) {
 		u64 offset = flags & PIN_OFFSET_MASK;
-		if (offset & (alignment - 1) || offset > end - size) {
+		if (offset & (alignment - 1) ||
+		    range_overflows(offset, size, end)) {
 			ret = -EINVAL;
 			goto err_unpin;
 		}
@@ -401,7 +414,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		vma->node.color = obj->cache_level;
 		ret = drm_mm_reserve_node(&vma->vm->mm, &vma->node);
 		if (ret) {
-			ret = i915_gem_evict_for_vma(vma);
+			ret = i915_gem_evict_for_vma(vma, flags);
 			if (ret == 0)
 				ret = drm_mm_reserve_node(&vma->vm->mm, &vma->node);
 			if (ret)
@@ -469,7 +482,7 @@ int __i915_vma_do_pin(struct i915_vma *vma,
 	unsigned int bound = vma->flags;
 	int ret;
 
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->vm->i915->drm.struct_mutex);
 	GEM_BUG_ON((flags & (PIN_GLOBAL | PIN_USER)) == 0);
 	GEM_BUG_ON((flags & PIN_GLOBAL) && !i915_vma_is_ggtt(vma));
 
@@ -567,7 +580,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 
 		for_each_active(active, idx) {
 			ret = i915_gem_active_retire(&vma->last_read[idx],
-						   &vma->vm->dev->struct_mutex);
+						     &vma->vm->i915->drm.struct_mutex);
 			if (ret)
 				break;
 		}
@@ -628,6 +641,7 @@ int i915_vma_unbind(struct i915_vma *vma)
 	 * reaped by the shrinker.
 	 */
 	i915_gem_object_unpin_pages(obj);
+	GEM_BUG_ON(atomic_read(&obj->mm.pages_pin_count) < obj->bind_count);
 
 destroy:
 	if (unlikely(i915_vma_is_closed(vma)))

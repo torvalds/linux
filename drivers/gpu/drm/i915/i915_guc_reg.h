@@ -73,6 +73,9 @@
 #define   GUC_WOPCM_TOP			  (0x80 << 12)	/* 512KB */
 #define   BXT_GUC_WOPCM_RC6_RESERVED	  (0x10 << 12)	/* 64KB  */
 
+/* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
+#define GUC_GGTT_TOP			0xFEE00000
+
 #define GEN8_GT_PM_CONFIG		_MMIO(0x138140)
 #define GEN9LP_GT_PM_CONFIG		_MMIO(0x138140)
 #define GEN9_GT_PM_CONFIG		_MMIO(0x13816c)
@@ -100,8 +103,8 @@
 				 GUC_ENABLE_READ_CACHE_FOR_WOPCM_DATA	| \
 				 GUC_ENABLE_MIA_CLOCK_GATING)
 
-#define HOST2GUC_INTERRUPT		_MMIO(0xc4c8)
-#define   HOST2GUC_TRIGGER		  (1<<0)
+#define GUC_SEND_INTERRUPT		_MMIO(0xc4c8)
+#define   GUC_SEND_TRIGGER		  (1<<0)
 
 #define GEN8_DRBREGL(x)			_MMIO(0x1000 + (x) * 8)
 #define   GEN8_DRB_VALID		  (1<<0)

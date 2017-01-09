@@ -178,15 +178,23 @@ static inline void i915_vma_put(struct i915_vma *vma)
 	i915_gem_object_put(vma->obj);
 }
 
+static __always_inline ptrdiff_t ptrdiff(const void *a, const void *b)
+{
+	return a - b;
+}
+
 static inline long
 i915_vma_compare(struct i915_vma *vma,
 		 struct i915_address_space *vm,
 		 const struct i915_ggtt_view *view)
 {
+	ptrdiff_t cmp;
+
 	GEM_BUG_ON(view && !i915_is_ggtt(vm));
 
-	if (vma->vm != vm)
-		return vma->vm - vm;
+	cmp = ptrdiff(vma->vm, vm);
+	if (cmp)
+		return cmp;
 
 	if (!view)
 		return vma->ggtt_view.type;
@@ -282,7 +290,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma);
  */
 static inline void i915_vma_unpin_iomap(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
 	GEM_BUG_ON(vma->iomap == NULL);
 	i915_vma_unpin(vma);
 }
@@ -311,7 +319,7 @@ static inline struct page *i915_vma_first_page(struct i915_vma *vma)
 static inline bool
 i915_vma_pin_fence(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
 	if (vma->fence) {
 		vma->fence->pin_count++;
 		return true;
@@ -330,7 +338,7 @@ i915_vma_pin_fence(struct i915_vma *vma)
 static inline void
 i915_vma_unpin_fence(struct i915_vma *vma)
 {
-	lockdep_assert_held(&vma->vm->dev->struct_mutex);
+	lockdep_assert_held(&vma->obj->base.dev->struct_mutex);
 	if (vma->fence) {
 		GEM_BUG_ON(vma->fence->pin_count <= 0);
 		vma->fence->pin_count--;
