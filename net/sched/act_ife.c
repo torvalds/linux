@@ -736,12 +736,11 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 	u16 metalen = ife_get_sz(skb, ife);
 	int hdrm = metalen + skb->dev->hard_header_len + IFE_METAHDRLEN;
 	unsigned int skboff = skb->dev->hard_header_len;
-	u32 at = G_TC_AT(skb->tc_verd);
 	int new_len = skb->len + hdrm;
 	bool exceed_mtu = false;
 	int err;
 
-	if (at & AT_EGRESS) {
+	if (!skb_at_tc_ingress(skb)) {
 		if (new_len > skb->dev->mtu)
 			exceed_mtu = true;
 	}
@@ -773,7 +772,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 		return TC_ACT_SHOT;
 	}
 
-	if (!(at & AT_EGRESS))
+	if (skb_at_tc_ingress(skb))
 		skb_push(skb, skb->dev->hard_header_len);
 
 	iethh = (struct ethhdr *)skb->data;
@@ -816,7 +815,7 @@ static int tcf_ife_encode(struct sk_buff *skb, const struct tc_action *a,
 		ether_addr_copy(oethh->h_dest, iethh->h_dest);
 	oethh->h_proto = htons(ife->eth_type);
 
-	if (!(at & AT_EGRESS))
+	if (skb_at_tc_ingress(skb))
 		skb_pull(skb, skb->dev->hard_header_len);
 
 	spin_unlock(&ife->tcf_lock);

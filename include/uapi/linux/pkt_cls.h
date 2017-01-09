@@ -4,61 +4,6 @@
 #include <linux/types.h>
 #include <linux/pkt_sched.h>
 
-#ifdef __KERNEL__
-/* I think i could have done better macros ; for now this is stolen from
- * some arch/mips code - jhs
-*/
-#define _TC_MAKE32(x) ((x))
-
-#define _TC_MAKEMASK1(n) (_TC_MAKE32(1) << _TC_MAKE32(n))
-#define _TC_MAKEMASK(v,n) (_TC_MAKE32((_TC_MAKE32(1)<<(v))-1) << _TC_MAKE32(n))
-#define _TC_MAKEVALUE(v,n) (_TC_MAKE32(v) << _TC_MAKE32(n))
-#define _TC_GETVALUE(v,n,m) ((_TC_MAKE32(v) & _TC_MAKE32(m)) >> _TC_MAKE32(n))
-
-/* verdict bit breakdown 
- *
-bit 0: when set -> this packet has been munged already
-
-bit 1: when set -> It is ok to munge this packet
-
-bit 2,3,4,5: Reclassify counter - sort of reverse TTL - if exceeded
-assume loop
-
-bit 6,7: Where this packet was last seen 
-0: Above the transmit example at the socket level
-1: on the Ingress
-2: on the Egress
-
-bit 8: when set --> Request not to classify on ingress. 
-
-bits 9,10,11: redirect counter -  redirect TTL. Loop avoidance
-
- *
- * */
-
-#define S_TC_FROM          _TC_MAKE32(6)
-#define M_TC_FROM          _TC_MAKEMASK(2,S_TC_FROM)
-#define G_TC_FROM(x)       _TC_GETVALUE(x,S_TC_FROM,M_TC_FROM)
-#define V_TC_FROM(x)       _TC_MAKEVALUE(x,S_TC_FROM)
-#define SET_TC_FROM(v,n)   ((V_TC_FROM(n)) | (v & ~M_TC_FROM))
-#define AT_STACK	0x0
-#define AT_INGRESS	0x1
-#define AT_EGRESS	0x2
-
-#define TC_NCLS          _TC_MAKEMASK1(8)
-#define SET_TC_NCLS(v)   ( TC_NCLS | (v & ~TC_NCLS))
-#define CLR_TC_NCLS(v)   ( v & ~TC_NCLS)
-
-#define S_TC_AT          _TC_MAKE32(12)
-#define M_TC_AT          _TC_MAKEMASK(2,S_TC_AT)
-#define G_TC_AT(x)       _TC_GETVALUE(x,S_TC_AT,M_TC_AT)
-#define V_TC_AT(x)       _TC_MAKEVALUE(x,S_TC_AT)
-#define SET_TC_AT(v,n)   ((V_TC_AT(n)) | (v & ~M_TC_AT))
-
-#define MAX_REC_LOOP 4
-#define MAX_RED_LOOP 4
-#endif
-
 /* Action attributes */
 enum {
 	TCA_ACT_UNSPEC,
