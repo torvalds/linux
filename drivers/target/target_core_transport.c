@@ -2452,7 +2452,8 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 		target_execute_cmd(cmd);
 		return 0;
 	}
-	transport_cmd_check_stop(cmd, false, true);
+	if (transport_cmd_check_stop(cmd, false, true))
+		return 0;
 
 	ret = cmd->se_tfo->write_pending(cmd);
 	if (ret == -EAGAIN || ret == -ENOMEM)
