@@ -470,7 +470,7 @@ err:
 		clk_disable_unprepare(ctx->clks[i]);
 }
 
-static struct exynos_drm_crtc_ops decon_crtc_ops = {
+static const struct exynos_drm_crtc_ops decon_crtc_ops = {
 	.enable			= decon_enable,
 	.disable		= decon_disable,
 	.enable_vblank		= decon_enable_vblank,
