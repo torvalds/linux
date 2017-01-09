@@ -639,26 +639,23 @@ void xfrm_sad_getinfo(struct net *net, struct xfrmk_sadinfo *si)
 }
 EXPORT_SYMBOL(xfrm_sad_getinfo);
 
-static int
+static void
 xfrm_init_tempstate(struct xfrm_state *x, const struct flowi *fl,
 		    const struct xfrm_tmpl *tmpl,
 		    const xfrm_address_t *daddr, const xfrm_address_t *saddr,
 		    unsigned short family)
 {
-	struct xfrm_state_afinfo *afinfo = xfrm_state_get_afinfo(family);
-	if (!afinfo)
-		return -1;
-	afinfo->init_tempsel(&x->sel, fl);
+	struct xfrm_state_afinfo *afinfo = xfrm_state_afinfo_get_rcu(family);
+
+	if (afinfo)
+		afinfo->init_tempsel(&x->sel, fl);
 
 	if (family != tmpl->encap_family) {
-		rcu_read_unlock();
-		afinfo = xfrm_state_get_afinfo(tmpl->encap_family);
+		afinfo = xfrm_state_afinfo_get_rcu(tmpl->encap_family);
 		if (!afinfo)
-			return -1;
+			return;
 	}
 	afinfo->init_temprop(x, tmpl, daddr, saddr);
-	rcu_read_unlock();
-	return 0;
 }
 
 static struct xfrm_state *__xfrm_state_lookup(struct net *net, u32 mark,
@@ -1965,6 +1962,14 @@ int xfrm_state_unregister_afinfo(struct xfrm_state_afinfo *afinfo)
 	return err;
 }
 EXPORT_SYMBOL(xfrm_state_unregister_afinfo);
+
+struct xfrm_state_afinfo *xfrm_state_afinfo_get_rcu(unsigned int family)
+{
+	if (unlikely(family >= NPROTO))
+		return NULL;
+
+	return rcu_dereference(xfrm_state_afinfo[family]);
+}
 
 struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family)
 {
