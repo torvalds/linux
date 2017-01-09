@@ -339,7 +339,7 @@ static u32 guc_wopcm_size(struct drm_i915_private *dev_priv)
 	u32 wopcm_size = GUC_WOPCM_TOP;
 
 	/* On BXT, the top of WOPCM is reserved for RC6 context */
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		wopcm_size -= BXT_GUC_WOPCM_RC6_RESERVED;
 
 	return wopcm_size;
@@ -388,7 +388,7 @@ static int guc_ucode_xfer(struct drm_i915_private *dev_priv)
 	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_B0))
 		I915_WRITE(GEN6_GFXPAUSE, 0x30FFF);
 
-	if (IS_BROXTON(dev_priv))
+	if (IS_GEN9_LP(dev_priv))
 		I915_WRITE(GEN9LP_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 	else
 		I915_WRITE(GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
