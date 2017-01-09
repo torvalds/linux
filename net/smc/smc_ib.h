@@ -32,9 +32,14 @@ struct smc_ib_device {				/* ib-device infos for smc */
 	u8			initialized : 1; /* ib dev CQ, evthdl done */
 };
 
+struct smc_buf_desc;
+
 int smc_ib_register_client(void) __init;
 void smc_ib_unregister_client(void);
 bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport);
 int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport);
+int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
+		   struct smc_buf_desc *buf_slot,
+		   enum dma_data_direction data_direction);
 
 #endif

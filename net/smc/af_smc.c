@@ -249,6 +249,8 @@ static void smc_conn_save_peer_info(struct smc_sock *smc,
 				    struct smc_clc_msg_accept_confirm *clc)
 {
 	smc->conn.peer_conn_idx = clc->conn_idx;
+	smc->conn.peer_rmbe_size = smc_uncompress_bufsize(clc->rmbe_size);
+	atomic_set(&smc->conn.peer_rmbe_space, smc->conn.peer_rmbe_size);
 }
 
 static void smc_link_save_peer_info(struct smc_link *link,
@@ -323,6 +325,18 @@ static int smc_connect_rdma(struct smc_sock *smc)
 	link = &smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
 	smc_conn_save_peer_info(smc, &aclc);
+
+	rc = smc_sndbuf_create(smc);
+	if (rc) {
+		reason_code = SMC_CLC_DECL_MEM;
+		goto decline_rdma_unlock;
+	}
+	rc = smc_rmb_create(smc);
+	if (rc) {
+		reason_code = SMC_CLC_DECL_MEM;
+		goto decline_rdma_unlock;
+	}
+
 	if (local_contact == SMC_FIRST_CONTACT)
 		smc_link_save_peer_info(link, &aclc);
 	/* tbd in follow-on patch: more steps to setup RDMA communcication,
@@ -598,9 +612,16 @@ static void smc_listen_work(struct work_struct *work)
 	}
 	link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
-	/* tbd in follow-on patch: more steps to setup RDMA communcication,
-	 * create rmbs, map rmbs
-	 */
+	rc = smc_sndbuf_create(new_smc);
+	if (rc) {
+		reason_code = SMC_CLC_DECL_MEM;
+		goto decline_rdma;
+	}
+	rc = smc_rmb_create(new_smc);
+	if (rc) {
+		reason_code = SMC_CLC_DECL_MEM;
+		goto decline_rdma;
+	}
 
 	rc = smc_clc_send_accept(new_smc, local_contact);
 	if (rc)
@@ -1047,6 +1068,8 @@ static int smc_create(struct net *net, struct socket *sock, int protocol,
 			      IPPROTO_TCP, &smc->clcsock);
 	if (rc)
 		sk_common_release(sk);
+	smc->sk.sk_sndbuf = max(smc->clcsock->sk->sk_sndbuf, SMC_BUF_MIN_SIZE);
+	smc->sk.sk_rcvbuf = max(smc->clcsock->sk->sk_rcvbuf, SMC_BUF_MIN_SIZE);
 
 out:
 	return rc;

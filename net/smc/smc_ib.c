@@ -16,6 +16,7 @@
 
 #include "smc_pnet.h"
 #include "smc_ib.h"
+#include "smc_core.h"
 #include "smc.h"
 
 struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
@@ -28,6 +29,24 @@ struct smc_ib_devices smc_ib_devices = {	/* smc-registered ib devices */
 u8 local_systemid[SMC_SYSTEMID_LEN] = SMC_LOCAL_SYSTEMID_RESET;	/* unique system
 								 * identifier
 								 */
+
+/* map a new TX or RX buffer to DMA */
+int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
+		   struct smc_buf_desc *buf_slot,
+		   enum dma_data_direction data_direction)
+{
+	int rc = 0;
+
+	if (buf_slot->dma_addr[SMC_SINGLE_LINK])
+		return rc; /* already mapped */
+	buf_slot->dma_addr[SMC_SINGLE_LINK] =
+		ib_dma_map_single(smcibdev->ibdev, buf_slot->cpu_addr,
+				  buf_size, data_direction);
+	if (ib_dma_mapping_error(smcibdev->ibdev,
+				 buf_slot->dma_addr[SMC_SINGLE_LINK]))
+		rc = -EIO;
+	return rc;
+}
 
 static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {

@@ -252,13 +252,13 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 	       SMC_GID_SIZE);
 	memcpy(&aclc.lcl.mac, link->smcibdev->mac[link->ibport - 1],
 	       sizeof(link->smcibdev->mac[link->ibport - 1]));
-
-	/* tbd in follow-on patch: fill in rmb-related values */
-
 	hton24(aclc.qpn, link->roce_qp->qp_num);
 	aclc.conn_idx = 1;			/* as long as 1 RMB = 1 RMBE */
 	aclc.rmbe_alert_token = htonl(conn->alert_token_local);
 	aclc.qp_mtu = link->path_mtu;
+	aclc.rmbe_size = conn->rmbe_size_short,
+	aclc.rmb_dma_addr =
+		cpu_to_be64((u64)conn->rmb_desc->dma_addr[SMC_SINGLE_LINK]);
 	hton24(aclc.psn, link->psn_initial);
 	memcpy(aclc.trl.eyecatcher, SMC_EYECATCHER, sizeof(SMC_EYECATCHER));
 

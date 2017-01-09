@@ -16,6 +16,8 @@
 #include "smc.h"
 #include "smc_ib.h"
 
+#define SMC_RMBS_PER_LGR_MAX	255	/* max. # of RMBs per link group */
+
 struct smc_lgr_list {			/* list of link group definition */
 	struct list_head	list;
 	spinlock_t		lock;	/* protects list of link groups */
@@ -52,6 +54,15 @@ struct smc_link {
 #define SMC_FIRST_CONTACT	1		/* first contact to a peer */
 #define SMC_REUSE_CONTACT	0		/* follow-on contact to a peer*/
 
+/* tx/rx buffer list element for sndbufs list and rmbs list of a lgr */
+struct smc_buf_desc {
+	struct list_head	list;
+	u64			dma_addr[SMC_LINKS_PER_LGR_MAX];
+						/* mapped address of buffer */
+	void			*cpu_addr;	/* virtual address of buffer */
+	u32			used;		/* currently used / unused */
+};
+
 struct smc_link_group {
 	struct list_head	list;
 	enum smc_lgr_role	role;		/* client or server */
@@ -63,6 +74,11 @@ struct smc_link_group {
 	rwlock_t		conns_lock;	/* protects conns_all */
 	unsigned int		conns_num;	/* current # of connections */
 	unsigned short		vlan_id;	/* vlan id of link group */
+
+	struct list_head	sndbufs[SMC_RMBE_SIZES];/* tx buffers */
+	rwlock_t		sndbufs_lock;	/* protects tx buffers */
+	struct list_head	rmbs[SMC_RMBE_SIZES];	/* rx buffers */
+	rwlock_t		rmbs_lock;	/* protects rx buffers */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
 	bool			sync_err;	/* lgr no longer fits to peer */
 };
@@ -100,7 +116,12 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	return res;
 }
 
+struct smc_sock;
+struct smc_clc_msg_accept_confirm;
+
 void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
+int smc_sndbuf_create(struct smc_sock *smc);
+int smc_rmb_create(struct smc_sock *smc);
 
 #endif
