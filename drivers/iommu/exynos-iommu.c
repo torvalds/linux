@@ -1253,7 +1253,7 @@ static int exynos_iommu_of_xlate(struct device *dev,
 {
 	struct exynos_iommu_owner *owner = dev->archdata.iommu;
 	struct platform_device *sysmmu = of_find_device_by_node(spec->np);
-	struct sysmmu_drvdata *data;
+	struct sysmmu_drvdata *data, *entry;
 
 	if (!sysmmu)
 		return -ENODEV;
@@ -1271,6 +1271,10 @@ static int exynos_iommu_of_xlate(struct device *dev,
 		mutex_init(&owner->rpm_lock);
 		dev->archdata.iommu = owner;
 	}
+
+	list_for_each_entry(entry, &owner->controllers, owner_node)
+		if (entry == data)
+			return 0;
 
 	list_add_tail(&data->owner_node, &owner->controllers);
 	data->master = dev;
