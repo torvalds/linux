@@ -132,6 +132,14 @@
 	};
 };
 
+&u2phy0 {
+	rockchip,u2phy-tuning;
+};
+
+&u2phy1 {
+	rockchip,u2phy-tuning;
+};
+
 /*
  * if your hardware board have two typec port, you should define
  * fusb1 and tcphy1, such as:

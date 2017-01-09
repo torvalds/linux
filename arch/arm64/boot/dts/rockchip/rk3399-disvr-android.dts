@@ -641,6 +641,7 @@
 &u2phy0 {
 	extcon = <&fusb0>;
 	status = "okay";
+	rockchip,u2phy-tuning;
 
 	u2phy0_otg: otg-port {
 		status = "okay";
@@ -654,6 +655,7 @@
 
 &u2phy1 {
 	status = "okay";
+	rockchip,u2phy-tuning;
 
 	u2phy1_otg: otg-port {
 		status = "okay";
