@@ -35,7 +35,6 @@ struct fscrypt_ctx {
 		struct list_head free_list;	/* Free list */
 	};
 	u8 flags;				/* Flags */
-	u8 mode;				/* Encryption mode for tfm */
 };
 
 /**
@@ -86,8 +85,8 @@ struct fscrypt_name {
  */
 struct fscrypt_operations {
 	unsigned int flags;
+	const char *key_prefix;
 	int (*get_context)(struct inode *, void *, size_t);
-	int (*key_prefix)(struct inode *, u8 **);
 	int (*prepare_context)(struct inode *);
 	int (*set_context)(struct inode *, const void *, size_t, void *);
 	int (*dummy_context)(struct inode *);
@@ -174,11 +173,8 @@ extern struct page *fscrypt_encrypt_page(const struct inode *, struct page *,
 						u64, gfp_t);
 extern int fscrypt_decrypt_page(const struct inode *, struct page *, unsigned int,
 				unsigned int, u64);
-extern void fscrypt_decrypt_bio_pages(struct fscrypt_ctx *, struct bio *);
-extern void fscrypt_pullback_bio_page(struct page **, bool);
 extern void fscrypt_restore_control_page(struct page *);
-extern int fscrypt_zeroout_range(const struct inode *, pgoff_t, sector_t,
-						unsigned int);
+
 /* policy.c */
 extern int fscrypt_ioctl_set_policy(struct file *, const void __user *);
 extern int fscrypt_ioctl_get_policy(struct file *, void __user *);
@@ -201,6 +197,12 @@ extern int fscrypt_fname_disk_to_usr(struct inode *, u32, u32,
 			const struct fscrypt_str *, struct fscrypt_str *);
 extern int fscrypt_fname_usr_to_disk(struct inode *, const struct qstr *,
 			struct fscrypt_str *);
+
+/* bio.c */
+extern void fscrypt_decrypt_bio_pages(struct fscrypt_ctx *, struct bio *);
+extern void fscrypt_pullback_bio_page(struct page **, bool);
+extern int fscrypt_zeroout_range(const struct inode *, pgoff_t, sector_t,
+				 unsigned int);
 #endif
 
 /* crypto.c */
