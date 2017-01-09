@@ -3702,7 +3702,7 @@ static int ibmvscsis_write_pending(struct se_cmd *se_cmd)
 			       1, 1);
 	if (rc) {
 		pr_err("srp_transfer_data() failed: %d\n", rc);
-		return -EAGAIN;
+		return -EIO;
 	}
 	/*
 	 * We now tell TCM to add this WRITE CDB directly into the TCM storage
