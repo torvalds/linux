@@ -319,17 +319,17 @@ static int eco_led_set(struct led_classdev *cdev,
 
 static enum led_brightness logolamp_get(struct led_classdev *cdev)
 {
-	enum led_brightness brightness = LED_OFF;
-	int poweron, always;
+	int ret;
 
-	poweron = call_fext_func(FUNC_LEDS, 0x2, LOGOLAMP_POWERON, 0x0);
-	if (poweron == FUNC_LED_ON) {
-		brightness = LED_HALF;
-		always = call_fext_func(FUNC_LEDS, 0x2, LOGOLAMP_ALWAYS, 0x0);
-		if (always == FUNC_LED_ON)
-			brightness = LED_FULL;
-	}
-	return brightness;
+	ret = call_fext_func(FUNC_LEDS, 0x2, LOGOLAMP_ALWAYS, 0x0);
+	if (ret == FUNC_LED_ON)
+		return LED_FULL;
+
+	ret = call_fext_func(FUNC_LEDS, 0x2, LOGOLAMP_POWERON, 0x0);
+	if (ret == FUNC_LED_ON)
+		return LED_HALF;
+
+	return LED_OFF;
 }
 
 static enum led_brightness kblamps_get(struct led_classdev *cdev)
