@@ -489,6 +489,15 @@ struct smc_buf_desc *smc_rmb_get_slot(struct smc_link_group *lgr,
 	return NULL;
 }
 
+/* one of the conditions for announcing a receiver's current window size is
+ * that it "results in a minimum increase in the window size of 10% of the
+ * receive buffer space" [RFC7609]
+ */
+static inline int smc_rmb_wnd_update_limit(int rmbe_size)
+{
+	return min_t(int, rmbe_size / 10, SOCK_MIN_SNDBUF / 2);
+}
+
 /* create the tx buffer for an SMC socket */
 int smc_sndbuf_create(struct smc_sock *smc)
 {
@@ -620,6 +629,7 @@ int smc_rmb_create(struct smc_sock *smc)
 		conn->rmbe_size_short = tmp_bufsize_short;
 		smc->sk.sk_rcvbuf = tmp_bufsize * 2;
 		atomic_set(&conn->bytes_to_rcv, 0);
+		conn->rmbe_update_limit = smc_rmb_wnd_update_limit(tmp_bufsize);
 		return 0;
 	} else {
 		return -ENOMEM;

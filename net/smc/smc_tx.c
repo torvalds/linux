@@ -427,6 +427,43 @@ static void smc_tx_work(struct work_struct *work)
 	release_sock(&smc->sk);
 }
 
+void smc_tx_consumer_update(struct smc_connection *conn)
+{
+	union smc_host_cursor cfed, cons;
+	struct smc_cdc_tx_pend *pend;
+	struct smc_wr_buf *wr_buf;
+	int to_confirm, rc;
+
+	smc_curs_write(&cons,
+		       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
+		       conn);
+	smc_curs_write(&cfed,
+		       smc_curs_read(&conn->rx_curs_confirmed, conn),
+		       conn);
+	to_confirm = smc_curs_diff(conn->rmbe_size, &cfed, &cons);
+
+	if (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req ||
+	    ((to_confirm > conn->rmbe_update_limit) &&
+	     ((to_confirm > (conn->rmbe_size / 2)) ||
+	      conn->local_rx_ctrl.prod_flags.write_blocked))) {
+		rc = smc_cdc_get_free_slot(&conn->lgr->lnk[SMC_SINGLE_LINK],
+					   &wr_buf, &pend);
+		if (!rc)
+			rc = smc_cdc_msg_send(conn, wr_buf, pend);
+		if (rc < 0) {
+			schedule_work(&conn->tx_work);
+			return;
+		}
+		smc_curs_write(&conn->rx_curs_confirmed,
+			       smc_curs_read(&conn->local_tx_ctrl.cons, conn),
+			       conn);
+		conn->local_rx_ctrl.prod_flags.cons_curs_upd_req = 0;
+	}
+	if (conn->local_rx_ctrl.prod_flags.write_blocked &&
+	    !atomic_read(&conn->bytes_to_rcv))
+		conn->local_rx_ctrl.prod_flags.write_blocked = 0;
+}
+
 /***************************** send initialize *******************************/
 
 /* Initialize send properties on connection establishment. NB: not __init! */

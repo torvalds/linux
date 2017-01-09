@@ -15,6 +15,7 @@
 #include "smc_wr.h"
 #include "smc_cdc.h"
 #include "smc_tx.h"
+#include "smc_rx.h"
 
 /********************************** send *************************************/
 
@@ -197,6 +198,7 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		atomic_add(diff_prod, &conn->bytes_to_rcv);
 		/* guarantee 0 <= bytes_to_rcv <= rmbe_size */
 		smp_mb__after_atomic();
+		smc->sk.sk_data_ready(&smc->sk);
 	}
 
 	if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort)
@@ -216,7 +218,9 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		return;
 
 	/* data available */
-	/* subsequent patch: send delayed ack, wake receivers */
+	if ((conn->local_rx_ctrl.prod_flags.write_blocked) ||
+	    (conn->local_rx_ctrl.prod_flags.cons_curs_upd_req))
+		smc_tx_consumer_update(conn);
 }
 
 /* called under tasklet context */

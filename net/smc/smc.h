@@ -115,6 +115,10 @@ struct smc_connection {
 	struct smc_buf_desc	*rmb_desc;	/* RMBE descriptor */
 	int			rmbe_size;	/* RMBE size <== sock rmem */
 	int			rmbe_size_short;/* compressed notation */
+	int			rmbe_update_limit;
+						/* lower limit for consumer
+						 * cursor update
+						 */
 
 	struct smc_host_cdc_msg	local_tx_ctrl;	/* host byte order staging
 						 * buffer for CDC msg send

@@ -38,6 +38,7 @@
 #include "smc_ib.h"
 #include "smc_pnet.h"
 #include "smc_tx.h"
+#include "smc_rx.h"
 
 static DEFINE_MUTEX(smc_create_lgr_pending);	/* serialize link group
 						 * creation
@@ -412,6 +413,7 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	mutex_unlock(&smc_create_lgr_pending);
 	smc_tx_init(smc);
+	smc_rx_init(smc);
 
 out_connected:
 	smc_copy_sock_settings_to_clc(smc);
@@ -755,6 +757,7 @@ static void smc_listen_work(struct work_struct *work)
 	}
 
 	smc_tx_init(new_smc);
+	smc_rx_init(new_smc);
 
 out_connected:
 	sk_refcnt_debug_inc(newsmcsk);
@@ -950,7 +953,7 @@ static int smc_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (smc->use_fallback)
 		rc = smc->clcsock->ops->recvmsg(smc->clcsock, msg, len, flags);
 	else
-		rc = sock_no_recvmsg(sock, msg, len, flags);
+		rc = smc_rx_recvmsg(smc, msg, len, flags);
 out:
 	release_sock(sk);
 	return rc;
@@ -1016,6 +1019,8 @@ static unsigned int smc_poll(struct file *file, struct socket *sock,
 			sk_set_bit(SOCKWQ_ASYNC_NOSPACE, sk);
 			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 		}
+		if (atomic_read(&smc->conn.bytes_to_rcv))
+			mask |= POLLIN | POLLRDNORM;
 		/* for now - to be enhanced in follow-on patch */
 	}
 
