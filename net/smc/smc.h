@@ -16,6 +16,8 @@
 
 #define SMCPROTO_SMC		0	/* SMC protocol */
 
+#define SMC_MAX_PORTS		2	/* Max # of ports */
+
 enum smc_state {		/* possible states of an SMC socket */
 	SMC_ACTIVE	= 1,
 	SMC_INIT	= 2,
@@ -33,5 +35,9 @@ static inline struct smc_sock *smc_sk(const struct sock *sk)
 {
 	return (struct smc_sock *)sk;
 }
+
+#define SMC_SYSTEMID_LEN		8
+
+extern u8	local_systemid[SMC_SYSTEMID_LEN]; /* unique system identifier */
 
 #endif	/* __SMC_H */
