@@ -1268,6 +1268,8 @@ static inline int default_protocol_dgram(int protocol)
 
 static inline u16 socket_type_to_security_class(int family, int type, int protocol)
 {
+	int extsockclass = selinux_policycap_extsockclass;
+
 	switch (family) {
 	case PF_UNIX:
 		switch (type) {
@@ -1282,13 +1284,18 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 	case PF_INET6:
 		switch (type) {
 		case SOCK_STREAM:
+		case SOCK_SEQPACKET:
 			if (default_protocol_stream(protocol))
 				return SECCLASS_TCP_SOCKET;
+			else if (extsockclass && protocol == IPPROTO_SCTP)
+				return SECCLASS_SCTP_SOCKET;
 			else
 				return SECCLASS_RAWIP_SOCKET;
 		case SOCK_DGRAM:
 			if (default_protocol_dgram(protocol))
 				return SECCLASS_UDP_SOCKET;
+			else if (extsockclass && protocol == IPPROTO_ICMP)
+				return SECCLASS_ICMP_SOCKET;
 			else
 				return SECCLASS_RAWIP_SOCKET;
 		case SOCK_DCCP:
@@ -1340,6 +1347,72 @@ static inline u16 socket_type_to_security_class(int family, int type, int protoc
 		return SECCLASS_KEY_SOCKET;
 	case PF_APPLETALK:
 		return SECCLASS_APPLETALK_SOCKET;
+	}
+
+	if (extsockclass) {
+		switch (family) {
+		case PF_AX25:
+			return SECCLASS_AX25_SOCKET;
+		case PF_IPX:
+			return SECCLASS_IPX_SOCKET;
+		case PF_NETROM:
+			return SECCLASS_NETROM_SOCKET;
+		case PF_BRIDGE:
+			return SECCLASS_BRIDGE_SOCKET;
+		case PF_ATMPVC:
+			return SECCLASS_ATMPVC_SOCKET;
+		case PF_X25:
+			return SECCLASS_X25_SOCKET;
+		case PF_ROSE:
+			return SECCLASS_ROSE_SOCKET;
+		case PF_DECnet:
+			return SECCLASS_DECNET_SOCKET;
+		case PF_ATMSVC:
+			return SECCLASS_ATMSVC_SOCKET;
+		case PF_RDS:
+			return SECCLASS_RDS_SOCKET;
+		case PF_IRDA:
+			return SECCLASS_IRDA_SOCKET;
+		case PF_PPPOX:
+			return SECCLASS_PPPOX_SOCKET;
+		case PF_LLC:
+			return SECCLASS_LLC_SOCKET;
+		case PF_IB:
+			return SECCLASS_IB_SOCKET;
+		case PF_MPLS:
+			return SECCLASS_MPLS_SOCKET;
+		case PF_CAN:
+			return SECCLASS_CAN_SOCKET;
+		case PF_TIPC:
+			return SECCLASS_TIPC_SOCKET;
+		case PF_BLUETOOTH:
+			return SECCLASS_BLUETOOTH_SOCKET;
+		case PF_IUCV:
+			return SECCLASS_IUCV_SOCKET;
+		case PF_RXRPC:
+			return SECCLASS_RXRPC_SOCKET;
+		case PF_ISDN:
+			return SECCLASS_ISDN_SOCKET;
+		case PF_PHONET:
+			return SECCLASS_PHONET_SOCKET;
+		case PF_IEEE802154:
+			return SECCLASS_IEEE802154_SOCKET;
+		case PF_CAIF:
+			return SECCLASS_CAIF_SOCKET;
+		case PF_ALG:
+			return SECCLASS_ALG_SOCKET;
+		case PF_NFC:
+			return SECCLASS_NFC_SOCKET;
+		case PF_VSOCK:
+			return SECCLASS_VSOCK_SOCKET;
+		case PF_KCM:
+			return SECCLASS_KCM_SOCKET;
+		case PF_QIPCRTR:
+			return SECCLASS_QIPCRTR_SOCKET;
+#if PF_MAX > 43
+#error New address family defined, please update this function.
+#endif
+		}
 	}
 
 	return SECCLASS_SOCKET;

@@ -45,7 +45,7 @@
 static char *policycap_names[] = {
 	"network_peer_controls",
 	"open_perms",
-	"redhat1",
+	"extended_socket_class",
 	"always_check_network"
 };
 
