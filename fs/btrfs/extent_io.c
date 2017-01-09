@@ -226,6 +226,11 @@ static struct extent_state *alloc_extent_state(gfp_t mask)
 {
 	struct extent_state *state;
 
+	/*
+	 * The given mask might be not appropriate for the slab allocator,
+	 * drop the unsupported bits
+	 */
+	mask &= ~(__GFP_DMA32|__GFP_HIGHMEM);
 	state = kmem_cache_alloc(extent_state_cache, mask);
 	if (!state)
 		return state;
