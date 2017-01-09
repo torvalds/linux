@@ -83,7 +83,7 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 
 		wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 		/* Required by the SDM */
-		sync_core();
+		native_cpuid_eax(1);
 		rdmsr(MSR_IA32_UCODE_REV, lower_word, c->microcode);
 	}
 
