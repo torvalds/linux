@@ -55,8 +55,12 @@ enum ftr_type {
 #define FTR_SIGNED	true	/* Value should be treated as signed */
 #define FTR_UNSIGNED	false	/* Value should be treated as unsigned */
 
+#define FTR_VISIBLE	true	/* Feature visible to the user space */
+#define FTR_HIDDEN	false	/* Feature is hidden from the user */
+
 struct arm64_ftr_bits {
 	bool		sign;	/* Value is signed ? */
+	bool		visible;
 	bool		strict;	/* CPU Sanity check: strict matching required ? */
 	enum ftr_type	type;
 	u8		shift;
@@ -72,7 +76,9 @@ struct arm64_ftr_bits {
 struct arm64_ftr_reg {
 	const char			*name;
 	u64				strict_mask;
+	u64				user_mask;
 	u64				sys_val;
+	u64				user_val;
 	const struct arm64_ftr_bits	*ftr_bits;
 };
 
@@ -170,6 +176,11 @@ cpuid_feature_extract_unsigned_field(u64 features, int field)
 static inline u64 arm64_ftr_mask(const struct arm64_ftr_bits *ftrp)
 {
 	return (u64)GENMASK(ftrp->shift + ftrp->width - 1, ftrp->shift);
+}
+
+static inline u64 arm64_ftr_reg_user_value(const struct arm64_ftr_reg *reg)
+{
+	return (reg->user_val | (reg->sys_val & reg->user_mask));
 }
 
 static inline int __attribute_const__
