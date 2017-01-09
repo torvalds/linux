@@ -53,7 +53,7 @@ static int afs_vlocation_access_vl_by_name(struct afs_vlocation *vl,
 
 		/* attempt to access the VL server */
 		ret = afs_vl_get_entry_by_name(&addr, key, vl->vldb.name, vldb,
-					       &afs_sync_call);
+					       false);
 		switch (ret) {
 		case 0:
 			goto out;
@@ -111,7 +111,7 @@ static int afs_vlocation_access_vl_by_id(struct afs_vlocation *vl,
 
 		/* attempt to access the VL server */
 		ret = afs_vl_get_entry_by_id(&addr, key, volid, voltype, vldb,
-					     &afs_sync_call);
+					     false);
 		switch (ret) {
 		case 0:
 			goto out;
