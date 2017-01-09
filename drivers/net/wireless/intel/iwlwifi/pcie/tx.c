@@ -380,8 +380,7 @@ static inline void iwl_pcie_tfd_set_tb(struct iwl_trans *trans, void *tfd,
 		u16 hi_n_len = len << 4;
 
 		put_unaligned_le32(addr, &tb->lo);
-		if (sizeof(dma_addr_t) > sizeof(u32))
-			hi_n_len |= ((addr >> 16) >> 16) & 0xF;
+		hi_n_len |= iwl_get_dma_hi_addr(addr);
 
 		tb->hi_n_len = cpu_to_le16(hi_n_len);
 
