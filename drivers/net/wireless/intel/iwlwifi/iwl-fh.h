@@ -647,7 +647,7 @@ struct iwl_rb_status {
 
 static inline u8 iwl_get_dma_hi_addr(dma_addr_t addr)
 {
-	return (sizeof(addr) > sizeof(u32) ? (addr >> 16) >> 16 : 0) & 0xF;
+	return (sizeof(addr) > sizeof(u32) ? upper_32_bits(addr) : 0) & 0xF;
 }
 /**
  * struct iwl_tfd_tb transmit buffer descriptor within transmit frame descriptor
