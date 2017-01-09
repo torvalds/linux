@@ -78,15 +78,13 @@ static void i965_write_fence_reg(struct drm_i915_fence_reg *fence,
 	val = 0;
 	if (vma) {
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
-		u32 row_size = i915_gem_object_get_tile_row_size(vma->obj);
-		u32 size = rounddown((u32)vma->fence_size, row_size);
 
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
 		GEM_BUG_ON(vma->node.start & 4095);
 		GEM_BUG_ON(vma->fence_size & 4095);
 		GEM_BUG_ON(stride & 127);
 
-		val = (vma->node.start + size - 4096) << 32;
+		val = (vma->node.start + vma->fence_size - 4096) << 32;
 		val |= vma->node.start;
 		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
 		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
