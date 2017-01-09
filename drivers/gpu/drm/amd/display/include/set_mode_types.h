@@ -27,6 +27,7 @@
 #define __DAL_SET_MODE_TYPES_H__
 
 #include "dc_types.h"
+#include <linux/hdmi.h>
 
 /* Info frame packet status */
 enum info_frame_flag {
@@ -34,27 +35,6 @@ enum info_frame_flag {
 	INFO_PACKET_PACKET_VALID = 1,
 	INFO_PACKET_PACKET_RESET = 2,
 	INFO_PACKET_PACKET_UPDATE_SCAN_TYPE = 8
-};
-
-/* Info frame types */
-enum info_frame_type {
-	INFO_FRAME_GAMUT = 0x0A,
-	INFO_FRAME_VENDOR_INFO = 0x81,
-	INFO_FRAME_AVI = 0x82
-};
-
-/* Info frame versions */
-enum info_frame_version {
-	INFO_FRAME_VERSION_1 = 1,
-	INFO_FRAME_VERSION_2 = 2,
-	INFO_FRAME_VERSION_3 = 3
-};
-
-/* Info frame size */
-enum info_frame_size {
-	INFO_FRAME_SIZE_AVI = 13,
-	INFO_FRAME_SIZE_VENDOR = 25,
-	INFO_FRAME_SIZE_AUDIO = 10
 };
 
 struct hdmi_info_frame_header {

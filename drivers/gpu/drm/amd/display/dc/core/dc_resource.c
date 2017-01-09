@@ -1334,13 +1334,12 @@ static void set_avi_info_frame(
 
 	/* Initialize header */
 	info_frame.avi_info_packet.info_packet_hdmi.bits.header.
-			info_frame_type = INFO_FRAME_AVI;
+			info_frame_type = HDMI_INFOFRAME_TYPE_AVI;
 	/* InfoFrameVersion_3 is defined by CEA861F (Section 6.4), but shall
 	* not be used in HDMI 2.0 (Section 10.1) */
-	info_frame.avi_info_packet.info_packet_hdmi.bits.header.version =
-			INFO_FRAME_VERSION_2;
+	info_frame.avi_info_packet.info_packet_hdmi.bits.header.version = 2;
 	info_frame.avi_info_packet.info_packet_hdmi.bits.header.length =
-			INFO_FRAME_SIZE_AVI;
+			HDMI_AVI_INFOFRAME_SIZE;
 
 	/*
 	 * IDO-defined (Y2,Y1,Y0 = 1,1,1) shall not be used by devices built
@@ -1473,10 +1472,9 @@ static void set_avi_info_frame(
 	check_sum =
 		&info_frame.
 		avi_info_packet.info_packet_hdmi.packet_raw_data.sb[0];
-	*check_sum = INFO_FRAME_AVI + INFO_FRAME_SIZE_AVI
-			+ INFO_FRAME_VERSION_2;
+	*check_sum = HDMI_INFOFRAME_TYPE_AVI + HDMI_AVI_INFOFRAME_SIZE + 2;
 
-	for (byte_index = 1; byte_index <= INFO_FRAME_SIZE_AVI; byte_index++)
+	for (byte_index = 1; byte_index <= HDMI_AVI_INFOFRAME_SIZE; byte_index++)
 		*check_sum += info_frame.avi_info_packet.info_packet_hdmi.
 				packet_raw_data.sb[byte_index];
 
@@ -1588,7 +1586,7 @@ static void set_vendor_info_packet(struct core_stream *stream,
 		info_packet->sb[5] = stream->public.timing.hdmi_vic;
 
 	/* Header */
-	info_packet->hb0 = 0x81; /* VSIF packet type. */
+	info_packet->hb0 = HDMI_INFOFRAME_TYPE_VENDOR; /* VSIF packet type. */
 	info_packet->hb1 = 0x01; /* Version */
 
 	/* 4 lower bits = Length, 4 higher bits = 0 (reserved) */
@@ -1629,7 +1627,7 @@ static void set_spd_info_packet(struct core_stream *stream,
 		/* HB0  = Packet Type = 0x83 (Source Product
 		 *	  Descriptor InfoFrame)
 		 */
-		info_packet->hb0 = 0x83;
+		info_packet->hb0 = HDMI_INFOFRAME_TYPE_SPD;
 
 		/* HB1  = Version = 0x01 */
 		info_packet->hb1 = 0x01;
@@ -1651,7 +1649,7 @@ static void set_spd_info_packet(struct core_stream *stream,
 		/* HB1  = Packet Type = 0x83 (Source Product
 		 *	  Descriptor InfoFrame)
 		 */
-		info_packet->hb1 = 0x83;
+		info_packet->hb1 = HDMI_INFOFRAME_TYPE_SPD;
 
 		/* HB2  = [Bits 7:0 = Least significant eight bits -
 		 *	  For INFOFRAME, the value must be 1Bh]
