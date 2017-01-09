@@ -26,21 +26,8 @@ MALI_PLATFORM ?= rk30
 # For customer releases the Linux Device Drivers will be provided as ARM proprietary and GPL releases:
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
-ifeq ($(wildcard $(src)/linux/license/gpl/*),)
-    ccflags-y += -I$(src)/linux/license/proprietary
-    ifeq ($(CONFIG_MALI400_PROFILING),y)
-        $(error Profiling is incompatible with non-GPL license)
-    endif
-    ifeq ($(CONFIG_PM_RUNTIME),y)
-        $(error Runtime PM is incompatible with non-GPL license)
-    endif
-    ifeq ($(CONFIG_DMA_SHARED_BUFFER),y)
-        $(error DMA-BUF is incompatible with non-GPL license)
-    endif
-    $(error Linux Device integration is incompatible with non-GPL license)
-else
-    ccflags-y += -I$(src)/linux/license/gpl
-endif
+ccflags-y += -I$(src)/linux/license/gpl
+
 
 ifeq ($(USING_GPU_UTILIZATION), 1)
     ifeq ($(USING_DVFS), 1)

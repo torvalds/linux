@@ -12,16 +12,10 @@
 # Change this to use a different config.h
 CONFIG ?= default
 
-# Validate selected config
-ifneq ($(shell [ -d $(src)/arch-$(CONFIG) ] && [ -f  $(src)/arch-$(CONFIG)/config.h ] && echo "OK"), OK)
-$(warning Current directory is $(src))
-$(error No configuration found for config $(CONFIG). Check that arch-$(CONFIG)/config.h exists)
-else
 # Link arch to the selected arch-config directory
 $(shell [ -L $(src)/arch ] && rm $(src)/arch)
 $(shell ln -sf arch-$(CONFIG) $(src)/arch)
 $(shell touch $(src)/arch/config.h)
-endif
 
 UDD_FILE_PREFIX = ../mali/
 
