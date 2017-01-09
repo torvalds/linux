@@ -16,6 +16,7 @@
 #include "smc_cdc.h"
 #include "smc_tx.h"
 #include "smc_rx.h"
+#include "smc_close.h"
 
 /********************************** send *************************************/
 
@@ -55,6 +56,9 @@ static void smc_cdc_tx_handler(struct smc_wr_tx_pend_priv *pnd_snd,
 			       cdcpend->conn);
 	}
 	smc_tx_sndbuf_nonfull(smc);
+	if (smc->sk.sk_state != SMC_ACTIVE)
+		/* wake up smc_close_wait_tx_pends() */
+		smc->sk.sk_state_change(&smc->sk);
 	bh_unlock_sock(&smc->sk);
 }
 
@@ -149,6 +153,14 @@ void smc_cdc_tx_dismiss_slots(struct smc_connection *conn)
 				(unsigned long)conn);
 }
 
+bool smc_cdc_tx_has_pending(struct smc_connection *conn)
+{
+	struct smc_link *link = &conn->lgr->lnk[SMC_SINGLE_LINK];
+
+	return smc_wr_tx_has_pending(link, SMC_CDC_MSG_TYPE,
+				     smc_cdc_tx_filter, (unsigned long)conn);
+}
+
 /********************************* receive ***********************************/
 
 static inline bool smc_cdc_before(u16 seq1, u16 seq2)
@@ -201,15 +213,20 @@ static void smc_cdc_msg_recv_action(struct smc_sock *smc,
 		smc->sk.sk_data_ready(&smc->sk);
 	}
 
-	if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort)
+	if (conn->local_rx_ctrl.conn_state_flags.peer_conn_abort) {
 		smc->sk.sk_err = ECONNRESET;
+		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
+	}
 	if (smc_cdc_rxed_any_close_or_senddone(conn))
-		/* subsequent patch: terminate connection */
+		smc_close_passive_received(smc);
 
 	/* piggy backed tx info */
 	/* trigger sndbuf consumer: RDMA write into peer RMBE and CDC */
-	if (diff_cons && smc_tx_prepared_sends(conn))
+	if (diff_cons && smc_tx_prepared_sends(conn)) {
 		smc_tx_sndbuf_nonempty(conn);
+		/* trigger socket release if connection closed */
+		smc_close_wake_tx_prepared(smc);
+	}
 
 	/* subsequent patch: trigger socket release if connection closed */
 

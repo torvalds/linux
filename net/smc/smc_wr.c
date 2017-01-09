@@ -81,6 +81,8 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 	if (!test_and_clear_bit(pnd_snd_idx, link->wr_tx_mask))
 		return;
 	if (wc->status) {
+		struct smc_link_group *lgr;
+
 		for_each_set_bit(i, link->wr_tx_mask, link->wr_tx_cnt) {
 			/* clear full struct smc_wr_tx_pend including .priv */
 			memset(&link->wr_tx_pends[i], 0,
@@ -89,9 +91,10 @@ static inline void smc_wr_tx_process_cqe(struct ib_wc *wc)
 			       sizeof(link->wr_tx_bufs[i]));
 			clear_bit(i, link->wr_tx_mask);
 		}
-		/* tbd in future patch: terminate connections of this link
-		 * group abnormally
-		 */
+		/* terminate connections of this link group abnormally */
+		lgr = container_of(link, struct smc_link_group,
+				   lnk[SMC_SINGLE_LINK]);
+		smc_lgr_terminate(lgr);
 	}
 	if (pnd_snd.handler)
 		pnd_snd.handler(&pnd_snd.priv, link, wc->status);
@@ -176,9 +179,12 @@ int smc_wr_tx_get_free_slot(struct smc_link *link,
 			(smc_wr_tx_get_free_slot_index(link, &idx) != -EBUSY),
 			SMC_WR_TX_WAIT_FREE_SLOT_TIME);
 		if (!rc) {
-			/* tbd in future patch: timeout - terminate connections
-			 * of this link group abnormally
-			 */
+			/* timeout - terminate connections */
+			struct smc_link_group *lgr;
+
+			lgr = container_of(link, struct smc_link_group,
+					   lnk[SMC_SINGLE_LINK]);
+			smc_lgr_terminate(lgr);
 			return -EPIPE;
 		}
 		if (rc == -ERESTARTSYS)
@@ -256,6 +262,24 @@ void smc_wr_tx_dismiss_slots(struct smc_link *link, u8 wr_rx_hdr_type,
 	}
 }
 
+bool smc_wr_tx_has_pending(struct smc_link *link, u8 wr_rx_hdr_type,
+			   smc_wr_tx_filter filter, unsigned long data)
+{
+	struct smc_wr_tx_pend_priv *tx_pend;
+	struct smc_wr_rx_hdr *wr_rx;
+	int i;
+
+	for_each_set_bit(i, link->wr_tx_mask, link->wr_tx_cnt) {
+		wr_rx = (struct smc_wr_rx_hdr *)&link->wr_rx_bufs[i];
+		if (wr_rx->type != wr_rx_hdr_type)
+			continue;
+		tx_pend = &link->wr_tx_pends[i].priv;
+		if (filter(tx_pend, data))
+			return true;
+	}
+	return false;
+}
+
 /****************************** receive queue ********************************/
 
 int smc_wr_rx_register_handler(struct smc_wr_rx_handler *handler)
@@ -310,14 +334,19 @@ static inline void smc_wr_rx_process_cqes(struct ib_wc wc[], int num)
 			smc_wr_rx_demultiplex(&wc[i]);
 			smc_wr_rx_post(link); /* refill WR RX */
 		} else {
+			struct smc_link_group *lgr;
+
 			/* handle status errors */
 			switch (wc[i].status) {
 			case IB_WC_RETRY_EXC_ERR:
 			case IB_WC_RNR_RETRY_EXC_ERR:
 			case IB_WC_WR_FLUSH_ERR:
-			/* tbd in future patch: terminate connections of this
-			 * link group abnormally
-			 */
+				/* terminate connections of this link group
+				 * abnormally
+				 */
+				lgr = container_of(link, struct smc_link_group,
+						   lnk[SMC_SINGLE_LINK]);
+				smc_lgr_terminate(lgr);
 				break;
 			default:
 				smc_wr_rx_post(link); /* refill WR RX */

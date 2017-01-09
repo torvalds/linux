@@ -23,6 +23,7 @@
 #include "smc_wr.h"
 #include "smc_llc.h"
 #include "smc_cdc.h"
+#include "smc_close.h"
 
 #define SMC_LGR_NUM_INCR	256
 #define SMC_LGR_FREE_DELAY	(600 * HZ)
@@ -295,6 +296,7 @@ void smc_lgr_free(struct smc_link_group *lgr)
 void smc_lgr_terminate(struct smc_link_group *lgr)
 {
 	struct smc_connection *conn;
+	struct smc_sock *smc;
 	struct rb_node *node;
 
 	spin_lock_bh(&smc_lgr_list.lock);
@@ -311,11 +313,14 @@ void smc_lgr_terminate(struct smc_link_group *lgr)
 	node = rb_first(&lgr->conns_all);
 	while (node) {
 		conn = rb_entry(node, struct smc_connection, alert_node);
+		smc = container_of(conn, struct smc_sock, conn);
+		sock_hold(&smc->sk);
 		__smc_lgr_unregister_conn(conn);
+		smc_close_active_abort(smc);
+		sock_put(&smc->sk);
 		node = rb_first(&lgr->conns_all);
 	}
 	write_unlock_bh(&lgr->conns_lock);
-	schedule_delayed_work(&lgr->free_work, SMC_LGR_FREE_DELAY);
 }
 
 /* Determine vlan of internal TCP socket.

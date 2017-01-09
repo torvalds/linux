@@ -30,6 +30,16 @@ enum smc_state {		/* possible states of an SMC socket */
 	SMC_INIT	= 2,
 	SMC_CLOSED	= 7,
 	SMC_LISTEN	= 10,
+	/* normal close */
+	SMC_PEERCLOSEWAIT1	= 20,
+	SMC_PEERCLOSEWAIT2	= 21,
+	SMC_APPFINCLOSEWAIT	= 24,
+	SMC_APPCLOSEWAIT1	= 22,
+	SMC_APPCLOSEWAIT2	= 23,
+	SMC_PEERFINCLOSEWAIT	= 25,
+	/* abnormal close */
+	SMC_PEERABORTWAIT	= 26,
+	SMC_PROCESSABORT	= 27,
 };
 
 struct smc_link_group;
@@ -164,7 +174,13 @@ struct smc_sock {				/* smc sock container */
 	struct work_struct	smc_listen_work;/* prepare new accept socket */
 	struct list_head	accept_q;	/* sockets to be accepted */
 	spinlock_t		accept_q_lock;	/* protects accept_q */
+	struct delayed_work	sock_put_work;	/* final socket freeing */
 	bool			use_fallback;	/* fallback to tcp */
+	u8			wait_close_tx_prepared : 1;
+						/* shutdown wr or close
+						 * started, waiting for unsent
+						 * data to be sent
+						 */
 };
 
 static inline struct smc_sock *smc_sk(const struct sock *sk)
@@ -250,5 +266,7 @@ void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, __be32 peer_in_addr,
 		    struct smc_ib_device *smcibdev, u8 ibport,
 		    struct smc_clc_msg_local *lcl, int srv_first_contact);
+struct sock *smc_accept_dequeue(struct sock *parent, struct socket *new_sock);
+void smc_close_non_accepted(struct sock *sk);
 
 #endif	/* __SMC_H */

@@ -139,6 +139,7 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 		if (sk->sk_state == SMC_INIT)
 			return -ENOTCONN;
 		if (smc->sk.sk_shutdown & SEND_SHUTDOWN ||
+		    (smc->sk.sk_err == ECONNABORTED) ||
 		    conn->local_tx_ctrl.conn_state_flags.peer_conn_abort)
 			return -EPIPE;
 		if (smc_cdc_rxed_any_close(conn))
@@ -392,6 +393,13 @@ int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 				   &pend);
 	if (rc < 0) {
 		if (rc == -EBUSY) {
+			struct smc_sock *smc =
+				container_of(conn, struct smc_sock, conn);
+
+			if (smc->sk.sk_err == ECONNABORTED) {
+				rc = sock_error(&smc->sk);
+				goto out_unlock;
+			}
 			rc = 0;
 			schedule_work(&conn->tx_work);
 		}
