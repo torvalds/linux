@@ -967,7 +967,7 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 	sq->channel   = c;
 	sq->tc        = tc;
 
-	err = mlx5_alloc_map_uar(mdev, &sq->uar, !!MLX5_CAP_GEN(mdev, bf));
+	err = mlx5_alloc_bfreg(mdev, &sq->bfreg, MLX5_CAP_GEN(mdev, bf), false);
 	if (err)
 		return err;
 
@@ -979,12 +979,9 @@ static int mlx5e_create_sq(struct mlx5e_channel *c,
 		goto err_unmap_free_uar;
 
 	sq->wq.db       = &sq->wq.db[MLX5_SND_DBR];
-	if (sq->uar.bf_map) {
+	if (sq->bfreg.wc)
 		set_bit(MLX5E_SQ_STATE_BF_ENABLE, &sq->state);
-		sq->uar_map = sq->uar.bf_map;
-	} else {
-		sq->uar_map = sq->uar.map;
-	}
+
 	sq->bf_buf_size = (1 << MLX5_CAP_GEN(mdev, log_bf_reg_size)) / 2;
 	sq->max_inline  = param->max_inline;
 	sq->min_inline_mode =
@@ -1012,7 +1009,7 @@ err_sq_wq_destroy:
 	mlx5_wq_destroy(&sq->wq_ctrl);
 
 err_unmap_free_uar:
-	mlx5_unmap_free_uar(mdev, &sq->uar);
+	mlx5_free_bfreg(mdev, &sq->bfreg);
 
 	return err;
 }
@@ -1024,7 +1021,7 @@ static void mlx5e_destroy_sq(struct mlx5e_sq *sq)
 
 	mlx5e_free_sq_db(sq);
 	mlx5_wq_destroy(&sq->wq_ctrl);
-	mlx5_unmap_free_uar(priv->mdev, &sq->uar);
+	mlx5_free_bfreg(priv->mdev, &sq->bfreg);
 }
 
 static int mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
@@ -1058,7 +1055,7 @@ static int mlx5e_enable_sq(struct mlx5e_sq *sq, struct mlx5e_sq_param *param)
 	MLX5_SET(sqc,  sqc, tis_lst_sz, param->type == MLX5E_SQ_ICO ? 0 : 1);
 
 	MLX5_SET(wq,   wq, wq_type,       MLX5_WQ_TYPE_CYCLIC);
-	MLX5_SET(wq,   wq, uar_page,      sq->uar.index);
+	MLX5_SET(wq,   wq, uar_page,      sq->bfreg.index);
 	MLX5_SET(wq,   wq, log_wq_pg_sz,  sq->wq_ctrl.buf.page_shift -
 					  MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(wq, wq, dbr_addr,      sq->wq_ctrl.db.dma);
@@ -1216,7 +1213,6 @@ static int mlx5e_create_cq(struct mlx5e_channel *c,
 	mcq->comp       = mlx5e_completion_event;
 	mcq->event      = mlx5e_cq_error_event;
 	mcq->irqn       = irqn;
-	mcq->uar        = &mdev->mlx5e_res.cq_uar;
 
 	for (i = 0; i < mlx5_cqwq_get_size(&cq->wq); i++) {
 		struct mlx5_cqe64 *cqe = mlx5_cqwq_get_wqe(&cq->wq, i);
@@ -1265,7 +1261,7 @@ static int mlx5e_enable_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 
 	MLX5_SET(cqc,   cqc, cq_period_mode, param->cq_period_mode);
 	MLX5_SET(cqc,   cqc, c_eqn,         eqn);
-	MLX5_SET(cqc,   cqc, uar_page,      mcq->uar->index);
+	MLX5_SET(cqc,   cqc, uar_page,      mdev->priv.uar->index);
 	MLX5_SET(cqc,   cqc, log_page_size, cq->wq_ctrl.frag_buf.page_shift -
 					    MLX5_ADAPTER_PAGE_SHIFT);
 	MLX5_SET64(cqc, cqc, dbr_addr,      cq->wq_ctrl.db.dma);
@@ -1677,7 +1673,7 @@ static void mlx5e_build_common_cq_param(struct mlx5e_priv *priv,
 {
 	void *cqc = param->cqc;
 
-	MLX5_SET(cqc, cqc, uar_page, priv->mdev->mlx5e_res.cq_uar.index);
+	MLX5_SET(cqc, cqc, uar_page, priv->mdev->priv.uar->index);
 }
 
 static void mlx5e_build_rx_cq_param(struct mlx5e_priv *priv,
@@ -2296,7 +2292,6 @@ static int mlx5e_create_drop_cq(struct mlx5e_priv *priv,
 	mcq->comp       = mlx5e_completion_event;
 	mcq->event      = mlx5e_cq_error_event;
 	mcq->irqn       = irqn;
-	mcq->uar        = &mdev->mlx5e_res.cq_uar;
 
 	cq->priv = priv;
 

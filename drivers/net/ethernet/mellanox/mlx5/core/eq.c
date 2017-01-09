@@ -512,7 +512,7 @@ static void init_eq_buf(struct mlx5_eq *eq)
 
 int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 		       int nent, u64 mask, const char *name,
-		       struct mlx5_uar *uar, enum mlx5_eq_type type)
+		       enum mlx5_eq_type type)
 {
 	u32 out[MLX5_ST_SZ_DW(create_eq_out)] = {0};
 	struct mlx5_priv *priv = &dev->priv;
@@ -556,7 +556,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 
 	eqc = MLX5_ADDR_OF(create_eq_in, in, eq_context_entry);
 	MLX5_SET(eqc, eqc, log_eq_size, ilog2(eq->nent));
-	MLX5_SET(eqc, eqc, uar_page, uar->index);
+	MLX5_SET(eqc, eqc, uar_page, priv->uar->index);
 	MLX5_SET(eqc, eqc, intr, vecidx);
 	MLX5_SET(eqc, eqc, log_page_size,
 		 eq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
@@ -571,7 +571,7 @@ int mlx5_create_map_eq(struct mlx5_core_dev *dev, struct mlx5_eq *eq, u8 vecidx,
 	eq->eqn = MLX5_GET(create_eq_out, out, eq_number);
 	eq->irqn = priv->msix_arr[vecidx].vector;
 	eq->dev = dev;
-	eq->doorbell = uar->map + MLX5_EQ_DOORBEL_OFFSET;
+	eq->doorbell = priv->uar->map + MLX5_EQ_DOORBEL_OFFSET;
 	err = request_irq(eq->irqn, handler, 0,
 			  priv->irq_info[vecidx].name, eq);
 	if (err)
@@ -686,8 +686,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
-				 "mlx5_cmd_eq", &dev->priv.uuari.uars[0],
-				 MLX5_EQ_TYPE_ASYNC);
+				 "mlx5_cmd_eq", MLX5_EQ_TYPE_ASYNC);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create cmd EQ %d\n", err);
 		return err;
@@ -697,8 +696,7 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 
 	err = mlx5_create_map_eq(dev, &table->async_eq, MLX5_EQ_VEC_ASYNC,
 				 MLX5_NUM_ASYNC_EQE, async_event_mask,
-				 "mlx5_async_eq", &dev->priv.uuari.uars[0],
-				 MLX5_EQ_TYPE_ASYNC);
+				 "mlx5_async_eq", MLX5_EQ_TYPE_ASYNC);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create async EQ %d\n", err);
 		goto err1;
@@ -708,7 +706,6 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 				 MLX5_EQ_VEC_PAGES,
 				 /* TODO: sriov max_vf + */ 1,
 				 1 << MLX5_EVENT_TYPE_PAGE_REQUEST, "mlx5_pages_eq",
-				 &dev->priv.uuari.uars[0],
 				 MLX5_EQ_TYPE_ASYNC);
 	if (err) {
 		mlx5_core_warn(dev, "failed to create pages EQ %d\n", err);
@@ -722,7 +719,6 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 					 MLX5_NUM_ASYNC_EQE,
 					 1 << MLX5_EVENT_TYPE_PAGE_FAULT,
 					 "mlx5_page_fault_eq",
-					 &dev->priv.uuari.uars[0],
 					 MLX5_EQ_TYPE_PF);
 		if (err) {
 			mlx5_core_warn(dev, "failed to create page fault EQ %d\n",
