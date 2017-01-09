@@ -744,6 +744,8 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 				DMA_TO_DEVICE);
 	/* For mapping page table entries we rely on dma == phys */
 	BUG_ON(handle != virt_to_phys(domain->pgtable));
+	if (dma_mapping_error(dma_dev, handle))
+		goto err_lv2ent;
 
 	spin_lock_init(&domain->lock);
 	spin_lock_init(&domain->pgtablelock);
@@ -755,6 +757,8 @@ static struct iommu_domain *exynos_iommu_domain_alloc(unsigned type)
 
 	return &domain->domain;
 
+err_lv2ent:
+	free_pages((unsigned long)domain->lv2entcnt, 1);
 err_counter:
 	free_pages((unsigned long)domain->pgtable, 2);
 err_dma_cookie:
@@ -898,6 +902,7 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 	}
 
 	if (lv1ent_fault(sent)) {
+		dma_addr_t handle;
 		sysmmu_pte_t *pent;
 		bool need_flush_flpd_cache = lv1ent_zero(sent);
 
@@ -909,7 +914,12 @@ static sysmmu_pte_t *alloc_lv2entry(struct exynos_iommu_domain *domain,
 		update_pte(sent, mk_lv1ent_page(virt_to_phys(pent)));
 		kmemleak_ignore(pent);
 		*pgcounter = NUM_LV2ENTRIES;
-		dma_map_single(dma_dev, pent, LV2TABLE_SIZE, DMA_TO_DEVICE);
+		handle = dma_map_single(dma_dev, pent, LV2TABLE_SIZE,
+					DMA_TO_DEVICE);
+		if (dma_mapping_error(dma_dev, handle)) {
+			kmem_cache_free(lv2table_kmem_cache, pent);
+			return ERR_PTR(-EADDRINUSE);
+		}
 
 		/*
 		 * If pre-fetched SLPD is a faulty SLPD in zero_l2_table,
