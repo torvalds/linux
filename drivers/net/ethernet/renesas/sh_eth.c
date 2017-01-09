@@ -622,8 +622,9 @@ static struct sh_eth_cpu_data r8a779x_data = {
 
 	.register_type	= SH_ETH_REG_FAST_RCAR,
 
-	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD,
-	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP,
+	.ecsr_value	= ECSR_PSRTO | ECSR_LCHNG | ECSR_ICD | ECSR_MPD,
+	.ecsipr_value	= ECSIPR_PSRTOIP | ECSIPR_LCHNGIP | ECSIPR_ICDIP |
+			  ECSIPR_MPDIP,
 	.eesipr_value	= 0x01ff009f,
 
 	.tx_check	= EESR_FTC | EESR_CND | EESR_DLC | EESR_CD | EESR_RTO,
@@ -638,6 +639,7 @@ static struct sh_eth_cpu_data r8a779x_data = {
 	.tpauser	= 1,
 	.hw_swap	= 1,
 	.rmiimode	= 1,
+	.magic		= 1,
 };
 #endif /* CONFIG_OF */
 
