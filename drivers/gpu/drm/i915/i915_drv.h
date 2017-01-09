@@ -3360,11 +3360,6 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 int i915_gem_open(struct drm_device *dev, struct drm_file *file);
 void i915_gem_release(struct drm_device *dev, struct drm_file *file);
 
-u32 i915_gem_get_ggtt_size(struct drm_i915_private *dev_priv, u32 size,
-			   int tiling_mode, unsigned int stride);
-u32 i915_gem_get_ggtt_alignment(struct drm_i915_private *dev_priv, u32 size,
-				int tiling_mode, unsigned int stride);
-
 int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
 				    enum i915_cache_level cache_level);
 
@@ -3530,6 +3525,11 @@ static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_objec
 	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		i915_gem_object_is_tiled(obj);
 }
+
+u32 i915_gem_fence_size(struct drm_i915_private *dev_priv, u32 size,
+			unsigned int tiling, unsigned int stride);
+u32 i915_gem_fence_alignment(struct drm_i915_private *dev_priv, u32 size,
+			     unsigned int tiling, unsigned int stride);
 
 /* i915_debugfs.c */
 #ifdef CONFIG_DEBUG_FS

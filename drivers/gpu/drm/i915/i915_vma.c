@@ -112,14 +112,14 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 
 	if (i915_is_ggtt(vm)) {
 		GEM_BUG_ON(overflows_type(vma->size, u32));
-		vma->fence_size = i915_gem_get_ggtt_size(vm->i915, vma->size,
-							 i915_gem_object_get_tiling(obj),
-							 i915_gem_object_get_stride(obj));
+		vma->fence_size = i915_gem_fence_size(vm->i915, vma->size,
+						      i915_gem_object_get_tiling(obj),
+						      i915_gem_object_get_stride(obj));
 		GEM_BUG_ON(vma->fence_size & 4095);
 
-		vma->fence_alignment = i915_gem_get_ggtt_alignment(vm->i915, vma->size,
-								   i915_gem_object_get_tiling(obj),
-								   i915_gem_object_get_stride(obj));
+		vma->fence_alignment = i915_gem_fence_alignment(vm->i915, vma->size,
+								i915_gem_object_get_tiling(obj),
+								i915_gem_object_get_stride(obj));
 		GEM_BUG_ON(!is_power_of_2(vma->fence_alignment));
 
 		vma->flags |= I915_VMA_GGTT;

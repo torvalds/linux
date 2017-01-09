@@ -58,6 +58,75 @@
  * invovlement.
  */
 
+/**
+ * i915_gem_fence_size - required global GTT size for a fence
+ * @i915: i915 device
+ * @size: object size
+ * @tiling: tiling mode
+ * @stride: tiling stride
+ *
+ * Return the required global GTT size for a fence (view of a tiled object),
+ * taking into account potential fence register mapping.
+ */
+u32 i915_gem_fence_size(struct drm_i915_private *i915,
+			u32 size, unsigned int tiling, unsigned int stride)
+{
+	u32 ggtt_size;
+
+	GEM_BUG_ON(!size);
+
+	if (tiling == I915_TILING_NONE)
+		return size;
+
+	GEM_BUG_ON(!stride);
+
+	if (INTEL_GEN(i915) >= 4) {
+		stride *= i915_gem_tile_height(tiling);
+		GEM_BUG_ON(stride & 4095);
+		return roundup(size, stride);
+	}
+
+	/* Previous chips need a power-of-two fence region when tiling */
+	if (IS_GEN3(i915))
+		ggtt_size = 1024*1024;
+	else
+		ggtt_size = 512*1024;
+
+	while (ggtt_size < size)
+		ggtt_size <<= 1;
+
+	return ggtt_size;
+}
+
+/**
+ * i915_gem_fence_alignment - required global GTT alignment for a fence
+ * @i915: i915 device
+ * @size: object size
+ * @tiling: tiling mode
+ * @stride: tiling stride
+ *
+ * Return the required global GTT alignment for a fence (a view of a tiled
+ * object), taking into account potential fence register mapping.
+ */
+u32 i915_gem_fence_alignment(struct drm_i915_private *i915, u32 size,
+			     unsigned int tiling, unsigned int stride)
+{
+	GEM_BUG_ON(!size);
+
+	/*
+	 * Minimum alignment is 4k (GTT page size), but might be greater
+	 * if a fence register is needed for the object.
+	 */
+	if (INTEL_GEN(i915) >= 4 || tiling == I915_TILING_NONE)
+		return 4096;
+
+	/*
+	 * Previous chips need to be aligned to the size of the smallest
+	 * fence register that can contain the object.
+	 */
+	return i915_gem_fence_size(i915, size, tiling, stride);
+}
+
 /* Check pitch constriants for all chips & tiling formats */
 static bool
 i915_tiling_ok(struct drm_i915_private *dev_priv,
@@ -126,11 +195,11 @@ static bool i915_vma_fence_prepare(struct i915_vma *vma,
 	if (!i915_vma_is_map_and_fenceable(vma))
 		return true;
 
-	size = i915_gem_get_ggtt_size(i915, vma->size, tiling_mode, stride);
+	size = i915_gem_fence_size(i915, vma->size, tiling_mode, stride);
 	if (vma->node.size < size)
 		return false;
 
-	alignment = i915_gem_get_ggtt_alignment(i915, vma->size, tiling_mode, stride);
+	alignment = i915_gem_fence_alignment(i915, vma->size, tiling_mode, stride);
 	if (vma->node.start & (alignment - 1))
 		return false;
 
@@ -276,12 +345,12 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 				if (!i915_vma_is_ggtt(vma))
 					break;
 
-				vma->fence_size = i915_gem_get_ggtt_size(dev_priv, vma->size,
-									 args->tiling_mode,
-									 args->stride);
-				vma->fence_alignment = i915_gem_get_ggtt_alignment(dev_priv, vma->size,
-										   args->tiling_mode,
-										   args->stride);
+				vma->fence_size = i915_gem_fence_size(dev_priv, vma->size,
+								      args->tiling_mode,
+								      args->stride);
+				vma->fence_alignment = i915_gem_fence_alignment(dev_priv, vma->size,
+										args->tiling_mode,
+										args->stride);
 
 				if (vma->fence)
 					vma->fence->dirty = true;
