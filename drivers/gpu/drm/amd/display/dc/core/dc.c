@@ -634,7 +634,7 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	full_pipe_count = core_dc->res_pool->pipe_count;
 	if (core_dc->res_pool->underlay_pipe_index >= 0)
 		full_pipe_count--;
-	core_dc->public.caps.max_targets = dm_min(
+	core_dc->public.caps.max_targets = min(
 			full_pipe_count,
 			core_dc->res_pool->stream_enc_count);
 

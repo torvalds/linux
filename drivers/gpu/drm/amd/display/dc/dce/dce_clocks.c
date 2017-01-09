@@ -289,7 +289,7 @@ static void dce_set_clock(
 
 	/* Make sure requested clock isn't lower than minimum threshold*/
 	if (requested_clk_khz > 0)
-		requested_clk_khz = dm_max(requested_clk_khz,
+		requested_clk_khz = max(requested_clk_khz,
 				clk_dce->dentist_vco_freq_khz / 64);
 
 	/* Prepare to program display clock*/
@@ -364,7 +364,7 @@ static void dce112_set_clock(
 
 	/* Make sure requested clock isn't lower than minimum threshold*/
 	if (requested_clk_khz > 0)
-		requested_clk_khz = dm_max(requested_clk_khz,
+		requested_clk_khz = max(requested_clk_khz,
 				clk_dce->dentist_vco_freq_khz / 62);
 
 	dce_clk_params.target_clock_frequency = requested_clk_khz;
