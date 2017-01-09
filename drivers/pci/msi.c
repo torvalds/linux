@@ -1109,23 +1109,15 @@ static int __pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec,
 	}
 }
 
-/**
- * pci_enable_msi_range - configure device's MSI capability structure
- * @dev: device to configure
- * @minvec: minimal number of interrupts to configure
- * @maxvec: maximum number of interrupts to configure
- *
- * This function tries to allocate a maximum possible number of interrupts in a
- * range between @minvec and @maxvec. It returns a negative errno if an error
- * occurs. If it succeeds, it returns the actual number of interrupts allocated
- * and updates the @dev's irq member to the lowest new interrupt number;
- * the other interrupt numbers allocated to this device are consecutive.
- **/
-int pci_enable_msi_range(struct pci_dev *dev, int minvec, int maxvec)
+/* deprecated, don't use */
+int pci_enable_msi(struct pci_dev *dev)
 {
-	return __pci_enable_msi_range(dev, minvec, maxvec, NULL);
+	int rc = __pci_enable_msi_range(dev, 1, 1, NULL);
+	if (rc < 0)
+		return rc;
+	return 0;
 }
-EXPORT_SYMBOL(pci_enable_msi_range);
+EXPORT_SYMBOL(pci_enable_msi);
 
 static int __pci_enable_msix_range(struct pci_dev *dev,
 				   struct msix_entry *entries, int minvec,
@@ -1381,7 +1373,7 @@ int pci_msi_domain_check_cap(struct irq_domain *domain,
 {
 	struct msi_desc *desc = first_pci_msi_entry(to_pci_dev(dev));
 
-	/* Special handling to support pci_enable_msi_range() */
+	/* Special handling to support __pci_enable_msi_range() */
 	if (pci_msi_desc_is_multi_msi(desc) &&
 	    !(info->flags & MSI_FLAG_MULTI_PCI_MSI))
 		return 1;
@@ -1394,7 +1386,7 @@ int pci_msi_domain_check_cap(struct irq_domain *domain,
 static int pci_msi_domain_handle_error(struct irq_domain *domain,
 				       struct msi_desc *desc, int error)
 {
-	/* Special handling to support pci_enable_msi_range() */
+	/* Special handling to support __pci_enable_msi_range() */
 	if (pci_msi_desc_is_multi_msi(desc) && error == -ENOSPC)
 		return 1;
 
