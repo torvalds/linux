@@ -60,7 +60,7 @@
  * Again drivers are strongly urged to switch to the new interfaces.
  *
  * The plane helpers share the function table structures with other helpers,
- * specifically also the atomic helpers. See struct &drm_plane_helper_funcs for
+ * specifically also the atomic helpers. See &struct drm_plane_helper_funcs for
  * the details.
  */
 

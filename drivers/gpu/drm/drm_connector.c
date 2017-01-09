@@ -49,7 +49,7 @@
  * Connectors must be attached to an encoder to be used. For devices that map
  * connectors to encoders 1:1, the connector should be attached at
  * initialization time with a call to drm_mode_connector_attach_encoder(). The
- * driver must also set the struct &drm_connector encoder field to point to the
+ * driver must also set the &struct drm_connector encoder field to point to the
  * attached encoder.
  *
  * For connectors which are not fixed (like built-in panels) the driver needs to

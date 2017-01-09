@@ -215,7 +215,7 @@ extern struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS];
 
 /* virtio_kms.c */
 int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags);
-int virtio_gpu_driver_unload(struct drm_device *dev);
+void virtio_gpu_driver_unload(struct drm_device *dev);
 int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file);
 void virtio_gpu_driver_postclose(struct drm_device *dev, struct drm_file *file);
 

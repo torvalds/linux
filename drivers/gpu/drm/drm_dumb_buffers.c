@@ -43,7 +43,7 @@
  * KMS frame buffers.
  *
  * To support dumb objects drivers must implement the dumb_create,
- * dumb_destroy and dumb_map_offset operations from struct &drm_driver. See
+ * dumb_destroy and dumb_map_offset operations from &struct drm_driver. See
  * there for further details.
  *
  * Note that dumb objects may not be used for gpu acceleration, as has been

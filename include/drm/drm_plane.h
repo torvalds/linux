@@ -253,7 +253,7 @@ struct drm_plane_funcs {
 	 * &drm_mode_config_funcs) will be cleaned up by calling the
 	 * @atomic_destroy_state hook in this structure.
 	 *
-	 * Atomic drivers which don't subclass struct &drm_plane_state should use
+	 * Atomic drivers which don't subclass &struct drm_plane_state should use
 	 * drm_atomic_helper_plane_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
 	 * __drm_atomic_helper_plane_duplicate_state() to make sure shared state is
@@ -381,7 +381,7 @@ struct drm_plane_funcs {
 	/**
 	 * @atomic_print_state:
 	 *
-	 * If driver subclasses struct &drm_plane_state, it should implement
+	 * If driver subclasses &struct drm_plane_state, it should implement
 	 * this optional hook for printing additional driver specific state.
 	 *
 	 * Do not call this directly, use drm_atomic_plane_print_state()

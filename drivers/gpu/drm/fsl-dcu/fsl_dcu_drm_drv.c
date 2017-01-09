@@ -116,7 +116,7 @@ done:
 	return ret;
 }
 
-static int fsl_dcu_unload(struct drm_device *dev)
+static void fsl_dcu_unload(struct drm_device *dev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = dev->dev_private;
 
@@ -131,8 +131,6 @@ static int fsl_dcu_unload(struct drm_device *dev)
 	drm_irq_uninstall(dev);
 
 	dev->dev_private = NULL;
-
-	return 0;
 }
 
 static irqreturn_t fsl_dcu_drm_irq(int irq, void *arg)
@@ -414,10 +412,6 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
 		goto unref;
-
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n", driver->name,
-		 driver->major, driver->minor, driver->patchlevel,
-		 driver->date, drm->primary->index);
 
 	return 0;
 

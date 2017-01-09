@@ -51,8 +51,8 @@ struct drm_pending_vblank_event {
  *
  * Note that for historical reasons - the vblank handling code is still shared
  * with legacy/non-kms drivers - this is a free-standing structure not directly
- * connected to struct &drm_crtc. But all public interface functions are taking
- * a struct &drm_crtc to hide this implementation detail.
+ * connected to &struct drm_crtc. But all public interface functions are taking
+ * a &struct drm_crtc to hide this implementation detail.
  */
 struct drm_vblank_crtc {
 	/**

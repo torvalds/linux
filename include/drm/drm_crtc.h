@@ -315,7 +315,7 @@ struct drm_crtc_funcs {
 	 *
 	 * This is the main legacy entry point to change the modeset state on a
 	 * CRTC. All the details of the desired configuration are passed in a
-	 * struct &drm_mode_set - see there for details.
+	 * &struct drm_mode_set - see there for details.
 	 *
 	 * Drivers implementing atomic modeset should use
 	 * drm_atomic_helper_set_config() to implement this hook.
@@ -346,7 +346,7 @@ struct drm_crtc_funcs {
 	 * shared dma-buf.
 	 *
 	 * An application can request to be notified when the page flip has
-	 * completed. The drm core will supply a struct &drm_event in the event
+	 * completed. The drm core will supply a &struct drm_event in the event
 	 * parameter in this case. This can be handled by the
 	 * drm_crtc_send_vblank_event() function, which the driver should call on
 	 * the provided event upon completion of the flip. Note that if
@@ -431,7 +431,7 @@ struct drm_crtc_funcs {
 	 * &drm_mode_config_funcs) will be cleaned up by calling the
 	 * @atomic_destroy_state hook in this structure.
 	 *
-	 * Atomic drivers which don't subclass struct &drm_crtc should use
+	 * Atomic drivers which don't subclass &struct drm_crtc should use
 	 * drm_atomic_helper_crtc_duplicate_state(). Drivers that subclass the
 	 * state structure to extend it with driver-private state should use
 	 * __drm_atomic_helper_crtc_duplicate_state() to make sure shared state is
@@ -583,7 +583,7 @@ struct drm_crtc_funcs {
 	/**
 	 * @atomic_print_state:
 	 *
-	 * If driver subclasses struct &drm_crtc_state, it should implement
+	 * If driver subclasses &struct drm_crtc_state, it should implement
 	 * this optional hook for printing additional driver specific state.
 	 *
 	 * Do not call this directly, use drm_atomic_crtc_print_state()
@@ -822,6 +822,7 @@ int drm_crtc_force_disable(struct drm_crtc *crtc);
 int drm_crtc_force_disable_all(struct drm_device *dev);
 
 int drm_mode_set_config_internal(struct drm_mode_set *set);
+struct drm_crtc *drm_crtc_from_index(struct drm_device *dev, int idx);
 
 /* Helpers */
 static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
@@ -834,19 +835,5 @@ static inline struct drm_crtc *drm_crtc_find(struct drm_device *dev,
 
 #define drm_for_each_crtc(crtc, dev) \
 	list_for_each_entry(crtc, &(dev)->mode_config.crtc_list, head)
-
-static inline void
-assert_drm_connector_list_read_locked(struct drm_mode_config *mode_config)
-{
-	/*
-	 * The connector hotadd/remove code currently grabs both locks when
-	 * updating lists. Hence readers need only hold either of them to be
-	 * safe and the check amounts to
-	 *
-	 * WARN_ON(not_holding(A) && not_holding(B)).
-	 */
-	WARN_ON(!mutex_is_locked(&mode_config->mutex) &&
-		!drm_modeset_is_locked(&mode_config->connection_mutex));
-}
 
 #endif /* __DRM_CRTC_H__ */

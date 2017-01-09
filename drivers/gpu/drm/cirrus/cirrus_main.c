@@ -208,18 +208,17 @@ out:
 	return r;
 }
 
-int cirrus_driver_unload(struct drm_device *dev)
+void cirrus_driver_unload(struct drm_device *dev)
 {
 	struct cirrus_device *cdev = dev->dev_private;
 
 	if (cdev == NULL)
-		return 0;
+		return;
 	cirrus_modeset_fini(cdev);
 	cirrus_mm_fini(cdev);
 	cirrus_device_fini(cdev);
 	kfree(cdev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 int cirrus_gem_create(struct drm_device *dev,

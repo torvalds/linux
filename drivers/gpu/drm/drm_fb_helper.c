@@ -1752,8 +1752,7 @@ static bool drm_has_cmdline_mode(struct drm_fb_helper_connector *fb_connector)
 	return fb_connector->connector->cmdline_mode.specified;
 }
 
-struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
-						      int width, int height)
+struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn)
 {
 	struct drm_cmdline_mode *cmdline_mode;
 	struct drm_display_mode *mode;
@@ -1871,7 +1870,7 @@ static bool drm_target_cloned(struct drm_fb_helper *fb_helper,
 		if (!enabled[i])
 			continue;
 		fb_helper_conn = fb_helper->connector_info[i];
-		modes[i] = drm_pick_cmdline_mode(fb_helper_conn, width, height);
+		modes[i] = drm_pick_cmdline_mode(fb_helper_conn);
 		if (!modes[i]) {
 			can_clone = false;
 			break;
@@ -1993,7 +1992,7 @@ retry:
 			      fb_helper_conn->connector->base.id);
 
 		/* got for command line mode first */
-		modes[i] = drm_pick_cmdline_mode(fb_helper_conn, width, height);
+		modes[i] = drm_pick_cmdline_mode(fb_helper_conn);
 		if (!modes[i]) {
 			DRM_DEBUG_KMS("looking for preferred mode on connector %d %d\n",
 				      fb_helper_conn->connector->base.id, fb_helper_conn->connector->tile_group ? fb_helper_conn->connector->tile_group->id : 0);

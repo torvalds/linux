@@ -50,12 +50,12 @@ static inline bool amdgpu_has_atpx(void) { return false; }
  * This is the main unload function for KMS (all asics).
  * Returns 0 on success.
  */
-int amdgpu_driver_unload_kms(struct drm_device *dev)
+void amdgpu_driver_unload_kms(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = dev->dev_private;
 
 	if (adev == NULL)
-		return 0;
+		return;
 
 	if (adev->rmmio == NULL)
 		goto done_free;
@@ -74,7 +74,6 @@ int amdgpu_driver_unload_kms(struct drm_device *dev)
 done_free:
 	kfree(adev);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 /**

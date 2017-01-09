@@ -35,19 +35,14 @@
 
 #include "drm_crtc_internal.h"
 
-static void crtc_commit_free(struct kref *kref)
+void __drm_crtc_commit_free(struct kref *kref)
 {
 	struct drm_crtc_commit *commit =
 		container_of(kref, struct drm_crtc_commit, ref);
 
 	kfree(commit);
 }
-
-void drm_crtc_commit_put(struct drm_crtc_commit *commit)
-{
-	kref_put(&commit->ref, crtc_commit_free);
-}
-EXPORT_SYMBOL(drm_crtc_commit_put);
+EXPORT_SYMBOL(__drm_crtc_commit_free);
 
 /**
  * drm_atomic_state_default_release -
@@ -1599,10 +1594,8 @@ EXPORT_SYMBOL(drm_atomic_check_only);
  * more locks but encountered a deadlock. The caller must then do the usual w/w
  * backoff dance and restart. All other errors are fatal.
  *
- * Also note that on successful execution ownership of @state is transferred
- * from the caller of this function to the function itself. The caller must not
- * free or in any other way access @state. If the function fails then the caller
- * must clean up @state itself.
+ * This function will take its own reference on @state.
+ * Callers should always release their reference with drm_atomic_state_put().
  *
  * Returns:
  * 0 on success, negative error code on failure.
@@ -1630,10 +1623,8 @@ EXPORT_SYMBOL(drm_atomic_commit);
  * more locks but encountered a deadlock. The caller must then do the usual w/w
  * backoff dance and restart. All other errors are fatal.
  *
- * Also note that on successful execution ownership of @state is transferred
- * from the caller of this function to the function itself. The caller must not
- * free or in any other way access @state. If the function fails then the caller
- * must clean up @state itself.
+ * This function will take its own reference on @state.
+ * Callers should always release their reference with drm_atomic_state_put().
  *
  * Returns:
  * 0 on success, negative error code on failure.
@@ -1882,7 +1873,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
  * for any pending rendering to complete. For shared buffers represented with
- * a struct &dma_buf this is tracked in &reservation_object structures.
+ * a &struct dma_buf this is tracked in &reservation_object structures.
  * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
  * whereas explicit fencing is what Android wants.
  *
@@ -1898,7 +1889,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	it will only check if the Sync File is a valid one.
  *
  *	On the driver side the fence is stored on the @fence parameter of
- *	struct &drm_plane_state. Drivers which also support implicit fencing
+ *	&struct drm_plane_state. Drivers which also support implicit fencing
  *	should set the implicit fence using drm_atomic_set_fence_for_plane(),
  *	to make sure there's consistent behaviour between drivers in precedence
  *	of implicit vs. explicit fencing.
@@ -1917,7 +1908,7 @@ EXPORT_SYMBOL(drm_atomic_clean_old_fb);
  *	DRM_MODE_ATOMIC_TEST_ONLY flag the out fence will also be set to -1.
  *
  *	Note that out-fences don't have a special interface to drivers and are
- *	internally represented by a struct &drm_pending_vblank_event in struct
+ *	internally represented by a &struct drm_pending_vblank_event in struct
  *	&drm_crtc_state, which is also used by the nonblocking atomic commit
  *	helpers and for the DRM event handling for existing userspace.
  */

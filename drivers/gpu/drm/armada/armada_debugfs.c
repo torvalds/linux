@@ -19,13 +19,13 @@ static int armada_debugfs_gem_linear_show(struct seq_file *m, void *data)
 	struct drm_info_node *node = m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct armada_private *priv = dev->dev_private;
-	int ret;
+	struct drm_printer p = drm_seq_file_printer(m);
 
 	mutex_lock(&priv->linear_lock);
-	ret = drm_mm_dump_table(m, &priv->linear);
+	drm_mm_print(&priv->linear, &p);
 	mutex_unlock(&priv->linear_lock);
 
-	return ret;
+	return 0;
 }
 
 static int armada_debugfs_reg_show(struct seq_file *m, void *data)

@@ -37,7 +37,7 @@
  * rotation or Z-position. All these properties are stored in &drm_plane_state.
  *
  * To create a plane, a KMS drivers allocates and zeroes an instances of
- * struct &drm_plane (possibly as part of a larger structure) and registers it
+ * &struct drm_plane (possibly as part of a larger structure) and registers it
  * with a call to drm_universal_plane_init().
  *
  * Cursor and overlay planes are optional. All drivers should provide one
@@ -254,7 +254,7 @@ EXPORT_SYMBOL(drm_plane_cleanup);
  * @idx: index of registered plane to find for
  *
  * Given a plane index, return the registered plane from DRM device's
- * list of planes with matching index.
+ * list of planes with matching index. This is the inverse of drm_plane_index().
  */
 struct drm_plane *
 drm_plane_from_index(struct drm_device *dev, int idx)

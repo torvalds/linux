@@ -56,9 +56,9 @@
  * implement these functions themselves but must use the provided helpers.
  *
  * The atomic helper uses the same function table structures as all other
- * modesetting helpers. See the documentation for struct &drm_crtc_helper_funcs,
- * struct &drm_encoder_helper_funcs and struct &drm_connector_helper_funcs. It
- * also shares the struct &drm_plane_helper_funcs function table with the plane
+ * modesetting helpers. See the documentation for &struct drm_crtc_helper_funcs,
+ * struct &drm_encoder_helper_funcs and &struct drm_connector_helper_funcs. It
+ * also shares the &struct drm_plane_helper_funcs function table with the plane
  * helpers.
  */
 static void
@@ -1355,6 +1355,15 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
 	return ret < 0 ? ret : 0;
 }
 
+void release_crtc_commit(struct completion *completion)
+{
+	struct drm_crtc_commit *commit = container_of(completion,
+						      typeof(*commit),
+						      flip_done);
+
+	drm_crtc_commit_put(commit);
+}
+
 /**
  * drm_atomic_helper_setup_commit - setup possibly nonblocking commit
  * @state: new modeset state to be committed
@@ -1369,7 +1378,7 @@ static int stall_checks(struct drm_crtc *crtc, bool nonblock)
  * actually committing the hardware state, and for nonblocking commits this call
  * must be placed in the async worker. See also drm_atomic_helper_swap_state()
  * and it's stall parameter, for when a driver's commit hooks look at the
- * ->state pointers of struct &drm_crtc, &drm_plane or &drm_connector directly.
+ * ->state pointers of &struct drm_crtc, &drm_plane or &drm_connector directly.
  *
  * Completion of the hardware commit step must be signalled using
  * drm_atomic_helper_commit_hw_done(). After this step the driver is not allowed
@@ -1447,6 +1456,8 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 		}
 
 		crtc_state->event->base.completion = &commit->flip_done;
+		crtc_state->event->base.completion_release = release_crtc_commit;
+		drm_crtc_commit_get(commit);
 	}
 
 	return 0;
@@ -3286,11 +3297,6 @@ EXPORT_SYMBOL(drm_atomic_helper_duplicate_state);
 void
 __drm_atomic_helper_connector_destroy_state(struct drm_connector_state *state)
 {
-	/*
-	 * This is currently a placeholder so that drivers that subclass the
-	 * state will automatically do the right thing if code is ever added
-	 * to this function.
-	 */
 	if (state->crtc)
 		drm_connector_unreference(state->connector);
 }

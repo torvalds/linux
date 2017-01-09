@@ -74,7 +74,14 @@ int drm_legacy_freebufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_mapbufs(struct drm_device *d, void *v, struct drm_file *f);
 int drm_legacy_dma_ioctl(struct drm_device *d, void *v, struct drm_file *f);
 
+#ifdef CONFIG_DRM_VM
 void drm_legacy_vma_flush(struct drm_device *d);
+#else
+static inline void drm_legacy_vma_flush(struct drm_device *d)
+{
+	/* do nothing */
+}
+#endif
 
 /*
  * AGP Support

@@ -19,7 +19,7 @@ MODULE_PARM_DESC(fbdev, "register fbdev device");
 /* ---------------------------------------------------------------------- */
 /* drm interface                                                          */
 
-static int bochs_unload(struct drm_device *dev)
+static void bochs_unload(struct drm_device *dev)
 {
 	struct bochs_device *bochs = dev->dev_private;
 
@@ -29,7 +29,6 @@ static int bochs_unload(struct drm_device *dev)
 	bochs_hw_fini(dev);
 	kfree(bochs);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 static int bochs_load(struct drm_device *dev, unsigned long flags)
