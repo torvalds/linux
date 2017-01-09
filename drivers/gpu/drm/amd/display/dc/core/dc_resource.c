@@ -984,19 +984,20 @@ static void update_stream_signal(struct core_stream *stream)
 {
 	const struct dc_sink *dc_sink = stream->public.sink;
 
-	stream->signal = dc_sink->sink_signal;
-	/* For asic supports dual link DVI, we should adjust signal type
-	 * based on timing pixel clock. If pixel clock more than 165Mhz,
-	 * signal is dual link, otherwise, single link.
-	 */
-	if (dc_sink->sink_signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
-			dc_sink->sink_signal == SIGNAL_TYPE_DVI_DUAL_LINK) {
-		if (stream->public.timing.pix_clk_khz >
-						TMDS_MAX_PIXEL_CLOCK_IN_KHZ)
+	if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
+		stream->signal = stream->sink->link->public.connector_signal;
+	else if (dc_sink->sink_signal == SIGNAL_TYPE_DVI_SINGLE_LINK ||
+			dc_sink->sink_signal == SIGNAL_TYPE_DVI_DUAL_LINK)
+		/* For asic supports dual link DVI, we should adjust signal type
+		 * based on timing pixel clock. If pixel clock more than 165Mhz,
+		 * signal is dual link, otherwise, single link.
+		 */
+		if (stream->public.timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ)
 			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		else
 			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
-	}
+	else
+		stream->signal = dc_sink->sink_signal;
 }
 
 bool resource_is_stream_unchanged(
