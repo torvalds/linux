@@ -508,20 +508,28 @@ static ssize_t sel_write_load(struct file *file, const char __user *buf,
 		goto out;
 
 	length = security_load_policy(data, count);
-	if (length)
+	if (length) {
+		pr_warn_ratelimited("SELinux: failed to load policy\n");
 		goto out;
+	}
 
 	length = sel_make_bools();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy booleans\n");
 		goto out1;
+	}
 
 	length = sel_make_classes();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy classes\n");
 		goto out1;
+	}
 
 	length = sel_make_policycap();
-	if (length)
+	if (length) {
+		pr_err("SELinux: failed to load policy capabilities\n");
 		goto out1;
+	}
 
 	length = count;
 
@@ -1302,8 +1310,11 @@ static int sel_make_bools(void)
 
 		isec = (struct inode_security_struct *)inode->i_security;
 		ret = security_genfs_sid("selinuxfs", page, SECCLASS_FILE, &sid);
-		if (ret)
+		if (ret) {
+			pr_err("SELinux: failed to lookup sid for %s\n", page);
 			goto out;
+
+		}
 
 		isec->sid = sid;
 		isec->initialized = LABEL_INITIALIZED;
