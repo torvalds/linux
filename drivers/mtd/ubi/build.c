@@ -1470,7 +1470,7 @@ static int ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 	return 0;
 }
 
-module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 000);
+module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 0400);
 MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: mtd=<name|num|path>[,<vid_hdr_offs>[,max_beb_per1024[,ubi_num]]].\n"
 		      "Multiple \"mtd\" parameters may be specified.\n"
 		      "MTD devices may be specified by their number, name, or path to the MTD character device node.\n"
