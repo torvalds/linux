@@ -2730,12 +2730,16 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct drm_i915_gem_request *request)
 {
+	dma_fence_set_error(&request->fence, -EIO);
 	i915_gem_request_submit(request);
 	intel_engine_init_global_seqno(request->engine, request->global_seqno);
 }
 
 static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 {
+	struct drm_i915_gem_request *request;
+	unsigned long flags;
+
 	/* We need to be sure that no thread is running the old callback as
 	 * we install the nop handler (otherwise we would submit a request
 	 * to hardware that will never complete). In order to prevent this
@@ -2743,6 +2747,12 @@ static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
 	 * (using stop_machine()).
 	 */
 	engine->submit_request = nop_submit_request;
+
+	/* Mark all executing requests as skipped */
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+	list_for_each_entry(request, &engine->timeline->requests, link)
+		dma_fence_set_error(&request->fence, -EIO);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
 	/* Mark all pending requests as complete so that any concurrent
 	 * (lockless) lookup doesn't try and wait upon the request as we
