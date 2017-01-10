@@ -225,6 +225,11 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 	void *headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 				       outer_headers);
 
+	struct flow_dissector_key_control *enc_control =
+		skb_flow_dissector_target(f->dissector,
+					  FLOW_DISSECTOR_KEY_ENC_CONTROL,
+					  f->key);
+
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_PORTS)) {
 		struct flow_dissector_key_ports *key =
 			skb_flow_dissector_target(f->dissector,
@@ -264,7 +269,7 @@ vxlan_match_offload_err:
 		return -EOPNOTSUPP;
 	}
 
-	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS)) {
+	if (enc_control->addr_type == FLOW_DISSECTOR_KEY_IPV4_ADDRS) {
 		struct flow_dissector_key_ipv4_addrs *key =
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
@@ -286,10 +291,10 @@ vxlan_match_offload_err:
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 			 dst_ipv4_dst_ipv6.ipv4_layout.ipv4,
 			 ntohl(key->dst));
-	}
 
-	MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
-	MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IP);
+		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ethertype);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype, ETH_P_IP);
+	}
 
 	/* Enforce DMAC when offloading incoming tunneled flows.
 	 * Flow counters require a match on the DMAC.
