@@ -1,0 +1,36 @@
+Sharp 15" LQ150X1LG11 XGA TFT LCD panel
+
+Required properties:
+- compatible: should be "sharp,lq150x1lg11"
+- power-supply: regulator to provide the VCC supply voltage (3.3 volts)
+
+Optional properties:
+- backlight: phandle of the backlight device
+- rlud-gpios: a single GPIO for the RL/UD (rotate 180 degrees) pin.
+- sellvds-gpios: a single GPIO for the SELLVDS pin.
+
+If rlud-gpios and/or sellvds-gpios are not specified, the RL/UD and/or SELLVDS
+pins are assumed to be handled appropriately by the hardware.
+
+Example:
+
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 0 100000>;                      /* VBR */
+
+		brightness-levels = <0 20 40 60 80 100>;
+		default-brightness-level = <2>;
+
+		power-supply = <&vdd_12v_reg>;               /* VDD */
+		enable-gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;  /* XSTABY */
+	};
+
+	panel {
+		compatible = "sharp,lq150x1lg11";
+
+		power-supply = <&vcc_3v3_reg>;               /* VCC */
+
+		backlight = <&backlight>;
+		rlud-gpios = <&gpio 17 GPIO_ACTIVE_HIGH>;    /* RL/UD */
+		sellvds-gpios = <&gpio 18 GPIO_ACTIVE_HIGH>; /* SELLVDS */
+	};

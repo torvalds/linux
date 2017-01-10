@@ -88,6 +88,18 @@ static inline int wil_vring_wmark_high(struct vring *vring)
 	return vring->size/4;
 }
 
+/* returns true if num avail descriptors is lower than wmark_low */
+static inline int wil_vring_avail_low(struct vring *vring)
+{
+	return wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring);
+}
+
+/* returns true if num avail descriptors is higher than wmark_high */
+static inline int wil_vring_avail_high(struct vring *vring)
+{
+	return wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring);
+}
+
 /* wil_val_in_range - check if value in [min,max) */
 static inline bool wil_val_in_range(int val, int min, int max)
 {
@@ -326,7 +338,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 
 	if (skb_headroom(skb) < rtap_len &&
 	    pskb_expand_head(skb, rtap_len, 0, GFP_ATOMIC)) {
-		wil_err(wil, "Unable to expand headrom to %d\n", rtap_len);
+		wil_err(wil, "Unable to expand headroom to %d\n", rtap_len);
 		return;
 	}
 
@@ -1780,6 +1792,89 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	return rc;
 }
 
+/**
+ * Check status of tx vrings and stop/wake net queues if needed
+ *
+ * This function does one of two checks:
+ * In case check_stop is true, will check if net queues need to be stopped. If
+ * the conditions for stopping are met, netif_tx_stop_all_queues() is called.
+ * In case check_stop is false, will check if net queues need to be waked. If
+ * the conditions for waking are met, netif_tx_wake_all_queues() is called.
+ * vring is the vring which is currently being modified by either adding
+ * descriptors (tx) into it or removing descriptors (tx complete) from it. Can
+ * be null when irrelevant (e.g. connect/disconnect events).
+ *
+ * The implementation is to stop net queues if modified vring has low
+ * descriptor availability. Wake if all vrings are not in low descriptor
+ * availability and modified vring has high descriptor availability.
+ */
+static inline void __wil_update_net_queues(struct wil6210_priv *wil,
+					   struct vring *vring,
+					   bool check_stop)
+{
+	int i;
+
+	if (vring)
+		wil_dbg_txrx(wil, "vring %d, check_stop=%d, stopped=%d",
+			     (int)(vring - wil->vring_tx), check_stop,
+			     wil->net_queue_stopped);
+	else
+		wil_dbg_txrx(wil, "check_stop=%d, stopped=%d",
+			     check_stop, wil->net_queue_stopped);
+
+	if (check_stop == wil->net_queue_stopped)
+		/* net queues already in desired state */
+		return;
+
+	if (check_stop) {
+		if (!vring || unlikely(wil_vring_avail_low(vring))) {
+			/* not enough room in the vring */
+			netif_tx_stop_all_queues(wil_to_ndev(wil));
+			wil->net_queue_stopped = true;
+			wil_dbg_txrx(wil, "netif_tx_stop called\n");
+		}
+		return;
+	}
+
+	/* check wake */
+	for (i = 0; i < WIL6210_MAX_TX_RINGS; i++) {
+		struct vring *cur_vring = &wil->vring_tx[i];
+		struct vring_tx_data *txdata = &wil->vring_tx_data[i];
+
+		if (!cur_vring->va || !txdata->enabled || cur_vring == vring)
+			continue;
+
+		if (wil_vring_avail_low(cur_vring)) {
+			wil_dbg_txrx(wil, "vring %d full, can't wake\n",
+				     (int)(cur_vring - wil->vring_tx));
+			return;
+		}
+	}
+
+	if (!vring || wil_vring_avail_high(vring)) {
+		/* enough room in the vring */
+		wil_dbg_txrx(wil, "calling netif_tx_wake\n");
+		netif_tx_wake_all_queues(wil_to_ndev(wil));
+		wil->net_queue_stopped = false;
+	}
+}
+
+void wil_update_net_queues(struct wil6210_priv *wil, struct vring *vring,
+			   bool check_stop)
+{
+	spin_lock(&wil->net_queue_lock);
+	__wil_update_net_queues(wil, vring, check_stop);
+	spin_unlock(&wil->net_queue_lock);
+}
+
+void wil_update_net_queues_bh(struct wil6210_priv *wil, struct vring *vring,
+			      bool check_stop)
+{
+	spin_lock_bh(&wil->net_queue_lock);
+	__wil_update_net_queues(wil, vring, check_stop);
+	spin_unlock_bh(&wil->net_queue_lock);
+}
+
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
@@ -1822,14 +1917,10 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* set up vring entry */
 	rc = wil_tx_vring(wil, vring, skb);
 
-	/* do we still have enough room in the vring? */
-	if (unlikely(wil_vring_avail_tx(vring) < wil_vring_wmark_low(vring))) {
-		netif_tx_stop_all_queues(wil_to_ndev(wil));
-		wil_dbg_txrx(wil, "netif_tx_stop : ring full\n");
-	}
-
 	switch (rc) {
 	case 0:
+		/* shall we stop net queues? */
+		wil_update_net_queues_bh(wil, vring, true);
 		/* statistics will be updated on the tx_complete */
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
@@ -1978,10 +2069,9 @@ int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		txdata->last_idle = get_cycles();
 	}
 
-	if (wil_vring_avail_tx(vring) > wil_vring_wmark_high(vring)) {
-		wil_dbg_txrx(wil, "netif_tx_wake : ring not full\n");
-		netif_tx_wake_all_queues(wil_to_ndev(wil));
-	}
+	/* shall we wake net queues? */
+	if (done)
+		wil_update_net_queues(wil, vring, false);
 
 	return done;
 }

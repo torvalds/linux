@@ -1,6 +1,8 @@
 /*
  * Copyright (C) 2014 Marvell Technology Group Ltd.
  *
+ * Marvell Berlin reset driver
+ *
  * Antoine Tenart <antoine.tenart@free-electrons.com>
  * Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>
  *
@@ -12,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
@@ -91,7 +93,6 @@ static const struct of_device_id berlin_reset_dt_match[] = {
 	{ .compatible = "marvell,berlin2-reset" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, berlin_reset_dt_match);
 
 static struct platform_driver berlin_reset_driver = {
 	.probe	= berlin2_reset_probe,
@@ -100,9 +101,4 @@ static struct platform_driver berlin_reset_driver = {
 		.of_match_table = berlin_reset_dt_match,
 	},
 };
-module_platform_driver(berlin_reset_driver);
-
-MODULE_AUTHOR("Antoine Tenart <antoine.tenart@free-electrons.com>");
-MODULE_AUTHOR("Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>");
-MODULE_DESCRIPTION("Marvell Berlin reset driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(berlin_reset_driver);

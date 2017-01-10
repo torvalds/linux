@@ -180,7 +180,6 @@ static int hostess_attach(struct net_device *dev, unsigned short encoding,
 static const struct net_device_ops hostess_ops = {
 	.ndo_open       = hostess_open,
 	.ndo_stop       = hostess_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = hostess_ioctl,
 };

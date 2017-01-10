@@ -175,7 +175,8 @@ struct ap_device_id {
 	kernel_ulong_t driver_info;
 };
 
-#define AP_DEVICE_ID_MATCH_DEVICE_TYPE		0x01
+#define AP_DEVICE_ID_MATCH_CARD_TYPE		0x01
+#define AP_DEVICE_ID_MATCH_QUEUE_TYPE		0x02
 
 /* s390 css bus devices (subchannels) */
 struct css_device_id {

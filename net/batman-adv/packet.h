@@ -21,7 +21,7 @@
 #include <asm/byteorder.h>
 #include <linux/types.h>
 
-#define batadv_tp_is_error(n) ((u8)n > 127 ? 1 : 0)
+#define batadv_tp_is_error(n) ((u8)(n) > 127 ? 1 : 0)
 
 /**
  * enum batadv_packettype - types for batman-adv encapsulated packets
@@ -250,16 +250,6 @@ struct batadv_elp_packet {
 };
 
 #define BATADV_ELP_HLEN sizeof(struct batadv_elp_packet)
-
-/**
- * enum batadv_icmp_user_cmd_type - types for batman-adv icmp cmd modes
- * @BATADV_TP_START: start a throughput meter run
- * @BATADV_TP_STOP: stop a throughput meter run
- */
-enum batadv_icmp_user_cmd_type {
-	BATADV_TP_START		= 0,
-	BATADV_TP_STOP		= 2,
-};
 
 /**
  * struct batadv_icmp_header - common members among all the ICMP packets

@@ -100,6 +100,12 @@ static const struct xhci_plat_priv xhci_plat_renesas_rcar_gen3 = {
 	.plat_start = xhci_rcar_start,
 };
 
+static const struct xhci_plat_priv xhci_plat_renesas_rcar_r8a7796 = {
+	.firmware_name = XHCI_RCAR_FIRMWARE_NAME_V3,
+	.init_quirk = xhci_rcar_init_quirk,
+	.plat_start = xhci_rcar_start,
+};
+
 static const struct of_device_id usb_xhci_of_match[] = {
 	{
 		.compatible = "generic-xhci",
@@ -123,6 +129,9 @@ static const struct of_device_id usb_xhci_of_match[] = {
 	}, {
 		.compatible = "renesas,xhci-r8a7795",
 		.data = &xhci_plat_renesas_rcar_gen3,
+	}, {
+		.compatible = "renesas,xhci-r8a7796",
+		.data = &xhci_plat_renesas_rcar_r8a7796,
 	}, {
 		.compatible = "renesas,rcar-gen2-xhci",
 		.data = &xhci_plat_renesas_rcar_gen2,

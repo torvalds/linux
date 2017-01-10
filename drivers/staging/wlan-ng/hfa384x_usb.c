@@ -1,114 +1,114 @@
 /* src/prism2/driver/hfa384x_usb.c
-*
-* Functions that talk to the USB variantof the Intersil hfa384x MAC
-*
-* Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
-* --------------------------------------------------------------------
-*
-* linux-wlan
-*
-*   The contents of this file are subject to the Mozilla Public
-*   License Version 1.1 (the "License"); you may not use this file
-*   except in compliance with the License. You may obtain a copy of
-*   the License at http://www.mozilla.org/MPL/
-*
-*   Software distributed under the License is distributed on an "AS
-*   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
-*   implied. See the License for the specific language governing
-*   rights and limitations under the License.
-*
-*   Alternatively, the contents of this file may be used under the
-*   terms of the GNU Public License version 2 (the "GPL"), in which
-*   case the provisions of the GPL are applicable instead of the
-*   above.  If you wish to allow the use of your version of this file
-*   only under the terms of the GPL and not to allow others to use
-*   your version of this file under the MPL, indicate your decision
-*   by deleting the provisions above and replace them with the notice
-*   and other provisions required by the GPL.  If you do not delete
-*   the provisions above, a recipient may use your version of this
-*   file under either the MPL or the GPL.
-*
-* --------------------------------------------------------------------
-*
-* Inquiries regarding the linux-wlan Open Source project can be
-* made directly to:
-*
-* AbsoluteValue Systems Inc.
-* info@linux-wlan.com
-* http://www.linux-wlan.com
-*
-* --------------------------------------------------------------------
-*
-* Portions of the development of this software were funded by
-* Intersil Corporation as part of PRISM(R) chipset product development.
-*
-* --------------------------------------------------------------------
-*
-* This file implements functions that correspond to the prism2/hfa384x
-* 802.11 MAC hardware and firmware host interface.
-*
-* The functions can be considered to represent several levels of
-* abstraction.  The lowest level functions are simply C-callable wrappers
-* around the register accesses.  The next higher level represents C-callable
-* prism2 API functions that match the Intersil documentation as closely
-* as is reasonable.  The next higher layer implements common sequences
-* of invocations of the API layer (e.g. write to bap, followed by cmd).
-*
-* Common sequences:
-* hfa384x_drvr_xxx	Highest level abstractions provided by the
-*			hfa384x code.  They are driver defined wrappers
-*			for common sequences.  These functions generally
-*			use the services of the lower levels.
-*
-* hfa384x_drvr_xxxconfig  An example of the drvr level abstraction. These
-*			functions are wrappers for the RID get/set
-*			sequence. They call copy_[to|from]_bap() and
-*			cmd_access(). These functions operate on the
-*			RIDs and buffers without validation. The caller
-*			is responsible for that.
-*
-* API wrapper functions:
-* hfa384x_cmd_xxx	functions that provide access to the f/w commands.
-*			The function arguments correspond to each command
-*			argument, even command arguments that get packed
-*			into single registers.  These functions _just_
-*			issue the command by setting the cmd/parm regs
-*			& reading the status/resp regs.  Additional
-*			activities required to fully use a command
-*			(read/write from/to bap, get/set int status etc.)
-*			are implemented separately.  Think of these as
-*			C-callable prism2 commands.
-*
-* Lowest Layer Functions:
-* hfa384x_docmd_xxx	These functions implement the sequence required
-*			to issue any prism2 command.  Primarily used by the
-*			hfa384x_cmd_xxx functions.
-*
-* hfa384x_bap_xxx	BAP read/write access functions.
-*			Note: we usually use BAP0 for non-interrupt context
-*			 and BAP1 for interrupt context.
-*
-* hfa384x_dl_xxx	download related functions.
-*
-* Driver State Issues:
-* Note that there are two pairs of functions that manage the
-* 'initialized' and 'running' states of the hw/MAC combo.  The four
-* functions are create(), destroy(), start(), and stop().  create()
-* sets up the data structures required to support the hfa384x_*
-* functions and destroy() cleans them up.  The start() function gets
-* the actual hardware running and enables the interrupts.  The stop()
-* function shuts the hardware down.  The sequence should be:
-* create()
-* start()
-*  .
-*  .  Do interesting things w/ the hardware
-*  .
-* stop()
-* destroy()
-*
-* Note that destroy() can be called without calling stop() first.
-* --------------------------------------------------------------------
-*/
+ *
+ * Functions that talk to the USB variantof the Intersil hfa384x MAC
+ *
+ * Copyright (C) 1999 AbsoluteValue Systems, Inc.  All Rights Reserved.
+ * --------------------------------------------------------------------
+ *
+ * linux-wlan
+ *
+ *   The contents of this file are subject to the Mozilla Public
+ *   License Version 1.1 (the "License"); you may not use this file
+ *   except in compliance with the License. You may obtain a copy of
+ *   the License at http://www.mozilla.org/MPL/
+ *
+ *   Software distributed under the License is distributed on an "AS
+ *   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
+ *   implied. See the License for the specific language governing
+ *   rights and limitations under the License.
+ *
+ *   Alternatively, the contents of this file may be used under the
+ *   terms of the GNU Public License version 2 (the "GPL"), in which
+ *   case the provisions of the GPL are applicable instead of the
+ *   above.  If you wish to allow the use of your version of this file
+ *   only under the terms of the GPL and not to allow others to use
+ *   your version of this file under the MPL, indicate your decision
+ *   by deleting the provisions above and replace them with the notice
+ *   and other provisions required by the GPL.  If you do not delete
+ *   the provisions above, a recipient may use your version of this
+ *   file under either the MPL or the GPL.
+ *
+ * --------------------------------------------------------------------
+ *
+ * Inquiries regarding the linux-wlan Open Source project can be
+ * made directly to:
+ *
+ * AbsoluteValue Systems Inc.
+ * info@linux-wlan.com
+ * http://www.linux-wlan.com
+ *
+ * --------------------------------------------------------------------
+ *
+ * Portions of the development of this software were funded by
+ * Intersil Corporation as part of PRISM(R) chipset product development.
+ *
+ * --------------------------------------------------------------------
+ *
+ * This file implements functions that correspond to the prism2/hfa384x
+ * 802.11 MAC hardware and firmware host interface.
+ *
+ * The functions can be considered to represent several levels of
+ * abstraction.  The lowest level functions are simply C-callable wrappers
+ * around the register accesses.  The next higher level represents C-callable
+ * prism2 API functions that match the Intersil documentation as closely
+ * as is reasonable.  The next higher layer implements common sequences
+ * of invocations of the API layer (e.g. write to bap, followed by cmd).
+ *
+ * Common sequences:
+ * hfa384x_drvr_xxx	Highest level abstractions provided by the
+ *			hfa384x code.  They are driver defined wrappers
+ *			for common sequences.  These functions generally
+ *			use the services of the lower levels.
+ *
+ * hfa384x_drvr_xxxconfig  An example of the drvr level abstraction. These
+ *			functions are wrappers for the RID get/set
+ *			sequence. They call copy_[to|from]_bap() and
+ *			cmd_access(). These functions operate on the
+ *			RIDs and buffers without validation. The caller
+ *			is responsible for that.
+ *
+ * API wrapper functions:
+ * hfa384x_cmd_xxx	functions that provide access to the f/w commands.
+ *			The function arguments correspond to each command
+ *			argument, even command arguments that get packed
+ *			into single registers.  These functions _just_
+ *			issue the command by setting the cmd/parm regs
+ *			& reading the status/resp regs.  Additional
+ *			activities required to fully use a command
+ *			(read/write from/to bap, get/set int status etc.)
+ *			are implemented separately.  Think of these as
+ *			C-callable prism2 commands.
+ *
+ * Lowest Layer Functions:
+ * hfa384x_docmd_xxx	These functions implement the sequence required
+ *			to issue any prism2 command.  Primarily used by the
+ *			hfa384x_cmd_xxx functions.
+ *
+ * hfa384x_bap_xxx	BAP read/write access functions.
+ *			Note: we usually use BAP0 for non-interrupt context
+ *			 and BAP1 for interrupt context.
+ *
+ * hfa384x_dl_xxx	download related functions.
+ *
+ * Driver State Issues:
+ * Note that there are two pairs of functions that manage the
+ * 'initialized' and 'running' states of the hw/MAC combo.  The four
+ * functions are create(), destroy(), start(), and stop().  create()
+ * sets up the data structures required to support the hfa384x_*
+ * functions and destroy() cleans them up.  The start() function gets
+ * the actual hardware running and enables the interrupts.  The stop()
+ * function shuts the hardware down.  The sequence should be:
+ * create()
+ * start()
+ *  .
+ *  .  Do interesting things w/ the hardware
+ *  .
+ * stop()
+ * destroy()
+ *
+ * Note that destroy() can be called without calling stop() first.
+ * --------------------------------------------------------------------
+ */
 
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -153,8 +153,8 @@ enum cmd_mode {
 static void dbprint_urb(struct urb *urb);
 #endif
 
-static void
-hfa384x_int_rxmonitor(struct wlandevice *wlandev, struct hfa384x_usb_rxfrm *rxfrm);
+static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
+				  struct hfa384x_usb_rxfrm *rxfrm);
 
 static void hfa384x_usb_defer(struct work_struct *data);
 
@@ -173,7 +173,8 @@ hfa384x_usbin_txcompl(struct wlandevice *wlandev, union hfa384x_usbin *usbin);
 
 static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb);
 
-static void hfa384x_usbin_info(struct wlandevice *wlandev, union hfa384x_usbin *usbin);
+static void hfa384x_usbin_info(struct wlandevice *wlandev,
+			       union hfa384x_usbin *usbin);
 
 static void hfa384x_usbin_ctlx(struct hfa384x *hw, union hfa384x_usbin *usbin,
 			       int urb_status);
@@ -193,9 +194,11 @@ static void hfa384x_usbctlx_completion_task(unsigned long data);
 
 static void hfa384x_usbctlx_reaper_task(unsigned long data);
 
-static int hfa384x_usbctlx_submit(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx);
+static int hfa384x_usbctlx_submit(struct hfa384x *hw,
+				  struct hfa384x_usbctlx *ctlx);
 
-static void unlocked_usbctlx_complete(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx);
+static void unlocked_usbctlx_complete(struct hfa384x *hw,
+				      struct hfa384x_usbctlx *ctlx);
 
 struct usbctlx_completor {
 	int (*complete)(struct usbctlx_completor *);
@@ -209,7 +212,8 @@ hfa384x_usbctlx_complete_sync(struct hfa384x *hw,
 static int
 unlocked_usbctlx_cancel_async(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx);
 
-static void hfa384x_cb_status(struct hfa384x *hw, const struct hfa384x_usbctlx *ctlx);
+static void hfa384x_cb_status(struct hfa384x *hw,
+			      const struct hfa384x_usbctlx *ctlx);
 
 static int
 usbctlx_get_status(const struct hfa384x_usb_statusresp *cmdresp,
@@ -263,7 +267,7 @@ hfa384x_dowmem(struct hfa384x *hw,
 
 static int hfa384x_isgood_pdrcode(u16 pdrcode);
 
-static inline const char *ctlxstr(CTLX_STATE s)
+static inline const char *ctlxstr(enum ctlx_state s)
 {
 	static const char * const ctlx_str[] = {
 		"Initial state",
@@ -307,21 +311,22 @@ void dbprint_urb(struct urb *urb)
 #endif
 
 /*----------------------------------------------------------------
-* submit_rx_urb
-*
-* Listen for input data on the BULK-IN pipe. If the pipe has
-* stalled then schedule it to be reset.
-*
-* Arguments:
-*	hw		device struct
-*	memflags	memory allocation flags
-*
-* Returns:
-*	error code from submission
-*
-* Call context:
-*	Any
-----------------------------------------------------------------*/
+ * submit_rx_urb
+ *
+ * Listen for input data on the BULK-IN pipe. If the pipe has
+ * stalled then schedule it to be reset.
+ *
+ * Arguments:
+ *	hw		device struct
+ *	memflags	memory allocation flags
+ *
+ * Returns:
+ *	error code from submission
+ *
+ * Call context:
+ *	Any
+ *----------------------------------------------------------------
+ */
 static int submit_rx_urb(struct hfa384x *hw, gfp_t memflags)
 {
 	struct sk_buff *skb;
@@ -367,23 +372,24 @@ done:
 }
 
 /*----------------------------------------------------------------
-* submit_tx_urb
-*
-* Prepares and submits the URB of transmitted data. If the
-* submission fails then it will schedule the output pipe to
-* be reset.
-*
-* Arguments:
-*	hw		device struct
-*	tx_urb		URB of data for transmission
-*	memflags	memory allocation flags
-*
-* Returns:
-*	error code from submission
-*
-* Call context:
-*	Any
-----------------------------------------------------------------*/
+ * submit_tx_urb
+ *
+ * Prepares and submits the URB of transmitted data. If the
+ * submission fails then it will schedule the output pipe to
+ * be reset.
+ *
+ * Arguments:
+ *	hw		device struct
+ *	tx_urb		URB of data for transmission
+ *	memflags	memory allocation flags
+ *
+ * Returns:
+ *	error code from submission
+ *
+ * Call context:
+ *	Any
+ *----------------------------------------------------------------
+ */
 static int submit_tx_urb(struct hfa384x *hw, struct urb *tx_urb, gfp_t memflags)
 {
 	struct net_device *netdev = hw->wlandev->netdev;
@@ -412,21 +418,22 @@ static int submit_tx_urb(struct hfa384x *hw, struct urb *tx_urb, gfp_t memflags)
 }
 
 /*----------------------------------------------------------------
-* hfa394x_usb_defer
-*
-* There are some things that the USB stack cannot do while
-* in interrupt context, so we arrange this function to run
-* in process context.
-*
-* Arguments:
-*	hw	device structure
-*
-* Returns:
-*	nothing
-*
-* Call context:
-*	process (by design)
-----------------------------------------------------------------*/
+ * hfa394x_usb_defer
+ *
+ * There are some things that the USB stack cannot do while
+ * in interrupt context, so we arrange this function to run
+ * in process context.
+ *
+ * Arguments:
+ *	hw	device structure
+ *
+ * Returns:
+ *	nothing
+ *
+ * Call context:
+ *	process (by design)
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usb_defer(struct work_struct *data)
 {
 	struct hfa384x *hw = container_of(data, struct hfa384x, usb_work);
@@ -501,29 +508,30 @@ static void hfa384x_usb_defer(struct work_struct *data)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_create
-*
-* Sets up the struct hfa384x data structure for use.  Note this
-* does _not_ initialize the actual hardware, just the data structures
-* we use to keep track of its state.
-*
-* Arguments:
-*	hw		device structure
-*	irq		device irq number
-*	iobase		i/o base address for register access
-*	membase		memory base address for register access
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_create
+ *
+ * Sets up the struct hfa384x data structure for use.  Note this
+ * does _not_ initialize the actual hardware, just the data structures
+ * we use to keep track of its state.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	irq		device irq number
+ *	iobase		i/o base address for register access
+ *	membase		memory base address for register access
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 void hfa384x_create(struct hfa384x *hw, struct usb_device *usb)
 {
-	memset(hw, 0, sizeof(struct hfa384x));
+	memset(hw, 0, sizeof(*hw));
 	hw->usb = usb;
 
 	/* set up the endpoints */
@@ -571,27 +579,28 @@ void hfa384x_create(struct hfa384x *hw, struct usb_device *usb)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_destroy
-*
-* Partner to hfa384x_create().  This function cleans up the hw
-* structure so that it can be freed by the caller using a simple
-* kfree.  Currently, this function is just a placeholder.  If, at some
-* point in the future, an hw in the 'shutdown' state requires a 'deep'
-* kfree, this is where it should be done.  Note that if this function
-* is called on a _running_ hw structure, the drvr_stop() function is
-* called.
-*
-* Arguments:
-*	hw		device structure
-*
-* Returns:
-*	nothing, this function is not allowed to fail.
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_destroy
+ *
+ * Partner to hfa384x_create().  This function cleans up the hw
+ * structure so that it can be freed by the caller using a simple
+ * kfree.  Currently, this function is just a placeholder.  If, at some
+ * point in the future, an hw in the 'shutdown' state requires a 'deep'
+ * kfree, this is where it should be done.  Note that if this function
+ * is called on a _running_ hw structure, the drvr_stop() function is
+ * called.
+ *
+ * Arguments:
+ *	hw		device structure
+ *
+ * Returns:
+ *	nothing, this function is not allowed to fail.
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 void hfa384x_destroy(struct hfa384x *hw)
 {
 	struct sk_buff *skb;
@@ -645,10 +654,11 @@ usbctlx_get_rridresult(const struct hfa384x_usb_rridresp *rridresp,
 }
 
 /*----------------------------------------------------------------
-* Completor object:
-* This completor must be passed to hfa384x_usbctlx_complete_sync()
-* when processing a CTLX that returns a struct hfa384x_cmdresult structure.
-----------------------------------------------------------------*/
+ * Completor object:
+ * This completor must be passed to hfa384x_usbctlx_complete_sync()
+ * when processing a CTLX that returns a struct hfa384x_cmdresult structure.
+ *----------------------------------------------------------------
+ */
 struct usbctlx_cmd_completor {
 	struct usbctlx_completor head;
 
@@ -664,24 +674,23 @@ static inline int usbctlx_cmd_completor_fn(struct usbctlx_completor *head)
 	return usbctlx_get_status(complete->cmdresp, complete->result);
 }
 
-static inline struct usbctlx_completor *init_cmd_completor(
-						struct usbctlx_cmd_completor
-							*completor,
-						const struct hfa384x_usb_statusresp
-							*cmdresp,
-						struct hfa384x_cmdresult *result)
+static inline struct usbctlx_completor *
+init_cmd_completor(struct usbctlx_cmd_completor *completor,
+		   const struct hfa384x_usb_statusresp *cmdresp,
+		   struct hfa384x_cmdresult *result)
 {
 	completor->head.complete = usbctlx_cmd_completor_fn;
 	completor->cmdresp = cmdresp;
 	completor->result = result;
-	return &(completor->head);
+	return &completor->head;
 }
 
 /*----------------------------------------------------------------
-* Completor object:
-* This completor must be passed to hfa384x_usbctlx_complete_sync()
-* when processing a CTLX that reads a RID.
-----------------------------------------------------------------*/
+ * Completor object:
+ * This completor must be passed to hfa384x_usbctlx_complete_sync()
+ * when processing a CTLX that reads a RID.
+ *----------------------------------------------------------------
+ */
 struct usbctlx_rrid_completor {
 	struct usbctlx_completor head;
 
@@ -710,37 +719,38 @@ static int usbctlx_rrid_completor_fn(struct usbctlx_completor *head)
 	return 0;
 }
 
-static inline struct usbctlx_completor *init_rrid_completor(
-						struct usbctlx_rrid_completor
-							*completor,
-						const struct hfa384x_usb_rridresp
-							*rridresp,
-						void *riddata,
-						unsigned int riddatalen)
+static inline struct usbctlx_completor *
+init_rrid_completor(struct usbctlx_rrid_completor *completor,
+		    const struct hfa384x_usb_rridresp *rridresp,
+		    void *riddata,
+		    unsigned int riddatalen)
 {
 	completor->head.complete = usbctlx_rrid_completor_fn;
 	completor->rridresp = rridresp;
 	completor->riddata = riddata;
 	completor->riddatalen = riddatalen;
-	return &(completor->head);
+	return &completor->head;
 }
 
 /*----------------------------------------------------------------
-* Completor object:
-* Interprets the results of a synchronous RID-write
-----------------------------------------------------------------*/
+ * Completor object:
+ * Interprets the results of a synchronous RID-write
+ *----------------------------------------------------------------
+ */
 #define init_wrid_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
-* Completor object:
-* Interprets the results of a synchronous memory-write
-----------------------------------------------------------------*/
+ * Completor object:
+ * Interprets the results of a synchronous memory-write
+ *----------------------------------------------------------------
+ */
 #define init_wmem_completor  init_cmd_completor
 
 /*----------------------------------------------------------------
-* Completor object:
-* Interprets the results of a synchronous memory-read
-----------------------------------------------------------------*/
+ * Completor object:
+ * Interprets the results of a synchronous memory-read
+ *----------------------------------------------------------------
+ */
 struct usbctlx_rmem_completor {
 	struct usbctlx_completor head;
 
@@ -759,43 +769,43 @@ static int usbctlx_rmem_completor_fn(struct usbctlx_completor *head)
 	return 0;
 }
 
-static inline struct usbctlx_completor *init_rmem_completor(
-						struct usbctlx_rmem_completor
-							*completor,
-						struct hfa384x_usb_rmemresp
-							*rmemresp,
-						void *data,
-						unsigned int len)
+static inline struct usbctlx_completor *
+init_rmem_completor(struct usbctlx_rmem_completor *completor,
+		    struct hfa384x_usb_rmemresp *rmemresp,
+		    void *data,
+		    unsigned int len)
 {
 	completor->head.complete = usbctlx_rmem_completor_fn;
 	completor->rmemresp = rmemresp;
 	completor->data = data;
 	completor->len = len;
-	return &(completor->head);
+	return &completor->head;
 }
 
 /*----------------------------------------------------------------
-* hfa384x_cb_status
-*
-* Ctlx_complete handler for async CMD type control exchanges.
-* mark the hw struct as such.
-*
-* Note: If the handling is changed here, it should probably be
-*       changed in docmd as well.
-*
-* Arguments:
-*	hw		hw struct
-*	ctlx		completed CTLX
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
-static void hfa384x_cb_status(struct hfa384x *hw, const struct hfa384x_usbctlx *ctlx)
+ * hfa384x_cb_status
+ *
+ * Ctlx_complete handler for async CMD type control exchanges.
+ * mark the hw struct as such.
+ *
+ * Note: If the handling is changed here, it should probably be
+ *       changed in docmd as well.
+ *
+ * Arguments:
+ *	hw		hw struct
+ *	ctlx		completed CTLX
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
+static void hfa384x_cb_status(struct hfa384x *hw,
+			      const struct hfa384x_usbctlx *ctlx)
 {
 	if (ctlx->usercb) {
 		struct hfa384x_cmdresult cmdresult;
@@ -812,7 +822,8 @@ static void hfa384x_cb_status(struct hfa384x *hw, const struct hfa384x_usbctlx *
 	}
 }
 
-static inline int hfa384x_docmd_wait(struct hfa384x *hw, struct hfa384x_metacmd *cmd)
+static inline int hfa384x_docmd_wait(struct hfa384x *hw,
+				     struct hfa384x_metacmd *cmd)
 {
 	return hfa384x_docmd(hw, DOWAIT, cmd, NULL, NULL, NULL);
 }
@@ -905,24 +916,25 @@ hfa384x_dowmem_async(struct hfa384x *hw,
 }
 
 /*----------------------------------------------------------------
-* hfa384x_cmd_initialize
-*
-* Issues the initialize command and sets the hw->state based
-* on the result.
-*
-* Arguments:
-*	hw		device structure
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_cmd_initialize
+ *
+ * Issues the initialize command and sets the hw->state based
+ * on the result.
+ *
+ * Arguments:
+ *	hw		device structure
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_cmd_initialize(struct hfa384x *hw)
 {
 	int result = 0;
@@ -950,25 +962,26 @@ int hfa384x_cmd_initialize(struct hfa384x *hw)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_cmd_disable
-*
-* Issues the disable command to stop communications on one of
-* the MACs 'ports'.
-*
-* Arguments:
-*	hw		device structure
-*	macport		MAC port number (host order)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_cmd_disable
+ *
+ * Issues the disable command to stop communications on one of
+ * the MACs 'ports'.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	macport		MAC port number (host order)
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported failure - f/w status code
+ *	<0		driver reported error (timeout|bad arg)
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_cmd_disable(struct hfa384x *hw, u16 macport)
 {
 	struct hfa384x_metacmd cmd;
@@ -983,25 +996,26 @@ int hfa384x_cmd_disable(struct hfa384x *hw, u16 macport)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_cmd_enable
-*
-* Issues the enable command to enable communications on one of
-* the MACs 'ports'.
-*
-* Arguments:
-*	hw		device structure
-*	macport		MAC port number
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_cmd_enable
+ *
+ * Issues the enable command to enable communications on one of
+ * the MACs 'ports'.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	macport		MAC port number
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported failure - f/w status code
+ *	<0		driver reported error (timeout|bad arg)
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_cmd_enable(struct hfa384x *hw, u16 macport)
 {
 	struct hfa384x_metacmd cmd;
@@ -1016,34 +1030,35 @@ int hfa384x_cmd_enable(struct hfa384x *hw, u16 macport)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_cmd_monitor
-*
-* Enables the 'monitor mode' of the MAC.  Here's the description of
-* monitor mode that I've received thus far:
-*
-*  "The "monitor mode" of operation is that the MAC passes all
-*  frames for which the PLCP checks are correct. All received
-*  MPDUs are passed to the host with MAC Port = 7, with a
-*  receive status of good, FCS error, or undecryptable. Passing
-*  certain MPDUs is a violation of the 802.11 standard, but useful
-*  for a debugging tool."  Normal communication is not possible
-*  while monitor mode is enabled.
-*
-* Arguments:
-*	hw		device structure
-*	enable		a code (0x0b|0x0f) that enables/disables
-*			monitor mode. (host order)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_cmd_monitor
+ *
+ * Enables the 'monitor mode' of the MAC.  Here's the description of
+ * monitor mode that I've received thus far:
+ *
+ *  "The "monitor mode" of operation is that the MAC passes all
+ *  frames for which the PLCP checks are correct. All received
+ *  MPDUs are passed to the host with MAC Port = 7, with a
+ *  receive status of good, FCS error, or undecryptable. Passing
+ *  certain MPDUs is a violation of the 802.11 standard, but useful
+ *  for a debugging tool."  Normal communication is not possible
+ *  while monitor mode is enabled.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	enable		a code (0x0b|0x0f) that enables/disables
+ *			monitor mode. (host order)
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported failure - f/w status code
+ *	<0		driver reported error (timeout|bad arg)
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_cmd_monitor(struct hfa384x *hw, u16 enable)
 {
 	struct hfa384x_metacmd cmd;
@@ -1058,43 +1073,44 @@ int hfa384x_cmd_monitor(struct hfa384x *hw, u16 enable)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_cmd_download
-*
-* Sets the controls for the MAC controller code/data download
-* process.  The arguments set the mode and address associated
-* with a download.  Note that the aux registers should be enabled
-* prior to setting one of the download enable modes.
-*
-* Arguments:
-*	hw		device structure
-*	mode		0 - Disable programming and begin code exec
-*			1 - Enable volatile mem programming
-*			2 - Enable non-volatile mem programming
-*			3 - Program non-volatile section from NV download
-*			    buffer.
-*			(host order)
-*	lowaddr
-*	highaddr	For mode 1, sets the high & low order bits of
-*			the "destination address".  This address will be
-*			the execution start address when download is
-*			subsequently disabled.
-*			For mode 2, sets the high & low order bits of
-*			the destination in NV ram.
-*			For modes 0 & 3, should be zero. (host order)
-*			NOTE: these are CMD format.
-*	codelen		Length of the data to write in mode 2,
-*			zero otherwise. (host order)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_cmd_download
+ *
+ * Sets the controls for the MAC controller code/data download
+ * process.  The arguments set the mode and address associated
+ * with a download.  Note that the aux registers should be enabled
+ * prior to setting one of the download enable modes.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	mode		0 - Disable programming and begin code exec
+ *			1 - Enable volatile mem programming
+ *			2 - Enable non-volatile mem programming
+ *			3 - Program non-volatile section from NV download
+ *			    buffer.
+ *			(host order)
+ *	lowaddr
+ *	highaddr	For mode 1, sets the high & low order bits of
+ *			the "destination address".  This address will be
+ *			the execution start address when download is
+ *			subsequently disabled.
+ *			For mode 2, sets the high & low order bits of
+ *			the destination in NV ram.
+ *			For modes 0 & 3, should be zero. (host order)
+ *			NOTE: these are CMD format.
+ *	codelen		Length of the data to write in mode 2,
+ *			zero otherwise. (host order)
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported failure - f/w status code
+ *	<0		driver reported error (timeout|bad arg)
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_cmd_download(struct hfa384x *hw, u16 mode, u16 lowaddr,
 			 u16 highaddr, u16 codelen)
 {
@@ -1114,29 +1130,31 @@ int hfa384x_cmd_download(struct hfa384x *hw, u16 mode, u16 lowaddr,
 }
 
 /*----------------------------------------------------------------
-* hfa384x_corereset
-*
-* Perform a reset of the hfa38xx MAC core.  We assume that the hw
-* structure is in its "created" state.  That is, it is initialized
-* with proper values.  Note that if a reset is done after the
-* device has been active for awhile, the caller might have to clean
-* up some leftover cruft in the hw structure.
-*
-* Arguments:
-*	hw		device structure
-*	holdtime	how long (in ms) to hold the reset
-*	settletime	how long (in ms) to wait after releasing
-*			the reset
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-int hfa384x_corereset(struct hfa384x *hw, int holdtime, int settletime, int genesis)
+ * hfa384x_corereset
+ *
+ * Perform a reset of the hfa38xx MAC core.  We assume that the hw
+ * structure is in its "created" state.  That is, it is initialized
+ * with proper values.  Note that if a reset is done after the
+ * device has been active for awhile, the caller might have to clean
+ * up some leftover cruft in the hw structure.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	holdtime	how long (in ms) to hold the reset
+ *	settletime	how long (in ms) to wait after releasing
+ *			the reset
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
+int hfa384x_corereset(struct hfa384x *hw, int holdtime,
+		      int settletime, int genesis)
 {
 	int result;
 
@@ -1150,29 +1168,30 @@ int hfa384x_corereset(struct hfa384x *hw, int holdtime, int settletime, int gene
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbctlx_complete_sync
-*
-* Waits for a synchronous CTLX object to complete,
-* and then handles the response.
-*
-* Arguments:
-*	hw		device structure
-*	ctlx		CTLX ptr
-*	completor	functor object to decide what to
-*			do with the CTLX's result.
-*
-* Returns:
-*	0		Success
-*	-ERESTARTSYS	Interrupted by a signal
-*	-EIO		CTLX failed
-*	-ENODEV		Adapter was unplugged
-*	???		Result from completor
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_usbctlx_complete_sync
+ *
+ * Waits for a synchronous CTLX object to complete,
+ * and then handles the response.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	ctlx		CTLX ptr
+ *	completor	functor object to decide what to
+ *			do with the CTLX's result.
+ *
+ * Returns:
+ *	0		Success
+ *	-ERESTARTSYS	Interrupted by a signal
+ *	-EIO		CTLX failed
+ *	-ENODEV		Adapter was unplugged
+ *	???		Result from completor
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 static int hfa384x_usbctlx_complete_sync(struct hfa384x *hw,
 					 struct hfa384x_usbctlx *ctlx,
 					 struct usbctlx_completor *completor)
@@ -1257,37 +1276,38 @@ cleanup:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_docmd
-*
-* Constructs a command CTLX and submits it.
-*
-* NOTE: Any changes to the 'post-submit' code in this function
-*       need to be carried over to hfa384x_cbcmd() since the handling
-*       is virtually identical.
-*
-* Arguments:
-*	hw		device structure
-*	mode		DOWAIT or DOASYNC
-*       cmd             cmd structure.  Includes all arguments and result
-*                       data points.  All in host order. in host order
-*	cmdcb		command-specific callback
-*	usercb		user callback for async calls, NULL for DOWAIT calls
-*	usercb_data	user supplied data pointer for async calls, NULL
-*			for DOASYNC calls
-*
-* Returns:
-*	0		success
-*	-EIO		CTLX failure
-*	-ERESTARTSYS	Awakened on signal
-*	>0		command indicated error, Status and Resp0-2 are
-*			in hw structure.
-*
-* Side effects:
-*
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_docmd
+ *
+ * Constructs a command CTLX and submits it.
+ *
+ * NOTE: Any changes to the 'post-submit' code in this function
+ *       need to be carried over to hfa384x_cbcmd() since the handling
+ *       is virtually identical.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	mode		DOWAIT or DOASYNC
+ *       cmd             cmd structure.  Includes all arguments and result
+ *                       data points.  All in host order. in host order
+ *	cmdcb		command-specific callback
+ *	usercb		user callback for async calls, NULL for DOWAIT calls
+ *	usercb_data	user supplied data pointer for async calls, NULL
+ *			for DOASYNC calls
+ *
+ * Returns:
+ *	0		success
+ *	-EIO		CTLX failure
+ *	-ERESTARTSYS	Awakened on signal
+ *	>0		command indicated error, Status and Resp0-2 are
+ *			in hw structure.
+ *
+ * Side effects:
+ *
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 static int
 hfa384x_docmd(struct hfa384x *hw,
 	      enum cmd_mode mode,
@@ -1341,41 +1361,42 @@ done:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_dorrid
-*
-* Constructs a read rid CTLX and issues it.
-*
-* NOTE: Any changes to the 'post-submit' code in this function
-*       need to be carried over to hfa384x_cbrrid() since the handling
-*       is virtually identical.
-*
-* Arguments:
-*	hw		device structure
-*	mode		DOWAIT or DOASYNC
-*	rid		Read RID number (host order)
-*	riddata		Caller supplied buffer that MAC formatted RID.data
-*			record will be written to for DOWAIT calls. Should
-*			be NULL for DOASYNC calls.
-*	riddatalen	Buffer length for DOWAIT calls. Zero for DOASYNC calls.
-*	cmdcb		command callback for async calls, NULL for DOWAIT calls
-*	usercb		user callback for async calls, NULL for DOWAIT calls
-*	usercb_data	user supplied data pointer for async calls, NULL
-*			for DOWAIT calls
-*
-* Returns:
-*	0		success
-*	-EIO		CTLX failure
-*	-ERESTARTSYS	Awakened on signal
-*	-ENODATA	riddatalen != macdatalen
-*	>0		command indicated error, Status and Resp0-2 are
-*			in hw structure.
-*
-* Side effects:
-*
-* Call context:
-*	interrupt (DOASYNC)
-*	process (DOWAIT or DOASYNC)
-----------------------------------------------------------------*/
+ * hfa384x_dorrid
+ *
+ * Constructs a read rid CTLX and issues it.
+ *
+ * NOTE: Any changes to the 'post-submit' code in this function
+ *       need to be carried over to hfa384x_cbrrid() since the handling
+ *       is virtually identical.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	mode		DOWAIT or DOASYNC
+ *	rid		Read RID number (host order)
+ *	riddata		Caller supplied buffer that MAC formatted RID.data
+ *			record will be written to for DOWAIT calls. Should
+ *			be NULL for DOASYNC calls.
+ *	riddatalen	Buffer length for DOWAIT calls. Zero for DOASYNC calls.
+ *	cmdcb		command callback for async calls, NULL for DOWAIT calls
+ *	usercb		user callback for async calls, NULL for DOWAIT calls
+ *	usercb_data	user supplied data pointer for async calls, NULL
+ *			for DOWAIT calls
+ *
+ * Returns:
+ *	0		success
+ *	-EIO		CTLX failure
+ *	-ERESTARTSYS	Awakened on signal
+ *	-ENODATA	riddatalen != macdatalen
+ *	>0		command indicated error, Status and Resp0-2 are
+ *			in hw structure.
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt (DOASYNC)
+ *	process (DOWAIT or DOASYNC)
+ *----------------------------------------------------------------
+ */
 static int
 hfa384x_dorrid(struct hfa384x *hw,
 	       enum cmd_mode mode,
@@ -1426,37 +1447,38 @@ done:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_dowrid
-*
-* Constructs a write rid CTLX and issues it.
-*
-* NOTE: Any changes to the 'post-submit' code in this function
-*       need to be carried over to hfa384x_cbwrid() since the handling
-*       is virtually identical.
-*
-* Arguments:
-*	hw		device structure
-*	enum cmd_mode	DOWAIT or DOASYNC
-*	rid		RID code
-*	riddata		Data portion of RID formatted for MAC
-*	riddatalen	Length of the data portion in bytes
-*       cmdcb           command callback for async calls, NULL for DOWAIT calls
-*	usercb		user callback for async calls, NULL for DOWAIT calls
-*	usercb_data	user supplied data pointer for async calls
-*
-* Returns:
-*	0		success
-*	-ETIMEDOUT	timed out waiting for register ready or
-*			command completion
-*	>0		command indicated error, Status and Resp0-2 are
-*			in hw structure.
-*
-* Side effects:
-*
-* Call context:
-*	interrupt (DOASYNC)
-*	process (DOWAIT or DOASYNC)
-----------------------------------------------------------------*/
+ * hfa384x_dowrid
+ *
+ * Constructs a write rid CTLX and issues it.
+ *
+ * NOTE: Any changes to the 'post-submit' code in this function
+ *       need to be carried over to hfa384x_cbwrid() since the handling
+ *       is virtually identical.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	enum cmd_mode	DOWAIT or DOASYNC
+ *	rid		RID code
+ *	riddata		Data portion of RID formatted for MAC
+ *	riddatalen	Length of the data portion in bytes
+ *       cmdcb           command callback for async calls, NULL for DOWAIT calls
+ *	usercb		user callback for async calls, NULL for DOWAIT calls
+ *	usercb_data	user supplied data pointer for async calls
+ *
+ * Returns:
+ *	0		success
+ *	-ETIMEDOUT	timed out waiting for register ready or
+ *			command completion
+ *	>0		command indicated error, Status and Resp0-2 are
+ *			in hw structure.
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt (DOASYNC)
+ *	process (DOWAIT or DOASYNC)
+ *----------------------------------------------------------------
+ */
 static int
 hfa384x_dowrid(struct hfa384x *hw,
 	       enum cmd_mode mode,
@@ -1512,38 +1534,39 @@ done:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_dormem
-*
-* Constructs a readmem CTLX and issues it.
-*
-* NOTE: Any changes to the 'post-submit' code in this function
-*       need to be carried over to hfa384x_cbrmem() since the handling
-*       is virtually identical.
-*
-* Arguments:
-*	hw		device structure
-*	mode		DOWAIT or DOASYNC
-*	page		MAC address space page (CMD format)
-*	offset		MAC address space offset
-*	data		Ptr to data buffer to receive read
-*	len		Length of the data to read (max == 2048)
-*	cmdcb		command callback for async calls, NULL for DOWAIT calls
-*	usercb		user callback for async calls, NULL for DOWAIT calls
-*	usercb_data	user supplied data pointer for async calls
-*
-* Returns:
-*	0		success
-*	-ETIMEDOUT	timed out waiting for register ready or
-*			command completion
-*	>0		command indicated error, Status and Resp0-2 are
-*			in hw structure.
-*
-* Side effects:
-*
-* Call context:
-*	interrupt (DOASYNC)
-*	process (DOWAIT or DOASYNC)
-----------------------------------------------------------------*/
+ * hfa384x_dormem
+ *
+ * Constructs a readmem CTLX and issues it.
+ *
+ * NOTE: Any changes to the 'post-submit' code in this function
+ *       need to be carried over to hfa384x_cbrmem() since the handling
+ *       is virtually identical.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	mode		DOWAIT or DOASYNC
+ *	page		MAC address space page (CMD format)
+ *	offset		MAC address space offset
+ *	data		Ptr to data buffer to receive read
+ *	len		Length of the data to read (max == 2048)
+ *	cmdcb		command callback for async calls, NULL for DOWAIT calls
+ *	usercb		user callback for async calls, NULL for DOWAIT calls
+ *	usercb_data	user supplied data pointer for async calls
+ *
+ * Returns:
+ *	0		success
+ *	-ETIMEDOUT	timed out waiting for register ready or
+ *			command completion
+ *	>0		command indicated error, Status and Resp0-2 are
+ *			in hw structure.
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt (DOASYNC)
+ *	process (DOWAIT or DOASYNC)
+ *----------------------------------------------------------------
+ */
 static int
 hfa384x_dormem(struct hfa384x *hw,
 	       enum cmd_mode mode,
@@ -1603,38 +1626,39 @@ done:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_dowmem
-*
-* Constructs a writemem CTLX and issues it.
-*
-* NOTE: Any changes to the 'post-submit' code in this function
-*       need to be carried over to hfa384x_cbwmem() since the handling
-*       is virtually identical.
-*
-* Arguments:
-*	hw		device structure
-*	mode		DOWAIT or DOASYNC
-*	page		MAC address space page (CMD format)
-*	offset		MAC address space offset
-*	data		Ptr to data buffer containing write data
-*	len		Length of the data to read (max == 2048)
-*	cmdcb		command callback for async calls, NULL for DOWAIT calls
-*	usercb		user callback for async calls, NULL for DOWAIT calls
-*	usercb_data	user supplied data pointer for async calls.
-*
-* Returns:
-*	0		success
-*	-ETIMEDOUT	timed out waiting for register ready or
-*			command completion
-*	>0		command indicated error, Status and Resp0-2 are
-*			in hw structure.
-*
-* Side effects:
-*
-* Call context:
-*	interrupt (DOWAIT)
-*	process (DOWAIT or DOASYNC)
-----------------------------------------------------------------*/
+ * hfa384x_dowmem
+ *
+ * Constructs a writemem CTLX and issues it.
+ *
+ * NOTE: Any changes to the 'post-submit' code in this function
+ *       need to be carried over to hfa384x_cbwmem() since the handling
+ *       is virtually identical.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	mode		DOWAIT or DOASYNC
+ *	page		MAC address space page (CMD format)
+ *	offset		MAC address space offset
+ *	data		Ptr to data buffer containing write data
+ *	len		Length of the data to read (max == 2048)
+ *	cmdcb		command callback for async calls, NULL for DOWAIT calls
+ *	usercb		user callback for async calls, NULL for DOWAIT calls
+ *	usercb_data	user supplied data pointer for async calls.
+ *
+ * Returns:
+ *	0		success
+ *	-ETIMEDOUT	timed out waiting for register ready or
+ *			command completion
+ *	>0		command indicated error, Status and Resp0-2 are
+ *			in hw structure.
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt (DOWAIT)
+ *	process (DOWAIT or DOASYNC)
+ *----------------------------------------------------------------
+ */
 static int
 hfa384x_dowmem(struct hfa384x *hw,
 	       enum cmd_mode mode,
@@ -1694,27 +1718,28 @@ done:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_disable
-*
-* Issues the disable command to stop communications on one of
-* the MACs 'ports'.  Only macport 0 is valid  for stations.
-* APs may also disable macports 1-6.  Only ports that have been
-* previously enabled may be disabled.
-*
-* Arguments:
-*	hw		device structure
-*	macport		MAC port number (host order)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_disable
+ *
+ * Issues the disable command to stop communications on one of
+ * the MACs 'ports'.  Only macport 0 is valid  for stations.
+ * APs may also disable macports 1-6.  Only ports that have been
+ * previously enabled may be disabled.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	macport		MAC port number (host order)
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported failure - f/w status code
+ *	<0		driver reported error (timeout|bad arg)
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_disable(struct hfa384x *hw, u16 macport)
 {
 	int result = 0;
@@ -1732,27 +1757,28 @@ int hfa384x_drvr_disable(struct hfa384x *hw, u16 macport)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_enable
-*
-* Issues the enable command to enable communications on one of
-* the MACs 'ports'.  Only macport 0 is valid  for stations.
-* APs may also enable macports 1-6.  Only ports that are currently
-* disabled may be enabled.
-*
-* Arguments:
-*	hw		device structure
-*	macport		MAC port number
-*
-* Returns:
-*	0		success
-*	>0		f/w reported failure - f/w status code
-*	<0		driver reported error (timeout|bad arg)
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_enable
+ *
+ * Issues the enable command to enable communications on one of
+ * the MACs 'ports'.  Only macport 0 is valid  for stations.
+ * APs may also enable macports 1-6.  Only ports that are currently
+ * disabled may be enabled.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	macport		MAC port number
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported failure - f/w status code
+ *	<0		driver reported error (timeout|bad arg)
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_enable(struct hfa384x *hw, u16 macport)
 {
 	int result = 0;
@@ -1770,26 +1796,27 @@ int hfa384x_drvr_enable(struct hfa384x *hw, u16 macport)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_flashdl_enable
-*
-* Begins the flash download state.  Checks to see that we're not
-* already in a download state and that a port isn't enabled.
-* Sets the download state and retrieves the flash download
-* buffer location, buffer size, and timeout length.
-*
-* Arguments:
-*	hw		device structure
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_flashdl_enable
+ *
+ * Begins the flash download state.  Checks to see that we're not
+ * already in a download state and that a port isn't enabled.
+ * Sets the download state and retrieves the flash download
+ * buffer location, buffer size, and timeout length.
+ *
+ * Arguments:
+ *	hw		device structure
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 {
 	int result = 0;
@@ -1809,7 +1836,7 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 
 	/* Retrieve the buffer loc&size and timeout */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DOWNLOADBUFFER,
-					&(hw->bufinfo), sizeof(hw->bufinfo));
+					&hw->bufinfo, sizeof(hw->bufinfo));
 	if (result)
 		return result;
 
@@ -1817,7 +1844,7 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 	hw->bufinfo.offset = le16_to_cpu(hw->bufinfo.offset);
 	hw->bufinfo.len = le16_to_cpu(hw->bufinfo.len);
 	result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
-					  &(hw->dltimeout));
+					  &hw->dltimeout);
 	if (result)
 		return result;
 
@@ -1831,24 +1858,25 @@ int hfa384x_drvr_flashdl_enable(struct hfa384x *hw)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_flashdl_disable
-*
-* Ends the flash download state.  Note that this will cause the MAC
-* firmware to restart.
-*
-* Arguments:
-*	hw		device structure
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_flashdl_disable
+ *
+ * Ends the flash download state.  Note that this will cause the MAC
+ * firmware to restart.
+ *
+ * Arguments:
+ *	hw		device structure
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_flashdl_disable(struct hfa384x *hw)
 {
 	/* Check that we're already in the download state */
@@ -1866,35 +1894,37 @@ int hfa384x_drvr_flashdl_disable(struct hfa384x *hw)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_flashdl_write
-*
-* Performs a FLASH download of a chunk of data. First checks to see
-* that we're in the FLASH download state, then sets the download
-* mode, uses the aux functions to 1) copy the data to the flash
-* buffer, 2) sets the download 'write flash' mode, 3) readback and
-* compare.  Lather rinse, repeat as many times an necessary to get
-* all the given data into flash.
-* When all data has been written using this function (possibly
-* repeatedly), call drvr_flashdl_disable() to end the download state
-* and restart the MAC.
-*
-* Arguments:
-*	hw		device structure
-*	daddr		Card address to write to. (host order)
-*	buf		Ptr to data to write.
-*	len		Length of data (host order).
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len)
+ * hfa384x_drvr_flashdl_write
+ *
+ * Performs a FLASH download of a chunk of data. First checks to see
+ * that we're in the FLASH download state, then sets the download
+ * mode, uses the aux functions to 1) copy the data to the flash
+ * buffer, 2) sets the download 'write flash' mode, 3) readback and
+ * compare.  Lather rinse, repeat as many times an necessary to get
+ * all the given data into flash.
+ * When all data has been written using this function (possibly
+ * repeatedly), call drvr_flashdl_disable() to end the download state
+ * and restart the MAC.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	daddr		Card address to write to. (host order)
+ *	buf		Ptr to data to write.
+ *	len		Length of data (host order).
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
+int hfa384x_drvr_flashdl_write(struct hfa384x *hw, u32 daddr,
+			       void *buf, u32 len)
 {
 	int result = 0;
 	u32 dlbufaddr;
@@ -2008,30 +2038,31 @@ exit_proc:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_getconfig
-*
-* Performs the sequence necessary to read a config/info item.
-*
-* Arguments:
-*	hw		device structure
-*	rid		config/info record id (host order)
-*	buf		host side record buffer.  Upon return it will
-*			contain the body portion of the record (minus the
-*			RID and len).
-*	len		buffer length (in bytes, should match record length)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*	-ENODATA	length mismatch between argument and retrieved
-*			record.
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_getconfig
+ *
+ * Performs the sequence necessary to read a config/info item.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	rid		config/info record id (host order)
+ *	buf		host side record buffer.  Upon return it will
+ *			contain the body portion of the record (minus the
+ *			RID and len).
+ *	len		buffer length (in bytes, should match record length)
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *	-ENODATA	length mismatch between argument and retrieved
+ *			record.
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_getconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len)
 {
 	return hfa384x_dorrid_wait(hw, rid, buf, len);
@@ -2059,7 +2090,8 @@ int hfa384x_drvr_getconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len)
  *
  * Call context:
  *       process
- ----------------------------------------------------------------*/
+ *----------------------------------------------------------------
+ */
 int
 hfa384x_drvr_setconfig_async(struct hfa384x *hw,
 			     u16 rid,
@@ -2071,23 +2103,24 @@ hfa384x_drvr_setconfig_async(struct hfa384x *hw,
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_ramdl_disable
-*
-* Ends the ram download state.
-*
-* Arguments:
-*	hw		device structure
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_ramdl_disable
+ *
+ * Ends the ram download state.
+ *
+ * Arguments:
+ *	hw		device structure
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_ramdl_disable(struct hfa384x *hw)
 {
 	/* Check that we're already in the download state */
@@ -2105,29 +2138,30 @@ int hfa384x_drvr_ramdl_disable(struct hfa384x *hw)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_ramdl_enable
-*
-* Begins the ram download state.  Checks to see that we're not
-* already in a download state and that a port isn't enabled.
-* Sets the download state and calls cmd_download with the
-* ENABLE_VOLATILE subcommand and the exeaddr argument.
-*
-* Arguments:
-*	hw		device structure
-*	exeaddr		the card execution address that will be
-*                       jumped to when ramdl_disable() is called
-*			(host order).
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_ramdl_enable
+ *
+ * Begins the ram download state.  Checks to see that we're not
+ * already in a download state and that a port isn't enabled.
+ * Sets the download state and calls cmd_download with the
+ * ENABLE_VOLATILE subcommand and the exeaddr argument.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	exeaddr		the card execution address that will be
+ *                       jumped to when ramdl_disable() is called
+ *			(host order).
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr)
 {
 	int result = 0;
@@ -2146,7 +2180,8 @@ int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr)
 
 	/* Check that we're not already in a download state */
 	if (hw->dlstate != HFA384x_DLSTATE_DISABLED) {
-		netdev_err(hw->wlandev->netdev, "Download state not disabled.\n");
+		netdev_err(hw->wlandev->netdev,
+			   "Download state not disabled.\n");
 		return -EINVAL;
 	}
 
@@ -2171,31 +2206,32 @@ int hfa384x_drvr_ramdl_enable(struct hfa384x *hw, u32 exeaddr)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_ramdl_write
-*
-* Performs a RAM download of a chunk of data. First checks to see
-* that we're in the RAM download state, then uses the [read|write]mem USB
-* commands to 1) copy the data, 2) readback and compare.  The download
-* state is unaffected.  When all data has been written using
-* this function, call drvr_ramdl_disable() to end the download state
-* and restart the MAC.
-*
-* Arguments:
-*	hw		device structure
-*	daddr		Card address to write to. (host order)
-*	buf		Ptr to data to write.
-*	len		Length of data (host order).
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_ramdl_write
+ *
+ * Performs a RAM download of a chunk of data. First checks to see
+ * that we're in the RAM download state, then uses the [read|write]mem USB
+ * commands to 1) copy the data, 2) readback and compare.  The download
+ * state is unaffected.  When all data has been written using
+ * this function, call drvr_ramdl_disable() to end the download state
+ * and restart the MAC.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	daddr		Card address to write to. (host order)
+ *	buf		Ptr to data to write.
+ *	len		Length of data (host order).
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_ramdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len)
 {
 	int result = 0;
@@ -2246,36 +2282,37 @@ int hfa384x_drvr_ramdl_write(struct hfa384x *hw, u32 daddr, void *buf, u32 len)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_readpda
-*
-* Performs the sequence to read the PDA space.  Note there is no
-* drvr_writepda() function.  Writing a PDA is
-* generally implemented by a calling component via calls to
-* cmd_download and writing to the flash download buffer via the
-* aux regs.
-*
-* Arguments:
-*	hw		device structure
-*	buf		buffer to store PDA in
-*	len		buffer length
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*	-ETIMEDOUT	timeout waiting for the cmd regs to become
-*			available, or waiting for the control reg
-*			to indicate the Aux port is enabled.
-*	-ENODATA	the buffer does NOT contain a valid PDA.
-*			Either the card PDA is bad, or the auxdata
-*			reads are giving us garbage.
-
-*
-* Side effects:
-*
-* Call context:
-*	process or non-card interrupt.
-----------------------------------------------------------------*/
+ * hfa384x_drvr_readpda
+ *
+ * Performs the sequence to read the PDA space.  Note there is no
+ * drvr_writepda() function.  Writing a PDA is
+ * generally implemented by a calling component via calls to
+ * cmd_download and writing to the flash download buffer via the
+ * aux regs.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	buf		buffer to store PDA in
+ *	len		buffer length
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *	-ETIMEDOUT	timeout waiting for the cmd regs to become
+ *			available, or waiting for the control reg
+ *			to indicate the Aux port is enabled.
+ *	-ENODATA	the buffer does NOT contain a valid PDA.
+ *			Either the card PDA is bad, or the auxdata
+ *			reads are giving us garbage.
+ *
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process or non-card interrupt.
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 {
 	int result = 0;
@@ -2306,7 +2343,7 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 
 		/* units of bytes */
 		result = hfa384x_dormem_wait(hw, currpage, curroffset, buf,
-						len);
+					     len);
 
 		if (result) {
 			netdev_warn(hw->wlandev->netdev,
@@ -2366,51 +2403,52 @@ int hfa384x_drvr_readpda(struct hfa384x *hw, void *buf, unsigned int len)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_setconfig
-*
-* Performs the sequence necessary to write a config/info item.
-*
-* Arguments:
-*	hw		device structure
-*	rid		config/info record id (in host order)
-*	buf		host side record buffer
-*	len		buffer length (in bytes)
-*
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_setconfig
+ *
+ * Performs the sequence necessary to write a config/info item.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	rid		config/info record id (in host order)
+ *	buf		host side record buffer
+ *	len		buffer length (in bytes)
+ *
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_setconfig(struct hfa384x *hw, u16 rid, void *buf, u16 len)
 {
 	return hfa384x_dowrid_wait(hw, rid, buf, len);
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_start
-*
-* Issues the MAC initialize command, sets up some data structures,
-* and enables the interrupts.  After this function completes, the
-* low-level stuff should be ready for any/all commands.
-*
-* Arguments:
-*	hw		device structure
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
-
+ * hfa384x_drvr_start
+ *
+ * Issues the MAC initialize command, sets up some data structures,
+ * and enables the interrupts.  After this function completes, the
+ * low-level stuff should be ready for any/all commands.
+ *
+ * Arguments:
+ *	hw		device structure
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_start(struct hfa384x *hw)
 {
 	int result, result1, result2;
@@ -2494,24 +2532,25 @@ done:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_stop
-*
-* Shuts down the MAC to the point where it is safe to unload the
-* driver.  Any subsystem that may be holding a data or function
-* ptr into the driver must be cleared/deinitialized.
-*
-* Arguments:
-*	hw		device structure
-* Returns:
-*	0		success
-*	>0		f/w reported error - f/w status code
-*	<0		driver reported error
-*
-* Side effects:
-*
-* Call context:
-*	process
-----------------------------------------------------------------*/
+ * hfa384x_drvr_stop
+ *
+ * Shuts down the MAC to the point where it is safe to unload the
+ * driver.  Any subsystem that may be holding a data or function
+ * ptr into the driver must be cleared/deinitialized.
+ *
+ * Arguments:
+ *	hw		device structure
+ * Returns:
+ *	0		success
+ *	>0		f/w reported error - f/w status code
+ *	<0		driver reported error
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_stop(struct hfa384x *hw)
 {
 	int i;
@@ -2542,26 +2581,27 @@ int hfa384x_drvr_stop(struct hfa384x *hw)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_drvr_txframe
-*
-* Takes a frame from prism2sta and queues it for transmission.
-*
-* Arguments:
-*	hw		device structure
-*	skb		packet buffer struct.  Contains an 802.11
-*			data frame.
-*       p80211_hdr      points to the 802.11 header for the packet.
-* Returns:
-*	0		Success and more buffs available
-*	1		Success but no more buffs
-*	2		Allocation failure
-*	4		Buffer full or queue busy
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_drvr_txframe
+ *
+ * Takes a frame from prism2sta and queues it for transmission.
+ *
+ * Arguments:
+ *	hw		device structure
+ *	skb		packet buffer struct.  Contains an 802.11
+ *			data frame.
+ *       p80211_hdr      points to the 802.11 header for the packet.
+ * Returns:
+ *	0		Success and more buffs available
+ *	1		Success but no more buffs
+ *	2		Allocation failure
+ *	4		Buffer full or queue busy
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 int hfa384x_drvr_txframe(struct hfa384x *hw, struct sk_buff *skb,
 			 union p80211_hdr *p80211_hdr,
 			 struct p80211_metawep *p80211_wep)
@@ -2608,7 +2648,7 @@ int hfa384x_drvr_txframe(struct hfa384x *hw, struct sk_buff *skb,
 	    cpu_to_le16(hw->txbuff.txfrm.desc.tx_control);
 
 	/* copy the header over to the txdesc */
-	memcpy(&(hw->txbuff.txfrm.desc.frame_control), p80211_hdr,
+	memcpy(&hw->txbuff.txfrm.desc.frame_control, p80211_hdr,
 	       sizeof(union p80211_hdr));
 
 	/* if we're using host WEP, increase size by IV+ICV */
@@ -2638,9 +2678,9 @@ int hfa384x_drvr_txframe(struct hfa384x *hw, struct sk_buff *skb,
 		memcpy(ptr, p80211_wep->icv, sizeof(p80211_wep->icv));
 
 	/* Send the USB packet */
-	usb_fill_bulk_urb(&(hw->tx_urb), hw->usb,
+	usb_fill_bulk_urb(&hw->tx_urb, hw->usb,
 			  hw->endp_out,
-			  &(hw->txbuff), ROUNDUP64(usbpktlen),
+			  &hw->txbuff, ROUNDUP64(usbpktlen),
 			  hfa384x_usbout_callback, hw->wlandev);
 	hw->tx_urb.transfer_flags |= USB_QUEUE_BULK;
 
@@ -2676,18 +2716,19 @@ void hfa384x_tx_timeout(struct wlandevice *wlandev)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbctlx_reaper_task
-*
-* Tasklet to delete dead CTLX objects
-*
-* Arguments:
-*	data	ptr to a struct hfa384x
-*
-* Returns:
-*
-* Call context:
-*	Interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbctlx_reaper_task
+ *
+ * Tasklet to delete dead CTLX objects
+ *
+ * Arguments:
+ *	data	ptr to a struct hfa384x
+ *
+ * Returns:
+ *
+ * Call context:
+ *	Interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbctlx_reaper_task(unsigned long data)
 {
 	struct hfa384x *hw = (struct hfa384x *)data;
@@ -2708,19 +2749,20 @@ static void hfa384x_usbctlx_reaper_task(unsigned long data)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbctlx_completion_task
-*
-* Tasklet to call completion handlers for returned CTLXs
-*
-* Arguments:
-*	data	ptr to struct hfa384x
-*
-* Returns:
-*	Nothing
-*
-* Call context:
-*	Interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbctlx_completion_task
+ *
+ * Tasklet to call completion handlers for returned CTLXs
+ *
+ * Arguments:
+ *	data	ptr to struct hfa384x
+ *
+ * Returns:
+ *	Nothing
+ *
+ * Call context:
+ *	Interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbctlx_completion_task(unsigned long data)
 {
 	struct hfa384x *hw = (struct hfa384x *)data;
@@ -2781,22 +2823,23 @@ static void hfa384x_usbctlx_completion_task(unsigned long data)
 }
 
 /*----------------------------------------------------------------
-* unlocked_usbctlx_cancel_async
-*
-* Mark the CTLX dead asynchronously, and ensure that the
-* next command on the queue is run afterwards.
-*
-* Arguments:
-*	hw	ptr to the struct hfa384x structure
-*	ctlx	ptr to a CTLX structure
-*
-* Returns:
-*	0	the CTLX's URB is inactive
-* -EINPROGRESS	the URB is currently being unlinked
-*
-* Call context:
-*	Either process or interrupt, but presumably interrupt
-----------------------------------------------------------------*/
+ * unlocked_usbctlx_cancel_async
+ *
+ * Mark the CTLX dead asynchronously, and ensure that the
+ * next command on the queue is run afterwards.
+ *
+ * Arguments:
+ *	hw	ptr to the struct hfa384x structure
+ *	ctlx	ptr to a CTLX structure
+ *
+ * Returns:
+ *	0	the CTLX's URB is inactive
+ * -EINPROGRESS	the URB is currently being unlinked
+ *
+ * Call context:
+ *	Either process or interrupt, but presumably interrupt
+ *----------------------------------------------------------------
+ */
 static int unlocked_usbctlx_cancel_async(struct hfa384x *hw,
 					 struct hfa384x_usbctlx *ctlx)
 {
@@ -2826,28 +2869,30 @@ static int unlocked_usbctlx_cancel_async(struct hfa384x *hw,
 }
 
 /*----------------------------------------------------------------
-* unlocked_usbctlx_complete
-*
-* A CTLX has completed.  It may have been successful, it may not
-* have been. At this point, the CTLX should be quiescent.  The URBs
-* aren't active and the timers should have been stopped.
-*
-* The CTLX is migrated to the "completing" queue, and the completing
-* tasklet is scheduled.
-*
-* Arguments:
-*	hw		ptr to a struct hfa384x structure
-*	ctlx		ptr to a ctlx structure
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	Either, assume interrupt
-----------------------------------------------------------------*/
-static void unlocked_usbctlx_complete(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx)
+ * unlocked_usbctlx_complete
+ *
+ * A CTLX has completed.  It may have been successful, it may not
+ * have been. At this point, the CTLX should be quiescent.  The URBs
+ * aren't active and the timers should have been stopped.
+ *
+ * The CTLX is migrated to the "completing" queue, and the completing
+ * tasklet is scheduled.
+ *
+ * Arguments:
+ *	hw		ptr to a struct hfa384x structure
+ *	ctlx		ptr to a ctlx structure
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	Either, assume interrupt
+ *----------------------------------------------------------------
+ */
+static void unlocked_usbctlx_complete(struct hfa384x *hw,
+				      struct hfa384x_usbctlx *ctlx)
 {
 	/* Timers have been stopped, and ctlx should be in
 	 * a terminal state. Retire it from the "active"
@@ -2871,21 +2916,22 @@ static void unlocked_usbctlx_complete(struct hfa384x *hw, struct hfa384x_usbctlx
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbctlxq_run
-*
-* Checks to see if the head item is running.  If not, starts it.
-*
-* Arguments:
-*	hw	ptr to struct hfa384x
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	any
-----------------------------------------------------------------*/
+ * hfa384x_usbctlxq_run
+ *
+ * Checks to see if the head item is running.  If not, starts it.
+ *
+ * Arguments:
+ *	hw	ptr to struct hfa384x
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	any
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbctlxq_run(struct hfa384x *hw)
 {
 	unsigned long flags;
@@ -2916,9 +2962,9 @@ static void hfa384x_usbctlxq_run(struct hfa384x *hw)
 		list_move_tail(&head->list, &hw->ctlxq.active);
 
 		/* Fill the out packet */
-		usb_fill_bulk_urb(&(hw->ctlx_urb), hw->usb,
+		usb_fill_bulk_urb(&hw->ctlx_urb, hw->usb,
 				  hw->endp_out,
-				  &(head->outbuf), ROUNDUP64(head->outbufsize),
+				  &head->outbuf, ROUNDUP64(head->outbufsize),
 				  hfa384x_ctlxout_callback, hw);
 		hw->ctlx_urb.transfer_flags |= USB_QUEUE_BULK;
 
@@ -2971,26 +3017,27 @@ unlock:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbin_callback
-*
-* Callback for URBs on the BULKIN endpoint.
-*
-* Arguments:
-*	urb		ptr to the completed urb
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbin_callback
+ *
+ * Callback for URBs on the BULKIN endpoint.
+ *
+ * Arguments:
+ *	urb		ptr to the completed urb
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbin_callback(struct urb *urb)
 {
 	struct wlandevice *wlandev = urb->context;
 	struct hfa384x *hw;
-	union hfa384x_usbin *usbin = (union hfa384x_usbin *)urb->transfer_buffer;
+	union hfa384x_usbin *usbin;
 	struct sk_buff *skb = NULL;
 	int result;
 	int urb_status;
@@ -3010,7 +3057,10 @@ static void hfa384x_usbin_callback(struct urb *urb)
 		goto exit;
 
 	skb = hw->rx_urb_skb;
-	BUG_ON(!skb || (skb->data != urb->transfer_buffer));
+	if (!skb || (skb->data != urb->transfer_buffer)) {
+		WARN_ON(1);
+		return;
+	}
 
 	hw->rx_urb_skb = NULL;
 
@@ -3089,6 +3139,7 @@ static void hfa384x_usbin_callback(struct urb *urb)
 	/* Note: the check of the sw_support field, the type field doesn't
 	 *       have bit 12 set like the docs suggest.
 	 */
+	usbin = (union hfa384x_usbin *)urb->transfer_buffer;
 	type = le16_to_cpu(usbin->type);
 	if (HFA384x_USB_ISRXFRM(type)) {
 		if (action == HANDLE) {
@@ -3147,25 +3198,26 @@ exit:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbin_ctlx
-*
-* We've received a URB containing a Prism2 "response" message.
-* This message needs to be matched up with a CTLX on the active
-* queue and our state updated accordingly.
-*
-* Arguments:
-*	hw		ptr to struct hfa384x
-*	usbin		ptr to USB IN packet
-*	urb_status	status of this Bulk-In URB
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbin_ctlx
+ *
+ * We've received a URB containing a Prism2 "response" message.
+ * This message needs to be matched up with a CTLX on the active
+ * queue and our state updated accordingly.
+ *
+ * Arguments:
+ *	hw		ptr to struct hfa384x
+ *	usbin		ptr to USB IN packet
+ *	urb_status	status of this Bulk-In URB
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbin_ctlx(struct hfa384x *hw, union hfa384x_usbin *usbin,
 			       int urb_status)
 {
@@ -3269,22 +3321,23 @@ unlock:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbin_txcompl
-*
-* At this point we have the results of a previous transmit.
-*
-* Arguments:
-*	wlandev		wlan device
-*	usbin		ptr to the usb transfer buffer
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbin_txcompl
+ *
+ * At this point we have the results of a previous transmit.
+ *
+ * Arguments:
+ *	wlandev		wlan device
+ *	usbin		ptr to the usb transfer buffer
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbin_txcompl(struct wlandevice *wlandev,
 				  union hfa384x_usbin *usbin)
 {
@@ -3300,22 +3353,23 @@ static void hfa384x_usbin_txcompl(struct wlandevice *wlandev,
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbin_rx
-*
-* At this point we have a successful received a rx frame packet.
-*
-* Arguments:
-*	wlandev		wlan device
-*	usbin		ptr to the usb transfer buffer
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbin_rx
+ *
+ * At this point we have a successful received a rx frame packet.
+ *
+ * Arguments:
+ *	wlandev		wlan device
+ *	usbin		ptr to the usb transfer buffer
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 {
 	union hfa384x_usbin *usbin = (union hfa384x_usbin *)skb->data;
@@ -3396,30 +3450,31 @@ static void hfa384x_usbin_rx(struct wlandevice *wlandev, struct sk_buff *skb)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_int_rxmonitor
-*
-* Helper function for int_rx.  Handles monitor frames.
-* Note that this function allocates space for the FCS and sets it
-* to 0xffffffff.  The hfa384x doesn't give us the FCS value but the
-* higher layers expect it.  0xffffffff is used as a flag to indicate
-* the FCS is bogus.
-*
-* Arguments:
-*	wlandev		wlan device structure
-*	rxfrm		rx descriptor read from card in int_rx
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*	Allocates an skb and passes it up via the PF_PACKET interface.
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_int_rxmonitor
+ *
+ * Helper function for int_rx.  Handles monitor frames.
+ * Note that this function allocates space for the FCS and sets it
+ * to 0xffffffff.  The hfa384x doesn't give us the FCS value but the
+ * higher layers expect it.  0xffffffff is used as a flag to indicate
+ * the FCS is bogus.
+ *
+ * Arguments:
+ *	wlandev		wlan device structure
+ *	rxfrm		rx descriptor read from card in int_rx
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *	Allocates an skb and passes it up via the PF_PACKET interface.
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 				  struct hfa384x_usb_rxfrm *rxfrm)
 {
-	struct hfa384x_rx_frame *rxdesc = &(rxfrm->desc);
+	struct hfa384x_rx_frame *rxdesc = &rxfrm->desc;
 	unsigned int hdrlen = 0;
 	unsigned int datalen = 0;
 	unsigned int skblen = 0;
@@ -3474,9 +3529,10 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 	}
 
 	/* Copy the 802.11 header to the skb
-	   (ctl frames may be less than a full header) */
+	 * (ctl frames may be less than a full header)
+	 */
 	datap = skb_put(skb, hdrlen);
-	memcpy(datap, &(rxdesc->frame_control), hdrlen);
+	memcpy(datap, &rxdesc->frame_control, hdrlen);
 
 	/* If any, copy the data from the card to the skb */
 	if (datalen > 0) {
@@ -3501,22 +3557,23 @@ static void hfa384x_int_rxmonitor(struct wlandevice *wlandev,
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbin_info
-*
-* At this point we have a successful received a Prism2 info frame.
-*
-* Arguments:
-*	wlandev		wlan device
-*	usbin		ptr to the usb transfer buffer
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbin_info
+ *
+ * At this point we have a successful received a Prism2 info frame.
+ *
+ * Arguments:
+ *	wlandev		wlan device
+ *	usbin		ptr to the usb transfer buffer
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbin_info(struct wlandevice *wlandev,
 			       union hfa384x_usbin *usbin)
 {
@@ -3526,21 +3583,22 @@ static void hfa384x_usbin_info(struct wlandevice *wlandev,
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbout_callback
-*
-* Callback for URBs on the BULKOUT endpoint.
-*
-* Arguments:
-*	urb		ptr to the completed urb
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbout_callback
+ *
+ * Callback for URBs on the BULKOUT endpoint.
+ *
+ * Arguments:
+ *	urb		ptr to the completed urb
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbout_callback(struct urb *urb)
 {
 	struct wlandevice *wlandev = urb->context;
@@ -3601,21 +3659,22 @@ static void hfa384x_usbout_callback(struct urb *urb)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_ctlxout_callback
-*
-* Callback for control data on the BULKOUT endpoint.
-*
-* Arguments:
-*	urb		ptr to the completed urb
-*
-* Returns:
-* nothing
-*
-* Side effects:
-*
-* Call context:
-* interrupt
-----------------------------------------------------------------*/
+ * hfa384x_ctlxout_callback
+ *
+ * Callback for control data on the BULKOUT endpoint.
+ *
+ * Arguments:
+ *	urb		ptr to the completed urb
+ *
+ * Returns:
+ * nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ * interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_ctlxout_callback(struct urb *urb)
 {
 	struct hfa384x *hw = urb->context;
@@ -3730,23 +3789,24 @@ delresp:
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbctlx_reqtimerfn
-*
-* Timer response function for CTLX request timeouts.  If this
-* function is called, it means that the callback for the OUT
-* URB containing a Prism2.x XXX_Request was never called.
-*
-* Arguments:
-*	data		a ptr to the struct hfa384x
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbctlx_reqtimerfn
+ *
+ * Timer response function for CTLX request timeouts.  If this
+ * function is called, it means that the callback for the OUT
+ * URB containing a Prism2.x XXX_Request was never called.
+ *
+ * Arguments:
+ *	data		a ptr to the struct hfa384x
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbctlx_reqtimerfn(unsigned long data)
 {
 	struct hfa384x *hw = (struct hfa384x *)data;
@@ -3788,23 +3848,24 @@ static void hfa384x_usbctlx_reqtimerfn(unsigned long data)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbctlx_resptimerfn
-*
-* Timer response function for CTLX response timeouts.  If this
-* function is called, it means that the callback for the IN
-* URB containing a Prism2.x XXX_Response was never called.
-*
-* Arguments:
-*	data		a ptr to the struct hfa384x
-*
-* Returns:
-*	nothing
-*
-* Side effects:
-*
-* Call context:
-*	interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usbctlx_resptimerfn
+ *
+ * Timer response function for CTLX response timeouts.  If this
+ * function is called, it means that the callback for the IN
+ * URB containing a Prism2.x XXX_Response was never called.
+ *
+ * Arguments:
+ *	data		a ptr to the struct hfa384x
+ *
+ * Returns:
+ *	nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 {
 	struct hfa384x *hw = (struct hfa384x *)data;
@@ -3830,20 +3891,21 @@ static void hfa384x_usbctlx_resptimerfn(unsigned long data)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usb_throttlefn
-*
-*
-* Arguments:
-*	data	ptr to hw
-*
-* Returns:
-*	Nothing
-*
-* Side effects:
-*
-* Call context:
-*	Interrupt
-----------------------------------------------------------------*/
+ * hfa384x_usb_throttlefn
+ *
+ *
+ * Arguments:
+ *	data	ptr to hw
+ *
+ * Returns:
+ *	Nothing
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	Interrupt
+ *----------------------------------------------------------------
+ */
 static void hfa384x_usb_throttlefn(unsigned long data)
 {
 	struct hfa384x *hw = (struct hfa384x *)data;
@@ -3869,24 +3931,26 @@ static void hfa384x_usb_throttlefn(unsigned long data)
 }
 
 /*----------------------------------------------------------------
-* hfa384x_usbctlx_submit
-*
-* Called from the doxxx functions to submit a CTLX to the queue
-*
-* Arguments:
-*	hw		ptr to the hw struct
-*	ctlx		ctlx structure to enqueue
-*
-* Returns:
-*	-ENODEV if the adapter is unplugged
-*	0
-*
-* Side effects:
-*
-* Call context:
-*	process or interrupt
-----------------------------------------------------------------*/
-static int hfa384x_usbctlx_submit(struct hfa384x *hw, struct hfa384x_usbctlx *ctlx)
+ * hfa384x_usbctlx_submit
+ *
+ * Called from the doxxx functions to submit a CTLX to the queue
+ *
+ * Arguments:
+ *	hw		ptr to the hw struct
+ *	ctlx		ctlx structure to enqueue
+ *
+ * Returns:
+ *	-ENODEV if the adapter is unplugged
+ *	0
+ *
+ * Side effects:
+ *
+ * Call context:
+ *	process or interrupt
+ *----------------------------------------------------------------
+ */
+static int hfa384x_usbctlx_submit(struct hfa384x *hw,
+				  struct hfa384x_usbctlx *ctlx)
 {
 	unsigned long flags;
 
@@ -3906,21 +3970,22 @@ static int hfa384x_usbctlx_submit(struct hfa384x *hw, struct hfa384x_usbctlx *ct
 }
 
 /*----------------------------------------------------------------
-* hfa384x_isgood_pdrcore
-*
-* Quick check of PDR codes.
-*
-* Arguments:
-*	pdrcode		PDR code number (host order)
-*
-* Returns:
-*	zero		not good.
-*	one		is good.
-*
-* Side effects:
-*
-* Call context:
-----------------------------------------------------------------*/
+ * hfa384x_isgood_pdrcore
+ *
+ * Quick check of PDR codes.
+ *
+ * Arguments:
+ *	pdrcode		PDR code number (host order)
+ *
+ * Returns:
+ *	zero		not good.
+ *	one		is good.
+ *
+ * Side effects:
+ *
+ * Call context:
+ *----------------------------------------------------------------
+ */
 static int hfa384x_isgood_pdrcode(u16 pdrcode)
 {
 	switch (pdrcode) {

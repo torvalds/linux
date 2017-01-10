@@ -310,7 +310,7 @@ void hdmi4_configure(struct hdmi_core_data *core,
 	struct hdmi_wp_data *wp, struct hdmi_config *cfg)
 {
 	/* HDMI */
-	struct omap_video_timings video_timing;
+	struct videomode vm;
 	struct hdmi_video_format video_format;
 	/* HDMI core */
 	struct hdmi_core_video_config v_core_cfg;
@@ -318,16 +318,16 @@ void hdmi4_configure(struct hdmi_core_data *core,
 
 	hdmi_core_init(&v_core_cfg);
 
-	hdmi_wp_init_vid_fmt_timings(&video_format, &video_timing, cfg);
+	hdmi_wp_init_vid_fmt_timings(&video_format, &vm, cfg);
 
-	hdmi_wp_video_config_timing(wp, &video_timing);
+	hdmi_wp_video_config_timing(wp, &vm);
 
 	/* video config */
 	video_format.packing_mode = HDMI_PACK_24b_RGB_YUV444_YUV422;
 
 	hdmi_wp_video_config_format(wp, &video_format);
 
-	hdmi_wp_video_config_interface(wp, &video_timing);
+	hdmi_wp_video_config_interface(wp, &vm);
 
 	/*
 	 * configure core video part

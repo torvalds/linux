@@ -1080,8 +1080,7 @@ static void fotg210_enable_event(struct fotg210_hcd *fotg210, unsigned event,
 	ktime_t *timeout = &fotg210->hr_timeouts[event];
 
 	if (resched)
-		*timeout = ktime_add(ktime_get(),
-				ktime_set(0, event_delays_ns[event]));
+		*timeout = ktime_add(ktime_get(), event_delays_ns[event]);
 	fotg210->enabled_hrtimer_events |= (1 << event);
 
 	/* Track only the lowest-numbered pending event */
@@ -1381,7 +1380,7 @@ static enum hrtimer_restart fotg210_hrtimer_func(struct hrtimer *t)
 	 */
 	now = ktime_get();
 	for_each_set_bit(e, &events, FOTG210_HRTIMER_NUM_EVENTS) {
-		if (now.tv64 >= fotg210->hr_timeouts[e].tv64)
+		if (now >= fotg210->hr_timeouts[e])
 			event_handlers[e](fotg210);
 		else
 			fotg210_enable_event(fotg210, e, false);

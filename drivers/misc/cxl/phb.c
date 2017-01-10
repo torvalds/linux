@@ -20,7 +20,7 @@ bool _cxl_pci_associate_default_context(struct pci_dev *dev, struct cxl_afu *afu
 	 * in the virtual phb, we'll need a default context to attach them to.
 	 */
 	ctx = cxl_dev_context_init(dev);
-	if (!ctx)
+	if (IS_ERR(ctx))
 		return false;
 	dev->dev.archdata.cxl_ctx = ctx;
 

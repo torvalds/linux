@@ -12,7 +12,6 @@
 #include <linux/mii.h>
 #include <linux/phy.h>
 #include <linux/of.h>
-#include <dt-bindings/net/mscc-phy-vsc8531.h>
 #include <linux/netdevice.h>
 
 enum rgmii_rx_clock_delay {
@@ -28,6 +27,11 @@ enum rgmii_rx_clock_delay {
 
 /* Microsemi VSC85xx PHY registers */
 /* IEEE 802. Std Registers */
+#define MSCC_PHY_BYPASS_CONTROL		  18
+#define DISABLE_HP_AUTO_MDIX_MASK	  0x0080
+#define DISABLE_PAIR_SWAP_CORR_MASK	  0x0020
+#define DISABLE_POLARITY_CORR_MASK	  0x0010
+
 #define MSCC_PHY_EXT_PHY_CNTL_1           23
 #define MAC_IF_SELECTION_MASK             0x1800
 #define MAC_IF_SELECTION_GMII             0
@@ -45,9 +49,24 @@ enum rgmii_rx_clock_delay {
 #define EDGE_RATE_CNTL_POS                5
 #define EDGE_RATE_CNTL_MASK               0x00E0
 
+#define MSCC_PHY_DEV_AUX_CNTL		  28
+#define HP_AUTO_MDIX_X_OVER_IND_MASK	  0x2000
+
 #define MSCC_EXT_PAGE_ACCESS		  31
 #define MSCC_PHY_PAGE_STANDARD		  0x0000 /* Standard registers */
+#define MSCC_PHY_PAGE_EXTENDED		  0x0001 /* Extended registers */
 #define MSCC_PHY_PAGE_EXTENDED_2	  0x0002 /* Extended reg - page 2 */
+
+/* Extended Page 1 Registers */
+#define MSCC_PHY_EXT_MODE_CNTL		  19
+#define FORCE_MDI_CROSSOVER_MASK	  0x000C
+#define FORCE_MDI_CROSSOVER_MDIX	  0x000C
+#define FORCE_MDI_CROSSOVER_MDI		  0x0008
+
+#define MSCC_PHY_ACTIPHY_CNTL		  20
+#define DOWNSHIFT_CNTL_MASK		  0x001C
+#define DOWNSHIFT_EN			  0x0010
+#define DOWNSHIFT_CNTL_POS		  2
 
 /* Extended Page 2 Registers */
 #define MSCC_PHY_RGMII_CNTL		  20
@@ -66,31 +85,148 @@ enum rgmii_rx_clock_delay {
 #define SECURE_ON_PASSWD_LEN_4		  0x4000
 
 /* Microsemi PHY ID's */
+#define PHY_ID_VSC8530			  0x00070560
 #define PHY_ID_VSC8531			  0x00070570
+#define PHY_ID_VSC8540			  0x00070760
 #define PHY_ID_VSC8541			  0x00070770
 
-struct edge_rate_table {
-	u16 vddmac;
-	int slowdown[MSCC_SLOWDOWN_MAX];
-};
+#define MSCC_VDDMAC_1500		  1500
+#define MSCC_VDDMAC_1800		  1800
+#define MSCC_VDDMAC_2500		  2500
+#define MSCC_VDDMAC_3300		  3300
 
-struct edge_rate_table edge_table[MSCC_VDDMAC_MAX] = {
-	{3300, { 0, -2, -4,  -7,  -10, -17, -29, -53} },
-	{2500, { 0, -3, -6,  -10, -14, -23, -37, -63} },
-	{1800, { 0, -5, -9,  -16, -23, -35, -52, -76} },
-	{1500, { 0, -6, -14, -21, -29, -42, -58, -77} },
-};
+#define DOWNSHIFT_COUNT_MAX		  5
 
 struct vsc8531_private {
-	u8 edge_slowdown;
-	u16 vddmac;
+	int rate_magic;
 };
+
+#ifdef CONFIG_OF_MDIO
+struct vsc8531_edge_rate_table {
+	u16 vddmac;
+	u8 slowdown[8];
+};
+
+static const struct vsc8531_edge_rate_table edge_table[] = {
+	{MSCC_VDDMAC_3300, { 0, 2,  4,  7, 10, 17, 29, 53} },
+	{MSCC_VDDMAC_2500, { 0, 3,  6, 10, 14, 23, 37, 63} },
+	{MSCC_VDDMAC_1800, { 0, 5,  9, 16, 23, 35, 52, 76} },
+	{MSCC_VDDMAC_1500, { 0, 6, 14, 21, 29, 42, 58, 77} },
+};
+#endif /* CONFIG_OF_MDIO */
 
 static int vsc85xx_phy_page_set(struct phy_device *phydev, u8 page)
 {
 	int rc;
 
 	rc = phy_write(phydev, MSCC_EXT_PAGE_ACCESS, page);
+	return rc;
+}
+
+static int vsc85xx_mdix_get(struct phy_device *phydev, u8 *mdix)
+{
+	u16 reg_val;
+
+	reg_val = phy_read(phydev, MSCC_PHY_DEV_AUX_CNTL);
+	if (reg_val & HP_AUTO_MDIX_X_OVER_IND_MASK)
+		*mdix = ETH_TP_MDI_X;
+	else
+		*mdix = ETH_TP_MDI;
+
+	return 0;
+}
+
+static int vsc85xx_mdix_set(struct phy_device *phydev, u8 mdix)
+{
+	int rc;
+	u16 reg_val;
+
+	reg_val = phy_read(phydev, MSCC_PHY_BYPASS_CONTROL);
+	if ((mdix == ETH_TP_MDI) || (mdix == ETH_TP_MDI_X)) {
+		reg_val |= (DISABLE_PAIR_SWAP_CORR_MASK |
+			    DISABLE_POLARITY_CORR_MASK  |
+			    DISABLE_HP_AUTO_MDIX_MASK);
+	} else {
+		reg_val &= ~(DISABLE_PAIR_SWAP_CORR_MASK |
+			     DISABLE_POLARITY_CORR_MASK  |
+			     DISABLE_HP_AUTO_MDIX_MASK);
+	}
+	rc = phy_write(phydev, MSCC_PHY_BYPASS_CONTROL, reg_val);
+	if (rc != 0)
+		return rc;
+
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_EXTENDED);
+	if (rc != 0)
+		return rc;
+
+	reg_val = phy_read(phydev, MSCC_PHY_EXT_MODE_CNTL);
+	reg_val &= ~(FORCE_MDI_CROSSOVER_MASK);
+	if (mdix == ETH_TP_MDI)
+		reg_val |= FORCE_MDI_CROSSOVER_MDI;
+	else if (mdix == ETH_TP_MDI_X)
+		reg_val |= FORCE_MDI_CROSSOVER_MDIX;
+	rc = phy_write(phydev, MSCC_PHY_EXT_MODE_CNTL, reg_val);
+	if (rc != 0)
+		return rc;
+
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_STANDARD);
+	if (rc != 0)
+		return rc;
+
+	return genphy_restart_aneg(phydev);
+}
+
+static int vsc85xx_downshift_get(struct phy_device *phydev, u8 *count)
+{
+	int rc;
+	u16 reg_val;
+
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_EXTENDED);
+	if (rc != 0)
+		goto out;
+
+	reg_val = phy_read(phydev, MSCC_PHY_ACTIPHY_CNTL);
+	reg_val &= DOWNSHIFT_CNTL_MASK;
+	if (!(reg_val & DOWNSHIFT_EN))
+		*count = DOWNSHIFT_DEV_DISABLE;
+	else
+		*count = ((reg_val & ~DOWNSHIFT_EN) >> DOWNSHIFT_CNTL_POS) + 2;
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_STANDARD);
+
+out:
+	return rc;
+}
+
+static int vsc85xx_downshift_set(struct phy_device *phydev, u8 count)
+{
+	int rc;
+	u16 reg_val;
+
+	if (count == DOWNSHIFT_DEV_DEFAULT_COUNT) {
+		/* Default downshift count 3 (i.e. Bit3:2 = 0b01) */
+		count = ((1 << DOWNSHIFT_CNTL_POS) | DOWNSHIFT_EN);
+	} else if (count > DOWNSHIFT_COUNT_MAX || count == 1) {
+		phydev_err(phydev, "Downshift count should be 2,3,4 or 5\n");
+		return -ERANGE;
+	} else if (count) {
+		/* Downshift count is either 2,3,4 or 5 */
+		count = (((count - 2) << DOWNSHIFT_CNTL_POS) | DOWNSHIFT_EN);
+	}
+
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_EXTENDED);
+	if (rc != 0)
+		goto out;
+
+	reg_val = phy_read(phydev, MSCC_PHY_ACTIPHY_CNTL);
+	reg_val &= ~(DOWNSHIFT_CNTL_MASK);
+	reg_val |= count;
+	rc = phy_write(phydev, MSCC_PHY_ACTIPHY_CNTL, reg_val);
+	if (rc != 0)
+		goto out;
+
+	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_STANDARD);
+
+out:
 	return rc;
 }
 
@@ -205,29 +341,43 @@ out_unlock:
 	mutex_unlock(&phydev->lock);
 }
 
-static u8 edge_rate_magic_get(u16 vddmac,
-			      int slowdown)
+#ifdef CONFIG_OF_MDIO
+static int vsc85xx_edge_rate_magic_get(struct phy_device *phydev)
 {
-	int rc = (MSCC_SLOWDOWN_MAX - 1);
-	u8 vdd;
 	u8 sd;
+	u16 vdd;
+	int rc, i, j;
+	struct device *dev = &phydev->mdio.dev;
+	struct device_node *of_node = dev->of_node;
+	u8 sd_array_size = ARRAY_SIZE(edge_table[0].slowdown);
 
-	for (vdd = 0; vdd < MSCC_VDDMAC_MAX; vdd++) {
-		if (edge_table[vdd].vddmac == vddmac) {
-			for (sd = 0; sd < MSCC_SLOWDOWN_MAX; sd++) {
-				if (edge_table[vdd].slowdown[sd] <= slowdown) {
-					rc = (MSCC_SLOWDOWN_MAX - sd - 1);
-					break;
-				}
-			}
-		}
-	}
+	if (!of_node)
+		return -ENODEV;
 
-	return rc;
+	rc = of_property_read_u16(of_node, "vsc8531,vddmac", &vdd);
+	if (rc != 0)
+		vdd = MSCC_VDDMAC_3300;
+
+	rc = of_property_read_u8(of_node, "vsc8531,edge-slowdown", &sd);
+	if (rc != 0)
+		sd = 0;
+
+	for (i = 0; i < ARRAY_SIZE(edge_table); i++)
+		if (edge_table[i].vddmac == vdd)
+			for (j = 0; j < sd_array_size; j++)
+				if (edge_table[i].slowdown[j] == sd)
+					return (sd_array_size - j - 1);
+
+	return -EINVAL;
 }
+#else
+static int vsc85xx_edge_rate_magic_get(struct phy_device *phydev)
+{
+	return 0;
+}
+#endif /* CONFIG_OF_MDIO */
 
-static int vsc85xx_edge_rate_cntl_set(struct phy_device *phydev,
-				      u8 edge_rate)
+static int vsc85xx_edge_rate_cntl_set(struct phy_device *phydev, u8 edge_rate)
 {
 	int rc;
 	u16 reg_val;
@@ -291,6 +441,7 @@ static int vsc85xx_default_config(struct phy_device *phydev)
 	int rc;
 	u16 reg_val;
 
+	phydev->mdix_ctrl = ETH_TP_MDI_AUTO;
 	mutex_lock(&phydev->lock);
 	rc = vsc85xx_phy_page_set(phydev, MSCC_PHY_PAGE_EXTENDED_2);
 	if (rc != 0)
@@ -308,45 +459,33 @@ out_unlock:
 	return rc;
 }
 
-#ifdef CONFIG_OF_MDIO
-static int vsc8531_of_init(struct phy_device *phydev)
+static int vsc85xx_get_tunable(struct phy_device *phydev,
+			       struct ethtool_tunable *tuna, void *data)
 {
-	int rc;
-	struct vsc8531_private *vsc8531 = phydev->priv;
-	struct device *dev = &phydev->mdio.dev;
-	struct device_node *of_node = dev->of_node;
-
-	if (!of_node)
-		return -ENODEV;
-
-	rc = of_property_read_u16(of_node, "vsc8531,vddmac",
-				  &vsc8531->vddmac);
-	if (rc == -EINVAL)
-		vsc8531->vddmac = MSCC_VDDMAC_3300;
-	rc = of_property_read_u8(of_node, "vsc8531,edge-slowdown",
-				 &vsc8531->edge_slowdown);
-	if (rc == -EINVAL)
-		vsc8531->edge_slowdown = 0;
-
-	rc = 0;
-	return rc;
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return vsc85xx_downshift_get(phydev, (u8 *)data);
+	default:
+		return -EINVAL;
+	}
 }
-#else
-static int vsc8531_of_init(struct phy_device *phydev)
+
+static int vsc85xx_set_tunable(struct phy_device *phydev,
+			       struct ethtool_tunable *tuna,
+			       const void *data)
 {
-	return 0;
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return vsc85xx_downshift_set(phydev, *(u8 *)data);
+	default:
+		return -EINVAL;
+	}
 }
-#endif /* CONFIG_OF_MDIO */
 
 static int vsc85xx_config_init(struct phy_device *phydev)
 {
 	int rc;
 	struct vsc8531_private *vsc8531 = phydev->priv;
-	u8 edge_rate;
-
-	rc = vsc8531_of_init(phydev);
-	if (rc)
-		return rc;
 
 	rc = vsc85xx_default_config(phydev);
 	if (rc)
@@ -356,9 +495,7 @@ static int vsc85xx_config_init(struct phy_device *phydev)
 	if (rc)
 		return rc;
 
-	edge_rate = edge_rate_magic_get(vsc8531->vddmac,
-					-(int)vsc8531->edge_slowdown);
-	rc = vsc85xx_edge_rate_cntl_set(phydev, edge_rate);
+	rc = vsc85xx_edge_rate_cntl_set(phydev, vsc8531->rate_magic);
 	if (rc)
 		return rc;
 
@@ -394,9 +531,36 @@ static int vsc85xx_config_intr(struct phy_device *phydev)
 	return rc;
 }
 
+static int vsc85xx_config_aneg(struct phy_device *phydev)
+{
+	int rc;
+
+	rc = vsc85xx_mdix_set(phydev, phydev->mdix_ctrl);
+	if (rc < 0)
+		return rc;
+
+	return genphy_config_aneg(phydev);
+}
+
+static int vsc85xx_read_status(struct phy_device *phydev)
+{
+	int rc;
+
+	rc = vsc85xx_mdix_get(phydev, &phydev->mdix);
+	if (rc < 0)
+		return rc;
+
+	return genphy_read_status(phydev);
+}
+
 static int vsc85xx_probe(struct phy_device *phydev)
 {
+	int rate_magic;
 	struct vsc8531_private *vsc8531;
+
+	rate_magic = vsc85xx_edge_rate_magic_get(phydev);
+	if (rate_magic < 0)
+		return rate_magic;
 
 	vsc8531 = devm_kzalloc(&phydev->mdio.dev, sizeof(*vsc8531), GFP_KERNEL);
 	if (!vsc8531)
@@ -404,11 +568,34 @@ static int vsc85xx_probe(struct phy_device *phydev)
 
 	phydev->priv = vsc8531;
 
+	vsc8531->rate_magic = rate_magic;
+
 	return 0;
 }
 
 /* Microsemi VSC85xx PHYs */
 static struct phy_driver vsc85xx_driver[] = {
+{
+	.phy_id		= PHY_ID_VSC8530,
+	.name		= "Microsemi FE VSC8530",
+	.phy_id_mask	= 0xfffffff0,
+	.features	= PHY_BASIC_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
+	.soft_reset	= &genphy_soft_reset,
+	.config_init	= &vsc85xx_config_init,
+	.config_aneg    = &vsc85xx_config_aneg,
+	.aneg_done	= &genphy_aneg_done,
+	.read_status	= &vsc85xx_read_status,
+	.ack_interrupt	= &vsc85xx_ack_interrupt,
+	.config_intr	= &vsc85xx_config_intr,
+	.suspend	= &genphy_suspend,
+	.resume		= &genphy_resume,
+	.probe		= &vsc85xx_probe,
+	.set_wol	= &vsc85xx_wol_set,
+	.get_wol	= &vsc85xx_wol_get,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
+},
 {
 	.phy_id		= PHY_ID_VSC8531,
 	.name		= "Microsemi VSC8531",
@@ -417,16 +604,39 @@ static struct phy_driver vsc85xx_driver[] = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.soft_reset	= &genphy_soft_reset,
 	.config_init    = &vsc85xx_config_init,
-	.config_aneg    = &genphy_config_aneg,
+	.config_aneg    = &vsc85xx_config_aneg,
 	.aneg_done	= &genphy_aneg_done,
-	.read_status    = &genphy_read_status,
+	.read_status	= &vsc85xx_read_status,
 	.ack_interrupt  = &vsc85xx_ack_interrupt,
 	.config_intr    = &vsc85xx_config_intr,
 	.suspend	= &genphy_suspend,
 	.resume		= &genphy_resume,
-	.probe          = &vsc85xx_probe,
-	.set_wol        = &vsc85xx_wol_set,
-	.get_wol        = &vsc85xx_wol_get,
+	.probe		= &vsc85xx_probe,
+	.set_wol	= &vsc85xx_wol_set,
+	.get_wol	= &vsc85xx_wol_get,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
+},
+{
+	.phy_id		= PHY_ID_VSC8540,
+	.name		= "Microsemi FE VSC8540 SyncE",
+	.phy_id_mask	= 0xfffffff0,
+	.features	= PHY_BASIC_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
+	.soft_reset	= &genphy_soft_reset,
+	.config_init	= &vsc85xx_config_init,
+	.config_aneg	= &vsc85xx_config_aneg,
+	.aneg_done	= &genphy_aneg_done,
+	.read_status	= &vsc85xx_read_status,
+	.ack_interrupt	= &vsc85xx_ack_interrupt,
+	.config_intr	= &vsc85xx_config_intr,
+	.suspend	= &genphy_suspend,
+	.resume		= &genphy_resume,
+	.probe		= &vsc85xx_probe,
+	.set_wol	= &vsc85xx_wol_set,
+	.get_wol	= &vsc85xx_wol_get,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
 },
 {
 	.phy_id		= PHY_ID_VSC8541,
@@ -436,16 +646,18 @@ static struct phy_driver vsc85xx_driver[] = {
 	.flags		= PHY_HAS_INTERRUPT,
 	.soft_reset	= &genphy_soft_reset,
 	.config_init    = &vsc85xx_config_init,
-	.config_aneg    = &genphy_config_aneg,
+	.config_aneg    = &vsc85xx_config_aneg,
 	.aneg_done	= &genphy_aneg_done,
-	.read_status    = &genphy_read_status,
+	.read_status	= &vsc85xx_read_status,
 	.ack_interrupt  = &vsc85xx_ack_interrupt,
 	.config_intr    = &vsc85xx_config_intr,
 	.suspend	= &genphy_suspend,
 	.resume		= &genphy_resume,
-	.probe          = &vsc85xx_probe,
-	.set_wol        = &vsc85xx_wol_set,
-	.get_wol        = &vsc85xx_wol_get,
+	.probe		= &vsc85xx_probe,
+	.set_wol	= &vsc85xx_wol_set,
+	.get_wol	= &vsc85xx_wol_get,
+	.get_tunable	= &vsc85xx_get_tunable,
+	.set_tunable	= &vsc85xx_set_tunable,
 }
 
 };
@@ -453,7 +665,9 @@ static struct phy_driver vsc85xx_driver[] = {
 module_phy_driver(vsc85xx_driver);
 
 static struct mdio_device_id __maybe_unused vsc85xx_tbl[] = {
+	{ PHY_ID_VSC8530, 0xfffffff0, },
 	{ PHY_ID_VSC8531, 0xfffffff0, },
+	{ PHY_ID_VSC8540, 0xfffffff0, },
 	{ PHY_ID_VSC8541, 0xfffffff0, },
 	{ }
 };

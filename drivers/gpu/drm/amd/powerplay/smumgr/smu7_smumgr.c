@@ -278,6 +278,9 @@ enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type)
 	case UCODE_ID_RLC_G:
 		result = CGS_UCODE_ID_RLC_G;
 		break;
+	case UCODE_ID_MEC_STORAGE:
+		result = CGS_UCODE_ID_STORAGE;
+		break;
 	default:
 		break;
 	}
@@ -363,12 +366,16 @@ static int smu7_populate_single_firmware_entry(struct pp_smumgr *smumgr,
 				&info);
 
 	if (!result) {
-		entry->version = info.version;
+		entry->version = info.fw_version;
 		entry->id = (uint16_t)fw_type;
 		entry->image_addr_high = smu_upper_32_bits(info.mc_addr);
 		entry->image_addr_low = smu_lower_32_bits(info.mc_addr);
 		entry->meta_data_addr_high = 0;
 		entry->meta_data_addr_low = 0;
+
+		/* digest need be excluded out */
+		if (cgs_is_virtualization_enabled(smumgr->device))
+			info.image_size -= 20;
 		entry->data_size_byte = info.image_size;
 		entry->num_register_entries = 0;
 	}
@@ -400,8 +407,14 @@ int smu7_request_smu_load_fw(struct pp_smumgr *smumgr)
 					0x0);
 
 	if (smumgr->chip_id > CHIP_TOPAZ) { /* add support for Topaz */
-		smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_SMU_DRAM_ADDR_HI, smu_data->smu_buffer.mc_addr_high);
-		smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_SMU_DRAM_ADDR_LO, smu_data->smu_buffer.mc_addr_low);
+		if (!cgs_is_virtualization_enabled(smumgr->device)) {
+			smu7_send_msg_to_smc_with_parameter(smumgr,
+						PPSMC_MSG_SMU_DRAM_ADDR_HI,
+						smu_data->smu_buffer.mc_addr_high);
+			smu7_send_msg_to_smc_with_parameter(smumgr,
+						PPSMC_MSG_SMU_DRAM_ADDR_LO,
+						smu_data->smu_buffer.mc_addr_low);
+		}
 		fw_to_load = UCODE_ID_RLC_G_MASK
 			   + UCODE_ID_SDMA0_MASK
 			   + UCODE_ID_SDMA1_MASK
@@ -451,6 +464,10 @@ int smu7_request_smu_load_fw(struct pp_smumgr *smumgr)
 				"Failed to Get Firmware Entry.", return -EINVAL);
 	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(smumgr,
 				UCODE_ID_SDMA1, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", return -EINVAL);
+	if (cgs_is_virtualization_enabled(smumgr->device))
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(smumgr,
+				UCODE_ID_MEC_STORAGE, &toc->entry[toc->num_entries++]),
 				"Failed to Get Firmware Entry.", return -EINVAL);
 
 	smu7_send_msg_to_smc_with_parameter(smumgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, smu_data->header_buffer.mc_addr_high);
@@ -532,7 +549,6 @@ int smu7_init(struct pp_smumgr *smumgr)
 	smu_data = (struct smu7_smumgr *)(smumgr->backend);
 	smu_data->header_buffer.data_size =
 			((sizeof(struct SMU_DRAMData_TOC) / 4096) + 1) * 4096;
-	smu_data->smu_buffer.data_size = 200*4096;
 
 /* Allocate FW image data structure and header buffer and
  * send the header buffer address to SMU */
@@ -555,6 +571,10 @@ int smu7_init(struct pp_smumgr *smumgr)
 		(cgs_handle_t)smu_data->header_buffer.handle);
 		return -EINVAL);
 
+	if (cgs_is_virtualization_enabled(smumgr->device))
+		return 0;
+
+	smu_data->smu_buffer.data_size = 200*4096;
 	smu_allocate_memory(smumgr->device,
 		smu_data->smu_buffer.data_size,
 		CGS_GPU_MEM_TYPE__VISIBLE_CONTIG_FB,

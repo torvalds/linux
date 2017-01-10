@@ -3719,7 +3719,7 @@ static int cxd2841er_init_tc(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_frontend_ops cxd2841er_dvbs_s2_ops;
+static const struct dvb_frontend_ops cxd2841er_dvbs_s2_ops;
 static struct dvb_frontend_ops cxd2841er_t_c_ops;
 
 static struct dvb_frontend *cxd2841er_attach(struct cxd2841er_config *cfg,
@@ -3801,7 +3801,7 @@ struct dvb_frontend *cxd2841er_attach_t_c(struct cxd2841er_config *cfg,
 }
 EXPORT_SYMBOL(cxd2841er_attach_t_c);
 
-static struct dvb_frontend_ops cxd2841er_dvbs_s2_ops = {
+static const struct dvb_frontend_ops cxd2841er_dvbs_s2_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name		= "Sony CXD2841ER DVB-S/S2 demodulator",
@@ -3829,7 +3829,7 @@ static struct dvb_frontend_ops cxd2841er_dvbs_s2_ops = {
 	.tune = cxd2841er_tune_s
 };
 
-static struct  dvb_frontend_ops cxd2841er_t_c_ops = {
+static struct dvb_frontend_ops cxd2841er_t_c_ops = {
 	.delsys = { SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A },
 	.info = {
 		.name	= "", /* will set in attach function */

@@ -24,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "stackglue.h"
 

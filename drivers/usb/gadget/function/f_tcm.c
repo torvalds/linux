@@ -1073,7 +1073,7 @@ static struct usbg_cmd *usbg_get_cmd(struct f_uas *fu,
 	struct usbg_cmd *cmd;
 	int tag;
 
-	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, GFP_ATOMIC);
+	tag = percpu_ida_alloc(&se_sess->sess_tag_pool, TASK_RUNNING);
 	if (tag < 0)
 		return ERR_PTR(-ENOMEM);
 

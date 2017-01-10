@@ -28,6 +28,10 @@ HiP06 D03 Board
 Required root node properties:
 	- compatible = "hisilicon,hip06-d03";
 
+HiP07 D05 Board
+Required root node properties:
+	- compatible = "hisilicon,hip07-d05";
+
 Hisilicon system controller
 
 Required properties:

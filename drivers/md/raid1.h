@@ -161,14 +161,15 @@ struct r1bio {
 };
 
 /* bits for r1bio.state */
-#define	R1BIO_Uptodate	0
-#define	R1BIO_IsSync	1
-#define	R1BIO_Degraded	2
-#define	R1BIO_BehindIO	3
+enum r1bio_state {
+	R1BIO_Uptodate,
+	R1BIO_IsSync,
+	R1BIO_Degraded,
+	R1BIO_BehindIO,
 /* Set ReadError on bios that experience a readerror so that
  * raid1d knows what to do with them.
  */
-#define R1BIO_ReadError 4
+	R1BIO_ReadError,
 /* For write-behind requests, we call bi_end_io when
  * the last non-write-behind device completes, providing
  * any write was successful.  Otherwise we call when
@@ -176,10 +177,12 @@ struct r1bio {
  * with failure when last write completes (and all failed).
  * Record that bi_end_io was called with this flag...
  */
-#define	R1BIO_Returned 6
+	R1BIO_Returned,
 /* If a write for this request means we can clear some
  * known-bad-block records, we set this flag
  */
-#define	R1BIO_MadeGood 7
-#define	R1BIO_WriteError 8
+	R1BIO_MadeGood,
+	R1BIO_WriteError,
+	R1BIO_FailFast,
+};
 #endif

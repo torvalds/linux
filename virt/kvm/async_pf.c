@@ -76,16 +76,20 @@ static void async_pf_execute(struct work_struct *work)
 	struct kvm_vcpu *vcpu = apf->vcpu;
 	unsigned long addr = apf->addr;
 	gva_t gva = apf->gva;
+	int locked = 1;
 
 	might_sleep();
 
 	/*
 	 * This work is run asynchromously to the task which owns
 	 * mm and might be done in another context, so we must
-	 * use FOLL_REMOTE.
+	 * access remotely.
 	 */
-	__get_user_pages_unlocked(NULL, mm, addr, 1, NULL,
-			FOLL_WRITE | FOLL_REMOTE);
+	down_read(&mm->mmap_sem);
+	get_user_pages_remote(NULL, mm, addr, 1, FOLL_WRITE, NULL, NULL,
+			&locked);
+	if (locked)
+		up_read(&mm->mmap_sem);
 
 	kvm_async_page_present_sync(vcpu, apf);
 

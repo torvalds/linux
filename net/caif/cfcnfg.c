@@ -390,8 +390,7 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 	rcu_read_lock();
 
 	if (adapt_layer == NULL) {
-		pr_debug("link setup response but no client exist,"
-				"send linkdown back\n");
+		pr_debug("link setup response but no client exist, send linkdown back\n");
 		cfctrl_linkdown_req(cnfg->ctrl, channel_id, NULL);
 		goto unlock;
 	}
@@ -401,8 +400,7 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 
 	phyinfo = cfcnfg_get_phyinfo_rcu(cnfg, phyid);
 	if (phyinfo == NULL) {
-		pr_err("ERROR: Link Layer Device disappeared"
-				"while connecting\n");
+		pr_err("ERROR: Link Layer Device disappeared while connecting\n");
 		goto unlock;
 	}
 
@@ -436,8 +434,7 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 		servicel = cfdbgl_create(channel_id, &phyinfo->dev_info);
 		break;
 	default:
-		pr_err("Protocol error. Link setup response "
-				"- unknown channel type\n");
+		pr_err("Protocol error. Link setup response - unknown channel type\n");
 		goto unlock;
 	}
 	if (!servicel)

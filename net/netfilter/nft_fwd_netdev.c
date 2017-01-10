@@ -26,8 +26,8 @@ static void nft_fwd_netdev_eval(const struct nft_expr *expr,
 	struct nft_fwd_netdev *priv = nft_expr_priv(expr);
 	int oif = regs->data[priv->sreg_dev];
 
-	nf_dup_netdev_egress(pkt, oif);
-	regs->verdict.code = NF_DROP;
+	nf_fwd_netdev_egress(pkt, oif);
+	regs->verdict.code = NF_STOLEN;
 }
 
 static const struct nla_policy nft_fwd_netdev_policy[NFTA_FWD_MAX + 1] = {

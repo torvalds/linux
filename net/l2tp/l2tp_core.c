@@ -715,7 +715,7 @@ void l2tp_recv_common(struct l2tp_session *session, struct sk_buff *skb,
 			l2tp_info(session, L2TP_MSG_SEQ,
 				  "%s: requested to enable seq numbers by LNS\n",
 				  session->name);
-			session->send_seq = -1;
+			session->send_seq = 1;
 			l2tp_session_set_header_len(session, tunnel->version);
 		}
 	} else {

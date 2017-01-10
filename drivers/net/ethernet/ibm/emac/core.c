@@ -47,7 +47,7 @@
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
 
@@ -1098,9 +1098,6 @@ static int emac_change_mtu(struct net_device *ndev, int new_mtu)
 {
 	struct emac_instance *dev = netdev_priv(ndev);
 	int ret = 0;
-
-	if (new_mtu < EMAC_MIN_MTU || new_mtu > dev->max_mtu)
-		return -EINVAL;
 
 	DBG(dev, "change_mtu(%d)" NL, new_mtu);
 
@@ -2564,7 +2561,7 @@ static int emac_init_config(struct emac_instance *dev)
 	if (emac_read_uint_prop(np, "cell-index", &dev->cell_index, 1))
 		return -ENXIO;
 	if (emac_read_uint_prop(np, "max-frame-size", &dev->max_mtu, 0))
-		dev->max_mtu = 1500;
+		dev->max_mtu = ETH_DATA_LEN;
 	if (emac_read_uint_prop(np, "rx-fifo-size", &dev->rx_fifo_size, 0))
 		dev->rx_fifo_size = 2048;
 	if (emac_read_uint_prop(np, "tx-fifo-size", &dev->tx_fifo_size, 0))
@@ -2718,7 +2715,6 @@ static const struct net_device_ops emac_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= emac_set_mac_address,
 	.ndo_start_xmit		= emac_start_xmit,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static const struct net_device_ops emac_gige_netdev_ops = {
@@ -2890,6 +2886,10 @@ static int emac_probe(struct platform_device *ofdev)
 	} else
 		ndev->netdev_ops = &emac_netdev_ops;
 	ndev->ethtool_ops = &emac_ethtool_ops;
+
+	/* MTU range: 46 - 1500 or whatever is in OF */
+	ndev->min_mtu = EMAC_MIN_MTU;
+	ndev->max_mtu = dev->max_mtu;
 
 	netif_carrier_off(ndev);
 

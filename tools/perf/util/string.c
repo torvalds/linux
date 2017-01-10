@@ -193,7 +193,8 @@ error:
 }
 
 /* Glob/lazy pattern matching */
-static bool __match_glob(const char *str, const char *pat, bool ignore_space)
+static bool __match_glob(const char *str, const char *pat, bool ignore_space,
+			bool case_ins)
 {
 	while (*str && *pat && *pat != '*') {
 		if (ignore_space) {
@@ -219,8 +220,13 @@ static bool __match_glob(const char *str, const char *pat, bool ignore_space)
 				return false;
 		else if (*pat == '\\') /* Escaped char match as normal char */
 			pat++;
-		if (*str++ != *pat++)
+		if (case_ins) {
+			if (tolower(*str) != tolower(*pat))
+				return false;
+		} else if (*str != *pat)
 			return false;
+		str++;
+		pat++;
 	}
 	/* Check wild card */
 	if (*pat == '*') {
@@ -229,7 +235,7 @@ static bool __match_glob(const char *str, const char *pat, bool ignore_space)
 		if (!*pat)	/* Tail wild card matches all */
 			return true;
 		while (*str)
-			if (__match_glob(str++, pat, ignore_space))
+			if (__match_glob(str++, pat, ignore_space, case_ins))
 				return true;
 	}
 	return !*str && !*pat;
@@ -249,7 +255,12 @@ static bool __match_glob(const char *str, const char *pat, bool ignore_space)
  */
 bool strglobmatch(const char *str, const char *pat)
 {
-	return __match_glob(str, pat, false);
+	return __match_glob(str, pat, false, false);
+}
+
+bool strglobmatch_nocase(const char *str, const char *pat)
+{
+	return __match_glob(str, pat, false, true);
 }
 
 /**
@@ -262,7 +273,7 @@ bool strglobmatch(const char *str, const char *pat)
  */
 bool strlazymatch(const char *str, const char *pat)
 {
-	return __match_glob(str, pat, true);
+	return __match_glob(str, pat, true, false);
 }
 
 /**

@@ -921,6 +921,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_GET_PORT_NAME			0x4D
 #define LPFC_MBOX_OPCODE_MQ_CREATE_EXT			0x5A
 #define LPFC_MBOX_OPCODE_GET_VPD_DATA			0x5B
+#define LPFC_MBOX_OPCODE_SET_HOST_DATA			0x5D
 #define LPFC_MBOX_OPCODE_SEND_ACTIVATION		0x73
 #define LPFC_MBOX_OPCODE_RESET_LICENSES			0x74
 #define LPFC_MBOX_OPCODE_GET_RSRC_EXTENT_INFO		0x9A
@@ -2289,6 +2290,9 @@ struct lpfc_mbx_read_config {
 #define lpfc_mbx_rd_conf_r_a_tov_SHIFT		0
 #define lpfc_mbx_rd_conf_r_a_tov_MASK		0x0000FFFF
 #define lpfc_mbx_rd_conf_r_a_tov_WORD		word6
+#define lpfc_mbx_rd_conf_link_speed_SHIFT	16
+#define lpfc_mbx_rd_conf_link_speed_MASK	0x0000FFFF
+#define lpfc_mbx_rd_conf_link_speed_WORD	word6
 	uint32_t rsvd_7;
 	uint32_t rsvd_8;
 	uint32_t word9;
@@ -2919,6 +2923,16 @@ struct lpfc_mbx_set_feature {
 };
 
 
+#define LPFC_SET_HOST_OS_DRIVER_VERSION    0x2
+struct lpfc_mbx_set_host_data {
+#define LPFC_HOST_OS_DRIVER_VERSION_SIZE   48
+	struct mbox_header header;
+	uint32_t param_id;
+	uint32_t param_len;
+	uint8_t  data[LPFC_HOST_OS_DRIVER_VERSION_SIZE];
+};
+
+
 struct lpfc_mbx_get_sli4_parameters {
 	struct mbox_header header;
 	struct lpfc_sli4_parameters sli4_parameters;
@@ -3313,6 +3327,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_get_port_name get_port_name;
 		struct lpfc_mbx_set_feature  set_feature;
 		struct lpfc_mbx_memory_dump_type3 mem_dump_type3;
+		struct lpfc_mbx_set_host_data set_host_data;
 		struct lpfc_mbx_nop nop;
 	} un;
 };
@@ -3981,7 +3996,8 @@ union lpfc_wqe128 {
 	struct gen_req64_wqe gen_req;
 };
 
-#define LPFC_GROUP_OJECT_MAGIC_NUM		0xfeaa0001
+#define LPFC_GROUP_OJECT_MAGIC_G5		0xfeaa0001
+#define LPFC_GROUP_OJECT_MAGIC_G6		0xfeaa0003
 #define LPFC_FILE_TYPE_GROUP			0xf7
 #define LPFC_FILE_ID_GROUP			0xa2
 struct lpfc_grp_hdr {

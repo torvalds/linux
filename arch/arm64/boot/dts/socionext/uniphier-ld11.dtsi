@@ -43,7 +43,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/memreserve/ 0x80000000 0x00000008;	/* cpu-release-addr */
+/memreserve/ 0x80000000 0x00080000;
 
 / {
 	compatible = "socionext,uniphier-ld11";
@@ -70,17 +70,58 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0 0x000>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x80000000>;
+			clocks = <&sys_clk 33>;
+			enable-method = "psci";
+			operating-points-v2 = <&cluster0_opp>;
 		};
 
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53", "arm,armv8";
 			reg = <0 0x001>;
-			enable-method = "spin-table";
-			cpu-release-addr = <0 0x80000000>;
+			clocks = <&sys_clk 33>;
+			enable-method = "psci";
+			operating-points-v2 = <&cluster0_opp>;
 		};
+	};
+
+	cluster0_opp: opp_table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp@245000000 {
+			opp-hz = /bits/ 64 <245000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@250000000 {
+			opp-hz = /bits/ 64 <250000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@490000000 {
+			opp-hz = /bits/ 64 <490000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@500000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			clock-latency-ns = <300>;
+		};
+		opp@653334000 {
+			opp-hz = /bits/ 64 <653334000>;
+			clock-latency-ns = <300>;
+		};
+		opp@666667000 {
+			opp-hz = /bits/ 64 <666667000>;
+			clock-latency-ns = <300>;
+		};
+		opp@980000000 {
+			opp-hz = /bits/ 64 <980000000>;
+			clock-latency-ns = <300>;
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
 	};
 
 	clocks {
@@ -233,7 +274,7 @@
 		};
 
 		perictrl@59820000 {
-			compatible = "socionext,uniphier-perictrl",
+			compatible = "socionext,uniphier-ld11-perictrl",
 				     "simple-mfd", "syscon";
 			reg = <0x59820000 0x200>;
 
@@ -282,7 +323,7 @@
 		};
 
 		mioctrl@5b3e0000 {
-			compatible = "socionext,uniphier-mioctrl",
+			compatible = "socionext,uniphier-ld11-mioctrl",
 				     "simple-mfd", "syscon";
 			reg = <0x5b3e0000 0x800>;
 
@@ -299,7 +340,7 @@
 		};
 
 		soc-glue@5f800000 {
-			compatible = "socionext,uniphier-soc-glue",
+			compatible = "socionext,uniphier-ld11-soc-glue",
 				     "simple-mfd", "syscon";
 			reg = <0x5f800000 0x2000>;
 
@@ -320,7 +361,7 @@
 		sysctrl@61840000 {
 			compatible = "socionext,uniphier-ld11-sysctrl",
 				     "simple-mfd", "syscon";
-			reg = <0x61840000 0x4000>;
+			reg = <0x61840000 0x10000>;
 
 			sys_clk: clock {
 				compatible = "socionext,uniphier-ld11-clock";

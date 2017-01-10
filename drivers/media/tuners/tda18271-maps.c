@@ -1024,11 +1024,7 @@ int tda18271_lookup_rf_band(struct dvb_frontend *fe, u32 *freq, u8 *rf_band)
 
 	while ((map[i].rfmax * 1000) < *freq) {
 		if (tda18271_debug & DBG_ADV)
-			tda_map("(%d) rfmax = %d < freq = %d, "
-				"rf1_def = %d, rf2_def = %d, rf3_def = %d, "
-				"rf1 = %d, rf2 = %d, rf3 = %d, "
-				"rf_a1 = %d, rf_a2 = %d, "
-				"rf_b1 = %d, rf_b2 = %d\n",
+			tda_map("(%d) rfmax = %d < freq = %d, rf1_def = %d, rf2_def = %d, rf3_def = %d, rf1 = %d, rf2 = %d, rf3 = %d, rf_a1 = %d, rf_a2 = %d, rf_b1 = %d, rf_b2 = %d\n",
 				i, map[i].rfmax * 1000, *freq,
 				map[i].rf1_def, map[i].rf2_def, map[i].rf3_def,
 				map[i].rf1, map[i].rf2, map[i].rf3,

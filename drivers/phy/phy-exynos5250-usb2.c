@@ -192,7 +192,7 @@ static void exynos5250_isol(struct samsung_usb2_phy_instance *inst, bool on)
 		break;
 	default:
 		return;
-	};
+	}
 
 	regmap_update_bits(drv->reg_pmu, offset, mask, on ? 0 : mask);
 }

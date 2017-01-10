@@ -2796,7 +2796,7 @@ static int kv_parse_power_table(struct amdgpu_device *adev)
 	adev->pm.dpm.num_ps = state_array->ucNumEntries;
 
 	/* fill in the vce power states */
-	for (i = 0; i < AMDGPU_MAX_VCE_LEVELS; i++) {
+	for (i = 0; i < adev->pm.dpm.num_of_vce_states; i++) {
 		u32 sclk;
 		clock_array_index = adev->pm.dpm.vce_states[i].clk_idx;
 		clock_info = (union pplib_clock_info *)
@@ -2845,7 +2845,7 @@ static int kv_dpm_init(struct amdgpu_device *adev)
 		pi->caps_tcp_ramping = true;
 	}
 
-	if (amdgpu_sclk_deep_sleep_en)
+	if (amdgpu_pp_feature_mask & SCLK_DEEP_SLEEP_MASK)
 		pi->caps_sclk_ds = true;
 	else
 		pi->caps_sclk_ds = false;
@@ -3245,6 +3245,18 @@ static int kv_dpm_set_powergating_state(void *handle,
 	return 0;
 }
 
+static int kv_check_state_equal(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal)
+{
+	if (equal == NULL)
+		return -EINVAL;
+
+	*equal = false;
+	return 0;
+}
+
 const struct amd_ip_funcs kv_dpm_ip_funcs = {
 	.name = "kv_dpm",
 	.early_init = kv_dpm_early_init,
@@ -3275,6 +3287,8 @@ static const struct amdgpu_dpm_funcs kv_dpm_funcs = {
 	.force_performance_level = &kv_dpm_force_performance_level,
 	.powergate_uvd = &kv_dpm_powergate_uvd,
 	.enable_bapm = &kv_dpm_enable_bapm,
+	.get_vce_clock_state = amdgpu_get_vce_clock_state,
+	.check_state_equal = kv_check_state_equal,
 };
 
 static void kv_dpm_set_dpm_funcs(struct amdgpu_device *adev)
@@ -3293,3 +3307,12 @@ static void kv_dpm_set_irq_funcs(struct amdgpu_device *adev)
 	adev->pm.dpm.thermal.irq.num_types = AMDGPU_THERMAL_IRQ_LAST;
 	adev->pm.dpm.thermal.irq.funcs = &kv_dpm_irq_funcs;
 }
+
+const struct amdgpu_ip_block_version kv_dpm_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 7,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &kv_dpm_ip_funcs,
+};

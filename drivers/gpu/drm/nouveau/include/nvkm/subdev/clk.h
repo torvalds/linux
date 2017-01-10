@@ -6,6 +6,10 @@
 struct nvbios_pll;
 struct nvkm_pll_vals;
 
+#define NVKM_CLK_CSTATE_DEFAULT -1 /* POSTed default */
+#define NVKM_CLK_CSTATE_BASE    -2 /* pstate base */
+#define NVKM_CLK_CSTATE_HIGHEST -3 /* highest possible */
+
 enum nv_clk_src {
 	nv_clk_src_crystal,
 	nv_clk_src_href,
@@ -52,6 +56,7 @@ struct nvkm_cstate {
 	struct list_head head;
 	u8  voltage;
 	u32 domain[nv_clk_src_max];
+	u8  id;
 };
 
 struct nvkm_pstate {
@@ -67,7 +72,8 @@ struct nvkm_pstate {
 struct nvkm_domain {
 	enum nv_clk_src name;
 	u8 bios; /* 0xff for none */
-#define NVKM_CLK_DOM_FLAG_CORE 0x01
+#define NVKM_CLK_DOM_FLAG_CORE    0x01
+#define NVKM_CLK_DOM_FLAG_VPSTATE 0x02
 	u8 flags;
 	const char *mname;
 	int mdiv;
@@ -93,10 +99,16 @@ struct nvkm_clk {
 	int ustate_ac; /* user-requested (-1 disabled, -2 perfmon) */
 	int ustate_dc; /* user-requested (-1 disabled, -2 perfmon) */
 	int astate; /* perfmon adjustment (base) */
-	int tstate; /* thermal adjustment (max-) */
 	int dstate; /* display adjustment (min+) */
+	u8  temp;
 
 	bool allow_reclock;
+#define NVKM_CLK_BOOST_NONE 0x0
+#define NVKM_CLK_BOOST_BIOS 0x1
+#define NVKM_CLK_BOOST_FULL 0x2
+	u8  boost_mode;
+	u32 base_khz;
+	u32 boost_khz;
 
 	/*XXX: die, these are here *only* to support the completely
 	 *     bat-shit insane what-was-nouveau_hw.c code
@@ -110,7 +122,7 @@ int nvkm_clk_read(struct nvkm_clk *, enum nv_clk_src);
 int nvkm_clk_ustate(struct nvkm_clk *, int req, int pwr);
 int nvkm_clk_astate(struct nvkm_clk *, int req, int rel, bool wait);
 int nvkm_clk_dstate(struct nvkm_clk *, int req, int rel);
-int nvkm_clk_tstate(struct nvkm_clk *, int req, int rel);
+int nvkm_clk_tstate(struct nvkm_clk *, u8 temperature);
 
 int nv04_clk_new(struct nvkm_device *, int, struct nvkm_clk **);
 int nv40_clk_new(struct nvkm_device *, int, struct nvkm_clk **);

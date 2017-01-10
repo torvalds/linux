@@ -26,7 +26,7 @@
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/rcupdate.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/processor.h>

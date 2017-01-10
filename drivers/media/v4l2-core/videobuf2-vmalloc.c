@@ -151,8 +151,7 @@ static void *vb2_vmalloc_vaddr(void *buf_priv)
 	struct vb2_vmalloc_buf *buf = buf_priv;
 
 	if (!buf->vaddr) {
-		pr_err("Address of an unallocated plane requested "
-		       "or cannot map user pointer\n");
+		pr_err("Address of an unallocated plane requested or cannot map user pointer\n");
 		return NULL;
 	}
 

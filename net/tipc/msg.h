@@ -95,7 +95,7 @@ struct plist;
 #define TIPC_MEDIA_INFO_OFFSET	5
 
 struct tipc_skb_cb {
-	void *handle;
+	u32 bytes_read;
 	struct sk_buff *tail;
 	bool validated;
 	bool wakeup_pending;

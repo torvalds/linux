@@ -307,7 +307,6 @@ static int tpmfront_probe(struct xenbus_device *dev,
 	rv = setup_ring(dev, priv);
 	if (rv) {
 		chip = dev_get_drvdata(&dev->dev);
-		tpm_chip_unregister(chip);
 		ring_free(priv);
 		return rv;
 	}
@@ -337,18 +336,14 @@ static int tpmfront_resume(struct xenbus_device *dev)
 static void backend_changed(struct xenbus_device *dev,
 		enum xenbus_state backend_state)
 {
-	int val;
-
 	switch (backend_state) {
 	case XenbusStateInitialised:
 	case XenbusStateConnected:
 		if (dev->state == XenbusStateConnected)
 			break;
 
-		if (xenbus_scanf(XBT_NIL, dev->otherend,
-				"feature-protocol-v2", "%d", &val) < 0)
-			val = 0;
-		if (!val) {
+		if (!xenbus_read_unsigned(dev->otherend, "feature-protocol-v2",
+					  0)) {
 			xenbus_dev_fatal(dev, -EINVAL,
 					"vTPM protocol 2 required");
 			return;

@@ -11,6 +11,8 @@
 #include <linux/sched.h>
 #include <linux/cpumask.h>
 #include <asm/apic.h>
+#include <asm/cpufeature.h>
+#include <asm/intel-family.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
 #include <asm/mce.h>
@@ -130,7 +132,7 @@ bool mce_intel_cmci_poll(void)
 	 * Reset the counter if we've logged an error in the last poll
 	 * during the storm.
 	 */
-	if (machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_banks_owned)))
+	if (machine_check_poll(0, this_cpu_ptr(&mce_banks_owned)))
 		this_cpu_write(cmci_backoff_cnt, INITIAL_CHECK_INTERVAL);
 	else
 		this_cpu_dec(cmci_backoff_cnt);
@@ -342,7 +344,7 @@ void cmci_recheck(void)
 		return;
 
 	local_irq_save(flags);
-	machine_check_poll(MCP_TIMESTAMP, this_cpu_ptr(&mce_banks_owned));
+	machine_check_poll(0, this_cpu_ptr(&mce_banks_owned));
 	local_irq_restore(flags);
 }
 
@@ -464,11 +466,46 @@ static void intel_clear_lmce(void)
 	wrmsrl(MSR_IA32_MCG_EXT_CTL, val);
 }
 
+static void intel_ppin_init(struct cpuinfo_x86 *c)
+{
+	unsigned long long val;
+
+	/*
+	 * Even if testing the presence of the MSR would be enough, we don't
+	 * want to risk the situation where other models reuse this MSR for
+	 * other purposes.
+	 */
+	switch (c->x86_model) {
+	case INTEL_FAM6_IVYBRIDGE_X:
+	case INTEL_FAM6_HASWELL_X:
+	case INTEL_FAM6_BROADWELL_XEON_D:
+	case INTEL_FAM6_BROADWELL_X:
+	case INTEL_FAM6_SKYLAKE_X:
+		if (rdmsrl_safe(MSR_PPIN_CTL, &val))
+			return;
+
+		if ((val & 3UL) == 1UL) {
+			/* PPIN available but disabled: */
+			return;
+		}
+
+		/* If PPIN is disabled, but not locked, try to enable: */
+		if (!(val & 3UL)) {
+			wrmsrl_safe(MSR_PPIN_CTL,  val | 2UL);
+			rdmsrl_safe(MSR_PPIN_CTL, &val);
+		}
+
+		if ((val & 3UL) == 2UL)
+			set_cpu_cap(c, X86_FEATURE_INTEL_PPIN);
+	}
+}
+
 void mce_intel_feature_init(struct cpuinfo_x86 *c)
 {
 	intel_init_thermal(c);
 	intel_init_cmci();
 	intel_init_lmce();
+	intel_ppin_init(c);
 }
 
 void mce_intel_feature_clear(struct cpuinfo_x86 *c)

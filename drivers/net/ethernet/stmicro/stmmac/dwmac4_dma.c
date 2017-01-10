@@ -71,25 +71,29 @@ static void dwmac4_dma_axi(void __iomem *ioaddr, struct stmmac_axi *axi)
 	writel(value, ioaddr + DMA_SYS_BUS_MODE);
 }
 
-static void dwmac4_dma_init_channel(void __iomem *ioaddr, int pbl,
+static void dwmac4_dma_init_channel(void __iomem *ioaddr,
+				    struct stmmac_dma_cfg *dma_cfg,
 				    u32 dma_tx_phy, u32 dma_rx_phy,
 				    u32 channel)
 {
 	u32 value;
+	int txpbl = dma_cfg->txpbl ?: dma_cfg->pbl;
+	int rxpbl = dma_cfg->rxpbl ?: dma_cfg->pbl;
 
 	/* set PBL for each channels. Currently we affect same configuration
 	 * on each channel
 	 */
 	value = readl(ioaddr + DMA_CHAN_CONTROL(channel));
-	value = value | DMA_BUS_MODE_PBL;
+	if (dma_cfg->pblx8)
+		value = value | DMA_BUS_MODE_PBL;
 	writel(value, ioaddr + DMA_CHAN_CONTROL(channel));
 
 	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(channel));
-	value = value | (pbl << DMA_BUS_MODE_PBL_SHIFT);
+	value = value | (txpbl << DMA_BUS_MODE_PBL_SHIFT);
 	writel(value, ioaddr + DMA_CHAN_TX_CONTROL(channel));
 
 	value = readl(ioaddr + DMA_CHAN_RX_CONTROL(channel));
-	value = value | (pbl << DMA_BUS_MODE_RPBL_SHIFT);
+	value = value | (rxpbl << DMA_BUS_MODE_RPBL_SHIFT);
 	writel(value, ioaddr + DMA_CHAN_RX_CONTROL(channel));
 
 	/* Mask interrupts by writing to CSR7 */
@@ -99,27 +103,28 @@ static void dwmac4_dma_init_channel(void __iomem *ioaddr, int pbl,
 	writel(dma_rx_phy, ioaddr + DMA_CHAN_RX_BASE_ADDR(channel));
 }
 
-static void dwmac4_dma_init(void __iomem *ioaddr, int pbl, int fb, int mb,
-			    int aal, u32 dma_tx, u32 dma_rx, int atds)
+static void dwmac4_dma_init(void __iomem *ioaddr,
+			    struct stmmac_dma_cfg *dma_cfg,
+			    u32 dma_tx, u32 dma_rx, int atds)
 {
 	u32 value = readl(ioaddr + DMA_SYS_BUS_MODE);
 	int i;
 
 	/* Set the Fixed burst mode */
-	if (fb)
+	if (dma_cfg->fixed_burst)
 		value |= DMA_SYS_BUS_FB;
 
 	/* Mixed Burst has no effect when fb is set */
-	if (mb)
+	if (dma_cfg->mixed_burst)
 		value |= DMA_SYS_BUS_MB;
 
-	if (aal)
+	if (dma_cfg->aal)
 		value |= DMA_SYS_BUS_AAL;
 
 	writel(value, ioaddr + DMA_SYS_BUS_MODE);
 
 	for (i = 0; i < DMA_CHANNEL_NB_MAX; i++)
-		dwmac4_dma_init_channel(ioaddr, pbl, dma_tx, dma_rx, i);
+		dwmac4_dma_init_channel(ioaddr, dma_cfg, dma_tx, dma_rx, i);
 }
 
 static void _dwmac4_dump_dma_regs(void __iomem *ioaddr, u32 channel)
@@ -215,7 +220,17 @@ static void dwmac4_dma_chan_op_mode(void __iomem *ioaddr, int txmode,
 		else
 			mtl_tx_op |= MTL_OP_MODE_TTC_512;
 	}
-
+	/* For an IP with DWC_EQOS_NUM_TXQ == 1, the fields TXQEN and TQS are RO
+	 * with reset values: TXQEN on, TQS == DWC_EQOS_TXFIFO_SIZE.
+	 * For an IP with DWC_EQOS_NUM_TXQ > 1, the fields TXQEN and TQS are R/W
+	 * with reset values: TXQEN off, TQS 256 bytes.
+	 *
+	 * Write the bits in both cases, since it will have no effect when RO.
+	 * For DWC_EQOS_NUM_TXQ > 1, the top bits in MTL_OP_MODE_TQS_MASK might
+	 * be RO, however, writing the whole TQS field will result in a value
+	 * equal to DWC_EQOS_TXFIFO_SIZE, just like for DWC_EQOS_NUM_TXQ == 1.
+	 */
+	mtl_tx_op |= MTL_OP_MODE_TXQEN | MTL_OP_MODE_TQS_MASK;
 	writel(mtl_tx_op, ioaddr +  MTL_CHAN_TX_OP_MODE(channel));
 
 	mtl_rx_op = readl(ioaddr + MTL_CHAN_RX_OP_MODE(channel));

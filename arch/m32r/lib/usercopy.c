@@ -9,7 +9,7 @@
 #include <linux/prefetch.h>
 #include <linux/string.h>
 #include <linux/thread_info.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 unsigned long
 __generic_copy_to_user(void __user *to, const void *from, unsigned long n)

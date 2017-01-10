@@ -74,4 +74,6 @@
 # define ext2_find_next_zero_bit  find_next_zero_bit_le
 #endif
 
+#define TIMES_SET_FLAGS (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
+
 #endif /* _LUSTRE_COMPAT_H */

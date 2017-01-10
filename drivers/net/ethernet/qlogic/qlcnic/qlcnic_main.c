@@ -2342,6 +2342,10 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter, struct net_device *netdev,
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->irq = adapter->msix_entries[0].vector;
 
+	/* MTU range: 68 - 9600 */
+	netdev->min_mtu = P3P_MIN_MTU;
+	netdev->max_mtu = P3P_MAX_MTU;
+
 	err = qlcnic_set_real_num_queues(adapter, adapter->drv_tx_rings,
 					 adapter->drv_sds_rings);
 	if (err)

@@ -40,6 +40,7 @@ struct davinci_gpio_regs {
 typedef struct irq_chip *(*gpio_get_irq_chip_cb_t)(unsigned int irq);
 
 #define BINTEN	0x8 /* GPIO Interrupt Per-Bank Enable Register */
+#define MAX_LABEL_SIZE 20
 
 static void __iomem *gpio_base;
 
@@ -201,6 +202,7 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 	struct davinci_gpio_regs __iomem *regs;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
+	char label[MAX_LABEL_SIZE];
 
 	pdata = davinci_gpio_get_pdata(pdev);
 	if (!pdata) {
@@ -237,7 +239,10 @@ static int davinci_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(gpio_base);
 
 	for (i = 0, base = 0; base < ngpio; i++, base += 32) {
-		chips[i].chip.label = "DaVinci";
+		snprintf(label, MAX_LABEL_SIZE, "davinci_gpio.%d", i);
+		chips[i].chip.label = devm_kstrdup(dev, label, GFP_KERNEL);
+		if (!chips[i].chip.label)
+			return -ENOMEM;
 
 		chips[i].chip.direction_input = davinci_direction_in;
 		chips[i].chip.get = davinci_gpio_get;

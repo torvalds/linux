@@ -67,7 +67,7 @@
  *	genl_magic_func.h
  *		generates an entry in the static genl_ops array,
  *		and static register/unregister functions to
- *		genl_register_family_with_ops().
+ *		genl_register_family().
  *
  *	flags and handler:
  *		GENL_op_init( .doit = x, .dumpit = y, .flags = something)

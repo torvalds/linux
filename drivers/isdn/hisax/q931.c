@@ -855,7 +855,7 @@ struct DTag { /* Display tags */
 	{ 0x8c, "Reason" },
 	{ 0x8d, "Calling party name" },
 	{ 0x8e, "Called party name" },
-	{ 0x8f, "Orignal called name" },
+	{ 0x8f, "Original called name" },
 	{ 0x90, "Redirecting name" },
 	{ 0x91, "Connected name" },
 	{ 0x92, "Originating restrictions" },

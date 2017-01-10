@@ -6,10 +6,9 @@
 #include <linux/posix-timers.h>
 #include <linux/errno.h>
 #include <linux/math64.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/kernel_stat.h>
 #include <trace/events/timer.h>
-#include <linux/random.h>
 #include <linux/tick.h>
 #include <linux/workqueue.h>
 
@@ -133,9 +132,9 @@ static inline unsigned long long prof_ticks(struct task_struct *p)
 }
 static inline unsigned long long virt_ticks(struct task_struct *p)
 {
-	cputime_t utime;
+	cputime_t utime, stime;
 
-	task_cputime(p, &utime, NULL);
+	task_cputime(p, &utime, &stime);
 
 	return cputime_to_expires(utime);
 }
@@ -447,10 +446,7 @@ static void cleanup_timers(struct list_head *head)
  */
 void posix_cpu_timers_exit(struct task_struct *tsk)
 {
-	add_device_randomness((const void*) &tsk->se.sum_exec_runtime,
-						sizeof(unsigned long long));
 	cleanup_timers(tsk->cpu_timers);
-
 }
 void posix_cpu_timers_exit_group(struct task_struct *tsk)
 {

@@ -438,7 +438,7 @@ static int cz_dpm_init(struct amdgpu_device *adev)
 		pi->caps_td_ramping = true;
 		pi->caps_tcp_ramping = true;
 	}
-	if (amdgpu_sclk_deep_sleep_en)
+	if (amdgpu_pp_feature_mask & SCLK_DEEP_SLEEP_MASK)
 		pi->caps_sclk_ds = true;
 	else
 		pi->caps_sclk_ds = false;
@@ -1250,7 +1250,8 @@ static void cz_update_current_ps(struct amdgpu_device *adev,
 
 	pi->current_ps = *ps;
 	pi->current_rps = *rps;
-	pi->current_rps.ps_priv = ps;
+	pi->current_rps.ps_priv = &pi->current_ps;
+	adev->pm.dpm.current_ps = &pi->current_rps;
 
 }
 
@@ -1262,7 +1263,8 @@ static void cz_update_requested_ps(struct amdgpu_device *adev,
 
 	pi->requested_ps = *ps;
 	pi->requested_rps = *rps;
-	pi->requested_rps.ps_priv = ps;
+	pi->requested_rps.ps_priv = &pi->requested_ps;
+	adev->pm.dpm.requested_ps = &pi->requested_rps;
 
 }
 
@@ -2109,9 +2111,8 @@ static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 
 	if (gate) {
 		if (pi->caps_uvd_pg) {
-			/* disable clockgating so we can properly shut down the block */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_CG_STATE_UNGATE);
+							    AMD_CG_STATE_GATE);
 			if (ret) {
 				DRM_ERROR("UVD DPM Power Gating failed to set clockgating state\n");
 				return;
@@ -2157,9 +2158,8 @@ static void cz_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 				return;
 			}
 
-			/* enable clockgating. hw will dynamically gate/ungate clocks on the fly */
 			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
-							    AMD_CG_STATE_GATE);
+							    AMD_CG_STATE_UNGATE);
 			if (ret) {
 				DRM_ERROR("UVD DPM Power Gating Failed to set clockgating state\n");
 				return;
@@ -2257,6 +2257,18 @@ static void cz_dpm_powergate_vce(struct amdgpu_device *adev, bool gate)
 	}
 }
 
+static int cz_check_state_equal(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal)
+{
+	if (equal == NULL)
+		return -EINVAL;
+
+	*equal = false;
+	return 0;
+}
+
 const struct amd_ip_funcs cz_dpm_ip_funcs = {
 	.name = "cz_dpm",
 	.early_init = cz_dpm_early_init,
@@ -2289,6 +2301,7 @@ static const struct amdgpu_dpm_funcs cz_dpm_funcs = {
 	.vblank_too_short = NULL,
 	.powergate_uvd = cz_dpm_powergate_uvd,
 	.powergate_vce = cz_dpm_powergate_vce,
+	.check_state_equal = cz_check_state_equal,
 };
 
 static void cz_dpm_set_funcs(struct amdgpu_device *adev)
@@ -2296,3 +2309,12 @@ static void cz_dpm_set_funcs(struct amdgpu_device *adev)
 	if (NULL == adev->pm.funcs)
 		adev->pm.funcs = &cz_dpm_funcs;
 }
+
+const struct amdgpu_ip_block_version cz_dpm_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 8,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &cz_dpm_ip_funcs,
+};

@@ -887,7 +887,7 @@ static void afu_handle_errstate(struct work_struct *work)
 	    afu_guest->previous_state == H_STATE_PERM_UNAVAILABLE)
 		return;
 
-	if (afu_guest->handle_err == true)
+	if (afu_guest->handle_err)
 		schedule_delayed_work(&afu_guest->work_err,
 				      msecs_to_jiffies(3000));
 }

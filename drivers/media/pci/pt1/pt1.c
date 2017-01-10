@@ -282,13 +282,12 @@ static int pt1_filter(struct pt1 *pt1, struct pt1_buffer_page *page)
 			continue;
 
 		if (upacket >> 24 & 1)
-			printk_ratelimited(KERN_INFO "earth-pt1: device "
-				"buffer overflowing. table[%d] buf[%d]\n",
+			printk_ratelimited(KERN_INFO "earth-pt1: device buffer overflowing. table[%d] buf[%d]\n",
 				pt1->table_index, pt1->buf_index);
 		sc = upacket >> 26 & 0x7;
 		if (adap->st_count != -1 && sc != ((adap->st_count + 1) & 0x7))
-			printk_ratelimited(KERN_INFO "earth-pt1: data loss"
-				" in streamID(adapter)[%d]\n", index);
+			printk_ratelimited(KERN_INFO "earth-pt1: data loss in streamID(adapter)[%d]\n",
+					   index);
 		adap->st_count = sc;
 
 		buf = adap->buf;

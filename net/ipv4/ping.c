@@ -609,15 +609,15 @@ int ping_getfrag(void *from, char *to,
 		fraglen -= sizeof(struct icmphdr);
 		if (fraglen < 0)
 			BUG();
-		if (csum_and_copy_from_iter(to + sizeof(struct icmphdr),
+		if (!csum_and_copy_from_iter_full(to + sizeof(struct icmphdr),
 			    fraglen, &pfh->wcheck,
-			    &pfh->msg->msg_iter) != fraglen)
+			    &pfh->msg->msg_iter))
 			return -EFAULT;
 	} else if (offset < sizeof(struct icmphdr)) {
 			BUG();
 	} else {
-		if (csum_and_copy_from_iter(to, fraglen, &pfh->wcheck,
-					    &pfh->msg->msg_iter) != fraglen)
+		if (!csum_and_copy_from_iter_full(to, fraglen, &pfh->wcheck,
+					    &pfh->msg->msg_iter))
 			return -EFAULT;
 	}
 
@@ -793,7 +793,8 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	flowi4_init_output(&fl4, ipc.oif, sk->sk_mark, tos,
 			   RT_SCOPE_UNIVERSE, sk->sk_protocol,
-			   inet_sk_flowi_flags(sk), faddr, saddr, 0, 0);
+			   inet_sk_flowi_flags(sk), faddr, saddr, 0, 0,
+			   sk->sk_uid);
 
 	security_sk_classify_flow(sk, flowi4_to_flowi(&fl4));
 	rt = ip_route_output_flow(net, &fl4, sk);

@@ -210,12 +210,18 @@ static inline bool efi_is_64bit(void)
 	return __efi_early()->is64;
 }
 
+#define efi_table_attr(table, attr, instance)				\
+	(efi_is_64bit() ?						\
+		((table##_64_t *)(unsigned long)instance)->attr :	\
+		((table##_32_t *)(unsigned long)instance)->attr)
+
+#define efi_call_proto(protocol, f, instance, ...)			\
+	__efi_early()->call(efi_table_attr(protocol, f, instance),	\
+		instance, ##__VA_ARGS__)
+
 #define efi_call_early(f, ...)						\
-	__efi_early()->call(efi_is_64bit() ?				\
-		((efi_boot_services_64_t *)(unsigned long)		\
-			__efi_early()->boot_services)->f :		\
-		((efi_boot_services_32_t *)(unsigned long)		\
-			__efi_early()->boot_services)->f, __VA_ARGS__)
+	__efi_early()->call(efi_table_attr(efi_boot_services, f,	\
+		__efi_early()->boot_services), __VA_ARGS__)
 
 #define __efi_call_early(f, ...)					\
 	__efi_early()->call((unsigned long)f, __VA_ARGS__);

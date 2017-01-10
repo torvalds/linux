@@ -80,6 +80,7 @@ static const struct reset_control_ops oxnas_reset_ops = {
 
 static const struct of_device_id oxnas_reset_dt_ids[] = {
 	 { .compatible = "oxsemi,ox810se-reset", },
+	 { .compatible = "oxsemi,ox820-reset", },
 	 { /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, oxnas_reset_dt_ids);

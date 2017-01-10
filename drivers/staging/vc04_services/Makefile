@@ -1,4 +1,4 @@
-obj-$(CONFIG_BCM2708_VCHIQ)	+= vchiq.o
+obj-$(CONFIG_BCM2835_VCHIQ)	+= vchiq.o
 
 vchiq-objs := \
    interface/vchiq_arm/vchiq_core.o  \

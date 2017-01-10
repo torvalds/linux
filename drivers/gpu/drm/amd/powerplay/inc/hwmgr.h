@@ -38,8 +38,6 @@ struct pp_hwmgr;
 struct phm_fan_speed_info;
 struct pp_atomctrl_voltage_table;
 
-extern int amdgpu_powercontainment;
-extern int amdgpu_sclk_deep_sleep_en;
 extern unsigned amdgpu_pp_feature_mask;
 
 #define VOLTAGE_SCALE 4
@@ -85,7 +83,9 @@ enum PP_FEATURE_MASK {
 	PP_SMC_VOLTAGE_CONTROL_MASK = 0x40,
 	PP_VBI_TIME_SUPPORT_MASK = 0x80,
 	PP_ULV_MASK = 0x100,
-	PP_ENABLE_GFX_CG_THRU_SMU = 0x200
+	PP_ENABLE_GFX_CG_THRU_SMU = 0x200,
+	PP_CLOCK_STRETCH_MASK = 0x400,
+	PP_OD_FUZZY_FAN_CONTROL_MASK = 0x800
 };
 
 enum PHM_BackEnd_Magic {
@@ -367,7 +367,7 @@ struct pp_table_func {
 	int (*pptable_get_vce_state_table_entry)(
 						struct pp_hwmgr *hwmgr,
 						unsigned long i,
-						struct pp_vce_state *vce_state,
+						struct amd_vce_state *vce_state,
 						void **clock_info,
 						unsigned long *flag);
 };
@@ -586,18 +586,6 @@ struct phm_microcode_version_info {
 	uint32_t NB;
 };
 
-#define PP_MAX_VCE_LEVELS 6
-
-enum PP_VCE_LEVEL {
-	PP_VCE_LEVEL_AC_ALL = 0,     /* AC, All cases */
-	PP_VCE_LEVEL_DC_EE = 1,      /* DC, entropy encoding */
-	PP_VCE_LEVEL_DC_LL_LOW = 2,  /* DC, low latency queue, res <= 720 */
-	PP_VCE_LEVEL_DC_LL_HIGH = 3, /* DC, low latency queue, 1080 >= res > 720 */
-	PP_VCE_LEVEL_DC_GP_LOW = 4,  /* DC, general purpose queue, res <= 720 */
-	PP_VCE_LEVEL_DC_GP_HIGH = 5, /* DC, general purpose queue, 1080 >= res > 720 */
-};
-
-
 enum PP_TABLE_VERSION {
 	PP_TABLE_V0 = 0,
 	PP_TABLE_V1,
@@ -620,7 +608,7 @@ struct pp_hwmgr {
 	void *hardcode_pp_table;
 	bool need_pp_table_upload;
 
-	struct pp_vce_state vce_states[PP_MAX_VCE_LEVELS];
+	struct amd_vce_state vce_states[AMD_MAX_VCE_LEVELS];
 	uint32_t num_vce_state_tables;
 
 	enum amd_dpm_forced_level dpm_level;

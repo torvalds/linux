@@ -950,10 +950,13 @@ net_rx_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 	}
 
 	while (--i >= new_num) {
+		struct kobject *kobj = &dev->_rx[i].kobj;
+
+		if (!list_empty(&dev_net(dev)->exit_list))
+			kobj->uevent_suppress = 1;
 		if (dev->sysfs_rx_queue_group)
-			sysfs_remove_group(&dev->_rx[i].kobj,
-					   dev->sysfs_rx_queue_group);
-		kobject_put(&dev->_rx[i].kobj);
+			sysfs_remove_group(kobj, dev->sysfs_rx_queue_group);
+		kobject_put(kobj);
 	}
 
 	return error;
@@ -1021,7 +1024,6 @@ static ssize_t show_trans_timeout(struct netdev_queue *queue,
 	return sprintf(buf, "%lu", trans_timeout);
 }
 
-#ifdef CONFIG_XPS
 static unsigned int get_netdev_queue_index(struct netdev_queue *queue)
 {
 	struct net_device *dev = queue->dev;
@@ -1033,6 +1035,21 @@ static unsigned int get_netdev_queue_index(struct netdev_queue *queue)
 	return i;
 }
 
+static ssize_t show_traffic_class(struct netdev_queue *queue,
+				  struct netdev_queue_attribute *attribute,
+				  char *buf)
+{
+	struct net_device *dev = queue->dev;
+	int index = get_netdev_queue_index(queue);
+	int tc = netdev_txq_to_tc(dev, index);
+
+	if (tc < 0)
+		return -EINVAL;
+
+	return sprintf(buf, "%u\n", tc);
+}
+
+#ifdef CONFIG_XPS
 static ssize_t show_tx_maxrate(struct netdev_queue *queue,
 			       struct netdev_queue_attribute *attribute,
 			       char *buf)
@@ -1074,6 +1091,9 @@ static struct netdev_queue_attribute queue_tx_maxrate =
 
 static struct netdev_queue_attribute queue_trans_timeout =
 	__ATTR(tx_timeout, S_IRUGO, show_trans_timeout, NULL);
+
+static struct netdev_queue_attribute queue_traffic_class =
+	__ATTR(traffic_class, S_IRUGO, show_traffic_class, NULL);
 
 #ifdef CONFIG_BQL
 /*
@@ -1190,29 +1210,38 @@ static ssize_t show_xps_map(struct netdev_queue *queue,
 			    struct netdev_queue_attribute *attribute, char *buf)
 {
 	struct net_device *dev = queue->dev;
+	int cpu, len, num_tc = 1, tc = 0;
 	struct xps_dev_maps *dev_maps;
 	cpumask_var_t mask;
 	unsigned long index;
-	int i, len;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL))
 		return -ENOMEM;
 
 	index = get_netdev_queue_index(queue);
 
+	if (dev->num_tc) {
+		num_tc = dev->num_tc;
+		tc = netdev_txq_to_tc(dev, index);
+		if (tc < 0)
+			return -EINVAL;
+	}
+
 	rcu_read_lock();
 	dev_maps = rcu_dereference(dev->xps_maps);
 	if (dev_maps) {
-		for_each_possible_cpu(i) {
-			struct xps_map *map =
-			    rcu_dereference(dev_maps->cpu_map[i]);
-			if (map) {
-				int j;
-				for (j = 0; j < map->len; j++) {
-					if (map->queues[j] == index) {
-						cpumask_set_cpu(i, mask);
-						break;
-					}
+		for_each_possible_cpu(cpu) {
+			int i, tci = cpu * num_tc + tc;
+			struct xps_map *map;
+
+			map = rcu_dereference(dev_maps->cpu_map[tci]);
+			if (!map)
+				continue;
+
+			for (i = map->len; i--;) {
+				if (map->queues[i] == index) {
+					cpumask_set_cpu(cpu, mask);
+					break;
 				}
 			}
 		}
@@ -1260,6 +1289,7 @@ static struct netdev_queue_attribute xps_cpus_attribute =
 
 static struct attribute *netdev_queue_default_attrs[] = {
 	&queue_trans_timeout.attr,
+	&queue_traffic_class.attr,
 #ifdef CONFIG_XPS
 	&xps_cpus_attribute.attr,
 	&queue_tx_maxrate.attr,
@@ -1340,6 +1370,8 @@ netdev_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 	while (--i >= new_num) {
 		struct netdev_queue *queue = dev->_tx + i;
 
+		if (!list_empty(&dev_net(dev)->exit_list))
+			queue->kobj.uevent_suppress = 1;
 #ifdef CONFIG_BQL
 		sysfs_remove_group(&queue->kobj, &dql_group);
 #endif
@@ -1524,6 +1556,9 @@ EXPORT_SYMBOL(of_find_net_device_by_node);
 void netdev_unregister_kobject(struct net_device *ndev)
 {
 	struct device *dev = &(ndev->dev);
+
+	if (!list_empty(&dev_net(ndev)->exit_list))
+		dev_set_uevent_suppress(dev, 1);
 
 	kobject_get(&dev->kobj);
 

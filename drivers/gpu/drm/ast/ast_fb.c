@@ -253,7 +253,7 @@ static int astfb_create(struct drm_fb_helper *helper,
 err_release_fbi:
 	drm_fb_helper_release_fbi(helper);
 err_free_vram:
-	vfree(afbdev->sysram);
+	vfree(sysram);
 	return ret;
 }
 

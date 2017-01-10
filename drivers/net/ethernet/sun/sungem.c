@@ -42,7 +42,7 @@
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_SPARC
@@ -2476,9 +2476,9 @@ static void gem_set_multicast(struct net_device *dev)
 }
 
 /* Jumbo-grams don't seem to work :-( */
-#define GEM_MIN_MTU	68
+#define GEM_MIN_MTU	ETH_MIN_MTU
 #if 1
-#define GEM_MAX_MTU	1500
+#define GEM_MAX_MTU	ETH_DATA_LEN
 #else
 #define GEM_MAX_MTU	9000
 #endif
@@ -2486,9 +2486,6 @@ static void gem_set_multicast(struct net_device *dev)
 static int gem_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct gem *gp = netdev_priv(dev);
-
-	if (new_mtu < GEM_MIN_MTU || new_mtu > GEM_MAX_MTU)
-		return -EINVAL;
 
 	dev->mtu = new_mtu;
 
@@ -2976,6 +2973,10 @@ static int gem_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->features |= dev->hw_features | NETIF_F_RXCSUM;
 	if (pci_using_dac)
 		dev->features |= NETIF_F_HIGHDMA;
+
+	/* MTU range: 68 - 1500 (Jumbo mode is broken) */
+	dev->min_mtu = GEM_MIN_MTU;
+	dev->max_mtu = GEM_MAX_MTU;
 
 	/* Register with kernel */
 	if (register_netdev(dev)) {

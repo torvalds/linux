@@ -39,6 +39,7 @@ struct smc91x_platdata {
 	unsigned long flags;
 	unsigned char leda;
 	unsigned char ledb;
+	bool pxa_u16_align4;	/* PXA buggy u16 writes on 4*n+2 addresses */
 };
 
 #endif /* __SMC91X_H__ */

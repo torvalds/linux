@@ -41,6 +41,12 @@ enum qed_ll2_conn_type {
 	MAX_QED_LL2_RX_CONN_TYPE
 };
 
+enum qed_ll2_tx_dest {
+	QED_LL2_TX_DEST_NW, /* Light L2 TX Destination to the Network */
+	QED_LL2_TX_DEST_LB, /* Light L2 TX Destination to the Loopback */
+	QED_LL2_TX_DEST_MAX
+};
+
 struct qed_ll2_rx_packet {
 	struct list_head list_entry;
 	struct core_rx_bd_with_buff_len *rxq_bd;
@@ -192,6 +198,8 @@ int qed_ll2_post_rx_buffer(struct qed_hwfn *p_hwfn,
  * @param l4_hdr_offset_w	L4 Header Offset from start of packet
  *				(in words). This is needed if both l4_csum
  *				and ipv6_ext are set
+ * @param e_tx_dest             indicates if the packet is to be transmitted via
+ *                              loopback or to the network
  * @param first_frag
  * @param first_frag_len
  * @param cookie
@@ -206,6 +214,7 @@ int qed_ll2_prepare_tx_packet(struct qed_hwfn *p_hwfn,
 			      u16 vlan,
 			      u8 bd_flags,
 			      u16 l4_hdr_offset_w,
+			      enum qed_ll2_tx_dest e_tx_dest,
 			      enum qed_ll2_roce_flavor_type qed_roce_flavor,
 			      dma_addr_t first_frag,
 			      u16 first_frag_len, void *cookie, u8 notify_fw);

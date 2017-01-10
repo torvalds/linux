@@ -361,9 +361,11 @@
 
 /* AUI bit definition */
 #define HDMI_AUI_CON_NO_TRAN		(0 << 0)
+#define HDMI_AUI_CON_EVERY_VSYNC	(1 << 1)
 
 /* VSI bit definition */
 #define HDMI_VSI_CON_DO_NOT_TRANSMIT	(0 << 0)
+#define HDMI_VSI_CON_EVERY_VSYNC	(1 << 1)
 
 /* HDCP related registers */
 #define HDMI_HDCP_SHA1(n)		HDMI_CORE_BASE(0x7000 + 4 * (n))

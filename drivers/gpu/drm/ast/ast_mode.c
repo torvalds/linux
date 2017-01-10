@@ -839,12 +839,6 @@ static void ast_connector_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-static enum drm_connector_status
-ast_connector_detect(struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
-}
-
 static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
 	.mode_valid = ast_mode_valid,
 	.get_modes = ast_get_modes,
@@ -853,7 +847,6 @@ static const struct drm_connector_helper_funcs ast_connector_helper_funcs = {
 
 static const struct drm_connector_funcs ast_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.detect = ast_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = ast_connector_destroy,
 };

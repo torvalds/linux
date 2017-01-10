@@ -165,6 +165,9 @@
 			status = "okay";
 		};
 
+		sti_uni_player0: sti-uni-player@8d80000 {
+			status = "okay";
+		};
 		/* SSC11 to HDMI */
 		hdmiddc: i2c@9541000 {
 			/* HDMI V1.3a supports Standard mode only */
@@ -174,9 +177,22 @@
 			status = "okay";
 		};
 
-		sti-display-subsystem {
-			sti_hdmi: sti-hdmi@8d04000 {
-				status = "okay";
+		sound {
+			compatible = "simple-audio-card";
+			simple-audio-card,name = "STI-B2260";
+			status = "okay";
+
+			simple-audio-card,dai-link@0 {
+				/* DAC */
+				format = "i2s";
+				mclk-fs = <128>;
+				cpu {
+					sound-dai = <&sti_uni_player0>;
+				};
+
+				codec {
+					sound-dai = <&sti_hdmi>;
+				};
 			};
 		};
 
