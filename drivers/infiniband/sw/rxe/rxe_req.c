@@ -361,19 +361,14 @@ static inline int check_init_depth(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	return -EAGAIN;
 }
 
-static inline int get_mtu(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
+static inline int get_mtu(struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
-	struct rxe_port *port;
-	struct rxe_av *av;
 
 	if ((qp_type(qp) == IB_QPT_RC) || (qp_type(qp) == IB_QPT_UC))
 		return qp->mtu;
 
-	av = &wqe->av;
-	port = &rxe->port;
-
-	return port->mtu_cap;
+	return rxe->port.mtu_cap;
 }
 
 static struct sk_buff *init_req_packet(struct rxe_qp *qp,
@@ -679,7 +674,7 @@ next_wqe:
 			goto exit;
 	}
 
-	mtu = get_mtu(qp, wqe);
+	mtu = get_mtu(qp);
 	payload = (mask & RXE_WRITE_OR_SEND) ? wqe->dma.resid : 0;
 	if (payload > mtu) {
 		if (qp_type(qp) == IB_QPT_UD) {
