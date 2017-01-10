@@ -6671,8 +6671,7 @@ static void gfx_v8_0_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
 					 u64 seq, unsigned int flags)
 {
 	/* we only allocate 32bit for each seq wb address */
-	if (flags & AMDGPU_FENCE_FLAG_64BIT)
-		BUG();
+	BUG_ON(flags & AMDGPU_FENCE_FLAG_64BIT);
 
 	/* write fence seq to the "addr" */
 	amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
