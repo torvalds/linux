@@ -1508,18 +1508,18 @@ static int btrfs_delete_delayed_insertion_item(struct btrfs_fs_info *fs_info,
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   struct btrfs_fs_info *fs_info,
-				   struct inode *dir, u64 index)
+				   struct btrfs_inode *dir, u64 index)
 {
 	struct btrfs_delayed_node *node;
 	struct btrfs_delayed_item *item;
 	struct btrfs_key item_key;
 	int ret;
 
-	node = btrfs_get_or_create_delayed_node(BTRFS_I(dir));
+	node = btrfs_get_or_create_delayed_node(dir);
 	if (IS_ERR(node))
 		return PTR_ERR(node);
 
-	item_key.objectid = btrfs_ino(BTRFS_I(dir));
+	item_key.objectid = btrfs_ino(dir);
 	item_key.type = BTRFS_DIR_INDEX_KEY;
 	item_key.offset = index;
 
