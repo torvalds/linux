@@ -474,7 +474,7 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 			snd_hdac_ext_stream_drsm_enable(ebus, true,
 						hdac_stream(stream)->index);
 			snd_hdac_ext_stream_set_dpibr(ebus, stream,
-							stream->dpib);
+							stream->lpib);
 			snd_hdac_ext_stream_set_lpib(stream, stream->lpib);
 		}
 
