@@ -103,12 +103,12 @@ static struct usb_serial_driver * const serial_drivers[] = {
 };
 
 struct klsi_105_port_settings {
-	__u8	pktlen;		/* always 5, it seems */
-	__u8	baudrate;
-	__u8	databits;
-	__u8	unknown1;
-	__u8	unknown2;
-} __attribute__ ((packed));
+	u8	pktlen;		/* always 5, it seems */
+	u8	baudrate;
+	u8	databits;
+	u8	unknown1;
+	u8	unknown2;
+};
 
 struct klsi_105_private {
 	struct klsi_105_port_settings	cfg;
