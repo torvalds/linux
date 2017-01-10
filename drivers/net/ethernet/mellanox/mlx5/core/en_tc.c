@@ -161,23 +161,27 @@ static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 	}
 }
 
+/* we get here also when setting rule to the FW failed, etc. It means that the
+ * flow rule itself might not exist, but some offloading related to the actions
+ * should be cleaned.
+ */
 static void mlx5e_tc_del_flow(struct mlx5e_priv *priv,
 			      struct mlx5e_tc_flow *flow)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_fc *counter = NULL;
 
-	counter = mlx5_flow_rule_counter(flow->rule);
-
-	mlx5_del_flow_rules(flow->rule);
+	if (!IS_ERR(flow->rule)) {
+		counter = mlx5_flow_rule_counter(flow->rule);
+		mlx5_del_flow_rules(flow->rule);
+		mlx5_fc_destroy(priv->mdev, counter);
+	}
 
 	if (esw && esw->mode == SRIOV_OFFLOADS) {
 		mlx5_eswitch_del_vlan_action(esw, flow->attr);
 		if (flow->attr->action & MLX5_FLOW_CONTEXT_ACTION_ENCAP)
 			mlx5e_detach_encap(priv, flow);
 	}
-
-	mlx5_fc_destroy(priv->mdev, counter);
 
 	if (!mlx5e_tc_num_filters(priv) && (priv->fs.tc.t)) {
 		mlx5_destroy_flow_table(priv->fs.tc.t);
@@ -1017,7 +1021,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 
 	if (IS_ERR(flow->rule)) {
 		err = PTR_ERR(flow->rule);
-		goto err_free;
+		goto err_del_rule;
 	}
 
 	err = rhashtable_insert_fast(&tc->ht, &flow->node,
@@ -1028,7 +1032,7 @@ int mlx5e_configure_flower(struct mlx5e_priv *priv, __be16 protocol,
 	goto out;
 
 err_del_rule:
-	mlx5_del_flow_rules(flow->rule);
+	mlx5e_tc_del_flow(priv, flow);
 
 err_free:
 	kfree(flow);
