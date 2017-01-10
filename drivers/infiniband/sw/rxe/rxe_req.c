@@ -635,6 +635,7 @@ next_wqe:
 				goto exit;
 			}
 			rmr->state = RXE_MEM_STATE_FREE;
+			rxe_drop_ref(rmr);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
 		} else if (wqe->wr.opcode == IB_WR_REG_MR) {
