@@ -2345,6 +2345,16 @@ int efx_get_phys_port_id(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 }
 
+static int efx_get_phys_port_name(struct net_device *net_dev,
+				  char *name, size_t len)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	if (snprintf(name, len, "p%u", efx->port_num) >= len)
+		return -EINVAL;
+	return 0;
+}
+
 static int efx_vlan_rx_add_vid(struct net_device *net_dev, __be16 proto, u16 vid)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
@@ -2387,6 +2397,7 @@ static const struct net_device_ops efx_netdev_ops = {
 	.ndo_set_vf_link_state  = efx_sriov_set_vf_link_state,
 #endif
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
+	.ndo_get_phys_port_name	= efx_get_phys_port_name,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = efx_netpoll,
 #endif
