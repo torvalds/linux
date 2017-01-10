@@ -472,7 +472,16 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 		return r;
 
 	if (amdgpu_need_backup(adev) && (flags & AMDGPU_GEM_CREATE_SHADOW)) {
+		if (!resv) {
+			r = ww_mutex_lock(&(*bo_ptr)->tbo.resv->lock, NULL);
+			WARN_ON(r != 0);
+		}
+
 		r = amdgpu_bo_create_shadow(adev, size, byte_align, (*bo_ptr));
+
+		if (!resv)
+			ww_mutex_unlock(&(*bo_ptr)->tbo.resv->lock);
+
 		if (r)
 			amdgpu_bo_unref(bo_ptr);
 	}
