@@ -128,7 +128,7 @@ static int vnt_init_registers(struct vnt_private *priv)
 	u8 calib_tx_iq = 0, calib_tx_dc = 0, calib_rx_iq = 0;
 
 	dev_dbg(&priv->usb->dev, "---->INIbInitAdapter. [%d][%d]\n",
-				DEVICE_INIT_COLD, priv->packet_type);
+		DEVICE_INIT_COLD, priv->packet_type);
 
 	if (!vnt_check_firmware_version(priv)) {
 		if (vnt_download_firmware(priv) == true) {
@@ -156,16 +156,17 @@ static int vnt_init_registers(struct vnt_private *priv)
 	init_cmd->long_retry_limit = priv->long_retry_limit;
 
 	/* issue card_init command to device */
-	status = vnt_control_out(priv,
-		MESSAGE_TYPE_CARDINIT, 0, 0,
-		sizeof(struct vnt_cmd_card_init), (u8 *)init_cmd);
+	status = vnt_control_out(priv, MESSAGE_TYPE_CARDINIT, 0, 0,
+				 sizeof(struct vnt_cmd_card_init),
+				 (u8 *)init_cmd);
 	if (status != STATUS_SUCCESS) {
 		dev_dbg(&priv->usb->dev, "Issue Card init fail\n");
 		return false;
 	}
 
 	status = vnt_control_in(priv, MESSAGE_TYPE_INIT_RSP, 0, 0,
-		sizeof(struct vnt_rsp_card_init), (u8 *)init_rsp);
+				sizeof(struct vnt_rsp_card_init),
+				(u8 *)init_rsp);
 	if (status != STATUS_SUCCESS) {
 		dev_dbg(&priv->usb->dev,
 			"Cardinit request in status fail!\n");
@@ -173,9 +174,8 @@ static int vnt_init_registers(struct vnt_private *priv)
 	}
 
 	/* local ID for AES functions */
-	status = vnt_control_in(priv, MESSAGE_TYPE_READ,
-		MAC_REG_LOCALID, MESSAGE_REQUEST_MACREG, 1,
-			&priv->local_id);
+	status = vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_LOCALID,
+				MESSAGE_REQUEST_MACREG, 1, &priv->local_id);
 	if (status != STATUS_SUCCESS)
 		return false;
 
@@ -340,17 +340,18 @@ static int vnt_init_registers(struct vnt_private *priv)
 
 	if ((priv->radio_ctl & EEP_RADIOCTL_ENABLE) != 0) {
 		status = vnt_control_in(priv, MESSAGE_TYPE_READ,
-			MAC_REG_GPIOCTL1, MESSAGE_REQUEST_MACREG, 1, &tmp);
+					MAC_REG_GPIOCTL1,
+					MESSAGE_REQUEST_MACREG, 1, &tmp);
 
 		if (status != STATUS_SUCCESS)
 			return false;
 
 		if ((tmp & GPIO3_DATA) == 0)
 			vnt_mac_reg_bits_on(priv, MAC_REG_GPIOCTL1,
-								GPIO3_INTMD);
+					    GPIO3_INTMD);
 		else
 			vnt_mac_reg_bits_off(priv, MAC_REG_GPIOCTL1,
-								GPIO3_INTMD);
+					     GPIO3_INTMD);
 	}
 
 	vnt_mac_set_led(priv, LEDSTS_TMLEN, 0x38);
@@ -430,7 +431,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = kmalloc(sizeof(struct vnt_usb_send_context),
-								GFP_KERNEL);
+				     GFP_KERNEL);
 		if (!tx_context)
 			goto free_tx;
 
@@ -450,7 +451,7 @@ static bool vnt_alloc_bufs(struct vnt_private *priv)
 		priv->rcb[ii] = kzalloc(sizeof(struct vnt_rcb), GFP_KERNEL);
 		if (!priv->rcb[ii]) {
 			dev_err(&priv->usb->dev,
-					"failed to allocate rcb no %d\n", ii);
+				"failed to allocate rcb no %d\n", ii);
 			goto free_rx_tx;
 		}
 
@@ -496,7 +497,8 @@ free_tx:
 }
 
 static void vnt_tx_80211(struct ieee80211_hw *hw,
-	struct ieee80211_tx_control *control, struct sk_buff *skb)
+			 struct ieee80211_tx_control *control,
+			 struct sk_buff *skb)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -610,7 +612,7 @@ static int vnt_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 static void vnt_remove_interface(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif)
+				 struct ieee80211_vif *vif)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -653,7 +655,7 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) ||
-			(conf->flags & IEEE80211_CONF_OFFCHANNEL)) {
+	    (conf->flags & IEEE80211_CONF_OFFCHANNEL)) {
 		vnt_set_channel(priv, conf->chandef.chan->hw_value);
 
 		if (conf->chandef.chan->band == NL80211_BAND_5GHZ)
@@ -682,8 +684,8 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static void vnt_bss_info_changed(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif, struct ieee80211_bss_conf *conf,
-		u32 changed)
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *conf, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -731,11 +733,11 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_TXPOWER)
 		vnt_rf_setpower(priv, priv->current_rate,
-					conf->chandef.chan->hw_value);
+				conf->chandef.chan->hw_value);
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		dev_dbg(&priv->usb->dev,
-				"Beacon enable %d\n", conf->enable_beacon);
+			"Beacon enable %d\n", conf->enable_beacon);
 
 		if (conf->enable_beacon) {
 			vnt_beacon_enable(priv, vif, conf);
@@ -768,7 +770,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 }
 
 static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
-	struct netdev_hw_addr_list *mc_list)
+				 struct netdev_hw_addr_list *mc_list)
 {
 	struct vnt_private *priv = hw->priv;
 	struct netdev_hw_addr *ha;
@@ -787,7 +789,8 @@ static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
 }
 
 static void vnt_configure(struct ieee80211_hw *hw,
-	unsigned int changed_flags, unsigned int *total_flags, u64 multicast)
+			  unsigned int changed_flags,
+			  unsigned int *total_flags, u64 multicast)
 {
 	struct vnt_private *priv = hw->priv;
 	u8 rx_mode = 0;
@@ -796,7 +799,7 @@ static void vnt_configure(struct ieee80211_hw *hw,
 	*total_flags &= FIF_ALLMULTI | FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC;
 
 	rc = vnt_control_in(priv, MESSAGE_TYPE_READ, MAC_REG_RCR,
-		MESSAGE_REQUEST_MACREG, sizeof(u8), &rx_mode);
+			    MESSAGE_REQUEST_MACREG, sizeof(u8), &rx_mode);
 
 	if (!rc)
 		rx_mode = RCR_MULTICAST | RCR_BROADCAST;
@@ -830,8 +833,8 @@ static void vnt_configure(struct ieee80211_hw *hw,
 }
 
 static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-	struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		struct ieee80211_key_conf *key)
+		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -871,7 +874,7 @@ static void vnt_sw_scan_complete(struct ieee80211_hw *hw,
 }
 
 static int vnt_get_stats(struct ieee80211_hw *hw,
-				struct ieee80211_low_level_stats *stats)
+			 struct ieee80211_low_level_stats *stats)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -955,9 +958,9 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	udev = usb_get_dev(interface_to_usbdev(intf));
 
 	dev_notice(&udev->dev, "%s Ver. %s\n",
-					DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
+		   DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
 	dev_notice(&udev->dev,
-		"Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
+		   "Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
 
 	hw = ieee80211_alloc_hw(sizeof(struct vnt_private), &vnt_mac_ops);
 	if (!hw) {
