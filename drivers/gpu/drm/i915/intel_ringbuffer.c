@@ -1736,7 +1736,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 	void *vaddr;
 	int ret;
 
-	obj = i915_gem_object_create_internal(engine->i915, 4096);
+	obj = i915_gem_object_create_internal(engine->i915, PAGE_SIZE);
 	if (IS_ERR(obj)) {
 		DRM_ERROR("Failed to allocate status page\n");
 		return PTR_ERR(obj);
@@ -1777,7 +1777,7 @@ static int init_status_page(struct intel_engine_cs *engine)
 
 	engine->status_page.vma = vma;
 	engine->status_page.ggtt_offset = i915_ggtt_offset(vma);
-	engine->status_page.page_addr = memset(vaddr, 0, 4096);
+	engine->status_page.page_addr = memset(vaddr, 0, PAGE_SIZE);
 
 	DRM_DEBUG_DRIVER("%s hws offset: 0x%08x\n",
 			 engine->name, i915_ggtt_offset(vma));
@@ -2049,7 +2049,7 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	}
 
 	/* Ring wraparound at offset 0 sometimes hangs. No idea why. */
-	ret = intel_ring_pin(ring, 4096);
+	ret = intel_ring_pin(ring, I915_GTT_PAGE_SIZE);
 	if (ret) {
 		intel_ring_free(ring);
 		goto error;
@@ -2466,7 +2466,7 @@ static void intel_ring_init_semaphores(struct drm_i915_private *dev_priv,
 	if (INTEL_GEN(dev_priv) >= 8 && !dev_priv->semaphore) {
 		struct i915_vma *vma;
 
-		obj = i915_gem_object_create(dev_priv, 4096);
+		obj = i915_gem_object_create(dev_priv, PAGE_SIZE);
 		if (IS_ERR(obj))
 			goto err;
 
@@ -2683,7 +2683,7 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 		return ret;
 
 	if (INTEL_GEN(dev_priv) >= 6) {
-		ret = intel_engine_create_scratch(engine, 4096);
+		ret = intel_engine_create_scratch(engine, PAGE_SIZE);
 		if (ret)
 			return ret;
 	} else if (HAS_BROKEN_CS_TLB(dev_priv)) {

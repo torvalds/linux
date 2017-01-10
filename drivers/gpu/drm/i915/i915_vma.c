@@ -91,7 +91,7 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 	vma->vm = vm;
 	vma->obj = obj;
 	vma->size = obj->base.size;
-	vma->display_alignment = 4096;
+	vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
 	if (view) {
 		vma->ggtt_view = *view;
@@ -115,7 +115,7 @@ __i915_vma_create(struct drm_i915_gem_object *obj,
 		vma->fence_size = i915_gem_fence_size(vm->i915, vma->size,
 						      i915_gem_object_get_tiling(obj),
 						      i915_gem_object_get_stride(obj));
-		GEM_BUG_ON(vma->fence_size & 4095);
+		GEM_BUG_ON(!IS_ALIGNED(vma->fence_size, I915_GTT_MIN_ALIGNMENT));
 
 		vma->fence_alignment = i915_gem_fence_alignment(vm->i915, vma->size,
 								i915_gem_object_get_tiling(obj),
@@ -270,7 +270,8 @@ i915_vma_misplaced(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	if (vma->node.size < size)
 		return true;
 
-	if (alignment && vma->node.start & (alignment - 1))
+	GEM_BUG_ON(alignment && !is_power_of_2(alignment));
+	if (alignment && !IS_ALIGNED(vma->node.start, alignment))
 		return true;
 
 	if (flags & PIN_MAPPABLE && !i915_vma_is_map_and_fenceable(vma))
@@ -302,7 +303,7 @@ void __i915_vma_set_map_and_fenceable(struct i915_vma *vma)
 		return;
 
 	fenceable = (vma->node.size >= vma->fence_size &&
-		     (vma->node.start & (vma->fence_alignment - 1)) == 0);
+		     IS_ALIGNED(vma->node.start, vma->fence_alignment));
 
 	mappable = vma->node.start + vma->fence_size <= i915_vm_to_ggtt(vma->vm)->mappable_end;
 
@@ -380,13 +381,19 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 				  alignment, vma->fence_alignment);
 	}
 
+	GEM_BUG_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE));
+	GEM_BUG_ON(!IS_ALIGNED(alignment, I915_GTT_MIN_ALIGNMENT));
+	GEM_BUG_ON(!is_power_of_2(alignment));
+
 	start = flags & PIN_OFFSET_BIAS ? flags & PIN_OFFSET_MASK : 0;
+	GEM_BUG_ON(!IS_ALIGNED(start, I915_GTT_PAGE_SIZE));
 
 	end = vma->vm->total;
 	if (flags & PIN_MAPPABLE)
 		end = min_t(u64, end, dev_priv->ggtt.mappable_end);
 	if (flags & PIN_ZONE_4G)
-		end = min_t(u64, end, (1ULL << 32) - PAGE_SIZE);
+		end = min_t(u64, end, (1ULL << 32) - I915_GTT_PAGE_SIZE);
+	GEM_BUG_ON(!IS_ALIGNED(end, I915_GTT_PAGE_SIZE));
 
 	/* If binding the object/GGTT view requires more space than the entire
 	 * aperture has, reject it early before evicting everything in a vain
@@ -406,7 +413,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 
 	if (flags & PIN_OFFSET_FIXED) {
 		u64 offset = flags & PIN_OFFSET_MASK;
-		if (offset & (alignment - 1) ||
+		if (!IS_ALIGNED(offset, alignment) ||
 		    range_overflows(offset, size, end)) {
 			ret = -EINVAL;
 			goto err_unpin;
@@ -440,7 +447,7 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 		 * with zero alignment, so where possible use the optimal
 		 * path.
 		 */
-		if (alignment <= 4096)
+		if (alignment <= I915_GTT_MIN_ALIGNMENT)
 			alignment = 0;
 
 search_free:

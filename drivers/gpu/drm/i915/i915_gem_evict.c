@@ -264,9 +264,9 @@ int i915_gem_evict_for_vma(struct i915_vma *target, unsigned int flags)
 	if (check_color) {
 		/* Expand search to cover neighbouring guard pages (or lack!) */
 		if (start > target->vm->start)
-			start -= 4096;
+			start -= I915_GTT_PAGE_SIZE;
 		if (end < target->vm->start + target->vm->total)
-			end += 4096;
+			end += I915_GTT_PAGE_SIZE;
 	}
 
 	drm_mm_for_each_node_in_range(node, &target->vm->mm, start, end) {

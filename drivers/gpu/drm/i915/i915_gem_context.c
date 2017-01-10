@@ -97,7 +97,7 @@
  * part. It should be safe to decrease this, but it's more future proof as is.
  */
 #define GEN6_CONTEXT_ALIGN (64<<10)
-#define GEN7_CONTEXT_ALIGN 4096
+#define GEN7_CONTEXT_ALIGN I915_GTT_MIN_ALIGNMENT
 
 static size_t get_context_alignment(struct drm_i915_private *dev_priv)
 {
@@ -341,7 +341,7 @@ __create_hw_context(struct drm_i915_private *dev_priv,
 	if (HAS_GUC(dev_priv) && i915.enable_guc_loading)
 		ctx->ggtt_offset_bias = GUC_WOPCM_TOP;
 	else
-		ctx->ggtt_offset_bias = 4096;
+		ctx->ggtt_offset_bias = I915_GTT_PAGE_SIZE;
 
 	return ctx;
 
@@ -456,7 +456,8 @@ int i915_gem_context_init(struct drm_i915_private *dev_priv)
 		dev_priv->hw_context_size = 0;
 	} else if (HAS_HW_CONTEXTS(dev_priv)) {
 		dev_priv->hw_context_size =
-			round_up(get_context_size(dev_priv), 4096);
+			round_up(get_context_size(dev_priv),
+				 I915_GTT_PAGE_SIZE);
 		if (dev_priv->hw_context_size > (1<<20)) {
 			DRM_DEBUG_DRIVER("Disabling HW Contexts; invalid size %d\n",
 					 dev_priv->hw_context_size);

@@ -3496,7 +3496,7 @@ i915_gem_object_unpin_from_display_plane(struct i915_vma *vma)
 		return;
 
 	if (--vma->obj->pin_display == 0)
-		vma->display_alignment = 4096;
+		vma->display_alignment = I915_GTT_MIN_ALIGNMENT;
 
 	/* Bump the LRU to try and avoid premature eviction whilst flipping  */
 	if (!i915_vma_is_active(vma))

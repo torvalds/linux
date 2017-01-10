@@ -80,11 +80,11 @@ static void i965_write_fence_reg(struct drm_i915_fence_reg *fence,
 		unsigned int stride = i915_gem_object_get_stride(vma->obj);
 
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
-		GEM_BUG_ON(vma->node.start & 4095);
-		GEM_BUG_ON(vma->fence_size & 4095);
-		GEM_BUG_ON(stride & 127);
+		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, I965_FENCE_PAGE));
+		GEM_BUG_ON(!IS_ALIGNED(vma->fence_size, I965_FENCE_PAGE));
+		GEM_BUG_ON(!IS_ALIGNED(stride, 128));
 
-		val = (vma->node.start + vma->fence_size - 4096) << 32;
+		val = (vma->node.start + vma->fence_size - I965_FENCE_PAGE) << 32;
 		val |= vma->node.start;
 		val |= (u64)((stride / 128) - 1) << fence_pitch_shift;
 		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)
@@ -127,7 +127,7 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *fence,
 		GEM_BUG_ON(!i915_vma_is_map_and_fenceable(vma));
 		GEM_BUG_ON(vma->node.start & ~I915_FENCE_START_MASK);
 		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
-		GEM_BUG_ON(vma->node.start & (vma->fence_size - 1));
+		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
 
 		if (is_y_tiled && HAS_128_BYTE_Y_TILING(fence->i915))
 			stride /= 128;
@@ -166,7 +166,7 @@ static void i830_write_fence_reg(struct drm_i915_fence_reg *fence,
 		GEM_BUG_ON(vma->node.start & ~I830_FENCE_START_MASK);
 		GEM_BUG_ON(!is_power_of_2(vma->fence_size));
 		GEM_BUG_ON(!is_power_of_2(stride / 128));
-		GEM_BUG_ON(vma->node.start & (vma->fence_size - 1));
+		GEM_BUG_ON(!IS_ALIGNED(vma->node.start, vma->fence_size));
 
 		val = vma->node.start;
 		if (i915_gem_object_get_tiling(vma->obj) == I915_TILING_Y)

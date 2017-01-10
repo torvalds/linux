@@ -1927,7 +1927,7 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	engine->emit_breadcrumb = gen8_emit_breadcrumb_render;
 	engine->emit_breadcrumb_sz = gen8_emit_breadcrumb_render_sz;
 
-	ret = intel_engine_create_scratch(engine, 4096);
+	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
 	if (ret)
 		return ret;
 
@@ -2209,7 +2209,8 @@ static int execlists_context_deferred_alloc(struct i915_gem_context *ctx,
 
 	WARN_ON(ce->state);
 
-	context_size = round_up(intel_lr_context_size(engine), 4096);
+	context_size = round_up(intel_lr_context_size(engine),
+				I915_GTT_PAGE_SIZE);
 
 	/* One extra page as the sharing data between driver and GuC */
 	context_size += PAGE_SIZE * LRC_PPHWSP_PN;

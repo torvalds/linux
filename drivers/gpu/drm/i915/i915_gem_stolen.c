@@ -647,8 +647,9 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_i915_private *dev_priv
 			stolen_offset, gtt_offset, size);
 
 	/* KISS and expect everything to be page-aligned */
-	if (WARN_ON(size == 0) || WARN_ON(size & 4095) ||
-	    WARN_ON(stolen_offset & 4095))
+	if (WARN_ON(size == 0) ||
+	    WARN_ON(!IS_ALIGNED(size, I915_GTT_PAGE_SIZE)) ||
+	    WARN_ON(!IS_ALIGNED(stolen_offset, I915_GTT_MIN_ALIGNMENT)))
 		return NULL;
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);

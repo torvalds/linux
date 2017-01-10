@@ -438,7 +438,7 @@ static void *reloc_iomap(struct drm_i915_gem_object *obj,
 			memset(&cache->node, 0, sizeof(cache->node));
 			ret = drm_mm_insert_node_in_range_generic
 				(&ggtt->base.mm, &cache->node,
-				 4096, 0, I915_COLOR_UNEVICTABLE,
+				 PAGE_SIZE, 0, I915_COLOR_UNEVICTABLE,
 				 0, ggtt->mappable_end,
 				 DRM_MM_SEARCH_DEFAULT,
 				 DRM_MM_CREATE_DEFAULT);
@@ -851,8 +851,7 @@ eb_vma_misplaced(struct i915_vma *vma)
 	WARN_ON(entry->flags & __EXEC_OBJECT_NEEDS_MAP &&
 		!i915_vma_is_ggtt(vma));
 
-	if (entry->alignment &&
-	    vma->node.start & (entry->alignment - 1))
+	if (entry->alignment && !IS_ALIGNED(vma->node.start, entry->alignment))
 		return true;
 
 	if (vma->node.size < entry->pad_to_size)

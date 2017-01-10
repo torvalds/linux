@@ -82,7 +82,7 @@ u32 i915_gem_fence_size(struct drm_i915_private *i915,
 
 	if (INTEL_GEN(i915) >= 4) {
 		stride *= i915_gem_tile_height(tiling);
-		GEM_BUG_ON(stride & 4095);
+		GEM_BUG_ON(!IS_ALIGNED(stride, I965_FENCE_PAGE));
 		return roundup(size, stride);
 	}
 
@@ -117,8 +117,11 @@ u32 i915_gem_fence_alignment(struct drm_i915_private *i915, u32 size,
 	 * Minimum alignment is 4k (GTT page size), but might be greater
 	 * if a fence register is needed for the object.
 	 */
-	if (INTEL_GEN(i915) >= 4 || tiling == I915_TILING_NONE)
-		return 4096;
+	if (tiling == I915_TILING_NONE)
+		return I915_GTT_MIN_ALIGNMENT;
+
+	if (INTEL_GEN(i915) >= 4)
+		return I965_FENCE_PAGE;
 
 	/*
 	 * Previous chips need to be aligned to the size of the smallest
@@ -170,7 +173,7 @@ i915_tiling_ok(struct drm_i915_gem_object *obj,
 	else
 		tile_width = 512;
 
-	if (stride & (tile_width - 1))
+	if (!IS_ALIGNED(stride, tile_width))
 		return false;
 
 	/* 965+ just needs multiples of tile width */
@@ -195,7 +198,7 @@ static bool i915_vma_fence_prepare(struct i915_vma *vma,
 		return false;
 
 	alignment = i915_gem_fence_alignment(i915, vma->size, tiling_mode, stride);
-	if (vma->node.start & (alignment - 1))
+	if (!IS_ALIGNED(vma->node.start, alignment))
 		return false;
 
 	return true;

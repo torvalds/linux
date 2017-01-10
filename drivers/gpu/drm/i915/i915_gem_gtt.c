@@ -329,7 +329,7 @@ static int __setup_page_dma(struct drm_i915_private *dev_priv,
 		return -ENOMEM;
 
 	p->daddr = dma_map_page(kdev,
-				p->page, 0, 4096, PCI_DMA_BIDIRECTIONAL);
+				p->page, 0, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 
 	if (dma_mapping_error(kdev, p->daddr)) {
 		__free_page(p->page);
@@ -353,7 +353,7 @@ static void cleanup_page_dma(struct drm_i915_private *dev_priv,
 	if (WARN_ON(!p->page))
 		return;
 
-	dma_unmap_page(&pdev->dev, p->daddr, 4096, PCI_DMA_BIDIRECTIONAL);
+	dma_unmap_page(&pdev->dev, p->daddr, PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 	__free_page(p->page);
 	memset(p, 0, sizeof(*p));
 }
@@ -2711,11 +2711,11 @@ static void i915_gtt_color_adjust(const struct drm_mm_node *node,
 				  u64 *end)
 {
 	if (node->color != color)
-		*start += 4096;
+		*start += I915_GTT_PAGE_SIZE;
 
 	node = list_next_entry(node, node_list);
 	if (node->allocated && node->color != color)
-		*end -= 4096;
+		*end -= I915_GTT_PAGE_SIZE;
 }
 
 int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
@@ -2742,7 +2742,7 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	/* Reserve a mappable slot for our lockless error capture */
 	ret = drm_mm_insert_node_in_range_generic(&ggtt->base.mm,
 						  &ggtt->error_capture,
-						  4096, 0,
+						  PAGE_SIZE, 0,
 						  I915_COLOR_UNEVICTABLE,
 						  0, ggtt->mappable_end,
 						  0, 0);
