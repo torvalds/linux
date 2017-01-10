@@ -1,0 +1,37 @@
+fixes
+	<no branch> (c415f9e8304a1d235ef118d912f374ee2e46c45d)
+		https://github.com/Xilinx/linux-xlnx tags/zynmp-dt-fixes-for-4.10
+	patch
+		ARM, ARM64: dts: drop "arm,amba-bus" in favor of "simple-bus" part 3
+
+next/fixes-non-critical
+
+next/cleanup
+
+next/soc
+	renesas/soc
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-soc-for-v4.11
+
+next/arm64
+
+next/dt
+	renesas/dt
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-dt-for-v4.11
+	oxnas/dt
+		https://github.com/OXNAS/linux tags/oxnas-arm-soc-dt-for-4.11
+	sunxi/generic-pinconf
+		https://git.kernel.org/pub/scm/linux/kernel/git/mripard/linux tags/sunxi-generic-pinconf-for-4.10
+
+next/dt64
+	renesas/dt64
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-arm64-dt-for-v4.11
+
+next/defconfig
+	patch
+		ARM: multi_v7_defconfig: enable Qualcomm RPMCC
+		ARM: defconfig: replace MPU3050 driver on multi_v7
+		ARM: defconfig: tegra: switch to MPU3050 IIO driver
+		ARM: defconfig: pxa: cut MPU3050 input driver
+	<no branch> (e37278d83e348eb53029452e65892780359b6bea)
+		https://git.kernel.org/pub/scm/linux/kernel/git/horms/renesas tags/renesas-defconfig-for-v4.11
+
