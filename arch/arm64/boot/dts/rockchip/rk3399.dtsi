@@ -2619,6 +2619,23 @@
 				rockchip,pins =
 					<4 24 RK_FUNC_1 &pcfg_pull_none>;
 			};
+
+			pcie_clkreqn_cpm: pci-clkreqn-cpm {
+				/*
+				 * Since our pcie doesn't support
+				 * ClockPM(CPM), we want to hack this as
+				 * gpio, so the EP could be able to
+				 * de-assert it along and make ClockPM(CPM)
+				 * work.
+				 */
+				rockchip,pins =
+					<2 26 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
+
+			pcie_clkreqnb_cpm: pci-clkreqnb-cpm {
+				rockchip,pins =
+					<4 24 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
 		};
 	};
 };
