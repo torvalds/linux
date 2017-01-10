@@ -400,6 +400,13 @@ static bool intel_psr_match_conditions(struct intel_dp *intel_dp)
 		return false;
 	}
 
+	/* PSR2 is restricted to work with panel resolutions upto 3200x2000 */
+	if (intel_crtc->config->pipe_src_w > 3200 ||
+				intel_crtc->config->pipe_src_h > 2000) {
+		dev_priv->psr.psr2_support = false;
+		return false;
+	}
+
 	dev_priv->psr.source_ok = true;
 	return true;
 }
@@ -438,7 +445,6 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc = to_intel_crtc(intel_dig_port->base.base.crtc);
 
 	if (!HAS_PSR(dev_priv)) {
 		DRM_DEBUG_KMS("PSR not supported on this platform\n");
@@ -465,12 +471,7 @@ void intel_psr_enable(struct intel_dp *intel_dp)
 		hsw_psr_setup_vsc(intel_dp);
 
 		if (dev_priv->psr.psr2_support) {
-			/* PSR2 is restricted to work with panel resolutions upto 3200x2000 */
-			if (crtc->config->pipe_src_w > 3200 ||
-				crtc->config->pipe_src_h > 2000)
-				dev_priv->psr.psr2_support = false;
-			else
-				skl_psr_setup_su_vsc(intel_dp);
+			skl_psr_setup_su_vsc(intel_dp);
 		}
 
 		/*
