@@ -2765,11 +2765,8 @@ __transport_wait_for_tasks(struct se_cmd *cmd, bool fabric_stop,
 }
 
 /**
- * transport_wait_for_tasks - wait for completion to occur
- * @cmd:	command to wait
- *
- * Called from frontend fabric context to wait for storage engine
- * to pause and/or release frontend generated struct se_cmd.
+ * transport_wait_for_tasks - set CMD_T_STOP and wait for t_transport_stop_comp
+ * @cmd: command to wait on
  */
 bool transport_wait_for_tasks(struct se_cmd *cmd)
 {
