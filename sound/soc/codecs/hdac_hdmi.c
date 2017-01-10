@@ -114,6 +114,12 @@ struct hdac_hdmi_priv {
 	struct hdac_chmap chmap;
 };
 
+static void hdac_hdmi_enable_cvt(struct hdac_ext_device *edev,
+			struct hdac_hdmi_dai_pin_map *dai_map);
+
+static int hdac_hdmi_enable_pin(struct hdac_ext_device *hdac,
+			struct hdac_hdmi_dai_pin_map *dai_map);
+
 static struct hdac_hdmi_pcm *get_hdmi_pcm_from_id(struct hdac_hdmi_priv *hdmi,
 						int pcm_idx)
 {
@@ -411,6 +417,10 @@ static int hdac_hdmi_playback_prepare(struct snd_pcm_substream *substream,
 	dev_dbg(&hdac->hdac.dev, "stream tag from cpu dai %d format in cvt 0x%x\n",
 			dd->stream_tag,	dd->format);
 
+	hdac_hdmi_enable_cvt(hdac, dai_map);
+	ret = hdac_hdmi_enable_pin(hdac, dai_map);
+	if (ret < 0)
+		return ret;
 	mutex_lock(&pin->lock);
 	pin->channels = substream->runtime->channels;
 
@@ -464,12 +474,7 @@ static int hdac_hdmi_set_hw_params(struct snd_pcm_substream *substream,
 static int hdac_hdmi_playback_cleanup(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
 {
-	struct hdac_ext_device *edev = snd_soc_dai_get_drvdata(dai);
 	struct hdac_ext_dma_params *dd;
-	struct hdac_hdmi_priv *hdmi = edev->private_data;
-	struct hdac_hdmi_dai_pin_map *dai_map;
-
-	dai_map = &hdmi->dai_map[dai->id];
 
 	dd = (struct hdac_ext_dma_params *)snd_soc_dai_get_dma_data(dai, substream);
 
@@ -622,11 +627,6 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 
 	dai_map->pin = pin;
 
-	hdac_hdmi_enable_cvt(hdac, dai_map);
-	ret = hdac_hdmi_enable_pin(hdac, dai_map);
-	if (ret < 0)
-		return ret;
-
 	ret = hdac_hdmi_eld_limit_formats(substream->runtime,
 				pin->eld.eld_buffer);
 	if (ret < 0)
@@ -639,18 +639,15 @@ static int hdac_hdmi_pcm_open(struct snd_pcm_substream *substream,
 static int hdac_hdmi_trigger(struct snd_pcm_substream *substream, int cmd,
 		struct snd_soc_dai *dai)
 {
-	struct hdac_hdmi_dai_pin_map *dai_map;
-	struct hdac_ext_device *hdac = snd_soc_dai_get_drvdata(dai);
-	struct hdac_hdmi_priv *hdmi = hdac->private_data;
-	int ret;
 
-	dai_map = &hdmi->dai_map[dai->id];
-	if (cmd == SNDRV_PCM_TRIGGER_RESUME) {
-		ret = hdac_hdmi_enable_pin(hdac, dai_map);
-		if (ret < 0)
-			return ret;
-
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		return hdac_hdmi_playback_prepare(substream, dai);
+
+	default:
+		return 0;
 	}
 
 	return 0;
