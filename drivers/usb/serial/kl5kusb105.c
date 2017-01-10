@@ -143,10 +143,12 @@ static int klsi_105_chg_port_settings(struct usb_serial_port *port,
 	if (rc < 0)
 		dev_err(&port->dev,
 			"Change port settings failed (error = %d)\n", rc);
-	dev_info(&port->serial->dev->dev,
-		 "%d byte block, baudrate %x, databits %d, u1 %d, u2 %d\n",
-		 settings->pktlen, settings->baudrate, settings->databits,
-		 settings->unknown1, settings->unknown2);
+
+	dev_dbg(&port->dev,
+		"pktlen %u, baudrate 0x%02x, databits %u, u1 %u, u2 %u\n",
+		settings->pktlen, settings->baudrate, settings->databits,
+		settings->unknown1, settings->unknown2);
+
 	return rc;
 }
 
@@ -175,8 +177,6 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	u8 *status_buf;
 	__u16 status;
 
-	dev_info(&port->serial->dev->dev, "sending SIO Poll request\n");
-
 	status_buf = kmalloc(KLSI_STATUSBUF_LEN, GFP_KERNEL);
 	if (!status_buf)
 		return -ENOMEM;
@@ -199,8 +199,8 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	} else {
 		status = get_unaligned_le16(status_buf);
 
-		dev_info(&port->serial->dev->dev, "read status %x %x\n",
-			 status_buf[0], status_buf[1]);
+		dev_dbg(&port->dev, "read status %02x %02x\n",
+			status_buf[0], status_buf[1]);
 
 		*line_state_p = klsi_105_status2linestate(status);
 	}
