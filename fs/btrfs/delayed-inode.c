@@ -72,9 +72,8 @@ static inline int btrfs_is_continuous_delayed_item(
 	return 0;
 }
 
-static struct btrfs_delayed_node *btrfs_get_delayed_node(struct inode *inode)
+static struct btrfs_delayed_node *btrfs_get_delayed_node(struct btrfs_inode *btrfs_inode)
 {
-	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
 	struct btrfs_root *root = btrfs_inode->root;
 	u64 ino = btrfs_ino(btrfs_inode);
 	struct btrfs_delayed_node *node;
@@ -116,7 +115,7 @@ static struct btrfs_delayed_node *btrfs_get_or_create_delayed_node(
 	int ret;
 
 again:
-	node = btrfs_get_delayed_node(inode);
+	node = btrfs_get_delayed_node(btrfs_inode);
 	if (node)
 		return node;
 
@@ -1198,7 +1197,7 @@ int btrfs_run_delayed_items_nr(struct btrfs_trans_handle *trans,
 int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 				     struct inode *inode)
 {
-	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(inode);
+	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(BTRFS_I(inode));
 	struct btrfs_path *path;
 	struct btrfs_block_rsv *block_rsv;
 	int ret;
@@ -1237,7 +1236,7 @@ int btrfs_commit_inode_delayed_inode(struct inode *inode)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_trans_handle *trans;
-	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(inode);
+	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(BTRFS_I(inode));
 	struct btrfs_path *path;
 	struct btrfs_block_rsv *block_rsv;
 	int ret;
@@ -1560,7 +1559,7 @@ end:
 
 int btrfs_inode_delayed_dir_index_count(struct inode *inode)
 {
-	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(inode);
+	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(BTRFS_I(inode));
 
 	if (!delayed_node)
 		return -ENOENT;
@@ -1587,7 +1586,7 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	struct btrfs_delayed_node *delayed_node;
 	struct btrfs_delayed_item *item;
 
-	delayed_node = btrfs_get_delayed_node(inode);
+	delayed_node = btrfs_get_delayed_node(BTRFS_I(inode));
 	if (!delayed_node)
 		return false;
 
@@ -1776,7 +1775,7 @@ int btrfs_fill_inode(struct inode *inode, u32 *rdev)
 	struct btrfs_delayed_node *delayed_node;
 	struct btrfs_inode_item *inode_item;
 
-	delayed_node = btrfs_get_delayed_node(inode);
+	delayed_node = btrfs_get_delayed_node(BTRFS_I(inode));
 	if (!delayed_node)
 		return -ENOENT;
 
@@ -1937,7 +1936,7 @@ void btrfs_kill_delayed_inode_items(struct inode *inode)
 {
 	struct btrfs_delayed_node *delayed_node;
 
-	delayed_node = btrfs_get_delayed_node(inode);
+	delayed_node = btrfs_get_delayed_node(BTRFS_I(inode));
 	if (!delayed_node)
 		return;
 
