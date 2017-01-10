@@ -1848,8 +1848,10 @@ static int rk32_edp_probe(struct platform_device *pdev)
 		rk32_edp_clk_disable(edp);
 
 	pm_runtime_enable(&pdev->dev);
-	if (support_uboot_display())
+	if (support_uboot_display()) {
+		edp->edp_en = true;
 		pm_runtime_get_sync(&pdev->dev);
+	}
 
 	rk32_edp = edp;
 	rk_fb_trsm_ops_register(&trsm_edp_ops, SCREEN_EDP);
