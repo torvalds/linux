@@ -884,6 +884,28 @@ retry:
 	return rc;
 }
 
+/*
+ * sdhci_msm_hs400 - Calibrate the DLL for HS400 bus speed mode operation.
+ * DLL operation is only needed for clock > 100MHz. For clock <= 100MHz
+ * fixed feedback clock is used.
+ */
+static void sdhci_msm_hs400(struct sdhci_host *host, struct mmc_ios *ios)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
+	int ret;
+
+	if (host->clock > CORE_FREQ_100MHZ &&
+	    msm_host->tuning_done && !msm_host->calibration_done) {
+		ret = sdhci_msm_hs400_dll_calibration(host);
+		if (!ret)
+			msm_host->calibration_done = true;
+		else
+			pr_err("%s: Failed to calibrate DLL for hs400 mode (%d)\n",
+			       mmc_hostname(host->mmc), ret);
+	}
+}
+
 static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 					unsigned int uhs)
 {
@@ -952,12 +974,10 @@ static void sdhci_msm_set_uhs_signaling(struct sdhci_host *host,
 	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
 
 	spin_unlock_irq(&host->lock);
-	/* CDCLP533 HW calibration is only required for HS400 mode*/
-	if (host->clock > CORE_FREQ_100MHZ &&
-	    msm_host->tuning_done && !msm_host->calibration_done &&
-	    mmc->ios.timing == MMC_TIMING_MMC_HS400)
-		if (!sdhci_msm_hs400_dll_calibration(host))
-			msm_host->calibration_done = true;
+
+	if (mmc->ios.timing == MMC_TIMING_MMC_HS400)
+		sdhci_msm_hs400(host, &mmc->ios);
+
 	spin_lock_irq(&host->lock);
 }
 
