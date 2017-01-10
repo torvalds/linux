@@ -23,7 +23,7 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/sched.h>
 
 #include <asm/cacheflush.h>
