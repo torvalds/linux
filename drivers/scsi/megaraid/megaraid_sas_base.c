@@ -5072,13 +5072,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 			goto fail_ready_state;
 	}
 
-	/*
-	 * MSI-X host index 0 is common for all adapter.
-	 * It is used for all MPT based Adapters.
-	 */
-	instance->reply_post_host_index_addr[0] =
-		(u32 __iomem *)((u8 __iomem *)instance->reg_set +
-		MPI2_REPLY_POST_HOST_INDEX_OFFSET);
+
 
 	/* Check if MSI-X is supported while in ready state */
 	msix_enable = (instance->instancet->read_fw_status_reg(reg_set) &
@@ -5098,6 +5092,9 @@ static int megasas_init_fw(struct megasas_instance *instance)
 				instance->msix_vectors = ((scratch_pad_2
 					& MR_MAX_REPLY_QUEUES_EXT_OFFSET)
 					>> MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT) + 1;
+				if (instance->msix_vectors > 16)
+					instance->msix_combined = true;
+
 				if (rdpq_enable)
 					instance->is_rdpq = (scratch_pad_2 & MR_RDPQ_MODE_OFFSET) ?
 								1 : 0;
@@ -5131,6 +5128,20 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		else
 			instance->msix_vectors = 0;
 	}
+	/*
+	 * MSI-X host index 0 is common for all adapter.
+	 * It is used for all MPT based Adapters.
+	 */
+	if (instance->msix_combined) {
+		instance->reply_post_host_index_addr[0] =
+				(u32 *)((u8 *)instance->reg_set +
+				MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET);
+	} else {
+		instance->reply_post_host_index_addr[0] =
+			(u32 *)((u8 *)instance->reg_set +
+			MPI2_REPLY_POST_HOST_INDEX_OFFSET);
+	}
+
 	i = pci_alloc_irq_vectors(instance->pdev, 1, 1, PCI_IRQ_LEGACY);
 	if (i < 0)
 		goto fail_setup_irqs;

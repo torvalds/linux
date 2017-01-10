@@ -2148,6 +2148,7 @@ struct megasas_instance {
 	bool dev_handle;
 	bool fw_sync_cache_support;
 	bool is_ventura;
+	bool msix_combined;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
