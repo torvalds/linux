@@ -389,6 +389,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, frag, 1);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, frag,
 				 key->flags & FLOW_DIS_IS_FRAGMENT);
+
+			/* the HW doesn't need L3 inline to match on frag=no */
+			if (key->flags & FLOW_DIS_IS_FRAGMENT)
+				*min_inline = MLX5_INLINE_MODE_IP;
 		}
 	}
 
