@@ -199,7 +199,6 @@ static bool cls_bpf_destroy(struct tcf_proto *tp, bool force)
 		call_rcu(&prog->rcu, __cls_bpf_delete_prog);
 	}
 
-	RCU_INIT_POINTER(tp->root, NULL);
 	kfree_rcu(head, rcu);
 	return true;
 }
@@ -209,9 +208,6 @@ static unsigned long cls_bpf_get(struct tcf_proto *tp, u32 handle)
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
 	struct cls_bpf_prog *prog;
 	unsigned long ret = 0UL;
-
-	if (head == NULL)
-		return 0UL;
 
 	list_for_each_entry(prog, &head->plist, link) {
 		if (prog->handle == handle) {

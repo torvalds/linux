@@ -458,6 +458,21 @@ config DM_VERITY
 
 	  If unsure, say N.
 
+config DM_VERITY_HASH_PREFETCH_MIN_SIZE_128
+	bool "Prefetch size 128"
+
+config DM_VERITY_HASH_PREFETCH_MIN_SIZE
+	int "Verity hash prefetch minimum size"
+	depends on DM_VERITY
+	range 1 4096
+	default 128 if DM_VERITY_HASH_PREFETCH_MIN_SIZE_128
+	default 1
+	---help---
+	  This sets minimum number of hash blocks to prefetch for dm-verity.
+	  For devices like eMMC, having larger prefetch size like 128 can improve
+	  performance with increased memory consumption for keeping more hashes
+	  in RAM.
+
 config DM_VERITY_FEC
 	bool "Verity forward error correction support"
 	depends on DM_VERITY
@@ -510,6 +525,7 @@ config DM_ANDROID_VERITY
 	depends on ASYMMETRIC_KEY_TYPE
 	depends on ASYMMETRIC_PUBLIC_KEY_SUBTYPE
 	depends on MD_LINEAR
+	select DM_VERITY_HASH_PREFETCH_MIN_SIZE_128
 	---help---
 	  This device-mapper target is virtually a VERITY target. This
 	  target is setup by reading the metadata contents piggybacked

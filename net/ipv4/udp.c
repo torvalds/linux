@@ -1026,7 +1026,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 				   RT_SCOPE_UNIVERSE, sk->sk_protocol,
 				   flow_flags,
 				   faddr, saddr, dport, inet->inet_sport,
-				   sock_i_uid(sk));
+				   sk->sk_uid);
 
 		if (!saddr && ipc.oif) {
 			err = l3mdev_get_saddr(net, ipc.oif, fl4);

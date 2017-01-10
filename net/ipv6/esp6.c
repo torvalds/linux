@@ -418,7 +418,7 @@ static int esp6_input(struct xfrm_state *x, struct sk_buff *skb)
 		esph = (void *)skb_push(skb, 4);
 		*seqhi = esph->spi;
 		esph->spi = esph->seq_no;
-		esph->seq_no = htonl(XFRM_SKB_CB(skb)->seq.input.hi);
+		esph->seq_no = XFRM_SKB_CB(skb)->seq.input.hi;
 		aead_request_set_callback(req, 0, esp_input_done_esn, skb);
 	}
 
@@ -474,9 +474,10 @@ static int esp6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		return 0;
 
 	if (type == NDISC_REDIRECT)
-		ip6_redirect(skb, net, skb->dev->ifindex, 0);
+		ip6_redirect(skb, net, skb->dev->ifindex, 0,
+			     sock_net_uid(net, NULL));
 	else
-		ip6_update_pmtu(skb, net, info, 0, 0, INVALID_UID);
+		ip6_update_pmtu(skb, net, info, 0, 0, sock_net_uid(net, NULL));
 	xfrm_state_put(x);
 
 	return 0;

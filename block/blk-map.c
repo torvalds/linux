@@ -90,6 +90,9 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	if (!iter || !iter->count)
 		return -EINVAL;
 
+	if (!iter_is_iovec(iter))
+		return -EINVAL;
+
 	iov_for_each(iov, i, *iter) {
 		unsigned long uaddr = (unsigned long) iov.iov_base;
 

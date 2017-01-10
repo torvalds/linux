@@ -601,8 +601,7 @@ static int raw_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 			   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
 			   inet_sk_flowi_flags(sk) |
 			    (inet->hdrincl ? FLOWI_FLAG_KNOWN_NH : 0),
-			   daddr, saddr, 0, 0,
-			   sock_i_uid(sk));
+			   daddr, saddr, 0, 0, sk->sk_uid);
 
 	if (!saddr && ipc.oif) {
 		err = l3mdev_get_saddr(net, ipc.oif, &fl4);

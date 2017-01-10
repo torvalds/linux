@@ -501,7 +501,8 @@ void __ip_select_ident(struct net *net, struct iphdr *iph, int segs)
 }
 EXPORT_SYMBOL(__ip_select_ident);
 
-static void __build_flow_key(struct flowi4 *fl4, struct sock *sk,
+static void __build_flow_key(const struct net *net, struct flowi4 *fl4,
+			     const struct sock *sk,
 			     const struct iphdr *iph,
 			     int oif, u8 tos,
 			     u8 prot, u32 mark, int flow_flags)
@@ -518,22 +519,23 @@ static void __build_flow_key(struct flowi4 *fl4, struct sock *sk,
 			   RT_SCOPE_UNIVERSE, prot,
 			   flow_flags,
 			   iph->daddr, iph->saddr, 0, 0,
-			   sk ? sock_i_uid(sk) : GLOBAL_ROOT_UID);
+			   sock_net_uid(net, sk));
 }
 
 static void build_skb_flow_key(struct flowi4 *fl4, const struct sk_buff *skb,
-			       struct sock *sk)
+			       const struct sock *sk)
 {
+	const struct net *net = dev_net(skb->dev);
 	const struct iphdr *iph = ip_hdr(skb);
 	int oif = skb->dev->ifindex;
 	u8 tos = RT_TOS(iph->tos);
 	u8 prot = iph->protocol;
 	u32 mark = skb->mark;
 
-	__build_flow_key(fl4, sk, iph, oif, tos, prot, mark, 0);
+	__build_flow_key(net, fl4, sk, iph, oif, tos, prot, mark, 0);
 }
 
-static void build_sk_flow_key(struct flowi4 *fl4, struct sock *sk)
+static void build_sk_flow_key(struct flowi4 *fl4, const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	const struct ip_options_rcu *inet_opt;
@@ -547,12 +549,11 @@ static void build_sk_flow_key(struct flowi4 *fl4, struct sock *sk)
 			   RT_CONN_FLAGS(sk), RT_SCOPE_UNIVERSE,
 			   inet->hdrincl ? IPPROTO_RAW : sk->sk_protocol,
 			   inet_sk_flowi_flags(sk),
-			   daddr, inet->inet_saddr, 0, 0,
-			   sock_i_uid(sk));
+			   daddr, inet->inet_saddr, 0, 0, sk->sk_uid);
 	rcu_read_unlock();
 }
 
-static void ip_rt_build_flow_key(struct flowi4 *fl4, struct sock *sk,
+static void ip_rt_build_flow_key(struct flowi4 *fl4, const struct sock *sk,
 				 const struct sk_buff *skb)
 {
 	if (skb)
@@ -798,7 +799,7 @@ static void ip_do_redirect(struct dst_entry *dst, struct sock *sk, struct sk_buf
 
 	rt = (struct rtable *) dst;
 
-	__build_flow_key(&fl4, sk, iph, oif, tos, prot, mark, 0);
+	__build_flow_key(sock_net(sk), &fl4, sk, iph, oif, tos, prot, mark, 0);
 	__ip_do_redirect(rt, skb, &fl4, true);
 }
 
@@ -1016,7 +1017,7 @@ void ipv4_update_pmtu(struct sk_buff *skb, struct net *net, u32 mtu,
 	if (!mark)
 		mark = IP4_REPLY_MARK(net, skb->mark);
 
-	__build_flow_key(&fl4, NULL, iph, oif,
+	__build_flow_key(net, &fl4, NULL, iph, oif,
 			 RT_TOS(iph->tos), protocol, mark, flow_flags);
 	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
@@ -1032,7 +1033,7 @@ static void __ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 	struct flowi4 fl4;
 	struct rtable *rt;
 
-	__build_flow_key(&fl4, sk, iph, 0, 0, 0, 0, 0);
+	__build_flow_key(sock_net(sk), &fl4, sk, iph, 0, 0, 0, 0, 0);
 
 	if (!fl4.flowi4_mark)
 		fl4.flowi4_mark = IP4_REPLY_MARK(sock_net(sk), skb->mark);
@@ -1051,6 +1052,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 	struct rtable *rt;
 	struct dst_entry *odst = NULL;
 	bool new = false;
+	struct net *net = sock_net(sk);
 
 	bh_lock_sock(sk);
 
@@ -1064,7 +1066,7 @@ void ipv4_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, u32 mtu)
 		goto out;
 	}
 
-	__build_flow_key(&fl4, sk, iph, 0, 0, 0, 0, 0);
+	__build_flow_key(net, &fl4, sk, iph, 0, 0, 0, 0, 0);
 
 	rt = (struct rtable *)odst;
 	if (odst->obsolete && !odst->ops->check(odst, 0)) {
@@ -1104,7 +1106,7 @@ void ipv4_redirect(struct sk_buff *skb, struct net *net,
 	struct flowi4 fl4;
 	struct rtable *rt;
 
-	__build_flow_key(&fl4, NULL, iph, oif,
+	__build_flow_key(net, &fl4, NULL, iph, oif,
 			 RT_TOS(iph->tos), protocol, mark, flow_flags);
 	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
@@ -1119,9 +1121,10 @@ void ipv4_sk_redirect(struct sk_buff *skb, struct sock *sk)
 	const struct iphdr *iph = (const struct iphdr *) skb->data;
 	struct flowi4 fl4;
 	struct rtable *rt;
+	struct net *net = sock_net(sk);
 
-	__build_flow_key(&fl4, sk, iph, 0, 0, 0, 0, 0);
-	rt = __ip_route_output_key(sock_net(sk), &fl4);
+	__build_flow_key(net, &fl4, sk, iph, 0, 0, 0, 0, 0);
+	rt = __ip_route_output_key(net, &fl4);
 	if (!IS_ERR(rt)) {
 		__ip_do_redirect(rt, skb, &fl4, false);
 		ip_rt_put(rt);

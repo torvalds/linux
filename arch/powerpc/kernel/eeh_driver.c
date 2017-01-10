@@ -612,8 +612,10 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus)
 
 	/* Clear frozen state */
 	rc = eeh_clear_pe_frozen_state(pe, false);
-	if (rc)
+	if (rc) {
+		pci_unlock_rescan_remove();
 		return rc;
+	}
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes,

@@ -886,19 +886,10 @@ ENTRY(flush_dcache_page_asm)
 	fdc,m		r31(%r28)
 	fdc,m		r31(%r28)
 	fdc,m		r31(%r28)
-	cmpb,COND(<<)		%r28, %r25,1b
+	cmpb,COND(<<)	%r28, %r25,1b
 	fdc,m		r31(%r28)
 
 	sync
-
-#ifdef CONFIG_PA20
-	pdtlb,l		%r0(%r25)
-#else
-	tlb_lock	%r20,%r21,%r22
-	pdtlb		%r0(%r25)
-	tlb_unlock	%r20,%r21,%r22
-#endif
-
 	bv		%r0(%r2)
 	nop
 	.exit
@@ -973,17 +964,6 @@ ENTRY(flush_icache_page_asm)
 	fic,m		%r31(%sr4,%r28)
 
 	sync
-
-#ifdef CONFIG_PA20
-	pdtlb,l		%r0(%r28)
-	pitlb,l         %r0(%sr4,%r25)
-#else
-	tlb_lock        %r20,%r21,%r22
-	pdtlb		%r0(%r28)
-	pitlb           %r0(%sr4,%r25)
-	tlb_unlock      %r20,%r21,%r22
-#endif
-
 	bv		%r0(%r2)
 	nop
 	.exit

@@ -2764,7 +2764,7 @@ static bool batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 							     &tvlv_tt_data,
 							     &tt_change,
 							     &tt_len);
-		if (!tt_len)
+		if (!tt_len || !tvlv_len)
 			goto unlock;
 
 		/* Copy the last orig_node's OGM buffer */
@@ -2782,7 +2782,7 @@ static bool batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 							     &tvlv_tt_data,
 							     &tt_change,
 							     &tt_len);
-		if (!tt_len)
+		if (!tt_len || !tvlv_len)
 			goto out;
 
 		/* fill the rest of the tvlv with the real TT entries */

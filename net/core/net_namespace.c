@@ -217,6 +217,8 @@ int peernet2id_alloc(struct net *net, struct net *peer)
 	bool alloc;
 	int id;
 
+	if (atomic_read(&net->count) == 0)
+		return NETNSA_NSID_NOT_ASSIGNED;
 	spin_lock_irqsave(&net->nsid_lock, flags);
 	alloc = atomic_read(&peer->count) == 0 ? false : true;
 	id = __peernet2id_alloc(net, peer, &alloc);

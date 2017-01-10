@@ -2514,11 +2514,13 @@ kvmppc_save_tm:
 	mfctr	r7
 	mfspr	r8, SPRN_AMR
 	mfspr	r10, SPRN_TAR
+	mfxer	r11
 	std	r5, VCPU_LR_TM(r9)
 	stw	r6, VCPU_CR_TM(r9)
 	std	r7, VCPU_CTR_TM(r9)
 	std	r8, VCPU_AMR_TM(r9)
 	std	r10, VCPU_TAR_TM(r9)
+	std	r11, VCPU_XER_TM(r9)
 
 	/* Restore r12 as trap number. */
 	lwz	r12, VCPU_TRAP(r9)
@@ -2611,11 +2613,13 @@ kvmppc_restore_tm:
 	ld	r7, VCPU_CTR_TM(r4)
 	ld	r8, VCPU_AMR_TM(r4)
 	ld	r9, VCPU_TAR_TM(r4)
+	ld	r10, VCPU_XER_TM(r4)
 	mtlr	r5
 	mtcr	r6
 	mtctr	r7
 	mtspr	SPRN_AMR, r8
 	mtspr	SPRN_TAR, r9
+	mtxer	r10
 
 	/*
 	 * Load up PPR and DSCR values but don't put them in the actual SPRs

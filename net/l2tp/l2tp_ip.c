@@ -251,8 +251,6 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	int ret;
 	int chk_addr_ret;
 
-	if (!sock_flag(sk, SOCK_ZAPPED))
-		return -EINVAL;
 	if (addr_len < sizeof(struct sockaddr_l2tpip))
 		return -EINVAL;
 	if (addr->l2tp_family != AF_INET)
@@ -267,6 +265,9 @@ static int l2tp_ip_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	read_unlock_bh(&l2tp_ip_lock);
 
 	lock_sock(sk);
+	if (!sock_flag(sk, SOCK_ZAPPED))
+		goto out;
+
 	if (sk->sk_state != TCP_CLOSE || addr_len < sizeof(struct sockaddr_l2tpip))
 		goto out;
 

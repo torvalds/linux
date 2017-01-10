@@ -29,6 +29,11 @@ struct fib_rule_hdr {
 	__u32		flags;
 };
 
+struct fib_rule_uid_range {
+	__u32		start;
+	__u32		end;
+};
+
 enum {
 	FRA_UNSPEC,
 	FRA_DST,	/* destination address */
@@ -49,8 +54,9 @@ enum {
 	FRA_TABLE,	/* Extended table id */
 	FRA_FWMASK,	/* mask for netfilter mark */
 	FRA_OIFNAME,
-	FRA_UID_START,	/* UID range */
-	FRA_UID_END,
+	FRA_PAD,
+	FRA_L3MDEV,	/* iif or oif is l3mdev goto its table */
+	FRA_UID_RANGE,	/* UID range */
 	__FRA_MAX
 };
 

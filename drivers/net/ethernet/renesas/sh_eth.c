@@ -832,7 +832,7 @@ static struct sh_eth_cpu_data r7s72100_data = {
 
 	.ecsr_value	= ECSR_ICD,
 	.ecsipr_value	= ECSIPR_ICDIP,
-	.eesipr_value	= 0xff7f009f,
+	.eesipr_value	= 0xe77f009f,
 
 	.tx_check	= EESR_TC1 | EESR_FTC,
 	.eesr_err_check	= EESR_TWB1 | EESR_TWB | EESR_TABT | EESR_RABT |
