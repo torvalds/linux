@@ -712,15 +712,8 @@ static void __nvme_process_cq(struct nvme_queue *nvmeq, unsigned int *tag)
 		req = blk_mq_tag_to_rq(*nvmeq->tags, cqe.command_id);
 		nvme_req(req)->result = cqe.result;
 		blk_mq_complete_request(req, le16_to_cpu(cqe.status) >> 1);
-
 	}
 
-	/* If the controller ignores the cq head doorbell and continuously
-	 * writes to the queue, it is theoretically possible to wrap around
-	 * the queue twice and mistakenly return IRQ_NONE.  Linux only
-	 * requires that 0.1% of your interrupts are handled, so this isn't
-	 * a big problem.
-	 */
 	if (head == nvmeq->cq_head && phase == nvmeq->cq_phase)
 		return;
 
@@ -1909,10 +1902,10 @@ static int nvme_dev_map(struct nvme_dev *dev)
 	if (!dev->bar)
 		goto release;
 
-       return 0;
+	return 0;
   release:
-       pci_release_mem_regions(pdev);
-       return -ENODEV;
+	pci_release_mem_regions(pdev);
+	return -ENODEV;
 }
 
 static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
