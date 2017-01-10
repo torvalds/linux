@@ -3628,6 +3628,9 @@ static int nand_flash_detect_onfi(struct mtd_info *mtd, struct nand_chip *chip,
 	chip->chipsize *= (uint64_t)mtd->erasesize * p->lun_count;
 	chip->bits_per_cell = p->bits_per_cell;
 
+	chip->max_bb_per_die = le16_to_cpu(p->bb_per_lun);
+	chip->blocks_per_die = le32_to_cpu(p->blocks_per_lun);
+
 	if (onfi_feature(chip) & ONFI_FEATURE_16_BIT_BUS)
 		*busw = NAND_BUSWIDTH_16;
 	else
