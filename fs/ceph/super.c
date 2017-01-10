@@ -952,6 +952,14 @@ static int ceph_register_bdi(struct super_block *sb,
 		fsc->backing_dev_info.ra_pages =
 			VM_MAX_READAHEAD * 1024 / PAGE_SIZE;
 
+	if (fsc->mount_options->rsize > fsc->mount_options->rasize &&
+	    fsc->mount_options->rsize >= PAGE_SIZE)
+		fsc->backing_dev_info.io_pages =
+			(fsc->mount_options->rsize + PAGE_SIZE - 1)
+			>> PAGE_SHIFT;
+	else if (fsc->mount_options->rsize == 0)
+		fsc->backing_dev_info.io_pages = ULONG_MAX;
+
 	err = bdi_register(&fsc->backing_dev_info, NULL, "ceph-%ld",
 			   atomic_long_inc_return(&bdi_seq));
 	if (!err)
