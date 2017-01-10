@@ -98,7 +98,7 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		btrfs_debug_rl(BTRFS_I(inode)->root->fs_info,
 		    "%s: ino %llu isize %llu odd range [%llu,%llu]",
-				caller, btrfs_ino(inode), isize, start, end);
+				caller, btrfs_ino(BTRFS_I(inode)), isize, start, end);
 	}
 }
 #else
@@ -2065,7 +2065,7 @@ int repair_io_failure(struct inode *inode, u64 start, u64 length, u64 logical,
 
 	btrfs_info_rl_in_rcu(fs_info,
 		"read error corrected: ino %llu off %llu (dev %s sector %llu)",
-				  btrfs_ino(inode), start,
+				  btrfs_ino(BTRFS_I(inode)), start,
 				  rcu_str_deref(dev->name), sector);
 	btrfs_bio_counter_dec(fs_info);
 	bio_put(bio);
@@ -4413,7 +4413,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	 * lookup the last file extent.  We're not using i_size here
 	 * because there might be preallocation past i_size
 	 */
-	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(inode), -1,
+	ret = btrfs_lookup_file_extent(NULL, root, path, btrfs_ino(BTRFS_I(inode)), -1,
 				       0);
 	if (ret < 0) {
 		btrfs_free_path(path);
@@ -4429,7 +4429,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	found_type = found_key.type;
 
 	/* No extents, but there might be delalloc bits */
-	if (found_key.objectid != btrfs_ino(inode) ||
+	if (found_key.objectid != btrfs_ino(BTRFS_I(inode)) ||
 	    found_type != BTRFS_EXTENT_DATA_KEY) {
 		/* have to trust i_size as the end */
 		last = (u64)-1;
@@ -4539,7 +4539,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			 */
 			ret = btrfs_check_shared(trans, root->fs_info,
 						 root->objectid,
-						 btrfs_ino(inode), bytenr);
+						 btrfs_ino(BTRFS_I(inode)), bytenr);
 			if (trans)
 				btrfs_end_transaction(trans);
 			if (ret < 0)

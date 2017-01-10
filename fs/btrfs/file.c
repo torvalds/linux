@@ -168,7 +168,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (!defrag)
 		return -ENOMEM;
 
-	defrag->ino = btrfs_ino(inode);
+	defrag->ino = btrfs_ino(BTRFS_I(inode));
 	defrag->transid = transid;
 	defrag->root = root->root_key.objectid;
 
@@ -702,7 +702,7 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 	struct btrfs_key new_key;
-	u64 ino = btrfs_ino(inode);
+	u64 ino = btrfs_ino(BTRFS_I(inode));
 	u64 search_start = start;
 	u64 disk_bytenr = 0;
 	u64 num_bytes = 0;
@@ -1102,7 +1102,7 @@ int btrfs_mark_extent_written(struct btrfs_trans_handle *trans,
 	int del_slot = 0;
 	int recow;
 	int ret;
-	u64 ino = btrfs_ino(inode);
+	u64 ino = btrfs_ino(BTRFS_I(inode));
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -2203,7 +2203,7 @@ static int hole_mergeable(struct inode *inode, struct extent_buffer *leaf,
 		return 0;
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
-	if (key.objectid != btrfs_ino(inode) ||
+	if (key.objectid != btrfs_ino(BTRFS_I(inode)) ||
 	    key.type != BTRFS_EXTENT_DATA_KEY)
 		return 0;
 
@@ -2237,7 +2237,7 @@ static int fill_holes(struct btrfs_trans_handle *trans, struct inode *inode,
 	if (btrfs_fs_incompat(fs_info, NO_HOLES))
 		goto out;
 
-	key.objectid = btrfs_ino(inode);
+	key.objectid = btrfs_ino(BTRFS_I(inode));
 	key.type = BTRFS_EXTENT_DATA_KEY;
 	key.offset = offset;
 
@@ -2285,7 +2285,7 @@ static int fill_holes(struct btrfs_trans_handle *trans, struct inode *inode,
 	}
 	btrfs_release_path(path);
 
-	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(inode), offset,
+	ret = btrfs_insert_file_extent(trans, root, btrfs_ino(BTRFS_I(inode)), offset,
 				       0, 0, end - offset, 0, end - offset,
 				       0, 0, 0);
 	if (ret)

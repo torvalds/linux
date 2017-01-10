@@ -255,7 +255,7 @@ static int __btrfs_lookup_bio_sums(struct inode *inode, struct bio *bio,
 				} else {
 					btrfs_info_rl(fs_info,
 						   "no csum found for inode %llu start %llu",
-					       btrfs_ino(inode), offset);
+					       btrfs_ino(BTRFS_I(inode)), offset);
 				}
 				item = NULL;
 				btrfs_release_path(path);
@@ -977,7 +977,7 @@ void btrfs_extent_item_to_extent_map(struct inode *inode,
 	} else {
 		btrfs_err(fs_info,
 			  "unknown file extent item type %d, inode %llu, offset %llu, root %llu",
-			  type, btrfs_ino(inode), extent_start,
+			  type, btrfs_ino(BTRFS_I(inode)), extent_start,
 			  root->root_key.objectid);
 	}
 }

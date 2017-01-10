@@ -224,16 +224,16 @@ static inline void btrfs_insert_inode_hash(struct inode *inode)
 	__insert_inode_hash(inode, h);
 }
 
-static inline u64 btrfs_ino(struct inode *inode)
+static inline u64 btrfs_ino(struct btrfs_inode *inode)
 {
-	u64 ino = BTRFS_I(inode)->location.objectid;
+	u64 ino = inode->location.objectid;
 
 	/*
 	 * !ino: btree_inode
 	 * type == BTRFS_ROOT_ITEM_KEY: subvol dir
 	 */
-	if (!ino || BTRFS_I(inode)->location.type == BTRFS_ROOT_ITEM_KEY)
-		ino = inode->i_ino;
+	if (!ino || inode->location.type == BTRFS_ROOT_ITEM_KEY)
+		ino = inode->vfs_inode.i_ino;
 	return ino;
 }
 
@@ -248,7 +248,7 @@ static inline bool btrfs_is_free_space_inode(struct inode *inode)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
 	if (root == root->fs_info->tree_root &&
-	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
+	    btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID)
 		return true;
 	if (BTRFS_I(inode)->location.objectid == BTRFS_FREE_INO_OBJECTID)
 		return true;

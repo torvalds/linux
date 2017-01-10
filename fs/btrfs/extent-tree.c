@@ -5756,7 +5756,7 @@ int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
 	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 
 	trace_btrfs_space_reservation(fs_info, "orphan",
-				      btrfs_ino(inode), num_bytes, 1);
+				      btrfs_ino(BTRFS_I(inode)), num_bytes, 1);
 	return btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 }
 
@@ -5767,7 +5767,7 @@ void btrfs_orphan_release_metadata(struct inode *inode)
 	u64 num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 
 	trace_btrfs_space_reservation(fs_info, "orphan",
-				      btrfs_ino(inode), num_bytes, 0);
+				      btrfs_ino(BTRFS_I(inode)), num_bytes, 0);
 	btrfs_block_rsv_release(fs_info, root->orphan_block_rsv, num_bytes);
 }
 
@@ -6001,7 +6001,7 @@ int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes)
 
 	if (to_reserve)
 		trace_btrfs_space_reservation(fs_info, "delalloc",
-					      btrfs_ino(inode), to_reserve, 1);
+					      btrfs_ino(BTRFS_I(inode)), to_reserve, 1);
 	if (release_extra)
 		btrfs_block_rsv_release(fs_info, block_rsv,
 				btrfs_calc_trans_metadata_size(fs_info, 1));
@@ -6064,7 +6064,7 @@ out_fail:
 	if (to_free) {
 		btrfs_block_rsv_release(fs_info, block_rsv, to_free);
 		trace_btrfs_space_reservation(fs_info, "delalloc",
-					      btrfs_ino(inode), to_free, 0);
+					      btrfs_ino(BTRFS_I(inode)), to_free, 0);
 	}
 	if (delalloc_lock)
 		mutex_unlock(&BTRFS_I(inode)->delalloc_mutex);
@@ -6100,7 +6100,7 @@ void btrfs_delalloc_release_metadata(struct inode *inode, u64 num_bytes)
 		return;
 
 	trace_btrfs_space_reservation(fs_info, "delalloc",
-				      btrfs_ino(inode), to_free, 0);
+				      btrfs_ino(BTRFS_I(inode)), to_free, 0);
 
 	btrfs_block_rsv_release(fs_info, &fs_info->delalloc_block_rsv, to_free);
 }

@@ -76,7 +76,7 @@ static struct btrfs_delayed_node *btrfs_get_delayed_node(struct inode *inode)
 {
 	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
 	struct btrfs_root *root = btrfs_inode->root;
-	u64 ino = btrfs_ino(inode);
+	u64 ino = btrfs_ino(btrfs_inode);
 	struct btrfs_delayed_node *node;
 
 	node = READ_ONCE(btrfs_inode->delayed_node);
@@ -112,7 +112,7 @@ static struct btrfs_delayed_node *btrfs_get_or_create_delayed_node(
 	struct btrfs_delayed_node *node;
 	struct btrfs_inode *btrfs_inode = BTRFS_I(inode);
 	struct btrfs_root *root = btrfs_inode->root;
-	u64 ino = btrfs_ino(inode);
+	u64 ino = btrfs_ino(btrfs_inode);
 	int ret;
 
 again:
@@ -637,7 +637,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 			node->bytes_reserved = num_bytes;
 			trace_btrfs_space_reservation(fs_info,
 						      "delayed_inode",
-						      btrfs_ino(inode),
+						      btrfs_ino(BTRFS_I(inode)),
 						      num_bytes, 1);
 		}
 		return ret;
@@ -660,13 +660,13 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 */
 	if (!ret) {
 		trace_btrfs_space_reservation(fs_info, "delayed_inode",
-					      btrfs_ino(inode), num_bytes, 1);
+					      btrfs_ino(BTRFS_I(inode)), num_bytes, 1);
 		node->bytes_reserved = num_bytes;
 	}
 
 	if (release) {
 		trace_btrfs_space_reservation(fs_info, "delalloc",
-					      btrfs_ino(inode), num_bytes, 0);
+					      btrfs_ino(BTRFS_I(inode)), num_bytes, 0);
 		btrfs_block_rsv_release(fs_info, src_rsv, num_bytes);
 	}
 
@@ -1453,7 +1453,7 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 		goto release_node;
 	}
 
-	delayed_item->key.objectid = btrfs_ino(dir);
+	delayed_item->key.objectid = btrfs_ino(BTRFS_I(dir));
 	delayed_item->key.type = BTRFS_DIR_INDEX_KEY;
 	delayed_item->key.offset = index;
 
@@ -1521,7 +1521,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	if (IS_ERR(node))
 		return PTR_ERR(node);
 
-	item_key.objectid = btrfs_ino(dir);
+	item_key.objectid = btrfs_ino(BTRFS_I(dir));
 	item_key.type = BTRFS_DIR_INDEX_KEY;
 	item_key.offset = index;
 
