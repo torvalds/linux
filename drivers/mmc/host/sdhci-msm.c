@@ -151,7 +151,8 @@ static unsigned int msm_get_clock_rate_for_bus_mode(struct sdhci_host *host,
 	 */
 	if (ios.timing == MMC_TIMING_UHS_DDR50 ||
 	    ios.timing == MMC_TIMING_MMC_DDR52 ||
-	    ios.timing == MMC_TIMING_MMC_HS400)
+	    ios.timing == MMC_TIMING_MMC_HS400 ||
+	    host->flags & SDHCI_HS400_TUNING)
 		clock *= 2;
 	return clock;
 }
@@ -611,7 +612,8 @@ void sdhci_msm_hc_select_mode(struct sdhci_host *host)
 {
 	struct mmc_ios ios = host->mmc->ios;
 
-	if (ios.timing == MMC_TIMING_MMC_HS400)
+	if (ios.timing == MMC_TIMING_MMC_HS400 ||
+	    host->flags & SDHCI_HS400_TUNING)
 		msm_hc_select_hs400(host);
 	else
 		msm_hc_select_default(host);
@@ -830,6 +832,16 @@ static int sdhci_msm_execute_tuning(struct sdhci_host *host, u32 opcode)
 	    ios.timing == MMC_TIMING_MMC_HS200 ||
 	    ios.timing == MMC_TIMING_UHS_SDR104))
 		return 0;
+
+	/*
+	 * For HS400 tuning in HS200 timing requires:
+	 * - select MCLK/2 in VENDOR_SPEC
+	 * - program MCLK to 400MHz (or nearest supported) in GCC
+	 */
+	if (host->flags & SDHCI_HS400_TUNING) {
+		sdhci_msm_hc_select_mode(host);
+		msm_set_clock_rate_for_bus_mode(host, ios.clock);
+	}
 
 retry:
 	/* First of all reset the tuning block */
