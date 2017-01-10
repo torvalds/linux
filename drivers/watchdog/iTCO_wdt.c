@@ -520,6 +520,7 @@ static int iTCO_wdt_probe(struct platform_device *pdev)
 			WATCHDOG_TIMEOUT);
 	}
 
+	watchdog_stop_on_reboot(&p->wddev);
 	ret = devm_watchdog_register_device(dev, &p->wddev);
 	if (ret != 0) {
 		pr_err("cannot register watchdog device (err=%d)\n", ret);
@@ -541,13 +542,6 @@ static int iTCO_wdt_remove(struct platform_device *pdev)
 		iTCO_wdt_stop(&p->wddev);
 
 	return 0;
-}
-
-static void iTCO_wdt_shutdown(struct platform_device *pdev)
-{
-	struct iTCO_wdt_private *p = platform_get_drvdata(pdev);
-
-	iTCO_wdt_stop(&p->wddev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -603,7 +597,6 @@ static const struct dev_pm_ops iTCO_wdt_pm = {
 static struct platform_driver iTCO_wdt_driver = {
 	.probe          = iTCO_wdt_probe,
 	.remove         = iTCO_wdt_remove,
-	.shutdown       = iTCO_wdt_shutdown,
 	.driver         = {
 		.name   = DRV_NAME,
 		.pm     = ITCO_WDT_PM_OPS,
