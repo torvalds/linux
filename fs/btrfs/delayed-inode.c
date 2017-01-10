@@ -1432,7 +1432,7 @@ void btrfs_balance_delayed_items(struct btrfs_fs_info *fs_info)
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 				   struct btrfs_fs_info *fs_info,
 				   const char *name, int name_len,
-				   struct inode *dir,
+				   struct btrfs_inode *dir,
 				   struct btrfs_disk_key *disk_key, u8 type,
 				   u64 index)
 {
@@ -1441,7 +1441,7 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	struct btrfs_dir_item *dir_item;
 	int ret;
 
-	delayed_node = btrfs_get_or_create_delayed_node(BTRFS_I(dir));
+	delayed_node = btrfs_get_or_create_delayed_node(dir);
 	if (IS_ERR(delayed_node))
 		return PTR_ERR(delayed_node);
 
@@ -1451,7 +1451,7 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 		goto release_node;
 	}
 
-	delayed_item->key.objectid = btrfs_ino(BTRFS_I(dir));
+	delayed_item->key.objectid = btrfs_ino(dir);
 	delayed_item->key.type = BTRFS_DIR_INDEX_KEY;
 	delayed_item->key.offset = index;
 
