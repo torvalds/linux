@@ -180,9 +180,9 @@ void rxe_drop_all_mcast_groups(struct rxe_qp *qp)
 	}
 }
 
-void rxe_mc_cleanup(void *arg)
+void rxe_mc_cleanup(struct rxe_pool_entry *arg)
 {
-	struct rxe_mc_grp *grp = arg;
+	struct rxe_mc_grp *grp = container_of(arg, typeof(*grp), pelem);
 	struct rxe_dev *rxe = grp->rxe;
 
 	rxe_drop_key(grp);

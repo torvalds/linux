@@ -89,9 +89,9 @@ static void rxe_mem_init(int access, struct rxe_mem *mem)
 	mem->map_shift		= ilog2(RXE_BUF_PER_MAP);
 }
 
-void rxe_mem_cleanup(void *arg)
+void rxe_mem_cleanup(struct rxe_pool_entry *arg)
 {
-	struct rxe_mem *mem = arg;
+	struct rxe_mem *mem = container_of(arg, typeof(*mem), pelem);
 	int i;
 
 	if (mem->umem)

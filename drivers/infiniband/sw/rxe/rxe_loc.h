@@ -64,7 +64,7 @@ int rxe_cq_resize_queue(struct rxe_cq *cq, int new_cqe, struct ib_udata *udata);
 
 int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited);
 
-void rxe_cq_cleanup(void *arg);
+void rxe_cq_cleanup(struct rxe_pool_entry *arg);
 
 /* rxe_mcast.c */
 int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
@@ -78,7 +78,7 @@ int rxe_mcast_drop_grp_elem(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 void rxe_drop_all_mcast_groups(struct rxe_qp *qp);
 
-void rxe_mc_cleanup(void *arg);
+void rxe_mc_cleanup(struct rxe_pool_entry *arg);
 
 /* rxe_mmap.c */
 struct rxe_mmap_info {
@@ -137,7 +137,7 @@ int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length);
 int rxe_mem_map_pages(struct rxe_dev *rxe, struct rxe_mem *mem,
 		      u64 *page, int num_pages, u64 iova);
 
-void rxe_mem_cleanup(void *arg);
+void rxe_mem_cleanup(struct rxe_pool_entry *arg);
 
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
 
@@ -162,7 +162,7 @@ void rxe_qp_error(struct rxe_qp *qp);
 
 void rxe_qp_destroy(struct rxe_qp *qp);
 
-void rxe_qp_cleanup(void *arg);
+void rxe_qp_cleanup(struct rxe_pool_entry *arg);
 
 static inline int qp_num(struct rxe_qp *qp)
 {

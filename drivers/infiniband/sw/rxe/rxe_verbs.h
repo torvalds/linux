@@ -475,6 +475,6 @@ static inline struct rxe_mem *to_rmw(struct ib_mw *mw)
 int rxe_register_device(struct rxe_dev *rxe);
 int rxe_unregister_device(struct rxe_dev *rxe);
 
-void rxe_mc_cleanup(void *arg);
+void rxe_mc_cleanup(struct rxe_pool_entry *arg);
 
 #endif /* RXE_VERBS_H */
