@@ -159,7 +159,7 @@ static int psb_do_init(struct drm_device *dev)
 	return 0;
 }
 
-static int psb_driver_unload(struct drm_device *dev)
+static void psb_driver_unload(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
@@ -220,7 +220,6 @@ static int psb_driver_unload(struct drm_device *dev)
 		dev->dev_private = NULL;
 	}
 	gma_power_uninit(dev);
-	return 0;
 }
 
 static int psb_driver_load(struct drm_device *dev, unsigned long flags)

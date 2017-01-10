@@ -235,9 +235,10 @@ static void amdgpu_gtt_mgr_debug(struct ttm_mem_type_manager *man,
 				  const char *prefix)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
+	struct drm_printer p = drm_debug_printer(prefix);
 
 	spin_lock(&mgr->lock);
-	drm_mm_debug_table(&mgr->mm, prefix);
+	drm_mm_print(&mgr->mm, &p);
 	spin_unlock(&mgr->lock);
 }
 

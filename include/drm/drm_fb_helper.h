@@ -181,7 +181,7 @@ struct drm_fb_helper_connector {
  *
  * This is the main structure used by the fbdev helpers. Drivers supporting
  * fbdev emulation should embedded this into their overall driver structure.
- * Drivers must also fill out a struct &drm_fb_helper_funcs with a few
+ * Drivers must also fill out a &struct drm_fb_helper_funcs with a few
  * operations.
  */
 struct drm_fb_helper {
@@ -295,8 +295,7 @@ struct drm_display_mode *
 drm_has_preferred_mode(struct drm_fb_helper_connector *fb_connector,
 			int width, int height);
 struct drm_display_mode *
-drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn,
-		      int width, int height);
+drm_pick_cmdline_mode(struct drm_fb_helper_connector *fb_helper_conn);
 
 int drm_fb_helper_add_one_connector(struct drm_fb_helper *fb_helper, struct drm_connector *connector);
 int drm_fb_helper_remove_one_connector(struct drm_fb_helper *fb_helper,

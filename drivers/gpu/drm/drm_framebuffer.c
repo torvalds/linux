@@ -39,13 +39,13 @@
  * Frame buffers rely on the underlying memory manager for allocating backing
  * storage. When creating a frame buffer applications pass a memory handle
  * (or a list of memory handles for multi-planar formats) through the
- * struct &drm_mode_fb_cmd2 argument. For drivers using GEM as their userspace
+ * &struct drm_mode_fb_cmd2 argument. For drivers using GEM as their userspace
  * buffer management interface this would be a GEM handle.  Drivers are however
  * free to use their own backing storage object handles, e.g. vmwgfx directly
  * exposes special TTM handles to userspace and so expects TTM handles in the
  * create ioctl and not GEM handles.
  *
- * Framebuffers are tracked with struct &drm_framebuffer. They are published
+ * Framebuffers are tracked with &struct drm_framebuffer. They are published
  * using drm_framebuffer_init() - after calling that function userspace can use
  * and access the framebuffer object. The helper function
  * drm_helper_mode_fill_fb_struct() can be used to pre-fill the required
@@ -55,7 +55,7 @@
  * drivers can grab additional references with drm_framebuffer_reference() and
  * drop them again with drm_framebuffer_unreference(). For driver-private
  * framebuffers for which the last reference is never dropped (e.g. for the
- * fbdev framebuffer when the struct struct &drm_framebuffer is embedded into
+ * fbdev framebuffer when the struct &struct drm_framebuffer is embedded into
  * the fbdev helper struct) drivers can manually clean up a framebuffer at
  * module unload time with drm_framebuffer_unregister_private(). But doing this
  * is not recommended, and it's better to have a normal free-standing struct

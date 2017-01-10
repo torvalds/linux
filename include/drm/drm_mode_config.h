@@ -47,7 +47,7 @@ struct drm_mode_config_funcs {
 	 *
 	 * Create a new framebuffer object. The core does basic checks on the
 	 * requested metadata, but most of that is left to the driver. See
-	 * struct &drm_mode_fb_cmd2 for details.
+	 * &struct drm_mode_fb_cmd2 for details.
 	 *
 	 * If the parameters are deemed valid and the backing storage objects in
 	 * the underlying memory manager all exist, then the driver allocates
@@ -135,7 +135,7 @@ struct drm_mode_config_funcs {
 	 * error conditions which don't have to be checked at the
 	 * ->atomic_check() stage?
 	 *
-	 * See the documentation for struct &drm_atomic_state for how exactly
+	 * See the documentation for &struct drm_atomic_state for how exactly
 	 * an atomic modeset update is described.
 	 *
 	 * Drivers using the atomic helpers can implement this hook using
@@ -171,7 +171,7 @@ struct drm_mode_config_funcs {
 	 * calling this function, and that nothing has been changed in the
 	 * interim.
 	 *
-	 * See the documentation for struct &drm_atomic_state for how exactly
+	 * See the documentation for &struct drm_atomic_state for how exactly
 	 * an atomic modeset update is described.
 	 *
 	 * Drivers using the atomic helpers can implement this hook using
@@ -198,7 +198,7 @@ struct drm_mode_config_funcs {
 	 * completed. These events are per-CRTC and can be distinguished by the
 	 * CRTC index supplied in &drm_event to userspace.
 	 *
-	 * The drm core will supply a struct &drm_event in the event
+	 * The drm core will supply a &struct drm_event in the event
 	 * member of each CRTC's &drm_crtc_state structure. See the
 	 * documentation for &drm_crtc_state for more details about the precise
 	 * semantics of this event.
@@ -381,7 +381,7 @@ struct drm_mode_config {
 	/**
 	 * @connector_list: List of connector objects. Protected by
 	 * @connector_list_lock. Only use drm_for_each_connector_iter() and
-	 * struct &drm_connector_list_iter to walk this list.
+	 * &struct drm_connector_list_iter to walk this list.
 	 */
 	struct list_head connector_list;
 	int num_encoder;

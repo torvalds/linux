@@ -48,7 +48,7 @@ struct drm_master {
 	 */
 	char *unique;
 	/**
-	 * @unique_len: Length of unique field. Protected by struct &drm_device
+	 * @unique_len: Length of unique field. Protected by &struct drm_device
 	 * master_mutex.
 	 */
 	int unique_len;

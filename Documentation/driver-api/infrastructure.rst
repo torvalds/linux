@@ -55,21 +55,6 @@ Device Drivers DMA Management
 .. kernel-doc:: drivers/base/dma-mapping.c
    :export:
 
-Device Drivers Power Management
--------------------------------
-
-.. kernel-doc:: drivers/base/power/main.c
-   :export:
-
-Device Drivers ACPI Support
----------------------------
-
-.. kernel-doc:: drivers/acpi/scan.c
-   :export:
-
-.. kernel-doc:: drivers/acpi/scan.c
-   :internal:
-
 Device drivers PnP support
 --------------------------
 

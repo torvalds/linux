@@ -967,6 +967,7 @@ static struct sk_buff *vrf_ip6_rcv(struct net_device *vrf_dev,
 	 */
 	need_strict = rt6_need_strict(&ipv6_hdr(skb)->daddr);
 	if (!ipv6_ndisc_frame(skb) && !need_strict) {
+		vrf_rx_stats(vrf_dev, skb->len);
 		skb->dev = vrf_dev;
 		skb->skb_iif = vrf_dev->ifindex;
 
@@ -1010,6 +1011,8 @@ static struct sk_buff *vrf_ip_rcv(struct net_device *vrf_dev,
 		skb->pkt_type = PACKET_HOST;
 		goto out;
 	}
+
+	vrf_rx_stats(vrf_dev, skb->len);
 
 	skb_push(skb, skb->mac_len);
 	dev_queue_xmit_nit(skb, vrf_dev);

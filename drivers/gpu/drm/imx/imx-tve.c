@@ -150,13 +150,11 @@ __releases(&tve->lock)
 
 static void tve_enable(struct imx_tve *tve)
 {
-	int ret;
-
 	if (!tve->enabled) {
 		tve->enabled = true;
 		clk_prepare_enable(tve->clk);
-		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-					 TVE_EN, TVE_EN);
+		regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
+				   TVE_EN, TVE_EN);
 	}
 
 	/* clear interrupt status register */
@@ -174,12 +172,9 @@ static void tve_enable(struct imx_tve *tve)
 
 static void tve_disable(struct imx_tve *tve)
 {
-	int ret;
-
 	if (tve->enabled) {
 		tve->enabled = false;
-		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-					 TVE_EN, 0);
+		regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_EN, 0);
 		clk_disable_unprepare(tve->clk);
 	}
 }

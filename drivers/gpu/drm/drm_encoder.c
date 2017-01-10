@@ -30,8 +30,8 @@
  * DOC: overview
  *
  * Encoders represent the connecting element between the CRTC (as the overall
- * pixel pipeline, represented by struct &drm_crtc) and the connectors (as the
- * generic sink entity, represented by struct &drm_connector). An encoder takes
+ * pixel pipeline, represented by &struct drm_crtc) and the connectors (as the
+ * generic sink entity, represented by &struct drm_connector). An encoder takes
  * pixel data from a CRTC and converts it to a format suitable for any attached
  * connector. Encoders are objects exposed to userspace, originally to allow
  * userspace to infer cloning and connector/CRTC restrictions. Unfortunately

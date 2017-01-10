@@ -951,7 +951,7 @@ out_err0:
 	return ret;
 }
 
-static int vmw_driver_unload(struct drm_device *dev)
+static void vmw_driver_unload(struct drm_device *dev)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	enum vmw_res_type i;
@@ -998,8 +998,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 		idr_destroy(&dev_priv->res_idr[i]);
 
 	kfree(dev_priv);
-
-	return 0;
 }
 
 static void vmw_postclose(struct drm_device *dev,

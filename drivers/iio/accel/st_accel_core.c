@@ -353,18 +353,26 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 				[0] = {
 					.num = ST_ACCEL_FS_AVL_2G,
 					.value = 0x00,
-					.gain = IIO_G_TO_M_S_2(1024),
+					.gain = IIO_G_TO_M_S_2(1000),
 				},
 				[1] = {
 					.num = ST_ACCEL_FS_AVL_6G,
 					.value = 0x01,
-					.gain = IIO_G_TO_M_S_2(340),
+					.gain = IIO_G_TO_M_S_2(3000),
 				},
 			},
 		},
 		.bdu = {
 			.addr = 0x21,
 			.mask = 0x40,
+		},
+		/*
+		 * Data Alignment Setting - needs to be set to get
+		 * left-justified data like all other sensors.
+		 */
+		.das = {
+			.addr = 0x21,
+			.mask = 0x01,
 		},
 		.drdy_irq = {
 			.addr = 0x21,

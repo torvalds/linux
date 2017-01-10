@@ -409,13 +409,14 @@ xfs_refcountbt_calc_size(
  */
 xfs_extlen_t
 xfs_refcountbt_max_size(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	xfs_agblock_t		agblocks)
 {
 	/* Bail out if we're uninitialized, which can happen in mkfs. */
 	if (mp->m_refc_mxr[0] == 0)
 		return 0;
 
-	return xfs_refcountbt_calc_size(mp, mp->m_sb.sb_agblocks);
+	return xfs_refcountbt_calc_size(mp, agblocks);
 }
 
 /*
@@ -430,22 +431,24 @@ xfs_refcountbt_calc_reserves(
 {
 	struct xfs_buf		*agbp;
 	struct xfs_agf		*agf;
+	xfs_agblock_t		agblocks;
 	xfs_extlen_t		tree_len;
 	int			error;
 
 	if (!xfs_sb_version_hasreflink(&mp->m_sb))
 		return 0;
 
-	*ask += xfs_refcountbt_max_size(mp);
 
 	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
 	if (error)
 		return error;
 
 	agf = XFS_BUF_TO_AGF(agbp);
+	agblocks = be32_to_cpu(agf->agf_length);
 	tree_len = be32_to_cpu(agf->agf_refcount_blocks);
 	xfs_buf_relse(agbp);
 
+	*ask += xfs_refcountbt_max_size(mp, agblocks);
 	*used += tree_len;
 
 	return error;

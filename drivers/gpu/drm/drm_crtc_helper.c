@@ -71,7 +71,7 @@
  *
  * These legacy modeset helpers use the same function table structures as
  * all other modesetting helpers. See the documentation for struct
- * &drm_crtc_helper_funcs, struct &drm_encoder_helper_funcs and struct
+ * &drm_crtc_helper_funcs, &struct drm_encoder_helper_funcs and struct
  * &drm_connector_helper_funcs.
  */
 
@@ -478,10 +478,10 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
  * @set: mode set configuration
  *
  * The drm_crtc_helper_set_config() helper function implements the set_config
- * callback of struct &drm_crtc_funcs for drivers using the legacy CRTC helpers.
+ * callback of &struct drm_crtc_funcs for drivers using the legacy CRTC helpers.
  *
  * It first tries to locate the best encoder for each connector by calling the
- * connector ->best_encoder() (struct &drm_connector_helper_funcs) helper
+ * connector ->best_encoder() (&struct drm_connector_helper_funcs) helper
  * operation.
  *
  * After locating the appropriate encoders, the helper function will call the
@@ -493,7 +493,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
  *
  * If the adjusted mode is identical to the current mode but changes to the
  * frame buffer need to be applied, the drm_crtc_helper_set_config() function
- * will call the CRTC ->mode_set_base() (struct &drm_crtc_helper_funcs) helper
+ * will call the CRTC ->mode_set_base() (&struct drm_crtc_helper_funcs) helper
  * operation.
  *
  * If the adjusted mode differs from the current mode, or if the
@@ -501,7 +501,7 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
  * performs a full mode set sequence by calling the ->prepare(), ->mode_set()
  * and ->commit() CRTC and encoder helper operations, in that order.
  * Alternatively it can also use the dpms and disable helper operations. For
- * details see struct &drm_crtc_helper_funcs and struct
+ * details see &struct drm_crtc_helper_funcs and struct
  * &drm_encoder_helper_funcs.
  *
  * This function is deprecated.  New drivers must implement atomic modeset
@@ -852,12 +852,12 @@ static int drm_helper_choose_crtc_dpms(struct drm_crtc *crtc)
  * @mode: DPMS mode
  *
  * The drm_helper_connector_dpms() helper function implements the ->dpms()
- * callback of struct &drm_connector_funcs for drivers using the legacy CRTC helpers.
+ * callback of &struct drm_connector_funcs for drivers using the legacy CRTC helpers.
  *
  * This is the main helper function provided by the CRTC helper framework for
  * implementing the DPMS connector attribute. It computes the new desired DPMS
  * state for all encoders and CRTCs in the output mesh and calls the ->dpms()
- * callbacks provided by the driver in struct &drm_crtc_helper_funcs and struct
+ * callbacks provided by the driver in &struct drm_crtc_helper_funcs and struct
  * &drm_encoder_helper_funcs appropriately.
  *
  * This function is deprecated.  New drivers must implement atomic modeset
