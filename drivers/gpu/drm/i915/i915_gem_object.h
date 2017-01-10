@@ -337,6 +337,9 @@ i915_gem_object_get_tile_row_size(struct drm_i915_gem_object *obj)
 		i915_gem_object_get_tile_height(obj));
 }
 
+int i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
+			       unsigned int tiling, unsigned int stride);
+
 static inline struct intel_engine_cs *
 i915_gem_object_last_write_engine(struct drm_i915_gem_object *obj)
 {

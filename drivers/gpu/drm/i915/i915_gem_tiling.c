@@ -129,61 +129,56 @@ u32 i915_gem_fence_alignment(struct drm_i915_private *i915, u32 size,
 
 /* Check pitch constriants for all chips & tiling formats */
 static bool
-i915_tiling_ok(struct drm_i915_private *dev_priv,
-	       int stride, int size, int tiling_mode)
+i915_tiling_ok(struct drm_i915_gem_object *obj,
+	       unsigned int tiling, unsigned int stride)
 {
-	int tile_width;
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	unsigned int tile_width;
 
 	/* Linear is always fine */
-	if (tiling_mode == I915_TILING_NONE)
+	if (tiling == I915_TILING_NONE)
 		return true;
 
-	if (tiling_mode > I915_TILING_LAST)
+	if (tiling > I915_TILING_LAST)
 		return false;
-
-	if (IS_GEN2(dev_priv) ||
-	    (tiling_mode == I915_TILING_Y && HAS_128_BYTE_Y_TILING(dev_priv)))
-		tile_width = 128;
-	else
-		tile_width = 512;
 
 	/* check maximum stride & object size */
 	/* i965+ stores the end address of the gtt mapping in the fence
 	 * reg, so dont bother to check the size */
-	if (INTEL_GEN(dev_priv) >= 7) {
+	if (INTEL_GEN(i915) >= 7) {
 		if (stride / 128 > GEN7_FENCE_MAX_PITCH_VAL)
 			return false;
-	} else if (INTEL_GEN(dev_priv) >= 4) {
+	} else if (INTEL_GEN(i915) >= 4) {
 		if (stride / 128 > I965_FENCE_MAX_PITCH_VAL)
 			return false;
 	} else {
 		if (stride > 8192)
 			return false;
 
-		if (IS_GEN3(dev_priv)) {
-			if (size > I830_FENCE_MAX_SIZE_VAL << 20)
+		if (IS_GEN3(i915)) {
+			if (obj->base.size > I830_FENCE_MAX_SIZE_VAL << 20)
 				return false;
 		} else {
-			if (size > I830_FENCE_MAX_SIZE_VAL << 19)
+			if (obj->base.size > I830_FENCE_MAX_SIZE_VAL << 19)
 				return false;
 		}
 	}
 
-	if (stride < tile_width)
+	if (IS_GEN2(i915) ||
+	    (tiling == I915_TILING_Y && HAS_128_BYTE_Y_TILING(i915)))
+		tile_width = 128;
+	else
+		tile_width = 512;
+
+	if (stride & (tile_width - 1))
 		return false;
 
 	/* 965+ just needs multiples of tile width */
-	if (INTEL_GEN(dev_priv) >= 4) {
-		if (stride & (tile_width - 1))
-			return false;
+	if (INTEL_GEN(i915) >= 4)
 		return true;
-	}
 
 	/* Pre-965 needs power of two tile widths */
-	if (stride & (stride - 1))
-		return false;
-
-	return true;
+	return is_power_of_2(stride);
 }
 
 static bool i915_vma_fence_prepare(struct i915_vma *vma,
@@ -232,6 +227,98 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
 	return 0;
 }
 
+int
+i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
+			   unsigned int tiling, unsigned int stride)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_vma *vma;
+	int err;
+
+	/* Make sure we don't cross-contaminate obj->tiling_and_stride */
+	BUILD_BUG_ON(I915_TILING_LAST & STRIDE_MASK);
+
+	GEM_BUG_ON(!i915_tiling_ok(obj, tiling, stride));
+	GEM_BUG_ON(!stride ^ (tiling == I915_TILING_NONE));
+	lockdep_assert_held(&i915->drm.struct_mutex);
+
+	if ((tiling | stride) == obj->tiling_and_stride)
+		return 0;
+
+	if (obj->framebuffer_references)
+		return -EBUSY;
+
+	/* We need to rebind the object if its current allocation
+	 * no longer meets the alignment restrictions for its new
+	 * tiling mode. Otherwise we can just leave it alone, but
+	 * need to ensure that any fence register is updated before
+	 * the next fenced (either through the GTT or by the BLT unit
+	 * on older GPUs) access.
+	 *
+	 * After updating the tiling parameters, we then flag whether
+	 * we need to update an associated fence register. Note this
+	 * has to also include the unfenced register the GPU uses
+	 * whilst executing a fenced command for an untiled object.
+	 */
+
+	err = i915_gem_object_fence_prepare(obj, tiling, stride);
+	if (err)
+		return err;
+
+	/* If the memory has unknown (i.e. varying) swizzling, we pin the
+	 * pages to prevent them being swapped out and causing corruption
+	 * due to the change in swizzling.
+	 */
+	mutex_lock(&obj->mm.lock);
+	if (obj->mm.pages &&
+	    obj->mm.madv == I915_MADV_WILLNEED &&
+	    i915->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
+		if (tiling == I915_TILING_NONE) {
+			GEM_BUG_ON(!obj->mm.quirked);
+			__i915_gem_object_unpin_pages(obj);
+			obj->mm.quirked = false;
+		}
+		if (!i915_gem_object_is_tiled(obj)) {
+			GEM_BUG_ON(!obj->mm.quirked);
+			__i915_gem_object_pin_pages(obj);
+			obj->mm.quirked = true;
+		}
+	}
+	mutex_unlock(&obj->mm.lock);
+
+	list_for_each_entry(vma, &obj->vma_list, obj_link) {
+		if (!i915_vma_is_ggtt(vma))
+			break;
+
+		vma->fence_size =
+			i915_gem_fence_size(i915, vma->size, tiling, stride);
+		vma->fence_alignment =
+			i915_gem_fence_alignment(i915,
+						 vma->size, tiling, stride);
+
+		if (vma->fence)
+			vma->fence->dirty = true;
+	}
+
+	obj->tiling_and_stride = tiling | stride;
+
+	/* Force the fence to be reacquired for GTT access */
+	i915_gem_release_mmap(obj);
+
+	/* Try to preallocate memory required to save swizzling on put-pages */
+	if (i915_gem_object_needs_bit17_swizzle(obj)) {
+		if (!obj->bit_17) {
+			obj->bit_17 = kcalloc(BITS_TO_LONGS(obj->base.size >> PAGE_SHIFT),
+					      sizeof(long), GFP_KERNEL);
+		}
+	} else {
+		kfree(obj->bit_17);
+		obj->bit_17 = NULL;
+	}
+
+	return 0;
+}
+
 /**
  * i915_gem_set_tiling_ioctl - IOCTL handler to set tiling mode
  * @dev: DRM device
@@ -251,26 +338,15 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 			  struct drm_file *file)
 {
 	struct drm_i915_gem_set_tiling *args = data;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
-	int err = 0;
-
-	/* Make sure we don't cross-contaminate obj->tiling_and_stride */
-	BUILD_BUG_ON(I915_TILING_LAST & STRIDE_MASK);
+	int err;
 
 	obj = i915_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
 
-	if (!i915_tiling_ok(dev_priv,
-			    args->stride, obj->base.size, args->tiling_mode)) {
-		i915_gem_object_put(obj);
-		return -EINVAL;
-	}
-
-	mutex_lock(&dev->struct_mutex);
-	if (obj->pin_display || obj->framebuffer_references) {
-		err = -EBUSY;
+	if (!i915_tiling_ok(obj, args->tiling_mode, args->stride)) {
+		err = -EINVAL;
 		goto err;
 	}
 
@@ -279,9 +355,9 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		args->stride = 0;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
-			args->swizzle_mode = dev_priv->mm.bit_6_swizzle_x;
+			args->swizzle_mode = to_i915(dev)->mm.bit_6_swizzle_x;
 		else
-			args->swizzle_mode = dev_priv->mm.bit_6_swizzle_y;
+			args->swizzle_mode = to_i915(dev)->mm.bit_6_swizzle_y;
 
 		/* Hide bit 17 swizzling from the user.  This prevents old Mesa
 		 * from aborting the application on sw fallbacks to bit 17,
@@ -303,84 +379,19 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		}
 	}
 
-	if (args->tiling_mode != i915_gem_object_get_tiling(obj) ||
-	    args->stride != i915_gem_object_get_stride(obj)) {
-		/* We need to rebind the object if its current allocation
-		 * no longer meets the alignment restrictions for its new
-		 * tiling mode. Otherwise we can just leave it alone, but
-		 * need to ensure that any fence register is updated before
-		 * the next fenced (either through the GTT or by the BLT unit
-		 * on older GPUs) access.
-		 *
-		 * After updating the tiling parameters, we then flag whether
-		 * we need to update an associated fence register. Note this
-		 * has to also include the unfenced register the GPU uses
-		 * whilst executing a fenced command for an untiled object.
-		 */
+	err = mutex_lock_interruptible(&dev->struct_mutex);
+	if (err)
+		goto err;
 
-		err = i915_gem_object_fence_prepare(obj,
-						    args->tiling_mode,
-						    args->stride);
-		if (!err) {
-			struct i915_vma *vma;
+	err = i915_gem_object_set_tiling(obj, args->tiling_mode, args->stride);
+	mutex_unlock(&dev->struct_mutex);
 
-			mutex_lock(&obj->mm.lock);
-			if (obj->mm.pages &&
-			    obj->mm.madv == I915_MADV_WILLNEED &&
-			    dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES) {
-				if (args->tiling_mode == I915_TILING_NONE) {
-					GEM_BUG_ON(!obj->mm.quirked);
-					__i915_gem_object_unpin_pages(obj);
-					obj->mm.quirked = false;
-				}
-				if (!i915_gem_object_is_tiled(obj)) {
-					GEM_BUG_ON(!obj->mm.quirked);
-					__i915_gem_object_pin_pages(obj);
-					obj->mm.quirked = true;
-				}
-			}
-			mutex_unlock(&obj->mm.lock);
-
-			list_for_each_entry(vma, &obj->vma_list, obj_link) {
-				if (!i915_vma_is_ggtt(vma))
-					break;
-
-				vma->fence_size = i915_gem_fence_size(dev_priv, vma->size,
-								      args->tiling_mode,
-								      args->stride);
-				vma->fence_alignment = i915_gem_fence_alignment(dev_priv, vma->size,
-										args->tiling_mode,
-										args->stride);
-
-				if (vma->fence)
-					vma->fence->dirty = true;
-			}
-			obj->tiling_and_stride =
-				args->stride | args->tiling_mode;
-
-			/* Force the fence to be reacquired for GTT access */
-			i915_gem_release_mmap(obj);
-		}
-	}
-	/* we have to maintain this existing ABI... */
+	/* We have to maintain this existing ABI... */
 	args->stride = i915_gem_object_get_stride(obj);
 	args->tiling_mode = i915_gem_object_get_tiling(obj);
 
-	/* Try to preallocate memory required to save swizzling on put-pages */
-	if (i915_gem_object_needs_bit17_swizzle(obj)) {
-		if (obj->bit_17 == NULL) {
-			obj->bit_17 = kcalloc(BITS_TO_LONGS(obj->base.size >> PAGE_SHIFT),
-					      sizeof(long), GFP_KERNEL);
-		}
-	} else {
-		kfree(obj->bit_17);
-		obj->bit_17 = NULL;
-	}
-
 err:
 	i915_gem_object_put(obj);
-	mutex_unlock(&dev->struct_mutex);
-
 	return err;
 }
 
