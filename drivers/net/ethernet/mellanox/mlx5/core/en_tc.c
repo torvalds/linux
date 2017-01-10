@@ -656,17 +656,14 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 
 #if IS_ENABLED(CONFIG_INET)
 	rt = ip_route_output_key(dev_net(mirred_dev), fl4);
-	if (IS_ERR(rt)) {
-		pr_warn("%s: no route to %pI4\n", __func__, &fl4->daddr);
-		return -EOPNOTSUPP;
-	}
+	if (IS_ERR(rt))
+		return PTR_ERR(rt);
 #else
 	return -EOPNOTSUPP;
 #endif
 
 	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev)) {
-		pr_warn("%s: Can't offload the flow, netdevices aren't on the same HW e-switch\n",
-			__func__);
+		pr_warn("%s: can't offload, devices not on same HW e-switch\n", __func__);
 		ip_rt_put(rt);
 		return -EOPNOTSUPP;
 	}
@@ -727,8 +724,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 					  struct net_device **out_dev)
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
+	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
-	struct neighbour *n;
 	char *encap_header;
 	int encap_size;
 	__be32 saddr;
@@ -759,7 +756,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	e->out_dev = *out_dev;
 
 	if (!(n->nud_state & NUD_VALID)) {
-		err = -ENOTSUPP;
+		pr_warn("%s: can't offload, neighbour to %pI4 invalid\n", __func__, &fl4.daddr);
+		err = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -781,6 +779,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	err = mlx5_encap_alloc(priv->mdev, e->tunnel_type,
 			       encap_size, encap_header, &e->encap_id);
 out:
+	if (err && n)
+		neigh_release(n);
 	kfree(encap_header);
 	return err;
 }
