@@ -503,6 +503,26 @@ static inline enum comp_state complete_wqe(struct rxe_qp *qp,
 	return COMPST_GET_WQE;
 }
 
+static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
+{
+	struct sk_buff *skb;
+	struct rxe_send_wqe *wqe;
+
+	while ((skb = skb_dequeue(&qp->resp_pkts))) {
+		rxe_drop_ref(qp);
+		kfree_skb(skb);
+	}
+
+	while ((wqe = queue_head(qp->sq.queue))) {
+		if (notify) {
+			wqe->status = IB_WC_WR_FLUSH_ERR;
+			do_complete(qp, wqe);
+		} else {
+			advance_consumer(qp->sq.queue);
+		}
+	}
+}
+
 int rxe_completer(void *arg)
 {
 	struct rxe_qp *qp = (struct rxe_qp *)arg;
@@ -513,47 +533,10 @@ int rxe_completer(void *arg)
 
 	rxe_add_ref(qp);
 
-	if (!qp->valid) {
-		while ((skb = skb_dequeue(&qp->resp_pkts))) {
-			rxe_drop_ref(qp);
-			kfree_skb(skb);
-		}
-		skb = NULL;
-		pkt = NULL;
-
-		while (queue_head(qp->sq.queue))
-			advance_consumer(qp->sq.queue);
-
-		goto exit;
-	}
-
-	if (qp->req.state == QP_STATE_ERROR) {
-		while ((skb = skb_dequeue(&qp->resp_pkts))) {
-			rxe_drop_ref(qp);
-			kfree_skb(skb);
-		}
-		skb = NULL;
-		pkt = NULL;
-
-		while ((wqe = queue_head(qp->sq.queue))) {
-			wqe->status = IB_WC_WR_FLUSH_ERR;
-			do_complete(qp, wqe);
-		}
-
-		goto exit;
-	}
-
-	if (qp->req.state == QP_STATE_RESET) {
-		while ((skb = skb_dequeue(&qp->resp_pkts))) {
-			rxe_drop_ref(qp);
-			kfree_skb(skb);
-		}
-		skb = NULL;
-		pkt = NULL;
-
-		while (queue_head(qp->sq.queue))
-			advance_consumer(qp->sq.queue);
-
+	if (!qp->valid || qp->req.state == QP_STATE_ERROR ||
+	    qp->req.state == QP_STATE_RESET) {
+		rxe_drain_resp_pkts(qp, qp->valid &&
+				    qp->req.state == QP_STATE_ERROR);
 		goto exit;
 	}
 
