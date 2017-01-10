@@ -61,7 +61,7 @@ int rxe_mcast_get_grp(struct rxe_dev *rxe, union ib_gid *mgid,
 
 	rxe_add_key(grp, mgid);
 
-	err = rxe->ifc_ops->mcast_add(rxe, mgid);
+	err = rxe_mcast_add(rxe, mgid);
 	if (err)
 		goto err2;
 
@@ -186,5 +186,5 @@ void rxe_mc_cleanup(struct rxe_pool_entry *arg)
 	struct rxe_dev *rxe = grp->rxe;
 
 	rxe_drop_key(grp);
-	rxe->ifc_ops->mcast_delete(rxe, &grp->mgid);
+	rxe_mcast_delete(rxe, &grp->mgid);
 }

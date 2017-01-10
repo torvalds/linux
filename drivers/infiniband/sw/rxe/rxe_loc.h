@@ -141,6 +141,22 @@ void rxe_mem_cleanup(struct rxe_pool_entry *arg);
 
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
 
+/* rxe_net.c */
+int rxe_loopback(struct sk_buff *skb);
+int rxe_send(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
+	     struct sk_buff *skb);
+__be64 rxe_port_guid(struct rxe_dev *rxe);
+struct sk_buff *rxe_init_packet(struct rxe_dev *rxe, struct rxe_av *av,
+				int paylen, struct rxe_pkt_info *pkt);
+int rxe_prepare(struct rxe_dev *rxe, struct rxe_pkt_info *pkt,
+		struct sk_buff *skb, u32 *crc);
+enum rdma_link_layer rxe_link_layer(struct rxe_dev *rxe, unsigned int port_num);
+const char *rxe_parent_name(struct rxe_dev *rxe, unsigned int port_num);
+struct device *rxe_dma_device(struct rxe_dev *rxe);
+__be64 rxe_node_guid(struct rxe_dev *rxe);
+int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid);
+int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid);
+
 /* rxe_qp.c */
 int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init);
 
@@ -257,9 +273,9 @@ static inline int rxe_xmit_packet(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	if (pkt->mask & RXE_LOOPBACK_MASK) {
 		memcpy(SKB_TO_PKT(skb), pkt, sizeof(*pkt));
-		err = rxe->ifc_ops->loopback(skb);
+		err = rxe_loopback(skb);
 	} else {
-		err = rxe->ifc_ops->send(rxe, pkt, skb);
+		err = rxe_send(rxe, pkt, skb);
 	}
 
 	if (err) {
