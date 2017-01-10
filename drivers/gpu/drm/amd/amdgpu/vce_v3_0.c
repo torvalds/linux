@@ -175,7 +175,7 @@ static void vce_v3_0_set_vce_sw_clock_gating(struct amdgpu_device *adev,
 		WREG32(mmVCE_UENC_CLOCK_GATING_2, data);
 
 		data = RREG32(mmVCE_UENC_REG_CLOCK_GATING);
-		data &= ~0xffc00000;
+		data &= ~0x3ff;
 		WREG32(mmVCE_UENC_REG_CLOCK_GATING, data);
 
 		data = RREG32(mmVCE_UENC_DMA_DCLK_CTRL);
