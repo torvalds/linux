@@ -112,7 +112,6 @@ struct klsi_105_port_settings {
 
 struct klsi_105_private {
 	struct klsi_105_port_settings	cfg;
-	struct ktermios			termios;
 	unsigned long			line_state; /* modem line settings */
 	spinlock_t			lock;
 };
@@ -232,8 +231,6 @@ static int klsi_105_port_probe(struct usb_serial_port *port)
 
 	spin_lock_init(&priv->lock);
 
-	/* priv->termios is left uninitialized until port opening */
-
 	usb_set_serial_port_data(port, priv);
 
 	return 0;
@@ -254,7 +251,6 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 	struct klsi_105_private *priv = usb_get_serial_port_data(port);
 	int retval = 0;
 	int rc;
-	int i;
 	unsigned long line_state;
 	struct klsi_105_port_settings *cfg;
 	unsigned long flags;
@@ -277,14 +273,7 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 	cfg->unknown2 = 1;
 	klsi_105_chg_port_settings(port, cfg);
 
-	/* set up termios structure */
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->termios.c_iflag = tty->termios.c_iflag;
-	priv->termios.c_oflag = tty->termios.c_oflag;
-	priv->termios.c_cflag = tty->termios.c_cflag;
-	priv->termios.c_lflag = tty->termios.c_lflag;
-	for (i = 0; i < NCCS; i++)
-		priv->termios.c_cc[i] = tty->termios.c_cc[i];
 	priv->cfg.pktlen   = cfg->pktlen;
 	priv->cfg.baudrate = cfg->baudrate;
 	priv->cfg.databits = cfg->databits;
