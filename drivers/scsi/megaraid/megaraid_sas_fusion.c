@@ -95,6 +95,7 @@ extern unsigned int resetwaittime;
 extern unsigned int dual_qdepth_disable;
 static void megasas_free_rdpq_fusion(struct megasas_instance *instance);
 static void megasas_free_reply_fusion(struct megasas_instance *instance);
+void megasas_change_r1_fp_status(unsigned long instance_addr);
 
 
 
@@ -2628,8 +2629,9 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 	 *	to get new command
 	 */
 	if (cmd->is_raid_1_fp_write &&
-		atomic_inc_return(&instance->fw_outstanding) >
-			(instance->host->can_queue)) {
+		(atomic_inc_return(&instance->fw_outstanding) >
+			(instance->host->can_queue) ||
+		(!atomic_read(&instance->r1_write_fp_capable)))) {
 		megasas_fpio_to_ldio(instance, cmd, cmd->scmd);
 		atomic_dec(&instance->fw_outstanding);
 	} else if (cmd->is_raid_1_fp_write) {
@@ -2638,17 +2640,19 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 		megasas_prepare_secondRaid1_IO(instance, cmd, r1_cmd);
 	}
 
-
 	/*
 	 * Issue the command to the FW
 	 */
+	if (scmd->sc_data_direction == PCI_DMA_TODEVICE && instance->is_ventura)
+		atomic64_add(scsi_bufflen(scmd), &instance->bytes_wrote);
 
 	megasas_fire_cmd_fusion(instance, req_desc, instance->is_ventura);
 
-	if (r1_cmd)
+	if (r1_cmd) {
+		atomic64_add(scsi_bufflen(scmd), &instance->bytes_wrote);
 		megasas_fire_cmd_fusion(instance, r1_cmd->request_desc,
-				instance->is_ventura);
-
+			instance->is_ventura);
+	}
 
 	return 0;
 }

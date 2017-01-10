@@ -1429,6 +1429,8 @@ enum FW_BOOT_CONTEXT {
 #define MFI_1068_FW_HANDSHAKE_OFFSET		0x64
 #define MFI_1068_FW_READY			0xDDDD0000
 
+#define MEGASAS_RAID1_FAST_PATH_STATUS_CHECK_INTERVAL HZ
+
 #define MR_MAX_REPLY_QUEUES_OFFSET              0X0000001F
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET          0X003FC000
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT    14
@@ -2101,6 +2103,10 @@ struct megasas_instance {
 	atomic_t ldio_outstanding;
 	atomic_t fw_reset_no_pci_access;
 
+	atomic64_t bytes_wrote; /* used for raid1 fast path enable or disable */
+	atomic_t r1_write_fp_capable;
+
+
 	struct megasas_instance_template *instancet;
 	struct tasklet_struct isr_tasklet;
 	struct work_struct work_init;
@@ -2142,6 +2148,7 @@ struct megasas_instance {
 	long reset_flags;
 	struct mutex reset_mutex;
 	struct timer_list sriov_heartbeat_timer;
+	struct timer_list r1_fp_hold_timer;
 	char skip_heartbeat_timer_del;
 	u8 requestorId;
 	char PlasmaFW111;
@@ -2158,6 +2165,7 @@ struct megasas_instance {
 	bool is_ventura;
 	bool msix_combined;
 	u16 max_raid_mapsize;
+	u64 pci_threshold_bandwidth; /* used to control the fp writes */
 };
 struct MR_LD_VF_MAP {
 	u32 size;

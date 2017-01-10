@@ -977,7 +977,7 @@ struct MR_FW_RAID_MAP_DYNAMIC {
 	u32 desc_table_size;  /* Total Size of desc table */
 	/* Total Number of elements in the desc table */
 	u32 desc_table_num_elements;
-	u64	reserved1;
+	u64	pci_threshold_bandwidth;
 	u32	reserved2[3];	/*future use */
 	/* timeout value used by driver in FP IOs */
 	u8 fp_pd_io_timeout_sec;
