@@ -211,7 +211,6 @@ retry:
 		ctx.contents_encryption_mode = FS_ENCRYPTION_MODE_AES_256_XTS;
 		ctx.filenames_encryption_mode = FS_ENCRYPTION_MODE_AES_256_CTS;
 		memset(ctx.master_key_descriptor, 0x42, FS_KEY_DESCRIPTOR_SIZE);
-		res = sizeof(ctx);
 	} else if (res != sizeof(ctx)) {
 		return -EINVAL;
 	}
