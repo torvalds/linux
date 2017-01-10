@@ -82,6 +82,15 @@ int amdgpu_cs_get_ring(struct amdgpu_device *adev, u32 ip_type,
 			return -EINVAL;
 		}
 		break;
+	case AMDGPU_HW_IP_UVD_ENC:
+		if (ring < adev->uvd.num_enc_rings){
+			*out_ring = &adev->uvd.ring_enc[ring];
+		} else {
+			DRM_ERROR("only %d UVD ENC rings are supported\n",
+				adev->uvd.num_enc_rings);
+			return -EINVAL;
+		}
+		break;
 	}
 
 	if (!(*out_ring && (*out_ring)->adev)) {
