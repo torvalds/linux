@@ -1434,6 +1434,12 @@ enum FW_BOOT_CONTEXT {
 #define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT    14
 #define MR_MAX_MSIX_REG_ARRAY                   16
 #define MR_RDPQ_MODE_OFFSET			0X00800000
+
+#define MR_MAX_RAID_MAP_SIZE_OFFSET_SHIFT	16
+#define MR_MAX_RAID_MAP_SIZE_MASK		0x1FF
+#define MR_MIN_MAP_SIZE				0x10000
+/* 64k */
+
 #define MR_CAN_HANDLE_SYNC_CACHE_OFFSET		0X01000000
 
 /*
@@ -2151,6 +2157,7 @@ struct megasas_instance {
 	bool fw_sync_cache_support;
 	bool is_ventura;
 	bool msix_combined;
+	u16 max_raid_mapsize;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
