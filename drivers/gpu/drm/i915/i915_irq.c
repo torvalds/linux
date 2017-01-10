@@ -1557,7 +1557,6 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 	struct drm_driver *driver = dev_priv->drm.driver;
 	uint32_t crcs[5];
 	int head, tail;
-	u32 frame;
 
 	spin_lock(&pipe_crc->lock);
 	if (pipe_crc->source) {
@@ -1612,8 +1611,9 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 		crcs[2] = crc2;
 		crcs[3] = crc3;
 		crcs[4] = crc4;
-		frame = driver->get_vblank_counter(&dev_priv->drm, pipe);
-		drm_crtc_add_crc_entry(&crtc->base, true, frame, crcs);
+		drm_crtc_add_crc_entry(&crtc->base, true,
+				       drm_accurate_vblank_count(&crtc->base),
+				       crcs);
 	}
 }
 #else
