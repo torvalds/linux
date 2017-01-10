@@ -630,6 +630,7 @@ int rxe_completer(void *arg)
 			if (pkt) {
 				rxe_drop_ref(pkt->qp);
 				kfree_skb(skb);
+				skb = NULL;
 			}
 			goto done;
 
@@ -653,6 +654,7 @@ int rxe_completer(void *arg)
 			    qp->qp_timeout_jiffies)
 				mod_timer(&qp->retrans_timer,
 					  jiffies + qp->qp_timeout_jiffies);
+			WARN_ON_ONCE(skb);
 			goto exit;
 
 		case COMPST_ERROR_RETRY:
@@ -665,8 +667,10 @@ int rxe_completer(void *arg)
 			 */
 
 			/* there is nothing to retry in this case */
-			if (!wqe || (wqe->state == wqe_state_posted))
+			if (!wqe || (wqe->state == wqe_state_posted)) {
+				WARN_ON_ONCE(skb);
 				goto exit;
+			}
 
 			if (qp->comp.retry_cnt > 0) {
 				if (qp->comp.retry_cnt != 7)
@@ -688,8 +692,10 @@ int rxe_completer(void *arg)
 				if (pkt) {
 					rxe_drop_ref(pkt->qp);
 					kfree_skb(skb);
+					skb = NULL;
 				}
 
+				WARN_ON_ONCE(skb);
 				goto exit;
 
 			} else {
@@ -709,6 +715,9 @@ int rxe_completer(void *arg)
 				mod_timer(&qp->rnr_nak_timer,
 					  jiffies + rnrnak_jiffies(aeth_syn(pkt)
 						& ~AETH_TYPE_MASK));
+				rxe_drop_ref(pkt->qp);
+				kfree_skb(skb);
+				skb = NULL;
 				goto exit;
 			} else {
 				wqe->status = IB_WC_RNR_RETRY_EXC_ERR;
@@ -724,8 +733,10 @@ int rxe_completer(void *arg)
 			if (pkt) {
 				rxe_drop_ref(pkt->qp);
 				kfree_skb(skb);
+				skb = NULL;
 			}
 
+			WARN_ON_ONCE(skb);
 			goto exit;
 		}
 	}
@@ -734,6 +745,7 @@ exit:
 	/* we come here if we are done with processing and want the task to
 	 * exit from the loop calling us
 	 */
+	WARN_ON_ONCE(skb);
 	rxe_drop_ref(qp);
 	return -EAGAIN;
 
@@ -741,6 +753,7 @@ done:
 	/* we come here if we have processed a packet we want the task to call
 	 * us again to see if there is anything else to do
 	 */
+	WARN_ON_ONCE(skb);
 	rxe_drop_ref(qp);
 	return 0;
 }
