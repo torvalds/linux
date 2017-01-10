@@ -2735,7 +2735,7 @@ static void nop_submit_request(struct drm_i915_gem_request *request)
 	intel_engine_init_global_seqno(request->engine, request->global_seqno);
 }
 
-static void i915_gem_cleanup_engine(struct intel_engine_cs *engine)
+static void engine_set_wedged(struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_request *request;
 	unsigned long flags;
@@ -2789,7 +2789,7 @@ static int __i915_gem_set_wedged_BKL(void *data)
 	enum intel_engine_id id;
 
 	for_each_engine(engine, i915, id)
-		i915_gem_cleanup_engine(engine);
+		engine_set_wedged(engine);
 
 	return 0;
 }
