@@ -47,6 +47,8 @@ CONTENTS
   5-3. IO
     5-3-1. IO Interface Files
     5-3-2. Writeback
+  5-4. RDMA
+    5-4-1. RDMA Interface Files
 6. Namespace
   6-1. Basics
   6-2. The Root and Views
@@ -1117,6 +1119,42 @@ writeback as follows.
 	For cgroup writeback, this is calculated into ratio against
 	total available memory and applied the same way as
 	vm.dirty[_background]_ratio.
+
+
+5-4. RDMA
+
+The "rdma" controller regulates the distribution and accounting of
+of RDMA resources.
+
+5-4-1. RDMA Interface Files
+
+  rdma.max
+	A readwrite nested-keyed file that exists for all the cgroups
+	except root that describes current configured resource limit
+	for a RDMA/IB device.
+
+	Lines are keyed by device name and are not ordered.
+	Each line contains space separated resource name and its configured
+	limit that can be distributed.
+
+	The following nested keys are defined.
+
+	  hca_handle	Maximum number of HCA Handles
+	  hca_object 	Maximum number of HCA Objects
+
+	An example for mlx4 and ocrdma device follows.
+
+	  mlx4_0 hca_handle=2 hca_object=2000
+	  ocrdma1 hca_handle=3 hca_object=max
+
+  rdma.current
+	A read-only file that describes current resource usage.
+	It exists for all the cgroup except root.
+
+	An example for mlx4 and ocrdma device follows.
+
+	  mlx4_0 hca_handle=1 hca_object=20
+	  ocrdma1 hca_handle=1 hca_object=23
 
 
 6. Namespace
