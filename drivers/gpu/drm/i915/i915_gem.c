@@ -1749,6 +1749,31 @@ int i915_gem_mmap_gtt_version(void)
 	return 1;
 }
 
+static inline struct i915_ggtt_view
+compute_partial_view(struct drm_i915_gem_object *obj,
+		     struct vm_area_struct *area,
+		     pgoff_t page_offset,
+		     unsigned int chunk)
+{
+	struct i915_ggtt_view view;
+
+	if (i915_gem_object_is_tiled(obj))
+		chunk = roundup(chunk, tile_row_pages(obj));
+
+	memset(&view, 0, sizeof(view));
+	view.type = I915_GGTT_VIEW_PARTIAL;
+	view.params.partial.offset = rounddown(page_offset, chunk);
+	view.params.partial.size =
+		min_t(unsigned int, chunk,
+		      vma_pages(area) - view.params.partial.offset);
+
+	/* If the partial covers the entire object, just create a normal VMA. */
+	if (chunk >= obj->base.size >> PAGE_SHIFT)
+		view.type = I915_GGTT_VIEW_NORMAL;
+
+	return view;
+}
+
 /**
  * i915_gem_fault - fault a page into the GTT
  * @area: CPU VMA in question
@@ -1825,26 +1850,10 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	/* Now pin it into the GTT as needed */
 	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, flags);
 	if (IS_ERR(vma)) {
-		struct i915_ggtt_view view;
-		unsigned int chunk_size;
-
 		/* Use a partial view if it is bigger than available space */
-		chunk_size = MIN_CHUNK_PAGES;
-		if (i915_gem_object_is_tiled(obj))
-			chunk_size = roundup(chunk_size, tile_row_pages(obj));
-
-		memset(&view, 0, sizeof(view));
-		view.type = I915_GGTT_VIEW_PARTIAL;
-		view.params.partial.offset = rounddown(page_offset, chunk_size);
-		view.params.partial.size =
-			min_t(unsigned int, chunk_size,
-			      vma_pages(area) - view.params.partial.offset);
-
-		/* If the partial covers the entire object, just create a
-		 * normal VMA.
-		 */
-		if (chunk_size >= obj->base.size >> PAGE_SHIFT)
-			view.type = I915_GGTT_VIEW_NORMAL;
+		struct i915_ggtt_view view =
+			compute_partial_view(obj, area,
+					     page_offset, MIN_CHUNK_PAGES);
 
 		/* Userspace is now writing through an untracked VMA, abandon
 		 * all hope that the hardware is able to track future writes.
