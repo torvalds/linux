@@ -630,27 +630,19 @@ static int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
 	struct nfs4_slot *slot;
 
 	if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
-		goto out_sleep;
+		return -EAGAIN;
 
 	slot = nfs4_alloc_slot(tbl);
 	if (IS_ERR(slot)) {
 		if (slot == ERR_PTR(-ENOMEM))
 			task->tk_timeout = HZ >> 2;
-		goto out_sleep;
+		return -EAGAIN;
 	}
 
 	slot->privileged = args->sa_privileged ? 1 : 0;
 	args->sa_slot = slot;
 	res->sr_slot = slot;
 	return 0;
-
-out_sleep:
-	if (args->sa_privileged)
-		rpc_sleep_on_priority(&tbl->slot_tbl_waitq, task,
-				NULL, RPC_PRIORITY_PRIVILEGED);
-	else
-		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
-	return -EAGAIN;
 }
 
 static void nfs40_sequence_free_slot(struct nfs4_sequence_res *res)
@@ -888,7 +880,7 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	    !args->sa_privileged) {
 		/* The state manager will wait until the slot table is empty */
 		dprintk("%s session is draining\n", __func__);
-		goto out_sleep;
+		return -EAGAIN;
 	}
 
 	slot = nfs4_alloc_slot(tbl);
@@ -897,7 +889,7 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 		if (slot == ERR_PTR(-ENOMEM))
 			task->tk_timeout = HZ >> 2;
 		dprintk("<-- %s: no free slots\n", __func__);
-		goto out_sleep;
+		return -EAGAIN;
 	}
 
 	slot->privileged = args->sa_privileged ? 1 : 0;
@@ -916,14 +908,6 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	res->sr_status = 1;
 	trace_nfs4_setup_sequence(session, args);
 	return 0;
-out_sleep:
-	/* Privileged tasks are queued with top priority */
-	if (args->sa_privileged)
-		rpc_sleep_on_priority(&tbl->slot_tbl_waitq, task,
-				NULL, RPC_PRIORITY_PRIVILEGED);
-	else
-		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
-	return -EAGAIN;
 }
 
 static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
@@ -993,13 +977,22 @@ int nfs4_setup_sequence(const struct nfs_client *client,
 #endif /* CONFIG_NFS_V4_1 */
 		ret = nfs40_setup_sequence(client->cl_slot_tbl, args, res, task);
 
+	if (ret == -EAGAIN)
+		goto out_sleep;
 	spin_unlock(&tbl->slot_tbl_lock);
-	if (ret < 0)
-		return ret;
 
 out_start:
 	rpc_call_start(task);
 	return 0;
+
+out_sleep:
+	if (args->sa_privileged)
+		rpc_sleep_on_priority(&tbl->slot_tbl_waitq, task,
+				NULL, RPC_PRIORITY_PRIVILEGED);
+	else
+		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
+	spin_unlock(&tbl->slot_tbl_lock);
+	return -EAGAIN;
 }
 EXPORT_SYMBOL_GPL(nfs4_setup_sequence);
 
