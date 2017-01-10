@@ -5270,7 +5270,7 @@ void btrfs_evict_inode(struct inode *inode)
 		goto no_delete;
 	}
 
-	ret = btrfs_commit_inode_delayed_inode(inode);
+	ret = btrfs_commit_inode_delayed_inode(BTRFS_I(inode));
 	if (ret) {
 		btrfs_orphan_del(NULL, inode);
 		goto no_delete;
