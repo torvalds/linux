@@ -254,7 +254,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 		}
 		break;
 	default:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 	}
 
 	/* Check operation validity. */

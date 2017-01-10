@@ -123,7 +123,7 @@ static int rxe_mem_alloc(struct rxe_dev *rxe, struct rxe_mem *mem, int num_buf)
 			goto err2;
 	}
 
-	WARN_ON(!is_power_of_2(RXE_BUF_PER_MAP));
+	BUILD_BUG_ON(!is_power_of_2(RXE_BUF_PER_MAP));
 
 	mem->map_shift	= ilog2(RXE_BUF_PER_MAP);
 	mem->map_mask	= RXE_BUF_PER_MAP - 1;
@@ -189,7 +189,7 @@ int rxe_mem_init_user(struct rxe_dev *rxe, struct rxe_pd *pd, u64 start,
 		goto err1;
 	}
 
-	WARN_ON(!is_power_of_2(umem->page_size));
+	WARN_ON_ONCE(!is_power_of_2(umem->page_size));
 
 	mem->page_shift		= ilog2(umem->page_size);
 	mem->page_mask		= umem->page_size - 1;
@@ -375,7 +375,7 @@ int rxe_mem_copy(struct rxe_mem *mem, u64 iova, void *addr, int length,
 		return 0;
 	}
 
-	WARN_ON(!mem->map);
+	WARN_ON_ONCE(!mem->map);
 
 	err = mem_check_range(mem, iova, length);
 	if (err) {

@@ -307,7 +307,7 @@ static enum resp_states check_op_valid(struct rxe_qp *qp,
 		break;
 
 	default:
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
 		break;
 	}
 
@@ -495,7 +495,7 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		}
 	}
 
-	WARN_ON(qp->resp.mr);
+	WARN_ON_ONCE(qp->resp.mr);
 
 	qp->resp.mr = mem;
 	return RESPST_EXECUTE;
@@ -808,9 +808,10 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 		err = process_atomic(qp, pkt);
 		if (err)
 			return err;
-	} else
+	} else {
 		/* Unreachable */
-		WARN_ON(1);
+		WARN_ON_ONCE(1);
+	}
 
 	/* We successfully processed this new request. */
 	qp->resp.msn++;
@@ -1396,7 +1397,7 @@ int rxe_responder(void *arg)
 			goto exit;
 
 		default:
-			WARN_ON(1);
+			WARN_ON_ONCE(1);
 		}
 	}
 
