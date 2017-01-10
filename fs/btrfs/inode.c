@@ -4425,7 +4425,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	 * items.
 	 */
 	if (min_type == 0 && root == BTRFS_I(inode)->root)
-		btrfs_kill_delayed_inode_items(inode);
+		btrfs_kill_delayed_inode_items(BTRFS_I(inode));
 
 	key.objectid = ino;
 	key.offset = (u64)-1;
