@@ -1206,7 +1206,7 @@ static int cec_config_thread_func(void *arg)
 		las->log_addr[i] = CEC_LOG_ADDR_INVALID;
 		if (last_la == CEC_LOG_ADDR_INVALID ||
 		    last_la == CEC_LOG_ADDR_UNREGISTERED ||
-		    !(last_la & type2mask[type]))
+		    !((1 << last_la) & type2mask[type]))
 			last_la = la_list[0];
 
 		err = cec_config_log_addr(adap, i, last_la);
