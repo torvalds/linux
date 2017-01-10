@@ -1286,15 +1286,15 @@ out:
 	return ret;
 }
 
-void btrfs_remove_delayed_node(struct inode *inode)
+void btrfs_remove_delayed_node(struct btrfs_inode *inode)
 {
 	struct btrfs_delayed_node *delayed_node;
 
-	delayed_node = READ_ONCE(BTRFS_I(inode)->delayed_node);
+	delayed_node = READ_ONCE(inode->delayed_node);
 	if (!delayed_node)
 		return;
 
-	BTRFS_I(inode)->delayed_node = NULL;
+	inode->delayed_node = NULL;
 	btrfs_release_delayed_node(delayed_node);
 }
 

@@ -5395,7 +5395,7 @@ void btrfs_evict_inode(struct inode *inode)
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
 no_delete:
-	btrfs_remove_delayed_node(inode);
+	btrfs_remove_delayed_node(BTRFS_I(inode));
 	clear_inode(inode);
 }
 
