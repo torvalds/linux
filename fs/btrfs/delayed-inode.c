@@ -1854,9 +1854,9 @@ release_node:
 	return ret;
 }
 
-int btrfs_delayed_delete_inode_ref(struct inode *inode)
+int btrfs_delayed_delete_inode_ref(struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
 	struct btrfs_delayed_node *delayed_node;
 
 	/*
@@ -1867,7 +1867,7 @@ int btrfs_delayed_delete_inode_ref(struct inode *inode)
 	if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags))
 		return -EAGAIN;
 
-	delayed_node = btrfs_get_or_create_delayed_node(BTRFS_I(inode));
+	delayed_node = btrfs_get_or_create_delayed_node(inode);
 	if (IS_ERR(delayed_node))
 		return PTR_ERR(delayed_node);
 

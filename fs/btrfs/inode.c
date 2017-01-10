@@ -4029,7 +4029,7 @@ static int __btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 	 * we update the inode item.
 	 */
 	if (BTRFS_I(inode)->dir_index) {
-		ret = btrfs_delayed_delete_inode_ref(inode);
+		ret = btrfs_delayed_delete_inode_ref(BTRFS_I(inode));
 		if (!ret) {
 			index = BTRFS_I(inode)->dir_index;
 			goto skip_backref;
