@@ -2626,6 +2626,8 @@ static void reset_request(struct drm_i915_gem_request *request)
 		head = 0;
 	}
 	memset(vaddr + head, 0, request->postfix - head);
+
+	dma_fence_set_error(&request->fence, -EIO);
 }
 
 void i915_gem_reset_prepare(struct drm_i915_private *dev_priv)
