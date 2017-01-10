@@ -408,7 +408,8 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	return 0;
 
 fail_unreserve:
-	ww_mutex_unlock(&bo->tbo.resv->lock);
+	if (!resv)
+		ww_mutex_unlock(&bo->tbo.resv->lock);
 	amdgpu_bo_unref(&bo);
 	return r;
 }
