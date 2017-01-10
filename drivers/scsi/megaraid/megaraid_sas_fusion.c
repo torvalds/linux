@@ -244,7 +244,10 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 
 	reg_set = instance->reg_set;
 
-	cur_max_fw_cmds = readl(&instance->reg_set->outbound_scratch_pad_3) & 0x00FFFF;
+	/* ventura FW does not fill outbound_scratch_pad_3 with queue depth */
+	if (!instance->is_ventura)
+		cur_max_fw_cmds =
+		readl(&instance->reg_set->outbound_scratch_pad_3) & 0x00FFFF;
 
 	if (dual_qdepth_disable || !cur_max_fw_cmds)
 		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
@@ -837,7 +840,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	drv_ops = (MFI_CAPABILITIES *) &(init_frame->driver_operations);
 
 	/* driver support Extended MSIX */
-	if (fusion->adapter_type == INVADER_SERIES)
+	if (fusion->adapter_type >= INVADER_SERIES)
 		drv_ops->mfi_capabilities.support_additional_msix = 1;
 	/* driver supports HA / Remote LUN over Fast Path interface */
 	drv_ops->mfi_capabilities.support_fp_remote_lun = 1;
@@ -1491,7 +1494,7 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 
 	fusion = instance->ctrl_context;
 
-	if (fusion->adapter_type == INVADER_SERIES) {
+	if (fusion->adapter_type >= INVADER_SERIES) {
 		struct MPI25_IEEE_SGE_CHAIN64 *sgl_ptr_end = sgl_ptr;
 		sgl_ptr_end += fusion->max_sge_in_main_msg - 1;
 		sgl_ptr_end->Flags = 0;
@@ -1508,7 +1511,7 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 		sgl_ptr->Length = cpu_to_le32(sg_dma_len(os_sgl));
 		sgl_ptr->Address = cpu_to_le64(sg_dma_address(os_sgl));
 		sgl_ptr->Flags = 0;
-		if (fusion->adapter_type == INVADER_SERIES)
+		if (fusion->adapter_type >= INVADER_SERIES)
 			if (i == sge_count - 1)
 				sgl_ptr->Flags = IEEE_SGE_FLAGS_END_OF_LIST;
 		sgl_ptr++;
@@ -1519,7 +1522,7 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 		    (sge_count > fusion->max_sge_in_main_msg)) {
 
 			struct MPI25_IEEE_SGE_CHAIN64 *sg_chain;
-			if (fusion->adapter_type == INVADER_SERIES) {
+			if (fusion->adapter_type >= INVADER_SERIES) {
 				if ((le16_to_cpu(cmd->io_request->IoFlags) &
 					MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH) !=
 					MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH)
@@ -1535,7 +1538,7 @@ megasas_make_sgl_fusion(struct megasas_instance *instance,
 			sg_chain = sgl_ptr;
 			/* Prepare chain element */
 			sg_chain->NextChainOffset = 0;
-			if (fusion->adapter_type == INVADER_SERIES)
+			if (fusion->adapter_type >= INVADER_SERIES)
 				sg_chain->Flags = IEEE_SGE_FLAGS_CHAIN_ELEMENT;
 			else
 				sg_chain->Flags =
@@ -2286,7 +2289,7 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 		pRAID_Context->timeout_value =
 			cpu_to_le16((os_timeout_value > timeout_limit) ?
 			timeout_limit : os_timeout_value);
-		if (fusion->adapter_type == INVADER_SERIES)
+		if (fusion->adapter_type >= INVADER_SERIES)
 			io_request->IoFlags |=
 				cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
 
@@ -2998,7 +3001,7 @@ build_mpt_mfi_pass_thru(struct megasas_instance *instance,
 
 	io_req = cmd->io_request;
 
-	if (fusion->adapter_type == INVADER_SERIES) {
+	if (fusion->adapter_type >= INVADER_SERIES) {
 		struct MPI25_IEEE_SGE_CHAIN64 *sgl_ptr_end =
 			(struct MPI25_IEEE_SGE_CHAIN64 *)&io_req->SGL;
 		sgl_ptr_end += fusion->max_sge_in_main_msg - 1;

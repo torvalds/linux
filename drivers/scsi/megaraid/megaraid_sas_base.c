@@ -5042,34 +5042,29 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	reg_set = instance->reg_set;
 
-	switch (instance->pdev->device) {
-	case PCI_DEVICE_ID_LSI_FUSION:
-	case PCI_DEVICE_ID_LSI_PLASMA:
-	case PCI_DEVICE_ID_LSI_INVADER:
-	case PCI_DEVICE_ID_LSI_FURY:
-	case PCI_DEVICE_ID_LSI_INTRUDER:
-	case PCI_DEVICE_ID_LSI_INTRUDER_24:
-	case PCI_DEVICE_ID_LSI_CUTLASS_52:
-	case PCI_DEVICE_ID_LSI_CUTLASS_53:
+	if (fusion)
 		instance->instancet = &megasas_instance_template_fusion;
-		break;
-	case PCI_DEVICE_ID_LSI_SAS1078R:
-	case PCI_DEVICE_ID_LSI_SAS1078DE:
-		instance->instancet = &megasas_instance_template_ppc;
-		break;
-	case PCI_DEVICE_ID_LSI_SAS1078GEN2:
-	case PCI_DEVICE_ID_LSI_SAS0079GEN2:
-		instance->instancet = &megasas_instance_template_gen2;
-		break;
-	case PCI_DEVICE_ID_LSI_SAS0073SKINNY:
-	case PCI_DEVICE_ID_LSI_SAS0071SKINNY:
-		instance->instancet = &megasas_instance_template_skinny;
-		break;
-	case PCI_DEVICE_ID_LSI_SAS1064R:
-	case PCI_DEVICE_ID_DELL_PERC5:
-	default:
-		instance->instancet = &megasas_instance_template_xscale;
-		break;
+	else {
+		switch (instance->pdev->device) {
+		case PCI_DEVICE_ID_LSI_SAS1078R:
+		case PCI_DEVICE_ID_LSI_SAS1078DE:
+			instance->instancet = &megasas_instance_template_ppc;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS1078GEN2:
+		case PCI_DEVICE_ID_LSI_SAS0079GEN2:
+			instance->instancet = &megasas_instance_template_gen2;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS0073SKINNY:
+		case PCI_DEVICE_ID_LSI_SAS0071SKINNY:
+			instance->instancet = &megasas_instance_template_skinny;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS1064R:
+		case PCI_DEVICE_ID_DELL_PERC5:
+		default:
+			instance->instancet = &megasas_instance_template_xscale;
+			instance->pd_list_not_supported = 1;
+			break;
+		}
 	}
 
 	if (megasas_transition_to_ready(instance, 0)) {
@@ -5819,7 +5814,9 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
 			(instance->pdev->device == PCI_DEVICE_ID_LSI_PLASMA))
 			fusion->adapter_type = THUNDERBOLT_SERIES;
-		else if (!instance->is_ventura)
+		else if (instance->is_ventura)
+			fusion->adapter_type = VENTURA_SERIES;
+		else
 			fusion->adapter_type = INVADER_SERIES;
 	}
 	break;
