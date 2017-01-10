@@ -3319,8 +3319,16 @@ int stmmac_dvr_probe(struct device *device,
 		ndev->max_mtu = JUMBO_LEN;
 	else
 		ndev->max_mtu = SKB_MAX_HEAD(NET_SKB_PAD + NET_IP_ALIGN);
-	if (priv->plat->maxmtu < ndev->max_mtu)
+	/* Will not overwrite ndev->max_mtu if plat->maxmtu > ndev->max_mtu
+	 * as well as plat->maxmtu < ndev->min_mtu which is a invalid range.
+	 */
+	if ((priv->plat->maxmtu < ndev->max_mtu) &&
+	    (priv->plat->maxmtu >= ndev->min_mtu))
 		ndev->max_mtu = priv->plat->maxmtu;
+	else if (priv->plat->maxmtu < ndev->min_mtu)
+		netdev_warn(priv->dev,
+			    "%s: warning: maxmtu having invalid value (%d)\n",
+			    __func__, priv->plat->maxmtu);
 
 	if (flow_ctrl)
 		priv->flow_ctrl = FLOW_AUTO;	/* RX/TX pause on */
