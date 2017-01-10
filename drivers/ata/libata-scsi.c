@@ -2453,23 +2453,6 @@ static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
 }
 
 /**
- *	ata_scsiop_noop - Command handler that simply returns success.
- *	@args: device IDENTIFY data / SCSI command of interest.
- *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
- *
- *	No operation.  Simply returns success to caller, to indicate
- *	that the caller should successfully complete this SCSI command.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-static unsigned int ata_scsiop_noop(struct ata_scsi_args *args, u8 *rbuf)
-{
-	VPRINTK("ENTER\n");
-	return 0;
-}
-
-/**
  *	modecpy - Prepare response for MODE SENSE
  *	@dest: output buffer
  *	@src: data being copied
@@ -4425,14 +4408,11 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	case SEEK_6:
 	case SEEK_10:
 	case TEST_UNIT_READY:
-		ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
 		break;
 
 	case SEND_DIAGNOSTIC:
 		tmp8 = scsicmd[1] & ~(1 << 3);
-		if ((tmp8 == 0x4) && (!scsicmd[3]) && (!scsicmd[4]))
-			ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
-		else
+		if (tmp8 != 0x4 || scsicmd[3] || scsicmd[4])
 			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
 		break;
 
