@@ -47,6 +47,8 @@ CONTENTS
   5-3. IO
     5-3-1. IO Interface Files
     5-3-2. Writeback
+  5-4. PID
+    5-4-1. PID Interface Files
 6. Namespace
   6-1. Basics
   6-2. The Root and Views
@@ -1117,6 +1119,45 @@ writeback as follows.
 	For cgroup writeback, this is calculated into ratio against
 	total available memory and applied the same way as
 	vm.dirty[_background]_ratio.
+
+
+5-4. PID
+
+The process number controller is used to allow a cgroup to stop any
+new tasks from being fork()'d or clone()'d after a specified limit is
+reached.
+
+The number of tasks in a cgroup can be exhausted in ways which other
+controllers cannot prevent, thus warranting its own controller.  For
+example, a fork bomb is likely to exhaust the number of tasks before
+hitting memory restrictions.
+
+Note that PIDs used in this controller refer to TIDs, process IDs as
+used by the kernel.
+
+
+5-4-1. PID Interface Files
+
+  pids.max
+
+ A read-write single value file which exists on non-root cgroups.  The
+ default is "max".
+
+ Hard limit of number of processes.
+
+  pids.current
+
+ A read-only single value file which exists on all cgroups.
+
+ The number of processes currently in the cgroup and its descendants.
+
+Organisational operations are not blocked by cgroup policies, so it is
+possible to have pids.current > pids.max.  This can be done by either
+setting the limit to be smaller than pids.current, or attaching enough
+processes to the cgroup such that pids.current is larger than
+pids.max.  However, it is not possible to violate a cgroup PID policy
+through fork() or clone(). These will return -EAGAIN if the creation
+of a new process would cause a cgroup policy to be violated.
 
 
 6. Namespace
