@@ -43,9 +43,13 @@
 
 #define GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT	0x04
 #define GRBM_GFX_INDEX__VCE_INSTANCE_MASK	0x10
+#define GRBM_GFX_INDEX__VCE_ALL_PIPE		0x07
+
 #define mmVCE_LMI_VCPU_CACHE_40BIT_BAR0	0x8616
 #define mmVCE_LMI_VCPU_CACHE_40BIT_BAR1	0x8617
 #define mmVCE_LMI_VCPU_CACHE_40BIT_BAR2	0x8618
+#define mmGRBM_GFX_INDEX_DEFAULT 0xE0000000
+
 #define VCE_STATUS_VCPU_REPORT_FW_LOADED_MASK	0x02
 
 #define VCE_V3_0_FW_SIZE	(384 * 1024)
@@ -53,6 +57,9 @@
 #define VCE_V3_0_DATA_SIZE	((16 * 1024 * AMDGPU_MAX_VCE_HANDLES) + (52 * 1024))
 
 #define FW_52_8_3	((52 << 24) | (8 << 16) | (3 << 8))
+
+#define GET_VCE_INSTANCE(i)  ((i) << GRBM_GFX_INDEX__VCE_INSTANCE__SHIFT \
+					| GRBM_GFX_INDEX__VCE_ALL_PIPE)
 
 static void vce_v3_0_mc_resume(struct amdgpu_device *adev, int idx);
 static void vce_v3_0_set_ring_funcs(struct amdgpu_device *adev);
@@ -249,7 +256,7 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 		if (adev->vce.harvest_config & (1 << idx))
 			continue;
 
-		WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, idx);
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(idx));
 		vce_v3_0_mc_resume(adev, idx);
 		WREG32_FIELD(VCE_STATUS, JOB_BUSY, 1);
 
@@ -273,7 +280,7 @@ static int vce_v3_0_start(struct amdgpu_device *adev)
 		}
 	}
 
-	WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, 0);
+	WREG32(mmGRBM_GFX_INDEX, mmGRBM_GFX_INDEX_DEFAULT);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
@@ -288,7 +295,7 @@ static int vce_v3_0_stop(struct amdgpu_device *adev)
 		if (adev->vce.harvest_config & (1 << idx))
 			continue;
 
-		WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, idx);
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(idx));
 
 		if (adev->asic_type >= CHIP_STONEY)
 			WREG32_P(mmVCE_VCPU_CNTL, 0, ~0x200001);
@@ -306,7 +313,7 @@ static int vce_v3_0_stop(struct amdgpu_device *adev)
 			vce_v3_0_set_vce_sw_clock_gating(adev, false);
 	}
 
-	WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, 0);
+	WREG32(mmGRBM_GFX_INDEX, mmGRBM_GFX_INDEX_DEFAULT);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
@@ -586,17 +593,17 @@ static bool vce_v3_0_check_soft_reset(void *handle)
 	 * VCE team suggest use bit 3--bit 6 for busy status check
 	 */
 	mutex_lock(&adev->grbm_idx_mutex);
-	WREG32_FIELD(GRBM_GFX_INDEX, INSTANCE_INDEX, 0);
+	WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(0));
 	if (RREG32(mmVCE_STATUS) & AMDGPU_VCE_STATUS_BUSY_MASK) {
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE0, 1);
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
 	}
-	WREG32_FIELD(GRBM_GFX_INDEX, INSTANCE_INDEX, 0x10);
+	WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(1));
 	if (RREG32(mmVCE_STATUS) & AMDGPU_VCE_STATUS_BUSY_MASK) {
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE0, 1);
 		srbm_soft_reset = REG_SET_FIELD(srbm_soft_reset, SRBM_SOFT_RESET, SOFT_RESET_VCE1, 1);
 	}
-	WREG32_FIELD(GRBM_GFX_INDEX, INSTANCE_INDEX, 0);
+	WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(0));
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	if (srbm_soft_reset) {
@@ -734,7 +741,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 		if (adev->vce.harvest_config & (1 << i))
 			continue;
 
-		WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, i);
+		WREG32(mmGRBM_GFX_INDEX, GET_VCE_INSTANCE(i));
 
 		if (enable) {
 			/* initialize VCE_CLOCK_GATING_A: Clock ON/OFF delay */
@@ -753,7 +760,7 @@ static int vce_v3_0_set_clockgating_state(void *handle,
 		vce_v3_0_set_vce_sw_clock_gating(adev, enable);
 	}
 
-	WREG32_FIELD(GRBM_GFX_INDEX, VCE_INSTANCE, 0);
+	WREG32(mmGRBM_GFX_INDEX, mmGRBM_GFX_INDEX_DEFAULT);
 	mutex_unlock(&adev->grbm_idx_mutex);
 
 	return 0;
