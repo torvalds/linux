@@ -1058,7 +1058,6 @@ static const struct dev_pm_ops bxt_pinctrl_pm_ops = {
 
 static struct platform_driver bxt_pinctrl_driver = {
 	.probe = bxt_pinctrl_probe,
-	.remove = intel_pinctrl_remove,
 	.driver = {
 		.name = "broxton-pinctrl",
 		.acpi_match_table = bxt_pinctrl_acpi_match,

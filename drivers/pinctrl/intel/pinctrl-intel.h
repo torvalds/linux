@@ -121,8 +121,6 @@ struct intel_pinctrl_soc_data {
 
 int intel_pinctrl_probe(struct platform_device *pdev,
 			const struct intel_pinctrl_soc_data *soc_data);
-int intel_pinctrl_remove(struct platform_device *pdev);
-
 #ifdef CONFIG_PM_SLEEP
 int intel_pinctrl_suspend(struct device *dev);
 int intel_pinctrl_resume(struct device *dev);

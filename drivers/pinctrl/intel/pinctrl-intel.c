@@ -884,7 +884,7 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	pctrl->chip.base = -1;
 	pctrl->irq = irq;
 
-	ret = gpiochip_add_data(&pctrl->chip, pctrl);
+	ret = devm_gpiochip_add_data(pctrl->dev, &pctrl->chip, pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to register gpiochip\n");
 		return ret;
@@ -894,7 +894,7 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 				     0, 0, pctrl->soc->npins);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add GPIO pin range\n");
-		goto fail;
+		return ret;
 	}
 
 	/*
@@ -907,24 +907,19 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 			       dev_name(pctrl->dev), pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to request interrupt\n");
-		goto fail;
+		return ret;
 	}
 
 	ret = gpiochip_irqchip_add(&pctrl->chip, &intel_gpio_irqchip, 0,
 				   handle_bad_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add irqchip\n");
-		goto fail;
+		return ret;
 	}
 
 	gpiochip_set_chained_irqchip(&pctrl->chip, &intel_gpio_irqchip, irq,
 				     NULL);
 	return 0;
-
-fail:
-	gpiochip_remove(&pctrl->chip);
-
-	return ret;
 }
 
 static int intel_pinctrl_pm_init(struct intel_pinctrl *pctrl)
@@ -1045,16 +1040,6 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(intel_pinctrl_probe);
-
-int intel_pinctrl_remove(struct platform_device *pdev)
-{
-	struct intel_pinctrl *pctrl = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&pctrl->chip);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(intel_pinctrl_remove);
 
 #ifdef CONFIG_PM_SLEEP
 static bool intel_pinctrl_should_save(struct intel_pinctrl *pctrl, unsigned pin)
