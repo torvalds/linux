@@ -26,7 +26,7 @@
 
 #define DRIVER_NAME		"zx-dma"
 #define DMA_ALIGN		4
-#define DMA_MAX_SIZE		(0x10000 - PAGE_SIZE)
+#define DMA_MAX_SIZE		(0x10000 - 512)
 #define LLI_BLOCK_SIZE		(4 * PAGE_SIZE)
 
 #define REG_ZX_SRC_ADDR			0x00
