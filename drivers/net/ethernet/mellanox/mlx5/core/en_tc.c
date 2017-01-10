@@ -239,10 +239,6 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		if (memchr_inv(&mask->dst, 0xff, sizeof(mask->dst)))
 			return -EOPNOTSUPP;
 
-		/* udp src port isn't supported */
-		if (memchr_inv(&mask->src, 0, sizeof(mask->src)))
-			return -EOPNOTSUPP;
-
 		if (mlx5e_vxlan_lookup_port(priv, be16_to_cpu(key->dst)) &&
 		    MLX5_CAP_ESW(priv->mdev, vxlan_encap_decap))
 			parse_vxlan_attr(spec, f);
@@ -254,6 +250,10 @@ static int parse_tunnel_attr(struct mlx5e_priv *priv,
 		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
 			 udp_dport, ntohs(key->dst));
 
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c,
+			 udp_sport, ntohs(mask->src));
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v,
+			 udp_sport, ntohs(key->src));
 	} else { /* udp dst port must be given */
 			return -EOPNOTSUPP;
 	}
@@ -794,6 +794,10 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 
 	/* udp dst port must be given */
 	if (!memchr_inv(&key->tp_dst, 0, sizeof(key->tp_dst)))
+		return -EOPNOTSUPP;
+
+	/* setting udp src port isn't supported */
+	if (memchr_inv(&key->tp_src, 0, sizeof(key->tp_src)))
 		return -EOPNOTSUPP;
 
 	if (mlx5e_vxlan_lookup_port(priv, be16_to_cpu(key->tp_dst)) &&
