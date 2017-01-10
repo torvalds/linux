@@ -737,8 +737,8 @@ static int mlx5e_create_encap_header_ipv4(struct mlx5e_priv *priv,
 	struct flowi4 fl4 = {};
 	char *encap_header;
 	int encap_size;
-	__be32 saddr;
-	int ttl;
+	__be32 saddr = 0;
+	int ttl = 0;
 	int err;
 
 	encap_header = kzalloc(max_encap_size, GFP_KERNEL);
