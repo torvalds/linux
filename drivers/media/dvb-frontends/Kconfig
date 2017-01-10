@@ -619,7 +619,7 @@ config DVB_LGDT3305
 
 config DVB_LGDT3306A
 	tristate "LG Electronics LGDT3306A based"
-	depends on DVB_CORE && I2C
+	depends on DVB_CORE && I2C && I2C_MUX
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  An ATSC 8VSB and QAM-B 64/256 demodulator module. Say Y when you want
