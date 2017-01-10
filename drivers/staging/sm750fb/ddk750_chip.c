@@ -25,8 +25,9 @@ void sm750_set_chip_type(unsigned short devId, u8 revId)
 			chip = SM750LE;
 			pr_info("found sm750le\n");
 		}
-	} else
+	} else {
 		chip = SM_UNKNOWN;
+	}
 }
 
 static unsigned int get_mxclk_freq(void)
