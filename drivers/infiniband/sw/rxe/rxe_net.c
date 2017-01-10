@@ -243,8 +243,8 @@ static struct socket *rxe_setup_udp_tunnel(struct net *net, __be16 port,
 {
 	int err;
 	struct socket *sock;
-	struct udp_port_cfg udp_cfg = {0};
-	struct udp_tunnel_sock_cfg tnl_cfg = {0};
+	struct udp_port_cfg udp_cfg = { };
+	struct udp_tunnel_sock_cfg tnl_cfg = { };
 
 	if (ipv6) {
 		udp_cfg.family = AF_INET6;
@@ -658,7 +658,7 @@ struct notifier_block rxe_net_notifier = {
 	.notifier_call = rxe_notify,
 };
 
-int rxe_net_ipv4_init(void)
+static int rxe_net_ipv4_init(void)
 {
 	recv_sockets.sk4 = rxe_setup_udp_tunnel(&init_net,
 				htons(ROCE_V2_UDP_DPORT), false);
@@ -671,7 +671,7 @@ int rxe_net_ipv4_init(void)
 	return 0;
 }
 
-int rxe_net_ipv6_init(void)
+static int rxe_net_ipv6_init(void)
 {
 #if IS_ENABLED(CONFIG_IPV6)
 
