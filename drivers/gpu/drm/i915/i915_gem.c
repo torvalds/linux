@@ -2665,6 +2665,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 		reset_request(request);
 	} else {
 		i915_gem_context_mark_innocent(hung_ctx);
+		dma_fence_set_error(&request->fence, -EAGAIN);
 		return;
 	}
 
