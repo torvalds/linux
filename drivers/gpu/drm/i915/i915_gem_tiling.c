@@ -34,8 +34,8 @@
 /**
  * DOC: buffer object tiling
  *
- * i915_gem_set_tiling() and i915_gem_get_tiling() is the userspace interface to
- * declare fence register requirements.
+ * i915_gem_set_tiling_ioctl() and i915_gem_get_tiling_ioctl() is the userspace
+ * interface to declare fence register requirements.
  *
  * In principle GEM doesn't care at all about the internal data layout of an
  * object, and hence it also doesn't care about tiling or swizzling. There's two
@@ -233,7 +233,7 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
 }
 
 /**
- * i915_gem_set_tiling - IOCTL handler to set tiling mode
+ * i915_gem_set_tiling_ioctl - IOCTL handler to set tiling mode
  * @dev: DRM device
  * @data: data pointer for the ioctl
  * @file: DRM file for the ioctl call
@@ -247,8 +247,8 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
  * Zero on success, negative errno on failure.
  */
 int
-i915_gem_set_tiling(struct drm_device *dev, void *data,
-		   struct drm_file *file)
+i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file)
 {
 	struct drm_i915_gem_set_tiling *args = data;
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -385,7 +385,7 @@ err:
 }
 
 /**
- * i915_gem_get_tiling - IOCTL handler to get tiling mode
+ * i915_gem_get_tiling_ioctl - IOCTL handler to get tiling mode
  * @dev: DRM device
  * @data: data pointer for the ioctl
  * @file: DRM file for the ioctl call
@@ -398,8 +398,8 @@ err:
  * Zero on success, negative errno on failure.
  */
 int
-i915_gem_get_tiling(struct drm_device *dev, void *data,
-		   struct drm_file *file)
+i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
+			  struct drm_file *file)
 {
 	struct drm_i915_gem_get_tiling *args = data;
 	struct drm_i915_private *dev_priv = to_i915(dev);
