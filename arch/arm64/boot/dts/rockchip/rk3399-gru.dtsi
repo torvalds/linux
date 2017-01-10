@@ -656,9 +656,6 @@ ap_i2c_audio: &i2c8 {
 };
 
 &emmc_phy {
-	freq-sel = <200000000>;
-	dr-sel = <50>;
-	opdelay = <4>;
 	status = "okay";
 };
 
