@@ -927,6 +927,13 @@ config HID_RKVR
 	  Support for RKVR devices.
 	  Say Y here if you have a RKVR device.
 
+config HID_ALPS
+	tristate "ALPS device support"
+	depends on I2C_HID
+	---help---
+	  Support for ALPS devices.
+	  Say Y here if you have a ALPS device.
+
 endmenu
 
 endif # HID
