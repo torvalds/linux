@@ -44,9 +44,9 @@ static enum bw_calcs_version bw_calcs_version_from_asic_id(struct hw_asic_id asi
 
 	case FAMILY_VI:
 		if (ASIC_REV_IS_POLARIS10_P(asic_id.hw_internal_rev))
-			// || ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev)
 			return BW_CALCS_VERSION_POLARIS10;
-		if (ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev))
+		if (ASIC_REV_IS_POLARIS11_M(asic_id.hw_internal_rev) ||
+				ASIC_REV_IS_POLARIS12_V(asic_id.hw_internal_rev))
 			return BW_CALCS_VERSION_POLARIS11;
 		return BW_CALCS_VERSION_INVALID;
 
