@@ -48,7 +48,7 @@ struct axp20x_usb_power {
 	struct device_node *np;
 	struct regmap *regmap;
 	struct power_supply *supply;
-	int axp20x_id;
+	enum axp20x_variants axp20x_id;
 };
 
 static irqreturn_t axp20x_usb_power_irq(int irq, void *devid)
@@ -294,7 +294,8 @@ static int axp20x_usb_power_probe(struct platform_device *pdev)
 	if (!power)
 		return -ENOMEM;
 
-	power->axp20x_id = (int)of_device_get_match_data(&pdev->dev);
+	power->axp20x_id = (enum axp20x_variants)of_device_get_match_data(
+								&pdev->dev);
 
 	power->np = pdev->dev.of_node;
 	power->regmap = axp20x->regmap;
