@@ -133,10 +133,7 @@ static void cmpk_count_txstatistic(struct net_device *dev, cmpk_txfb_t *pstx_fb)
 
 	priv->stats.txretrycount += pstx_fb->retry_cnt;
 	priv->stats.txfeedbackretry += pstx_fb->retry_cnt;
-
 }
-
-
 
 /*-----------------------------------------------------------------------------
  * Function:    cmpk_handle_tx_feedback()
@@ -178,7 +175,6 @@ static void cmpk_handle_tx_feedback(struct net_device *dev, u8 *pmsg)
 	/* Collect info TX feedback packet to fill TCB. */
 	/* We can not know the packet length and transmit type: broadcast or uni
 	   or multicast. */
-
 }
 
 static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
@@ -198,12 +194,7 @@ static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 		}
 
 		rtl819xusb_beacon_tx(dev, tx_rate); /* HW Beacon */
-
-
 }
-
-
-
 
 /*-----------------------------------------------------------------------------
  * Function:    cmpk_handle_interrupt_status()
@@ -242,7 +233,6 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 		return;
 	}
 
-
 	/* Statistics of beacon for ad-hoc mode. */
 	if (priv->ieee80211->iw_mode == IW_MODE_ADHOC) {
 		/* 2 maybe need endian transform? */
@@ -261,16 +251,12 @@ static void cmpk_handle_interrupt_status(struct net_device *dev, u8 *pmsg)
 
 		if (rx_intr_status.interrupt_status & ISR_BcnTimerIntr)
 			cmdpkt_beacontimerinterrupt_819xusb(dev);
-
 	}
 
 	/* Other informations in interrupt status we need? */
 
-
 	DMESG("<---- cmpk_handle_interrupt_status()\n");
-
 }
-
 
 /*-----------------------------------------------------------------------------
  * Function:    cmpk_handle_query_config_rx()
@@ -295,7 +281,6 @@ static void cmpk_handle_query_config_rx(struct net_device *dev, u8 *pmsg)
 {
 	cmpk_query_cfg_t	rx_query_cfg;
 
-
 	/* 1. Extract TX feedback info from RFD to temp structure buffer. */
 	/* It seems that FW use big endian(MIPS) and DRV use little endian in
 	   windows OS. So we have to read the content byte by byte or transfer
@@ -309,9 +294,7 @@ static void cmpk_handle_query_config_rx(struct net_device *dev, u8 *pmsg)
 					  (pmsg[10] <<  8) | (pmsg[11] <<  0);
 	rx_query_cfg.mask		= (pmsg[12] << 24) | (pmsg[13] << 16) |
 					  (pmsg[14] <<  8) | (pmsg[15] <<  0);
-
 }
-
 
 /*-----------------------------------------------------------------------------
  * Function:	cmpk_count_tx_status()
@@ -374,8 +357,6 @@ static void cmpk_count_tx_status(struct net_device *dev,
 	priv->stats.last_packet_rate	= pstx_status->rate;
 }
 
-
-
 /*-----------------------------------------------------------------------------
  * Function:	cmpk_handle_tx_status()
  *
@@ -400,9 +381,7 @@ static void cmpk_handle_tx_status(struct net_device *dev, u8 *pmsg)
 	memcpy((void *)&rx_tx_sts, (void *)pmsg, sizeof(cmpk_tx_status_t));
 	/* 2. Use tx feedback info to count TX statistics. */
 	cmpk_count_tx_status(dev, &rx_tx_sts);
-
 }
-
 
 /*-----------------------------------------------------------------------------
  * Function:	cmpk_handle_tx_rate_history()
@@ -427,7 +406,6 @@ static void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
 	u16		length = sizeof(cmpk_tx_rahis_t);
 	u32		*ptemp;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-
 
 #ifdef ENABLE_PS
 	pAdapter->HalFunc.GetHwRegHandler(pAdapter, HW_VAR_RF_STATE,
@@ -469,9 +447,7 @@ static void cmpk_handle_tx_rate_history(struct net_device *dev, u8 *pmsg)
 		for (j = 0; j < 4; j++)
 			priv->stats.txrate.ht_mcs[j][i] += ptxrate->ht_mcs[j][i];
 	}
-
 }
-
 
 /*-----------------------------------------------------------------------------
  * Function:    cmpk_message_handle_rx()
@@ -567,5 +543,4 @@ u32 cmpk_message_handle_rx(struct net_device *dev,
 		pcmd_buff    += cmd_length;
 	}
 	return	1;	/* This is a command packet. */
-
 }
