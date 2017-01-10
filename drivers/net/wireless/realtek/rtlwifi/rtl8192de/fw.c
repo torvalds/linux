@@ -323,7 +323,6 @@ int rtl92d_download_fw(struct ieee80211_hw *hw)
 	spin_unlock_irqrestore(&globalmutex_for_fwdownload, flags);
 	if (err)
 		pr_err("fw is not ready to run!\n");
-		goto exit;
 exit:
 	err = _rtl92d_fw_init(hw);
 	return err;
