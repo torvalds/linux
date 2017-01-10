@@ -484,13 +484,6 @@ struct device_attribute *ata_common_sdev_attrs[] = {
 };
 EXPORT_SYMBOL_GPL(ata_common_sdev_attrs);
 
-static void ata_scsi_invalid_field(struct ata_device *dev,
-				   struct scsi_cmnd *cmd, u16 field)
-{
-	ata_scsi_set_invalid_field(dev, cmd, field, 0xff);
-	cmd->scsi_done(cmd);
-}
-
 /**
  *	ata_std_bios_param - generic bios head/sector/cylinder calculator used by sd.
  *	@sdev: SCSI device for which BIOS geometry is to be determined
@@ -2057,6 +2050,12 @@ defer:
 		return SCSI_MLQUEUE_HOST_BUSY;
 }
 
+struct ata_scsi_args {
+	struct ata_device	*dev;
+	u16			*id;
+	struct scsi_cmnd	*cmd;
+};
+
 /**
  *	ata_scsi_rbuf_get - Map response buffer.
  *	@cmd: SCSI command containing buffer to be mapped.
@@ -2133,7 +2132,6 @@ static void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
 
 	if (rc == 0)
 		cmd->result = SAM_STAT_GOOD;
-	args->done(cmd);
 }
 
 /**
@@ -2451,23 +2449,6 @@ static unsigned int ata_scsiop_inq_b6(struct ata_scsi_args *args, u8 *rbuf)
 	put_unaligned_be32(args->dev->zac_zones_optimal_nonseq, &rbuf[12]);
 	put_unaligned_be32(args->dev->zac_zones_max_open, &rbuf[16]);
 
-	return 0;
-}
-
-/**
- *	ata_scsiop_noop - Command handler that simply returns success.
- *	@args: device IDENTIFY data / SCSI command of interest.
- *	@rbuf: Response buffer, to which simulated SCSI cmd output is sent.
- *
- *	No operation.  Simply returns success to caller, to indicate
- *	that the caller should successfully complete this SCSI command.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-static unsigned int ata_scsiop_noop(struct ata_scsi_args *args, u8 *rbuf)
-{
-	VPRINTK("ENTER\n");
 	return 0;
 }
 
@@ -2873,6 +2854,26 @@ static void atapi_request_sense(struct ata_queued_cmd *qc)
 	DPRINTK("EXIT\n");
 }
 
+/*
+ * ATAPI devices typically report zero for their SCSI version, and sometimes
+ * deviate from the spec WRT response data format.  If SCSI version is
+ * reported as zero like normal, then we make the following fixups:
+ *   1) Fake MMC-5 version, to indicate to the Linux scsi midlayer this is a
+ *	modern device.
+ *   2) Ensure response data format / ATAPI information are always correct.
+ */
+static void atapi_fixup_inquiry(struct scsi_cmnd *cmd)
+{
+	u8 buf[4];
+
+	sg_copy_to_buffer(scsi_sglist(cmd), scsi_sg_count(cmd), buf, 4);
+	if (buf[2] == 0) {
+		buf[2] = 0x5;
+		buf[3] = 0x32;
+	}
+	sg_copy_from_buffer(scsi_sglist(cmd), scsi_sg_count(cmd), buf, 4);
+}
+
 static void atapi_qc_complete(struct ata_queued_cmd *qc)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
@@ -2927,30 +2928,8 @@ static void atapi_qc_complete(struct ata_queued_cmd *qc)
 		 */
 		ata_gen_passthru_sense(qc);
 	} else {
-		u8 *scsicmd = cmd->cmnd;
-
-		if ((scsicmd[0] == INQUIRY) && ((scsicmd[1] & 0x03) == 0)) {
-			unsigned long flags;
-			u8 *buf;
-
-			buf = ata_scsi_rbuf_get(cmd, true, &flags);
-
-	/* ATAPI devices typically report zero for their SCSI version,
-	 * and sometimes deviate from the spec WRT response data
-	 * format.  If SCSI version is reported as zero like normal,
-	 * then we make the following fixups:  1) Fake MMC-5 version,
-	 * to indicate to the Linux scsi midlayer this is a modern
-	 * device.  2) Ensure response data format / ATAPI information
-	 * are always correct.
-	 */
-			if (buf[2] == 0) {
-				buf[2] = 0x5;
-				buf[3] = 0x32;
-			}
-
-			ata_scsi_rbuf_put(cmd, true, &flags);
-		}
-
+		if (cmd->cmnd[0] == INQUIRY && (cmd->cmnd[1] & 0x03) == 0)
+			atapi_fixup_inquiry(cmd);
 		cmd->result = SAM_STAT_GOOD;
 	}
 
@@ -4352,12 +4331,11 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	args.dev = dev;
 	args.id = dev->id;
 	args.cmd = cmd;
-	args.done = cmd->scsi_done;
 
 	switch(scsicmd[0]) {
 	case INQUIRY:
 		if (scsicmd[1] & 2)		   /* is CmdDt set?  */
-		    ata_scsi_invalid_field(dev, cmd, 1);
+			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
 		else if ((scsicmd[1] & 1) == 0)    /* is EVPD clear? */
 			ata_scsi_rbuf_fill(&args, ata_scsiop_inq_std);
 		else switch (scsicmd[2]) {
@@ -4389,7 +4367,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 			}
 			/* Fallthrough */
 		default:
-			ata_scsi_invalid_field(dev, cmd, 2);
+			ata_scsi_set_invalid_field(dev, cmd, 2, 0xff);
 			break;
 		}
 		break;
@@ -4407,7 +4385,7 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 		if ((scsicmd[1] & 0x1f) == SAI_READ_CAPACITY_16)
 			ata_scsi_rbuf_fill(&args, ata_scsiop_read_cap);
 		else
-			ata_scsi_invalid_field(dev, cmd, 1);
+			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
 		break;
 
 	case REPORT_LUNS:
@@ -4417,7 +4395,6 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	case REQUEST_SENSE:
 		ata_scsi_set_sense(dev, cmd, 0, 0, 0);
 		cmd->result = (DRIVER_SENSE << 24);
-		cmd->scsi_done(cmd);
 		break;
 
 	/* if we reach this, then writeback caching is disabled,
@@ -4431,31 +4408,29 @@ void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd)
 	case SEEK_6:
 	case SEEK_10:
 	case TEST_UNIT_READY:
-		ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
 		break;
 
 	case SEND_DIAGNOSTIC:
 		tmp8 = scsicmd[1] & ~(1 << 3);
-		if ((tmp8 == 0x4) && (!scsicmd[3]) && (!scsicmd[4]))
-			ata_scsi_rbuf_fill(&args, ata_scsiop_noop);
-		else
-			ata_scsi_invalid_field(dev, cmd, 1);
+		if (tmp8 != 0x4 || scsicmd[3] || scsicmd[4])
+			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
 		break;
 
 	case MAINTENANCE_IN:
 		if (scsicmd[1] == MI_REPORT_SUPPORTED_OPERATION_CODES)
 			ata_scsi_rbuf_fill(&args, ata_scsiop_maint_in);
 		else
-			ata_scsi_invalid_field(dev, cmd, 1);
+			ata_scsi_set_invalid_field(dev, cmd, 1, 0xff);
 		break;
 
 	/* all other commands */
 	default:
 		ata_scsi_set_sense(dev, cmd, ILLEGAL_REQUEST, 0x20, 0x0);
 		/* "Invalid command operation code" */
-		cmd->scsi_done(cmd);
 		break;
 	}
+
+	cmd->scsi_done(cmd);
 }
 
 int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
