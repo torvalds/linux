@@ -187,9 +187,9 @@ static void cmdpkt_beacontimerinterrupt_819xusb(struct net_device *dev)
 	u16 tx_rate;
 		/* 87B have to S/W beacon for DTM encryption_cmn. */
 		if (priv->ieee80211->current_network.mode == IEEE_A ||
-			priv->ieee80211->current_network.mode == IEEE_N_5G ||
-			(priv->ieee80211->current_network.mode == IEEE_N_24G &&
-			 (!priv->ieee80211->pHTInfo->bCurSuppCCK))) {
+		    priv->ieee80211->current_network.mode == IEEE_N_5G ||
+		    (priv->ieee80211->current_network.mode == IEEE_N_24G &&
+		     (!priv->ieee80211->pHTInfo->bCurSuppCCK))) {
 			tx_rate = 60;
 			DMESG("send beacon frame  tx rate is 6Mbpm\n");
 		} else {
