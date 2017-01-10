@@ -172,8 +172,8 @@ static void bcm2835_power_off(void)
 
 static int bcm2835_wdt_probe(struct platform_device *pdev)
 {
+	struct resource *res;
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct bcm2835_wdt *wdt;
 	int err;
 
@@ -184,16 +184,15 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 
 	spin_lock_init(&wdt->lock);
 
-	wdt->base = of_iomap(np, 0);
-	if (!wdt->base) {
-		dev_err(dev, "Failed to remap watchdog regs");
-		return -ENODEV;
-	}
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	wdt->base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(wdt->base))
+		return PTR_ERR(wdt->base);
 
 	watchdog_set_drvdata(&bcm2835_wdt_wdd, wdt);
 	watchdog_init_timeout(&bcm2835_wdt_wdd, heartbeat, dev);
 	watchdog_set_nowayout(&bcm2835_wdt_wdd, nowayout);
-	bcm2835_wdt_wdd.parent = &pdev->dev;
+	bcm2835_wdt_wdd.parent = dev;
 	if (bcm2835_wdt_is_running(wdt)) {
 		/*
 		 * The currently active timeout value (set by the
@@ -208,10 +207,10 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_restart_priority(&bcm2835_wdt_wdd, 128);
 
-	err = watchdog_register_device(&bcm2835_wdt_wdd);
+	watchdog_stop_on_reboot(&bcm2835_wdt_wdd);
+	err = devm_watchdog_register_device(dev, &bcm2835_wdt_wdd);
 	if (err) {
 		dev_err(dev, "Failed to register watchdog device");
-		iounmap(wdt->base);
 		return err;
 	}
 
@@ -224,19 +223,10 @@ static int bcm2835_wdt_probe(struct platform_device *pdev)
 
 static int bcm2835_wdt_remove(struct platform_device *pdev)
 {
-	struct bcm2835_wdt *wdt = platform_get_drvdata(pdev);
-
 	if (pm_power_off == bcm2835_power_off)
 		pm_power_off = NULL;
-	watchdog_unregister_device(&bcm2835_wdt_wdd);
-	iounmap(wdt->base);
 
 	return 0;
-}
-
-static void bcm2835_wdt_shutdown(struct platform_device *pdev)
-{
-	bcm2835_wdt_stop(&bcm2835_wdt_wdd);
 }
 
 static const struct of_device_id bcm2835_wdt_of_match[] = {
@@ -248,7 +238,6 @@ MODULE_DEVICE_TABLE(of, bcm2835_wdt_of_match);
 static struct platform_driver bcm2835_wdt_driver = {
 	.probe		= bcm2835_wdt_probe,
 	.remove		= bcm2835_wdt_remove,
-	.shutdown	= bcm2835_wdt_shutdown,
 	.driver = {
 		.name =		"bcm2835-wdt",
 		.of_match_table = bcm2835_wdt_of_match,
