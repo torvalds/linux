@@ -2658,13 +2658,13 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 		ring_hung = false;
 	}
 
-	if (ring_hung)
+	if (ring_hung) {
 		i915_gem_context_mark_guilty(hung_ctx);
-	else
+		reset_request(request);
+	} else {
 		i915_gem_context_mark_innocent(hung_ctx);
-
-	if (!ring_hung)
 		return;
+	}
 
 	DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
 			 engine->name, request->global_seqno);
