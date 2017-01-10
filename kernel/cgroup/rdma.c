@@ -518,6 +518,8 @@ static void print_rpool_values(struct seq_file *sf,
 		} else {
 			if (rpool)
 				value = rpool->resources[i].usage;
+			else
+				value = 0;
 		}
 
 		if (value == S32_MAX)
