@@ -1797,7 +1797,7 @@ int perf_evlist__start_workload(struct perf_evlist *evlist)
 		 */
 		ret = write(evlist->workload.cork_fd, &bf, 1);
 		if (ret < 0)
-			perror("enable to write to pipe");
+			perror("unable to write to pipe");
 
 		close(evlist->workload.cork_fd);
 		return ret;
