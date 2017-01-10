@@ -414,8 +414,8 @@ void rtl_lps_set_psmode(struct ieee80211_hw *hw, u8 rt_psmode)
 	}
 }
 
-/*Enter the leisure power save mode.*/
-void rtl_lps_enter(struct ieee80211_hw *hw)
+/* Interrupt safe routine to enter the leisure power save mode.*/
+static void rtl_lps_enter_core(struct ieee80211_hw *hw)
 {
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
@@ -455,10 +455,9 @@ void rtl_lps_enter(struct ieee80211_hw *hw)
 
 	spin_unlock_irqrestore(&rtlpriv->locks.lps_lock, flag);
 }
-EXPORT_SYMBOL(rtl_lps_enter);
 
-/*Leave the leisure power save mode.*/
-void rtl_lps_leave(struct ieee80211_hw *hw)
+/* Interrupt safe routine to leave the leisure power save mode.*/
+static void rtl_lps_leave_core(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
@@ -488,7 +487,6 @@ void rtl_lps_leave(struct ieee80211_hw *hw)
 	}
 	spin_unlock_irqrestore(&rtlpriv->locks.lps_lock, flag);
 }
-EXPORT_SYMBOL(rtl_lps_leave);
 
 /* For sw LPS*/
 void rtl_swlps_beacon(struct ieee80211_hw *hw, void *data, unsigned int len)
@@ -681,11 +679,33 @@ void rtl_lps_change_work_callback(struct work_struct *work)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->enter_ps)
-		rtl_lps_enter(hw);
+		rtl_lps_enter_core(hw);
 	else
-		rtl_lps_leave(hw);
+		rtl_lps_leave_core(hw);
 }
 EXPORT_SYMBOL_GPL(rtl_lps_change_work_callback);
+
+void rtl_lps_enter(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	if (!in_interrupt())
+		return rtl_lps_enter_core(hw);
+	rtlpriv->enter_ps = true;
+	schedule_work(&rtlpriv->works.lps_change_work);
+}
+EXPORT_SYMBOL_GPL(rtl_lps_enter);
+
+void rtl_lps_leave(struct ieee80211_hw *hw)
+{
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	if (!in_interrupt())
+		return rtl_lps_leave_core(hw);
+	rtlpriv->enter_ps = false;
+	schedule_work(&rtlpriv->works.lps_change_work);
+}
+EXPORT_SYMBOL_GPL(rtl_lps_leave);
 
 void rtl_swlps_wq_callback(void *data)
 {
