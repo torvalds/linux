@@ -258,9 +258,9 @@ EXCEPTION_ENTRY(_data_page_fault_handler)
 
 #else
 
-	l.mfspr r6,r0,SPR_SR               // SR
+	l.lwz   r6,PT_SR(r3)               // SR
 	l.andi  r6,r6,SPR_SR_DSX           // check for delay slot exception
-	l.sfeqi r6,0x1                     // exception happened in delay slot
+	l.sfne  r6,r0                      // exception happened in delay slot
 	l.bnf   7f
 	 l.lwz  r6,PT_PC(r3)               // address of an offending insn
 
