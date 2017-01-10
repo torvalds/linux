@@ -39,6 +39,7 @@
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
+#include <linux/iopoll.h>
 
 #include <linux/rockchip/cru.h>
 #include <linux/rockchip/pmu.h>
@@ -2636,12 +2637,20 @@ static void vcodec_shutdown(struct platform_device *pdev)
 {
 	struct vpu_subdev_data *data = platform_get_drvdata(pdev);
 	struct vpu_service_info *pservice = data->pservice;
+	int val;
+	int ret;
 
 	dev_info(&pdev->dev, "vcodec shutdown");
 
 	mutex_lock(&pservice->shutdown_lock);
 	atomic_set(&pservice->service_on, 0);
 	mutex_unlock(&pservice->shutdown_lock);
+
+	ret = readx_poll_timeout(atomic_read,
+				 &pservice->total_running,
+				 val, val == 0, 20000, 200000);
+	if (ret == -ETIMEDOUT)
+		dev_err(&pdev->dev, "wait total running time out\n");
 
 	vcodec_exit_mode(data);
 
