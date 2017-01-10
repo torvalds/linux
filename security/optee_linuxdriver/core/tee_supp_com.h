@@ -65,16 +65,21 @@ struct tee_rpc_free {
 };
 
 struct tee_rpc_cmd {
-	void *buffer;
+	union {
+		void    *buffer;
+		uint64_t padding_buf;
+	};
 	uint32_t size;
 	uint32_t type;
 	int fd;
+	int reserved;
 };
 
 struct tee_rpc_invoke {
 	uint32_t cmd;
 	uint32_t res;
 	uint32_t nbr_bf;
+	uint32_t reserved;
 	struct tee_rpc_cmd cmds[TEE_RPC_BUFFER_NUMBER];
 };
 
@@ -83,6 +88,7 @@ struct tee_rpc {
 	struct tee_rpc_invoke commFromUser;
 	struct semaphore datatouser;
 	struct semaphore datafromuser;
+	struct mutex thrd_mutex; /* Block the thread to wait for supp answer */
 	struct mutex outsync; /* Out sync mutex */
 	struct mutex insync; /* In sync mutex */
 	struct mutex reqsync; /* Request sync mutex */

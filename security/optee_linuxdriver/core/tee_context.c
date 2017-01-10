@@ -173,10 +173,8 @@ static void _tee_context_do_release(struct kref *kref)
 
 	dev_dbg(_DEV(tee), "%s: > ctx=%p\n", __func__, ctx);
 
-	mutex_lock(&tee->lock);
 	tee_dec_stats(&tee->stats[TEE_STATS_CONTEXT_IDX]);
 	list_del(&ctx->entry);
-	mutex_unlock(&tee->lock);
 
 	devm_kfree(_DEV(tee), ctx);
 	tee_put(tee);
@@ -202,10 +200,8 @@ static int is_in_list(struct tee *tee, struct list_head *entry)
 {
 	int present = 1;
 
-	mutex_lock(&tee->lock);
 	if ((entry->next == LIST_POISON1) && (entry->prev == LIST_POISON2))
 		present = 0;
-	mutex_unlock(&tee->lock);
 	return present;
 }
 
@@ -245,7 +241,9 @@ void tee_context_destroy(struct tee_context *ctx)
 
 	dev_dbg(_DEV(tee), "%s: ctx=%p\n", __func__, ctx);
 
+	mutex_lock(&tee->lock);
 	tee_context_put(ctx);
+	mutex_unlock(&tee->lock);
 }
 
 int tee_context_copy_from_client(const struct tee_context *ctx,

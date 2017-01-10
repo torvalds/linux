@@ -173,6 +173,8 @@ source security/tomoyo/Kconfig
 source security/apparmor/Kconfig
 source security/yama/Kconfig
 
+source security/optee_linuxdriver/Kconfig
+
 source security/integrity/Kconfig
 
 choice

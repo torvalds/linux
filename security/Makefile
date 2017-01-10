@@ -23,6 +23,7 @@ obj-$(CONFIG_SECURITY_TOMOYO)		+= tomoyo/
 obj-$(CONFIG_SECURITY_APPARMOR)		+= apparmor/
 obj-$(CONFIG_SECURITY_YAMA)		+= yama/
 obj-$(CONFIG_CGROUP_DEVICE)		+= device_cgroup.o
+obj-$(CONFIG_TEE_SUPPORT)		+= optee_linuxdriver/
 
 # Object integrity file lists
 subdir-$(CONFIG_INTEGRITY)		+= integrity

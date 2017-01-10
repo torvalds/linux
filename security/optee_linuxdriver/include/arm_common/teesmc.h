@@ -435,7 +435,7 @@ struct teesmc_meta_open_session {
  * r4-7/x4-7	Preserved
  *
  * Ebusy return register usage:
- * r0/x0	Return value, TEESMC_RETURN_EBUSY
+ * r0/x0	Return value, TEESMC_RETURN_ETHREAD_LIMIT
  * r1-3/x1-3	Preserved
  * r4-7/x4-7	Preserved
  *
@@ -450,7 +450,8 @@ struct teesmc_meta_open_session {
  * TEESMC_RETURN_OK			Call completed, result updated in
  *					the previously supplied struct
  *					teesmc32_arg.
- * TEESMC_RETURN_EBUSY			Trusted OS busy, try again later.
+ * TEESMC_RETURN_ETHREAD_LIMIT		Trusted OS out of threads,
+ *					try again later.
  * TEESMC_RETURN_EBADADDR		Bad physcial pointer to struct
  *					teesmc32_arg.
  * TEESMC_RETURN_EBADCMD		Bad/unknown cmd in struct teesmc32_arg
@@ -500,7 +501,8 @@ struct teesmc_meta_open_session {
  *					struct teesmc32_arg
  * TEESMC_RETURN_RPC			Call suspended by RPC call to normal
  *					world.
- * TEESMC_RETURN_EBUSY			Trusted OS busy, try again later.
+ * TEESMC_RETURN_ETHREAD_LIMIT		Trusted OS out of threads,
+ *					try again later.
  * TEESMC_RETURN_ERESUME		Resume failed, the opaque resume
  *					information was corrupt.
  */
@@ -685,7 +687,7 @@ struct teesmc_meta_open_session {
 
 /* Returned in r0 only from Trusted OS functions */
 #define TEESMC_RETURN_OK		0x0
-#define TEESMC_RETURN_EBUSY		0x1
+#define TEESMC_RETURN_ETHREAD_LIMIT	0x1
 #define TEESMC_RETURN_ERESUME		0x2
 #define TEESMC_RETURN_EBADADDR		0x3
 #define TEESMC_RETURN_EBADCMD		0x4

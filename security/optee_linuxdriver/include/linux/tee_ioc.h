@@ -36,22 +36,42 @@ struct tee_cmd_io {
 	TEEC_Result err;
 	uint32_t origin;
 	uint32_t cmd;
-	TEEC_UUID __user *uuid;
-	void __user *data;
-	uint32_t data_size;
-	TEEC_Operation __user *op;
 	int fd_sess;
+	/*
+	 * Here fd_sess is 32-bit variable. Since TEEC_Result also is defined as
+	 * "uint32_t", this structure is aligned.
+	 */
+	union {
+		TEEC_UUID __user *uuid;
+		uint64_t padding_uuid;
+	};
+	union {
+		void __user *data;
+		uint64_t padding_data;
+	};
+	union {
+		TEEC_Operation __user *op;
+		uint64_t padding_op;
+	};
+	uint32_t data_size;
+	int32_t reserved;
 };
 
 struct tee_shm_io {
-	void __user *buffer;
-	size_t size;
-	uint32_t flags;
 	union {
-		int fd_shm;
-		void *ptr;
+		void __user *buffer;
+		uint64_t padding_buf;
 	};
-	uint8_t registered;
+	uint32_t size;
+	uint32_t flags;
+	/*
+	 * Here fd_shm is 32-bit. To be compliant with the convention of file
+	 * descriptor definition, fd_shm is defined as "int" type other
+	 * than "int32_t". Even though using "int32_t" is more obvious to
+	 * indicate that we intend to keep this structure aligned.
+	 */
+	int fd_shm;
+	uint32_t registered;
 };
 
 #define TEE_OPEN_SESSION_IOC		_IOWR('t', 161, struct tee_cmd_io)

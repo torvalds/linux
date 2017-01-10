@@ -28,6 +28,7 @@
 
 static void reset_tee_cmd(struct tee_cmd_io *cmd)
 {
+	memset(cmd, 0, sizeof(struct tee_cmd_io));
 	cmd->fd_sess = -1;
 	cmd->cmd = 0;
 	cmd->uuid = NULL;
@@ -230,7 +231,7 @@ TEEC_Result TEEC_AllocateSharedMemory(TEEC_Context *context,
 	shm = (struct tee_shm *)(long)shm_io.fd_shm;
 	shared_memory->buffer = shm->kaddr;
 
-	pr_debug("%s(%zd) => fd=%d, kaddr=%p\n", __func__,
+	pr_debug("%s(%d) => fd=%d, kaddr=%p\n", __func__,
 		 shm_io.size, shm_io.fd_shm, (void *)shared_memory->buffer);
 
 	return TEEC_SUCCESS;

@@ -43,6 +43,7 @@ struct tee_shm *tee_shm_alloc_from_rpc(struct tee *tee, size_t size)
 
 	INMSG();
 
+	mutex_lock(&tee->lock);
 	shm = tee_shm_alloc(tee, size, TEE_SHM_TEMP | TEE_SHM_FROM_RPC);
 	if (IS_ERR_OR_NULL(shm)) {
 		dev_err(_DEV(tee), "%s: buffer allocation failed (%ld)\n",
@@ -50,30 +51,32 @@ struct tee_shm *tee_shm_alloc_from_rpc(struct tee *tee, size_t size)
 		goto out;
 	}
 
-	mutex_lock(&tee->lock);
 	tee_inc_stats(&tee->stats[TEE_STATS_SHM_IDX]);
 	list_add_tail(&shm->entry, &tee->list_rpc_shm);
-	mutex_unlock(&tee->lock);
+
 	shm->ctx = NULL;
 
 out:
+	mutex_unlock(&tee->lock);
 	OUTMSGX(shm);
 	return shm;
 }
 
 void tee_shm_free_from_rpc(struct tee_shm *shm)
 {
+	struct tee *tee;
+
 	if (shm == NULL)
 		return;
-
+	tee = shm->tee;
+	mutex_lock(&tee->lock);
 	if (shm->ctx == NULL) {
-		mutex_lock(&shm->tee->lock);
 		tee_dec_stats(&shm->tee->stats[TEE_STATS_SHM_IDX]);
 		list_del(&shm->entry);
-		mutex_unlock(&shm->tee->lock);
 	}
 
 	tee_shm_free(shm);
+	mutex_unlock(&tee->lock);
 }
 
 struct tee_shm *tee_shm_alloc(struct tee *tee, size_t size, uint32_t flags)
@@ -397,14 +400,14 @@ int tee_shm_alloc_io(struct tee_context *ctx, struct tee_shm_io *shm_io)
 
 	if (ctx->usr_client)
 		shm_io->fd_shm = 0;
-	else
-		shm_io->ptr = NULL;
 
+	mutex_lock(&tee->lock);
 	shm = tee_shm_alloc(tee, shm_io->size, shm_io->flags);
 	if (IS_ERR_OR_NULL(shm)) {
 		dev_err(_DEV(tee), "%s: buffer allocation failed (%ld)\n",
 			__func__, PTR_ERR(shm));
-		return PTR_ERR(shm);
+		ret = PTR_ERR(shm);
+		goto out;
 	}
 
 	if (ctx->usr_client) {
@@ -416,8 +419,7 @@ int tee_shm_alloc_io(struct tee_context *ctx, struct tee_shm_io *shm_io)
 		}
 
 		shm->flags |= TEEC_MEM_DMABUF;
-	} else
-		shm_io->ptr = shm;
+	}
 
 	shm->ctx = ctx;
 	shm->dev = get_device(_DEV(tee));
@@ -425,11 +427,10 @@ int tee_shm_alloc_io(struct tee_context *ctx, struct tee_shm_io *shm_io)
 	BUG_ON(ret);		/* tee_core_get must not issue */
 	tee_context_get(ctx);
 
-	mutex_lock(&tee->lock);
 	tee_inc_stats(&tee->stats[TEE_STATS_SHM_IDX]);
 	list_add_tail(&shm->entry, &ctx->list_shm);
-	mutex_unlock(&tee->lock);
 out:
+	mutex_unlock(&tee->lock);
 	OUTMSG(ret);
 	return ret;
 }
@@ -443,13 +444,13 @@ void tee_shm_free_io(struct tee_shm *shm)
 	mutex_lock(&ctx->tee->lock);
 	tee_dec_stats(&tee->stats[TEE_STATS_SHM_IDX]);
 	list_del(&shm->entry);
-	mutex_unlock(&ctx->tee->lock);
 
 	tee_shm_free(shm);
 	tee_put(ctx->tee);
 	tee_context_put(ctx);
 	if (dev)
 		put_device(dev);
+	mutex_unlock(&ctx->tee->lock);
 }
 
 /* Buffer allocated by rpc from fw and to be accessed by the user
@@ -465,6 +466,7 @@ int tee_shm_fd_for_rpc(struct tee_context *ctx, struct tee_shm_io *shm_io)
 
 	shm_io->fd_shm = 0;
 
+	mutex_lock(&tee->lock);
 	if (!list_empty(&tee->list_rpc_shm)) {
 		list_for_each(pshm, &tee->list_rpc_shm) {
 			shm = list_entry(pshm, struct tee_shm, entry);
@@ -485,9 +487,7 @@ found:
 	}
 
 	shm->ctx = ctx;
-	mutex_lock(&tee->lock);
 	list_move(&shm->entry, &ctx->list_shm);
-	mutex_unlock(&tee->lock);
 
 	shm->dev = get_device(_DEV(tee));
 	ret = tee_get(tee);
@@ -496,6 +496,7 @@ found:
 
 	BUG_ON(!tee->ops->shm_inc_ref(shm));
 out:
+	mutex_unlock(&tee->lock);
 	OUTMSG(ret);
 	return ret;
 }
@@ -722,10 +723,12 @@ struct tee_shm *tee_shm_get(struct tee_context *ctx, TEEC_SharedMemory *c_shm,
 	dev_dbg(_DEV(tee), "%s: > fd=%d flags=%08x\n",
 			__func__, c_shm->d.fd, c_shm->flags);
 
+	mutex_lock(&tee->lock);
 	shm = kzalloc(sizeof(*shm), GFP_KERNEL);
 	if (IS_ERR_OR_NULL(shm)) {
 		dev_err(_DEV(tee), "can't alloc tee_shm\n");
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	shm->ctx = ctx;
@@ -773,11 +776,13 @@ struct tee_shm *tee_shm_get(struct tee_context *ctx, TEEC_SharedMemory *c_shm,
 #endif
 	}
 
+	mutex_unlock(&tee->lock);
 	OUTMSGX(shm);
 	return shm;
 
 err:
 	kfree(shm);
+	mutex_unlock(&tee->lock);
 	OUTMSGX(ERR_PTR(ret));
 	return ERR_PTR(ret);
 }
@@ -792,6 +797,7 @@ void tee_shm_put(struct tee_context *ctx, struct tee_shm *shm)
 	BUG_ON(!shm);
 	BUG_ON(!(shm->flags & TEE_SHM_MEMREF));
 
+	mutex_lock(&tee->lock);
 	if (shm->flags & TEEC_MEM_DMABUF) {
 		struct tee_shm_dma_buf *sdb;
 		struct dma_buf *dma_buf;
@@ -810,6 +816,7 @@ void tee_shm_put(struct tee_context *ctx, struct tee_shm *shm)
 	}
 
 	kfree(shm);
+	mutex_unlock(&tee->lock);
 	OUTMSG(0);
 }
 

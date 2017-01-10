@@ -14,7 +14,7 @@
 # Trursted Execution Environment Configuration
 config TEE_SUPPORT
 	bool "Trusted Execution Environment Support"
-	default y
+	default n
 	---help---
 	  This implements the Trusted Execution Environment (TEE) Client
 	  API Specification from GlobalPlatform Device Technology.

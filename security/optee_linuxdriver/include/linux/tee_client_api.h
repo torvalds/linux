@@ -270,6 +270,14 @@ typedef struct {
 } TEEC_UUID;
 
 /**
+ * In terms of compatible kernel, the data struct shared by client application
+ * and TEE driver should be restructrued in "compatible" rules. To keep GP's
+ * standard in compatibility mode, the anonymous padding members are filled
+ * in the struct definition below.
+ */
+
+
+/**
  * struct TEEC_SharedMemory - Memory to transfer data between a client
  * application and trusted code.
  *
@@ -286,18 +294,26 @@ typedef struct {
  * is responsible to populate the buffer pointer.
  */
 typedef struct {
-	void *buffer;
-	size_t size;
+	union {
+		void *buffer;
+		uint64_t padding_ptr;
+	};
+	union {
+		size_t size;
+		uint64_t padding_sz;
+	};
 	uint32_t flags;
 	/*
 	 * identifier can store a handle (int) or a structure pointer (void *).
 	 * define this union to match case where sizeof(int)!=sizeof(void *).
 	 */
+	uint32_t reserved;
 	union {
 		int fd;
 		void *ptr;
+		uint64_t padding_d;
 	} d;
-	uint8_t registered;
+	uint64_t registered;
 } TEEC_SharedMemory;
 
 /**
@@ -313,8 +329,14 @@ typedef struct {
  * operation to be called.
  */
 typedef struct {
-	void *buffer;
-	size_t size;
+	union {
+		void *buffer;
+		uint64_t padding_ptr;
+	};
+	union {
+		size_t size;
+		uint64_t padding_sz;
+	};
 } TEEC_TempMemoryReference;
 
 /**
@@ -333,9 +355,18 @@ typedef struct {
  *
  */
 typedef struct {
-	TEEC_SharedMemory *parent;
-	size_t size;
-	size_t offset;
+	union {
+		TEEC_SharedMemory *parent;
+		uint64_t padding_ptr;
+	};
+	union {
+		size_t size;
+		uint64_t padding_sz;
+	};
+	union {
+		size_t offset;
+		uint64_t padding_off;
+	};
 } TEEC_RegisteredMemoryReference;
 
 /**
@@ -400,9 +431,12 @@ typedef struct {
 	uint32_t paramTypes;
 	TEEC_Parameter params[TEEC_CONFIG_PAYLOAD_REF_COUNT];
 	/* Implementation-Defined */
-	TEEC_Session *session;
+	union {
+		TEEC_Session *session;
+		uint64_t padding_ptr;
+	};
 	TEEC_SharedMemory memRefs[TEEC_CONFIG_PAYLOAD_REF_COUNT];
-	uint32_t flags;
+	uint64_t flags;
 } TEEC_Operation;
 
 /**

@@ -30,7 +30,6 @@
 
 /dts-v1/;
 
-/memreserve/ 0x81000000 0x00100000;
 /memreserve/ 0x80000000 0x00010000;
 
 / {
@@ -94,6 +93,16 @@
 		device_type = "memory";
 		reg = <0x00000000 0x80000000 0 0x7F000000>,
 		      <0x00000008 0x80000000 0 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		optee@0x83000000 {
+			reg = <0x00000000 0x83000000 0 0x01000000>;
+		};
 	};
 
 	gic: interrupt-controller@2f000000 {
