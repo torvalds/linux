@@ -659,7 +659,7 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 
 	match = of_match_device(mvebu_gpio_of_match, &pdev->dev);
 	if (match)
-		soc_variant = (int) match->data;
+		soc_variant = (unsigned long) match->data;
 	else
 		soc_variant = MVEBU_GPIO_SOC_VARIANT_ORION;
 
