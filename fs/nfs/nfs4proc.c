@@ -629,9 +629,6 @@ static int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
 {
 	struct nfs4_slot *slot;
 
-	if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
-		return -EAGAIN;
-
 	slot = nfs4_alloc_slot(tbl);
 	if (IS_ERR(slot)) {
 		if (slot == ERR_PTR(-ENOMEM))
@@ -874,15 +871,6 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	dprintk("--> %s\n", __func__);
 	tbl = &session->fc_slot_table;
 
-	task->tk_timeout = 0;
-
-	if (test_bit(NFS4_SLOT_TBL_DRAINING, &tbl->slot_tbl_state) &&
-	    !args->sa_privileged) {
-		/* The state manager will wait until the slot table is empty */
-		dprintk("%s session is draining\n", __func__);
-		return -EAGAIN;
-	}
-
 	slot = nfs4_alloc_slot(tbl);
 	if (IS_ERR(slot)) {
 		/* If out of memory, try again in 1/4 second */
@@ -960,15 +948,22 @@ int nfs4_setup_sequence(const struct nfs_client *client,
 			struct rpc_task *task)
 {
 	struct nfs4_session *session = nfs4_get_session(client);
-	struct nfs4_slot_table *tbl  = session ? &session->fc_slot_table :
-						  client->cl_slot_tbl;
+	struct nfs4_slot_table *tbl  = client->cl_slot_tbl;
 	int ret;
 
 	/* slot already allocated? */
 	if (res->sr_slot != NULL)
 		goto out_start;
 
+	if (session) {
+		tbl = &session->fc_slot_table;
+		task->tk_timeout = 0;
+	}
+
 	spin_lock(&tbl->slot_tbl_lock);
+	/* The state manager will wait until the slot table is empty */
+	if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
+		goto out_sleep;
 
 #if defined(CONFIG_NFS_V4_1)
 	if (session)
