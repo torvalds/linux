@@ -31,13 +31,6 @@
 #define DRV_NAME	"libata"
 #define DRV_VERSION	"3.00"	/* must be exactly four chars */
 
-struct ata_scsi_args {
-	struct ata_device	*dev;
-	u16			*id;
-	struct scsi_cmnd	*cmd;
-	void			(*done)(struct scsi_cmnd *);
-};
-
 /* libata-core.c */
 enum {
 	/* flags for ata_dev_read_id() */

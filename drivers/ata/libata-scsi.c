@@ -2057,6 +2057,13 @@ defer:
 		return SCSI_MLQUEUE_HOST_BUSY;
 }
 
+struct ata_scsi_args {
+	struct ata_device	*dev;
+	u16			*id;
+	struct scsi_cmnd	*cmd;
+	void			(*done)(struct scsi_cmnd *);
+};
+
 /**
  *	ata_scsi_rbuf_get - Map response buffer.
  *	@cmd: SCSI command containing buffer to be mapped.
