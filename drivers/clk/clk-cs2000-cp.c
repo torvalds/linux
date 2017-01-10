@@ -59,6 +59,10 @@ struct cs2000_priv {
 	struct i2c_client *client;
 	struct clk *clk_in;
 	struct clk *ref_clk;
+
+	/* suspend/resume */
+	unsigned long saved_rate;
+	unsigned long saved_parent_rate;
 };
 
 static const struct of_device_id cs2000_of_match[] = {
@@ -286,6 +290,9 @@ static int __cs2000_set_rate(struct cs2000_priv *priv, int ch,
 	if (ret < 0)
 		return ret;
 
+	priv->saved_rate	= rate;
+	priv->saved_parent_rate	= parent_rate;
+
 	return 0;
 }
 
@@ -489,9 +496,24 @@ probe_err:
 	return ret;
 }
 
+static int cs2000_resume(struct device *dev)
+{
+	struct cs2000_priv *priv = dev_get_drvdata(dev);
+	int ch = 0; /* it uses ch0 only at this point */
+
+	return __cs2000_set_rate(priv, ch,
+				 priv->saved_rate,
+				 priv->saved_parent_rate);
+}
+
+static const struct dev_pm_ops cs2000_pm_ops = {
+	.resume_early	= cs2000_resume,
+};
+
 static struct i2c_driver cs2000_driver = {
 	.driver = {
 		.name = "cs2000-cp",
+		.pm	= &cs2000_pm_ops,
 		.of_match_table = cs2000_of_match,
 	},
 	.probe		= cs2000_probe,
