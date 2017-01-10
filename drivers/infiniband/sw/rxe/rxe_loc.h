@@ -225,6 +225,7 @@ extern struct ib_dma_mapping_ops rxe_dma_mapping_ops;
 
 void rxe_release(struct kref *kref);
 
+void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify);
 int rxe_completer(void *arg);
 int rxe_requester(void *arg);
 int rxe_responder(void *arg);

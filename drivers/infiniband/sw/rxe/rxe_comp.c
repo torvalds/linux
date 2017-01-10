@@ -412,13 +412,21 @@ static void make_send_cqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 	}
 }
 
+/*
+ * IBA Spec. Section 10.7.3.1 SIGNALED COMPLETIONS
+ * ---------8<---------8<-------------
+ * ...Note that if a completion error occurs, a Work Completion
+ * will always be generated, even if the signaling
+ * indicator requests an Unsignaled Completion.
+ * ---------8<---------8<-------------
+ */
 static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 {
 	struct rxe_cqe cqe;
 
 	if ((qp->sq_sig_type == IB_SIGNAL_ALL_WR) ||
 	    (wqe->wr.send_flags & IB_SEND_SIGNALED) ||
-	    (qp->req.state == QP_STATE_ERROR)) {
+	    wqe->status != IB_WC_SUCCESS) {
 		make_send_cqe(qp, wqe, &cqe);
 		advance_consumer(qp->sq.queue);
 		rxe_cq_post(qp->scq, &cqe, 0);
@@ -709,6 +717,7 @@ int rxe_completer(void *arg)
 			break;
 
 		case COMPST_ERROR:
+			WARN_ON_ONCE(wqe->status == IB_WC_SUCCESS);
 			do_complete(qp, wqe);
 			rxe_qp_error(qp);
 

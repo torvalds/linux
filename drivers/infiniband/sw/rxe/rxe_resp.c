@@ -1207,7 +1207,7 @@ static enum resp_states do_class_d1e_error(struct rxe_qp *qp)
 	}
 }
 
-static void rxe_drain_req_pkts(struct rxe_qp *qp)
+void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 {
 	struct sk_buff *skb;
 
@@ -1388,7 +1388,7 @@ int rxe_responder(void *arg)
 			goto exit;
 
 		case RESPST_RESET:
-			rxe_drain_req_pkts(qp);
+			rxe_drain_req_pkts(qp, false);
 			qp->resp.wqe = NULL;
 			goto exit;
 

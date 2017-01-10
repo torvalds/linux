@@ -594,8 +594,13 @@ int rxe_requester(void *arg)
 	rxe_add_ref(qp);
 
 next_wqe:
-	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
+	if (unlikely(!qp->valid))
 		goto exit;
+
+	if (unlikely(qp->req.state == QP_STATE_ERROR)) {
+		rxe_drain_req_pkts(qp, true);
+		goto exit;
+	}
 
 	if (unlikely(qp->req.state == QP_STATE_RESET)) {
 		qp->req.wqe_index = consumer_index(qp->sq.queue);
@@ -743,17 +748,8 @@ err:
 	kfree_skb(skb);
 	wqe->status = IB_WC_LOC_PROT_ERR;
 	wqe->state = wqe_state_error;
-
-	/*
-	 * IBA Spec. Section 10.7.3.1 SIGNALED COMPLETIONS
-	 * ---------8<---------8<-------------
-	 * ...Note that if a completion error occurs, a Work Completion
-	 * will always be generated, even if the signaling
-	 * indicator requests an Unsignaled Completion.
-	 * ---------8<---------8<-------------
-	 */
-	wqe->wr.send_flags |= IB_SEND_SIGNALED;
 	__rxe_do_task(&qp->comp.task);
+
 exit:
 	rxe_drop_ref(qp);
 	return -EAGAIN;
