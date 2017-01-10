@@ -613,6 +613,22 @@ static int ivb_pipe_crc_ctl_reg(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
+static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
+			       enum pipe pipe,
+			       enum intel_pipe_crc_source *source, u32 *val)
+{
+	if (IS_GEN2(dev_priv))
+		return i8xx_pipe_crc_ctl_reg(source, val);
+	else if (INTEL_GEN(dev_priv) < 5)
+		return i9xx_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
+	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+		return vlv_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
+	else if (IS_GEN5(dev_priv) || IS_GEN6(dev_priv))
+		return ilk_pipe_crc_ctl_reg(source, val);
+	else
+		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
+}
+
 static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 			       enum pipe pipe,
 			       enum intel_pipe_crc_source source)
@@ -636,17 +652,7 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 		return -EIO;
 	}
 
-	if (IS_GEN2(dev_priv))
-		ret = i8xx_pipe_crc_ctl_reg(&source, &val);
-	else if (INTEL_GEN(dev_priv) < 5)
-		ret = i9xx_pipe_crc_ctl_reg(dev_priv, pipe, &source, &val);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		ret = vlv_pipe_crc_ctl_reg(dev_priv, pipe, &source, &val);
-	else if (IS_GEN5(dev_priv) || IS_GEN6(dev_priv))
-		ret = ilk_pipe_crc_ctl_reg(&source, &val);
-	else
-		ret = ivb_pipe_crc_ctl_reg(dev_priv, pipe, &source, &val);
-
+	ret = get_new_crc_ctl_reg(dev_priv, pipe, &source, &val);
 	if (ret != 0)
 		goto out;
 
@@ -687,7 +693,7 @@ static int pipe_crc_set_source(struct drm_i915_private *dev_priv,
 	POSTING_READ(PIPE_CRC_CTL(pipe));
 
 	/* real source -> none transition */
-	if (source == INTEL_PIPE_CRC_SOURCE_NONE) {
+	if (!source) {
 		struct intel_pipe_crc_entry *entries;
 		struct intel_crtc *crtc = intel_get_crtc_for_pipe(dev_priv,
 								  pipe);
@@ -808,6 +814,11 @@ static int
 display_crc_ctl_parse_source(const char *buf, enum intel_pipe_crc_source *s)
 {
 	int i;
+
+	if (!buf) {
+		*s = INTEL_PIPE_CRC_SOURCE_NONE;
+		return 0;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(pipe_crc_sources); i++)
 		if (!strcmp(buf, pipe_crc_sources[i])) {
@@ -936,4 +947,63 @@ void intel_pipe_crc_cleanup(struct drm_minor *minor)
 
 		drm_debugfs_remove_files(info_list, 1, minor);
 	}
+}
+
+int intel_crtc_set_crc_source(struct drm_crtc *crtc, const char *source_name,
+			      size_t *values_cnt)
+{
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_pipe_crc *pipe_crc = &dev_priv->pipe_crc[crtc->index];
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum intel_display_power_domain power_domain;
+	enum intel_pipe_crc_source source;
+	u32 val = 0; /* shut up gcc */
+	int ret = 0;
+
+	if (display_crc_ctl_parse_source(source_name, &source) < 0) {
+		DRM_DEBUG_DRIVER("unknown source %s\n", source_name);
+		return -EINVAL;
+	}
+
+	power_domain = POWER_DOMAIN_PIPE(crtc->index);
+	if (!intel_display_power_get_if_enabled(dev_priv, power_domain)) {
+		DRM_DEBUG_KMS("Trying to capture CRC while pipe is off\n");
+		return -EIO;
+	}
+
+	ret = get_new_crc_ctl_reg(dev_priv, crtc->index, &source, &val);
+	if (ret != 0)
+		goto out;
+
+	if (source) {
+		/*
+		 * When IPS gets enabled, the pipe CRC changes. Since IPS gets
+		 * enabled and disabled dynamically based on package C states,
+		 * user space can't make reliable use of the CRCs, so let's just
+		 * completely disable it.
+		 */
+		hsw_disable_ips(intel_crtc);
+	}
+
+	I915_WRITE(PIPE_CRC_CTL(crtc->index), val);
+	POSTING_READ(PIPE_CRC_CTL(crtc->index));
+
+	if (!source) {
+		if (IS_G4X(dev_priv))
+			g4x_undo_pipe_scramble_reset(dev_priv, crtc->index);
+		else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
+			vlv_undo_pipe_scramble_reset(dev_priv, crtc->index);
+		else if (IS_HASWELL(dev_priv) && crtc->index == PIPE_A)
+			hsw_trans_edp_pipe_A_crc_wa(dev_priv, false);
+
+		hsw_enable_ips(intel_crtc);
+	}
+
+	pipe_crc->skipped = 0;
+	*values_cnt = 5;
+
+out:
+	intel_display_power_put(dev_priv, power_domain);
+
+	return ret;
 }
