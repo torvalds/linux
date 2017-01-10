@@ -1166,8 +1166,8 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 		struct amdgpu_mman_lru *lru = &adev->mman.log2_size[i];
 
 		for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)
-			lru->lru[j] = &adev->mman.bdev.man[j].lru;
-		lru->swap_lru = &adev->mman.bdev.glob->swap_lru;
+			lru->lru[j] = &adev->mman.bdev.man[j].lru[0];
+		lru->swap_lru = &adev->mman.bdev.glob->swap_lru[0];
 	}
 
 	for (j = 0; j < TTM_NUM_MEM_TYPES; ++j)

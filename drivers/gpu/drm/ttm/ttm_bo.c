@@ -242,13 +242,13 @@ EXPORT_SYMBOL(ttm_bo_move_to_lru_tail);
 
 struct list_head *ttm_bo_default_lru_tail(struct ttm_buffer_object *bo)
 {
-	return bo->bdev->man[bo->mem.mem_type].lru.prev;
+	return bo->bdev->man[bo->mem.mem_type].lru[bo->priority].prev;
 }
 EXPORT_SYMBOL(ttm_bo_default_lru_tail);
 
 struct list_head *ttm_bo_default_swap_lru_tail(struct ttm_buffer_object *bo)
 {
-	return bo->glob->swap_lru.prev;
+	return bo->glob->swap_lru[bo->priority].prev;
 }
 EXPORT_SYMBOL(ttm_bo_default_swap_lru_tail);
 
@@ -741,20 +741,27 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_buffer_object *bo;
 	int ret = -EBUSY, put_count;
+	unsigned i;
 
 	spin_lock(&glob->lru_lock);
-	list_for_each_entry(bo, &man->lru, lru) {
-		ret = __ttm_bo_reserve(bo, false, true, NULL);
-		if (ret)
-			continue;
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		list_for_each_entry(bo, &man->lru[i], lru) {
+			ret = __ttm_bo_reserve(bo, false, true, NULL);
+			if (ret)
+				continue;
 
-		if (place && !bdev->driver->eviction_valuable(bo, place)) {
-			__ttm_bo_unreserve(bo);
-			ret = -EBUSY;
-			continue;
+			if (place && !bdev->driver->eviction_valuable(bo,
+								      place)) {
+				__ttm_bo_unreserve(bo);
+				ret = -EBUSY;
+				continue;
+			}
+
+			break;
 		}
 
-		break;
+		if (!ret)
+			break;
 	}
 
 	if (ret) {
@@ -1197,6 +1204,7 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	}
 	atomic_inc(&bo->glob->bo_count);
 	drm_vma_node_reset(&bo->vma_node);
+	bo->priority = 0;
 
 	/*
 	 * For ttm_bo_type_device buffers, allocate
@@ -1297,18 +1305,21 @@ static int ttm_bo_force_list_clean(struct ttm_bo_device *bdev,
 	struct ttm_bo_global *glob = bdev->glob;
 	struct dma_fence *fence;
 	int ret;
+	unsigned i;
 
 	/*
 	 * Can't use standard list traversal since we're unlocking.
 	 */
 
 	spin_lock(&glob->lru_lock);
-	while (!list_empty(&man->lru)) {
-		spin_unlock(&glob->lru_lock);
-		ret = ttm_mem_evict_first(bdev, mem_type, NULL, false, false);
-		if (ret)
-			return ret;
-		spin_lock(&glob->lru_lock);
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		while (!list_empty(&man->lru[i])) {
+			spin_unlock(&glob->lru_lock);
+			ret = ttm_mem_evict_first(bdev, mem_type, NULL, false, false);
+			if (ret)
+				return ret;
+			spin_lock(&glob->lru_lock);
+		}
 	}
 	spin_unlock(&glob->lru_lock);
 
@@ -1385,6 +1396,7 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 {
 	int ret = -EINVAL;
 	struct ttm_mem_type_manager *man;
+	unsigned i;
 
 	BUG_ON(type >= TTM_NUM_MEM_TYPES);
 	man = &bdev->man[type];
@@ -1410,7 +1422,8 @@ int ttm_bo_init_mm(struct ttm_bo_device *bdev, unsigned type,
 	man->use_type = true;
 	man->size = p_size;
 
-	INIT_LIST_HEAD(&man->lru);
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
+		INIT_LIST_HEAD(&man->lru[i]);
 	man->move = NULL;
 
 	return 0;
@@ -1442,6 +1455,7 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 		container_of(ref, struct ttm_bo_global_ref, ref);
 	struct ttm_bo_global *glob = ref->object;
 	int ret;
+	unsigned i;
 
 	mutex_init(&glob->device_list_mutex);
 	spin_lock_init(&glob->lru_lock);
@@ -1453,7 +1467,8 @@ int ttm_bo_global_init(struct drm_global_reference *ref)
 		goto out_no_drp;
 	}
 
-	INIT_LIST_HEAD(&glob->swap_lru);
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
+		INIT_LIST_HEAD(&glob->swap_lru[i]);
 	INIT_LIST_HEAD(&glob->device_list);
 
 	ttm_mem_init_shrink(&glob->shrink, ttm_bo_swapout);
@@ -1512,8 +1527,9 @@ int ttm_bo_device_release(struct ttm_bo_device *bdev)
 	if (list_empty(&bdev->ddestroy))
 		TTM_DEBUG("Delayed destroy list was clean\n");
 
-	if (list_empty(&bdev->man[0].lru))
-		TTM_DEBUG("Swap list was clean\n");
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i)
+		if (list_empty(&bdev->man[0].lru[0]))
+			TTM_DEBUG("Swap list %d was clean\n", i);
 	spin_unlock(&glob->lru_lock);
 
 	drm_vma_offset_manager_destroy(&bdev->vma_manager);
@@ -1665,10 +1681,15 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	int ret = -EBUSY;
 	int put_count;
 	uint32_t swap_placement = (TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM);
+	unsigned i;
 
 	spin_lock(&glob->lru_lock);
-	list_for_each_entry(bo, &glob->swap_lru, swap) {
-		ret = __ttm_bo_reserve(bo, false, true, NULL);
+	for (i = 0; i < TTM_MAX_BO_PRIORITY; ++i) {
+		list_for_each_entry(bo, &glob->swap_lru[i], swap) {
+			ret = __ttm_bo_reserve(bo, false, true, NULL);
+			if (!ret)
+				break;
+		}
 		if (!ret)
 			break;
 	}
