@@ -160,6 +160,7 @@
 		reg = <0x62000000 0x10000>;
 		interrupt-parent = <&pic>;
 		interrupts = <17>; /* Bus error IRQ */
+		clocks = <&pciclk>;
 		ranges = <0x00000000 0 0x61000000 /* config space */
 			0x61000000 0 0x00100000 /* 16 MiB @ 61000000 */
 			0x01000000 0 0x0 /* I/O space */
