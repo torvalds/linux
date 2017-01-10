@@ -69,6 +69,12 @@
 
 	ahb {
 		apb {
+			uart0: serial@f8004000 {
+				atmel,use-dma-rx;
+				atmel,use-dma-tx;
+				status = "okay";
+			};
+
 			spi0: spi@f8010000 {
 				cs-gpios = <&pioC 3 0>, <0>, <0>, <0>;
 				status = "okay";
