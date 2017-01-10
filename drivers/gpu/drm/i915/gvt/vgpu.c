@@ -177,7 +177,7 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 		if (low_avail / min_low == 0)
 			break;
 		gvt->types[i].low_gm_size = min_low;
-		gvt->types[i].high_gm_size = 3 * gvt->types[i].low_gm_size;
+		gvt->types[i].high_gm_size = max((min_low<<3), MB_TO_BYTES(384U));
 		gvt->types[i].fence = 4;
 		gvt->types[i].max_instance = low_avail / min_low;
 		gvt->types[i].avail_instance = gvt->types[i].max_instance;
@@ -217,7 +217,7 @@ static void intel_gvt_update_vgpu_types(struct intel_gvt *gvt)
 	 */
 	low_gm_avail = MB_TO_BYTES(256) - HOST_LOW_GM_SIZE -
 		gvt->gm.vgpu_allocated_low_gm_size;
-	high_gm_avail = MB_TO_BYTES(256) * 3 - HOST_HIGH_GM_SIZE -
+	high_gm_avail = MB_TO_BYTES(256) * 8UL - HOST_HIGH_GM_SIZE -
 		gvt->gm.vgpu_allocated_high_gm_size;
 	fence_avail = gvt_fence_sz(gvt) - HOST_FENCE -
 		gvt->fence.vgpu_allocated_fence_num;
@@ -304,7 +304,7 @@ static struct intel_vgpu *__intel_gvt_create_vgpu(struct intel_gvt *gvt,
 
 	ret = setup_vgpu_mmio(vgpu);
 	if (ret)
-		goto out_free_vgpu;
+		goto out_clean_idr;
 
 	ret = intel_vgpu_alloc_resource(vgpu, param);
 	if (ret)
@@ -355,6 +355,8 @@ out_clean_vgpu_resource:
 	intel_vgpu_free_resource(vgpu);
 out_clean_vgpu_mmio:
 	clean_vgpu_mmio(vgpu);
+out_clean_idr:
+	idr_remove(&gvt->vgpu_idr, vgpu->id);
 out_free_vgpu:
 	vfree(vgpu);
 	mutex_unlock(&gvt->lock);

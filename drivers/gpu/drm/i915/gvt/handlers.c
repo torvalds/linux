@@ -93,7 +93,8 @@ static void write_vreg(struct intel_vgpu *vgpu, unsigned int offset,
 static int new_mmio_info(struct intel_gvt *gvt,
 		u32 offset, u32 flags, u32 size,
 		u32 addr_mask, u32 ro_mask, u32 device,
-		void *read, void *write)
+		int (*read)(struct intel_vgpu *, unsigned int, void *, unsigned int),
+		int (*write)(struct intel_vgpu *, unsigned int, void *, unsigned int))
 {
 	struct intel_gvt_mmio_info *info, *p;
 	u32 start, end, i;
@@ -219,7 +220,7 @@ static int mul_force_wake_write(struct intel_vgpu *vgpu,
 		default:
 			/*should not hit here*/
 			gvt_err("invalid forcewake offset 0x%x\n", offset);
-			return 1;
+			return -EINVAL;
 		}
 	} else {
 		ack_reg_offset = FORCEWAKE_ACK_HSW_REG;
@@ -974,7 +975,7 @@ static int sbi_data_mmio_read(struct intel_vgpu *vgpu, unsigned int offset,
 	return 0;
 }
 
-static bool sbi_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+static int sbi_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		void *p_data, unsigned int bytes)
 {
 	u32 data;
@@ -1366,7 +1367,6 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 		unsigned int offset, void *p_data, unsigned int bytes)
 {
-	int rc = 0;
 	unsigned int id = 0;
 
 	write_vreg(vgpu, offset, p_data, bytes);
@@ -1389,12 +1389,11 @@ static int gvt_reg_tlb_control_handler(struct intel_vgpu *vgpu,
 		id = VECS;
 		break;
 	default:
-		rc = -EINVAL;
-		break;
+		return -EINVAL;
 	}
 	set_bit(id, (void *)vgpu->tlb_handle_pending);
 
-	return rc;
+	return 0;
 }
 
 static int ring_reset_ctl_write(struct intel_vgpu *vgpu,
