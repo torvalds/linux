@@ -925,6 +925,8 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 		return -EINVAL;
 
 	vrf->tb_id = nla_get_u32(data[IFLA_VRF_TABLE]);
+	if (vrf->tb_id == RT_TABLE_UNSPEC)
+		return -EINVAL;
 
 	dev->priv_flags |= IFF_L3MDEV_MASTER;
 
