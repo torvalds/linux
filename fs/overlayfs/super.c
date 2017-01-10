@@ -1146,6 +1146,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned int stacklen = 0;
 	unsigned int i;
 	bool remote = false;
+	struct cred *cred;
 	int err;
 
 	err = -ENOMEM;
@@ -1309,9 +1310,12 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	else
 		sb->s_d_op = &ovl_dentry_operations;
 
-	ufs->creator_cred = prepare_creds();
-	if (!ufs->creator_cred)
+	ufs->creator_cred = cred = prepare_creds();
+	if (!cred)
 		goto out_put_lower_mnt;
+
+	/* Never override disk quota limits or use reserved space */
+	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
 
 	err = -ENOMEM;
 	oe = ovl_alloc_entry(numlower);
