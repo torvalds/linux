@@ -1704,6 +1704,90 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 }
 
 /**
+ * megasas_stream_detect -	stream detection on read and and write IOs
+ * @instance:		Adapter soft state
+ * @cmd:		    Command to be prepared
+ * @io_info:		IO Request info
+ *
+ */
+
+/** stream detection on read and and write IOs */
+static void megasas_stream_detect(struct megasas_instance *instance,
+				struct megasas_cmd_fusion *cmd,
+				struct IO_REQUEST_INFO *io_info)
+{
+	struct fusion_context *fusion = instance->ctrl_context;
+	u32 device_id = io_info->ldTgtId;
+	struct LD_STREAM_DETECT *current_ld_sd
+		= fusion->stream_detect_by_ld[device_id];
+	u32 *track_stream = &current_ld_sd->mru_bit_map, stream_num;
+	u32 shifted_values, unshifted_values;
+	u32 index_value_mask, shifted_values_mask;
+	int i;
+	bool is_read_ahead = false;
+	struct STREAM_DETECT *current_sd;
+	/* find possible stream */
+	for (i = 0; i < MAX_STREAMS_TRACKED; ++i) {
+		stream_num =
+		(*track_stream >> (i * BITS_PER_INDEX_STREAM)) &
+			STREAM_MASK;
+		current_sd = &current_ld_sd->stream_track[stream_num];
+	/* if we found a stream, update the raid
+	 *  context and also update the mruBitMap
+	 */
+	/*	boundary condition */
+	if ((current_sd->next_seq_lba) &&
+		(io_info->ldStartBlock >= current_sd->next_seq_lba) &&
+		(io_info->ldStartBlock <= (current_sd->next_seq_lba+32)) &&
+		(current_sd->is_read == io_info->isRead)) {
+
+		if ((io_info->ldStartBlock != current_sd->next_seq_lba)
+			&& ((!io_info->isRead) || (!is_read_ahead)))
+			/*
+			 * Once the API availible we need to change this.
+			 * At this point we are not allowing any gap
+			 */
+			continue;
+
+		cmd->io_request->RaidContext.raid_context_g35.stream_detected = true;
+		current_sd->next_seq_lba =
+		io_info->ldStartBlock + io_info->numBlocks;
+		/*
+		 *	update the mruBitMap LRU
+		 */
+		shifted_values_mask =
+			(1 <<  i * BITS_PER_INDEX_STREAM) - 1;
+		shifted_values = ((*track_stream & shifted_values_mask)
+					<< BITS_PER_INDEX_STREAM);
+		index_value_mask =
+			STREAM_MASK << i * BITS_PER_INDEX_STREAM;
+		unshifted_values =
+			*track_stream & ~(shifted_values_mask |
+			index_value_mask);
+		*track_stream =
+			unshifted_values | shifted_values | stream_num;
+		return;
+
+		}
+
+	}
+	/*
+	 * if we did not find any stream, create a new one
+	 * from the least recently used
+	 */
+	stream_num =
+	(*track_stream >> ((MAX_STREAMS_TRACKED - 1) * BITS_PER_INDEX_STREAM)) &
+			STREAM_MASK;
+	current_sd = &current_ld_sd->stream_track[stream_num];
+	current_sd->is_read = io_info->isRead;
+	current_sd->next_seq_lba = io_info->ldStartBlock + io_info->numBlocks;
+	*track_stream =
+	(((*track_stream & ZERO_LAST_STREAM) << 4) | stream_num);
+	return;
+
+}
+
+/**
  * megasas_build_ldio_fusion -	Prepares IOs to devices
  * @instance:		Adapter soft state
  * @scp:		SCSI command
@@ -1725,15 +1809,17 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	struct fusion_context *fusion;
 	struct MR_DRV_RAID_MAP_ALL *local_map_ptr;
 	u8 *raidLUN;
+	unsigned long spinlock_flags;
 
 	device_id = MEGASAS_DEV_INDEX(scp);
 
 	fusion = instance->ctrl_context;
 
 	io_request = cmd->io_request;
-	io_request->RaidContext.VirtualDiskTgtId = cpu_to_le16(device_id);
-	io_request->RaidContext.status = 0;
-	io_request->RaidContext.exStatus = 0;
+	io_request->RaidContext.raid_context.VirtualDiskTgtId =
+		cpu_to_le16(device_id);
+	io_request->RaidContext.raid_context.status = 0;
+	io_request->RaidContext.raid_context.exStatus = 0;
 
 	req_desc = (union MEGASAS_REQUEST_DESCRIPTOR_UNION *)cmd->request_desc;
 
@@ -1804,11 +1890,11 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 
 	if ((MR_TargetIdToLdGet(device_id, local_map_ptr) >=
 		instance->fw_supported_vd_count) || (!fusion->fast_path_io)) {
-		io_request->RaidContext.regLockFlags  = 0;
+		io_request->RaidContext.raid_context.regLockFlags  = 0;
 		fp_possible = 0;
 	} else {
 		if (MR_BuildRaidContext(instance, &io_info,
-					&io_request->RaidContext,
+					&io_request->RaidContext.raid_context,
 					local_map_ptr, &raidLUN))
 			fp_possible = io_info.fpOkForIo;
 	}
@@ -1819,6 +1905,18 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	cmd->request_desc->SCSIIO.MSIxIndex = instance->msix_vectors ?
 		raw_smp_processor_id() % instance->msix_vectors : 0;
 
+	if (instance->is_ventura) {
+		spin_lock_irqsave(&instance->stream_lock, spinlock_flags);
+		megasas_stream_detect(instance, cmd, &io_info);
+		spin_unlock_irqrestore(&instance->stream_lock, spinlock_flags);
+		/* In ventura if stream detected for a read and it is read ahead
+		 *  capable make this IO as LDIO
+		 */
+		if (io_request->RaidContext.raid_context_g35.stream_detected &&
+				io_info.isRead && io_info.ra_capable)
+			fp_possible = false;
+	}
+
 	if (fp_possible) {
 		megasas_set_pd_lba(io_request, scp->cmd_len, &io_info, scp,
 				   local_map_ptr, start_lba_lo);
@@ -1827,15 +1925,16 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			(MPI2_REQ_DESCRIPT_FLAGS_FP_IO
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (fusion->adapter_type == INVADER_SERIES) {
-			if (io_request->RaidContext.regLockFlags ==
+			if (io_request->RaidContext.raid_context.regLockFlags ==
 			    REGION_TYPE_UNUSED)
 				cmd->request_desc->SCSIIO.RequestFlags =
 					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-			io_request->RaidContext.Type = MPI2_TYPE_CUDA;
-			io_request->RaidContext.nseg = 0x1;
+			io_request->RaidContext.raid_context.Type
+				= MPI2_TYPE_CUDA;
+			io_request->RaidContext.raid_context.nseg = 0x1;
 			io_request->IoFlags |= cpu_to_le16(MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
-			io_request->RaidContext.regLockFlags |=
+			io_request->RaidContext.raid_context.regLockFlags |=
 			  (MR_RL_FLAGS_GRANT_DESTINATION_CUDA |
 			   MR_RL_FLAGS_SEQ_NUM_ENABLE);
 		}
@@ -1862,22 +1961,24 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 		/* populate the LUN field */
 		memcpy(io_request->LUN, raidLUN, 8);
 	} else {
-		io_request->RaidContext.timeoutValue =
+		io_request->RaidContext.raid_context.timeoutValue =
 			cpu_to_le16(local_map_ptr->raidMap.fpPdIoTimeoutSec);
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MEGASAS_REQ_DESCRIPT_FLAGS_LD_IO
 			 << MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		if (fusion->adapter_type == INVADER_SERIES) {
 			if (io_info.do_fp_rlbypass ||
-				(io_request->RaidContext.regLockFlags == REGION_TYPE_UNUSED))
+			(io_request->RaidContext.raid_context.regLockFlags
+					== REGION_TYPE_UNUSED))
 				cmd->request_desc->SCSIIO.RequestFlags =
 					(MEGASAS_REQ_DESCRIPT_FLAGS_NO_LOCK <<
 					MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
-			io_request->RaidContext.Type = MPI2_TYPE_CUDA;
-			io_request->RaidContext.regLockFlags |=
+			io_request->RaidContext.raid_context.Type
+				= MPI2_TYPE_CUDA;
+			io_request->RaidContext.raid_context.regLockFlags |=
 				(MR_RL_FLAGS_GRANT_DESTINATION_CPU0 |
 				 MR_RL_FLAGS_SEQ_NUM_ENABLE);
-			io_request->RaidContext.nseg = 0x1;
+			io_request->RaidContext.raid_context.nseg = 0x1;
 		}
 		io_request->Function = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = cpu_to_le16(device_id);
@@ -1913,7 +2014,7 @@ static void megasas_build_ld_nonrw_fusion(struct megasas_instance *instance,
 	local_map_ptr = fusion->ld_drv_map[(instance->map_id & 1)];
 	io_request->DataLength = cpu_to_le32(scsi_bufflen(scmd));
 	/* get RAID_Context pointer */
-	pRAID_Context = &io_request->RaidContext;
+	pRAID_Context = &io_request->RaidContext.raid_context;
 	/* Check with FW team */
 	pRAID_Context->VirtualDiskTgtId = cpu_to_le16(device_id);
 	pRAID_Context->regLockRowLBA    = 0;
@@ -2000,7 +2101,7 @@ megasas_build_syspd_fusion(struct megasas_instance *instance,
 
 	io_request = cmd->io_request;
 	/* get RAID_Context pointer */
-	pRAID_Context = &io_request->RaidContext;
+	pRAID_Context = &io_request->RaidContext.raid_context;
 	pRAID_Context->regLockFlags = 0;
 	pRAID_Context->regLockRowLBA = 0;
 	pRAID_Context->regLockLength = 0;
@@ -2094,9 +2195,9 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	io_request->Control = 0;
 	io_request->EEDPBlockSize = 0;
 	io_request->ChainOffset = 0;
-	io_request->RaidContext.RAIDFlags = 0;
-	io_request->RaidContext.Type = 0;
-	io_request->RaidContext.nseg = 0;
+	io_request->RaidContext.raid_context.RAIDFlags = 0;
+	io_request->RaidContext.raid_context.Type = 0;
+	io_request->RaidContext.raid_context.nseg = 0;
 
 	memcpy(io_request->CDB.CDB32, scp->cmnd, scp->cmd_len);
 	/*
@@ -2143,8 +2244,8 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	/* numSGE store lower 8 bit of sge_count.
 	 * numSGEExt store higher 8 bit of sge_count
 	 */
-	io_request->RaidContext.numSGE = sge_count;
-	io_request->RaidContext.numSGEExt = (u8)(sge_count >> 8);
+	io_request->RaidContext.raid_context.numSGE = sge_count;
+	io_request->RaidContext.raid_context.numSGEExt = (u8)(sge_count >> 8);
 
 	io_request->SGLFlags = cpu_to_le16(MPI2_SGE_FLAGS_64_BIT_ADDRESSING);
 
@@ -2303,8 +2404,8 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 			cmd_fusion->scmd->SCp.ptr = NULL;
 
 		scmd_local = cmd_fusion->scmd;
-		status = scsi_io_req->RaidContext.status;
-		extStatus = scsi_io_req->RaidContext.exStatus;
+		status = scsi_io_req->RaidContext.raid_context.status;
+		extStatus = scsi_io_req->RaidContext.raid_context.exStatus;
 
 		switch (scsi_io_req->Function) {
 		case MPI2_FUNCTION_SCSI_TASK_MGMT:
@@ -2337,8 +2438,8 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 		case MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST: /* LD-IO Path */
 			/* Map the FW Cmd Status */
 			map_cmd_status(cmd_fusion, status, extStatus);
-			scsi_io_req->RaidContext.status = 0;
-			scsi_io_req->RaidContext.exStatus = 0;
+			scsi_io_req->RaidContext.raid_context.status = 0;
+			scsi_io_req->RaidContext.raid_context.exStatus = 0;
 			if (megasas_cmd_type(scmd_local) == READ_WRITE_LDIO)
 				atomic_dec(&instance->ldio_outstanding);
 			megasas_return_cmd_fusion(instance, cmd_fusion);
@@ -2905,7 +3006,7 @@ void megasas_refire_mgmt_cmd(struct megasas_instance *instance)
 				&& !(cmd_mfi->flags & DRV_DCMD_SKIP_REFIRE);
 		if (refire_cmd)
 			megasas_fire_cmd_fusion(instance, req_desc,
-							instance->is_ventura);
+				instance->is_ventura);
 		else
 			megasas_return_cmd(instance, cmd_mfi);
 	}
@@ -3394,7 +3495,7 @@ int megasas_check_mpio_paths(struct megasas_instance *instance,
 /* Core fusion reset function */
 int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 {
-	int retval = SUCCESS, i, convert = 0;
+	int retval = SUCCESS, i, j, convert = 0;
 	struct megasas_instance *instance;
 	struct megasas_cmd_fusion *cmd_fusion;
 	struct fusion_context *fusion;
@@ -3558,6 +3659,16 @@ transition_to_ready:
 
 			shost_for_each_device(sdev, shost)
 				megasas_update_sdev_properties(sdev);
+
+			/* reset stream detection array */
+			if (instance->is_ventura) {
+				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
+					memset(fusion->stream_detect_by_ld[j],
+					0, sizeof(struct LD_STREAM_DETECT));
+				 fusion->stream_detect_by_ld[j]->mru_bit_map
+						= MR_STREAM_BITMAP;
+				}
+			}
 
 			clear_bit(MEGASAS_FUSION_IN_RESET,
 				  &instance->reset_flags);

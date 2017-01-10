@@ -5001,7 +5001,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	struct megasas_register_set __iomem *reg_set;
 	struct megasas_ctrl_info *ctrl_info = NULL;
 	unsigned long bar_list;
-	int i, loop, fw_msix_count = 0;
+	int i, j, loop, fw_msix_count = 0;
 	struct IOV_111 *iovPtr;
 	struct fusion_context *fusion;
 
@@ -5194,6 +5194,36 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	}
 
 	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+
+	/* stream detection initialization */
+	if (instance->is_ventura) {
+		fusion->stream_detect_by_ld =
+		kzalloc(sizeof(struct LD_STREAM_DETECT *)
+		* MAX_LOGICAL_DRIVES_EXT,
+		GFP_KERNEL);
+		if (!fusion->stream_detect_by_ld) {
+			dev_err(&instance->pdev->dev,
+					"unable to allocate stream detection for pool of LDs\n");
+			goto fail_get_ld_pd_list;
+		}
+		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i) {
+			fusion->stream_detect_by_ld[i] =
+				kmalloc(sizeof(struct LD_STREAM_DETECT),
+				GFP_KERNEL);
+			if (!fusion->stream_detect_by_ld[i]) {
+				dev_err(&instance->pdev->dev,
+					"unable to allocate stream detect by LD\n ");
+				for (j = 0; j < i; ++j)
+					kfree(fusion->stream_detect_by_ld[j]);
+				kfree(fusion->stream_detect_by_ld);
+				fusion->stream_detect_by_ld = NULL;
+				goto fail_get_ld_pd_list;
+			}
+			fusion->stream_detect_by_ld[i]->mru_bit_map
+				= MR_STREAM_BITMAP;
+		}
+	}
+
 	if (megasas_ld_list_query(instance,
 				  MR_LD_QUERY_TYPE_EXPOSED_TO_HOST))
 		megasas_get_ld_list(instance);
@@ -5313,6 +5343,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 
 	return 0;
 
+fail_get_ld_pd_list:
+	instance->instancet->disable_intr(instance);
 fail_get_pd_list:
 	instance->instancet->disable_intr(instance);
 fail_init_adapter:
@@ -5846,6 +5878,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 
 	spin_lock_init(&instance->mfi_pool_lock);
 	spin_lock_init(&instance->hba_lock);
+	spin_lock_init(&instance->stream_lock);
 	spin_lock_init(&instance->completion_lock);
 
 	mutex_init(&instance->reset_mutex);
@@ -6352,6 +6385,14 @@ skip_firing_dcmds:
 
 	if (instance->msix_vectors)
 		pci_free_irq_vectors(instance->pdev);
+
+	if (instance->is_ventura) {
+		for (i = 0; i < MAX_LOGICAL_DRIVES_EXT; ++i)
+			kfree(fusion->stream_detect_by_ld[i]);
+		kfree(fusion->stream_detect_by_ld);
+		fusion->stream_detect_by_ld = NULL;
+	}
+
 
 	if (instance->ctrl_context) {
 		megasas_release_fusion(instance);

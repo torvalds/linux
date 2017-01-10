@@ -2070,6 +2070,7 @@ struct megasas_instance {
 	/* used to sync fire the cmd to fw */
 	spinlock_t hba_lock;
 	/* used to synch producer, consumer ptrs in dpc */
+	spinlock_t stream_lock;
 	spinlock_t completion_lock;
 	struct dma_pool *frame_dma_pool;
 	struct dma_pool *sense_dma_pool;

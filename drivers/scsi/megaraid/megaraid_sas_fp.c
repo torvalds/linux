@@ -935,6 +935,8 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 
 	ld = MR_TargetIdToLdGet(ldTgtId, map);
 	raid = MR_LdRaidGet(ld, map);
+	/*check read ahead bit*/
+	io_info->ra_capable = raid->capability.ra_capable;
 
 	/*
 	 * if rowDataSize @RAID map and spanRowDataSize @SPAN INFO are zero
