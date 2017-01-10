@@ -213,11 +213,10 @@ __bpf_lru_list_shrink_inactive(struct bpf_lru *lru,
 			       enum bpf_lru_list_type tgt_free_type)
 {
 	struct list_head *inactive = &l->lists[BPF_LRU_LIST_T_INACTIVE];
-	struct bpf_lru_node *node, *tmp_node, *first_node;
+	struct bpf_lru_node *node, *tmp_node;
 	unsigned int nshrinked = 0;
 	unsigned int i = 0;
 
-	first_node = list_first_entry(inactive, struct bpf_lru_node, list);
 	list_for_each_entry_safe_reverse(node, tmp_node, inactive, list) {
 		if (bpf_lru_node_is_ref(node)) {
 			__bpf_lru_node_move(l, node, BPF_LRU_LIST_T_ACTIVE);
