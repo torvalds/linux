@@ -102,7 +102,7 @@ struct rxe_type_info rxe_type_info[RXE_NUM_TYPES] = {
 	},
 };
 
-static inline char *pool_name(struct rxe_pool *pool)
+static inline const char *pool_name(struct rxe_pool *pool)
 {
 	return rxe_type_info[pool->type].name;
 }

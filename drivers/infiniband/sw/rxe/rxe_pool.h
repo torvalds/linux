@@ -58,7 +58,7 @@ enum rxe_elem_type {
 };
 
 struct rxe_type_info {
-	char			*name;
+	const char		*name;
 	size_t			size;
 	void			(*cleanup)(void *obj);
 	enum rxe_pool_flags	flags;
