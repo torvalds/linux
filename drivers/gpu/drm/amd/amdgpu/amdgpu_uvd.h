@@ -43,11 +43,13 @@ struct amdgpu_uvd {
 	struct delayed_work	idle_work;
 	const struct firmware	*fw;	/* UVD firmware */
 	struct amdgpu_ring	ring;
+	struct amdgpu_ring	ring_enc[AMDGPU_MAX_UVD_ENC_RINGS];
 	struct amdgpu_irq_src	irq;
 	bool			address_64_bit;
 	bool			use_ctx_buf;
 	struct amd_sched_entity entity;
 	uint32_t                srbm_soft_reset;
+	unsigned		num_enc_rings;
 };
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev);

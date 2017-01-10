@@ -27,10 +27,11 @@
 #include "gpu_scheduler.h"
 
 /* max number of rings */
-#define AMDGPU_MAX_RINGS		16
+#define AMDGPU_MAX_RINGS		18
 #define AMDGPU_MAX_GFX_RINGS		1
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3
+#define AMDGPU_MAX_UVD_ENC_RINGS	2
 
 /* some special values for the owner field */
 #define AMDGPU_FENCE_OWNER_UNDEFINED	((void*)0ul)
