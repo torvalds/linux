@@ -1685,7 +1685,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 	vg->saved_context = devm_kcalloc(&vg->pdev->dev, gc->ngpio,
 				       sizeof(*vg->saved_context), GFP_KERNEL);
 #endif
-	ret = gpiochip_add_data(gc, vg);
+	ret = devm_gpiochip_add_data(&vg->pdev->dev, gc, vg);
 	if (ret) {
 		dev_err(&vg->pdev->dev, "failed adding byt-gpio chip\n");
 		return ret;
@@ -1695,7 +1695,7 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 				     0, 0, vg->soc_data->npins);
 	if (ret) {
 		dev_err(&vg->pdev->dev, "failed to add GPIO pin range\n");
-		goto fail;
+		return ret;
 	}
 
 	/* set up interrupts  */
@@ -1706,18 +1706,13 @@ static int byt_gpio_probe(struct byt_gpio *vg)
 					   handle_bad_irq, IRQ_TYPE_NONE);
 		if (ret) {
 			dev_err(&vg->pdev->dev, "failed to add irqchip\n");
-			goto fail;
+			return ret;
 		}
 
 		gpiochip_set_chained_irqchip(gc, &byt_irqchip,
 					     (unsigned)irq_rc->start,
 					     byt_gpio_irq_handler);
 	}
-
-	return ret;
-
-fail:
-	gpiochip_remove(&vg->chip);
 
 	return ret;
 }
@@ -1802,7 +1797,7 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	vg->pctl_desc.pins	= vg->soc_data->pins;
 	vg->pctl_desc.npins	= vg->soc_data->npins;
 
-	vg->pctl_dev = pinctrl_register(&vg->pctl_desc, &pdev->dev, vg);
+	vg->pctl_dev = devm_pinctrl_register(&pdev->dev, &vg->pctl_desc, vg);
 	if (IS_ERR(vg->pctl_dev)) {
 		dev_err(&pdev->dev, "failed to register pinctrl driver\n");
 		return PTR_ERR(vg->pctl_dev);
@@ -1811,10 +1806,8 @@ static int byt_pinctrl_probe(struct platform_device *pdev)
 	raw_spin_lock_init(&vg->lock);
 
 	ret = byt_gpio_probe(vg);
-	if (ret) {
-		pinctrl_unregister(vg->pctl_dev);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, vg);
 	pm_runtime_enable(&pdev->dev);
