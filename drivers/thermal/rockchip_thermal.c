@@ -524,11 +524,6 @@ static void rk_tsadcv2_initialize(struct regmap *grf, void __iomem *regs,
 		       regs + TSADCV2_AUTO_PERIOD_HT);
 	writel_relaxed(TSADCV2_HIGHT_TSHUT_DEBOUNCE_COUNT,
 		       regs + TSADCV2_HIGHT_TSHUT_DEBOUNCE);
-
-	if (IS_ERR(grf)) {
-		pr_warn("%s: Missing rockchip,grf property\n", __func__);
-		return;
-	}
 }
 
 /**
@@ -971,6 +966,8 @@ static int rockchip_configure_from_dt(struct device *dev,
 	 * need this property.
 	 */
 	thermal->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
+	if (IS_ERR(thermal->grf))
+		dev_warn(dev, "Missing rockchip,grf property\n");
 
 	return 0;
 }

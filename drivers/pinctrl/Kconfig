@@ -93,6 +93,15 @@ config PINCTRL_AMD
 	  Requires ACPI/FDT device enumeration code to set up a platform
 	  device.
 
+config PINCTRL_DA850_PUPD
+	tristate "TI DA850/OMAP-L138/AM18XX pullup/pulldown groups"
+	depends on OF && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Driver for TI DA850/OMAP-L138/AM18XX pinconf. Used to control
+	  pullup/pulldown pin groups.
+
 config PINCTRL_DIGICOLOR
 	bool
 	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
@@ -164,6 +173,21 @@ config PINCTRL_SIRF
 	select GENERIC_PINCONF
 	select GPIOLIB_IRQCHIP
 
+config PINCTRL_SX150X
+	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
+	depends on GPIOLIB && I2C=y
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select REGMAP
+	help
+	  Say yes here to provide support for Semtech SX150x-series I2C
+	  GPIO expanders as pinctrl module.
+	  Compatible models include:
+	  - 8 bits:  sx1508q, sx1502q
+	  - 16 bits: sx1509q, sx1506q
+
 config PINCTRL_PISTACHIO
 	def_bool y if MACH_PISTACHIO
 	depends on GPIOLIB
@@ -209,7 +233,7 @@ config PINCTRL_COH901
 
 config PINCTRL_MAX77620
 	tristate "MAX77620/MAX20024 Pincontrol support"
-	depends on MFD_MAX77620
+	depends on MFD_MAX77620 && OF
 	select PINMUX
 	select GENERIC_PINCONF
 	help

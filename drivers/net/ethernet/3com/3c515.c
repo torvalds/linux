@@ -72,7 +72,7 @@ static int max_interrupt_work = 20;
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -570,7 +570,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_tx_timeout		= corkscrew_timeout,
 	.ndo_get_stats		= corkscrew_get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -627,6 +626,8 @@ static int corkscrew_setup(struct net_device *dev, int ioaddr,
 	pr_info("%s: 3Com %s at %#3x,", dev->name, vp->product_name, ioaddr);
 
 	spin_lock_init(&vp->lock);
+
+	setup_timer(&vp->timer, corkscrew_timer, (unsigned long) dev);
 
 	/* Read the station address from the EEPROM. */
 	EL3WINDOW(0);
@@ -708,6 +709,7 @@ static int corkscrew_open(struct net_device *dev)
 {
 	int ioaddr = dev->base_addr;
 	struct corkscrew_private *vp = netdev_priv(dev);
+	bool armtimer = false;
 	__u32 config;
 	int i;
 
@@ -732,12 +734,7 @@ static int corkscrew_open(struct net_device *dev)
 		if (corkscrew_debug > 1)
 			pr_debug("%s: Initial media type %s.\n",
 			       dev->name, media_tbl[dev->if_port].name);
-
-		init_timer(&vp->timer);
-		vp->timer.expires = jiffies + media_tbl[dev->if_port].wait;
-		vp->timer.data = (unsigned long) dev;
-		vp->timer.function = corkscrew_timer;	/* timer handler */
-		add_timer(&vp->timer);
+		armtimer = true;
 	} else
 		dev->if_port = vp->default_media;
 
@@ -776,6 +773,9 @@ static int corkscrew_open(struct net_device *dev)
 			       vp->product_name, dev)) {
 		return -EAGAIN;
 	}
+
+	if (armtimer)
+		mod_timer(&vp->timer, jiffies + media_tbl[dev->if_port].wait);
 
 	if (corkscrew_debug > 1) {
 		EL3WINDOW(4);
@@ -1427,7 +1427,7 @@ static int corkscrew_close(struct net_device *dev)
 			dev->name, rx_nocopy, rx_copy, queued_packet);
 	}
 
-	del_timer(&vp->timer);
+	del_timer_sync(&vp->timer);
 
 	/* Turn off statistics ASAP.  We update lp->stats below. */
 	outw(StatsDisable, ioaddr + EL3_CMD);

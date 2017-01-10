@@ -232,6 +232,7 @@ static struct s3c2410_platform_nand __initdata jive_nand_info = {
 	.twrph1		= 40,
 	.sets		= jive_nand_sets,
 	.nr_sets	= ARRAY_SIZE(jive_nand_sets),
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 static int __init jive_mtdset(char *options)

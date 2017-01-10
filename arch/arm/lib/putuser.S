@@ -31,7 +31,6 @@
 #include <asm/assembler.h>
 #include <asm/errno.h>
 #include <asm/domain.h>
-#include <asm/export.h>
 
 ENTRY(__put_user_1)
 	check_uaccess r0, 1, r1, ip, __put_user_bad
@@ -39,7 +38,6 @@ ENTRY(__put_user_1)
 	mov	r0, #0
 	ret	lr
 ENDPROC(__put_user_1)
-EXPORT_SYMBOL(__put_user_1)
 
 ENTRY(__put_user_2)
 	check_uaccess r0, 2, r1, ip, __put_user_bad
@@ -64,7 +62,6 @@ ENTRY(__put_user_2)
 	mov	r0, #0
 	ret	lr
 ENDPROC(__put_user_2)
-EXPORT_SYMBOL(__put_user_2)
 
 ENTRY(__put_user_4)
 	check_uaccess r0, 4, r1, ip, __put_user_bad
@@ -72,7 +69,6 @@ ENTRY(__put_user_4)
 	mov	r0, #0
 	ret	lr
 ENDPROC(__put_user_4)
-EXPORT_SYMBOL(__put_user_4)
 
 ENTRY(__put_user_8)
 	check_uaccess r0, 8, r1, ip, __put_user_bad
@@ -86,7 +82,6 @@ ENTRY(__put_user_8)
 	mov	r0, #0
 	ret	lr
 ENDPROC(__put_user_8)
-EXPORT_SYMBOL(__put_user_8)
 
 __put_user_bad:
 	mov	r0, #-EFAULT

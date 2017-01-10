@@ -39,7 +39,7 @@
 #include <asm/processor.h>
 #include <asm/div64.h>
 
-#include "edac_core.h"
+#include "edac_module.h"
 
 /* Static vars */
 static LIST_HEAD(i7core_edac_list);

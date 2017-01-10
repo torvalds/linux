@@ -42,7 +42,7 @@
 #include <linux/slab.h>
 #include <linux/serial_core.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "hvc_console.h"
 

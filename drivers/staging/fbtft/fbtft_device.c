@@ -96,9 +96,9 @@ static unsigned int buswidth = 8;
 module_param(buswidth, uint, 0);
 MODULE_PARM_DESC(buswidth, "Display bus width, used with the custom argument");
 
-static int init[FBTFT_MAX_INIT_SEQUENCE];
+static s16 init[FBTFT_MAX_INIT_SEQUENCE];
 static int init_num;
-module_param_array(init, int, &init_num, 0);
+module_param_array(init, short, &init_num, 0);
 MODULE_PARM_DESC(init, "Init sequence, used with the custom argument");
 
 static unsigned long debug;
@@ -131,7 +131,7 @@ static void adafruit18_green_tab_set_addr_win(struct fbtft_par *par,
 		"D0 00 14 15 13 2C 42 43 4E 09 16 14 18 21\n" \
 		"D0 00 14 15 13 0B 43 55 53 0C 17 14 23 20"
 
-static int cberry28_init_sequence[] = {
+static s16 cberry28_init_sequence[] = {
 	/* turn off sleep mode */
 	-1, MIPI_DCS_EXIT_SLEEP_MODE,
 	-2, 120,
@@ -180,7 +180,7 @@ static int cberry28_init_sequence[] = {
 	-3,
 };
 
-static int hy28b_init_sequence[] = {
+static s16 hy28b_init_sequence[] = {
 	-1, 0x00e7, 0x0010, -1, 0x0000, 0x0001,
 	-1, 0x0001, 0x0100, -1, 0x0002, 0x0700,
 	-1, 0x0003, 0x1030, -1, 0x0004, 0x0000,
@@ -211,7 +211,7 @@ static int hy28b_init_sequence[] = {
 	"04 1F 4 7 7 0 7 7 6 0\n" \
 	"0F 00 1 7 4 0 0 0 6 7"
 
-static int pitft_init_sequence[] = {
+static s16 pitft_init_sequence[] = {
 	-1, MIPI_DCS_SOFT_RESET,
 	-2, 5,
 	-1, MIPI_DCS_SET_DISPLAY_OFF,
@@ -242,7 +242,7 @@ static int pitft_init_sequence[] = {
 	-3
 };
 
-static int waveshare32b_init_sequence[] = {
+static s16 waveshare32b_init_sequence[] = {
 	-1, 0xCB, 0x39, 0x2C, 0x00, 0x34, 0x02,
 	-1, 0xCF, 0x00, 0xC1, 0x30,
 	-1, 0xE8, 0x85, 0x00, 0x78,

@@ -681,7 +681,7 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 }
 
 /* exported from bond_main.c */
-extern int bond_net_id;
+extern unsigned int bond_net_id;
 extern const struct bond_parm_tbl bond_lacp_tbl[];
 extern const struct bond_parm_tbl xmit_hashtype_tbl[];
 extern const struct bond_parm_tbl arp_validate_tbl[];

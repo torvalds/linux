@@ -5,7 +5,7 @@
  * In following radix_tree_next_slot current chunk size becomes zero.
  * This isn't checked and it tries to dereference null pointer in slot.
  *
- * Helper radix_tree_iter_next reset slot to NULL and next_index to index + 1,
+ * Helper radix_tree_iter_resume reset slot to NULL and next_index to index + 1,
  * for tagger iteraction it also must reset cached tags in iterator to abort
  * next radix_tree_next_slot and go to slow-path into radix_tree_next_chunk.
  *
@@ -88,7 +88,7 @@ void regression3_test(void)
 		printf("slot %ld %p\n", iter.index, *slot);
 		if (!iter.index) {
 			printf("next at %ld\n", iter.index);
-			slot = radix_tree_iter_next(&iter);
+			slot = radix_tree_iter_resume(slot, &iter);
 		}
 	}
 
@@ -96,7 +96,7 @@ void regression3_test(void)
 		printf("contig %ld %p\n", iter.index, *slot);
 		if (!iter.index) {
 			printf("next at %ld\n", iter.index);
-			slot = radix_tree_iter_next(&iter);
+			slot = radix_tree_iter_resume(slot, &iter);
 		}
 	}
 
@@ -106,7 +106,7 @@ void regression3_test(void)
 		printf("tagged %ld %p\n", iter.index, *slot);
 		if (!iter.index) {
 			printf("next at %ld\n", iter.index);
-			slot = radix_tree_iter_next(&iter);
+			slot = radix_tree_iter_resume(slot, &iter);
 		}
 	}
 

@@ -1068,7 +1068,6 @@ static const struct net_device_ops cpmac_netdev_ops = {
 	.ndo_tx_timeout		= cpmac_tx_timeout,
 	.ndo_set_rx_mode	= cpmac_set_multicast_list,
 	.ndo_do_ioctl		= cpmac_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
 };
@@ -1113,6 +1112,7 @@ static int cpmac_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	SET_NETDEV_DEV(dev, &pdev->dev);
 	platform_set_drvdata(pdev, dev);
 	priv = netdev_priv(dev);
 

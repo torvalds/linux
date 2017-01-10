@@ -57,7 +57,7 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x00000000 0 0x20000000>; /* 512MB */
 	};
@@ -68,35 +68,9 @@
 			MBUS_ID(0x09, 0x09) 0 0 0xf1100000 0x10000
 			MBUS_ID(0x09, 0x05) 0 0 0xf1110000 0x10000>;
 
-		pcie-controller {
-			status = "okay";
-
-			/* Quad port sata: Marvell 88SX7042 */
-			pcie@1,0 {
-				/* Port 0, Lane 0 */
-				status = "okay";
-			};
-
-			/* USB 3.0 xHCI controller: NEC D720200F1 */
-			pcie@5,0 {
-				/* Port 1, Lane 0 */
-				status = "okay";
-			};
-		};
-
 		internal-regs {
 			serial@12000 {
 				status = "okay";
-			};
-
-			mdio {
-				phy0: ethernet-phy@0 { /* Marvell 88E1318 */
-					reg = <0>;
-				};
-
-				phy1: ethernet-phy@1 { /* Marvell 88E1318 */
-					reg = <1>;
-				};
 			};
 
 			ethernet@70000 {
@@ -293,6 +267,31 @@
 		pinctrl-0 = <&poweroff_pin>;
 		pinctrl-names = "default";
 		gpios = <&gpio0 24 GPIO_ACTIVE_HIGH>;
+	};
+};
+&pciec {
+	status = "okay";
+
+	/* Quad port sata: Marvell 88SX7042 */
+	pcie@1,0 {
+		/* Port 0, Lane 0 */
+		status = "okay";
+	};
+
+	/* USB 3.0 xHCI controller: NEC D720200F1 */
+	pcie@5,0 {
+		/* Port 1, Lane 0 */
+		status = "okay";
+	};
+};
+
+&mdio {
+	phy0: ethernet-phy@0 { /* Marvell 88E1318 */
+		reg = <0>;
+	};
+
+	phy1: ethernet-phy@1 { /* Marvell 88E1318 */
+		reg = <1>;
 	};
 };
 

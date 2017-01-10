@@ -2272,7 +2272,7 @@ static void stv0367_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static struct dvb_frontend_ops stv0367ter_ops = {
+static const struct dvb_frontend_ops stv0367ter_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "ST STV0367 DVB-T",
@@ -3390,7 +3390,7 @@ static int stv0367cab_read_ucblcks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 };
 
-static struct dvb_frontend_ops stv0367cab_ops = {
+static const struct dvb_frontend_ops stv0367cab_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name = "ST STV0367 DVB-C",

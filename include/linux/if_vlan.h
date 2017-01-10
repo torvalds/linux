@@ -399,22 +399,6 @@ static inline struct sk_buff *__vlan_hwaccel_push_inside(struct sk_buff *skb)
 		skb->vlan_tci = 0;
 	return skb;
 }
-/*
- * vlan_hwaccel_push_inside - pushes vlan tag to the payload
- * @skb: skbuff to tag
- *
- * Checks is tag is present in @skb->vlan_tci and if it is, it pushes the
- * VLAN tag from @skb->vlan_tci inside to the payload.
- *
- * Following the skb_unshare() example, in case of error, the calling function
- * doesn't have to worry about freeing the original skb.
- */
-static inline struct sk_buff *vlan_hwaccel_push_inside(struct sk_buff *skb)
-{
-	if (skb_vlan_tag_present(skb))
-		skb = __vlan_hwaccel_push_inside(skb);
-	return skb;
-}
 
 /**
  * __vlan_hwaccel_put_tag - hardware accelerated VLAN inserting

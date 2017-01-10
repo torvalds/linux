@@ -178,8 +178,8 @@ static void tick_setup_device(struct tick_device *td,
 			      struct clock_event_device *newdev, int cpu,
 			      const struct cpumask *cpumask)
 {
-	ktime_t next_event;
 	void (*handler)(struct clock_event_device *) = NULL;
+	ktime_t next_event = 0;
 
 	/*
 	 * First device setup ?
@@ -195,7 +195,7 @@ static void tick_setup_device(struct tick_device *td,
 			else
 				tick_do_timer_cpu = TICK_DO_TIMER_NONE;
 			tick_next_period = ktime_get();
-			tick_period = ktime_set(0, NSEC_PER_SEC / HZ);
+			tick_period = NSEC_PER_SEC / HZ;
 		}
 
 		/*

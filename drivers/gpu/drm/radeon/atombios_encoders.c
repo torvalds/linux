@@ -28,6 +28,7 @@
 #include <drm/radeon_drm.h>
 #include "radeon.h"
 #include "radeon_audio.h"
+#include "radeon_asic.h"
 #include "atom.h"
 #include <linux/backlight.h>
 

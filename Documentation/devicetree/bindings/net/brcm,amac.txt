@@ -2,11 +2,17 @@ Broadcom AMAC Ethernet Controller Device Tree Bindings
 -------------------------------------------------------------
 
 Required properties:
- - compatible:	"brcm,amac" or "brcm,nsp-amac"
- - reg:		Address and length of the GMAC registers,
-		Address and length of the GMAC IDM registers
- - reg-names:	Names of the registers.  Must have both "amac_base" and
-		"idm_base"
+ - compatible:	"brcm,amac"
+		"brcm,nsp-amac"
+		"brcm,ns2-amac"
+ - reg:		Address and length of the register set for the device. It
+		contains the information of registers in the same order as
+		described by reg-names
+ - reg-names:	Names of the registers.
+		"amac_base":	Address and length of the GMAC registers
+		"idm_base":	Address and length of the GMAC IDM registers
+		"nicpm_base":	Address and length of the NIC Port Manager
+				registers (required for Northstar2)
  - interrupts:	Interrupt number
 
 Optional properties:

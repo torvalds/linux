@@ -126,6 +126,8 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 	u16 len;
 	enum port port;
 
+	DRM_DEBUG_KMS("\n");
+
 	flags = *data++;
 	type = *data++;
 
@@ -198,6 +200,8 @@ out:
 static const u8 *mipi_exec_delay(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	u32 delay = *((const u32 *) data);
+
+	DRM_DEBUG_KMS("\n");
 
 	usleep_range(delay, delay + 10);
 	data += 4;
@@ -296,7 +300,8 @@ static void chv_exec_gpio(struct drm_i915_private *dev_priv,
 	mutex_lock(&dev_priv->sb_lock);
 	vlv_iosf_sb_write(dev_priv, port, cfg1, 0);
 	vlv_iosf_sb_write(dev_priv, port, cfg0,
-			  CHV_GPIO_GPIOCFG_GPO | CHV_GPIO_GPIOTXSTATE(value));
+			  CHV_GPIO_GPIOEN | CHV_GPIO_GPIOCFG_GPO |
+			  CHV_GPIO_GPIOTXSTATE(value));
 	mutex_unlock(&dev_priv->sb_lock);
 }
 
@@ -306,6 +311,8 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	u8 gpio_source, gpio_index;
 	bool value;
+
+	DRM_DEBUG_KMS("\n");
 
 	if (dev_priv->vbt.dsi.seq_version >= 3)
 		data++;
@@ -331,9 +338,25 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	return data;
 }
 
-static const u8 *mipi_exec_i2c_skip(struct intel_dsi *intel_dsi, const u8 *data)
+static const u8 *mipi_exec_i2c(struct intel_dsi *intel_dsi, const u8 *data)
 {
+	DRM_DEBUG_KMS("Skipping I2C element execution\n");
+
 	return data + *(data + 6) + 7;
+}
+
+static const u8 *mipi_exec_spi(struct intel_dsi *intel_dsi, const u8 *data)
+{
+	DRM_DEBUG_KMS("Skipping SPI element execution\n");
+
+	return data + *(data + 5) + 6;
+}
+
+static const u8 *mipi_exec_pmic(struct intel_dsi *intel_dsi, const u8 *data)
+{
+	DRM_DEBUG_KMS("Skipping PMIC element execution\n");
+
+	return data + 15;
 }
 
 typedef const u8 * (*fn_mipi_elem_exec)(struct intel_dsi *intel_dsi,
@@ -342,7 +365,9 @@ static const fn_mipi_elem_exec exec_elem[] = {
 	[MIPI_SEQ_ELEM_SEND_PKT] = mipi_exec_send_packet,
 	[MIPI_SEQ_ELEM_DELAY] = mipi_exec_delay,
 	[MIPI_SEQ_ELEM_GPIO] = mipi_exec_gpio,
-	[MIPI_SEQ_ELEM_I2C] = mipi_exec_i2c_skip,
+	[MIPI_SEQ_ELEM_I2C] = mipi_exec_i2c,
+	[MIPI_SEQ_ELEM_SPI] = mipi_exec_spi,
+	[MIPI_SEQ_ELEM_PMIC] = mipi_exec_pmic,
 };
 
 /*
@@ -352,11 +377,11 @@ static const fn_mipi_elem_exec exec_elem[] = {
  */
 
 static const char * const seq_name[] = {
-	[MIPI_SEQ_ASSERT_RESET] = "MIPI_SEQ_ASSERT_RESET",
+	[MIPI_SEQ_DEASSERT_RESET] = "MIPI_SEQ_DEASSERT_RESET",
 	[MIPI_SEQ_INIT_OTP] = "MIPI_SEQ_INIT_OTP",
 	[MIPI_SEQ_DISPLAY_ON] = "MIPI_SEQ_DISPLAY_ON",
 	[MIPI_SEQ_DISPLAY_OFF]  = "MIPI_SEQ_DISPLAY_OFF",
-	[MIPI_SEQ_DEASSERT_RESET] = "MIPI_SEQ_DEASSERT_RESET",
+	[MIPI_SEQ_ASSERT_RESET] = "MIPI_SEQ_ASSERT_RESET",
 	[MIPI_SEQ_BACKLIGHT_ON] = "MIPI_SEQ_BACKLIGHT_ON",
 	[MIPI_SEQ_BACKLIGHT_OFF] = "MIPI_SEQ_BACKLIGHT_OFF",
 	[MIPI_SEQ_TEAR_ON] = "MIPI_SEQ_TEAR_ON",
@@ -385,11 +410,8 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 		return;
 
 	data = dev_priv->vbt.dsi.sequence[seq_id];
-	if (!data) {
-		DRM_DEBUG_KMS("MIPI sequence %d - %s not available\n",
-			      seq_id, sequence_name(seq_id));
+	if (!data)
 		return;
-	}
 
 	WARN_ON(*data != seq_id);
 
@@ -420,7 +442,15 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 			operation_size = *data++;
 
 		if (mipi_elem_exec) {
+			const u8 *next = data + operation_size;
+
 			data = mipi_elem_exec(intel_dsi, data);
+
+			/* Consistency check if we have size. */
+			if (operation_size && data != next) {
+				DRM_ERROR("Inconsistent operation size\n");
+				return;
+			}
 		} else if (operation_size) {
 			/* We have size, skip. */
 			DRM_DEBUG_KMS("Unsupported MIPI operation byte %u\n",
@@ -438,6 +468,8 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 static int vbt_panel_prepare(struct drm_panel *panel)
 {
 	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
+	generic_exec_sequence(panel, MIPI_SEQ_POWER_ON);
+	generic_exec_sequence(panel, MIPI_SEQ_DEASSERT_RESET);
 	generic_exec_sequence(panel, MIPI_SEQ_INIT_OTP);
 
 	return 0;
@@ -445,7 +477,8 @@ static int vbt_panel_prepare(struct drm_panel *panel)
 
 static int vbt_panel_unprepare(struct drm_panel *panel)
 {
-	generic_exec_sequence(panel, MIPI_SEQ_DEASSERT_RESET);
+	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
+	generic_exec_sequence(panel, MIPI_SEQ_POWER_OFF);
 
 	return 0;
 }
@@ -453,12 +486,14 @@ static int vbt_panel_unprepare(struct drm_panel *panel)
 static int vbt_panel_enable(struct drm_panel *panel)
 {
 	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_ON);
+	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_ON);
 
 	return 0;
 }
 
 static int vbt_panel_disable(struct drm_panel *panel)
 {
+	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_OFF);
 	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_OFF);
 
 	return 0;
@@ -740,9 +775,8 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 			8);
 	intel_dsi->clk_hs_to_lp_count += extra_byte_count;
 
-	DRM_DEBUG_KMS("Eot %s\n", intel_dsi->eotp_pkt ? "enabled" : "disabled");
-	DRM_DEBUG_KMS("Clockstop %s\n", intel_dsi->clock_stop ?
-						"disabled" : "enabled");
+	DRM_DEBUG_KMS("Eot %s\n", enableddisabled(intel_dsi->eotp_pkt));
+	DRM_DEBUG_KMS("Clockstop %s\n", enableddisabled(!intel_dsi->clock_stop));
 	DRM_DEBUG_KMS("Mode %s\n", intel_dsi->operation_mode ? "command" : "video");
 	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK)
 		DRM_DEBUG_KMS("Dual link: DSI_DUAL_LINK_FRONT_BACK\n");
@@ -761,8 +795,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	DRM_DEBUG_KMS("LP to HS Clock Count 0x%x\n", intel_dsi->clk_lp_to_hs_count);
 	DRM_DEBUG_KMS("HS to LP Clock Count 0x%x\n", intel_dsi->clk_hs_to_lp_count);
 	DRM_DEBUG_KMS("BTA %s\n",
-			intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA ?
-			"disabled" : "enabled");
+			enableddisabled(!(intel_dsi->video_frmt_cfg_bits & DISABLE_VIDEO_BTA)));
 
 	/* delays in VBT are in unit of 100us, so need to convert
 	 * here in ms

@@ -179,7 +179,7 @@ int reset_xd_card(struct rtsx_chip *chip);
 int xd_delay_write(struct rtsx_chip *chip);
 #endif
 int xd_rw(struct scsi_cmnd *srb, struct rtsx_chip *chip,
-	u32 start_sector, u16 sector_cnt);
+	  u32 start_sector, u16 sector_cnt);
 void xd_free_l2p_tbl(struct rtsx_chip *chip);
 void xd_cleanup_work(struct rtsx_chip *chip);
 int xd_power_off_card3v3(struct rtsx_chip *chip);

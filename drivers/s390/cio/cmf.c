@@ -30,7 +30,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/timex.h>	/* get_tod_clock() */
@@ -1389,13 +1389,7 @@ static int __init init_cmf(void)
 		"%s (mode %s)\n", format_string, detect_string);
 	return 0;
 }
-module_init(init_cmf);
-
-
-MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("channel measurement facility base driver\n"
-		   "Copyright IBM Corp. 2003\n");
+device_initcall(init_cmf);
 
 EXPORT_SYMBOL_GPL(enable_cmf);
 EXPORT_SYMBOL_GPL(disable_cmf);

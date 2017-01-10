@@ -3008,16 +3008,11 @@ static int nv_change_mtu(struct net_device *dev, int new_mtu)
 	struct fe_priv *np = netdev_priv(dev);
 	int old_mtu;
 
-	if (new_mtu < 64 || new_mtu > np->pkt_limit)
-		return -EINVAL;
-
 	old_mtu = dev->mtu;
 	dev->mtu = new_mtu;
 
 	/* return early if the buffer sizes will not change */
 	if (old_mtu <= ETH_DATA_LEN && new_mtu <= ETH_DATA_LEN)
-		return 0;
-	if (old_mtu == new_mtu)
 		return 0;
 
 	/* synchronized against open : rtnl_lock() held by caller */
@@ -5718,6 +5713,10 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	/* Add loopback capability to the device. */
 	dev->hw_features |= NETIF_F_LOOPBACK;
+
+	/* MTU range: 64 - 1500 or 9100 */
+	dev->min_mtu = ETH_ZLEN + ETH_FCS_LEN;
+	dev->max_mtu = np->pkt_limit;
 
 	np->pause_flags = NV_PAUSEFRAME_RX_CAPABLE | NV_PAUSEFRAME_RX_REQ | NV_PAUSEFRAME_AUTONEG;
 	if ((id->driver_data & DEV_HAS_PAUSEFRAME_TX_V1) ||

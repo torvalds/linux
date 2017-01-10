@@ -319,6 +319,9 @@ void __init omap3_prm_init_pm(bool has_uart4, bool has_iva)
 	if (has_uart4) {
 		en_uart4_mask = OMAP3630_EN_UART4_MASK;
 		grpsel_uart4_mask = OMAP3630_GRPSEL_UART4_MASK;
+	} else {
+		en_uart4_mask = 0;
+		grpsel_uart4_mask = 0;
 	}
 
 	/* Enable wakeups in PER */

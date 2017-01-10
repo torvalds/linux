@@ -139,7 +139,6 @@ hpet_example
 hugepage-mmap
 hugepage-shm
 ihex2fw
-ikconfig.h*
 inat-tables.c
 initramfs_list
 int16.c

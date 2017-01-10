@@ -81,7 +81,7 @@ static void do_remove(struct mmu_rb_handler *handler,
 		      struct list_head *del_list);
 static void handle_remove(struct work_struct *work);
 
-static struct mmu_notifier_ops mn_opts = {
+static const struct mmu_notifier_ops mn_opts = {
 	.invalidate_page = mmu_notifier_page,
 	.invalidate_range_start = mmu_notifier_range_start,
 };

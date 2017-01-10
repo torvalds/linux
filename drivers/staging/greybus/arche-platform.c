@@ -186,6 +186,7 @@ int arche_platform_change_state(enum arche_platform_state state,
 exit:
 	spin_unlock_irqrestore(&arche_pdata->wake_lock, flags);
 	mutex_unlock(&arche_pdata->platform_state_mutex);
+	put_device(&pdev->dev);
 	of_node_put(np);
 	return ret;
 }
@@ -456,7 +457,8 @@ retry:
 			goto exit;
 
 		/* First we want to make sure we power off everything
-		 * and then activate back again */
+		 * and then activate back again
+		 */
 		device_for_each_child(arche_pdata->dev, NULL, apb_poweroff);
 		arche_platform_poweroff_seq(arche_pdata);
 

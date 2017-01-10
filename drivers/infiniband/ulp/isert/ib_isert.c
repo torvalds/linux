@@ -184,7 +184,7 @@ isert_alloc_rx_descriptors(struct isert_conn *isert_conn)
 	isert_conn->rx_descs = kzalloc(ISERT_QP_MAX_RECV_DTOS *
 				sizeof(struct iser_rx_desc), GFP_KERNEL);
 	if (!isert_conn->rx_descs)
-		goto fail;
+		return -ENOMEM;
 
 	rx_desc = isert_conn->rx_descs;
 
@@ -213,9 +213,7 @@ dma_map_fail:
 	}
 	kfree(isert_conn->rx_descs);
 	isert_conn->rx_descs = NULL;
-fail:
 	isert_err("conn %p failed to allocate rx descriptors\n", isert_conn);
-
 	return -ENOMEM;
 }
 
@@ -269,10 +267,8 @@ isert_alloc_comps(struct isert_device *device)
 
 	device->comps = kcalloc(device->comps_used, sizeof(struct isert_comp),
 				GFP_KERNEL);
-	if (!device->comps) {
-		isert_err("Unable to allocate completion contexts\n");
+	if (!device->comps)
 		return -ENOMEM;
-	}
 
 	max_cqe = min(ISER_MAX_CQ_LEN, device->ib_device->attrs.max_cqe);
 
@@ -432,10 +428,8 @@ isert_alloc_login_buf(struct isert_conn *isert_conn,
 
 	isert_conn->login_req_buf = kzalloc(sizeof(*isert_conn->login_req_buf),
 			GFP_KERNEL);
-	if (!isert_conn->login_req_buf) {
-		isert_err("Unable to allocate isert_conn->login_buf\n");
+	if (!isert_conn->login_req_buf)
 		return -ENOMEM;
-	}
 
 	isert_conn->login_req_dma = ib_dma_map_single(ib_dev,
 				isert_conn->login_req_buf,
@@ -795,6 +789,8 @@ isert_cma_handler(struct rdma_cm_id *cma_id, struct rdma_cm_event *event)
 		 */
 		return 1;
 	case RDMA_CM_EVENT_REJECTED:       /* FALLTHRU */
+		isert_info("Connection rejected: %s\n",
+			   rdma_reject_msg(cma_id, event->status));
 	case RDMA_CM_EVENT_UNREACHABLE:    /* FALLTHRU */
 	case RDMA_CM_EVENT_CONNECT_ERROR:
 		ret = isert_connect_error(cma_id);
@@ -1276,11 +1272,8 @@ isert_handle_text_cmd(struct isert_conn *isert_conn, struct isert_cmd *isert_cmd
 
 	if (payload_length) {
 		text_in = kzalloc(payload_length, GFP_KERNEL);
-		if (!text_in) {
-			isert_err("Unable to allocate text_in of payload_length: %u\n",
-				  payload_length);
+		if (!text_in)
 			return -ENOMEM;
-		}
 	}
 	cmd->text_in_ptr = text_in;
 
@@ -1851,6 +1844,8 @@ isert_put_response(struct iscsi_conn *conn, struct iscsi_cmd *cmd)
 		isert_cmd->pdu_buf_dma = ib_dma_map_single(ib_dev,
 				(void *)cmd->sense_buffer, pdu_len,
 				DMA_TO_DEVICE);
+		if (ib_dma_mapping_error(ib_dev, isert_cmd->pdu_buf_dma))
+			return -ENOMEM;
 
 		isert_cmd->pdu_buf_len = pdu_len;
 		tx_dsg->addr	= isert_cmd->pdu_buf_dma;
@@ -1978,6 +1973,8 @@ isert_put_reject(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 	isert_cmd->pdu_buf_dma = ib_dma_map_single(ib_dev,
 			(void *)cmd->buf_ptr, ISCSI_HDR_LEN,
 			DMA_TO_DEVICE);
+	if (ib_dma_mapping_error(ib_dev, isert_cmd->pdu_buf_dma))
+		return -ENOMEM;
 	isert_cmd->pdu_buf_len = ISCSI_HDR_LEN;
 	tx_dsg->addr	= isert_cmd->pdu_buf_dma;
 	tx_dsg->length	= ISCSI_HDR_LEN;
@@ -2018,6 +2015,8 @@ isert_put_text_rsp(struct iscsi_cmd *cmd, struct iscsi_conn *conn)
 
 		isert_cmd->pdu_buf_dma = ib_dma_map_single(ib_dev,
 				txt_rsp_buf, txt_rsp_len, DMA_TO_DEVICE);
+		if (ib_dma_mapping_error(ib_dev, isert_cmd->pdu_buf_dma))
+			return -ENOMEM;
 
 		isert_cmd->pdu_buf_len = txt_rsp_len;
 		tx_dsg->addr	= isert_cmd->pdu_buf_dma;
@@ -2307,10 +2306,9 @@ isert_setup_np(struct iscsi_np *np,
 	int ret;
 
 	isert_np = kzalloc(sizeof(struct isert_np), GFP_KERNEL);
-	if (!isert_np) {
-		isert_err("Unable to allocate struct isert_np\n");
+	if (!isert_np)
 		return -ENOMEM;
-	}
+
 	sema_init(&isert_np->sem, 0);
 	mutex_init(&isert_np->mutex);
 	INIT_LIST_HEAD(&isert_np->accepted);
@@ -2651,7 +2649,6 @@ static int __init isert_init(void)
 					WQ_UNBOUND | WQ_HIGHPRI, 0);
 	if (!isert_comp_wq) {
 		isert_err("Unable to allocate isert_comp_wq\n");
-		ret = -ENOMEM;
 		return -ENOMEM;
 	}
 

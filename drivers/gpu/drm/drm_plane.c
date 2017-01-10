@@ -79,7 +79,7 @@ static unsigned int drm_num_planes(struct drm_device *dev)
  * Zero on success, error code on failure.
  */
 int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
-			     unsigned long possible_crtcs,
+			     uint32_t possible_crtcs,
 			     const struct drm_plane_funcs *funcs,
 			     const uint32_t *formats, unsigned int format_count,
 			     enum drm_plane_type type,
@@ -137,6 +137,7 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 
 	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
 		drm_object_attach_property(&plane->base, config->prop_fb_id, 0);
+		drm_object_attach_property(&plane->base, config->prop_in_fence_fd, -1);
 		drm_object_attach_property(&plane->base, config->prop_crtc_id, 0);
 		drm_object_attach_property(&plane->base, config->prop_crtc_x, 0);
 		drm_object_attach_property(&plane->base, config->prop_crtc_y, 0);
@@ -195,7 +196,7 @@ void drm_plane_unregister_all(struct drm_device *dev)
  * Zero on success, error code on failure.
  */
 int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
-		   unsigned long possible_crtcs,
+		   uint32_t possible_crtcs,
 		   const struct drm_plane_funcs *funcs,
 		   const uint32_t *formats, unsigned int format_count,
 		   bool is_primary)
@@ -220,7 +221,8 @@ void drm_plane_cleanup(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
 
-	drm_modeset_lock_all(dev);
+	drm_modeset_lock_fini(&plane->mutex);
+
 	kfree(plane->format_types);
 	drm_mode_object_unregister(dev, &plane->base);
 
@@ -235,7 +237,6 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	dev->mode_config.num_total_plane--;
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY)
 		dev->mode_config.num_overlay_plane--;
-	drm_modeset_unlock_all(dev);
 
 	WARN_ON(plane->state && !plane->funcs->atomic_destroy_state);
 	if (plane->state && plane->funcs->atomic_destroy_state)
@@ -479,9 +480,10 @@ static int __setplane_internal(struct drm_plane *plane,
 	/* Check whether this plane supports the fb pixel format. */
 	ret = drm_plane_check_pixel_format(plane, fb->pixel_format);
 	if (ret) {
-		char *format_name = drm_get_format_name(fb->pixel_format);
-		DRM_DEBUG_KMS("Invalid pixel format %s\n", format_name);
-		kfree(format_name);
+		struct drm_format_name_buf format_name;
+		DRM_DEBUG_KMS("Invalid pixel format %s\n",
+		              drm_get_format_name(fb->pixel_format,
+		                                  &format_name));
 		goto out;
 	}
 

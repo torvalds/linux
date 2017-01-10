@@ -7,7 +7,11 @@
 
 #include "regs.h"
 
-struct sec4_sg_entry;
+struct sec4_sg_entry {
+	u64 ptr;
+	u32 len;
+	u32 bpid_offset;
+};
 
 /*
  * convert single dma address to h/w link table format

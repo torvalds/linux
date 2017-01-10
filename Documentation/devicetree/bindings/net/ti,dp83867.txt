@@ -9,6 +9,18 @@ Required properties:
 	- ti,fifo-depth - Transmitt FIFO depth- see dt-bindings/net/ti-dp83867.h
 		for applicable values
 
+Optional property:
+	- ti,min-output-impedance - MAC Interface Impedance control to set
+				    the programmable output impedance to
+				    minimum value (35 ohms).
+	- ti,max-output-impedance - MAC Interface Impedance control to set
+				    the programmable output impedance to
+				    maximum value (70 ohms).
+
+Note: ti,min-output-impedance and ti,max-output-impedance are mutually
+      exclusive. When both properties are present ti,max-output-impedance
+      takes precedence.
+
 Default child nodes are standard Ethernet PHY device
 nodes as described in Documentation/devicetree/bindings/net/phy.txt
 

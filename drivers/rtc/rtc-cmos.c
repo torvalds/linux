@@ -191,6 +191,13 @@ static inline void cmos_write_bank2(unsigned char val, unsigned char addr)
 
 static int cmos_read_time(struct device *dev, struct rtc_time *t)
 {
+	/*
+	 * If pm_trace abused the RTC for storage, set the timespec to 0,
+	 * which tells the caller that this RTC value is unusable.
+	 */
+	if (!pm_trace_rtc_valid())
+		return -EIO;
+
 	/* REVISIT:  if the clock has a "century" register, use
 	 * that instead of the heuristic in mc146818_get_time().
 	 * That'll make Y3K compatility (year > 2070) easy!
@@ -325,13 +332,85 @@ static void cmos_irq_disable(struct cmos_rtc *cmos, unsigned char mask)
 	cmos_checkintr(cmos, rtc_control);
 }
 
+static int cmos_validate_alarm(struct device *dev, struct rtc_wkalrm *t)
+{
+	struct cmos_rtc *cmos = dev_get_drvdata(dev);
+	struct rtc_time now;
+
+	cmos_read_time(dev, &now);
+
+	if (!cmos->day_alrm) {
+		time64_t t_max_date;
+		time64_t t_alrm;
+
+		t_max_date = rtc_tm_to_time64(&now);
+		t_max_date += 24 * 60 * 60 - 1;
+		t_alrm = rtc_tm_to_time64(&t->time);
+		if (t_alrm > t_max_date) {
+			dev_err(dev,
+				"Alarms can be up to one day in the future\n");
+			return -EINVAL;
+		}
+	} else if (!cmos->mon_alrm) {
+		struct rtc_time max_date = now;
+		time64_t t_max_date;
+		time64_t t_alrm;
+		int max_mday;
+
+		if (max_date.tm_mon == 11) {
+			max_date.tm_mon = 0;
+			max_date.tm_year += 1;
+		} else {
+			max_date.tm_mon += 1;
+		}
+		max_mday = rtc_month_days(max_date.tm_mon, max_date.tm_year);
+		if (max_date.tm_mday > max_mday)
+			max_date.tm_mday = max_mday;
+
+		t_max_date = rtc_tm_to_time64(&max_date);
+		t_max_date -= 1;
+		t_alrm = rtc_tm_to_time64(&t->time);
+		if (t_alrm > t_max_date) {
+			dev_err(dev,
+				"Alarms can be up to one month in the future\n");
+			return -EINVAL;
+		}
+	} else {
+		struct rtc_time max_date = now;
+		time64_t t_max_date;
+		time64_t t_alrm;
+		int max_mday;
+
+		max_date.tm_year += 1;
+		max_mday = rtc_month_days(max_date.tm_mon, max_date.tm_year);
+		if (max_date.tm_mday > max_mday)
+			max_date.tm_mday = max_mday;
+
+		t_max_date = rtc_tm_to_time64(&max_date);
+		t_max_date -= 1;
+		t_alrm = rtc_tm_to_time64(&t->time);
+		if (t_alrm > t_max_date) {
+			dev_err(dev,
+				"Alarms can be up to one year in the future\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int cmos_set_alarm(struct device *dev, struct rtc_wkalrm *t)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	unsigned char mon, mday, hrs, min, sec, rtc_control;
+	int ret;
 
 	if (!is_valid_irq(cmos->irq))
 		return -EIO;
+
+	ret = cmos_validate_alarm(dev, t);
+	if (ret < 0)
+		return ret;
 
 	mon = t->time.tm_mon + 1;
 	mday = t->time.tm_mday;
@@ -700,9 +779,6 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 
 	spin_unlock_irq(&rtc_lock);
 
-	/* FIXME:
-	 * <asm-generic/rtc.h> doesn't know 12-hour mode either.
-	 */
 	if (is_valid_irq(rtc_irq) && !(rtc_control & RTC_24H)) {
 		dev_warn(dev, "only 24-hr supported\n");
 		retval = -ENXIO;
@@ -776,7 +852,7 @@ static void cmos_do_shutdown(int rtc_irq)
 	spin_unlock_irq(&rtc_lock);
 }
 
-static void __exit cmos_do_remove(struct device *dev)
+static void cmos_do_remove(struct device *dev)
 {
 	struct cmos_rtc	*cmos = dev_get_drvdata(dev);
 	struct resource *ports;
@@ -996,8 +1072,9 @@ static u32 rtc_handler(void *context)
 	struct cmos_rtc *cmos = dev_get_drvdata(dev);
 	unsigned char rtc_control = 0;
 	unsigned char rtc_intr;
+	unsigned long flags;
 
-	spin_lock_irq(&rtc_lock);
+	spin_lock_irqsave(&rtc_lock, flags);
 	if (cmos_rtc.suspend_ctrl)
 		rtc_control = CMOS_READ(RTC_CONTROL);
 	if (rtc_control & RTC_AIE) {
@@ -1006,7 +1083,7 @@ static u32 rtc_handler(void *context)
 		rtc_intr = CMOS_READ(RTC_INTR_FLAGS);
 		rtc_update_irq(cmos->rtc, 1, rtc_intr);
 	}
-	spin_unlock_irq(&rtc_lock);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	pm_wakeup_event(dev, 0);
 	acpi_clear_event(ACPI_EVENT_RTC);
@@ -1129,7 +1206,7 @@ static int cmos_pnp_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 				pnp_irq(pnp, 0));
 }
 
-static void __exit cmos_pnp_remove(struct pnp_dev *pnp)
+static void cmos_pnp_remove(struct pnp_dev *pnp)
 {
 	cmos_do_remove(&pnp->dev);
 }
@@ -1161,7 +1238,7 @@ static struct pnp_driver cmos_pnp_driver = {
 	.name		= (char *) driver_name,
 	.id_table	= rtc_ids,
 	.probe		= cmos_pnp_probe,
-	.remove		= __exit_p(cmos_pnp_remove),
+	.remove		= cmos_pnp_remove,
 	.shutdown	= cmos_pnp_shutdown,
 
 	/* flag ensures resume() gets called, and stops syslog spam */
@@ -1238,7 +1315,7 @@ static int __init cmos_platform_probe(struct platform_device *pdev)
 	return cmos_do_probe(&pdev->dev, resource, irq);
 }
 
-static int __exit cmos_platform_remove(struct platform_device *pdev)
+static int cmos_platform_remove(struct platform_device *pdev)
 {
 	cmos_do_remove(&pdev->dev);
 	return 0;
@@ -1263,7 +1340,7 @@ static void cmos_platform_shutdown(struct platform_device *pdev)
 MODULE_ALIAS("platform:rtc_cmos");
 
 static struct platform_driver cmos_platform_driver = {
-	.remove		= __exit_p(cmos_platform_remove),
+	.remove		= cmos_platform_remove,
 	.shutdown	= cmos_platform_shutdown,
 	.driver = {
 		.name		= driver_name,

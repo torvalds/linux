@@ -370,8 +370,11 @@ static int handle_fragments(struct net *net, struct sw_flow_key *key,
 		skb_orphan(skb);
 		memset(IP6CB(skb), 0, sizeof(struct inet6_skb_parm));
 		err = nf_ct_frag6_gather(net, skb, user);
-		if (err)
+		if (err) {
+			if (err != -EINPROGRESS)
+				kfree_skb(skb);
 			return err;
+		}
 
 		key->ip.proto = ipv6_hdr(skb)->nexthdr;
 		ovs_cb.mru = IP6CB(skb)->frag_max_size;
@@ -725,12 +728,8 @@ static int __ovs_ct_lookup(struct net *net, struct sw_flow_key *key,
 			skb->nfctinfo = IP_CT_NEW;
 		}
 
-		/* Repeat if requested, see nf_iterate(). */
-		do {
-			err = nf_conntrack_in(net, info->family,
-					      NF_INET_PRE_ROUTING, skb);
-		} while (err == NF_REPEAT);
-
+		err = nf_conntrack_in(net, info->family,
+				      NF_INET_PRE_ROUTING, skb);
 		if (err != NF_ACCEPT)
 			return -ENOENT;
 

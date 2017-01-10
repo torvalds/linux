@@ -1,6 +1,15 @@
 #ifndef ISCSI_TARGET_TPG_H
 #define ISCSI_TARGET_TPG_H
 
+#include <linux/types.h>
+
+struct iscsi_np;
+struct iscsi_session;
+struct iscsi_tiqn;
+struct iscsi_tpg_np;
+struct se_node_acl;
+struct sockaddr_storage;
+
 extern struct iscsi_portal_group *iscsit_alloc_portal_group(struct iscsi_tiqn *, u16);
 extern int iscsit_load_discovery_tpg(void);
 extern void iscsit_release_discovery_tpg(void);

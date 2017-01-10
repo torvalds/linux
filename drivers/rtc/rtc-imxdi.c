@@ -67,7 +67,7 @@
 #define DSR_ETAD  (1 << 21)      /* External tamper A detected */
 #define DSR_EBD   (1 << 20)      /* External boot detected */
 #define DSR_SAD   (1 << 19)      /* SCC alarm detected */
-#define DSR_TTD   (1 << 18)      /* Temperatur tamper detected */
+#define DSR_TTD   (1 << 18)      /* Temperature tamper detected */
 #define DSR_CTD   (1 << 17)      /* Clock tamper detected */
 #define DSR_VTD   (1 << 16)      /* Voltage tamper detected */
 #define DSR_WBF   (1 << 10)      /* Write Busy Flag (synchronous) */

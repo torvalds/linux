@@ -124,7 +124,7 @@ extern struct sctp_globals {
 	/* This is the sctp port control hash.	*/
 	struct sctp_bind_hashbucket *port_hashtable;
 	/* This is the hash of all transports. */
-	struct rhashtable transport_hashtable;
+	struct rhltable transport_hashtable;
 
 	/* Sizes of above hashtables. */
 	int ep_hashsize;
@@ -530,7 +530,6 @@ struct sctp_datamsg {
 	/* Did the messenge fail to send? */
 	int send_error;
 	u8 send_failed:1,
-	   can_abandon:1,   /* can chunks from this message can be abandoned. */
 	   can_delay;	    /* should this message be Nagle delayed */
 };
 
@@ -641,7 +640,6 @@ struct sctp_chunk {
 #define SCTP_NEED_FRTX 0x1
 #define SCTP_DONT_FRTX 0x2
 	__u16	rtt_in_progress:1,	/* This chunk used for RTT calc? */
-		resent:1,		/* Has this chunk ever been resent. */
 		has_tsn:1,		/* Does this chunk have a TSN yet? */
 		has_ssn:1,		/* Does this chunk have a SSN yet? */
 		singleton:1,		/* Only chunk in the packet? */
@@ -656,6 +654,7 @@ struct sctp_chunk {
 		fast_retransmit:2;	/* Is this chunk fast retransmitted? */
 };
 
+#define sctp_chunk_retransmitted(chunk)	(chunk->sent_count > 1)
 void sctp_chunk_hold(struct sctp_chunk *);
 void sctp_chunk_put(struct sctp_chunk *);
 int sctp_user_addto_chunk(struct sctp_chunk *chunk, int len,
@@ -762,7 +761,7 @@ static inline int sctp_packet_empty(struct sctp_packet *packet)
 struct sctp_transport {
 	/* A list of transports. */
 	struct list_head transports;
-	struct rhash_head node;
+	struct rhlist_head node;
 
 	/* Reference counting. */
 	atomic_t refcnt;

@@ -221,6 +221,36 @@ static int __init sclp_set_event_mask(struct init_sccb *sccb,
 	return sclp_cmd_early(SCLP_CMDW_WRITE_EVENT_MASK, sccb);
 }
 
+static struct sclp_core_info sclp_core_info_early __initdata;
+static int sclp_core_info_early_valid __initdata;
+
+static void __init sclp_init_core_info_early(struct read_cpu_info_sccb *sccb)
+{
+	int rc;
+
+	if (!SCLP_HAS_CPU_INFO)
+		return;
+	memset(sccb, 0, sizeof(*sccb));
+	sccb->header.length = sizeof(*sccb);
+	do {
+		rc = sclp_cmd_sync_early(SCLP_CMDW_READ_CPU_INFO, sccb);
+	} while (rc == -EBUSY);
+	if (rc)
+		return;
+	if (sccb->header.response_code != 0x0010)
+		return;
+	sclp_fill_core_info(&sclp_core_info_early, sccb);
+	sclp_core_info_early_valid = 1;
+}
+
+int __init _sclp_get_core_info_early(struct sclp_core_info *info)
+{
+	if (!sclp_core_info_early_valid)
+		return -EIO;
+	*info = sclp_core_info_early;
+	return 0;
+}
+
 static long __init sclp_hsa_size_init(struct sdias_sccb *sccb)
 {
 	sccb_init_eq_size(sccb);
@@ -293,6 +323,7 @@ void __init sclp_early_detect(void)
 	void *sccb = &sccb_early;
 
 	sclp_facilities_detect(sccb);
+	sclp_init_core_info_early(sccb);
 	sclp_hsa_size_detect(sccb);
 
 	/* Turn off SCLP event notifications.  Also save remote masks in the

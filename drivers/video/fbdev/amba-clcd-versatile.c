@@ -526,8 +526,8 @@ int versatile_clcd_init_panel(struct clcd_fb *fb,
 	np = of_find_matching_node_and_match(NULL, versatile_clcd_of_match,
 					     &clcd_id);
 	if (!np) {
-		dev_err(dev, "no Versatile syscon node\n");
-		return -ENODEV;
+		/* Vexpress does not have this */
+		return 0;
 	}
 	versatile_clcd_type = (enum versatile_clcd)clcd_id->data;
 

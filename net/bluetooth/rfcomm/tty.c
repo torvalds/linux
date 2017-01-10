@@ -178,7 +178,7 @@ static void rfcomm_reparent_device(struct rfcomm_dev *dev)
 	struct hci_dev *hdev;
 	struct hci_conn *conn;
 
-	hdev = hci_get_route(&dev->dst, &dev->src);
+	hdev = hci_get_route(&dev->dst, &dev->src, BDADDR_BREDR);
 	if (!hdev)
 		return;
 

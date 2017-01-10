@@ -26,7 +26,6 @@
 #include <linux/reboot.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
-#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 

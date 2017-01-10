@@ -31,7 +31,7 @@
 
 #include <asm/asi.h>
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/psrcompat.h>
 #include <asm/visasm.h>
 #include <asm/spitfire.h>
@@ -45,6 +45,43 @@
 #include "entry.h"
 
 /* #define ALLOW_INIT_TRACING */
+
+struct pt_regs_offset {
+	const char *name;
+	int offset;
+};
+
+#define REG_OFFSET_NAME(n, r) \
+	{.name = n, .offset = (PT_V9_##r)}
+#define REG_OFFSET_END {.name = NULL, .offset = 0}
+
+static const struct pt_regs_offset regoffset_table[] = {
+	REG_OFFSET_NAME("g0", G0),
+	REG_OFFSET_NAME("g1", G1),
+	REG_OFFSET_NAME("g2", G2),
+	REG_OFFSET_NAME("g3", G3),
+	REG_OFFSET_NAME("g4", G4),
+	REG_OFFSET_NAME("g5", G5),
+	REG_OFFSET_NAME("g6", G6),
+	REG_OFFSET_NAME("g7", G7),
+
+	REG_OFFSET_NAME("i0", I0),
+	REG_OFFSET_NAME("i1", I1),
+	REG_OFFSET_NAME("i2", I2),
+	REG_OFFSET_NAME("i3", I3),
+	REG_OFFSET_NAME("i4", I4),
+	REG_OFFSET_NAME("i5", I5),
+	REG_OFFSET_NAME("i6", I6),
+	REG_OFFSET_NAME("i7", I7),
+
+	REG_OFFSET_NAME("tstate", TSTATE),
+	REG_OFFSET_NAME("pc", TPC),
+	REG_OFFSET_NAME("npc", TNPC),
+	REG_OFFSET_NAME("y", Y),
+	REG_OFFSET_NAME("lr", I7),
+
+	REG_OFFSET_END,
+};
 
 /*
  * Called by kernel/ptrace.c when detaching..
@@ -1106,4 +1143,21 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 
 	if (test_thread_flag(TIF_NOHZ))
 		user_enter();
+}
+
+/**
+ * regs_query_register_offset() - query register offset from its name
+ * @name:	the name of a register
+ *
+ * regs_query_register_offset() returns the offset of a register in struct
+ * pt_regs from its name. If the name is invalid, this returns -EINVAL;
+ */
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_offset *roff;
+
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->offset;
+	return -EINVAL;
 }

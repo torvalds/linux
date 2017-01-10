@@ -199,7 +199,7 @@ MODULE_PARM_DESC(lp_interval, "The number of seconds between instances where "
 atomic_t netpoll_block_tx = ATOMIC_INIT(0);
 #endif
 
-int bond_net_id __read_mostly;
+unsigned int bond_net_id __read_mostly;
 
 static __be32 arp_target[BOND_MAX_ARP_TARGETS];
 static int arp_ip_count;
@@ -2270,22 +2270,23 @@ re_arm:
 	}
 }
 
+static int bond_upper_dev_walk(struct net_device *upper, void *data)
+{
+	__be32 ip = *((__be32 *)data);
+
+	return ip == bond_confirm_addr(upper, 0, ip);
+}
+
 static bool bond_has_this_ip(struct bonding *bond, __be32 ip)
 {
-	struct net_device *upper;
-	struct list_head *iter;
 	bool ret = false;
 
 	if (ip == bond_confirm_addr(bond->dev, 0, ip))
 		return true;
 
 	rcu_read_lock();
-	netdev_for_each_all_upper_dev_rcu(bond->dev, upper, iter) {
-		if (ip == bond_confirm_addr(upper, 0, ip)) {
-			ret = true;
-			break;
-		}
-	}
+	if (netdev_walk_all_upper_dev_rcu(bond->dev, bond_upper_dev_walk, &ip))
+		ret = true;
 	rcu_read_unlock();
 
 	return ret;
@@ -4079,16 +4080,16 @@ static netdev_tx_t bond_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return ret;
 }
 
-static int bond_ethtool_get_settings(struct net_device *bond_dev,
-				     struct ethtool_cmd *ecmd)
+static int bond_ethtool_get_link_ksettings(struct net_device *bond_dev,
+					   struct ethtool_link_ksettings *cmd)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	unsigned long speed = 0;
 	struct list_head *iter;
 	struct slave *slave;
 
-	ecmd->duplex = DUPLEX_UNKNOWN;
-	ecmd->port = PORT_OTHER;
+	cmd->base.duplex = DUPLEX_UNKNOWN;
+	cmd->base.port = PORT_OTHER;
 
 	/* Since bond_slave_can_tx returns false for all inactive or down slaves, we
 	 * do not need to check mode.  Though link speed might not represent
@@ -4099,12 +4100,12 @@ static int bond_ethtool_get_settings(struct net_device *bond_dev,
 		if (bond_slave_can_tx(slave)) {
 			if (slave->speed != SPEED_UNKNOWN)
 				speed += slave->speed;
-			if (ecmd->duplex == DUPLEX_UNKNOWN &&
+			if (cmd->base.duplex == DUPLEX_UNKNOWN &&
 			    slave->duplex != DUPLEX_UNKNOWN)
-				ecmd->duplex = slave->duplex;
+				cmd->base.duplex = slave->duplex;
 		}
 	}
-	ethtool_cmd_speed_set(ecmd, speed ? : SPEED_UNKNOWN);
+	cmd->base.speed = speed ? : SPEED_UNKNOWN;
 
 	return 0;
 }
@@ -4120,8 +4121,8 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 
 static const struct ethtool_ops bond_ethtool_ops = {
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
-	.get_settings		= bond_ethtool_get_settings,
 	.get_link		= ethtool_op_get_link,
+	.get_link_ksettings	= bond_ethtool_get_link_ksettings,
 };
 
 static const struct net_device_ops bond_netdev_ops = {

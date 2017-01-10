@@ -1386,7 +1386,6 @@ static const struct net_device_ops sc92031_netdev_ops = {
 	.ndo_open		= sc92031_open,
 	.ndo_stop		= sc92031_stop,
 	.ndo_set_rx_mode	= sc92031_set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_tx_timeout		= sc92031_tx_timeout,

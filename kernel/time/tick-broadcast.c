@@ -604,14 +604,14 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 	bool bc_local;
 
 	raw_spin_lock(&tick_broadcast_lock);
-	dev->next_event.tv64 = KTIME_MAX;
-	next_event.tv64 = KTIME_MAX;
+	dev->next_event = KTIME_MAX;
+	next_event = KTIME_MAX;
 	cpumask_clear(tmpmask);
 	now = ktime_get();
 	/* Find all expired events */
 	for_each_cpu(cpu, tick_broadcast_oneshot_mask) {
 		td = &per_cpu(tick_cpu_device, cpu);
-		if (td->evtdev->next_event.tv64 <= now.tv64) {
+		if (td->evtdev->next_event <= now) {
 			cpumask_set_cpu(cpu, tmpmask);
 			/*
 			 * Mark the remote cpu in the pending mask, so
@@ -619,8 +619,8 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 			 * timer in tick_broadcast_oneshot_control().
 			 */
 			cpumask_set_cpu(cpu, tick_broadcast_pending_mask);
-		} else if (td->evtdev->next_event.tv64 < next_event.tv64) {
-			next_event.tv64 = td->evtdev->next_event.tv64;
+		} else if (td->evtdev->next_event < next_event) {
+			next_event = td->evtdev->next_event;
 			next_cpu = cpu;
 		}
 	}
@@ -657,7 +657,7 @@ static void tick_handle_oneshot_broadcast(struct clock_event_device *dev)
 	 * - There are pending events on sleeping CPUs which were not
 	 * in the event mask
 	 */
-	if (next_event.tv64 != KTIME_MAX)
+	if (next_event != KTIME_MAX)
 		tick_broadcast_set_event(dev, next_cpu, next_event);
 
 	raw_spin_unlock(&tick_broadcast_lock);
@@ -672,7 +672,7 @@ static int broadcast_needs_cpu(struct clock_event_device *bc, int cpu)
 {
 	if (!(bc->features & CLOCK_EVT_FEAT_HRTIMER))
 		return 0;
-	if (bc->next_event.tv64 == KTIME_MAX)
+	if (bc->next_event == KTIME_MAX)
 		return 0;
 	return bc->bound_on == cpu ? -EBUSY : 0;
 }
@@ -688,7 +688,7 @@ static void broadcast_shutdown_local(struct clock_event_device *bc,
 	if (bc->features & CLOCK_EVT_FEAT_HRTIMER) {
 		if (broadcast_needs_cpu(bc, smp_processor_id()))
 			return;
-		if (dev->next_event.tv64 < bc->next_event.tv64)
+		if (dev->next_event < bc->next_event)
 			return;
 	}
 	clockevents_switch_state(dev, CLOCK_EVT_STATE_SHUTDOWN);
@@ -754,7 +754,7 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 			 */
 			if (cpumask_test_cpu(cpu, tick_broadcast_force_mask)) {
 				ret = -EBUSY;
-			} else if (dev->next_event.tv64 < bc->next_event.tv64) {
+			} else if (dev->next_event < bc->next_event) {
 				tick_broadcast_set_event(bc, cpu, dev->next_event);
 				/*
 				 * In case of hrtimer broadcasts the
@@ -789,7 +789,7 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 			/*
 			 * Bail out if there is no next event.
 			 */
-			if (dev->next_event.tv64 == KTIME_MAX)
+			if (dev->next_event == KTIME_MAX)
 				goto out;
 			/*
 			 * If the pending bit is not set, then we are
@@ -824,7 +824,7 @@ int __tick_broadcast_oneshot_control(enum tick_broadcast_state state)
 			 * nohz fixups.
 			 */
 			now = ktime_get();
-			if (dev->next_event.tv64 <= now.tv64) {
+			if (dev->next_event <= now) {
 				cpumask_set_cpu(cpu, tick_broadcast_force_mask);
 				goto out;
 			}
@@ -871,6 +871,9 @@ void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
 	int cpu = smp_processor_id();
 
+	if (!bc)
+		return;
+
 	/* Set it up only once ! */
 	if (bc->event_handler != tick_handle_oneshot_broadcast) {
 		int was_periodic = clockevent_state_periodic(bc);
@@ -894,7 +897,7 @@ void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 						       tick_next_period);
 			tick_broadcast_set_event(bc, cpu, tick_next_period);
 		} else
-			bc->next_event.tv64 = KTIME_MAX;
+			bc->next_event = KTIME_MAX;
 	} else {
 		/*
 		 * The first cpu which switches to oneshot mode sets

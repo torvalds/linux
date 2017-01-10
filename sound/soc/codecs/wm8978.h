@@ -78,8 +78,8 @@ enum wm8978_clk_id {
 };
 
 enum wm8978_sysclk_src {
+	WM8978_MCLK = 0,
 	WM8978_PLL,
-	WM8978_MCLK
 };
 
 #endif	/* __WM8978_H__ */

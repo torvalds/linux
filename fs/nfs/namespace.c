@@ -98,7 +98,7 @@ rename_retry:
 		return end;
 	}
 	namelen = strlen(base);
-	if (flags & NFS_PATH_CANONICAL) {
+	if (*end == '/') {
 		/* Strip off excess slashes in base string */
 		while (namelen > 0 && base[namelen - 1] == '/')
 			namelen--;

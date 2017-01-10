@@ -78,7 +78,7 @@
 #include <linux/uio.h>
 #include "loop.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static DEFINE_IDR(loop_index_idr);
 static DEFINE_MUTEX(loop_index_mutex);
@@ -1646,7 +1646,7 @@ static int loop_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(bd->rq);
 
 	if (lo->lo_state != Lo_bound)
-		return -EIO;
+		return BLK_MQ_RQ_QUEUE_ERROR;
 
 	switch (req_op(cmd->rq)) {
 	case REQ_OP_FLUSH:

@@ -399,6 +399,8 @@ int mfd_clone_cell(const char *cell, const char **clones, size_t n_clones)
 					clones[i]);
 	}
 
+	put_device(dev);
+
 	return 0;
 }
 EXPORT_SYMBOL(mfd_clone_cell);

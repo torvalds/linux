@@ -16,6 +16,8 @@ graph bindings specified in Documentation/devicetree/bindings/graph.txt.
 - Video port 0 for RGB input
 - Video port 1 for VGA output
 
+Optional properties:
+- vdd-supply: Power supply for DAC
 
 Example
 -------

@@ -237,7 +237,7 @@ rcu_dereference()
 
 	The reader uses rcu_dereference() to fetch an RCU-protected
 	pointer, which returns a value that may then be safely
-	dereferenced.  Note that rcu_deference() does not actually
+	dereferenced.  Note that rcu_dereference() does not actually
 	dereference the pointer, instead, it protects the pointer for
 	later dereferencing.  It also executes any needed memory-barrier
 	instructions for a given CPU architecture.  Currently, only Alpha

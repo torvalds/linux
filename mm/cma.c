@@ -385,6 +385,9 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align)
 	bitmap_maxno = cma_bitmap_maxno(cma);
 	bitmap_count = cma_bitmap_pages_to_bits(cma, count);
 
+	if (bitmap_count > bitmap_maxno)
+		return NULL;
+
 	for (;;) {
 		mutex_lock(&cma->lock);
 		bitmap_no = bitmap_find_next_zero_area_off(cma->bitmap,

@@ -24,7 +24,6 @@
 
 #include <asm/amd_nb.h>
 #include <asm/apic.h>
-#include <asm/idle.h>
 #include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/trace/irq_vectors.h>
@@ -55,6 +54,8 @@
 /* Threshold LVT offset is at MSR0xC0000410[15:12] */
 #define SMCA_THR_LVT_OFF	0xF000
 
+static bool thresholding_en;
+
 static const char * const th_names[] = {
 	"load_store",
 	"insn_fetch",
@@ -69,7 +70,12 @@ static const char * const smca_umc_block_names[] = {
 	"misc_umc"
 };
 
-struct smca_bank_name smca_bank_names[] = {
+struct smca_bank_name {
+	const char *name;	/* Short name for sysfs */
+	const char *long_name;	/* Long name for pretty-printing */
+};
+
+static struct smca_bank_name smca_names[] = {
 	[SMCA_LS]	= { "load_store",	"Load Store Unit" },
 	[SMCA_IF]	= { "insn_fetch",	"Instruction Fetch Unit" },
 	[SMCA_L2_CACHE]	= { "l2_cache",		"L2 Cache" },
@@ -84,9 +90,25 @@ struct smca_bank_name smca_bank_names[] = {
 	[SMCA_PSP]	= { "psp",		"Platform Security Processor" },
 	[SMCA_SMU]	= { "smu",		"System Management Unit" },
 };
-EXPORT_SYMBOL_GPL(smca_bank_names);
 
-static struct smca_hwid_mcatype smca_hwid_mcatypes[] = {
+const char *smca_get_name(enum smca_bank_types t)
+{
+	if (t >= N_SMCA_BANK_TYPES)
+		return NULL;
+
+	return smca_names[t].name;
+}
+
+const char *smca_get_long_name(enum smca_bank_types t)
+{
+	if (t >= N_SMCA_BANK_TYPES)
+		return NULL;
+
+	return smca_names[t].long_name;
+}
+EXPORT_SYMBOL_GPL(smca_get_long_name);
+
+static struct smca_hwid smca_hwid_mcatypes[] = {
 	/* { bank_type, hwid_mcatype, xec_bitmap } */
 
 	/* ZN Core (HWID=0xB0) MCA types */
@@ -116,7 +138,7 @@ static struct smca_hwid_mcatype smca_hwid_mcatypes[] = {
 	{ SMCA_SMU,	 HWID_MCATYPE(0x01, 0x0), 0x1 },
 };
 
-struct smca_bank_info smca_banks[MAX_NR_BANKS];
+struct smca_bank smca_banks[MAX_NR_BANKS];
 EXPORT_SYMBOL_GPL(smca_banks);
 
 /*
@@ -142,35 +164,34 @@ static void default_deferred_error_interrupt(void)
 }
 void (*deferred_error_int_vector)(void) = default_deferred_error_interrupt;
 
-/*
- * CPU Initialization
- */
-
 static void get_smca_bank_info(unsigned int bank)
 {
 	unsigned int i, hwid_mcatype, cpu = smp_processor_id();
-	struct smca_hwid_mcatype *type;
-	u32 high, instanceId;
-	u16 hwid, mcatype;
+	struct smca_hwid *s_hwid;
+	u32 high, instance_id;
 
 	/* Collect bank_info using CPU 0 for now. */
 	if (cpu)
 		return;
 
-	if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_IPID(bank), &instanceId, &high)) {
+	if (rdmsr_safe_on_cpu(cpu, MSR_AMD64_SMCA_MCx_IPID(bank), &instance_id, &high)) {
 		pr_warn("Failed to read MCA_IPID for bank %d\n", bank);
 		return;
 	}
 
-	hwid = high & MCI_IPID_HWID;
-	mcatype = (high & MCI_IPID_MCATYPE) >> 16;
-	hwid_mcatype = HWID_MCATYPE(hwid, mcatype);
+	hwid_mcatype = HWID_MCATYPE(high & MCI_IPID_HWID,
+				    (high & MCI_IPID_MCATYPE) >> 16);
 
 	for (i = 0; i < ARRAY_SIZE(smca_hwid_mcatypes); i++) {
-		type = &smca_hwid_mcatypes[i];
-		if (hwid_mcatype == type->hwid_mcatype) {
-			smca_banks[bank].type = type;
-			smca_banks[bank].type_instance = instanceId;
+		s_hwid = &smca_hwid_mcatypes[i];
+		if (hwid_mcatype == s_hwid->hwid_mcatype) {
+
+			WARN(smca_banks[bank].hwid,
+			     "Bank %s already initialized!\n",
+			     smca_get_name(s_hwid->bank_type));
+
+			smca_banks[bank].hwid = s_hwid;
+			smca_banks[bank].id = instance_id;
 			break;
 		}
 	}
@@ -533,6 +554,206 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 		deferred_error_interrupt_enable(c);
 }
 
+int umc_normaddr_to_sysaddr(u64 norm_addr, u16 nid, u8 umc, u64 *sys_addr)
+{
+	u64 dram_base_addr, dram_limit_addr, dram_hole_base;
+	/* We start from the normalized address */
+	u64 ret_addr = norm_addr;
+
+	u32 tmp;
+
+	u8 die_id_shift, die_id_mask, socket_id_shift, socket_id_mask;
+	u8 intlv_num_dies, intlv_num_chan, intlv_num_sockets;
+	u8 intlv_addr_sel, intlv_addr_bit;
+	u8 num_intlv_bits, hashed_bit;
+	u8 lgcy_mmio_hole_en, base = 0;
+	u8 cs_mask, cs_id = 0;
+	bool hash_enabled = false;
+
+	/* Read D18F0x1B4 (DramOffset), check if base 1 is used. */
+	if (amd_df_indirect_read(nid, 0, 0x1B4, umc, &tmp))
+		goto out_err;
+
+	/* Remove HiAddrOffset from normalized address, if enabled: */
+	if (tmp & BIT(0)) {
+		u64 hi_addr_offset = (tmp & GENMASK_ULL(31, 20)) << 8;
+
+		if (norm_addr >= hi_addr_offset) {
+			ret_addr -= hi_addr_offset;
+			base = 1;
+		}
+	}
+
+	/* Read D18F0x110 (DramBaseAddress). */
+	if (amd_df_indirect_read(nid, 0, 0x110 + (8 * base), umc, &tmp))
+		goto out_err;
+
+	/* Check if address range is valid. */
+	if (!(tmp & BIT(0))) {
+		pr_err("%s: Invalid DramBaseAddress range: 0x%x.\n",
+			__func__, tmp);
+		goto out_err;
+	}
+
+	lgcy_mmio_hole_en = tmp & BIT(1);
+	intlv_num_chan	  = (tmp >> 4) & 0xF;
+	intlv_addr_sel	  = (tmp >> 8) & 0x7;
+	dram_base_addr	  = (tmp & GENMASK_ULL(31, 12)) << 16;
+
+	/* {0, 1, 2, 3} map to address bits {8, 9, 10, 11} respectively */
+	if (intlv_addr_sel > 3) {
+		pr_err("%s: Invalid interleave address select %d.\n",
+			__func__, intlv_addr_sel);
+		goto out_err;
+	}
+
+	/* Read D18F0x114 (DramLimitAddress). */
+	if (amd_df_indirect_read(nid, 0, 0x114 + (8 * base), umc, &tmp))
+		goto out_err;
+
+	intlv_num_sockets = (tmp >> 8) & 0x1;
+	intlv_num_dies	  = (tmp >> 10) & 0x3;
+	dram_limit_addr	  = ((tmp & GENMASK_ULL(31, 12)) << 16) | GENMASK_ULL(27, 0);
+
+	intlv_addr_bit = intlv_addr_sel + 8;
+
+	/* Re-use intlv_num_chan by setting it equal to log2(#channels) */
+	switch (intlv_num_chan) {
+	case 0:	intlv_num_chan = 0; break;
+	case 1: intlv_num_chan = 1; break;
+	case 3: intlv_num_chan = 2; break;
+	case 5:	intlv_num_chan = 3; break;
+	case 7:	intlv_num_chan = 4; break;
+
+	case 8: intlv_num_chan = 1;
+		hash_enabled = true;
+		break;
+	default:
+		pr_err("%s: Invalid number of interleaved channels %d.\n",
+			__func__, intlv_num_chan);
+		goto out_err;
+	}
+
+	num_intlv_bits = intlv_num_chan;
+
+	if (intlv_num_dies > 2) {
+		pr_err("%s: Invalid number of interleaved nodes/dies %d.\n",
+			__func__, intlv_num_dies);
+		goto out_err;
+	}
+
+	num_intlv_bits += intlv_num_dies;
+
+	/* Add a bit if sockets are interleaved. */
+	num_intlv_bits += intlv_num_sockets;
+
+	/* Assert num_intlv_bits <= 4 */
+	if (num_intlv_bits > 4) {
+		pr_err("%s: Invalid interleave bits %d.\n",
+			__func__, num_intlv_bits);
+		goto out_err;
+	}
+
+	if (num_intlv_bits > 0) {
+		u64 temp_addr_x, temp_addr_i, temp_addr_y;
+		u8 die_id_bit, sock_id_bit, cs_fabric_id;
+
+		/*
+		 * Read FabricBlockInstanceInformation3_CS[BlockFabricID].
+		 * This is the fabric id for this coherent slave. Use
+		 * umc/channel# as instance id of the coherent slave
+		 * for FICAA.
+		 */
+		if (amd_df_indirect_read(nid, 0, 0x50, umc, &tmp))
+			goto out_err;
+
+		cs_fabric_id = (tmp >> 8) & 0xFF;
+		die_id_bit   = 0;
+
+		/* If interleaved over more than 1 channel: */
+		if (intlv_num_chan) {
+			die_id_bit = intlv_num_chan;
+			cs_mask	   = (1 << die_id_bit) - 1;
+			cs_id	   = cs_fabric_id & cs_mask;
+		}
+
+		sock_id_bit = die_id_bit;
+
+		/* Read D18F1x208 (SystemFabricIdMask). */
+		if (intlv_num_dies || intlv_num_sockets)
+			if (amd_df_indirect_read(nid, 1, 0x208, umc, &tmp))
+				goto out_err;
+
+		/* If interleaved over more than 1 die. */
+		if (intlv_num_dies) {
+			sock_id_bit  = die_id_bit + intlv_num_dies;
+			die_id_shift = (tmp >> 24) & 0xF;
+			die_id_mask  = (tmp >> 8) & 0xFF;
+
+			cs_id |= ((cs_fabric_id & die_id_mask) >> die_id_shift) << die_id_bit;
+		}
+
+		/* If interleaved over more than 1 socket. */
+		if (intlv_num_sockets) {
+			socket_id_shift	= (tmp >> 28) & 0xF;
+			socket_id_mask	= (tmp >> 16) & 0xFF;
+
+			cs_id |= ((cs_fabric_id & socket_id_mask) >> socket_id_shift) << sock_id_bit;
+		}
+
+		/*
+		 * The pre-interleaved address consists of XXXXXXIIIYYYYY
+		 * where III is the ID for this CS, and XXXXXXYYYYY are the
+		 * address bits from the post-interleaved address.
+		 * "num_intlv_bits" has been calculated to tell us how many "I"
+		 * bits there are. "intlv_addr_bit" tells us how many "Y" bits
+		 * there are (where "I" starts).
+		 */
+		temp_addr_y = ret_addr & GENMASK_ULL(intlv_addr_bit-1, 0);
+		temp_addr_i = (cs_id << intlv_addr_bit);
+		temp_addr_x = (ret_addr & GENMASK_ULL(63, intlv_addr_bit)) << num_intlv_bits;
+		ret_addr    = temp_addr_x | temp_addr_i | temp_addr_y;
+	}
+
+	/* Add dram base address */
+	ret_addr += dram_base_addr;
+
+	/* If legacy MMIO hole enabled */
+	if (lgcy_mmio_hole_en) {
+		if (amd_df_indirect_read(nid, 0, 0x104, umc, &tmp))
+			goto out_err;
+
+		dram_hole_base = tmp & GENMASK(31, 24);
+		if (ret_addr >= dram_hole_base)
+			ret_addr += (BIT_ULL(32) - dram_hole_base);
+	}
+
+	if (hash_enabled) {
+		/* Save some parentheses and grab ls-bit at the end. */
+		hashed_bit =	(ret_addr >> 12) ^
+				(ret_addr >> 18) ^
+				(ret_addr >> 21) ^
+				(ret_addr >> 30) ^
+				cs_id;
+
+		hashed_bit &= BIT(0);
+
+		if (hashed_bit != ((ret_addr >> intlv_addr_bit) & BIT(0)))
+			ret_addr ^= BIT(intlv_addr_bit);
+	}
+
+	/* Is calculated system address is above DRAM limit address? */
+	if (ret_addr > dram_limit_addr)
+		goto out_err;
+
+	*sys_addr = ret_addr;
+	return 0;
+
+out_err:
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(umc_normaddr_to_sysaddr);
+
 static void
 __log_error(unsigned int bank, bool deferred_err, bool threshold_err, u64 misc)
 {
@@ -645,6 +866,7 @@ static void amd_threshold_interrupt(void)
 {
 	u32 low = 0, high = 0, address = 0;
 	unsigned int bank, block, cpu = smp_processor_id();
+	struct thresh_restart tr;
 
 	/* assume first bank caused it */
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
@@ -681,6 +903,11 @@ static void amd_threshold_interrupt(void)
 
 log:
 	__log_error(bank, false, true, ((u64)high << 32) | low);
+
+	/* Reset threshold block after logging error. */
+	memset(&tr, 0, sizeof(tr));
+	tr.b = &per_cpu(threshold_banks, cpu)[bank]->blocks[block];
+	threshold_restart_bank(&tr);
 }
 
 /*
@@ -826,10 +1053,10 @@ static const char *get_name(unsigned int bank, struct threshold_block *b)
 		return th_names[bank];
 	}
 
-	if (!smca_banks[bank].type)
+	if (!smca_banks[bank].hwid)
 		return NULL;
 
-	bank_type = smca_banks[bank].type->bank_type;
+	bank_type = smca_banks[bank].hwid->bank_type;
 
 	if (b && bank_type == SMCA_UMC) {
 		if (b->block < ARRAY_SIZE(smca_umc_block_names))
@@ -838,8 +1065,8 @@ static const char *get_name(unsigned int bank, struct threshold_block *b)
 	}
 
 	snprintf(buf_mcatype, MAX_MCATYPE_NAME_LEN,
-		 "%s_%x", smca_bank_names[bank_type].name,
-			  smca_banks[bank].type_instance);
+		 "%s_%x", smca_get_name(bank_type),
+			  smca_banks[bank].id);
 	return buf_mcatype;
 }
 
@@ -955,6 +1182,9 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	const char *name = get_name(bank, NULL);
 	int err = 0;
 
+	if (!dev)
+		return -ENODEV;
+
 	if (is_shared_bank(bank)) {
 		nb = node_to_amd_nb(amd_get_nb_id(cpu));
 
@@ -1007,31 +1237,6 @@ static int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	kfree(b);
 
  out:
-	return err;
-}
-
-/* create dir/files for all valid threshold banks */
-static int threshold_create_device(unsigned int cpu)
-{
-	unsigned int bank;
-	struct threshold_bank **bp;
-	int err = 0;
-
-	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
-		     GFP_KERNEL);
-	if (!bp)
-		return -ENOMEM;
-
-	per_cpu(threshold_banks, cpu) = bp;
-
-	for (bank = 0; bank < mca_cfg.banks; ++bank) {
-		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
-			continue;
-		err = threshold_create_bank(cpu, bank);
-		if (err)
-			return err;
-	}
-
 	return err;
 }
 
@@ -1102,9 +1307,12 @@ free_out:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }
 
-static void threshold_remove_device(unsigned int cpu)
+int mce_threshold_remove_device(unsigned int cpu)
 {
 	unsigned int bank;
+
+	if (!thresholding_en)
+		return 0;
 
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
@@ -1112,38 +1320,58 @@ static void threshold_remove_device(unsigned int cpu)
 		threshold_remove_bank(cpu, bank);
 	}
 	kfree(per_cpu(threshold_banks, cpu));
+	per_cpu(threshold_banks, cpu) = NULL;
+	return 0;
 }
 
-/* get notified when a cpu comes on/off */
-static void
-amd_64_threshold_cpu_callback(unsigned long action, unsigned int cpu)
+/* create dir/files for all valid threshold banks */
+int mce_threshold_create_device(unsigned int cpu)
 {
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		threshold_create_device(cpu);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		threshold_remove_device(cpu);
-		break;
-	default:
-		break;
+	unsigned int bank;
+	struct threshold_bank **bp;
+	int err = 0;
+
+	if (!thresholding_en)
+		return 0;
+
+	bp = per_cpu(threshold_banks, cpu);
+	if (bp)
+		return 0;
+
+	bp = kzalloc(sizeof(struct threshold_bank *) * mca_cfg.banks,
+		     GFP_KERNEL);
+	if (!bp)
+		return -ENOMEM;
+
+	per_cpu(threshold_banks, cpu) = bp;
+
+	for (bank = 0; bank < mca_cfg.banks; ++bank) {
+		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
+			continue;
+		err = threshold_create_bank(cpu, bank);
+		if (err)
+			goto err;
 	}
+	return err;
+err:
+	mce_threshold_remove_device(cpu);
+	return err;
 }
 
 static __init int threshold_init_device(void)
 {
 	unsigned lcpu = 0;
 
+	if (mce_threshold_vector == amd_threshold_interrupt)
+		thresholding_en = true;
+
 	/* to hit CPUs online before the notifier is up */
 	for_each_online_cpu(lcpu) {
-		int err = threshold_create_device(lcpu);
+		int err = mce_threshold_create_device(lcpu);
 
 		if (err)
 			return err;
 	}
-	threshold_cpu_callback = amd_64_threshold_cpu_callback;
 
 	return 0;
 }

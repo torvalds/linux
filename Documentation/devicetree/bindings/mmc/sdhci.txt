@@ -1,0 +1,13 @@
+The properties specific for SD host controllers. For properties shared by MMC
+host controllers refer to the mmc[1] bindings.
+
+  [1] Documentation/devicetree/bindings/mmc/mmc.txt
+
+Optional properties:
+- sdhci-caps-mask: The sdhci capabilities register is incorrect. This 64bit
+  property corresponds to the bits in the sdhci capabilty register. If the bit
+  is on in the mask then the bit is incorrect in the register and should be
+  turned off, before applying sdhci-caps.
+- sdhci-caps: The sdhci capabilities register is incorrect. This 64bit
+  property corresponds to the bits in the sdhci capability register. If the
+  bit is on in the property then the bit should be turned on.

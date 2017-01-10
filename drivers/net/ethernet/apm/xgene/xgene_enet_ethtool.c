@@ -163,6 +163,74 @@ static void xgene_get_ethtool_stats(struct net_device *ndev,
 		*data++ = *(u64 *)(pdata + gstrings_stats[i].offset);
 }
 
+static void xgene_get_pauseparam(struct net_device *ndev,
+				 struct ethtool_pauseparam *pp)
+{
+	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
+
+	pp->autoneg = pdata->pause_autoneg;
+	pp->tx_pause = pdata->tx_pause;
+	pp->rx_pause = pdata->rx_pause;
+}
+
+static int xgene_set_pauseparam(struct net_device *ndev,
+				struct ethtool_pauseparam *pp)
+{
+	struct xgene_enet_pdata *pdata = netdev_priv(ndev);
+	struct phy_device *phydev = ndev->phydev;
+	u32 oldadv, newadv;
+
+	if (pdata->phy_mode == PHY_INTERFACE_MODE_RGMII ||
+	    pdata->phy_mode == PHY_INTERFACE_MODE_SGMII) {
+		if (!phydev)
+			return -EINVAL;
+
+		if (!(phydev->supported & SUPPORTED_Pause) ||
+		    (!(phydev->supported & SUPPORTED_Asym_Pause) &&
+		     pp->rx_pause != pp->tx_pause))
+			return -EINVAL;
+
+		pdata->pause_autoneg = pp->autoneg;
+		pdata->tx_pause = pp->tx_pause;
+		pdata->rx_pause = pp->rx_pause;
+
+		oldadv = phydev->advertising;
+		newadv = oldadv & ~(ADVERTISED_Pause | ADVERTISED_Asym_Pause);
+
+		if (pp->rx_pause)
+			newadv |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+
+		if (pp->tx_pause)
+			newadv ^= ADVERTISED_Asym_Pause;
+
+		if (oldadv ^ newadv) {
+			phydev->advertising = newadv;
+
+			if (phydev->autoneg)
+				return phy_start_aneg(phydev);
+
+			if (!pp->autoneg) {
+				pdata->mac_ops->flowctl_tx(pdata,
+							   pdata->tx_pause);
+				pdata->mac_ops->flowctl_rx(pdata,
+							   pdata->rx_pause);
+			}
+		}
+
+	} else {
+		if (pp->autoneg)
+			return -EINVAL;
+
+		pdata->tx_pause = pp->tx_pause;
+		pdata->rx_pause = pp->rx_pause;
+
+		pdata->mac_ops->flowctl_tx(pdata, pdata->tx_pause);
+		pdata->mac_ops->flowctl_rx(pdata, pdata->rx_pause);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops xgene_ethtool_ops = {
 	.get_drvinfo = xgene_get_drvinfo,
 	.get_link = ethtool_op_get_link,
@@ -171,6 +239,8 @@ static const struct ethtool_ops xgene_ethtool_ops = {
 	.get_ethtool_stats = xgene_get_ethtool_stats,
 	.get_link_ksettings = xgene_get_link_ksettings,
 	.set_link_ksettings = xgene_set_link_ksettings,
+	.get_pauseparam = xgene_get_pauseparam,
+	.set_pauseparam = xgene_set_pauseparam
 };
 
 void xgene_enet_set_ethtool_ops(struct net_device *ndev)

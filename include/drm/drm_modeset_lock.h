@@ -82,8 +82,6 @@ struct drm_modeset_lock {
 	struct list_head head;
 };
 
-extern struct ww_class crtc_ww_class;
-
 void drm_modeset_acquire_init(struct drm_modeset_acquire_ctx *ctx,
 		uint32_t flags);
 void drm_modeset_acquire_fini(struct drm_modeset_acquire_ctx *ctx);
@@ -91,15 +89,7 @@ void drm_modeset_drop_locks(struct drm_modeset_acquire_ctx *ctx);
 void drm_modeset_backoff(struct drm_modeset_acquire_ctx *ctx);
 int drm_modeset_backoff_interruptible(struct drm_modeset_acquire_ctx *ctx);
 
-/**
- * drm_modeset_lock_init - initialize lock
- * @lock: lock to init
- */
-static inline void drm_modeset_lock_init(struct drm_modeset_lock *lock)
-{
-	ww_mutex_init(&lock->mutex, &crtc_ww_class);
-	INIT_LIST_HEAD(&lock->head);
-}
+void drm_modeset_lock_init(struct drm_modeset_lock *lock);
 
 /**
  * drm_modeset_lock_fini - cleanup lock

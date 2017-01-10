@@ -233,7 +233,7 @@ static void dump_ch(const struct ubifs_ch *ch)
 void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
 {
 	const struct ubifs_inode *ui = ubifs_inode(inode);
-	struct qstr nm = { .name = NULL };
+	struct fscrypt_name nm = {0};
 	union ubifs_key key;
 	struct ubifs_dent_node *dent, *pdent = NULL;
 	int count = 2;
@@ -289,8 +289,8 @@ void ubifs_dump_inode(struct ubifs_info *c, const struct inode *inode)
 		pr_err("\t%d: %s (%s)\n",
 		       count++, dent->name, get_dent_type(dent->type));
 
-		nm.name = dent->name;
-		nm.len = le16_to_cpu(dent->nlen);
+		fname_name(&nm) = dent->name;
+		fname_len(&nm) = le16_to_cpu(dent->nlen);
 		kfree(pdent);
 		pdent = dent;
 		key_read(c, &dent->key, &key);
@@ -1107,7 +1107,7 @@ int dbg_check_dir(struct ubifs_info *c, const struct inode *dir)
 	unsigned int nlink = 2;
 	union ubifs_key key;
 	struct ubifs_dent_node *dent, *pdent = NULL;
-	struct qstr nm = { .name = NULL };
+	struct fscrypt_name nm = {0};
 	loff_t size = UBIFS_INO_NODE_SZ;
 
 	if (!dbg_is_chk_gen(c))
@@ -1128,9 +1128,9 @@ int dbg_check_dir(struct ubifs_info *c, const struct inode *dir)
 			return err;
 		}
 
-		nm.name = dent->name;
-		nm.len = le16_to_cpu(dent->nlen);
-		size += CALC_DENT_SIZE(nm.len);
+		fname_name(&nm) = dent->name;
+		fname_len(&nm) = le16_to_cpu(dent->nlen);
+		size += CALC_DENT_SIZE(fname_len(&nm));
 		if (dent->type == UBIFS_ITYPE_DIR)
 			nlink += 1;
 		kfree(pdent);

@@ -532,12 +532,12 @@ out:
 
 static int llc_ui_wait_for_disc(struct sock *sk, long timeout)
 {
-	DEFINE_WAIT(wait);
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	int rc = 0;
 
+	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
-		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-		if (sk_wait_event(sk, &timeout, sk->sk_state == TCP_CLOSE))
+		if (sk_wait_event(sk, &timeout, sk->sk_state == TCP_CLOSE, &wait))
 			break;
 		rc = -ERESTARTSYS;
 		if (signal_pending(current))
@@ -547,39 +547,39 @@ static int llc_ui_wait_for_disc(struct sock *sk, long timeout)
 			break;
 		rc = 0;
 	}
-	finish_wait(sk_sleep(sk), &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
 }
 
 static bool llc_ui_wait_for_conn(struct sock *sk, long timeout)
 {
-	DEFINE_WAIT(wait);
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
+	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
-		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
-		if (sk_wait_event(sk, &timeout, sk->sk_state != TCP_SYN_SENT))
+		if (sk_wait_event(sk, &timeout, sk->sk_state != TCP_SYN_SENT, &wait))
 			break;
 		if (signal_pending(current) || !timeout)
 			break;
 	}
-	finish_wait(sk_sleep(sk), &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 	return timeout;
 }
 
 static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout)
 {
-	DEFINE_WAIT(wait);
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	struct llc_sock *llc = llc_sk(sk);
 	int rc;
 
+	add_wait_queue(sk_sleep(sk), &wait);
 	while (1) {
-		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		rc = 0;
 		if (sk_wait_event(sk, &timeout,
 				  (sk->sk_shutdown & RCV_SHUTDOWN) ||
 				  (!llc_data_accept_state(llc->state) &&
 				   !llc->remote_busy_flag &&
-				   !llc->p_flag)))
+				   !llc->p_flag), &wait))
 			break;
 		rc = -ERESTARTSYS;
 		if (signal_pending(current))
@@ -588,7 +588,7 @@ static int llc_ui_wait_for_busy_core(struct sock *sk, long timeout)
 		if (!timeout)
 			break;
 	}
-	finish_wait(sk_sleep(sk), &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 	return rc;
 }
 

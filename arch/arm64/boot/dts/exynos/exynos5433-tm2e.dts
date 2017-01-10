@@ -1,0 +1,41 @@
+/*
+ * SAMSUNG Exynos5433 TM2E board device tree source
+ *
+ * Copyright (c) 2016 Samsung Electronics Co., Ltd.
+ *
+ * Device tree source file for Samsung's TM2E(TM2 EDGE) board which is based on
+ * Samsung Exynos5433 SoC.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+#include "exynos5433-tm2.dts"
+
+/ {
+	model = "Samsung TM2E board";
+	compatible = "samsung,tm2e", "samsung,exynos5433";
+};
+
+&ldo23_reg {
+	regulator-name = "CAM_SEN_CORE_1.025V_AP";
+	regulator-max-microvolt = <1050000>;
+};
+
+&ldo25_reg {
+	regulator-name = "UNUSED_LDO25";
+	regulator-always-off;
+};
+
+&ldo31_reg {
+	regulator-name = "TSP_VDD_1.8V_AP";
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+};
+
+&ldo38_reg {
+	regulator-name = "VCC_3.3V_MOTOR_AP";
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+};

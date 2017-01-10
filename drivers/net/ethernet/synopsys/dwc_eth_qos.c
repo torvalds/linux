@@ -33,7 +33,6 @@
 #include <linux/stat.h>
 #include <linux/types.h>
 
-#include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
@@ -43,7 +42,6 @@
 
 #include <linux/phy.h>
 #include <linux/mii.h>
-#include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 
@@ -2213,7 +2211,7 @@ static int dwceqos_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 tx_error:
 	dwceqos_tx_rollback(lp, &trans);
-	dev_kfree_skb(skb);
+	dev_kfree_skb_any(skb);
 	return 0;
 }
 
@@ -2883,7 +2881,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 	ret = of_get_phy_mode(lp->pdev->dev.of_node);
 	if (ret < 0) {
 		dev_err(&lp->pdev->dev, "error in getting phy i/f\n");
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	lp->phy_interface = ret;
@@ -2891,14 +2889,14 @@ static int dwceqos_probe(struct platform_device *pdev)
 	ret = dwceqos_mii_init(lp);
 	if (ret) {
 		dev_err(&lp->pdev->dev, "error in dwceqos_mii_init\n");
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	ret = dwceqos_mii_probe(ndev);
 	if (ret != 0) {
 		netdev_err(ndev, "mii_probe fail.\n");
 		ret = -ENXIO;
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	dwceqos_set_umac_addr(lp, lp->ndev->dev_addr, 0);
@@ -2916,7 +2914,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&lp->pdev->dev, "Unable to retrieve DT, error %d\n",
 			ret);
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 	dev_info(&lp->pdev->dev, "pdev->id %d, baseaddr 0x%08lx, irq %d\n",
 		 pdev->id, ndev->base_addr, ndev->irq);
@@ -2926,7 +2924,7 @@ static int dwceqos_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&lp->pdev->dev, "Unable to request IRQ %d, error %d\n",
 			ndev->irq, ret);
-		goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	if (netif_msg_probe(lp))
@@ -2937,11 +2935,14 @@ static int dwceqos_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 	if (ret) {
 		dev_err(&pdev->dev, "Cannot register net device, aborting.\n");
-			goto err_out_clk_dis_phy;
+		goto err_out_deregister_fixed_link;
 	}
 
 	return 0;
 
+err_out_deregister_fixed_link:
+	if (of_phy_is_fixed_link(pdev->dev.of_node))
+		of_phy_deregister_fixed_link(pdev->dev.of_node);
 err_out_clk_dis_phy:
 	clk_disable_unprepare(lp->phy_ref_clk);
 err_out_clk_dis_aper:
@@ -2961,8 +2962,11 @@ static int dwceqos_remove(struct platform_device *pdev)
 	if (ndev) {
 		lp = netdev_priv(ndev);
 
-		if (ndev->phydev)
+		if (ndev->phydev) {
 			phy_disconnect(ndev->phydev);
+			if (of_phy_is_fixed_link(pdev->dev.of_node))
+				of_phy_deregister_fixed_link(pdev->dev.of_node);
+		}
 		mdiobus_unregister(lp->mii_bus);
 		mdiobus_free(lp->mii_bus);
 

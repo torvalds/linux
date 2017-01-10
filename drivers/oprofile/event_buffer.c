@@ -18,7 +18,7 @@
 #include <linux/capability.h>
 #include <linux/dcookies.h>
 #include <linux/fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "oprof.h"
 #include "event_buffer.h"

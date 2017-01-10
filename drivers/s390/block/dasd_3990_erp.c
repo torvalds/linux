@@ -152,7 +152,7 @@ dasd_3990_erp_alternate_path(struct dasd_ccw_req * erp)
 	opm = ccw_device_get_path_mask(device->cdev);
 	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	if (erp->lpm == 0)
-		erp->lpm = device->path_data.opm &
+		erp->lpm = dasd_path_get_opm(device) &
 			~(erp->irb.esw.esw0.sublog.lpum);
 	else
 		erp->lpm &= ~(erp->irb.esw.esw0.sublog.lpum);
@@ -273,7 +273,7 @@ static struct dasd_ccw_req *dasd_3990_erp_action_1(struct dasd_ccw_req *erp)
 	    !test_bit(DASD_CQR_VERIFY_PATH, &erp->flags)) {
 		erp->status = DASD_CQR_FILLED;
 		erp->retries = 10;
-		erp->lpm = erp->startdev->path_data.opm;
+		erp->lpm = dasd_path_get_opm(erp->startdev);
 		erp->function = dasd_3990_erp_action_1_sec;
 	}
 	return erp;
@@ -674,7 +674,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0D:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No syn byte in count "
+				    "FORMAT 4 - No sync byte in count "
 				    "address area; offset active\n");
 			break;
 		case 0x0E:
@@ -684,7 +684,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		case 0x0F:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT 4 - No syn byte in data area; "
+				    "FORMAT 4 - No sync byte in data area; "
 				    "offset active\n");
 			break;
 		default:
@@ -999,7 +999,7 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 			break;
 		default:
 			dev_warn(&device->cdev->dev,
-				    "FORMAT D - Reserved\n");
+				    "FORMAT F - Reserved\n");
 		}
 		break;
 
@@ -1926,7 +1926,7 @@ dasd_3990_erp_compound_path(struct dasd_ccw_req * erp, char *sense)
 		    !test_bit(DASD_CQR_VERIFY_PATH, &erp->flags)) {
 			/* reset the lpm and the status to be able to
 			 * try further actions. */
-			erp->lpm = erp->startdev->path_data.opm;
+			erp->lpm = dasd_path_get_opm(erp->startdev);
 			erp->status = DASD_CQR_NEED_ERP;
 		}
 	}
@@ -2208,6 +2208,51 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 
 }				/* end dasd_3990_erp_inspect_32 */
 
+static void dasd_3990_erp_disable_path(struct dasd_device *device, __u8 lpum)
+{
+	int pos = pathmask_to_pos(lpum);
+
+	/* no remaining path, cannot disable */
+	if (!(dasd_path_get_opm(device) & ~lpum))
+		return;
+
+	dev_err(&device->cdev->dev,
+		"Path %x.%02x (pathmask %02x) is disabled - IFCC threshold exceeded\n",
+		device->path[pos].cssid, device->path[pos].chpid, lpum);
+	dasd_path_remove_opm(device, lpum);
+	dasd_path_add_ifccpm(device, lpum);
+	device->path[pos].errorclk = 0;
+	atomic_set(&device->path[pos].error_count, 0);
+}
+
+static void dasd_3990_erp_account_error(struct dasd_ccw_req *erp)
+{
+	struct dasd_device *device = erp->startdev;
+	__u8 lpum = erp->refers->irb.esw.esw1.lpum;
+	int pos = pathmask_to_pos(lpum);
+	unsigned long long clk;
+
+	if (!device->path_thrhld)
+		return;
+
+	clk = get_tod_clock();
+	/*
+	 * check if the last error is longer ago than the timeout,
+	 * if so reset error state
+	 */
+	if ((tod_to_ns(clk - device->path[pos].errorclk) / NSEC_PER_SEC)
+	    >= device->path_interval) {
+		atomic_set(&device->path[pos].error_count, 0);
+		device->path[pos].errorclk = 0;
+	}
+	atomic_inc(&device->path[pos].error_count);
+	device->path[pos].errorclk = clk;
+	/* threshold exceeded disable path if possible */
+	if (atomic_read(&device->path[pos].error_count) >=
+	    device->path_thrhld)
+		dasd_3990_erp_disable_path(device, lpum);
+}
+
 /*
  *****************************************************************************
  * main ERP control functions (24 and 32 byte sense)
@@ -2237,6 +2282,7 @@ dasd_3990_erp_control_check(struct dasd_ccw_req *erp)
 					   | SCHN_STAT_CHN_CTRL_CHK)) {
 		DBF_DEV_EVENT(DBF_WARNING, device, "%s",
 			    "channel or interface control check");
+		dasd_3990_erp_account_error(erp);
 		erp = dasd_3990_erp_action_4(erp, NULL);
 	}
 	return erp;

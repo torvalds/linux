@@ -15,7 +15,6 @@ obj-$(CONFIG_PCIE_SPEAR13XX) += pcie-spear13xx.o
 obj-$(CONFIG_PCI_KEYSTONE) += pci-keystone-dw.o pci-keystone.o
 obj-$(CONFIG_PCIE_XILINX) += pcie-xilinx.o
 obj-$(CONFIG_PCIE_XILINX_NWL) += pcie-xilinx-nwl.o
-obj-$(CONFIG_PCI_XGENE) += pci-xgene.o
 obj-$(CONFIG_PCI_XGENE_MSI) += pci-xgene-msi.o
 obj-$(CONFIG_PCI_LAYERSCAPE) += pci-layerscape.o
 obj-$(CONFIG_PCI_VERSATILE) += pci-versatile.o
@@ -25,11 +24,23 @@ obj-$(CONFIG_PCIE_IPROC_PLATFORM) += pcie-iproc-platform.o
 obj-$(CONFIG_PCIE_IPROC_BCMA) += pcie-iproc-bcma.o
 obj-$(CONFIG_PCIE_ALTERA) += pcie-altera.o
 obj-$(CONFIG_PCIE_ALTERA_MSI) += pcie-altera-msi.o
-obj-$(CONFIG_PCI_HISI) += pcie-hisi.o
 obj-$(CONFIG_PCIE_QCOM) += pcie-qcom.o
-obj-$(CONFIG_PCI_HOST_THUNDER_ECAM) += pci-thunder-ecam.o
-obj-$(CONFIG_PCI_HOST_THUNDER_PEM) += pci-thunder-pem.o
 obj-$(CONFIG_PCIE_ARMADA_8K) += pcie-armada8k.o
 obj-$(CONFIG_PCIE_ARTPEC6) += pcie-artpec6.o
 obj-$(CONFIG_PCIE_ROCKCHIP) += pcie-rockchip.o
 obj-$(CONFIG_VMD) += vmd.o
+
+# The following drivers are for devices that use the generic ACPI
+# pci_root.c driver but don't support standard ECAM config access.
+# They contain MCFG quirks to replace the generic ECAM accessors with
+# device-specific ones that are shared with the DT driver.
+
+# The ACPI driver is generic and should not require driver-specific
+# config options to be enabled, so we always build these drivers on
+# ARM64 and use internal ifdefs to only build the pieces we need
+# depending on whether ACPI, the DT driver, or both are enabled.
+
+obj-$(CONFIG_ARM64) += pcie-hisi.o
+obj-$(CONFIG_ARM64) += pci-thunder-ecam.o
+obj-$(CONFIG_ARM64) += pci-thunder-pem.o
+obj-$(CONFIG_ARM64) += pci-xgene.o

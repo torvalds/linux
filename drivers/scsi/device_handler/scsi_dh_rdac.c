@@ -724,7 +724,7 @@ static int rdac_prep_fn(struct scsi_device *sdev, struct request *req)
 
 	if (h->state != RDAC_STATE_ACTIVE) {
 		ret = BLKPREP_KILL;
-		req->cmd_flags |= REQ_QUIET;
+		req->rq_flags |= RQF_QUIET;
 	}
 	return ret;
 

@@ -1142,11 +1142,8 @@ static int sci_dma_rx_push(struct sci_port *s, void *buf, size_t count)
 	int copied;
 
 	copied = tty_insert_flip_string(tport, buf, count);
-	if (copied < count) {
-		dev_warn(port->dev, "Rx overrun: dropping %zu bytes\n",
-			 count - copied);
+	if (copied < count)
 		port->icount.buf_overrun++;
-	}
 
 	port->icount.rx += copied;
 
@@ -1161,8 +1158,6 @@ static int sci_dma_rx_find_active(struct sci_port *s)
 		if (s->active_rx == s->cookie_rx[i])
 			return i;
 
-	dev_err(s->port.dev, "%s: Rx cookie %d not found!\n", __func__,
-		s->active_rx);
 	return -1;
 }
 
@@ -1223,9 +1218,9 @@ static void sci_dma_rx_complete(void *arg)
 
 	dma_async_issue_pending(chan);
 
+	spin_unlock_irqrestore(&port->lock, flags);
 	dev_dbg(port->dev, "%s: cookie %d #%d, new active cookie %d\n",
 		__func__, s->cookie_rx[active], active, s->active_rx);
-	spin_unlock_irqrestore(&port->lock, flags);
 	return;
 
 fail:
@@ -1273,8 +1268,6 @@ static void sci_submit_rx(struct sci_port *s)
 		if (dma_submit_error(s->cookie_rx[i]))
 			goto fail;
 
-		dev_dbg(s->port.dev, "%s(): cookie %d to #%d\n", __func__,
-			s->cookie_rx[i], i);
 	}
 
 	s->active_rx = s->cookie_rx[0];
@@ -1288,7 +1281,6 @@ fail:
 	for (i = 0; i < 2; i++)
 		s->cookie_rx[i] = -EINVAL;
 	s->active_rx = -EINVAL;
-	dev_warn(s->port.dev, "Failed to re-start Rx DMA, using PIO\n");
 	sci_rx_dma_release(s, true);
 }
 
@@ -1358,9 +1350,9 @@ static void rx_timer_fn(unsigned long arg)
 	int active, count;
 	u16 scr;
 
-	spin_lock_irqsave(&port->lock, flags);
-
 	dev_dbg(port->dev, "DMA Rx timed out\n");
+
+	spin_lock_irqsave(&port->lock, flags);
 
 	active = sci_dma_rx_find_active(s);
 	if (active < 0) {
@@ -1370,9 +1362,9 @@ static void rx_timer_fn(unsigned long arg)
 
 	status = dmaengine_tx_status(s->chan_rx, s->active_rx, &state);
 	if (status == DMA_COMPLETE) {
+		spin_unlock_irqrestore(&port->lock, flags);
 		dev_dbg(port->dev, "Cookie %d #%d has already completed\n",
 			s->active_rx, active);
-		spin_unlock_irqrestore(&port->lock, flags);
 
 		/* Let packet complete handler take care of the packet */
 		return;
@@ -1396,8 +1388,6 @@ static void rx_timer_fn(unsigned long arg)
 	/* Handle incomplete DMA receive */
 	dmaengine_terminate_all(s->chan_rx);
 	read = sg_dma_len(&s->sg_rx[active]) - state.residue;
-	dev_dbg(port->dev, "Read %u bytes with cookie %d\n", read,
-		s->active_rx);
 
 	if (read) {
 		count = sci_dma_rx_push(s, s->rx_buf[active], read);

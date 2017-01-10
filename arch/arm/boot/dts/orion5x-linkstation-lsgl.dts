@@ -82,6 +82,10 @@
 	gpios = <&gpio0 9 GPIO_ACTIVE_HIGH>;
 };
 
+&sata {
+	nr-ports = <2>;
+};
+
 &ehci1 {
 	status = "okay";
 };

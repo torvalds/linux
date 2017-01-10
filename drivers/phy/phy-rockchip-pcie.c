@@ -249,21 +249,10 @@ err_refclk:
 static int rockchip_pcie_phy_exit(struct phy *phy)
 {
 	struct rockchip_pcie_phy *rk_phy = phy_get_drvdata(phy);
-	int err = 0;
 
 	clk_disable_unprepare(rk_phy->clk_pciephy_ref);
 
-	err = reset_control_deassert(rk_phy->phy_rst);
-	if (err) {
-		dev_err(&phy->dev, "deassert phy_rst err %d\n", err);
-		goto err_reset;
-	}
-
-	return err;
-
-err_reset:
-	clk_prepare_enable(rk_phy->clk_pciephy_ref);
-	return err;
+	return 0;
 }
 
 static const struct phy_ops ops = {

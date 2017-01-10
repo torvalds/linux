@@ -7,15 +7,8 @@
 #define SLAB_PANIC 2
 #define SLAB_RECLAIM_ACCOUNT    0x00020000UL            /* Objects are reclaimable */
 
-static inline int gfpflags_allow_blocking(gfp_t mask)
-{
-	return 1;
-}
-
-struct kmem_cache {
-	int size;
-	void (*ctor)(void *);
-};
+void *kmalloc(size_t size, gfp_t);
+void kfree(void *);
 
 void *kmem_cache_alloc(struct kmem_cache *cachep, int flags);
 void kmem_cache_free(struct kmem_cache *cachep, void *objp);

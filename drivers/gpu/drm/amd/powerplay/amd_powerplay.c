@@ -41,7 +41,7 @@
 #define PP_CHECK_HW(hwmgr)						\
 	do {								\
 		if ((hwmgr) == NULL || (hwmgr)->hwmgr_func == NULL)	\
-			return -EINVAL;					\
+			return 0;					\
 	} while (0)
 
 static int pp_early_init(void *handle)
@@ -115,6 +115,7 @@ static int pp_hw_init(void *handle)
 	struct pp_instance *pp_handle;
 	struct pp_smumgr *smumgr;
 	struct pp_eventmgr *eventmgr;
+	struct pp_hwmgr  *hwmgr;
 	int ret = 0;
 
 	if (handle == NULL)
@@ -122,6 +123,7 @@ static int pp_hw_init(void *handle)
 
 	pp_handle = (struct pp_instance *)handle;
 	smumgr = pp_handle->smu_mgr;
+	hwmgr = pp_handle->hwmgr;
 
 	if (smumgr == NULL || smumgr->smumgr_funcs == NULL ||
 		smumgr->smumgr_funcs->smu_init == NULL ||
@@ -141,9 +143,11 @@ static int pp_hw_init(void *handle)
 		return ret;
 	}
 
-	hw_init_power_state_table(pp_handle->hwmgr);
-	eventmgr = pp_handle->eventmgr;
+	PP_CHECK_HW(hwmgr);
 
+	hw_init_power_state_table(hwmgr);
+
+	eventmgr = pp_handle->eventmgr;
 	if (eventmgr == NULL || eventmgr->pp_eventmgr_init == NULL)
 		return -EINVAL;
 
@@ -243,7 +247,9 @@ static int pp_suspend(void *handle)
 
 	pp_handle = (struct pp_instance *)handle;
 	eventmgr = pp_handle->eventmgr;
-	pem_handle_event(eventmgr, AMD_PP_EVENT_SUSPEND, &event_data);
+
+	if (eventmgr != NULL)
+		pem_handle_event(eventmgr, AMD_PP_EVENT_SUSPEND, &event_data);
 	return 0;
 }
 
@@ -273,7 +279,8 @@ static int pp_resume(void *handle)
 	}
 
 	eventmgr = pp_handle->eventmgr;
-	pem_handle_event(eventmgr, AMD_PP_EVENT_RESUME, &event_data);
+	if (eventmgr != NULL)
+		pem_handle_event(eventmgr, AMD_PP_EVENT_RESUME, &event_data);
 
 	return 0;
 }
@@ -340,8 +347,7 @@ static enum amd_dpm_forced_level pp_dpm_get_performance_level(
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
-	if (hwmgr == NULL)
-		return -EINVAL;
+	PP_CHECK_HW(hwmgr);
 
 	return (((struct pp_instance *)handle)->hwmgr->dpm_level);
 }
@@ -436,7 +442,8 @@ static enum PP_StateUILabel power_state_convert(enum amd_pm_state_type  state)
 	}
 }
 
-int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input, void *output)
+static int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id,
+		void *input, void *output)
 {
 	int ret = 0;
 	struct pp_instance *pp_handle;
@@ -446,6 +453,9 @@ int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input,
 
 	if (pp_handle == NULL)
 		return -EINVAL;
+
+	if (pp_handle->eventmgr == NULL)
+		return 0;
 
 	switch (event_id) {
 	case AMD_PP_EVENT_DISPLAY_CONFIG_CHANGE:
@@ -475,7 +485,7 @@ int pp_dpm_dispatch_tasks(void *handle, enum amd_pp_event event_id, void *input,
 	return ret;
 }
 
-enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
+static enum amd_pm_state_type pp_dpm_get_current_power_state(void *handle)
 {
 	struct pp_hwmgr *hwmgr;
 	struct pp_power_state *state;
@@ -579,6 +589,23 @@ static int pp_dpm_get_fan_speed_percent(void *handle, uint32_t *speed)
 	}
 
 	return hwmgr->hwmgr_func->get_fan_speed_percent(hwmgr, speed);
+}
+
+static int pp_dpm_get_fan_speed_rpm(void *handle, uint32_t *rpm)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (handle == NULL)
+		return -EINVAL;
+
+	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
+
+	if (hwmgr->hwmgr_func->get_fan_speed_rpm == NULL)
+		return -EINVAL;
+
+	return hwmgr->hwmgr_func->get_fan_speed_rpm(hwmgr, rpm);
 }
 
 static int pp_dpm_get_temperature(void *handle)
@@ -820,6 +847,21 @@ static int pp_dpm_read_sensor(void *handle, int idx, int32_t *value)
 	return hwmgr->hwmgr_func->read_sensor(hwmgr, idx, value);
 }
 
+static struct amd_vce_state*
+pp_dpm_get_vce_clock_state(void *handle, unsigned idx)
+{
+	struct pp_hwmgr *hwmgr;
+
+	if (handle) {
+		hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+		if (hwmgr && idx < hwmgr->num_vce_state_tables)
+			return &hwmgr->vce_states[idx];
+	}
+
+	return NULL;
+}
+
 const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_temperature = pp_dpm_get_temperature,
 	.load_firmware = pp_dpm_load_fw,
@@ -836,6 +878,7 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_fan_control_mode = pp_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = pp_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = pp_dpm_get_fan_speed_percent,
+	.get_fan_speed_rpm = pp_dpm_get_fan_speed_rpm,
 	.get_pp_num_states = pp_dpm_get_pp_num_states,
 	.get_pp_table = pp_dpm_get_pp_table,
 	.set_pp_table = pp_dpm_set_pp_table,
@@ -846,6 +889,7 @@ const struct amd_powerplay_funcs pp_dpm_funcs = {
 	.get_mclk_od = pp_dpm_get_mclk_od,
 	.set_mclk_od = pp_dpm_set_mclk_od,
 	.read_sensor = pp_dpm_read_sensor,
+	.get_vce_clock_state = pp_dpm_get_vce_clock_state,
 };
 
 static int amd_pp_instance_init(struct amd_pp_init *pp_init,
@@ -864,6 +908,13 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 	if (ret)
 		goto fail_smum;
 
+
+	amd_pp->pp_handle = handle;
+
+	if ((amdgpu_dpm == 0)
+		|| cgs_is_virtualization_enabled(pp_init->device))
+		return 0;
+
 	ret = hwmgr_init(pp_init, handle);
 	if (ret)
 		goto fail_hwmgr;
@@ -872,7 +923,6 @@ static int amd_pp_instance_init(struct amd_pp_init *pp_init,
 	if (ret)
 		goto fail_eventmgr;
 
-	amd_pp->pp_handle = handle;
 	return 0;
 
 fail_eventmgr:
@@ -891,12 +941,13 @@ static int amd_pp_instance_fini(void *handle)
 	if (instance == NULL)
 		return -EINVAL;
 
-	eventmgr_fini(instance->eventmgr);
-
-	hwmgr_fini(instance->hwmgr);
+	if ((amdgpu_dpm != 0)
+		&& !cgs_is_virtualization_enabled(instance->smu_mgr->device)) {
+		eventmgr_fini(instance->eventmgr);
+		hwmgr_fini(instance->hwmgr);
+	}
 
 	smum_fini(instance->smu_mgr);
-
 	kfree(handle);
 	return 0;
 }
@@ -953,6 +1004,10 @@ int amd_powerplay_reset(void *handle)
 	if (ret)
 		return ret;
 
+	if ((amdgpu_dpm == 0)
+		|| cgs_is_virtualization_enabled(instance->smu_mgr->device))
+		return 0;
+
 	hw_init_power_state_table(instance->hwmgr);
 
 	if (eventmgr == NULL || eventmgr->pp_eventmgr_init == NULL)
@@ -976,6 +1031,8 @@ int amd_powerplay_display_configuration_change(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
+	PP_CHECK_HW(hwmgr);
+
 	phm_store_dal_configuration_data(hwmgr, display_config);
 
 	return 0;
@@ -993,6 +1050,8 @@ int amd_powerplay_get_display_power_level(void *handle,
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
+	PP_CHECK_HW(hwmgr);
+
 	return phm_get_dal_power_level(hwmgr, output);
 }
 
@@ -1009,6 +1068,8 @@ int amd_powerplay_get_current_clocks(void *handle,
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
 
 	phm_get_dal_power_level(hwmgr, &simple_clocks);
 
@@ -1054,6 +1115,8 @@ int amd_powerplay_get_clock_by_type(void *handle, enum amd_pp_clock_type type, s
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
 
+	PP_CHECK_HW(hwmgr);
+
 	result = phm_get_clock_by_type(hwmgr, type, clocks);
 
 	return result;
@@ -1071,6 +1134,8 @@ int amd_powerplay_get_display_mode_validation_clocks(void *handle,
 		return -EINVAL;
 
 	hwmgr = ((struct pp_instance *)handle)->hwmgr;
+
+	PP_CHECK_HW(hwmgr);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_DynamicPatchPowerState))
 		result = phm_get_max_high_clocks(hwmgr, clocks);

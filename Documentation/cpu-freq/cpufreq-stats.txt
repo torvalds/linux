@@ -44,10 +44,16 @@ the stats driver insertion.
 total 0
 drwxr-xr-x  2 root root    0 May 14 16:06 .
 drwxr-xr-x  3 root root    0 May 14 15:58 ..
+--w-------  1 root root 4096 May 14 16:06 reset
 -r--r--r--  1 root root 4096 May 14 16:06 time_in_state
 -r--r--r--  1 root root 4096 May 14 16:06 total_trans
 -r--r--r--  1 root root 4096 May 14 16:06 trans_table
 --------------------------------------------------------------------------------
+
+-  reset
+Write-only attribute that can be used to reset the stat counters. This can be
+useful for evaluating system behaviour under different governors without the
+need for a reboot.
 
 -  time_in_state
 This gives the amount of time spent in each of the frequencies supported by

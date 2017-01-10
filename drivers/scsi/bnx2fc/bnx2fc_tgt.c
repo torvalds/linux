@@ -80,7 +80,6 @@ static void bnx2fc_offload_session(struct fcoe_port *port,
 					struct bnx2fc_rport *tgt,
 					struct fc_rport_priv *rdata)
 {
-	struct fc_lport *lport = rdata->local_port;
 	struct fc_rport *rport = rdata->rport;
 	struct bnx2fc_interface *interface = port->priv;
 	struct bnx2fc_hba *hba = interface->hba;
@@ -160,7 +159,7 @@ ofld_err:
 tgt_init_err:
 	if (tgt->fcoe_conn_id != -1)
 		bnx2fc_free_conn_id(hba, tgt->fcoe_conn_id);
-	lport->tt.rport_logoff(rdata);
+	fc_rport_logoff(rdata);
 }
 
 void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)

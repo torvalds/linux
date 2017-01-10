@@ -30,8 +30,7 @@ static enum power_supply_property *prop;
 
 static unsigned long wm97xx_read_bat(struct power_supply *bat_ps)
 {
-	struct wm97xx_pdata *wmdata = bat_ps->dev.parent->platform_data;
-	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+	struct wm97xx_batt_pdata *pdata = power_supply_get_drvdata(bat_ps);
 
 	return wm97xx_read_aux_adc(dev_get_drvdata(bat_ps->dev.parent),
 					pdata->batt_aux) * pdata->batt_mult /
@@ -40,8 +39,7 @@ static unsigned long wm97xx_read_bat(struct power_supply *bat_ps)
 
 static unsigned long wm97xx_read_temp(struct power_supply *bat_ps)
 {
-	struct wm97xx_pdata *wmdata = bat_ps->dev.parent->platform_data;
-	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+	struct wm97xx_batt_pdata *pdata = power_supply_get_drvdata(bat_ps);
 
 	return wm97xx_read_aux_adc(dev_get_drvdata(bat_ps->dev.parent),
 					pdata->temp_aux) * pdata->temp_mult /
@@ -52,8 +50,7 @@ static int wm97xx_bat_get_property(struct power_supply *bat_ps,
 			    enum power_supply_property psp,
 			    union power_supply_propval *val)
 {
-	struct wm97xx_pdata *wmdata = bat_ps->dev.parent->platform_data;
-	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+	struct wm97xx_batt_pdata *pdata = power_supply_get_drvdata(bat_ps);
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -103,8 +100,7 @@ static void wm97xx_bat_external_power_changed(struct power_supply *bat_ps)
 static void wm97xx_bat_update(struct power_supply *bat_ps)
 {
 	int old_status = bat_status;
-	struct wm97xx_pdata *wmdata = bat_ps->dev.parent->platform_data;
-	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+	struct wm97xx_batt_pdata *pdata = power_supply_get_drvdata(bat_ps);
 
 	mutex_lock(&work_lock);
 
@@ -166,15 +162,15 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	int ret = 0;
 	int props = 1;	/* POWER_SUPPLY_PROP_PRESENT */
 	int i = 0;
-	struct wm97xx_pdata *wmdata = dev->dev.platform_data;
-	struct wm97xx_batt_pdata *pdata;
+	struct wm97xx_batt_pdata *pdata = dev->dev.platform_data;
+	struct power_supply_config cfg = {};
 
-	if (!wmdata) {
+	if (!pdata) {
 		dev_err(&dev->dev, "No platform data supplied\n");
 		return -EINVAL;
 	}
 
-	pdata = wmdata->batt_pdata;
+	cfg.drv_data = pdata;
 
 	if (dev->id != -1)
 		return -EINVAL;
@@ -243,7 +239,7 @@ static int wm97xx_bat_probe(struct platform_device *dev)
 	bat_psy_desc.properties = prop;
 	bat_psy_desc.num_properties = props;
 
-	bat_psy = power_supply_register(&dev->dev, &bat_psy_desc, NULL);
+	bat_psy = power_supply_register(&dev->dev, &bat_psy_desc, &cfg);
 	if (!IS_ERR(bat_psy)) {
 		schedule_work(&bat_work);
 	} else {
@@ -266,8 +262,7 @@ err:
 
 static int wm97xx_bat_remove(struct platform_device *dev)
 {
-	struct wm97xx_pdata *wmdata = dev->dev.platform_data;
-	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;
+	struct wm97xx_batt_pdata *pdata = dev->dev.platform_data;
 
 	if (pdata && gpio_is_valid(pdata->charge_gpio)) {
 		free_irq(gpio_to_irq(pdata->charge_gpio), dev);

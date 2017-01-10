@@ -95,12 +95,12 @@ end_##sname:
 
 #define __FIXED_SECTION_ENTRY_BEGIN(sname, name, __align)	\
 	USE_FIXED_SECTION(sname);				\
-	.align __align;						\
+	.balign __align;					\
 	.global name;						\
 name:
 
 #define FIXED_SECTION_ENTRY_BEGIN(sname, name)			\
-	__FIXED_SECTION_ENTRY_BEGIN(sname, name, 0)
+	__FIXED_SECTION_ENTRY_BEGIN(sname, name, IFETCH_ALIGN_BYTES)
 
 #define FIXED_SECTION_ENTRY_BEGIN_LOCATION(sname, name, start)		\
 	USE_FIXED_SECTION(sname);				\
@@ -203,9 +203,9 @@ name:
 #define EXC_VIRT_END(name, start, end)			\
 	FIXED_SECTION_ENTRY_END_LOCATION(virt_vectors, exc_virt_##start##_##name, end)
 
-#define EXC_COMMON_BEGIN(name)					\
+#define EXC_COMMON_BEGIN(name)						\
 	USE_TEXT_SECTION();						\
-	.align	7;							\
+	.balign IFETCH_ALIGN_BYTES;					\
 	.global name;							\
 	DEFINE_FIXED_SYMBOL(name);					\
 name:

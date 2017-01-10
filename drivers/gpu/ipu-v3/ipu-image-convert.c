@@ -1617,7 +1617,7 @@ ipu_image_convert(struct ipu_soc *ipu, enum ipu_ic_task ic_task,
 	ctx = ipu_image_convert_prepare(ipu, ic_task, in, out, rot_mode,
 					complete, complete_context);
 	if (IS_ERR(ctx))
-		return ERR_PTR(PTR_ERR(ctx));
+		return ERR_CAST(ctx);
 
 	run = kzalloc(sizeof(*run), GFP_KERNEL);
 	if (!run) {

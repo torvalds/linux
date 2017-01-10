@@ -43,6 +43,13 @@ Required properties for DPI:
 - port:		Port node with a single endpoint connecting to the panel
 		  device, as defined in [1]
 
+Required properties for VEC:
+- compatible:	Should be "brcm,bcm2835-vec"
+- reg:		Physical base address and length of the registers
+- clocks:	The core clock the unit runs on
+- interrupts:	The interrupt number
+		  See bindings/interrupt-controller/brcm,bcm2835-armctrl-ic.txt
+
 Required properties for V3D:
 - compatible:	Should be "brcm,bcm2835-v3d"
 - reg:		Physical base address and length of the V3D's registers
@@ -90,6 +97,13 @@ dpi: dpi@7e208000 {
 			remote-endpoint = <&panel_in>;
 		};
 	};
+};
+
+vec: vec@7e806000 {
+	compatible = "brcm,bcm2835-vec";
+	reg = <0x7e806000 0x1000>;
+	clocks = <&clocks BCM2835_CLOCK_VEC>;
+	interrupts = <2 27>;
 };
 
 v3d: v3d@7ec00000 {

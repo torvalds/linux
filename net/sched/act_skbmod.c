@@ -22,7 +22,7 @@
 
 #define SKBMOD_TAB_MASK     15
 
-static int skbmod_net_id;
+static unsigned int skbmod_net_id;
 static struct tc_action_ops act_skbmod_ops;
 
 #define MAX_EDIT_LEN ETH_HLEN

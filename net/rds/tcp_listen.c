@@ -83,27 +83,22 @@ struct rds_tcp_connection *rds_tcp_accept_one_path(struct rds_connection *conn)
 {
 	int i;
 	bool peer_is_smaller = (conn->c_faddr < conn->c_laddr);
-	int npaths = conn->c_npaths;
+	int npaths = max_t(int, 1, conn->c_npaths);
 
-	if (npaths <= 1) {
-		struct rds_conn_path *cp = &conn->c_path[0];
-		int ret;
-
-		ret = rds_conn_path_transition(cp, RDS_CONN_DOWN,
-					       RDS_CONN_CONNECTING);
-		if (!ret)
-			rds_conn_path_transition(cp, RDS_CONN_ERROR,
-						 RDS_CONN_CONNECTING);
-		return cp->cp_transport_data;
-	}
-
-	/* for mprds, paths with cp_index > 0 MUST be initiated by the peer
+	/* for mprds, all paths MUST be initiated by the peer
 	 * with the smaller address.
 	 */
-	if (!peer_is_smaller)
+	if (!peer_is_smaller) {
+		/* Make sure we initiate at least one path if this
+		 * has not already been done; rds_start_mprds() will
+		 * take care of additional paths, if necessary.
+		 */
+		if (npaths == 1)
+			rds_conn_path_connect_if_down(&conn->c_path[0]);
 		return NULL;
+	}
 
-	for (i = 1; i < npaths; i++) {
+	for (i = 0; i < npaths; i++) {
 		struct rds_conn_path *cp = &conn->c_path[i];
 
 		if (rds_conn_path_transition(cp, RDS_CONN_DOWN,
@@ -171,8 +166,8 @@ int rds_tcp_accept_one(struct socket *sock)
 	mutex_lock(&rs_tcp->t_conn_path_lock);
 	cp = rs_tcp->t_cpath;
 	conn_state = rds_conn_path_state(cp);
-	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_UP &&
-	    conn_state != RDS_CONN_ERROR)
+	WARN_ON(conn_state == RDS_CONN_UP);
+	if (conn_state != RDS_CONN_CONNECTING && conn_state != RDS_CONN_ERROR)
 		goto rst_nsk;
 	if (rs_tcp->t_sock) {
 		/* Need to resolve a duelling SYN between peers.

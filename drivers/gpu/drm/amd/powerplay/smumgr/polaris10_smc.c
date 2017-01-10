@@ -1885,6 +1885,12 @@ int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	int res;
 	uint64_t tmp64;
 
+	if (hwmgr->thermal_controller.fanInfo.bNoFan) {
+		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_MicrocodeFanControl);
+		return 0;
+	}
+
 	if (smu_data->smu7_data.fan_table_start == 0) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_MicrocodeFanControl);
@@ -2174,7 +2180,7 @@ uint32_t polaris10_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU74_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
 	}
-	printk("cant't get the offset of type %x member %x \n", type, member);
+	printk(KERN_WARNING "can't get the offset of type %x member %x\n", type, member);
 	return 0;
 }
 
@@ -2201,7 +2207,7 @@ uint32_t polaris10_get_mac_definition(uint32_t value)
 		return SMU7_UVD_MCLK_HANDSHAKE_DISABLE;
 	}
 
-	printk("cant't get the mac of %x \n", value);
+	printk(KERN_WARNING "can't get the mac of %x\n", value);
 	return 0;
 }
 
@@ -2214,6 +2220,7 @@ uint32_t polaris10_get_mac_definition(uint32_t value)
 int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smumgr->backend);
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	uint32_t tmp;
 	int result;
 	bool error = false;
@@ -2233,8 +2240,10 @@ int polaris10_process_firmware_header(struct pp_hwmgr *hwmgr)
 			offsetof(SMU74_Firmware_Header, SoftRegisters),
 			&tmp, SMC_RAM_END);
 
-	if (!result)
+	if (!result) {
+		data->soft_regs_start = tmp;
 		smu_data->smu7_data.soft_regs_start = tmp;
+	}
 
 	error |= (0 != result);
 

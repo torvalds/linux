@@ -61,8 +61,6 @@ void rtl88eu_phy_rf6052_set_cck_txpower(struct adapter *adapt, u8 *powerlevel)
 				      (powerlevel[idx1]<<8) |
 				      (powerlevel[idx1]<<16) |
 				      (powerlevel[idx1]<<24);
-			if (tx_agc[idx1] > 0x20 && hal_data->ExternalPA)
-				tx_agc[idx1] = 0x20;
 		}
 	} else {
 		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
@@ -139,17 +137,15 @@ static void getpowerbase88e(struct adapter *adapt, u8 *pwr_level_ofdm,
 			     (powerbase0<<8) | powerbase0;
 		*(ofdmbase+i) = powerbase0;
 	}
-	for (i = 0; i < adapt->HalData->NumTotalRFPath; i++) {
-		/* Check HT20 to HT40 diff */
-		if (adapt->HalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-			powerlevel[i] = pwr_level_bw20[i];
-		else
-			powerlevel[i] = pwr_level_bw40[i];
-		powerbase1 = powerlevel[i];
-		powerbase1 = (powerbase1<<24) | (powerbase1<<16) |
-			     (powerbase1<<8) | powerbase1;
-		*(mcs_base+i) = powerbase1;
-	}
+	/* Check HT20 to HT40 diff */
+	if (adapt->HalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
+		powerlevel[0] = pwr_level_bw20[0];
+	else
+		powerlevel[0] = pwr_level_bw40[0];
+	powerbase1 = powerlevel[0];
+	powerbase1 = (powerbase1<<24) | (powerbase1<<16) |
+		     (powerbase1<<8) | powerbase1;
+	*mcs_base = powerbase1;
 }
 static void get_rx_power_val_by_reg(struct adapter *adapt, u8 channel,
 				    u8 index, u32 *powerbase0, u32 *powerbase1,

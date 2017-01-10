@@ -1008,20 +1008,18 @@ static int ravb_phy_init(struct net_device *ndev)
 	of_node_put(pn);
 	if (!phydev) {
 		netdev_err(ndev, "failed to connect PHY\n");
-		return -ENOENT;
+		err = -ENOENT;
+		goto err_deregister_fixed_link;
 	}
 
 	/* This driver only support 10/100Mbit speeds on Gen3
 	 * at this time.
 	 */
 	if (priv->chip_id == RCAR_GEN3) {
-		int err;
-
 		err = phy_set_max_speed(phydev, SPEED_100);
 		if (err) {
 			netdev_err(ndev, "failed to limit PHY to 100Mbit/s\n");
-			phy_disconnect(phydev);
-			return err;
+			goto err_phy_disconnect;
 		}
 
 		netdev_info(ndev, "limited PHY to 100Mbit/s\n");
@@ -1033,6 +1031,14 @@ static int ravb_phy_init(struct net_device *ndev)
 	phy_attached_info(phydev);
 
 	return 0;
+
+err_phy_disconnect:
+	phy_disconnect(phydev);
+err_deregister_fixed_link:
+	if (of_phy_is_fixed_link(np))
+		of_phy_deregister_fixed_link(np);
+
+	return err;
 }
 
 /* PHY control start function */
@@ -1634,6 +1640,7 @@ static void ravb_set_rx_mode(struct net_device *ndev)
 /* Device close function for Ethernet AVB */
 static int ravb_close(struct net_device *ndev)
 {
+	struct device_node *np = ndev->dev.parent->of_node;
 	struct ravb_private *priv = netdev_priv(ndev);
 	struct ravb_tstamp_skb *ts_skb, *ts_skb2;
 
@@ -1663,6 +1670,8 @@ static int ravb_close(struct net_device *ndev)
 	if (ndev->phydev) {
 		phy_stop(ndev->phydev);
 		phy_disconnect(ndev->phydev);
+		if (of_phy_is_fixed_link(np))
+			of_phy_deregister_fixed_link(np);
 	}
 
 	if (priv->chip_id != RCAR_GEN2) {
@@ -1780,7 +1789,6 @@ static const struct net_device_ops ravb_netdev_ops = {
 	.ndo_do_ioctl		= ravb_do_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 /* MDIO bus init function */

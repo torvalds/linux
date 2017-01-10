@@ -55,6 +55,7 @@ static const struct of_device_id mx25_tcq_ids[] = {
 	{ .compatible = "fsl,imx25-tcq", },
 	{ /* Sentinel */ }
 };
+MODULE_DEVICE_TABLE(of, mx25_tcq_ids);
 
 #define TSC_4WIRE_PRE_INDEX 0
 #define TSC_4WIRE_X_INDEX 1

@@ -343,9 +343,9 @@ ptlrpc_server_nthreads_check(struct ptlrpc_service *svc,
 			     struct ptlrpc_service_conf *conf)
 {
 	struct ptlrpc_service_thr_conf *tc = &conf->psc_thr;
-	unsigned init;
-	unsigned total;
-	unsigned nthrs;
+	unsigned int init;
+	unsigned int total;
+	unsigned int nthrs;
 	int weight;
 
 	/*
@@ -2541,8 +2541,9 @@ int ptlrpc_hr_init(void)
 
 		hrp->hrp_nthrs = cfs_cpt_weight(ptlrpc_hr.hr_cpt_table, i);
 		hrp->hrp_nthrs /= weight;
+		if (hrp->hrp_nthrs == 0)
+			hrp->hrp_nthrs = 1;
 
-		LASSERT(hrp->hrp_nthrs > 0);
 		hrp->hrp_thrs =
 			kzalloc_node(hrp->hrp_nthrs * sizeof(*hrt), GFP_NOFS,
 				     cfs_cpt_spread_node(ptlrpc_hr.hr_cpt_table,

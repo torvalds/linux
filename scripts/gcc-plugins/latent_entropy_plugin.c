@@ -328,9 +328,9 @@ static enum tree_code get_op(tree *rhs)
 			op = LROTATE_EXPR;
 			/*
 			 * This code limits the value of random_const to
-			 * the size of a wide int for the rotation
+			 * the size of a long for the rotation
 			 */
-			random_const &= HOST_BITS_PER_WIDE_INT - 1;
+			random_const %= TYPE_PRECISION(long_unsigned_type_node);
 			break;
 		}
 
@@ -619,7 +619,7 @@ __visible int plugin_init(struct plugin_name_args *plugin_info,
 			enabled = false;
 			continue;
 		}
-		error(G_("unkown option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
+		error(G_("unknown option '-fplugin-arg-%s-%s'"), plugin_name, argv[i].key);
 	}
 
 	register_callback(plugin_name, PLUGIN_INFO, NULL,

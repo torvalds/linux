@@ -1,4 +1,4 @@
-What:           state
+What:           /sys/devices/system/ibm_rtl/state
 Date:           Sep 2010
 KernelVersion:  2.6.37
 Contact:        Vernon Mauery <vernux@us.ibm.com>
@@ -10,7 +10,7 @@ Description:    The state file allows a means by which to change in and
 Users:          The ibm-prtm userspace daemon uses this interface.
 
 
-What:           version
+What:           /sys/devices/system/ibm_rtl/version
 Date:           Sep 2010
 KernelVersion:  2.6.37
 Contact:        Vernon Mauery <vernux@us.ibm.com>

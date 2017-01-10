@@ -611,6 +611,9 @@ int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 	u32 pool_size = MLXSW_SP_BYTES_TO_CELLS(size);
 	enum mlxsw_reg_sbpr_mode mode;
 
+	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE))
+		return -EINVAL;
+
 	mode = (enum mlxsw_reg_sbpr_mode) threshold_type;
 	return mlxsw_sp_sb_pr_write(mlxsw_sp, pool, dir, mode, pool_size);
 }

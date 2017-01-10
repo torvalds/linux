@@ -61,7 +61,7 @@ ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 	 * entries can't be freed concurrently.
 	 */
 	list_for_each_entry(policy_dbs, &attr_set->policy_list, list) {
-		mutex_lock(&policy_dbs->timer_mutex);
+		mutex_lock(&policy_dbs->update_mutex);
 		/*
 		 * On 32-bit architectures this may race with the
 		 * sample_delay_ns read in dbs_update_util_handler(), but that
@@ -76,7 +76,7 @@ ssize_t store_sampling_rate(struct gov_attr_set *attr_set, const char *buf,
 		 * taken, so it shouldn't be significant.
 		 */
 		gov_update_sample_delay(policy_dbs, 0);
-		mutex_unlock(&policy_dbs->timer_mutex);
+		mutex_unlock(&policy_dbs->update_mutex);
 	}
 
 	return count;
@@ -117,7 +117,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 	struct dbs_data *dbs_data = policy_dbs->dbs_data;
 	unsigned int ignore_nice = dbs_data->ignore_nice_load;
-	unsigned int max_load = 0;
+	unsigned int max_load = 0, idle_periods = UINT_MAX;
 	unsigned int sampling_rate, io_busy, j;
 
 	/*
@@ -215,9 +215,19 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			j_cdbs->prev_load = load;
 		}
 
+		if (time_elapsed > 2 * sampling_rate) {
+			unsigned int periods = time_elapsed / sampling_rate;
+
+			if (periods < idle_periods)
+				idle_periods = periods;
+		}
+
 		if (load > max_load)
 			max_load = load;
 	}
+
+	policy_dbs->idle_periods = idle_periods;
+
 	return max_load;
 }
 EXPORT_SYMBOL_GPL(dbs_update);
@@ -236,9 +246,9 @@ static void dbs_work_handler(struct work_struct *work)
 	 * Make sure cpufreq_governor_limits() isn't evaluating load or the
 	 * ondemand governor isn't updating the sampling rate in parallel.
 	 */
-	mutex_lock(&policy_dbs->timer_mutex);
-	gov_update_sample_delay(policy_dbs, gov->gov_dbs_timer(policy));
-	mutex_unlock(&policy_dbs->timer_mutex);
+	mutex_lock(&policy_dbs->update_mutex);
+	gov_update_sample_delay(policy_dbs, gov->gov_dbs_update(policy));
+	mutex_unlock(&policy_dbs->update_mutex);
 
 	/* Allow the utilization update handler to queue up more work. */
 	atomic_set(&policy_dbs->work_count, 0);
@@ -348,7 +358,7 @@ static struct policy_dbs_info *alloc_policy_dbs_info(struct cpufreq_policy *poli
 		return NULL;
 
 	policy_dbs->policy = policy;
-	mutex_init(&policy_dbs->timer_mutex);
+	mutex_init(&policy_dbs->update_mutex);
 	atomic_set(&policy_dbs->work_count, 0);
 	init_irq_work(&policy_dbs->irq_work, dbs_irq_work);
 	INIT_WORK(&policy_dbs->work, dbs_work_handler);
@@ -367,7 +377,7 @@ static void free_policy_dbs_info(struct policy_dbs_info *policy_dbs,
 {
 	int j;
 
-	mutex_destroy(&policy_dbs->timer_mutex);
+	mutex_destroy(&policy_dbs->update_mutex);
 
 	for_each_cpu(j, policy_dbs->policy->related_cpus) {
 		struct cpu_dbs_info *j_cdbs = &per_cpu(cpu_dbs, j);
@@ -547,10 +557,10 @@ void cpufreq_dbs_governor_limits(struct cpufreq_policy *policy)
 {
 	struct policy_dbs_info *policy_dbs = policy->governor_data;
 
-	mutex_lock(&policy_dbs->timer_mutex);
+	mutex_lock(&policy_dbs->update_mutex);
 	cpufreq_policy_apply_limits(policy);
 	gov_update_sample_delay(policy_dbs, 0);
 
-	mutex_unlock(&policy_dbs->timer_mutex);
+	mutex_unlock(&policy_dbs->update_mutex);
 }
 EXPORT_SYMBOL_GPL(cpufreq_dbs_governor_limits);

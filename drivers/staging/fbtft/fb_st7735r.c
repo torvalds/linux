@@ -25,7 +25,7 @@
 #define DEFAULT_GAMMA   "0F 1A 0F 18 2F 28 20 22 1F 1B 23 37 00 07 02 10\n" \
 			"0F 1B 0F 17 33 2C 29 2E 30 30 39 3F 00 07 03 10"
 
-static int default_init_sequence[] = {
+static s16 default_init_sequence[] = {
 	-1, MIPI_DCS_SOFT_RESET,
 	-2, 150,                               /* delay */
 

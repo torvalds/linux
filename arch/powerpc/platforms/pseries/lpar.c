@@ -145,7 +145,7 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 			 hpte_group, vpn,  pa, rflags, vflags, psize);
 
 	hpte_v = hpte_encode_v(vpn, psize, apsize, ssize) | vflags | HPTE_V_VALID;
-	hpte_r = hpte_encode_r(pa, psize, apsize, ssize) | rflags;
+	hpte_r = hpte_encode_r(pa, psize, apsize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
 		pr_devel(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
@@ -221,7 +221,7 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 	return -1;
 }
 
-static void pSeries_lpar_hptab_clear(void)
+static void manual_hpte_clear_all(void)
 {
 	unsigned long size_bytes = 1UL << ppc64_pft_size;
 	unsigned long hpte_count = size_bytes >> 4;
@@ -249,6 +249,26 @@ static void pSeries_lpar_hptab_clear(void)
 					&(ptes[j].pteh), &(ptes[j].ptel));
 		}
 	}
+}
+
+static int hcall_hpte_clear_all(void)
+{
+	int rc;
+
+	do {
+		rc = plpar_hcall_norets(H_CLEAR_HPT);
+	} while (rc == H_CONTINUE);
+
+	return rc;
+}
+
+static void pseries_hpte_clear_all(void)
+{
+	int rc;
+
+	rc = hcall_hpte_clear_all();
+	if (rc != H_SUCCESS)
+		manual_hpte_clear_all();
 
 #ifdef __LITTLE_ENDIAN__
 	/*
@@ -598,7 +618,7 @@ void __init hpte_init_pseries(void)
 	mmu_hash_ops.hpte_remove	 = pSeries_lpar_hpte_remove;
 	mmu_hash_ops.hpte_removebolted   = pSeries_lpar_hpte_removebolted;
 	mmu_hash_ops.flush_hash_range	 = pSeries_lpar_flush_hash_range;
-	mmu_hash_ops.hpte_clear_all      = pSeries_lpar_hptab_clear;
+	mmu_hash_ops.hpte_clear_all      = pseries_hpte_clear_all;
 	mmu_hash_ops.hugepage_invalidate = pSeries_lpar_hugepage_invalidate;
 }
 
@@ -661,9 +681,10 @@ EXPORT_SYMBOL(arch_free_page);
 #ifdef HAVE_JUMP_LABEL
 struct static_key hcall_tracepoint_key = STATIC_KEY_INIT;
 
-void hcall_tracepoint_regfunc(void)
+int hcall_tracepoint_regfunc(void)
 {
 	static_key_slow_inc(&hcall_tracepoint_key);
+	return 0;
 }
 
 void hcall_tracepoint_unregfunc(void)
@@ -680,9 +701,10 @@ void hcall_tracepoint_unregfunc(void)
 /* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 extern long hcall_tracepoint_refcount;
 
-void hcall_tracepoint_regfunc(void)
+int hcall_tracepoint_regfunc(void)
 {
 	hcall_tracepoint_refcount++;
+	return 0;
 }
 
 void hcall_tracepoint_unregfunc(void)

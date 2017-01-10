@@ -931,7 +931,7 @@ static void radeon_connector_unregister(struct drm_connector *connector)
 {
 	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
 
-	if (radeon_connector->ddc_bus->has_aux) {
+	if (radeon_connector->ddc_bus && radeon_connector->ddc_bus->has_aux) {
 		drm_dp_aux_unregister(&radeon_connector->ddc_bus->aux);
 		radeon_connector->ddc_bus->has_aux = false;
 	}

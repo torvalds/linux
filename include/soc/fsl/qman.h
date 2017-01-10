@@ -244,11 +244,11 @@ static inline int qm_sg_entry_get_off(const struct qm_sg_entry *sg)
 struct qm_dqrr_entry {
 	u8 verb;
 	u8 stat;
-	u16 seqnum;	/* 15-bit */
+	__be16 seqnum;	/* 15-bit */
 	u8 tok;
 	u8 __reserved2[3];
-	u32 fqid;	/* 24-bit */
-	u32 contextB;
+	__be32 fqid;	/* 24-bit */
+	__be32 context_b;
 	struct qm_fd fd;
 	u8 __reserved4[32];
 } __packed;
@@ -262,6 +262,11 @@ struct qm_dqrr_entry {
 #define QM_DQRR_STAT_UNSCHEDULED	0x02	/* Unscheduled dequeue */
 #define QM_DQRR_STAT_DQCR_EXPIRED	0x01	/* VDQCR or PDQCR expired*/
 
+/* 'fqid' is a 24-bit field in every h/w descriptor */
+#define QM_FQID_MASK	GENMASK(23, 0)
+#define qm_fqid_set(p, v) ((p)->fqid = cpu_to_be32((v) & QM_FQID_MASK))
+#define qm_fqid_get(p)    (be32_to_cpu((p)->fqid) & QM_FQID_MASK)
+
 /* "ERN Message Response" */
 /* "FQ State Change Notification" */
 union qm_mr_entry {
@@ -272,12 +277,11 @@ union qm_mr_entry {
 	struct {
 		u8 verb;
 		u8 dca;
-		u16 seqnum;
+		__be16 seqnum;
 		u8 rc;		/* Rej Code: 8-bit */
-		u8 orp_hi;	/* ORP: 24-bit */
-		u16 orp_lo;
-		u32 fqid;	/* 24-bit */
-		u32 tag;
+		u8 __reserved[3];
+		__be32 fqid;	/* 24-bit */
+		__be32 tag;
 		struct qm_fd fd;
 		u8 __reserved1[32];
 	} __packed ern;
@@ -285,8 +289,8 @@ union qm_mr_entry {
 		u8 verb;
 		u8 fqs;		/* Frame Queue Status */
 		u8 __reserved1[6];
-		u32 fqid;	/* 24-bit */
-		u32 contextB;
+		__be32 fqid;	/* 24-bit */
+		__be32 context_b;
 		u8 __reserved2[48];
 	} __packed fq;		/* FQRN/FQRNI/FQRL/FQPN */
 };
@@ -405,13 +409,13 @@ static inline u64 qm_fqd_context_a_get64(const struct qm_fqd *fqd)
 
 static inline void qm_fqd_stashing_set64(struct qm_fqd *fqd, u64 addr)
 {
-	fqd->context_a.context_hi = upper_32_bits(addr);
-	fqd->context_a.context_lo = lower_32_bits(addr);
+	fqd->context_a.context_hi = cpu_to_be16(upper_32_bits(addr));
+	fqd->context_a.context_lo = cpu_to_be32(lower_32_bits(addr));
 }
 
 static inline void qm_fqd_context_a_set64(struct qm_fqd *fqd, u64 addr)
 {
-	fqd->context_a.hi = cpu_to_be16(upper_32_bits(addr));
+	fqd->context_a.hi = cpu_to_be32(upper_32_bits(addr));
 	fqd->context_a.lo = cpu_to_be32(lower_32_bits(addr));
 }
 
@@ -521,7 +525,7 @@ static inline int qm_fqd_get_wq(const struct qm_fqd *fqd)
  */
 struct qm_cgr_wr_parm {
 	/* MA[24-31], Mn[19-23], SA[12-18], Sn[6-11], Pn[0-5] */
-	u32 word;
+	__be32 word;
 };
 /*
  * This struct represents the 13-bit "CS_THRES" CGR field. In the corresponding
@@ -532,7 +536,7 @@ struct qm_cgr_wr_parm {
  */
 struct qm_cgr_cs_thres {
 	/* _res[13-15], TA[5-12], Tn[0-4] */
-	u16 word;
+	__be16 word;
 };
 /*
  * This identical structure of CGR fields is present in the "Init/Modify CGR"
@@ -549,10 +553,10 @@ struct __qm_mc_cgr {
 	u8 cscn_en;	/* boolean, use QM_CGR_EN */
 	union {
 		struct {
-			u16 cscn_targ_upd_ctrl; /* use QM_CSCN_TARG_UDP_ */
-			u16 cscn_targ_dcp_low;	/* CSCN_TARG_DCP low-16bits */
+			__be16 cscn_targ_upd_ctrl; /* use QM_CGR_TARG_UDP_* */
+			__be16 cscn_targ_dcp_low;
 		};
-		u32 cscn_targ;	/* use QM_CGR_TARG_* */
+		__be32 cscn_targ;	/* use QM_CGR_TARG_* */
 	};
 	u8 cstd_en;	/* boolean, use QM_CGR_EN */
 	u8 cs;		/* boolean, only used in query response */
@@ -568,7 +572,9 @@ struct __qm_mc_cgr {
 /* Convert CGR thresholds to/from "cs_thres" format */
 static inline u64 qm_cgr_cs_thres_get64(const struct qm_cgr_cs_thres *th)
 {
-	return ((th->word >> 5) & 0xff) << (th->word & 0x1f);
+	int thres = be16_to_cpu(th->word);
+
+	return ((thres >> 5) & 0xff) << (thres & 0x1f);
 }
 
 static inline int qm_cgr_cs_thres_set64(struct qm_cgr_cs_thres *th, u64 val,
@@ -584,23 +590,23 @@ static inline int qm_cgr_cs_thres_set64(struct qm_cgr_cs_thres *th, u64 val,
 		if (roundup && oddbit)
 			val++;
 	}
-	th->word = ((val & 0xff) << 5) | (e & 0x1f);
+	th->word = cpu_to_be16(((val & 0xff) << 5) | (e & 0x1f));
 	return 0;
 }
 
 /* "Initialize FQ" */
 struct qm_mcc_initfq {
 	u8 __reserved1[2];
-	u16 we_mask;	/* Write Enable Mask */
-	u32 fqid;	/* 24-bit */
-	u16 count;	/* Initialises 'count+1' FQDs */
+	__be16 we_mask;	/* Write Enable Mask */
+	__be32 fqid;	/* 24-bit */
+	__be16 count;	/* Initialises 'count+1' FQDs */
 	struct qm_fqd fqd; /* the FQD fields go here */
 	u8 __reserved2[30];
 } __packed;
 /* "Initialize/Modify CGR" */
 struct qm_mcc_initcgr {
 	u8 __reserve1[2];
-	u16 we_mask;	/* Write Enable Mask */
+	__be16 we_mask;	/* Write Enable Mask */
 	struct __qm_mc_cgr cgr;	/* CGR fields */
 	u8 __reserved2[2];
 	u8 cgid;
@@ -654,7 +660,7 @@ struct qman_cgr;
 /*
  * This enum, and the callback type that returns it, are used when handling
  * dequeued frames via DQRR. Note that for "null" callbacks registered with the
- * portal object (for handling dequeues that do not demux because contextB is
+ * portal object (for handling dequeues that do not demux because context_b is
  * NULL), the return value *MUST* be qman_cb_dqrr_consume.
  */
 enum qman_cb_dqrr_result {
@@ -859,11 +865,11 @@ void qman_p_static_dequeue_add(struct qman_portal *p, u32 pools);
  * qman_fq" for more info). NO_MODIFY is only intended for enqueuing to
  * pre-existing frame-queues that aren't to be otherwise interfered with, it
  * prevents all other modifications to the frame queue. The TO_DCPORTAL flag
- * causes the driver to honour any contextB modifications requested in the
+ * causes the driver to honour any context_b modifications requested in the
  * qm_init_fq() API, as this indicates the frame queue will be consumed by a
  * direct-connect portal (PME, CAAM, or Fman). When frame queues are consumed by
- * software portals, the contextB field is controlled by the driver and can't be
- * modified by the caller.
+ * software portals, the context_b field is controlled by the driver and can't
+ * be modified by the caller.
  */
 int qman_create_fq(u32 fqid, u32 flags, struct qman_fq *fq);
 

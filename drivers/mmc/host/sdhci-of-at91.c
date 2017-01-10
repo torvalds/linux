@@ -100,6 +100,7 @@ static const struct of_device_id sdhci_at91_dt_match[] = {
 	{ .compatible = "atmel,sama5d2-sdhci", .data = &soc_data_sama5d2 },
 	{}
 };
+MODULE_DEVICE_TABLE(of, sdhci_at91_dt_match);
 
 #ifdef CONFIG_PM
 static int sdhci_at91_runtime_suspend(struct device *dev)

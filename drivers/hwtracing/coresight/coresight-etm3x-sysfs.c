@@ -146,7 +146,7 @@ static ssize_t mode_store(struct device *dev,
 			goto err_unlock;
 		}
 		config->ctrl |= ETMCR_STALL_MODE;
-	 } else
+	} else
 		config->ctrl &= ~ETMCR_STALL_MODE;
 
 	if (config->mode & ETM_MODE_TIMESTAMP) {
@@ -163,6 +163,16 @@ static ssize_t mode_store(struct device *dev,
 		config->ctrl |= ETMCR_CTXID_SIZE;
 	else
 		config->ctrl &= ~ETMCR_CTXID_SIZE;
+
+	if (config->mode & ETM_MODE_BBROAD)
+		config->ctrl |= ETMCR_BRANCH_BROADCAST;
+	else
+		config->ctrl &= ~ETMCR_BRANCH_BROADCAST;
+
+	if (config->mode & ETM_MODE_RET_STACK)
+		config->ctrl |= ETMCR_RETURN_STACK;
+	else
+		config->ctrl &= ~ETMCR_RETURN_STACK;
 
 	if (config->mode & (ETM_MODE_EXCL_KERN | ETM_MODE_EXCL_USER))
 		etm_config_trace_mode(config);

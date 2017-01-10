@@ -216,7 +216,8 @@ static void intel_overlay_submit_request(struct intel_overlay *overlay,
 {
 	GEM_BUG_ON(i915_gem_active_peek(&overlay->last_flip,
 					&overlay->i915->drm.struct_mutex));
-	overlay->last_flip.retire = retire;
+	i915_gem_active_set_retire_fn(&overlay->last_flip, retire,
+				      &overlay->i915->drm.struct_mutex);
 	i915_gem_active_set(&overlay->last_flip, req);
 	i915_add_request(req);
 }
@@ -233,7 +234,7 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 static struct drm_i915_gem_request *alloc_request(struct intel_overlay *overlay)
 {
 	struct drm_i915_private *dev_priv = overlay->i915;
-	struct intel_engine_cs *engine = &dev_priv->engine[RCS];
+	struct intel_engine_cs *engine = dev_priv->engine[RCS];
 
 	return i915_gem_request_alloc(engine, dev_priv->kernel_context);
 }
@@ -839,8 +840,8 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	if (ret)
 		goto out_unpin;
 
-	i915_gem_track_fb(overlay->vma->obj, new_bo,
-			  INTEL_FRONTBUFFER_OVERLAY(pipe));
+	i915_gem_track_fb(overlay->vma ? overlay->vma->obj : NULL,
+			  vma->obj, INTEL_FRONTBUFFER_OVERLAY(pipe));
 
 	overlay->old_vma = overlay->vma;
 	overlay->vma = vma;
@@ -1222,7 +1223,7 @@ int intel_overlay_put_image_ioctl(struct drm_device *dev, void *data,
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	drm_modeset_unlock_all(dev);
-	i915_gem_object_put_unlocked(new_bo);
+	i915_gem_object_put(new_bo);
 out_free:
 	kfree(params);
 
@@ -1430,6 +1431,8 @@ void intel_setup_overlay(struct drm_i915_private *dev_priv)
 	overlay->contrast = 75;
 	overlay->saturation = 146;
 
+	init_request_active(&overlay->last_flip, NULL);
+
 	regs = intel_overlay_map_regs(overlay);
 	if (!regs)
 		goto out_unpin_bo;
@@ -1466,9 +1469,11 @@ void intel_cleanup_overlay(struct drm_i915_private *dev_priv)
 	 * hardware should be off already */
 	WARN_ON(dev_priv->overlay->active);
 
-	i915_gem_object_put_unlocked(dev_priv->overlay->reg_bo);
+	i915_gem_object_put(dev_priv->overlay->reg_bo);
 	kfree(dev_priv->overlay);
 }
+
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 
 struct intel_overlay_error_state {
 	struct overlay_registers regs;
@@ -1587,3 +1592,5 @@ intel_overlay_print_error_state(struct drm_i915_error_state_buf *m,
 	P(UVSCALEV);
 #undef P
 }
+
+#endif

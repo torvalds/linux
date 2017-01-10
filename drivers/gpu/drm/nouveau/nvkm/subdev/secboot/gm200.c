@@ -1364,7 +1364,7 @@ gm200_secboot_init(struct nvkm_secboot *sb)
 	return 0;
 }
 
-int
+static int
 gm200_secboot_fini(struct nvkm_secboot *sb, bool suspend)
 {
 	struct gm200_secboot *gsb = gm200_secboot(sb);

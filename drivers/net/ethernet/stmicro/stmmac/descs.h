@@ -87,7 +87,7 @@
 #define	TDES0_ERROR_SUMMARY		BIT(15)
 #define	TDES0_IP_HEADER_ERROR		BIT(16)
 #define	TDES0_TIME_STAMP_STATUS		BIT(17)
-#define	TDES0_OWN			BIT(31)
+#define	TDES0_OWN			((u32)BIT(31))	/* silence sparse */
 /* TDES1 */
 #define	TDES1_BUFFER1_SIZE_MASK		GENMASK(10, 0)
 #define	TDES1_BUFFER2_SIZE_MASK		GENMASK(21, 11)
@@ -130,7 +130,7 @@
 #define	ETDES0_FIRST_SEGMENT		BIT(28)
 #define	ETDES0_LAST_SEGMENT		BIT(29)
 #define	ETDES0_INTERRUPT		BIT(30)
-#define	ETDES0_OWN			BIT(31)
+#define	ETDES0_OWN			((u32)BIT(31))	/* silence sparse */
 /* TDES1 */
 #define	ETDES1_BUFFER1_SIZE_MASK	GENMASK(12, 0)
 #define	ETDES1_BUFFER2_SIZE_MASK	GENMASK(28, 16)
@@ -155,30 +155,34 @@
 #define	ERDES4_L3_L4_FILT_NO_MATCH_MASK	GENMASK(27, 26)
 
 /* Extended RDES4 message type definitions */
-#define RDES_EXT_NO_PTP			0
-#define RDES_EXT_SYNC			1
-#define RDES_EXT_FOLLOW_UP		2
-#define RDES_EXT_DELAY_REQ		3
-#define RDES_EXT_DELAY_RESP		4
-#define RDES_EXT_PDELAY_REQ		5
-#define RDES_EXT_PDELAY_RESP		6
-#define RDES_EXT_PDELAY_FOLLOW_UP	7
+#define RDES_EXT_NO_PTP			0x0
+#define RDES_EXT_SYNC			0x1
+#define RDES_EXT_FOLLOW_UP		0x2
+#define RDES_EXT_DELAY_REQ		0x3
+#define RDES_EXT_DELAY_RESP		0x4
+#define RDES_EXT_PDELAY_REQ		0x5
+#define RDES_EXT_PDELAY_RESP		0x6
+#define RDES_EXT_PDELAY_FOLLOW_UP	0x7
+#define RDES_PTP_ANNOUNCE		0x8
+#define RDES_PTP_MANAGEMENT		0x9
+#define RDES_PTP_SIGNALING		0xa
+#define RDES_PTP_PKT_RESERVED_TYPE	0xf
 
 /* Basic descriptor structure for normal and alternate descriptors */
 struct dma_desc {
-	unsigned int des0;
-	unsigned int des1;
-	unsigned int des2;
-	unsigned int des3;
+	__le32 des0;
+	__le32 des1;
+	__le32 des2;
+	__le32 des3;
 };
 
 /* Extended descriptor structure (e.g. >= databook 3.50a) */
 struct dma_extended_desc {
 	struct dma_desc basic;	/* Basic descriptors */
-	unsigned int des4;	/* Extended Status */
-	unsigned int des5;	/* Reserved */
-	unsigned int des6;	/* Tx/Rx Timestamp Low */
-	unsigned int des7;	/* Tx/Rx Timestamp High */
+	__le32 des4;	/* Extended Status */
+	__le32 des5;	/* Reserved */
+	__le32 des6;	/* Tx/Rx Timestamp Low */
+	__le32 des7;	/* Tx/Rx Timestamp High */
 };
 
 /* Transmit checksum insertion control */

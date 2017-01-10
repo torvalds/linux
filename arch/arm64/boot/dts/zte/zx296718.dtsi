@@ -239,16 +239,9 @@
 		compatible = "arm,gic-v3";
 		#interrupt-cells = <3>;
 		#address-cells = <0>;
-		#redistributor-regions = <6>;
-		redistributor-stride = <0x0 0x40000>;
 		interrupt-controller;
 		reg = <0x02a00000 0x10000>,
-		      <0x02b00000 0x20000>,
-		      <0x02b20000 0x20000>,
-		      <0x02b40000 0x20000>,
-		      <0x02b60000 0x20000>,
-		      <0x02b80000 0x20000>,
-		      <0x02ba0000 0x20000>;
+		      <0x02b00000 0xc0000>;
 		interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
@@ -284,9 +277,33 @@
 			dma-requests = <32>;
 		};
 
+		lsp0crm: clock-controller@1420000 {
+			compatible = "zte,zx296718-lsp0crm";
+			reg = <0x01420000 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		lsp1crm: clock-controller@1430000 {
+			compatible = "zte,zx296718-lsp1crm";
+			reg = <0x01430000 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		topcrm: clock-controller@1461000 {
+			compatible = "zte,zx296718-topcrm";
+			reg = <0x01461000 0x1000>;
+			#clock-cells = <1>;
+		};
+
 		sysctrl: sysctrl@1463000 {
 			compatible = "zte,zx296718-sysctrl", "syscon";
 			reg = <0x1463000 0x1000>;
+		};
+
+		audiocrm: clock-controller@1480000 {
+			compatible = "zte,zx296718-audiocrm";
+			reg = <0x01480000 0x1000>;
+			#clock-cells = <1>;
 		};
 	};
 };

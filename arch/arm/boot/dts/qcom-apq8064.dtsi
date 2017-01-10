@@ -4,6 +4,7 @@
 #include <dt-bindings/clock/qcom,gcc-msm8960.h>
 #include <dt-bindings/reset/qcom,gcc-msm8960.h>
 #include <dt-bindings/clock/qcom,mmcc-msm8960.h>
+#include <dt-bindings/clock/qcom,rpmcc.h>
 #include <dt-bindings/soc/qcom,gsbi.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -303,6 +304,9 @@
 	firmware {
 		scm {
 			compatible = "qcom,scm-apq8064";
+
+			clocks = <&rpmcc RPM_DAYTONA_FABRIC_CLK>;
+			clock-names = "core";
 		};
 	};
 
@@ -1060,6 +1064,231 @@
 			reg = <0x1a400000 0x100>;
 		};
 
+		gpu: adreno-3xx@4300000 {
+			compatible = "qcom,adreno-3xx";
+			reg = <0x04300000 0x20000>;
+			reg-names = "kgsl_3d0_reg_memory";
+			interrupts = <GIC_SPI 80 0>;
+			interrupt-names = "kgsl_3d0_irq";
+			clock-names =
+			    "core_clk",
+			    "iface_clk",
+			    "mem_clk",
+			    "mem_iface_clk";
+			clocks =
+			    <&mmcc GFX3D_CLK>,
+			    <&mmcc GFX3D_AHB_CLK>,
+			    <&mmcc GFX3D_AXI_CLK>,
+			    <&mmcc MMSS_IMEM_AHB_CLK>;
+			qcom,chipid = <0x03020002>;
+
+			iommus = <&gfx3d 0
+				  &gfx3d 1
+				  &gfx3d 2
+				  &gfx3d 3
+				  &gfx3d 4
+				  &gfx3d 5
+				  &gfx3d 6
+				  &gfx3d 7
+				  &gfx3d 8
+				  &gfx3d 9
+				  &gfx3d 10
+				  &gfx3d 11
+				  &gfx3d 12
+				  &gfx3d 13
+				  &gfx3d 14
+				  &gfx3d 15
+				  &gfx3d 16
+				  &gfx3d 17
+				  &gfx3d 18
+				  &gfx3d 19
+				  &gfx3d 20
+				  &gfx3d 21
+				  &gfx3d 22
+				  &gfx3d 23
+				  &gfx3d 24
+				  &gfx3d 25
+				  &gfx3d 26
+				  &gfx3d 27
+				  &gfx3d 28
+				  &gfx3d 29
+				  &gfx3d 30
+				  &gfx3d 31
+				  &gfx3d1 0
+				  &gfx3d1 1
+				  &gfx3d1 2
+				  &gfx3d1 3
+				  &gfx3d1 4
+				  &gfx3d1 5
+				  &gfx3d1 6
+				  &gfx3d1 7
+				  &gfx3d1 8
+				  &gfx3d1 9
+				  &gfx3d1 10
+				  &gfx3d1 11
+				  &gfx3d1 12
+				  &gfx3d1 13
+				  &gfx3d1 14
+				  &gfx3d1 15
+				  &gfx3d1 16
+				  &gfx3d1 17
+				  &gfx3d1 18
+				  &gfx3d1 19
+				  &gfx3d1 20
+				  &gfx3d1 21
+				  &gfx3d1 22
+				  &gfx3d1 23
+				  &gfx3d1 24
+				  &gfx3d1 25
+				  &gfx3d1 26
+				  &gfx3d1 27
+				  &gfx3d1 28
+				  &gfx3d1 29
+				  &gfx3d1 30
+				  &gfx3d1 31>;
+
+			qcom,gpu-pwrlevels {
+				compatible = "qcom,gpu-pwrlevels";
+				qcom,gpu-pwrlevel@0 {
+					qcom,gpu-freq = <450000000>;
+				};
+				qcom,gpu-pwrlevel@1 {
+					qcom,gpu-freq = <27000000>;
+				};
+			};
+		};
+
+		mmss_sfpb: syscon@5700000 {
+			compatible = "syscon";
+			reg = <0x5700000 0x70>;
+		};
+
+		dsi0: mdss_dsi@4700000 {
+			compatible = "qcom,mdss-dsi-ctrl";
+			label = "MDSS DSI CTRL->0";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 82 0>;
+			reg = <0x04700000 0x200>;
+			reg-names = "dsi_ctrl";
+
+			clocks = <&mmcc DSI_M_AHB_CLK>,
+				<&mmcc DSI_S_AHB_CLK>,
+				<&mmcc AMP_AHB_CLK>,
+				<&mmcc DSI_CLK>,
+				<&mmcc DSI1_BYTE_CLK>,
+				<&mmcc DSI_PIXEL_CLK>,
+				<&mmcc DSI1_ESC_CLK>;
+			clock-names = "iface_clk", "bus_clk", "core_mmss_clk",
+					"src_clk", "byte_clk", "pixel_clk",
+					"core_clk";
+
+			assigned-clocks = <&mmcc DSI1_BYTE_SRC>,
+					<&mmcc DSI1_ESC_SRC>,
+					<&mmcc DSI_SRC>,
+					<&mmcc DSI_PIXEL_SRC>;
+			assigned-clock-parents = <&dsi0_phy 0>,
+						<&dsi0_phy 0>,
+						<&dsi0_phy 1>,
+						<&dsi0_phy 1>;
+			syscon-sfpb = <&mmss_sfpb>;
+			phys = <&dsi0_phy>;
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					dsi0_in: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					dsi0_out: endpoint {
+					};
+				};
+			};
+		};
+
+
+		dsi0_phy: dsi-phy@4700200 {
+			compatible = "qcom,dsi-phy-28nm-8960";
+			#clock-cells = <1>;
+
+			reg = <0x04700200 0x100>,
+				<0x04700300 0x200>,
+				<0x04700500 0x5c>;
+			reg-names = "dsi_pll", "dsi_phy", "dsi_phy_regulator";
+			clock-names = "iface_clk";
+			clocks = <&mmcc DSI_M_AHB_CLK>;
+		};
+
+
+		mdp_port0: iommu@7500000 {
+			compatible = "qcom,apq8064-iommu";
+			#iommu-cells = <1>;
+			clock-names =
+			    "smmu_pclk",
+			    "iommu_clk";
+			clocks =
+			    <&mmcc SMMU_AHB_CLK>,
+			    <&mmcc MDP_AXI_CLK>;
+			reg = <0x07500000 0x100000>;
+			interrupts =
+			    <GIC_SPI 63 0>,
+			    <GIC_SPI 64 0>;
+			qcom,ncb = <2>;
+		};
+
+		mdp_port1: iommu@7600000 {
+			compatible = "qcom,apq8064-iommu";
+			#iommu-cells = <1>;
+			clock-names =
+			    "smmu_pclk",
+			    "iommu_clk";
+			clocks =
+			    <&mmcc SMMU_AHB_CLK>,
+			    <&mmcc MDP_AXI_CLK>;
+			reg = <0x07600000 0x100000>;
+			interrupts =
+			    <GIC_SPI 61 0>,
+			    <GIC_SPI 62 0>;
+			qcom,ncb = <2>;
+		};
+
+		gfx3d: iommu@7c00000 {
+			compatible = "qcom,apq8064-iommu";
+			#iommu-cells = <1>;
+			clock-names =
+			    "smmu_pclk",
+			    "iommu_clk";
+			clocks =
+			    <&mmcc SMMU_AHB_CLK>,
+			    <&mmcc GFX3D_AXI_CLK>;
+			reg = <0x07c00000 0x100000>;
+			interrupts =
+			    <GIC_SPI 69 0>,
+			    <GIC_SPI 70 0>;
+			qcom,ncb = <3>;
+		};
+
+		gfx3d1: iommu@7d00000 {
+			compatible = "qcom,apq8064-iommu";
+			#iommu-cells = <1>;
+			clock-names =
+			    "smmu_pclk",
+			    "iommu_clk";
+			clocks =
+			    <&mmcc SMMU_AHB_CLK>,
+			    <&mmcc GFX3D_AXI_CLK>;
+			reg = <0x07d00000 0x100000>;
+			interrupts =
+			    <GIC_SPI 210 0>,
+			    <GIC_SPI 211 0>;
+			qcom,ncb = <3>;
+		};
+
 		pcie: pci@1b500000 {
 			compatible = "qcom,pcie-apq8064", "snps,dw-pcie";
 			reg = <0x1b500000 0x1000
@@ -1094,6 +1323,102 @@
 				 <&gcc PCIE_PHY_RESET>;
 			reset-names = "axi", "ahb", "por", "pci", "phy";
 			status = "disabled";
+		};
+
+		hdmi: hdmi-tx@4a00000 {
+			compatible = "qcom,hdmi-tx-8960";
+			reg = <0x04a00000 0x2f0>;
+			reg-names = "core_physical";
+			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mmcc HDMI_APP_CLK>,
+				 <&mmcc HDMI_M_AHB_CLK>,
+				 <&mmcc HDMI_S_AHB_CLK>;
+			clock-names = "core_clk",
+				      "master_iface_clk",
+				      "slave_iface_clk";
+
+			phys = <&hdmi_phy>;
+			phy-names = "hdmi-phy";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					hdmi_in: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					hdmi_out: endpoint {
+					};
+				};
+			};
+		};
+
+		hdmi_phy: hdmi-phy@4a00400 {
+			compatible = "qcom,hdmi-phy-8960";
+			reg = <0x4a00400 0x60>,
+			      <0x4a00500 0x100>;
+			reg-names = "hdmi_phy",
+				    "hdmi_pll";
+
+			clocks = <&mmcc HDMI_S_AHB_CLK>;
+			clock-names = "slave_iface_clk";
+		};
+
+		mdp: mdp@5100000 {
+			compatible = "qcom,mdp4";
+			reg = <0x05100000 0xf0000>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&mmcc MDP_CLK>,
+				 <&mmcc MDP_AHB_CLK>,
+				 <&mmcc MDP_AXI_CLK>,
+				 <&mmcc MDP_LUT_CLK>,
+				 <&mmcc HDMI_TV_CLK>,
+				 <&mmcc MDP_TV_CLK>;
+			clock-names = "core_clk",
+				      "iface_clk",
+				      "bus_clk",
+				      "lut_clk",
+				      "hdmi_clk",
+				      "tv_clk";
+
+			iommus = <&mdp_port0 0
+				  &mdp_port0 2
+				  &mdp_port1 0
+				  &mdp_port1 2>;
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					mdp_lvds_out: endpoint {
+					};
+				};
+
+				port@1 {
+					reg = <1>;
+					mdp_dsi1_out: endpoint {
+					};
+				};
+
+				port@2 {
+					reg = <2>;
+					mdp_dsi2_out: endpoint {
+					};
+				};
+
+				port@3 {
+					reg = <3>;
+					mdp_dtv_out: endpoint {
+					};
+				};
+			};
 		};
 	};
 };

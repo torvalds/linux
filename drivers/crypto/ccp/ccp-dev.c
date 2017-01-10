@@ -41,7 +41,7 @@ struct ccp_tasklet_data {
 };
 
 /* Human-readable error strings */
-char *ccp_error_codes[] = {
+static char *ccp_error_codes[] = {
 	"",
 	"ERR 01: ILLEGAL_ENGINE",
 	"ERR 02: ILLEGAL_KEY_ID",
@@ -477,6 +477,10 @@ struct ccp_device *ccp_alloc_struct(struct device *dev)
 	mutex_init(&ccp->sb_mutex);
 	ccp->sb_count = KSB_COUNT;
 	ccp->sb_start = 0;
+
+	/* Initialize the wait queues */
+	init_waitqueue_head(&ccp->sb_queue);
+	init_waitqueue_head(&ccp->suspend_queue);
 
 	ccp->ord = ccp_increment_unit_ordinal();
 	snprintf(ccp->name, MAX_CCP_NAME_LEN, "ccp-%u", ccp->ord);

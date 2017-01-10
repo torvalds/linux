@@ -73,6 +73,9 @@
 #define RPN_PATTERN	0x00f0
 #endif
 
+#define PAGE_SHIFT_512K		19
+#define PAGE_SHIFT_8M		23
+
 	__HEAD
 _ENTRY(_stext);
 _ENTRY(_start);
@@ -322,7 +325,7 @@ SystemCall:
 #endif
 
 InstructionTLBMiss:
-#if defined(CONFIG_8xx_CPU6) || defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC)
+#if defined(CONFIG_8xx_CPU6) || defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC) || defined (CONFIG_HUGETLB_PAGE)
 	mtspr	SPRN_SPRG_SCRATCH2, r3
 #endif
 	EXCEPTION_PROLOG_0
@@ -332,10 +335,12 @@ InstructionTLBMiss:
 	 */
 	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
 	INVALIDATE_ADJACENT_PAGES_CPU15(r11, r10)
-#if defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC)
 	/* Only modules will cause ITLB Misses as we always
 	 * pin the first 8MB of kernel memory */
+#if defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC) || defined (CONFIG_HUGETLB_PAGE)
 	mfcr	r3
+#endif
+#if defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC)
 	IS_KERNEL(r11, r10)
 #endif
 	mfspr	r11, SPRN_M_TW	/* Get level 1 table */
@@ -343,7 +348,6 @@ InstructionTLBMiss:
 	BRANCH_UNLESS_KERNEL(3f)
 	lis	r11, (swapper_pg_dir-PAGE_OFFSET)@ha
 3:
-	mtcr	r3
 #endif
 	/* Insert level 1 index */
 	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
@@ -351,14 +355,25 @@ InstructionTLBMiss:
 
 	/* Extract level 2 index */
 	rlwinm	r10, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
+#ifdef CONFIG_HUGETLB_PAGE
+	mtcr	r11
+	bt-	28, 10f		/* bit 28 = Large page (8M) */
+	bt-	29, 20f		/* bit 29 = Large page (8M or 512k) */
+#endif
 	rlwimi	r10, r11, 0, 0, 32 - PAGE_SHIFT - 1	/* Add level 2 base */
 	lwz	r10, 0(r10)	/* Get the pte */
-
+4:
+#if defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC) || defined (CONFIG_HUGETLB_PAGE)
+	mtcr	r3
+#endif
 	/* Insert the APG into the TWC from the Linux PTE. */
 	rlwimi	r11, r10, 0, 25, 26
 	/* Load the MI_TWC with the attributes for this "segment." */
 	MTSPR_CPU6(SPRN_MI_TWC, r11, r3)	/* Set segment attributes */
 
+#if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
+	rlwimi	r10, r11, 1, MI_SPS16K
+#endif
 #ifdef CONFIG_SWAP
 	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
 	and	r11, r11, r10
@@ -371,15 +386,44 @@ InstructionTLBMiss:
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
+#if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
+	rlwimi	r10, r11, 0, 0x0ff0	/* Set 24-27, clear 20-23 */
+#else
 	rlwimi	r10, r11, 0, 0x0ff8	/* Set 24-27, clear 20-23,28 */
+#endif
 	MTSPR_CPU6(SPRN_MI_RPN, r10, r3)	/* Update TLB entry */
 
 	/* Restore registers */
-#if defined(CONFIG_8xx_CPU6) || defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC)
+#if defined(CONFIG_8xx_CPU6) || defined(CONFIG_MODULES) || defined (CONFIG_DEBUG_PAGEALLOC) || defined (CONFIG_HUGETLB_PAGE)
 	mfspr	r3, SPRN_SPRG_SCRATCH2
 #endif
 	EXCEPTION_EPILOG_0
 	rfi
+
+#ifdef CONFIG_HUGETLB_PAGE
+10:	/* 8M pages */
+#ifdef CONFIG_PPC_16K_PAGES
+	/* Extract level 2 index */
+	rlwinm	r10, r10, 32 - (PAGE_SHIFT_8M - PAGE_SHIFT), 32 + PAGE_SHIFT_8M - (PAGE_SHIFT << 1), 29
+	/* Add level 2 base */
+	rlwimi	r10, r11, 0, 0, 32 + PAGE_SHIFT_8M - (PAGE_SHIFT << 1) - 1
+#else
+	/* Level 2 base */
+	rlwinm	r10, r11, 0, ~HUGEPD_SHIFT_MASK
+#endif
+	lwz	r10, 0(r10)	/* Get the pte */
+	rlwinm	r11, r11, 0, 0xf
+	b	4b
+
+20:	/* 512k pages */
+	/* Extract level 2 index */
+	rlwinm	r10, r10, 32 - (PAGE_SHIFT_512K - PAGE_SHIFT), 32 + PAGE_SHIFT_512K - (PAGE_SHIFT << 1), 29
+	/* Add level 2 base */
+	rlwimi	r10, r11, 0, 0, 32 + PAGE_SHIFT_512K - (PAGE_SHIFT << 1) - 1
+	lwz	r10, 0(r10)	/* Get the pte */
+	rlwinm	r11, r11, 0, 0xf
+	b	4b
+#endif
 
 	. = 0x1200
 DataStoreTLBMiss:
@@ -407,7 +451,6 @@ _ENTRY(DTLBMiss_jmp)
 #endif
 	blt	cr7, DTLBMissLinear
 3:
-	mtcr	r3
 	mfspr	r10, SPRN_MD_EPN
 
 	/* Insert level 1 index */
@@ -418,8 +461,15 @@ _ENTRY(DTLBMiss_jmp)
 	 */
 	/* Extract level 2 index */
 	rlwinm	r10, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
+#ifdef CONFIG_HUGETLB_PAGE
+	mtcr	r11
+	bt-	28, 10f		/* bit 28 = Large page (8M) */
+	bt-	29, 20f		/* bit 29 = Large page (8M or 512k) */
+#endif
 	rlwimi	r10, r11, 0, 0, 32 - PAGE_SHIFT - 1	/* Add level 2 base */
 	lwz	r10, 0(r10)	/* Get the pte */
+4:
+	mtcr	r3
 
 	/* Insert the Guarded flag and APG into the TWC from the Linux PTE.
 	 * It is bit 26-27 of both the Linux PTE and the TWC (at least
@@ -434,6 +484,11 @@ _ENTRY(DTLBMiss_jmp)
 	rlwimi	r11, r10, 32-5, 30, 30
 	MTSPR_CPU6(SPRN_MD_TWC, r11, r3)
 
+	/* In 4k pages mode, SPS (bit 28) in RPN must match PS[1] (bit 29)
+	 * In 16k pages mode, SPS is always 1 */
+#if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
+	rlwimi	r10, r11, 1, MD_SPS16K
+#endif
 	/* Both _PAGE_ACCESSED and _PAGE_PRESENT has to be set.
 	 * We also need to know if the insn is a load/store, so:
 	 * Clear _PAGE_PRESENT and load that which will
@@ -455,7 +510,11 @@ _ENTRY(DTLBMiss_jmp)
 	 * of the MMU.
 	 */
 	li	r11, RPN_PATTERN
+#if defined (CONFIG_HUGETLB_PAGE) && defined (CONFIG_PPC_4K_PAGES)
+	rlwimi	r10, r11, 0, 24, 27	/* Set 24-27 */
+#else
 	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
+#endif
 	rlwimi	r10, r11, 0, 20, 20	/* clear 20 */
 	MTSPR_CPU6(SPRN_MD_RPN, r10, r3)	/* Update TLB entry */
 
@@ -465,6 +524,30 @@ _ENTRY(DTLBMiss_jmp)
 	EXCEPTION_EPILOG_0
 	rfi
 
+#ifdef CONFIG_HUGETLB_PAGE
+10:	/* 8M pages */
+	/* Extract level 2 index */
+#ifdef CONFIG_PPC_16K_PAGES
+	rlwinm	r10, r10, 32 - (PAGE_SHIFT_8M - PAGE_SHIFT), 32 + PAGE_SHIFT_8M - (PAGE_SHIFT << 1), 29
+	/* Add level 2 base */
+	rlwimi	r10, r11, 0, 0, 32 + PAGE_SHIFT_8M - (PAGE_SHIFT << 1) - 1
+#else
+	/* Level 2 base */
+	rlwinm	r10, r11, 0, ~HUGEPD_SHIFT_MASK
+#endif
+	lwz	r10, 0(r10)	/* Get the pte */
+	rlwinm	r11, r11, 0, 0xf
+	b	4b
+
+20:	/* 512k pages */
+	/* Extract level 2 index */
+	rlwinm	r10, r10, 32 - (PAGE_SHIFT_512K - PAGE_SHIFT), 32 + PAGE_SHIFT_512K - (PAGE_SHIFT << 1), 29
+	/* Add level 2 base */
+	rlwimi	r10, r11, 0, 0, 32 + PAGE_SHIFT_512K - (PAGE_SHIFT << 1) - 1
+	lwz	r10, 0(r10)	/* Get the pte */
+	rlwinm	r11, r11, 0, 0xf
+	b	4b
+#endif
 
 /* This is an instruction TLB error on the MPC8xx.  This could be due
  * to many reasons, such as executing guarded memory or illegal instruction
@@ -586,6 +669,9 @@ _ENTRY(FixupDAR_cmp)
 	/* Insert level 1 index */
 3:	rlwimi	r11, r10, 32 - ((PAGE_SHIFT - 2) << 1), (PAGE_SHIFT - 2) << 1, 29
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r11)	/* Get the level 1 entry */
+	mtcr	r11
+	bt	28,200f		/* bit 28 = Large page (8M) */
+	bt	29,202f		/* bit 29 = Large page (8M or 512K) */
 	rlwinm	r11, r11,0,0,19	/* Extract page descriptor page address */
 	/* Insert level 2 index */
 	rlwimi	r11, r10, 32 - (PAGE_SHIFT - 2), 32 - PAGE_SHIFT, 29
@@ -610,6 +696,27 @@ _ENTRY(FixupDAR_cmp)
 	beq+	142f
 141:	mfspr	r10,SPRN_SPRG_SCRATCH2
 	b	DARFixed	/* Nope, go back to normal TLB processing */
+
+	/* concat physical page address(r11) and page offset(r10) */
+200:
+#ifdef CONFIG_PPC_16K_PAGES
+	rlwinm	r11, r11, 0, 0, 32 + PAGE_SHIFT_8M - (PAGE_SHIFT << 1) - 1
+	rlwimi	r11, r10, 32 - (PAGE_SHIFT_8M - 2), 32 + PAGE_SHIFT_8M - (PAGE_SHIFT << 1), 29
+#else
+	rlwinm	r11, r10, 0, ~HUGEPD_SHIFT_MASK
+#endif
+	lwz	r11, 0(r11)	/* Get the pte */
+	/* concat physical page address(r11) and page offset(r10) */
+	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT_8M, 31
+	b	201b
+
+202:
+	rlwinm	r11, r11, 0, 0, 32 + PAGE_SHIFT_512K - (PAGE_SHIFT << 1) - 1
+	rlwimi	r11, r10, 32 - (PAGE_SHIFT_512K - 2), 32 + PAGE_SHIFT_512K - (PAGE_SHIFT << 1), 29
+	lwz	r11, 0(r11)	/* Get the pte */
+	/* concat physical page address(r11) and page offset(r10) */
+	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT_512K, 31
+	b	201b
 
 144:	mfspr	r10, SPRN_DSISR
 	rlwinm	r10, r10,0,7,5	/* Clear store bit for buggy dcbst insn */

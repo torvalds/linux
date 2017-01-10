@@ -39,6 +39,7 @@ struct wilc_sdio {
 };
 
 static struct wilc_sdio g_sdio;
+static const struct wilc_hif_func wilc_hif_sdio;
 
 static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data);
 static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data);
@@ -1100,7 +1101,7 @@ static int sdio_sync_ext(struct wilc *wilc, int nint)
  *
  ********************************************/
 
-const struct wilc_hif_func wilc_hif_sdio = {
+static const struct wilc_hif_func wilc_hif_sdio = {
 	.hif_init = sdio_init,
 	.hif_deinit = sdio_deinit,
 	.hif_read_reg = sdio_read_reg,

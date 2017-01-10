@@ -112,7 +112,7 @@ xt_cluster_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	 * know, matches should not alter packets, but we are doing this here
 	 * because we would need to add a PKTTYPE target for this sole purpose.
 	 */
-	if (!xt_cluster_is_multicast_addr(skb, par->family) &&
+	if (!xt_cluster_is_multicast_addr(skb, xt_family(par)) &&
 	    skb->pkt_type == PACKET_MULTICAST) {
 	    	pskb->pkt_type = PACKET_HOST;
 	}

@@ -80,14 +80,12 @@ static int mc44s803_readreg(struct mc44s803_priv *priv, u8 reg, u32 *val)
 	return 0;
 }
 
-static int mc44s803_release(struct dvb_frontend *fe)
+static void mc44s803_release(struct dvb_frontend *fe)
 {
 	struct mc44s803_priv *priv = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
 	kfree(priv);
-
-	return 0;
 }
 
 static int mc44s803_init(struct dvb_frontend *fe)
@@ -349,8 +347,8 @@ struct dvb_frontend *mc44s803_attach(struct dvb_frontend *fe,
 	id = MC44S803_REG_MS(reg, MC44S803_ID);
 
 	if (id != 0x14) {
-		mc_printk(KERN_ERR, "unsupported ID "
-		       "(%x should be 0x14)\n", id);
+		mc_printk(KERN_ERR, "unsupported ID (%x should be 0x14)\n",
+			  id);
 		goto error;
 	}
 

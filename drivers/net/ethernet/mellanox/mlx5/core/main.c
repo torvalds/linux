@@ -46,7 +46,6 @@
 #include <linux/mlx5/srq.h>
 #include <linux/debugfs.h>
 #include <linux/kmod.h>
-#include <linux/delay.h>
 #include <linux/mlx5/mlx5_ifc.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
@@ -63,13 +62,13 @@ MODULE_DESCRIPTION("Mellanox Connect-IB, ConnectX-4 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
-int mlx5_core_debug_mask;
-module_param_named(debug_mask, mlx5_core_debug_mask, int, 0644);
+unsigned int mlx5_core_debug_mask;
+module_param_named(debug_mask, mlx5_core_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "debug mask: 1 = dump cmd data, 2 = dump cmd exec time, 3 = both. Default=0");
 
 #define MLX5_DEFAULT_PROF	2
-static int prof_sel = MLX5_DEFAULT_PROF;
-module_param_named(prof_sel, prof_sel, int, 0444);
+static unsigned int prof_sel = MLX5_DEFAULT_PROF;
+module_param_named(prof_sel, prof_sel, uint, 0444);
 MODULE_PARM_DESC(prof_sel, "profile selector. Valid range 0 - 2");
 
 enum {
@@ -173,6 +172,41 @@ static int wait_fw_init(struct mlx5_core_dev *dev, u32 max_wait_mili)
 	}
 
 	return err;
+}
+
+static void mlx5_set_driver_version(struct mlx5_core_dev *dev)
+{
+	int driver_ver_sz = MLX5_FLD_SZ_BYTES(set_driver_version_in,
+					      driver_version);
+	u8 in[MLX5_ST_SZ_BYTES(set_driver_version_in)] = {0};
+	u8 out[MLX5_ST_SZ_BYTES(set_driver_version_out)] = {0};
+	int remaining_size = driver_ver_sz;
+	char *string;
+
+	if (!MLX5_CAP_GEN(dev, driver_version))
+		return;
+
+	string = MLX5_ADDR_OF(set_driver_version_in, in, driver_version);
+
+	strncpy(string, "Linux", remaining_size);
+
+	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
+	strncat(string, ",", remaining_size);
+
+	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
+	strncat(string, DRIVER_NAME, remaining_size);
+
+	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
+	strncat(string, ",", remaining_size);
+
+	remaining_size = max_t(int, 0, driver_ver_sz - strlen(string));
+	strncat(string, DRIVER_VERSION, remaining_size);
+
+	/*Send the command*/
+	MLX5_SET(set_driver_version_in, in, opcode,
+		 MLX5_CMD_OP_SET_DRIVER_VERSION);
+
+	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 static int set_dma_caps(struct pci_dev *pdev)
@@ -469,6 +503,13 @@ static int handle_hca_cap(struct mlx5_core_dev *dev)
 	MLX5_SET(cmd_hca_cap, set_hca_cap, pkey_table_size,
 		 to_fw_pkey_sz(dev, 128));
 
+	/* Check log_max_qp from HCA caps to set in current profile */
+	if (MLX5_CAP_GEN_MAX(dev, log_max_qp) < profile[prof_sel].log_max_qp) {
+		mlx5_core_warn(dev, "log_max_qp value in current profile is %d, changing it to HCA capability limit (%d)\n",
+			       profile[prof_sel].log_max_qp,
+			       MLX5_CAP_GEN_MAX(dev, log_max_qp));
+		profile[prof_sel].log_max_qp = MLX5_CAP_GEN_MAX(dev, log_max_qp);
+	}
 	if (prof->mask & MLX5_PROF_MASK_QP_SIZE)
 		MLX5_SET(cmd_hca_cap, set_hca_cap, log_max_qp,
 			 prof->log_max_qp);
@@ -523,7 +564,7 @@ int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id)
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
-cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev)
+u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev)
 {
 	u32 timer_h, timer_h1, timer_l;
 
@@ -533,7 +574,7 @@ cycle_t mlx5_read_internal_timer(struct mlx5_core_dev *dev)
 	if (timer_h != timer_h1) /* wrap around */
 		timer_l = ioread32be(&dev->iseg->internal_timer_l);
 
-	return (cycle_t)timer_l | (cycle_t)timer_h1 << 32;
+	return (u64)timer_l | (u64)timer_h1 << 32;
 }
 
 static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
@@ -541,7 +582,6 @@ static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
 	struct mlx5_priv *priv  = &mdev->priv;
 	struct msix_entry *msix = priv->msix_arr;
 	int irq                 = msix[i + MLX5_EQ_VEC_COMP_BASE].vector;
-	int numa_node           = priv->numa_node;
 	int err;
 
 	if (!zalloc_cpumask_var(&priv->irq_info[i].mask, GFP_KERNEL)) {
@@ -549,7 +589,7 @@ static int mlx5_irq_set_affinity_hint(struct mlx5_core_dev *mdev, int i)
 		return -ENOMEM;
 	}
 
-	cpumask_set_cpu(cpumask_local_spread(i, numa_node),
+	cpumask_set_cpu(cpumask_local_spread(i, priv->numa_node),
 			priv->irq_info[i].mask);
 
 	err = irq_set_affinity_hint(irq, priv->irq_info[i].mask);
@@ -733,13 +773,15 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		u8 status;
 
 		mlx5_cmd_mbox_status(query_out, &status, &syndrome);
-		if (status == MLX5_CMD_STAT_BAD_OP_ERR) {
-			pr_debug("Only ISSI 0 is supported\n");
-			return 0;
+		if (!status || syndrome == MLX5_DRIVER_SYND) {
+			mlx5_core_err(dev, "Failed to query ISSI err(%d) status(%d) synd(%d)\n",
+				      err, status, syndrome);
+			return err;
 		}
 
-		pr_err("failed to query ISSI err(%d)\n", err);
-		return err;
+		mlx5_core_warn(dev, "Query ISSI is not supported by FW, ISSI is 0\n");
+		dev->issi = 0;
+		return 0;
 	}
 
 	sup_issi = MLX5_GET(query_issi_out, query_out, supported_issi_dw0);
@@ -753,7 +795,8 @@ static int mlx5_core_set_issi(struct mlx5_core_dev *dev)
 		err = mlx5_cmd_exec(dev, set_in, sizeof(set_in),
 				    set_out, sizeof(set_out));
 		if (err) {
-			pr_err("failed to set ISSI=1 err(%d)\n", err);
+			mlx5_core_err(dev, "Failed to set ISSI to 1 err(%d)\n",
+				      err);
 			return err;
 		}
 
@@ -1015,6 +1058,8 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 		goto err_pagealloc_stop;
 	}
 
+	mlx5_set_driver_version(dev);
+
 	mlx5_start_health_poll(dev);
 
 	err = mlx5_query_hca_caps(dev);
@@ -1150,6 +1195,8 @@ static int mlx5_unload_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 {
 	int err = 0;
 
+	mlx5_drain_health_wq(dev);
+
 	mutex_lock(&dev->intf_state_mutex);
 	if (test_bit(MLX5_INTERFACE_STATE_DOWN, &dev->intf_state)) {
 		dev_warn(&dev->pdev->dev, "%s: interface is down, NOP\n",
@@ -1202,6 +1249,8 @@ static const struct devlink_ops mlx5_devlink_ops = {
 #ifdef CONFIG_MLX5_CORE_EN
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
 	.eswitch_mode_get = mlx5_devlink_eswitch_mode_get,
+	.eswitch_inline_mode_set = mlx5_devlink_eswitch_inline_mode_set,
+	.eswitch_inline_mode_get = mlx5_devlink_eswitch_inline_mode_get,
 #endif
 };
 
@@ -1226,15 +1275,9 @@ static int init_one(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	if (prof_sel < 0 || prof_sel >= ARRAY_SIZE(profile)) {
-		mlx5_core_warn(dev,
-			       "selected profile out of range, selecting default (%d)\n",
-			       MLX5_DEFAULT_PROF);
-		prof_sel = MLX5_DEFAULT_PROF;
-	}
-	dev->profile = &profile[prof_sel];
 	dev->pdev = pdev;
 	dev->event = mlx5_core_event;
+	dev->profile = &profile[prof_sel];
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
@@ -1316,10 +1359,9 @@ static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
 
 	mlx5_enter_error_state(dev);
 	mlx5_unload_one(dev, priv, false);
-	/* In case of kernel call save the pci state and drain health wq */
+	/* In case of kernel call save the pci state */
 	if (state) {
 		pci_save_state(pdev);
-		mlx5_drain_health_wq(dev);
 		mlx5_pci_disable_device(dev);
 	}
 
@@ -1423,6 +1465,7 @@ static const struct pci_device_id mlx5_core_pci_table[] = {
 	{ PCI_VDEVICE(MELLANOX, 0x1017) },			/* ConnectX-5, PCIe 3.0 */
 	{ PCI_VDEVICE(MELLANOX, 0x1018), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5 VF */
 	{ PCI_VDEVICE(MELLANOX, 0x1019) },			/* ConnectX-5, PCIe 4.0 */
+	{ PCI_VDEVICE(MELLANOX, 0x101a), MLX5_PCI_DEV_IS_VF},	/* ConnectX-5, PCIe 4.0 VF */
 	{ 0, }
 };
 
@@ -1450,10 +1493,22 @@ static struct pci_driver mlx5_core_driver = {
 	.sriov_configure   = mlx5_core_sriov_configure,
 };
 
+static void mlx5_core_verify_params(void)
+{
+	if (prof_sel >= ARRAY_SIZE(profile)) {
+		pr_warn("mlx5_core: WARNING: Invalid module parameter prof_sel %d, valid range 0-%zu, changing back to default(%d)\n",
+			prof_sel,
+			ARRAY_SIZE(profile) - 1,
+			MLX5_DEFAULT_PROF);
+		prof_sel = MLX5_DEFAULT_PROF;
+	}
+}
+
 static int __init init(void)
 {
 	int err;
 
+	mlx5_core_verify_params();
 	mlx5_register_debugfs();
 
 	err = pci_register_driver(&mlx5_core_driver);

@@ -30,12 +30,12 @@
  *  GNU General Public License for more details.
  */
 
+#include "cx23885.h"
+#include "cx23885-input.h"
+
 #include <linux/slab.h>
 #include <media/rc-core.h>
 #include <media/v4l2-subdev.h>
-
-#include "cx23885.h"
-#include "cx23885-input.h"
 
 #define MODULE_NAME "cx23885"
 

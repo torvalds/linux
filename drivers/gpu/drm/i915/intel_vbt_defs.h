@@ -280,7 +280,8 @@ struct common_child_dev_config {
 	u8 dp_support:1;
 	u8 tmds_support:1;
 	u8 support_reserved:5;
-	u8 not_common3[12];
+	u8 aux_channel;
+	u8 not_common3[11];
 	u8 iboost_level;
 } __packed;
 

@@ -243,9 +243,7 @@ acpi_ev_default_region_setup(acpi_handle handle,
 			     u32 function,
 			     void *handler_context, void **region_context);
 
-acpi_status
-acpi_ev_initialize_region(union acpi_operand_object *region_obj,
-			  u8 acpi_ns_locked);
+acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj);
 
 /*
  * evsci - SCI (System Control Interrupt) handling/dispatch

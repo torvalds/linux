@@ -43,6 +43,7 @@ static struct cmd_struct commands[] = {
 	{ "buildid-cache", cmd_buildid_cache, 0 },
 	{ "buildid-list", cmd_buildid_list, 0 },
 	{ "config",	cmd_config,	0 },
+	{ "c2c",	cmd_c2c,	0 },
 	{ "diff",	cmd_diff,	0 },
 	{ "evlist",	cmd_evlist,	0 },
 	{ "help",	cmd_help,	0 },

@@ -137,10 +137,18 @@ static inline void anon_vma_unlock_read(struct anon_vma *anon_vma)
  * anon_vma helper functions.
  */
 void anon_vma_init(void);	/* create anon_vma_cachep */
-int  anon_vma_prepare(struct vm_area_struct *);
+int  __anon_vma_prepare(struct vm_area_struct *);
 void unlink_anon_vmas(struct vm_area_struct *);
 int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
 int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
+
+static inline int anon_vma_prepare(struct vm_area_struct *vma)
+{
+	if (likely(vma->anon_vma))
+		return 0;
+
+	return __anon_vma_prepare(vma);
+}
 
 static inline void anon_vma_merge(struct vm_area_struct *vma,
 				  struct vm_area_struct *next)

@@ -140,7 +140,8 @@ static int tonga_start_smu(struct pp_smumgr *smumgr)
 	int result;
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!smu7_is_smc_ram_running(smumgr)) {
+	if (!(smu7_is_smc_ram_running(smumgr) ||
+		cgs_is_virtualization_enabled(smumgr->device))) {
 		/*Check if SMU is running in protected mode*/
 		if (0 == SMUM_READ_VFPF_INDIRECT_FIELD(smumgr->device, CGS_IND_REG__SMC,
 					SMU_FIRMWARE, SMU_MODE)) {

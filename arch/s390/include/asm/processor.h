@@ -110,14 +110,20 @@ typedef struct {
 struct thread_struct {
 	unsigned int  acrs[NUM_ACRS];
         unsigned long ksp;              /* kernel stack pointer             */
+	unsigned long user_timer;	/* task cputime in user space */
+	unsigned long system_timer;	/* task cputime in kernel space */
+	unsigned long sys_call_table;	/* system call table address */
 	mm_segment_t mm_segment;
 	unsigned long gmap_addr;	/* address of last gmap fault. */
 	unsigned int gmap_write_flag;	/* gmap fault write indication */
 	unsigned int gmap_int_code;	/* int code of last gmap fault */
 	unsigned int gmap_pfault;	/* signal of a pending guest pfault */
+	/* Per-thread information related to debugging */
 	struct per_regs per_user;	/* User specified PER registers */
 	struct per_event per_event;	/* Cause of the last PER trap */
 	unsigned long per_flags;	/* Flags to control debug behavior */
+	unsigned int system_call;	/* system call number in signal */
+	unsigned long last_break;	/* last breaking-event-address. */
         /* pfault_wait is used to block the process on a pfault event */
 	unsigned long pfault_wait;
 	struct list_head list;
@@ -234,9 +240,10 @@ static inline unsigned short stap(void)
 /*
  * Give up the time slice of the virtual PU.
  */
-void cpu_relax(void);
+#define cpu_relax_yield cpu_relax_yield
+void cpu_relax_yield(void);
 
-#define cpu_relax_lowlatency()  barrier()
+#define cpu_relax() barrier()
 
 #define ECAG_CACHE_ATTRIBUTE	0
 #define ECAG_CPU_ATTRIBUTE	1

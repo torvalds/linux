@@ -292,6 +292,7 @@ static const struct reg_default cs47l24_reg_default[] = {
 	{ 0x00000502, 0x0000 },    /* R1282  - AIF1 Rx Pin Ctrl */
 	{ 0x00000503, 0x0000 },    /* R1283  - AIF1 Rate Ctrl */
 	{ 0x00000504, 0x0000 },    /* R1284  - AIF1 Format */
+	{ 0x00000505, 0x0040 },    /* R1285  - AIF1 Tx BCLK Rate */
 	{ 0x00000506, 0x0040 },    /* R1286  - AIF1 Rx BCLK Rate */
 	{ 0x00000507, 0x1818 },    /* R1287  - AIF1 Frame Ctrl 1 */
 	{ 0x00000508, 0x1818 },    /* R1288  - AIF1 Frame Ctrl 2 */
@@ -318,6 +319,7 @@ static const struct reg_default cs47l24_reg_default[] = {
 	{ 0x00000542, 0x0000 },    /* R1346  - AIF2 Rx Pin Ctrl */
 	{ 0x00000543, 0x0000 },    /* R1347  - AIF2 Rate Ctrl */
 	{ 0x00000544, 0x0000 },    /* R1348  - AIF2 Format */
+	{ 0x00000545, 0x0040 },    /* R1349  - AIF2 Tx BCLK Rate */
 	{ 0x00000546, 0x0040 },    /* R1350  - AIF2 Rx BCLK Rate */
 	{ 0x00000547, 0x1818 },    /* R1351  - AIF2 Frame Ctrl 1 */
 	{ 0x00000548, 0x1818 },    /* R1352  - AIF2 Frame Ctrl 2 */
@@ -340,6 +342,7 @@ static const struct reg_default cs47l24_reg_default[] = {
 	{ 0x00000582, 0x0000 },    /* R1410  - AIF3 Rx Pin Ctrl */
 	{ 0x00000583, 0x0000 },    /* R1411  - AIF3 Rate Ctrl */
 	{ 0x00000584, 0x0000 },    /* R1412  - AIF3 Format */
+	{ 0x00000585, 0x0040 },    /* R1413  - AIF3 Tx BCLK Rate */
 	{ 0x00000586, 0x0040 },    /* R1414  - AIF3 Rx BCLK Rate */
 	{ 0x00000587, 0x1818 },    /* R1415  - AIF3 Frame Ctrl 1 */
 	{ 0x00000588, 0x1818 },    /* R1416  - AIF3 Frame Ctrl 2 */
@@ -923,6 +926,7 @@ static bool cs47l24_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AIF1_RX_PIN_CTRL:
 	case ARIZONA_AIF1_RATE_CTRL:
 	case ARIZONA_AIF1_FORMAT:
+	case ARIZONA_AIF1_TX_BCLK_RATE:
 	case ARIZONA_AIF1_RX_BCLK_RATE:
 	case ARIZONA_AIF1_FRAME_CTRL_1:
 	case ARIZONA_AIF1_FRAME_CTRL_2:
@@ -949,6 +953,7 @@ static bool cs47l24_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AIF2_RX_PIN_CTRL:
 	case ARIZONA_AIF2_RATE_CTRL:
 	case ARIZONA_AIF2_FORMAT:
+	case ARIZONA_AIF2_TX_BCLK_RATE:
 	case ARIZONA_AIF2_RX_BCLK_RATE:
 	case ARIZONA_AIF2_FRAME_CTRL_1:
 	case ARIZONA_AIF2_FRAME_CTRL_2:
@@ -971,6 +976,7 @@ static bool cs47l24_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_AIF3_RX_PIN_CTRL:
 	case ARIZONA_AIF3_RATE_CTRL:
 	case ARIZONA_AIF3_FORMAT:
+	case ARIZONA_AIF3_TX_BCLK_RATE:
 	case ARIZONA_AIF3_RX_BCLK_RATE:
 	case ARIZONA_AIF3_FRAME_CTRL_1:
 	case ARIZONA_AIF3_FRAME_CTRL_2:

@@ -59,6 +59,12 @@ static int nft_range_init(const struct nft_ctx *ctx, const struct nft_expr *expr
 	int err;
 	u32 op;
 
+	if (!tb[NFTA_RANGE_SREG]      ||
+	    !tb[NFTA_RANGE_OP]	      ||
+	    !tb[NFTA_RANGE_FROM_DATA] ||
+	    !tb[NFTA_RANGE_TO_DATA])
+		return -EINVAL;
+
 	err = nft_data_init(NULL, &priv->data_from, sizeof(priv->data_from),
 			    &desc_from, tb[NFTA_RANGE_FROM_DATA]);
 	if (err < 0)
@@ -122,7 +128,6 @@ nla_put_failure:
 	return -1;
 }
 
-static struct nft_expr_type nft_range_type;
 static const struct nft_expr_ops nft_range_ops = {
 	.type		= &nft_range_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_range_expr)),
@@ -131,20 +136,10 @@ static const struct nft_expr_ops nft_range_ops = {
 	.dump		= nft_range_dump,
 };
 
-static struct nft_expr_type nft_range_type __read_mostly = {
+struct nft_expr_type nft_range_type __read_mostly = {
 	.name		= "range",
 	.ops		= &nft_range_ops,
 	.policy		= nft_range_policy,
 	.maxattr	= NFTA_RANGE_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_range_module_init(void)
-{
-	return nft_register_expr(&nft_range_type);
-}
-
-void nft_range_module_exit(void)
-{
-	nft_unregister_expr(&nft_range_type);
-}

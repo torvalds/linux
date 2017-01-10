@@ -64,7 +64,7 @@
 
 #include "usbatm.h"
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/crc32.h>
 #include <linux/errno.h>
 #include <linux/init.h>

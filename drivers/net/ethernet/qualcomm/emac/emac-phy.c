@@ -212,6 +212,7 @@ int emac_phy_config(struct platform_device *pdev, struct emac_adapter *adpt)
 
 		phy_np = of_parse_phandle(np, "phy-handle", 0);
 		adpt->phydev = of_phy_find_device(phy_np);
+		of_node_put(phy_np);
 	}
 
 	if (!adpt->phydev) {

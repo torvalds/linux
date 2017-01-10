@@ -23,6 +23,12 @@
 
 extern struct proto raw_prot;
 
+extern struct raw_hashinfo raw_v4_hashinfo;
+struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
+			     unsigned short num, __be32 raddr,
+			     __be32 laddr, int dif);
+
+int raw_abort(struct sock *sk, int err);
 void raw_icmp_error(struct sk_buff *, int, u32);
 int raw_local_deliver(struct sk_buff *, int);
 
