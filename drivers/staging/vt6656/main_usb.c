@@ -278,7 +278,6 @@ static int vnt_init_registers(struct vnt_private *priv)
 	if (priv->rf_type == RF_VT3226D0) {
 		if ((priv->eeprom[EEP_OFS_MAJOR_VER] == 0x1) &&
 		    (priv->eeprom[EEP_OFS_MINOR_VER] >= 0x4)) {
-
 			calib_tx_iq = priv->eeprom[EEP_OFS_CALIB_TX_IQ];
 			calib_tx_dc = priv->eeprom[EEP_OFS_CALIB_TX_DC];
 			calib_rx_iq = priv->eeprom[EEP_OFS_CALIB_RX_IQ];
@@ -694,7 +693,6 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID && conf->bssid)
 		vnt_mac_set_bssid_addr(priv, (u8 *)conf->bssid);
 
-
 	if (changed & BSS_CHANGED_BASIC_RATES) {
 		priv->basic_rates = conf->basic_rates;
 
@@ -817,7 +815,6 @@ static void vnt_configure(struct ieee80211_hw *hw,
 		} else {
 			rx_mode &= ~(RCR_MULTICAST | RCR_BROADCAST);
 		}
-
 	}
 
 	if (changed_flags & (FIF_OTHER_BSS | FIF_BCN_PRBRESP_PROMISC)) {
@@ -928,7 +925,6 @@ static const struct ieee80211_ops vnt_mac_ops = {
 
 int vnt_init(struct vnt_private *priv)
 {
-
 	if (!(vnt_init_registers(priv)))
 		return -EAGAIN;
 
