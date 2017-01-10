@@ -4656,7 +4656,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	 */
 	if (S_ISDIR(inode->i_mode) ||
 	    BTRFS_I(inode)->generation > fs_info->last_trans_committed)
-		ret = btrfs_commit_inode_delayed_items(trans, inode);
+		ret = btrfs_commit_inode_delayed_items(trans, BTRFS_I(inode));
 	else
 		ret = btrfs_commit_inode_delayed_inode(BTRFS_I(inode));
 
