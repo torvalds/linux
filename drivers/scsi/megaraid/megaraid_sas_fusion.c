@@ -270,7 +270,8 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 		instance->ldio_threshold = ldio_threshold;
 
 		if (!instance->is_rdpq)
-			instance->max_fw_cmds = min_t(u16, instance->max_fw_cmds, 1024);
+			instance->max_fw_cmds =
+				min_t(u16, instance->max_fw_cmds, 1024);
 
 		if (reset_devices)
 			instance->max_fw_cmds = min(instance->max_fw_cmds,
@@ -286,7 +287,14 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 				(MEGASAS_FUSION_INTERNAL_CMDS +
 				MEGASAS_FUSION_IOCTL_CMDS);
 		instance->cur_can_queue = instance->max_scsi_cmds;
+		instance->host->can_queue = instance->cur_can_queue;
 	}
+
+	if (instance->is_ventura)
+		instance->max_mpt_cmds =
+		instance->max_fw_cmds * RAID_1_10_RMW_CMDS;
+	else
+		instance->max_mpt_cmds = instance->max_fw_cmds;
 }
 /**
  * megasas_free_cmds_fusion -	Free all the cmds in the free cmd pool
@@ -300,7 +308,7 @@ megasas_free_cmds_fusion(struct megasas_instance *instance)
 	struct megasas_cmd_fusion *cmd;
 
 	/* SG, Sense */
-	for (i = 0; i < instance->max_fw_cmds; i++) {
+	for (i = 0; i < instance->max_mpt_cmds; i++) {
 		cmd = fusion->cmd_list[i];
 		if (cmd) {
 			if (cmd->sg_frame)
@@ -344,7 +352,7 @@ megasas_free_cmds_fusion(struct megasas_instance *instance)
 
 
 	/* cmd_list */
-	for (i = 0; i < instance->max_fw_cmds; i++)
+	for (i = 0; i < instance->max_mpt_cmds; i++)
 		kfree(fusion->cmd_list[i]);
 
 	kfree(fusion->cmd_list);
@@ -396,33 +404,49 @@ static int megasas_create_sg_sense_fusion(struct megasas_instance *instance)
 			return -ENOMEM;
 		}
 	}
+
+	/* create sense buffer for the raid 1/10 fp */
+	for (i = max_cmd; i < instance->max_mpt_cmds; i++) {
+		cmd = fusion->cmd_list[i];
+		cmd->sense = pci_pool_alloc(fusion->sense_dma_pool,
+			GFP_KERNEL, &cmd->sense_phys_addr);
+		if (!cmd->sense) {
+			dev_err(&instance->pdev->dev,
+				"Failed from %s %d\n",  __func__, __LINE__);
+			return -ENOMEM;
+		}
+	}
+
 	return 0;
 }
 
 int
 megasas_alloc_cmdlist_fusion(struct megasas_instance *instance)
 {
-	u32 max_cmd, i;
+	u32 max_mpt_cmd, i;
 	struct fusion_context *fusion;
 
 	fusion = instance->ctrl_context;
 
-	max_cmd = instance->max_fw_cmds;
+	max_mpt_cmd = instance->max_mpt_cmds;
 
 	/*
 	 * fusion->cmd_list is an array of struct megasas_cmd_fusion pointers.
 	 * Allocate the dynamic array first and then allocate individual
 	 * commands.
 	 */
-	fusion->cmd_list = kzalloc(sizeof(struct megasas_cmd_fusion *) * max_cmd,
-						GFP_KERNEL);
+	fusion->cmd_list =
+		kzalloc(sizeof(struct megasas_cmd_fusion *) * max_mpt_cmd,
+			GFP_KERNEL);
 	if (!fusion->cmd_list) {
 		dev_err(&instance->pdev->dev,
 			"Failed from %s %d\n",  __func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < max_cmd; i++) {
+
+
+	for (i = 0; i < max_mpt_cmd; i++) {
 		fusion->cmd_list[i] = kzalloc(sizeof(struct megasas_cmd_fusion),
 					      GFP_KERNEL);
 		if (!fusion->cmd_list[i]) {
@@ -657,13 +681,14 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 	 */
 
 	/* SMID 0 is reserved. Set SMID/index from 1 */
-	for (i = 0; i < instance->max_fw_cmds; i++) {
+	for (i = 0; i < instance->max_mpt_cmds; i++) {
 		cmd = fusion->cmd_list[i];
 		offset = MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE * i;
 		memset(cmd, 0, sizeof(struct megasas_cmd_fusion));
 		cmd->index = i + 1;
 		cmd->scmd = NULL;
-		cmd->sync_cmd_idx = (i >= instance->max_scsi_cmds) ?
+		cmd->sync_cmd_idx =
+		(i >= instance->max_scsi_cmds && i < instance->max_fw_cmds) ?
 				(i - instance->max_scsi_cmds) :
 				(u32)ULONG_MAX; /* Set to Invalid */
 		cmd->instance = instance;
@@ -673,6 +698,7 @@ megasas_alloc_cmds_fusion(struct megasas_instance *instance)
 		memset(cmd->io_request, 0,
 		       sizeof(struct MPI2_RAID_SCSI_IO_REQUEST));
 		cmd->io_request_phys_addr = io_req_base_phys + offset;
+		cmd->is_raid_1_fp_write = 0;
 	}
 
 	if (megasas_create_sg_sense_fusion(instance))
@@ -1262,12 +1288,12 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 	fusion->reply_q_depth = 2 * (((max_cmd + 1 + 15)/16)*16);
 
 	fusion->request_alloc_sz =
-		sizeof(union MEGASAS_REQUEST_DESCRIPTOR_UNION) *max_cmd;
+	sizeof(union MEGASAS_REQUEST_DESCRIPTOR_UNION) * instance->max_mpt_cmds;
 	fusion->reply_alloc_sz = sizeof(union MPI2_REPLY_DESCRIPTORS_UNION)
 		*(fusion->reply_q_depth);
 	fusion->io_frames_alloc_sz = MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE +
-		(MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE *
-		 (max_cmd + 1)); /* Extra 1 for SMID 0 */
+		(MEGA_MPI2_RAID_DEFAULT_IO_FRAME_SIZE
+		* (instance->max_mpt_cmds + 1)); /* Extra 1 for SMID 0 */
 
 	scratch_pad_2 = readl(&instance->reg_set->outbound_scratch_pad_2);
 	/* If scratch_pad_2 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
@@ -1403,42 +1429,43 @@ fail_alloc_mfi_cmds:
  */
 
 void
-map_cmd_status(struct megasas_cmd_fusion *cmd, u8 status, u8 ext_status)
+map_cmd_status(struct fusion_context *fusion,
+	struct scsi_cmnd *scmd, u8 status, u8 ext_status,
+			u32 data_length, u8 *sense)
 {
 
 	switch (status) {
 
 	case MFI_STAT_OK:
-		cmd->scmd->result = DID_OK << 16;
+		scmd->result = DID_OK << 16;
 		break;
 
 	case MFI_STAT_SCSI_IO_FAILED:
 	case MFI_STAT_LD_INIT_IN_PROGRESS:
-		cmd->scmd->result = (DID_ERROR << 16) | ext_status;
+		scmd->result = (DID_ERROR << 16) | ext_status;
 		break;
 
 	case MFI_STAT_SCSI_DONE_WITH_ERROR:
 
-		cmd->scmd->result = (DID_OK << 16) | ext_status;
+		scmd->result = (DID_OK << 16) | ext_status;
 		if (ext_status == SAM_STAT_CHECK_CONDITION) {
-			memset(cmd->scmd->sense_buffer, 0,
+			memset(scmd->sense_buffer, 0,
 			       SCSI_SENSE_BUFFERSIZE);
-			memcpy(cmd->scmd->sense_buffer, cmd->sense,
+			memcpy(scmd->sense_buffer, sense,
 			       SCSI_SENSE_BUFFERSIZE);
-			cmd->scmd->result |= DRIVER_SENSE << 24;
+			scmd->result |= DRIVER_SENSE << 24;
 		}
 		break;
 
 	case MFI_STAT_LD_OFFLINE:
 	case MFI_STAT_DEVICE_NOT_FOUND:
-		cmd->scmd->result = DID_BAD_TARGET << 16;
+		scmd->result = DID_BAD_TARGET << 16;
 		break;
 	case MFI_STAT_CONFIG_SEQ_MISMATCH:
-		cmd->scmd->result = DID_IMM_RETRY << 16;
+		scmd->result = DID_IMM_RETRY << 16;
 		break;
 	default:
-		dev_printk(KERN_DEBUG, &cmd->instance->pdev->dev, "FW status %#x\n", status);
-		cmd->scmd->result = DID_ERROR << 16;
+		scmd->result = DID_ERROR << 16;
 		break;
 	}
 }
@@ -1881,6 +1908,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	io_info.ldStartBlock = ((u64)start_lba_hi << 32) | start_lba_lo;
 	io_info.numBlocks = datalength;
 	io_info.ldTgtId = device_id;
+	io_info.r1_alt_dev_handle = MR_PD_INVALID;
 	io_request->DataLength = cpu_to_le32(scsi_bufflen(scp));
 
 	if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
@@ -1948,6 +1976,10 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			cmd->pd_r1_lb = io_info.pd_after_lb;
 		} else
 			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
+
+		cmd->is_raid_1_fp_write = io_info.is_raid_1_fp_write;
+		if (io_info.is_raid_1_fp_write)
+			cmd->r1_alt_dev_handle = io_info.r1_alt_dev_handle;
 
 		if ((raidLUN[0] == 1) &&
 			(local_map_ptr->raidMap.devHndlInfo[io_info.pd_after_lb].validHandles > 1)) {
@@ -2272,17 +2304,116 @@ megasas_get_request_descriptor(struct megasas_instance *instance, u16 index)
 	u8 *p;
 	struct fusion_context *fusion;
 
-	if (index >= instance->max_fw_cmds) {
+	if (index >= instance->max_mpt_cmds) {
 		dev_err(&instance->pdev->dev, "Invalid SMID (0x%x)request for "
 		       "descriptor for scsi%d\n", index,
 			instance->host->host_no);
 		return NULL;
 	}
 	fusion = instance->ctrl_context;
-	p = fusion->req_frames_desc
-		+sizeof(union MEGASAS_REQUEST_DESCRIPTOR_UNION) *index;
+	p = fusion->req_frames_desc +
+		sizeof(union MEGASAS_REQUEST_DESCRIPTOR_UNION) * index;
 
 	return (union MEGASAS_REQUEST_DESCRIPTOR_UNION *)p;
+}
+
+/*
+ * megasas_fpio_to_ldio-
+ * This function converts an fp io to ldio
+ */
+
+void megasas_fpio_to_ldio(struct megasas_instance *instance,
+	struct megasas_cmd_fusion *cmd, struct scsi_cmnd *scmd)
+{
+	struct fusion_context *fusion;
+
+	fusion = instance->ctrl_context;
+	cmd->request_desc->SCSIIO.RequestFlags =
+		(MEGASAS_REQ_DESCRIPT_FLAGS_LD_IO
+		<< MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+	cmd->io_request->Function = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
+	cmd->io_request->DevHandle = cpu_to_le16(MEGASAS_DEV_INDEX(scmd));
+
+	/*remove FAST PATH ENABLE bit in IoFlags */
+	cmd->io_request->IoFlags &=
+	cpu_to_le16(~MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH);
+
+	/* if the numSGE > max_sge_in_main_sge set the chain offset*/
+	if (cmd->io_request->RaidContext.raid_context_g35.num_sge >
+		fusion->max_sge_in_main_msg)
+		cmd->io_request->ChainOffset = fusion->chain_offset_io_request;
+	memcpy(cmd->io_request->CDB.CDB32, scmd->cmnd, scmd->cmd_len);
+	cmd->io_request->CDB.EEDP32.PrimaryReferenceTag = 0;
+	cmd->io_request->CDB.EEDP32.PrimaryApplicationTagMask = 0;
+	cmd->io_request->EEDPFlags = 0;
+	cmd->io_request->Control = 0;
+	cmd->io_request->EEDPBlockSize = 0;
+	cmd->is_raid_1_fp_write = 0;
+}
+
+/* megasas_prepate_secondRaid1_IO
+ *  It prepares the raid 1 second IO
+ */
+void megasas_prepare_secondRaid1_IO(struct megasas_instance *instance,
+			    struct megasas_cmd_fusion *cmd,
+			    struct megasas_cmd_fusion *r1_cmd)
+{
+	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc, *req_desc2 = NULL;
+	struct fusion_context *fusion;
+
+	fusion = instance->ctrl_context;
+	req_desc = cmd->request_desc;
+	if (r1_cmd) {
+		/* copy the io request frame as well
+		 *  as 8 SGEs data for r1 command
+		 */
+		memcpy(r1_cmd->io_request, cmd->io_request,
+			sizeof(struct MPI2_RAID_SCSI_IO_REQUEST));
+		memcpy(&r1_cmd->io_request->SGL, &cmd->io_request->SGL,
+				(fusion->max_sge_in_main_msg *
+				sizeof(union MPI2_SGE_IO_UNION)));
+		/*sense buffer is different for r1 command*/
+		r1_cmd->io_request->SenseBufferLowAddress =
+				cpu_to_le32(r1_cmd->sense_phys_addr);
+		r1_cmd->scmd = cmd->scmd;
+		req_desc2 =
+		megasas_get_request_descriptor(instance, r1_cmd->index-1);
+		if (req_desc2) {
+			req_desc2->Words = 0;
+			r1_cmd->request_desc = req_desc2;
+			req_desc2->SCSIIO.SMID =
+				cpu_to_le16(r1_cmd->index);
+			req_desc2->SCSIIO.RequestFlags =
+				req_desc->SCSIIO.RequestFlags;
+			r1_cmd->is_raid_1_fp_write = 1;
+			r1_cmd->request_desc->SCSIIO.DevHandle =
+				cmd->r1_alt_dev_handle;
+			r1_cmd->io_request->DevHandle = cmd->r1_alt_dev_handle;
+			cmd->io_request->RaidContext.raid_context_g35.smid.peer_smid =
+				 cpu_to_le16(r1_cmd->index);
+			r1_cmd->io_request->RaidContext.raid_context_g35.smid.peer_smid =
+				cpu_to_le16(cmd->index);
+			/* MSIxIndex of both commands request
+			 * descriptors should be same
+			 */
+			r1_cmd->request_desc->SCSIIO.MSIxIndex =
+				cmd->request_desc->SCSIIO.MSIxIndex;
+			/*span arm is different for r1 cmd*/
+			r1_cmd->io_request->RaidContext.raid_context_g35.span_arm =
+			cmd->io_request->RaidContext.raid_context_g35.span_arm + 1;
+		} else {
+			megasas_return_cmd_fusion(instance, r1_cmd);
+			dev_info(&instance->pdev->dev,
+				"unable to get request descriptor, firing as normal IO\n");
+			atomic_dec(&instance->fw_outstanding);
+			megasas_fpio_to_ldio(instance, cmd, cmd->scmd);
+		}
+	} else {
+		dev_info(&instance->pdev->dev,
+			"unable to get command, firing as normal IO\n");
+		atomic_dec(&instance->fw_outstanding);
+		megasas_fpio_to_ldio(instance, cmd, cmd->scmd);
+	}
 }
 
 /**
@@ -2295,7 +2426,7 @@ static u32
 megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 				   struct scsi_cmnd *scmd)
 {
-	struct megasas_cmd_fusion *cmd;
+	struct megasas_cmd_fusion *cmd, *r1_cmd = NULL;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	u32 index;
 	struct fusion_context *fusion;
@@ -2310,13 +2441,27 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
+	if (atomic_inc_return(&instance->fw_outstanding) >
+			instance->host->can_queue) {
+		dev_err(&instance->pdev->dev, "Throttle IOs beyond Controller queue depth\n");
+		atomic_dec(&instance->fw_outstanding);
+		return SCSI_MLQUEUE_HOST_BUSY;
+	}
+
 	cmd = megasas_get_cmd_fusion(instance, scmd->request->tag);
+
+	if (!cmd) {
+		atomic_dec(&instance->fw_outstanding);
+		return SCSI_MLQUEUE_HOST_BUSY;
+	}
 
 	index = cmd->index;
 
 	req_desc = megasas_get_request_descriptor(instance, index-1);
-	if (!req_desc)
+	if (!req_desc) {
+		atomic_dec(&instance->fw_outstanding);
 		return SCSI_MLQUEUE_HOST_BUSY;
+	}
 
 	req_desc->Words = 0;
 	cmd->request_desc = req_desc;
@@ -2325,6 +2470,7 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 		megasas_return_cmd_fusion(instance, cmd);
 		dev_err(&instance->pdev->dev, "Error building command\n");
 		cmd->request_desc = NULL;
+		atomic_dec(&instance->fw_outstanding);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
@@ -2335,13 +2481,38 @@ megasas_build_and_issue_cmd_fusion(struct megasas_instance *instance,
 	    cmd->io_request->ChainOffset != 0xF)
 		dev_err(&instance->pdev->dev, "The chain offset value is not "
 		       "correct : %x\n", cmd->io_request->ChainOffset);
+	/*
+	 *	if it is raid 1/10 fp write capable.
+	 *	try to get second command from pool and construct it.
+	 *	From FW, it has confirmed that lba values of two PDs
+	 *	corresponds to single R1/10 LD are always same
+	 *
+	 */
+	/*	driver side count always should be less than max_fw_cmds
+	 *	to get new command
+	 */
+	if (cmd->is_raid_1_fp_write &&
+		atomic_inc_return(&instance->fw_outstanding) >
+			(instance->host->can_queue)) {
+		megasas_fpio_to_ldio(instance, cmd, cmd->scmd);
+		atomic_dec(&instance->fw_outstanding);
+	} else if (cmd->is_raid_1_fp_write) {
+		r1_cmd = megasas_get_cmd_fusion(instance,
+				(scmd->request->tag + instance->max_fw_cmds));
+		megasas_prepare_secondRaid1_IO(instance, cmd, r1_cmd);
+	}
+
 
 	/*
 	 * Issue the command to the FW
 	 */
-	atomic_inc(&instance->fw_outstanding);
 
 	megasas_fire_cmd_fusion(instance, req_desc, instance->is_ventura);
+
+	if (r1_cmd)
+		megasas_fire_cmd_fusion(instance, r1_cmd->request_desc,
+				instance->is_ventura);
+
 
 	return 0;
 }
@@ -2359,10 +2530,10 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 	struct MPI2_RAID_SCSI_IO_REQUEST *scsi_io_req;
 	struct fusion_context *fusion;
 	struct megasas_cmd *cmd_mfi;
-	struct megasas_cmd_fusion *cmd_fusion;
+	struct megasas_cmd_fusion *cmd_fusion, *r1_cmd = NULL;
 	u16 smid, num_completed;
-	u8 reply_descript_type;
-	u32 status, extStatus, device_id;
+	u8 reply_descript_type, *sense;
+	u32 status, extStatus, device_id, data_length;
 	union desc_value d_val;
 	struct LD_LOAD_BALANCE_INFO *lbinfo;
 	int threshold_reply_count = 0;
@@ -2392,6 +2563,15 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 
 	while (d_val.u.low != cpu_to_le32(UINT_MAX) &&
 	       d_val.u.high != cpu_to_le32(UINT_MAX)) {
+		   /*
+		    * Ensure that the peer command is NULL here in case a
+		    * command has completed but the R1 FP Write peer has
+		    * not completed yet.If not null, it's possible that
+		    * another thread will complete the peer
+		    * command and should not.
+		    */
+		r1_cmd = NULL;
+
 		smid = le16_to_cpu(reply_desc->SMID);
 
 		cmd_fusion = fusion->cmd_list[smid - 1];
@@ -2406,6 +2586,8 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 		scmd_local = cmd_fusion->scmd;
 		status = scsi_io_req->RaidContext.raid_context.status;
 		extStatus = scsi_io_req->RaidContext.raid_context.exStatus;
+		sense = cmd_fusion->sense;
+		data_length = scsi_io_req->DataLength;
 
 		switch (scsi_io_req->Function) {
 		case MPI2_FUNCTION_SCSI_TASK_MGMT:
@@ -2422,12 +2604,28 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 			/* Update load balancing info */
 			device_id = MEGASAS_DEV_INDEX(scmd_local);
 			lbinfo = &fusion->load_balance_info[device_id];
-			if (cmd_fusion->scmd->SCp.Status &
-			    MEGASAS_LOAD_BALANCE_FLAG) {
+			/*
+			 * check for the raid 1/10 fast path writes
+			 */
+			if (!cmd_fusion->is_raid_1_fp_write &&
+				(cmd_fusion->scmd->SCp.Status &
+					MEGASAS_LOAD_BALANCE_FLAG)) {
 				atomic_dec(&lbinfo->scsi_pending_cmds[cmd_fusion->pd_r1_lb]);
 				cmd_fusion->scmd->SCp.Status &=
 					~MEGASAS_LOAD_BALANCE_FLAG;
+			} else if (cmd_fusion->is_raid_1_fp_write) {
+				/* get peer command */
+				if (cmd_fusion->index < instance->max_fw_cmds)
+					r1_cmd = fusion->cmd_list[(cmd_fusion->index +
+					instance->max_fw_cmds)-1];
+				else {
+					r1_cmd =
+					fusion->cmd_list[(cmd_fusion->index -
+						 instance->max_fw_cmds)-1];
+				}
+				cmd_fusion->cmd_completed = true;
 			}
+
 			if (reply_descript_type ==
 			    MPI2_RPY_DESCRIPT_FLAGS_SCSI_IO_SUCCESS) {
 				if (megasas_dbg_lvl == 5)
@@ -2437,14 +2635,48 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 			/* Fall thru and complete IO */
 		case MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST: /* LD-IO Path */
 			/* Map the FW Cmd Status */
-			map_cmd_status(cmd_fusion, status, extStatus);
-			scsi_io_req->RaidContext.raid_context.status = 0;
-			scsi_io_req->RaidContext.raid_context.exStatus = 0;
-			if (megasas_cmd_type(scmd_local) == READ_WRITE_LDIO)
-				atomic_dec(&instance->ldio_outstanding);
-			megasas_return_cmd_fusion(instance, cmd_fusion);
-			scsi_dma_unmap(scmd_local);
-			scmd_local->scsi_done(scmd_local);
+			/*
+			 * check for the raid 1/10 fast path writes
+			 */
+			if (r1_cmd &&  r1_cmd->is_raid_1_fp_write
+				&& r1_cmd->cmd_completed) {
+				/*
+				 * if the peer  Raid  1/10 fast path failed,
+				 * mark IO as failed to the scsi layer.
+				 * over write the current status by the failed
+				 * status makes sure that if any one of
+				 * command fails,return fail status to
+				 * scsi layer
+				 */
+				if (r1_cmd->io_request->RaidContext.raid_context.status !=
+								MFI_STAT_OK) {
+					status =
+					r1_cmd->io_request->RaidContext.raid_context.status;
+					extStatus =
+					r1_cmd->io_request->RaidContext.raid_context.exStatus;
+					data_length =
+						r1_cmd->io_request->DataLength;
+					sense = r1_cmd->sense;
+				}
+				r1_cmd->io_request->RaidContext.raid_context.status = 0;
+				r1_cmd->io_request->RaidContext.raid_context.exStatus = 0;
+				cmd_fusion->is_raid_1_fp_write = 0;
+				r1_cmd->is_raid_1_fp_write = 0;
+				r1_cmd->cmd_completed = false;
+				cmd_fusion->cmd_completed = false;
+				megasas_return_cmd_fusion(instance, r1_cmd);
+			}
+			if (!cmd_fusion->is_raid_1_fp_write) {
+				map_cmd_status(fusion, scmd_local, status,
+					extStatus, data_length, sense);
+				scsi_io_req->RaidContext.raid_context.status
+				= 0;
+				scsi_io_req->RaidContext.raid_context.exStatus
+				= 0;
+				megasas_return_cmd_fusion(instance, cmd_fusion);
+				scsi_dma_unmap(scmd_local);
+				scmd_local->scsi_done(scmd_local);
+			}
 			atomic_dec(&instance->fw_outstanding);
 
 			break;
@@ -3497,7 +3729,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 {
 	int retval = SUCCESS, i, j, convert = 0;
 	struct megasas_instance *instance;
-	struct megasas_cmd_fusion *cmd_fusion;
+	struct megasas_cmd_fusion *cmd_fusion, *mpt_cmd_fusion;
 	struct fusion_context *fusion;
 	u32 abs_state, status_reg, reset_adapter;
 	u32 io_timeout_in_crash_mode = 0;
@@ -3572,6 +3804,18 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		/* Now return commands back to the OS */
 		for (i = 0 ; i < instance->max_scsi_cmds; i++) {
 			cmd_fusion = fusion->cmd_list[i];
+			/*check for extra commands issued by driver*/
+			if (instance->is_ventura) {
+				cmd_fusion->is_raid_1_fp_write = 0;
+				cmd_fusion->cmd_completed = false;
+				mpt_cmd_fusion =
+				fusion->cmd_list[i + instance->max_fw_cmds];
+				mpt_cmd_fusion->is_raid_1_fp_write = 0;
+				mpt_cmd_fusion->cmd_completed = false;
+				if (mpt_cmd_fusion->scmd)
+					megasas_return_cmd_fusion(instance,
+						mpt_cmd_fusion);
+			}
 			scmd_local = cmd_fusion->scmd;
 			if (cmd_fusion->scmd) {
 				scmd_local->result =
@@ -3582,9 +3826,10 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 				megasas_return_cmd_fusion(instance, cmd_fusion);
 				scsi_dma_unmap(scmd_local);
 				scmd_local->scsi_done(scmd_local);
-				atomic_dec(&instance->fw_outstanding);
 			}
 		}
+
+		atomic_set(&instance->fw_outstanding, 0);
 
 		status_reg = instance->instancet->read_fw_status_reg(
 			instance->reg_set);

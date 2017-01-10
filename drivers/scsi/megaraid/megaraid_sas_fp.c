@@ -737,7 +737,7 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 		struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
-	u32     pd, arRef;
+	u32     pd, arRef, r1_alt_pd;
 	u8      physArm, span;
 	u64     row;
 	u8	retval = TRUE;
@@ -772,9 +772,16 @@ static u8 mr_spanset_get_phy_params(struct megasas_instance *instance, u32 ld,
 	arRef       = MR_LdSpanArrayGet(ld, span, map);
 	pd          = MR_ArPdGet(arRef, physArm, map);
 
-	if (pd != MR_PD_INVALID)
+	if (pd != MR_PD_INVALID) {
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
-	else {
+		/* get second pd also for raid 1/10 fast path writes*/
+		if (raid->level == 1) {
+			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
+			if (r1_alt_pd != MR_PD_INVALID)
+				io_info->r1_alt_dev_handle =
+				MR_PdDevHandleGet(r1_alt_pd, map);
+		}
+	} else {
 		*pDevHandle = cpu_to_le16(MR_PD_INVALID);
 		if ((raid->level >= 5) &&
 			((fusion->adapter_type == THUNDERBOLT_SERIES)  ||
@@ -819,7 +826,7 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 		struct MR_DRV_RAID_MAP_ALL *map)
 {
 	struct MR_LD_RAID  *raid = MR_LdRaidGet(ld, map);
-	u32         pd, arRef;
+	u32         pd, arRef, r1_alt_pd;
 	u8          physArm, span;
 	u64         row;
 	u8	    retval = TRUE;
@@ -867,10 +874,17 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	arRef       = MR_LdSpanArrayGet(ld, span, map);
 	pd          = MR_ArPdGet(arRef, physArm, map); /* Get the pd */
 
-	if (pd != MR_PD_INVALID)
+	if (pd != MR_PD_INVALID) {
 		/* Get dev handle from Pd. */
 		*pDevHandle = MR_PdDevHandleGet(pd, map);
-	else {
+		/* get second pd also for raid 1/10 fast path writes*/
+		if (raid->level == 1) {
+			r1_alt_pd = MR_ArPdGet(arRef, physArm + 1, map);
+			if (r1_alt_pd != MR_PD_INVALID)
+				io_info->r1_alt_dev_handle =
+				MR_PdDevHandleGet(r1_alt_pd, map);
+		}
+	} else {
 		/* set dev handle as invalid. */
 		*pDevHandle = cpu_to_le16(MR_PD_INVALID);
 		if ((raid->level >= 5) &&
@@ -1126,6 +1140,11 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 		/* If IO on an invalid Pd, then FP is not possible.*/
 		if (io_info->devHandle == cpu_to_le16(MR_PD_INVALID))
 			io_info->fpOkForIo = FALSE;
+		/* set raid 1/10 fast path write capable bit in io_info */
+		if (io_info->fpOkForIo &&
+		    (io_info->r1_alt_dev_handle != MR_PD_INVALID) &&
+		    (raid->level == 1) && !isRead)
+			io_info->is_raid_1_fp_write = 1;
 		return retval;
 	} else if (isRead) {
 		uint stripIdx;

@@ -94,6 +94,7 @@ enum MR_RAID_FLAGS_IO_SUB_TYPE {
 #define MEGASAS_FP_CMD_LEN	16
 #define MEGASAS_FUSION_IN_RESET 0
 #define THRESHOLD_REPLY_COUNT 50
+#define RAID_1_10_RMW_CMDS 3
 #define JBOD_MAPS_COUNT	2
 
 enum MR_FUSION_ADAPTER_TYPE {
@@ -728,7 +729,9 @@ struct MR_SPAN_BLOCK_INFO {
 struct MR_LD_RAID {
 	struct {
 #if   defined(__BIG_ENDIAN_BITFIELD)
-		u32     reserved4:5;
+		u32     reserved4:3;
+		u32     fp_cache_bypass_capable:1;
+		u32     fp_rmw_capable:1;
 		u32     fpBypassRegionLock:1;
 		u32     tmCapable:1;
 		u32	fpNonRWCapable:1;
@@ -756,7 +759,9 @@ struct MR_LD_RAID {
 		u32	fpNonRWCapable:1;
 		u32     tmCapable:1;
 		u32     fpBypassRegionLock:1;
-		u32     reserved4:5;
+		u32     fp_rmw_capable:1;
+		u32     fp_cache_bypass_capable:1;
+		u32     reserved4:3;
 #endif
 	} capability;
 	__le32     reserved6;
@@ -830,6 +835,8 @@ struct IO_REQUEST_INFO {
 	u64 start_row;
 	u8  span_arm;	/* span[7:5], arm[4:0] */
 	u8  pd_after_lb;
+	u16 r1_alt_dev_handle; /* raid 1/10 only */
+	bool is_raid_1_fp_write;
 	bool ra_capable;
 };
 
@@ -883,6 +890,10 @@ struct megasas_cmd_fusion {
 	u32 index;
 	u8 pd_r1_lb;
 	struct completion done;
+	bool is_raid_1_fp_write;
+	u16 r1_alt_dev_handle; /* raid 1/10 only*/
+	bool cmd_completed;  /* raid 1/10 fp writes status holder */
+
 };
 
 struct LD_LOAD_BALANCE_INFO {

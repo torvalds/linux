@@ -2056,6 +2056,7 @@ struct megasas_instance {
 
 	u16 max_num_sge;
 	u16 max_fw_cmds;
+	u16 max_mpt_cmds;
 	u16 max_mfi_cmds;
 	u16 max_scsi_cmds;
 	u16 ldio_threshold;
