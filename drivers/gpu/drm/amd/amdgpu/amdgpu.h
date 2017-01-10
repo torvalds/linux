@@ -60,6 +60,7 @@
 #include "amdgpu_dpm.h"
 #include "amdgpu_acp.h"
 #include "amdgpu_uvd.h"
+#include "amdgpu_vce.h"
 
 #include "gpu_scheduler.h"
 #include "amdgpu_virt.h"
@@ -1033,34 +1034,6 @@ int amdgpu_wb_get_64bit(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_wb_free_64bit(struct amdgpu_device *adev, u32 wb);
 
 void amdgpu_get_pcie_info(struct amdgpu_device *adev);
-
-/*
- * VCE
- */
-#define AMDGPU_MAX_VCE_HANDLES	16
-#define AMDGPU_VCE_FIRMWARE_OFFSET 256
-
-#define AMDGPU_VCE_HARVEST_VCE0 (1 << 0)
-#define AMDGPU_VCE_HARVEST_VCE1 (1 << 1)
-
-struct amdgpu_vce {
-	struct amdgpu_bo	*vcpu_bo;
-	uint64_t		gpu_addr;
-	unsigned		fw_version;
-	unsigned		fb_version;
-	atomic_t		handles[AMDGPU_MAX_VCE_HANDLES];
-	struct drm_file		*filp[AMDGPU_MAX_VCE_HANDLES];
-	uint32_t		img_size[AMDGPU_MAX_VCE_HANDLES];
-	struct delayed_work	idle_work;
-	struct mutex		idle_mutex;
-	const struct firmware	*fw;	/* VCE firmware */
-	struct amdgpu_ring	ring[AMDGPU_MAX_VCE_RINGS];
-	struct amdgpu_irq_src	irq;
-	unsigned		harvest_config;
-	struct amd_sched_entity	entity;
-	uint32_t                srbm_soft_reset;
-	unsigned		num_rings;
-};
 
 /*
  * SDMA
