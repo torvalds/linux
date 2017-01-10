@@ -472,19 +472,11 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	WREG32(mmVM_CONTEXT1_CNTL,
 	       VM_CONTEXT1_CNTL__ENABLE_CONTEXT_MASK |
 	       (1UL << VM_CONTEXT1_CNTL__PAGE_TABLE_DEPTH__SHIFT) |
-	       ((amdgpu_vm_block_size - 9) << VM_CONTEXT1_CNTL__PAGE_TABLE_BLOCK_SIZE__SHIFT) |
-	       VM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__RANGE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__DUMMY_PAGE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__PDE0_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__VALID_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__READ_PROTECTION_FAULT_ENABLE_DEFAULT_MASK |
-	       VM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_INTERRUPT_MASK |
-	       VM_CONTEXT1_CNTL__WRITE_PROTECTION_FAULT_ENABLE_DEFAULT_MASK);
+	       ((amdgpu_vm_block_size - 9) << VM_CONTEXT1_CNTL__PAGE_TABLE_BLOCK_SIZE__SHIFT));
+	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_ALWAYS)
+		gmc_v6_0_set_fault_enable_default(adev, false);
+	else
+		gmc_v6_0_set_fault_enable_default(adev, true);
 
 	gmc_v6_0_gart_flush_gpu_tlb(adev, 0);
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
@@ -763,7 +755,10 @@ static int gmc_v6_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
+	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
+		return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
+	else
+		return 0;
 }
 
 static int gmc_v6_0_sw_init(void *handle)
