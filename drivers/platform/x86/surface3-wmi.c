@@ -244,13 +244,11 @@ static int s3_wmi_remove(struct platform_device *device)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int s3_wmi_resume(struct device *dev)
+static int __maybe_unused s3_wmi_resume(struct device *dev)
 {
 	s3_wmi_send_lid_state();
 	return 0;
 }
-#endif
 static SIMPLE_DEV_PM_OPS(s3_wmi_pm, NULL, s3_wmi_resume);
 
 static struct platform_driver s3_wmi_driver = {
