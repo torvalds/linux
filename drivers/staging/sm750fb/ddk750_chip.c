@@ -245,7 +245,6 @@ int ddk750_init_hw(struct initchip_param *pInitParam)
 	/* Set up master clock */
 	set_master_clock(MHz(pInitParam->masterClock));
 
-
 	/*
 	 * Reset the memory controller.
 	 * If the memory controller is not reset in SM750,
@@ -408,5 +407,3 @@ unsigned int sm750_format_pll_reg(struct pll_value *pPLL)
 
 	return reg;
 }
-
-
