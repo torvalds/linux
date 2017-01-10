@@ -1058,7 +1058,7 @@ static int fotg210_udc_stop(struct usb_gadget *g)
 	return 0;
 }
 
-static struct usb_gadget_ops fotg210_gadget_ops = {
+static const struct usb_gadget_ops fotg210_gadget_ops = {
 	.udc_start		= fotg210_udc_start,
 	.udc_stop		= fotg210_udc_stop,
 };
