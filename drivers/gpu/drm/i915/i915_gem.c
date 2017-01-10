@@ -1751,7 +1751,6 @@ int i915_gem_mmap_gtt_version(void)
 
 static inline struct i915_ggtt_view
 compute_partial_view(struct drm_i915_gem_object *obj,
-		     struct vm_area_struct *area,
 		     pgoff_t page_offset,
 		     unsigned int chunk)
 {
@@ -1765,7 +1764,7 @@ compute_partial_view(struct drm_i915_gem_object *obj,
 	view.params.partial.offset = rounddown(page_offset, chunk);
 	view.params.partial.size =
 		min_t(unsigned int, chunk,
-		      vma_pages(area) - view.params.partial.offset);
+		      (obj->base.size >> PAGE_SHIFT) - view.params.partial.offset);
 
 	/* If the partial covers the entire object, just create a normal VMA. */
 	if (chunk >= obj->base.size >> PAGE_SHIFT)
@@ -1852,8 +1851,7 @@ int i915_gem_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 	if (IS_ERR(vma)) {
 		/* Use a partial view if it is bigger than available space */
 		struct i915_ggtt_view view =
-			compute_partial_view(obj, area,
-					     page_offset, MIN_CHUNK_PAGES);
+			compute_partial_view(obj, page_offset, MIN_CHUNK_PAGES);
 
 		/* Userspace is now writing through an untracked VMA, abandon
 		 * all hope that the hardware is able to track future writes.
