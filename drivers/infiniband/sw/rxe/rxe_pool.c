@@ -112,13 +112,6 @@ static inline struct kmem_cache *pool_cache(struct rxe_pool *pool)
 	return rxe_type_info[pool->type].cache;
 }
 
-static inline enum rxe_elem_type rxe_type(void *arg)
-{
-	struct rxe_pool_entry *elem = arg;
-
-	return elem->pool->type;
-}
-
 int rxe_cache_init(void)
 {
 	int err;
