@@ -275,6 +275,16 @@
 				pins = "PB8", "PB9";
 				function = "uart0";
 			};
+
+			uart1_pins: uart1_pins {
+				pins = "PG6", "PG7";
+				function = "uart1";
+			};
+
+			uart1_rts_cts_pins: uart1_rts_cts_pins {
+				pins = "PG8", "PG9";
+				function = "uart1";
+			};
 		};
 
 		uart0: serial@1c28000 {
