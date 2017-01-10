@@ -1189,7 +1189,8 @@ struct MR_PD_CFG_SEQ {
 		u8     reserved:7;
 #endif
 	} capability;
-	u8  reserved[3];
+	u8  reserved;
+	u16 pd_target_id;
 } __packed;
 
 struct MR_PD_CFG_SEQ_NUM_SYNC {
