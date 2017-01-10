@@ -11,7 +11,6 @@
 
 #include <linux/delay.h>
 #include <linux/extcon.h>
-#include <linux/freezer.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -249,32 +248,6 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 			usb_ss = 1;
 		}
 
-		if (chip->notify.power_role == 0 &&
-		    chip->notify.is_pd_connected &&
-		    chip->pd_output_vol > 0 && chip->pd_output_cur > 0) {
-			extcon_set_state(chip->extcon, EXTCON_CHG_USB_FAST,
-					 true);
-			property.intval =
-				(chip->pd_output_cur << 15 |
-				 chip->pd_output_vol);
-			extcon_set_property(chip->extcon, EXTCON_CHG_USB_FAST,
-					    EXTCON_PROP_USB_TYPEC_POLARITY,
-					    property);
-			extcon_sync(chip->extcon, EXTCON_CHG_USB_FAST);
-		}
-
-#ifdef CONFIG_FREEZER
-		/*
-		 * If system enter PM suspend, we need to wait until
-		 * PM resume all of devices completion, then the flag
-		 * pm_freezing will be set to false, and we can send
-		 * notifier to USB/DP module safety, it make sure that
-		 * USB/DP can enable power domain successfully.
-		 */
-		while (pm_freezing)
-			usleep_range(10000, 11000);
-#endif
-
 		property.intval = flip;
 		extcon_set_property(chip->extcon, EXTCON_USB,
 				    EXTCON_PROP_USB_TYPEC_POLARITY, property);
@@ -296,6 +269,18 @@ static void platform_fusb_notify(struct fusb30x_chip *chip)
 		extcon_sync(chip->extcon, EXTCON_USB);
 		extcon_sync(chip->extcon, EXTCON_USB_HOST);
 		extcon_sync(chip->extcon, EXTCON_DISP_DP);
+		if (chip->notify.power_role == 0 &&
+		    chip->notify.is_pd_connected &&
+		    chip->pd_output_vol > 0 && chip->pd_output_cur > 0) {
+			extcon_set_state(chip->extcon, EXTCON_CHG_USB_FAST, true);
+			property.intval =
+				(chip->pd_output_cur << 15 |
+				 chip->pd_output_vol);
+			extcon_set_property(chip->extcon, EXTCON_CHG_USB_FAST,
+					    EXTCON_PROP_USB_TYPEC_POLARITY,
+					    property);
+			extcon_sync(chip->extcon, EXTCON_CHG_USB_FAST);
+		}
 	}
 }
 
