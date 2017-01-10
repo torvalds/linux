@@ -89,7 +89,6 @@ static struct usb_serial_driver kl5kusb105d_device = {
 	.open =			klsi_105_open,
 	.close =		klsi_105_close,
 	.set_termios =		klsi_105_set_termios,
-	/*.break_ctl =		klsi_105_break_ctl,*/
 	.tiocmget =		klsi_105_tiocmget,
 	.port_probe =		klsi_105_port_probe,
 	.port_remove =		klsi_105_port_remove,
@@ -438,19 +437,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	 */
 	baud = tty_get_baud_rate(tty);
 
-	if ((cflag & CBAUD) != (old_cflag & CBAUD)) {
-		/* reassert DTR and (maybe) RTS on transition from B0 */
-		if ((old_cflag & CBAUD) == B0) {
-			dev_dbg(dev, "%s: baud was B0\n", __func__);
-#if 0
-			priv->control_state |= TIOCM_DTR;
-			/* don't set RTS if using hardware flow control */
-			if (!(old_cflag & CRTSCTS))
-				priv->control_state |= TIOCM_RTS;
-			mct_u232_set_modem_ctrl(serial, priv->control_state);
-#endif
-		}
-	}
 	switch (baud) {
 	case 0: /* handled below */
 		break;
@@ -484,17 +470,14 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 		baud = 9600;
 		break;
 	}
-	if ((cflag & CBAUD) == B0) {
-		dev_dbg(dev, "%s: baud is B0\n", __func__);
-		/* Drop RTS and DTR */
-		/* maybe this should be simulated by sending read
-		 * disable and read enable messages?
-		 */
-#if 0
-		priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-		mct_u232_set_modem_ctrl(serial, priv->control_state);
-#endif
-	}
+
+	/*
+	 * FIXME: implement B0 handling
+	 *
+	 * Maybe this should be simulated by sending read disable and read
+	 * enable messages?
+	 */
+
 	tty_encode_baud_rate(tty, baud, baud);
 
 	if ((cflag & CSIZE) != (old_cflag & CSIZE)) {
@@ -528,22 +511,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	    || (cflag & CSTOPB) != (old_cflag & CSTOPB)) {
 		/* Not currently supported */
 		tty->termios.c_cflag &= ~(PARENB|PARODD|CSTOPB);
-#if 0
-		priv->last_lcr = 0;
-
-		/* set the parity */
-		if (cflag & PARENB)
-			priv->last_lcr |= (cflag & PARODD) ?
-				MCT_U232_PARITY_ODD : MCT_U232_PARITY_EVEN;
-		else
-			priv->last_lcr |= MCT_U232_PARITY_NONE;
-
-		/* set the number of stop bits */
-		priv->last_lcr |= (cflag & CSTOPB) ?
-			MCT_U232_STOP_BITS_2 : MCT_U232_STOP_BITS_1;
-
-		mct_u232_set_line_ctrl(serial, priv->last_lcr);
-#endif
 	}
 	/*
 	 * Set flow control: well, I do not really now how to handle DTR/RTS.
@@ -554,14 +521,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	    ||  (cflag & CRTSCTS) != (old_cflag & CRTSCTS)) {
 		/* Not currently supported */
 		tty->termios.c_cflag &= ~CRTSCTS;
-		/* Drop DTR/RTS if no flow control otherwise assert */
-#if 0
-		if ((iflag & IXOFF) || (iflag & IXON) || (cflag & CRTSCTS))
-			priv->control_state |= TIOCM_DTR | TIOCM_RTS;
-		else
-			priv->control_state &= ~(TIOCM_DTR | TIOCM_RTS);
-		mct_u232_set_modem_ctrl(serial, priv->control_state);
-#endif
 	}
 	memcpy(cfg, &priv->cfg, sizeof(*cfg));
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -571,25 +530,6 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 err:
 	kfree(cfg);
 }
-
-#if 0
-static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct usb_serial *serial = port->serial;
-	struct mct_u232_private *priv =
-				(struct mct_u232_private *)port->private;
-	unsigned char lcr = priv->last_lcr;
-
-	dev_dbg(&port->dev, "%s - state=%d\n", __func__, break_state);
-
-	/* LOCKING */
-	if (break_state)
-		lcr |= MCT_U232_SET_BREAK;
-
-	mct_u232_set_line_ctrl(serial, lcr);
-}
-#endif
 
 static int klsi_105_tiocmget(struct tty_struct *tty)
 {
