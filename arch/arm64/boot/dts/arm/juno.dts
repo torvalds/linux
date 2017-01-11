@@ -210,3 +210,19 @@
 &replicator_in_port0 {
 	remote-endpoint = <&etf0_out_port>;
 };
+
+&stm_out_port {
+	remote-endpoint = <&main_funnel_in_port2>;
+};
+
+&main_funnel {
+	ports {
+		port@3 {
+			reg = <2>;
+			main_funnel_in_port2: endpoint {
+				slave-mode;
+				remote-endpoint = <&stm_out_port>;
+			};
+		};
+	};
+};
