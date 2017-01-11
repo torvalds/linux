@@ -4321,6 +4321,20 @@ drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
 		frame->quantization_range = rgb_quant_range;
 	else
 		frame->quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
+
+	/*
+	 * CEA-861-F:
+	 * "When transmitting any RGB colorimetry, the Source should set the
+	 *  YQ-field to match the RGB Quantization Range being transmitted
+	 *  (e.g., when Limited Range RGB, set YQ=0 or when Full Range RGB,
+	 *  set YQ=1) and the Sink shall ignore the YQ-field."
+	 */
+	if (rgb_quant_range == HDMI_QUANTIZATION_RANGE_LIMITED)
+		frame->ycc_quantization_range =
+			HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+	else
+		frame->ycc_quantization_range =
+			HDMI_YCC_QUANTIZATION_RANGE_FULL;
 }
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_quant_range);
 
