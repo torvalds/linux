@@ -2455,7 +2455,7 @@ static int sci_remap_port(struct uart_port *port)
 	if (port->membase)
 		return 0;
 
-	if (port->flags & UPF_IOREMAP) {
+	if (port->dev->of_node || (port->flags & UPF_IOREMAP)) {
 		port->membase = ioremap_nocache(port->mapbase, sport->reg_size);
 		if (unlikely(!port->membase)) {
 			dev_err(port->dev, "can't remap port#%d\n", port->line);
@@ -2477,7 +2477,7 @@ static void sci_release_port(struct uart_port *port)
 {
 	struct sci_port *sport = to_sci_port(port);
 
-	if (port->flags & UPF_IOREMAP) {
+	if (port->dev->of_node || (port->flags & UPF_IOREMAP)) {
 		iounmap(port->membase);
 		port->membase = NULL;
 	}
@@ -2733,7 +2733,7 @@ static int sci_init_single(struct platform_device *dev,
 	}
 
 	port->type		= p->type;
-	port->flags		= UPF_FIXED_PORT | p->flags;
+	port->flags		= UPF_FIXED_PORT | UPF_BOOT_AUTOCONF | p->flags;
 	port->regshift		= p->regshift;
 
 	/*
@@ -2995,7 +2995,6 @@ sci_parse_dt(struct platform_device *pdev, unsigned int *dev_id)
 
 	*dev_id = id;
 
-	p->flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
 	p->type = SCI_OF_TYPE(match->data);
 	p->regtype = SCI_OF_REGTYPE(match->data);
 
