@@ -356,15 +356,11 @@ static void vc4_hdmi_set_avi_infoframe(struct drm_encoder *encoder)
 		return;
 	}
 
-	if (vc4_encoder->rgb_range_selectable) {
-		if (vc4_encoder->limited_rgb_range) {
-			frame.avi.quantization_range =
-				HDMI_QUANTIZATION_RANGE_LIMITED;
-		} else {
-			frame.avi.quantization_range =
-				HDMI_QUANTIZATION_RANGE_FULL;
-		}
-	}
+	drm_hdmi_avi_infoframe_quant_range(&frame.avi,
+					   vc4_encoder->limited_rgb_range ?
+					   HDMI_QUANTIZATION_RANGE_LIMITED :
+					   HDMI_QUANTIZATION_RANGE_FULL,
+					   vc4_encoder->rgb_range_selectable);
 
 	vc4_hdmi_write_infoframe(encoder, &frame);
 }

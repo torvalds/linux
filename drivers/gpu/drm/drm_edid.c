@@ -4292,6 +4292,32 @@ drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
 }
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
 
+/**
+ * drm_hdmi_avi_infoframe_quant_range() - fill the HDMI AVI infoframe
+ *                                        quantization range information
+ * @frame: HDMI AVI infoframe
+ * @rgb_quant_range: RGB quantization range (Q)
+ * @rgb_quant_range_selectable: Sink support selectable RGB quantization range (QS)
+ */
+void
+drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
+				   enum hdmi_quantization_range rgb_quant_range,
+				   bool rgb_quant_range_selectable)
+{
+	/*
+	 * CEA-861:
+	 * "A Source shall not send a non-zero Q value that does not correspond
+	 *  to the default RGB Quantization Range for the transmitted Picture
+	 *  unless the Sink indicates support for the Q bit in a Video
+	 *  Capabilities Data Block."
+	 */
+	if (rgb_quant_range_selectable)
+		frame->quantization_range = rgb_quant_range;
+	else
+		frame->quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
+}
+EXPORT_SYMBOL(drm_hdmi_avi_infoframe_quant_range);
+
 static enum hdmi_3d_structure
 s3d_structure_from_display_mode(const struct drm_display_mode *mode)
 {
