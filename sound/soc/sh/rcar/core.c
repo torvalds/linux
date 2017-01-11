@@ -1030,10 +1030,8 @@ static int __rsnd_kctrl_new(struct rsnd_mod *mod,
 		return -ENOMEM;
 
 	ret = snd_ctl_add(card, kctrl);
-	if (ret < 0) {
-		snd_ctl_free_one(kctrl);
+	if (ret < 0)
 		return ret;
-	}
 
 	cfg->update = update;
 	cfg->card = card;

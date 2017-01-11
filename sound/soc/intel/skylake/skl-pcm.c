@@ -180,6 +180,9 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	snd_pcm_set_sync(substream);
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
+	if (!mconfig)
+		return -EINVAL;
+
 	skl_tplg_d0i3_get(skl, mconfig->d0i3_caps);
 
 	return 0;

@@ -244,14 +244,16 @@ err_phys:
 
 static void
 __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
-				struct sg_table *pages)
+				struct sg_table *pages,
+				bool needs_clflush)
 {
 	GEM_BUG_ON(obj->mm.madv == __I915_MADV_PURGED);
 
 	if (obj->mm.madv == I915_MADV_DONTNEED)
 		obj->mm.dirty = false;
 
-	if ((obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
+	if (needs_clflush &&
+	    (obj->base.read_domains & I915_GEM_DOMAIN_CPU) == 0 &&
 	    !cpu_cache_is_coherent(obj->base.dev, obj->cache_level))
 		drm_clflush_sg(pages);
 
@@ -263,7 +265,7 @@ static void
 i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
 			       struct sg_table *pages)
 {
-	__i915_gem_object_release_shmem(obj, pages);
+	__i915_gem_object_release_shmem(obj, pages, false);
 
 	if (obj->mm.dirty) {
 		struct address_space *mapping = obj->base.filp->f_mapping;
@@ -2231,7 +2233,7 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj,
 	struct sgt_iter sgt_iter;
 	struct page *page;
 
-	__i915_gem_object_release_shmem(obj, pages);
+	__i915_gem_object_release_shmem(obj, pages, true);
 
 	i915_gem_gtt_finish_pages(obj, pages);
 
@@ -2304,15 +2306,6 @@ unlock:
 	mutex_unlock(&obj->mm.lock);
 }
 
-static unsigned int swiotlb_max_size(void)
-{
-#if IS_ENABLED(CONFIG_SWIOTLB)
-	return rounddown(swiotlb_nr_tbl() << IO_TLB_SHIFT, PAGE_SIZE);
-#else
-	return 0;
-#endif
-}
-
 static void i915_sg_trim(struct sg_table *orig_st)
 {
 	struct sg_table new_st;
@@ -2322,7 +2315,7 @@ static void i915_sg_trim(struct sg_table *orig_st)
 	if (orig_st->nents == orig_st->orig_nents)
 		return;
 
-	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL))
+	if (sg_alloc_table(&new_st, orig_st->nents, GFP_KERNEL | __GFP_NOWARN))
 		return;
 
 	new_sg = new_st.sgl;
@@ -2360,7 +2353,7 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	GEM_BUG_ON(obj->base.read_domains & I915_GEM_GPU_DOMAINS);
 	GEM_BUG_ON(obj->base.write_domain & I915_GEM_GPU_DOMAINS);
 
-	max_segment = swiotlb_max_size();
+	max_segment = swiotlb_max_segment();
 	if (!max_segment)
 		max_segment = rounddown(UINT_MAX, PAGE_SIZE);
 
@@ -2728,6 +2721,7 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	struct drm_i915_gem_request *request;
 	struct i915_gem_context *incomplete_ctx;
 	struct intel_timeline *timeline;
+	unsigned long flags;
 	bool ring_hung;
 
 	if (engine->irq_seqno_barrier)
@@ -2763,13 +2757,20 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 	if (i915_gem_context_is_default(incomplete_ctx))
 		return;
 
+	timeline = i915_gem_context_lookup_timeline(incomplete_ctx, engine);
+
+	spin_lock_irqsave(&engine->timeline->lock, flags);
+	spin_lock(&timeline->lock);
+
 	list_for_each_entry_continue(request, &engine->timeline->requests, link)
 		if (request->ctx == incomplete_ctx)
 			reset_request(request);
 
-	timeline = i915_gem_context_lookup_timeline(incomplete_ctx, engine);
 	list_for_each_entry(request, &timeline->requests, link)
 		reset_request(request);
+
+	spin_unlock(&timeline->lock);
+	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 }
 
 void i915_gem_reset(struct drm_i915_private *dev_priv)
