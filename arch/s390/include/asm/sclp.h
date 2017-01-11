@@ -118,6 +118,7 @@ int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count);
 int memcpy_hsa_user(void __user *dest, unsigned long src, size_t count);
 void sclp_early_detect(void);
 void _sclp_print_early(const char *);
+void __sclp_print_early(const char *s, unsigned int len);
 void sclp_ocf_cpc_name_copy(char *dst);
 
 static inline int sclp_get_core_info(struct sclp_core_info *info, int early)
