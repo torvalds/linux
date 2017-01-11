@@ -645,18 +645,31 @@ static int add_exec_to_probe_trace_events(struct probe_trace_event *tevs,
 	return ret;
 }
 
-static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
-					    int ntevs, const char *module)
+static int
+post_process_module_probe_trace_events(struct probe_trace_event *tevs,
+				       int ntevs, const char *module,
+				       struct debuginfo *dinfo)
 {
+	Dwarf_Addr text_offs = 0;
 	int i, ret = 0;
 	char *mod_name = NULL;
+	struct map *map;
 
 	if (!module)
 		return 0;
 
-	mod_name = find_module_name(module);
+	map = get_target_map(module, false);
+	if (!map || debuginfo__get_text_offset(dinfo, &text_offs, true) < 0) {
+		pr_warning("Failed to get ELF symbols for %s\n", module);
+		return -EINVAL;
+	}
 
+	mod_name = find_module_name(module);
 	for (i = 0; i < ntevs; i++) {
+		ret = post_process_probe_trace_point(&tevs[i].point,
+						map, (unsigned long)text_offs);
+		if (ret < 0)
+			break;
 		tevs[i].point.module =
 			strdup(mod_name ? mod_name : module);
 		if (!tevs[i].point.module) {
@@ -666,6 +679,8 @@ static int add_module_to_probe_trace_events(struct probe_trace_event *tevs,
 	}
 
 	free(mod_name);
+	map__put(map);
+
 	return ret;
 }
 
@@ -722,7 +737,7 @@ arch__post_process_probe_trace_events(struct perf_probe_event *pev __maybe_unuse
 static int post_process_probe_trace_events(struct perf_probe_event *pev,
 					   struct probe_trace_event *tevs,
 					   int ntevs, const char *module,
-					   bool uprobe)
+					   bool uprobe, struct debuginfo *dinfo)
 {
 	int ret;
 
@@ -730,7 +745,8 @@ static int post_process_probe_trace_events(struct perf_probe_event *pev,
 		ret = add_exec_to_probe_trace_events(tevs, ntevs, module);
 	else if (module)
 		/* Currently ref_reloc_sym based probe is not for drivers */
-		ret = add_module_to_probe_trace_events(tevs, ntevs, module);
+		ret = post_process_module_probe_trace_events(tevs, ntevs,
+							     module, dinfo);
 	else
 		ret = post_process_kernel_probe_trace_events(tevs, ntevs);
 
@@ -774,30 +790,27 @@ static int try_to_find_probe_trace_events(struct perf_probe_event *pev,
 		}
 	}
 
-	debuginfo__delete(dinfo);
-
 	if (ntevs > 0) {	/* Succeeded to find trace events */
 		pr_debug("Found %d probe_trace_events.\n", ntevs);
 		ret = post_process_probe_trace_events(pev, *tevs, ntevs,
-						pev->target, pev->uprobes);
+					pev->target, pev->uprobes, dinfo);
 		if (ret < 0 || ret == ntevs) {
+			pr_debug("Post processing failed or all events are skipped. (%d)\n", ret);
 			clear_probe_trace_events(*tevs, ntevs);
 			zfree(tevs);
+			ntevs = 0;
 		}
-		if (ret != ntevs)
-			return ret < 0 ? ret : ntevs;
-		ntevs = 0;
-		/* Fall through */
 	}
+
+	debuginfo__delete(dinfo);
 
 	if (ntevs == 0)	{	/* No error but failed to find probe point. */
 		pr_warning("Probe point '%s' not found.\n",
 			   synthesize_perf_probe_point(&pev->point));
 		return -ENOENT;
-	}
-	/* Error path : ntevs < 0 */
-	pr_debug("An error occurred in debuginfo analysis (%d).\n", ntevs);
-	if (ntevs < 0) {
+	} else if (ntevs < 0) {
+		/* Error path : ntevs < 0 */
+		pr_debug("An error occurred in debuginfo analysis (%d).\n", ntevs);
 		if (ntevs == -EBADF)
 			pr_warning("Warning: No dwarf info found in the vmlinux - "
 				"please rebuild kernel with CONFIG_DEBUG_INFO=y.\n");
