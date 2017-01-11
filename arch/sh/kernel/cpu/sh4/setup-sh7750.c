@@ -38,7 +38,6 @@ static struct platform_device rtc_device = {
 };
 
 static struct plat_sci_port sci_platform_data = {
-	.port_reg	= 0xffe0001C,
 	.type		= PORT_SCI,
 	.regshift	= 2,
 };

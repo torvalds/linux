@@ -290,7 +290,6 @@ static struct platform_device dma1_device = {
 
 /* Serial */
 static struct plat_sci_port scif0_platform_data = {
-	.port_reg	= SCIx_NOT_SUPPORTED,
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
@@ -312,7 +311,6 @@ static struct platform_device scif0_device = {
 };
 
 static struct plat_sci_port scif1_platform_data = {
-	.port_reg	= SCIx_NOT_SUPPORTED,
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
@@ -334,7 +332,6 @@ static struct platform_device scif1_device = {
 };
 
 static struct plat_sci_port scif2_platform_data = {
-	.port_reg	= SCIx_NOT_SUPPORTED,
 	.scscr		= SCSCR_REIE,
 	.type           = PORT_SCIF,
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
@@ -356,7 +353,6 @@ static struct platform_device scif2_device = {
 };
 
 static struct plat_sci_port scif3_platform_data = {
-	.port_reg	= SCIx_NOT_SUPPORTED,
 	.sampling_rate	= 8,
 	.type           = PORT_SCIFA,
 };
@@ -377,7 +373,6 @@ static struct platform_device scif3_device = {
 };
 
 static struct plat_sci_port scif4_platform_data = {
-	.port_reg	= SCIx_NOT_SUPPORTED,
 	.sampling_rate	= 8,
 	.type           = PORT_SCIFA,
 };
@@ -398,7 +393,6 @@ static struct platform_device scif4_device = {
 };
 
 static struct plat_sci_port scif5_platform_data = {
-	.port_reg	= SCIx_NOT_SUPPORTED,
 	.sampling_rate	= 8,
 	.type           = PORT_SCIFA,
 };
