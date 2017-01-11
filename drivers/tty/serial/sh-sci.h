@@ -151,12 +151,12 @@ enum {
 #define SCxSR_PER(port)		(((port)->type == PORT_SCI) ? SCI_PER    : SCIF_PER)
 #define SCxSR_BRK(port)		(((port)->type == PORT_SCI) ? 0x00       : SCIF_BRK)
 
-#define SCxSR_ERRORS(port)	(to_sci_port(port)->error_mask)
+#define SCxSR_ERRORS(port)	(to_sci_port(port)->params->error_mask)
 
 #define SCxSR_RDxF_CLEAR(port) \
 	(((port)->type == PORT_SCI) ? SCI_RDxF_CLEAR : SCIF_RDxF_CLEAR)
 #define SCxSR_ERROR_CLEAR(port) \
-	(to_sci_port(port)->error_clear)
+	(to_sci_port(port)->params->error_clear)
 #define SCxSR_TDxE_CLEAR(port) \
 	(((port)->type == PORT_SCI) ? SCI_TDxE_CLEAR : SCIF_TDxE_CLEAR)
 #define SCxSR_BREAK_CLEAR(port) \
