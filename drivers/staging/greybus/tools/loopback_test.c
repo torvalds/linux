@@ -168,7 +168,7 @@ GET_AVG(latency_avg);
 GET_AVG(apbridge_unipro_latency_avg);
 GET_AVG(gbphy_firmware_latency_avg);
 
-void abort()
+void abort(void)
 {
 	_exit(1);
 }
