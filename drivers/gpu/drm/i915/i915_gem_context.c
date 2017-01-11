@@ -205,27 +205,6 @@ alloc_context_obj(struct drm_i915_private *dev_priv, u64 size)
 	return obj;
 }
 
-static void i915_ppgtt_close(struct i915_address_space *vm)
-{
-	struct list_head *phases[] = {
-		&vm->active_list,
-		&vm->inactive_list,
-		&vm->unbound_list,
-		NULL,
-	}, **phase;
-
-	GEM_BUG_ON(vm->closed);
-	vm->closed = true;
-
-	for (phase = phases; *phase; phase++) {
-		struct i915_vma *vma, *vn;
-
-		list_for_each_entry_safe(vma, vn, *phase, vm_link)
-			if (!i915_vma_is_closed(vma))
-				i915_vma_close(vma);
-	}
-}
-
 static void context_close(struct i915_gem_context *ctx)
 {
 	i915_gem_context_set_closed(ctx);
