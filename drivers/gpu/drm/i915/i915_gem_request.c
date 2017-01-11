@@ -851,6 +851,13 @@ void __i915_add_request(struct drm_i915_gem_request *request, bool flush_caches)
 	lockdep_assert_held(&request->i915->drm.struct_mutex);
 	trace_i915_gem_request_add(request);
 
+	/* Make sure that no request gazumped us - if it was allocated after
+	 * our i915_gem_request_alloc() and called __i915_add_request() before
+	 * us, the timeline will hold its seqno which is later than ours.
+	 */
+	GEM_BUG_ON(i915_seqno_passed(timeline->last_submitted_seqno,
+				     request->fence.seqno));
+
 	/*
 	 * To ensure that this call will not fail, space for its emissions
 	 * should already have been reserved in the ring buffer. Let the ring
