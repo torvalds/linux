@@ -2584,8 +2584,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
  *
  * Must be called with interrupts disabled.
  */
-static inline void zone_statistics(struct zone *preferred_zone, struct zone *z,
-								gfp_t flags)
+static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
 {
 #ifdef CONFIG_NUMA
 	enum zone_stat_item local_stat = NUMA_LOCAL;
@@ -2667,7 +2666,7 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 	}
 
 	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
-	zone_statistics(preferred_zone, zone, gfp_flags);
+	zone_statistics(preferred_zone, zone);
 	local_irq_restore(flags);
 
 	VM_BUG_ON_PAGE(bad_range(zone, page), page);
