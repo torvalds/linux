@@ -622,26 +622,6 @@ static void nfs4_set_sequence_privileged(struct nfs4_sequence_args *args)
 	args->sa_privileged = 1;
 }
 
-static int nfs40_setup_sequence(struct nfs4_slot_table *tbl,
-				struct nfs4_sequence_args *args,
-				struct nfs4_sequence_res *res,
-				struct rpc_task *task)
-{
-	struct nfs4_slot *slot;
-
-	slot = nfs4_alloc_slot(tbl);
-	if (IS_ERR(slot)) {
-		if (slot == ERR_PTR(-ENOMEM))
-			task->tk_timeout = HZ >> 2;
-		return -EAGAIN;
-	}
-
-	slot->privileged = args->sa_privileged ? 1 : 0;
-	args->sa_slot = slot;
-	res->sr_slot = slot;
-	return 0;
-}
-
 static void nfs40_sequence_free_slot(struct nfs4_sequence_res *res)
 {
 	struct nfs4_slot *slot = res->sr_slot;
@@ -860,44 +840,6 @@ int nfs4_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
 }
 EXPORT_SYMBOL_GPL(nfs4_sequence_done);
 
-static int nfs41_setup_sequence(struct nfs4_session *session,
-				struct nfs4_sequence_args *args,
-				struct nfs4_sequence_res *res,
-				struct rpc_task *task)
-{
-	struct nfs4_slot *slot;
-	struct nfs4_slot_table *tbl;
-
-	dprintk("--> %s\n", __func__);
-	tbl = &session->fc_slot_table;
-
-	slot = nfs4_alloc_slot(tbl);
-	if (IS_ERR(slot)) {
-		/* If out of memory, try again in 1/4 second */
-		if (slot == ERR_PTR(-ENOMEM))
-			task->tk_timeout = HZ >> 2;
-		dprintk("<-- %s: no free slots\n", __func__);
-		return -EAGAIN;
-	}
-
-	slot->privileged = args->sa_privileged ? 1 : 0;
-	args->sa_slot = slot;
-
-	dprintk("<-- %s slotid=%u seqid=%u\n", __func__,
-			slot->slot_nr, slot->seq_nr);
-
-	res->sr_slot = slot;
-	res->sr_timestamp = jiffies;
-	res->sr_status_flags = 0;
-	/*
-	 * sr_status is only set in decode_sequence, and so will remain
-	 * set to 1 if an rpc level failure occurs.
-	 */
-	res->sr_status = 1;
-	trace_nfs4_setup_sequence(session, args);
-	return 0;
-}
-
 static void nfs41_call_sync_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_call_sync_data *data = calldata;
@@ -949,7 +891,7 @@ int nfs4_setup_sequence(const struct nfs_client *client,
 {
 	struct nfs4_session *session = nfs4_get_session(client);
 	struct nfs4_slot_table *tbl  = client->cl_slot_tbl;
-	int ret;
+	struct nfs4_slot *slot;
 
 	/* slot already allocated? */
 	if (res->sr_slot != NULL)
@@ -965,16 +907,27 @@ int nfs4_setup_sequence(const struct nfs_client *client,
 	if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
 		goto out_sleep;
 
-#if defined(CONFIG_NFS_V4_1)
-	if (session)
-		ret = nfs41_setup_sequence(session, args, res, task);
-	else
-#endif /* CONFIG_NFS_V4_1 */
-		ret = nfs40_setup_sequence(client->cl_slot_tbl, args, res, task);
-
-	if (ret == -EAGAIN)
+	slot = nfs4_alloc_slot(tbl);
+	if (IS_ERR(slot)) {
+		/* Try again in 1/4 second */
+		if (slot == ERR_PTR(-ENOMEM))
+			task->tk_timeout = HZ >> 2;
 		goto out_sleep;
+	}
 	spin_unlock(&tbl->slot_tbl_lock);
+
+	slot->privileged = args->sa_privileged ? 1 : 0;
+	args->sa_slot = slot;
+
+	res->sr_slot = slot;
+	if (session) {
+		res->sr_timestamp = jiffies;
+		res->sr_status_flags = 0;
+		res->sr_status = 1;
+#ifdef CONFIG_NFS_V4_1
+		trace_nfs4_setup_sequence(session, args);
+#endif /* CONFIG_NFS_V4_1 */
+	}
 
 out_start:
 	rpc_call_start(task);
