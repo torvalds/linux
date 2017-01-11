@@ -919,6 +919,21 @@ static int qcom_smd_trysend(struct rpmsg_endpoint *ept, void *data, int len)
 	return __qcom_smd_send(qsept->qsch, data, len, false);
 }
 
+static unsigned int qcom_smd_poll(struct rpmsg_endpoint *ept,
+				  struct file *filp, poll_table *wait)
+{
+	struct qcom_smd_endpoint *qsept = to_smd_endpoint(ept);
+	struct qcom_smd_channel *channel = qsept->qsch;
+	unsigned int mask = 0;
+
+	poll_wait(filp, &channel->fblockread_event, wait);
+
+	if (qcom_smd_get_tx_avail(channel) > 20)
+		mask |= POLLOUT | POLLWRNORM;
+
+	return mask;
+}
+
 /*
  * Finds the device_node for the smd child interested in this channel.
  */
@@ -951,6 +966,7 @@ static const struct rpmsg_endpoint_ops qcom_smd_endpoint_ops = {
 	.destroy_ept = qcom_smd_destroy_ept,
 	.send = qcom_smd_send,
 	.trysend = qcom_smd_trysend,
+	.poll = qcom_smd_poll,
 };
 
 /*
