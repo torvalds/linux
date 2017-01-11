@@ -164,8 +164,14 @@ static int dnv_setup(struct mid8250 *mid, struct uart_port *p)
 	unsigned int bar = FL_GET_BASE(mid->board->flags);
 	int ret;
 
+	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	if (ret < 0)
+		return ret;
+
+	p->irq = pci_irq_vector(pdev, 0);
+
 	chip->dev = &pdev->dev;
-	chip->irq = pdev->irq;
+	chip->irq = pci_irq_vector(pdev, 0);
 	chip->regs = p->membase;
 	chip->length = pci_resource_len(pdev, bar);
 	chip->offset = DNV_DMA_CHAN_OFFSET;
