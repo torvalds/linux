@@ -463,7 +463,9 @@ static void vc4_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 	csc_ctl = VC4_SET_FIELD(VC4_HD_CSC_CTL_ORDER_BGR,
 				VC4_HD_CSC_CTL_ORDER);
 
-	if (vc4_encoder->hdmi_monitor && drm_match_cea_mode(mode) > 1) {
+	if (vc4_encoder->hdmi_monitor &&
+	    drm_default_rgb_quant_range(mode) ==
+	    HDMI_QUANTIZATION_RANGE_LIMITED) {
 		/* CEA VICs other than #1 requre limited range RGB
 		 * output unless overridden by an AVI infoframe.
 		 * Apply a colorspace conversion to squash 0-255 down
