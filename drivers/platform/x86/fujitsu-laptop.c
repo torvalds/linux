@@ -1035,12 +1035,48 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device)
 	return 0;
 }
 
+static void acpi_fujitsu_hotkey_press(int keycode)
+{
+	struct input_dev *input = fujitsu_hotkey->input;
+	int status;
+
+	vdbg_printk(FUJLAPTOP_DBG_TRACE,
+		    "Push keycode into ringbuffer [%d]\n", keycode);
+	status = kfifo_in_locked(&fujitsu_hotkey->fifo,
+				 (unsigned char *)&keycode, sizeof(keycode),
+				 &fujitsu_hotkey->fifo_lock);
+	if (status != sizeof(keycode)) {
+		vdbg_printk(FUJLAPTOP_DBG_WARN,
+			    "Could not push keycode [0x%x]\n", keycode);
+	} else {
+		input_report_key(input, keycode, 1);
+		input_sync(input);
+	}
+}
+
+static void acpi_fujitsu_hotkey_release(void)
+{
+	struct input_dev *input = fujitsu_hotkey->input;
+	int keycode, status;
+
+	while ((status = kfifo_out_locked(&fujitsu_hotkey->fifo,
+					  (unsigned char *)&keycode,
+					  sizeof(keycode),
+					  &fujitsu_hotkey->fifo_lock))
+					  == sizeof(keycode)) {
+		input_report_key(input, keycode, 0);
+		input_sync(input);
+		vdbg_printk(FUJLAPTOP_DBG_TRACE,
+			    "Pop keycode from ringbuffer [%d]\n", keycode);
+	}
+}
+
 static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 {
 	struct input_dev *input;
-	int keycode, keycode_r;
+	int keycode;
 	unsigned int irb = 1;
-	int i, status;
+	int i;
 
 	input = fujitsu_hotkey->input;
 
@@ -1088,37 +1124,11 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 			keycode = -1;
 			break;
 		}
-		if (keycode > 0) {
-			vdbg_printk(FUJLAPTOP_DBG_TRACE,
-				"Push keycode into ringbuffer [%d]\n",
-				keycode);
-			status = kfifo_in_locked(&fujitsu_hotkey->fifo,
-					   (unsigned char *)&keycode,
-					   sizeof(keycode),
-					   &fujitsu_hotkey->fifo_lock);
-			if (status != sizeof(keycode)) {
-				vdbg_printk(FUJLAPTOP_DBG_WARN,
-				    "Could not push keycode [0x%x]\n",
-				    keycode);
-			} else {
-				input_report_key(input, keycode, 1);
-				input_sync(input);
-			}
-		} else if (keycode == 0) {
-			while ((status =
-				kfifo_out_locked(
-				 &fujitsu_hotkey->fifo,
-				 (unsigned char *) &keycode_r,
-				 sizeof(keycode_r),
-				 &fujitsu_hotkey->fifo_lock))
-				 == sizeof(keycode_r)) {
-				input_report_key(input, keycode_r, 0);
-				input_sync(input);
-				vdbg_printk(FUJLAPTOP_DBG_TRACE,
-				  "Pop keycode from ringbuffer [%d]\n",
-				  keycode_r);
-			}
-		}
+
+		if (keycode > 0)
+			acpi_fujitsu_hotkey_press(keycode);
+		else if (keycode == 0)
+			acpi_fujitsu_hotkey_release();
 	}
 
 	/* On some models (first seen on the Skylake-based Lifebook
